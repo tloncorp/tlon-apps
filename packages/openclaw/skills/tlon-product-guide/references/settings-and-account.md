@@ -39,7 +39,7 @@ Notes: `Build version` is the app's build on this phone. The three `Desk` rows d
 ## Turn on developer logs and send them to Tlon
 
 Phone: Settings tab, then `App info`. Switch on `Enable Developer Logs` and tap `OK` on the `Debug mode enabled` notice. Close the app fully, reopen it and repeat the problem. Go back to `App info` and tap the "Upload logs" button, which shows a count. The logs go to Tlon's reporting service, and your mail app opens a message to support@tlon.io with your ID and app details already filled in; describe the problem and send it.
-Notes: the email does not contain the logs, and the upload may not go out if `Share Usage Statistics` is off, so describe the problem in the email too. Logs can slow the app, so switch them off afterwards. The button only appears once some logs have been captured. With no mail app, the screen shows the log ID so you can email it yourself.
+Notes: the email does not contain the logs, and the upload may not go out if `Share usage statistics` is off, so describe the problem in the email too. Logs can slow the app, so switch them off afterwards. The button only appears once some logs have been captured. With no mail app, the screen shows the log ID so you can email it yourself.
 
 ## Export the app's local database
 
@@ -49,7 +49,7 @@ Notes: the file is a copy of what the app keeps on this phone, named with the da
 
 ## Stop sharing usage statistics with Tlon
 
-Phone: Settings tab, then `Privacy`. On the `Privacy Settings` screen, switch off `Share Usage Statistics`.
+Phone: Settings tab, then `Privacy`. On the `Privacy settings` screen, switch off `Share usage statistics`.
 Desktop: the gear in the left rail, then `Privacy`.
 Notes: the screen describes sharing as helping Tlon improve the app (`By sharing, you help us improve the app for everyone.`). The choice is saved to your node, not just to this device. Self-hosted logins on the phone are also asked once, right after connecting, on a `Usage Statistics` screen with an `Enable anonymous usage stats` switch.
 
@@ -62,7 +62,7 @@ Notes: while it's on, friends who already have your number can find you on Tlon 
 
 ## Hide nicknames or avatars
 
-Phone: Settings tab, then `Privacy`. Switch on `Hide Nicknames` to see real node names instead of the nicknames people chose. Switch on `Hide Avatars` to hide avatar images throughout the app.
+Phone: Settings tab, then `Privacy`. Switch on `Hide nicknames` to see real node names instead of the nicknames people chose. Switch on `Hide avatars` to hide avatar images throughout the app.
 Desktop: the gear in the left rail, then `Privacy`.
 Notes: these are your own viewing preferences. They don't change what other people see.
 
@@ -94,7 +94,7 @@ Notes: the screen says diagnostic information is attached automatically. What yo
 ## Send feedback by shaking the phone
 
 Phone: shake the phone a few times while the app is open. A `Report Poor UX` box appears. Type in the `What went wrong?` field and tap `Submit`, or tap `Cancel` to close it.
-Notes: phone only, and only once you're logged in. Submitting reports your note together with whether the app was syncing at that moment. Like usage reports, it may not be sent if `Share Usage Statistics` is off. If the box pops up by accident, tap `Cancel` or anywhere outside it.
+Notes: phone only, and only once you're logged in. Submitting reports your note together with whether the app was syncing at that moment. Like usage reports, it may not be sent if `Share usage statistics` is off. If the box pops up by accident, tap `Cancel` or anywhere outside it.
 
 ## Email Tlon support from the app
 
@@ -103,15 +103,10 @@ Notes: if the phone has no mail app, the links show `No mail app found` with the
 
 ## Turn on an experimental feature
 
-Phone: Settings tab, then `Experimental features`. Flip the switch beside the one you want: `Performance reporting`, `Buckets channels` or `Markdown notebooks`. Below the switches are two text boxes, `Context lens gateway URL` and `Context lens gateway token`.
+Phone: Settings tab, then `Experimental features`. Flip the switch beside the one you want: `Buckets channels` or `Markdown notebooks`. Below the switches are two text boxes, `Context lens gateway URL` and `Context lens gateway token`.
 Desktop: the gear in the left rail, then `Experimental features`.
 Who: everyone can open the screen. `Markdown notebooks` is only listed for Tlon staff.
 Notes: every switch starts off. They are saved on the device you set them on, not to your node, so set them again on each device.
-
-## Turn performance data reporting on or off
-
-Phone: Settings tab, then `Experimental features`, then the switch `Performance reporting`.
-Notes: it starts off. While it's on, the phone app measures how long things take and reports those measurements. It is separate from `Share Usage Statistics` on the Privacy screen. The switch is also listed on desktop, but only the phone app collects this data.
 
 ## Log out
 
@@ -147,7 +142,7 @@ Notes: `Confirmation code is incorrect or expired.` means ask for a new one. `Mu
 
 ## What sign-up asks after the code
 
-Phone: three short steps. `Nickname`: type the name people will see (30 characters at most) and tap `Next`. `Notifications`: pick how much you want to be notified and tap `Next`, then tap `Next` once more and choose Allow when the phone asks. Then a `We're setting you up` screen works through `Preparing your Tlon computer`, `Connecting to the network` and `Setting up your Tlonbot`, and ends on `Setup complete!`.
+Phone: three short steps. `Nickname`: type the name people will see (30 characters at most) and tap `Next`. `Notifications`: pick how much you want to be notified and tap `Next`, then tap `Next` once more and choose Allow when the phone asks. Then a `Setting up` screen works through `Preparing your Tlon computer`, `Connecting to the network` and `Setting up your Tlonbot`.
 Notes: you can't go back during these steps. The notifications screen says you can change that choice any time; it lives under `Notifications` in Settings afterwards.
 
 ## Sign-up sent me to a waitlist
@@ -246,4 +241,4 @@ Notes: there is nothing to download or install. No yellow button means the app h
 
 ## Use my own storage for pictures and files
 
-Notes: Tlon Messenger has no screen for storage settings, on the phone or on desktop. It uses whatever storage your node already has set up: Tlon's on a hosted account, or your own S3-compatible storage if that was configured on the node outside the app. When the node has no storage at all, image pickers such as the one for a group's icon are greyed out and read `Storage not configured`.
+Notes: Tlon Messenger has no screen for storage settings, on the phone or on desktop. It uses whatever storage your node already has set up: Tlon's on a hosted account, or your own S3-compatible storage if that was configured on the node outside the app. When the node has no storage at all, picking a photo for a group's icon or your avatar shows `Please configure storage settings to upload images` instead.

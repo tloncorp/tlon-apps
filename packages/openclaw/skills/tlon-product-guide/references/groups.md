@@ -25,7 +25,7 @@ Notes: the templates are `Book Club`, `Cooking Club`, `Music`, `Running Club`, `
 ## Name a group while creating it
 
 Phone: only `Basic workspace` asks for a name. After you pick it, `Name your workspace` opens. Type in the `Workspace name` box and tap `Next`. `Next` stays greyed out until you type something.
-Notes: a `Quick workspace` gets no name, so it shows its members' names, or `Untitled workspace` while you're the only one in it. A template group takes the template's name. An admin can rename any of them later with `Rename` on `Workspace info & settings`.
+Notes: a `Quick workspace` gets no name, so it shows its members' names, or `Untitled workspace` while you're the only one in it. A template group takes the template's name. An admin can rename any of them later with `Edit` on `Workspace info & settings`.
 
 ## Add people while creating a group
 
@@ -37,7 +37,7 @@ Notes: `Create workspace` works with nobody selected, so you can make the group 
 Phone: on the Workspaces tab, tap the plus icon at the top right, then `Join a workspace with a code (reference)` at the bottom of the menu. Type or paste the code into `Enter workspace code` and tap `Go`. The group's preview appears, with a button to join or ask for an invite.
 Desktop: the same link is at the bottom of the `Start a conversation` box.
 Who: on the phone the link only shows on accounts without a hosted Tlonbot. Desktop always has it.
-Notes: the code is the group's ID, like "~host/group-name", or a group reference containing it. A member gets the ID from `Copy workspace ID` on the group's info screen. If the code isn't a valid ID, `Go` just closes the sheet. `Workspace not found` means nothing matched.
+Notes: the code is the group's ID, like "~host/group-name", or a group reference containing it. A member gets the ID from `Copy ID` on the group's info screen. If the code isn't a valid ID, `Go` just closes the sheet. `Workspace not found` means nothing matched.
 
 ## Open a group invite link
 
@@ -78,26 +78,26 @@ Notes: in a group with several channels, the name at the top of an open channel 
 
 ## What's on the Workspace info & settings screen
 
-Phone: every member sees, from the top: the group's icon and name with a line like "Secret workspace with 4 members"; a row of buttons (`Invite` if you're allowed to invite, `Mark read` when something is unread, `Pin` or `Unpin`, `Forward reference`, `Copy workspace ID`); the `Description` if one is set; the connection to the group's host; `Notifications`; `Scheduled tasks` with a count, when your bot has tasks posting to the group or could post there; the first five members; and `Leave workspace`.
-Who: admins also get `Rename` at the top right, the rows `Privacy`, `Roles` and `Channels`, and `Manage members` under the member list. The group's host gets `Delete workspace` in place of `Leave workspace`, and a `Tlonbot instructions` row showing `On` or `Off`.
-Notes: `Privacy`, `Roles` and `Channels` each show their current value or count and open their own screen.
+Phone: every member sees, from the top: the group's icon and name with a line like "Secret workspace with 4 members"; a row of buttons (`Invite` if you're allowed to invite, `Mark read` when something is unread, `Pin` or `Unpin`, `Forward`, `Copy ID`); the `Description` if one is set; `Notifications`; `Scheduled tasks` with a count, when your bot has tasks posting to the group or could post there; the first five members under a heading with the member count; and "Leave workspace" at the bottom.
+Who: admins also get `Edit` at the top right, the rows `Privacy`, `Roles` and `Channels`, and `Manage members` under the member list. The group's host gets "Delete workspace" in place of "Leave workspace", and a `Tlonbot instructions` row showing `On` or `Off`.
+Notes: `Privacy`, `Roles` and `Channels` each show their current value or count and open their own screen. `Forward` sends the group into a chat, and `Copy ID` copies its ID. An admin of a group with no description sees `Add a description`, which opens the edit screen.
 
 ## Find out why a group's settings are greyed out
 
-Phone: open `Workspace info & settings` and read the first row of the settings block. It shows the connection to the group's host: `Connected`, `Connecting...`, `Disconnected` or `Failed`.
-Who: only admins see `Rename`, `Privacy`, `Roles` and `Channels` at all.
-Notes: those controls only work while the host's node can be reached. Until the row says `Connected` they are greyed out, `Save` on the edit screen is disabled, admins of a private or secret group lose the `Invite` button on this screen, and `Manage members` shows as `See all`. If you host the group yourself it always counts as connected. If it stays `Disconnected` or `Failed`, the host's node is offline or unreachable, so try again later.
+Phone: open `Workspace info & settings`. While the group's host can't be reached, admins see a note under the settings reading `The workspace’s host is offline, so these settings can’t be changed right now.`, or `Checking the connection to the workspace’s host…` while the app is still checking.
+Who: only admins see `Edit`, `Privacy`, `Roles` and `Channels` at all.
+Notes: those controls only work while the host's node can be reached. Until then they are greyed out, `Save` on the edit screen is disabled, admins of a private or secret group lose the `Invite` button on this screen, and `Manage members` shows as `See all`. If you host the group yourself it always counts as connected. If the note stays, the host's node is offline or unreachable, so try again later.
 
 ## Share a group in a chat, or copy its ID
 
-Phone: open `Workspace info & settings`. To post the group into a chat, tap `Forward reference`, pick the chat on the `Forward workspace` sheet, then tap the button at the bottom, which reads "Forward to" and the chat's name. To copy the group's ID instead, tap `Copy workspace ID`; you'll see `Copied!`.
+Phone: open `Workspace info & settings`. To post the group into a chat, tap `Forward`, pick the chat on the `Forward workspace` sheet, then tap the button at the bottom, which reads "Forward to" and the chat's name. To copy the group's ID instead, tap `Copy ID`; you'll see `Copied!`.
 Notes: people in that chat can tap the reference to open the group's preview. The ID is what `Join a workspace with a code (reference)` asks for. Neither one gets around privacy: a private group still needs an admin to accept, and a secret group still needs an invite.
 
 ## Rename a group, or change its icon or description
 
-Phone: open `Workspace info & settings` and tap `Rename` at the top right. On `Edit workspace info`, change the `Name`, tap `Change icon image` to choose a picture, or edit the `Description`. Tap `Save`.
+Phone: open `Workspace info & settings` and tap `Edit` at the top right. On `Edit workspace info`, change the `Name`, tap the icon to choose a picture (`Choose photo` or `Take photo`), or edit the `Description`. Tap `Save`.
 Who: admins, while the group's host can be reached.
-Notes: `Rename` is the usual way in, and it covers the icon and description too. In a new group with a single channel and no messages yet, an admin also sees `Edit workspace`, which opens the same screen. In a group with more channels that button reads `Edit channel` and edits the channel instead. The name can be up to 30 characters and the description up to 300. To remove an icon, tap the icon button and choose `Clear`. If the button says `Storage not configured`, image uploads aren't set up yet. Groups have no cover image setting.
+Notes: `Edit` is the usual way in, and it covers the icon and description too. In a new group with a single channel and no messages yet, an admin also sees `Edit workspace` on the empty channel, which opens the same screen. In a group with more channels that button reads `Edit channel` and edits the channel instead. The name can be up to 30 characters and the description up to 300. To remove an icon, tap it and choose `Remove icon`. Groups have no cover image setting.
 
 ## Change a group's privacy
 
@@ -151,19 +151,19 @@ Notes: there is no confirmation. `Invited` lists people who were invited by name
 
 ## See a group's roles, or create one
 
-Phone: open `Workspace info & settings` and tap `Roles`. `Workspace Roles` lists each role with the number of members who hold it. To make one, tap `New` at the top right. On `Add role`, fill in `Title`, add a `Description` if you like, tap `Members` to choose who gets it, then tap `Save`.
+Phone: open `Workspace info & settings` and tap `Roles`. `Workspace roles` lists each role with the number of members who hold it. To make one, tap the plus icon at the top right. On `Add role`, fill in `Name`, add a `Description` if you like, tap `Members` to choose who gets it, then tap `Save` at the top right.
 Who: admins, while the group's host can be reached.
-Notes: `Title` is required. A role is only a title, a description and a list of members; what it unlocks is set channel by channel, in each channel's permissions. The last row, `Members`, stands for `All workspace members` and can't be opened.
+Notes: `Name` is required. A role is only a name, a description and a list of members; what it unlocks is set channel by channel, in each channel's permissions. The last row, `Members`, stands for `All workspace members`. Tapping it opens the group's member list instead, and its count is everyone who has joined.
 
 ## Rename or edit a role
 
-Phone: open `Workspace info & settings`, tap `Roles`, then tap the role. Change the `Title` or `Description`, or tap `Members` to change who holds it, then tap `Save`.
+Phone: open `Workspace info & settings`, tap `Roles`, then tap the role. Change the `Name` or `Description`, or tap `Members` to change who holds it, then tap `Save` at the top right.
 Who: admins.
-Notes: the screen is headed "Edit" and the role's name. If any channels use the role, they are listed at the top. Going back with unsaved changes asks `Discard changes?`; tap `Discard` to drop them. The `Admin` role's title and description can't be edited.
+Notes: the screen is headed "Edit" and the role's name. If any channels use the role, they are listed at the top under `Channels using this role`. Going back with unsaved changes asks `Discard changes?`; tap `Discard` to drop them. The `Admin` role's title and description can't be edited.
 
 ## Choose which members have a role
 
-Phone: open `Workspace info & settings`, tap `Roles`, tap the role, then tap `Members`. On the `Select members` screen, tap people to tick or untick them; `Search by name or ID` narrows the list. Tap the back arrow at the top, then tap `Save` on the role.
+Phone: open `Workspace info & settings`, tap `Roles`, tap the role, then tap `Members`. On the role's member list, tap people to tick or untick them; `Search by name or ID` narrows the list. Tap the back arrow at the top, then tap `Save` on the role.
 Who: admins.
 Notes: each person's current roles show under their name, or `No roles`. Nothing changes until you tap `Save` on the role screen. People who have been invited but haven't joined aren't listed.
 
@@ -171,11 +171,11 @@ Notes: each person's current roles show under their name, or `No roles`. Nothing
 
 Phone: open `Workspace info & settings`, tap `Roles`, tap the role, then tap `Delete role`.
 Who: admins.
-Notes: there is no confirmation. `Delete role` is greyed out while any member still holds the role or any channel uses it, and the screen says `This role cannot be deleted, it is still in use for some users or channels.` First take everyone off it (tap `Members`, untick them all, go back, `Save`) and remove it from the channels listed at the top of the screen, then open the role again. The `Admin` role has no delete button.
+Notes: there is no confirmation. `Delete role` is greyed out while any member still holds the role or any channel uses it, and the screen says `This role cannot be deleted, it is still in use for some users or channels.` First take everyone off it (tap `Members`, untick them all, go back, `Save`) and remove it from the channels listed under `Channels using this role` at the top of the screen, then open the role again. The `Admin` role has no delete button.
 
 ## Understand the Admin role
 
-Notes: `Admin` is the built-in role on the `Workspace Roles` screen. It can't be renamed or deleted. In the app, admins are the people who see `Rename`, `Privacy`, `Roles` and `Channels` on the group's info screen. They can assign roles, kick and ban members, answer join requests, revoke invites, and invite people to a private or secret group. An admin who isn't the group's host still can't delete the group; only the host sees `Delete workspace`. The host's own admin role can't be taken away.
+Notes: `Admin` is the built-in role on the `Workspace roles` screen. It can't be renamed or deleted. In the app, admins are the people who see `Edit`, `Privacy`, `Roles` and `Channels` on the group's info screen. They can assign roles, kick and ban members, answer join requests, revoke invites, and invite people to a private or secret group. An admin who isn't the group's host still can't delete the group; only the host sees `Delete workspace`. The host's own admin role can't be taken away.
 
 ## Invite people who already use Tlon Messenger to a group
 
@@ -197,7 +197,7 @@ Notes: in a private or secret group, only admins can invite. Everyone else sees 
 
 ## Leave a group
 
-Phone: open `Workspace info & settings`, scroll to the bottom and tap `Leave workspace`. Confirm with `Leave Workspace`, or tap `Cancel`.
+Phone: open `Workspace info & settings`, scroll to the bottom and tap "Leave workspace". Confirm with `Leave Workspace`, or tap `Cancel`.
 Desktop: the confirmation is a plain browser dialog.
 Who: every member except the group's host. The host has no leave option, only `Delete workspace`.
 Notes: the confirmation says `You will no longer receive updates from this workspace.` and warns that leaving cancels any invitations you've sent. The group then drops out of your list. Leaving is only on this screen; the group's press-and-hold menu doesn't have it.

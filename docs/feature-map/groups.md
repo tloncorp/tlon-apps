@@ -26,10 +26,10 @@ Desktop: click the arrows on either side of the template card.
 Notes: the templates are `Book Club`, `Cooking Club`, `Music`, `Running Club`, `Cinema Club` and `Garden Club`. Each makes a chat, a gallery and a notebook named for the theme, for example `Book chat`, `Now reading` and `Reviews`, and the group takes the template's name. Channels can be added or removed afterwards.
 
 ## Name a group while creating it
-<!-- src: packages/app/features/groups/GroupTitleInputSheet.tsx, packages/app/features/groups/GroupTypeSelectionSheet.tsx, packages/app/features/top/CreateChatSheet.tsx, packages/app/ui/utils/channelUtils.tsx, packages/app/features/top/ChatDetailsScreen.tsx -->
+<!-- src: packages/app/features/groups/GroupTitleInputSheet.tsx, packages/app/features/groups/GroupTypeSelectionSheet.tsx, packages/app/features/top/CreateChatSheet.tsx, packages/app/ui/utils/channelUtils.tsx, packages/app/ui/components/ChatDetailsScreenView.tsx -->
 
 Phone: only `Basic workspace` asks for a name. After you pick it, `Name your workspace` opens. Type in the `Workspace name` box and tap `Next`. `Next` stays greyed out until you type something.
-Notes: a `Quick workspace` gets no name, so it shows its members' names, or `Untitled workspace` while you're the only one in it. A template group takes the template's name. An admin can rename any of them later with `Rename` on `Workspace info & settings`.
+Notes: a `Quick workspace` gets no name, so it shows its members' names, or `Untitled workspace` while you're the only one in it. A template group takes the template's name. An admin can rename any of them later with `Edit` on `Workspace info & settings`.
 
 ## Add people while creating a group
 <!-- src: packages/app/features/top/CreateChatSheet.tsx, packages/app/ui/components/ContactBook.tsx, packages/app/ui/hooks/contactSorters.ts -->
@@ -38,12 +38,12 @@ Phone: the last step of `New custom workspace` is headed `Select contacts to inv
 Notes: `Create workspace` works with nobody selected, so you can make the group first and invite people later. A contact marked `App version mismatch` can't be picked. `New Workspace` has no people step.
 
 ## Join a group with a code
-<!-- src: packages/app/features/top/CreateChatSheet.tsx, packages/app/hooks/useGroupSearch.ts, packages/app/features/top/ChatDetailsScreen.tsx -->
+<!-- src: packages/app/features/top/CreateChatSheet.tsx, packages/app/hooks/useGroupSearch.ts, packages/app/ui/components/ChatDetailsScreenView.tsx -->
 
 Phone: on the Workspaces tab, tap the plus icon at the top right, then `Join a workspace with a code (reference)` at the bottom of the menu. Type or paste the code into `Enter workspace code` and tap `Go`. The group's preview appears, with a button to join or ask for an invite.
 Desktop: the same link is at the bottom of the `Start a conversation` box.
 Who: on the phone the link only shows on accounts without a hosted Tlonbot. Desktop always has it.
-Notes: the code is the group's ID, like "~host/group-name", or a group reference containing it. A member gets the ID from `Copy workspace ID` on the group's info screen. If the code isn't a valid ID, `Go` just closes the sheet. `Workspace not found` means nothing matched.
+Notes: the code is the group's ID, like "~host/group-name", or a group reference containing it. A member gets the ID from `Copy ID` on the group's info screen. If the code isn't a valid ID, `Go` just closes the sheet. `Workspace not found` means nothing matched.
 
 ## Open a group invite link
 <!-- src: apps/tlon-mobile/src/hooks/useDeepLinkListener.ts, packages/shared/src/store/inviteActions.ts, packages/app/features/top/ChatListScreen.tsx, packages/app/ui/components/GroupPreviewSheet.tsx -->
@@ -83,7 +83,7 @@ Phone: on the Workspaces tab the group has a `Joining` or `Errored` badge. Tap i
 Notes: while joining, the preview says `Joining, please wait...`. After a failure it says `Joining failed` with `Something went wrong while trying to join this workspace.` If instead it says `The workspace host is running an incompatible version of the app.`, trying again won't help until you or the host updates.
 
 ## Open a group's info and settings
-<!-- src: packages/app/ui/components/ChatOptionsSheet.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/ui/components/GroupChannelsScreenView.tsx, packages/app/features/top/ChannelScreen.tsx, packages/app/ui/components/listItems/GroupListItem.tsx -->
+<!-- src: packages/app/ui/components/ChatOptionsSheet.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/ui/components/GroupChannelsScreenView.tsx, packages/app/features/top/ChannelScreen.tsx, packages/app/ui/components/listItems/GroupListItem.tsx, packages/app/ui/components/ChatDetailsScreenView.tsx -->
 <!-- covers: route:ChatDetails -->
 
 Phone: on the Workspaces tab, press and hold the group and tap `Workspace info & settings`. Or open the group and tap its name at the top.
@@ -91,36 +91,36 @@ Desktop: hover the group in the sidebar and open its three-dot menu, or right-cl
 Notes: in a group with several channels, the name at the top of an open channel leads to that channel's info instead. Go back to the group's channel list and tap the group's name there.
 
 ## What's on the Workspace info & settings screen
-<!-- src: packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/top/chatDetails.tsx -->
+<!-- src: packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/top/chatDetails.tsx, packages/app/ui/components/ChatDetailsScreenView.tsx -->
 <!-- covers: route:GroupSettings -->
 
-Phone: every member sees, from the top: the group's icon and name with a line like "Secret workspace with 4 members"; a row of buttons (`Invite` if you're allowed to invite, `Mark read` when something is unread, `Pin` or `Unpin`, `Forward reference`, `Copy workspace ID`); the `Description` if one is set; the connection to the group's host; `Notifications`; `Scheduled tasks` with a count, when your bot has tasks posting to the group or could post there; the first five members; and `Leave workspace`.
-Who: admins also get `Rename` at the top right, the rows `Privacy`, `Roles` and `Channels`, and `Manage members` under the member list. The group's host gets `Delete workspace` in place of `Leave workspace`, and a `Tlonbot instructions` row showing `On` or `Off`.
-Notes: `Privacy`, `Roles` and `Channels` each show their current value or count and open their own screen.
+Phone: every member sees, from the top: the group's icon and name with a line like "Secret workspace with 4 members"; a row of buttons (`Invite` if you're allowed to invite, `Mark read` when something is unread, `Pin` or `Unpin`, `Forward`, `Copy ID`); the `Description` if one is set; `Notifications`; `Scheduled tasks` with a count, when your bot has tasks posting to the group or could post there; the first five members under a heading with the member count; and "Leave workspace" at the bottom.
+Who: admins also get `Edit` at the top right, the rows `Privacy`, `Roles` and `Channels`, and `Manage members` under the member list. The group's host gets "Delete workspace" in place of "Leave workspace", and a `Tlonbot instructions` row showing `On` or `Off`.
+Notes: `Privacy`, `Roles` and `Channels` each show their current value or count and open their own screen. `Forward` sends the group into a chat, and `Copy ID` copies its ID. An admin of a group with no description sees `Add a description`, which opens the edit screen.
 
 ## Find out why a group's settings are greyed out
-<!-- src: packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/top/chatDetails.tsx, packages/app/ui/components/ConnectionStatus.tsx, packages/app/ui/components/MetaEditorScreenView.tsx, packages/app/features/top/useShipConnectionStatus.tsx -->
+<!-- src: packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/top/chatDetails.tsx, packages/app/ui/components/ConnectionStatus.tsx, packages/app/ui/components/MetaEditorScreenView.tsx, packages/app/features/top/useShipConnectionStatus.tsx, packages/app/ui/components/ChatDetailsScreenView.tsx -->
 
-Phone: open `Workspace info & settings` and read the first row of the settings block. It shows the connection to the group's host: `Connected`, `Connecting...`, `Disconnected` or `Failed`.
-Who: only admins see `Rename`, `Privacy`, `Roles` and `Channels` at all.
-Notes: those controls only work while the host's node can be reached. Until the row says `Connected` they are greyed out, `Save` on the edit screen is disabled, admins of a private or secret group lose the `Invite` button on this screen, and `Manage members` shows as `See all`. If you host the group yourself it always counts as connected. If it stays `Disconnected` or `Failed`, the host's node is offline or unreachable, so try again later.
+Phone: open `Workspace info & settings`. While the group's host can't be reached, admins see a note under the settings reading `The workspace’s host is offline, so these settings can’t be changed right now.`, or `Checking the connection to the workspace’s host…` while the app is still checking.
+Who: only admins see `Edit`, `Privacy`, `Roles` and `Channels` at all.
+Notes: those controls only work while the host's node can be reached. Until then they are greyed out, `Save` on the edit screen is disabled, admins of a private or secret group lose the `Invite` button on this screen, and `Manage members` shows as `See all`. If you host the group yourself it always counts as connected. If the note stays, the host's node is offline or unreachable, so try again later.
 
 ## Share a group in a chat, or copy its ID
-<!-- src: packages/app/features/top/ChatDetailsScreen.tsx, packages/app/ui/components/ForwardGroupSheet.tsx, packages/app/ui/components/useForwardToChannelSheet.tsx, packages/app/ui/components/Channel/index.tsx, packages/app/features/top/CreateChatSheet.tsx -->
+<!-- src: packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/top/chatDetails.tsx, packages/app/ui/components/ForwardGroupSheet.tsx, packages/app/ui/components/useForwardToChannelSheet.tsx, packages/app/ui/components/Channel/index.tsx, packages/app/features/top/CreateChatSheet.tsx, packages/app/ui/components/ChatDetailsScreenView.tsx -->
 
-Phone: open `Workspace info & settings`. To post the group into a chat, tap `Forward reference`, pick the chat on the `Forward workspace` sheet, then tap the button at the bottom, which reads "Forward to" and the chat's name. To copy the group's ID instead, tap `Copy workspace ID`; you'll see `Copied!`.
+Phone: open `Workspace info & settings`. To post the group into a chat, tap `Forward`, pick the chat on the `Forward workspace` sheet, then tap the button at the bottom, which reads "Forward to" and the chat's name. To copy the group's ID instead, tap `Copy ID`; you'll see `Copied!`.
 Notes: people in that chat can tap the reference to open the group's preview. The ID is what `Join a workspace with a code (reference)` asks for. Neither one gets around privacy: a private group still needs an admin to accept, and a secret group still needs an invite.
 
 ## Rename a group, or change its icon or description
-<!-- src: packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/groups/GroupMetaScreen.tsx, packages/app/ui/components/MetaEditorScreenView.tsx, packages/app/ui/components/Form/inputs.tsx, packages/app/ui/components/AttachmentSheet.tsx, packages/app/ui/components/Channel/EmptyChannelNotice.tsx -->
+<!-- src: packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/groups/GroupMetaScreen.tsx, packages/app/ui/components/MetaEditorScreenView.tsx, packages/app/ui/components/IconEditor.tsx, packages/app/ui/components/ChatDetailsScreenView.tsx, packages/app/ui/components/Channel/EmptyChannelNotice.tsx -->
 <!-- covers: route:GroupMeta -->
 
-Phone: open `Workspace info & settings` and tap `Rename` at the top right. On `Edit workspace info`, change the `Name`, tap `Change icon image` to choose a picture, or edit the `Description`. Tap `Save`.
+Phone: open `Workspace info & settings` and tap `Edit` at the top right. On `Edit workspace info`, change the `Name`, tap the icon to choose a picture (`Choose photo` or `Take photo`), or edit the `Description`. Tap `Save`.
 Who: admins, while the group's host can be reached.
-Notes: `Rename` is the usual way in, and it covers the icon and description too. In a new group with a single channel and no messages yet, an admin also sees `Edit workspace`, which opens the same screen. In a group with more channels that button reads `Edit channel` and edits the channel instead. The name can be up to 30 characters and the description up to 300. To remove an icon, tap the icon button and choose `Clear`. If the button says `Storage not configured`, image uploads aren't set up yet. Groups have no cover image setting.
+Notes: `Edit` is the usual way in, and it covers the icon and description too. In a new group with a single channel and no messages yet, an admin also sees `Edit workspace` on the empty channel, which opens the same screen. In a group with more channels that button reads `Edit channel` and edits the channel instead. The name can be up to 30 characters and the description up to 300. To remove an icon, tap it and choose `Remove icon`. Groups have no cover image setting.
 
 ## Change a group's privacy
-<!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/groups/GroupPrivacyScreen.tsx, packages/shared/src/store/groupActions.ts -->
+<!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/groups/GroupPrivacyScreen.tsx, packages/shared/src/store/groupActions.ts, packages/app/ui/components/ChatDetailsScreenView.tsx -->
 <!-- covers: route:Privacy -->
 
 Phone: open `Workspace info & settings` and tap `Privacy`. On the `Workspace privacy` screen tap `Public`, `Private` or `Secret`. The change applies as soon as you tap; there is no save button.
@@ -137,21 +137,21 @@ Notes: the app's own wording on the `Workspace privacy` screen, and what follows
 - `Secret`: `Membership is invite only and private. Only administrators can invite new members.` Someone without an invite sees `This workspace is secret` and can't ask to join.
 
 ## See who's in a group, or find a member
-<!-- src: packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/top/chatDetails.tsx, packages/app/features/groups/GroupMembersScreen.tsx, packages/app/ui/components/GroupMembersScreenView.tsx, packages/app/ui/components/GroupMemberProfileSheet.tsx, packages/app/ui/components/ProfileSheet.tsx, packages/app/ui/components/ProfileBlock.tsx -->
+<!-- src: packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/top/chatDetails.tsx, packages/app/features/groups/GroupMembersScreen.tsx, packages/app/ui/components/GroupMembersScreenView.tsx, packages/app/ui/components/GroupMemberProfileSheet.tsx, packages/app/ui/components/ProfileSheet.tsx, packages/app/ui/components/ProfileBlock.tsx, packages/app/ui/components/ChatDetailsScreenView.tsx -->
 <!-- covers: route:GroupMembers -->
 
 Phone: open `Workspace info & settings`. The member block lists the first five people. Tap `See all` (admins see `Manage members`) to open `Members`, and type in `Search by name or ID` to find someone. Tap a person to open their card; tap the top of the card for their full profile.
 Notes: people are grouped under each role's name, then `Invited` for invites not yet accepted, then `Members` for everyone without a role. Admins also see `Join Requests` and `Banned Users`. The `See all` row only appears when the group has more than five members or you're allowed to invite; in a smaller group everyone is already listed. Another person's card always has `Block`, or `Unblock` if you've blocked them.
 
 ## Give a member a role, or make them an admin
-<!-- src: packages/app/ui/components/ProfileSheet.tsx, packages/app/ui/components/GroupMemberProfileSheet.tsx, packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/groups/RoleFormScreen.tsx -->
+<!-- src: packages/app/ui/components/ProfileSheet.tsx, packages/app/ui/components/GroupMemberProfileSheet.tsx, packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/groups/RoleFormScreen.tsx, packages/app/ui/components/ChatDetailsScreenView.tsx -->
 
 Phone: open `Workspace info & settings`, tap `Manage members`, tap the person, then `Assign role`. Tap a role to give it to them. Roles they already hold have a checkmark; tap one of those to take it away.
 Who: admins.
 Notes: to make someone an admin, give them the `Admin` role the same way. The group's host can't have their admin role removed. People who have only been invited can't be given a role until they join. To change a role's whole member list at once, use the `Roles` screen instead.
 
 ## Remove someone from a group
-<!-- src: packages/app/ui/components/ProfileSheet.tsx, packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx -->
+<!-- src: packages/app/ui/components/ProfileSheet.tsx, packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/ui/components/ChatDetailsScreenView.tsx -->
 
 Phone: open `Workspace info & settings`, tap `Manage members`, tap the person, then `Kick User`. Confirm with `Kick User`, or tap `Cancel`.
 Desktop: the confirmation is a plain browser dialog.
@@ -159,61 +159,61 @@ Who: admins. You can't kick yourself.
 Notes: the confirmation says `This user will be removed from the workspace.` and warns that kicking them cancels every invitation they've sent. Kicking only removes them. To keep someone out, use `Ban User` instead.
 
 ## Ban or unban someone
-<!-- src: packages/app/ui/components/ProfileSheet.tsx, packages/app/ui/components/GroupMembersScreenView.tsx, packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/shared/src/store/groupActions.ts -->
+<!-- src: packages/app/ui/components/ProfileSheet.tsx, packages/app/ui/components/GroupMembersScreenView.tsx, packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/shared/src/store/groupActions.ts, packages/app/ui/components/ChatDetailsScreenView.tsx -->
 
 Phone: to ban, open `Workspace info & settings`, tap `Manage members`, tap the person, then `Ban User`. To unban, find them under `Banned Users` on the same screen, tap them, then `Unban User`.
 Who: admins. The group's host, other admins and you yourself can't be banned.
 Notes: there is no confirmation; the ban happens on the tap. Banning removes the person from the group and lists them under `Banned Users`. Unbanning only lifts the ban. It doesn't put them back in the group. To bring them back, invite them again with the `Invite` button on `Workspace info & settings`.
 
 ## Approve or reject a request to join
-<!-- src: packages/app/ui/components/SystemNotices.tsx, packages/app/ui/components/GroupMembersScreenView.tsx, packages/app/ui/components/GroupJoinRequestSheet.tsx, packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/shared/src/store/groupActions.ts -->
+<!-- src: packages/app/ui/components/SystemNotices.tsx, packages/app/ui/components/GroupMembersScreenView.tsx, packages/app/ui/components/GroupJoinRequestSheet.tsx, packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/shared/src/store/groupActions.ts, packages/app/ui/components/ChatDetailsScreenView.tsx -->
 
 Phone: when someone asks to join, a `New join requests` notice shows in the group; tap `Review`. Or open `Workspace info & settings` and tap `Manage members`. Under `Join Requests`, tap the person, then `Accept request` or `Reject request`.
 Who: admins. Only private groups get requests.
 Notes: the `Join request` sheet also has a row that opens the person's profile, so you can check who they are first. Dismissing the notice doesn't answer anything; requests stay under `Join Requests` until you accept or reject them.
 
 ## Cancel an invite that hasn't been accepted
-<!-- src: packages/app/ui/components/ProfileSheet.tsx, packages/app/ui/components/GroupMembersScreenView.tsx, packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx -->
+<!-- src: packages/app/ui/components/ProfileSheet.tsx, packages/app/ui/components/GroupMembersScreenView.tsx, packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/ui/components/ChatDetailsScreenView.tsx -->
 
 Phone: open `Workspace info & settings`, tap `Manage members`, find the person under `Invited`, tap them, then `Revoke Invite`.
 Who: admins.
 Notes: there is no confirmation. `Invited` lists people who were invited by name and haven't joined yet. Revoking takes them off that list.
 
 ## See a group's roles, or create one
-<!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/groups/GroupRolesScreen.tsx, packages/app/features/groups/RoleFormScreen.tsx -->
+<!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/groups/GroupRolesScreen.tsx, packages/app/features/groups/RoleFormScreen.tsx, packages/app/ui/components/ChatDetailsScreenView.tsx -->
 <!-- covers: route:GroupRoles, route:AddRole -->
 
-Phone: open `Workspace info & settings` and tap `Roles`. `Workspace Roles` lists each role with the number of members who hold it. To make one, tap `New` at the top right. On `Add role`, fill in `Title`, add a `Description` if you like, tap `Members` to choose who gets it, then tap `Save`.
+Phone: open `Workspace info & settings` and tap `Roles`. `Workspace roles` lists each role with the number of members who hold it. To make one, tap the plus icon at the top right. On `Add role`, fill in `Name`, add a `Description` if you like, tap `Members` to choose who gets it, then tap `Save` at the top right.
 Who: admins, while the group's host can be reached.
-Notes: `Title` is required. A role is only a title, a description and a list of members; what it unlocks is set channel by channel, in each channel's permissions. The last row, `Members`, stands for `All workspace members` and can't be opened.
+Notes: `Name` is required. A role is only a name, a description and a list of members; what it unlocks is set channel by channel, in each channel's permissions. The last row, `Members`, stands for `All workspace members`. Tapping it opens the group's member list instead, and its count is everyone who has joined.
 
 ## Rename or edit a role
-<!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/groups/GroupRolesScreen.tsx, packages/app/features/groups/RoleFormScreen.tsx -->
+<!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/groups/GroupRolesScreen.tsx, packages/app/features/groups/RoleFormScreen.tsx, packages/app/ui/components/ChatDetailsScreenView.tsx -->
 <!-- covers: route:EditRole -->
 
-Phone: open `Workspace info & settings`, tap `Roles`, then tap the role. Change the `Title` or `Description`, or tap `Members` to change who holds it, then tap `Save`.
+Phone: open `Workspace info & settings`, tap `Roles`, then tap the role. Change the `Name` or `Description`, or tap `Members` to change who holds it, then tap `Save` at the top right.
 Who: admins.
-Notes: the screen is headed "Edit" and the role's name. If any channels use the role, they are listed at the top. Going back with unsaved changes asks `Discard changes?`; tap `Discard` to drop them. The `Admin` role's title and description can't be edited.
+Notes: the screen is headed "Edit" and the role's name. If any channels use the role, they are listed at the top under `Channels using this role`. Going back with unsaved changes asks `Discard changes?`; tap `Discard` to drop them. The `Admin` role's title and description can't be edited.
 
 ## Choose which members have a role
-<!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/groups/RoleFormScreen.tsx, packages/app/features/groups/SelectRoleMembersScreen.tsx -->
+<!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/groups/RoleFormScreen.tsx, packages/app/features/groups/SelectRoleMembersScreen.tsx, packages/app/ui/components/ChatDetailsScreenView.tsx -->
 <!-- covers: route:SelectRoleMembers -->
 
-Phone: open `Workspace info & settings`, tap `Roles`, tap the role, then tap `Members`. On the `Select members` screen, tap people to tick or untick them; `Search by name or ID` narrows the list. Tap the back arrow at the top, then tap `Save` on the role.
+Phone: open `Workspace info & settings`, tap `Roles`, tap the role, then tap `Members`. On the role's member list, tap people to tick or untick them; `Search by name or ID` narrows the list. Tap the back arrow at the top, then tap `Save` on the role.
 Who: admins.
 Notes: each person's current roles show under their name, or `No roles`. Nothing changes until you tap `Save` on the role screen. People who have been invited but haven't joined aren't listed.
 
 ## Delete a role
-<!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/groups/RoleFormScreen.tsx -->
+<!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/groups/RoleFormScreen.tsx, packages/app/ui/components/ChatDetailsScreenView.tsx -->
 
 Phone: open `Workspace info & settings`, tap `Roles`, tap the role, then tap `Delete role`.
 Who: admins.
-Notes: there is no confirmation. `Delete role` is greyed out while any member still holds the role or any channel uses it, and the screen says `This role cannot be deleted, it is still in use for some users or channels.` First take everyone off it (tap `Members`, untick them all, go back, `Save`) and remove it from the channels listed at the top of the screen, then open the role again. The `Admin` role has no delete button.
+Notes: there is no confirmation. `Delete role` is greyed out while any member still holds the role or any channel uses it, and the screen says `This role cannot be deleted, it is still in use for some users or channels.` First take everyone off it (tap `Members`, untick them all, go back, `Save`) and remove it from the channels listed under `Channels using this role` at the top of the screen, then open the role again. The `Admin` role has no delete button.
 
 ## Understand the Admin role
-<!-- src: packages/app/features/groups/RoleFormScreen.tsx, packages/app/features/groups/GroupRolesScreen.tsx, packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/ui/components/ProfileSheet.tsx, packages/app/ui/components/ChatOptionsSheet.tsx -->
+<!-- src: packages/app/features/groups/RoleFormScreen.tsx, packages/app/features/groups/GroupRolesScreen.tsx, packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/ui/components/ProfileSheet.tsx, packages/app/ui/components/ChatOptionsSheet.tsx, packages/app/ui/components/ChatDetailsScreenView.tsx -->
 
-Notes: `Admin` is the built-in role on the `Workspace Roles` screen. It can't be renamed or deleted. In the app, admins are the people who see `Rename`, `Privacy`, `Roles` and `Channels` on the group's info screen. They can assign roles, kick and ban members, answer join requests, revoke invites, and invite people to a private or secret group. An admin who isn't the group's host still can't delete the group; only the host sees `Delete workspace`. The host's own admin role can't be taken away.
+Notes: `Admin` is the built-in role on the `Workspace roles` screen. It can't be renamed or deleted. In the app, admins are the people who see `Edit`, `Privacy`, `Roles` and `Channels` on the group's info screen. They can assign roles, kick and ban members, answer join requests, revoke invites, and invite people to a private or secret group. An admin who isn't the group's host still can't delete the group; only the host sees `Delete workspace`. The host's own admin role can't be taken away.
 
 ## Invite people who already use Tlon Messenger to a group
 <!-- src: packages/app/ui/components/ChatOptionsSheet.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/top/chatDetails.tsx, packages/app/features/InviteUsersScreen.tsx, packages/app/ui/components/InviteUsersSheet.tsx, packages/app/ui/components/InviteUsersWidget.tsx, packages/app/hooks/useInviteUsers.ts, packages/app/navigation/desktop/HomeSidebar.tsx -->
@@ -238,15 +238,15 @@ Notes: while the link is being made, the box says `Generating invite link...` an
 Notes: in a private or secret group, only admins can invite. Everyone else sees `Invites disabled` with `Only admins may invite people to this workspace.` in the group's press-and-hold menu, and no `Invite` button on `Workspace info & settings`. In a public group every member can invite. If you are an admin and `Invite` is missing from the info screen, the group's host can't be reached right now; the press-and-hold menu still has `Invite people`. To let every member invite, an admin can set the group to `Public` under `Privacy`.
 
 ## Leave a group
-<!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/ui/components/ChatOptionsSheet.tsx -->
+<!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/ui/components/ChatOptionsSheet.tsx, packages/app/ui/components/ChatDetailsScreenView.tsx -->
 
-Phone: open `Workspace info & settings`, scroll to the bottom and tap `Leave workspace`. Confirm with `Leave Workspace`, or tap `Cancel`.
+Phone: open `Workspace info & settings`, scroll to the bottom and tap "Leave workspace". Confirm with `Leave Workspace`, or tap `Cancel`.
 Desktop: the confirmation is a plain browser dialog.
 Who: every member except the group's host. The host has no leave option, only `Delete workspace`.
 Notes: the confirmation says `You will no longer receive updates from this workspace.` and warns that leaving cancels any invitations you've sent. The group then drops out of your list. Leaving is only on this screen; the group's press-and-hold menu doesn't have it.
 
 ## Delete a group
-<!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx -->
+<!-- src: packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/ui/components/ChatDetailsScreenView.tsx -->
 
 Phone: open `Workspace info & settings`, scroll to the bottom and tap `Delete workspace`. A box asks "Delete" and the group's name, with `This action cannot be undone.` Tap `Delete workspace` to confirm, or `Cancel`.
 Who: only the group's host, the person whose node the group was made on. Other admins don't see `Delete workspace`.
