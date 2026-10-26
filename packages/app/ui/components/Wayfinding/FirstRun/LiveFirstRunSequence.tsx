@@ -163,14 +163,13 @@ function useLiveModels(setupReady: boolean): FirstRunModelsAdapter {
   );
 
   const applyModel = useCallback(
-    (provider: string, model: string) => {
-      void applyBotPrimaryModel({
+    (provider: string, model: string) =>
+      applyBotPrimaryModel({
         userId: ids.userId,
         shipId: ids.shipId,
         provider,
         model,
-      });
-    },
+      }),
     [ids.shipId, ids.userId]
   );
 

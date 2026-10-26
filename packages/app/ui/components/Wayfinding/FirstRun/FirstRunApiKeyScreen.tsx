@@ -39,6 +39,7 @@ export function FirstRunApiKeyScreen({
     provider;
 
   const handlePaste = useCallback(async () => {
+    if (checking) return;
     try {
       const contents = isWeb
         ? await navigator.clipboard.readText()
@@ -47,7 +48,7 @@ export function FirstRunApiKeyScreen({
     } catch {
       // Nothing to paste, or no permission; typing still works.
     }
-  }, [onApiKeyChange]);
+  }, [checking, onApiKeyChange]);
 
   return (
     <KeyboardAvoidingView behavior="height" automaticOffset style={{ flex: 1 }}>
@@ -88,15 +89,23 @@ export function FirstRunApiKeyScreen({
                   <Pressable
                     key={option.id}
                     flex={1}
-                    onPress={() => onProviderChange(option.id)}
+                    // The key being checked belongs to the picked provider.
+                    onPress={
+                      checking ? undefined : () => onProviderChange(option.id)
+                    }
+                    disabled={checking}
                     accessibilityRole="radio"
-                    accessibilityState={{ checked: selected }}
+                    accessibilityState={{
+                      checked: selected,
+                      disabled: checking,
+                    }}
                     testID={`first-run-api-key-provider-${option.id}`}
                   >
                     <View
                       height={44}
                       alignItems="center"
                       justifyContent="center"
+                      opacity={checking && !selected ? 0.5 : 1}
                       backgroundColor={
                         selected ? '$positiveBackground' : '$background'
                       }
@@ -134,6 +143,7 @@ export function FirstRunApiKeyScreen({
           >
             <TextInput
               value={apiKey}
+              editable={!checking}
               onChangeText={onApiKeyChange}
               placeholder={copy.keyPlaceholder}
               secureTextEntry

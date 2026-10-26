@@ -115,6 +115,13 @@ describe('a featured row after connecting', () => {
     expect(attemptAfterCheck(false, 'failed')).toBe('failed');
   });
 
+  it('offers Try again when Check again still finds no grant', () => {
+    // Someone left the provider's page without finishing; checking again
+    // must not leave the row stuck on "Check again".
+    expect(attemptAfterCheck(false, 'rechecked')).toBe('cancelled');
+    expect(attemptAfterCheck(true, 'rechecked')).toBeUndefined();
+  });
+
   it('counts any connected service for the Continue label', () => {
     expect(hasConnectedService(LIVE_ROWS)).toBe(false);
     expect(

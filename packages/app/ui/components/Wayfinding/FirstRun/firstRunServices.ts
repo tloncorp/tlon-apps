@@ -72,16 +72,20 @@ export function featuredRowState(
 /**
  * After a sign-in comes back, decide what the row says from a fresh status
  * check. Success from the provider alone is not enough to say connected.
+ * When someone taps Check again and the grant still isn't there, the sign-in
+ * most likely never finished, so the row goes back to offering Try again.
  */
 export function attemptAfterCheck(
   connected: boolean,
-  outcome: 'completed' | 'returned' | 'failed' | 'canceled'
+  outcome: 'completed' | 'returned' | 'rechecked' | 'failed' | 'canceled'
 ): ServiceAttempt | undefined {
   if (connected) return undefined;
   switch (outcome) {
     case 'completed':
     case 'returned':
       return 'checking';
+    case 'rechecked':
+      return 'cancelled';
     case 'failed':
       return 'failed';
     case 'canceled':

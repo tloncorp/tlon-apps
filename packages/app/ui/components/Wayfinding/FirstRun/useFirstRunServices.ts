@@ -11,6 +11,8 @@ import {
   selectFeaturedServices,
 } from './firstRunServices';
 
+type VerifyOutcome = 'completed' | 'returned' | 'rechecked';
+
 /**
  * Screen 3's live data: the catalog, this account's grants, and where each
  * featured service's sign-in stands. A row says connected only after a status
@@ -26,7 +28,7 @@ export function useFirstRunServices() {
     []
   );
   const verifyRef = useRef<
-    (providerId: string, outcome: 'completed' | 'returned') => void
+    (providerId: string, outcome: VerifyOutcome) => void
   >(() => {});
 
   const handleEvent = useCallback(
@@ -60,7 +62,7 @@ export function useFirstRunServices() {
   const { refreshStatus } = connections;
 
   const verify = useCallback(
-    async (providerId: string, outcome: 'completed' | 'returned') => {
+    async (providerId: string, outcome: VerifyOutcome) => {
       setAttempt(providerId, 'checking');
       const status = await refreshStatus();
       const connected =
@@ -91,7 +93,7 @@ export function useFirstRunServices() {
   );
 
   const checkAgain = useCallback(
-    (providerId: string) => void verify(providerId, 'returned'),
+    (providerId: string) => void verify(providerId, 'rechecked'),
     [verify]
   );
 

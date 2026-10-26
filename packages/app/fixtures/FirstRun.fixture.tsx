@@ -35,6 +35,7 @@ import {
 } from '../ui/components/Wayfinding/FirstRun/firstRunModelOptions';
 import {
   type ServiceAttempt,
+  attemptAfterCheck,
   selectFeaturedServices,
 } from '../ui/components/Wayfinding/FirstRun/firstRunServices';
 import type { FirstRunSetupStatus } from '../ui/components/Wayfinding/FirstRun/types';
@@ -310,6 +311,8 @@ type FlowSettings = {
   setupFails: boolean;
   botReadyAfterSeconds: number;
   connectResult: 'connected' | 'checking' | 'cancelled';
+  checkAgainFindsGrant: boolean;
+  modelSwitchFails: boolean;
   noServices: boolean;
 };
 
@@ -318,9 +321,15 @@ type FlowSettings = {
 function FlowFixture({
   readyAfter = 20,
   fails = false,
+  connectEnds = 'connected',
+  checkFinds = true,
+  switchFails = false,
 }: {
   readyAfter?: number;
   fails?: boolean;
+  connectEnds?: FlowSettings['connectResult'];
+  checkFinds?: boolean;
+  switchFails?: boolean;
 }) {
   const [readyAfterSeconds] = useValue('Setup ready after (seconds)', {
     defaultValue: readyAfter,
@@ -331,8 +340,14 @@ function FlowFixture({
   });
   const [connectResult] = useValue<FlowSettings['connectResult']>(
     'Connecting a service ends',
-    { defaultValue: 'connected' }
+    { defaultValue: connectEnds }
   );
+  const [checkAgainFindsGrant] = useValue('Check again finds the grant', {
+    defaultValue: checkFinds,
+  });
+  const [modelSwitchFails] = useValue('Model switch fails', {
+    defaultValue: switchFails,
+  });
   const [noServices] = useValue('Nothing to connect', { defaultValue: false });
   const [run, setRun] = useState(0);
   return (
@@ -344,6 +359,8 @@ function FlowFixture({
           setupFails,
           botReadyAfterSeconds,
           connectResult,
+          checkAgainFindsGrant,
+          modelSwitchFails,
           noServices,
         }}
         onRestart={() => setRun((value) => value + 1)}
@@ -371,8 +388,14 @@ function FlowRun({
   const [attempts, setAttempts] = useState<
     Record<string, ServiceAttempt | undefined>
   >({});
-  const { readyAfterSeconds, setupFails, botReadyAfterSeconds, connectResult } =
-    settings;
+  const {
+    readyAfterSeconds,
+    setupFails,
+    botReadyAfterSeconds,
+    connectResult,
+    checkAgainFindsGrant,
+    modelSwitchFails,
+  } = settings;
 
   useEffect(() => {
     const timer = setTimeout(
@@ -421,8 +444,13 @@ function FlowRun({
     checkAgain: (id) => {
       setAttempts((current) => ({ ...current, [id]: 'checking' }));
       setTimeout(() => {
-        setConnected((current) => [...current, id]);
-        setAttempts((current) => ({ ...current, [id]: undefined }));
+        if (checkAgainFindsGrant) {
+          setConnected((current) => [...current, id]);
+        }
+        setAttempts((current) => ({
+          ...current,
+          [id]: attemptAfterCheck(checkAgainFindsGrant, 'rechecked'),
+        }));
       }, 1000);
     },
     renderAllServices: (onBack) => (
@@ -464,7 +492,10 @@ function FlowRun({
           800
         )
       ),
-    applyModel: noop,
+    applyModel: () =>
+      new Promise((resolve) =>
+        setTimeout(() => resolve(!modelSwitchFails), 1500)
+      ),
   };
 
   return (
@@ -484,6 +515,10 @@ function FlowRun({
 export default {
   Flow: <FlowFixture />,
   'Flow, setup fails once': <FlowFixture readyAfter={3} fails />,
+  'Flow, sign-in left unfinished': (
+    <FlowFixture connectEnds="checking" checkFinds={false} />
+  ),
+  'Flow, model switch fails': <FlowFixture readyAfter={3} switchFails />,
   '1 Meet your Tlonbot': <MeetFixture />,
   '2 Private by design': <PrivateFixture />,
   '3 Connect': <ConnectFixture />,

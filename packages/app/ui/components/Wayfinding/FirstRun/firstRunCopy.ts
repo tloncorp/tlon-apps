@@ -188,6 +188,10 @@ export const firstRunCopy = {
     primarySubscription: (plan: string) => `Sign in to ${plan}`,
     primaryApiKey: 'Add an API key',
     a11yGroup: 'How your Tlonbot gets a model',
+    switchFailed: (name: string) =>
+      `Couldn’t switch your Tlonbot to ${name}. Go back to try again.`,
+    switchFailedLater: (name: string) =>
+      `Couldn’t switch your Tlonbot to ${name}. You can change models in its settings.`,
   },
 
   switchSheet: {

@@ -1,6 +1,13 @@
 import type { TlawnProviderModel } from '@tloncorp/api';
 import { createDevLogger } from '@tloncorp/shared';
-import { type ReactNode, useCallback, useEffect, useState } from 'react';
+import { useToast } from '@tloncorp/ui';
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { BackHandler } from 'react-native';
 import { View } from 'tamagui';
 
@@ -13,6 +20,7 @@ import { FirstRunApiKeyScreen } from './FirstRunApiKeyScreen';
 import { FirstRunIntroScreen } from './FirstRunIntroScreen';
 import { FirstRunSetupScreen } from './FirstRunSetupScreen';
 import { MakeSpaceScreen } from './MakeSpaceScreen';
+import { firstRunCopy } from './firstRunCopy';
 import {
   API_KEY_PROVIDERS,
   type FirstRunModelRow,
@@ -90,9 +98,26 @@ export type FirstRunModelsAdapter = {
     provider: string,
     apiKey: string
   ) => Promise<TlawnProviderModel[]>;
-  /** Point the bot at a model. Runs in the background. */
-  applyModel: (provider: string, model: string) => void;
+  /**
+   * Point the bot at a model. Runs in the background and resolves false if
+   * the bot didn't take the change.
+   */
+  applyModel: (provider: string, model: string) => Promise<boolean>;
 };
+
+function SubscriptionSignInPane({
+  render,
+  provider,
+  onDone,
+  onCancel,
+}: {
+  render: FirstRunModelsAdapter['renderSubscriptionSignIn'];
+  provider: SubscriptionProvider;
+  onDone: (models: TlawnProviderModel[]) => void;
+  onCancel: () => void;
+}) {
+  return <>{render(provider, { onDone, onCancel })}</>;
+}
 
 /**
  * The five-screen first run after signup. Setup runs in the background the
@@ -117,9 +142,14 @@ export function FirstRunSequence({
   // the hosting config arrives.
   const [pickedModelId, setPickedModelId] = useState<string | null>(null);
   const selectedModelId = pickedModelId ?? defaultModelRowId(models.sections);
-  // The choice the bot was last pointed at. Hosting starts it on the
-  // included model.
+  // The choice the bot is confirmed to be on. Hosting starts it on the
+  // included model. A switch in flight is tracked separately, so a failed one
+  // can be retried by continuing with the same choice.
   const [appliedModelId, setAppliedModelId] = useState(INCLUDED_ROW_ID);
+  const [applyingModelId, setApplyingModelId] = useState<string | null>(null);
+  const applyRequestRef = useRef(0);
+  const mountedRef = useRef(true);
+  const showToast = useToast();
   const [switchRow, setSwitchRow] = useState<FirstRunModelRow | null>(null);
   const [switchOpen, setSwitchOpen] = useState(false);
   const [apiKeyProvider, setApiKeyProvider] = useState<string>(
@@ -128,17 +158,30 @@ export function FirstRunSequence({
   const [apiKey, setApiKey] = useState('');
   const [apiKeyChecking, setApiKeyChecking] = useState(false);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
-  const [keyModels, setKeyModels] = useState<TlawnProviderModel[]>([]);
+  // The models a checked key reached, kept with the provider they belong to.
+  const [keyModels, setKeyModels] = useState<{
+    provider: string;
+    models: TlawnProviderModel[];
+  }>({ provider: API_KEY_PROVIDERS[0].id, models: [] });
   const [keyModel, setKeyModel] = useState('');
 
   useEffect(() => {
     logger.trackEvent('First Run Pane Viewed', { pane });
   }, [pane]);
 
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   const goBack = useCallback(() => {
+    // A key check in flight decides where to go next.
+    if (pane === 'apiKey' && apiKeyChecking) return;
     const previous = PREVIOUS_PANE[pane];
     if (previous) setPane(previous);
-  }, [pane]);
+  }, [apiKeyChecking, pane]);
 
   // Android's back button steps back through the screens, as Back does.
   useEffect(() => {
@@ -166,23 +209,62 @@ export function FirstRunSequence({
     }
   }, [onOpenChat, setup.status]);
 
+  // Switch the bot in the background. Only the latest switch counts, and if
+  // it doesn't take, say so: in place while the first run is open, and as a
+  // pointer to settings once the chat has opened.
+  const applyChoice = useCallback(
+    (rowId: string, name: string, provider: string, model: string) => {
+      const request = applyRequestRef.current + 1;
+      applyRequestRef.current = request;
+      setApplyingModelId(rowId);
+      void models
+        .applyModel(provider, model)
+        .catch(() => false)
+        .then((applied) => {
+          if (request !== applyRequestRef.current) return;
+          const stillOpen = mountedRef.current;
+          if (stillOpen) {
+            setApplyingModelId(null);
+            if (applied) setAppliedModelId(rowId);
+          }
+          if (!applied) {
+            logger.trackError('First run model switch failed', {
+              provider,
+              model,
+            });
+            showToast({
+              message: stillOpen
+                ? firstRunCopy.model.switchFailed(name)
+                : firstRunCopy.model.switchFailedLater(name),
+              duration: 6000,
+            });
+          }
+        });
+    },
+    [models, showToast]
+  );
+
   const handleModelContinue = useCallback(
     (row: FirstRunModelRow) => {
-      if (row.id === appliedModelId) {
+      if (row.id === (applyingModelId ?? appliedModelId)) {
         setPane('space');
         return;
       }
       if (row.keepsZdr) {
         // Back to the included model after trying something else.
-        models.applyModel('basic', models.includedModelId);
-        setAppliedModelId(row.id);
+        applyChoice(
+          row.id,
+          models.includedName,
+          'basic',
+          models.includedModelId
+        );
         setPane('space');
         return;
       }
       setSwitchRow(row);
       setSwitchOpen(true);
     },
-    [appliedModelId, models]
+    [appliedModelId, applyChoice, applyingModelId, models]
   );
 
   const handleSwitchContinue = useCallback(() => {
@@ -199,9 +281,11 @@ export function FirstRunSequence({
   }, []);
 
   const handleCheckApiKey = useCallback(async () => {
+    // The models found belong to this provider, whatever is picked later.
+    const provider = apiKeyProvider;
     setApiKeyChecking(true);
     setApiKeyError(null);
-    const result = await models.checkApiKey(apiKeyProvider, apiKey.trim()).then(
+    const result = await models.checkApiKey(provider, apiKey.trim()).then(
       (found) => ({ found }),
       (error: unknown) => ({ error })
     );
@@ -214,19 +298,21 @@ export function FirstRunSequence({
       );
       return;
     }
-    setKeyModels(result.found);
+    setKeyModels({ provider, models: result.found });
     setKeyModel((current) =>
-      resolveInitialProviderModel(apiKeyProvider, result.found, current)
+      resolveInitialProviderModel(provider, result.found, current)
     );
-    setPane('apiKeyModel');
+    setPane((current) => (current === 'apiKey' ? 'apiKeyModel' : current));
   }, [apiKey, apiKeyProvider, models]);
 
   const handleSaveKeyModel = useCallback(() => {
     if (!keyModel) return;
-    models.applyModel(apiKeyProvider, keyModel);
-    setAppliedModelId('api-key');
+    const providerName =
+      API_KEY_PROVIDERS.find((option) => option.id === keyModels.provider)
+        ?.label ?? keyModels.provider;
+    applyChoice('api-key', providerName, keyModels.provider, keyModel);
     setPane('space');
-  }, [apiKeyProvider, keyModel, models]);
+  }, [applyChoice, keyModel, keyModels.provider]);
 
   const subscriptionProvider =
     switchRow?.choice.kind === 'subscription'
@@ -240,8 +326,7 @@ export function FirstRunSequence({
         resolveInitialProviderModel(subscriptionProvider, found, '') ||
         found[0]?.id;
       if (model) {
-        models.applyModel(subscriptionProvider, model);
-        setAppliedModelId(switchRow.id);
+        applyChoice(switchRow.id, switchRow.name, subscriptionProvider, model);
       } else {
         logger.trackError('First run subscription returned no models', {
           provider: subscriptionProvider,
@@ -249,7 +334,7 @@ export function FirstRunSequence({
       }
       setPane('space');
     },
-    [models, subscriptionProvider, switchRow]
+    [applyChoice, subscriptionProvider, switchRow]
   );
 
   const status = setup.status;
@@ -296,10 +381,12 @@ export function FirstRunSequence({
           onBack={goBack}
         />
       ) : pane === 'subscriptionSignIn' && subscriptionProvider ? (
-        models.renderSubscriptionSignIn(subscriptionProvider, {
-          onDone: handleSubscriptionDone,
-          onCancel: () => setPane('model'),
-        })
+        <SubscriptionSignInPane
+          render={models.renderSubscriptionSignIn}
+          provider={subscriptionProvider}
+          onDone={handleSubscriptionDone}
+          onCancel={() => setPane('model')}
+        />
       ) : pane === 'apiKey' ? (
         <FirstRunApiKeyScreen
           status={status}
@@ -320,7 +407,7 @@ export function FirstRunSequence({
         />
       ) : pane === 'apiKeyModel' ? (
         <BotModelPane
-          models={keyModels}
+          models={keyModels.models}
           selectedModel={keyModel}
           onSelectModel={setKeyModel}
           onBackPress={goBack}
