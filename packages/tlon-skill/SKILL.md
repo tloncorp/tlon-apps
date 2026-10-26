@@ -33,7 +33,7 @@ Resolve these links relative to this skill's discovered directory. Use the locat
 | Workspaces (groups), membership, permissions, channels, channel sections, public exposure | [Groups and channels](references/groups-channels.md) |
 | Find notebooks, create/edit Markdown notes, and publish them | [Notes](references/notes.md) |
 | Shared group files and folders | [Buckets](references/buckets.md) |
-| Upload media for messages or profiles | [Media](references/media.md) |
+| Upload media for messages or profiles; post an image, file, video or link to a Gallery (`heap/` channel) | [Media](references/media.md) |
 | Contacts, profile changes, bot settings | [Contacts and settings](references/contacts-settings.md) |
 | Browser card command arguments, delivery, and errors; browser workflow lives in `hosted-browser` | [Browser card commands](references/browser-handoff.md) |
 | Channel hooks and advanced automation | [Hooks](references/hooks-workflow.md) |
@@ -52,4 +52,4 @@ Resolve these links relative to this skill's discovered directory. Use the locat
 
 ## When discovery fails
 
-If this skill or a linked reference is unavailable, `help` and command help still provide local syntax. Report a missing installation resource rather than inventing a path. A permission failure or unsupported command is not a reason to bypass the tool through a shell, raw API, or the hosted browser. If neither `tlon` nor `message` covers the request, tell the user your Tlon tools do not support it yet and, where the Tlon app offers it, that they can do it there.
+If this skill or a linked reference is unavailable, `help` and command help still provide local syntax. Report a missing installation resource rather than inventing a path. A permission failure or unsupported command is not a reason to bypass the tool through a shell, raw API, or the hosted browser. Never tell the user a Tlon command or capability does not exist without first running `help` and `help <command>`: the command index is authoritative and lists options these references omit. If neither `tlon` nor `message` covers the request, tell the user your Tlon tools do not support it yet and, where the Tlon app offers it, that they can do it there.

@@ -2,7 +2,7 @@
 
 The Tlon Messenger app calls groups **workspaces**. Use the `groups` commands for workspace operations and the word the user uses when replying. Explicit requests about the agent’s files or filesystem paths refer to its own workspace directory instead.
 
-First discover the target using `groups list`, `groups info <group-flag>`, and `channels groups`. A group flag is `~host/group`; a channel nest is `chat/~host/channel`, `heap/~host/channel`, `notes/~host/channel`, or `buckets/~host/channel`. Use the returned IDs rather than deriving them from titles.
+First discover the target using `groups list`, `groups info <group-flag>`, and `channels groups`. A group flag is `~host/group`; a channel nest is `chat/~host/channel`, `heap/~host/channel`, `notes/~host/channel`, or `buckets/~host/channel`. The app names these channel types differently: a **Chat** is `chat`, a **Notebook** is `notes`, a **Gallery** is `heap`, and a **Bucket** is `buckets`. A gallery post's reference is `/1/chan/heap/~host/channel/msg/<id>`. Use the returned IDs rather than deriving them from titles.
 
 `groups list` shows the groups of the identity the command runs as: the owner's where the owner is the default identity, the bot's with the bot selected (see the tool description). Do not switch identities to look at anyone else's.
 
