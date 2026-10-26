@@ -67,18 +67,20 @@ describe('cleanCronToolArgs', () => {
       runMode: 'due',
       agentId: '',
     });
+    const change = {
+      payload: {
+        kind: 'agentTurn',
+        message: 'A daily digest, now with a line on GitHub stars.',
+        toolsAllow: ['group:web'],
+      },
+      enabled: true,
+    };
     expect(cleaned).toEqual({
       action: 'update',
       timeoutMs: 10000,
       jobId: '6b8e3aa0',
-      patch: {
-        payload: {
-          kind: 'agentTurn',
-          message: 'A daily digest, now with a line on GitHub stars.',
-          toolsAllow: ['group:web'],
-        },
-        enabled: true,
-      },
+      patch: change,
+      job: change,
     });
   });
 
@@ -151,7 +153,143 @@ describe('cleanCronToolArgs', () => {
       action: 'update',
       jobId: 'job-1',
       patch: { enabled: false },
+      job: { enabled: false },
     });
+  });
+
+  // The 2026.9 tool takes an update's change as `job` and offers every
+  // schedule and payload kind's fields together.
+  const placeholderJob9 = {
+    name: '',
+    declarationKey: 'x',
+    displayName: null,
+    owner: { agentId: '', sessionKey: '' },
+    schedule: {
+      kind: 'on-exit',
+      at: '',
+      everyMs: 1,
+      anchorMs: 0,
+      expr: '',
+      tz: '',
+      staggerMs: 0,
+      command: '',
+      cwd: '',
+      mode: 'line',
+      match: '',
+      batchMs: 0,
+      maxBatchBytes: 0,
+    },
+    pacing: null,
+    trigger: null,
+    sessionTarget: '',
+    wakeMode: 'next-heartbeat',
+    payload: {
+      kind: 'systemEvent',
+      text: 'x',
+      message: '',
+      argv: [],
+      script: '',
+      model: null,
+      thinking: '',
+      timeoutSeconds: null,
+      toolBudget: 1,
+      lightContext: false,
+      allowUnsafeExternalContent: false,
+      fallbacks: null,
+      toolsAllow: null,
+    },
+    delivery: {
+      mode: 'none',
+      channel: null,
+      to: null,
+      threadId: null,
+      bestEffort: true,
+      accountId: '',
+      failureDestination: null,
+      completionDestination: null,
+    },
+    agentId: null,
+    description: '',
+    enabled: true,
+    deleteAfterRun: false,
+    sessionKey: null,
+    failureAlert: false,
+  };
+
+  it('cleans a 2026.9 update in the key core reads', () => {
+    // Captured from a real run on 2026.9.33, where core rejected the model's
+    // own `job`: "unexpected property 'declarationKey'", an empty name, an
+    // on-exit schedule. The owner had asked to enable the job.
+    const raw = {
+      action: 'update',
+      gatewayUrl: '',
+      gatewayToken: '',
+      timeoutMs: 20000,
+      includeDisabled: true,
+      limit: 100,
+      offset: 0,
+      job: placeholderJob9,
+      jobId: '3e34f98c-b315-4245-8539-e132ad8a4408',
+    };
+    const cleaned = cleanCronToolArgs(raw);
+    const change = { enabled: true, deleteAfterRun: false };
+    expect(cleaned).toEqual({
+      action: 'update',
+      timeoutMs: 20000,
+      includeDisabled: true,
+      jobId: '3e34f98c-b315-4245-8539-e132ad8a4408',
+      patch: change,
+      job: change,
+    });
+    // Core lays the hook's params over the model's.
+    expect({ ...raw, ...cleaned }.job).toEqual(change);
+  });
+
+  it('keeps only the fields of the schedule and payload kind meant', () => {
+    const cleaned = cleanCronToolArgs({
+      action: 'update',
+      jobId: 'job-1',
+      job: {
+        ...placeholderJob9,
+        schedule: {
+          ...placeholderJob9.schedule,
+          kind: 'cron',
+          expr: '0 9 * * 1',
+          tz: 'America/Los_Angeles',
+        },
+        payload: {
+          ...placeholderJob9.payload,
+          kind: 'agentTurn',
+          message: 'Round up this week’s music releases.',
+        },
+      },
+    });
+    expect(cleaned?.job).toEqual({
+      schedule: { kind: 'cron', expr: '0 9 * * 1', tz: 'America/Los_Angeles' },
+      payload: {
+        kind: 'agentTurn',
+        message: 'Round up this week’s music releases.',
+        lightContext: false,
+        allowUnsafeExternalContent: false,
+      },
+      enabled: true,
+      deleteAfterRun: false,
+    });
+  });
+
+  it('drops a placeholder declaration key from an add', () => {
+    const cleaned = cleanCronToolArgs({
+      action: 'add',
+      job: {
+        ...placeholderJob9,
+        name: 'Weekly roundup',
+        declarationKey: 'placeholder',
+        schedule: { kind: 'cron', expr: '0 9 * * 1' },
+        payload: { kind: 'agentTurn', message: 'Round up releases.' },
+      },
+    });
+    expect(cleaned?.job).not.toHaveProperty('declarationKey');
+    expect(cleaned?.job).not.toHaveProperty('failureAlert');
   });
 
   it('leaves spellings it does not recognise as they were sent', () => {
