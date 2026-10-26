@@ -23,6 +23,7 @@ import {
   formatGroupLabel,
   formatPendingList,
   generateApprovalId,
+  isDirectDmApproval,
   isExpired,
   isNotificationDelivered,
   mergeApprovalDeliveryState,
@@ -1685,5 +1686,63 @@ describe('runBanAction', () => {
       expect(result).toEqual({ outcome: 'done' });
       expect(calls).toEqual(['block', 'removeFromDmAllowlist']);
     }
+  });
+});
+
+describe('isDirectDmApproval', () => {
+  const message = {
+    messageId: 'm1',
+    messageText: 'hi',
+    timestamp: 1,
+  };
+
+  it('accepts a 1:1 DM approval, with or without a recorded whom', () => {
+    expect(isDirectDmApproval({ type: 'dm', requestingShip: '~zod' })).toBe(
+      true
+    );
+    expect(
+      isDirectDmApproval({
+        type: 'dm',
+        requestingShip: '~zod',
+        originalMessage: message,
+      })
+    ).toBe(true);
+    expect(
+      isDirectDmApproval({
+        type: 'dm',
+        requestingShip: '~zod',
+        originalMessage: { ...message, whom: 'zod' },
+      })
+    ).toBe(true);
+  });
+
+  it('rejects a non-ship requester or a group DM (club) record', () => {
+    expect(
+      isDirectDmApproval({ type: 'dm', requestingShip: '0v3.abcde' })
+    ).toBe(false);
+    expect(isDirectDmApproval({ type: 'dm', requestingShip: '' })).toBe(false);
+    expect(
+      isDirectDmApproval({
+        type: 'dm',
+        requestingShip: '~zod',
+        originalMessage: { ...message, whom: '0v3.abcde.fghij' },
+      })
+    ).toBe(false);
+    expect(
+      isDirectDmApproval({
+        type: 'dm',
+        requestingShip: '~zod',
+        originalMessage: { ...message, whom: '~bus' },
+      })
+    ).toBe(false);
+  });
+
+  it('does not apply to channel or group approvals', () => {
+    expect(
+      isDirectDmApproval({ type: 'channel', requestingShip: '~zod' })
+    ).toBe(true);
+    expect(isDirectDmApproval({ type: 'group', requestingShip: '~zod' })).toBe(
+      true
+    );
   });
 });

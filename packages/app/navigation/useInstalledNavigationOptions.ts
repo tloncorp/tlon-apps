@@ -1,5 +1,9 @@
-import type { NavigationProp, ParamListBase } from '@react-navigation/native';
-import { useLayoutEffect } from 'react';
+import {
+  type NavigationProp,
+  NavigationRouteContext,
+  type ParamListBase,
+} from '@react-navigation/native';
+import { useContext, useLayoutEffect } from 'react';
 
 /** Installs screen-owned options on the route that owns the native header. */
 export function useInstalledNavigationOptions(
@@ -8,10 +12,10 @@ export function useInstalledNavigationOptions(
   enabled = true,
   resetOptions?: object
 ) {
+  const routeKey = useContext(NavigationRouteContext)?.key;
   const isTopLevelSection = navigation?.getState().type === 'tab';
-  // The top-level sections share the root stack's navigation bar with pushed
-  // screens. Installing on the parent keeps one native header alive for the
-  // transition.
+  // Top-level sections share the root stack's navigation bar with pushed screens.
+  // Installing on the parent keeps one native header alive for the transition.
   const optionsNavigation = isTopLevelSection
     ? navigation?.getParent()
     : navigation;
@@ -22,7 +26,15 @@ export function useInstalledNavigationOptions(
     }
 
     const installOptions = () => optionsNavigation.setOptions(options);
-    if (!isTopLevelSection || navigation?.isFocused()) {
+    // Check the selected tab rather than `isFocused()`, which is false while a
+    // pushed screen covers the tabs. Tabs that mount there (a reset straight
+    // into a channel) would otherwise leave the header on its route name
+    // until the user comes back.
+    const isSelectedTab = () => {
+      const state = navigation?.getState();
+      return state?.routes[state.index]?.key === routeKey;
+    };
+    if (!isTopLevelSection || isSelectedTab()) {
       installOptions();
     }
 
@@ -31,7 +43,14 @@ export function useInstalledNavigationOptions(
     if (isTopLevelSection && navigation) {
       return navigation.addListener('focus', installOptions);
     }
-  }, [enabled, isTopLevelSection, navigation, options, optionsNavigation]);
+  }, [
+    enabled,
+    isTopLevelSection,
+    navigation,
+    options,
+    optionsNavigation,
+    routeKey,
+  ]);
 
   useLayoutEffect(() => {
     if (!enabled || !navigation || !optionsNavigation || !resetOptions) {

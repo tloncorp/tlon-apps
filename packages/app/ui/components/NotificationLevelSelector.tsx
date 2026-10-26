@@ -81,6 +81,24 @@ const HUSH_DESCRIPTION_NATIVE =
   'No notifications for anything, even if push notifications are enabled on your device.';
 const HUSH_DESCRIPTION_WEB = 'No notifications for anything.';
 
+// A few words for a level, the same in a chat's settings row and at the top of
+// its choice, with the full title beneath the choice. DMs' titles are short.
+const LEVEL_SHORT_TITLES: Partial<Record<ub.NotificationLevel, string>> = {
+  loud: 'All activity',
+  medium: 'Posts and mentions',
+  soft: 'Mentions and replies',
+  hush: 'Nothing',
+};
+
+export function getLevelShortTitle(
+  level: ub.NotificationLevel,
+  context: NotificationLevelContext
+): string {
+  return context === 'dm'
+    ? getLevelTitle(level, context)
+    : (LEVEL_SHORT_TITLES[level] ?? getLevelTitle(level, context));
+}
+
 export function getLevelTitle(
   level: ub.NotificationLevel,
   context: NotificationLevelContext
@@ -164,12 +182,21 @@ export function NotificationLevelSelector({
   value,
   onChange,
   config,
+  flush,
 }: {
   value: ub.NotificationLevel;
   onChange: (level: ub.NotificationLevel) => void;
   config?: NotificationLevelOptionsConfig;
+  flush?: boolean;
 }) {
   const options = useNotificationLevelOptions(config);
 
-  return <RadioInput options={options} value={value} onChange={onChange} />;
+  return (
+    <RadioInput
+      options={options}
+      value={value}
+      onChange={onChange}
+      flush={flush}
+    />
+  );
 }

@@ -13,8 +13,9 @@ import { Alert, Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import {
-  imagePickerAssetToUploadIntent,
+  imagePickerUploadOptions,
   normalizeUploadIntents,
+  pickedAssetToUploadIntent,
   pickFile,
 } from '../../utils/filepicker';
 import {
@@ -22,7 +23,6 @@ import {
   getFileSize,
   getMimeType,
 } from '../../utils/files';
-import { normalizeImagePickerAssetForUpload } from '../../utils/imagePickerAsset';
 import { useAttachmentContext } from '../contexts/attachment';
 import { useSheetBottomInset } from '../hooks/useSheetBottomInset';
 import { useSheetDismissalAction } from '../hooks/useSheetDismissalAction';
@@ -158,8 +158,7 @@ export default function AttachmentSheet({
           const result = await ImagePicker.launchCameraAsync({
             mediaTypes: cameraMediaTypes,
             allowsEditing: false,
-            quality: 0.5,
-            exif: false,
+            ...imagePickerUploadOptions,
           });
 
           if (!result.canceled) {
@@ -168,9 +167,7 @@ export default function AttachmentSheet({
 
             removePlaceholderAttachment();
             await attachNormalizedUploadIntents([
-              imagePickerAssetToUploadIntent(
-                normalizeImagePickerAssetForUpload(realAsset)
-              ),
+              pickedAssetToUploadIntent(realAsset),
             ]);
           } else {
             // If user canceled, remove the placeholder
@@ -285,19 +282,13 @@ export default function AttachmentSheet({
           allowsMultipleSelection: allowMultipleSelection,
           selectionLimit: allowMultipleSelection ? 0 : 1,
           orderedSelection: allowMultipleSelection,
-          quality: 0.5,
-          exif: false,
-          shouldDownloadFromNetwork: true,
+          ...imagePickerUploadOptions,
         });
 
         if (!result.canceled) {
           const { uploadIntents: normalizedUploadIntents, errorMessage } =
             await normalizeUploadIntents(
-              result.assets.map((asset) =>
-                imagePickerAssetToUploadIntent(
-                  normalizeImagePickerAssetForUpload(asset)
-                )
-              )
+              result.assets.map(pickedAssetToUploadIntent)
             );
 
           // Remove placeholder before attaching the selected media so validation

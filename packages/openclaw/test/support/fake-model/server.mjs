@@ -23,6 +23,8 @@ const MAX_SUMMARY_TEXT_LENGTH = 300;
  * Each step is one of:
  *   { kind: "text", content: string }
  *   { kind: "tool_call", name: string, args: object }
+ *   { kind: "hold", ms: number }  (delays the next step's response, within
+ *                                  the same model request)
  *
  * The server is intentionally dumb: it never parses prompt content to
  * decide what to return. Tests register the exact sequence of model
@@ -187,7 +189,7 @@ const server = http.createServer(async (req, res) => {
           : null;
       const stale = registeredEpoch !== null && epoch > registeredEpoch;
 
-      receivedCalls.push({
+      const callRecord = {
         key,
         at: Date.now(),
         model: body.model ?? null,
@@ -199,7 +201,9 @@ const server = http.createServer(async (req, res) => {
         registeredEpoch,
         stale,
         provenance,
-      });
+        responseToolCalls: [],
+      };
+      receivedCalls.push(callRecord);
 
       // No tag anywhere → loud 400 (preserve negative-path strictness).
       if (!key) {
@@ -233,7 +237,7 @@ const server = http.createServer(async (req, res) => {
           console.log(
             `[fake-model] key="${key}"${streamFlag} → 200 STALE-BENIGN (registeredEpoch=${registeredEpoch} arrivedEpoch=${epoch}, provenance=${provenance})`
           );
-          respondScripted(res, body, benignFiller());
+          respondRecorded(callRecord, res, body, benignFiller());
           return;
         }
         // Genuinely unknown / never-registered key → loud 400.
@@ -257,7 +261,7 @@ const server = http.createServer(async (req, res) => {
             `[fake-model] key="${key}"${streamFlag} → 200 EXTRA call ${n + 1} (of ${steps.length}+${extra})`
           );
           callCounts.set(key, n + 1);
-          respondScripted(res, body, benignFiller());
+          respondRecorded(callRecord, res, body, benignFiller());
           return;
         }
         // Exhausted current-epoch script → loud 400. This is one of the best
@@ -273,19 +277,24 @@ const server = http.createServer(async (req, res) => {
         });
         return;
       }
-      callCounts.set(key, n + 1);
+      const holdMs = steps[n].kind === 'hold' ? steps[n].ms : 0;
+      const index = steps[n].kind === 'hold' ? n + 1 : n;
+      callCounts.set(key, index + 1);
 
-      const step = steps[n];
+      const step = steps[index];
       const scripted =
         step.kind === 'tool_call'
           ? toolCallResponse({ name: step.name, args: step.args })
           : textResponse(step.content);
 
       console.log(
-        `[fake-model] POST /v1/chat/completions key="${key}"${streamFlag} → 200 step ${n + 1}/${steps.length} (${step.kind}) [${provenance}]`
+        `[fake-model] POST /v1/chat/completions key="${key}"${streamFlag} → 200 step ${index + 1}/${steps.length} (${step.kind}${holdMs ? `, held ${holdMs}ms` : ''}) [${provenance}]`
       );
 
-      respondScripted(res, body, scripted);
+      if (holdMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, holdMs));
+      }
+      respondRecorded(callRecord, res, body, scripted);
       return;
     }
 
@@ -347,8 +356,15 @@ function validateScript(key, steps, extra) {
       if (!s.args || typeof s.args !== 'object' || Array.isArray(s.args)) {
         return `step ${i}: tool_call step requires object 'args'`;
       }
+    } else if (s.kind === 'hold') {
+      if (typeof s.ms !== 'number' || !Number.isInteger(s.ms) || s.ms < 0) {
+        return `step ${i}: hold step requires a non-negative integer 'ms'`;
+      }
+      if (i === steps.length - 1 || steps[i + 1]?.kind === 'hold') {
+        return `step ${i}: hold step must be followed by a text or tool_call step`;
+      }
     } else {
-      return `step ${i}: unknown kind "${s.kind}" (expected "text" or "tool_call")`;
+      return `step ${i}: unknown kind "${s.kind}" (expected "text", "tool_call" or "hold")`;
     }
   }
   return null;
@@ -393,6 +409,22 @@ function extractTagFromLastUserTurn(messages) {
 // benignly. A minimal "ok" terminates the agent loop cleanly.
 function benignFiller() {
   return textResponse('ok');
+}
+
+/**
+ * Record what this request was answered with (generated tool-call ids
+ * included), as the shared fake-model server does, then send it.
+ */
+function respondRecorded(callRecord, res, body, scripted) {
+  callRecord.responseToolCalls = summarizeToolCalls(
+    scripted.message.tool_calls ?? []
+  );
+  callRecord.responseText =
+    typeof scripted.message.content === 'string'
+      ? scripted.message.content
+      : (scripted.message.content ?? null);
+  callRecord.responseFinishReason = scripted.finish_reason;
+  respondScripted(res, body, scripted);
 }
 
 // Send a scripted completion, honoring the request's streaming preference.

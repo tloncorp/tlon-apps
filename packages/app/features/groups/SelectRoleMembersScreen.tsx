@@ -1,20 +1,29 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as db from '@tloncorp/shared/db';
-import { Icon } from '@tloncorp/ui';
+import type * as db from '@tloncorp/shared/db';
+import { useIsWindowNarrow } from '@tloncorp/ui';
 import Fuse from 'fuse.js';
 import { useCallback, useMemo, useState } from 'react';
-import { FlatList, ListRenderItemInfo } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, getTokenValue } from 'tamagui';
 
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
-import { ContactList, ScreenHeader, TextInput } from '../../ui';
+import { useCalm } from '../../ui';
+import {
+  SETTINGS_LIST_COLUMN_WIDTH,
+  type SettingsSectionModel,
+  SettingsListScreenView,
+  contactSettingsRow,
+} from '../../ui/components/SettingsList';
 
 type Props = NativeStackScreenProps<
   GroupSettingsStackParamList,
   'SelectRoleMembers'
 >;
+
+/**
+ * The native lists draw every row they are given, so a large group is shown a
+ * page at a time. Searching is the quick way to one person.
+ */
+const pageSize = 100;
 
 export function SelectRoleMembersScreen({ navigation, route }: Props) {
   const {
@@ -23,45 +32,39 @@ export function SelectRoleMembersScreen({ navigation, route }: Props) {
     selectedMembers: initialSelected,
     onSave,
   } = route.params;
+  const isWindowNarrow = useIsWindowNarrow();
+  const { disableNicknames } = useCalm();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMembers, setSelectedMembers] =
     useState<string[]>(initialSelected);
-  const { bottom } = useSafeAreaInsets();
-
+  const [limit, setLimit] = useState(pageSize);
   const { groupMembers, groupRoles } = useGroupContext({ groupId });
 
-  // Find the role being edited to display its title
   const role = useMemo(
     () => groupRoles.find((r) => r.id === roleId),
     [groupRoles, roleId]
   );
 
-  const handlePressClear = useCallback(() => {
-    setSearchQuery('');
-  }, []);
-
-  const fuse = useMemo(() => {
-    return new Fuse(groupMembers, {
-      keys: [
-        {
-          name: 'contact.nickname',
-          getFn: (member) => member.contact?.nickname || '',
-        },
-        {
-          name: 'contact.id',
-          getFn: (member) => member.contact?.id || member.contactId,
-        },
-      ],
-      threshold: 0.4,
-    });
-  }, [groupMembers]);
-
   const filteredMembers = useMemo(() => {
-    const members = searchQuery.trim()
-      ? fuse.search(searchQuery).map((result) => result.item)
+    const query = searchQuery.trim();
+    const members = query
+      ? new Fuse(groupMembers, {
+          keys: [
+            {
+              name: 'contact.nickname',
+              getFn: (member) => member.contact?.nickname || '',
+            },
+            {
+              name: 'contact.id',
+              getFn: (member) => member.contact?.id || member.contactId,
+            },
+          ],
+          threshold: 0.4,
+        })
+          .search(query)
+          .map((result) => result.item)
       : groupMembers;
-
-    // Filter out invited members and sort alphabetically by nickname or id
+    // Invited members can't hold roles yet; the rest go in name order.
     return members
       .filter((m) => m.status !== 'invited')
       .sort((a, b) => {
@@ -69,106 +72,103 @@ export function SelectRoleMembersScreen({ navigation, route }: Props) {
         const bName = b.contact?.nickname || b.contactId;
         return aName.localeCompare(bName);
       });
-  }, [groupMembers, searchQuery, fuse]);
+  }, [groupMembers, searchQuery]);
 
-  const getRoleLabels = useCallback(
-    (member: db.ChatMember) => {
-      if (!member.roles || member.roles.length === 0) {
-        return 'No roles';
-      }
-      return member.roles
-        .map((role) => {
-          const foundRole = groupRoles.find((r) => r.id === role.roleId);
-          return foundRole?.title || role.roleId;
-        })
-        .join(', ');
-    },
+  const roleLabels = useCallback(
+    (member: db.ChatMember) =>
+      member.roles?.length
+        ? member.roles
+            .map(
+              ({ roleId: id }) =>
+                groupRoles.find((r) => r.id === id)?.title || id
+            )
+            .join(', ')
+        : 'No roles',
     [groupRoles]
   );
 
-  const handleToggleMember = useCallback(
-    (member: db.ChatMember) => {
-      const contactId = member.contactId;
-      if (selectedMembers.includes(contactId)) {
-        setSelectedMembers(selectedMembers.filter((id) => id !== contactId));
-      } else {
-        setSelectedMembers([...selectedMembers, contactId]);
-      }
+  // Picks go straight back to the role form, which saves them with the rest
+  // of the role, so there's nothing to confirm here.
+  const toggleMember = useCallback(
+    (contactId: string) => {
+      const next = selectedMembers.includes(contactId)
+        ? selectedMembers.filter((id) => id !== contactId)
+        : [...selectedMembers, contactId];
+      setSelectedMembers(next);
+      onSave(next);
     },
-    [selectedMembers]
+    [selectedMembers, onSave]
   );
 
-  const handleGoBack = useCallback(() => {
-    onSave(selectedMembers);
-    navigation.goBack();
-  }, [selectedMembers, onSave, navigation]);
-
-  const renderItem = useCallback(
-    ({ item }: ListRenderItemInfo<db.ChatMember>) => {
-      const isSelected = selectedMembers.includes(item.contactId);
-      const roleLabels = getRoleLabels(item);
-
-      return (
-        <ContactList.Item
-          contactId={item.contactId}
-          showNickname
-          size="$4xl"
-          onPress={() => handleToggleMember(item)}
-          showEndContent
-          subtitle={roleLabels}
-          endContent={
-            isSelected ? (
-              <Icon type="Checkmark" size="$l" color="$positiveActionText" />
-            ) : (
-              <View
-                borderWidth={1}
-                borderRadius="$3xl"
-                borderColor="$tertiaryText"
-                opacity={0.6}
-                height="$3xl"
-                width="$3xl"
-              />
-            )
-          }
-        />
-      );
-    },
-    [selectedMembers, handleToggleMember, getRoleLabels]
-  );
-
-  const keyExtractor = useCallback((item: db.ChatMember) => item.contactId, []);
+  const sections = useMemo((): SettingsSectionModel[] => {
+    if (filteredMembers.length === 0) {
+      return searchQuery.trim()
+        ? [
+            {
+              key: 'none',
+              rows: [{ key: 'none', title: 'No one matches that search.' }],
+            },
+          ]
+        : [];
+    }
+    const shown = filteredMembers.slice(0, limit);
+    const hidden = filteredMembers.length - shown.length;
+    return [
+      {
+        key: 'members',
+        rows: shown.map((member) => ({
+          ...contactSettingsRow(
+            member.contactId,
+            member.contact,
+            disableNicknames
+          ),
+          // The roles someone holds now, in place of their ID.
+          subtitle: roleLabels(member),
+          selected: selectedMembers.includes(member.contactId),
+          multiple: true,
+          onPress: () => toggleMember(member.contactId),
+          testID: `RoleMember-${member.contactId}`,
+        })),
+      },
+      ...(hidden > 0
+        ? [
+            {
+              key: 'more',
+              rows: [
+                {
+                  key: 'more',
+                  title: `Show ${Math.min(hidden, pageSize)} more`,
+                  action: true,
+                  onPress: () => setLimit((current) => current + pageSize),
+                },
+              ],
+            },
+          ]
+        : []),
+    ];
+  }, [
+    disableNicknames,
+    filteredMembers,
+    limit,
+    roleLabels,
+    searchQuery,
+    selectedMembers,
+    toggleMember,
+  ]);
 
   return (
-    <View flex={1} backgroundColor="$background">
-      <ScreenHeader
-        backAction={handleGoBack}
-        title={role ? `Select members for ${role.title}` : 'Select members'}
-      />
-      <View paddingHorizontal="$l" paddingBottom="$s">
-        <TextInput
-          icon="Search"
-          placeholder="Search by name or ID"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          spellCheck={false}
-          autoCorrect={false}
-          autoCapitalize="none"
-          rightControls={
-            searchQuery !== '' ? (
-              <TextInput.InnerButton label="Clear" onPress={handlePressClear} />
-            ) : undefined
-          }
-        />
-      </View>
-      <FlatList
-        data={filteredMembers}
-        keyExtractor={keyExtractor}
-        renderItem={renderItem}
-        contentContainerStyle={{
-          paddingHorizontal: getTokenValue('$l', 'size'),
-          paddingBottom: bottom,
-        }}
-      />
-    </View>
+    <SettingsListScreenView
+      title={role ? `Members of ${role.title}` : 'Select members'}
+      sections={sections}
+      onBackPressed={() => navigation.goBack()}
+      showsBackOnWideWindows
+      useHorizontalTitleLayout={!isWindowNarrow}
+      maxWidth={SETTINGS_LIST_COLUMN_WIDTH}
+      search={{
+        value: searchQuery,
+        onChangeText: setSearchQuery,
+        placeholder: 'Search by name or ID',
+      }}
+    />
   );
 }

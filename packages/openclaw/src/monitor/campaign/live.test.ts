@@ -257,12 +257,35 @@ it('stops on task events even if the task is removed before a scheduler query', 
   expect(row.status).toBe('feedback');
   expect(mock.send).not.toHaveBeenCalled();
 });
+it('stops on task events for a long-lived stream job, not just cron/every', async () => {
+  row.enrolledAt = now;
+  campaign.start();
+  await campaign.check();
+  notifyCampaignCronChanged({
+    action: 'added',
+    jobId: 'task-1',
+    job: {
+      id: 'task-1',
+      schedule: { kind: 'stream', command: ['tail', '-f', 'log'] },
+      payload: { kind: 'agentTurn' },
+    },
+  });
+  await campaign.check();
+  expect(row.status).toBe('feedback');
+  expect(mock.send).not.toHaveBeenCalled();
+});
 it('recognizes disabled user tasks but excludes one-shot and internal heartbeat jobs', () => {
   expect(
     isUserRecurringTask({
       id: 'one',
       enabled: false,
       schedule: { kind: 'every', everyMs: DAY },
+    })
+  ).toBe(true);
+  expect(
+    isUserRecurringTask({
+      id: 'watch',
+      schedule: { kind: 'stream', command: ['tail', '-f', 'log'] },
     })
   ).toBe(true);
   expect(isUserRecurringTask({ id: 'once', schedule: { kind: 'at' } })).toBe(
@@ -275,6 +298,26 @@ it('recognizes disabled user tasks but excludes one-shot and internal heartbeat 
       payload: { kind: 'heartbeat' },
     })
   ).toBe(false);
+});
+it('picks up a stream job through the jobs() cron list lookup', async () => {
+  mock.list.mockResolvedValue([
+    {
+      id: 'task',
+      name: 'Log watch',
+      enabled: true,
+      schedule: { kind: 'stream', command: ['tail', '-f', 'log'] },
+      state: {
+        lastRunStatus: 'ok',
+        lastDelivered: true,
+        lastRunAtMs: now - 1000,
+      },
+    },
+  ]);
+  await campaign.check();
+  expect(row.sent.at(-1)?.step).toBe('task-feedback');
+  expect(mock.send).toHaveBeenCalledWith(
+    expect.objectContaining({ text: expect.stringContaining('Log watch') })
+  );
 });
 it('honors a changed kill switch before delivery', async () => {
   mock.posts.mockImplementationOnce(async () => {

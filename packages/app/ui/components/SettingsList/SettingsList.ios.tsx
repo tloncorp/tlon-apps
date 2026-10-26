@@ -5,6 +5,9 @@ import {
   HStack,
   Host,
   Image,
+  List,
+  Menu,
+  Picker,
   RNHostView,
   SecureField,
   Section,
@@ -23,28 +26,47 @@ import {
   accessibilityValue,
   autocorrectionDisabled,
   background,
+  buttonStyle,
+  deleteDisabled,
   disabled,
+  environment,
   font,
   foregroundStyle,
   frame,
   lineLimit,
   listRowBackground,
+  listRowInsets,
   listRowSeparatorTint,
   listSectionMargins,
+  listSectionSpacing,
   onSubmit as submitAction,
+  opacity,
   padding,
+  pickerStyle,
   scrollContentBackground,
   shapes,
   submitLabel,
+  tag,
   textInputAutocapitalization,
+  tint,
+  useScrollGeometryChange,
 } from '@expo/ui/swift-ui/modifiers';
 
+import { type ReactElement, useCallback, useEffect, useRef } from 'react';
+import { View, useWindowDimensions } from 'react-native';
+
+import { useFloatingHeaderHeight } from '../../../navigation/useFloatingHeaderHeight';
 import { useScreenScrollProps } from '../useScreenScrollProps';
 import {
   HostedSettingsRowLeading,
   getSettingsRowLeadingSize,
 } from './SettingsRowLeading';
-import type { SettingsListProps, SettingsRowModel } from './types';
+import { SwiftUIMenuItems } from './SwiftUIMenuItems';
+import type {
+  SettingsListProps,
+  SettingsListScrollMark,
+  SettingsRowModel,
+} from './types';
 import { useSyncedFieldText } from './useSyncedFieldText';
 import {
   type SettingsListColors,
@@ -57,9 +79,26 @@ const firstSectionModifiers = [
   listSectionMargins({ edges: 'top', length: 24 }),
 ];
 
+// A compact list keeps its first heading as close to the bar as the gaps
+// between its sections.
+const compactFirstSectionModifiers = [
+  listSectionMargins({ edges: 'top', length: 0 }),
+];
+
+// A screen's own content at the top sits right under the navigation bar.
+const flushFirstSectionModifiers = [
+  listSectionMargins({ edges: 'top', length: 0 }),
+];
+
 /** Settings drawn as a SwiftUI inset-grouped form, in Tlon's theme colors. */
-export function SettingsList({ sections }: SettingsListProps) {
+export function SettingsList({
+  sections,
+  scrollMark,
+  editing,
+  compactSections,
+}: SettingsListProps) {
   const colors = useSettingsListColors();
+  const scrollMarkModifier = useScrollMark(scrollMark);
   // Keeps the transparent header the tab's other scroll views install on iOS
   // 26; the form scrolls beneath it, and iOS gives it the soft edge on its own.
   useScreenScrollProps();
@@ -70,14 +109,51 @@ export function SettingsList({ sections }: SettingsListProps) {
         // SwiftUI keeps a row's separator tint from when it was first drawn, so
         // a theme change would leave the old color; rebuild the form instead.
         key={colors.separator}
-        modifiers={[scrollContentBackground('hidden'), background(colors.page)]}
+        modifiers={[
+          ...(scrollMarkModifier ? [scrollMarkModifier] : []),
+          ...(editing === undefined
+            ? []
+            : [environment('editMode', editing ? 'active' : 'inactive')]),
+          ...(compactSections ? [listSectionSpacing('compact')] : []),
+          scrollContentBackground('hidden'),
+          background(colors.page),
+        ]}
       >
         {sections.map((section, index) => (
           <Section
             key={section.key}
-            modifiers={index === 0 ? firstSectionModifiers : undefined}
+            modifiers={
+              index !== 0
+                ? undefined
+                : section.element
+                  ? flushFirstSectionModifiers
+                  : compactSections
+                    ? compactFirstSectionModifiers
+                    : firstSectionModifiers
+            }
             header={
-              section.title ? (
+              section.element ? (
+                <HostedSectionElement element={section.element} />
+              ) : section.title && section.titleMenu?.length ? (
+                <HStack>
+                  <Text modifiers={[foregroundStyle(colors.secondaryText)]}>
+                    {section.title}
+                  </Text>
+                  <Spacer />
+                  <Menu
+                    label={
+                      <Image
+                        systemName="ellipsis.circle"
+                        size={17}
+                        color={colors.accent}
+                      />
+                    }
+                    modifiers={[accessibilityLabel(`${section.title} options`)]}
+                  >
+                    <SwiftUIMenuItems items={section.titleMenu} />
+                  </Menu>
+                </HStack>
+              ) : section.title ? (
                 <Text modifiers={[foregroundStyle(colors.secondaryText)]}>
                   {section.title}
                 </Text>
@@ -85,15 +161,28 @@ export function SettingsList({ sections }: SettingsListProps) {
             }
             footer={
               section.footer ? (
-                <Text modifiers={[foregroundStyle(colors.secondaryText)]}>
+                <Text modifiers={footerModifiers(colors)}>
                   {section.footer}
                 </Text>
               ) : undefined
             }
           >
-            {section.rows.map((row) => (
-              <SettingsRow key={row.key} row={row} colors={colors} />
-            ))}
+            {section.onMove ? (
+              <List.ForEach onMove={section.onMove}>
+                {section.rows.map((row) => (
+                  <SettingsRow
+                    key={row.key}
+                    row={row}
+                    colors={colors}
+                    reorderable
+                  />
+                ))}
+              </List.ForEach>
+            ) : (
+              section.rows.map((row) => (
+                <SettingsRow key={row.key} row={row} colors={colors} />
+              ))
+            )}
           </Section>
         ))}
       </Form>
@@ -101,22 +190,151 @@ export function SettingsList({ sections }: SettingsListProps) {
   );
 }
 
+/**
+ * Tells a screen when the list crosses its scroll mark, in either direction.
+ * Under a floating bar the list rests at minus the bar's height, so distance
+ * is counted from there.
+ */
+function useScrollMark(mark?: SettingsListScrollMark) {
+  const latest = useRef(mark);
+  useEffect(() => {
+    latest.current = mark;
+  }, [mark]);
+  const restOffset = -useFloatingHeaderHeight();
+  const hasRested = useRef(false);
+  const isPast = useRef(false);
+  const onGeometry = useCallback(
+    ({ contentOffsetY }: { contentOffsetY: number }) => {
+      const current = latest.current;
+      if (!current) {
+        return;
+      }
+      // The list reports an offset of zero before the bar's inset is applied,
+      // which would read as already scrolled.
+      if (!hasRested.current) {
+        if (contentOffsetY > restOffset + 1) {
+          return;
+        }
+        hasRested.current = true;
+      }
+      const past = contentOffsetY - restOffset > current.offset;
+      if (past !== isPast.current) {
+        isPast.current = past;
+        current.onCrossed(past);
+      }
+    },
+    [restOffset]
+  );
+  return useScrollGeometryChange(mark ? onGeometry : undefined);
+}
+
+/**
+ * A footer otherwise sits closer to the next section's heading than to its
+ * own card, so it reads as that heading's caption. The extra space below it
+ * matches the gap a section without a footer leaves.
+ */
+function footerModifiers(colors: SettingsListColors) {
+  return [foregroundStyle(colors.secondaryText), padding({ bottom: 10 })];
+}
+
+/** The margin an inset-grouped form keeps on each side of its rows. */
+const formSideMargin = 16;
+
+// A section's header is the one part of the form that isn't clipped to a
+// card, so negative side insets carry it out to the screen's edges. The
+// content then decides its own margins and can scroll sideways edge to edge.
+const hostedElementModifiers = [
+  listRowInsets({
+    top: 0,
+    leading: -formSideMargin,
+    bottom: 0,
+    trailing: -formSideMargin,
+  }),
+];
+
+/**
+ * A section's own React Native content, hosted as the section's header. The
+ * hosted view is given the screen's width, since SwiftUI takes its size from
+ * it. Expo UI keeps the first layout of hosted text, so a new width (a
+ * rotation) remounts the content rather than leaving text laid out for the
+ * old one.
+ */
+function HostedSectionElement({ element }: { element: ReactElement }) {
+  const { width } = useWindowDimensions();
+  return (
+    <VStack modifiers={hostedElementModifiers}>
+      <RNHostView key={width} matchContents>
+        <View style={{ width }}>{element}</View>
+      </RNHostView>
+    </VStack>
+  );
+}
+
 function SettingsRow({
   row,
   colors,
+  reorderable = false,
 }: {
   row: SettingsRowModel;
   colors: SettingsListColors;
+  /** In a section whose rows can be dragged, which can't be deleted. */
+  reorderable?: boolean;
 }) {
   const rowModifiers = [
+    ...(reorderable ? [deleteDisabled(true)] : []),
     listRowBackground(colors.row),
     listRowSeparatorTint(colors.separator),
     disabled(Boolean(row.disabled)),
+    // The rows set their own text colors, which SwiftUI won't dim for them.
+    // Always present, so enabling a row doesn't rebuild it and drop the
+    // React Native view hosted in its leading slot.
+    opacity(row.disabled ? 0.5 : 1),
     ...(row.testID ? [accessibilityIdentifier(row.testID)] : []),
   ];
 
   if (row.textField) {
     return <TextFieldRow row={row} modifiers={rowModifiers} />;
+  }
+
+  if (row.picker) {
+    const picker = row.picker;
+    return (
+      <Picker
+        label={
+          row.subtitle ? (
+            <VStack alignment="leading" spacing={2}>
+              <Text modifiers={[foregroundStyle(colors.primaryText)]}>
+                {row.title}
+              </Text>
+              <Text
+                modifiers={[
+                  font({ size: 13 }),
+                  foregroundStyle(colors.secondaryText),
+                ]}
+              >
+                {row.subtitle}
+              </Text>
+            </VStack>
+          ) : (
+            row.title
+          )
+        }
+        selection={picker.value}
+        onSelectionChange={(value) => picker.onChange(String(value))}
+        modifiers={[
+          ...rowModifiers,
+          pickerStyle('menu'),
+          // The chosen value reads like other rows' values, not like a link.
+          tint(colors.secondaryText),
+        ]}
+      >
+        {picker.options.map((option) => (
+          <Text key={option.value} modifiers={[tag(option.value)]}>
+            {option.title}
+          </Text>
+        ))}
+      </Picker>
+    );
   }
 
   if (row.toggle) {
@@ -178,8 +396,16 @@ function SettingsRow({
   const content = (
     <HStack
       spacing={8}
-      // A row with nothing to open is plain content, not a button.
-      modifiers={row.onPress ? undefined : labelledRowModifiers}
+      // A row with nothing to open is plain content, not a button. One with a
+      // button of its own keeps their labels apart, or VoiceOver would read
+      // the button by the row's title.
+      modifiers={
+        row.onPress
+          ? undefined
+          : row.trailingAction
+            ? rowModifiers
+            : labelledRowModifiers
+      }
     >
       <RowLabel row={row} colors={colors} />
       <Spacer />
@@ -198,6 +424,28 @@ function SettingsRow({
       {row.selected ? (
         <Image systemName="checkmark" size={15} color={colors.accent} />
       ) : null}
+      {row.trailingAction ? (
+        <Button
+          onPress={row.trailingAction.onPress}
+          // Borderless, so only the button reacts and not the whole row.
+          modifiers={[
+            buttonStyle('borderless'),
+            ...(row.trailingAction.testID
+              ? [accessibilityIdentifier(row.trailingAction.testID)]
+              : []),
+          ]}
+        >
+          <Text
+            modifiers={[
+              foregroundStyle(
+                row.trailingAction.destructive ? colors.negative : colors.accent
+              ),
+            ]}
+          >
+            {row.trailingAction.title}
+          </Text>
+        </Button>
+      ) : null}
       {accessory === 'external' ? (
         <Image
           systemName="arrow.up.right"
@@ -214,32 +462,24 @@ function SettingsRow({
     </HStack>
   );
 
-  if (!row.onPress) {
-    return content;
-  }
-
-  const button = (
+  const body = row.onPress ? (
     <Button onPress={row.onPress} modifiers={labelledRowModifiers}>
       {content}
     </Button>
+  ) : (
+    content
   );
 
   if (!row.contextActions?.length) {
-    return button;
+    return body;
   }
 
   return (
     <ContextMenu>
       <ContextMenu.Items>
-        {row.contextActions.map((action) => (
-          <Button
-            key={action.key}
-            label={action.title}
-            onPress={action.onPress}
-          />
-        ))}
+        <SwiftUIMenuItems items={row.contextActions} />
       </ContextMenu.Items>
-      <ContextMenu.Trigger>{button}</ContextMenu.Trigger>
+      <ContextMenu.Trigger>{body}</ContextMenu.Trigger>
     </ContextMenu>
   );
 }
@@ -303,7 +543,7 @@ function RowLabel({
           modifiers={[
             foregroundStyle(colors.primaryText),
             ...(row.prominent ? [font({ size: 19, weight: 'semibold' })] : []),
-            lineLimit(labelLineLimit(row)),
+            labelLineLimit(row),
           ]}
         >
           {row.title}
@@ -313,11 +553,14 @@ function RowLabel({
             modifiers={[
               font({ size: 13 }),
               foregroundStyle(colors.secondaryText),
-              lineLimit(labelLineLimit(row)),
+              subtitleLineLimit(row),
             ]}
           >
             {row.subtitle}
           </Text>
+        ) : null}
+        {row.expanded === false ? (
+          <Text modifiers={[foregroundStyle(colors.accent)]}>More</Text>
         ) : null}
       </VStack>
       {/* Other rows show it beside their value; a toggle has no value slot. */}
@@ -350,12 +593,17 @@ function RowLeading({ row }: { row: SettingsRowModel }) {
 }
 
 /**
- * Long text wraps so it can be read in full, such as a feature flag's
- * description or the explanation under a notification level. Beside a value it
- * keeps to one line so the value keeps its room.
+ * Long text wraps over a few lines, such as a feature flag's description or
+ * the explanation under a notification level, and an expanded row shows all
+ * of it. Beside a value it keeps to one line so the value keeps its room.
  */
 function labelLineLimit(row: SettingsRowModel) {
-  return row.value ? 1 : 3;
+  return row.expanded ? lineLimit() : lineLimit(row.value ? 1 : 3);
+}
+
+/** A subtitle beside a value gets a second line, so a short explanation isn't cut off mid-word. */
+function subtitleLineLimit(row: SettingsRowModel) {
+  return row.expanded ? lineLimit() : lineLimit(row.value ? 2 : 3);
 }
 
 function Pill({
