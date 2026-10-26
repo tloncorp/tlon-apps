@@ -801,14 +801,78 @@ it('blocks non-owner local file references and session access but keeps text mes
     await expect(handler(call, owner)).resolves.toBeUndefined();
   }
   const localFiles = [
-    { toolName: 'some_plugin_search', params: { query: 'My Docs/a.pdf' } },
+    { toolName: 'web_fetch', params: { query: 'My Docs/a.pdf' } },
     { toolName: 'web_search', params: { query: 'x', path: '~/notes/a.pdf' } },
-    { toolName: 'tts', params: { text: 'x', voice: '/workspace/a.wav' } },
+    { toolName: 'web_fetch', params: { url: '/workspace/a.wav' } },
   ];
   for (const call of localFiles) {
     await expect(handler(call, user)).resolves.toEqual({
       block: true,
       blockReason: LOCAL_FILE_BLOCK_REASON,
+    });
+    await expect(handler(call, owner)).resolves.toBeUndefined();
+  }
+  // Tool Search dispatch: the control passes, and core gates the
+  // target again under its own name.
+  for (const [control, target, targetBlocked] of [
+    [
+      {
+        toolName: 'tool_call',
+        params: { id: 'web_fetch', args: { url: 'https://example.com' } },
+      },
+      { toolName: 'web_fetch', params: { url: 'https://example.com' } },
+      false,
+    ],
+    [
+      {
+        toolName: 'tool_call',
+        params: { id: 'read', args: { path: '/workspace/SOUL.md' } },
+      },
+      { toolName: 'read', params: { path: '/workspace/SOUL.md' } },
+      true,
+    ],
+    [
+      { toolName: 'tool_describe', params: { id: 'web_fetch' } },
+      { toolName: 'openclawweb_fetch', params: { url: 'https://example.com' } },
+      false,
+    ],
+    [
+      { toolName: 'tool_search', params: { query: 'read a file' } },
+      {
+        toolName: 'openclaw_directread',
+        params: { path: '/workspace/SOUL.md' },
+      },
+      true,
+    ],
+  ] as const) {
+    await expect(handler(control, user)).resolves.toBeUndefined();
+    await expect(handler(target, user)).resolves.toEqual(
+      targetBlocked
+        ? { block: true, blockReason: formatOwnerOnlyToolBlockReason('read') }
+        : undefined
+    );
+    await expect(handler(target, owner)).resolves.toBeUndefined();
+  }
+  for (const call of [
+    { toolName: 'exec', params: { command: 'cat /workspace/SOUL.md' } },
+    { toolName: 'exec', params: { code: 'return 1' } },
+    {
+      toolName: 'exec',
+      toolKind: 'code_mode_exec',
+      params: { title: 'skills', code: 'return await skills.list()' },
+    },
+  ]) {
+    await expect(handler(call, user)).resolves.toEqual({
+      block: true,
+      blockReason: formatOwnerOnlyToolBlockReason('exec'),
+    });
+    await expect(handler(call, owner)).resolves.toBeUndefined();
+  }
+  for (const toolName of ['exec', 'wait', 'memory_get', 'some_new_core_tool']) {
+    const call = { toolName, params: {} };
+    await expect(handler(call, user)).resolves.toEqual({
+      block: true,
+      blockReason: formatOwnerOnlyToolBlockReason(toolName),
     });
     await expect(handler(call, owner)).resolves.toBeUndefined();
   }
