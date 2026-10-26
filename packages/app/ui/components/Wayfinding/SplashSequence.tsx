@@ -2872,16 +2872,19 @@ function ModelOptionCard({
         borderColor={selected ? '$primaryText' : '$border'}
       >
         <ListItem.MainContent>
-          <ListItem.Title color="$primaryText">{option.label}</ListItem.Title>
-          {option.recommendationLabel ? (
-            <Badge
-              text={option.recommendationLabel}
-              type="positive"
-              size="micro"
-              alignSelf="flex-start"
-              marginTop="$m"
-            />
-          ) : option.description ? (
+          <XStack alignItems="center" gap="$s">
+            <ListItem.Title color="$primaryText" flexShrink={1}>
+              {option.label}
+            </ListItem.Title>
+            {option.recommendationLabel ? (
+              <Badge
+                text={option.recommendationLabel}
+                type="positive"
+                size="micro"
+              />
+            ) : null}
+          </XStack>
+          {option.description ? (
             <ListItem.Subtitle color="$secondaryText">
               {option.description}
             </ListItem.Subtitle>
