@@ -1,5 +1,6 @@
 import type { TlawnOAuthProvider } from '@tloncorp/api';
 
+import type { McpConnectionEvent } from '../../../../features/settings/useMcpConnections';
 import type { McpProviderRow } from '../../../../lib/mcpProviders';
 import {
   FIRST_RUN_FEATURED_SERVICES,
@@ -91,6 +92,25 @@ export function attemptAfterCheck(
     case 'canceled':
       return 'cancelled';
   }
+}
+
+/**
+ * Whether a connection event also needs a toast. Screen 3's featured rows show
+ * their own state, so the toast is for the full services list, and for any
+ * service screen 3 doesn't feature.
+ */
+export function shouldAnnounceConnectionEvent(
+  event: McpConnectionEvent,
+  {
+    allServicesOpen,
+    featuredIds,
+  }: { allServicesOpen: boolean; featuredIds: string[] }
+): boolean {
+  if (allServicesOpen) return true;
+  // Screen 3 shows a failed catalog load as "nothing to connect".
+  if (event.type === 'load-failed') return false;
+  if (!event.providerId) return true;
+  return !featuredIds.includes(event.providerId.toLowerCase());
 }
 
 export function hasConnectedService(rows: McpProviderRow[]) {

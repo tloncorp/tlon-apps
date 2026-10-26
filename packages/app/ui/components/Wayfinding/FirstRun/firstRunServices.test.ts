@@ -7,6 +7,7 @@ import {
   featuredRowState,
   hasConnectedService,
   selectFeaturedServices,
+  shouldAnnounceConnectionEvent,
 } from './firstRunServices';
 
 const provider = (id: string, scopes: string): TlawnOAuthProvider => ({
@@ -113,6 +114,39 @@ describe('a featured row after connecting', () => {
   it('offers Try again after a cancelled or failed sign-in', () => {
     expect(attemptAfterCheck(false, 'canceled')).toBe('cancelled');
     expect(attemptAfterCheck(false, 'failed')).toBe('failed');
+  });
+
+  it('announces every event while the full services list is open', () => {
+    const open = { allServicesOpen: true, featuredIds: ['notion'] };
+    expect(
+      shouldAnnounceConnectionEvent(
+        { type: 'disconnect-failed', providerId: 'notion' },
+        open
+      )
+    ).toBe(true);
+    expect(shouldAnnounceConnectionEvent({ type: 'load-failed' }, open)).toBe(
+      true
+    );
+  });
+
+  it('leaves featured services to their rows on screen 3', () => {
+    const screen3 = { allServicesOpen: false, featuredIds: ['notion'] };
+    expect(
+      shouldAnnounceConnectionEvent(
+        { type: 'start-failed', providerId: 'Notion' },
+        screen3
+      )
+    ).toBe(false);
+    expect(
+      shouldAnnounceConnectionEvent({ type: 'load-failed' }, screen3)
+    ).toBe(false);
+    // A service screen 3 doesn't show, finishing after the list was closed.
+    expect(
+      shouldAnnounceConnectionEvent(
+        { type: 'canceled', providerId: 'linear' },
+        screen3
+      )
+    ).toBe(true);
   });
 
   it('offers Try again when Check again still finds no grant', () => {

@@ -2,7 +2,14 @@ import * as api from '@tloncorp/api';
 import { desig } from '@tloncorp/api/lib/urbit';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type ComponentProps,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View } from 'tamagui';
 
@@ -55,12 +62,27 @@ export function LiveFirstRunSequence({
   );
 }
 
+/** The full services list. While it's open, its events get toasts. */
+function AllServicesPane({
+  onOpenChange,
+  ...props
+}: ComponentProps<typeof BotSettingsScreenView> & {
+  onOpenChange: (open: boolean) => void;
+}) {
+  useEffect(() => {
+    onOpenChange(true);
+    return () => onOpenChange(false);
+  }, [onOpenChange]);
+  return <BotSettingsScreenView {...props} />;
+}
+
 function useLiveServices(): FirstRunServicesAdapter {
   const live = useFirstRunServices();
-  const { connections } = live;
+  const { connections, setAllServicesOpen } = live;
   const renderAllServices = useCallback(
     (onBack: () => void) => (
-      <BotSettingsScreenView
+      <AllServicesPane
+        onOpenChange={setAllServicesOpen}
         available={connections.status?.available ?? false}
         busyProviderId={connections.busyProviderId}
         initialLoading={connections.initialLoading}
@@ -78,7 +100,7 @@ function useLiveServices(): FirstRunServicesAdapter {
         }
       />
     ),
-    [connections]
+    [connections, setAllServicesOpen]
   );
   return {
     loading: connections.initialLoading,

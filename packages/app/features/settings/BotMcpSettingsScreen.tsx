@@ -10,8 +10,8 @@ import { useResetDb } from '../../hooks/useResetDb';
 import { RootStackParamList } from '../../navigation/types';
 import { BotSettingsScreenView } from '../../ui';
 import {
-  GENERIC_ERROR_MESSAGE,
   TOAST_BOTTOM_OFFSET,
+  connectionEventMessage,
 } from './botMcpSettingsHelpers';
 import { McpConnectionEvent, useMcpConnections } from './useMcpConnections';
 
@@ -21,36 +21,14 @@ export function BotMcpSettingsScreen(props: Props) {
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
   const showToast = useToast();
-  const showMcpToast = useCallback(
-    (options: { duration?: number; message: string }) => {
-      showToast({ ...options, bottomOffset: TOAST_BOTTOM_OFFSET });
-    },
-    [showToast]
-  );
   const handleConnectionEvent = useCallback(
     (event: McpConnectionEvent) => {
-      switch (event.type) {
-        case 'completed':
-          showMcpToast({
-            message: event.success ? event.message : GENERIC_ERROR_MESSAGE,
-          });
-          return;
-        case 'canceled':
-          showMcpToast({ message: 'Connection canceled. You can try again.' });
-          return;
-        case 'disconnected':
-          showMcpToast({ message: 'Connection disconnected.' });
-          return;
-        case 'load-failed':
-        case 'start-failed':
-        case 'disconnect-failed':
-          showMcpToast({ message: GENERIC_ERROR_MESSAGE });
-          return;
-        case 'returned':
-          return;
+      const message = connectionEventMessage(event);
+      if (message) {
+        showToast({ message, bottomOffset: TOAST_BOTTOM_OFFSET });
       }
     },
-    [showMcpToast]
+    [showToast]
   );
   const connections = useMcpConnections({ onEvent: handleConnectionEvent });
   const { connect, initialLoading, providers, refreshStatus, status } =

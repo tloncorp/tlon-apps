@@ -1,5 +1,10 @@
+import { useToast } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import {
+  TOAST_BOTTOM_OFFSET,
+  connectionEventMessage,
+} from '../../../../features/settings/botMcpSettingsHelpers';
 import {
   type McpConnectionEvent,
   useMcpConnections,
@@ -9,6 +14,7 @@ import {
   attemptAfterCheck,
   hasConnectedService,
   selectFeaturedServices,
+  shouldAnnounceConnectionEvent,
 } from './firstRunServices';
 
 type VerifyOutcome = 'completed' | 'returned' | 'rechecked';
@@ -16,9 +22,13 @@ type VerifyOutcome = 'completed' | 'returned' | 'rechecked';
 /**
  * Screen 3's live data: the catalog, this account's grants, and where each
  * featured service's sign-in stands. A row says connected only after a status
- * check confirms the grant.
+ * check confirms the grant. What the rows can't show, such as a failed
+ * disconnect in the full services list, gets the settings screen's toast.
  */
 export function useFirstRunServices() {
+  const showToast = useToast();
+  const allServicesOpenRef = useRef(false);
+  const featuredIdsRef = useRef<string[]>([]);
   const [attempts, setAttempts] = useState<
     Record<string, ServiceAttempt | undefined>
   >({});
@@ -33,6 +43,16 @@ export function useFirstRunServices() {
 
   const handleEvent = useCallback(
     (event: McpConnectionEvent) => {
+      const message = connectionEventMessage(event);
+      if (
+        message &&
+        shouldAnnounceConnectionEvent(event, {
+          allServicesOpen: allServicesOpenRef.current,
+          featuredIds: featuredIdsRef.current,
+        })
+      ) {
+        showToast({ message, bottomOffset: TOAST_BOTTOM_OFFSET });
+      }
       switch (event.type) {
         case 'completed':
           if (!event.providerId) return;
@@ -55,7 +75,7 @@ export function useFirstRunServices() {
           return;
       }
     },
-    [setAttempt]
+    [setAttempt, showToast]
   );
 
   const connections = useMcpConnections({ onEvent: handleEvent });
@@ -105,6 +125,16 @@ export function useFirstRunServices() {
       ),
     [connections.providerConfigs, connections.providers]
   );
+  useEffect(() => {
+    featuredIdsRef.current = featured.map((service) =>
+      service.row.id.toLowerCase()
+    );
+  }, [featured]);
+
+  /** The full services list reports its own open and close. */
+  const setAllServicesOpen = useCallback((open: boolean) => {
+    allServicesOpenRef.current = open;
+  }, []);
 
   const unavailable =
     !connections.initialLoading &&
@@ -120,5 +150,6 @@ export function useFirstRunServices() {
     anyConnected: hasConnectedService(connections.providers),
     startConnect,
     checkAgain,
+    setAllServicesOpen,
   };
 }
