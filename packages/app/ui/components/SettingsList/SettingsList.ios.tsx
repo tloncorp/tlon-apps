@@ -33,12 +33,15 @@ import {
   font,
   foregroundStyle,
   frame,
+  labelsHidden,
   lineLimit,
   listRowBackground,
   listRowInsets,
+  listRowSeparator,
   listRowSeparatorTint,
   listSectionMargins,
   listSectionSpacing,
+  moveDisabled,
   onSubmit as submitAction,
   opacity,
   padding,
@@ -169,12 +172,13 @@ export function SettingsList({
           >
             {section.onMove ? (
               <List.ForEach onMove={section.onMove}>
-                {section.rows.map((row) => (
+                {section.rows.map((row, rowIndex) => (
                   <SettingsRow
                     key={row.key}
                     row={row}
                     colors={colors}
                     reorderable
+                    beforeHeading={Boolean(section.rows[rowIndex + 1]?.heading)}
                   />
                 ))}
               </List.ForEach>
@@ -274,14 +278,24 @@ function SettingsRow({
   row,
   colors,
   reorderable = false,
+  beforeHeading = false,
 }: {
   row: SettingsRowModel;
   colors: SettingsListColors;
   /** In a section whose rows can be dragged, which can't be deleted. */
   reorderable?: boolean;
+  /** Ends a group of rows, so no separator runs under it to the heading. */
+  beforeHeading?: boolean;
 }) {
   const rowModifiers = [
-    ...(reorderable ? [deleteDisabled(true)] : []),
+    // Always the same modifiers, set either way, so a row that a move takes
+    // to or from the end of its group isn't rebuilt, dropping its icon.
+    ...(reorderable
+      ? [
+          deleteDisabled(true),
+          listRowSeparator(beforeHeading ? 'hidden' : 'automatic', 'bottom'),
+        ]
+      : []),
     listRowBackground(colors.row),
     listRowSeparatorTint(colors.separator),
     disabled(Boolean(row.disabled)),
@@ -292,8 +306,51 @@ function SettingsRow({
     ...(row.testID ? [accessibilityIdentifier(row.testID)] : []),
   ];
 
+  if (row.heading) {
+    // Reads as the title of the rows below it: on the page, not the card.
+    return (
+      <Text
+        modifiers={[
+          ...(reorderable ? [deleteDisabled(true), moveDisabled(true)] : []),
+          listRowBackground(colors.page),
+          listRowSeparator('hidden'),
+          listRowInsets({ top: 20, leading: 16, bottom: 6, trailing: 16 }),
+          foregroundStyle(colors.secondaryText),
+          accessibilityAddTraits(['isHeader']),
+          ...(row.testID ? [accessibilityIdentifier(row.testID)] : []),
+        ]}
+      >
+        {row.title}
+      </Text>
+    );
+  }
+
   if (row.textField) {
     return <TextFieldRow row={row} modifiers={rowModifiers} />;
+  }
+
+  if (row.picker?.segmented) {
+    const picker = row.picker;
+    return (
+      <Picker
+        label={row.title}
+        selection={picker.value}
+        onSelectionChange={(value) => picker.onChange(String(value))}
+        modifiers={[
+          listRowBackground(colors.page),
+          listRowInsets({ top: 0, leading: 0, bottom: 0, trailing: 0 }),
+          pickerStyle('segmented'),
+          labelsHidden(),
+          ...(row.testID ? [accessibilityIdentifier(row.testID)] : []),
+        ]}
+      >
+        {picker.options.map((option) => (
+          <Text key={option.value} modifiers={[tag(option.value)]}>
+            {option.title}
+          </Text>
+        ))}
+      </Picker>
+    );
   }
 
   if (row.picker) {
