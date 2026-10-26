@@ -15,6 +15,7 @@ import { CAMPAIGN_CHECK_INTERVAL_MS } from './campaign/model.js';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-outbound';
 import type { OpenClawConfig, ReplyPayload } from 'openclaw/plugin-sdk/core';
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
+import { truncateUtf16Safe } from 'openclaw/plugin-sdk/string-coerce-runtime';
 
 import {
   type TlonAuthPhase,
@@ -288,6 +289,7 @@ import { prepareChannelSummary } from './channel-summary.js';
 import {
   downloadBlobAttachments,
   downloadMessageImages,
+  formatInboundMediaBody,
   formatBlobAnnotations,
   parseBlobData,
 } from './media.js';
@@ -325,6 +327,7 @@ import {
   extractCites,
   extractDmPartnerShip,
   formatModelName,
+  formatSummarizationHistoryText,
   inboundCommandFields,
   isChannelRestricted,
   isDirectDmWhom,
@@ -3031,9 +3034,25 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
       // Download any images from the message content
       let attachments: Array<{ path: string; contentType: string }> = [];
+      let unavailableImageCount = 0;
       if (messageContent) {
         try {
-          attachments = await downloadMessageImages(messageContent);
+          const downloadedImages = await downloadMessageImages(messageContent);
+          attachments = downloadedImages.attachments;
+          const { unavailableCount } = downloadedImages;
+          unavailableImageCount = unavailableCount;
+          if (unavailableCount > 0) {
+            contextLenses.recordContextSource(lens.lensId, {
+              kind: 'message',
+              label: 'Unavailable image attachments',
+              sourceId: messageId,
+              included: false,
+              reason: `${unavailableCount} failed to download`,
+            });
+            runtime.log?.(
+              `[tlon] ${unavailableCount} image(s) from message could not be downloaded`
+            );
+          }
           if (attachments.length > 0) {
             contextLenses.recordContext(lens.lensId, {
               attachments: attachments.length,
@@ -3292,12 +3311,15 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           return;
         }
 
-        const historyText = preparation.history
-          .map(
-            (msg) =>
-              `[${new Date(msg.timestamp).toLocaleString()}] ${msg.author}: ${sanitizeMessageText(renderHistoryContent(msg))}`
-          )
-          .join('\n');
+        const historyText = formatSummarizationHistoryText(
+          preparation.history.map((msg) => ({
+            author: msg.author,
+            timestamp: msg.timestamp,
+            content: sanitizeMessageText(renderHistoryContent(msg)),
+          })),
+          // Live config: a userTimezone change does not restart the channel.
+          core.config.current() as OpenClawConfig
+        );
 
         messageText =
           `Please summarize this channel conversation (${preparation.history.length} recent messages):\n\n${historyText}\n\n` +
@@ -3460,16 +3482,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       }
 
       // Bot mention was already stripped early (before thread context), so use messageText directly
-      // Prepend attachment annotations to message body (similar to Signal format)
-      let bodyWithAttachments = messageText;
-      if (attachments.length > 0) {
-        const mediaLines = attachments
-          .map(
-            (a) => `[media attached: ${a.path} (${a.contentType}) | ${a.path}]`
-          )
-          .join('\n');
-        bodyWithAttachments = mediaLines + '\n' + messageText;
-      }
+      let bodyWithAttachments = formatInboundMediaBody(
+        messageText,
+        attachments,
+        unavailableImageCount
+      );
 
       if (onboardingGroupId) {
         if (isGroup && channelNest) {
@@ -5002,7 +5019,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                     type: 'channel',
                     requestingShip: senderShip,
                     channelNest: nest,
-                    messagePreview: rawText.substring(0, 100),
+                    messagePreview: truncateUtf16Safe(rawText, 100),
                     originalMessage: {
                       messageId: messageId ?? '',
                       messageText: rawText,
@@ -5494,7 +5511,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               {
                 type: 'dm',
                 requestingShip: senderShip,
-                messagePreview: rawText.substring(0, 100),
+                messagePreview: truncateUtf16Safe(rawText, 100),
                 originalMessage: {
                   messageId: effectiveMessageId ?? '',
                   messageText: rawText,
