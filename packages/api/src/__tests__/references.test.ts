@@ -112,6 +112,29 @@ test('toContentReference rejects a notes cite with a non-note where path', () =>
   ).toBeNull();
 });
 
+test.each([
+  ['/note/42', '42'],
+  ['/note/1.234/', '1234'],
+])('toContentReference accepts the whole note path %s', (where, noteId) => {
+  expect(
+    toContentReference({ chan: { nest: NOTES_CHANNEL_ID, where } })
+  ).toEqual({
+    type: 'reference',
+    referenceType: 'note',
+    channelId: NOTES_CHANNEL_ID,
+    noteId,
+  });
+});
+
+test.each(['/note/42junk', '/note/42/foo', '/note/42/0'])(
+  'toContentReference rejects a note path with trailing text: %s',
+  (where) => {
+    expect(
+      toContentReference({ chan: { nest: NOTES_CHANNEL_ID, where } })
+    ).toBeNull();
+  }
+);
+
 test('contentReferenceToCite round-trips a note reference', () => {
   const [path, reference] = noteToContentReference(NOTES_CHANNEL_ID, 3);
   expect(path).toBe(`/1/chan/${NOTES_CHANNEL_ID}/note/3`);

@@ -2,7 +2,7 @@ import { ALL_MENTION_ID as allID } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { valid } from '@urbit/aura';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
 import { formatUserId } from '../../utils';
 
@@ -99,6 +99,19 @@ export function shiftMentions(
     );
 }
 
+// Where an index lands after the same edit, or null when the edit removed the
+// text it pointed into.
+export function shiftIndex(
+  index: number,
+  editPosition: number,
+  delta: number
+): number | null {
+  if (index < editPosition) {
+    return index;
+  }
+  return index >= editPosition - Math.min(delta, 0) ? index + delta : null;
+}
+
 export const useMentions = ({
   chatId,
   roleOptions,
@@ -110,6 +123,13 @@ export const useMentions = ({
   const [mentionStartIndex, setMentionStartIndex] = useState<number | null>(
     null
   );
+  // shiftActiveMention runs after an async lookup, possibly before the render
+  // that follows a keystroke, so every write updates this ref along with state.
+  const mentionStartIndexRef = useRef<number | null>(null);
+  const setTrigger = useCallback((next: number | null) => {
+    mentionStartIndexRef.current = next;
+    setMentionStartIndex(next);
+  }, []);
   const [mentionSearchText, setMentionSearchText] = useState<string>('');
   const [mentions, setMentions] = useState<Mention[]>([]);
   const [wasDismissedByEscape, setWasDismissedByEscape] = useState(false);
@@ -204,7 +224,7 @@ export const useMentions = ({
       const deletedChar = oldText[cursorPosition];
       if (deletedChar === '@' || deletedChar === '~') {
         setIsMentionModeActive(false);
-        setMentionStartIndex(null);
+        setTrigger(null);
         setMentionSearchText('');
         return;
       }
@@ -246,16 +266,16 @@ export const useMentions = ({
           cursorPosition > lastTriggerIndex)
       ) {
         setIsMentionModeActive(true);
-        setMentionStartIndex(lastTriggerIndex);
+        setTrigger(lastTriggerIndex);
         setMentionSearchText(textBetweenTriggerAndCursor);
       } else {
         setIsMentionModeActive(false);
-        setMentionStartIndex(null);
+        setTrigger(null);
         setMentionSearchText('');
       }
     } else {
       setIsMentionModeActive(false);
-      setMentionStartIndex(null);
+      setTrigger(null);
       setMentionSearchText('');
     }
 
@@ -326,7 +346,7 @@ export const useMentions = ({
       ].sort((a, b) => a.start - b.start)
     );
     setIsMentionModeActive(false);
-    setMentionStartIndex(null);
+    setTrigger(null);
     setMentionSearchText('');
     setWasDismissedByEscape(false);
     setLastDismissedTriggerIndex(null);
@@ -351,9 +371,29 @@ export const useMentions = ({
     setIsMentionModeActive(false);
   };
 
+  const shiftActiveMention = useCallback(
+    (editPosition: number, delta: number) => {
+      const current = mentionStartIndexRef.current;
+      if (current !== null) {
+        const next = shiftIndex(current, editPosition, delta);
+        setTrigger(next);
+        if (next === null) {
+          setIsMentionModeActive(false);
+          setMentionSearchText('');
+        }
+      }
+      setLastDismissedTriggerIndex((dismissed) =>
+        dismissed === null
+          ? dismissed
+          : shiftIndex(dismissed, editPosition, delta)
+      );
+    },
+    [setTrigger]
+  );
+
   const resetMentionMode = () => {
     setIsMentionModeActive(false);
-    setMentionStartIndex(null);
+    setTrigger(null);
     setMentionSearchText('');
     setWasDismissedByEscape(false);
     setLastDismissedTriggerIndex(null);
@@ -373,5 +413,6 @@ export const useMentions = ({
     handleMentionSoftDismiss,
     hasMentionCandidates,
     resetMentionMode,
+    shiftActiveMention,
   };
 };

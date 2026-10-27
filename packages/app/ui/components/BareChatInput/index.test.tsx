@@ -994,6 +994,67 @@ test('a channel path pasted before a mention keeps the mention', async () => {
   ]);
 });
 
+test('a lookup that returns while a mention is being typed moves the mention with the text', async () => {
+  await mountWithChannelPaths();
+  let finishLookup!: () => void;
+  mocks.getChannel.mockImplementationOnce(
+    ({ id }) =>
+      new Promise((done) => {
+        finishLookup = () => done({ id });
+      })
+  );
+  act(() => input().props.onChangeText('/1/chan/chat/~zod/test @zo'));
+  expect(container().props.isMentionModeActive).toBe(true);
+
+  await act(async () => finishLookup());
+  expect(inputText()).toBe(' @zo');
+  expect(container().props.isMentionModeActive).toBe(true);
+
+  act(() =>
+    container().props.onSelectMention({
+      id: '~zod',
+      title: 'Zod',
+      type: 'contact',
+      priority: 1,
+    })
+  );
+  expect(inputText()).toBe(' @Zod ');
+  expect(input().props.children.props.mentions).toEqual([
+    { id: '~zod', display: '@Zod', start: 1, end: 5 },
+  ]);
+});
+
+test('a lookup that returns before the typed mention renders moves the mention with the text', async () => {
+  await mountWithChannelPaths();
+  let finishLookup!: () => void;
+  mocks.getChannel.mockImplementationOnce(
+    ({ id }) =>
+      new Promise((done) => {
+        finishLookup = () => done({ id });
+      })
+  );
+  await act(async () => {
+    input().props.onChangeText('/1/chan/chat/~zod/test @zo');
+    finishLookup();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  expect(inputText()).toBe(' @zo');
+  expect(container().props.isMentionModeActive).toBe(true);
+
+  act(() =>
+    container().props.onSelectMention({
+      id: '~zod',
+      title: 'Zod',
+      type: 'contact',
+      priority: 1,
+    })
+  );
+  expect(inputText()).toBe(' @Zod ');
+  expect(input().props.children.props.mentions).toEqual([
+    { id: '~zod', display: '@Zod', start: 1, end: 5 },
+  ]);
+});
+
 test.each([
   ['an unknown cite', { future: {} }, 'Upgrade your app to edit this post'],
   // Stored before this build parsed bare notes-channel cites, so the row

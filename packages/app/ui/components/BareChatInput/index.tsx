@@ -428,6 +428,7 @@ function BareChatInput(
     handleMentionEscape,
     handleMentionSoftDismiss,
     resetMentionMode,
+    shiftActiveMention,
   } = useMentions({ chatId: groupId ?? channelId, roleOptions });
   const {
     isSlashCommandModeActive,
@@ -624,6 +625,7 @@ function BareChatInput(
         setMentions((current) =>
           shiftMentions(current, editPosition, delta, nextText)
         );
+        shiftActiveMention(editPosition, delta);
         const cursor = nativeSelectionRef.current;
         const nextCursor =
           cursor == null
@@ -638,7 +640,7 @@ function BareChatInput(
         syncNativeText(nextText, nextCursor);
       }
     },
-    [addAttachment, setMentions, syncNativeText]
+    [addAttachment, setMentions, shiftActiveMention, syncNativeText]
   );
 
   const lastProcessedRef = useRef('');

@@ -178,9 +178,10 @@ export function toContentReference(cite: ub.Cite): ContentReference | null {
       return { type: 'reference', referenceType: 'channelLink', channelId };
     }
     // notes channels cite individual notes as /note/<id>, where the id
-    // may be dot-grouped urbit-style (1.234)
+    // may be dot-grouped urbit-style (1.234). Anything else after the id is
+    // malformed, not a reference to that note.
     if (channelId.startsWith('notes/')) {
-      const noteMatch = cite.chan.where.match(/^\/note\/(\d[\d.]*)/);
+      const noteMatch = cite.chan.where.match(/^\/note\/(\d[\d.]*)\/?$/);
       if (!noteMatch) {
         return null;
       }
