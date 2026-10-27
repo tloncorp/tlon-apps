@@ -13,6 +13,8 @@ Use the `tlon` tool to read; use `message` for ordinary outbound messages and re
 {"command":"messages search \"query\" --channel chat/~host/channel"}
 ```
 
+`messages` prints each post as text: image, video, link and file URLs, gallery titles, table rows, and cited posts as `Ref:` paths; `--resolve-cites` adds the cited channel posts' text.
+
 To find where something was said, search without `--channel`: it searches every DM, group DM, and joined chat and gallery channel at once and prints each hit under its channel's nest. It keeps the newest 5 hits per channel and 20 in all (`--per-channel N`, `--limit N`) and says when it left some out; repeat with `--channel <nest>` for every hit in one channel. A search matches text, ignoring case, not meaning: try a synonym or a shorter word before concluding something was never said.
 
 Discover the target before fetching history when its identity is ambiguous. Channel nests, group flags, note IDs, and message IDs are different identifiers; preserve the exact value returned for that object. Message/post IDs may contain dots; DM post IDs can include an author prefix. Do not strip or reconstruct them.

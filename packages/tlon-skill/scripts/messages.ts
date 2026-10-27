@@ -20,11 +20,9 @@ import {
   getInitData,
   getPostReference,
   getPostWithReplies,
-  getTextContent,
-  parsePostBlob,
   searchChannel,
 } from '@tloncorp/api';
-import type { ClientPostBlobData, ContentReference, Post } from '@tloncorp/api';
+import type { Post } from '@tloncorp/api';
 
 import { ensureClient, normalizeShip } from './api-client';
 import {
@@ -38,6 +36,7 @@ import {
   refuseNotesContentTarget,
   wantsHelp,
 } from './cli-utils';
+import { writePostBody } from './post-render';
 
 const SEARCH_ALL_DEFAULT_LIMIT = 20;
 const SEARCH_ALL_DEFAULT_PER_CHANNEL = 5;
@@ -172,28 +171,6 @@ function validateMessagesArgs(args: string[]): void {
   }
 }
 
-// Extract text content from a Story
-function extractText(content: any): string {
-  if (!content) return '';
-  // getTextContent expects an array (Story/Verse[])
-  if (!Array.isArray(content)) {
-    // Handle case where content might be wrapped or in unexpected format
-    if (typeof content === 'string') return content;
-    if (content.story && Array.isArray(content.story)) {
-      return getTextContent(content.story) || '';
-    }
-    return JSON.stringify(content);
-  }
-  return getTextContent(content) || '';
-}
-
-function extractChannelReferences(content: any): ContentReference[] {
-  if (!Array.isArray(content)) return [];
-  return content.filter(
-    (verse) => verse && typeof verse === 'object' && verse.type === 'reference'
-  ) as ContentReference[];
-}
-
 // Format a timestamp
 function formatTime(timeVal: string | number): string {
   try {
@@ -222,30 +199,6 @@ function formatTime(timeVal: string | number): string {
   }
 }
 
-async function resolveCites(post: Post): Promise<string[]> {
-  const references = extractChannelReferences(post.content);
-  if (!references.length) return [];
-
-  const citeTexts: string[] = [];
-  for (const ref of references) {
-    if (ref.referenceType !== 'channel') continue;
-    try {
-      const refPost = await getPostReference({
-        channelId: ref.channelId,
-        postId: ref.postId,
-        replyId: ref.replyId,
-      });
-      const text = extractText(refPost.content);
-      if (text) {
-        citeTexts.push(text);
-      }
-    } catch {
-      // ignore cite failures
-    }
-  }
-  return citeTexts;
-}
-
 async function printPosts(
   posts: Post[],
   resolve: boolean,
@@ -261,48 +214,16 @@ async function printPosts(
   for (const post of sorted) {
     const author = post.authorId || 'unknown';
     const time = formatTime(post.sentAt);
-    const text = extractText(post.content);
     const replySuffix = post.parentId ? ` (reply to ${post.parentId})` : '';
     const marker = highlightId && post.id === highlightId ? ' ◀ TARGET' : '';
 
     console.log(`- ${author} @ ${time}${replySuffix}${marker}`);
     console.log(`  ID: ${post.id}`);
-    if (text) {
-      console.log(`  ${text}`);
-    }
-
-    // Show blob/attachment info (PDFs, files, voice memos)
-    if (post.blob) {
-      try {
-        const blobData: ClientPostBlobData = parsePostBlob(post.blob);
-        for (const entry of blobData) {
-          if (entry.type === 'file') {
-            console.log(
-              `  📎 [${entry.name || 'file'}] (${entry.mimeType || 'unknown'}, ${entry.size ? Math.round(entry.size / 1024) + 'KB' : '?'})`
-            );
-            if (entry.fileUri) console.log(`     ${entry.fileUri}`);
-          } else if (entry.type === 'voicememo') {
-            const dur = entry.duration ? `${Math.round(entry.duration)}s` : '?';
-            console.log(`  🎙️ [voice memo] (${dur})`);
-            if (entry.transcription)
-              console.log(`     "${entry.transcription}"`);
-          } else if (entry.type === 'video') {
-            console.log(
-              `  🎬 [${entry.name || 'video'}] (${entry.mimeType || 'video'})`
-            );
-          }
-        }
-      } catch {
-        console.log(`  [blob: ${post.blob.slice(0, 100)}...]`);
-      }
-    }
-
-    if (resolve) {
-      const cites = await resolveCites(post);
-      for (const cite of cites) {
-        console.log(`  > ${cite}`);
-      }
-    }
+    await writePostBody(post, {
+      write: (line) => console.log(line),
+      indent: '  ',
+      getPostReference: resolve ? getPostReference : undefined,
+    });
 
     console.log('');
   }
@@ -587,22 +508,16 @@ async function fetchPost(
 
     const author = post.authorId || 'unknown';
     const time = formatTime(post.sentAt);
-    const text = extractText(post.content);
 
     console.log(`=== Post ${postId} ===\n`);
     console.log(`Author: ${author}`);
     console.log(`Time: ${time}`);
     console.log(`ID: ${post.id}`);
-    if (text) {
-      console.log(`\n${text}`);
-    }
-
-    if (resolve) {
-      const cites = await resolveCites(post);
-      for (const cite of cites) {
-        console.log(`\n> ${cite}`);
-      }
-    }
+    console.log('');
+    await writePostBody(post, {
+      write: (line) => console.log(line),
+      getPostReference: resolve ? getPostReference : undefined,
+    });
 
     if (post.replies && post.replies.length > 0) {
       console.log(`\n--- Replies (${post.replies.length}) ---\n`);

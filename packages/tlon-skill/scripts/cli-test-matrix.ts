@@ -652,6 +652,11 @@ export const SPECIAL_INPUT_CASES: CliCase[] = [
     ['upload', 'photo.jpg', '--type'],
     '--type requires a value'
   ),
+  authRequiredCase('upload two inputs reaches auth', [
+    'upload',
+    'photo.jpg',
+    'https://example.com/b.png',
+  ]),
   usageErrorCase(
     'channels create unknown kind',
     ['channels', 'create', '~host/group', 'Title', '--kind', 'foo'],
