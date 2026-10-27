@@ -7,6 +7,62 @@ export type ChannelOrder = {
   channelIds: string[];
 }[];
 
+/** A group's sections as a channel order. */
+export function channelOrder(
+  sections: {
+    sectionId: string;
+    title?: string | null;
+    channels: { id: string }[];
+  }[]
+): ChannelOrder {
+  return sections.map((section) => ({
+    sectionId: section.sectionId,
+    title: section.title ?? '',
+    channelIds: section.channels.map((channel) => channel.id),
+  }));
+}
+
+/** The order as `updateGroupNavigation` takes it. */
+export function navigationUpdate(order: ChannelOrder) {
+  return order.map((section, sectionIndex) => ({
+    sectionId: section.sectionId,
+    sectionIndex,
+    channels: section.channelIds.map((channelId, channelIndex) => ({
+      channelId,
+      channelIndex,
+    })),
+  }));
+}
+
+/**
+ * The order with a section's channels moved out before it's deleted, so they
+ * stay listed. They join the section above it, as they would if its name left
+ * the list, or the start of the section below when it's first. Returns null
+ * when it has no channels to move.
+ */
+export function emptySection(
+  order: ChannelOrder,
+  sectionId: string
+): ChannelOrder | null {
+  const index = order.findIndex((section) => section.sectionId === sectionId);
+  const moving = order[index]?.channelIds ?? [];
+  const target = index > 0 ? index - 1 : index + 1;
+  if (moving.length === 0 || !order[target]) return null;
+  return order.map((section, i) =>
+    i === index
+      ? { ...section, channelIds: [] }
+      : i === target
+        ? {
+            ...section,
+            channelIds:
+              index > 0
+                ? [...section.channelIds, ...moving]
+                : [...moving, ...section.channelIds],
+          }
+        : section
+  );
+}
+
 /** One row of the single list that reorders channels across sections. */
 export type ChannelReorderItem =
   | { kind: 'heading'; sectionId: string }

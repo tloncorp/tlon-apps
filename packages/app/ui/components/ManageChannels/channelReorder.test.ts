@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   type ChannelOrder,
   channelReorderItems,
+  emptySection,
   moveChannels,
+  navigationUpdate,
   reorder,
 } from './channelReorder';
 
@@ -17,6 +19,55 @@ const order: ChannelOrder = [
 
 const channelsBySection = (next: ChannelOrder | null) =>
   next?.map((section) => `${section.sectionId}: ${section.channelIds}`);
+
+describe('emptySection', () => {
+  it('moves a deleted section’s channels to the end of the one above', () => {
+    expect(channelsBySection(emptySection(order, 'outdoors'))).toEqual([
+      'indoors: garden,plants',
+      'outdoors: ',
+      'default: tips,lounge',
+    ]);
+  });
+
+  it('moves a first section’s channels to the start of the one below', () => {
+    // A new section is listed first, so this is a section just made.
+    expect(channelsBySection(emptySection(order, 'indoors'))).toEqual([
+      'indoors: ',
+      'outdoors: garden,plants',
+      'default: tips,lounge',
+    ]);
+  });
+
+  it('reports nothing to move for an empty section', () => {
+    const withEmpty: ChannelOrder = [
+      { sectionId: 'empty', title: 'Empty', channelIds: [] },
+      ...order,
+    ];
+    expect(emptySection(withEmpty, 'empty')).toBeNull();
+  });
+
+  it('saves the moved channels with their new places', () => {
+    expect(navigationUpdate(emptySection(order, 'indoors')!)).toEqual([
+      { sectionId: 'indoors', sectionIndex: 0, channels: [] },
+      {
+        sectionId: 'outdoors',
+        sectionIndex: 1,
+        channels: [
+          { channelId: 'garden', channelIndex: 0 },
+          { channelId: 'plants', channelIndex: 1 },
+        ],
+      },
+      {
+        sectionId: 'default',
+        sectionIndex: 2,
+        channels: [
+          { channelId: 'tips', channelIndex: 0 },
+          { channelId: 'lounge', channelIndex: 1 },
+        ],
+      },
+    ]);
+  });
+});
 
 describe('reorder', () => {
   it('moves items down and up as SwiftUI counts them', () => {

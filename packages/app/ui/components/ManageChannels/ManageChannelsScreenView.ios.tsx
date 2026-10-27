@@ -23,8 +23,10 @@ import {
 } from './ManageChannelsShared';
 import {
   type ChannelOrder,
+  channelOrder,
   channelReorderItems,
   moveChannels as moveChannelsInOrder,
+  navigationUpdate,
   reorder,
 } from './channelReorder';
 
@@ -71,12 +73,7 @@ export function ManageChannelsScreenView({
   });
 
   const order: ChannelOrder = useMemo(
-    () =>
-      groupNavSectionsWithChannels.map((section) => ({
-        sectionId: section.sectionId,
-        title: section.title ?? '',
-        channelIds: section.channels.map((channel) => channel.id),
-      })),
+    () => channelOrder(groupNavSectionsWithChannels),
     [groupNavSectionsWithChannels]
   );
 
@@ -91,16 +88,7 @@ export function ManageChannelsScreenView({
         );
         return;
       }
-      updateGroupNavigation(
-        next.map((section, sectionIndex) => ({
-          sectionId: section.sectionId,
-          sectionIndex,
-          channels: section.channelIds.map((channelId, channelIndex) => ({
-            channelId,
-            channelIndex,
-          })),
-        }))
-      );
+      updateGroupNavigation(navigationUpdate(next));
     },
     [duplicateChannelIds, updateGroupNavigation]
   );
