@@ -1362,9 +1362,12 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       };
     }
 
-    api.logger.info(
-      `[tlon] Allowed ${event.toolName} tool for ${role ?? 'internal'} session. Session: ${ctx.sessionKey}`
-    );
+    const allowedLog = `[tlon] Allowed ${event.toolName} tool for ${role ?? 'internal'} session. Session: ${ctx.sessionKey}`;
+    if (event.toolName === 'tlon') {
+      api.logger.info(allowedLog);
+    } else {
+      api.logger.debug?.(allowedLog);
+    }
     if (event.toolName === 'tlon' && typeof event.params.command === 'string') {
       // Only owner-default commands need the rewrite; with the flag off the
       // bot is already the default.

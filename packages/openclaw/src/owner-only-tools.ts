@@ -12,7 +12,8 @@ import { CRON_TOOL_NAMES } from './cron-tool-args-guard.js';
 import type { SenderRole } from './session-roles.js';
 
 /**
- * OpenClaw core tools that hand work to another run: a spawned session or the
+ * Tools that hand work to another run: a spawned session, the Codex native
+ * subagent (`spawn_agent`; the native relay normalizes `agent` to it), or the
  * system agent (`openclaw`) has no stored role and would pass this gate, and a
  * sent message drives another session's run. The session listing, history,
  * search, status, wait, and yield tools stay open.
@@ -20,6 +21,7 @@ import type { SenderRole } from './session-roles.js';
 export const DELEGATION_TOOL_NAMES = [
   'sessions_spawn',
   'sessions_send',
+  'spawn_agent',
   'openclaw',
 ] as const;
 
@@ -37,14 +39,21 @@ export const OWNER_ONLY_TOOLS: ReadonlySet<string> = new Set([
   // Creates, patches, and applies workspace skills.
   'skill_workshop',
   // Shell and process control: a shell can read and write every file the
-  // gates above protect. Includes the Codex harness aliases of exec/process.
+  // gates above protect. Core normalizes `bash` to `exec` and the Codex native
+  // relay normalizes `exec_command` to `exec`, so both arrive as `exec`; native
+  // `shell`/`shell_command` arrive unchanged. The Codex harness's
+  // sandbox_exec/sandbox_process/node_exec/gateway_exec/gateway_process are
+  // projections over the hook-wrapped exec/process tools. The sandbox and node
+  // projections are spreads that keep the wrapper marker, so they are not
+  // re-wrapped and reach this gate once, as exec/process; they are not listed.
+  // The gateway pair stays listed in case its projection reaches the gate
+  // under its own name.
   'exec',
   'process',
-  'sandbox_exec',
-  'sandbox_process',
+  'shell',
+  'shell_command',
   'gateway_exec',
   'gateway_process',
-  'node_exec',
   // Input to Control UI terminals.
   'terminal',
   'tlon_agent_choice',

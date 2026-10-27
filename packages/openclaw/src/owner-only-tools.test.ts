@@ -20,11 +20,10 @@ const EXPECTED_OWNER_ONLY_TOOLS = [
   'skill_workshop',
   'exec',
   'process',
-  'sandbox_exec',
-  'sandbox_process',
+  'shell',
+  'shell_command',
   'gateway_exec',
   'gateway_process',
-  'node_exec',
   'terminal',
   'tlon_agent_choice',
   'tlon_agent_task_plan',
@@ -32,6 +31,7 @@ const EXPECTED_OWNER_ONLY_TOOLS = [
   'set_timezone',
   'sessions_spawn',
   'sessions_send',
+  'spawn_agent',
   'openclaw',
 ] as const;
 
@@ -110,6 +110,17 @@ describe('resolveOwnerOnlyToolBlock', () => {
     (tool) => {
       expect(resolveOwnerOnlyToolBlock(tool, undefined)).toEqual({
         ownerOnly: true,
+        blocked: false,
+      });
+    }
+  );
+
+  it.each(['sandbox_exec', 'sandbox_process', 'node_exec', 'bash'])(
+    'does not list %s, which reaches the gate as exec or process',
+    (tool) => {
+      expect(OWNER_ONLY_TOOLS.has(tool)).toBe(false);
+      expect(resolveOwnerOnlyToolBlock(tool, 'user')).toEqual({
+        ownerOnly: false,
         blocked: false,
       });
     }

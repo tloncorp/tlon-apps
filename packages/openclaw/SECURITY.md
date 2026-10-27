@@ -389,7 +389,7 @@ try {
 
 **Principle:** Sensitive tools are owner-only. Non-owners cannot use them, enforced at the plugin level (not via prompt instructions).
 
-**Restricted tools:** `tlon`, `automations` (and its legacy name `cron`), `read`, the workspace writers `write`, `edit`, `apply_patch` (also the name Codex native file edits arrive under), `skill_workshop`, shell/process execution (`exec`, `process`, `terminal`, and the Codex harness aliases `sandbox_exec`, `sandbox_process`, `gateway_exec`, `gateway_process`, `node_exec`), and delegation (`sessions_spawn`, `sessions_send`, `openclaw`), whose child runs carry no Tlon role.
+**Restricted tools:** `tlon`, `automations` (and its legacy name `cron`), `read`, the workspace writers `write`, `edit`, `apply_patch` (also the name Codex native file edits arrive under), `skill_workshop`, shell/process execution (`exec`, `process`, `terminal`, the Codex native `shell` and `shell_command`, and the Codex harness Gateway tools `gateway_exec` and `gateway_process` (the harness's `sandbox_exec`, `sandbox_process` and `node_exec` projections are gated through their base `exec`/`process` tools); `bash` and Codex `exec_command` reach the gate as `exec`), and delegation (`sessions_spawn`, `sessions_send`, the Codex native subagent `spawn_agent`, `openclaw`), whose child runs carry no Tlon role.
 
 | Scenario | Behavior |
 | -------- | -------- |
