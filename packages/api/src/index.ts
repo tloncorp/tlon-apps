@@ -94,6 +94,7 @@ export {
   findPostBlobEntry,
   parsePostBlob,
   postHasBlobEntry,
+  redactPostBlobCapabilities,
   textAndMentionsToContent,
   toPostData as toContentHelpersPostData,
   type ClientPostBlobData,

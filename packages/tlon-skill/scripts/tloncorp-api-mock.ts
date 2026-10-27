@@ -31,7 +31,10 @@
  * `channels.ts` (createChannel and the other channel-management calls).
  */
 import type { NotesV1Api } from '@tloncorp/api';
-import { parsePostBlob } from '@tloncorp/api/client/content-helpers';
+import {
+  parsePostBlob,
+  redactPostBlobCapabilities,
+} from '@tloncorp/api/client/content-helpers';
 // The real broker client, by subpath, which the root mock below does not
 // intercept. It has no dependencies but fetch, so tests keep exercising the
 // real request and error mapping against a stubbed fetch.
@@ -301,6 +304,7 @@ mock.module('@tloncorp/api', () => ({
   // message-content.ts value imports -- the real renderers, not stubs: their
   // output is exactly what the parse repair is under test for.
   parsePostBlob,
+  redactPostBlobCapabilities,
   getTextContent: realGetTextContent,
   // posts-runtime.ts value imports
   editPost: (...args: unknown[]) => mockedEditPost.impl(...args),

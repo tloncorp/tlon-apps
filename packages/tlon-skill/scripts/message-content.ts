@@ -5,13 +5,17 @@
  * nothing defined in it is reachable from a test. Keep this module
  * side-effect free.
  */
-import { getTextContent, parsePostBlob } from '@tloncorp/api';
+import {
+  getTextContent,
+  parsePostBlob,
+  redactPostBlobCapabilities,
+} from "@tloncorp/api";
 import type {
   ClientPostBlobData,
   ContentReference,
   Post,
   PostContent,
-} from '@tloncorp/api';
+} from "@tloncorp/api";
 
 /** Story-level content: the array shape `getTextContent` consumes. */
 export type StoryContent = Exclude<PostContent, null>;
@@ -44,7 +48,7 @@ export interface RenderRefLinesOptions {
 const GROUP_ID_RE = /^~[a-z-]+\/[a-zA-Z0-9-]+$/;
 
 export function createRefBudget(
-  limit: number = REF_RESOLUTION_LIMIT
+  limit: number = REF_RESOLUTION_LIMIT,
 ): RefBudget {
   return { remaining: limit };
 }
@@ -55,7 +59,7 @@ export function createRefBudget(
  */
 export function parsePostContent(content: unknown): StoryContent | null {
   let raw = content;
-  if (typeof raw === 'string') {
+  if (typeof raw === "string") {
     try {
       raw = JSON.parse(raw);
     } catch {
@@ -68,7 +72,7 @@ export function parsePostContent(content: unknown): StoryContent | null {
   }
   if (
     !!raw &&
-    typeof raw === 'object' &&
+    typeof raw === "object" &&
     Array.isArray((raw as { story?: unknown }).story)
   ) {
     return (raw as { story: unknown[] }).story as StoryContent;
@@ -77,31 +81,31 @@ export function parsePostContent(content: unknown): StoryContent | null {
 }
 
 function rawContentText(content: unknown): string {
-  if (!content) return '';
-  if (typeof content === 'string') return content;
+  if (!content) return "";
+  if (typeof content === "string") return content;
   return JSON.stringify(content);
 }
 
 // `getTextContent` is a lossy preview renderer: labeled links lose their
 // href, images become "(Image)", link blocks vanish. Models need those URLs,
 // so rewrite URL-bearing shapes to plain text (markdown links) first.
-const NESTED_INLINE_KEYS = ['bold', 'italics', 'strike', 'blockquote'] as const;
+const NESTED_INLINE_KEYS = ["bold", "italics", "strike", "blockquote"] as const;
 
 function withUrlFidelityInline(item: unknown): unknown {
-  if (!item || typeof item !== 'object') return item;
+  if (!item || typeof item !== "object") return item;
   const obj = item as Record<string, unknown>;
 
   const link = obj.link;
-  if (!!link && typeof link === 'object') {
+  if (!!link && typeof link === "object") {
     const { href, content } = link as { href?: unknown; content?: unknown };
-    if (typeof href !== 'string') return item;
-    return typeof content === 'string' && content.length > 0 && content !== href
+    if (typeof href !== "string") return item;
+    return typeof content === "string" && content.length > 0 && content !== href
       ? `[${content}](${href})`
       : href;
   }
 
   const task = obj.task;
-  if (!!task && typeof task === 'object') {
+  if (!!task && typeof task === "object") {
     const fields = task as Record<string, unknown>;
     if (Array.isArray(fields.content)) {
       return {
@@ -125,11 +129,11 @@ function withUrlFidelityInline(item: unknown): unknown {
 
 /** Recursive: `items` are themselves listings, and both inline arrays carry links. */
 function withUrlFidelityListing(listing: unknown): unknown {
-  if (!listing || typeof listing !== 'object') return listing;
+  if (!listing || typeof listing !== "object") return listing;
   const obj = listing as Record<string, unknown>;
 
   const list = obj.list;
-  if (!!list && typeof list === 'object') {
+  if (!!list && typeof list === "object") {
     const fields = list as Record<string, unknown>;
     const next: Record<string, unknown> = { ...fields };
     if (Array.isArray(fields.contents)) {
@@ -150,7 +154,7 @@ function withUrlFidelityListing(listing: unknown): unknown {
 /** Non-mutating rewrite of the URL-bearing verses `getTextContent` flattens. */
 function withUrlFidelity(story: StoryContent): StoryContent {
   return story.map((verse) => {
-    if (!verse || typeof verse !== 'object') return verse;
+    if (!verse || typeof verse !== "object") return verse;
     // Boundary cast, as in `parsePostContent`.
     const obj = verse as unknown as Record<string, unknown>;
 
@@ -159,35 +163,35 @@ function withUrlFidelity(story: StoryContent): StoryContent {
     }
 
     const block = obj.block;
-    if (!block || typeof block !== 'object') return verse;
+    if (!block || typeof block !== "object") return verse;
     const inner = block as Record<string, unknown>;
 
     const image = inner.image;
-    if (!!image && typeof image === 'object') {
+    if (!!image && typeof image === "object") {
       const { src, alt } = image as { src?: unknown; alt?: unknown };
-      if (typeof src === 'string') {
+      if (typeof src === "string") {
         const label =
-          typeof alt === 'string' && alt.length > 0 ? ` (${alt})` : '';
+          typeof alt === "string" && alt.length > 0 ? ` (${alt})` : "";
         return { inline: [`${src}${label}`] };
       }
     }
 
     const link = inner.link;
-    if (!!link && typeof link === 'object') {
+    if (!!link && typeof link === "object") {
       const { url, meta } = link as { url?: unknown; meta?: unknown };
-      if (typeof url === 'string') {
+      if (typeof url === "string") {
         const title =
-          !!meta && typeof meta === 'object'
+          !!meta && typeof meta === "object"
             ? (meta as { title?: unknown }).title
             : undefined;
         const label =
-          typeof title === 'string' && title.length > 0 ? ` (${title})` : '';
+          typeof title === "string" && title.length > 0 ? ` (${title})` : "";
         return { inline: [`${url}${label}`] };
       }
     }
 
     const header = inner.header;
-    if (!!header && typeof header === 'object') {
+    if (!!header && typeof header === "object") {
       const fields = header as Record<string, unknown>;
       if (Array.isArray(fields.content)) {
         return {
@@ -204,7 +208,7 @@ function withUrlFidelity(story: StoryContent): StoryContent {
     }
 
     const listing = inner.listing;
-    if (!!listing && typeof listing === 'object') {
+    if (!!listing && typeof listing === "object") {
       return {
         ...obj,
         block: { ...inner, listing: withUrlFidelityListing(listing) },
@@ -236,8 +240,8 @@ export function extractReferences(content: unknown): ContentReference[] {
   return parsed.filter(
     (verse): verse is ContentReference =>
       !!verse &&
-      typeof verse === 'object' &&
-      (verse as { type?: unknown }).type === 'reference'
+      typeof verse === "object" &&
+      (verse as { type?: unknown }).type === "reference",
   );
 }
 
@@ -248,17 +252,17 @@ export function extractReferences(content: unknown): ContentReference[] {
  */
 export async function renderRefLines(
   refs: ContentReference[],
-  { resolve, fetchRef, budget }: RenderRefLinesOptions
+  { resolve, fetchRef, budget }: RenderRefLinesOptions,
 ): Promise<string[]> {
   const lines: string[] = [];
   for (const ref of refs) {
-    if (ref.referenceType === 'group') {
-      if (typeof ref.groupId === 'string' && GROUP_ID_RE.test(ref.groupId)) {
+    if (ref.referenceType === "group") {
+      if (typeof ref.groupId === "string" && GROUP_ID_RE.test(ref.groupId)) {
         lines.push(`[ref: group ${ref.groupId}]`);
       }
       continue;
     }
-    if (ref.referenceType !== 'channel') continue;
+    if (ref.referenceType !== "channel") continue;
     if (!resolve || budget.remaining <= 0) continue;
     // Charged before the call: a failed fetch still spent its timeout.
     budget.remaining -= 1;
@@ -298,56 +302,56 @@ export function formatQuoteLines(text: string): string[] {
 export function sanitizeInlineField(value: string): string {
   return value.replace(
     /(?:\r\n|[\n\r\v\f\x1c\x1d\x1e\u0085\u2028\u2029])+/g,
-    ' '
+    " ",
   );
 }
 
 export function formatTime(timeVal: string | number): string {
   try {
-    const num = typeof timeVal === 'number' ? timeVal : parseInt(timeVal, 10);
+    const num = typeof timeVal === "number" ? timeVal : parseInt(timeVal, 10);
     if (!isNaN(num) && num > 1600000000000) {
       const date = new Date(num);
       return date.toLocaleString();
     }
     const timeStr = String(timeVal);
-    const daNum = BigInt(timeStr.replace(/\./g, ''));
-    const DA_SECOND = BigInt('18446744073709551616');
-    const DA_UNIX_EPOCH = BigInt('170141184475152167957503069145530368000');
+    const daNum = BigInt(timeStr.replace(/\./g, ""));
+    const DA_SECOND = BigInt("18446744073709551616");
+    const DA_UNIX_EPOCH = BigInt("170141184475152167957503069145530368000");
     const offset = DA_SECOND / BigInt(2000);
     const epochAdjusted = offset + (daNum - DA_UNIX_EPOCH);
     const unixMs = Math.round(
-      Number((epochAdjusted * BigInt(1000)) / DA_SECOND)
+      Number((epochAdjusted * BigInt(1000)) / DA_SECOND),
     );
 
     const date = new Date(unixMs);
     if (date.getFullYear() > 2020 && date.getFullYear() < 2100) {
       return date.toLocaleString();
     }
-    return 'unknown';
+    return "unknown";
   } catch {
-    return 'unknown';
+    return "unknown";
   }
 }
 
-function renderBlobLines(blob: Post['blob']): string[] {
+function renderBlobLines(blob: Post["blob"]): string[] {
   if (!blob) return [];
   const lines: string[] = [];
   const blobData: ClientPostBlobData = parsePostBlob(blob);
   for (const entry of blobData) {
-    if (entry.type === 'file') {
+    if (entry.type === "file") {
       lines.push(
-        `  📎 [${sanitizeInlineField(entry.name || 'file')}] (${sanitizeInlineField(entry.mimeType || 'unknown')}, ${entry.size ? Math.round(entry.size / 1024) + 'KB' : '?'})`
+        `  📎 [${sanitizeInlineField(entry.name || "file")}] (${sanitizeInlineField(entry.mimeType || "unknown")}, ${entry.size ? Math.round(entry.size / 1024) + "KB" : "?"})`,
       );
       if (entry.fileUri)
         lines.push(`     ${sanitizeInlineField(entry.fileUri)}`);
-    } else if (entry.type === 'voicememo') {
-      const dur = entry.duration ? `${Math.round(entry.duration)}s` : '?';
+    } else if (entry.type === "voicememo") {
+      const dur = entry.duration ? `${Math.round(entry.duration)}s` : "?";
       lines.push(`  🎙️ [voice memo] (${dur})`);
       if (entry.transcription)
         lines.push(`     "${sanitizeInlineField(entry.transcription)}"`);
-    } else if (entry.type === 'video') {
+    } else if (entry.type === "video") {
       lines.push(
-        `  🎬 [${sanitizeInlineField(entry.name || 'video')}] (${sanitizeInlineField(entry.mimeType || 'video')})`
+        `  🎬 [${sanitizeInlineField(entry.name || "video")}] (${sanitizeInlineField(entry.mimeType || "video")})`,
       );
     }
   }
@@ -360,15 +364,15 @@ export interface RenderPostOptions extends RenderRefLinesOptions {
 
 export async function renderPostLines(
   post: Post,
-  opts: RenderPostOptions
+  opts: RenderPostOptions,
 ): Promise<string[]> {
   const lines: string[] = [];
-  const author = post.authorId || 'unknown';
+  const author = post.authorId || "unknown";
   const time = formatTime(post.sentAt);
   const text = extractPostText(post.content);
-  const replySuffix = post.parentId ? ` (reply to ${post.parentId})` : '';
+  const replySuffix = post.parentId ? ` (reply to ${post.parentId})` : "";
   const marker =
-    opts.highlightId && post.id === opts.highlightId ? ' ◀ TARGET' : '';
+    opts.highlightId && post.id === opts.highlightId ? " ◀ TARGET" : "";
 
   lines.push(`- ${author} @ ${time}${replySuffix}${marker}`);
   lines.push(`  ID: ${post.id}`);
@@ -382,7 +386,7 @@ export async function renderPostLines(
     lines.push(...formatQuoteLines(ref));
   }
 
-  lines.push('');
+  lines.push("");
   return lines;
 }
 
@@ -401,7 +405,7 @@ export interface RenderPostListOptions {
  */
 export async function renderPostListLines(
   posts: Post[],
-  { resolve, fetchRef, highlightId, budget }: RenderPostListOptions
+  { resolve, fetchRef, highlightId, budget }: RenderPostListOptions,
 ): Promise<string[]> {
   const sorted = [...posts].sort((a, b) => a.sentAt - b.sentAt);
   const shared = budget ?? createRefBudget();
@@ -414,7 +418,7 @@ export async function renderPostListLines(
         fetchRef,
         budget: shared,
         highlightId,
-      }))
+      })),
     );
   }
   return lines;
@@ -429,6 +433,18 @@ export async function renderPostListLines(
 // record. Escaping is lossless.
 const JSON_LINE_SEPARATOR_RE = /[\u0085\u2028\u2029]/g;
 
+// The blob can carry signed browser-session URLs, and this output goes
+// straight to the model. A blob that does not parse is dropped rather than
+// passed through, since its capabilities cannot be found to redact.
+function redactBlobJson(blob: Post["blob"]): string | null {
+  if (!blob) return blob ?? null;
+  try {
+    return JSON.stringify(redactPostBlobCapabilities(JSON.parse(blob)));
+  } catch {
+    return null;
+  }
+}
+
 export function renderPostJsonLine(post: Post): string {
   const parsed = parsePostContent(post.content);
   return JSON.stringify({
@@ -437,12 +453,12 @@ export function renderPostJsonLine(post: Post): string {
     sentAt: post.sentAt,
     // JSON.stringify drops undefined keys — normalize so the shape is stable.
     parentId: post.parentId ?? null,
-    blob: post.blob ?? null,
+    blob: redactBlobJson(post.blob),
     // (tombstones arrive with content undefined)
     content: parsed ?? post.content ?? null,
   }).replace(
     JSON_LINE_SEPARATOR_RE,
-    (c) => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0')
+    (c) => "\\u" + c.charCodeAt(0).toString(16).padStart(4, "0"),
   );
 }
 
