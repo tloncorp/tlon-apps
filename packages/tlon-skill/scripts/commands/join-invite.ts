@@ -229,9 +229,9 @@ export function classifyInviteInput(
   throw usageError(`Not an invite link or token: ${input}`, JOIN_HELP);
 }
 
-export function unusableMetadataError(token: string) {
+export function unusableMetadataError() {
   return commandError(
-    `Invite service returned unusable metadata for invite ${token}.`
+    'Invite service returned unusable metadata for the invite.'
   );
 }
 
@@ -248,12 +248,11 @@ type InviteDetails =
 // invite, personal ones included, so a group id proves nothing.
 function readInviteDetails(
   fields: InviteMetadataFields,
-  token: string,
   input: string
 ): InviteDetails {
   const inviterId = fields.inviterUserId;
   if (!inviterId || !valid('p', withSig(inviterId))) {
-    throw unusableMetadataError(token);
+    throw unusableMetadataError();
   }
   const inviter = withSig(inviterId);
 
@@ -265,9 +264,9 @@ function readInviteDetails(
     if (fields.inviteType === undefined) {
       throw commandError(`Not an invite link or token: ${input}`);
     }
-    throw unusableMetadataError(token);
+    throw unusableMetadataError();
   }
-  if (!isGroupFlag(flag)) throw unusableMetadataError(token);
+  if (!isGroupFlag(flag)) throw unusableMetadataError();
   if (fields.invitedGroupDeleted) {
     throw commandError(`The group for this invite (${flag}) has been deleted.`);
   }
@@ -366,7 +365,7 @@ export async function run(
     const { token } = target;
     const metadata = await checkPhase(() => deps.fetchInviteMetadata(token));
     if (metadata.kind === 'not-found') throw notFoundError(token);
-    const invite = readInviteDetails(metadata.fields, token, parsed.input);
+    const invite = readInviteDetails(metadata.fields, parsed.input);
 
     if (invite.kind === 'personal') {
       // Web parity (useInviteParam): a logged-in user never bites a personal

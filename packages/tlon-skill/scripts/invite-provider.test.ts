@@ -153,8 +153,9 @@ describe('invite provider metadata', () => {
 
     const error = await rejection(client.getMetadata(TOKEN));
     expect(error.message).toBe(
-      `Invite service returned HTTP 500 for invite ${TOKEN}.`
+      'Invite service returned HTTP 500 for the invite.'
     );
+    expect(error.message).not.toContain(TOKEN);
   });
 
   it('maps a fetch failure to the unreachable error', async () => {
@@ -204,8 +205,9 @@ describe('invite provider metadata', () => {
       const client = createInviteProviderClient({ origin: ORIGIN, fetchFn });
       const error = await rejection(client.getMetadata(TOKEN));
       expect(error.message).toBe(
-        `Invite service returned unusable metadata for invite ${TOKEN}.`
+        'Invite service returned unusable metadata for the invite.'
       );
+      expect(error.message).not.toContain(TOKEN);
     }
   });
 });
@@ -242,7 +244,8 @@ describe('invite provider bite', () => {
     });
     const error = await rejection(failing.bite(TOKEN, '~zod'));
     expect(error.message).toBe(
-      `Invite service returned HTTP 500 for invite ${TOKEN}.`
+      'Invite service returned HTTP 500 for the invite.'
     );
+    expect(error.message).not.toContain(TOKEN);
   });
 });

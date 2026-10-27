@@ -424,8 +424,9 @@ describe('join --invite ordering and metadata', () => {
       const result = await runWith(['--invite', LINK], { fields });
       expect(result.code).toBe(1);
       expect(result.err).toBe(
-        `Error: Invite service returned unusable metadata for invite ${TOKEN}.\n`
+        'Error: Invite service returned unusable metadata for the invite.\n'
       );
+      expect(result.err).not.toContain(TOKEN);
       expect(result.calls.getGroupState).toEqual([]);
     }
   });

@@ -98,8 +98,10 @@ export function createInviteProviderClient({
     }
   };
 
-  const httpError = (status: number, token: string) =>
-    commandError(`Invite service returned HTTP ${status} for invite ${token}.`);
+  // Errors reach tool traces unredacted, and a token the service accepts is a
+  // live capability, so these messages never echo it.
+  const httpError = (status: number) =>
+    commandError(`Invite service returned HTTP ${status} for the invite.`);
 
   return {
     getMetadata: async (token) => {
@@ -108,18 +110,18 @@ export function createInviteProviderClient({
         headers: { Accept: 'application/json' },
       });
       if (response.status === 404) return { kind: 'not-found' };
-      if (!response.ok) throw httpError(response.status, token);
+      if (!response.ok) throw httpError(response.status);
 
       let body: unknown;
       try {
         body = await response.json();
       } catch {
-        throw unusableMetadataError(token);
+        throw unusableMetadataError();
       }
       const fields = readMetadataFields(
         (body as { fields?: unknown } | null)?.fields
       );
-      if (!fields) throw unusableMetadataError(token);
+      if (!fields) throw unusableMetadataError();
       return { kind: 'found', fields };
     },
     bite: async (token, ship) => {
@@ -132,7 +134,7 @@ export function createInviteProviderClient({
         body: `ship=%7E${ship.replace(/^~/, '')}`,
       });
       if (response.status === 404) return { kind: 'not-found' };
-      if (!response.ok) throw httpError(response.status, token);
+      if (!response.ok) throw httpError(response.status);
       return { kind: 'sent' };
     },
   };
