@@ -64,6 +64,13 @@ export function getRequiredOptionValue(
 /**
  * Check if help was requested for a command/subcommand
  */
+export function parsePositiveInteger(raw: string): number | null {
+  if (!/^[0-9]+$/.test(raw)) return null;
+  const parsed = Number(raw);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
 export function wantsHelp(args: string[]): boolean {
   return args.includes('--help') || args.includes('-h');
 }

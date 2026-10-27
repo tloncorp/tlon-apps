@@ -597,6 +597,16 @@ export const SPECIAL_INPUT_CASES: CliCase[] = [
     'Usage: tlon messages search'
   ),
   usageErrorCase(
+    'messages search missing channel value',
+    ['messages', 'search', 'hello', '--channel'],
+    'Usage: tlon messages search'
+  ),
+  usageErrorCase(
+    'messages search nonpositive per-channel value',
+    ['messages', 'search', 'hello', '--per-channel', '0'],
+    'Usage: tlon messages search'
+  ),
+  usageErrorCase(
     'posts edit missing message',
     ['posts', 'edit', 'chat/~host/channel', '170.141'],
     'Usage: tlon posts edit'
@@ -990,6 +1000,13 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
     '170.141',
     'use',
     '--help',
+  ]),
+  authRequiredCase('messages search without channel reaches auth', [
+    'messages',
+    'search',
+    'hello',
+    '--limit',
+    '5',
   ]),
   authRequiredCase('messages search query option-like value reaches auth', [
     'messages',
