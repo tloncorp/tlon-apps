@@ -56,22 +56,22 @@ Notes: opening a chat marks it read once it has loaded, which clears its number 
 <!-- src: packages/app/features/settings/PushNotificationSettingsScreen.tsx, packages/app/ui/components/NotificationLevelSelector.tsx, packages/app/ui/components/SettingsScreenView.tsx, packages/shared/src/store/dbHooks.ts, packages/shared/src/store/activityActions.ts -->
 <!-- covers: route:PushNotificationSettings -->
 
-Phone: on the Settings tab, under `App`, tap `Notifications` and pick one of three levels.
+Phone: on the Settings tab, tap `Notifications` and pick one of three levels.
 Desktop: click the gear near the bottom of the left rail, then `Notifications`.
-Notes: `All DMs and group posts` is the default: every DM, and every post, mention and reply in your groups. `DMs, mentions, and replies only` keeps DMs but limits groups to messages that mention you or reply to your posts. `Nothing` turns everything off, even with push allowed on the phone. The choice covers push notifications and what shows in Activity, is saved on your node so it follows you to other devices, and is shown under the `Notifications` row in Settings. Single chats can override it.
+Notes: `All DMs and workspace posts` is the default: every DM, and every post, mention and reply in your groups. `DMs, mentions, and replies only` keeps DMs but limits groups to messages that mention you or reply to your posts. `Nothing` turns everything off, even with push allowed on the phone. The choice covers push notifications and what shows in Activity, is saved on your node so it follows you to other devices, and is shown under the `Notifications` row in Settings. Single chats can override it.
 
 ## Set notifications for one group
 <!-- src: packages/app/ui/components/ChatOptionsSheet.tsx, packages/app/ui/components/NotificationLevelSelector.tsx, packages/app/ui/contexts/chatOptions/useChatVolumeOptions.ts, packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatVolumeScreen.tsx -->
 <!-- covers: route:ChatVolume -->
 
-Phone: on the Workspaces tab, press and hold the group and tap `Group notifications`. Pick `All group activity` (everything that happens there), `Group posts, mentions, and replies`, `Mentions and replies` (only when someone mentions you or replies to your posts) or `Nothing`. The current level has a checkmark.
-Desktop: hover the group in the sidebar, open its three-dot menu and pick `Group notifications`. `Back` returns to the menu.
-Notes: the same choices open as a full screen headed `Notifications` from `Group info & settings`, then `Notifications`. Under `Group notifications` the menu shows the current level in short form, for example "Mentions and replies (custom)" if you set it for this group, or "All posts (app default)" if it follows the app-wide setting.
+Phone: on the Workspaces tab, press and hold the group and tap `Workspace notifications`. Pick `All workspace activity` (everything that happens there), `Workspace posts, mentions, and replies`, `Mentions and replies` (only when someone mentions you or replies to your posts) or `Nothing`. The current level has a checkmark.
+Desktop: hover the group in the sidebar, open its three-dot menu and pick `Workspace notifications`. `Back` returns to the menu.
+Notes: the same choices open as a full screen headed `Notifications` from `Workspace info & settings`, then `Notifications`. Under `Workspace notifications` the menu shows the current level in short form, for example "Mentions and replies (custom)" if you set it for this group, or "All posts (app default)" if it follows the app-wide setting.
 
 ## Set notifications for one channel
 <!-- src: packages/app/ui/components/ChatOptionsSheet.tsx, packages/app/ui/components/NotificationLevelSelector.tsx, packages/app/ui/components/GroupChannelsScreenView.tsx, packages/app/ui/components/Channel/ChannelHeader.tsx, packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChannelScreen.tsx, packages/app/ui/contexts/chatOptions/useChatVolumeOptions.ts, packages/shared/src/db/queries.ts, desk/lib/activity.hoon -->
 
-Phone: open the group, press and hold the channel in its channel list and tap `Channel notifications`. Pick `All channel activity`, `Channel posts, mentions, and replies`, `Mentions and replies` or `Nothing`. Another way in: open the channel, tap its name at the top, then tap `Notifications`.
+Phone: open the group, press and hold the channel in its channel list and tap `Channel notifications`. Pick `All channel activity`, `Channel posts, mentions, and replies`, `Mentions and replies` or `Nothing`. Another way in: open the channel, tap its name at the top, then tap `Notifications`, where the top choice reads `All activity` and the next `Posts and mentions`, with the longer names beneath.
 Desktop: hover the channel in the sidebar, open its three-dot menu and pick `Channel notifications`.
 Notes: on your node, a channel with no setting of its own follows its group's level, and a group with none follows the app-wide one. The menu doesn't show that: for an unset channel, the checkmark and the "(app default)" label show the app-wide level, even when its group has its own. In a group with a single channel, tapping the name opens the group's details, so `Notifications` there sets the group's level.
 
@@ -92,7 +92,7 @@ Notes: muting a DM by swipe sets it to `Nothing`. Muting a group by swipe sets i
 ## Go back to the default for a chat
 <!-- src: packages/app/features/settings/PushNotificationSettingsScreen.tsx, packages/app/ui/contexts/chatOptions/useChatVolumeOptions.ts, packages/app/ui/components/SettingsScreenView.tsx -->
 
-Phone: on the Settings tab, tap `Notifications` and scroll to `Overrides`. It lists every group, channel and DM that has its own level. Tap the X beside one to remove its own level, so it goes back to the default.
+Phone: on the Settings tab, tap `Notifications` and scroll to `Overrides`. It lists every group, channel and DM that has its own level. Tap one, then `Remove` on the `Remove this override?` prompt, to remove its own level, so it goes back to the default.
 Desktop: click the gear in the left rail, then `Notifications`; the same `Overrides` list is at the bottom.
 Notes: `Overrides` only appears once at least one chat has its own level. A chat's own notification menu has no "use default" choice, so this list is the way back. The one shortcut is a chat you muted by swiping on the phone: unmuting it the same way also returns it to the default. Muted threads are not listed here.
 
@@ -157,6 +157,6 @@ Notes: you never get a banner for the chat you're looking at, and at `DMs, menti
 
 ## Change the notification sound, or set quiet hours
 <!-- src: packages/app/features/settings/PushNotificationSettingsScreen.tsx, packages/app/lib/notifications.ts -->
-<!-- absent: quiet hours, do not disturb, notification sound, email notification -->
+<!-- absent: do not disturb, notification sound, email notification -->
 
 Notes: Tlon Messenger doesn't have these. There is no sound picker, no schedule for silencing notifications at set times, no way to mute a chat for a set period, and no notifications by email. Use the phone's or computer's own focus and sound settings, or lower a level under `Notifications` in Settings and raise it again later. Notifications that arrive while the phone app is open show a banner without a sound.

@@ -106,8 +106,9 @@ export type VideoContentData = Pick<
 > & {
   src: string;
   alt: string;
-  width: number;
-  height: number;
+  /** Unknown (both undefined) unless both are finite and positive. */
+  width?: number;
+  height?: number;
 };
 
 export type VideoBlockData = {
@@ -406,6 +407,18 @@ export function plaintextPreviewOfInline(
   }
 }
 
+// A video entry may omit its dimensions (the CLI attaches a video by URL
+// alone). Half a pair, or a zero, is as unknown as none: renderers then size
+// the video from its container instead of from a 1x1 box.
+function knownVideoDimensions(
+  width: number | undefined,
+  height: number | undefined
+): { width?: number; height?: number } {
+  const known = (value: number | undefined): value is number =>
+    value !== undefined && Number.isFinite(value) && value > 0;
+  return known(width) && known(height) ? { width, height } : {};
+}
+
 /**
  * Preprocess content for rendering. Alterations include:
  * - Removing line breaks at end of content
@@ -453,8 +466,7 @@ export function convertContent(
             video: {
               src: entry.fileUri,
               alt: entry.name ?? 'video',
-              width: entry.width ?? 1,
-              height: entry.height ?? 1,
+              ...knownVideoDimensions(entry.width, entry.height),
               duration: entry.duration,
               posterUri: entry.posterUri,
             },
@@ -650,8 +662,8 @@ function convertBlock(block: ub.Block): BlockData {
           video: {
             src: block.image.src,
             alt: block.image.alt,
-            width: block.image.width,
-            height: block.image.height,
+            // Story images built from markdown carry 0x0 when unmeasured.
+            ...knownVideoDimensions(block.image.width, block.image.height),
           },
         };
       } else {

@@ -25,6 +25,19 @@
 ::            pokes cross-ship. explicit and ship-class-agnostic; an empty
 ::            set means only local pokes are accepted.
 ::
++$  state-6
+  $:  %6
+      owner=(unit ship)
+      bots=(set ship)
+      lens=state:v1:sl
+      gateway=state:v1:sg
+      automation=state:v1:sa
+      prompts=state:v1:sp
+  ==
+::  Persisted shapes used only by +on-load migrations. state-4 is the shape
+::  before the prompt-file projection; gateway-1 has the notification latch
+::  and interaction timestamp, and gateway-0 omits them.
+::
 +$  state-5
   $:  %5
       owner=(unit ship)
@@ -34,11 +47,6 @@
       automation=state:v1:sa
       prompts=state:v1:sp
   ==
-+$  versioned-state  $%(state-0 state-1 state-2 state-3 state-4 state-5)
-::  Persisted shapes used only by +on-load migrations. state-4 is the shape
-::  before the prompt-file projection; gateway-1 has the notification latch
-::  and interaction timestamp, and gateway-0 omits them.
-::
 +$  state-4
   $:  %4
       owner=(unit ship)
@@ -102,6 +110,8 @@
       reply-cooldown=@dr
       active-window=@dr
   ==
++$  versioned-state
+  $%(state-0 state-1 state-2 state-3 state-4 state-5 state-6)
 ::  default cap on first install. conservative against the per-run ceiling:
 ::  3.000 runs * 512KB worst-case = ~1.5GB per bot, while typical runs are far
 ::  smaller. ships wanting more or less can poke %steward-lens-action-1
@@ -109,7 +119,7 @@
 ::
 ++  default-max-runs-per-bot  3.000
 --
-=|  state-5
+=|  state-6
 =*  state  -
 %-  agent:dbug
 %^  verb  |  %warn
@@ -195,14 +205,21 @@
   |=  =vase
   ^+  cor
   =+  !<(old=versioned-state vase)
+  =/  from-5  ?=(%5 -.old)
   =?  cor  ?=(%0 -.old)  (seed-migrated-liveness old)
   =?  old  ?=(%0 -.old)  (state-0-to-1 old)
   =?  old  ?=(%1 -.old)  (state-1-to-2 old)
   =?  old  ?=(%2 -.old)  (state-2-to-3 old)
   =?  old  ?=(%3 -.old)  (state-3-to-4 old)
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)
-  ?>  ?=(%5 -.old)
+  =?  old  ?=(%5 -.old)  (state-5-to-6 old)
+  ?>  ?=(%6 -.old)
   =.  state  old
+  ::  only a %5 owner can have dropped mirror snapshots for carrying
+  ::  MEMORY.md: earlier shapes had no mirror, and anything they migrate
+  ::  into is subscribed fresh by +reconcile
+  ::
+  =?  cor  from-5  po-refresh-prompts:po-core
   reconcile
 ::  +reconcile: restore what state cannot carry, on init and on every
 ::  load. subscriptions and timers live outside it: a suspended agent's
@@ -265,6 +282,12 @@
   ^-  state-5
   =,  automation.old
   [%5 owner.old bots.old lens.old gateway.old [tasks requests pending *@da] *state:v1:sp]
+::  %5 -> %6: the prompts allowlist gains MEMORY.md. the shape is
+::  unchanged.
+++  state-5-to-6
+  |=  old=state-5
+  ^-  state-6
+  [%6 +.old]
 ::  a %0 bot's gateway registered before the liveness claim existed, and
 ::  heartbeats only advertise on an up transition: seed the claim from the
 ::  migrated status, or an already-up gateway stays unknown until its next
@@ -968,6 +991,21 @@
       =/  =id:v1:sl  i.t.t.t.path
       ?~  r=(~(get by runs.lens.state) [bot id])  [~ ~]
       ``steward-lens-update-1+!>(`update:v1:sl`[%entry [bot id] u.r])
+    ::
+        [%v1 %cron @ @ @ ~]
+      =/  bot  (slav %p i.t.t.path)
+      =*  job  i.t.t.t.path
+      =/  count  (slav %ud i.t.t.t.t.path)
+      =/  =update:v1:sl  (le-cron-page bot job count ~)
+      ``steward-lens-update-1+!>(update)
+    ::
+        [%v1 %cron @ @ @ @ ~]
+      =/  bot  (slav %p i.t.t.path)
+      =*  job  i.t.t.t.path
+      =/  count  (slav %ud i.t.t.t.t.path)
+      =/  before  (slav %da i.t.t.t.t.t.path)
+      =/  =update:v1:sl  (le-cron-page bot job count `before)
+      ``steward-lens-update-1+!>(update)
     ==
   ::
   ++  le-send
@@ -1069,6 +1107,49 @@
     %+  turn  sorted
     |=  [[bot=ship =id:v1:sl] =run:v1:sl]
     `entry:v1:sl`[[bot id] run]
+  ::
+  ::  one page of the runs .bot recorded for cron job .job, newest first:
+  ::  the newest .count, or with .before the newest .count older than it.
+  ::  a client pages back by passing the oldest .received it has
+  ::
+  ++  le-cron-page
+    |=  [bot=ship job=@t count=@ud before=(unit @da)]
+    ^-  update:v1:sl
+    =/  runs
+      %+  skim  ~(tap by runs.lens.state)
+      |=  [[who=ship *] =run:v1:sl]
+      &(=(who bot) (le-is-cron-run job payload.run))
+    =/  sorted
+      %+  sort  runs
+      |=  [a=[* =run:v1:sl] b=[* =run:v1:sl]]
+      (gth received.run.a received.run.b)
+    =/  older
+      ?~  before  sorted
+      %+  skim  sorted
+      |=([* =run:v1:sl] (lth received.run u.before))
+    :+  %page  (lent sorted)
+    %+  turn  (scag count older)
+    |=  [[who=ship =id:v1:sl] =run:v1:sl]
+    `entry:v1:sl`[[who id] run]
+  ::
+  ::  whether a run record is a run of cron job .job. the gateway stamps
+  ::  .cron.jobId; a record from before it did is matched by the trigger
+  ::  preview it has always written for cron runs, "cron job <id>"
+  ::
+  ++  le-is-cron-run
+    |=  [job=@t payload=json]
+    ^-  ?
+    ?.  ?=([%o *] payload)  |
+    =/  rec  (~(get by p.payload) 'lens')
+    ?.  ?=([~ %o *] rec)  |
+    =/  cron  (~(get by p.u.rec) 'cron')
+    ?:  ?=([~ %o *] cron)
+      =(`s+job (~(get by p.u.cron) 'jobId'))
+    =/  details  (~(get by p.u.rec) 'triggerDetails')
+    ?.  ?=([~ %o *] details)  |
+    ?&  =(`s+'cron' (~(get by p.u.rec) 'runKind'))
+        =(`s+(cat 3 'cron job ' job) (~(get by p.u.details) 'preview'))
+    ==
   --
 ::  |ga-core: gateway module
 ::
@@ -2106,10 +2187,23 @@
     ^-  log-data:v1:lg
     ~['requestId'^s+(scot %uv rid) key^s+(scot %p who)]
   ::
+  ::  the six prompt files whose contents are Tlon's, and MEMORY.md, which
+  ::  Tlon seeds and the bot grows. served at /x/v1/prompts/names so a
+  ::  harness can ask before it projects: a name off this list fails the
+  ::  whole projection, and a harness newer than its desk must leave it out
+  ::
   ++  po-prompt-names
-    ^~  %-  silt
+    ^~
+    %-  silt
     ^-  (list @t)
-    ~['AGENTS.md' 'SOUL.md' 'TOOLS.md' 'IDENTITY.md' 'USER.md' 'BOOTSTRAP.md']
+    :~  'AGENTS.md'
+        'SOUL.md'
+        'TOOLS.md'
+        'IDENTITY.md'
+        'USER.md'
+        'BOOTSTRAP.md'
+        'MEMORY.md'
+    ==
   ::
   ++  po-valid-edit
     |=  =edit:v1:sp
@@ -2118,8 +2212,9 @@
         (~(has in po-prompt-names) name.edit)
     ==
   ::
-  ::  every file allowlisted and within the per-file cap. with six names
-  ::  that also bounds the whole map, so there is no separate total cap
+  ::  every file allowlisted and within the per-file cap. with fixed set of
+  ::  names that also bounds the whole map, so there is no separate total
+  ::  cap
   ::
   ++  po-valid-files
     |=  files=prompts:v1:sp
@@ -2374,6 +2469,8 @@
     ?+  path  [~ ~]
         [%v1 %files ~]
       ``steward-prompts-files-1+!>(files.prompts.state)
+        [%v1 %names ~]
+      ``steward-prompts-names-1+!>(po-prompt-names)
     ==
   ::  edit loop: client → owner → bot → harness, with the response
   ::  walking back the same way. steward never touches the file map on
@@ -2400,6 +2497,25 @@
     =/  retry  (~(get by rewatch.prompts.state.cor) bot)
     ?:  &(?=(^ retry) (gth wake.u.retry now.bowl))  cor
     (po-trust-bot:po-core:cor bot)
+  ::
+  ::  for a load after which this ship accepts more than it did. kick the
+  ::  local harness feed: a harness reads the names scry only when it
+  ::  projects, and its watch survives a load, so its re-watch is what
+  ::  projects the workspace again under the wider allowlist. then leave
+  ::  and re-watch every live mirror, so each bot replays its snapshot: a
+  ::  snapshot dropped under the old rules left no entry, and no delta
+  ::  creates one. a mirror with no wire is +po-reconcile's
+  ::
+  ++  po-refresh-prompts
+    ^+  cor
+    =.  cor  (give %kick ~[po-harness-path] ~)
+    %+  roll  ~(tap in bots.state)
+    |=  [bot=ship =_cor]
+    ?:  =(bot our.bowl)  cor
+    =/  =wire  /prompts/files/(scot %p bot)
+    ?.  (~(has by wex.bowl) [wire bot %steward])  cor
+    =.  cor  (emit:cor %pass wire %agent [bot %steward] %leave ~)
+    (emit:cor (po-watch-card:po-core:cor bot))
   ::
   ::  an edit may only be relayed to a bot this ship manages: the local
   ::  ship, or one in the trusted set. without this a client could drive
@@ -2933,8 +3049,8 @@
   ::  a wrapper over the poke: same decode, same arm, but an invalid
   ::  projection is a 400 rather than a crash. the cap only bounds the
   ::  read before decoding: sized from the per-file caps at JSON's worst
-  ::  escape (six bytes per control character, about 2.3 MiB for six full
-  ::  files), so every projection the poke accepts also fits here
+  ::  escape (six bytes per control character, about 2.7 MiB for seven
+  ::  full files), so every projection the poke accepts also fits here
   ::
   ++  po-handle-http-project
     |=  [eyre-id=@ta =inbound-request:eyre]

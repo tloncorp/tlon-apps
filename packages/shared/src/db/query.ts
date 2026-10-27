@@ -2,7 +2,6 @@ import { sql } from 'drizzle-orm';
 
 import { createDevLogger, escapeLog, listDebugLabel } from '../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
-import { startTrace } from '../perf';
 import { perfEnabled, perfLog } from '../perfLog';
 import * as changeListener from './changeListener';
 import {
@@ -101,19 +100,6 @@ export const createQuery = <TOptions, TReturn>(
     options?: TOptions,
     ctx?: QueryCtx
   ): Promise<TReturn> {
-    // No `awaits`!
-    // The performance tracing API is necessarily promise-based since we're
-    // talking to native code, but we don't want to block the query.
-    const queryTracePromise =
-      meta.label && startTrace(['query', meta.label].join('.'));
-    const completeQueryTraceIfPossible = () => {
-      if (queryTracePromise) {
-        queryTracePromise.then(async (trace) => {
-          await trace.stop();
-        });
-      }
-    };
-
     const startTime = Date.now();
     // Resolve arguments based on parameter count of query function
     const [ctxArg, runQuery] = hasNoOptions(queryFn)
@@ -131,7 +117,6 @@ export const createQuery = <TOptions, TReturn>(
       try {
         const result = await runQuery(resolvedCtx);
         logger.log(meta.label + ':end', Date.now() - startTime + 'ms');
-        completeQueryTraceIfPossible();
         // Pass pending table effects to query context
         if (meta?.tableEffects) {
           const effects =

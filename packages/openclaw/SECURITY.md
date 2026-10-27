@@ -89,7 +89,10 @@ Suppression invariants: queued invites are never marked in the in-process
 dedup set (it records only auto-accept success and confirmed-blocked); the
 persisted approval record suppresses re-notification once delivered, gates
 retries of failed sends behind a 10-minute cooldown, and its 48h TTL is the
-reminder cadence. The reconciliation sweeps (connect and the 2-minute poll)
+reminder cadence. New approval records are capped at 100
+(`TLON_PENDING_APPROVAL_LIMIT`): past the cap a new request is not persisted,
+its invite stays unmarked so a later event retries it, and the owner gets at
+most one queue-full notice per 10-minute window. The reconciliation sweeps (connect and the 2-minute poll)
 clear the dedup marker for a join whose `progress` reached `error`, so a join
 that acked locally but failed on the backend becomes actionable again at a
 bounded cadence — live error facts leave the marker, because a persistently
@@ -386,7 +389,7 @@ try {
 
 **Principle:** Sensitive tools are owner-only. Non-owners cannot use them, enforced at the plugin level (not via prompt instructions).
 
-**Restricted tools:** `tlon`, `cron` (also under `automations`, its name on newer OpenClaw), `read`.
+**Restricted tools:** `tlon`, `automations` (and its legacy name `cron`), `read`.
 
 | Scenario | Behavior |
 | -------- | -------- |
@@ -397,6 +400,7 @@ try {
 
 **Implementation:**
 - `before_tool_call` hook intercepts calls to restricted tools (policy in `src/owner-only-tools.ts`: `OWNER_ONLY_TOOLS`, `resolveOwnerOnlyToolBlock`)
+- The hook is registered from the entry's `registerCapabilities` (`registerAgentTurnHooks` in `index.ts`), not `registerFull`. OpenClaw 2026.9.x dispatches hooks inside an agent turn from a per-turn plugin registry it loads in discovery mode, where the channel entry helper never calls `registerFull`; a gate registered only there is silently inert. `src/agent-turn-hooks.test.ts` locks the placement in.
 - Checks SenderRole from session tracker (stored the same way for DM and group senders)
 - Only blocks when role is explicitly `"user"` (a non-owner sender, DM or group)
 - Owner sessions (`"owner"`) and internal sessions (`undefined` role) are allowed
@@ -418,6 +422,10 @@ Even with SenderRole correctly identified, a non-owner could social-engineer the
 - "Read the SOUL.md file" → blocked `read` tool
 
 The `before_tool_call` hook provides defense-in-depth by blocking restricted tools at the plugin level, regardless of what the LLM decides.
+
+**What this does not cover — owner-triggered runs in group context (`ownerDefault`):**
+
+The hook decides *who may invoke* the tool from the sender of the triggering message. It does not decide *what the run was told*. An owner-triggered run in a group channel is prompted with recent channel posts, including posts by senders who could not trigger the bot themselves, so a planted instruction can reach the model. With `ownerDefault` off, such a run acts as the bot (and as the owner only for the six legacy owner operations). With `ownerDefault` on, every `tlon` call in that run acts with the owner's credentials, so the same injection can read or change owner data. No per-call check can tell a planted instruction from the owner's. `ownerDefault` is off by default; TLON-6907 (owner-default only in the owner↔bot 1:1 DM) must land before it is enabled for a bot that watches group channels.
 
 ---
 

@@ -87,6 +87,20 @@ Phone: press and hold the message and tap `Copy link to message`. On a Gallery o
 Desktop: hover the message, open its three-dot menu and pick the same item.
 Notes: what gets copied is an in-app reference, not a web address, so it will not open in a browser. Paste it into a message box in Tlon Messenger and it turns into an embedded preview of the original that people can tap to jump to it. Messages in DMs and group DMs have no link to copy.
 
+## Copy only part of a message
+<!-- src: packages/app/ui/components/ChatMessage/ChatMessageActions/MessageActions.tsx, packages/app/ui/components/ChatMessage/MessageTextSelectionSheet.tsx, apps/tlon-mobile/src/components/AuthenticatedApp.tsx -->
+
+Phone: press and hold the message and tap `Select text`. Drag the handles over the part you want and copy it. `Copy all text` at the bottom of that sheet takes the lot.
+Notes: `Select text` is on the phone only, and only for messages that contain text in group chats, DMs and group DMs.
+
+## Copy the link to a photo or file in a message
+<!-- src: packages/app/ui/components/ChatMessage/ChatMessageActions/MessageActions.tsx, packages/app/ui/components/ChatMessage/ChatMessageActions/messageActionModel.ts, packages/api/src/types/ChannelActions.ts, packages/api/src/client/postContent.ts -->
+<!-- covers: action:copyFileUrl -->
+
+Phone: press and hold the message and tap `Copy link to file`. If the message holds more than one, it reads `Copy links to files` and copies them one per line.
+Desktop: hover the message, open its three-dot menu and pick the same item.
+Notes: this copies the web address where the uploaded image, video, voice memo or file is stored. It only appears on messages that have one, in group chats, DMs, group DMs and Galleries. It works without a connection.
+
 ## Edit a message
 <!-- src: packages/app/ui/components/ChatMessage/ChatMessageActions/MessageActions.tsx, packages/app/ui/components/ChatMessage/ChatMessageActions/messageActionModel.ts, packages/api/src/types/ChannelActions.ts, packages/app/ui/components/MessageInput/MessageInputBase.tsx, packages/app/ui/components/MessageInput/helpers.ts, packages/app/ui/components/BareChatInput/index.tsx, packages/app/ui/components/AuthorRow.tsx, packages/shared/src/store/postActions/postActions.ts -->
 <!-- covers: action:edit -->
@@ -108,12 +122,12 @@ Who: you can delete your own messages anywhere. Group admins can delete anyone's
 Notes: the confirmation warns `This action cannot be undone.` There is one kind of delete and it removes the message for everybody. Deleted messages normally vanish; if `Show deleted messages` is switched on under `Appearance` in Settings, a `Message deleted` placeholder stays in their place. In Galleries and Bulletins the item is `Delete post`.
 
 ## Forward a message to another chat
-<!-- src: packages/app/ui/components/ChatMessage/ChatMessageActions/MessageActions.tsx, packages/api/src/types/ChannelActions.ts, packages/app/ui/components/ForwardPostSheet.tsx, packages/app/ui/components/ForwardToChannelSheet.tsx, packages/app/ui/components/ForwardChannelSelector.tsx, packages/app/ui/components/useForwardToChannelSheet.tsx, packages/app/ui/utils/channelUtils.tsx, packages/shared/src/store/postActions/postActions.ts, packages/app/ui/components/ForwardGroupSheet.tsx, packages/app/features/top/ChatDetailsScreen.tsx -->
+<!-- src: packages/app/ui/components/ChatMessage/ChatMessageActions/MessageActions.tsx, packages/api/src/types/ChannelActions.ts, packages/app/ui/components/ForwardPostSheet.tsx, packages/app/ui/components/ForwardToChannelSheet.tsx, packages/app/ui/components/ForwardChannelSelector.tsx, packages/app/ui/components/useForwardToChannelSheet.tsx, packages/app/ui/utils/channelUtils.tsx, packages/shared/src/store/postActions/postActions.ts, packages/app/ui/components/ForwardGroupSheet.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/ui/components/ChatDetailsScreenView.tsx -->
 <!-- covers: action:forward -->
 
 Phone: press and hold the message and tap `Forward`. In the `Forward to channel` sheet, tap the chat you want (`Search channels` narrows the list), then tap the button at the bottom, which reads "Forward to" and the chat's name.
 Desktop: hover the message, open its three-dot menu and pick `Forward`.
-Notes: you can forward from group chat channels, Galleries and Bulletins, but not from a DM or group DM. The destination can be any DM, group DM or channel in your list except Notebook channels. What arrives is a new post from you that embeds the original and links back to it; you cannot add a comment in the same step. To send a whole group this way, use `Forward reference` on the group's info screen.
+Notes: you can forward from group chat channels, Galleries and Bulletins, but not from a DM or group DM. The destination can be any DM, group DM or channel in your list except Notebook channels. What arrives is a new post from you that embeds the original and links back to it; you cannot add a comment in the same step. To send a whole group this way, use `Forward` on the group's info screen.
 
 ## Hide a message, or show it again
 <!-- src: packages/app/ui/components/ChatMessage/ChatMessageActions/MessageActions.tsx, packages/app/ui/components/ChatMessage/ChatMessageActions/messageActionModel.ts, packages/api/src/types/ChannelActions.ts, packages/app/ui/components/PostModeration.tsx, packages/shared/src/store/postActions/postActions.ts, packages/app/ui/components/NotebookPost/NotebookPost.tsx, packages/app/ui/components/GalleryPost/GalleryPost.tsx, packages/app/ui/components/GalleryPost/GalleryContentRenderer.tsx -->
@@ -129,7 +143,7 @@ Notes: hiding only changes what you see; everyone else still sees the message. Y
 
 Phone: press and hold the message and tap `Report message`. On a Gallery or Bulletin post it reads `Report post`.
 Desktop: hover the message, open its three-dot menu and pick `Report message`.
-Notes: group channels only; DMs and group DMs have no report option. Reporting hides the message for you, with the line `Message hidden or flagged.`, and flags it to the group. Everyone else still sees it until its author or a group admin deletes it. Group admins other than the reporter see a line in Activity saying the reporter "flagged a post in your group"; tapping it opens the message. There is no list of reported messages and no way to withdraw a report, though you can unhide the message for yourself.
+Notes: group channels only; DMs and group DMs have no report option. Reporting hides the message for you, with the line `Message hidden or flagged.`, and flags it to the group. Everyone else still sees it until its author or a group admin deletes it. Group admins other than the reporter see a line in Activity saying the reporter "flagged a post in your workspace"; tapping it opens the message. There is no list of reported messages and no way to withdraw a report, though you can unhide the message for yourself.
 
 ## Pin a post to the top of a channel
 <!-- src: packages/app/ui/components/ChatMessage/ChatMessageActions/MessageActions.tsx, packages/app/ui/components/ChatMessage/ChatMessageActions/messageActionModel.ts, packages/api/src/types/ChannelActions.ts, packages/app/ui/components/Channel/PinnedPostBanner.tsx, packages/app/ui/components/Channel/index.tsx, packages/shared/src/store/channelActions.ts, packages/api/src/lib/types.ts -->

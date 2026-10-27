@@ -253,7 +253,7 @@ function renderSquare(draw: Draw, pixels: number, opacity: number) {
 // one behind under the final name.
 function writeAtomically(directory: Directory, file: File, base64: string) {
   const temp = new File(directory, `${file.name}.tmp`);
-  temp.write(base64, { encoding: 'base64' });
+  temp.writeSync(base64, { encoding: 'base64' });
   temp.moveSync(file, { overwrite: true });
 }
 

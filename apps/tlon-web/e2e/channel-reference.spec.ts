@@ -76,7 +76,12 @@ test.describe('Channel Reference', () => {
       tenPage.getByText("This reference can't be shown")
     ).not.toBeVisible();
 
-    // Step 5b: tapping the card as a non-member opens the group preview
+    // Step 5b: tapping the card as a non-member opens the group preview.
+    // The card ignores taps until ~zod's group preview loads, after the
+    // channel title, so wait for the group title it shows then.
+    await expect(
+      tenCard.getByTestId('ChannelLinkReferenceGroupTitle')
+    ).toBeVisible({ timeout: 15000 });
     // Use force click to bypass opacity animation on reference frame
     await tenCard.click({ force: true });
     await expect(

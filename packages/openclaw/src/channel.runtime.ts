@@ -21,6 +21,7 @@ import {
 import { monitorTlonProvider } from './monitor/index.js';
 import { notesDeliveryMessageId } from './notes-delivery-state.js';
 import { getRestartCatchupCoordinator } from './restart-catchup.js';
+import { roleMentionScopeFor } from './role-mention-scope.js';
 import { tlonSetupWizard } from './setup-surface.js';
 import { formatTargetHint, normalizeShip, parseTlonTarget } from './targets.js';
 import { observeActiveTlonTurnDelivery } from './turn-recorder.js';
@@ -37,7 +38,7 @@ import {
   sendChannelPost,
   sendDmWithStory,
 } from './urbit/send.js';
-import { markdownToStory } from './urbit/story.js';
+import { ALL_ONLY, markdownToStory } from './urbit/story.js';
 import { prepareOutboundMedia } from './urbit/upload.js';
 
 type ResolvedTlonAccount = ReturnType<typeof resolveTlonAccount>;
@@ -341,7 +342,7 @@ const coreTlonRuntimeOutbound: Pick<
         const botProfile = await getBotProfile(fromShip);
         if (parsed.kind === 'dm') {
           const conversationId = normalizeShip(parsed.ship);
-          const story = markdownToStory(text);
+          const story = markdownToStory(text, { roleMentions: ALL_ONLY });
           const target = resolveOutboundLensTarget(
             account,
             fromShip,
@@ -385,7 +386,13 @@ const coreTlonRuntimeOutbound: Pick<
           fromShip,
           parsed.nest
         );
-        const story = markdownToStory(text);
+        const story = markdownToStory(text, {
+          roleMentions: await roleMentionScopeFor(
+            account.accountId,
+            { kind: 'channel', nest: parsed.nest },
+            text
+          ),
+        });
         const result = await observeActiveTlonTurnDelivery(
           () =>
             sendChannelPost({
@@ -417,6 +424,9 @@ const coreTlonRuntimeOutbound: Pick<
     to,
     text,
     mediaUrl,
+    mediaAccess,
+    mediaLocalRoots,
+    mediaReadFile,
     accountId,
     replyToId,
     threadId,
@@ -431,14 +441,20 @@ const coreTlonRuntimeOutbound: Pick<
       },
       async () => {
         const media = mediaUrl
-          ? await prepareOutboundMedia(mediaUrl)
+          ? await prepareOutboundMedia(mediaUrl, {
+              mediaAccess,
+              mediaLocalRoots,
+              mediaReadFile,
+            })
           : undefined;
         const fromShip = normalizeShip(account.ship);
-        const story = buildMediaStory(text, media);
         const replyId = resolveReplyId(replyToId, threadId);
         const botProfile = await getBotProfile(fromShip);
         if (parsed.kind === 'dm') {
           const conversationId = normalizeShip(parsed.ship);
+          const story = buildMediaStory(text, media, {
+            roleMentions: ALL_ONLY,
+          });
           const target = resolveOutboundLensTarget(
             account,
             fromShip,
@@ -477,6 +493,13 @@ const coreTlonRuntimeOutbound: Pick<
             text: buildMediaText(text, media?.url),
           });
         }
+        const story = buildMediaStory(text, media, {
+          roleMentions: await roleMentionScopeFor(
+            account.accountId,
+            { kind: 'channel', nest: parsed.nest },
+            text ?? ''
+          ),
+        });
         const target = resolveOutboundLensTarget(
           account,
           fromShip,
@@ -534,7 +557,8 @@ export const tlonRuntimeOutbound: Pick<
         async () =>
           Promise.all(
             resolvePayloadMediaUrls(ctx.payload).map(
-              async (mediaUrl) => (await prepareOutboundMedia(mediaUrl)).url
+              async (mediaUrl) =>
+                (await prepareOutboundMedia(mediaUrl, ctx)).url
             )
           )
       );

@@ -3,15 +3,23 @@ import { afterEach, describe, expect, it, spyOn } from 'bun:test';
 import { CommandError } from './commands/command';
 import * as groupAdmin from './group-admin';
 import { markdownToStory } from './markdown';
+import { FETCH_FAILED_ERROR, isMediaPolicyRejection } from './media-guard';
 import { createPostsDeps } from './posts-runtime';
 import {
   mockedDeleteReply,
+  mockedGetChannelPosts,
+  mockedGetGroup,
   mockedGetPostWithReplies,
   mockedScry,
   mockedSetOrder,
 } from './tloncorp-api-mock';
 
+const defaultGetChannelPosts = mockedGetChannelPosts.impl;
+const originalGetGroup = mockedGetGroup.impl;
+
 afterEach(() => {
+  mockedGetChannelPosts.impl = defaultGetChannelPosts;
+  mockedGetGroup.impl = originalGetGroup;
   mockedGetPostWithReplies.impl = async () => undefined;
   mockedDeleteReply.impl = async () => undefined;
   mockedSetOrder.impl = async () => undefined;
@@ -38,6 +46,12 @@ describe('createPostsDeps().postsApi.getPostWithReplies', () => {
         id: '170.141.184.500',
         authorId: '~host',
         isDeleted: false,
+        sentAt: 1700,
+        // Two paragraphs, the first with a line break.
+        content: JSON.stringify([
+          { inline: ['line ', { bold: ['one'] }, { break: null }, 'line two'] },
+          { inline: ['second paragraph'] },
+        ]),
         replies: [
           {
             id: '170.141.184.501',
@@ -75,6 +89,10 @@ describe('createPostsDeps().postsApi.getPostWithReplies', () => {
       id: '170.141.184.500',
       authorId: '~host',
       isDeleted: false,
+      sentAt: 1700,
+      contentKey:
+        '[{"inline":["line ",{"bold":["one"]},{"break":null},"line two"]},{"inline":["second paragraph"]}]',
+      quoteText: 'line one\nline two',
       replies: [
         {
           id: '170.141.184.501',
@@ -99,6 +117,79 @@ describe('createPostsDeps().postsApi.getPostWithReplies', () => {
     });
   });
 
+  it('passes an explicit authorId, defaulting to the acting ship', async () => {
+    const received: unknown[] = [];
+    mockedGetPostWithReplies.impl = async (...args: unknown[]) => {
+      received.push(args[0]);
+      return { id: '1', authorId: '~bus', replies: [] };
+    };
+    const api = createPostsDeps().postsApi;
+
+    await api.getPostWithReplies({
+      channelId: '~bus',
+      postId: '170.141',
+      authorId: '~bus',
+    });
+    await api.getPostWithReplies({ channelId: '~bus', postId: '170.141' });
+
+    expect(received).toEqual([
+      { channelId: '~bus', postId: '170.141', authorId: '~bus' },
+      { channelId: '~bus', postId: '170.141', authorId: '~zod' },
+    ]);
+  });
+
+  it('quotes only the first paragraph, keeping tasks and group mentions, and reads no text from a reference or image', async () => {
+    const cases: Array<[unknown, string]> = [
+      [JSON.stringify([{ inline: ['one'] }, { inline: ['two'] }]), 'one'],
+      [
+        JSON.stringify([
+          { block: { image: { src: 'https://x.test/a.png' } } },
+          {
+            inline: [
+              { ship: '~nec' },
+              ' see ',
+              { link: { href: 'https://x.test', content: 'this' } },
+            ],
+          },
+        ]),
+        '~nec see this',
+      ],
+      [
+        JSON.stringify([
+          { inline: [{ task: { checked: false, content: ['pay invoice'] } }] },
+        ]),
+        '[ ] pay invoice',
+      ],
+      [JSON.stringify([{ inline: [{ sect: null }, ' hello'] }]), '@all hello'],
+      [
+        JSON.stringify([
+          {
+            type: 'reference',
+            referenceType: 'channel',
+            channelId: 'chat/~host/c',
+            postId: '1',
+          },
+        ]),
+        '',
+      ],
+      [null, ''],
+      ['not json', ''],
+    ];
+    for (const [content, quoteText] of cases) {
+      mockedGetPostWithReplies.impl = async () => ({
+        id: '1',
+        authorId: '~bus',
+        content,
+        replies: [],
+      });
+      const thread = await createPostsDeps().postsApi.getPostWithReplies({
+        channelId: '~bus',
+        postId: '1',
+      });
+      expect(thread.quoteText).toBe(quoteText);
+    }
+  });
+
   it('passes read errors through raw for the command to interpret', async () => {
     mockedGetPostWithReplies.impl = async () => {
       throw new Error('scry 404');
@@ -110,6 +201,97 @@ describe('createPostsDeps().postsApi.getPostWithReplies', () => {
         postId: '1',
       })
     ).rejects.toThrow('scry 404');
+  });
+});
+
+describe('createPostsDeps().postsApi.getChannelPosts', () => {
+  it('adds the read-back contentKey to each post', async () => {
+    const received: unknown[] = [];
+    mockedGetChannelPosts.impl = async (...args: unknown[]) => {
+      received.push(args[0]);
+      return {
+        posts: [
+          {
+            id: '170.141.184.600',
+            authorId: '~zod',
+            sentAt: 1700,
+            isDeleted: false,
+            content: JSON.stringify([{ inline: ['hi'] }]),
+          },
+          { id: '170.141.184.601', authorId: '~nec', sentAt: 1701 },
+        ],
+        older: null,
+      };
+    };
+    const query = {
+      channelId: 'chat/~host/channel',
+      mode: 'newest' as const,
+      count: 20,
+      includeReplies: false,
+    };
+
+    const result = await createPostsDeps().postsApi.getChannelPosts(query);
+
+    expect(received).toEqual([query]);
+    // The api's fields pass through untouched, so the result is wider than
+    // ExistingPost.
+    expect(result as unknown).toEqual({
+      posts: [
+        {
+          id: '170.141.184.600',
+          authorId: '~zod',
+          sentAt: 1700,
+          isDeleted: false,
+          content: JSON.stringify([{ inline: ['hi'] }]),
+          contentKey: '[{"inline":["hi"]}]',
+        },
+        {
+          id: '170.141.184.601',
+          authorId: '~nec',
+          sentAt: 1701,
+          contentKey: 'null',
+        },
+      ],
+    });
+  });
+
+  it('keys a stored, converted reference like the cite story that was sent', async () => {
+    const cite = {
+      block: {
+        cite: {
+          chan: {
+            nest: 'chat/~nec/general',
+            where: '/msg/170141184507208218934405025845542912000',
+          },
+        },
+      },
+    };
+    // What the api stores for that cite: the converted reference, in the
+    // desk's key order rather than the story's.
+    const stored = JSON.stringify([
+      {
+        postId: '170.141.184.507.208.218.934.405.025.845.542.912.000',
+        referenceType: 'channel',
+        type: 'reference',
+        channelId: 'chat/~nec/general',
+      },
+      { inline: ['Look at this'] },
+    ]);
+    mockedGetChannelPosts.impl = async () => ({
+      posts: [{ id: '1', authorId: '~zod', sentAt: 1, content: stored }],
+    });
+    const deps = createPostsDeps();
+
+    const result = await deps.postsApi.getChannelPosts({
+      channelId: 'chat/~zod/team',
+      mode: 'newest',
+      count: 20,
+      includeReplies: false,
+    });
+
+    expect(result.posts[0].contentKey).toBe(
+      deps.contentKeyOf([cite, { inline: ['Look at this'] }])
+    );
   });
 });
 
@@ -131,6 +313,33 @@ describe('createPostsDeps().contentKeyOf', () => {
 
     // Sanity: the two sides really do differ in key order.
     expect(JSON.stringify(story)).not.toBe(DESK_IMAGE_CONTENT);
+    expect(thread.replies[0].contentKey).toBe(deps.contentKeyOf(story));
+  });
+
+  it('matches the read-back of a story with role mentions', async () => {
+    const story = markdownToStory('hi @admin and @all', {
+      roleIds: new Set(['admin']),
+    });
+    mockedGetPostWithReplies.impl = async () => ({
+      id: '1',
+      authorId: '~host',
+      replies: [
+        {
+          id: '2',
+          authorId: '~zod',
+          sentAt: 1,
+          content: JSON.stringify([
+            { inline: ['hi ', { sect: 'admin' }, ' and ', { sect: null }] },
+          ]),
+        },
+      ],
+    });
+    const deps = createPostsDeps();
+    const thread = await deps.postsApi.getPostWithReplies({
+      channelId: 'chat/~host/channel',
+      postId: '1',
+    });
+
     expect(thread.replies[0].contentKey).toBe(deps.contentKeyOf(story));
   });
 
@@ -276,5 +485,53 @@ describe('createPostsDeps() error mapping', () => {
     } finally {
       helper.mockRestore();
     }
+  });
+});
+
+describe('createPostsDeps().getGroupRoleIds', () => {
+  it('maps getGroup roles to ids', async () => {
+    const requested: unknown[] = [];
+    mockedGetGroup.impl = async (...args: unknown[]) => {
+      requested.push(args[0]);
+      return {
+        roles: [
+          { id: 'admin', title: 'Admins' },
+          { id: 'moderators', title: 'Mods' },
+        ],
+      };
+    };
+
+    expect(await createPostsDeps().getGroupRoleIds('~host/group')).toEqual([
+      'admin',
+      'moderators',
+    ]);
+    expect(requested).toEqual(['~host/group']);
+  });
+
+  it('returns no ids for a group without roles', async () => {
+    mockedGetGroup.impl = async () => ({});
+
+    expect(await createPostsDeps().getGroupRoleIds('~host/group')).toEqual([]);
+  });
+
+  it('passes a read failure through raw for the command to word', async () => {
+    mockedGetGroup.impl = async () => {
+      throw new Error('scry 404');
+    };
+
+    await expect(
+      createPostsDeps().getGroupRoleIds('~host/group')
+    ).rejects.toThrow('scry 404');
+  });
+});
+
+describe('createPostsDeps().probeMedia', () => {
+  it('is the guarded HEAD: a denied host is refused before any request', async () => {
+    const error = await createPostsDeps()
+      .probeMedia('https://localhost/report.pdf')
+      .catch((caught: unknown) => caught);
+
+    expect((error as Error).message).toBe(FETCH_FAILED_ERROR);
+    expect(isMediaPolicyRejection(error)).toBe(true);
   });
 });

@@ -456,7 +456,9 @@ export function ChannelLinkReference({
               <ListItem.MainContent>
                 <ListItem.Title>{title}</ListItem.Title>
                 {groupTitle ? (
-                  <ListItem.Subtitle>{groupTitle}</ListItem.Subtitle>
+                  <ListItem.Subtitle testID="ChannelLinkReferenceGroupTitle">
+                    {groupTitle}
+                  </ListItem.Subtitle>
                 ) : null}
               </ListItem.MainContent>
             </ListItem>

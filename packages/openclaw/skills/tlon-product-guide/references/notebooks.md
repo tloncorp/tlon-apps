@@ -10,7 +10,7 @@ Notes: the order can't be changed by hand.
 
 ## A notebook says it's unavailable or that I'm not in it
 
-Notes: while it loads you see `Loading notebook`. `You're not in this notebook` means you have left, or never joined, that channel; the screen adds `Join it from the group's channel list.` `Unable to join notebook` comes with `This notebook is private or no longer available.` `Notebook unavailable` means its contents have not reached your device yet.
+Notes: while it loads you see `Loading notebook`. `You're not in this notebook` means you have left, or never joined, that channel; the screen adds `Join it from the workspace's channel list.` `Unable to join notebook` comes with `This notebook is private or no longer available.` `Notebook unavailable` means its contents have not reached your device yet.
 
 ## Open a folder in a notebook
 
@@ -112,7 +112,7 @@ Notes: anyone who can open the notebook can copy a reference. Tapping the card o
 
 ## Who can edit a notebook, and can it be read-only?
 
-Notes: a Notebook has one level of access, not separate reading and writing. On the notebook's `Channel permissions` screen, with `Custom Permissions` turned on, the app says so itself: `Notebook channels do not support separate read and write permissions. Roles that can read a notebook can also edit it.` Changing `Read` or `Write` for a role changes both. So that screen can limit which roles get into a notebook, but it can't make a role read-only. To share something read-only, publish the note to a public link.
+Notes: a Notebook has one level of access, not separate reading and writing. On the notebook's `Channel permissions` screen each role has only `No access` or `Can view and edit`, and the line under the roles reads "… can see and edit this notebook." So that screen can limit which roles get into a notebook, but it can't make a role read-only. To share something read-only, publish the note to a public link.
 
 ## Comments, reactions and version history on notes
 
@@ -138,7 +138,7 @@ Notes: `Post` stays greyed out until there is both a title and body text. Once a
 
 Phone: open the post and tap `Edit` at the top right, change the title, header image or body, then tap `Save`. Or press and hold the post in the channel's list and tap `Edit post`. To delete, press and hold it and tap `Delete post`, then confirm.
 Desktop: hover the post in the list and open the three-dot menu at its top right.
-Who: the post's author. Group admins can edit and delete anyone's Bulletin post; for them the menu items start with "Admin:".
+Who: the post's author. Group admins can edit and delete anyone's Bulletin post; on someone else's post their menu items start with "Admin:".
 Notes: deleting can't be undone.
 
 ## Comment on a Bulletin post

@@ -432,7 +432,9 @@ export function ActivityScreenContent({
                 keyExtractor={keyExtractor}
                 contentContainerStyle={[containerStyle, nativeTabInsetStyle]}
                 onEndReached={onEndReached}
-                ListFooterComponent={isFetching ? <LoadingSpinner /> : null}
+                ListFooterComponent={
+                  isFetching ? <LoadingSpinner /> : undefined
+                }
                 refreshControl={
                   <RefreshControl
                     refreshing={isRefreshing}

@@ -40,6 +40,8 @@ export function useSettingsListColors() {
           ? withAlpha(getTokenValue('$orange', 'color'), 0.2)
           : getTokenValue('$orangeSoft', 'color'),
       },
+      // Neutral, and visible on either card surface.
+      badge: { text: theme.secondaryText.val, background: theme.border.val },
     };
   }, [isDark, surfaces, theme]);
 }

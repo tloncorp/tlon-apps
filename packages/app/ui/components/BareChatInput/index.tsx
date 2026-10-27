@@ -45,10 +45,9 @@ import {
 } from 'react';
 import {
   Keyboard,
-  type NativeSyntheticEvent,
   Platform,
-  TextInput,
-  type TextInputSelectionChangeEventData,
+  type TextInputInstance,
+  type TextInputSelectionChangeEvent,
   type TextLayoutEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -483,7 +482,7 @@ function BareChatInput(
           MAX_NATIVE_INPUT_LINES * scaledLineHeight + inputPadding * 2
         )
       );
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   const runSendMessageRef = useRef<((isEdit: boolean) => void) | null>(null);
   const pendingAutocorrectSendRef = useRef<{ isEdit: boolean } | null>(null);
   const [queuedSend, setQueuedSend] = useState<{ isEdit: boolean } | null>(
@@ -651,14 +650,17 @@ function BareChatInput(
     if (!isWeb) {
       return undefined;
     }
+    // Web inputs expose selectionStart, which the native instance type omits.
     const selectionStart = (
-      inputRef.current as (TextInput & { selectionStart?: number }) | null
+      inputRef.current as
+        | (TextInputInstance & { selectionStart?: number })
+        | null
     )?.selectionStart;
     return typeof selectionStart === 'number' ? selectionStart : undefined;
   }, []);
 
   const handleSelectionChange = useCallback(
-    (event: NativeSyntheticEvent<TextInputSelectionChangeEventData>) => {
+    (event: TextInputSelectionChangeEvent) => {
       nativeSelectionRef.current = event.nativeEvent.selection.end;
     },
     []

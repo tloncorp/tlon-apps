@@ -182,9 +182,7 @@ describe('CLI hermetic subprocess behavior', () => {
       const result = await runCli([...args]);
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('browser handoff <session_id>');
-      expect(result.stdout).toContain(
-        'sess_ handle from browser_session_create'
-      );
+      expect(result.stdout).toContain('session ID from browser_session_create');
       expect(result.stdout).not.toContain('<signed-viewer-url>');
       expect(result.stdout).not.toContain(
         'browser-session-ovh1.tlon.network/s/'

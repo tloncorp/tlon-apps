@@ -63,6 +63,7 @@ export async function pokeUrbitChannel(
         operation: 'Poke',
         status: response.status,
         bodyText: errorText || undefined,
+        cookie: deps.cookie,
       });
     }
     return pokeId;
@@ -101,9 +102,10 @@ export async function scryUrbitPath(
 
   try {
     if (!response.ok) {
-      throw new Error(
-        `Scry failed: ${response.status} for path ${params.path}`
-      );
+      throw new UrbitHttpError({
+        operation: `scry ${params.path}`,
+        status: response.status,
+      });
     }
     return await response.json();
   } finally {

@@ -2,9 +2,9 @@
 
 The Tlon Messenger app calls groups **workspaces**. Use the `groups` commands for workspace operations and the word the user uses when replying. Explicit requests about the agent’s files or filesystem paths refer to its own workspace directory instead.
 
-First discover the target using `groups list`, `groups info <group-flag>`, and `channels groups`. A group flag is `~host/group`; a channel nest is `chat/~host/channel`, `heap/~host/channel`, `notes/~host/channel`, or `buckets/~host/channel`. Use the returned IDs rather than deriving them from titles.
+First discover the target using `groups list`, `groups info <group-flag>`, and `channels groups`. A group flag is `~host/group`; a channel nest is `chat/~host/channel`, `heap/~host/channel`, `notes/~host/channel`, or `buckets/~host/channel`. The app names these channel types differently: a **Chat** is `chat`, a **Notebook** is `notes`, a **Gallery** is `heap`, and a **Bucket** is `buckets`. A gallery post's reference is `/1/chan/heap/~host/channel/msg/<id>`. Use the returned IDs rather than deriving them from titles.
 
-`groups list` shows only groups the active account belongs to. When asked for someone else’s workspaces, use their explicitly authorized configured account (`--config`) if available; otherwise state that the list covers only workspaces visible to the bot.
+`groups list` shows the groups of the identity the command runs as: the owner's where the owner is the default identity, the bot's with the bot selected (see the tool description). Do not switch identities to look at anyone else's.
 
 On accounts with a hosted Tlonbot, the app’s `New Workspace` action creates a group with the bot in it. Desktop also offers `New group`; self-hosted accounts without a hosted bot use `New group`.
 
@@ -16,7 +16,7 @@ On accounts with a hosted Tlonbot, the app’s `New Workspace` action creates a 
 
 `create-owned` makes a group hosted by the ship that runs it and makes the `--admin` ship its admin (`--owner` is a legacy alias for `--admin`). Use the actual requester's verified ship identity. Plain `groups create` gives the group no admin besides its host; it is not the default for a user-requested group. Do not report success until the admin step has succeeded. If it fails after the group exists, the error names the group and its host: do not create it again. If you are the host, finish with the `groups promote` it suggests; otherwise ask the host to make the admin an admin in the app.
 
-When the requester is your owner and the runtime holds the owner's hosted credentials, the tool runs this as the owner with you as the admin: the owner's ship hosts the workspace, and you join automatically. Otherwise your own ship hosts it and the tool result says why. The output's `Host:` line says which; name the host when you reply. A workspace hosted by your owner appears in your `groups list` once you have joined it.
+When the requester is your owner and the runtime holds the owner's hosted credentials, the tool runs this as the owner with you as the admin: the owner's ship hosts the workspace, and you join automatically. Otherwise your own ship hosts it and the tool result says why. The output's `Host:` line says which; name the host when you reply. A workspace hosted by your owner appears in `groups list` for the identity that joined it (the owner's list by default where the owner is the default identity; the bot's with the bot selected). A group you host yourself, such as one for your own automation, runs as the bot with the owner as admin (the tool description says how to select the bot when it is not the default identity).
 
 Share the returned `Ref:` path in the reply so Tlon can render the group card.
 
@@ -31,7 +31,7 @@ The output gives the new channel's `Nest:` and its group's `Ref:`. Channels have
 
 Description is supported for chat/heap, not notes. For notebooks, continue with [notes.md](notes.md); for shared files, use [buckets.md](buckets.md). Inspect `help channels create` for kind-specific flags.
 
-A channel is hosted by the ship that creates it. In a group your owner hosts, when the runtime holds the owner's hosted credentials, the tool creates the channel as the owner, so it lives on the owner's node and you join it automatically; otherwise it stays on your ship and the tool result says why. Use the nest it returns, whose host part names the host.
+A channel is hosted by the ship that creates it. In a group your owner hosts, when the runtime holds the owner's hosted credentials, the tool creates the channel as the owner, so it lives on the owner's node and you join it automatically; otherwise the tool result says why it did not. Use the nest it returns, whose host part names the host.
 
 To leave a single channel, use `channels leave <nest>`; `groups leave` leaves the whole workspace and all its channels. `channels join` does not check read access: it can report "Joined" while messages remain unavailable to an account without access.
 
@@ -52,7 +52,7 @@ Use `help groups` for invites, join requests, roles, and member management; insp
 
 Empty reader lists mean every group member can read. Empty writer lists mean every eligible reader can write (chat defaults to group members). Roles must already exist. Removing the last reader/writer restriction can broaden access; do not interpret an empty list as denying everyone.
 
-`groups invite-link <group-flag>` retrieves the configured owner's invite link in OpenClaw. `--self` selects the current bot credentials instead. Do not switch identities silently to work around a permission error.
+`groups invite-link <group-flag>` is owner-bound: it retrieves the owner's invite link, so invitees onboard attributed to the owner (the tool description says how to retrieve the bot's). Do not switch identities to work around a permission error.
 
 Use the returned canonical invite URL; never compose or guess one. Retrieving a link may mint it if none exists. For private/secret groups, the acting ship must be the host or an admin.
 

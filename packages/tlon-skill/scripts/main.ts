@@ -7,7 +7,7 @@
  *   tlon [options] <command> <subcommand> [args...]
  *
  * Commands:
- *   activity     Activity/notifications (mentions, replies, all, unreads, mute, unmute, volume)
+ *   activity     Activity/notifications (mentions, replies, all, unreads, mute, unmute, volume, mark-read)
  *   browser      Hosted browser handoff operations
  *   buckets      Shared %buckets file channels
  *   channels     Channel listing and management
@@ -16,9 +16,10 @@
  *   groups       Group management
  *   messages     Message history and search (dm, channel, history, search, context, post)
  *   notes        %notes notebook operations
- *   posts        Post reactions, edits, deletes, pins
+ *   posts        Gallery attachments, post quotes, forwards, reactions, edits, deletes, pins
  *   settings     OpenClaw settings management
  */
+import { browserWalletCard } from '@tloncorp/api/client/browserWallet';
 import { createActivityDeps } from './activity-runtime';
 import { getConfig, setCliCredentialOverrides } from './api-client';
 import { resolveBrowserOwnerShip } from './browser-owner';
@@ -95,7 +96,7 @@ Hosted browser login (use the Tlon tool, not a shell command):
   ${JSON.stringify({ command: 'browser handoff <session_id> --fields \'["@e12","@e13"]\'' })}
   Use current snapshot refs to select the controls the owner should fill.
   Omit --fields for automatic discovery of the visible form.
-  Pass the sess_ handle from browser_session_create. The plugin resolves the
+  Pass the session ID from browser_session_create. The plugin resolves the
   signed viewer link; never copy or construct one in a model tool call.
 `);
 }
@@ -170,6 +171,7 @@ async function main() {
       case 'browser': {
         const exitCode = await runBrowserCommand(scriptArgs, {
           ...createPostsDeps(),
+          browserWalletCard,
           getOwnerShip: () =>
             resolveBrowserOwnerShip({ activeShip: getConfig().ship }),
         });
