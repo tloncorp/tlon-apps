@@ -99,7 +99,10 @@ export function FirstRunSheet({
                     {row.icon}
                   </View>
                 ) : null}
-                <YStack flex={1} gap={2}>
+                {/* The native sheet lays its content out before it knows its
+                    width, which sizes this column to its longest line. Letting
+                    it shrink pulls it back to the row, so the text wraps. */}
+                <YStack flex={1} flexShrink={1} gap={2}>
                   {row.label ? (
                     <Text fontSize={14} lineHeight={20} color="$secondaryText">
                       {row.label}
