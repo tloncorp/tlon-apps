@@ -1481,10 +1481,11 @@
 ::
 ::  A cancel is recorded before the broker is asked, so a refusal of it has
 ::  nothing left to undo. A refusal the broker says to repeat is passed on
-::  as the error it is, and nothing cancels again: not this agent, since the
-::  reservation is the broker's to lapse, and not the uploader, since the
-::  session is no longer pending. The session keeps the uploader's own
-::  reason; the broker's message is not written over it. A final refusal
+::  as the error it is, and this agent does not cancel again by itself; the
+::  uploader may, by sending %cancel-upload once more, which
+::  +test-cancel-retry-after-refusal covers. Retry and finish stay closed,
+::  since the session is no longer pending. The session keeps the uploader's
+::  own reason; the broker's message is not written over it. A final refusal
 ::  means the reservation is settled whichever way, so the uploader is told
 ::  ok and nothing more.
 ::
@@ -1511,12 +1512,7 @@
     %+  ex-equal
       !>([status.ses reservation.ses error.ses awaiting.ses])
     !>([%cancelled `'res-1' `'connection lost' ~])
-  ::  Nothing the uploader asks can reach the broker through it again.
-  ;<  withdrawn=(list card)  b
-    (ask 0v3 [%bucket flag [%cancel-upload seed 'once more']])
-  ;<  ~  b
-    %+  ex-cards  withdrawn
-    ~[(grant-fact 0v3 [%error %invalid-input 'upload session is not pending' ~])]
+  ::  Neither of the other verbs can reach the broker through it again.
   ;<  retried=(list card)  b  (ask 0v4 [%bucket flag [%retry-upload seed]])
   ;<  ~  b
     %+  ex-cards  retried
@@ -1542,8 +1538,10 @@
 ::
 ::  Iris giving up on a cancel says nothing about whether the broker released
 ::  the reservation. The uploader is told the outcome is unknown, as for any
-::  call, but nothing asks again: the session is already cancelled, and any
-::  quota it still holds lapses with the reservation.
+::  call, and this agent does not ask again: the session is already
+::  cancelled, and the uploader can send %cancel-upload once more if it
+::  wants to. Quota a cancel nobody repeats still holds lapses with the
+::  reservation.
 ::
 ++  test-cancel-outcome-unknown-is-passed-on-and-not-repeated
   %-  eval-mare
@@ -1562,6 +1560,77 @@
             'the storage request was cancelled'
             `['outcome_unknown' & ~ ~]
         ==
+    ==
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  %+  ex-equal
+    !>([status.ses reservation.ses error.ses awaiting.ses])
+  !>([%cancelled `'res-1' `'connection lost' ~])
+::
+::  A cancel the broker refused but said to repeat can be repeated. The
+::  session is already cancelled, and a cancel is admitted on a cancelled
+::  session, so a second %cancel-upload re-sends /cancel against the same
+::  reservation. Memex answers a repeated cancel 200, and that answers the
+::  new request ok.
+::
+++  test-cancel-retry-after-refusal
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'first.pdf' 42)
+  ;<  cancel=wire  b  (cancel-call 0v2 seed 'connection lost')
+  ;<  refused=(list card)  b
+    %+  do-arvo  cancel
+    %+  iris-json  503
+    '{"code":"storage_unavailable","message":"cancel is down","retryable":true}'
+  ;<  ~  b
+    %+  ex-cards  refused
+    :~  %+  grant-fact  0v2
+        [%error %unknown 'cancel is down' `['storage_unavailable' & ~ ~]]
+    ==
+  ;<  again=(list card)  b
+    (ask 0v3 [%bucket flag [%cancel-upload seed 'connection lost']])
+  ;<  ~  b  (ex-cards (answers again) ~[(grant-fact 0v3 [%pending ~])])
+  =/  push=[=wire =request:http]  (only-iris again)
+  ;<  ~  b
+    (ex-equal !>(wire.push) !>(/buckets/upload/(scot %uv seed)/cancel))
+  ;<  ~  b
+    %+  ex-equal
+      !>(url.request.push)
+    !>('https://memex.tlon.network/v2/buckets/uploads/res-1/cancel')
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  ;<  ~  b
+    %+  ex-equal
+      !>([status.ses reservation.ses awaiting.ses])
+    !>([%cancelled `'res-1' `0v3])
+  ;<  done=(list card)  b  (do-arvo wire.push iris-ok)
+  ;<  ~  b  (ex-cards done ~[(grant-fact 0v3 [%ok ~])])
+  ;<  ses2=upload-session:bu  b  (saved-session seed)
+  %+  ex-equal
+    !>([status.ses2 reservation.ses2 awaiting.ses2])
+  !>([%cancelled `'res-1' ~])
+::
+::  A cancel answered with a bodyless 5xx -- a proxy in front of the broker
+::  -- carries no verdict, so its status decides: it is passed on as
+::  retryable under the code 'unknown', and the session stays cancelled with
+::  its reservation bound for the uploader to send %cancel-upload again.
+::
+++  test-cancel-bodyless-503-is-retryable
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'proxied.pdf' 42)
+  ;<  cancel=wire  b  (cancel-call 0v2 seed 'connection lost')
+  ;<  refused=(list card)  b  (do-arvo cancel (iris-status 503))
+  ;<  ~  b
+    %+  ex-cards  refused
+    :~  %+  grant-fact  0v2
+        [%error %unknown 'storage refused the upload' `['unknown' & ~ ~]]
     ==
   ;<  ses=upload-session:bu  b  (saved-session seed)
   %+  ex-equal

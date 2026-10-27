@@ -1255,9 +1255,10 @@
   ::  a completion the broker says to repeat keeps the session; the bytes may
   ::  already be in storage, and cancelling would orphan a charged object. A
   ::  final refusal of either ends the session and releases the reservation.
-  ::  A cancel's own refusal never cancels again: the session was marked
-  ::  cancelled before the call, and the broker answers a settled
-  ::  reservation with a refusal of its own.
+  ::  A cancel's own refusal does not cancel again by itself: the session was
+  ::  marked cancelled before the call, and the broker answers a settled
+  ::  reservation with a refusal of its own. A retryable one is passed on,
+  ::  so the uploader can send %cancel-upload again, which re-sends the call.
   ::
   ++  up-refused
     |=  [kind=?(%grant %retry %cancel %complete) res=client-response:iris]
@@ -1419,13 +1420,16 @@
 ::  +uploader-session: the session this actor may act on.
 ::
 ::  The three session verbs differ only in what they then ask the broker, so
-::  the checks they share live here rather than three times over. Only a
-::  pending session can be acted on, except that a finish may name one that
-::  is already complete: that is an uploader whose receipt was lost, asking
-::  for the outcome again.
+::  the checks they share live here rather than three times over. A pending
+::  session is open to all of them. A settled one admits a single verb: a
+::  finish may name a session that is already complete -- an uploader whose
+::  receipt was lost, asking for the outcome again -- and a cancel may name
+::  one that is already cancelled, because the broker may not have heard the
+::  first cancel. Hearing it twice is harmless: Memex answers a repeated
+::  cancel 200.
 ::
 ++  uploader-session
-  |=  [=flag:b sid=@uv actor=ship finishing=?]
+  |=  [=flag:b sid=@uv actor=ship verb=?(%finish %retry %cancel)]
   ^-  (each upload-session:b response-body:b)
   ?~  got=(~(get by sessions) sid)
     [%| %error %not-found 'no such upload session' ~]
@@ -1435,7 +1439,8 @@
   ?.  =(requested-by.ses actor)
     [%| %error %not-authorized 'not the uploader' ~]
   ?:  =(%pending status.ses)  [%& ses]
-  ?:  &(finishing =(%complete status.ses))  [%& ses]
+  ?:  &(?=(%finish verb) =(%complete status.ses))  [%& ses]
+  ?:  &(?=(%cancel verb) =(%cancelled status.ses))  [%& ses]
   [%| %error %invalid-input 'upload session is not pending' ~]
 ::
 ::  +finish-upload: the bytes are up, so settle the reservation and publish.
@@ -1447,7 +1452,7 @@
 ++  finish-upload
   |=  [=flag:b sid=@uv actor=ship rid=(unit request-id:b)]
   ^+  cor
-  =/  found  (uploader-session flag sid actor &)
+  =/  found  (uploader-session flag sid actor %finish)
   ?:  ?=(%| -.found)  (answer p.found)
   =/  ses=upload-session:b  p.found
   ::  Already published: the uploader lost the receipt, not the upload. The
@@ -1469,7 +1474,7 @@
 ++  retry-upload
   |=  [=flag:b sid=@uv actor=ship rid=(unit request-id:b)]
   ^+  cor
-  =/  found  (uploader-session flag sid actor |)
+  =/  found  (uploader-session flag sid actor %retry)
   ?:  ?=(%| -.found)  (answer p.found)
   =/  ses=upload-session:b  p.found
   up-abet:up-retry:(up-claim:(up-abed:up-core sid) rid)
@@ -1484,7 +1489,7 @@
 ++  cancel-upload
   |=  [=flag:b sid=@uv reason=@t actor=ship rid=(unit request-id:b)]
   ^+  cor
-  =/  found  (uploader-session flag sid actor |)
+  =/  found  (uploader-session flag sid actor %cancel)
   ?:  ?=(%| -.found)  (answer p.found)
   =/  ses=upload-session:b  p.found
   up-abet:(up-cancel:(up-claim:(up-abed:up-core sid) rid) reason)

@@ -130,9 +130,9 @@ Nothing about an upload is retried in the background. A client is sitting in fro
 | grant    | Session cancelled. Nothing is bound, so there is no id to release by; the client begins anew | Session cancelled                                            | Session cancelled             |
 | retry    | Session kept pending with its reservation; the client sends `%retry-upload` again            | Session cancelled and the reservation released at the broker | Kept pending, as retryable    |
 | complete | Kept pending; the bytes may be in storage, and cancelling would orphan a charged object      | Session cancelled and the reservation released at the broker | Kept pending, as retryable    |
-| cancel   | The session was already cancelled before the call; the error is passed on                    | Answered `%ok`, since the reservation is settled either way  | As retryable                  |
+| cancel   | The session was already cancelled before the call; the error is passed on, and `%cancel-upload` may be sent again, which re-sends the call | Answered `%ok`, since the reservation is settled either way  | As retryable                  |
 
-A kept session records the broker's message in `error` and is still bounded by its window: one nobody retries is cancelled at the broker by the expiry sweep like any other lapsed session. A refused cancel is never cancelled again. Two quota leaks are accepted: a cancel the broker refused or never answered, and a grant whose answer never arrived, hold quota until Memex lapses the reservation at the session window.
+A kept session records the broker's message in `error` and is still bounded by its window: one nobody retries is cancelled at the broker by the expiry sweep like any other lapsed session. A refused cancel is not re-sent by the agent itself, but a cancelled session still admits `%cancel-upload`, so the uploader can send it again and Memex answers a repeated cancel 200. Two quota leaks are accepted: a cancel the broker refused or never answered and nobody retries, and a grant whose answer never arrived, hold quota until Memex lapses the reservation at the session window.
 
 A `%finish-upload` naming a session that is already complete is answered `%ok` without a broker call: the uploader lost the receipt, not the upload, and the entry is already in the manifest.
 
