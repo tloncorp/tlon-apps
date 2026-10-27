@@ -8,6 +8,7 @@
  * This allows config changes via poke from any Landscape client
  * without requiring a gateway restart.
  */
+import type { MessageOrigin } from './owner-trust.js';
 import type { PendingNudge } from './pending-nudge.js';
 import type { UrbitSSEClient } from './urbit/sse-client.js';
 
@@ -33,6 +34,8 @@ export type PendingApproval = {
     blob?: string;
     /** Chat `whom` the message arrived on (DM approvals). */
     whom?: string;
+    /** Created or edited, as admitted; absent on legacy records. */
+    messageOrigin?: MessageOrigin;
   };
   timestamp: number;
   /** Normalized message ID of the owner notification DM (reaction-based
@@ -491,6 +494,18 @@ function sanitizePendingApproval(
     typeof sanitized.notifyAttemptAt !== 'number'
   ) {
     delete sanitized.notifyAttemptAt;
+  }
+  // An unrecognized origin reads as missing, which replays as an edit.
+  const message = sanitized.originalMessage;
+  if (
+    typeof message === 'object' &&
+    message !== null &&
+    'messageOrigin' in message &&
+    message.messageOrigin !== 'create' &&
+    message.messageOrigin !== 'edit'
+  ) {
+    const { messageOrigin: _dropped, ...rest } = message;
+    sanitized.originalMessage = rest;
   }
   return sanitized as unknown as PendingApproval;
 }

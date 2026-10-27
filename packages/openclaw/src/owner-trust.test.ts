@@ -159,10 +159,14 @@ describe('channelRevisionState and channelPrivilegeWithheldReason', () => {
     expect(channelRevisionState(set)).toBe(state);
   });
 
-  it('names a foreign host, an edit or a missing revision', () => {
+  it('names a foreign host, else the revision state', () => {
     expect(channelPrivilegeWithheldReason(false, 'create')).toBe(
       'host is neither the owner nor this bot'
     );
+    expect(channelPrivilegeWithheldReason(false, 'edit')).toBe(
+      'host is neither the owner nor this bot'
+    );
+    expect(channelPrivilegeWithheldReason(true, 'create')).toBe('create');
     expect(channelPrivilegeWithheldReason(true, 'edit')).toBe('edit');
     expect(channelPrivilegeWithheldReason(true, 'missing revision')).toBe(
       'missing revision'

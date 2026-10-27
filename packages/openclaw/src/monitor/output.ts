@@ -39,6 +39,7 @@ export function recordSentTlonReply({
       timestamp: Date.now(),
       id: outputMessageId,
       blob: replyBlob,
+      origin: 'create',
     });
   }
 

@@ -87,13 +87,14 @@ export function channelMessageOrigin(
 /**
  * Why an owner-attributed channel message runs without owner privilege, for
  * logs: an operator can tell a host that omits revisions from a real edit.
+ * Called only once privilege was withheld, so on a trusted host the revision
+ * state is the reason.
  */
 export function channelPrivilegeWithheldReason(
   hostTrusted: boolean,
   revision: ChannelRevisionState
-): string {
-  if (!hostTrusted) return 'host is neither the owner nor this bot';
-  return revision === 'create' ? 'no owner configured' : revision;
+): ChannelRevisionState | 'host is neither the owner nor this bot' {
+  return hostTrusted ? revision : 'host is neither the owner nor this bot';
 }
 
 /**

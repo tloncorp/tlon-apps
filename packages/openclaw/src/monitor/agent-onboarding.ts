@@ -521,7 +521,7 @@ export { isDmNest };
 /**
  * Owner-authored request blobs, minus posts this bot itself made in the
  * owner's name with the tlon tool: those are the bot's actions, not requests.
- * An edited channel post is never one: an edit can declare any author
+ * Only a created message is one: an edit can declare any author
  * (owner-trust.ts).
  */
 function ownerRequestEntries(
@@ -534,7 +534,7 @@ function ownerRequestEntries(
     (entry): entry is TlonHistoryEntry & { blob: string } =>
       entry.author === ownerShip &&
       Boolean(entry.blob) &&
-      (entry.revision === undefined || entry.revision === '0')
+      entry.origin === 'create'
   );
 }
 

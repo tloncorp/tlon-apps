@@ -229,6 +229,7 @@ import {
   type DisplayContext,
   type PendingApproval,
   applyApprovalRequest,
+  approvalReplayOrigin,
   buildApprovalA2UIBlob,
   buildPendingApprovalsResponse,
   createApprovalOverflowNotifier,
@@ -2348,7 +2349,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 { runtime, signal: opts.abortSignal }
               );
               await processMessage({
-                messageOrigin: 'create',
+                // Recorded at admission; legacy records replay as edits.
+                messageOrigin: approvalReplayOrigin(approval.originalMessage),
                 messageId: approval.originalMessage.messageId,
                 senderShip: approval.requestingShip,
                 messageText: replayMessage.messageText,
@@ -2384,9 +2386,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   { runtime, signal: opts.abortSignal }
                 );
                 await processMessage({
-                  // Only non-owners wait for approval, so this never decides a role;
-                  // the original's origin is not recorded.
-                  messageOrigin: 'edit',
+                  // Recorded at admission; legacy records replay as edits.
+                  messageOrigin: approvalReplayOrigin(approval.originalMessage),
                   messageId: approval.originalMessage.messageId,
                   senderShip: approval.requestingShip,
                   messageText: replayMessage.messageText,
@@ -4809,6 +4810,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           // channel history filters owner-tool reply edits too.
           ...(threadRootId ? { parentId: threadRootId } : {}),
           blob: content.blob ?? null,
+          origin: messageOrigin,
         });
 
         // Skip processing bot's own messages (but they're already cached above)
@@ -5110,6 +5112,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                       parentAuthorId,
                       isThreadReply,
                       blob: content.blob ?? undefined,
+                      messageOrigin,
                     },
                   },
                   pendingApprovals.map((a) => a.id)
@@ -5581,6 +5584,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             timestamp: dmContent.sent || Date.now(),
             id: effectiveMessageId,
             blob: dmContent.blob ?? null,
+            origin: 'create',
           });
         }
 
@@ -5650,6 +5654,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   isThreadReply: isDmThreadReply,
                   blob: dmContent.blob ?? undefined,
                   whom,
+                  messageOrigin: 'create',
                 },
               },
               pendingApprovals.map((a) => a.id)
