@@ -22,6 +22,7 @@ import {
   deskVersionServesRosterPages,
   deskVersionSupportsBuckets,
   deskVersionSupportsStewardPrompts,
+  deskVersionSupportsTaskRuns,
   deskVersionSupportsStewardBots,
   activityVersionSupportsReactions,
   classifyDeskVersion,
@@ -682,6 +683,9 @@ export const syncAppInfo = async (
   api.setDeskSupportsStewardPrompts(
     deskVersionSupportsStewardPrompts(appInfo?.groupsVersion)
   );
+  api.setDeskSupportsTaskRuns(
+    deskVersionSupportsTaskRuns(appInfo?.groupsVersion)
+  );
   api.setDeskSupportsStewardBots(
     deskVersionSupportsStewardBots(appInfo?.groupsVersion)
   );
@@ -727,6 +731,7 @@ export const syncReactionSupport = async () => {
   api.setDeskSupportsStewardPrompts(
     deskVersionSupportsStewardPrompts(groupsVersion)
   );
+  api.setDeskSupportsTaskRuns(deskVersionSupportsTaskRuns(groupsVersion));
   api.setDeskSupportsStewardBots(deskVersionSupportsStewardBots(groupsVersion));
 };
 

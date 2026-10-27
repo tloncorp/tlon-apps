@@ -68,10 +68,27 @@ export enum HostedNodeStatus {
 
 export type HostingHeartBeatCode = 'expired' | 'ok' | 'unknown';
 
+export type TlawnBrowserService = 'steel' | 'kernel';
+
+export interface TlawnBrowserServiceInfo {
+  /** The stored selection, applied on the bot's next restart. */
+  browserService: TlawnBrowserService;
+  /**
+   * The route the bot's MCP desk currently points at, read live from the ship.
+   * Differs from `browserService` when the last restart fell back; null when
+   * the ship could not be read (bot down, sidecar unreachable).
+   */
+  active: TlawnBrowserService | null;
+  supported: boolean;
+}
+
 export interface TlawnProviderConfigInfo {
   keys: Record<string, string>;
   models: TlawnModelEntry[];
   defaultKeys: Record<string, { key: string; id?: string }>;
+  /** The models hosting runs behind Basic. Older hosting omits it. */
+  defaultModels?: { primaryModel: string; fallbackModels: string[] };
+  browserService?: TlawnBrowserService;
 }
 
 export interface TlawnModelEntry {

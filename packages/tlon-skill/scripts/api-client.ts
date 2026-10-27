@@ -12,6 +12,13 @@ import {
   scry,
   subscribe,
 } from '@tloncorp/api';
+import {
+  channels,
+  chat,
+  entryPath,
+  groups,
+  lanyard,
+} from '@tloncorp/api/client/requests';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -39,7 +46,25 @@ export type {
   UrbitConfig,
 } from './credential-resolver';
 
-type SubscriptionApp = 'groups' | 'channels' | 'chat' | 'lanyard';
+// The feeds the api's tracked pokes watch, named by the same registry entries.
+// A tracked poke hears only its exact endpoint: a fact on another version of
+// the feed leaves it waiting until it times out, though the ship applied it.
+// The root import is the api's dist build, so the subscription goes through
+// its `subscribe`; the requests subpath is a separate copy of the client.
+const SUBSCRIPTION_ENDPOINTS = {
+  groups: { app: groups.updates.agent, path: entryPath(groups.updates, {}) },
+  channels: {
+    app: channels.updates.agent,
+    path: entryPath(channels.updates, {}),
+  },
+  chat: { app: chat.updates.agent, path: entryPath(chat.updates, {}) },
+  lanyard: {
+    app: lanyard.recordsFeed.agent,
+    path: entryPath(lanyard.recordsFeed, {}),
+  },
+};
+
+type SubscriptionApp = keyof typeof SUBSCRIPTION_ENDPOINTS;
 
 let initialized = false;
 let subscribed = false;
@@ -159,27 +184,9 @@ function cacheCookie(url: string, ship: string, cookie: string): void {
 async function setupSubscriptions(subs: SubscriptionApp[]): Promise<void> {
   if (subscribed) return;
 
-  if (subs.includes('groups')) {
-    await subscribe({ app: 'groups', path: '/v1/groups' }, (e) =>
-      logSubscriptionUpdate('groups', e)
-    );
-  }
-
-  if (subs.includes('channels')) {
-    await subscribe({ app: 'channels', path: '/v4' }, (e) =>
-      logSubscriptionUpdate('channels', e)
-    );
-  }
-
-  if (subs.includes('chat')) {
-    await subscribe({ app: 'chat', path: '/v4' }, (e) =>
-      logSubscriptionUpdate('chat', e)
-    );
-  }
-
-  if (subs.includes('lanyard')) {
-    await subscribe({ app: 'lanyard', path: '/v1/records' }, (e) =>
-      logSubscriptionUpdate('lanyard', e)
+  for (const app of new Set(subs)) {
+    await subscribe(SUBSCRIPTION_ENDPOINTS[app], (e) =>
+      logSubscriptionUpdate(app, e)
     );
   }
 

@@ -18,6 +18,9 @@ import { ImageLoadEventData } from 'expo-image';
 import { clamp, throttle } from 'lodash';
 import React, {
   ComponentProps,
+  type ComponentPropsWithoutRef,
+  type ForwardRefExoticComponent,
+  type RefAttributes,
   ComponentType,
   PropsWithChildren,
   createContext,
@@ -35,6 +38,7 @@ import {
   Linking,
   Platform,
   View as RNView,
+  type ViewInstance,
   StyleSheet,
   useWindowDimensions,
 } from 'react-native';
@@ -64,6 +68,12 @@ import {
   shouldMeasureColumn,
 } from './imageSizing';
 import { ContentContext, useContentContext } from './contentUtils';
+
+// Tamagui's native ref type names the RN component, but mounted views expose measure.
+const MeasurableView = View as ForwardRefExoticComponent<
+  ComponentPropsWithoutRef<typeof View> &
+    RefAttributes<Pick<ViewInstance, 'measure'>>
+>;
 
 export const IsInsideReferenceContext = createContext(false);
 // Provides the ContentReferenceLoader component to BlockRenderer without
@@ -910,7 +920,9 @@ export function TableBlock({ block }: { block: cn.TableBlockData }) {
   );
   const allRows = [block.header, ...block.rows];
 
-  const cellRefs = useRef<Map<string, RNView>>(new Map());
+  const cellRefs = useRef<Map<string, Pick<ViewInstance, 'measure'>>>(
+    new Map()
+  );
   const [columnWidths, setColumnWidths] = useState<number[] | null>(null);
   const [viewportWidth, setViewportWidth] = useState<number | null>(null);
 
@@ -971,14 +983,15 @@ export function TableBlock({ block }: { block: cn.TableBlockData }) {
   }, [columnWidths, columnCount, allRows.length, contentKey]);
 
   const setCellRef = useCallback(
-    (rowIdx: number, colIdx: number) => (node: RNView | null) => {
-      const key = `${rowIdx}-${colIdx}`;
-      if (node) {
-        cellRefs.current.set(key, node);
-      } else {
-        cellRefs.current.delete(key);
-      }
-    },
+    (rowIdx: number, colIdx: number) =>
+      (node: Pick<ViewInstance, 'measure'> | null) => {
+        const key = `${rowIdx}-${colIdx}`;
+        if (node) {
+          cellRefs.current.set(key, node);
+        } else {
+          cellRefs.current.delete(key);
+        }
+      },
     []
   );
 
@@ -1023,7 +1036,7 @@ export function TableBlock({ block }: { block: cn.TableBlockData }) {
                 const textAlign = alignToTextAlign(align);
                 const colWidth = columnWidths?.[colIdx];
                 return (
-                  <View
+                  <MeasurableView
                     key={colIdx}
                     ref={setCellRef(rowIdx, colIdx)}
                     flexShrink={0}
@@ -1040,7 +1053,7 @@ export function TableBlock({ block }: { block: cn.TableBlockData }) {
                       textAlign={textAlign}
                       {...(isHeader ? { color: '$tertiaryText' } : {})}
                     />
-                  </View>
+                  </MeasurableView>
                 );
               })}
             </XStack>

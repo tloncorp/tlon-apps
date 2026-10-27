@@ -28,8 +28,10 @@ export type {
 export { getLandscapeAuthCookie } from './client/landscapeApi';
 export {
   isTrustedBrowserViewerHost,
+  isBrowserViewerDevelopmentOrigin,
   MAX_BROWSER_VIEWER_URL_LENGTH,
 } from './client/browserSession';
+export { browserWalletCard } from './client/browserWallet';
 export {
   AuthError,
   Urbit,

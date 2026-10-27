@@ -35,7 +35,7 @@ describe('browser share link cards', () => {
         target: { type: 'screen', screen: 'browserSession', viewerUrl: url },
       },
     });
-    expect(JSON.stringify(card)).not.toContain('browserCredentialHandoff');
+    expect(JSON.stringify(card)).not.toContain('browserSecureEntry');
   });
 
   it('leaves old masked inline links unchanged', () => {

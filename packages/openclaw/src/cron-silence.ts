@@ -50,16 +50,29 @@ export function recordCronSilenceOutput(
   entry.silent = isSuccessfulSilentAgentOutput(event);
 }
 
-export function consumeCronSilenceOutput(event: CronChangedEvent): boolean {
-  if (!event.sessionKey) return false;
-  const entry = outputs.get(event.sessionKey);
-  outputs.delete(event.sessionKey);
+function observedSilentOutput(
+  event: CronChangedEvent,
+  entry: CronOutput | undefined
+): boolean {
   return (
     (event.sessionTarget ?? event.job?.sessionTarget) === 'isolated' &&
     !!entry &&
     entry.sessionId === event.sessionId &&
     entry.silent
   );
+}
+
+export function consumeCronSilenceOutput(event: CronChangedEvent): boolean {
+  if (!event.sessionKey) return false;
+  const entry = outputs.get(event.sessionKey);
+  outputs.delete(event.sessionKey);
+  return observedSilentOutput(event, entry);
+}
+
+/** The same evidence, left in place for the telemetry hook that consumes it. */
+export function peekCronSilenceOutput(event: CronChangedEvent): boolean {
+  if (!event.sessionKey) return false;
+  return observedSilentOutput(event, outputs.get(event.sessionKey));
 }
 
 export function clearCronSilenceObservations(): void {

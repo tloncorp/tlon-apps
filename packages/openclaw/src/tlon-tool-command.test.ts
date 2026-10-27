@@ -678,6 +678,34 @@ describe('owner-by-default identity selection', () => {
       }
     );
 
+    // An invite join prints its help for a help token anywhere, before any
+    // credential lookup.
+    it.each([
+      'groups join --invite 0v1.abcde --help',
+      'groups join --invite 0v1.abcde -h',
+      'groups join --invite=0v1.abcde -h',
+      'groups join --help',
+    ])('`%s` is help under every provisioning failure', async (command) => {
+      for (const overrides of [
+        { ownerShip: undefined },
+        unprovisioned.dir,
+        unprovisioned.file,
+      ]) {
+        const fileExists = vi.fn(
+          'fileExists' in overrides ? overrides.fileExists : () => true
+        );
+        const { execute, runCommand } = makeExecutor(
+          { ...overrides, fileExists },
+          'Usage'
+        );
+        const result = await execute('help', { command });
+        expect(result.details).toBeUndefined();
+        expect(result.content[0].text).toBe('Usage');
+        expect(ranWith(runCommand)).toEqual(shellSplitCommand(command));
+        expect(fileExists).not.toHaveBeenCalled();
+      }
+    });
+
     // The CLI shows these families' operation help only for exactly
     // `<op> <help>`; anything longer runs the operation.
     it.each([
@@ -929,6 +957,45 @@ describe('owner-by-default identity selection', () => {
       const redacted = redactTlonCommand(command);
       expect(redacted).toBe(expected);
       expect(redacted).not.toContain('private');
+    });
+
+    it.each([
+      [
+        'groups join --invite https://tlon.network/lure/~zod/private-token',
+        'groups join --invite [REDACTED]',
+      ],
+      [
+        'groups join --invite=https://tlon.network/lure/~zod/private-token',
+        'groups join --invite=[REDACTED]',
+      ],
+      [
+        'tlon --self groups join --invite https://tlon.network/lure/~zod/private-token',
+        'tlon --self groups join --invite [REDACTED]',
+      ],
+      [
+        '--code private-value groups join --invite https://tlon.network/lure/~zod/private-token',
+        '--code [REDACTED] groups join --invite [REDACTED]',
+      ],
+      [
+        'GROUPS JOIN --invite https://tlon.network/lure/~zod/private-token',
+        'GROUPS JOIN --invite [REDACTED]',
+      ],
+      [
+        'groups join --invite private-a --invite=private-b --invite private-c',
+        'groups join --invite [REDACTED] --invite=[REDACTED] --invite [REDACTED]',
+      ],
+    ])('redacts the invite in `%s`', (command, expected) => {
+      const redacted = redactTlonCommand(command);
+      expect(redacted).toBe(expected);
+      expect(redacted).not.toContain('private');
+    });
+
+    it.each([
+      'groups join --invite',
+      'groups join ~zod/some-group',
+      'groups invite-link ~zod/some-group --invite x',
+    ])('leaves `%s` unchanged', (command) => {
+      expect(redactTlonCommand(command)).toBe(command);
     });
 
     it('keeps a --verbose after the command family literal', () => {
@@ -1948,6 +2015,7 @@ describe('owner default off (staged rollout)', () => {
 
   const LEGACY = [
     'groups invite-link ~host/book-club',
+    'groups join --invite https://invite.tlon.io/0v1.abcde',
     'notes note-publish notes/~h/b 12',
     'notes note-unpublish notes/~h/b 12',
     'activity mute ~zod/book-club',
@@ -1970,6 +2038,7 @@ describe('owner default off (staged rollout)', () => {
         '~owner',
         ...command.split(' '),
       ]);
+      expect(result.details).toBeUndefined();
       expect(result.content[0].text).toBe('ok');
     }
   );
@@ -2008,6 +2077,7 @@ describe('owner default off (staged rollout)', () => {
 
   it.each([
     'groups invite-link ~host/book-club',
+    'groups join --invite https://invite.tlon.io/0v1.abcde',
     'activity mark-read ~ten',
     'activity mark-read --all',
   ])(
@@ -2043,6 +2113,84 @@ describe('owner default off (staged rollout)', () => {
       }
     }
   );
+
+  function expectRanVerbatim(
+    runCommand: ReturnType<typeof makeExecutor>['runCommand'],
+    command: string
+  ) {
+    expect(runCommand).toHaveBeenCalledTimes(1);
+    expect(runCommand, command).toHaveBeenCalledWith(
+      shellSplitCommand(command)
+    );
+  }
+
+  it('redeems an invite as the bot with --self, and joins plainly as the bot', async () => {
+    for (const command of [
+      'groups join --invite https://invite.tlon.io/0v1.abcde --self',
+      'groups join --self --invite=https://invite.tlon.io/0v1.abcde',
+      'groups join --invite https://invite.tlon.io/0v1.abcde --help',
+      'groups join ~zod/team',
+      'groups join ~zod/team --self',
+    ]) {
+      for (const [overrides] of PROVISIONING_FAILURES) {
+        const { execute, runCommand } = makeExecutor(overrides);
+
+        const result = await execute('bot', { command });
+
+        expect(result.details).toBeUndefined();
+        expectRanVerbatim(runCommand, command);
+      }
+    }
+  });
+
+  it('runs a missing, malformed or repeated --invite verbatim, for the CLI usage error', async () => {
+    for (const command of [
+      'groups join --invite',
+      'groups join --invite=',
+      'groups join --invite= --invite 0v1.abcde',
+      'groups join --invite 0v1.abcde --invite 0v1.abcde',
+      'groups join --invite 0v1.abcde --invite=',
+    ]) {
+      for (const [overrides] of [[{}] as const, ...PROVISIONING_FAILURES]) {
+        const fileExists = vi.fn(overrides.fileExists ?? (() => true));
+        const { execute, runCommand } = makeExecutor({
+          ...overrides,
+          fileExists,
+        });
+
+        const result = await execute('usage', { command });
+
+        expect(result.details).toBeUndefined();
+        expectRanVerbatim(runCommand, command);
+        expect(fileExists).not.toHaveBeenCalled();
+      }
+    }
+  });
+
+  it('runs the --invite= form as the owner too', async () => {
+    const { execute, runCommand } = makeExecutor();
+    const command = 'groups join --invite=https://invite.tlon.io/0v1.abcde';
+
+    await execute('inject', { command });
+
+    expect(runCommand).toHaveBeenCalledWith([
+      '--ship',
+      '~owner',
+      ...command.split(' '),
+    ]);
+  });
+
+  it('classifies invite redemption as a groups write', () => {
+    expect(
+      summarizeTlonCommand(
+        'groups join --invite https://invite.tlon.io/0v1.abcde'
+      )
+    ).toMatchObject({
+      subcommand: 'groups',
+      operation: 'join',
+      intent: 'write',
+    });
+  });
 
   describe('owner post provenance with model-supplied credentials', () => {
     function withLedger() {

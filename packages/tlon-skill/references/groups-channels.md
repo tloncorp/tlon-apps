@@ -2,7 +2,7 @@
 
 The Tlon Messenger app calls groups **workspaces**. Use the `groups` commands for workspace operations and the word the user uses when replying. Explicit requests about the agent’s files or filesystem paths refer to its own workspace directory instead.
 
-First discover the target using `groups list`, `groups info <group-flag>`, and `channels groups`. A group flag is `~host/group`; a channel nest is `chat/~host/channel`, `heap/~host/channel`, `notes/~host/channel`, or `buckets/~host/channel`. Use the returned IDs rather than deriving them from titles.
+First discover the target using `groups list`, `groups info <group-flag>`, and `channels groups`. A group flag is `~host/group`; a channel nest is `chat/~host/channel`, `heap/~host/channel`, `notes/~host/channel`, or `buckets/~host/channel`. The app names these channel types differently: a **Chat** is `chat`, a **Notebook** is `notes`, a **Gallery** is `heap`, and a **Bucket** is `buckets`. A gallery post's reference is `/1/chan/heap/~host/channel/msg/<id>`. Use the returned IDs rather than deriving them from titles.
 
 `groups list` shows the groups of the identity the command runs as: the owner's where the owner is the default identity, the bot's with the bot selected (see the tool description). Do not switch identities to look at anyone else's.
 
@@ -49,6 +49,8 @@ Read section ids, titles and 0-based channel positions from `groups info <group-
 ## Membership and permissions
 
 Use `help groups` for invites, join requests, roles, and member management; inspect the specific operation before changing access. Joining a private group can request an invitation rather than immediately join it. Verify membership before claiming access.
+
+`groups join --invite <url|token>` redeems an invite link (`https://invite.tlon.io/0v…`, `join.tlon.io/…`, `tlon.network/lure/…`, a web link with `?inviteToken=0v…`) or a bare `0v…` token. Pass the link as given; do not fetch or open it. A group id is not an invite: `--invite ~host/slug` is refused; use `groups join <group-flag>` for a plain join. A group invite always notifies the inviter's ship; a public group is then joined right away. A personal invite adds the inviter as a contact and joins nothing. A private or secret group can come back as "requested" or "unconfirmed" rather than joined; verify with `groups list`, run as the same identity as the redemption, before claiming access. An unconfirmed invite is accepted later, once it arrives, by running the same `groups join --invite` command again, unchanged and as the same identity. `groups join --invite` is owner-bound: it redeems the invite for the owner (the tool description says how to redeem it for the bot). A plain `groups join <group-flag>` joins as the identity the command runs as.
 
 Empty reader lists mean every group member can read. Empty writer lists mean every eligible reader can write (chat defaults to group members). Roles must already exist. Removing the last reader/writer restriction can broaden access; do not interpret an empty list as denying everyone.
 

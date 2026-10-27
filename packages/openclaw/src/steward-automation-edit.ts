@@ -91,6 +91,7 @@ const DispatchEditSchema = z.union([
   z.object({ create: DispatchTaskSchema }),
   z.object({ update: DispatchTaskSchema.extend({ id: ExpectedStringSchema }) }),
   z.object({ delete: z.object({ id: ExpectedStringSchema }) }),
+  z.object({ test: z.object({ id: ExpectedStringSchema }) }),
 ]);
 
 const DispatchSchema = z.object({
@@ -110,6 +111,7 @@ export type StewardAutomationEditErrorType =
 
 export type StewardAutomationResponseBody =
   | { type: 'created' | 'updated' | 'deleted'; id: string }
+  | { type: 'started'; id: string; lensId: string }
   | {
       type: 'error';
       errorType: StewardAutomationEditErrorType;
@@ -524,12 +526,34 @@ function errorBody(
   return { type: 'error', errorType, message: message ? [message] : [] };
 }
 
+/** Start a test run of a job; answers once it is under way. */
+export type StewardAutomationTestRunner = (
+  jobId: string
+) => Promise<StewardAutomationResponseBody>;
+
 /** Apply one dispatch to the cron service and return the typed outcome. Never throws. */
 export async function applyStewardAutomationDispatch(
   dispatch: StewardAutomationDispatch,
-  cron: StewardAutomationCronWriteService
+  cron: StewardAutomationCronWriteService,
+  runTest?: StewardAutomationTestRunner
 ): Promise<StewardAutomationResponseBody> {
   const { action } = dispatch;
+
+  if ('test' in action) {
+    if (!runTest) {
+      // A test run's only output is its Context Lens record; the client
+      // tells this apart from a plugin that predates test runs by the words.
+      return errorBody(
+        'invalid',
+        'test runs need Context Lens, which is off on this bot'
+      );
+    }
+    try {
+      return await runTest(action.test.id);
+    } catch (error) {
+      return errorBody('harness-error', errorMessage(error));
+    }
+  }
 
   if ('create' in action) {
     if (isSlotDescription(action.create.description)) {
@@ -622,6 +646,8 @@ export interface StewardAutomationEditProcessorOptions {
   finalize: (request: StewardAutomationFinalizeRequest) => Promise<unknown>;
   /** The cron service, once a gateway hook has stashed it; undefined until then. */
   getCron: () => StewardAutomationCronWriteService | undefined;
+  /** Runs a job once as a test; without it a test dispatch is refused. */
+  runTest?: StewardAutomationTestRunner;
   logger: {
     log?: (message: string) => void;
     warn: (message: string) => void;
@@ -774,7 +800,11 @@ export class StewardAutomationEditProcessor {
 
     let body: StewardAutomationResponseBody;
     try {
-      body = await applyStewardAutomationDispatch(dispatch, cron);
+      body = await applyStewardAutomationDispatch(
+        dispatch,
+        cron,
+        this.options.runTest
+      );
     } catch (error) {
       // applyStewardAutomationDispatch answers every expected failure as
       // data; anything that still escapes must not take the processor or

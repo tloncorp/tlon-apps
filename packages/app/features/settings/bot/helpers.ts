@@ -13,6 +13,7 @@ import {
   BASIC_DEFAULT_MODEL,
   BASIC_PROVIDER_ID,
   PROVIDER_OPTIONS,
+  getIncludedModelId,
   isSubscriptionProvider,
 } from './constants';
 import {
@@ -20,7 +21,10 @@ import {
   isLLMAuthProviderConnected,
 } from './openAiSubscription';
 
-const LEGACY_BASIC_DEFAULT_MODELS = new Set(['minimax/minimax-m3']);
+const LEGACY_BASIC_DEFAULT_MODELS = new Set([
+  'minimax/minimax-m3',
+  'openai/gpt-6-luna',
+]);
 
 export type ChannelRuleDraft = {
   mode: 'open' | 'allowlist';
@@ -306,6 +310,8 @@ export const normalizeProviderConfig = (
   keys: raw?.keys ?? {},
   models: raw?.models ?? [],
   defaultKeys: raw?.defaultKeys ?? raw?.default ?? {},
+  defaultModels: raw?.defaultModels,
+  browserService: raw?.browserService === 'kernel' ? 'kernel' : 'steel',
 });
 
 export const hasProviderCredential = (
@@ -381,9 +387,10 @@ export const getModelFormValues = (
     return {
       provider: BASIC_PROVIDER_ID,
       model: hasProviderCredential(config, BASIC_PROVIDER_ID)
-        ? BASIC_DEFAULT_MODEL
+        ? getIncludedModelId(config)
         : '',
-      zdr: false,
+      // Hosting provisions Basic with zero data retention on (ylem#3298).
+      zdr: true,
       fallbacks: [],
     };
   }
@@ -506,11 +513,44 @@ export const toChatFormValues = (
     : {},
 });
 
+type PrimaryModel = Pick<ModelFormValues, 'provider' | 'model' | 'zdr'>;
+
+// What picking a default model writes into the draft. Coming back to Tlon's
+// option restores what the bot has saved for it; otherwise it starts with zero
+// data retention on, as hosting provisions it (ylem#3298). OpenRouter follows
+// the picker's ZDR filter, and no other provider has one.
+export const pickPrimaryModel = ({
+  provider,
+  model,
+  saved,
+  zdrOnly,
+}: {
+  provider: string;
+  model: string;
+  saved: PrimaryModel;
+  zdrOnly: boolean;
+}): PrimaryModel => {
+  if (provider === BASIC_PROVIDER_ID) {
+    return saved.provider === BASIC_PROVIDER_ID
+      ? { provider, model: saved.model || model, zdr: saved.zdr }
+      : { provider, model, zdr: true };
+  }
+  return { provider, model, zdr: provider === 'openrouter' && zdrOnly };
+};
+
+// Where the picker's OpenRouter ZDR filter starts. Zero data retention is the
+// default, so the filter starts on unless the owner has turned it off for the
+// model the bot runs now. Turning it off shows models with no ZDR route, which
+// is how an owner picks one of those on purpose.
+export const startsZdrOnly = (current: PrimaryModel): boolean =>
+  current.zdr ||
+  (current.provider !== BASIC_PROVIDER_ID && current.provider !== 'openrouter');
+
 // Normalize a picked (provider, model) pair for persistence. "basic" is a real
 // backend provider — Solaris provisions the shared hosted default key when a
 // config selects it (tloncorp/ylem#3180) — so it is written as-is, not remapped
-// to openrouter. It has no model picker, so pin its model to the fixed default
-// (matching the backend's `basicDefaultModel`). Persisting `basic` explicitly
+// to openrouter. It has no model picker, so pin its model to the fixed default;
+// the backend stores Basic as "default" either way. Persisting `basic` explicitly
 // keeps it distinct from openrouter even when the user also has their own
 // openrouter key; toDisplayProviderId still reads the previous OpenRouter-backed
 // Basic model as Basic for backward compatibility.

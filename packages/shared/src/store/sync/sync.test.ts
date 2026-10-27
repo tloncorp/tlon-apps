@@ -1628,6 +1628,12 @@ describe('desk compatibility gate', () => {
       db.userHasCompletedFirstSync,
       'setValue'
     );
+    // Sync start ends by making sure the user has an invite link. Without one
+    // cached it creates one through a retry that fails here, which costs every
+    // start seven seconds and put the four-start cases at the timeout.
+    vi.spyOn(db.personalInviteLink, 'getValue').mockResolvedValue(
+      'https://join.tlon.io/0v1.abc'
+    );
     installScryMock();
   });
 

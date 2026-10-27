@@ -231,7 +231,7 @@ ${proof}`;
         )}
 
         <Button
-          onPress={onSubmit}
+          onPress={() => onSubmit()}
           loading={isLoading}
           disabled={isLoading || !isDirty || !isValid}
           label="Submit"
@@ -308,7 +308,7 @@ function InitiateTwitterPane() {
       />
       {error && <Text color="$negativeActionText">{error}</Text>}
       <Button
-        onPress={onSubmit}
+        onPress={() => onSubmit()}
         loading={isLoading}
         disabled={isLoading || !isDirty || !isValid}
         label="Submit"
