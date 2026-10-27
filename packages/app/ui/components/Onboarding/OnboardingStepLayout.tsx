@@ -96,7 +96,7 @@ export function OnboardingStepLayout({
         contentContainerStyle={{ flexGrow: 1, paddingTop: SIDE_MARGIN }}
         alwaysBounceVertical={false}
       >
-        <StepColumn>
+        <StepColumn grow>
           <View
             minHeight={blockTop - BLOCK_GAP - contentTop}
             justifyContent="flex-end"
@@ -110,7 +110,9 @@ export function OnboardingStepLayout({
               {body}
             </TlonText.Text>
           </View>
-          {children}
+          {/* Fills the rest of the screen above the bottom slot, so a step can
+              lay out its block within it. */}
+          <View flexGrow={1}>{children}</View>
         </StepColumn>
       </ScrollView>
       <StepColumn>{footer ?? <View height="$6xl" />}</StepColumn>
@@ -118,7 +120,7 @@ export function OnboardingStepLayout({
   );
 }
 
-function StepColumn({ children }: PropsWithChildren) {
+function StepColumn({ grow, children }: PropsWithChildren<{ grow?: boolean }>) {
   return (
     <View
       // Yoga drops cross-axis stretch when a horizontal margin is `auto`, so
@@ -127,6 +129,7 @@ function StepColumn({ children }: PropsWithChildren) {
       maxWidth={MAX_WIDTH}
       marginHorizontal="auto"
       paddingHorizontal="$2xl"
+      flexGrow={grow ? 1 : 0}
     >
       {children}
     </View>

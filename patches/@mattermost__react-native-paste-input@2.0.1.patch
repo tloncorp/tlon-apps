@@ -1,8 +1,8 @@
 diff --git a/ios/PasteInputModule.mm b/ios/PasteInputModule.mm
-index 59ff531dea109fb0d37d3e5382ca8276ae1a0b7a..5e124330bd6ebe8ea6f4e8867218c88ab51b97e7 100644
+index 59ff531dea109fb0d37d3e5382ca8276ae1a0b7a..cd6e230f18c0030b6d4ff30f9fe4da58603a5f8c 100644
 --- a/ios/PasteInputModule.mm
 +++ b/ios/PasteInputModule.mm
-@@ -41,7 +41,7 @@ @interface PasteInputModule ()
+@@ -41,7 +41,7 @@ static BOOL pasteInputCanPerformActionIMP(id self, SEL _cmd, SEL action, id send
  @property (nonatomic, strong) NSMutableDictionary<NSString *, NSNumber *> *registrationGenerations;
  @end
  
@@ -11,7 +11,7 @@ index 59ff531dea109fb0d37d3e5382ca8276ae1a0b7a..5e124330bd6ebe8ea6f4e8867218c88a
  
  @implementation PasteInputModule
  
-@@ -55,7 +55,10 @@ + (BOOL)requiresMainQueueSetup
+@@ -55,7 +55,10 @@ RCT_EXPORT_MODULE()
  + (void)setup:(RCTRootViewFactory *)rootViewFactory
  {
  #ifdef RCT_NEW_ARCH_ENABLED
@@ -23,7 +23,7 @@ index 59ff531dea109fb0d37d3e5382ca8276ae1a0b7a..5e124330bd6ebe8ea6f4e8867218c88a
  #endif
  }
  
-@@ -173,9 +176,11 @@ - (void)removeListeners:(double)count
+@@ -173,10 +176,15 @@ RCT_EXPORT_MODULE()
  - (nullable id)getSurfacePresenter
  {
  #ifdef RCT_NEW_ARCH_ENABLED
@@ -35,5 +35,17 @@ index 59ff531dea109fb0d37d3e5382ca8276ae1a0b7a..5e124330bd6ebe8ea6f4e8867218c88a
 +    if (reactHost) {
 +        return [reactHost performSelector:@selector(surfacePresenter)];
      }
++    // React Native 0.88 compiles the bridge adapter out with the legacy
++    // architecture, so the bridge fallback only exists where it still ships.
++#ifndef RCT_REMOVE_LEGACY_ARCH
      // Fallback to bridge mode (Fabric with bridge enabled)
      else if (self.bridge) {
+         // self.bridge.surfacePresenter returns RCTSurfacePresenterBridgeAdapter
+@@ -187,6 +195,7 @@ RCT_EXPORT_MODULE()
+         // If that fails, the adapter itself might be the surface presenter
+         return adapter;
+     }
++#endif
+ #endif
+     return nil;
+ }

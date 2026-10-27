@@ -12,13 +12,18 @@ import {
   ComponentProps,
   ReactElement,
   ReactNode,
+  Ref,
   useCallback,
   useContext,
   useEffect,
   useState,
 } from 'react';
 import React from 'react';
-import { TextInput as RNTextInput } from 'react-native';
+import {
+  TextInput as RNTextInput,
+  type TextInputInstance,
+  type TextInputProps,
+} from 'react-native';
 import {
   GetProps,
   ScrollView,
@@ -95,8 +100,15 @@ const textInputAcceptProps = {
   } as const,
 };
 
-export const RawTextInput = styled(
-  RNTextInput,
+// React Native declares the input's instance as an unexported class, so the
+// exported input below could not name it in emitted declarations. This
+// interface is the same type under a name we export.
+export interface TextInputRef extends TextInputInstance {}
+
+const RawTextInput = styled(
+  RNTextInput as (
+    props: TextInputProps & { ref?: Ref<TextInputRef> }
+  ) => ReactNode,
   textInputStyleConfig,
   textInputAcceptProps
 );
@@ -133,8 +145,6 @@ export const InputFrame = styled(XStack, {
     backgroundType: 'primary' | 'secondary';
   }>,
 });
-
-export type TextInputRef = RNTextInput;
 
 const TextInputComponent = RawTextInput.styleable<{
   icon?: IconType;

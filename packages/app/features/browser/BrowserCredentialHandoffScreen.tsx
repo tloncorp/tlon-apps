@@ -5,7 +5,7 @@ import type {
 import { createDevLogger } from '@tloncorp/shared';
 import { Button, Icon, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Keyboard } from 'react-native';
+import { Keyboard, KeyDownEvent } from 'react-native';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import type { BrowserCredentialHandoffParams } from '../../navigation/types';
@@ -725,7 +725,9 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                   tabIndex={submitting || !canSubmit ? -1 : 0}
                   onKeyDown={
                     isWeb
-                      ? (event) => {
+                      ? // React DOM's keyboard event carries `key`; React
+                        // Native's own key event does not.
+                        (event: KeyDownEvent & { key?: string }) => {
                           if (
                             !submitting &&
                             canSubmit &&
