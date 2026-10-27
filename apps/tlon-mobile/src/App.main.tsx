@@ -109,10 +109,7 @@ const App = () => {
     return (
       <View height={'100%'} width={'100%'} backgroundColor="$background">
         <RequiredUpdateScreen />
-        <StatusBar
-          backgroundColor={isDarkMode ? 'black' : 'white'}
-          barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        />
+        <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
       </View>
     );
   }
@@ -237,10 +234,7 @@ const MainApp = () => {
       ) : (
         offline
       )}
-      <StatusBar
-        backgroundColor={isDarkMode ? 'black' : 'white'}
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-      />
+      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
     </View>
   );
 };

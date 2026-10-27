@@ -37,7 +37,7 @@
   "groups": {
     "summary": "Workspaces (Tlon groups), roles, membership, and channel sections",
     "reference": "references/groups-channels.md",
-    "toolGuidance": "Use groups create-owned to create a group for a user. Organize channels with the section commands; read ids from groups info first."
+    "toolGuidance": "Use groups create-owned to create a group for a user. Organize channels with the section commands; read ids from groups info first. Redeem a shared invite link with groups join --invite <url>; never open it in a browser."
   },
   "hooks": {
     "summary": "Channel hooks and automation",
@@ -67,6 +67,6 @@
   "upload": {
     "summary": "Standalone media upload",
     "reference": "references/media.md",
-    "toolGuidance": "Use a URL or workspace file; stdin is shell-only."
+    "toolGuidance": "Use URLs or workspace files, several per call if needed; stdin is shell-only."
   }
 }

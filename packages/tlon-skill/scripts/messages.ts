@@ -14,7 +14,7 @@
  * Options:
  *   --resolve-cites, --quotes   Fetch and display quoted/cited message content
  *   --json                      Emit one NDJSON record per post instead of
- *                               framed plaintext
+ *                               plain text
  */
 import {
   getChannelPosts,
@@ -36,20 +36,8 @@ import {
   refuseNotesContentTarget,
   wantsHelp,
 } from './cli-utils';
-import {
-  type FetchRef,
-  type RefBudget,
-  createRefBudget,
-  extractPostText,
-  extractReferences,
-  formatTime,
-  renderPostJsonLine,
-  renderPostListJsonLines,
-  renderPostListLines,
-  renderRefLines,
-  formatQuoteLines,
-  formatBodyLines,
-} from './message-content';
+import { renderPostJsonLine, renderPostListJsonLines } from './message-content';
+import { writePostBody } from './post-render';
 
 const MESSAGES_HELP = `Usage: tlon messages <command>
 
@@ -142,19 +130,44 @@ function validateMessagesArgs(args: string[]): void {
   }
 }
 
-const fetchRef: FetchRef = (ref) => getPostReference(ref);
+// Format a timestamp
+function formatTime(timeVal: string | number): string {
+  try {
+    const num = typeof timeVal === 'number' ? timeVal : parseInt(timeVal, 10);
+    if (!isNaN(num) && num > 1600000000000) {
+      const date = new Date(num);
+      return date.toLocaleString();
+    }
+    const timeStr = String(timeVal);
+    const daNum = BigInt(timeStr.replace(/\./g, ''));
+    const DA_SECOND = BigInt('18446744073709551616');
+    const DA_UNIX_EPOCH = BigInt('170141184475152167957503069145530368000');
+    const offset = DA_SECOND / BigInt(2000);
+    const epochAdjusted = offset + (daNum - DA_UNIX_EPOCH);
+    const unixMs = Math.round(
+      Number((epochAdjusted * BigInt(1000)) / DA_SECOND)
+    );
+
+    const date = new Date(unixMs);
+    if (date.getFullYear() > 2020 && date.getFullYear() < 2100) {
+      return date.toLocaleString();
+    }
+    return 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
 
 interface PrintPostsOptions {
   highlightId?: string;
-  budget?: RefBudget;
-  /** Emit NDJSON records only: no framing, no headers, no cite resolution. */
+  /** Emit NDJSON records only: no headers, no cite resolution. */
   json?: boolean;
 }
 
 async function printPosts(
   posts: Post[],
   resolve: boolean,
-  { highlightId, budget, json }: PrintPostsOptions = {}
+  { highlightId, json }: PrintPostsOptions = {}
 ) {
   if (json) {
     for (const line of renderPostListJsonLines(posts)) {
@@ -168,14 +181,23 @@ async function printPosts(
     return;
   }
 
-  const lines = await renderPostListLines(posts, {
-    resolve,
-    fetchRef,
-    highlightId,
-    budget,
-  });
-  for (const line of lines) {
-    console.log(line);
+  const sorted = [...posts].sort((a, b) => a.sentAt - b.sentAt);
+
+  for (const post of sorted) {
+    const author = post.authorId || 'unknown';
+    const time = formatTime(post.sentAt);
+    const replySuffix = post.parentId ? ` (reply to ${post.parentId})` : '';
+    const marker = highlightId && post.id === highlightId ? ' ◀ TARGET' : '';
+
+    console.log(`- ${author} @ ${time}${replySuffix}${marker}`);
+    console.log(`  ID: ${post.id}`);
+    await writePostBody(post, {
+      write: (line) => console.log(line),
+      indent: '  ',
+      getPostReference: resolve ? getPostReference : undefined,
+    });
+
+    console.log('');
   }
 }
 
@@ -358,36 +380,20 @@ async function fetchPost(
 
   const author = post.authorId || 'unknown';
   const time = formatTime(post.sentAt);
-  const text = extractPostText(post.content);
-  // One budget for the whole command, shared with the replies below.
-  const budget = createRefBudget();
 
   console.log(`=== Post ${postId} ===\n`);
   console.log(`Author: ${author}`);
   console.log(`Time: ${time}`);
   console.log(`ID: ${post.id}`);
-  if (text) {
-    console.log('');
-    for (const line of formatBodyLines(text)) {
-      console.log(line);
-    }
-  }
-
-  const refLines = await renderRefLines(extractReferences(post.content), {
-    resolve,
-    fetchRef,
-    budget,
+  console.log('');
+  await writePostBody(post, {
+    write: (line) => console.log(line),
+    getPostReference: resolve ? getPostReference : undefined,
   });
-  for (const ref of refLines) {
-    console.log('');
-    for (const line of formatQuoteLines(ref)) {
-      console.log(line);
-    }
-  }
 
   if (post.replies && post.replies.length > 0) {
     console.log(`\n--- Replies (${post.replies.length}) ---\n`);
-    await printPosts(post.replies, resolve, { budget });
+    await printPosts(post.replies, resolve);
   }
 }
 

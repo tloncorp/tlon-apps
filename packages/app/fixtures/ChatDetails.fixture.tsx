@@ -20,7 +20,7 @@ export const gardenClub: db.Group = {
       ? groupWithImage.iconImage
       : Image.resolveAssetSource(
           require('../ui/assets/raster/welcome_flowers.jpg')
-        ).uri,
+        )?.uri,
   members: group.members?.map((member) => ({
     ...member,
     status: 'joined' as const,

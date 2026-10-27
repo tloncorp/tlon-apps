@@ -27,7 +27,7 @@ const StackComponent = forwardRef<any, PressableProps>(
         <View
           ref={ref}
           // eslint-disable-next-line tlon/no-stack-press
-          onPress={onPress}
+          onPress={onPress ?? undefined}
           cursor={stackProps.cursor || 'pointer'}
           {...stackProps}
         >
@@ -45,13 +45,13 @@ const StackComponent = forwardRef<any, PressableProps>(
         pressStyle={{ opacity: 0.5 }}
         {...stackProps}
         // eslint-disable-next-line tlon/no-stack-press
-        onPress={onPress}
+        onPress={onPress ?? undefined}
         // eslint-disable-next-line tlon/no-stack-press
-        onPressIn={onPressIn}
+        onPressIn={onPressIn ?? undefined}
         // eslint-disable-next-line tlon/no-stack-press
-        onPressOut={onPressOut}
+        onPressOut={onPressOut ?? undefined}
         // eslint-disable-next-line tlon/no-stack-press
-        onLongPress={longPressHandler}
+        onLongPress={longPressHandler ?? undefined}
       >
         {children}
       </View>

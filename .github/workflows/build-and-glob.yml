@@ -52,7 +52,6 @@ jobs:
       VITE_BRANCH_KEY_TEST: ${{ secrets.VITE_BRANCH_KEY_TEST}}
       VITE_INVITE_SERVICE_ENDPOINT: ${{ secrets.VITE_INVITE_SERVICE_ENDPOINT}}
       VITE_POST_HOG_API_KEY: ${{ secrets.VITE_POST_HOG_API_KEY}}
-      VITE_OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY}}
       NODE_OPTIONS: --max-old-space-size=6144
   glob:
     runs-on: ubuntu-latest

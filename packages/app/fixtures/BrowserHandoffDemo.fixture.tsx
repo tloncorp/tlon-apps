@@ -64,7 +64,7 @@ const components = [
   {
     id: 'actions',
     component: 'Row',
-    children: ['open-form', 'continue'],
+    children: ['open-form'],
     align: 'center',
   },
   {
@@ -79,7 +79,7 @@ const components = [
         context: {
           target: {
             type: 'screen',
-            screen: 'browserCredentialHandoff',
+            screen: 'browserSecureEntry',
             viewerUrl,
           },
         },
@@ -90,26 +90,6 @@ const components = [
     id: 'open-form-label',
     component: 'Text',
     text: 'Open secure form',
-  },
-  {
-    id: 'continue',
-    component: 'Button',
-    weight: 1,
-    variant: 'secondary',
-    child: 'continue-label',
-    action: {
-      event: {
-        name: 'tlon.sendMessage',
-        context: {
-          text: 'Continue the browser task. Check the current page; this does not confirm sign-in or authorize a purchase.',
-        },
-      },
-    },
-  },
-  {
-    id: 'continue-label',
-    component: 'Text',
-    text: 'Continue task',
   },
 ];
 

@@ -118,6 +118,8 @@ export function createTlonSetupWizardBase(
         inputKey: 'code',
         message: 'Login code',
         placeholder: 'lidlut-tabwed-pillex-ridrup',
+        sensitive: true,
+        keepPrompt: 'Login code already configured. Keep it?',
         currentValue: ({ cfg, accountId }) =>
           resolveTlonAccount(cfg, accountId).code ?? undefined,
         validate: ({ value }) =>

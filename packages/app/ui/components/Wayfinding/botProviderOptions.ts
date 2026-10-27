@@ -1,6 +1,11 @@
 import type { TlawnProviderConfigInfo } from '@tloncorp/api';
 import type { OnboardingFlow } from '@tloncorp/shared/domain';
 
+import {
+  getIncludedModelId,
+  getModelName,
+} from '../../../features/settings/bot/constants';
+
 export type BotCredentialMode = 'included' | 'api-key' | 'subscription';
 
 export type BotCredentialOption = {
@@ -65,7 +70,6 @@ export function startBotReadinessPolling({
 }
 
 const PROVIDER_LABELS: Record<string, string> = {
-  basic: 'GPT-5.6 Luna',
   anthropic: 'Anthropic',
   openai: 'OpenAI',
   openrouter: 'OpenRouter',
@@ -104,7 +108,7 @@ export function buildBotCredentialOptions({
   };
 
   if (providerConfig.defaultKeys?.basic) {
-    add('basic', 'included', providerLabel('basic'));
+    add('basic', 'included', getModelName(getIncludedModelId(providerConfig)));
   }
 
   if (mode === 'signup' && botReady) {

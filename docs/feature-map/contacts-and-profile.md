@@ -38,9 +38,9 @@ Notes: they appear in your contacts list. They also show up straight away, witho
 <!-- absent: friend request -->
 
 ## Give a contact your own nickname or picture
-<!-- src: packages/app/features/top/UserProfileScreen.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/shared/src/store/contactActions.ts -->
+<!-- src: packages/app/features/top/UserProfileScreen.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/shared/src/store/contactActions.ts, packages/app/ui/components/IconEditor.tsx -->
 
-Phone: open the contact's profile and tap the pencil icon at the top right. Fill in `Nickname`, or tap `Change avatar image` to pick a picture, then tap `Save`.
+Phone: open the contact's profile and tap the pencil icon at the top right. Fill in `Nickname`, or tap the picture at the top to choose one (`Choose photo` or `Take photo`), then tap `Save`.
 Who: only for people in your contacts. The pencil is not shown on anyone else's profile.
 Notes: these are your own labels for that person. Their real profile does not change. The nickname box shows their own nickname as a hint until you type one. Clear the box and save to go back to theirs. Their bio and pinned groups are shown on this screen but can't be edited.
 
@@ -55,7 +55,7 @@ Notes: matches are added to your contacts and marked `New`. Later matches also s
 <!-- src: packages/app/features/contacts/InviteSystemContactsScreen.tsx, packages/app/ui/components/PersonalInviteSheet.tsx, packages/app/features/top/ContactsScreen.tsx, packages/app/ui/components/ContactsScreenView.tsx, packages/app/ui/components/listItems/SystemContactListItem.tsx, packages/app/hooks/useInviteSystemContactHandler.ts, packages/app/features/top/ChatListScreen.tsx, apps/tlon-mobile/src/lib/contactsHelpers.ts -->
 <!-- covers: route:InviteSystemContacts -->
 
-Phone: open the Settings tab and tap `Contacts`. Under `From your address book`, tap a person marked `Invite`. Your messaging app opens with a draft that holds your invite link, or your mail app if the person only has an email address. Send it. To invite several people at once, tap the person-with-a-plus icon at the top left of the Workspaces tab, tap `Invite your friends`, tick up to 10 people, and tap `Invite` at the top right.
+Phone: open the Settings tab and tap `Contacts`. Under `From your address book`, tap a person marked `Invite`. Your messaging app opens with a draft that holds your invite link, or your mail app if the person only has an email address. Send it. To invite several people at once, tap the person-with-a-plus icon at the top left of the Workspaces tab, tap `Invite your friends`, tick up to 10 people, all by text or all by email, and tap `Invite` at the top right.
 Who: phone app only, after you have shared your address book. You also need a personal invite link.
 Notes: the app only opens the draft. Nothing is sent until you send it. People you have invited show `Invited`. On the multi-select screen they can't be picked again for two weeks.
 
@@ -148,16 +148,15 @@ Notes: desktop's Settings sidebar has no profile row. On the phone you can also 
 <!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/top/UserProfileScreen.tsx, packages/app/features/settings/EditProfileScreen.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/api/src/client/utils.ts -->
 <!-- covers: route:EditProfile -->
 
-Phone: open the Settings tab, tap `Your profile`, then tap the pencil icon at the top right. On `Edit Profile`, change `Nickname`, `Status` or `Bio` and tap `Save`.
+Phone: open the Settings tab, tap `Your profile`, then tap the pencil icon at the top right. On `Edit profile`, change `Nickname`, `Status` or `Bio` and tap `Save`.
 Desktop: click your avatar in the left rail, then the pencil icon at the top right of your profile.
 Notes: a nickname can be up to 30 characters, a status 50 and a bio 300. A nickname can't include an ID other than your own, or characters that imitate ~. With no nickname, people see your ID. Leaving with unsaved changes asks `Discard changes?`. There is no cover image field in the editor.
 
 ## Change your profile picture or avatar colour
-<!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/app/ui/components/Form/inputs.tsx, packages/app/ui/components/AttachmentSheet.tsx -->
+<!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/app/ui/components/IconEditor.tsx, packages/app/ui/components/AttachmentSheet.tsx -->
 
-Phone: open the Settings tab, tap `Your profile`, then the pencil icon at the top right. Tap `Change avatar image`, choose a photo, wait for it to finish uploading, then tap `Save`. To remove the picture, tap `Change avatar image` again and choose `Clear`. Under it, `Default avatar color` is a row of colour swatches. Tap one to pick it, and tap it again to unpick it.
-Who: uploading needs image storage set up for your node. If it is not, the button reads `Storage not configured` and can't be used.
-Notes: `Default avatar color` sets the colour of the avatar you get when you have no picture. The preview beside your nickname updates as you choose.
+Phone: open the Settings tab, tap `Your profile`, then the pencil icon at the top right. Tap the picture at the top, choose `Choose photo` or `Take photo`, wait for it to finish uploading, then tap `Save`. To remove the picture, tap it again and choose `Remove photo`. Under the picture, a row of colour dots sets the avatar colour: tap one to pick it, and tap the chosen one again to go back to no colour.
+Notes: the colour shows on the avatar you get when you have no picture. With a picture the dots are faded, under the caption `Avatar color, shown when you have no photo`. The preview beside your nickname updates as you choose.
 
 ## Set your status quickly
 <!-- src: packages/app/features/settings/SettingsScreen.tsx, packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/components/ProfileStatusSheet.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/app/ui/components/ContactsScreenView.tsx, packages/app/ui/components/UserProfileScreenView.tsx, packages/app/navigation/desktop/SettingsNavigator.tsx -->
@@ -167,9 +166,9 @@ Desktop: there is no shortcut. Edit your profile and change `Status` there.
 Notes: people see your status under your name in their contacts list and in a `Status` block on your profile. To clear it, save an empty status.
 
 ## Pin groups to your profile
-<!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/app/ui/components/FavoriteGroupsDisplay.tsx, packages/app/ui/components/GroupSelectorSheet.tsx, packages/app/ui/components/UserProfileScreenView.tsx -->
+<!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/app/ui/components/GroupSelectorSheet.tsx, packages/app/ui/components/UserProfileScreenView.tsx -->
 
-Phone: open the Settings tab, tap `Your profile`, then tap the pencil icon at the top right. Under `Pinned workspaces`, tap `Add a workspace`, tap the groups you want, and tap `Save` on the sheet. To take one off, tap the X beside it.
+Phone: open the Settings tab, tap `Your profile`, then tap the pencil icon at the top right. Under `Pinned workspaces`, tap `Add a workspace` (or `Choose workspaces` once you have some), tap the groups you want, and tap `Save` on the sheet. To take one off, tap `Remove` beside it.
 Desktop: click your avatar in the left rail, then the pencil icon, and use the same `Pinned workspaces` box.
 Notes: you can pin up to 5. Only groups you are a member of can be pinned, and secret groups can't be. Changes here apply straight away, without the `Save` at the top of the screen. People who open your profile see the groups as tiles and can tap one to preview it.
 
@@ -180,23 +179,23 @@ Notes: you can pin up to 5. Only groups you are a member of can be pinned, and s
 Notes: you can't. Your ID, the name that starts with ~, stays tied to your node, and the profile editor has no field for changing it. Your profile nickname is editable display information that other people normally see with your ID still available on your profile and when copied. A contact can separately set a private nickname for you without changing your profile. Contact search accepts the start of a nickname or ID; entering a valid full ID also creates a selectable result even when that person is not already in the local contact list.
 
 ## Verify your phone number
-<!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/app/ui/components/EditProfile/EditAttestationsDisplay.tsx, packages/app/features/profile/AttestationScreen.tsx, packages/app/ui/components/PhoneAttestationPane.tsx, packages/app/ui/components/Profile/ConnectedAccountsWidget.tsx, packages/app/navigation/desktop/ProfileNavigator.tsx -->
+<!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/app/features/profile/AttestationScreen.tsx, packages/app/ui/components/PhoneAttestationPane.tsx, packages/app/ui/components/Profile/ConnectedAccountsWidget.tsx, packages/app/navigation/desktop/ProfileNavigator.tsx -->
 <!-- covers: route:Attestation -->
 
-Phone: open the Settings tab, tap `Your profile`, then tap the pencil icon at the top right. Under `Connected Accounts`, tap `Phone`. Enter your number and tap `Connect Phone Number`. Then type the 6-digit code sent to that number. It submits by itself.
+Phone: open the Settings tab, tap `Your profile`, then tap the pencil icon at the top right. Under `Connected accounts`, tap `Phone`. Enter your number and tap `Connect Phone Number`. Then type the 6-digit code sent to that number. It submits by itself.
 Desktop: click your avatar in the left rail, then the pencil icon, and use the same rows.
-Notes: your profile then shows a `Phone` tile with a check mark. The number itself is hidden from everyone else. A number can be attached to one account only. If you mistyped it, tap `Wrong phone number?` and start again. The row reads `In Progress` until the code is confirmed, then `Verified`.
+Notes: your profile then shows a `Phone` tile with a check mark. The number itself is hidden from everyone else. A number can be attached to one account only. If you mistyped it, tap `Wrong phone number?` and start again. The row reads `In progress` until the code is confirmed, then `Verified`.
 
 ## Verify your X (Twitter) account
-<!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/app/ui/components/EditProfile/EditAttestationsDisplay.tsx, packages/app/features/profile/AttestationScreen.tsx, packages/app/ui/components/TwtitterAttestationPane.tsx, packages/app/ui/components/AttestationPane.tsx, packages/app/ui/components/Profile/ConnectedAccountsWidget.tsx -->
+<!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/app/features/profile/AttestationScreen.tsx, packages/app/ui/components/TwtitterAttestationPane.tsx, packages/app/ui/components/AttestationPane.tsx, packages/app/ui/components/Profile/ConnectedAccountsWidget.tsx -->
 
-Phone: open the Settings tab, tap `Your profile`, then tap the pencil icon at the top right. Under `Connected Accounts`, tap `𝕏 Account`. Type your handle in `Handle` and tap `Submit`. The app shows a post for you to copy. Post it from that X account, paste the link to the post into `Attesting Post`, and tap `Submit`.
+Phone: open the Settings tab, tap `Your profile`, then tap the pencil icon at the top right. Under `Connected accounts`, tap `𝕏 Account`. Type your handle in `Handle` and tap `Submit`. The app shows a post for you to copy. Post it from that X account, paste the link to the post into `Attesting Post`, and tap `Submit`.
 Notes: protected X accounts are not supported. The post text includes your personal invite link if you have one. `Wrong account?` starts over. Afterwards your profile shows an `𝕏 Account` tile with your handle, and anyone can tap it for `View 𝕏 Post` and `View 𝕏 Account`. A handle can be attached to one account only.
 
 ## Remove a verified phone number or X account
-<!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/app/ui/components/EditProfile/EditAttestationsDisplay.tsx, packages/app/ui/components/AttestationPane.tsx, packages/app/ui/components/Profile/ConnectedAccountsWidget.tsx, packages/shared/src/store/lanyardActions.ts -->
+<!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/components/EditProfileScreenView.tsx, packages/app/ui/components/AttestationPane.tsx, packages/app/ui/components/Profile/ConnectedAccountsWidget.tsx, packages/shared/src/store/lanyardActions.ts -->
 
-Phone: open the Settings tab, tap `Your profile`, then tap the pencil icon at the top right. Under `Connected Accounts`, tap `Phone` or `𝕏 Account`, then tap `Revoke` at the bottom.
+Phone: open the Settings tab, tap `Your profile`, then tap the pencil icon at the top right. Under `Connected accounts`, tap `Phone` or `𝕏 Account`, then tap `Revoke` at the bottom.
 Notes: you can also tap the tile on your own profile. It opens the same details with `Revoke` at the bottom. Once revoked, the tile comes off your profile, and you can verify a different number or handle the same way you did the first. `Revoke` is only shown to the owner of the account.
 
 ## Control who can find you by phone number
@@ -209,5 +208,5 @@ Notes: it starts switched on when you verify. While it is on, friends who alread
 ## Show IDs instead of nicknames, or hide profile pictures
 <!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/PrivacyScreen.tsx -->
 
-Phone: open the Settings tab and tap `Privacy`. Turn on `Hide Nicknames` to see everyone's real ID in place of their nickname. Turn on `Hide Avatars` to hide avatar images throughout the app.
-Notes: if you only ever see names that start with ~, check whether `Hide Nicknames` is on. These switches change what you see. They do not change anyone's profile.
+Phone: open the Settings tab and tap `Privacy`. Turn on `Hide nicknames` to see everyone's real ID in place of their nickname. Turn on `Hide avatars` to hide avatar images throughout the app.
+Notes: if you only ever see names that start with ~, check whether `Hide nicknames` is on. These switches change what you see. They do not change anyone's profile.

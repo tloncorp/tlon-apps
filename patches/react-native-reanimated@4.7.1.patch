@@ -1,0 +1,306 @@
+diff --git a/lib/module/ReanimatedModule/js-reanimated/index.js b/lib/module/ReanimatedModule/js-reanimated/index.js
+index bd5293b0c854462bf3ca211d0497183175220d96..8473da79db5e21d990e7d390f2357c1650b1eab6 100644
+--- a/lib/module/ReanimatedModule/js-reanimated/index.js
++++ b/lib/module/ReanimatedModule/js-reanimated/index.js
+@@ -6,8 +6,11 @@ export { createJSReanimatedModule } from "./JSReanimated.js";
+ // TODO: Move these functions outside of index file.
+ export const _updatePropsJS = (updates, viewRef, isAnimatedProps) => {
+   if (viewRef) {
+-    const component = viewRef.getAnimatableRef ? viewRef.getAnimatableRef() : viewRef;
+-    const [rawStyles] = Object.keys(updates).reduce(
++    const component = getComponentFromRef(viewRef);
++    if (!component) {
++      return;
++    }
++    const [rawStyles] = Object.keys(updates ?? {}).reduce(
+     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     (acc, key) => {
+       const value = updates[key];
+@@ -20,11 +23,11 @@ export const _updatePropsJS = (updates, viewRef, isAnimatedProps) => {
+       // Also, some components (e.g. from react-native-svg) don't have styles
+       // and always provide setNativeProps function instead (even on React Native Web 0.19+).
+       setNativeProps(component, rawStyles, isAnimatedProps);
+-    } else if (createReactDOMStyle !== undefined && component.style !== undefined) {
++    } else if (component.style !== undefined) {
+       // React Native Web 0.19+ no longer provides setNativeProps function,
+       // so we need to update DOM nodes directly.
+       updatePropsDOM(component, rawStyles, isAnimatedProps);
+-    } else if (component.props && Object.keys(component.props).length > 0) {
++    } else if (component.props && Object.keys(component.props).length > 0 && component._touchableNode) {
+       Object.keys(component.props).forEach(key => {
+         if (!(key in rawStyles)) {
+           return;
+@@ -38,6 +41,16 @@ export const _updatePropsJS = (updates, viewRef, isAnimatedProps) => {
+     }
+   }
+ };
++const getComponentFromRef = viewRef => {
++  const component = viewRef.getAnimatableRef ? viewRef.getAnimatableRef() : viewRef;
++  if (!component) {
++    return component;
++  }
++  if (component.host) {
++    return component.host;
++  }
++  return component.current?.host ?? component;
++};
+ const setNativeProps = (component, newProps, isAnimatedProps) => {
+   if (isAnimatedProps) {
+     // Only update UI props directly on the component,
+@@ -61,9 +74,9 @@ const updatePropsDOM = (component, style, isAnimatedProps) => {
+     ...style
+   };
+   component.previousStyle = currentStyle;
+-  const domStyle = createReactDOMStyle(currentStyle);
+-  if (Array.isArray(domStyle.transform) && createTransformValue !== undefined) {
+-    domStyle.transform = createTransformValue(domStyle.transform);
++  const domStyle = createReactDOMStyle ? createReactDOMStyle(currentStyle) : currentStyle;
++  if (Array.isArray(domStyle.transform)) {
++    domStyle.transform = createTransformValue ? createTransformValue(domStyle.transform) : createTransformValueFallback(domStyle.transform);
+   }
+   if (createTextShadowValue !== undefined && (domStyle.textShadowColor || domStyle.textShadowRadius || domStyle.textShadowOffset)) {
+     domStyle.textShadow = createTextShadowValue({
+@@ -87,4 +100,24 @@ const updatePropsDOM = (component, style, isAnimatedProps) => {
+     }
+   }
+ };
++const TRANSFORM_UNITS = {
++  perspective: 'px',
++  rotate: 'deg',
++  rotateX: 'deg',
++  rotateY: 'deg',
++  rotateZ: 'deg',
++  skewX: 'deg',
++  skewY: 'deg',
++  translateX: 'px',
++  translateY: 'px',
++  translateZ: 'px'
++};
++const createTransformValueFallback = transform => transform.map(transformProp => {
++  const [key, value] = Object.entries(transformProp)[0] ?? [];
++  if (key == null) {
++    return '';
++  }
++  const unit = typeof value === 'number' ? TRANSFORM_UNITS[key] ?? '' : '';
++  return `${key}(${value}${unit})`;
++}).filter(Boolean).join(' ');
+ //# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/lib/module/createAnimatedComponent/InlinePropManager.js b/lib/module/createAnimatedComponent/InlinePropManager.js
+index a6be62007cc8519fa87a7557945fcb2eb0478fb7..73e2f5f68ae9de965bfc2c3adce418fc1684ce95 100644
+--- a/lib/module/createAnimatedComponent/InlinePropManager.js
++++ b/lib/module/createAnimatedComponent/InlinePropManager.js
+@@ -12,11 +12,13 @@ function isInlineStyleTransform(transform) {
+   return transform.some(t => hasInlineStyles(t));
+ }
+ function inlinePropsHasChanged(props1, props2) {
+-  if (Object.keys(props1).length !== Object.keys(props2).length) {
++  const s1 = props1 ?? {};
++  const s2 = props2 ?? {};
++  if (Object.keys(s1).length !== Object.keys(s2).length) {
+     return true;
+   }
+-  for (const key of Object.keys(props1)) {
+-    if (props1[key] !== props2[key]) {
++  for (const key of Object.keys(s1)) {
++    if (s1[key] !== s2[key]) {
+       return true;
+     }
+   }
+@@ -85,6 +87,9 @@ export function getInlineStyle(style, isFirstRender) {
+     return getInlinePropsUpdate(style);
+   }
+   const newStyle = {};
++  if (style == null) {
++    return newStyle;
++  }
+   for (const [key, styleValue] of Object.entries(style)) {
+     if (!isSharedValue(styleValue) && !(key === 'transform' && isInlineStyleTransform(styleValue))) {
+       newStyle[key] = styleValue;
+diff --git a/src/ReanimatedModule/js-reanimated/index.ts b/src/ReanimatedModule/js-reanimated/index.ts
+index 40d048f1873289ff96e9927aa081650ae11de785..bbfc05044f45921861e0086f4e4d4835b91be607 100644
+--- a/src/ReanimatedModule/js-reanimated/index.ts
++++ b/src/ReanimatedModule/js-reanimated/index.ts
+@@ -14,8 +14,8 @@ interface JSReanimatedComponent {
+   previousStyle: StyleProps;
+   setNativeProps?: (style: StyleProps) => void;
+   style?: StyleProps;
+-  props: Record<string, string | number>;
+-  _touchableNode: {
++  props?: Record<string, string | number>;
++  _touchableNode?: {
+     setAttribute: (key: string, props: unknown) => void;
+   };
+ }
+@@ -23,8 +23,8 @@ interface JSReanimatedComponent {
+ export interface ReanimatedHTMLElement extends HTMLElement {
+   previousStyle: StyleProps;
+   setNativeProps?: (style: StyleProps) => void;
+-  props: Record<string, string | number>;
+-  _touchableNode: {
++  props?: Record<string, string | number>;
++  _touchableNode?: {
+     setAttribute: (key: string, props: unknown) => void;
+   };
+   isDummy?: boolean;
+@@ -41,10 +41,11 @@ export const _updatePropsJS = (
+   isAnimatedProps?: boolean
+ ): void => {
+   if (viewRef) {
+-    const component = viewRef.getAnimatableRef
+-      ? viewRef.getAnimatableRef()
+-      : viewRef;
+-    const [rawStyles] = Object.keys(updates).reduce(
++    const component = getComponentFromRef(viewRef);
++    if (!component) {
++      return;
++    }
++    const [rawStyles] = Object.keys(updates ?? {}).reduce(
+       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       (acc: [StyleProps, AnimatedStyle<any>], key) => {
+         const value = updates[key];
+@@ -60,20 +61,21 @@ export const _updatePropsJS = (
+       // Also, some components (e.g. from react-native-svg) don't have styles
+       // and always provide setNativeProps function instead (even on React Native Web 0.19+).
+       setNativeProps(component, rawStyles, isAnimatedProps);
+-    } else if (
+-      createReactDOMStyle !== undefined &&
+-      component.style !== undefined
+-    ) {
++    } else if (component.style !== undefined) {
+       // React Native Web 0.19+ no longer provides setNativeProps function,
+       // so we need to update DOM nodes directly.
+       updatePropsDOM(component, rawStyles, isAnimatedProps);
+-    } else if (component.props && Object.keys(component.props).length > 0) {
++    } else if (
++      component.props &&
++      Object.keys(component.props).length > 0 &&
++      component._touchableNode
++    ) {
+       Object.keys(component.props).forEach((key) => {
+         if (!(key in rawStyles)) {
+           return;
+         }
+         const dashedKey = key.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase());
+-        component._touchableNode.setAttribute(dashedKey, rawStyles[key]);
++        component._touchableNode!.setAttribute(dashedKey, rawStyles[key]);
+       });
+     } else {
+       const componentName =
+@@ -85,6 +87,35 @@ export const _updatePropsJS = (
+   }
+ };
+ 
++type JSReanimatedComponentRef = (
++  | JSReanimatedComponent
++  | ReanimatedHTMLElement
++) & {
++  host?: JSReanimatedComponent | ReanimatedHTMLElement;
++  current?: {
++    host?: JSReanimatedComponent | ReanimatedHTMLElement;
++  };
++};
++
++const getComponentFromRef = (
++  viewRef: JSReanimatedComponentRef & {
++    getAnimatableRef?: () => JSReanimatedComponentRef;
++  }
++): JSReanimatedComponent | ReanimatedHTMLElement | undefined => {
++  const component = viewRef.getAnimatableRef
++    ? viewRef.getAnimatableRef()
++    : viewRef;
++  if (!component) {
++    return component;
++  }
++  if ('host' in component && component.host) {
++    return component.host;
++  }
++  return 'current' in component
++    ? component.current?.host ?? component
++    : component;
++};
++
+ const setNativeProps = (
+   component: JSReanimatedComponent | ReanimatedHTMLElement,
+   newProps: StyleProps,
+@@ -114,9 +145,13 @@ const updatePropsDOM = (
+   const currentStyle = { ...previousStyle, ...style };
+   (component as JSReanimatedComponent).previousStyle = currentStyle;
+ 
+-  const domStyle = createReactDOMStyle(currentStyle);
+-  if (Array.isArray(domStyle.transform) && createTransformValue !== undefined) {
+-    domStyle.transform = createTransformValue(domStyle.transform);
++  const domStyle = createReactDOMStyle
++    ? createReactDOMStyle(currentStyle)
++    : currentStyle;
++  if (Array.isArray(domStyle.transform)) {
++    domStyle.transform = createTransformValue
++      ? createTransformValue(domStyle.transform)
++      : createTransformValueFallback(domStyle.transform);
+   }
+ 
+   if (
+@@ -147,3 +182,31 @@ const updatePropsDOM = (
+     }
+   }
+ };
++
++const TRANSFORM_UNITS: Partial<Record<string, string>> = {
++  perspective: 'px',
++  rotate: 'deg',
++  rotateX: 'deg',
++  rotateY: 'deg',
++  rotateZ: 'deg',
++  skewX: 'deg',
++  skewY: 'deg',
++  translateX: 'px',
++  translateY: 'px',
++  translateZ: 'px',
++};
++
++const createTransformValueFallback = (
++  transform: Array<Record<string, string | number>>
++): string =>
++  transform
++    .map((transformProp) => {
++      const [key, value] = Object.entries(transformProp)[0] ?? [];
++      if (key == null) {
++        return '';
++      }
++      const unit = typeof value === 'number' ? TRANSFORM_UNITS[key] ?? '' : '';
++      return `${key}(${value}${unit})`;
++    })
++    .filter(Boolean)
++    .join(' ');
+diff --git a/src/createAnimatedComponent/InlinePropManager.ts b/src/createAnimatedComponent/InlinePropManager.ts
+index aef210d2d83262019b7395d37c2655126892a619..f6bdda3b1d099d49687df9f582c3c2e02267f991 100644
+--- a/src/createAnimatedComponent/InlinePropManager.ts
++++ b/src/createAnimatedComponent/InlinePropManager.ts
+@@ -26,12 +26,14 @@ function inlinePropsHasChanged(
+   props1: UnknownRecord,
+   props2: UnknownRecord
+ ): boolean {
+-  if (Object.keys(props1).length !== Object.keys(props2).length) {
++  const s1 = props1 ?? {};
++  const s2 = props2 ?? {};
++  if (Object.keys(s1).length !== Object.keys(s2).length) {
+     return true;
+   }
+ 
+-  for (const key of Object.keys(props1)) {
+-    if (props1[key] !== props2[key]) {
++  for (const key of Object.keys(s1)) {
++    if (s1[key] !== s2[key]) {
+       return true;
+     }
+   }
+@@ -119,6 +121,9 @@ export function getInlineStyle(
+     return getInlinePropsUpdate(style) as Record<string, unknown>;
+   }
+   const newStyle: StyleProps = {};
++  if (style == null) {
++    return newStyle;
++  }
+   for (const [key, styleValue] of Object.entries(style)) {
+     if (
+       !isSharedValue(styleValue) &&

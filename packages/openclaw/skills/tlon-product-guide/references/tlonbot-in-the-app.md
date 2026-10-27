@@ -85,14 +85,14 @@ Notes: it is on by default, but the owner may run without it. The app describes 
 
 ## Add an API key for a model provider
 
-Phone: on the Settings tab, tap your bot's `Models` row, then `API keys`, then the provider: `Anthropic`, `OpenAI`, `OpenRouter` or `xAI (Grok)`. Paste the key into `API key` and tap `Save key`.
+Phone: on the Settings tab, tap your bot's `Models` row, then `API keys`, then the provider: `Anthropic`, `OpenAI`, `OpenRouter` or `xAI (Grok)`. Paste the key into `API key` and tap `Save` at the top right.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
-Notes: the key saves straight away, and that provider then appears when you choose a model. The eye icon shows what you typed. Afterwards only the last four characters are shown. Keys in the wrong shape are refused: OpenAI keys start with "sk-", OpenRouter with "sk-or-", Anthropic with "sk-ant-" or "anthropic-".
+Notes: the key saves straight away, and that provider then appears when you choose a model. The `Show key` switch shows what you typed. Afterwards only the last four characters are shown. Keys in the wrong shape are refused: OpenAI keys start with "sk-", OpenRouter with "sk-or-", Anthropic with "sk-ant-" or "anthropic-".
 
 ## Replace or remove an API key
 
-Phone: on the Settings tab, tap your bot's `Models` row, then `API keys`, then the provider. To replace the key, type the new one where it says `Enter replacement key` and tap `Save key`. To remove it, tap `Remove key`, then `Remove`.
+Phone: on the Settings tab, tap your bot's `Models` row, then `API keys`, then the provider. To replace the key, type the new one where it says `Enter replacement key` and tap `Save` at the top right. To remove it, tap `Remove key`, then `Remove`.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
 Notes: the confirmation says `Tlonbot will stop using custom models from this provider.` Both changes are saved straight away, with no apply step. The full key is never shown again, only its last four characters.
@@ -141,7 +141,7 @@ Notes: you'll see `Connection disconnected.` and the service moves back under `A
 
 ## Choose who can DM my bot
 
-Phone: on the Settings tab, tap `Permissions`, then `DM allowlist`. Tap the plus at the top right, then pick a contact or type any username. To take someone off, tap their row, which is marked `Remove`. Go back to `Permissions` and apply.
+Phone: on the Settings tab, tap `Permissions`, then `DM allowlist`. Tap the plus at the top right, then pick a contact or type any username. To take someone off, tap `Remove` beside their name. Go back to `Permissions` and apply.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
 Notes: the app says `Users on the allowlist can DM Tlonbot directly.` Someone already on the list can't be picked a second time.
@@ -161,7 +161,7 @@ Notes: the app says `These users can always interact with Tlonbot, regardless of
 
 ## Choose who can invite my bot to groups
 
-Phone: on the Settings tab, tap `Permissions`, then `Can invite to workspaces`. Tap the plus at the top right and pick a contact or type a username. Tap a row marked `Remove` to take that person off. Go back to `Permissions` and apply.
+Phone: on the Settings tab, tap `Permissions`, then `Can invite to workspaces`. Tap the plus at the top right and pick a contact or type a username. Tap `Remove` beside that person to take them off. Go back to `Permissions` and apply.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
 Notes: the app says `These users can invite Tlonbot to workspaces.`
@@ -175,14 +175,14 @@ Notes: a group the bot is not in has a `Join workspace` row; tap it, then `Join`
 
 ## Turn my bot on or off in one channel
 
-Phone: on `Channel rules`, tap the channel and flip `Enable Tlonbot here`. Under `Access mode` pick `Open` (`Anyone in the channel can chat`) or `Allowlist only` (`Authorized users only`). For an allowlist, type a username such as ~sampel-palnet and tap `Add`; tap the X beside a name to remove it. Tap `Done`, then apply from `Permissions`.
+Phone: on `Channel rules`, tap the channel and flip `Enable Tlonbot here`. Under `Access mode` pick `Open` (`Anyone in the channel can chat`) or `Allowlist only` (`Authorized users only`). For an allowlist, tap `Add user…`, type a username such as ~sampel-palnet in the `Filter by nickname or @p` box, and tap that person when they appear; tap `Remove` beside a name to take it off. Go back, then apply from `Permissions`.
 Desktop: not in the desktop app.
 Who: hosted accounts with a Tlonbot.
 Notes: a newly enabled channel starts as `Allowlist only`, holding a copy of the people you always allow. `Reset to defaults` puts it back to that. The switch stays off until the bot has joined the group.
 
 ## Use a different model in one channel
 
-Phone: on `Channel rules`, tap a channel where the bot is enabled. Under `Model`, tap `Custom model`, pick a provider, then search for and tap a model. `Default model` goes back to the bot's usual one. Tap `Done`, then apply from `Permissions`.
+Phone: on `Channel rules`, tap a channel where the bot is enabled. Under `Model`, tap `Custom model`, pick a provider, then search for and tap a model. `Default model` goes back to the bot's usual one. Go back, then apply from `Permissions`.
 Desktop: not in the desktop app.
 Who: hosted accounts with a Tlonbot that has a saved API key or a connected subscription. Without one the option is greyed out and reads `Add an API key in Bot settings to use a custom model here.`
 Notes: in the channel list the row then shows the provider beside its access mode.

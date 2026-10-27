@@ -157,4 +157,19 @@ describe('bot credential choices', () => {
     ]);
     expect(options[0]?.label).toBe('GPT-5.6 Luna');
   });
+
+  it('names the model hosting reports for included access', () => {
+    const options = buildBotCredentialOptions({
+      providerConfig: {
+        ...emptyConfig,
+        defaultKeys: { basic: { key: 'included' } },
+        defaultModels: {
+          primaryModel: 'openai/gpt-7-luna',
+          fallbackModels: [],
+        },
+      },
+      botReady: true,
+    });
+    expect(options[0]?.label).toBe('GPT-7 Luna');
+  });
 });

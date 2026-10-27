@@ -4,6 +4,7 @@ import {
   commandError,
   handleExpectedCommandError,
   isHelpArg,
+  isNotFoundError,
   usageError,
   writeHelp,
   writeLine,
@@ -91,7 +92,7 @@ export function parseInviteLinkArgs(args: string[]): ParsedInviteLinkArgs {
   return { kind: 'run', flag, self };
 }
 
-function withSig(ship: string): string {
+export function withSig(ship: string): string {
   return ship.startsWith('~') ? ship : `~${ship}`;
 }
 
@@ -113,17 +114,6 @@ function classifyTokenUrl(rawUrl: string): TokenState {
   const ship = segments.pop();
   if (token && ship && ship.startsWith('~')) return 'legacy';
   return 'in-flight';
-}
-
-// The API wrapper folds HTTP failures into BadResponseError; only a real 404
-// from the group scry means the ship is not a member. Statusless (fetch-level)
-// and 5xx failures must surface as transport/API errors, never as membership.
-function isMembershipFailure(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    error.name === 'BadResponseError' &&
-    (error as { status?: unknown }).status === 404
-  );
 }
 
 function assertCanInvite(
@@ -224,7 +214,8 @@ export async function run(
     try {
       rawGroup = await deps.scryRawGroup(parsed.flag);
     } catch (error) {
-      if (isMembershipFailure(error)) {
+      // Only a real 404 from the group scry means the ship is not a member.
+      if (isNotFoundError(error)) {
         throw commandError(
           `${withSig(actingShip)} is not a member of ${parsed.flag}`
         );

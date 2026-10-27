@@ -131,7 +131,7 @@ describe('DeskOutdatedScreen', () => {
     const user = userEvent.setup();
     const openURL = jest
       .spyOn(Linking, 'openURL')
-      .mockImplementation(async () => true);
+      .mockImplementation(async () => {});
     renderScreen();
 
     await user.press(screen.getByTestId('desk-outdated-help'));
