@@ -7,7 +7,7 @@ description: Read Tlon activity and message history; manage workspaces (Tlon gro
 
 Use the `tlon` tool for Tlon data and administration. Read the task reference below before an unfamiliar workflow. For explanations of the app, use `tlon-product-guide` if available.
 
-In Tlon requests, **workspace** means a group: create, join, rename, invite, and list workspaces using `groups` commands. Explicit requests about the agent’s files or paths refer to its filesystem workspace instead.
+In Tlon requests, **workspace** means a group: create, join (including by invite link), rename, invite, and list workspaces using `groups` commands. Explicit requests about the agent’s files or paths refer to its filesystem workspace instead.
 
 ## Invoke and discover
 

@@ -11,6 +11,7 @@
  *   npx ts-node scripts/groups.ts info <group-id>
  *   npx ts-node scripts/groups.ts leave <group-id>
  *   npx ts-node scripts/groups.ts join <group-id>
+ *   npx ts-node scripts/groups.ts join --invite <invite-url|token> [--self]
  *   npx ts-node scripts/groups.ts request-invite <group-id>
  *   npx ts-node scripts/groups.ts accept-invite <group-id>
  *   npx ts-node scripts/groups.ts reject-invite <group-id>
@@ -111,6 +112,11 @@ import {
 } from './commands/groups-verification';
 import { INVITE_LINK_HELP } from './commands/invite-link';
 import {
+  JOIN_HELP,
+  isInviteJoin,
+  plainJoinGroupId,
+} from './commands/join-invite';
+import {
   VERIFY_ATTEMPTS,
   VERIFY_DELAY_MS,
   assertActingShipCanAdminister,
@@ -119,6 +125,7 @@ import {
 } from './group-admin';
 import { createGroupSectionsDeps } from './group-sections-runtime';
 import { runInviteLinkCommand } from './invite-link-runtime';
+import { runJoinInviteCommand } from './join-invite-runtime';
 import { createNotesChannelInGroup } from './notes-channel';
 import { createNotesChannelDeps } from './notes-channel-runtime';
 import { sleep } from './runtime-deps';
@@ -176,6 +183,7 @@ Commands:
   invite-link <group-id> [--self]
   leave <group-id>
   join <group-id>
+  join --invite <invite-url|token> [--self]
   request-invite <group-id>
   accept-invite <group-id>
   reject-invite <group-id>
@@ -219,7 +227,7 @@ const GROUPS_COMMAND_HELP: Record<string, string> = {
   info: `Usage: tlon groups info <group-id>\nExample: tlon groups info ~host/group-slug`,
   'invite-link': INVITE_LINK_HELP,
   leave: `Usage: tlon groups leave <group-id>\nExample: tlon groups leave ~host/group-slug`,
-  join: `Usage: tlon groups join <group-id>\nJoins public or invited groups. For private groups without an invite, requests an invite.\nExample: tlon groups join ~host/group-slug`,
+  join: JOIN_HELP,
   'request-invite': `Usage: tlon groups request-invite <group-id>\nExample: tlon groups request-invite ~host/group-slug`,
   'accept-invite': `Usage: tlon groups accept-invite <group-id>\nExample: tlon groups accept-invite ~host/group-slug`,
   'reject-invite': `Usage: tlon groups reject-invite <group-id>\nExample: tlon groups reject-invite ~host/group-slug`,
@@ -1571,6 +1579,12 @@ async function main() {
     process.exit(await runInviteLinkCommand(args.slice(1)));
   }
 
+  // Same reasoning for invite redemption, which also bounds its own phases.
+  // Malformed input fails here, before any credential lookup.
+  if (command === 'join' && isInviteJoin(args.slice(1))) {
+    process.exit(await runJoinInviteCommand(args.slice(1), { joinGroupById }));
+  }
+
   await ensureClient(['groups', 'channels']);
 
   switch (command) {
@@ -1631,7 +1645,7 @@ async function main() {
     }
 
     case 'join': {
-      const groupId = args[1];
+      const groupId = plainJoinGroupId(args.slice(1));
       if (!groupId) {
         console.error(GROUPS_COMMAND_HELP.join);
         process.exit(1);
