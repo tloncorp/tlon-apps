@@ -26,6 +26,7 @@ import {
   setOutboundRouteReporter,
   setReplyOutputReporter,
   setSessionTelemetryReporter,
+  type TlonReplyTelemetryStart,
 } from './telemetry.js';
 import { summarizeTlonCommand } from './tlon-tool-command.js';
 
@@ -147,6 +148,16 @@ describe('telemetry tool tracking', () => {
     dispatchError?: unknown;
     deliverySkipReason?: 'empty' | 'silent' | 'heartbeat';
     sourceReplyDeliveryMode?: string | null;
+    trust?: Partial<
+      Pick<
+        TlonReplyTelemetryStart,
+        | 'chatType'
+        | 'senderRole'
+        | 'conversationKind'
+        | 'senderVerified'
+        | 'ownerClaimed'
+      >
+    >;
   }) {
     const telemetry = createEnabledTelemetry();
     const replyTelemetry = telemetry?.startReply({
@@ -160,6 +171,7 @@ describe('telemetry tool tracking', () => {
       isThreadReply: false,
       senderRole: 'owner',
       attachmentCount: 1,
+      ...params?.trust,
     });
 
     await replyTelemetry?.capture({
@@ -973,6 +985,39 @@ describe('telemetry tool tracking', () => {
     const capturedEvent = await captureReply();
     expect(capturedEvent?.event).toBe('TlonBot Reply Handled');
     expect(capturedEvent?.properties.outcome).toBe('responded');
+  });
+
+  it('reports the conversation kind and whether owner privilege was trusted', async () => {
+    const foreign = await captureReply({
+      trust: {
+        chatType: 'groupChannel',
+        senderRole: 'user',
+        conversationKind: 'foreignHostedChannel',
+        senderVerified: false,
+        ownerClaimed: true,
+      },
+    });
+    expect(foreign?.event).toBe('TlonBot Reply Handled');
+    expect(foreign?.properties).toMatchObject({
+      senderRole: 'user',
+      conversationKind: 'foreignHostedChannel',
+      senderVerified: false,
+      ownerClaimed: true,
+    });
+
+    const dm = await captureReply({
+      trust: {
+        conversationKind: 'dm',
+        senderVerified: true,
+        ownerClaimed: true,
+      },
+    });
+    expect(dm?.properties).toMatchObject({
+      senderRole: 'owner',
+      conversationKind: 'dm',
+      senderVerified: true,
+      ownerClaimed: true,
+    });
   });
 
   it('captures privacy-safe tlon command summaries', async () => {

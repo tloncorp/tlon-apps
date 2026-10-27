@@ -11,6 +11,7 @@ import {
   type OwnerToolPostLedger,
   sharedOwnerToolPostLedger,
 } from '../owner-tool-posts.js';
+import { type MessageOrigin, channelMessageOrigin } from '../owner-trust.js';
 import { isDmNest } from '../targets.js';
 import { formatBlobForHistory, parseBlobData } from './media.js';
 import { extractMessageText } from './utils.js';
@@ -25,6 +26,14 @@ export type TlonHistoryEntry = {
   parentId?: string;
   blob?: string | null;
   parsedBlobData?: ClientPostBlobData | null;
+  /** A channel post's revision ("0" until edited); absent for DM writs. */
+  revision?: string;
+  /**
+   * Created or edited, decided where the entry is built from the scry it came
+   * from: channel posts and replies by `channelMessageOrigin`, DM writs as
+   * creations.
+   */
+  origin: MessageOrigin;
 };
 
 export type HistoryScryApi = {
@@ -143,6 +152,7 @@ export function parsePostPayload(
         ...(id ? { id } : {}),
         ...(sequenceNum ? { sequenceNum } : {}),
         blob,
+        origin: channelMessageOrigin(payload),
       },
       sourceAuthor,
     };
@@ -163,6 +173,7 @@ export function parsePostPayload(
             : Date.now(),
         ...(id ? { id } : {}),
         blob: null,
+        origin: channelMessageOrigin(payload),
       },
       sourceAuthor,
     };
@@ -404,6 +415,7 @@ export async function fetchChannelHistoryOrThrow(
       const essay = item.essay || item['r-post']?.set?.essay;
       const seal = item.seal || item['r-post']?.set?.seal;
       const sequenceNum = parseSequenceNum(seal?.seq);
+      const revision = item.revision ?? item['r-post']?.set?.revision;
 
       return {
         // v8 channel history returns bot authors as profile objects while
@@ -419,7 +431,11 @@ export async function fetchChannelHistoryOrThrow(
         timestamp: historyTimestamp(essay?.sent, seal?.id),
         id: seal?.id,
         ...(sequenceNum ? { sequenceNum } : {}),
+        ...(revision !== undefined ? { revision: String(revision) } : {}),
         blob: essay?.blob ?? null,
+        origin: isDmNest(channelNest)
+          ? 'create'
+          : channelMessageOrigin({ revision }),
       } as TlonHistoryEntry;
     })
     .filter((msg) => msg.content || msg.blob);
@@ -489,6 +505,7 @@ export async function fetchThreadHistory(
         // Thread replies use 'memo' structure
         const memo = item.memo || item['r-reply']?.set?.memo || item;
         const seal = item.seal || item['r-reply']?.set?.seal;
+        const revision = item.revision ?? item['r-reply']?.set?.revision;
 
         return {
           author: memo?.author || 'unknown',
@@ -496,7 +513,9 @@ export async function fetchThreadHistory(
           timestamp: memo?.sent || Date.now(),
           id: seal?.id || item.id,
           parentId,
+          ...(revision !== undefined ? { revision: String(revision) } : {}),
           blob: memo?.blob ?? null,
+          origin: channelMessageOrigin({ revision }),
         } as TlonHistoryEntry;
       })
       .filter((msg) => msg.content || msg.blob);
@@ -520,14 +539,20 @@ export async function fetchThreadHistory(
           ? data.replies
           : Object.values(data.replies);
         const messages = replies
-          .map((reply: any) => ({
-            author: reply.memo?.author || 'unknown',
-            content: extractMessageText(reply.memo?.content || []),
-            timestamp: reply.memo?.sent || Date.now(),
-            id: reply.seal?.id,
-            parentId,
-            blob: reply.memo?.blob ?? null,
-          }))
+          .map(
+            (reply: any): TlonHistoryEntry => ({
+              author: reply.memo?.author || 'unknown',
+              content: extractMessageText(reply.memo?.content || []),
+              timestamp: reply.memo?.sent || Date.now(),
+              id: reply.seal?.id,
+              parentId,
+              ...(reply.revision !== undefined
+                ? { revision: String(reply.revision) }
+                : {}),
+              blob: reply.memo?.blob ?? null,
+              origin: channelMessageOrigin(reply),
+            })
+          )
           .filter((msg: TlonHistoryEntry) => msg.content || msg.blob);
 
         runtime?.log?.(
@@ -621,6 +646,7 @@ export async function fetchParentPostHistoryEntry(
     content: parentPost.entry.content,
     timestamp: parentPost.entry.timestamp,
     id: parentPost.entry.id ?? parentId,
+    origin: parentPost.entry.origin,
   };
 }
 

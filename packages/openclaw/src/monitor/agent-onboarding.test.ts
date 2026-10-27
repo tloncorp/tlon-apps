@@ -1162,6 +1162,7 @@ describe('agent onboarding requests', () => {
               content: "Let's get set up.",
               timestamp: 1,
               blob: introBlob,
+              origin: 'create' as const,
             },
           ]),
           sendPost,
@@ -1184,7 +1185,13 @@ describe('agent onboarding requests', () => {
       isFirstGroup: true,
     });
     const history = [
-      { author: '~ten', content: 'hi', timestamp: 1_000, blob: introBlob },
+      {
+        author: '~ten',
+        content: 'hi',
+        timestamp: 1_000,
+        blob: introBlob,
+        origin: 'create' as const,
+      },
     ];
     const scan = () =>
       scanAgentOnboardingChannel(
@@ -1248,6 +1255,7 @@ describe('agent onboarding requests', () => {
               content: "Let's get set up.",
               timestamp: 1,
               blob: introBlob,
+              origin: 'create' as const,
             },
           ]),
           sleep: vi.fn(async () => {}),
@@ -1288,6 +1296,7 @@ describe('agent onboarding requests', () => {
               content: "Let's get set up.",
               timestamp: 1,
               blob: introBlob,
+              origin: 'create' as const,
             },
           ]),
           sleep: vi.fn(async () => {}),
@@ -1637,6 +1646,7 @@ describe('agent onboarding requests', () => {
               content: "Let's get set up.",
               timestamp: 1,
               blob: introBlob,
+              origin: 'create' as const,
             },
           ]),
           sendPost: vi.fn(async () => {

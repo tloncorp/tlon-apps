@@ -37,6 +37,7 @@ describe('group DMs in the chat firehose', () => {
       'extractDmPartnerShip(',
       'sharedOwnerToolPostLedger()',
       'isOwner(',
+      'senderRoleFor(',
       'isDmAllowed(',
       'executeApprovalAction(',
       'createPendingApproval(',
@@ -76,7 +77,9 @@ describe('1:1 DM reactions', () => {
     );
     expect(gate).toBeGreaterThan(-1);
     const body = reactions.slice(gate);
-    expect(body).toContain('isOwner(partnerShip)');
+    expect(body).toContain(
+      "senderRoleFor(partnerShip, partnerShip, 'create') === 'owner'"
+    );
     expect(between(body, 'processMessage({', '});')).toContain(
       'senderShip: partnerShip,'
     );

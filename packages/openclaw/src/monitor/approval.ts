@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto';
  * a notification and can approve or deny the request via slash commands
  * (/allow, /reject, /ban).
  */
+import type { MessageOrigin } from '../owner-trust.js';
 import { createSilentFailureNoticeCooldown } from '../silent-failure-notice.js';
 import {
   APPROVAL_TTL_MS,
@@ -44,6 +45,7 @@ export type CreateApprovalParams = {
     blob?: string;
     /** Chat `whom` the message arrived on (DM approvals). */
     whom?: string;
+    messageOrigin?: MessageOrigin;
   };
 };
 
@@ -227,6 +229,20 @@ export function isDirectDmApproval(
   if (!ship) return false;
   const whom = approval.originalMessage?.whom;
   return whom === undefined || extractDmPartnerShip(whom) === ship;
+}
+
+/**
+ * The origin to replay an approved message with: the one recorded at
+ * admission, or an edit for a legacy record, so missing metadata never becomes
+ * a trusted creation.
+ */
+export function approvalReplayOrigin(
+  originalMessage: Pick<
+    NonNullable<PendingApproval['originalMessage']>,
+    'messageOrigin'
+  >
+): MessageOrigin {
+  return originalMessage.messageOrigin ?? 'edit';
 }
 
 export function isExpired(approval: PendingApproval): boolean {

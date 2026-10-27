@@ -3,7 +3,10 @@ import type { Story } from '@tloncorp/api';
 /**
  * Owner commands — the owner's bare (no @-mention) registered slash commands
  * engage in any watched chat/ channel, including third-party-hosted channels
- * where owner-listen never applies (TLON-6301).
+ * where owner-listen never applies (TLON-6301). They only RUN where owner
+ * privilege is trusted (TLON-6959, src/owner-trust.ts): in a channel hosted
+ * by the owner or the bot. In a channel hosted by anyone else, the host can
+ * author posts as the owner, so the command gets a short refusal instead.
  *
  * Engagement logic lives in src/monitor/utils.ts (shouldEngageInGroup's
  * 'owner-command' branch) and is fed by src/monitor/index.ts from the
@@ -24,9 +27,11 @@ import type { Story } from '@tloncorp/api';
  */
 import { beforeAll, beforeEach, describe, expect, test } from 'vitest';
 
+import { OWNER_PRIVILEGE_ELSEWHERE_TEXT } from '../../src/owner-trust.js';
 import {
   type TestFixtures,
   getFixtures,
+  requireFixtureGroup,
   requireThirdParty,
   waitFor,
 } from '../lib/index.js';
@@ -46,6 +51,25 @@ function story(text: string): Story {
   return [{ inline: [text] }];
 }
 
+/** The bot's posts in a channel after a sequence baseline, oldest first. */
+async function botPostsAfter(
+  fixtures: TestFixtures,
+  channel: string,
+  baseline: number
+): Promise<SequencePostView[]> {
+  const posts = await fixtures.botState.channelPosts(channel, 30);
+  return (posts ?? [])
+    .map((post) => post as SequencePostView)
+    .filter(
+      (post) =>
+        post.authorId === fixtures.botShip && getPostSequence(post) > baseline
+    )
+    .sort((a, b) => getPostSequence(a) - getPostSequence(b));
+}
+
+/** Settle time before asserting that no further bot reply landed. */
+const NEGATIVE_SETTLE_MS = 2_000;
+
 describe('owner commands in third-party-hosted channels', () => {
   let fixtures: TestFixtures;
   // Narrowed copies taken right after requireThirdParty: the assertion only
@@ -53,11 +77,6 @@ describe('owner commands in third-party-hosted channels', () => {
   let thirdPartyState: NonNullable<TestFixtures['thirdPartyState']>;
   let thirdPartyShip: string;
   let chatChannel: string;
-
-  // How long to wait after a bare command that must NOT engage before
-  // asserting no bot reply landed. Same budget as 02-owner-listen's
-  // negative tests.
-  const NEGATIVE_SETTLE_MS = 2_000;
 
   async function getPendingApprovalFrom(
     requestingShip: string
@@ -181,9 +200,9 @@ describe('owner commands in third-party-hosted channels', () => {
     await fakeModel.reset();
   });
 
-  test("owner's bare /pending is answered without a mention", async () => {
-    // No fake-model script: /pending completes in the plugin without a model
-    // turn, so a model call here would itself be a failure signal.
+  test("owner's bare /pending gets the refusal and does not run", async () => {
+    // No fake-model script: the refusal is posted by the plugin before any
+    // model turn.
     const baseline = await getLatestSequenceForAuthor(
       fixtures.botState,
       chatChannel,
@@ -195,25 +214,24 @@ describe('owner commands in third-party-hosted channels', () => {
       content: story('/pending'),
     });
 
-    const reply = await waitFor(
+    const [reply] = await waitFor(
       async () => {
-        const posts = await fixtures.botState.channelPosts(chatChannel, 30);
-        return (posts ?? [])
-          .map((post) => post as SequencePostView)
-          .find(
-            (post) =>
-              post.authorId === fixtures.botShip &&
-              getPostSequence(post) > baseline
-          );
+        const replies = await botPostsAfter(fixtures, chatChannel, baseline);
+        return replies.length > 0 ? replies : undefined;
       },
       30_000,
       1_500,
-      'bot reply to bare /pending'
+      'bot refusal to bare /pending'
     );
+    expect(extractPostText(reply)).toBe(OWNER_PRIVILEGE_ELSEWHERE_TEXT);
 
-    // The pending list (possibly empty) — the command was answered at all,
-    // bare, in a channel the bot does not host.
-    expect(extractPostText(reply)).toMatch(/pending/i);
+    // The command itself never ran: no pending-list reply follows the
+    // refusal.
+    await sleep(NEGATIVE_SETTLE_MS);
+    const replies = await botPostsAfter(fixtures, chatChannel, baseline);
+    expect(replies.map(extractPostText)).toEqual([
+      OWNER_PRIVILEGE_ELSEWHERE_TEXT,
+    ]);
   }, 60_000);
 
   test("a non-owner's bare command gets no reply", async () => {
@@ -236,5 +254,40 @@ describe('owner commands in third-party-hosted channels', () => {
       30
     );
     expect(after).toBe(baseline);
+  }, 60_000);
+});
+
+describe('owner commands in a bot-hosted channel', () => {
+  test("owner's bare /pending is answered without a mention", async () => {
+    const fixtures = await getFixtures();
+    requireFixtureGroup(fixtures);
+    // The fixture group is hosted by the bot, so owner privilege is trusted.
+    const channel = fixtures.group.chatChannel;
+    await fakeModel.reset();
+    const baseline = await getLatestSequenceForAuthor(
+      fixtures.botState,
+      channel,
+      fixtures.botShip
+    );
+
+    await fixtures.userState.sendPost({
+      channelId: channel,
+      content: story('/pending'),
+    });
+
+    const [reply] = await waitFor(
+      async () => {
+        const replies = await botPostsAfter(fixtures, channel, baseline);
+        return replies.length > 0 ? replies : undefined;
+      },
+      30_000,
+      1_500,
+      'bot reply to bare /pending'
+    );
+
+    // The pending list (possibly empty): the command ran, not the refusal.
+    const text = extractPostText(reply);
+    expect(text).toMatch(/pending/i);
+    expect(text).not.toBe(OWNER_PRIVILEGE_ELSEWHERE_TEXT);
   }, 60_000);
 });

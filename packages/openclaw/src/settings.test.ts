@@ -297,6 +297,37 @@ describe('Settings: parseSettingsResponse', () => {
       });
     });
 
+    it('keeps a known message origin and drops any other value', () => {
+      const record = (id: string, messageOrigin: unknown) => ({
+        id,
+        type: 'channel',
+        requestingShip: '~new',
+        channelNest: 'chat/~host/general',
+        timestamp: Date.now(),
+        originalMessage: {
+          messageId: '170.000',
+          messageText: 'hi',
+          timestamp: Date.now(),
+          messageOrigin,
+        },
+      });
+      const result = parseSettingsResponse({
+        tlon: {
+          pendingApprovals: JSON.stringify([
+            record('created', 'create'),
+            record('edited', 'edit'),
+            record('bogus', 'bogus'),
+          ]),
+        },
+      });
+
+      const [created, edited, bogus] = result.pendingApprovals ?? [];
+      expect(created?.originalMessage?.messageOrigin).toBe('create');
+      expect(edited?.originalMessage?.messageOrigin).toBe('edit');
+      expect(bogus?.originalMessage).not.toHaveProperty('messageOrigin');
+      expect(bogus?.originalMessage?.messageText).toBe('hi');
+    });
+
     it.each([
       { type: 'group' as const, locator: 'groupFlag' },
       { type: 'channel' as const, locator: 'channelNest' },

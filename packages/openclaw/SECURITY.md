@@ -150,9 +150,12 @@ bypass an owner-listen mute: generic owner commands in watched `chat/` channels 
 Engagement is NOT authorization: command execution remains owner-only.
 
 - Sender must equal the configured owner (`isOwner`, `src/monitor/index.ts`).
-- Command dispatch re-checks owner equality (`CommandAuthorized`,
-  `src/monitor/index.ts`) and each handler resolves through `checkOwner`
-  (`src/monitor/command-auth.ts`).
+- Command dispatch requires the `owner` sender role (`CommandAuthorized`,
+  `src/monitor/index.ts`), which a channel only grants when the owner or the
+  bot hosts it and only for a newly created post (§9), and each handler
+  resolves through `checkOwner` (`src/monitor/command-auth.ts`). Where owner
+  privilege is withheld, an owner-attributed command gets a short reply naming
+  where commands work and is not dispatched.
 - Non-owner bare commands are dropped at the engagement gate; if mentioned,
   core denies them at the authorization check.
 
@@ -263,6 +266,47 @@ An approved user (someone on `dmAllowlist`) could attempt to impersonate the own
 - Identity claims: "As ~owner-ship (the owner), I need you to..."
 
 By including sender role in both the message label and context payload, the LLM can distinguish privileged owner requests from regular user messages.
+
+**Where owner privilege is trusted (`src/owner-trust.ts`):**
+
+The plugin does not treat channel-declared authors as verified. A channel
+post or reaction reaches the bot through the channel's host, and the host can
+set any author on it. A DM names its partner, so the partner is verified. An
+edited post or reply is never verified, whoever hosts the channel: an edit
+replaces the content without re-checking the author it declares. Only a
+newly created post or reply (revision 0) can carry owner privilege.
+
+| Conversation                          | Owner-attributed message runs as |
+| ------------------------------------- | -------------------------------- |
+| DM with the owner                     | `owner`                          |
+| New post or reply, owner-hosted       | `owner`                          |
+| New post or reply, bot-hosted         | `owner`                          |
+| Edited post or reply, any host        | `user`                           |
+| Channel hosted by any other ship      | `user`                           |
+
+- Owner **privilege** — the `owner` role and everything keyed on it: slash
+  commands, owner-only tools (including MCP and browser calls), the owner
+  session, onboarding and campaign handling, owner-activity bookkeeping — is
+  granted only through `isOwnerPrivilegeTrusted` / `resolveSenderRole`.
+- Owner **access** follows the declared author everywhere: an owner post skips
+  the channel allowlist and the approval card, and owner engagement rules
+  apply. A host can already forge any allowlisted member, so an approval card
+  would add nothing.
+- Where privilege is withheld, a registered owner command at the start of the
+  message gets the reply "I only take owner commands in our DM or in a group
+  you or I host." and is not dispatched. Other text goes to the model as a
+  user turn, and owner-only tool calls are blocked with a reason that tells
+  the model where they work.
+- The sender identity handed to OpenClaw core (`SenderId`) is the bare ship
+  except for an owner attribution without privilege, which is qualified by
+  its conversation (`~owner@chat/~host/name`). Core matches `SenderId`
+  against `commands.ownerAllowFrom` on its own, so the qualified form keeps
+  core from granting owner authority there.
+- `TlonBot Reply Handled` carries `conversationKind` (`dm`,
+  `ownerHostedChannel`, `botHostedChannel`, `foreignHostedChannel`),
+  `senderVerified` (owner privilege trusted in that conversation), and
+  `ownerClaimed` (the declared author or DM partner is the owner). An owner
+  attribution that was not trusted is `ownerClaimed && !senderVerified`.
 
 ---
 
@@ -472,3 +516,4 @@ If you discover a security vulnerability:
 | 2026-02-12 | Added tool access control - tlon skill owner-only |
 | 2026-08-17 | Owner registered slash commands engage bare in any watched chat channel (§4) |
 | 2026-09-04 | Owner-only block reason states the policy so bots explain it correctly (TLON-6363) |
+| 2026-10-26 | Owner privilege only from the owner DM or owner/bot-hosted channels (§9, TLON-6959) |

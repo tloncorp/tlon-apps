@@ -14,6 +14,7 @@ import {
   type PendingApproval,
   RENOTIFY_COOLDOWN_MS,
   applyApprovalRequest,
+  approvalReplayOrigin,
   buildApprovalA2UIBlob,
   createApprovalOverflowNotifier,
   buildPendingApprovalsA2UIBlob,
@@ -1919,5 +1920,51 @@ describe('DM invite overflow wiring', () => {
     expect(source).toMatch(
       /const \{ outcome \} = await queueApprovalRequest\(approval\);\s*(?:\/\/[^\n]*\n\s*)*if \(outcome !== 'overflow'\) \{\s*processedDmInvites\.add\(ship\);/
     );
+  });
+});
+
+describe('approvalReplayOrigin', () => {
+  const message = { messageId: '1', messageText: 'hi', timestamp: 1 };
+
+  it('replays a legacy record without an origin as an edit', () => {
+    expect(approvalReplayOrigin(message)).toBe('edit');
+  });
+
+  it('replays the origin recorded at admission', () => {
+    expect(approvalReplayOrigin({ ...message, messageOrigin: 'create' })).toBe(
+      'create'
+    );
+    expect(approvalReplayOrigin({ ...message, messageOrigin: 'edit' })).toBe(
+      'edit'
+    );
+  });
+});
+
+describe('approval origin wiring', () => {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const source = fs.readFileSync(path.resolve(here, './index.ts'), 'utf8');
+
+  it('replays DM and channel approvals with the recorded origin', () => {
+    const start = source.indexOf("if (action === 'approve') {");
+    const replays = source.slice(start, source.indexOf("case 'group':", start));
+    expect(
+      replays.match(
+        /messageOrigin: approvalReplayOrigin\(approval\.originalMessage\),/g
+      )
+    ).toHaveLength(2);
+    expect(replays).not.toMatch(/messageOrigin: '(create|edit)'/);
+  });
+
+  it('records the origin when a DM or channel approval is admitted', () => {
+    const admissions = source
+      .split('createPendingApproval(')
+      .slice(1)
+      .map((rest) => rest.slice(0, rest.indexOf('pendingApprovals.map(')));
+    const channel = admissions.find((a) => a.includes("type: 'channel'"));
+    const dm = admissions.find(
+      (a) => a.includes("type: 'dm'") && a.includes('whom,')
+    );
+    expect(channel).toMatch(/\bmessageOrigin,\n/);
+    expect(dm).toMatch(/messageOrigin: 'create',/);
   });
 });

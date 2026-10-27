@@ -33,6 +33,17 @@ export function formatOwnerOnlyToolBlockReason(toolName: string): string {
   );
 }
 
+/**
+ * The block reason when the sender is the owner but the conversation cannot
+ * carry owner privilege (owner-trust.ts): name where the tool does work.
+ */
+export function formatOwnerElsewhereToolBlockReason(toolName: string): string {
+  return (
+    `Blocked by policy: the ${toolName} tool works for the owner only in your DM with them or a group they or you host. ` +
+    'Tell them to ask there; do not retry here.'
+  );
+}
+
 export type OwnerOnlyToolDecision = {
   /** The tool is in the owner-only set. */
   ownerOnly: boolean;
@@ -45,7 +56,8 @@ export type OwnerOnlyToolDecision = {
 export function resolveOwnerOnlyToolBlock(
   toolName: string,
   role: SenderRole | undefined,
-  params?: Record<string, unknown>
+  params?: Record<string, unknown>,
+  options?: { ownerUnverified?: boolean }
 ): OwnerOnlyToolDecision {
   // The hosted browser shares the owner's sessions and saved accounts.
   // Protect all browser operations, including reading an authenticated page.
@@ -59,13 +71,13 @@ export function resolveOwnerOnlyToolBlock(
   // a passing `tlon` call still runs as the bot unless the turn is
   // owner-directed (turn-identity.ts).
   const blocked = ownerOnly && role === 'user';
-  return blocked
-    ? {
-        ownerOnly,
-        blocked,
-        reason: formatOwnerOnlyToolBlockReason(
-          browserTool ? 'browser' : toolName
-        ),
-      }
-    : { ownerOnly, blocked };
+  if (!blocked) return { ownerOnly, blocked };
+  const shownName = browserTool ? 'browser' : toolName;
+  return {
+    ownerOnly,
+    blocked,
+    reason: options?.ownerUnverified
+      ? formatOwnerElsewhereToolBlockReason(shownName)
+      : formatOwnerOnlyToolBlockReason(shownName),
+  };
 }

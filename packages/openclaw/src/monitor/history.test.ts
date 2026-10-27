@@ -14,6 +14,7 @@ import {
   fetchParentPostAuthor,
   fetchParentPostHistoryEntry,
   fetchThreadContextHistory,
+  fetchThreadHistory,
   getChannelHistory,
   lookupCachedMessage,
   lookupOrFetchCachedChannelMessage,
@@ -291,6 +292,60 @@ describe('fetchChannelHistory', () => {
       '/chat/v4/dm/~ten/writs/newest/50/light.json',
       expect.anything()
     );
+  });
+
+  it('stamps each entry with the origin its scry implies', async () => {
+    const essay = (text: string) => ({
+      author: '~ten',
+      sent: 1,
+      content: [{ inline: [text] }],
+    });
+    const channelScry = vi.fn(async () => ({
+      posts: {
+        '1': { seal: { id: '1' }, revision: '0', essay: essay('created') },
+        '2': { seal: { id: '2' }, revision: '2', essay: essay('edited') },
+        '3': { seal: { id: '3' }, essay: essay('no revision') },
+      },
+    }));
+    const channel = await fetchChannelHistoryOrThrow(
+      { scry: channelScry },
+      'chat/~ten/general'
+    );
+    expect(channel.map(({ id, origin }) => ({ id, origin }))).toEqual([
+      { id: '1', origin: 'create' },
+      { id: '2', origin: 'edit' },
+      { id: '3', origin: 'edit' },
+    ]);
+
+    const dmScry = vi.fn(async () => ({
+      writs: { '1': { seal: { id: '~ten/1' }, essay: essay('dm') } },
+    }));
+    await expect(
+      fetchChannelHistoryOrThrow({ scry: dmScry }, '~ten')
+    ).resolves.toEqual([expect.objectContaining({ origin: 'create' })]);
+  });
+
+  it('stamps thread replies from their own revision', async () => {
+    const memo = (text: string) => ({
+      author: '~ten',
+      sent: 1,
+      content: [{ inline: [text] }],
+    });
+    const scry = vi.fn(async () => [
+      { seal: { id: '1' }, revision: '0', memo: memo('created') },
+      { seal: { id: '2' }, revision: '1', memo: memo('edited') },
+      { seal: { id: '3' }, memo: memo('no revision') },
+    ]);
+    const replies = await fetchThreadHistory(
+      { scry },
+      'chat/~ten/general',
+      '9'
+    );
+    expect(replies.map(({ id, origin }) => ({ id, origin }))).toEqual([
+      { id: '1', origin: 'create' },
+      { id: '2', origin: 'edit' },
+      { id: '3', origin: 'edit' },
+    ]);
   });
 
   it('keeps reading group channels from %channels', async () => {
@@ -649,6 +704,8 @@ describe('fetchParentPostHistoryEntry', () => {
       content: 'Parent post from memo',
       timestamp: 123,
       id: '170.141.184.507.939.843.704.966.283.402.546.249.728',
+      // No revision: read as an edit.
+      origin: 'edit',
     });
   });
 
@@ -707,6 +764,7 @@ describe('fetchParentPostHistoryEntry', () => {
       content: 'Heartbeat',
       timestamp: 999,
       id: '170.141.184.507.939.843.704.966.283.402.546.249.728',
+      origin: 'create',
     });
   });
 
@@ -747,6 +805,7 @@ describe('parsePostPayload', () => {
         timestamp: expect.any(Number),
         id: '1',
         blob: null,
+        origin: 'edit',
       },
     });
   });

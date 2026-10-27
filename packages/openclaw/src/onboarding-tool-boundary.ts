@@ -20,6 +20,11 @@ type TlonSessionSurface = {
 
 type TlonSessionRunSurface = TlonSessionSurface & {
   sessionKey: string;
+  /**
+   * The run answers the owner from a source that cannot carry owner privilege
+   * (owner-trust.ts), so it runs as a user.
+   */
+  ownerUnverified?: boolean;
 };
 
 type TlonTaskPlanCall = {
@@ -168,7 +173,10 @@ export function getTlonSessionSurface(
 export function rememberTlonSessionRunSurface(
   runId: string,
   sessionKey: string,
-  runContext?: Pick<TlonSessionSurface, 'senderRole' | 'accountId'>
+  runContext?: Pick<
+    TlonSessionRunSurface,
+    'senderRole' | 'accountId' | 'ownerUnverified'
+  >
 ): void {
   const surface = getTlonSessionSurface(sessionKey);
   if (!surface) return;

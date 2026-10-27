@@ -3,6 +3,10 @@ import { compileFunction } from 'node:vm';
 import { transformWithOxc } from 'vite';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
+import {
+  isOwnerPrivilegeTrusted,
+  ownerTrustSourceFor,
+} from '../owner-trust.js';
 import { isDmNest } from '../targets.js';
 import {
   type JoinedChannels,
@@ -18,6 +22,15 @@ const sliceFrom = (marker: string) => {
   const end = source.indexOf('\n    };', start);
   expect(end).toBeGreaterThan(start);
   return source.slice(start, end + '\n    };'.length);
+};
+
+/** Monitor source from `marker` up to (not including) `next`. */
+const sliceUntil = (marker: string, next: string) => {
+  const start = source.indexOf(marker);
+  expect(start).toBeGreaterThan(-1);
+  const end = source.indexOf(next, start);
+  expect(end).toBeGreaterThan(start);
+  return source.slice(start, end);
 };
 
 /** A closure-scope single-expression arrow function of the monitor. */
@@ -50,7 +63,13 @@ type Monitor = {
   onboardingDiscoveryFlights: Set<Promise<boolean | undefined>>;
   startDrainingOnboardingDiscovery(): void;
 };
-let makeMonitor: (deps: Deps & { isDmNest: typeof isDmNest }) => Monitor;
+let makeMonitor: (
+  deps: Deps & {
+    isDmNest: typeof isDmNest;
+    isOwnerPrivilegeTrusted: typeof isOwnerPrivilegeTrusted;
+    ownerTrustSourceFor: typeof ownerTrustSourceFor;
+  }
+) => Monitor;
 
 beforeAll(async () => {
   // Execute the real monitor callbacks. Only the paths these tests reach
@@ -61,13 +80,14 @@ beforeAll(async () => {
       const {
         watchedChannels, joinedChannels, clearAgentOnboardingRetry,
         onboardingCatchUp, processedTracker, scanAgentOnboardingChannel,
-        fetchInitData, runtime, isDmNest,
+        fetchInitData, runtime, isDmNest, isOwnerPrivilegeTrusted,
+        ownerTrustSourceFor,
       } = deps;
       const opts = {};
       const account = { accountId: 'test' };
       const api = {};
       const botShipName = '~bot';
-      const effectiveOwnerShip = '~owner';
+      const effectiveOwnerShip = '~zod';
       const channelToGroup = new Map([['chat/~zod/general', '~zod/test']]);
       const computingPresence = {};
       const getBotProfile = () => undefined;
@@ -78,6 +98,8 @@ beforeAll(async () => {
       const enrollCampaign = () => {};
       const onboardingDiscoveryFlights = new Set();
       let drainingOnboardingDiscovery = false;
+      ${sliceStatement('const ownerTrustContext:')}
+      ${sliceUntil('function ownerPrivilegeTrustedIn(', 'function senderRoleFor(')}
       ${sliceStatement('const unwatchedByLeave =')}
       ${sliceFrom('const rewatchAfterRejoin =')}
       ${sliceFrom('const syncJoinedChannels = async')}
@@ -134,7 +156,15 @@ function setup(options: {
     fetchInitData: vi.fn(async () => ({ joinedChannels: null })),
     runtime: { log: vi.fn(), error: vi.fn() },
   };
-  return { deps, monitor: makeMonitor({ ...deps, isDmNest }) };
+  return {
+    deps,
+    monitor: makeMonitor({
+      ...deps,
+      isDmNest,
+      isOwnerPrivilegeTrusted,
+      ownerTrustSourceFor,
+    }),
+  };
 }
 
 const post = (nest: string) => ({
@@ -342,6 +372,17 @@ describe('onboarding scan with a joined set', () => {
 
     await expect(monitor.scanAgentOnboardingNest(general)).resolves.toBe(true);
     expect(deps.scanAgentOnboardingChannel).toHaveBeenCalledOnce();
+  });
+
+  it('never scans a nest hosted by a ship other than the owner or the bot', async () => {
+    const foreign = 'chat/~bus/general';
+    const { deps, monitor } = setup({ watched: [foreign], joined: [foreign] });
+
+    await expect(monitor.scanAgentOnboardingNest(foreign)).resolves.toBe(
+      undefined
+    );
+    expect(deps.scanAgentOnboardingChannel).not.toHaveBeenCalled();
+    expect(deps.clearAgentOnboardingRetry).toHaveBeenCalledWith(foreign);
   });
 });
 

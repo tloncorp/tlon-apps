@@ -20,6 +20,7 @@ function introEntry(groupId: string, author: string, timestamp: number) {
   return {
     author,
     timestamp,
+    origin: 'create' as const,
     blob: appendToPostBlob(undefined, {
       type: 'tlon-agent-intro-request' as const,
       version: 1 as const,
@@ -107,6 +108,40 @@ describe('findOnboardingRequestInChannel', () => {
     } finally {
       ownerToolPostsTesting.clear();
     }
+  });
+
+  it('takes only a created message as a request', async () => {
+    // No fetchHistory override: the real scry parser decides each origin.
+    const essay = (sent: number, groupId: string) => ({
+      author: OWNER,
+      sent,
+      content: [],
+      blob: introEntry(groupId, OWNER, sent).blob,
+    });
+    const scry = vi.fn(async () => ({
+      posts: {
+        '1': { seal: { id: '1' }, revision: '0', essay: essay(1, '~ten/a') },
+        '2': { seal: { id: '2' }, revision: '2', essay: essay(2, '~ten/b') },
+        // A channel post without a revision is not a creation.
+        '3': { seal: { id: '3' }, essay: essay(3, '~ten/c') },
+      },
+    }));
+    await expect(
+      findOnboardingRequestInChannel(
+        { ...dmContext, api: { scry }, channelNest: 'chat/~ten/general' },
+        {}
+      )
+    ).resolves.toEqual({ groupId: '~ten/a', requestedAt: 1 });
+
+    const dmScry = vi.fn(async () => ({
+      writs: { '1': { seal: { id: `${OWNER}/1` }, essay: essay(4, '~ten/d') } },
+    }));
+    await expect(
+      findOnboardingRequestInChannel(
+        { ...dmContext, api: { scry: dmScry } },
+        {}
+      )
+    ).resolves.toEqual({ groupId: '~ten/d', requestedAt: 4 });
   });
 
   it('is undefined before furnishing has posted one', async () => {

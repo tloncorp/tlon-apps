@@ -70,6 +70,8 @@ export type ContextLensRetrySeed = {
   degraded?: boolean;
   // So does reaction provenance: a retried reaction is still not a command.
   fromReaction?: boolean;
+  // And edit provenance: a retried edit still carries no owner privilege.
+  edited?: boolean;
 };
 
 export type ContextLensSourceKind =
@@ -378,6 +380,9 @@ export type RetryDispatch = {
   degraded: boolean;
   /** The run's text came from a reaction, so it is never command input. */
   fromReaction: boolean;
+  /** The run answered an edit (or predates edit provenance), so it carries no
+   *  owner privilege in a channel. */
+  edited: boolean;
 };
 
 export type RetryDispatchResult =
@@ -437,6 +442,7 @@ export function buildRetryDispatch(lens: ContextLens): RetryDispatchResult {
       cachesHistory: seed?.cachesHistory ?? true,
       degraded: seed?.degraded ?? !seed,
       fromReaction: seed?.fromReaction ?? lens.trigger === 'reaction',
+      edited: seed?.edited ?? true,
     },
   };
 }
