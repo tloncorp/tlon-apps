@@ -262,7 +262,6 @@ export const firstRunCopy = {
   status: {
     running: 'Setting up your Tlonbot',
     ready: 'Your Tlonbot is ready',
-    failed: 'Setup didn’t finish. You can retry at the end.',
   },
 
   setup: {
@@ -271,12 +270,6 @@ export const firstRunCopy = {
     waitingTitle: 'Setting up',
     waitingBody:
       'Getting your Tlonbot ready… Your choices are saved, and your chat opens as soon as it’s ready.',
-    failedTitle: 'We couldn’t finish setup',
-    failedBody:
-      'Your choices are saved. Retry picks up where setup stopped, so you won’t start over.',
-    retry: 'Retry',
-    skip: 'Continue without it for now',
-    didNotFinish: 'Didn’t finish',
     steps: [
       'Preparing your Tlon computer',
       'Connecting to the network',

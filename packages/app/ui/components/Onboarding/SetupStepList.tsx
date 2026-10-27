@@ -3,14 +3,13 @@ import { View, XStack, YStack } from 'tamagui';
 
 import { STEP_ROW_HEIGHT } from './OnboardingStepLayout';
 
-export type SetupStepState = 'done' | 'current' | 'failed' | 'pending';
+export type SetupStepState = 'done' | 'current' | 'pending';
 
 export type SetupStep = { label: string; state: SetupStepState };
 
 const SPOKEN_STATE: Record<SetupStepState, string> = {
   done: 'done',
   current: 'in progress',
-  failed: 'didn’t finish',
   pending: 'not started',
 };
 
@@ -18,14 +17,7 @@ const SPOKEN_STATE: Record<SetupStepState, string> = {
  * The setup checklist: a row per step, its marker on the left margin. Steps
  * not started yet have no marker, just a grey label.
  */
-export function SetupStepList({
-  steps,
-  failedLabel = 'Didn’t finish',
-}: {
-  steps: SetupStep[];
-  /** The line under a step that stopped. */
-  failedLabel?: string;
-}) {
+export function SetupStepList({ steps }: { steps: SetupStep[] }) {
   return (
     <YStack>
       {steps.map((step) => (
@@ -49,11 +41,9 @@ export function SetupStepList({
               <Icon type="Checkmark" color="$primaryText" />
             ) : step.state === 'current' ? (
               <LoadingSpinner size="small" color="$secondaryText" />
-            ) : step.state === 'failed' ? (
-              <Icon type="Close" color="$negativeActionText" />
             ) : null}
           </View>
-          <YStack flex={1} gap="$s">
+          <YStack flex={1}>
             <TlonText.Text
               size="$label/xl"
               color={
@@ -62,11 +52,6 @@ export function SetupStepList({
             >
               {step.label}
             </TlonText.Text>
-            {step.state === 'failed' ? (
-              <TlonText.Text size="$label/m" color="$negativeActionText">
-                {failedLabel}
-              </TlonText.Text>
-            ) : null}
           </YStack>
         </XStack>
       ))}

@@ -274,10 +274,10 @@ function SpaceFixture() {
   );
 }
 
-function SetupFixture({ failed }: { failed: boolean }) {
+function SetupFixture() {
   return (
     <Frame>
-      <FirstRunSetupScreen failed={failed} onRetry={noop} onSkip={noop} />
+      <FirstRunSetupScreen />
     </Frame>
   );
 }
@@ -308,7 +308,7 @@ function FakeSubscriptionSignIn({
 
 type FlowSettings = {
   readyAfterSeconds: number;
-  setupFails: boolean;
+  setupRunsLate: boolean;
   botReadyAfterSeconds: number;
   connectResult: 'connected' | 'checking' | 'cancelled';
   checkAgainFindsGrant: boolean;
@@ -316,17 +316,17 @@ type FlowSettings = {
   noServices: boolean;
 };
 
-// Walk through it as a new person would. Setup finishes (or fails) on a
+// Walk through it as a new person would. Setup finishes (or runs late) on a
 // timer, services connect after a pause, and opening the chat starts over.
 function FlowFixture({
   readyAfter = 20,
-  fails = false,
+  late = false,
   connectEnds = 'connected',
   checkFinds = true,
   switchFails = false,
 }: {
   readyAfter?: number;
-  fails?: boolean;
+  late?: boolean;
   connectEnds?: FlowSettings['connectResult'];
   checkFinds?: boolean;
   switchFails?: boolean;
@@ -334,7 +334,7 @@ function FlowFixture({
   const [readyAfterSeconds] = useValue('Setup ready after (seconds)', {
     defaultValue: readyAfter,
   });
-  const [setupFails] = useValue('Setup fails', { defaultValue: fails });
+  const [setupRunsLate] = useValue('Setup runs late', { defaultValue: late });
   const [botReadyAfterSeconds] = useValue('Bot ready after (seconds)', {
     defaultValue: 10,
   });
@@ -356,7 +356,7 @@ function FlowFixture({
         key={run}
         settings={{
           readyAfterSeconds,
-          setupFails,
+          setupRunsLate,
           botReadyAfterSeconds,
           connectResult,
           checkAgainFindsGrant,
@@ -376,13 +376,7 @@ function FlowRun({
   settings: FlowSettings;
   onRestart: () => void;
 }) {
-  const [attempt, setAttempt] = useState(0);
-  const [setupResult, setSetupResult] = useState<{
-    attempt: number;
-    status: FirstRunSetupStatus;
-  } | null>(null);
-  const status: FirstRunSetupStatus =
-    setupResult?.attempt === attempt ? setupResult.status : 'running';
+  const [status, setStatus] = useState<FirstRunSetupStatus>('running');
   const [botReady, setBotReady] = useState(false);
   const [connected, setConnected] = useState<string[]>([]);
   const [attempts, setAttempts] = useState<
@@ -390,7 +384,7 @@ function FlowRun({
   >({});
   const {
     readyAfterSeconds,
-    setupFails,
+    setupRunsLate,
     botReadyAfterSeconds,
     connectResult,
     checkAgainFindsGrant,
@@ -399,15 +393,11 @@ function FlowRun({
 
   useEffect(() => {
     const timer = setTimeout(
-      () =>
-        setSetupResult({
-          attempt,
-          status: setupFails && attempt === 0 ? 'failed' : 'ready',
-        }),
+      () => setStatus(setupRunsLate ? 'late' : 'ready'),
       readyAfterSeconds * 1000
     );
     return () => clearTimeout(timer);
-  }, [attempt, readyAfterSeconds, setupFails]);
+  }, [readyAfterSeconds, setupRunsLate]);
 
   useEffect(() => {
     const timer = setTimeout(
@@ -502,11 +492,7 @@ function FlowRun({
 
   return (
     <FirstRunSequence
-      setup={{
-        status,
-        retry: () => setAttempt((value) => value + 1),
-        skip: onRestart,
-      }}
+      setup={{ status }}
       services={services}
       models={models}
       onOpenChat={onRestart}
@@ -516,7 +502,7 @@ function FlowRun({
 
 export default {
   Flow: <FlowFixture />,
-  'Flow, setup fails once': <FlowFixture readyAfter={3} fails />,
+  'Flow, setup runs late': <FlowFixture readyAfter={15} late />,
   'Flow, sign-in left unfinished': (
     <FlowFixture connectEnds="checking" checkFinds={false} />
   ),
@@ -540,6 +526,5 @@ export default {
   '4 Model, API key sheet': <ModelFixture sheetFor="api-key" />,
   '4 API key': <ApiKeyFixture />,
   '5 Make space': <SpaceFixture />,
-  'Setup waiting': <SetupFixture failed={false} />,
-  'Setup failed': <SetupFixture failed />,
+  'Setup waiting': <SetupFixture />,
 };

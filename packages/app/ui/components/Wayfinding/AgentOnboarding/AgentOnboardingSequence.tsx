@@ -6,7 +6,10 @@ import { withRetry } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
-import { startAgentGroupNavigationLockFailsafe } from '../../../../hooks/useAgentGroupOnboardingLock';
+import {
+  disarmAgentGroupNavigationLock,
+  startAgentGroupNavigationLockFailsafe,
+} from '../../../../hooks/useAgentGroupOnboardingLock';
 import { AGENT_SHIP_OVERRIDE } from '../../../../lib/envVars';
 import { LiveFirstRunSequence } from '../FirstRun/LiveFirstRunSequence';
 import type { FirstRunSetupStatus } from '../FirstRun/types';
@@ -126,10 +129,9 @@ export function AgentOnboardingSequence(props: {
 }) {
   const [useFallback, setUseFallback] = useState(false);
   const [ready, setReady] = useState(false);
-  // The first run waits for setup only at its last step, so a timeout there
-  // offers Retry, which runs the same setup again, rather than the old splash.
-  const [setupFailed, setSetupFailed] = useState(false);
-  const [setupAttempt, setSetupAttempt] = useState(0);
+  // Setup ran past its deadline. The first run then opens the chat without
+  // waiting, and setup finishes in the background.
+  const [late, setLate] = useState(false);
   const completedRef = useRef(false);
   // Set once the chat is ready behind the cover; the user's tap on
   // "Start chatting" runs it to reveal the chat.
@@ -183,8 +185,20 @@ export function AgentOnboardingSequence(props: {
       const hostedHomeGroupId = `${ownerId}/${BotHomeGroupSlugs.slug}`;
       let activeGroupId = AGENT_SHIP_OVERRIDE ? undefined : hostedHomeGroupId;
       let activeChannelId: string | undefined;
-      let landedInAgentChat = false;
       const deadline = Date.now() + 2 * 60_000;
+      const finishOnboarding = () => {
+        props.onCompleted();
+        void store
+          .completeWayfindingSplash({
+            showBotMentionHint: false,
+          })
+          .catch((error) => {
+            logger.trackError(
+              'Failed to persist agent onboarding completion',
+              error
+            );
+          });
+      };
 
       try {
         await withTimeout(
@@ -234,11 +248,14 @@ export function AgentOnboardingSequence(props: {
                 'Agent group furnishing did not finish before the deadline'
               );
             } catch (deadlineError) {
-              // The request itself is not cancellable. If it completes after
-              // fallback cleared the lock, clear it again so the abandoned
-              // furnishing pass cannot recreate a navigation trap.
+              // The request itself is not cancellable, and it is how setup
+              // finishes in the background: when it lands, the bot posts its
+              // intro in the DM. Keep its group's lock disarmed, since by then
+              // the app is open.
               void furnishing
-                .then((late) => clearNavigationLock(late.group.id))
+                .then((finished) =>
+                  disarmAgentGroupNavigationLock(finished.group.id)
+                )
                 .catch(() => undefined);
               throw deadlineError;
             }
@@ -292,7 +309,6 @@ export function AgentOnboardingSequence(props: {
             });
             throw error;
           }
-          landedInAgentChat = true;
           if (activeGroupId) keepLockArmed(activeGroupId);
           // Keep the cover until the bot is visibly joined and the admin grant
           // request has been accepted. Its read-back verification can continue
@@ -323,22 +339,9 @@ export function AgentOnboardingSequence(props: {
               groupId,
               channelId,
             });
-            const reveal = () => {
-              props.onCompleted();
-              void store
-                .completeWayfindingSplash({
-                  showBotMentionHint: false,
-                })
-                .catch((error) => {
-                  logger.trackError(
-                    'Failed to persist agent onboarding completion',
-                    error
-                  );
-                });
-            };
             // Give the user a full lock window from the moment the chat shows.
-            if (!groupId) return reveal();
-            void rearmLock(groupId).finally(reveal);
+            if (!groupId) return finishOnboarding();
+            void rearmLock(groupId).finally(finishOnboarding);
           };
           if (!cancelled) setReady(true);
           return;
@@ -353,18 +356,31 @@ export function AgentOnboardingSequence(props: {
           error: lastError,
           groupId: activeGroupId,
         });
+        // Don't keep anyone waiting on it. Open the app without the lock, on
+        // the Bot tab it starts on, and let any attempt still in flight finish
+        // in the background: it can't be cancelled, and when it lands the bot
+        // posts its intro in the DM.
+        // Drop any pending handoff first: consuming it would re-arm the lock.
         stopKeepingLockArmed();
-        if (activeGroupId) await clearNavigationLock(activeGroupId);
-        if (landedInAgentChat && activeGroupId && activeChannelId) {
-          await db.agentOnboardingLanding.setValue({
-            groupId: activeGroupId,
-            channelId: activeChannelId,
-            status: 'fallback',
+        await db.agentOnboardingLanding.resetValue();
+        if (activeGroupId) await disarmAgentGroupNavigationLock(activeGroupId);
+        await db.wayfindingProgress.setValue((progress) => ({
+          ...progress,
+          tappedHomeGroupHint: true,
+        }));
+        if (cancelled) return;
+        completedRef.current = true;
+        const groupId = activeGroupId;
+        const channelId = activeChannelId;
+        revealRef.current = () => {
+          logger.trackEvent(AnalyticsEvent.AgentOnboardingChatOpened, {
+            groupId,
+            channelId,
+            setupFinished: false,
           });
-        } else {
-          await db.agentOnboardingLanding.resetValue();
-        }
-        if (!cancelled) setSetupFailed(true);
+          finishOnboarding();
+        };
+        setLate(true);
       }
     })();
 
@@ -372,20 +388,8 @@ export function AgentOnboardingSequence(props: {
       cancelled = true;
       stopKeepingLockArmed();
     };
-    // The bridge runs once per setup attempt for this splash mount; a retry
-    // from the first run starts the next attempt.
+    // The bridge runs once per mount of this cover.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setupAttempt]);
-
-  const retrySetup = useCallback(() => {
-    logger.trackEvent('Agent onboarding setup retried');
-    setSetupFailed(false);
-    setSetupAttempt((attempt) => attempt + 1);
-  }, []);
-
-  const skipSetup = useCallback(() => {
-    logger.trackEvent('Agent onboarding setup skipped after failure');
-    setUseFallback(true);
   }, []);
 
   const handleStartChatting = useCallback(() => {
@@ -398,13 +402,10 @@ export function AgentOnboardingSequence(props: {
 
   const status: FirstRunSetupStatus = ready
     ? 'ready'
-    : setupFailed
-      ? 'failed'
+    : late
+      ? 'late'
       : 'running';
   return (
-    <LiveFirstRunSequence
-      setup={{ status, retry: retrySetup, skip: skipSetup }}
-      onOpenChat={handleStartChatting}
-    />
+    <LiveFirstRunSequence setup={{ status }} onOpenChat={handleStartChatting} />
   );
 }

@@ -73,8 +73,12 @@ export function StepDots({ step }: { step: number }) {
   );
 }
 
-/** The quiet line above the dots that carries setup from screen 2 on. */
+/**
+ * The quiet line above the dots that carries setup from screen 2 on. Late
+ * setup is still running, so it reads the same as running.
+ */
 export function SetupStatusLine({ status }: { status: FirstRunSetupStatus }) {
+  const ready = status === 'ready';
   return (
     <XStack
       justifyContent="center"
@@ -86,7 +90,7 @@ export function SetupStatusLine({ status }: { status: FirstRunSetupStatus }) {
       accessibilityLiveRegion="polite"
       testID={`first-run-status-${status}`}
     >
-      {status === 'running' ? (
+      {!ready ? (
         <View
           width={14}
           height={14}
@@ -97,11 +101,11 @@ export function SetupStatusLine({ status }: { status: FirstRunSetupStatus }) {
             <LoadingSpinner size="small" color="$secondaryText" />
           </View>
         </View>
-      ) : status === 'ready' ? (
+      ) : (
         <Icon type="Checkmark" customSize={[14, 14]} color="$secondaryText" />
-      ) : null}
+      )}
       <Text fontSize={13} lineHeight={16} color="$secondaryText">
-        {firstRunCopy.status[status]}
+        {ready ? firstRunCopy.status.ready : firstRunCopy.status.running}
       </Text>
     </XStack>
   );

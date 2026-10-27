@@ -62,9 +62,6 @@ export type FirstRunPane =
 /** Background setup, run by the onboarding bridge. */
 export type FirstRunSetupAdapter = {
   status: FirstRunSetupStatus;
-  retry: () => void;
-  /** Leave without the Tlonbot, as onboarding did before on a timeout. */
-  skip?: () => void;
 };
 
 export type FirstRunServicesAdapter = {
@@ -206,18 +203,20 @@ export function FirstRunSequence({
     return () => subscription.remove();
   }, [goBack, pane]);
 
-  // Waiting for setup after "Let's get started": open the chat once ready.
+  // Waiting for setup after "Let's get started": open the chat once it's
+  // ready, or once setup runs late and carries on in the background.
+  const chatCanOpen = setup.status !== 'running';
   useEffect(() => {
-    if (pane === 'setup' && setup.status === 'ready') onOpenChat();
-  }, [onOpenChat, pane, setup.status]);
+    if (pane === 'setup' && chatCanOpen) onOpenChat();
+  }, [chatCanOpen, onOpenChat, pane]);
 
   const handleStart = useCallback(() => {
-    if (setup.status === 'ready') {
+    if (chatCanOpen) {
       onOpenChat();
     } else {
       setPane('setup');
     }
-  }, [onOpenChat, setup.status]);
+  }, [chatCanOpen, onOpenChat]);
 
   // Switch the bot in the background, one switch at a time so an older one
   // can't save after a newer choice. Only the latest switch counts, and if it
@@ -430,11 +429,7 @@ export function FirstRunSequence({
           onBack={goBack}
         />
       ) : (
-        <FirstRunSetupScreen
-          failed={status === 'failed'}
-          onRetry={setup.retry}
-          onSkip={setup.skip}
-        />
+        <FirstRunSetupScreen />
       )}
 
       {switchRow ? (
