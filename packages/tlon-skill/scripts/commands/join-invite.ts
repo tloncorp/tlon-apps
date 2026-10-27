@@ -526,11 +526,12 @@ export async function run(
     // is nothing to request, and delivery is unconfirmed. The retry is this
     // same command: harnesses route invite redemption and a plain join to
     // different identities, and an invite that has arrived is accepted
-    // without another bite.
+    // without another bite. The message omits the invite input because it is
+    // a reusable capability and tool results can be traced.
     writeLine(
       deps.stdout,
       `The invite from ${inviter} to ${flag} has not arrived, and its delivery is unconfirmed (their ship may be offline, or invites may be disabled for the group). ` +
-        `Run \`tlon groups join --invite ${parsed.input}\` again later (with --self if you used it) to accept the invite once it arrives.`
+        'Run this same command again later to accept the invite once it arrives.'
     );
     return 0;
   } catch (error) {

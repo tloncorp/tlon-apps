@@ -36,7 +36,7 @@ const NOT_ARRIVED =
   'The invite from ~nec did not arrive in time (their ship may be offline).';
 const PENDING_LINE =
   'The invite from ~nec to ~zod/test has not arrived, and its delivery is unconfirmed (their ship may be offline, or invites may be disabled for the group). ' +
-  'Run `tlon groups join --invite https://invite.tlon.io/0v1.abcde` again later (with --self if you used it) to accept the invite once it arrives.\n';
+  'Run this same command again later to accept the invite once it arrives.\n';
 
 function state(overrides: Partial<InviteGroupState> = {}): GroupStateRead {
   return {
@@ -733,6 +733,7 @@ describe('join --invite group invites', () => {
       expect(result.calls.requestInvite).toEqual([]);
       expect(result.calls.joinGroup).toEqual([]);
       expect(result.out).toBe(PENDING_LINE);
+      expect(result.out).not.toContain(TOKEN);
     }
   });
 
@@ -837,6 +838,7 @@ describe('join --invite group invites', () => {
     expect(result.calls.getGroupState.length).toBeGreaterThan(5);
     expect(result.calls.requestInvite).toEqual([]);
     expect(result.out).toBe(PENDING_LINE);
+    expect(result.out).not.toContain(TOKEN);
   });
 
   it('keeps learned privacy through later failed reads', async () => {
@@ -924,6 +926,7 @@ describe('join --invite phase caps', () => {
     });
     expect(result.calls.biteInvite).toHaveLength(1);
     expect(result.out).toBe(PENDING_LINE);
+    expect(result.out).not.toContain(TOKEN);
     expect(result.clock.now).toBe(25_000);
   });
 
