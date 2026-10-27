@@ -1,6 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
-  ArvosDiscussing,
   Icon,
   LoadingSpinner,
   TlonText,
@@ -11,6 +10,7 @@ import {
 import { NodeBootPhase } from '@tloncorp/shared/domain';
 import { useEffect } from 'react';
 
+import { AnimatedArvosDiscussing } from '../../components/AnimatedArvosDiscussing';
 import {
   OnboardingStepLayout,
   STEP_ROW_HEIGHT,
@@ -69,7 +69,7 @@ export const ReserveShipScreen = ({ navigation }: Props) => {
             justifyContent="center"
           >
             <View width="100%" height="100%" maxHeight={ART_HEIGHT}>
-              <ArvosDiscussing width="100%" height="100%" />
+              <AnimatedArvosDiscussing />
             </View>
           </View>
         </View>
