@@ -129,9 +129,7 @@ function fileNameOf(src: string): string {
 }
 
 export function referencePath(reference: ContentReference): string {
-  // A content reference always becomes a chan, group or desk cite, each of
-  // which has a path.
-  return citeToPath(contentReferenceToCite(reference))!;
+  return citeToPath(contentReferenceToCite(reference)) ?? '';
 }
 
 function renderBlock(block: BlockData): string[] {
