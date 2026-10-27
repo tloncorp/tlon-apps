@@ -108,6 +108,34 @@ describe('syncGroup on a big group', () => {
     expect(getGroupLight).not.toHaveBeenCalled();
   });
 
+  // insertMembers logs a dropped batch rather than throwing
+  test('a whole roster that did not fully land is fetched again', async () => {
+    await queries.insertGroups({ groups: [group({ memberCount: 600 })] });
+    const getGroup = vi
+      .spyOn(api, 'getGroup')
+      .mockResolvedValue(
+        group({ memberCount: 600, members: [member('~zod'), member('~nec')] })
+      );
+    const memberIds = dbIndex.getGroupMemberIds;
+    let reads = 0;
+    vi.spyOn(dbIndex, 'getGroupMemberIds').mockImplementation(
+      async (...args) => {
+        const ids = await memberIds(...args);
+        // the first attempt's completeness check finds ~nec missing
+        return ++reads === 2 ? ids.filter((id) => id !== '~nec') : ids;
+      }
+    );
+
+    await syncGroup(
+      groupId,
+      { priority: SyncPriority.High, retry: { startingDelay: 1 } },
+      { wholeRoster: true }
+    );
+
+    expect(getGroup).toHaveBeenCalledTimes(2);
+    expect((await queries.getGroup({ id: groupId }))?.syncedAt).toBeTruthy();
+  });
+
   test('a light sync in flight does not stand in for a whole one', async () => {
     await queries.insertGroups({ groups: [group({ memberCount: 600 })] });
     let finishLight = () => {};

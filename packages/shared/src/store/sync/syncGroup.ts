@@ -104,57 +104,64 @@ export async function syncGroup(
     ) {
       return;
     }
-    const response = await syncQueue.add('syncGroup', ctx, () =>
-      api.getGroup(id)
-    );
     // If the account changed (logout, ship switch) since we started, this group
     // belongs to the previous client: check before every write, since the
     // database follows the current client.
     const clientChanged = () => getClientGeneration() !== generation;
-    if (clientChanged()) return;
-    await batchEffects('syncGroup', async (ctx) => {
-      // Only joined seats are reconciled: an invite row may be an optimistic
-      // write whose request this roster predates.
-      const candidateIds =
-        group?.members
-          ?.filter((member) => member.status !== 'invited')
-          .map((member) => member.contactId) ?? [];
-      // Seats a live removal event cleared while the fetch was in flight: the
-      // older snapshot must not bring them back.
-      const stored = new Set(await db.getGroupMemberIds({ groupId: id }, ctx));
-      const removed = new Set(
-        candidateIds.filter((contactId) => !stored.has(contactId))
-      );
+    // The store runs inside the queued job, so a caller's retry also covers a
+    // roster that didn't fully land, not only the fetch.
+    await syncQueue.add('syncGroup', ctx, async () => {
+      const response = await api.getGroup(id);
       if (clientChanged()) return;
-      await db.insertGroups({ groups: [response] }, ctx);
-      // Unlike init and changes, this fetch carries the group's full roster,
-      // so it can also clear out seats removed while we weren't listening.
-      const members = response.members ?? [];
-      const keepIds = members.some((member) => member.status === 'joined')
-        ? members.map((member) => member.contactId)
-        : candidateIds;
-      const rosterIds = keepIds.filter((contactId) => !removed.has(contactId));
-      if (clientChanged()) return;
-      await db.deleteAbsentGroupMembers(
-        { groupId: id, keepIds: rosterIds, candidateIds },
-        ctx
-      );
-      if (clientChanged()) return;
-      // syncedAt marks the stored roster as complete (see
-      // buildBotGroupMembershipResolver), and insertMembers logs failed
-      // batches rather than throwing, so only claim it once every seat landed.
-      const storedIds = new Set(
-        await db.getGroupMemberIds({ groupId: id }, ctx)
-      );
-      if (!rosterIds.every((contactId) => storedIds.has(contactId))) {
-        logger.trackError('group sync stored an incomplete roster', {
-          missing: rosterIds.filter((contactId) => !storedIds.has(contactId))
-            .length,
-        });
-        return;
-      }
-      await db.updateGroup({ id, syncedAt: Date.now() }, ctx);
-      updateLastActivityTime();
+      await batchEffects('syncGroup', async (ctx) => {
+        // Only joined seats are reconciled: an invite row may be an optimistic
+        // write whose request this roster predates.
+        const candidateIds =
+          group?.members
+            ?.filter((member) => member.status !== 'invited')
+            .map((member) => member.contactId) ?? [];
+        // Seats a live removal event cleared while the fetch was in flight: the
+        // older snapshot must not bring them back.
+        const stored = new Set(
+          await db.getGroupMemberIds({ groupId: id }, ctx)
+        );
+        const removed = new Set(
+          candidateIds.filter((contactId) => !stored.has(contactId))
+        );
+        if (clientChanged()) return;
+        await db.insertGroups({ groups: [response] }, ctx);
+        // Unlike init and changes, this fetch carries the group's full roster,
+        // so it can also clear out seats removed while we weren't listening.
+        const members = response.members ?? [];
+        const keepIds = members.some((member) => member.status === 'joined')
+          ? members.map((member) => member.contactId)
+          : candidateIds;
+        const rosterIds = keepIds.filter(
+          (contactId) => !removed.has(contactId)
+        );
+        if (clientChanged()) return;
+        await db.deleteAbsentGroupMembers(
+          { groupId: id, keepIds: rosterIds, candidateIds },
+          ctx
+        );
+        if (clientChanged()) return;
+        // syncedAt marks the stored roster as complete (see
+        // buildBotGroupMembershipResolver), and insertMembers logs failed
+        // batches rather than throwing, so only claim it once every seat landed.
+        const storedIds = new Set(
+          await db.getGroupMemberIds({ groupId: id }, ctx)
+        );
+        const missing = rosterIds.filter(
+          (contactId) => !storedIds.has(contactId)
+        ).length;
+        if (missing > 0) {
+          throw new Error(
+            `group sync stored an incomplete roster: ${missing} missing`
+          );
+        }
+        await db.updateGroup({ id, syncedAt: Date.now() }, ctx);
+        updateLastActivityTime();
+      });
     });
   } catch (e) {
     // Callers cancel queued syncs on unmount; that is expected, not a failure.
