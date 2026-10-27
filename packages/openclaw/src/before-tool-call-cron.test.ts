@@ -1051,7 +1051,9 @@ describe('before_tool_call cron during first-run setup', () => {
     const { handler } = registerEntry();
     await expect(
       handler({ toolName: 'cron', params: reschedule }, ctx)
-    ).resolves.toEqual({ params: reschedule });
+    ).resolves.toEqual({
+      params: { ...reschedule, job: reschedule.patch },
+    });
     await expect(
       handler(
         { toolName: 'cron', params: { action: 'remove', jobId: 'reminder-1' } },

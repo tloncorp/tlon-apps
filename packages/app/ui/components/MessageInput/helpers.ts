@@ -40,6 +40,9 @@ export function hydrateEditPost(
   postReferences.forEach((reference) => {
     const cite = contentReferenceToCite(reference);
     const path = citeToPath(cite);
+    if (!path) {
+      return;
+    }
     attachments.push({
       type: 'reference',
       reference,

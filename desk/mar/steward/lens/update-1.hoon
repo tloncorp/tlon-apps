@@ -1,8 +1,9 @@
 ::  %steward-lens-update-1: a lens module update, served to clients as json
 ::
 ::    %entry / %retry-requested ride the /v1/lens subscription; %recent is
-::    the /recent and /since scry result (a json array). jsn captures the
-::    real $json type so the +json arms don't shadow the embedded payload.
+::    the /recent and /since scry result (a json array), and %page the
+::    /cron scry result. jsn captures the real $json type so the +json arms
+::    don't shadow the embedded payload.
 ::
 /-  l=steward-lens
 =>  |%
@@ -29,6 +30,13 @@
         %recent
       %-  frond  :-  'recent'
       a+(turn entries.upd entry-json)
+    ::
+        %page
+      %-  frond  :-  'page'
+      %-  pairs
+      :~  ['total' (numb total.upd)]
+          ['entries' a+(turn entries.upd entry-json)]
+      ==
     ==
   ++  entry-json
     |=  =entry:v1:l

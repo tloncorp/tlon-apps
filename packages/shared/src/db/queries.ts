@@ -2404,6 +2404,10 @@ export const insertContextLensRuns = createWriteQuery(
       .onConflictDoUpdate({
         target: [$contextLensRuns.botShip, $contextLensRuns.lensId],
         set: conflictUpdateSetAll($contextLensRuns, ['botShip', 'lensId']),
+        // The owner ship stamps each record of a run as it stores it, so a
+        // snapshot fetched earlier that lands after a newer record, from the
+        // feed, carries an older stamp and must not undo it.
+        setWhere: lte($contextLensRuns.receivedAt, sql`excluded.received_at`),
       });
   },
   ['contextLensRuns']
@@ -2434,6 +2438,47 @@ export const getRecentContextLensRuns = createReadQuery(
     return ctx.db.query.contextLensRuns.findMany({
       orderBy: [desc($contextLensRuns.receivedAt)],
       limit,
+    });
+  },
+  ['contextLensRuns']
+);
+
+/**
+ * The synced runs of one scheduled task, newest first. Matched the way the
+ * owner ship's /v1/lens/cron scry matches them (lensRunCronJobId): by the
+ * gateway's `cron.jobId`, or for runs recorded before it stamped one, by the
+ * "cron job <id>" trigger preview.
+ */
+export const getContextLensRunsForCronJob = createReadQuery(
+  'getContextLensRunsForCronJob',
+  async (
+    {
+      botShip,
+      jobId,
+      since,
+      limit,
+    }: { botShip: string; jobId: string; since?: number; limit?: number },
+    ctx: QueryCtx
+  ) => {
+    const field = (path: string) =>
+      sql`json_extract(${$contextLensRuns.payload}, ${path})`;
+    return ctx.db.query.contextLensRuns.findMany({
+      where: and(
+        eq($contextLensRuns.botShip, botShip),
+        since === undefined
+          ? undefined
+          : gte($contextLensRuns.receivedAt, since),
+        or(
+          sql`${field('$.lens.cron.jobId')} = ${jobId}`,
+          and(
+            sql`${field('$.lens.cron')} IS NULL`,
+            sql`${field('$.lens.runKind')} = 'cron'`,
+            sql`${field('$.lens.triggerDetails.preview')} = ${`cron job ${jobId}`}`
+          )
+        )
+      ),
+      orderBy: [desc($contextLensRuns.receivedAt)],
+      ...(limit === undefined ? {} : { limit }),
     });
   },
   ['contextLensRuns']

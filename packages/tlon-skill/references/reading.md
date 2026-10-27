@@ -12,6 +12,8 @@ Use the `tlon` tool to read; use `message` for ordinary outbound messages and re
 {"command":"messages search \"query\" --channel chat/~host/channel"}
 ```
 
+`messages` prints each post as text: image, video, link and file URLs, gallery titles, table rows, and cited posts as `Ref:` paths; `--resolve-cites` adds the cited channel posts' text.
+
 Discover the target before fetching history when its identity is ambiguous. Channel nests, group flags, note IDs, and message IDs are different identifiers; preserve the exact value returned for that object. Message/post IDs may contain dots; DM post IDs can include an author prefix. Do not strip or reconstruct them.
 
 For history pagination, surrounding context, reactions, edits, deletes (including thread replies), pins, or DM management, inspect `help messages`, `help posts`, or `help dms`, then the operation's help. Pinning and unpinning need a group admin or the channel's host ship; deleting another member's thread reply has the same requirement. CLI help also lists send/reply operations; ordinary sends and replies belong on `message` instead. Ship-targeted `dms send/reply` is blocked by the tool.
