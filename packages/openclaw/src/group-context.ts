@@ -69,7 +69,13 @@ const MAX_QUIET_LISTED = 40;
 
 type ChannelActivity = {
   events: Array<{ timestamp: number; sender: string }>;
-  latestSnippet?: { id: string; text: string; timestamp: number };
+  /** parentId: a reply's root post, whose deletion takes the reply with it. */
+  latestSnippet?: {
+    id: string;
+    parentId?: string;
+    text: string;
+    timestamp: number;
+  };
 };
 
 export type GroupContextRuntime = {
@@ -94,6 +100,8 @@ export type GroupContextRuntime = {
   recordMessage(params: {
     nest: string;
     id: string;
+    /** For a reply, its thread's root post id. */
+    parentId?: string;
     sender: string;
     text?: string;
     timestamp?: number;
@@ -351,7 +359,14 @@ export function createGroupContextRuntime(
       const state = activity.get(nest) ?? { events: [] };
       state.events.push({ timestamp, sender });
       const text = params.text ? oneLine(params.text, SNIPPET_MAX_CHARS) : '';
-      if (text) state.latestSnippet = { id: params.id, text, timestamp };
+      if (text) {
+        state.latestSnippet = {
+          id: params.id,
+          parentId: params.parentId,
+          text,
+          timestamp,
+        };
+      }
       prune(state, at);
       activity.set(nest, state);
     },
@@ -359,7 +374,11 @@ export function createGroupContextRuntime(
     forgetMessage(params) {
       const nest = locate(params.nest)?.channel.nest;
       const state = nest ? activity.get(nest) : undefined;
-      if (state?.latestSnippet?.id === params.id) {
+      const snippet = state?.latestSnippet;
+      if (
+        state &&
+        (snippet?.id === params.id || snippet?.parentId === params.id)
+      ) {
         delete state.latestSnippet;
       }
     },

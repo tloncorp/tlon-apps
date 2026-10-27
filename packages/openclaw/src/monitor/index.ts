@@ -4775,6 +4775,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           groupContextRuntime.recordMessage({
             nest,
             id: messageId,
+            parentId: threadRootId,
             sender: senderShip,
             text: rawText,
             timestamp: content.sent,
