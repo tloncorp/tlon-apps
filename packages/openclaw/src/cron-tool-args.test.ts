@@ -1,4 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import { createRequire } from 'node:module';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { cleanCronToolArgs } from './cron-tool-args.js';
 
@@ -355,6 +359,83 @@ describe('cleanCronToolArgs', () => {
       name: 'x',
       schedule: watcher,
       payload: { kind: 'agentTurn', message: 'Placeholder' },
+    });
+  });
+
+  describe('through core’s job merge', () => {
+    type ApplyJobPatch = (job: object, patch: object, opts: object) => void;
+    let applyJobPatch: ApplyJobPatch;
+
+    // Core doesn't export its merge, and its chunk names change every release.
+    beforeAll(async () => {
+      const require = createRequire(import.meta.url);
+      const dist = path.dirname(
+        path.dirname(require.resolve('openclaw/plugin-sdk/core'))
+      );
+      for (const file of fs.readdirSync(dist)) {
+        if (!/^jobs-.*\.mjs$/.test(file)) continue;
+        const source = fs.readFileSync(path.join(dist, file), 'utf8');
+        const alias = source.match(/\bapplyJobPatch as (\w+)\b/)?.[1];
+        if (alias) {
+          const chunk = await import(pathToFileURL(path.join(dist, file)).href);
+          applyJobPatch = chunk[alias];
+        }
+      }
+      expect(applyJobPatch).toBeTypeOf('function');
+    });
+
+    const overrides = {
+      model: 'anthropic/claude-sonnet',
+      fallbacks: ['openai/gpt-5'],
+      toolsAllow: ['group:web'],
+    };
+    const existingJob = () => ({
+      id: 'job-1',
+      name: 'Weekly roundup',
+      enabled: false,
+      createdAtMs: 1,
+      updatedAtMs: 1,
+      schedule: { kind: 'cron', expr: '0 9 * * 1' },
+      sessionTarget: 'isolated',
+      wakeMode: 'now',
+      payload: {
+        kind: 'agentTurn',
+        message: 'Round up releases.',
+        ...overrides,
+      },
+      delivery: { mode: 'announce', channel: 'tlon', to: 'chat/~zod/x' },
+      state: {},
+    });
+    const update = (job: object) => {
+      const cleaned = cleanCronToolArgs({
+        action: 'update',
+        jobId: 'job-1',
+        job,
+      });
+      const next = existingJob();
+      applyJobPatch(next, cleaned?.job as object, {});
+      return next;
+    };
+
+    it('keeps the model, tool and fallback overrides on an unrelated update', () => {
+      const next = update(placeholderJob9);
+      expect(next.enabled).toBe(true);
+      expect(next.payload).toEqual(existingJob().payload);
+    });
+
+    it('keeps them when the update changes the prompt', () => {
+      const next = update({
+        ...placeholderJob9,
+        payload: {
+          ...placeholderJob9.payload,
+          kind: 'agentTurn',
+          message: 'Round up this week’s releases.',
+        },
+      });
+      expect(next.payload).toMatchObject({
+        message: 'Round up this week’s releases.',
+        ...overrides,
+      });
     });
   });
 
