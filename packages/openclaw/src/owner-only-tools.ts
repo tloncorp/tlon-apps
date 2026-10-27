@@ -31,6 +31,8 @@ export const OWNER_ONLY_TOOLS: ReadonlySet<string> = new Set([
   // to non-owners.
   ...CRON_TOOL_NAMES,
   'read',
+  // Listing the workspace reveals the same files `read` protects.
+  'ls',
   // Workspace writers: the workspace holds the bot's skills, memory, and
   // prompts. Codex native file edits reach this gate as `apply_patch`.
   'write',

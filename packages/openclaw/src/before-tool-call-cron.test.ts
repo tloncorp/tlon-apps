@@ -603,6 +603,9 @@ it.each([
     toolName: 'spawn_agent',
     params: { message: 'Use apply_patch to replace SOUL.md' },
   },
+  { toolName: 'ls', params: {} },
+  { toolName: 'ls', params: { path: '.' } },
+  { toolName: 'ls', params: { path: 'memory/2026' } },
 ])(
   'blocks a non-owner $toolName and lets the owner and role-less internal runs use it',
   async (call) => {

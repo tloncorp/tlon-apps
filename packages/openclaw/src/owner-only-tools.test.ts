@@ -14,6 +14,7 @@ const EXPECTED_OWNER_ONLY_TOOLS = [
   'cron',
   'automations',
   'read',
+  'ls',
   'write',
   'edit',
   'apply_patch',
