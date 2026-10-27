@@ -2,6 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { memo } from 'react';
 
 import { BrowserCredentialHandoffProvider } from '../features/browser/BrowserCredentialHandoffProvider';
+import { BrowserWalletScreen } from '../features/browser/BrowserWalletScreen';
 import { BrowserCredentialHandoffScreen } from '../features/browser/BrowserCredentialHandoffScreen';
 import { useRenderCount } from '../hooks/useRenderCount';
 import { RootStack } from './RootStack';
@@ -49,6 +50,11 @@ export const BasePathNavigator = memo(({ isMobile }: { isMobile: boolean }) => {
         <DesktopBasePathStackNavigator.Screen
           name="Root"
           component={TopLevelDrawer}
+        />
+        <DesktopBasePathStackNavigator.Screen
+          name="BrowserWallet"
+          component={BrowserWalletScreen}
+          options={{ presentation: 'modal' }}
         />
         <DesktopBasePathStackNavigator.Screen
           name="BrowserCredentialHandoff"

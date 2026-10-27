@@ -22,14 +22,10 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   await zodPage
     .getByTestId('ProfileNicknameInput')
     .fill('Zod Testing nickname');
-  await zodPage.getByRole('textbox', { name: 'Hanging out...' }).click();
-  await zodPage
-    .getByRole('textbox', { name: 'Hanging out...' })
-    .fill('Zod Testing status');
-  await zodPage.getByRole('textbox', { name: 'About yourself' }).click();
-  await zodPage
-    .getByRole('textbox', { name: 'About yourself' })
-    .fill('Zod Testing bio');
+  await zodPage.getByTestId('ProfileStatusInput').click();
+  await zodPage.getByTestId('ProfileStatusInput').fill('Zod Testing status');
+  await zodPage.getByTestId('ProfileBioInput').click();
+  await zodPage.getByTestId('ProfileBioInput').fill('Zod Testing bio');
   await zodPage.getByText('Save').click();
 
   // TODO: figure out why we need to reload here. This should be fixed.
@@ -74,10 +70,10 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   // Ensure it doesn't have ~ten's custom nickname
   await expect(nicknameInput).not.toHaveValue('Ten Custom Nickname');
 
-  const statusInput = zodPage.getByRole('textbox', { name: 'Hanging out...' });
+  const statusInput = zodPage.getByTestId('ProfileStatusInput');
   await expect(statusInput).toHaveValue('Zod Testing status');
 
-  const bioInput = zodPage.getByRole('textbox', { name: 'About yourself' });
+  const bioInput = zodPage.getByTestId('ProfileBioInput');
   await expect(bioInput).toHaveValue('Zod Testing bio');
 
   // Cancel without making changes to verify we maintained correct data
@@ -92,14 +88,10 @@ test('should verify profile data does not persist between users (TLON-4641)', as
 
   await tenPage.getByTestId('ProfileNicknameInput').click();
   await tenPage.getByTestId('ProfileNicknameInput').fill('Ten Own Nickname');
-  await tenPage.getByRole('textbox', { name: 'Hanging out...' }).click();
-  await tenPage
-    .getByRole('textbox', { name: 'Hanging out...' })
-    .fill('Ten Status');
-  await tenPage.getByRole('textbox', { name: 'About yourself' }).click();
-  await tenPage
-    .getByRole('textbox', { name: 'About yourself' })
-    .fill('Ten Bio');
+  await tenPage.getByTestId('ProfileStatusInput').click();
+  await tenPage.getByTestId('ProfileStatusInput').fill('Ten Status');
+  await tenPage.getByTestId('ProfileBioInput').click();
+  await tenPage.getByTestId('ProfileBioInput').fill('Ten Bio');
   await tenPage.getByText('Save').click();
 
   // Verify ~ten's profile was saved correctly
@@ -148,12 +140,10 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   // Ensure it doesn't have ~zod's custom nickname
   await expect(tenNicknameInput).not.toHaveValue('Zod from Ten perspective');
 
-  const tenStatusInput = tenPage.getByRole('textbox', {
-    name: 'Hanging out...',
-  });
+  const tenStatusInput = tenPage.getByTestId('ProfileStatusInput');
   await expect(tenStatusInput).toHaveValue('Ten Status');
 
-  const tenBioInput = tenPage.getByRole('textbox', { name: 'About yourself' });
+  const tenBioInput = tenPage.getByTestId('ProfileBioInput');
   await expect(tenBioInput).toHaveValue('Ten Bio');
 
   // Cancel without changes

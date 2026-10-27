@@ -61,6 +61,8 @@ interface Props {
 const scheduledTaskRouteNames = new Set([
   'ScheduledTasks',
   'ScheduledTaskEditor',
+  'ScheduledTaskRuns',
+  'ScheduledTaskRun',
 ]);
 
 const botSettingsRouteNames = new Set([
@@ -152,6 +154,7 @@ function useSettingsSections(
               {
                 key: 'status',
                 title: 'Set status',
+                systemImage: 'bubble.left',
                 onPress: props.onProfileLongPressed,
               },
             ]

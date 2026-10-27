@@ -1,0 +1,65 @@
+{
+  "_comment": [
+    "Surface the OpenClaw release watch (.github/workflows/openclaw-watch.yml) compares across upstream releases. Hand-maintained; update it in PRs that change what the plugin or tlawn relies on.",
+    "configKeys: config keys tlawn writes (tlonbot repo); a removed zod-schema line defining one becomes a check: hint.",
+    "extensions: upstream extensions/<name> trees we enable; diffed alongside the SDK entry files and extraPaths (git pathspecs, globs allowed).",
+    "workarounds: patches/strips we carry; Jev is asked per relevant bullet whether the change makes each one unnecessary.",
+    "profile: the plugin_profile state sent to Jev with every bullet; keep it in step with what we actually run. The three <filled at label time: …> entries are replaced by label.ts from the digest (imported subpaths, prod pins and compared releases, CI Node and the next release's engines.node); label.ts fails if one is missing."
+  ],
+  "configKeys": [
+    "agents",
+    "heartbeat",
+    "memory",
+    "memorySearch",
+    "cron",
+    "commands.ownerAllowFrom",
+    "plugins.allow",
+    "channels.tlon",
+    "models.providers.openrouter",
+    "tools.web.search"
+  ],
+  "extensions": ["codex", "brave", "memory-core", "active-memory"],
+  "extraPaths": [
+    "package.json",
+    "src/state/openclaw-state-db-contract.ts",
+    "src/config/zod-schema*.ts"
+  ],
+  "workarounds": [
+    {
+      "id": "ylem-fallback-continuation-patch",
+      "note": "Pioneer image patches OpenClaw so a provider fallback continues the turn instead of ending it"
+    },
+    {
+      "id": "tlawn-strip-8x-config",
+      "note": "tlawn strips 8.x-only config keys (agents.entries, memorySearch, …) when the installed core is 7.1"
+    }
+  ],
+  "profile": {
+    "what": "Tlon Messenger is a channel plugin for OpenClaw (package @tloncorp/openclaw). Each hosted bot is one OpenClaw gateway in a container, configured at boot by a Python entrypoint (tlawn) that writes the OpenClaw config file.",
+    "plugin_uses": [
+      "<filled at label time: imported plugin-sdk subpaths>",
+      "channel plugin contract: inbound message dispatch, outbound replies and reply chunking, typing callbacks, reactions, media/attachments, DM and group chat types, allowlists (dmAllowlist/ownerAllowFrom)",
+      "plugin hooks: before_agent_finalize, heartbeat_prompt_contribution, tool-result handling",
+      "message tool and agent tools registered by the plugin; skills loaded from a workspace directory"
+    ],
+    "host_config_written_by_tlawn": [
+      "agents.list / agents.entries (keyed roster, default agent marker)",
+      "agents.defaults.heartbeat (every, prompt, target, to, isolatedSession, lightContext, directPolicy)",
+      "memory (dreaming, memoryPolicy.excludeSessions, memory.search / memorySearch), compaction.memoryFlush",
+      "cron (enabled; auto-disable after consecutive failures)",
+      "commands.ownerAllowFrom (tlon:~ship)",
+      "plugins.allow (tlon, codex, brave, lossless), plugin install ledger under ~/.openclaw/plugins",
+      "models.providers.openrouter with apiKey and auth api-key; model selection via OpenRouter",
+      "tools.web.search.provider brave",
+      "channels.tlon account config",
+      "state DB (SQLite) under the moon pier; one-way schema migrations matter for rollback",
+      "doctor --fix runs at boot"
+    ],
+    "deployment": [
+      "<filled at label time: production OpenClaw versions and the releases compared>",
+      "<filled at label time: plugin CI Node version and the Node range OpenClaw requires>",
+      "gateway runs headless in a container, with OpenClaw installed at boot via npm; no desktop app, no macOS/Windows/iOS/Android clients, no voice, no browser automation, no Discord/Telegram/Slack/iMessage/WhatsApp/Signal channels",
+      "the hosting image applies a patch to OpenClaw for fallback-continuation behaviour; the entrypoint strips 8.x-only config keys when running 7.1"
+    ]
+  }
+}

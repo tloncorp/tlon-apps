@@ -48,14 +48,14 @@ Notes: the row shows the current level, followed by "(custom)" if you set it for
 
 ## Start a group DM
 
-Phone: the app can't start a new group DM. `New Message` opens a chat with one person the moment you tap them, and there's no way to pick several. To talk with several people, make a group from the same plus menu with `New group`. On an account with a bot, the phone offers `New Workspace` instead.
+Phone: the app can't start a new group DM. `New Message` opens a chat with one person the moment you tap them, and there's no way to pick several. To talk with several people, make a group from the same plus menu with `New custom workspace`. On an account with a bot, the phone offers `New Workspace` instead.
 Notes: group DMs you're already in still work. They're listed under their members' names. You can rename one, see its members, change its notifications and leave it, but not add or remove people.
 
 ## Rename a group DM or change its icon
 
-Phone: on the Workspaces tab, press and hold the group DM and tap `Edit group info`. On the `Edit chat info` screen, change `Name`, `Icon image` (tap `Change icon image`) or `Description`, then tap `Save` at the top right. The screen stays open after saving, so tap back to leave.
+Phone: on the Workspaces tab, press and hold the group DM and tap `Edit group info`. On the `Edit chat info` screen, change `Name`, tap the icon to pick a picture (`Choose photo` or `Take photo`), or change `Description`, then tap `Save` at the top right. Saving takes you back to the chat.
 Desktop: hover the group DM in the sidebar, open its three-dot menu, and pick `Edit group info`.
-Notes: any member gets this option. Names are capped at 30 characters, descriptions at 300. The new name shows at the top of the chat, but the row in your list keeps showing the members' names. If the icon button reads `Storage not configured`, you can't change the icon. One-to-one DMs can't be renamed.
+Notes: any member gets this option. Names are capped at 30 characters, descriptions at 300. The new name shows at the top of the chat, but the row in your list keeps showing the members' names. One-to-one DMs can't be renamed.
 
 ## See who is in a group DM
 

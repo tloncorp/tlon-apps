@@ -363,6 +363,162 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
     stderrIncludes: ['Media URLs with embedded credentials are not supported.'],
   },
   usageErrorCase(
+    'posts send missing file value',
+    ['posts', 'send', 'chat/~host/channel', 'message', '--file'],
+    'Usage: tlon posts send'
+  ),
+  usageErrorCase(
+    'posts send missing video value',
+    ['posts', 'send', 'chat/~host/channel', 'message', '--video'],
+    'Usage: tlon posts send'
+  ),
+  usageErrorCase(
+    'dms send refuses a second --image',
+    [
+      'dms',
+      'send',
+      '0v5.abcde',
+      '--image',
+      'https://example.com/a.png',
+      '--image=https://example.com/b.png',
+    ],
+    'dms send takes one --image; use posts send <club-id> for several'
+  ),
+  usageErrorCase(
+    'posts send missing link value',
+    ['posts', 'send', 'heap/~host/gallery', '--link'],
+    'Usage: tlon posts send'
+  ),
+  usageErrorCase(
+    'posts send refuses two attachments in one gallery post',
+    [
+      'posts',
+      'send',
+      'heap/~host/gallery',
+      '--image',
+      'https://example.com/a.png',
+      '--file',
+      'https://example.com/f.pdf',
+    ],
+    'galleries take one attachment per post'
+  ),
+  usageErrorCase(
+    'posts send refuses --link outside a gallery',
+    ['posts', 'send', 'chat/~host/channel', '--link', 'https://example.com'],
+    '--link is only supported for gallery (heap/) posts'
+  ),
+  usageErrorCase(
+    'posts send refuses a gallery link with a caption',
+    [
+      'posts',
+      'send',
+      'heap/~host/gallery',
+      'caption',
+      '--link',
+      'https://example.com',
+    ],
+    'a gallery link post has no caption'
+  ),
+  usageErrorCase(
+    'posts send refuses --video with --quote',
+    [
+      'posts',
+      'send',
+      'chat/~host/channel',
+      '--video',
+      'https://example.com/v.mp4',
+      '--quote',
+      'chat/~host/other',
+      '170.141',
+    ],
+    '--quote cannot be combined with --video'
+  ),
+  usageErrorCase(
+    'posts send refuses an empty --title value',
+    ['posts', 'send', 'heap/~host/gallery', 'hi', '--title', ''],
+    'Usage: tlon posts send'
+  ),
+  {
+    ...usageErrorCase(
+      'posts send never echoes a stray signed URL',
+      [
+        'posts',
+        'send',
+        'chat/~host/channel',
+        'hi',
+        '--bot',
+        '--file=https://x/f?token=SECRET',
+      ],
+      'Usage: tlon posts send'
+    ),
+    stderrExcludes: ['SECRET'],
+  },
+  {
+    ...usageErrorCase(
+      'posts send refuses a --file= option instead of posting it as text',
+      [
+        'posts',
+        'send',
+        'chat/~host/channel',
+        'hi',
+        '--file=https://x/f?token=SECRET',
+      ],
+      'Usage: tlon posts send'
+    ),
+    stderrExcludes: ['SECRET'],
+  },
+  usageErrorCase(
+    'posts send refuses trailing text after the options',
+    ['posts', 'send', 'heap/~host/gallery', 'hi', '--title', 'T', 'extra'],
+    'Unexpected argument 5 (counting the channel as 1)'
+  ),
+  refusalCase(
+    'posts send rejects a plain-http file url',
+    ['posts', 'send', 'chat/~host/channel', '--file', 'http://x/f.pdf'],
+    'Only https media URLs are supported.'
+  ),
+  refusalCase(
+    'posts send rejects a local video path',
+    ['posts', 'send', 'chat/~host/channel', '--video', './clip.mp4'],
+    'Local file paths are not supported for --video'
+  ),
+  refusalCase(
+    'posts send rejects a non-http link',
+    ['posts', 'send', 'heap/~host/gallery', '--link', 'ftp://x/y'],
+    '--link takes an http(s) URL.'
+  ),
+  {
+    ...refusalCase(
+      'posts send rejects a link with embedded credentials',
+      [
+        'posts',
+        'send',
+        'heap/~host/gallery',
+        '--link',
+        'https://user:secret@example.com/',
+      ],
+      '--link URLs with embedded credentials are not supported.'
+    ),
+    stderrExcludes: [
+      'secret',
+      'Usage:',
+      ...STACK_PATTERNS,
+      ...AUTH_CONFIG_PATTERNS,
+    ],
+  },
+  refusalCase(
+    'posts send rejects an unknown blob entry type',
+    [
+      'posts',
+      'send',
+      'chat/~host/channel',
+      'message',
+      '--blob',
+      '[{"type":"image","src":"https://x/y.png"}]',
+    ],
+    '--blob entry 0 has no known type. Known types: file,'
+  ),
+  usageErrorCase(
     'posts send rejects a value on the valueless --bot flag',
     ['posts', 'send', 'chat/~host/channel', 'message', '--bot=Botly'],
     'Usage: tlon posts send'
@@ -375,6 +531,21 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
   usageErrorCase(
     'dms reply rejects a value on the valueless --bot flag',
     ['dms', 'reply', '0v5.abcde', '~pen/170.141', 'message', '--bot=Botly'],
+    'Usage: tlon dms reply'
+  ),
+  usageErrorCase(
+    'dms send rejects a non-numeric --sent-at',
+    ['dms', 'send', '0v5.abcde', 'hi', '--sent-at', 'nope'],
+    'Usage: tlon dms send'
+  ),
+  usageErrorCase(
+    'dms send missing --sent-at value',
+    ['dms', 'send', '0v5.abcde', 'hi', '--sent-at'],
+    'Usage: tlon dms send'
+  ),
+  usageErrorCase(
+    'dms reply rejects a zero --sent-at',
+    ['dms', 'reply', '0v5.abcde', '~pen/170.141', 'hi', '--sent-at', '0'],
     'Usage: tlon dms reply'
   ),
   {
@@ -719,6 +890,23 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
     'use',
     '--help',
   ]),
+  authRequiredCase('dms send --sent-at reaches auth', [
+    'dms',
+    'send',
+    '0v123',
+    'hi',
+    '--sent-at',
+    '1234',
+  ]),
+  authRequiredCase('dms reply --sent-at reaches auth', [
+    'dms',
+    'reply',
+    '0v123',
+    '~zod/170.141',
+    'hi',
+    '--sent-at',
+    '1234',
+  ]),
   authRequiredCase('posts edit message option-like value reaches auth', [
     'posts',
     'edit',
@@ -740,7 +928,7 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
     'chat/~host/channel',
     'message',
     '--blob',
-    '[{"type":"a2ui","version":1,"messages":[]}]',
+    '[{"type":"tlon-context-lens","version":1,"lensId":"L1"}]',
   ]),
   authRequiredCase('posts send heap title reaches auth', [
     'posts',
@@ -756,6 +944,42 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
     'chat/~host/channel',
     '--image',
     'https://example.com/x.png',
+  ]),
+  authRequiredCase('posts send repeated chat attachments reach auth', [
+    'posts',
+    'send',
+    'chat/~host/channel',
+    '--image',
+    'https://example.com/a.png',
+    '--image',
+    'https://example.com/b.png',
+    '--file',
+    'https://example.com/f.pdf',
+    '--video',
+    'https://example.com/v.mp4',
+  ]),
+  authRequiredCase('posts send gallery file-only reaches auth', [
+    'posts',
+    'send',
+    'heap/~host/gallery',
+    '--file',
+    'https://example.com/f.pdf',
+  ]),
+  authRequiredCase('posts send gallery link reaches auth', [
+    'posts',
+    'send',
+    'heap/~host/gallery',
+    '--link',
+    'https://example.com',
+    '--title',
+    'Example',
+  ]),
+  authRequiredCase('posts send untitled gallery link reaches auth', [
+    'posts',
+    'send',
+    'heap/~host/gallery',
+    '--link',
+    'https://example.com',
   ]),
   authRequiredCase('dms send image-only reaches auth', [
     'dms',
@@ -1241,7 +1465,7 @@ export const POSTS_QUOTE_FORWARD_CASES: CliCase[] = [
   usageErrorCase(
     'posts send rejects text after the quote values',
     ['posts', 'send', 'chat/~host/channel', ...QUOTE_SOURCE, 'trailing'],
-    'Unexpected argument: trailing'
+    'Unexpected argument 5 (counting the channel as 1)'
   ),
   usageErrorCase(
     'posts reply rejects a trailing --self after the quote',
@@ -1254,7 +1478,7 @@ export const POSTS_QUOTE_FORWARD_CASES: CliCase[] = [
       ...QUOTE_SOURCE,
       '--self',
     ],
-    'Unexpected argument: --self'
+    'Unexpected argument 7 (counting the channel as 1)'
   ),
   usageErrorCase(
     'posts send --quote non-numeric post id',
@@ -1270,6 +1494,19 @@ export const POSTS_QUOTE_FORWARD_CASES: CliCase[] = [
     'posts forward rejects an unknown option',
     ['posts', 'forward', 'chat/~host/other', '170.141', '~zod', '--bogus'],
     'Unexpected argument: --bogus'
+  ),
+  usageErrorCase(
+    'posts forward rejects a non-numeric --sent-at',
+    [
+      'posts',
+      'forward',
+      'chat/~host/other',
+      '170.141',
+      '~zod',
+      '--sent-at',
+      'x',
+    ],
+    'Usage: tlon posts forward'
   ),
   diaryRefusedCase('posts forward to a diary target refuses', [
     'posts',
@@ -1345,6 +1582,15 @@ export const POSTS_QUOTE_FORWARD_CASES: CliCase[] = [
     'chat/~host/other',
     '170.141',
     '~zod',
+  ]),
+  authRequiredCase('posts forward --sent-at reaches auth', [
+    'posts',
+    'forward',
+    'chat/~host/other',
+    '170.141',
+    '~zod',
+    '--sent-at',
+    '1234',
   ]),
 ];
 
@@ -2110,6 +2356,84 @@ export const INVITE_LINK_CREDENTIAL_CASES: CliCase[] = [
   },
 ];
 
+// `groups join --invite`: input validation happens locally, and every path
+// that would reach the invite service authenticates first, so the hermetic
+// env (no credentials) proves no request leaves before auth.
+export const JOIN_INVITE_CASES: CliCase[] = [
+  usageErrorCase(
+    'groups join --invite missing value',
+    ['groups', 'join', '--invite'],
+    'Usage: tlon groups join'
+  ),
+  usageErrorCase(
+    'groups join --invite rejects unknown host',
+    ['groups', 'join', '--invite', 'https://example.com/0v1.abcde'],
+    'Usage: tlon groups join'
+  ),
+  usageErrorCase(
+    'groups join rejects positional plus --invite',
+    ['groups', 'join', '~zod/test', '--invite', '0v1.abcde'],
+    'Usage: tlon groups join'
+  ),
+  refusalCase(
+    'groups join --invite DM link refuses',
+    ['groups', 'join', '--invite', 'https://invite.tlon.io/dm-~zod'],
+    'is a DM link'
+  ),
+  helpCase(
+    'groups join --invite --help',
+    ['groups', 'join', '--invite', '0v1.abcde', '--help'],
+    'tlon groups join --invite'
+  ),
+  authRequiredCase('groups join --invite link reaches auth', [
+    'groups',
+    'join',
+    '--invite',
+    'https://invite.tlon.io/0v1.abcde',
+  ]),
+  authRequiredCase('groups join --invite --self reaches auth', [
+    'groups',
+    'join',
+    '--invite',
+    'https://invite.tlon.io/0v1.abcde',
+    '--self',
+  ]),
+  // A bare group id is not an invite: refused before any credential lookup.
+  usageErrorCase(
+    'groups join --invite rejects a bare group id',
+    ['groups', 'join', '--invite', '~zod/test'],
+    'Usage: tlon groups join'
+  ),
+  // A legacy flag-shaped link is verified on the provider, after auth.
+  authRequiredCase('groups join --invite legacy flag link reaches auth', [
+    'groups',
+    'join',
+    '--invite',
+    'https://invite.tlon.io/~zod/test',
+  ]),
+  authRequiredCase('groups join --invite web inviteToken link reaches auth', [
+    'groups',
+    'join',
+    '--invite',
+    'https://tlon.network/apps/groups/?inviteToken=0v1.abcde',
+  ]),
+  {
+    name: 'groups join --invite explicit --config is honored',
+    args: [
+      '--config',
+      '/nonexistent',
+      'groups',
+      'join',
+      '--invite',
+      'https://invite.tlon.io/0v1.abcde',
+    ],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['Ship config not found'],
+    stderrExcludes: ['Usage:', ...STACK_PATTERNS],
+  },
+];
+
 // `activity mute|unmute|volume`: target, post-id and level validation and the
 // local refusals all happen before any credential lookup.
 function activityUsageCase(
@@ -2511,6 +2835,7 @@ export const CLI_MATRIX_CASES: CliCase[] = [
   ...NOTES_CONTENT_UNSUPPORTED_CASES,
   ...DIARY_REMOVED_CASES,
   ...INVITE_LINK_CREDENTIAL_CASES,
+  ...JOIN_INVITE_CASES,
   ...ACTIVITY_VOLUME_CASES,
   ...ACTIVITY_MARK_READ_CASES,
   ...CHANNEL_MEMBERSHIP_CASES,
@@ -2532,6 +2857,10 @@ export const HOSTILE_HELP_COMMANDS: HostileHelpCommand[] = [
     args: [family, '--help'],
   })),
   { name: 'groups invite-link', args: ['groups', 'invite-link', '--help'] },
+  {
+    name: 'groups join --invite',
+    args: ['groups', 'join', '--invite', 'x', '--help'],
+  },
   ...['mute', 'unmute', 'volume'].map((command) => ({
     name: `activity ${command}`,
     args: ['activity', command, '--help'],

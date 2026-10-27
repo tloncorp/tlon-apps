@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView } from 'react-native';
+import { ScrollView, type ScrollViewInstance } from 'react-native';
 import { View, YStack, getTokenValue } from 'tamagui';
 
 import { StaticChatMessage } from '../../ChatMessage/StaticChatMessage';
@@ -40,7 +40,7 @@ export function BotChatPreview({
   friendShipId?: string;
 }) {
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   // Freeze a base timestamp so sentAt values remain stable across re-renders.
   const baseSentAtRef = useRef(Date.now());
 

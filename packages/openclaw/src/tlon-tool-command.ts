@@ -1,5 +1,14 @@
 import commandCatalog from '@tloncorp/tlon-skill/scripts/command-catalog.json' with { type: 'json' };
 import { locateOwnerShipConfig } from './owner-ship-config.js';
+import {
+  type OwnerToolPost,
+  type OwnerToolPostLedger,
+  type OwnerToolPostReservation,
+  canonicalPostId,
+  sharedOwnerToolPostLedger,
+} from './owner-tool-posts.js';
+import { RESERVED_ONBOARDING_BLOB_TYPES } from './onboarding-blob-types.js';
+import { sharedMap } from './shared-state.js';
 import { normalizeShip } from './targets.js';
 import {
   ALLOWED_TLON_COMMANDS as ALLOWED_TLON_SUBCOMMANDS,
@@ -404,6 +413,20 @@ function hasCredentialValue(args: string[], index: number): boolean {
   );
 }
 
+/** The ship a credential prefix's `--ship` names, which the CLI acts as. */
+function credentialPrefixShip(prefix: string[]): string | null {
+  let ship: string | null = null;
+  for (let index = 0; index < prefix.length; index += 1) {
+    const arg = prefix[index];
+    if (arg.startsWith('--ship=')) {
+      ship = arg.slice('--ship='.length);
+    } else if (arg === '--ship' && hasCredentialValue(prefix, index)) {
+      ship = prefix[index + 1];
+    }
+  }
+  return ship ? normalizeShip(ship) || null : null;
+}
+
 export function isBrowserHandoffCommand(args: string[]): boolean {
   // Redaction errs toward hiding: a `--self` anywhere does not shield a
   // browser capability from it.
@@ -466,7 +489,39 @@ export function redactTlonCommand(command: string): string {
     // Keep only the operation: arguments can carry a signed viewer capability.
     return `browser ${normalized[subIdx + 1].toLowerCase()} [REDACTED]`;
   }
-  return redactedCredential ? tokens.join(' ') : command;
+  const redactedInvite = redactGroupsJoinInvites(tokens);
+  return redactedCredential || redactedInvite ? tokens.join(' ') : command;
+}
+
+/** Redact every `--invite` value of `groups join` in place. */
+function redactGroupsJoinInvites(tokens: string[]): boolean {
+  // An invite link is a reusable capability to join a private group. Like the
+  // browser branch, `--self` and a malformed invite count do not shield it.
+  const normalized = normalizeTlonCommandArgs(
+    tokens.filter((arg) => arg !== SELF_FLAG)
+  ).args;
+  const subIdx = findTlonSubcommandIndex(normalized);
+  if (
+    normalized[subIdx]?.toLowerCase() !== 'groups' ||
+    normalized[subIdx + 1]?.toLowerCase() !== 'join'
+  ) {
+    return false;
+  }
+  let redacted = false;
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (tokens[index].startsWith('--invite=')) {
+      tokens[index] = '--invite=[REDACTED]';
+      redacted = true;
+    } else if (
+      tokens[index] === '--invite' &&
+      hasCredentialValue(tokens, index)
+    ) {
+      index += 1;
+      tokens[index] = '[REDACTED]';
+      redacted = true;
+    }
+  }
+  return redacted;
 }
 
 export type BlockedTlonOperation = {
@@ -478,6 +533,11 @@ export type BlockedTlonOperation = {
     | 'credential_override'
     | 'owner_self_dm'
     | 'bot_ship_unknown'
+    | 'owner_post_unstamped'
+    | 'owner_dm_unstamped'
+    | 'owner_send_unverified'
+    | 'owner_post_ledger_full'
+    | 'reserved_onboarding_request'
     | 'owner_workspace_unsupported'
     | 'runtime_settings_key'
     | 'reserved_automatic_provision'
@@ -605,6 +665,9 @@ const isImageFlag = (arg: string) =>
   arg === '--image' || arg.startsWith('--image=');
 const isPostSendBoundary = (arg: string) =>
   [
+    '--file',
+    '--video',
+    '--link',
     '--blob',
     '--title',
     '--sent-at',
@@ -621,8 +684,10 @@ const isPostReplyBoundary = (arg: string) =>
     '--quote',
     '--quote-parent',
   ].includes(arg);
-const isDmSendBoundary = (arg: string) => arg === '--bot' || isImageFlag(arg);
-const isDmReplyBoundary = (arg: string) => arg === '--bot';
+const isDmSendBoundary = (arg: string) =>
+  arg === '--bot' || arg === '--sent-at' || isImageFlag(arg);
+const isDmReplyBoundary = (arg: string) =>
+  arg === '--bot' || arg === '--sent-at';
 
 function isPostsMessageHelpLiteral(rest: string[]): boolean {
   const [operation, first, second] = rest;
@@ -680,6 +745,7 @@ function isSearchQueryHelpLiteral(rest: string[]): boolean {
  * | -------------------------------------------- | ------------------------------------------------------------------------ |
  * | contacts, channels, hooks, groups            | `<op>` is a help token, or the arguments are exactly `<op> <help>`       |
  * | groups invite-link                           | as groups, or any help token after `invite-link`                         |
+ * | groups join --invite                         | as groups, or any help token after `join` when an `--invite` is present  |
  * | activity, browser, settings, upload          | any help token                                                           |
  * | buckets, notes, expose                       | `<op>` is a help token, or any help token after `<op>`                   |
  * | posts                                        | as buckets, except inside `send`/`reply`/`edit` message text (content)   |
@@ -707,7 +773,12 @@ export function isTlonHelpInvocation(commandArgs: string[]): boolean {
       return (
         operationHelp ||
         exactOperationHelp ||
-        (rest[0] === 'invite-link' && anyHelpToken(rest.slice(1)))
+        (rest[0] === 'invite-link' && anyHelpToken(rest.slice(1))) ||
+        (rest[0] === 'join' &&
+          rest
+            .slice(1)
+            .some((arg) => arg === '--invite' || arg.startsWith('--invite=')) &&
+          anyHelpToken(rest.slice(1)))
       );
     case 'activity':
     case 'browser':
@@ -810,12 +881,46 @@ function ownerIdentityOrError(
 // token. Everything else acts as the bot or as the credentials it was given.
 const LEGACY_OWNER_OPERATIONS = new Set([
   'groups invite-link',
+  'groups join',
   'notes note-publish',
   'notes note-unpublish',
   'activity mute',
   'activity unmute',
   'activity volume',
   'activity mark-read',
+]);
+
+/**
+ * Legacy owner operations that act as the owner in one form only. A plain
+ * `groups join <flag>` joins as the bot; redeeming an invite link with
+ * `--invite` joins the person the link was shared with. Only exactly one
+ * well-formed `--invite` (the CLI's own rules) routes to the owner; anything
+ * else runs as written, so the CLI reports its usage error.
+ */
+const LEGACY_OWNER_FORMS = new Map<string, (operands: string[]) => boolean>([
+  [
+    'groups join',
+    (operands) => {
+      let invites = 0;
+      for (let i = 0; i < operands.length; i++) {
+        const arg = operands[i];
+        let value: string | undefined;
+        if (arg === '--invite') {
+          value = operands[i + 1];
+          i += 1;
+        } else if (arg.startsWith('--invite=')) {
+          value = arg.slice('--invite='.length);
+        } else {
+          continue;
+        }
+        if (value === undefined || value.startsWith('-') || !value.trim()) {
+          return false;
+        }
+        invites += 1;
+      }
+      return invites === 1;
+    },
+  ],
 ]);
 
 /**
@@ -826,11 +931,11 @@ const LEGACY_OWNER_OPERATIONS = new Set([
  * each, where its options start (index into `[family, operation, …]`) and
  * which of them take the next token as a value, mirroring the CLI's parse:
  *
- * - The legacy operations take no value options, and their parsers consume a
- *   `--self` token anywhere as the flag (`activity volume --self <target>
- *   <level>` is valid), so every token after the operation is an option
- *   position; none of their positionals (a flag, nest, id, target or level)
- *   can be a literal `--self`.
+ * - The legacy operations other than groups join (below) take no value
+ *   options, and their parsers consume a `--self` token anywhere as the flag
+ *   (`activity volume --self <target> <level>` is valid), so every token
+ *   after the operation is an option position; none of their positionals (a
+ *   flag, nest, id, target or level) can be a literal `--self`.
  * - create-owned: the title at 2, then `--admin`, `--owner` and
  *   `--description` with values (getCreateOwnedAdmin in tlon-skill).
  * - channels create, groups add-channel: the group at 2 and the title at 3,
@@ -848,10 +953,12 @@ const SELF_OPTION_POSITIONS = new Map<
     optionalPositional?: boolean;
   }
 >([
-  ...[...LEGACY_OWNER_OPERATIONS].map(
-    (operation) =>
-      [operation, { start: 2, valueOptions: NO_VALUE_OPTIONS }] as const
-  ),
+  ...[...LEGACY_OWNER_OPERATIONS]
+    .filter((operation) => operation !== 'groups join')
+    .map(
+      (operation) =>
+        [operation, { start: 2, valueOptions: NO_VALUE_OPTIONS }] as const
+    ),
   [
     'groups create-owned',
     {
@@ -908,8 +1015,10 @@ function resolveLegacyActingIdentity(
   deps: Pick<TlonToolExecutorDeps, 'ownerShip' | 'env' | 'fileExists'>
 ): TlonActingIdentity | { error: string } {
   const operation = `${commandArgs[0]?.toLowerCase() ?? ''} ${commandArgs[1]?.toLowerCase() ?? ''}`;
+  const form = LEGACY_OWNER_FORMS.get(operation);
   if (
     !LEGACY_OWNER_OPERATIONS.has(operation) ||
+    (form && !form(commandArgs.slice(2))) ||
     selfRequested ||
     hasCredentialFlag ||
     anyHelpToken(commandArgs)
@@ -925,6 +1034,8 @@ const BOT_CREDENTIAL_FLAG_MESSAGE =
   'Error: credential flags (--config, --ship, --url, --code, --cookie) are not accepted; this command runs as this bot.';
 const OWNER_IDENTITY_LOST_MESSAGE =
   'Error: this run lost owner identity while the command was pending; nothing was run. Run it again.';
+export const OWNER_CONFIG_CHANGED_MESSAGE =
+  "the bot's owner configuration changed while this command was pending; nothing was run. Run it again.";
 const BOT_ONLY_CREDENTIAL_FLAG_MESSAGE =
   'Error: credential flags (--config, --ship, --url, --code, --cookie) are not accepted on settings, browser or hooks; these commands always run as this bot.';
 const INVALID_DISCOVERY_MESSAGE =
@@ -959,6 +1070,307 @@ export function checkOwnerSelfDm(
         reason: 'owner_self_dm',
       }
     : null;
+}
+
+function containsAgentOnboardingRequest(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(containsAgentOnboardingRequest);
+  if (!value || typeof value !== 'object') return false;
+  const record = value as Record<string, unknown>;
+  if (
+    typeof record.type === 'string' &&
+    RESERVED_ONBOARDING_BLOB_TYPES.has(record.type)
+  ) {
+    return true;
+  }
+  return Object.values(record).some(containsAgentOnboardingRequest);
+}
+
+/** Owner-credentialed posts may not carry an onboarding request blob. */
+export function checkOwnerReservedBlob(
+  commandArgs: string[],
+  ownerCredentialed: boolean
+): BlockedTlonOperation | null {
+  return ownerCredentialed &&
+    hasReservedBlobContent(commandArgs, containsAgentOnboardingRequest)
+    ? {
+        message:
+          'Blocked: agent onboarding requests cannot be posted through owner-credentialed tool calls; only the Tlon app sends them.',
+        reason: 'reserved_onboarding_request',
+      }
+    : null;
+}
+
+/**
+ * The sends the plugin timestamps when they run as the owner: where the
+ * CLI's message slice starts (in its own argument coordinates) and the
+ * boundary that ends it. A forward has no message: its stamp goes last, after
+ * the three positionals and any `--parent` pair.
+ */
+const OWNER_TIMESTAMPED_SENDS = new Map<
+  string,
+  { messageStart: number; isBoundary: (arg: string) => boolean }
+>([
+  ['posts send', { messageStart: 2, isBoundary: isPostSendBoundary }],
+  ['posts reply', { messageStart: 3, isBoundary: isPostReplyBoundary }],
+  ['posts forward', { messageStart: 4, isBoundary: () => false }],
+  ['dms send', { messageStart: 2, isBoundary: isDmSendBoundary }],
+  ['dms reply', { messageStart: 3, isBoundary: isDmReplyBoundary }],
+]);
+
+/**
+ * `[family, op, …]` carrying the plugin's `--sent-at <stamp>`, or null for an
+ * operation the plugin does not timestamp. The CLI reads the first
+ * `--sent-at`, so a model-supplied one is overwritten in place; otherwise the
+ * pair goes at the message boundary, which leaves the message slice as it was.
+ */
+export function withOwnerSentAt(
+  commandArgs: string[],
+  stamp: number
+): string[] | null {
+  const send = OWNER_TIMESTAMPED_SENDS.get(
+    `${commandArgs[0] ?? ''} ${commandArgs[1] ?? ''}`
+  );
+  if (!send) return null;
+  const rest = commandArgs.slice(1);
+  const value = String(stamp);
+  const existing = rest.indexOf('--sent-at');
+  if (existing !== -1) {
+    const next = rest[existing + 1];
+    if (next !== undefined && !next.startsWith('--')) {
+      rest[existing + 1] = value;
+    } else {
+      rest.splice(existing + 1, 0, value);
+    }
+  } else {
+    const at = Math.max(
+      boundaryIndex(rest, send.isBoundary),
+      send.messageStart
+    );
+    rest.splice(Math.min(at, rest.length), 0, '--sent-at', value);
+  }
+  return [commandArgs[0], ...rest];
+}
+
+/** The first `--parent` value in the CLI's own arguments, as the CLI reads it. */
+function firstParentId(commandArgs: string[]): string | undefined {
+  const rest = commandArgs.slice(1);
+  const index = rest.indexOf('--parent');
+  const value = index === -1 ? undefined : rest[index + 1];
+  return value && !value.startsWith('--') ? canonicalPostId(value) : undefined;
+}
+
+/** The message `posts edit` sets, sliced as the CLI's getPostEditMessage does. */
+function ownerEditText(commandArgs: string[]): string {
+  const rest = commandArgs.slice(1);
+  const parentIdx = rest.indexOf('--parent');
+  return rest
+    .slice(3)
+    .filter(
+      (_, i) =>
+        parentIdx === -1 || (i + 3 !== parentIdx && i + 3 !== parentIdx + 1)
+    )
+    .join(' ');
+}
+
+const OWNER_REACTION_OPERATIONS = new Set(['posts react', 'dms react']);
+const OWNER_REACTION_REMOVAL_OPERATIONS = new Set([
+  'posts unreact',
+  'dms unreact',
+]);
+
+/**
+ * The ledger entry for an owner-credentialed write the monitor could see as
+ * an owner message or reaction, or null for every other operation.
+ */
+function ownerToolPostFor(
+  commandArgs: string[],
+  base: { accountId: string; author: string | null },
+  stamp: number | null
+): OwnerToolPost | null {
+  const operation = `${commandArgs[0] ?? ''} ${commandArgs[1] ?? ''}`;
+  // A forward names its target after the source post.
+  const target = commandArgs[operation === 'posts forward' ? 4 : 2] ?? '';
+  const postId = commandArgs[3];
+  if (stamp !== null) {
+    return { ...base, kind: 'send', target, sentAt: stamp };
+  }
+  // Without a sent time to pin it, an entry with no author would match every
+  // ship's identical edit or reaction; flag-off credentials carry no
+  // owner-input guarantee anyway, so none is recorded.
+  if (base.author === null) return null;
+
+  const parentId = firstParentId(commandArgs);
+  const parent = parentId ? { parentId } : {};
+  if (operation === 'posts edit' && postId) {
+    return {
+      ...base,
+      kind: 'edit',
+      target,
+      postId: canonicalPostId(postId),
+      ...parent,
+      editText: ownerEditText(commandArgs),
+    };
+  }
+  const reaction = commandArgs[4];
+  if (OWNER_REACTION_OPERATIONS.has(operation) && postId && reaction) {
+    return {
+      ...base,
+      kind: 'react',
+      target,
+      postId: canonicalPostId(postId),
+      reaction,
+      ...parent,
+    };
+  }
+  if (OWNER_REACTION_REMOVAL_OPERATIONS.has(operation) && postId) {
+    return {
+      ...base,
+      kind: 'unreact',
+      target,
+      postId: canonicalPostId(postId),
+      ...parent,
+    };
+  }
+  return null;
+}
+
+const OWNER_POST_UNSTAMPED_MESSAGE =
+  "Blocked: the installed tlon CLI cannot timestamp posts send, reply or forward, so it cannot post in the owner's name. Update the tlon skill, or add --self to post as this bot.";
+const OWNER_DM_UNSTAMPED_MESSAGE =
+  "Blocked: the installed tlon CLI cannot timestamp group DM sends, so it cannot send one in the owner's name. Update the tlon skill, or add --self to send it as this bot.";
+const OWNER_DM_SEND_HINT =
+  " To send it in the owner's name instead, use posts send <ship> <text> (posts reply for a reply), after confirming with the owner unless they asked explicitly.";
+const OWNER_SEND_UNVERIFIED_MESSAGE =
+  "Blocked: the installed tlon CLI could not be checked for timestamp support, so nothing was sent in the owner's name. Retry; the check runs again on the next send. Or add --self to send it as this bot.";
+const OWNER_POST_LEDGER_FULL_MESSAGE =
+  'Blocked: owner-action tracking is full. Entries are retained for six hours; retry after older entries expire, or add --self.';
+
+const SENT_AT_TOKEN = /(?<![\w-])--sent-at(?![\w-])/;
+type SentAtSupport = 'supported' | 'unsupported';
+// One probe per family, and one for posts forward (which gained --sent-at
+// after send), shared by concurrent first sends. Only support is
+// kept: an unsupported or failed probe is forgotten, so a CLI that gains
+// --sent-at is picked up on the next send, and one that has it does not lose it.
+const sentAtSupport = sharedMap<string, Promise<SentAtSupport>>(
+  'tlonTool.sentAtSupport'
+);
+
+export const _testing = {
+  clearSentAtSupport: () => sentAtSupport.clear(),
+};
+
+/**
+ * Whether the installed CLI's `<family> <operation>` takes --sent-at. The
+ * runner can fall back to a `tlon` on PATH, and an older one would post the
+ * flag and the timestamp as message text. 'unverified' when the probe itself failed.
+ */
+async function cliSentAtSupport(
+  family: string,
+  operation: string,
+  deps: TlonToolExecutorDeps
+): Promise<SentAtSupport | 'unverified'> {
+  const key = `${family} ${operation}`;
+  let probe = sentAtSupport.get(key);
+  if (!probe) {
+    const started = deps
+      .runCommand([family, operation, '--help'])
+      .then(
+        (help): SentAtSupport =>
+          SENT_AT_TOKEN.test(help) ? 'supported' : 'unsupported'
+      );
+    probe = started;
+    sentAtSupport.set(key, started);
+    const forget = () => {
+      if (sentAtSupport.get(key) === started) sentAtSupport.delete(key);
+    };
+    started.then((support) => {
+      if (support !== 'supported') forget();
+    }, forget);
+  }
+  try {
+    const support = await probe;
+    if (support === 'unsupported') {
+      deps.logError?.(
+        `Refusing owner ${family} sends: the installed tlon CLI's ${key} does not take --sent-at.`
+      );
+    }
+    return support;
+  } catch (error) {
+    deps.logError?.(
+      `Refusing an owner ${family} send: could not check the tlon CLI's ${key} for --sent-at: ${String(error)}`
+    );
+    return 'unverified';
+  }
+}
+
+type OwnerToolPostPlan =
+  | { command: string[]; post: OwnerToolPost | null }
+  | { blocked: BlockedTlonOperation };
+
+/** cliSentAtSupport for a send the plugin timestamps, else null. */
+async function ownerSendSupport(
+  commandArgs: string[],
+  deps: TlonToolExecutorDeps
+): Promise<SentAtSupport | 'unverified' | null> {
+  const family = commandArgs[0] ?? '';
+  const operation = commandArgs[1] ?? '';
+  const send = OWNER_TIMESTAMPED_SENDS.get(`${family} ${operation}`);
+  // Without its positionals the CLI stops at a usage error and sends nothing.
+  if (!send || commandArgs.length - 1 < send.messageStart) return null;
+  return cliSentAtSupport(
+    family,
+    operation === 'forward' ? 'forward' : 'send',
+    deps
+  );
+}
+
+/**
+ * Stamps an owner-credentialed send with the plugin's own `sent` and works out
+ * the ledger entry for it (sends, edits, reactions and reaction removals), so the monitor can
+ * tell the bot's owner-authored writes from the owner's own.
+ */
+function planOwnerToolPost(
+  commandArgs: string[],
+  author: string | null,
+  ledger: OwnerToolPostLedger,
+  deps: TlonToolExecutorDeps,
+  support: SentAtSupport | 'unverified' | null
+): OwnerToolPostPlan {
+  const base = { accountId: deps.accountId ?? 'default', author };
+  const family = commandArgs[0] ?? '';
+  if (support === null) {
+    return {
+      command: commandArgs,
+      post: ownerToolPostFor(commandArgs, base, null),
+    };
+  }
+  if (support === 'unverified') {
+    return {
+      blocked: {
+        message: OWNER_SEND_UNVERIFIED_MESSAGE,
+        reason: 'owner_send_unverified',
+      },
+    };
+  }
+  if (support === 'unsupported') {
+    return {
+      blocked:
+        family === 'dms'
+          ? {
+              message: OWNER_DM_UNSTAMPED_MESSAGE,
+              reason: 'owner_dm_unstamped',
+            }
+          : {
+              message: OWNER_POST_UNSTAMPED_MESSAGE,
+              reason: 'owner_post_unstamped',
+            },
+    };
+  }
+  const stamp = ledger.allocateSentAt();
+  return {
+    command: withOwnerSentAt(commandArgs, stamp)!,
+    post: ownerToolPostFor(commandArgs, base, stamp),
+  };
 }
 
 // Keys the runtime owns: who can reach the bot and pending owner consent.
@@ -1423,12 +1835,18 @@ export type TlonToolExecutorDeps = {
   botShip?: string;
   env?: NodeJS.ProcessEnv;
   fileExists?: (path: string) => boolean;
+  /** The account whose credentials the tool runs with, for the ledger. */
+  accountId?: string;
+  /** Defaults to the process-wide ledger the monitor reads. */
+  ownerToolPosts?: OwnerToolPostLedger;
   /**
    * The run the gate approved as an owner run has since lost owner identity
    * (a non-owner message or `sessions_send` demoted it): a command that would
    * act as the owner is refused.
    */
-  ownerIdentityLost?: boolean;
+  ownerIdentityLost?: () => boolean;
+  /** The owner config the gate approved against has since been replaced. */
+  ownerConfigChanged?: () => boolean;
   /**
    * Reject credential flags with the flag off too: a call with no gate
    * approval runs as the bot only.
@@ -1442,8 +1860,8 @@ export type TlonToolExecutorDeps = {
  */
 export function formatTlonIdentityGuidance(ownerDefault: boolean): string {
   return ownerDefault
-    ? 'Commands act as your owner by default: reads return the owner\'s data and writes land on the owner\'s ship. Put --self before the command (for example --self contacts self) to act as this bot: its own DMs, profile, contacts, membership, hosted groups, and uploads you send with message. A workspace for your owner is groups create-owned "Name" --admin <your ship>: it runs as the owner, so the owner\'s ship hosts it and you are its admin (naming the owner as --admin is rewritten to you). A group you host yourself, for your own automation, is --self groups create-owned "Name" --admin <owner>. A --self after the command is an ordinary argument, except in groups create-owned, channels create, groups add-channel, groups join, groups invite-link, notes note-publish and note-unpublish, and activity mute, unmute, volume and mark-read, where --self as an option (not a title or an option\'s value) also selects the bot. settings, browser and hooks always act as the bot. Credential flags are rejected. Only turns answering the owner act as the owner; scheduled jobs, the heartbeat and subagents act as the bot, and so does an answer to the owner while an earlier reply is still in progress (say so and let them ask again).'
-    : 'Commands act as this bot. groups invite-link, notes note-publish and note-unpublish, and activity mute, unmute, volume and mark-read act as the owner unless --self is given. Owner credentials from the documented owner configuration are accepted.';
+    ? 'Commands act as your owner by default: reads return the owner\'s data and writes land on the owner\'s ship. Put --self before the command (for example --self contacts self) to act as this bot: its own DMs, profile, contacts, membership, hosted groups, and uploads you send with message. When run as the owner, posts send|reply|forward and dms send|reply post in the owner\'s name and look exactly like something the owner typed (--bot adds only a Bot tag); your own voice is the message tool. Before sending in the owner\'s name, confirm with the owner unless their instruction was explicit ("tell ~x I\'m late" is explicit; "handle this" is not). A workspace for your owner is groups create-owned "Name" --admin <your ship>: it runs as the owner, so the owner\'s ship hosts it and you are its admin (naming the owner as --admin is rewritten to you). A group you host yourself, for your own automation, is --self groups create-owned "Name" --admin <owner>. A --self after the command is an ordinary argument, except in groups create-owned, channels create, groups add-channel, groups join, groups invite-link, notes note-publish and note-unpublish, and activity mute, unmute, volume and mark-read, where --self as an option (not a title or an option\'s value) also selects the bot. settings, browser and hooks always act as the bot. Credential flags are rejected. Only turns answering the owner act as the owner; scheduled jobs, the heartbeat and subagents act as the bot, and so does an answer to the owner while an earlier reply is still in progress (say so and let them ask again).'
+    : 'Commands act as this bot. groups invite-link, groups join --invite, notes note-publish and note-unpublish, and activity mute, unmute, volume and mark-read act as the owner unless --self is given. Owner credentials from the documented owner configuration are accepted.';
 }
 
 /** Which commands read or change different data under each identity. */
@@ -1453,7 +1871,7 @@ const OWNER_DEFAULT_IDENTITY_TABLE = [
   "  activity (incl. mute, unmute, volume, mark-read): the owner's activity, notification levels and read state; with --self, the bot's.",
   "  contacts self|list|add|remove|update|update-profile: the owner's profile and contact book; with --self, the bot's.",
   "  groups list|join|leave|accept-invite|reject-invite|request-invite, channels join|leave: the owner's membership; with --self, the bot's.",
-  '  posts send|reply|forward to ~ship: a DM from the owner; with --self, from the bot (prefer message).',
+  "  posts send|reply|forward to ~ship: a DM in the owner's name, as if the owner typed it; use message for your own DMs.",
   "  posts react|unreact|edit|delete: as the owner (edit only the owner's posts); with --self, as the bot.",
   "  dms react|unreact|delete: in the owner's DMs; with --self, in the bot's.",
   '  hooks: always this bot (hooks in channels the bot hosts or administers).',
@@ -1470,7 +1888,7 @@ export function formatTlonToolDescription(ownerDefault: boolean): string {
     'Read the tlon skill at its available-skills location for the task workflow. Use command "help" or "help <command> [operation]" to discover exact syntax. ' +
     'Pass arguments only, without a leading tlon executable. Relative files use the active agent workspace; shell expansion, pipes, redirections, and stdin are unavailable. ' +
     'Use message for ordinary sends/replies. To share a hosted browser for viewing or control, use browser share <session_id> to send a rich browser-session link card; never send raw or labeled browser-session links in ordinary messages. For secure browser input, use browser handoff <session_id> --fields <JSON array> with current snapshot refs when the owner should fill only selected controls; omit --fields for automatic discovery of the visible form. Use help browser for syntax and quoting examples. Both browser commands take the sess_ handle from browser_session_create, never a viewer URL. Legacy diary migrations require the owner’s /migrate command. ' +
-    'Never use a browser to operate Tlon itself: if neither this tool nor message can do what was asked, say your Tlon tools do not support it yet and, where the Tlon app offers it, that the user can do it there. ' +
+    'Never use a browser to operate Tlon itself: if, after checking help and help <command>, neither this tool nor message can do what was asked, say your Tlon tools do not support it yet and, where the Tlon app offers it, that the user can do it there. ' +
     'Verify the result and report any unresolved failure before ending the turn.'
   );
 }
@@ -1632,6 +2050,13 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
               );
             });
         }
+        if (
+          blocked.reason === 'send_operation' &&
+          deps.ownerDefault &&
+          !normalized.selfRequested
+        ) {
+          blocked.message += OWNER_DM_SEND_HINT;
+        }
         return blockedResult(deps, blocked, subcommand);
       }
 
@@ -1677,9 +2102,6 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
       if ('error' in identity) {
         return errorResult(identity.error);
       }
-      if (identity.actAs === 'owner' && deps.ownerIdentityLost) {
-        return errorResult(OWNER_IDENTITY_LOST_MESSAGE);
-      }
 
       // Model-supplied credentials (allowed only with the flag off) are as
       // owner-capable as the owner prefix.
@@ -1687,14 +2109,65 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
       const guarded = isHelp
         ? null
         : (checkOwnerSelfDm(command, ownerCredentialed, deps.botShip) ??
+          checkOwnerReservedBlob(command, ownerCredentialed) ??
           checkRuntimeSettingsKey(command));
+      // The --sent-at probe can wait on a CLI spawn: it settles before the
+      // identity and config checks, not between them and the run.
+      const sendSupport =
+        ownerCredentialed && !isHelp && !guarded
+          ? await ownerSendSupport(command, deps)
+          : null;
+      if (deps.ownerConfigChanged?.()) {
+        return errorResult(`Error: ${OWNER_CONFIG_CHANGED_MESSAGE}`);
+      }
+      if (identity.actAs === 'owner' && deps.ownerIdentityLost?.()) {
+        return errorResult(OWNER_IDENTITY_LOST_MESSAGE);
+      }
       if (guarded) {
         return blockedResult(deps, guarded, subcommand);
       }
 
+      // Owner-credentialed writes the monitor would see as the owner's own
+      // are stamped and recorded before they run. Model-supplied credentials
+      // (flag off) name the acting ship only through `--ship`; without it only
+      // a send is recorded, with no author, matched by target and sent time.
+      let sentCommand = command;
+      let reservation: OwnerToolPostReservation | null = null;
+      if (ownerCredentialed && !isHelp) {
+        const ledger = deps.ownerToolPosts ?? sharedOwnerToolPostLedger();
+        const plan = planOwnerToolPost(
+          command,
+          identity.actAs === 'owner'
+            ? identity.ship
+            : credentialPrefixShip(args.slice(0, subIdx)),
+          ledger,
+          deps,
+          sendSupport
+        );
+        if ('blocked' in plan) {
+          return blockedResult(deps, plan.blocked, subcommand);
+        }
+        if (plan.post) {
+          reservation = ledger.reserve(plan.post);
+          if (!reservation) {
+            return blockedResult(
+              deps,
+              {
+                message: OWNER_POST_LEDGER_FULL_MESSAGE,
+                reason: 'owner_post_ledger_full',
+              },
+              subcommand
+            );
+          }
+        }
+        sentCommand = plan.command;
+      }
+
       // With the flag off, credential flags pass through in place.
       let runArgs =
-        identity.actAs === 'owner' ? [...identity.prefix, ...command] : args;
+        identity.actAs === 'owner'
+          ? [...identity.prefix, ...sentCommand]
+          : [...args.slice(0, subIdx), ...sentCommand];
       // Says where a command meant for the owner ran instead, so the model
       // can report the host. It asserts an outcome, so only a success gets it.
       let routingNote: string | undefined;
@@ -1729,7 +2202,14 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
         ));
       }
 
-      const output = withNote(await deps.runCommand(runArgs), routingNote);
+      let ran: string;
+      try {
+        ran = await deps.runCommand(runArgs);
+      } catch (error) {
+        reservation?.release();
+        throw error;
+      }
+      const output = withNote(ran, routingNote);
       const echoes =
         deps.ownerDefault &&
         !isHelp &&
@@ -2371,7 +2851,7 @@ function summarizePostsOperation(
 ): TlonToolCallContext {
   const positionals = collectPositionals(
     args,
-    new Set(['--title', '--image', '--content'])
+    new Set(['--title', '--image', '--file', '--video', '--link', '--content'])
   );
   // A forward acts in its target, the third positional.
   const channelKind = detectChannelKind(

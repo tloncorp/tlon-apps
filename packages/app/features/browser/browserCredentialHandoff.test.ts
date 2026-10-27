@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   type BrowserCredentialHandoff,
   beginBrowserCredentialHandoff,
-  nextBrowserCredentialHandoff,
+  cancelBrowserCredentialHandoff,
   submitBrowserCredentials,
   trustedBrowserViewerUrl,
 } from './browserCredentialHandoff';
@@ -52,6 +52,85 @@ afterEach(() => {
 });
 
 describe('secure browser form transport', () => {
+  it('distinguishes an ended request from a missing live form without echoing server text', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          response(
+            { code: 'handoff_complete', error: 'private server detail' },
+            404
+          )
+        )
+    );
+    await expect(beginBrowserCredentialHandoff(viewer)).rejects.toMatchObject({
+      status: 404,
+      code: 'handoff_complete',
+      message:
+        'This secure-entry request has ended. Ask your bot for a new form.',
+    });
+  });
+  it.each(['one-time-code', 'new-password', 'cc-number'])(
+    'ignores advertised saved logins for %s fields',
+    async (purpose) => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          response(
+            body({
+              fields: [{ ...field, purpose }],
+              vault: {
+                available: true,
+                planet: 'sampel-palnet',
+                moon: 'pinser-botter-sampel-palnet',
+              },
+            })
+          )
+        )
+      );
+      const result = await beginBrowserCredentialHandoff(viewer);
+      expect(result.vault).toBeUndefined();
+      expect(result.fields[0].purpose).toBe(purpose);
+    }
+  );
+  it('cancels only the signed viewer session without sending values or owner proof', async () => {
+    const request = vi.fn().mockResolvedValue(response({ ok: true }));
+    vi.stubGlobal('fetch', request);
+    await cancelBrowserCredentialHandoff(viewer);
+    expect(String(request.mock.calls[0][0])).toBe(
+      'https://browser-session-ovh1.tlon.network/credentials/payload.signature'
+    );
+    expect(request.mock.calls[0][1]).toMatchObject({
+      method: 'DELETE',
+      credentials: 'omit',
+      redirect: 'error',
+    });
+    expect(request.mock.calls[0][1].body).toBeUndefined();
+    await expect(
+      cancelBrowserCredentialHandoff('https://evil.example/s/payload.signature')
+    ).rejects.toThrow('trusted');
+    expect(request).toHaveBeenCalledOnce();
+  });
+  it('retries a failed cancellation once and rejects an unacknowledged cancellation', async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(response({}, 503))
+      .mockResolvedValueOnce(response({ ok: true }));
+    vi.stubGlobal('fetch', request);
+    await cancelBrowserCredentialHandoff(viewer);
+    expect(request).toHaveBeenCalledTimes(2);
+    request.mockClear().mockResolvedValue(response({}, 500));
+    await expect(cancelBrowserCredentialHandoff(viewer)).rejects.toThrow(
+      'could not be canceled'
+    );
+    expect(request).toHaveBeenCalledTimes(2);
+    request.mockClear().mockResolvedValue(response({}, 401));
+    await expect(cancelBrowserCredentialHandoff(viewer)).rejects.toThrow(
+      'could not be canceled'
+    );
+    expect(request).toHaveBeenCalledOnce();
+  });
   it('exchanges a trusted viewer capability, projects only metadata, and posts values only to its fill endpoint', async () => {
     const request = vi
       .fn()
@@ -85,12 +164,13 @@ describe('secure browser form transport', () => {
     ).resolves.toEqual({ submitted: true });
     expect(JSON.parse(request.mock.calls[1][1].body)).toEqual({
       values: { f0: 'not-in-chat' },
-      submit: true,
+      submit: false,
     });
     expect(request.mock.calls[1][1]).toMatchObject({
       signal: controller.signal,
       credentials: 'omit',
       referrerPolicy: 'no-referrer',
+      redirect: 'error',
     });
   });
 
@@ -196,7 +276,7 @@ describe('secure browser form transport', () => {
     ).rejects.toThrow('Complete');
     await submitBrowserCredentials(target, {
       values: { f0: 'aBc123' },
-      submit: true,
+      submit: false,
     });
     expect(JSON.parse(request.mock.calls[0][1].body).values.f0).toBe('aBc123');
   });
@@ -221,86 +301,13 @@ describe('secure browser form transport', () => {
     await expect(
       submitBrowserCredentials(target, {
         values: { f0: '4111111111111111' },
-        submit: true,
+        submit: false,
       })
     ).resolves.toEqual({ submitted: false });
     expect(JSON.parse(request.mock.calls[0][1].body).submit).toBe(false);
     await expect(
       submitBrowserCredentials(target, { values: { f0: '4111111111111111' } })
     ).rejects.toThrow('Reconnect before trying again');
-  });
-});
-
-describe('next secure step', () => {
-  it('waits through navigation, then returns a changed form without submitting it', async () => {
-    vi.useFakeTimers();
-    const request = vi
-      .fn()
-      .mockResolvedValueOnce(response({}, 404))
-      .mockResolvedValueOnce(
-        response(body({ formId: 'next', origin: 'https://identity.example' }))
-      );
-    vi.stubGlobal('fetch', request);
-    const pending = nextBrowserCredentialHandoff(
-      viewer,
-      'form-1',
-      new AbortController().signal
-    );
-    await vi.advanceTimersByTimeAsync(600);
-    await expect(pending).resolves.toMatchObject({
-      formId: 'next',
-      origin: 'https://identity.example',
-    });
-    expect(request.mock.calls.every((call) => call[1].method === 'GET')).toBe(
-      true
-    );
-  });
-  it.each(['same', 'missing'])(
-    'waits for settling and returns %s without assuming authentication',
-    async (state) => {
-      vi.useFakeTimers();
-      vi.stubGlobal(
-        'fetch',
-        vi
-          .fn()
-          .mockImplementation(async () =>
-            state === 'same' ? response(body()) : response({}, 404)
-          )
-      );
-      const pending = nextBrowserCredentialHandoff(
-        viewer,
-        'form-1',
-        new AbortController().signal
-      );
-      await vi.advanceTimersByTimeAsync(5100);
-      if (state === 'same')
-        await expect(pending).resolves.toMatchObject({ formId: 'form-1' });
-      else await expect(pending).resolves.toBeNull();
-    }
-  );
-  it('aborts polling immediately and never turns a network failure into completion', async () => {
-    vi.useFakeTimers();
-    const request = vi.fn();
-    vi.stubGlobal('fetch', request);
-    const controller = new AbortController();
-    const pending = nextBrowserCredentialHandoff(
-      viewer,
-      'form-1',
-      controller.signal
-    );
-    const rejected = expect(pending).rejects.toBeDefined();
-    controller.abort();
-    await rejected;
-    expect(request).not.toHaveBeenCalled();
-    request.mockRejectedValue(new Error('Network unavailable'));
-    const failure = nextBrowserCredentialHandoff(
-      viewer,
-      'form-1',
-      new AbortController().signal
-    );
-    const failed = expect(failure).rejects.toThrow('Network unavailable');
-    await vi.advanceTimersByTimeAsync(300);
-    await failed;
   });
 });
 
@@ -321,7 +328,6 @@ describe('local viewer development opt-in', () => {
     expect(() =>
       trustedBrowserViewerUrl('http://127.0.0.1:8906/s/demo.signature')
     ).toThrow();
-    vi.stubEnv('EXPO_PUBLIC_BROWSER_VIEWER_DEV_ORIGIN', 'http://example.com');
     expect(() =>
       trustedBrowserViewerUrl('http://example.com/s/demo.signature')
     ).toThrow();
@@ -341,4 +347,42 @@ describe('local viewer development opt-in', () => {
       trustedBrowserViewerUrl('http://127.0.0.1:8905/s/demo.signature')
     ).toThrow();
   });
+});
+
+describe('explicit web viewer development origin', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+  it.each([
+    'http://127.0.0.1:43841',
+    'http://192.168.1.25:43841',
+    'http://viewer.local:43841',
+  ])(
+    'accepts exactly the configured origin in an opted-in web bundle: %s',
+    (origin) => {
+      vi.stubGlobal('__DEV__', false);
+      vi.stubEnv('TLON_BROWSER_VIEWER_DEV_ORIGIN', origin);
+      expect(trustedBrowserViewerUrl(`${origin}/s/demo.signature`)).toBe(
+        `${origin}/s/demo.signature`
+      );
+      expect(() =>
+        trustedBrowserViewerUrl(
+          `${origin.replace('43841', '43842')}/s/demo.signature`
+        )
+      ).toThrow();
+      expect(() =>
+        trustedBrowserViewerUrl(`${origin}/other/demo.signature`)
+      ).toThrow();
+      expect(() =>
+        trustedBrowserViewerUrl(
+          `${origin.replace('http://', 'http://user@')}/s/demo.signature`
+        )
+      ).toThrow();
+      vi.stubEnv('TLON_BROWSER_VIEWER_DEV_ORIGIN', '');
+      expect(() =>
+        trustedBrowserViewerUrl(`${origin}/s/demo.signature`)
+      ).toThrow();
+    }
+  );
 });

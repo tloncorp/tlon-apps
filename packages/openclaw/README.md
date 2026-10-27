@@ -199,6 +199,13 @@ channels:
         # Show model info in responses
         showModelSignature: false
 
+        # Show the agent's short pre-tool commentary in the Thinking row for the
+        # rest of the turn; tool labels appear only when the model has not
+        # written any commentary in that turn. Default: true.
+        # `false` restores the previous behaviour: no commentary, and tool
+        # labels appear only while `/verbose on` is set.
+        showCommentary: true
+
         # Optional PostHog telemetry. Disabled unless explicitly enabled.
         telemetry:
             enabled: true
@@ -237,7 +244,7 @@ The plugin does not enable telemetry automatically just because an API key is pr
 
 ## Steward automation mirror
 
-Targeting OpenClaw `2026.9.33` (hosted bots stay on `2026.7.1` until the bundle flips; the SDK devDependency matches, and the plugin pins Node 24.16.0 in `packages/openclaw/.nvmrc`), the plugin keeps a best-effort ship-side mirror of cron definitions in the bot's local `%steward`. `gateway_start` and every `cron_changed` action trigger a complete `getCron().list({ includeDisabled: true })` read. The plugin normalizes supported `cron`, `at`, and `every` schedules (including ISO `at` text to Unix milliseconds) and submits the complete list through `%steward-automation-action-1` as one `%project` poke.
+Targeting OpenClaw `2026.9.33` (hosted bots stay on `2026.7.1` until the bundle flips; the SDK devDependency matches, and the plugin pins Node 24.22.1 in `packages/openclaw/.nvmrc`), the plugin keeps a best-effort ship-side mirror of cron definitions in the bot's local `%steward`. `gateway_start` and every `cron_changed` action trigger a complete `getCron().list({ includeDisabled: true })` read. The plugin normalizes supported `cron`, `at`, and `every` schedules (including ISO `at` text to Unix milliseconds) and submits the complete list through `%steward-automation-action-1` as one `%project` poke.
 
 Reconciliation is serialized and busy-period triggers are coalesced. Unavailable cron access, read failures, missing ship connections, and poke acknowledgement failures retry while the gateway is active. `gateway_stop` cancels retries and guards against a stale post-stop submission, but deliberately leaves the last successful Steward snapshot intact. The same process-lifetime worker is reused across OpenClaw plugin-registration passes. These behaviors repair the mirror after a later successful read; they do not guarantee continuous freshness.
 
@@ -248,6 +255,12 @@ OpenClaw remains authoritative. The mirror includes disabled task definitions, i
 The owner can create, update, and delete the bot's cron jobs from a Tlon client. The edit travels client → owner ship → bot ship → this plugin, and the plugin is the only party that touches OpenClaw: the bot's `%steward` gives each pending command as a `dispatch` fact on `/v1/automation/harness`, the monitor subscribes to that feed alongside the lens feed, and `src/steward-automation-edit.ts` maps the command onto the gateway `CronService` (`add`, `update`, `remove`, reached through the same `getCron()` accessor the telemetry observer stashes) and answers with a `%finalize` poke under `%steward-automation-action-1`. Commands are applied one at a time in arrival order.
 
 A create requests a job id derived from its request id (`steward-<requestId>`) and reports back whatever id OpenClaw actually assigned. Hosts from 2026.7.1 honor the requested id, so a command replayed after the plugin applied it and died before answering is rejected as a duplicate and answered as the create that already landed; 2026.5.28 and earlier ignore the requested id and assign a UUID, so replay is not idempotent there. Every outstanding command is replayed when the plugin (re)subscribes. Outcomes are typed: `created`/`updated`/`deleted` with the job id, or `error` with `invalid` (the dispatch failed validation before reaching the service), `not-found` (no such job), or `harness-error` (the service threw; the message rides along). The subscription is gated like the projection: exactly one runnable Tlon account. A ship whose `%steward` predates the edit loop nacks the subscribe, and owner edits then fail fast on the bot as `harness-offline` while everything else keeps working. Steward never mutates its task map on an edit; the change becomes visible through the next `%project` reconciliation.
+
+### Run history and test runs
+
+Every cron run's Context Lens record carries the job it ran (`lens.cron.jobId`), and when the host reports the run `finished` the plugin records its verdict there and finishes the lens, so the owner's ship can page one task's runs (`/x/v1/lens/cron`). A run that never reaches the agent has no record yet, as when it fails in setup or is a system event the host queues for the main session and calls done; its verdict creates one, already finished, so the run still shows in the task's history. A skipped run records nothing. Test runs need Context Lens to reach the owner, and are refused as `invalid` without it.
+
+A `test` command runs a job once without touching it: `src/cron-test-run.ts` reads the job, frames its prompt the way the host frames a cron turn, and runs it through `runtime.agent.runEmbeddedAgent` (with the job's model and fallbacks, failing over the way a scheduled run does, and its `lightContext` and `thinking` settings; a job without its own thinking level runs with the runner's default, which can differ from the default a scheduled run resolves) in a scratch session with the message tool off, so the job's last-run state, next run and delivery are unchanged. The command is answered `started` with the lens id as soon as the run begins; the run's reply is kept on its lens (`lens.cron.output`) rather than posted. For the length of the run the tool hook fails closed: only tools known to just read run (the host's read-only set, `tlon` reads, and an MCP server's catalog), and anything else is refused with a reason that asks the model to say what it would have done. A run that answers with nothing but an error payload is recorded as failed. The run stops as aborted if its monitor is torn down, and as timed out when it reaches its time limit, and its scratch transcript and any MCP runtime it started are removed afterwards. Asking again while a test of the same job is running answers with that run, unless the job has changed since that run started, which gets a run of its own. A job the credit budget has paused is refused as `invalid`, since a test would spend the same credits. Only agent-turn jobs that run in their own session can be tested: a main-session job or a system event runs inside the bot's ongoing conversation, which a scratch session cannot stand in for, so those are refused as `invalid`.
 
 ## Approval System
 

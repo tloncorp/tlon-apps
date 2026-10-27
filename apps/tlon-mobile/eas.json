@@ -7,7 +7,7 @@
   "build": {
     "base": {
       "pnpm": "11.9.0",
-      "node": "24.16.0",
+      "node": "24.22.1",
       "env": {
         "EXPO_USE_PRECOMPILED_MODULES": "0"
       },
@@ -67,6 +67,15 @@
       },
       "ios": {
         "scheme": "Landscape-preview"
+      }
+    },
+    "development-simulator": {
+      "extends": "base",
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "scheme": "Landscape",
+        "simulator": true
       }
     },
     "local-testing": {

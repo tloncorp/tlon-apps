@@ -14,10 +14,9 @@ import {
   setOrder as apiSetOrder,
   toPostContent,
 } from '@tloncorp/api';
-import { ensureClient, normalizeShip } from './api-client';
+import { ensureClient } from './api-client';
 import { getChannelState } from './channel-state-runtime';
 import type { BotAuthorProfile } from './bot-profile-flags';
-import { parseNest } from './cli-utils';
 import { commandError, errorMessage } from './commands/command';
 import type {
   ExistingReply,
@@ -33,8 +32,11 @@ import type {
   PostsDeps,
   ReplyDeleteInput,
 } from './commands/posts';
-import { assertActingShipCanAdminister } from './group-admin';
-import { fetchImageVerse } from './image-attach';
+import {
+  actingShipHostsChannel,
+  assertActingShipCanAdminister,
+} from './group-admin';
+import { fetchImageVerse, probeAttachmentMedia } from './image-attach';
 import type { Story } from './markdown';
 import { createProcessCommandDeps } from './runtime-deps';
 
@@ -155,6 +157,7 @@ export function createPostsDeps(): PostsDeps {
     getCurrentUserId: () => apiGetCurrentUserId(),
     now: () => Date.now(),
     buildImageVerse: (url: string) => fetchImageVerse(url),
+    probeMedia: probeAttachmentMedia,
     getChannelState,
     // Raw: the command words a failed read.
     getGroupRoleIds: async (groupId: string) =>
@@ -164,12 +167,7 @@ export function createPostsDeps(): PostsDeps {
       action: string,
       nest: string
     ) => {
-      // Mirrors `is-admin` in desk/lib/channel-utils.hoon: the ship hosting
-      // the channel administers it regardless of its group roles.
-      if (
-        normalizeShip(parseNest(nest).host) ===
-        normalizeShip(apiGetCurrentUserId())
-      ) {
+      if (actingShipHostsChannel(nest)) {
         return;
       }
       try {
