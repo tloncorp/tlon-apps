@@ -4,7 +4,7 @@ Notebooks use `notes/~host/name`; individual notes have a separate numeric ID. N
 
 ## Which workspace
 
-A request made in a group channel is about that channel's workspace (group) unless the user names a different one: "a notebook", "our notes" and "here" all mean that group. Your context names its flag ("…in the Tlon workspace (group) ~host/group"); if it does not, run `channels info <current channel nest>` and use the flag on its `Group:` line. In a DM, use the workspace the user names; with none named, a personal request may use a standalone notebook, and anything meant for a team or group needs its workspace resolved (ask if unclear).
+A request made in a group channel is about that channel's workspace (group) unless the user names a different one: "a notebook", "our notes" and "here" all mean that group. Your context names its flag ("…in the Tlon workspace (group) ~host/group"); if it does not, run `channels info <current channel nest>` and use the flag on its `Group:` line (in a legacy `diary/` channel, which `channels info` refuses, find the nest in `channels groups` instead). In a DM, use the workspace the user names; with none named, a personal request may use a standalone notebook, and anything meant for a team or group needs its workspace resolved (ask if unclear).
 
 ## Find the right notebook
 
