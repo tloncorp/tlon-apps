@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   INCLUDED_ROW_ID,
+  botOnIncludedModel,
   buildFirstRunModelSections,
   defaultModelRowId,
   findModelRow,
@@ -87,5 +88,60 @@ describe('first-run model choices', () => {
     });
     expect(findModelRow(sections, INCLUDED_ROW_ID)).toBeUndefined();
     expect(defaultModelRowId(sections)).toBe('subscription:openai');
+  });
+});
+
+describe('the model the first run starts from', () => {
+  it('assumes the included model until the config loads', () => {
+    expect(botOnIncludedModel(null)).toBe(true);
+    expect(botOnIncludedModel(undefined)).toBe(true);
+  });
+
+  it('reads a new account as on the included model', () => {
+    expect(botOnIncludedModel(hostedConfig)).toBe(true);
+    expect(
+      botOnIncludedModel({
+        ...hostedConfig,
+        models: [
+          {
+            provider: 'basic',
+            model: 'openai/gpt-5.6-luna',
+            primary: true,
+            zdr: true,
+          },
+        ],
+      })
+    ).toBe(true);
+  });
+
+  it('sees a model saved by an earlier, unfinished first run', () => {
+    // Someone saved their own key, closed the app on Make space, and came
+    // back: continuing with the included model has to switch the bot.
+    expect(
+      botOnIncludedModel({
+        ...hostedConfig,
+        keys: { anthropic: 'sk-ant-…' },
+        models: [
+          { provider: 'anthropic', model: 'claude-sonnet-5', primary: true },
+          { provider: 'basic', model: 'openai/gpt-5.6-luna' },
+        ],
+      })
+    ).toBe(false);
+  });
+
+  it('ignores models set only for some channels', () => {
+    expect(
+      botOnIncludedModel({
+        ...hostedConfig,
+        models: [
+          { provider: 'basic', model: 'openai/gpt-5.6-luna', primary: true },
+          {
+            provider: 'openai',
+            model: 'gpt-5.6',
+            channels: ['chat/~zod/build'],
+          },
+        ],
+      })
+    ).toBe(true);
   });
 });

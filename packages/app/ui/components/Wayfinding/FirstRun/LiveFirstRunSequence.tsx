@@ -35,6 +35,7 @@ import {
   type FirstRunSetupAdapter,
 } from './FirstRunSequence';
 import {
+  botOnIncludedModel,
   buildFirstRunModelSections,
   includedModelName,
 } from './firstRunModelOptions';
@@ -215,6 +216,7 @@ function useLiveModels(setupReady: boolean): FirstRunModelsAdapter {
     sections,
     includedName: includedModelName(providerConfig ?? undefined),
     includedModelId: getIncludedModelId(providerConfig ?? undefined),
+    onIncludedModel: botOnIncludedModel(providerConfig),
     botReady: botReadyPolled || setupReady,
     renderSubscriptionSignIn,
     checkApiKey,

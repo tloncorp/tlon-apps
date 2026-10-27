@@ -1,6 +1,7 @@
 import type { TlawnProviderConfigInfo } from '@tloncorp/api';
 
 import {
+  BASIC_PROVIDER_ID,
   EMPTY_PROVIDER_CONFIG,
   type SubscriptionProvider,
   getIncludedModelId,
@@ -8,6 +9,7 @@ import {
   isSubscriptionProvider,
   subscriptionProviderLabel,
 } from '../../../../features/settings/bot/constants';
+import { getModelFormValues } from '../../../../features/settings/bot/helpers';
 import { buildBotCredentialOptions } from '../botProviderOptions';
 import { firstRunCopy } from './firstRunCopy';
 
@@ -148,6 +150,18 @@ export function findModelRow(
     if (row) return row;
   }
   return undefined;
+}
+
+/**
+ * Whether the bot runs the included model now, read the way bot settings
+ * reads it. Someone who chose another model and closed the app before
+ * finishing comes back to the first run with that model still on the bot.
+ * Hosting starts every bot on the included model, so assume that until the
+ * config loads.
+ */
+export function botOnIncludedModel(config?: TlawnProviderConfigInfo | null) {
+  if (!config) return true;
+  return getModelFormValues(config).provider === BASIC_PROVIDER_ID;
 }
 
 /** The row to start on: the recommended one, else the first offered. */

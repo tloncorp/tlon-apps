@@ -476,6 +476,7 @@ function FlowRun({
     sections: buildFirstRunModelSections(HOSTED_CONFIG),
     includedName: includedModelName(HOSTED_CONFIG),
     includedModelId: HOSTED_CONFIG.defaultModels.primaryModel,
+    onIncludedModel: true,
     botReady,
     renderSubscriptionSignIn: (_provider, handlers) => (
       <FakeSubscriptionSignIn

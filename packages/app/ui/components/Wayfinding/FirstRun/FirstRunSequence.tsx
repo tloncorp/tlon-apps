@@ -87,6 +87,8 @@ export type FirstRunModelsAdapter = {
   includedName: string;
   /** The included model's id, to switch back to after another choice. */
   includedModelId: string;
+  /** Whether the bot is on the included model as the first run opens. */
+  onIncludedModel: boolean;
   /** Subscription sign-in needs the bot, so it waits for this. */
   botReady: boolean;
   renderSubscriptionSignIn: (
@@ -145,10 +147,15 @@ export function FirstRunSequence({
   // the hosting config arrives.
   const [pickedModelId, setPickedModelId] = useState<string | null>(null);
   const selectedModelId = pickedModelId ?? defaultModelRowId(models.sections);
-  // The choice the bot is confirmed to be on. Hosting starts it on the
-  // included model. A switch in flight is tracked separately, so a failed one
-  // can be retried by continuing with the same choice.
-  const [appliedModelId, setAppliedModelId] = useState(INCLUDED_ROW_ID);
+  // The choice the bot is confirmed to be on: the last switch that took here,
+  // else the included model if hosting's config says so. A bot left on
+  // another model by an earlier, unfinished first run matches no row, so
+  // whatever is chosen gets applied. A switch in flight is tracked
+  // separately, so a failed one can be retried by continuing with the same
+  // choice.
+  const [switchedModelId, setSwitchedModelId] = useState<string | null>(null);
+  const appliedModelId =
+    switchedModelId ?? (models.onIncludedModel ? INCLUDED_ROW_ID : null);
   const [applyingModelId, setApplyingModelId] = useState<string | null>(null);
   const [runSwitch] = useState(createModelSwitchQueue);
   const mountedRef = useRef(true);
@@ -227,7 +234,7 @@ export function FirstRunSequence({
         const stillOpen = mountedRef.current;
         if (stillOpen) {
           setApplyingModelId(null);
-          if (applied) setAppliedModelId(rowId);
+          if (applied) setSwitchedModelId(rowId);
         }
         if (!applied) {
           logger.trackError('First run model switch failed', {
