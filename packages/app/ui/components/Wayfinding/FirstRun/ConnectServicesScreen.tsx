@@ -24,7 +24,6 @@ const LOGO_SIZE = 40;
  */
 export function ConnectServicesScreen({
   status,
-  loading,
   unavailable,
   featured,
   attempts,
@@ -39,12 +38,12 @@ export function ConnectServicesScreen({
   initialSheetProviderId,
 }: {
   status: FirstRunSetupStatus;
-  loading: boolean;
-  /** No catalog for this account, or nothing in it. */
+  /** No way to connect for this account, or nothing to offer. */
   unavailable: boolean;
   featured: FeaturedService[];
   attempts: Record<string, ServiceAttempt | undefined>;
-  allServicesCount: number;
+  /** Null while the full list is still loading. */
+  allServicesCount: number | null;
   anyConnected: boolean;
   /** Another connect or disconnect is running, so new sign-ins wait. */
   busy?: boolean;
@@ -94,11 +93,7 @@ export function ConnectServicesScreen({
         ) : null
       }
     >
-      {loading ? (
-        <View marginTop="$2xl" alignItems="center">
-          <LoadingSpinner />
-        </View>
-      ) : unavailable ? (
+      {unavailable ? (
         <View
           marginTop={20}
           marginHorizontal="$xl"
@@ -133,7 +128,11 @@ export function ConnectServicesScreen({
             <Pressable
               onPress={onAllServices}
               accessibilityRole="button"
-              accessibilityLabel={`${copy.allServices}, ${allServicesCount}`}
+              accessibilityLabel={
+                allServicesCount === null
+                  ? copy.allServices
+                  : `${copy.allServices}, ${allServicesCount}`
+              }
               testID="first-run-all-services"
             >
               <XStack
@@ -151,9 +150,11 @@ export function ConnectServicesScreen({
                 >
                   {copy.allServices}
                 </Text>
-                <Text fontSize={15} lineHeight={20} color="$secondaryText">
-                  {allServicesCount}
-                </Text>
+                {allServicesCount === null ? null : (
+                  <Text fontSize={15} lineHeight={20} color="$secondaryText">
+                    {allServicesCount}
+                  </Text>
+                )}
                 <Icon
                   type="ChevronRight"
                   customSize={[16, 16]}

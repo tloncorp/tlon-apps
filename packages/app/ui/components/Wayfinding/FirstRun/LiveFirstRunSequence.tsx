@@ -79,21 +79,21 @@ function AllServicesPane({
 
 function useLiveServices(): FirstRunServicesAdapter {
   const live = useFirstRunServices();
-  const { connections, setAllServicesOpen } = live;
+  const { connections, allServices, refresh, setAllServicesOpen } = live;
   const renderAllServices = useCallback(
     (onBack: () => void) => (
       <AllServicesPane
         onOpenChange={setAllServicesOpen}
         available={connections.status?.available ?? false}
         busyProviderId={connections.busyProviderId}
-        initialLoading={connections.initialLoading}
+        initialLoading={!allServices || connections.initialLoading}
         onBackPressed={onBack}
         onConnectProvider={(providerId) => void connections.connect(providerId)}
         onDisconnectProvider={(providerId) =>
           void connections.disconnect(providerId)
         }
-        onRefresh={() => void connections.refreshStatus()}
-        providers={connections.providers}
+        onRefresh={refresh}
+        providers={allServices ?? []}
         refreshing={connections.refreshing}
         showUnavailableNotice={
           connections.hostingSessionUnavailable ||
@@ -101,16 +101,15 @@ function useLiveServices(): FirstRunServicesAdapter {
         }
       />
     ),
-    [connections, setAllServicesOpen]
+    [allServices, connections, refresh, setAllServicesOpen]
   );
   return {
-    loading: connections.initialLoading,
     unavailable: live.unavailable,
     featured: live.featured,
     attempts: live.attempts,
     anyConnected: live.anyConnected,
     busy: live.busy,
-    allServicesCount: connections.providers.length,
+    allServicesCount: allServices?.length ?? null,
     startConnect: live.startConnect,
     checkAgain: live.checkAgain,
     renderAllServices,

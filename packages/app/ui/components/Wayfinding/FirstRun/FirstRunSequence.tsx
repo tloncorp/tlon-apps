@@ -65,14 +65,14 @@ export type FirstRunSetupAdapter = {
 };
 
 export type FirstRunServicesAdapter = {
-  loading: boolean;
   unavailable: boolean;
   featured: FeaturedService[];
   attempts: Record<string, ServiceAttempt | undefined>;
   anyConnected: boolean;
   /** Another connect or disconnect is running, so new sign-ins wait. */
   busy: boolean;
-  allServicesCount: number;
+  /** Null until the live catalog is in. */
+  allServicesCount: number | null;
   startConnect: (providerId: string) => void;
   checkAgain: (providerId: string) => void;
   /** The full Connect services screen, shown inside the cover. */
@@ -365,7 +365,6 @@ export function FirstRunSequence({
       ) : pane === 'connect' ? (
         <ConnectServicesScreen
           status={status}
-          loading={services.loading}
           unavailable={services.unavailable}
           featured={services.featured}
           attempts={services.attempts}

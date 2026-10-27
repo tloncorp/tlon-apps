@@ -164,7 +164,6 @@ function ConnectFixture({
     <Frame>
       <ConnectServicesScreen
         status={status}
-        loading={false}
         unavailable={!!none}
         featured={featured}
         attempts={attempt ? { 'google-calendar': attempt } : {}}
@@ -424,7 +423,6 @@ function FlowRun({
   );
 
   const services: FirstRunServicesAdapter = {
-    loading: false,
     unavailable: settings.noServices,
     featured: selectFeaturedServices(CATALOG, rows),
     attempts,

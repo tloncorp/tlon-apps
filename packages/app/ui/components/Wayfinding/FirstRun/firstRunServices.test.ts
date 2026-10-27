@@ -1,10 +1,15 @@
 import type { TlawnOAuthProvider } from '@tloncorp/api';
 import { describe, expect, it } from 'vitest';
 
-import type { McpProviderRow } from '../../../../lib/mcpProviders';
 import {
+  type McpProviderRow,
+  buildProviderRows,
+} from '../../../../lib/mcpProviders';
+import {
+  FIRST_RUN_FALLBACK_CATALOG,
   attemptAfterCheck,
   attemptAfterRefusedStart,
+  catalogOffersFeatured,
   featuredRowState,
   hasConnectedService,
   selectFeaturedServices,
@@ -31,7 +36,7 @@ const LIVE_CATALOG = [
     'google-gmail',
     'openid email profile https://www.googleapis.com/auth/gmail.send'
   ),
-  provider('notion', ''),
+  provider('notion', 'default'),
   provider(
     'google-calendar',
     'openid email profile https://www.googleapis.com/auth/calendar'
@@ -44,6 +49,21 @@ describe('featured services', () => {
     expect(
       selectFeaturedServices(LIVE_CATALOG, LIVE_ROWS).map((s) => s.row.id)
     ).toEqual(['google-calendar', 'google-gmail', 'notion']);
+  });
+
+  it('reads an empty scope list the same as "default"', () => {
+    const catalog = [provider('notion', '')];
+    expect(catalogOffersFeatured(catalog, 'notion')).toBe(true);
+    expect(catalogOffersFeatured([provider('notion', 'pages')], 'notion')).toBe(
+      false
+    );
+  });
+
+  it('only offers services screen 3 features', () => {
+    expect(catalogOffersFeatured([provider('github', 'repo')], 'github')).toBe(
+      false
+    );
+    expect(catalogOffersFeatured([], 'notion')).toBe(false);
   });
 
   it('accepts the same scopes in any order', () => {
@@ -90,6 +110,24 @@ describe('featured services', () => {
     expect(
       selectFeaturedServices(LIVE_CATALOG, rows).map((s) => s.row.id)
     ).toEqual(['google-calendar', 'notion']);
+  });
+});
+
+describe('the built-in list', () => {
+  it('features every featured service, so screen 3 is never empty', () => {
+    const rows = buildProviderRows(FIRST_RUN_FALLBACK_CATALOG, []);
+    expect(
+      selectFeaturedServices(FIRST_RUN_FALLBACK_CATALOG, rows).map(
+        (s) => s.row.id
+      )
+    ).toEqual(['google-calendar', 'google-gmail', 'notion']);
+  });
+
+  it('gives each row a name and a logo to show before the catalog loads', () => {
+    for (const entry of FIRST_RUN_FALLBACK_CATALOG) {
+      expect(entry.displayName).not.toBe('');
+      expect(entry.logoUrl).toMatch(/^https:\/\//);
+    }
   });
 });
 

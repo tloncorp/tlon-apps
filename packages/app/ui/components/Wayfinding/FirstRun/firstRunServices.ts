@@ -1,10 +1,11 @@
-import type { TlawnOAuthProvider } from '@tloncorp/api';
-
 import type {
   ConnectStart,
   McpConnectionEvent,
 } from '../../../../features/settings/useMcpConnections';
-import type { McpProviderRow } from '../../../../lib/mcpProviders';
+import type {
+  McpCatalogEntry,
+  McpProviderRow,
+} from '../../../../lib/mcpProviders';
 import {
   FIRST_RUN_FEATURED_SERVICES,
   type ServiceAccessCopy,
@@ -33,36 +34,81 @@ export type ServiceAttempt =
 
 export type FeaturedRowState = 'idle' | 'connected' | ServiceAttempt;
 
-const normalizeScopes = (scopes: string) =>
-  scopes.split(/\s+/).filter(Boolean).sort().join(' ');
+const normalizeScopes = (scopes: string) => {
+  const normalized = scopes.split(/\s+/).filter(Boolean).sort().join(' ');
+  // The relay writes "whatever the service grants by default" either way.
+  return normalized === 'default' ? '' : normalized;
+};
+
+const FEATURED_ACCESS = new Map(FIRST_RUN_FEATURED_SERVICES);
 
 /**
- * The services screen 3 features: the chosen ones the live catalog offers,
- * in their chosen order, and only while the catalog still asks for exactly
- * the access their copy describes.
+ * Whether the catalog offers a featured service with exactly the access its
+ * copy describes.
+ */
+export function catalogOffersFeatured(
+  catalog: McpCatalogEntry[],
+  providerId: string
+): boolean {
+  const id = providerId.toLowerCase();
+  const access = FEATURED_ACCESS.get(id);
+  const provider = catalog.find((entry) => entry.id.toLowerCase() === id);
+  return (
+    !!access &&
+    !!provider &&
+    normalizeScopes(provider.scopes) === normalizeScopes(access.scopes)
+  );
+}
+
+/**
+ * The services screen 3 features: the chosen ones the catalog offers, in
+ * their chosen order, and only while the catalog still asks for exactly the
+ * access their copy describes.
  */
 export function selectFeaturedServices(
-  catalog: TlawnOAuthProvider[],
+  catalog: McpCatalogEntry[],
   rows: McpProviderRow[],
   max = MAX_FEATURED_SERVICES
 ): FeaturedService[] {
-  const catalogById = new Map(
-    catalog.map((provider) => [provider.id.toLowerCase(), provider])
-  );
   const rowsById = new Map(rows.map((row) => [row.id.toLowerCase(), row]));
   const featured: FeaturedService[] = [];
   for (const [id, access] of FIRST_RUN_FEATURED_SERVICES) {
-    const provider = catalogById.get(id);
     const row = rowsById.get(id);
-    if (!provider || !row) continue;
-    if (normalizeScopes(provider.scopes) !== normalizeScopes(access.scopes)) {
-      continue;
-    }
+    if (!row || !catalogOffersFeatured(catalog, id)) continue;
     featured.push({ row, access });
     if (featured.length === max) break;
   }
   return featured;
 }
+
+const LOGO_BASE = 'https://storage.googleapis.com/tlon-prod-memex-assets/oauth';
+
+/** The live catalog's name and logo for each featured service. */
+const FEATURED_LISTING: Record<
+  string,
+  Pick<McpCatalogEntry, 'displayName' | 'logoUrl'>
+> = {
+  'google-calendar': {
+    displayName: 'Google Calendar',
+    logoUrl: `${LOGO_BASE}/google-calendar.png`,
+  },
+  'google-gmail': {
+    displayName: 'Send Gmail',
+    logoUrl: `${LOGO_BASE}/google-gmail.png`,
+  },
+  notion: { displayName: 'Notion', logoUrl: `${LOGO_BASE}/notion.png` },
+};
+
+/**
+ * The featured services as the live catalog lists them, so screen 3 has its
+ * rows the moment the first run opens. The live catalog replaces them as soon
+ * as it arrives; a service it drops, or whose access changes, leaves then.
+ */
+export const FIRST_RUN_FALLBACK_CATALOG: McpCatalogEntry[] =
+  FIRST_RUN_FEATURED_SERVICES.flatMap(([id, access]) => {
+    const listing = FEATURED_LISTING[id];
+    return listing ? [{ id, scopes: access.scopes, ...listing }] : [];
+  });
 
 /** What a featured row shows: verified grants win over any attempt. */
 export function featuredRowState(
@@ -128,7 +174,7 @@ export function shouldAnnounceConnectionEvent(
   }: { allServicesOpen: boolean; featuredIds: string[] }
 ): boolean {
   if (allServicesOpen) return true;
-  // Screen 3 shows a failed catalog load as "nothing to connect".
+  // Screen 3 keeps its rows and keeps retrying the catalog by itself.
   if (event.type === 'load-failed') return false;
   if (!event.providerId) return true;
   return !featuredIds.includes(event.providerId.toLowerCase());

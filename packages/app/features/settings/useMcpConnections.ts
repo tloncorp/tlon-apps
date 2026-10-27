@@ -97,6 +97,16 @@ export function useMcpConnections({
         return null;
       }
 
+      const reportLoadFailure = (error: unknown) => {
+        trackMcpError('Failed to load OAuth status', {
+          action: 'loadStatus',
+          error,
+        });
+        if (isMounted.current) {
+          emit({ type: 'load-failed' });
+        }
+      };
+
       setRefreshing(true);
       try {
         const [authToken, hostingUserId] = await Promise.all([
@@ -115,34 +125,43 @@ export function useMcpConnections({
         if (isMounted.current) {
           setHostingSessionUnavailable(false);
         }
-        const [nextProviders, nextStatus] = await Promise.all([
+        const [providersResult, statusResult] = await Promise.allSettled([
           api.getTlawnOAuthProviders(),
           api.getTlawnOAuthStatus(currentUserId),
         ]);
         // These screens own mutations to connector grants. Publish their
         // authoritative refresh into the shared cache so mounted chat
-        // controls reflect changes made here.
-        db.queryClient.setQueryData(
-          mcpProviderQueryKeys.providers,
-          nextProviders
-        );
-        db.queryClient.setQueryData(
-          mcpProviderQueryKeys.status(currentUserId),
-          nextStatus
-        );
-        if (isMounted.current) {
-          setProviderConfigs(nextProviders);
-          setStatus(nextStatus);
+        // controls reflect changes made here. A status is kept even when the
+        // catalog fails, so a sign-in can still be confirmed.
+        if (providersResult.status === 'fulfilled') {
+          db.queryClient.setQueryData(
+            mcpProviderQueryKeys.providers,
+            providersResult.value
+          );
         }
-        return nextStatus;
+        if (statusResult.status === 'fulfilled') {
+          db.queryClient.setQueryData(
+            mcpProviderQueryKeys.status(currentUserId),
+            statusResult.value
+          );
+        }
+        if (isMounted.current) {
+          if (statusResult.status === 'fulfilled') {
+            setStatus(statusResult.value);
+            // Rows without a status would show every service as not
+            // connected, so the catalog waits for one.
+            if (providersResult.status === 'fulfilled') {
+              setProviderConfigs(providersResult.value);
+            }
+          }
+        }
+        const failed = [providersResult, statusResult].find(
+          (result) => result.status === 'rejected'
+        );
+        if (failed) reportLoadFailure(failed.reason);
+        return statusResult.status === 'fulfilled' ? statusResult.value : null;
       } catch (err) {
-        trackMcpError('Failed to load OAuth status', {
-          action: 'loadStatus',
-          error: err,
-        });
-        if (isMounted.current) {
-          emit({ type: 'load-failed' });
-        }
+        reportLoadFailure(err);
         return null;
       } finally {
         if (isMounted.current) {
