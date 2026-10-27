@@ -8,11 +8,9 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { startAgentGroupNavigationLockFailsafe } from '../../../../hooks/useAgentGroupOnboardingLock';
 import { AGENT_SHIP_OVERRIDE } from '../../../../lib/envVars';
-import { isEnabled } from '../../../../lib/featureFlags';
 import { LiveFirstRunSequence } from '../FirstRun/LiveFirstRunSequence';
 import type { FirstRunSetupStatus } from '../FirstRun/types';
 import { getDefaultBotName } from '../botName';
-import { MeetYourBotPane } from '../MeetYourBot/MeetYourBotPane';
 import { resolveLandingChannelId } from './landingChannel';
 import { PromiseTimeoutError, withTimeout } from './promiseTimeout';
 
@@ -128,9 +126,6 @@ export function AgentOnboardingSequence(props: {
 }) {
   const [useFallback, setUseFallback] = useState(false);
   const [ready, setReady] = useState(false);
-  // The five-screen first run, behind a flag. Read once so the screens can't
-  // swap mid-flow when stored flags finish loading.
-  const [firstRunEnabled] = useState(() => isEnabled('onboardingFirstRun'));
   // The first run waits for setup only at its last step, so a timeout there
   // offers Retry, which runs the same setup again, rather than the old splash.
   const [setupFailed, setSetupFailed] = useState(false);
@@ -369,12 +364,7 @@ export function AgentOnboardingSequence(props: {
         } else {
           await db.agentOnboardingLanding.resetValue();
         }
-        if (cancelled) return;
-        if (firstRunEnabled) {
-          setSetupFailed(true);
-        } else {
-          setUseFallback(true);
-        }
+        if (!cancelled) setSetupFailed(true);
       }
     })();
 
@@ -406,21 +396,15 @@ export function AgentOnboardingSequence(props: {
 
   if (useFallback) return <>{props.fallback}</>;
 
-  if (firstRunEnabled) {
-    const status: FirstRunSetupStatus = ready
-      ? 'ready'
-      : setupFailed
-        ? 'failed'
-        : 'running';
-    return (
-      <LiveFirstRunSequence
-        setup={{ status, retry: retrySetup, skip: skipSetup }}
-        onOpenChat={handleStartChatting}
-      />
-    );
-  }
-
+  const status: FirstRunSetupStatus = ready
+    ? 'ready'
+    : setupFailed
+      ? 'failed'
+      : 'running';
   return (
-    <MeetYourBotPane ready={ready} onStartChatting={handleStartChatting} />
+    <LiveFirstRunSequence
+      setup={{ status, retry: retrySetup, skip: skipSetup }}
+      onOpenChat={handleStartChatting}
+    />
   );
 }

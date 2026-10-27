@@ -50,13 +50,7 @@ const ICONS: Record<FeaturePointIcon, IconShape[]> = {
   ],
 };
 
-export function PointIcon({
-  name,
-  color,
-}: {
-  name: FeaturePointIcon;
-  color: string;
-}) {
+function PointIcon({ name, color }: { name: FeaturePointIcon; color: string }) {
   return (
     <Svg
       width={22}

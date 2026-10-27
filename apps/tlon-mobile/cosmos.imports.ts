@@ -47,7 +47,6 @@ import * as fixture41 from './../../packages/app/fixtures/Input.fixture';
 import * as fixture42 from './../../packages/app/fixtures/InviteFriendsToTlonButton.fixture';
 import * as fixture43 from './../../packages/app/fixtures/InviteUsersSheet.fixture';
 import * as fixture44 from './../../packages/app/fixtures/MediaImageViewer.fixture';
-import * as fixtureMeetYourBot from './../../packages/app/fixtures/MeetYourBot.fixture';
 import * as fixture45 from './../../packages/app/fixtures/MessageActions.fixture';
 import * as fixture46 from './../../packages/app/fixtures/MessageInput.fixture';
 import * as fixture47 from './../../packages/app/fixtures/MetaEditorScreen.fixture';
@@ -198,9 +197,6 @@ const fixtures = {
   },
   '../../packages/app/fixtures/MediaImageViewer.fixture.tsx': {
     module: fixture44,
-  },
-  '../../packages/app/fixtures/MeetYourBot.fixture.tsx': {
-    module: fixtureMeetYourBot,
   },
   '../../packages/app/fixtures/MessageActions.fixture.tsx': {
     module: fixture45,
