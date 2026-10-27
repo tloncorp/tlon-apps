@@ -6,12 +6,14 @@ import { useMentions } from './useMentions';
 
 const mocks = vi.hoisted(() => ({
   useMentionCandidates: vi.fn(),
+  syncRosterForMentions: vi.fn(),
 }));
 
 vi.mock('@tloncorp/shared', () => ({ ALL_MENTION_ID: 'all' }));
 vi.mock('@tloncorp/shared/db', () => ({}));
 vi.mock('@tloncorp/shared/store', () => ({
   useMentionCandidates: mocks.useMentionCandidates,
+  syncRosterForMentions: mocks.syncRosterForMentions,
 }));
 vi.mock('../../utils', () => ({
   formatUserId: (id: string) => ({ display: `formatted ${id}` }),
@@ -93,4 +95,25 @@ test('does not enable the candidate query for a bare trigger', () => {
     query: '',
     enabled: false,
   });
+});
+
+test('loads a group roster once mention mode opens, and no DM roster', () => {
+  const groupId = '~zod/big';
+  let inGroup!: ReturnType<typeof useMentions>;
+  function GroupHarness() {
+    inGroup = useMentions({ chatId: groupId, groupId, roleOptions: [] });
+    return null;
+  }
+  let groupRenderer!: ReactTestRenderer;
+  act(() => {
+    groupRenderer = create(<GroupHarness />);
+  });
+  expect(mocks.syncRosterForMentions).not.toHaveBeenCalled();
+
+  type('~');
+  expect(mocks.syncRosterForMentions).not.toHaveBeenCalled();
+
+  act(() => inGroup.handleMention('', '~'));
+  expect(mocks.syncRosterForMentions).toHaveBeenCalledWith(groupId);
+  act(() => groupRenderer.unmount());
 });

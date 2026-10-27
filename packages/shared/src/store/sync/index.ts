@@ -1,7 +1,7 @@
 export * from './sync';
 export { SyncPriority, syncQueue } from '../syncQueue';
 export { syncContacts } from './syncContacts';
-export { syncGroup } from './syncGroup';
+export { syncGroup, syncRosterForMentions } from './syncGroup';
 export {
   ROSTER_PAGE_SIZE,
   compareShips,

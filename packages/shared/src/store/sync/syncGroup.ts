@@ -3,7 +3,7 @@ import * as api from '@tloncorp/api';
 import * as db from '../../db';
 import { batchEffects } from '../../db/query';
 import { getClientGeneration, getSession } from '../session';
-import { SyncCtx, syncQueue } from '../syncQueue';
+import { SyncCtx, SyncPriority, syncQueue } from '../syncQueue';
 import { logger } from './logger';
 import { fitToLiveChanges, isRosterPaged, snapshotRoster } from './rosterPages';
 import { updateLastActivityTime } from './updateLastActivityTime';
@@ -172,5 +172,19 @@ export async function syncGroup(
     throw e;
   } finally {
     groupSyncsInProgress.delete(inProgressKey);
+  }
+}
+
+// Mentions search the stored roster, which a paged group fills a page at a
+// time. Until the desk can search members, mention mode loads it whole, which
+// syncGroup does once a session.
+export async function syncRosterForMentions(groupId: string) {
+  const group = await db.getGroup({ id: groupId });
+  if (group && isRosterPaged(group)) {
+    await syncGroup(
+      groupId,
+      { priority: SyncPriority.Low },
+      { wholeRoster: true }
+    );
   }
 }

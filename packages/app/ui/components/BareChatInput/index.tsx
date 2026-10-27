@@ -408,7 +408,7 @@ function BareChatInput(
     handleMentionEscape,
     handleMentionSoftDismiss,
     resetMentionMode,
-  } = useMentions({ chatId: groupId ?? channelId, roleOptions });
+  } = useMentions({ chatId: groupId ?? channelId, groupId, roleOptions });
   const {
     isSlashCommandModeActive,
     rankedSlashCommands,
