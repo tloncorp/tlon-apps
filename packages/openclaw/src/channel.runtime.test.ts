@@ -370,15 +370,17 @@ describe('sendMedia', () => {
     expect(sendDmWithStory).not.toHaveBeenCalled();
   });
 
-  it('drops media for an owner turn once a non-owner message reached its session', async () => {
+  it("keeps media for an owner turn when another member's post changes the session role", async () => {
     const { setSessionRole } = await import('./session-roles.js');
     const sessionKey = 'agent:main:tlon:group:chat/~zod/general';
+    const turn = await turnFor('owner', 'owner-not-demoted', sessionKey);
+    // The monitor overwrites the session role for every inbound message; only
+    // a demotion of this run (noteInboundDispatching) may drop its media.
     setSessionRole(sessionKey, 'user');
-    const turn = await turnFor('owner', 'owner-demoted', sessionKey);
     await turn.run(() =>
       tlonRuntimeOutbound.sendMedia({ ...baseCtx, mediaUrl: '/x.png' })
     );
-    expect(prepareOutboundMedia).not.toHaveBeenCalled();
+    expect(prepareOutboundMedia).toHaveBeenCalledOnce();
     setSessionRole(sessionKey, 'owner');
   });
 

@@ -1162,6 +1162,7 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
     ) {
       ownerOnlyDecision = {
         ownerOnly: true,
+        gate: 'arguments',
         blocked: true,
         reason: MESSAGE_MEDIA_BLOCK_REASON,
       };
@@ -1386,8 +1387,12 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       };
     }
 
+    // An argument gate fires for any role; only set membership means an
+    // owner-only tool was used.
     api.logger.info(
-      `[tlon] Allowed ${event.toolName} tool for ${role ?? 'internal'} session. Session: ${ctx.sessionKey}`
+      ownerOnlyDecision.gate === 'arguments'
+        ? `[tlon] Allowed ${event.toolName} call with owner-only arguments for ${role ?? 'internal'} session. Session: ${ctx.sessionKey}`
+        : `[tlon] Allowed ${event.toolName} tool for ${role ?? 'internal'} session. Session: ${ctx.sessionKey}`
     );
     if (event.toolName === 'tlon' && typeof event.params.command === 'string') {
       // Only owner-default commands need the rewrite; with the flag off the

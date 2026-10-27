@@ -8,6 +8,7 @@ import {
   MESSAGE_MEDIA_BLOCK_REASON,
   SESSION_ACCESS_BLOCK_REASON,
   SESSION_ACCESS_TOOL_NAMES,
+  formatMessageOptionBlockReason,
   formatOwnerOnlyDelegationBlockReason,
   formatOwnerOnlyToolBlockReason,
   resolveOwnerOnlyToolBlock,
@@ -142,11 +143,13 @@ describe('resolveOwnerOnlyToolBlock', () => {
       resolveOwnerOnlyToolBlock('mcp__call', 'user', { name })
     ).toMatchObject({
       ownerOnly: true,
+      gate: 'tool',
       blocked: true,
     });
     for (const role of ['owner', undefined] as const)
       expect(resolveOwnerOnlyToolBlock('mcp__call', role, { name })).toEqual({
         ownerOnly: true,
+        gate: 'tool',
         blocked: false,
       });
   });
@@ -158,6 +161,7 @@ describe('resolveOwnerOnlyToolBlock', () => {
       })
     ).toEqual({
       ownerOnly: true,
+      gate: 'tool',
       blocked: true,
       reason: formatOwnerOnlyToolBlockReason('mcp__call'),
     });
@@ -168,6 +172,7 @@ describe('resolveOwnerOnlyToolBlock', () => {
     (tool) => {
       expect(resolveOwnerOnlyToolBlock(tool, 'user')).toEqual({
         ownerOnly: true,
+        gate: 'tool',
         blocked: true,
         reason: expectedReason(tool),
       });
@@ -179,6 +184,7 @@ describe('resolveOwnerOnlyToolBlock', () => {
     (tool) => {
       expect(resolveOwnerOnlyToolBlock(tool, 'owner')).toEqual({
         ownerOnly: true,
+        gate: 'tool',
         blocked: false,
       });
     }
@@ -189,6 +195,7 @@ describe('resolveOwnerOnlyToolBlock', () => {
     (tool) => {
       expect(resolveOwnerOnlyToolBlock(tool, undefined)).toEqual({
         ownerOnly: true,
+        gate: 'tool',
         blocked: false,
       });
     }
@@ -271,9 +278,16 @@ describe('argument-gated tools', () => {
     ['tts', { text: 'x', voice: 'C:\\Users\\a.txt' }],
     ['tts', { text: 'x', voice: '\\\\host\\share\\a.txt' }],
     ['tts', { text: 'x', voice: 'file:///etc/passwd' }],
-    ['web_search', { query: 'notes/a.pdf' }],
-    ['web_search', { query: 'My Docs/a.pdf' }],
-    ['web_search', { query: 'workspace/secret' }],
+    // The `query` exemption is web_search's alone.
+    ['some_plugin_search', { query: 'notes/a.pdf' }],
+    ['some_plugin_search', { query: 'My Docs/a.pdf' }],
+    ['some_plugin_search', { query: 'workspace/secret' }],
+    ['web_fetch', { url: 'file:///etc/passwd' }],
+    ['web_fetch', { url: '/etc/passwd' }],
+    ['web_fetch', { query: 'notes/a.pdf' }],
+    // web_search keys other than `query` still get the check.
+    ['web_search', { query: 'x', path: '~/notes/a.pdf' }],
+    ['web_search', { query: 'x', file: '/etc/hosts' }],
     // Exemptions are bound to their keys.
     ['tts', { text: 'x', voice: 'text/private.txt' }],
     ['tts', { text: 'x', mimeType: 'text/../../private' }],
@@ -281,12 +295,14 @@ describe('argument-gated tools', () => {
   ])('blocks a non-owner %s call with a local path', (tool, params) => {
     expect(resolveOwnerOnlyToolBlock(tool, 'user', params)).toEqual({
       ownerOnly: true,
+      gate: 'arguments',
       blocked: true,
       reason: LOCAL_FILE_BLOCK_REASON,
     });
     for (const role of ['owner', undefined] as const) {
       expect(resolveOwnerOnlyToolBlock(tool, role, params)).toEqual({
         ownerOnly: true,
+        gate: 'arguments',
         blocked: false,
       });
     }
@@ -296,6 +312,10 @@ describe('argument-gated tools', () => {
     ['web_search', { query: '1/2 cup flour' }],
     ['web_search', { query: 'what does either/or mean' }],
     ['web_search', { query: 'what is a hosts file' }],
+    ['web_search', { query: 'what goes in package.json' }],
+    ['web_search', { query: 'github.com/tloncorp/tlon-apps' }],
+    ['web_search', { query: 'notes/a.pdf' }],
+    ['web_search', { query: 'My Docs/a.pdf', count: 5, country: 'US' }],
     ['web_fetch', { url: 'https://example.com/a.pdf' }],
     ['tts', { text: 'x', contentType: 'audio/mpeg' }],
   ])('lets a non-owner call %s without a local path', (tool, params) => {
@@ -303,6 +323,15 @@ describe('argument-gated tools', () => {
       ownerOnly: false,
       blocked: false,
     });
+  });
+
+  it('still blocks a non-owner mcp__call that nests a local path', () => {
+    expect(
+      resolveOwnerOnlyToolBlock('mcp__call', 'user', {
+        name: 'notes_read',
+        arguments: { doc: { path: '~/notes/a.pdf' } },
+      })
+    ).toMatchObject({ ownerOnly: true, blocked: true });
   });
 
   it('applies the local-file rule to body-named keys of other tools', () => {
@@ -367,20 +396,20 @@ describe('argument-gated tools', () => {
     [{ action: 'send', message: 'hi', filename: 'a.txt' }],
     [{ action: 'send', message: 'hi', buffer: 'AAAA' }],
     [{ action: 'send', message: 'hi', media_url: 'x' }],
-    [{ action: 'send', message: 'hi', presentation: { blocks: [] } }],
-    [{ action: 'send', message: 'hi', gatewayUrl: 'wss://x' }],
-    [{ action: 'send', message: 'hi', accountId: 'other' }],
+    [{ action: 'send', message: 'hi', filePath: 'notes.txt' }],
+    [{ action: 'send', message: 'hi', path: 'x' }],
+    [{ action: 'send', message: 'hi', asVoice: true }],
+    [{ action: 'send', fileUrl: '/workspace/private.txt' }],
+    [{ action: 'send', file_url: '/workspace/private.txt' }],
+    [{ action: 'send', message: 'hi', as_video_note: true }],
+    // A media key wins over another non-allowlisted option.
+    [{ action: 'send', poll: { question: 'q' }, media: 'x' }],
     [{ action: 'send', message: { text: 'hi' } }],
     [{ action: 'send', target: { id: 'x' }, message: 'hi' }],
-    [{ action: 'send', message: 'MEDIA: /x.png' }],
-    [{ action: 'send', message: 'MEDIA: https://a.b/c.png' }],
-    [{ action: 'send', SendMessage: 'hi\nMEDIA: /x' }],
-    [{ action: 'send', message: 'hello\\nMEDIA:/x' }],
-    [{ action: 'send', content: 'see this MEDIA: "report.bin"' }],
-    [{ action: 'send', message: '', caption: 'MEDIA: private.png' }],
   ])('blocks a non-owner message with media %j', (params) => {
     expect(resolveOwnerOnlyToolBlock('message', 'user', params)).toEqual({
       ownerOnly: true,
+      gate: 'arguments',
       blocked: true,
       reason: MESSAGE_MEDIA_BLOCK_REASON,
     });
@@ -389,6 +418,49 @@ describe('argument-gated tools', () => {
         false
       );
     }
+  });
+
+  it.each([
+    ['poll', { action: 'poll', poll: { question: 'q', options: ['a'] } }],
+    ['buttons', { action: 'send', message: 'hi', buttons: [] }],
+    ['accountId', { action: 'send', message: 'hi', accountId: 'other' }],
+    ['gatewayUrl', { action: 'send', message: 'hi', gatewayUrl: 'wss://x' }],
+    ['presentation', { action: 'send', presentation: { blocks: [] } }],
+  ])(
+    'names the non-media message option %s in the block reason',
+    (key, params) => {
+      const decision = resolveOwnerOnlyToolBlock('message', 'user', params);
+      expect(decision).toEqual({
+        ownerOnly: true,
+        gate: 'arguments',
+        blocked: true,
+        reason: formatMessageOptionBlockReason(key),
+      });
+      expect(decision.reason).toContain(`the ${key} message option`);
+      expect(decision.reason).not.toContain('attachments');
+      expect(
+        resolveOwnerOnlyToolBlock('message', 'owner', params).blocked
+      ).toBe(false);
+    }
+  );
+
+  it.each(['poll', 'pollOptionIndexes', 'x'.repeat(300), 'a\nb'])(
+    'keeps the message option reason for %j on one line within the cap',
+    (key) => {
+      const reason = formatMessageOptionBlockReason(key);
+      expect(reason.startsWith('Blocked by policy:')).toBe(true);
+      expect(reason).not.toMatch(/[\r\n]/);
+      expect(reason.length).toBeLessThanOrEqual(200);
+    }
+  );
+
+  it('leaves MEDIA: directives in the body to core', () => {
+    expect(
+      resolveOwnerOnlyToolBlock('message', 'user', {
+        action: 'send',
+        message: 'the MEDIA: prefix tells core to attach a file',
+      })
+    ).toEqual({ ownerOnly: false, blocked: false });
   });
 
   it('blocks a local path in an allowed message addressing key', () => {
@@ -400,6 +472,7 @@ describe('argument-gated tools', () => {
       })
     ).toEqual({
       ownerOnly: true,
+      gate: 'arguments',
       blocked: true,
       reason: LOCAL_FILE_BLOCK_REASON,
     });
@@ -424,6 +497,7 @@ describe('argument-gated tools', () => {
     expect(resolveOwnerOnlyToolBlock('session_status', 'user', params)).toEqual(
       {
         ownerOnly: true,
+        gate: 'tool',
         blocked: true,
         reason: SESSION_ACCESS_BLOCK_REASON,
       }

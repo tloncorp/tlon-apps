@@ -730,6 +730,20 @@ it('blocks non-owner local file references and session access but keeps text mes
       params: { action: 'send', message: 'on it 👍', final: false },
     },
     { toolName: 'web_search', params: { query: '1/2 cup flour' } },
+    { toolName: 'web_search', params: { query: 'what goes in package.json' } },
+    { toolName: 'web_search', params: { query: 'My Docs/a.pdf' } },
+    {
+      toolName: 'message',
+      params: {
+        action: 'send',
+        message: 'the MEDIA: prefix tells core to attach a file',
+      },
+    },
+    // Core reads a mid-sentence `MEDIA:` as text, not a directive.
+    {
+      toolName: 'message',
+      params: { action: 'send', content: 'see this MEDIA: "report.bin"' },
+    },
     { toolName: 'session_status', params: {} },
     { toolName: 'session_status', params: { changesSince: 2 } },
   ];
@@ -772,6 +786,8 @@ it('blocks non-owner local file references and session access but keeps text mes
         'ME<fi<fi<final>na</final>l>na</final>l>D</final>IA: /workspace/private.txt',
     },
     { action: 'send', message: 'MEDIA: https://example.com/a.png' },
+    { action: 'send', message: 'MEDIA: /x.png' },
+    { action: 'send', message: '', caption: 'MEDIA: private.png' },
     { action: 'send', message: 'ME<final>D</final>IA: /x' },
     { action: 'send', message: 'ME<think>s</THINK>DIA: /x' },
     { action: 'send', message: 'ME\uE200ci<think>x</think>te\uE201DIA: /x' },
@@ -785,7 +801,8 @@ it('blocks non-owner local file references and session access but keeps text mes
     await expect(handler(call, owner)).resolves.toBeUndefined();
   }
   const localFiles = [
-    { toolName: 'web_search', params: { query: 'My Docs/a.pdf' } },
+    { toolName: 'some_plugin_search', params: { query: 'My Docs/a.pdf' } },
+    { toolName: 'web_search', params: { query: 'x', path: '~/notes/a.pdf' } },
     { toolName: 'tts', params: { text: 'x', voice: '/workspace/a.wav' } },
   ];
   for (const call of localFiles) {
@@ -822,6 +839,29 @@ it('blocks non-owner local file references and session access but keeps text mes
     });
     await expect(handler(call, owner)).resolves.toBeUndefined();
   }
+});
+
+it('logs an owner-only argument call apart from an owner-only tool call', async () => {
+  setSessionRole(OWNER_SESSION, 'owner');
+  const { handler, logs } = registerEntry();
+  const owner = { sessionKey: OWNER_SESSION, runId: 'owner-log-run' };
+  await expect(
+    handler(
+      { toolName: 'message', params: { action: 'send', media: '/x.png' } },
+      owner
+    )
+  ).resolves.toBeUndefined();
+  await expect(
+    handler({ toolName: 'web_fetch', params: { url: '/etc/hosts' } }, owner)
+  ).resolves.toBeUndefined();
+  await expect(
+    handler({ toolName: 'set_timezone', params: { tz: 'UTC' } }, owner)
+  ).resolves.toBeUndefined();
+  expect(allowedLogs(logs)).toEqual([
+    `[tlon] Allowed message call with owner-only arguments for owner session. Session: ${OWNER_SESSION}`,
+    `[tlon] Allowed web_fetch call with owner-only arguments for owner session. Session: ${OWNER_SESSION}`,
+    `[tlon] Allowed set_timezone tool for owner session. Session: ${OWNER_SESSION}`,
+  ]);
 });
 
 it('fails closed and warns once for a non-owner message when core cannot be consulted', async () => {

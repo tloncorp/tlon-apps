@@ -104,6 +104,25 @@ export const MESSAGE_MEDIA_BLOCK_REASON = policyBlockReason(
   'Send text only, or tell them you cannot attach it; do not retry the attachment; do not blame a reload or outage.'
 );
 
+const MESSAGE_OPTION_NAME_MAX_CHARS = 20;
+
+/**
+ * Reason for a non-media `message` option outside the non-owner allowlist.
+ * The key is model-chosen: sanitized and capped so the reason stays one line
+ * within the owner-notice cap.
+ */
+export function formatMessageOptionBlockReason(key: string): string {
+  const safe = key.replace(/[^\w.-]/g, '?');
+  const name =
+    safe.length > MESSAGE_OPTION_NAME_MAX_CHARS
+      ? `${safe.slice(0, MESSAGE_OPTION_NAME_MAX_CHARS)}…`
+      : safe;
+  return policyBlockReason(
+    `the ${name} message option`,
+    'Send plain text instead; only text sends, replies, edits, deletes, reactions and reads are open here.'
+  );
+}
+
 const MAX_PARAM_DEPTH = 16;
 
 // Shapes core or the Tlon uploader resolves on the gateway's own disk:
@@ -163,6 +182,17 @@ function looksLikeLocalFile(raw: string, key: string | undefined): boolean {
     FILE_EXTENSION.test(value)
   );
 }
+
+/**
+ * Tools whose `query` is free search text sent to a remote provider. Core's
+ * `WebSearchSchema` (src/agents/tools/web-search.ts, identical at v2026.9.33
+ * and v2026.9.34) takes `query`, `count`, `country`, `language`,
+ * `freshness`, `date_after`, `date_before`, `search_lang`, `ui_lang`,
+ * `domain_filter` and `max_tokens`: text, numbers and a domain list, no file
+ * or path input, and the tool never reads the gateway's disk. Only `query` is
+ * exempt from the local-file check; every other key still goes through it.
+ */
+const QUERY_ONLY_TOOLS: ReadonlySet<string> = new Set(['web_search']);
 
 /**
  * Whether any string in a call's params, at any depth, could name a file on
@@ -238,15 +268,49 @@ export const NON_OWNER_MESSAGE_KEYS: ReadonlySet<string> = new Set([
   'silent',
 ]);
 
-// Core turns `MEDIA:` directives in the body into attachments. Non-owners
-// send text only, so any directive, wherever it appears, blocks.
-const MEDIA_DIRECTIVE = /MEDIA\s*:/i;
-
-// A cheap synchronous screen; the hook also asks core whether the body
-// yields media (core-message-media.ts).
-function bodyHasMediaDirective(body: string): boolean {
-  return MEDIA_DIRECTIVE.test(body);
-}
+// `message` params that carry or shape an attachment, from core 2026.9.33:
+// the message schema (src/agents/tools/message-tool-schema.ts: media,
+// filename, buffer, contentType, mimeType, attachments, voice-note and
+// document flags, sticker and event-cover inputs) and the attachment sources
+// and send flags read by src/infra/outbound/message-action-send.ts
+// (media/mediaUrl/path/filePath/fileUrl/image, mediaUrls, audioAsVoice,
+// asVideoNote) and message-action-params.ts. Core's param readers also accept
+// each camelCase key's snake_case spelling (readSnakeCaseParamRaw), so both
+// are listed. A body's `MEDIA:` directives are judged by core's own parser in
+// the before_tool_call hook (core-message-media.ts), the single authority
+// there.
+const MESSAGE_MEDIA_CAMEL_KEYS = [
+  'attachments',
+  'media',
+  'mediaUrl',
+  'mediaUrls',
+  'filePath',
+  'fileUrl',
+  'path',
+  'file',
+  'buffer',
+  'filename',
+  'mimeType',
+  'contentType',
+  'asVoice',
+  'audioAsVoice',
+  'asVideoNote',
+  'voiceText',
+  'voiceProvider',
+  'voiceId',
+  'gifPlayback',
+  'forceDocument',
+  'asDocument',
+  'image',
+  'fileId',
+  'stickerId',
+] as const;
+const MESSAGE_MEDIA_KEYS: ReadonlySet<string> = new Set(
+  MESSAGE_MEDIA_CAMEL_KEYS.flatMap((key) => [
+    key,
+    key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`),
+  ])
+);
 
 function isScalar(value: unknown): boolean {
   return (
@@ -255,20 +319,26 @@ function isScalar(value: unknown): boolean {
   );
 }
 
-function messageCarriesMedia(params?: Record<string, unknown>): boolean {
-  return Object.entries(params ?? {}).some(([key, value]) => {
-    if (!NON_OWNER_MESSAGE_KEYS.has(key)) return true;
-    if ((MESSAGE_BODY_KEYS as readonly string[]).includes(key)) {
-      return (
-        !isScalar(value) ||
-        (typeof value === 'string' && bodyHasMediaDirective(value))
-      );
-    }
+/**
+ * Why a non-owner `message` call's arguments are owner-only, if they are.
+ * A media key, or a non-scalar value under an allowed key, gets the media
+ * reason (it wins over any other key); any other key outside the allowlist
+ * gets a reason naming it.
+ */
+function messageArgumentsReason(
+  params?: Record<string, unknown>
+): string | undefined {
+  const entries = Object.entries(params ?? {});
+  const carriesMedia = entries.some(([key, value]) => {
+    if (!NON_OWNER_MESSAGE_KEYS.has(key)) return MESSAGE_MEDIA_KEYS.has(key);
     if (key === 'targets' && Array.isArray(value)) {
       return !value.every((item) => typeof item === 'string');
     }
     return !isScalar(value);
   });
+  if (carriesMedia) return MESSAGE_MEDIA_BLOCK_REASON;
+  const option = entries.find(([key]) => !NON_OWNER_MESSAGE_KEYS.has(key));
+  return option ? formatMessageOptionBlockReason(option[0]) : undefined;
 }
 
 // `session_status` reads (`sessionKey`) and patches (`model`) any visible
@@ -286,13 +356,21 @@ function sessionStatusLeavesCurrentSession(
 export type OwnerOnlyToolDecision = {
   /** The call is owner-only: an owner-only tool, or owner-only arguments. */
   ownerOnly: boolean;
+  /**
+   * Which rule made it owner-only (present iff `ownerOnly`): `'tool'` for
+   * the tool itself (set membership, the hosted browser, another session's
+   * status), `'arguments'` for an otherwise open tool's arguments.
+   */
+  gate?: 'tool' | 'arguments';
   /** Veto the call: owner-only and the session role is a non-owner user. */
   blocked: boolean;
   /** Model-facing reason; present iff `blocked`. */
   reason?: string;
 };
 
-function ownerOnlyReason(
+type OwnerOnlyRule = { reason: string; gate: 'tool' | 'arguments' };
+
+function toolRuleReason(
   toolName: string,
   params?: Record<string, unknown>
 ): string | undefined {
@@ -322,8 +400,16 @@ function ownerOnlyReason(
   ) {
     return SESSION_ACCESS_BLOCK_REASON;
   }
+  return undefined;
+}
+
+function argumentRuleReason(
+  toolName: string,
+  params?: Record<string, unknown>
+): string | undefined {
   if (toolName === 'message') {
-    if (messageCarriesMedia(params)) return MESSAGE_MEDIA_BLOCK_REASON;
+    const messageReason = messageArgumentsReason(params);
+    if (messageReason) return messageReason;
     // Addressing and pagination values still get the local-file check; the
     // body is free text.
     const addressing = Object.entries(params ?? {}).filter(
@@ -333,11 +419,28 @@ function ownerOnlyReason(
       ? LOCAL_FILE_BLOCK_REASON
       : undefined;
   }
-  // Argument-gated for every other tool: no local file references.
-  if (paramsReferenceLocalFile(params)) {
-    return LOCAL_FILE_BLOCK_REASON;
-  }
-  return undefined;
+  // Argument-gated for every other tool: no local file references, except
+  // in a search tool's free-text query.
+  const checked = QUERY_ONLY_TOOLS.has(toolName)
+    ? Object.fromEntries(
+        Object.entries(params ?? {}).filter(([key]) => key !== 'query')
+      )
+    : params;
+  return paramsReferenceLocalFile(checked)
+    ? LOCAL_FILE_BLOCK_REASON
+    : undefined;
+}
+
+function ownerOnlyRule(
+  toolName: string,
+  params?: Record<string, unknown>
+): OwnerOnlyRule | undefined {
+  const toolReason = toolRuleReason(toolName, params);
+  if (toolReason) return { reason: toolReason, gate: 'tool' };
+  const argumentReason = argumentRuleReason(toolName, params);
+  return argumentReason
+    ? { reason: argumentReason, gate: 'arguments' }
+    : undefined;
 }
 
 export function resolveOwnerOnlyToolBlock(
@@ -345,12 +448,14 @@ export function resolveOwnerOnlyToolBlock(
   role: SenderRole | undefined,
   params?: Record<string, unknown>
 ): OwnerOnlyToolDecision {
-  const reason = ownerOnlyReason(toolName, params);
-  const ownerOnly = reason !== undefined;
+  const rule = ownerOnlyRule(toolName, params);
+  if (!rule) return { ownerOnly: false, blocked: false };
   // Only an explicit non-owner ('user') role blocks. Owner sessions and
   // internal sessions (heartbeat, cron, subagents — no stored role) pass;
   // a passing `tlon` call still runs as the bot unless the turn is
   // owner-directed (turn-identity.ts).
-  const blocked = ownerOnly && role === 'user';
-  return blocked ? { ownerOnly, blocked, reason } : { ownerOnly, blocked };
+  const blocked = role === 'user';
+  return blocked
+    ? { ownerOnly: true, gate: rule.gate, blocked, reason: rule.reason }
+    : { ownerOnly: true, gate: rule.gate, blocked };
 }

@@ -4,14 +4,15 @@
  * resolved, at the point the Tlon adapter would read or post media.
  *
  * The role comes from the active Tlon turn (AsyncLocalStorage set around the
- * monitor's dispatch): the answered sender's role, the run's sticky demotion
- * (turn-identity.ts), or a non-owner role stored for the turn's session since. Outside a
- * Tlon turn (cron, heartbeat, durable redelivery) there is no requester and
- * media passes, matching the hook's role-less rule.
+ * monitor's dispatch): the answered sender's role or the run's sticky demotion
+ * (turn-identity.ts). The session's current role is not consulted: the
+ * monitor overwrites it on every inbound message, so in a group another
+ * member's post would reclassify an owner's in-flight turn. Outside a Tlon
+ * turn (cron, heartbeat, durable redelivery) there is no requester and media
+ * passes, matching the hook's role-less rule.
  */
 import { createSubsystemLogger } from 'openclaw/plugin-sdk/runtime-env';
 
-import { getSessionRole } from './session-roles.js';
 import { getActiveTlonTurnRequester } from './turn-recorder.js';
 import { getRecordedRunRole } from './turn-identity.js';
 
@@ -26,13 +27,11 @@ const MAX_LOGGED_RUNS = 1_024;
 export function activeTurnForbidsMedia(): boolean {
   const turn = getActiveTlonTurnRequester();
   if (!turn) return false;
-  // getRecordedRunRole is the security hook's sticky record: once a
-  // non-owner message demotes the run it stays 'user', even if a later owner
-  // message overwrites the session's role.
+  // getRecordedRunRole is the security hook's sticky record: a non-owner
+  // message steered into this run demotes it to 'user' for good. The
+  // session's current role is deliberately ignored (see header).
   const forbidden =
-    turn.senderRole === 'user' ||
-    getRecordedRunRole(turn.runId) === 'user' ||
-    getSessionRole(turn.sessionKey) === 'user';
+    turn.senderRole === 'user' || getRecordedRunRole(turn.runId) === 'user';
   if (forbidden && !loggedRuns.has(turn.runId)) {
     loggedRuns.add(turn.runId);
     if (loggedRuns.size > MAX_LOGGED_RUNS) {
