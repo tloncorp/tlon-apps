@@ -162,9 +162,12 @@
 ::
 ::  A cancelled Iris request says nothing about what the broker did, so it
 ::  is an unknown outcome worth asking about again. A body we cannot read,
-::  or one that names no code, is a refusal we know nothing more about, and
-::  not one to repeat. .retry-after is clamped to .ceiling: a wait past the
-::  upload window is one no session survives.
+::  or one that names no code, is a refusal we know nothing more about.
+::  Whether it is worth repeating is what .retryable in the body says, and
+::  when there is no such flag the status decides, as in +broker-retryable:
+::  a proxy answering a 502 with its own error page must not read as the
+::  broker's final word. .retry-after is clamped to .ceiling: a wait past
+::  the upload window is one no session survives.
 ::
 ++  broker-error
   |=  [res=client-response:iris ceiling=@dr]
@@ -172,15 +175,14 @@
   =/  fallback=@t  'storage refused the upload'
   ?:  ?=(%cancel -.res)
     ['the storage request was cancelled' ['outcome_unknown' & ~ ~]]
-  ?~  body=(broker-body res)  [fallback ['unknown' | ~ ~]]
+  =*  unknown  ['unknown' (broker-retryable res) ~ ~]
+  ?~  body=(broker-body res)  [fallback unknown]
   =/  message=@t
     ?~  got=(~(get by u.body) 'message')  fallback
     ?.(?=([%s *] u.got) fallback p.u.got)
-  ?~  code=(~(get by u.body) 'code')  [message ['unknown' | ~ ~]]
-  ?.  ?=([%s *] u.code)  [message ['unknown' | ~ ~]]
-  =/  retryable=?
-    ?~  got=(~(get by u.body) 'retryable')  |
-    ?.(?=([%b *] u.got) | p.u.got)
+  ?~  code=(~(get by u.body) 'code')  [message unknown]
+  ?.  ?=([%s *] u.code)  [message unknown]
+  =/  retryable=?  (broker-retryable res)
   =/  retry-after=(unit @dr)
     ?~  got=(~(get by u.body) 'retryAfterMs')  ~
     ?.  ?=([%n *] u.got)  ~
@@ -218,16 +220,23 @@
 ::  +broker-retryable: whether the broker says another attempt could work.
 ::
 ::  It marks a validation failure retryable:false and a service failure
-::  retryable:true. Absent, we assume it is worth another go -- a transport
-::  failure carries no body at all, and those are exactly the retryable ones.
+::  retryable:true. When the body says nothing -- a cancelled request, or an
+::  answer from something in front of the broker that carries no JSON -- the
+::  status decides: a 429 or a 5xx is a transient refusal worth repeating,
+::  any other status is not.
 ::
 ++  broker-retryable
   |=  res=client-response:iris
   ^-  ?
-  ?~  body=(broker-body res)  &
-  ?~  got=(~(get by u.body) 'retryable')  &
-  ?.  ?=([%b *] u.got)  &
-  p.u.got
+  ?:  ?=(%cancel -.res)  &
+  =/  body=(unit (map @t json))  (broker-body res)
+  =/  flag=(unit json)
+    ?~(body ~ (~(get by u.body) 'retryable'))
+  ?:  ?=([~ %b *] flag)  p.u.flag
+  =/  code=@ud  status-code.response-header.res
+  ?|  =(429 code)
+      &((gte code 500) (lth code 600))
+  ==
 ::  +response-body-1-to-2: a v1 answer in the current shape. An error gains
 ::  no broker detail, because whoever sent v1 had none to give.
 ::

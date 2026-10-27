@@ -49,9 +49,24 @@
 ++  res
   |=  body=@t
   ^-  client-response:iris
+  (res-at 200 body)
+::  +res-at: a finished broker answer under .code carrying .body as JSON
+::
+++  res-at
+  |=  [code=@ud body=@t]
+  ^-  client-response:iris
   :+  %finished
-    [200 ~]
+    [code ~]
   `['application/json' [(met 3 body) body]]
+::  +html-at: an answer from something in front of the broker -- a proxy's
+::  own error page under .code, carrying no JSON at all
+::
+++  html-at
+  |=  [code=@ud body=@t]
+  ^-  client-response:iris
+  :+  %finished
+    [code ~]
+  `['text/html' [(met 3 body) body]]
 ::
 ::  manifest helpers
 ::
@@ -190,19 +205,35 @@
     !>((broker-revision:util (res '{"currentRevision":"4"}')))
   ==
 ::
-::  A transport failure carries no body at all, and those are exactly the
-::  attempts worth making again -- so absent means retryable.
+::  The body decides when it speaks, whatever the status. When it does not
+::  -- a cancelled request, an empty object, a proxy's error page or no body
+::  at all -- the status decides: a 429 or a 5xx is worth repeating, any
+::  other status is final.
 ::
-++  test-broker-retryable-defaults-to-true
+++  test-broker-retryable-falls-back-on-the-status
   ;:  weld
-    (expect-eq !>(&) !>((broker-retryable:util (res '{}'))))
-    (expect-eq !>(|) !>((broker-retryable:util (res '{"retryable":false}'))))
     (expect-eq !>(&) !>((broker-retryable:util [%cancel ~])))
+    (expect-eq !>(&) !>((broker-retryable:util (res-at 503 '{}'))))
+    (expect-eq !>(&) !>((broker-retryable:util (res-at 429 '{}'))))
+  ::
+    %+  expect-eq  !>(&)
+    !>((broker-retryable:util (html-at 502 '<html>bad gateway</html>')))
+  ::
+    (expect-eq !>(&) !>((broker-retryable:util [%finished [502 ~] ~])))
+    (expect-eq !>(|) !>((broker-retryable:util (res-at 400 '{}'))))
+  ::
+    %+  expect-eq  !>(|)
+    !>((broker-retryable:util (res-at 503 '{"retryable":false}')))
+  ::
+    %+  expect-eq  !>(&)
+    !>((broker-retryable:util (res-at 400 '{"retryable":true}')))
   ==
 ::
 ::  A refusal is parsed into what the uploader can act on. A cancelled
 ::  request is an unknown outcome worth asking about again; a body we cannot
-::  read, or one with no code, is a refusal we know nothing more about.
+::  read, or one with no code, is a refusal we know nothing more about, and
+::  the status says whether to repeat it, the same way +broker-retryable
+::  does -- a proxy's bodyless 502 is retryable, an empty 400 is final.
 ::
 ++  test-broker-error-reads-the-broker-fields
   =/  refusal=[message=@t =broker-error:b]
@@ -212,7 +243,19 @@
     ~h1
   =/  expected=[message=@t =broker-error:b]
     ['slow down' ['rate_limited' & `~s5 `'host']]
-  (expect-eq !>(expected) !>(refusal))
+  ;:  weld
+    (expect-eq !>(expected) !>(refusal))
+  ::
+    %+  expect-eq
+      !>  ^-  [message=@t =broker-error:b]
+      ['storage refused the upload' ['unknown' & ~ ~]]
+    !>((broker-error:util (html-at 502 '<html>bad gateway</html>') ~h1))
+  ::
+    %+  expect-eq
+      !>  ^-  [message=@t =broker-error:b]
+      ['storage refused the upload' ['unknown' | ~ ~]]
+    !>((broker-error:util (res-at 400 '{}') ~h1))
+  ==
 ::
 ++  test-broker-error-clamps-retry-after-and-drops-nonsense
   =/  parse
@@ -242,6 +285,10 @@
     !>  scope:(parse '{"code":"quota_exceeded","scope":3}' ~h1)
   ==
 ::
+::  Under a 200 nothing about the status says to repeat, so every unreadable
+::  body here is final; the one with no body at all is a bodyless 503, which
+::  the status alone makes retryable.
+::
 ++  test-broker-error-falls-back-when-unreadable
   ;:  weld
     %+  expect-eq
@@ -256,7 +303,7 @@
   ::
     %+  expect-eq
       !>  ^-  [message=@t =broker-error:b]
-      ['storage refused the upload' ['unknown' | ~ ~]]
+      ['storage refused the upload' ['unknown' & ~ ~]]
     !>((broker-error:util [%finished [503 ~] ~] ~h1))
   ::
     %+  expect-eq

@@ -264,6 +264,16 @@
   :+  %finished  [code ~]
   `['application/json' [(met 3 body) body]]
 ::
+::  +iris-html: an answer from something in front of the broker -- a proxy's
+::  own error page under a status code, carrying no JSON at all.
+::
+++  iris-html
+  |=  [code=@ud body=@t]
+  ^-  sign-arvo
+  :+  %iris  %http-response
+  :+  %finished  [code ~]
+  `['text/html' [(met 3 body) body]]
+::
 ::  +iris-cancelled: Iris gave up on the request, so what the broker did with
 ::  it is unknown.
 ::
@@ -785,8 +795,10 @@
 ::
 ::  A refusal the broker did not explain is still a refusal. With no body
 ::  there is nothing to pass on but that storage refused; with a message and
-::  no code the message is passed on. Either way the code is 'unknown' and
-::  final, because nothing said another attempt could work.
+::  no code the message is passed on. Either way the code is 'unknown', and
+::  with nothing in the body to say whether another attempt could work the
+::  status does: a 503 is retryable. A grant is cancelled regardless, since
+::  nothing is bound that the client could come back to.
 ::
 ++  test-grant-refused-without-a-readable-body
   %-  eval-mare
@@ -800,7 +812,7 @@
   ;<  ~  b
     %+  ex-cards  refused
     :~  %+  grant-fact  0v1
-        [%error %unknown 'storage refused the upload' `['unknown' | ~ ~]]
+        [%error %unknown 'storage refused the upload' `['unknown' & ~ ~]]
     ==
   ;<  ~  b  (jab-bowl |=(bol=bowl bol(eny 0v4321)))
   ;<  grant2=wire  b  (grant-call 0v2 'codeless.pdf')
@@ -809,7 +821,7 @@
   ;<  ~  b
     %+  ex-cards  refused2
     :~  %+  grant-fact  0v2
-        [%error %unknown 'storage is down' `['unknown' | ~ ~]]
+        [%error %unknown 'storage is down' `['unknown' & ~ ~]]
     ==
   ;<  sv=vase  b  get-save
   =/  st=state-1:bu  !<(state-1:bu sv)
@@ -1315,6 +1327,72 @@
     !>([status.ses2 error.ses2 ~(wyt by entries.bs2) revision.bs2])
   !>([%complete ~ 1 1])
 ::
+::  Something in front of the broker can answer a completion with its own
+::  error page -- a 502, 503 or 504 with no JSON -- and that says nothing
+::  about what the broker did with the object. The status decides, and a 5xx
+::  is worth repeating: the session is kept pending on its reservation for
+::  the uploader to ask again, and nothing cancels an object that may be in
+::  storage.
+::
+++  test-complete-refused-by-a-proxy-without-json-keeps-the-session
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'proxied.pdf' 42)
+  ;<  done=wire  b  (finish-call 0v2 seed)
+  ;<  refused=(list card)  b
+    (do-arvo done (iris-html 503 '<html>bad gateway</html>'))
+  ::  The answer is the only card: no entry is broadcast and no cancel goes
+  ::  to the broker.
+  ;<  ~  b
+    %+  ex-cards  refused
+    :~  %+  grant-fact  0v2
+        [%error %unknown 'storage refused the upload' `['unknown' & ~ ~]]
+    ==
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  ;<  ~  b
+    %+  ex-equal
+      !>([status.ses reservation.ses error.ses awaiting.ses])
+    !>([%pending `'res-1' `'storage refused the upload' ~])
+  ;<  bs=bucket-state:bu  b  saved-bucket
+  (ex-equal !>([~(wyt by entries.bs) revision.bs]) !>([0 0]))
+::
+::  An empty 400 is a refusal with nothing to read, and the status says it is
+::  final: the session is cancelled and its bound reservation released at the
+::  broker, after the waiter is answered. Nothing reaches the manifest.
+::
+++  test-complete-refused-with-an-empty-body-releases-the-reservation
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'empty.pdf' 42)
+  ;<  done=wire  b  (finish-call 0v2 seed)
+  ;<  refused=(list card)  b  (do-arvo done (iris-status 400))
+  ;<  ~  b
+    %+  ex-cards  refused
+    :~  %+  grant-fact  0v2
+        [%error %unknown 'storage refused the upload' `['unknown' | ~ ~]]
+        (ex-iris /buckets/upload/(scot %uv seed)/cancel)
+    ==
+  =/  release=[=wire =request:http]  (only-iris refused)
+  ;<  ~  b
+    %+  ex-equal
+      !>(url.request.release)
+    !>('https://memex.tlon.network/v2/buckets/uploads/res-1/cancel')
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  ;<  ~  b
+    %+  ex-equal
+      !>([status.ses reservation.ses error.ses awaiting.ses])
+    !>([%cancelled `'res-1' `'storage refused the upload' ~])
+  ;<  bs=bucket-state:bu  b  saved-bucket
+  (ex-equal !>([~(wyt by entries.bs) revision.bs]) !>([0 0]))
+::
 ::  A 2xx receipt that describes a different object from the one the session
 ::  was opened for is no success to publish: the broker committed something,
 ::  but not what the manifest would claim. The session is failed and the
@@ -1649,12 +1727,12 @@
   ;<  ~  b  (set-scry-gate reader-scries)
   ;<  mint-caz=(list card)  b  (ask 0v2 [%bucket flag [%issue-bucket-read ~]])
   =/  push=[=wire =request:http]  (only-iris mint-caz)
-  ;<  *  b  (do-arvo wire.push (iris-status 404))
+  ;<  *  b  (do-arvo wire.push (iris-status 503))
   ;<  sv=vase  b  get-save
   =/  st=state-1:bu  !<(state-1:bu sv)
-  ::  a 404 is a refusal like any other now
-  ::  a second reader, so the mint is fresh rather than the one just kept,
-  ::  against a broker that refuses it outright
+  ::  with no body the status classifies the refusal, and a 5xx is one to
+  ::  repeat. A second reader, so the mint is fresh rather than the one just
+  ::  kept, against a broker that fails it the same way
   ;<  ~  b  (jab-bowl |=(bol=bowl bol(eny 0v9999)))
   ;<  again-caz=(list card)  b
     %-  (do-as ~bus)
@@ -1913,10 +1991,17 @@
   ;<  sv=vase  b  get-save
   =/  st=state-1:bu  !<(state-1:bu sv)
   =/  sync=reader-sync:bu  (sync-for st ~sampel-palnet)
-  ::  nothing was confirmed, nothing is servable, nobody was told otherwise
-  %+  ex-equal
-    !>([synced.sync ~(wyt by read-tokens.st) (lent (answers refused))])
-  !>([0 0 0])
+  ::  nothing was confirmed and nothing is servable. A 400 with no verdict in
+  ::  its body is final by status, so the waiter is told it was refused, and
+  ::  not handed a token.
+  ;<  ~  b
+    %+  ex-equal
+      !>([synced.sync ~(wyt by read-tokens.st)])
+    !>([0 0])
+  %+  ex-cards  (answers refused)
+  :~  %+  grant-fact  0v23
+      [%error %unknown 'storage refused this access change' ~]
+  ==
 ::
 ::  Deleting a group must revoke its buckets' tokens, not crash trying. The
 ::  permission scry answers no-such-path once the group is gone, which makes .^
