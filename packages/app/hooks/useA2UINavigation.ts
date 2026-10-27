@@ -2,6 +2,7 @@ import { getCanonicalPostId } from '@tloncorp/api/client';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { A2UI } from '@tloncorp/shared/logic';
+import { useToast } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
 import { useOptionalBrowserCredentialHandoff } from '../features/browser/BrowserCredentialHandoffProvider';
@@ -64,6 +65,7 @@ function postFromTarget(
 
 export function useA2UINavigation() {
   const rootNavigation = useRootNavigation();
+  const showToast = useToast();
   const browserHandoff = useOptionalBrowserCredentialHandoff();
 
   const navigateToMessage = useCallback(
@@ -122,7 +124,7 @@ export function useA2UINavigation() {
         allowBotMcpSettings?: boolean;
         allowBrowserCredentialHandoff?: boolean;
         allowBrowserSession?: boolean;
-        onBrowserCredentialHandoffComplete?: () => Promise<void>;
+        allowBrowserWallet?: boolean;
       }
     ) => {
       switch (target.type) {
@@ -176,13 +178,29 @@ export function useA2UINavigation() {
               }
               rootNavigation.navigateToBotMcpSettings(target.providerId);
               return;
+            case 'browserWallet':
+              if (!options?.allowBrowserWallet) return;
+              rootNavigation.navigation.navigate('BrowserWallet', {
+                requestId: target.requestId,
+              });
+              return;
             case 'browserSession':
               if (!options?.allowBrowserSession) return;
-              if (!browserHandoff)
-                throw new Error('Browser session viewer is unavailable.');
-              browserHandoff.openViewer(target.viewerUrl);
+              try {
+                await (browserHandoff
+                  ? browserHandoff.openViewer(target.viewerUrl)
+                  : Promise.reject(
+                      new Error('Browser session viewer is unavailable.')
+                    ));
+              } catch (error) {
+                showToast({
+                  message:
+                    "Couldn't open the browser. Please try again and allow pop-ups if prompted.",
+                });
+                throw error;
+              }
               return;
-            case 'browserCredentialHandoff':
+            case 'browserSecureEntry':
               if (!options?.allowBrowserCredentialHandoff) {
                 logger.log('blocked untrusted browser target');
                 return;
@@ -194,13 +212,15 @@ export function useA2UINavigation() {
               }
               const handoffId = browserHandoff.register({
                 viewerUrl: target.viewerUrl,
-                onComplete: options.onBrowserCredentialHandoffComplete,
               });
-              rootNavigation.navigateToBrowserCredentialHandoff(handoffId);
+              rootNavigation.navigateToBrowserCredentialHandoff(
+                handoffId,
+                target.loginApproval
+              );
               return;
           }
       }
     },
-    [browserHandoff, navigateToMessage, rootNavigation]
+    [browserHandoff, navigateToMessage, rootNavigation, showToast]
   );
 }

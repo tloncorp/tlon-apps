@@ -29,8 +29,9 @@
  * `group-sections-runtime.ts` (poke), `posts-runtime.ts` (editPost,
  * getPostWithReplies, deleteReply, setOrder, toPostContent, getTextContent),
  * `join-invite-runtime.ts` (getGroup, scry, subscribeOnce, joinGroup,
- * requestGroupInvitation, poke, toClientGroupFromForeign), and
- * `channels.ts` (createChannel and the other channel-management calls).
+ * requestGroupInvitation, poke, toClientGroupFromForeign),
+ * `channels.ts` (createChannel and the other channel-management calls), and
+ * `groups.ts` (the group-management calls).
  */
 import type { NotesV1Api } from '@tloncorp/api';
 // The real broker client, by subpath, which the root mock below does not
@@ -200,6 +201,43 @@ export const mockedCreateChannel = {
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
 };
 
+// The group and channel mutations groups.ts and channels.ts import, each of
+// which records its call here: a command refused up front leaves it empty.
+// joinGroup and requestGroupInvitation are left out: they route through
+// mockedJoinGroup and mockedRequestGroupInvitation for the join-invite runtime.
+const MANAGEMENT_OPS = [
+  'acceptGroupJoin',
+  'addChannelWriters',
+  'addGroupRole',
+  'addMembersToRole',
+  'banUsersFromGroup',
+  'cancelGroupJoin',
+  'createGroup',
+  'deleteChannel',
+  'deleteGroup',
+  'deleteGroupRole',
+  'inviteGroupMembers',
+  'kickUsersFromGroup',
+  'leaveGroup',
+  'rejectGroupInvitation',
+  'rejectGroupJoin',
+  'removeChannelWriters',
+  'removeMembersFromRole',
+  'rescindGroupInvitationRequest',
+  'revokeGroupMemberInvites',
+  'unbanUsersFromGroup',
+  'updateChannel',
+  'updateGroupMeta',
+  'updateGroupPrivacy',
+  'updateGroupRole',
+] as const;
+
+/** Clear it after each test that reads it. */
+export const mockedManagementCalls: Array<{
+  op: (typeof MANAGEMENT_OPS)[number];
+  args: unknown[];
+}> = [];
+
 export const mockedGetBuckets = {
   impl: async (..._args: unknown[]): Promise<unknown> => [],
 };
@@ -319,7 +357,6 @@ mock.module('@tloncorp/api', () => ({
   setOrder: (...args: unknown[]) => mockedSetOrder.impl(...args),
   toPostContent: realToPostContent,
   toUrbitStory: (content: unknown) => content ?? [],
-  updateChannel: async () => undefined,
   // notes runtime value imports
   NotesV1PendingWriteError: MockNotesV1PendingWriteError,
   BucketsActionFailed: MockBucketsActionFailed,
@@ -384,14 +421,22 @@ mock.module('@tloncorp/api', () => ({
   setActivitySupportsNotes: (value: boolean) => {
     mockedVolume.supportsNotes = value;
   },
-  // channels.ts value imports (only createChannel is an assertion target;
-  // the rest are load-time placeholders)
+  // channels.ts value imports
   createChannel: (...args: unknown[]) => mockedCreateChannel.impl(...args),
-  addChannelWriters: async () => undefined,
-  removeChannelWriters: async () => undefined,
-  deleteChannel: async () => undefined,
   deleteNotesNotebookBestEffort: async () => undefined,
   getInitData: async () => undefined,
   joinChannel: async () => undefined,
   leaveChannel: async () => undefined,
+  // groups.ts reads no test exercises
+  getContacts: async () => [],
+  getGroupPreview: async () => null,
+  toClientGroupsFromForeigns: () => [],
+  ...Object.fromEntries(
+    MANAGEMENT_OPS.map((op) => [
+      op,
+      async (...args: unknown[]) => {
+        mockedManagementCalls.push({ op, args });
+      },
+    ])
+  ),
 }));

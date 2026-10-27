@@ -950,19 +950,6 @@ async function createGroupWithChannel(
 
   const createdGroup = await verifyGroupCreated(groupId);
 
-  if (description) {
-    console.log(`Setting group description...`);
-    await updateGroupMeta({
-      groupId,
-      meta: {
-        title,
-        description,
-        image: '',
-        cover: '',
-      },
-    });
-  }
-
   console.log(`✅ Group created successfully!`);
   console.log(`   ID: ${groupId}`);
   console.log(`   Title: ${title}`);
@@ -1029,6 +1016,16 @@ async function createOwnedGroup(
 // Invite ships to a group
 async function inviteToGroup(groupId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
+  // Any member may invite to a public group. For a private or secret one our
+  // ship asks the host for an invite token, which the host gives only to an
+  // admin.
+  const { admissions } = await getRawGroupForAdminVerification(groupId);
+  if (admissions?.privacy !== 'public') {
+    await assertActingShipCanAdminister(
+      groupId,
+      'invite to a private or secret group'
+    );
+  }
 
   console.log(`Inviting ${normalizedShips.join(', ')} to ${groupId}...`);
 
@@ -1162,6 +1159,7 @@ async function rescindInviteRequest(groupId: string) {
 
 async function revokeInvites(groupId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
+  await assertActingShipCanAdminister(groupId, 'revoke invites');
 
   console.log(
     `Revoking invites for ${normalizedShips.join(', ')} from ${groupId}...`
@@ -1177,6 +1175,16 @@ async function revokeInvites(groupId: string, ships: string[]) {
 
 // Delete a group (must be host)
 async function deleteGroupById(groupId: string) {
+  // The host takes %delete only from itself (`from-self` in `se-c-group`), so
+  // an admin is refused like any other ship.
+  const actingShip = normalizeShip(getCurrentUserId());
+  const hostShip = getGroupHost(groupId);
+  if (actingShip !== hostShip) {
+    throw new Error(
+      `Can't delete ${groupId}: only its host (${hostShip}) can delete it, and you are ${actingShip}.`
+    );
+  }
+
   console.log(`Deleting group ${groupId}...`);
 
   await deleteGroup(groupId);
@@ -1194,14 +1202,29 @@ async function updateGroup(
     cover?: string;
   }
 ) {
-  const group = await getGroup(groupId);
+  await assertActingShipCanAdminister(groupId, 'update');
+  // The raw meta, not getGroup's: that one moves a color image or cover to
+  // separate fields and blanks an oversized one, so falling back to it would
+  // clear them.
+  const { meta: current } = await getRawGroupForAdminVerification(groupId);
 
   const meta = {
-    title: options.title ?? group.title ?? '',
-    description: options.description ?? group.description ?? '',
-    image: options.image ?? group.iconImage ?? '',
-    cover: options.cover ?? group.coverImage ?? '',
+    title: options.title ?? current?.title ?? '',
+    description: options.description ?? current?.description ?? '',
+    image: options.image ?? current?.image ?? '',
+    cover: options.cover ?? current?.cover ?? '',
   };
+
+  // The host sends no update for an unchanged %meta, so the tracked poke
+  // could only time out.
+  if (
+    GROUP_UPDATE_FLAGS.every((flag) => meta[flag] === (current?.[flag] ?? ''))
+  ) {
+    console.log(
+      `Nothing to update: ${groupId} already has that title, description, image and cover.`
+    );
+    return;
+  }
 
   console.log(`Updating group ${groupId}...`);
 
@@ -1269,6 +1292,7 @@ async function addRole(
   roleId: string,
   options: { title?: string; description?: string }
 ) {
+  await assertActingShipCanAdminister(groupId, 'add roles');
   const title = options.title || roleId;
   const description = options.description || '';
 
@@ -1286,6 +1310,8 @@ async function addRole(
 
 // Delete a role from a group
 async function deleteRole(groupId: string, roleId: string) {
+  await assertActingShipCanAdminister(groupId, 'delete roles');
+
   console.log(`Deleting role "${roleId}" from ${groupId}...`);
 
   await deleteGroupRole({ groupId, roleId });
@@ -1299,6 +1325,7 @@ async function updateRole(
   roleId: string,
   options: { title?: string; description?: string }
 ) {
+  await assertActingShipCanAdminister(groupId, 'update roles');
   const group = await getGroup(groupId);
   const currentRole = (group.roles || []).find((role) => role.id === roleId);
   if (!currentRole) {
@@ -1361,6 +1388,7 @@ async function setGroupPrivacy(
   groupId: string,
   privacy: 'public' | 'private' | 'secret'
 ) {
+  await assertActingShipCanAdminister(groupId, 'change privacy');
   const group = await getGroup(groupId);
   const oldPrivacy = (group.privacy ?? 'private') as
     | 'public'
@@ -1381,6 +1409,7 @@ async function setGroupPrivacy(
 // Accept join requests
 async function acceptJoin(groupId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
+  await assertActingShipCanAdminister(groupId, 'accept join requests');
 
   console.log(`Accepting join requests for ${normalizedShips.join(', ')}...`);
 
@@ -1395,6 +1424,7 @@ async function acceptJoin(groupId: string, ships: string[]) {
 // Reject join requests
 async function rejectJoin(groupId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
+  await assertActingShipCanAdminister(groupId, 'reject join requests');
 
   console.log(`Rejecting join requests for ${normalizedShips.join(', ')}...`);
 
@@ -1870,6 +1900,7 @@ async function main() {
       }
       const kind =
         (getOption(args, 'kind', 3) as 'chat' | 'heap' | 'notes') || 'chat';
+      await assertActingShipCanAdminister(groupId, 'add channels');
       // %notes group channels are created by %notes itself (it registers the
       // %groups listing) — never via createChannel/%channels.
       if (kind === 'notes') {

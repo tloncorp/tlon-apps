@@ -2,16 +2,17 @@ import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import React from 'react';
 import { RefObject } from 'react';
-import { DimensionValue, View as RNView } from 'react-native';
+import { ViewInstance } from 'react-native';
+import { ViewProps } from 'tamagui';
 
 export type ChatMessageActionsProps = {
   post: db.Post;
   postActionIds: ChannelAction.Id[];
-  postRef?: RefObject<RNView | null>;
+  postRef?: RefObject<ViewInstance | null>;
   onDismiss: () => void;
   onOpenChange?: (open: boolean) => void;
-  width?: DimensionValue;
-  height?: DimensionValue;
+  width?: ViewProps['width'];
+  height?: ViewProps['height'];
   onReply?: (post: db.Post) => void;
   onEdit?: () => void;
   onViewReactions?: (post: db.Post) => void;

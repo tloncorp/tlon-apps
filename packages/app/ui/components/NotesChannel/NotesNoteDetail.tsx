@@ -15,6 +15,9 @@ import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
 import {
   type ElementRef,
+  type ComponentPropsWithoutRef,
+  type ForwardRefExoticComponent,
+  type RefAttributes,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -27,10 +30,12 @@ import {
   AppState,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  type ScrollViewInstance,
+  type TextInputInstance,
 } from 'react-native';
 import {
-  ScrollView,
-  TextArea,
+  ScrollView as TamaguiScrollView,
+  TextArea as TamaguiTextArea,
   XStack,
   YStack,
   getTokenValue,
@@ -56,6 +61,17 @@ import {
 import { NotesBanner, errorMessage } from './NotesFeedback';
 import { trackNotesActionError } from './notesTelemetry';
 import { formatNoteDate, getFolderPath } from './notesTree';
+
+// Tamagui still declares native refs as RN component types instead of instances.
+const ScrollView = TamaguiScrollView as ForwardRefExoticComponent<
+  ComponentPropsWithoutRef<typeof TamaguiScrollView> &
+    RefAttributes<ScrollViewInstance>
+>;
+// Tamagui types this native ref as the View component instead of the input instance.
+const TextArea = TamaguiTextArea as ForwardRefExoticComponent<
+  ComponentPropsWithoutRef<typeof TamaguiTextArea> &
+    RefAttributes<Pick<TextInputInstance, 'focus'>>
+>;
 
 type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 export type NotesNoteSaveFieldIntent = 'preserve' | 'set';

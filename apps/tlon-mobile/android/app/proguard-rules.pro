@@ -25,4 +25,30 @@
 # for any error NotificationLogger does not name by hand.
 -keepnames class com.android.volley.*Error
 
+# R8's strict full mode (the AGP 9 default) no longer keeps the default
+# constructor of a class kept by a bare `-keep class` rule. Room 2.5 and
+# WorkManager 2.9 ship such rules but create these classes by reflection
+# through that constructor; without it WorkManager crashes at startup creating
+# WorkDatabase_Impl.
+-keep class * extends androidx.room.RoomDatabase { <init>(); }
+-keep class * extends androidx.work.InputMerger { public <init>(); }
+
+# Native code constructs these exceptions through JNI by signature
+# (expo-modules-core's cpp/Exceptions.cpp; React Native's JMessageQueueThread
+# via ThrowNew). Class-level @DoNotStrip keeps only the class, so R8 inlines a
+# constructor into its Kotlin callers or drops it when nothing in Java calls
+# it, and the native throw then fails with NoSuchMethodError.
+-keepclassmembers class expo.modules.kotlin.exception.JavaScriptEvaluateException {
+    <init>(java.lang.String, java.lang.String);
+}
+-keepclassmembers class expo.modules.kotlin.exception.UnexpectedException {
+    <init>(java.lang.String);
+}
+-keepclassmembers class expo.modules.kotlin.exception.InvalidArgsNumberException {
+    <init>(int, int, int);
+}
+-keepclassmembers class com.facebook.react.common.JavascriptException {
+    <init>(java.lang.String);
+}
+
 # Add any project specific keep options here:

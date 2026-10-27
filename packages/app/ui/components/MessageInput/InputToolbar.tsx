@@ -16,6 +16,8 @@ import {
 } from 'react-native';
 import { View, useTheme } from 'tamagui';
 
+import { flattenViewStyle } from '../../utils/flattenViewStyle';
+
 import { useIsDarkMode } from '../../../hooks/useDarkMode';
 import { EditLinkBar } from './EditLinkBar';
 import {
@@ -140,7 +142,7 @@ const InputToolbar = memo(
             style={touchableStyle}
             key={icon}
           >
-            <View style={style}>
+            <View style={flattenViewStyle(style)}>
               <Icon type={icon} color="$primaryText" />
             </View>
           </TouchableOpacity>

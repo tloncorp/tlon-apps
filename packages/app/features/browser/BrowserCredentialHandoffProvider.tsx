@@ -10,20 +10,17 @@ import {
 import { isWeb } from 'tamagui';
 
 import { BrowserViewerModal } from './BrowserViewerModal';
-import { trustedBrowserViewerUrl } from './browserCredentialHandoff';
+import { authorizeBrowserViewer } from './browserCredentialHandoff';
+import { openBrowserViewerWindow } from './browserViewerWindow';
 
 type Handoff = {
   viewerUrl: string;
-  onComplete?: () => Promise<void>;
 };
 
-type RegisteredHandoff = Handoff & { completing?: boolean };
-
 type BrowserCredentialHandoffContextValue = {
-  openViewer: (viewerUrl: string) => void;
+  openViewer: (viewerUrl: string) => Promise<void>;
   register: (handoff: Handoff) => string;
   resolve: (id: string) => string | undefined;
-  complete: (id: string) => Promise<void>;
   discard: (id: string) => void;
 };
 
@@ -34,15 +31,14 @@ export function BrowserCredentialHandoffProvider({
   children,
 }: PropsWithChildren) {
   const [viewerUrl, setViewerUrl] = useState<string>();
-  const openViewer = useCallback((url: string) => {
-    const trustedUrl = trustedBrowserViewerUrl(url);
+  const openViewer = useCallback(async (url: string) => {
     if (isWeb) {
-      window.open(trustedUrl, '_blank', 'noopener,noreferrer');
+      await openBrowserViewerWindow(url);
     } else {
-      setViewerUrl(trustedUrl);
+      setViewerUrl(await authorizeBrowserViewer(url));
     }
   }, []);
-  const handoffs = useRef(new Map<string, RegisteredHandoff>());
+  const handoffs = useRef(new Map<string, Handoff>());
   const sequence = useRef(0);
 
   const register = useCallback((handoff: Handoff) => {
@@ -51,34 +47,18 @@ export function BrowserCredentialHandoffProvider({
     return id;
   }, []);
 
-  const resolve = useCallback((id: string) => {
-    const handoff = handoffs.current.get(id);
-    return handoff?.completing ? undefined : handoff?.viewerUrl;
-  }, []);
-
-  const complete = useCallback(async (id: string) => {
-    const handoff = handoffs.current.get(id);
-    if (!handoff || handoff.completing) {
-      throw new Error('The originating conversation is no longer available.');
-    }
-    handoff.completing = true;
-    try {
-      await handoff.onComplete?.();
-      handoffs.current.delete(id);
-    } catch (error) {
-      // A dismissed screen removes the entry even while completion is pending.
-      handoff.completing = false;
-      throw error;
-    }
-  }, []);
+  const resolve = useCallback(
+    (id: string) => handoffs.current.get(id)?.viewerUrl,
+    []
+  );
 
   const discard = useCallback((id: string) => {
     handoffs.current.delete(id);
   }, []);
 
   const value = useMemo(
-    () => ({ register, resolve, complete, discard, openViewer }),
-    [complete, discard, register, resolve, openViewer]
+    () => ({ register, resolve, discard, openViewer }),
+    [discard, register, resolve, openViewer]
   );
 
   return (

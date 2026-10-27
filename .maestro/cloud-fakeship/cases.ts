@@ -31,6 +31,7 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
     'channel-mark-read',
     'activity-filters',
     'permissions',
+    'address-book',
   ]);
   const selected = (name: string) =>
     selection === 'all'
@@ -145,6 +146,21 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
       }
     });
   }
+
+  // From its second launch the app opens a web-app promo over the tabs until
+  // the ship records it as dismissed; in a batch that is the second case.
+  await zod.state.poke({
+    app: 'settings',
+    mark: 'settings-event',
+    json: {
+      'put-entry': {
+        desk: 'groups',
+        'bucket-key': 'groups',
+        'entry-key': 'webAppSplashDismissed',
+        value: true,
+      },
+    },
+  });
 
   if (selected('invitations')) {
     const g = await group('Invite', ten, false);

@@ -5,8 +5,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { setupReactTestEnvironment } from '../../test/sheetTestUtils';
 
 // Exercise the installed patch, not a replacement for the community adapter.
-import { BottomSheet } from '../../../../node_modules/@expo/ui/src/community/bottom-sheet/BottomSheet.ios';
-import type { BottomSheetMethods } from '../../../../node_modules/@expo/ui/src/community/bottom-sheet/types';
+// Metro runs the compiled build, so that is what the test loads.
+import { BottomSheet } from '../../../../node_modules/@expo/ui/build/community/bottom-sheet/BottomSheet.ios';
+import type { BottomSheetMethods } from '../../../../node_modules/@expo/ui/build/community/bottom-sheet/types';
 
 vi.mock('react-native', () => ({
   useWindowDimensions: () => ({ width: 393 }),
@@ -15,20 +16,20 @@ vi.mock('react-native', () => ({
   ScrollView: {},
   VirtualizedList: {},
 }));
-vi.mock('../../../../node_modules/@expo/ui/src/swift-ui/BottomSheet', () => ({
+vi.mock('../../../../node_modules/@expo/ui/build/swift-ui/BottomSheet', () => ({
   BottomSheet: () => null,
 }));
-vi.mock('../../../../node_modules/@expo/ui/src/swift-ui/Host', () => ({
+vi.mock('../../../../node_modules/@expo/ui/build/swift-ui/Host', () => ({
   Host: ({ children }: { children: React.ReactNode }) => children,
 }));
-vi.mock('../../../../node_modules/@expo/ui/src/swift-ui/Group', () => ({
+vi.mock('../../../../node_modules/@expo/ui/build/swift-ui/Group', () => ({
   Group: ({ children }: { children: React.ReactNode }) => children,
 }));
-vi.mock('../../../../node_modules/@expo/ui/src/swift-ui/RNHostView', () => ({
+vi.mock('../../../../node_modules/@expo/ui/build/swift-ui/RNHostView', () => ({
   RNHostView: ({ children }: { children: React.ReactNode }) => children,
 }));
 vi.mock(
-  '../../../../node_modules/@expo/ui/src/swift-ui/modifiers/presentationModifiers',
+  '../../../../node_modules/@expo/ui/build/swift-ui/modifiers/presentationModifiers',
   () => ({
     interactiveDismissDisabled: vi.fn(),
     presentationBackground: vi.fn(),

@@ -16,7 +16,12 @@ import {
   MAX_VISIBLE_MODELS,
   PROVIDER_OPTIONS,
 } from './bot/constants';
-import { getErrorMessage, getModelDisplayName } from './bot/helpers';
+import {
+  getErrorMessage,
+  getModelDisplayName,
+  pickPrimaryModel,
+  startsZdrOnly,
+} from './bot/helpers';
 import {
   type ModelPickerProvider,
   blendedPricePerMillion,
@@ -78,8 +83,7 @@ export function BotModelSettingsScreen(props: Props) {
   useEffect(resetPicker, [mode, resetPicker]);
 
   const modelValues = draft.draft.model;
-  const zdrOnly =
-    zdrOverride ?? (modelValues.provider === 'openrouter' && modelValues.zdr);
+  const zdrOnly = zdrOverride ?? startsZdrOnly(modelValues);
 
   const availableProviders = useMemo(
     () =>
@@ -99,7 +103,7 @@ export function BotModelSettingsScreen(props: Props) {
     (provider: string, model: string) => {
       if (!ready) return;
       // Tlon picks the model behind its own option, so a bot already on it
-      // has nothing to change; writing our listed id would swap its model.
+      // has nothing to change.
       if (
         provider === BASIC_PROVIDER_ID &&
         modelValues.provider === BASIC_PROVIDER_ID
@@ -107,26 +111,21 @@ export function BotModelSettingsScreen(props: Props) {
         props.navigation.goBack();
         return;
       }
-      const zdr =
-        provider === 'openrouter'
-          ? zdrOnly
-          : provider === BASIC_PROVIDER_ID &&
-            modelValues.provider === BASIC_PROVIDER_ID &&
-            modelValues.zdr;
       draft.commitDraft((current) => ({
         ...current,
-        model: { ...current.model, provider, model, zdr },
+        model: {
+          ...current.model,
+          ...pickPrimaryModel({
+            provider,
+            model,
+            saved: draft.baseline.model,
+            zdrOnly,
+          }),
+        },
       }));
       props.navigation.goBack();
     },
-    [
-      draft,
-      modelValues.provider,
-      modelValues.zdr,
-      props.navigation,
-      ready,
-      zdrOnly,
-    ]
+    [draft, modelValues.provider, props.navigation, ready, zdrOnly]
   );
 
   const expandProvider = useCallback((provider: string) => {

@@ -1,0 +1,256 @@
+diff --git a/android/src/main/java/com/swmansion/rnscreens/Screen.kt b/android/src/main/java/com/swmansion/rnscreens/Screen.kt
+index 2f2133bf28c8e7e0fe0d63f71ba34c6b070ae06e..c6ead90dffe8b95bd45aedd9da0018e1c115b964 100644
+--- a/android/src/main/java/com/swmansion/rnscreens/Screen.kt
++++ b/android/src/main/java/com/swmansion/rnscreens/Screen.kt
+@@ -77,8 +77,10 @@ class Screen(
+     var isBeingRemoved = false
+         private set
+ 
+-    // Keeps `startTransitionRecursive` / `endTransitionRecursive` calls paired. Should be used on UI thread only.
++    // Keeps removal transition starts / ends paired. Should be used on UI thread only.
+     private var isRemovalTransitionStarted = false
++    private var isEndingRemovalTransition = false
++    private val removalTransitionViews = ArrayList<Pair<ViewGroup, View>>()
+ 
+     // Props for controlling modal presentation
+     var isSheetGrabberVisible: Boolean = false
+@@ -463,24 +465,20 @@ class Screen(
+     }
+ 
+     fun endRemovalTransition() {
+-        if (isRemovalTransitionStarted) {
+-            isRemovalTransitionStarted = false
+-            isBeingRemoved = false
+-            endTransitionRecursive(this)
++        if (!isRemovalTransitionStarted || isEndingRemovalTransition) {
++            return
+         }
+-    }
+-
+-    private fun endTransitionRecursive(parent: ViewGroup) {
+-        parent.children.forEach { childView ->
+-            parent.endViewTransition(childView)
+-
+-            if (childView is ScreenStackHeaderConfig) {
+-                endTransitionRecursive(childView.toolbar)
+-            }
+-
+-            if (childView is ViewGroup) {
+-                endTransitionRecursive(childView)
++        isEndingRemovalTransition = true
++        val viewsToFinish = removalTransitionViews.toList()
++        removalTransitionViews.clear()
++        try {
++            for ((parent, child) in viewsToFinish.asReversed()) {
++                parent.endViewTransition(child)
+             }
++        } finally {
++            isRemovalTransitionStarted = false
++            isBeingRemoved = false
++            isEndingRemovalTransition = false
+         }
+     }
+ 
+@@ -500,7 +498,10 @@ class Screen(
+                     // TODO: find a better way to handle this scenario
+                     it.addView(View(context))
+                 } else {
+-                    child?.let { view -> it.startViewTransition(view) }
++                    child?.let { view ->
++                        it.startViewTransition(view)
++                        removalTransitionViews.add(it to view)
++                    }
+                 }
+ 
+                 if (child is ScreenStackHeaderConfig) {
+diff --git a/android/src/main/java/com/swmansion/rnscreens/ScreenStack.kt b/android/src/main/java/com/swmansion/rnscreens/ScreenStack.kt
+index 2372cac68d83deeb0a384d56c69b814c3bed9673..644969a66fea9aabb23524d8069d176258429dc0 100644
+--- a/android/src/main/java/com/swmansion/rnscreens/ScreenStack.kt
++++ b/android/src/main/java/com/swmansion/rnscreens/ScreenStack.kt
+@@ -83,6 +83,8 @@ class ScreenStack(
+             return
+         }
+ 
++        // Finish descendants before Android detaches the fragment's root view.
++        view.fragment.screen.endRemovalTransition()
+         super.endViewTransition(view)
+ 
+         disappearingTransitioningChildren.remove(view)
+diff --git a/android/src/main/java/com/swmansion/rnscreens/ScreenStackHeaderConfig.kt b/android/src/main/java/com/swmansion/rnscreens/ScreenStackHeaderConfig.kt
+index 68b8d852b8433a05e02372356d00a10530ccb8c9..da6a094ed1be688a2c7274720aefe59b7afa51f3 100644
+--- a/android/src/main/java/com/swmansion/rnscreens/ScreenStackHeaderConfig.kt
++++ b/android/src/main/java/com/swmansion/rnscreens/ScreenStackHeaderConfig.kt
+@@ -7,6 +7,7 @@ import android.text.TextUtils
+ import android.util.TypedValue
+ import android.view.Gravity
+ import android.view.View.OnClickListener
++import android.view.ViewParent
+ import android.widget.ImageView
+ import android.widget.TextView
+ import androidx.appcompat.app.ActionBar
+@@ -213,6 +214,17 @@ class ScreenStackHeaderConfig(
+     private val screen: Screen?
+         get() = parent as? Screen
+ 
++    private fun isInRemovalTransition(): Boolean {
++        var ancestor: ViewParent? = parent
++        while (ancestor != null) {
++            if (ancestor is Screen && ancestor.isBeingRemoved) {
++                return true
++            }
++            ancestor = ancestor.parent
++        }
++        return false
++    }
++
+     private val screenStack: ScreenStack?
+         get() = screen?.container as? ScreenStack
+ 
+@@ -238,7 +250,7 @@ class ScreenStackHeaderConfig(
+         }
+         val isTop = stack.topScreen == parent
+ 
+-        if (!isAttachedToWindow || !isTop || isDestroyed) {
++        if (!isAttachedToWindow || !isTop || isDestroyed || isInRemovalTransition()) {
+             return
+         }
+ 
+@@ -405,7 +417,7 @@ class ScreenStackHeaderConfig(
+     }
+ 
+     private fun maybeUpdate() {
+-        if (parent != null && !isDestroyed && screen?.isBeingRemoved == false) {
++        if (parent != null) {
+             onUpdate()
+         }
+     }
+diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/appearance/TabsAppearanceApplicator.kt b/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/appearance/TabsAppearanceApplicator.kt
+index cbe9b978ced6972a51bc5235b47a58dd55836351..846cbb4c0cd8c9802428d4750bcd3a479fb7a6ef 100644
+--- a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/appearance/TabsAppearanceApplicator.kt
++++ b/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/appearance/TabsAppearanceApplicator.kt
+@@ -314,9 +314,17 @@ internal class TabsAppearanceApplicator(
+         badge.clearText()
+         badge.clearNumber()
+ 
+-        if (badgeValueNumber != null) {
++        if (badgeValue.isBlank()) {
++            // A blank badge is Material's text-less dot, centred 2dp beneath the icon.
++            // The icon is centred within a shared box that can be larger than this tab's icon.
++            val iconBoxSize = bottomNavigationView.itemIconSize
++            val iconSize = bottomNavigationView.dpToPx(effectiveIconSizeDp(tabsScreen)).toInt()
++            val dotSize = context.resources.getDimensionPixelSize(R.dimen.m3_badge_size)
++            badge.horizontalOffsetWithoutText = iconBoxSize / 2 + dotSize / 2
++            badge.verticalOffsetWithoutText = (iconBoxSize + iconSize) / 2 + PixelUtil.toPixelFromDIP(2f).toInt() + dotSize
++        } else if (badgeValueNumber != null) {
+             badge.number = badgeValueNumber
+-        } else if (badgeValue != "") {
++        } else {
+             badge.text = badgeValue
+         }
+ 
+diff --git a/ios/tabs/RNSTabBarAppearanceCoordinator.mm b/ios/tabs/RNSTabBarAppearanceCoordinator.mm
+index b3bc98dd720850ed88344368162360493957f0b9..f71a02d1aa7f3b203bee604e3167329e04fd8876 100644
+--- a/ios/tabs/RNSTabBarAppearanceCoordinator.mm
++++ b/ios/tabs/RNSTabBarAppearanceCoordinator.mm
+@@ -2,6 +2,7 @@
+ #import <React/RCTFont.h>
+ #import <React/RCTImageLoader.h>
+ #import <React/RCTLog.h>
++#import "NSString+RNSUtility.h"
+ #import "RCTConvert+RNSTabs.h"
+ #import "RNSConversions.h"
+ #import "RNSDefines.h"
+@@ -56,6 +57,93 @@ static UIImage *_Nullable RNSImageWithSymbolRenderingMode(UIImage *_Nullable ima
+ 
+     [self configureTabBarItemForTabScreenController:tabScreenCtrl imageLoader:imageLoader];
+   }
++
++  // Step 3 - draw blank badges as dots
++  [self configureDotBadgesForTabScreenControllers:tabScreenCtrls];
++}
++
++// On iOS 26 and later, while every badge on the bar is blank, each one draws as a 6pt dot centred 2pt
++// beneath its 24pt icon instead of UIKit's pill at the icon's corner. UIKit pads the badge's text by a
++// fixed amount, so the badge cannot shrink to a dot itself: the dot is a U+25CF glyph in the badge colour
++// on a clear badge. The bar draws every badge with the selected item's appearance, so the style goes on
++// every item or on none, and a bar that also shows a text or number badge keeps UIKit's pills. The offset
++// is measured on iOS 26.5, where UIKit moves the badge towards the icon for a positive horizontal value.
++- (void)configureDotBadgesForTabScreenControllers:(nonnull NSArray<RNSTabsScreenViewController *> *)tabScreenCtrls
++{
++  BOOL drawsDots = [RNSTabBarAppearanceCoordinator shouldDrawDotBadgesForTabScreenControllers:tabScreenCtrls];
++  for (RNSTabsScreenViewController *tabScreenCtrl in tabScreenCtrls) {
++    UITabBarItem *tabBarItem = tabScreenCtrl.tabBarItem;
++    NSString *badgeValue = tabScreenCtrl.tabScreenComponentView.badgeValue;
++    if (drawsDots) {
++      tabBarItem.standardAppearance =
++          [RNSTabBarAppearanceCoordinator dotBadgeAppearanceFrom:tabBarItem.standardAppearance];
++      if (tabBarItem.scrollEdgeAppearance != nil) {
++        tabBarItem.scrollEdgeAppearance =
++            [RNSTabBarAppearanceCoordinator dotBadgeAppearanceFrom:tabBarItem.scrollEdgeAppearance];
++      }
++      if (badgeValue != nil) {
++        badgeValue = @"\u25CF";
++      }
++    }
++    // Set it either way, so a glyph from an earlier dot pass never outlives the dots.
++    if (![tabBarItem.badgeValue isEqualToString:badgeValue]) {
++      tabBarItem.badgeValue = badgeValue;
++    }
++#if RNS_UITAB_API_SDK_AVAILABLE
++    if (RNS_UITAB_API_ENABLED) {
++      if (![tabScreenCtrl.tab.badgeValue isEqualToString:badgeValue]) {
++        tabScreenCtrl.tab.badgeValue = badgeValue;
++      }
++    }
++#endif // RNS_UITAB_API_SDK_AVAILABLE
++  }
++}
++
+++ (BOOL)shouldDrawDotBadgesForTabScreenControllers:(nonnull NSArray<RNSTabsScreenViewController *> *)tabScreenCtrls
++{
++  if (@available(iOS 26.0, *)) {
++    BOOL hasDotBadge = NO;
++    for (RNSTabsScreenViewController *tabScreenCtrl in tabScreenCtrls) {
++      NSString *badgeValue = tabScreenCtrl.tabScreenComponentView.badgeValue;
++      if (badgeValue == nil) {
++        continue;
++      }
++      if (![NSString rnscreens_isBlankOrNull:badgeValue]) {
++        return NO;
++      }
++      hasDotBadge = YES;
++    }
++    return hasDotBadge;
++  }
++  return NO;
++}
++
+++ (nonnull UITabBarAppearance *)dotBadgeAppearanceFrom:(nonnull UITabBarAppearance *)appearance
++{
++  UITabBarAppearance *dotAppearance = [appearance copy];
++  for (UITabBarItemAppearance *itemAppearance in @[
++         dotAppearance.stackedLayoutAppearance,
++         dotAppearance.inlineLayoutAppearance,
++         dotAppearance.compactInlineLayoutAppearance
++       ]) {
++    NSArray<UITabBarItemStateAppearance *> *stateAppearances =
++        @[ itemAppearance.normal, itemAppearance.selected, itemAppearance.focused, itemAppearance.disabled ];
++    // Read every colour before clearing any: an unset state reports the normal state's colour.
++    NSMutableArray<UIColor *> *badgeColors = [NSMutableArray arrayWithCapacity:stateAppearances.count];
++    for (UITabBarItemStateAppearance *stateAppearance in stateAppearances) {
++      [badgeColors addObject:stateAppearance.badgeBackgroundColor ?: UIColor.systemRedColor];
++    }
++    for (NSUInteger i = 0; i < stateAppearances.count; i++) {
++      UITabBarItemStateAppearance *stateAppearance = stateAppearances[i];
++      stateAppearance.badgeTextAttributes = @{
++        NSFontAttributeName : [UIFont systemFontOfSize:8],
++        NSForegroundColorAttributeName : badgeColors[i],
++      };
++      stateAppearance.badgeBackgroundColor = UIColor.clearColor;
++      stateAppearance.badgePositionAdjustment = UIOffsetMake(14.67, 35.17);
++    }
++  }
++  return dotAppearance;
+ }
+ 
+ - (void)configureTabBarItemForTabScreenController:(nonnull RNSTabsScreenViewController *)tabScreenCtrl

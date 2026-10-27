@@ -4,6 +4,15 @@ import type { Entry } from './types';
 // registry check holds the ownership map. %genuine, %grouper, %notify and
 // %metagrab ship in %groups.
 export const base = {
+  loginCode: {
+    kind: 'thread',
+    agent: 'base',
+    desk: 'base',
+    name: 'code',
+    inputMark: 'json',
+    outputMark: 'ship',
+    since: '12.3.1',
+  },
   kilnPikes: {
     kind: 'scry',
     agent: 'hood',
