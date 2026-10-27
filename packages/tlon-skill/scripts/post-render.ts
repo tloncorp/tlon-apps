@@ -129,7 +129,7 @@ function fileNameOf(src: string): string {
 }
 
 export function referencePath(reference: ContentReference): string {
-  return citeToPath(contentReferenceToCite(reference));
+  return citeToPath(contentReferenceToCite(reference)) ?? '';
 }
 
 function renderBlock(block: BlockData): string[] {
