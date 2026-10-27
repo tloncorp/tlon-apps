@@ -120,6 +120,7 @@ import {
   STEWARD_AUTOMATION_FINALIZE_PATH,
   StewardAutomationEditProcessor,
 } from '../steward-automation-edit.js';
+import { defaultCronAgentId, startCronTestRun } from '../cron-test-run.js';
 import {
   getStewardAutomationReconciler,
   isStewardAutomationProjectionEligible,
@@ -6120,6 +6121,28 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               response
             ),
           getCron: () => getTlonCronService(),
+          // A test run's only output is its lens, so without one reaching
+          // the owner there is nothing to run it for.
+          ...(isContextLensEffectivelyEnabled(cfg, account.accountId)
+            ? {
+                runTest: (jobId: string) => {
+                  const cron = getTlonCronService();
+                  const config = core.config.current() as OpenClawConfig;
+                  return startCronTestRun(jobId, {
+                    listJobs: async () =>
+                      cron ? cron.list({ includeDisabled: true }) : [],
+                    defaultAgentId: () => defaultCronAgentId(cron, config),
+                    config,
+                    runtime: core.agent,
+                    stateDir: () => core.state.resolveStateDir(),
+                    publish: (phase, lens) =>
+                      publishContextLensEvent(phase, lens),
+                    logger: { warn: (message) => runtime.error?.(message) },
+                    ...(opts.abortSignal ? { signal: opts.abortSignal } : {}),
+                  });
+                },
+              }
+            : {}),
           logger: {
             log: (message) => runtime.log?.(message),
             warn: (message) => runtime.error?.(message),

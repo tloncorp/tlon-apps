@@ -10,6 +10,8 @@ import { Platform } from 'react-native';
 
 import { SettingsDrawerParamList } from '../types';
 import { ScheduledTaskEditorScreen } from '../../features/automations/ScheduledTaskEditorScreen';
+import { ScheduledTaskRunScreen } from '../../features/automations/ScheduledTaskRunScreen';
+import { ScheduledTaskRunsScreen } from '../../features/automations/ScheduledTaskRunsScreen';
 import { ScheduledTasksScreen } from '../../features/automations/ScheduledTasksScreen';
 import { AppInfoScreen } from '../../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../../features/settings/BlockedUsersScreen';
@@ -239,6 +241,14 @@ export const SettingsNavigator = () => {
       <SettingsDrawer.Screen
         name="ScheduledTaskEditor"
         component={ScheduledTaskEditorScreen}
+      />
+      <SettingsDrawer.Screen
+        name="ScheduledTaskRuns"
+        component={ScheduledTaskRunsScreen}
+      />
+      <SettingsDrawer.Screen
+        name="ScheduledTaskRun"
+        component={ScheduledTaskRunScreen}
       />
       <SettingsDrawer.Screen
         name="FeatureFlags"

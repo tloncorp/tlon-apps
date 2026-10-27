@@ -176,6 +176,19 @@ describe('SettingsSectionsView', () => {
     expect(onCopy).toHaveBeenCalled();
   });
 
+  it('shows all of an expanded row’s subtitle, as the native lists do', () => {
+    const subtitleLines = (expanded?: boolean) =>
+      render({
+        key: 'row',
+        title: 'Call',
+        subtitle: 'Arguments',
+        expanded,
+      }).findByType('ListItemSubtitle' as never).props.numberOfLines;
+
+    expect(subtitleLines()).toBe(2);
+    expect(subtitleLines(true)).toBeUndefined();
+  });
+
   it('turns a row’s own button off with the row', () => {
     const onPress = vi.fn();
     const row: SettingsRowModel = {

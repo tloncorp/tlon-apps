@@ -500,6 +500,10 @@
     %+  expect-eq
       !>(`a-automation:v1:a`[%edit rid ~zod [%delete 'job-1']])
     !>((round-trip-action [%edit rid ~zod [%delete 'job-1']]))
+  ::
+    %+  expect-eq
+      !>(`a-automation:v1:a`[%edit rid ~zod [%test 'job-1']])
+    !>((round-trip-action [%edit rid ~zod [%test 'job-1']]))
   ==
 ::
 ::  the client's action shapes, parsed through the production edit codec
@@ -512,6 +516,8 @@
     (parse-json '{"update": {"id": "job-1", "enabled": false}}')
   =/  delete=json
     (parse-json '{"delete": {"id": "job-1"}}')
+  =/  test=json
+    (parse-json '{"test": {"id": "job-1"}}')
   ;:  weld
     %+  expect-eq
       !>(`edit:v1:a`[%create blank(name (some 'New task'), enabled (some %.y))])
@@ -524,6 +530,10 @@
     %+  expect-eq
       !>(`edit:v1:a`[%delete 'job-1'])
     !>((edit:dejs:aj delete))
+  ::
+    %+  expect-eq
+      !>(`edit:v1:a`[%test 'job-1'])
+    !>((edit:dejs:aj test))
   ==
 ::
 ++  test-finalize-round-trips-all-bodies
@@ -531,6 +541,7 @@
     :~  [%created 'job-1']
         [%updated 'job-1']
         [%deleted 'job-1']
+        [%started 'job-1' 'lens-1']
         [%error %harness-error ~[leaf+"cron job already exists"]]
         [%error %invalid ~]
         [%pending %acked]
@@ -572,6 +583,24 @@
   %+  expect-eq
     !>(expected)
   !>((response:enjs:aj [rid [%created 'job-1']]))
+::
+::  a %test's answer names the lens run that records it
+::
+++  test-response-started-grows-lens-id
+  =/  expected=json
+    =,  enjs:format
+    %-  pairs
+    :~  ['requestId' rid-json]
+        :-  'body'
+        %-  pairs
+        :~  ['type' s+'started']
+            ['id' s+'job-1']
+            ['lensId' s+'lens-1']
+        ==
+    ==
+  %+  expect-eq
+    !>(expected)
+  !>((response:enjs:aj [rid [%started 'job-1' 'lens-1']]))
 ::
 ++  test-response-error-grows-message-as-strings
   =/  expected=json
