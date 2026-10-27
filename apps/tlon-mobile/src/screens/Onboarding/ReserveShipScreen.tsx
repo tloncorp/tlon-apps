@@ -22,9 +22,10 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'ReserveShip'>;
 
 const ART_HEIGHT = 200;
 const ART_GAP = 48;
-// The first step's text starts about this far inside its row. The art leaves
-// that much less margin below it, so the space above and below looks even.
-const STEP_TEXT_INSET = 20;
+// The first step's text sits about 20 pt inside its row, and only one corner
+// of the art reaches its bottom edge. Taking this much off the margin below
+// the art makes the space above and below it look even.
+const ART_MARGIN_TRIM = 28;
 
 export const ReserveShipScreen = ({ navigation }: Props) => {
   const signupContext = useSignupContext();
@@ -58,7 +59,7 @@ export const ReserveShipScreen = ({ navigation }: Props) => {
       <YStack flex={1}>
         {/* The art sits midway between the text and the first step, and
             shrinks on short screens to keep the steps above the bottom slot. */}
-        <View flex={1} minHeight={0} marginBottom={ART_GAP - STEP_TEXT_INSET}>
+        <View flex={1} minHeight={0} marginBottom={ART_GAP - ART_MARGIN_TRIM}>
           {/* Placed absolutely so the art only takes the room that's left and
               never pushes the steps down; with large text it gives way. */}
           <View
