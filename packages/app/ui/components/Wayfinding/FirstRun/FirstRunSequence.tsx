@@ -29,6 +29,7 @@ import {
   defaultModelRowId,
 } from './firstRunModelOptions';
 import type { FeaturedService, ServiceAttempt } from './firstRunServices';
+import { createModelSwitchQueue } from './modelSwitchQueue';
 import type { FirstRunSetupStatus } from './types';
 
 const logger = createDevLogger('FirstRunSequence', false);
@@ -149,7 +150,7 @@ export function FirstRunSequence({
   // can be retried by continuing with the same choice.
   const [appliedModelId, setAppliedModelId] = useState(INCLUDED_ROW_ID);
   const [applyingModelId, setApplyingModelId] = useState<string | null>(null);
-  const applyRequestRef = useRef(0);
+  const [runSwitch] = useState(createModelSwitchQueue);
   const mountedRef = useRef(true);
   const showToast = useToast();
   const [switchRow, setSwitchRow] = useState<FirstRunModelRow | null>(null);
@@ -211,39 +212,38 @@ export function FirstRunSequence({
     }
   }, [onOpenChat, setup.status]);
 
-  // Switch the bot in the background. Only the latest switch counts, and if
-  // it doesn't take, say so: in place while the first run is open, and as a
+  // Switch the bot in the background, one switch at a time so an older one
+  // can't save after a newer choice. Only the latest switch counts, and if it
+  // doesn't take, say so: in place while the first run is open, and as a
   // pointer to settings once the chat has opened.
   const applyChoice = useCallback(
     (rowId: string, name: string, provider: string, model: string) => {
-      const request = applyRequestRef.current + 1;
-      applyRequestRef.current = request;
       setApplyingModelId(rowId);
-      void models
-        .applyModel(provider, model)
-        .catch(() => false)
-        .then((applied) => {
-          if (request !== applyRequestRef.current) return;
-          const stillOpen = mountedRef.current;
-          if (stillOpen) {
-            setApplyingModelId(null);
-            if (applied) setAppliedModelId(rowId);
-          }
-          if (!applied) {
-            logger.trackError('First run model switch failed', {
-              provider,
-              model,
-            });
-            showToast({
-              message: stillOpen
-                ? firstRunCopy.model.switchFailed(name)
-                : firstRunCopy.model.switchFailedLater(name),
-              duration: 6000,
-            });
-          }
-        });
+      void runSwitch(() =>
+        models.applyModel(provider, model).catch(() => false)
+      ).then((outcome) => {
+        if (outcome.superseded) return;
+        const applied = outcome.value;
+        const stillOpen = mountedRef.current;
+        if (stillOpen) {
+          setApplyingModelId(null);
+          if (applied) setAppliedModelId(rowId);
+        }
+        if (!applied) {
+          logger.trackError('First run model switch failed', {
+            provider,
+            model,
+          });
+          showToast({
+            message: stillOpen
+              ? firstRunCopy.model.switchFailed(name)
+              : firstRunCopy.model.switchFailedLater(name),
+            duration: 6000,
+          });
+        }
+      });
     },
-    [models, showToast]
+    [models, runSwitch, showToast]
   );
 
   const handleModelContinue = useCallback(
