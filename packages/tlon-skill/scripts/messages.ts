@@ -26,6 +26,7 @@ import type { Post } from '@tloncorp/api';
 
 import { ensureClient, normalizeShip } from './api-client';
 import {
+  errorMessage,
   formatPostId,
   isHelpArg,
   printErrorAndExit,
@@ -194,23 +195,17 @@ async function fetchDmMessages(
     );
   }
 
-  try {
-    const data = await getChannelPosts({
-      channelId: normalizedShip,
-      mode: 'newest',
-      count: limit,
-      includeReplies: true,
-    });
+  const data = await getChannelPosts({
+    channelId: normalizedShip,
+    mode: 'newest',
+    count: limit,
+    includeReplies: true,
+  });
 
-    if (!json) {
-      console.log(
-        `=== DMs with ${normalizedShip} (${data.posts.length}) ===\n`
-      );
-    }
-    await printPosts(data.posts, resolveCites, { json });
-  } catch (error: any) {
-    console.error(`Error fetching DMs: ${error.message}`);
+  if (!json) {
+    console.log(`=== DMs with ${normalizedShip} (${data.posts.length}) ===\n`);
   }
+  await printPosts(data.posts, resolveCites, { json });
 }
 
 // Fetch messages from a channel
@@ -227,26 +222,22 @@ async function fetchMessages(
     );
   }
 
-  try {
-    const data = await getChannelPosts({
-      channelId: channel,
-      mode: 'newest',
-      count: limit,
-      includeReplies: true,
-    });
+  const data = await getChannelPosts({
+    channelId: channel,
+    mode: 'newest',
+    count: limit,
+    includeReplies: true,
+  }).catch((error: unknown) => {
+    throw new Error(
+      `Failed to fetch messages from ${channel}: ${errorMessage(error)}. Check that the channel path is correct (e.g., chat/~host/slug)`,
+      { cause: error }
+    );
+  });
 
-    if (!json) {
-      console.log(`=== Messages in ${channel} (${data.posts.length}) ===\n`);
-    }
-    await printPosts(data.posts, resolveCites, { json });
-  } catch (error: any) {
-    console.error(`Error fetching messages: ${error.message}`);
-    if (!json) {
-      console.log(
-        'Note: Check that the channel path is correct (e.g., chat/~host/slug)'
-      );
-    }
+  if (!json) {
+    console.log(`=== Messages in ${channel} (${data.posts.length}) ===\n`);
   }
+  await printPosts(data.posts, resolveCites, { json });
 }
 
 // Search messages in a channel
@@ -259,26 +250,22 @@ async function searchMessages(
     console.log(`Searching "${query}" in: ${channel}\n`);
   }
 
-  try {
-    const results = await searchChannel({
-      channelId: channel,
-      query,
-    });
+  const results = await searchChannel({
+    channelId: channel,
+    query,
+  });
 
-    if (!results.posts.length) {
-      if (!json) {
-        console.log('No results found.');
-      }
-      return;
-    }
-
+  if (!results.posts.length) {
     if (!json) {
-      console.log(`Found ${results.posts.length} results:\n`);
+      console.log('No results found.');
     }
-    await printPosts(results.posts, false, { json });
-  } catch (error: any) {
-    console.error(`Error searching messages: ${error.message}`);
+    return;
   }
+
+  if (!json) {
+    console.log(`Found ${results.posts.length} results:\n`);
+  }
+  await printPosts(results.posts, false, { json });
 }
 
 // Fetch context around a specific post (messages before and after)
@@ -299,28 +286,24 @@ async function fetchContext(
     );
   }
 
-  try {
-    // The backend supports %around mode which fetches N older + N newer + the
-    // target post in one scry. The JS API types only declare "older"|"newer"
-    // but the path builder is generic, so "around" just works at runtime.
-    const data = await getChannelPosts({
-      channelId,
-      cursor: postId,
-      mode: 'around' as any,
-      count: limit,
-      includeReplies: true,
-    });
+  // The backend supports %around mode which fetches N older + N newer + the
+  // target post in one scry. The JS API types only declare "older"|"newer"
+  // but the path builder is generic, so "around" just works at runtime.
+  const data = await getChannelPosts({
+    channelId,
+    cursor: postId,
+    mode: 'around' as any,
+    count: limit,
+    includeReplies: true,
+  });
 
-    if (!json) {
-      console.log(
-        `=== Context around ${postId} (${data.posts.length} messages) ===\n`
-      );
-    }
-
-    await printPosts(data.posts, resolve, { highlightId: postId, json });
-  } catch (error: any) {
-    console.error(`Error fetching context: ${error.message}`);
+  if (!json) {
+    console.log(
+      `=== Context around ${postId} (${data.posts.length} messages) ===\n`
+    );
   }
+
+  await printPosts(data.posts, resolve, { highlightId: postId, json });
 }
 
 async function getPostWithOptionalAuthor({
@@ -352,63 +335,59 @@ async function fetchPost(
     console.log(`Fetching post ${postId} from ${channelId}\n`);
   }
 
-  try {
-    const post = await getPostWithOptionalAuthor({
-      channelId,
-      postId,
-      authorId,
-    });
+  const post = await getPostWithOptionalAuthor({
+    channelId,
+    postId,
+    authorId,
+  });
 
-    if (!post) {
-      if (!json) {
-        console.log('Post not found.');
-      }
-      return;
+  if (!post) {
+    if (!json) {
+      console.log('Post not found.');
     }
+    return;
+  }
 
-    if (json) {
-      console.log(renderPostJsonLine(post));
-      if (post.replies && post.replies.length > 0) {
-        await printPosts(post.replies, resolve, { json });
-      }
-      return;
-    }
-
-    const author = post.authorId || 'unknown';
-    const time = formatTime(post.sentAt);
-    const text = extractPostText(post.content);
-    // One budget for the whole command, shared with the replies below.
-    const budget = createRefBudget();
-
-    console.log(`=== Post ${postId} ===\n`);
-    console.log(`Author: ${author}`);
-    console.log(`Time: ${time}`);
-    console.log(`ID: ${post.id}`);
-    if (text) {
-      console.log('');
-      for (const line of formatBodyLines(text)) {
-        console.log(line);
-      }
-    }
-
-    const refLines = await renderRefLines(extractReferences(post.content), {
-      resolve,
-      fetchRef,
-      budget,
-    });
-    for (const ref of refLines) {
-      console.log('');
-      for (const line of formatQuoteLines(ref)) {
-        console.log(line);
-      }
-    }
-
+  if (json) {
+    console.log(renderPostJsonLine(post));
     if (post.replies && post.replies.length > 0) {
-      console.log(`\n--- Replies (${post.replies.length}) ---\n`);
-      await printPosts(post.replies, resolve, { budget });
+      await printPosts(post.replies, resolve, { json });
     }
-  } catch (error: any) {
-    console.error(`Error fetching post: ${error.message}`);
+    return;
+  }
+
+  const author = post.authorId || 'unknown';
+  const time = formatTime(post.sentAt);
+  const text = extractPostText(post.content);
+  // One budget for the whole command, shared with the replies below.
+  const budget = createRefBudget();
+
+  console.log(`=== Post ${postId} ===\n`);
+  console.log(`Author: ${author}`);
+  console.log(`Time: ${time}`);
+  console.log(`ID: ${post.id}`);
+  if (text) {
+    console.log('');
+    for (const line of formatBodyLines(text)) {
+      console.log(line);
+    }
+  }
+
+  const refLines = await renderRefLines(extractReferences(post.content), {
+    resolve,
+    fetchRef,
+    budget,
+  });
+  for (const ref of refLines) {
+    console.log('');
+    for (const line of formatQuoteLines(ref)) {
+      console.log(line);
+    }
+  }
+
+  if (post.replies && post.replies.length > 0) {
+    console.log(`\n--- Replies (${post.replies.length}) ---\n`);
+    await printPosts(post.replies, resolve, { budget });
   }
 }
 

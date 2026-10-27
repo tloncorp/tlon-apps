@@ -295,6 +295,9 @@ mock.module('@tloncorp/api', () => ({
   sendReply: async () => undefined,
   batchImportNotesV1: async (input: { requestId: string }) => input.requestId,
   getChannelPosts: (...args: unknown[]) => mockedGetChannelPosts.impl(...args),
+  // messages.ts value imports (load-time placeholders)
+  getPostReference: async () => undefined,
+  searchChannel: async () => ({ posts: [] }),
   // message-content.ts value imports -- the real renderers, not stubs: their
   // output is exactly what the parse repair is under test for.
   parsePostBlob,
