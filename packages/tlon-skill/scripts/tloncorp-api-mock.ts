@@ -30,8 +30,9 @@
  * getPostWithReplies, deleteReply, setOrder, toPostContent, getTextContent),
  * `join-invite-runtime.ts` (getGroup, scry, subscribeOnce, joinGroup,
  * requestGroupInvitation, poke, toClientGroupFromForeign),
- * `channels.ts` (createChannel and the other channel-management calls), and
- * `groups.ts` (the group-management calls).
+ * `channels.ts` (createChannel and the other channel-management calls),
+ * `groups.ts` (the group-management calls), and `messages.ts` (getInitData,
+ * searchChannel, getPostReference, parsePostBlob).
  */
 import type { NotesV1Api } from '@tloncorp/api';
 // The real broker client, by subpath, which the root mock below does not
@@ -210,6 +211,17 @@ export const mockedActivityRead = resettable({
     groupUnreads: [],
     channelUnreads: [],
     threadActivity: [],
+  }),
+});
+
+export const mockedGetInitData = resettable({
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+});
+
+export const mockedSearchChannel = resettable({
+  impl: async (..._args: unknown[]): Promise<unknown> => ({
+    posts: [],
+    cursor: null,
   }),
 });
 
@@ -444,9 +456,13 @@ mock.module('@tloncorp/api', () => ({
   // channels.ts value imports
   createChannel: (...args: unknown[]) => mockedCreateChannel.impl(...args),
   deleteNotesNotebookBestEffort: async () => undefined,
-  getInitData: async () => undefined,
+  getInitData: (...args: unknown[]) => mockedGetInitData.impl(...args),
   joinChannel: async () => undefined,
   leaveChannel: async () => undefined,
+  // messages.ts value imports
+  searchChannel: (...args: unknown[]) => mockedSearchChannel.impl(...args),
+  getPostReference: async () => undefined,
+  parsePostBlob: () => [],
   // groups.ts reads no test exercises
   getContacts: async () => [],
   getGroupPreview: async () => null,
