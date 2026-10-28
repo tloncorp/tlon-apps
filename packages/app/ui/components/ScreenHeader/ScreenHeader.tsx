@@ -53,6 +53,8 @@ import { getNativeTitleMaxWidth } from './titleLayout';
 interface SharedScreenHeaderProps {
   title?: string | ReactNode;
   titleIcon?: ReactNode;
+  /** Shown right after the title, before the chevron (e.g. a status badge). */
+  titleBadge?: ReactNode;
   subtitle?: string | ReactNode;
   showSubtitle?: boolean;
   backgroundColor?: string;
@@ -93,6 +95,7 @@ export const ScreenHeaderComponent = ({
   children,
   title,
   titleIcon,
+  titleBadge,
   subtitle,
   showSubtitle = false,
   backgroundColor,
@@ -290,6 +293,7 @@ export const ScreenHeaderComponent = ({
           {displayTitle}
         </Text>
       )}
+      {titleBadge}
       {onTitlePress &&
         (useHorizontalTitleLayout ? (
           // Larger and 1px low on desktop, so the chevron centers on the
@@ -340,6 +344,7 @@ export const ScreenHeaderComponent = ({
   const usesCustomNativeTitle =
     typeof title !== 'string' ||
     titleIcon != null ||
+    titleBadge != null ||
     onTitlePress != null ||
     loadingSubtitle !== undefined;
   const shouldUseNativeHeader = useNativeHeader({
