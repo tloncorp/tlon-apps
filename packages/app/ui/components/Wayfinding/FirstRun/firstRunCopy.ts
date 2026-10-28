@@ -261,15 +261,9 @@ export const firstRunCopy = {
   },
 
   setup: {
-    // The header fits about 185 points, so the canvas's "Getting your
-    // Tlonbot ready…" leads the body instead.
-    waitingTitle: 'Setting up',
+    // The screen keeps signup's "Setting up" title, so the canvas's "Getting
+    // your Tlonbot ready…" leads the body instead.
     waitingBody:
       'Getting your Tlonbot ready… Your choices are saved, and your chat opens as soon as it’s ready.',
-    steps: [
-      'Preparing your Tlon computer',
-      'Connecting to the network',
-      'Setting up your Tlonbot',
-    ],
   },
 };
