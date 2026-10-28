@@ -453,7 +453,11 @@
 ::  +find-whose: resolve a single %whose query
 ::
 ++  find-whose
-  |=  [id=identifier sat=(unit record) src=(set identifier)]
+  |=  $:  id=identifier
+          sat=(unit record)
+          src=(set identifier)
+          records=(map identifier record)
+      ==
   ^-  (unit @p)
   ?~  sat  ~
   ?.  ?=(%done -.status.u.sat)  ~
@@ -465,7 +469,10 @@
   ::
       %verified
     %+  lien  ~(tap in src)
-    |=(i=identifier =(-.i -.id))
+    |=  i=identifier
+    ?&  =(-.i -.id)
+        ?=(%done =<(-.status (~(gut by records) i *record)))
+    ==
   ==
 --
 ::
@@ -782,7 +789,7 @@
       ::
           %whose
         :-  %whose
-        (find-whose id.qer (~(get by records) id.qer) (~(get ju owners) src.bowl))
+        (find-whose id.qer (~(get by records) id.qer) (~(get ju owners) src.bowl) records)
       ==
     ::
         %whose-bulk
@@ -841,7 +848,7 @@
       =/  own  (~(get ju owners) src.bowl)
       |=  [id=identifier out=(map identifier (unit @p))]
       %+  ~(put by out)  id
-      (find-whose id (~(get by records) id) own)
+      (find-whose id (~(get by records) id) own records)
     ==
   ::
       %handle-http-request
