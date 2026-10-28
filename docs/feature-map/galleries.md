@@ -147,12 +147,12 @@ Desktop: in a wide window, results open in place. Leaving a file preview returns
 Notes: the search screen explains its reach: `Search filenames, folders, and members across this Bucket.` It matches file and folder names (so files inside a matching folder show up too), file types, and the ship name of whoever last changed the item. It does not look inside files. Nothing matching shows `No results found`.
 
 ## Open, preview or download a file in a Bucket
-<!-- src: packages/app/ui/components/BucketsChannel/BucketsChannel.tsx, packages/app/ui/components/BucketsChannel/BucketFileViewer.tsx, packages/app/ui/components/BucketsChannel/BucketFileViewer.native.tsx, packages/app/ui/components/BucketsChannel/BucketFileViewer.shared.ts, packages/app/features/buckets/BucketsLiveChannel.tsx, packages/app/features/top/BucketFileScreen.tsx, packages/app/features/buckets/BucketsLiveFile.tsx -->
+<!-- src: packages/app/ui/components/BucketsChannel/BucketsChannel.tsx, packages/app/ui/components/BucketsChannel/BucketFileViewer.tsx, packages/app/ui/components/BucketsChannel/BucketFileViewer.native.tsx, packages/app/ui/components/BucketsChannel/BucketFileViewer.shared.ts, packages/app/ui/components/BucketsChannel/BucketFileViewerScriptsBanner.tsx, packages/app/features/buckets/BucketsLiveChannel.tsx, packages/app/features/top/BucketFileScreen.tsx, packages/app/features/buckets/BucketsLiveFile.tsx -->
 <!-- flag: buckets -->
 <!-- covers: route:BucketFile -->
 
-Phone: tap a file to open its preview on a separate screen. Pictures, videos, PDFs and text files (such as .txt, .md, .json or .csv, up to 2 MB) open inside the app. `Open` at the top right hands it to your browser or another app. To skip the preview, press and hold the file, or tap its three-dot button, then `Download`.
-Desktop: the preview replaces the Bucket's list. Hover a row for its three-dot button.
+Phone: tap a file to open its preview on a separate screen. Pictures, videos, PDFs, web pages (.html files) and text files (such as .txt, .md, .json or .csv, up to 2 MB) open inside the app. A web page shows rendered, titled with its own title. If it has scripts, a bar at the top says `For security reasons, interactivity on this page is disabled by default.` Tap `Enable` to let them run. `Open` at the top right hands it to your browser or another app. To skip the preview, press and hold the file, or tap its three-dot button, then `Download`.
+Desktop: the preview replaces the Bucket's list. Hover a row for its three-dot button. In the desktop app a web page shows without its scripts, so there is no `Enable` bar.
 Notes: on the phone, the preview's back arrow returns to the list, or to search if you opened a search result. Other types show `Preview unavailable` with `Open file`. Android PDFs show `Open PDF to view` instead.
 
 ## Browse folders in a Bucket
