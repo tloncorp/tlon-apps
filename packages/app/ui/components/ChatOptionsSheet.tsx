@@ -1,13 +1,14 @@
 import * as ub from '@tloncorp/api/urbit';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { Icon, useIsWindowNarrow } from '@tloncorp/ui';
+import { ActionSheetContext, Icon, useIsWindowNarrow } from '@tloncorp/ui';
 import { IconButton } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import React, {
   ReactElement,
   memo,
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useState,
@@ -18,6 +19,8 @@ import { useCurrentUserId } from '../contexts/appDataContext';
 import { ChatOptionsContext } from '../contexts/chatOptions/context';
 import { useChatOptions } from '../contexts/chatOptions/useChatOptions';
 import { useChatVolumeOptions } from '../contexts/chatOptions/useChatVolumeOptions';
+import { useCopyChannelLink } from '../hooks/useCopyChannelLink';
+import { useIsNativeSheet } from '../hooks/useIsNativeSheet';
 import * as utils from '../utils';
 import {
   Action,
@@ -29,6 +32,7 @@ import {
   desktopFlyoutPopoverProps,
 } from './ActionSheet';
 import { ListItem } from './ListItem';
+import { ExpoUIActionContent, ExpoUIPaneStack } from './ExpoUISheet';
 
 function getNotificationTitle(
   volumeSettings: { level: ub.NotificationLevel } | null | undefined,
@@ -54,6 +58,7 @@ type ChatOptionsSheetProps = {
     id: string;
   } | null;
   trigger?: React.ReactNode;
+  onNativeDismissed?: () => void;
 };
 
 export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
@@ -61,12 +66,12 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
   open: propOpen,
   onOpenChange: propOnOpenChange,
   trigger,
+  onNativeDismissed,
 }: ChatOptionsSheetProps) {
   const { open: contextOpen, setChat, group } = useChatOptions();
-
-  // Use props for explicit control (popovers)
-  // For sheets, this will be false and context.open will handle state
+  // Use props for explicit control (popovers). The provider owns native sheets.
   const isOpen = propOpen ?? false;
+  const preserveChatOnDismiss = useIsNativeSheet();
 
   // Handle open state changes
   const handleOpenChange = useCallback(
@@ -75,27 +80,22 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
         // Set chat state for both popovers and sheets
         contextOpen(chat.id, chat.type);
       } else if (!open) {
-        // Close both popover and sheet states
-        if (propOnOpenChange) {
-          propOnOpenChange(false);
-        }
-        // Clear chat state after a short delay to allow handlers to complete
-        if (clearChat) {
+        // Keep the selected chat stable while the native sheet dismisses.
+        // Clearing it here tears down the context behind the closing sheet.
+        if (clearChat && !preserveChatOnDismiss) {
           setTimeout(() => {
             setChat(null);
           }, 100);
         }
       }
 
-      // Call provided handler for popovers
-      if (propOnOpenChange) {
-        propOnOpenChange(open);
-      }
+      propOnOpenChange?.(open);
     },
-    [chat, contextOpen, setChat, propOnOpenChange]
+    [chat, contextOpen, setChat, propOnOpenChange, preserveChatOnDismiss]
   );
 
-  if (!chat || (!isOpen && !trigger)) {
+  // The provider owns native host lifetime through dismissal completion.
+  if (!chat || (!isOpen && !trigger && !preserveChatOnDismiss)) {
     return null;
   }
 
@@ -105,6 +105,7 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
         groupId={chat.id}
         open={isOpen}
         onOpenChange={handleOpenChange}
+        onNativeDismissed={onNativeDismissed}
         trigger={trigger}
       />
     );
@@ -114,6 +115,7 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
         groupId={group.id}
         open={isOpen}
         onOpenChange={handleOpenChange}
+        onNativeDismissed={onNativeDismissed}
         trigger={trigger}
       />
     );
@@ -124,6 +126,7 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
       channelId={chat.id}
       open={isOpen}
       onOpenChange={handleOpenChange}
+      onNativeDismissed={onNativeDismissed}
       trigger={trigger}
     />
   );
@@ -133,11 +136,13 @@ export function GroupOptionsSheetLoader({
   groupId,
   open,
   onOpenChange,
+  onNativeDismissed,
   trigger,
 }: {
   groupId: string;
   open: boolean;
   onOpenChange: (open: boolean, clearChat?: boolean) => void;
+  onNativeDismissed?: () => void;
   trigger?: React.ReactNode;
 }) {
   const [pane, setPane] = useState<
@@ -145,6 +150,8 @@ export function GroupOptionsSheetLoader({
   >('initial');
   const chatOptions = useChatOptions();
   const { group } = chatOptions;
+  const isWindowNarrow = useIsWindowNarrow();
+  const isNativeSheet = useIsNativeSheet();
 
   const handlePressNotifications = useCallback(() => {
     setPane('notifications');
@@ -158,11 +165,16 @@ export function GroupOptionsSheetLoader({
     setPane('initial');
   }, [setPane]);
 
+  const handleNativeDismissed = useCallback(() => {
+    resetPane();
+    onNativeDismissed?.();
+  }, [onNativeDismissed, resetPane]);
+
   useEffect(() => {
-    if (!open) {
+    if (!open && !isNativeSheet) {
       resetPane();
     }
-  }, [open, resetPane]);
+  }, [open, resetPane, isNativeSheet]);
 
   const title = utils.useGroupTitle(group) ?? 'Loading...';
   const currentUserId = useCurrentUserId();
@@ -170,8 +182,6 @@ export function GroupOptionsSheetLoader({
   const { data: groupUnread, isFetched: groupUnreadIsFetched } =
     store.useGroupUnread({ groupId });
   const { data: groupData } = store.useGroup({ id: groupId });
-  const isWindowNarrow = useIsWindowNarrow();
-
   if ((!group && !groupData) || !groupUnreadIsFetched) {
     return null;
   }
@@ -224,9 +234,44 @@ export function GroupOptionsSheetLoader({
   }
 
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange} modal>
+    <ActionSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      modal
+      nativeExpoUI
+      onNativeDismissed={handleNativeDismissed}
+    >
       <ChatOptionsContext.Provider value={chatOptions}>
-        {pane === 'notifications' ? (
+        {isNativeSheet &&
+        (pane === 'initial' || pane === 'notifications' || pane === 'sort') ? (
+          <ExpoUIPaneStack
+            selected={pane}
+            onSelectionChange={(selected) => setPane(selected)}
+            initial={
+              <GroupOptionsSheetContent
+                groupUnread={groupUnread ?? null}
+                currentUserIsAdmin={currentUserIsAdmin}
+                onPressNotifications={handlePressNotifications}
+                onPressSort={handlePressSort}
+                chatTitle={title}
+                group={group || groupData!}
+                onOpenChange={onOpenChange}
+              />
+            }
+            notifications={
+              <NotificationsSheetContent
+                chatTitle={title}
+                onPressBack={resetPane}
+              />
+            }
+            sort={
+              <SortChannelsSheetContent
+                chatTitle={title}
+                onPressBack={resetPane}
+              />
+            }
+          />
+        ) : pane === 'notifications' ? (
           <NotificationsSheetContent
             chatTitle={title}
             onPressBack={resetPane}
@@ -316,7 +361,7 @@ export function GroupOptionsSheetContent({
         [
           'neutral',
           {
-            title: 'Group notifications',
+            title: 'Workspace notifications',
             description: notificationTitle,
             action: onPressNotifications,
             endIcon: 'ChevronRight',
@@ -348,10 +393,10 @@ export function GroupOptionsSheetContent({
             : {
                 accent: 'disabled',
                 title: 'Invites disabled',
-                description: 'Only admins may invite people to this group.',
+                description: 'Only admins may invite people to this workspace.',
               },
           {
-            title: 'Group info & settings',
+            title: 'Workspace info & settings',
             action: wrappedAction.bind(null, handlePressChatDetails, false),
             endIcon: 'ChevronRight',
             testID: 'GroupOptionsGroupInfoButton',
@@ -362,7 +407,7 @@ export function GroupOptionsSheetContent({
           'negative',
           {
             title: 'Cancel join',
-            description: 'Group joining failed or timed out',
+            description: 'Workspace joining failed or timed out',
             action: wrappedAction.bind(null, handleCancel),
           },
         ]
@@ -385,12 +430,12 @@ export function GroupOptionsSheetContent({
     ]
   );
 
-  const memberCount = group?.members?.length ? group.members.length : 0;
+  const memberCount = group ? utils.getGroupMemberCount(group) : 0;
   const privacy = group?.privacy
     ? group.privacy.charAt(0).toUpperCase() + group.privacy.slice(1)
     : '';
   const subtitle = memberCount
-    ? `${privacy} group with ${memberCount} member${group.members?.length === 1 ? '' : 's'}`
+    ? `${privacy} workspace with ${memberCount} member${memberCount === 1 ? '' : 's'}`
     : '';
 
   return (
@@ -434,6 +479,7 @@ function SortChannelsSheetContent({
       subtitle="Choose your display preference"
       actionGroups={sortActions}
       icon={<SheetBackButton onPress={onPressBack} />}
+      onBack={onPressBack}
     />
   );
 }
@@ -464,7 +510,7 @@ function EditGroupSheetContent({
       createActionGroups([
         'neutral',
         {
-          title: 'Edit group info',
+          title: 'Edit workspace info',
           description: 'Change name, description, and image',
           action: wrappedAction.bind(null, onPressGroupMeta, false),
           endIcon: 'ChevronRight',
@@ -472,13 +518,13 @@ function EditGroupSheetContent({
         },
         {
           title: 'Manage channels',
-          description: 'Add or remove channels in this group',
+          description: 'Add or remove channels in this workspace',
           action: wrappedAction.bind(null, onPressManageChannels, false),
           endIcon: 'ChevronRight',
         },
         {
           title: 'Privacy',
-          description: 'Change who can find or join this group',
+          description: 'Change who can find or join this workspace',
           action: wrappedAction.bind(null, onPressGroupPrivacy, false),
           endIcon: 'ChevronRight',
         },
@@ -501,9 +547,10 @@ function EditGroupSheetContent({
   return (
     <ChatOptionsSheetContent
       title={'Edit ' + chatTitle}
-      subtitle="Edit group details"
+      subtitle="Edit workspace details"
       actionGroups={editActions}
       icon={<SheetBackButton onPress={onPressBack} />}
+      onBack={onPressBack}
     />
   );
 }
@@ -515,15 +562,19 @@ const ChannelOptionsSheetLoader = memo(
     channelId,
     open,
     onOpenChange,
+    onNativeDismissed,
     trigger,
   }: {
     channelId: string;
     open: boolean;
     onOpenChange: (open: boolean, clearChat?: boolean) => void;
+    onNativeDismissed?: () => void;
     trigger?: React.ReactNode;
   }) => {
     const [pane, setPane] = useState<ChannelPanes>('initial');
     const chatOptions = useChatOptions();
+    const isWindowNarrow = useIsWindowNarrow();
+    const isNativeSheet = useIsNativeSheet();
     const channelQuery = store.useChannel({
       id: channelId,
     });
@@ -535,13 +586,11 @@ const ChannelOptionsSheetLoader = memo(
     const { data: group } = store.useGroup({
       id: groupId,
     });
-    const groupTitle = utils.useGroupTitle(group) ?? 'group';
+    const groupTitle = utils.useGroupTitle(group) ?? 'workspace';
     const channelTitle =
       utils.useChannelTitle(channelQuery.data ?? null) ?? 'channel';
     const isSingleChannelGroup = group?.channels.length === 1;
     const chatTitle = isSingleChannelGroup ? groupTitle : channelTitle;
-    const isWindowNarrow = useIsWindowNarrow();
-
     const handlePressNotifications = useCallback(() => {
       setPane('notifications');
     }, [setPane]);
@@ -550,11 +599,16 @@ const ChannelOptionsSheetLoader = memo(
       setPane('initial');
     }, [setPane]);
 
+    const handleNativeDismissed = useCallback(() => {
+      resetPane();
+      onNativeDismissed?.();
+    }, [onNativeDismissed, resetPane]);
+
     useEffect(() => {
-      if (!open) {
+      if (!open && !isNativeSheet) {
         resetPane();
       }
-    }, [open, resetPane]);
+    }, [open, resetPane, isNativeSheet]);
 
     if (!channelQuery.data) {
       return null;
@@ -597,9 +651,38 @@ const ChannelOptionsSheetLoader = memo(
     }
 
     return (
-      <ActionSheet open={open} onOpenChange={onOpenChange} modal>
+      <ActionSheet
+        open={open}
+        onOpenChange={onOpenChange}
+        modal
+        nativeExpoUI
+        onNativeDismissed={handleNativeDismissed}
+      >
         <ChatOptionsContext.Provider value={chatOptions}>
-          {pane === 'notifications' ? (
+          {isNativeSheet ? (
+            <ExpoUIPaneStack
+              selected={pane}
+              onSelectionChange={(selected) => {
+                if (selected !== 'sort') {
+                  setPane(selected);
+                }
+              }}
+              initial={
+                <ChannelOptionsSheetContent
+                  chatTitle={chatTitle}
+                  channel={channel}
+                  onPressNotifications={handlePressNotifications}
+                  onOpenChange={onOpenChange}
+                />
+              }
+              notifications={
+                <NotificationsSheetContent
+                  chatTitle={chatTitle}
+                  onPressBack={resetPane}
+                />
+              }
+            />
+          ) : pane === 'notifications' ? (
             <NotificationsSheetContent
               chatTitle={chatTitle}
               onPressBack={resetPane}
@@ -645,7 +728,7 @@ export function ChannelOptionsSheetContent({
   const currentUserIsChannelHost = channel.currentUserIsHost ?? false;
   const channelActionCapabilities = utils.getChannelActionCapabilities(channel);
 
-  const groupTitle = utils.useGroupTitle(group) ?? 'group';
+  const groupTitle = utils.useGroupTitle(group) ?? 'workspace';
   const isSingleChannelGroup = group?.channels?.length === 1;
   // A Bucket has no unread row at all, so the bare `!== 0` test read
   // `undefined` as unread and offered the action; +readChannel then retries
@@ -668,6 +751,8 @@ export function ChannelOptionsSheetContent({
       groupId: channel.groupId ?? undefined,
     });
   }, [channel.id, channel.groupId, onPressChatDetails]);
+
+  const handleCopyChannelLink = useCopyChannelLink(channel.id);
 
   const wrappedAction = useCallback(
     (action: () => void, clearChat = true) => {
@@ -726,10 +811,15 @@ export function ChannelOptionsSheetContent({
             endIcon: 'ChevronRight',
           },
           {
-            title: 'Group info & settings',
+            title: 'Workspace info & settings',
             action: wrappedAction.bind(null, handlePressGroupDetails, false),
             endIcon: 'ChevronRight',
             testID: 'GroupOptionsGroupInfoButton',
+          },
+          {
+            title: 'Copy link to channel',
+            endIcon: 'Copy',
+            action: wrappedAction.bind(null, handleCopyChannelLink),
           },
         ],
 
@@ -777,6 +867,7 @@ export function ChannelOptionsSheetContent({
       group,
       handlePressChannelDetails,
       handlePressGroupDetails,
+      handleCopyChannelLink,
       hooksPreview,
       onPressChannelTemplate,
       currentUserIsChannelHost,
@@ -799,7 +890,7 @@ export function ChannelOptionsSheetContent({
       default:
         return group
           ? isSingleChannelGroup
-            ? `Group with ${group.members?.length ?? 0} members`
+            ? `Workspace with ${utils.getGroupMemberCount(group)} members`
             : `Channel in ${groupTitle}`
           : '';
     }
@@ -820,19 +911,34 @@ export function ChatOptionsSheetContent({
   title,
   subtitle,
   icon,
+  onBack,
 }: {
   actionGroups: ActionGroup[];
   title: string;
   subtitle: string;
   icon?: ReactElement;
+  onBack?: () => void;
 }) {
   const isWindowNarrow = useIsWindowNarrow();
+  const { nativePresentation } = useContext(ActionSheetContext);
   const isDesktopFlyout = isWeb && !isWindowNarrow;
+
+  if (nativePresentation) {
+    return (
+      <ExpoUIActionContent
+        title={title}
+        subtitle={subtitle}
+        icon={icon}
+        onBack={onBack}
+        actionGroups={actionGroups}
+      />
+    );
+  }
 
   return (
     <>
       {isWindowNarrow && (
-        <ActionSheet.Header>
+        <ActionSheet.Header leadingIcon={!!icon}>
           {icon}
           <ActionSheet.ActionContent>
             <ListItem.Title>{title}</ListItem.Title>
@@ -893,6 +999,7 @@ function NotificationsSheetContent({
       actionGroups={notificationActions}
       subtitle={'Set what you want to be notified about'}
       icon={<SheetBackButton onPress={onPressBack} />}
+      onBack={onPressBack}
     />
   );
 }

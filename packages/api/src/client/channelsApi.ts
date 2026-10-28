@@ -382,7 +382,7 @@ export const createNewGroupDefaultChannel = async ({
     group: groupId,
     name: `welcome-${randomNumber}`,
     title: 'Welcome',
-    description: 'Welcome to your new group!',
+    description: 'Welcome to your new workspace!',
     meta: null,
     readers: [],
     writers: [],
@@ -498,7 +498,7 @@ export const leaveChannel = async (channelId: string) => {
     },
     {},
     (event) => {
-      return 'leave' in event.response && event.response.leave === channelId;
+      return 'leave' in event.response && event.nest === channelId;
     },
     { tag: 'leaveChannel' }
   );

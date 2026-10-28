@@ -22,6 +22,8 @@ const REPO_ROOT = fileURLToPath(new URL('../../../../../', import.meta.url));
 // settings, storage and vitals are in %landscape (tloncorp/landscape 5193635,
 // desk/desk.bill). Both revs are the ones peru.yaml pins.
 const EXTERNAL_AGENTS: Record<string, 'base' | 'landscape'> = {
+  // Thread entries name the desk in their agent field.
+  base: 'base',
   hood: 'base',
   docket: 'landscape',
   settings: 'landscape',
@@ -267,17 +269,17 @@ describe('the check fails closed', () => {
     ],
     [
       'a path under a bot-only prefix',
-      scry('/v1/automation/tasks'),
+      scry('/v1/automation/harness'),
       'path can reach a prefix excluded',
     ],
     [
       'a hole that can reach a bot-only prefix',
-      scry('/v1/{module}/tasks'),
+      scry('/v1/{module}/harness'),
       'path can reach a prefix excluded',
     ],
     [
       '%2e segments reaching a bot-only route',
-      get('/steward/~/v1/lens/%2e%2E/automation/tasks'),
+      get('/steward/~/v1/lens/%2e%2E/automation/finalize'),
       'route can reach a prefix excluded',
     ],
   ])('%s', (_name, entry, message) => {

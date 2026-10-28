@@ -1,7 +1,6 @@
 import type { ComponentProps } from 'react';
 import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
-import { useFixtureInput } from 'react-cosmos/client';
 
 import type {
   TlawnConfig,
@@ -11,7 +10,7 @@ import type {
 } from '@tloncorp/api';
 import { FixtureWrapper } from '@tloncorp/app/fixtures/FixtureWrapper';
 import { BotModelSettingsScreen } from '@tloncorp/app/features/settings/BotModelSettingsScreen';
-import { BotSettingsScreen } from '@tloncorp/app/features/settings/BotSettingsScreen';
+import { BotModelsScreen } from '@tloncorp/app/features/settings/BotSettingsAreaScreens';
 import {
   resetBotSettingsDraft,
   useBotSettingsDraftStore,
@@ -87,7 +86,7 @@ const botConfig: TlawnConfig = {
 };
 
 type ScreenProps = ComponentProps<typeof BotModelSettingsScreen>;
-type SettingsScreenProps = ComponentProps<typeof BotSettingsScreen>;
+type SettingsScreenProps = ComponentProps<typeof BotModelsScreen>;
 
 const navigation = {
   goBack: () => undefined,
@@ -105,8 +104,8 @@ const settingsNavigation = {
 } as unknown as SettingsScreenProps['navigation'];
 
 const settingsRoute = {
-  key: 'BotSettingsFixture',
-  name: 'BotSettings' as const,
+  key: 'BotModelsFixture',
+  name: 'BotModels' as const,
 } as SettingsScreenProps['route'];
 
 function seedFixtureData({
@@ -123,9 +122,14 @@ function seedFixtureData({
       ? 'openai/gpt-5.6-luna'
       : 'anthropic/claude-sonnet-4.5';
   const providerConfig: TlawnProviderConfigInfo = {
-    keys:
-      provider === 'openrouter' ? { openrouter: 'fixture-key-never-sent' } : {},
+    // A key in either case, so a Basic bot's model list offers OpenRouter too.
+    keys: { openrouter: 'fixture-key-never-sent' },
     defaultKeys: provider === 'basic' ? { basic: { key: 'included' } } : {},
+    // What hosting reports behind Basic (`tlonDefaultModels` in ylem).
+    defaultModels: {
+      primaryModel: 'openai/gpt-5.6-luna',
+      fallbackModels: ['z-ai/glm-5.3-flash:nitro'],
+    },
     models: [
       {
         provider,
@@ -171,6 +175,7 @@ function seedFixtureData({
   resetBotSettingsDraft();
   useBotSettingsDraftStore.getState().syncServerValues(fixtureShip, {
     nickname: 'Cosmos Bot',
+    browserService: 'steel',
     model: {
       provider,
       model: selectedModel,
@@ -224,11 +229,13 @@ function useSeededFixture({
 function BotModelSettingsFixture({
   zdr = false,
   endpoints = zdrEndpoints,
+  provider = 'openrouter',
 }: {
   zdr?: boolean;
   endpoints?: TlawnOpenRouterZdrEndpoint[];
+  provider?: 'basic' | 'openrouter';
 }) {
-  const ready = useSeededFixture({ zdr, endpoints });
+  const ready = useSeededFixture({ zdr, endpoints, provider });
 
   if (!ready) return null;
 
@@ -249,10 +256,14 @@ function BotModelSettingsFixture({
   );
 }
 
-function BasicZdrSettingsFixture({ zdr = false }: { zdr?: boolean }) {
-  const [paddingVertical] = useFixtureInput('ZDR row vertical padding', 32);
-  const [descriptionGap] = useFixtureInput('ZDR title/subtitle gap', 12);
-  const ready = useSeededFixture({ zdr, provider: 'basic' });
+function ZdrSettingsFixture({
+  zdr = false,
+  provider = 'basic',
+}: {
+  zdr?: boolean;
+  provider?: 'basic' | 'openrouter';
+}) {
+  const ready = useSeededFixture({ zdr, provider });
 
   if (!ready) return null;
 
@@ -267,10 +278,9 @@ function BasicZdrSettingsFixture({ zdr = false }: { zdr?: boolean }) {
       }}
     >
       <FixtureWrapper fillWidth fillHeight safeArea>
-        <BotSettingsScreen
+        <BotModelsScreen
           navigation={settingsNavigation}
           route={settingsRoute}
-          zdrRowLayout={{ descriptionGap, paddingVertical }}
         />
       </FixtureWrapper>
     </ShipProvider>
@@ -278,9 +288,12 @@ function BasicZdrSettingsFixture({ zdr = false }: { zdr?: boolean }) {
 }
 
 export default {
-  'Basic — ZDR off': <BasicZdrSettingsFixture />,
-  'Basic — ZDR on': <BasicZdrSettingsFixture zdr />,
+  'Basic — ZDR off': <ZdrSettingsFixture />,
+  'Basic — ZDR on': <ZdrSettingsFixture zdr />,
+  'OpenRouter — ZDR off': <ZdrSettingsFixture provider="openrouter" />,
+  'OpenRouter — ZDR on': <ZdrSettingsFixture provider="openrouter" zdr />,
   'Eligible ZDR models': <BotModelSettingsFixture />,
   'ZDR enabled': <BotModelSettingsFixture zdr />,
   'No eligible endpoints': <BotModelSettingsFixture endpoints={[]} />,
+  'From Basic with ZDR on': <BotModelSettingsFixture provider="basic" zdr />,
 };

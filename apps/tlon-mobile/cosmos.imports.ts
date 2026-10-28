@@ -15,7 +15,6 @@ import * as fixture8 from './../../packages/app/fixtures/Activity.fixture';
 import * as fixture9 from './../../packages/app/fixtures/AddContactsView.fixture';
 import * as fixture10 from './../../packages/app/fixtures/AttachmentPreviewList.fixture';
 import * as fixture11 from './../../packages/app/fixtures/AttestationPane.fixture';
-import * as fixture12 from './../../packages/app/fixtures/AgentOnboarding.fixture';
 import * as fixture13 from './../../packages/app/fixtures/AudioRecorder.fixture';
 import * as fixture14 from './../../packages/app/fixtures/Avatar.fixture';
 import * as fixture15 from './../../packages/app/fixtures/BlockSectionList.fixture';
@@ -26,6 +25,7 @@ import * as fixture19 from './../../packages/app/fixtures/Channel.fixture';
 import * as fixture21 from './../../packages/app/fixtures/ChannelDivider.fixture';
 import * as fixture22 from './../../packages/app/fixtures/ChannelHeader.fixture';
 import * as fixture23 from './../../packages/app/fixtures/ChannelListItem.fixture';
+import * as fixture81 from './../../packages/app/fixtures/ChatDetails.fixture';
 import * as fixture24 from './../../packages/app/fixtures/ChatMessage.fixture';
 import * as fixture25 from './../../packages/app/fixtures/ChatOptionsSheet.fixture';
 import * as fixture26 from './../../packages/app/fixtures/ConfirmDialog.fixture';
@@ -38,6 +38,7 @@ import * as fixture32 from './../../packages/app/fixtures/DmInviteOptions.fixtur
 import * as fixture33 from './../../packages/app/fixtures/EditProfileScreen.fixture';
 import * as fixture35 from './../../packages/app/fixtures/EmptyChannelNotice.fixture';
 import * as fixture36 from './../../packages/app/fixtures/FacePile.fixture';
+import * as fixtureFirstRun from './../../packages/app/fixtures/FirstRun.fixture';
 import * as fixture37 from './../../packages/app/fixtures/Form.fixture';
 import * as fixture38 from './../../packages/app/fixtures/ForwardChannelListItem.fixture';
 import * as fixture39 from './../../packages/app/fixtures/GalleryPost.fixture';
@@ -59,6 +60,7 @@ import * as fixture54 from './../../packages/app/fixtures/Pressable.fixture';
 import * as fixture55 from './../../packages/app/fixtures/ProfileBlock.fixture';
 import * as fixture56 from './../../packages/app/fixtures/ProfileSheet.fixture';
 import * as fixture57 from './../../packages/app/fixtures/ProfileStatusSheet.fixture';
+import * as fixture64 from './../../packages/app/fixtures/RecurringTasks.fixture';
 import * as fixture58 from './../../packages/app/fixtures/ReferenceSkeleton.fixture';
 import * as fixture59 from './../../packages/app/fixtures/ScreenHeader.fixture';
 import * as fixture60 from './../../packages/app/fixtures/SearchBar.fixture';
@@ -124,9 +126,6 @@ const fixtures = {
   '../../packages/app/fixtures/AttestationPane.fixture.tsx': {
     module: fixture11,
   },
-  '../../packages/app/fixtures/AgentOnboarding.fixture.tsx': {
-    module: fixture12,
-  },
   '../../packages/app/fixtures/AudioRecorder.fixture.tsx': {
     module: fixture13,
   },
@@ -147,6 +146,7 @@ const fixtures = {
   '../../packages/app/fixtures/ChannelListItem.fixture.tsx': {
     module: fixture23,
   },
+  '../../packages/app/fixtures/ChatDetails.fixture.tsx': { module: fixture81 },
   '../../packages/app/fixtures/ChatMessage.fixture.tsx': { module: fixture24 },
   '../../packages/app/fixtures/ChatOptionsSheet.fixture.tsx': {
     module: fixture25,
@@ -177,6 +177,9 @@ const fixtures = {
     module: fixture35,
   },
   '../../packages/app/fixtures/FacePile.fixture.tsx': { module: fixture36 },
+  '../../packages/app/fixtures/FirstRun.fixture.tsx': {
+    module: fixtureFirstRun,
+  },
   '../../packages/app/fixtures/Form.fixture.tsx': { module: fixture37 },
   '../../packages/app/fixtures/ForwardChannelListItem.fixture.tsx': {
     module: fixture38,
@@ -219,6 +222,9 @@ const fixtures = {
   '../../packages/app/fixtures/ProfileSheet.fixture.tsx': { module: fixture56 },
   '../../packages/app/fixtures/ProfileStatusSheet.fixture.tsx': {
     module: fixture57,
+  },
+  '../../packages/app/fixtures/RecurringTasks.fixture.tsx': {
+    module: fixture64,
   },
   '../../packages/app/fixtures/ReferenceSkeleton.fixture.tsx': {
     module: fixture58,

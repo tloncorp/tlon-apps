@@ -1,0 +1,15 @@
+diff --git a/build/ts-declarations/global.js b/build/ts-declarations/global.js
+index edc7b5e5d7fe344c83750f79dfbf6080043b2ef4..d330eb37d997cf767b0871789cba5c0780d2bae8 100644
+--- a/build/ts-declarations/global.js
++++ b/build/ts-declarations/global.js
+@@ -1,6 +1,4 @@
+-import { EventEmitter } from './EventEmitter';
+-import { NativeModule } from './NativeModule';
+-import { SharedObject } from './SharedObject';
+-import { SharedRef } from './SharedRef';
+-
+-//# sourceMappingURL=global.js.map
++// The imports this file compiled to name type-only declarations, whose
++// modules are empty at runtime. esbuild (Vite's dev pre-bundling) rejects
++// them, so the runtime module is empty too.
++export {};

@@ -19,16 +19,35 @@
  * The export shape here is the superset of what the mocked import graphs
  * pull in by value: `api-client.ts` (Urbit, client, configureClient,
  * internalRemoveClient, preSig, scry, subscribe), `dms.ts` (reactions,
- * posts, invites), the notes runtimes (notesV1 et al.), and
+ * posts, invites), the notes runtimes (notesV1, notes et al.), and
  * `invite-link-runtime.ts` (subscribeOnce, createInviteLink, groupsDescribe,
- * enableGroup, BadResponseError).
+ * enableGroup, BadResponseError), `activity-runtime.ts`
+ * (getInitialActivity, getGroupAndChannelUnreads, getTextContent,
+ * adjustVolumeSetting, getVolumeSettings, setActivitySupportsReactions,
+ * setActivitySupportsNotes, getGroups, getChannelPosts, readChannel,
+ * activityAction, poke),
+ * `group-sections-runtime.ts` (poke), `posts-runtime.ts` (editPost,
+ * getPostWithReplies, deleteReply, setOrder, toPostContent, getTextContent),
+ * `join-invite-runtime.ts` (getGroup, scry, subscribeOnce, joinGroup,
+ * requestGroupInvitation, poke, toClientGroupFromForeign),
+ * `channels.ts` (createChannel and the other channel-management calls),
+ * `groups.ts` (the group-management calls), and `messages.ts` (getInitData,
+ * searchChannel, getPostReference, parsePostBlob).
  */
 import type { NotesV1Api } from '@tloncorp/api';
 // The real broker client, by subpath, which the root mock below does not
 // intercept. It has no dependencies but fetch, so tests keep exercising the
 // real request and error mapping against a stubbed fetch.
 import * as realBucketsBroker from '@tloncorp/api/client/bucketsBroker';
-import { mock } from 'bun:test';
+// The real foreign-group projection, by subpath: the invite flow's state
+// reads must be tested against the app's own invite and privacy rules.
+import { toClientGroupFromForeign as realToClientGroupFromForeign } from '@tloncorp/api/client/groupsApi';
+// The real content projection, by subpath: the posts runtime's read-back
+// comparison must be tested against what the api actually produces.
+import { toPostContent as realToPostContent } from '@tloncorp/api/client/postsApi';
+// The real plain-text conversion: the posts runtime quotes DM text with it.
+import { getTextContent as realGetTextContent } from '@tloncorp/api/client/postContent';
+import { afterEach, mock } from 'bun:test';
 
 export const NOTES_V1_OPS = [
   'getRequest',
@@ -94,60 +113,192 @@ export class MockNotesV1PendingWriteError extends Error {
   }
 }
 
-/** Mutable per-test notes surface — reassign ops in a test, restore after. */
-export const mockedNotesV1 = Object.fromEntries(
-  NOTES_V1_OPS.map((op) => [op, async () => undefined])
-) as MockedNotesV1;
+const resets: Array<() => void> = [];
 
-export const mockedGetChannelPosts = {
-  impl: async (..._args: unknown[]) => ({
+// Tests reassign these surfaces for themselves. Each one is put back to its
+// defaults after every test, so a file that leaves one changed can't reach the
+// files after it, whose order bun varies between runs and platforms.
+function resettable<T extends object>(surface: T): T {
+  const defaults = { ...surface };
+  resets.push(() => Object.assign(surface, defaults));
+  return surface;
+}
+
+afterEach(() => {
+  for (const reset of resets) reset();
+  mockedManagementCalls.length = 0;
+});
+
+/** Mutable per-test notes surface — reassign ops in a test. */
+export const mockedNotesV1 = resettable(
+  Object.fromEntries(
+    NOTES_V1_OPS.map((op) => [op, async () => undefined])
+  ) as MockedNotesV1
+);
+
+export const NOTES_PUBLISH_OPS = [
+  'listPublished',
+  'publishNote',
+  'unpublishNote',
+] as const;
+
+/** The publish slice of `notes` the notes runtime wraps; reassign per test. */
+export const mockedNotes = resettable(
+  Object.fromEntries(
+    NOTES_PUBLISH_OPS.map((op) => [op, async () => undefined])
+  ) as Record<
+    (typeof NOTES_PUBLISH_OPS)[number],
+    (...args: unknown[]) => Promise<unknown>
+  >
+);
+
+export const mockedGetChannelPosts = resettable({
+  impl: async (..._args: unknown[]): Promise<unknown> => ({
     posts: [],
     older: null,
     totalPosts: 0,
   }),
-};
+});
 
-export const mockedScry = {
+export const mockedGetPostWithReplies = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
-};
+});
 
-export const mockedGetGroups = {
+export const mockedEditPost = resettable({
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+});
+
+export const mockedDeleteReply = resettable({
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+});
+
+export const mockedSetOrder = resettable({
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+});
+
+export const mockedScry = resettable({
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+});
+
+export const mockedPoke = resettable({
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+});
+
+export const mockedGetGroups = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => [],
-};
+});
 
-export const mockedGetGroup = {
+/**
+ * The activity volume surface: reassign per test. The two flags record the
+ * values the runtime last set, so a test can read them from inside a call.
+ */
+export const mockedVolume = resettable({
+  adjustVolumeSetting: async (..._args: unknown[]): Promise<unknown> =>
+    undefined,
+  getVolumeSettings: async (..._args: unknown[]): Promise<unknown> => ({}),
+  supportsReactions: false,
+  supportsNotes: false,
+});
+
+/**
+ * The activity read surface: reassign per test. Read the flags from
+ * `mockedVolume` inside a call to see what the runtime set before it.
+ */
+export const mockedActivityRead = resettable({
+  readChannel: async (..._args: unknown[]): Promise<unknown> => undefined,
+  getGroupAndChannelUnreads: async (): Promise<unknown> => ({
+    baseUnread: null,
+    groupUnreads: [],
+    channelUnreads: [],
+    threadActivity: [],
+  }),
+});
+
+export const mockedGetInitData = resettable({
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+});
+
+export const mockedSearchChannel = resettable({
+  impl: async (..._args: unknown[]): Promise<unknown> => ({
+    posts: [],
+    cursor: null,
+  }),
+});
+
+export const mockedGetGroup = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => ({ channels: [] }),
-};
+});
 
-export const mockedGetBuckets = {
+export const mockedCreateChannel = resettable({
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+});
+
+// The group and channel mutations groups.ts and channels.ts import, each of
+// which records its call here: a command refused up front leaves it empty.
+// joinGroup and requestGroupInvitation are left out: they route through
+// mockedJoinGroup and mockedRequestGroupInvitation for the join-invite runtime.
+const MANAGEMENT_OPS = [
+  'acceptGroupJoin',
+  'addChannelWriters',
+  'addGroupRole',
+  'addMembersToRole',
+  'banUsersFromGroup',
+  'cancelGroupJoin',
+  'createGroup',
+  'deleteChannel',
+  'deleteGroup',
+  'deleteGroupRole',
+  'inviteGroupMembers',
+  'kickUsersFromGroup',
+  'leaveGroup',
+  'rejectGroupInvitation',
+  'rejectGroupJoin',
+  'removeChannelWriters',
+  'removeMembersFromRole',
+  'rescindGroupInvitationRequest',
+  'revokeGroupMemberInvites',
+  'unbanUsersFromGroup',
+  'updateChannel',
+  'updateGroupMeta',
+  'updateGroupPrivacy',
+  'updateGroupRole',
+] as const;
+
+/** Cleared after every test. */
+export const mockedManagementCalls: Array<{
+  op: (typeof MANAGEMENT_OPS)[number];
+  args: unknown[];
+}> = [];
+
+export const mockedGetBuckets = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => [],
-};
+});
 
-export const mockedGetBucket = {
+export const mockedGetBucket = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => null,
-};
+});
 
-export const mockedGetBucketReadToken = {
+export const mockedGetBucketReadToken = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => null,
-};
+});
 
-export const mockedRequestBucketReadToken = {
+export const mockedRequestBucketReadToken = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
-};
+});
 
-export const mockedRequestBucketsGrant = {
+export const mockedRequestBucketsGrant = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
-};
-export const mockedRequestBucketsUpload = {
+});
+export const mockedRequestBucketsUpload = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
-};
+});
 
-export const mockedSendBucketsAction = {
+export const mockedSendBucketsAction = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
-};
-export const mockedSubmitBucketsAction = {
+});
+export const mockedSubmitBucketsAction = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
-};
+});
 
 // The real class, so `instanceof` in the runtime works against what the mock
 // throws -- the upload path distinguishes a typed refusal from a transport
@@ -161,17 +312,29 @@ export class MockBucketsActionFailed extends Error {
   }
 }
 
-export const mockedSubscribeOnce = {
-  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
-};
+export const mockedSubscribe = resettable({
+  impl: async (..._args: unknown[]): Promise<unknown> => 0,
+});
 
-export const mockedCreateInviteLink = {
+export const mockedSubscribeOnce = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
-};
+});
 
-export const mockedEnableGroup = {
+export const mockedJoinGroup = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
-};
+});
+
+export const mockedRequestGroupInvitation = resettable({
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+});
+
+export const mockedCreateInviteLink = resettable({
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+});
+
+export const mockedEnableGroup = resettable({
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+});
 
 // Mirrors the real class's shape (status + message) so instanceof/status
 // checks behave identically under the preloaded mock.
@@ -205,7 +368,8 @@ mock.module('@tloncorp/api', () => ({
   internalRemoveClient: () => undefined,
   preSig: (ship: string) => (ship.startsWith('~') ? ship : `~${ship}`),
   scry: (...args: unknown[]) => mockedScry.impl(...args),
-  subscribe: async () => 0,
+  poke: (...args: unknown[]) => mockedPoke.impl(...args),
+  subscribe: (...args: unknown[]) => mockedSubscribe.impl(...args),
   // dms.ts value imports (reaction helpers take injected deps in tests, so
   // these defaults are load-time placeholders, never assertion targets)
   addReaction: async () => undefined,
@@ -217,12 +381,19 @@ mock.module('@tloncorp/api', () => ({
   sendReply: async () => undefined,
   batchImportNotesV1: async (input: { requestId: string }) => input.requestId,
   getChannelPosts: (...args: unknown[]) => mockedGetChannelPosts.impl(...args),
+  // posts-runtime.ts value imports
+  editPost: (...args: unknown[]) => mockedEditPost.impl(...args),
+  getPostWithReplies: (...args: unknown[]) =>
+    mockedGetPostWithReplies.impl(...args),
+  deleteReply: (...args: unknown[]) => mockedDeleteReply.impl(...args),
+  setOrder: (...args: unknown[]) => mockedSetOrder.impl(...args),
+  toPostContent: realToPostContent,
   toUrbitStory: (content: unknown) => content ?? [],
-  updateChannel: async () => undefined,
   // notes runtime value imports
   NotesV1PendingWriteError: MockNotesV1PendingWriteError,
   BucketsActionFailed: MockBucketsActionFailed,
   notesV1: mockedNotesV1,
+  notes: mockedNotes,
   getGroups: (...args: unknown[]) => mockedGetGroups.impl(...args),
   getGroup: (...args: unknown[]) => mockedGetGroup.impl(...args),
   getBuckets: (...args: unknown[]) => mockedGetBuckets.impl(...args),
@@ -253,4 +424,55 @@ mock.module('@tloncorp/api', () => ({
   }),
   enableGroup: (...args: unknown[]) => mockedEnableGroup.impl(...args),
   BadResponseError: MockBadResponseError,
+  // join-invite runtime value imports
+  joinGroup: (...args: unknown[]) => mockedJoinGroup.impl(...args),
+  requestGroupInvitation: (...args: unknown[]) =>
+    mockedRequestGroupInvitation.impl(...args),
+  toClientGroupFromForeign: realToClientGroupFromForeign,
+  // activity runtime value imports (formatter tests call the pure helpers
+  // directly, so these are load-time placeholders)
+  getInitialActivity: async () => ({ events: [], relevantUnreads: {} }),
+  getGroupAndChannelUnreads: () =>
+    mockedActivityRead.getGroupAndChannelUnreads(),
+  readChannel: (...args: unknown[]) => mockedActivityRead.readChannel(...args),
+  // The mark follows the flag, so a poke records the flag state it was built
+  // under.
+  activityAction: (json: unknown) => ({
+    app: 'activity',
+    mark: mockedVolume.supportsNotes ? 'activity-action-2' : 'activity-action',
+    json,
+  }),
+  getTextContent: realGetTextContent,
+  adjustVolumeSetting: (...args: unknown[]) =>
+    mockedVolume.adjustVolumeSetting(...args),
+  getVolumeSettings: (...args: unknown[]) =>
+    mockedVolume.getVolumeSettings(...args),
+  setActivitySupportsReactions: (value: boolean) => {
+    mockedVolume.supportsReactions = value;
+  },
+  setActivitySupportsNotes: (value: boolean) => {
+    mockedVolume.supportsNotes = value;
+  },
+  // channels.ts value imports
+  createChannel: (...args: unknown[]) => mockedCreateChannel.impl(...args),
+  deleteNotesNotebookBestEffort: async () => undefined,
+  getInitData: (...args: unknown[]) => mockedGetInitData.impl(...args),
+  joinChannel: async () => undefined,
+  leaveChannel: async () => undefined,
+  // messages.ts value imports
+  searchChannel: (...args: unknown[]) => mockedSearchChannel.impl(...args),
+  getPostReference: async () => undefined,
+  parsePostBlob: () => [],
+  // groups.ts reads no test exercises
+  getContacts: async () => [],
+  getGroupPreview: async () => null,
+  toClientGroupsFromForeigns: () => [],
+  ...Object.fromEntries(
+    MANAGEMENT_OPS.map((op) => [
+      op,
+      async (...args: unknown[]) => {
+        mockedManagementCalls.push({ op, args });
+      },
+    ])
+  ),
 }));

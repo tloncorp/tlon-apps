@@ -84,6 +84,7 @@ export function buildNativeHeaderItem(
       disabled: action.disabled,
       sharesBackground: true,
       tintColor: action.tint,
+      ...(action.prominent ? { variant: 'prominent' as const } : {}),
     };
   }
 
@@ -158,7 +159,7 @@ export function buildNativeHeaderActionOptions({
 
   return {
     [`header${side === 'left' ? 'Left' : 'Right'}`]: () => (
-      <ScreenHeaderItemElements actions={actions} nativeHeader />
+      <ScreenHeaderItemElements actions={actions} nativeHeader={side} />
     ),
   };
 }

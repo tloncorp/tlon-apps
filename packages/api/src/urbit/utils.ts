@@ -50,18 +50,25 @@ export function getFirstInline(content: ub.Story) {
   return inlines[0].inline;
 }
 
-export function citeToPath(cite: ubc.Cite) {
+// Returns undefined for a cite kind this build doesn't know, so callers can
+// degrade instead of reading fields that aren't there.
+export function citeToPath(cite: ubc.Cite): string | undefined {
   if ('desk' in cite) {
     return `/1/desk/${cite.desk.flag}${cite.desk.where}`;
   }
   if ('chan' in cite) {
-    return `/1/chan/${cite.chan.nest}${cite.chan.where}`;
+    // A whole-channel cite has where '/'; its path is the bare nest.
+    const where = cite.chan.where === '/' ? '' : cite.chan.where;
+    return `/1/chan/${cite.chan.nest}${where}`;
   }
   if ('group' in cite) {
     return `/1/group/${cite.group}`;
   }
+  if ('bait' in cite) {
+    return `/1/bait/${cite.bait.group}/${cite.bait.graph}/${cite.bait.where}`;
+  }
 
-  return `/1/bait/${cite.bait.group}/${cite.bait.graph}/${cite.bait.where}`;
+  return undefined;
 }
 
 export function pathToCite(path: string): ubc.Cite | undefined {

@@ -13,4 +13,4 @@ appId: ${MAESTRO_APP_ID}
     commands:
       - assertVisible:
           id: ${THEME_ID}
-          text: '^radio button, checked$'
+          selected: true

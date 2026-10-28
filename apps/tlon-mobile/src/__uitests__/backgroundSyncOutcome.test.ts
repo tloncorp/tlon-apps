@@ -19,7 +19,7 @@ jest.mock('@tloncorp/app/hooks/useConfigureUrbitClient', () => ({
   configureUrbitClient: jest.fn(),
 }));
 jest.mock('@tloncorp/app/lib/nativeDb', () => ({
-  ensureDbReady: async () => {},
+  ensureDbReadyForBackgroundSync: jest.fn(async () => true),
 }));
 jest.mock('@tloncorp/app/lib/notifications', () => ({
   discoverContactsAndNotify: jest.fn(),

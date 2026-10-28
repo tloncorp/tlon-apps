@@ -15,6 +15,9 @@ import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
 import {
   type ElementRef,
+  type ComponentPropsWithoutRef,
+  type ForwardRefExoticComponent,
+  type RefAttributes,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -27,10 +30,12 @@ import {
   AppState,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  type ScrollViewInstance,
+  type TextInputInstance,
 } from 'react-native';
 import {
-  ScrollView,
-  TextArea,
+  ScrollView as TamaguiScrollView,
+  TextArea as TamaguiTextArea,
   XStack,
   YStack,
   getTokenValue,
@@ -56,6 +61,17 @@ import {
 import { NotesBanner, errorMessage } from './NotesFeedback';
 import { trackNotesActionError } from './notesTelemetry';
 import { formatNoteDate, getFolderPath } from './notesTree';
+
+// Tamagui still declares native refs as RN component types instead of instances.
+const ScrollView = TamaguiScrollView as ForwardRefExoticComponent<
+  ComponentPropsWithoutRef<typeof TamaguiScrollView> &
+    RefAttributes<ScrollViewInstance>
+>;
+// Tamagui types this native ref as the View component instead of the input instance.
+const TextArea = TamaguiTextArea as ForwardRefExoticComponent<
+  ComponentPropsWithoutRef<typeof TamaguiTextArea> &
+    RefAttributes<Pick<TextInputInstance, 'focus'>>
+>;
 
 type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 export type NotesNoteSaveFieldIntent = 'preserve' | 'set';
@@ -864,6 +880,10 @@ export function NotesNoteDetail({
     pendingScrollRestoreYRef.current = null;
     const followCaret = pendingScrollFollowCaretRef.current;
     pendingScrollFollowCaretRef.current = false;
+    // A short body's input keeps its minimum height while typing. Let UIKit
+    // reveal the actual caret; restoring an offset or following the empty
+    // space below it fights that adjustment on every keystroke.
+    if (bodyInputHeight <= MIN_BODY_INPUT_HEIGHT) return;
     // Restored unbounded on purpose. Every value here is one the scroll view
     // reported, so it is reachable by construction, and with the keyboard open
     // automaticallyAdjustKeyboardInsets makes offsets past the inset-free end
@@ -873,9 +893,8 @@ export function NotesNoteDetail({
       const view = scrollViewRef.current;
       if (!view) return;
       if (followCaret) {
-        // The caret is at the end of the body, so the end of the content is
-        // where it is. scrollToEnd needs no offset of its own, so a stale one
-        // cannot misdirect it.
+        // The body fills its input, so its end tracks the caret without
+        // relying on an offset from before the input's layout changed.
         view.scrollToEnd({ animated: false });
         return;
       }
@@ -1634,12 +1653,10 @@ export function NotesNoteDetail({
         return;
       }
       const armedRestore = preserveScrollOffset();
-      // Typing does not move the scroll view on its own, so appending at the
-      // end walks the caret down a line at a time until the keyboard covers
-      // it. Following the end is only right when the caret is actually there,
-      // which is why this asks the input rather than the last reported offset
-      // -- deciding it from the offset scrolled the note to its end while the
-      // caret sat near the top (see the isPreviewing reset above).
+      // When a long body reflows, follow its end only if the caret is there.
+      // The restore effect leaves short, fixed-height bodies to native caret
+      // scrolling. Using the offset instead of the selection here could drag
+      // an edit near the top to the end (see the isPreviewing reset above).
       pendingScrollFollowCaretRef.current =
         armedRestore && caretAtBodyEndRef.current;
       bodyDraftRef.current = nextBody;
@@ -1701,7 +1718,11 @@ export function NotesNoteDetail({
     headerActionsPlacement === 'channel-header' ? headerActions : null
   );
   useRegisterChannelHeaderLoadingSubtitle(
-    headerActionsPlacement === 'channel-header' ? headerSaveLabel : null
+    headerActionsPlacement === 'channel-header'
+      ? !isWeb && noteId !== null && gate === 'loading'
+        ? 'Loading note…'
+        : headerSaveLabel
+      : null
   );
 
   if (noteId === null) {

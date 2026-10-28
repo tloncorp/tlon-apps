@@ -1,23 +1,12 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import {
-  Button,
-  ConfirmDialog,
-  Icon,
-  Pressable,
-  Text,
-  useIsWindowNarrow,
-} from '@tloncorp/ui';
+import { ConfirmDialog, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, XStack, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
 import {
-  Field,
-  ScreenHeader,
-  SettingsContentScrollView,
-  TextInput,
-} from '../../ui';
-import { BotSettingsSection } from './bot/BotSettingsUI';
+  type SettingsSectionModel,
+  SettingsListScreenView,
+} from '../../ui/components/SettingsList';
 import {
   PROVIDER_OPTIONS,
   isSubscriptionProvider,
@@ -188,105 +177,104 @@ export function BotApiKeySettingsScreen(props: Props) {
         `Failed to disconnect the ${subscriptionName ?? 'subscription'}.`)
       : null);
 
+  const subscriptionStatusText = subscriptionStatusError
+    ? (getErrorMessage(queries.llmAuthStatusQuery.error) ??
+      `Could not check your ${subscriptionName}.`)
+    : `Checking your ${subscriptionName}…`;
+
+  const sections: SettingsSectionModel[] = [
+    {
+      key: 'key',
+      title: 'API key',
+      footer:
+        errorMessage ??
+        (isConfigured
+          ? `Current key: ${safeKeySummary(queries.providerConfig, providerId)}`
+          : `Add a key to use ${provider.label} models.`),
+      rows: [
+        {
+          key: 'key',
+          title: 'API key',
+          disabled: busy,
+          textField: {
+            value: key,
+            onChangeText: (value) => {
+              setKey(value);
+              setValidationError(null);
+            },
+            placeholder: isConfigured
+              ? 'Enter replacement key'
+              : 'Enter API key',
+            secure: !showKey,
+          },
+          testID: 'BotApiKeyInput',
+        },
+        {
+          key: 'show',
+          title: 'Show key',
+          toggle: { value: showKey, onValueChange: setShowKey },
+        },
+      ],
+    },
+    ...(subscriptionStatusKnown
+      ? []
+      : [
+          {
+            key: 'subscription',
+            rows: subscriptionStatusError
+              ? [
+                  {
+                    key: 'retry',
+                    title: 'Try again',
+                    action: true,
+                    disabled: queries.llmAuthStatusQuery.isFetching,
+                    onPress: () => void queries.llmAuthStatusQuery.refetch(),
+                  },
+                ]
+              : [{ key: 'checking', title: subscriptionStatusText }],
+            footer: subscriptionStatusError
+              ? subscriptionStatusText
+              : undefined,
+          },
+        ]),
+    ...(isConfigured
+      ? [
+          {
+            key: 'remove',
+            rows: [
+              {
+                key: 'remove',
+                title: 'Remove key',
+                action: true,
+                destructive: true,
+                disabled: busy,
+                onPress: () => setConfirmRemove(true),
+                testID: 'BotApiKeyRemoveButton',
+              },
+            ],
+          },
+        ]
+      : []),
+  ];
+
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader
-        borderBottom
-        backAction={isWindowNarrow ? handleBack : undefined}
-        title={`${provider.label} API key`}
-        placement="navigation"
-      />
-      <SettingsContentScrollView
-        paddingHorizontal="$l"
-        paddingTop="$l"
-        safeAreaBottomOffset={24}
-      >
-        <YStack gap="$2xl" paddingBottom="$2xl">
-          <BotSettingsSection
-            description={
-              isConfigured
-                ? `Current key: ${safeKeySummary(queries.providerConfig, providerId)}`
-                : `Add a key to use ${provider.label} models.`
-            }
-          >
-            <YStack padding="$l">
-              <Field label="API key" error={errorMessage ?? undefined}>
-                <XStack alignItems="center" gap="$m">
-                  <View flex={1}>
-                    <TextInput
-                      value={key}
-                      placeholder={
-                        isConfigured ? 'Enter replacement key' : 'Enter API key'
-                      }
-                      secureTextEntry={!showKey}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                      editable={!busy}
-                      onChangeText={(value) => {
-                        setKey(value);
-                        setValidationError(null);
-                      }}
-                    />
-                  </View>
-                  <Pressable onPress={() => setShowKey((value) => !value)}>
-                    <Icon
-                      type={showKey ? 'EyeClosed' : 'EyeOpen'}
-                      size="$m"
-                      color="$secondaryText"
-                    />
-                  </Pressable>
-                </XStack>
-              </Field>
-            </YStack>
-          </BotSettingsSection>
-
-          {!subscriptionStatusKnown ? (
-            <YStack gap="$m">
-              <Text
-                size="$label/s"
-                color={
-                  subscriptionStatusError
-                    ? '$negativeActionText'
-                    : '$secondaryText'
-                }
-              >
-                {subscriptionStatusError
-                  ? (getErrorMessage(queries.llmAuthStatusQuery.error) ??
-                    `Could not check your ${subscriptionName}.`)
-                  : `Checking your ${subscriptionName}…`}
-              </Text>
-              {subscriptionStatusError ? (
-                <Button
-                  preset="secondary"
-                  label="Try again"
-                  centered
-                  loading={queries.llmAuthStatusQuery.isFetching}
-                  onPress={() => void queries.llmAuthStatusQuery.refetch()}
-                />
-              ) : null}
-            </YStack>
-          ) : null}
-
-          <Button
-            preset="primary"
-            label="Save key"
-            centered
-            disabled={busy || !key.trim() || !subscriptionStatusKnown}
-            loading={saveProviderKey.isPending}
-            onPress={handleSave}
-          />
-          {isConfigured ? (
-            <Button
-              preset="destructive"
-              label="Remove key"
-              centered
-              disabled={busy}
-              loading={deleteProviderKey.isPending}
-              onPress={() => setConfirmRemove(true)}
-            />
-          ) : null}
-        </YStack>
-      </SettingsContentScrollView>
+    <SettingsListScreenView
+      title={`${provider.label} API key`}
+      sections={sections}
+      onBackPressed={handleBack}
+      useHorizontalTitleLayout={!isWindowNarrow}
+      rightActions={[
+        {
+          id: 'BotApiKeySaveButton',
+          text: saveProviderKey.isPending ? 'Saving…' : 'Save',
+          tint: '$positiveActionText',
+          prominent: true,
+          disabled: busy || !key.trim() || !subscriptionStatusKnown,
+          onPress: handleSave,
+          testID: 'BotApiKeySaveButton',
+        },
+      ]}
+    >
       <ConfirmDialog
         open={confirmRemove}
         onOpenChange={setConfirmRemove}
@@ -305,6 +293,6 @@ export function BotApiKeySettingsScreen(props: Props) {
         confirmText="Replace and save"
         onConfirm={handleSwitch}
       />
-    </View>
+    </SettingsListScreenView>
   );
 }

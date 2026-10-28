@@ -2,8 +2,10 @@ import { getCanonicalPostId } from '@tloncorp/api/client';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { A2UI } from '@tloncorp/shared/logic';
+import { useToast } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
+import { useOptionalBrowserCredentialHandoff } from '../features/browser/BrowserCredentialHandoffProvider';
 import { useRootNavigation } from '../navigation/utils';
 
 const logger = createDevLogger('a2ui-navigation', false);
@@ -63,6 +65,8 @@ function postFromTarget(
 
 export function useA2UINavigation() {
   const rootNavigation = useRootNavigation();
+  const showToast = useToast();
+  const browserHandoff = useOptionalBrowserCredentialHandoff();
 
   const navigateToMessage = useCallback(
     async (target: A2UI.MessageNavigationTarget) => {
@@ -116,7 +120,12 @@ export function useA2UINavigation() {
   return useCallback(
     async (
       target: A2UI.NavigationTarget,
-      options?: { allowBotMcpSettings?: boolean }
+      options?: {
+        allowBotMcpSettings?: boolean;
+        allowBrowserCredentialHandoff?: boolean;
+        allowBrowserSession?: boolean;
+        allowBrowserWallet?: boolean;
+      }
     ) => {
       switch (target.type) {
         case 'message':
@@ -169,9 +178,49 @@ export function useA2UINavigation() {
               }
               rootNavigation.navigateToBotMcpSettings(target.providerId);
               return;
+            case 'browserWallet':
+              if (!options?.allowBrowserWallet) return;
+              rootNavigation.navigation.navigate('BrowserWallet', {
+                requestId: target.requestId,
+              });
+              return;
+            case 'browserSession':
+              if (!options?.allowBrowserSession) return;
+              try {
+                await (browserHandoff
+                  ? browserHandoff.openViewer(target.viewerUrl)
+                  : Promise.reject(
+                      new Error('Browser session viewer is unavailable.')
+                    ));
+              } catch (error) {
+                showToast({
+                  message:
+                    "Couldn't open the browser. Please try again and allow pop-ups if prompted.",
+                });
+                throw error;
+              }
+              return;
+            case 'browserSecureEntry':
+              if (!options?.allowBrowserCredentialHandoff) {
+                logger.log('blocked untrusted browser target');
+                return;
+              }
+              if (!browserHandoff) {
+                throw new Error(
+                  'Browser credential handoff provider is unavailable.'
+                );
+              }
+              const handoffId = browserHandoff.register({
+                viewerUrl: target.viewerUrl,
+              });
+              rootNavigation.navigateToBrowserCredentialHandoff(
+                handoffId,
+                target.loginApproval
+              );
+              return;
           }
       }
     },
-    [navigateToMessage, rootNavigation]
+    [browserHandoff, navigateToMessage, rootNavigation, showToast]
   );
 }

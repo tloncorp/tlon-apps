@@ -45,6 +45,26 @@ export async function startAgentGroupNavigationLockFailsafe(
   });
 }
 
+/**
+ * End the navigation lock now but keep the group's onboarding record, which
+ * still lets the bot's purpose answer rename the placeholder workspace. A
+ * furnishing attempt keeps the lock time it finds, so a setup that finishes
+ * late can't lock someone who is already using the app.
+ */
+export async function disarmAgentGroupNavigationLock(
+  groupId: string,
+  now = Date.now()
+) {
+  await db.agentGroupOnboardingLocks.setValue((current) => ({
+    ...current,
+    [groupId]: {
+      ...current[groupId],
+      createdAt: current[groupId]?.createdAt ?? now,
+      navigationLockExpiresAt: now,
+    },
+  }));
+}
+
 /** Where a locked first run resumes: the recorded landing, else the setup chat. */
 function lockedConversationId(marker: db.AgentGroupOnboardingLock) {
   return marker.landingChannelId ?? marker.chatChannelId;

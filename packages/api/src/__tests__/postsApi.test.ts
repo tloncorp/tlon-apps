@@ -1,5 +1,7 @@
 import { beforeEach, expect, test, vi } from 'vitest';
 
+import { browserSessionCard } from '../client/browserSession';
+import { A2UI } from '../client/a2ui';
 import {
   editPost,
   getChannelPosts,
@@ -35,6 +37,132 @@ vi.mock('../client/urbit', async () => {
 const scryMock = scry as unknown as ReturnType<typeof vi.fn>;
 const pokeMock = poke as unknown as ReturnType<typeof vi.fn>;
 
+const browserHandoffEntry: A2UI.BlobEntry = {
+  type: 'a2ui',
+  version: 1,
+  messages: [
+    {
+      version: 'v0.9',
+      createSurface: { surfaceId: 'login', catalogId: 'tlon.a2ui.basic.v1' },
+    },
+    {
+      version: 'v0.9',
+      updateComponents: {
+        surfaceId: 'login',
+        root: 'button',
+        components: [
+          { id: 'label', component: 'Text', text: 'Open secure login' },
+          {
+            id: 'button',
+            component: 'Button',
+            child: 'label',
+            action: {
+              event: {
+                name: 'tlon.navigate',
+                context: {
+                  target: {
+                    type: 'screen',
+                    screen: 'browserSecureEntry',
+                    viewerUrl:
+                      'https://browser-session.tlon.network/s/private.signature',
+                  },
+                },
+              },
+            },
+          },
+        ],
+      },
+    },
+  ],
+};
+const browserHandoffPost = {
+  authorId: '~zod',
+  sentAt: 1701275662689,
+  content: [] as ub.Story,
+  blob: JSON.stringify([browserHandoffEntry]),
+  postId: '170141184506535164684262900635183087616',
+  parentId: '170141184506535164684262900635183087616',
+  parentAuthor: '~nec',
+};
+
+test.each([
+  'chat/~zod/general',
+  'heap/~zod/gallery',
+  'notes/~zod/notes',
+  '0v123',
+])(
+  'rejects browser handoffs in shared destinations before any write: %s',
+  async (channelId) => {
+    expect(A2UI.validateBlobEntry(browserHandoffEntry)).toBe(true);
+    const input = { ...browserHandoffPost, channelId };
+    for (const write of [
+      () => sendPost(input),
+      () => sendReply(input),
+      () => editPost({ ...input, parentId: undefined }),
+      () => editPost(input),
+    ]) {
+      await expect(write()).rejects.toThrow('one-to-one DM');
+    }
+    expect(pokeMock).not.toHaveBeenCalled();
+  }
+);
+
+test('does not let an invalid A2UI entry or escaped JSON bypass the handoff destination check', async () => {
+  const blob = JSON.stringify([
+    { ...browserHandoffEntry, version: 99 },
+  ]).replace('browserSecureEntry', '\\u0062rowserSecureEntry');
+  await expect(
+    sendPost({
+      ...browserHandoffPost,
+      channelId: 'chat/~zod/general',
+      blob,
+    })
+  ).rejects.toThrow('one-to-one DM');
+  expect(pokeMock).not.toHaveBeenCalled();
+});
+
+test('keeps capabilities in unknown screen targets restricted to one-to-one DMs', async () => {
+  await expect(
+    sendPost({
+      ...browserHandoffPost,
+      channelId: 'chat/~zod/general',
+      blob: browserHandoffPost.blob!.replace(
+        'browserSecureEntry',
+        'unsupportedScreen'
+      ),
+    })
+  ).rejects.toThrow('one-to-one DM');
+  expect(pokeMock).not.toHaveBeenCalled();
+});
+
+test('allows browser handoffs in one-to-one DMs', async () => {
+  const input = { ...browserHandoffPost, channelId: '~nec' };
+  await sendPost(input);
+  await sendReply(input);
+  expect(pokeMock).toHaveBeenCalledTimes(2);
+});
+
+test('allows ordinary A2UI cards in group posts', async () => {
+  const entry = structuredClone(browserHandoffEntry);
+  const button = A2UI.getUpdateMessage(entry)!.updateComponents.components.find(
+    (component) => component.component === 'Button'
+  );
+  if (!button || button.component !== 'Button')
+    throw new Error('missing button');
+  button.action = {
+    event: {
+      name: 'tlon.navigate',
+      context: { target: { type: 'screen', screen: 'botMcpSettings' } },
+    },
+  };
+  await sendPost({
+    ...browserHandoffPost,
+    channelId: 'chat/~zod/general',
+    blob: JSON.stringify([entry]),
+  });
+  expect(pokeMock).toHaveBeenCalledOnce();
+});
+
 const botAuthor: ub.BotProfile = {
   ship: '~bot-test',
   nickname: 'TestBot',
@@ -66,12 +194,17 @@ test('toPostData extracts authorId from BotProfile author', () => {
   const result = toPostData('chat/~zod/test', post);
   expect(result.authorId).toBe('~bot-test');
   expect(typeof result.authorId).toBe('string');
+  expect(result.botProfile).toEqual({
+    nickname: 'TestBot',
+    avatar: 'https://example.com/bot.png',
+  });
 });
 
 test('toPostData handles string author unchanged', () => {
   const post = makeBotPost('~zod');
   const result = toPostData('chat/~zod/test', post);
   expect(result.authorId).toBe('~zod');
+  expect(result.botProfile).toBeNull();
 });
 
 const planetBot: ub.BotProfile = {
@@ -181,6 +314,10 @@ test('toPostData extracts authorId from BotProfile on tombstone', () => {
   const result = toPostData('chat/~zod/test', tombstone);
   expect(result.authorId).toBe('~bot-test');
   expect(result.isDeleted).toBe(true);
+  expect(result.botProfile).toEqual({
+    nickname: 'TestBot',
+    avatar: 'https://example.com/bot.png',
+  });
 });
 
 test('toPostsData handles mix of bot and normal authors', () => {
@@ -219,6 +356,53 @@ test('toPostReplyData extracts authorId from BotProfile reply-essay author', () 
   );
   expect(result.authorId).toBe('~bot-test');
   expect(typeof result.authorId).toBe('string');
+  expect(result.botProfile).toEqual({
+    nickname: 'TestBot',
+    avatar: 'https://example.com/bot.png',
+  });
+});
+
+test('toPostReplyData leaves botProfile null for a string author', () => {
+  const reply: ub.Reply = {
+    seal: {
+      id: '170141184506535176367510061158978551808',
+      'parent-id': '170141184506535164684262900635183087616',
+      reacts: {},
+    },
+    'reply-essay': {
+      content: [{ inline: ['human reply'] }],
+      author: '~zod',
+      sent: 1701276293246,
+      blob: null,
+    },
+  };
+  const result = toPostReplyData(
+    'chat/~zod/test',
+    '170141184506535164684262900635183087616',
+    reply
+  );
+  expect(result.isBot).toBe(false);
+  expect(result.botProfile).toBeNull();
+});
+
+test('toPostReplyData keeps a bot tombstone profile', () => {
+  const tombstone: ub.PostTombstone = {
+    author: botAuthor,
+    id: '170141184506535176367510061158978551808',
+    'deleted-at': 1701276293246,
+    seq: 0,
+    type: 'tombstone',
+  };
+  const result = toPostReplyData(
+    'chat/~zod/test',
+    '170141184506535164684262900635183087616',
+    tombstone
+  );
+  expect(result.isDeleted).toBe(true);
+  expect(result.botProfile).toEqual({
+    nickname: 'TestBot',
+    avatar: 'https://example.com/bot.png',
+  });
 });
 
 const CHANNEL_ID = 'chat/~zod/test';
@@ -639,4 +823,32 @@ test('transport failure does not report a response; malformed payload does', asy
   scryMock.mockResolvedValueOnce({});
   await expect(getPostWithReplies(options)).rejects.toThrow();
   expect(onResponse).toHaveBeenCalledOnce();
+});
+
+test('session sharing is a separate, valid card and cannot be posted to shared destinations', async () => {
+  const card = browserSessionCard(
+    'https://browser-session.tlon.network/s/private.signature',
+    'session'
+  );
+  expect(A2UI.validateBlobEntry(card)).toBe(true);
+  const blob = JSON.stringify([card]);
+  expect(blob).not.toContain('browserSecureEntry');
+  for (const channelId of [
+    'chat/~zod/general',
+    'heap/~zod/gallery',
+    'notes/~zod/notes',
+    '0v123',
+  ]) {
+    const input = { ...browserHandoffPost, channelId, blob };
+    for (const write of [
+      () => sendPost(input),
+      () => sendReply(input),
+      () => editPost(input),
+    ]) {
+      await expect(write()).rejects.toThrow('one-to-one DM');
+    }
+  }
+  expect(pokeMock).not.toHaveBeenCalled();
+  await sendPost({ ...browserHandoffPost, channelId: '~nec', blob });
+  expect(pokeMock).toHaveBeenCalledOnce();
 });

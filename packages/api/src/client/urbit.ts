@@ -1,5 +1,6 @@
 import { Noun } from '@urbit/nockjs';
 import _ from 'lodash';
+import { deriveBrowserOwnerToken } from '../lib/browserOwnerToken';
 
 import {
   AuthError,
@@ -68,6 +69,12 @@ interface Config extends Pick<ClientParams, 'onQuitOrReset'> {
   activitySupportsReactions: boolean;
   activitySupportsNotes: boolean;
   deskSupportsBuckets: boolean | null;
+  deskSupportsAutomations: boolean | null;
+  deskSupportsStewardPrompts: boolean | null;
+  deskSupportsTaskRuns: boolean | null;
+  deskCountsAllSeats: boolean;
+  deskServesRosterPages: boolean | null;
+  deskSupportsStewardBots: boolean | null;
 }
 
 type Predicate = (event: any, mark: string) => boolean;
@@ -190,6 +197,20 @@ const config: Config = {
   // whose version we cannot read is asked for /v10, which every backend has —
   // a 404 there costs the whole init. Guarded requests refuse only false.
   deskSupportsBuckets: null,
+  // Unknown (null) until the app confirms the backend's groups version.
+  // Guarded requests refuse only false.
+  deskSupportsAutomations: null,
+  deskSupportsStewardPrompts: null,
+  deskSupportsTaskRuns: null,
+  // Off until the app confirms the backend's groups version counts every seat
+  // in init and changes, so a member count of 15 stays suspect by default.
+  deskCountsAllSeats: false,
+  // Unknown (null) until the app confirms the backend's groups version.
+  // Unknown reads as unsupported for choosing how to sync a big group, so a
+  // ship whose version we cannot read gets the full roster it always had.
+  deskServesRosterPages: null,
+  // Guarded requests refuse only false.
+  deskSupportsStewardBots: null,
 };
 
 type ClientResolver = () => Urbit | null | undefined;
@@ -202,6 +223,23 @@ let clientResolver: ClientResolver | null = null;
  */
 export function setClientResolver(resolver: ClientResolver | null): void {
   clientResolver = resolver;
+}
+
+/** Derive a short-lived owner proof from the authenticated ship session. */
+export async function getBrowserVaultOwnerAuthorization() {
+  const session = config.session;
+  if (!session || session.loggingOut)
+    throw new Error('Owner authentication is unavailable.');
+  const { base, threadRequest } = await import('./requests');
+  abandonIfSwapped(session);
+  const code = await threadRequest(base.loginCode)<null, unknown>(null);
+  abandonIfSwapped(session);
+  if (session.loggingOut || typeof code !== 'string' || !code.trim())
+    throw new Error('Owner authentication is unavailable.');
+  return {
+    planet: session.shipName.replace(/^~/, ''),
+    ownerToken: deriveBrowserOwnerToken(code),
+  };
 }
 
 function resolveClient(): Urbit | null {
@@ -272,6 +310,76 @@ export const getActivitySupportsNotes = (): boolean => {
   return config.activitySupportsNotes;
 };
 
+// Whether the connected backend's init and changes member counts cover every
+// seat. Older desks counted only the 15 seats they keep, so
+// withoutTruncatedMemberCount distrusts a count of exactly 15 until this is set.
+export const setDeskCountsAllSeats = (value: boolean) => {
+  config.deskCountsAllSeats = value;
+};
+
+export const getDeskCountsAllSeats = (): boolean => {
+  return config.deskCountsAllSeats;
+};
+
+const deskServesRosterPagesListeners = new Set<() => void>();
+
+// Whether the connected backend serves a big roster in parts: the light ui
+// group and the seat pages. Picks how a big group syncs and loads members;
+// a mounted members screen listens below.
+export const setDeskServesRosterPages = (value: boolean | null) => {
+  const changed = config.deskServesRosterPages !== value;
+  config.deskServesRosterPages = value;
+  if (changed) {
+    deskServesRosterPagesListeners.forEach((listener) => listener());
+  }
+};
+
+export const onDeskServesRosterPagesChange = (
+  listener: () => void
+): (() => void) => {
+  deskServesRosterPagesListeners.add(listener);
+  return () => {
+    deskServesRosterPagesListeners.delete(listener);
+  };
+};
+
+export const getDeskServesRosterPages = (): boolean => {
+  return config.deskServesRosterPages === true;
+};
+
+// null until sync start resolves the capability; the request guard refuses
+// only a known false.
+export const getDeskServesRosterPagesState = (): boolean | null => {
+  return config.deskServesRosterPages;
+};
+
+const deskSupportsStewardBotsListeners = new Set<() => void>();
+
+// Whether the connected backend's %steward serves its trusted bots. Views
+// gated on it listen below.
+export const setDeskSupportsStewardBots = (value: boolean | null) => {
+  const changed = config.deskSupportsStewardBots !== value;
+  config.deskSupportsStewardBots = value;
+  if (changed) {
+    deskSupportsStewardBotsListeners.forEach((listener) => listener());
+  }
+};
+
+// null until sync start resolves the capability; the request guard refuses
+// only a known false.
+export const getDeskSupportsStewardBotsState = (): boolean | null => {
+  return config.deskSupportsStewardBots;
+};
+
+export const onDeskSupportsStewardBotsChange = (
+  listener: () => void
+): (() => void) => {
+  deskSupportsStewardBotsListeners.add(listener);
+  return () => {
+    deskSupportsStewardBotsListeners.delete(listener);
+  };
+};
+
 const deskSupportsBucketsListeners = new Set<() => void>();
 
 // Whether the connected backend serves /v11/init (Buckets and their writer
@@ -295,12 +403,92 @@ export const getDeskSupportsBucketsState = (): boolean | null => {
   return config.deskSupportsBuckets;
 };
 
+const deskSupportsAutomationsListeners = new Set<() => void>();
+
+// Whether the connected backend's %steward serves scheduled tasks with their
+// delivery block. The request guard reads it, and so do the ways into the
+// task screens, which listen below.
+export const setDeskSupportsAutomations = (value: boolean | null) => {
+  const changed = config.deskSupportsAutomations !== value;
+  config.deskSupportsAutomations = value;
+  if (changed) {
+    deskSupportsAutomationsListeners.forEach((listener) => listener());
+  }
+};
+
+// null until sync start resolves the capability; the request guard refuses
+// only a known false.
+export const getDeskSupportsAutomationsState = (): boolean | null => {
+  return config.deskSupportsAutomations;
+};
+
+export const onDeskSupportsAutomationsChange = (
+  listener: () => void
+): (() => void) => {
+  deskSupportsAutomationsListeners.add(listener);
+  return () => {
+    deskSupportsAutomationsListeners.delete(listener);
+  };
+};
+
 export const onDeskSupportsBucketsChange = (
   listener: () => void
 ): (() => void) => {
   deskSupportsBucketsListeners.add(listener);
   return () => {
     deskSupportsBucketsListeners.delete(listener);
+  };
+};
+
+const deskSupportsStewardPromptsListeners = new Set<() => void>();
+
+// Whether the connected backend's %steward serves the prompts routes. The
+// request guard refuses a known false; a view that already met that refusal
+// listens below to try again once a desk upgrade turns it on.
+export const setDeskSupportsStewardPrompts = (value: boolean | null) => {
+  const changed = config.deskSupportsStewardPrompts !== value;
+  config.deskSupportsStewardPrompts = value;
+  if (changed) {
+    deskSupportsStewardPromptsListeners.forEach((listener) => listener());
+  }
+};
+
+export const getDeskSupportsStewardPromptsState = (): boolean | null => {
+  return config.deskSupportsStewardPrompts;
+};
+
+export const onDeskSupportsStewardPromptsChange = (
+  listener: () => void
+): (() => void) => {
+  deskSupportsStewardPromptsListeners.add(listener);
+  return () => {
+    deskSupportsStewardPromptsListeners.delete(listener);
+  };
+};
+
+const deskSupportsTaskRunsListeners = new Set<() => void>();
+
+// Whether the connected backend's %steward pages a task's runs and relays
+// test runs. Like the prompts capability, a view listens to try again once a
+// desk upgrade turns it on.
+export const setDeskSupportsTaskRuns = (value: boolean | null) => {
+  const changed = config.deskSupportsTaskRuns !== value;
+  config.deskSupportsTaskRuns = value;
+  if (changed) {
+    deskSupportsTaskRunsListeners.forEach((listener) => listener());
+  }
+};
+
+export const getDeskSupportsTaskRunsState = (): boolean | null => {
+  return config.deskSupportsTaskRuns;
+};
+
+export const onDeskSupportsTaskRunsChange = (
+  listener: () => void
+): (() => void) => {
+  deskSupportsTaskRunsListeners.add(listener);
+  return () => {
+    deskSupportsTaskRunsListeners.delete(listener);
   };
 };
 
@@ -470,11 +658,17 @@ export function internalRemoveClient() {
   // backend capabilities belong to the ship we were connected to; reset
   // so an account switch to an older backend doesn't request newer
   // endpoints until app-info sync resolves the new ship's version. The
-  // buckets capability goes back to unknown, not unsupported: the next
+  // guarded capabilities go back to unknown, not unsupported: the next
   // login's guarded requests go out until the probe says otherwise.
   setActivitySupportsReactions(false);
   setActivitySupportsNotes(false);
   setDeskSupportsBuckets(null);
+  setDeskSupportsAutomations(null);
+  setDeskSupportsStewardPrompts(null);
+  setDeskSupportsTaskRuns(null);
+  setDeskCountsAllSeats(false);
+  setDeskServesRosterPages(null);
+  setDeskSupportsStewardBots(null);
 }
 
 function printEndpoint(endpoint: UrbitEndpoint) {
@@ -577,7 +771,8 @@ export async function subscribe<T>(
   // Hears a watch the ship rejects after this has resolved, once the retries
   // below have given up on it. This resolves when the channel PUT lands, so a
   // nack arriving later on the event stream has no promise left to reject.
-  onRejected?: (error: unknown) => void
+  onRejected?: (error: unknown) => void,
+  options?: { onQuit?: () => void }
 ): Promise<number> {
   // the account this is for. As in poke, the send and any retry go to it,
   // never to an account that replaced it mid-flight
@@ -627,6 +822,9 @@ export async function subscribe<T>(
       quit: () => {
         logger.log('subscription quit on', printEndpoint(endpoint));
         config.onQuitOrReset?.('subscriptionQuit', printEndpoint(endpoint));
+        // The client resubscribes, but facts emitted in the gap are gone.
+        // Let stateful callers request their own backfill.
+        options?.onQuit?.();
       },
       err: (error, id) => {
         logger.trackError('subscribe error', {

@@ -1,11 +1,9 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { getCanonicalPostId } from '@tloncorp/api/client';
-import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-import { useA2UINavigation } from '../../hooks/useA2UINavigation';
 import type { RootStackParamList } from '../../navigation/types';
+import { useFloatingHeaderHeight } from '../../navigation/useFloatingHeaderHeight';
 import {
   ScreenHeader,
   ScreenScrollView,
@@ -14,12 +12,10 @@ import {
   YStack,
 } from '../../ui';
 import { CopyRawPayloadButton } from '../../ui/components/Channel/ContextLens/CopyRawPayloadButton';
-import {
-  type LensMessageTarget,
-  RunInspector,
-} from '../../ui/components/Channel/ContextLens/RunInspector';
+import { RunInspector } from '../../ui/components/Channel/ContextLens/RunInspector';
 import { RunSummary } from '../../ui/components/Channel/ContextLens/RunSummary';
 import { lensFromRunPayload } from '../../ui/components/Channel/ContextLens/types';
+import { useLensMessageNavigation } from './useLensMessageNavigation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ContextLensRun'>;
 
@@ -48,46 +44,12 @@ export function ContextLensRunScreen(props: Props) {
     [runQuery.data]
   );
   const loading = runQuery.isLoading || (resolving && !lens);
+  // The copy row sits above the scroll view, so it clears the floating header
+  // itself. Only the lens branch mounts the scroll view that makes the header
+  // float; the empty state leaves it opaque, with content already beneath it.
+  const headerClearance = useFloatingHeaderHeight(lens != null);
 
-  const navigateFromA2UI = useA2UINavigation();
-  const handlePressMessage = useCallback(
-    async (target: LensMessageTarget) => {
-      // Lens conversation ids are recorded from the bot's perspective: group
-      // channels are nests (contain '/'), but DMs name the counterparty ship
-      // — which on the owner's client is themselves. DM messages live in the
-      // client's DM channel with the bot, whose id is the bot ship.
-      const channelId = target.channelId?.includes('/')
-        ? target.channelId
-        : botShip;
-      if (!channelId) {
-        return;
-      }
-      // Lens payloads don't record thread parents. Output-row clicks supply
-      // parentId from the resolved local post; trigger-row clicks (which
-      // don't pre-resolve) fall back to a db lookup. Without parentId,
-      // threaded replies dead-end in the channel scroller where they aren't
-      // visible.
-      let parentId: string | undefined = target.parentId;
-      if (!parentId) {
-        try {
-          const post = await db.getPost({
-            postId: getCanonicalPostId(target.postId),
-          });
-          parentId = post?.parentId ?? undefined;
-        } catch {
-          // post not cached locally — fall back to channel navigation
-        }
-      }
-      navigateFromA2UI({
-        type: 'message',
-        channelId,
-        postId: target.postId,
-        parentId,
-        authorId: target.authorId,
-      });
-    },
-    [navigateFromA2UI, botShip]
-  );
+  const handlePressMessage = useLensMessageNavigation(botShip);
 
   return (
     <YStack flex={1} backgroundColor="$background">
@@ -103,6 +65,7 @@ export function ContextLensRunScreen(props: Props) {
       {runQuery.data?.payload != null ? (
         <XStack
           justifyContent="flex-end"
+          marginTop={headerClearance}
           paddingHorizontal="$l"
           paddingTop="$l"
         >

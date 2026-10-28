@@ -1,10 +1,10 @@
-import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { NavigationContainer } from '@react-navigation/native';
 import { Context as BranchContext } from '@tloncorp/app/contexts/branch';
 import { exampleContacts } from '@tloncorp/app/fixtures/contentHelpers';
 import { group } from '@tloncorp/app/fixtures/fakeData';
 import { Theme } from '@tloncorp/app/ui';
 import { AppInvite, QueryClientProvider, queryClient } from '@tloncorp/shared';
+import { NodeBootPhase } from '@tloncorp/shared/domain';
 import { HostingAccountIssue } from '@tloncorp/shared/store';
 import { PropsWithChildren, useState } from 'react';
 import { useFixtureSelect } from 'react-cosmos/client';
@@ -12,6 +12,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { OnboardingStack, OnboardingStackNavigator } from '../OnboardingStack';
 import { OnboardingProvider } from '../lib/OnboardingContext';
+import { SignupContext } from '../lib/signupContext';
 import { AllowNotificationsScreen } from '../screens/Onboarding/AllowNotificationsScreen';
 import { CheckOTPScreen } from '../screens/Onboarding/CheckOTPScreen';
 import { CheckVerifyScreen } from '../screens/Onboarding/CheckVerifyScreen';
@@ -32,10 +33,19 @@ import { TlonLoginLegacy } from '../screens/Onboarding/TlonLoginLegacy';
 import { WelcomeScreen } from '../screens/Onboarding/WelcomeScreen';
 import { OnboardingStackParamList } from '../types';
 
+// Holds the setup screen at one boot phase, with no real signup behind it.
+const signupMethods = {
+  setOnboardingValues: () => {},
+  handlePostSignup: () => {},
+  kickOffBootSequence: () => {},
+  clear: () => {},
+};
+
 function OnboardingFixture({
   hasGroupInvite,
+  bootPhase,
   children,
-}: PropsWithChildren<{ hasGroupInvite: boolean }>) {
+}: PropsWithChildren<{ hasGroupInvite: boolean; bootPhase?: NodeBootPhase }>) {
   const [lure, setLure] = useState<AppInvite | undefined>(
     hasGroupInvite
       ? {
@@ -55,6 +65,12 @@ function OnboardingFixture({
   const [theme] = useFixtureSelect('themeName', {
     options: ['light', 'dark'],
   });
+
+  const navigation = (
+    <NavigationContainer navigationInChildEnabled>
+      {children ?? <OnboardingStack />}
+    </NavigationContainer>
+  );
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -87,11 +103,15 @@ function OnboardingFixture({
             }}
           >
             <GestureHandlerRootView style={{ flex: 1 }}>
-              <BottomSheetModalProvider>
-                <NavigationContainer navigationInChildEnabled>
-                  {children ?? <OnboardingStack />}
-                </NavigationContainer>
-              </BottomSheetModalProvider>
+              {bootPhase === undefined ? (
+                navigation
+              ) : (
+                <SignupContext.Provider
+                  value={{ reservedNodeId: null, bootPhase, ...signupMethods }}
+                >
+                  {navigation}
+                </SignupContext.Provider>
+              )}
             </GestureHandlerRootView>
           </BranchContext.Provider>
         </OnboardingProvider>
@@ -104,13 +124,15 @@ function SingleScreenFixture<T extends keyof OnboardingStackParamList>({
   routeName,
   params,
   Component,
+  bootPhase,
 }: {
   routeName: T;
   params?: OnboardingStackParamList[T];
   Component: React.ComponentType<any>;
+  bootPhase?: NodeBootPhase;
 }) {
   return (
-    <OnboardingFixture hasGroupInvite={true}>
+    <OnboardingFixture hasGroupInvite={true} bootPhase={bootPhase}>
       <OnboardingStackNavigator.Navigator
         screenOptions={{ headerShown: false }}
       >
@@ -165,6 +187,34 @@ export default {
     <SingleScreenFixture
       routeName="ReserveShip"
       Component={ReserveShipScreen}
+    />
+  ),
+  ReserveShipBooting: (
+    <SingleScreenFixture
+      routeName="ReserveShip"
+      Component={ReserveShipScreen}
+      bootPhase={NodeBootPhase.BOOTING}
+    />
+  ),
+  ReserveShipConnecting: (
+    <SingleScreenFixture
+      routeName="ReserveShip"
+      Component={ReserveShipScreen}
+      bootPhase={NodeBootPhase.CONNECTING}
+    />
+  ),
+  ReserveShipSettingUpBot: (
+    <SingleScreenFixture
+      routeName="ReserveShip"
+      Component={ReserveShipScreen}
+      bootPhase={NodeBootPhase.ACCEPTING_INVITES}
+    />
+  ),
+  ReserveShipReady: (
+    <SingleScreenFixture
+      routeName="ReserveShip"
+      Component={ReserveShipScreen}
+      bootPhase={NodeBootPhase.READY}
     />
   ),
   SetNickname: (

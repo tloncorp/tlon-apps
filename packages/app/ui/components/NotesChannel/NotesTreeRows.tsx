@@ -11,7 +11,7 @@ import type { ReactNode } from 'react';
 import { Platform, Switch } from 'react-native';
 import { TamaguiWebElement, View, XStack } from 'tamagui';
 
-import { useSheetCloseAfterAnimation } from '../../hooks/useSheetCloseAfterAnimation';
+import { useSheetDismissalAction } from '../../hooks/useSheetDismissalAction';
 import type { ActionGroup } from '../ActionSheet';
 import { ActionSheet, createActionGroups } from '../ActionSheet';
 import { ListItem } from '../ListItem';
@@ -329,8 +329,17 @@ function useRowActions({
 }) {
   const [open, setOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const { closeAfterAnimation, cancel: cancelPendingAction } =
-    useSheetCloseAfterAnimation();
+  const {
+    dismissThenRun,
+    onDismissed,
+    cancel: cancelPendingAction,
+    shouldRender,
+    presentationKey,
+  } = useSheetDismissalAction({
+    open,
+    onOpenChange: setOpen,
+    waitForDismissal: Platform.OS !== 'web',
+  });
   const openActions = () => {
     if (enabled) {
       cancelPendingAction();
@@ -349,16 +358,9 @@ function useRowActions({
   );
   const handleAction = useCallback(
     (action?: () => void) => {
-      if (Platform.OS === 'web') {
-        setOpen(false);
-        action?.();
-        return;
-      }
-
-      setOpen(false);
-      closeAfterAnimation(() => action?.());
+      dismissThenRun(() => action?.());
     },
-    [closeAfterAnimation]
+    [dismissThenRun]
   );
   const hoverProps =
     Platform.OS === 'web'
@@ -389,13 +391,15 @@ function useRowActions({
 
   return {
     actionsMenu:
-      enabled && (open || actionsTrigger) ? (
+      enabled && (shouldRender || actionsTrigger) ? (
         <NotesActionMenu
+          key={presentationKey}
           groups={actionGroups}
           header={header}
           open={open}
           onAction={handleAction}
           onOpenChange={handleOpenChange}
+          onNativeDismissed={onDismissed}
           bottomContent={bottomContent}
           trigger={actionsTrigger}
         />

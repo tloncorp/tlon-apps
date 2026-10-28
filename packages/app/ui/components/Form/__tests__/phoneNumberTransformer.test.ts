@@ -24,10 +24,10 @@ function typeKeys(transformer: PhoneNumberTransformer, keys: string): string {
   return value;
 }
 
-// Covers patches/react-native-transformer-text-input@0.4.1.patch. The NANP
+// Regression coverage for TLON-6686 (fixed upstream in 0.4.2). The NANP
 // country data lists Canada's 7-digit "310-XXXX" service format ahead of the
-// 10-digit format, and the unpatched transformer picked a format by leading
-// digits alone, clamping every +1 310 number to seven digits (TLON-6686).
+// 10-digit format. Selecting by leading digits alone used to clamp every
+// +1 310 number to seven digits.
 describe('PhoneNumberTransformer (international)', () => {
   const international = () =>
     new PhoneNumberTransformer({ international: true });

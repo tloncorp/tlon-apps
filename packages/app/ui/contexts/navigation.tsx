@@ -5,6 +5,7 @@ import { Linking } from 'react-native';
 type State = {
   onPressRef?: (channel: db.Channel, post: db.Post) => void;
   onPressGroupRef?: (group: db.Group) => void;
+  onPressChannelRef?: (channel: db.Channel) => void;
   onPressGoToDm?: (participants: string[]) => void;
   onGoToUserProfile?: (userId: string) => void;
   onGoToGroupSettings?: () => void;
@@ -47,6 +48,7 @@ export const NavigationProvider = ({
   children,
   onPressRef,
   onPressGroupRef,
+  onPressChannelRef,
   onPressGoToDm,
   onGoToUserProfile,
   onGoToGroupSettings,
@@ -55,6 +57,7 @@ export const NavigationProvider = ({
   children: React.ReactNode;
   onPressRef?: (channel: db.Channel, post: db.Post) => void;
   onPressGroupRef?: (group: db.Group) => void;
+  onPressChannelRef?: (channel: db.Channel) => void;
   onPressGoToDm?: (participants: string[]) => void;
   onGoToUserProfile?: (userId: string) => void;
   onGoToGroupSettings?: () => void;
@@ -64,6 +67,7 @@ export const NavigationProvider = ({
     () => ({
       onPressRef,
       onPressGroupRef,
+      onPressChannelRef,
       onPressGoToDm,
       onGoToUserProfile,
       onGoToGroupSettings,
@@ -75,6 +79,7 @@ export const NavigationProvider = ({
     [
       onPressRef,
       onPressGroupRef,
+      onPressChannelRef,
       onPressGoToDm,
       onGoToUserProfile,
       onGoToGroupSettings,

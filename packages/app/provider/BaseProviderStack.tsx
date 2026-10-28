@@ -1,4 +1,3 @@
-import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared';
 import { ToastProvider } from '@tloncorp/ui';
 import { PropsWithChildren } from 'react';
@@ -81,11 +80,9 @@ function UIProviderStack({
     >
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <GestureHandlerRootView style={{ flex: 1 }}>
-          <BottomSheetModalProvider>
-            <ContentReferenceLoaderProvider>
-              <ComponentsKitProvider>{children}</ComponentsKitProvider>
-            </ContentReferenceLoaderProvider>
-          </BottomSheetModalProvider>
+          <ContentReferenceLoaderProvider>
+            <ComponentsKitProvider>{children}</ComponentsKitProvider>
+          </ContentReferenceLoaderProvider>
         </GestureHandlerRootView>
       </SafeAreaProvider>
     </TamaguiProvider>

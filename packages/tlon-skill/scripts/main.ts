@@ -7,7 +7,8 @@
  *   tlon [options] <command> <subcommand> [args...]
  *
  * Commands:
- *   activity     Activity/notifications (mentions, replies, all, unreads)
+ *   activity     Activity/notifications (mentions, replies, all, unreads, mute, unmute, volume, mark-read)
+ *   browser      Hosted browser handoff operations
  *   buckets      Shared %buckets file channels
  *   channels     Channel listing and management
  *   contacts     Contact/profile management
@@ -15,14 +16,17 @@
  *   groups       Group management
  *   messages     Message history and search (dm, channel, history, search, context, post)
  *   notes        %notes notebook operations
- *   posts        Post reactions, edits, deletes
+ *   posts        Gallery attachments, post quotes, forwards, reactions, edits, deletes, pins
  *   settings     OpenClaw settings management
  */
+import { browserWalletCard } from '@tloncorp/api/client/browserWallet';
 import { createActivityDeps } from './activity-runtime';
-import { setCliCredentialOverrides } from './api-client';
+import { getConfig, setCliCredentialOverrides } from './api-client';
+import { resolveBrowserOwnerShip } from './browser-owner';
 import { createBucketsDeps } from './buckets-runtime';
 import { DIARY_REMOVED } from './cli-utils';
 import { run as runActivityCommand } from './commands/activity';
+import { run as runBrowserCommand } from './commands/browser';
 import { run as runBucketsCommand } from './commands/buckets';
 import { formatUnexpectedError } from './commands/command';
 import { run as runNotesCommand } from './commands/notes';
@@ -31,7 +35,7 @@ import { run as runUploadCommand } from './commands/upload';
 import { CredentialFlagError, parseGlobalCliOptions } from './credential-flags';
 import { createNotesDeps } from './notes-runtime';
 import { createPostsDeps } from './posts-runtime';
-import { isTopLevelCommand } from './top-level-commands';
+import { formatCommandIndex, isTopLevelCommand } from './top-level-commands';
 import { createUploadDeps } from './upload-runtime';
 import { CLI_VERSION } from './version';
 
@@ -42,19 +46,7 @@ Usage:
   tlon [options] <command> <subcommand> [args...]
 
 Commands:
-  activity     Activity/notifications (mentions, replies, all, unreads)
-  buckets      Shared file channels (list, files, upload, read, mkdir, move, delete)
-  channels     Channel listing and management (dms, groups, info, update, delete, add/del-writers, add/del-readers)
-  contacts     Contact/profile management (list, get, self, sync, add, remove, update-profile)
-  dms          Direct message operations (send, reply, react, unreact, delete, accept, decline)
-  expose       Manage public content exposure (list, show, hide, check, url)
-  groups       Group management (list, create, info, join, request/accept invites, leave, delete, ...)
-  hooks        Channel hooks management (list, add, edit, delete, order, config, cron, rest)
-  messages     Message history and search (dm, channel, history, search, context, post)
-  notes        %notes notebooks (list, show, request, note-create, note-update, join, leave)
-  posts        Post reactions, edits, deletes (react, unreact, edit, delete)
-  settings     OpenClaw settings management (get, set, delete, allow-dm, ...)
-  upload       Upload a file from URL, local path, or stdin
+${formatCommandIndex()}
 
 Credential Options (override defaults):
   --config <file>   Path to JSON config file with url + cookie or url + ship + code
@@ -93,12 +85,19 @@ Examples:
   tlon contacts list
   tlon messages dm ~sampel-palnet --limit 10
   tlon groups create "My Group" --description "A cool group"
-  tlon groups create-owned "My Group" --owner ~zod
+  tlon groups create-owned "My Group" --admin ~zod
   tlon groups join ~host/group-slug
   tlon posts react chat/~host/channel 170.141.184... 👍
   tlon --config ~/ships/zod.json contacts self
   tlon --url https://zod.tlon.network --cookie "urbauth-~zod=0v..." contacts self
   tlon --url https://zod.tlon.network --ship ~zod --code abcd-efgh-ijkl-mnop contacts self
+
+Hosted browser login (use the Tlon tool, not a shell command):
+  ${JSON.stringify({ command: 'browser handoff <session_id> --fields \'["@e12","@e13"]\'' })}
+  Use current snapshot refs to select the controls the owner should fill.
+  Omit --fields for automatic discovery of the visible form.
+  Pass the session ID from browser_session_create. The plugin resolves the
+  signed viewer link; never copy or construct one in a model tool call.
 `);
 }
 
@@ -122,7 +121,13 @@ async function main() {
   }
 
   setCliCredentialOverrides(parsed.credentialOverrides);
-  const args = parsed.args;
+  // Aliases share the same dispatch and help paths as flag-based discovery.
+  const args =
+    parsed.args[0] === 'help'
+      ? [...parsed.args.slice(1), '--help']
+      : parsed.args[0] === 'version'
+        ? ['--version', ...parsed.args.slice(1)]
+        : parsed.args;
 
   const command = args[0];
 
@@ -160,6 +165,16 @@ async function main() {
           scriptArgs,
           createActivityDeps()
         );
+        process.exit(exitCode);
+        break;
+      }
+      case 'browser': {
+        const exitCode = await runBrowserCommand(scriptArgs, {
+          ...createPostsDeps(),
+          browserWalletCard,
+          getOwnerShip: () =>
+            resolveBrowserOwnerShip({ activeShip: getConfig().ship }),
+        });
         process.exit(exitCode);
         break;
       }

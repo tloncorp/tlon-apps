@@ -1,3 +1,9 @@
+import {
+  formatAgentEnvelope,
+  resolveEnvelopeFormatOptions,
+} from 'openclaw/plugin-sdk/channel-inbound';
+import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
+
 import { normalizeShip } from '../targets.js';
 
 export interface ParsedCite {
@@ -169,17 +175,23 @@ export type EngageReason =
 /**
  * Decide whether to engage on a group-channel message.
  *
- * - Mentions and participated threads always engage (legacy behavior).
- * - Owner blob-only messages engage when the caller asserts `isOwnerBlob`
- *   (preserves existing behavior — caller still computes that flag).
+ * - Mentions always engage.
+ * - Owner-listen is "active" for a channel when the global toggle is on and
+ *   the channel is not in the per-channel disabled list. When it is not
+ *   active, the owner is mention-only there: participated threads and owner
+ *   blob-bearing posts do not engage for the owner, only mentions and bare
+ *   owner slash commands do.
+ * - Participated threads engage for everyone else, and for the owner while
+ *   owner-listen is active.
+ * - Owner blob-bearing messages engage when the caller asserts `isOwnerBlob`
+ *   and owner-listen is active.
  * - Owner slash commands engage when the caller asserts `isOwnerCommand`
  *   (the sender is the owner and the text matches a registered/core command
  *   token). Escape-hatch semantics like the in-plugin /owner-listen special
  *   case: no mention required, works in any watched channel regardless of
  *   host, the global owner-listen toggle, or the per-channel disabled list.
  * - Otherwise: engage when the sender is the owner AND the channel host is
- *   the owner or the bot itself AND the global owner-listen toggle is on AND
- *   the channel is not in the per-channel disabled list.
+ *   the owner or the bot itself AND owner-listen is active.
  */
 export function shouldEngageInGroup(opts: {
   mentioned: boolean;
@@ -194,32 +206,33 @@ export function shouldEngageInGroup(opts: {
   ownerListenEnabled: boolean;
   ownerListenDisabledChannels: ReadonlySet<string>;
 }): { engage: boolean; reason: EngageReason } {
+  const isOwner = opts.ownerShip !== null && opts.senderShip === opts.ownerShip;
+  const ownerListenActive =
+    opts.ownerListenEnabled &&
+    !opts.ownerListenDisabledChannels.has(opts.channelNest);
+  const ownerMuted = isOwner && !ownerListenActive;
+
   if (opts.mentioned) {
     return { engage: true, reason: 'mention' };
   }
-  if (opts.inParticipatedThread) {
+  if (opts.inParticipatedThread && !ownerMuted) {
     return { engage: true, reason: 'thread' };
   }
-  if (opts.isOwnerBlob) {
+  if (opts.isOwnerBlob && !ownerMuted) {
     return { engage: true, reason: 'owner-blob' };
   }
-
-  const isOwner = opts.ownerShip !== null && opts.senderShip === opts.ownerShip;
-
   if (opts.isOwnerCommand && isOwner) {
     return { engage: true, reason: 'owner-command' };
   }
-
-  if (!opts.ownerListenEnabled) {
+  if (!ownerListenActive) {
     return { engage: false, reason: 'skip' };
   }
 
   const isOwned =
     opts.groupHost !== null &&
     (opts.groupHost === opts.ownerShip || opts.groupHost === opts.botShipName);
-  const disabled = opts.ownerListenDisabledChannels.has(opts.channelNest);
 
-  if (isOwner && isOwned && !disabled) {
+  if (isOwner && isOwned) {
     return { engage: true, reason: 'owner-owned' };
   }
   return { engage: false, reason: 'skip' };
@@ -338,6 +351,18 @@ export function isDmAllowed(
   return allowlist
     .map((ship) => normalizeShip(ship))
     .some((ship) => ship === normalizedSender);
+}
+
+/** Whether the bot answers this 1:1 DM partner: the owner or an allowlisted ship. */
+export function isDmPartnerAuthorized(
+  partnerShip: string,
+  ownerShip: string | null | undefined,
+  allowlist: string[] | undefined
+): boolean {
+  if (ownerShip && normalizeShip(partnerShip) === normalizeShip(ownerShip)) {
+    return true;
+  }
+  return isDmAllowed(partnerShip, allowlist);
 }
 
 /**
@@ -598,8 +623,14 @@ export function extractMessageText(
         // Code blocks
         if (block.code && typeof block.code === 'object') {
           const lang = block.code.lang || '';
-          const code = block.code.code || '';
-          return `\n\`\`\`${lang}\n${code}\n\`\`\`\n`;
+          const code = String(block.code.code || '');
+          // A backtick run inside the code would close a fixed ``` fence early.
+          let fenceLength = 3;
+          for (const match of code.matchAll(/`+/g)) {
+            fenceLength = Math.max(fenceLength, match[0].length + 1);
+          }
+          const fence = '`'.repeat(fenceLength);
+          return `\n${fence}${lang}\n${code}\n${fence}\n`;
         }
 
         // Header blocks
@@ -677,6 +708,29 @@ export function isSummarizationRequest(messageText: string): boolean {
   return patterns.some((pattern) => pattern.test(messageText));
 }
 
+/** Renders summarization history in the configured user timezone, not the host's. */
+export function formatSummarizationHistoryText(
+  history: ReadonlyArray<{
+    author: string;
+    content: string;
+    timestamp: number;
+  }>,
+  cfg?: OpenClawConfig
+): string {
+  const envelope = resolveEnvelopeFormatOptions(cfg);
+  return history
+    .map((msg) =>
+      formatAgentEnvelope({
+        channel: 'Tlon',
+        from: msg.author,
+        timestamp: msg.timestamp,
+        body: msg.content,
+        envelope,
+      })
+    )
+    .join('\n');
+}
+
 export function formatChangesDate(daysAgo = 5): string {
   const now = new Date();
   const targetDate = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
@@ -710,4 +764,112 @@ export function sanitizeMessageText(text: string): string {
   sanitized = sanitized.replace(/\[(owner|user|admin|system)\]/gi, '($1)');
 
   return sanitized;
+}
+
+export function resolveCommandBody(input: {
+  messageText: string;
+  originalCommandText?: string;
+  isGroup: boolean;
+  botShipName: string;
+}): string {
+  const text = sanitizeMessageText(
+    input.originalCommandText ?? input.messageText
+  );
+  return input.isGroup
+    ? stripBotMentionOutsidePlaceholders(text, input.botShipName)
+    : text;
+}
+
+/**
+ * What the command-text fields carry for an input that is never a command.
+ * Leaving the fields out does not work: core falls back from BodyForCommands
+ * to CommandBody, RawBody and finally Body (with the envelope stripped), so an
+ * absent field hands the reaction text to the command parser anyway. An empty
+ * string fails too: inline directives fall back to the agent body when the
+ * command source is empty. This value is non-empty, parses as no command or
+ * directive, and strips to nothing.
+ */
+export const NON_COMMAND_BODY = '[reaction]';
+
+/**
+ * The command-facing fields of an inbound dispatch. A reaction is never
+ * command input (the owner's reactions include ones the model made with the
+ * owner's tlon tool), and core authorizes commands from more than
+ * CommandAuthorized (commands.allowFrom, plugin commands without sender auth),
+ * so a reaction carries no command text at all and an explicit message turn.
+ * Its text still reaches the model through BodyForAgent.
+ */
+export function inboundCommandFields(
+  input:
+    | { fromReaction: true }
+    | {
+        fromReaction: false;
+        rawBody: string;
+        commandBody: string;
+        commandAuthorized: boolean;
+      }
+) {
+  if (input.fromReaction) {
+    return {
+      RawBody: NON_COMMAND_BODY,
+      CommandBody: NON_COMMAND_BODY,
+      BodyForCommands: NON_COMMAND_BODY,
+      CommandAuthorized: false,
+      CommandTurn: {
+        kind: 'normal' as const,
+        source: 'message' as const,
+        authorized: false,
+      },
+    };
+  }
+  return {
+    RawBody: input.rawBody,
+    CommandBody: input.commandBody,
+    CommandAuthorized: input.commandAuthorized,
+    CommandSource: 'text' as const,
+  };
+}
+
+/**
+ * The config a reaction dispatch runs under. Core runs an inline /help,
+ * /commands, /whoami or /id for any sender matched by commands.allowFrom,
+ * whatever CommandAuthorized says, reading that list from the dispatch config
+ * (the provider key, else "*"). It extracts those shortcuts from the
+ * command-facing projection (`commandText`, from BodyForCommands, CommandBody
+ * and RawBody), which on a reaction carries NON_COMMAND_BODY; the reaction
+ * text is only in the agent-facing projection (`agentText`, BodyForAgent,
+ * Body), which core never parses as a command. An empty list on both keys
+ * also authorizes no sender, so no inline command runs from a reaction.
+ */
+export function reactionDispatchConfig(cfg: OpenClawConfig): OpenClawConfig {
+  return {
+    ...cfg,
+    commands: {
+      ...cfg.commands,
+      allowFrom: { ...cfg.commands?.allowFrom, '*': [], tlon: [] },
+    },
+  };
+}
+
+/**
+ * The DM partner ship named by a chat `whom`, or '' when `whom` is not a
+ * patp-like ship (a club id, garbage, or a non-string).
+ */
+export function extractDmPartnerShip(whom: unknown): string {
+  const raw =
+    typeof whom === 'string'
+      ? whom
+      : whom &&
+          typeof whom === 'object' &&
+          'ship' in whom &&
+          typeof whom.ship === 'string'
+        ? whom.ship
+        : '';
+  const normalized = normalizeShip(raw);
+  return /^~?[a-z-]+$/i.test(normalized) ? normalized : '';
+}
+
+/** Group DMs (clubs) are deprecated; the plugin handles 1:1 DMs only. */
+export function isDirectDmWhom(whom: unknown): boolean {
+  return extractDmPartnerShip(whom) !== '';
 }

@@ -145,10 +145,10 @@ export const HeaderControls = styled(XStack, {
 /** React renderer for the shared item model, used by web and Android. */
 export function ScreenHeaderItemElements({
   actions,
-  nativeHeader = false,
+  nativeHeader,
 }: {
   actions: ScreenHeaderAction[];
-  nativeHeader?: boolean;
+  nativeHeader?: 'left' | 'right';
 }) {
   const visible = visibleScreenHeaderActions(actions);
   if (visible.length === 0) {
@@ -160,6 +160,10 @@ export function ScreenHeaderItemElements({
       alignItems="center"
       height={nativeHeader ? '$4xl' : undefined}
       gap={nativeHeader ? '$l' : undefined}
+      // The Android toolbar slides a title too wide to center until it touches
+      // these buttons, so they carry the gap on the side facing it.
+      paddingLeft={nativeHeader === 'right' ? '$l' : undefined}
+      paddingRight={nativeHeader === 'left' ? '$l' : undefined}
     >
       {visible.map((action) => {
         if ('items' in action) {

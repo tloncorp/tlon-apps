@@ -23,6 +23,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 import { ensureClient, normalizeShip } from './api-client';
+import { putUploadFile } from './buckets-upload-transport';
 import { isAllowedAddress, isDeniedHostname } from './media-guard';
 import { MIME_TYPES } from './mime-types';
 import { createProcessCommandDeps, sleep } from './runtime-deps';
@@ -38,13 +39,6 @@ const STATE_ATTEMPTS = 40;
 const POLL_DELAY_MS = 250;
 const MAX_TEXT_READ_BYTES = 2 * 1024 * 1024;
 const BROKER_AUTH_FAILURE_STATUSES = new Set([401, 403]);
-
-type BucketUploadGrant = {
-  reservationId: string;
-  objectId: string;
-  uploadUrl: string;
-  requiredHeaders: [string, string][];
-};
 
 /**
  * Refuse role names the group does not have.
@@ -359,16 +353,6 @@ function mimeFromPath(filePath: string) {
   );
 }
 
-function fileUploadBody(filePath: string): Blob {
-  const runtime = globalThis as typeof globalThis & {
-    Bun?: { file(path: string): Blob };
-  };
-  if (!runtime.Bun) {
-    throw commandError('Bucket uploads require the Bun-based tlon binary');
-  }
-  return runtime.Bun.file(filePath);
-}
-
 function pathForEntry(entry: BucketsEntry, entries: BucketsEntry[]) {
   const names = [entry.name];
   let parentId = entry.parentId;
@@ -654,18 +638,11 @@ function createBucketsOperations(): BucketsOperations {
           return openUpload();
         });
         await assertUploadDestination(grant.url);
-        const uploadResponse = await fetch(grant.url, {
-          method: 'PUT',
-          redirect: 'error',
-          // These headers are part of the GCS signature. Do not add a second
-          // Content-Type with different casing: Fetch coalesces duplicate
-          // header names and invalidates the signed canonical request.
-          headers: Object.fromEntries(grant.headers),
-          // Bun.file is a lazy Blob. Fetch streams it from disk while retaining
-          // a known content length, so large workspace files are not buffered
-          // in the hosted bot's heap.
-          body: fileUploadBody(resolvedPath),
-        });
+        const uploadResponse = await putUploadFile(
+          grant.url,
+          grant.headers,
+          resolvedPath
+        );
         if (!uploadResponse.ok) {
           const body = await readErrorBody(uploadResponse);
           const code = body.match(/<Code>([^<]+)<\/Code>/)?.[1];

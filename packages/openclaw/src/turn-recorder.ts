@@ -7,7 +7,11 @@ import {
   type TlonMessageJourneyDestinationKind,
   recordTlonMessageJourneyEvent,
 } from './message-journey.js';
-import { sharedMap } from './shared-state.js';
+import type { AgentEndEvent, AgentHookContext } from './agent-hook-types.js';
+import type { SenderRole } from './session-roles.js';
+import { sharedMap, sharedSlot } from './shared-state.js';
+import { isSuccessfulSilentAgentOutput } from './silent-reply.js';
+import { isSupersededToolOutcome } from './superseded-turn.js';
 
 export type TlonAgentTurnExecution =
   | 'completed'
@@ -51,10 +55,14 @@ export type TlonAgentTurnSkipReason =
   | 'empty'
   | 'silent'
   | 'heartbeat'
+  | 'channel_transform'
   | 'empty_payload_text'
   | 'block_directive_only'
   | 'media_only_payload_not_sent'
-  | 'source_reply_delivery_mode_message_tool_only';
+  | 'source_reply_delivery_mode_message_tool_only'
+  // The turn kernel admitted the message but did not dispatch it (bot-loop
+  // protection, outbound echo, duplicate): no run, no reply owed.
+  | 'not_dispatched';
 
 export type TlonAgentTurnReason =
   | TlonAgentTurnSkipReason
@@ -76,6 +84,8 @@ export type TlonAgentTurnStart = {
   sessionKey: string;
   ship: string;
   trigger: TlonAgentTurnTrigger;
+  /** Sender of the message this turn answers. */
+  senderRole?: SenderRole;
 };
 
 export type TlonAgentTurnTerminal = {
@@ -104,6 +114,8 @@ export type TlonAgentTurnSummary = TlonAgentTurnStart & {
   sourceReplyCount: number;
   toolCallCount: number;
   toolErrorCount: number;
+  /** A newer owner message overtook this turn; it gets its own reply. */
+  superseded: boolean;
 };
 
 export type TlonAgentTurnObserver = {
@@ -127,7 +139,14 @@ export type TlonAgentTurnDispatchOutcome = TlonAgentTurnDispatchAttempt & {
   outputMessageId?: string;
 };
 
+type TurnAgentOutput = {
+  sessionKey: string;
+  sessionId?: string;
+  silent: boolean;
+};
+
 type TlonAgentTurnState = TlonAgentTurnStart & {
+  agentOutput: TurnAgentOutput;
   deliveryFailureCount: number;
   deliverySuccessCount: number;
   dispatchAttemptCount: number;
@@ -141,6 +160,7 @@ type TlonAgentTurnState = TlonAgentTurnStart & {
   summary: TlonAgentTurnSummary | null;
   toolCallCount: number;
   toolErrorCount: number;
+  superseded: boolean;
 };
 
 type MetricAttributes = Record<string, string>;
@@ -176,7 +196,19 @@ type TurnInstruments = {
   terminal: CounterLike;
 };
 
-const turnStorage = new AsyncLocalStorage<TlonAgentTurnState>();
+// Entry hooks and the lazy-loaded monitor can live in separate module contexts.
+// Share only bounded, content-free evidence; finalize removes the active entry.
+const agentOutputsByRunId = sharedMap<string, TurnAgentOutput>(
+  'turnRecorder.agentOutputsByRunId'
+);
+const MAX_TRACKED_AGENT_OUTPUTS = 1_024;
+
+const turnStorageSlot = sharedSlot<AsyncLocalStorage<TlonAgentTurnState>>(
+  'turnRecorder.turnStorage'
+);
+const turnStorage =
+  turnStorageSlot.get() ?? new AsyncLocalStorage<TlonAgentTurnState>();
+turnStorageSlot.set(turnStorage);
 const traceIdsByRunId = sharedMap<string, string>(
   'turnRecorder.traceIdsByRunId'
 );
@@ -304,6 +336,14 @@ function resolveDeliverySkipReason(
   ) {
     return 'source_reply_delivery_mode_message_tool_only';
   }
+  if (
+    state.agentOutput.silent &&
+    state.sourceReplyCount === 0 &&
+    state.toolCallCount === 0 &&
+    resolveExecution(terminal) === 'completed'
+  ) {
+    return 'silent';
+  }
   return null;
 }
 
@@ -397,6 +437,7 @@ function buildSummary(
     sourceReplyCount: state.sourceReplyCount,
     toolCallCount: state.toolCallCount,
     toolErrorCount: state.toolErrorCount,
+    superseded: state.superseded,
     trigger: state.trigger,
   };
 }
@@ -559,6 +600,7 @@ export function startTlonAgentTurn(
   const observer = options?.observer ?? defaultTurnObserver;
   const state: TlonAgentTurnState = {
     ...input,
+    agentOutput: { sessionKey: input.sessionKey, silent: false },
     ship: normalizeShip(input.ship),
     deliveryFailureCount: 0,
     deliverySuccessCount: 0,
@@ -573,7 +615,16 @@ export function startTlonAgentTurn(
     summary: null,
     toolCallCount: 0,
     toolErrorCount: 0,
+    superseded: false,
   };
+
+  agentOutputsByRunId.set(state.runId, state.agentOutput);
+  while (agentOutputsByRunId.size > MAX_TRACKED_AGENT_OUTPUTS) {
+    const oldest = agentOutputsByRunId.keys().next().value;
+    if (oldest === undefined) break;
+    agentOutputsByRunId.get(oldest)!.silent = false;
+    agentOutputsByRunId.delete(oldest);
+  }
 
   safeObserve(() => observer.recordStarted(state));
 
@@ -588,10 +639,37 @@ export function startTlonAgentTurn(
       state.finalized = true;
       state.summary = buildSummary(state, terminal);
       traceIdsByRunId.delete(state.runId);
+      if (agentOutputsByRunId.get(state.runId) === state.agentOutput) {
+        agentOutputsByRunId.delete(state.runId);
+      }
       safeObserve(() => observer.recordTerminal(state.summary!));
       return state.summary;
     },
   };
+}
+
+// Reset before every model attempt, including retries after a silent completion.
+export function beginTlonTurnSilenceObservation(ctx: AgentHookContext): void {
+  const output = ctx.runId ? agentOutputsByRunId.get(ctx.runId) : undefined;
+  if (!output || output.sessionKey !== ctx.sessionKey) return;
+  output.silent = false;
+  // model_call_started can omit the session ID supplied by agent_turn_prepare.
+  output.sessionId = ctx.sessionId ?? output.sessionId;
+}
+
+export function recordTlonTurnSilenceOutput(
+  event: AgentEndEvent,
+  ctx: AgentHookContext
+): void {
+  const output = ctx.runId ? agentOutputsByRunId.get(ctx.runId) : undefined;
+  if (
+    !output ||
+    output.sessionKey !== ctx.sessionKey ||
+    !output.sessionId ||
+    output.sessionId !== ctx.sessionId
+  )
+    return;
+  output.silent = isSuccessfulSilentAgentOutput(event);
 }
 
 function updateActiveTurn(update: (state: TlonAgentTurnState) => void): void {
@@ -600,6 +678,27 @@ function updateActiveTurn(update: (state: TlonAgentTurnState) => void): void {
     return;
   }
   update(state);
+}
+
+/** The active turn's run, session, and sender role, if a turn is active. */
+export function getActiveTlonTurnRequester(): {
+  runId: string;
+  sessionKey: string;
+  senderRole: SenderRole | undefined;
+} | null {
+  const state = turnStorage.getStore();
+  return state && !state.finalized
+    ? {
+        runId: state.runId,
+        sessionKey: state.sessionKey,
+        senderRole: state.senderRole,
+      }
+    : null;
+}
+
+export function getActiveTlonTurnAccountId(): string | null {
+  const state = turnStorage.getStore();
+  return state && !state.finalized ? state.accountId : null;
 }
 
 export function recordActiveTlonTurnSourceReply(reply?: {
@@ -622,10 +721,15 @@ export function recordActiveTlonTurnSourceReply(reply?: {
 export function recordActiveTlonTurnToolCall(update?: {
   toolName?: string;
   errorMessage?: string;
+  result?: unknown;
 }): void {
   updateActiveTurn((state) => {
     state.toolCallCount += 1;
     const errorMessage = update?.errorMessage;
+    if (isSupersededToolOutcome(update?.result)) {
+      state.superseded = true;
+      return;
+    }
     if (typeof errorMessage === 'string' && errorMessage.trim()) {
       state.toolErrorCount += 1;
       state.lastToolError = {

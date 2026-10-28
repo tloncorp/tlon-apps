@@ -4,23 +4,33 @@ import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineBundledChannelEntry } from 'openclaw/plugin-sdk/channel-entry-contract';
 import { type OpenClawPluginApi } from 'openclaw/plugin-sdk/core';
+import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 import {
   emitDiagnosticEvent,
   onDiagnosticEvent,
   onInternalDiagnosticEvent,
 } from 'openclaw/plugin-sdk/diagnostic-runtime';
 
-import { tlonPlugin } from './src/channel.js';
+import { cleanCronToolArgs } from './src/cron-tool-args.js';
+import { modelPrivacyNote } from './src/model-privacy-context.js';
 import { registerTlonCommands } from './src/commands-registry.js';
+import { notifyCampaignCronChanged } from './src/monitor/campaign/live.js';
+import {
+  campaignStoreForDirectory,
+  setCampaignStore,
+} from './src/monitor/campaign/store.js';
 import { publishContextLensEvent } from './src/context-lens-events.js';
 import { registerContextLensRoutes } from './src/context-lens-routes.js';
 import { initContextLensShipSync } from './src/context-lens-ship-sync.js';
 import { initContextLensStore } from './src/context-lens-store.js';
 import { detailToolParams } from './src/context-lens-tool-params.js';
 import {
+  cronLensTtlMs,
   ensureBackgroundContextLensForSession,
+  recordContextLensModelForSession,
   recordContextLensToolResultForSession,
   recordContextLensToolStartForSession,
+  recordCronRunOutcome,
   scheduleBackgroundContextLensFinalization,
 } from './src/context-lens.js';
 import {
@@ -29,17 +39,49 @@ import {
 } from './src/cron-observability.js';
 import {
   clearCronServiceAccessor,
+  getTlonCronService,
   handleCronChangedEvent,
   setCronServiceAccessor,
 } from './src/cron-telemetry.js';
+import {
+  CRON_ARGS_BLOCK_REASON,
+  findForbiddenCronArgs,
+  isCronArgsGuardEnabled,
+  isCronToolName,
+} from './src/cron-tool-args-guard.js';
+import {
+  beginCronSilenceObservation,
+  peekCronSilenceOutput,
+  recordCronSilenceOutput,
+} from './src/cron-silence.js';
+import {
+  cronTestRunToolBlock,
+  isCronTestSessionKey,
+} from './src/cron-test-run.js';
 import {
   installTlonDiagnosticSubscriptions,
   shouldInstallTlonDiagnosticSubscriptions,
 } from './src/diagnostic-subscriptions.js';
 import { notifyDiaryMigrationDiscovery } from './src/diary-migration-discovery.js';
 import { suppressTlonFallbackNotice } from './src/fallback-notice-delivery.js';
+import {
+  recordSuccessfulAgentOnboardingSurface,
+  suppressReplyAfterSuccessfulAgentOnboardingSurface,
+} from './src/agent-task-plan-reply-delivery.js';
+import {
+  bindTlonServiceSetupCall,
+  claimTlonChoiceCall,
+  claimTlonTaskPlanCall,
+  getTlonSessionRunSurface,
+  getTlonSessionSurface,
+  managedCronJobIdOf,
+  onboardingToolBlockReason,
+} from './src/onboarding-tool-boundary.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
-import { registerBudgetHoldHooks } from './src/cron-budget-runtime.js';
+import {
+  registerBudgetHoldHooks,
+  registerBudgetRunGuard,
+} from './src/cron-budget-runtime.js';
 import { registerRestartCatchupHooks } from './src/restart-catchup.js';
 import { createMigrateCommandHandler } from './src/migrate-command.js';
 import {
@@ -64,10 +106,25 @@ import {
 } from './src/monitor/agent-onboarding.js';
 import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
 import { setTlonRuntime } from './src/runtime.js';
-import { resolveOwnerOnlyToolBlock } from './src/owner-only-tools.js';
+import { coreMessageMedia } from './src/core-message-media.js';
+import {
+  NON_OWNER_MAX_IMAGE_BLOCKS,
+  NON_OWNER_MAX_MEDIA_REFS,
+  isNonOwnerMediaAllowed,
+} from './src/non-owner-media.js';
+import {
+  MESSAGE_MEDIA_BLOCK_REASON,
+  normalizePolicyToolName,
+  resolveOwnerOnlyToolBlock,
+} from './src/owner-only-tools.js';
 import { getSessionRole } from './src/session-roles.js';
+import { sharedSlot } from './src/shared-state.js';
 import { registerStewardAutomationReconciliationHooks } from './src/steward-automation-reconciliation.js';
 import { normalizeShip, parseTlonTarget } from './src/targets.js';
+import {
+  configuredTlonShipHosts,
+  resolveTlonAppBrowserBlock,
+} from './src/tlon-app-browser-gate.js';
 import {
   type TlonDiagnosticLogAttributes,
   type TlonSessionDiagnosticReportInput,
@@ -83,22 +140,50 @@ import {
   reportTelemetryError,
 } from './src/telemetry.js';
 import { resolveTlonBinary } from './src/tlon-binary.js';
-import { runTlonCommand } from './src/tlon-command-runner.js';
+import { registerWalletHandoffs } from './src/wallet-handoffs.js';
+import { runBrowserSessionHandoff } from './src/browser-session-handoff.js';
+import { createBrowserLoginApprovalHandler } from './src/browser-login-approval.js';
+import {
+  registerBrowserHandoffResults,
+  browserToolSessionId,
+} from './src/browser-handoff-results.js';
+import {
+  resolveExecutionBotShip,
+  runTlonCommand,
+} from './src/tlon-command-runner.js';
 import {
   createTlonToolExecutor,
+  type TlonToolExecutorDeps,
+  formatTlonToolDescription,
+  findTlonSubcommandIndex,
+  OWNER_CONFIG_CHANGED_MESSAGE,
   summarizeTlonCommand,
 } from './src/tlon-tool-command.js';
+import {
+  recordTlonCallApproval,
+  takeTlonCallApproval,
+} from './src/tlon-call-approvals.js';
 import { buildTlonToolDiagnosticRecord } from './src/tlon-tool-diagnostics.js';
+import {
+  getRecordedRunRole,
+  getRunAccountId,
+  noteCrossSessionSend,
+  observeRun,
+  resolveTurnIdentity,
+} from './src/turn-identity.js';
 import {
   formatToolTraceEvent,
   liveToolTraceContentsEnabled,
   shouldLogAfterToolTrace,
 } from './src/tool-trace.js';
 import {
+  beginTlonTurnSilenceObservation,
+  recordTlonTurnSilenceOutput,
   recordActiveTlonTurnToolCall,
   recordTlonAgentRunTrace,
 } from './src/turn-recorder.js';
 import { resolveTlonAccount } from './src/types.js';
+import { handleWorkspaceBeforePromptBuild } from './src/workspace-instructions.js';
 import {
   formatTlonVersionIdentity,
   resolveTlonSkillVersion,
@@ -855,6 +940,867 @@ function installTelemetryDiagnosticObservers(
   });
 }
 
+// ── Agent-turn hooks ───────────────────────────────────────────────────
+// Hook dispatch inside an agent turn consults the turn's plugin registry.
+// On OpenClaw 2026.9.33 a gateway-hosted turn normally borrows the gateway's
+// own instance of this plugin and runs its full-mode registrations. When the
+// gateway lacks the plugin or configures it differently, or there is no
+// unambiguous gateway owner, the turn instead loads a separate instance in
+// "discovery" registration mode, where the bundled channel entry helper skips
+// registerFull and only calls registerCapabilities. Hooks that must observe
+// or gate anything during a turn — tool calls, cron attribution, session
+// lifecycle, and the outbound sends a turn makes through the message tool or
+// streamed reply — are therefore registered from registerCapabilities, which
+// both paths run (full mode calls it after registerFull). Registering them
+// only in registerFull left them invisible to every turn on 2026.9.4, which
+// always used a separate discovery registry (the owner-only tool gate was
+// silently inert there for exactly this reason). Gateway-lifetime hooks
+// (gateway_start/stop, cron_changed) stay in registerFull with the state they
+// manage.
+//
+// The hooks read the state registerFull computed at gateway boot through
+// agentTurnHookDepsSlot, a shared-state slot keyed on globalThis. A separately
+// loaded instance is a fresh module evaluation where registerFull never ran,
+// so a plain module-level variable would be empty there; the slot is shared
+// by every instance in the process, so a discovery-mode turn in the gateway
+// process still sees the gateway's deps — including onCronAgentHook, whose
+// cron attribution the onboarding cron's MCP restriction depends on. The
+// closure stays bound to the gateway instance's registerFull scope, which is
+// where the cron telemetry it records is read. Only a process where no full
+// registration ran (CLI inspection, doctor) finds the slot empty: the
+// owner-only gate still applies, the cron args guard reads its env flag, and
+// the lens, trace, and cron-attribution extras are skipped.
+type AgentTurnHookDeps = {
+  contextLensEnabled: boolean;
+  logToolTraceContents: boolean;
+  // Read once per registerFull pass; a hot reload that skips registerFull
+  // keeps the value the gateway started with.
+  cronArgsGuardEnabled: boolean;
+  onCronAgentHook: (ctx: {
+    sessionId?: string;
+    sessionKey?: string;
+    trigger?: string;
+    jobId?: string;
+    runId?: string;
+  }) => Promise<void>;
+  // The before_tool_call gate and the tlon executor (registered in
+  // registerFull) must decide owner-default calls with the same predicates:
+  // the gate records an approval the executor re-checks before the CLI runs.
+  liveAccount: () => LiveTlonOwner;
+  isOwnerRun: OwnerRunCheck;
+  browserHandoffs: ReturnType<typeof registerBrowserHandoffResults>;
+  walletHandoffs: ReturnType<typeof registerWalletHandoffs>;
+  browserLoginApprovals: ReturnType<typeof createBrowserLoginApprovalHandler>;
+};
+
+const agentTurnHookDepsSlot = sharedSlot<AgentTurnHookDeps>(
+  'agentTurnHooks.deps'
+);
+
+type LiveTlonOwner = { ownerDefault: boolean; ownerShip: string | undefined };
+type OwnerRunCheck = (
+  run: { runId?: string; sessionKey?: string },
+  ownerShip: string | undefined
+) => boolean;
+
+// The staged-rollout flag and the owner ship are read from the live runtime
+// config, not the registration snapshot: a channels.tlon reload restarts
+// monitors (which then authorize the new owner) without re-running
+// registerFull, and an operator rollback or owner change must take effect
+// without a gateway restart. The bot's own credentials stay as registered.
+// `ownerDefault` is the effective flag: on only with an owner to act as. Set
+// without an owner, every command runs as the bot, exactly as with the flag
+// off, and the tool says so.
+function createLiveTlonOwnerReader(
+  api: OpenClawPluginApi
+): () => LiveTlonOwner {
+  let warnedOwnerlessDefault = false;
+  return () => {
+    const live = resolveTlonAccount(
+      api.runtime.config.current() as OpenClawConfig
+    );
+    const ownerShip = normalizeShip(live.ownerShip ?? '') || undefined;
+    const ownerless = live.ownerDefault && !ownerShip;
+    if (ownerless && !warnedOwnerlessDefault) {
+      api.logger.warn(
+        '[tlon] ownerDefault is enabled but no ownerShip is configured; commands run as the bot.'
+      );
+    }
+    warnedOwnerlessDefault = ownerless;
+    return { ownerDefault: live.ownerDefault && !ownerless, ownerShip };
+  };
+}
+
+// Whether the gate lets a run's tlon calls act as the owner. The executor
+// re-checks the same predicate just before the CLI runs.
+function createOwnerRunCheck(accountId: string): OwnerRunCheck {
+  return (run, ownerShip) =>
+    resolveTurnIdentity({
+      runId: run.runId,
+      sessionKey: run.sessionKey,
+      ownerShip,
+    }) === 'owner' &&
+    // The tool acts with this account's owner; a run answering a message on
+    // another account must not borrow it.
+    (getRunAccountId(run.runId) ?? accountId) === accountId;
+}
+
+function resolveAgentTurnHookDeps(): Pick<
+  AgentTurnHookDeps,
+  'contextLensEnabled' | 'logToolTraceContents' | 'cronArgsGuardEnabled'
+> {
+  const agentTurnHookDeps = agentTurnHookDepsSlot.get();
+  return {
+    contextLensEnabled: agentTurnHookDeps?.contextLensEnabled ?? false,
+    logToolTraceContents: agentTurnHookDeps?.logToolTraceContents ?? false,
+    // A gate, not an extra: without gateway-boot state, read it directly.
+    cronArgsGuardEnabled:
+      agentTurnHookDeps?.cronArgsGuardEnabled ?? isCronArgsGuardEnabled(),
+  };
+}
+
+function recordBlockedToolCallInLens(
+  contextLensEnabled: boolean,
+  sessionKey: string | null | undefined,
+  toolName: string,
+  reason: string | undefined,
+  toolCallId: string | undefined
+): void {
+  if (!contextLensEnabled) {
+    return;
+  }
+  const blockedLens = recordContextLensToolResultForSession(
+    sessionKey,
+    toolName,
+    {
+      error: reason,
+      status: 'blocked',
+      toolCallId,
+    }
+  );
+  if (!blockedLens) {
+    return;
+  }
+  publishContextLensEvent('tool_result', blockedLens, {
+    toolName,
+    ...(toolCallId ? { toolCallId } : {}),
+    toolPhase: 'blocked',
+    toolCallCount: blockedLens.tools.callCount,
+  });
+  scheduleBackgroundContextLensFinalization(sessionKey, (finalLens) => {
+    publishContextLensEvent('final', finalLens);
+  });
+}
+
+let warnedCoreMessageTextUnavailable = false;
+
+/**
+ * Whether core would deliver media from a non-owner `message` call's body
+ * that the non-owner media rule refuses (anything but a public https URL),
+ * or more attachments or image blocks than a non-owner call may carry.
+ * Fails closed: if core's functions cannot be loaded or throw, the call is
+ * treated as carrying refused media, and the first such failure in the
+ * process is logged so a core upgrade that moves them is visible.
+ */
+async function nonOwnerMessageYieldsRefusedMedia(
+  params: Record<string, unknown>,
+  cfg: OpenClawConfig | undefined,
+  logger: { warn: (message: string) => void }
+): Promise<boolean> {
+  try {
+    const { media, downloads, imageBlocks } = await coreMessageMedia(params);
+    return (
+      downloads > NON_OWNER_MAX_MEDIA_REFS ||
+      imageBlocks > NON_OWNER_MAX_IMAGE_BLOCKS ||
+      media.some((ref) => !isNonOwnerMediaAllowed(ref, { cfg }))
+    );
+  } catch (error) {
+    if (!warnedCoreMessageTextUnavailable) {
+      warnedCoreMessageTextUnavailable = true;
+      const detail = error instanceof Error ? error.message : String(error);
+      logger.warn(
+        `[tlon] ${detail}; non-owner message bodies are blocked until the plugin is updated for this core version`
+      );
+    }
+    return true;
+  }
+}
+
+export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
+  // The gateway's owner checks when a full registration ran in this process;
+  // otherwise the same checks against this registration's live config.
+  const fallbackLiveAccount = createLiveTlonOwnerReader(api);
+  const resolveOwnerDeps = (): Pick<
+    AgentTurnHookDeps,
+    'liveAccount' | 'isOwnerRun'
+  > =>
+    agentTurnHookDepsSlot.get() ?? {
+      liveAccount: fallbackLiveAccount,
+      isOwnerRun: createOwnerRunCheck(
+        resolveTlonAccount(api.runtime.config.current() as OpenClawConfig)
+          .accountId
+      ),
+    };
+  const liveOwnerShip = () => resolveOwnerDeps().liveAccount().ownerShip;
+
+  // Tool access control: block sensitive tools for non-owners
+  api.on('before_tool_call', async (event, ctx) => {
+    const { contextLensEnabled, logToolTraceContents, cronArgsGuardEnabled } =
+      resolveAgentTurnHookDeps();
+    const { liveAccount, isOwnerRun } = resolveOwnerDeps();
+    // One read of the live config per call: the decision below and the
+    // approval handed to the executor use the same snapshot.
+    const live = liveAccount();
+    // Record the run before any decision below can return, vetoes included.
+    observeRun({
+      runId: ctx.runId,
+      sessionKey: ctx.sessionKey,
+      ownerShip: live.ownerShip,
+    });
+    const toolCallId = readToolCallId(event);
+    // What the model meant, without the schema placeholders it fills in.
+    const cronParams = isCronToolName(event.toolName)
+      ? cleanCronToolArgs(event.params)
+      : undefined;
+    const allowed = () => (cronParams ? { params: cronParams } : undefined);
+    const runSurface = getTlonSessionRunSurface(ctx.runId);
+    // A seen run keeps the role recorded at its first sight (the answered
+    // message's sender, else the session's role then); only a call with no
+    // runId reads the session's current role.
+    const recordedRole = getRecordedRunRole(ctx.runId);
+    const role =
+      recordedRole !== undefined
+        ? (recordedRole ?? undefined)
+        : (runSurface?.senderRole ?? getSessionRole(ctx.sessionKey ?? ''));
+    // Only `message` consults the config (the non-owner media rule's ship
+    // hosts). Compared by policy name, so a Codex-namespaced `message`
+    // (`openclawmessage`) gets the same config and body checks.
+    const policyToolName = normalizePolicyToolName(event.toolName);
+    const liveConfig =
+      policyToolName === 'message'
+        ? (api.runtime.config.current() as OpenClawConfig)
+        : undefined;
+    let ownerOnlyDecision = resolveOwnerOnlyToolBlock(
+      event.toolName,
+      role,
+      event.params,
+      liveConfig
+    );
+    if (
+      role === 'user' &&
+      policyToolName === 'message' &&
+      !ownerOnlyDecision.blocked &&
+      (await nonOwnerMessageYieldsRefusedMedia(
+        event.params,
+        liveConfig,
+        api.logger
+      ))
+    ) {
+      ownerOnlyDecision = {
+        ownerOnly: true,
+        gate: 'arguments',
+        blocked: true,
+        reason: MESSAGE_MEDIA_BLOCK_REASON,
+      };
+    }
+    const isOwnerOnlyTool = ownerOnlyDecision.ownerOnly;
+    const blocksNonOwner = ownerOnlyDecision.blocked;
+    // By policy name, so the Codex native spelling (`mcp__mcp__call`) gets
+    // the onboarding-cron MCP rules and the Tlon-app browser gate too.
+    const isMcpDescribe = isMcpDescribeToolName(policyToolName);
+    const isMcpCall = isMcpCallToolName(policyToolName);
+    const isMcpTool = isMcpDescribe || isMcpCall;
+    const cronJobId = isMcpTool ? cronJobForSession(ctx.sessionKey) : undefined;
+    const isOnboardingCron =
+      isMcpTool && (await isAgentOnboardingCronJob(cronJobId));
+    const onboardingChannelNest = isOnboardingCron
+      ? await agentOnboardingCronChannelNest(cronJobId)
+      : undefined;
+    const allowedProviderIds = isOnboardingCron
+      ? await agentOnboardingCronProviderIds(cronJobId)
+      : [];
+    const blocksOnboardingMcp =
+      isOnboardingCron &&
+      ((isMcpDescribe &&
+        !mayDescribeMcpTool(
+          ctx.sessionKey,
+          event.params,
+          allowedProviderIds
+        )) ||
+        (isMcpCall &&
+          !mayCallDescribedReadOnlyMcpTool(
+            ctx.sessionKey,
+            event.params,
+            allowedProviderIds
+          )));
+    const tlonAppBrowser = isMcpCall
+      ? resolveTlonAppBrowserBlock(
+          event.params,
+          configuredTlonShipHosts(
+            api.runtime.config.current() as OpenClawConfig
+          )
+        )
+      : { blocked: false };
+    const testRunBlock = isCronTestSessionKey(ctx.sessionKey)
+      ? cronTestRunToolBlock(event.toolName, event.params)
+      : null;
+    const browserSessionId = browserToolSessionId(event.toolName, event.params);
+    const blocksBrowserHandoff =
+      !blocksNonOwner &&
+      !!browserSessionId &&
+      (await agentTurnHookDepsSlot
+        .get()
+        ?.browserHandoffs.isPending(browserSessionId));
+    const sessionSurface = getTlonSessionSurface(ctx.sessionKey);
+    // Changing or removing a job during first-run setup is fine unless it
+    // is the onboarding task; only the job list can say which it is.
+    const managedCronJobId =
+      sessionSurface?.bootstrapComplete === false &&
+      isCronToolName(event.toolName)
+        ? managedCronJobIdOf(cronParams ?? event.params)
+        : undefined;
+    const onboardingBoundaryReason = onboardingToolBlockReason(
+      event.toolName,
+      cronParams ?? event.params,
+      sessionSurface,
+      runSurface,
+      managedCronJobId
+        ? {
+            onboardingJob: await isAgentOnboardingCronJob(
+              managedCronJobId
+            ).catch(() => true),
+          }
+        : undefined
+    );
+    const choiceClaimReason =
+      !blocksNonOwner &&
+      !blocksOnboardingMcp &&
+      testRunBlock === null &&
+      !onboardingBoundaryReason &&
+      event.toolName === 'tlon_agent_choice'
+        ? claimTlonChoiceCall({
+            toolCallId,
+            runId: ctx.runId,
+            sessionKey: ctx.sessionKey,
+          })
+        : undefined;
+    const taskPlanClaimReason =
+      !blocksNonOwner &&
+      !blocksOnboardingMcp &&
+      testRunBlock === null &&
+      !onboardingBoundaryReason &&
+      event.toolName === 'tlon_agent_task_plan'
+        ? claimTlonTaskPlanCall({
+            toolCallId,
+            runId: ctx.runId,
+            sessionKey: ctx.sessionKey,
+          })
+        : undefined;
+    const effectiveOnboardingBoundaryReason =
+      onboardingBoundaryReason ?? choiceClaimReason ?? taskPlanClaimReason;
+    const blocksOnboardingBoundary = Boolean(effectiveOnboardingBoundaryReason);
+    const blocksPolicy =
+      blocksNonOwner ||
+      blocksOnboardingMcp ||
+      blocksOnboardingBoundary ||
+      blocksBrowserHandoff ||
+      tlonAppBrowser.blocked ||
+      testRunBlock !== null;
+    // Decided here, with the other block decisions, so the trace and the
+    // allowed/blocked logs below all describe the same outcome. The guard
+    // reads the cleaned call: cleaning drops the empty fallbacks list and
+    // bestEffort the model fills in, so it only blocks the spellings
+    // cleaning leaves as sent. Blocked, the model's usual call went into
+    // dozens of retries on a real gateway, changing the values but not
+    // dropping the fields.
+    const forbiddenCronArgs =
+      !blocksPolicy && cronArgsGuardEnabled && isCronToolName(event.toolName)
+        ? findForbiddenCronArgs(event.toolName, cronParams ?? event.params)
+        : [];
+    const blocksCronArgs = forbiddenCronArgs.length > 0;
+    const isBlocked = blocksPolicy || blocksCronArgs;
+    if (!isBlocked && event.toolName === 'tlon_agent_service_setup') {
+      bindTlonServiceSetupCall({
+        toolCallId,
+        runId: ctx.runId,
+        sessionKey: ctx.sessionKey,
+      });
+    }
+    const blockReason = blocksOnboardingMcp
+      ? 'This scheduled onboarding update may inspect and call only selected-provider MCP tools explicitly described as read-only.'
+      : blocksCronArgs
+        ? CRON_ARGS_BLOCK_REASON
+        : (testRunBlock ??
+          effectiveOnboardingBoundaryReason ??
+          ownerOnlyDecision.reason ??
+          (blocksBrowserHandoff
+            ? 'This browser is waiting for secure entry. Stop browser tool calls and wait for the service result; it resumes this conversation.'
+            : tlonAppBrowser.reason));
+    if (contextLensEnabled) {
+      // Capture tool activity even when no conversation run owns this
+      // session (cron wakes — including jobs that reuse the main session
+      // and so inherit a sender-role entry — heartbeats, subagents).
+      // No-ops when a conversation lens is already bound.
+      const isCronSession = (ctx.sessionKey ?? '').includes(':cron:');
+      const background = ensureBackgroundContextLensForSession(ctx.sessionKey, {
+        ...(onboardingChannelNest
+          ? {
+              chatType: 'channel' as const,
+              conversationId: onboardingChannelNest,
+            }
+          : {}),
+        runKind: isCronSession ? 'cron' : 'internal',
+        trigger: isCronSession ? 'cron' : 'tool',
+        preview: `${event.toolName} tool activity`,
+      });
+      if (background?.created) {
+        publishContextLensEvent('created', background.lens);
+      }
+      const lens = recordContextLensToolStartForSession(
+        ctx.sessionKey,
+        event.toolName,
+        {
+          phase: 'before',
+          argumentSummary: summarizeToolParams(event.params),
+          argumentDetail: detailToolParams(event.params),
+          toolCallId,
+        }
+      );
+      if (lens) {
+        publishContextLensEvent('tool_start', lens, {
+          toolName: event.toolName,
+          ...(toolCallId ? { toolCallId } : {}),
+          toolPhase: 'before',
+          toolCallCount: lens.tools.callCount,
+        });
+      }
+    }
+
+    if (logToolTraceContents) {
+      api.logger.info(
+        formatToolTraceEvent({
+          phase: 'before',
+          sessionKey: ctx.sessionKey,
+          toolName: event.toolName,
+          payload: {
+            params: event.params,
+            role: role ?? 'internal',
+            blocked: isBlocked,
+            ...(blockReason ? { blockReason } : {}),
+          },
+        })
+      );
+    }
+
+    if (!isBlocked && event.toolName === 'sessions_send') {
+      // Injected input bypasses the monitor; treat it like a non-owner
+      // message on the target.
+      noteCrossSessionSend(event.params, ctx.runId);
+    }
+
+    if (!isOwnerOnlyTool && !isBlocked) {
+      return allowed();
+    }
+
+    if (isBlocked) {
+      if (blocksCronArgs) {
+        api.logger.info(
+          `[tlon] cron args blocked: ${forbiddenCronArgs.map((f) => `${f.path}=${f.kind}`).join(', ')}`
+        );
+      } else {
+        const blockCause = blocksOnboardingMcp
+          ? 'outside onboarding MCP policy'
+          : testRunBlock !== null
+            ? 'during a scheduled task test run'
+            : blocksOnboardingBoundary
+              ? 'outside the onboarding tool boundary'
+              : blocksNonOwner
+                ? 'for non-owner'
+                : 'targeting the Tlon app in the hosted browser';
+        api.logger.warn(
+          `[tlon] Blocked ${event.toolName} tool ${blockCause}. Session: ${ctx.sessionKey}, Role: ${role}, Reason: ${blockReason}`
+        );
+      }
+      recordBlockedToolCallInLens(
+        contextLensEnabled,
+        ctx.sessionKey,
+        event.toolName,
+        blockReason,
+        toolCallId
+      );
+      return {
+        block: true,
+        blockReason,
+      };
+    }
+
+    // An argument gate fires for any role; only set membership means an
+    // owner-only tool was used.
+    api.logger.info(
+      ownerOnlyDecision.gate === 'arguments'
+        ? `[tlon] Allowed ${event.toolName} call with owner-only arguments for ${role ?? 'internal'} session. Session: ${ctx.sessionKey}`
+        : `[tlon] Allowed ${event.toolName} tool for ${role ?? 'internal'} session. Session: ${ctx.sessionKey}`
+    );
+    if (event.toolName === 'tlon' && typeof event.params.command === 'string') {
+      // Only owner-default commands need the rewrite; with the flag off the
+      // bot is already the default.
+      const run = { runId: ctx.runId, sessionKey: ctx.sessionKey };
+      const ownerRun = live.ownerDefault && isOwnerRun(run, live.ownerShip);
+      const rewritesToBot = live.ownerDefault && !ownerRun;
+      // Not owner-directed: the call runs as the bot. Not a denial.
+      const command = rewritesToBot
+        ? `--self ${event.params.command}`
+        : event.params.command;
+      if (toolCallId) {
+        recordTlonCallApproval(toolCallId, command, {
+          ...live,
+          ...(ownerRun ? { ownerRun: run } : {}),
+        });
+      }
+      if (rewritesToBot) {
+        return { params: { ...event.params, command } };
+      }
+    }
+    return allowed();
+  });
+
+  api.on('after_tool_call', async (event, ctx) => {
+    recordSuccessfulAgentOnboardingSurface(event, ctx);
+    try {
+      await agentTurnHookDepsSlot.get()?.walletHandoffs.handle(event, ctx);
+    } catch {
+      api.logger.warn('[tlon] Wallet card delivery failed.');
+      if (ctx.sessionKey)
+        api.runtime.system.enqueueSystemEvent(
+          'The wallet card could not be delivered. Tell the owner; do not claim approval or retry payment.',
+          { sessionKey: ctx.sessionKey }
+        );
+    }
+    try {
+      await agentTurnHookDepsSlot
+        .get()
+        ?.browserLoginApprovals.handle(event, ctx);
+    } catch {
+      api.logger.warn('[tlon] Could not send the saved login approval card.');
+      if (ctx.sessionKey)
+        api.runtime.system.enqueueSystemEvent(
+          'The saved login approval card could not be sent. No new approval prompt was delivered. Tell the owner that delivery failed; do not retry login or claim that approval is pending. Use the Tlon browser approve-login command if the owner asks to try again.',
+          { sessionKey: ctx.sessionKey }
+        );
+    }
+    const { contextLensEnabled, logToolTraceContents } =
+      resolveAgentTurnHookDeps();
+    const toolCallId = readToolCallId(event);
+    const tlonCommandContext =
+      event.toolName === 'tlon' && typeof event.params.command === 'string'
+        ? summarizeTlonCommand(event.params.command)
+        : undefined;
+    // By policy name, matching the before_tool_call gate, so a Codex-native
+    // `mcp__mcp__describe` can satisfy describe-before-call the same way.
+    const afterPolicyToolName = normalizePolicyToolName(event.toolName);
+    const observesMcpCatalog =
+      isMcpListUpstreamsToolName(afterPolicyToolName) ||
+      isMcpDescribeToolName(afterPolicyToolName);
+    if (
+      observesMcpCatalog &&
+      (await isAgentOnboardingCronJob(cronJobForSession(ctx.sessionKey)))
+    ) {
+      const allowedProviderIds = await agentOnboardingCronProviderIds(
+        cronJobForSession(ctx.sessionKey)
+      );
+      if (isMcpListUpstreamsToolName(afterPolicyToolName)) {
+        rememberMcpUpstreams(ctx.sessionKey, event.result);
+      } else {
+        rememberDescribedReadOnlyMcpTool(
+          ctx.sessionKey,
+          event.params,
+          event.result,
+          allowedProviderIds
+        );
+      }
+    }
+    recordActiveTlonTurnToolCall({
+      toolName: event.toolName,
+      result: event.result,
+      errorMessage:
+        typeof event.error === 'string' && event.error.trim()
+          ? event.error
+          : undefined,
+    });
+    if (logToolTraceContents && shouldLogAfterToolTrace(event)) {
+      api.logger.info(
+        formatToolTraceEvent({
+          phase: 'after',
+          sessionKey: ctx.sessionKey,
+          toolName: event.toolName,
+          payload: {
+            params: event.params,
+            result: event.result,
+            error: event.error ?? null,
+            durationMs: event.durationMs ?? null,
+          },
+        })
+      );
+    }
+
+    safeTelemetryObserver({
+      logger: api.logger,
+      telemetrySource: 'after_tool_call',
+      sourceEventName: event.toolName,
+      sessionKey: ctx.sessionKey,
+      run: () => {
+        if (tlonCommandContext) {
+          emitDiagnosticEvent({
+            type: 'log.record',
+            ...buildTlonToolDiagnosticRecord(tlonCommandContext, {
+              ...event,
+              toolCallId,
+              runId: ctx.runId,
+              sessionId: ctx.sessionId,
+            }),
+          });
+        }
+        recordToolCall({
+          sessionKey: ctx.sessionKey,
+          toolName: event.toolName,
+          durationMs: event.durationMs,
+          error: event.error,
+          context: tlonCommandContext,
+        });
+      },
+    });
+    if (contextLensEnabled) {
+      const lens = recordContextLensToolResultForSession(
+        ctx.sessionKey,
+        event.toolName,
+        {
+          durationMs: event.durationMs,
+          error: event.error,
+          toolCallId,
+        }
+      );
+      if (lens) {
+        publishContextLensEvent('tool_result', lens, {
+          toolName: event.toolName,
+          ...(toolCallId ? { toolCallId } : {}),
+          toolPhase: 'after',
+          toolCallCount: lens.tools.callCount,
+        });
+        scheduleBackgroundContextLensFinalization(
+          ctx.sessionKey,
+          (finalLens) => {
+            publishContextLensEvent('final', finalLens);
+          }
+        );
+      }
+    }
+  });
+
+  api.on('agent_turn_prepare', async (_event, ctx) => {
+    observeRun({ ...ctx, ownerShip: liveOwnerShip() });
+    beginCronSilenceObservation(ctx);
+    beginTlonTurnSilenceObservation(ctx);
+    // Cron has no active Tlon turn recorder, so its output trace stays nullable.
+    if (ctx.trigger !== 'cron') {
+      recordTlonAgentRunTrace(ctx.runId, ctx.trace?.traceId);
+    }
+    await agentTurnHookDepsSlot.get()?.onCronAgentHook(ctx);
+  });
+  api.on('model_call_started', async (event, ctx) => {
+    observeRun({ ...ctx, ownerShip: liveOwnerShip() });
+    beginCronSilenceObservation(ctx);
+    beginTlonTurnSilenceObservation(ctx);
+    await agentTurnHookDepsSlot.get()?.onCronAgentHook(ctx);
+    if (resolveAgentTurnHookDeps().contextLensEnabled) {
+      recordContextLensModelForSession(ctx.sessionKey, event);
+    }
+  });
+
+  // Background lenses normally finalize on tool-result idle; agent_end
+  // re-arms the window so runs that end with model output (no trailing
+  // tool call) still finalize, while leaving time for the gateway to
+  // deliver the reply (stamped + recorded via the outbound send path).
+  api.on('agent_end', (event, ctx) => {
+    agentTurnHookDepsSlot.get()?.browserLoginApprovals.endRun(ctx);
+    recordCronSilenceOutput(event, ctx);
+    recordTlonTurnSilenceOutput(event, ctx);
+    clearCronJobForSession(ctx.sessionKey, ctx.jobId);
+    // Run snapshots, identity and publication claims outlive the attempt;
+    // they expire by TTL (see turn-identity.ts).
+    observeRun({ ...ctx, ownerShip: liveOwnerShip() });
+    if (!resolveAgentTurnHookDeps().contextLensEnabled) {
+      return;
+    }
+    scheduleBackgroundContextLensFinalization(ctx.sessionKey, (finalLens) => {
+      publishContextLensEvent('final', finalLens);
+    });
+  });
+
+  // ── Workspace instructions ─────────────────────────────────────────
+  // The monitor publishes the runtime; until it does, this is a no-op.
+  // Fail open: a failed read never blocks the turn.
+  api.on('before_prompt_build', async (_event, ctx) => {
+    try {
+      return await handleWorkspaceBeforePromptBuild(ctx);
+    } catch (error) {
+      api.logger.warn(`[tlon] workspace instructions failed: ${String(error)}`);
+      return undefined;
+    }
+  });
+
+  // ── Session lifecycle / watchdog telemetry ─────────────────────────
+  // These hooks are global to OpenClaw, so telemetry.ts filters them through
+  // session keys remembered from Tlon inbound replies before emitting.
+  api.on('before_prompt_build', (_event, ctx) => {
+    const note = modelPrivacyNote(
+      api.runtime.config.current() as OpenClawConfig,
+      ctx.modelProviderId,
+      ctx.modelId
+    );
+    return note ? { appendSystemContext: note } : undefined;
+  });
+
+  api.on('session_start', (event, ctx) => {
+    safeTelemetryObserver({
+      logger: api.logger,
+      telemetrySource: 'session_start',
+      sourceEventName: 'session_start',
+      sessionKey: event.sessionKey ?? ctx.sessionKey,
+      sessionId: event.sessionId ?? ctx.sessionId,
+      agentId: ctx.agentId,
+      run: () => {
+        reportSessionLifecycle({
+          lifecycleEvent: 'session_start',
+          sessionKey: event.sessionKey ?? ctx.sessionKey,
+          sessionId: event.sessionId ?? ctx.sessionId,
+          agentId: ctx.agentId,
+          hasNextSession: false,
+        });
+      },
+    });
+  });
+
+  api.on('session_end', (event, ctx) => {
+    safeTelemetryObserver({
+      logger: api.logger,
+      telemetrySource: 'session_end',
+      sourceEventName: 'session_end',
+      sessionKey: event.sessionKey ?? ctx.sessionKey,
+      sessionId: event.sessionId ?? ctx.sessionId,
+      agentId: ctx.agentId,
+      run: () => {
+        reportSessionLifecycle({
+          lifecycleEvent: 'session_end',
+          sessionKey: event.sessionKey ?? ctx.sessionKey,
+          sessionId: event.sessionId ?? ctx.sessionId,
+          agentId: ctx.agentId,
+          reason: event.reason ?? null,
+          messageCount: event.messageCount,
+          durationMs: event.durationMs ?? null,
+          transcriptArchived: event.transcriptArchived ?? null,
+          hasNextSession: Boolean(event.nextSessionId ?? event.nextSessionKey),
+        });
+      },
+    });
+  });
+
+  // OpenClaw records fallback transitions as lifecycle diagnostics and also
+  // emits a separate user-facing status payload. Keep the diagnostics, but
+  // hide that operational payload on Tlon when the fallback produced a real
+  // answer. Terminal provider failures are not marked as fallback notices
+  // and continue through the normal delivery path.
+  api.on('reply_payload_sending', suppressTlonFallbackNotice);
+  api.on(
+    'reply_payload_sending',
+    suppressReplyAfterSuccessfulAgentOnboardingSurface
+  );
+
+  // ── Route diagnostics ───────────────────────────────────────────────
+  // Fires for every outbound send OpenClaw routes — the primary streamed
+  // reply (resolves to `tlon`) and route-dependent sends (the shared
+  // `message` tool, subagents, which can resolve elsewhere). `ctx.channelId`
+  // is where the send resolved; `routedToTlon: false` (e.g. `webchat`) is the
+  // leak this work targets. Read-only; never alters delivery.
+  //
+  // Two sinks: a PostHog event (the primary, fleet-wide signal — gated by the
+  // existing telemetry config, on in hosted prod) so we can count how often
+  // sends land off-Tlon; and a debug-gated local log for single-gateway
+  // triage.
+  api.on('message_sending', (event, ctx) => {
+    safeTelemetryObserver({
+      logger: api.logger,
+      telemetrySource: 'message_sending',
+      sourceEventName: 'message_sending',
+      sessionKey: ctx.sessionKey,
+      runId: ctx.runId,
+      run: () => {
+        const resolvedChannel = ctx.channelId;
+        const routedToTlon = resolvedChannel === 'tlon';
+        // Only infer target kind for Tlon targets; a webchat target id is not
+        // a Tlon target and must not be misclassified.
+        const parsedTarget = routedToTlon ? parseTlonTarget(event.to) : null;
+        const targetKind =
+          parsedTarget?.kind === 'dm'
+            ? 'dm'
+            : parsedTarget?.kind === 'channel' ||
+                parsedTarget?.kind === 'notebook'
+              ? 'group'
+              : 'unknown';
+
+        reportOutboundRoute({ resolvedChannel, routedToTlon, targetKind });
+
+        if (isRouteDebugEnabled()) {
+          api.logger.info(
+            `[tlon][route-debug] message_sending ${JSON.stringify({
+              channelId: ctx.channelId,
+              to: event.to,
+              routedToTlon,
+              targetKind,
+              sessionKey: ctx.sessionKey ?? null,
+              conversationId: ctx.conversationId ?? null,
+              messageId: ctx.messageId ?? null,
+              threadId: event.threadId ?? null,
+            })}`
+          );
+        }
+      },
+    });
+  });
+
+  api.on('message_sent', (event, ctx) => {
+    void handleAgentOnboardingMessageSent(
+      event,
+      {},
+      ctx.runId,
+      ctx.accountId
+    ).catch((error) => {
+      api.logger.error(
+        `[tlon] agent onboarding delivery completion failed: ${String(error)}`
+      );
+    });
+    safeTelemetryObserver({
+      logger: api.logger,
+      telemetrySource: 'message_sent',
+      sourceEventName: 'message_sent',
+      sessionKey: event.sessionKey ?? ctx.sessionKey,
+      runId: event.runId ?? ctx.runId,
+      run: () => {
+        if (event.success !== false) {
+          return;
+        }
+        reportHarnessError({
+          harnessEventType: 'message_sent',
+          errorScope: 'message_delivery',
+          sessionKey: event.sessionKey ?? ctx.sessionKey,
+          runId: event.runId ?? ctx.runId,
+          errorText: event.error ?? null,
+          outcome: 'error',
+        });
+      },
+    });
+  });
+}
+
 export default defineBundledChannelEntry({
   id: 'tlon',
   name: 'Tlon',
@@ -884,6 +1830,17 @@ export default defineBundledChannelEntry({
       setAgentOnboardingRunStore(null);
       api.logger.warn(
         `[tlon] durable onboarding run state unavailable: ${String(error)}`
+      );
+    }
+
+    try {
+      setCampaignStore(
+        campaignStoreForDirectory(api.runtime.state.resolveStateDir())
+      );
+    } catch (error) {
+      setCampaignStore(null);
+      api.logger.warn(
+        `[tlon] campaign disabled without durable state: ${String(error)}`
       );
     }
 
@@ -966,6 +1923,39 @@ export default defineBundledChannelEntry({
         }),
       logError: (message) => api.logger.warn(`[tlon] ${message}`),
     });
+    const browserHandoffs = registerBrowserHandoffResults(api);
+    const walletHandoffs = registerWalletHandoffs(api, tlonBinary);
+    const runBrowserCommand = async (
+      args: string[],
+      ctx: { sessionKey?: string; sessionId?: string }
+    ) => {
+      if (
+        ['handoff', 'approve-login'].includes(args[1]) &&
+        args[2] &&
+        (await browserHandoffs.isPending(args[2]))
+      )
+        throw new Error(
+          'This browser is waiting for secure entry. Wait for its result.'
+        );
+      return runBrowserSessionHandoff(tlonBinary, args, api.config, (request) =>
+        browserHandoffs.watch(request, ctx)
+      );
+    };
+
+    const browserLoginApprovals = createBrowserLoginApprovalHandler(
+      (sessionId, record, ctx, fields) =>
+        runBrowserCommand(
+          [
+            'browser',
+            'approve-login',
+            sessionId,
+            '--fields',
+            JSON.stringify(fields),
+            ...(record ? ['--record', JSON.stringify(record)] : []),
+          ],
+          ctx
+        )
+    );
 
     if (credentials) {
       api.logger.info(`[tlon] Credentials available for ${account.ship}`);
@@ -975,350 +1965,119 @@ export default defineBundledChannelEntry({
       );
     }
 
-    const executeTlonTool = createTlonToolExecutor({
-      runCommand: (args) =>
-        runTlonCommand(tlonBinary, args, credentials, {
-          timeoutMs: toolTimeoutMs,
-        }),
-      notifyDiaryMigrationDiscovery: (nest) =>
-        notifyDiaryMigrationDiscovery(nest, api.config),
-      logError: (message) => api.logger.warn(`[tlon] ${message}`),
-      // Lets the executor run `groups invite-link` as the owner, so invites
-      // attribute to the owner rather than the bot.
-      ownerShip: normalizeShip(account.ownerShip ?? '') || undefined,
-      env: process.env,
-      fileExists: (path) => existsSync(path),
-    });
+    const liveAccount = createLiveTlonOwnerReader(api);
+    liveAccount();
+    const isOwnerRun = createOwnerRunCheck(account.accountId);
 
-    api.registerTool({
-      name: 'tlon',
-      label: 'Tlon CLI',
-      description:
-        'Tlon/Urbit API for reading data and administration: activity, Buckets shared files, channels, contacts, groups, messages, notes, posts, settings, upload, expose, hooks. ' +
-        'DO NOT use this tool to send messages — use the `message` tool instead. ' +
-        '%diary channels are deprecated and unsupported by this CLI tool; ask the owner to type `/migrate <diary-nest>` to move one to %notes. ' +
-        'OpenClaw message delivery still accepts diary/ targets, including writable archives. ' +
-        'Never use LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]) in note bodies or message text — Tlon renders no math; write math as plain text/Unicode or in code blocks. ' +
-        "Examples: 'activity mentions --limit 10', 'buckets list', 'channels groups', 'contacts self', 'groups list', 'notes list'. " +
-        'If a command fails and you cannot complete what the user asked, tell them what failed before ending your turn — never end the turn silently after a failure.',
-      parameters: {
-        type: 'object',
-        properties: {
-          command: {
-            type: 'string',
-            description:
-              'The tlon command and arguments (read/admin operations). ' +
-              'To send messages, use the `message` tool, not this tool. ' +
-              'Do not try migration writes through this model tool: ask the owner to type `/migrate <diary-nest>`. ' +
-              'The message tool can still send to diary/ targets; migration only renames the source and does not make it read-only. ' +
-              "Examples: 'activity mentions --limit 10', 'buckets list', 'contacts get ~sampel-palnet', 'groups list', 'messages dm ~ship --limit 20', 'notes list'",
-          },
-        },
-        required: ['command'],
-      },
-      execute: executeTlonTool,
-    });
-
-    // Tool access control: block sensitive tools for non-owners
-    const logToolTraceContents = liveToolTraceContentsEnabled();
-
-    api.on('before_tool_call', async (event, ctx) => {
-      const toolCallId = readToolCallId(event);
-      const role = getSessionRole(ctx.sessionKey ?? '');
-      const ownerOnlyDecision = resolveOwnerOnlyToolBlock(event.toolName, role);
-      const isOwnerOnlyTool = ownerOnlyDecision.ownerOnly;
-      const blocksNonOwner = ownerOnlyDecision.blocked;
-      const isMcpDescribe = isMcpDescribeToolName(event.toolName);
-      const isMcpCall = isMcpCallToolName(event.toolName);
-      const isMcpTool = isMcpDescribe || isMcpCall;
-      const cronJobId = isMcpTool
-        ? cronJobForSession(ctx.sessionKey)
-        : undefined;
-      const isOnboardingCron =
-        isMcpTool && (await isAgentOnboardingCronJob(cronJobId));
-      const onboardingChannelNest = isOnboardingCron
-        ? await agentOnboardingCronChannelNest(cronJobId)
-        : undefined;
-      const allowedProviderIds = isOnboardingCron
-        ? await agentOnboardingCronProviderIds(cronJobId)
-        : [];
-      const blocksOnboardingMcp =
-        isOnboardingCron &&
-        ((isMcpDescribe &&
-          !mayDescribeMcpTool(
-            ctx.sessionKey,
-            event.params,
-            allowedProviderIds
-          )) ||
-          (isMcpCall &&
-            !mayCallDescribedReadOnlyMcpTool(
-              ctx.sessionKey,
-              event.params,
-              allowedProviderIds
-            )));
-      const isBlocked = blocksNonOwner || blocksOnboardingMcp;
-      const blockReason = blocksOnboardingMcp
-        ? 'This scheduled onboarding update may inspect and call only selected-provider MCP tools explicitly described as read-only.'
-        : ownerOnlyDecision.reason;
-      if (contextLensEnabled) {
-        // Capture tool activity even when no conversation run owns this
-        // session (cron wakes — including jobs that reuse the main session
-        // and so inherit a sender-role entry — heartbeats, subagents).
-        // No-ops when a conversation lens is already bound.
-        const isCronSession = (ctx.sessionKey ?? '').includes(':cron:');
-        const background = ensureBackgroundContextLensForSession(
-          ctx.sessionKey,
-          {
-            ...(onboardingChannelNest
-              ? {
-                  chatType: 'channel' as const,
-                  conversationId: onboardingChannelNest,
-                }
-              : {}),
-            runKind: isCronSession ? 'cron' : 'internal',
-            trigger: isCronSession ? 'cron' : 'tool',
-            preview: `${event.toolName} tool activity`,
-          }
-        );
-        if (background?.created) {
-          publishContextLensEvent('created', background.lens);
-        }
-        const lens = recordContextLensToolStartForSession(
-          ctx.sessionKey,
-          event.toolName,
-          {
-            phase: 'before',
-            argumentSummary: summarizeToolParams(event.params),
-            argumentDetail: detailToolParams(event.params),
-            toolCallId,
-          }
-        );
-        if (lens) {
-          publishContextLensEvent('tool_start', lens, {
-            toolName: event.toolName,
-            ...(toolCallId ? { toolCallId } : {}),
-            toolPhase: 'before',
-            toolCallCount: lens.tools.callCount,
-          });
-        }
-      }
-
-      if (logToolTraceContents) {
-        api.logger.info(
-          formatToolTraceEvent({
-            phase: 'before',
-            sessionKey: ctx.sessionKey,
-            toolName: event.toolName,
-            payload: {
-              params: event.params,
-              role: role ?? 'internal',
-              blocked: isBlocked,
-              ...(blockReason ? { blockReason } : {}),
-            },
-          })
-        );
-      }
-
-      if (!isOwnerOnlyTool && !blocksOnboardingMcp) {
-        return undefined;
-      }
-
-      // Allow owner sessions and internal sessions (heartbeat, cron, etc.).
-      // Internal sessions have no role because they're not triggered by DMs.
-      // Only block when role is explicitly "user" (non-owner DM).
-      if (isBlocked) {
-        api.logger.warn(
-          `[tlon] Blocked ${event.toolName} tool for non-owner. Session: ${ctx.sessionKey}, Role: ${role}`
-        );
-        if (contextLensEnabled) {
-          const blockedLens = recordContextLensToolResultForSession(
-            ctx.sessionKey,
-            event.toolName,
-            {
-              error: blockReason,
-              status: 'blocked',
-              toolCallId,
-            }
-          );
-          if (blockedLens) {
-            publishContextLensEvent('tool_result', blockedLens, {
-              toolName: event.toolName,
-              ...(toolCallId ? { toolCallId } : {}),
-              toolPhase: 'blocked',
-              toolCallCount: blockedLens.tools.callCount,
-            });
-            scheduleBackgroundContextLensFinalization(
-              ctx.sessionKey,
-              (finalLens) => {
-                publishContextLensEvent('final', finalLens);
-              }
+    // Tool factories receive the active agent workspace, including cron runs.
+    // Core calls the factory each time it resolves tools, and its descriptor
+    // cache is keyed on the runtime config, so the description follows a
+    // reload; execution reads the live account again on every call.
+    api.registerTool(
+      (ctx) => {
+        const executorDeps = ({
+          ownerDefault,
+          ownerShip,
+        }: ReturnType<typeof liveAccount>): TlonToolExecutorDeps => ({
+          runCommand: (args) =>
+            args[findTlonSubcommandIndex(args)]?.toLowerCase() === 'browser'
+              ? runBrowserCommand(args, ctx)
+              : runTlonCommand(tlonBinary, args, credentials, {
+                  timeoutMs: toolTimeoutMs,
+                  cwd: ctx.workspaceDir,
+                  ownerShip,
+                }),
+          notifyDiaryMigrationDiscovery: (nest) =>
+            notifyDiaryMigrationDiscovery(nest, api.config),
+          logError: (message) => api.logger.warn(`[tlon] ${message}`),
+          // With `ownerDefault`, commands act as this owner (`--ship <owner>`)
+          // and the before_tool_call gate rewrites calls on turns the owner
+          // did not direct to `--self`. Without it, only the legacy owner
+          // operations do, and a workspace made for the owner (or a channel in
+          // a group the owner hosts) is hosted on the owner's ship.
+          ownerShip,
+          ownerDefault,
+          // The ship the runner's own credentials act as, for the owner
+          // self-DM guard, the `Ran as` line and the admin of a workspace
+          // hosted on the owner's ship.
+          botShip: resolveExecutionBotShip(credentials, process.env),
+          env: process.env,
+          fileExists: (path) => existsSync(path),
+          // Owner sends are recorded under the account whose credentials
+          // the tool runs with.
+          accountId: account.accountId,
+        });
+        const executeTlonTool = async (
+          id: string,
+          params: { command: string }
+        ) => {
+          const approved = takeTlonCallApproval(id, params.command);
+          if (!approved) {
+            // No gate decision for this call: act as the bot, with credential
+            // flags rejected.
+            api.logger.warn(
+              `[tlon] tlon call ${id} has no before_tool_call approval; running as the bot.`
             );
+            return createTlonToolExecutor({
+              ...executorDeps({ ownerDefault: false, ownerShip: undefined }),
+              rejectCredentialFlags: true,
+            })(id, params);
           }
-        }
-        return {
-          block: true,
-          blockReason,
+          // Refuse rather than honor a stale approval: a reload between the
+          // gate and here changed who the owner is or whether commands act
+          // as the owner, and either config is one the operator has just
+          // replaced. Running with the approved one would act for an owner
+          // (or a default) no longer configured; running with the live one
+          // would act on a decision the gate never made.
+          const ownerConfigChanged = () => {
+            const live = liveAccount();
+            return (
+              live.ownerDefault !== approved.ownerDefault ||
+              live.ownerShip !== approved.ownerShip
+            );
+          };
+          if (ownerConfigChanged()) {
+            const message = OWNER_CONFIG_CHANGED_MESSAGE;
+            return {
+              content: [{ type: 'text' as const, text: `Error: ${message}` }],
+              details: { status: 'error', error: message },
+            };
+          }
+          // A non-owner message or sessions_send may have demoted the run
+          // since the gate; the executor refuses a command that would still
+          // act as the owner (a rerun goes through the gate and gets --self).
+          // The executor reads both again after its --sent-at probe.
+          return createTlonToolExecutor({
+            ...executorDeps(approved),
+            ownerConfigChanged,
+            ownerIdentityLost: () =>
+              approved.ownerRun !== undefined &&
+              !isOwnerRun(approved.ownerRun, liveAccount().ownerShip),
+          })(id, params);
         };
-      }
 
-      api.logger.info(
-        `[tlon] Allowed ${event.toolName} tool for ${role ?? 'internal'} session. Session: ${ctx.sessionKey}`
-      );
-      return undefined;
-    });
-
-    api.on('after_tool_call', async (event, ctx) => {
-      const toolCallId = readToolCallId(event);
-      const tlonCommandContext =
-        event.toolName === 'tlon' && typeof event.params.command === 'string'
-          ? summarizeTlonCommand(event.params.command)
-          : undefined;
-      const observesMcpCatalog =
-        isMcpListUpstreamsToolName(event.toolName) ||
-        isMcpDescribeToolName(event.toolName);
-      if (
-        observesMcpCatalog &&
-        (await isAgentOnboardingCronJob(cronJobForSession(ctx.sessionKey)))
-      ) {
-        const allowedProviderIds = await agentOnboardingCronProviderIds(
-          cronJobForSession(ctx.sessionKey)
-        );
-        if (isMcpListUpstreamsToolName(event.toolName)) {
-          rememberMcpUpstreams(ctx.sessionKey, event.result);
-        } else {
-          rememberDescribedReadOnlyMcpTool(
-            ctx.sessionKey,
-            event.params,
-            event.result,
-            allowedProviderIds
-          );
-        }
-      }
-      recordActiveTlonTurnToolCall({
-        toolName: event.toolName,
-        errorMessage:
-          typeof event.error === 'string' && event.error.trim()
-            ? event.error
-            : undefined,
-      });
-      if (logToolTraceContents && shouldLogAfterToolTrace(event)) {
-        api.logger.info(
-          formatToolTraceEvent({
-            phase: 'after',
-            sessionKey: ctx.sessionKey,
-            toolName: event.toolName,
-            payload: {
-              params: event.params,
-              result: event.result,
-              error: event.error ?? null,
-              durationMs: event.durationMs ?? null,
+        return {
+          name: 'tlon',
+          label: 'Tlon CLI',
+          description: formatTlonToolDescription(liveAccount().ownerDefault),
+          parameters: {
+            type: 'object',
+            properties: {
+              command: {
+                type: 'string',
+                description:
+                  'Tlon command arguments, for example "help", "help notes note-create", "notes list", or "buckets list". See the tlon skill for task guidance.',
+              },
             },
-          })
-        );
-      }
+            required: ['command'],
+          },
+          execute: executeTlonTool,
+        };
+      },
+      { name: 'tlon' }
+    );
 
-      safeTelemetryObserver({
-        logger: api.logger,
-        telemetrySource: 'after_tool_call',
-        sourceEventName: event.toolName,
-        sessionKey: ctx.sessionKey,
-        run: () => {
-          if (tlonCommandContext) {
-            emitDiagnosticEvent({
-              type: 'log.record',
-              ...buildTlonToolDiagnosticRecord(tlonCommandContext, {
-                ...event,
-                toolCallId,
-                runId: ctx.runId,
-                sessionId: ctx.sessionId,
-              }),
-            });
-          }
-          recordToolCall({
-            sessionKey: ctx.sessionKey,
-            toolName: event.toolName,
-            durationMs: event.durationMs,
-            error: event.error,
-            context: tlonCommandContext,
-          });
-        },
-      });
-      if (contextLensEnabled) {
-        const lens = recordContextLensToolResultForSession(
-          ctx.sessionKey,
-          event.toolName,
-          {
-            durationMs: event.durationMs,
-            error: event.error,
-            toolCallId,
-          }
-        );
-        if (lens) {
-          publishContextLensEvent('tool_result', lens, {
-            toolName: event.toolName,
-            ...(toolCallId ? { toolCallId } : {}),
-            toolPhase: 'after',
-            toolCallCount: lens.tools.callCount,
-          });
-          scheduleBackgroundContextLensFinalization(
-            ctx.sessionKey,
-            (finalLens) => {
-              publishContextLensEvent('final', finalLens);
-            }
-          );
-        }
-      }
-    });
-
-    // ── Session lifecycle / watchdog telemetry ─────────────────────────
-    // These hooks are global to OpenClaw, so telemetry.ts filters them through
-    // session keys remembered from Tlon inbound replies before emitting.
-    api.on('session_start', (event, ctx) => {
-      safeTelemetryObserver({
-        logger: api.logger,
-        telemetrySource: 'session_start',
-        sourceEventName: 'session_start',
-        sessionKey: event.sessionKey ?? ctx.sessionKey,
-        sessionId: event.sessionId ?? ctx.sessionId,
-        agentId: ctx.agentId,
-        run: () => {
-          reportSessionLifecycle({
-            lifecycleEvent: 'session_start',
-            sessionKey: event.sessionKey ?? ctx.sessionKey,
-            sessionId: event.sessionId ?? ctx.sessionId,
-            agentId: ctx.agentId,
-            hasNextSession: false,
-          });
-        },
-      });
-    });
-
-    api.on('session_end', (event, ctx) => {
-      safeTelemetryObserver({
-        logger: api.logger,
-        telemetrySource: 'session_end',
-        sourceEventName: 'session_end',
-        sessionKey: event.sessionKey ?? ctx.sessionKey,
-        sessionId: event.sessionId ?? ctx.sessionId,
-        agentId: ctx.agentId,
-        run: () => {
-          reportSessionLifecycle({
-            lifecycleEvent: 'session_end',
-            sessionKey: event.sessionKey ?? ctx.sessionKey,
-            sessionId: event.sessionId ?? ctx.sessionId,
-            agentId: ctx.agentId,
-            reason: event.reason ?? null,
-            messageCount: event.messageCount,
-            durationMs: event.durationMs ?? null,
-            transcriptArchived: event.transcriptArchived ?? null,
-            hasNextSession: Boolean(
-              event.nextSessionId ?? event.nextSessionKey
-            ),
-          });
-        },
-      });
-    });
-
+    const logToolTraceContents = liveToolTraceContentsEnabled();
     // ── Cron observability ──────────────────────────────────────────────
     // `cron_changed` is a gateway-global hook; owner/bot identity is injected
     // by the monitor's cron reporter (setCronTelemetryReporter). The
@@ -1335,6 +2094,33 @@ export default defineBundledChannelEntry({
     });
 
     api.on('cron_changed', async (event, ctx) => {
+      notifyCampaignCronChanged(event);
+      if (contextLensEnabled && event.action === 'finished' && event.status) {
+        const finished = recordCronRunOutcome({
+          jobId: event.jobId,
+          ...(event.runId ? { runId: event.runId } : {}),
+          ...(event.sessionId ? { runSessionId: event.sessionId } : {}),
+          outcome: {
+            status: event.status,
+            ...(event.error ? { error: event.error } : {}),
+            ...(event.summary ? { summary: event.summary } : {}),
+            ...(event.delivered === undefined
+              ? {}
+              : { delivered: event.delivered }),
+            ...(event.deliveryStatus
+              ? { deliveryStatus: event.deliveryStatus }
+              : {}),
+            ...(event.deliveryError
+              ? { deliveryError: event.deliveryError }
+              : {}),
+            // Read, not consumed: the telemetry hook below consumes it.
+            ...(peekCronSilenceOutput(event) ? { silent: true } : {}),
+          },
+        });
+        if (finished) {
+          publishContextLensEvent('final', finished);
+        }
+      }
       try {
         await handleCronChangedEvent(event, ctx);
       } catch (error) {
@@ -1365,7 +2151,9 @@ export default defineBundledChannelEntry({
 
     registerStewardAutomationReconciliationHooks(api, {
       logger: { warn: (message) => api.logger.warn(message) },
-      getConfig: () => api.runtime.config.loadConfig(),
+      // 2026.9.x exposes the runtime config as a read-only snapshot; the
+      // reconciler only reads it.
+      getConfig: () => api.runtime.config.current() as OpenClawConfig,
     });
 
     if (shouldInstallTlonDiagnosticSubscriptions(api.registrationMode)) {
@@ -1374,106 +2162,42 @@ export default defineBundledChannelEntry({
       api.on('gateway_stop', unsubscribeDiagnosticEvents);
     }
 
-    // OpenClaw records fallback transitions as lifecycle diagnostics and also
-    // emits a separate user-facing status payload. Keep the diagnostics, but
-    // hide that operational payload on Tlon when the fallback produced a real
-    // answer. Terminal provider failures are not marked as fallback notices
-    // and continue through the normal delivery path.
-    api.on('reply_payload_sending', suppressTlonFallbackNotice);
-
-    // ── Route diagnostics ───────────────────────────────────────────────
-    // Fires for every outbound send OpenClaw routes — the primary streamed
-    // reply (resolves to `tlon`) and route-dependent sends (the shared
-    // `message` tool, subagents, which can resolve elsewhere). `ctx.channelId`
-    // is where the send resolved; `routedToTlon: false` (e.g. `webchat`) is the
-    // leak this work targets. Read-only; never alters delivery.
-    //
-    // Two sinks: a PostHog event (the primary, fleet-wide signal — gated by the
-    // existing telemetry config, on in hosted prod) so we can count how often
-    // sends land off-Tlon; and a debug-gated local log for single-gateway
-    // triage.
-    api.on('message_sending', (event, ctx) => {
-      safeTelemetryObserver({
-        logger: api.logger,
-        telemetrySource: 'message_sending',
-        sourceEventName: 'message_sending',
-        sessionKey: ctx.sessionKey,
-        runId: ctx.runId,
-        run: () => {
-          const resolvedChannel = ctx.channelId;
-          const routedToTlon = resolvedChannel === 'tlon';
-          // Only infer target kind for Tlon targets; a webchat target id is not
-          // a Tlon target and must not be misclassified.
-          const parsedTarget = routedToTlon ? parseTlonTarget(event.to) : null;
-          const targetKind =
-            parsedTarget?.kind === 'dm'
-              ? 'dm'
-              : parsedTarget?.kind === 'channel' ||
-                  parsedTarget?.kind === 'notebook'
-                ? 'group'
-                : 'unknown';
-
-          reportOutboundRoute({ resolvedChannel, routedToTlon, targetKind });
-
-          if (isRouteDebugEnabled()) {
-            api.logger.info(
-              `[tlon][route-debug] message_sending ${JSON.stringify({
-                channelId: ctx.channelId,
-                to: event.to,
-                routedToTlon,
-                targetKind,
-                sessionKey: ctx.sessionKey ?? null,
-                conversationId: ctx.conversationId ?? null,
-                messageId: ctx.messageId ?? null,
-                threadId: event.threadId ?? null,
-              })}`
-            );
-          }
-        },
-      });
-    });
-
-    api.on('message_sent', (event, ctx) => {
-      void handleAgentOnboardingMessageSent(
-        event,
-        {},
-        ctx.runId,
-        ctx.accountId
-      ).catch((error) => {
-        api.logger.error(
-          `[tlon] agent onboarding delivery completion failed: ${String(error)}`
-        );
-      });
-      safeTelemetryObserver({
-        logger: api.logger,
-        telemetrySource: 'message_sent',
-        sourceEventName: 'message_sent',
-        sessionKey: event.sessionKey ?? ctx.sessionKey,
-        runId: event.runId ?? ctx.runId,
-        run: () => {
-          if (event.success !== false) {
-            return;
-          }
-          reportHarnessError({
-            harnessEventType: 'message_sent',
-            errorScope: 'message_delivery',
-            sessionKey: event.sessionKey ?? ctx.sessionKey,
-            runId: event.runId ?? ctx.runId,
-            errorText: event.error ?? null,
-            outcome: 'error',
-          });
-        },
-      });
-    });
-
     // Cron jobs can run inside the main session, where the session key has
     // no `:cron:` marker — the agent-level hook context is the only place
     // the gateway exposes the cron trigger, so tag the run's lens here
     // before any tool fires. Idempotent across both hooks.
+    // A scheduled run's lens has to last as long as the run may: the job's
+    // own timeout when it sets one, else the configured agent timeout.
+    const cronRunLensTtlMs = (jobId: string | undefined) => {
+      try {
+        const cron = getTlonCronService() as
+          | {
+              getJob?: (
+                id: string
+              ) => { payload?: { timeoutSeconds?: unknown } } | undefined;
+            }
+          | undefined;
+        const timeoutSeconds = jobId
+          ? cron?.getJob?.(jobId)?.payload?.timeoutSeconds
+          : undefined;
+        return cronLensTtlMs(
+          api.runtime.agent.resolveAgentTimeoutMs({
+            cfg: api.runtime.config.current() as OpenClawConfig,
+            ...(typeof timeoutSeconds === 'number' && timeoutSeconds > 0
+              ? { overrideSeconds: timeoutSeconds }
+              : {}),
+          })
+        );
+      } catch {
+        return undefined;
+      }
+    };
     const ensureCronContextLens = async (ctx: {
       sessionKey?: string;
       trigger?: string;
       jobId?: string;
+      runId?: string;
+      sessionId?: string;
     }) => {
       if (!contextLensEnabled || ctx.trigger !== 'cron') {
         return;
@@ -1482,6 +2206,7 @@ export default defineBundledChannelEntry({
         ctx.jobId
       );
       const background = ensureBackgroundContextLensForSession(ctx.sessionKey, {
+        ttlMs: cronRunLensTtlMs(ctx.jobId),
         ...(onboardingChannelNest
           ? {
               chatType: 'channel' as const,
@@ -1491,7 +2216,13 @@ export default defineBundledChannelEntry({
         runKind: 'cron',
         trigger: 'cron',
         preview: ctx.jobId ? `cron job ${ctx.jobId}` : 'cron run',
+        ...(ctx.jobId ? { cron: { jobId: ctx.jobId } } : {}),
+        ...(ctx.runId ? { runId: ctx.runId } : {}),
+        ...(ctx.sessionId ? { runSessionId: ctx.sessionId } : {}),
       });
+      if (background?.superseded) {
+        publishContextLensEvent('final', background.superseded);
+      }
       if (background?.created) {
         publishContextLensEvent('created', background.lens);
       }
@@ -1507,7 +2238,11 @@ export default defineBundledChannelEntry({
       jobId?: string;
       runId?: string;
     }) => {
-      if (ctx.trigger === 'cron') {
+      if (ctx.trigger === 'cron' && isCronTestSessionKey(ctx.sessionKey)) {
+        // A test run is the owner trying a job, not the job running: it
+        // takes the job's tool policy but stays out of cron telemetry.
+        rememberCronJobForSession(ctx.sessionKey, ctx.jobId);
+      } else if (ctx.trigger === 'cron') {
         rememberCronJobForSession(ctx.sessionKey, ctx.jobId);
         recordTlonCronAgentContext({
           jobId: ctx.jobId,
@@ -1535,29 +2270,6 @@ export default defineBundledChannelEntry({
       }
       await ensureCronContextLens(ctx);
     };
-    api.on('agent_turn_prepare', async (_event, ctx) => {
-      // Cron has no active Tlon turn recorder, so its output trace stays nullable.
-      if (ctx.trigger !== 'cron') {
-        recordTlonAgentRunTrace(ctx.runId, ctx.trace?.traceId);
-      }
-      await onCronAgentHook(ctx);
-    });
-    api.on('model_call_started', async (_event, ctx) => onCronAgentHook(ctx));
-
-    // Background lenses normally finalize on tool-result idle; agent_end
-    // re-arms the window so runs that end with model output (no trailing
-    // tool call) still finalize, while leaving time for the gateway to
-    // deliver the reply (stamped + recorded via the outbound send path).
-    api.on('agent_end', (_event, ctx) => {
-      clearCronJobForSession(ctx.sessionKey, ctx.jobId);
-      if (!contextLensEnabled) {
-        return;
-      }
-      scheduleBackgroundContextLensFinalization(ctx.sessionKey, (finalLens) => {
-        publishContextLensEvent('final', finalLens);
-      });
-    });
-
     // ── Slash commands for approval & admin ────────────────────────────
     // All plugin commands live in one table (commands-registry.ts) that both
     // registers the handlers and serializes as fixtures/commands.json, the
@@ -1567,5 +2279,31 @@ export default defineBundledChannelEntry({
       handleMigrateCommand,
       config: api.config,
     });
+
+    // registerAgentTurnHooks runs from registerCapabilities so its hooks also
+    // land in turn registries that load this plugin in discovery mode (see
+    // the Agent-turn hooks comment). Those hooks read the gateway-boot state
+    // computed above through this shared slot.
+    // Only the gateway's full registration owns this state; a tool-discovery
+    // pass also runs registerFull, possibly against a prepared runtime's config
+    // snapshot, and must not swap closures under hooks other registries hold.
+    const registrationMode = api.registrationMode;
+    if (registrationMode === undefined || registrationMode === 'full') {
+      agentTurnHookDepsSlot.set({
+        contextLensEnabled,
+        logToolTraceContents,
+        cronArgsGuardEnabled: isCronArgsGuardEnabled(),
+        onCronAgentHook,
+        liveAccount,
+        isOwnerRun,
+        browserHandoffs,
+        walletHandoffs,
+        browserLoginApprovals,
+      });
+    }
+  },
+  registerCapabilities(api) {
+    registerAgentTurnHooks(api);
+    registerBudgetRunGuard(api);
   },
 });

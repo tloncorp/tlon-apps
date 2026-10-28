@@ -6,6 +6,7 @@ import type {
   OpenClawPluginApi,
 } from 'openclaw/plugin-sdk/core';
 
+import { runEmbeddedAgentWithFallbacks } from './embedded-agent-fallbacks.js';
 import { sharedSlot } from './shared-state.js';
 import { normalizeShip } from './targets.js';
 import { listRunnableTlonAccountIds, resolveTlonAccount } from './types.js';
@@ -31,101 +32,31 @@ function waitForRetry(ms: number, signal: AbortSignal): Promise<void> {
 export interface RestartCatchupConnection {
   isConnected: () => boolean;
   readSettings: (signal: AbortSignal) => Promise<unknown>;
+  /** Mark all existing activity read and record that in settings, so the
+   * first catch-up after read tracking ships doesn't treat every past
+   * mention as missed. */
+  establishActivityReadBaseline: (signal: AbortSignal) => Promise<void>;
+  /** Feed messages that arrived while the gateway was down through the
+   * normal inbound handlers; see monitor/restart-replay.ts. */
+  replayMissedMessages: (signal: AbortSignal) => Promise<void>;
 }
 
 type StartupContext = Pick<OpenClawPluginApi, 'runtime' | 'logger'> & {
   config: OpenClawConfig;
 };
 
-function configuredFallbacks(
-  config: OpenClawConfig,
-  agentId: string
-): string[] {
-  const agentModel = config.agents?.list?.find(
-    (agent) => agent.id.trim().toLowerCase() === agentId.trim().toLowerCase()
-  )?.model;
-  // Match OpenClaw 2026.7.1: an agent-specific primary opts out of global
-  // fallbacks unless that agent also supplies its own fallback list.
-  const model = agentModel || config.agents?.defaults?.model;
-  if (!model || typeof model === 'string') return [];
-  const defaults = config.agents?.defaults?.model;
-  const fallbacks =
-    model.fallbacks ??
-    (model.primary?.trim() || typeof defaults === 'string'
-      ? []
-      : (defaults?.fallbacks ?? []));
-  return [...new Set(fallbacks.map((ref) => ref.trim()))].filter(
-    (ref) => ref && ref !== model.primary?.trim()
-  );
-}
-
-const PROVIDER_FAILOVER_REASONS = new Set([
-  'auth',
-  'auth_permanent',
-  'billing',
-  'rate_limit',
-  'overloaded',
-  'timeout',
-  'server_error',
-  'model_not_found',
-]);
-
-async function runCatchupWithFallbacks(
+function runCatchupWithFallbacks(
   ctx: StartupContext,
-  params: Parameters<
-    OpenClawPluginApi['runtime']['agent']['runEmbeddedAgent']
-  >[0] & {
-    config: OpenClawConfig;
-    agentId: string;
-    sessionFile: string;
-  }
+  params: Parameters<typeof runEmbeddedAgentWithFallbacks>[1]
 ) {
-  const fallbacks = configuredFallbacks(params.config, params.agentId);
-  const candidates = [undefined, ...fallbacks];
-  const deadline = Date.now() + params.timeoutMs;
-  let toolStarted = false;
-  for (const [index, model] of candidates.entries()) {
-    params.abortSignal?.throwIfAborted();
-    if (Date.now() >= deadline)
-      throw new Error('Restart catch-up model timeout');
-    try {
-      return await ctx.runtime.agent.runEmbeddedAgent({
-        ...params,
-        model,
-        timeoutMs: Math.max(1, deadline - Date.now()),
-        modelFallbacksOverride: fallbacks.slice(index),
-        // Let core probe another model after a transient provider cooldown.
-        allowTransientCooldownProbe: index > 0,
-        onAgentEvent: (event) => {
-          if (event.stream === 'tool') toolStarted = true;
-        },
-      });
-    } catch (error) {
-      // The SDK resolves the primary but leaves model failover to its caller.
-      // Retry only structured provider failures before ANY tool execution;
-      // replaying a partially completed checklist could duplicate messages.
-      if (
-        params.abortSignal?.aborted ||
-        toolStarted ||
-        index === candidates.length - 1 ||
-        Date.now() >= deadline ||
-        !error ||
-        typeof error !== 'object' ||
-        !('name' in error) ||
-        error.name !== 'FailoverError' ||
-        !('reason' in error) ||
-        !PROVIDER_FAILOVER_REASONS.has(String(error.reason))
-      )
-        throw error;
-      ctx.logger.warn(
-        `[tlon] Restart catch-up trying fallback ${candidates[index + 1]} (${String(error.reason)})`
-      );
-      // This is an unindexed scratch transcript and no tool has run. Start
-      // the next model with just the checklist, without failed-attempt text.
-      await rm(params.sessionFile, { force: true });
-    }
-  }
-  throw new Error('Restart catch-up exhausted model candidates');
+  return runEmbeddedAgentWithFallbacks(
+    {
+      runEmbeddedAgent: (params) => ctx.runtime.agent.runEmbeddedAgent(params),
+      logger: ctx.logger,
+    },
+    params,
+    { label: 'Restart catch-up' }
+  );
 }
 
 export function isRestartCatchupEnabled(config: OpenClawConfig): boolean {
@@ -138,6 +69,16 @@ export function isRestartCatchupEnabled(config: OpenClawConfig): boolean {
 /** Read the same authenticated settings snapshot as `tlon settings get`.
  * A failed/malformed read is not evidence that onboarding is incomplete. */
 export function readBootstrapComplete(raw: unknown): boolean {
+  return readTlonSetting(raw, 'bootstrapComplete');
+}
+
+/** Whether the plugin has marked pre-existing activity read. Until it has,
+ * `tlon activity --unread` can't tell missed messages from old ones. */
+export function readActivityReadBaseline(raw: unknown): boolean {
+  return readTlonSetting(raw, 'activityReadBaseline');
+}
+
+function readTlonSetting(raw: unknown, key: string): boolean {
   if (
     !raw ||
     typeof raw !== 'object' ||
@@ -151,7 +92,7 @@ export function readBootstrapComplete(raw: unknown): boolean {
     string,
     Record<string, Record<string, unknown>>
   >;
-  const value = all.moltbot?.tlon?.bootstrapComplete;
+  const value = all.moltbot?.tlon?.[key];
   return value === true || value === 'true';
 }
 
@@ -174,6 +115,11 @@ export function createRestartCatchupCoordinator(
   let lifecycle: AbortController | undefined;
   let task: Promise<void> | undefined;
   let started = false;
+  // Resolves once this gateway start's catch-up is over, whether it ran,
+  // was skipped, failed, or was stopped. The monitor then releases any
+  // activity reads replay hasn't; see monitor/activity-read.ts.
+  let settle!: () => void;
+  let settled = new Promise<void>((resolve) => (settle = resolve));
 
   const attachMonitor = (accountId: string, config: OpenClawConfig) => {
     // Catch-up supports one runnable account. A reload can rename that account,
@@ -193,6 +139,7 @@ export function createRestartCatchupCoordinator(
         monitor.abort.abort();
         if (activeMonitor === monitor) activeMonitor = undefined;
       },
+      settled: () => settled,
     };
   };
 
@@ -201,7 +148,10 @@ export function createRestartCatchupCoordinator(
     started = true;
     const abort = new AbortController();
     lifecycle = abort;
-    if (!isRestartCatchupEnabled(ctx.config)) return;
+    if (!isRestartCatchupEnabled(ctx.config)) {
+      settle();
+      return;
+    }
 
     // Hosted catch-up uses the bot's CLI credentials and one owner. Do not
     // run the checklist against an ambiguous multi-account transport.
@@ -216,6 +166,7 @@ export function createRestartCatchupCoordinator(
       ctx.logger.warn(
         '[tlon] Restart catch-up skipped: requires one configured Tlon account with an owner'
       );
+      settle();
       return;
     }
 
@@ -250,10 +201,11 @@ export function createRestartCatchupCoordinator(
             return;
           const signal = AbortSignal.any([abort.signal, monitor.abort.signal]);
           let complete: boolean;
+          let hasReadBaseline: boolean;
           try {
-            complete = readBootstrapComplete(
-              await connection.readSettings(signal)
-            );
+            const settings = await connection.readSettings(signal);
+            complete = readBootstrapComplete(settings);
+            hasReadBaseline = readActivityReadBaseline(settings);
           } catch (error) {
             if (!signal.aborted) lastReadError = error;
             await waitForRetry(retryMs, abort.signal);
@@ -267,11 +219,29 @@ export function createRestartCatchupCoordinator(
             !connection.isConnected()
           )
             continue;
+          // First start with read tracking, whatever the bootstrap state: the
+          // old plugin never marked what it handled, so mark everything read
+          // once. Replay then finds nothing unread from before this start.
+          if (!hasReadBaseline) {
+            await connection.establishActivityReadBaseline(signal);
+            ctx.logger.info(
+              '[tlon] Marked existing activity read for read tracking'
+            );
+          }
           if (!complete) {
             ctx.logger.info(
               '[tlon] Restart catch-up skipped: bootstrap is incomplete'
             );
             return;
+          }
+          clearTimeout(timer);
+          try {
+            await connection.replayMissedMessages(signal);
+            if (signal.aborted) continue;
+            ctx.logger.info('[tlon] Restart replay finished');
+          } catch (error) {
+            if (signal.aborted) continue;
+            ctx.logger.error(`[tlon] Restart replay failed: ${String(error)}`);
           }
 
           const route = ctx.runtime.channel.routing.resolveAgentRoute({
@@ -389,6 +359,7 @@ export function createRestartCatchupCoordinator(
         }
       })
       .finally(() => {
+        settle();
         clearTimeout(timer);
         if (timedOut) {
           ctx.logger.error(
@@ -406,6 +377,7 @@ export function createRestartCatchupCoordinator(
       stoppedLifecycle?.abort();
       activeMonitor?.abort.abort();
       activeMonitor = undefined;
+      settle();
       // gateway_stop awaits this promise before tearing down the runtime.
       // Keep the startup latch set until the run and transcript cleanup settle.
       await task;
@@ -413,6 +385,7 @@ export function createRestartCatchupCoordinator(
         lifecycle = undefined;
         task = undefined;
         started = false;
+        settled = new Promise<void>((resolve) => (settle = resolve));
       }
     },
   };

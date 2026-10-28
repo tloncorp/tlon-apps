@@ -1,7 +1,7 @@
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { createRef, useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { ViewInstance } from 'react-native';
 
 import { ChatMessageActions, Modal, ZStack } from '../ui';
 import { ChannelFixture } from './Channel.fixture';
@@ -12,7 +12,7 @@ const post = createFakePosts(1)[0];
 
 function MessageActions() {
   const [currentChannel, setCurrentChannel] = useState<db.Channel | null>(null);
-  const refStub = createRef<View>();
+  const refStub = createRef<ViewInstance>();
 
   useEffect(() => {
     if (group) {

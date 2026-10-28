@@ -9,6 +9,7 @@ import { canonicalizeNest } from './targets.js';
 
 export const ALLOWED_TLON_COMMANDS = [
   'activity',
+  'browser',
   'buckets',
   'channels',
   'contacts',
@@ -27,7 +28,13 @@ export const ALLOWED_TLON_COMMANDS = [
 ] as const;
 
 const ALLOWED_TLON_COMMAND_SET = new Set<string>(ALLOWED_TLON_COMMANDS);
-const DIARY_CHANNEL_TARGET_ACTIONS = new Set(['info', 'delete', 'update']);
+const DIARY_CHANNEL_TARGET_ACTIONS = new Set([
+  'info',
+  'delete',
+  'update',
+  'leave',
+  'join',
+]);
 const CHANNEL_WRITER_ACTIONS = new Set(['add-writers', 'del-writers']);
 const MESSAGES_COMMANDS = new Set([
   'dm',
@@ -40,10 +47,13 @@ const MESSAGES_COMMANDS = new Set([
 const POSTS_COMMANDS = new Set([
   'send',
   'reply',
+  'forward',
   'react',
   'unreact',
   'edit',
   'delete',
+  'pin',
+  'unpin',
 ]);
 const EXPOSE_TARGET_COMMANDS = new Set(['show', 'hide', 'check', 'url']);
 const HELP_ARGS = new Set(['--help', '-h']);
@@ -53,8 +63,24 @@ const MIGRATION_BOOLEAN_FLAGS = new Set([
   '--yes',
 ]);
 const NO_FLAGS_WITH_VALUES = new Set<string>();
-const POST_REPLY_OPTION_FLAGS = ['author', 'blob', 'sent-at'] as const;
-const POST_SEND_OPTION_FLAGS = ['blob', 'image', 'title', 'sent-at'] as const;
+const POST_REPLY_OPTION_FLAGS = [
+  'author',
+  'blob',
+  'sent-at',
+  'quote',
+  'quote-parent',
+] as const;
+const POST_SEND_OPTION_FLAGS = [
+  'blob',
+  'image',
+  'file',
+  'video',
+  'link',
+  'title',
+  'sent-at',
+  'quote',
+  'quote-parent',
+] as const;
 
 /**
  * Find the first positional argument after skipping known options.
@@ -294,7 +320,22 @@ function diaryNestForRemovedCliOperation(args: string[]): string | null {
     if (!POSTS_COMMANDS.has(action)) {
       return null;
     }
-    return canonicalDiaryNest(args[2]);
+    // The CLI refuses the first operand's diary or notes nest before looking
+    // at the other nests a forward or quote names.
+    const operandDiary = canonicalDiaryNest(args[2]);
+    if (operandDiary || args[2]?.startsWith('notes/')) {
+      return operandDiary;
+    }
+    if (action === 'forward') {
+      return canonicalDiaryNest(args[4]);
+    }
+    if (action === 'send' || action === 'reply') {
+      const quoteIndex = args.indexOf('--quote');
+      return quoteIndex === -1
+        ? null
+        : canonicalDiaryNest(args[quoteIndex + 1]);
+    }
+    return null;
   }
 
   if (subcommand === 'expose') {

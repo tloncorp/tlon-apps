@@ -1,6 +1,11 @@
 import type { TlawnProviderConfigInfo } from '@tloncorp/api';
 import type { OnboardingFlow } from '@tloncorp/shared/domain';
 
+import {
+  getIncludedModelId,
+  getModelName,
+} from '../../../features/settings/bot/constants';
+
 export type BotCredentialMode = 'included' | 'api-key' | 'subscription';
 
 export type BotCredentialOption = {
@@ -65,7 +70,6 @@ export function startBotReadinessPolling({
 }
 
 const PROVIDER_LABELS: Record<string, string> = {
-  basic: 'GPT-5.6 Luna',
   anthropic: 'Anthropic',
   openai: 'OpenAI',
   openrouter: 'OpenRouter',
@@ -103,12 +107,19 @@ export function buildBotCredentialOptions({
     });
   };
 
+  // The included model is the recommended start: it keeps zero data
+  // retention on, which a subscription or a direct key does not.
   if (providerConfig.defaultKeys?.basic) {
-    add('basic', 'included', providerLabel('basic'));
+    add(
+      'basic',
+      'included',
+      getModelName(getIncludedModelId(providerConfig)),
+      'Recommended'
+    );
   }
 
   if (mode === 'signup' && botReady) {
-    add('openai', 'subscription', 'ChatGPT subscription', 'Recommended');
+    add('openai', 'subscription', 'ChatGPT subscription');
     add('anthropic', 'subscription', 'Claude subscription');
     add('xai', 'subscription', 'Grok subscription');
   }

@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { authenticate, isPermanentAuthenticationFailure } from './auth.js';
 import { UrbitAuthError, UrbitHttpError, UrbitUrlError } from './errors.js';
+import { clearKnownSecrets, redactUrbitErrorText } from './redact.js';
 
 const localLookupFn = (async () => [
   { address: '127.0.0.1', family: 4 },
@@ -115,5 +116,31 @@ describe('tlon urbit auth ssrf', () => {
     expect(error).toBeInstanceOf(UrbitAuthError);
     expect(error).toMatchObject({ code: 'missing_cookie' });
     expect(isPermanentAuthenticationFailure(error)).toBe(true);
+  });
+});
+
+describe('tlon urbit auth secret registration', () => {
+  it('registers the login code and session cookie value for redaction', async () => {
+    clearKnownSecrets();
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => 'ok',
+      headers: new Headers({
+        'set-cookie': 'urbauth-~zod=0v5.sessionvalue; Path=/; HttpOnly',
+      }),
+    });
+
+    await authenticate(
+      'http://127.0.0.1:8080',
+      'lidlut-test-login-code',
+      localAuthOptions(mockFetch)
+    );
+
+    const redacted = redactUrbitErrorText(
+      'session 0v5.sessionvalue and code lidlut-test-login-code'
+    );
+    expect(redacted).not.toContain('0v5.sessionvalue');
+    expect(redacted).not.toContain('lidlut-test-login-code');
   });
 });

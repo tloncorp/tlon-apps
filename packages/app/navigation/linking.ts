@@ -3,7 +3,7 @@ import type { LinkingOptions } from '@react-navigation/native';
 import {
   DesktopBasePathStackParamList,
   MobileBasePathStackParamList,
-} from './BasePathNavigator';
+} from './types';
 
 export const getMobileLinkingConfig = (
   mode: string
@@ -53,6 +53,20 @@ export const getMobileLinkingConfig = (
               folderId: Number,
             },
           },
+          BucketFolder: {
+            path: 'group/:groupId/channel/:channelId/bucket/folder/:folderId',
+            parse: {
+              ...parsePathParams('channelId', 'groupId'),
+              folderId: Number,
+            },
+          },
+          BucketFile: {
+            path: 'group/:groupId/channel/:channelId/bucket/file/:entryId',
+            parse: {
+              ...parsePathParams('channelId', 'groupId'),
+              entryId: Number,
+            },
+          },
           ChannelSearch: { path: 'channel/:channelId/search' },
           NotesSearch: {
             path: 'channel/:channelId/search-notes',
@@ -62,6 +76,14 @@ export const getMobileLinkingConfig = (
           ContextLensRun: {
             path: 'lens/run/:botShip/:lensId',
             parse: parsePathParams('botShip', 'lensId'),
+          },
+          ScheduledTaskRuns: {
+            path: 'tasks/:botShip/:taskId/runs',
+            parse: parsePathParams('botShip', 'taskId'),
+          },
+          ScheduledTaskRun: {
+            path: 'tasks/:botShip/:taskId/runs/:lensId',
+            parse: parsePathParams('botShip', 'taskId', 'lensId'),
           },
           Post: postScreenConfig(mode),
           MediaViewer: 'media-viewer/:mediaType',
@@ -186,6 +208,14 @@ export const getDesktopLinkingConfig = (
                   NotesFolder: {
                     path: 'folder/:folderId',
                     parse: { folderId: Number },
+                  },
+                  BucketFolder: {
+                    path: 'bucket/folder/:folderId',
+                    parse: { folderId: Number },
+                  },
+                  BucketFile: {
+                    path: 'bucket/file/:entryId',
+                    parse: { entryId: Number },
                   },
                   Post: postScreenConfig(mode),
                   MediaViewer: {},

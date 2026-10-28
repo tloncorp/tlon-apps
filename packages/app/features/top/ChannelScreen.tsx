@@ -32,6 +32,10 @@ import type {
 } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
+  useOpenScheduledTasks,
+  useScheduledTasksEntry,
+} from '../automations/useScheduledTasksEntry';
+import {
   AttachmentProvider,
   Channel,
   ChatOptionsProvider,
@@ -39,6 +43,7 @@ import {
   useIsWindowNarrow,
 } from '../../ui';
 import { isAgentGroupSetupActive } from '../../ui/components/Channel/postVisibility';
+import { postCursorFor } from './channelCursor';
 import { shouldAutoLoadOlderPosts } from './channelPagination';
 import { useAgentOnboardingChannel } from './useAgentOnboardingChannel';
 import { useAgentOnboardingFirstEntry } from './useAgentOnboardingFirstEntry';
@@ -262,6 +267,15 @@ export default function ChannelScreen(props: Props) {
     navigateToContextLensRun,
   } = useChannelNavigation({ channelId: currentChannelId });
   const { navigation } = useRootNavigation();
+  // The owner's own conversation with their bot gets a way into its tasks.
+  const scheduledTasks = useScheduledTasksEntry({
+    forShip: channel?.type === 'dm' ? channel.id : null,
+  });
+  const openScheduledTasks = useOpenScheduledTasks();
+  const handleGoToScheduledTasks = useCallback(
+    () => openScheduledTasks({ botShip: scheduledTasks.botShip }),
+    [openScheduledTasks, scheduledTasks.botShip]
+  );
   const navigationRef = useRef(props.navigation);
   const isWindowNarrow = useIsWindowNarrow();
   const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(null);
@@ -301,7 +315,11 @@ export default function ChannelScreen(props: Props) {
   const { data: showDeleteMarkers = false } = store.useShowDeleteMarkers();
   const includeDeletedPosts =
     channelConfiguration?.includeDeletedPosts && showDeleteMarkers;
-  const requestedCursor = selectedPostId || unreadCursor;
+  const requestedCursor = postCursorFor(
+    currentChannelId,
+    selectedPostId,
+    unreadCursor
+  );
   const { data: cursorPost } = store.usePostWithRelations(
     requestedCursor ? { id: requestedCursor } : null
   );
@@ -441,6 +459,7 @@ export default function ChannelScreen(props: Props) {
     channelId: currentChannelId,
     groupId: onboardingGroupId,
     isFocused,
+    notebookNest: agentOnboarding.marker?.provision?.notebookNest,
     posts: filteredPosts,
     provisionId: agentOnboarding.marker?.provision?.provisionId,
     provisionAcknowledgedAt: agentOnboarding.marker?.provisionAcknowledgedAt,
@@ -633,7 +652,11 @@ export default function ChannelScreen(props: Props) {
       {...chatOptionsNavProps}
       onPressInvite={handlePressInvite}
     >
-      <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
+      <AttachmentProvider
+        key={currentChannelId}
+        canUpload={canUpload}
+        uploadAsset={store.uploadAsset}
+      >
         <Channel
           key={currentChannelId}
           channel={channel}
@@ -663,6 +686,9 @@ export default function ChannelScreen(props: Props) {
           goToMediaViewer={navigateToImage}
           goToChatDetails={handleChatDetailsPressed}
           goToSearch={navigateToSearch}
+          goToScheduledTasks={
+            scheduledTasks.visible ? handleGoToScheduledTasks : undefined
+          }
           goToContextLensRuns={navigateToContextLensRuns}
           goToContextLensRun={navigateToContextLensRun}
           goToDm={handleGoToDm}

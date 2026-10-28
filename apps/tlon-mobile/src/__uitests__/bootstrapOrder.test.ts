@@ -21,9 +21,15 @@ jest.mock('../App', () => {
 
 // The rest are entry-point side effects that either need native modules or do
 // real work; none of them participate in the ordering under test.
-jest.mock('expo', () => ({ registerRootComponent: jest.fn() }));
+// Expo modules import their native bindings from 'expo' itself, so only the
+// entry point is replaced.
+jest.mock('expo', () => ({
+  ...jest.requireActual<object>('expo'),
+  registerRootComponent: jest.fn(),
+}));
 jest.mock('expo-dev-client', () => ({}));
 jest.mock('@tamagui/native/setup-teleport', () => ({}));
+jest.mock('@tamagui/native/setup-expo-linear-gradient', () => ({}));
 jest.mock('react-native-get-random-values', () => ({}));
 jest.mock('react-native-keyboard-controller', () => ({
   KeyboardProvider: ({ children }: { children: unknown }) => children,

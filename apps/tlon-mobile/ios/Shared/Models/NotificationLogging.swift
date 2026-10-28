@@ -99,6 +99,7 @@ extension LogEvent {
 }
 
 enum NotificationError: Error, LocalizedError {
+    case backgroundSyncFailed(uid: String, underlyingError: Error? = nil)
     case activityEventFetchFailed(uid: String, underlyingError: Error? = nil)
     case activityEventMissing(uid: String, underlyingError: Error? = nil)
     case badgeSettingFailed(uid: String, underlyingError: Error? = nil)
@@ -110,6 +111,7 @@ enum NotificationError: Error, LocalizedError {
     
     var message: String {
         switch self {
+        case .backgroundSyncFailed: return "Background changes sync failed"
         case .activityEventFetchFailed: return "Activity event fetch failed"
         case .activityEventMissing: return "Activity event is missing"
         case .badgeSettingFailed: return "Setting badge from dismissal failed"
@@ -123,7 +125,8 @@ enum NotificationError: Error, LocalizedError {
     
     var uid: String {
         switch self {
-        case .activityEventFetchFailed(let uid, _),
+        case .backgroundSyncFailed(let uid, _),
+             .activityEventFetchFailed(let uid, _),
              .activityEventMissing(let uid, _),
              .badgeSettingFailed(let uid, _),
              .previewRenderFailed(let uid, _, _),
@@ -137,7 +140,8 @@ enum NotificationError: Error, LocalizedError {
 
     var underlyingError: Error? {
         switch self {
-        case .activityEventFetchFailed(_, let underlyingError),
+        case .backgroundSyncFailed(_, let underlyingError),
+             .activityEventFetchFailed(_, let underlyingError),
              .activityEventMissing(_, let underlyingError),
              .badgeSettingFailed(_, let underlyingError),
              .previewRenderFailed(_, _, let underlyingError),

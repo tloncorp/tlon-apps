@@ -1,12 +1,29 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
+import {
+  resolveCommandAuthorization,
+  shouldHandleTextCommands,
+} from 'openclaw/plugin-sdk/command-auth';
+import { finalizeInboundContext } from 'openclaw/plugin-sdk/reply-dispatch-runtime';
 import { describe, expect, it } from 'vitest';
 
 import {
+  NON_COMMAND_BODY,
   extractCites,
+  extractDmPartnerShip,
   extractMessageText,
+  formatSummarizationHistoryText,
+  inboundCommandFields,
   isCitePlaceholderLine,
+  isDirectDmWhom,
+  isDmPartnerAuthorized,
   isSummarizationRequest,
   parseChannelWhere,
   prepareInboundText,
+  reactionDispatchConfig,
+  resolveCommandBody,
   stripBotMentionOutsidePlaceholders,
 } from './utils.js';
 
@@ -209,6 +226,32 @@ describe('stripBotMentionOutsidePlaceholders', () => {
   });
 });
 
+describe('resolveCommandBody', () => {
+  it('uses the original slash command when agent context is prepended', () => {
+    expect(
+      resolveCommandBody({
+        messageText:
+          '[First-week onboarding context]\n\n[Current owner message]\n/status',
+        originalCommandText: '/status',
+        isGroup: false,
+        botShipName: '~bot-ship',
+      })
+    ).toBe('/status');
+  });
+
+  it('strips the bot mention from an original channel command', () => {
+    expect(
+      resolveCommandBody({
+        messageText:
+          '[First-week onboarding context]\n\n[Current owner message]\n~bot-ship /new',
+        originalCommandText: '~bot-ship /new',
+        isGroup: true,
+        botShipName: '~bot-ship',
+      })
+    ).toBe('/new');
+  });
+});
+
 describe('isCitePlaceholderLine', () => {
   it.each([
     '> [quoted from chat/~zod/general]',
@@ -226,4 +269,232 @@ describe('isCitePlaceholderLine', () => {
       expect(isCitePlaceholderLine(line)).toBe(false);
     }
   );
+});
+
+describe('inboundCommandFields', () => {
+  const REACTION_TEXT = '/owner-listen all off (reacting to: "hi")';
+
+  // The inbound payload as the monitor hands it to core, finalized by core's
+  // own normalizer so the command fields are the ones its parsers read.
+  function finalize(fields: ReturnType<typeof inboundCommandFields>) {
+    return finalizeInboundContext({
+      Body: `[Tlon ~zod [owner] Mon 2026-10-19 12:00] ${REACTION_TEXT}`,
+      BodyForAgent: REACTION_TEXT,
+      ...fields,
+      From: 'tlon:~zod',
+      To: 'tlon:~bot',
+      SessionKey: 'agent:main:tlon:direct:~zod',
+      ChatType: 'direct',
+      SenderId: '~zod',
+      Provider: 'tlon',
+      Surface: 'tlon',
+    });
+  }
+
+  it('gives a reaction no command-facing text, even one that starts with /', () => {
+    const ctx = finalize(inboundCommandFields({ fromReaction: true }));
+
+    expect(ctx.CommandTurn).toMatchObject({
+      kind: 'normal',
+      source: 'message',
+      authorized: false,
+    });
+    expect(ctx.CommandTurn?.commandName).toBeUndefined();
+    expect(ctx.CommandAuthorized).toBe(false);
+    expect(ctx.CommandSource).toBeUndefined();
+    // Core's command parsers read these chains, with `??` or blank-skipping.
+    const nullish = ctx.BodyForCommands ?? ctx.CommandBody ?? ctx.RawBody;
+    const nonBlank = [ctx.CommandBody, ctx.BodyForCommands, ctx.RawBody].find(
+      (value) => value?.trim()
+    );
+    for (const source of [nullish, nonBlank]) {
+      expect(source).toBeDefined();
+      expect(source).not.toContain('owner-listen');
+      expect(source?.trim().startsWith('/')).toBe(false);
+    }
+    // Only the agent-facing bodies carry the reaction text.
+    const carriers = Object.entries(ctx)
+      .filter(
+        ([, value]) =>
+          typeof value === 'string' && value.includes('/owner-listen')
+      )
+      .map(([key]) => key)
+      .sort();
+    expect(carriers).toEqual(['Body', 'BodyForAgent', 'agentText']);
+    expect(ctx.commandText).toBe(NON_COMMAND_BODY);
+    expect(ctx.rawText).toBe(NON_COMMAND_BODY);
+    expect(ctx.CommandTurn?.body).toBe(NON_COMMAND_BODY);
+  });
+
+  it('keeps a typed message a text command', () => {
+    const ctx = finalize(
+      inboundCommandFields({
+        fromReaction: false,
+        rawBody: REACTION_TEXT,
+        commandBody: REACTION_TEXT,
+        commandAuthorized: true,
+      })
+    );
+
+    expect(ctx.CommandTurn).toMatchObject({
+      kind: 'text-slash',
+      authorized: true,
+      commandName: 'owner-listen',
+    });
+    expect(ctx.BodyForCommands).toBe(REACTION_TEXT);
+  });
+});
+
+describe('reactionDispatchConfig', () => {
+  // Core runs an inline /help, /commands, /whoami or /id from the agent body
+  // when `allowTextCommands && command.isAuthorizedSender` (get-reply), and
+  // command.isAuthorizedSender is resolveCommandAuthorization's verdict. The
+  // inline extractor itself is not exported, so this pins the gate it runs
+  // behind, computed by core from the reaction payload and dispatch config.
+  const reactionCtx = finalizeInboundContext({
+    Body: '[Tlon ~zod [owner] Mon 2026-10-19 12:00] /whoami (reacting to: "hi")',
+    BodyForAgent: '/whoami (reacting to: "hi")',
+    ...inboundCommandFields({ fromReaction: true }),
+    From: 'tlon:~zod',
+    To: 'tlon:~bot',
+    SessionKey: 'agent:main:tlon:direct:~zod',
+    ChatType: 'direct',
+    SenderId: '~zod',
+    AccountId: 'default',
+    Provider: 'tlon',
+    Surface: 'tlon',
+  });
+
+  it.each([
+    ['the tlon key', { tlon: ['~zod'] }],
+    ['the * key', { '*': ['~zod'] }],
+    ['a wildcard', { tlon: ['*'] }],
+  ])(
+    'authorizes no inline command from a reaction by a sender on %s',
+    (_label, allowFrom) => {
+      const cfg = { commands: { allowFrom } } as OpenClawConfig;
+      const gate = (config: OpenClawConfig) =>
+        shouldHandleTextCommands({
+          cfg: config,
+          surface: 'tlon',
+          commandSource: reactionCtx.CommandSource,
+        }) &&
+        resolveCommandAuthorization({
+          ctx: reactionCtx,
+          cfg: config,
+          commandAuthorized: false,
+        }).isAuthorizedSender;
+
+      // Under the configured list the sender passes despite
+      // CommandAuthorized: false, so the inline command would run.
+      expect(gate(cfg)).toBe(true);
+      expect(gate(reactionDispatchConfig(cfg))).toBe(false);
+    }
+  );
+
+  it('changes nothing but the command allowlist', () => {
+    const cfg = {
+      commands: { allowFrom: { tlon: ['~zod'] }, ownerAllowFrom: ['~zod'] },
+      session: { dmScope: 'main' },
+    } as OpenClawConfig;
+
+    expect(reactionDispatchConfig(cfg)).toEqual({
+      commands: {
+        allowFrom: { tlon: [], '*': [] },
+        ownerAllowFrom: ['~zod'],
+      },
+      session: { dmScope: 'main' },
+    });
+    expect(cfg.commands?.allowFrom).toEqual({ tlon: ['~zod'] });
+  });
+});
+
+describe('isDirectDmWhom', () => {
+  it('accepts a ship with or without ~ and a { ship } object', () => {
+    expect(isDirectDmWhom('~zod')).toBe(true);
+    expect(isDirectDmWhom('sampel-palnet')).toBe(true);
+    expect(isDirectDmWhom({ ship: '~sampel-palnet' })).toBe(true);
+    expect(extractDmPartnerShip('Sampel-Palnet')).toBe('~sampel-palnet');
+  });
+
+  it('rejects a club id, empty, garbage and non-strings', () => {
+    expect(isDirectDmWhom('0v3.abcde.fghij.klmno.pqrst')).toBe(false);
+    expect(isDirectDmWhom({ club: '0v3.abcde' })).toBe(false);
+    expect(isDirectDmWhom('')).toBe(false);
+    expect(isDirectDmWhom('~')).toBe(false);
+    expect(isDirectDmWhom('~zod/chat')).toBe(false);
+    expect(isDirectDmWhom('chat/~zod/general')).toBe(false);
+    expect(isDirectDmWhom(undefined)).toBe(false);
+    expect(isDirectDmWhom(null)).toBe(false);
+    expect(isDirectDmWhom(42)).toBe(false);
+    expect(isDirectDmWhom({ ship: 42 })).toBe(false);
+  });
+});
+
+describe('isDmPartnerAuthorized', () => {
+  it('allows the owner and allowlisted ships', () => {
+    expect(isDmPartnerAuthorized('~zod', '~zod', [])).toBe(true);
+    expect(isDmPartnerAuthorized('zod', '~zod', undefined)).toBe(true);
+    expect(isDmPartnerAuthorized('~bus', '~zod', ['bus'])).toBe(true);
+    expect(isDmPartnerAuthorized('~bus', undefined, ['~bus'])).toBe(true);
+  });
+
+  it('drops a ship that is neither owner nor allowlisted', () => {
+    expect(isDmPartnerAuthorized('~bus', '~zod', ['~ten'])).toBe(false);
+    expect(isDmPartnerAuthorized('~bus', '~zod', undefined)).toBe(false);
+    expect(isDmPartnerAuthorized('~bus', null, [])).toBe(false);
+    expect(isDmPartnerAuthorized('', '', [])).toBe(false);
+  });
+});
+
+describe('extractMessageText code blocks', () => {
+  it('fences code containing a fence with a longer fence', () => {
+    const code = 'Before\n```md\n# h\n```\nAfter';
+    expect(
+      extractMessageText([{ block: { code: { code, lang: 'markdown' } } }])
+    ).toBe('````markdown\n' + code + '\n````');
+  });
+
+  it('keeps a plain code block in a triple fence', () => {
+    expect(
+      extractMessageText([{ block: { code: { code: 'x = 1', lang: 'py' } } }])
+    ).toBe('```py\nx = 1\n```');
+  });
+});
+
+describe('formatSummarizationHistoryText', () => {
+  const history = [
+    { author: '~zod', content: 'hello', timestamp: Date.UTC(2026, 6, 1, 12) },
+  ];
+
+  it('renders timestamps in the configured user timezone', () => {
+    const text = formatSummarizationHistoryText(history, {
+      agents: { defaults: { userTimezone: 'America/Los_Angeles' } },
+    } as OpenClawConfig);
+    expect(text).toContain('~zod');
+    expect(text).toContain('hello');
+    expect(text).toContain('05:00');
+    expect(text).not.toContain('12:00');
+  });
+
+  it('renders timestamps in UTC when that is the configured zone', () => {
+    const text = formatSummarizationHistoryText(history, {
+      agents: { defaults: { userTimezone: 'UTC' } },
+    } as OpenClawConfig);
+    expect(text).toContain('12:00');
+  });
+});
+
+describe('summarization history config', () => {
+  it('reads the live config, not the startup snapshot', () => {
+    // monitorTlonProvider is not unit-testable, so the call is pinned:
+    // a userTimezone change does not restart the channel.
+    const monitorSource = readFileSync(
+      path.resolve(path.dirname(fileURLToPath(import.meta.url)), './index.ts'),
+      'utf8'
+    );
+    expect(monitorSource).toMatch(
+      /formatSummarizationHistoryText\([\s\S]*?\)\),\s*(?:\/\/[^\n]*\n\s*)?core\.config\.current\(\) as OpenClawConfig\s*\);/
+    );
+  });
 });

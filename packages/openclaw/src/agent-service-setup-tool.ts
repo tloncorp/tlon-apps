@@ -1,0 +1,221 @@
+import { TLON_A2UI_CATALOG_ID } from '@tloncorp/api';
+
+import {
+  type ConnectableService,
+  findConnectableService,
+  formatConnectableServices,
+} from './connectable-services.js';
+import {
+  SupersededTurnError,
+  supersededToolResult,
+} from './superseded-turn.js';
+
+const MAX_PROVIDER_ID_LENGTH = 500;
+
+export type AgentServiceSetupToolParams = {
+  target: string;
+  providerId: string;
+};
+
+type ResolvedAgentServiceSetupToolParams = AgentServiceSetupToolParams & {
+  surfaceId: string;
+};
+
+export const agentServiceSetupToolMetadata = {
+  name: 'tlon_agent_service_setup',
+  label: 'Tlon Agent Service Setup',
+  description:
+    'Post an actionable Connected Services recovery card when the owner explicitly chooses to connect a private source required before a first-run task can be created. The client opens its existing service-management flow, preserving hosted OAuth and the native unavailable state.',
+  promptSnippet:
+    '`tlon_agent_service_setup`: open Connected Services for an owner-chosen private source that is required before planning',
+  promptGuidelines: [
+    'When first-run onboarding cannot proceed because an explicitly chosen private source is not connected and the owner chooses to connect it, call `tlon_agent_service_setup` instead of ending with prose; after it posts successfully, return NO_REPLY and wait for the owner to return and tap Continue setup or send a message. On that turn, check whether the source is connected before continuing. Do not call it when the owner chose an immediately executable fallback, or for a service `tlon_connectable_services` does not list.',
+  ],
+};
+
+export const agentServiceSetupToolParameters = {
+  type: 'object',
+  properties: {
+    target: {
+      type: 'string',
+      description: 'Current Tlon chat nest or first-run bot DM target.',
+    },
+    providerId: {
+      type: 'string',
+      maxLength: MAX_PROVIDER_ID_LENGTH,
+      description:
+        'ID of the owner-chosen service from tlon_connectable_services, such as google-drive.',
+    },
+  },
+  required: ['target', 'providerId'],
+  additionalProperties: false,
+} as const;
+
+function parseParams(
+  params: ResolvedAgentServiceSetupToolParams
+): ResolvedAgentServiceSetupToolParams {
+  if (!/^(?:chat\/~[a-z0-9-]+\/[a-z0-9-]+|~[a-z-]+)$/i.test(params.target)) {
+    throw new Error('target must be a chat channel nest or bot DM');
+  }
+  const providerId = params.providerId.trim();
+  if (!providerId || providerId.length > MAX_PROVIDER_ID_LENGTH) {
+    throw new Error(
+      `providerId must be 1-${MAX_PROVIDER_ID_LENGTH} characters`
+    );
+  }
+  return { ...params, providerId };
+}
+
+function recoveryCopy() {
+  return (
+    'Open Connected Services to connect the source you chose. ' +
+    'When you return, tap Continue setup or send me a message so I can check the connection and resume. ' +
+    'If this account does not support hosted connections, choose another source you can share here.'
+  );
+}
+
+function buildAgentServiceSetupBlob(
+  input: ResolvedAgentServiceSetupToolParams
+) {
+  const params = parseParams(input);
+  const message = recoveryCopy();
+  return [
+    {
+      type: 'a2ui',
+      version: 1,
+      storyMode: 'fallback',
+      messages: [
+        {
+          version: 'v0.9',
+          createSurface: {
+            surfaceId: params.surfaceId,
+            catalogId: TLON_A2UI_CATALOG_ID,
+          },
+        },
+        {
+          version: 'v0.9',
+          updateComponents: {
+            surfaceId: params.surfaceId,
+            root: 'root',
+            components: [
+              {
+                id: 'root',
+                component: 'Column',
+                children: ['message', 'open-settings', 'continue-setup'],
+              },
+              { id: 'message', component: 'Text', text: message },
+              {
+                id: 'open-settings',
+                component: 'Button',
+                child: 'open-settings-label',
+                variant: 'primary',
+                action: {
+                  event: {
+                    name: 'tlon.navigate',
+                    context: {
+                      target: {
+                        type: 'screen',
+                        screen: 'botMcpSettings',
+                        providerId: params.providerId,
+                      },
+                    },
+                  },
+                },
+              },
+              {
+                id: 'open-settings-label',
+                component: 'Text',
+                text: 'Open Connected Services',
+              },
+              {
+                id: 'continue-setup',
+                component: 'Button',
+                child: 'continue-setup-label',
+                variant: 'secondary',
+                action: {
+                  event: {
+                    name: 'tlon.sendMessage',
+                    context: {
+                      text: 'Continue my task setup. Check whether the source I chose is connected; if not, help me choose an available source.',
+                    },
+                  },
+                },
+              },
+              {
+                id: 'continue-setup-label',
+                component: 'Text',
+                text: 'Continue setup',
+              },
+            ],
+          },
+        },
+      ],
+    },
+  ];
+}
+
+// With no catalog (not hosted, or the relay is down) the card still goes out:
+// refusing then would block real services along with made-up ones.
+async function resolveProviderId(
+  providerId: string,
+  listServices: () => Promise<ConnectableService[] | null>
+) {
+  // An empty ID is left for parseParams to reject with its own message.
+  if (!providerId?.trim()) return providerId;
+  const services = await listServices();
+  if (!services) return providerId;
+  const service = findConnectableService(services, providerId);
+  if (!service) {
+    throw new Error(
+      `"${providerId.trim()}" is not a service the owner can connect. ` +
+        'Tell them plainly it cannot be connected yet; then offer the closest service that can, or a version that works without it. ' +
+        `Services that can be connected: ${formatConnectableServices(services)}.`
+    );
+  }
+  return service.id;
+}
+
+export function createAgentServiceSetupToolExecutor(deps: {
+  postSetup: (input: {
+    target: string;
+    fallbackMessage: string;
+    blob: string;
+  }) => Promise<string>;
+  assertCurrent: (toolCallId: string) => void;
+  listServices: () => Promise<ConnectableService[] | null>;
+}) {
+  return async function execute(
+    id: string,
+    params: AgentServiceSetupToolParams
+  ) {
+    try {
+      const blob = buildAgentServiceSetupBlob({
+        ...params,
+        providerId: await resolveProviderId(
+          params.providerId,
+          deps.listServices
+        ),
+        surfaceId: `agent-service-setup-${id}`,
+      });
+      deps.assertCurrent(id);
+      const output = await deps.postSetup({
+        target: params.target,
+        fallbackMessage: recoveryCopy(),
+        blob: JSON.stringify(blob),
+      });
+      return {
+        content: [{ type: 'text' as const, text: output }],
+        details: undefined,
+      };
+    } catch (error) {
+      if (error instanceof SupersededTurnError) {
+        return supersededToolResult();
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        content: [{ type: 'text' as const, text: `Error: ${message}` }],
+        details: { error: true },
+      };
+    }
+  };
+}

@@ -190,23 +190,25 @@ export async function assertServerIdentity(
   }
 }
 
+export async function getChannelPerm(nest: string): Promise<ChannelPerm> {
+  const perm = await scry<unknown>({
+    app: 'channels',
+    path: `/${nest}/perm`,
+  });
+  const record = requireRecord(perm, `Channel ${nest}.perm`);
+  const writers = requireStringArray(
+    record.writers,
+    `Channel ${nest}.perm.writers`
+  );
+  if (typeof record.group !== 'string' || !record.group) {
+    throw new Error(`Channel ${nest}.perm.group: expected a group flag`);
+  }
+  return { writers, group: record.group };
+}
+
 export function createMigrationDeps(): MigrationDeps {
   return {
-    getChannelPerm: async (nest: string): Promise<ChannelPerm> => {
-      const perm = await scry<unknown>({
-        app: 'channels',
-        path: `/${nest}/perm`,
-      });
-      const record = requireRecord(perm, `Channel ${nest}.perm`);
-      const writers = requireStringArray(
-        record.writers,
-        `Channel ${nest}.perm.writers`
-      );
-      if (typeof record.group !== 'string' || !record.group) {
-        throw new Error(`Channel ${nest}.perm.group: expected a group flag`);
-      }
-      return { writers, group: record.group };
-    },
+    getChannelPerm,
 
     getGroup: async (flag: string) => {
       const raw = await scry<Record<string, unknown>>({

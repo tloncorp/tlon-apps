@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ALL_ONLY } from './urbit/story.js';
+
 const getNotebook = vi.fn();
 const createNote = vi.fn();
 const listNotes = vi.fn();
@@ -45,7 +47,8 @@ vi.mock('./urbit/send.js', () => ({
   })),
 }));
 
-vi.mock('./urbit/story.js', () => ({
+vi.mock('./urbit/story.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./urbit/story.js')>()),
   markdownToStory: vi.fn(() => [{ inline: ['text'] }]),
 }));
 
@@ -143,9 +146,9 @@ describe('sendMedia', () => {
     vi.restoreAllMocks();
   });
 
-  it('rejects on local path and does not post', async () => {
+  it('rejects disallowed local media and does not post', async () => {
     prepareOutboundMedia.mockRejectedValue(
-      new Error('Local file paths are not supported on this channel')
+      new Error('Could not read local media from the allowed directories.')
     );
     const { startTlonAgentTurn } = await import('./turn-recorder.js');
     const recordDispatchAttempted = vi.fn();
@@ -178,7 +181,7 @@ describe('sendMedia', () => {
           mediaUrl: '/pier/secret.png',
         })
       )
-    ).rejects.toThrow('Local file paths are not supported');
+    ).rejects.toThrow('Could not read local media');
 
     expect(sendDm).not.toHaveBeenCalled();
     expect(sendDmWithStory).not.toHaveBeenCalled();
@@ -232,6 +235,35 @@ describe('sendMedia', () => {
     );
   });
 
+  it('passes local media access to the uploader and posts the uploaded URL', async () => {
+    const mediaLocalRoots = ['/pier/bot/.openclaw/media'];
+    const mediaReadFile = vi.fn();
+    const mediaUrl = `${mediaLocalRoots[0]}/cat.png`;
+    prepareOutboundMedia.mockResolvedValue({
+      url: 'https://storage.example.com/cat.png',
+      isImage: true,
+    });
+    await tlonRuntimeOutbound.sendMedia({
+      ...baseCtx,
+      mediaUrl,
+      mediaLocalRoots,
+      mediaReadFile,
+    });
+    expect(prepareOutboundMedia).toHaveBeenCalledWith(mediaUrl, {
+      cfg: baseCtx.cfg,
+      mediaAccess: undefined,
+      mediaLocalRoots,
+      mediaReadFile,
+    });
+    expect(sendDmWithStory).toHaveBeenCalledOnce();
+    const { buildMediaStory } = await import('./urbit/send.js');
+    expect(buildMediaStory).toHaveBeenCalledWith(
+      baseCtx.text,
+      { url: 'https://storage.example.com/cat.png', isImage: true },
+      expect.any(Object)
+    );
+  });
+
   it('posts exactly once with valid https URL', async () => {
     prepareOutboundMedia.mockResolvedValue({
       url: 'https://example.com/img.png',
@@ -271,6 +303,177 @@ describe('sendMedia', () => {
       deliveryFailureCount: 0,
       deliverySuccessCount: 1,
     });
+  });
+
+  async function turnFor(
+    senderRole: 'owner' | 'user',
+    runId: string,
+    sessionKey = 'agent:main:tlon:direct:~nec'
+  ) {
+    const { startTlonAgentTurn } = await import('./turn-recorder.js');
+    return startTlonAgentTurn(
+      {
+        accountId: 'hosted',
+        agentId: 'main',
+        destinationKind: 'dm',
+        inputMessageId: '~nec/444',
+        runId,
+        sessionKey,
+        ship: '~zod',
+        trigger: 'dm',
+        senderRole,
+      },
+      {
+        observer: {
+          recordStarted: () => undefined,
+          recordTerminal: () => undefined,
+        },
+      }
+    );
+  }
+
+  it('delivers only the text of a non-owner turn for media the rule refuses', async () => {
+    const { buildMediaStory } = await import('./urbit/send.js');
+    const turn = await turnFor('user', 'non-owner-media');
+    // What core yields for the codex payloads: a resolved local media URL.
+    for (const mediaUrl of [
+      '/workspace/private.txt',
+      'http://example.com/a.png',
+      'https://127.0.0.1/a.png',
+    ]) {
+      await turn.run(() =>
+        tlonRuntimeOutbound.sendMedia({ ...baseCtx, mediaUrl })
+      );
+    }
+    await turn.run(() =>
+      tlonRuntimeOutbound.sendPayload!({
+        ...baseCtx,
+        payload: { text: 'hello', mediaUrls: ['/x', '/y'] },
+      })
+    );
+    expect(prepareOutboundMedia).not.toHaveBeenCalled();
+    expect(buildMediaStory).not.toHaveBeenCalled();
+    expect(sendDmWithStory).toHaveBeenCalledTimes(4);
+  });
+
+  it('keeps public https media and drops local media for a non-owner turn', async () => {
+    prepareOutboundMedia.mockResolvedValue({
+      url: 'https://example.com/a.png',
+      isImage: true,
+    });
+    const { buildMediaStory } = await import('./urbit/send.js');
+    const turn = await turnFor('user', 'non-owner-mixed-media');
+    await turn.run(() =>
+      tlonRuntimeOutbound.sendPayload!({
+        ...baseCtx,
+        payload: {
+          text: 'look',
+          mediaUrls: ['https://example.com/a.png', '/workspace/private.txt'],
+        },
+      })
+    );
+    expect(prepareOutboundMedia).toHaveBeenCalledOnce();
+    expect(prepareOutboundMedia).toHaveBeenCalledWith(
+      'https://example.com/a.png',
+      expect.objectContaining({ cfg: baseCtx.cfg })
+    );
+    expect(buildMediaStory).toHaveBeenCalledOnce();
+  });
+
+  it('fails a non-owner payload whose media is all dropped and has no text', async () => {
+    const { NON_OWNER_MEDIA_ERROR } = await import('./non-owner-media.js');
+    const turn = await turnFor('user', 'non-owner-payload-dropped');
+    await expect(
+      turn.run(() =>
+        tlonRuntimeOutbound.sendPayload!({
+          ...baseCtx,
+          payload: { text: ' ', mediaUrls: ['/x', 'http://example.com/y'] },
+        })
+      )
+    ).rejects.toThrow(NON_OWNER_MEDIA_ERROR);
+    expect(prepareOutboundMedia).not.toHaveBeenCalled();
+    expect(sendDmWithStory).not.toHaveBeenCalled();
+  });
+
+  it('fails a media-only send from a non-owner turn without posting', async () => {
+    const { NON_OWNER_MEDIA_ERROR } = await import('./non-owner-media.js');
+    const turn = await turnFor('user', 'non-owner-media-only');
+    await expect(
+      turn.run(() =>
+        tlonRuntimeOutbound.sendMedia({
+          ...baseCtx,
+          text: '  ',
+          mediaUrl: '/workspace/private.txt',
+        })
+      )
+    ).rejects.toThrow(NON_OWNER_MEDIA_ERROR);
+    expect(prepareOutboundMedia).not.toHaveBeenCalled();
+    expect(sendDmWithStory).not.toHaveBeenCalled();
+  });
+
+  it("keeps media for an owner turn when another member's post changes the session role", async () => {
+    const { setSessionRole } = await import('./session-roles.js');
+    const sessionKey = 'agent:main:tlon:group:chat/~zod/general';
+    const turn = await turnFor('owner', 'owner-not-demoted', sessionKey);
+    // The monitor overwrites the session role for every inbound message; only
+    // a demotion of this run (noteInboundDispatching) may drop its media.
+    setSessionRole(sessionKey, 'user');
+    await turn.run(() =>
+      tlonRuntimeOutbound.sendMedia({ ...baseCtx, mediaUrl: '/x.png' })
+    );
+    expect(prepareOutboundMedia).toHaveBeenCalledOnce();
+    setSessionRole(sessionKey, 'owner');
+  });
+
+  it('keeps media dropped for a demoted owner run after an owner message restores the session role', async () => {
+    const { setSessionRole } = await import('./session-roles.js');
+    const { noteInboundDispatching } = await import('./turn-identity.js');
+    const { rememberTlonSessionRunSurface, setTlonSessionSurface } =
+      await import('./onboarding-tool-boundary.js');
+    const sessionKey = 'agent:main:tlon:group:chat/~zod/sticky';
+    const runId = 'owner-sticky-demotion';
+    // What the monitor records for an owner message before dispatch.
+    setSessionRole(sessionKey, 'owner');
+    setTlonSessionSurface(sessionKey, {
+      kind: 'group',
+      senderRole: 'owner',
+      channelNest: 'chat/~zod/sticky',
+      messageId: 'owner/1',
+    });
+    rememberTlonSessionRunSurface(runId, sessionKey, { senderRole: 'owner' });
+    const turn = await turnFor('owner', runId, sessionKey);
+    // A non-owner message demotes the owner run...
+    setSessionRole(sessionKey, 'user');
+    noteInboundDispatching({ sessionKeys: [sessionKey], role: 'user' });
+    // ...and a later owner message overwrites the session's role.
+    setSessionRole(sessionKey, 'owner');
+    noteInboundDispatching({ sessionKeys: [sessionKey], role: 'owner' });
+    await turn.run(() =>
+      tlonRuntimeOutbound.sendMedia({ ...baseCtx, mediaUrl: '/x.png' })
+    );
+    expect(prepareOutboundMedia).not.toHaveBeenCalled();
+    expect(sendDmWithStory).toHaveBeenCalledOnce();
+  });
+
+  it('still delivers media for an owner turn', async () => {
+    prepareOutboundMedia.mockResolvedValue({
+      url: 'https://storage.example.com/cat.png',
+      isImage: true,
+    });
+    const { buildMediaStory } = await import('./urbit/send.js');
+    const turn = await turnFor('owner', 'owner-media');
+    await turn.run(() =>
+      tlonRuntimeOutbound.sendMedia({
+        ...baseCtx,
+        mediaUrl: '/workspace/cat.png',
+      })
+    );
+    expect(prepareOutboundMedia).toHaveBeenCalledOnce();
+    expect(buildMediaStory).toHaveBeenCalledWith(
+      baseCtx.text,
+      { url: 'https://storage.example.com/cat.png', isImage: true },
+      expect.any(Object)
+    );
   });
 
   it('records the actual outbound destination kind for cross-target sends', async () => {
@@ -318,6 +521,149 @@ describe('sendMedia', () => {
         outputMessageId: '~zod/123',
       })
     );
+  });
+});
+
+describe('role mentions', () => {
+  let tlonRuntimeOutbound: typeof import('./channel.runtime.js').tlonRuntimeOutbound;
+  let sendDmWithStory: ReturnType<typeof vi.fn>;
+  let sendChannelPost: ReturnType<typeof vi.fn>;
+  let buildMediaStory: ReturnType<typeof vi.fn>;
+  let roleIdsForNest: ReturnType<typeof vi.fn>;
+  let unpublish: () => void;
+
+  const ctx = {
+    cfg: {} as never,
+    accountId: 'secondary',
+    replyToId: null,
+    threadId: null,
+  };
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    resolveTlonAccount.mockReturnValue({
+      accountId: 'secondary',
+      configured: true,
+      ship: '~zod',
+      url: 'http://localhost:8080',
+      code: 'lit',
+      allowPrivateNetwork: false,
+      contextLens: { enabled: false },
+    });
+    getActiveForegroundContextLensForConversation.mockReturnValue(null);
+    ({ tlonRuntimeOutbound } = await import('./channel.runtime.js'));
+    ({ sendDmWithStory, sendChannelPost, buildMediaStory } =
+      (await import('./urbit/send.js')) as never);
+    const story = await import('./urbit/story.js');
+    const actual = await vi.importActual<typeof story>('./urbit/story.js');
+    vi.mocked(story.markdownToStory).mockImplementation(actual.markdownToStory);
+    const scope = await import('./role-mention-scope.js');
+    roleIdsForNest = vi.fn(async () => new Set(['admin']));
+    const resolver = { roleIdsForNest };
+    scope.publishRoleMentionResolver('secondary', resolver);
+    unpublish = () => scope.unpublishRoleMentionResolver('secondary', resolver);
+  });
+
+  afterEach(async () => {
+    unpublish();
+    // Back to the stub the other suites expect.
+    vi.mocked((await import('./urbit/story.js')).markdownToStory).mockReset();
+    vi.restoreAllMocks();
+  });
+
+  it('sendText to a channel converts a known role and passes through unknown', async () => {
+    await tlonRuntimeOutbound.sendText({
+      ...ctx,
+      to: 'chat/~zod/general',
+      text: 'ping @admin and @mods',
+    });
+    expect(roleIdsForNest).toHaveBeenCalledExactlyOnceWith('chat/~zod/general');
+    expect(sendChannelPost).toHaveBeenCalledWith(
+      expect.objectContaining({
+        story: [{ inline: ['ping ', { sect: 'admin' }, ' and @mods'] }],
+      })
+    );
+  });
+
+  it('sendText to a DM converts @all only', async () => {
+    await tlonRuntimeOutbound.sendText({
+      ...ctx,
+      to: '~nec',
+      text: '@all and @admin',
+    });
+    expect(roleIdsForNest).not.toHaveBeenCalled();
+    expect(sendDmWithStory).toHaveBeenCalledWith(
+      expect.objectContaining({
+        story: [{ inline: [{ sect: null }, ' and @admin'] }],
+      })
+    );
+  });
+
+  it('sendText without @ performs no role lookup', async () => {
+    await tlonRuntimeOutbound.sendText({
+      ...ctx,
+      to: 'chat/~zod/general',
+      text: 'plain words',
+    });
+    expect(roleIdsForNest).not.toHaveBeenCalled();
+    expect(sendChannelPost).toHaveBeenCalledWith(
+      expect.objectContaining({ story: [{ inline: ['plain words'] }] })
+    );
+  });
+
+  it('sendText to a notebook does no role lookup', async () => {
+    getNotebook.mockResolvedValue({ rootFolderId: 17 });
+    createNote.mockResolvedValue({ id: 42, title: 'Notes' });
+    listNotes.mockResolvedValue([]);
+    await tlonRuntimeOutbound.sendText({
+      ...ctx,
+      to: 'notes/~zod/book',
+      text: '# Notes\n\nping @admin and @all',
+    });
+    expect(createNote).toHaveBeenCalledWith(
+      expect.objectContaining({ body: 'ping @admin and @all' })
+    );
+    expect(roleIdsForNest).not.toHaveBeenCalled();
+  });
+
+  it('sendMedia passes the channel scope for a caption', async () => {
+    const media = { url: 'https://example.com/img.png', isImage: true };
+    prepareOutboundMedia.mockResolvedValue(media);
+    await tlonRuntimeOutbound.sendMedia({
+      ...ctx,
+      to: 'chat/~zod/general',
+      text: 'look @admin',
+      mediaUrl: media.url,
+    });
+    expect(buildMediaStory).toHaveBeenCalledExactlyOnceWith(
+      'look @admin',
+      media,
+      { roleMentions: { roleIds: new Set(['admin']) } }
+    );
+  });
+
+  it('sendMedia without a caption or to a DM does no lookup', async () => {
+    const media = { url: 'https://example.com/img.png', isImage: true };
+    prepareOutboundMedia.mockResolvedValue(media);
+    await tlonRuntimeOutbound.sendMedia({
+      ...ctx,
+      to: 'chat/~zod/general',
+      text: undefined as never,
+      mediaUrl: media.url,
+    });
+    await tlonRuntimeOutbound.sendMedia({
+      ...ctx,
+      to: '~nec',
+      text: 'look @admin',
+      mediaUrl: media.url,
+    });
+    expect(roleIdsForNest).not.toHaveBeenCalled();
+    expect(buildMediaStory).toHaveBeenNthCalledWith(1, undefined, media, {
+      roleMentions: ALL_ONLY,
+    });
+    expect(buildMediaStory).toHaveBeenNthCalledWith(2, 'look @admin', media, {
+      roleMentions: ALL_ONLY,
+    });
   });
 });
 
@@ -561,6 +907,94 @@ describe('notes delivery', () => {
     );
   });
 
+  it('prepares notebook attachments a few at a time, in order', async () => {
+    const { NOTEBOOK_MEDIA_CONCURRENCY } = await import('./channel.runtime.js');
+    createNote.mockResolvedValue({ id: 45, title: 'Many' });
+    let inFlight = 0;
+    let peak = 0;
+    prepareOutboundMedia.mockImplementation(async (mediaUrl: string) => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      inFlight -= 1;
+      return { url: mediaUrl.replace('source', 'cdn'), isImage: true };
+    });
+    const mediaUrls = Array.from(
+      { length: 12 },
+      (_, i) => `https://source.test/${i}`
+    );
+
+    await tlonRuntimeOutbound.sendPayload!({
+      cfg: {} as never,
+      to: 'notes/~ten/updates',
+      text: 'Many',
+      payload: { text: '# Many', mediaUrls },
+      accountId: null,
+      replyToId: null,
+      threadId: null,
+    });
+
+    expect(prepareOutboundMedia).toHaveBeenCalledTimes(12);
+    expect(peak).toBe(NOTEBOOK_MEDIA_CONCURRENCY);
+    const body = createNote.mock.lastCall?.[0]?.body as string;
+    expect(body.indexOf('https://cdn.test/2')).toBeLessThan(
+      body.indexOf('https://cdn.test/3')
+    );
+  });
+
+  it('aborts and settles notebook attachments when one fails', async () => {
+    let inFlight = 0;
+    const aborted: string[] = [];
+    prepareOutboundMedia.mockImplementation(
+      async (mediaUrl: string, { signal }: { signal: AbortSignal }) => {
+        if (mediaUrl.endsWith('/0')) {
+          // Fails once the rest of the first window is downloading.
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          throw new Error('bad media');
+        }
+        inFlight += 1;
+        try {
+          await new Promise((_, reject) =>
+            signal.addEventListener('abort', () => {
+              aborted.push(mediaUrl);
+              // Cleanup takes a moment; the send must wait for it.
+              setTimeout(() => reject(signal.reason), 5);
+            })
+          );
+        } finally {
+          inFlight -= 1;
+        }
+      }
+    );
+
+    await expect(
+      tlonRuntimeOutbound.sendPayload!({
+        cfg: {} as never,
+        to: 'notes/~ten/updates',
+        text: 'Many',
+        payload: {
+          text: '# Many',
+          mediaUrls: Array.from(
+            { length: 8 },
+            (_, i) => `https://source.test/${i}`
+          ),
+        },
+        accountId: null,
+        replyToId: null,
+        threadId: null,
+      })
+    ).rejects.toThrow('bad media');
+
+    expect(inFlight).toBe(0);
+    expect(aborted).toEqual([
+      'https://source.test/1',
+      'https://source.test/2',
+      'https://source.test/3',
+    ]);
+    expect(prepareOutboundMedia).toHaveBeenCalledTimes(4);
+    expect(createNote).not.toHaveBeenCalled();
+  });
+
   it('retains chunking for an ordinary chat payload', async () => {
     await tlonRuntimeOutbound.sendPayload!({
       cfg: {} as never,
@@ -646,14 +1080,20 @@ describe('gateway startup catch-up wiring', () => {
       await import('./restart-catchup.js');
     const connected = vi.fn();
     const stop = vi.fn();
+    const readsReady = Promise.resolve();
     const attach = vi
       .spyOn(getRestartCatchupCoordinator(), 'attachMonitor')
-      .mockReturnValue({ connected, stop });
+      .mockReturnValue({ connected, stop, settled: () => readsReady });
     let finish!: () => void;
     const pending = new Promise<void>((resolve) => {
       finish = resolve;
     });
-    const connection = { isConnected: () => true, readSettings: vi.fn() };
+    const connection = {
+      isConnected: () => true,
+      readSettings: vi.fn(),
+      establishActivityReadBaseline: vi.fn(),
+      replayMissedMessages: vi.fn(),
+    };
     vi.mocked(monitorTlonProvider).mockImplementationOnce(async (opts) => {
       opts?.onReady?.(connection);
       await pending;
@@ -669,6 +1109,9 @@ describe('gateway startup catch-up wiring', () => {
     } as never);
     expect(attach).toHaveBeenCalledWith('default', cfg);
     expect(connected).toHaveBeenCalledWith(connection);
+    expect(vi.mocked(monitorTlonProvider).mock.lastCall?.[0]).toMatchObject({
+      activityReadsReady: readsReady,
+    });
     abort.abort();
     expect(stop).toHaveBeenCalledTimes(1);
     finish();
@@ -686,6 +1129,7 @@ describe('gateway startup catch-up wiring', () => {
     vi.spyOn(getRestartCatchupCoordinator(), 'attachMonitor').mockReturnValue({
       connected,
       stop,
+      settled: () => Promise.resolve(),
     });
     vi.mocked(monitorTlonProvider).mockRejectedValueOnce(
       new Error('authentication failed')

@@ -1,7 +1,13 @@
-import { Block, Inline, constructStory } from '@tloncorp/api/urbit';
+import {
+  getDroppedCites,
+  isUneditableCitesError,
+  uneditableCitesMessage,
+} from '@tloncorp/api';
+import { Block, Inline, constructStory, pathToCite } from '@tloncorp/api/urbit';
 import {
   Attachment,
   createDevLogger,
+  extractContentTypesFromPost,
   markdownToStory,
   storyToContent,
   storyToMarkdown,
@@ -182,8 +188,20 @@ export function BigInput({
   const [imageUri, setImageUri] = useState<string | null>(
     editingPost?.image || null
   );
-  const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
-  const [showInlineImageSheet, setShowInlineImageSheet] = useState(false);
+  const [showAttachmentSheet, updateShowAttachmentSheet] = useState(false);
+  const [showInlineImageSheet, updateShowInlineImageSheet] = useState(false);
+  const [hasOpenedAttachmentSheet, setHasOpenedAttachmentSheet] =
+    useState(false);
+  const [hasOpenedInlineImageSheet, setHasOpenedInlineImageSheet] =
+    useState(false);
+  const setShowAttachmentSheet = useCallback((open: boolean) => {
+    if (open) setHasOpenedAttachmentSheet(true);
+    updateShowAttachmentSheet(open);
+  }, []);
+  const setShowInlineImageSheet = useCallback((open: boolean) => {
+    if (open) setHasOpenedInlineImageSheet(true);
+    updateShowInlineImageSheet(open);
+  }, []);
   const [hasContentChanges, setHasContentChanges] = useState(false);
   const [hasTitleChanges, setHasTitleChanges] = useState(false);
   const [hasImageChanges, setHasImageChanges] = useState(false);
@@ -314,6 +332,33 @@ export function BigInput({
       content = tiptap.JSONToInlines(json);
     }
 
+    // Callers close the editor before sending, so an edit the store would
+    // refuse has to stop here, while the user's changes are still open.
+    if (editingPost) {
+      const editedCites = [
+        ...constructStory(content).flatMap((verse) =>
+          'block' in verse && 'cite' in verse.block ? [verse.block.cite] : []
+        ),
+        ...attachments.flatMap((attachment) => {
+          const cite =
+            attachment.type === 'reference' && pathToCite(attachment.path);
+          return cite ? [cite] : [];
+        }),
+      ];
+      const droppedCites = getDroppedCites(
+        extractContentTypesFromPost(editingPost).story,
+        editedCites
+      );
+      if (droppedCites.length > 0) {
+        showToast({
+          message: uneditableCitesMessage(droppedCites),
+          duration: 2500,
+        });
+        setIsSending(false);
+        return;
+      }
+    }
+
     const draft: domain.PostDataDraft = {
       channelId,
       content,
@@ -382,6 +427,14 @@ export function BigInput({
       }
     } catch (error) {
       logger.error('Failed to save post:', error);
+      if (editingPost) {
+        showToast({
+          message: isUneditableCitesError(error)
+            ? error.message
+            : 'Failed to save post',
+          duration: 2500,
+        });
+      }
     } finally {
       setIsSending(false);
     }
@@ -791,7 +844,8 @@ export function BigInput({
         </>
       )}
 
-      {channelType === 'notebook' && showAttachmentSheet && (
+      {/* Mount lazily, then retain through native dismissal and picker handoff. */}
+      {channelType === 'notebook' && hasOpenedAttachmentSheet && (
         <AttachmentSheet
           isOpen={showAttachmentSheet}
           onOpenChange={setShowAttachmentSheet}
@@ -803,7 +857,7 @@ export function BigInput({
         />
       )}
 
-      {channelType === 'notebook' && showInlineImageSheet && (
+      {channelType === 'notebook' && hasOpenedInlineImageSheet && (
         <AttachmentSheet
           isOpen={showInlineImageSheet}
           onOpenChange={setShowInlineImageSheet}

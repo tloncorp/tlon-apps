@@ -13,7 +13,11 @@ import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatListSettleTelemetry } from '../../hooks/useChatListSettleTelemetry';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import type { ChatListFilter } from '../../hooks/chatListFilters';
-import { useFilteredChats } from '../../hooks/useFilteredChats';
+import { useChatListFilterSelection } from '../../hooks/useChatListFilterSelection';
+import {
+  useFilteredChats,
+  useVisibleChatListFilters,
+} from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { useScrollToTabTop } from '../../hooks/useScrollToTabTop';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
@@ -96,9 +100,16 @@ export function ChatListScreenView({
   const [searchQuery, setSearchQuery] = useState('');
   const isFocused = useIsFocused();
 
+  // Refresh only while the list is on screen, but load it once even when it
+  // mounts covered: a notification or search result rebuilds the stack with a
+  // channel on top, and going back would otherwise reveal an empty list.
+  const [hasLoadedChats, setHasLoadedChats] = useState(false);
   const { data: chats } = store.useCurrentChats({
-    enabled: isFocused,
+    enabled: isFocused || !hasLoadedChats,
   });
+  if (chats !== undefined && !hasLoadedChats) {
+    setHasLoadedChats(true);
+  }
 
   const { performGroupAction } = useGroupActions();
 
@@ -359,7 +370,11 @@ export function ChatListScreenView({
     handleSearchInputToggled();
   }, [handleSearchInputToggled]);
 
-  const [listFilter, setListFilter] = useState<ChatListFilter>('all');
+  const visibleFilters = useVisibleChatListFilters(resolvedChats);
+  const { listFilter, selectFilter } = useChatListFilterSelection({
+    visibleFilters,
+    loaded: !!chats,
+  });
   // The top-level tabs share one native header, and it stays opaque until a
   // screen installs the scroll-edge options. Install them here rather than
   // inheriting whichever tab was focused last: the clearance below is only
@@ -374,14 +389,14 @@ export function ChatListScreenView({
     (filter: ChatListFilter) => {
       if (filter === listFilter) return;
       trackEvent(AnalyticsEvent.HomeFilterSelected, { tab: filter });
-      setListFilter(filter);
+      selectFilter(filter);
     },
-    [listFilter]
+    [listFilter, selectFilter]
   );
   const handlePressTryAll = useCallback(() => {
     trackEvent(AnalyticsEvent.HomeFilterSelected, { tab: 'all' });
-    setListFilter('all');
-  }, []);
+    selectFilter('all');
+  }, [selectFilter]);
 
   const displayData = useFilteredChats({
     ...resolvedChats,
@@ -452,6 +467,7 @@ export function ChatListScreenView({
               chats.pinned.length) ? (
               <>
                 <ChatListFilterTabs
+                  filters={visibleFilters}
                   activeFilter={listFilter}
                   onPressFilter={handlePressFilter}
                 />

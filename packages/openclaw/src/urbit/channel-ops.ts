@@ -57,9 +57,14 @@ export async function pokeUrbitChannel(
   try {
     if (!response.ok && response.status !== 204) {
       const errorText = await response.text().catch(() => '');
-      throw new Error(
-        `Poke failed: ${response.status}${errorText ? ` - ${errorText}` : ''}`
-      );
+      // Keep the status on the error: a caller retrying a poke has to be
+      // able to tell a 401 (refresh the session) from a transient failure.
+      throw new UrbitHttpError({
+        operation: 'Poke',
+        status: response.status,
+        bodyText: errorText || undefined,
+        cookie: deps.cookie,
+      });
     }
     return pokeId;
   } finally {
@@ -97,9 +102,10 @@ export async function scryUrbitPath(
 
   try {
     if (!response.ok) {
-      throw new Error(
-        `Scry failed: ${response.status} for path ${params.path}`
-      );
+      throw new UrbitHttpError({
+        operation: `scry ${params.path}`,
+        status: response.status,
+      });
     }
     return await response.json();
   } finally {

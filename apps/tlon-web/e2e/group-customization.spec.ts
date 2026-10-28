@@ -17,19 +17,19 @@ test('should customize group name, icon, and description', async ({
   // Navigate back to Home and verify group creation
   await helpers.navigateBack(page);
   if (await page.getByText('Home').isVisible()) {
-    await expect(page.getByText('Untitled group')).toBeVisible();
-    await page.getByText('Untitled group').click();
-    await expect(page.getByText('Untitled group').first()).toBeVisible();
+    await expect(page.getByText('Untitled workspace')).toBeVisible();
+    await page.getByText('Untitled workspace').click();
+    await expect(page.getByText('Untitled workspace').first()).toBeVisible();
   }
 
   // Verify we're in the blank channel state (Welcome to your group! message)
-  await expect(page.getByText('Welcome to your group!')).toBeVisible();
+  await expect(page.getByText('Welcome to your workspace!')).toBeVisible();
 
   // Open the Customize group screen from the blank channel
   await helpers.openGroupCustomization(page);
 
   // Verify we're on the group customization screen
-  await expect(page.getByText('Edit group info')).toBeVisible();
+  await expect(page.getByText('Edit workspace info')).toBeVisible();
 
   // Change the group name
   await helpers.changeGroupName(page, 'My Group');
@@ -54,14 +54,13 @@ test('should customize group name, icon, and description', async ({
     // Test image upload functionality
     await helpers.changeGroupIcon(page); // This will test the upload interface
 
-    // Wait deterministically for the upload to complete: the ImageInput
-    // preview src switches from a local/file URI to the S3 remoteUri once
+    // Wait deterministically for the upload to complete: the icon's src
+    // switches from a local/file URI to the S3 remoteUri once
     // attachment.uploadState.status === 'success'. The testID lives on the
-    // preview frame (Tamagui Image does not surface testID as a DOM
-    // attribute), so poll the inner img — same pattern as the GroupIcon
-    // assertion below.
+    // icon's button, so poll the image inside it (the camera badge beside
+    // it is not an img).
     await expect(
-      page.getByTestId('ImageInputPreview').getByRole('img').last()
+      page.getByTestId('ImageInputPreview').locator('img').first()
     ).toHaveAttribute('src', /^https?:\/\//, { timeout: 45000 });
 
     // press the save button

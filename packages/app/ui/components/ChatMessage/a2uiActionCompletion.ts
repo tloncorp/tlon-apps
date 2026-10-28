@@ -42,3 +42,14 @@ export function getA2UIActionCompletions(
 
   return completions;
 }
+
+/**
+ * A recurring-task plan is a snapshot of the conversation when it was posted.
+ * Any later ordinary owner message may change that intent, so only a newly
+ * posted replacement plan may remain confirmable.
+ */
+export function isPendingProvisionSuperseded(
+  completion: A2UIActionCompletion | undefined
+) {
+  return Boolean(completion?.sentMessageText?.trim());
+}

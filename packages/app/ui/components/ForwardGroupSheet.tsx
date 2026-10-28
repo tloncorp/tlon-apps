@@ -9,8 +9,13 @@ import {
   useState,
 } from 'react';
 
+import { useGroupTitle } from '../utils';
 import { ForwardToChannelSheet } from './ForwardToChannelSheet';
-import { useForwardToChannelSheet } from './useForwardToChannelSheet';
+import { ListItem } from './ListItem';
+import {
+  useForwardToChannelSheet,
+  useLastForwarded,
+} from './useForwardToChannelSheet';
 
 const ForwardGroupSheetContext = createContext<{
   open: (group: db.Group) => void;
@@ -44,22 +49,37 @@ export const ForwardGroupSheetProvider = ({ children }: PropsWithChildren) => {
     },
     [group]
   );
-  const { handleChannelSelected, renderFooter } = useForwardToChannelSheet({
+  const {
+    handleChannelSelected,
+    renderFooter,
+    onNativeDismissed,
+    keepMounted,
+    presentationKey,
+  } = useForwardToChannelSheet({
     isOpen,
     onClose: () => handleOpenChange(false),
     onForwardToChannel: handleForwardToChannel,
-    successMessage: (channelTitle) => `Forwarded group to ${channelTitle}`,
-    failureMessage: 'Failed to forward group',
+    successMessage: (channelTitle) => `Forwarded workspace to ${channelTitle}`,
+    failureMessage: 'Failed to forward workspace',
   });
 
+  const shownGroup = useLastForwarded(group);
+  const groupTitle = useGroupTitle(shownGroup);
   const contextValue = useMemo(() => ({ open: handleOpen }), [handleOpen]);
   return (
     <ForwardGroupSheetContext.Provider value={contextValue}>
       {children}
       <ForwardToChannelSheet
+        key={presentationKey}
         open={isOpen}
         onOpenChange={handleOpenChange}
-        title="Forward group"
+        onNativeDismissed={onNativeDismissed}
+        keepMounted={keepMounted}
+        title="Forward workspace"
+        subtitle={groupTitle ?? undefined}
+        icon={
+          shownGroup ? <ListItem.GroupIcon model={shownGroup} /> : undefined
+        }
         onChannelSelected={handleChannelSelected}
         footerComponent={renderFooter}
       />

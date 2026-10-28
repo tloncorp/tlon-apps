@@ -1,10 +1,7 @@
+import { createDevLogger } from '@tloncorp/shared';
 import { Attachment } from '@tloncorp/shared/domain';
-import {
-  ActionSheetContext,
-  VariantsFromValues,
-  useIsWindowNarrow,
-  useToast,
-} from '@tloncorp/ui';
+import * as ImagePicker from 'expo-image-picker';
+import { VariantsFromValues, useIsWindowNarrow, useToast } from '@tloncorp/ui';
 import { Button } from '@tloncorp/ui';
 import { Icon, IconType } from '@tloncorp/ui';
 import { Image } from '@tloncorp/ui';
@@ -15,13 +12,18 @@ import {
   ComponentProps,
   ReactElement,
   ReactNode,
+  Ref,
   useCallback,
   useContext,
   useEffect,
   useState,
 } from 'react';
 import React from 'react';
-import { Platform, TextInput as RNTextInput } from 'react-native';
+import {
+  TextInput as RNTextInput,
+  type TextInputInstance,
+  type TextInputProps,
+} from 'react-native';
 import {
   GetProps,
   ScrollView,
@@ -29,17 +31,20 @@ import {
   View,
   XStack,
   YStack,
-  getTokenValue,
   styled,
   withStaticProperties,
 } from 'tamagui';
 
 import {
+  imagePickerUploadOptions,
+  normalizeUploadIntents,
+  pickedAssetToUploadIntent,
+} from '../../../utils/filepicker';
+import {
   useAttachmentContext,
   useMappedImageAttachments,
 } from '../../contexts/attachment';
 import AttachmentSheet from '../AttachmentSheet';
-import { BottomSheetTextInput } from '../BottomSheetWrapper';
 import { ListItem } from '../ListItem';
 import { useBoundHandler } from '../listItems/listItemUtils';
 import { FieldContext } from './Field';
@@ -47,6 +52,8 @@ import {
   Accent,
   getBorderVariantStyle as getBackgroundTypeVariantStyle,
 } from './formUtils';
+
+const logger = createDevLogger('ImageInput', true);
 
 // lineHeight on single-line TextInput is buggy on iOS; restore it for
 // multiline inputs below where line spacing matters.
@@ -93,15 +100,15 @@ const textInputAcceptProps = {
   } as const,
 };
 
-export const RawTextInput = styled(
-  RNTextInput,
-  textInputStyleConfig,
-  textInputAcceptProps
-);
+// React Native declares the input's instance as an unexported class, so the
+// exported input below could not name it in emitted declarations. This
+// interface is the same type under a name we export.
+export interface TextInputRef extends TextInputInstance {}
 
-// Styled version of BottomSheetTextInput for use in ActionSheets on mobile
-export const RawBottomSheetTextInput = styled(
-  BottomSheetTextInput,
+const RawTextInput = styled(
+  RNTextInput as (
+    props: TextInputProps & { ref?: Ref<TextInputRef> }
+  ) => ReactNode,
   textInputStyleConfig,
   textInputAcceptProps
 );
@@ -139,8 +146,6 @@ export const InputFrame = styled(XStack, {
   }>,
 });
 
-export type TextInputRef = RNTextInput;
-
 const TextInputComponent = RawTextInput.styleable<{
   icon?: IconType;
   accent?: Accent;
@@ -153,20 +158,11 @@ const TextInputComponent = RawTextInput.styleable<{
     ref
   ) => {
     const fieldContext = useContext(FieldContext);
-    const actionSheetContext = useContext(ActionSheetContext);
-
-    // Use BottomSheetTextInput when inside an ActionSheet on mobile platforms
-    const shouldUseBottomSheetInput =
-      actionSheetContext?.isInsideSheet && Platform.OS !== 'web';
-
     const isMultiline =
       !!props.multiline ||
       (props.numberOfLines != null && props.numberOfLines !== 1);
 
-    // Shared props for both input components
-    // Type cast needed because Tamagui's styled() wrapper adds broader types (like boxShadow: array)
-    // that don't exactly match TextInput's narrower prop types (boxShadow: string only)
-    const sharedInputProps = {
+    const inputProps = {
       flex: 1,
       ...textInputDefaultProps,
       ...(isMultiline
@@ -186,15 +182,7 @@ const TextInputComponent = RawTextInput.styleable<{
         {...frameStyle}
       >
         {icon ? <Icon type={icon} size="$m" /> : null}
-        {shouldUseBottomSheetInput ? (
-          <RawBottomSheetTextInput
-            // TODO: See if this can be fixed properly.
-            ref={ref as any}
-            {...(sharedInputProps as GetProps<typeof RawBottomSheetTextInput>)}
-          />
-        ) : (
-          <RawTextInput ref={ref} {...sharedInputProps} />
-        )}
+        <RawTextInput ref={ref} {...inputProps} />
         {rightControls}
       </InputFrame>
     );
@@ -234,22 +222,23 @@ const InnerButton = ({
   );
 };
 
-export const ImageInput = XStack.styleable<{
-  buttonLabel?: string;
+/**
+ * The state behind an image field: the picked image, its upload, and the
+ * sheet that picks or clears it. The image is a local file while it uploads
+ * and its remote URL once it has; `onChange` hears each.
+ */
+export function useImageInput({
+  value,
+  onChange,
+}: {
   value?: string;
-  placeholderUri?: string;
   onChange?: (value?: string) => void;
-  showClear?: boolean;
-}>(function ImageInput(
-  { buttonLabel, value, showClear = true, placeholderUri, onChange },
-  ref
-) {
+}) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [assetUri, setAssetUri] = useState<string | undefined>(
     value ?? undefined
   );
-  const { canUpload } = useAttachmentContext();
-  const isWindowNarrow = useIsWindowNarrow();
+  const { canUpload, attachAssets } = useAttachmentContext();
   const showToast = useToast();
 
   useEffect(() => {
@@ -280,6 +269,65 @@ export const ImageInput = XStack.styleable<{
     setSheetOpen((open) => !open);
   }, [canUpload, showToast]);
 
+  // Straight to the photo library or camera, cropping to a square, for a
+  // caller with its own menu in place of the sheet.
+  const pick = useCallback(
+    async (source: 'library' | 'camera') => {
+      if (!canUpload) {
+        showToast({
+          message: 'Please configure storage settings to upload images',
+          duration: 3000,
+        });
+        return;
+      }
+      try {
+        const permission =
+          source === 'camera'
+            ? await ImagePicker.requestCameraPermissionsAsync()
+            : await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permission.granted) {
+          return;
+        }
+        const options: ImagePicker.ImagePickerOptions = {
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [1, 1],
+          ...imagePickerUploadOptions,
+        };
+        const result =
+          source === 'camera'
+            ? await ImagePicker.launchCameraAsync(options)
+            : await ImagePicker.launchImageLibraryAsync(options);
+        if (result.canceled) {
+          return;
+        }
+        const { uploadIntents, errorMessage } = await normalizeUploadIntents([
+          pickedAssetToUploadIntent(result.assets[0]),
+        ]);
+        if (errorMessage) {
+          showToast({ message: errorMessage, duration: 4000 });
+        }
+        if (uploadIntents.length > 0) {
+          attachAssets(uploadIntents);
+          handleImageSelected(uploadIntents);
+        }
+      } catch (e) {
+        logger.trackError(
+          source === 'camera' ? 'Error taking picture' : 'Error picking image',
+          e
+        );
+        showToast({
+          message:
+            source === 'camera'
+              ? 'Couldn’t open the camera'
+              : 'Couldn’t open your photos',
+          duration: 3000,
+        });
+      }
+    },
+    [attachAssets, canUpload, handleImageSelected, showToast]
+  );
+
   const { attachment } = useMappedImageAttachments(
     assetUri ? { attachment: assetUri } : {}
   );
@@ -303,6 +351,43 @@ export const ImageInput = XStack.styleable<{
   const handleImageRemoved = useCallback(() => {
     setAssetUri(undefined);
   }, []);
+
+  return {
+    assetUri,
+    canUpload,
+    isUploading: attachment?.uploadState?.status === 'uploading',
+    toggleSheet: handleSheetToggled,
+    pickFromLibrary: () => pick('library'),
+    takePhoto: () => pick('camera'),
+    clear: handleImageRemoved,
+    sheetProps: {
+      isOpen: sheetOpen,
+      onOpenChange: setSheetOpen,
+      onAttach: handleImageSelected,
+      onClearAttachments: handleImageRemoved,
+      mediaType: 'image' as const,
+    },
+  };
+}
+
+export const ImageInput = XStack.styleable<{
+  buttonLabel?: string;
+  value?: string;
+  placeholderUri?: string;
+  onChange?: (value?: string) => void;
+  showClear?: boolean;
+}>(function ImageInput(
+  { buttonLabel, value, showClear = true, placeholderUri, onChange },
+  ref
+) {
+  const {
+    assetUri,
+    canUpload,
+    isUploading,
+    toggleSheet: handleSheetToggled,
+    sheetProps,
+  } = useImageInput({ value, onChange });
+  const isWindowNarrow = useIsWindowNarrow();
 
   return (
     <>
@@ -337,21 +422,14 @@ export const ImageInput = XStack.styleable<{
               fallback={null}
             />
           ) : null}
-          {attachment?.uploadState?.status === 'uploading' ? (
+          {isUploading ? (
             <ImageInputPreviewLoadingFrame>
               <Spinner size="small" />
             </ImageInputPreviewLoadingFrame>
           ) : null}
         </ImageInputPreviewFrame>
       </XStack>
-      <AttachmentSheet
-        isOpen={sheetOpen}
-        onOpenChange={setSheetOpen}
-        onAttach={handleImageSelected}
-        showClearOption={showClear && !!value}
-        onClearAttachments={handleImageRemoved}
-        mediaType="image"
-      />
+      <AttachmentSheet {...sheetProps} showClearOption={showClear && !!value} />
     </>
   );
 });
@@ -607,6 +685,7 @@ export const RadioInput = <T,>({
   options,
   onChange,
   value,
+  flush,
   ...props
 }: {
   options: {
@@ -617,6 +696,8 @@ export const RadioInput = <T,>({
   }[];
   value?: T;
   onChange?: (value: T) => void;
+  // Drops the row inset so the controls line up with surrounding text.
+  flush?: boolean;
 } & Omit<ComponentProps<typeof YStack>, 'onChange'>) => {
   return (
     <YStack {...props}>
@@ -626,6 +707,7 @@ export const RadioInput = <T,>({
           option={option}
           onPress={onChange}
           checked={value === option.value}
+          flush={flush}
           testID={`RadioInputRow-${option.title}`}
         />
       ))}
@@ -648,6 +730,11 @@ const RadioInputRowFrame = styled(XStack, {
         },
       },
     },
+    flush: {
+      true: {
+        paddingHorizontal: 0,
+      },
+    },
   },
   defaultVariants: {
     disabled: false,
@@ -661,6 +748,7 @@ export function RadioInputRow<T>({
   option,
   onPress,
   checked,
+  flush,
 }: {
   option: RadioInputOption<T>;
   onPress?: (value: T) => void;
@@ -671,6 +759,7 @@ export function RadioInputRow<T>({
     <RadioInputRowFrame
       onPress={option.disabled ? undefined : handlePress}
       disabled={!!option.disabled}
+      flush={flush}
     >
       <RadioControl
         key={option.title}
@@ -838,7 +927,8 @@ export const CheckboxControl = (
   props: Omit<ComponentProps<typeof Control>, 'type'>
 ) => <Control {...props} type="checkbox" />;
 
-const presets = [
+/** The colors a profile's default avatar can take, by name. */
+export const avatarColorPresets = [
   ['red', '$red'],
   ['orange', '$orange'],
   ['yellow', '$yellow'],
@@ -849,79 +939,3 @@ const presets = [
   ['gray', '$gray500'],
   ['light gray', '$gray100'],
 ] as const;
-
-const ColorSwatchFrame = styled(Pressable, {
-  width: 56,
-  height: 56,
-  borderRadius: '$l',
-  alignItems: 'center',
-  justifyContent: 'center',
-  borderWidth: '$2xs',
-  borderColor: 'transparent',
-  variants: {
-    selected: {
-      true: {
-        borderColor: '$primaryText',
-      },
-    },
-  } as const,
-});
-
-const ColorSwatchInner = styled(View, {
-  width: '$4xl',
-  height: '$4xl',
-  borderRadius: '$m',
-  borderWidth: 1,
-  borderColor: '$shadow',
-});
-
-export const ColorInput = ({
-  value,
-  onChange,
-}: {
-  value?: string | null;
-  onChange?: (value: string | null) => void;
-}) => {
-  const handleSelect = useCallback(
-    (color: string) => {
-      if (value === color) {
-        onChange?.(null);
-      } else {
-        onChange?.(color);
-      }
-    },
-    [onChange, value]
-  );
-
-  const handleClear = useCallback(() => {
-    onChange?.(null);
-  }, [onChange]);
-
-  return (
-    <ScrollView
-      contentContainerStyle={{
-        alignItems: 'center',
-      }}
-      horizontal
-    >
-      {presets.map(([name, color]) => {
-        const colorValue = getTokenValue(color, 'color');
-        const selected = value === colorValue;
-        return (
-          <ColorSwatchFrame
-            key={colorValue}
-            testID={`ProfileColorSwatch-${colorValue.slice(1)}`}
-            accessibilityLabel={`Profile avatar color ${name}${selected ? ', selected' : ''}`}
-            selected={selected}
-            onPress={() => handleSelect(colorValue)}
-          >
-            <ColorSwatchInner backgroundColor={colorValue} />
-          </ColorSwatchFrame>
-        );
-      })}
-      {value && (
-        <Button size="small" iconOnly icon={'Close'} onPress={handleClear} />
-      )}
-    </ScrollView>
-  );
-};

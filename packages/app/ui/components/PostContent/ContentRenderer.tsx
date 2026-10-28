@@ -4,6 +4,8 @@ import { ComponentProps, useMemo } from 'react';
 import React from 'react';
 import { YStack, styled } from 'tamagui';
 
+import { browserSessionLinkCard } from '../../../features/browser/browserSessionLinkCard';
+
 import { useOptionalChannelContext } from '../../contexts/channel';
 import {
   BlockRenderer,
@@ -76,9 +78,11 @@ function ContentRenderer({
   getConsumedA2UISelection,
   isNotice,
   searchQuery,
+  renderBrowserSessionCards = false,
   ...rest
 }: ContentRendererProps & {
   content: PostContent;
+  renderBrowserSessionCards?: boolean;
 }) {
   const channel = useOptionalChannelContext();
 
@@ -104,7 +108,16 @@ function ContentRenderer({
     >
       <ContentRendererFrame {...rest}>
         {content.map((block, k) => {
-          return <BlockRenderer key={k} block={block} />;
+          return (
+            <BlockRenderer
+              key={k}
+              block={
+                renderBrowserSessionCards
+                  ? browserSessionLinkCard(block, `browser-link-${k}`)
+                  : block
+              }
+            />
+          );
         })}
       </ContentRendererFrame>
     </ContentContext.Provider>
@@ -115,10 +128,12 @@ export function createContentRenderer({
   blockRenderers,
   blockSettings,
   inlineRenderers,
+  renderBrowserSessionCards = false,
 }: {
   blockRenderers?: Partial<BlockRendererConfig>;
   blockSettings?: Partial<DefaultRendererProps>;
   inlineRenderers?: Partial<InlineRendererConfig>;
+  renderBrowserSessionCards?: boolean;
 }) {
   return React.memo(function ContentRendererWrapper({
     ...props
@@ -131,7 +146,10 @@ export function createContentRenderer({
         settings={blockSettings}
       >
         <InlineRendererProvider value={inlineRenderers}>
-          <ContentRenderer {...props} />
+          <ContentRenderer
+            {...props}
+            renderBrowserSessionCards={renderBrowserSessionCards}
+          />
         </InlineRendererProvider>
       </BlockRendererProvider>
     );

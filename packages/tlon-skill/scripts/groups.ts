@@ -6,11 +6,12 @@
  * Usage:
  *   npx ts-node scripts/groups.ts list
  *   npx ts-node scripts/groups.ts create "Group Name" [--description "..."]
- *   npx ts-node scripts/groups.ts create-owned "Group Name" --owner <ship> [--description "..."]
+ *   npx ts-node scripts/groups.ts create-owned "Group Name" --admin <ship> [--description "..."]
  *   npx ts-node scripts/groups.ts invite <group-id> <ship> [<ship2> ...]
  *   npx ts-node scripts/groups.ts info <group-id>
  *   npx ts-node scripts/groups.ts leave <group-id>
  *   npx ts-node scripts/groups.ts join <group-id>
+ *   npx ts-node scripts/groups.ts join --invite <invite-url|token> [--self]
  *   npx ts-node scripts/groups.ts request-invite <group-id>
  *   npx ts-node scripts/groups.ts accept-invite <group-id>
  *   npx ts-node scripts/groups.ts reject-invite <group-id>
@@ -33,6 +34,11 @@
  *   npx ts-node scripts/groups.ts promote <group-id> <ship> [<ship2> ...]
  *   npx ts-node scripts/groups.ts demote <group-id> <ship> [<ship2> ...]
  *   npx ts-node scripts/groups.ts add-channel <group-id> "Channel Name" [--kind chat|heap|notes] [--description "..."]
+ *   npx ts-node scripts/groups.ts add-section <group-id> "<title>"
+ *   npx ts-node scripts/groups.ts rename-section <group-id> <section> "<title>"
+ *   npx ts-node scripts/groups.ts delete-section <group-id> <section>
+ *   npx ts-node scripts/groups.ts move-channel <group-id> <channel-nest> --section <section> [--index N]
+ *   npx ts-node scripts/groups.ts order-sections <group-id> <section> [<section> ...]
  */
 import {
   acceptGroupJoin,
@@ -68,24 +74,36 @@ import {
   updateGroupRole,
 } from '@tloncorp/api';
 import type { Group } from '@tloncorp/api';
+import type { GroupNavSection } from '@tloncorp/api/types/groups';
 
 import { ensureClient, getCurrentShip, normalizeShip } from './api-client';
 import {
   assertKnownChannelKind,
+  canonicalizeNest,
   getOption,
   hasOptionValue,
   isHelpArg,
   isSubcommandHelpRequest,
   looksLikePositionalChannelKind,
   printErrorAndExit,
+  channelCreateUsage,
   printHelpAndExit,
   printUsageAndExit,
+  refShareHint,
+  refuseDiaryNest,
   refuseNotesChannelDescription,
   refuseRemovedChannelKind,
 } from './cli-utils';
 import {
+  addSection,
+  deleteSection,
+  isBlankTitle,
+  moveChannel,
+  orderSections,
+  renameSection,
+} from './commands/group-sections';
+import {
   type RawGroupForAdminVerification,
-  actingShipCanAdminister,
   getShipRecordValue,
   seatHasAdminRole,
   seatHasRole,
@@ -93,7 +111,21 @@ import {
   shipIsSeated,
 } from './commands/groups-verification';
 import { INVITE_LINK_HELP } from './commands/invite-link';
+import {
+  JOIN_HELP,
+  isInviteJoin,
+  plainJoinGroupId,
+} from './commands/join-invite';
+import {
+  VERIFY_ATTEMPTS,
+  VERIFY_DELAY_MS,
+  assertActingShipCanAdminister,
+  getGroupHost,
+  getRawGroupForAdminVerification,
+} from './group-admin';
+import { createGroupSectionsDeps } from './group-sections-runtime';
 import { runInviteLinkCommand } from './invite-link-runtime';
+import { runJoinInviteCommand } from './join-invite-runtime';
 import { createNotesChannelInGroup } from './notes-channel';
 import { createNotesChannelDeps } from './notes-channel-runtime';
 import { sleep } from './runtime-deps';
@@ -113,17 +145,45 @@ function generateGroupSlug(): string {
   return slug;
 }
 
+const CREATE_OWNED_VALUE_OPTIONS = new Set([
+  '--admin',
+  '--owner',
+  '--description',
+]);
+
+/**
+ * create-owned's admin ship. Its options follow the title and each takes the
+ * next token as its value, so a description of "--admin" is not an option;
+ * `--admin` wins over its legacy alias `--owner`. When the options read that
+ * way name no admin, the first `--owner` value anywhere still counts, as it
+ * did before `--admin` existed. The tlon tool adapters find it the same way.
+ */
+function getCreateOwnedAdmin(args: string[]): string | undefined {
+  let admin: string | undefined;
+  let owner: string | undefined;
+  for (let i = 2; i < args.length; i += 1) {
+    if (!CREATE_OWNED_VALUE_OPTIONS.has(args[i])) continue;
+    if (args[i] === '--admin') admin ??= args[i + 1];
+    if (args[i] === '--owner') owner ??= args[i + 1];
+    i += 1;
+  }
+  return admin ?? owner ?? getOption(args, 'owner', 2);
+}
+
 const GROUPS_HELP = `Usage: tlon groups <command>
+
+The Tlon Messenger app calls groups "workspaces".
 
 Commands:
   list
   create "Group Name" [--description "..."]
-  create-owned "Group Name" --owner <ship> [--description "..."]
+  create-owned "Group Name" --admin <ship> [--description "..."]
   invite <group-id> <ship> [<ship2> ...]
   info <group-id>
   invite-link <group-id> [--self]
   leave <group-id>
   join <group-id>
+  join --invite <invite-url|token> [--self]
   request-invite <group-id>
   accept-invite <group-id>
   reject-invite <group-id>
@@ -145,21 +205,29 @@ Commands:
   reject-join <group-id> <ship> [<ship2> ...]
   promote <group-id> <ship> [<ship2> ...]
   demote <group-id> <ship> [<ship2> ...]
-  add-channel <group-id> "Channel Name" [--kind chat|heap|notes] [--description "..."]
+  ${channelCreateUsage('add-channel')}
+  add-section <group-id> "<title>"
+  rename-section <group-id> <section> "<title>"
+  delete-section <group-id> <section>
+  move-channel <group-id> <channel-nest> --section <section> [--index N]
+  order-sections <group-id> <section> [<section> ...]
+
+A <section> is a section id or title; \`groups info\` lists them.
 
 Examples:
   tlon groups info ~host/group-slug
-  tlon groups add-channel ~host/group-slug "Projects" --kind chat`;
+  tlon groups add-channel ~host/group-slug "Projects" --kind chat
+  tlon groups move-channel ~host/group-slug chat/~host/general --section Archive`;
 
 const GROUPS_COMMAND_HELP: Record<string, string> = {
   list: `Usage: tlon groups list`,
   create: `Usage: tlon groups create "Group Name" [--description "..."]\nExample: tlon groups create "Projects" --description "Shared work"`,
-  'create-owned': `Usage: tlon groups create-owned "Group Name" --owner <ship> [--description "..."]\nExample: tlon groups create-owned "Projects" --owner ~nec --description "Shared work"`,
+  'create-owned': `Usage: tlon groups create-owned "Group Name" --admin <ship> [--description "..."]\nCreates a group hosted by the current ship and makes --admin its admin. --owner is a legacy alias for --admin.\nExample: tlon groups create-owned "Projects" --admin ~nec --description "Shared work"`,
   invite: `Usage: tlon groups invite <group-id> <ship> [<ship2> ...]\nExample: tlon groups invite ~host/group-slug ~nec ~bud`,
   info: `Usage: tlon groups info <group-id>\nExample: tlon groups info ~host/group-slug`,
   'invite-link': INVITE_LINK_HELP,
   leave: `Usage: tlon groups leave <group-id>\nExample: tlon groups leave ~host/group-slug`,
-  join: `Usage: tlon groups join <group-id>\nJoins public or invited groups. For private groups without an invite, requests an invite.\nExample: tlon groups join ~host/group-slug`,
+  join: JOIN_HELP,
   'request-invite': `Usage: tlon groups request-invite <group-id>\nExample: tlon groups request-invite ~host/group-slug`,
   'accept-invite': `Usage: tlon groups accept-invite <group-id>\nExample: tlon groups accept-invite ~host/group-slug`,
   'reject-invite': `Usage: tlon groups reject-invite <group-id>\nExample: tlon groups reject-invite ~host/group-slug`,
@@ -181,7 +249,12 @@ const GROUPS_COMMAND_HELP: Record<string, string> = {
   'reject-join': `Usage: tlon groups reject-join <group-id> <ship> [<ship2> ...]\nExample: tlon groups reject-join ~host/group-slug ~nec`,
   promote: `Usage: tlon groups promote <group-id> <ship> [<ship2> ...]\nExample: tlon groups promote ~host/group-slug ~nec`,
   demote: `Usage: tlon groups demote <group-id> <ship> [<ship2> ...]\nExample: tlon groups demote ~host/group-slug ~nec`,
-  'add-channel': `Usage: tlon groups add-channel <group-id> "Channel Name" [--kind chat|heap|notes] [--description "..."]\nExample: tlon groups add-channel ~host/group-slug "Projects" --kind chat`,
+  'add-channel': `Usage: ${channelCreateUsage('tlon groups add-channel')}\nExample: tlon groups add-channel ~host/group-slug "Projects" --kind chat`,
+  'add-section': `Usage: tlon groups add-section <group-id> "<title>"\nAdds an empty channel section at the bottom of the group. Admin only.\nExample: tlon groups add-section ~host/group-slug "Archive"`,
+  'rename-section': `Usage: tlon groups rename-section <group-id> <section> "<title>"\n<section> is a section id or title. Admin only.\nExample: tlon groups rename-section ~host/group-slug Archive "Old stuff"`,
+  'delete-section': `Usage: tlon groups delete-section <group-id> <section>\nMoves the section's channels to the top of the default section, then deletes it. The default section can't be deleted. Each step is checked before the next, but this is not atomic: on a partial failure, run the command it prints. Admin only.\nExample: tlon groups delete-section ~host/group-slug Archive`,
+  'move-channel': `Usage: tlon groups move-channel <group-id> <channel-nest> --section <section> [--index N]\n--index is the channel's final 0-based position in the section; without it, the channel goes to the end (or stays put if it is already there). Admin only.\nExample: tlon groups move-channel ~host/group-slug chat/~host/general --section Archive --index 0`,
+  'order-sections': `Usage: tlon groups order-sections <group-id> <section> [<section> ...]\nList every section exactly once, default included, in the new order. Admin only.\nExample: tlon groups order-sections ~host/group-slug Archive default`,
 };
 
 function getGroupsHelp(command?: string) {
@@ -206,8 +279,8 @@ function validateGroupsArgs(args: string[]): void {
     }
     case 'create-owned': {
       const title = args[1];
-      const owner = getOption(args, 'owner', 2);
-      if (title === undefined || !owner || owner.startsWith('--')) {
+      const admin = getCreateOwnedAdmin(args);
+      if (title === undefined || !admin || admin.startsWith('--')) {
         printUsageAndExit(GROUPS_COMMAND_HELP['create-owned']);
       }
       return;
@@ -294,6 +367,52 @@ function validateGroupsArgs(args: string[]): void {
       }
       return;
     }
+    case 'add-section':
+    case 'rename-section': {
+      const title = command === 'add-section' ? args[2] : args[3];
+      if (!args[1] || (command === 'rename-section' && !args[2])) {
+        printUsageAndExit(GROUPS_COMMAND_HELP[command]);
+      }
+      if (title === undefined || isBlankTitle(title)) {
+        printUsageAndExit(
+          `Error: a non-blank section title is required\n${GROUPS_COMMAND_HELP[command]}`
+        );
+      }
+      return;
+    }
+    case 'delete-section': {
+      if (!args[1] || !args[2]) printUsageAndExit(GROUPS_COMMAND_HELP[command]);
+      return;
+    }
+    case 'order-sections': {
+      if (!args[1] || args.slice(2).length === 0) {
+        printUsageAndExit(GROUPS_COMMAND_HELP[command]);
+      }
+      return;
+    }
+    case 'move-channel': {
+      const help = GROUPS_COMMAND_HELP['move-channel'];
+      const section = getOption(args, 'section', 3);
+      if (!args[1] || !args[2] || args[2].startsWith('--')) {
+        printUsageAndExit(help);
+      }
+      if (!section || section.startsWith('--')) printUsageAndExit(help);
+      if (args.includes('--index', 3)) {
+        const index = getOption(args, 'index', 3);
+        if (index === undefined || !/^\d+$/.test(index)) {
+          printUsageAndExit(
+            `Error: --index requires a non-negative integer\n${help}`
+          );
+        }
+      }
+      refuseDiaryNest(args[2]);
+      try {
+        canonicalizeNest(args[2]);
+      } catch (error) {
+        printErrorAndExit(error);
+      }
+      return;
+    }
   }
 }
 
@@ -355,45 +474,31 @@ type CreateGroupWithChannelOptions = {
   memberIds?: string[];
 };
 
-type OwnerAdminVerification =
+type SeatAdminVerification =
   | { status: 'verified' }
   | { status: 'missing'; reason: string };
-
-const VERIFY_ATTEMPTS = 5;
-const VERIFY_DELAY_MS = 500;
 
 function groupHasRole(group: Group, roleId: string): boolean {
   return (group.roles || []).some((role) => role.id === roleId);
 }
 
-async function getRawGroupForAdminVerification(
-  groupId: string
-): Promise<RawGroupForAdminVerification> {
-  return scry<RawGroupForAdminVerification>({
-    app: 'groups',
-    path: `/v2/ui/groups/${groupId}`,
-  });
-}
-
-function hasOwnerSeat(
+function hasSeat(
   rawGroup: RawGroupForAdminVerification,
-  ownerShip: string
+  ship: string
 ): boolean {
-  return (
-    getShipRecordValue(rawGroup.seats, ownerShip, normalizeShip) !== undefined
-  );
+  return getShipRecordValue(rawGroup.seats, ship, normalizeShip) !== undefined;
 }
 
-async function getRawGroupWithOwnerSeat(
+async function getRawGroupWithSeat(
   groupId: string,
-  ownerShip: string
+  ship: string
 ): Promise<RawGroupForAdminVerification> {
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= VERIFY_ATTEMPTS; attempt += 1) {
     try {
       const rawGroup = await getRawGroupForAdminVerification(groupId);
-      if (hasOwnerSeat(rawGroup, ownerShip)) {
+      if (hasSeat(rawGroup, ship)) {
         return rawGroup;
       }
     } catch (err) {
@@ -407,14 +512,14 @@ async function getRawGroupWithOwnerSeat(
 
   const suffix = lastError ? `: ${lastError}` : '';
   throw new Error(
-    `Owner ${ownerShip} was not created as an invited member seat in ${groupId}${suffix}`
+    `Admin ${ship} was not created as an invited member seat in ${groupId}${suffix}`
   );
 }
 
-async function getRawOwnerAdminVerification(
+async function getRawAdminVerification(
   groupId: string,
-  ownerShip: string
-): Promise<OwnerAdminVerification> {
+  ship: string
+): Promise<SeatAdminVerification> {
   const rawGroup = await getRawGroupForAdminVerification(groupId);
 
   if (!rawGroup.admins?.includes(ADMIN_ROLE_ID)) {
@@ -424,79 +529,71 @@ async function getRawOwnerAdminVerification(
     };
   }
 
-  const ownerSeat = getShipRecordValue(
-    rawGroup.seats,
-    ownerShip,
-    normalizeShip
-  );
-  if (ownerSeat) {
-    if (ownerSeat.roles?.includes(ADMIN_ROLE_ID)) {
+  const seat = getShipRecordValue(rawGroup.seats, ship, normalizeShip);
+  if (seat) {
+    if (seat.roles?.includes(ADMIN_ROLE_ID)) {
       return { status: 'verified' };
     }
 
     return {
       status: 'missing',
-      reason: `Owner ${ownerShip} is a member of ${groupId}, but does not have the "${ADMIN_ROLE_ID}" role.`,
+      reason: `Admin ${ship} is a member of ${groupId}, but does not have the "${ADMIN_ROLE_ID}" role.`,
     };
   }
 
   const pendingRoles = getShipRecordValue(
     rawGroup.admissions?.pending,
-    ownerShip,
+    ship,
     normalizeShip
   );
   if (pendingRoles) {
     if (pendingRoles.includes(ADMIN_ROLE_ID)) {
       return {
         status: 'missing',
-        reason: `Owner ${ownerShip} has a pending invite for ${groupId} with the "${ADMIN_ROLE_ID}" role, but is not a group member seat yet.`,
+        reason: `Admin ${ship} has a pending invite for ${groupId} with the "${ADMIN_ROLE_ID}" role, but is not a group member seat yet.`,
       };
     }
 
     return {
       status: 'missing',
-      reason: `Owner ${ownerShip} has a pending invite for ${groupId}, but not with the "${ADMIN_ROLE_ID}" role.`,
+      reason: `Admin ${ship} has a pending invite for ${groupId}, but not with the "${ADMIN_ROLE_ID}" role.`,
     };
   }
 
-  const ownerInvite = getShipRecordValue(
+  const invite = getShipRecordValue(
     rawGroup.admissions?.invited,
-    ownerShip,
+    ship,
     normalizeShip
   );
-  if (ownerInvite) {
+  if (invite) {
     return {
       status: 'missing',
-      reason: `Owner ${ownerShip} is invited to ${groupId}, but no pending "${ADMIN_ROLE_ID}" role assignment was found.`,
+      reason: `Admin ${ship} is invited to ${groupId}, but no pending "${ADMIN_ROLE_ID}" role assignment was found.`,
     };
   }
 
   return {
     status: 'missing',
-    reason: `Owner ${ownerShip} was not found in members or pending invites for ${groupId}.`,
+    reason: `Admin ${ship} was not found in members or pending invites for ${groupId}.`,
   };
 }
 
-async function assignOwnerAdminRole(groupId: string, ownerShip: string) {
-  const rawGroup = await getRawGroupWithOwnerSeat(groupId, ownerShip);
-  const ownerSeat = getShipRecordValue(
-    rawGroup.seats,
-    ownerShip,
-    normalizeShip
-  );
+async function assignAdminRole(groupId: string, ship: string) {
+  const rawGroup = await getRawGroupWithSeat(groupId, ship);
+  const seat = getShipRecordValue(rawGroup.seats, ship, normalizeShip);
 
-  if (ownerSeat?.roles?.includes(ADMIN_ROLE_ID)) {
-    console.log(`✅ Owner already has "${ADMIN_ROLE_ID}" role.`);
+  if (seat?.roles?.includes(ADMIN_ROLE_ID)) {
+    console.log(`✅ Admin already has "${ADMIN_ROLE_ID}" role.`);
     return;
   }
 
-  console.log(`Assigning owner ${ownerShip} to "${ADMIN_ROLE_ID}" role...`);
+  console.log(`Assigning admin ${ship} to "${ADMIN_ROLE_ID}" role...`);
   await addMembersToRole({
     groupId,
     roleId: ADMIN_ROLE_ID,
-    ships: [ownerShip],
+    ships: [ship],
   });
-  console.log(`✅ Owner assigned to "${ADMIN_ROLE_ID}" role.`);
+  console.log(`✅ Admin assigned to "${ADMIN_ROLE_ID}" role.`);
 }
 
 async function getGroupWithRetry(groupId: string): Promise<Group> {
@@ -582,23 +679,17 @@ async function ensureAdminRole(groupId: string, group?: Group) {
   }
 }
 
-async function verifyOwnerAdmin(
-  groupId: string,
-  ownerShip: string
-): Promise<void> {
-  console.log(`Verifying ${ownerShip} admin assignment in ${groupId}...`);
+async function verifyAdmin(groupId: string, ship: string): Promise<void> {
+  console.log(`Verifying ${ship} admin assignment in ${groupId}...`);
 
-  let lastVerification: OwnerAdminVerification | null = null;
+  let lastVerification: SeatAdminVerification | null = null;
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= VERIFY_ATTEMPTS; attempt += 1) {
     try {
-      const rawVerification = await getRawOwnerAdminVerification(
-        groupId,
-        ownerShip
-      );
+      const rawVerification = await getRawAdminVerification(groupId, ship);
       if (rawVerification.status === 'verified') {
-        console.log(`✅ Owner admin assignment verified.`);
+        console.log(`✅ Admin assignment verified.`);
         return;
       }
       lastVerification = rawVerification;
@@ -616,67 +707,7 @@ async function verifyOwnerAdmin(
   }
 
   throw new Error(
-    `Could not verify owner admin assignment for ${ownerShip}: ${lastError}`
-  );
-}
-
-// The host is the ship in the group flag (`~host/slug`). The backend treats it as
-// an admin unconditionally (`se-is-admin`), regardless of seats or roles.
-function getGroupHost(groupId: string): string {
-  return normalizeShip(groupId.split('/')[0]);
-}
-
-/**
- * Refuse an admin mutation up front when the acting ship can't perform it, instead
- * of firing a poke that a foreign host silently drops while the CLI reports success.
- *
- * A poke ack means "my ship forwarded this," not "the host applied it" — so this
- * reads the group's actual state and checks the acting ship is the host or an admin
- * before any mutation runs. `action` is the user-facing verb (e.g. "promote").
- *
- * Retries like the post-poke verification paths: on a foreign-hosted group the local
- * snapshot can lag a just-granted admin role, so a single stale read shouldn't hard
- * fail an action the host would now accept. The happy path returns on the first
- * attempt; only a (transient or genuine) rejection waits.
- */
-async function assertActingShipCanAdminister(
-  groupId: string,
-  action: string
-): Promise<void> {
-  const actingShip = normalizeShip(getCurrentUserId());
-  const hostShip = getGroupHost(groupId);
-
-  let lastReason: string | null = null;
-  let lastError: unknown;
-
-  for (let attempt = 1; attempt <= VERIFY_ATTEMPTS; attempt += 1) {
-    try {
-      const rawGroup = await getRawGroupForAdminVerification(groupId);
-      const result = actingShipCanAdminister(
-        rawGroup,
-        actingShip,
-        hostShip,
-        normalizeShip
-      );
-      if (result.ok) {
-        return;
-      }
-      lastReason = result.reason;
-    } catch (err) {
-      lastError = err;
-    }
-
-    if (attempt < VERIFY_ATTEMPTS) {
-      await sleep(VERIFY_DELAY_MS);
-    }
-  }
-
-  if (lastReason) {
-    throw new Error(`Can't ${action} in ${groupId}: ${lastReason}`);
-  }
-
-  throw new Error(
-    `Can't ${action} in ${groupId}: could not read group state: ${lastError}`
+    `Could not verify the admin assignment for ${ship}: ${lastError}`
   );
 }
 
@@ -826,6 +857,36 @@ async function getGroupInfo(groupId: string) {
     }
   }
 
+  const navSections: GroupNavSection[] = group.navSections ?? [];
+  const listed = new Set<string>();
+  if (navSections.length > 0) {
+    const channelTitles = new Map(
+      (group.channels ?? []).map((channel) => [channel.id, channel.title])
+    );
+    console.log('\n--- Sections ---');
+    for (const section of navSections) {
+      console.log(
+        `  ${section.title || section.sectionId} (${section.sectionId})`
+      );
+      // 0-based, matching `move-channel --index`.
+      (section.channels ?? []).forEach(({ channelId }, i) => {
+        if (!channelId) return;
+        listed.add(channelId);
+        const title = channelTitles.get(channelId) || channelId;
+        console.log(`    ${i}. ${title} (${channelId})`);
+      });
+    }
+  }
+  const unlisted = (group.channels ?? []).filter(
+    (channel) => !listed.has(channel.id)
+  );
+  if (unlisted.length > 0) {
+    console.log('\n--- Channels in no section ---');
+    for (const channel of unlisted) {
+      console.log(`  ${channel.title || channel.id} (${channel.id})`);
+    }
+  }
+
   if (group.pendingMembers && group.pendingMembers.length > 0) {
     console.log('\n--- Pending Invites ---');
     for (const member of group.pendingMembers) {
@@ -889,19 +950,6 @@ async function createGroupWithChannel(
 
   const createdGroup = await verifyGroupCreated(groupId);
 
-  if (description) {
-    console.log(`Setting group description...`);
-    await updateGroupMeta({
-      groupId,
-      meta: {
-        title,
-        description,
-        image: '',
-        cover: '',
-      },
-    });
-  }
-
   console.log(`✅ Group created successfully!`);
   console.log(`   ID: ${groupId}`);
   console.log(`   Title: ${title}`);
@@ -911,41 +959,73 @@ async function createGroupWithChannel(
   return { groupId, channelId, group: createdGroup };
 }
 
+/**
+ * Creates a group hosted by the current ship and makes `admin` its admin, as
+ * the app's New Workspace does with the user's bot. A moon cannot create a
+ * group on its parent planet, so a bot makes one for its owner by running
+ * this as the owner with itself as the admin.
+ */
 async function createOwnedGroup(
   title: string,
-  owner: string,
+  admin: string,
   description: string = ''
 ) {
-  const ownerShip = normalizeShip(owner);
+  const adminShip = normalizeShip(admin);
+  const host = await getCurrentShip();
+  if (adminShip.toLowerCase() === host.toLowerCase()) {
+    throw new Error(
+      `${host} runs this command, so it hosts the group already; name another ship with --admin.`
+    );
+  }
+
   const { groupId, channelId, group } = await createGroupWithChannel(
     title,
     description,
     {
-      memberIds: [ownerShip],
+      memberIds: [adminShip],
     }
   );
 
-  await ensureAdminRole(groupId, group);
-  await assignOwnerAdminRole(groupId, ownerShip);
-  await verifyOwnerAdmin(groupId, ownerShip);
+  try {
+    await ensureAdminRole(groupId, group);
+    await assignAdminRole(groupId, adminShip);
+    await verifyAdmin(groupId, adminShip);
+  } catch (err) {
+    // The group exists now. Name it, so the grant is finished rather than a
+    // second group created; a failed command's stdout does not reach the
+    // caller. Only the host can finish it: the admin may be the one asking.
+    const reason = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `Created ${groupId} (Ref: /1/group/${groupId}), but making ${adminShip} its admin failed: ${reason} The group exists, so do not create it again. Its host, ${host}, can finish the grant with: groups promote ${groupId} ${adminShip}`
+    );
+  }
 
   console.log(`✅ Owned group created successfully!`);
   console.log(`   ID: ${groupId}`);
   console.log(`   Title: ${title}`);
   console.log(`   Description: ${description || '(none)'}`);
-  console.log(`   Owner: ${ownerShip}`);
+  console.log(`   Host: ${getGroupHost(groupId)}`);
+  console.log(`   Admin: ${adminShip} (invited; joins when it accepts)`);
   console.log(`   Channel: ${channelId}`);
   console.log(`   Ref: /1/group/${groupId}`);
-  console.log(
-    `   Share: include the Ref path in a chat message to post a tappable group card.`
-  );
+  console.log(`   ${refShareHint('group')}`);
 
-  return { groupId, channelId, ownerShip };
+  return { groupId, channelId, adminShip };
 }
 
 // Invite ships to a group
 async function inviteToGroup(groupId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
+  // Any member may invite to a public group. For a private or secret one our
+  // ship asks the host for an invite token, which the host gives only to an
+  // admin.
+  const { admissions } = await getRawGroupForAdminVerification(groupId);
+  if (admissions?.privacy !== 'public') {
+    await assertActingShipCanAdminister(
+      groupId,
+      'invite to a private or secret group'
+    );
+  }
 
   console.log(`Inviting ${normalizedShips.join(', ')} to ${groupId}...`);
 
@@ -1079,6 +1159,7 @@ async function rescindInviteRequest(groupId: string) {
 
 async function revokeInvites(groupId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
+  await assertActingShipCanAdminister(groupId, 'revoke invites');
 
   console.log(
     `Revoking invites for ${normalizedShips.join(', ')} from ${groupId}...`
@@ -1094,6 +1175,16 @@ async function revokeInvites(groupId: string, ships: string[]) {
 
 // Delete a group (must be host)
 async function deleteGroupById(groupId: string) {
+  // The host takes %delete only from itself (`from-self` in `se-c-group`), so
+  // an admin is refused like any other ship.
+  const actingShip = normalizeShip(getCurrentUserId());
+  const hostShip = getGroupHost(groupId);
+  if (actingShip !== hostShip) {
+    throw new Error(
+      `Can't delete ${groupId}: only its host (${hostShip}) can delete it, and you are ${actingShip}.`
+    );
+  }
+
   console.log(`Deleting group ${groupId}...`);
 
   await deleteGroup(groupId);
@@ -1111,14 +1202,29 @@ async function updateGroup(
     cover?: string;
   }
 ) {
-  const group = await getGroup(groupId);
+  await assertActingShipCanAdminister(groupId, 'update');
+  // The raw meta, not getGroup's: that one moves a color image or cover to
+  // separate fields and blanks an oversized one, so falling back to it would
+  // clear them.
+  const { meta: current } = await getRawGroupForAdminVerification(groupId);
 
   const meta = {
-    title: options.title ?? group.title ?? '',
-    description: options.description ?? group.description ?? '',
-    image: options.image ?? group.iconImage ?? '',
-    cover: options.cover ?? group.coverImage ?? '',
+    title: options.title ?? current?.title ?? '',
+    description: options.description ?? current?.description ?? '',
+    image: options.image ?? current?.image ?? '',
+    cover: options.cover ?? current?.cover ?? '',
   };
+
+  // The host sends no update for an unchanged %meta, so the tracked poke
+  // could only time out.
+  if (
+    GROUP_UPDATE_FLAGS.every((flag) => meta[flag] === (current?.[flag] ?? ''))
+  ) {
+    console.log(
+      `Nothing to update: ${groupId} already has that title, description, image and cover.`
+    );
+    return;
+  }
 
   console.log(`Updating group ${groupId}...`);
 
@@ -1186,6 +1292,7 @@ async function addRole(
   roleId: string,
   options: { title?: string; description?: string }
 ) {
+  await assertActingShipCanAdminister(groupId, 'add roles');
   const title = options.title || roleId;
   const description = options.description || '';
 
@@ -1203,6 +1310,8 @@ async function addRole(
 
 // Delete a role from a group
 async function deleteRole(groupId: string, roleId: string) {
+  await assertActingShipCanAdminister(groupId, 'delete roles');
+
   console.log(`Deleting role "${roleId}" from ${groupId}...`);
 
   await deleteGroupRole({ groupId, roleId });
@@ -1216,6 +1325,7 @@ async function updateRole(
   roleId: string,
   options: { title?: string; description?: string }
 ) {
+  await assertActingShipCanAdminister(groupId, 'update roles');
   const group = await getGroup(groupId);
   const currentRole = (group.roles || []).find((role) => role.id === roleId);
   if (!currentRole) {
@@ -1278,6 +1388,7 @@ async function setGroupPrivacy(
   groupId: string,
   privacy: 'public' | 'private' | 'secret'
 ) {
+  await assertActingShipCanAdminister(groupId, 'change privacy');
   const group = await getGroup(groupId);
   const oldPrivacy = (group.privacy ?? 'private') as
     | 'public'
@@ -1298,6 +1409,7 @@ async function setGroupPrivacy(
 // Accept join requests
 async function acceptJoin(groupId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
+  await assertActingShipCanAdminister(groupId, 'accept join requests');
 
   console.log(`Accepting join requests for ${normalizedShips.join(', ')}...`);
 
@@ -1312,6 +1424,7 @@ async function acceptJoin(groupId: string, ships: string[]) {
 // Reject join requests
 async function rejectJoin(groupId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
+  await assertActingShipCanAdminister(groupId, 'reject join requests');
 
   console.log(`Rejecting join requests for ${normalizedShips.join(', ')}...`);
 
@@ -1466,6 +1579,12 @@ async function main() {
     process.exit(await runInviteLinkCommand(args.slice(1)));
   }
 
+  // Same reasoning for invite redemption, which also bounds its own phases.
+  // Malformed input fails here, before any credential lookup.
+  if (command === 'join' && isInviteJoin(args.slice(1))) {
+    process.exit(await runJoinInviteCommand(args.slice(1), { joinGroupById }));
+  }
+
   await ensureClient(['groups', 'channels']);
 
   switch (command) {
@@ -1481,21 +1600,19 @@ async function main() {
       const description = getOption(args, 'description', 2) || '';
       const { groupId } = await createGroupWithChannel(title, description);
       console.log(`   Ref: /1/group/${groupId}`);
-      console.log(
-        `   Share: include the Ref path in a chat message to post a tappable group card.`
-      );
+      console.log(`   ${refShareHint('group')}`);
       break;
     }
 
     case 'create-owned': {
       const title = args[1];
-      const owner = getOption(args, 'owner', 2);
-      if (title === undefined || !owner || owner.startsWith('--')) {
+      const admin = getCreateOwnedAdmin(args);
+      if (title === undefined || !admin || admin.startsWith('--')) {
         console.error(GROUPS_COMMAND_HELP['create-owned']);
         process.exit(1);
       }
       const description = getOption(args, 'description', 2) || '';
-      await createOwnedGroup(title, owner, description);
+      await createOwnedGroup(title, admin, description);
       break;
     }
 
@@ -1528,7 +1645,7 @@ async function main() {
     }
 
     case 'join': {
-      const groupId = args[1];
+      const groupId = plainJoinGroupId(args.slice(1));
       if (!groupId) {
         console.error(GROUPS_COMMAND_HELP.join);
         process.exit(1);
@@ -1783,6 +1900,7 @@ async function main() {
       }
       const kind =
         (getOption(args, 'kind', 3) as 'chat' | 'heap' | 'notes') || 'chat';
+      await assertActingShipCanAdminister(groupId, 'add channels');
       // %notes group channels are created by %notes itself (it registers the
       // %groups listing) — never via createChannel/%channels.
       if (kind === 'notes') {
@@ -1793,6 +1911,34 @@ async function main() {
       await addChannel(groupId, title, kind, description);
       break;
     }
+
+    case 'add-section':
+      await addSection(args[1], args[2], createGroupSectionsDeps());
+      break;
+
+    case 'rename-section':
+      await renameSection(args[1], args[2], args[3], createGroupSectionsDeps());
+      break;
+
+    case 'delete-section':
+      await deleteSection(args[1], args[2], createGroupSectionsDeps());
+      break;
+
+    case 'move-channel': {
+      const index = getOption(args, 'index', 3);
+      await moveChannel(
+        args[1],
+        canonicalizeNest(args[2]),
+        getOption(args, 'section', 3)!,
+        index === undefined ? undefined : Number(index),
+        createGroupSectionsDeps()
+      );
+      break;
+    }
+
+    case 'order-sections':
+      await orderSections(args[1], args.slice(2), createGroupSectionsDeps());
+      break;
 
     default:
       printUsageAndExit(GROUPS_HELP);

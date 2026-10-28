@@ -6,24 +6,29 @@ import create from 'zustand';
 
 // Add new feature flags here:
 export const featureMeta = {
-  instrumentationEnabled: {
-    default: false,
-    label: 'Enable collecting and reporting performance data',
-    onlyTlon: false,
-  },
   markdownNotebooks: {
     default: false,
-    label: 'Enable Markdown mode for notebook posts',
+    label: 'Markdown notebooks',
+    description: 'Use Markdown mode for notebook posts.',
     onlyTlon: true,
   },
   buckets: {
     default: false,
-    label: 'Enable Buckets channels',
+    label: 'Buckets channels',
+    description:
+      'Offer Buckets, shared files for members and agents, as a channel type.',
     onlyTlon: false,
   },
 } satisfies Record<
   string,
-  { default: boolean; label: string; onlyTlon: boolean }
+  {
+    default: boolean;
+    /** A short name, shown as the toggle's title. */
+    label: string;
+    /** What turning it on does, shown under the name. */
+    description: string;
+    onlyTlon: boolean;
+  }
 >;
 
 export type FeatureName = keyof typeof featureMeta;
@@ -76,9 +81,11 @@ async function loadInitialState() {
     Object.entries(state).forEach(([name, enabled]) => {
       if (name in featureMeta) {
         useFeatureFlagStore.getState().setEnabled(name as FeatureName, enabled);
-      } else if (name !== 'contextLens') {
+      } else if (name !== 'contextLens' && name !== 'instrumentationEnabled') {
         // `contextLens` is a legacy flag migrated to the synced %settings store
         // (see migrateLegacyContextLensFlag); it's expected here until stripped.
+        // `instrumentationEnabled` was removed with Firebase Performance and
+        // stays in stored state until the next flag toggle rewrites it.
         console.warn('Unknown feature flag encountered in local storage', name);
       }
     });

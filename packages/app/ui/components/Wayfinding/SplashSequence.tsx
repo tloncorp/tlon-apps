@@ -89,6 +89,7 @@ import { SearchBar } from '../SearchBar';
 import { SystemContactListItem } from '../listItems';
 import { BotChatPreview } from './BotChatPreview';
 import { TlonBotSetupPaneView } from './TlonBotSetupPaneView';
+import { applyBotPrimaryModel } from './botModelSetup';
 import { getDefaultBotName } from './botName';
 import {
   BotCredentialOption,
@@ -580,70 +581,17 @@ function SplashSequenceComponent(props: {
         setCustomBotSetupStatus('pending');
       }
 
-      const promise = (async () => {
-        const meta = { provider, model };
-        logger.trackEvent('Wayfinding Bot Reconfigure Started', meta);
-
-        if (!userId || !shipId) {
-          if (isMountedRef.current) {
-            setCustomBotSetupStatus('failed');
-          }
-          logger.trackError('Wayfinding Bot Reconfigure Failed', {
-            ...meta,
-            step: 'missing_ids',
-            hasUserId: !!userId,
-            hasShipId: !!shipId,
-          });
-          return false;
-        }
-
-        try {
-          await withRetry(
-            () => api.setTlawnPrimaryModel(userId, { provider, model }),
-            {
-              startingDelay: 750,
-              numOfAttempts: 4,
-              maxDelay: 4000,
-            }
-          );
-          logger.trackEvent(
-            'Wayfinding Bot Primary Model Sync Succeeded',
-            meta
-          );
-        } catch (error) {
-          if (isMountedRef.current) {
-            setCustomBotSetupStatus('failed');
-          }
-          logger.trackError('Wayfinding Bot Reconfigure Failed', {
-            ...meta,
-            step: 'set_primary_model',
-            error,
-          });
-          return false;
-        }
-
-        const running = await api.awaitBotRunning(shipId, {
-          timeoutMs: 30_000,
-          pollIntervalMs: 1500,
-        });
-
-        if (running) {
-          if (isMountedRef.current) {
-            setCustomBotSetupStatus('ready');
-          }
-          logger.trackEvent('Wayfinding Bot Reconfigure Ready', meta);
-          return true;
-        }
-
+      const promise = applyBotPrimaryModel({
+        userId,
+        shipId,
+        provider,
+        model,
+      }).then((ready) => {
         if (isMountedRef.current) {
-          setCustomBotSetupStatus('failed');
+          setCustomBotSetupStatus(ready ? 'ready' : 'failed');
         }
-        logger.trackError('Wayfinding Bot Reconfigure Failed', {
-          ...meta,
-          step: 'await_bot_running_timeout',
-        });
-        return false;
-      })();
+        return ready;
+      });
 
       customBotSetupPromiseRef.current = promise;
       return promise;
@@ -1192,7 +1140,7 @@ export function TlonBotPane(props: { onActionPress: () => void }) {
         >
           <SplashParagraph>
             Tlonbot has its own identity on the network. DM it to search the
-            web, draft messages, or set up daily briefings. Add it to group
+            web, draft messages, or set up daily briefings. Add it to workspace
             channels and it can participate in conversations alongside you.
           </SplashParagraph>
           <SplashParagraph>
@@ -2147,7 +2095,7 @@ export function GroupsPane(props: {
             </>
           ) : (
             <>
-              This is a <Text color="$positiveActionText">group.</Text>
+              This is a <Text color="$positiveActionText">workspace.</Text>
             </>
           )}
         </SplashTitle>
@@ -2170,8 +2118,9 @@ export function GroupsPane(props: {
             </>
           ) : (
             <SplashParagraph>
-              A group lives on your private personal server. Family chats, work
-              collaboration, newsletters. A group can be anything you need.
+              A workspace lives on your private personal server. Family chats,
+              work collaboration, newsletters. A workspace can be anything you
+              need.
             </SplashParagraph>
           )}
         </ScrollView>
@@ -2257,7 +2206,7 @@ export function ChannelsPane(props: {
       />
       <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
         <SplashTitle>
-          Groups contain <Text color="$positiveActionText">channels.</Text>
+          Workspaces contain <Text color="$positiveActionText">channels.</Text>
         </SplashTitle>
         <ScrollView
           style={{ flex: 1 }}
@@ -2306,7 +2255,7 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
         <PrivacyLevelsDisplay />
         <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
           <SplashTitle>
-            By default, groups are{' '}
+            By default, workspaces are{' '}
             <Text color="$positiveActionText">secret.</Text>
           </SplashTitle>
           <ScrollView
@@ -2315,9 +2264,9 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
             bounces={false}
           >
             <SplashParagraph>
-              Only the people you invite can see your group. If you want to open
-              it up to other people on the network, edit the privacy controls in
-              your group settings.
+              Only the people you invite can see your workspace. If you want to
+              open it up to other people on the network, edit the privacy
+              controls in your workspace settings.
             </SplashParagraph>
           </ScrollView>
         </YStack>
@@ -2569,7 +2518,7 @@ function ConnectContactBookContent(props: {
         >
           <SplashParagraph>
             When your friends join, they get their own private personal server
-            too. Post together with peace of mind, for as long as your group
+            too. Post together with peace of mind, for as long as your workspace
             exists.
           </SplashParagraph>
           {shouldShowConnectOption && (
@@ -2923,16 +2872,19 @@ function ModelOptionCard({
         borderColor={selected ? '$primaryText' : '$border'}
       >
         <ListItem.MainContent>
-          <ListItem.Title color="$primaryText">{option.label}</ListItem.Title>
-          {option.recommendationLabel ? (
-            <Badge
-              text={option.recommendationLabel}
-              type="positive"
-              size="micro"
-              alignSelf="flex-start"
-              marginTop="$m"
-            />
-          ) : option.description ? (
+          <XStack alignItems="center" gap="$s">
+            <ListItem.Title color="$primaryText" flexShrink={1}>
+              {option.label}
+            </ListItem.Title>
+            {option.recommendationLabel ? (
+              <Badge
+                text={option.recommendationLabel}
+                type="positive"
+                size="micro"
+              />
+            ) : null}
+          </XStack>
+          {option.description ? (
             <ListItem.Subtitle color="$secondaryText">
               {option.description}
             </ListItem.Subtitle>

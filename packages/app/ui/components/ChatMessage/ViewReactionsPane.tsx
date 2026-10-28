@@ -1,8 +1,7 @@
-import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
-import { FlatList, Platform } from 'react-native';
+import { FlatList } from 'react-native';
 import { View, getTokenValue } from 'tamagui';
 
 import { triggerHaptic } from '../../utils';
@@ -11,10 +10,6 @@ import { ActionSheet } from '../ActionSheet';
 import { getNativeEmoji } from '../Emoji';
 import { ToggleGroupInput } from '../Form';
 import { ContactListItem } from '../listItems';
-
-// Use BottomSheetFlatList on native for proper gesture integration with bottom sheet
-// Use regular FlatList on web
-const ListComponent = Platform.OS === 'web' ? FlatList : BottomSheetFlatList;
 
 export function ViewReactionsPane({ post }: { post: db.Post }) {
   const groupedReactions = useGroupedReactions(post.reactions ?? []);
@@ -84,7 +79,7 @@ export function ViewReactionsPane({ post }: { post: db.Post }) {
           options={tabs}
         />
       </View>
-      <ListComponent
+      <FlatList
         style={{ flex: 1 }}
         contentContainerStyle={{
           flexGrow: 1,
@@ -93,6 +88,7 @@ export function ViewReactionsPane({ post }: { post: db.Post }) {
         data={tabData}
         renderItem={({ item }) => renderItem({ reaction: item })}
         keyExtractor={(item) => item.userId + item.value}
+        nestedScrollEnabled
       />
     </ActionSheet.Content>
   );

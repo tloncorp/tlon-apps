@@ -45,13 +45,13 @@ const LEVEL_TITLES: Record<
 > = {
   base: {
     loud: 'All activity',
-    medium: 'All DMs and group posts',
+    medium: 'All DMs and workspace posts',
     soft: 'DMs, mentions, and replies only',
     hush: 'Nothing',
   },
   group: {
-    loud: 'All group activity',
-    medium: 'Group posts, mentions, and replies',
+    loud: 'All workspace activity',
+    medium: 'Workspace posts, mentions, and replies',
     soft: 'Mentions and replies',
     hush: 'Nothing',
   },
@@ -70,9 +70,9 @@ const LEVEL_TITLES: Record<
 // Long-form descriptions keyed by level. 'medium' in a DM and 'hush' on/off
 // native are special-cased in getLevelDescription.
 const LEVEL_DESCRIPTIONS: Partial<Record<ub.NotificationLevel, string>> = {
-  loud: 'Notify for all activity in this channel or group.',
+  loud: 'Notify for all activity in this channel or workspace.',
   medium:
-    'Notify for all posts, mentions, and replies in groups. Direct messages always notify unless muted.',
+    'Notify for all posts, mentions, and replies in workspaces. Direct messages always notify unless muted.',
   soft: 'Notify only when someone mentions you or replies to your posts. Direct messages always notify unless muted.',
 };
 
@@ -80,6 +80,24 @@ const DM_MEDIUM_DESCRIPTION = 'Notify for every message in this conversation.';
 const HUSH_DESCRIPTION_NATIVE =
   'No notifications for anything, even if push notifications are enabled on your device.';
 const HUSH_DESCRIPTION_WEB = 'No notifications for anything.';
+
+// A few words for a level, the same in a chat's settings row and at the top of
+// its choice, with the full title beneath the choice. DMs' titles are short.
+const LEVEL_SHORT_TITLES: Partial<Record<ub.NotificationLevel, string>> = {
+  loud: 'All activity',
+  medium: 'Posts and mentions',
+  soft: 'Mentions and replies',
+  hush: 'Nothing',
+};
+
+export function getLevelShortTitle(
+  level: ub.NotificationLevel,
+  context: NotificationLevelContext
+): string {
+  return context === 'dm'
+    ? getLevelTitle(level, context)
+    : (LEVEL_SHORT_TITLES[level] ?? getLevelTitle(level, context));
+}
 
 export function getLevelTitle(
   level: ub.NotificationLevel,
@@ -164,12 +182,21 @@ export function NotificationLevelSelector({
   value,
   onChange,
   config,
+  flush,
 }: {
   value: ub.NotificationLevel;
   onChange: (level: ub.NotificationLevel) => void;
   config?: NotificationLevelOptionsConfig;
+  flush?: boolean;
 }) {
   const options = useNotificationLevelOptions(config);
 
-  return <RadioInput options={options} value={value} onChange={onChange} />;
+  return (
+    <RadioInput
+      options={options}
+      value={value}
+      onChange={onChange}
+      flush={flush}
+    />
+  );
 }

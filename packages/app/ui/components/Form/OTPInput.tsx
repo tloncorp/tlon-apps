@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { TextInput as RNTextInput } from 'react-native';
+import { TextInput as RNTextInput, type TextInputInstance } from 'react-native';
 import { Text, View, XStack, YStack, isWeb } from 'tamagui';
 
 import { Field } from './Field';
@@ -19,7 +19,7 @@ export function OTPInput({
   error?: string;
   variant?: 'default' | 'prominent';
 }) {
-  const inputRef = useRef<RNTextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   const lastNativeTextRef = useRef('');
   const [reseedKey, setReseedKey] = useState(0);
   const fullValue = value.join('');
@@ -113,7 +113,7 @@ export function OTPInput({
                 pointerEvents="none"
               >
                 {digit ? (
-                  <Text fontSize="$2xl" fontWeight="600" color="$foreground">
+                  <Text fontSize={28} fontWeight="600" color="$foreground">
                     {digit}
                   </Text>
                 ) : isProminent && isFocused ? (

@@ -1,4 +1,5 @@
 import type {
+  NotesApi,
   NotesV1Api,
   NotesV1Folder,
   NotesV1MemberRecord,
@@ -8,6 +9,7 @@ import type {
   NotesV1RequestStatus,
 } from '@tloncorp/api';
 
+import { refShareHint } from '../cli-utils';
 import { pollGroupListings } from '../notes-channel';
 import type { MigrationDeps } from '../notes-migrate';
 import {
@@ -50,6 +52,8 @@ Commands:
   note-rename <nest> <id> <title>         Rename a note
   note-move <nest> <id> <folder-id>       Move a note into a folder
   note-delete <nest> <id>                 Delete a note
+  note-publish <nest> <id> [--self]       Publish a note as a public web page (a snapshot)
+  note-unpublish <nest> <id> [--self]     Remove a note's public web page
   history <nest> <id>                     Show a note's revision history
   folders <nest>                          List folders in a notebook
   folder <nest> <id>                      Show a folder
@@ -67,7 +71,7 @@ Commands:
 Content sources (Markdown):
   --body <file>       Read the note body from a Markdown file
   --markdown <file>   Alias for --body
-  --stdin             Read the note body from stdin
+  --stdin             Shell CLI only: read piped Markdown; unavailable through the tlon tool
 
 Note bodies are plain Markdown. LaTeX math delimiters ($...$, $$...$$,
 \\(...\\), \\[...\\]) do not render; use plain text/Unicode or code blocks.
@@ -77,7 +81,7 @@ Examples:
   tlon notes request 0vabc
   tlon channels create ~zod/group "Notes" --kind notes
   tlon notes note-create notes/~zod/blog root "First Note" --markdown post.md
-  tlon notes note-update notes/~zod/blog 12 --stdin --expected-revision 3`;
+  tlon notes note-update notes/~zod/blog 12 --body post.md --expected-revision 3`;
 
 export const NOTES_COMMAND_HELP: Record<string, string> = {
   status: 'Usage: tlon notes status',
@@ -91,15 +95,19 @@ export const NOTES_COMMAND_HELP: Record<string, string> = {
   create:
     'Usage: tlon notes create <title>\nCreates a standalone %notes notebook only. For Tlon app/group notebooks, use:\n  tlon channels create ~host/group-slug "Title" --kind notes',
   'note-create':
-    'Usage: tlon notes note-create <nest> <folder-id|root> <title> (--body <file> | --stdin | --markdown <file>)',
+    'Usage: tlon notes note-create <nest> <folder-id|root> <title> (--body <file> | --stdin | --markdown <file>)\n--stdin is for shell pipes only; the tlon tool requires a file.',
   'note-update':
-    'Usage: tlon notes note-update <nest> <id> (--body <file> | --stdin) [--expected-revision <n>]',
+    'Usage: tlon notes note-update <nest> <id> (--body <file> | --stdin) [--expected-revision <n>]\n--stdin is for shell pipes only; the tlon tool requires a file.',
   'note-rename':
     'Usage: tlon notes note-rename <nest> <id> <title>\nExample: tlon notes note-rename notes/~zod/blog 12 "New Title"',
   'note-move':
     'Usage: tlon notes note-move <nest> <id> <folder-id>\nExample: tlon notes note-move notes/~zod/blog 12 3',
   'note-delete':
     'Usage: tlon notes note-delete <nest> <id>\nExample: tlon notes note-delete notes/~zod/blog 12',
+  'note-publish':
+    'Usage: tlon notes note-publish <nest> <id> [--self]\nPublishes a snapshot of the note as a public web page on the acting ship and prints its URL. Later edits are not shown until you publish again. Bot harnesses that act for an owner run this as the owner unless --self is given; on the command line --self is accepted and uses the current credentials.\nExample: tlon notes note-publish notes/~zod/blog 12',
+  'note-unpublish':
+    "Usage: tlon notes note-unpublish <nest> <id> [--self]\nRemoves the note's public web page from the acting ship. Bot harnesses that act for an owner run this as the owner unless --self is given; on the command line --self is accepted and uses the current credentials.\nExample: tlon notes note-unpublish notes/~zod/blog 12",
   history:
     'Usage: tlon notes history <nest> <id>\nExample: tlon notes history notes/~zod/blog 12',
   folders:
@@ -149,6 +157,15 @@ export interface NotesDeps extends CommandDeps {
   sleep: (ms: number) => Promise<void>;
   readFile: (path: string) => string;
   readStdin: () => Promise<string>;
+  // Publishing is a %notes poke on the `notes` API, not notesV1. The renderer
+  // and URL builder come in through deps because command modules may only
+  // import api types.
+  notesPublish: Pick<
+    NotesApi,
+    'listPublished' | 'publishNote' | 'unpublishNote'
+  >;
+  renderPublishedNoteHtml: (note: { title: string; body: string }) => string;
+  publishedNoteUrl: (flag: string, noteId: number) => string;
   migration?: MigrationDeps;
 }
 
@@ -182,6 +199,8 @@ type ParsedNotesArgs =
   | { kind: 'note-rename'; target: Nest; id: string; title: string }
   | { kind: 'note-move'; target: Nest; id: string; folder: number }
   | { kind: 'note-delete'; target: Nest; id: string }
+  | { kind: 'note-publish'; target: Nest; id: string }
+  | { kind: 'note-unpublish'; target: Nest; id: string }
   | { kind: 'history'; target: Nest; id: string }
   | { kind: 'folders'; target: Nest }
   | { kind: 'folder'; target: Nest; id: string }
@@ -315,6 +334,33 @@ function parseContentSource(
     throw usageError('Only one content source may be provided', usage);
   }
   return found[0];
+}
+
+// `--self` is a no-op here: it only lets a command string opt out of a bot
+// harness's owner-credential injection, as for `groups invite-link`.
+function parsePublishTarget(
+  args: string[],
+  help: string
+): { target: Nest; id: string } {
+  const positionals: string[] = [];
+  for (const arg of args) {
+    if (arg === '--self') {
+      continue;
+    }
+    if (arg.startsWith('-')) {
+      throw usageError(`Unknown option: ${arg}`, help);
+    }
+    positionals.push(arg);
+  }
+  const [nest, id] = positionals;
+  if (!nest || !id) {
+    throw usageError(help);
+  }
+  if (positionals.length > 2) {
+    throw usageError(`Unexpected argument: ${positionals[2]}`, help);
+  }
+  requireNumericId(id, 'note id', help);
+  return { target: parseNotesNest(nest, help), id };
 }
 
 function parseArgs(args: string[]): ParsedNotesArgs {
@@ -474,6 +520,9 @@ function parseArgs(args: string[]): ParsedNotesArgs {
       requireNumericId(id, 'note id', help);
       return { kind: 'note-delete', target: parseNotesNest(nest, help), id };
     }
+    case 'note-publish':
+    case 'note-unpublish':
+      return { kind: command, ...parsePublishTarget(args.slice(1), help) };
     case 'history': {
       const nest = args[1];
       const id = args[2];
@@ -834,14 +883,29 @@ async function runNoteCreate(
 ): Promise<number> {
   const folder = await resolveFolder(parsed.folder, parsed.target, deps);
   const body = await resolveBody(parsed.source, deps);
-  await deps.notesV1.createNote({
+  const note = await deps.notesV1.createNote({
     flag: parsed.target.nest,
     folder,
     title: parsed.title,
     body,
   });
   writeLine(deps.stdout, '✓ Note created');
+  if (note) {
+    writeNoteRef(parsed.target, note.id, deps);
+  } else {
+    // Older %notes hosts omit the created note from the write response.
+    writeLine(
+      deps.stdout,
+      `  ID: not returned by this host; find it with \`notes notes ${parsed.target.nest}\`.`
+    );
+  }
   return 0;
+}
+
+function writeNoteRef(target: Nest, noteId: number, deps: NotesDeps): void {
+  writeLine(deps.stdout, `  ID: ${noteId}`);
+  writeLine(deps.stdout, `  Ref: /1/chan/${target.nest}/note/${noteId}`);
+  writeLine(deps.stdout, `  ${refShareHint('note')}`);
 }
 
 async function runNoteUpdate(
@@ -861,6 +925,7 @@ async function runNoteUpdate(
     expectedRevision: parsed.expectedRevision,
   });
   writeLine(deps.stdout, '✓ Note updated');
+  writeNoteRef(parsed.target, Number(parsed.id), deps);
   return 0;
 }
 
@@ -901,6 +966,144 @@ async function runNoteDelete(
 ): Promise<number> {
   await deps.notesV1.deleteNote({ flag: target.nest, noteId: Number(id) });
   writeLine(deps.stdout, '✓ Note deleted');
+  return 0;
+}
+
+const PUBLISH_CONFIRM_ATTEMPTS = 8;
+const PUBLISH_CONFIRM_DELAY_MS = 300;
+
+// %notes writes `published` before it acks the poke, so the first listing
+// normally confirms; the retries are the app's safety margin.
+async function confirmPublishedState(
+  target: Nest,
+  noteId: number,
+  expected: boolean,
+  deps: NotesDeps
+): Promise<boolean> {
+  for (let attempt = 1; attempt <= PUBLISH_CONFIRM_ATTEMPTS; attempt += 1) {
+    const records = await deps.notesPublish.listPublished();
+    const listed = records.some(
+      (record) =>
+        record.host === target.host &&
+        record.flagName === target.name &&
+        record.noteId === noteId
+    );
+    if (listed === expected) {
+      return true;
+    }
+    if (attempt < PUBLISH_CONFIRM_ATTEMPTS) {
+      await deps.sleep(PUBLISH_CONFIRM_DELAY_MS);
+    }
+  }
+  return false;
+}
+
+// A notebook missing from the acting ship's books crashes %notes' no-abed arm,
+// and the nack carries that trace.
+function publishPokeError(
+  error: unknown,
+  action: 'publish' | 'unpublish',
+  target: Nest,
+  noteId: number
+) {
+  const message = errorMessage(error);
+  if (message.includes('no-abed-not-found')) {
+    return commandError(
+      action === 'publish'
+        ? `${target.nest} is not on this ship (it neither hosts nor has joined it); join it before publishing.`
+        : `${target.nest} is not on this ship (it neither hosts nor has joined it), so nothing there is published.`
+    );
+  }
+  return commandError(
+    `Could not ${action} note ${noteId} in ${target.nest}: ${message}`
+  );
+}
+
+async function confirmOrThrow(
+  target: Nest,
+  noteId: number,
+  expected: boolean,
+  deps: NotesDeps
+): Promise<void> {
+  const [verb, retry, pending] = expected
+    ? [
+        'Publish',
+        "Retrying publishes the note's current contents.",
+        'the note is not listed as published yet',
+      ]
+    : [
+        'Unpublish',
+        'Running note-unpublish again is safe.',
+        'the note is still listed as published',
+      ];
+  const sent = `${verb} of note ${noteId} in ${target.nest} was sent but`;
+  let confirmed: boolean;
+  try {
+    confirmed = await confirmPublishedState(target, noteId, expected, deps);
+  } catch (error) {
+    throw commandError(
+      `${sent} could not be confirmed: ${errorMessage(error)}. ${retry}`
+    );
+  }
+  if (!confirmed) {
+    throw commandError(`${sent} is not confirmed: ${pending}. ${retry}`);
+  }
+}
+
+async function runNotePublish(
+  target: Nest,
+  id: string,
+  deps: NotesDeps
+): Promise<number> {
+  const noteId = Number(id);
+  // %notes stores HTML under any id without checking the note exists, so the
+  // read doubles as the existence check.
+  let note: NotesV1Note;
+  try {
+    note = await deps.notesV1.getNote({ flag: target.nest, noteId });
+  } catch (error) {
+    throw commandError(
+      `Could not read note ${noteId} in ${target.nest}; nothing was published: ${errorMessage(error)}`
+    );
+  }
+  if (typeof note.bodyMd !== 'string') {
+    throw commandError(
+      `Could not read the body of note ${noteId} in ${target.nest}; nothing was published.`
+    );
+  }
+  const html = deps.renderPublishedNoteHtml({
+    title: note.title,
+    body: note.bodyMd,
+  });
+  try {
+    await deps.notesPublish.publishNote({ flag: target.nest, noteId, html });
+  } catch (error) {
+    throw publishPokeError(error, 'publish', target, noteId);
+  }
+  await confirmOrThrow(target, noteId, true, deps);
+  const url = deps.publishedNoteUrl(`${target.host}/${target.name}`, noteId);
+  writeLine(deps.stdout, '✓ Note published');
+  writeLine(deps.stdout, `  Public URL: ${url}`);
+  writeLine(
+    deps.stdout,
+    '  This is a snapshot: later edits are not shown until you run note-publish again.'
+  );
+  return 0;
+}
+
+async function runNoteUnpublish(
+  target: Nest,
+  id: string,
+  deps: NotesDeps
+): Promise<number> {
+  const noteId = Number(id);
+  try {
+    await deps.notesPublish.unpublishNote({ flag: target.nest, noteId });
+  } catch (error) {
+    throw publishPokeError(error, 'unpublish', target, noteId);
+  }
+  await confirmOrThrow(target, noteId, false, deps);
+  writeLine(deps.stdout, '✓ Note unpublished');
   return 0;
 }
 
@@ -1172,6 +1375,10 @@ export async function run(args: string[], deps: NotesDeps): Promise<number> {
         return await runNoteMove(parsed.target, parsed.id, parsed.folder, deps);
       case 'note-delete':
         return await runNoteDelete(parsed.target, parsed.id, deps);
+      case 'note-publish':
+        return await runNotePublish(parsed.target, parsed.id, deps);
+      case 'note-unpublish':
+        return await runNoteUnpublish(parsed.target, parsed.id, deps);
       case 'history':
         return await runHistory(parsed.target, parsed.id, deps);
       case 'folders':

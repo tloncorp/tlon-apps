@@ -1,262 +1,57 @@
-import {
-  Button,
-  Icon,
-  IconType,
-  LoadingSpinner,
-  Pressable,
-  Text,
-} from '@tloncorp/ui';
-import { PropsWithChildren, ReactNode } from 'react';
-import { Switch } from 'react-native';
+import { Button, Icon, LoadingSpinner, Text } from '@tloncorp/ui';
+import { ComponentProps, ReactNode } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, XStack, YStack } from 'tamagui';
+import { View, YStack } from 'tamagui';
 
 import { useTopLevelTabBarClearance } from '../../../navigation/useTopLevelTabBarContentInset';
 import { ImageAvatar, SigilAvatar } from '../../../ui/components/Avatar';
-import { Badge } from '../../../ui/components/Badge';
-import { ListItem } from '../../../ui/components/ListItem';
-import {
-  SettingsDivider,
-  SettingsSection,
-} from '../../../ui/components/SettingsSection';
+import { SettingsSection } from '../../../ui/components/SettingsSection';
 
-export const BotSettingsSection = SettingsSection;
-export const BotSettingsDivider = SettingsDivider;
-
-export function BotSettingsRow({
-  label,
-  value,
-  valueColor = '$tertiaryText',
-  description,
-  descriptionNumberOfLines = 1,
-  multilineDescriptionGap = 12,
-  multilinePaddingVertical = 32,
-  icon,
-  pending,
-  disabled,
-  onPress,
-  children,
-}: PropsWithChildren<{
-  label: string;
-  value?: string;
-  valueColor?: '$primaryText' | '$secondaryText' | '$tertiaryText';
-  description?: string;
-  descriptionNumberOfLines?: number;
-  multilineDescriptionGap?: number;
-  multilinePaddingVertical?: number;
-  icon?: IconType;
-  pending?: boolean;
-  disabled?: boolean;
-  onPress?: () => void;
-}>) {
-  const hasMultilineDescription =
-    Boolean(description) && descriptionNumberOfLines > 1;
-  const content = (
-    <ListItem
-      opacity={disabled ? 0.6 : 1}
-      paddingVertical={
-        hasMultilineDescription ? multilinePaddingVertical : '$l'
-      }
-    >
-      {icon ? <ListItem.SystemIcon icon={icon} rounded /> : null}
-      <ListItem.MainContent
-        height={hasMultilineDescription ? 'auto' : '$4xl'}
-        minHeight="$4xl"
-        justifyContent={hasMultilineDescription ? 'center' : 'space-around'}
-        gap={hasMultilineDescription ? multilineDescriptionGap : undefined}
-      >
-        <ListItem.Title>{label}</ListItem.Title>
-        {description ? (
-          <ListItem.Subtitle numberOfLines={descriptionNumberOfLines}>
-            {description}
-          </ListItem.Subtitle>
-        ) : null}
-      </ListItem.MainContent>
-      <XStack alignItems="center" gap="$s" flexShrink={0}>
-        {pending ? <PendingBadge /> : null}
-        {value ? (
-          <Text
-            size="$label/m"
-            color={valueColor}
-            numberOfLines={1}
-            maxWidth={160}
-          >
-            {value}
-          </Text>
-        ) : null}
-        {children}
-        {onPress ? (
-          <Icon type="ChevronRight" size="$m" color="$tertiaryText" />
-        ) : null}
-      </XStack>
-    </ListItem>
-  );
-
-  if (!onPress) {
-    return content;
-  }
-
-  return (
-    <Pressable
-      borderRadius="$xl"
-      disabled={disabled}
-      onPress={disabled ? undefined : onPress}
-      pressStyle={{ backgroundColor: '$secondaryBackground' }}
-    >
-      {content}
-    </Pressable>
-  );
+/** Bot settings forms sit beside the native settings lists, so group like them. */
+export function BotSettingsSection(
+  props: Omit<ComponentProps<typeof SettingsSection>, 'variant'>
+) {
+  return <SettingsSection variant="grouped" {...props} />;
 }
-
-export function BotSwitchRow({
-  label,
-  description,
-  descriptionNumberOfLines,
-  multilineDescriptionGap,
-  multilinePaddingVertical,
-  checked,
-  disabled,
-  pending,
-  onCheckedChange,
-}: {
-  label: string;
-  description?: string;
-  descriptionNumberOfLines?: number;
-  multilineDescriptionGap?: number;
-  multilinePaddingVertical?: number;
-  checked: boolean;
-  disabled?: boolean;
-  pending?: boolean;
-  onCheckedChange: (checked: boolean) => void;
-}) {
-  return (
-    <BotSettingsRow
-      label={label}
-      description={description}
-      descriptionNumberOfLines={descriptionNumberOfLines}
-      multilineDescriptionGap={multilineDescriptionGap}
-      multilinePaddingVertical={multilinePaddingVertical}
-      pending={pending}
-    >
-      <Switch
-        value={checked}
-        disabled={disabled}
-        onValueChange={onCheckedChange}
-      />
-    </BotSettingsRow>
-  );
-}
-
-export function PendingBadge() {
-  return <Badge text="Pending" type="warning" size="micro" />;
-}
-
-export function SelectableRow({
-  label,
-  description,
-  endContent,
-  selected,
-  disabled,
-  onPress,
-}: {
-  label: string;
-  description?: string;
-  endContent?: ReactNode;
-  selected: boolean;
-  disabled?: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      borderRadius="$xl"
-      disabled={disabled}
-      onPress={disabled ? undefined : onPress}
-      pressStyle={{ backgroundColor: '$secondaryBackground' }}
-    >
-      <ListItem opacity={disabled ? 0.6 : 1}>
-        <ListItem.MainContent>
-          <ListItem.Title>{label}</ListItem.Title>
-          {description ? (
-            <ListItem.Subtitle>{description}</ListItem.Subtitle>
-          ) : null}
-        </ListItem.MainContent>
-        {endContent || selected ? (
-          <XStack alignItems="center" gap="$s" flexShrink={0}>
-            {endContent}
-            {selected ? (
-              <Icon type="Checkmark" size="$m" color="$positiveActionText" />
-            ) : null}
-          </XStack>
-        ) : null}
-      </ListItem>
-    </Pressable>
-  );
-}
-
-export function BotIdentityHeader({
-  title,
-  subtitle,
+export function BotAvatar({
+  size,
   avatarUrl,
   sigilContactId,
-  ready,
-  restarting,
 }: {
-  title: string;
-  subtitle: string;
+  size: number;
   avatarUrl?: string;
   /** Shown in place of a missing avatar; the face icon stands in without it. */
   sigilContactId?: string;
-  ready: boolean;
-  restarting?: boolean;
 }) {
-  // Reflects the bot's runtime status only. Unsaved edits are surfaced by the
-  // Apply bar, so they don't belong in this badge (a "Pending" badge there just
-  // duplicates the bar and reads like the bot itself is unhealthy).
-  const statusText = restarting ? 'Restarting…' : ready ? 'Online' : 'Starting';
-  const statusType = restarting ? 'warning' : ready ? 'positive' : 'neutral';
-
   return (
-    <XStack alignItems="center" gap="$l" paddingHorizontal="$s">
-      <ImageAvatar
-        imageUrl={avatarUrl || undefined}
-        width={56}
-        height={56}
-        borderRadius="$l"
-        fallback={
-          sigilContactId ? (
-            <SigilAvatar
-              contactId={sigilContactId}
-              size="custom"
-              width={56}
-              height={56}
-              borderRadius="$l"
-            />
-          ) : (
-            <View
-              width={56}
-              height={56}
-              alignItems="center"
-              justifyContent="center"
-              borderRadius="$l"
-              backgroundColor="$background"
-            >
-              <Icon type="Face" size="$l" color="$secondaryText" />
-            </View>
-          )
-        }
-      />
-      <YStack flex={1} minWidth={0} gap="$2xs">
-        <XStack alignItems="center" justifyContent="space-between" gap="$m">
-          <Text size="$label/2xl" fontWeight="600" numberOfLines={1} flex={1}>
-            {title || 'Tlonbot'}
-          </Text>
-          <Badge text={statusText} type={statusType} size="micro" />
-        </XStack>
-        <Text size="$label/m" color="$secondaryText" numberOfLines={1}>
-          {subtitle}
-        </Text>
-      </YStack>
-    </XStack>
+    <ImageAvatar
+      imageUrl={avatarUrl || undefined}
+      width={size}
+      height={size}
+      borderRadius="$l"
+      fallback={
+        sigilContactId ? (
+          <SigilAvatar
+            contactId={sigilContactId}
+            size="custom"
+            width={size}
+            height={size}
+            borderRadius="$l"
+          />
+        ) : (
+          <View
+            width={size}
+            height={size}
+            alignItems="center"
+            justifyContent="center"
+            borderRadius="$l"
+            backgroundColor="$background"
+          >
+            <Icon type="Face" size="$l" color="$secondaryText" />
+          </View>
+        )
+      }
+    />
   );
 }
 
@@ -326,15 +121,5 @@ export function BotSettingsErrorText({ children }: { children: ReactNode }) {
     <Text size="$label/s" color="$negativeActionText" paddingHorizontal="$s">
       {children}
     </Text>
-  );
-}
-
-export function EmptyRowText({ children }: { children: ReactNode }) {
-  return (
-    <View paddingHorizontal="$l" paddingVertical="$xl">
-      <Text size="$label/m" color="$secondaryText">
-        {children}
-      </Text>
-    </View>
   );
 }

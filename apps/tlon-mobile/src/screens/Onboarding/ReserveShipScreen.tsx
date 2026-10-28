@@ -1,14 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import {
-  ArvosDiscussing,
-  IconType,
-  ListItem,
-  LoadingSpinner,
-  OnboardingTextBlock,
-  ScreenHeader,
-  View,
-  YStack,
-} from '@tloncorp/app/ui';
+import { SettingUpScreen, setupStepForBootPhase } from '@tloncorp/app/ui';
 import { NodeBootPhase } from '@tloncorp/shared/domain';
 import { useEffect } from 'react';
 
@@ -19,6 +10,7 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'ReserveShip'>;
 
 export const ReserveShipScreen = ({ navigation }: Props) => {
   const signupContext = useSignupContext();
+  const isReady = signupContext.bootPhase >= NodeBootPhase.READY;
 
   // Disable back button once you reach this screen
   useEffect(
@@ -37,71 +29,13 @@ export const ReserveShipScreen = ({ navigation }: Props) => {
   }, [signupContext]);
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader
-        backgroundColor="$secondaryBackground"
-        title={
-          signupContext.bootPhase < NodeBootPhase.READY
-            ? "We're setting you up"
-            : 'Setup complete!'
-        }
-      />
-      <OnboardingTextBlock marginTop="$5xl" gap="$5xl">
-        <ArvosDiscussing width="100%" height={200} />
-        <BootStepDisplay bootPhase={signupContext.bootPhase} />
-      </OnboardingTextBlock>
-    </View>
+    <SettingUpScreen
+      body={
+        isReady
+          ? 'Your Tlon computer is ready. Taking you in now.'
+          : "We're getting your Tlon computer ready. You'll go straight in when it's done."
+      }
+      current={setupStepForBootPhase(signupContext.bootPhase)}
+    />
   );
 };
-
-interface DisplayStep {
-  description: string;
-  icon: IconType;
-  startExclusive: NodeBootPhase;
-  endInclusive: NodeBootPhase;
-}
-const DISPLAY_STEPS: DisplayStep[] = [
-  {
-    description: 'Preparing your Tlon computer',
-    icon: 'Gift',
-    startExclusive: NodeBootPhase.IDLE,
-    endInclusive: NodeBootPhase.BOOTING,
-  },
-  {
-    description: 'Connecting to the network',
-    icon: 'Link',
-    startExclusive: NodeBootPhase.BOOTING,
-    endInclusive: NodeBootPhase.CONNECTING,
-  },
-  {
-    description: 'Setting up your Tlonbot',
-    icon: 'Face',
-    startExclusive: NodeBootPhase.CONNECTING,
-    endInclusive: NodeBootPhase.ACCEPTING_INVITES,
-  },
-];
-
-function BootStepDisplay(props: { bootPhase: NodeBootPhase }) {
-  return (
-    <YStack width="100%">
-      {DISPLAY_STEPS.map((step, index) => {
-        const isOnStep =
-          props.bootPhase > step.startExclusive &&
-          props.bootPhase <= step.endInclusive;
-        const hasCompleted = props.bootPhase > step.endInclusive;
-        return (
-          <ListItem backgroundColor="unset" key={index}>
-            <ListItem.SystemIcon color="$primaryText" icon={step.icon} />
-            <ListItem.MainContent>
-              <ListItem.Title>{step.description}</ListItem.Title>
-            </ListItem.MainContent>
-            <ListItem.EndContent width="$3xl" alignItems="center">
-              {isOnStep && <LoadingSpinner size="small" />}
-              {hasCompleted && <ListItem.SystemIcon icon="Checkmark" />}
-            </ListItem.EndContent>
-          </ListItem>
-        );
-      })}
-    </YStack>
-  );
-}

@@ -27,6 +27,7 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
 
     var alignment: TlonMessageMenuAlignment = .leading
     var previewBackgroundColor: UIColor = .secondarySystemBackground
+    var menuColors = TlonMessageMenuColors()
 
     private weak var presentationView: TlonMessageMenuPresentationView?
     private var initialGestureLocation: CGPoint?
@@ -228,7 +229,8 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
             reactions: reactions,
             moreReactionsToken: moreReactionsToken,
             alignment: alignment,
-            previewBackgroundColor: previewBackgroundColor
+            previewBackgroundColor: previewBackgroundColor,
+            menuColors: menuColors
         ) { [weak self] selection in
             guard let self else {
                 return
@@ -243,6 +245,7 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
         indicationRestingFrameInWindow = nil
 
         presentationView = presentation
+        cancelReactTouches()
 
         let feedback = UIImpactFeedbackGenerator(style: .medium)
         feedback.prepare()
@@ -288,5 +291,28 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
     private func resetGestureState() {
         initialGestureLocation = nil
         gestureExitedDeadZone = false
+    }
+
+    // React Native's touch handler ignores `cancelsTouchesInView` for
+    // recognizers inside its own view tree, so without this the JS press keeps
+    // tracking and fires `onPress` on release (a video opens its viewer over
+    // the menu). Toggling the handler is how React Native cancels its own
+    // touches.
+    private func cancelReactTouches() {
+        guard let touchHandlerClass = NSClassFromString("RCTSurfaceTouchHandler") else {
+            return
+        }
+
+        var ancestor = superview
+        while let view = ancestor {
+            if let touchHandler = view.gestureRecognizers?.first(where: {
+                $0.isKind(of: touchHandlerClass)
+            }) {
+                touchHandler.isEnabled = false
+                touchHandler.isEnabled = true
+                return
+            }
+            ancestor = view.superview
+        }
     }
 }

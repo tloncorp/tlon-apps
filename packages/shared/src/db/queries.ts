@@ -166,6 +166,8 @@ const GROUP_META_COLUMNS = {
   iconImageColor: true,
   coverImage: true,
   coverImageColor: true,
+  // only foreign previews carry a count; a /gangs preview must not clear it
+  memberCount: true,
 };
 
 export interface GetGroupsOptions {
@@ -353,7 +355,12 @@ export const getGroupsWithMemberThreshold = createReadQuery(
       },
     });
 
-    return allJoinedWithMembers.filter((g) => g.members.length <= threshold);
+    // the stored roster of a big group is partial, so its count decides.
+    // The stored rows include invites, which the count leaves out, so they
+    // decide too.
+    return allJoinedWithMembers.filter(
+      (g) => Math.max(g.memberCount ?? 0, g.members.length) <= threshold
+    );
   },
   ['groups']
 );
@@ -1044,55 +1051,6 @@ export const insertSystemContacts = createWriteQuery(
   ['systemContacts', 'systemContactSentInvites', 'contacts']
 );
 
-function generateNicknameUpdates(
-  matches: [string, string][],
-  systemContacts: SystemContact[]
-): { contactId: string; nicknamePart: string }[] {
-  const nicknameUpdates: { contactId: string; nicknamePart: string }[] = [];
-
-  for (const [phoneNumber, contactId] of matches) {
-    const matchingSystemContact = systemContacts.find(
-      (sc) => sc.phoneNumber === phoneNumber
-    );
-
-    if (
-      matchingSystemContact &&
-      (matchingSystemContact.firstName || matchingSystemContact.lastName)
-    ) {
-      const nicknamePart =
-        `${matchingSystemContact.firstName || ''} ${matchingSystemContact.lastName || ''}`.trim();
-
-      if (nicknamePart) {
-        nicknameUpdates.push({ contactId, nicknamePart });
-      }
-    }
-  }
-
-  return nicknameUpdates;
-}
-
-async function updateContactNicknames(
-  nicknameUpdates: { contactId: string; nicknamePart: string }[],
-  txCtx: QueryCtx,
-  batchSize: number
-): Promise<void> {
-  await processBatchOperation(
-    nicknameUpdates,
-    batchSize,
-    async (batch) => {
-      return Promise.all(
-        batch.map(({ contactId, nicknamePart }) =>
-          txCtx.db
-            .update($contacts)
-            .set({ customNickname: nicknamePart })
-            .where(eq($contacts.id, contactId))
-        )
-      );
-    },
-    'Error updating contact nicknames'
-  );
-}
-
 export async function updateSystemContactIds(
   matches: [string, string][],
   txCtx: QueryCtx,
@@ -1130,8 +1088,6 @@ export const linkSystemContacts = createWriteQuery(
 
     const contactIds = matches.map((m) => m[1]);
 
-    const systemContacts = await getSystemContacts(ctx);
-
     return withTransactionCtx(ctx, async (txCtx) => {
       const [existingContacts, linkedSystemContacts] = await Promise.all([
         txCtx.db.query.contacts.findMany({
@@ -1161,10 +1117,6 @@ export const linkSystemContacts = createWriteQuery(
       );
 
       const batchSize = 200;
-
-      // generate and process nickname updates
-      const nicknameUpdates = generateNicknameUpdates(matches, systemContacts);
-      await updateContactNicknames(nicknameUpdates, txCtx, batchSize);
 
       // update system contact IDs
       await updateSystemContactIds(matches, txCtx, batchSize);
@@ -2019,7 +1971,10 @@ export const insertGroups = createWriteQuery(
                 $groups.currentUserIsMember,
                 $groups.haveInvite,
                 $groups.haveRequestedInvite,
-                $groups.memberCount
+                // same for the count, which most group payloads don't carry
+                ...(group.memberCount !== undefined
+                  ? [$groups.memberCount]
+                  : [])
               ),
             });
         } else {
@@ -2245,6 +2200,7 @@ export const insertGroups = createWriteQuery(
       'chatMembers',
       'chatMemberGroupRoles',
       'channels',
+      'channelReaders',
       'pins',
     ];
     if (groups.some((group) => group.channels?.length)) {
@@ -2285,6 +2241,22 @@ export const updateGroup = createWriteQuery(
     return ctx.db.update($groups).set(group).where(eq($groups.id, group.id));
   },
   ['groups', 'channels', 'groupNavSections', 'groupNavSectionChannels']
+);
+
+// A live seat event moves the count without carrying it. A null count is
+// unknown, not zero, so it stays null until a payload carries one.
+export const adjustGroupMemberCount = createWriteQuery(
+  'adjustGroupMemberCount',
+  async (
+    { groupId, delta }: { groupId: string; delta: number },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .update($groups)
+      .set({ memberCount: sql`max(${$groups.memberCount} + ${delta}, 0)` })
+      .where(and(eq($groups.id, groupId), isNotNull($groups.memberCount)));
+  },
+  ['groups']
 );
 
 export const deleteGroup = createWriteQuery(
@@ -2382,6 +2354,10 @@ export const insertContextLensRuns = createWriteQuery(
       .onConflictDoUpdate({
         target: [$contextLensRuns.botShip, $contextLensRuns.lensId],
         set: conflictUpdateSetAll($contextLensRuns, ['botShip', 'lensId']),
+        // The owner ship stamps each record of a run as it stores it, so a
+        // snapshot fetched earlier that lands after a newer record, from the
+        // feed, carries an older stamp and must not undo it.
+        setWhere: lte($contextLensRuns.receivedAt, sql`excluded.received_at`),
       });
   },
   ['contextLensRuns']
@@ -2412,6 +2388,47 @@ export const getRecentContextLensRuns = createReadQuery(
     return ctx.db.query.contextLensRuns.findMany({
       orderBy: [desc($contextLensRuns.receivedAt)],
       limit,
+    });
+  },
+  ['contextLensRuns']
+);
+
+/**
+ * The synced runs of one scheduled task, newest first. Matched the way the
+ * owner ship's /v1/lens/cron scry matches them (lensRunCronJobId): by the
+ * gateway's `cron.jobId`, or for runs recorded before it stamped one, by the
+ * "cron job <id>" trigger preview.
+ */
+export const getContextLensRunsForCronJob = createReadQuery(
+  'getContextLensRunsForCronJob',
+  async (
+    {
+      botShip,
+      jobId,
+      since,
+      limit,
+    }: { botShip: string; jobId: string; since?: number; limit?: number },
+    ctx: QueryCtx
+  ) => {
+    const field = (path: string) =>
+      sql`json_extract(${$contextLensRuns.payload}, ${path})`;
+    return ctx.db.query.contextLensRuns.findMany({
+      where: and(
+        eq($contextLensRuns.botShip, botShip),
+        since === undefined
+          ? undefined
+          : gte($contextLensRuns.receivedAt, since),
+        or(
+          sql`${field('$.lens.cron.jobId')} = ${jobId}`,
+          and(
+            sql`${field('$.lens.cron')} IS NULL`,
+            sql`${field('$.lens.runKind')} = 'cron'`,
+            sql`${field('$.lens.triggerDetails.preview')} = ${`cron job ${jobId}`}`
+          )
+        )
+      ),
+      orderBy: [desc($contextLensRuns.receivedAt)],
+      ...(limit === undefined ? {} : { limit }),
     });
   },
   ['contextLensRuns']
@@ -2676,6 +2693,36 @@ export const deleteBucketUpload = createWriteQuery(
   ['bucketUploads']
 );
 
+/**
+ * Delete the given upload rows that are still failed, and return them.
+ *
+ * Checked and deleted in one statement, so a row retried in the meantime is
+ * not swept up with the failures. One write, so dismissing a thousand
+ * failures invalidates the readers once rather than a thousand times.
+ * Chunked to stay under SQLite's bound-parameter limit.
+ */
+export const deleteFailedBucketUploads = createWriteQuery(
+  'deleteFailedBucketUploads',
+  async (ids: string[], ctx: QueryCtx) => {
+    const deleted: (typeof $bucketUploads.$inferSelect)[] = [];
+    for (let i = 0; i < ids.length; i += 500) {
+      deleted.push(
+        ...(await ctx.db
+          .delete($bucketUploads)
+          .where(
+            and(
+              inArray($bucketUploads.id, ids.slice(i, i + 500)),
+              eq($bucketUploads.state, 'failed')
+            )
+          )
+          .returning())
+      );
+    }
+    return deleted;
+  },
+  ['bucketUploads']
+);
+
 export const getBucketUploads = createReadQuery(
   'getBucketUploads',
   async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
@@ -2714,6 +2761,58 @@ export const getBucket = createReadQuery(
       where: eq($bucketEntries.channelId, channelId),
     });
     return { ...bucket, entries };
+  },
+  ['buckets', 'bucketEntries']
+);
+
+export interface BucketCounts {
+  fileCount: number;
+  folderCount: number;
+}
+
+// Counts every held Bucket at once, as getNotesCountsByNotebook does for
+// notebooks: the channel list needs a count per Buckets channel. Only files
+// that have finished uploading count -- a pending or failed entry is not a
+// file anyone can open. Every Bucket we hold a manifest for gets an entry,
+// zeroes included, so callers can tell an empty Bucket from one that hasn't
+// arrived yet. One statement, so a snapshot's delete-then-reinsert in
+// replaceBucketEntries can't land between two separate counts.
+export const getBucketCountsByChannel = createReadQuery(
+  'getBucketCountsByChannel',
+  async (ctx: QueryCtx): Promise<Record<string, BucketCounts>> => {
+    const rows = await ctx.db
+      .select({
+        channelId: $buckets.channelId,
+        fileCount: sql<number>`${ctx.db
+          .select({ value: count() })
+          .from($bucketEntries)
+          .where(
+            and(
+              eq($bucketEntries.channelId, $buckets.channelId),
+              eq($bucketEntries.kind, 'file'),
+              eq($bucketEntries.status, 'ready')
+            )
+          )}`,
+        folderCount: sql<number>`${ctx.db
+          .select({ value: count() })
+          .from($bucketEntries)
+          .where(
+            and(
+              eq($bucketEntries.channelId, $buckets.channelId),
+              eq($bucketEntries.kind, 'folder')
+            )
+          )}`,
+      })
+      .from($buckets);
+
+    const counts: Record<string, BucketCounts> = {};
+    for (const row of rows) {
+      counts[row.channelId] = {
+        fileCount: row.fileCount,
+        folderCount: row.folderCount,
+      };
+    }
+    return counts;
   },
   ['buckets', 'bucketEntries']
 );
@@ -2924,6 +3023,52 @@ export const getJoinedGroupSeats = createReadQuery(
       );
   },
   ['chatMembers', 'groups']
+);
+
+// A member's roles in every group, and below, every channel's writer and
+// reader roles. Together they answer where that member may post (see
+// useCanWrite, and notesPermissionsCompat for notebooks) for a whole list of
+// channels at once, without loading each one's relations.
+export const getMemberGroupRoles = createReadQuery(
+  'getMemberGroupRoles',
+  async ({ contactId }: { contactId: string }, ctx: QueryCtx) => {
+    return ctx.db
+      .select({
+        groupId: $chatMemberGroupRoles.groupId,
+        roleId: $chatMemberGroupRoles.roleId,
+      })
+      .from($chatMemberGroupRoles)
+      .where(eq($chatMemberGroupRoles.contactId, contactId));
+  },
+  ['chatMemberGroupRoles']
+);
+
+// Only channels that restrict writing have rows here.
+export const getChannelWriterRoles = createReadQuery(
+  'getChannelWriterRoles',
+  async (ctx: QueryCtx) => {
+    return ctx.db
+      .select({
+        channelId: $channelWriters.channelId,
+        roleId: $channelWriters.roleId,
+      })
+      .from($channelWriters);
+  },
+  ['channelWriters']
+);
+
+// Only channels that restrict reading have rows here.
+export const getChannelReaderRoles = createReadQuery(
+  'getChannelReaderRoles',
+  async (ctx: QueryCtx) => {
+    return ctx.db
+      .select({
+        channelId: $channelReaders.channelId,
+        roleId: $channelReaders.roleId,
+      })
+      .from($channelReaders);
+  },
+  ['channelReaders']
 );
 
 export const addChatMembers = createWriteQuery(
@@ -3220,16 +3365,112 @@ export const removeChatMembers = createWriteQuery(
   ['chatMembers', 'groups']
 );
 
+// Stores the members of one roster page. A page carries every role each of
+// its members holds, so their stored roles are replaced, not added to.
+export const insertGroupMembersPage = createWriteQuery(
+  'insertGroupMembersPage',
+  async (
+    { groupId, members }: { groupId: string; members: ChatMember[] },
+    ctx: QueryCtx
+  ) => {
+    if (members.length === 0) return;
+    return withTransactionCtx(ctx, async (txCtx) => {
+      // not insertMembers, which logs a failed batch and carries on: a page
+      // whose members didn't land must fail, or its cursor moves on and the
+      // page is never fetched again
+      await txCtx.db
+        .insert($chatMembers)
+        .values(members)
+        .onConflictDoUpdate({
+          target: [$chatMembers.chatId, $chatMembers.contactId],
+          set: conflictUpdateSetAll($chatMembers),
+        });
+      await txCtx.db.delete($chatMemberGroupRoles).where(
+        and(
+          eq($chatMemberGroupRoles.groupId, groupId),
+          inArray(
+            $chatMemberGroupRoles.contactId,
+            members.map((member) => member.contactId)
+          )
+        )
+      );
+      // like insertGroups, skip roles the group doesn't define
+      const roleIds = new Set(
+        (
+          await txCtx.db
+            .select({ id: $groupRoles.id })
+            .from($groupRoles)
+            .where(eq($groupRoles.groupId, groupId))
+        ).map((role) => role.id)
+      );
+      const memberRoles = members.flatMap((member) =>
+        (member.roles ?? [])
+          .filter((role) => roleIds.has(role.roleId))
+          .map((role) => ({
+            groupId,
+            contactId: member.contactId,
+            roleId: role.roleId,
+          }))
+      );
+      if (memberRoles.length) {
+        await txCtx.db
+          .insert($chatMemberGroupRoles)
+          .values(memberRoles)
+          .onConflictDoNothing();
+      }
+    });
+  },
+  ['groups', 'chatMembers', 'chatMemberGroupRoles']
+);
+
+// The stored count alone, without loading the group's members.
+export const getStoredMemberCount = createReadQuery(
+  'getStoredMemberCount',
+  async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
+    const row = await ctx.db.query.groups.findFirst({
+      where: eq($groups.id, groupId),
+      columns: { memberCount: true },
+    });
+    return row?.memberCount ?? null;
+  },
+  ['groups']
+);
+
+// Every stored role assignment in a group.
+export const getGroupMemberRoles = createReadQuery(
+  'getGroupMemberRoles',
+  async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
+    return ctx.db
+      .select({
+        contactId: $chatMemberGroupRoles.contactId,
+        roleId: $chatMemberGroupRoles.roleId,
+      })
+      .from($chatMemberGroupRoles)
+      .where(eq($chatMemberGroupRoles.groupId, groupId));
+  },
+  ['chatMemberGroupRoles']
+);
+
 export const getGroupMemberIds = createReadQuery(
   'getGroupMemberIds',
-  async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
+  async (
+    // seatedOnly leaves out invited ships, which hold no seat yet
+    { groupId, seatedOnly }: { groupId: string; seatedOnly?: boolean },
+    ctx: QueryCtx
+  ) => {
     const rows = await ctx.db
       .select({ contactId: $chatMembers.contactId })
       .from($chatMembers)
       .where(
         and(
           eq($chatMembers.chatId, groupId),
-          eq($chatMembers.membershipType, 'group')
+          eq($chatMembers.membershipType, 'group'),
+          seatedOnly
+            ? or(
+                isNull($chatMembers.status),
+                not(eq($chatMembers.status, 'invited'))
+              )
+            : undefined
         )
       );
     return rows.map((row) => row.contactId);
@@ -4953,35 +5194,32 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
   );
 
   const uniqueChannels = new Set(posts.map((p) => p.channelId)).size;
+  let recovered = false;
   await perfTime(
     'insertPostsBatch.total',
     async () => {
-      await perfTime(
-        'insertPostsBatch.insertPosts',
-        () =>
-          ctx.db
-            .insert($posts)
-            .values(
-              posts.map((p) => ({
-                ...p,
-                groupId: sql`(SELECT ${$channels.groupId} FROM ${$channels} WHERE ${$channels.id} = ${p.channelId})`,
-              }))
-            )
-            .onConflictDoUpdate({
-              target: $posts.id,
-              set: conflictUpdateSetAll($posts, ['hidden']),
-            })
-            .onConflictDoUpdate({
-              target: [
-                $posts.authorId,
-                $posts.channelId,
-                $posts.sentAt,
-                $posts.sequenceNum,
-              ],
-              set: conflictUpdateSetAll($posts, ['hidden']),
-            }),
-        { count: posts.length, channels: uniqueChannels }
-      );
+      try {
+        await perfTime(
+          'insertPostsBatch.insertPosts',
+          () => upsertPosts(posts, ctx),
+          { count: posts.length, channels: uniqueChannels }
+        );
+      } catch (e) {
+        if (!isPostsUniqueViolation(e)) throw e;
+        logger.trackError('insertPostsBatch unique violation', {
+          channelKinds: [
+            ...new Set(posts.map((p) => channelKind(p.channelId))),
+          ],
+          batchSize: posts.length,
+          replyCount: posts.filter((p) => p.type === 'reply').length,
+          topLevelCount: posts.filter((p) => p.type !== 'reply').length,
+          distinctAuthors: new Set(posts.map((p) => p.authorId)).size,
+        });
+        await perfTime('insertPostsBatch.replaceStaleCacheIdHolders', () =>
+          replaceStaleCacheIdHolders(posts, ctx)
+        );
+        recovered = true;
+      }
 
       // A sync can carry an older server copy before a timed-out edit lands.
       // Keep the retry marker until the incoming post matches that edit.
@@ -5035,7 +5273,13 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
       logger.log('inserted posts');
       await perfTime(
         'insertPostsBatch.setLastPosts',
-        () => setLastPosts(posts, ctx),
+        () =>
+          recovered
+            ? reconcileLastPosts(
+                [...new Set(posts.map((p) => p.channelId))],
+                ctx
+              )
+            : setLastPosts(posts, ctx),
         { channels: uniqueChannels }
       );
       logger.log('set last posts');
@@ -5052,6 +5296,100 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
     },
     { count: posts.length, channels: uniqueChannels }
   );
+}
+
+function upsertPosts(posts: Post[], ctx: QueryCtx) {
+  return ctx.db
+    .insert($posts)
+    .values(
+      posts.map((p) => ({
+        ...p,
+        groupId: sql`(SELECT ${$channels.groupId} FROM ${$channels} WHERE ${$channels.id} = ${p.channelId})`,
+      }))
+    )
+    .onConflictDoUpdate({
+      target: $posts.id,
+      set: conflictUpdateSetAll($posts, ['hidden']),
+    })
+    .onConflictDoUpdate({
+      target: [
+        $posts.authorId,
+        $posts.channelId,
+        $posts.sentAt,
+        $posts.sequenceNum,
+      ],
+      set: conflictUpdateSetAll($posts, ['hidden']),
+    });
+}
+
+// When an incoming row matches one row by id and a different row by cache_id,
+// the upsert takes the id clause and that update collides with the second row,
+// aborting the statement — and every later sync of the same window. The other
+// row may be stored or inserted earlier in the same batch, so recover row by
+// row: the server copy is authoritative, so drop the other holder of the
+// cache_id and retry that row once. SQLite's default ABORT undoes only the
+// failed statement, so the enclosing transaction is still usable. Rows with a
+// NULL sequence number can't collide (the index treats NULLs as distinct).
+// A deleted row's `hidden` flag is not carried over because the server
+// re-applies hidden posts on the next sync.
+async function replaceStaleCacheIdHolders(posts: Post[], ctx: QueryCtx) {
+  for (const post of posts) {
+    try {
+      await upsertPosts([post], ctx);
+      continue;
+    } catch (e) {
+      if (!isPostsUniqueViolation(e) || post.sequenceNum == null) throw e;
+    }
+    await ctx.db
+      .delete($posts)
+      .where(
+        and(
+          eq($posts.channelId, post.channelId),
+          eq($posts.authorId, post.authorId),
+          eq($posts.sentAt, post.sentAt),
+          eq($posts.sequenceNum, post.sequenceNum),
+          ne($posts.id, post.id)
+        )
+      );
+    await upsertPosts([post], ctx);
+  }
+}
+
+// After recovery, rows from the batch may have been deleted or renamed by the
+// cache_id clause, so the batch can't drive the monotonic update. Clear
+// pointers to rows that no longer exist (the recompute skips channels left
+// with only replies), then rebuild channel and group previews from local rows.
+async function reconcileLastPosts(channelIds: string[], ctx: QueryCtx) {
+  await ctx.db
+    .update($channels)
+    .set({ lastPostId: null, lastPostAt: null })
+    .where(
+      and(
+        inArray($channels.id, channelIds),
+        isNotNull($channels.lastPostId),
+        notInArray(
+          $channels.lastPostId,
+          ctx.db.select({ id: $posts.id }).from($posts)
+        )
+      )
+    );
+  await setLastPosts(null, ctx, channelIds);
+}
+
+function isPostsUniqueViolation(e: unknown) {
+  const message = e instanceof Error ? e.message : String(e);
+  return (
+    message.includes('UNIQUE constraint failed') && message.includes('posts.')
+  );
+}
+
+function channelKind(channelId: string) {
+  if (channelId.startsWith('~')) return 'dm';
+  if (channelId.startsWith('0v')) return 'club';
+  const prefix = channelId.split('/')[0];
+  return ['chat', 'diary', 'heap', 'notes', 'buckets'].includes(prefix)
+    ? prefix
+    : 'other';
 }
 
 async function deleteReplacedCachedPosts(replacers: Post[], ctx: QueryCtx) {

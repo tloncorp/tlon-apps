@@ -5,6 +5,7 @@ import {
 } from '../media-guard';
 import {
   type CommandDeps,
+  CommandError,
   commandError,
   handleExpectedCommandError,
   isHelpArg,
@@ -50,20 +51,35 @@ export const UNPOSTABLE_UPLOAD_URL_ERROR =
   'must be a credential-free https URL. Check the storage configuration; a ' +
   'non-https `publicUrlBase` is the usual cause.';
 
-export const UPLOAD_HELP = `Usage: tlon upload <url-or-path> [options]
+export const INVALID_UPLOAD_URL_ERROR = 'Invalid URL.';
+export const UPLOAD_FILE_NOT_FOUND_ERROR = 'File not found.';
+export const BATCH_ITEM_UNEXPECTED_ERROR =
+  'Upload failed — run `tlon upload` on this input alone for details.';
+
+export const UPLOAD_HELP = `Usage: tlon upload <url-or-path> [<url-or-path>...] [options]
        tlon upload --stdin [-t mime/type]
 
-Upload a file to Tlon storage from a URL, local path, or stdin.
-Outputs the uploaded URL on success.
+Upload files to Tlon storage from URLs, local paths, or stdin.
+One input: outputs the uploaded URL on success.
+Several inputs: uploads them one at a time, in order, and prints one line per
+input, identified by its position: "input N: <uploaded-url>" on success or
+"input N: <error>" on failure. Exits 0 when at least one input uploaded
+(failures are then reported on stdout alongside the successes); exits 1 with
+the errors on stderr only when every input failed. A remote source fetch is
+limited to 100 MiB and 120 seconds per URL. The tlon tool's command timeout
+covers the whole batch and a timed-out run loses its results — split large
+batches into several uploads.
 
 Options:
-  --stdin         Read binary data from stdin instead of a file/URL
-  -t, --type      Override content type (e.g., image/png, application/pdf)
+  --stdin         Shell CLI only: read piped data (single input); unavailable through the tlon tool
+  -t, --type      Override content type for every input (e.g., image/png,
+                  application/pdf); for different types, upload separately
   -h, --help      Show this help
 
 Examples:
   tlon upload https://example.com/image.png
   tlon upload ./photo.jpg
+  tlon upload ./one.jpg ./two.png https://example.com/three.gif
   tlon upload ~/Pictures/screenshot.png
   tlon upload ./mystery-file -t image/webp
   cat image.png | tlon upload --stdin -t image/png
@@ -165,7 +181,22 @@ export interface UploadDeps extends CommandDeps {
 type ParsedUploadArgs =
   | { kind: 'help' }
   | { kind: 'stdin'; contentType: string }
-  | { kind: 'input'; input: string; contentType?: string };
+  | { kind: 'inputs'; inputs: string[]; contentType?: string };
+
+/**
+ * A validation error whose message names the user's local path. Single-input
+ * runs print `message` as before; batch output identifies items by position
+ * only, so it prints the input-free `fixedMessage` instead.
+ */
+class UploadInputError extends CommandError {
+  readonly fixedMessage: string;
+
+  constructor(message: string, fixedMessage: string) {
+    super(message);
+    this.name = 'UploadInputError';
+    this.fixedMessage = fixedMessage;
+  }
+}
 
 function isUrl(input: string): boolean {
   return /^https?:\/\//i.test(input);
@@ -180,8 +211,28 @@ function parseUrl(input: string): URL {
   try {
     return new URL(input);
   } catch {
-    throw commandError(`Invalid URL: ${input}`);
+    // Never echo a URL: userinfo, a signed query, a fragment or the path
+    // itself can carry a secret.
+    throw commandError(INVALID_UPLOAD_URL_ERROR);
   }
+}
+
+/**
+ * Tokens that could be an input: everything but `--stdin`, `-t`/`--type` and
+ * its value, and help flags.
+ */
+function inputLikeTokenCount(args: string[]): number {
+  let count = 0;
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
+    if (arg === '--stdin' || isHelpArg(arg)) continue;
+    if (arg === '-t' || arg === '--type') {
+      i += 1;
+      continue;
+    }
+    count += 1;
+  }
+  return count;
 }
 
 function parseArgs(args: string[]): ParsedUploadArgs {
@@ -212,7 +263,14 @@ function parseArgs(args: string[]): ParsedUploadArgs {
     }
 
     if (arg.startsWith('-')) {
-      throw usageError(`Unknown option: ${arg}`, UPLOAD_HELP);
+      // With several input-like tokens this may be an input (a file named
+      // `-x.png`), so identify it by position rather than echo it.
+      throw usageError(
+        inputLikeTokenCount(args) > 1
+          ? `Unknown option (argument ${i + 1}).`
+          : `Unknown option: ${arg}`,
+        UPLOAD_HELP
+      );
     }
 
     positional.push(arg);
@@ -232,11 +290,7 @@ function parseArgs(args: string[]): ParsedUploadArgs {
     throw usageError(UPLOAD_HELP);
   }
 
-  if (positional.length > 1) {
-    throw usageError(`Unexpected argument: ${positional[1]}`, UPLOAD_HELP);
-  }
-
-  return { kind: 'input', input: positional[0], contentType };
+  return { kind: 'inputs', inputs: positional, contentType };
 }
 
 /**
@@ -263,7 +317,7 @@ function canonicalUploadSource(input: string): string {
     }
     return parsed.href;
   }
-  throw commandError(`Invalid URL: ${input}`);
+  throw commandError(INVALID_UPLOAD_URL_ERROR);
 }
 
 /** Media type without parameters (`image/png; charset=x` → `image/png`). */
@@ -302,7 +356,10 @@ async function uploadFromFile(
 ): Promise<string> {
   const resolved = deps.fileSystem.resolvePath(filePath);
   if (!deps.fileSystem.exists(resolved)) {
-    throw commandError(`File not found: ${resolved}`);
+    throw new UploadInputError(
+      `File not found: ${resolved}`,
+      UPLOAD_FILE_NOT_FOUND_ERROR
+    );
   }
 
   const data = deps.fileSystem.readFile(resolved);
@@ -331,6 +388,78 @@ async function uploadFromStdin(
   return result.url;
 }
 
+/**
+ * Neither backend validates its own return path (Memex returns `filePath`
+ * as-is; custom S3 derives from `publicUrlBase`), so an http or
+ * credential-bearing URL could be printed and then rejected downstream by
+ * `--image`. Fail here instead.
+ */
+function postableOrThrow(uploadedUrl: string): string {
+  const postable = strictPostableUrl(uploadedUrl);
+  if (!postable) {
+    throw commandError(UNPOSTABLE_UPLOAD_URL_ERROR);
+  }
+  return postable;
+}
+
+async function uploadInput(
+  input: string,
+  contentType: string | undefined,
+  deps: UploadDeps
+): Promise<string> {
+  const uploadedUrl = isUrl(input)
+    ? await uploadFromUrl(input, contentType, deps)
+    : await uploadFromFile(input, contentType, deps);
+  return postableOrThrow(uploadedUrl);
+}
+
+/** A batch item's failure text: never the input, only fixed messages. */
+function batchItemError(error: unknown): string {
+  if (error instanceof UploadInputError) return error.fixedMessage;
+  if (error instanceof CommandError) return error.message;
+  // Unexpected errors (filesystem, storage client) can quote the path or URL.
+  return BATCH_ITEM_UNEXPECTED_ERROR;
+}
+
+/**
+ * Uploads every input in order. The tlon tool surfaces only stderr when a
+ * command exits nonzero, so any success makes the batch exit 0 with every
+ * line on stdout; failure lines are held back until the first success (or
+ * until every input has failed, when they go to stderr with exit 1).
+ */
+async function uploadBatch(
+  inputs: string[],
+  contentType: string | undefined,
+  deps: UploadDeps
+): Promise<number> {
+  const heldFailures: string[] = [];
+  let succeeded = false;
+
+  for (const [index, input] of inputs.entries()) {
+    const label = `input ${index + 1}`;
+    try {
+      const postable = await uploadInput(input, contentType, deps);
+      if (!succeeded) {
+        succeeded = true;
+        for (const line of heldFailures) writeLine(deps.stdout, line);
+        heldFailures.length = 0;
+      }
+      writeLine(deps.stdout, `${label}: ${postable}`);
+    } catch (error) {
+      const line = `${label}: ${batchItemError(error)}`;
+      if (succeeded) {
+        writeLine(deps.stdout, line);
+      } else {
+        heldFailures.push(line);
+      }
+    }
+  }
+
+  if (succeeded) return 0;
+  for (const line of heldFailures) writeLine(deps.stderr, line);
+  return 1;
+}
+
 export async function run(args: string[], deps: UploadDeps): Promise<number> {
   try {
     const parsed = parseArgs(args);
@@ -352,21 +481,14 @@ export async function run(args: string[], deps: UploadDeps): Promise<number> {
       );
     }
 
-    const uploadedUrl =
-      parsed.kind === 'stdin'
-        ? await uploadFromStdin(parsed.contentType, deps)
-        : isUrl(parsed.input)
-          ? await uploadFromUrl(parsed.input, parsed.contentType, deps)
-          : await uploadFromFile(parsed.input, parsed.contentType, deps);
-
-    // Neither backend validates its own return path (Memex returns `filePath`
-    // as-is; custom S3 derives from `publicUrlBase`), so an http or
-    // credential-bearing URL could be printed and then rejected downstream by
-    // `--image`. Fail here instead.
-    const postable = strictPostableUrl(uploadedUrl);
-    if (!postable) {
-      throw commandError(UNPOSTABLE_UPLOAD_URL_ERROR);
+    if (parsed.kind === 'inputs' && parsed.inputs.length > 1) {
+      return await uploadBatch(parsed.inputs, parsed.contentType, deps);
     }
+
+    const postable =
+      parsed.kind === 'stdin'
+        ? postableOrThrow(await uploadFromStdin(parsed.contentType, deps))
+        : await uploadInput(parsed.inputs[0], parsed.contentType, deps);
 
     writeLine(deps.stdout, postable);
     return 0;

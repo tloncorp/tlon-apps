@@ -29,3 +29,20 @@ export function resolveSettingsMirrorSync(params: {
     pendingNudge,
   };
 }
+
+/**
+ * Re-derives an allowlist from a settings snapshot. An explicit list (even an
+ * empty one) is authoritative; a missing key falls back to the file config
+ * rather than keeping the previous in-memory list.
+ */
+export function resolveSettingsAllowlist(
+  settingsValue: string[] | undefined,
+  fileValue: string[],
+  current: string[]
+): { allowlist: string[]; changed: boolean } {
+  const allowlist = settingsValue ?? fileValue;
+  const changed =
+    allowlist.length !== current.length ||
+    allowlist.some((ship, i) => ship !== current[i]);
+  return { allowlist, changed };
+}

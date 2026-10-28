@@ -1,4 +1,3 @@
-import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import NetInfo, { useNetInfo } from '@react-native-community/netinfo';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import {
@@ -27,9 +26,11 @@ import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import {
   ForwardPostSheetProvider,
   LoadingSpinner,
+  View,
   ZStack,
   useWebAppSplash,
 } from '@tloncorp/app/ui';
+import { MessageTextSelectionProvider } from '@tloncorp/app/ui/components/ChatMessage/MessageTextSelectionSheet';
 import {
   createDevLogger,
   observeSyncSinceCompletion,
@@ -394,30 +395,24 @@ function AuthenticatedAppContent({
 
   if (!clientReady || isProbingColdStart) {
     return (
-      <ZStack flex={1} alignItems="center" justifyContent="center">
+      <View flex={1} alignItems="center" justifyContent="center">
         <LoadingSpinner />
-      </ZStack>
+      </View>
     );
   }
 
   return (
     <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
-      {/*
-        Re-root BottomSheetModalProvider here so @gorhom/bottom-sheet modal
-        sheets have access to `AppDataContext`. Tamagui sheets don't need a
-        re-rooted PortalProvider: native portals (react-native-teleport) keep
-        the React tree in place, so portaled content already sees this context.
-      */}
-      <BottomSheetModalProvider>
-        <ForwardPostSheetProvider>
+      <ForwardPostSheetProvider>
+        <MessageTextSelectionProvider>
           <ShareIntentForwardSheetProvider enabled>
             <AuthenticatedApp
               onLogout={onLogout}
               requireHostingAuth={requireHostingAuth}
             />
           </ShareIntentForwardSheetProvider>
-        </ForwardPostSheetProvider>
-      </BottomSheetModalProvider>
+        </MessageTextSelectionProvider>
+      </ForwardPostSheetProvider>
     </AppDataProvider>
   );
 }
@@ -550,9 +545,9 @@ export default function ConnectedAuthenticatedApp({
 
   if (hostingAuthState === 'checking' || !checkedConnection) {
     return (
-      <ZStack flex={1} alignItems="center" justifyContent="center">
+      <View flex={1} alignItems="center" justifyContent="center">
         <LoadingSpinner />
-      </ZStack>
+      </View>
     );
   }
 
@@ -560,18 +555,29 @@ export default function ConnectedAuthenticatedApp({
     return authenticatedContent;
   }
 
+  // Only once the desk is known good. The overlay is opaque and full-screen,
+  // so it would bury the notice — and the spinner that precedes it — and its
+  // onboarding sequence starts furnishing a group straight away, which an
+  // incompatible desk can't serve.
+  const overlay = deskCompat?.status === 'ok' ? authenticatedOverlay : null;
+  const covered = overlay != null;
+
   return (
     <ZStack flex={1}>
-      <AuthenticatedAppContent
-        onLogout={onLogout}
-        requireHostingAuth={requireHostingAuth}
-        initializeSession={initializeSession}
-      />
-      {/* Only once the desk is known good. The overlay is opaque and
-          full-screen, so it would bury the notice — and the spinner that
-          precedes it — and its onboarding sequence starts furnishing a group
-          straight away, which an incompatible desk can't serve. */}
-      {deskCompat?.status === 'ok' ? authenticatedOverlay : null}
+      {/* The app keeps running under the overlay; screen readers stay on
+          the overlay until it's gone. */}
+      <View
+        flex={1}
+        accessibilityElementsHidden={covered}
+        importantForAccessibility={covered ? 'no-hide-descendants' : 'auto'}
+      >
+        <AuthenticatedAppContent
+          onLogout={onLogout}
+          requireHostingAuth={requireHostingAuth}
+          initializeSession={initializeSession}
+        />
+      </View>
+      {overlay}
     </ZStack>
   );
 }

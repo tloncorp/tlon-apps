@@ -19,6 +19,7 @@ export type TlonCronRunFinished = TlonCronRunStarted & {
   delivered: boolean | null;
   deliveryError: string | null;
   deliveryStatus: string | null;
+  intentionalSilence: boolean;
   durationMs: number | null;
   model: string | null;
   nextRunAtMs: number | null;
@@ -39,6 +40,7 @@ export type TlonCronJobSnapshot = {
   scheduleKindCronCount: number;
   scheduleKindEveryCount: number;
   scheduleKindOnExitCount: number;
+  scheduleKindStreamCount: number;
   totalCronJobCount: number;
 };
 
@@ -111,7 +113,7 @@ type CronAgentContextRecord = {
 };
 
 const MAX_CRON_AGENT_SESSIONS = 512;
-const SCHEDULE_KINDS = new Set(['at', 'cron', 'every', 'on-exit']);
+const SCHEDULE_KINDS = new Set(['at', 'cron', 'every', 'on-exit', 'stream']);
 const SESSION_TARGET_KINDS = new Set([
   'current',
   'isolated',
@@ -313,6 +315,9 @@ export function createTlonCronOtelObserver(options?: {
         result.observe(jobSnapshot.scheduleKindOnExitCount, {
           schedule_kind: 'on-exit',
         });
+        result.observe(jobSnapshot.scheduleKindStreamCount, {
+          schedule_kind: 'stream',
+        });
       });
     });
   };
@@ -442,6 +447,7 @@ export function createTlonCronOtelObserver(options?: {
           ...optionalLogField('tlon.cron.error', run.cronError),
           ...optionalLogField('tlon.cron.delivered', run.delivered),
           ...optionalLogField('tlon.cron.delivery_status', run.deliveryStatus),
+          'tlon.cron.intentional_silence': run.intentionalSilence,
           ...optionalLogField('tlon.cron.delivery_error', run.deliveryError),
           ...optionalLogField('tlon.cron.model', run.model),
           ...optionalLogField('tlon.cron.provider', run.provider),

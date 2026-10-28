@@ -4,8 +4,13 @@ import {
   type ReplyWithMemo,
   formatUd,
 } from '@tloncorp/api';
+import { da } from '@urbit/aura';
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 
+import {
+  type OwnerToolPostLedger,
+  sharedOwnerToolPostLedger,
+} from '../owner-tool-posts.js';
 import { isDmNest } from '../targets.js';
 import { formatBlobForHistory, parseBlobData } from './media.js';
 import { extractMessageText } from './utils.js';
@@ -14,7 +19,10 @@ export type TlonHistoryEntry = {
   author: string;
   content: string;
   timestamp: number;
+  sequenceNum?: number;
   id?: string;
+  /** The thread's top-level post, on a reply (fetched or firehose-cached). */
+  parentId?: string;
   blob?: string | null;
   parsedBlobData?: ClientPostBlobData | null;
 };
@@ -44,6 +52,68 @@ function parsePostAuthor(author: unknown): string | null {
   return null;
 }
 
+/**
+ * History minus posts this bot made in the owner's name with the tlon tool:
+ * those are the bot's own actions, not owner input. Ledger entries expire
+ * after OWNER_TOOL_POST_TTL_MS; past that such a post reads as ordinary
+ * owner-authored history.
+ */
+export function withoutOwnerToolPosts<T extends TlonHistoryEntry>(
+  history: T[],
+  channelNest: string,
+  /** The bot whose history this is; a one-to-one DM matches against it. */
+  receivingShip: string,
+  ledger: OwnerToolPostLedger = sharedOwnerToolPostLedger()
+): T[] {
+  return history.filter(
+    (entry) =>
+      !ledger.match({
+        // Thread replies keep the raw author, a bot-profile object for --bot.
+        author: parsePostAuthor(entry.author) ?? '',
+        target: channelNest,
+        receivingShip,
+        sent: entry.timestamp,
+        ...(entry.id ? { postId: entry.id } : {}),
+        ...(entry.parentId ? { parentId: entry.parentId } : {}),
+        text: entry.content,
+      })
+  );
+}
+
+function parseSequenceNum(value: unknown): number | undefined {
+  const sequenceNum = typeof value === 'number' ? value : Number(value);
+  return Number.isSafeInteger(sequenceNum) && sequenceNum > 0
+    ? sequenceNum
+    : undefined;
+}
+
+function parseHistoryTimestamp(value: unknown): number | undefined {
+  if (typeof value === 'number') {
+    return Number.isSafeInteger(value) && value > 0 ? value : undefined;
+  }
+  if (typeof value !== 'string') return undefined;
+  const digits = value.replaceAll('.', '');
+  if (!/^\d+$/.test(digits)) return undefined;
+  try {
+    const atom = BigInt(digits);
+    if (atom <= BigInt(Number.MAX_SAFE_INTEGER)) {
+      const unix = Number(atom);
+      return unix > 0 ? unix : undefined;
+    }
+    return da.toUnix(atom);
+  } catch {
+    return undefined;
+  }
+}
+
+function historyTimestamp(sent: unknown, id: unknown): number {
+  const direct = parseHistoryTimestamp(sent);
+  if (direct !== undefined) return direct;
+  const idTime =
+    typeof id === 'string' ? id.slice(id.lastIndexOf('/') + 1) : undefined;
+  return parseHistoryTimestamp(idTime) ?? Date.now();
+}
+
 /** Parse the supported single-post and single-reply scry payload shapes. */
 export function parsePostPayload(
   payload: unknown,
@@ -57,6 +127,9 @@ export function parsePostPayload(
     const post = payload as unknown as PostDataResponse;
     const sourceAuthor = parsePostAuthor(post.essay.author);
     const id = post.seal?.id ?? fallbackId;
+    const sequenceNum = parseSequenceNum(
+      (post.seal as { seq?: unknown } | undefined)?.seq
+    );
     const blob = typeof post.essay.blob === 'string' ? post.essay.blob : null;
 
     return {
@@ -68,6 +141,7 @@ export function parsePostPayload(
             ? post.essay.sent
             : Date.now(),
         ...(id ? { id } : {}),
+        ...(sequenceNum ? { sequenceNum } : {}),
         blob,
       },
       sourceAuthor,
@@ -329,6 +403,7 @@ export async function fetchChannelHistoryOrThrow(
     .map((item) => {
       const essay = item.essay || item['r-post']?.set?.essay;
       const seal = item.seal || item['r-post']?.set?.seal;
+      const sequenceNum = parseSequenceNum(seal?.seq);
 
       return {
         // v8 channel history returns bot authors as profile objects while
@@ -336,8 +411,14 @@ export async function fetchChannelHistoryOrThrow(
         // downstream keys identity by ship, so normalize both shapes here.
         author: parsePostAuthor(essay?.author) ?? 'unknown',
         content: extractMessageText(essay?.content || []),
-        timestamp: essay?.sent || Date.now(),
+        // %chat DM history may expose `sent` as an @da atom rather than Unix
+        // milliseconds. Preserve the true client time so delayed onboarding
+        // reconciliation cannot make a fresh intro look ineligible (or an old
+        // intro look fresh). The seal id retains the exact atom when a JSON
+        // number has already lost precision.
+        timestamp: historyTimestamp(essay?.sent, seal?.id),
         id: seal?.id,
+        ...(sequenceNum ? { sequenceNum } : {}),
         blob: essay?.blob ?? null,
       } as TlonHistoryEntry;
     })
@@ -414,6 +495,7 @@ export async function fetchThreadHistory(
           content: extractMessageText(memo?.content || []),
           timestamp: memo?.sent || Date.now(),
           id: seal?.id || item.id,
+          parentId,
           blob: memo?.blob ?? null,
         } as TlonHistoryEntry;
       })
@@ -443,6 +525,7 @@ export async function fetchThreadHistory(
             content: extractMessageText(reply.memo?.content || []),
             timestamp: reply.memo?.sent || Date.now(),
             id: reply.seal?.id,
+            parentId,
             blob: reply.memo?.blob ?? null,
           }))
           .filter((msg: TlonHistoryEntry) => msg.content || msg.blob);

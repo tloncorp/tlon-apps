@@ -1,5 +1,6 @@
 export type BotSettingsPendingFields = {
   nickname: boolean;
+  browserService: boolean;
   modelProvider: boolean;
   model: boolean;
   zdr: boolean;
@@ -17,12 +18,13 @@ export const getChangeLabels = (
 ): string[] => {
   const labels: string[] = [];
   if (pending.nickname) labels.push('Nickname');
+  if (pending.browserService) labels.push('Browser service');
   if (pending.modelProvider || pending.model) labels.push('Default model');
   if (pending.zdr) labels.push('Zero data retention');
   if (pending.fallbacks) labels.push('Fallback models');
   if (pending.dmAllowlist) labels.push('DM allowlist');
   if (pending.defaultAuthorizedShips) labels.push('Authorized ships');
-  if (pending.groupInviteAllowlist) labels.push('Group invites');
+  if (pending.groupInviteAllowlist) labels.push('Workspace invites');
   if (pending.autoAcceptDmInvites) labels.push('DM invites');
   if (pending.autoDiscoverChannels) labels.push('Auto-discover');
   if (pending.channelRules) labels.push('Channel rules');

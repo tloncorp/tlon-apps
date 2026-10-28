@@ -103,6 +103,61 @@
   ;<  *  bind:m  (do-poke %channel-action-1 !>([%channel the-nest %join the-group]))
   (do-agent chk-wire the-dock %watch-ack ~)
 ::
+::  joining a channel we already hold must still give the %join response:
+::  the client's join is a tracked poke waiting on it (else it times out and
+::  rolls back), and %groups repairs .active-channels from it.
+::
+++  test-rejoin-gives-join-response
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  (set-scry-gate scry)
+  ;<  *  bind:m  (do-init dap channels-agent)
+  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~dev, src ~dev)))
+  =/  act=a-channels:v9:cv  [%channel the-nest %join the-group]
+  ;<  caz=(list card)  bind:m  (do-poke %channel-action-1 !>(act))
+  ;<  ~  bind:m  (ex-join-response "the join" caz)
+  ;<  *  bind:m  (do-agent chk-wire the-dock %watch-ack ~)
+  ;<  caz=(list card)  bind:m  (do-poke %channel-action-1 !>(act))
+  ;<  ~  bind:m  (ex-join-response "the rejoin" caz)
+  ::  a rejoin confirms the join, it doesn't redo it
+  ::
+  ^-  form:m
+  |=  s=state
+  ?.  (has-fact caz /unreads)  &+[~ s]
+  |+['rejoin re-initialized the channel (gave unreads)']~
+::
+++  ex-join-response
+  |=  [what=tape caz=(list card)]
+  =/  m  (mare ,~)
+  ^-  form:m
+  |=  s=state
+  =/  want  [the-nest %join the-group]
+  ?:  ?&  (has-fact-noun caz /v4 %channel-response-5 want)
+          (has-fact-noun caz /v1 %channel-response-2 want)
+      ==
+    &+[~ s]
+  |+[leaf+"expected a %join response on /v4 and /v1 after {what}"]~
+::
+++  has-fact
+  |=  [caz=(list card) =path]
+  ^-  ?
+  %+  lien  caz
+  |=  car=card
+  ?&  ?=([%give %fact *] car)
+      !=(~ (find ~[path] paths.p.car))
+  ==
+::
+++  has-fact-noun
+  |=  [caz=(list card) =path =mark want=*]
+  ^-  ?
+  %+  lien  caz
+  |=  car=card
+  ?&  ?=([%give %fact *] car)
+      !=(~ (find ~[path] paths.p.car))
+      =(mark p.cage.p.car)
+      =(want q.q.cage.p.car)
+  ==
+::
 ::  should have a temporary debounce bandaid in place that prevents messages
 ::  with the same sent-at timestamp from being sent repeatedly
 ::

@@ -35,15 +35,6 @@ on:
       # Skills are content, not code, but they ship to the bot the same way
       # and a guide correction is worthless until the hosted bots restart.
       - "packages/openclaw/skills/**"
-      # Every top-level runtime module, minus the test suite. A per-file list
-      # silently stopped deploying cite/lens/media/migration/nudge/sanitize as
-      # they were added; `*` does not match `/`, so dev/ and prompts/ stay out.
-      - "packages/hermes-tlon-adapter/*.py"
-      - "!packages/hermes-tlon-adapter/test_*.py"
-      - "packages/hermes-tlon-adapter/plugin.yaml"
-      - "packages/hermes-tlon-adapter/prompts/**"
-      - "packages/hermes-tlon-adapter/requirements.txt"
-      - "packages/hermes-tlon-adapter/package.json"
   workflow_dispatch:
     inputs:
       selector:
@@ -85,7 +76,6 @@ jobs:
         if: steps.creds.outputs.present == 'true'
         uses: google-github-actions/setup-gcloud@v0.3.0
         with:
-          service_account_email: ${{ secrets.GCP_SA_EMAIL }}
           service_account_key: ${{ secrets.GCP_SA_KEY }}
           project_id: prod-f0181862
 
@@ -94,6 +84,15 @@ jobs:
         run: |
           export USE_GKE_GCLOUD_AUTH_PLUGIN=True
           gcloud container clusters get-credentials us-east5-cluster1 --zone us-east5 --project prod-f0181862
+
+      # The OVH API servers are only reachable on their private addresses.
+      - name: Connect to Tailscale
+        if: steps.creds.outputs.present == 'true'
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
 
       - name: Set up kubeconfig for OVH cluster
         if: steps.creds.outputs.present == 'true'
@@ -193,10 +192,19 @@ jobs:
 
           export KUBECONFIG="$HOME/.kube/config:$HOME/.kube/ovh.config"
 
-          for ctx in gke_prod-f0181862_us-east5_us-east5-cluster1 ovh-oregon-1 ovh-oregon-2 ovh-oregon-3; do
+          # Without pipefail an unreachable cluster yields an empty ship list
+          # and the step passes. Keep going so one bad cluster doesn't block
+          # the others, then fail the run.
+          set -o pipefail
+          failed=""
+          for ctx in gke_prod-f0181862_us-east5_us-east5-cluster1 ovh-oregon-1 ovh-oregon-2; do
             echo "=== Restarting ships in context: $ctx ==="
-            kubectl --context "$ctx" get ships -n tlon -ojson \
+            if ! kubectl --context "$ctx" get ships -n tlon -ojson \
               | jq -r --arg tag "$TAG" "$JQ_FILTER" \
-              | xargs -P 8 -I {} sh -c 'kubectl --context "'"$ctx"'" rollout restart sts {} -n tlon || true'
+              | xargs -P 8 -I {} sh -c 'kubectl --context "'"$ctx"'" rollout restart sts {} -n tlon || true'; then
+              echo "::error::Could not list ships in context $ctx"
+              failed=1
+            fi
             wait
           done
+          [ -z "$failed" ]

@@ -9,13 +9,15 @@ jest.mock('react-native-reanimated', () =>
   require('react-native-reanimated/mock')
 );
 
+// Gesture handler passes worklets' UI runtime to its native module as it loads.
+// Under jest, worklets resolves to its web build, where that call throws.
+jest.mock('react-native-worklets', () => ({
+  ...jest.requireActual<object>('react-native-worklets'),
+  getUIRuntimeHolder: () => ({}),
+}));
+
 // TODO: Why is `doMock` necessary? Why doesn't `require`ing inline work?
 jest.doMock('react-native-safe-area-context', () => RNSafeAreaContextMock);
-
-jest.mock('@gorhom/bottom-sheet', () => ({
-  __esModule: true,
-  ...require('@gorhom/bottom-sheet/mock'),
-}));
 
 jest.mock('expo-clipboard', () => ({
   getStringAsync: jest.fn(async () => ''),

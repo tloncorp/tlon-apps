@@ -34,7 +34,6 @@ import {
   YStack,
   usePreloadedEmojis,
 } from '@tloncorp/app/ui';
-import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
 import { posthog } from '@tloncorp/app/utils/posthog';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -110,10 +109,7 @@ const App = () => {
     return (
       <View height={'100%'} width={'100%'} backgroundColor="$background">
         <RequiredUpdateScreen />
-        <StatusBar
-          backgroundColor={isDarkMode ? 'black' : 'white'}
-          barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        />
+        <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
       </View>
     );
   }
@@ -212,6 +208,7 @@ const MainApp = () => {
       >
         <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
           <AgentOnboardingSequence
+            campaignEligible={activeSplashSequenceMode === 'signup'}
             onCompleted={handleClearSplash}
             fallback={splash}
           />
@@ -237,10 +234,7 @@ const MainApp = () => {
       ) : (
         offline
       )}
-      <StatusBar
-        backgroundColor={isDarkMode ? 'black' : 'white'}
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-      />
+      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
     </View>
   );
 };
@@ -255,11 +249,9 @@ export function ConnectedAppContent({
   const splashIsHidden = useSplashHider();
 
   return (
-    <FeatureFlagConnectedInstrumentationProvider>
-      <BaseProviderStack migrationState={migrationState}>
-        <ConnectedNavigationContent splashIsHidden={splashIsHidden} />
-      </BaseProviderStack>
-    </FeatureFlagConnectedInstrumentationProvider>
+    <BaseProviderStack migrationState={migrationState}>
+      <ConnectedNavigationContent splashIsHidden={splashIsHidden} />
+    </BaseProviderStack>
   );
 }
 

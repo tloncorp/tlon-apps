@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { hasMarkdown, markdownToStory } from './story.js';
+import { extractMessageText } from '../monitor/utils.js';
+import {
+  ALL_ONLY,
+  type RoleMentionScope,
+  type StoryInline,
+  hasMarkdown,
+  markdownToStory,
+  roleMentionCandidates,
+} from './story.js';
 
 describe('markdownToStory', () => {
   describe('reference paths', () => {
@@ -407,6 +415,512 @@ describe('markdownToStory', () => {
           ],
         },
       ]);
+    });
+  });
+});
+
+describe('code fences', () => {
+  it('round-trips inbound code that contains a fence', () => {
+    const code = 'a```b\n```md\n# h\n```\nafter';
+    const echoed = extractMessageText([
+      { block: { code: { code, lang: 'markdown' } } },
+    ]);
+    expect(markdownToStory(echoed)).toEqual([
+      { block: { code: { code, lang: 'markdown' } } },
+    ]);
+  });
+
+  it('closes a block only on a fence at least as long as the opener', () => {
+    expect(markdownToStory('````\n```\nx\n```\n````\nafter')).toEqual([
+      { block: { code: { code: '```\nx\n```', lang: 'plaintext' } } },
+      { inline: ['after'] },
+    ]);
+  });
+
+  it('parses CRLF input like LF input', { timeout: 2000 }, () => {
+    const lf = 'intro\n```js\nconst a = 1;\n```\nafter';
+    expect(markdownToStory(lf.replace(/\n/g, '\r\n'))).toEqual(
+      markdownToStory(lf)
+    );
+  });
+
+  it(
+    'treats a backtick line that is not a fence as text',
+    { timeout: 2000 },
+    () => {
+      expect(markdownToStory('```literal```')).toEqual([
+        { inline: ['``', { 'inline-code': 'literal' }, '``'] },
+      ]);
+    }
+  );
+
+  it('never puts a backtick in a fence language', () => {
+    const story = markdownToStory('```markdown\n```js\n```\n```literal```');
+    expect(story).toEqual([
+      { block: { code: { code: '```js', lang: 'markdown' } } },
+      { inline: ['``', { 'inline-code': 'literal' }, '``'] },
+    ]);
+  });
+
+  it('falls back to plaintext for a language the ship cannot decode', () => {
+    expect(markdownToStory('```c++\nint a;\n```')).toEqual([
+      { block: { code: { code: 'int a;', lang: 'plaintext' } } },
+    ]);
+    expect(markdownToStory('```JS\nx\n```')).toEqual([
+      { block: { code: { code: 'x', lang: 'js' } } },
+    ]);
+  });
+
+  it('keeps triple-fence blocks as before', () => {
+    expect(markdownToStory('```js\nconst a = 1;\n```\nafter')).toEqual([
+      { block: { code: { code: 'const a = 1;', lang: 'js' } } },
+      { inline: ['after'] },
+    ]);
+  });
+});
+
+describe('hostile input', () => {
+  // Each case once rescanned the rest of the text per character: seconds
+  // at these sizes, milliseconds when linear.
+  it.each([
+    ['unclosed destinations', '[x]('.repeat(8000) + ')'],
+    ['unclosed destinations, 64 KB', '[x]('.repeat(16000) + ')'],
+    ['open brackets', '['.repeat(128000)],
+    ['open image brackets', '!['.repeat(64000)],
+    ['open parens', '('.repeat(128000)],
+    ['backticks', '`'.repeat(128000)],
+    [
+      'a punctuation run in a reference',
+      '/1/group/~zod/' + '!'.repeat(63985) + 'a',
+    ],
+    ['a long run of spaces before a CR', '#' + ' '.repeat(63996) + 'a\rb'],
+    ['a long run of spaces before U+2028', '#' + ' '.repeat(63996) + '\u2028'],
+  ])('parses %s quickly, as text', (_name, md) => {
+    const started = performance.now();
+    const story = markdownToStory(md);
+    expect(performance.now() - started).toBeLessThan(1000);
+    expect(JSON.stringify(story)).not.toContain('"link"');
+  });
+
+  it('parses a heading after a long run of spaces quickly', () => {
+    const started = performance.now();
+    const story = markdownToStory('#' + ' '.repeat(63996) + 'a b');
+    expect(performance.now() - started).toBeLessThan(1000);
+    expect(story).toEqual([
+      { block: { header: { tag: 'h1', content: ['a b'] } } },
+    ]);
+  });
+
+  it('keeps a 3 KB link and image destination', () => {
+    const url = 'https://cdn.example.com/' + 'a'.repeat(3072);
+    expect(markdownToStory(`[download](${url})`)).toEqual([
+      { inline: [{ link: { href: url, content: 'download' } }] },
+    ]);
+    expect(markdownToStory(`![photo](${url})`)).toEqual([
+      { block: { image: { src: url, alt: 'photo', height: 0, width: 0 } } },
+    ]);
+  });
+
+  it('trims a long run of open parens off a bare URL quickly', () => {
+    const started = performance.now();
+    const [verse] = markdownToStory('http://a' + '('.repeat(128000));
+    expect(performance.now() - started).toBeLessThan(1000);
+    expect('inline' in verse && verse.inline[0]).toEqual({
+      link: { href: 'http://a', content: 'http://a' },
+    });
+  });
+});
+
+describe('parenthesized and bare URLs', () => {
+  it('keeps balanced parentheses in a link destination', () => {
+    expect(
+      markdownToStory(
+        'see [math](https://en.wikipedia.org/wiki/Function_(mathematics)) now'
+      )
+    ).toEqual([
+      {
+        inline: [
+          'see ',
+          {
+            link: {
+              href: 'https://en.wikipedia.org/wiki/Function_(mathematics)',
+              content: 'math',
+            },
+          },
+          ' now',
+        ],
+      },
+    ]);
+  });
+
+  it('keeps balanced parentheses in an image source', () => {
+    expect(markdownToStory('![d](https://x.io/diagram_(final).png)')).toEqual([
+      {
+        block: {
+          image: {
+            src: 'https://x.io/diagram_(final).png',
+            alt: 'd',
+            height: 0,
+            width: 0,
+          },
+        },
+      },
+    ]);
+  });
+
+  it.each([
+    ['see https://example.com/a.', 'https://example.com/a', '.'],
+    ['(see https://example.com/a)', 'https://example.com/a', ')'],
+    ['go https://example.com/a?!', 'https://example.com/a', '?!'],
+    [
+      'https://en.wikipedia.org/wiki/Function_(mathematics).',
+      'https://en.wikipedia.org/wiki/Function_(mathematics)',
+      '.',
+    ],
+  ])('drops trailing punctuation from a bare URL: %s', (md, href, tail) => {
+    const inline = markdownToStory(md)[0];
+    expect('inline' in inline && inline.inline).toContainEqual({
+      link: { href, content: href },
+    });
+    const last = 'inline' in inline ? inline.inline.at(-1) : undefined;
+    expect(typeof last === 'string' && last.endsWith(tail)).toBe(true);
+  });
+});
+
+describe('images inside formatting', () => {
+  const image = {
+    block: {
+      image: { src: 'https://x.io/c.png', alt: 'c', height: 0, width: 0 },
+    },
+  };
+
+  it.each([
+    [
+      '**look ![c](https://x.io/c.png)** now',
+      [{ inline: [{ bold: ['look '] }, ' now'] }, image],
+    ],
+    ['*![c](https://x.io/c.png)*', [image]],
+    [
+      '## Results ![c](https://x.io/c.png)',
+      [{ block: { header: { tag: 'h2', content: ['Results '] } } }, image],
+    ],
+    ['# ![c](https://x.io/c.png)', [image]],
+    [
+      '> quoted ![c](https://x.io/c.png)',
+      [{ inline: [{ blockquote: ['quoted '] }] }, image],
+    ],
+    ['> ![c](https://x.io/c.png)', [image]],
+  ])('hoists the image to a block: %s', (md, expected) => {
+    const story = markdownToStory(md);
+    expect(story).toEqual(expected);
+    expect(JSON.stringify(story)).not.toContain('__image');
+  });
+});
+
+describe('role mentions', () => {
+  const roles = (...ids: string[]): RoleMentionScope => ({
+    roleIds: new Set(ids),
+  });
+  const inline = (
+    markdown: string,
+    roleMentions?: RoleMentionScope
+  ): StoryInline[] => {
+    const [verse] = markdownToStory(markdown, { roleMentions });
+    return 'inline' in verse ? verse.inline : [];
+  };
+
+  describe('without options', () => {
+    it('leaves @all and @admin as text', () => {
+      expect(markdownToStory('see @all and @admin')).toEqual([
+        { inline: ['see @all and @admin'] },
+      ]);
+      expect(markdownToStory('see @all and **@admin**', {})).toEqual([
+        { inline: ['see @all and ', { bold: ['@admin'] }] },
+      ]);
+    });
+
+    it('is unchanged for links, mixed formatting, quotes and headings', () => {
+      expect(
+        markdownToStory(
+          '# Hi @all\n\n**bold @admin** and [@all](https://x) ~zod\nnext\n\n> quote @all'
+        )
+      ).toEqual([
+        { block: { header: { tag: 'h1', content: ['Hi @all'] } } },
+        {
+          inline: [
+            { bold: ['bold @admin'] },
+            ' and ',
+            { link: { href: 'https://x', content: '@all' } },
+            ' ',
+            { ship: '~zod' },
+            { break: null },
+            'next',
+          ],
+        },
+        { inline: [{ blockquote: ['quote @all'] }] },
+      ]);
+    });
+  });
+
+  it('converts @all with ALL_ONLY', () => {
+    expect(inline('see @all', ALL_ONLY)).toEqual(['see ', { sect: null }]);
+  });
+
+  it('converts a known role and normalizes case', () => {
+    expect(inline('ping @Admin and @ALL', roles('admin'))).toEqual([
+      'ping ',
+      { sect: 'admin' },
+      ' and ',
+      { sect: null },
+    ]);
+  });
+
+  it('passes through an unknown @token as typed', () => {
+    expect(inline('ping @Mods', roles('admin'))).toEqual(['ping @Mods']);
+    expect(inline('ping @admin', ALL_ONLY)).toEqual(['ping @admin']);
+  });
+
+  it('leaves @types/node-style text literal', () => {
+    expect(inline('install @types/node', roles('admin'))).toEqual([
+      'install @types/node',
+    ]);
+    expect(inline('install `@types/node`', roles('types'))).toEqual([
+      'install ',
+      { 'inline-code': '@types/node' },
+    ]);
+  });
+
+  it('leaves emails, link labels and code blocks alone', () => {
+    expect(inline('mail a@admin.io', roles('admin'))).toEqual([
+      'mail a@admin.io',
+    ]);
+    expect(inline('[@ALL](https://x)', roles('admin'))).toEqual([
+      { link: { href: 'https://x', content: '@ALL' } },
+    ]);
+    expect(inline('https://x.io/@admin', roles('admin'))).toEqual([
+      { link: { href: 'https://x.io/@admin', content: 'https://x.io/@admin' } },
+    ]);
+    expect(
+      markdownToStory('```\n@all @admin\n```', { roleMentions: roles('admin') })
+    ).toEqual([
+      { block: { code: { code: '@all @admin', lang: 'plaintext' } } },
+    ]);
+  });
+
+  it('mixes ship and role mentions', () => {
+    expect(
+      inline('hey ~sampel-palnet and @Admin, see @all', roles('admin'))
+    ).toEqual([
+      'hey ',
+      { ship: '~sampel-palnet' },
+      ' and ',
+      { sect: 'admin' },
+      ', see ',
+      { sect: null },
+    ]);
+  });
+
+  it('converts inside bold, italics, strike, blockquote and heading', () => {
+    expect(
+      markdownToStory(
+        '# Hey @admin\n\n**see @all** *@admin* ~~@all~~\n\n> ping @admin',
+        { roleMentions: roles('admin') }
+      )
+    ).toEqual([
+      {
+        block: {
+          header: { tag: 'h1', content: ['Hey ', { sect: 'admin' }] },
+        },
+      },
+      {
+        inline: [
+          { bold: ['see ', { sect: null }] },
+          ' ',
+          { italics: [{ sect: 'admin' }] },
+          ' ',
+          { strike: [{ sect: null }] },
+        ],
+      },
+      { inline: [{ blockquote: ['ping ', { sect: 'admin' }] }] },
+    ]);
+  });
+
+  it('treats a break, inline code and a link as boundaries', () => {
+    expect(inline('one\n@all', ALL_ONLY)).toEqual([
+      'one',
+      { break: null },
+      { sect: null },
+    ]);
+    expect(inline('`x`@all', ALL_ONLY)).toEqual([
+      { 'inline-code': 'x' },
+      { sect: null },
+    ]);
+    expect(inline('[@label](https://x)@foo', roles('foo'))).toEqual([
+      { link: { href: 'https://x', content: '@label' } },
+      { sect: 'foo' },
+    ]);
+  });
+
+  describe('token boundaries across inlines', () => {
+    const scope = roles('admin', 'admin-team');
+    // Each case alone, then beside an independent token that would trigger a
+    // role lookup on its own: the boundary decision must not change.
+    const cases: [string, StoryInline[]][] = [
+      ['@all-_team', ['@all-_team']],
+      ['@admin-team_more', ['@admin-team_more']],
+      ['@admin__team__', ['@admin', { bold: ['team'] }]],
+      ['@all__team__', ['@all', { bold: ['team'] }]],
+      ['~zod@all', [{ ship: '~zod' }, '@all']],
+      ['~zod@admin', [{ ship: '~zod' }, '@admin']],
+      ['**~zod**@all', [{ bold: [{ ship: '~zod' }] }, '@all']],
+      ['~zod @all', [{ ship: '~zod' }, ' ', { sect: null }]],
+      ['**hello!**@all', [{ bold: ['hello!'] }, { sect: null }]],
+      ['@admin-team.', [{ sect: 'admin-team' }, '.']],
+    ];
+
+    it.each(cases)('%s', (markdown, expected) => {
+      expect(inline(markdown, scope)).toEqual(expected);
+    });
+
+    it.each(cases)(
+      '%s beside a lookup-triggering token',
+      (markdown, expected) => {
+        const withTrigger = inline(`@admin ${markdown}`, scope);
+        expect(withTrigger[0]).toEqual({ sect: 'admin' });
+        const rest = withTrigger.slice(1);
+        const [first, ...others] = expected;
+        expect(rest).toEqual(
+          typeof first === 'string'
+            ? [` ${first}`, ...others]
+            : [' ', first, ...others]
+        );
+      }
+    );
+  });
+
+  it('never converts a token the raw-text gate did not see', () => {
+    // The scanner splits `@adminhttps://x` before the URL, but the raw text
+    // names `@adminhttps`, so the gate would not have looked `admin` up.
+    expect(inline('@adminhttps://x', roles('admin'))).toEqual([
+      '@admin',
+      { link: { href: 'https://x', content: 'https://x' } },
+    ]);
+  });
+
+  describe('eligibility is per occurrence', () => {
+    it('converts an eligible occurrence beside a cut-short one', () => {
+      expect(inline('@admin @adminhttps://x', roles('admin'))).toEqual([
+        { sect: 'admin' },
+        ' @admin',
+        { link: { href: 'https://x', content: 'https://x' } },
+      ]);
+    });
+
+    it.each([
+      ['code before', '`@all` @all__!__'],
+      ['code after', '@all__!__ `@all`'],
+      ['link label before', '[@all](https://x) @all__!__'],
+      ['link label after', '@all__!__ [@all](https://x)'],
+    ])(
+      'does not let an occurrence in %s enable a rejected one',
+      (_name, markdown) => {
+        expect(
+          JSON.stringify(markdownToStory(markdown, { roleMentions: ALL_ONLY }))
+        ).not.toContain('sect');
+      }
+    );
+
+    it('keeps the code and link spellings', () => {
+      expect(inline('`@all` @all__!__', ALL_ONLY)).toEqual([
+        { 'inline-code': '@all' },
+        ' @all',
+        { bold: ['!'] },
+      ]);
+      expect(inline('[@ALL](https://x)@allhttps://y', ALL_ONLY)).toEqual([
+        { link: { href: 'https://x', content: '@ALL' } },
+        '@all',
+        { link: { href: 'https://y', content: 'https://y' } },
+      ]);
+    });
+  });
+
+  it('converts top-level mentions in task and table syntax, but not code cells', () => {
+    // This parser has no task or table blocks: both stay paragraph text,
+    // so a mention there is top-level and notifies.
+    expect(inline('- [ ] ping @all', ALL_ONLY)).toEqual([
+      '- [ ] ping ',
+      { sect: null },
+    ]);
+    expect(inline('| @admin | `@admin` |', roles('admin'))).toEqual([
+      '| ',
+      { sect: 'admin' },
+      ' | ',
+      { 'inline-code': '@admin' },
+      ' |',
+    ]);
+  });
+
+  it('converts a token beside a formatted link label', () => {
+    expect(
+      inline('[**@label**](https://x)@foo', roles('foo', 'label'))
+    ).toEqual([
+      { link: { href: 'https://x', content: '**@label**' } },
+      { sect: 'foo' },
+    ]);
+  });
+
+  describe('escapes', () => {
+    it('leaves a backslash-escaped mention as text', () => {
+      expect(inline('\\@all', ALL_ONLY)).toEqual(['\\@all']);
+      expect(inline('\\@admin', roles('admin'))).toEqual(['\\@admin']);
+      expect(roleMentionCandidates('\\@admin')).toEqual(new Set());
+    });
+
+    it('converts only the unescaped occurrence', () => {
+      expect(inline('see \\@all and @all', ALL_ONLY)).toEqual([
+        'see \\@all and ',
+        { sect: null },
+      ]);
+    });
+
+    it('leaves an escaped mention inside bold as text', () => {
+      expect(inline('**\\@all**', ALL_ONLY)).toEqual([{ bold: ['\\@all'] }]);
+    });
+
+    it('does not treat a backslash ending the previous inline as a boundary', () => {
+      expect(inline('**a\\**@all', ALL_ONLY)).toEqual([
+        { bold: ['a\\'] },
+        '@all',
+      ]);
+    });
+
+    it('leaves an HTML entity for @ as text', () => {
+      expect(inline('&#64;all', ALL_ONLY)).toEqual(['&#64;all']);
+    });
+  });
+
+  describe('roleMentionCandidates', () => {
+    it('returns lowercase tokens other than all', () => {
+      expect(
+        roleMentionCandidates('hi @Admin, @all and @types/node; mail a@b.co')
+      ).toEqual(new Set(['admin', 'types']));
+    });
+
+    it('is empty for text without a role token', () => {
+      expect(roleMentionCandidates('plain text')).toEqual(new Set());
+      expect(roleMentionCandidates('see @ALL')).toEqual(new Set());
+    });
+
+    it('rejects the same partial words the conversion does', () => {
+      for (const text of [
+        '@all-_team',
+        '@admin-team_more',
+        '@admin__team__',
+        '~zod@admin',
+        '@admin_team',
+      ]) {
+        expect(roleMentionCandidates(text), text).toEqual(new Set());
+      }
     });
   });
 });

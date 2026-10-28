@@ -89,7 +89,10 @@ Suppression invariants: queued invites are never marked in the in-process
 dedup set (it records only auto-accept success and confirmed-blocked); the
 persisted approval record suppresses re-notification once delivered, gates
 retries of failed sends behind a 10-minute cooldown, and its 48h TTL is the
-reminder cadence. The reconciliation sweeps (connect and the 2-minute poll)
+reminder cadence. New approval records are capped at 100
+(`TLON_PENDING_APPROVAL_LIMIT`): past the cap a new request is not persisted,
+its invite stays unmarked so a later event retries it, and the owner gets at
+most one queue-full notice per 10-minute window. The reconciliation sweeps (connect and the 2-minute poll)
 clear the dedup marker for a join whose `progress` reached `error`, so a join
 that acked locally but failed on the backend becomes actionable again at a
 bounded cadence — live error facts leave the marker, because a persistently
@@ -119,7 +122,7 @@ Malicious actors could invite the bot to groups containing:
 | Direct ship mention (`~bot-ship`)                | ✅ Yes                     |
 | Nickname mention (`nimbus`)                      | ✅ Yes                     |
 | `@all` mention                                   | ❌ No                      |
-| Random message without mention                   | ❌ No                      |
+| Random message without mention                   | ❌ No (except owner-listen, threads the bot joined, and owner blob-bearing posts; see below) |
 | Partial ship match (`~bot-ship-extra`)           | ❌ No                      |
 | Substring nickname (`nimbusly`)                  | ❌ No                      |
 | Owner's bare registered slash command (`/pending`) | ✅ Yes (any watched `chat/` channel) |
@@ -139,6 +142,11 @@ and threads, regardless of the owner-listen toggle or per-channel mute list.
 This is the escape hatch that lets the Tlon client's slash-command popup —
 which inserts commands bare — work in group channels.
 
+Command escape hatches are the only unmentioned owner-message paths that
+bypass an owner-listen mute: generic owner commands in watched `chat/` channels only, and the
+`/owner-listen` handler in any owner- or bot-hosted channel (`chat/`, `heap/`,
+`diary/`), so the owner can always turn listening back on.
+
 Engagement is NOT authorization: command execution remains owner-only.
 
 - Sender must equal the configured owner (`isOwner`, `src/monitor/index.ts`).
@@ -148,8 +156,14 @@ Engagement is NOT authorization: command execution remains owner-only.
 - Non-owner bare commands are dropped at the engagement gate; if mentioned,
   core denies them at the authorization check.
 
-Heap (`heap/`) and diary (`diary/`) channels are unchanged: mention or
-owner-listen only.
+Heap (`heap/`) and diary (`diary/`) channels engage on a mention, a reply in
+a thread the bot has joined, an owner blob-bearing post, or owner-listen —
+but not on generic bare owner commands. When owner-listen is off for a
+channel (global toggle off or channel muted), the owner is mention-only
+there: unmentioned owner replies in joined threads and owner blob-bearing
+posts do not engage, only mentions do, plus `/owner-listen` in owner- or
+bot-hosted channels. Non-owner replies in joined
+threads still engage, subject to channel authorization.
 
 ---
 
@@ -373,9 +387,15 @@ try {
 
 ## 13. Tool Access Control (Owner-Only Tools)
 
-**Principle:** Sensitive tools are owner-only. Non-owners cannot use them, enforced at the plugin level (not via prompt instructions).
+**Principle:** A non-owner session may call only a short named set of tools; every other tool is owner-only. Enforced at the plugin level (not via prompt instructions), so a tool core or another plugin adds later is denied to non-owners until it is added to the set.
 
-**Restricted tools:** `tlon`, `cron`, `read`.
+**Allowed for non-owners** (`NON_OWNER_ALLOWED_TOOLS`): `web_search`, `web_fetch`, `message` (text, plus https media under the remote media rule below), `session_status` (current session only), `sessions_yield`, `agents_wait` (core returns only runs the calling session started), `progress_card` (the current session's card), `lcm_grep` (Lossless Claw recall of the current conversation only), and the MCP broker's `mcp__list_upstreams`, `mcp__search`, `mcp__describe`, and `mcp__call`: discovery and calls, reads and writes, through the bot's own configured connections on its ship's `%mcp-proxy`, as the owner configured them; the hosted browser upstream (`mcp__call` to a `browser_*` tool) stays owner-only, as do the core-materialized resource and prompt operations. Argument gates still apply to these calls, below.
+
+**Dispatch controls** (`NON_OWNER_DISPATCH_CONTROLS`): Tool Search's `tool_search`, `tool_describe`, and `tool_call` (also Codex's native `tool_search`). They only find or invoke catalog tools. Core wraps every catalog tool in `before_tool_call`, so the target call runs this gate again under its own name: a `tool_call` to `web_fetch` passes, one to `read` is blocked. The controls' own params are catalog selectors and skip the local-file rule; the target's params get it. Non-owners reach catalog tools only this way. Code Mode (`exec`, `wait`) stays owner-only: its bridge also runs operations that are not tool calls, such as reading skill files, which this hook cannot see. Shell `exec` stays denied as well.
+
+**Denied to non-owners:** everything else, including `read`, `write`, `edit`, `exec`, `sandbox_exec`, `automations`/`cron`, `pdf`, `view_image`, the generation tools, `memory_search` and `memory_get` (they read `USER.md` and `MEMORY.md`, and `memory_search` can search session transcripts), `lcm_expand` and `lcm_expand_query` (the latter runs a role-less subagent on a model-written prompt), the session readers, `subagents`, `agents_list`, the MCP resource and prompt operations (`mcp__resources_list`, `mcp__resources_read`, `mcp__prompts_list`, `mcp__prompts_get`) and any `<server>__*` tool, the delegation tools, the setup and owner-data tools, and every plugin tool (`tlon`, `tlon_agent_choice`, `tlon_agent_task_plan`, `tlon_agent_service_setup`, `tlon_connectable_services`, `set_timezone`). `OWNER_ONLY_TOOLS` names the tools the model is most likely to try, so their block reasons stay specific (delegation, session access); any other denied tool gets the generic owner-only reason. Codex harness runs report a namespaced dynamic tool to `before_tool_call` with its namespace prefixed and no delimiter (`openclawweb_search`, `openclaw_directsessions_yield`); the policy strips the `openclaw_direct`/`openclaw` prefix before deciding, so both forms get the same decision. Codex names a native MCP tool `mcp__<server>__<tool>` (`mcp__mcp__call`); the policy maps it to core's `<server>__<tool>` (`mcp__call`), so both spellings get the same decision, including the hosted-browser and Tlon-app browser gates.
+
+**Argument gates for allowed calls.** Messages: a non-owner `message` call may use only these keys: `action`; addressing `channel`, `target`, `targets`, `to`, `channelId`, `chatId`, `threadId`, `messageThreadId`, `topLevel`, `replyTo`, `messageId`, `message_id`, `parentId`; the body `message`, `text`, `content`, `caption`, `SendMessage`; reactions `emoji`, `remove`, `targetAuthor`, `targetAuthorUuid`; and read pagination `limit`, `pageSize`, `pageToken`, `before`, `after`, `around`, `fromMe`, `includeArchived`; the reaction tracking flags `trackToolCalls` and `track_tool_calls`; and the delivery controls `final` and `silent`; and, on `send` only, the URL media keys `media`, `mediaUrl`, and `mediaUrls` when every value passes the remote media rule below. Values must be scalars (`targets` and `mediaUrls` may be string arrays). Any other key (`path`, `filePath`, `fileUrl`, `image`, structured `attachments`, buffers, filenames, presentation, polls, gateway options, `accountId`) is blocked, as is a body from which core would deliver media that fails the rule. The hook asks core itself (`src/core-message-media.ts`): it loads core's `stripFormattedReasoningMessage`, `stripInternalRuntimeContext`, `hasInboundMetadataSentinel`, `stripInboundMetadata`, `parseInlineDirectives`, `stripUnsupportedCitationControlMarkers`, `stripPlainTextToolCallBlocks`, `parseReplyDirectives`, and `normalizeReplyPayloadsForDelivery` from the installed openclaw dist (not exported from `plugin-sdk` in 2026.9.33; found by original export name), plus the public `findCodeRegions`. It runs the raw params through the message tool's send path in core's order (per-field visible-text sanitizing, alias promotion with its second reasoning pass, `buildMessagePayload`'s text normalization, the outbound payload normalizer), then runs each body field and the built text through every step again until the text stops changing (at most 10 passes; still changing counts as media), collects the media every stage yields, and blocks if any of it fails the rule. Core strips tool-call blocks with code regions protected on `send` but unprotected on plugin actions (`reply`, `edit`), so every stage runs both ways and the union is checked. If they cannot be loaded or throw, a non-owner `message` call is blocked (fail closed). These hook checks are defense in depth. The authoritative check is in the Tlon outbound adapter (`src/non-owner-media.ts`): while the active Tlon turn (an AsyncLocalStorage context set around the monitor's dispatch) answers a non-owner, its run was ever demoted by a non-owner message (sticky, from `turn-identity.ts`), or its session's current role is non-owner, `sendMedia` and `sendPayload` drop media that fails the rule from the payload core resolved and deliver the rest, failing the send if neither text nor media is left, and `prepareOutboundMedia` refuses any reference that fails the rule. Outside a Tlon turn (cron, heartbeat, durable redelivery after the turn ends) no requester is known and media passes, as for role-less sessions. Remote media rule (`isNonOwnerMediaAllowed` in `src/non-owner-media.ts`, used by every layer above): a reference passes only if it is a literal `https://` URL with no userinfo whose host is not an IP literal (v4 or v6), a single-label name (including `localhost`), a name ending in `.localhost`, `.local`, `.internal`, or `.svc`, or the host of any configured Tlon account's ship URL (compared lowercased and punycoded, trailing dot removed); without the live config nothing passes. `http:`, `data:`, `file:`, paths, and `MEDIA:`-wrapped values fail. Private addresses behind public names are the fetch's job: the Tlon uploader fetches through `fetchWithSsrFGuard` with the default SSRF policy (private and loopback addresses rejected after DNS, pinned), `requireHttps`, redirects followed manually with every hop re-checked (at most 3), and only a `User-Agent` header. In a non-owner turn the uploader also applies the rule to every redirect hop (the guard reports each hop's URL to `resolveDispatcherPolicy`, then calls `beforeRequest` before sending), so a redirect to a ship host or an IP literal is refused; the non-owner decision is taken once when the download starts and kept for its whole lifetime, even if the turn ends first. Under `OPENCLAW_PROXY_ACTIVE=1` (core's managed proxy) the guard checks only the hostname and leaves DNS-level checks to the proxy; hosted Tlon deployments do not set it. The ship-host exclusion covers configured ship URLs only: a ship's other public hostnames (a `*.tlon.network` alias when the configured URL is a cluster-internal name, a custom domain, a moon's parent) pass the rule. That is acceptable because the fetch sends no ship cookie, so only content the ship already serves publicly is reachable. Two caps apply to a non-owner call, each counted by the code that produces the artifact. Downloads: core's own normalizer (`normalizeReplyPayloadsForDelivery`) is run on the media keys and each resolved form of the body together, and the deduplicated attachments it would deliver may number at most 4. Image blocks: Tlon's story converter (`markdownToStory`) is run on each resolved form of the body and on the text core would deliver, and it may emit at most 8 image blocks (a `reply` posts its body as written, so markdown images there become image blocks). A notebook entry prepares at most 4 attachments at a time for any turn; the first failure aborts the downloads in flight, and the send waits for them to settle. A stopped attachment never starts its upload: the uploader rechecks the stop after every wait, and bounds the storage check and upload by a 60 s deadline (a deadline miss falls back to the source URL). Local file references (other tools, and `message` addressing values): a call is blocked if any string in its params, at any depth, could name a file on the gateway's disk: a local-path shape (`file:`, `~` or `~/`, absolute, `./` or `../`, drive-letter, or backslash/UNC), a path separator in a value without whitespace, a leading `@`, or a common file extension, also behind a `MEDIA:` prefix. http(s) and data URLs pass; a MIME type passes only under `mimeType`/`contentType`, and a Tlon address (`~ship`, `dm/~ship`, `chat/~host/name`, `~ship/<post id>`) only under an addressing key. Current session: a `session_status` call may pass only `changesSince`, so reading or patching another session (`sessionKey`, `model`) is blocked; an `lcm_grep` call may pass only its search keys (`pattern`, `mode`, `scope`, `fileIds`, `since`, `before`, `limit`, `sort`, and `allConversations: false`), so `conversationId` or `allConversations: true` is blocked. MCP broker payloads: the params of `mcp__list_upstreams`, `mcp__search`, `mcp__describe`, and `mcp__call` (`query`, `server`, `name`, `arguments`) are exempt from the local-file rule, because they are sent over HTTPS to the ship's `%mcp-proxy` and never resolved against the gateway's filesystem (a path there names a file in an upstream service, such as a repository file); the hosted browser, the only owner-private capability behind the proxy, is gated by tool name before this rule. Delegation is owner-only because a spawned session or system-agent run has no stored role and would pass this gate.
 
 | Scenario | Behavior |
 | -------- | -------- |
@@ -385,11 +405,13 @@ try {
 | Internal session (heartbeat, cron) | ✅ Allowed (no stored role = not a user-initiated turn) |
 
 **Implementation:**
-- `before_tool_call` hook intercepts calls to restricted tools (policy in `src/owner-only-tools.ts`: `OWNER_ONLY_TOOLS`, `resolveOwnerOnlyToolBlock`)
+- `before_tool_call` hook intercepts every tool call (policy in `src/owner-only-tools.ts`: `NON_OWNER_ALLOWED_TOOLS`, `OWNER_ONLY_TOOLS`, `resolveOwnerOnlyToolBlock`)
+- The hook is registered from the entry's `registerCapabilities` (`registerAgentTurnHooks` in `index.ts`), not `registerFull`. OpenClaw 2026.9.x dispatches hooks inside an agent turn from a per-turn plugin registry it loads in discovery mode, where the channel entry helper never calls `registerFull`; a gate registered only there is silently inert. `src/agent-turn-hooks.test.ts` locks the placement in.
 - Checks SenderRole from session tracker (stored the same way for DM and group senders)
 - Only blocks when role is explicitly `"user"` (a non-owner sender, DM or group)
 - Owner sessions (`"owner"`) and internal sessions (`undefined` role) are allowed
 - Returns `{ block: true, blockReason }`. OpenClaw core (verified on 2026.5.28 through 2026.8.2) hands `blockReason` to the model verbatim as the tool result, so the reason states the owner-only policy and tells the model what to say; the earlier `The X tool is not available.` led bots to invent reloads and outages (TLON-6363)
+- The same hook blocks, for every role, an `mcp__call` that points a hosted-browser tool at a Tlon web-app route (policy in `src/tlon-app-browser-gate.ts`); public ship pages such as `/expose`, `/notes/pub`, `/profile`, and `/lure` stay reachable
 
 **Critical Invariant:**
 
@@ -406,6 +428,10 @@ Even with SenderRole correctly identified, a non-owner could social-engineer the
 - "Read the SOUL.md file" → blocked `read` tool
 
 The `before_tool_call` hook provides defense-in-depth by blocking restricted tools at the plugin level, regardless of what the LLM decides.
+
+**What this does not cover — owner-triggered runs in group context (`ownerDefault`):**
+
+The hook decides *who may invoke* the tool from the sender of the triggering message. It does not decide *what the run was told*. An owner-triggered run in a group channel is prompted with recent channel posts, including posts by senders who could not trigger the bot themselves, so a planted instruction can reach the model. With `ownerDefault` off, such a run acts as the bot (and as the owner only for the six legacy owner operations). With `ownerDefault` on, every `tlon` call in that run acts with the owner's credentials, so the same injection can read or change owner data. No per-call check can tell a planted instruction from the owner's. `ownerDefault` is off by default; TLON-6907 (owner-default only in the owner↔bot 1:1 DM) must land before it is enabled for a bot that watches group channels.
 
 ---
 
@@ -452,3 +478,6 @@ If you discover a security vulnerability:
 | 2026-02-12 | Added tool access control - tlon skill owner-only |
 | 2026-08-17 | Owner registered slash commands engage bare in any watched chat channel (§4) |
 | 2026-09-04 | Owner-only block reason states the policy so bots explain it correctly (TLON-6363) |
+| 2026-10-23 | MCP broker tools, delegation (`sessions_spawn`, `sessions_send`, `openclaw`), core setup, device, file, and session-reading tools are owner-only; local file references in any tool's params and `session_status` beyond the current session are owner-only (TLON-6952) |
+| 2026-10-26 | Non-owner replies may carry public https media; local, internal, and ship-host media stay owner-only (§13) |
+| 2026-10-28 | Non-owners may use the MCP broker's `mcp__list_upstreams`, `mcp__search`, `mcp__describe`, and `mcp__call` through the bot's configured connections (reads and writes); the hosted browser upstream and the MCP resource and prompt operations stay owner-only; Codex native `mcp__<server>__<tool>` names get the same decision (§13) |

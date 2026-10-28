@@ -1,0 +1,87 @@
+import {
+  createContext,
+  type PropsWithChildren,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { isWeb } from 'tamagui';
+
+import { BrowserViewerModal } from './BrowserViewerModal';
+import { authorizeBrowserViewer } from './browserCredentialHandoff';
+import { openBrowserViewerWindow } from './browserViewerWindow';
+
+type Handoff = {
+  viewerUrl: string;
+};
+
+type BrowserCredentialHandoffContextValue = {
+  openViewer: (viewerUrl: string) => Promise<void>;
+  register: (handoff: Handoff) => string;
+  resolve: (id: string) => string | undefined;
+  discard: (id: string) => void;
+};
+
+const BrowserCredentialHandoffContext =
+  createContext<BrowserCredentialHandoffContextValue | null>(null);
+
+export function BrowserCredentialHandoffProvider({
+  children,
+}: PropsWithChildren) {
+  const [viewerUrl, setViewerUrl] = useState<string>();
+  const openViewer = useCallback(async (url: string) => {
+    if (isWeb) {
+      await openBrowserViewerWindow(url);
+    } else {
+      setViewerUrl(await authorizeBrowserViewer(url));
+    }
+  }, []);
+  const handoffs = useRef(new Map<string, Handoff>());
+  const sequence = useRef(0);
+
+  const register = useCallback((handoff: Handoff) => {
+    const id = `browser-handoff-${Date.now()}-${++sequence.current}`;
+    handoffs.current.set(id, { ...handoff });
+    return id;
+  }, []);
+
+  const resolve = useCallback(
+    (id: string) => handoffs.current.get(id)?.viewerUrl,
+    []
+  );
+
+  const discard = useCallback((id: string) => {
+    handoffs.current.delete(id);
+  }, []);
+
+  const value = useMemo(
+    () => ({ register, resolve, discard, openViewer }),
+    [discard, register, resolve, openViewer]
+  );
+
+  return (
+    <BrowserCredentialHandoffContext.Provider value={value}>
+      {children}
+      {viewerUrl ? (
+        <BrowserViewerModal
+          viewerUrl={viewerUrl}
+          onClose={() => setViewerUrl(undefined)}
+        />
+      ) : null}
+    </BrowserCredentialHandoffContext.Provider>
+  );
+}
+
+export function useOptionalBrowserCredentialHandoff() {
+  return useContext(BrowserCredentialHandoffContext);
+}
+
+export function useBrowserCredentialHandoff() {
+  const value = useOptionalBrowserCredentialHandoff();
+  if (!value) {
+    throw new Error('Browser credential handoff provider is unavailable.');
+  }
+  return value;
+}

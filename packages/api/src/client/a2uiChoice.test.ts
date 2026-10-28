@@ -240,6 +240,8 @@ describe('McpConnect validation', () => {
 describe('SmallChoice validation', () => {
   test('accepts a well-formed pill group, with or without a prefix', () => {
     expect(valid(smallChoice())).toBe(true);
+    expect(valid(smallChoice({ selectionMode: 'single' }))).toBe(true);
+    expect(valid(smallChoice({ selectionMode: 'multiple' }))).toBe(true);
     expect(valid(smallChoice({ action: sendAction('Topics:') }))).toBe(true);
     expect(valid(smallChoice({ action: provisionAction() }))).toBe(true);
     expect(valid(smallChoice({ action: provisionAction([]) }))).toBe(true);
@@ -283,6 +285,7 @@ describe('SmallChoice validation', () => {
     ],
     ['missing submit label', { submitLabel: undefined }],
     ['blank submit label', { submitLabel: '  ' }],
+    ['unknown selection mode', { selectionMode: 'at-least-two' }],
     // A selection must submit its structured reply; navigating would throw
     // away what the user picked.
     ['a navigate action', { action: navigateAction }],
@@ -421,6 +424,31 @@ describe('screen navigation target', () => {
     { id: 'l', component: 'Text', text: 'Connect services' },
   ];
 
+  test('accepts saved-login approval identity and rejects malformed records', () => {
+    const target = {
+      type: 'screen',
+      screen: 'browserSecureEntry',
+      viewerUrl: 'https://browser-session.tlon.network/s/payload.signature',
+    };
+    for (const loginApproval of [
+      {},
+      { record: { id: '8e40b5f5-fd41-4851-8922-b9545e470d6e', revision: 1 } },
+    ]) {
+      expect(
+        A2UI.validateBlobEntry(entryWith(button({ ...target, loginApproval })))
+      ).toBe(true);
+    }
+    for (const loginApproval of [
+      { record: { id: 'invalid', revision: 1 } },
+      { record: { id: '8e40b5f5-fd41-4851-8922-b9545e470d6e', revision: 0 } },
+      { password: 'not-allowed' },
+    ]) {
+      expect(
+        A2UI.validateBlobEntry(entryWith(button({ ...target, loginApproval })))
+      ).toBe(false);
+    }
+  });
+
   test('allowlisted screen names only — never a free route', () => {
     expect(
       A2UI.validateBlobEntry(
@@ -438,6 +466,28 @@ describe('screen navigation target', () => {
         )
       )
     ).toBe(true);
+    expect(
+      A2UI.validateBlobEntry(
+        entryWith(
+          button({
+            type: 'screen',
+            screen: 'browserSecureEntry',
+            viewerUrl:
+              'https://browser-session-ovh1.tlon.network/s/payload.signature',
+          })
+        )
+      )
+    ).toBe(true);
+    expect(
+      A2UI.validateBlobEntry(
+        entryWith(
+          button({
+            type: 'screen',
+            screen: 'browserSecureEntry',
+          })
+        )
+      )
+    ).toBe(false);
     // Anything not on the allowlist fails validation, so a blob can't point
     // the renderer at an arbitrary navigator route.
     expect(

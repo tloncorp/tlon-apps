@@ -139,6 +139,64 @@ function parsed(detail: string | undefined): Record<string, unknown> {
   return JSON.parse(detail as string) as Record<string, unknown>;
 }
 
+describe('browser handoff parameter redaction', () => {
+  it.each([
+    'browser handoff https://browser.example/s/private.signature',
+    'tlon browser handoff https://browser.example/s/private.signature',
+    'tlon --ship ~zod browser handoff https://browser.example/s/private.signature',
+    '--ship ~zod tlon browser handoff https://browser.example/s/private.signature',
+    '  browser\thandoff\n"https://browser.example/s/private.signature"',
+    "--ship ~zod 'browser' 'handoff' 'https://browser.example/s/private.signature'",
+    '--ship=~zod browser handoff https://browser.example/s/private.signature',
+    `browser handoff https://browser.example/s/private.signature${'x'.repeat(3000)}`,
+  ])('redacts before serializing %s', (command) => {
+    const params = { command };
+    expect(parsed(detailToolParams(params))).toEqual({
+      command: 'browser handoff [REDACTED]',
+    });
+    expect(params.command).toBe(command);
+  });
+
+  it('preserves ordinary command arguments', () => {
+    expect(parsed(detailToolParams({ command: 'contacts get ~zod' }))).toEqual({
+      command: 'contacts get ~zod',
+    });
+  });
+
+  it.each([
+    ['--code private-value contacts self', '--code [REDACTED] contacts self'],
+    ['TLON browser handoff sess_private', 'browser handoff [REDACTED]'],
+    [
+      'Tlon --code private-value browser share sess_private',
+      'browser share [REDACTED]',
+    ],
+    [
+      '--code --cookie secret-cookie-value contacts self',
+      '--code --cookie [REDACTED] contacts self',
+    ],
+    [
+      '--code --ship=~x --url secret-url-value contacts self',
+      '--code --ship=[REDACTED] --url [REDACTED] contacts self',
+    ],
+    [
+      '--cookie=private-value contacts self',
+      '--cookie=[REDACTED] contacts self',
+    ],
+    ['browser --self share sess_private', 'browser share [REDACTED]'],
+    ['--self tlon browser handoff sess_private', 'browser handoff [REDACTED]'],
+  ])(
+    'redacts credential values and --self browser forms in %s',
+    (command, expected) => {
+      expect(parsed(detailToolParams({ command }))).toEqual({
+        command: expected,
+      });
+      expect(detailToolParams({ command })).not.toMatch(
+        /secret-|private-value|sess_private/
+      );
+    }
+  );
+});
+
 describe('detailToolParams', () => {
   it('returns undefined for nullish params', () => {
     expect(detailToolParams(null)).toBeUndefined();
@@ -304,4 +362,15 @@ describe('elideToolParamValues', () => {
       '[object 1 keys]'
     );
   });
+});
+
+it('redacts browser share capabilities before serializing', () => {
+  expect(
+    parsed(
+      detailToolParams({
+        command:
+          'browser share https://browser-session.tlon.network/s/private.signature',
+      })
+    )
+  ).toEqual({ command: 'browser share [REDACTED]' });
 });

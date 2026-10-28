@@ -11,7 +11,14 @@ import {
 import { getUrbitContext, normalizeUrbitCookie } from './context.js';
 import { UrbitHttpError } from './errors.js';
 import { urbitFetch } from './fetch.js';
+import { redactUrbitErrorText, registerUrbitCookie } from './redact.js';
 
+/**
+ * Nack retries back off slowly: each one crashes the remote agent's on-watch,
+ * and the condition they wait out (a desk upgrade) takes minutes, not seconds.
+ */
+export const NACK_RETRY_BASE_MS = 60_000;
+export const NACK_RETRY_MAX_MS = 600_000;
 const SUBSCRIPTION_RETRY_FLOOR_MS = 2_000;
 const SUBSCRIPTION_RETRY_CAP_MS = 30_000;
 const SUBSCRIPTION_RETRY_LOG_SAMPLE = 5;
@@ -73,7 +80,7 @@ type UrbitSseOptions = {
 
 export class UrbitSSEClient {
   url: string;
-  cookie: string;
+  private currentCookie = '';
   ship: string;
   channelId: string;
   channelUrl: string;
@@ -90,8 +97,23 @@ export class UrbitSSEClient {
       event?: (data: unknown) => void;
       err?: (error: unknown) => void;
       quit?: () => void;
+      onLive?: () => void;
+      retryOnNack?: boolean;
     }
   >();
+  /**
+   * Consecutive watch nacks per app+path, for the nack-retry backoff. Keyed
+   * by path rather than id because every retry mints a fresh id.
+   */
+  private nackRetries = new Map<string, number>();
+  /**
+   * The pending nack retry per app+path. A positive ack — including one for
+   * the original id after a stream reconnect recreated it — must cancel it:
+   * a late retry would move the handlers off a live subscription and leave
+   * that id handlerless, so its facts would fall through to the broadcast
+   * path and reach every other subscription's handler.
+   */
+  private nackRetryTimers = new Map<string, ReturnType<typeof setTimeout>>();
   aborted = false;
   streamController: AbortController | null = null;
   onReconnect: UrbitSseOptions['onReconnect'] | null;
@@ -241,6 +263,17 @@ export class UrbitSSEClient {
     event?: (data: unknown) => void;
     err?: (error: unknown) => void;
     quit?: () => void;
+    /**
+     * Fires on every positive watch-ack: the first subscribe, and each
+     * resubscribe after a quit or a nack. A consumer whose remote state can
+     * be reset under a live channel resyncs here.
+     */
+    onLive?: () => void;
+    /**
+     * Retry a nacked watch with slow backoff instead of leaving it dead. For
+     * a path a newer desk adds: the watch nacks until the desk lands.
+     */
+    retryOnNack?: boolean;
   }) {
     const subId = this.subscriptions.length + 1;
     const subscription = {
@@ -256,6 +289,8 @@ export class UrbitSSEClient {
       event: params.event,
       err: params.err,
       quit: params.quit,
+      onLive: params.onLive,
+      retryOnNack: params.retryOnNack,
     });
 
     if (this.isConnected) {
@@ -297,6 +332,9 @@ export class UrbitSSEClient {
       this.actionFloors.set(subscription.id, this.lastHeardEventId);
     }
     this.recordGenerationZeroEligibleId(subscription.id);
+    // The cookie sent with this request; a reconnect may replace this.cookie
+    // before the error body arrives.
+    const cookie = this.cookie;
     const { response, release } = await urbitFetch({
       baseUrl: this.url,
       path: `/~/channel/${this.channelId}`,
@@ -304,7 +342,7 @@ export class UrbitSSEClient {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Cookie: this.cookie,
+          Cookie: cookie,
         },
         body: JSON.stringify([subscription]),
       },
@@ -318,8 +356,11 @@ export class UrbitSSEClient {
     try {
       if (!response.ok && response.status !== 204) {
         const errorText = await response.text().catch(() => '');
+        const detail = errorText
+          ? redactUrbitErrorText(errorText, { cookie })
+          : '';
         throw new Error(
-          `Subscribe failed: ${response.status}${errorText ? ` - ${errorText}` : ''}`
+          `Subscribe failed: ${response.status}${detail ? ` - ${detail}` : ''}`
         );
       }
     } finally {
@@ -657,20 +698,33 @@ export class UrbitSSEClient {
     // oxlint-disable-next-line typescript/no-explicit-any
     const stream =
       body instanceof ReadableStream ? Readable.fromWeb(body as any) : body;
+    // One decoder across chunks: a multi-byte character split by a chunk
+    // boundary would otherwise decode as two U+FFFD halves.
+    const decoder = new TextDecoder();
     let buffer = '';
+    const consume = (text: string) => {
+      buffer += text;
+      let eventEnd;
+      while ((eventEnd = buffer.indexOf('\n\n')) !== -1) {
+        const eventData = buffer.substring(0, eventEnd);
+        buffer = buffer.substring(eventEnd + 2);
+        this.processEvent(eventData);
+      }
+    };
 
     try {
       for await (const chunk of stream) {
         if (this.aborted) {
           break;
         }
-        buffer += chunk.toString();
-        let eventEnd;
-        while ((eventEnd = buffer.indexOf('\n\n')) !== -1) {
-          const eventData = buffer.substring(0, eventEnd);
-          buffer = buffer.substring(eventEnd + 2);
-          this.processEvent(eventData);
-        }
+        consume(
+          typeof chunk === 'string'
+            ? chunk
+            : decoder.decode(chunk, { stream: true })
+        );
+      }
+      if (!this.aborted) {
+        consume(decoder.decode());
       }
       // Clean EOF (the loop completed without throwing): clear the suppression
       // flag here, NOT in finally. A clean end racing our abort must not leave
@@ -915,6 +969,15 @@ export class UrbitSSEClient {
         return;
       }
 
+      // A watch-ack. Eyre answers a nacked watch with this one event and no
+      // quit, so without handling it here the subscription is silently dead.
+      if (parsed.response === 'subscribe') {
+        if (parsed.id) {
+          this.handleWatchAck(parsed.id, parsed.err);
+        }
+        return;
+      }
+
       if (parsed.response === 'quit') {
         if (parsed.id) {
           const handlers = this.eventHandlers.get(parsed.id);
@@ -967,7 +1030,7 @@ export class UrbitSSEClient {
   }
 
   async poke(params: { app: string; mark: string; json: unknown }) {
-    // After close() the channel is unsubscribed/DELETEd on the ship. A stale
+    // After close() the channel is deleted on the ship. A stale
     // poke from an old monitor (e.g. across a config-reload restart) would
     // otherwise recreate that channel as a side effect, so reject once closed.
     if (this.aborted) {
@@ -1058,6 +1121,7 @@ export class UrbitSSEClient {
           operation: `request ${path}`,
           status: response.status,
           bodyText: text || undefined,
+          cookie: headers.Cookie,
         });
       }
       return text.trim() ? (JSON.parse(text) as T) : (undefined as T);
@@ -1070,6 +1134,18 @@ export class UrbitSSEClient {
    * Update the cookie used for authentication.
    * Call this when re-authenticating after session expiry.
    */
+  // Every request reads the cookie through this getter, which re-registers it
+  // so a long-lived session cookie stays in the redaction registry.
+  get cookie(): string {
+    registerUrbitCookie(this.currentCookie);
+    return this.currentCookie;
+  }
+
+  set cookie(value: string) {
+    this.currentCookie = value;
+    registerUrbitCookie(value);
+  }
+
   updateCookie(newCookie: string): void {
     this.cookie = normalizeUrbitCookie(newCookie);
   }
@@ -1352,6 +1428,49 @@ export class UrbitSSEClient {
     }
   }
 
+  private handleWatchAck(subId: number, err: unknown) {
+    const handlers = this.eventHandlers.get(subId);
+    const sub = this.subscriptions.find((s) => s.id === subId);
+    if (!handlers || !sub) return;
+    const key = `${sub.app}${sub.path}`;
+    if (err === undefined || err === null) {
+      this.nackRetries.delete(key);
+      this.cancelNackRetry(key);
+      handlers.onLive?.();
+      return;
+    }
+    handlers.err?.(err);
+    if (!handlers.retryOnNack || this.aborted) return;
+    const attempt = (this.nackRetries.get(key) ?? 0) + 1;
+    this.nackRetries.set(key, attempt);
+    const delay = Math.min(
+      NACK_RETRY_BASE_MS * Math.pow(2, attempt - 1),
+      NACK_RETRY_MAX_MS
+    );
+    this.logger.log?.(
+      `[SSE] Watch on ${key} nacked (attempt ${attempt}); retrying in ${delay}ms`
+    );
+    this.cancelNackRetry(key);
+    const timer = setTimeout(() => {
+      this.nackRetryTimers.delete(key);
+      // The id must still own the handlers. If anything moved them since —
+      // a quit-driven resubscribe, say — this retry is stale.
+      if (this.aborted || !this.eventHandlers.has(subId)) return;
+      // Reuses the quit path: a fresh id, handlers carried over, and the
+      // stream-reconnect epoch handling. Its outcome is the next watch-ack.
+      void this.resubscribeAfterQuit(subId);
+    }, delay);
+    timer.unref?.();
+    this.nackRetryTimers.set(key, timer);
+  }
+
+  private cancelNackRetry(key: string) {
+    const timer = this.nackRetryTimers.get(key);
+    if (timer === undefined) return;
+    clearTimeout(timer);
+    this.nackRetryTimers.delete(key);
+  }
+
   /**
    * Re-subscribe to an app/path after the Gall agent sends a quit.
    * Creates a new subscription with a fresh ID, transfers event handlers,
@@ -1460,6 +1579,11 @@ export class UrbitSSEClient {
   async close() {
     this.aborted = true;
     this.isConnected = false;
+    for (const timer of this.nackRetryTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.nackRetryTimers.clear();
+    this.nackRetries.clear();
     this.stopStreamWatchdog();
     this.streamController?.abort();
     this.stopSubscriptionRetryTimer();
@@ -1471,59 +1595,37 @@ export class UrbitSSEClient {
     this.generationZeroEligibleActionIds.clear();
     this.generationZeroEligibilitySaturated = false;
 
+    // Eyre only accepts PUT/GET/POST on a channel; deletion is the %delete
+    // action, which also cancels the channel's subscriptions. Unreaped, the
+    // channel lingers on the ship for 12h.
     try {
-      const unsubscribes = this.subscriptions.map((sub) => ({
-        id: sub.id,
-        action: 'unsubscribe',
-        subscription: sub.id,
-      }));
-
-      {
-        const { response, release } = await urbitFetch({
-          baseUrl: this.url,
-          path: `/~/channel/${this.channelId}`,
-          init: {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              Cookie: this.cookie,
-            },
-            body: JSON.stringify(unsubscribes),
+      const { response, release } = await urbitFetch({
+        baseUrl: this.url,
+        path: `/~/channel/${this.channelId}`,
+        init: {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Cookie: this.cookie,
           },
-          ssrfPolicy: this.ssrfPolicy,
-          lookupFn: this.lookupFn,
-          fetchImpl: this.fetchImpl,
-          timeoutMs: 30_000,
-          auditContext: 'tlon-urbit-unsubscribe',
-        });
-        try {
-          void response.body?.cancel();
-        } finally {
-          await release();
+          body: JSON.stringify([{ action: 'delete' }]),
+        },
+        ssrfPolicy: this.ssrfPolicy,
+        lookupFn: this.lookupFn,
+        fetchImpl: this.fetchImpl,
+        timeoutMs: 30_000,
+        auditContext: 'tlon-urbit-channel-close',
+      });
+      try {
+        if (!response.ok) {
+          throw new UrbitHttpError({
+            operation: 'Channel close',
+            status: response.status,
+          });
         }
-      }
-
-      {
-        const { response, release } = await urbitFetch({
-          baseUrl: this.url,
-          path: `/~/channel/${this.channelId}`,
-          init: {
-            method: 'DELETE',
-            headers: {
-              Cookie: this.cookie,
-            },
-          },
-          ssrfPolicy: this.ssrfPolicy,
-          lookupFn: this.lookupFn,
-          fetchImpl: this.fetchImpl,
-          timeoutMs: 30_000,
-          auditContext: 'tlon-urbit-channel-close',
-        });
-        try {
-          void response.body?.cancel();
-        } finally {
-          await release();
-        }
+      } finally {
+        // release() cancels the unread body and observes a rejected cancel.
+        await release();
       }
     } catch (error) {
       this.logger.error?.(`Error closing channel: ${String(error)}`);

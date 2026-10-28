@@ -13,10 +13,17 @@ import { queryClient } from '../../db/reactQuery';
 import { SETTINGS_SINGLETON_KEY } from '../../db/schema';
 import { runIfDev } from '../../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../../domain';
+import { httpStatusFromError, isIgnoredError } from '../../errorReporting';
 import {
   MIN_GROUPS_VERSION,
   activityVersionSupportsNotes,
+  deskVersionSupportsAutomations,
+  deskVersionCountsAllSeats,
+  deskVersionServesRosterPages,
   deskVersionSupportsBuckets,
+  deskVersionSupportsStewardPrompts,
+  deskVersionSupportsTaskRuns,
+  deskVersionSupportsStewardBots,
   activityVersionSupportsReactions,
   classifyDeskVersion,
 } from '../../logic';
@@ -666,6 +673,22 @@ export const syncAppInfo = async (
   api.setDeskSupportsBuckets(
     deskVersionSupportsBuckets(appInfo?.groupsVersion)
   );
+  api.setDeskSupportsAutomations(
+    deskVersionSupportsAutomations(appInfo?.groupsVersion)
+  );
+  api.setDeskCountsAllSeats(deskVersionCountsAllSeats(appInfo?.groupsVersion));
+  api.setDeskServesRosterPages(
+    deskVersionServesRosterPages(appInfo?.groupsVersion)
+  );
+  api.setDeskSupportsStewardPrompts(
+    deskVersionSupportsStewardPrompts(appInfo?.groupsVersion)
+  );
+  api.setDeskSupportsTaskRuns(
+    deskVersionSupportsTaskRuns(appInfo?.groupsVersion)
+  );
+  api.setDeskSupportsStewardBots(
+    deskVersionSupportsStewardBots(appInfo?.groupsVersion)
+  );
   // Awaited so the App Info screen and the notes-search gate see it promptly.
   // The capability flags don't depend on it landing: what protects those is
   // the in-memory version recorded above.
@@ -702,6 +725,14 @@ export const syncReactionSupport = async () => {
   );
   api.setActivitySupportsNotes(activityVersionSupportsNotes(groupsVersion));
   api.setDeskSupportsBuckets(deskVersionSupportsBuckets(groupsVersion));
+  api.setDeskSupportsAutomations(deskVersionSupportsAutomations(groupsVersion));
+  api.setDeskCountsAllSeats(deskVersionCountsAllSeats(groupsVersion));
+  api.setDeskServesRosterPages(deskVersionServesRosterPages(groupsVersion));
+  api.setDeskSupportsStewardPrompts(
+    deskVersionSupportsStewardPrompts(groupsVersion)
+  );
+  api.setDeskSupportsTaskRuns(deskVersionSupportsTaskRuns(groupsVersion));
+  api.setDeskSupportsStewardBots(deskVersionSupportsStewardBots(groupsVersion));
 };
 
 export const syncVolumeSettings = async (ctx?: SyncCtx) => {
@@ -813,6 +844,7 @@ export const syncContactDiscovery = async (
       isMocked,
     });
     const newMatchIds = newMatches.map(([, id]) => id);
+    let addedMatches: [string, string][] = [];
 
     await db.linkSystemContacts({ matches }).catch((e) => {
       didSucceed = false;
@@ -828,19 +860,18 @@ export const syncContactDiscovery = async (
     );
 
     if (newMatchIds.length > 0) {
-      await addContacts(newMatchIds).catch((e) => {
+      const { addedContactIds, failedContactIds } =
+        await addContacts(newMatchIds);
+      if (failedContactIds.length > 0) {
         didSucceed = false;
-        logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
-          context: 'failed to add contacts',
-          severity: AnalyticsSeverity.Critical,
-          error: e,
-        });
-      });
-      logger.log('syncContactDiscovery: added contacts', newMatchIds);
+      }
+      const addedIds = new Set(addedContactIds);
+      addedMatches = newMatches.filter(([, id]) => addedIds.has(id));
+      logger.log('syncContactDiscovery: added contacts', addedContactIds);
 
       await db
         .markContactsAsMatched({
-          contactIds: newMatchIds,
+          contactIds: addedContactIds,
           matchedAt: Date.now(),
         })
         .catch((e) => {
@@ -855,8 +886,8 @@ export const syncContactDiscovery = async (
       // matches whose contact doesn't already have one. The query
       // does the join + filter, so we just map to API calls here.
       const contactsToName =
-        await db.getUnnamedSystemContactsByContactId(newMatchIds);
-      await Promise.all(
+        await db.getUnnamedSystemContactsByContactId(addedContactIds);
+      const metadataResults = await Promise.all(
         contactsToName.map((c) =>
           updateContactMetadata(c.contactId, {
             nickname: `${c.firstName || ''} ${c.lastName || ''}`.trim(),
@@ -869,14 +900,18 @@ export const syncContactDiscovery = async (
           severity: AnalyticsSeverity.Critical,
           error: e,
         });
+        return [];
       });
+      if (metadataResults.some((didUpdate) => !didUpdate)) {
+        didSucceed = false;
+      }
     }
 
-    if (invokeHandler && newMatches.length > 0) {
-      await invokeContactsMatchedHandler(newMatchIds);
+    if (invokeHandler && addedMatches.length > 0) {
+      await invokeContactsMatchedHandler(addedMatches.map(([, id]) => id));
     }
 
-    return { didDiscover, didSucceed, newMatches };
+    return { didDiscover, didSucceed, newMatches: addedMatches };
   } catch (error) {
     logger.error('error discovering contacts', error);
     logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
@@ -1354,6 +1389,10 @@ export async function handleGroupUpdate(
         ctx
       );
       break;
+    // The stored roster can't tell whether a seat event changed the count:
+    // init keeps only 15 seats, and kicks and accepted joins are written
+    // optimistically before their event arrives. So trust the event; a no-op
+    // one (re-adding a member) drifts the count until init resets it.
     case 'addGroupMembers':
       await db.addChatMembers(
         {
@@ -1364,6 +1403,10 @@ export async function handleGroupUpdate(
         },
         ctx
       );
+      await db.adjustGroupMemberCount(
+        { groupId: update.groupId, delta: update.ships.length },
+        ctx
+      );
       break;
     case 'removeGroupMembers': {
       await db.removeChatMembers(
@@ -1371,6 +1414,10 @@ export async function handleGroupUpdate(
           chatId: update.groupId,
           contactIds: update.ships,
         },
+        ctx
+      );
+      await db.adjustGroupMemberCount(
+        { groupId: update.groupId, delta: -update.ships.length },
         ctx
       );
       if (update.ships.includes(currentUserId)) {
@@ -2615,9 +2662,17 @@ const checkDeskCompatibility = async (
       { priority: syncStartPriority.high, retry: false },
       { timeout: DESK_PROBE_TIMEOUT, isStale: isAbandoned }
     ).catch((err) => {
-      logger.trackError('Desk compatibility probe failed', {
-        error: err instanceof Error ? err.message : String(err),
-      });
+      const message = err instanceof Error ? err.message : String(err);
+      // Transient network failures are expected here, and the persisted desk
+      // version covers them.
+      if (isIgnoredError(err)) {
+        logger.crumb('Desk compatibility probe failed', message);
+      } else {
+        logger.trackError('Desk compatibility probe failed', {
+          error: message,
+          status: httpStatusFromError(err),
+        });
+      }
       return null;
     }),
     probeTimedOut,

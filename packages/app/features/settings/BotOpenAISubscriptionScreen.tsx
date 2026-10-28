@@ -6,13 +6,17 @@ import { View, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
 import {
+  useSettingsListHeaderColor,
+  useSettingsListSurfaces,
+} from '../../ui/components/SettingsList';
+import {
   LLMSubscriptionAuthView,
   ScreenHeader,
   SettingsContentScrollView,
 } from '../../ui';
 import { BotSettingsSection } from './bot/BotSettingsUI';
 import { providerLabel, subscriptionLabel } from './bot/constants';
-import { getErrorMessage } from './bot/helpers';
+import { getErrorMessage, getSubscriptionStatusState } from './bot/helpers';
 import {
   canDismissOpenAIAuth,
   getLLMAuthProviderStatus,
@@ -31,6 +35,8 @@ type Props = NativeStackScreenProps<
 >;
 
 export function BotOpenAISubscriptionScreen(props: Props) {
+  const { page: settingsPage } = useSettingsListSurfaces();
+  const settingsHeaderColor = useSettingsListHeaderColor();
   const providerId = props.route.params?.provider ?? 'openai';
   const providerName = providerLabel(providerId);
   const subscriptionName = subscriptionLabel(providerId);
@@ -45,9 +51,10 @@ export function BotOpenAISubscriptionScreen(props: Props) {
   );
   const connected = isLLMAuthProviderConnected(providerStatus?.status);
   const hasApiKey = Boolean(queries.providerConfig.keys?.[providerId]);
-  const statusUnavailable =
-    queries.llmAuthStatusQuery.isError &&
-    queries.llmAuthStatusQuery.data === undefined;
+  const subscriptionStatus = getSubscriptionStatusState(
+    queries.llmAuthStatusQuery
+  );
+  const statusUnavailable = subscriptionStatus === 'unavailable';
 
   const handleComplete = useCallback(async () => {
     if (hasApiKey) {
@@ -111,8 +118,9 @@ export function BotOpenAISubscriptionScreen(props: Props) {
       : null;
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
+    <View flex={1} backgroundColor={settingsPage}>
       <ScreenHeader
+        backgroundColor={settingsHeaderColor}
         borderBottom
         backAction={() => {
           auth.dismiss();
@@ -122,7 +130,7 @@ export function BotOpenAISubscriptionScreen(props: Props) {
         title={subscriptionName}
         placement="navigation"
       />
-      {queries.llmAuthStatusQuery.isLoading ? (
+      {subscriptionStatus === 'checking' ? (
         <YStack flex={1} alignItems="center" justifyContent="center" gap="$m">
           <LoadingSpinner />
           <Text size="$label/m" color="$secondaryText">

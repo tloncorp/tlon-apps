@@ -8,9 +8,11 @@ export * from './bucketsBroker';
 export * from './chatApi';
 export * from './contactsApi';
 export * from './groupsApi';
+export * from './workspaceConfig';
 export * from './landscapeApi';
 export * from './notesApi';
 export * from './postsApi';
+export * from './references';
 export * from './urbit';
 export * from './initApi';
 export * from './upload';
@@ -59,6 +61,8 @@ export {
   markUserTlonbotEnabled,
   checkNodeIsTlonbotReady,
   // Tlawn (bot) endpoints
+  getTlawnBrowserService,
+  setTlawnBrowserService,
   getTlawnProviderKeys,
   setTlawnProviderKey,
   deleteTlawnProviderKey,
@@ -101,6 +105,8 @@ export type {
   TlawnProviderConfigInfo,
   TlawnModelEntry,
   TlawnPrimaryModelUpdate,
+  TlawnBrowserService,
+  TlawnBrowserServiceInfo,
   TlawnBotInfo,
   TlawnChannelGroupEntry,
   TlawnChannelGroups,
@@ -132,4 +138,6 @@ export * from './changesApi';
 export * from './computingStatus';
 export * from './presenceApi';
 export * from './stewardGatewayApi';
+export * from './stewardAutomationApi';
 export * from './lensApi';
+export * from './stewardPromptsApi';

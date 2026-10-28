@@ -1,0 +1,15 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'io.tlon.textselection'
+version = '1.0.0'
+
+android {
+  namespace 'io.tlon.textselection'
+  defaultConfig {
+    versionCode 1
+    versionName '1.0.0'
+  }
+}

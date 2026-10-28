@@ -27,6 +27,12 @@ export type {
 } from './client/hostingApi';
 export { getLandscapeAuthCookie } from './client/landscapeApi';
 export {
+  isTrustedBrowserViewerHost,
+  isBrowserViewerDevelopmentOrigin,
+  MAX_BROWSER_VIEWER_URL_LENGTH,
+} from './client/browserSession';
+export { browserWalletCard } from './client/browserWallet';
+export {
   AuthError,
   Urbit,
   type ChannelStatus,
@@ -34,10 +40,17 @@ export {
   type PokeHandlers,
   type Scry,
 } from './http-api';
-export type { Contact, Group, Channel, Post } from './types/models';
+export type {
+  ActivityInit,
+  Contact,
+  Group,
+  Channel,
+  Post,
+} from './types/models';
 export * from './urbit/buckets';
 export type {
   AppReference,
+  ChannelLinkReference,
   ChannelReference,
   ContentReference,
   GroupReference,
@@ -71,6 +84,9 @@ export {
   type Cite,
   type PostDataResponse,
   type ReplyWithMemo,
+  type Reply,
+  type WritReply,
+  type ChangesV11,
 } from './urbit';
 export {
   appendFileUploadToPostBlob,
@@ -85,6 +101,7 @@ export {
   type ClientPostBlobData,
   type Mention,
   type PostBlobDataEntry,
+  type PostBlobDataEntryMetadata,
   type PostBlobDataEntryAgentIntroRequest,
   type PostBlobDataEntryAgentProvision,
   type PostBlobDataEntryAgentProviderConfig,

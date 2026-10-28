@@ -1,3 +1,4 @@
+import type { CampaignEvent } from './monitor/campaign/runner.js';
 import { createHash } from 'node:crypto';
 
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
@@ -144,10 +145,12 @@ export type TlonDeliverySkipReason =
   | 'empty'
   | 'silent'
   | 'heartbeat'
+  | 'channel_transform'
   | 'empty_payload_text'
   | 'block_directive_only'
   | 'media_only_payload_not_sent'
-  | 'source_reply_delivery_mode_message_tool_only';
+  | 'source_reply_delivery_mode_message_tool_only'
+  | 'not_dispatched';
 
 export type TlonReplyOutcomeEvent = {
   sessionKey: string;
@@ -437,6 +440,7 @@ export type TlonCronRunEvent = TlonCronScheduleFields & {
   nextRunAtMs: number | null;
   delivered: boolean | null;
   deliveryStatus: string | null;
+  intentionalSilence: boolean;
   deliveryError: string | null;
   model: string | null;
   provider: string | null;
@@ -452,6 +456,7 @@ export type TlonCronSnapshotEvent = TlonCronCountFields & {
   scheduleKindEveryCount: number | null;
   scheduleKindAtCount: number | null;
   scheduleKindOnExitCount: number | null;
+  scheduleKindStreamCount: number | null;
 };
 
 /**
@@ -504,7 +509,9 @@ export type TlonOnboardingCompletionPath =
   | 'additional_group_completed'
   | 'app_tour_declined'
   | 'bot_tour_declined'
-  | 'bot_tour_completed';
+  | 'bot_tour_completed'
+  | 'first_day_elapsed'
+  | 'first_entry_published';
 
 /**
  * One event per onboarding step, per group.
@@ -642,6 +649,7 @@ export type TlonPluginErrorSource =
   | 'chat_firehose'
   | 'contacts_subscription'
   | 'groups_ui_subscription'
+  | 'groups_v3_subscription'
   | 'foreigns_subscription'
   | 'steward_subscription'
   | 'settings_refresh'
@@ -708,6 +716,13 @@ export type TlonTelemetryErrorEvent = {
 };
 
 export interface TlonTelemetryClient {
+  captureOnboardingCampaign(
+    event: CampaignEvent & {
+      ownerShip: string;
+      botShip: string;
+      accountId: string;
+    }
+  ): void;
   captureGatewayConnected(event: TlonGatewayConnectedEvent): void;
   startReply(params: TlonReplyTelemetryStart): TlonReplyTelemetrySession;
   captureHeartbeatNudge(event: TlonHeartbeatNudgeEvent): void;
@@ -1442,6 +1457,31 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
     );
   }
 
+  captureOnboardingCampaign(
+    event: CampaignEvent & {
+      ownerShip: string;
+      botShip: string;
+      accountId: string;
+    }
+  ): void {
+    if (!this.ensureIdentified(event.ownerShip, event.botShip)) return;
+    this.client.capture({
+      distinctId: event.ownerShip,
+      event: 'TlonBot Onboarding Campaign',
+      properties: this.properties({
+        campaignAction: event.action,
+        campaignVersion: event.version,
+        campaignEnrolledAt: event.enrolledAt,
+        campaignStep: event.step,
+        skipReason: event.reason,
+        campaignReason: event.reason,
+        ownerShip: event.ownerShip,
+        botShip: event.botShip,
+        accountId: event.accountId,
+      }),
+    });
+  }
+
   captureGatewayConnected(event: TlonGatewayConnectedEvent): void {
     const ownerShip = event.ownerShip ?? '';
     if (!this.ensureIdentified(ownerShip, event.botShip)) {
@@ -1960,6 +2000,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           nextRunAtMs: event.nextRunAtMs,
           delivered: event.delivered,
           deliveryStatus: event.deliveryStatus,
+          intentionalSilence: event.intentionalSilence,
           deliveryError: event.deliveryError,
           model: event.model,
           provider: event.provider,
@@ -1996,6 +2037,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           scheduleKindEveryCount: event.scheduleKindEveryCount,
           scheduleKindAtCount: event.scheduleKindAtCount,
           scheduleKindOnExitCount: event.scheduleKindOnExitCount,
+          scheduleKindStreamCount: event.scheduleKindStreamCount,
           ...this.cronCountPersonProps(event),
         },
         { omitNullish: true }

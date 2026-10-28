@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { TlonCronOtelObserver } from './cron-observability.js';
+import {
+  type TlonCronOtelObserver,
+  createTlonCronOtelObserver,
+} from './cron-observability.js';
 import {
   _testing,
   buildCronJobChangedReport,
@@ -20,6 +23,10 @@ import {
   type TlonCronTelemetryReport,
   setCronTelemetryReporter,
 } from './telemetry.js';
+import {
+  beginCronSilenceObservation,
+  recordCronSilenceOutput,
+} from './cron-silence.js';
 
 type HookCronJob = Parameters<typeof summarizeCronJobs>[0][number];
 type HookCronEvent = Parameters<typeof buildCronRunReport>[0];
@@ -47,6 +54,21 @@ function makeOnExitJob(overrides: Partial<HookCronJob> = {}): HookCronJob {
       kind: 'on-exit',
       command: 'secret watcher command --token sensitive',
       cwd: '/private/watcher/path',
+    } as unknown as HookCronJob['schedule'],
+  };
+}
+
+function makeStreamJob(overrides: Partial<HookCronJob> = {}): HookCronJob {
+  return {
+    ...makeJob(overrides),
+    schedule: {
+      kind: 'stream',
+      command: ['secret', 'stream', '--token', 'sensitive'],
+      cwd: '/private/stream/path',
+      mode: 'match',
+      match: 'secret match text',
+      batchMs: 1_000,
+      maxBatchBytes: 65_536,
     } as unknown as HookCronJob['schedule'],
   };
 }
@@ -145,6 +167,19 @@ describe('cron telemetry builders', () => {
     expect(JSON.stringify(fields)).not.toContain('/private/watcher/path');
   });
 
+  it('extracts only the kind from stream schedules', () => {
+    const fields = cronScheduleFields(makeStreamJob());
+    expect(fields).toEqual({
+      scheduleKind: 'stream',
+      scheduleExpr: null,
+      scheduleTz: null,
+      scheduleEveryMs: null,
+      scheduleAt: null,
+    });
+    expect(JSON.stringify(fields)).not.toContain('secret');
+    expect(JSON.stringify(fields)).not.toContain('/private/stream/path');
+  });
+
   it('normalizes session target kinds without leaking session keys', () => {
     expect(normalizeCronSessionTargetKind('main')).toBe('main');
     expect(normalizeCronSessionTargetKind('isolated')).toBe('isolated');
@@ -175,14 +210,16 @@ describe('cron telemetry builders', () => {
       makeJob({ id: 'job-4', schedule: { kind: 'at', at: 'soon' } }),
       makeJob({ id: 'job-5', enabled: undefined, schedule: undefined }),
       makeOnExitJob({ id: 'job-6' }),
+      makeStreamJob({ id: 'job-7' }),
     ];
     expect(summarizeCronJobs(jobs)).toEqual({
-      activeCronJobCount: 5,
-      totalCronJobCount: 6,
+      activeCronJobCount: 6,
+      totalCronJobCount: 7,
       scheduleKindCronCount: 2,
       scheduleKindEveryCount: 1,
       scheduleKindAtCount: 1,
       scheduleKindOnExitCount: 1,
+      scheduleKindStreamCount: 1,
     });
   });
 
@@ -201,6 +238,7 @@ describe('cron telemetry builders', () => {
       delivered: true,
       deliveryStatus: 'delivered',
       deliveryError: null,
+      intentionalSilence: false,
       model: 'claude-sonnet-5',
       provider: 'anthropic',
       payloadKind: 'agentTurn',
@@ -221,6 +259,15 @@ describe('cron telemetry builders', () => {
     expect(report).toMatchObject({ scheduleKind: 'on-exit' });
     expect(JSON.stringify(report)).not.toContain('secret watcher');
     expect(JSON.stringify(report)).not.toContain('/private/watcher/path');
+  });
+
+  it('preserves stream kind on run reports without leaking stream details', () => {
+    const report = buildCronRunReport(
+      makeFinishedEvent({ job: makeStreamJob() })
+    );
+    expect(report).toMatchObject({ scheduleKind: 'stream' });
+    expect(JSON.stringify(report)).not.toContain('secret');
+    expect(JSON.stringify(report)).not.toContain('/private/stream/path');
   });
 
   it('builds a run report for failures with error text', () => {
@@ -250,6 +297,39 @@ describe('cron telemetry builders', () => {
       null
     );
   });
+
+  it.each([
+    ['exact token', { summary: 'NO_REPLY' }, true],
+    ['whitespace and case', { summary: ' \nno_reply\t' }, true],
+    ['missing summary', { summary: undefined }, false],
+    ['empty summary', { summary: ' \n' }, false],
+    ['ordinary output', { summary: 'No changes today' }, false],
+    ['token in prose', { summary: 'Use NO_REPLY when nothing changes' }, false],
+    ['trailing token', { summary: 'A result\nNO_REPLY' }, false],
+    ['failed run', { status: 'error' }, false],
+    ['skipped run', { status: 'skipped' }, false],
+    ['unknown status', { status: undefined }, false],
+    ['run error', { error: 'model failed' }, false],
+    ['delivery error', { deliveryError: 'channel unavailable' }, false],
+    ['delivered output', { delivered: true }, false],
+    ['unknown delivery', { delivered: undefined }, false],
+    ['unknown delivery status', { deliveryStatus: 'unknown' }, false],
+    ['delivery not requested', { deliveryStatus: 'not-requested' }, false],
+  ] satisfies [string, Partial<HookCronEvent>, boolean][])(
+    'classifies intentional silence conservatively: %s',
+    (_name, overrides, intentionalSilence) => {
+      const report = buildCronRunReport(
+        makeFinishedEvent({
+          summary: 'NO_REPLY',
+          delivered: false,
+          deliveryStatus: 'not-delivered',
+          ...overrides,
+        })
+      );
+      expect(report?.intentionalSilence).toBe(intentionalSilence);
+      expect(report).not.toHaveProperty('summary');
+    }
+  );
 
   it('builds job-changed reports for lifecycle actions only', () => {
     const added = buildCronJobChangedReport(
@@ -283,6 +363,14 @@ describe('cron telemetry builders', () => {
     expect(JSON.stringify(onExitAdded)).not.toContain('secret watcher');
     expect(JSON.stringify(onExitAdded)).not.toContain('/private/watcher/path');
 
+    const streamAdded = buildCronJobChangedReport(
+      { action: 'added', jobId: 'job-stream', job: makeStreamJob() },
+      { activeCronJobCount: 5, totalCronJobCount: 6 }
+    );
+    expect(streamAdded).toMatchObject({ scheduleKind: 'stream' });
+    expect(JSON.stringify(streamAdded)).not.toContain('secret');
+    expect(JSON.stringify(streamAdded)).not.toContain('/private/stream/path');
+
     expect(
       buildCronJobChangedReport({ action: 'removed', jobId: 'job-1' }, null)
     ).toMatchObject({
@@ -300,13 +388,16 @@ describe('cron telemetry builders', () => {
   });
 
   it('builds a snapshot report from a job list', () => {
-    expect(buildCronSnapshotReport([makeJob(), makeOnExitJob()])).toEqual({
-      activeCronJobCount: 2,
-      totalCronJobCount: 2,
+    expect(
+      buildCronSnapshotReport([makeJob(), makeOnExitJob(), makeStreamJob()])
+    ).toEqual({
+      activeCronJobCount: 3,
+      totalCronJobCount: 3,
       scheduleKindCronCount: 1,
       scheduleKindEveryCount: 0,
       scheduleKindAtCount: 0,
       scheduleKindOnExitCount: 1,
+      scheduleKindStreamCount: 1,
     });
   });
 });
@@ -347,6 +438,7 @@ describe('cron telemetry hook handling', () => {
       deliveryError: null,
       deliveryStatus: 'delivered',
       durationMs: 1_234,
+      intentionalSilence: false,
       jobId: 'job-1',
       jobName: 'morning briefing',
       model: 'claude-sonnet-5',
@@ -370,6 +462,109 @@ describe('cron telemetry hook handling', () => {
       },
     ]);
   });
+
+  it.each([true, false])(
+    'emits intentional silence=%s on the existing terminal log and report',
+    async (silent) => {
+      const info = vi.fn();
+      const observer = createTlonCronOtelObserver({ logger: { info } });
+      await handleCronChangedEvent(
+        makeFinishedEvent({
+          summary: silent ? 'NO_REPLY' : 'private report contents',
+          delivered: false,
+          deliveryStatus: 'not-delivered',
+        }),
+        {},
+        { observer }
+      );
+      expect(info).toHaveBeenCalledWith(
+        'tlon.cron.run.finished',
+        expect.objectContaining({
+          'tlon.cron.status': 'ok',
+          'tlon.cron.delivered': false,
+          'tlon.cron.delivery_status': 'not-delivered',
+          'tlon.cron.intentional_silence': silent,
+        })
+      );
+      expect(reports).toEqual([
+        {
+          kind: 'run',
+          event: expect.objectContaining({ intentionalSilence: silent }),
+        },
+      ]);
+      const telemetry = JSON.stringify({ logs: info.mock.calls, reports });
+      expect(telemetry).not.toContain('NO_REPLY');
+      expect(telemetry).not.toContain('private report contents');
+      expect(telemetry).not.toContain('secret prompt text');
+    }
+  );
+
+  it.each([
+    ['stripped summary', {}, true],
+    ['empty summary', { summary: '' }, true],
+    ['substantive summary', { summary: 'private result' }, false],
+    ['error', { status: 'error', error: 'failed' }, false],
+    ['delivery error', { deliveryError: 'failed' }, false],
+    ['different session', { sessionId: 'another-session' }, false],
+    ['main session', { sessionTarget: 'main' }, false],
+  ] satisfies [string, Partial<HookCronEvent>, boolean][])(
+    'correlates final NO_REPLY with the cron terminal event: %s',
+    async (_name, overrides, intentionalSilence) => {
+      const ctx = {
+        trigger: 'cron',
+        runId: 'agent-run-1',
+        sessionId: 'sess-1',
+        sessionKey: 'cron:job-1',
+      };
+      beginCronSilenceObservation(ctx);
+      // model_call_started can omit fields supplied by agent_turn_prepare.
+      beginCronSilenceObservation({
+        ...ctx,
+        sessionId: undefined,
+        trigger: undefined,
+      });
+      recordCronSilenceOutput(
+        {
+          success: true,
+          messages: [
+            {
+              role: 'assistant',
+              content: [{ type: 'text', text: 'NO_REPLY' }],
+            },
+          ],
+        },
+        ctx
+      );
+      const info = vi.fn();
+      const observer = createTlonCronOtelObserver({ logger: { info } });
+      const event = makeFinishedEvent({
+        summary: undefined,
+        delivered: false,
+        deliveryStatus: 'not-delivered',
+        ...overrides,
+      });
+      await handleCronChangedEvent(event, {}, { observer });
+      expect(info).toHaveBeenCalledWith(
+        'tlon.cron.run.finished',
+        expect.objectContaining({
+          'tlon.cron.intentional_silence': intentionalSilence,
+        })
+      );
+      expect(reports[0]).toMatchObject({
+        kind: 'run',
+        event: { intentionalSilence },
+      });
+      expect(JSON.stringify({ logs: info.mock.calls, reports })).not.toContain(
+        'NO_REPLY'
+      );
+      // Completion consumes the evidence; it must not silence a subsequent run.
+      await handleCronChangedEvent(event, {}, { observer });
+      expect(reports[1]).toMatchObject({
+        kind: 'run',
+        event: { intentionalSilence: false },
+      });
+    }
+  );
 
   it('projects started events to OTEL without duplicating PostHog runs', async () => {
     const { observer, recordStarted } = makeCronObserver();
@@ -408,6 +603,7 @@ describe('cron telemetry hook handling', () => {
       scheduleKindCronCount: 2,
       scheduleKindEveryCount: 0,
       scheduleKindOnExitCount: 0,
+      scheduleKindStreamCount: 0,
       totalCronJobCount: 2,
     });
     expect(reports).toEqual([
@@ -465,18 +661,23 @@ describe('cron telemetry hook handling', () => {
   });
 
   it('projects boot snapshots into OTEL job inventory', async () => {
-    const service = makeCronService([makeJob(), makeOnExitJob()]);
+    const service = makeCronService([
+      makeJob(),
+      makeOnExitJob(),
+      makeStreamJob(),
+    ]);
     const { observer, recordJobSnapshot } = makeCronObserver();
     setCronServiceAccessor(() => service);
 
     await expect(emitCronSnapshot({ observer })).resolves.toBe(true);
     expect(recordJobSnapshot).toHaveBeenCalledWith({
-      activeCronJobCount: 2,
+      activeCronJobCount: 3,
       scheduleKindAtCount: 0,
       scheduleKindCronCount: 1,
       scheduleKindEveryCount: 0,
       scheduleKindOnExitCount: 1,
-      totalCronJobCount: 2,
+      scheduleKindStreamCount: 1,
+      totalCronJobCount: 3,
     });
   });
 

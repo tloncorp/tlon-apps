@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { MAX_BROWSER_VIEWER_URL_LENGTH } from './browserSession';
+
 import {
   AGENT_PROTOCOL_LIMITS,
   AgentProviderConfigContextSchema,
@@ -62,7 +64,12 @@ const buttonVariantSchema = z.enum([
   'secondary',
   'borderless',
 ]);
-const screenNameSchema = z.enum(['botMcpSettings']);
+const screenNameSchema = z.enum([
+  'botMcpSettings',
+  'browserSecureEntry',
+  'browserSession',
+  'browserWallet',
+]);
 
 const nonEmptyString = (max?: number) => {
   const schema = max === undefined ? z.string() : z.string().max(max);
@@ -115,12 +122,48 @@ const chatVolumeNavigationTargetSchema = z.object({
   chatId: targetIdSchema,
   groupId: targetIdSchema.optional(),
 });
-const screenNavigationTargetSchema = z.object({
+const botMcpSettingsNavigationTargetSchema = z.object({
   type: z.literal('screen'),
-  screen: screenNameSchema,
+  screen: z.literal('botMcpSettings'),
   providerId: targetIdSchema.optional(),
 });
-const navigationTargetSchema = z.discriminatedUnion('type', [
+// Secure entry resumes through service results; the card target identifies that protocol.
+const browserCredentialHandoffNavigationTargetSchema = z.object({
+  type: z.literal('screen'),
+  screen: z.literal('browserSecureEntry'),
+  viewerUrl: z.string().url().max(MAX_BROWSER_VIEWER_URL_LENGTH),
+  loginApproval: z
+    .object({
+      record: z
+        .object({
+          id: z.string().uuid(),
+          revision: z.number().int().positive(),
+        })
+        .strict()
+        .optional(),
+    })
+    .strict()
+    .optional(),
+});
+const browserSessionNavigationTargetSchema = z.object({
+  type: z.literal('screen'),
+  screen: z.literal('browserSession'),
+  viewerUrl: z.string().url().max(MAX_BROWSER_VIEWER_URL_LENGTH),
+});
+const browserWalletNavigationTargetSchema = z
+  .object({
+    type: z.literal('screen'),
+    screen: z.literal('browserWallet'),
+    requestId: z.string().uuid(),
+  })
+  .strict();
+const screenNavigationTargetSchema = z.union([
+  browserWalletNavigationTargetSchema,
+  browserSessionNavigationTargetSchema,
+  botMcpSettingsNavigationTargetSchema,
+  browserCredentialHandoffNavigationTargetSchema,
+]);
+const navigationTargetSchema = z.union([
   messageNavigationTargetSchema,
   channelNavigationTargetSchema,
   groupNavigationTargetSchema,
@@ -259,6 +302,7 @@ const smallChoiceSchema = z.object({
     .max(LIMITS.maxSmallChoiceOptions)
     .refine((options) => uniqueBy(options, (option) => option.id))
     .refine((options) => uniqueBy(options, (option) => option.label)),
+  selectionMode: z.enum(['single', 'multiple']).optional(),
   submitLabel: nonEmptyString(LIMITS.maxPillLabelLength),
   freeTextPlaceholder: nonEmptyString(LIMITS.maxPillLabelLength).optional(),
   action: smallChoiceActionSchema,
@@ -267,9 +311,7 @@ const mcpSettingsNavigateActionSchema = z.object({
   event: z.object({
     name: z.literal(ACTION_NAVIGATE),
     context: z.object({
-      target: screenNavigationTargetSchema.extend({
-        screen: z.literal('botMcpSettings'),
-      }),
+      target: botMcpSettingsNavigationTargetSchema,
     }),
   }),
 });
@@ -349,6 +391,9 @@ export namespace A2UI {
   export type ScreenNavigationTarget = z.infer<
     typeof screenNavigationTargetSchema
   >;
+  export type BrowserCredentialHandoffNavigationTarget = z.infer<
+    typeof browserCredentialHandoffNavigationTargetSchema
+  >;
   export type NavigationTarget = z.infer<typeof navigationTargetSchema>;
   export type NavigateEvent = z.infer<typeof navigateEventSchema>;
   /** Finish the durable, client-bound agent onboarding setup. */
@@ -386,7 +431,7 @@ export namespace A2UI {
   export type Message = CreateSurfaceMessage | UpdateComponentsMessage;
   export type BlobEntry = {
     type: 'a2ui';
-    version: 1;
+    version: 1 | 2;
     messages: Message[];
     recipe?: unknown;
     storyMode?: 'fallback';
@@ -420,7 +465,7 @@ function validateEnvelope(
   if (
     !isPlainObject(entry) ||
     entry.type !== 'a2ui' ||
-    entry.version !== 1 ||
+    (entry.version !== 1 && entry.version !== 2) ||
     !Array.isArray(entry.messages)
   ) {
     return null;
@@ -654,7 +699,7 @@ function validateParsedBlobEntry(
 const blobEntryShapeSchema: z.ZodType<A2UI.BlobEntry> = z
   .object({
     type: z.literal('a2ui'),
-    version: z.literal(1),
+    version: z.union([z.literal(1), z.literal(2)]),
     messages: z.array(z.any()),
     recipe: z.any().optional(),
     storyMode: z.literal('fallback').optional(),

@@ -35,6 +35,7 @@ import {
   ListRenderItem,
   Platform,
   View as RNView,
+  type ViewInstance,
   StyleProp,
   ViewStyle,
   useWindowDimensions,
@@ -168,6 +169,7 @@ const Scroller = forwardRef(
       [collectionLayoutType]
     );
     const currentUserId = useCurrentUserId();
+    const { data: group } = store.useGroup({ id: channel.groupId ?? '' });
     const collectionConfig = useMemo(
       () => configurationFromChannel(channel),
       [channel]
@@ -239,9 +241,9 @@ const Scroller = forwardRef(
       }
     }, [isLoading, onPressScrollToBottom]);
 
-    const activeMessageRefs = useRef<Record<string, RefObject<RNView | null>>>(
-      {}
-    );
+    const activeMessageRefs = useRef<
+      Record<string, RefObject<ViewInstance | null>>
+    >({});
 
     const handleSetActive = useCallback((active: db.Post) => {
       if (active.type !== 'notice') {
@@ -264,9 +266,14 @@ const Scroller = forwardRef(
     const visiblePosts = useMemo(
       () =>
         posts?.filter((post) =>
-          isVisibleChannelPost(post, currentUserId, channel.id)
+          isVisibleChannelPost(
+            post,
+            currentUserId,
+            channel.id,
+            group?.hostUserId
+          )
         ),
-      [channel.id, currentUserId, posts]
+      [channel.id, currentUserId, group?.hostUserId, posts]
     );
 
     const postsWithNeighbors: PostWithNeighbors[] | undefined = useMemo(
@@ -859,7 +866,7 @@ const BaseScrollerItem = ({
   onShowEmojiPicker: (post: db.Post) => void;
   onPressEdit?: (post: db.Post) => void;
   activeMessage?: db.Post | null;
-  messageRef: RefObject<RNView | null>;
+  messageRef: RefObject<ViewInstance | null>;
   isSelected: boolean;
   displayDebugMode?: boolean;
   isLastPostOfBlock: boolean;
@@ -1015,7 +1022,7 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
 });
 
 const PressableMessage = React.memo(
-  forwardRef<RNView, PropsWithChildren<{ isActive: boolean }>>(
+  forwardRef<ViewInstance, PropsWithChildren<{ isActive: boolean }>>(
     function PressableMessageComponent({ isActive, children }, ref) {
       return isActive ? (
         // need the extra React Native View for ref measurement

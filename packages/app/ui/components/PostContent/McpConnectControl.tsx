@@ -12,6 +12,7 @@ import {
   type McpProviderRow,
   buildProviderRows,
   mcpProviderQueryKeys,
+  mcpProvidersQuery,
   prioritizeMcpMenuProviders,
   selectMcpMenuProviders,
 } from '../../../lib/mcpProviders';
@@ -68,9 +69,7 @@ export function McpConnectControl({
 }) {
   const currentUserId = useCurrentUserId();
   const providersQuery = useQuery({
-    queryKey: mcpProviderQueryKeys.providers,
-    queryFn: () => api.getTlawnOAuthProviders(),
-    staleTime: 5 * 60 * 1000,
+    ...mcpProvidersQuery,
     // React Query owns the single app/window focus listener. Historical cards
     // share this cache instead of each installing its own refresh listeners.
     refetchOnWindowFocus: 'always',
@@ -500,6 +499,8 @@ export function McpConnectMenu({
       borderRadius="$xl"
       backgroundColor="$secondaryBackground"
     >
+      {/* Reserve the visible providers plus the usual “See all” row while
+          queries load so the conversation does not jump when they resolve. */}
       <YStack
         width="100%"
         minHeight={loading ? (component.maxVisible + 1) * 56 : undefined}

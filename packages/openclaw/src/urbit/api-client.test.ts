@@ -56,6 +56,26 @@ describe('scoped API client', () => {
     ).rejects.toThrow('Scry not supported on this client shim');
   });
 
+  it('sends monitor-scope API scries to the SSE client without a second /~/scry', async () => {
+    const { runWithTlonApiScope, setScopedTlonApiWithPoke, sseScryFn } =
+      await import('./api-client.js');
+    const sseScry = vi.fn().mockResolvedValue({ ok: true });
+
+    await runWithTlonApiScope(async () => {
+      setScopedTlonApiWithPoke(
+        vi.fn(),
+        '~zod',
+        'http://zod',
+        sseScryFn(sseScry)
+      );
+      await scry({ app: 'groups-ui', path: '/v11/changes/~2026.10.8' });
+    });
+
+    expect(sseScry).toHaveBeenCalledExactlyOnceWith(
+      '/groups-ui/v11/changes/~2026.10.8.json'
+    );
+  });
+
   it('forwards request abort options through a configured monitor scope', async () => {
     const { runWithTlonApiScope, setScopedTlonApiWithPoke } =
       await import('./api-client.js');
@@ -131,6 +151,63 @@ describe('scoped API client', () => {
         init: expect.objectContaining({ headers: { Cookie: 'cookie-new' } }),
       })
     );
+  });
+
+  it('redacts a reflected session cookie from JSON request errors', async () => {
+    const body = JSON.stringify({
+      error: 'denied',
+      cookie: 'urbauth-~zod=0v1g.abcde',
+    });
+    authenticate.mockResolvedValue('urbauth-~zod=0v1g.abcde');
+    createHttpPokeApi.mockResolvedValue({
+      poke: vi.fn(),
+      delete: vi.fn().mockResolvedValue(undefined),
+    });
+    urbitFetch.mockResolvedValue({
+      response: {
+        ok: false,
+        status: 500,
+        text: vi.fn().mockResolvedValue(body),
+      },
+      release: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const { withAuthenticatedTlonApi } = await import('./api-client.js');
+    const error = (await withAuthenticatedTlonApi(
+      { url: 'http://ships:8080', code: 'test-code', ship: '~zod' },
+      () => requestJson('/notes', 'GET')
+    ).catch((caught: unknown) => caught)) as Error;
+
+    // requestJson rethrows the transport error's body as BadResponseError.
+    const surfaced = JSON.stringify({ message: error.message, ...error });
+    expect(surfaced).toContain('denied');
+    expect(surfaced).not.toContain('0v1g.abcde');
+  });
+
+  it('masks the bare request cookie value in JSON request errors', async () => {
+    authenticate.mockResolvedValue('urbauth-~zod=0v7.requestcookie; Path=/');
+    createHttpPokeApi.mockResolvedValue({
+      poke: vi.fn(),
+      delete: vi.fn().mockResolvedValue(undefined),
+    });
+    urbitFetch.mockResolvedValue({
+      response: {
+        ok: false,
+        status: 500,
+        text: vi.fn().mockResolvedValue('session 0v7.requestcookie rejected'),
+      },
+      release: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const { withAuthenticatedTlonApi } = await import('./api-client.js');
+    const error = (await withAuthenticatedTlonApi(
+      { url: 'http://ships:8080', code: 'test-code', ship: '~zod' },
+      () => requestJson('/notes', 'GET')
+    ).catch((caught: unknown) => caught)) as Error;
+
+    const surfaced = JSON.stringify({ message: error.message, ...error });
+    expect(surfaced).toContain('rejected');
+    expect(surfaced).not.toContain('0v7.requestcookie');
   });
 
   it('restores the monitor client after nested outbound work', async () => {

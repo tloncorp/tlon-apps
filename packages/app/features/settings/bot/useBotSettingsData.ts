@@ -9,17 +9,18 @@ import * as api from '@tloncorp/api';
 import { desig, preSig } from '@tloncorp/api/lib/urbit';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
+import { useFullGroupRosters } from '../../../hooks/useFullGroupRosters';
 import { mcpProviderQueryKeys } from '../../../lib/mcpProviders';
 import {
   BASIC_PROVIDER_ID,
-  BASIC_PROVIDER_MODEL,
   EMPTY_PROVIDER_CONFIG,
   PROVIDER_OPTIONS,
   RETRY_INTERVAL_MS,
   SUBSCRIPTION_PROVIDERS,
+  getBasicProviderModel,
 } from './constants';
 import {
   ModelFormValues,
@@ -85,6 +86,15 @@ export function useBotSettingsQueries() {
     retry: false,
     refetchInterval: (query) =>
       query.state.data !== undefined ? false : RETRY_INTERVAL_MS,
+  });
+
+  // Keep this ship-scoped value separate from account-wide provider keys.
+  // An unavailable browser endpoint must not disable unrelated bot settings.
+  const browserServiceQuery = useQuery({
+    queryKey: ['tlonbot', 'browser-service', ship],
+    queryFn: () => api.getTlawnBrowserService(ship),
+    enabled: Boolean(ship) && isFocused,
+    retry: false,
   });
 
   const configQuery = useQuery({
@@ -154,19 +164,13 @@ export function useBotSettingsQueries() {
       getLLMAuthStatusRefetchInterval(query.state.data),
   });
 
-  const oauthProvidersQuery = useQuery({
-    queryKey: mcpProviderQueryKeys.providers,
-    queryFn: () => api.getTlawnOAuthProviders(),
-    retry: false,
-    staleTime: 5 * 60 * 1000,
-  });
-
   return {
     ship,
     hostingUserId,
     botReady,
     readyQuery,
     providerConfigQuery,
+    browserServiceQuery,
     providerConfig: providerConfigQuery.data ?? EMPTY_PROVIDER_CONFIG,
     configQuery,
     nicknameQuery,
@@ -175,7 +179,6 @@ export function useBotSettingsQueries() {
     moon,
     moonChannelsQuery,
     oauthStatusQuery,
-    oauthProvidersQuery,
     llmAuthStatusQuery,
   };
 }
@@ -205,27 +208,7 @@ export function useBotGroupMembership(
   const moonChannels = queries.moonChannelsQuery.data;
   const refetchMoonChannels = queries.moonChannelsQuery.refetch;
 
-  const verifyKey = verifyGroupIds.join('\n');
-  useEffect(() => {
-    if (!verifyKey || sessionStartTime === undefined) return;
-    // Cancel queued fetches when the groups, session, or account change.
-    const controller = new AbortController();
-    verifyKey.split('\n').forEach((groupId) => {
-      // syncGroup skips groups already fetched this session.
-      store
-        .syncGroup(groupId, {
-          priority: store.SyncPriority.Low,
-          retry: true,
-          abortSignal: controller.signal,
-        })
-        .catch((error) => {
-          if (!controller.signal.aborted) {
-            console.error('bot settings: group sync failed', groupId, error);
-          }
-        });
-    });
-    return () => controller.abort();
-  }, [verifyKey, sessionStartTime]);
+  useFullGroupRosters(verifyGroupIds);
 
   const getMembership = useMemo(
     () =>
@@ -251,7 +234,7 @@ export function useBotGroupMembership(
           .syncGroup(
             groupId,
             { priority: store.SyncPriority.High },
-            { force: true }
+            { force: true, wholeRoster: true }
           )
           .catch((error) =>
             console.error('bot settings: group sync failed', groupId, error)
@@ -339,7 +322,7 @@ export function useAllProviderModels(
     const loading = { ...fetched.loading };
     const errors = { ...fetched.errors };
     if (providers.includes(BASIC_PROVIDER_ID)) {
-      models[BASIC_PROVIDER_ID] = [BASIC_PROVIDER_MODEL];
+      models[BASIC_PROVIDER_ID] = [getBasicProviderModel(providerConfig)];
       loading[BASIC_PROVIDER_ID] = false;
       errors[BASIC_PROVIDER_ID] = null;
     }
@@ -353,7 +336,7 @@ export function useAllProviderModels(
       errors[provider] = errors[provider] ?? null;
     });
     return { providers, models, loading, errors };
-  }, [providers, fetched, llmAuthStatus]);
+  }, [providers, fetched, llmAuthStatus, providerConfig]);
 }
 
 export type AllProviderModels = ReturnType<typeof useAllProviderModels>;

@@ -18,6 +18,7 @@
     "@tloncorp/editor": "workspace:*",
     "@tloncorp/shared": "workspace:*",
     "@tloncorp/ui": "workspace:*",
+    "parse5": "^7.3.0",
     "posthog-js": "^1.234.4",
     "react-native-ease": "0.8.0",
     "refractor": "^4.8.0",
@@ -28,13 +29,14 @@
     "@types/react-native": "0.73.0"
   },
   "peerDependencies": {
+    "@expo/ui": "*",
+    "@react-native-picker/picker": "*",
     "expo-audio": "*",
     "expo-document-picker": "*",
     "expo-file-system": "*",
     "expo-glass-effect": "*",
     "expo-video": "*",
     "@10play/tentap-editor": "*",
-    "@react-native-firebase/perf": "*",
     "@shopify/react-native-skia": "*",
     "expo-blob": "*",
     "expo-blur": "*",
@@ -53,7 +55,7 @@
     "react-native-email-link": "*",
     "react-native-keyboard-controller": "^1.21.7",
     "react-native-safe-area-context": "*",
-    "react-native-transformer-text-input": "^0.4.1",
+    "react-native-transformer-text-input": "^0.4.2",
     "tamagui": "2.4.2",
     "@tanstack/react-query": "^5.32.1",
     "zustand": "^3.7.2"

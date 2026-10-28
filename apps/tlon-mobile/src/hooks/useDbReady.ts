@@ -1,3 +1,4 @@
+import { startForegroundTimeout } from '@tloncorp/app/lib/foregroundTimeout';
 import {
   type AbandonDbInitOutcome,
   abandonDbInit,
@@ -9,7 +10,9 @@ import { useEffect, useState } from 'react';
 const MAX_DB_READY_ATTEMPTS = 3;
 // Not a hang proof: every step of db init is uncapped, so no finite value
 // bounds the loop. This is the longest we're willing to leave the user on a
-// blank screen before showing them something they can act on.
+// blank screen before showing them something they can act on. Counted in
+// foreground time only: iOS can suspend the app mid-startup, and a wall-clock
+// deadline would fire on resume against an init that has barely run.
 const DB_READY_DEADLINE_MS = 30_000;
 const MAX_LAST_ERROR_LENGTH = 200;
 
@@ -31,6 +34,9 @@ let lastMountHung = false;
 interface DbInitTimeoutDetails {
   attempt: number;
   elapsedMs: number;
+  // The part of `elapsedMs` the app spent in the foreground; the deadline only
+  // counts this.
+  activeElapsedMs: number;
   lastError: string | null;
   // What the deadline was able to detach. 'abandoned' is the hang signature;
   // 'nothing-in-flight' means it raced a settled attempt; 'setup-owns-connection'
@@ -45,7 +51,7 @@ export class DbInitTimeoutError extends Error {
 
   constructor(details: DbInitTimeoutDetails) {
     super(
-      `Database initialization timed out after ${DB_READY_DEADLINE_MS}ms (attempt ${details.attempt}, ${details.elapsedMs} ms elapsed); last error: ${details.lastError ?? 'none'}`
+      `Database initialization timed out after ${DB_READY_DEADLINE_MS}ms (attempt ${details.attempt}, ${details.elapsedMs} ms elapsed, ${details.activeElapsedMs} ms active); last error: ${details.lastError ?? 'none'}`
     );
     // `extends Error` leaves `name` as 'Error', and Sentry reads the exception
     // type from it.
@@ -110,7 +116,7 @@ export function useDbReady() {
       });
     }
 
-    const deadlineTimer = setTimeout(() => {
+    const deadline = startForegroundTimeout(DB_READY_DEADLINE_MS, () => {
       timedOut = true;
       lastMountFailed = true;
       clearBackoff();
@@ -130,6 +136,7 @@ export function useDbReady() {
         new DbInitTimeoutError({
           attempt,
           elapsedMs: elapsed(),
+          activeElapsedMs: deadline.activeElapsedMs(),
           lastError: lastErrorText,
           abandonOutcome,
           // One retry for either kind of hang. 'setup-owns-connection' detached
@@ -140,7 +147,7 @@ export function useDbReady() {
           canRetry: !(recoveringFromHang && hung),
         })
       );
-    }, DB_READY_DEADLINE_MS);
+    });
 
     async function initDb() {
       for (attempt = 1; attempt <= MAX_DB_READY_ATTEMPTS; attempt++) {
@@ -155,7 +162,7 @@ export function useDbReady() {
           if (done()) {
             return;
           }
-          clearTimeout(deadlineTimer);
+          deadline.cancel();
           lastMountFailed = false;
           lastMountHung = false;
           if (recoveringFromFailure) {
@@ -185,7 +192,7 @@ export function useDbReady() {
         }
       }
 
-      clearTimeout(deadlineTimer);
+      deadline.cancel();
       lastMountFailed = true;
       // Exhausting the attempts is the throw path, not a hang: the next mount
       // gets a clean slate and the button stays useful.
@@ -197,7 +204,7 @@ export function useDbReady() {
 
     return () => {
       cancelled = true;
-      clearTimeout(deadlineTimer);
+      deadline.cancel();
       clearBackoff();
     };
   }, []);

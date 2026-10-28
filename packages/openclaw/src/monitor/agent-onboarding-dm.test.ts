@@ -2,16 +2,19 @@ import { appendToPostBlob } from '@tloncorp/api';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
-  findOnboardingGroupIdInChannel,
-  isAgentOnboardingReply,
+  _testing as ownerToolPostsTesting,
+  sharedOwnerToolPostLedger,
+} from '../owner-tool-posts.js';
+import {
+  findOnboardingRequestInChannel,
   isDmNest,
 } from './agent-onboarding.js';
 
 const OWNER = '~ten';
 const WORKSPACE = '~ten/workspace';
 
-type Context = Parameters<typeof findOnboardingGroupIdInChannel>[0];
-type Deps = Parameters<typeof findOnboardingGroupIdInChannel>[1];
+type Context = Parameters<typeof findOnboardingRequestInChannel>[0];
+type Deps = Parameters<typeof findOnboardingRequestInChannel>[1];
 
 function introEntry(groupId: string, author: string, timestamp: number) {
   return {
@@ -46,43 +49,70 @@ describe('isDmNest', () => {
   });
 });
 
-describe('findOnboardingGroupIdInChannel', () => {
-  it("reads the workspace out of the owner's intro request", async () => {
+describe('findOnboardingRequestInChannel', () => {
+  it("reads the workspace and its time out of the owner's intro request", async () => {
     await expect(
-      findOnboardingGroupIdInChannel(
+      findOnboardingRequestInChannel(
         dmContext,
         withHistory([introEntry(WORKSPACE, OWNER, 1)])
       )
-    ).resolves.toBe(WORKSPACE);
+    ).resolves.toEqual({ groupId: WORKSPACE, requestedAt: 1 });
   });
 
   it('prefers the newest when more than one was posted', async () => {
     await expect(
-      findOnboardingGroupIdInChannel(
+      findOnboardingRequestInChannel(
         dmContext,
         withHistory([
           introEntry('~ten/superseded', OWNER, 1),
           introEntry(WORKSPACE, OWNER, 5),
         ])
       )
-    ).resolves.toBe(WORKSPACE);
+    ).resolves.toEqual({ groupId: WORKSPACE, requestedAt: 5 });
   });
 
   it('ignores a request authored by anyone but the owner', async () => {
     // Only the owner can name their own workspace; a request from elsewhere
     // would let another party point onboarding at a group they control.
     await expect(
-      findOnboardingGroupIdInChannel(
+      findOnboardingRequestInChannel(
         dmContext,
         withHistory([introEntry(WORKSPACE, '~bot', 1)])
       )
     ).resolves.toBeUndefined();
   });
 
+  it("skips a request a bot of this process posted in the owner's name", async () => {
+    // Another account's tool DMed this bot as the owner (a DM to that
+    // account's own bot is refused). This bot's DM nest is the owner, its
+    // partner; the entry names this bot, the recipient.
+    const bot = '~pinser-botter-ten';
+    try {
+      sharedOwnerToolPostLedger().reserve({
+        kind: 'send',
+        accountId: 'other',
+        author: OWNER,
+        target: bot,
+        sentAt: 5,
+      });
+      await expect(
+        findOnboardingRequestInChannel(
+          { ...dmContext, channelNest: OWNER, botShip: bot },
+          withHistory([
+            introEntry('~ten/older', OWNER, 1),
+            introEntry('~ten/forged', OWNER, 5),
+          ])
+        )
+      ).resolves.toEqual({ groupId: '~ten/older', requestedAt: 1 });
+    } finally {
+      ownerToolPostsTesting.clear();
+    }
+  });
+
   it('is undefined before furnishing has posted one', async () => {
     // Not an error: the caller retries until the app finishes furnishing.
     await expect(
-      findOnboardingGroupIdInChannel(dmContext, withHistory([]))
+      findOnboardingRequestInChannel(dmContext, withHistory([]))
     ).resolves.toBeUndefined();
   });
 
@@ -90,26 +120,11 @@ describe('findOnboardingGroupIdInChannel', () => {
     const deps = withHistory([introEntry(WORKSPACE, OWNER, 1)]);
 
     await expect(
-      findOnboardingGroupIdInChannel(
+      findOnboardingRequestInChannel(
         { ...dmContext, ownerShip: null } as unknown as Context,
         deps
       )
     ).resolves.toBeUndefined();
     expect(deps.fetchHistory).not.toHaveBeenCalled();
-  });
-});
-
-describe('isAgentOnboardingReply', () => {
-  it('recognizes a picker choice typed by hand', () => {
-    expect(isAgentOnboardingReply('A daily digest')).toBe(true);
-  });
-
-  it('does not treat ordinary conversation as onboarding', () => {
-    // This is what keeps an ordinary DM from paying for a history read.
-    expect(isAgentOnboardingReply('what is the weather like today')).toBe(
-      false
-    );
-    expect(isAgentOnboardingReply('')).toBe(false);
-    expect(isAgentOnboardingReply(null)).toBe(false);
   });
 });

@@ -83,3 +83,18 @@ export function handleExpectedCommandError(
 export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
+
+/**
+ * Whether a failed ship request was a real 404. The api wraps a first-attempt
+ * failure in BadResponseError, but its retry after a 403 reauth rejects with
+ * the raw Response. Statusless (fetch-level) and other HTTP failures are not
+ * answers and must surface as errors.
+ */
+export function isNotFoundError(error: unknown): boolean {
+  if (error instanceof Response) return error.status === 404;
+  return (
+    error instanceof Error &&
+    error.name === 'BadResponseError' &&
+    (error as { status?: unknown }).status === 404
+  );
+}

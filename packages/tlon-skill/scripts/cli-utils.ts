@@ -1,6 +1,7 @@
 /**
  * CLI argument parsing utilities
  */
+import { da, valid } from '@urbit/aura';
 
 /**
  * Get an option value from command line args
@@ -63,6 +64,41 @@ export function getRequiredOptionValue(
 /**
  * Check if help was requested for a command/subcommand
  */
+export function parsePositiveInteger(raw: string): number | null {
+  if (!/^[0-9]+$/.test(raw)) return null;
+  const parsed = Number(raw);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
+// Runs fn over items in order with at most `limit` in flight; results keep
+// the input order, and the first rejection rejects the whole run and starts
+// no further items.
+export async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  let failed = false;
+  const worker = async () => {
+    while (!failed && next < items.length) {
+      const index = next++;
+      try {
+        results[index] = await fn(items[index], index);
+      } catch (error) {
+        failed = true;
+        throw error;
+      }
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, worker)
+  );
+  return results;
+}
+
 export function wantsHelp(args: string[]): boolean {
   return args.includes('--help') || args.includes('-h');
 }
@@ -99,11 +135,77 @@ export function printErrorAndExit(error: unknown): never {
 }
 
 export const CHANNEL_KINDS = ['chat', 'heap', 'notes'] as const;
+const CHANNEL_DESCRIPTION_KINDS: readonly string[] = ['chat', 'heap'];
+
+export function channelCreateUsage(command: string): string {
+  const described = CHANNEL_DESCRIPTION_KINDS.join('|');
+  const undescribed = CHANNEL_KINDS.filter(
+    (kind) => !CHANNEL_DESCRIPTION_KINDS.includes(kind)
+  ).join('|');
+  return `${command} <group-id> "Channel Name" [--kind ${described}] [--description "..."]
+  ${command} <group-id> "Channel Name" --kind ${undescribed}`;
+}
+
+// The bot's normal reply turns a bare reference path into a card; `tlon posts
+// send` does not, so the hint names a chat message as the place to put it.
+export function refShareHint(card: 'group' | 'note'): string {
+  return `Share: include the Ref path in a chat message to post a tappable ${card} card.`;
+}
+
+// The app has no channel reference card yet, so a new channel is shared by
+// name and nest alongside its group's card.
+export function channelCreatedLines(
+  nest: string,
+  title: string,
+  groupId: string
+): string[] {
+  return [
+    `   Nest: ${nest}`,
+    `   Title: ${title}`,
+    `   Group: ${groupId}`,
+    `   Ref: /1/group/${groupId}`,
+    `   Share: channels have no card yet; name the channel and its Nest, and include the group Ref path in a chat message to post a tappable group card.`,
+  ];
+}
 
 // Channel kinds the skill used to support but no longer does. The %diary backend
 // is being removed, so diary/notebook channels are refused everywhere with an
 // explanatory message pointing at %notes.
 export const REMOVED_CHANNEL_KINDS = ['diary'] as const;
+
+export function parseNest(nest: string): {
+  kind: string;
+  host: string;
+  name: string;
+} {
+  const parts = nest.split('/');
+  if (
+    parts.length !== 3 ||
+    parts.some((part) => part.length === 0) ||
+    /\s/.test(nest)
+  ) {
+    throw new Error(`Invalid nest format: ${nest}. Expected: kind/~host/name`);
+  }
+  return {
+    kind: parts[0],
+    host: parts[1].startsWith('~') ? parts[1] : `~${parts[1]}`,
+    name: parts[2],
+  };
+}
+
+// Mirrors @tloncorp/api's whomIsFlag (value imports from @tloncorp/api are
+// forbidden in migrated command modules): ~ship/term with a valid patp ship.
+export function isGroupFlag(value: string): boolean {
+  return (
+    /^~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(value) &&
+    valid('p', value.split('/')[0])
+  );
+}
+
+export function canonicalizeNest(nest: string): string {
+  const { kind, host, name } = parseNest(nest);
+  return `${kind}/${host}/${name}`;
+}
 
 // True for a nest addressing a %notes channel (e.g. `notes/~host/blog`).
 export function isNotesNest(nest: string | undefined): boolean {
@@ -280,9 +382,10 @@ export function assertKnownChannelKind(
   }
 }
 
-// %notes owns its channel listing's metadata, so the skill can't persist a
-// description for a notes channel. Reject `--description` for `--kind notes`
-// rather than accept it and silently drop it. Local, pre-auth. Run after
+// %notes creates the channel listing itself and its creation API takes no
+// description, so a notes create can't persist one. Reject `--description` for
+// `--kind notes` rather than accept it and silently drop it; `channels update
+// --description` works once the channel exists. Local, pre-auth. Run after
 // assertKnownChannelKind (which already rejects the `--kind=` equals form).
 export function refuseNotesChannelDescription(
   args: string[],
@@ -297,9 +400,9 @@ export function refuseNotesChannelDescription(
   const hasDescription = args
     .slice(titleIndex + 1)
     .some((arg) => arg === '--description' || arg.startsWith('--description='));
-  if (kind === 'notes' && hasDescription) {
+  if (kind && !CHANNEL_DESCRIPTION_KINDS.includes(kind) && hasDescription) {
     printUsageAndExit(
-      `Error: --description is not supported for --kind notes — %notes owns the channel listing metadata.\n${usageHelp}`
+      `Error: --description is not supported for --kind notes — %notes creates the listing without one; set it afterwards with 'tlon channels update <nest> --description "..."'.\n${usageHelp}`
     );
   }
 }
@@ -315,16 +418,50 @@ export function refuseNotesWriters(nest: string | undefined): void {
   }
 }
 
-// %notes owns channel listing metadata. Until the %notes command family exposes
-// explicit metadata operations, refuse channel-level updates that would write
-// directly to %groups and leave the two sources of truth desynced.
-export function refuseNotesChannelMetadataUpdate(
-  nest: string | undefined
+export type ChannelMembershipVerb = 'leave' | 'join';
+
+const PAST_PARTICIPLE: Record<ChannelMembershipVerb, string> = {
+  leave: 'left',
+  join: 'joined',
+};
+
+export function notesChannelMembershipMessage(
+  nest: string,
+  verb: ChannelMembershipVerb
+): string {
+  return `%notes channels are ${PAST_PARTICIPLE[verb]} with \`tlon notes ${verb} ${nest}\`.`;
+}
+
+export function nonGroupChannelNestMessage(
+  nest: string,
+  verb: ChannelMembershipVerb
+): string {
+  return `Only chat/ and heap/ channels can be ${PAST_PARTICIPLE[verb]} with tlon channels ${verb} (got ${nest})`;
+}
+
+export function refuseNotesChannelMembership(
+  nest: string | undefined,
+  verb: ChannelMembershipVerb
 ): void {
-  if (isNotesNest(nest)) {
-    printErrorAndExit(
-      'Channel metadata updates are not supported for %notes channels yet — %notes owns the channel listing metadata.'
-    );
+  if (nest && isNotesNest(nest)) {
+    printErrorAndExit(notesChannelMembershipMessage(nest, verb));
+  }
+}
+
+// Only %channels chat/heap nests can be left/joined; this also catches
+// buckets/ nests, malformed nests, and DM ids before any network call.
+export function refuseNonGroupChannelNest(
+  nest: string,
+  verb: ChannelMembershipVerb
+): void {
+  let kind: string;
+  try {
+    ({ kind } = parseNest(nest));
+  } catch (error) {
+    printErrorAndExit(error);
+  }
+  if (!['chat', 'heap'].includes(kind)) {
+    printErrorAndExit(nonGroupChannelNestMessage(nest, verb));
   }
 }
 
@@ -347,4 +484,20 @@ function formatUd(id: string): string {
 // both agree on the wire format they send.
 export function formatPostId(postId: string): string {
   return formatUd(extractNumericId(postId));
+}
+
+// The undotted @ud the app writes into a cite's `where` path. Throws on
+// anything that is not a post id, so a bad id can't become a dangling cite.
+export function undottedPostId(postId: string): string {
+  const id = extractNumericId(postId).replace(/\./g, '');
+  if (!/^\d+$/.test(id)) {
+    throw new Error(`Invalid post id: ${postId}`);
+  }
+  return id;
+}
+
+// The time half of a DM post's id (`~author/<time>`), derived from its sent
+// time the way @tloncorp/api's sendPost derives the id it pokes with.
+export function dmWritTime(sentAt: number): string {
+  return formatUd(da.fromUnix(sentAt).toString());
 }
