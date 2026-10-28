@@ -30,7 +30,6 @@ import {
   useChatTitle,
 } from '../../utils';
 import { ContactAvatar } from '../Avatar';
-import ConnectionStatus from '../ConnectionStatus';
 import { GroupAvatar } from '../GroupAvatar';
 import { ScreenHeader, type ScreenHeaderAction } from '../ScreenHeader';
 import { useScreenScrollProps } from '../useScreenScrollProps';
@@ -418,14 +417,7 @@ export function ChannelHeader({
 
   const headerProps = {
     title: headerTitle,
-    titleIcon: hideIdentity ? null : (
-      <>
-        {avatarElement || titleIcon}
-        {channelHost && !isWindowNarrow && (
-          <ConnectionStatus contactId={channelHost} type="indicator" />
-        )}
-      </>
-    ),
+    titleIcon: hideIdentity ? null : avatarElement || titleIcon,
     subtitle: hideIdentity ? undefined : displaySubtitle,
     testID: 'ChannelHeaderTitle',
     showSubtitle: !hideIdentity,
