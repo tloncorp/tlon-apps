@@ -6,6 +6,25 @@ import * as LocalCache from '../cachedData';
 import { SyncCtx, syncQueue } from '../syncQueue';
 import { logger } from './logger';
 
+export const syncContactSuggestions = async (contactIds: string[]) => {
+  const contacts = await syncQueue.add('contact suggestions', undefined, () =>
+    api.getContacts()
+  );
+  const suggestions = new Set(
+    contacts.filter((c) => c.isContactSuggestion).map((c) => c.id)
+  );
+
+  await batchEffects('syncContactSuggestions', async (ctx) => {
+    for (const id of contactIds) {
+      await db.updateContact(
+        { id, isContactSuggestion: suggestions.has(id) },
+        ctx
+      );
+    }
+  });
+  LocalCache.cacheContacts(await db.getContacts());
+};
+
 export const syncContacts = async (
   ctx?: SyncCtx,
   queryCtx?: QueryCtx,

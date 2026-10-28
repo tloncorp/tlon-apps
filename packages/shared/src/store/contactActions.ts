@@ -5,7 +5,7 @@ import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import * as GroupActions from './groupActions';
-import { syncContacts } from './sync/syncContacts';
+import { syncContactSuggestions, syncContacts } from './sync/syncContacts';
 import { syncGroup } from './sync/syncGroup';
 
 const logger = createDevLogger('ContactActions', false);
@@ -104,21 +104,11 @@ export async function removeContactSuggestion(contactId: string) {
 }
 
 export async function addContactSuggestions(contactIds: string[]) {
-  // optimistic update
-  const contacts = await db.getContacts();
-  const toUpdate = contacts.filter(
-    (c) => contactIds.includes(c.id) && !c.isContact
-  );
-  const optimisticUpdates = toUpdate.map((contact) =>
-    db.updateContact({ id: contact.id, isContactSuggestion: true })
-  );
-  await Promise.all(optimisticUpdates);
-
   try {
     await api.addContactSuggestions(contactIds);
+    await syncContactSuggestions(contactIds);
   } catch (e) {
-    // Intentionally unhandled, make a best effort to persist the suggestions
-    // failure is acceptable
+    logger.trackError('Error adding contact suggestions', e);
   }
 }
 
