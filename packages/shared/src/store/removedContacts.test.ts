@@ -574,3 +574,178 @@ test('a discovery confirmation cannot undo a later Decline', async () => {
   });
   expect(await db.getSuggestedContacts()).toEqual([]);
 });
+
+test('a confirmation already queued for SQLite cannot overwrite a later Remove', async () => {
+  saved.delete(id);
+  await db.updateContact({ id, isContact: false });
+  const readState = api.getContactState;
+  let releaseSnapshot!: () => void;
+  let snapshotStarted!: () => void;
+  const snapshotWaiting = new Promise<void>((resolve) => {
+    releaseSnapshot = resolve;
+  });
+  const snapshotSent = new Promise<void>((resolve) => {
+    snapshotStarted = resolve;
+  });
+  vi.spyOn(api, 'getContactState')
+    .mockImplementationOnce(() => readState())
+    .mockImplementationOnce(async () => {
+      const state = await readState();
+      snapshotStarted();
+      await snapshotWaiting;
+      return state;
+    });
+  const discovery = addContacts([id], { source: 'discovery' });
+  await snapshotSent;
+  const { batchEffects, withTransactionCtx } = await import('../db/query');
+  let releaseWriter!: () => void;
+  let writerStarted!: () => void;
+  const writerWaiting = new Promise<void>((resolve) => {
+    releaseWriter = resolve;
+  });
+  const writerSent = new Promise<void>((resolve) => {
+    writerStarted = resolve;
+  });
+  const writer = batchEffects('reviewPendingWriter', (ctx) =>
+    withTransactionCtx(ctx, async () => {
+      writerStarted();
+      await writerWaiting;
+    })
+  );
+  await writerSent;
+  const upsert = db.applyContactMembership;
+  let queued!: () => void;
+  const confirmQueued = new Promise<void>((resolve) => {
+    queued = resolve;
+  });
+  vi.spyOn(db, 'applyContactMembership').mockImplementationOnce((...args) => {
+    const result = upsert(...args);
+    queued();
+    return result;
+  });
+  releaseSnapshot();
+  await confirmQueued;
+  await removeContact(id);
+  expect(saved.has(id)).toBe(false);
+  expect(await db.getContact({ id })).toMatchObject({
+    isContact: false,
+    isContactSuggestion: true,
+  });
+  releaseWriter();
+  await writer;
+  const result = await discovery;
+  expect(result).toEqual({ addedContactIds: [], failedContactIds: [] });
+  expect(await db.getContact({ id })).toMatchObject({
+    isContact: false,
+    isContactSuggestion: true,
+  });
+});
+
+test('a buffered wipe from earlier Remove must not cancel a newer manual Add', async () => {
+  await removeContact(id);
+  const readContacts = api.getContacts;
+  let release!: () => void;
+  let started!: () => void;
+  const waiting = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const sent = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  vi.spyOn(api, 'getContacts').mockImplementationOnce(async () => {
+    const snapshot = await readContacts();
+    started();
+    await waiting;
+    return snapshot;
+  });
+  const adding = addContacts([id], { source: 'manual' });
+  await sent;
+  const { handleContactUpdate } = await import('./sync/sync');
+  // Deliver the earlier successful Remove's wipe while the newer manual Add
+  // is waiting on its ordinary preflight network request.
+  await handleContactUpdate({ type: 'removeContact', contactId: id });
+  release();
+  const result = await adding;
+  expect({
+    result,
+    saved: saved.has(id),
+    local: await db.getContact({ id }),
+    pagePokes: vi
+      .mocked(api.poke)
+      .mock.calls.filter(([r]) => r.mark === 'contact-action-1'),
+  }).toMatchObject({
+    result: { addedContactIds: [id], failedContactIds: [] },
+    saved: true,
+    local: { isContact: true, isContactSuggestion: false },
+  });
+});
+
+test('an observed removal from another client cancels stale discovery confirmation', async () => {
+  saved.delete(id);
+  await db.updateContact({ id, isContact: false });
+  const readState = api.getContactState;
+  let release!: () => void;
+  let started!: () => void;
+  const waiting = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const sent = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  vi.spyOn(api, 'getContactState')
+    .mockImplementationOnce(() => readState())
+    .mockImplementationOnce(async () => {
+      const state = await readState();
+      started();
+      await waiting;
+      return state;
+    });
+  const discovery = addContacts([id], { source: 'discovery' });
+  await sent;
+  // Another client's successful Remove changes the ship and emits a wipe.
+  saved.delete(id);
+  removed.set(id, true);
+  hidden.delete(id);
+  suggested.add(id);
+  const { handleContactUpdate } = await import('./sync/sync');
+  await handleContactUpdate({ type: 'removeContact', contactId: id });
+  release();
+  expect(await discovery).toEqual({
+    addedContactIds: [],
+    failedContactIds: [],
+  });
+  expect(await db.getContact({ id })).toMatchObject({
+    isContact: false,
+    isContactSuggestion: true,
+  });
+});
+
+test('membership-only writes preserve profile overrides and attestation links', async () => {
+  await db.updateContact({ id, customNickname: 'Chosen name' });
+  await db.resetContactAttestations({
+    contactId: id,
+    attestations: [
+      {
+        contactId: id,
+        attestationId: 'phone-proof',
+        attestation: {
+          id: 'phone-proof',
+          contactId: id,
+          provider: 'test',
+          type: 'phone',
+          value: phone,
+          status: 'verified',
+          discoverability: 'verified',
+        },
+      },
+    ],
+  });
+  expect((await db.getContact({ id }))?.attestations).toHaveLength(1);
+  expect(await addContacts([id])).toEqual({
+    addedContactIds: [id],
+    failedContactIds: [],
+  });
+  const contact = await db.getContact({ id });
+  expect(contact?.customNickname).toBe('Chosen name');
+  expect(contact?.attestations).toHaveLength(1);
+});

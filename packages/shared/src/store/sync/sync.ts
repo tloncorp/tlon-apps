@@ -65,7 +65,7 @@ import {
 } from '../session';
 import { migrateLegacyContextLensFlag } from '../settingsActions';
 import { SyncCtx, SyncPriority, syncQueue } from '../syncQueue';
-import { captureContactIntent, recordContactIntent } from '../contactIntent';
+import { captureContactIntent, observeContactRemoval } from '../contactIntent';
 import { getSystemContacts } from '../systemContactsApi';
 import {
   recordThreadPostsReceived,
@@ -852,7 +852,10 @@ export const syncContactDiscovery = async (
     });
     const newMatchIds = newMatches.map(([, id]) => id);
     const intents = new Map(
-      newMatchIds.map((id) => [id, captureContactIntent(id)])
+      newMatchIds.map((id) => [
+        id,
+        captureContactIntent(id, { includeObservedRemovals: true }),
+      ])
     );
     const isCurrent = (id: string) => intents.get(id)?.() ?? false;
     let addedMatches: [string, string][] = [];
@@ -1777,7 +1780,7 @@ export const handleContactUpdate = async (
       break;
 
     case 'removeContact':
-      recordContactIntent(update.contactId);
+      observeContactRemoval(update.contactId);
       await db.updateContact(
         {
           id: update.contactId,

@@ -6627,6 +6627,34 @@ export const resetContactAttestations = createWriteQuery(
   ['contactAttestations']
 );
 
+export const applyContactMembership = createWriteQuery(
+  'applyContactMembership',
+  async (
+    {
+      contact,
+      isCurrent,
+    }: {
+      contact: Pick<Contact, 'id' | 'isContact' | 'isContactSuggestion'>;
+      isCurrent: () => boolean;
+    },
+    ctx: QueryCtx
+  ) =>
+    withTransactionCtx(ctx, async (txCtx) => {
+      if (!isCurrent()) return;
+      await txCtx.db
+        .insert($contacts)
+        .values(contact)
+        .onConflictDoUpdate({
+          target: $contacts.id,
+          set: {
+            isContact: contact.isContact,
+            isContactSuggestion: contact.isContactSuggestion,
+          },
+        });
+    }),
+  ['contacts']
+);
+
 export const upsertContact = createWriteQuery(
   'upsertContact',
   async (contact: Contact, ctx: QueryCtx) => {

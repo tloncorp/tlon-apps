@@ -24,7 +24,7 @@ export async function addContact(contactId: string) {
     isContact: true,
     isContactSuggestion: false,
   };
-  await db.upsertContact(update);
+  await db.applyContactMembership({ contact: update, isCurrent });
   if (!isCurrent()) return;
   try {
     await api.addContact(contactId);
@@ -58,7 +58,14 @@ export async function addContacts(
 ): Promise<AddContactsResult> {
   const contacts = [...new Set(contactIds)];
   if (source === 'manual') contacts.forEach(recordContactIntent);
-  const intents = new Map(contacts.map((id) => [id, captureContactIntent(id)]));
+  const intents = new Map(
+    contacts.map((id) => [
+      id,
+      captureContactIntent(id, {
+        includeObservedRemovals: source === 'discovery',
+      }),
+    ])
+  );
   const isCurrent = (id: string) => intents.get(id)!();
   if (source === 'manual') {
     logger.trackEvent(AnalyticsEvent.ActionContactAdded, {
@@ -101,7 +108,10 @@ export async function addContacts(
     contacts
       .filter((id) => isCurrent(id) && !removedContactIds.has(id))
       .map((id) =>
-        db.upsertContact({ id, isContact: true, isContactSuggestion: false })
+        db.applyContactMembership({
+          contact: { id, isContact: true, isContactSuggestion: false },
+          isCurrent: () => isCurrent(id),
+        })
       )
   );
   if (!guardedDiscovery) {
@@ -152,10 +162,13 @@ export async function addContacts(
       for (const id of addedContactIds) {
         if (!isCurrent(id)) continue;
         const contact = confirmed.get(id);
-        await db.upsertContact({
-          id,
-          isContact: contact?.isContact ?? false,
-          isContactSuggestion: contact?.isContactSuggestion ?? false,
+        await db.applyContactMembership({
+          contact: {
+            id,
+            isContact: contact?.isContact ?? false,
+            isContactSuggestion: contact?.isContactSuggestion ?? false,
+          },
+          isCurrent: () => isCurrent(id),
         });
       }
       const savedIds = new Set(
