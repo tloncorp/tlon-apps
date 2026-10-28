@@ -135,6 +135,30 @@ test('removed address book matches require an explicit Add to save again', async
 }) => {
   const page = zodSetup.page;
   const contactId = '~nec';
+  const readShipContactState = async () => {
+    const [contactsResponse, suggestionsResponse] = await Promise.all([
+      page.request.get(
+        new URL('/~/scry/contacts/v2/init.json', page.url()).href
+      ),
+      page.request.get(
+        new URL('/~/scry/groups-ui/suggested-contacts.json', page.url()).href
+      ),
+    ]);
+    expect(contactsResponse.ok()).toBeTruthy();
+    expect(suggestionsResponse.ok()).toBeTruthy();
+    const contacts = (await contactsResponse.json()) as {
+      book: Record<string, unknown>;
+      removed: string[];
+    };
+    const suggestions = (await suggestionsResponse.json()) as string[];
+    return {
+      saved: contactId in contacts.book,
+      removed: contacts.removed.includes(contactId),
+      suggested: suggestions.includes(contactId),
+    };
+  };
+  const removedSuggestion = { saved: false, removed: true, suggested: true };
+  const savedContact = { saved: true, removed: false, suggested: false };
 
   // Web cannot read a device address book. Seed the authoritative removal that
   // the native address-book flow sends, then exercise the shared contacts UI.
@@ -166,6 +190,7 @@ test('removed address book matches require an explicit Add to save again', async
     return response.status;
   }, contactId);
   expect(status).toBe(204);
+  await expect.poll(readShipContactState).toEqual(removedSuggestion);
 
   await page.getByTestId('AvatarNavIcon').click();
   await expect(
@@ -177,22 +202,32 @@ test('removed address book matches require an explicit Add to save again', async
   // Opening a suggestion only views its profile, including after a fresh sync.
   await row.click();
   await expect(page.getByText('Add Contact', { exact: true })).toBeVisible();
+  await expect.poll(readShipContactState).toEqual(removedSuggestion);
   await page.reload();
   await page.getByTestId('AvatarNavIcon').click();
   await expect(row.getByText('Add', { exact: true })).toBeVisible();
   await row.click();
   await expect(page.getByText('Add Contact', { exact: true })).toBeVisible();
 
+  await expect.poll(readShipContactState).toEqual(removedSuggestion);
   await row.getByText('Add', { exact: true }).click();
   await expect(page.getByText('Remove Contact', { exact: true })).toBeVisible();
   await expect(row.getByText('Add', { exact: true })).not.toBeVisible();
+  await expect.poll(readShipContactState).toEqual(savedContact);
   await page.reload();
   await page.getByTestId('AvatarNavIcon').click();
   await expect(row.getByText('Add', { exact: true })).not.toBeVisible();
   await row.click();
   await expect(page.getByText('Remove Contact', { exact: true })).toBeVisible();
 
+  await expect.poll(readShipContactState).toEqual(savedContact);
+
   // Contacts are the fixture cleanup exception; leave this contact unsaved.
   await page.getByText('Remove Contact', { exact: true }).click();
   await expect(page.getByText('Add Contact', { exact: true })).toBeVisible();
+  await expect.poll(readShipContactState).toEqual({
+    saved: false,
+    removed: true,
+    suggested: false,
+  });
 });
