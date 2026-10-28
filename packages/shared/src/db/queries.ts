@@ -355,7 +355,12 @@ export const getGroupsWithMemberThreshold = createReadQuery(
       },
     });
 
-    return allJoinedWithMembers.filter((g) => g.members.length <= threshold);
+    // the stored roster of a big group is partial, so its count decides.
+    // The stored rows include invites, which the count leaves out, so they
+    // decide too.
+    return allJoinedWithMembers.filter(
+      (g) => Math.max(g.memberCount ?? 0, g.members.length) <= threshold
+    );
   },
   ['groups']
 );
@@ -3360,16 +3365,112 @@ export const removeChatMembers = createWriteQuery(
   ['chatMembers', 'groups']
 );
 
+// Stores the members of one roster page. A page carries every role each of
+// its members holds, so their stored roles are replaced, not added to.
+export const insertGroupMembersPage = createWriteQuery(
+  'insertGroupMembersPage',
+  async (
+    { groupId, members }: { groupId: string; members: ChatMember[] },
+    ctx: QueryCtx
+  ) => {
+    if (members.length === 0) return;
+    return withTransactionCtx(ctx, async (txCtx) => {
+      // not insertMembers, which logs a failed batch and carries on: a page
+      // whose members didn't land must fail, or its cursor moves on and the
+      // page is never fetched again
+      await txCtx.db
+        .insert($chatMembers)
+        .values(members)
+        .onConflictDoUpdate({
+          target: [$chatMembers.chatId, $chatMembers.contactId],
+          set: conflictUpdateSetAll($chatMembers),
+        });
+      await txCtx.db.delete($chatMemberGroupRoles).where(
+        and(
+          eq($chatMemberGroupRoles.groupId, groupId),
+          inArray(
+            $chatMemberGroupRoles.contactId,
+            members.map((member) => member.contactId)
+          )
+        )
+      );
+      // like insertGroups, skip roles the group doesn't define
+      const roleIds = new Set(
+        (
+          await txCtx.db
+            .select({ id: $groupRoles.id })
+            .from($groupRoles)
+            .where(eq($groupRoles.groupId, groupId))
+        ).map((role) => role.id)
+      );
+      const memberRoles = members.flatMap((member) =>
+        (member.roles ?? [])
+          .filter((role) => roleIds.has(role.roleId))
+          .map((role) => ({
+            groupId,
+            contactId: member.contactId,
+            roleId: role.roleId,
+          }))
+      );
+      if (memberRoles.length) {
+        await txCtx.db
+          .insert($chatMemberGroupRoles)
+          .values(memberRoles)
+          .onConflictDoNothing();
+      }
+    });
+  },
+  ['groups', 'chatMembers', 'chatMemberGroupRoles']
+);
+
+// The stored count alone, without loading the group's members.
+export const getStoredMemberCount = createReadQuery(
+  'getStoredMemberCount',
+  async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
+    const row = await ctx.db.query.groups.findFirst({
+      where: eq($groups.id, groupId),
+      columns: { memberCount: true },
+    });
+    return row?.memberCount ?? null;
+  },
+  ['groups']
+);
+
+// Every stored role assignment in a group.
+export const getGroupMemberRoles = createReadQuery(
+  'getGroupMemberRoles',
+  async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
+    return ctx.db
+      .select({
+        contactId: $chatMemberGroupRoles.contactId,
+        roleId: $chatMemberGroupRoles.roleId,
+      })
+      .from($chatMemberGroupRoles)
+      .where(eq($chatMemberGroupRoles.groupId, groupId));
+  },
+  ['chatMemberGroupRoles']
+);
+
 export const getGroupMemberIds = createReadQuery(
   'getGroupMemberIds',
-  async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
+  async (
+    // seatedOnly leaves out invited ships, which hold no seat yet
+    { groupId, seatedOnly }: { groupId: string; seatedOnly?: boolean },
+    ctx: QueryCtx
+  ) => {
     const rows = await ctx.db
       .select({ contactId: $chatMembers.contactId })
       .from($chatMembers)
       .where(
         and(
           eq($chatMembers.chatId, groupId),
-          eq($chatMembers.membershipType, 'group')
+          eq($chatMembers.membershipType, 'group'),
+          seatedOnly
+            ? or(
+                isNull($chatMembers.status),
+                not(eq($chatMembers.status, 'invited'))
+              )
+            : undefined
         )
       );
     return rows.map((row) => row.contactId);

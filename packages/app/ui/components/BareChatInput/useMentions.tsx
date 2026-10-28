@@ -2,7 +2,7 @@ import { ALL_MENTION_ID as allID } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { valid } from '@urbit/aura';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { formatUserId } from '../../utils';
 
@@ -114,9 +114,11 @@ export function shiftIndex(
 
 export const useMentions = ({
   chatId,
+  groupId,
   roleOptions,
 }: {
   chatId: string;
+  groupId?: string | null;
   roleOptions: MentionOption[];
 }) => {
   const [isMentionModeActive, setIsMentionModeActive] = useState(false);
@@ -136,6 +138,14 @@ export const useMentions = ({
   const [lastDismissedTriggerIndex, setLastDismissedTriggerIndex] = useState<
     number | null
   >(null);
+
+  // a big group stores only the members loaded so far, so mentioning anyone
+  // else needs its whole roster
+  useEffect(() => {
+    if (isMentionModeActive && groupId) {
+      store.syncRosterForMentions(groupId);
+    }
+  }, [isMentionModeActive, groupId]);
 
   const { data: mentionCandidateRows } = store.useMentionCandidates({
     chatId,
