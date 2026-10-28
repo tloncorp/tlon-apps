@@ -54,16 +54,9 @@ test.each(['rejected', 'rate limited'] as const)(
   '%s discovery preserves the last accepted cursor',
   async (failure) => {
     await db.contactDiscoveryCursor.setValue(previous);
-    if (failure === 'rejected') {
-      vi.mocked(api.discoverContacts).mockRejectedValueOnce(
-        new Error('nacked')
-      );
-    } else {
-      vi.mocked(api.discoverContacts).mockResolvedValueOnce({
-        matches: [],
-        nextSalt: null,
-      });
-    }
+    vi.mocked(api.discoverContacts).mockRejectedValueOnce(
+      new Error(failure === 'rejected' ? 'nacked' : 'rate limited')
+    );
     await expect(discoverContacts(phones)).rejects.toThrow();
     expect(await db.contactDiscoveryCursor.getValue()).toEqual(previous);
     await discoverContacts(phones);

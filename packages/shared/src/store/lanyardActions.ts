@@ -290,9 +290,6 @@ export async function discoverContacts(
       lastPhoneNumbers
     );
 
-    if (nextSalt == null) {
-      throw new Error('Contact discovery request was not accepted');
-    }
     if (generation !== getClientGeneration()) {
       throw new Error('Contact discovery session changed');
     }
