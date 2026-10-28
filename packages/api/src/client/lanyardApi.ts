@@ -7,6 +7,7 @@ import {
 } from '../dev/lanyardMock';
 import { createDevLogger } from '../lib/logger';
 import { Json, getFrondValue, getPatp } from '../lib/noun';
+import { createTimeoutSignal } from '../lib/timeoutSignal';
 import { simpleHash } from '../lib/utils';
 import { AnalyticsEvent } from '../types/analytics';
 import type * as db from '../types/models';
@@ -66,7 +67,7 @@ export async function discoverContacts(
   phoneNums: string[],
   storedLastSalt: string | null = null,
   lastPhoneNumberSetSent: string | null = null
-): Promise<{ matches: [string, string][]; nextSalt: string | null }> {
+): Promise<{ matches: [string, string][]; nextSalt: string }> {
   if (isLanyardMockEnabled()) {
     return runLanyardMockDiscovery(phoneNums);
   }
@@ -89,72 +90,51 @@ export async function discoverContacts(
     ];
     const noun = dwim(payload);
 
-    const queryResponseSub = subscribeOnceRequest(
-      lanyard.queryResult
-    )<ub.WhoseBulkResponseEvent>(
-      { nonce: encodedNonce },
-      undefined,
-      undefined,
-      { tag: 'discoverContacts' }
-    );
-
+    const cancellation = new AbortController();
+    const deadline = createTimeoutSignal(60000);
+    const onTimeout = () => cancellation.abort('timeout');
+    deadline.addEventListener('abort', onTimeout, { once: true });
     try {
-      await pokeNounRequest(lanyard.query)(noun);
-    } catch (e) {
-      logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
-        error: e,
-        errorMessage: e.message,
-        context: 'discoverContacts',
-      });
-    }
-    try {
-      const queryResponse = await queryResponseSub;
+      const queryResponseSub = subscribeOnceRequest(
+        lanyard.queryResult
+      )<ub.WhoseBulkResponseEvent>(
+        { nonce: encodedNonce },
+        undefined,
+        undefined,
+        {
+          tag: 'discoverContacts',
+          signal: cancellation.signal,
+        }
+      );
+      // Handle both rejections immediately: the watch can fail before the PUT
+      // settles, and a failed PUT cannot produce a result for this nonce.
+      const [queryResponse] = await Promise.all([
+        queryResponseSub,
+        pokeNounRequest(lanyard.query)(noun, { signal: cancellation.signal }),
+      ]);
       logger.log('discoverContacts: queryResponse', queryResponse);
 
-      if (queryResponse && queryResponse.query.nonce === encodedNonce) {
-        if (queryResponse.query.result === 'rate limited') {
-          logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
-            error: 'rate limited',
-            context: 'discoverContacts',
-            errorMessage: 'rate limited',
-          });
-          return {
-            matches: [],
-            nextSalt: null,
-          };
-        }
-
-        // always store the phone numbers we just successfully sent, will be used to diff
-        // against the next time we send a request
-        const nextSalt = queryResponse.query.result?.['next-salt'];
-        const matches = queryResponse.query.result?.results
-          ? (Object.entries(queryResponse.query.result.results).filter(
-              ([_key, value]) => Boolean(value)
-            ) as [string, string][])
-          : [];
-
-        return {
-          matches,
-          nextSalt,
-        };
+      if (queryResponse.query.nonce !== encodedNonce) {
+        throw new Error('Contact discovery nonce mismatch');
       }
-
-      return {
-        matches: [],
-        nextSalt: null,
-      };
-    } catch (e) {
-      logger.error('error in discoverContacts', e);
-      logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
-        context: 'discoverContacts',
-        error: e,
-        errorMessage: e.message,
-      });
-      throw e;
+      const { result } = queryResponse.query;
+      if (typeof result === 'string') throw new Error(result);
+      const matches = Object.entries(result.results).filter(
+        (entry): entry is [string, string] => Boolean(entry[1])
+      );
+      return { matches, nextSalt: result['next-salt'] };
+    } finally {
+      deadline.cleanup();
+      deadline.removeEventListener('abort', onTimeout);
+      cancellation.abort();
     }
-  } catch (e) {
-    logger.error('error discovering contacts', e);
-    throw e;
+  } catch (error) {
+    logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+      context: 'discoverContacts',
+      error,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
   }
 }
 

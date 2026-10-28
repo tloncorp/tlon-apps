@@ -1,6 +1,12 @@
 import { afterEach, expect, test, vi } from 'vitest';
 
 import { Urbit } from '../http-api/Urbit';
+import type { SubscriptionRequestInterface } from '../http-api';
+
+type ClientState = {
+  sseClientInitialized: boolean;
+  outstandingSubscriptions: Map<number, SubscriptionRequestInterface>;
+};
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -22,7 +28,12 @@ function setup() {
   const client = new Urbit('http://example.test', undefined, undefined, fetch);
   (client as any).sseClientInitialized = true;
   const unsubscribe = vi.spyOn(client, 'unsubscribe');
-  return { client, initialPut, unsubscribe };
+  return {
+    client,
+    initialPut,
+    unsubscribe,
+    state: client as unknown as ClientState,
+  };
 }
 
 afterEach(() => {
@@ -115,4 +126,45 @@ test('an unanswered one-shot still times out and unsubscribes once', async () =>
   entry.event('late', 'm', 1);
   expect(unsubscribe).toHaveBeenCalledTimes(1);
   expect(unsubscribe).toHaveBeenCalledWith(1);
+});
+
+test('an abort while the watch PUT is pending removes its handlers immediately', async () => {
+  const { client, initialPut, unsubscribe, state } = setup();
+  const controller = new AbortController();
+  const failure = new Error('cancelled');
+  const once = client
+    .subscribeOnce('a', '/once', undefined, 1000, controller.signal)
+    .catch((error) => error);
+  controller.abort(failure);
+  expect(await once).toBe(failure);
+  expect(state.outstandingSubscriptions.size).toBe(0);
+  initialPut.resolve(new Response(null, { status: 204 }));
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(unsubscribe).toHaveBeenCalledTimes(1);
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+test('a late unsubscribe PUT cannot delete an id reused after a channel reset', async () => {
+  vi.useFakeTimers();
+  const unsubPut = deferred<Response>();
+  const fetch = vi.fn(async (_url: unknown, options?: RequestInit) => {
+    if (String(options?.body).includes('"action":"unsubscribe"')) {
+      return unsubPut.promise;
+    }
+    return new Response(null, { status: 204 });
+  });
+  const client = new Urbit('http://example.test', undefined, undefined, fetch);
+  const state = client as unknown as ClientState;
+  state.sseClientInitialized = true;
+  const once = client.subscribeOnce('a', '/once', undefined, 1000);
+  const entry = state.outstandingSubscriptions.get(1)!;
+  entry.event?.('result', 'm', 1);
+  await expect(once).resolves.toBe('result');
+  client.seamlessReset();
+  state.sseClientInitialized = true;
+  const id = await client.subscribe({ app: 'a', path: '/live' });
+  expect(id).toBe(1);
+  unsubPut.resolve(new Response(null, { status: 204 }));
+  await vi.advanceTimersByTimeAsync(0);
+  expect(state.outstandingSubscriptions.get(id)?.path).toBe('/live');
 });
