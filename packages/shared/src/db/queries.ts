@@ -1046,55 +1046,6 @@ export const insertSystemContacts = createWriteQuery(
   ['systemContacts', 'systemContactSentInvites', 'contacts']
 );
 
-function generateNicknameUpdates(
-  matches: [string, string][],
-  systemContacts: SystemContact[]
-): { contactId: string; nicknamePart: string }[] {
-  const nicknameUpdates: { contactId: string; nicknamePart: string }[] = [];
-
-  for (const [phoneNumber, contactId] of matches) {
-    const matchingSystemContact = systemContacts.find(
-      (sc) => sc.phoneNumber === phoneNumber
-    );
-
-    if (
-      matchingSystemContact &&
-      (matchingSystemContact.firstName || matchingSystemContact.lastName)
-    ) {
-      const nicknamePart =
-        `${matchingSystemContact.firstName || ''} ${matchingSystemContact.lastName || ''}`.trim();
-
-      if (nicknamePart) {
-        nicknameUpdates.push({ contactId, nicknamePart });
-      }
-    }
-  }
-
-  return nicknameUpdates;
-}
-
-async function updateContactNicknames(
-  nicknameUpdates: { contactId: string; nicknamePart: string }[],
-  txCtx: QueryCtx,
-  batchSize: number
-): Promise<void> {
-  await processBatchOperation(
-    nicknameUpdates,
-    batchSize,
-    async (batch) => {
-      return Promise.all(
-        batch.map(({ contactId, nicknamePart }) =>
-          txCtx.db
-            .update($contacts)
-            .set({ customNickname: nicknamePart })
-            .where(eq($contacts.id, contactId))
-        )
-      );
-    },
-    'Error updating contact nicknames'
-  );
-}
-
 export async function updateSystemContactIds(
   matches: [string, string][],
   txCtx: QueryCtx,
@@ -1132,8 +1083,6 @@ export const linkSystemContacts = createWriteQuery(
 
     const contactIds = matches.map((m) => m[1]);
 
-    const systemContacts = await getSystemContacts(ctx);
-
     return withTransactionCtx(ctx, async (txCtx) => {
       const [existingContacts, linkedSystemContacts] = await Promise.all([
         txCtx.db.query.contacts.findMany({
@@ -1163,10 +1112,6 @@ export const linkSystemContacts = createWriteQuery(
       );
 
       const batchSize = 200;
-
-      // generate and process nickname updates
-      const nicknameUpdates = generateNicknameUpdates(matches, systemContacts);
-      await updateContactNicknames(nicknameUpdates, txCtx, batchSize);
 
       // update system contact IDs
       await updateSystemContactIds(matches, txCtx, batchSize);
