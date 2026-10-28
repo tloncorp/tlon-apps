@@ -251,9 +251,22 @@ function onlyMatch(
   return matches.length === 1 ? matches[0].id : undefined;
 }
 
-// The stored text and ours come from the same extractor under different
-// layout settings (block separators, line breaks), so compare them with
-// whitespace collapsed.
+// The api stores a post's text with its inline preview settings and a
+// reply's with the default ones (reference cards get a tag only in the
+// latter), so our text is extracted the same way for each. Whitespace is
+// still collapsed, since the stored copy may have been made by another
+// build of the api.
+const POST_TEXT_SETTINGS = {
+  blockSeparator: ' ',
+  includeLinebreaks: false,
+  includeRefTag: false,
+};
+const REPLY_TEXT_SETTINGS = {
+  blockSeparator: '\n',
+  includeLinebreaks: true,
+  includeRefTag: true,
+};
+
 function sameText(stored: string | null | undefined, sent: string): boolean {
   const norm = (t: string) => t.replace(/\s+/g, ' ').trim();
   return norm(stored ?? '') === norm(sent);
@@ -269,7 +282,11 @@ async function resolveChannelPostId(
   story: Story,
   parentId?: string
 ): Promise<string> {
-  const text = getTextContent(story) ?? '';
+  const text =
+    getTextContent(
+      story,
+      parentId ? REPLY_TEXT_SETTINGS : POST_TEXT_SETTINGS
+    ) ?? '';
   for (let attempt = 0; attempt < POST_ID_LOOKUP_ATTEMPTS; attempt++) {
     if (attempt > 0) {
       await new Promise((resolve) =>

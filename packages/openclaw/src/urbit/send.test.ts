@@ -111,12 +111,13 @@ describe('sendDm', () => {
       ],
     }));
 
+    const getTextContent = vi.fn(textOf);
     vi.doMock('@tloncorp/api', () => ({
       sendPost: poke,
       sendReply: vi.fn(),
       getChannelPosts,
       getPostWithReplies: vi.fn(),
-      getTextContent: textOf,
+      getTextContent,
       addReaction: vi.fn(),
       removeReaction: vi.fn(),
       deletePost: vi.fn(),
@@ -151,6 +152,11 @@ describe('sendDm', () => {
       })
     );
     expect(result.messageId).toBe('~zod/170.141.184.507.999');
+    // Posts are stored with the inline preview settings, no reference tags.
+    expect(getTextContent).toHaveBeenCalledWith(
+      [{ inline: ['hi'] }],
+      expect.objectContaining({ includeRefTag: false, blockSeparator: ' ' })
+    );
     expect(outputReporter).toHaveBeenCalledWith(
       expect.objectContaining({
         messageId: '~zod/170.141.184.507.999',
@@ -359,13 +365,14 @@ describe('sendDm', () => {
         },
       ],
     }));
+    const getTextContent = vi.fn(textOf);
 
     vi.doMock('@tloncorp/api', () => ({
       sendPost,
       sendReply,
       getChannelPosts: vi.fn(),
       getPostWithReplies,
-      getTextContent: textOf,
+      getTextContent,
       addReaction: vi.fn(),
       removeReaction: vi.fn(),
       deletePost: vi.fn(),
@@ -400,6 +407,11 @@ describe('sendDm', () => {
       })
     );
     expect(result.messageId).toBe('~zod/170.141.184.507.777');
+    // Replies are stored with the default preview settings, tags included.
+    expect(getTextContent).toHaveBeenCalledWith(
+      [{ inline: ['a comment'] }],
+      expect.objectContaining({ includeRefTag: true })
+    );
   });
 
   it('posts a new heap item via sendPost when replyToId is absent', async () => {
