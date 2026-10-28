@@ -17,6 +17,7 @@ import {
   formatPostId,
   isGroupFlag,
   parseNest,
+  parsePositiveInteger,
 } from '../cli-utils';
 import {
   type CommandDeps,
@@ -262,13 +263,6 @@ function isActivityBucketCommand(
 
 function isActivityCommand(command: string): command is ActivityCommand {
   return ACTIVITY_COMMANDS.has(command);
-}
-
-function parsePositiveInteger(raw: string): number | null {
-  if (!/^[0-9]+$/.test(raw)) return null;
-  const parsed = Number(raw);
-  if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
-  return parsed;
 }
 
 function isVolumeCommand(command: string): command is VolumeCommand {

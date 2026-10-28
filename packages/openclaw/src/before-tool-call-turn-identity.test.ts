@@ -12,7 +12,10 @@ import {
   rememberTlonSessionRunSurface,
   setTlonSessionSurface,
 } from './onboarding-tool-boundary.js';
-import { formatOwnerOnlyToolBlockReason } from './owner-only-tools.js';
+import {
+  formatOwnerOnlyDelegationBlockReason,
+  formatOwnerOnlyToolBlockReason,
+} from './owner-only-tools.js';
 import { _testing as rolesTesting, setSessionRole } from './session-roles.js';
 import { _testing as approvalsTesting } from './tlon-call-approvals.js';
 import { _testing as sentAtTesting } from './tlon-tool-command.js';
@@ -949,7 +952,7 @@ describe('before_tool_call turn identity', () => {
       beforeToolCall(send, { sessionKey: GROUP, runId: 'run-mug' })
     ).resolves.toMatchObject({
       block: true,
-      blockReason: formatOwnerOnlyToolBlockReason('sessions_send'),
+      blockReason: formatOwnerOnlyDelegationBlockReason('sessions_send'),
     });
     await expect(
       beforeToolCall({ toolName: 'read', params: { path: 'x' } }, ctx)

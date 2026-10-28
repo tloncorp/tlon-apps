@@ -7,6 +7,23 @@ const MCP_TOOL_NAMES = {
   call: 'mcp__call',
 } as const;
 
+// Resource and prompt tools core materializes for the broker server
+// (`<server>__<operation>`, openclaw src/agents/agent-bundle-mcp-materialize.ts;
+// operations typed as PluginToolMcpMeta['operation'] in src/plugins/tool-metadata.ts).
+// They forward to upstreams with their configured auth.
+const MCP_UTILITY_TOOL_NAMES = [
+  'mcp__resources_list',
+  'mcp__resources_read',
+  'mcp__prompts_list',
+  'mcp__prompts_get',
+] as const;
+
+/** Every tool name core can register for the MCP broker server. */
+export const MCP_BROKER_TOOL_NAMES = [
+  ...Object.values(MCP_TOOL_NAMES),
+  ...MCP_UTILITY_TOOL_NAMES,
+] as const;
+
 export const MCP_READ_TOOL_NAMES = [
   MCP_TOOL_NAMES.listUpstreams,
   MCP_TOOL_NAMES.search,

@@ -2925,6 +2925,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         sessionKey: route.sessionKey,
         ship: botShipName,
         trigger,
+        senderRole: isOwner(senderShip) ? 'owner' : 'user',
       });
 
       // Track owner interaction timestamp for the nudge scheduler.

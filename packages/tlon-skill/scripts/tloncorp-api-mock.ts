@@ -30,8 +30,9 @@
  * getPostWithReplies, deleteReply, setOrder, toPostContent, getTextContent),
  * `join-invite-runtime.ts` (getGroup, scry, subscribeOnce, joinGroup,
  * requestGroupInvitation, poke, toClientGroupFromForeign),
- * `channels.ts` (createChannel and the other channel-management calls), and
- * `groups.ts` (the group-management calls).
+ * `channels.ts` (createChannel and the other channel-management calls),
+ * `groups.ts` (the group-management calls), and `messages.ts` (getInitData,
+ * searchChannel, getPostReference, parsePostBlob).
  */
 import type { NotesV1Api } from '@tloncorp/api';
 // The real broker client, by subpath, which the root mock below does not
@@ -46,7 +47,7 @@ import { toClientGroupFromForeign as realToClientGroupFromForeign } from '@tlonc
 import { toPostContent as realToPostContent } from '@tloncorp/api/client/postsApi';
 // The real plain-text conversion: the posts runtime quotes DM text with it.
 import { getTextContent as realGetTextContent } from '@tloncorp/api/client/postContent';
-import { mock } from 'bun:test';
+import { afterEach, mock } from 'bun:test';
 
 export const NOTES_V1_OPS = [
   'getRequest',
@@ -112,10 +113,28 @@ export class MockNotesV1PendingWriteError extends Error {
   }
 }
 
-/** Mutable per-test notes surface — reassign ops in a test, restore after. */
-export const mockedNotesV1 = Object.fromEntries(
-  NOTES_V1_OPS.map((op) => [op, async () => undefined])
-) as MockedNotesV1;
+const resets: Array<() => void> = [];
+
+// Tests reassign these surfaces for themselves. Each one is put back to its
+// defaults after every test, so a file that leaves one changed can't reach the
+// files after it, whose order bun varies between runs and platforms.
+function resettable<T extends object>(surface: T): T {
+  const defaults = { ...surface };
+  resets.push(() => Object.assign(surface, defaults));
+  return surface;
+}
+
+afterEach(() => {
+  for (const reset of resets) reset();
+  mockedManagementCalls.length = 0;
+});
+
+/** Mutable per-test notes surface — reassign ops in a test. */
+export const mockedNotesV1 = resettable(
+  Object.fromEntries(
+    NOTES_V1_OPS.map((op) => [op, async () => undefined])
+  ) as MockedNotesV1
+);
 
 export const NOTES_PUBLISH_OPS = [
   'listPublished',
@@ -124,66 +143,68 @@ export const NOTES_PUBLISH_OPS = [
 ] as const;
 
 /** The publish slice of `notes` the notes runtime wraps; reassign per test. */
-export const mockedNotes = Object.fromEntries(
-  NOTES_PUBLISH_OPS.map((op) => [op, async () => undefined])
-) as Record<
-  (typeof NOTES_PUBLISH_OPS)[number],
-  (...args: unknown[]) => Promise<unknown>
->;
+export const mockedNotes = resettable(
+  Object.fromEntries(
+    NOTES_PUBLISH_OPS.map((op) => [op, async () => undefined])
+  ) as Record<
+    (typeof NOTES_PUBLISH_OPS)[number],
+    (...args: unknown[]) => Promise<unknown>
+  >
+);
 
-export const mockedGetChannelPosts = {
+export const mockedGetChannelPosts = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => ({
     posts: [],
     older: null,
     totalPosts: 0,
   }),
-};
+});
 
-export const mockedGetPostWithReplies = {
+export const mockedGetPostWithReplies = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
-};
+});
 
-export const mockedEditPost = {
+export const mockedEditPost = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
-};
+});
 
-export const mockedDeleteReply = {
+export const mockedDeleteReply = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
-};
+});
 
-export const mockedSetOrder = {
+export const mockedSetOrder = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
-};
+});
 
-export const mockedScry = {
+export const mockedScry = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
-};
+});
 
-export const mockedPoke = {
+export const mockedPoke = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
-};
+});
 
-export const mockedGetGroups = {
+export const mockedGetGroups = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => [],
-};
+});
 
 /**
  * The activity volume surface: reassign per test. The two flags record the
  * values the runtime last set, so a test can read them from inside a call.
  */
-export const mockedVolume = {
+export const mockedVolume = resettable({
   adjustVolumeSetting: async (..._args: unknown[]): Promise<unknown> =>
     undefined,
   getVolumeSettings: async (..._args: unknown[]): Promise<unknown> => ({}),
   supportsReactions: false,
   supportsNotes: false,
-};
+});
 
 /**
  * The activity read surface: reassign per test. Read the flags from
  * `mockedVolume` inside a call to see what the runtime set before it.
  */
-export const mockedActivityRead = {
+export const mockedActivityRead = resettable({
   readChannel: async (..._args: unknown[]): Promise<unknown> => undefined,
   getGroupAndChannelUnreads: async (): Promise<unknown> => ({
     baseUnread: null,
@@ -191,15 +212,26 @@ export const mockedActivityRead = {
     channelUnreads: [],
     threadActivity: [],
   }),
-};
+});
 
-export const mockedGetGroup = {
-  impl: async (..._args: unknown[]): Promise<unknown> => ({ channels: [] }),
-};
-
-export const mockedCreateChannel = {
+export const mockedGetInitData = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
-};
+});
+
+export const mockedSearchChannel = resettable({
+  impl: async (..._args: unknown[]): Promise<unknown> => ({
+    posts: [],
+    cursor: null,
+  }),
+});
+
+export const mockedGetGroup = resettable({
+  impl: async (..._args: unknown[]): Promise<unknown> => ({ channels: [] }),
+});
+
+export const mockedCreateChannel = resettable({
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+});
 
 // The group and channel mutations groups.ts and channels.ts import, each of
 // which records its call here: a command refused up front leaves it empty.
@@ -232,41 +264,41 @@ const MANAGEMENT_OPS = [
   'updateGroupRole',
 ] as const;
 
-/** Clear it after each test that reads it. */
+/** Cleared after every test. */
 export const mockedManagementCalls: Array<{
   op: (typeof MANAGEMENT_OPS)[number];
   args: unknown[];
 }> = [];
 
-export const mockedGetBuckets = {
+export const mockedGetBuckets = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => [],
-};
+});
 
-export const mockedGetBucket = {
+export const mockedGetBucket = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => null,
-};
+});
 
-export const mockedGetBucketReadToken = {
+export const mockedGetBucketReadToken = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => null,
-};
+});
 
-export const mockedRequestBucketReadToken = {
+export const mockedRequestBucketReadToken = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
-};
+});
 
-export const mockedRequestBucketsGrant = {
+export const mockedRequestBucketsGrant = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
-};
-export const mockedRequestBucketsUpload = {
+});
+export const mockedRequestBucketsUpload = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
-};
+});
 
-export const mockedSendBucketsAction = {
+export const mockedSendBucketsAction = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
-};
-export const mockedSubmitBucketsAction = {
+});
+export const mockedSubmitBucketsAction = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
-};
+});
 
 // The real class, so `instanceof` in the runtime works against what the mock
 // throws -- the upload path distinguishes a typed refusal from a transport
@@ -280,29 +312,29 @@ export class MockBucketsActionFailed extends Error {
   }
 }
 
-export const mockedSubscribe = {
+export const mockedSubscribe = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => 0,
-};
+});
 
-export const mockedSubscribeOnce = {
+export const mockedSubscribeOnce = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
-};
+});
 
-export const mockedJoinGroup = {
+export const mockedJoinGroup = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
-};
+});
 
-export const mockedRequestGroupInvitation = {
+export const mockedRequestGroupInvitation = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
-};
+});
 
-export const mockedCreateInviteLink = {
+export const mockedCreateInviteLink = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
-};
+});
 
-export const mockedEnableGroup = {
+export const mockedEnableGroup = resettable({
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
-};
+});
 
 // Mirrors the real class's shape (status + message) so instanceof/status
 // checks behave identically under the preloaded mock.
@@ -424,9 +456,13 @@ mock.module('@tloncorp/api', () => ({
   // channels.ts value imports
   createChannel: (...args: unknown[]) => mockedCreateChannel.impl(...args),
   deleteNotesNotebookBestEffort: async () => undefined,
-  getInitData: async () => undefined,
+  getInitData: (...args: unknown[]) => mockedGetInitData.impl(...args),
   joinChannel: async () => undefined,
   leaveChannel: async () => undefined,
+  // messages.ts value imports
+  searchChannel: (...args: unknown[]) => mockedSearchChannel.impl(...args),
+  getPostReference: async () => undefined,
+  parsePostBlob: () => [],
   // groups.ts reads no test exercises
   getContacts: async () => [],
   getGroupPreview: async () => null,
