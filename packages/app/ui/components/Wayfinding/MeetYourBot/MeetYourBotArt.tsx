@@ -611,6 +611,10 @@ function EmojiField({ mode }: { mode: Mode }) {
     <View
       style={[StyleSheet.absoluteFill, { transform: [{ rotate: '-14deg' }] }]}
       pointerEvents="none"
+      // Decoration: the art's own label describes it, so screen readers
+      // shouldn't step through every emoji.
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
     >
       {items.map((item) => (
         <Text

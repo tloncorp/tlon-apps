@@ -1,4 +1,3 @@
-import { useTheme } from '@tloncorp/app/ui';
 import { useEffect } from 'react';
 import Animated, {
   Easing,
@@ -11,6 +10,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
+import { useTheme } from 'tamagui';
 
 import {
   FEATURES,

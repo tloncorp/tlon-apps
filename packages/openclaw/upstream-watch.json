@@ -32,6 +32,10 @@
     {
       "id": "tlawn-strip-8x-config",
       "note": "tlawn strips 8.x-only config keys (agents.entries, memorySearch, …) when the installed core is 7.1"
+    },
+    {
+      "id": "core-message-text-dist-loader",
+      "note": "core-message-media.ts loads stripFormattedReasoningMessage, stripInternalRuntimeContext, hasInboundMetadataSentinel, stripInboundMetadata, stripUnsupportedCitationControlMarkers, normalizeReplyPayloadsForDelivery, parseReplyDirectives, parseInlineDirectives and stripPlainTextToolCallBlocks from the installed dist chunks by export name because plugin-sdk does not export them; unnecessary once plugin-sdk exports them"
     }
   ],
   "profile": {
