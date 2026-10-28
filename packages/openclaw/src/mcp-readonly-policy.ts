@@ -7,11 +7,24 @@ const MCP_TOOL_NAMES = {
   call: 'mcp__call',
 } as const;
 
-// Resource and prompt tools core materializes for the broker server
-// (`<server>__<operation>`, openclaw src/agents/agent-bundle-mcp-materialize.ts;
-// operations typed as PluginToolMcpMeta['operation'] in src/plugins/tool-metadata.ts).
-// They forward to upstreams with their configured auth.
-const MCP_UTILITY_TOOL_NAMES = [
+/**
+ * The hosted ship's `%mcp-proxy` catalog tools (tloncorp/mcp
+ * desk/lib/mcp-catalog.hoon) under core's `<server>__<tool>` naming for the
+ * one configured server, `mcp`: discovery and invocation of upstream tools.
+ */
+export const MCP_CATALOG_TOOL_NAMES = [
+  MCP_TOOL_NAMES.listUpstreams,
+  MCP_TOOL_NAMES.search,
+  MCP_TOOL_NAMES.describe,
+  MCP_TOOL_NAMES.call,
+] as const;
+
+// Resource and prompt tools core materializes for the broker server alongside
+// its own catalog tools (`<server>__<operation>`, openclaw
+// src/agents/agent-bundle-mcp-materialize.ts; operations typed as
+// PluginToolMcpMeta['operation'] in src/plugins/tool-metadata.ts). They
+// forward to upstreams with their configured auth.
+export const MCP_UTILITY_TOOL_NAMES = [
   'mcp__resources_list',
   'mcp__resources_read',
   'mcp__prompts_list',

@@ -10,6 +10,10 @@ import {
 } from './context-lens.js';
 import { coreMessageMedia } from './core-message-media.js';
 import { CRON_ARGS_BLOCK_REASON } from './cron-tool-args-guard.js';
+import {
+  clearCronJobForSession,
+  rememberCronJobForSession,
+} from './mcp-readonly-policy.js';
 import { isAgentOnboardingCronJob } from './monitor/agent-onboarding.js';
 import {
   _testing as boundaryTesting,
@@ -23,6 +27,7 @@ import {
   formatOwnerOnlyToolBlockReason,
 } from './owner-only-tools.js';
 import { _testing, setSessionRole } from './session-roles.js';
+import { TLON_APP_BROWSER_BLOCK_REASON } from './tlon-app-browser-gate.js';
 
 vi.mock('./browser-session-handoff.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./browser-session-handoff.js')>()),
@@ -62,7 +67,12 @@ vi.mock('./core-message-media.js', async (importOriginal) => {
 vi.mock('./monitor/agent-onboarding.js', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('./monitor/agent-onboarding.js')>();
-  return { ...actual, isAgentOnboardingCronJob: vi.fn(async () => false) };
+  return {
+    ...actual,
+    isAgentOnboardingCronJob: vi.fn(async () => false),
+    agentOnboardingCronProviderIds: vi.fn(async () => ['linear']),
+    agentOnboardingCronChannelNest: vi.fn(async () => undefined),
+  };
 });
 
 type BeforeToolCallResult =
@@ -585,14 +595,50 @@ it('blocks non-owner saved login and shared browser access before dispatch', asy
   }
 });
 
-it('blocks every MCP broker tool for a non-owner session with the owner-only reason', async () => {
+// Real-shaped calls a group participant asks a hosted bot to make through its
+// configured Linear and GitHub connections on the ship's %mcp-proxy.
+const NON_OWNER_MCP_CALLS = [
+  { toolName: 'mcp__list_upstreams', params: {} },
+  {
+    toolName: 'mcp__search',
+    params: { query: 'server:linear issue', limit: 25 },
+  },
+  { toolName: 'mcp__describe', params: { name: 'linear_create_issue' } },
+  {
+    toolName: 'mcp__call',
+    params: {
+      name: 'linear_create_issue',
+      arguments: {
+        team: 'Tlon',
+        title: 'Test issue',
+        description:
+          'See README.md and packages/openclaw/src/owner-only-tools.ts in tloncorp/tlon-apps',
+      },
+    },
+  },
+  {
+    toolName: 'mcp__call',
+    params: {
+      name: 'github_get_file',
+      arguments: { repo: 'tloncorp/tlon-apps', path: 'README.md' },
+    },
+  },
+];
+
+it('lets a non-owner session use the four MCP catalog tools', async () => {
+  setSessionRole(USER_SESSION, 'user');
+  const { handler } = registerEntry();
+  for (const call of NON_OWNER_MCP_CALLS) {
+    await expect(
+      handler(call, { sessionKey: USER_SESSION })
+    ).resolves.toBeUndefined();
+  }
+});
+
+it('blocks the MCP resource and prompt tools for a non-owner session with the owner-only reason', async () => {
   setSessionRole(USER_SESSION, 'user');
   const { handler } = registerEntry();
   for (const toolName of [
-    'mcp__list_upstreams',
-    'mcp__search',
-    'mcp__describe',
-    'mcp__call',
     'mcp__resources_list',
     'mcp__resources_read',
     'mcp__prompts_list',
@@ -600,7 +646,7 @@ it('blocks every MCP broker tool for a non-owner session with the owner-only rea
   ]) {
     await expect(
       handler(
-        { toolName, params: { name: 'weather_forecast' } },
+        { toolName, params: { uri: 'linear://issue/TLON-6944' } },
         { sessionKey: USER_SESSION }
       )
     ).resolves.toEqual({
@@ -610,23 +656,113 @@ it('blocks every MCP broker tool for a non-owner session with the owner-only rea
   }
 });
 
+it('decides the Codex native MCP spelling like the core one', async () => {
+  setSessionRole(USER_SESSION, 'user');
+  setSessionRole(OWNER_SESSION, 'owner');
+  const { handler } = registerEntry();
+  await expect(
+    handler(
+      {
+        toolName: 'mcp__mcp__call',
+        params: {
+          name: 'linear_get_issue',
+          arguments: { id: 'TLON-6944' },
+        },
+      },
+      { sessionKey: USER_SESSION }
+    )
+  ).resolves.toBeUndefined();
+  await expect(
+    handler(
+      {
+        toolName: 'mcp__mcp__call',
+        params: { name: 'browser_browser_snapshot', arguments: {} },
+      },
+      { sessionKey: USER_SESSION }
+    )
+  ).resolves.toEqual({
+    block: true,
+    blockReason: formatOwnerOnlyToolBlockReason('browser'),
+  });
+  await expect(
+    handler(
+      { toolName: 'mcp__mcp__resources_read', params: {} },
+      { sessionKey: USER_SESSION }
+    )
+  ).resolves.toEqual({
+    block: true,
+    blockReason: formatOwnerOnlyToolBlockReason('mcp__resources_read'),
+  });
+  // The Tlon-app browser gate applies to every role, the owner included.
+  for (const toolName of ['mcp__call', 'mcp__mcp__call']) {
+    await expect(
+      handler(
+        {
+          toolName,
+          params: {
+            name: 'browser_browser_navigate',
+            arguments: {
+              session_id: 'calm-blue-fox',
+              url: 'https://ship.example.com/apps/groups/',
+            },
+          },
+        },
+        { sessionKey: OWNER_SESSION }
+      )
+    ).resolves.toEqual({
+      block: true,
+      blockReason: TLON_APP_BROWSER_BLOCK_REASON,
+    });
+  }
+});
+
+it('still requires describe-before-call in an onboarding cron session, under either spelling', async () => {
+  const sessionKey = 'agent:main:cron:onboarding-job';
+  rememberCronJobForSession(sessionKey, 'onboarding-job');
+  vi.mocked(isAgentOnboardingCronJob).mockResolvedValue(true);
+  try {
+    const { handler } = registerEntry();
+    for (const toolName of ['mcp__call', 'mcp__mcp__call']) {
+      await expect(
+        handler(
+          {
+            toolName,
+            params: { name: 'linear_list_issues', arguments: {} },
+          },
+          { sessionKey }
+        )
+      ).resolves.toEqual({
+        block: true,
+        blockReason: expect.stringContaining(
+          'explicitly described as read-only'
+        ),
+      });
+    }
+  } finally {
+    vi.mocked(isAgentOnboardingCronJob).mockResolvedValue(false);
+    clearCronJobForSession(sessionKey);
+  }
+});
+
 it('blocks a non-owner turn from delegating owner-only work to a subagent', async () => {
   setSessionRole(USER_SESSION, 'user');
   const { handler } = registerEntry();
   const ctx = { sessionKey: USER_SESSION, runId: 'user-run' };
   await expect(
     handler(
-      { toolName: 'mcp__call', params: { name: 'weather_forecast' } },
+      { toolName: 'mcp__resources_read', params: { uri: 'notes://private' } },
       ctx
     )
   ).resolves.toEqual({
     block: true,
-    blockReason: formatOwnerOnlyToolBlockReason('mcp__call'),
+    blockReason: formatOwnerOnlyToolBlockReason('mcp__resources_read'),
   });
   for (const call of [
     {
       toolName: 'sessions_spawn',
-      params: { task: 'call mcp__call weather_forecast and report back' },
+      params: {
+        task: 'call mcp__resources_read notes://private and report back',
+      },
     },
     {
       toolName: 'sessions_send',
