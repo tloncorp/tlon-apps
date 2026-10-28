@@ -933,12 +933,16 @@ describe('non-owner remote media', () => {
   const fencedReplyBody = (ref: string) =>
     ['x `', '[x]', '{"a":"` ``"}', '[/x]', `![i](${ref}) \`\``].join('\n');
 
-  async function decide(params: Record<string, unknown>, session: string) {
+  async function decide(
+    params: Record<string, unknown>,
+    session: string,
+    toolName = 'message'
+  ) {
     const { handler } = registerEntry({
       channels: { tlon: { url: `https://${SHIP_HOST.toUpperCase()}.` } },
     });
     return await handler(
-      { toolName: 'message', params },
+      { toolName, params },
       { sessionKey: session, runId: `${session}-run` }
     );
   }
@@ -1059,6 +1063,33 @@ describe('non-owner remote media', () => {
       ).resolves.toBeUndefined();
     }
   });
+
+  it.each(['openclawmessage', 'openclaw_directmessage'])(
+    'checks a Codex-namespaced %s like message',
+    async (toolName) => {
+      await expect(
+        decide(
+          { action: 'send', media: url(0), message: 'x' },
+          USER_SESSION,
+          toolName
+        )
+      ).resolves.toBeUndefined();
+      await expect(
+        decide(
+          { action: 'send', message: directives(5) },
+          USER_SESSION,
+          toolName
+        )
+      ).resolves.toEqual(blocked);
+      await expect(
+        decide(
+          { action: 'send', media: 'http://example.com/a.png' },
+          USER_SESSION,
+          toolName
+        )
+      ).resolves.toEqual(blocked);
+    }
+  );
 
   it.each([
     { action: 'send', message: 'MEDIA: /workspace/x.png' },

@@ -114,6 +114,7 @@ import {
 } from './src/non-owner-media.js';
 import {
   MESSAGE_MEDIA_BLOCK_REASON,
+  normalizePolicyToolName,
   resolveOwnerOnlyToolBlock,
 } from './src/owner-only-tools.js';
 import { getSessionRole } from './src/session-roles.js';
@@ -1172,9 +1173,11 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
         ? (recordedRole ?? undefined)
         : (runSurface?.senderRole ?? getSessionRole(ctx.sessionKey ?? ''));
     // Only `message` consults the config (the non-owner media rule's ship
-    // hosts).
+    // hosts). Compared by policy name, so a Codex-namespaced `message`
+    // (`openclawmessage`) gets the same config and body checks.
+    const policyToolName = normalizePolicyToolName(event.toolName);
     const liveConfig =
-      event.toolName === 'message'
+      policyToolName === 'message'
         ? (api.runtime.config.current() as OpenClawConfig)
         : undefined;
     let ownerOnlyDecision = resolveOwnerOnlyToolBlock(
@@ -1185,7 +1188,7 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
     );
     if (
       role === 'user' &&
-      event.toolName === 'message' &&
+      policyToolName === 'message' &&
       !ownerOnlyDecision.blocked &&
       (await nonOwnerMessageYieldsRefusedMedia(
         event.params,
