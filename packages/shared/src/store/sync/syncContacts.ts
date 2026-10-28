@@ -6,7 +6,10 @@ import * as LocalCache from '../cachedData';
 import { SyncCtx, syncQueue } from '../syncQueue';
 import { logger } from './logger';
 
-export const syncContactSuggestions = async (contactIds: string[]) => {
+export const syncContactSuggestions = async (
+  contactIds: string[],
+  queryCtx?: QueryCtx
+) => {
   const contacts = await syncQueue.add('contact suggestions', undefined, () =>
     api.getContacts()
   );
@@ -14,15 +17,20 @@ export const syncContactSuggestions = async (contactIds: string[]) => {
     contacts.filter((c) => c.isContactSuggestion).map((c) => c.id)
   );
 
-  await batchEffects('syncContactSuggestions', async (ctx) => {
+  const write = async (ctx: QueryCtx) => {
     for (const id of contactIds) {
       await db.setContactSuggestion(
         { id, isContactSuggestion: suggestions.has(id) },
         ctx
       );
     }
-  });
-  LocalCache.cacheContacts(await db.getContacts());
+  };
+  if (queryCtx) {
+    await write(queryCtx);
+  } else {
+    await batchEffects('syncContactSuggestions', write);
+  }
+  LocalCache.cacheContacts(await db.getContacts(queryCtx));
 };
 
 export const syncContacts = async (

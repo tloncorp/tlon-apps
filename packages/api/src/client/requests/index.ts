@@ -2,6 +2,7 @@ import type { Noun } from '@urbit/nockjs';
 
 import {
   DeskUnsupportedError,
+  getDeskSupportsContactRemovalState,
   getDeskSupportsAutomationsState,
   getDeskSupportsBucketsState,
   getDeskSupportsStewardPromptsState,
@@ -105,6 +106,7 @@ function nameOf(entry: { agent: string; path?: string }) {
 // Read at call time, not when this module loads: a helper can be bound
 // before the capability is known, and tests mock '../urbit' partially.
 const GUARD_FNS: Record<GuardName, () => boolean | null> = {
+  deskSupportsContactRemoval: () => getDeskSupportsContactRemovalState(),
   deskSupportsBuckets: () => getDeskSupportsBucketsState(),
   deskSupportsAutomations: () => getDeskSupportsAutomationsState(),
   deskSupportsStewardPrompts: () => getDeskSupportsStewardPromptsState(),

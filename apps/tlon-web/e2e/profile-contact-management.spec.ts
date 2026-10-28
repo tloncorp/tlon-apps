@@ -129,3 +129,65 @@ test('should manage contacts and edit contact nicknames', async ({
   await zodPage.waitForTimeout(3000);
   await tenPage.waitForTimeout(3000);
 });
+
+test('removed address book matches require an explicit Add to save again', async ({
+  zodSetup,
+}) => {
+  const page = zodSetup.page;
+  const contactId = '~nec';
+
+  // Web cannot read a device address book. Seed the authoritative removal that
+  // the native address-book flow sends, then exercise the shared contacts UI.
+  const status = await page.evaluate(async (kip) => {
+    const ship = (window as unknown as { ship: string }).ship;
+    const response = await fetch(`/~/channel/contact-removal-${Date.now()}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify([
+        {
+          id: 1,
+          action: 'poke',
+          ship,
+          app: 'contacts',
+          mark: 'contact-action-1',
+          json: { page: { kip, contact: {} } },
+        },
+        {
+          id: 2,
+          action: 'poke',
+          ship,
+          app: 'contacts',
+          mark: 'contact-remove',
+          json: { kip, suggest: true },
+        },
+      ]),
+    });
+    return response.status;
+  }, contactId);
+  expect(status).toBe(204);
+
+  await page.getByTestId('AvatarNavIcon').click();
+  await expect(
+    page.getByText('Suggested contacts', { exact: true })
+  ).toBeVisible();
+  const row = page.locator(`[aria-label="ContactListItem-${contactId}"]`);
+  await expect(row.getByText('Add', { exact: true })).toBeVisible();
+
+  // Opening a suggestion only views its profile, including after a fresh sync.
+  await row.click();
+  await expect(page.getByText('Add Contact', { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByText('Add Contact', { exact: true })).toBeVisible();
+  await expect(row.getByText('Add', { exact: true })).toBeVisible();
+
+  await row.getByText('Add', { exact: true }).click();
+  await expect(page.getByText('Remove Contact', { exact: true })).toBeVisible();
+  await expect(row.getByText('Add', { exact: true })).not.toBeVisible();
+  await page.reload();
+  await expect(page.getByText('Remove Contact', { exact: true })).toBeVisible();
+
+  // Contacts are the fixture cleanup exception; leave this contact unsaved.
+  await page.getByText('Remove Contact', { exact: true }).click();
+  await expect(page.getByText('Add Contact', { exact: true })).toBeVisible();
+});

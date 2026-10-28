@@ -20,6 +20,7 @@ import {
   deskVersionSupportsAutomations,
   deskVersionCountsAllSeats,
   deskVersionSupportsBuckets,
+  deskVersionSupportsContactRemoval,
   deskVersionSupportsStewardPrompts,
   deskVersionSupportsTaskRuns,
   deskVersionSupportsStewardBots,
@@ -72,7 +73,7 @@ import {
 import { clearChannelPostsQueries } from '../useChannelPosts/queries';
 import { addToChannelPosts } from '../useChannelPosts/subscriptions';
 import { logger } from './logger';
-import { syncContacts } from './syncContacts';
+import { syncContacts, syncContactSuggestions } from './syncContacts';
 import { syncGroup } from './syncGroup';
 import { updateLastActivityTime } from './updateLastActivityTime';
 
@@ -669,6 +670,9 @@ export const syncAppInfo = async (
   api.setActivitySupportsNotes(
     activityVersionSupportsNotes(appInfo?.groupsVersion)
   );
+  api.setDeskSupportsContactRemoval(
+    deskVersionSupportsContactRemoval(appInfo?.groupsVersion)
+  );
   api.setDeskSupportsBuckets(
     deskVersionSupportsBuckets(appInfo?.groupsVersion)
   );
@@ -720,6 +724,9 @@ export const syncReactionSupport = async () => {
     activityVersionSupportsReactions(groupsVersion)
   );
   api.setActivitySupportsNotes(activityVersionSupportsNotes(groupsVersion));
+  api.setDeskSupportsContactRemoval(
+    deskVersionSupportsContactRemoval(groupsVersion)
+  );
   api.setDeskSupportsBuckets(deskVersionSupportsBuckets(groupsVersion));
   api.setDeskSupportsAutomations(deskVersionSupportsAutomations(groupsVersion));
   api.setDeskCountsAllSeats(deskVersionCountsAllSeats(groupsVersion));
@@ -835,7 +842,11 @@ export const syncContactDiscovery = async (
     didDiscover = true;
     logger.log('syncContactDiscovery: got contact discovery matches', matches);
 
-    const { newMatches } = await partitionDiscoveryMatches(matches, {
+    const {
+      newMatches,
+      removedMatches = [],
+      contactState,
+    } = await partitionDiscoveryMatches(matches, {
       isMocked,
     });
     const newMatchIds = newMatches.map(([, id]) => id);
@@ -854,9 +865,15 @@ export const syncContactDiscovery = async (
       matches
     );
 
-    if (newMatchIds.length > 0) {
-      const { addedContactIds, failedContactIds } =
-        await addContacts(newMatchIds);
+    const discoveredIds = [
+      ...newMatchIds,
+      ...removedMatches.map(([, id]) => id),
+    ];
+    if (discoveredIds.length > 0) {
+      const { addedContactIds, failedContactIds } = await addContacts(
+        discoveredIds,
+        { source: 'discovery' }
+      );
       if (failedContactIds.length > 0) {
         didSucceed = false;
       }
@@ -1756,11 +1773,13 @@ export const handleContactUpdate = async (
         {
           id: update.contactId,
           isContact: false,
+          isContactSuggestion: false,
           customNickname: null,
           customAvatarImage: null,
         },
         ctx
       );
+      await syncContactSuggestions([update.contactId], ctx);
       break;
   }
 };

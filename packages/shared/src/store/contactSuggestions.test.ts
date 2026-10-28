@@ -163,6 +163,7 @@ test('a contact added during the fetch remains suppressed after a later removal'
     ])
   );
   await removeContact(newId);
+  setScryOutputs([directory, {}, []]);
   await handleContactUpdate({ type: 'removeContact', contactId: newId });
   expect(await db.getContact({ id: newId })).toMatchObject({
     isContact: false,

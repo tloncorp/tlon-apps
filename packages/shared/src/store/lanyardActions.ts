@@ -259,16 +259,34 @@ export function isAlreadyKnownContact(contact: db.Contact): boolean {
 export async function partitionDiscoveryMatches(
   matches: [string, string][],
   { isMocked }: { isMocked: boolean }
-): Promise<{ newMatches: [string, string][] }> {
+): Promise<{
+  newMatches: [string, string][];
+  removedMatches?: [string, string][];
+  contactState?: api.ContactState;
+}> {
   if (isMocked) return { newMatches: matches };
   const contactIds = matches.map((m) => m[1]);
+  let removedContactIds = new Set<string>();
+  let contactState: api.ContactState | undefined;
+  if (api.getDeskSupportsContactRemovalState() === true) {
+    contactState = await api.getContactState();
+    removedContactIds = new Set(contactState.removedContactIds);
+    await db.insertContacts(contactState.contacts);
+  }
   const existingContacts = await db.getContactsBatch({ contactIds });
   const existingById = new Map(existingContacts.map((c) => [c.id, c] as const));
+  const removedMatches = matches.filter(([, id]) => removedContactIds.has(id));
   const newMatches = matches.filter(([, contactId]) => {
     const c = existingById.get(contactId);
-    return !c || !isAlreadyKnownContact(c);
+    return (
+      !removedContactIds.has(contactId) && (!c || !isAlreadyKnownContact(c))
+    );
   });
-  return { newMatches };
+  return {
+    newMatches,
+    removedMatches,
+    ...(contactState ? { contactState } : {}),
+  };
 }
 
 export async function discoverContacts(
