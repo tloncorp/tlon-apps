@@ -8,7 +8,12 @@ import {
   setupDatabaseTestSuite,
 } from '../test/helpers';
 import * as LocalCache from './cachedData';
-import { addContactSuggestions } from './contactActions';
+import {
+  addContact,
+  addContactSuggestions,
+  removeContact,
+} from './contactActions';
+import { handleContactUpdate } from './sync/sync';
 import { syncContacts } from './sync/syncContacts';
 
 setupDatabaseTestSuite();
@@ -104,36 +109,46 @@ test('a failed authoritative refresh does not display unconfirmed suggestions', 
   expect(poke).toHaveBeenCalledOnce();
 });
 
-test('suggestion reconciliation preserves contact edits made during the fetch', async () => {
+test('a contact added during the fetch remains suppressed after a later removal', async () => {
   const cacheContacts = vi.spyOn(LocalCache, 'cacheContacts');
-  let respond!: (value: typeof directory) => void;
+  let respond!: (value: string[]) => void;
   let started!: () => void;
-  const response = new Promise<typeof directory>((resolve) => {
+  const response = new Promise<string[]>((resolve) => {
     respond = resolve;
   });
   const requestStarted = new Promise<void>((resolve) => {
     started = resolve;
   });
   vi.mocked(scry)
+    .mockResolvedValueOnce(directory)
+    .mockResolvedValueOnce({})
     .mockImplementationOnce(async () => {
       started();
       return response;
-    })
-    .mockResolvedValueOnce({})
-    .mockResolvedValueOnce([newId]);
+    });
 
   const adding = addContactSuggestions([newId]);
   await requestStarted;
+  await addContact(newId);
+  await handleContactUpdate({
+    type: 'upsertContact',
+    contact: { id: newId, isContact: true, isContactSuggestion: false },
+  });
   await db.updateContact({
     id: newId,
-    isContact: true,
     customNickname: 'Chosen name',
   });
-  respond(directory);
+  expect(poke).toHaveBeenCalledWith({
+    app: 'groups-ui',
+    mark: 'ui-hide-contact',
+    json: newId,
+  });
+  respond([newId]);
   await adding;
 
   expect(await db.getContact({ id: newId })).toMatchObject({
     isContact: true,
+    isContactSuggestion: false,
     customNickname: 'Chosen name',
   });
   expect(await db.getSuggestedContacts()).toEqual([]);
@@ -142,8 +157,16 @@ test('suggestion reconciliation preserves contact edits made during the fetch', 
       expect.objectContaining({
         id: newId,
         isContact: true,
+        isContactSuggestion: false,
         customNickname: 'Chosen name',
       }),
     ])
   );
+  await removeContact(newId);
+  await handleContactUpdate({ type: 'removeContact', contactId: newId });
+  expect(await db.getContact({ id: newId })).toMatchObject({
+    isContact: false,
+    isContactSuggestion: false,
+  });
+  expect(await db.getSuggestedContacts()).toEqual([]);
 });

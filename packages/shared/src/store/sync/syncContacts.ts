@@ -16,7 +16,7 @@ export const syncContactSuggestions = async (contactIds: string[]) => {
 
   await batchEffects('syncContactSuggestions', async (ctx) => {
     for (const id of contactIds) {
-      await db.updateContact(
+      await db.setContactSuggestion(
         { id, isContactSuggestion: suggestions.has(id) },
         ctx
       );

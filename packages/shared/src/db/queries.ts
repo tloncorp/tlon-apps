@@ -6602,6 +6602,24 @@ export const updateContact = createWriteQuery(
   ['contacts']
 );
 
+export const setContactSuggestion = createWriteQuery(
+  'setContactSuggestion',
+  async (
+    { id, isContactSuggestion }: { id: string; isContactSuggestion: boolean },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .update($contacts)
+      .set({
+        isContactSuggestion: isContactSuggestion
+          ? sql<boolean>`not coalesce(${$contacts.isContact}, 0)`
+          : false,
+      })
+      .where(eq($contacts.id, id));
+  },
+  ['contacts']
+);
+
 export const markContactsAsMatched = createWriteQuery(
   'markContactsAsMatched',
   async (
