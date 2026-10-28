@@ -178,13 +178,18 @@ test('removed address book matches require an explicit Add to save again', async
   await row.click();
   await expect(page.getByText('Add Contact', { exact: true })).toBeVisible();
   await page.reload();
-  await expect(page.getByText('Add Contact', { exact: true })).toBeVisible();
+  await page.getByTestId('AvatarNavIcon').click();
   await expect(row.getByText('Add', { exact: true })).toBeVisible();
+  await row.click();
+  await expect(page.getByText('Add Contact', { exact: true })).toBeVisible();
 
   await row.getByText('Add', { exact: true }).click();
   await expect(page.getByText('Remove Contact', { exact: true })).toBeVisible();
   await expect(row.getByText('Add', { exact: true })).not.toBeVisible();
   await page.reload();
+  await page.getByTestId('AvatarNavIcon').click();
+  await expect(row.getByText('Add', { exact: true })).not.toBeVisible();
+  await row.click();
   await expect(page.getByText('Remove Contact', { exact: true })).toBeVisible();
 
   // Contacts are the fixture cleanup exception; leave this contact unsaved.
