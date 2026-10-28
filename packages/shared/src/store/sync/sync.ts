@@ -783,7 +783,29 @@ export type ContactDiscoveryResult = {
   newMatches: [string, string][];
 };
 
-export const syncContactDiscovery = async (
+// Keep proof updates and match side effects together before the next run reads state.
+let contactDiscoveryQueue: Promise<void> = Promise.resolve();
+
+export const syncContactDiscovery = (
+  ctx?: SyncCtx,
+  opts?: { invokeHandler?: boolean }
+): Promise<ContactDiscoveryResult> => {
+  const generation = getClientGeneration();
+  const result = contactDiscoveryQueue.then(() => {
+    if (generation !== getClientGeneration()) {
+      return { didSucceed: false, didDiscover: false, newMatches: [] };
+    }
+    return syncContactDiscoveryOnce(generation, ctx, opts);
+  });
+  contactDiscoveryQueue = result.then(
+    () => {},
+    () => {}
+  );
+  return result;
+};
+
+const syncContactDiscoveryOnce = async (
+  generation: number,
   ctx?: SyncCtx,
   opts?: { invokeHandler?: boolean }
 ): Promise<ContactDiscoveryResult> => {
@@ -843,10 +865,16 @@ export const syncContactDiscovery = async (
   let didSucceed = true;
   try {
     const matches = (
-      await syncQueue.add('discoverContacts', ctx, () =>
-        discoverContacts(phoneNumbers)
-      )
+      await syncQueue.add('discoverContacts', ctx, () => {
+        if (generation !== getClientGeneration()) {
+          throw new Error('Contact discovery session changed');
+        }
+        return discoverContacts(phoneNumbers);
+      })
     ).filter((match) => match[1] !== currentUserId);
+    if (generation !== getClientGeneration()) {
+      throw new Error('Contact discovery session changed');
+    }
     didDiscover = true;
     logger.log('syncContactDiscovery: got contact discovery matches', matches);
 

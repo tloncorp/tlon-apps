@@ -3,6 +3,7 @@ import * as api from '@tloncorp/api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
+import { getClientGeneration } from './session';
 
 const logger = createDevLogger('lanyardActions', true);
 
@@ -273,20 +274,29 @@ export async function partitionDiscoveryMatches(
 export async function discoverContacts(
   phoneNumbers: string[]
 ): Promise<[string, string][]> {
-  const lastSalt = await db.lastLanyardSalt.getValue();
-  const lastPhoneNumbers = await db.lastPhoneContactSetRequest.getValue();
-
+  const generation = getClientGeneration();
   try {
+    const cursor = await db.contactDiscoveryCursor.getValue();
+    const lastSalt = cursor?.salt ?? (await db.lastLanyardSalt.getValue());
+    const lastPhoneNumbers = cursor
+      ? JSON.stringify(cursor.phoneNumbers)
+      : await db.lastPhoneContactSetRequest.getValue();
+    if (generation !== getClientGeneration()) {
+      throw new Error('Contact discovery session changed');
+    }
     const { matches, nextSalt } = await api.discoverContacts(
       phoneNumbers,
       lastSalt,
       lastPhoneNumbers
     );
 
-    // always store the phone numbers we just successfully sent, will be used to diff
-    // against the next time we send a request
-    await db.lastPhoneContactSetRequest.setValue(JSON.stringify(phoneNumbers));
-    await db.lastLanyardSalt.setValue(nextSalt);
+    if (nextSalt == null) {
+      throw new Error('Contact discovery request was not accepted');
+    }
+    if (generation !== getClientGeneration()) {
+      throw new Error('Contact discovery session changed');
+    }
+    await db.contactDiscoveryCursor.setValue({ salt: nextSalt, phoneNumbers });
     return matches;
   } catch (e) {
     logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
