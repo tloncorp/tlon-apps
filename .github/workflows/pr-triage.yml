@@ -2,7 +2,7 @@ name: PR triage
 
 on:
   pull_request_target:
-    types: [opened, synchronize, reopened, ready_for_review, edited, converted_to_draft, closed]
+    types: [opened, synchronize, reopened, ready_for_review, edited, converted_to_draft, closed, labeled, unlabeled]
   # Codex creates this status comment and EDITS it when review is complete.
   issue_comment:
     types: [created, edited]
@@ -15,7 +15,7 @@ on:
 
 permissions: {}
 
-# Unrelated comments (including our own summary) must not cancel an active run.
+# Unrelated comments and labels must not cancel an active run.
 concurrency:
   group: >-
     pr-triage-${{
@@ -24,6 +24,8 @@ concurrency:
          github.event.comment.user.login == 'chatgpt-codex-connector[bot]' &&
          github.event.sender.login == 'chatgpt-codex-connector[bot]' &&
          contains(github.event.comment.body, '<!-- codex-pull-request-review-summary -->'))) &&
+      (!(github.event.action == 'labeled' || github.event.action == 'unlabeled') ||
+        github.event.label.name == 'review:human-required') &&
       (inputs.pr_url || format('https://github.com/{0}/pull/{1}', github.repository,
         github.event.pull_request.number || github.event.issue.number)) ||
       github.run_id }}
@@ -38,7 +40,9 @@ jobs:
         (github.event.issue.pull_request &&
          github.event.comment.user.login == 'chatgpt-codex-connector[bot]' &&
          github.event.sender.login == 'chatgpt-codex-connector[bot]' &&
-         contains(github.event.comment.body, '<!-- codex-pull-request-review-summary -->')))
+         contains(github.event.comment.body, '<!-- codex-pull-request-review-summary -->'))) &&
+      (!(github.event.action == 'labeled' || github.event.action == 'unlabeled') ||
+        github.event.label.name == 'review:human-required')
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:

@@ -71,8 +71,10 @@ Use the same four outcomes and priority order as the skill. An eligible result
 needs sufficient evidence, no material gaps or remaining agent work, no
 unresolved findings or requirements, and no human decision. Gaps in the impact
 map or a finding also block eligibility even if top-level `gaps` is empty.
-A running or stale Codex review is not a completed clean review; disclose it
-and do not return agent-eligible.
+A missing, malformed, running or stale Codex code review is not a completed
+clean review; disclose it and do not return agent-eligible. The publisher reads
+`code_review.status` and `code_review.commit_sha` from the same versioned state
+record; completed security-review state is not a substitute.
 Report checks as observed evidence, never as commands you executed in this job.
 
 ## Publication
@@ -86,7 +88,19 @@ threads, or patch code. The shared `ready-for-human` label is not automated.
 `review:agent-eligible` and `review:agent-work-needed` expire when a new run starts.
 `review:human-required` persists until explicitly cleared by a maintainer.
 An existing human requirement suppresses an eligible label even when the model
-recommends eligibility. Agent work may coexist with that requirement.
+recommends eligibility. Agent work may coexist with that requirement. This
+preservation includes a human label added just before a stale-publication
+failure; withdrawing it automatically could erase a concurrent maintainer
+requirement. Keep that case visible for a maintainer instead of silently
+accepting the stale assessment or assuming per-run label ownership.
+
+Changes to the human label withdraw automatic agent routing without inference.
+The separate reconciliation workflow checks recorded head/base revisions after
+`develop` pushes and twice hourly, using the same per-PR concurrency group. It
+removes obsolete agent labels and marks the summary incomplete without paid
+analysis. A fresh triage run is required to establish new routing; scheduling
+delays mean this remains advisory. Only the three exact analysis workflow job
+names are excluded from check evidence; tooling tests remain included.
 
 The publisher validates JSON, compares the head/base and evidence fingerprint,
 requires references to actual discussion items, and deduplicates inline

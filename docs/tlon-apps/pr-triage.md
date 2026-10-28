@@ -36,12 +36,29 @@ review start invalidates the previous automatic routing, and completion at the
 current head triggers counter-review. Findings in review bodies, inline
 comments, replies, and earlier revisions are collected together.
 
-Other issue comments do not trigger inference or cancel an active analysis.
+Completion requires `code_review.status` and `code_review.commit_sha` from
+Codex's versioned `codex-review-state:v1` marker. A missing, malformed, pending,
+or stale code review blocks eligibility; security-review completion cannot
+substitute for it.
+
+Adding or removing `review:human-required` invalidates automatic agent routing
+without inference. Other label changes and issue comments do not trigger
+inference or cancel an active analysis.
 Closing a PR or converting it to draft invalidates automatic routing without
 running inference. Automatic analysis currently covers open, non-draft PRs
 whose head repository is `tloncorp/tlon-apps`; fork PRs are skipped. Non-Codex
 triggers require repository write access. These restrictions also bound access
 to paid inference.
+
+`pr-triage-reconcile.yml` checks existing agent routing after pushes to `develop`
+and on a twice-hourly schedule for other base branches or missed events. It
+compares the current head/base with the revision recorded in the bot summary,
+withdraws obsolete agent labels, and marks the summary incomplete. It also
+repairs contradictory eligible/human labels. Each PR uses the same concurrency
+group as analysis/publication and is re-read after any active run. This job uses
+no inference secret and never launches paid analysis; rerun triage to establish
+a new result. Scheduled delivery can be delayed by GitHub, so labels remain
+advisory rather than a synchronous merge gate.
 
 To activate, merge the skill, scripts, and workflows into the repository's
 default branch, currently `develop`. The existing repository Actions secret
@@ -75,6 +92,11 @@ Missing labels are created on demand. Agent labels are refreshed on each run.
 When that label already exists, an eligible assessment does not add the
 agent-eligible label. Agent work and an existing human requirement may coexist.
 The shared `ready-for-human` label is left to the existing workflow/maintainers.
+This preservation rule also applies if a run adds a human label just before
+detecting a stale revision. GitHub labels have no atomic per-run ownership:
+automatic deletion could erase a concurrent maintainer requirement. Such a
+label may over-block until a maintainer clears it; automatic rollback remains
+an explicit policy decision, not an agent fix implied by stale evidence.
 No outcome approves, merges, assigns a reviewer, resolves a thread, or changes
 the PR's code.
 
@@ -127,7 +149,8 @@ It must disclose missing reproductions or device evidence, and may return
 `incomplete` until a local agent supplies that evidence. Checks changing during
 analysis invalidate the result. There is no automatic retry on CI completion:
 rerun manually once checks settle, or let the next push/Codex review trigger it.
-The three triage jobs are excluded from their own evidence fingerprint.
+Only the three exact triage job names are excluded from their own evidence
+fingerprint; `PR triage tooling tests` remains visible, including failures.
 Linked issues or external specs are not fetched by the hosted analysis; a
 material requirement source absent from the supplied context is reported as
 unavailable. Local invocation can inspect relevant links with the GitHub CLI.
@@ -145,7 +168,9 @@ node --test scripts/pr-triage/triage.test.mjs
 ```
 
 The separate `pr-triage-checks.yml` runs those tests on changes to the skill,
-scripts, and workflows, without secrets or write permissions.
+scripts, and workflows, without secrets or write permissions. Regression cases
+cover base/label reconciliation, mixed code/security review states, missing
+completion evidence, and the focused tooling check's fingerprint.
 
 Policy lives in `.agents/skills/tlon-pr-triage/`; the runner/output schema live
 in `scripts/pr-triage/`. Keep local routing and hosted output consistent.

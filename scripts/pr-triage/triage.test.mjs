@@ -17,6 +17,8 @@ import {
   parseUrl,
   prepareSource,
   publish,
+  reconcile,
+  reconciliationTargets,
   render,
   renderDetails,
   trigger,
@@ -27,6 +29,11 @@ const HEAD = 'a'.repeat(40);
 const BASE = 'b'.repeat(40);
 const OTHER = 'c'.repeat(40);
 const url = `https://github.com/${REPO}/pull/6794`;
+const codexState = (head = HEAD, status = 'completed') =>
+  `${CODEX_SUMMARY}\n<!-- codex-review-state:v1 ${JSON.stringify({
+    code_review: { commit_sha: head, status },
+    security_review: { commit_sha: OTHER, status: 'completed' },
+  })} -->\n<!-- codex-security-review:v1 ${JSON.stringify({ headSha: OTHER, status: 'completed' })} -->`;
 const rootComment = {
   id: 10,
   user: { login: BOT },
@@ -42,7 +49,7 @@ const fixture = () => ({
     state: 'open',
     draft: false,
     head: { sha: HEAD, repo: { full_name: REPO } },
-    base: { sha: BASE },
+    base: { sha: BASE, ref: 'develop' },
     changed_files: 1,
     labels: [],
   },
@@ -58,7 +65,7 @@ const fixture = () => ({
       id: 20,
       user: { login: BOT },
       html_url: `${url}#issuecomment-20`,
-      body: `${CODEX_SUMMARY}\n{"headSha":"${HEAD}","status":"completed"}`,
+      body: codexState(),
     },
   ],
   comments: [structuredClone(rootComment)],
@@ -311,7 +318,7 @@ test('only real Codex status events trigger counter-review; edits count', () => 
     analyze: true,
     reviewedHead: HEAD,
   });
-  e.comment.body = `${CODEX_SUMMARY} {"headSha": "${HEAD}", "status": "in_progress"}`;
+  e.comment.body = codexState(HEAD, 'in_progress');
   assert.equal(trigger('issue_comment', e).analyze, false);
   e.comment.user.login = 'contributor';
   assert.equal(trigger('issue_comment', e), null);
@@ -352,6 +359,122 @@ test('gate clears stale agent labels, preserves human and unrelated labels', asy
   assert.ok(api.context.conversation.some((c) => c.body.startsWith(SUMMARY)));
 });
 
+test('human-label changes withdraw routing without analysis or label event loops', async () => {
+  for (const action of ['labeled', 'unlabeled']) {
+    const api = new FakeGitHub();
+    api.context.pr.labels = [
+      'review:agent-eligible',
+      ...(action === 'labeled' ? ['review:human-required'] : []),
+      'bug',
+    ].map((name) => ({ name }));
+    const e = { ...event(), action, label: { name: 'review:human-required' } };
+    assert.equal(await gate(api, 'pull_request_target', e), null);
+    assert.deepEqual(
+      api.context.pr.labels.map((l) => l.name),
+      [...(action === 'labeled' ? ['review:human-required'] : []), 'bug']
+    );
+    assert.match(api.context.conversation.at(-1).body, /requirement changed/);
+    const count = api.writes.length;
+    for (const name of [
+      'review:agent-eligible',
+      'review:agent-work-needed',
+      'bug',
+    ]) {
+      e.label.name = name;
+      assert.equal(await gate(api, 'pull_request_target', e), null);
+    }
+    assert.equal(api.writes.length, count);
+  }
+});
+
+test('reconciliation targets only routed same-repository PRs on the affected base', async () => {
+  const prs = Array.from({ length: 4 }, (_, i) => ({
+    ...fixture().pr,
+    number: i + 1,
+    labels: [{ name: 'review:agent-eligible' }],
+  }));
+  prs[1].base = { sha: BASE, ref: 'release' };
+  prs[2].labels = [{ name: 'review:human-required' }];
+  prs[3].head = { sha: HEAD, repo: { full_name: 'other/fork' } };
+  const api = { pages: async () => prs };
+  const e = { repository: { full_name: REPO }, ref: 'refs/heads/develop' };
+  assert.deepEqual(await reconciliationTargets(api, 'push', e), [1]);
+  assert.deepEqual(await reconciliationTargets(api, 'schedule', e), [1, 2]);
+  assert.deepEqual(
+    await reconciliationTargets(api, 'workflow_dispatch', e),
+    [1, 2]
+  );
+  assert.deepEqual(await reconciliationTargets(api, 'issue_comment', e), []);
+  assert.deepEqual(
+    await reconciliationTargets(api, 'push', { ...e, ref: 'refs/tags/v1' }),
+    []
+  );
+  assert.deepEqual(
+    await reconciliationTargets(api, 'schedule', {
+      repository: { full_name: 'other/repo' },
+    }),
+    []
+  );
+});
+
+test('base advancement withdraws an already-published label even when the head stays fixed', async () => {
+  const api = new FakeGitHub();
+  await publish(api, 6794, expected(api.context), report('agent-eligible'));
+  const count = api.writes.length;
+  assert.equal(await reconcile(api, 6794), false);
+  assert.equal(api.writes.length, count);
+  api.context.pr.base.sha = OTHER;
+  assert.equal(await reconcile(api, 6794), true);
+  assert.equal(api.context.pr.head.sha, HEAD);
+  assert.deepEqual(api.context.pr.labels, []);
+  assert.match(
+    api.context.conversation.find((c) => c.body.startsWith(SUMMARY)).body,
+    /incomplete/
+  );
+  const after = api.writes.length;
+  assert.equal(await reconcile(api, 6794), false);
+  assert.equal(api.writes.length, after);
+});
+
+test('reconciliation rechecks publication state and preserves fresh routing and human requirements', async () => {
+  const api = new FakeGitHub();
+  // Discovery happened before a new assessment completed on the new base.
+  api.context.pr.base.sha = OTHER;
+  await publish(api, 6794, expected(api.context), report('agent-eligible'));
+  assert.equal(await reconcile(api, 6794), false);
+  api.context.pr.labels.push(
+    { name: 'review:human-required' },
+    { name: 'bug' }
+  );
+  assert.equal(await reconcile(api, 6794), true);
+  assert.deepEqual(api.context.pr.labels, [
+    { name: 'review:human-required' },
+    { name: 'bug' },
+  ]);
+});
+
+test('routing without a trusted revision record is withdrawn conservatively', async () => {
+  for (const login of ['contributor', 'github-actions[bot]']) {
+    const api = new FakeGitHub();
+    api.context.pr.labels = [
+      { name: 'review:agent-work-needed' },
+      { name: 'review:human-required' },
+    ];
+    api.context.conversation.push({
+      id: 100,
+      user: { login },
+      body:
+        login === 'contributor'
+          ? render(report('agent-work-needed'), expected(api.context), true)
+          : `${SUMMARY}\n<!-- tlon-pr-triage-revision:v1 malformed -->`,
+    });
+    assert.equal(await reconcile(api, 6794), true);
+    assert.deepEqual(api.context.pr.labels, [
+      { name: 'review:human-required' },
+    ]);
+  }
+});
+
 test('forks, non-writers, and outdated bot events never publish or spend inference', async () => {
   for (const mutate of [
     (api) => {
@@ -378,8 +501,7 @@ test('drafts, closure and review start invalidate routing but do not analyze', a
     const e = event(state === 'running' ? 'issue_comment' : undefined);
     if (state === 'draft') api.context.pr.draft = true;
     if (state === 'closed') api.context.pr.state = 'closed';
-    if (state === 'running')
-      e.comment.body = `${CODEX_SUMMARY} {"headSha":"${HEAD}","status":"in_progress"}`;
+    if (state === 'running') e.comment.body = codexState(HEAD, 'in_progress');
     assert.equal(
       await gate(
         api,
@@ -416,6 +538,37 @@ test('snapshot includes review bodies and replies but excludes our own output/jo
   assert.equal(snapshot.checks.length, 1);
   api.context.pr.changed_files = 2;
   await assert.rejects(collect(api, 6794), /Incomplete PR file list/);
+});
+
+test('tooling check failures remain visible and invalidate the evidence fingerprint', async () => {
+  const api = new FakeGitHub();
+  api.context.checks.push({
+    id: 41,
+    name: 'PR triage tooling tests',
+    head_sha: HEAD,
+    status: 'completed',
+    conclusion: 'success',
+  });
+  for (const name of [
+    'PR triage gate',
+    'PR triage assessment',
+    'PR triage publication',
+  ])
+    api.context.checks.push({ name, status: 'in_progress' });
+  const before = await collect(api, 6794);
+  assert.deepEqual(
+    before.checks.map((c) => c.name),
+    ['Tests', 'PR triage tooling tests']
+  );
+  api.context.checks.find((c) => c.id === 41).conclusion = 'failure';
+  const after = await collect(api, 6794);
+  assert.equal(after.checks.find((c) => c.id === 41).conclusion, 'failure');
+  assert.notEqual(fingerprint(before), fingerprint(after));
+  await assert.rejects(
+    publish(api, 6794, expected(before), report('agent-eligible')),
+    /Evidence changed/
+  );
+  assert.equal(api.writes.length, 0);
 });
 
 test('GitHub pagination collects all pages and fails on a truncated check collection', async () => {
@@ -958,16 +1111,79 @@ test('a push during label publication removes the stale agent label', async () =
   assert.deepEqual(api.context.pr.labels, []);
 });
 
-test('pending or old Codex summaries cannot support an eligible result', () => {
+test('missing, malformed, pending or old code reviews cannot support eligibility', () => {
   for (const body of [
-    `${CODEX_SUMMARY} {"headSha":"${HEAD}","status":"in_progress"}`,
-    `${CODEX_SUMMARY} {"headSha":"${OTHER}","status":"completed"}`,
+    null,
+    codexState(HEAD, 'in_progress'),
+    codexState(OTHER),
+    `${CODEX_SUMMARY}\n<!-- codex-security-review:v1 {"headSha":"${HEAD}","status":"completed"} -->`,
+    `${CODEX_SUMMARY}\n<!-- codex-review-state:v1 {broken} -->`,
+    `${CODEX_SUMMARY}\n<!-- codex-review-state:v1 null -->`,
+    codexState() + '\n' + codexState(),
   ]) {
     const context = fixture();
-    context.conversation[0].body = body;
+    if (body === null) context.conversation = [];
+    else context.conversation[0].body = body;
     assert.throws(
       () => validateReport(report('agent-eligible'), context),
       /Codex review/
+    );
+  }
+});
+
+test('code-review completion is independent of a missing or stale security block', () => {
+  for (const body of [
+    codexState(),
+    codexState().split('\n<!-- codex-security-review:v1')[0],
+  ]) {
+    const context = fixture();
+    context.conversation[0].body = body;
+    validateReport(report('agent-eligible'), context);
+    const e = event('issue_comment');
+    e.comment.body = body;
+    assert.deepEqual(trigger('issue_comment', e), {
+      number: 6794,
+      analyze: true,
+      reviewedHead: HEAD,
+    });
+  }
+});
+
+test('completed security review cannot mask a pending code review in publication', async () => {
+  const api = new FakeGitHub();
+  api.context.conversation[0].body = codexState(HEAD, 'in_progress').replaceAll(
+    OTHER,
+    HEAD
+  );
+  await assert.rejects(
+    publish(api, 6794, expected(api.context), report('agent-eligible')),
+    /Codex review/
+  );
+  assert.equal(api.writes.length, 0);
+});
+
+test('a stale human publication retains human requirements until a maintainer clears them', async () => {
+  for (const existing of [false, true]) {
+    const api = new FakeGitHub();
+    if (existing) api.context.pr.labels.push({ name: 'review:human-required' });
+    const exp = expected(api.context);
+    api.beforeRequest = (endpoint, method) => {
+      if (method === 'POST' && endpoint.endsWith('/issues/6794/labels'))
+        api.context.pr.head.sha = OTHER;
+    };
+    await assert.rejects(
+      publish(api, 6794, exp, report('human-required')),
+      /PR changed/
+    );
+    assert.ok(
+      api.context.pr.labels.some((l) => l.name === 'review:human-required')
+    );
+    assert.ok(
+      !api.writes.some(
+        (w) =>
+          w.method === 'DELETE' &&
+          w.endpoint.endsWith('review%3Ahuman-required')
+      )
     );
   }
 });

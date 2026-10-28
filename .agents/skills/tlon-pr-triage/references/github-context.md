@@ -58,7 +58,11 @@ Codex's edited summary comment and the reviewed head SHA. Inspect that parser
 when completion status matters rather than guessing from timestamps. Do not run
 the watcher for a one-off assessment: it is designed to wait for review rounds.
 If review is still running, identify the findings assessed so far and mark bot
-coverage pending. No findings yet is not a completed clean review.
+coverage pending. No findings yet is not a completed clean review. In the
+versioned `codex-review-state:v1` marker, read `code_review.status` and
+`code_review.commit_sha` together. A completed security review or its separate
+`headSha` marker does not establish code-review completion. Missing, malformed,
+or stale code-review state blocks hosted eligibility.
 
 Inspect check names and their revisions, including failed, pending, skipped, and
 missing checks. A successful aggregate or a job name alone does not prove that a

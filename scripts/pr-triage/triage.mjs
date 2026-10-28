@@ -16,6 +16,12 @@ export const SUMMARY = '<!-- tlon-pr-triage:v1 -->';
 export const CODEX_SUMMARY = '<!-- codex-pull-request-review-summary -->';
 const INLINE = '<!-- tlon-pr-triage-decision:v1:';
 const SUGGESTION = '<!-- tlon-pr-triage-suggestion:v1:';
+const REVISION = '<!-- tlon-pr-triage-revision:v1 ';
+const SELF_CHECKS = new Set([
+  'PR triage gate',
+  'PR triage assessment',
+  'PR triage publication',
+]);
 const ROUTES = {
   'human-required': ['review:human-required', 'B60205'],
   'agent-work-needed': ['review:agent-work-needed', 'FBCA04'],
@@ -37,6 +43,25 @@ const ownInline = (c) =>
   [INLINE, SUGGESTION].some((marker) => c.body?.startsWith(marker));
 const output = (name, value) =>
   appendFileSync(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
+
+function markerJson(body, marker) {
+  const parts = body?.split(marker);
+  if (parts?.length !== 2) return null;
+  const end = parts[1].indexOf('-->');
+  if (end < 0) return null;
+  try {
+    return JSON.parse(parts[1].slice(0, end));
+  } catch {
+    return null;
+  }
+}
+
+function codeReview(body) {
+  const review = markerJson(body, '<!-- codex-review-state:v1 ')?.code_review;
+  return sha(review?.commit_sha) && typeof review.status === 'string'
+    ? review
+    : null;
+}
 
 export function parseUrl(input) {
   const url = new URL(input);
@@ -64,6 +89,15 @@ export function trigger(eventName, event) {
     return { number, analyze: true };
   }
   if (eventName === 'pull_request_target' && event.pull_request) {
+    if (['labeled', 'unlabeled'].includes(event.action)) {
+      if (event.label?.name !== ROUTES['human-required'][0]) return null;
+      return {
+        number: event.pull_request.number,
+        analyze: false,
+        reason:
+          'The human-review requirement changed. Rerun triage to establish current routing.',
+      };
+    }
     return {
       number: event.pull_request.number,
       analyze: !['closed', 'converted_to_draft'].includes(event.action),
@@ -77,13 +111,11 @@ export function trigger(eventName, event) {
     !event.comment.body?.includes(CODEX_SUMMARY)
   )
     return null;
-  const body = event.comment.body;
-  const head = body.match(/"headSha"\s*:\s*"([a-f0-9]{40})"/)?.[1];
-  const status = body.match(/"status"\s*:\s*"([^"]+)"/)?.[1];
+  const review = codeReview(event.comment.body);
   return {
     number: event.issue.number,
-    analyze: status === 'completed' && sha(head),
-    reviewedHead: head,
+    analyze: review?.status === 'completed',
+    reviewedHead: review?.commit_sha,
   };
 }
 
@@ -188,14 +220,66 @@ export async function gate(api, eventName, event) {
   await upsertSummary(
     api,
     number,
-    `${SUMMARY}\n## PR triage — ${analyze ? 'pending' : 'inactive'}\n\n` +
+    `${SUMMARY}\n## PR triage — ${analyze ? 'pending' : target.reason ? 'incomplete' : 'inactive'}\n\n` +
       `Head: \`${pr.head.sha}\`. Previous automatic routing is no longer current.\n\n` +
       (analyze
         ? `[Analysis in progress](${runUrl()}).`
-        : 'Waiting for an open, ready PR and a completed Codex review or a new triage run.') +
+        : (target.reason ??
+          'Waiting for an open, ready PR and a completed Codex review or a new triage run.')) +
       '\n\nHuman-review requirements are preserved. This is not merge approval.'
   );
   return analyze ? { number, head: pr.head.sha } : null;
+}
+
+export async function reconciliationTargets(api, eventName, event) {
+  if (
+    event.repository?.full_name !== REPO ||
+    !['push', 'schedule', 'workflow_dispatch'].includes(eventName)
+  )
+    return [];
+  if (eventName === 'push' && !event.ref?.startsWith('refs/heads/')) return [];
+  const base =
+    eventName === 'push' ? event.ref.slice('refs/heads/'.length) : null;
+  const pulls = await api.pages(`repos/${REPO}/pulls?state=open`);
+  return pulls
+    .filter(
+      (pr) =>
+        pr.head.repo?.full_name === REPO &&
+        (!base || pr.base.ref === base) &&
+        pr.labels.some((l) => VOLATILE.includes(l.name))
+    )
+    .map((pr) => pr.number);
+}
+
+// Runs under the same per-PR concurrency group as analysis/publication.
+// This only withdraws obsolete routing; it never spends inference credits.
+export async function reconcile(api, number) {
+  const pr = await api.request(prPath(number));
+  if (pr.head.repo?.full_name !== REPO) return false;
+  const labels = new Set(pr.labels.map((l) => l.name));
+  if (!VOLATILE.some((label) => labels.has(label))) return false;
+  const comments = await api.pages(`${issuePath(number)}/comments`);
+  const revision = markerJson(comments.find(ownSummary)?.body, REVISION);
+  if (
+    pr.state === 'open' &&
+    !pr.draft &&
+    revision?.head === pr.head.sha &&
+    revision?.base === pr.base.sha &&
+    !(
+      labels.has(ROUTES['agent-eligible'][0]) &&
+      labels.has(ROUTES['human-required'][0])
+    )
+  )
+    return false;
+  for (const label of VOLATILE) await removeLabel(api, number, label);
+  await upsertSummary(
+    api,
+    number,
+    `${SUMMARY}\n## PR triage — incomplete\n\n` +
+      `Head: \`${pr.head.sha}\`. The previous routing no longer matches the current head, base, or human-review requirement.\n\n` +
+      'Automatic agent labels were removed. Rerun triage when ready; human-review requirements remain in force.'
+  );
+  return true;
 }
 
 export async function collect(api, number) {
@@ -230,7 +314,7 @@ export async function collect(api, number) {
           r.user?.login === 'github-actions[bot]' && r.body?.startsWith(SUMMARY)
         )
     ),
-    checks: checks.filter((c) => !c.name.startsWith('PR triage')),
+    checks: checks.filter((c) => !SELF_CHECKS.has(c.name)),
     statuses,
   };
 }
@@ -438,13 +522,11 @@ export function validateReport(report, context) {
         a.updated_at ?? a.created_at ?? ''
       )
     )[0];
-    if (
-      latest &&
-      (!/"status"\s*:\s*"completed"/.test(latest.body) ||
-        latest.body.match(/"headSha"\s*:\s*"([a-f0-9]{40})"/)?.[1] !==
-          report.headSha)
-    )
-      throw new Error('Codex review is pending or belongs to another revision');
+    const review = codeReview(latest?.body);
+    if (review?.status !== 'completed' || review.commit_sha !== report.headSha)
+      throw new Error(
+        'Codex review is missing, pending or belongs to another revision'
+      );
   }
   const known = new Set(
     [...context.comments, ...context.reviews, ...context.conversation]
@@ -579,7 +661,7 @@ export function render(report, expected, retainedHuman) {
   const botFindings = report.findings.filter((f) => botUrls.has(f.url));
   const url = runUrl();
   return (
-    `${SUMMARY}\n## PR triage — ${report.outcome}\n\n` +
+    `${SUMMARY}\n${REVISION}${JSON.stringify({ head: report.headSha, base: expected.base })} -->\n## PR triage — ${report.outcome}\n\n` +
     `Head: \`${report.headSha}\` · Baseline: \`${expected.baseline}\`\n\n` +
     `${safeText(report.summary)}\n\n` +
     `**Complexity:** ${report.complexity.level} · **Sensitivity:** ${report.sensitivity.level} · **Evidence:** ${report.evidence}\n\n` +
@@ -826,6 +908,16 @@ export async function publish(api, number, expected, report) {
 async function main() {
   const command = process.argv[2];
   const api = new GitHub();
+  if (command === 'reconciliation-targets') {
+    const numbers = await reconciliationTargets(
+      api,
+      process.env.GITHUB_EVENT_NAME,
+      readJson(process.env.GITHUB_EVENT_PATH)
+    );
+    output('numbers', JSON.stringify(numbers));
+    output('policy', git(['rev-parse', 'HEAD']));
+    return;
+  }
   if (command === 'gate') {
     const target = await gate(
       api,
@@ -843,6 +935,10 @@ async function main() {
   const number = Number(process.env.TRIAGE_PR);
   if (!Number.isSafeInteger(number) || number < 1)
     throw new Error('Invalid PR');
+  if (command === 'reconcile') {
+    console.log(await reconcile(api, number));
+    return;
+  }
   if (command === 'collect') {
     const context = await collect(api, number);
     if (context.pr.head.sha !== process.env.TRIAGE_HEAD)
@@ -893,7 +989,9 @@ async function main() {
     }
     return;
   }
-  throw new Error('Expected gate, collect, or publish');
+  throw new Error(
+    'Expected gate, collect, publish, reconciliation-targets, or reconcile'
+  );
 }
 
 if (
