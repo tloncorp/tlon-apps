@@ -28,6 +28,7 @@ import { ensureClient, normalizeShip } from './api-client';
 import {
   formatPostId,
   isHelpArg,
+  mapWithConcurrency,
   parsePositiveInteger,
   printErrorAndExit,
   printHelpAndExit,
@@ -333,25 +334,6 @@ async function getSearchTargets(): Promise<SearchTarget[]> {
   return [...chats, ...groupChannels];
 }
 
-async function mapConcurrently<T, R>(
-  items: T[],
-  concurrency: number,
-  fn: (item: T) => Promise<R>
-): Promise<R[]> {
-  const results: R[] = new Array(items.length);
-  let next = 0;
-  const worker = async () => {
-    while (next < items.length) {
-      const index = next++;
-      results[index] = await fn(items[index]);
-    }
-  };
-  await Promise.all(
-    Array.from({ length: Math.min(concurrency, items.length) }, worker)
-  );
-  return results;
-}
-
 // Search every chat and DM, keeping the newest `perChannel` hits from each
 // channel and the newest `limit` overall, grouped by channel.
 async function searchAllMessages(
@@ -362,7 +344,7 @@ async function searchAllMessages(
   const targets = await getSearchTargets();
   console.log(`Searching "${query}" in ${targets.length} channels and DMs\n`);
 
-  const results = await mapConcurrently(
+  const results = await mapWithConcurrency(
     targets,
     SEARCH_ALL_CONCURRENCY,
     async (target): Promise<SearchResult> => {
