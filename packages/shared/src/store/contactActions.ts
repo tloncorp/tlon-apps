@@ -235,16 +235,23 @@ export async function removeContact(contactId: string) {
   logger.trackEvent(AnalyticsEvent.ActionContactRemoved, { count: 1 });
   const previous = await db.getContact({ id: contactId });
   if (!isCurrent()) return;
-  const linked = await db.getSystemContactsBatchByContactId([contactId]);
+  let suggest = false;
+  try {
+    const linked = await db.getSystemContactsBatchByContactId([contactId]);
+    if (!isCurrent()) return;
+    const liveBook = await getSystemContacts();
+    if (!isCurrent()) return;
+    const liveNumbers = new Set(
+      liveBook.map((c) => c.phoneNumber).filter(Boolean)
+    );
+    suggest = linked.some(
+      (c) => !!c.phoneNumber && liveNumbers.has(c.phoneNumber)
+    );
+  } catch (e) {
+    if (!isCurrent()) return;
+    logger.trackError('Error looking up removed contact in address book', e);
+  }
   if (!isCurrent()) return;
-  const liveBook = await getSystemContacts();
-  if (!isCurrent()) return;
-  const liveNumbers = new Set(
-    liveBook.map((c) => c.phoneNumber).filter(Boolean)
-  );
-  const suggest = linked.some(
-    (c) => !!c.phoneNumber && liveNumbers.has(c.phoneNumber)
-  );
   await db.updateContact({
     id: contactId,
     isContact: false,

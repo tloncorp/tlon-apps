@@ -789,3 +789,41 @@ test.each([
     });
   }
 );
+
+test('address-book read failure still removes without creating a suggestion', async () => {
+  mocks.getSystemContacts.mockRejectedValueOnce(
+    new Error('native read failed')
+  );
+  await removeContact(id);
+  expect(api.poke).toHaveBeenCalledWith({
+    app: 'contacts',
+    mark: 'contact-remove',
+    json: { kip: id, suggest: false },
+  });
+  expect(saved.has(id)).toBe(false);
+  expect(removed.get(id)).toBe(false);
+  expect(await db.getContact({ id })).toMatchObject({
+    isContact: false,
+    isContactSuggestion: false,
+  });
+  await addContacts([id], { source: 'discovery' });
+  expect(saved.has(id)).toBe(false);
+  expect(await db.getContact({ id })).toMatchObject({
+    isContact: false,
+    isContactSuggestion: true,
+  });
+});
+
+test('failed Remove after address-book read failure restores saved contact', async () => {
+  mocks.getSystemContacts.mockRejectedValueOnce(
+    new Error('native read failed')
+  );
+  vi.mocked(api.poke).mockRejectedValueOnce(new Error('offline'));
+  await removeContact(id);
+  expect(saved.has(id)).toBe(true);
+  expect(removed.has(id)).toBe(false);
+  expect(await db.getContact({ id })).toMatchObject({
+    isContact: true,
+    isContactSuggestion: false,
+  });
+});
