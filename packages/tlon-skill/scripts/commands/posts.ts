@@ -1279,13 +1279,24 @@ async function unreactToPost(
   });
 }
 
+// The host acks a %del for an id it has never seen, so without this read a
+// wrong id (a sent-time id in place of the host's, say) prints success while
+// the post stays up.
 async function deletePost(
   parsed: { channelId: string; postId: string },
   deps: PostsDeps
 ): Promise<void> {
+  const nest = parsed.channelId;
+  const id = formatPostId(parsed.postId);
+  const existing = await fetchExistingPost(nest, id, deps);
+  if (!existing) {
+    throw commandError(
+      `Could not read ${id} in ${nest}; nothing was deleted. The id may not be the post's: read the channel (\`messages channel ${nest}\`) and use its ID line.`
+    );
+  }
   await deps.postsApi.deletePost({
-    channelId: parsed.channelId,
-    postId: formatPostId(parsed.postId),
+    channelId: nest,
+    postId: id,
     authorId: deps.getCurrentUserId(),
   });
 }
