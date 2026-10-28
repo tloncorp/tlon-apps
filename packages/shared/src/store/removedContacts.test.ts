@@ -749,3 +749,43 @@ test('membership-only writes preserve profile overrides and attestation links', 
   expect(contact?.customNickname).toBe('Chosen name');
   expect(contact?.attestations).toHaveLength(1);
 });
+
+test.each([
+  ['single', 'single'],
+  ['single', 'bulk'],
+  ['bulk', 'single'],
+  ['bulk', 'bulk'],
+] as const)(
+  'a pending %s Add still rolls back after a duplicate %s Add',
+  async (initial, duplicate) => {
+    await removeContact(id);
+    let fail!: () => void;
+    let started!: () => void;
+    const waiting = new Promise<void>((_resolve, reject) => {
+      fail = () => reject(new Error('offline'));
+    });
+    const sent = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    vi.mocked(api.poke).mockImplementationOnce(async () => {
+      started();
+      await waiting;
+      return 1;
+    });
+    const adding = initial === 'single' ? addContact(id) : addContacts([id]);
+    await sent;
+    expect(await db.getContact({ id })).toMatchObject({
+      isContact: true,
+      isContactSuggestion: false,
+    });
+    if (duplicate === 'single') await addContact(id);
+    else await addContacts([id]);
+    fail();
+    await adding;
+    expect(saved.has(id)).toBe(false);
+    expect(await db.getContact({ id })).toMatchObject({
+      isContact: false,
+      isContactSuggestion: true,
+    });
+  }
+);

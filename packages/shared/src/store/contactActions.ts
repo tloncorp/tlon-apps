@@ -14,11 +14,12 @@ import { captureContactIntent, recordContactIntent } from './contactIntent';
 const logger = createDevLogger('ContactActions', false);
 
 export async function addContact(contactId: string) {
+  const wasCurrent = captureContactIntent(contactId);
+  const previous = await db.getContact({ id: contactId });
+  if (!wasCurrent() || previous?.isContact) return;
   recordContactIntent(contactId);
   const isCurrent = captureContactIntent(contactId);
   logger.trackEvent(AnalyticsEvent.ActionContactAdded, { count: 1 });
-  const previous = await db.getContact({ id: contactId });
-  if (!isCurrent() || previous?.isContact) return;
   const update = {
     id: contactId,
     isContact: true,
@@ -57,7 +58,6 @@ export async function addContacts(
   }: { source?: 'manual' | 'discovery'; contactState?: api.ContactState } = {}
 ): Promise<AddContactsResult> {
   const contacts = [...new Set(contactIds)];
-  if (source === 'manual') contacts.forEach(recordContactIntent);
   const intents = new Map(
     contacts.map((id) => [
       id,
@@ -76,9 +76,23 @@ export async function addContacts(
   if (!contacts.some(isCurrent))
     return { addedContactIds: [], failedContactIds: [] };
   const previousById = new Map(previousContacts.map((c) => [c.id, c]));
+  const needsAdd = (id: string) =>
+    isCurrent(id) && (source !== 'manual' || !previousById.get(id)?.isContact);
+  if (source === 'manual') {
+    for (const id of contacts) {
+      if (!needsAdd(id)) continue;
+      recordContactIntent(id);
+      intents.set(id, captureContactIntent(id));
+    }
+  }
+  if (!contacts.some(needsAdd))
+    return {
+      addedContactIds: contacts.filter(isCurrent),
+      failedContactIds: [],
+    };
   const rollback = (contactIds: string[]) =>
     Promise.all(
-      contactIds.filter(isCurrent).map((id) =>
+      contactIds.filter(needsAdd).map((id) =>
         db.updateContact({
           id,
           isContact: previousById.get(id)?.isContact ?? false,
@@ -106,7 +120,7 @@ export async function addContacts(
     return { addedContactIds: [], failedContactIds: [] };
   await Promise.all(
     contacts
-      .filter((id) => isCurrent(id) && !removedContactIds.has(id))
+      .filter((id) => needsAdd(id) && !removedContactIds.has(id))
       .map((id) =>
         db.applyContactMembership({
           contact: { id, isContact: true, isContactSuggestion: false },
@@ -128,7 +142,7 @@ export async function addContacts(
     existingContacts.filter((c) => c.isContact).map((c) => c.id)
   );
   const newContacts = contacts.filter(
-    (id) => isCurrent(id) && !existingIds.has(id)
+    (id) => needsAdd(id) && !existingIds.has(id)
   );
   const results = await Promise.allSettled(
     newContacts.map((id) =>
@@ -186,7 +200,7 @@ export async function addContacts(
     }
   } else {
     await Promise.all(
-      addedContactIds.filter(isCurrent).map((id) =>
+      addedContactIds.filter(needsAdd).map((id) =>
         db.updateContact({
           id,
           isContact: true,
