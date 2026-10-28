@@ -52,7 +52,10 @@ beforeEach(async () => {
     nextSalt: '0vnext',
   });
   vi.spyOn(api, 'getContacts').mockResolvedValue([]);
-  vi.spyOn(api, 'addUserContacts').mockResolvedValue([]);
+  vi.spyOn(api, 'addContact').mockResolvedValue(1);
+  vi.spyOn(api, 'addUserContacts').mockImplementation((ids) =>
+    Promise.all(ids.map((id) => api.addContact(id)))
+  );
   vi.spyOn(api, 'updateContactMetadata').mockResolvedValue(1);
 });
 afterEach(() => {
@@ -80,7 +83,7 @@ test('overlapping discovery waits through notification before reading the next c
     '0vnext',
     JSON.stringify([phoneNumber])
   );
-  expect(api.addUserContacts).toHaveBeenCalledOnce();
+  expect(api.addContact).toHaveBeenCalledOnce();
   expect(handler).toHaveBeenCalledOnce();
 });
 
