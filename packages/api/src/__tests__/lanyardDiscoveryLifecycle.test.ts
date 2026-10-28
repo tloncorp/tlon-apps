@@ -1,18 +1,26 @@
-import { jam } from '@urbit/nockjs';
 import { afterEach, expect, test, vi } from 'vitest';
 
 // The test setup initializes the client; reload it so the serializer fault is injected.
 vi.hoisted(() => vi.resetModules());
 
-vi.mock('@urbit/nockjs', async (original) => {
-  const actual = await original<typeof import('@urbit/nockjs')>();
-  return { ...actual, jam: vi.fn(actual.jam) };
+vi.mock('../http-api/nounEncoding', async (original) => {
+  const actual = await original<typeof import('../http-api/nounEncoding')>();
+  return { ...actual, jamToUw: vi.fn(actual.jamToUw) };
 });
 
 import { discoverContacts } from '../client/lanyardApi';
-import { internalConfigureClient, internalRemoveClient } from '../client/urbit';
-import type { PokeHandlers, SubscriptionRequestInterface } from '../http-api';
+import {
+  internalConfigureClient,
+  internalRemoveClient,
+  poke,
+} from '../client/urbit';
+import {
+  AuthError,
+  type PokeHandlers,
+  type SubscriptionRequestInterface,
+} from '../http-api';
 import { Urbit } from '../http-api/Urbit';
+import { jamToUw } from '../http-api/nounEncoding';
 import type { WhoseBulkResponseEvent } from '../urbit/lanyard';
 
 function deferred<T>() {
@@ -53,13 +61,14 @@ function setup(implementation?: typeof fetch) {
 afterEach(() => {
   internalRemoveClient();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   vi.useRealTimers();
 });
 
 test('a serialization failure rejects promptly and removes the live watch and poke', async () => {
   const { state, fetch } = setup();
   const failure = new RangeError('Maximum BigInt size exceeded');
-  vi.mocked(jam).mockImplementationOnce(() => {
+  vi.mocked(jamToUw).mockImplementationOnce(() => {
     throw failure;
   });
   let outcome: unknown;
@@ -67,7 +76,7 @@ test('a serialization failure rejects promptly and removes the live watch and po
     outcome = error;
   });
   await vi.advanceTimersByTimeAsync(0);
-  expect(vi.mocked(jam)).toHaveBeenCalled();
+  expect(vi.mocked(jamToUw)).toHaveBeenCalled();
   expect(outcome).toBe(failure);
   expect(state.outstandingSubscriptions.size).toBe(0);
   expect(state.outstandingPokes.size).toBe(0);
@@ -238,4 +247,78 @@ test('a nonce mismatch rejects instead of returning a null cursor', async () => 
   );
   expect(await outcome).toEqual(new Error('Contact discovery nonce mismatch'));
   expect(state.outstandingPokes.size).toBe(0);
+});
+
+test('the deadline settles during shared reauth without cancelling auth or starting late discovery writes', async () => {
+  const { client, state, fetch: channelFetch } = setup();
+  const loginRequests: {
+    response: ReturnType<typeof deferred<Response>>;
+    signal: AbortSignal | null | undefined;
+  }[] = [];
+  const loginFetch = vi.fn(
+    async (_url: RequestInfo | URL, options?: RequestInit) => {
+      const response = deferred<Response>();
+      const signal = options?.signal;
+      signal?.addEventListener('abort', () => response.reject(signal.reason), {
+        once: true,
+      });
+      loginRequests.push({ response, signal });
+      return response.promise;
+    }
+  );
+  vi.stubGlobal('fetch', loginFetch);
+  const initiatingPoke = vi
+    .spyOn(client, 'poke')
+    .mockRejectedValueOnce(new AuthError('invalid session'))
+    .mockResolvedValue(7);
+  const watch = vi.spyOn(client, 'subscribeOnce');
+  const send = vi.spyOn(client, 'pokeNoun');
+  internalConfigureClient({
+    shipName: '~sampel-palnet',
+    shipUrl: 'http://example.test',
+    client,
+    getCode: async () => 'code',
+  });
+  const initiatingRequest = poke({
+    app: 'activity',
+    mark: 'activity-action-2',
+    json: {},
+  });
+  await vi.advanceTimersByTimeAsync(0);
+  expect(loginRequests).toHaveLength(1);
+  let outcome: unknown;
+  const discovery = discoverContacts(['+12025550123']).then(
+    (value) => {
+      outcome = value;
+    },
+    (error) => {
+      outcome = error;
+    }
+  );
+  await vi.advanceTimersByTimeAsync(60000);
+  const outcomeAtDeadline = outcome;
+  const pendingLogin = loginRequests.at(-1)!;
+  const authWasStillActive = !pendingLogin.signal?.aborted;
+  const timersWhileAuthContinues = vi.getTimerCount();
+  pendingLogin.response.resolve(
+    new Response(null, {
+      status: 200,
+      headers: { 'set-cookie': 'urbauth=refreshed; Path=/' },
+    })
+  );
+  await vi.advanceTimersByTimeAsync(0);
+  await expect(initiatingRequest).resolves.toBe(7);
+  await discovery;
+
+  expect(outcomeAtDeadline).toBe('timeout');
+  expect(authWasStillActive).toBe(true);
+  expect(timersWhileAuthContinues).toBe(1);
+  expect(client.cookie).toBe('urbauth=refreshed');
+  expect(initiatingPoke).toHaveBeenCalledTimes(2);
+  expect(watch).not.toHaveBeenCalled();
+  expect(send).not.toHaveBeenCalled();
+  expect(channelFetch).not.toHaveBeenCalled();
+  expect(state.outstandingSubscriptions.size).toBe(0);
+  expect(state.outstandingPokes.size).toBe(0);
+  expect(vi.getTimerCount()).toBe(0);
 });

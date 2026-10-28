@@ -92,7 +92,13 @@ export async function discoverContacts(
 
     const cancellation = new AbortController();
     const deadline = createTimeoutSignal(60000);
-    const onTimeout = () => cancellation.abort('timeout');
+    let onTimeout!: () => void;
+    const timedOut = new Promise<never>((_resolve, reject) => {
+      onTimeout = () => {
+        cancellation.abort('timeout');
+        reject('timeout');
+      };
+    });
     deadline.addEventListener('abort', onTimeout, { once: true });
     try {
       const queryResponseSub = subscribeOnceRequest(
@@ -108,9 +114,12 @@ export async function discoverContacts(
       );
       // Handle both rejections immediately: the watch can fail before the PUT
       // settles, and a failed PUT cannot produce a result for this nonce.
-      const [queryResponse] = await Promise.all([
-        queryResponseSub,
-        pokeNounRequest(lanyard.query)(noun, { signal: cancellation.signal }),
+      const [queryResponse] = await Promise.race([
+        Promise.all([
+          queryResponseSub,
+          pokeNounRequest(lanyard.query)(noun, { signal: cancellation.signal }),
+        ]),
+        timedOut,
       ]);
       logger.log('discoverContacts: queryResponse', queryResponse);
 

@@ -858,6 +858,9 @@ export async function subscribeOnce<T>(
   if (config.session?.pendingAuth) {
     await config.session.pendingAuth;
   }
+  if (requestConfig?.signal?.aborted) {
+    throw requestConfig.signal.reason ?? new Error('Request aborted');
+  }
   logger.log('subscribing once to', printEndpoint(endpoint));
 
   // Both the first attempt and the post-reauth retry go through here, so a
