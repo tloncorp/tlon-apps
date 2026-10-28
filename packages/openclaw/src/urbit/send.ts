@@ -3,6 +3,7 @@ import {
   deletePost as apiDeletePost,
   getChannelPosts as apiGetChannelPosts,
   getPostWithReplies as apiGetPostWithReplies,
+  getTextContent,
   removeReaction as apiRemoveReaction,
   sendPost as apiSendPost,
   sendReply as apiSendReply,
@@ -203,6 +204,7 @@ async function findHostPostId(
   nest: string,
   fromShip: string,
   sentAt: number,
+  text: string,
   parentId: string | undefined
 ): Promise<string | undefined> {
   if (parentId) {
@@ -212,7 +214,7 @@ async function findHostPostId(
       // Only DM lookups read the author; channel posts are found by nest and id.
       authorId: '',
     });
-    return onlyMatch(parent.replies ?? [], fromShip, sentAt);
+    return onlyMatch(parent.replies ?? [], fromShip, sentAt, text);
   }
   const { posts } = await apiGetChannelPosts({
     channelId: nest,
@@ -220,25 +222,41 @@ async function findHostPostId(
     count: 20,
     skipGapFill: true,
   });
-  return onlyMatch(posts, fromShip, sentAt);
+  return onlyMatch(posts, fromShip, sentAt, text);
 }
 
-// Exactly one post may carry this author and sent time. Two would mean the
-// sent time was not unique after all (another process sending as this ship),
-// and naming either would hand the caller a post it may not have sent.
+// The post is ours only if it carries this author, this sent time and the
+// text we sent, and only one post does. The clock above keeps this process's
+// sent times apart, but the bot's CLI subprocess sends as the same ship on its
+// own clock, and the channels agent drops the second add it sees for a
+// (nest, sent) pair: the lone post with our sent time may then be the other
+// send's, and naming it would point a later edit or delete at it.
 function onlyMatch(
   posts: Array<{
     id: string;
     authorId?: string | null;
     sentAt?: number | null;
+    textContent?: string | null;
   }>,
   fromShip: string,
-  sentAt: number
+  sentAt: number,
+  text: string
 ): string | undefined {
   const matches = posts.filter(
-    (post) => post.sentAt === sentAt && isSameShip(post.authorId, fromShip)
+    (post) =>
+      post.sentAt === sentAt &&
+      isSameShip(post.authorId, fromShip) &&
+      sameText(post.textContent, text)
   );
   return matches.length === 1 ? matches[0].id : undefined;
+}
+
+// The stored text and ours come from the same extractor under different
+// layout settings (block separators, line breaks), so compare them with
+// whitespace collapsed.
+function sameText(stored: string | null | undefined, sent: string): boolean {
+  const norm = (t: string) => t.replace(/\s+/g, ' ').trim();
+  return norm(stored ?? '') === norm(sent);
 }
 
 // The message was sent before this runs, so a lookup that never finds it
@@ -248,8 +266,10 @@ async function resolveChannelPostId(
   nest: string,
   fromShip: string,
   sentAt: number,
+  story: Story,
   parentId?: string
 ): Promise<string> {
+  const text = getTextContent(story) ?? '';
   for (let attempt = 0; attempt < POST_ID_LOOKUP_ATTEMPTS; attempt++) {
     if (attempt > 0) {
       await new Promise((resolve) =>
@@ -257,7 +277,7 @@ async function resolveChannelPostId(
       );
     }
     try {
-      const id = await findHostPostId(nest, fromShip, sentAt, parentId);
+      const id = await findHostPostId(nest, fromShip, sentAt, text, parentId);
       if (id) return id;
     } catch {
       // Not readable yet, or not at all; the next attempt or the fallback.
@@ -309,7 +329,7 @@ export async function sendChannelPost({
     return reportSuccessfulChannelSend(
       {
         channel: 'tlon',
-        messageId: `${fromShip}/${await resolveChannelPostId(nest, fromShip, sentAt, formattedReplyId)}`,
+        messageId: `${fromShip}/${await resolveChannelPostId(nest, fromShip, sentAt, story, formattedReplyId)}`,
         sentAt,
       },
       nest,
@@ -329,7 +349,7 @@ export async function sendChannelPost({
   return reportSuccessfulChannelSend(
     {
       channel: 'tlon',
-      messageId: `${fromShip}/${await resolveChannelPostId(nest, fromShip, sentAt)}`,
+      messageId: `${fromShip}/${await resolveChannelPostId(nest, fromShip, sentAt, story)}`,
       sentAt,
     },
     nest,

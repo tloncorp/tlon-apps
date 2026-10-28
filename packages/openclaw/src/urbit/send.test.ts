@@ -9,6 +9,14 @@ vi.mock('@urbit/aura', () => ({
   },
 }));
 
+// Stands in for the api's getTextContent in the mocks: inline text only.
+const textOf = (content: Array<{ inline?: unknown[] }>) =>
+  content
+    .map((verse) =>
+      (verse.inline ?? []).filter((x) => typeof x === 'string').join('')
+    )
+    .join(' ');
+
 describe('sendDm', () => {
   afterEach(async () => {
     const { setReplyOutputReporter } = await import('../telemetry.js');
@@ -82,9 +90,24 @@ describe('sendDm', () => {
     // author and an older one by someone else sit beside it.
     const getChannelPosts = vi.fn(async () => ({
       posts: [
-        { id: '170.141.184.507.999', authorId: '~zod', sentAt },
-        { id: '170.141.184.507.998', authorId: '~zod', sentAt: sentAt - 5 },
-        { id: '170.141.184.507.990', authorId: '~nec', sentAt },
+        {
+          id: '170.141.184.507.999',
+          authorId: '~zod',
+          sentAt,
+          textContent: 'hi',
+        },
+        {
+          id: '170.141.184.507.998',
+          authorId: '~zod',
+          sentAt: sentAt - 5,
+          textContent: 'hi',
+        },
+        {
+          id: '170.141.184.507.990',
+          authorId: '~nec',
+          sentAt,
+          textContent: 'hi',
+        },
       ],
     }));
 
@@ -93,6 +116,7 @@ describe('sendDm', () => {
       sendReply: vi.fn(),
       getChannelPosts,
       getPostWithReplies: vi.fn(),
+      getTextContent: textOf,
       addReaction: vi.fn(),
       removeReaction: vi.fn(),
       deletePost: vi.fn(),
@@ -144,8 +168,18 @@ describe('sendDm', () => {
     // The host stored both, keyed by its own clock, oldest first.
     const getChannelPosts = vi.fn(async () => ({
       posts: [
-        { id: '170.141.184.507.901', authorId: '~zod', sentAt },
-        { id: '170.141.184.507.902', authorId: '~zod', sentAt: sentAt + 1 },
+        {
+          id: '170.141.184.507.901',
+          authorId: '~zod',
+          sentAt,
+          textContent: 'one',
+        },
+        {
+          id: '170.141.184.507.902',
+          authorId: '~zod',
+          sentAt: sentAt + 1,
+          textContent: 'two',
+        },
       ],
     }));
     vi.doMock('@tloncorp/api', () => ({
@@ -153,6 +187,7 @@ describe('sendDm', () => {
       sendReply: vi.fn(),
       getChannelPosts,
       getPostWithReplies: vi.fn(),
+      getTextContent: textOf,
       addReaction: vi.fn(),
       removeReaction: vi.fn(),
       deletePost: vi.fn(),
@@ -189,8 +224,18 @@ describe('sendDm', () => {
       vi.setSystemTime(sentAt);
       const getChannelPosts = vi.fn(async () => ({
         posts: [
-          { id: '170.141.184.507.901', authorId: '~zod', sentAt },
-          { id: '170.141.184.507.902', authorId: '~zod', sentAt },
+          {
+            id: '170.141.184.507.901',
+            authorId: '~zod',
+            sentAt,
+            textContent: 'hi',
+          },
+          {
+            id: '170.141.184.507.902',
+            authorId: '~zod',
+            sentAt,
+            textContent: 'hi',
+          },
         ],
       }));
       vi.doMock('@tloncorp/api', () => ({
@@ -198,6 +243,8 @@ describe('sendDm', () => {
         sendReply: vi.fn(),
         getChannelPosts,
         getPostWithReplies: vi.fn(),
+        getTextContent: textOf,
+        getTextContent: textOf,
         addReaction: vi.fn(),
         removeReaction: vi.fn(),
         deletePost: vi.fn(),
@@ -219,6 +266,50 @@ describe('sendDm', () => {
     }
   });
 
+  it('does not claim a same-millisecond post whose text is not the one it sent', async () => {
+    // The bot's CLI subprocess posted in the same millisecond on its own
+    // clock, and the channels agent dropped this send as a duplicate of it.
+    vi.useFakeTimers();
+    try {
+      const sentAt = 1_700_000_000_000;
+      vi.setSystemTime(sentAt);
+      const getChannelPosts = vi.fn(async () => ({
+        posts: [
+          {
+            id: '170.141.184.507.601',
+            authorId: '~zod',
+            sentAt,
+            textContent: 'https://example.com/photo.jpg',
+          },
+        ],
+      }));
+      vi.doMock('@tloncorp/api', () => ({
+        sendPost: vi.fn(async () => ({})),
+        sendReply: vi.fn(),
+        getChannelPosts,
+        getPostWithReplies: vi.fn(),
+        getTextContent: textOf,
+        addReaction: vi.fn(),
+        removeReaction: vi.fn(),
+        deletePost: vi.fn(),
+        configureClient: vi.fn(),
+      }));
+
+      const { sendChannelPost } = await import('./send.js');
+      const pending = sendChannelPost({
+        fromShip: '~zod',
+        nest: 'heap/~zod/gallery',
+        story: [{ inline: ['the message that was dropped'] }],
+      });
+      await vi.advanceTimersByTimeAsync(10_000);
+      const result = await pending;
+
+      expect(result.messageId).toBe('~zod/mocked-ud');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('falls back to the sent-time id when the host never shows the post', async () => {
     vi.useFakeTimers();
     try {
@@ -228,6 +319,8 @@ describe('sendDm', () => {
         sendReply: vi.fn(),
         getChannelPosts,
         getPostWithReplies: vi.fn(),
+        getTextContent: textOf,
+        getTextContent: textOf,
         addReaction: vi.fn(),
         removeReaction: vi.fn(),
         deletePost: vi.fn(),
@@ -257,7 +350,14 @@ describe('sendDm', () => {
     vi.spyOn(Date, 'now').mockReturnValue(sentAt);
     const getPostWithReplies = vi.fn(async () => ({
       id: '170.141.184.507.123',
-      replies: [{ id: '170.141.184.507.777', authorId: '~zod', sentAt }],
+      replies: [
+        {
+          id: '170.141.184.507.777',
+          authorId: '~zod',
+          sentAt,
+          textContent: 'a comment',
+        },
+      ],
     }));
 
     vi.doMock('@tloncorp/api', () => ({
@@ -265,6 +365,7 @@ describe('sendDm', () => {
       sendReply,
       getChannelPosts: vi.fn(),
       getPostWithReplies,
+      getTextContent: textOf,
       addReaction: vi.fn(),
       removeReaction: vi.fn(),
       deletePost: vi.fn(),
@@ -311,9 +412,17 @@ describe('sendDm', () => {
       sendPost,
       sendReply,
       getChannelPosts: vi.fn(async () => ({
-        posts: [{ id: '170.141.184.507.500', authorId: '~zod', sentAt }],
+        posts: [
+          {
+            id: '170.141.184.507.500',
+            authorId: '~zod',
+            sentAt,
+            textContent: 'a new gallery item',
+          },
+        ],
       })),
       getPostWithReplies: vi.fn(),
+      getTextContent: textOf,
       addReaction: vi.fn(),
       removeReaction: vi.fn(),
       deletePost: vi.fn(),
