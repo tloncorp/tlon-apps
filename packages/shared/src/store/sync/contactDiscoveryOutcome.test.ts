@@ -46,8 +46,11 @@ beforeEach(() => {
   mocks.getSystemContacts.mockResolvedValue([{ phoneNumber: '+15555550123' }]);
   mocks.discoverContacts.mockResolvedValue([]);
   mocks.partitionDiscoveryMatches.mockResolvedValue({ newMatches: [] });
-  mocks.addContacts.mockResolvedValue(undefined);
-  mocks.updateContactMetadata.mockResolvedValue(undefined);
+  mocks.addContacts.mockImplementation(async (ids) => ({
+    addedContactIds: ids,
+    failedContactIds: [],
+  }));
+  mocks.updateContactMetadata.mockResolvedValue(true);
 });
 afterEach(() => {
   vi.restoreAllMocks();
@@ -102,6 +105,10 @@ test.each(['link', 'add', 'mark', 'metadata'] as const)(
       mocks.updateContactMetadata.mockRejectedValueOnce(error);
     expect(
       await syncContactDiscovery(undefined, { invokeHandler: false })
-    ).toEqual({ didSucceed: false, didDiscover: true, newMatches: matches });
+    ).toEqual({
+      didSucceed: false,
+      didDiscover: true,
+      newMatches: stage === 'add' ? [] : matches,
+    });
   }
 );
