@@ -1,5 +1,6 @@
 import { A2UI } from '@tloncorp/api';
 import { randomUUID } from 'node:crypto';
+import { truncateUtf16Safe } from 'openclaw/plugin-sdk/string-coerce-runtime';
 
 /**
  * Approval system for managing DM, channel mention, and group invite approvals.
@@ -289,7 +290,7 @@ function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) {
     return text;
   }
-  return text.substring(0, maxLength - 3) + '...';
+  return truncateUtf16Safe(text, maxLength - 3) + '...';
 }
 
 // ============================================================================

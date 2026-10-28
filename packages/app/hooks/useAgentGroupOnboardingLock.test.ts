@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   AGENT_GROUP_NAVIGATION_LOCK_FAILSAFE_MS,
+  disarmAgentGroupNavigationLock,
   findAgentGroupOnboardingStartupRoute,
   isAgentGroupNavigationLocked,
   isAnyAgentGroupNavigationLockedDurably,
@@ -134,6 +135,49 @@ describe('startAgentGroupNavigationLockFailsafe', () => {
     );
     expect(stored.later.navigationLockExpiresAt).toBeUndefined();
     expect(stored.absent).toBeUndefined();
+
+    setValue.mockRestore();
+  });
+});
+
+describe('disarmAgentGroupNavigationLock', () => {
+  it('ends the lock now and keeps the rest of the record', async () => {
+    const now = 100_000;
+    let stored: Record<string, db.AgentGroupOnboardingLock> = {
+      first: {
+        createdAt: 1,
+        chatChannelId: 'chat/first',
+        landingChannelId: '~pinser-botter-zod',
+        navigationLockExpiresAt: now + AGENT_GROUP_NAVIGATION_LOCK_FAILSAFE_MS,
+        initialGroupTitle: 'Untitled workspace',
+        canRenameGroup: true,
+      },
+    };
+    const setValue = vi
+      .spyOn(db.agentGroupOnboardingLocks, 'setValue')
+      .mockImplementation(async (update) => {
+        stored = (update as (current: typeof stored) => typeof stored)(stored);
+      });
+
+    await disarmAgentGroupNavigationLock('first', now);
+    // Setup never reached this group, so it has no record yet.
+    await disarmAgentGroupNavigationLock('absent', now);
+
+    expect(stored.first).toEqual({
+      createdAt: 1,
+      chatChannelId: 'chat/first',
+      landingChannelId: '~pinser-botter-zod',
+      navigationLockExpiresAt: now,
+      initialGroupTitle: 'Untitled workspace',
+      canRenameGroup: true,
+    });
+    expect(isAgentGroupNavigationLocked(stored.first, now)).toBe(false);
+    expect(stored.absent).toEqual({
+      createdAt: now,
+      navigationLockExpiresAt: now,
+    });
+    expect(isAgentGroupNavigationLocked(stored.absent, now)).toBe(false);
+    expect(findAgentGroupOnboardingStartupRoute(stored, now)).toBeNull();
 
     setValue.mockRestore();
   });

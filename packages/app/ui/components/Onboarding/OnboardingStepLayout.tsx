@@ -1,10 +1,13 @@
-import { ScreenHeader, TlonText, View } from '@tloncorp/app/ui';
+import { TlonText } from '@tloncorp/ui';
 import { PropsWithChildren, ReactNode } from 'react';
 import { Platform, ScrollView } from 'react-native';
 import {
   useSafeAreaFrame,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
+import { View } from 'tamagui';
+
+import { ScreenHeader } from '../ScreenHeader';
 
 // Option rows on Notifications and step rows on the setup screen.
 export const STEP_ROW_HEIGHT = 56;

@@ -11,7 +11,10 @@
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 
 import { CRON_TOOL_NAMES } from './cron-tool-args-guard.js';
-import { MCP_BROKER_TOOL_NAMES } from './mcp-readonly-policy.js';
+import {
+  MCP_CATALOG_TOOL_NAMES,
+  MCP_UTILITY_TOOL_NAMES,
+} from './mcp-readonly-policy.js';
 import { isNonOwnerMediaAllowed } from './non-owner-media.js';
 import type { SenderRole } from './session-roles.js';
 
@@ -76,8 +79,11 @@ export const OWNER_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'tlon_agent_task_plan',
   'tlon_agent_service_setup',
   'set_timezone',
-  // MCP tools act on the owner's connected services; owner-only.
-  ...MCP_BROKER_TOOL_NAMES,
+  // Core-materialized MCP resource and prompt operations forward to upstreams
+  // with the bot's configured auth and are not part of the group tool
+  // workflow; kept owner-only by product decision (resource reads disclose
+  // private content).
+  ...MCP_UTILITY_TOOL_NAMES,
   ...DELEGATION_TOOL_NAMES,
   // OpenClaw core tools that change the gateway, agent, or credentials the
   // owner set up (createOpenClawTools in core's openclaw-tools bundle).
@@ -120,6 +126,11 @@ export const NON_OWNER_ALLOWED_TOOLS: ReadonlySet<string> = new Set([
   // or allConversations). lcm_expand_query and lcm_expand stay owner-only:
   // the first runs a role-less subagent on a model-written prompt.
   'lcm_grep',
+  // MCP discovery and tool invocation (reads and writes) through the bot's
+  // own connections on its ship's `%mcp-proxy`. The hosted browser upstream
+  // stays owner-only via the `browser_` rule in toolRuleReason; the broker
+  // payloads are exempt from the local-file rule (REMOTE_PAYLOAD_TOOLS).
+  ...MCP_CATALOG_TOOL_NAMES,
 ]);
 
 /**
@@ -142,15 +153,30 @@ export const NON_OWNER_DISPATCH_CONTROLS: ReadonlySet<string> = new Set([
 // before_tool_call unchanged (native-hook-relay-codec.ts). Longest first.
 const CODEX_DYNAMIC_TOOL_NAMESPACES = ['openclaw_direct', 'openclaw'] as const;
 
-/** The tool name the policy decides on, without a Codex namespace prefix. */
+// Codex names a native MCP tool `mcp__<server>__<tool>` (core 2026.9.33
+// parses it with /^mcp__(.+?)__/ in
+// src/agents/harness/native-hook-relay-permissions.ts) and the pre_tool_use
+// relay hands that name to before_tool_call after only normalizeToolPolicyName.
+// Core projects the configured `mcp` server into Codex under the same server
+// name (src/agents/codex-mcp-config.ts), so `mcp__mcp__call` is core's
+// `mcp__call`. A single-separator core name (`mcp__resources_read`) does not
+// match and is left alone.
+const CODEX_NATIVE_MCP_TOOL = /^mcp__(.+?)__(.+)$/;
+
+/**
+ * The tool name the policy decides on: without a Codex namespace prefix, and
+ * with a Codex native MCP name in core's `<server>__<tool>` form.
+ */
 export function normalizePolicyToolName(toolName: string): string {
-  const name = toolName.trim().toLowerCase();
+  let name = toolName.trim().toLowerCase();
   for (const namespace of CODEX_DYNAMIC_TOOL_NAMESPACES) {
     if (name.startsWith(namespace) && name.length > namespace.length) {
-      return name.slice(namespace.length);
+      name = name.slice(namespace.length);
+      break;
     }
   }
-  return name;
+  const nativeMcp = CODEX_NATIVE_MCP_TOOL.exec(name);
+  return nativeMcp ? `${nativeMcp[1]}__${nativeMcp[2]}` : name;
 }
 
 /** Longest first line the TLON-6361 owner notice shows untruncated. */
@@ -281,6 +307,20 @@ function looksLikeLocalFile(raw: string, key: string | undefined): boolean {
  * exempt from the local-file check; every other key still goes through it.
  */
 const QUERY_ONLY_TOOLS: ReadonlySet<string> = new Set(['web_search']);
+
+/**
+ * The `%mcp-proxy` broker tools, whose params (`query`/`server`, `name`,
+ * `arguments`) are sent over HTTPS to the bot ship's proxy and never resolved
+ * against the gateway's filesystem, so they skip the local-file rule. A path
+ * there names something in an upstream service (a repo file, a note), not the
+ * gateway's disk. The only owner-private capability behind the proxy, the
+ * hosted browser, is name-gated in toolRuleReason before this rule runs. Any
+ * other MCP server, stdio included, registers under its own `<server>__*`
+ * names, which stay outside the non-owner allowlist.
+ */
+const REMOTE_PAYLOAD_TOOLS: ReadonlySet<string> = new Set(
+  MCP_CATALOG_TOOL_NAMES
+);
 
 /**
  * Whether any string in a call's params, at any depth, could name a file on
@@ -572,6 +612,7 @@ function argumentRuleReason(
       ? LOCAL_FILE_BLOCK_REASON
       : undefined;
   }
+  if (REMOTE_PAYLOAD_TOOLS.has(toolName)) return undefined;
   // Argument-gated for every other allowed tool: no local file references, except
   // in a search tool's free-text query.
   const checked = QUERY_ONLY_TOOLS.has(toolName)

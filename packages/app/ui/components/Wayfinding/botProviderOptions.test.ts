@@ -32,8 +32,34 @@ describe('bot credential choices', () => {
       }),
     ]);
     expect(openAIOptions[0]?.label).toBe('ChatGPT subscription');
-    expect(openAIOptions[0]?.recommendationLabel).toBe('Recommended');
+    expect(openAIOptions[0]?.recommendationLabel).toBeUndefined();
     expect(openAIOptions[1]?.recommendationLabel).toBeUndefined();
+  });
+
+  it('recommends only the included model, which keeps zero data retention', () => {
+    const options = buildBotCredentialOptions({
+      providerConfig: {
+        ...emptyConfig,
+        defaultKeys: { basic: { key: 'included' } },
+        defaultModels: {
+          primaryModel: 'openai/gpt-5.6-luna',
+          fallbackModels: [],
+        },
+      },
+      botReady: true,
+      mode: 'signup',
+    });
+
+    expect(options[0]).toEqual(
+      expect.objectContaining({
+        id: 'basic:included',
+        label: 'GPT-5.6 Luna',
+        recommendationLabel: 'Recommended',
+      })
+    );
+    expect(
+      options.filter((option) => option.recommendationLabel).map((o) => o.id)
+    ).toEqual(['basic:included']);
   });
 
   it('offers xAI subscription and API-key choices for ready normal signup', () => {

@@ -19,7 +19,8 @@ import {
 import { CRON_TOOL_NAMES } from './cron-tool-args-guard.js';
 import {
   MCP_BROKER_TOOL_NAMES,
-  MCP_READ_TOOL_NAMES,
+  MCP_CATALOG_TOOL_NAMES,
+  MCP_UTILITY_TOOL_NAMES,
 } from './mcp-readonly-policy.js';
 import type { SenderRole } from './session-roles.js';
 
@@ -44,10 +45,6 @@ const EXPECTED_OWNER_ONLY_TOOLS = [
   'tlon_agent_task_plan',
   'tlon_agent_service_setup',
   'set_timezone',
-  'mcp__list_upstreams',
-  'mcp__search',
-  'mcp__describe',
-  'mcp__call',
   'mcp__resources_list',
   'mcp__resources_read',
   'mcp__prompts_list',
@@ -109,8 +106,27 @@ describe('OWNER_ONLY_TOOLS', () => {
       'mcp__prompts_list',
       'mcp__prompts_get',
     ]);
-    for (const name of [...MCP_BROKER_TOOL_NAMES, ...MCP_READ_TOOL_NAMES]) {
+    expect([...MCP_UTILITY_TOOL_NAMES]).toEqual([
+      'mcp__resources_list',
+      'mcp__resources_read',
+      'mcp__prompts_list',
+      'mcp__prompts_get',
+    ]);
+    expect([...MCP_CATALOG_TOOL_NAMES]).toEqual([
+      'mcp__list_upstreams',
+      'mcp__search',
+      'mcp__describe',
+      'mcp__call',
+    ]);
+    // Every broker tool is in exactly one list: the resource and prompt
+    // operations stay owner-only, the catalog tools are open to non-owners.
+    for (const name of MCP_UTILITY_TOOL_NAMES) {
       expect(OWNER_ONLY_TOOLS.has(name)).toBe(true);
+      expect(NON_OWNER_ALLOWED_TOOLS.has(name)).toBe(false);
+    }
+    for (const name of MCP_CATALOG_TOOL_NAMES) {
+      expect(NON_OWNER_ALLOWED_TOOLS.has(name)).toBe(true);
+      expect(OWNER_ONLY_TOOLS.has(name)).toBe(false);
     }
   });
 
@@ -169,18 +185,102 @@ describe('resolveOwnerOnlyToolBlock', () => {
       });
   });
 
-  it('blocks a non-browser MCP call for a non-owner under the mcp__call reason', () => {
+  it('allows a non-browser MCP call for a non-owner', () => {
     expect(
       resolveOwnerOnlyToolBlock('mcp__call', 'user', {
         name: 'weather_forecast',
       })
-    ).toEqual({
-      ownerOnly: true,
-      gate: 'tool',
-      blocked: true,
-      reason: formatOwnerOnlyToolBlockReason('mcp__call'),
-    });
+    ).toEqual({ ownerOnly: false, blocked: false });
   });
+
+  it('blocks a hosted-browser MCP call for a non-owner with the browser reason', () => {
+    for (const tool of ['mcp__call', 'mcp__mcp__call', 'openclawmcp__call']) {
+      expect(
+        resolveOwnerOnlyToolBlock(tool, 'user', {
+          name: 'browser_browser_snapshot',
+        })
+      ).toEqual({
+        ownerOnly: true,
+        gate: 'tool',
+        blocked: true,
+        reason: formatOwnerOnlyToolBlockReason('browser'),
+      });
+    }
+  });
+
+  it.each([
+    ['mcp__search', { query: 'server:linear issue', limit: 25 }],
+    ['mcp__search', { query: 'TLON-6944' }],
+    ['mcp__list_upstreams', {}],
+    ['mcp__describe', { name: 'linear_create_issue' }],
+    [
+      'mcp__call',
+      {
+        name: 'linear_list_issues',
+        arguments: { query: 'MCP', first: 50, after: '<cursor>' },
+      },
+    ],
+    ['mcp__call', { name: 'linear_get_issue', arguments: { id: 'TLON-6944' } }],
+    [
+      'mcp__call',
+      {
+        name: 'linear_create_issue',
+        arguments: {
+          team: 'Tlon',
+          title: 'Test issue',
+          description:
+            'See README.md and packages/openclaw/src/owner-only-tools.ts in tloncorp/tlon-apps',
+        },
+      },
+    ],
+    [
+      'mcp__call',
+      {
+        name: 'linear_update_issue',
+        arguments: { id: 'TLON-6944', state: 'Done' },
+      },
+    ],
+    [
+      'mcp__call',
+      {
+        name: 'github_get_file',
+        arguments: { repo: 'tloncorp/tlon-apps', path: 'README.md' },
+      },
+    ],
+    [
+      'mcp__call',
+      { name: 'notes_read', arguments: { doc: { path: '~/notes/a.pdf' } } },
+    ],
+  ] as const)(
+    'allows a non-owner %s through the bot connections: %j',
+    (tool, params) => {
+      expect(resolveOwnerOnlyToolBlock(tool, 'user', { ...params })).toEqual({
+        ownerOnly: false,
+        blocked: false,
+      });
+    }
+  );
+
+  it.each(MCP_UTILITY_TOOL_NAMES)(
+    'keeps MCP utility %s owner-only, under its Codex native spelling too',
+    (tool) => {
+      for (const spelling of [tool, tool.replace(/^mcp__/, 'mcp__mcp__')]) {
+        expect(resolveOwnerOnlyToolBlock(spelling, 'user', {})).toEqual({
+          ownerOnly: true,
+          gate: 'tool',
+          blocked: true,
+          reason: formatOwnerOnlyToolBlockReason(tool),
+        });
+        for (const role of ['owner', undefined] as const) {
+          expect(resolveOwnerOnlyToolBlock(spelling, role, {})).toEqual({
+            ownerOnly: true,
+            gate: 'tool',
+            blocked: false,
+          });
+        }
+      }
+    }
+  );
 
   it.each(EXPECTED_OWNER_ONLY_TOOLS)(
     'blocks %s for a non-owner user session with the policy reason',
@@ -352,13 +452,38 @@ describe('argument-gated tools', () => {
     });
   });
 
-  it('still blocks a non-owner mcp__call that nests a local path', () => {
+  it('allows a non-owner mcp__call whose remote payload nests a path', () => {
+    for (const tool of ['mcp__call', 'mcp__mcp__call']) {
+      expect(
+        resolveOwnerOnlyToolBlock(tool, 'user', {
+          name: 'notes_read',
+          arguments: { doc: { path: '~/notes/a.pdf' } },
+        })
+      ).toEqual({ ownerOnly: false, blocked: false });
+    }
+  });
+
+  it('keeps the local-file rule for web_fetch and message beside the broker exemption', () => {
     expect(
-      resolveOwnerOnlyToolBlock('mcp__call', 'user', {
-        name: 'notes_read',
-        arguments: { doc: { path: '~/notes/a.pdf' } },
+      resolveOwnerOnlyToolBlock('web_fetch', 'user', { url: '~/notes/a.pdf' })
+    ).toEqual({
+      ownerOnly: true,
+      gate: 'arguments',
+      blocked: true,
+      reason: LOCAL_FILE_BLOCK_REASON,
+    });
+    expect(
+      resolveOwnerOnlyToolBlock('message', 'user', {
+        action: 'send',
+        target: '~/notes/a.pdf',
+        message: 'hi',
       })
-    ).toMatchObject({ ownerOnly: true, blocked: true });
+    ).toEqual({
+      ownerOnly: true,
+      gate: 'arguments',
+      blocked: true,
+      reason: LOCAL_FILE_BLOCK_REASON,
+    });
   });
 
   it('applies the local-file rule to body-named keys of other tools', () => {
@@ -583,6 +708,10 @@ describe('NON_OWNER_ALLOWED_TOOLS', () => {
       'agents_wait',
       'progress_card',
       'lcm_grep',
+      'mcp__list_upstreams',
+      'mcp__search',
+      'mcp__describe',
+      'mcp__call',
     ]);
     expect([...NON_OWNER_DISPATCH_CONTROLS]).toEqual([
       'tool_search',
@@ -659,8 +788,9 @@ describe('NON_OWNER_ALLOWED_TOOLS', () => {
     ['tool_describe', true],
     ['tool_call', true],
     ['wait', false],
-    ['mcp__call', false],
-    ['mcp__search', false],
+    ['mcp__call', true],
+    ['mcp__search', true],
+    ['mcp__resources_read', false],
     ['tlon', false],
     ['read', false],
     ['write', false],
@@ -759,6 +889,13 @@ describe('NON_OWNER_ALLOWED_TOOLS', () => {
     ['openclaw_directsessions_yield', 'sessions_yield'],
     [' OpenClawMessage ', 'message'],
     ['web_search', 'web_search'],
+    ['openclawmcp__call', 'mcp__call'],
+    ['OPENCLAW_DIRECTmcp__search', 'mcp__search'],
+    // Codex native MCP spelling (mcp__<server>__<tool>) to core's.
+    ['mcp__mcp__call', 'mcp__call'],
+    ['mcp__mcp__resources_read', 'mcp__resources_read'],
+    ['mcp__resources_read', 'mcp__resources_read'],
+    ['MCP__CALL', 'mcp__call'],
   ])('normalizes %j to %j', (raw, expected) => {
     expect(normalizePolicyToolName(raw)).toBe(expected);
   });
