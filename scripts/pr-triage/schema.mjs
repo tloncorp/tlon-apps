@@ -101,6 +101,12 @@ export const schema = object({
       proofGaps: strings,
       nextStep: string,
       fixAssessment: string,
+      handling: object({
+        owner: choice('agent', 'human', 'none', 'undetermined'),
+        // Concise evidence and next action for the reply on the source thread.
+        summary: { ...string, maxLength: 500 },
+        humanQuestion: { type: 'string', maxLength: 300 },
+      }),
     }),
   },
   humanDecisions: {

@@ -17,8 +17,8 @@ and ledger counts. Do not repeat the same conclusion in each field.
   bot finding exists. Omit cosmetic follow-ups.
 
 All human questions remain visible. Counts summarize the counter-review and
-requirements; a refuted claim needs its explanation in the full report, not
-another paragraph on the PR. Do not silently drop a blocker to meet the word
+requirements; explain individual verdicts in their thread replies and the full
+report instead of expanding the PR summary. Do not silently drop a blocker to meet the word
 target. Keep semantic agreement between the short message and the ledger.
 
 Keep the detailed ledger intact. Hosted publication writes it to the workflow
@@ -26,6 +26,25 @@ job summary and links the run from the PR comment. Local runs save a separate
 report and preview; never invent a hosted run link. Local file paths are not
 accessible evidence for GitHub readers. Use pinned repository links and actual
 CI links in a published message, and identify unavailable reproduction artifacts.
+
+## Replies to Codex findings
+
+Draft a short counter-review for each original Codex inline thread. When
+publication is authorized, update the triage bot's existing reply in that thread
+instead of creating another reply for every head. Preserve the original comment
+and other reviewers' replies. Group multiple claims from the same thread in one
+reply, keeping their verdicts and handling decisions distinct. For findings in
+review bodies or PR conversation, maintain one separate digest linking to each
+source; status-only messages need no public reply.
+
+Each entry shows the verdict, **Agent work**, **Human decision**, **No action**,
+or **Needs investigation**, and `handling.summary`. Include the assessed head.
+For example: `confirmed · Agent work — Progress survives the second preview;
+reset it on open and cover that scenario.` Use an actual source link in the
+published version. Keep the detailed proof in the evidence report. Never
+resolve the original thread or apply a fix merely because this pass confirms
+or refutes a finding. An existing thread can also contain the human question;
+avoid drafting a duplicate inline decision at the same location.
 
 ## Optional GitHub suggestions
 
@@ -45,7 +64,8 @@ Multi-file fixes or uncertain corrections belong in next steps instead.
 Each structured suggestion contains:
 
 - `findingUrl` and `claim`: the exact ledger entry supporting the correction,
-  with `verdict: confirmed` and `reviewedRevision` equal to the assessed head.
+  with `verdict: confirmed`, `handling.owner: agent`, and `reviewedRevision`
+  equal to the assessed head and supported by the source's revision metadata.
 - `path`, `startLine`, `line`: a contiguous RIGHT-side range in one current diff
   hunk. For a single-line replacement, start and end are equal.
 - `original`: exact original lines, including indentation, joined with LF and

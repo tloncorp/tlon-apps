@@ -5,7 +5,10 @@ on:
     types: [opened, synchronize, reopened, ready_for_review, edited, converted_to_draft, closed, labeled, unlabeled]
   # Codex creates this status comment and EDITS it when review is complete.
   issue_comment:
-    types: [created, edited]
+    types: [created, edited, deleted]
+  workflow_run:
+    workflows: [PR triage review activity]
+    types: [completed]
   workflow_dispatch:
     inputs:
       pr_url:
@@ -15,40 +18,53 @@ on:
 
 permissions: {}
 
-# Unrelated comments and labels must not cancel an active run.
+# Observer completions queue behind analysis; duplicate evidence is skipped by the gate.
 concurrency:
   group: >-
     pr-triage-${{
-      (github.event_name != 'issue_comment' ||
-        (github.event.issue.pull_request &&
+      (github.event_name == 'workflow_dispatch' ||
+        (github.event_name == 'pull_request_target' &&
+         (!(github.event.action == 'labeled' || github.event.action == 'unlabeled') ||
+          github.event.label.name == 'review:human-required')) ||
+        (github.event_name == 'issue_comment' && github.event.issue.pull_request &&
          github.event.comment.user.login == 'chatgpt-codex-connector[bot]' &&
-         github.event.sender.login == 'chatgpt-codex-connector[bot]' &&
-         contains(github.event.comment.body, '<!-- codex-pull-request-review-summary -->'))) &&
-      (!(github.event.action == 'labeled' || github.event.action == 'unlabeled') ||
-        github.event.label.name == 'review:human-required') &&
+         github.event.sender.login == 'chatgpt-codex-connector[bot]') ||
+        (github.event_name == 'workflow_run' &&
+         github.event.workflow_run.actor.login == 'chatgpt-codex-connector[bot]' &&
+         github.event.workflow_run.triggering_actor.login == 'chatgpt-codex-connector[bot]' &&
+         github.event.workflow_run.head_repository.full_name == github.repository &&
+         github.event.workflow_run.pull_requests[0].number)) &&
       (inputs.pr_url || format('https://github.com/{0}/pull/{1}', github.repository,
-        github.event.pull_request.number || github.event.issue.number)) ||
-      github.run_id }}
-  cancel-in-progress: true
+        github.event.pull_request.number || github.event.issue.number ||
+        github.event.workflow_run.pull_requests[0].number)) || github.run_id }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_run' }}
 
 jobs:
   gate:
     name: PR triage gate
     if: >-
       github.repository == 'tloncorp/tlon-apps' &&
-      (github.event_name != 'issue_comment' ||
-        (github.event.issue.pull_request &&
+      (github.event_name == 'workflow_dispatch' ||
+        (github.event_name == 'pull_request_target' &&
+         (!(github.event.action == 'labeled' || github.event.action == 'unlabeled') ||
+          github.event.label.name == 'review:human-required')) ||
+        (github.event_name == 'issue_comment' && github.event.issue.pull_request &&
          github.event.comment.user.login == 'chatgpt-codex-connector[bot]' &&
-         github.event.sender.login == 'chatgpt-codex-connector[bot]' &&
-         contains(github.event.comment.body, '<!-- codex-pull-request-review-summary -->'))) &&
-      (!(github.event.action == 'labeled' || github.event.action == 'unlabeled') ||
-        github.event.label.name == 'review:human-required')
+         github.event.sender.login == 'chatgpt-codex-connector[bot]') ||
+        (github.event_name == 'workflow_run' &&
+         github.event.workflow_run.actor.login == 'chatgpt-codex-connector[bot]' &&
+         github.event.workflow_run.triggering_actor.login == 'chatgpt-codex-connector[bot]' &&
+         github.event.workflow_run.head_repository.full_name == github.repository &&
+         github.event.workflow_run.pull_requests[0].number))
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: read
       pull-requests: read
       issues: write
+      actions: read
+      checks: read
+      statuses: read
     outputs:
       analyze: ${{ steps.gate.outputs.analyze }}
       number: ${{ steps.gate.outputs.number }}

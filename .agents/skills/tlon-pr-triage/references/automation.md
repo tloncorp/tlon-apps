@@ -54,7 +54,12 @@ Return only the JSON object specified by `scripts/pr-triage/schema.mjs`:
   validation method, evidence, counterevidence, proof gaps, verdict, current
   status, next step, and fix assessment. Include every automated root inline
   finding individually and split distinct findings in a review body into
-  separate entries sharing its URL. Use `unknown` for a missing reviewed SHA.
+  separate entries sharing its URL. Ground `reviewedRevision` in source metadata
+  as specified by the evidence reference; use `unknown` for a missing SHA.
+  Include `handling` with `owner`, concise public `summary`, and `humanQuestion`.
+  A human owner requires an exact matching question in `humanDecisions`;
+  all other owners use an empty question. No unresolved work may be hidden as
+  `none`, and eligibility requires `none` for every finding.
   Evidence, counterevidence, and proof gaps are arrays; empty means none.
   `local-reproduction` is unavailable in this job; `mixed` can combine source
   inspection with collected execution evidence, never claim local execution.
@@ -82,6 +87,9 @@ Report checks as observed evidence, never as commands you executed in this job.
 The publisher can update its single concise summary, retain the full evidence
 in the workflow job summary, create/apply the three routing labels, and submit
 inline `COMMENT` reviews for human decisions and validated code suggestions.
+It also updates one concise counter-review reply per Codex inline root and one
+digest for findings in review bodies/conversation. These replies state each
+verdict and handling owner; unchanged replies are not written again.
 It cannot approve, request changes, merge, assign reviewers, resolve other
 threads, or patch code. The shared `ready-for-human` label is not automated.
 
@@ -99,12 +107,25 @@ The separate reconciliation workflow checks recorded head/base revisions after
 `develop` pushes and twice hourly, using the same per-PR concurrency group. It
 removes obsolete agent labels and marks the summary incomplete without paid
 analysis. A fresh triage run is required to establish new routing; scheduling
-delays mean this remains advisory. Only the three exact analysis workflow job
-names are excluded from check evidence; tooling tests remain included.
+delays mean this remains advisory. The three exact analysis job names and the
+`PR triage review activity` observer job are excluded from check evidence;
+`PR triage tooling tests` remains included.
+
+Codex issue comments and the unprivileged review-activity observer trigger a
+fresh evidence collection. Automated Codex-triggered inference waits for a
+completed code review at the current head; repeated signals matching the last
+published evidence fingerprint are skipped. Own summaries and replies do not
+retrigger triage or enter the fingerprint. Blank COMMENTED review records
+created by GitHub for our own replies are excluded too; unrelated reviews stay
+visible. An own inline root is retained in
+model context when an external reply depends on it, while only the external
+reply enters the fingerprint. This preserves the meaning of replies like
+"yes" without making triage invalidate its own output.
 
 The publisher validates JSON, compares the head/base and evidence fingerprint,
-requires references to actual discussion items, and deduplicates inline
-comments by revision/location. Suggestions also require matching original text
+requires source-matching finding revisions, and deduplicates decision/suggestion
+comments by revision/location. It refreshes the evidence fingerprint again after
+publishing comments and before applying a routing label. Suggestions also require matching original text
 within a small current-side diff range and a confirmed finding at the same head.
 It checks impact-map file coverage, requirement
 source consistency, and automated message coverage/counts. Extracting all

@@ -51,7 +51,11 @@ comments contain `in_reply_to_id`: group replies under the root finding and
 retain comment IDs, URLs, authors, commit IDs, paths, and original/current line
 locations. REST comments do not establish a thread's resolved state; retrieve
 that separately if useful, and never use resolution as evidence of correctness.
-The Codex bot's REST login is `chatgpt-codex-connector[bot]`.
+The Codex bot's REST login is `chatgpt-codex-connector[bot]`. Inspect its findings
+in all three surfaces, not only inline reviews. Preserve the root of any triage
+comment with an external reply so a short acknowledgement keeps its context.
+Reviewed revision comes from `original_commit_id` for inline comments (fallback
+`commit_id`), and `commit_id` for review bodies; missing metadata stays unknown.
 
 The current watcher, `.agents/skills/tlon-workflow/pr-watch.mjs`, recognizes
 Codex's edited summary comment and the reviewed head SHA. Inspect that parser

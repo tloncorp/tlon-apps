@@ -16,11 +16,14 @@ export const SUMMARY = '<!-- tlon-pr-triage:v1 -->';
 export const CODEX_SUMMARY = '<!-- codex-pull-request-review-summary -->';
 const INLINE = '<!-- tlon-pr-triage-decision:v1:';
 const SUGGESTION = '<!-- tlon-pr-triage-suggestion:v1:';
+const COUNTER = '<!-- tlon-pr-triage-counter:v1:';
+const OBSERVER = '.github/workflows/pr-triage-review-activity.yml';
 const REVISION = '<!-- tlon-pr-triage-revision:v1 ';
 const SELF_CHECKS = new Set([
   'PR triage gate',
   'PR triage assessment',
   'PR triage publication',
+  'PR triage review activity',
 ]);
 const ROUTES = {
   'human-required': ['review:human-required', 'B60205'],
@@ -40,7 +43,9 @@ const ownSummary = (c) =>
   c.user?.login === 'github-actions[bot]' && c.body?.startsWith(SUMMARY);
 const ownInline = (c) =>
   c.user?.login === 'github-actions[bot]' &&
-  [INLINE, SUGGESTION].some((marker) => c.body?.startsWith(marker));
+  [INLINE, SUGGESTION, COUNTER].some((marker) => c.body?.startsWith(marker));
+const ownCounter = (c) =>
+  c.user?.login === 'github-actions[bot]' && c.body?.startsWith(COUNTER);
 const output = (name, value) =>
   appendFileSync(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
 
@@ -63,6 +68,31 @@ function codeReview(body) {
     : null;
 }
 
+function latestCodeReview(conversation) {
+  const latest = conversation
+    .filter((c) => c.user?.login === BOT && c.body?.includes(CODEX_SUMMARY))
+    .sort((a, b) =>
+      (b.updated_at ?? b.created_at ?? '').localeCompare(
+        a.updated_at ?? a.created_at ?? ''
+      )
+    )[0];
+  return codeReview(latest?.body);
+}
+
+function observedRun(run) {
+  return (
+    run?.path === OBSERVER &&
+    ['pull_request_review', 'pull_request_review_comment'].includes(
+      run.event
+    ) &&
+    run.actor?.login === BOT &&
+    run.triggering_actor?.login === BOT &&
+    run.head_repository?.full_name === REPO &&
+    run.pull_requests?.length === 1 &&
+    Number.isSafeInteger(run.pull_requests[0].number)
+  );
+}
+
 export function parseUrl(input) {
   const url = new URL(input);
   const match = url.pathname.match(
@@ -81,6 +111,15 @@ export function parseUrl(input) {
 
 export function trigger(eventName, event) {
   if (event.repository?.full_name !== REPO) return null;
+  if (eventName === 'workflow_run') {
+    if (event.action !== 'completed' || !observedRun(event.workflow_run))
+      return null;
+    return {
+      number: event.workflow_run.pull_requests[0].number,
+      analyze: true,
+      codexActivity: true,
+    };
+  }
   if (eventName === 'workflow_dispatch') {
     const number = parseUrl(event.inputs?.pr_url);
     // A canonical manual URL also shares the automatic concurrency key.
@@ -108,14 +147,15 @@ export function trigger(eventName, event) {
     !event.issue?.pull_request ||
     event.comment?.user?.login !== BOT ||
     event.sender?.login !== BOT ||
-    !event.comment.body?.includes(CODEX_SUMMARY)
+    !event.comment.body?.trim()
   )
     return null;
   const review = codeReview(event.comment.body);
   return {
     number: event.issue.number,
-    analyze: review?.status === 'completed',
+    analyze: true,
     reviewedHead: review?.commit_sha,
+    codexActivity: true,
   };
 }
 
@@ -204,15 +244,45 @@ export async function gate(api, eventName, event) {
   const pr = await api.request(prPath(number));
   if (pr.head.repo?.full_name !== REPO) return null;
   if (target.reviewedHead && target.reviewedHead !== pr.head.sha) return null;
-  // Codex completion is an explicit allowlisted bot event. All other callers
-  // must be writers; association labels alone are insufficient authorization.
-  if (eventName !== 'issue_comment') {
+  if (eventName === 'workflow_run') {
+    const run = await api.request(
+      `repos/${REPO}/actions/runs/${event.workflow_run.id}`
+    );
+    if (!observedRun(run) || run.pull_requests[0].number !== number)
+      return null;
+  }
+  // Codex activity is explicitly allowlisted. Other paid analyses require a
+  // writer; triage-role state changes may invalidate existing routing only.
+  if (!target.codexActivity) {
     const login = event.sender?.login;
     if (!login) return null;
     const permission = await api.request(
       `repos/${REPO}/collaborators/${encodeURIComponent(login)}/permission`
     );
-    if (!['admin', 'maintain', 'write'].includes(permission.permission))
+    if (!['admin', 'maintain', 'write'].includes(permission.permission)) {
+      if (
+        permission.role_name !== 'triage' ||
+        eventName !== 'pull_request_target'
+      )
+        return null;
+      target.analyze = false;
+      target.reason =
+        'PR state changed. A repository writer can request a fresh analysis.';
+    }
+  } else {
+    const context = await collect(api, number);
+    const review = latestCodeReview(context.conversation);
+    target.analyze =
+      review?.status === 'completed' && review.commit_sha === pr.head.sha;
+    const previous = (await api.pages(`${issuePath(number)}/comments`)).find(
+      ownSummary
+    );
+    if (
+      target.analyze &&
+      pr.state === 'open' &&
+      !pr.draft &&
+      markerJson(previous?.body, REVISION)?.fingerprint === fingerprint(context)
+    )
       return null;
   }
   for (const label of VOLATILE) await removeLabel(api, number, label);
@@ -306,12 +376,31 @@ export async function collect(api, number) {
   return {
     pr,
     files,
-    conversation: conversation.filter((c) => !ownSummary(c)),
-    comments: comments.filter((c) => !ownInline(c)),
+    conversation: conversation.filter((c) => !ownSummary(c) && !ownCounter(c)),
+    // Keep our roots when a person replies to them, so "yes" or "fixed"
+    // retains its question/suggestion context. Fingerprints still omit our output.
+    comments: comments.filter(
+      (c) =>
+        !ownInline(c) ||
+        comments.some(
+          (reply) => !ownInline(reply) && reply.in_reply_to_id === c.id
+        )
+    ),
     reviews: reviews.filter(
       (r) =>
         !(
-          r.user?.login === 'github-actions[bot]' && r.body?.startsWith(SUMMARY)
+          r.user?.login === 'github-actions[bot]' &&
+          (r.body?.startsWith(SUMMARY) ||
+            // GitHub creates a blank COMMENTED review for each API reply.
+            // Exclude only envelopes whose comments are all our own output.
+            (r.state === 'COMMENTED' &&
+              !r.body?.trim() &&
+              comments.some(
+                (c) => c.pull_request_review_id === r.id && ownInline(c)
+              ) &&
+              !comments.some(
+                (c) => c.pull_request_review_id === r.id && !ownInline(c)
+              )))
         )
     ),
     checks: checks.filter((c) => !SELF_CHECKS.has(c.name)),
@@ -327,6 +416,7 @@ export function fingerprint(context) {
     title: pr.title,
     body: pr.body,
     ...evidence,
+    comments: evidence.comments.filter((c) => !ownInline(c)),
   });
 }
 
@@ -402,6 +492,11 @@ export function prepareSource(context, directory) {
       'Build a behavior impact map and check sourced requirements. ' +
       'Account for every automated finding, including review bodies and old revisions, with structured ' +
       'proof, counterevidence, gaps, and a separate assessment of the suggested fix. ' +
+      'For each finding, set handling.owner to agent, human, none, or undetermined; ' +
+      'handling.summary is a short evidence-backed reply with the next action. ' +
+      'For human handling, humanQuestion must match an explicit humanDecisions question; otherwise use an empty string. ' +
+      'Ground reviewedRevision in original_commit_id for inline comments or commit_id for review bodies; ' +
+      'use unknown when that source has no revision metadata. ' +
       'Inventory every non-empty Codex discussion item in reviewCoverage, including zero-finding items. ' +
       'Read references/publication.md in the skill. Keep summary and comment fields concise; ' +
       'the complete ledger goes in the workflow report, not the PR comment. ' +
@@ -514,15 +609,7 @@ export function validateReport(report, context) {
       'Eligibility contradicts remaining work or missing evidence'
     );
   if (report.outcome === 'agent-eligible') {
-    const summaries = context.conversation.filter(
-      (c) => c.user?.login === BOT && c.body?.includes(CODEX_SUMMARY)
-    );
-    const latest = summaries.sort((a, b) =>
-      (b.updated_at ?? b.created_at ?? '').localeCompare(
-        a.updated_at ?? a.created_at ?? ''
-      )
-    )[0];
-    const review = codeReview(latest?.body);
+    const review = latestCodeReview(context.conversation);
     if (review?.status !== 'completed' || review.commit_sha !== report.headSha)
       throw new Error(
         'Codex review is missing, pending or belongs to another revision'
@@ -559,6 +646,29 @@ export function validateReport(report, context) {
   for (const finding of report.findings) {
     if (!known.has(finding.url))
       throw new Error('Finding has no source comment');
+    const inline = context.comments.find((c) => c.html_url === finding.url);
+    const review = context.reviews.find((c) => c.html_url === finding.url);
+    const sourceRevision =
+      inline?.original_commit_id ?? inline?.commit_id ?? review?.commit_id;
+    if (
+      finding.reviewedRevision !==
+      (sha(sourceRevision) ? sourceRevision : 'unknown')
+    )
+      throw new Error('Finding revision does not match its source');
+    const { owner, humanQuestion } = finding.handling;
+    if (
+      (['refuted', 'already-fixed'].includes(finding.verdict) &&
+        owner !== 'none') ||
+      (['confirmed', 'inconclusive'].includes(finding.verdict) &&
+        owner === 'none') ||
+      (report.outcome === 'agent-eligible' && owner !== 'none')
+    )
+      throw new Error('Finding handling contradicts its verdict or routing');
+    if (owner === 'human') {
+      if (!report.humanDecisions.some((d) => d.question === humanQuestion))
+        throw new Error('Human finding requires a matching human decision');
+    } else if (humanQuestion)
+      throw new Error('Non-human finding cannot assign a human decision');
     const key = JSON.stringify([finding.url, finding.claim.trim()]);
     if (findingKeys.has(key)) throw new Error('Duplicate finding');
     findingKeys.add(key);
@@ -611,6 +721,7 @@ export function validateReport(report, context) {
     if (
       report.outcome !== 'agent-work-needed' ||
       finding?.verdict !== 'confirmed' ||
+      finding.handling.owner !== 'agent' ||
       finding.reviewedRevision !== report.headSha
     )
       throw new Error(
@@ -661,12 +772,16 @@ export function render(report, expected, retainedHuman) {
   const botFindings = report.findings.filter((f) => botUrls.has(f.url));
   const url = runUrl();
   return (
-    `${SUMMARY}\n${REVISION}${JSON.stringify({ head: report.headSha, base: expected.base })} -->\n## PR triage — ${report.outcome}\n\n` +
+    `${SUMMARY}\n${REVISION}${JSON.stringify({ head: report.headSha, base: expected.base, fingerprint: expected.fingerprint })} -->\n## PR triage — ${report.outcome}\n\n` +
     `Head: \`${report.headSha}\` · Baseline: \`${expected.baseline}\`\n\n` +
     `${safeText(report.summary)}\n\n` +
     `**Complexity:** ${report.complexity.level} · **Sensitivity:** ${report.sensitivity.level} · **Evidence:** ${report.evidence}\n\n` +
     `**Impact:** ${safeText(report.comment.impact)}\n\n` +
     `**Counter-review:** ${tally(botFindings, 'verdict')}. ` +
+    `**Handling:** ${tally(
+      botFindings.map((f) => f.handling),
+      'owner'
+    )}. ` +
     `**Requirements:** ${report.requirements.status}; ${tally(report.requirements.items, 'status')}.\n\n` +
     `**Validation:** ${safeText(report.comment.validation)}\n\n` +
     (report.comment.nextSteps.length
@@ -737,7 +852,8 @@ export function renderDetails(report, expected, retainedHuman) {
           `  Method: ${f.validationMethod}. Evidence: ${f.evidence.join('; ') || 'None'}.\n` +
           `  Counterevidence: ${f.counterevidence.join('; ') || 'None found'}.\n` +
           `  Proof gaps: ${f.proofGaps.join('; ') || 'None'}. Next step: ${f.nextStep}\n` +
-          `  Suggested fix assessment: ${f.fixAssessment}`
+          `  Suggested fix assessment: ${f.fixAssessment}\n` +
+          `  Handling: ${f.handling.owner}. ${f.handling.summary}`
       )
     )}\n\n` +
     '<details>\n<summary>Automated review coverage</summary>\n\n' +
@@ -766,6 +882,47 @@ export function renderDetails(report, expected, retainedHuman) {
       : '') +
     'Advisory triage only; this does not approve the PR or authorize merging.'
   );
+}
+
+function counterReplies(report, context, previous) {
+  const groups = new Map();
+  for (const finding of report.findings) {
+    const inline = context.comments.find((c) => c.html_url === finding.url);
+    const source =
+      inline ??
+      [...context.reviews, ...context.conversation].find(
+        (c) => c.html_url === finding.url
+      );
+    if (source?.user?.login !== BOT) continue;
+    const root = inline ? (inline.in_reply_to_id ?? inline.id) : null;
+    const key = root === null ? 'digest' : String(root);
+    if (!groups.has(key)) groups.set(key, { root, findings: [] });
+    groups.get(key).findings.push(finding);
+  }
+  const owners = {
+    agent: 'Agent work',
+    human: 'Human decision',
+    none: 'No action',
+    undetermined: 'Needs investigation',
+  };
+  return [...groups].map(([key, { root, findings }]) => {
+    const marker = `${COUNTER}${key} -->`;
+    const body =
+      `${marker}\n**Codex counter-review**\n\n` +
+      findings
+        .map(
+          (f) =>
+            `[${safeText(f.verdict)}](${f.url}) · **${owners[f.handling.owner]}** — ${safeText(f.handling.summary)}`
+        )
+        .join('\n\n') +
+      `\n\nAssessed head: \`${report.headSha}\`. Advisory only; the original finding is not resolved automatically.`;
+    if (Buffer.byteLength(body) > 8000)
+      throw new Error('Counter-review reply exceeds concise comment budget');
+    const old = (root === null ? context.conversation : previous).find(
+      (c) => ownCounter(c) && c.body.startsWith(marker)
+    );
+    return { root, body, old };
+  });
 }
 
 async function ensureLabel(api, label, color) {
@@ -806,6 +963,13 @@ export async function publish(api, number, expected, report) {
   if (Buffer.byteLength(body) > 8000)
     throw new Error('Summary exceeds concise comment budget');
   const previous = await api.pages(`${prPath(number)}/comments`);
+  // Counter-review output is excluded from collected evidence, so read the
+  // issue-side digest separately when looking for an existing owned comment.
+  const replyContext = {
+    ...context,
+    conversation: await api.pages(`${issuePath(number)}/comments`),
+  };
+  const replies = counterReplies(report, replyContext, previous);
   const decisions = report.humanDecisions
     .filter((d) => isDiffLine(context.files, d))
     .map((d) => {
@@ -861,6 +1025,20 @@ export async function publish(api, number, expected, report) {
     await api.request(`repos/${REPO}/pulls/comments/${update.id}`, 'PATCH', {
       body: update.body,
     });
+  for (const reply of replies) {
+    if (reply.old?.body === reply.body) continue;
+    const endpoint =
+      reply.root === null
+        ? reply.old
+          ? `repos/${REPO}/issues/comments/${reply.old.id}`
+          : `${issuePath(number)}/comments`
+        : reply.old
+          ? `repos/${REPO}/pulls/comments/${reply.old.id}`
+          : `${prPath(number)}/comments/${reply.root}/replies`;
+    await api.request(endpoint, reply.old ? 'PATCH' : 'POST', {
+      body: reply.body,
+    });
+  }
   if (comments.length)
     await api.request(`${prPath(number)}/reviews`, 'POST', {
       commit_id: expected.head,
@@ -872,7 +1050,10 @@ export async function publish(api, number, expected, report) {
   for (const label of VOLATILE) await removeLabel(api, number, label);
   const route = ROUTES[report.outcome];
   if (route && !(retainedHuman && report.outcome === 'agent-eligible')) {
-    const fresh = await api.request(prPath(number));
+    const finalContext = await collect(api, number);
+    if (fingerprint(finalContext) !== expected.fingerprint)
+      throw new Error('Evidence changed while publishing comments');
+    const fresh = finalContext.pr;
     if (
       fresh.head.sha !== expected.head ||
       fresh.base.sha !== expected.base ||

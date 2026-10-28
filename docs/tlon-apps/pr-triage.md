@@ -20,7 +20,9 @@ Each assessment retains three evidence views in its full report:
   or automatically escalated to humans.
 - A structured counter-review recording each bot claim's trigger, reviewed
   revision, source trace, validation method, supporting and opposing evidence,
-  proof gaps, current status, next step, and independent fix assessment.
+  proof gaps, current status, next step, independent fix assessment, and handling
+  owner: agent, human, no action, or undetermined. Human handling must reference
+  a concrete decision; confirming a defect alone does not require a human.
 
 A coverage ledger accounts for bot review bodies, inline comments/replies, and
 conversation, including messages with zero findings. Several findings may share
@@ -30,11 +32,24 @@ consequential product/authority choices require an explicit human decision.
 ## GitHub Actions
 
 `.github/workflows/pr-triage.yml` runs the same skill using Codex. It starts on
-open, reopen, ready, push, or PR edits. It also handles Codex's
-`<!-- codex-pull-request-review-summary -->` issue comment, including edits:
-review start invalidates the previous automatic routing, and completion at the
-current head triggers counter-review. Findings in review bodies, inline
-comments, replies, and earlier revisions are collected together.
+open, reopen, ready, push, or PR edits. Codex activity has two detection paths:
+
+- `issue_comment` created/edited/deleted by `chatgpt-codex-connector[bot]`,
+  including its edited completion summary and ordinary conversation findings.
+- `pr-triage-review-activity.yml` observes Codex `pull_request_review` events
+  (submitted/edited/dismissed) and `pull_request_review_comment` events
+  (created/edited/deleted). It has no secrets, checkout, or write permissions.
+  Its `workflow_run` completion signals the trusted default-branch triage.
+  The gate verifies the run path, event, actors, repository, and associated PR
+  against GitHub's API; it never consumes observer artifacts or PR code.
+
+Codex-triggered inference waits for a completed code review at the current head.
+While it is pending, existing automatic routing is withdrawn without inference.
+Observer completions queue behind active analysis; identical already-published
+head/evidence fingerprints are skipped. New or edited findings change that
+fingerprint and request another assessment. The triage bot's own comments are
+excluded, preventing reply loops. Findings across all surfaces and earlier
+revisions are collected together, rather than assessing each new comment alone.
 
 Completion requires `code_review.status` and `code_review.commit_sha` from
 Codex's versioned `codex-review-state:v1` marker. A missing, malformed, pending,
@@ -42,13 +57,14 @@ or stale code review blocks eligibility; security-review completion cannot
 substitute for it.
 
 Adding or removing `review:human-required` invalidates automatic agent routing
-without inference. Other label changes and issue comments do not trigger
-inference or cancel an active analysis.
+without inference. Other label changes and non-Codex issue comments do not
+trigger inference or cancel an active analysis.
 Closing a PR or converting it to draft invalidates automatic routing without
 running inference. Automatic analysis currently covers open, non-draft PRs
 whose head repository is `tloncorp/tlon-apps`; fork PRs are skipped. Non-Codex
-triggers require repository write access. These restrictions also bound access
-to paid inference.
+paid-analysis triggers require repository write access. Users with the `triage`
+role may invalidate routing through PR state changes, but cannot launch paid
+analysis. These restrictions also bound access to inference.
 
 `pr-triage-reconcile.yml` checks existing agent routing after pushes to `develop`
 and on a twice-hourly schedule for other base branches or missed events. It
@@ -105,6 +121,12 @@ route, impact, counter-review/requirement counts, evidence limits, and next step
 The full ledger goes in the workflow job summary, linked from the PR comment.
 Local assessments keep separate report and preview files.
 
+For each Codex inline thread, one triage-owned reply is created or updated in
+place, including across revisions: verdict, handling owner, decisive evidence,
+and next action. Findings in review bodies or conversation share one linked
+digest; status-only messages receive no reply. Replies never resolve the
+original thread or imply that a proposed fix has been applied.
+
 Concrete human decisions also get inline `COMMENT` reviews. For confirmed
 current-head defects routed to agent work, up to three small, self-contained
 fixes may be proposed with GitHub `suggestion` blocks. The publisher checks the
@@ -139,7 +161,11 @@ the summary to incomplete; a cancelled run can leave a pending summary, without
 an automatic agent label. Human requirements remain in force.
 
 The publisher checks changed-file coverage, requirement source consistency,
-and declared per-message finding counts. It also blocks eligibility on material
+declared per-message finding counts, handling consistency, and source revision
+metadata. It refreshes review/check evidence after publishing comments and before
+applying routing. External replies to its inline comments retain their original
+question as context; own output is excluded from evidence fingerprints.
+It also blocks eligibility on material
 gaps inside impact-map/finding entries or unresolved requirements. These checks
 validate bookkeeping and routing consistency, not whether the model extracted
 every claim or reached the correct technical conclusion.
@@ -149,8 +175,9 @@ It must disclose missing reproductions or device evidence, and may return
 `incomplete` until a local agent supplies that evidence. Checks changing during
 analysis invalidate the result. There is no automatic retry on CI completion:
 rerun manually once checks settle, or let the next push/Codex review trigger it.
-Only the three exact triage job names are excluded from their own evidence
-fingerprint; `PR triage tooling tests` remains visible, including failures.
+Only the gate, assessment, publication, and review-activity job names are
+excluded from their own evidence fingerprint; `PR triage tooling tests` remains
+visible, including failures.
 Linked issues or external specs are not fetched by the hosted analysis; a
 material requirement source absent from the supplied context is reported as
 unavailable. Local invocation can inspect relevant links with the GitHub CLI.
@@ -170,12 +197,18 @@ node --test scripts/pr-triage/triage.test.mjs
 The separate `pr-triage-checks.yml` runs those tests on changes to the skill,
 scripts, and workflows, without secrets or write permissions. Regression cases
 cover base/label reconciliation, mixed code/security review states, missing
-completion evidence, and the focused tooling check's fingerprint.
+completion evidence, authenticated review signals, repeated-event deduplication,
+per-finding handling, reply updates, source revisions, publication races,
+external reply context, and the focused tooling check's fingerprint.
 
 Policy lives in `.agents/skills/tlon-pr-triage/`; the runner/output schema live
 in `scripts/pr-triage/`. Keep local routing and hosted output consistent.
 Upgrades to the pinned Codex action/CLI should verify the Responses proxy,
 read-only sandbox, output schema, and bot allowlist together.
+
+The observer-to-publisher boundary follows GitHub's
+[`workflow_run` documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_run): privileged follow-up code comes from the default branch, and no untrusted
+upstream artifacts are executed.
 
 References: [Codex GitHub Action](https://developers.openai.com/codex/github-action)
 and [OpenRouter Responses API](https://openrouter.ai/docs/api/reference/responses/overview).

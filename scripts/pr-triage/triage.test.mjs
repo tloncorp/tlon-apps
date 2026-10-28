@@ -166,6 +166,20 @@ const report = (outcome = 'agent-work-needed') => ({
           : 'Correct the progress reset.',
       fixAssessment:
         'The proposed reset preserves the established lifecycle contract.',
+      handling: {
+        owner:
+          outcome === 'agent-eligible'
+            ? 'none'
+            : outcome === 'human-required'
+              ? 'human'
+              : 'agent',
+        summary:
+          'The progress branch retains state across previews; reset it and add a regression test.',
+        humanQuestion:
+          outcome === 'human-required'
+            ? 'May this operation use owner authority?'
+            : '',
+      },
     },
     {
       url: `${url}#pullrequestreview-30`,
@@ -181,6 +195,12 @@ const report = (outcome = 'agent-work-needed') => ({
       proofGaps: [],
       nextStep: 'None needed.',
       fixAssessment: 'The suggested extra guard is unnecessary on this path.',
+      handling: {
+        owner: 'none',
+        summary:
+          'The caller returns on native before reaching this branch; no change is needed.',
+        humanQuestion: '',
+      },
     },
   ],
   humanDecisions:
@@ -224,6 +244,17 @@ class FakeGitHub {
     this.writes = [];
     this.labels = new Set();
     this.permission = 'write';
+    this.role = 'write';
+    this.nextId = 1000;
+    this.observedRun = {
+      id: 50,
+      path: '.github/workflows/pr-triage-review-activity.yml',
+      event: 'pull_request_review_comment',
+      actor: { login: BOT },
+      triggering_actor: { login: BOT },
+      head_repository: { full_name: REPO },
+      pull_requests: [{ number: 6794 }],
+    };
     this.beforeRequest = () => {};
   }
   async pages(endpoint) {
@@ -246,7 +277,9 @@ class FakeGitHub {
       if (endpoint.endsWith('/pulls/6794'))
         return structuredClone(this.context.pr);
       if (endpoint.endsWith('/permission'))
-        return { permission: this.permission };
+        return { permission: this.permission, role_name: this.role };
+      if (endpoint.endsWith('/actions/runs/50'))
+        return structuredClone(this.observedRun);
       if (endpoint.includes('/labels/')) {
         const label = decodeURIComponent(endpoint.split('/labels/')[1]);
         if (this.labels.has(label)) return { name: label };
@@ -265,6 +298,22 @@ class FakeGitHub {
         this.context.pr.labels.push({ name: label });
     } else if (endpoint.endsWith('/labels')) {
       this.labels.add(body.name);
+    } else if (endpoint.endsWith('/replies')) {
+      const reviewId = this.nextId++;
+      this.context.reviews.push({
+        id: reviewId,
+        user: { login: 'github-actions[bot]' },
+        state: 'COMMENTED',
+        body: '',
+        commit_id: this.context.pr.head.sha,
+      });
+      this.context.comments.push({
+        id: this.nextId++,
+        pull_request_review_id: reviewId,
+        in_reply_to_id: Number(endpoint.split('/').at(-2)),
+        user: { login: 'github-actions[bot]' },
+        ...body,
+      });
     } else if (endpoint.includes('/pulls/comments/')) {
       this.context.comments.find(
         (c) => c.id === Number(endpoint.split('/').at(-1))
@@ -275,19 +324,19 @@ class FakeGitHub {
       ).body = body.body;
     } else if (endpoint.endsWith('/issues/6794/comments')) {
       this.context.conversation.push({
-        id: 100,
+        id: this.nextId++,
         user: { login: 'github-actions[bot]' },
         ...body,
       });
     } else if (endpoint.endsWith('/reviews')) {
       this.context.reviews.push({
-        id: 200,
+        id: this.nextId++,
         user: { login: 'github-actions[bot]' },
         body: body.body,
       });
       this.context.comments.push(
         ...body.comments.map((c, i) => ({
-          id: 300 + i,
+          id: this.nextId++,
           user: { login: 'github-actions[bot]' },
           ...c,
         }))
@@ -310,16 +359,17 @@ test('URLs validate host, repository and integer; local URL fragments are accept
     assert.throws(() => parseUrl(input));
 });
 
-test('only real Codex status events trigger counter-review; edits count', () => {
+test('only authenticated Codex discussion events trigger counter-review; edits count', () => {
   const e = event('issue_comment');
   e.action = 'edited';
   assert.deepEqual(trigger('issue_comment', e), {
     number: 6794,
     analyze: true,
     reviewedHead: HEAD,
+    codexActivity: true,
   });
   e.comment.body = codexState(HEAD, 'in_progress');
-  assert.equal(trigger('issue_comment', e).analyze, false);
+  assert.equal(trigger('issue_comment', e).codexActivity, true);
   e.comment.user.login = 'contributor';
   assert.equal(trigger('issue_comment', e), null);
   e.comment.user.login = BOT;
@@ -501,7 +551,10 @@ test('drafts, closure and review start invalidate routing but do not analyze', a
     const e = event(state === 'running' ? 'issue_comment' : undefined);
     if (state === 'draft') api.context.pr.draft = true;
     if (state === 'closed') api.context.pr.state = 'closed';
-    if (state === 'running') e.comment.body = codexState(HEAD, 'in_progress');
+    if (state === 'running') {
+      e.comment.body = codexState(HEAD, 'in_progress');
+      api.context.conversation[0].body = e.comment.body;
+    }
     assert.equal(
       await gate(
         api,
@@ -553,6 +606,7 @@ test('tooling check failures remain visible and invalidate the evidence fingerpr
     'PR triage gate',
     'PR triage assessment',
     'PR triage publication',
+    'PR triage review activity',
   ])
     api.context.checks.push({ name, status: 'in_progress' });
   const before = await collect(api, 6794);
@@ -628,6 +682,7 @@ test('human inline comments use current anchors, deduplicate, preserve other com
   await publish(api, 6794, exp, r);
   r.humanDecisions[0].question =
     'Please confirm owner delegation for recovery.';
+  r.findings[0].handling.humanQuestion = r.humanDecisions[0].question;
   await publish(api, 6794, exp, r);
   assert.equal(
     api.writes.filter((w) => w.endpoint.endsWith('/reviews')).length,
@@ -641,8 +696,13 @@ test('human inline comments use current anchors, deduplicate, preserve other com
     api.context.comments.find((c) => c.id === 10).body,
     'A bounded defect'
   );
-  assert.equal(api.context.comments.length, 2);
-  assert.match(api.context.comments[1].body, /owner delegation for recovery/);
+  assert.equal(api.context.comments.length, 3);
+  assert.match(
+    api.context.comments.find((c) =>
+      c.body.startsWith('<!-- tlon-pr-triage-decision:')
+    ).body,
+    /owner delegation for recovery/
+  );
   assert.ok(
     api.context.pr.labels.some((l) => l.name === 'review:human-required')
   );
@@ -780,7 +840,9 @@ test('counter-review requires method, proof and explicit counterevidence before 
     proofGaps: ['The reviewed revision is unavailable.'],
     nextStep: 'Recover the reviewed source revision.',
   });
-  assert.doesNotThrow(() => validateReport(r, fixture()));
+  const context = fixture();
+  delete context.comments[0].original_commit_id;
+  assert.doesNotThrow(() => validateReport(r, context));
 });
 
 test('coverage preserves multiple claims in a body and explains status-only messages', async () => {
@@ -977,8 +1039,12 @@ test('suggestions publish exact code with multi-line anchors, deduplicate and st
   assert.equal(fingerprint(await collect(api, 6794)), exp.fingerprint);
   r.suggestions[0].reason = 'Reset progress before loading the second preview.';
   await publish(api, 6794, exp, r);
-  assert.equal(api.context.comments.length, 2);
-  assert.ok(api.context.comments[1].body.includes(r.suggestions[0].reason));
+  assert.equal(api.context.comments.length, 3);
+  assert.ok(
+    api.context.comments
+      .find((c) => c.body.startsWith('<!-- tlon-pr-triage-suggestion:'))
+      .body.includes(r.suggestions[0].reason)
+  );
 });
 
 test('single-line suggestions omit multi-line fields and support deletions', async () => {
@@ -1145,6 +1211,7 @@ test('code-review completion is independent of a missing or stale security block
       number: 6794,
       analyze: true,
       reviewedHead: HEAD,
+      codexActivity: true,
     });
   }
 });
@@ -1192,7 +1259,11 @@ test('a human requirement added during publication suppresses eligibility', asyn
   const api = new FakeGitHub();
   const exp = expected(api.context);
   api.beforeRequest = (endpoint, method) => {
-    if (method === 'POST' && endpoint.endsWith('/issues/6794/comments'))
+    if (
+      method === 'POST' &&
+      endpoint.endsWith('/issues/6794/comments') &&
+      !api.context.pr.labels.some((l) => l.name === 'review:human-required')
+    )
       api.context.pr.labels.push({ name: 'review:human-required' });
   };
   await assert.rejects(
@@ -1278,5 +1349,365 @@ test('source preparation uses pinned Git objects and preserves trusted checkout'
   } finally {
     process.chdir(previous);
     rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+const observerEvent = (api) => ({
+  repository: { full_name: REPO },
+  action: 'completed',
+  workflow_run: structuredClone(api.observedRun),
+});
+
+test('review observer requires authenticated run metadata and fresh completed review', async () => {
+  for (const eventName of [
+    'pull_request_review',
+    'pull_request_review_comment',
+  ]) {
+    const api = new FakeGitHub();
+    api.observedRun.event = eventName;
+    assert.deepEqual(await gate(api, 'workflow_run', observerEvent(api)), {
+      number: 6794,
+      head: HEAD,
+    });
+  }
+  for (const status of ['in_progress', 'failed', 'missing', 'old']) {
+    const api = new FakeGitHub();
+    api.context.conversation[0].body =
+      status === 'missing'
+        ? 'Review queued'
+        : codexState(
+            status === 'old' ? OTHER : HEAD,
+            status === 'old' ? 'completed' : status
+          );
+    assert.equal(await gate(api, 'workflow_run', observerEvent(api)), null);
+    assert.ok(api.writes.some((w) => w.method === 'DELETE'));
+  }
+});
+
+test('untrusted observer events and mismatched API runs cannot start paid analysis', async () => {
+  for (const mutate of [
+    (run) => {
+      run.actor.login = 'contributor';
+    },
+    (run) => {
+      run.triggering_actor.login = 'contributor';
+    },
+    (run) => {
+      run.path = '.github/workflows/untrusted.yml';
+    },
+    (run) => {
+      run.event = 'workflow_dispatch';
+    },
+    (run) => {
+      run.head_repository.full_name = 'other/fork';
+    },
+    (run) => {
+      run.pull_requests = [];
+    },
+    (run) => {
+      run.pull_requests.push({ number: 7000 });
+    },
+  ]) {
+    const api = new FakeGitHub();
+    const e = observerEvent(api);
+    mutate(e.workflow_run);
+    assert.equal(await gate(api, 'workflow_run', e), null);
+    assert.equal(api.writes.length, 0);
+  }
+  const api = new FakeGitHub();
+  const e = observerEvent(api);
+  api.observedRun.pull_requests[0].number = 7000;
+  assert.equal(await gate(api, 'workflow_run', e), null);
+  assert.equal(api.writes.length, 0);
+});
+
+test('ordinary Codex conversation findings trigger analysis only after completion', async () => {
+  const api = new FakeGitHub();
+  const e = event('issue_comment');
+  e.comment = {
+    user: { login: BOT },
+    body: 'A new defect discovered in follow-up.',
+  };
+  assert.deepEqual(await gate(api, 'issue_comment', e), {
+    number: 6794,
+    head: HEAD,
+  });
+  api.context.conversation[0].body = codexState(HEAD, 'in_progress');
+  assert.equal(await gate(api, 'issue_comment', e), null);
+});
+
+test('repeated completion signals skip identical published evidence, edits rerun', async () => {
+  const api = new FakeGitHub();
+  await publish(api, 6794, expected(api.context), report());
+  api.writes = [];
+  assert.equal(await gate(api, 'workflow_run', observerEvent(api)), null);
+  assert.equal(await gate(api, 'issue_comment', event('issue_comment')), null);
+  assert.equal(api.writes.length, 0);
+  api.context.comments[0].body += ' Additional triggering scenario.';
+  assert.deepEqual(await gate(api, 'workflow_run', observerEvent(api)), {
+    number: 6794,
+    head: HEAD,
+  });
+  assert.ok(api.writes.some((w) => w.method === 'DELETE'));
+});
+
+test('triage-role close and reopen events invalidate without allowing paid analysis', async () => {
+  for (const action of ['closed', 'reopened', 'edited', 'ready_for_review']) {
+    const api = new FakeGitHub();
+    api.permission = 'read';
+    api.role = 'triage';
+    api.context.pr.labels = [
+      { name: 'review:agent-eligible' },
+      { name: 'review:human-required' },
+    ];
+    const e = { ...event(), action };
+    assert.equal(await gate(api, 'pull_request_target', e), null);
+    assert.deepEqual(api.context.pr.labels, [
+      { name: 'review:human-required' },
+    ]);
+  }
+  const api = new FakeGitHub();
+  api.permission = 'read';
+  api.role = 'triage';
+  assert.equal(
+    await gate(api, 'workflow_dispatch', {
+      ...event(),
+      inputs: { pr_url: url },
+    }),
+    null
+  );
+  assert.equal(api.writes.length, 0);
+});
+
+test('finding handling cannot hide work or invent a human decision', async () => {
+  for (const mutate of [
+    (r) => {
+      delete r.findings[0].handling;
+    },
+    (r) => {
+      r.findings[0].handling.owner = 'none';
+    },
+    (r) => {
+      r.findings[1].handling.owner = 'agent';
+    },
+    (r) => {
+      r.findings[0].handling.owner = 'human';
+    },
+    (r) => {
+      r.findings[0].handling.humanQuestion = 'Unrecorded choice';
+    },
+    (r) => {
+      r.findings[0].handling.summary = '';
+    },
+    (r) => {
+      r.findings[0].handling.owner = 'undetermined';
+      r.suggestions = [suggestion()];
+    },
+  ]) {
+    const api = new FakeGitHub();
+    const r = report();
+    mutate(r);
+    await assert.rejects(publish(api, 6794, expected(api.context), r));
+    assert.equal(api.writes.length, 0);
+  }
+  const r = report('human-required');
+  r.findings[0].handling.humanQuestion = 'A different question';
+  assert.throws(() => validateReport(r, fixture()), /matching human decision/);
+});
+
+test('source metadata controls reviewed revision and prevents current-head suggestion spoofing', async () => {
+  const api = new FakeGitHub();
+  api.context.comments[0].original_commit_id = OTHER;
+  api.context.comments[0].commit_id = HEAD;
+  const r = report();
+  r.suggestions = [suggestion()];
+  await assert.rejects(
+    publish(api, 6794, expected(api.context), r),
+    /revision does not match/
+  );
+  assert.equal(api.writes.length, 0);
+  r.findings[0].reviewedRevision = OTHER;
+  assert.throws(
+    () => validateReport(r, api.context),
+    /current-head agent task/
+  );
+  r.suggestions = [];
+  validateReport(r, api.context);
+  r.findings[1].reviewedRevision = OTHER;
+  assert.throws(
+    () => validateReport(r, api.context),
+    /revision does not match/
+  );
+});
+
+test('counter-review replies update per root across heads and keep original comments intact', async () => {
+  const api = new FakeGitHub();
+  const r = report();
+  await publish(api, 6794, expected(api.context), r);
+  const reply = api.context.comments.find((c) => c.in_reply_to_id === 10);
+  assert.match(reply.body, /confirmed.*Agent work/);
+  assert.ok(reply.body.includes(r.findings[0].handling.summary));
+  assert.ok(reply.body.length < 1000);
+  const writes = api.writes.filter((w) =>
+    w.endpoint.endsWith('/replies')
+  ).length;
+  await publish(api, 6794, expected(await collect(api, 6794)), r);
+  assert.equal(
+    api.writes.filter((w) => w.endpoint.endsWith('/replies')).length,
+    writes
+  );
+  api.context.pr.head.sha = OTHER;
+  api.context.conversation[0].body = codexState(OTHER);
+  r.headSha = OTHER;
+  r.findings[0].verdict = 'already-fixed';
+  r.findings[0].handling = {
+    owner: 'none',
+    summary:
+      'The new reset handles the second preview; no further change is needed.',
+    humanQuestion: '',
+  };
+  await publish(api, 6794, expected(await collect(api, 6794)), r);
+  assert.equal(api.context.comments.length, 2);
+  assert.match(reply.body, /already-fixed.*No action/);
+  assert.ok(reply.body.includes(OTHER));
+  assert.equal(api.context.comments[0].body, rootComment.body);
+});
+
+test('multiple inline claims share one reply; body and conversation claims share one digest', async () => {
+  const api = new FakeGitHub();
+  const r = report();
+  r.findings.push({
+    ...structuredClone(r.findings[0]),
+    claim: 'A second condition in this same thread.',
+  });
+  r.reviewCoverage[0].findingCount++;
+  api.context.conversation.push({
+    id: 21,
+    user: { login: BOT },
+    html_url: `${url}#issuecomment-21`,
+    body: 'A follow-up claim.',
+  });
+  r.findings.push({
+    ...structuredClone(r.findings[1]),
+    url: `${url}#issuecomment-21`,
+    reviewedRevision: 'unknown',
+  });
+  r.reviewCoverage.push({
+    url: `${url}#issuecomment-21`,
+    findingCount: 1,
+    reason: 'A follow-up claim.',
+  });
+  const exp = expected(api.context);
+  await publish(api, 6794, exp, r);
+  await publish(api, 6794, exp, r);
+  assert.equal(
+    api.context.comments.filter((c) => c.in_reply_to_id === 10).length,
+    1
+  );
+  const digest = api.context.conversation.filter((c) =>
+    c.body.startsWith('<!-- tlon-pr-triage-counter:v1:digest')
+  );
+  assert.equal(digest.length, 1);
+  assert.match(digest[0].body, /pullrequestreview-30/);
+  assert.match(digest[0].body, /issuecomment-21/);
+  assert.equal(fingerprint(await collect(api, 6794)), exp.fingerprint);
+});
+
+test('externally replied-to triage roots retain context without fingerprinting our output', async () => {
+  const api = new FakeGitHub();
+  const exp = expected(api.context);
+  await publish(api, 6794, exp, report('human-required'));
+  const root = api.context.comments.find((c) =>
+    c.body.startsWith('<!-- tlon-pr-triage-decision:')
+  );
+  assert.equal(
+    (await collect(api, 6794)).comments.some((c) => c.id === root.id),
+    false
+  );
+  api.context.comments.push({
+    id: 2000,
+    in_reply_to_id: root.id,
+    user: { login: 'maintainer' },
+    body: 'Yes, as described.',
+  });
+  const before = await collect(api, 6794);
+  assert.ok(before.comments.some((c) => c.id === root.id));
+  assert.notEqual(fingerprint(before), exp.fingerprint);
+  root.body += '\nUpdated evidence.';
+  assert.equal(fingerprint(await collect(api, 6794)), fingerprint(before));
+  api.context.comments.at(-1).body = 'No; keep the existing authority.';
+  assert.notEqual(fingerprint(await collect(api, 6794)), fingerprint(before));
+});
+
+test('same-head evidence changes during reply or summary writes prevent routing', async () => {
+  for (const target of ['reply', 'summary']) {
+    for (const change of ['check', 'review']) {
+      const api = new FakeGitHub();
+      const exp = expected(api.context);
+      api.beforeRequest = (endpoint, method, body) => {
+        if (
+          method !== 'POST' ||
+          !(target === 'reply'
+            ? endpoint.endsWith('/replies')
+            : body?.body?.startsWith(SUMMARY))
+        )
+          return;
+        if (change === 'check') api.context.checks[0].conclusion = 'failure';
+        else api.context.reviews[0].body += ' New material evidence.';
+      };
+      await assert.rejects(
+        publish(api, 6794, exp, report('agent-eligible')),
+        /Evidence changed while publishing/
+      );
+      assert.equal(api.context.pr.labels.length, 0);
+      assert.ok(
+        !api.writes.some(
+          (w) =>
+            w.endpoint.endsWith('/issues/6794/labels') && w.method === 'POST'
+        )
+      );
+    }
+  }
+});
+
+test('reply-generated blank reviews are excluded without hiding unrelated automation reviews', async () => {
+  const api = new FakeGitHub();
+  const exp = expected(api.context);
+  await publish(api, 6794, exp, report());
+  assert.ok(
+    api.context.reviews.some(
+      (r) =>
+        r.user.login === 'github-actions[bot]' &&
+        r.body === '' &&
+        r.state === 'COMMENTED'
+    )
+  );
+  assert.equal(fingerprint(await collect(api, 6794)), exp.fingerprint);
+  api.context.reviews.push({
+    id: 9000,
+    user: { login: 'github-actions[bot]' },
+    body: '',
+    state: 'COMMENTED',
+    commit_id: HEAD,
+  });
+  api.context.comments.push({
+    id: 9001,
+    user: { login: 'github-actions[bot]' },
+    body: 'A different automation finding.',
+    pull_request_review_id: 9000,
+  });
+  const context = await collect(api, 6794);
+  assert.ok(context.reviews.some((r) => r.id === 9000));
+  assert.notEqual(fingerprint(context), exp.fingerprint);
+});
+
+test('duplicate Codex signals still invalidate routing on closed or draft PRs', async () => {
+  for (const state of ['closed', 'draft']) {
+    const api = new FakeGitHub();
+    await publish(api, 6794, expected(api.context), report('agent-eligible'));
+    if (state === 'closed') api.context.pr.state = 'closed';
+    else api.context.pr.draft = true;
+    assert.equal(await gate(api, 'workflow_run', observerEvent(api)), null);
+    assert.equal(api.context.pr.labels.length, 0);
   }
 });

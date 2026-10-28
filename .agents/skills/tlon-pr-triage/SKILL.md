@@ -132,6 +132,15 @@ problem. A real defect accepted as a tradeoff remains real: record the
 acceptance separately, with its source, rather than relabeling it as a false
 positive.
 
+Give each finding a separate handling decision: `agent` for bounded work under
+established policy, `human` for an explicit product/authority/risk decision,
+`none` when no action remains, or `undetermined` when evidence cannot yet settle
+who should act. A confirmed bug does not automatically need a human; an
+inconclusive claim is not automatically an agent fix. Link human handling to a
+precise question in the report's human decisions. Follow the evidence reference
+for the structured fields and the publication reference for concise replies in
+the original Codex threads.
+
 Check the suggested fix independently of the diagnosis. In particular, a fix
 that broadens permissions, changes compatibility, or introduces persistent state
 may need a human decision even when the original bug is straightforward.
@@ -243,5 +252,6 @@ When invoked by `.github/workflows/pr-triage.yml`, read
 using the supplied snapshot and pinned Git objects. Return structured English
 JSON to the publisher instead of calling GitHub write APIs. The workflow's
 publication authorization covers its summary, routing labels, concrete human
-decision comments, and validated code suggestions. Suggestions are never applied
+decision comments, concise Codex counter-review replies, and validated code
+suggestions. Suggestions are never applied
 automatically. Ordinary local URL invocations remain report-only.

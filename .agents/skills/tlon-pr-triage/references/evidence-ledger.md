@@ -82,8 +82,12 @@ merely because it has a reply. Separate different claims sharing one URL.
 For each finding, record:
 
 1. **Claim and revision:** source URL, specific alleged defect, and reviewed
-   commit (`unknown` if it cannot be established). Track current-head status
-   separately; neither a merge nor a resolved thread proves a fix.
+   commit. For inline comments use `original_commit_id`, falling back to
+   `commit_id` only if absent; review bodies use `commit_id`. Use `unknown` when
+   the source has no revision metadata (including ordinary issue comments).
+   Do not substitute the current head or a SHA mentioned in prose. Track
+   current-head status separately; neither a merge nor thread resolution proves
+   a fix.
 2. **Trigger and trace:** required input/state/platform, reachable path, relevant
    guards, and claimed effect, with exact source locations. If part of the path
    cannot be established, say which part instead of supplying a plausible one.
@@ -102,6 +106,23 @@ For each finding, record:
 6. **Verdict and fix assessment:** use the skill's existing verdicts, then check
    whether the proposed fix preserves contracts and authority. A correct bug
    diagnosis can accompany an unsafe fix. If no fix was proposed, state that.
+
+7. **Handling:** `handling.owner` is independent of the verdict:
+   - `agent`: a concrete fix or investigation fits established requirements.
+     Include the work in `agentWork`; evidence gathering may be agent work
+     without claiming the suspected defect is confirmed.
+   - `human`: the next step needs a policy, product, authority, or risk decision.
+     `humanQuestion` must exactly match a question in `humanDecisions`.
+   - `none`: nothing remains to do for this claim; use for refuted/already-fixed
+     findings and justified deferrals. A current confirmed or inconclusive
+     finding cannot use this owner.
+   - `undetermined`: the missing evidence prevents assigning responsibility;
+     explain what would settle it and reflect the gap in overall routing.
+   Set `humanQuestion` to an empty string unless the owner is `human`.
+   Write `handling.summary` as one or two short English sentences (up to 500
+   characters): decisive proof or missing evidence, then the next action. It is
+   the public reply, so cite a pinned source/check when useful, avoid repeating
+   the bot's full claim, and do not claim an unexecuted test passed.
 
 Stop once the verdict and its limits are supported. Keep each candidate's
 conclusion even when another finding looks more important. Share proof between
