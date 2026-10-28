@@ -28,10 +28,31 @@ export async function addContact(contactId: string) {
   }
 }
 
-export async function addContacts(contacts: string[]) {
+export type AddContactsResult = {
+  addedContactIds: string[];
+  failedContactIds: string[];
+};
+
+export async function addContacts(
+  contactIds: string[]
+): Promise<AddContactsResult> {
+  const contacts = [...new Set(contactIds)];
   logger.trackEvent(AnalyticsEvent.ActionContactAdded, {
     count: contacts.length,
   });
+  const previousContacts = await db.getContactsBatch({ contactIds: contacts });
+  const previousById = new Map(previousContacts.map((c) => [c.id, c]));
+  const rollback = (contactIds: string[]) =>
+    Promise.all(
+      contactIds.map((id) =>
+        db.updateContact({
+          id,
+          isContact: previousById.get(id)?.isContact ?? false,
+          isContactSuggestion:
+            previousById.get(id)?.isContactSuggestion ?? false,
+        })
+      )
+    );
 
   // Use upsert (matching the singular addContact) so a contact row is
   // created locally if one doesn't exist yet. Otherwise downstream
@@ -52,27 +73,37 @@ export async function addContacts(contacts: string[]) {
     contacts,
   });
 
+  let existingContacts: db.Contact[];
   try {
     // Backend will balk if we try to add the same contact twice, so filter out
     // any that are already contacts
-    const existingContacts = await api.getContacts();
-    const newContacts = contacts.filter(
-      (contactId) =>
-        !existingContacts.some((c) => c.id === contactId && c.isContact)
-    );
-
-    await api.addUserContacts(newContacts);
+    existingContacts = await api.getContacts();
   } catch (e) {
     logger.trackError('Error adding contacts', e);
-    // Rollback the update
-    const rolbacks = contacts.map((contactId) =>
-      db.updateContact({
-        id: contactId,
-        isContact: false,
-      })
-    );
-    await Promise.all(rolbacks);
+    await rollback(contacts);
+    return { addedContactIds: [], failedContactIds: contacts };
   }
+
+  const existingIds = new Set(
+    existingContacts.filter((c) => c.isContact).map((c) => c.id)
+  );
+  const newContacts = contacts.filter((id) => !existingIds.has(id));
+  const results = await Promise.allSettled(
+    newContacts.map((id) => api.addContact(id))
+  );
+  const failedContactIds = results.flatMap((result, index) => {
+    if (result.status === 'fulfilled') return [];
+    logger.trackError('Error adding contact', result.reason);
+    return [newContacts[index]];
+  });
+  if (failedContactIds.length > 0) {
+    await rollback(failedContactIds);
+  }
+  const failedIds = new Set(failedContactIds);
+  return {
+    addedContactIds: contacts.filter((id) => !failedIds.has(id)),
+    failedContactIds,
+  };
 }
 
 export async function removeContact(contactId: string) {
@@ -273,6 +304,7 @@ export async function updateContactMetadata(
           ? ''
           : undefined,
     });
+    return true;
   } catch (e) {
     logger.trackError('Error updating contact metadata', e);
     // rollback the update
@@ -281,6 +313,7 @@ export async function updateContactMetadata(
       customNickname: existingContact?.customNickname,
       customAvatarImage: existingContact?.customAvatarImage,
     });
+    return false;
   }
 }
 

@@ -839,6 +839,7 @@ export const syncContactDiscovery = async (
       isMocked,
     });
     const newMatchIds = newMatches.map(([, id]) => id);
+    let addedMatches: [string, string][] = [];
 
     await db.linkSystemContacts({ matches }).catch((e) => {
       didSucceed = false;
@@ -854,19 +855,18 @@ export const syncContactDiscovery = async (
     );
 
     if (newMatchIds.length > 0) {
-      await addContacts(newMatchIds).catch((e) => {
+      const { addedContactIds, failedContactIds } =
+        await addContacts(newMatchIds);
+      if (failedContactIds.length > 0) {
         didSucceed = false;
-        logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
-          context: 'failed to add contacts',
-          severity: AnalyticsSeverity.Critical,
-          error: e,
-        });
-      });
-      logger.log('syncContactDiscovery: added contacts', newMatchIds);
+      }
+      const addedIds = new Set(addedContactIds);
+      addedMatches = newMatches.filter(([, id]) => addedIds.has(id));
+      logger.log('syncContactDiscovery: added contacts', addedContactIds);
 
       await db
         .markContactsAsMatched({
-          contactIds: newMatchIds,
+          contactIds: addedContactIds,
           matchedAt: Date.now(),
         })
         .catch((e) => {
@@ -881,8 +881,8 @@ export const syncContactDiscovery = async (
       // matches whose contact doesn't already have one. The query
       // does the join + filter, so we just map to API calls here.
       const contactsToName =
-        await db.getUnnamedSystemContactsByContactId(newMatchIds);
-      await Promise.all(
+        await db.getUnnamedSystemContactsByContactId(addedContactIds);
+      const metadataResults = await Promise.all(
         contactsToName.map((c) =>
           updateContactMetadata(c.contactId, {
             nickname: `${c.firstName || ''} ${c.lastName || ''}`.trim(),
@@ -895,14 +895,18 @@ export const syncContactDiscovery = async (
           severity: AnalyticsSeverity.Critical,
           error: e,
         });
+        return [];
       });
+      if (metadataResults.some((didUpdate) => !didUpdate)) {
+        didSucceed = false;
+      }
     }
 
-    if (invokeHandler && newMatches.length > 0) {
-      await invokeContactsMatchedHandler(newMatchIds);
+    if (invokeHandler && addedMatches.length > 0) {
+      await invokeContactsMatchedHandler(addedMatches.map(([, id]) => id));
     }
 
-    return { didDiscover, didSucceed, newMatches };
+    return { didDiscover, didSucceed, newMatches: addedMatches };
   } catch (error) {
     logger.error('error discovering contacts', error);
     logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
