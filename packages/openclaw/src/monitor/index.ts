@@ -94,7 +94,12 @@ import {
   syncPendingNudgeFromStore,
 } from '../pending-nudge.js';
 import { emitTlonPluginErrorTelemetry } from '../plugin-error-observability.js';
+import {
+  type NudgeScheduler,
+  createNudgeScheduler,
+} from '../nudge-scheduler.js';
 import { getTlonRuntime } from '../runtime.js';
+import { defaultSleep } from '../sleep.js';
 import { OWNER_ONLY_TOOLS } from '../owner-only-tools.js';
 import { setSessionRole } from '../session-roles.js';
 import { noteInboundDispatching } from '../turn-identity.js';
@@ -657,16 +662,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         }
         const delay = authRetryDelayMs(attempt);
         runtime.log?.(`[tlon] Retrying authentication in ${delay}ms...`);
-        await new Promise<void>((resolve, reject) => {
-          const timer = setTimeout(resolve, delay);
-          if (opts.abortSignal) {
-            const onAbort = () => {
-              clearTimeout(timer);
-              reject(new Error('Aborted'));
-            };
-            opts.abortSignal.addEventListener('abort', onAbort, { once: true });
-          }
-        });
+        await defaultSleep(delay, opts.abortSignal);
       }
     }
   }
@@ -1708,6 +1704,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     });
 
     let nudgeRunner: ReturnType<typeof createNudgeRunner> | null = null;
+    // Joined in teardown so a running tick cannot poke or scry through
+    // shutdown or after api.close().
+    const intervalSchedulers: NudgeScheduler[] = [];
     let campaignActiveRuns = 0;
     const campaign = effectiveOwnerShip
       ? createLiveCampaign({
@@ -6875,6 +6874,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         '[tlon] All subscriptions registered, connecting to SSE stream...'
       );
       await api.connect();
+      if (opts.abortSignal?.aborted) {
+        return;
+      }
       runtime.log?.('[tlon] Connected! Firehose subscriptions active');
       // Not awaited: the initial projection retries until the ship answers,
       // and readiness, catch-up and onboarding must not wait on that.
@@ -7046,58 +7048,67 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
       campaign?.start();
       // Periodically refresh channel discovery
-      const pollInterval = setInterval(
-        async () => {
-          if (!opts.abortSignal?.aborted) {
-            try {
-              if (effectiveAutoDiscoverChannels) {
-                const discoveredChannels = await mergeDiscoveredChannels();
-                for (const channelNest of discoveredChannels) {
-                  if (!watchedChannels.has(channelNest)) {
-                    watchedChannels.add(channelNest);
-                    runtime.log?.(
-                      `[tlon] Now watching new channel: ${channelNest}`
-                    );
-                    await scanDiscoveredAgentOnboardingNest(channelNest);
-                  }
+      const channelRefresh = createNudgeScheduler({
+        label: 'channel refresh',
+        immediate: false,
+        intervalMs: 2 * 60 * 1000,
+        abortSignal: opts.abortSignal,
+        error: (msg) => runtime.error?.(msg),
+        tick: async () => {
+          try {
+            if (effectiveAutoDiscoverChannels) {
+              const discoveredChannels = await mergeDiscoveredChannels();
+              for (const channelNest of discoveredChannels) {
+                if (!watchedChannels.has(channelNest)) {
+                  watchedChannels.add(channelNest);
+                  runtime.log?.(
+                    `[tlon] Now watching new channel: ${channelNest}`
+                  );
+                  await scanDiscoveredAgentOnboardingNest(channelNest);
                 }
-              } else {
-                // Discovery's own fetch syncs the joined set; repair any
-                // drift from a dropped subscription either way.
-                await syncJoinedChannels();
               }
-              await rescanRecentlyJoinedChannels();
-            } catch (error: any) {
-              runtime.error?.(
-                `[tlon] Channel refresh error: ${error?.message ?? String(error)}`
-              );
+            } else {
+              // Discovery's own fetch syncs the joined set; repair any
+              // drift from a dropped subscription either way.
+              await syncJoinedChannels();
             }
-            // Refresh authorization first so a dead settings subscription
-            // cannot make the catch-up auto-accept on a stale allowlist. A
-            // failed refresh still falls through: queue decisions are safe on
-            // stale state, and skipping the catch-up would re-create the
-            // silently-pending invites this loop exists to prevent.
-            await refreshSettingsNow();
-            // Recovery loop for missed invites and failed owner
-            // notifications; runs after the gated channel refresh above and
-            // never rejects (the runner observes failures).
-            await groupInviteRunner.catchUp();
+            await rescanRecentlyJoinedChannels();
+          } catch (error: any) {
+            runtime.error?.(
+              `[tlon] Channel refresh error: ${error?.message ?? String(error)}`
+            );
           }
+          // Refresh authorization first so a dead settings subscription
+          // cannot make the catch-up auto-accept on a stale allowlist. A
+          // failed refresh still falls through: queue decisions are safe on
+          // stale state, and skipping the catch-up would re-create the
+          // silently-pending invites this loop exists to prevent.
+          await refreshSettingsNow();
+          // Recovery loop for missed invites and failed owner
+          // notifications; runs after the gated channel refresh above and
+          // never rejects (the runner observes failures).
+          await groupInviteRunner.catchUp();
         },
-        2 * 60 * 1000
-      );
+      });
 
       let nextCampaignCheckAt = Date.now() + CAMPAIGN_CHECK_INTERVAL_MS;
-      const settingsRefreshInterval = setInterval(async () => {
-        if (opts.abortSignal?.aborted) {
-          return;
-        }
-        await refreshSettingsNow();
-        if (Date.now() >= nextCampaignCheckAt) {
-          nextCampaignCheckAt = Date.now() + CAMPAIGN_CHECK_INTERVAL_MS;
-          await campaign?.check();
-        }
-      }, SETTINGS_REFRESH_INTERVAL_MS);
+      const settingsRefresh = createNudgeScheduler({
+        label: 'settings refresh',
+        immediate: false,
+        intervalMs: SETTINGS_REFRESH_INTERVAL_MS,
+        abortSignal: opts.abortSignal,
+        error: (msg) => runtime.error?.(msg),
+        tick: async () => {
+          await refreshSettingsNow();
+          if (Date.now() >= nextCampaignCheckAt) {
+            nextCampaignCheckAt = Date.now() + CAMPAIGN_CHECK_INTERVAL_MS;
+            await campaign?.check();
+          }
+        },
+      });
+      intervalSchedulers.push(channelRefresh, settingsRefresh);
+      channelRefresh.start();
+      settingsRefresh.start();
 
       // Plugin-owned re-engagement nudge scheduler. Owns tick lifecycle and
       // reentrancy; runs independently of LLM heartbeat.
@@ -7145,8 +7156,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         const signal = opts.abortSignal;
         await new Promise<void>((resolve) => {
           const onAbort = () => {
-            clearInterval(pollInterval);
-            clearInterval(settingsRefreshInterval);
+            for (const scheduler of intervalSchedulers) void scheduler.stop();
             clearAgentOnboardingRetries?.();
             // Kick off scheduler shutdown; don't block the event-handler
             // callback. The `finally` block awaits the same stop promise
@@ -7180,6 +7190,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // this finally call the helper; whichever runs first wins.
       cleanupGatewayStatus();
       removeBudgetHoldNotifier();
+      await Promise.all(
+        intervalSchedulers.map((scheduler) => scheduler.stop())
+      );
       drainingAgentOnboarding = true;
       clearAgentOnboardingRetries?.();
       clearAgentOnboardingRetries = null;
