@@ -75,12 +75,24 @@ describe('sendDm', () => {
     setReplyOutputReporter(null);
   });
 
-  it('uses aura v3 helpers for channel post ids', async () => {
+  it('returns the id the host gave a channel post, not the sent time', async () => {
     const poke = vi.fn(async () => ({}));
+    const sentAt = 1_700_000_000_000;
+    // The host keyed the post by its own clock; another post by the same
+    // author and an older one by someone else sit beside it.
+    const getChannelPosts = vi.fn(async () => ({
+      posts: [
+        { id: '170.141.184.507.999', authorId: '~zod', sentAt },
+        { id: '170.141.184.507.998', authorId: '~zod', sentAt: sentAt - 5 },
+        { id: '170.141.184.507.990', authorId: '~nec', sentAt },
+      ],
+    }));
 
     vi.doMock('@tloncorp/api', () => ({
       sendPost: poke,
       sendReply: vi.fn(),
+      getChannelPosts,
+      getPostWithReplies: vi.fn(),
       addReaction: vi.fn(),
       removeReaction: vi.fn(),
       deletePost: vi.fn(),
@@ -91,7 +103,6 @@ describe('sendDm', () => {
     const { setReplyOutputReporter } = await import('../telemetry.js');
     const outputReporter = vi.fn();
     setReplyOutputReporter(outputReporter);
-    const sentAt = 1_700_000_000_000;
     vi.spyOn(Date, 'now').mockReturnValue(sentAt);
 
     const result = await sendChannelPost({
@@ -109,10 +120,16 @@ describe('sendDm', () => {
         blob: '[{"type":"tlon-context-lens","version":1,"lensId":"lens-123"}]',
       })
     );
-    expect(result.messageId).toBe('~zod/mocked-ud');
+    expect(getChannelPosts).toHaveBeenCalledWith(
+      expect.objectContaining({
+        channelId: 'chat/~zod/general',
+        mode: 'newest',
+      })
+    );
+    expect(result.messageId).toBe('~zod/170.141.184.507.999');
     expect(outputReporter).toHaveBeenCalledWith(
       expect.objectContaining({
-        messageId: '~zod/mocked-ud',
+        messageId: '~zod/170.141.184.507.999',
         chatType: 'groupChannel',
         isThreadReply: false,
       })
@@ -120,13 +137,52 @@ describe('sendDm', () => {
     setReplyOutputReporter(null);
   });
 
+  it('falls back to the sent-time id when the host never shows the post', async () => {
+    vi.useFakeTimers();
+    try {
+      const getChannelPosts = vi.fn(async () => ({ posts: [] }));
+      vi.doMock('@tloncorp/api', () => ({
+        sendPost: vi.fn(async () => ({})),
+        sendReply: vi.fn(),
+        getChannelPosts,
+        getPostWithReplies: vi.fn(),
+        addReaction: vi.fn(),
+        removeReaction: vi.fn(),
+        deletePost: vi.fn(),
+        configureClient: vi.fn(),
+      }));
+
+      const { sendChannelPost } = await import('./send.js');
+      const pending = sendChannelPost({
+        fromShip: '~zod',
+        nest: 'chat/~zod/general',
+        story: [{ inline: ['hi'] }],
+      });
+      await vi.advanceTimersByTimeAsync(10_000);
+      const result = await pending;
+
+      expect(getChannelPosts).toHaveBeenCalledTimes(8);
+      expect(result.messageId).toBe('~zod/mocked-ud');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('posts heap replies with a replyToId via sendReply anchored to the parent', async () => {
     const sendPost = vi.fn(async () => ({}));
     const sendReply = vi.fn(async () => ({}));
+    const sentAt = 1_700_000_000_000;
+    vi.spyOn(Date, 'now').mockReturnValue(sentAt);
+    const getPostWithReplies = vi.fn(async () => ({
+      id: '170.141.184.507.123',
+      replies: [{ id: '170.141.184.507.777', authorId: '~zod', sentAt }],
+    }));
 
     vi.doMock('@tloncorp/api', () => ({
       sendPost,
       sendReply,
+      getChannelPosts: vi.fn(),
+      getPostWithReplies,
       addReaction: vi.fn(),
       removeReaction: vi.fn(),
       deletePost: vi.fn(),
@@ -139,7 +195,7 @@ describe('sendDm', () => {
       atom === 170141184507123n ? '170.141.184.507.123' : 'mocked-ud'
     );
 
-    await sendChannelPost({
+    const result = await sendChannelPost({
       fromShip: '~zod',
       nest: 'heap/~zod/gallery',
       story: [{ inline: ['a comment'] }],
@@ -154,15 +210,28 @@ describe('sendDm', () => {
       })
     );
     expect(sendPost).not.toHaveBeenCalled();
+    expect(getPostWithReplies).toHaveBeenCalledWith(
+      expect.objectContaining({
+        channelId: 'heap/~zod/gallery',
+        postId: '170.141.184.507.123',
+      })
+    );
+    expect(result.messageId).toBe('~zod/170.141.184.507.777');
   });
 
   it('posts a new heap item via sendPost when replyToId is absent', async () => {
     const sendPost = vi.fn(async () => ({}));
     const sendReply = vi.fn(async () => ({}));
+    const sentAt = 1_700_000_000_000;
+    vi.spyOn(Date, 'now').mockReturnValue(sentAt);
 
     vi.doMock('@tloncorp/api', () => ({
       sendPost,
       sendReply,
+      getChannelPosts: vi.fn(async () => ({
+        posts: [{ id: '170.141.184.507.500', authorId: '~zod', sentAt }],
+      })),
+      getPostWithReplies: vi.fn(),
       addReaction: vi.fn(),
       removeReaction: vi.fn(),
       deletePost: vi.fn(),

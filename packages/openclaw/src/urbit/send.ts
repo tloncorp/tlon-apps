@@ -1,6 +1,8 @@
 import {
   addReaction as apiAddReaction,
   deletePost as apiDeletePost,
+  getChannelPosts as apiGetChannelPosts,
+  getPostWithReplies as apiGetPostWithReplies,
   removeReaction as apiRemoveReaction,
   sendPost as apiSendPost,
   sendReply as apiSendReply,
@@ -174,6 +176,71 @@ export async function sendDmWithStory({
 
 // --- Channel posts (chat, heap, diary) ---
 
+// A channel post's id is the time the host received it, which the sender
+// can't know when it pokes: the sent time it chose is only the app's cache
+// key. The host's id is what edits, deletes and reactions take, so after the
+// poke the post is read back by author and sent time. A self-hosted channel
+// has it at once; a remote host echoes it within a round trip.
+const POST_ID_LOOKUP_ATTEMPTS = 8;
+const POST_ID_LOOKUP_DELAY_MS = 250;
+
+function isSameShip(a: string | null | undefined, b: string): boolean {
+  return !!a && a.replace(/^~/, '') === b.replace(/^~/, '');
+}
+
+async function findHostPostId(
+  nest: string,
+  fromShip: string,
+  sentAt: number,
+  parentId: string | undefined
+): Promise<string | undefined> {
+  if (parentId) {
+    const parent = await apiGetPostWithReplies({
+      channelId: nest,
+      postId: parentId,
+      // Only DM lookups read the author; channel posts are found by nest and id.
+      authorId: '',
+    });
+    return parent.replies?.find(
+      (reply) => reply.sentAt === sentAt && isSameShip(reply.authorId, fromShip)
+    )?.id;
+  }
+  const { posts } = await apiGetChannelPosts({
+    channelId: nest,
+    mode: 'newest',
+    count: 20,
+    skipGapFill: true,
+  });
+  return posts.find(
+    (post) => post.sentAt === sentAt && isSameShip(post.authorId, fromShip)
+  )?.id;
+}
+
+// The message was sent before this runs, so a lookup that never finds it
+// cannot fail the send (the caller would resend): it falls back to the sent
+// time id, which is what every send returned before the lookup existed.
+async function resolveChannelPostId(
+  nest: string,
+  fromShip: string,
+  sentAt: number,
+  parentId?: string
+): Promise<string> {
+  for (let attempt = 0; attempt < POST_ID_LOOKUP_ATTEMPTS; attempt++) {
+    if (attempt > 0) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, POST_ID_LOOKUP_DELAY_MS)
+      );
+    }
+    try {
+      const id = await findHostPostId(nest, fromShip, sentAt, parentId);
+      if (id) return id;
+    } catch {
+      // Not readable yet, or not at all; the next attempt or the fallback.
+    }
+  }
+  return formatSentAt(sentAt);
+}
+
 type SendChannelPostParams = {
   fromShip: string;
   /** Full nest like "chat/~host/channel", "heap/~host/channel", or "diary/~host/channel" */
@@ -217,7 +284,7 @@ export async function sendChannelPost({
     return reportSuccessfulChannelSend(
       {
         channel: 'tlon',
-        messageId: `${fromShip}/${formatSentAt(sentAt)}`,
+        messageId: `${fromShip}/${await resolveChannelPostId(nest, fromShip, sentAt, formattedReplyId)}`,
         sentAt,
       },
       nest,
@@ -237,7 +304,7 @@ export async function sendChannelPost({
   return reportSuccessfulChannelSend(
     {
       channel: 'tlon',
-      messageId: `${fromShip}/${formatSentAt(sentAt)}`,
+      messageId: `${fromShip}/${await resolveChannelPostId(nest, fromShip, sentAt)}`,
       sentAt,
     },
     nest,
