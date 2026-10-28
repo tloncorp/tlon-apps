@@ -9,13 +9,9 @@ vi.mock('@urbit/aura', () => ({
   },
 }));
 
-// Stands in for the api's getTextContent in the mocks: inline text only.
-const textOf = (content: Array<{ inline?: unknown[] }>) =>
-  content
-    .map((verse) =>
-      (verse.inline ?? []).filter((x) => typeof x === 'string').join('')
-    )
-    .join(' ');
+// Stands in for the api's toPostContent in the mocks: the verses as they are.
+const asContent = (story: unknown) => [story, {}];
+const stored = (story: unknown) => JSON.stringify(story);
 
 describe('sendDm', () => {
   afterEach(async () => {
@@ -94,30 +90,30 @@ describe('sendDm', () => {
           id: '170.141.184.507.999',
           authorId: '~zod',
           sentAt,
-          textContent: 'hi',
+          content: stored([{ inline: ['hi'] }]),
         },
         {
           id: '170.141.184.507.998',
           authorId: '~zod',
           sentAt: sentAt - 5,
-          textContent: 'hi',
+          content: stored([{ inline: ['hi'] }]),
         },
         {
           id: '170.141.184.507.990',
           authorId: '~nec',
           sentAt,
-          textContent: 'hi',
+          content: stored([{ inline: ['hi'] }]),
         },
       ],
     }));
 
-    const getTextContent = vi.fn(textOf);
+    const toPostContent = vi.fn(asContent);
     vi.doMock('@tloncorp/api', () => ({
       sendPost: poke,
       sendReply: vi.fn(),
       getChannelPosts,
       getPostWithReplies: vi.fn(),
-      getTextContent,
+      toPostContent,
       addReaction: vi.fn(),
       removeReaction: vi.fn(),
       deletePost: vi.fn(),
@@ -152,11 +148,6 @@ describe('sendDm', () => {
       })
     );
     expect(result.messageId).toBe('~zod/170.141.184.507.999');
-    // Posts are stored with the inline preview settings, no reference tags.
-    expect(getTextContent).toHaveBeenCalledWith(
-      [{ inline: ['hi'] }],
-      expect.objectContaining({ includeRefTag: false, blockSeparator: ' ' })
-    );
     expect(outputReporter).toHaveBeenCalledWith(
       expect.objectContaining({
         messageId: '~zod/170.141.184.507.999',
@@ -178,13 +169,13 @@ describe('sendDm', () => {
           id: '170.141.184.507.901',
           authorId: '~zod',
           sentAt,
-          textContent: 'one',
+          content: stored([{ inline: ['one'] }]),
         },
         {
           id: '170.141.184.507.902',
           authorId: '~zod',
           sentAt: sentAt + 1,
-          textContent: 'two',
+          content: stored([{ inline: ['two'] }]),
         },
       ],
     }));
@@ -193,7 +184,7 @@ describe('sendDm', () => {
       sendReply: vi.fn(),
       getChannelPosts,
       getPostWithReplies: vi.fn(),
-      getTextContent: textOf,
+      toPostContent: asContent,
       addReaction: vi.fn(),
       removeReaction: vi.fn(),
       deletePost: vi.fn(),
@@ -234,13 +225,13 @@ describe('sendDm', () => {
             id: '170.141.184.507.901',
             authorId: '~zod',
             sentAt,
-            textContent: 'hi',
+            content: stored([{ inline: ['hi'] }]),
           },
           {
             id: '170.141.184.507.902',
             authorId: '~zod',
             sentAt,
-            textContent: 'hi',
+            content: stored([{ inline: ['hi'] }]),
           },
         ],
       }));
@@ -249,8 +240,8 @@ describe('sendDm', () => {
         sendReply: vi.fn(),
         getChannelPosts,
         getPostWithReplies: vi.fn(),
-        getTextContent: textOf,
-        getTextContent: textOf,
+        toPostContent: asContent,
+        toPostContent: asContent,
         addReaction: vi.fn(),
         removeReaction: vi.fn(),
         deletePost: vi.fn(),
@@ -272,9 +263,10 @@ describe('sendDm', () => {
     }
   });
 
-  it('does not claim a same-millisecond post whose text is not the one it sent', async () => {
-    // The bot's CLI subprocess posted in the same millisecond on its own
-    // clock, and the channels agent dropped this send as a duplicate of it.
+  it('does not claim a same-millisecond post whose content is not what it sent', async () => {
+    // The bot's CLI subprocess posted a bare gallery link in the same
+    // millisecond on its own clock, and the channels agent dropped this send,
+    // a reference card, as a duplicate of it. Both preview to no text at all.
     vi.useFakeTimers();
     try {
       const sentAt = 1_700_000_000_000;
@@ -285,7 +277,18 @@ describe('sendDm', () => {
             id: '170.141.184.507.601',
             authorId: '~zod',
             sentAt,
-            textContent: 'https://example.com/photo.jpg',
+            content: stored([
+              {
+                inline: [
+                  {
+                    link: {
+                      href: 'https://example.invalid/one',
+                      content: 'First',
+                    },
+                  },
+                ],
+              },
+            ]),
           },
         ],
       }));
@@ -294,7 +297,7 @@ describe('sendDm', () => {
         sendReply: vi.fn(),
         getChannelPosts,
         getPostWithReplies: vi.fn(),
-        getTextContent: textOf,
+        toPostContent: asContent,
         addReaction: vi.fn(),
         removeReaction: vi.fn(),
         deletePost: vi.fn(),
@@ -304,8 +307,8 @@ describe('sendDm', () => {
       const { sendChannelPost } = await import('./send.js');
       const pending = sendChannelPost({
         fromShip: '~zod',
-        nest: 'heap/~zod/gallery',
-        story: [{ inline: ['the message that was dropped'] }],
+        nest: 'heap/~nec/gallery',
+        story: [{ block: { cite: { group: '~nec/workspace' } } }] as never,
       });
       await vi.advanceTimersByTimeAsync(10_000);
       const result = await pending;
@@ -314,6 +317,45 @@ describe('sendDm', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('matches a bare gallery image link by the image block the api stores it as', async () => {
+    const sentAt = 1_700_000_000_000;
+    vi.spyOn(Date, 'now').mockReturnValue(sentAt);
+    const href = 'https://example.invalid/photo.png';
+    const getChannelPosts = vi.fn(async () => ({
+      posts: [
+        {
+          id: '170.141.184.507.650',
+          authorId: '~zod',
+          sentAt,
+          // Key order differs from ours, as the ship's JSON may.
+          content: JSON.stringify([
+            { block: { image: { alt: 'heap image', src: href } } },
+          ]),
+        },
+      ],
+    }));
+    vi.doMock('@tloncorp/api', () => ({
+      sendPost: vi.fn(async () => ({})),
+      sendReply: vi.fn(),
+      getChannelPosts,
+      getPostWithReplies: vi.fn(),
+      toPostContent: asContent,
+      addReaction: vi.fn(),
+      removeReaction: vi.fn(),
+      deletePost: vi.fn(),
+      configureClient: vi.fn(),
+    }));
+
+    const { sendChannelPost } = await import('./send.js');
+    const result = await sendChannelPost({
+      fromShip: '~zod',
+      nest: 'heap/~zod/gallery',
+      story: [{ inline: [{ link: { href, content: href } }] }],
+    });
+
+    expect(result.messageId).toBe('~zod/170.141.184.507.650');
   });
 
   it('falls back to the sent-time id when the host never shows the post', async () => {
@@ -325,8 +367,8 @@ describe('sendDm', () => {
         sendReply: vi.fn(),
         getChannelPosts,
         getPostWithReplies: vi.fn(),
-        getTextContent: textOf,
-        getTextContent: textOf,
+        toPostContent: asContent,
+        toPostContent: asContent,
         addReaction: vi.fn(),
         removeReaction: vi.fn(),
         deletePost: vi.fn(),
@@ -361,18 +403,18 @@ describe('sendDm', () => {
           id: '170.141.184.507.777',
           authorId: '~zod',
           sentAt,
-          textContent: 'a comment',
+          content: stored([{ inline: ['a comment'] }]),
         },
       ],
     }));
-    const getTextContent = vi.fn(textOf);
+    const toPostContent = vi.fn(asContent);
 
     vi.doMock('@tloncorp/api', () => ({
       sendPost,
       sendReply,
       getChannelPosts: vi.fn(),
       getPostWithReplies,
-      getTextContent,
+      toPostContent,
       addReaction: vi.fn(),
       removeReaction: vi.fn(),
       deletePost: vi.fn(),
@@ -407,11 +449,6 @@ describe('sendDm', () => {
       })
     );
     expect(result.messageId).toBe('~zod/170.141.184.507.777');
-    // Replies are stored with the default preview settings, tags included.
-    expect(getTextContent).toHaveBeenCalledWith(
-      [{ inline: ['a comment'] }],
-      expect.objectContaining({ includeRefTag: true })
-    );
   });
 
   it('posts a new heap item via sendPost when replyToId is absent', async () => {
@@ -429,12 +466,12 @@ describe('sendDm', () => {
             id: '170.141.184.507.500',
             authorId: '~zod',
             sentAt,
-            textContent: 'a new gallery item',
+            content: stored([{ inline: ['a new gallery item'] }]),
           },
         ],
       })),
       getPostWithReplies: vi.fn(),
-      getTextContent: textOf,
+      toPostContent: asContent,
       addReaction: vi.fn(),
       removeReaction: vi.fn(),
       deletePost: vi.fn(),

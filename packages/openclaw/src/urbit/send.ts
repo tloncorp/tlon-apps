@@ -3,7 +3,7 @@ import {
   deletePost as apiDeletePost,
   getChannelPosts as apiGetChannelPosts,
   getPostWithReplies as apiGetPostWithReplies,
-  getTextContent,
+  toPostContent,
   removeReaction as apiRemoveReaction,
   sendPost as apiSendPost,
   sendReply as apiSendReply,
@@ -204,7 +204,7 @@ async function findHostPostId(
   nest: string,
   fromShip: string,
   sentAt: number,
-  text: string,
+  sent: string[],
   parentId: string | undefined
 ): Promise<string | undefined> {
   if (parentId) {
@@ -214,7 +214,7 @@ async function findHostPostId(
       // Only DM lookups read the author; channel posts are found by nest and id.
       authorId: '',
     });
-    return onlyMatch(parent.replies ?? [], fromShip, sentAt, text);
+    return onlyMatch(parent.replies ?? [], fromShip, sentAt, sent);
   }
   const { posts } = await apiGetChannelPosts({
     channelId: nest,
@@ -222,54 +222,80 @@ async function findHostPostId(
     count: 20,
     skipGapFill: true,
   });
-  return onlyMatch(posts, fromShip, sentAt, text);
+  return onlyMatch(posts, fromShip, sentAt, sent);
 }
 
 // The post is ours only if it carries this author, this sent time and the
-// text we sent, and only one post does. The clock above keeps this process's
-// sent times apart, but the bot's CLI subprocess sends as the same ship on its
-// own clock, and the channels agent drops the second add it sees for a
-// (nest, sent) pair: the lone post with our sent time may then be the other
-// send's, and naming it would point a later edit or delete at it.
+// content we sent, and only one post does. The clock above keeps this
+// process's sent times apart, but the bot's CLI subprocess sends as the same
+// ship on its own clock, and the channels agent drops the second add it sees
+// for a (nest, sent) pair: the lone post with our sent time may then be the
+// other send's, and naming it would point a later edit or delete at it. A
+// text preview can't tell two such posts apart (a bare link and a reference
+// card both preview empty), so the whole content is compared.
 function onlyMatch(
   posts: Array<{
     id: string;
     authorId?: string | null;
     sentAt?: number | null;
-    textContent?: string | null;
+    content?: unknown;
   }>,
   fromShip: string,
   sentAt: number,
-  text: string
+  sent: string[]
 ): string | undefined {
   const matches = posts.filter(
     (post) =>
       post.sentAt === sentAt &&
       isSameShip(post.authorId, fromShip) &&
-      sameText(post.textContent, text)
+      sent.includes(canonical(parseContent(post.content)))
   );
   return matches.length === 1 ? matches[0].id : undefined;
 }
 
-// The api stores a post's text with its inline preview settings and a
-// reply's with the default ones (reference cards get a tag only in the
-// latter), so our text is extracted the same way for each. Whitespace is
-// still collapsed, since the stored copy may have been made by another
-// build of the api.
-const POST_TEXT_SETTINGS = {
-  blockSeparator: ' ',
-  includeLinebreaks: false,
-  includeRefTag: false,
-};
-const REPLY_TEXT_SETTINGS = {
-  blockSeparator: '\n',
-  includeLinebreaks: true,
-  includeRefTag: true,
-};
+// The forms the api may have stored our story under: its own conversion of
+// the verses, and for a gallery post that is one bare image link, the image
+// block it rewrites that into (postsApi's galleryImageLink). Both derive from
+// the story alone, so another post can match only by being the same post.
+function sentContentForms(nest: string, story: Story): string[] {
+  const forms = [canonical(toPostContent(story)[0])];
+  const verse = story.length === 1 ? story[0] : undefined;
+  const inline = verse && 'inline' in verse ? verse.inline : undefined;
+  const only = inline?.length === 1 ? inline[0] : undefined;
+  const href =
+    only && typeof only === 'object' && 'link' in only
+      ? only.link.href
+      : undefined;
+  if (href && nest.startsWith('heap/')) {
+    forms.push(
+      canonical([{ block: { image: { src: href, alt: 'heap image' } } }])
+    );
+  }
+  return forms;
+}
 
-function sameText(stored: string | null | undefined, sent: string): boolean {
-  const norm = (t: string) => t.replace(/\s+/g, ' ').trim();
-  return norm(stored ?? '') === norm(sent);
+// The api hands content back as the JSON string it stored.
+function parseContent(content: unknown): unknown {
+  if (typeof content !== 'string') return content ?? null;
+  try {
+    return JSON.parse(content);
+  } catch {
+    return content;
+  }
+}
+
+// JSON with object keys sorted at every level: the stored content came back
+// through the ship's JSON, whose key order need not be ours.
+function canonical(value: unknown): string {
+  return JSON.stringify(value, (_key, v) =>
+    v && typeof v === 'object' && !Array.isArray(v)
+      ? Object.fromEntries(
+          Object.entries(v as Record<string, unknown>).sort(([a], [b]) =>
+            a < b ? -1 : a > b ? 1 : 0
+          )
+        )
+      : v
+  );
 }
 
 // The message was sent before this runs, so a lookup that never finds it
@@ -282,11 +308,7 @@ async function resolveChannelPostId(
   story: Story,
   parentId?: string
 ): Promise<string> {
-  const text =
-    getTextContent(
-      story,
-      parentId ? REPLY_TEXT_SETTINGS : POST_TEXT_SETTINGS
-    ) ?? '';
+  const sent = sentContentForms(nest, story);
   for (let attempt = 0; attempt < POST_ID_LOOKUP_ATTEMPTS; attempt++) {
     if (attempt > 0) {
       await new Promise((resolve) =>
@@ -294,7 +316,7 @@ async function resolveChannelPostId(
       );
     }
     try {
-      const id = await findHostPostId(nest, fromShip, sentAt, text, parentId);
+      const id = await findHostPostId(nest, fromShip, sentAt, sent, parentId);
       if (id) return id;
     } catch {
       // Not readable yet, or not at all; the next attempt or the fallback.
