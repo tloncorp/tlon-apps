@@ -375,14 +375,27 @@ async function searchAllMessages(
     }
   );
 
+  // The bot's tool runner returns only stdout on success, so a partial failure
+  // is reported there; a search that failed everywhere exits non-zero.
   const failures = results.filter((result) => result.error !== undefined);
-  if (failures.length) {
-    console.error(
-      `Could not search ${failures.length} of ${targets.length} channels:`
+  const failed = failures.map(
+    ({ target, error }) => `  ${target.id}: ${error}`
+  );
+  if (failures.length && failures.length === targets.length) {
+    throw new Error(
+      [`Could not search any of ${targets.length} channels:`, ...failed].join(
+        '\n'
+      )
     );
-    for (const { target, error } of failures) {
-      console.error(`  ${target.id}: ${error}`);
-    }
+  }
+  if (failures.length) {
+    console.log(
+      [
+        `Results are incomplete: could not search ${failures.length} of ${targets.length} channels:`,
+        ...failed,
+        '',
+      ].join('\n')
+    );
   }
 
   const matches = results.filter((result) => result.posts.length);

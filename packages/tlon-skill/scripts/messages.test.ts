@@ -150,12 +150,29 @@ describe('messages search without --channel', () => {
 
     const { exitCode, stdout, stderr } = await runMessages(['search', 'pizza']);
 
+    // The bot sees only stdout when the command succeeds.
     expect(exitCode).toBe(0);
-    expect(stderr).toEqual([
-      'Could not search 1 of 4 channels:',
-      '  heap/~zod/links: scry 500',
-    ]);
+    expect(stderr).toEqual([]);
+    expect(stdout).toContain(
+      'Results are incomplete: could not search 1 of 4 channels:\n' +
+        '  heap/~zod/links: scry 500\n'
+    );
     expect(headers(stdout)).toEqual(['=== ~nec — DM (1) ===\n']);
+  });
+
+  it('fails when no channel could be searched', async () => {
+    mockedGetInitData.impl = async () => INIT;
+    mockedSearchChannel.impl = async () => {
+      throw new Error('scry 500');
+    };
+
+    const { exitCode, stdout, stderr } = await runMessages(['search', 'pizza']);
+
+    expect(exitCode).toBe(1);
+    expect(stdout).not.toContain('No results found.');
+    expect(stderr.join('\n')).toContain(
+      'Error: Could not search any of 4 channels:\n  ~nec: scry 500'
+    );
   });
 
   it('still searches only the given channel with --channel', async () => {
