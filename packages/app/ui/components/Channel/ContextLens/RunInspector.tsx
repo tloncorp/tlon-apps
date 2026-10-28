@@ -6,13 +6,8 @@ import { SizableText, XStack, YStack } from 'tamagui';
 
 import {
   TONE_COLORS,
-  formatDuration,
-  formatToolName,
   formatWallTime,
-  persistenceLabel,
   pluralize,
-  runKindLabel,
-  sourceKindLabel,
   summarizeContext,
   summarizeWrites,
 } from './format';
@@ -25,70 +20,54 @@ import {
   MutedLine,
   PreviewText,
 } from './primitives';
+import {
+  type LensMessageTarget,
+  contextSourceItems,
+  persistenceItems,
+  toolRunFact,
+  triggerFacts,
+} from './runFacts';
 import type {
   ContextLens,
   ContextLensOutput,
   ContextLensToolRun,
 } from './types';
 
-export type LensMessageTarget = {
-  postId: string;
-  channelId?: string;
-  authorId?: string;
-  parentId?: string;
-};
-
 export function RunInspector({
   lens,
   onPressMessage,
+  omitOutput = false,
 }: {
   lens: ContextLens;
   onPressMessage?: (target: LensMessageTarget) => void;
+  /** For a screen that shows the run's output itself. */
+  omitOutput?: boolean;
 }) {
   const sources = lens.context.sources ?? [];
   const includedSources = sources.filter((source) => source.included);
   const excludedSources = sources.filter((source) => !source.included);
   const toolRuns = lens.tools.runs ?? [];
   const outputs = lens.outputs ?? [];
-  const persistenceEvents = lens.persistence.events ?? [];
-
-  const triggerMessageId = lens.triggerDetails?.messageId ?? lens.messageId;
-  const triggerChannelId = lens.triggerDetails?.conversationId;
+  const persistence = persistenceItems(lens);
 
   return (
     <YStack gap="$s">
       <InspectorSection title="Trigger">
-        <DetailRow label="Run" value={runKindLabel(lens)} />
-        {lens.retryOf ? (
-          <DetailRow label="Retry of" value={lens.retryOf.slice(0, 8)} />
-        ) : null}
-        <DetailRow label="Visibility" value={lens.visibility ?? 'owner'} />
-        <DetailRow
-          label="Message"
-          value={triggerMessageId}
-          onPress={
-            onPressMessage && triggerMessageId && triggerChannelId
-              ? () =>
-                  onPressMessage({
-                    postId: triggerMessageId,
-                    channelId: triggerChannelId,
-                    authorId: lens.triggerDetails?.authorShip,
-                  })
-              : undefined
-          }
-        />
-        <DetailRow
-          label="Author"
-          value={lens.triggerDetails?.authorShip ?? 'unknown'}
-        />
-        <DetailRow
-          label="Conversation"
-          value={lens.triggerDetails?.conversationId ?? lens.chatType}
-        />
-        <DetailRow
-          label="Received"
-          value={formatWallTime(lens.triggerDetails?.receivedAt)}
-        />
+        {triggerFacts(lens).map((fact) => {
+          const target = fact.target;
+          return (
+            <DetailRow
+              key={fact.label}
+              label={fact.label}
+              value={fact.value}
+              onPress={
+                onPressMessage && target
+                  ? () => onPressMessage(target)
+                  : undefined
+              }
+            />
+          );
+        })}
         {lens.triggerDetails?.preview ? (
           <PreviewText value={lens.triggerDetails.preview} />
         ) : null}
@@ -105,13 +84,13 @@ export function RunInspector({
         />
         {sources.length ? (
           <YStack gap="$xs" marginTop="$xs">
-            {sources.slice(0, 8).map((source, index) => (
+            {contextSourceItems(lens).map((item) => (
               <LensListItem
-                key={`${source.kind}-${source.sourceId ?? source.label}-${index}`}
-                title={source.label}
-                meta={`${source.included ? 'included' : 'excluded'} · ${sourceKindLabel(source.kind)}`}
-                detail={source.reason ?? source.preview ?? 'recorded by run'}
-                tone={source.included ? 'neutral' : 'warning'}
+                key={item.key}
+                title={item.title}
+                meta={item.meta}
+                detail={item.detail}
+                tone={item.tone}
               />
             ))}
           </YStack>
@@ -132,38 +111,34 @@ export function RunInspector({
         )}
       </InspectorSection>
 
-      <InspectorSection title="Output">
-        {outputs.length ? (
-          <YStack gap="$xs">
-            {outputs.map((output, index) => (
-              <OutputItem
-                key={`${output.messageId}-${index}`}
-                output={output}
-                onPressMessage={onPressMessage}
-              />
-            ))}
-          </YStack>
-        ) : (
-          <MutedLine value="No bot reply recorded yet" />
-        )}
-      </InspectorSection>
+      {omitOutput ? null : (
+        <InspectorSection title="Output">
+          {outputs.length ? (
+            <YStack gap="$xs">
+              {outputs.map((output, index) => (
+                <OutputItem
+                  key={`${output.messageId}-${index}`}
+                  output={output}
+                  onPressMessage={onPressMessage}
+                />
+              ))}
+            </YStack>
+          ) : (
+            <MutedLine value="No bot reply recorded yet" />
+          )}
+        </InspectorSection>
+      )}
 
       <InspectorSection title="Persistence">
-        {persistenceEvents.length ? (
+        {persistence.length ? (
           <YStack gap="$xs">
-            {persistenceEvents.slice(0, 8).map((event, index) => (
+            {persistence.map((item) => (
               <LensListItem
-                key={`${event.kind}-${event.action}-${event.at}-${index}`}
-                title={persistenceLabel(event)}
-                meta={event.status}
-                detail={event.reason ?? event.key ?? formatWallTime(event.at)}
-                tone={
-                  event.status === 'failed'
-                    ? 'negative'
-                    : event.status === 'skipped'
-                      ? 'warning'
-                      : 'positive'
-                }
+                key={item.key}
+                title={item.title}
+                meta={item.meta}
+                detail={item.detail}
+                tone={item.tone}
               />
             ))}
           </YStack>
@@ -178,19 +153,7 @@ export function RunInspector({
 function ToolRunItem({ run }: { run: ContextLensToolRun }) {
   const [expanded, setExpanded] = useState(false);
   const expandable = Boolean(run.argumentDetail);
-  const tone =
-    run.status === 'error'
-      ? 'negative'
-      : run.status === 'blocked'
-        ? 'warning'
-        : 'positive';
-  const detail = run.error
-    ? run.error
-    : run.argumentSummary
-      ? `${run.argumentSummary}${run.durationMs ? ` · ${formatDuration(run.durationMs)}` : ''}`
-      : run.durationMs
-        ? `${formatDuration(run.durationMs)}${run.phase ? ` · ${run.phase}` : ''}`
-        : (run.phase ?? 'running');
+  const { title, status, detail, tone } = toolRunFact(run);
 
   const content = (
     <YStack
@@ -215,11 +178,11 @@ function ToolRunItem({ run }: { run: ContextLensToolRun }) {
           numberOfLines={1}
           ellipsizeMode="middle"
         >
-          {`${run.callIndex}. ${formatToolName(run.name)}`}
+          {title}
         </SizableText>
         <XStack alignItems="center" gap="$2xs" flexShrink={0}>
           <SizableText size="$s" color="$tertiaryText">
-            {run.status}
+            {status}
           </SizableText>
           {expandable ? (
             <Icon

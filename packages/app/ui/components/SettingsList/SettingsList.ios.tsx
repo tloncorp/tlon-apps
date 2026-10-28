@@ -372,9 +372,11 @@ function SettingsRow({
     );
   }
 
-  // The Pending tag is only drawn, so it is spoken as part of the value.
+  // The Pending tag and the badge are only drawn, so they are spoken as part
+  // of the value.
   const spokenValue = [
     row.value || row.subtitle,
+    row.badge,
     row.pending ? 'Pending' : null,
   ]
     .filter(Boolean)
@@ -420,6 +422,13 @@ function SettingsRow({
         <Text modifiers={[foregroundStyle(colors.secondaryText), lineLimit(1)]}>
           {row.value}
         </Text>
+      ) : null}
+      {row.badge ? (
+        <Pill
+          text={row.badge}
+          textColor={colors.badge.text}
+          backgroundColor={colors.badge.background}
+        />
       ) : null}
       {row.selected ? (
         <Image systemName="checkmark" size={15} color={colors.accent} />

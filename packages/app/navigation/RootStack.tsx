@@ -15,6 +15,8 @@ import { ContextLensRunScreen } from '../features/lens/ContextLensRunScreen';
 import { ContextLensRunsScreen } from '../features/lens/ContextLensRunsScreen';
 import { AttestationScreen } from '../features/profile/AttestationScreen';
 import { ScheduledTaskEditorScreen } from '../features/automations/ScheduledTaskEditorScreen';
+import { ScheduledTaskRunScreen } from '../features/automations/ScheduledTaskRunScreen';
+import { ScheduledTaskRunsScreen } from '../features/automations/ScheduledTaskRunsScreen';
 import { ScheduledTasksScreen } from '../features/automations/ScheduledTasksScreen';
 import { AppInfoScreen } from '../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../features/settings/BlockedUsersScreen';
@@ -312,6 +314,16 @@ function RootStackContent() {
       <Root.Screen
         name="ScheduledTaskEditor"
         component={ScheduledTaskEditorScreen}
+        options={nativeHeaderScreenOptions}
+      />
+      <Root.Screen
+        name="ScheduledTaskRuns"
+        component={ScheduledTaskRunsScreen}
+        options={nativeHeaderScreenOptions}
+      />
+      <Root.Screen
+        name="ScheduledTaskRun"
+        component={ScheduledTaskRunScreen}
         options={nativeHeaderScreenOptions}
       />
       <Root.Screen name="Attestation" component={AttestationScreen} />
