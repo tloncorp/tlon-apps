@@ -136,7 +136,8 @@ export function BrowserViewer({
       <WebView<{}>
         ref={webView}
         source={{ uri }}
-        style={{ flex: 1 }}
+        // Viewers without the native bridge cannot reserve space for our controls.
+        style={{ flex: 1, marginTop: input ? 0 : topInset + 68 }}
         // The streamed canvas owns pan/zoom. Prevent WKWebView from also
         // scrolling its document when the hidden keyboard input is focused.
         scrollEnabled={false}
@@ -145,9 +146,16 @@ export function BrowserViewer({
         contentInsetAdjustmentBehavior="never"
         // Handle every scheme here rather than handing links to another app.
         originWhitelist={['*']}
-        onShouldStartLoadWithRequest={({ url }) =>
-          url === uri || url === 'about:blank'
-        }
+        onShouldStartLoadWithRequest={({ url, isTopFrame }) => {
+          if (url === uri || url === 'about:blank') return true;
+          // Kernel's native stream is embedded by our signed viewer page.
+          if (isTopFrame !== false) return false;
+          const frameUrl = new URL(url);
+          return (
+            frameUrl.protocol === 'https:' &&
+            frameUrl.hostname.endsWith('.kernel.sh')
+          );
+        }}
         onOpenWindow={() => {}}
         javaScriptCanOpenWindowsAutomatically={false}
         sharedCookiesEnabled={false}
@@ -156,6 +164,7 @@ export function BrowserViewer({
         cacheEnabled={false}
         mixedContentMode="never"
         allowsInlineMediaPlayback
+        mediaPlaybackRequiresUserAction={false}
         keyboardDisplayRequiresUserAction={false}
         hideKeyboardAccessoryView
         onLoadStart={reset}
@@ -236,75 +245,89 @@ export function BrowserViewer({
         onContentProcessDidTerminate={onError}
         onRenderProcessGone={onError}
       />
-      <BrowserViewerMenu
-        topInset={topInset}
-        rightInset={rightInset}
-        mode={input?.mode}
-        ready={!!input?.ready && !!input.mode}
-        browserControlsVisible={input?.browserControlsVisible}
-        onBrowserControlsChange={(visible) => {
-          if (
-            typeof session.current.input?.browserControlsVisible !== 'boolean'
-          )
-            return;
-          send({ type: 'browserControls', visible });
-        }}
-        onSelect={(mode) => {
-          const current = session.current.input;
-          if (!current?.ready || !current.mode || current.mode === mode) return;
-          send({ type: 'layout', mode, context: current.context });
-        }}
-      />
-      <YStack
-        position="absolute"
-        bottom={16 + (input?.keyboardOpen ? 0 : bottomInset)}
-        left={16}
-        right={16 + rightInset}
-        alignItems="flex-end"
-        gap="$s"
-        pointerEvents="box-none"
-      >
-        <BrowserControlGroup>
-          <BrowserControlButton
-            grouped
-            icon={input?.keyboardOpen ? 'ChevronDown' : 'Keyboard'}
-            accessibilityLabel={
-              input?.keyboardOpen ? 'Hide keyboard' : 'Keyboard'
-            }
-            disabled={!input?.ready}
-            onPress={() => {
-              if (!session.current.input?.ready) return;
-              const open = !session.current.input.keyboardOpen;
-              setNotice(null);
-              if (open) webView.current?.requestFocus();
-              send({
-                type: 'keyboard',
-                open,
-                context: session.current.input.context,
-              });
-              if (!open) Keyboard.dismiss();
+      {input && (
+        <>
+          <BrowserViewerMenu
+            topInset={topInset}
+            rightInset={rightInset}
+            mode={input?.mode}
+            ready={!!input?.ready && !!input.mode}
+            browserControlsVisible={input?.browserControlsVisible}
+            onBrowserControlsChange={(visible) => {
+              if (
+                typeof session.current.input?.browserControlsVisible !==
+                'boolean'
+              )
+                return;
+              send({ type: 'browserControls', visible });
+            }}
+            onSelect={(mode) => {
+              const current = session.current.input;
+              if (!current?.ready || !current.mode || current.mode === mode)
+                return;
+              send({ type: 'layout', mode, context: current.context });
             }}
           />
-          <BrowserControlButton
-            grouped
-            icon="Clipboard"
-            accessibilityLabel="Paste"
-            disabled={!input?.ready || pasteBusy}
-            onPress={paste}
-          />
-        </BrowserControlGroup>
-        {notice ? (
-          <Text padding="$m" borderRadius="$l" backgroundColor="$background">
-            {notice}
-          </Text>
-        ) : loaded && !input?.ready ? (
-          <Text padding="$m" borderRadius="$l" backgroundColor="$background">
-            {input
-              ? 'Waiting for browser control…'
-              : 'Keyboard and paste aren’t available in this session.'}
-          </Text>
-        ) : null}
-      </YStack>
+          <YStack
+            position="absolute"
+            bottom={16 + (input?.keyboardOpen ? 0 : bottomInset)}
+            left={16}
+            right={16 + rightInset}
+            alignItems="flex-end"
+            gap="$s"
+            pointerEvents="box-none"
+          >
+            <BrowserControlGroup>
+              <BrowserControlButton
+                grouped
+                icon={input?.keyboardOpen ? 'ChevronDown' : 'Keyboard'}
+                accessibilityLabel={
+                  input?.keyboardOpen ? 'Hide keyboard' : 'Keyboard'
+                }
+                disabled={!input?.ready}
+                onPress={() => {
+                  if (!session.current.input?.ready) return;
+                  const open = !session.current.input.keyboardOpen;
+                  setNotice(null);
+                  if (open) webView.current?.requestFocus();
+                  send({
+                    type: 'keyboard',
+                    open,
+                    context: session.current.input.context,
+                  });
+                  if (!open) Keyboard.dismiss();
+                }}
+              />
+              <BrowserControlButton
+                grouped
+                icon="Clipboard"
+                accessibilityLabel="Paste"
+                disabled={!input?.ready || pasteBusy}
+                onPress={paste}
+              />
+            </BrowserControlGroup>
+            {notice ? (
+              <Text
+                padding="$m"
+                borderRadius="$l"
+                backgroundColor="$background"
+              >
+                {notice}
+              </Text>
+            ) : loaded && !input?.ready ? (
+              <Text
+                padding="$m"
+                borderRadius="$l"
+                backgroundColor="$background"
+              >
+                {input
+                  ? 'Waiting for browser control…'
+                  : 'Keyboard and paste aren’t available in this session.'}
+              </Text>
+            ) : null}
+          </YStack>
+        </>
+      )}
     </YStack>
   );
 }

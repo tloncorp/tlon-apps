@@ -91,6 +91,20 @@ describe('embedded browser boundaries', () => {
     expect(view.props.sharedCookiesEnabled).toBe(false);
     const navigate = view.props.onShouldStartLoadWithRequest;
     expect(navigate({ url: viewerUrl })).toBe(true);
+    const kernelFrame =
+      'https://prod-iad-hypeman-52.kernel.sh:8443/browser/live';
+    expect(navigate({ url: kernelFrame, isTopFrame: false })).toBe(true);
+    expect(navigate({ url: kernelFrame, isTopFrame: true })).toBe(false);
+    expect(navigate({ url: 'https://evil.example', isTopFrame: false })).toBe(
+      false
+    );
+    expect(navigate({ url: 'https://fakekernel.sh', isTopFrame: false })).toBe(
+      false
+    );
+    expect(navigate({ url: 'http://host.kernel.sh', isTopFrame: false })).toBe(
+      false
+    );
+    expect(view.props.mediaPlaybackRequiresUserAction).toBe(false);
     for (const url of [
       'https://evil.example',
       'tel:123',
@@ -170,14 +184,14 @@ describe('embedded browser boundaries', () => {
         })
       );
     expect(
-      renderer.root.findByProps({ accessibilityLabel: 'Paste' }).props.disabled
-    ).toBe(true);
+      renderer.root.findAllByProps({ accessibilityLabel: 'Paste' })
+    ).toHaveLength(0);
     status({}, 'https://evil.example');
     status({ version: 2 });
     status({ context: '2' });
     expect(
-      renderer.root.findByProps({ accessibilityLabel: 'Paste' }).props.disabled
-    ).toBe(true);
+      renderer.root.findAllByProps({ accessibilityLabel: 'Paste' })
+    ).toHaveLength(0);
     expect(getStringAsync).not.toHaveBeenCalled();
     status();
     act(() =>
@@ -325,6 +339,10 @@ describe('embedded browser boundaries', () => {
           },
         })
       );
+    expect(
+      renderer.root.findAllByProps({ accessibilityLabel: 'Browser options' })
+    ).toHaveLength(0);
+    status();
     // Open the Android/fallback menu to exercise the actual control callbacks.
     act(() =>
       renderer.root
