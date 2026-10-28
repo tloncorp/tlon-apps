@@ -106,7 +106,11 @@ import {
 } from './src/monitor/agent-onboarding.js';
 import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
 import { setTlonRuntime } from './src/runtime.js';
-import { resolveOwnerOnlyToolBlock } from './src/owner-only-tools.js';
+import { coreMessageYieldsMedia } from './src/core-message-media.js';
+import {
+  MESSAGE_MEDIA_BLOCK_REASON,
+  resolveOwnerOnlyToolBlock,
+} from './src/owner-only-tools.js';
 import { getSessionRole } from './src/session-roles.js';
 import { sharedSlot } from './src/shared-state.js';
 import { registerStewardAutomationReconciliationHooks } from './src/steward-automation-reconciliation.js';
@@ -1082,6 +1086,32 @@ function recordBlockedToolCallInLens(
   });
 }
 
+let warnedCoreMessageTextUnavailable = false;
+
+/**
+ * Asks core whether a non-owner `message` call's body would become an
+ * attachment. Fails closed: if core's functions cannot be loaded or throw,
+ * the call is treated as carrying media, and the first such failure in the
+ * process is logged so a core upgrade that moves them is visible.
+ */
+async function nonOwnerMessageYieldsMedia(
+  params: Record<string, unknown>,
+  logger: { warn: (message: string) => void }
+): Promise<boolean> {
+  try {
+    return await coreMessageYieldsMedia(params);
+  } catch (error) {
+    if (!warnedCoreMessageTextUnavailable) {
+      warnedCoreMessageTextUnavailable = true;
+      const detail = error instanceof Error ? error.message : String(error);
+      logger.warn(
+        `[tlon] ${detail}; non-owner message bodies are blocked until the plugin is updated for this core version`
+      );
+    }
+    return true;
+  }
+}
+
 export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
   // The gateway's owner checks when a full registration ran in this process;
   // otherwise the same checks against this registration's live config.
@@ -1128,11 +1158,24 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       recordedRole !== undefined
         ? (recordedRole ?? undefined)
         : (runSurface?.senderRole ?? getSessionRole(ctx.sessionKey ?? ''));
-    const ownerOnlyDecision = resolveOwnerOnlyToolBlock(
+    let ownerOnlyDecision = resolveOwnerOnlyToolBlock(
       event.toolName,
       role,
       event.params
     );
+    if (
+      role === 'user' &&
+      event.toolName === 'message' &&
+      !ownerOnlyDecision.blocked &&
+      (await nonOwnerMessageYieldsMedia(event.params, api.logger))
+    ) {
+      ownerOnlyDecision = {
+        ownerOnly: true,
+        gate: 'arguments',
+        blocked: true,
+        reason: MESSAGE_MEDIA_BLOCK_REASON,
+      };
+    }
     const isOwnerOnlyTool = ownerOnlyDecision.ownerOnly;
     const blocksNonOwner = ownerOnlyDecision.blocked;
     const isMcpDescribe = isMcpDescribeToolName(event.toolName);
@@ -1320,12 +1363,13 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       );
     }
 
+    if (!isBlocked && event.toolName === 'sessions_send') {
+      // Injected input bypasses the monitor; treat it like a non-owner
+      // message on the target.
+      noteCrossSessionSend(event.params, ctx.runId);
+    }
+
     if (!isOwnerOnlyTool && !isBlocked) {
-      if (event.toolName === 'sessions_send') {
-        // Injected input bypasses the monitor; treat it like a non-owner
-        // message on the target.
-        noteCrossSessionSend(event.params, ctx.runId);
-      }
       return allowed();
     }
 
@@ -1361,8 +1405,12 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       };
     }
 
+    // An argument gate fires for any role; only set membership means an
+    // owner-only tool was used.
     api.logger.info(
-      `[tlon] Allowed ${event.toolName} tool for ${role ?? 'internal'} session. Session: ${ctx.sessionKey}`
+      ownerOnlyDecision.gate === 'arguments'
+        ? `[tlon] Allowed ${event.toolName} call with owner-only arguments for ${role ?? 'internal'} session. Session: ${ctx.sessionKey}`
+        : `[tlon] Allowed ${event.toolName} tool for ${role ?? 'internal'} session. Session: ${ctx.sessionKey}`
     );
     if (event.toolName === 'tlon' && typeof event.params.command === 'string') {
       // Only owner-default commands need the rewrite; with the flag off the

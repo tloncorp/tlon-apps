@@ -304,6 +304,137 @@ describe('sendMedia', () => {
     });
   });
 
+  async function turnFor(
+    senderRole: 'owner' | 'user',
+    runId: string,
+    sessionKey = 'agent:main:tlon:direct:~nec'
+  ) {
+    const { startTlonAgentTurn } = await import('./turn-recorder.js');
+    return startTlonAgentTurn(
+      {
+        accountId: 'hosted',
+        agentId: 'main',
+        destinationKind: 'dm',
+        inputMessageId: '~nec/444',
+        runId,
+        sessionKey,
+        ship: '~zod',
+        trigger: 'dm',
+        senderRole,
+      },
+      {
+        observer: {
+          recordStarted: () => undefined,
+          recordTerminal: () => undefined,
+        },
+      }
+    );
+  }
+
+  it('delivers only the text of a non-owner turn and never reads the media', async () => {
+    const { buildMediaStory } = await import('./urbit/send.js');
+    const turn = await turnFor('user', 'non-owner-media');
+    // What core yields for the codex payloads: a resolved local media URL.
+    for (const mediaUrl of [
+      '/workspace/private.txt',
+      'https://example.com/a.png',
+    ]) {
+      await turn.run(() =>
+        tlonRuntimeOutbound.sendMedia({ ...baseCtx, mediaUrl })
+      );
+    }
+    await turn.run(() =>
+      tlonRuntimeOutbound.sendPayload!({
+        ...baseCtx,
+        payload: { text: 'hello', mediaUrls: ['/x', '/y'] },
+      })
+    );
+    expect(prepareOutboundMedia).not.toHaveBeenCalled();
+    expect(buildMediaStory).not.toHaveBeenCalled();
+    expect(sendDmWithStory).toHaveBeenCalledTimes(3);
+  });
+
+  it('fails a media-only send from a non-owner turn without posting', async () => {
+    const { NON_OWNER_MEDIA_ERROR } = await import('./non-owner-media.js');
+    const turn = await turnFor('user', 'non-owner-media-only');
+    await expect(
+      turn.run(() =>
+        tlonRuntimeOutbound.sendMedia({
+          ...baseCtx,
+          text: '  ',
+          mediaUrl: '/workspace/private.txt',
+        })
+      )
+    ).rejects.toThrow(NON_OWNER_MEDIA_ERROR);
+    expect(prepareOutboundMedia).not.toHaveBeenCalled();
+    expect(sendDmWithStory).not.toHaveBeenCalled();
+  });
+
+  it("keeps media for an owner turn when another member's post changes the session role", async () => {
+    const { setSessionRole } = await import('./session-roles.js');
+    const sessionKey = 'agent:main:tlon:group:chat/~zod/general';
+    const turn = await turnFor('owner', 'owner-not-demoted', sessionKey);
+    // The monitor overwrites the session role for every inbound message; only
+    // a demotion of this run (noteInboundDispatching) may drop its media.
+    setSessionRole(sessionKey, 'user');
+    await turn.run(() =>
+      tlonRuntimeOutbound.sendMedia({ ...baseCtx, mediaUrl: '/x.png' })
+    );
+    expect(prepareOutboundMedia).toHaveBeenCalledOnce();
+    setSessionRole(sessionKey, 'owner');
+  });
+
+  it('keeps media dropped for a demoted owner run after an owner message restores the session role', async () => {
+    const { setSessionRole } = await import('./session-roles.js');
+    const { noteInboundDispatching } = await import('./turn-identity.js');
+    const { rememberTlonSessionRunSurface, setTlonSessionSurface } =
+      await import('./onboarding-tool-boundary.js');
+    const sessionKey = 'agent:main:tlon:group:chat/~zod/sticky';
+    const runId = 'owner-sticky-demotion';
+    // What the monitor records for an owner message before dispatch.
+    setSessionRole(sessionKey, 'owner');
+    setTlonSessionSurface(sessionKey, {
+      kind: 'group',
+      senderRole: 'owner',
+      channelNest: 'chat/~zod/sticky',
+      messageId: 'owner/1',
+    });
+    rememberTlonSessionRunSurface(runId, sessionKey, { senderRole: 'owner' });
+    const turn = await turnFor('owner', runId, sessionKey);
+    // A non-owner message demotes the owner run...
+    setSessionRole(sessionKey, 'user');
+    noteInboundDispatching({ sessionKeys: [sessionKey], role: 'user' });
+    // ...and a later owner message overwrites the session's role.
+    setSessionRole(sessionKey, 'owner');
+    noteInboundDispatching({ sessionKeys: [sessionKey], role: 'owner' });
+    await turn.run(() =>
+      tlonRuntimeOutbound.sendMedia({ ...baseCtx, mediaUrl: '/x.png' })
+    );
+    expect(prepareOutboundMedia).not.toHaveBeenCalled();
+    expect(sendDmWithStory).toHaveBeenCalledOnce();
+  });
+
+  it('still delivers media for an owner turn', async () => {
+    prepareOutboundMedia.mockResolvedValue({
+      url: 'https://storage.example.com/cat.png',
+      isImage: true,
+    });
+    const { buildMediaStory } = await import('./urbit/send.js');
+    const turn = await turnFor('owner', 'owner-media');
+    await turn.run(() =>
+      tlonRuntimeOutbound.sendMedia({
+        ...baseCtx,
+        mediaUrl: '/workspace/cat.png',
+      })
+    );
+    expect(prepareOutboundMedia).toHaveBeenCalledOnce();
+    expect(buildMediaStory).toHaveBeenCalledWith(
+      baseCtx.text,
+      { url: 'https://storage.example.com/cat.png', isImage: true },
+      expect.any(Object)
+    );
+  });
+
   it('records the actual outbound destination kind for cross-target sends', async () => {
     const { startTlonAgentTurn } = await import('./turn-recorder.js');
     const recordDispatchAttempted = vi.fn();

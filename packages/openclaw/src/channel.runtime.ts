@@ -39,6 +39,10 @@ import {
   sendDmWithStory,
 } from './urbit/send.js';
 import { ALL_ONLY, markdownToStory } from './urbit/story.js';
+import {
+  NON_OWNER_MEDIA_ERROR,
+  activeTurnForbidsMedia,
+} from './non-owner-media.js';
 import { prepareOutboundMedia } from './urbit/upload.js';
 
 type ResolvedTlonAccount = ReturnType<typeof resolveTlonAccount>;
@@ -533,13 +537,44 @@ const coreTlonRuntimeOutbound: Pick<
   },
 };
 
+type TlonPayloadContext = Parameters<
+  NonNullable<ChannelOutboundAdapter['sendPayload']>
+>[0];
+
+// A non-owner turn's payload keeps its text and loses its media; with no
+// text left there is nothing to send.
+function withoutPayloadMedia(ctx: TlonPayloadContext): TlonPayloadContext {
+  if (!ctx.payload.text?.trim()) throw new Error(NON_OWNER_MEDIA_ERROR);
+  return {
+    ...ctx,
+    mediaUrl: undefined,
+    payload: { ...ctx.payload, mediaUrl: undefined, mediaUrls: undefined },
+  };
+}
+
 export const tlonRuntimeOutbound: Pick<
   ChannelOutboundAdapter,
   'sendPayload' | 'sendText' | 'sendMedia'
 > = {
   sendText: (params) => coreTlonRuntimeOutbound.sendText!(params),
-  sendMedia: (params) => coreTlonRuntimeOutbound.sendMedia!(params),
-  sendPayload: async (ctx) => {
+  sendMedia: async (params) => {
+    // A non-owner turn delivers its text and drops the media; with no text
+    // there is nothing to send, so the send fails and the model is told why.
+    if (params.mediaUrl && activeTurnForbidsMedia()) {
+      if (!params.text?.trim()) throw new Error(NON_OWNER_MEDIA_ERROR);
+      return await coreTlonRuntimeOutbound.sendText!({
+        ...params,
+        mediaUrl: undefined,
+      });
+    }
+    return await coreTlonRuntimeOutbound.sendMedia!(params);
+  },
+  sendPayload: async (payloadCtx) => {
+    const ctx =
+      resolvePayloadMediaUrls(payloadCtx.payload).length > 0 &&
+      activeTurnForbidsMedia()
+        ? withoutPayloadMedia(payloadCtx)
+        : payloadCtx;
     const parsed = parseTlonTarget(ctx.to);
     if (parsed?.kind === 'notebook') {
       const { account } = resolveOutboundContext({

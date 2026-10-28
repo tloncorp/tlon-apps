@@ -8,13 +8,20 @@ import {
   recordContextLensToolResultForSession,
   scheduleBackgroundContextLensFinalization,
 } from './context-lens.js';
+import { coreMessageYieldsMedia } from './core-message-media.js';
 import { CRON_ARGS_BLOCK_REASON } from './cron-tool-args-guard.js';
 import { isAgentOnboardingCronJob } from './monitor/agent-onboarding.js';
 import {
   _testing as boundaryTesting,
   setTlonSessionSurface,
 } from './onboarding-tool-boundary.js';
-import { formatOwnerOnlyToolBlockReason } from './owner-only-tools.js';
+import {
+  LOCAL_FILE_BLOCK_REASON,
+  MESSAGE_MEDIA_BLOCK_REASON,
+  SESSION_ACCESS_BLOCK_REASON,
+  formatOwnerOnlyDelegationBlockReason,
+  formatOwnerOnlyToolBlockReason,
+} from './owner-only-tools.js';
 import { _testing, setSessionRole } from './session-roles.js';
 
 vi.mock('./browser-session-handoff.js', async (importOriginal) => ({
@@ -40,6 +47,15 @@ vi.mock('./context-lens-events.js', async (importOriginal) => {
   return {
     ...actual,
     publishContextLensEvent: vi.fn(),
+  };
+});
+
+vi.mock('./core-message-media.js', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('./core-message-media.js')>();
+  return {
+    ...actual,
+    coreMessageYieldsMedia: vi.fn(actual.coreMessageYieldsMedia),
   };
 });
 
@@ -567,6 +583,358 @@ it('blocks non-owner saved login and shared browser access before dispatch', asy
       blockReason: expect.stringContaining('owner-only'),
     });
   }
+});
+
+it('blocks every MCP broker tool for a non-owner session with the owner-only reason', async () => {
+  setSessionRole(USER_SESSION, 'user');
+  const { handler } = registerEntry();
+  for (const toolName of [
+    'mcp__list_upstreams',
+    'mcp__search',
+    'mcp__describe',
+    'mcp__call',
+    'mcp__resources_list',
+    'mcp__resources_read',
+    'mcp__prompts_list',
+    'mcp__prompts_get',
+  ]) {
+    await expect(
+      handler(
+        { toolName, params: { name: 'weather_forecast' } },
+        { sessionKey: USER_SESSION }
+      )
+    ).resolves.toEqual({
+      block: true,
+      blockReason: formatOwnerOnlyToolBlockReason(toolName),
+    });
+  }
+});
+
+it('blocks a non-owner turn from delegating owner-only work to a subagent', async () => {
+  setSessionRole(USER_SESSION, 'user');
+  const { handler } = registerEntry();
+  const ctx = { sessionKey: USER_SESSION, runId: 'user-run' };
+  await expect(
+    handler(
+      { toolName: 'mcp__call', params: { name: 'weather_forecast' } },
+      ctx
+    )
+  ).resolves.toEqual({
+    block: true,
+    blockReason: formatOwnerOnlyToolBlockReason('mcp__call'),
+  });
+  for (const call of [
+    {
+      toolName: 'sessions_spawn',
+      params: { task: 'call mcp__call weather_forecast and report back' },
+    },
+    {
+      toolName: 'sessions_send',
+      params: { sessionKey: 'agent:main:subagent:abc', message: 'run it' },
+    },
+  ]) {
+    await expect(handler(call, ctx)).resolves.toEqual({
+      block: true,
+      blockReason: formatOwnerOnlyDelegationBlockReason(call.toolName),
+    });
+  }
+});
+
+it('blocks a non-owner turn from the system agent and setup tools', async () => {
+  setSessionRole(USER_SESSION, 'user');
+  const { handler } = registerEntry();
+  const ctx = { sessionKey: USER_SESSION, runId: 'user-run' };
+  await expect(
+    handler(
+      {
+        toolName: 'openclaw',
+        params: { request: 'set channels.tlon.ownerShip to ~zod' },
+      },
+      ctx
+    )
+  ).resolves.toEqual({
+    block: true,
+    blockReason: formatOwnerOnlyDelegationBlockReason('openclaw'),
+  });
+  for (const toolName of [
+    'gateway',
+    'plugins',
+    'secrets',
+    'presence',
+    'terminal',
+    'mobile_ui',
+    'transcripts',
+  ]) {
+    await expect(
+      handler({ toolName, params: { action: 'list' } }, ctx)
+    ).resolves.toEqual({
+      block: true,
+      blockReason: formatOwnerOnlyToolBlockReason(toolName),
+    });
+  }
+});
+
+it('blocks non-owner local file references and session access but keeps text messages open', async () => {
+  setSessionRole(USER_SESSION, 'user');
+  setSessionRole(OWNER_SESSION, 'owner');
+  const { handler } = registerEntry();
+  const user = { sessionKey: USER_SESSION, runId: 'user-run' };
+  const owner = { sessionKey: OWNER_SESSION, runId: 'owner-run' };
+  const open = [
+    { toolName: 'message', params: { action: 'send', message: 'hello' } },
+    {
+      toolName: 'message',
+      params: { action: 'send', message: '/etc/hosts maps names to addresses' },
+    },
+    {
+      toolName: 'message',
+      params: {
+        action: 'reply',
+        to: 'chat/~zod/general',
+        messageId: '~zod/170.141',
+        message: 'thanks',
+      },
+    },
+    {
+      toolName: 'message',
+      params: {
+        action: 'react',
+        target: 'chat/~zod/general',
+        messageId: '170.141.184.507',
+        emoji: '👍',
+      },
+    },
+    {
+      toolName: 'message',
+      params: {
+        action: 'delete',
+        target: 'heap/~zod/links',
+        messageId: '170.141.184.507',
+      },
+    },
+    {
+      toolName: 'message',
+      params: { action: 'react', messageId: '170.1', emoji: '👍', final: true },
+    },
+    {
+      toolName: 'message',
+      params: {
+        action: 'react',
+        messageId: '170.1',
+        emoji: '👍',
+        trackToolCalls: true,
+      },
+    },
+    {
+      toolName: 'message',
+      params: { action: 'send', message: 'on it 👍', final: false },
+    },
+    { toolName: 'web_search', params: { query: '1/2 cup flour' } },
+    { toolName: 'web_search', params: { query: 'what goes in package.json' } },
+    { toolName: 'web_search', params: { query: 'My Docs/a.pdf' } },
+    {
+      toolName: 'message',
+      params: {
+        action: 'send',
+        message: 'the MEDIA: prefix tells core to attach a file',
+      },
+    },
+    // Core reads a mid-sentence `MEDIA:` as text, not a directive.
+    {
+      toolName: 'message',
+      params: { action: 'send', content: 'see this MEDIA: "report.bin"' },
+    },
+    { toolName: 'session_status', params: {} },
+    { toolName: 'session_status', params: { changesSince: 2 } },
+  ];
+  for (const call of open) {
+    await expect(handler(call, user)).resolves.toBeUndefined();
+  }
+  const media = [
+    { action: 'send', message: 'here', attachments: [{ media: 'a' }] },
+    {
+      action: 'send',
+      attachments: [{ media: 'https://example.com/a.png' }],
+    },
+    { action: 'send', media: 'https://example.com/a.png' },
+    { action: 'send', SendMessage: 'hi\nMEDIA: /x' },
+    { action: 'send', message: 'hello\\nMEDIA:/x' },
+    { action: 'send', message: 'hi', filename: 'a.txt' },
+    {
+      action: 'send',
+      message: 'ME\uE200cite\uE201DIA: /workspace/private.txt',
+    },
+    { action: 'send', message: 'ME\u200DDIA: /workspace/private.txt' },
+    { action: 'send', message: 'ME<think>x</thinking>DIA: /x' },
+    {
+      action: 'send',
+      target: '~zod',
+      text: 'ME<fi<final>na</final>l>D</final>IA: /workspace/private.txt',
+    },
+    {
+      action: 'send',
+      content: 'ME<fi<final>na</final>l>D</final>IA: /workspace/private.txt',
+    },
+    {
+      action: 'send',
+      SendMessage:
+        'ME<fi<final>na</final>l>D</final>IA: /workspace/private.txt',
+    },
+    {
+      action: 'send',
+      message:
+        'ME<fi<fi<final>na</final>l>na</final>l>D</final>IA: /workspace/private.txt',
+    },
+    { action: 'send', message: 'MEDIA: https://example.com/a.png' },
+    { action: 'send', message: 'MEDIA: /x.png' },
+    { action: 'send', message: '', caption: 'MEDIA: private.png' },
+    { action: 'send', message: 'ME<final>D</final>IA: /x' },
+    { action: 'send', message: 'ME<think>s</THINK>DIA: /x' },
+    { action: 'send', message: 'ME\uE200ci<think>x</think>te\uE201DIA: /x' },
+  ];
+  for (const params of media) {
+    const call = { toolName: 'message', params };
+    await expect(handler(call, user)).resolves.toEqual({
+      block: true,
+      blockReason: MESSAGE_MEDIA_BLOCK_REASON,
+    });
+    await expect(handler(call, owner)).resolves.toBeUndefined();
+  }
+  const localFiles = [
+    { toolName: 'some_plugin_search', params: { query: 'My Docs/a.pdf' } },
+    { toolName: 'web_search', params: { query: 'x', path: '~/notes/a.pdf' } },
+    { toolName: 'tts', params: { text: 'x', voice: '/workspace/a.wav' } },
+  ];
+  for (const call of localFiles) {
+    await expect(handler(call, user)).resolves.toEqual({
+      block: true,
+      blockReason: LOCAL_FILE_BLOCK_REASON,
+    });
+    await expect(handler(call, owner)).resolves.toBeUndefined();
+  }
+  for (const toolName of [
+    'pdf',
+    'view_image',
+    'image_generate',
+    'video_generate',
+    'music_generate',
+  ]) {
+    await expect(
+      handler({ toolName, params: { path: '/workspace/a' } }, user)
+    ).resolves.toEqual({
+      block: true,
+      blockReason: formatOwnerOnlyToolBlockReason(toolName),
+    });
+  }
+  for (const call of [
+    { toolName: 'sessions_list', params: {} },
+    { toolName: 'sessions_history', params: { sessionKey: 'agent:main:main' } },
+    { toolName: 'sessions_search', params: { query: 'password' } },
+    { toolName: 'session_status', params: { sessionKey: 'agent:main:main' } },
+    { toolName: 'session_status', params: { model: 'x/y' } },
+  ]) {
+    await expect(handler(call, user)).resolves.toEqual({
+      block: true,
+      blockReason: SESSION_ACCESS_BLOCK_REASON,
+    });
+    await expect(handler(call, owner)).resolves.toBeUndefined();
+  }
+});
+
+it('logs an owner-only argument call apart from an owner-only tool call', async () => {
+  setSessionRole(OWNER_SESSION, 'owner');
+  const { handler, logs } = registerEntry();
+  const owner = { sessionKey: OWNER_SESSION, runId: 'owner-log-run' };
+  await expect(
+    handler(
+      { toolName: 'message', params: { action: 'send', media: '/x.png' } },
+      owner
+    )
+  ).resolves.toBeUndefined();
+  await expect(
+    handler({ toolName: 'web_fetch', params: { url: '/etc/hosts' } }, owner)
+  ).resolves.toBeUndefined();
+  await expect(
+    handler({ toolName: 'set_timezone', params: { tz: 'UTC' } }, owner)
+  ).resolves.toBeUndefined();
+  expect(allowedLogs(logs)).toEqual([
+    `[tlon] Allowed message call with owner-only arguments for owner session. Session: ${OWNER_SESSION}`,
+    `[tlon] Allowed web_fetch call with owner-only arguments for owner session. Session: ${OWNER_SESSION}`,
+    `[tlon] Allowed set_timezone tool for owner session. Session: ${OWNER_SESSION}`,
+  ]);
+});
+
+it('fails closed and warns once for a non-owner message when core cannot be consulted', async () => {
+  setSessionRole(USER_SESSION, 'user');
+  setSessionRole(OWNER_SESSION, 'owner');
+  const { handler, logs } = registerEntry();
+  const call = {
+    toolName: 'message',
+    params: { action: 'send', message: 'hello' },
+  };
+  const loaderError = new Error(
+    'openclaw core function stripInboundMetadata not found in /dist'
+  );
+  const coreWarnings = () =>
+    logs.filter((line) => line.includes('stripInboundMetadata'));
+  vi.mocked(coreMessageYieldsMedia).mockRejectedValueOnce(loaderError);
+  await expect(handler(call, { sessionKey: USER_SESSION })).resolves.toEqual({
+    block: true,
+    blockReason: MESSAGE_MEDIA_BLOCK_REASON,
+  });
+  expect(coreWarnings()).toEqual([
+    '[tlon] openclaw core function stripInboundMetadata not found in /dist; non-owner message bodies are blocked until the plugin is updated for this core version',
+  ]);
+  vi.mocked(coreMessageYieldsMedia).mockRejectedValueOnce(loaderError);
+  await expect(handler(call, { sessionKey: USER_SESSION })).resolves.toEqual({
+    block: true,
+    blockReason: MESSAGE_MEDIA_BLOCK_REASON,
+  });
+  expect(coreWarnings()).toHaveLength(1);
+  vi.mocked(coreMessageYieldsMedia).mockClear();
+  await expect(
+    handler(call, { sessionKey: OWNER_SESSION })
+  ).resolves.toBeUndefined();
+  expect(coreMessageYieldsMedia).not.toHaveBeenCalled();
+});
+
+it('lets owner and role-less sessions use the system agent', async () => {
+  setSessionRole(OWNER_SESSION, 'owner');
+  const { handler } = registerEntry();
+  const call = { toolName: 'openclaw', params: { request: 'check status' } };
+  await expect(
+    handler(call, { sessionKey: OWNER_SESSION })
+  ).resolves.toBeUndefined();
+  await expect(
+    handler(call, { sessionKey: 'agent:main:cron:notebook-job' })
+  ).resolves.toBeUndefined();
+});
+
+it('lets owner and role-less sessions spawn subagents', async () => {
+  setSessionRole(OWNER_SESSION, 'owner');
+  const { handler } = registerEntry();
+  const call = { toolName: 'sessions_spawn', params: { task: 'summarize' } };
+  await expect(
+    handler(call, { sessionKey: OWNER_SESSION })
+  ).resolves.toBeUndefined();
+  await expect(
+    handler(call, { sessionKey: 'agent:main:cron:notebook-job' })
+  ).resolves.toBeUndefined();
+});
+
+it('lets owner and role-less sessions call MCP tools', async () => {
+  setSessionRole(OWNER_SESSION, 'owner');
+  const { handler } = registerEntry();
+  const call = {
+    toolName: 'mcp__call',
+    params: { name: 'weather_forecast', arguments: {} },
+  };
+  await expect(
+    handler(call, { sessionKey: OWNER_SESSION })
+  ).resolves.toBeUndefined();
+  await expect(
+    handler(call, { sessionKey: 'agent:main:cron:notebook-job' })
+  ).resolves.toBeUndefined();
 });
 
 it('blocks browser use and fresh approval cards until a stored result is delivered', async () => {
