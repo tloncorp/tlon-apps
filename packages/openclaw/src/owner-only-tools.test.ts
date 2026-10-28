@@ -6,11 +6,14 @@ import {
   OWNER_ONLY_TOOLS,
   LOCAL_FILE_BLOCK_REASON,
   MESSAGE_MEDIA_BLOCK_REASON,
+  NON_OWNER_ALLOWED_TOOLS,
+  NON_OWNER_DISPATCH_CONTROLS,
   SESSION_ACCESS_BLOCK_REASON,
   SESSION_ACCESS_TOOL_NAMES,
   formatMessageOptionBlockReason,
   formatOwnerOnlyDelegationBlockReason,
   formatOwnerOnlyToolBlockReason,
+  normalizePolicyToolName,
   resolveOwnerOnlyToolBlock,
 } from './owner-only-tools.js';
 import { CRON_TOOL_NAMES } from './cron-tool-args-guard.js';
@@ -270,28 +273,27 @@ describe('formatOwnerOnlyDelegationBlockReason', () => {
 describe('argument-gated tools', () => {
   it.each([
     ['web_fetch', { url: '/workspace/photo.png' }],
-    ['tts', { text: 'x', voiceFile: './frame.png' }],
-    ['tts', { text: 'hi', outputPath: '/tmp/out.mp3' }],
-    ['tts', { text: 'x', voice: 'private.png' }],
-    ['tts', { text: 'x', voice: '@private' }],
-    ['tts', { text: 'x', voice: 'MEDIA: /etc/passwd' }],
-    ['tts', { text: 'x', voice: 'C:\\Users\\a.txt' }],
-    ['tts', { text: 'x', voice: '\\\\host\\share\\a.txt' }],
-    ['tts', { text: 'x', voice: 'file:///etc/passwd' }],
+    ['web_fetch', { text: 'x', voiceFile: './frame.png' }],
+    ['web_fetch', { text: 'hi', outputPath: '/tmp/out.mp3' }],
+    ['web_fetch', { text: 'x', voice: 'private.png' }],
+    ['web_fetch', { text: 'x', voice: '@private' }],
+    ['web_fetch', { text: 'x', voice: 'MEDIA: /etc/passwd' }],
+    ['web_fetch', { text: 'x', voice: 'C:\\Users\\a.txt' }],
+    ['web_fetch', { text: 'x', voice: '\\\\host\\share\\a.txt' }],
+    ['web_fetch', { text: 'x', voice: 'file:///etc/passwd' }],
     // The `query` exemption is web_search's alone.
-    ['some_plugin_search', { query: 'notes/a.pdf' }],
-    ['some_plugin_search', { query: 'My Docs/a.pdf' }],
-    ['some_plugin_search', { query: 'workspace/secret' }],
+    ['web_fetch', { query: 'notes/a.pdf' }],
+    ['web_fetch', { query: 'My Docs/a.pdf' }],
+    ['web_fetch', { query: 'workspace/secret' }],
     ['web_fetch', { url: 'file:///etc/passwd' }],
     ['web_fetch', { url: '/etc/passwd' }],
-    ['web_fetch', { query: 'notes/a.pdf' }],
     // web_search keys other than `query` still get the check.
     ['web_search', { query: 'x', path: '~/notes/a.pdf' }],
     ['web_search', { query: 'x', file: '/etc/hosts' }],
     // Exemptions are bound to their keys.
-    ['tts', { text: 'x', voice: 'text/private.txt' }],
-    ['tts', { text: 'x', mimeType: 'text/../../private' }],
-    ['tts', { text: 'x', voice: 'chat/~zod/general' }],
+    ['web_fetch', { text: 'x', voice: 'text/private.txt' }],
+    ['web_fetch', { text: 'x', mimeType: 'text/../../private' }],
+    ['web_fetch', { text: 'x', voice: 'chat/~zod/general' }],
   ])('blocks a non-owner %s call with a local path', (tool, params) => {
     expect(resolveOwnerOnlyToolBlock(tool, 'user', params)).toEqual({
       ownerOnly: true,
@@ -317,7 +319,7 @@ describe('argument-gated tools', () => {
     ['web_search', { query: 'notes/a.pdf' }],
     ['web_search', { query: 'My Docs/a.pdf', count: 5, country: 'US' }],
     ['web_fetch', { url: 'https://example.com/a.pdf' }],
-    ['tts', { text: 'x', contentType: 'audio/mpeg' }],
+    ['web_fetch', { text: 'x', contentType: 'audio/mpeg' }],
   ])('lets a non-owner call %s without a local path', (tool, params) => {
     expect(resolveOwnerOnlyToolBlock(tool, 'user', params)).toEqual({
       ownerOnly: false,
@@ -336,7 +338,8 @@ describe('argument-gated tools', () => {
 
   it('applies the local-file rule to body-named keys of other tools', () => {
     expect(
-      resolveOwnerOnlyToolBlock('tts', 'user', { text: '/etc/hosts' }).blocked
+      resolveOwnerOnlyToolBlock('web_fetch', 'user', { text: '/etc/hosts' })
+        .blocked
     ).toBe(true);
   });
 
@@ -517,4 +520,226 @@ describe('argument-gated tools', () => {
     expect(reason).not.toMatch(/[\r\n]/);
     expect(reason.length).toBeLessThanOrEqual(200);
   });
+});
+
+describe('NON_OWNER_ALLOWED_TOOLS', () => {
+  it('contains exactly the tools a non-owner may call', () => {
+    expect([...NON_OWNER_ALLOWED_TOOLS]).toEqual([
+      'web_search',
+      'web_fetch',
+      'message',
+      'session_status',
+      'sessions_yield',
+      'agents_wait',
+      'progress_card',
+      'lcm_grep',
+    ]);
+    expect([...NON_OWNER_DISPATCH_CONTROLS]).toEqual([
+      'tool_search',
+      'tool_describe',
+      'tool_call',
+    ]);
+    for (const name of [
+      ...NON_OWNER_ALLOWED_TOOLS,
+      ...NON_OWNER_DISPATCH_CONTROLS,
+    ]) {
+      expect(OWNER_ONLY_TOOLS.has(name)).toBe(false);
+    }
+  });
+
+  it.each([...NON_OWNER_ALLOWED_TOOLS, ...NON_OWNER_DISPATCH_CONTROLS])(
+    'lets a non-owner call %s and blocks its near neighbours',
+    (tool) => {
+      expect(resolveOwnerOnlyToolBlock(tool, 'user', {})).toEqual({
+        ownerOnly: false,
+        blocked: false,
+      });
+      for (const neighbour of [`${tool}s`, `${tool}_all`, `x${tool}`]) {
+        expect(resolveOwnerOnlyToolBlock(neighbour, 'user', {}).blocked).toBe(
+          true
+        );
+      }
+    }
+  );
+
+  it.each(['exec', 'wait', 'openclawexec'])(
+    'keeps Code Mode %s owner-only for a non-owner',
+    (tool) => {
+      const params = { title: 'skills', code: 'return await skills.list()' };
+      expect(resolveOwnerOnlyToolBlock(tool, 'user', params)).toEqual({
+        ownerOnly: true,
+        gate: 'tool',
+        blocked: true,
+        reason: formatOwnerOnlyToolBlockReason(normalizePolicyToolName(tool)),
+      });
+      for (const role of ['owner', undefined] as const) {
+        expect(resolveOwnerOnlyToolBlock(tool, role, params).blocked).toBe(
+          false
+        );
+      }
+    }
+  );
+
+  it('skips the local-file rule for dispatch controls only', () => {
+    expect(
+      resolveOwnerOnlyToolBlock('tool_call', 'user', {
+        id: 'web_fetch',
+        args: { url: '/workspace/a.png' },
+      }).blocked
+    ).toBe(false);
+    expect(
+      resolveOwnerOnlyToolBlock('web_fetch', 'user', {
+        url: '/workspace/a.png',
+      }).blocked
+    ).toBe(true);
+  });
+
+  // Every tool non-owner turns called in production over 90 days, and the
+  // owner-only tools the allowlist replaces as the deciding rule.
+  const PRODUCTION_DECISIONS: [string, boolean][] = [
+    ['web_search', true],
+    ['web_fetch', true],
+    ['message', true],
+    ['sessions_yield', true],
+    ['lcm_grep', true],
+    ['session_status', true],
+    ['agents_wait', true],
+    ['progress_card', true],
+    ['tool_search', true],
+    ['tool_describe', true],
+    ['tool_call', true],
+    ['wait', false],
+    ['mcp__call', false],
+    ['mcp__search', false],
+    ['tlon', false],
+    ['read', false],
+    ['write', false],
+    ['edit', false],
+    ['exec', false],
+    ['sandbox_exec', false],
+    ['cron', false],
+    ['automations', false],
+    ['pdf', false],
+    ['image', false],
+    ['view_image', false],
+    ['memory_search', false],
+    ['memory_get', false],
+    ['lcm_expand', false],
+    ['lcm_expand_query', false],
+    ['lcm_describe', false],
+    ['sessions_search', false],
+    ['sessions_history', false],
+    ['sessions_list', false],
+    ['sessions_spawn', false],
+    ['subagents', false],
+    ['agents_list', false],
+    ['tlon_connectable_services', false],
+  ];
+
+  it.each(PRODUCTION_DECISIONS)(
+    'decides %s for a non-owner (allowed: %s), bare and Codex-namespaced',
+    (tool, allowed) => {
+      for (const name of [tool, `openclaw${tool}`, `openclaw_direct${tool}`]) {
+        const decision = resolveOwnerOnlyToolBlock(name, 'user');
+        expect(decision.blocked).toBe(!allowed);
+        expect(decision).toEqual(resolveOwnerOnlyToolBlock(tool, 'user'));
+      }
+    }
+  );
+
+  it.each(PRODUCTION_DECISIONS)(
+    'leaves %s open to owner and role-less sessions',
+    (tool) => {
+      for (const role of ['owner', undefined] as const) {
+        expect(resolveOwnerOnlyToolBlock(tool, role).blocked).toBe(false);
+        expect(resolveOwnerOnlyToolBlock(`openclaw${tool}`, role).blocked).toBe(
+          false
+        );
+      }
+    }
+  );
+
+  it.each(['foo__bar', 'some_new_core_tool', 'Some_New_Core_Tool'])(
+    'blocks a tool outside the allowed set (%s) for a non-owner',
+    (tool) => {
+      expect(resolveOwnerOnlyToolBlock(tool, 'user')).toEqual({
+        ownerOnly: true,
+        gate: 'tool',
+        blocked: true,
+        reason: formatOwnerOnlyToolBlockReason(tool.toLowerCase()),
+      });
+      for (const role of ['owner', undefined] as const) {
+        expect(resolveOwnerOnlyToolBlock(tool, role)).toEqual({
+          ownerOnly: true,
+          gate: 'tool',
+          blocked: false,
+        });
+      }
+    }
+  );
+
+  it('keeps the reason for a long unknown tool name within the cap', () => {
+    const reason = resolveOwnerOnlyToolBlock(
+      `server__${'x'.repeat(200)}`,
+      'user'
+    ).reason;
+    expect(reason).toContain('this tool is owner-only');
+    expect(reason?.length).toBeLessThanOrEqual(
+      OWNER_ONLY_BLOCK_REASON_MAX_CHARS
+    );
+  });
+
+  it('keeps the specific reasons for namespaced owner-only tools', () => {
+    expect(resolveOwnerOnlyToolBlock('openclawsessions_spawn', 'user')).toEqual(
+      {
+        ownerOnly: true,
+        gate: 'tool',
+        blocked: true,
+        reason: formatOwnerOnlyDelegationBlockReason('sessions_spawn'),
+      }
+    );
+    expect(
+      resolveOwnerOnlyToolBlock('openclawsessions_history', 'user').reason
+    ).toBe(SESSION_ACCESS_BLOCK_REASON);
+  });
+
+  it.each([
+    ['openclaw', 'openclaw'],
+    ['openclawweb_search', 'web_search'],
+    ['openclaw_directsessions_yield', 'sessions_yield'],
+    [' OpenClawMessage ', 'message'],
+    ['web_search', 'web_search'],
+  ])('normalizes %j to %j', (raw, expected) => {
+    expect(normalizePolicyToolName(raw)).toBe(expected);
+  });
+
+  it.each([
+    [{ pattern: 'deadline' }],
+    [{ pattern: 'deadline', mode: 'full_text', scope: 'both', limit: 10 }],
+    [{ pattern: 'deadline', allConversations: false }],
+  ])('lets a non-owner grep the current conversation with %j', (params) => {
+    expect(resolveOwnerOnlyToolBlock('lcm_grep', 'user', params)).toEqual({
+      ownerOnly: false,
+      blocked: false,
+    });
+  });
+
+  it.each([
+    [{ pattern: 'deadline', conversationId: 3 }],
+    [{ pattern: 'deadline', allConversations: true }],
+    [{ pattern: 'deadline', sessionKey: 'agent:main:main' }],
+  ])(
+    'blocks a non-owner lcm_grep beyond the conversation with %j',
+    (params) => {
+      expect(resolveOwnerOnlyToolBlock('lcm_grep', 'user', params)).toEqual({
+        ownerOnly: true,
+        gate: 'tool',
+        blocked: true,
+        reason: SESSION_ACCESS_BLOCK_REASON,
+      });
+      expect(
+        resolveOwnerOnlyToolBlock('lcm_grep', 'owner', params).blocked
+      ).toBe(false);
+    }
+  );
 });

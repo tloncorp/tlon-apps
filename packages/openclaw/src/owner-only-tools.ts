@@ -15,8 +15,7 @@ import type { SenderRole } from './session-roles.js';
 /**
  * OpenClaw core tools that hand work to another run: a spawned session or the
  * system agent (`openclaw`) has no stored role and would pass this gate, and a
- * sent message drives another session's run. The session listing, history,
- * search, status, wait, and yield tools stay open.
+ * sent message drives another session's run.
  */
 export const DELEGATION_TOOL_NAMES = [
   'sessions_spawn',
@@ -74,6 +73,56 @@ export const OWNER_ONLY_TOOLS: ReadonlySet<string> = new Set([
   ...SESSION_ACCESS_TOOL_NAMES,
 ]);
 
+/**
+ * The only tools a non-owner ('user') session may call. Every other tool,
+ * including any core or another plugin adds later, is owner-only; the
+ * `OWNER_ONLY_TOOLS` entries keep their more specific block reasons.
+ */
+export const NON_OWNER_ALLOWED_TOOLS: ReadonlySet<string> = new Set([
+  'web_search', // public web search
+  'web_fetch', // remote pages; the local-file rule still applies
+  'message', // text only: key allowlist and media checks below
+  'session_status', // the current session only (changesSince)
+  'sessions_yield', // ends the current turn
+  'agents_wait', // core only returns runs this session started
+  'progress_card', // replaces the current session's progress card
+  // Lossless Claw recall of the current conversation only (no conversationId
+  // or allConversations). lcm_expand_query and lcm_expand stay owner-only:
+  // the first runs a role-less subagent on a model-written prompt.
+  'lcm_grep',
+]);
+
+/**
+ * Tool Search controls that only find or invoke catalog tools. Core wraps every
+ * catalog tool in before_tool_call, so a `tool_call` target runs this gate
+ * again under its own name (core 2026.9.33 tool-search-catalog.ts
+ * toCatalogEntry, agent-tools.before-tool-call.wrapper.ts). Their own params
+ * are catalog selectors and skip the local-file rule; the target's params get
+ * it. Code Mode `exec`/`wait` stay owner-only: their bridge also reads skill
+ * files directly, with no tool call for this gate to see.
+ */
+export const NON_OWNER_DISPATCH_CONTROLS: ReadonlySet<string> = new Set([
+  'tool_search', // lists catalog entries (core and Codex native)
+  'tool_describe', // returns one catalog entry's schema
+  'tool_call', // invokes a catalog tool, gated again by name
+]);
+
+// Codex native hooks report a namespaced dynamic tool as namespace + name with
+// no delimiter (`openclawweb_search`), and core 2026.9.33 hands that name to
+// before_tool_call unchanged (native-hook-relay-codec.ts). Longest first.
+const CODEX_DYNAMIC_TOOL_NAMESPACES = ['openclaw_direct', 'openclaw'] as const;
+
+/** The tool name the policy decides on, without a Codex namespace prefix. */
+export function normalizePolicyToolName(toolName: string): string {
+  const name = toolName.trim().toLowerCase();
+  for (const namespace of CODEX_DYNAMIC_TOOL_NAMESPACES) {
+    if (name.startsWith(namespace) && name.length > namespace.length) {
+      return name.slice(namespace.length);
+    }
+  }
+  return name;
+}
+
 /** Longest first line the TLON-6361 owner notice shows untruncated. */
 export const OWNER_ONLY_BLOCK_REASON_MAX_CHARS = 200;
 
@@ -86,6 +135,15 @@ function policyBlockReason(policy: string, tail = BLOCK_REASON_TAIL): string {
 
 export function formatOwnerOnlyToolBlockReason(toolName: string): string {
   return policyBlockReason(`the ${toolName} tool`);
+}
+
+// A tool outside both lists may have any name; name it only when the reason
+// still fits the owner-notice cap.
+function formatNonOwnerToolBlockReason(toolName: string): string {
+  const reason = formatOwnerOnlyToolBlockReason(toolName);
+  return reason.length <= OWNER_ONLY_BLOCK_REASON_MAX_CHARS
+    ? reason
+    : policyBlockReason('this tool');
 }
 
 export function formatOwnerOnlyDelegationBlockReason(toolName: string): string {
@@ -341,15 +399,37 @@ function messageArgumentsReason(
   return option ? formatMessageOptionBlockReason(option[0]) : undefined;
 }
 
-// `session_status` reads (`sessionKey`) and patches (`model`) any visible
-// session; only the current session's plain status stays open.
-const OPEN_SESSION_STATUS_KEYS = new Set(['changesSince']);
+// The params that keep these tools on the current session. `session_status`
+// reads (`sessionKey`) and patches (`model`) any visible session; `lcm_grep`
+// searches any conversation by `conversationId` or `allConversations`.
+const CURRENT_SESSION_KEYS: ReadonlyMap<string, ReadonlySet<string>> = new Map([
+  ['session_status', new Set(['changesSince'])],
+  [
+    'lcm_grep',
+    new Set([
+      'pattern',
+      'mode',
+      'scope',
+      'fileIds',
+      'since',
+      'before',
+      'limit',
+      'sort',
+    ]),
+  ],
+]);
 
-function sessionStatusLeavesCurrentSession(
+function leavesCurrentSession(
+  toolName: string,
   params?: Record<string, unknown>
 ): boolean {
+  const open = CURRENT_SESSION_KEYS.get(toolName);
+  if (!open) return false;
   return Object.entries(params ?? {}).some(
-    ([key, value]) => value !== undefined && !OPEN_SESSION_STATUS_KEYS.has(key)
+    ([key, value]) =>
+      value !== undefined &&
+      !open.has(key) &&
+      !(key === 'allConversations' && value === false)
   );
 }
 
@@ -358,8 +438,9 @@ export type OwnerOnlyToolDecision = {
   ownerOnly: boolean;
   /**
    * Which rule made it owner-only (present iff `ownerOnly`): `'tool'` for
-   * the tool itself (set membership, the hosted browser, another session's
-   * status), `'arguments'` for an otherwise open tool's arguments.
+   * the tool itself (set membership, outside the non-owner allowlist, the
+   * hosted browser, another session or conversation), `'arguments'` for an
+   * allowed tool's arguments.
    */
   gate?: 'tool' | 'arguments';
   /** Veto the call: owner-only and the session role is a non-owner user. */
@@ -394,10 +475,10 @@ function toolRuleReason(
   if (OWNER_ONLY_TOOLS.has(toolName)) {
     return formatOwnerOnlyToolBlockReason(toolName);
   }
-  if (
-    toolName === 'session_status' &&
-    sessionStatusLeavesCurrentSession(params)
-  ) {
+  if (!NON_OWNER_ALLOWED_TOOLS.has(toolName)) {
+    return formatNonOwnerToolBlockReason(toolName);
+  }
+  if (leavesCurrentSession(toolName, params)) {
     return SESSION_ACCESS_BLOCK_REASON;
   }
   return undefined;
@@ -419,7 +500,7 @@ function argumentRuleReason(
       ? LOCAL_FILE_BLOCK_REASON
       : undefined;
   }
-  // Argument-gated for every other tool: no local file references, except
+  // Argument-gated for every other allowed tool: no local file references, except
   // in a search tool's free-text query.
   const checked = QUERY_ONLY_TOOLS.has(toolName)
     ? Object.fromEntries(
@@ -432,9 +513,11 @@ function argumentRuleReason(
 }
 
 function ownerOnlyRule(
-  toolName: string,
+  rawToolName: string,
   params?: Record<string, unknown>
 ): OwnerOnlyRule | undefined {
+  const toolName = normalizePolicyToolName(rawToolName);
+  if (NON_OWNER_DISPATCH_CONTROLS.has(toolName)) return undefined;
   const toolReason = toolRuleReason(toolName, params);
   if (toolReason) return { reason: toolReason, gate: 'tool' };
   const argumentReason = argumentRuleReason(toolName, params);
