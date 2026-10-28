@@ -52,7 +52,7 @@
   "notes": {
     "summary": "Markdown notebooks and notes",
     "reference": "references/notes.md",
-    "toolGuidance": "Use workspace files; note-publish makes a note public, so publish only on request; owner-confirmed migration writes are unavailable."
+    "toolGuidance": "A new notebook for a group is `channels create <group> \"Title\" --kind notes` (in a group channel, that group unless the user names another); `notes create` makes a standalone notebook outside every group. Use workspace files; note-publish makes a note public, so publish only on request; owner-confirmed migration writes are unavailable."
   },
   "posts": {
     "summary": "Gallery attachments, post quotes, forwards, reactions, edits, deletes, and pins",
@@ -67,6 +67,6 @@
   "upload": {
     "summary": "Standalone media upload",
     "reference": "references/media.md",
-    "toolGuidance": "Use a URL or workspace file; stdin is shell-only."
+    "toolGuidance": "Use URLs or workspace files, several per call if needed; stdin is shell-only."
   }
 }

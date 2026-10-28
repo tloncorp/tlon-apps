@@ -90,6 +90,16 @@ const GROUP_METADATA = {
 let savedEnv: Record<string, string | undefined> = {};
 const realFetch = globalThis.fetch;
 
+// The mocks are shared across test files: restore them so a later file does
+// not inherit this file's not-a-member defaults.
+const originalScry = mockedScry.impl;
+const originalSubscribe = mockedSubscribe.impl;
+const originalSubscribeOnce = mockedSubscribeOnce.impl;
+const originalGetGroup = mockedGetGroup.impl;
+const originalJoinGroup = mockedJoinGroup.impl;
+const originalRequestGroupInvitation = mockedRequestGroupInvitation.impl;
+const originalPoke = mockedPoke.impl;
+
 beforeEach(() => {
   savedEnv = {};
   for (const key of ENV_KEYS) {
@@ -115,6 +125,13 @@ afterEach(() => {
     else process.env[key] = savedEnv[key];
   }
   globalThis.fetch = realFetch;
+  mockedScry.impl = originalScry;
+  mockedSubscribe.impl = originalSubscribe;
+  mockedSubscribeOnce.impl = originalSubscribeOnce;
+  mockedGetGroup.impl = originalGetGroup;
+  mockedJoinGroup.impl = originalJoinGroup;
+  mockedRequestGroupInvitation.impl = originalRequestGroupInvitation;
+  mockedPoke.impl = originalPoke;
   __resetApiClientForTests();
 });
 
