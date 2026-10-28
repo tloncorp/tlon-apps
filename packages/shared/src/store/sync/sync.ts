@@ -807,7 +807,17 @@ export const syncContactDiscovery = async (
     });
     return empty;
   }
-  const systemContacts = await getSystemContacts();
+  let systemContacts: db.SystemContact[];
+  try {
+    systemContacts = await getSystemContacts();
+  } catch (error) {
+    logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+      context: 'failed to read system contacts for discovery',
+      severity: AnalyticsSeverity.Critical,
+      error,
+    });
+    return { ...empty, didSucceed: false };
+  }
   const phoneNumbers = systemContacts
     .map((contact) => contact.phoneNumber)
     .filter((phoneNumber) => phoneNumber && phoneNumber.length > 0) as string[];
