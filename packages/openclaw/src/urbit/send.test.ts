@@ -137,6 +137,88 @@ describe('sendDm', () => {
     setReplyOutputReporter(null);
   });
 
+  it('gives two sends in the same millisecond distinct sent times and ids', async () => {
+    const sentAt = 1_700_000_000_000;
+    vi.spyOn(Date, 'now').mockReturnValue(sentAt);
+    const poke = vi.fn(async () => ({}));
+    // The host stored both, keyed by its own clock, oldest first.
+    const getChannelPosts = vi.fn(async () => ({
+      posts: [
+        { id: '170.141.184.507.901', authorId: '~zod', sentAt },
+        { id: '170.141.184.507.902', authorId: '~zod', sentAt: sentAt + 1 },
+      ],
+    }));
+    vi.doMock('@tloncorp/api', () => ({
+      sendPost: poke,
+      sendReply: vi.fn(),
+      getChannelPosts,
+      getPostWithReplies: vi.fn(),
+      addReaction: vi.fn(),
+      removeReaction: vi.fn(),
+      deletePost: vi.fn(),
+      configureClient: vi.fn(),
+    }));
+
+    const { sendChannelPost } = await import('./send.js');
+    const [first, second] = await Promise.all([
+      sendChannelPost({
+        fromShip: '~zod',
+        nest: 'chat/~zod/general',
+        story: [{ inline: ['one'] }],
+      }),
+      sendChannelPost({
+        fromShip: '~zod',
+        nest: 'chat/~zod/general',
+        story: [{ inline: ['two'] }],
+      }),
+    ]);
+
+    expect(
+      poke.mock.calls.map(
+        (c) => (c as unknown as [{ sentAt: number }])[0].sentAt
+      )
+    ).toEqual([sentAt, sentAt + 1]);
+    expect(first.messageId).toBe('~zod/170.141.184.507.901');
+    expect(second.messageId).toBe('~zod/170.141.184.507.902');
+  });
+
+  it('does not pick between two posts that share the author and sent time', async () => {
+    vi.useFakeTimers();
+    try {
+      const sentAt = 1_700_000_000_000;
+      vi.setSystemTime(sentAt);
+      const getChannelPosts = vi.fn(async () => ({
+        posts: [
+          { id: '170.141.184.507.901', authorId: '~zod', sentAt },
+          { id: '170.141.184.507.902', authorId: '~zod', sentAt },
+        ],
+      }));
+      vi.doMock('@tloncorp/api', () => ({
+        sendPost: vi.fn(async () => ({})),
+        sendReply: vi.fn(),
+        getChannelPosts,
+        getPostWithReplies: vi.fn(),
+        addReaction: vi.fn(),
+        removeReaction: vi.fn(),
+        deletePost: vi.fn(),
+        configureClient: vi.fn(),
+      }));
+
+      const { sendChannelPost } = await import('./send.js');
+      const pending = sendChannelPost({
+        fromShip: '~zod',
+        nest: 'chat/~zod/general',
+        story: [{ inline: ['hi'] }],
+      });
+      await vi.advanceTimersByTimeAsync(10_000);
+      const result = await pending;
+
+      expect(result.messageId).toBe('~zod/mocked-ud');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('falls back to the sent-time id when the host never shows the post', async () => {
     vi.useFakeTimers();
     try {

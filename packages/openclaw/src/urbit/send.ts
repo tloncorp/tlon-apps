@@ -89,6 +89,17 @@ export function formatSentAt(sentAt: number): string {
   return scot('ud', da.fromUnix(sentAt));
 }
 
+// Date.now() is millisecond-resolution, so two sends in the same millisecond
+// by the same author would be told apart by nothing: a DM writ's id is
+// author/sent, and a channel post is read back by author and sent time. One
+// clock per process hands out strictly increasing sent times instead.
+let lastSentAt = 0;
+function uniqueSentAt(): number {
+  const now = Date.now();
+  lastSentAt = now > lastSentAt ? now : lastSentAt + 1;
+  return lastSentAt;
+}
+
 // --- DMs ---
 
 /** Optional bot profile for custom display name/avatar */
@@ -134,7 +145,7 @@ export async function sendDmWithStory({
   parentAuthor,
   botProfile,
 }: SendStoryParams) {
-  const sentAt = Date.now();
+  const sentAt = uniqueSentAt();
   const messageId = `${fromShip}/${formatSentAt(sentAt)}`;
 
   if (replyToId) {
@@ -201,9 +212,7 @@ async function findHostPostId(
       // Only DM lookups read the author; channel posts are found by nest and id.
       authorId: '',
     });
-    return parent.replies?.find(
-      (reply) => reply.sentAt === sentAt && isSameShip(reply.authorId, fromShip)
-    )?.id;
+    return onlyMatch(parent.replies ?? [], fromShip, sentAt);
   }
   const { posts } = await apiGetChannelPosts({
     channelId: nest,
@@ -211,9 +220,25 @@ async function findHostPostId(
     count: 20,
     skipGapFill: true,
   });
-  return posts.find(
+  return onlyMatch(posts, fromShip, sentAt);
+}
+
+// Exactly one post may carry this author and sent time. Two would mean the
+// sent time was not unique after all (another process sending as this ship),
+// and naming either would hand the caller a post it may not have sent.
+function onlyMatch(
+  posts: Array<{
+    id: string;
+    authorId?: string | null;
+    sentAt?: number | null;
+  }>,
+  fromShip: string,
+  sentAt: number
+): string | undefined {
+  const matches = posts.filter(
     (post) => post.sentAt === sentAt && isSameShip(post.authorId, fromShip)
-  )?.id;
+  );
+  return matches.length === 1 ? matches[0].id : undefined;
 }
 
 // The message was sent before this runs, so a lookup that never finds it
@@ -267,7 +292,7 @@ export async function sendChannelPost({
   title,
   botProfile,
 }: SendChannelPostParams) {
-  const sentAt = Date.now();
+  const sentAt = uniqueSentAt();
 
   if (replyToId) {
     const formattedReplyId = formatPostId(replyToId);
