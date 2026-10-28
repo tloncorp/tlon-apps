@@ -4,6 +4,7 @@ import * as db from '../../db';
 import { QueryCtx, batchEffects } from '../../db/query';
 import * as LocalCache from '../cachedData';
 import { getClientGeneration } from '../session';
+import { captureContactIntent } from '../contactIntent';
 import { SyncCtx, syncQueue } from '../syncQueue';
 import { logger } from './logger';
 
@@ -12,6 +13,9 @@ export const syncContactSuggestions = async (
   queryCtx?: QueryCtx
 ) => {
   const generation = getClientGeneration();
+  const intents = new Map(
+    contactIds.map((id) => [id, captureContactIntent(id)])
+  );
   const contacts = await syncQueue.add('contact suggestions', undefined, () =>
     api.getContacts()
   );
@@ -22,7 +26,7 @@ export const syncContactSuggestions = async (
 
   const write = async (ctx: QueryCtx) => {
     for (const id of contactIds) {
-      if (getClientGeneration() !== generation) return;
+      if (!intents.get(id)!()) continue;
       await db.setContactSuggestion(
         { id, isContactSuggestion: suggestions.has(id) },
         ctx

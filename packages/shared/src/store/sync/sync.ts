@@ -65,6 +65,7 @@ import {
 } from '../session';
 import { migrateLegacyContextLensFlag } from '../settingsActions';
 import { SyncCtx, SyncPriority, syncQueue } from '../syncQueue';
+import { captureContactIntent, recordContactIntent } from '../contactIntent';
 import { getSystemContacts } from '../systemContactsApi';
 import {
   recordThreadPostsReceived,
@@ -850,6 +851,10 @@ export const syncContactDiscovery = async (
       isMocked,
     });
     const newMatchIds = newMatches.map(([, id]) => id);
+    const intents = new Map(
+      newMatchIds.map((id) => [id, captureContactIntent(id)])
+    );
+    const isCurrent = (id: string) => intents.get(id)?.() ?? false;
     let addedMatches: [string, string][] = [];
 
     await db.linkSystemContacts({ matches }).catch((e) => {
@@ -877,13 +882,13 @@ export const syncContactDiscovery = async (
       if (failedContactIds.length > 0) {
         didSucceed = false;
       }
-      const addedIds = new Set(addedContactIds);
+      const addedIds = new Set(addedContactIds.filter(isCurrent));
       addedMatches = newMatches.filter(([, id]) => addedIds.has(id));
       logger.log('syncContactDiscovery: added contacts', addedContactIds);
 
       await db
         .markContactsAsMatched({
-          contactIds: addedContactIds,
+          contactIds: addedContactIds.filter(isCurrent),
           matchedAt: Date.now(),
         })
         .catch((e) => {
@@ -900,11 +905,13 @@ export const syncContactDiscovery = async (
       const contactsToName =
         await db.getUnnamedSystemContactsByContactId(addedContactIds);
       const metadataResults = await Promise.all(
-        contactsToName.map((c) =>
-          updateContactMetadata(c.contactId, {
-            nickname: `${c.firstName || ''} ${c.lastName || ''}`.trim(),
-          })
-        )
+        contactsToName
+          .filter((c) => isCurrent(c.contactId))
+          .map((c) =>
+            updateContactMetadata(c.contactId, {
+              nickname: `${c.firstName || ''} ${c.lastName || ''}`.trim(),
+            })
+          )
       ).catch((e) => {
         didSucceed = false;
         logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
@@ -919,6 +926,7 @@ export const syncContactDiscovery = async (
       }
     }
 
+    addedMatches = addedMatches.filter(([, id]) => isCurrent(id));
     if (invokeHandler && addedMatches.length > 0) {
       await invokeContactsMatchedHandler(addedMatches.map(([, id]) => id));
     }
@@ -1769,6 +1777,7 @@ export const handleContactUpdate = async (
       break;
 
     case 'removeContact':
+      recordContactIntent(update.contactId);
       await db.updateContact(
         {
           id: update.contactId,

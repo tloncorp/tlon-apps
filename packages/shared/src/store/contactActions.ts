@@ -9,25 +9,32 @@ import * as LocalCache from './cachedData';
 import { syncContactSuggestions, syncContacts } from './sync/syncContacts';
 import { syncGroup } from './sync/syncGroup';
 import { getSystemContacts } from './systemContactsApi';
-import { getClientGeneration } from './session';
+import { captureContactIntent, recordContactIntent } from './contactIntent';
 
 const logger = createDevLogger('ContactActions', false);
 
 export async function addContact(contactId: string) {
+  recordContactIntent(contactId);
+  const isCurrent = captureContactIntent(contactId);
   logger.trackEvent(AnalyticsEvent.ActionContactAdded, { count: 1 });
   const previous = await db.getContact({ id: contactId });
-  if (previous?.isContact) return;
+  if (!isCurrent() || previous?.isContact) return;
   const update = {
     id: contactId,
     isContact: true,
     isContactSuggestion: false,
   };
   await db.upsertContact(update);
+  if (!isCurrent()) return;
   try {
     await api.addContact(contactId);
+    if (!isCurrent()) return;
     await db.updateContact(update);
-    LocalCache.cacheContacts(await db.getContacts());
+    if (!isCurrent()) return;
+    const cached = await db.getContacts();
+    if (isCurrent()) LocalCache.cacheContacts(cached);
   } catch (e) {
+    if (!isCurrent()) return;
     logger.trackError('Error adding contact', e);
     await db.updateContact({
       id: contactId,
@@ -50,16 +57,21 @@ export async function addContacts(
   }: { source?: 'manual' | 'discovery'; contactState?: api.ContactState } = {}
 ): Promise<AddContactsResult> {
   const contacts = [...new Set(contactIds)];
+  if (source === 'manual') contacts.forEach(recordContactIntent);
+  const intents = new Map(contacts.map((id) => [id, captureContactIntent(id)]));
+  const isCurrent = (id: string) => intents.get(id)!();
   if (source === 'manual') {
     logger.trackEvent(AnalyticsEvent.ActionContactAdded, {
       count: contacts.length,
     });
   }
   const previousContacts = await db.getContactsBatch({ contactIds: contacts });
+  if (!contacts.some(isCurrent))
+    return { addedContactIds: [], failedContactIds: [] };
   const previousById = new Map(previousContacts.map((c) => [c.id, c]));
   const rollback = (contactIds: string[]) =>
     Promise.all(
-      contactIds.map((id) =>
+      contactIds.filter(isCurrent).map((id) =>
         db.updateContact({
           id,
           isContact: previousById.get(id)?.isContact ?? false,
@@ -83,9 +95,11 @@ export async function addContacts(
       return { addedContactIds: [], failedContactIds: contacts };
     }
   }
+  if (!contacts.some(isCurrent))
+    return { addedContactIds: [], failedContactIds: [] };
   await Promise.all(
     contacts
-      .filter((id) => !removedContactIds.has(id))
+      .filter((id) => isCurrent(id) && !removedContactIds.has(id))
       .map((id) =>
         db.upsertContact({ id, isContact: true, isContactSuggestion: false })
       )
@@ -103,14 +117,17 @@ export async function addContacts(
   const existingIds = new Set(
     existingContacts.filter((c) => c.isContact).map((c) => c.id)
   );
-  const newContacts = contacts.filter((id) => !existingIds.has(id));
+  const newContacts = contacts.filter(
+    (id) => isCurrent(id) && !existingIds.has(id)
+  );
   const results = await Promise.allSettled(
     newContacts.map((id) =>
       guardedDiscovery ? api.discoverContact(id) : api.addContact(id)
     )
   );
   const failedContactIds = results.flatMap((result, index) => {
-    if (result.status === 'fulfilled') return [];
+    if (result.status === 'fulfilled' || !isCurrent(newContacts[index]))
+      return [];
     logger.trackError('Error adding contact', result.reason);
     return [newContacts[index]];
   });
@@ -118,24 +135,45 @@ export async function addContacts(
     await rollback(failedContactIds);
   }
   const failedIds = new Set(failedContactIds);
-  let addedContactIds = contacts.filter((id) => !failedIds.has(id));
+  let addedContactIds = contacts.filter(
+    (id) => isCurrent(id) && !failedIds.has(id)
+  );
+  if (addedContactIds.length === 0)
+    return {
+      addedContactIds,
+      failedContactIds: failedContactIds.filter(isCurrent),
+    };
   if (guardedDiscovery) {
     try {
       const state = await api.getContactState();
-      await db.insertContacts(state.contacts);
+      const confirmed = new Map(
+        state.contacts.map((contact) => [contact.id, contact])
+      );
+      for (const id of addedContactIds) {
+        if (!isCurrent(id)) continue;
+        const contact = confirmed.get(id);
+        await db.upsertContact({
+          id,
+          isContact: contact?.isContact ?? false,
+          isContactSuggestion: contact?.isContactSuggestion ?? false,
+        });
+      }
       const savedIds = new Set(
         state.contacts.filter((c) => c.isContact).map((c) => c.id)
       );
-      addedContactIds = addedContactIds.filter((id) => savedIds.has(id));
+      addedContactIds = addedContactIds.filter(
+        (id) => isCurrent(id) && savedIds.has(id)
+      );
     } catch (e) {
-      logger.trackError('Error confirming discovered contacts', e);
+      if (addedContactIds.some(isCurrent))
+        logger.trackError('Error confirming discovered contacts', e);
       await rollback(addedContactIds);
-      failedContactIds.push(...addedContactIds);
+      failedContactIds.push(...addedContactIds.filter(isCurrent));
       addedContactIds = [];
     }
   } else {
     await Promise.all(
-      addedContactIds.map((id) =>
+      addedContactIds.filter(isCurrent).map((id) =>
         db.updateContact({
           id,
           isContact: true,
@@ -144,24 +182,36 @@ export async function addContacts(
       )
     );
   }
+  const currentContacts = await db.getContactsBatch({
+    contactIds: addedContactIds,
+  });
+  const currentlySaved = new Set(
+    currentContacts.filter((c) => c.isContact).map((c) => c.id)
+  );
+  addedContactIds = addedContactIds.filter(
+    (id) => isCurrent(id) && currentlySaved.has(id)
+  );
   if (source === 'discovery' && addedContactIds.length > 0) {
     logger.trackEvent(AnalyticsEvent.ActionContactAdded, {
       count: addedContactIds.length,
     });
   }
-  return { addedContactIds, failedContactIds };
+  return {
+    addedContactIds,
+    failedContactIds: failedContactIds.filter(isCurrent),
+  };
 }
 
 export async function removeContact(contactId: string) {
-  const generation = getClientGeneration();
-  const isSameLogin = () => getClientGeneration() === generation;
+  recordContactIntent(contactId);
+  const isCurrent = captureContactIntent(contactId);
   logger.trackEvent(AnalyticsEvent.ActionContactRemoved, { count: 1 });
   const previous = await db.getContact({ id: contactId });
-  if (!isSameLogin()) return;
+  if (!isCurrent()) return;
   const linked = await db.getSystemContactsBatchByContactId([contactId]);
-  if (!isSameLogin()) return;
+  if (!isCurrent()) return;
   const liveBook = await getSystemContacts();
-  if (!isSameLogin()) return;
+  if (!isCurrent()) return;
   const liveNumbers = new Set(
     liveBook.map((c) => c.phoneNumber).filter(Boolean)
   );
@@ -173,11 +223,11 @@ export async function removeContact(contactId: string) {
     isContact: false,
     isContactSuggestion: false,
   });
-  if (!isSameLogin()) return;
+  if (!isCurrent()) return;
   try {
     await api.removeContact(contactId, suggest);
   } catch (e) {
-    if (!isSameLogin()) return;
+    if (!isCurrent()) return;
     logger.trackError('Error removing contact', e);
     await db.updateContact({
       id: contactId,
@@ -188,33 +238,37 @@ export async function removeContact(contactId: string) {
     });
     return;
   }
-  if (!isSameLogin()) return;
+  if (!isCurrent()) return;
   await db.updateContact({
     id: contactId,
     isContact: false,
   });
-  if (!isSameLogin()) return;
+  if (!isCurrent()) return;
   if (suggest) {
     try {
       await syncContactSuggestions([contactId]);
     } catch (e) {
-      if (!isSameLogin()) return;
+      if (!isCurrent()) return;
       logger.trackError('Error refreshing removed contact suggestion', e);
     }
   }
-  if (!isSameLogin()) return;
+  if (!isCurrent()) return;
   const contacts = await db.getContacts();
-  if (isSameLogin()) LocalCache.cacheContacts(contacts);
+  if (isCurrent()) LocalCache.cacheContacts(contacts);
 }
 
 export async function removeContactSuggestion(contactId: string) {
+  recordContactIntent(contactId);
+  const isCurrent = captureContactIntent(contactId);
   logger.trackEvent(AnalyticsEvent.ActionRemoveContactSuggestion, { count: 1 });
   // Optimistic update
   await db.updateContact({ id: contactId, isContactSuggestion: false });
 
+  if (!isCurrent()) return;
   try {
     await api.removeContactSuggestion(contactId);
   } catch (e) {
+    if (!isCurrent()) return;
     // Rollback the update
     console.error('Error removing contact suggestion', e);
     await db.updateContact({ id: contactId, isContactSuggestion: true });

@@ -437,3 +437,140 @@ test('a Remove waiting on the address book must not mutate a new login', async (
   expect(api.poke).not.toHaveBeenCalled();
   updateInitializedClient(false);
 });
+
+test('a confirmation snapshot issued before Remove cannot restore the removed contact', async () => {
+  saved.delete(id);
+  await db.updateContact({ id, isContact: false });
+  const readState = api.getContactState;
+  let release!: () => void;
+  let started!: () => void;
+  const waiting = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const sent = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  vi.spyOn(api, 'getContactState')
+    .mockImplementationOnce(() => readState())
+    .mockImplementationOnce(async () => {
+      const beforeRemove = await readState();
+      started();
+      await waiting;
+      return beforeRemove;
+    });
+  const discovery = addContacts([id], { source: 'discovery' });
+  await sent;
+  expect(saved.has(id)).toBe(true);
+  await removeContact(id);
+  const { handleContactUpdate } = await import('./sync/sync');
+  await handleContactUpdate({ type: 'removeContact', contactId: id });
+  expect(await db.getContact({ id })).toMatchObject({
+    isContact: false,
+    isContactSuggestion: true,
+  });
+  release();
+  const result = await discovery;
+  expect(saved.has(id)).toBe(false);
+  expect(await db.getContact({ id })).toMatchObject({
+    isContact: false,
+    isContactSuggestion: true,
+  });
+  expect(result).toMatchObject({ addedContactIds: [] });
+});
+
+test('confirming B cannot restore an unrelated contact A removed during the read', async () => {
+  const other = '~bud';
+  const readState = api.getContactState;
+  let release!: () => void;
+  let started!: () => void;
+  const waiting = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const sent = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  vi.spyOn(api, 'getContactState')
+    .mockImplementationOnce(() => readState())
+    .mockImplementationOnce(async () => {
+      const state = await readState();
+      started();
+      await waiting;
+      return state;
+    });
+  const discovery = addContacts([other], { source: 'discovery' });
+  await sent;
+  await removeContact(id);
+  release();
+  expect(await discovery).toEqual({
+    addedContactIds: [other],
+    failedContactIds: [],
+  });
+  expect(await db.getContact({ id })).toMatchObject({
+    isContact: false,
+    isContactSuggestion: true,
+  });
+  expect(await db.getContact({ id: other })).toMatchObject({ isContact: true });
+});
+
+test('a failed discovery confirmation cannot roll back a later Remove suggestion', async () => {
+  saved.delete(id);
+  await db.updateContact({ id, isContact: false });
+  const readState = api.getContactState;
+  let release!: () => void;
+  let started!: () => void;
+  const waiting = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const sent = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  vi.spyOn(api, 'getContactState')
+    .mockImplementationOnce(() => readState())
+    .mockImplementationOnce(async () => {
+      started();
+      await waiting;
+      throw new Error('confirmation unavailable');
+    });
+  const discovery = addContacts([id], { source: 'discovery' });
+  await sent;
+  await removeContact(id);
+  release();
+  expect(await discovery).toEqual({
+    addedContactIds: [],
+    failedContactIds: [],
+  });
+  expect(await db.getContact({ id })).toMatchObject({
+    isContact: false,
+    isContactSuggestion: true,
+  });
+});
+
+test('a discovery confirmation cannot undo a later Decline', async () => {
+  await removeContact(id);
+  const readState = api.getContactState;
+  let release!: () => void;
+  let started!: () => void;
+  const waiting = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const sent = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  vi.spyOn(api, 'getContactState')
+    .mockImplementationOnce(() => readState())
+    .mockImplementationOnce(async () => {
+      const state = await readState();
+      started();
+      await waiting;
+      return state;
+    });
+  const discovery = addContacts([id], { source: 'discovery' });
+  await sent;
+  await removeContactSuggestion(id);
+  release();
+  expect(await discovery).toEqual({
+    addedContactIds: [],
+    failedContactIds: [],
+  });
+  expect(await db.getSuggestedContacts()).toEqual([]);
+});
