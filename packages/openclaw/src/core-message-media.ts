@@ -16,8 +16,15 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { findCodeRegions } from 'openclaw/plugin-sdk/text-chunking';
 
+import { messageMediaKeyRefs } from './owner-only-tools.js';
+import { markdownToStory } from './urbit/story.js';
+
 type ParsedDirectives = { mediaUrls?: string[] };
-type DeliveryPayload = { mediaUrl?: string | null; mediaUrls?: string[] };
+type DeliveryPayload = {
+  text?: string;
+  mediaUrl?: string | null;
+  mediaUrls?: string[];
+};
 
 export type CoreMessageText = {
   stripFormattedReasoningMessage: (text: string) => string;
@@ -38,7 +45,7 @@ export type CoreMessageText = {
     options?: { extractMarkdownImages?: boolean }
   ) => ParsedDirectives;
   normalizeReplyPayloadsForDelivery: (
-    payloads: Array<{ text: string }>
+    payloads: Array<{ text: string; mediaUrls?: string[] }>
   ) => DeliveryPayload[];
 };
 
@@ -132,10 +139,32 @@ const BODY_FIELDS = ['text', 'content', 'message', 'caption', 'SendMessage'];
 // buildMessagePayload's alias promotion order when `message` is empty.
 const BODY_ALIASES = ['SendMessage', 'content', 'text'];
 
+// Core strips plain-text tool-call blocks with code regions protected on the
+// send path, and without protection on plugin actions (`reply`, `edit`;
+// message-action-execution.ts), so a reference fenced on one surfaces on the
+// other. Every check runs both ways.
+type StripMode = { protectCode: boolean };
+const STRIP_MODES: StripMode[] = [
+  { protectCode: true },
+  { protectCode: false },
+];
+
+function stripToolCallBlocks(
+  core: CoreMessageText,
+  text: string,
+  mode: StripMode
+): string {
+  return core.stripPlainTextToolCallBlocks(
+    text,
+    mode.protectCode ? { resolveProtectedRanges: findCodeRegions } : {}
+  );
+}
+
 // buildMessagePayload (message-action-send.ts), text path only.
 function buildMessageText(
   core: CoreMessageText,
-  fields: Record<string, unknown>
+  fields: Record<string, unknown>,
+  mode: StripMode
 ): string {
   let message = typeof fields.message === 'string' ? fields.message : '';
   if (!message.trim()) {
@@ -156,50 +185,104 @@ function buildMessageText(
     stripAudioTag: true,
     stripReplyTags: true,
   });
-  return core.stripPlainTextToolCallBlocks(
+  return stripToolCallBlocks(
+    core,
     core.stripUnsupportedCitationControlMarkers(parsed.text),
-    { resolveProtectedRanges: findCodeRegions }
+    mode
   );
 }
 
-function textYieldsMedia(core: CoreMessageText, text: string): boolean {
-  const hasMedia = (parsed: {
-    mediaUrl?: string | null;
-    mediaUrls?: string[];
-  }) => Boolean(parsed.mediaUrl) || (parsed.mediaUrls?.length ?? 0) > 0;
+type ParsedMedia = { mediaUrl?: string | null; mediaUrls?: string[] };
+
+function textMedia(core: CoreMessageText, text: string): string[] {
+  const urls = (parsed: ParsedMedia) => [
+    ...(parsed.mediaUrl ? [parsed.mediaUrl] : []),
+    ...(parsed.mediaUrls ?? []),
+  ];
   // sendMessage's outbound normalizer, and the directive parser on its own.
-  return (
-    core.normalizeReplyPayloadsForDelivery([{ text }]).some(hasMedia) ||
-    hasMedia(core.parseReplyDirectives(text, { extractMarkdownImages: true }))
+  return [
+    ...core.normalizeReplyPayloadsForDelivery([{ text }]).flatMap(urls),
+    ...urls(core.parseReplyDirectives(text, { extractMarkdownImages: true })),
+  ];
+}
+
+// The attachments core would fetch for this text sent alongside the call's
+// media keys: buildMessagePayload merges the keys into `mediaUrls`, and
+// sendMessage's normalizer adds the body's directives and dedupes.
+function deliveredDownloads(
+  core: CoreMessageText,
+  text: string,
+  keyRefs: string[]
+): { downloads: number; texts: string[] } {
+  const payloads = core.normalizeReplyPayloadsForDelivery([
+    { text, ...(keyRefs.length > 0 ? { mediaUrls: keyRefs } : {}) },
+  ]);
+  const urls = new Set(
+    payloads.flatMap((payload) =>
+      payload.mediaUrls?.length
+        ? payload.mediaUrls
+        : payload.mediaUrl
+          ? [payload.mediaUrl]
+          : []
+    )
   );
+  return {
+    downloads: urls.size,
+    texts: payloads.flatMap((payload) => payload.text ?? []),
+  };
+}
+
+// Image blocks Tlon's story converter emits for a text as delivered.
+function imageBlocks(text: string): number {
+  return markdownToStory(text).filter(
+    (verse) => 'block' in verse && 'image' in verse.block
+  ).length;
 }
 
 // Every core step, applied once; iterated to a fixed point below so a step
 // core runs more than once cannot reveal a directive we did not check.
-function stripOnce(core: CoreMessageText, text: string): string {
+function stripOnce(
+  core: CoreMessageText,
+  text: string,
+  mode: StripMode
+): string {
   const visible = sanitizeVisibleText(core, text).replaceAll('\\n', '\n');
   const parsed = core.parseInlineDirectives(
     core.stripFormattedReasoningMessage(visible),
     { stripAudioTag: true, stripReplyTags: true }
   );
-  return core.stripPlainTextToolCallBlocks(
+  return stripToolCallBlocks(
+    core,
     core.stripUnsupportedCitationControlMarkers(parsed.text),
-    { resolveProtectedRanges: findCodeRegions }
+    mode
   );
 }
 
 const MAX_FIXED_POINT_PASSES = 10;
 
-function fixedPointYieldsMedia(core: CoreMessageText, text: string): boolean {
+/**
+ * Stands in for media that could not be resolved; it is not an https URL, so
+ * no rule admits it.
+ */
+export const UNRESOLVED_MEDIA = 'unresolved:fixed-point-cap';
+
+function fixedPointMedia(
+  core: CoreMessageText,
+  text: string,
+  mode: StripMode,
+  observe: (text: string) => void
+): string[] {
+  const media: string[] = [];
   let current = text;
   for (let pass = 0; pass < MAX_FIXED_POINT_PASSES; pass += 1) {
-    const next = stripOnce(core, current);
-    if (textYieldsMedia(core, next)) return true;
-    if (next === current) return false;
+    const next = stripOnce(core, current, mode);
+    observe(next);
+    media.push(...textMedia(core, next));
+    if (next === current) return media;
     current = next;
   }
-  // Still changing after the cap: treat as media (fail closed).
-  return true;
+  // Still changing after the cap (fail closed).
+  return [...media, UNRESOLVED_MEDIA];
 }
 
 // Not a core step: invisible characters are removed as a precaution and the
@@ -209,17 +292,34 @@ const INVISIBLE_CHARS = new RegExp(
   'gu'
 );
 
+export type CoreMessageMedia = {
+  /** Every distinct reference core could deliver, for the media rule. */
+  media: string[];
+  /**
+   * The most attachments core would fetch for one resolved form of the call
+   * (keys and body together, deduplicated as core delivers them).
+   */
+  downloads: number;
+  /**
+   * The most image blocks Tlon's story converter emits for one resolved
+   * form of the body: the text core delivers on `send`, or the body as
+   * written on `reply`.
+   */
+  imageBlocks: number;
+};
+
 /**
- * Whether core would deliver media for these `message` params. Mirrors the
+ * The media core could deliver for these `message` params' body. Mirrors the
  * message tool's send path on the raw params: sanitizeMessageToolVisiblePayload
  * on each body field, buildMessagePayload's alias promotion and text
  * normalization, then sendMessage's normalizeReplyPayloadsForDelivery. Each
  * body field and the built text are also run to a fixed point through every
- * step. Throws if core's functions cannot be loaded.
+ * step, with and without code protection (see STRIP_MODES); the result is the
+ * union. Throws if core's functions cannot be loaded.
  */
-export async function coreMessageYieldsMedia(
+export async function coreMessageMedia(
   params: Record<string, unknown>
-): Promise<boolean> {
+): Promise<CoreMessageMedia> {
   const core = await loadCoreMessageText();
   const withoutInvisible = Object.fromEntries(
     Object.entries(params).map(([key, value]) => [
@@ -227,24 +327,52 @@ export async function coreMessageYieldsMedia(
       typeof value === 'string' ? value.replace(INVISIBLE_CHARS, '') : value,
     ])
   );
+  const keyRefs = [
+    ...new Set(
+      messageMediaKeyRefs(params).flatMap((ref) =>
+        typeof ref === 'string' && ref.trim() ? [ref.trim()] : []
+      )
+    ),
+  ];
+  const media = new Set<string>();
+  let downloads = 0;
+  let images = 0;
+  // Each resolved form of the body is an alternative; the largest counts.
+  const observe = (text: string) => {
+    const delivered = deliveredDownloads(core, text, keyRefs);
+    downloads = Math.max(downloads, delivered.downloads);
+    images = Math.max(
+      images,
+      imageBlocks(text),
+      ...delivered.texts.map(imageBlocks)
+    );
+  };
   for (const raw of [params, withoutInvisible]) {
     const fields: Record<string, unknown> = { ...raw };
     for (const field of BODY_FIELDS) {
       const value = raw[field];
       if (typeof value === 'string') {
         fields[field] = sanitizeVisibleText(core, value);
+        observe(value);
       }
     }
-    const text = buildMessageText(core, fields);
-    if (textYieldsMedia(core, text) || fixedPointYieldsMedia(core, text)) {
-      return true;
-    }
-    for (const field of BODY_FIELDS) {
-      const value = raw[field];
-      if (typeof value === 'string' && fixedPointYieldsMedia(core, value)) {
-        return true;
+    for (const mode of STRIP_MODES) {
+      const text = buildMessageText(core, fields, mode);
+      observe(text);
+      for (const url of [
+        ...textMedia(core, text),
+        ...fixedPointMedia(core, text, mode, observe),
+      ]) {
+        media.add(url);
+      }
+      for (const field of BODY_FIELDS) {
+        const value = raw[field];
+        if (typeof value !== 'string') continue;
+        for (const url of fixedPointMedia(core, value, mode, observe)) {
+          media.add(url);
+        }
       }
     }
   }
-  return false;
+  return { media: [...media], downloads, imageBlocks: images };
 }

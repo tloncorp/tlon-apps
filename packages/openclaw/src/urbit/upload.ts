@@ -1,5 +1,6 @@
 import { getCurrentUserIsHosted, scry, uploadFile } from '@tloncorp/api';
 import crypto from 'node:crypto';
+import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 import {
   detectMime,
   extensionForMime,
@@ -14,13 +15,37 @@ import { loadWebMedia } from 'openclaw/plugin-sdk/web-media';
 
 import {
   NON_OWNER_MEDIA_ERROR,
-  activeTurnForbidsMedia,
+  activeTurnMediaGate,
 } from '../non-owner-media.js';
 import { tlonMediaUserAgent } from '../version.js';
 import { getDefaultSsrFPolicy } from './context.js';
 
 const MAX_MEDIA_BYTES = 10 * 1024 * 1024;
 const FETCH_DEADLINE_MS = 30_000;
+// The storage check and upload after a fetch; neither takes a signal, so the
+// wait is bounded rather than the work cancelled.
+const STORE_DEADLINE_MS = 60_000;
+
+/** Settles with `work`, or rejects once `signal` aborts. */
+function abortable<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
+  signal.throwIfAborted();
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    signal.addEventListener('abort', onAbort, { once: true });
+    work
+      .then(resolve, reject)
+      .finally(() => signal.removeEventListener('abort', onAbort));
+  });
+}
+
+/**
+ * Bounds the storage check and upload: the caller's signal (a stopped batch)
+ * or the store deadline, whichever comes first.
+ */
+function storeSignal(signal: AbortSignal | undefined): AbortSignal {
+  const deadline = AbortSignal.timeout(STORE_DEADLINE_MS);
+  return signal ? AbortSignal.any([signal, deadline]) : deadline;
+}
 
 // OpenClaw 2026.9.33 ships openclaw/plugin-sdk/outbound-media without type
 // declarations. Its loadOutboundMediaFromUrl is loadWebMedia over
@@ -219,10 +244,15 @@ export async function prepareOutboundMedia(
   options: Pick<
     OutboundMediaLoadOptions,
     'mediaAccess' | 'mediaLocalRoots' | 'mediaReadFile'
-  > = {}
+  > & { cfg?: OpenClawConfig; signal?: AbortSignal } = {}
 ): Promise<{ url: string; isImage: boolean }> {
-  // Backstop for any caller that skips the adapter's gate.
-  if (activeTurnForbidsMedia()) throw new Error(NON_OWNER_MEDIA_ERROR);
+  // Backstop for any caller that skips the adapter's gate. Without `cfg` the
+  // ship hosts are unknown and a non-owner turn's media is refused. The
+  // decision is taken now and kept for the whole download, which can outlive
+  // the turn.
+  const mediaAllowed = activeTurnMediaGate({ cfg: options.cfg });
+  if (!mediaAllowed(mediaUrl)) throw new Error(NON_OWNER_MEDIA_ERROR);
+  options.signal?.throwIfAborted();
   const classified = classifyInput(mediaUrl);
 
   switch (classified.kind) {
@@ -243,13 +273,15 @@ export async function prepareOutboundMedia(
           'Could not read local media from the allowed directories.'
         );
       });
-      return {
-        url: await uploadMedia(
+      const url = await abortable(
+        uploadMedia(
           media.buffer,
           media.contentType ?? 'application/octet-stream'
         ),
-        isImage: media.kind === 'image',
-      };
+        storeSignal(options.signal)
+      );
+      options.signal?.throwIfAborted();
+      return { url, isImage: media.kind === 'image' };
     }
     case 'http':
       throw new Error(HTTPS_ONLY_ERROR);
@@ -266,6 +298,11 @@ export async function prepareOutboundMedia(
   let response: Response;
   let finalUrl: string;
   let release: () => Promise<void>;
+  // The SSRF policy knows neither the ship hosts nor the ban on IP literals,
+  // so a non-owner turn checks every redirect hop against its media rule:
+  // the guard reports each hop's URL to resolveDispatcherPolicy, then calls
+  // beforeRequest inside its own cleanup before sending.
+  let hopUrl = canonical;
   try {
     ({ response, finalUrl, release } = await fetchWithSsrFGuard({
       url: canonical,
@@ -273,7 +310,19 @@ export async function prepareOutboundMedia(
       policy: getDefaultSsrFPolicy(),
       auditContext: 'tlon-media',
       requireHttps: true,
-      signal: AbortSignal.timeout(FETCH_DEADLINE_MS),
+      signal: options.signal
+        ? AbortSignal.any([
+            options.signal,
+            AbortSignal.timeout(FETCH_DEADLINE_MS),
+          ])
+        : AbortSignal.timeout(FETCH_DEADLINE_MS),
+      resolveDispatcherPolicy: (url) => {
+        hopUrl = url.href;
+        return undefined;
+      },
+      beforeRequest: () => {
+        if (!mediaAllowed(hopUrl)) throw new Error(NON_OWNER_MEDIA_ERROR);
+      },
     }));
   } catch {
     throw new Error(FETCH_FAILED_ERROR);
@@ -311,14 +360,28 @@ export async function prepareOutboundMedia(
     isImage = false;
   }
 
-  const capable = await shipCanStoreUploads();
+  // A stopped batch uploads nothing it already fetched: the signal is
+  // checked after every wait, and a stop rejects rather than falling back to
+  // the source URL. The store deadline falls back like an upload failure.
+  options.signal?.throwIfAborted();
+  const store = storeSignal(options.signal);
+  let capable: boolean;
+  try {
+    capable = await abortable(shipCanStoreUploads(), store);
+  } catch {
+    capable = false;
+  }
+  options.signal?.throwIfAborted();
   if (!capable) {
     return { url: canonical, isImage };
   }
 
   try {
-    return { url: await uploadMedia(buffer, effectiveMime), isImage };
+    const url = await abortable(uploadMedia(buffer, effectiveMime), store);
+    options.signal?.throwIfAborted();
+    return { url, isImage };
   } catch {
+    options.signal?.throwIfAborted();
     console.log('[tlon] media: upload failed, using source URL');
     return { url: canonical, isImage };
   }

@@ -8,8 +8,11 @@
  * `event.error`, the owner "silent failure" notice) keep only its first line,
  * capped at 400 / 200 chars — keep it one line and within the cap below.
  */
+import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
+
 import { CRON_TOOL_NAMES } from './cron-tool-args-guard.js';
 import { MCP_BROKER_TOOL_NAMES } from './mcp-readonly-policy.js';
+import { isNonOwnerMediaAllowed } from './non-owner-media.js';
 import type { SenderRole } from './session-roles.js';
 
 /**
@@ -81,7 +84,7 @@ export const OWNER_ONLY_TOOLS: ReadonlySet<string> = new Set([
 export const NON_OWNER_ALLOWED_TOOLS: ReadonlySet<string> = new Set([
   'web_search', // public web search
   'web_fetch', // remote pages; the local-file rule still applies
-  'message', // text only: key allowlist and media checks below
+  'message', // text and https media: key allowlist and media checks below
   'session_status', // the current session only (changesSince)
   'sessions_yield', // ends the current turn
   'agents_wait', // core only returns runs this session started
@@ -158,8 +161,8 @@ export const LOCAL_FILE_BLOCK_REASON = policyBlockReason(
 );
 
 export const MESSAGE_MEDIA_BLOCK_REASON = policyBlockReason(
-  'attachments and media',
-  'Send text only, or tell them you cannot attach it; do not retry the attachment; do not blame a reload or outage.'
+  'local and internal media',
+  'Send text or a public https URL, or tell them you cannot attach it; do not blame a reload or outage.'
 );
 
 const MESSAGE_OPTION_NAME_MAX_CHARS = 20;
@@ -177,7 +180,7 @@ export function formatMessageOptionBlockReason(key: string): string {
       : safe;
   return policyBlockReason(
     `the ${name} message option`,
-    'Send plain text instead; only text sends, replies, edits, deletes, reactions and reads are open here.'
+    'Send text or https media; only sends, replies, edits, deletes, reactions and reads are open here.'
   );
 }
 
@@ -280,10 +283,11 @@ export function paramsReferenceLocalFile(params: unknown): boolean {
 }
 
 // The only `message` params a non-owner may send: text send/reply/edit/
-// delete, reactions, and read pagination (core 2026.9.33 message schema plus
-// the `to`/`messageThreadId`/`topLevel` routing and `SendMessage` body aliases
-// core reads). Everything else (attachments, media, buffers, filenames,
-// presentation, polls, gateway options, account switching) is owner-only.
+// delete, reactions, read pagination, and remote media on a send (core
+// 2026.9.33 message schema plus the `to`/`messageThreadId`/`topLevel` routing
+// and `SendMessage` body aliases core reads). Everything else (path and
+// structured attachments, buffers, filenames, presentation, polls, gateway
+// options, account switching) is owner-only.
 const MESSAGE_BODY_KEYS = [
   'message',
   'text',
@@ -291,6 +295,15 @@ const MESSAGE_BODY_KEYS = [
   'caption',
   'SendMessage',
 ] as const;
+// The URL-typed media keys core's send reads (message-action-params.ts);
+// `path`, `filePath`, `fileUrl`, `image`, `attachments`, and `buffer` stay
+// owner-only. Core hydrates media itself on `reply` and other plugin actions,
+// and Tlon only sends media on `send`.
+const REMOTE_MEDIA_KEYS: ReadonlySet<string> = new Set([
+  'media',
+  'mediaUrl',
+  'mediaUrls',
+]);
 export const NON_OWNER_MESSAGE_KEYS: ReadonlySet<string> = new Set([
   'action',
   'channel',
@@ -336,7 +349,8 @@ export const NON_OWNER_MESSAGE_KEYS: ReadonlySet<string> = new Set([
 // each camelCase key's snake_case spelling (readSnakeCaseParamRaw), so both
 // are listed. A body's `MEDIA:` directives are judged by core's own parser in
 // the before_tool_call hook (core-message-media.ts), the single authority
-// there.
+// there. The REMOTE_MEDIA_KEYS among them are judged by the non-owner media
+// rule instead; their snake_case spellings stay blocked.
 const MESSAGE_MEDIA_CAMEL_KEYS = [
   'attachments',
   'media',
@@ -377,17 +391,43 @@ function isScalar(value: unknown): boolean {
   );
 }
 
+/** The values under a `message` call's URL media keys. */
+export function messageMediaKeyRefs(
+  params: Record<string, unknown> | undefined
+): unknown[] {
+  return Object.entries(params ?? {})
+    .filter(([key, value]) => REMOTE_MEDIA_KEYS.has(key) && value !== undefined)
+    .flatMap(([, value]) => (Array.isArray(value) ? value : [value]));
+}
+
+function remoteMediaAllowed(
+  params: Record<string, unknown>,
+  cfg: OpenClawConfig | undefined
+): boolean {
+  if (params.action !== undefined && params.action !== 'send') return false;
+  // How many is the hook's call: it counts what core would fetch.
+  return messageMediaKeyRefs(params).every(
+    (ref) => typeof ref === 'string' && isNonOwnerMediaAllowed(ref, { cfg })
+  );
+}
+
 /**
  * Why a non-owner `message` call's arguments are owner-only, if they are.
- * A media key, or a non-scalar value under an allowed key, gets the media
+ * Media a non-owner may not send (a remote media key failing the rule, any
+ * other media key, or a non-scalar value under an allowed key) gets the media
  * reason (it wins over any other key); any other key outside the allowlist
- * gets a reason naming it.
+ * gets a reason naming it. The body is checked separately against what core
+ * would resolve from it (core-message-media.ts).
  */
 function messageArgumentsReason(
-  params?: Record<string, unknown>
+  params: Record<string, unknown> | undefined,
+  cfg: OpenClawConfig | undefined
 ): string | undefined {
   const entries = Object.entries(params ?? {});
   const carriesMedia = entries.some(([key, value]) => {
+    if (REMOTE_MEDIA_KEYS.has(key)) {
+      return !remoteMediaAllowed(params ?? {}, cfg);
+    }
     if (!NON_OWNER_MESSAGE_KEYS.has(key)) return MESSAGE_MEDIA_KEYS.has(key);
     if (key === 'targets' && Array.isArray(value)) {
       return !value.every((item) => typeof item === 'string');
@@ -395,7 +435,9 @@ function messageArgumentsReason(
     return !isScalar(value);
   });
   if (carriesMedia) return MESSAGE_MEDIA_BLOCK_REASON;
-  const option = entries.find(([key]) => !NON_OWNER_MESSAGE_KEYS.has(key));
+  const option = entries.find(
+    ([key]) => !NON_OWNER_MESSAGE_KEYS.has(key) && !REMOTE_MEDIA_KEYS.has(key)
+  );
   return option ? formatMessageOptionBlockReason(option[0]) : undefined;
 }
 
@@ -486,15 +528,18 @@ function toolRuleReason(
 
 function argumentRuleReason(
   toolName: string,
-  params?: Record<string, unknown>
+  params: Record<string, unknown> | undefined,
+  cfg: OpenClawConfig | undefined
 ): string | undefined {
   if (toolName === 'message') {
-    const messageReason = messageArgumentsReason(params);
+    const messageReason = messageArgumentsReason(params, cfg);
     if (messageReason) return messageReason;
     // Addressing and pagination values still get the local-file check; the
-    // body is free text.
+    // body is free text and media keys passed the rule above.
     const addressing = Object.entries(params ?? {}).filter(
-      ([key]) => !(MESSAGE_BODY_KEYS as readonly string[]).includes(key)
+      ([key]) =>
+        !(MESSAGE_BODY_KEYS as readonly string[]).includes(key) &&
+        !REMOTE_MEDIA_KEYS.has(key)
     );
     return paramsReferenceLocalFile(Object.fromEntries(addressing))
       ? LOCAL_FILE_BLOCK_REASON
@@ -514,24 +559,30 @@ function argumentRuleReason(
 
 function ownerOnlyRule(
   rawToolName: string,
-  params?: Record<string, unknown>
+  params: Record<string, unknown> | undefined,
+  cfg: OpenClawConfig | undefined
 ): OwnerOnlyRule | undefined {
   const toolName = normalizePolicyToolName(rawToolName);
   if (NON_OWNER_DISPATCH_CONTROLS.has(toolName)) return undefined;
   const toolReason = toolRuleReason(toolName, params);
   if (toolReason) return { reason: toolReason, gate: 'tool' };
-  const argumentReason = argumentRuleReason(toolName, params);
+  const argumentReason = argumentRuleReason(toolName, params, cfg);
   return argumentReason
     ? { reason: argumentReason, gate: 'arguments' }
     : undefined;
 }
 
+/**
+ * `cfg` is the live config, which the non-owner media rule reads for the
+ * ship hosts; without it a non-owner `message` call's media is blocked.
+ */
 export function resolveOwnerOnlyToolBlock(
   toolName: string,
   role: SenderRole | undefined,
-  params?: Record<string, unknown>
+  params?: Record<string, unknown>,
+  cfg?: OpenClawConfig
 ): OwnerOnlyToolDecision {
-  const rule = ownerOnlyRule(toolName, params);
+  const rule = ownerOnlyRule(toolName, params, cfg);
   if (!rule) return { ownerOnly: false, blocked: false };
   // Only an explicit non-owner ('user') role blocks. Owner sessions and
   // internal sessions (heartbeat, cron, subagents — no stored role) pass;

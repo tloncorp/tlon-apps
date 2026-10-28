@@ -250,6 +250,7 @@ describe('sendMedia', () => {
       mediaReadFile,
     });
     expect(prepareOutboundMedia).toHaveBeenCalledWith(mediaUrl, {
+      cfg: baseCtx.cfg,
       mediaAccess: undefined,
       mediaLocalRoots,
       mediaReadFile,
@@ -331,13 +332,14 @@ describe('sendMedia', () => {
     );
   }
 
-  it('delivers only the text of a non-owner turn and never reads the media', async () => {
+  it('delivers only the text of a non-owner turn for media the rule refuses', async () => {
     const { buildMediaStory } = await import('./urbit/send.js');
     const turn = await turnFor('user', 'non-owner-media');
     // What core yields for the codex payloads: a resolved local media URL.
     for (const mediaUrl of [
       '/workspace/private.txt',
-      'https://example.com/a.png',
+      'http://example.com/a.png',
+      'https://127.0.0.1/a.png',
     ]) {
       await turn.run(() =>
         tlonRuntimeOutbound.sendMedia({ ...baseCtx, mediaUrl })
@@ -351,7 +353,46 @@ describe('sendMedia', () => {
     );
     expect(prepareOutboundMedia).not.toHaveBeenCalled();
     expect(buildMediaStory).not.toHaveBeenCalled();
-    expect(sendDmWithStory).toHaveBeenCalledTimes(3);
+    expect(sendDmWithStory).toHaveBeenCalledTimes(4);
+  });
+
+  it('keeps public https media and drops local media for a non-owner turn', async () => {
+    prepareOutboundMedia.mockResolvedValue({
+      url: 'https://example.com/a.png',
+      isImage: true,
+    });
+    const { buildMediaStory } = await import('./urbit/send.js');
+    const turn = await turnFor('user', 'non-owner-mixed-media');
+    await turn.run(() =>
+      tlonRuntimeOutbound.sendPayload!({
+        ...baseCtx,
+        payload: {
+          text: 'look',
+          mediaUrls: ['https://example.com/a.png', '/workspace/private.txt'],
+        },
+      })
+    );
+    expect(prepareOutboundMedia).toHaveBeenCalledOnce();
+    expect(prepareOutboundMedia).toHaveBeenCalledWith(
+      'https://example.com/a.png',
+      expect.objectContaining({ cfg: baseCtx.cfg })
+    );
+    expect(buildMediaStory).toHaveBeenCalledOnce();
+  });
+
+  it('fails a non-owner payload whose media is all dropped and has no text', async () => {
+    const { NON_OWNER_MEDIA_ERROR } = await import('./non-owner-media.js');
+    const turn = await turnFor('user', 'non-owner-payload-dropped');
+    await expect(
+      turn.run(() =>
+        tlonRuntimeOutbound.sendPayload!({
+          ...baseCtx,
+          payload: { text: ' ', mediaUrls: ['/x', 'http://example.com/y'] },
+        })
+      )
+    ).rejects.toThrow(NON_OWNER_MEDIA_ERROR);
+    expect(prepareOutboundMedia).not.toHaveBeenCalled();
+    expect(sendDmWithStory).not.toHaveBeenCalled();
   });
 
   it('fails a media-only send from a non-owner turn without posting', async () => {
@@ -864,6 +905,94 @@ describe('notes delivery', () => {
         body: expect.stringContaining('https://cdn.test/two'),
       })
     );
+  });
+
+  it('prepares notebook attachments a few at a time, in order', async () => {
+    const { NOTEBOOK_MEDIA_CONCURRENCY } = await import('./channel.runtime.js');
+    createNote.mockResolvedValue({ id: 45, title: 'Many' });
+    let inFlight = 0;
+    let peak = 0;
+    prepareOutboundMedia.mockImplementation(async (mediaUrl: string) => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      inFlight -= 1;
+      return { url: mediaUrl.replace('source', 'cdn'), isImage: true };
+    });
+    const mediaUrls = Array.from(
+      { length: 12 },
+      (_, i) => `https://source.test/${i}`
+    );
+
+    await tlonRuntimeOutbound.sendPayload!({
+      cfg: {} as never,
+      to: 'notes/~ten/updates',
+      text: 'Many',
+      payload: { text: '# Many', mediaUrls },
+      accountId: null,
+      replyToId: null,
+      threadId: null,
+    });
+
+    expect(prepareOutboundMedia).toHaveBeenCalledTimes(12);
+    expect(peak).toBe(NOTEBOOK_MEDIA_CONCURRENCY);
+    const body = createNote.mock.lastCall?.[0]?.body as string;
+    expect(body.indexOf('https://cdn.test/2')).toBeLessThan(
+      body.indexOf('https://cdn.test/3')
+    );
+  });
+
+  it('aborts and settles notebook attachments when one fails', async () => {
+    let inFlight = 0;
+    const aborted: string[] = [];
+    prepareOutboundMedia.mockImplementation(
+      async (mediaUrl: string, { signal }: { signal: AbortSignal }) => {
+        if (mediaUrl.endsWith('/0')) {
+          // Fails once the rest of the first window is downloading.
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          throw new Error('bad media');
+        }
+        inFlight += 1;
+        try {
+          await new Promise((_, reject) =>
+            signal.addEventListener('abort', () => {
+              aborted.push(mediaUrl);
+              // Cleanup takes a moment; the send must wait for it.
+              setTimeout(() => reject(signal.reason), 5);
+            })
+          );
+        } finally {
+          inFlight -= 1;
+        }
+      }
+    );
+
+    await expect(
+      tlonRuntimeOutbound.sendPayload!({
+        cfg: {} as never,
+        to: 'notes/~ten/updates',
+        text: 'Many',
+        payload: {
+          text: '# Many',
+          mediaUrls: Array.from(
+            { length: 8 },
+            (_, i) => `https://source.test/${i}`
+          ),
+        },
+        accountId: null,
+        replyToId: null,
+        threadId: null,
+      })
+    ).rejects.toThrow('bad media');
+
+    expect(inFlight).toBe(0);
+    expect(aborted).toEqual([
+      'https://source.test/1',
+      'https://source.test/2',
+      'https://source.test/3',
+    ]);
+    expect(prepareOutboundMedia).toHaveBeenCalledTimes(4);
+    expect(createNote).not.toHaveBeenCalled();
   });
 
   it('retains chunking for an ordinary chat payload', async () => {
