@@ -133,4 +133,47 @@
   ;<  *  bind:m  (ex-pins ~[whom-c whom-b whom-a])
   ;<  *  bind:m  (do-del whom-b)
   (ex-pins ~[whom-c whom-a])
+::
+++  peek-ui
+  |=  =path
+  =/  m  (mare ,cage)
+  ;<  cards=(list card)  bind:m
+    %-  do
+    |=  s=state
+    =/  peek=(unit (unit cage))
+      (~(on-peek agent.s bowl.s) path)
+    ?>  ?=([~ ~ *] peek)
+    [~[[%give %fact ~[/test-peek] u.u.peek]] agent.s]
+  ?>  ?=(^ cards)
+  =/  card  i.cards
+  ?>  ?=([%give %fact *] card)
+  (pure:m cage.p.card)
+::
+++  test-suggest-contact
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  =bowl  bind:m  get-bowl
+  ;<  ~  bind:m  (set-src our.bowl)
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =(pole knot)
+    ?+  pole  ~
+      [%gu @ ?(%chat %pals) @ %$ ~]  `!>(|)
+    ==
+  ;<  *  bind:m  do-ui-init
+  ;<  *  bind:m  (do-poke ui-hide-contact+!>(~sun))
+  ;<  *  bind:m  (do-poke ui-suggest-contact+!>(~sun))
+  ;<  peek=cage  bind:m  (peek-ui /x/hidden-contact-suggestions)
+  ;<  ~  bind:m  (ex-equal q.peek !>(*(set ship)))
+  ;<  peek=cage  bind:m  (peek-ui /x/suggested-contacts)
+  ;<  ~  bind:m  (ex-equal q.peek !>((silt ~[~sun])))
+  ;<  *  bind:m  (do-poke ui-suggest-contact+!>(~sun))
+  ;<  peek=cage  bind:m  (peek-ui /x/suggested-contacts)
+  ;<  ~  bind:m  (ex-equal q.peek !>((silt ~[~sun])))
+  ;<  *  bind:m  (do-poke ui-hide-contact+!>(~sun))
+  ;<  peek=cage  bind:m  (peek-ui /x/suggested-contacts)
+  ;<  ~  bind:m  (ex-equal q.peek !>(*(set ship)))
+  ;<  ~  bind:m  (set-src ~nec)
+  (ex-fail (do-poke ui-suggest-contact+!>(~sun)))
+
 --
