@@ -93,21 +93,12 @@ export function FeaturePointList({ points }: { points: FeaturePoint[] }) {
             width={40}
             height={40}
             borderRadius={10}
-            backgroundColor={
-              point.emphasis ? '$positiveBackground' : '$secondaryBackground'
-            }
+            backgroundColor="$secondaryBackground"
             alignItems="center"
             justifyContent="center"
             flexShrink={0}
           >
-            <PointIcon
-              name={point.icon}
-              color={
-                point.emphasis
-                  ? theme.positiveActionText.val
-                  : theme.secondaryText.val
-              }
-            />
+            <PointIcon name={point.icon} color={theme.secondaryText.val} />
           </View>
           <YStack flex={1}>
             <Text

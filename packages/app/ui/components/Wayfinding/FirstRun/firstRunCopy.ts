@@ -14,8 +14,6 @@ export type FeaturePoint = {
   icon: FeaturePointIcon;
   title: string;
   detail: string;
-  /** Tinted blue, for the points the screen most wants noticed. */
-  emphasis?: boolean;
 };
 
 export const FIRST_RUN_STEP_COUNT = 5;
@@ -118,14 +116,12 @@ export const firstRunCopy = {
         title: 'Lives on a computer you own',
         detail:
           'It runs on your own Tlon computer, and you can take it with you any time.',
-        emphasis: true,
       },
       {
         icon: 'lock',
         title: 'Zero data retention by default',
         detail:
           'By default, the AI company behind it keeps none of your messages.',
-        emphasis: true,
       },
       {
         icon: 'sliders',
