@@ -44,7 +44,7 @@ beforeEach(async () => {
     nextSalt: '0x1',
   });
   vi.spyOn(api, 'getContacts').mockResolvedValue([]);
-  vi.spyOn(api, 'addUserContacts').mockResolvedValue([]);
+  vi.spyOn(api, 'addContact').mockResolvedValue(1);
   vi.spyOn(api, 'updateContactMetadata').mockResolvedValue(1);
   await db.insertSystemContacts({ systemContacts: [systemContact] });
 });
@@ -75,7 +75,7 @@ test.each(['Chosen nickname', null])(
     expect(await db.getSystemContactsBatchByContactId([contactId])).toEqual([
       expect.objectContaining({ id: systemContact.id, contactId }),
     ]);
-    expect(api.addUserContacts).not.toHaveBeenCalled();
+    expect(api.addContact).not.toHaveBeenCalled();
     expect(api.updateContactMetadata).not.toHaveBeenCalled();
   }
 );
@@ -95,7 +95,7 @@ test.each(['absent', 'skeletal'])(
       newMatches: [[phoneNumber, contactId]],
     });
 
-    expect(api.addUserContacts).toHaveBeenCalledWith([contactId]);
+    expect(api.addContact).toHaveBeenCalledWith(contactId);
     expect(api.updateContactMetadata).toHaveBeenCalledWith(contactId, {
       nickname: 'Address Book',
       avatarImage: undefined,
