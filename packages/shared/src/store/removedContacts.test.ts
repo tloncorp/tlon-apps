@@ -231,12 +231,14 @@ test('repeated full discovery neither marks nor announces a removed suggestion',
       signature: null,
     },
   ]);
+  const readState = vi.spyOn(api, 'getContactState');
   for (let run = 0; run < 2; run++) {
     expect(await syncContactDiscovery()).toEqual({
       didSucceed: true,
       didDiscover: true,
       newMatches: [],
     });
+    expect(readState).toHaveBeenCalledTimes((run + 1) * 2);
   }
   expect(announce).not.toHaveBeenCalled();
   expect(api.updateContactMetadata).not.toHaveBeenCalled();
@@ -353,8 +355,85 @@ test('an authoritative known profile keeps the existing discovery filter', async
   expect(
     await partitionDiscoveryMatches([[phone, id]], { isMocked: false })
   ).toMatchObject({ newMatches: [], removedMatches: [] });
-  expect(await db.getContact({ id })).toMatchObject({
-    peerNickname: 'Known peer',
-    isContact: false,
+  expect(await db.getContact({ id })).toBeNull();
+});
+
+test('a partition snapshot issued before Remove cannot restore the removed contact', async () => {
+  const beforeRemove = await api.getContactState();
+  let release!: () => void;
+  let started!: () => void;
+  const waiting = new Promise<void>((resolve) => {
+    release = resolve;
   });
+  const sent = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  vi.spyOn(api, 'getContactState').mockImplementationOnce(async () => {
+    started();
+    await waiting;
+    return beforeRemove;
+  });
+  const partition = partitionDiscoveryMatches([[phone, id]], {
+    isMocked: false,
+  });
+  await sent;
+  await removeContact(id);
+  const { handleContactUpdate } = await import('./sync/sync');
+  await handleContactUpdate({ type: 'removeContact', contactId: id });
+  expect(await db.getContact({ id })).toMatchObject({
+    isContact: false,
+    isContactSuggestion: true,
+  });
+  release();
+  const result = await partition;
+  expect(result).toMatchObject({ newMatches: [], removedMatches: [] });
+  expect(saved.has(id)).toBe(false);
+  expect(await db.getContact({ id })).toMatchObject({
+    isContact: false,
+    isContactSuggestion: true,
+  });
+});
+
+test('a Remove waiting on the address book must not mutate a new login', async () => {
+  const { updateInitializedClient, getClientGeneration } =
+    await import('./session');
+  updateInitializedClient(true);
+  const oldGeneration = getClientGeneration();
+  let release!: () => void;
+  let started!: () => void;
+  const waiting = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const sent = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  mocks.getSystemContacts.mockImplementationOnce(async () => {
+    started();
+    await waiting;
+    return [{ id: 'phone', phoneNumber: phone }];
+  });
+  const removal = removeContact(id);
+  await sent;
+  expect(api.poke).not.toHaveBeenCalled();
+  // These are the session-generation and database transitions on logout/login.
+  updateInitializedClient(false);
+  resetDb();
+  updateInitializedClient(true);
+  // The transport now addresses the new login's independent contact book.
+  saved = new Set([id]);
+  removed = new Map();
+  suggested = new Set();
+  hidden = new Set([id]);
+  await syncContacts();
+  expect(getClientGeneration()).not.toBe(oldGeneration);
+  release();
+  await removal;
+  expect(saved.has(id)).toBe(true);
+  expect(removed.has(id)).toBe(false);
+  expect(await db.getContact({ id })).toMatchObject({
+    isContact: true,
+    isContactSuggestion: false,
+  });
+  expect(api.poke).not.toHaveBeenCalled();
+  updateInitializedClient(false);
 });

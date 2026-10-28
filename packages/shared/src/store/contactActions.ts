@@ -9,6 +9,7 @@ import * as LocalCache from './cachedData';
 import { syncContactSuggestions, syncContacts } from './sync/syncContacts';
 import { syncGroup } from './sync/syncGroup';
 import { getSystemContacts } from './systemContactsApi';
+import { getClientGeneration } from './session';
 
 const logger = createDevLogger('ContactActions', false);
 
@@ -152,10 +153,15 @@ export async function addContacts(
 }
 
 export async function removeContact(contactId: string) {
+  const generation = getClientGeneration();
+  const isSameLogin = () => getClientGeneration() === generation;
   logger.trackEvent(AnalyticsEvent.ActionContactRemoved, { count: 1 });
   const previous = await db.getContact({ id: contactId });
+  if (!isSameLogin()) return;
   const linked = await db.getSystemContactsBatchByContactId([contactId]);
+  if (!isSameLogin()) return;
   const liveBook = await getSystemContacts();
+  if (!isSameLogin()) return;
   const liveNumbers = new Set(
     liveBook.map((c) => c.phoneNumber).filter(Boolean)
   );
@@ -167,9 +173,11 @@ export async function removeContact(contactId: string) {
     isContact: false,
     isContactSuggestion: false,
   });
+  if (!isSameLogin()) return;
   try {
     await api.removeContact(contactId, suggest);
   } catch (e) {
+    if (!isSameLogin()) return;
     logger.trackError('Error removing contact', e);
     await db.updateContact({
       id: contactId,
@@ -180,18 +188,23 @@ export async function removeContact(contactId: string) {
     });
     return;
   }
+  if (!isSameLogin()) return;
   await db.updateContact({
     id: contactId,
     isContact: false,
   });
+  if (!isSameLogin()) return;
   if (suggest) {
     try {
       await syncContactSuggestions([contactId]);
     } catch (e) {
+      if (!isSameLogin()) return;
       logger.trackError('Error refreshing removed contact suggestion', e);
     }
   }
-  LocalCache.cacheContacts(await db.getContacts());
+  if (!isSameLogin()) return;
+  const contacts = await db.getContacts();
+  if (isSameLogin()) LocalCache.cacheContacts(contacts);
 }
 
 export async function removeContactSuggestion(contactId: string) {

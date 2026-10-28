@@ -872,7 +872,7 @@ export const syncContactDiscovery = async (
     if (discoveredIds.length > 0) {
       const { addedContactIds, failedContactIds } = await addContacts(
         discoveredIds,
-        { source: 'discovery' }
+        { source: 'discovery', ...(contactState ? { contactState } : {}) }
       );
       if (failedContactIds.length > 0) {
         didSucceed = false;

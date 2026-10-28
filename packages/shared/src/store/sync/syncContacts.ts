@@ -3,6 +3,7 @@ import * as api from '@tloncorp/api';
 import * as db from '../../db';
 import { QueryCtx, batchEffects } from '../../db/query';
 import * as LocalCache from '../cachedData';
+import { getClientGeneration } from '../session';
 import { SyncCtx, syncQueue } from '../syncQueue';
 import { logger } from './logger';
 
@@ -10,15 +11,18 @@ export const syncContactSuggestions = async (
   contactIds: string[],
   queryCtx?: QueryCtx
 ) => {
+  const generation = getClientGeneration();
   const contacts = await syncQueue.add('contact suggestions', undefined, () =>
     api.getContacts()
   );
+  if (getClientGeneration() !== generation) return;
   const suggestions = new Set(
     contacts.filter((c) => c.isContactSuggestion).map((c) => c.id)
   );
 
   const write = async (ctx: QueryCtx) => {
     for (const id of contactIds) {
+      if (getClientGeneration() !== generation) return;
       await db.setContactSuggestion(
         { id, isContactSuggestion: suggestions.has(id) },
         ctx
@@ -30,7 +34,9 @@ export const syncContactSuggestions = async (
   } else {
     await batchEffects('syncContactSuggestions', write);
   }
-  LocalCache.cacheContacts(await db.getContacts(queryCtx));
+  if (getClientGeneration() !== generation) return;
+  const cached = await db.getContacts(queryCtx);
+  if (getClientGeneration() === generation) LocalCache.cacheContacts(cached);
 };
 
 export const syncContacts = async (

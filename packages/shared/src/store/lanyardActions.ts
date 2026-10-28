@@ -271,15 +271,20 @@ export async function partitionDiscoveryMatches(
   if (api.getDeskSupportsContactRemovalState() === true) {
     contactState = await api.getContactState();
     removedContactIds = new Set(contactState.removedContactIds);
-    await db.insertContacts(contactState.contacts);
   }
   const existingContacts = await db.getContactsBatch({ contactIds });
   const existingById = new Map(existingContacts.map((c) => [c.id, c] as const));
+  const authoritativeById = new Map(
+    contactState?.contacts.map((c) => [c.id, c] as const)
+  );
   const removedMatches = matches.filter(([, id]) => removedContactIds.has(id));
   const newMatches = matches.filter(([, contactId]) => {
     const c = existingById.get(contactId);
+    const authoritative = authoritativeById.get(contactId);
     return (
-      !removedContactIds.has(contactId) && (!c || !isAlreadyKnownContact(c))
+      !removedContactIds.has(contactId) &&
+      (!c || !isAlreadyKnownContact(c)) &&
+      (!authoritative || !isAlreadyKnownContact(authoritative))
     );
   });
   return {
