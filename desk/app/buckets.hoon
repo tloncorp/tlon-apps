@@ -1076,20 +1076,13 @@
 ::
 ::  +up-core: one in-flight upload session.
 ::
-::  Two things were conventions spread across arms that each had to remember
-::  them, and they did not.
+::  .awaiting holds at most one waiter, and +up-claim is the only arm that
+::  sets it; a waiter it displaces is answered, not dropped. Once a session
+::  is cancelled only the cancel's own answer reaches the waiter, and any
+::  other broker answer that still arrives goes to +up-late.
 ::
-::  .awaiting holds at most one waiter. The three session verbs each wrote it
-::  unconditionally, so a cancel arriving while a completion was in flight
-::  overwrote the finish's waiter -- the receipt then answered the cancel with
-::  %ok while the finish hung for good. +up-claim is the only way it is
-::  written now, and it answers whoever it displaces.
-::
-::  And every abandonment leaves through +up-give-up. The lapsed prune
-::  broker-cancelled and answered its waiter; +drop-bucket-sessions and
-::  +delete-entry dropped sessions where they stood, so the broker kept a
-::  reservation and its quota until it lapsed and the waiting request was
-::  never answered at all.
+::  Every abandonment leaves through +up-give-up, so the broker is told to
+::  release the reservation and the waiting request is answered.
 ::
 ++  up-core
   |_  [ses=upload-session:b gone=_|]
@@ -1259,6 +1252,9 @@
   ::  marked cancelled before the call, and the broker answers a settled
   ::  reservation with a refusal of its own. A retryable one is passed on,
   ::  so the uploader can send %cancel-upload again, which re-sends the call.
+  ::  Unless the completion that was out alongside it has since landed and
+  ::  +up-late published the entry: the session is %complete, there is
+  ::  nothing left to cancel, and whatever the broker said is answered ok.
   ::
   ++  up-refused
     |=  [kind=?(%grant %retry %cancel %complete) res=client-response:iris]
@@ -1281,6 +1277,7 @@
       (up-fail why `err)
     ::
         %cancel
+      ?:  =(%complete status.ses)  (up-answer [%ok ~])
       ?:  retryable.err  (up-answer [%error %unknown why `err])
       (up-answer [%ok ~])
     ==
@@ -1328,13 +1325,15 @@
   ::
   ::  Cancelling at the broker is the point: quota is reserved before the
   ::  first byte moves, so an abandoned upload holds it until the reservation
-  ::  lapses. That release used to be the client's to make, from a tab that
-  ::  was in the middle of closing, and it was made with the error swallowed.
+  ::  lapses. The host makes that release rather than the client, which may
+  ::  be a tab in the middle of closing.
   ::
   ::  Withdrawing is all the uploader can report. Whether the bytes reached
   ::  storage is the broker's to say, so this does not settle the upload, it
   ::  only stops a new upload URL being issued against the session. A
-  ::  completion that arrives afterwards is still honoured.
+  ::  completion still in flight is published if it lands, by +up-late, but
+  ::  no client request is answered with it. From here on the only request
+  ::  held open is this cancel's, and the /cancel answer is what completes it.
   ::
   ++  up-cancel
     |=  reason=@t
@@ -1343,21 +1342,28 @@
     ::  URLs whether or not the broker is reachable to hear about it.
     =/  had=(unit @t)  reservation.ses
     =.  ses  ses(status %cancelled, error `reason)
+    ::  Answered through +settle, which delivers to this same request in
+    ::  this same event, and the slot cleared with it. Through +up-answer the
+    ::  request would be paid here and +settle would then send a second %ok.
     ?~  had
       =.  cor  (answer [%ok ~])
-      up-core
+      up-core(ses ses(awaiting ~))
     =.  up-core  (up-reservation-call %cancel ~)
     =.  cor  (answer [%pending ~])
     up-core
   ::  +up-take: one broker answer about this session.
   ::
-  ::  Every one of these has a client waiting on it, so nothing is retried
-  ::  here and nothing fails silently: the session advances, or the uploader
-  ::  is told what the broker said and whether it is worth asking again.
+  ::  On a live session every one of these has a client waiting on it, so
+  ::  nothing is retried here and nothing fails silently: the session
+  ::  advances, or the uploader is told what the broker said and whether it
+  ::  is worth asking again. On a cancelled one the waiter belongs to the
+  ::  cancel, so any other call's answer goes to +up-late instead.
   ::
   ++  up-take
     |=  [kind=?(%grant %retry %cancel %complete) res=client-response:iris]
     ^+  up-core
+    ?:  &(=(%cancelled status.ses) ?=(?(%grant %retry %complete) kind))
+      (up-late kind res)
     ?:  ?=(%cancel -.res)  (up-refused kind res)
     =/  code=@ud  status-code.response-header.res
     ?.  &((gte code 200) (lth code 300))  (up-refused kind res)
@@ -1383,15 +1389,8 @@
     ::  Bound before the answer is judged. A reservation the broker issued
     ::  holds quota whatever else it got wrong, and only a bound one can be
     ::  released when the grant is failed below.
-    =/  reservation=(unit @t)
-      ?~  body  ~
-      ?~  got=(~(get by u.body) 'reservationId')  ~
-      ?.(?=([%s *] u.got) ~ `p.u.got)
-    =?  up-core  ?=(^ reservation)
-      %_  up-core
-        ses           ses(reservation reservation)
-        reservations  (~(put by reservations) u.reservation id.ses)
-      ==
+    =/  reservation=(unit @t)  (granted-reservation body)
+    =?  up-core  ?=(^ reservation)  (up-bind u.reservation)
     ?~  body
       (up-fail 'storage returned an unreadable grant' ~)
     ?~  url=(~(get by u.body) 'uploadUrl')
@@ -1415,6 +1414,68 @@
     =.  ses  ses(error ~)
     %-  up-answer
     [%upload [id.ses id.entry.ses p.u.url headers expiry]]
+  ::  +up-late: a grant, retry or completion answered after the uploader
+  ::  cancelled.
+  ::
+  ::  The request still held open on this session is the cancel's, and only
+  ::  the /cancel answer may complete it. An answer to the earlier call must
+  ::  not: it would tell the canceller the outcome of a finish or grant it did
+  ::  not ask about, and the /cancel answer would then find no request left
+  ::  to complete.
+  ::
+  ::  So no client request is answered here, and the session is changed only
+  ::  as far as the broker's answer forces. A reservation the broker issued
+  ::  holds quota, so it is bound and released. A receipt means the bytes are
+  ::  stored and charged for whatever the uploader said, so the entry is
+  ::  published. Anything else is logged and left: the cancel is what settles
+  ::  this session.
+  ::
+  ++  up-late
+    |=  [kind=?(%grant %retry %complete) res=client-response:iris]
+    ^+  up-core
+    =/  code=(unit @ud)
+      ?:  ?=(%cancel -.res)  ~
+      `status-code.response-header.res
+    =.  cor
+      %^  note  %warn
+        ~[leaf+"buckets: storage answered an upload call after its cancel"]
+      %+  weld  (log-bucket flag.ses)
+      ^-  (list (pair @t json))
+      :~  ['call' s+(scot %tas kind)]
+          ['status' ?~(code ~ (numb:enjs:format u.code))]
+      ==
+    ?~  code  up-core
+    ?.  &((gte u.code 200) (lth u.code 300))  up-core
+    ?-  kind
+        ?(%grant %retry)
+      ::  Bound to a leg before the test, as in +up-answer.
+      =/  had=(unit @t)  reservation.ses
+      ?^  had  up-core
+      ?~  got=(granted-reservation (broker-body:util res))  up-core
+      (up-reservation-call:(up-bind u.got) %cancel ~)
+    ::
+        %complete
+      ?.  (verify-receipt ses res)  up-core
+      (up-publish requested-by.ses)
+    ==
+  ::  +up-bind: hold reservation .rsv on this session, so finish and cancel
+  ::  can call storage against it.
+  ::
+  ++  up-bind
+    |=  rsv=@t
+    ^+  up-core
+    %_  up-core
+      ses           ses(reservation `rsv)
+      reservations  (~(put by reservations) rsv id.ses)
+    ==
+  ::  +granted-reservation: the reservation id a grant's body carries.
+  ::
+  ++  granted-reservation
+    |=  body=(unit (map @t json))
+    ^-  (unit @t)
+    ?~  body  ~
+    ?~  got=(~(get by u.body) 'reservationId')  ~
+    ?.(?=([%s *] u.got) ~ `p.u.got)
   --
 ::
 ::  +uploader-session: the session this actor may act on.
@@ -1459,9 +1520,8 @@
   ::  entry is in the manifest, so there is nothing left to ask the broker.
   ?:  =(%complete status.ses)  (answer [%ok ~])
   ::  Through +up-claim, which answers a waiter it displaces rather than
-  ::  dropping it: a cancel arriving while this call is in flight used to
-  ::  overwrite the waiter here, and the receipt then answered the cancel
-  ::  while this request hung for good.
+  ::  dropping it, so a cancel arriving while this call is in flight leaves
+  ::  no request hanging for good.
   up-abet:up-finish:(up-claim:(up-abed:up-core sid) rid)
 ::
 ::  +retry-upload: another PUT URL for the same reservation.
@@ -1483,8 +1543,8 @@
 ::
 ::  Cancelling at the broker is the point: quota is reserved before the first
 ::  byte moves, so an abandoned upload holds it until the reservation lapses.
-::  That release used to be the client's to make, from a tab that was in the
-::  middle of closing, and it was made with the error swallowed.
+::  The host makes that release rather than the client, which may be a tab in
+::  the middle of closing.
 ::
 ++  cancel-upload
   |=  [=flag:b sid=@uv reason=@t actor=ship rid=(unit request-id:b)]

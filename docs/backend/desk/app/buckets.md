@@ -134,6 +134,8 @@ Nothing about an upload is retried in the background. A client is sitting in fro
 
 A kept session records the broker's message in `error` and is still bounded by its window: one nobody retries is cancelled at the broker by the expiry sweep like any other lapsed session. A refused cancel is not re-sent by the agent itself, but a cancelled session still admits `%cancel-upload`, so the uploader can send it again and Memex answers a repeated cancel 200. Two quota leaks are accepted: a cancel the broker refused or never answered and nobody retries, and a grant whose answer never arrived, hold quota until Memex lapses the reservation at the session window.
 
+Once a session is cancelled, only the `/cancel` answer speaks to the client: `%cancel-upload` supersedes whichever request was waiting, and an answer to the grant, retry or completion that was still in flight never touches the waiter. Such an answer is logged and does only what it forces: a grant or retry that carries a reservation the session had not bound is bound and released with `/cancel`, and a completion with a valid receipt publishes the entry, since the bytes are stored and charged for. Anything else is left for the cancel to settle.
+
 A `%finish-upload` naming a session that is already complete is answered `%ok` without a broker call: the uploader lost the receipt, not the upload, and the entry is already in the manifest.
 
 Replay is keyed on the host's own session id, so a host that retries its own grant call gets the reservation it already has rather than a second one.
