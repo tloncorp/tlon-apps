@@ -3,12 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test';
 import * as groupAdmin from './group-admin';
 import { runScriptCli } from './script-cli-runner';
 import {
+  MockBadResponseError,
   mockedCreateChannel,
   mockedGetGroup,
   mockedGetGroups,
   mockedManagementCalls,
   mockedNotesV1,
   mockedPoke,
+  mockedScry,
 } from './tloncorp-api-mock';
 
 const GROUP = '~zod/test-group';
@@ -18,6 +20,7 @@ const originalGetGroup = mockedGetGroup.impl;
 const originalGetGroups = mockedGetGroups.impl;
 const originalCreateChannel = mockedCreateChannel.impl;
 const originalPoke = mockedPoke.impl;
+const originalScry = mockedScry.impl;
 
 afterEach(() => {
   mockedNotesV1.createGroupNotebook = originalCreateGroupNotebook;
@@ -25,6 +28,7 @@ afterEach(() => {
   mockedGetGroups.impl = originalGetGroups;
   mockedCreateChannel.impl = originalCreateChannel;
   mockedPoke.impl = originalPoke;
+  mockedScry.impl = originalScry;
   mockedManagementCalls.length = 0;
 });
 
@@ -92,6 +96,83 @@ describe('channels create output', () => {
       `   Ref: /1/group/${GROUP}`,
       '   Share: channels have no card yet; name the channel and its Nest, and include the group Ref path in a chat message to post a tappable group card.',
     ]);
+  });
+});
+
+describe('channels info writers', () => {
+  const NEST = 'chat/~zod/general';
+  const NOTES_NEST = 'notes/~zod/docs';
+  let scries: unknown[] = [];
+
+  function answerPerm(answer: () => Promise<unknown>) {
+    mockedScry.impl = async (input: unknown) => {
+      scries.push(input);
+      return answer();
+    };
+  }
+
+  beforeEach(() => {
+    scries = [];
+    mockedGetGroups.impl = async () => [
+      {
+        id: GROUP,
+        title: 'Test',
+        channels: [
+          { id: NEST, title: 'General', readerRoles: [] },
+          { id: NOTES_NEST, title: 'Docs', readerRoles: [] },
+        ],
+      },
+    ];
+  });
+
+  it('prints (all members) when the writer set is empty', async () => {
+    answerPerm(async () => ({ writers: [], group: GROUP }));
+
+    const { exitCode, stdout } = await runChannels(['info', NEST]);
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toEqual([
+      '\n=== General ===\n',
+      `Nest: ${NEST}`,
+      'Kind: chat',
+      `Group: Test (${GROUP})`,
+      'Zone: default',
+      'Description: (none)',
+      'Readers: (all members)',
+      'Writers: (all members)',
+    ]);
+    expect(scries).toEqual([{ app: 'channels', path: `/${NEST}/perm` }]);
+  });
+
+  it('lists the writer roles of a restricted channel', async () => {
+    answerPerm(async () => ({ writers: ['admin', 'mods'], group: GROUP }));
+
+    const { exitCode, stdout } = await runChannels(['info', NEST]);
+
+    expect(exitCode).toBe(0);
+    expect(stdout.at(-1)).toBe('Writers: admin, mods');
+  });
+
+  it('reports a failed perm scry in the line instead of failing', async () => {
+    answerPerm(async () => {
+      throw new MockBadResponseError(500, '');
+    });
+
+    const { exitCode, stdout } = await runChannels(['info', NEST]);
+
+    expect(exitCode).toBe(0);
+    expect(stdout.at(-2)).toBe('Readers: (all members)');
+    expect(stdout.at(-1)).toBe('Writers: (unavailable: HTTP 500)');
+  });
+
+  it('leaves %notes writers to %notes without scrying %channels', async () => {
+    answerPerm(async () => ({ writers: [], group: GROUP }));
+
+    const { exitCode, stdout } = await runChannels(['info', NOTES_NEST]);
+
+    expect(exitCode).toBe(0);
+    expect(stdout.at(-1)).toBe('Writers: (managed by %notes)');
+    expect(scries).toEqual([]);
   });
 });
 
