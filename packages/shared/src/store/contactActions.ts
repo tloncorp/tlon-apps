@@ -453,7 +453,8 @@ export async function updateContactMetadata(
   metadata: {
     nickname?: string | null;
     avatarImage?: string | null;
-  }
+  },
+  isCurrent: () => boolean = () => true
 ) {
   logger.trackEvent(AnalyticsEvent.ActionContactEdited, {
     hasCustomNickname: !!metadata.nickname,
@@ -462,6 +463,7 @@ export async function updateContactMetadata(
   const { nickname, avatarImage } = metadata;
 
   const existingContact = await db.getContact({ id: contactId });
+  if (!isCurrent()) return true;
 
   // optimistic update
   await db.updateContact({
@@ -470,6 +472,7 @@ export async function updateContactMetadata(
     customAvatarImage: avatarImage,
   });
 
+  if (!isCurrent()) return true;
   try {
     await api.updateContactMetadata(contactId, {
       nickname: nickname ? nickname : nickname === null ? '' : undefined,
@@ -481,6 +484,7 @@ export async function updateContactMetadata(
     });
     return true;
   } catch (e) {
+    if (!isCurrent()) return true;
     logger.trackError('Error updating contact metadata', e);
     // rollback the update
     await db.updateContact({

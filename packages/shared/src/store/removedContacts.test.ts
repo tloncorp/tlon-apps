@@ -827,3 +827,58 @@ test('failed Remove after address-book read failure restores saved contact', asy
     isContactSuggestion: false,
   });
 });
+
+test.each(['removed', 'declined'] as const)(
+  'phone-book names override an internal nickname on a %s match without saving it',
+  async (status) => {
+    await db.updateContact({ id, customNickname: 'Internal name' });
+    const bookEntry = {
+      id: 'phone',
+      phoneNumber: phone,
+      contactId: id,
+      firstName: 'Phone',
+      lastName: 'Book',
+    };
+    await db.insertSystemContacts({ systemContacts: [bookEntry] });
+    mocks.getSystemContacts.mockResolvedValue([bookEntry]);
+    await removeContact(id);
+    if (status === 'declined') await removeContactSuggestion(id);
+    const announce = vi.fn();
+    setContactsMatchedHandler(announce);
+    vi.spyOn(api, 'discoverContacts').mockResolvedValue({
+      matches: [[phone, id]],
+      nextSalt: '0x1',
+    });
+    vi.spyOn(api, 'updateContactMetadata').mockResolvedValue(1);
+    vi.spyOn(db, 'getUserAttestations').mockResolvedValue([
+      {
+        id: 'phone-attestation',
+        contactId: api.getCurrentUserId(),
+        provider: 'test',
+        type: 'phone',
+        value: '+15555550000',
+        discoverability: 'verified',
+        status: 'verified',
+        initiatedAt: null,
+        statusMessage: null,
+        providerUrl: null,
+        provingTweetId: null,
+        signature: null,
+      },
+    ]);
+    expect(await syncContactDiscovery()).toEqual({
+      didSucceed: true,
+      didDiscover: true,
+      newMatches: [],
+    });
+    expect(await db.getContact({ id })).toMatchObject({
+      isContact: false,
+      isContactSuggestion: status === 'removed',
+      customNickname: 'Phone Book',
+      matchedAt: null,
+    });
+    expect(saved.has(id)).toBe(false);
+    expect(api.updateContactMetadata).not.toHaveBeenCalled();
+    expect(announce).not.toHaveBeenCalled();
+  }
+);

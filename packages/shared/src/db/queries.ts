@@ -1187,50 +1187,6 @@ export const getSystemContactsBatchByContactId = createReadQuery(
   ['systemContacts', 'systemContactSentInvites']
 );
 
-// Returns the system contacts linked to the given contactIds whose
-// linked contact has no customNickname yet. Used by contact-discovery
-// to apply the address-book name as a default — we only fill in names
-// the user hasn't set themselves.
-export const getUnnamedSystemContactsByContactId = createReadQuery(
-  'getUnnamedSystemContactsByContactId',
-  async (
-    contactIds: string[],
-    ctx: QueryCtx
-  ): Promise<
-    Array<{
-      contactId: string;
-      firstName: string | null;
-      lastName: string | null;
-    }>
-  > => {
-    if (!contactIds.length) return [];
-    const rows = await ctx.db
-      .select({
-        contactId: $systemContacts.contactId,
-        firstName: $systemContacts.firstName,
-        lastName: $systemContacts.lastName,
-      })
-      .from($systemContacts)
-      .leftJoin($contacts, eq($systemContacts.contactId, $contacts.id))
-      .where(
-        and(
-          inArray($systemContacts.contactId, contactIds),
-          or(isNull($contacts.customNickname), eq($contacts.customNickname, ''))
-        )
-      );
-    return rows.filter(
-      (
-        r
-      ): r is {
-        contactId: string;
-        firstName: string | null;
-        lastName: string | null;
-      } => r.contactId !== null
-    );
-  },
-  ['systemContacts', 'contacts']
-);
-
 export const getUninvitedSystemContactsShortlist = createReadQuery(
   'getUninvitedSystemContactsShortlist',
   async (ctx: QueryCtx): Promise<SystemContact[]> => {
@@ -6495,7 +6451,12 @@ export const getGroup = createReadQuery(
           },
           joinRequests: true,
           bannedMembers: true,
+          // In their saved order: rows land in the table in whatever order
+          // this device learned of them, such as a new section after the rest.
+          // A section added since the last full sync has no index yet and
+          // sorts first, which is where the backend puts a new section.
           navSections: {
+            orderBy: [asc($groupNavSections.sectionIndex)],
             with: {
               channels: true,
             },

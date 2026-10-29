@@ -238,8 +238,7 @@ export async function invokeContactsMatchedHandler(contactIds: string[]) {
 // prior relationship: explicitly added, surfaced as a suggestion, the
 // peer's profile has been fetched (any peer field set), or the user
 // labelled them. Anyone who matches that bar should not be treated as a
-// fresh discovery — no notification, no pill, no clobber of existing
-// metadata.
+// fresh discovery — no notification or pill.
 export function isAlreadyKnownContact(contact: db.Contact): boolean {
   return !!(
     contact.isContact ||
