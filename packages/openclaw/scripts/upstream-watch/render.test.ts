@@ -15,6 +15,7 @@ import {
   type CanaryReports,
   type Post,
   HARNESS_ALERTS_CHANNEL,
+  WATCH_MENTION_SHIP,
   MAX_BODY_BYTES,
   MAX_LINES,
   MAX_LINE_CHARS,
@@ -436,15 +437,20 @@ describe('alertPayload', () => {
     expect(payload).toEqual(alertPayload(post));
     expect(Object.keys(payload).sort()).toEqual(['channel', 'content']);
     expect(payload.channel).toBe(HARNESS_ALERTS_CHANNEL);
+    const [header, ...rest] = post.lines;
     expect(payload.content).toEqual([
-      ...post.lines.map((line) => ({ inline: [line] })),
+      { inline: [{ ship: WATCH_MENTION_SHIP }, ' ', header] },
+      ...rest.map((line) => ({ inline: [line] })),
       { inline: [{ link: { href: link, content: link } }] },
     ]);
   });
 
   it('adds no link verse without a link', () => {
     const payload = alertPayload({ lines: ['a', 'b'] });
-    expect(payload.content).toEqual([{ inline: ['a'] }, { inline: ['b'] }]);
+    expect(payload.content).toEqual([
+      { inline: [{ ship: WATCH_MENTION_SHIP }, ' ', 'a'] },
+      { inline: ['b'] },
+    ]);
   });
 });
 
