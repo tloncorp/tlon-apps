@@ -2364,13 +2364,32 @@
     %+  roll  lapsed
     |=  [ses=upload-session:b acc=_cor]
     up-abet:(up-reservation-call:(up-abed:up-core:acc id.ses) %cancel ~)
+  ::  A pending session past its window stays while a call of ours is out on
+  ::  it, for the same reason the sweep above leaves it alone: the answer
+  ::  still has to find the session, and the waiter still has to be paid. It
+  ::  gets the same grace a settled session does. A call that has not
+  ::  answered by then never will, so the session leaves through +up-give-up
+  ::  like any other abandonment: the waiter is answered and the reservation
+  ::  released, rather than both being dropped with the record.
+  =/  hung=(list @uv)
+    %+  murn  ~(tap by sessions)
+    |=  [sid=@uv ses=upload-session:b]
+    ^-  (unit @uv)
+    ?.  &(=(%pending status.ses) ?=(^ awaiting.ses))  ~
+    ?:  (gth (add expires-at.ses request-grace) now.bowl)  ~
+    `sid
+  =.  cor
+    %+  roll  hung
+    |=  [sid=@uv acc=_cor]
+    up-abet:(up-give-up:(up-abed:up-core:acc sid) 'the storage call never answered')
   =.  sessions
     %-  malt
     %+  skim  ~(tap by sessions)
     |=  [sid=@uv ses=upload-session:b]
-    ?:  =(%pending status.ses)
-      (gth expires-at.ses now.bowl)
-    (gth (add expires-at.ses request-grace) now.bowl)
+    =/  graced=?  (gth (add expires-at.ses request-grace) now.bowl)
+    ?.  =(%pending status.ses)  graced
+    ?:  (gth expires-at.ses now.bowl)  &
+    &(?=(^ awaiting.ses) graced)
   =.  reservations
     %-  malt
     %+  skim  ~(tap by reservations)

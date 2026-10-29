@@ -2492,6 +2492,71 @@
   =/  st=state-1:bu  !<(state-1:bu after)
   (ex-equal !>((~(has by sessions.st) id.ses)) !>(|))
 ::
+::  A finish is accepted past the window, and the completion it sends may
+::  still be out when something else drives a prune. The session is kept
+::  for it: the sweep neither cancels at the broker nor drops the record, so
+::  the receipt publishes the entry and the finish is answered.
+::
+++  test-prune-keeps-a-completion-in-flight
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'slow.iso' 42)
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  ;<  ~  b  (jab-bowl |=(bol=bowl bol(now (add ~2026.1.1 ~h1.m1))))
+  ;<  done=wire  b  (finish-call 0v2 seed)
+  ;<  ~  b  (jab-bowl |=(bol=bowl bol(eny 0v9999)))
+  ;<  caz=(list card)  b
+    (ask 0v3 [%bucket flag [%begin-upload ~ 'later.pdf' 'application/pdf' 7 ~]])
+  =/  cancels=(list card)
+    %+  skim  caz
+    |=(=card ?=([%pass [%buckets %upload @ %cancel ~] %arvo %i %request * *] card))
+  ;<  ~  b  (ex-cards cancels ~)
+  ;<  sv=vase  b  get-save
+  =/  st=state-1:bu  !<(state-1:bu sv)
+  =/  kept=(unit upload-session:bu)  (~(get by sessions.st) id.ses)
+  ;<  ~  b  (ex-equal !>(?~(kept ~ awaiting.u.kept)) !>(`(unit @uv)``0v2))
+  ;<  landed=(list card)  b  (do-arvo done (receipt-for ses))
+  ;<  ~  b  (ex-cards (answers landed) ~[(grant-fact 0v2 [%ok ~])])
+  ;<  bs=bucket-state:bu  b  saved-bucket
+  (ex-equal !>(~(wyt by entries.bs)) !>(1))
+::
+::  A completion that has not answered by the end of the grace is not coming.
+::  The prune gives the session up like any other abandonment: the finish is
+::  answered with an error, the reservation is released at the broker, and
+::  the record is dropped.
+::
+++  test-prune-gives-up-a-hung-call
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'hung.iso' 42)
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  ;<  ~  b  (jab-bowl |=(bol=bowl bol(now (add ~2026.1.1 ~h1.m1))))
+  ;<  *  b  (finish-call 0v2 seed)
+  ;<  ~  b  (jab-bowl |=(bol=bowl bol(now (add ~2026.1.1 ~h1.m7), eny 0v9999)))
+  ;<  caz=(list card)  b
+    (ask 0v3 [%bucket flag [%begin-upload ~ 'later.pdf' 'application/pdf' 7 ~]])
+  =/  cancels=(list card)
+    %+  skim  caz
+    |=(=card ?=([%pass [%buckets %upload @ %cancel ~] %arvo %i %request * *] card))
+  ;<  ~  b  (ex-equal !>((lent cancels)) !>(1))
+  ;<  ~  b
+    %+  ex-cards  (answers caz)
+    :~  %+  grant-fact  0v2
+        [%error %unknown 'the storage call never answered' ~]
+        (grant-fact 0v3 [%pending ~])
+    ==
+  ;<  sv=vase  b  get-save
+  =/  st=state-1:bu  !<(state-1:bu sv)
+  (ex-equal !>((~(has by sessions.st) id.ses)) !>(|))
+::
 ++  test-expired-authority-is-pruned
   %-  eval-mare
   =/  m  (mare ,~)
