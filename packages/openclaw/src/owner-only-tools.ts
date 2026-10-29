@@ -19,13 +19,15 @@ import { isNonOwnerMediaAllowed } from './non-owner-media.js';
 import type { SenderRole } from './session-roles.js';
 
 /**
- * OpenClaw core tools that hand work to another run: a spawned session or the
+ * Tools that hand work to another run: a spawned session, the Codex native
+ * subagent (`spawn_agent`; the native relay normalizes `agent` to it), or the
  * system agent (`openclaw`) has no stored role and would pass this gate, and a
  * sent message drives another session's run.
  */
 export const DELEGATION_TOOL_NAMES = [
   'sessions_spawn',
   'sessions_send',
+  'spawn_agent',
   'openclaw',
 ] as const;
 
@@ -46,6 +48,33 @@ export const OWNER_ONLY_TOOLS: ReadonlySet<string> = new Set([
   // to non-owners.
   ...CRON_TOOL_NAMES,
   'read',
+  // Listing the workspace reveals the same files `read` protects.
+  'ls',
+  // Workspace writers: the workspace holds the bot's skills, memory, and
+  // prompts. Codex native file edits reach this gate as `apply_patch`.
+  'write',
+  'edit',
+  'apply_patch',
+  // Creates, patches, and applies workspace skills.
+  'skill_workshop',
+  // Shell and process control: a shell can read and write every file the
+  // gates above protect. Core normalizes `bash` to `exec` and the Codex native
+  // relay normalizes `exec_command` to `exec`, so both arrive as `exec`; native
+  // `shell`/`shell_command` arrive unchanged. The Codex harness's
+  // sandbox_exec/sandbox_process/node_exec/gateway_exec/gateway_process are
+  // projections over the hook-wrapped exec/process tools. The sandbox and node
+  // projections are spreads that keep the wrapper marker, so they are not
+  // re-wrapped and reach this gate once, as exec/process; they are not listed.
+  // The gateway pair stays listed in case its projection reaches the gate
+  // under its own name.
+  'exec',
+  'process',
+  'shell',
+  'shell_command',
+  'gateway_exec',
+  'gateway_process',
+  // Input to the owner's open Control UI terminals.
+  'terminal',
   'tlon_agent_choice',
   'tlon_agent_task_plan',
   'tlon_agent_service_setup',
@@ -63,12 +92,10 @@ export const OWNER_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'secrets', // lists, requests, and deletes stored credentials
   'nodes', // approves device pairing and controls paired devices
   'personal_instructions', // rewrites the agent's USER.md
-  'skill_workshop', // stages and revises agent skills
   'sessions', // archives, restores, and stops sessions
   'github_publish', // publishes with the agent's GitHub credentials
   // These expose or act on the owner's devices and private data.
   'presence', // people's devices, IP addresses, and locations
-  'terminal', // the owner's open terminals
   'mobile_ui', // the owner's paired phone
   'transcripts', // the owner's meeting captures and notes
   // Local-path readers would hand a non-owner the owner's files.
