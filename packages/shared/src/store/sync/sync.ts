@@ -889,12 +889,21 @@ export const syncContactDiscovery = async (
     const contactsToName = await db.getSystemContactsBatchByContactId(
       matches.map(([, id]) => id).filter((id) => !failedNewIds.has(id))
     );
+    const namesByContactId = new Map<string, string>();
+    for (const systemContact of contactsToName) {
+      const nickname =
+        `${systemContact.firstName || ''} ${systemContact.lastName || ''}`.trim();
+      if (
+        nickname &&
+        systemContact.contactId &&
+        !namesByContactId.has(systemContact.contactId)
+      ) {
+        namesByContactId.set(systemContact.contactId, nickname);
+      }
+    }
     const metadataResults = await Promise.all(
-      contactsToName.map(async (systemContact) => {
-        const nickname =
-          `${systemContact.firstName || ''} ${systemContact.lastName || ''}`.trim();
-        if (!nickname || !systemContact.contactId) return true;
-        const contact = await db.getContact({ id: systemContact.contactId });
+      Array.from(namesByContactId, async ([contactId, nickname]) => {
+        const contact = await db.getContact({ id: contactId });
         if (!contact || contact.customNickname === nickname) return true;
         // Only saved contacts have a ship address-book entry to edit.
         if (contact.isContact) {

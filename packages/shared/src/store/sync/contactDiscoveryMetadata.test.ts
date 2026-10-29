@@ -219,3 +219,71 @@ test('a metadata failure rolls back and rediscovery retries the book name', asyn
   await syncContactDiscovery(undefined, { invokeHandler: false });
   expect(api.updateContactMetadata).toHaveBeenCalledTimes(2);
 });
+
+test.each(['Address Book', 'Internal name'])(
+  'multiple native cards choose one stable name when the current name is %s',
+  async (customNickname) => {
+    const secondCard = {
+      ...systemContact,
+      id: 'second-native-contact',
+      firstName: 'Address',
+      lastName: 'Work',
+      phoneNumber: '+15555550456',
+    };
+    await db.insertSystemContacts({ systemContacts: [secondCard] });
+    mocks.getSystemContacts.mockResolvedValue([systemContact, secondCard]);
+    vi.mocked(api.discoverContacts).mockResolvedValue({
+      matches: [
+        [phoneNumber, contactId],
+        [secondCard.phoneNumber, contactId],
+      ],
+      nextSalt: '0x1',
+    });
+    await db.upsertContact({ id: contactId, isContact: true, customNickname });
+
+    for (let run = 0; run < 2; run++) {
+      expect(
+        await syncContactDiscovery(undefined, { invokeHandler: false })
+      ).toEqual({
+        didSucceed: true,
+        didDiscover: true,
+        newMatches: [],
+      });
+      expect((await db.getContact({ id: contactId }))?.customNickname).toBe(
+        'Address Book'
+      );
+    }
+    expect(api.updateContactMetadata).toHaveBeenCalledTimes(
+      customNickname === 'Address Book' ? 0 : 1
+    );
+  }
+);
+
+test('an unnamed first native card does not hide a later named card', async () => {
+  const unnamedCard = { ...systemContact, firstName: '', lastName: '' };
+  const namedCard = {
+    ...systemContact,
+    id: 'second-native-contact',
+    phoneNumber: '+15555550456',
+  };
+  await db.insertSystemContacts({ systemContacts: [unnamedCard, namedCard] });
+  mocks.getSystemContacts.mockResolvedValue([unnamedCard, namedCard]);
+  vi.mocked(api.discoverContacts).mockResolvedValue({
+    matches: [
+      [phoneNumber, contactId],
+      [namedCard.phoneNumber, contactId],
+    ],
+    nextSalt: '0x1',
+  });
+  await db.upsertContact({
+    id: contactId,
+    isContact: true,
+    customNickname: 'Internal name',
+  });
+  await syncContactDiscovery(undefined, { invokeHandler: false });
+  await syncContactDiscovery(undefined, { invokeHandler: false });
+  expect((await db.getContact({ id: contactId }))?.customNickname).toBe(
+    'Address Book'
+  );
+  expect(api.updateContactMetadata).toHaveBeenCalledTimes(1);
+});
