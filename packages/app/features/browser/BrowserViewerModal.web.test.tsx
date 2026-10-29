@@ -139,3 +139,35 @@ it('allows retry for a temporary viewer failure', () => {
   act(() => renderer.root.findByProps({ label: 'Try again' }).props.onPress());
   expect(renderer.root.findAllByType('iframe')).toHaveLength(1);
 });
+
+it('closes immediately after an input-capable viewer has failed', () => {
+  message({ type: 'tlon.browser.ready', closeSupported: true });
+  message({ type: 'tlon.browser.unavailable', status: 410 });
+  close();
+  expect(onClose).toHaveBeenCalledOnce();
+  expect(contentWindow.postMessage).not.toHaveBeenCalled();
+  act(() => {
+    vi.advanceTimersByTime(10000);
+  });
+  expect(renderer.root.findAllByProps({ role: 'alert' })).toHaveLength(0);
+});
+it('finishes a pending close when the viewer becomes unavailable', () => {
+  message({ type: 'tlon.browser.ready', closeSupported: true });
+  close();
+  message({ type: 'tlon.browser.unavailable', status: 502 });
+  expect(onClose).toHaveBeenCalledOnce();
+  act(() => {
+    vi.advanceTimersByTime(10000);
+  });
+  expect(renderer.root.findAllByProps({ role: 'alert' })).toHaveLength(0);
+});
+it('can close after the iframe load fails without an unavailable message', () => {
+  message({ type: 'tlon.browser.ready', closeSupported: true });
+  act(() => renderer.root.findByType('iframe').props.onError());
+  close();
+  expect(onClose).toHaveBeenCalledOnce();
+  act(() => {
+    vi.advanceTimersByTime(10000);
+  });
+  expect(renderer.root.findAllByProps({ role: 'alert' })).toHaveLength(0);
+});

@@ -5,7 +5,6 @@ import { Platform, StatusBar } from 'react-native';
 import { InviteUsersScreen } from '../features/InviteUsersScreen';
 import { BrowserCredentialHandoffProvider } from '../features/browser/BrowserCredentialHandoffProvider';
 import { BrowserWalletScreen } from '../features/browser/BrowserWalletScreen';
-import { BrowserCredentialHandoffScreen } from '../features/browser/BrowserCredentialHandoffScreen';
 import { ChannelMembersScreen } from '../features/channels/ChannelMembersScreen';
 import { ChannelMetaScreen } from '../features/channels/ChannelMetaScreen';
 import { ChannelTemplateScreen } from '../features/channels/ChannelTemplateScreen';
@@ -136,11 +135,6 @@ function RootStackContent() {
       <Root.Screen
         name="BrowserWallet"
         component={BrowserWalletScreen}
-        options={{ presentation: 'modal' }}
-      />
-      <Root.Screen
-        name="BrowserCredentialHandoff"
-        component={BrowserCredentialHandoffScreen}
         options={{ presentation: 'modal' }}
       />
       <Root.Screen name="AddContacts" component={AddContactsScreen} />

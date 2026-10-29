@@ -10,10 +10,7 @@ import {
   it,
   vi,
 } from 'vitest';
-import {
-  BrowserCredentialHandoffContent,
-  BrowserCredentialHandoffScreen,
-} from './BrowserCredentialHandoffScreen';
+import { BrowserCredentialHandoffContent } from './BrowserCredentialHandoffScreen';
 import { BrowserViewerModal } from './BrowserViewerModal';
 import {
   BrowserFormError,
@@ -31,7 +28,18 @@ const mocks = vi.hoisted(() => ({
   isWeb: false,
   openURL: vi.fn(),
   openWindow: vi.fn(),
+  fetchSecureEntryState: vi.fn(),
 }));
+vi.mock('./browserSecureEntryState', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('./browserSecureEntryState')>();
+  return {
+    ...actual,
+    secureEntryCache: { getValue: async () => ({}) },
+    fetchSecureEntryState: mocks.fetchSecureEntryState,
+    rememberSecureEntry: vi.fn(),
+  };
+});
 vi.mock('@tloncorp/shared', () => ({
   createDevLogger: () => ({ trackError: vi.fn() }),
 }));
@@ -138,14 +146,10 @@ async function render(
   let renderer!: ReactTestRenderer;
   await act(async () => {
     renderer = create(
-      <BrowserCredentialHandoffScreen
-        navigation={navigation}
-        route={{
-          params: {
-            handoffId: 'opaque-handoff-id',
-            ...(loginApproval ? { loginApproval } : {}),
-          },
-        }}
+      <BrowserCredentialHandoffContent
+        handoffId="opaque-handoff-id"
+        loginApproval={loginApproval}
+        onClose={navigation.goBack}
       />
     );
   });
@@ -175,6 +179,13 @@ describe('secure browser form screen', () => {
   });
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => {
+        throw new Error('Unexpected network request in handoff unit test');
+      })
+    );
+    mocks.fetchSecureEntryState.mockResolvedValue(undefined);
     mocks.openWindow.mockReturnValue({
       opener: {},
       document: { write: vi.fn() },
@@ -263,7 +274,6 @@ describe('secure browser form screen', () => {
           handoffId="opaque-handoff-id"
           onClose={onClose}
           open
-          inSheet
         />
       );
     });
@@ -282,7 +292,6 @@ describe('secure browser form screen', () => {
           handoffId="opaque-handoff-id"
           onClose={onClose}
           open={false}
-          inSheet
         />
       );
     });
@@ -902,7 +911,7 @@ describe('secure browser form screen', () => {
     act(() => renderer.unmount());
   });
 
-  it.each(['back', 'unmount'] as const)(
+  it.each(['dismiss', 'unmount'] as const)(
     'aborts pending submission on %s and ignores a late response',
     async (dismissal) => {
       let finish!: (value: { submitted: boolean }) => void;
@@ -925,9 +934,13 @@ describe('secure browser form screen', () => {
       await act(async () => {
         if (dismissal === 'unmount') renderer.unmount();
         else
-          renderer.root
-            .findByType('ScreenHeader' as React.ElementType)
-            .props.backAction();
+          renderer.update(
+            <BrowserCredentialHandoffContent
+              handoffId="opaque-handoff-id"
+              onClose={navigation.goBack}
+              open={false}
+            />
+          );
       });
       expect(signal.aborted).toBe(true);
       expect(mocks.cancel).not.toHaveBeenCalled();
@@ -939,10 +952,8 @@ describe('secure browser form screen', () => {
       expect(renderer.toJSON()).toEqual(tree);
       expect(mocks.beginHandoff).toHaveBeenCalledOnce();
 
-      expect(navigation.goBack).toHaveBeenCalledTimes(
-        dismissal === 'back' ? 1 : 0
-      );
-      if (dismissal === 'back') await act(async () => renderer.unmount());
+      expect(navigation.goBack).not.toHaveBeenCalled();
+      if (dismissal === 'dismiss') await act(async () => renderer.unmount());
       expect(mocks.discard).toHaveBeenCalledWith('opaque-handoff-id');
     }
   );
@@ -1065,7 +1076,9 @@ describe('secure browser form screen', () => {
       const { renderer } = await render();
       expect(renderer.root.findAllByType(BrowserViewerModal)).toHaveLength(0);
       expect(JSON.stringify(renderer.toJSON())).toContain(
-        'Browser unavailable'
+        status === 410
+          ? 'This secure-entry request has expired.'
+          : 'Browser unavailable'
       );
 
       act(() => renderer.unmount());
@@ -1082,16 +1095,20 @@ describe('secure browser form screen', () => {
     );
     const { renderer, navigation } = await render();
     await act(async () =>
-      renderer.root
-        .findByType('ScreenHeader' as React.ElementType)
-        .props.backAction()
+      renderer.update(
+        <BrowserCredentialHandoffContent
+          handoffId="opaque-handoff-id"
+          onClose={navigation.goBack}
+          open={false}
+        />
+      )
     );
     const tree = renderer.toJSON();
     await act(async () =>
       reject(new BrowserFormError('No supported form', 404))
     );
     expect(renderer.toJSON()).toEqual(tree);
-    expect(navigation.goBack).toHaveBeenCalledOnce();
+    expect(navigation.goBack).not.toHaveBeenCalled();
 
     act(() => renderer.unmount());
   });

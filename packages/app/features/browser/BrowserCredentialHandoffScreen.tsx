@@ -9,7 +9,7 @@ import { Keyboard, KeyDownEvent } from 'react-native';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import type { BrowserCredentialHandoffParams } from '../../navigation/types';
-import { ScreenHeader, SettingsContentScrollView } from '../../ui';
+import { SettingsContentScrollView } from '../../ui';
 import { ActionSheet } from '../../ui/components/ActionSheet';
 import {
   type BrowserCredentialHandoff,
@@ -36,11 +36,6 @@ import {
   type SecureEntryState,
 } from './browserSecureEntryState';
 
-type Props = {
-  navigation: { goBack(): void; isFocused(): boolean };
-  route: { params: BrowserCredentialHandoffParams };
-};
-
 const logger = createDevLogger('BrowserCredentialHandoffScreen', false);
 
 const SAVE_NOTICES = {
@@ -55,27 +50,14 @@ function errorMessage(error: unknown): string {
     : 'Could not connect to the browser form.';
 }
 
-export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
-  return (
-    <BrowserCredentialHandoffContent
-      {...route.params}
-      onClose={() => {
-        if (navigation.isFocused()) navigation.goBack();
-      }}
-    />
-  );
-}
-
 export function BrowserCredentialHandoffContent({
   handoffId,
   loginApproval,
   onClose,
   open = true,
-  inSheet = false,
 }: BrowserCredentialHandoffParams & {
   onClose(): void;
   open?: boolean;
-  inSheet?: boolean;
 }) {
   const [handoff, setHandoff] = useState<BrowserCredentialHandoff>();
   const [values, setValues] = useState<Record<string, string>>({});
@@ -433,51 +415,42 @@ export function BrowserCredentialHandoffContent({
     reloadForm(false);
   }, [reloadForm]);
 
-  const ContentScrollView =
-    inSheet && !isWeb
-      ? ActionSheet.ScrollableContent
-      : SettingsContentScrollView;
+  const ContentScrollView = !isWeb
+    ? ActionSheet.ScrollableContent
+    : SettingsContentScrollView;
   return (
     <View
-      flex={inSheet ? undefined : 1}
-      backgroundColor={inSheet ? '$background' : '$secondaryBackground'}
+      {...(isWeb ? { flexShrink: 1, minHeight: 0 } : {})}
+      backgroundColor="$background"
     >
       {liveViewer?.handoffId === handoffId ? (
         <BrowserViewerModal viewerUrl={liveViewer.url} onClose={closeBrowser} />
       ) : null}
-      {!inSheet && (
-        <ScreenHeader
-          borderBottom
-          backAction={dismiss}
-          title={
-            approvingSavedLogin ? 'Approve sign-in' : 'Secure browser form'
-          }
-        />
-      )}
       <ContentScrollView
-        {...(inSheet ? { style: { flexGrow: 0, flexShrink: 1 } } : {})}
-        paddingHorizontal={inSheet ? '$xl' : '$l'}
-        paddingTop={inSheet && isWeb ? '$m' : '$l'}
-        {...(inSheet && isWeb ? { paddingBottom: '$xl' } : {})}
-        {...(!inSheet
-          ? { safeAreaBottomOffset: 24 }
-          : { keyboardShouldPersistTaps: 'handled' as const })}
+        style={{
+          flexGrow: 0,
+          flexShrink: 1,
+          ...(isWeb ? { flexBasis: 'auto' } : {}),
+        }}
+        paddingHorizontal="$xl"
+        paddingTop={isWeb ? '$m' : '$l'}
+        {...(isWeb ? { paddingBottom: '$xl' } : {})}
+        keyboardShouldPersistTaps="handled"
       >
         <YStack
           gap="$2xl"
           maxWidth={640}
           width="100%"
           alignSelf="center"
-          paddingHorizontal={inSheet && !isWeb ? '$xl' : 0}
-          paddingTop={inSheet && !isWeb ? '$xl' : 0}
+          paddingHorizontal={!isWeb ? '$xl' : 0}
+          paddingTop={!isWeb ? '$xl' : 0}
         >
           <YStack
             backgroundColor="$background"
             borderColor="$border"
-            borderWidth={inSheet ? 0 : 1}
+            borderWidth={0}
             borderRadius="$l"
-            padding={inSheet ? 0 : '$xl'}
-            $gtSm={{ padding: inSheet ? 0 : '$3xl' }}
+            padding={0}
             gap="$2xl"
           >
             {saveNotice ? (

@@ -30,7 +30,6 @@ export function BrowserCredentialHandoffSheet({
       {...params}
       open={open}
       onClose={onClose}
-      inSheet
     />
   );
 

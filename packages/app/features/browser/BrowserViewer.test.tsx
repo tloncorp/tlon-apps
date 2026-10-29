@@ -121,6 +121,32 @@ describe('embedded browser boundaries', () => {
     ]) {
       expect(navigate({ url })).toBe(false);
     }
+    for (const host of [
+      'kernel.sh',
+      'live.kernel.sh',
+      'onkernel.com',
+      'api.onkernel.com',
+    ]) {
+      expect(
+        navigate({
+          url: `https://${host}/browser/live/session`,
+          isTopFrame: false,
+        })
+      ).toBe(true);
+      expect(
+        navigate({
+          url: `https://${host}/browser/live/session`,
+          isTopFrame: true,
+        })
+      ).toBe(false);
+    }
+    for (const url of [
+      'https://evilkernel.sh/browser/live',
+      'https://onkernel.com.evil.example',
+      'http://live.kernel.sh/browser/live',
+    ]) {
+      expect(navigate({ url, isTopFrame: false })).toBe(false);
+    }
     act(() => renderer.unmount());
   });
   it('requests the CDP viewer on Android without replacing the signed capability', () => {

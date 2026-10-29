@@ -1,4 +1,3 @@
-import { getPathFromState } from '@react-navigation/core';
 import React, { useEffect } from 'react';
 import { type ReactTestRenderer, act, create } from 'react-test-renderer';
 import {
@@ -20,14 +19,12 @@ vi.mock('./BrowserCredentialHandoffSheet', () => ({
   BrowserCredentialHandoffSheet: 'BrowserCredentialHandoffSheet',
 }));
 
-const { navigate, navigateToGroup, platform, openWindow, showToast } =
-  vi.hoisted(() => ({
-    platform: { isWeb: false },
-    showToast: vi.fn(),
-    openWindow: vi.fn(),
-    navigate: vi.fn(),
-    navigateToGroup: vi.fn(),
-  }));
+const { navigateToGroup, platform, openWindow, showToast } = vi.hoisted(() => ({
+  platform: { isWeb: false },
+  showToast: vi.fn(),
+  openWindow: vi.fn(),
+  navigateToGroup: vi.fn(),
+}));
 vi.mock('./browserCredentialHandoff', async (original) => {
   const actual = await original<typeof import('./browserCredentialHandoff')>();
   return {
@@ -44,7 +41,6 @@ vi.mock('tamagui', () => ({
 }));
 vi.mock('../../navigation/utils', () => ({
   useRootNavigation: () => ({
-    navigateToBrowserCredentialHandoff: navigate,
     navigateToGroup,
   }),
 }));
@@ -59,7 +55,6 @@ vi.mock('./BrowserViewerModal', () => ({ BrowserViewerModal: () => null }));
 describe('browser handoff registry', () => {
   beforeEach(() => {
     platform.isWeb = false;
-    navigate.mockClear();
     showToast.mockClear();
     openWindow.mockClear();
     openWindow.mockReturnValue({
@@ -111,7 +106,6 @@ describe('browser handoff registry', () => {
     act(() => renderer.unmount());
   });
   it('opens a separate session card directly, without form navigation or continuation', async () => {
-    navigate.mockClear();
     let navigateA2UI!: ReturnType<typeof useA2UINavigation>;
     function Consumer() {
       const navigateToTarget = useA2UINavigation();
@@ -145,7 +139,6 @@ describe('browser handoff registry', () => {
     });
     const viewer = renderer.root.findByType(BrowserViewerModal);
     expect(viewer.props.viewerUrl).toBe(target.viewerUrl);
-    expect(navigate).not.toHaveBeenCalled();
     await act(async () => viewer.props.onClose());
     expect(renderer.root.findAllByType(BrowserViewerModal)).toHaveLength(0);
 
@@ -192,7 +185,6 @@ describe('browser handoff registry', () => {
     await expect(
       navigateA2UI(target, { allowBrowserCredentialHandoff: true })
     ).rejects.toThrow('provider is unavailable');
-    expect(navigate).not.toHaveBeenCalled();
     act(() => renderer.unmount());
   });
   it.each([
@@ -230,7 +222,6 @@ describe('browser handoff registry', () => {
         ...(loginApproval ? { loginApproval } : {}),
       } as const;
       await navigateA2UI(target);
-      expect(navigate).not.toHaveBeenCalled();
       await act(async () =>
         navigateA2UI(target, {
           allowBrowserCredentialHandoff: true,
@@ -239,13 +230,8 @@ describe('browser handoff registry', () => {
       const sheet = renderer.root.findByType(BrowserCredentialHandoffSheet);
       const handoffId = sheet.props.handoffId;
       expect(sheet.props.loginApproval).toEqual(loginApproval);
-      expect(navigate).not.toHaveBeenCalled();
-      const state = {
-        routes: [{ name: 'BrowserCredentialHandoff', params: { handoffId } }],
-      };
-      expect(getPathFromState(state)).toContain(handoffId);
-      expect(JSON.stringify(state)).not.toContain(viewerUrl);
-      expect(getPathFromState(state)).not.toContain('payload.signature');
+      expect(handoffId).not.toContain(viewerUrl);
+      expect(handoffId).not.toContain('payload.signature');
       expect(registry.resolve(handoffId)).toBe(viewerUrl);
       registry.discard(handoffId);
 

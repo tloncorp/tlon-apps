@@ -59,6 +59,13 @@ export function BrowserViewerModal({
             : status === 404 || status === 410
               ? 'ended'
               : 'unavailable';
+        closeSupported.current = false;
+        if (closePending.current !== null) {
+          clearTimeout(closePending.current);
+          closePending.current = null;
+          setClosing(false);
+          onCloseRef.current();
+        }
         setFailure(result);
         setLoading(false);
         void rememberBrowserPreview(sourceViewerUrl, { status: result });
@@ -84,7 +91,7 @@ export function BrowserViewerModal({
   const close = useCallback(() => {
     if (closePending.current !== null) return;
     // Older viewers release through their socket/pagehide cleanup on unmount.
-    if (!closeSupported.current) {
+    if (!closeSupported.current || !frame.current?.contentWindow) {
       onCloseRef.current();
       return;
     }

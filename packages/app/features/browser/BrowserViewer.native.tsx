@@ -200,7 +200,11 @@ export function BrowserViewer({
           const frameUrl = new URL(url);
           return (
             frameUrl.protocol === 'https:' &&
-            frameUrl.hostname.endsWith('.kernel.sh')
+            ['kernel.sh', 'onkernel.com'].some(
+              (host) =>
+                frameUrl.hostname === host ||
+                frameUrl.hostname.endsWith(`.${host}`)
+            )
           );
         }}
         onOpenWindow={() => {}}
