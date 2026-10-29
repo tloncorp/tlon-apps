@@ -1,3 +1,5 @@
+import { appendToPostBlob } from '@tloncorp/api/client/content-helpers';
+import { BrowserCardPresentationSchema } from '@tloncorp/api/client/browserCards';
 import { browserWalletCard } from '@tloncorp/api/client/browserWallet';
 import { convertContent } from '@tloncorp/api/client/postContent';
 
@@ -36,6 +38,9 @@ function makeDeps(ownerShip = '~owner') {
     setOrder: async () => {},
   };
   const deps: BrowserDeps = {
+    appendToPostBlob,
+    parseBrowserCardPresentation: (value) =>
+      BrowserCardPresentationSchema.parse(value),
     browserWalletCard,
     stdout: (text) => stdout.push(text),
     stderr: (text) => stderr.push(text),

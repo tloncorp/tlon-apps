@@ -5473,7 +5473,7 @@ describe('posts send attachments', () => {
 
   describe('--blob entry validation', () => {
     const KNOWN =
-      'Known types: file, voicememo, video, metadata, tlon-context-lens, tlon-agent-intro-request, tlon-agent-provision, tlon-agent-provider-config, tlon-agent-provision-ack, tlon-agent-post-marker, tlon-a2ui-selection, a2ui.';
+      'Known types: file, voicememo, video, metadata, tlon-context-lens, tlon-agent-intro-request, tlon-agent-provision, tlon-agent-provider-config, tlon-agent-provision-ack, tlon-agent-post-marker, tlon-a2ui-selection, a2ui, browser-session, browser-secure-entry.';
     const cases: Array<[string, string, string]> = [
       [
         'an unknown type',

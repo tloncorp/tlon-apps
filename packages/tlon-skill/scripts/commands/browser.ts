@@ -1,5 +1,5 @@
-import { appendToPostBlob } from '@tloncorp/api/client/content-helpers';
-import { BrowserCardPresentationSchema } from '@tloncorp/api/client/browserCards';
+import type { appendToPostBlob } from '@tloncorp/api/client/content-helpers';
+import type { BrowserCardPresentationSchema } from '@tloncorp/api/client/browserCards';
 import { z } from 'zod';
 import { validateBrowserViewerUrl } from '../browser-viewer';
 import { markdownToStory } from '../markdown';
@@ -53,6 +53,8 @@ export interface BrowserDeps extends Pick<
   PostsDeps,
   'stdout' | 'stderr' | 'authenticate' | 'getCurrentUserId' | 'now' | 'postsApi'
 > {
+  appendToPostBlob: typeof appendToPostBlob;
+  parseBrowserCardPresentation: typeof BrowserCardPresentationSchema.parse;
   browserWalletCard: (requestId: string, surfaceId: string) => unknown;
   getOwnerShip: () => string;
 }
@@ -102,7 +104,7 @@ export async function run(args: string[], deps: BrowserDeps): Promise<number> {
     const presentationIndex = args.indexOf('--presentation');
     if (presentationIndex !== -1) {
       try {
-        presentation = BrowserCardPresentationSchema.parse(
+        presentation = deps.parseBrowserCardPresentation(
           JSON.parse(args[presentationIndex + 1])
         );
       } catch {
@@ -165,7 +167,7 @@ export async function run(args: string[], deps: BrowserDeps): Promise<number> {
             ? 'Your bot needs approval to use a saved login. Review it in an updated Tlon app.'
             : 'Your bot needs secure input. Open the secure form in an updated Tlon app.'
       ),
-      blob: appendToPostBlob(
+      blob: deps.appendToPostBlob(
         undefined,
         sharing
           ? { type: 'browser-session', version: 1, viewerUrl }
