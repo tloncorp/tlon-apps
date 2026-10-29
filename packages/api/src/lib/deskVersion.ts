@@ -82,4 +82,4 @@ export const TASK_RUNS_MIN_GROUPS_VERSION = '12.5.0';
 export const STEWARD_BOTS_MIN_GROUPS_VERSION = '12.5.0';
 
 // Contacts removal history and conditional discovery prevent automatic re-adds.
-export const CONTACT_REMOVAL_MIN_GROUPS_VERSION = '12.5.1';
+export const CONTACT_REMOVAL_MIN_GROUPS_VERSION = '12.5.0';
