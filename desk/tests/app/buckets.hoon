@@ -2015,15 +2015,43 @@
     !>([status.ses reservation.ses awaiting.ses])
   !>([%cancelled ~ ~])
 ::
-::  A bucket or token we do not have is [~ ~], which Eyre serves as a 404.
-::  A bare ~ is a 500, and clients treat only a 404 as absent.
+::  While a call is out on a pending session only a cancel is admitted. A
+::  finish during the grant, a retry during a completion and a second finish
+::  during a completion are refused before anything is sent, as retryable,
+::  and the call that is out is left to answer.
 ::
-::  A retry still out when the receipt lands is refused by the broker, the
-::  reservation being complete. The refusal arrives on a completed session
-::  and changes nothing: the session stays complete, no cancel is sent, and
-::  the entry stays published.
+++  test-second-call-refused-while-one-is-out
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  grant=wire  b  (grant-call 0v1 'early.pdf')
+  =/  busy=response-body:bu
+    :^    %error  %unknown
+        'a storage call is already in flight on this upload'
+    `['in_flight' & ~ ~]
+  ;<  early=(list card)  b  (ask 0v2 [%bucket flag [%finish-upload seed]])
+  ;<  ~  b  (ex-cards early ~[(grant-fact 0v2 busy)])
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  ;<  ~  b  (ex-equal !>(awaiting.ses) !>(`(unit @uv)``0v1))
+  ;<  *  b  (do-arvo grant (iris-grant 'res-1' 'https://storage.example/put'))
+  ;<  *  b  (finish-call 0v3 seed)
+  ;<  again=(list card)  b  (ask 0v4 [%bucket flag [%retry-upload seed]])
+  ;<  ~  b  (ex-cards again ~[(grant-fact 0v4 busy)])
+  ;<  twice=(list card)  b  (ask 0v5 [%bucket flag [%finish-upload seed]])
+  ;<  ~  b  (ex-cards twice ~[(grant-fact 0v5 busy)])
+  ;<  ses2=upload-session:bu  b  (saved-session seed)
+  %+  ex-equal
+    !>([status.ses2 awaiting.ses2])
+  !>([%pending `0v3])
 ::
-++  test-late-retry-on-complete
+::  An answer that reaches a completed session changes nothing: a stale retry
+::  refusal leaves it complete and sends no cancel, and a second receipt does
+::  not create the entry twice or move the revision.
+::
+++  test-stale-answers-on-complete
   %-  eval-mare
   =/  m  (mare ,~)
   =*  b  bind:m
@@ -2033,49 +2061,23 @@
   ;<  *  b  (begun 0v1 'raced.pdf' 42)
   ;<  ses=upload-session:bu  b  (saved-session seed)
   ;<  done=wire  b  (finish-call 0v2 seed)
-  ;<  caz=(list card)  b  (ask 0v3 [%bucket flag [%retry-upload seed]])
-  =/  retry=[=wire =request:http]  (only-iris caz)
   ;<  *  b  (do-arvo done (receipt-for ses))
+  ;<  bs=bucket-state:bu  b  saved-bucket
   ;<  late=(list card)  b
-    %+  do-arvo  wire.retry
+    %+  do-arvo  /buckets/upload/(scot %uv seed)/retry
     %+  iris-json  409
     '{"code":"invalid_state","message":"reservation is complete","retryable":false}'
   ;<  ~  b  (ex-cards late ~)
+  ;<  again=(list card)  b  (do-arvo done (receipt-for ses))
+  ;<  ~  b  (ex-cards again ~)
   ;<  ses2=upload-session:bu  b  (saved-session seed)
-  ;<  bs=bucket-state:bu  b  saved-bucket
-  %+  ex-equal
-    !>([status.ses2 error.ses2 ~(wyt by entries.bs)])
-  !>([%complete ~ 1])
-::
-::  Two finishes out at once, both answered with the receipt. The first
-::  publishes; the second lands on a completed session and is only logged,
-::  so the entry is not created twice and the revision does not move.
-::
-++  test-late-complete-on-complete
-  %-  eval-mare
-  =/  m  (mare ,~)
-  =*  b  bind:m
-  ^-  form:m
-  ;<  ~  b  setup
-  ;<  ~  b  create
-  ;<  *  b  (begun 0v1 'twice.pdf' 42)
-  ;<  ses=upload-session:bu  b  (saved-session seed)
-  ;<  done=wire  b  (finish-call 0v2 seed)
-  ;<  caz=(list card)  b  (ask 0v3 [%bucket flag [%finish-upload seed]])
-  ;<  ~  b
-    %+  ex-cards  (answers caz)
-    :~  %+  grant-fact  0v2
-        [%error %unknown 'superseded by another request on this upload' ~]
-        (grant-fact 0v3 [%pending ~])
-    ==
-  ;<  *  b  (do-arvo done (receipt-for ses))
-  ;<  bs=bucket-state:bu  b  saved-bucket
-  ;<  late=(list card)  b  (do-arvo done (receipt-for ses))
-  ;<  ~  b  (ex-cards late ~)
   ;<  bs2=bucket-state:bu  b  saved-bucket
   %+  ex-equal
-    !>([revision.bs2 ~(wyt by entries.bs2)])
-  !>([revision.bs 1])
+    !>([status.ses2 error.ses2 revision.bs2 ~(wyt by entries.bs2)])
+  !>([%complete ~ revision.bs 1])
+::
+::  A bucket or token we do not have is [~ ~], which Eyre serves as a 404.
+::  A bare ~ is a 500, and clients treat only a 404 as absent.
 ::
 ++  test-missing-bucket-peeks-are-empty
   %-  eval-mare
@@ -3904,6 +3906,12 @@
     %+  ex-equal
       !>(wire:(only-iris fin))
     !>(/buckets/upload/[sid]/complete)
+  ::  A second call is refused while the first is out, so the completion is
+  ::  answered, refused but kept, before the retry is sent.
+  ;<  *  b
+    %+  do-arvo  wire:(only-iris fin)
+    %+  iris-json  503
+    '{"code":"storage_unavailable","message":"try later","retryable":true}'
   ;<  ret=(list card)  b  (http-post & (verb '0v3' 'retry-upload'))
   %+  ex-equal
     !>(wire:(only-iris ret))

@@ -1372,8 +1372,9 @@
   ::  uploader is told what the broker said and whether it is worth asking
   ::  again. A /cancel this agent sent on its own, from +up-fail, +up-late or
   ::  the prune, has no waiter and its answer only settles the session. On a
-  ::  cancelled session the waiter belongs to the cancel, so any other call's
-  ::  answer goes to +up-late instead.
+  ::  session that is no longer pending any answer but the cancel's own goes
+  ::  to +up-late instead: on a cancelled one the waiter belongs to the
+  ::  cancel, on a completed one nothing is owed.
   ::
   ++  up-take
     |=  [kind=?(%grant %retry %cancel %complete) res=client-response:iris]
@@ -1501,12 +1502,20 @@
 ::
 ::  The three session verbs differ only in what they then ask the broker, so
 ::  the checks they share live here rather than three times over. A pending
-::  session is open to all of them. A settled one admits a single verb: a
-::  finish may name a session that is already complete -- an uploader whose
-::  receipt was lost, asking for the outcome again -- and a cancel may name
-::  one that is already cancelled, because the broker may not have heard the
-::  first cancel. Hearing it twice is harmless: Memex answers a repeated
-::  cancel 200.
+::  session is open to all of them, except that while a call of ours is out
+::  on it only a cancel is admitted: a second finish or retry would put two
+::  calls in flight whose answers cannot be told apart from their wires, and
+::  the one that lands first would be paid to the other's request. The
+::  refusal is marked retryable, under a code of this agent's own, because
+::  the condition clears when the call answers: a client that sent a second
+::  finish after its own timeout should wait and ask again, not give the
+::  upload up and send the bytes a second time. A cancel is the uploader's
+::  last word and supersedes whatever is out. A settled session admits a
+::  single verb: a finish may name a session that is already complete -- an
+::  uploader whose receipt was lost, asking for the outcome again -- and a
+::  cancel may name one that is already cancelled, because the broker may
+::  not have heard the first cancel. Hearing it twice is harmless: Memex
+::  answers a repeated cancel 200.
 ::
 ++  uploader-session
   |=  [=flag:b sid=@uv actor=ship verb=?(%finish %retry %cancel)]
@@ -1518,7 +1527,13 @@
     [%| %error %not-found 'no such upload session' ~]
   ?.  =(requested-by.ses actor)
     [%| %error %not-authorized 'not the uploader' ~]
-  ?:  =(%pending status.ses)  [%& ses]
+  ?:  =(%pending status.ses)
+    ?:  &(?=(?(%finish %retry) verb) ?=(^ awaiting.ses))
+      :-  %|
+      :^    %error  %unknown
+          'a storage call is already in flight on this upload'
+      `['in_flight' & ~ ~]
+    [%& ses]
   ?:  &(?=(%finish verb) =(%complete status.ses))  [%& ses]
   ?:  &(?=(%cancel verb) =(%cancelled status.ses))  [%& ses]
   [%| %error %invalid-input 'upload session is not pending' ~]
@@ -1538,9 +1553,6 @@
   ::  Already published: the uploader lost the receipt, not the upload. The
   ::  entry is in the manifest, so there is nothing left to ask the broker.
   ?:  =(%complete status.ses)  (answer [%ok ~])
-  ::  Through +up-claim, which answers a waiter it displaces rather than
-  ::  dropping it, so a cancel arriving while this call is in flight leaves
-  ::  no request hanging for good.
   up-abet:up-finish:(up-claim:(up-abed:up-core sid) rid)
 ::
 ::  +retry-upload: another PUT URL for the same reservation.
