@@ -17,6 +17,7 @@ import {
   textContentType,
   textInputAutocapitalization,
 } from '@expo/ui/swift-ui/modifiers';
+import { useState } from 'react';
 import { InputFrame } from '../../ui/components/Form/inputs';
 import { useSettingsListColors } from '../../ui/components/SettingsList/useSettingsListColors';
 import { useSyncedFieldText } from '../../ui/components/SettingsList/useSyncedFieldText';
@@ -32,6 +33,7 @@ export function BrowserSecureTextInput({
   onChange,
   onSubmit,
 }: BrowserSecureTextInputProps) {
+  const [focused, setFocused] = useState(false);
   const colors = useSettingsListColors();
   const text = useNativeState(value);
   const onTextChange = useSyncedFieldText(text, value, onChange);
@@ -47,6 +49,10 @@ export function BrowserSecureTextInput({
   const props = {
     text,
     onTextChange,
+    // Concealment swaps the native field type. Give its replacement focus
+    // only if this field owned it, leaving other focused inputs alone.
+    autoFocus: focused,
+    onFocusChange: setFocused,
     maxLength: field.exactLength ?? field.maxLength,
     placeholder: field.exactLength
       ? `${field.exactLength} characters`
