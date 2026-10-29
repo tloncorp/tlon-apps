@@ -1911,6 +1911,7 @@ describe('model-facing identity guidance', () => {
         'use groups commands and groups create-owned'
       );
       for (const marker of [
+        "owner's own words in the current message",
         'groups create-owned "Name" --admin <your ship>',
         '--self groups create-owned "Name" --admin <owner>',
       ]) {
