@@ -54,7 +54,9 @@ Self-hosted installs without this environment variable are unaffected.
 
 While limited, enabled `cron` and `every` tasks are disabled with a visible
 `[Paused: credit budget]` description prefix. One-shot (`at`) and event-driven
-schedules are excluded. The owner receives one notice per budget episode:
+schedules are excluded. OpenClaw's system-owned monitor jobs (heartbeat, skill
+collection review) are left alone because core rejects client edits to them.
+The owner receives one notice per budget episode:
 “Your token credits are low. Your 3 scheduled tasks have been paused.” It includes
 an A2UI **Request credit increase** button. Failed delivery is retried.
 New or re-enabled recurring tasks are held as well. Already-running work is not
@@ -75,7 +77,8 @@ Deploy the matching tlonbot wrapper and plugin together. Before launching a
 gateway, the wrapper runs `dist/src/cron-budget-bootstrap.js` as the gateway
 user, after ensuring no old gateway is running. This applies holds through the
 public SDK's cron store API before the scheduler can catch up overdue tasks.
-The bootstrap must never run alongside a live gateway. Recovery is left to the
+It also removes a stale budget label from OpenClaw's system-owned monitor jobs,
+which the live API cannot edit. The bootstrap must never run alongside a live gateway. Recovery is left to the
 plugin's live API. A failed bootstrap prevents gateway launch rather than
 silently starting unprotected scheduled work.
 
