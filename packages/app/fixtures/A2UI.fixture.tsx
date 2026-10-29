@@ -20,6 +20,10 @@ import { group, tlonLocalIntros } from './fakeData';
 
 const dmChannelId = '~sampel-palnet';
 
+const sendMessage = (text: string) => ({
+  event: { name: 'tlon.sendMessage' as const, context: { text } },
+});
+
 const weatherA2UI: A2UI.BlobEntry = {
   type: 'a2ui',
   version: 1,
@@ -415,6 +419,362 @@ const groupApprovalA2UI = makeApprovalA2UI({
   requestId: 'g5f6a',
 });
 
+// Approval cards in the shape proposed in docs/tlon-apps/a2ui-approval-cards.md:
+// the same words as today's cards, regrouped, with optional rendering hints.
+type HintedSubject = {
+  requester: A2UI.TextEntity & { fallback: string };
+  lines?: string[];
+  message?: string;
+  meta?: string;
+  viewMessageTarget?: A2UI.NavigationTarget;
+};
+
+function hintedAnswerButtons(
+  prefix: string,
+  requestId: string,
+  results: { allow: string; reject: string; block: string }
+): A2UI.Component[] {
+  return [
+    {
+      id: `${prefix}ban`,
+      component: 'Button',
+      variant: 'borderless',
+      tone: 'destructive',
+      resultLabel: results.block,
+      statusLabel: 'Blocked',
+      child: 'banLabel',
+      action: sendMessage(`/ban ${requestId}`),
+    },
+    {
+      id: `${prefix}reject`,
+      component: 'Button',
+      resultLabel: results.reject,
+      statusLabel: 'Rejected',
+      child: 'rejectLabel',
+      action: sendMessage(`/reject ${requestId}`),
+    },
+    {
+      id: `${prefix}allow`,
+      component: 'Button',
+      variant: 'primary',
+      resultLabel: results.allow,
+      statusLabel: 'Allowed',
+      child: 'allowLabel',
+      action: sendMessage(`/allow ${requestId}`),
+    },
+  ];
+}
+
+const answerLabels: A2UI.Component[] = [
+  { id: 'allowLabel', component: 'Text', text: 'Allow' },
+  { id: 'rejectLabel', component: 'Text', text: 'Reject' },
+  { id: 'banLabel', component: 'Text', text: 'Block' },
+  { id: 'viewMessageLabel', component: 'Text', text: 'View message' },
+];
+
+function hintedSubjectComponents(
+  prefix: string,
+  subject: HintedSubject
+): { id: string; components: A2UI.Component[] } {
+  const { fallback, ...entity } = subject.requester;
+  const lines: A2UI.Component[] = (subject.lines ?? []).map((line, index) => ({
+    id: `${prefix}line${index}`,
+    component: 'Text',
+    variant: 'caption',
+    text: line,
+  }));
+  const message: A2UI.Component[] = subject.message
+    ? [{ id: `${prefix}message`, component: 'Text', text: subject.message }]
+    : [];
+  const metaChildren: string[] = [];
+  const meta: A2UI.Component[] = [];
+  if (subject.meta) {
+    metaChildren.push(`${prefix}metaText`);
+    meta.push({
+      id: `${prefix}metaText`,
+      component: 'Text',
+      variant: 'caption',
+      text: subject.meta,
+    });
+  }
+  if (subject.viewMessageTarget) {
+    metaChildren.push(`${prefix}view`);
+    meta.push({
+      id: `${prefix}view`,
+      component: 'Button',
+      variant: 'borderless',
+      child: 'viewMessageLabel',
+      action: {
+        event: {
+          name: 'tlon.navigate',
+          context: { target: subject.viewMessageTarget },
+        },
+      },
+    });
+  }
+  if (metaChildren.length) {
+    meta.unshift({
+      id: `${prefix}meta`,
+      component: 'Row',
+      justify: 'spaceBetween',
+      align: 'center',
+      children: metaChildren,
+    });
+  }
+  const children = [
+    `${prefix}requester`,
+    ...lines.map((component) => component.id),
+    ...message.map((component) => component.id),
+    ...(metaChildren.length ? [`${prefix}meta`] : []),
+  ];
+  return {
+    id: `${prefix}subject`,
+    components: [
+      {
+        id: `${prefix}subject`,
+        component: 'Card',
+        child: `${prefix}subjectBody`,
+      },
+      { id: `${prefix}subjectBody`, component: 'Column', children },
+      { id: `${prefix}requester`, component: 'Text', text: fallback, entity },
+      ...lines,
+      ...message,
+      ...meta,
+    ],
+  };
+}
+
+function makeHintedApprovalA2UI({
+  surfaceId,
+  kicker,
+  icon,
+  title,
+  subject,
+  note,
+  requestId,
+  results,
+}: {
+  surfaceId: string;
+  kicker: string;
+  icon: A2UI.KickerIcon;
+  title: string;
+  subject: HintedSubject;
+  note: string;
+  requestId: string;
+  results: { allow: string; reject: string; block: string };
+}): A2UI.BlobEntry {
+  const subjectParts = hintedSubjectComponents('', subject);
+  const entry = makeControlA2UI(surfaceId, [
+    { id: 'root', component: 'Card', child: 'body' },
+    {
+      id: 'body',
+      component: 'Column',
+      children: ['kicker', 'title', subjectParts.id, 'note', 'actions'],
+    },
+    { id: 'kicker', component: 'Text', role: 'kicker', icon, text: kicker },
+    { id: 'title', component: 'Text', variant: 'h3', text: title },
+    ...subjectParts.components,
+    { id: 'note', component: 'Text', variant: 'caption', text: note },
+    { id: 'actions', component: 'Row', children: ['ban', 'reject', 'allow'] },
+    ...hintedAnswerButtons('', requestId, results),
+    ...answerLabels,
+  ]);
+  return { ...entry, storyMode: 'fallback' };
+}
+
+const hintedDmA2UI = makeHintedApprovalA2UI({
+  surfaceId: 'hinted-dm-sampel',
+  kicker: 'DM access',
+  icon: 'AddPerson',
+  title: 'Allow Sam Palnet to DM the bot?',
+  subject: {
+    requester: {
+      type: 'ship',
+      id: '~sampel-palnet',
+      name: 'Sam Palnet',
+      fallback: 'Sam Palnet (~sampel-palnet)',
+    },
+    message: 'Hello, I would like to chat with your bot.',
+  },
+  note: 'The bot will be able to read and reply to future DMs from this user.',
+  requestId: 'da1b2',
+  results: {
+    allow: 'You allowed Sam Palnet to DM the bot.',
+    reject: "You rejected Sam Palnet's request.",
+    block: 'You blocked Sam Palnet.',
+  },
+});
+
+const hintedChannelA2UI = makeHintedApprovalA2UI({
+  surfaceId: 'hinted-channel-littel',
+  kicker: 'Channel access',
+  icon: 'Channel',
+  title: 'Let the bot reply to Littel Wolfur in Design?',
+  subject: {
+    requester: {
+      type: 'ship',
+      id: '~littel-wolfur',
+      name: 'Littel Wolfur',
+      fallback: 'Littel Wolfur (~littel-wolfur)',
+    },
+    message: '@bearclawd can you review this build before I merge?',
+    meta: 'Design · Garden Club',
+    viewMessageTarget: {
+      type: 'message',
+      channelId: 'chat/~zod/design',
+      postId: '170.141.184.621',
+      authorId: '~littel-wolfur',
+      groupId: '~zod/garden-club',
+    },
+  },
+  note: 'The bot will be able to read and reply to this user in this channel.',
+  requestId: 'c3d4e',
+  results: {
+    allow: 'You let the bot reply to Littel Wolfur in Design.',
+    reject: "You rejected Littel Wolfur's request.",
+    block: 'You blocked Littel Wolfur.',
+  },
+});
+
+const hintedGroupA2UI = makeHintedApprovalA2UI({
+  surfaceId: 'hinted-group-robin',
+  kicker: 'Group invite',
+  icon: 'ChannelMultiDM',
+  title: 'Let the bot join Garden Club?',
+  subject: {
+    requester: {
+      type: 'group',
+      id: '~robin-dasler/garden-club',
+      name: 'Garden Club',
+      fallback: 'Garden Club (~robin-dasler/garden-club)',
+    },
+    lines: ['Invited by Robin Dasler (~robin-dasler)'],
+  },
+  note: 'The bot will be able to read and respond in channels it joins.',
+  requestId: 'g5f6a',
+  results: {
+    allow: 'You let the bot join Garden Club.',
+    reject: 'You declined the invite to Garden Club.',
+    block: 'You blocked Robin Dasler.',
+  },
+});
+
+const hintedPendingA2UI: A2UI.BlobEntry = (() => {
+  const requests = [
+    {
+      prefix: 'item0',
+      requestId: 'da1b2',
+      subject: {
+        requester: {
+          type: 'ship',
+          id: '~nocsyx-lassul',
+          name: 'Nocsyx',
+          fallback: 'Nocsyx (~nocsyx-lassul) wants to DM the bot',
+        },
+        lines: ['wants to DM the bot'],
+        message: 'Can you help me find the launch notes?',
+      },
+      name: 'Nocsyx',
+    },
+    {
+      prefix: 'item1',
+      requestId: 'c3d4e',
+      subject: {
+        requester: {
+          type: 'ship',
+          id: '~littel-wolfur',
+          name: 'Littel Wolfur',
+          fallback:
+            'Littel Wolfur (~littel-wolfur) mentioned the bot in Design',
+        },
+        lines: ['mentioned the bot in Design'],
+        message: '@bot can you review this build before I merge?',
+        viewMessageTarget: {
+          type: 'message',
+          channelId: 'chat/~zod/design',
+          postId: '170.141.184.621',
+          authorId: '~littel-wolfur',
+          groupId: '~zod/garden-club',
+        },
+      },
+      name: 'Littel Wolfur',
+    },
+  ] as const satisfies readonly {
+    prefix: string;
+    requestId: string;
+    subject: HintedSubject;
+    name: string;
+  }[];
+  const components: A2UI.Component[] = [
+    { id: 'root', component: 'Card', child: 'body' },
+    {
+      id: 'body',
+      component: 'Column',
+      children: [
+        'header',
+        'title',
+        ...requests.map((r) => `${r.prefix}subject`),
+      ],
+    },
+    {
+      id: 'header',
+      component: 'Row',
+      justify: 'spaceBetween',
+      align: 'center',
+      children: ['kicker', 'status'],
+    },
+    {
+      id: 'kicker',
+      component: 'Text',
+      role: 'kicker',
+      icon: 'Mail',
+      text: 'Pending requests',
+    },
+    { id: 'status', component: 'Text', role: 'status', text: '2 waiting' },
+    {
+      id: 'title',
+      component: 'Text',
+      variant: 'h3',
+      text: '2 approval requests',
+    },
+    ...answerLabels,
+  ];
+  for (const request of requests) {
+    const parts = hintedSubjectComponents(request.prefix, {
+      ...request.subject,
+      requester: { ...request.subject.requester },
+      lines: [...request.subject.lines],
+    });
+    const body = parts.components.find(
+      (component) => component.id === `${request.prefix}subjectBody`
+    );
+    if (body?.component === 'Column') {
+      body.children.push(`${request.prefix}actions`);
+    }
+    components.push(
+      ...parts.components,
+      {
+        id: `${request.prefix}actions`,
+        component: 'Row',
+        children: [
+          `${request.prefix}ban`,
+          `${request.prefix}reject`,
+          `${request.prefix}allow`,
+        ],
+      },
+      ...hintedAnswerButtons(request.prefix, request.requestId, {
+        allow: `You allowed ${request.name}.`,
+        reject: `You rejected ${request.name}'s request.`,
+        block: `You blocked ${request.name}.`,
+      })
+    );
+  }
+  return {
+    ...makeControlA2UI('hinted-pending', components),
+    storyMode: 'fallback',
+  };
+})();
+
 const basicComponentsA2UI: A2UI.BlobEntry = {
   type: 'a2ui',
   version: 1,
@@ -663,10 +1023,6 @@ function makeControlA2UI(
   };
 }
 
-const sendMessage = (text: string) => ({
-  event: { name: 'tlon.sendMessage' as const, context: { text } },
-});
-
 const smallChoiceA2UI = makeControlA2UI('fixture-small-choice', [
   {
     id: 'root',
@@ -842,6 +1198,27 @@ function ServicesFixture() {
   );
 }
 
+const hintedPost = (blob: A2UI.BlobEntry, story: string) =>
+  makePost(exampleContacts.groupAdmin, [verse.inline(story)], {
+    blob: appendToPostBlob(undefined, blob),
+    channelId: dmChannelId,
+    replyCount: 0,
+  });
+
+const hintedDmPost = hintedPost(
+  hintedDmA2UI,
+  'DM request from Sam Palnet (~sampel-palnet)'
+);
+const hintedChannelPost = hintedPost(
+  hintedChannelA2UI,
+  'Channel mention request from Littel Wolfur (~littel-wolfur)'
+);
+const hintedGroupPost = hintedPost(
+  hintedGroupA2UI,
+  'Group invite request from Robin Dasler (~robin-dasler)'
+);
+const hintedPendingPost = hintedPost(hintedPendingA2UI, 'Pending requests (2)');
+
 const smallChoicePost = makePost(
   exampleContacts.mark,
   [verse.inline('Which part of AI agent tooling should I follow?')],
@@ -937,6 +1314,10 @@ const examplePosts = [
   confirmationPost,
   channelApprovalPost,
   groupApprovalPost,
+  hintedDmPost,
+  hintedChannelPost,
+  hintedGroupPost,
+  hintedPendingPost,
   smallChoicePost,
   singleChoicePost,
   choicePost,
@@ -1035,6 +1416,10 @@ export default {
   BasicComponents: () => <A2UIFixture post={basicComponentsPost} />,
   Weather: () => <A2UIFixture post={weatherPost} />,
   ConfirmationDialog: () => <A2UIFixture post={confirmationPost} />,
+  ApprovalDM: () => <A2UIFixture post={hintedDmPost} />,
+  ApprovalChannel: () => <A2UIFixture post={hintedChannelPost} />,
+  ApprovalGroup: () => <A2UIFixture post={hintedGroupPost} />,
+  PendingRequests: () => <A2UIFixture post={hintedPendingPost} />,
   SmallChoice: () => <A2UIFixture post={smallChoicePost} />,
   SingleChoice: () => <A2UIFixture post={singleChoicePost} />,
   Choice: () => <A2UIFixture post={choicePost} />,

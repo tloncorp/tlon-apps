@@ -1,4 +1,4 @@
-import { Button, Icon, LoadingSpinner } from '@tloncorp/ui';
+import { Button, Icon, LoadingSpinner, Text } from '@tloncorp/ui';
 import type { ComponentProps, ReactNode } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
@@ -209,5 +209,79 @@ export function A2UICardButton({
         </Button.Text>
       )}
     </Button.Frame>
+  );
+}
+
+/** How a card's answer reads: the primary choice, another one, or a block. */
+export type A2UIResultTone = 'positive' | 'neutral' | 'destructive';
+
+function resultColors(tone: A2UIResultTone | undefined) {
+  switch (tone) {
+    case 'positive':
+      return {
+        background: '$positiveBackground',
+        foreground: '$positiveActionText',
+      } as const;
+    case 'destructive':
+      return {
+        background: '$negativeBackground',
+        foreground: '$negativeActionText',
+      } as const;
+    default:
+      return {
+        background: '$secondaryBackground',
+        foreground: '$primaryText',
+      } as const;
+  }
+}
+
+/** A card's state beside its kicker, such as "2 waiting" or "Allowed". */
+export function A2UIStatusText({
+  label,
+  tone,
+}: {
+  label: string;
+  tone?: A2UIResultTone;
+}) {
+  const color = tone ? resultColors(tone).foreground : '$secondaryText';
+  return (
+    <Text size="$label/m" fontWeight="500" color={color} flexShrink={0}>
+      {label}
+    </Text>
+  );
+}
+
+/** Takes the place of a card's button row once one of its buttons is used. */
+export function A2UIResultLine({
+  label,
+  tone,
+}: {
+  label: string;
+  tone: A2UIResultTone;
+}) {
+  const { background, foreground } = resultColors(tone);
+  return (
+    <XStack
+      marginTop="$xl"
+      gap="$m"
+      alignItems="center"
+      paddingVertical="$l"
+      paddingHorizontal="$xl"
+      borderRadius="$l"
+      backgroundColor={background}
+      accessible
+      accessibilityLabel={label}
+    >
+      <Icon type="Checkmark" color={foreground} customSize={[16, 16]} />
+      <Text
+        size="$label/l"
+        color={foreground}
+        trimmed={false}
+        flex={1}
+        {...A2UI_TEXT_BREAKING}
+      >
+        {label}
+      </Text>
+    </XStack>
   );
 }

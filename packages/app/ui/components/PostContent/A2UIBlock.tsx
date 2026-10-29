@@ -19,12 +19,16 @@ import { useConversationScrollEndAnchor } from '../../contexts/scroll';
 import { ActionSheet } from '../ActionSheet';
 import { resolveAgentProvisionButtonLabel } from '../ChatMessage/agentProvision';
 import { TextInput } from '../Form';
+import { A2UI_ENTITY_INDENT, A2UIEntityRow } from './A2UIEntityRow';
 import { A2UIMenuRow } from './A2UIMenuRow';
 import { shouldDismissKeyboardForChoice } from './a2uiActionConsumption';
 import {
   A2UICardButton,
   A2UIChoiceIndicator,
   A2UIOptionCard,
+  A2UIResultLine,
+  type A2UIResultTone,
+  A2UIStatusText,
   A2UI_CARD_PADDING,
   A2UI_CARD_PADDING_TOP,
   A2UI_CARD_RADIUS,
@@ -48,8 +52,25 @@ import { McpConnectControl } from './McpConnectControl';
 import { useContentContext } from './contentUtils';
 import { useOneShotAction } from './useOneShotAction';
 
+/** A used button's result, shown in place of its card's button row. */
+type CardAnswer = {
+  buttonId: string;
+  resultLabel?: string;
+  statusLabel?: string;
+  tone: A2UIResultTone;
+};
+
+/** What a card's own components (not those of cards inside it) carry. */
+type CardScope = {
+  answer?: CardAnswer;
+  hasStatusText: boolean;
+};
+
 type RenderOptions = {
+  /** Text right after a person or group row lines up under the name. */
+  alignUnderEntity?: boolean;
   cardDepth?: number;
+  cardScope?: CardScope;
   /** Space above this component, from its column's rhythm. */
   spacingTop?: number;
   /** A button sharing a row of buttons takes an equal width. */
@@ -731,6 +752,77 @@ function hasButtonChild(
   );
 }
 
+function collectCardScope(
+  childId: string,
+  components: Map<string, A2UI.Component>,
+  isButtonUsed: (component: A2UI.Button) => boolean
+): CardScope {
+  let answer: CardAnswer | undefined;
+  let hasStatusText = false;
+  const visit = (id: string, depth: number) => {
+    const component = components.get(id);
+    if (!component || depth > 8) return;
+    switch (component.component) {
+      case 'Row':
+      case 'Column':
+        component.children.forEach((child) => visit(child, depth + 1));
+        return;
+      case 'Text':
+        if (A2UI.getTextHints(component).role === 'status') {
+          hasStatusText = true;
+        }
+        return;
+      case 'Button': {
+        if (answer || !isButtonUsed(component)) return;
+        const hints = A2UI.getButtonHints(component);
+        if (!hints.resultLabel && !hints.statusLabel) return;
+        answer = {
+          buttonId: component.id,
+          resultLabel: hints.resultLabel,
+          statusLabel: hints.statusLabel,
+          tone:
+            hints.tone === 'destructive'
+              ? 'destructive'
+              : isPrimaryButton(component)
+                ? 'positive'
+                : 'neutral',
+        };
+        return;
+      }
+      // A nested card answers for itself.
+      default:
+        return;
+    }
+  };
+  visit(childId, 0);
+  return { answer, hasStatusText };
+}
+
+function isPlainText(component: A2UI.Component | undefined) {
+  if (component?.component !== 'Text') return false;
+  const hints = A2UI.getTextHints(component);
+  return !hints.entity && !hints.role;
+}
+
+/**
+ * Whether a column child is plain text in a run that starts right after a
+ * person or group row, such as the reason and message under a requester.
+ */
+function followsEntityRow(
+  children: string[],
+  index: number,
+  components: Map<string, A2UI.Component>
+) {
+  if (!isPlainText(components.get(children[index]))) return false;
+  for (let previous = index - 1; previous >= 0; previous -= 1) {
+    const component = components.get(children[previous]);
+    if (component?.component !== 'Text') return false;
+    if (A2UI.getTextHints(component).entity) return true;
+    if (!isPlainText(component)) return false;
+  }
+  return false;
+}
+
 function isPrimaryButton(component: A2UI.Button) {
   return (
     component.variant === 'primary' ||
@@ -1122,6 +1214,20 @@ export function A2UIBlock({
     surfaceId,
   ]);
 
+  const isButtonUsed = useCallback(
+    (component: A2UI.Button) =>
+      isConsumableA2UIAction(component.action) &&
+      (locallyConsumedComponentIds.includes(component.id) ||
+        Boolean(getConsumedA2UISelection?.(surfaceId, component.id)) ||
+        isA2UIActionConsumed?.(component.action) === true),
+    [
+      getConsumedA2UISelection,
+      isA2UIActionConsumed,
+      locallyConsumedComponentIds,
+      surfaceId,
+    ]
+  );
+
   const renderComponent = useCallback(
     (id: string, options: RenderOptions = {}): React.ReactNode => {
       const component = components.get(id);
@@ -1131,6 +1237,64 @@ export function A2UIBlock({
 
       switch (component.component) {
         case 'Text': {
+          const hints = A2UI.getTextHints(component);
+          const answer = options.cardScope?.answer;
+          if (hints.entity) {
+            return (
+              <A2UIEntityRow
+                key={component.id}
+                entity={hints.entity}
+                fallbackText={component.text}
+              />
+            );
+          }
+          if (hints.role === 'kicker') {
+            // A card with no status of its own shows its answer's status here.
+            const status =
+              answer?.statusLabel && !options.cardScope?.hasStatusText
+                ? answer
+                : undefined;
+            return (
+              <XStack
+                key={component.id}
+                alignItems="center"
+                gap="$xs"
+                flex={getComponentFlex(component)}
+              >
+                {hints.icon ? (
+                  <Icon
+                    type={hints.icon}
+                    color="$secondaryText"
+                    customSize={[14, 14]}
+                  />
+                ) : null}
+                <Text
+                  size="$label/m"
+                  fontWeight="500"
+                  color="$secondaryText"
+                  flex={status ? 1 : undefined}
+                  {...A2UI_TEXT_BREAKING}
+                >
+                  {component.text}
+                </Text>
+                {status?.statusLabel ? (
+                  <A2UIStatusText
+                    label={status.statusLabel}
+                    tone={status.tone}
+                  />
+                ) : null}
+              </XStack>
+            );
+          }
+          if (hints.role === 'status') {
+            return (
+              <A2UIStatusText
+                key={component.id}
+                label={answer?.statusLabel ?? component.text}
+                tone={answer?.statusLabel ? answer.tone : undefined}
+              />
+            );
+          }
           return (
             <Text
               key={component.id}
@@ -1141,6 +1305,9 @@ export function A2UIBlock({
               textAlign={getTextAlign(options.parentAlign)}
               flex={getComponentFlex(component)}
               marginTop={options.spacingTop}
+              marginLeft={
+                options.alignUnderEntity ? A2UI_ENTITY_INDENT : undefined
+              }
               {...A2UI_TEXT_BREAKING}
             >
               {component.text}
@@ -1166,6 +1333,20 @@ export function A2UIBlock({
                 return Number(aPrimary) - Number(bPrimary);
               })
             : component.children;
+          const answer = options.cardScope?.answer;
+          if (
+            buttonFooter &&
+            answer?.resultLabel &&
+            component.children.includes(answer.buttonId)
+          ) {
+            return (
+              <A2UIResultLine
+                key={component.id}
+                label={answer.resultLabel}
+                tone={answer.tone}
+              />
+            );
+          }
           return (
             <XStack
               key={component.id}
@@ -1183,6 +1364,7 @@ export function A2UIBlock({
               {children.map((child, index) =>
                 renderComponent(child, {
                   cardDepth: options.cardDepth,
+                  cardScope: options.cardScope,
                   fillRow: buttonFooter,
                   parentAlign: component.align,
                   standaloneControlTopMargin:
@@ -1209,7 +1391,13 @@ export function A2UIBlock({
             >
               {component.children.map((child, index) =>
                 renderComponent(child, {
+                  alignUnderEntity: followsEntityRow(
+                    component.children,
+                    index,
+                    components
+                  ),
                   cardDepth: options.cardDepth,
+                  cardScope: options.cardScope,
                   parentAlign: component.align,
                   spacingTop: getStackSpacing(
                     index > 0
@@ -1254,6 +1442,11 @@ export function A2UIBlock({
             >
               {renderComponent(component.child, {
                 cardDepth: (options.cardDepth ?? 0) + 1,
+                cardScope: collectCardScope(
+                  component.child,
+                  components,
+                  isButtonUsed
+                ),
               })}
             </YStack>
           );
@@ -1273,11 +1466,9 @@ export function A2UIBlock({
           const actionCanBeConsumed = isConsumableA2UIAction(component.action);
           const consumptionPending =
             actionCanBeConsumed && areA2UISelectionsPending;
-          const actionConsumed =
-            actionCanBeConsumed &&
-            (locallyConsumedComponentIds.includes(component.id) ||
-              Boolean(getConsumedA2UISelection?.(surfaceId, component.id)) ||
-              isA2UIActionConsumed?.(component.action) === true);
+          const actionConsumed = isButtonUsed(component);
+          const destructive =
+            A2UI.getButtonHints(component).tone === 'destructive';
           const disabled =
             pendingButtonIds.includes(component.id) ||
             actionConsumed ||
@@ -1305,6 +1496,44 @@ export function A2UIBlock({
             options.fillRow && component.weight === undefined
           );
           const inInnerCard = (options.cardDepth ?? 0) >= 2;
+          if (component.variant === 'borderless' && !options.fillRow) {
+            // On its own, a borderless button is a quiet link, such as
+            // "View message" on a request's footer line.
+            const linkColor = destructive
+              ? '$negativeActionText'
+              : '$primaryText';
+            return (
+              <Pressable
+                key={component.id}
+                accessibilityRole="button"
+                accessibilityLabel={visibleLabel}
+                accessibilityState={{ disabled }}
+                testID={`A2UIButton-${component.id}`}
+                disabled={disabled}
+                onPress={
+                  disabled ? undefined : () => handleButtonPress(component)
+                }
+              >
+                <XStack
+                  alignItems="center"
+                  gap="$2xs"
+                  minHeight={32}
+                  opacity={disabled ? 0.5 : 1}
+                >
+                  <Text size="$label/m" fontWeight="500" color={linkColor}>
+                    {visibleLabel}
+                  </Text>
+                  {component.action.event.name === A2UI.action.navigate ? (
+                    <Icon
+                      type="ChevronRight"
+                      color={linkColor}
+                      customSize={[12, 12]}
+                    />
+                  ) : null}
+                </XStack>
+              </Pressable>
+            );
+          }
           return (
             <Button.Frame
               key={component.id}
@@ -1356,6 +1585,7 @@ export function A2UIBlock({
                 size="medium"
                 {...A2UI_TYPE.labelStrong}
                 numberOfLines={fillsRow ? 1 : undefined}
+                {...(destructive ? { color: '$negativeActionText' } : null)}
               >
                 {visibleLabel}
               </Button.Text>
@@ -1621,7 +1851,7 @@ export function A2UIBlock({
       handleSmallChoiceSubmit,
       isA2UIActionAvailable,
       isA2UIActionConsumed,
-      locallyConsumedComponentIds,
+      isButtonUsed,
       locallyConsumedChoices,
       pendingButtonIds,
       onA2UIAction,

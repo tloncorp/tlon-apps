@@ -137,8 +137,11 @@ Definitions and validation helpers live in `packages/api/src/client/a2ui.ts`; th
 | ---------- | ------------------ |
 | `type`     | `'a2ui'`           |
 | `version`  | `1`                |
-| `messages` | `A2UI.Message[]`   |
-| `recipe`   | `unknown` optional |
+| `messages`  | `A2UI.Message[]`        |
+| `recipe`    | `unknown` optional      |
+| `storyMode` | `'fallback'` optional   |
+
+With `storyMode: 'fallback'`, the post's text is a fallback for clients that can't draw the card, and is hidden under a rendered card.
 
 The current renderer expects one `createSurface` message and one `updateComponents` message in the entry. The `updateComponents` message describes the component tree rendered for that post. It does not update surfaces in previous messages or elsewhere in message history.
 
@@ -152,6 +155,29 @@ The supported v1 client subset is intentionally small:
     - message reply targets should include `parentAuthorId` when `parentId` is not already prefixed as `~author/id`
 - rendering policy: A2UI blocks render only in direct messages for now
 - validation limits: component count, tree depth, text length, and expanded render size
+
+#### Rendering hints
+
+Optional fields that tell newer apps how to draw a component. Older apps strip
+them and draw the component as before, so every hinted component keeps
+readable text. Each hint parses leniently: a value an app doesn't know drops
+that hint, never the card. The renderer reads components from the raw message,
+so it reads hints only through `A2UI.getTextHints` and `A2UI.getButtonHints`.
+Hints count toward the text budget.
+
+| field | on | values | drawn as |
+| --- | --- | --- | --- |
+| `role` | `Text` | `'kicker'`, `'status'` | Kicker: the card's kind at its top. Status: the card's state beside it. |
+| `icon` | `Text` with `role: 'kicker'` | `AddPerson`, `Channel`, `ChannelMultiDM`, `ChannelNotebooks`, `Clock`, `Link`, `Lock`, `Mail` | An icon before the kicker. |
+| `entity` | `Text` | `{ type: 'ship' \| 'group', id, name? }` | A person or group row from the app's own contacts or group preview; `name` is used when the app has nothing better. Plain text right after a person or group row lines up under the name. |
+| `tone` | `Button` | `'destructive'` | A red label. |
+| `resultLabel` | `Button` | string | Once the button is used, replaces its card's button row. |
+| `statusLabel` | `Button` | string | Once the button is used, shown as its card's status. |
+
+A nested `Card` draws as a bordered inner card. A card's answer is scoped to
+the buttons of that card, not of cards inside it, so each request in a list
+answers on its own. See `docs/tlon-apps/a2ui-approval-cards.md` for how the
+approval and pending-request cards use these.
 
 `McpConnect` is a client-populated menu rather than bot-authored provider data.
 The blob supplies only bounded presentation labels and three validated actions:
