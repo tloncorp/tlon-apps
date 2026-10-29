@@ -33,7 +33,7 @@ vi.mock('../Form', () => ({ TextInput: 'TextInput' }));
 vi.mock('./A2UIMenuRow', () => ({ A2UIMenuRow: 'A2UIMenuRow' }));
 vi.mock('./A2UIEntityRow', () => ({
   A2UIEntityRow: 'A2UIEntityRow',
-  A2UI_ENTITY_INDENT: 44,
+  getA2UIEntityIndent: () => 46,
 }));
 vi.mock('./McpConnectControl', () => ({
   McpConnectControl: 'McpConnectControl',
@@ -180,7 +180,7 @@ it('draws the kicker icon, the person row and a red Block', async () => {
   });
   expect(
     texts().find((node) => node.text === 'Hello there.')?.props.marginLeft
-  ).toBe(44);
+  ).toBe(46);
   const buttonTexts = renderer.root.findAllByType('ButtonText' as never);
   expect(buttonTexts.map((node) => node.children.join(''))).toEqual([
     'Block',
@@ -211,4 +211,112 @@ it('uses the destructive tone when Block was the answer', async () => {
   );
   expect(result?.props.color).toBe('$negativeActionText');
   expect(texts().find((node) => node.text === 'Blocked')).toBeDefined();
+});
+
+function requestBlock(subjectChildren: string[]): A2UIBlockData {
+  return {
+    type: 'a2ui',
+    a2ui: {
+      type: 'a2ui',
+      version: 1,
+      messages: [
+        {
+          version: 'v0.9',
+          createSurface: { surfaceId: 'req', catalogId: 'tlon.a2ui.basic.v1' },
+        },
+        {
+          version: 'v0.9',
+          updateComponents: {
+            surfaceId: 'req',
+            root: 'root',
+            components: [
+              { id: 'root', component: 'Card', child: 'body' },
+              { id: 'body', component: 'Column', children: ['subject'] },
+              { id: 'subject', component: 'Card', child: 'subjectBody' },
+              {
+                id: 'subjectBody',
+                component: 'Column',
+                children: subjectChildren,
+              },
+              {
+                id: 'requester',
+                component: 'Text',
+                text: 'Nocsyx (~nocsyx-lassul)',
+                entity: { type: 'ship', id: '~nocsyx-lassul' },
+              },
+              {
+                id: 'reason',
+                component: 'Text',
+                variant: 'caption',
+                text: 'wants to DM the bot',
+              },
+              { id: 'message', component: 'Text', text: 'Hi there.' },
+              {
+                id: 'meta',
+                component: 'Row',
+                children: ['metaText'],
+              },
+              {
+                id: 'metaText',
+                component: 'Text',
+                variant: 'caption',
+                text: 'Design · Garden Club',
+              },
+              { id: 'actions', component: 'Row', children: ['no', 'yes'] },
+              {
+                id: 'no',
+                component: 'Button',
+                child: 'noLabel',
+                action: send('/reject 2'),
+              },
+              {
+                id: 'yes',
+                component: 'Button',
+                variant: 'primary',
+                child: 'yesLabel',
+                action: send('/allow 2'),
+              },
+              { id: 'noLabel', component: 'Text', text: 'Reject' },
+              { id: 'yesLabel', component: 'Text', text: 'Allow' },
+            ],
+          },
+        },
+      ],
+    },
+  };
+}
+
+it('joins a caption after a person row to its handle line', async () => {
+  await act(async () => {
+    renderer = create(
+      <A2UIBlock
+        block={requestBlock(['requester', 'reason', 'message', 'actions'])}
+      />
+    );
+  });
+  expect(
+    renderer.root.findByType('A2UIEntityRow' as never).props
+  ).toMatchObject({ compact: true, detail: 'wants to DM the bot' });
+  expect(texts().map((node) => node.text)).not.toContain('wants to DM the bot');
+  const message = texts().find((node) => node.text === 'Hi there.');
+  expect(message?.props.marginTop).toBe(6);
+});
+
+it('draws the last row of an inner card as a footer line', async () => {
+  await act(async () => {
+    renderer = create(
+      <A2UIBlock block={requestBlock(['requester', 'message', 'meta'])} />
+    );
+  });
+  const footer = renderer.root
+    .findAllByType('XStack' as never)
+    .find((node) => node.props.borderTopWidth === 1);
+  expect(footer?.props).toMatchObject({
+    marginTop: 12,
+    marginHorizontal: -14,
+    paddingTop: 10,
+  });
+  expect(renderer.root.findByType('A2UIEntityRow' as never).props.compact).toBe(
+    false
+  );
 });

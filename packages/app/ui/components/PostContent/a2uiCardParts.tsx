@@ -51,6 +51,10 @@ export const A2UI_SPACE = {
   beforeInnerButtons: 12,
   /** Between inner cards, such as pending requests. */
   betweenInnerCards: 10,
+  /** A person or group row to the text under it. */
+  afterEntity: 6,
+  /** Before a link such as "View message". */
+  beforeLink: 8,
 };
 
 /**
@@ -245,7 +249,13 @@ export function A2UIStatusText({
 }) {
   const color = tone ? resultColors(tone).foreground : '$secondaryText';
   return (
-    <Text size="$label/m" fontWeight="500" color={color} flexShrink={0}>
+    <Text
+      size="$label/m"
+      {...A2UI_TYPE.kicker}
+      color={color}
+      trimmed={false}
+      flexShrink={0}
+    >
       {label}
     </Text>
   );
@@ -254,27 +264,30 @@ export function A2UIStatusText({
 /** Takes the place of a card's button row once one of its buttons is used. */
 export function A2UIResultLine({
   label,
+  marginTop,
   tone,
 }: {
   label: string;
+  marginTop?: number;
   tone: A2UIResultTone;
 }) {
   const { background, foreground } = resultColors(tone);
   return (
     <XStack
-      marginTop="$xl"
-      gap="$m"
+      marginTop={marginTop}
+      gap={10}
       alignItems="center"
-      paddingVertical="$l"
-      paddingHorizontal="$xl"
-      borderRadius="$l"
+      paddingVertical={12}
+      paddingHorizontal={14}
+      borderRadius={12}
       backgroundColor={background}
       accessible
       accessibilityLabel={label}
     >
-      <Icon type="Checkmark" color={foreground} customSize={[16, 16]} />
+      <Icon type="Checkmark" color={foreground} customSize={[18, 18]} />
       <Text
         size="$label/l"
+        {...A2UI_TYPE.label}
         color={foreground}
         trimmed={false}
         flex={1}

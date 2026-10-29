@@ -30,7 +30,7 @@ vi.mock('../Form', () => ({ TextInput: 'TextInput' }));
 vi.mock('./A2UIMenuRow', () => ({ A2UIMenuRow: 'A2UIMenuRow' }));
 vi.mock('./A2UIEntityRow', () => ({
   A2UIEntityRow: 'A2UIEntityRow',
-  A2UI_ENTITY_INDENT: 44,
+  getA2UIEntityIndent: () => 46,
 }));
 vi.mock('./McpConnectControl', () => ({
   McpConnectControl: 'McpConnectControl',

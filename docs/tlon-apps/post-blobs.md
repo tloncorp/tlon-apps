@@ -169,12 +169,13 @@ Hints count toward the text budget.
 | --- | --- | --- | --- |
 | `role` | `Text` | `'kicker'`, `'status'` | Kicker: the card's kind at its top. Status: the card's state beside it. |
 | `icon` | `Text` with `role: 'kicker'` | `AddPerson`, `Channel`, `ChannelMultiDM`, `ChannelNotebooks`, `Clock`, `Link`, `Lock`, `Mail` | An icon before the kicker. |
-| `entity` | `Text` | `{ type: 'ship' \| 'group', id, name? }` | A person or group row from the app's own contacts or group preview; `name` is used when the app has nothing better. Plain text right after a person or group row lines up under the name. |
+| `entity` | `Text` | `{ type: 'ship' \| 'group', id, name? }` | A person or group row from the app's own contacts or group preview; `name` is used when the app has nothing better. A caption right after the row joins its handle line; other plain text after it lines up under the name. |
 | `tone` | `Button` | `'destructive'` | A red label. |
 | `resultLabel` | `Button` | string | Once the button is used, replaces its card's button row. |
 | `statusLabel` | `Button` | string | Once the button is used, shown as its card's status. |
 
-A nested `Card` draws as a bordered inner card. A card's answer is scoped to
+A nested `Card` draws as a bordered inner card. Its last child, when that is a
+`Row` other than a row of buttons, is a footer line under a hairline. A card's answer is scoped to
 the buttons of that card, not of cards inside it, so each request in a list
 answers on its own. See `docs/tlon-apps/a2ui-approval-cards.md` for how the
 approval and pending-request cards use these.

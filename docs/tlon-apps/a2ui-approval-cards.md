@@ -38,7 +38,13 @@ Two things need no new fields:
 - **The inner card is a nested `Card`.** The new renderer already draws one as a bordered inner card. Old apps draw it as their own nested card (white, bordered), which reads fine.
 - **The one-line post text** ("DM request from Sam Palnet (~sampel-palnet)") is hidden under a rendered card when the blob sets `storyMode: 'fallback'`, which the app already supports. Neither bot sets it for approvals today.
 
-One renderer rule: in a `Column`, plain `Text` that follows an `entity` row (directly, or after other plain text) lines up under the name rather than under the avatar. A borderless `Button` that is not in a row of buttons draws as a small text link, which is how "View message" sits on the footer line.
+Renderer rules, all inside a `Column`:
+
+- Plain `Text` that follows an `entity` row (directly, or after other plain text) lines up under the name rather than under the avatar.
+- A caption right after an `entity` row joins that row's handle line ("~nocsyx-lassul wants to DM the bot"). Old apps show it as its own line.
+- The last child of an inner card, when it is a `Row` that isn't a row of buttons, is a footer line under a hairline that runs across the card.
+- An inner card that holds its own buttons, like one pending request, draws its person row with a smaller avatar.
+- A borderless `Button` that is not in a row of buttons draws as a small text link, which is how "View message" sits on the footer line.
 
 ## Card shapes
 
@@ -61,8 +67,8 @@ Card root
 ```
 
 - **Channel access:** the subject card adds a `Row` with a caption (`Design · Garden Club`) and the borderless "View message" button, when the bot has a link target.
-- **Group invite:** the subject card holds a group `entity` Text (`id` is the flag, `name` the title) and a caption ("Invited by Robin Dasler (~robin-dasler)").
-- **Pending requests:** a kicker `Row` with `Text role:kicker icon:Mail "Pending requests"` and `Text role:status "2 waiting"`, the h3 title, then one nested `Card` per request: the requester `entity` Text (its fallback text carries the reason, "Sam Palnet (~sampel-palnet) wants to DM the bot"), the message, View message where the bot has a target, and the request's own button row. Separate cards replace today's dividers. At the four-request maximum this is about 47 components, inside the limit of 50 (today's tree is 48).
+- **Group invite:** the subject card holds a group `entity` Text (`id` is the flag, `name` the title) and a footer `Row` with a caption ("Invited by Robin Dasler (~robin-dasler)").
+- **Pending requests:** a kicker `Row` with `Text role:kicker icon:Mail "Pending requests"` and `Text role:status "2 waiting"`, the h3 title, then one nested `Card` per request: the requester `entity` Text ("Sam Palnet (~sampel-palnet)"), a caption with the reason ("wants to DM the bot"), the message, View message where the bot has a target, and the request's own button row. Separate cards replace today's dividers. At the four-request maximum this is about 47 components, inside the limit of 50 (today's tree is 48).
 
 Old apps show each of these as today's cards with the same words, a little regrouped: the requester line and message sit in a white inner box, and "Sender:" and "Message:" labels are gone.
 

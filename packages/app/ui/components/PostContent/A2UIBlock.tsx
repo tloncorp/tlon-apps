@@ -19,7 +19,7 @@ import { useConversationScrollEndAnchor } from '../../contexts/scroll';
 import { ActionSheet } from '../ActionSheet';
 import { resolveAgentProvisionButtonLabel } from '../ChatMessage/agentProvision';
 import { TextInput } from '../Form';
-import { A2UI_ENTITY_INDENT, A2UIEntityRow } from './A2UIEntityRow';
+import { A2UIEntityRow, getA2UIEntityIndent } from './A2UIEntityRow';
 import { A2UIMenuRow } from './A2UIMenuRow';
 import { shouldDismissKeyboardForChoice } from './a2uiActionConsumption';
 import {
@@ -71,6 +71,12 @@ type RenderOptions = {
   alignUnderEntity?: boolean;
   cardDepth?: number;
   cardScope?: CardScope;
+  /** A request that holds its own answers draws its person row smaller. */
+  compactEntity?: boolean;
+  /** A caption joined to a person or group row's handle line. */
+  entityDetail?: string;
+  /** The last row of an inner card: a footer line under a hairline. */
+  footerLine?: boolean;
   /** Space above this component, from its column's rhythm. */
   spacingTop?: number;
   /** A button sharing a row of buttons takes an equal width. */
@@ -697,6 +703,62 @@ function isButtonRow(
   );
 }
 
+/** A line of text, or a row holding only text, such as a kicker and status. */
+function isTextLine(
+  component: A2UI.Component,
+  components: Map<string, A2UI.Component>
+) {
+  if (component.component === 'Text') return true;
+  return (
+    component.component === 'Row' &&
+    component.children.every(
+      (child) => components.get(child)?.component === 'Text'
+    )
+  );
+}
+
+/** A row holding only borderless buttons, which draw as links. */
+function isLinkRow(
+  component: A2UI.Component | undefined,
+  components: Map<string, A2UI.Component>
+) {
+  return (
+    component?.component === 'Row' &&
+    component.children.length > 0 &&
+    component.children.every((child) => {
+      const button = components.get(child);
+      return button?.component === 'Button' && button.variant === 'borderless';
+    })
+  );
+}
+
+/**
+ * Captions that sit right after a person or group row join that row's handle
+ * line, such as "wants to DM the bot" in a pending request.
+ */
+function getEntityDetails(
+  children: string[],
+  components: Map<string, A2UI.Component>
+) {
+  const details = new Map<string, string>();
+  const joined = new Set<string>();
+  children.forEach((id, index) => {
+    const component = components.get(id);
+    const next = components.get(children[index + 1]);
+    if (
+      component?.component === 'Text' &&
+      A2UI.getTextHints(component).entity &&
+      next?.component === 'Text' &&
+      next.variant === 'caption' &&
+      isPlainText(next)
+    ) {
+      details.set(id, next.text);
+      joined.add(next.id);
+    }
+  });
+  return { details, joined };
+}
+
 /** Space above a column child, following the design's rhythm. */
 function getStackSpacing(
   previous: A2UI.Component | undefined,
@@ -710,11 +772,19 @@ function getStackSpacing(
       ? A2UI_SPACE.beforeInnerButtons
       : A2UI_SPACE.beforeButtons;
   }
-  // A short line before a heading is its kicker.
-  if (isHeading(current) && previous.component === 'Text') {
+  // A short line, or a row of them, before a heading is its kicker.
+  if (isHeading(current) && isTextLine(previous, components)) {
     return A2UI_SPACE.afterKicker;
   }
   if (isHeading(previous)) return A2UI_SPACE.afterTitle;
+  if (isLinkRow(current, components)) return A2UI_SPACE.beforeLink;
+  if (
+    previous.component === 'Text' &&
+    A2UI.getTextHints(previous).entity &&
+    current.component === 'Text'
+  ) {
+    return A2UI_SPACE.afterEntity;
+  }
   if (previous.component === 'Card' && current.component === 'Card') {
     return A2UI_SPACE.betweenInnerCards;
   }
@@ -813,9 +883,11 @@ function followsEntityRow(
   index: number,
   components: Map<string, A2UI.Component>
 ) {
-  if (!isPlainText(components.get(children[index]))) return false;
+  const current = components.get(children[index]);
+  if (!isPlainText(current) && !isLinkRow(current, components)) return false;
   for (let previous = index - 1; previous >= 0; previous -= 1) {
     const component = components.get(children[previous]);
+    if (isLinkRow(component, components)) continue;
     if (component?.component !== 'Text') return false;
     if (A2UI.getTextHints(component).entity) return true;
     if (!isPlainText(component)) return false;
@@ -1243,8 +1315,11 @@ export function A2UIBlock({
             return (
               <A2UIEntityRow
                 key={component.id}
+                compact={options.compactEntity}
+                detail={options.entityDetail}
                 entity={hints.entity}
                 fallbackText={component.text}
+                marginTop={options.spacingTop}
               />
             );
           }
@@ -1258,8 +1333,9 @@ export function A2UIBlock({
               <XStack
                 key={component.id}
                 alignItems="center"
-                gap="$xs"
+                gap={6}
                 flex={getComponentFlex(component)}
+                marginTop={options.spacingTop}
               >
                 {hints.icon ? (
                   <Icon
@@ -1270,8 +1346,9 @@ export function A2UIBlock({
                 ) : null}
                 <Text
                   size="$label/m"
-                  fontWeight="500"
+                  {...A2UI_TYPE.kicker}
                   color="$secondaryText"
+                  trimmed={false}
                   flex={status ? 1 : undefined}
                   {...A2UI_TEXT_BREAKING}
                 >
@@ -1306,7 +1383,9 @@ export function A2UIBlock({
               flex={getComponentFlex(component)}
               marginTop={options.spacingTop}
               marginLeft={
-                options.alignUnderEntity ? A2UI_ENTITY_INDENT : undefined
+                options.alignUnderEntity
+                  ? getA2UIEntityIndent(options.compactEntity)
+                  : undefined
               }
               {...A2UI_TEXT_BREAKING}
             >
@@ -1343,6 +1422,7 @@ export function A2UIBlock({
               <A2UIResultLine
                 key={component.id}
                 label={answer.resultLabel}
+                marginTop={options.spacingTop}
                 tone={answer.tone}
               />
             );
@@ -1355,10 +1435,30 @@ export function A2UIBlock({
                 options.spacingTop ??
                 (hasButtonChild(component, components) ? 16 : undefined)
               }
+              marginLeft={
+                options.alignUnderEntity
+                  ? getA2UIEntityIndent(options.compactEntity)
+                  : undefined
+              }
+              // A footer line runs edge to edge across its inner card.
+              {...(options.footerLine
+                ? {
+                    marginHorizontal: -A2UI_INNER_CARD.paddingX,
+                    paddingTop: 10,
+                    paddingHorizontal: A2UI_INNER_CARD.paddingX,
+                    borderTopWidth: 1,
+                    borderTopColor: '$border',
+                  }
+                : null)}
               alignItems={getAlignItems(component.align)}
               justifyContent={getJustifyContent(component.justify)}
               flexWrap={buttonFooter ? 'nowrap' : 'wrap'}
-              width="100%"
+              // An offset row stretches to what is left rather than overflowing.
+              width={
+                options.footerLine || options.alignUnderEntity
+                  ? undefined
+                  : '100%'
+              }
               flex={getComponentFlex(component)}
             >
               {children.map((child, index) =>
@@ -1381,6 +1481,23 @@ export function A2UIBlock({
           // Spacing comes from each child's place in the design's rhythm,
           // not one gap for the whole column.
           const inInnerCard = (options.cardDepth ?? 0) >= 2;
+          const { details, joined } = getEntityDetails(
+            component.children,
+            components
+          );
+          const shown = component.children.filter(
+            (child) => !joined.has(child)
+          );
+          const lastChild = components.get(shown[shown.length - 1]);
+          const hasFooterLine =
+            inInnerCard &&
+            lastChild?.component === 'Row' &&
+            !isButtonRow(lastChild, components);
+          const compactEntity =
+            inInnerCard &&
+            shown.some((child) =>
+              isButtonRow(components.get(child), components)
+            );
           return (
             <YStack
               key={component.id}
@@ -1389,20 +1506,21 @@ export function A2UIBlock({
               flex={getComponentFlex(component)}
               marginTop={options.spacingTop}
             >
-              {component.children.map((child, index) =>
+              {shown.map((child, index) =>
                 renderComponent(child, {
                   alignUnderEntity: followsEntityRow(
                     component.children,
-                    index,
+                    component.children.indexOf(child),
                     components
                   ),
                   cardDepth: options.cardDepth,
                   cardScope: options.cardScope,
+                  compactEntity,
+                  entityDetail: details.get(child),
+                  footerLine: hasFooterLine && index === shown.length - 1,
                   parentAlign: component.align,
                   spacingTop: getStackSpacing(
-                    index > 0
-                      ? components.get(component.children[index - 1])
-                      : undefined,
+                    index > 0 ? components.get(shown[index - 1]) : undefined,
                     components.get(child),
                     components,
                     inInnerCard
@@ -1510,17 +1628,24 @@ export function A2UIBlock({
                 accessibilityState={{ disabled }}
                 testID={`A2UIButton-${component.id}`}
                 disabled={disabled}
+                marginTop={options.spacingTop}
+                // The link is one 18 px line; the touch area is a full 44.
+                hitSlop={{ top: 13, bottom: 13, left: 8, right: 8 }}
                 onPress={
                   disabled ? undefined : () => handleButtonPress(component)
                 }
               >
                 <XStack
                   alignItems="center"
-                  gap="$2xs"
-                  minHeight={32}
+                  gap={4}
                   opacity={disabled ? 0.5 : 1}
                 >
-                  <Text size="$label/m" fontWeight="500" color={linkColor}>
+                  <Text
+                    size="$label/m"
+                    {...A2UI_TYPE.noteStrong}
+                    color={linkColor}
+                    trimmed={false}
+                  >
                     {visibleLabel}
                   </Text>
                   {component.action.event.name === A2UI.action.navigate ? (
