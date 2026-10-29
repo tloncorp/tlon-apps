@@ -22,6 +22,16 @@ import { TextInput } from '../Form';
 import { A2UIMenuRow } from './A2UIMenuRow';
 import { shouldDismissKeyboardForChoice } from './a2uiActionConsumption';
 import {
+  A2UICardButton,
+  A2UIChoiceIndicator,
+  A2UIOptionCard,
+  A2UI_CARD_PADDING,
+  A2UI_CARD_RADIUS,
+  A2UI_OPTION_ROW_HEIGHT,
+  A2UI_TEXT_BREAKING,
+  getA2UICardButtonStyle,
+} from './a2uiCardParts';
+import {
   AGENT_TASK_PLAN_AUTO_PROVISION_COMPONENT_ID,
   claimAutomaticProvisionRetry,
   clearFailedAutomaticProvision,
@@ -35,6 +45,8 @@ import { useOneShotAction } from './useOneShotAction';
 
 type RenderOptions = {
   cardDepth?: number;
+  /** A button sharing a row of buttons takes an equal width. */
+  fillRow?: boolean;
   parentAlign?: A2UI.Container['align'];
   standaloneControlTopMargin?: boolean;
 };
@@ -59,9 +71,6 @@ const CHOICE_ACCENT_COLORS: Record<
 // Cardless choice controls sit alongside ordinary chat text inside the same
 // A2UI post. Keep that outer rhythm identical around cards and pill groups.
 const CHOICE_CONTROL_OUTER_MARGIN = 15;
-function smallChoiceShortcut(index: number) {
-  return String.fromCharCode(65 + index);
-}
 
 function isConsumableA2UIAction(action: A2UI.ButtonAction) {
   return (
@@ -115,27 +124,26 @@ function SmallChoiceRow({
   accessibilityRole,
   accessibilityValue,
   disabled,
+  indicator = 'circle',
   isLast,
   isSelected,
   label,
   onPress,
-  shortcut,
   testID,
 }: {
   accessibilityRole?: ComponentProps<typeof A2UIMenuRow>['accessibilityRole'];
   accessibilityValue?: ComponentProps<typeof A2UIMenuRow>['accessibilityValue'];
   disabled: boolean;
+  /** A circle when one answer is allowed, a square when several are. */
+  indicator?: 'circle' | 'square';
   isLast: boolean;
   isSelected: boolean;
   label: string;
   onPress: () => void;
-  shortcut: string;
   testID: string;
 }) {
   // Tamagui's compiler can drop inline ternaries on token-valued props.
-  const shortcutFill = isSelected ? '$primaryText' : '$secondaryBackground';
-  const shortcutLabel = isSelected ? '$background' : '$secondaryText';
-
+  const fill = isSelected ? '$secondaryBackground' : '$background';
   return (
     <A2UIMenuRow
       testID={testID}
@@ -146,31 +154,14 @@ function SmallChoiceRow({
       disabled={disabled}
       onPress={onPress}
       dividerAfter={!isLast}
-      dividerOutside
       dimmed={disabled && !isSelected}
+      backgroundColor={fill}
       label={label}
       labelCanWrap
+      labelWeight={isSelected ? '500' : undefined}
+      minHeight={A2UI_OPTION_ROW_HEIGHT}
       paddingVertical="$m"
-      leading={
-        <View
-          width={28}
-          height={28}
-          borderRadius="$s"
-          backgroundColor={shortcutFill}
-          alignItems="center"
-          justifyContent="center"
-          flexShrink={0}
-        >
-          <Text size="$label/s" color={shortcutLabel} trimmed={false}>
-            {shortcut}
-          </Text>
-        </View>
-      }
-      trailing={
-        isSelected ? (
-          <Icon type="Checkmark" color="$primaryText" customSize={[16, 16]} />
-        ) : null
-      }
+      leading={<A2UIChoiceIndicator selected={isSelected} shape={indicator} />}
     />
   );
 }
@@ -359,7 +350,6 @@ function SmallChoiceControl({
     ? completedCustomTopics
     : customTopics;
   const displayedCustomTopicSummary = displayedCustomTopics.join(', ');
-  const hasSelection = hasValidSelection;
 
   const openCustomInput = useCallback(() => {
     if (oneShot.isLocked()) {
@@ -458,48 +448,45 @@ function SmallChoiceControl({
     [oneShot]
   );
 
-  return (
-    <>
-      <YStack
-        width="100%"
-        padding="$m"
-        gap="$m"
-        borderRadius="$xl"
-        backgroundColor="$secondaryBackground"
-      >
-        <YStack
-          width="100%"
-          borderWidth={1}
-          borderColor="$border"
-          borderRadius="$m"
-          overflow="hidden"
-        >
-          {component.options.map((option, index) => {
-            const isSelected = completed
-              ? completedOptionLabels.has(option.label)
-              : selectedIds.includes(option.id);
-            const isLast = index === component.options.length - 1;
-            return (
-              <SmallChoiceRow
-                key={option.id}
-                testID={`A2UISmallChoice-${option.id}`}
-                label={option.label}
-                shortcut={smallChoiceShortcut(index)}
-                accessibilityRole={isSingleSelect ? 'radio' : undefined}
-                accessibilityValue={
-                  isSingleSelect
-                    ? { text: isSelected ? 'Selected' : 'Not selected' }
-                    : undefined
-                }
-                isSelected={isSelected}
-                isLast={isLast}
-                disabled={disabled}
-                onPress={() => toggle(option.id)}
-              />
-            );
-          })}
-        </YStack>
-        {component.freeTextPlaceholder || displayedCustomTopics.length ? (
+  const hasCustomRow = Boolean(
+    component.freeTextPlaceholder || displayedCustomTopics.length
+  );
+  const card = (
+    <A2UIOptionCard
+      footer={
+        <A2UICardButton
+          testID="A2UISmallChoiceSubmit"
+          tone="primary"
+          label={component.submitLabel}
+          disabled={submitDisabled}
+          onPress={handleSubmit}
+        />
+      }
+    >
+      <YStack width="100%">
+        {component.options.map((option, index) => {
+          const isSelected = completed
+            ? completedOptionLabels.has(option.label)
+            : selectedIds.includes(option.id);
+          return (
+            <SmallChoiceRow
+              key={option.id}
+              indicator={isSingleSelect ? 'circle' : 'square'}
+              testID={`A2UISmallChoice-${option.id}`}
+              label={option.label}
+              accessibilityRole={isSingleSelect ? 'radio' : 'checkbox'}
+              accessibilityValue={{
+                text: isSelected ? 'Selected' : 'Not selected',
+              }}
+              isSelected={isSelected}
+              // The custom row sits below the last option when there is one.
+              isLast={!hasCustomRow && index === component.options.length - 1}
+              disabled={disabled}
+              onPress={() => toggle(option.id)}
+            />
+          );
+        })}
+        {hasCustomRow ? (
           <A2UIMenuRow
             testID="A2UISmallChoiceCustom"
             accessibilityLabel={
@@ -510,8 +497,10 @@ function SmallChoiceControl({
             accessibilityState={{ disabled }}
             disabled={disabled}
             onPress={openCustomInput}
-            bordered
             dimmed={disabled && !displayedCustomTopics.length}
+            backgroundColor={
+              displayedCustomTopics.length ? '$secondaryBackground' : undefined
+            }
             label={
               displayedCustomTopics.length
                 ? displayedCustomTopicSummary
@@ -521,63 +510,40 @@ function SmallChoiceControl({
             labelColor={
               displayedCustomTopics.length ? '$primaryText' : '$secondaryText'
             }
+            labelWeight={displayedCustomTopics.length ? '500' : undefined}
+            minHeight={A2UI_OPTION_ROW_HEIGHT}
+            paddingVertical="$m"
             leading={
-              <View
-                width={28}
-                height={28}
-                borderRadius="$s"
-                backgroundColor={
-                  displayedCustomTopics.length
-                    ? '$primaryText'
-                    : '$secondaryBackground'
-                }
-                alignItems="center"
-                justifyContent="center"
-                flexShrink={0}
-              >
-                {displayedCustomTopics.length ? (
-                  <Text size="$label/s" color="$background" trimmed={false}>
-                    {smallChoiceShortcut(component.options.length)}
-                  </Text>
-                ) : (
+              displayedCustomTopics.length ? (
+                <A2UIChoiceIndicator
+                  selected
+                  shape={isSingleSelect ? 'circle' : 'square'}
+                />
+              ) : (
+                <View
+                  width={20}
+                  height={20}
+                  alignItems="center"
+                  justifyContent="center"
+                  flexShrink={0}
+                >
                   <Icon
                     type="Add"
                     color="$secondaryText"
-                    customSize={[14, 14]}
+                    customSize={[16, 16]}
                   />
-                )}
-              </View>
-            }
-            trailing={
-              displayedCustomTopics.length ? (
-                <Icon
-                  type="Checkmark"
-                  color="$primaryText"
-                  customSize={[16, 16]}
-                />
-              ) : null
+                </View>
+              )
             }
           />
         ) : null}
-        <A2UIMenuRow
-          testID="A2UISmallChoiceSubmit"
-          accessibilityLabel={component.submitLabel}
-          accessibilityState={{ disabled: submitDisabled }}
-          disabled={submitDisabled}
-          onPress={handleSubmit}
-          bordered
-          dimmed={submitDisabled}
-          prominent={hasSelection}
-          label={component.submitLabel}
-          trailing={
-            <Icon
-              type="ChevronRight"
-              color={hasSelection ? '$background' : '$primaryText'}
-              customSize={[16, 16]}
-            />
-          }
-        />
       </YStack>
+    </A2UIOptionCard>
+  );
+
+  return (
+    <>
+      {card}
       {component.freeTextPlaceholder ? (
         <ActionSheet
           moveOnKeyboardChange
@@ -661,13 +627,17 @@ function SmallChoiceControl({
 }
 
 function getTextSize(component: A2UI.Text) {
+  // One title size for every heading level below h1, 17 medium; h5 reads as
+  // an emphasised label.
   switch (component.variant) {
     case 'h1':
       return '$title/l';
     case 'h2':
-      return '$label/xl';
     case 'h3':
-      return '$label/xl';
+    case 'h4':
+      return '$label/2xl';
+    case 'h5':
+      return '$label/l';
     case 'caption':
       return '$label/m';
     default:
@@ -703,18 +673,23 @@ function hasButtonChild(
   );
 }
 
-function getButtonTreatment(component: A2UI.Button) {
-  if (component.action.event.name === A2UI.action.requestCreditIncrease) {
-    return { fill: 'solid', intent: 'primary' } as const;
-  }
-  switch (component.variant) {
-    case 'primary':
-      return { fill: 'solid', intent: 'positive' } as const;
-    case 'secondary':
-    case 'borderless':
-    default:
-      return { fill: 'outline', intent: 'secondary' } as const;
-  }
+function isPrimaryButton(component: A2UI.Button) {
+  return (
+    component.variant === 'primary' ||
+    component.action.event.name === A2UI.action.requestCreditIncrease
+  );
+}
+
+function getButtonTreatment(component: A2UI.Button, inButtonRow: boolean) {
+  // Buttons sharing a row all get a surface, so a borderless answer such as
+  // Block reads as one of the choices rather than a stray link.
+  return getA2UICardButtonStyle(
+    isPrimaryButton(component)
+      ? 'primary'
+      : component.variant === 'borderless' && !inButtonRow
+        ? 'borderless'
+        : 'secondary'
+  );
 }
 
 function getJustifyContent(justify?: A2UI.Container['justify']) {
@@ -1103,41 +1078,62 @@ export function A2UIBlock({
               key={component.id}
               size={getTextSize(component)}
               color={getTextColor(component)}
+              fontWeight={component.variant === 'h5' ? '500' : undefined}
               textAlign={getTextAlign(options.parentAlign)}
               flex={getComponentFlex(component)}
+              {...A2UI_TEXT_BREAKING}
             >
               {component.text}
             </Text>
           );
         }
-        case 'Row':
+        case 'Row': {
+          // A row made only of buttons is a footer. The buttons share the
+          // width equally, with the primary one last.
+          const buttonFooter =
+            component.children.length > 1 &&
+            component.children.every(
+              (child) => components.get(child)?.component === 'Button'
+            );
+          const children = buttonFooter
+            ? [...component.children].sort((a, b) => {
+                const aButton = components.get(a);
+                const bButton = components.get(b);
+                const aPrimary =
+                  aButton?.component === 'Button' && isPrimaryButton(aButton);
+                const bPrimary =
+                  bButton?.component === 'Button' && isPrimaryButton(bButton);
+                return Number(aPrimary) - Number(bPrimary);
+              })
+            : component.children;
           return (
             <XStack
               key={component.id}
-              gap={getComponentGap(component, components)}
+              gap={buttonFooter ? '$m' : getComponentGap(component, components)}
               marginTop={
-                hasButtonChild(component, components) ? '$l' : undefined
+                hasButtonChild(component, components) ? '$xl' : undefined
               }
               alignItems={getAlignItems(component.align)}
               justifyContent={getJustifyContent(component.justify)}
-              flexWrap="wrap"
+              flexWrap={buttonFooter ? 'nowrap' : 'wrap'}
               width="100%"
               flex={getComponentFlex(component)}
             >
-              {component.children.map((child, index) =>
+              {children.map((child, index) =>
                 renderComponent(child, {
                   cardDepth: options.cardDepth,
+                  fillRow: buttonFooter,
                   parentAlign: component.align,
                   standaloneControlTopMargin:
                     !options.cardDepth &&
                     index > 0 &&
-                    components.get(component.children[index - 1])?.component ===
-                      'Text' &&
+                    components.get(children[index - 1])?.component === 'Text' &&
                     components.get(child)?.component === 'Button',
                 })
               )}
             </XStack>
           );
+        }
         case 'Column': {
           return (
             <YStack
@@ -1158,20 +1154,21 @@ export function A2UIBlock({
         }
         case 'Card': {
           const isNestedCard = Boolean(options.cardDepth);
+          // One white surface with a hairline edge. A nested card is the
+          // bordered inner card holding what a request is about.
           return (
             <YStack
               key={component.id}
               borderWidth={1}
               borderColor="$border"
-              borderRadius="$m"
-              backgroundColor={
-                isNestedCard ? '$background' : '$secondaryBackground'
-              }
-              padding={isNestedCard ? '$2xl' : '$l'}
-              gap={isNestedCard ? '$l' : '$m'}
+              borderRadius={isNestedCard ? '$xl' : A2UI_CARD_RADIUS}
+              backgroundColor="$background"
+              paddingHorizontal={isNestedCard ? '$xl' : A2UI_CARD_PADDING}
+              paddingVertical={isNestedCard ? '$l' : A2UI_CARD_PADDING}
+              gap="$m"
               flex={getComponentFlex(component)}
-              width={isNestedCard ? '100%' : undefined}
-              alignSelf={isNestedCard ? 'stretch' : 'flex-start'}
+              width="100%"
+              alignSelf="stretch"
               overflow="hidden"
             >
               {renderComponent(component.child, {
@@ -1211,7 +1208,10 @@ export function A2UIBlock({
             actionConsumed && component.consumedLabel
               ? component.consumedLabel
               : getComponentText(components.get(component.child), components);
-          const treatment = getButtonTreatment(component);
+          const treatment = getButtonTreatment(
+            component,
+            Boolean(options.fillRow)
+          );
           const visibleLabel =
             component.action.event.name === A2UI.action.provisionAgent
               ? resolveAgentProvisionButtonLabel(
@@ -1220,14 +1220,27 @@ export function A2UIBlock({
                   actionConsumed
                 )
               : label;
+          const fillsRow = Boolean(
+            options.fillRow && component.weight === undefined
+          );
           return (
             <Button.Frame
               key={component.id}
               size="medium"
               fill={treatment.fill}
               intent={treatment.intent}
+              {...(treatment.surface
+                ? {
+                    backgroundColor: treatment.surface,
+                    borderColor: treatment.surface,
+                  }
+                : null)}
               alignSelf={
-                options.parentAlign === 'center' ? 'center' : 'flex-start'
+                fillsRow
+                  ? 'stretch'
+                  : options.parentAlign === 'center'
+                    ? 'center'
+                    : 'flex-start'
               }
               marginTop={
                 component.action.event.name ===
@@ -1238,8 +1251,8 @@ export function A2UIBlock({
                     : undefined
               }
               height={44}
-              paddingHorizontal="$xl"
-              flex={getComponentFlex(component)}
+              paddingHorizontal={fillsRow ? '$m' : '$xl'}
+              flex={fillsRow ? 1 : getComponentFlex(component)}
               opacity={actionConsumed ? 0.5 : 1}
               pointerEvents={actionConsumed ? 'none' : 'auto'}
               accessibilityElementsHidden={false}
@@ -1253,7 +1266,12 @@ export function A2UIBlock({
                 disabled ? undefined : () => handleButtonPress(component)
               }
             >
-              <Button.Text size="medium">{visibleLabel}</Button.Text>
+              <Button.Text
+                size="medium"
+                numberOfLines={fillsRow ? 1 : undefined}
+              >
+                {visibleLabel}
+              </Button.Text>
             </Button.Frame>
           );
         }
@@ -1311,7 +1329,6 @@ export function A2UIBlock({
                   key={option.id}
                   testID={`A2UIChoice-${option.id}`}
                   label={option.label}
-                  shortcut={smallChoiceShortcut(index)}
                   isSelected={isSelected}
                   isLast={isLast}
                   disabled={disabled}
@@ -1321,6 +1338,8 @@ export function A2UIBlock({
                 />
               );
             }
+            // Several options are rows in one card; a single option is a
+            // card of its own.
             return (
               <Pressable
                 key={option.id}
@@ -1340,17 +1359,17 @@ export function A2UIBlock({
                 }
               >
                 <XStack
-                  minHeight={grouped ? 68 : undefined}
+                  minHeight={A2UI_OPTION_ROW_HEIGHT}
                   borderWidth={grouped ? 0 : accentedCard ? 2 : 1}
-                  borderBottomWidth={grouped && !isLast ? 1 : undefined}
+                  borderBottomWidth={grouped ? (isLast ? 0 : 1) : undefined}
                   borderColor={accentedCard ? accent.strong : '$border'}
                   borderBottomColor="$border"
-                  borderRadius={grouped ? 0 : '$xl'}
+                  borderRadius={grouped ? 0 : A2UI_CARD_RADIUS}
                   backgroundColor="$background"
-                  paddingVertical={grouped ? '$m' : '$l'}
-                  paddingHorizontal={grouped ? '$m' : '$l'}
+                  paddingVertical="$l"
+                  paddingHorizontal="$xl"
                   gap="$m"
-                  alignItems="flex-start"
+                  alignItems="center"
                   opacity={disabled && !isSelected ? 0.5 : 1}
                 >
                   {option.icon ? (
@@ -1370,8 +1389,13 @@ export function A2UIBlock({
                       />
                     </View>
                   ) : null}
-                  <YStack flex={1} minWidth={0} gap="$2xs">
-                    <Text size="$label/l" fontWeight="500" trimmed={false}>
+                  <YStack flex={1} minWidth={0}>
+                    <Text
+                      size="$label/l"
+                      fontWeight="500"
+                      trimmed={false}
+                      {...A2UI_TEXT_BREAKING}
+                    >
                       {option.label}
                     </Text>
                     {option.description ? (
@@ -1379,6 +1403,7 @@ export function A2UIBlock({
                         size="$label/m"
                         color="$secondaryText"
                         trimmed={false}
+                        {...A2UI_TEXT_BREAKING}
                       >
                         {option.description}
                       </Text>
@@ -1400,24 +1425,8 @@ export function A2UIBlock({
               key={component.id}
               width="100%"
               marginTop={CHOICE_CONTROL_OUTER_MARGIN}
-              padding={grouped ? '$m' : undefined}
-              gap={grouped ? undefined : '$m'}
-              borderRadius={grouped ? '$xl' : undefined}
-              backgroundColor={grouped ? '$secondaryBackground' : undefined}
             >
-              {grouped ? (
-                <YStack
-                  width="100%"
-                  borderWidth={1}
-                  borderColor="$border"
-                  borderRadius="$m"
-                  overflow="hidden"
-                >
-                  {choices}
-                </YStack>
-              ) : (
-                choices
-              )}
+              {grouped ? <A2UIOptionCard>{choices}</A2UIOptionCard> : choices}
             </YStack>
           );
         }

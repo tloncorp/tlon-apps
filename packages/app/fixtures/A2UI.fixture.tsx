@@ -5,7 +5,10 @@ import type { A2UI } from '@tloncorp/shared/logic';
 import { appendToPostBlob } from '@tloncorp/shared/logic';
 import React, { PropsWithChildren, useMemo, useState } from 'react';
 
+import type { McpProviderRow } from '../lib/mcpProviders';
+import { ShipProvider } from '../contexts/ship';
 import { ChatMessage, ScrollView, View } from '../ui';
+import { McpConnectMenu } from '../ui/components/PostContent/McpConnectControl';
 import {
   DraftInputContext,
   DraftInputContextProvider,
@@ -640,6 +643,245 @@ const basicComponentsA2UI: A2UI.BlobEntry = {
   ],
 };
 
+function makeControlA2UI(
+  surfaceId: string,
+  components: A2UI.Component[]
+): A2UI.BlobEntry {
+  return {
+    type: 'a2ui',
+    version: 1,
+    messages: [
+      {
+        version: 'v0.9',
+        createSurface: { surfaceId, catalogId: 'tlon.a2ui.basic.v1' },
+      },
+      {
+        version: 'v0.9',
+        updateComponents: { surfaceId, root: 'root', components },
+      },
+    ],
+  };
+}
+
+const sendMessage = (text: string) => ({
+  event: { name: 'tlon.sendMessage' as const, context: { text } },
+});
+
+const smallChoiceA2UI = makeControlA2UI('fixture-small-choice', [
+  {
+    id: 'root',
+    component: 'SmallChoice',
+    options: [
+      { id: 'products', label: 'New products' },
+      { id: 'patterns', label: 'Design patterns' },
+      { id: 'papers', label: 'Research papers' },
+    ],
+    submitLabel: 'Continue',
+    freeTextPlaceholder: 'Something else…',
+    action: sendMessage('I want to follow:'),
+  },
+]);
+
+const singleChoiceA2UI = makeControlA2UI('fixture-single-choice', [
+  {
+    id: 'root',
+    component: 'SmallChoice',
+    selectionMode: 'single',
+    options: [
+      { id: 'morning', label: 'Every morning' },
+      { id: 'evening', label: 'Every evening' },
+      { id: 'weekly', label: 'Once a week' },
+    ],
+    submitLabel: 'Continue',
+    action: sendMessage('Send it:'),
+  },
+]);
+
+const choiceA2UI = makeControlA2UI('fixture-choice', [
+  {
+    id: 'root',
+    component: 'Choice',
+    options: [
+      {
+        id: 'digest',
+        label: 'A daily digest',
+        description: 'A short summary, every morning.',
+        icon: 'ChannelNotebooks',
+        accent: 'blue',
+        action: sendMessage('A daily digest'),
+      },
+      {
+        id: 'watch',
+        label: 'Watch for changes',
+        description: 'Tell me when something I follow changes.',
+        icon: 'Search',
+        accent: 'green',
+        action: sendMessage('Watch for changes'),
+      },
+      {
+        id: 'chat',
+        label: 'Just chat',
+        description: 'Ask me anything, any time.',
+        icon: 'ChannelTalk',
+        accent: 'indigo',
+        action: sendMessage('Just chat'),
+      },
+      {
+        id: 'reminders',
+        label: 'Reminders',
+        description: 'Nudge me at the right time.',
+        icon: 'Clock',
+        accent: 'neutral',
+        action: sendMessage('Reminders'),
+      },
+    ],
+  },
+]);
+
+const compactChoiceA2UI = makeControlA2UI('fixture-compact-choice', [
+  {
+    id: 'root',
+    component: 'Choice',
+    options: [
+      { id: 'yes', label: 'Yes, set it up', action: sendMessage('Yes') },
+      { id: 'later', label: 'Remind me later', action: sendMessage('Later') },
+      { id: 'no', label: 'No thanks', action: sendMessage('No') },
+    ],
+  },
+]);
+
+// Chat messages read the current user, which a logged-out native app does
+// not have, so the fixtures sign in as a fixture ship.
+function A2UIFixtureFrame({ children }: PropsWithChildren) {
+  return (
+    <ShipProvider
+      initialShipInfo={{
+        authType: 'hosted',
+        ship: 'zod',
+        shipUrl: 'https://zod.test',
+        authCookie: 'fixture',
+        needsSplashSequence: false,
+      }}
+    >
+      <FixtureWrapper fillWidth fillHeight>
+        {children}
+      </FixtureWrapper>
+    </ShipProvider>
+  );
+}
+
+const servicesComponent: A2UI.McpConnect = {
+  id: 'services',
+  component: 'McpConnect',
+  maxVisible: 7,
+  seeAllLabel: 'See all services',
+  submitLabel: 'Use for this group',
+  action: {
+    event: {
+      name: 'tlon.navigate',
+      context: { target: { type: 'screen', screen: 'botMcpSettings' } },
+    },
+  },
+  configureAction: {
+    event: {
+      name: 'tlon.configureAgentProviders',
+      context: {
+        groupId: '~zod/fixture-workspace',
+        provisionId: 'fixture-provision',
+        providerIds: [],
+      },
+    },
+  },
+  completionLabel: 'Continue',
+  completionAction: sendMessage('Continue'),
+};
+
+const serviceLogo = (id: string) =>
+  `https://storage.googleapis.com/tlon-prod-memex-assets/oauth/${id}.png`;
+
+const serviceProviders: McpProviderRow[] = [
+  ['google-calendar', 'Google Calendar', 'connected'],
+  ['notion', 'Notion', 'connected'],
+  ['github', 'GitHub', 'connected'],
+  ['google-gmail', 'Send Gmail', 'not-connected'],
+  ['agentmail', 'AgentMail', 'not-connected'],
+  ['airtable', 'Airtable', 'not-connected'],
+  ['amplitude', 'Amplitude', 'not-connected'],
+  ['linear', 'Linear', 'not-connected'],
+].map(([id, displayName, status]) => ({
+  id,
+  displayName,
+  logoUrl: serviceLogo(id),
+  status: status as McpProviderRow['status'],
+}));
+
+function ServicesFixture() {
+  return (
+    <A2UIFixtureFrame>
+      <ScrollView
+        flex={1}
+        contentContainerStyle={{
+          alignItems: 'flex-start',
+          paddingHorizontal: '$m',
+          paddingVertical: '$2xl',
+        }}
+      >
+        <View maxWidth={340} width="100%">
+          <McpConnectMenu
+            component={servicesComponent}
+            surfaceId="fixture-services"
+            configuredProviderIds={['google-calendar', 'notion', 'github']}
+            providers={serviceProviders}
+            onConfigure={async () => {}}
+            onComplete={async () => {}}
+            onNavigate={async () => {}}
+          />
+        </View>
+      </ScrollView>
+    </A2UIFixtureFrame>
+  );
+}
+
+const smallChoicePost = makePost(
+  exampleContacts.mark,
+  [verse.inline('Which part of AI agent tooling should I follow?')],
+  {
+    blob: appendToPostBlob(undefined, smallChoiceA2UI),
+    channelId: dmChannelId,
+    replyCount: 0,
+  }
+);
+
+const singleChoicePost = makePost(
+  exampleContacts.mark,
+  [verse.inline('When should I send your digest?')],
+  {
+    blob: appendToPostBlob(undefined, singleChoiceA2UI),
+    channelId: dmChannelId,
+    replyCount: 0,
+  }
+);
+
+const choicePost = makePost(
+  exampleContacts.mark,
+  [verse.inline('What should I help with first?')],
+  {
+    blob: appendToPostBlob(undefined, choiceA2UI),
+    channelId: dmChannelId,
+    replyCount: 0,
+  }
+);
+
+const compactChoicePost = makePost(
+  exampleContacts.mark,
+  [verse.inline('Want me to set up a weekly summary?')],
+  {
+    blob: appendToPostBlob(undefined, compactChoiceA2UI),
+    channelId: dmChannelId,
+    replyCount: 0,
+  }
+);
+
 const weatherPost = makePost(
   exampleContacts.mark,
   [verse.inline('Weather: 22903 is 57F and partly cloudy.')],
@@ -695,6 +937,10 @@ const examplePosts = [
   confirmationPost,
   channelApprovalPost,
   groupApprovalPost,
+  smallChoicePost,
+  singleChoicePost,
+  choicePost,
+  compactChoicePost,
   basicComponentsPost,
 ];
 
@@ -732,7 +978,7 @@ function A2UIDraftProvider({ children }: PropsWithChildren) {
 
 function A2UIFixture({ post }: { post: typeof weatherPost }) {
   return (
-    <FixtureWrapper fillWidth fillHeight>
+    <A2UIFixtureFrame>
       <ChannelProvider value={{ channel: tlonLocalIntros }}>
         <A2UIDraftProvider>
           <ScrollView
@@ -750,13 +996,13 @@ function A2UIFixture({ post }: { post: typeof weatherPost }) {
           </ScrollView>
         </A2UIDraftProvider>
       </ChannelProvider>
-    </FixtureWrapper>
+    </A2UIFixtureFrame>
   );
 }
 
 function A2UIExamplesFixture() {
   return (
-    <FixtureWrapper fillWidth fillHeight>
+    <A2UIFixtureFrame>
       <ChannelProvider value={{ channel: tlonLocalIntros }}>
         <A2UIDraftProvider>
           <ScrollView
@@ -781,7 +1027,7 @@ function A2UIExamplesFixture() {
           </ScrollView>
         </A2UIDraftProvider>
       </ChannelProvider>
-    </FixtureWrapper>
+    </A2UIFixtureFrame>
   );
 }
 
@@ -789,5 +1035,10 @@ export default {
   BasicComponents: () => <A2UIFixture post={basicComponentsPost} />,
   Weather: () => <A2UIFixture post={weatherPost} />,
   ConfirmationDialog: () => <A2UIFixture post={confirmationPost} />,
+  SmallChoice: () => <A2UIFixture post={smallChoicePost} />,
+  SingleChoice: () => <A2UIFixture post={singleChoicePost} />,
+  Choice: () => <A2UIFixture post={choicePost} />,
+  CompactChoice: () => <A2UIFixture post={compactChoicePost} />,
+  Services: () => <ServicesFixture />,
   Examples: () => <A2UIExamplesFixture />,
 };

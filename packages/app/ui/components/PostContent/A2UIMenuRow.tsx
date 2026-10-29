@@ -7,45 +7,44 @@ type A2UIMenuRowProps = {
   accessibilityRole?: ComponentProps<typeof Pressable>['accessibilityRole'];
   accessibilityState?: ComponentProps<typeof Pressable>['accessibilityState'];
   accessibilityValue?: ComponentProps<typeof Pressable>['accessibilityValue'];
-  bordered?: boolean;
+  backgroundColor?: ComponentProps<typeof XStack>['backgroundColor'];
   dimmed?: boolean;
   disabled?: boolean;
+  /** Draw a full-width hairline below the row. */
   dividerAfter?: boolean;
-  dividerOutside?: boolean;
   label: string;
   labelCanWrap?: boolean;
   labelColor?: ComponentProps<typeof Text>['color'];
+  labelWeight?: ComponentProps<typeof Text>['fontWeight'];
   leading?: ReactNode;
-  marginTop?: ComponentProps<typeof XStack>['marginTop'];
   minHeight?: number;
   onPress?: () => void;
+  paddingHorizontal?: ComponentProps<typeof XStack>['paddingHorizontal'];
   paddingVertical?: ComponentProps<typeof XStack>['paddingVertical'];
-  prominent?: boolean;
   subtitle?: string;
   testID?: string;
   trailing?: ReactNode;
 };
 
-/** Shared scaffold for the compact controls embedded in A2UI chat cards. */
+/** Shared scaffold for the option rows inside A2UI chat cards. */
 export function A2UIMenuRow({
   accessibilityLabel,
   accessibilityRole,
   accessibilityState,
   accessibilityValue,
-  bordered = false,
+  backgroundColor = '$background',
   dimmed = false,
   disabled = false,
   dividerAfter = false,
-  dividerOutside = false,
   label,
   labelCanWrap = false,
-  labelColor,
+  labelColor = '$primaryText',
+  labelWeight,
   leading,
-  marginTop,
   minHeight = 52,
   onPress,
+  paddingHorizontal = '$xl',
   paddingVertical,
-  prominent = false,
   subtitle,
   testID,
   trailing,
@@ -62,17 +61,9 @@ export function A2UIMenuRow({
     >
       <XStack
         minHeight={minHeight}
-        marginTop={marginTop}
         paddingVertical={paddingVertical}
-        paddingHorizontal="$m"
-        backgroundColor={prominent ? '$primaryText' : '$background'}
-        borderWidth={bordered ? 1 : 0}
-        borderColor="$border"
-        borderRadius={bordered ? '$m' : 0}
-        borderBottomWidth={
-          dividerAfter && !dividerOutside ? 1 : bordered ? 1 : 0
-        }
-        borderBottomColor="$border"
+        paddingHorizontal={paddingHorizontal}
+        backgroundColor={backgroundColor}
         alignItems="center"
         gap="$m"
         opacity={dimmed ? 0.5 : 1}
@@ -82,7 +73,8 @@ export function A2UIMenuRow({
           <YStack flex={1} minWidth={0}>
             <Text
               size="$label/l"
-              color={labelColor ?? (prominent ? '$background' : '$primaryText')}
+              color={labelColor}
+              fontWeight={labelWeight}
               trimmed={false}
               numberOfLines={labelCanWrap ? undefined : 1}
             >
@@ -95,7 +87,8 @@ export function A2UIMenuRow({
         ) : (
           <Text
             size="$label/l"
-            color={labelColor ?? (prominent ? '$background' : '$primaryText')}
+            color={labelColor}
+            fontWeight={labelWeight}
             trimmed={false}
             flex={1}
             minWidth={0}
@@ -109,7 +102,7 @@ export function A2UIMenuRow({
     </Pressable>
   );
 
-  return dividerAfter && dividerOutside ? (
+  return dividerAfter ? (
     <YStack>
       {row}
       <YStack height={1} backgroundColor="$border" />
