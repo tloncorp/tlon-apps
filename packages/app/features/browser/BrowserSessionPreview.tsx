@@ -63,8 +63,16 @@ export function BrowserSessionPreview({
       let delay = 5000;
       try {
         if (endpoint.current?.viewerUrl !== viewerUrl) {
-          const url = await browserPreviewEndpoint(viewerUrl);
+          const url = await browserPreviewEndpoint(
+            viewerUrl,
+            controller.signal
+          );
           if (disposed) return;
+          if (typeof url !== 'string') {
+            finished = true;
+            await rememberBrowserPreview(viewerUrl, url);
+            return;
+          }
           endpoint.current = { viewerUrl, url };
         }
         const result = await fetchBrowserPreview(

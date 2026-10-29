@@ -1,3 +1,4 @@
+import { BrowserVaultRequestError } from '@tloncorp/api/client/browserVault';
 import { authorizeBrowserViewer } from './browserCredentialHandoff';
 
 export type BrowserPreview =
@@ -18,8 +19,23 @@ export type BrowserPreview =
         | 'unavailable';
     };
 
-export async function browserPreviewEndpoint(viewerUrl: string) {
-  const authorized = new URL(await authorizeBrowserViewer(viewerUrl));
+export async function browserPreviewEndpoint(
+  viewerUrl: string,
+  signal?: AbortSignal
+): Promise<string | { status: 'expired' | 'ended' }> {
+  let viewer: string;
+  try {
+    viewer = await authorizeBrowserViewer(viewerUrl, signal);
+  } catch (error) {
+    if (error instanceof BrowserVaultRequestError) {
+      // The gateway distinguishes an invalid capability from owner-proof rejection.
+      if (error.status === 401) return { status: 'expired' };
+      if (error.status === 404 || error.status === 410)
+        return { status: 'ended' };
+    }
+    throw error;
+  }
+  const authorized = new URL(viewer);
   authorized.pathname += '/preview';
   authorized.search = '';
   authorized.hash = '';

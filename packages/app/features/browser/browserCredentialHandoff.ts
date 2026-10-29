@@ -96,13 +96,15 @@ export function trustedBrowserViewerUrl(viewerUrl: string): string {
 
 /** Exchange a session capability for an owner-authorized viewer URL. */
 export async function authorizeBrowserViewer(
-  viewerUrl: string
+  viewerUrl: string,
+  signal?: AbortSignal
 ): Promise<string> {
   const { url, capability } = parseViewerUrl(viewerUrl);
   if (url.protocol === 'http:') return url.toString();
   const result = await browserVaultOwnerRequest(
     new URL('/viewer-authorize', url.origin).toString(),
-    { capability }
+    { capability },
+    signal
   );
   if (
     !result ||

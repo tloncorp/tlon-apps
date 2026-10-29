@@ -222,3 +222,24 @@ it('does not let a late screenshot overwrite a known terminal receipt', async ()
     })
   ).toBe(ended);
 });
+
+it.each(['expired', 'ended'])(
+  'remembers %s before a preview endpoint can be authorized',
+  async (status) => {
+    mock.visible = true;
+    mock.endpoint.mockResolvedValue({ status });
+    await act(async () => {
+      renderer = create(card());
+    });
+    expect(cache['https://viewer.test/s/cap'].preview.status).toBe(status);
+    act(() => renderer.unmount());
+    await act(async () => {
+      renderer = create(card());
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60000);
+    });
+    expect(mock.endpoint).toHaveBeenCalledTimes(1);
+    expect(mock.fetch).not.toHaveBeenCalled();
+  }
+);
