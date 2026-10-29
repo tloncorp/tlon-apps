@@ -20,7 +20,6 @@ vi.mock('@tloncorp/shared', () => ({
 vi.mock('@tloncorp/ui', () => ({ Pressable: 'Pressable', Text: 'Text' }));
 vi.mock('react-native', () => ({ Image: 'Image', View: 'View' }));
 vi.mock('tamagui', () => ({ YStack: 'YStack', Spinner: 'Spinner' }));
-vi.mock('../../lib/featureFlags', () => ({ useFeatureFlag: () => [true] }));
 vi.mock('./BrowserCredentialHandoffContext', () => ({
   useOptionalBrowserCredentialHandoff: () => null,
 }));
