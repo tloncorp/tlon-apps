@@ -1076,13 +1076,15 @@
 ::
 ::  +up-core: one in-flight upload session.
 ::
-::  .awaiting holds at most one waiter, and +up-claim is the only arm that
-::  sets it; a waiter it displaces is answered, not dropped. Once a session
-::  is cancelled only the cancel's own answer reaches the waiter, and any
-::  other broker answer that still arrives goes to +up-late.
+::  .awaiting holds at most one waiter: the grant's request, written with the
+::  session in +begin-upload, or the request +up-claim holds for every later
+::  call. A waiter +up-claim displaces is answered, not dropped. Once a
+::  session is cancelled only the cancel's own answer reaches the waiter, and
+::  any other broker answer that still arrives goes to +up-late.
 ::
-::  Every abandonment leaves through +up-give-up, so the broker is told to
-::  release the reservation and the waiting request is answered.
+::  A session abandoned because its bucket or folder is gone leaves through
+::  +up-give-up, which releases the reservation at the broker and answers the
+::  waiter. A lapsed one is released by +prune-broker-authority.
 ::
 ++  up-core
   |_  [ses=upload-session:b gone=_|]
@@ -1342,8 +1344,10 @@
   ::  storage is the broker's to say, so this does not settle the upload, it
   ::  only stops a new upload URL being issued against the session. A
   ::  completion still in flight is published if it lands, by +up-late, but
-  ::  no client request is answered with it. From here on the only request
-  ::  held open is this cancel's, and the /cancel answer is what completes it.
+  ::  no client request is answered with it. With a reservation bound, the
+  ::  only request held open from here on is this cancel's, and the /cancel
+  ::  answer completes it; with none there is nothing to release, and the
+  ::  cancel is answered at once.
   ::
   ++  up-cancel
     |=  reason=@t
@@ -1363,11 +1367,13 @@
     up-core
   ::  +up-take: one broker answer about this session.
   ::
-  ::  On a live session every one of these has a client waiting on it, so
-  ::  nothing is retried here and nothing fails silently: the session
-  ::  advances, or the uploader is told what the broker said and whether it
-  ::  is worth asking again. On a cancelled one the waiter belongs to the
-  ::  cancel, so any other call's answer goes to +up-late instead.
+  ::  On a live session a client is waiting on each of these, so nothing is
+  ::  retried here and nothing fails silently: the session advances, or the
+  ::  uploader is told what the broker said and whether it is worth asking
+  ::  again. A /cancel this agent sent on its own, from +up-fail, +up-late or
+  ::  the prune, has no waiter and its answer only settles the session. On a
+  ::  cancelled session the waiter belongs to the cancel, so any other call's
+  ::  answer goes to +up-late instead.
   ::
   ++  up-take
     |=  [kind=?(%grant %retry %cancel %complete) res=client-response:iris]
