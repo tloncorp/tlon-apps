@@ -1,12 +1,18 @@
 import { afterEach, describe, expect, it } from 'bun:test';
 
 import { runScriptCli } from './script-cli-runner';
-import { mockedGetInitData, mockedSearchChannel } from './tloncorp-api-mock';
+import {
+  mockedGetChannelPosts,
+  mockedGetInitData,
+  mockedSearchChannel,
+} from './tloncorp-api-mock';
 
+const originalGetChannelPosts = mockedGetChannelPosts.impl;
 const originalGetInitData = mockedGetInitData.impl;
 const originalSearchChannel = mockedSearchChannel.impl;
 
 afterEach(() => {
+  mockedGetChannelPosts.impl = originalGetChannelPosts;
   mockedGetInitData.impl = originalGetInitData;
   mockedSearchChannel.impl = originalSearchChannel;
 });
@@ -18,6 +24,41 @@ function runMessages(args: string[]) {
     (run) => import(`./messages?run=${run}`)
   );
 }
+
+it.each([[[]], [['--json']]])(
+  'exits non-zero when a channel fetch fails (%j)',
+  async (flags) => {
+    mockedGetChannelPosts.impl = async () => {
+      throw new Error('channel not found');
+    };
+
+    const { exitCode, stdout, stderr } = await runMessages([
+      'channel',
+      'chat/~zod/missing',
+      ...flags,
+    ]);
+
+    expect(exitCode).toBe(1);
+    expect(stderr).toEqual([
+      'Error: Failed to fetch messages from chat/~zod/missing: channel not found. Check that the channel path is correct (e.g., chat/~host/slug)',
+    ]);
+    if (flags.includes('--json')) {
+      expect(stdout).toEqual([]);
+    }
+  }
+);
+
+it('rejects --json for a search without --channel', async () => {
+  const { exitCode, stdout, stderr } = await runMessages([
+    'search',
+    'pizza',
+    '--json',
+  ]);
+
+  expect(exitCode).toBe(1);
+  expect(stdout).toEqual([]);
+  expect(stderr.join('\n')).toContain('--json needs --channel.');
+});
 
 const INIT = {
   channels: [

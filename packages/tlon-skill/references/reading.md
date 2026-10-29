@@ -13,7 +13,7 @@ Use the `tlon` tool to read; use `message` for ordinary outbound messages and re
 {"command":"messages search \"query\" --channel chat/~host/channel"}
 ```
 
-`messages` prints each post as text: image, video, link and file URLs, gallery titles, table rows, and cited posts as `Ref:` paths; `--resolve-cites` adds the cited channel posts' text.
+`messages` prints each post as text: image, video, link and file URLs, gallery titles, table rows, and cited posts as `Ref:` paths; `--resolve-cites` adds the cited channel posts' text. `--json` instead prints NDJSON, one object per post, oldest first: `id`, `authorId`, `sentAt`, `parentId`, `blob`, and `content` with the parsed story; it ignores `--resolve-cites`, and `search` takes it only with `--channel`. Use it when the exact message structure matters. A failed fetch prints an error and exits non-zero.
 
 To find where something was said, search without `--channel`: it searches every DM, group DM, and joined chat and gallery channel at once and prints each hit under its channel's nest. It keeps the newest 5 hits per channel and 20 in all (`--per-channel N`, `--limit N`) and says when it left some out; repeat with `--channel <nest>` for every hit in one channel. If some channels could not be searched, the output starts by naming them, and their hits are missing. A search matches text, ignoring case, not meaning: try a synonym or a shorter word before concluding something was never said.
 

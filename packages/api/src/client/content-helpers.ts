@@ -867,10 +867,13 @@ const allPostBlobEntryTypesListed: [
 void allPostBlobEntryTypesListed;
 export type UnknownPostBlobDataEntry = { type: 'unknown' };
 
-/** Keep schema diagnostics without copying browser bearer capabilities into logs. */
-function redactPostBlobForLogging(value: unknown): unknown {
+/**
+ * Replaces browser bearer capabilities at any depth, so blob data can be
+ * logged or shown to a model without granting access to the session.
+ */
+export function redactPostBlobCapabilities(value: unknown): unknown {
   if (Array.isArray(value)) {
-    return value.map(redactPostBlobForLogging);
+    return value.map(redactPostBlobCapabilities);
   }
   if (value && typeof value === 'object') {
     return Object.fromEntries(
@@ -878,7 +881,7 @@ function redactPostBlobForLogging(value: unknown): unknown {
         key,
         key === 'viewerUrl' || key === 'fillUrl'
           ? '[REDACTED]'
-          : redactPostBlobForLogging(entry),
+          : redactPostBlobCapabilities(entry),
       ])
     );
   }
@@ -911,7 +914,7 @@ export function appendToPostBlob(
   const parsedEntry = PostBlobDataEntrySchema.safeParse(entry);
   if (!parsedEntry.success) {
     logger.trackError('Failed to validate PostBlobDataEntry before append', {
-      entry: redactPostBlobForLogging(entry),
+      entry: redactPostBlobCapabilities(entry),
       issueCodes: parsedEntry.error.issues.map((issue) => issue.code),
     });
     throw new Error('Invalid PostBlobDataEntry');
@@ -1013,7 +1016,7 @@ export function parsePostBlob(blob: string): ClientPostBlobData {
     }
     // Unknown content still needs the renderer's upgrade notice.
     logger.warn('Failed to parse PostBlobDataEntry', {
-      entry: redactPostBlobForLogging(entry),
+      entry: redactPostBlobCapabilities(entry),
     });
     return [{ type: 'unknown' }];
   });
