@@ -1,10 +1,11 @@
 import { faker } from '@faker-js/faker';
 import * as db from '@tloncorp/shared/db';
+import { useState } from 'react';
 import { useFixtureInput } from 'react-cosmos/client';
 
 import { AppDataContextProvider, UserProfileScreenView } from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
-import { group } from './fakeData';
+import { group, hostedBotContact } from './fakeData';
 
 const exampleContacts: Record<string, db.Contact> = {
   base: {
@@ -39,10 +40,28 @@ const exampleContacts: Record<string, db.Contact> = {
   empty: {
     id: '~latter-bolden',
   },
+  botOwner: {
+    id: '~sampel-palnet',
+    nickname: 'bill',
+    color: faker.color.rgb(),
+    status: 'testing onboarding',
+    bio: 'tlon corp',
+    avatarImage: faker.image.avatar(),
+  },
+  ownedBot: {
+    ...hostedBotContact,
+    nickname: 'Tlonbot',
+    avatarImage: faker.image.avatar(),
+  },
+  // Its owner, ~finned-palmer, has no contact record.
+  botWithUnknownOwner: {
+    id: '~pinser-botter-finned-palmer',
+  },
 };
 
 function ProfileScreenFixture({ contactId }: { contactId: string }) {
   const [isCurrentUser] = useFixtureInput('isCurrentUser', false);
+  const [userId, setUserId] = useState(contactId);
 
   return (
     <FixtureWrapper fillWidth fillHeight>
@@ -51,11 +70,12 @@ function ProfileScreenFixture({ contactId }: { contactId: string }) {
         contacts={Object.values(exampleContacts)}
       >
         <UserProfileScreenView
-          userId={contactId}
+          userId={userId}
           connectionStatus={{ complete: true, status: 'yes' }}
           onPressGroup={() => {
             console.log('group pressed');
           }}
+          onPressUserProfile={setUserId}
         />
       </AppDataContextProvider>
     </FixtureWrapper>
@@ -69,5 +89,14 @@ export default {
   ),
   'Empty profile': (
     <ProfileScreenFixture contactId={exampleContacts.empty.id} />
+  ),
+  'Profile with Tlonbot': (
+    <ProfileScreenFixture contactId={exampleContacts.botOwner.id} />
+  ),
+  'Bot profile': (
+    <ProfileScreenFixture contactId={exampleContacts.ownedBot.id} />
+  ),
+  'Bot profile, owner not met': (
+    <ProfileScreenFixture contactId={exampleContacts.botWithUnknownOwner.id} />
   ),
 };
