@@ -10,6 +10,7 @@ import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import type { BrowserCredentialHandoffParams } from '../../navigation/types';
 import { ScreenHeader, SettingsContentScrollView } from '../../ui';
+import { ActionSheet } from '../../ui/components/ActionSheet';
 import {
   type BrowserCredentialHandoff,
   BrowserFormError,
@@ -22,8 +23,7 @@ import {
   trustedBrowserViewerUrl,
   validBrowserFormValues,
 } from './browserCredentialHandoff';
-import { openBrowserViewerWindow } from './browserViewerWindow';
-import { useBrowserCredentialHandoff } from './BrowserCredentialHandoffProvider';
+import { useBrowserCredentialHandoff } from './BrowserCredentialHandoffContext';
 import { BrowserViewerModal } from './BrowserViewerModal';
 import { BrowserSecureFields } from './BrowserSecureFields';
 
@@ -47,7 +47,27 @@ function errorMessage(error: unknown): string {
 }
 
 export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
-  const loginApproval = route.params.loginApproval;
+  return (
+    <BrowserCredentialHandoffContent
+      {...route.params}
+      onClose={() => {
+        if (navigation.isFocused()) navigation.goBack();
+      }}
+    />
+  );
+}
+
+export function BrowserCredentialHandoffContent({
+  handoffId,
+  loginApproval,
+  onClose,
+  open = true,
+  inSheet = false,
+}: BrowserCredentialHandoffParams & {
+  onClose(): void;
+  open?: boolean;
+  inSheet?: boolean;
+}) {
   const [handoff, setHandoff] = useState<BrowserCredentialHandoff>();
   const [values, setValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -75,10 +95,8 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   const [saveStatus, setSaveStatus] = useState<keyof typeof SAVE_NOTICES>();
   const saveNotice = saveStatus ? SAVE_NOTICES[saveStatus] : undefined;
   const { resolve, discard } = useBrowserCredentialHandoff();
-  const handoffId = route.params.handoffId;
   const activeHandoffs = useRef(new Set<string>());
   const outcomes = useRef(new Map<string, 'completed' | 'canceled'>());
-  const externalViewerHandoff = useRef<string | null>(null);
   const submittingRef = useRef(false);
   const requestController = useRef<AbortController | undefined>(undefined);
   const vaultEligible = !!handoff?.vault && supportsSavedLogins(handoff);
@@ -241,11 +259,12 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   );
 
   useEffect(() => {
+    if (!open) return;
     const controller = new AbortController();
     requestController.current = controller;
     void load(controller.signal);
     return () => controller.abort();
-  }, [load]);
+  }, [load, open]);
 
   useEffect(() => {
     const active = activeHandoffs.current;
@@ -264,9 +283,8 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   const finishHandoff = useCallback(() => {
     outcomes.current.set(handoffId, 'completed');
     discard(handoffId);
-    if (activeHandoffs.current.has(handoffId) && navigation.isFocused())
-      navigation.goBack();
-  }, [discard, handoffId, navigation]);
+    if (activeHandoffs.current.has(handoffId)) onClose();
+  }, [discard, handoffId, onClose]);
 
   const fillFields = useCallback(async () => {
     const signal = requestController.current?.signal;
@@ -346,27 +364,10 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     [load]
   );
   const retry = useCallback(() => reloadForm(true), [reloadForm]);
-  useEffect(() => {
-    if (!isWeb) return;
-    const refreshAfterBrowser = () => {
-      if (externalViewerHandoff.current !== handoffId) return;
-      externalViewerHandoff.current = null;
-      reloadForm(false);
-    };
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === 'visible') refreshAfterBrowser();
-    };
-    window.addEventListener('focus', refreshAfterBrowser);
-    document.addEventListener('visibilitychange', refreshWhenVisible);
-    return () => {
-      window.removeEventListener('focus', refreshAfterBrowser);
-      document.removeEventListener('visibilitychange', refreshWhenVisible);
-    };
-  }, [handoffId, reloadForm]);
   const dismiss = useCallback(() => {
     requestController.current?.abort();
-    navigation.goBack();
-  }, [navigation]);
+    onClose();
+  }, [onClose]);
   const cancel = useCallback(async () => {
     if (submittingRef.current) return;
     if (outcomes.current.has(handoffId)) {
@@ -390,58 +391,56 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
       if (activeHandoffs.current.has(handoffId)) setSubmitting(false);
     }
   }, [dismiss, handoffId, resolve]);
-  const openBrowser = useCallback(async () => {
-    try {
-      const viewerUrl = resolve(handoffId);
-      if (!viewerUrl)
-        throw new Error(
-          'Reopen the secure browser form from the conversation.'
-        );
-      Keyboard.dismiss();
-      setValues({});
-      if (isWeb) {
-        externalViewerHandoff.current = handoffId;
-        await openBrowserViewerWindow(viewerUrl);
-      } else {
-        setLiveViewer({
-          url: await authorizeBrowserViewer(viewerUrl),
-          handoffId,
-        });
-      }
-    } catch (nextError) {
-      setError(errorMessage(nextError));
-    }
-  }, [resolve, handoffId]);
-
   const closeBrowser = useCallback(() => {
     setLiveViewer(undefined);
     // Refresh after human navigation without reopening a dismissed viewer.
     reloadForm(false);
   }, [reloadForm]);
 
+  const ContentScrollView =
+    inSheet && !isWeb
+      ? ActionSheet.ScrollableContent
+      : SettingsContentScrollView;
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
+    <View
+      flex={inSheet ? undefined : 1}
+      backgroundColor={inSheet ? '$background' : '$secondaryBackground'}
+    >
       {liveViewer?.handoffId === handoffId ? (
         <BrowserViewerModal viewerUrl={liveViewer.url} onClose={closeBrowser} />
       ) : null}
-      <ScreenHeader
-        borderBottom
-        backAction={dismiss}
-        title={approvingSavedLogin ? 'Approve sign-in' : 'Secure browser form'}
-      />
-      <SettingsContentScrollView
-        paddingHorizontal="$l"
+      {!inSheet && (
+        <ScreenHeader
+          borderBottom
+          backAction={dismiss}
+          title={
+            approvingSavedLogin ? 'Approve sign-in' : 'Secure browser form'
+          }
+        />
+      )}
+      <ContentScrollView
+        {...(inSheet ? { style: { flexGrow: 0, flexShrink: 1 } } : {})}
+        paddingHorizontal={inSheet ? '$xl' : '$l'}
         paddingTop="$l"
-        safeAreaBottomOffset={24}
+        {...(!inSheet
+          ? { safeAreaBottomOffset: 24 }
+          : { keyboardShouldPersistTaps: 'handled' as const })}
       >
-        <YStack gap="$2xl" maxWidth={640} width="100%" alignSelf="center">
+        <YStack
+          gap="$2xl"
+          maxWidth={640}
+          width="100%"
+          alignSelf="center"
+          paddingHorizontal={inSheet && !isWeb ? '$xl' : 0}
+          paddingTop={inSheet && !isWeb ? '$xl' : 0}
+        >
           <YStack
             backgroundColor="$background"
             borderColor="$border"
-            borderWidth={1}
+            borderWidth={inSheet ? 0 : 1}
             borderRadius="$l"
-            padding="$xl"
-            $gtSm={{ padding: '$3xl' }}
+            padding={inSheet ? 0 : '$xl'}
+            $gtSm={{ padding: inSheet ? 0 : '$3xl' }}
             gap="$2xl"
           >
             {saveNotice ? (
@@ -558,21 +557,31 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
               <>
                 <YStack gap="$xl">
                   <XStack alignItems="center" gap="$l">
-                    <Icon type="Lock" size="$xl" color="$primaryText" />
+                    <View
+                      width={40}
+                      height={40}
+                      borderRadius="$l"
+                      backgroundColor="$primaryText"
+                      alignItems="center"
+                      justifyContent="center"
+                    >
+                      <Icon type="Lock" size="$m" color="$background" />
+                    </View>
                     <YStack flex={1} minWidth={0} gap="$m">
                       <Text size="$label/m" color="$secondaryText">
                         {handoff.kind === 'login'
-                          ? 'Sign in to'
-                          : 'Enter details for'}
+                          ? 'Secure Vault'
+                          : 'Secure entry'}
                       </Text>
-                      <Text size="$label/3xl" fontWeight="600">
-                        {new URL(handoff.origin).hostname}
+                      <Text size="$label/3xl">
+                        {new URL(handoff.origin).hostname.replace(/^www\./, '')}
                       </Text>
                     </YStack>
                   </XStack>
                   <Text size="$label/l" color="$secondaryText">
-                    These fields go directly to the live browser. They are not
-                    posted to chat.
+                    {handoff.kind === 'login'
+                      ? "Your login gets sent directly to the browser. It's never visible to your Tlonbot."
+                      : 'Your details go directly to the browser and stay out of chat.'}
                   </Text>
                   {handoff.kind === 'details' ? (
                     <Text size="$label/l" color="$secondaryText">
@@ -744,7 +753,11 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                   preset="primary"
                   size="large"
                   label={
-                    choice?.mode === 'use' ? 'Approve and fill' : 'Fill fields'
+                    choice?.mode === 'use'
+                      ? 'Approve and fill'
+                      : vaultEligible
+                        ? 'Save and continue'
+                        : 'Continue'
                   }
                   centered
                   loading={submitting}
@@ -771,7 +784,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                 >
                   {error ??
                     (noSecureForm
-                      ? 'Continue in the live browser.'
+                      ? 'No secure form is available. Ask your bot for a new form.'
                       : 'Could not find a supported browser form.')}
                 </Text>
                 <Button
@@ -789,35 +802,8 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
               </>
             )}
           </YStack>
-          {!loading &&
-          !submitting &&
-          !attempted &&
-          !ended &&
-          !filled &&
-          !approvingSavedLogin ? (
-            <YStack gap="$m">
-              <Button
-                preset="secondary"
-                label="Open live browser"
-                centered
-                onPress={openBrowser}
-              />
-              <Text color="$secondaryText">
-                {isWeb
-                  ? 'The browser opens in a new tab. Return here when you’re done.'
-                  : 'Close the live browser to return to secure entry.'}
-              </Text>
-              <Button
-                preset="secondary"
-                label="Cancel secure entry"
-                disabled={submitting}
-                centered
-                onPress={cancel}
-              />
-            </YStack>
-          ) : null}
         </YStack>
-      </SettingsContentScrollView>
+      </ContentScrollView>
     </View>
   );
 }

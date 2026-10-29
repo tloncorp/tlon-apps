@@ -129,16 +129,10 @@ describe('browser handoff', () => {
       )
     ).toBe(0);
     const [entry] = JSON.parse(context.sent[0].blob!);
-    const components = entry.messages[1].updateComponents.components;
-    expect(
-      components.find((component: { id: string }) => component.id === 'title')
-        .text
-    ).toBe('Approve saved sign-in');
-    expect(
-      components.find(
-        (component: { id: string }) => component.id === 'open-form'
-      ).action.event.context.target.loginApproval
-    ).toEqual({ record: choice });
+    expect(entry).toMatchObject({
+      type: 'browser-secure-entry',
+      loginApproval: { record: choice },
+    });
     expect(JSON.stringify(context.sent[0])).not.toContain(
       'The browser needs information'
     );
@@ -201,6 +195,28 @@ describe('browser handoff', () => {
     expect(context.sent).toHaveLength(0);
   });
 
+  it.each(['login', 'otp', 'details'])(
+    'includes %s presentation in the typed card',
+    async (purpose) => {
+      const context = makeDeps();
+      const presentation = { purpose, site: 'wikipedia.org' };
+      expect(
+        await run(
+          [
+            'handoff',
+            'https://browser-session.tlon.network/s/payload.signature',
+            '--presentation',
+            JSON.stringify(presentation),
+          ],
+          context.deps
+        )
+      ).toBe(0);
+      expect(JSON.parse(context.sent[0].blob!)[0].presentation).toEqual(
+        presentation
+      );
+    }
+  );
+
   it('sends a native credential card to the configured owner', async () => {
     const context = makeDeps();
     const viewerUrl =
@@ -220,28 +236,11 @@ describe('browser handoff', () => {
     });
 
     const [entry] = JSON.parse(context.sent[0].blob ?? '[]');
-    expect(entry).toMatchObject({
-      type: 'a2ui',
+    expect(entry).toEqual({
+      type: 'browser-secure-entry',
       version: 1,
-      storyMode: 'fallback',
+      viewerUrl,
     });
-    const components = entry.messages[1].updateComponents.components;
-    expect(JSON.stringify(components)).toContain('browserSecureEntry');
-    expect(components).not.toContainEqual(
-      expect.objectContaining({ text: 'SECURE BROWSER HANDOFF' })
-    );
-    expect(components).toContainEqual(
-      expect.objectContaining({
-        id: 'privacy-direct',
-        text: 'Your input goes directly to the live browser.',
-      })
-    );
-    expect(components).toContainEqual(
-      expect.objectContaining({
-        id: 'privacy-context',
-        text: 'It does not pass through chat or the bot.',
-      })
-    );
   });
 
   it('refuses untrusted viewer URLs before authenticating', async () => {
@@ -279,7 +278,7 @@ describe('browser handoff', () => {
 });
 
 describe('browser share', () => {
-  it('sends an existing rich link card to the owner, without credential controls or a raw inline link', async () => {
+  it('sends a typed session card to the owner without a raw inline link', async () => {
     const context = makeDeps();
     const viewerUrl =
       'https://browser-session.tlon.network/s/payload.signature';
@@ -288,34 +287,13 @@ describe('browser share', () => {
     const post = context.sent[0];
     expect(post.channelId).toBe('~owner');
     expect(post.authorId).toBe('~bot');
-    expect(post.blob).toBeUndefined();
-    expect(post.content).toEqual([
-      {
-        block: {
-          link: {
-            url: viewerUrl,
-            meta: {
-              siteName: 'Browser session',
-              title: 'Open browser',
-              description: 'View and control the shared browser.',
-            },
-          },
-        },
-      },
+    expect(JSON.parse(post.blob!)).toEqual([
+      { type: 'browser-session', version: 1, viewerUrl },
     ]);
-    // Use develop's existing renderer parser: no new A2UI target or client
-    // release is required, and its LinkBlock opens the normal browser.
-    expect(convertContent(post.content, post.blob)).toEqual([
-      {
-        type: 'link',
-        url: viewerUrl,
-        siteName: 'Browser session',
-        title: 'Open browser',
-        description: 'View and control the shared browser.',
-      },
-    ]);
-    expect(context.stdout.join('')).toBe('✓ Browser session sent to ~owner\n');
-    expect(context.stderr).toEqual([]);
+    expect(JSON.stringify(post.content)).not.toContain(viewerUrl);
+    expect(convertContent(post.content, post.blob)[0]).toMatchObject({
+      type: 'browser-card',
+    });
   });
   it.each([
     { args: ['share', 'https://attacker.example/s/payload.signature'] },

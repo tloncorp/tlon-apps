@@ -1,9 +1,12 @@
 import React from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform, TextInput } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { BrowserViewer as NativeBrowserViewer } from './BrowserViewer.native';
+import {
+  BrowserViewer as NativeBrowserViewer,
+  type BrowserViewerHandle,
+} from './BrowserViewer.native';
 
 vi.mock('@tloncorp/ui', () => ({
   Button: 'Button',
@@ -24,7 +27,9 @@ vi.mock('tamagui', () => ({
   YStack: 'YStack',
 }));
 vi.mock('react-native', () => ({
+  Platform: { OS: 'ios' },
   Pressable: 'Pressable',
+  TextInput: 'TextInput',
   Alert: { alert: vi.fn() },
   Keyboard: {
     addListener: vi.fn(() => ({ remove: vi.fn() })),
@@ -42,9 +47,11 @@ const viewerUrl =
 
 describe('embedded browser boundaries', () => {
   beforeAll(() => {
+    vi.stubGlobal('__DEV__', true);
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   });
   afterAll(() => {
+    vi.unstubAllGlobals();
     delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean })
       .IS_REACT_ACT_ENVIRONMENT;
   });
@@ -87,6 +94,7 @@ describe('embedded browser boundaries', () => {
       );
     });
     const view = renderer.root.findByType(WebView);
+    expect(view.props.injectedJavaScript).toBeUndefined();
     expect(view.props.incognito).toBe(true);
     expect(view.props.sharedCookiesEnabled).toBe(false);
     const navigate = view.props.onShouldStartLoadWithRequest;
@@ -113,6 +121,133 @@ describe('embedded browser boundaries', () => {
     ]) {
       expect(navigate({ url })).toBe(false);
     }
+    act(() => renderer.unmount());
+  });
+  it('requests the CDP viewer on Android without replacing the signed capability', () => {
+    const previous = Platform.OS;
+    Object.assign(Platform, { OS: 'android' });
+    let renderer!: ReactTestRenderer;
+    try {
+      act(() => {
+        renderer = create(
+          <NativeBrowserViewer
+            viewerUrl={viewerUrl + '&theme=dark&viewer=kernel-native'}
+            onLoad={vi.fn()}
+            onError={vi.fn()}
+          />
+        );
+      });
+      const view = renderer.root.findByType(WebView);
+      const url = new URL(view.props.source.uri);
+      expect(url.pathname).toBe(new URL(viewerUrl).pathname);
+      expect(url.searchParams.get('viewer')).toBe('cdp');
+      expect(url.searchParams.get('theme')).toBe('dark');
+      expect(url.searchParams.get('clipboardBridge')).toBe('true');
+      expect(view.props.injectedJavaScript).toBeUndefined();
+      expect(
+        view.props.onShouldStartLoadWithRequest({
+          url: url.toString(),
+          isTopFrame: true,
+        })
+      ).toBe(true);
+    } finally {
+      act(() => renderer?.unmount());
+      Object.assign(Platform, { OS: previous });
+    }
+  });
+  it('shows native keyboard, paste and navigation for the thin viewer after takeover', () => {
+    let renderer!: ReactTestRenderer;
+    act(() => {
+      renderer = create(
+        <NativeBrowserViewer
+          viewerUrl={viewerUrl}
+          onLoad={vi.fn()}
+          onError={vi.fn()}
+        />,
+        {
+          createNodeMock: (node) =>
+            node.type === 'WebView' ? { injectJavaScript } : null,
+        }
+      );
+    });
+    const web = renderer.root.findByType(WebView);
+    act(() =>
+      web.props.onMessage({
+        nativeEvent: {
+          url: viewerUrl,
+          data: JSON.stringify({
+            type: 'tlon.browser.input',
+            version: 1,
+            ready: true,
+            keyboardOpen: false,
+            context: 2,
+            nativeControl: true,
+            nativeInput: true,
+            mode: 'agent',
+          }),
+        },
+      })
+    );
+    expect(
+      renderer.root.findByProps({ accessibilityLabel: 'Keyboard' })
+    ).toBeDefined();
+    expect(
+      renderer.root.findByProps({ accessibilityLabel: 'Paste' })
+    ).toBeDefined();
+    act(() =>
+      renderer.root.findByProps({ accessibilityLabel: 'Back' }).props.onPress()
+    );
+    expect(injectJavaScript.mock.lastCall?.[0]).toContain(
+      '"type":"back","context":2'
+    );
+    act(() => renderer.root.findByType(TextInput).props.onChangeText(' hello'));
+    expect(injectJavaScript.mock.lastCall?.[0]).toContain(
+      '"type":"textEdit","text":" hello","context":2'
+    );
+    act(() => renderer.root.findByType(TextInput).props.onSubmitEditing());
+    expect(injectJavaScript.mock.lastCall?.[0]).toContain(
+      '"type":"keyEnter","context":2'
+    );
+    act(() => renderer.unmount());
+  });
+  it('waits for hosted thin-viewer handback before closing', async () => {
+    const ref = React.createRef<BrowserViewerHandle>();
+    let renderer!: ReactTestRenderer;
+    act(() => {
+      renderer = create(
+        <NativeBrowserViewer
+          ref={ref}
+          viewerUrl={viewerUrl}
+          onLoad={vi.fn()}
+          onError={vi.fn()}
+        />,
+        {
+          createNodeMock: (node) =>
+            node.type === 'WebView' ? { injectJavaScript } : null,
+        }
+      );
+    });
+    const message = (data: object) =>
+      renderer.root.findByType(WebView).props.onMessage({
+        nativeEvent: { url: viewerUrl, data: JSON.stringify(data) },
+      });
+    act(() =>
+      message({
+        type: 'tlon.browser.input',
+        version: 1,
+        ready: true,
+        keyboardOpen: false,
+        context: 1,
+        nativeControl: true,
+      })
+    );
+    let closed!: Promise<boolean>;
+    act(() => {
+      closed = ref.current!.close();
+    });
+    expect(injectJavaScript.mock.lastCall?.[0]).toContain('"type":"close"');
+    act(() => message({ type: 'tlon.browser.closed', ok: true }));
+    expect(await closed).toBe(true);
     act(() => renderer.unmount());
   });
   it('sends the safe area and control footprint once the viewer is loaded', () => {

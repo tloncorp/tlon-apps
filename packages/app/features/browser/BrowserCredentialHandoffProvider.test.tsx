@@ -13,10 +13,12 @@ import {
 } from 'vitest';
 
 import { useA2UINavigation } from '../../hooks/useA2UINavigation';
-import {
-  BrowserCredentialHandoffProvider,
-  useBrowserCredentialHandoff,
-} from './BrowserCredentialHandoffProvider';
+import { BrowserCredentialHandoffProvider } from './BrowserCredentialHandoffProvider';
+import { useBrowserCredentialHandoff } from './BrowserCredentialHandoffContext';
+import { BrowserCredentialHandoffSheet } from './BrowserCredentialHandoffSheet';
+vi.mock('./BrowserCredentialHandoffSheet', () => ({
+  BrowserCredentialHandoffSheet: 'BrowserCredentialHandoffSheet',
+}));
 
 const { navigate, navigateToGroup, platform, openWindow, showToast } =
   vi.hoisted(() => ({
@@ -73,7 +75,7 @@ describe('browser handoff registry', () => {
     vi.unstubAllGlobals();
   });
 
-  it('opens trusted session actions in a new tab on web without mounting a modal', async () => {
+  it('opens trusted session actions in a modal on web', async () => {
     platform.isWeb = true;
     let registry!: ReturnType<typeof useBrowserCredentialHandoff>;
     function Consumer() {
@@ -93,11 +95,15 @@ describe('browser handoff registry', () => {
       );
     });
     const url = 'https://browser-session.tlon.network/s/payload.signature';
+    expect(registry.viewerOpen).toBe(false);
     await act(async () => registry.openViewer(url));
-    expect(openWindow).toHaveBeenCalledOnce();
-    expect(openWindow).toHaveBeenCalledWith('about:blank', '_blank');
+    expect(registry.viewerOpen).toBe(true);
+    expect(openWindow).not.toHaveBeenCalled();
+    const viewer = renderer.root.findByType(BrowserViewerModal);
+    expect(viewer.props.viewerUrl).toBe(url);
+    await act(async () => viewer.props.onClose());
     expect(renderer.root.findAllByType(BrowserViewerModal)).toHaveLength(0);
-    openWindow.mockClear();
+    expect(registry.viewerOpen).toBe(false);
     await expect(
       registry.openViewer('https://evil.example/s/payload.signature')
     ).rejects.toThrow('trusted');
@@ -152,48 +158,6 @@ describe('browser handoff registry', () => {
         { allowBrowserSession: true }
       )
     ).rejects.toThrow('trusted');
-    act(() => renderer.unmount());
-  });
-
-  it('shows a retryable error when a viewer popup is blocked', async () => {
-    platform.isWeb = true;
-    openWindow.mockReturnValue(null);
-    let navigateA2UI!: ReturnType<typeof useA2UINavigation>;
-    function Consumer() {
-      const navigateToTarget = useA2UINavigation();
-      useEffect(() => {
-        navigateA2UI = navigateToTarget;
-      }, [navigateToTarget]);
-      return null;
-    }
-    let renderer!: ReactTestRenderer;
-    await act(async () => {
-      renderer = create(
-        <BrowserCredentialHandoffProvider>
-          <Consumer />
-        </BrowserCredentialHandoffProvider>
-      );
-    });
-    const target = {
-      type: 'screen',
-      screen: 'browserSession',
-      viewerUrl: 'https://browser-session.tlon.network/s/payload.signature',
-    } as const;
-    await expect(
-      navigateA2UI(target, { allowBrowserSession: true })
-    ).rejects.toThrow('Allow pop-ups');
-    expect(showToast).toHaveBeenCalledWith({
-      message: expect.stringContaining('allow pop-ups'),
-    });
-    openWindow.mockReturnValue({
-      opener: {},
-      document: { write: vi.fn() },
-      location: { replace: vi.fn() },
-      closed: false,
-    });
-    await expect(
-      navigateA2UI(target, { allowBrowserSession: true })
-    ).resolves.toBeUndefined();
     act(() => renderer.unmount());
   });
 
@@ -267,11 +231,15 @@ describe('browser handoff registry', () => {
       } as const;
       await navigateA2UI(target);
       expect(navigate).not.toHaveBeenCalled();
-      await navigateA2UI(target, {
-        allowBrowserCredentialHandoff: true,
-      });
-      const [handoffId] = navigate.mock.calls[0];
-      expect(navigate).toHaveBeenCalledWith(expect.any(String), loginApproval);
+      await act(async () =>
+        navigateA2UI(target, {
+          allowBrowserCredentialHandoff: true,
+        })
+      );
+      const sheet = renderer.root.findByType(BrowserCredentialHandoffSheet);
+      const handoffId = sheet.props.handoffId;
+      expect(sheet.props.loginApproval).toEqual(loginApproval);
+      expect(navigate).not.toHaveBeenCalled();
       const state = {
         routes: [{ name: 'BrowserCredentialHandoff', params: { handoffId } }],
       };

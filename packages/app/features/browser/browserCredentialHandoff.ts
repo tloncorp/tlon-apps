@@ -32,7 +32,12 @@ export type BrowserCredentialHandoff = {
   expiresAt: number;
   kind: 'login' | 'details';
   fields: BrowserSecureField[];
-  vault?: { authorizeUrl: string; planet: string; moon: string };
+  vault?: {
+    authorizeUrl: string;
+    planet: string;
+    moon: string;
+    saveBeforeFill?: boolean;
+  };
 };
 export type BrowserCredentialValues = {
   values?: Record<string, string>;
@@ -316,6 +321,10 @@ export async function beginBrowserCredentialHandoff(
             ).toString(),
             planet: body.vault.planet,
             moon: body.vault.moon,
+            ...('saveBeforeFill' in body.vault &&
+            body.vault.saveBeforeFill === true
+              ? { saveBeforeFill: true }
+              : {}),
           },
         }
       : {}),
@@ -352,6 +361,7 @@ export async function submitBrowserCredentials(
 ): Promise<{
   submitted: boolean;
   saveStatus?: 'saved' | 'pending' | 'failed';
+  fillStatus?: 'pending';
 }> {
   if (Date.now() >= handoff.expiresAt)
     throw new Error('This secure form has expired.');
@@ -365,6 +375,9 @@ export async function submitBrowserCredentials(
       submit: false,
       ...(values.grant ? { grant: values.grant } : {}),
       ...(values.save ? { save: values.save } : {}),
+      ...(values.save && handoff.vault?.saveBeforeFill
+        ? { respondAfterSave: true }
+        : {}),
       ...(values.use
         ? { use: values.use, allowAutomatic: values.allowAutomatic === true }
         : {}),
@@ -383,8 +396,13 @@ export async function submitBrowserCredentials(
     );
   if (body.ok !== true)
     throw new Error('The browser did not confirm that the fields were filled.');
+  if (body.fillStatus === 'pending' && body.saveStatus !== 'saved')
+    throw new Error('The browser did not confirm that the login was saved.');
   return {
     submitted: body.submitted === true,
+    ...(body.fillStatus === 'pending'
+      ? { fillStatus: 'pending' as const }
+      : {}),
     ...(['saved', 'pending', 'failed'].includes(String(body.saveStatus))
       ? { saveStatus: body.saveStatus as 'saved' | 'pending' | 'failed' }
       : {}),

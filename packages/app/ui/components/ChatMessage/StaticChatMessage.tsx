@@ -724,12 +724,16 @@ export function StaticChatMessage({
     () => convertContent(undefined, post.blob ?? undefined),
     [post.blob]
   );
+  const hasBrowserCard = postContent.some(
+    (block) => block.type === 'browser-card'
+  );
   const hasRenderableStoryFallback = useMemo(
     () =>
       hasRenderableA2UIStoryFallback(postContent, canUseAgentProviderControls),
     [canUseAgentProviderControls, postContent]
   );
   const content = useMemo(() => {
+    if (allowBrowserHandoff && hasBrowserCard) return blobContent;
     if (!canRenderA2UI || !hasRenderableA2UIContent) {
       return postContent.filter((block) => block.type !== 'a2ui');
     }
@@ -742,9 +746,12 @@ export function StaticChatMessage({
     canRenderA2UI,
     hasRenderableStoryFallback,
     hasRenderableA2UIContent,
+    allowBrowserHandoff,
+    hasBrowserCard,
     postContent,
   ]);
   const lastEditContent = useMemo(() => {
+    if (allowBrowserHandoff && hasBrowserCard) return blobContent;
     if (!canRenderA2UI || !hasRenderableA2UIContent) {
       return lastEditPostContent.filter((block) => block.type !== 'a2ui');
     }
@@ -754,6 +761,8 @@ export function StaticChatMessage({
     canRenderA2UI,
     hasRenderableStoryFallback,
     hasRenderableA2UIContent,
+    allowBrowserHandoff,
+    hasBrowserCard,
     lastEditPostContent,
   ]);
   const contentIsOnlyA2UI =
@@ -843,6 +852,7 @@ export function StaticChatMessage({
             onPressImage={handleImagePressed}
             getImageViewerId={(src) => getPostImageViewerId(post.id, src)}
             onLongPress={handleLongPress}
+            canUseBrowserCards={allowBrowserHandoff}
             onA2UIAction={canRenderA2UI ? handleA2UIAction : undefined}
             isA2UIActionAvailable={
               canRenderA2UI ? isA2UIActionAvailable : undefined

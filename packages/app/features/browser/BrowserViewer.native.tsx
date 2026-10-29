@@ -1,7 +1,15 @@
-import { Text } from '@tloncorp/ui';
+import { Button, Text } from '@tloncorp/ui';
 import * as Clipboard from 'expo-clipboard';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Keyboard } from 'react-native';
+import {
+  type Ref,
+  type ComponentRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
+import { Alert, Keyboard, Platform, TextInput } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { YStack } from 'tamagui';
 
@@ -21,9 +29,17 @@ type InputState = {
   mode?: 'agent' | 'mobile';
   reloadRequired?: 'agent' | 'mobile' | null;
   browserControlsVisible?: boolean;
+  nativeControl?: boolean;
+  nativeInput?: boolean;
+  canTakeControl?: boolean;
+  controlBusy?: boolean;
+  controlError?: string | null;
 };
 
+export type BrowserViewerHandle = { close: () => Promise<boolean> };
+
 export function BrowserViewer({
+  ref,
   viewerUrl,
   bottomInset = 0,
   topInset = 0,
@@ -31,6 +47,7 @@ export function BrowserViewer({
   onLoad,
   onError,
 }: {
+  ref?: Ref<BrowserViewerHandle>;
   viewerUrl: string;
   bottomInset?: number;
   topInset?: number;
@@ -38,8 +55,13 @@ export function BrowserViewer({
   onLoad: () => void;
   onError: () => void;
 }) {
-  const uri = trustedBrowserViewerUrl(viewerUrl);
+  const viewer = new URL(trustedBrowserViewerUrl(viewerUrl));
+  // Android keeps the existing input bridge while the Kernel viewer is trialed on iOS.
+  if (Platform.OS === 'android') viewer.searchParams.set('viewer', 'cdp');
+  const uri = viewer.toString();
   const webView = useRef<WebView<{}>>(null);
+  const nativeKeyboard = useRef<ComponentRef<typeof TextInput>>(null);
+  const [nativeText, setNativeText] = useState(' ');
   const session = useRef({
     input: null as InputState | null,
     revision: 0,
@@ -50,6 +72,7 @@ export function BrowserViewer({
   const [loaded, setLoaded] = useState(false);
   const [pasteBusy, setPasteBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const pendingClose = useRef<((ok: boolean) => void) | null>(null);
   const send = useCallback((command: object) => {
     // Serialize data as a JS literal; pasted text is never interpreted as code.
     const data = JSON.stringify({ version: 1, ...command })
@@ -60,6 +83,26 @@ export function BrowserViewer({
       `window.tlonBrowserInput?.receive(${data}); true;`
     );
   }, []);
+  useImperativeHandle(
+    ref,
+    () => ({
+      close: () => {
+        if (!session.current.input?.nativeControl) return Promise.resolve(true);
+        return new Promise<boolean>((resolve) => {
+          const timer = setTimeout(() => finish(false), 15000);
+          const finish = (ok: boolean) => {
+            clearTimeout(timer);
+            pendingClose.current = null;
+            resolve(ok);
+          };
+          pendingClose.current = finish;
+          Keyboard.dismiss();
+          send({ type: 'close' });
+        });
+      },
+    }),
+    [send]
+  );
   useEffect(() => {
     const lifecycle = session.current;
     // React can reconnect effects without reloading the WebView (including
@@ -72,6 +115,7 @@ export function BrowserViewer({
     return () => {
       lifecycle.revision++;
       lifecycle.input = null;
+      pendingClose.current?.(false);
       subscription.remove();
       Keyboard.dismiss();
     };
@@ -137,7 +181,10 @@ export function BrowserViewer({
         ref={webView}
         source={{ uri }}
         // Viewers without the native bridge cannot reserve space for our controls.
-        style={{ flex: 1, marginTop: input ? 0 : topInset + 68 }}
+        style={{
+          flex: 1,
+          marginTop: input && !input.nativeControl ? 0 : topInset + 68,
+        }}
         // The streamed canvas owns pan/zoom. Prevent WKWebView from also
         // scrolling its document when the hidden keyboard input is focused.
         scrollEnabled={false}
@@ -177,6 +224,14 @@ export function BrowserViewer({
           if (nativeEvent.url !== uri || nativeEvent.data.length > 8192) return;
           try {
             const status = JSON.parse(nativeEvent.data);
+            if (
+              session.current.input?.nativeControl &&
+              status.type === 'tlon.browser.closed' &&
+              typeof status.ok === 'boolean'
+            ) {
+              pendingClose.current?.(status.ok);
+              return;
+            }
             if (
               status.type !== 'tlon.browser.input' ||
               status.version !== 1 ||
@@ -245,76 +300,149 @@ export function BrowserViewer({
         onContentProcessDidTerminate={onError}
         onRenderProcessGone={onError}
       />
+      {input?.nativeInput && (
+        <TextInput
+          ref={nativeKeyboard}
+          value={nativeText}
+          style={{
+            position: 'absolute',
+            top: 70,
+            left: 0,
+            width: 1,
+            height: 1,
+            opacity: 0.01,
+          }}
+          autoCapitalize="none"
+          autoCorrect={false}
+          accessibilityLabel="Remote keyboard"
+          onChangeText={(text) => {
+            setNativeText(text);
+            send({
+              type: 'textEdit',
+              text,
+              context: session.current.input?.context,
+            });
+          }}
+          onSubmitEditing={() =>
+            send({ type: 'keyEnter', context: session.current.input?.context })
+          }
+          onBlur={() => send({ type: 'keyboard', open: false })}
+        />
+      )}
       {input && (
         <>
-          <BrowserViewerMenu
-            topInset={topInset}
-            rightInset={rightInset}
-            mode={input?.mode}
-            ready={!!input?.ready && !!input.mode}
-            browserControlsVisible={input?.browserControlsVisible}
-            onBrowserControlsChange={(visible) => {
-              if (
-                typeof session.current.input?.browserControlsVisible !==
-                'boolean'
-              )
-                return;
-              send({ type: 'browserControls', visible });
-            }}
-            onSelect={(mode) => {
-              const current = session.current.input;
-              if (!current?.ready || !current.mode || current.mode === mode)
-                return;
-              send({ type: 'layout', mode, context: current.context });
-            }}
-          />
+          {(!input.nativeControl || input.ready) && (
+            <BrowserViewerMenu
+              topInset={topInset}
+              rightInset={rightInset}
+              mode={input?.mode}
+              ready={!!input?.ready && !!input.mode && !input.controlBusy}
+              browserControlsVisible={input?.browserControlsVisible}
+              onBrowserControlsChange={(visible) => {
+                if (
+                  typeof session.current.input?.browserControlsVisible !==
+                  'boolean'
+                )
+                  return;
+                send({ type: 'browserControls', visible });
+              }}
+              onSelect={(mode) => {
+                const current = session.current.input;
+                if (!current?.ready || !current.mode || current.mode === mode)
+                  return;
+                send({ type: 'layout', mode, context: current.context });
+              }}
+            />
+          )}
           <YStack
             position="absolute"
             bottom={16 + (input?.keyboardOpen ? 0 : bottomInset)}
             left={16}
             right={16 + rightInset}
-            alignItems="flex-end"
+            alignItems={input.nativeControl ? 'center' : 'flex-end'}
             gap="$s"
             pointerEvents="box-none"
           >
-            <BrowserControlGroup>
-              <BrowserControlButton
-                grouped
-                icon={input?.keyboardOpen ? 'ChevronDown' : 'Keyboard'}
-                accessibilityLabel={
-                  input?.keyboardOpen ? 'Hide keyboard' : 'Keyboard'
-                }
-                disabled={!input?.ready}
-                onPress={() => {
-                  if (!session.current.input?.ready) return;
-                  const open = !session.current.input.keyboardOpen;
-                  setNotice(null);
-                  if (open) webView.current?.requestFocus();
-                  send({
-                    type: 'keyboard',
-                    open,
-                    context: session.current.input.context,
-                  });
-                  if (!open) Keyboard.dismiss();
-                }}
+            {input.nativeControl && !input.ready ? (
+              <Button
+                label={input.controlBusy ? 'Taking control…' : 'Take control'}
+                disabled={!input.canTakeControl || input.controlBusy}
+                onPress={() => send({ type: 'takeControl' })}
               />
-              <BrowserControlButton
-                grouped
-                icon="Clipboard"
-                accessibilityLabel="Paste"
-                disabled={!input?.ready || pasteBusy}
-                onPress={paste}
-              />
-            </BrowserControlGroup>
-            {notice ? (
+            ) : !input.nativeControl || input.nativeInput ? (
+              <BrowserControlGroup>
+                {input.nativeInput && (
+                  <>
+                    <BrowserControlButton
+                      grouped
+                      icon="ChevronLeft"
+                      accessibilityLabel="Back"
+                      disabled={!input.ready || input.controlBusy}
+                      onPress={() =>
+                        send({
+                          type: 'back',
+                          context: session.current.input?.context,
+                        })
+                      }
+                    />
+                    <BrowserControlButton
+                      grouped
+                      icon="ChevronRight"
+                      accessibilityLabel="Forward"
+                      disabled={!input.ready || input.controlBusy}
+                      onPress={() =>
+                        send({
+                          type: 'forward',
+                          context: session.current.input?.context,
+                        })
+                      }
+                    />
+                  </>
+                )}
+                <BrowserControlButton
+                  grouped
+                  icon={input?.keyboardOpen ? 'ChevronDown' : 'Keyboard'}
+                  accessibilityLabel={
+                    input?.keyboardOpen ? 'Hide keyboard' : 'Keyboard'
+                  }
+                  disabled={!input?.ready || input.controlBusy}
+                  onPress={() => {
+                    if (!session.current.input?.ready) return;
+                    const open = !session.current.input.keyboardOpen;
+                    setNotice(null);
+                    if (session.current.input.nativeInput) {
+                      if (open) {
+                        setNativeText(' ');
+                        nativeKeyboard.current?.focus();
+                      } else nativeKeyboard.current?.blur();
+                    } else if (open) webView.current?.requestFocus();
+                    send({
+                      type: 'keyboard',
+                      open,
+                      native: session.current.input.nativeInput,
+                      context: session.current.input.context,
+                    });
+                    if (!open) Keyboard.dismiss();
+                  }}
+                />
+                <BrowserControlButton
+                  grouped
+                  icon="Clipboard"
+                  accessibilityLabel="Paste"
+                  disabled={!input?.ready || input.controlBusy || pasteBusy}
+                  onPress={paste}
+                />
+              </BrowserControlGroup>
+            ) : null}
+            {notice || input.controlError ? (
               <Text
                 padding="$m"
                 borderRadius="$l"
                 backgroundColor="$background"
               >
-                {notice}
+                {notice || input.controlError}
               </Text>
-            ) : loaded && !input?.ready ? (
+            ) : loaded && !input?.ready && !input.nativeControl ? (
               <Text
                 padding="$m"
                 borderRadius="$l"

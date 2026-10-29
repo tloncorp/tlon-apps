@@ -22,6 +22,11 @@ import {
 } from '../urbit';
 import { A2UI } from './a2ui';
 import {
+  PostBlobDataEntryBrowserSessionSchema,
+  PostBlobDataEntryBrowserSecureEntrySchema,
+} from './browserCards';
+export * from './browserCards';
+import {
   AGENT_PROTOCOL_LIMITS,
   AgentProviderConfigContextSchema,
   AgentProvisionActionContextSchema,
@@ -831,6 +836,8 @@ const postBlobDataEntryDefinitions = [
   PostBlobDataEntryAgentPostMarkerSchema,
   PostBlobDataEntryA2UISelectionSchema,
   A2UI.blobEntrySchema,
+  PostBlobDataEntryBrowserSessionSchema,
+  PostBlobDataEntryBrowserSecureEntrySchema,
 ] as const;
 
 export const PostBlobDataEntrySchema = z.union(postBlobDataEntryDefinitions);
@@ -855,6 +862,8 @@ export const POST_BLOB_ENTRY_TYPES = [
   'tlon-agent-post-marker',
   'tlon-a2ui-selection',
   'a2ui',
+  'browser-session',
+  'browser-secure-entry',
 ] as const satisfies readonly PostBlobDataEntry['type'][];
 
 // Compile-time completeness: a type registered in postBlobDataEntryDefinitions
