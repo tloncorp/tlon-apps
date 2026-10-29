@@ -7,7 +7,7 @@
 /+  *test, util=buckets-util
 /=  buckets-json  /lib/buckets/json
 |%
-::  +error-of: the error object a refused answer encodes to
+::  +iris-json: a broker answer under a status code, carrying a JSON body
 ::
 ++  iris-json
   |=  [status=@ud body=@t]
@@ -15,6 +15,8 @@
   :+  %finished
     [status ~]
   `['application/json' [(met 3 body) body]]
+::
+::  +error-of: the error object a refused answer encodes to
 ::
 ++  error-of
   |=  body=response-body:b

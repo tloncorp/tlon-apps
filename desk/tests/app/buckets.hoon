@@ -1096,7 +1096,7 @@
 ::  hour-long session, a thirty-minute delay is passed on as ten; past the
 ::  expiry a finish is still accepted but no wait is passed on at all.
 ::
-++  test-retry-after-capped-at-time-left
+++  test-retry-after-cap
   %-  eval-mare
   =/  m  (mare ,~)
   =*  b  bind:m
@@ -1124,6 +1124,28 @@
   %+  ex-cards  refused
   :~  %+  grant-fact  0v3
       [%error %unknown 'slow down' `['rate_limited' & ~ ~]]
+  ==
+::
+::  The same cap holds on a retry. Fifty minutes into an hour-long session,
+::  a thirty-minute delay on a refused %retry-upload is passed on as ten.
+::
+++  test-retry-after-cap-on-retry
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'slow.pdf' 42)
+  ;<  ~  b  (jab-bowl |=(bol=bowl bol(now (add ~2026.1.1 ~m50))))
+  ;<  retry=wire  b  (retry-call 0v2 seed)
+  ;<  refused=(list card)  b
+    %+  do-arvo  retry
+    %+  iris-json  429
+    '{"code":"rate_limited","message":"slow down","retryable":true,"retryAfterMs":1800000}'
+  %+  ex-cards  refused
+  :~  %+  grant-fact  0v2
+      [%error %unknown 'slow down' `['rate_limited' & `600.000 ~]]
   ==
 ::
 ::  A 2xx retry with no URL in it cannot be acted on any more than a grant
@@ -1396,7 +1418,7 @@
 ::  the uploader to ask again, and nothing cancels an object that may be in
 ::  storage.
 ::
-++  test-complete-refused-by-a-proxy-without-json-keeps-the-session
+++  test-complete-proxy-5xx-kept
   %-  eval-mare
   =/  m  (mare ,~)
   =*  b  bind:m
@@ -1406,7 +1428,7 @@
   ;<  *  b  (begun 0v1 'proxied.pdf' 42)
   ;<  done=wire  b  (finish-call 0v2 seed)
   ;<  refused=(list card)  b
-    (do-arvo done (iris-html 503 '<html>bad gateway</html>'))
+    (do-arvo done (iris-html 502 '<html>bad gateway</html>'))
   ::  The answer is the only card: no entry is broadcast and no cancel goes
   ::  to the broker.
   ;<  ~  b
@@ -1426,7 +1448,7 @@
 ::  final: the session is cancelled and its bound reservation released at the
 ::  broker, after the waiter is answered. Nothing reaches the manifest.
 ::
-++  test-complete-refused-with-an-empty-body-releases-the-reservation
+++  test-complete-empty-400-final
   %-  eval-mare
   =/  m  (mare ,~)
   =*  b  bind:m
@@ -1679,7 +1701,7 @@
 ::  retryable under the code 'unknown', and the session stays cancelled with
 ::  its reservation bound for the uploader to send %cancel-upload again.
 ::
-++  test-cancel-bodyless-503-is-retryable
+++  test-cancel-bodyless-503
   %-  eval-mare
   =/  m  (mare ,~)
   =*  b  bind:m
@@ -1724,6 +1746,53 @@
   %+  ex-equal
     !>([status.ses reservation.ses error.ses])
   !>([%cancelled ~ `'changed my mind'])
+::
+::  A second cancel while the first /cancel is still out takes the waiter:
+::  the first canceller is answered superseded, the second %pending, and a
+::  second /cancel goes out on the same wire. The first /cancel answer pays
+::  the second canceller; the second answer finds no waiter and says nothing.
+::
+++  test-cancel-while-cancel-out
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'twice.pdf' 42)
+  ;<  first=wire  b  (cancel-call 0v2 seed 'tab closed')
+  ;<  second=wire  b  (cancel-over 0v3 0v2 seed 'tab closed')
+  ;<  ~  b  (ex-equal !>(second) !>(first))
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  ;<  ~  b
+    %+  ex-equal
+      !>([status.ses reservation.ses awaiting.ses])
+    !>([%cancelled `'res-1' `0v3])
+  ;<  paid=(list card)  b  (do-arvo first iris-ok)
+  ;<  ~  b  (ex-cards paid ~[(grant-fact 0v3 [%ok ~])])
+  ;<  quiet=(list card)  b  (do-arvo second iris-ok)
+  ;<  ~  b  (ex-cards quiet ~)
+  ;<  ses2=upload-session:bu  b  (saved-session seed)
+  (ex-equal !>(awaiting.ses2) !>(`(unit @uv)`~))
+::
+::  A cancel on a session already complete is refused as not pending, with
+::  no broker call: the entry is published and there is nothing to release.
+::
+++  test-cancel-on-complete-refused
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'landed.pdf' 42)
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  ;<  done=wire  b  (finish-call 0v2 seed)
+  ;<  *  b  (do-arvo done (receipt-for ses))
+  ;<  withdrawn=(list card)  b
+    (ask 0v3 [%bucket flag [%cancel-upload seed 'too late']])
+  %+  ex-cards  withdrawn
+  ~[(grant-fact 0v3 [%error %invalid-input 'upload session is not pending' ~])]
 ::
 ::  A completion still out when the uploader cancels is answered after the
 ::  cancel took its waiter. A final refusal of it says nothing to the
@@ -1845,6 +1914,106 @@
     %+  iris-json  503
     '{"code":"storage_unavailable","message":"try later","retryable":true}'
   (ex-cards settled ~[(grant-fact 0v3 [%ok ~])])
+::
+::  A retry still out when the uploader cancels, answered with a URL against
+::  the reservation already bound. Nothing is bound anew and nothing is
+::  released: no card goes out, and the session stays as the cancel left it
+::  until /cancel answers.
+::
+++  test-late-retry-bound
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'late.pdf' 42)
+  ;<  retry=wire  b  (retry-call 0v2 seed)
+  ;<  cancel=wire  b  (cancel-over 0v3 0v2 seed 'tab closed')
+  ;<  late=(list card)  b
+    (do-arvo retry (iris-grant 'res-1' 'https://storage.test/put2'))
+  ;<  ~  b  (ex-cards late ~)
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  ;<  ~  b
+    %+  ex-equal
+      !>([status.ses reservation.ses awaiting.ses])
+    !>([%cancelled `'res-1' `0v3])
+  ;<  settled=(list card)  b  (do-arvo cancel iris-ok)
+  (ex-cards settled ~[(grant-fact 0v3 [%ok ~])])
+::
+::  A completion still out when the uploader cancels, answered 2xx with a
+::  receipt for a different object. Nothing publishes and no second /cancel
+::  goes out; the session stays cancelled until /cancel answers.
+::
+++  test-late-complete-bad-receipt
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'late.pdf' 42)
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  =/  fil=file:bu  (file-of entry.ses)
+  ;<  done=wire  b  (finish-call 0v2 seed)
+  ;<  cancel=wire  b  (cancel-over 0v3 0v2 seed 'tab closed')
+  ;<  late=(list card)  b
+    (do-arvo done (iris-object object-key.fil 41 'application/pdf'))
+  ;<  ~  b  (ex-cards late ~)
+  ;<  ses2=upload-session:bu  b  (saved-session seed)
+  ;<  bs=bucket-state:bu  b  saved-bucket
+  ;<  ~  b
+    %+  ex-equal
+      !>([status.ses2 awaiting.ses2 ~(wyt by entries.bs)])
+    !>([%cancelled `0v3 0])
+  ;<  settled=(list card)  b  (do-arvo cancel iris-ok)
+  (ex-cards settled ~[(grant-fact 0v3 [%ok ~])])
+::
+::  A completion still out when the uploader cancels, given up on by Iris.
+::  There is no answer to act on, so nothing goes out and the cancel's
+::  waiter is kept for the /cancel answer.
+::
+++  test-late-iris-cancel
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'late.pdf' 42)
+  ;<  done=wire  b  (finish-call 0v2 seed)
+  ;<  cancel=wire  b  (cancel-over 0v3 0v2 seed 'tab closed')
+  ;<  late=(list card)  b  (do-arvo done iris-cancelled)
+  ;<  ~  b  (ex-cards late ~)
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  ;<  ~  b
+    %+  ex-equal
+      !>([status.ses awaiting.ses])
+    !>([%cancelled `0v3])
+  ;<  settled=(list card)  b  (do-arvo cancel iris-ok)
+  (ex-cards settled ~[(grant-fact 0v3 [%ok ~])])
+::
+::  A grant still out when the uploader cancels, answered 2xx with a URL but
+::  no reservation. There is nothing to bind or release, so nothing goes out
+::  and the session keeps no reservation.
+::
+++  test-late-grant-no-reservation
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  grant=wire  b  (grant-call 0v1 'early.pdf')
+  ;<  *  b  (ask 0v2 [%bucket flag [%cancel-upload seed 'changed my mind']])
+  ;<  late=(list card)  b
+    %+  do-arvo  grant
+    (iris-json 200 '{"uploadUrl":"https://storage.test/put"}')
+  ;<  ~  b  (ex-cards late ~)
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  %+  ex-equal
+    !>([status.ses reservation.ses awaiting.ses])
+  !>([%cancelled ~ ~])
 ::
 ::  A bucket or token we do not have is [~ ~], which Eyre serves as a 404.
 ::  A bare ~ is a 500, and clients treat only a 404 as absent.
