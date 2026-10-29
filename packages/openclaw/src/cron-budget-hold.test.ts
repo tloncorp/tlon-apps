@@ -9,6 +9,7 @@ import {
   readBudgetHoldState,
   readBudgetSignal,
   reconcileBudgetHolds,
+  stripSystemOwnedHoldLabels,
   writeBudgetHoldState,
   type BudgetState,
 } from './cron-budget-hold.js';
@@ -333,28 +334,51 @@ describe('cron budget holds', () => {
       updatedAtMs: 1,
       schedule: { kind: 'every', everyMs: 604_800_000 },
       payload: { kind: 'agentTurn' },
+      description: BUDGET_HOLD_PREFIX + 'Review skills',
     });
     f.state.limited = true;
     f.state.episodeId = 'episode';
-    f.state.holds['skill-review'] = { description: '' };
+    f.state.holds['skill-review'] = { description: 'Review skills' };
     await f.reconcile('limited');
     expect(f.state.holds['skill-review']).toBeUndefined();
     expect(f.update.mock.calls.map(([id]) => id)).toEqual(['report', 'watch']);
   });
 
-  it('keeps holding other jobs and notifying when one update fails', async () => {
+  it('strips stale budget labels from system-owned jobs only', () => {
+    const system = { declarationKey: 'skill-collection-review:main' };
+    const stripped = stripSystemOwnedHoldLabels([
+      { id: 'spaced', ...system, description: BUDGET_HOLD_PREFIX + 'Review' },
+      { id: 'bare', ...system, description: BUDGET_HOLD_PREFIX.trimEnd() },
+      {
+        id: 'payload',
+        payload: { kind: 'heartbeat' },
+        description: BUDGET_HOLD_PREFIX + 'Beat',
+      },
+      { id: 'unlabelled', ...system, description: 'Review' },
+      { id: 'undescribed', ...system },
+      { id: 'user', description: BUDGET_HOLD_PREFIX + 'Mine' },
+    ]);
+    expect(stripped).toEqual([
+      { id: 'spaced', ...system, description: 'Review' },
+      { id: 'bare', ...system },
+      { id: 'payload', payload: { kind: 'heartbeat' }, description: 'Beat' },
+    ]);
+  });
+
+  it('keeps holding other jobs when one update fails and notifies once clean', async () => {
     const f = fixture();
     f.update.mockRejectedValueOnce(new Error('update rejected'));
     await expect(f.reconcile('limited')).rejects.toThrow('update rejected');
     expect(f.jobs[0].enabled).toBe(true);
     expect(f.jobs[1].enabled).toBe(false);
     expect(f.state.holds.watch.revision).toBeDefined();
-    expect(f.notify).toHaveBeenCalledExactlyOnceWith(
-      'Your token credits are low. Your 1 scheduled task has been paused.'
-    );
+    expect(f.notify).not.toHaveBeenCalled();
     await f.reconcile('limited');
     expect(f.jobs[0].enabled).toBe(false);
     expect(f.state.holds.report.revision).toBeDefined();
+    expect(f.notify).toHaveBeenCalledExactlyOnceWith(
+      'Your token credits are low. Your 2 scheduled tasks have been paused.'
+    );
   });
 });
 

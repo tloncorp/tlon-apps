@@ -89,9 +89,13 @@ export function isRecurringJob(job: BudgetCronJob): boolean {
   return RECURRING_SCHEDULE_KINDS.has(job.schedule?.kind ?? '');
 }
 
-// Core rejects client edits to system-owned monitor jobs. This mirrors core's
-// `src/cron/system-owned-declaration.ts`, which the plugin SDK does not export.
-// `heartbeat-task:` jobs stay holdable because core keeps them operator-editable.
+// Core rejects client edits to system-owned jobs, and the plugin SDK does not
+// export its checks. The declarationKey prefixes mirror
+// `isSystemMonitorDeclaration` in core's `src/cron/system-owned-declaration.ts`.
+// The heartbeat payload arm mirrors `updateLoadedJob` in
+// `src/cron/service/ops-mutations.ts` ("system-owned payloads cannot be patched
+// by cron clients"). `heartbeat-task:` jobs stay holdable because core keeps
+// them operator-editable.
 export function isSystemOwnedJob(job: BudgetCronJob): boolean {
   const key = job.declarationKey;
   return (
@@ -99,6 +103,29 @@ export function isSystemOwnedJob(job: BudgetCronJob): boolean {
     key?.startsWith('skill-collection-review:') === true ||
     job.payload?.kind === 'heartbeat'
   );
+}
+
+// Older plugins labelled system-owned jobs. Core re-enables them on start but
+// does not converge `description`, so the label outlives the pause. Returns the
+// labelled system-owned jobs with the label removed; only the pre-gateway
+// bootstrap may write these, since the live API rejects the edit.
+export function stripSystemOwnedHoldLabels<T extends BudgetCronJob>(
+  jobs: T[]
+): T[] {
+  return jobs.flatMap((job) => {
+    const description = job.description ?? '';
+    // A hold on a job without a description wrote the label with no space.
+    if (
+      !isSystemOwnedJob(job) ||
+      !(description + ' ').startsWith(BUDGET_HOLD_PREFIX)
+    )
+      return [];
+    const stripped = { ...job };
+    const rest = description.slice(BUDGET_HOLD_PREFIX.length);
+    if (rest) stripped.description = rest;
+    else delete stripped.description;
+    return [stripped];
+  });
 }
 
 export async function readBudgetSignal(path: string): Promise<BudgetState> {
@@ -376,6 +403,8 @@ export async function reconcileBudgetHolds(opts: {
     if (
       limited &&
       count > 0 &&
+      // A pass with failures may still change the count; notify once it is clean.
+      errors.length === 0 &&
       !state.notified &&
       opts.notify &&
       now >= (state.nextNotificationAtMs ?? 0)

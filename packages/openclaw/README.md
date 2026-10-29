@@ -77,7 +77,8 @@ Deploy the matching tlonbot wrapper and plugin together. Before launching a
 gateway, the wrapper runs `dist/src/cron-budget-bootstrap.js` as the gateway
 user, after ensuring no old gateway is running. This applies holds through the
 public SDK's cron store API before the scheduler can catch up overdue tasks.
-The bootstrap must never run alongside a live gateway. Recovery is left to the
+It also removes a stale budget label from OpenClaw's system-owned monitor jobs,
+which the live API cannot edit. The bootstrap must never run alongside a live gateway. Recovery is left to the
 plugin's live API. A failed bootstrap prevents gateway launch rather than
 silently starting unprotected scheduled work.
 
