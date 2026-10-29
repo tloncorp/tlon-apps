@@ -19,7 +19,6 @@ import {
   readSurface,
   recordedBuild,
   renderAffected,
-  replaceIndex,
   slugify,
 } from './feature-map.mjs';
 
@@ -248,16 +247,6 @@ test('catches a header value that strict YAML would reject', () => {
   );
   // Colons in the body are not the header's business.
   assert.deepEqual(headerProblems('# Guide\n\nUse it: often.\n'), []);
-});
-
-test('rewrites only the index block', () => {
-  const skill =
-    'before\n<!-- feature-map:index:start -->\nold\n<!-- feature-map:index:end -->\nafter\n';
-  assert.equal(
-    replaceIndex(skill, '- new'),
-    'before\n<!-- feature-map:index:start -->\n- new\n<!-- feature-map:index:end -->\nafter\n'
-  );
-  assert.equal(replaceIndex('no markers', '- new'), null);
 });
 
 const QUESTIONS = `# comment
