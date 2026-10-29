@@ -1406,6 +1406,10 @@ describe('posts delete', () => {
     }
   });
 
+  const existingPost = async (): Promise<PostLookupResult> => ({
+    posts: [{ id: '170.141.184', sentAt: 1111 }],
+  });
+
   it('deletes a post with the formatted id and current user as author', async () => {
     const cases = [
       { rawPostId: '170.141.184', expectedPostId: '170.141.184' },
@@ -1414,7 +1418,10 @@ describe('posts delete', () => {
     ];
 
     for (const testCase of cases) {
-      const context = makeDeps({ currentUserId: '~nec' });
+      const context = makeDeps({
+        currentUserId: '~nec',
+        getChannelPosts: existingPost,
+      });
       const exitCode = await run(
         ['delete', 'chat/~host/channel', testCase.rawPostId, 'ignored'],
         context.deps
@@ -1425,6 +1432,7 @@ describe('posts delete', () => {
       expect(context.stderr()).toBe('');
       expect(context.calls.order).toEqual([
         'authenticate',
+        'getChannelPosts',
         'getCurrentUserId',
         'deletePost',
       ]);
@@ -1438,8 +1446,31 @@ describe('posts delete', () => {
     }
   });
 
+  it('refuses to delete a post it cannot read, rather than reporting success', async () => {
+    // The host acks a %del for an unknown id, so a wrong id (the sent-time id
+    // a sender computed, say) would otherwise print "deleted" over a post
+    // that is still up. Retried once, then refused with nothing deleted.
+    const context = makeDeps({
+      getChannelPosts: async () => ({ posts: [] }),
+    });
+
+    const exitCode = await run(
+      ['delete', 'chat/~host/channel', '170141184'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.calls.deletePost).toHaveLength(0);
+    expect(context.calls.getChannelPosts).toHaveLength(2);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('nothing was deleted');
+  });
+
   it('deletes a gallery post with the exact heap target input', async () => {
-    const context = makeDeps({ currentUserId: '~nec' });
+    const context = makeDeps({
+      currentUserId: '~nec',
+      getChannelPosts: existingPost,
+    });
     const exitCode = await run(
       ['delete', 'heap/~host/gallery', '170141184'],
       context.deps
@@ -1457,6 +1488,7 @@ describe('posts delete', () => {
 
   it('routes facade failures through the shared command-error path', async () => {
     const context = makeDeps({
+      getChannelPosts: existingPost,
       deletePost: async () => {
         throw commandError('delete failed');
       },
@@ -2992,7 +3024,9 @@ describe('posts delete --parent (thread reply)', () => {
   });
 
   it('keeps delete without --parent on the top-level path', async () => {
-    const context = makeDeps();
+    const context = makeDeps({
+      getChannelPosts: async () => ({ posts: [{ id: R, sentAt: 1111 }] }),
+    });
 
     expect(await run(['delete', NEST, R], context.deps)).toBe(0);
     expect(context.stdout()).toBe('✓ Post deleted\n');
