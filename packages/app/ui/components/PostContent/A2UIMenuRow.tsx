@@ -2,6 +2,8 @@ import { Pressable, Text } from '@tloncorp/ui';
 import type { ComponentProps, ReactNode } from 'react';
 import { XStack, YStack } from 'tamagui';
 
+import { A2UI_OPTION_ROW_PADDING, A2UI_TYPE } from './a2uiCardParts';
+
 type A2UIMenuRowProps = {
   accessibilityLabel: string;
   accessibilityRole?: ComponentProps<typeof Pressable>['accessibilityRole'];
@@ -43,13 +45,13 @@ export function A2UIMenuRow({
   leading,
   minHeight = 52,
   onPress,
-  paddingHorizontal = '$xl',
+  paddingHorizontal = A2UI_OPTION_ROW_PADDING,
   paddingVertical,
   subtitle,
   testID,
   trailing,
 }: A2UIMenuRowProps) {
-  const row = (
+  return (
     <Pressable
       testID={testID}
       accessibilityLabel={accessibilityLabel}
@@ -65,14 +67,18 @@ export function A2UIMenuRow({
         paddingHorizontal={paddingHorizontal}
         backgroundColor={backgroundColor}
         alignItems="center"
-        gap="$m"
+        gap={12}
         opacity={dimmed ? 0.5 : 1}
+        // The hairline sits inside the row's height, so rows keep their pitch.
+        borderBottomWidth={dividerAfter ? 1 : 0}
+        borderBottomColor="$border"
       >
         {leading}
         {subtitle ? (
           <YStack flex={1} minWidth={0}>
             <Text
               size="$label/l"
+              {...A2UI_TYPE.label}
               color={labelColor}
               fontWeight={labelWeight}
               trimmed={false}
@@ -80,13 +86,19 @@ export function A2UIMenuRow({
             >
               {label}
             </Text>
-            <Text size="$label/s" color="$secondaryText">
+            <Text
+              size="$label/s"
+              {...A2UI_TYPE.note}
+              color="$secondaryText"
+              trimmed={false}
+            >
               {subtitle}
             </Text>
           </YStack>
         ) : (
           <Text
             size="$label/l"
+            {...A2UI_TYPE.label}
             color={labelColor}
             fontWeight={labelWeight}
             trimmed={false}
@@ -100,14 +112,5 @@ export function A2UIMenuRow({
         {trailing}
       </XStack>
     </Pressable>
-  );
-
-  return dividerAfter ? (
-    <YStack>
-      {row}
-      <YStack height={1} backgroundColor="$border" />
-    </YStack>
-  ) : (
-    row
   );
 }
