@@ -1256,10 +1256,18 @@
   ::  +up-late published the entry: the session is %complete, there is
   ::  nothing left to cancel, and whatever the broker said is answered ok.
   ::
+  ::  A wait the broker asks for is capped at the time this session has
+  ::  left, not at the whole window: past its expiry the session is swept,
+  ::  and a client told to wait longer comes back to find it gone. A finish
+  ::  is accepted past expiry, so there may be no time left at all.
+  ::
   ++  up-refused
     |=  [kind=?(%grant %retry %cancel %complete) res=client-response:iris]
     ^+  up-core
-    =/  [why=@t err=broker-error:b]  (broker-error:util res upload-window)
+    =/  left=@dr
+      ?:  (lte expires-at.ses now.bowl)  ~s0
+      (sub expires-at.ses now.bowl)
+    =/  [why=@t err=broker-error:b]  (broker-error:util res left)
     =/  kept=?  &(?=(?(%retry %complete) kind) retryable.err)
     =.  cor
       %^  note  %warn

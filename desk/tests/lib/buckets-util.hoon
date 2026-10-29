@@ -278,6 +278,9 @@
     %+  expect-eq  !>(`(unit @dr)``~h1)
     !>  retry-after:(parse '{"code":"rate_limited","retryAfterMs":7200000}' ~h1)
   ::
+    %+  expect-eq  !>(`(unit @dr)`~)
+    !>  retry-after:(parse '{"code":"rate_limited","retryAfterMs":5000}' ~s0)
+  ::
     %+  expect-eq  !>(|)
     !>  retryable:(parse '{"code":"quota_exceeded","retryable":"yes"}' ~h1)
   ::

@@ -166,8 +166,9 @@
 ::  Whether it is worth repeating is what .retryable in the body says, and
 ::  when there is no such flag the status decides, as in +broker-retryable:
 ::  a proxy answering a 502 with its own error page must not read as the
-::  broker's final word. .retry-after is clamped to .ceiling: a wait past
-::  the upload window is one no session survives.
+::  broker's final word. .retry-after is clamped to .ceiling, the time the
+::  session has left: a wait past that is one no session survives, and a
+::  session with no time left is not asked to wait at all.
 ::
 ++  broker-error
   |=  [res=client-response:iris ceiling=@dr]
@@ -187,8 +188,9 @@
     ?~  got=(~(get by u.body) 'retryAfterMs')  ~
     ?.  ?=([%n *] u.got)  ~
     ?~  ms=(rush p.u.got dim:ag)  ~
-    ?:  =(0 u.ms)  ~
-    `(min (div (mul u.ms ~s1) 1.000) ceiling)
+    =/  wait=@dr  (min (div (mul u.ms ~s1) 1.000) ceiling)
+    ?:  =(~s0 wait)  ~
+    `wait
   =/  scope=(unit @t)
     ?~  got=(~(get by u.body) 'scope')  ~
     ?.(?=([%s *] u.got) ~ `p.u.got)

@@ -1092,6 +1092,40 @@
     !>([status.ses reservation.ses error.ses awaiting.ses])
   !>([%pending `'res-1' `'slow down' ~])
 ::
+::  The wait is capped at what the session has left. Fifty minutes into an
+::  hour-long session, a thirty-minute delay is passed on as ten; past the
+::  expiry a finish is still accepted but no wait is passed on at all.
+::
+++  test-retry-after-capped-at-time-left
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'slow.pdf' 42)
+  ;<  ~  b  (jab-bowl |=(bol=bowl bol(now (add ~2026.1.1 ~m50))))
+  ;<  done=wire  b  (finish-call 0v2 seed)
+  ;<  refused=(list card)  b
+    %+  do-arvo  done
+    %+  iris-json  429
+    '{"code":"rate_limited","message":"slow down","retryable":true,"retryAfterMs":1800000}'
+  ;<  ~  b
+    %+  ex-cards  refused
+    :~  %+  grant-fact  0v2
+        [%error %unknown 'slow down' `['rate_limited' & `~m10 ~]]
+    ==
+  ;<  ~  b  (jab-bowl |=(bol=bowl bol(now (add ~2026.1.1 ~m70))))
+  ;<  done=wire  b  (finish-call 0v3 seed)
+  ;<  refused=(list card)  b
+    %+  do-arvo  done
+    %+  iris-json  429
+    '{"code":"rate_limited","message":"slow down","retryable":true,"retryAfterMs":1800000}'
+  %+  ex-cards  refused
+  :~  %+  grant-fact  0v3
+      [%error %unknown 'slow down' `['rate_limited' & ~ ~]]
+  ==
+::
 ::  A 2xx retry with no URL in it cannot be acted on any more than a grant
 ::  without one, and here the reservation is already bound, so failing the
 ::  session releases it at the broker. The failure is this agent's own, so
