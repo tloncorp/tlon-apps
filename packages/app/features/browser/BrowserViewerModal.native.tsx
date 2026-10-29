@@ -1,11 +1,14 @@
 import { Button, Text } from '@tloncorp/ui';
-import { useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform } from 'react-native';
+import { useRef, useState } from 'react';
+import { Alert, KeyboardAvoidingView, Modal, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Spinner, View, YStack } from 'tamagui';
 
 import type { BrowserViewerModalProps } from './BrowserViewerModal.types';
-import { BrowserViewer } from './BrowserViewer.native';
+import {
+  BrowserViewer,
+  type BrowserViewerHandle,
+} from './BrowserViewer.native';
 import { BrowserControlButton } from './BrowserViewerControls.native';
 
 export function BrowserViewerModal({
@@ -16,6 +19,23 @@ export function BrowserViewerModal({
   const [attempt, setAttempt] = useState(0);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
+  const viewer = useRef<BrowserViewerHandle>(null);
+  const closing = useRef(false);
+  const [closeBusy, setCloseBusy] = useState(false);
+  const close = async () => {
+    if (closing.current) return;
+    closing.current = true;
+    setCloseBusy(true);
+    const ok = await (viewer.current?.close() ?? Promise.resolve(true));
+    closing.current = false;
+    setCloseBusy(false);
+    if (ok) onClose();
+    else
+      Alert.alert(
+        'Could not hand back browser control',
+        'Please try closing again. The browser is still open.'
+      );
+  };
   const reload = () => {
     setFailed(false);
     setLoading(true);
@@ -51,6 +71,7 @@ export function BrowserViewerModal({
           ) : (
             <>
               <BrowserViewer
+                ref={viewer}
                 key={attempt}
                 viewerUrl={viewerUrl}
                 bottomInset={insets.bottom}
@@ -87,7 +108,8 @@ export function BrowserViewerModal({
         <BrowserControlButton
           icon="Close"
           accessibilityLabel="Close browser"
-          onPress={onClose}
+          onPress={close}
+          disabled={closeBusy}
         />
       </View>
     </YStack>
@@ -100,7 +122,7 @@ export function BrowserViewerModal({
       statusBarTranslucent
       navigationBarTranslucent
       hardwareAccelerated
-      onRequestClose={onClose}
+      onRequestClose={close}
     >
       {content}
     </Modal>

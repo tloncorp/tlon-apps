@@ -204,6 +204,7 @@ function renderBlock(block: BlockData): string[] {
     case 'file':
     case 'voicememo':
     case 'a2ui':
+    case 'browser-card':
       return [];
   }
 }

@@ -32,6 +32,13 @@ export async function authorizeBrowserLoginHandoff(
   return parsed.data;
 }
 
+export class BrowserVaultRequestError extends Error {
+  constructor(readonly status: number) {
+    super('Saved logins are unavailable. Reconnect and try again.');
+    this.name = 'BrowserVaultRequestError';
+  }
+}
+
 /** Send an owner proof only to a trusted browser endpoint in this environment. */
 export async function browserVaultOwnerRequest(
   endpoint: string,
@@ -73,7 +80,6 @@ export async function browserVaultOwnerRequest(
     redirect: 'error',
     signal,
   });
-  if (!response.ok)
-    throw new Error('Saved logins are unavailable. Reconnect and try again.');
+  if (!response.ok) throw new BrowserVaultRequestError(response.status);
   return response.json();
 }
