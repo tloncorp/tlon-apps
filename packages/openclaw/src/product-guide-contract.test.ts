@@ -2,10 +2,18 @@ import { readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
-const guide = readFileSync(
-  new URL('../skills/tlon-product-guide/SKILL.md', import.meta.url),
-  'utf8'
-);
+// The guide is a router (SKILL.md) plus the product files it points to; the
+// contracts below hold across all of them.
+const guideDir = new URL('../skills/tlon-product-guide/', import.meta.url);
+const guide = [
+  'SKILL.md',
+  'product/tlon-messenger.md',
+  'product/tlonbot.md',
+  'product/privacy-and-hosting.md',
+  'product/ideas-faq-and-tlon.md',
+]
+  .map((file) => readFileSync(new URL(file, guideDir), 'utf8'))
+  .join('\n');
 
 describe('Tlon product guide contracts', () => {
   it('distinguishes hosted subscriptions from API-key billing', () => {
