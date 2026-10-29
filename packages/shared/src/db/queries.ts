@@ -355,7 +355,12 @@ export const getGroupsWithMemberThreshold = createReadQuery(
       },
     });
 
-    return allJoinedWithMembers.filter((g) => g.members.length <= threshold);
+    // the stored roster of a big group is partial, so its count decides.
+    // The stored rows include invites, which the count leaves out, so they
+    // decide too.
+    return allJoinedWithMembers.filter(
+      (g) => Math.max(g.memberCount ?? 0, g.members.length) <= threshold
+    );
   },
   ['groups']
 );
@@ -1016,13 +1021,12 @@ export const insertSystemContacts = createWriteQuery(
     const { systemContacts } = params;
     if (!systemContacts.length) return;
 
-    // Process in batches of 200
-    const batchSize = 200;
-    for (let i = 0; i < systemContacts.length; i += batchSize) {
-      const batch = systemContacts.slice(i, i + batchSize);
-      if (!batch.length) continue;
-      try {
-        await ctx.db
+    await withTransactionCtx(ctx, async (txCtx) => {
+      // Keep the import atomic if a later batch fails.
+      const batchSize = 200;
+      for (let i = 0; i < systemContacts.length; i += batchSize) {
+        const batch = systemContacts.slice(i, i + batchSize);
+        await txCtx.db
           .insert($systemContacts)
           .values(batch)
           .onConflictDoUpdate({
@@ -1034,66 +1038,11 @@ export const insertSystemContacts = createWriteQuery(
           count: batch.length,
           startIndex: i,
         });
-      } catch (e) {
-        logger.trackEvent(domain.AnalyticsEvent.ErrorSystemContacts, {
-          context: 'failed to insert system contacts',
-          count: batch.length,
-          totalNumContacts: systemContacts.length,
-        });
       }
-    }
+    });
   },
   ['systemContacts', 'systemContactSentInvites', 'contacts']
 );
-
-function generateNicknameUpdates(
-  matches: [string, string][],
-  systemContacts: SystemContact[]
-): { contactId: string; nicknamePart: string }[] {
-  const nicknameUpdates: { contactId: string; nicknamePart: string }[] = [];
-
-  for (const [phoneNumber, contactId] of matches) {
-    const matchingSystemContact = systemContacts.find(
-      (sc) => sc.phoneNumber === phoneNumber
-    );
-
-    if (
-      matchingSystemContact &&
-      (matchingSystemContact.firstName || matchingSystemContact.lastName)
-    ) {
-      const nicknamePart =
-        `${matchingSystemContact.firstName || ''} ${matchingSystemContact.lastName || ''}`.trim();
-
-      if (nicknamePart) {
-        nicknameUpdates.push({ contactId, nicknamePart });
-      }
-    }
-  }
-
-  return nicknameUpdates;
-}
-
-async function updateContactNicknames(
-  nicknameUpdates: { contactId: string; nicknamePart: string }[],
-  txCtx: QueryCtx,
-  batchSize: number
-): Promise<void> {
-  await processBatchOperation(
-    nicknameUpdates,
-    batchSize,
-    async (batch) => {
-      return Promise.all(
-        batch.map(({ contactId, nicknamePart }) =>
-          txCtx.db
-            .update($contacts)
-            .set({ customNickname: nicknamePart })
-            .where(eq($contacts.id, contactId))
-        )
-      );
-    },
-    'Error updating contact nicknames'
-  );
-}
 
 export async function updateSystemContactIds(
   matches: [string, string][],
@@ -1132,8 +1081,6 @@ export const linkSystemContacts = createWriteQuery(
 
     const contactIds = matches.map((m) => m[1]);
 
-    const systemContacts = await getSystemContacts(ctx);
-
     return withTransactionCtx(ctx, async (txCtx) => {
       const [existingContacts, linkedSystemContacts] = await Promise.all([
         txCtx.db.query.contacts.findMany({
@@ -1163,10 +1110,6 @@ export const linkSystemContacts = createWriteQuery(
       );
 
       const batchSize = 200;
-
-      // generate and process nickname updates
-      const nicknameUpdates = generateNicknameUpdates(matches, systemContacts);
-      await updateContactNicknames(nicknameUpdates, txCtx, batchSize);
 
       // update system contact IDs
       await updateSystemContactIds(matches, txCtx, batchSize);
@@ -1235,50 +1178,6 @@ export const getSystemContactsBatchByContactId = createReadQuery(
     }
   },
   ['systemContacts', 'systemContactSentInvites']
-);
-
-// Returns the system contacts linked to the given contactIds whose
-// linked contact has no customNickname yet. Used by contact-discovery
-// to apply the address-book name as a default — we only fill in names
-// the user hasn't set themselves.
-export const getUnnamedSystemContactsByContactId = createReadQuery(
-  'getUnnamedSystemContactsByContactId',
-  async (
-    contactIds: string[],
-    ctx: QueryCtx
-  ): Promise<
-    Array<{
-      contactId: string;
-      firstName: string | null;
-      lastName: string | null;
-    }>
-  > => {
-    if (!contactIds.length) return [];
-    const rows = await ctx.db
-      .select({
-        contactId: $systemContacts.contactId,
-        firstName: $systemContacts.firstName,
-        lastName: $systemContacts.lastName,
-      })
-      .from($systemContacts)
-      .leftJoin($contacts, eq($systemContacts.contactId, $contacts.id))
-      .where(
-        and(
-          inArray($systemContacts.contactId, contactIds),
-          or(isNull($contacts.customNickname), eq($contacts.customNickname, ''))
-        )
-      );
-    return rows.filter(
-      (
-        r
-      ): r is {
-        contactId: string;
-        firstName: string | null;
-        lastName: string | null;
-      } => r.contactId !== null
-    );
-  },
-  ['systemContacts', 'contacts']
 );
 
 export const getUninvitedSystemContactsShortlist = createReadQuery(
@@ -3415,16 +3314,112 @@ export const removeChatMembers = createWriteQuery(
   ['chatMembers', 'groups']
 );
 
+// Stores the members of one roster page. A page carries every role each of
+// its members holds, so their stored roles are replaced, not added to.
+export const insertGroupMembersPage = createWriteQuery(
+  'insertGroupMembersPage',
+  async (
+    { groupId, members }: { groupId: string; members: ChatMember[] },
+    ctx: QueryCtx
+  ) => {
+    if (members.length === 0) return;
+    return withTransactionCtx(ctx, async (txCtx) => {
+      // not insertMembers, which logs a failed batch and carries on: a page
+      // whose members didn't land must fail, or its cursor moves on and the
+      // page is never fetched again
+      await txCtx.db
+        .insert($chatMembers)
+        .values(members)
+        .onConflictDoUpdate({
+          target: [$chatMembers.chatId, $chatMembers.contactId],
+          set: conflictUpdateSetAll($chatMembers),
+        });
+      await txCtx.db.delete($chatMemberGroupRoles).where(
+        and(
+          eq($chatMemberGroupRoles.groupId, groupId),
+          inArray(
+            $chatMemberGroupRoles.contactId,
+            members.map((member) => member.contactId)
+          )
+        )
+      );
+      // like insertGroups, skip roles the group doesn't define
+      const roleIds = new Set(
+        (
+          await txCtx.db
+            .select({ id: $groupRoles.id })
+            .from($groupRoles)
+            .where(eq($groupRoles.groupId, groupId))
+        ).map((role) => role.id)
+      );
+      const memberRoles = members.flatMap((member) =>
+        (member.roles ?? [])
+          .filter((role) => roleIds.has(role.roleId))
+          .map((role) => ({
+            groupId,
+            contactId: member.contactId,
+            roleId: role.roleId,
+          }))
+      );
+      if (memberRoles.length) {
+        await txCtx.db
+          .insert($chatMemberGroupRoles)
+          .values(memberRoles)
+          .onConflictDoNothing();
+      }
+    });
+  },
+  ['groups', 'chatMembers', 'chatMemberGroupRoles']
+);
+
+// The stored count alone, without loading the group's members.
+export const getStoredMemberCount = createReadQuery(
+  'getStoredMemberCount',
+  async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
+    const row = await ctx.db.query.groups.findFirst({
+      where: eq($groups.id, groupId),
+      columns: { memberCount: true },
+    });
+    return row?.memberCount ?? null;
+  },
+  ['groups']
+);
+
+// Every stored role assignment in a group.
+export const getGroupMemberRoles = createReadQuery(
+  'getGroupMemberRoles',
+  async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
+    return ctx.db
+      .select({
+        contactId: $chatMemberGroupRoles.contactId,
+        roleId: $chatMemberGroupRoles.roleId,
+      })
+      .from($chatMemberGroupRoles)
+      .where(eq($chatMemberGroupRoles.groupId, groupId));
+  },
+  ['chatMemberGroupRoles']
+);
+
 export const getGroupMemberIds = createReadQuery(
   'getGroupMemberIds',
-  async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
+  async (
+    // seatedOnly leaves out invited ships, which hold no seat yet
+    { groupId, seatedOnly }: { groupId: string; seatedOnly?: boolean },
+    ctx: QueryCtx
+  ) => {
     const rows = await ctx.db
       .select({ contactId: $chatMembers.contactId })
       .from($chatMembers)
       .where(
         and(
           eq($chatMembers.chatId, groupId),
-          eq($chatMembers.membershipType, 'group')
+          eq($chatMembers.membershipType, 'group'),
+          seatedOnly
+            ? or(
+                isNull($chatMembers.status),
+                not(eq($chatMembers.status, 'invited'))
+              )
+            : undefined
         )
       );
     return rows.map((row) => row.contactId);
@@ -6449,7 +6444,12 @@ export const getGroup = createReadQuery(
           },
           joinRequests: true,
           bannedMembers: true,
+          // In their saved order: rows land in the table in whatever order
+          // this device learned of them, such as a new section after the rest.
+          // A section added since the last full sync has no index yet and
+          // sorts first, which is where the backend puts a new section.
           navSections: {
+            orderBy: [asc($groupNavSections.sectionIndex)],
             with: {
               channels: true,
             },

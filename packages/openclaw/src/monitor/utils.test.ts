@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 import {
   resolveCommandAuthorization,
@@ -11,6 +14,7 @@ import {
   extractCites,
   extractDmPartnerShip,
   extractMessageText,
+  formatSummarizationHistoryText,
   inboundCommandFields,
   isCitePlaceholderLine,
   isDirectDmWhom,
@@ -440,5 +444,57 @@ describe('isDmPartnerAuthorized', () => {
     expect(isDmPartnerAuthorized('~bus', '~zod', undefined)).toBe(false);
     expect(isDmPartnerAuthorized('~bus', null, [])).toBe(false);
     expect(isDmPartnerAuthorized('', '', [])).toBe(false);
+  });
+});
+
+describe('extractMessageText code blocks', () => {
+  it('fences code containing a fence with a longer fence', () => {
+    const code = 'Before\n```md\n# h\n```\nAfter';
+    expect(
+      extractMessageText([{ block: { code: { code, lang: 'markdown' } } }])
+    ).toBe('````markdown\n' + code + '\n````');
+  });
+
+  it('keeps a plain code block in a triple fence', () => {
+    expect(
+      extractMessageText([{ block: { code: { code: 'x = 1', lang: 'py' } } }])
+    ).toBe('```py\nx = 1\n```');
+  });
+});
+
+describe('formatSummarizationHistoryText', () => {
+  const history = [
+    { author: '~zod', content: 'hello', timestamp: Date.UTC(2026, 6, 1, 12) },
+  ];
+
+  it('renders timestamps in the configured user timezone', () => {
+    const text = formatSummarizationHistoryText(history, {
+      agents: { defaults: { userTimezone: 'America/Los_Angeles' } },
+    } as OpenClawConfig);
+    expect(text).toContain('~zod');
+    expect(text).toContain('hello');
+    expect(text).toContain('05:00');
+    expect(text).not.toContain('12:00');
+  });
+
+  it('renders timestamps in UTC when that is the configured zone', () => {
+    const text = formatSummarizationHistoryText(history, {
+      agents: { defaults: { userTimezone: 'UTC' } },
+    } as OpenClawConfig);
+    expect(text).toContain('12:00');
+  });
+});
+
+describe('summarization history config', () => {
+  it('reads the live config, not the startup snapshot', () => {
+    // monitorTlonProvider is not unit-testable, so the call is pinned:
+    // a userTimezone change does not restart the channel.
+    const monitorSource = readFileSync(
+      path.resolve(path.dirname(fileURLToPath(import.meta.url)), './index.ts'),
+      'utf8'
+    );
+    expect(monitorSource).toMatch(
+      /formatSummarizationHistoryText\([\s\S]*?\)\),\s*(?:\/\/[^\n]*\n\s*)?core\.config\.current\(\) as OpenClawConfig\s*\);/
+    );
   });
 });

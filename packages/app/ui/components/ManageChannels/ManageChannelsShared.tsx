@@ -14,6 +14,7 @@ import { ScreenHeader } from '../ScreenHeader';
 import { CreateChannelSheet } from './CreateChannelSheet';
 import { EditSectionNameSheet } from './EditSectionNameSheet';
 import { ManageChannelsScrollContainer } from './ManageChannelsScrollContainer';
+import { channelOrder, emptySection, navigationUpdate } from './channelReorder';
 
 const logger = createDevLogger('ManageChannelsShared', false);
 
@@ -202,65 +203,25 @@ export function useManageChannelsState({
 
   const handleDeleteSection = useCallback(
     async (sectionId: string) => {
-      const sectionIndex = groupNavSectionsWithChannels.findIndex(
+      const navSection = groupNavSectionsWithChannels.find(
         (s) => s.sectionId === sectionId
       );
 
-      if (sectionIndex === -1) {
+      if (!navSection) {
         logger.error(`Section not found: ${sectionId} (for deletion)`);
         return;
       }
 
-      const navSection = groupNavSectionsWithChannels[sectionIndex];
-      const hasChannels = navSection.channels.length > 0;
-
       try {
-        // If the section has channels, move them to the previous section first
-        if (hasChannels && sectionIndex > 0) {
-          // Build the new navigation structure with channels moved to previous section
-          const updatedNavSections = groupNavSectionsWithChannels.map(
-            (section, idx) => {
-              if (idx === sectionIndex - 1) {
-                // Previous section gets the deleted section's channels appended
-                return {
-                  sectionId: section.sectionId,
-                  sectionIndex: idx,
-                  channels: [
-                    ...section.channels.map((ch, chIdx) => ({
-                      channelId: ch.id,
-                      channelIndex: chIdx,
-                    })),
-                    ...navSection.channels.map((ch, chIdx) => ({
-                      channelId: ch.id,
-                      channelIndex: section.channels.length + chIdx,
-                    })),
-                  ],
-                };
-              } else if (idx === sectionIndex) {
-                // Section being deleted has empty channels
-                return {
-                  sectionId: section.sectionId,
-                  sectionIndex: idx,
-                  channels: [],
-                };
-              } else {
-                // Other sections remain unchanged
-                return {
-                  sectionId: section.sectionId,
-                  sectionIndex: idx,
-                  channels: section.channels.map((ch, chIdx) => ({
-                    channelId: ch.id,
-                    channelIndex: chIdx,
-                  })),
-                };
-              }
-            }
-          );
-
-          await updateGroupNavigation(updatedNavSections);
+        // Deleting a section doesn't move its channels on this device, so
+        // they'd drop out of the list until the next full sync.
+        const emptied = emptySection(
+          channelOrder(groupNavSectionsWithChannels),
+          sectionId
+        );
+        if (emptied) {
+          await updateGroupNavigation(navigationUpdate(emptied));
         }
-
-        // Now delete the section
         await deleteNavSection(navSection.id);
       } catch (e) {
         logger.error('Failed to delete section:', e);

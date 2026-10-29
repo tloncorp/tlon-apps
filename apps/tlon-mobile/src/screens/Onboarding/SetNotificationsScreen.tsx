@@ -1,10 +1,13 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as ub from '@tloncorp/api/urbit';
-import { Button, NotificationLevelSelector } from '@tloncorp/app/ui';
+import {
+  Button,
+  NotificationLevelSelector,
+  OnboardingStepLayout,
+} from '@tloncorp/app/ui';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { OnboardingStepLayout } from '../../components/OnboardingStepLayout';
 import { useSignupContext } from '../../lib/signupContext';
 import type { OnboardingStackParamList } from '../../types';
 

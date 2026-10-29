@@ -1,5 +1,9 @@
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 
+import {
+  type GroupContextGroup,
+  parseGroupChannels,
+} from '../group-context.js';
 import type { Foreigns } from '../urbit/foreigns.js';
 import { formatChangesDate } from './utils.js';
 import { stringList } from './group-channels.js';
@@ -34,6 +38,8 @@ export interface InitData {
    * was given, and absent for a group where the bot has no seat.
    */
   groupRoles: Map<string, { botSects: string[]; bloc: string[] }>;
+  /** Per group: its title and every channel (all kinds) with its readers. */
+  groupContexts: Map<string, GroupContextGroup>;
   foreigns: Foreigns | null;
   /** Nests of every channel joined in `%channels`; null when unknown. */
   joinedChannels: Set<string> | null;
@@ -78,6 +84,7 @@ export async function fetchInitData(
       string,
       { botSects: string[]; bloc: string[] }
     >();
+    const groupContexts = new Map<string, GroupContextGroup>();
     if (initData?.groups) {
       for (const [groupFlag, groupData] of Object.entries(
         initData.groups as Record<string, any>
@@ -88,6 +95,10 @@ export async function fetchInitData(
           if (title) {
             groupNames.set(groupFlag, title);
           }
+          groupContexts.set(groupFlag, {
+            ...(title ? { title } : {}),
+            channels: parseGroupChannels(groupData.channels),
+          });
           if (options?.botShip) {
             const seat = groupData.seats?.[options.botShip];
             if (seat && typeof seat === 'object') {
@@ -134,6 +145,7 @@ export async function fetchInitData(
       channelNames,
       groupNames,
       groupRoles,
+      groupContexts,
       foreigns,
       joinedChannels,
     };
@@ -153,6 +165,7 @@ export async function fetchInitData(
       channelNames: new Map(),
       groupNames: new Map(),
       groupRoles: new Map(),
+      groupContexts: new Map(),
       foreigns: null,
       joinedChannels: null,
     };

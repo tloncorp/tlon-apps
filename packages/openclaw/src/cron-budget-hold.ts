@@ -13,6 +13,8 @@ export type BudgetCronJob = {
   description?: string;
   enabled?: boolean;
   schedule?: { kind?: string };
+  declarationKey?: string;
+  payload?: { kind?: string };
   state?: {
     runningAtMs?: number;
     lastRunAtMs?: number;
@@ -85,6 +87,45 @@ export const RECURRING_SCHEDULE_KINDS = new Set(['cron', 'every', 'stream']);
 
 export function isRecurringJob(job: BudgetCronJob): boolean {
   return RECURRING_SCHEDULE_KINDS.has(job.schedule?.kind ?? '');
+}
+
+// Core rejects client edits to system-owned jobs, and the plugin SDK does not
+// export its checks. The declarationKey prefixes mirror
+// `isSystemMonitorDeclaration` in core's `src/cron/system-owned-declaration.ts`.
+// The heartbeat payload arm mirrors `updateLoadedJob` in
+// `src/cron/service/ops-mutations.ts` ("system-owned payloads cannot be patched
+// by cron clients"). `heartbeat-task:` jobs stay holdable because core keeps
+// them operator-editable.
+export function isSystemOwnedJob(job: BudgetCronJob): boolean {
+  const key = job.declarationKey;
+  return (
+    key?.startsWith('heartbeat:') === true ||
+    key?.startsWith('skill-collection-review:') === true ||
+    job.payload?.kind === 'heartbeat'
+  );
+}
+
+// Older plugins labelled system-owned jobs. Core re-enables them on start but
+// does not converge `description`, so the label outlives the pause. Returns the
+// labelled system-owned jobs with the label removed; only the pre-gateway
+// bootstrap may write these, since the live API rejects the edit.
+export function stripSystemOwnedHoldLabels<T extends BudgetCronJob>(
+  jobs: T[]
+): T[] {
+  return jobs.flatMap((job) => {
+    const description = job.description ?? '';
+    // A hold on a job without a description wrote the label with no space.
+    if (
+      !isSystemOwnedJob(job) ||
+      !(description + ' ').startsWith(BUDGET_HOLD_PREFIX)
+    )
+      return [];
+    const stripped = { ...job };
+    const rest = description.slice(BUDGET_HOLD_PREFIX.length);
+    if (rest) stripped.description = rest;
+    else delete stripped.description;
+    return [stripped];
+  });
 }
 
 export async function readBudgetSignal(path: string): Promise<BudgetState> {
@@ -258,120 +299,149 @@ export async function reconcileBudgetHolds(opts: {
   }
   if (removed) await save();
 
+  const errors: unknown[] = [];
+  // One failing job must not stall the rest of the pass or the notice.
   for (const job of jobs) {
-    let hold: Hold | undefined = state.holds[job.id];
-    if (hold) {
-      const description = (BUDGET_HOLD_PREFIX + hold.description).trimEnd();
-      const finishedHeldRun =
-        hold.runningAtMs !== undefined &&
-        job.state?.runningAtMs === undefined &&
-        job.state?.lastRunAtMs === hold.runningAtMs &&
-        typeof job.state.lastDurationMs === 'number' &&
-        // Core stamps updatedAtMs with the completion time. A later edit has
-        // a different revision even while lastRunAtMs still names this run.
-        job.updatedAtMs === hold.runningAtMs + job.state.lastDurationMs;
-      const stillOurs =
-        !opts.externallyEditedJobs?.has(job.id) &&
-        job.enabled === false &&
-        job.description === description &&
-        (hold.revision === undefined ||
-          job.updatedAtMs === hold.revision ||
-          finishedHeldRun);
-      if (stillOurs && isRecurringJob(job)) {
-        const unconfirmed = hold.revision === undefined;
-        if (unconfirmed) {
-          // Recover a confirmed pause after a crash between update and save.
-          hold.revision = job.updatedAtMs;
-          recordChange(job.id, 'paused');
+    try {
+      if (isSystemOwnedJob(job)) {
+        if (state.holds[job.id]) {
+          delete state.holds[job.id];
+          await save();
         }
-        if (limited) {
-          if (unconfirmed || finishedHeldRun) {
-            hold.revision = job.updatedAtMs;
-            delete hold.runningAtMs;
-            await save();
-          }
-          continue;
-        }
-        await cron.update(job.id, {
-          enabled: true,
-          description: hold.description,
-        });
-        delete state.holds[job.id];
-        recordChange(job.id, 'resumed');
-        await save();
         continue;
       }
-      // A user/SRE changed the job while held. Never undo their disable or
-      // other edits on recovery. Remove our label if it is still unchanged.
-      if (job.description === description) {
-        await cron.update(job.id, { description: hold.description });
-        job.description = hold.description;
+      let hold: Hold | undefined = state.holds[job.id];
+      if (hold) {
+        const description = (BUDGET_HOLD_PREFIX + hold.description).trimEnd();
+        const finishedHeldRun =
+          hold.runningAtMs !== undefined &&
+          job.state?.runningAtMs === undefined &&
+          job.state?.lastRunAtMs === hold.runningAtMs &&
+          typeof job.state.lastDurationMs === 'number' &&
+          // Core stamps updatedAtMs with the completion time. A later edit has
+          // a different revision even while lastRunAtMs still names this run.
+          job.updatedAtMs === hold.runningAtMs + job.state.lastDurationMs;
+        const stillOurs =
+          !opts.externallyEditedJobs?.has(job.id) &&
+          job.enabled === false &&
+          job.description === description &&
+          (hold.revision === undefined ||
+            job.updatedAtMs === hold.revision ||
+            finishedHeldRun);
+        if (stillOurs && isRecurringJob(job)) {
+          const unconfirmed = hold.revision === undefined;
+          if (unconfirmed) {
+            // Recover a confirmed pause after a crash between update and save.
+            hold.revision = job.updatedAtMs;
+            recordChange(job.id, 'paused');
+          }
+          if (limited) {
+            if (unconfirmed || finishedHeldRun) {
+              hold.revision = job.updatedAtMs;
+              delete hold.runningAtMs;
+              await save();
+            }
+            continue;
+          }
+          await cron.update(job.id, {
+            enabled: true,
+            description: hold.description,
+          });
+          delete state.holds[job.id];
+          recordChange(job.id, 'resumed');
+          await save();
+          continue;
+        }
+        // A user/SRE changed the job while held. Never undo their disable or
+        // other edits on recovery. Remove our label if it is still unchanged.
+        if (job.description === description) {
+          await cron.update(job.id, { description: hold.description });
+          job.description = hold.description;
+        }
+        delete state.holds[job.id];
+        await save();
+        hold = undefined;
       }
-      delete state.holds[job.id];
+      if (!limited || job.enabled === false || !isRecurringJob(job)) continue;
+      // Persist intent first: a process crash between cron.update and the next
+      // save must not strand a disabled job without a recoverable hold.
+      hold = {
+        description: job.description ?? '',
+        ...(job.state?.runningAtMs !== undefined
+          ? { runningAtMs: job.state.runningAtMs }
+          : {}),
+      };
+      state.holds[job.id] = hold;
       await save();
-      hold = undefined;
+      await cron.update(job.id, {
+        enabled: false,
+        description: (BUDGET_HOLD_PREFIX + hold.description).trimEnd(),
+      });
+      const updated = (await cron.list({ includeDisabled: true })).find(
+        (j) => j.id === job.id
+      );
+      if (
+        updated?.enabled === false &&
+        updated.description ===
+          (BUDGET_HOLD_PREFIX + hold.description).trimEnd()
+      ) {
+        hold.revision = updated.updatedAtMs;
+        recordChange(job.id, 'paused');
+      }
+      await save();
+    } catch (error) {
+      errors.push(error);
     }
-    if (!limited || job.enabled === false || !isRecurringJob(job)) continue;
-    // Persist intent first: a process crash between cron.update and the next
-    // save must not strand a disabled job without a recoverable hold.
-    hold = {
-      description: job.description ?? '',
-      ...(job.state?.runningAtMs !== undefined
-        ? { runningAtMs: job.state.runningAtMs }
-        : {}),
-    };
-    state.holds[job.id] = hold;
-    await save();
-    await cron.update(job.id, {
-      enabled: false,
-      description: (BUDGET_HOLD_PREFIX + hold.description).trimEnd(),
-    });
-    const updated = (await cron.list({ includeDisabled: true })).find(
-      (j) => j.id === job.id
-    );
-    if (
-      updated?.enabled === false &&
-      updated.description === (BUDGET_HOLD_PREFIX + hold.description).trimEnd()
-    ) {
-      hold.revision = updated.updatedAtMs;
-      recordChange(job.id, 'paused');
-    }
-    await save();
   }
 
-  const count = Object.keys(state.holds).length;
-  const now = (opts.now ?? Date.now)();
-  if (
-    limited &&
-    count > 0 &&
-    !state.notified &&
-    opts.notify &&
-    now >= (state.nextNotificationAtMs ?? 0)
-  ) {
-    // Persist before delivery so throws or restarts cannot reset the backoff.
-    // Reconciliation still runs every five seconds, independently of notices.
-    const attempts = state.notificationAttempts ?? 0;
-    state.notificationAttempts = Math.min(attempts + 1, 5);
-    state.nextNotificationAtMs =
-      now + Math.min(60_000 * 2 ** Math.min(attempts, 4), 900_000);
-    await save();
+  try {
+    // An intent left by a failed update is not a paused task.
+    const count = Object.values(state.holds).filter(
+      (hold) => hold.revision !== undefined
+    ).length;
+    const now = (opts.now ?? Date.now)();
     if (
-      await opts.notify(
-        `Your token credits are low. Your ${count} scheduled ${count === 1 ? 'task has' : 'tasks have'} been paused.`
-      )
+      limited &&
+      count > 0 &&
+      // A pass with failures may still change the count; notify once it is clean.
+      errors.length === 0 &&
+      !state.notified &&
+      opts.notify &&
+      now >= (state.nextNotificationAtMs ?? 0)
     ) {
-      state.notified = true;
+      // Persist before delivery so throws or restarts cannot reset the backoff.
+      // Reconciliation still runs every five seconds, independently of notices.
+      const attempts = state.notificationAttempts ?? 0;
+      state.notificationAttempts = Math.min(attempts + 1, 5);
+      state.nextNotificationAtMs =
+        now + Math.min(60_000 * 2 ** Math.min(attempts, 4), 900_000);
+      await save();
+      if (
+        await opts.notify(
+          `Your token credits are low. Your ${count} scheduled ${count === 1 ? 'task has' : 'tasks have'} been paused.`
+        )
+      ) {
+        state.notified = true;
+        delete state.notificationAttempts;
+        delete state.nextNotificationAtMs;
+        await save();
+      }
+    }
+    if (!limited) {
+      state.limited = false;
+      state.notified = false;
+      delete state.notifiedRecipients;
       delete state.notificationAttempts;
       delete state.nextNotificationAtMs;
       await save();
     }
+  } catch (error) {
+    errors.push(error);
   }
-  if (!limited) {
-    state.limited = false;
-    state.notified = false;
-    delete state.notifiedRecipients;
-    delete state.notificationAttempts;
-    delete state.nextNotificationAtMs;
-    await save();
-  }
+  if (errors.length === 1) throw errors[0];
+  if (errors.length > 1)
+    throw new AggregateError(
+      errors,
+      `${errors.length} cron jobs failed: ${errors.map(String).join('; ')}`
+    );
 }

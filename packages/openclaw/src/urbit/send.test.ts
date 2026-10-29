@@ -9,6 +9,10 @@ vi.mock('@urbit/aura', () => ({
   },
 }));
 
+// Stands in for the api's toPostContent in the mocks: the verses as they are.
+const asContent = (story: unknown) => [story, {}];
+const stored = (story: unknown) => JSON.stringify(story);
+
 describe('sendDm', () => {
   afterEach(async () => {
     const { setReplyOutputReporter } = await import('../telemetry.js');
@@ -75,12 +79,41 @@ describe('sendDm', () => {
     setReplyOutputReporter(null);
   });
 
-  it('uses aura v3 helpers for channel post ids', async () => {
+  it('returns the id the host gave a channel post, not the sent time', async () => {
     const poke = vi.fn(async () => ({}));
+    const sentAt = 1_700_000_000_000;
+    // The host keyed the post by its own clock; another post by the same
+    // author and an older one by someone else sit beside it.
+    const getChannelPosts = vi.fn(async () => ({
+      posts: [
+        {
+          id: '170.141.184.507.999',
+          authorId: '~zod',
+          sentAt,
+          content: stored([{ inline: ['hi'] }]),
+        },
+        {
+          id: '170.141.184.507.998',
+          authorId: '~zod',
+          sentAt: sentAt - 5,
+          content: stored([{ inline: ['hi'] }]),
+        },
+        {
+          id: '170.141.184.507.990',
+          authorId: '~nec',
+          sentAt,
+          content: stored([{ inline: ['hi'] }]),
+        },
+      ],
+    }));
 
+    const toPostContent = vi.fn(asContent);
     vi.doMock('@tloncorp/api', () => ({
       sendPost: poke,
       sendReply: vi.fn(),
+      getChannelPosts,
+      getPostWithReplies: vi.fn(),
+      toPostContent,
       addReaction: vi.fn(),
       removeReaction: vi.fn(),
       deletePost: vi.fn(),
@@ -91,7 +124,6 @@ describe('sendDm', () => {
     const { setReplyOutputReporter } = await import('../telemetry.js');
     const outputReporter = vi.fn();
     setReplyOutputReporter(outputReporter);
-    const sentAt = 1_700_000_000_000;
     vi.spyOn(Date, 'now').mockReturnValue(sentAt);
 
     const result = await sendChannelPost({
@@ -109,10 +141,16 @@ describe('sendDm', () => {
         blob: '[{"type":"tlon-context-lens","version":1,"lensId":"lens-123"}]',
       })
     );
-    expect(result.messageId).toBe('~zod/mocked-ud');
+    expect(getChannelPosts).toHaveBeenCalledWith(
+      expect.objectContaining({
+        channelId: 'chat/~zod/general',
+        mode: 'newest',
+      })
+    );
+    expect(result.messageId).toBe('~zod/170.141.184.507.999');
     expect(outputReporter).toHaveBeenCalledWith(
       expect.objectContaining({
-        messageId: '~zod/mocked-ud',
+        messageId: '~zod/170.141.184.507.999',
         chatType: 'groupChannel',
         isThreadReply: false,
       })
@@ -120,13 +158,263 @@ describe('sendDm', () => {
     setReplyOutputReporter(null);
   });
 
+  it('gives two sends in the same millisecond distinct sent times and ids', async () => {
+    const sentAt = 1_700_000_000_000;
+    vi.spyOn(Date, 'now').mockReturnValue(sentAt);
+    const poke = vi.fn(async () => ({}));
+    // The host stored both, keyed by its own clock, oldest first.
+    const getChannelPosts = vi.fn(async () => ({
+      posts: [
+        {
+          id: '170.141.184.507.901',
+          authorId: '~zod',
+          sentAt,
+          content: stored([{ inline: ['one'] }]),
+        },
+        {
+          id: '170.141.184.507.902',
+          authorId: '~zod',
+          sentAt: sentAt + 1,
+          content: stored([{ inline: ['two'] }]),
+        },
+      ],
+    }));
+    vi.doMock('@tloncorp/api', () => ({
+      sendPost: poke,
+      sendReply: vi.fn(),
+      getChannelPosts,
+      getPostWithReplies: vi.fn(),
+      toPostContent: asContent,
+      addReaction: vi.fn(),
+      removeReaction: vi.fn(),
+      deletePost: vi.fn(),
+      configureClient: vi.fn(),
+    }));
+
+    const { sendChannelPost } = await import('./send.js');
+    const [first, second] = await Promise.all([
+      sendChannelPost({
+        fromShip: '~zod',
+        nest: 'chat/~zod/general',
+        story: [{ inline: ['one'] }],
+      }),
+      sendChannelPost({
+        fromShip: '~zod',
+        nest: 'chat/~zod/general',
+        story: [{ inline: ['two'] }],
+      }),
+    ]);
+
+    expect(
+      poke.mock.calls.map(
+        (c) => (c as unknown as [{ sentAt: number }])[0].sentAt
+      )
+    ).toEqual([sentAt, sentAt + 1]);
+    expect(first.messageId).toBe('~zod/170.141.184.507.901');
+    expect(second.messageId).toBe('~zod/170.141.184.507.902');
+  });
+
+  it('does not pick between two posts that share the author and sent time', async () => {
+    vi.useFakeTimers();
+    try {
+      const sentAt = 1_700_000_000_000;
+      vi.setSystemTime(sentAt);
+      const getChannelPosts = vi.fn(async () => ({
+        posts: [
+          {
+            id: '170.141.184.507.901',
+            authorId: '~zod',
+            sentAt,
+            content: stored([{ inline: ['hi'] }]),
+          },
+          {
+            id: '170.141.184.507.902',
+            authorId: '~zod',
+            sentAt,
+            content: stored([{ inline: ['hi'] }]),
+          },
+        ],
+      }));
+      vi.doMock('@tloncorp/api', () => ({
+        sendPost: vi.fn(async () => ({})),
+        sendReply: vi.fn(),
+        getChannelPosts,
+        getPostWithReplies: vi.fn(),
+        toPostContent: asContent,
+        toPostContent: asContent,
+        addReaction: vi.fn(),
+        removeReaction: vi.fn(),
+        deletePost: vi.fn(),
+        configureClient: vi.fn(),
+      }));
+
+      const { sendChannelPost } = await import('./send.js');
+      const pending = sendChannelPost({
+        fromShip: '~zod',
+        nest: 'chat/~zod/general',
+        story: [{ inline: ['hi'] }],
+      });
+      await vi.advanceTimersByTimeAsync(10_000);
+      const result = await pending;
+
+      expect(result.messageId).toBe('~zod/mocked-ud');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not claim a same-millisecond post whose content is not what it sent', async () => {
+    // The bot's CLI subprocess posted a bare gallery link in the same
+    // millisecond on its own clock, and the channels agent dropped this send,
+    // a reference card, as a duplicate of it. Both preview to no text at all.
+    vi.useFakeTimers();
+    try {
+      const sentAt = 1_700_000_000_000;
+      vi.setSystemTime(sentAt);
+      const getChannelPosts = vi.fn(async () => ({
+        posts: [
+          {
+            id: '170.141.184.507.601',
+            authorId: '~zod',
+            sentAt,
+            content: stored([
+              {
+                inline: [
+                  {
+                    link: {
+                      href: 'https://example.invalid/one',
+                      content: 'First',
+                    },
+                  },
+                ],
+              },
+            ]),
+          },
+        ],
+      }));
+      vi.doMock('@tloncorp/api', () => ({
+        sendPost: vi.fn(async () => ({})),
+        sendReply: vi.fn(),
+        getChannelPosts,
+        getPostWithReplies: vi.fn(),
+        toPostContent: asContent,
+        addReaction: vi.fn(),
+        removeReaction: vi.fn(),
+        deletePost: vi.fn(),
+        configureClient: vi.fn(),
+      }));
+
+      const { sendChannelPost } = await import('./send.js');
+      const pending = sendChannelPost({
+        fromShip: '~zod',
+        nest: 'heap/~nec/gallery',
+        story: [{ block: { cite: { group: '~nec/workspace' } } }] as never,
+      });
+      await vi.advanceTimersByTimeAsync(10_000);
+      const result = await pending;
+
+      expect(result.messageId).toBe('~zod/mocked-ud');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('matches a bare gallery image link by the image block the api stores it as', async () => {
+    const sentAt = 1_700_000_000_000;
+    vi.spyOn(Date, 'now').mockReturnValue(sentAt);
+    const href = 'https://example.invalid/photo.png';
+    const getChannelPosts = vi.fn(async () => ({
+      posts: [
+        {
+          id: '170.141.184.507.650',
+          authorId: '~zod',
+          sentAt,
+          // Key order differs from ours, as the ship's JSON may.
+          content: JSON.stringify([
+            { block: { image: { alt: 'heap image', src: href } } },
+          ]),
+        },
+      ],
+    }));
+    vi.doMock('@tloncorp/api', () => ({
+      sendPost: vi.fn(async () => ({})),
+      sendReply: vi.fn(),
+      getChannelPosts,
+      getPostWithReplies: vi.fn(),
+      toPostContent: asContent,
+      addReaction: vi.fn(),
+      removeReaction: vi.fn(),
+      deletePost: vi.fn(),
+      configureClient: vi.fn(),
+    }));
+
+    const { sendChannelPost } = await import('./send.js');
+    const result = await sendChannelPost({
+      fromShip: '~zod',
+      nest: 'heap/~zod/gallery',
+      story: [{ inline: [{ link: { href, content: href } }] }],
+    });
+
+    expect(result.messageId).toBe('~zod/170.141.184.507.650');
+  });
+
+  it('falls back to the sent-time id when the host never shows the post', async () => {
+    vi.useFakeTimers();
+    try {
+      const getChannelPosts = vi.fn(async () => ({ posts: [] }));
+      vi.doMock('@tloncorp/api', () => ({
+        sendPost: vi.fn(async () => ({})),
+        sendReply: vi.fn(),
+        getChannelPosts,
+        getPostWithReplies: vi.fn(),
+        toPostContent: asContent,
+        toPostContent: asContent,
+        addReaction: vi.fn(),
+        removeReaction: vi.fn(),
+        deletePost: vi.fn(),
+        configureClient: vi.fn(),
+      }));
+
+      const { sendChannelPost } = await import('./send.js');
+      const pending = sendChannelPost({
+        fromShip: '~zod',
+        nest: 'chat/~zod/general',
+        story: [{ inline: ['hi'] }],
+      });
+      await vi.advanceTimersByTimeAsync(10_000);
+      const result = await pending;
+
+      expect(getChannelPosts).toHaveBeenCalledTimes(8);
+      expect(result.messageId).toBe('~zod/mocked-ud');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('posts heap replies with a replyToId via sendReply anchored to the parent', async () => {
     const sendPost = vi.fn(async () => ({}));
     const sendReply = vi.fn(async () => ({}));
+    const sentAt = 1_700_000_000_000;
+    vi.spyOn(Date, 'now').mockReturnValue(sentAt);
+    const getPostWithReplies = vi.fn(async () => ({
+      id: '170.141.184.507.123',
+      replies: [
+        {
+          id: '170.141.184.507.777',
+          authorId: '~zod',
+          sentAt,
+          content: stored([{ inline: ['a comment'] }]),
+        },
+      ],
+    }));
+    const toPostContent = vi.fn(asContent);
 
     vi.doMock('@tloncorp/api', () => ({
       sendPost,
       sendReply,
+      getChannelPosts: vi.fn(),
+      getPostWithReplies,
+      toPostContent,
       addReaction: vi.fn(),
       removeReaction: vi.fn(),
       deletePost: vi.fn(),
@@ -139,7 +427,7 @@ describe('sendDm', () => {
       atom === 170141184507123n ? '170.141.184.507.123' : 'mocked-ud'
     );
 
-    await sendChannelPost({
+    const result = await sendChannelPost({
       fromShip: '~zod',
       nest: 'heap/~zod/gallery',
       story: [{ inline: ['a comment'] }],
@@ -154,15 +442,36 @@ describe('sendDm', () => {
       })
     );
     expect(sendPost).not.toHaveBeenCalled();
+    expect(getPostWithReplies).toHaveBeenCalledWith(
+      expect.objectContaining({
+        channelId: 'heap/~zod/gallery',
+        postId: '170.141.184.507.123',
+      })
+    );
+    expect(result.messageId).toBe('~zod/170.141.184.507.777');
   });
 
   it('posts a new heap item via sendPost when replyToId is absent', async () => {
     const sendPost = vi.fn(async () => ({}));
     const sendReply = vi.fn(async () => ({}));
+    const sentAt = 1_700_000_000_000;
+    vi.spyOn(Date, 'now').mockReturnValue(sentAt);
 
     vi.doMock('@tloncorp/api', () => ({
       sendPost,
       sendReply,
+      getChannelPosts: vi.fn(async () => ({
+        posts: [
+          {
+            id: '170.141.184.507.500',
+            authorId: '~zod',
+            sentAt,
+            content: stored([{ inline: ['a new gallery item'] }]),
+          },
+        ],
+      })),
+      getPostWithReplies: vi.fn(),
+      toPostContent: asContent,
       addReaction: vi.fn(),
       removeReaction: vi.fn(),
       deletePost: vi.fn(),

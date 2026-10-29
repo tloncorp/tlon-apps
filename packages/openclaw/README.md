@@ -54,7 +54,9 @@ Self-hosted installs without this environment variable are unaffected.
 
 While limited, enabled `cron` and `every` tasks are disabled with a visible
 `[Paused: credit budget]` description prefix. One-shot (`at`) and event-driven
-schedules are excluded. The owner receives one notice per budget episode:
+schedules are excluded. OpenClaw's system-owned monitor jobs (heartbeat, skill
+collection review) are left alone because core rejects client edits to them.
+The owner receives one notice per budget episode:
 “Your token credits are low. Your 3 scheduled tasks have been paused.” It includes
 an A2UI **Request credit increase** button. Failed delivery is retried.
 New or re-enabled recurring tasks are held as well. Already-running work is not
@@ -75,7 +77,8 @@ Deploy the matching tlonbot wrapper and plugin together. Before launching a
 gateway, the wrapper runs `dist/src/cron-budget-bootstrap.js` as the gateway
 user, after ensuring no old gateway is running. This applies holds through the
 public SDK's cron store API before the scheduler can catch up overdue tasks.
-The bootstrap must never run alongside a live gateway. Recovery is left to the
+It also removes a stale budget label from OpenClaw's system-owned monitor jobs,
+which the live API cannot edit. The bootstrap must never run alongside a live gateway. Recovery is left to the
 plugin's live API. A failed bootstrap prevents gateway launch rather than
 silently starting unprotected scheduled work.
 
@@ -340,7 +343,7 @@ The skill is automatically available to your agent. For standalone usage, see th
 
 Keep it a product reference, not an operating manual: anything that reads or mutates a node belongs in the `tlon` CLI skill. Edit `SKILL.md` directly to update the guide; the `description` frontmatter is what OpenClaw puts in the system prompt, so trigger coverage lives there.
 
-The step-by-step half of the guide is not edited here. `skills/tlon-product-guide/references/` and the index under "Step-by-step answers" in `SKILL.md` are written from the feature map in `docs/feature-map/`, one file per area of the app. The map describes the app at one store build and is brought up to date once per build, so it does not follow `develop`. To change a step, edit the map and run `node scripts/feature-map.mjs publish`. See `docs/feature-map/README.md`.
+The step-by-step half of the guide is not edited here. `skills/tlon-product-guide/references/`, including the `index.md` that "Step-by-step answers" in `SKILL.md` points to, is written from the feature map in `docs/feature-map/`, one file per area of the app. The map describes the app at one store build and is brought up to date once per build, so it does not follow `develop`. To change a step, edit the map and run `node scripts/feature-map.mjs publish`. See `docs/feature-map/README.md`.
 
 The rest of the guide makes claims about product behavior, so it goes stale the way code comments do — a renamed screen or a changed command turns it into confidently wrong support copy. When you change a slash command, a channel type, or a permissions rule, grep this file. When the guide changes, CI checks that every label it quotes still appears somewhere in the app's source, which catches a removed label but not a moved one. It does not run on app changes, so a label renamed in the app goes unnoticed here until the guide is next touched. `packages/openclaw/skills/**` is on `bot-harness-deploy.yml`'s path filter, so a content-only fix does reach bots on its own — but only the internal fleet. The push trigger hardcodes `TAG="tlon-internal"`; Hermes and external ships restart only via `workflow_dispatch` with the matching selector. A guide correction that needs to reach them is a manual dispatch, plus a package publish for anyone running the npm build.
 
