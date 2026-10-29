@@ -126,7 +126,9 @@ test('a failed watch aborts an in-flight noun PUT without an unhandled rejection
   await vi.advanceTimersByTimeAsync(0);
   const failure = new Error('watch failed');
   const [id, entry] = [...state.outstandingSubscriptions][0];
+  // as the event stream does for a watch nack
   entry.err?.(failure, String(id));
+  state.outstandingSubscriptions.delete(id);
   await vi.advanceTimersByTimeAsync(0);
   expect(await outcome).toBe(failure);
   expect(nounSignal?.aborted).toBe(true);
@@ -151,10 +153,10 @@ test.each(['accepted', 'pending'])(
     expect(state.outstandingSubscriptions.size).toBe(1);
     await vi.advanceTimersByTimeAsync(60000);
     expect(await outcome).toBe('timeout');
-    expect(state.outstandingSubscriptions.size).toBe(0);
     expect(state.outstandingPokes.size).toBe(0);
     watchPut.resolve(new Response(null, { status: 204 }));
     await vi.advanceTimersByTimeAsync(0);
+    expect(state.outstandingSubscriptions.size).toBe(0);
     expect(vi.getTimerCount()).toBe(0);
   }
 );

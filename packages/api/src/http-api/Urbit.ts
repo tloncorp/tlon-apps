@@ -814,29 +814,29 @@ export class Urbit {
     timeout?: number,
     signal?: AbortSignal
   ) {
+    if (signal?.aborted) {
+      throw signal.reason ?? new Error('Request aborted');
+    }
     return new Promise<T>((resolve, reject) => {
       let done = false;
       let timer: ReturnType<typeof setTimeout> | undefined;
-      const cleanupSubscription = (sendUnsubscribe: boolean) => {
-        // The watch PUT may still be pending, so its numeric id isn't available
-        // to the caller yet. Callback identity also survives an id being reused.
-        for (const [id, entry] of this.outstandingSubscriptions) {
-          if (entry.event !== event) continue;
-          if (sendUnsubscribe) {
-            this.unsubscribe(id).catch(() => {});
-          }
-          if (this.outstandingSubscriptions.get(id) === entry) {
-            this.outstandingSubscriptions.delete(id);
-            this.emit('subscription', { id, status: 'close' });
-          }
-        }
-      };
       const finish = (sendUnsubscribe = false) => {
         if (done) return false;
         done = true;
         clearTimeout(timer);
         signal?.removeEventListener('abort', abort);
-        cleanupSubscription(sendUnsubscribe);
+        if (sendUnsubscribe) {
+          // Only unsubscribe once the watch PUT has landed, or Eyre can see the
+          // unsubscribe first and keep the watch. A reset since then may have
+          // reused the id, so check the slot still holds this one-shot.
+          subscribed
+            .then((id) => {
+              if (this.outstandingSubscriptions.get(id)?.event === event) {
+                return this.unsubscribe(id);
+              }
+            })
+            .catch(() => {});
+        }
         return true;
       };
       const fail = (error: unknown) => {
@@ -849,17 +849,7 @@ export class Urbit {
       const event = (e: T) => {
         if (finish(true)) resolve(e);
       };
-      if (signal?.aborted) {
-        abort();
-        return;
-      }
-      signal?.addEventListener('abort', abort, { once: true });
-      if (timeout) {
-        timer = setTimeout(() => {
-          if (finish(true)) reject('timeout');
-        }, timeout);
-      }
-      this.subscribe({
+      const subscribed = this.subscribe({
         app,
         path,
         ship,
@@ -867,7 +857,14 @@ export class Urbit {
         event,
         err: fail,
         quit: () => fail('quit'),
-      }).catch(fail);
+      });
+      subscribed.catch(fail);
+      signal?.addEventListener('abort', abort, { once: true });
+      if (timeout) {
+        timer = setTimeout(() => {
+          if (finish(true)) reject('timeout');
+        }, timeout);
+      }
     });
   }
 
@@ -1087,20 +1084,15 @@ export class Urbit {
    * @param subscription
    */
   async unsubscribe(subscription: number) {
-    const entry = this.outstandingSubscriptions.get(subscription);
-    const channelId = this.channelId;
-    return this.sendJSONtoChannel({
+    // Drop the handlers before the PUT: a reset while it is pending must not
+    // replay this subscription, and afterwards the id may belong to another.
+    if (this.outstandingSubscriptions.delete(subscription)) {
+      this.emit('subscription', { id: subscription, status: 'close' });
+    }
+    await this.sendJSONtoChannel({
       id: this.getEventId(),
       action: 'unsubscribe',
       subscription,
-    }).then(() => {
-      if (
-        this.channelId === channelId &&
-        this.outstandingSubscriptions.get(subscription) === entry
-      ) {
-        this.emit('subscription', { id: subscription, status: 'close' });
-        this.outstandingSubscriptions.delete(subscription);
-      }
     });
   }
 

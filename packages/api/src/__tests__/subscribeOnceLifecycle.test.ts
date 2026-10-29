@@ -128,7 +128,7 @@ test('an unanswered one-shot still times out and unsubscribes once', async () =>
   expect(unsubscribe).toHaveBeenCalledWith(1);
 });
 
-test('an abort while the watch PUT is pending removes its handlers immediately', async () => {
+test('an abort while the watch PUT is pending unsubscribes once the PUT lands', async () => {
   const { client, initialPut, unsubscribe, state } = setup();
   const controller = new AbortController();
   const failure = new Error('cancelled');
@@ -137,10 +137,11 @@ test('an abort while the watch PUT is pending removes its handlers immediately',
     .catch((error) => error);
   controller.abort(failure);
   expect(await once).toBe(failure);
-  expect(state.outstandingSubscriptions.size).toBe(0);
+  expect(unsubscribe).not.toHaveBeenCalled();
   initialPut.resolve(new Response(null, { status: 204 }));
   await vi.advanceTimersByTimeAsync(1000);
   expect(unsubscribe).toHaveBeenCalledTimes(1);
+  expect(state.outstandingSubscriptions.size).toBe(0);
   expect(vi.getTimerCount()).toBe(0);
 });
 
@@ -167,4 +168,26 @@ test('a late unsubscribe PUT cannot delete an id reused after a channel reset', 
   unsubPut.resolve(new Response(null, { status: 204 }));
   await vi.advanceTimersByTimeAsync(0);
   expect(state.outstandingSubscriptions.get(id)?.path).toBe('/live');
+});
+
+test('a reset during an unsubscribe PUT does not replay the subscription', async () => {
+  vi.useFakeTimers();
+  const unsubPut = deferred<Response>();
+  const fetch = vi.fn(async (_url: unknown, options?: RequestInit) => {
+    if (String(options?.body).includes('"action":"unsubscribe"')) {
+      return unsubPut.promise;
+    }
+    return new Response(null, { status: 204 });
+  });
+  const client = new Urbit('http://example.test', undefined, undefined, fetch);
+  const state = client as unknown as ClientState;
+  state.sseClientInitialized = true;
+  const id = await client.subscribe({ app: 'a', path: '/live' });
+  const unsubscribed = client.unsubscribe(id);
+  client.seamlessReset();
+  state.sseClientInitialized = true;
+  unsubPut.resolve(new Response(null, { status: 204 }));
+  await unsubscribed;
+  await vi.advanceTimersByTimeAsync(0);
+  expect(state.outstandingSubscriptions.size).toBe(0);
 });
