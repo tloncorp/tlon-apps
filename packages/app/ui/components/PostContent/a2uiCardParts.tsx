@@ -4,10 +4,54 @@ import { View, XStack, YStack, isWeb } from 'tamagui';
 
 /** Corner radius of a top-level bot card. */
 export const A2UI_CARD_RADIUS = 20;
-/** Inner padding of a top-level bot card. */
+/** Side and bottom padding of a top-level bot card. */
 export const A2UI_CARD_PADDING = 20;
+/** Top padding of a top-level bot card; a kicker's short line box makes 18 read as 20. */
+export const A2UI_CARD_PADDING_TOP = 18;
+/** A card inside a card: what a request is about. */
+export const A2UI_INNER_CARD = { radius: 14, paddingX: 14, paddingY: 12 };
 /** Height of an option row. */
 export const A2UI_OPTION_ROW_HEIGHT = 44;
+/** Side padding of an option row, matching the card's. */
+export const A2UI_OPTION_ROW_PADDING = 20;
+
+/**
+ * Bot card type. Cards use their own denser scale (13, 15, 17) rather than
+ * the app's label sizes, and draw text untrimmed so these line heights set
+ * the spacing, as in the design.
+ */
+export const A2UI_TYPE = {
+  title: {
+    fontSize: 17,
+    lineHeight: 24,
+    fontWeight: '500',
+    letterSpacing: -0.2,
+  },
+  label: { fontSize: 15, lineHeight: 20 },
+  labelStrong: { fontSize: 15, lineHeight: 20, fontWeight: '500' },
+  body: { fontSize: 15, lineHeight: 22 },
+  note: { fontSize: 13, lineHeight: 18 },
+  noteStrong: { fontSize: 13, lineHeight: 18, fontWeight: '500' },
+  kicker: { fontSize: 13, lineHeight: 16, fontWeight: '500' },
+} as const;
+
+/** Vertical rhythm between the parts of a card. */
+export const A2UI_SPACE = {
+  /** Kicker to title. */
+  afterKicker: 10,
+  /** Title to whatever follows it. */
+  afterTitle: 16,
+  /** Lines of one block of text. */
+  line: 4,
+  /** Blocks: an inner card, a note, a row. */
+  block: 12,
+  /** Before a card's row of buttons. */
+  beforeButtons: 20,
+  /** Before the buttons inside an inner card. */
+  beforeInnerButtons: 12,
+  /** Between inner cards, such as pending requests. */
+  betweenInnerCards: 10,
+};
 
 /**
  * Line breaking for bot card text: no one-word last lines on iOS and web,
@@ -48,8 +92,10 @@ export function A2UIOptionCard({
       {footer ? (
         <XStack
           flexDirection={footerDirection}
-          padding="$xl"
-          gap="$m"
+          paddingTop={16}
+          paddingHorizontal={A2UI_CARD_PADDING}
+          paddingBottom={A2UI_CARD_PADDING}
+          gap={8}
           borderTopWidth={1}
           borderTopColor="$border"
         >
@@ -132,17 +178,20 @@ export function A2UICardButton({
   tone: A2UICardButtonTone;
 }) {
   const style = getA2UICardButtonStyle(tone);
+  // A primary button that can't be used yet sits on the light fill rather
+  // than the darker disabled grey.
+  const surface =
+    disabled && style.fill === 'solid' ? '$secondaryBackground' : style.surface;
   return (
     <Button.Frame
       size="medium"
       fill={style.fill}
       intent={style.intent}
-      {...(style.surface
-        ? { backgroundColor: style.surface, borderColor: style.surface }
-        : null)}
+      {...(surface ? { backgroundColor: surface, borderColor: surface } : null)}
       height={44}
+      borderRadius={12}
       paddingVertical={0}
-      paddingHorizontal="$xl"
+      paddingHorizontal={16}
       flex={flex}
       disabled={disabled}
       dimmed={disabled && style.fill !== 'solid'}
@@ -155,7 +204,7 @@ export function A2UICardButton({
       {loading ? (
         <LoadingSpinner size="small" />
       ) : (
-        <Button.Text size="medium" numberOfLines={1}>
+        <Button.Text size="medium" numberOfLines={1} {...A2UI_TYPE.labelStrong}>
           {label}
         </Button.Text>
       )}

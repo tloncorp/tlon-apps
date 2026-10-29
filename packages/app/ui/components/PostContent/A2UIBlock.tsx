@@ -26,9 +26,14 @@ import {
   A2UIChoiceIndicator,
   A2UIOptionCard,
   A2UI_CARD_PADDING,
+  A2UI_CARD_PADDING_TOP,
   A2UI_CARD_RADIUS,
+  A2UI_INNER_CARD,
   A2UI_OPTION_ROW_HEIGHT,
+  A2UI_OPTION_ROW_PADDING,
+  A2UI_SPACE,
   A2UI_TEXT_BREAKING,
+  A2UI_TYPE,
   getA2UICardButtonStyle,
 } from './a2uiCardParts';
 import {
@@ -45,6 +50,8 @@ import { useOneShotAction } from './useOneShotAction';
 
 type RenderOptions = {
   cardDepth?: number;
+  /** Space above this component, from its column's rhythm. */
+  spacingTop?: number;
   /** A button sharing a row of buttons takes an equal width. */
   fillRow?: boolean;
   parentAlign?: A2UI.Container['align'];
@@ -160,7 +167,7 @@ function SmallChoiceRow({
       labelCanWrap
       labelWeight={isSelected ? '500' : undefined}
       minHeight={A2UI_OPTION_ROW_HEIGHT}
-      paddingVertical="$m"
+      paddingVertical={8}
       leading={<A2UIChoiceIndicator selected={isSelected} shape={indicator} />}
     />
   );
@@ -512,7 +519,7 @@ function SmallChoiceControl({
             }
             labelWeight={displayedCustomTopics.length ? '500' : undefined}
             minHeight={A2UI_OPTION_ROW_HEIGHT}
-            paddingVertical="$m"
+            paddingVertical={8}
             leading={
               displayedCustomTopics.length ? (
                 <A2UIChoiceIndicator
@@ -626,23 +633,74 @@ function SmallChoiceControl({
   );
 }
 
-function getTextSize(component: A2UI.Text) {
-  // One title size for every heading level below h1, 17 medium; h5 reads as
-  // an emphasised label.
+function getTextStyle(component: A2UI.Text) {
+  // One title size for every heading level below h1; h5 reads as an
+  // emphasised label. h1 keeps the app's display size.
   switch (component.variant) {
     case 'h1':
-      return '$title/l';
+      return undefined;
     case 'h2':
     case 'h3':
     case 'h4':
-      return '$label/2xl';
+      return A2UI_TYPE.title;
     case 'h5':
-      return '$label/l';
+      return A2UI_TYPE.labelStrong;
     case 'caption':
-      return '$label/m';
+      return A2UI_TYPE.note;
     default:
-      return '$body';
+      return A2UI_TYPE.body;
   }
+}
+
+function isHeading(component: A2UI.Component | undefined) {
+  return (
+    component?.component === 'Text' &&
+    (component.variant === 'h1' ||
+      component.variant === 'h2' ||
+      component.variant === 'h3' ||
+      component.variant === 'h4')
+  );
+}
+
+/** A row of two or more buttons and nothing else: a card's answers. */
+function isButtonRow(
+  component: A2UI.Component | undefined,
+  components: Map<string, A2UI.Component>
+) {
+  return (
+    component?.component === 'Row' &&
+    component.children.length > 1 &&
+    component.children.every(
+      (child) => components.get(child)?.component === 'Button'
+    )
+  );
+}
+
+/** Space above a column child, following the design's rhythm. */
+function getStackSpacing(
+  previous: A2UI.Component | undefined,
+  current: A2UI.Component | undefined,
+  components: Map<string, A2UI.Component>,
+  inInnerCard: boolean
+) {
+  if (!previous || !current) return 0;
+  if (isButtonRow(current, components)) {
+    return inInnerCard
+      ? A2UI_SPACE.beforeInnerButtons
+      : A2UI_SPACE.beforeButtons;
+  }
+  // A short line before a heading is its kicker.
+  if (isHeading(current) && previous.component === 'Text') {
+    return A2UI_SPACE.afterKicker;
+  }
+  if (isHeading(previous)) return A2UI_SPACE.afterTitle;
+  if (previous.component === 'Card' && current.component === 'Card') {
+    return A2UI_SPACE.betweenInnerCards;
+  }
+  if (previous.component === 'Text' && current.component === 'Text') {
+    return A2UI_SPACE.line;
+  }
+  return A2UI_SPACE.block;
 }
 
 function getTextColor(component: A2UI.Text) {
@@ -658,10 +716,10 @@ function getComponentGap(
   );
 
   if (isTextOnly) {
-    return component.component === 'Row' ? '$s' : '$xs';
+    return component.component === 'Row' ? 6 : 4;
   }
 
-  return '$m';
+  return 8;
 }
 
 function hasButtonChild(
@@ -1076,11 +1134,13 @@ export function A2UIBlock({
           return (
             <Text
               key={component.id}
-              size={getTextSize(component)}
+              size={component.variant === 'h1' ? '$title/l' : '$label/l'}
+              {...getTextStyle(component)}
               color={getTextColor(component)}
-              fontWeight={component.variant === 'h5' ? '500' : undefined}
+              trimmed={false}
               textAlign={getTextAlign(options.parentAlign)}
               flex={getComponentFlex(component)}
+              marginTop={options.spacingTop}
               {...A2UI_TEXT_BREAKING}
             >
               {component.text}
@@ -1109,9 +1169,10 @@ export function A2UIBlock({
           return (
             <XStack
               key={component.id}
-              gap={buttonFooter ? '$m' : getComponentGap(component, components)}
+              gap={buttonFooter ? 8 : getComponentGap(component, components)}
               marginTop={
-                hasButtonChild(component, components) ? '$xl' : undefined
+                options.spacingTop ??
+                (hasButtonChild(component, components) ? 16 : undefined)
               }
               alignItems={getAlignItems(component.align)}
               justifyContent={getJustifyContent(component.justify)}
@@ -1135,18 +1196,29 @@ export function A2UIBlock({
           );
         }
         case 'Column': {
+          // Spacing comes from each child's place in the design's rhythm,
+          // not one gap for the whole column.
+          const inInnerCard = (options.cardDepth ?? 0) >= 2;
           return (
             <YStack
               key={component.id}
-              gap={getComponentGap(component, components)}
               alignItems={getAlignItems(component.align, 'stretch')}
               justifyContent={getJustifyContent(component.justify)}
               flex={getComponentFlex(component)}
+              marginTop={options.spacingTop}
             >
-              {component.children.map((child) =>
+              {component.children.map((child, index) =>
                 renderComponent(child, {
                   cardDepth: options.cardDepth,
                   parentAlign: component.align,
+                  spacingTop: getStackSpacing(
+                    index > 0
+                      ? components.get(component.children[index - 1])
+                      : undefined,
+                    components.get(child),
+                    components,
+                    inInnerCard
+                  ),
                 })
               )}
             </YStack>
@@ -1161,11 +1233,20 @@ export function A2UIBlock({
               key={component.id}
               borderWidth={1}
               borderColor="$border"
-              borderRadius={isNestedCard ? '$xl' : A2UI_CARD_RADIUS}
+              borderRadius={
+                isNestedCard ? A2UI_INNER_CARD.radius : A2UI_CARD_RADIUS
+              }
               backgroundColor="$background"
-              paddingHorizontal={isNestedCard ? '$xl' : A2UI_CARD_PADDING}
-              paddingVertical={isNestedCard ? '$l' : A2UI_CARD_PADDING}
-              gap="$m"
+              paddingHorizontal={
+                isNestedCard ? A2UI_INNER_CARD.paddingX : A2UI_CARD_PADDING
+              }
+              paddingTop={
+                isNestedCard ? A2UI_INNER_CARD.paddingY : A2UI_CARD_PADDING_TOP
+              }
+              paddingBottom={
+                isNestedCard ? A2UI_INNER_CARD.paddingY : A2UI_CARD_PADDING
+              }
+              marginTop={options.spacingTop}
               flex={getComponentFlex(component)}
               width="100%"
               alignSelf="stretch"
@@ -1183,7 +1264,7 @@ export function A2UIBlock({
               key={component.id}
               height={1}
               backgroundColor="$border"
-              marginVertical="$xs"
+              marginTop={options.spacingTop}
               width="100%"
               flex={getComponentFlex(component)}
             />
@@ -1223,6 +1304,7 @@ export function A2UIBlock({
           const fillsRow = Boolean(
             options.fillRow && component.weight === undefined
           );
+          const inInnerCard = (options.cardDepth ?? 0) >= 2;
           return (
             <Button.Frame
               key={component.id}
@@ -1243,15 +1325,19 @@ export function A2UIBlock({
                     : 'flex-start'
               }
               marginTop={
-                component.action.event.name ===
+                options.spacingTop ??
+                (component.action.event.name ===
                 A2UI.action.requestCreditIncrease
                   ? 24
                   : options.standaloneControlTopMargin
                     ? CHOICE_CONTROL_OUTER_MARGIN
-                    : undefined
+                    : undefined)
               }
-              height={44}
-              paddingHorizontal={fillsRow ? '$m' : '$xl'}
+              // Buttons inside an inner card, such as one pending request's
+              // answers, are a size smaller.
+              height={inInnerCard ? 36 : 44}
+              borderRadius={inInnerCard ? 10 : 12}
+              paddingHorizontal={fillsRow ? 8 : 16}
               flex={fillsRow ? 1 : getComponentFlex(component)}
               opacity={actionConsumed ? 0.5 : 1}
               pointerEvents={actionConsumed ? 'none' : 'auto'}
@@ -1268,6 +1354,7 @@ export function A2UIBlock({
             >
               <Button.Text
                 size="medium"
+                {...A2UI_TYPE.labelStrong}
                 numberOfLines={fillsRow ? 1 : undefined}
               >
                 {visibleLabel}
@@ -1366,9 +1453,9 @@ export function A2UIBlock({
                   borderBottomColor="$border"
                   borderRadius={grouped ? 0 : A2UI_CARD_RADIUS}
                   backgroundColor="$background"
-                  paddingVertical="$l"
-                  paddingHorizontal="$xl"
-                  gap="$m"
+                  paddingVertical={12}
+                  paddingHorizontal={A2UI_OPTION_ROW_PADDING}
+                  gap={12}
                   alignItems="center"
                   opacity={disabled && !isSelected ? 0.5 : 1}
                 >
@@ -1376,7 +1463,7 @@ export function A2UIBlock({
                     <View
                       width={32}
                       height={32}
-                      borderRadius="$m"
+                      borderRadius={9}
                       backgroundColor={accent.soft}
                       alignItems="center"
                       justifyContent="center"
@@ -1392,7 +1479,7 @@ export function A2UIBlock({
                   <YStack flex={1} minWidth={0}>
                     <Text
                       size="$label/l"
-                      fontWeight="500"
+                      {...A2UI_TYPE.labelStrong}
                       trimmed={false}
                       {...A2UI_TEXT_BREAKING}
                     >
@@ -1401,6 +1488,7 @@ export function A2UIBlock({
                     {option.description ? (
                       <Text
                         size="$label/m"
+                        {...A2UI_TYPE.note}
                         color="$secondaryText"
                         trimmed={false}
                         {...A2UI_TEXT_BREAKING}
@@ -1424,7 +1512,7 @@ export function A2UIBlock({
             <YStack
               key={component.id}
               width="100%"
-              marginTop={CHOICE_CONTROL_OUTER_MARGIN}
+              marginTop={options.spacingTop ?? CHOICE_CONTROL_OUTER_MARGIN}
             >
               {grouped ? <A2UIOptionCard>{choices}</A2UIOptionCard> : choices}
             </YStack>
@@ -1451,7 +1539,7 @@ export function A2UIBlock({
             <YStack
               key={component.id}
               width="100%"
-              marginTop={CHOICE_CONTROL_OUTER_MARGIN}
+              marginTop={options.spacingTop ?? CHOICE_CONTROL_OUTER_MARGIN}
             >
               <SmallChoiceControl
                 component={component}
@@ -1479,7 +1567,7 @@ export function A2UIBlock({
             <YStack
               key={component.id}
               width="100%"
-              marginTop={CHOICE_CONTROL_OUTER_MARGIN}
+              marginTop={options.spacingTop ?? CHOICE_CONTROL_OUTER_MARGIN}
             >
               <McpConnectControl
                 component={component}

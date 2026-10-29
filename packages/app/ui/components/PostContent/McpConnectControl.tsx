@@ -22,6 +22,8 @@ import {
   A2UICardButton,
   A2UIChoiceIndicator,
   A2UIOptionCard,
+  A2UI_OPTION_ROW_PADDING,
+  A2UI_TYPE,
 } from './a2uiCardParts';
 import { useOneShotAction } from './useOneShotAction';
 
@@ -502,7 +504,7 @@ export function McpConnectMenu({
   const rows = loading ? (
     <XStack
       minHeight={ROW_HEIGHT}
-      paddingHorizontal="$xl"
+      paddingHorizontal={A2UI_OPTION_ROW_PADDING}
       alignItems="center"
       justifyContent="center"
       backgroundColor="$background"
@@ -553,7 +555,7 @@ export function McpConnectMenu({
                   : undefined
             }
             minHeight={ROW_HEIGHT}
-            paddingVertical="$s"
+            paddingVertical={6}
             dividerAfter={index < visibleProviders.length - 1 || showSeeAll}
             dimmed={!enabled}
             label={provider.displayName}
@@ -651,14 +653,19 @@ export function McpConnectMenu({
 function ConnectPill() {
   return (
     <XStack
-      height={28}
-      paddingHorizontal="$l"
-      borderRadius={14}
+      paddingVertical={5}
+      paddingHorizontal={12}
+      borderRadius={999}
       backgroundColor="$secondaryBackground"
       alignItems="center"
       flexShrink={0}
     >
-      <Text size="$label/m" color="$primaryText" fontWeight="500">
+      <Text
+        size="$label/m"
+        {...A2UI_TYPE.noteStrong}
+        color="$primaryText"
+        trimmed={false}
+      >
         Connect
       </Text>
     </XStack>
