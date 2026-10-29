@@ -30,7 +30,7 @@ import {
   useChatTitle,
 } from '../../utils';
 import { ContactAvatar } from '../Avatar';
-import ConnectionStatus from '../ConnectionStatus';
+import { Badge } from '../Badge';
 import { GroupAvatar } from '../GroupAvatar';
 import { ScreenHeader, type ScreenHeaderAction } from '../ScreenHeader';
 import { useScreenScrollProps } from '../useScreenScrollProps';
@@ -224,13 +224,16 @@ export function ChannelHeader({
     return getChannelHost(channel, currentUserId);
   }, [channel, currentUserId]);
   const isHostedChannel = isHostedChannelType(channel.type);
+  // A 1:1 DM's host is the other person's ship; a group DM's is our own.
+  const hasRemoteHost = isHostedChannel || channel.type === 'dm';
   const channelHostConnectionStatus = useShipConnectionStatus(channelHost, {
-    enabled: isHostedChannel,
+    enabled: hasRemoteHost,
   });
-  const isChannelHostOffline =
-    isHostedChannel &&
+  const isHostUnreachable =
+    hasRemoteHost &&
     channelHostConnectionStatus.complete &&
     channelHostConnectionStatus.status !== 'yes';
+  const isChannelHostOffline = isHostedChannel && isHostUnreachable;
   const channelConnectionStatusText = getChannelConnectionStatusText(
     connectionStatus,
     isChannelHostOffline
@@ -418,14 +421,12 @@ export function ChannelHeader({
 
   const headerProps = {
     title: headerTitle,
-    titleIcon: hideIdentity ? null : (
-      <>
-        {avatarElement || titleIcon}
-        {channelHost && !isWindowNarrow && (
-          <ConnectionStatus contactId={channelHost} type="indicator" />
-        )}
-      </>
-    ),
+    titleIcon: hideIdentity ? null : avatarElement || titleIcon,
+    // Only flag a host that can't be reached; a healthy one needs no marker.
+    titleBadge:
+      !hideIdentity && isHostUnreachable && !isWindowNarrow ? (
+        <Badge type="warning" size="micro" text="Offline" flexShrink={0} />
+      ) : undefined,
     subtitle: hideIdentity ? undefined : displaySubtitle,
     testID: 'ChannelHeaderTitle',
     showSubtitle: !hideIdentity,
