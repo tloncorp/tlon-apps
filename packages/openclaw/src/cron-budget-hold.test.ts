@@ -263,6 +263,99 @@ describe('cron budget holds', () => {
     await f.reconcile('limited');
     expect(f.notify).not.toHaveBeenCalled();
   });
+
+  it('never edits system-owned monitor jobs and still holds later user jobs', async () => {
+    const f = fixture();
+    const monitors: PluginHookGatewayCronJob[] = [
+      {
+        id: 'skill-review',
+        declarationKey: 'skill-collection-review:main',
+        enabled: true,
+        updatedAtMs: 1,
+        schedule: { kind: 'every', everyMs: 604_800_000 },
+        payload: { kind: 'agentTurn' },
+      },
+      {
+        id: 'heartbeat',
+        declarationKey: 'heartbeat:main',
+        enabled: true,
+        updatedAtMs: 1,
+        schedule: { kind: 'every', everyMs: 1_800_000 },
+        payload: { kind: 'agentTurn' },
+      },
+      {
+        id: 'heartbeat-payload',
+        enabled: true,
+        updatedAtMs: 1,
+        schedule: { kind: 'every', everyMs: 1_800_000 },
+        payload: { kind: 'heartbeat' },
+      },
+    ];
+    f.jobs.unshift(...monitors);
+    f.jobs.push({
+      id: 'imported-task',
+      declarationKey: 'heartbeat-task:check-mail',
+      enabled: true,
+      updatedAtMs: 1,
+      schedule: { kind: 'every', everyMs: 60_000 },
+    });
+    await f.reconcile('limited');
+    const touched = () => f.update.mock.calls.map(([id]) => id);
+    expect(touched()).toEqual(['report', 'watch', 'imported-task']);
+    expect(f.jobs.slice(0, 3).map((j) => j.enabled)).toEqual([
+      true,
+      true,
+      true,
+    ]);
+    expect(Object.keys(f.state.holds)).toEqual([
+      'report',
+      'watch',
+      'imported-task',
+    ]);
+    expect(f.notify).toHaveBeenCalledExactlyOnceWith(
+      'Your token credits are low. Your 3 scheduled tasks have been paused.'
+    );
+    await f.reconcile('available');
+    expect(touched()).not.toContain('skill-review');
+    expect(touched()).not.toContain('heartbeat');
+    expect(touched()).not.toContain('heartbeat-payload');
+    expect(f.jobs.find((j) => j.id === 'report')?.enabled).toBe(true);
+    expect(f.jobs.find((j) => j.id === 'imported-task')?.enabled).toBe(true);
+    expect(f.state.holds).toEqual({});
+  });
+
+  it('drops a stale hold on a system-owned job without editing it', async () => {
+    const f = fixture();
+    f.jobs.unshift({
+      id: 'skill-review',
+      declarationKey: 'skill-collection-review:main',
+      enabled: true,
+      updatedAtMs: 1,
+      schedule: { kind: 'every', everyMs: 604_800_000 },
+      payload: { kind: 'agentTurn' },
+    });
+    f.state.limited = true;
+    f.state.episodeId = 'episode';
+    f.state.holds['skill-review'] = { description: '' };
+    await f.reconcile('limited');
+    expect(f.state.holds['skill-review']).toBeUndefined();
+    expect(f.update.mock.calls.map(([id]) => id)).toEqual(['report', 'watch']);
+  });
+
+  it('keeps holding other jobs and notifying when one update fails', async () => {
+    const f = fixture();
+    f.update.mockRejectedValueOnce(new Error('update rejected'));
+    await expect(f.reconcile('limited')).rejects.toThrow('update rejected');
+    expect(f.jobs[0].enabled).toBe(true);
+    expect(f.jobs[1].enabled).toBe(false);
+    expect(f.state.holds.watch.revision).toBeDefined();
+    expect(f.notify).toHaveBeenCalledExactlyOnceWith(
+      'Your token credits are low. Your 1 scheduled task has been paused.'
+    );
+    await f.reconcile('limited');
+    expect(f.jobs[0].enabled).toBe(false);
+    expect(f.state.holds.report.revision).toBeDefined();
+  });
 });
 
 const temporaryDirs: string[] = [];
@@ -394,20 +487,24 @@ describe('budget transition journal', () => {
 
   it('does not report failed mutations or manual ownership changes as budget transitions', async () => {
     const f = fixture();
+    const changes = () =>
+      f.state.pendingTelemetryChanges?.map((e) => [e.jobId, e.action]);
     f.update.mockRejectedValueOnce(new Error('mutation failed'));
     await expect(f.reconcile('limited')).rejects.toThrow('mutation failed');
-    expect(f.state.pendingTelemetryChanges).toBeUndefined();
+    expect(changes()).toEqual([['watch', 'paused']]);
     await f.reconcile('limited');
-    expect(f.state.pendingTelemetryChanges).toHaveLength(2);
+    expect(changes()).toEqual([
+      ['watch', 'paused'],
+      ['report', 'paused'],
+    ]);
     delete f.state.pendingTelemetryChanges;
     f.update.mockRejectedValueOnce(new Error('resume failed'));
     await expect(f.reconcile('available')).rejects.toThrow('resume failed');
-    expect(f.state.pendingTelemetryChanges).toBeUndefined();
+    expect(changes()).toEqual([['watch', 'resumed']]);
+    delete f.state.pendingTelemetryChanges;
     f.jobs[0].updatedAtMs = 999; // manual edit while held
     await f.reconcile('available');
-    expect(
-      f.state.pendingTelemetryChanges?.map((e) => [e.jobId, e.action])
-    ).toEqual([['watch', 'resumed']]);
+    expect(f.state.pendingTelemetryChanges).toBeUndefined();
   });
 
   it('recovers a confirmed pause from a persisted write-ahead intent once', async () => {

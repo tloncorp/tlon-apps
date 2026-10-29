@@ -54,7 +54,9 @@ Self-hosted installs without this environment variable are unaffected.
 
 While limited, enabled `cron` and `every` tasks are disabled with a visible
 `[Paused: credit budget]` description prefix. One-shot (`at`) and event-driven
-schedules are excluded. The owner receives one notice per budget episode:
+schedules are excluded. OpenClaw's system-owned monitor jobs (heartbeat, skill
+collection review) are left alone because core rejects client edits to them.
+The owner receives one notice per budget episode:
 “Your token credits are low. Your 3 scheduled tasks have been paused.” It includes
 an A2UI **Request credit increase** button. Failed delivery is retried.
 New or re-enabled recurring tasks are held as well. Already-running work is not
