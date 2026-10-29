@@ -8,7 +8,8 @@ vi.mock('../systemContactsApi', () => ({
 
 import * as db from '../../db';
 import { setupDatabaseTestSuite } from '../../test/helpers';
-import { syncContactDiscovery } from './sync';
+import { updateContactMetadata } from '../contactActions';
+import { syncContactDiscovery, syncSystemContacts } from './sync';
 
 setupDatabaseTestSuite();
 
@@ -54,8 +55,8 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-test.each(['Chosen nickname', null])(
-  'a saved contact uses the address-book name over its nickname (%s)',
+test.each([null, ''])(
+  'a saved contact with an empty custom name uses the book name over its peer name (%s)',
   async (customNickname) => {
     await db.upsertContact({
       id: contactId,
@@ -122,7 +123,7 @@ test.each([false, true])(
       isContact: false,
       isContactSuggestion,
       peerNickname: 'Peer name',
-      customNickname: 'Chosen name',
+      customNickname: null,
       customAvatarImage: 'avatar',
     });
     expect(
@@ -144,6 +145,71 @@ test.each([false, true])(
     expect(api.updateContactMetadata).not.toHaveBeenCalled();
   }
 );
+
+test.each([true, false])(
+  'retroactive matching preserves a custom name (saved: %s)',
+  async (isContact) => {
+    await db.upsertContact({
+      id: contactId,
+      isContact,
+      customNickname: 'Chosen name',
+      peerNickname: 'Peer name',
+    });
+
+    expect(
+      await syncContactDiscovery(undefined, { invokeHandler: false })
+    ).toEqual({ didSucceed: true, didDiscover: true, newMatches: [] });
+
+    expect(await db.getContact({ id: contactId })).toEqual(
+      expect.objectContaining({
+        isContact,
+        customNickname: 'Chosen name',
+        nickname: 'Chosen name',
+      })
+    );
+    expect(await db.getSystemContactsBatchByContactId([contactId])).toEqual([
+      expect.objectContaining({ id: systemContact.id, contactId }),
+    ]);
+    expect(api.addContact).not.toHaveBeenCalled();
+    expect(api.updateContactMetadata).not.toHaveBeenCalled();
+  }
+);
+
+test('rediscovery preserves a name edited in Tlon after import', async () => {
+  await db.upsertContact({ id: contactId, isContact: true });
+  await syncContactDiscovery(undefined, { invokeHandler: false });
+  expect((await db.getContact({ id: contactId }))?.customNickname).toBe(
+    'Address Book'
+  );
+
+  await updateContactMetadata(contactId, { nickname: 'Chosen name' });
+  vi.mocked(api.updateContactMetadata).mockClear();
+  await syncContactDiscovery(undefined, { invokeHandler: false });
+
+  expect((await db.getContact({ id: contactId }))?.customNickname).toBe(
+    'Chosen name'
+  );
+  expect(api.updateContactMetadata).not.toHaveBeenCalled();
+});
+
+test('a phone-book edit preserves an already imported name', async () => {
+  await db.upsertContact({ id: contactId, isContact: true });
+  await syncContactDiscovery(undefined, { invokeHandler: false });
+  mocks.getSystemContacts.mockResolvedValue([
+    { ...systemContact, firstName: 'Updated' },
+  ]);
+  await syncSystemContacts();
+  vi.mocked(api.updateContactMetadata).mockClear();
+  await syncContactDiscovery(undefined, { invokeHandler: false });
+
+  expect(await db.getSystemContactsBatchByContactId([contactId])).toEqual([
+    expect.objectContaining({ firstName: 'Updated' }),
+  ]);
+  expect((await db.getContact({ id: contactId }))?.customNickname).toBe(
+    'Address Book'
+  );
+  expect(api.updateContactMetadata).not.toHaveBeenCalled();
+});
 
 test('an empty address-book name leaves the existing name intact', async () => {
   await db.insertSystemContacts({
@@ -190,7 +256,7 @@ test('a metadata failure rolls back and rediscovery retries the book name', asyn
   await db.upsertContact({
     id: contactId,
     isContact: true,
-    customNickname: 'Chosen name',
+    customNickname: null,
   });
   vi.mocked(api.updateContactMetadata).mockRejectedValueOnce(
     new Error('offline')
@@ -202,9 +268,7 @@ test('a metadata failure rolls back and rediscovery retries the book name', asyn
     didDiscover: true,
     newMatches: [],
   });
-  expect((await db.getContact({ id: contactId }))?.customNickname).toBe(
-    'Chosen name'
-  );
+  expect((await db.getContact({ id: contactId }))?.customNickname).toBeNull();
   expect(
     await syncContactDiscovery(undefined, { invokeHandler: false })
   ).toEqual({
@@ -220,7 +284,7 @@ test('a metadata failure rolls back and rediscovery retries the book name', asyn
   expect(api.updateContactMetadata).toHaveBeenCalledTimes(2);
 });
 
-test.each(['Address Book', 'Internal name'])(
+test.each([null, 'Address Book'])(
   'multiple native cards choose one stable name when the current name is %s',
   async (customNickname) => {
     const secondCard = {
@@ -254,7 +318,7 @@ test.each(['Address Book', 'Internal name'])(
       );
     }
     expect(api.updateContactMetadata).toHaveBeenCalledTimes(
-      customNickname === 'Address Book' ? 0 : 1
+      customNickname ? 0 : 1
     );
   }
 );
@@ -278,7 +342,7 @@ test('an unnamed first native card does not hide a later named card', async () =
   await db.upsertContact({
     id: contactId,
     isContact: true,
-    customNickname: 'Internal name',
+    customNickname: null,
   });
   await syncContactDiscovery(undefined, { invokeHandler: false });
   await syncContactDiscovery(undefined, { invokeHandler: false });
@@ -292,7 +356,7 @@ test('a Remove during the saved-name action read cancels its stale edit', async 
   await db.upsertContact({
     id: contactId,
     isContact: true,
-    customNickname: 'Internal name',
+    customNickname: null,
   });
   const read = db.getContact;
   let reads = 0;

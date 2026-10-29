@@ -932,11 +932,8 @@ export const syncContactDiscovery = async (
     const metadataResults = await Promise.all(
       Array.from(namesByContactId, async ([contactId, nickname]) => {
         const contact = await db.getContact({ id: contactId });
-        if (
-          !isCurrent(contactId) ||
-          !contact ||
-          contact.customNickname === nickname
-        )
+        // Existing names may be user-chosen; discovery only fills empty names.
+        if (!isCurrent(contactId) || !contact || contact.customNickname)
           return true;
         // Only saved contacts have a ship address-book entry to edit.
         if (contact.isContact) {

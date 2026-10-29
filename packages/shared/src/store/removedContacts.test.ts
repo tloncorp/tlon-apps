@@ -828,10 +828,15 @@ test('failed Remove after address-book read failure restores saved contact', asy
   });
 });
 
-test.each(['removed', 'declined'] as const)(
-  'phone-book names override an internal nickname on a %s match without saving it',
-  async (status) => {
-    await db.updateContact({ id, customNickname: 'Internal name' });
+test.each([
+  ['removed', null],
+  ['declined', null],
+  ['removed', 'Chosen name'],
+  ['declined', 'Chosen name'],
+] as const)(
+  'discovery fills only missing names on a %s match without saving it (custom name: %s)',
+  async (status, customNickname) => {
+    await db.updateContact({ id, customNickname });
     const bookEntry = {
       id: 'phone',
       phoneNumber: phone,
@@ -874,7 +879,7 @@ test.each(['removed', 'declined'] as const)(
     expect(await db.getContact({ id })).toMatchObject({
       isContact: false,
       isContactSuggestion: status === 'removed',
-      customNickname: 'Phone Book',
+      customNickname: customNickname ?? 'Phone Book',
       matchedAt: null,
     });
     expect(saved.has(id)).toBe(false);
