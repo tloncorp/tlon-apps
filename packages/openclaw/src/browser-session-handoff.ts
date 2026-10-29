@@ -3,6 +3,7 @@ import {
   isTrustedBrowserViewerHost,
   isBrowserViewerDevelopmentOrigin,
   MAX_BROWSER_VIEWER_URL_LENGTH,
+  BrowserCardPresentationSchema,
 } from '@tloncorp/api';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 import { z } from 'zod';
@@ -310,13 +311,9 @@ async function resolveViewerUrl(
           if (metadata.session_id !== handle) {
             throw new Error('Browser session lookup refused.');
           }
-          const presentation = z
-            .object({
-              purpose: z.enum(['login', 'otp', 'details']),
-              site: z.string().min(1).max(253),
-            })
-            .strict()
-            .safeParse(metadata.card);
+          const presentation = BrowserCardPresentationSchema.safeParse(
+            metadata.card
+          );
           return {
             viewerUrl: validateViewerUrl(metadata.viewer_url, prepareForm),
             ...(presentation.success
