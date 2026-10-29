@@ -1,3 +1,4 @@
+import { browserCardKey } from './browserCardKey';
 import type {
   BrowserLoginChoice,
   SavedBrowserLogin,
@@ -31,7 +32,6 @@ import {
   fetchSecureEntryState,
   rememberSecureEntry,
   secureEntryCache,
-  secureEntryKey,
   secureEntryMessages,
   type SecureEntryState,
 } from './browserSecureEntryState';
@@ -214,13 +214,25 @@ export function BrowserCredentialHandoffContent({
       let trustedUrl: string | undefined;
       try {
         trustedUrl = trustedBrowserViewerUrl(viewerUrl);
-        const cached = await secureEntryCache.getValue();
-        const state =
-          cached?.[secureEntryKey(trustedUrl)]?.state ??
-          (await fetchSecureEntryState(
-            trustedUrl,
-            signal ?? new AbortController().signal
-          ));
+        let state: SecureEntryState | undefined;
+        const receipt = new AbortController();
+        const abortReceipt = () => receipt.abort();
+        signal?.addEventListener('abort', abortReceipt, { once: true });
+        const timeout = setTimeout(abortReceipt, 10000);
+        try {
+          const cached = await secureEntryCache.getValue();
+          state =
+            cached?.[browserCardKey(trustedUrl)]?.state ??
+            (await fetchSecureEntryState(trustedUrl, receipt.signal));
+        } catch {
+          if (!signal?.aborted)
+            logger.trackError(
+              'Secure entry receipt unavailable; loading the form'
+            );
+        } finally {
+          clearTimeout(timeout);
+          signal?.removeEventListener('abort', abortReceipt);
+        }
         if (signal?.aborted) return;
         if (state) {
           await rememberSecureEntry(trustedUrl, state);

@@ -5,6 +5,7 @@ import { Button, Icon, Text, useToast } from '@tloncorp/ui';
 import { useRef, useState } from 'react';
 import { XStack, YStack } from 'tamagui';
 
+import { ReferenceSkeleton } from '../../ui/components/ContentReference/Reference';
 import { useContentContext } from '../../ui/components/PostContent/contentUtils';
 import { useOptionalBrowserCredentialHandoff } from './BrowserCredentialHandoffContext';
 import {
@@ -36,6 +37,16 @@ export function BrowserCard({
   const showToast = useToast();
   const [pending, setPending] = useState(false);
   const opening = useRef(false);
+  if (!allowed) {
+    return (
+      <ReferenceSkeleton
+        messageType="not-found"
+        message="This message isn’t visible to you."
+        maxWidth={400}
+        width="100%"
+      />
+    );
+  }
   const session = card.type === 'browser-session';
   const approval = !session && card.loginApproval;
   const login = !session && card.presentation?.purpose === 'login';

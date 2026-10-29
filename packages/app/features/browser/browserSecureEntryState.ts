@@ -1,3 +1,4 @@
+import { browserCardKey } from './browserCardKey';
 import { createDevLogger } from '@tloncorp/shared';
 import { createStorageItem } from '@tloncorp/shared/db';
 import { trustedBrowserViewerUrl } from './browserCredentialHandoff';
@@ -17,10 +18,6 @@ export const secureEntryCache = createStorageItem<Record<
   }
 > | null>({ key: 'browserSecureEntryCache', defaultValue: null });
 
-export function secureEntryKey(url: string) {
-  const parsed = new URL(url);
-  return parsed.origin + parsed.pathname;
-}
 export async function rememberSecureEntry(
   url: string,
   state: SecureEntryState
@@ -30,7 +27,7 @@ export async function rememberSecureEntry(
       Object.fromEntries(
         Object.entries({
           ...current,
-          [secureEntryKey(url)]: { state, checkedAt: Date.now() },
+          [browserCardKey(url)]: { state, checkedAt: Date.now() },
         })
           .sort((a, b) => b[1].checkedAt - a[1].checkedAt)
           .slice(0, 1000)

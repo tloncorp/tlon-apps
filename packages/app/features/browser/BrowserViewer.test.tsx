@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Platform, TextInput } from 'react-native';
+import { Alert, Keyboard, Platform, TextInput } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -54,6 +54,41 @@ describe('embedded browser boundaries', () => {
     vi.unstubAllGlobals();
     delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean })
       .IS_REACT_ACT_ENVIRONMENT;
+  });
+
+  it('reserves top space only when the native controls are available', () => {
+    let renderer!: ReactTestRenderer;
+    act(() => {
+      renderer = create(
+        <NativeBrowserViewer
+          viewerUrl={viewerUrl}
+          topInset={62}
+          onLoad={vi.fn()}
+          onError={vi.fn()}
+        />
+      );
+    });
+    const view = renderer.root.findByType(WebView);
+    expect(view.props.style.marginTop).toBe(0);
+    for (const nativeControl of [true, false]) {
+      act(() =>
+        view.props.onMessage({
+          nativeEvent: {
+            url: viewerUrl,
+            data: JSON.stringify({
+              type: 'tlon.browser.input',
+              version: 1,
+              ready: true,
+              keyboardOpen: false,
+              context: 2,
+              nativeControl,
+            }),
+          },
+        })
+      );
+      expect(view.props.style.marginTop).toBe(nativeControl ? 130 : 0);
+    }
+    act(() => renderer.unmount());
   });
 
   it('resynchronizes the retained viewer when React reconnects effects', () => {
@@ -363,13 +398,24 @@ describe('embedded browser boundaries', () => {
     expect(injectJavaScript.mock.lastCall?.[0]).toContain(
       '"type":"keyboard","open":true,"context":2'
     );
-    status({ keyboardOpen: true });
+    status({ keyboardOpen: true, nativeInput: true });
+    injectJavaScript.mockClear();
     act(() =>
       renderer.root
         .findByProps({ accessibilityLabel: 'Hide keyboard' })
         .props.onPress()
     );
-    expect(injectJavaScript.mock.lastCall?.[0]).toContain('"open":false');
+    act(() => {
+      renderer.root.findByType(TextInput).props.onBlur();
+      const hide = vi
+        .mocked(Keyboard.addListener)
+        .mock.calls.findLast(([event]) => event === 'keyboardDidHide')?.[1];
+      hide?.({} as never);
+    });
+    expect(injectJavaScript).toHaveBeenCalledTimes(1);
+    expect(injectJavaScript.mock.lastCall?.[0]).toContain(
+      '"type":"keyboard","open":false,"context":2'
+    );
     getStringAsync.mockResolvedValue('emoji 🌈 " </script>');
     await act(async () =>
       renderer.root.findByProps({ accessibilityLabel: 'Paste' }).props.onPress()

@@ -1,3 +1,4 @@
+import { browserCardKey } from './browserCardKey';
 import { createDevLogger } from '@tloncorp/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useWindowDimensions, type KeyDownEvent } from 'react-native';
@@ -5,11 +6,14 @@ import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
 import { Dialog, Spinner, VisuallyHidden, YStack } from 'tamagui';
 
 import type { BrowserViewerModalProps } from './BrowserViewerModal.types';
-import { trustedBrowserViewerUrl } from './browserCredentialHandoff';
+import { BrowserVaultRequestError } from '@tloncorp/api/client/browserVault';
+import {
+  authorizeBrowserViewer,
+  trustedBrowserViewerUrl,
+} from './browserCredentialHandoff';
 
 import {
   browserPreviewCache,
-  browserPreviewKey,
   isBrowserEnded,
   rememberBrowserPreview,
 } from './browserPreviewCache';
@@ -22,10 +26,11 @@ export function BrowserViewerModal({
   onClose,
 }: BrowserViewerModalProps) {
   const { width, height } = useWindowDimensions();
-  const url = trustedBrowserViewerUrl(viewerUrl);
+  const [url, setUrl] = useState(() => trustedBrowserViewerUrl(viewerUrl));
+  const retryRequest = useRef<AbortController | null>(null);
+  useEffect(() => () => retryRequest.current?.abort(), []);
   const cache = browserPreviewCache.useValue();
-  const cachedStatus =
-    cache?.[browserPreviewKey(sourceViewerUrl)]?.preview.status;
+  const cachedStatus = cache?.[browserCardKey(sourceViewerUrl)]?.preview.status;
   const [failure, setFailure] = useState<'ended' | 'expired' | 'unavailable'>();
   const ended = isBrowserEnded(cachedStatus) || isBrowserEnded(failure);
   const [loading, setLoading] = useState(true);
@@ -54,11 +59,7 @@ export function BrowserViewerModal({
       if (event.data?.type === 'tlon.browser.unavailable') {
         const status = event.data.status;
         const result =
-          status === 401 || status === 403
-            ? 'expired'
-            : status === 404 || status === 410
-              ? 'ended'
-              : 'unavailable';
+          status === 404 || status === 410 ? 'ended' : 'unavailable';
         closeSupported.current = false;
         if (closePending.current !== null) {
           clearTimeout(closePending.current);
@@ -103,6 +104,39 @@ export function BrowserViewerModal({
       origin
     );
   }, [closeFailed, origin]);
+  const retry = async () => {
+    if (retryRequest.current) return;
+    const controller = new AbortController();
+    retryRequest.current = controller;
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    setLoading(true);
+    try {
+      const next = await authorizeBrowserViewer(
+        sourceViewerUrl,
+        controller.signal
+      );
+      if (controller.signal.aborted) return;
+      setUrl(trustedBrowserViewerUrl(next));
+      setFailure(undefined);
+      setAttempt((value) => value + 1);
+    } catch (error) {
+      const status =
+        error instanceof BrowserVaultRequestError ? error.status : undefined;
+      const result =
+        status === 401
+          ? 'expired'
+          : status === 404 || status === 410
+            ? 'ended'
+            : 'unavailable';
+      setFailure(result);
+      setLoading(false);
+      void rememberBrowserPreview(sourceViewerUrl, { status: result });
+      logger.trackError('Browser viewer could not reconnect');
+    } finally {
+      clearTimeout(timeout);
+      retryRequest.current = null;
+    }
+  };
   return (
     <Dialog
       open
@@ -181,14 +215,7 @@ export function BrowserViewerModal({
                   : 'We couldn’t connect to this browser. Please try again.'}
               </Text>
               {!ended && (
-                <Button
-                  label="Try again"
-                  onPress={() => {
-                    setFailure(undefined);
-                    setLoading(true);
-                    setAttempt((value) => value + 1);
-                  }}
-                />
+                <Button label="Try again" disabled={loading} onPress={retry} />
               )}
             </YStack>
           ) : (

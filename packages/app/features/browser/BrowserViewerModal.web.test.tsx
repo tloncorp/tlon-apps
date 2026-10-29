@@ -1,6 +1,9 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { authorizeBrowserViewer } from './browserCredentialHandoff';
+import { rememberBrowserPreview } from './browserPreviewCache';
+import { BrowserVaultRequestError } from '@tloncorp/api/client/browserVault';
 import { BrowserViewerModal } from './BrowserViewerModal';
 
 vi.mock('@tloncorp/shared', () => ({
@@ -17,6 +20,7 @@ vi.mock('react-native', () => ({
 }));
 vi.mock('./browserCredentialHandoff', () => ({
   trustedBrowserViewerUrl: (url: string) => url,
+  authorizeBrowserViewer: vi.fn(async (url: string) => url),
 }));
 vi.mock('tamagui', () => ({
   Dialog: Object.assign(
@@ -34,7 +38,6 @@ vi.mock('tamagui', () => ({
 }));
 vi.mock('./browserPreviewCache', () => ({
   browserPreviewCache: { useValue: () => ({}) },
-  browserPreviewKey: (url: string) => url,
   isBrowserEnded: (status: string) => ['ended', 'expired'].includes(status),
   rememberBrowserPreview: vi.fn(),
 }));
@@ -44,6 +47,7 @@ let listener: (event: unknown) => void;
 let contentWindow: { postMessage: ReturnType<typeof vi.fn> };
 let onClose: ReturnType<typeof vi.fn>;
 beforeEach(() => {
+  vi.clearAllMocks();
   vi.useFakeTimers();
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   vi.stubGlobal('window', {
@@ -133,10 +137,12 @@ it('replaces the failed iframe with a proper ended state', () => {
   );
   expect(renderer.root.findAllByProps({ label: 'Try again' })).toHaveLength(0);
 });
-it('allows retry for a temporary viewer failure', () => {
+it('allows retry for a temporary viewer failure', async () => {
   message({ type: 'tlon.browser.unavailable', status: 502 });
   expect(renderer.root.findAllByType('iframe')).toHaveLength(0);
-  act(() => renderer.root.findByProps({ label: 'Try again' }).props.onPress());
+  await act(async () =>
+    renderer.root.findByProps({ label: 'Try again' }).props.onPress()
+  );
   expect(renderer.root.findAllByType('iframe')).toHaveLength(1);
 });
 
@@ -170,4 +176,41 @@ it('can close after the iframe load fails without an unavailable message', () =>
     vi.advanceTimersByTime(10000);
   });
   expect(renderer.root.findAllByProps({ role: 'alert' })).toHaveLength(0);
+});
+
+it.each([401, 403])(
+  'reauthorizes viewer HTTP %s instead of expiring the card',
+  async (status) => {
+    message({ type: 'tlon.browser.unavailable', status });
+    expect(rememberBrowserPreview).toHaveBeenLastCalledWith(
+      `${origin}/s/test`,
+      { status: 'unavailable' }
+    );
+    vi.mocked(authorizeBrowserViewer).mockResolvedValueOnce(
+      `${origin}/s/renewed`
+    );
+    await act(async () =>
+      renderer.root.findByProps({ label: 'Try again' }).props.onPress()
+    );
+    expect(authorizeBrowserViewer).toHaveBeenCalledWith(
+      `${origin}/s/test`,
+      expect.any(AbortSignal)
+    );
+    expect(renderer.root.findByType('iframe').props.src).toContain(
+      '/s/renewed'
+    );
+  }
+);
+it('records expiry only when authorization confirms the original link expired', async () => {
+  message({ type: 'tlon.browser.unavailable', status: 401 });
+  vi.mocked(authorizeBrowserViewer).mockRejectedValueOnce(
+    new BrowserVaultRequestError(401)
+  );
+  await act(async () =>
+    renderer.root.findByProps({ label: 'Try again' }).props.onPress()
+  );
+  expect(rememberBrowserPreview).toHaveBeenLastCalledWith(`${origin}/s/test`, {
+    status: 'expired',
+  });
+  expect(renderer.root.findAllByProps({ label: 'Try again' })).toHaveLength(0);
 });

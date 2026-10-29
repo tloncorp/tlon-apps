@@ -733,7 +733,7 @@ export function StaticChatMessage({
     [canUseAgentProviderControls, postContent]
   );
   const content = useMemo(() => {
-    if (allowBrowserHandoff && hasBrowserCard) return blobContent;
+    if (hasBrowserCard) return blobContent;
     if (!canRenderA2UI || !hasRenderableA2UIContent) {
       return postContent.filter((block) => block.type !== 'a2ui');
     }
@@ -746,12 +746,11 @@ export function StaticChatMessage({
     canRenderA2UI,
     hasRenderableStoryFallback,
     hasRenderableA2UIContent,
-    allowBrowserHandoff,
     hasBrowserCard,
     postContent,
   ]);
   const lastEditContent = useMemo(() => {
-    if (allowBrowserHandoff && hasBrowserCard) return blobContent;
+    if (hasBrowserCard) return blobContent;
     if (!canRenderA2UI || !hasRenderableA2UIContent) {
       return lastEditPostContent.filter((block) => block.type !== 'a2ui');
     }
@@ -761,7 +760,6 @@ export function StaticChatMessage({
     canRenderA2UI,
     hasRenderableStoryFallback,
     hasRenderableA2UIContent,
-    allowBrowserHandoff,
     hasBrowserCard,
     lastEditPostContent,
   ]);

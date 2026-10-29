@@ -83,6 +83,12 @@ export function BrowserViewer({
       `window.tlonBrowserInput?.receive(${data}); true;`
     );
   }, []);
+  const closeKeyboard = useCallback(() => {
+    const current = session.current.input;
+    if (!current?.keyboardOpen) return;
+    session.current.input = { ...current, keyboardOpen: false };
+    send({ type: 'keyboard', open: false, context: current.context });
+  }, [send]);
   useImperativeHandle(
     ref,
     () => ({
@@ -109,9 +115,7 @@ export function BrowserViewer({
     // Fast Refresh). Cleanup invalidates our control state, so ask the retained
     // viewer to resend it instead of leaving enabled controls with no target.
     if (lifecycle.revision > 0) send({ type: 'status' });
-    const subscription = Keyboard.addListener('keyboardDidHide', () => {
-      send({ type: 'keyboard', open: false });
-    });
+    const subscription = Keyboard.addListener('keyboardDidHide', closeKeyboard);
     return () => {
       lifecycle.revision++;
       lifecycle.input = null;
@@ -119,7 +123,7 @@ export function BrowserViewer({
       subscription.remove();
       Keyboard.dismiss();
     };
-  }, [send]);
+  }, [send, closeKeyboard]);
 
   useEffect(() => {
     if (!loaded) return;
@@ -180,10 +184,10 @@ export function BrowserViewer({
       <WebView<{}>
         ref={webView}
         source={{ uri }}
-        // Viewers without the native bridge cannot reserve space for our controls.
+        // The thin viewer reserves only bottom insets; native controls own the top space.
         style={{
           flex: 1,
-          marginTop: input && !input.nativeControl ? 0 : topInset + 68,
+          marginTop: input?.nativeControl ? topInset + 68 : 0,
         }}
         // The streamed canvas owns pan/zoom. Prevent WKWebView from also
         // scrolling its document when the hidden keyboard input is focused.
@@ -330,8 +334,21 @@ export function BrowserViewer({
           onSubmitEditing={() =>
             send({ type: 'keyEnter', context: session.current.input?.context })
           }
-          onBlur={() => send({ type: 'keyboard', open: false })}
+          onBlur={closeKeyboard}
         />
+      )}
+      {loaded && !input && (
+        <Text
+          position="absolute"
+          bottom={16 + bottomInset}
+          left={16}
+          right={16 + rightInset}
+          padding="$m"
+          borderRadius="$l"
+          backgroundColor="$background"
+        >
+          Keyboard and paste aren’t available in this session.
+        </Text>
       )}
       {input && (
         <>
@@ -420,13 +437,17 @@ export function BrowserViewer({
                         nativeKeyboard.current?.focus();
                       } else nativeKeyboard.current?.blur();
                     } else if (open) webView.current?.requestFocus();
-                    send({
-                      type: 'keyboard',
-                      open,
-                      native: session.current.input.nativeInput,
-                      context: session.current.input.context,
-                    });
-                    if (!open) Keyboard.dismiss();
+                    if (open) {
+                      send({
+                        type: 'keyboard',
+                        open: true,
+                        native: session.current.input.nativeInput,
+                        context: session.current.input.context,
+                      });
+                    } else {
+                      closeKeyboard();
+                      Keyboard.dismiss();
+                    }
                   }}
                 />
                 <BrowserControlButton
@@ -452,9 +473,7 @@ export function BrowserViewer({
                 borderRadius="$l"
                 backgroundColor="$background"
               >
-                {input
-                  ? 'Waiting for browser control…'
-                  : 'Keyboard and paste aren’t available in this session.'}
+                Waiting for browser control…
               </Text>
             ) : null}
           </YStack>

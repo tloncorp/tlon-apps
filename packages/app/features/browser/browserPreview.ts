@@ -1,6 +1,12 @@
 import { BrowserVaultRequestError } from '@tloncorp/api/client/browserVault';
 import { authorizeBrowserViewer } from './browserCredentialHandoff';
 
+export class BrowserPreviewAuthorizationError extends Error {
+  constructor() {
+    super('Browser preview authorization must be renewed.');
+  }
+}
+
 export type BrowserPreview =
   | {
       status: 'ready';
@@ -52,7 +58,7 @@ export async function fetchBrowserPreview(
     cache: 'no-store',
   });
   if (response.status === 401 || response.status === 403)
-    return { status: 'expired' };
+    throw new BrowserPreviewAuthorizationError();
   if (response.status === 410) return { status: 'ended' };
   if (
     response.status === 404 &&

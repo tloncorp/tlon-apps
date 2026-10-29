@@ -1,8 +1,6 @@
+import { browserCardKey } from '../features/browser/browserCardKey';
 import { useEffect, useState } from 'react';
-import {
-  secureEntryCache,
-  secureEntryKey,
-} from '../features/browser/browserSecureEntryState';
+import { secureEntryCache } from '../features/browser/browserSecureEntryState';
 
 import BrowserHandoffDemo, {
   browserHandoffDemoUrl,
@@ -73,7 +71,7 @@ export default function BrowserCredentialChatFixture() {
     void secureEntryCache
       .setValue((current) => {
         const next = { ...current };
-        delete next[secureEntryKey(browserHandoffDemoUrl)];
+        delete next[browserCardKey(browserHandoffDemoUrl)];
         return next;
       })
       .then(() => {

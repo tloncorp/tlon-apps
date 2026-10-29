@@ -211,6 +211,39 @@ describe('secure browser form screen', () => {
     mocks.authorize.mockResolvedValue({ grant: 'g'.repeat(43), accounts: [] });
   });
 
+  it.each(['network', 'HTTP 503', 'invalid JSON'])(
+    'loads the form when the advisory receipt fails: %s',
+    async (reason) => {
+      mocks.fetchSecureEntryState.mockRejectedValueOnce(new Error(reason));
+      const { renderer } = await render();
+      expect(mocks.beginHandoff).toHaveBeenCalledOnce();
+      expect(
+        renderer.root.findByProps({ accessibilityLabel: username.label })
+      ).toBeTruthy();
+      act(() => renderer.unmount());
+    }
+  );
+  it('times out a hanging receipt and continues to the form', async () => {
+    vi.useFakeTimers();
+    mocks.fetchSecureEntryState.mockImplementationOnce(
+      (_url, signal) =>
+        new Promise((_resolve, reject) =>
+          signal.addEventListener('abort', () => reject(new Error('aborted')))
+        )
+    );
+    const { renderer } = await render();
+    try {
+      expect(mocks.beginHandoff).not.toHaveBeenCalled();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10000);
+      });
+      expect(mocks.beginHandoff).toHaveBeenCalledOnce();
+    } finally {
+      act(() => renderer.unmount());
+      vi.useRealTimers();
+    }
+  });
+
   const vault = {
     planet: 'sampel-palnet',
     moon: 'pinser-botter-sampel-palnet',

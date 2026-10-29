@@ -1,5 +1,6 @@
 import React from 'react';
 import { Button } from '@tloncorp/ui';
+import { ReferenceSkeleton } from '../../ui/components/ContentReference/Reference';
 import { BrowserSessionPreview } from './BrowserSessionPreview';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
@@ -22,6 +23,9 @@ vi.mock('@tloncorp/ui', () => ({
   Icon: 'Icon',
   Text: 'Text',
   useToast: () => mocks.toast,
+}));
+vi.mock('../../ui/components/ContentReference/Reference', () => ({
+  ReferenceSkeleton: 'ReferenceSkeleton',
 }));
 vi.mock('tamagui', () => ({ XStack: 'XStack', YStack: 'YStack' }));
 vi.mock('./BrowserCredentialHandoffContext', () => ({
@@ -97,24 +101,43 @@ it('preserves the saved-record approval pointer', async () => {
   await act(() => button.props.onPress());
   expect(mocks.openForm).toHaveBeenCalledWith(viewerUrl, loginApproval);
 });
-it.each([false, true])(
-  'blocks foreign bots and untrusted viewer hosts (%s)',
-  async (invalidHost) => {
-    mocks.allowed = invalidHost;
-    const card = {
-      type: 'browser-session',
-      version: 1,
-      viewerUrl: invalidHost ? 'https://evil.test/s/cap' : viewerUrl,
-    } as const;
-    const button = mount(
-      <BrowserCardBlock block={{ type: 'browser-card', card }} />
+it.each([login, { type: 'browser-session', version: 1, viewerUrl } as const])(
+  'shows only an inaccessible placeholder for a foreign $type card',
+  (card) => {
+    mocks.allowed = false;
+    act(() => {
+      tree = create(
+        <BrowserCardBlock block={{ type: 'browser-card', card }} />
+      );
+    });
+    expect(tree.root.findByType(ReferenceSkeleton).props.message).toBe(
+      'This message isn’t visible to you.'
     );
-    expect(button.props.disabled).toBe(true);
+    expect(tree.root.findAllByType(Button)).toHaveLength(0);
     expect(tree.root.findAllByType(BrowserSessionPreview)).toHaveLength(0);
-    await act(() => button.props.onPress());
+    expect(JSON.stringify(tree.toJSON())).not.toContain('wikipedia.org');
+    expect(mocks.openForm).not.toHaveBeenCalled();
     expect(mocks.openViewer).not.toHaveBeenCalled();
   }
 );
+it('blocks untrusted viewer hosts', async () => {
+  const button = mount(
+    <BrowserCardBlock
+      block={{
+        type: 'browser-card',
+        card: {
+          type: 'browser-session',
+          version: 1,
+          viewerUrl: 'https://evil.test/s/cap',
+        },
+      }}
+    />
+  );
+  expect(button.props.disabled).toBe(true);
+  expect(tree.root.findAllByType(BrowserSessionPreview)).toHaveLength(0);
+  await act(() => button.props.onPress());
+  expect(mocks.openViewer).not.toHaveBeenCalled();
+});
 it('reports viewer failure without leaking capabilities and allows retry', async () => {
   mocks.openViewer.mockRejectedValueOnce(new Error(viewerUrl));
   const button = mount(

@@ -19,10 +19,11 @@ vi.mock('./useBrowserPreviewVisible', () => ({
 vi.mock('./browserSecureEntryState', () => ({
   fetchSecureEntryState: mock.fetch,
   rememberSecureEntry: mock.remember,
-  secureEntryKey: () => 'card',
   secureEntryCache: {
     useStorageItem: () => ({
-      value: mock.state ? { card: { state: mock.state } } : {},
+      value: mock.state
+        ? { 'https://viewer.test/s/cap': { state: mock.state } }
+        : {},
       isLoading: false,
     }),
   },

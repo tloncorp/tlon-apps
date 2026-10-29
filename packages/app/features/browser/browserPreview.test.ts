@@ -1,5 +1,9 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { browserPreviewEndpoint } from './browserPreview';
+import {
+  browserPreviewEndpoint,
+  fetchBrowserPreview,
+  BrowserPreviewAuthorizationError,
+} from './browserPreview';
 
 vi.mock('@tloncorp/api/client/urbit', () => ({
   getBrowserVaultOwnerAuthorization: async () => ({
@@ -42,5 +46,18 @@ it.each([403, 503])(
     await expect(browserPreviewEndpoint(viewer)).rejects.toMatchObject({
       status,
     });
+  }
+);
+
+it.each([401, 403])(
+  'requires reauthorization on preview HTTP %s',
+  async (status) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response('{}', { status }))
+    );
+    await expect(
+      fetchBrowserPreview(`${viewer}/preview`, new AbortController().signal)
+    ).rejects.toBeInstanceOf(BrowserPreviewAuthorizationError);
   }
 );

@@ -1,3 +1,4 @@
+import { browserCardKey } from './browserCardKey';
 import { createDevLogger } from '@tloncorp/shared';
 import { Pressable, Text } from '@tloncorp/ui';
 import { type ComponentRef, useEffect, useRef } from 'react';
@@ -7,6 +8,7 @@ import { Spinner, YStack } from 'tamagui';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import { useOptionalBrowserCredentialHandoff } from './BrowserCredentialHandoffContext';
 import {
+  BrowserPreviewAuthorizationError,
   browserPreviewEndpoint,
   fetchBrowserPreview,
   type BrowserPreview,
@@ -15,7 +17,6 @@ import { useBrowserPreviewVisible } from './useBrowserPreviewVisible';
 
 import {
   browserPreviewCache,
-  browserPreviewKey,
   isBrowserEnded,
   rememberBrowserPreview,
 } from './browserPreviewCache';
@@ -39,7 +40,7 @@ export function BrowserSessionPreview({
     enabled && !handoff?.viewerOpen
   );
   const { value: cache, isLoading } = browserPreviewCache.useStorageItem();
-  const entry = cache?.[browserPreviewKey(viewerUrl)];
+  const entry = cache?.[browserCardKey(viewerUrl)];
   const preview = entry?.preview ?? { status: 'busy' as const };
   const snapshot = entry?.snapshot;
   const endpoint = useRef<{ viewerUrl: string; url: string } | undefined>(
@@ -83,7 +84,9 @@ export function BrowserSessionPreview({
         finished = terminal.has(result.status);
         await rememberBrowserPreview(viewerUrl, result);
         failed.current = false;
-      } catch {
+      } catch (error) {
+        if (error instanceof BrowserPreviewAuthorizationError)
+          endpoint.current = undefined;
         if (disposed) return;
         await rememberBrowserPreview(viewerUrl, { status: 'unavailable' });
         if (!failed.current)
@@ -193,7 +196,7 @@ export function BrowserSessionAction({
   children: React.ReactNode;
 }) {
   const cache = browserPreviewCache.useValue();
-  return isBrowserEnded(cache?.[browserPreviewKey(viewerUrl)]?.preview.status)
+  return isBrowserEnded(cache?.[browserCardKey(viewerUrl)]?.preview.status)
     ? null
     : children;
 }

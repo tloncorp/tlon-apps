@@ -1,3 +1,4 @@
+import { browserCardKey } from './browserCardKey';
 import { createDevLogger } from '@tloncorp/shared';
 import { type ComponentRef, type ReactNode, useEffect, useRef } from 'react';
 import { View } from 'react-native';
@@ -6,7 +7,6 @@ import {
   fetchSecureEntryState,
   rememberSecureEntry,
   secureEntryCache,
-  secureEntryKey,
 } from './browserSecureEntryState';
 
 const logger = createDevLogger('BrowserSecureEntryAction', false);
@@ -21,7 +21,7 @@ export function BrowserSecureEntryAction({
 }) {
   const ref = useRef<ComponentRef<typeof View>>(null);
   const { value: cache, isLoading } = secureEntryCache.useStorageItem();
-  const state = cache?.[secureEntryKey(viewerUrl)]?.state;
+  const state = cache?.[browserCardKey(viewerUrl)]?.state;
   const visible = useBrowserPreviewVisible(ref, enabled && !state);
   useEffect(() => {
     if (!visible || state || isLoading) return;

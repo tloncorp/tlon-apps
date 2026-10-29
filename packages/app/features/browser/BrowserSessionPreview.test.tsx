@@ -11,6 +11,8 @@ const mock = vi.hoisted(() => ({
   fetch: vi.fn(),
   endpoint: vi.fn(),
   error: vi.fn(),
+  persist: vi.fn(),
+  reset: (_value: unknown) => {},
 }));
 vi.mock('@tloncorp/shared', () => ({
   createDevLogger: () => ({ trackError: mock.error }),
@@ -25,14 +27,19 @@ vi.mock('./BrowserCredentialHandoffContext', () => ({
 vi.mock('./useBrowserPreviewVisible', () => ({
   useBrowserPreviewVisible: () => mock.visible,
 }));
-vi.mock('./browserPreview', () => ({
+vi.mock('./browserPreview', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./browserPreview')>()),
   browserPreviewEndpoint: mock.endpoint,
   fetchBrowserPreview: mock.fetch,
 }));
 let cache: Record<string, any> = {};
 const listeners = new Set<() => void>();
 vi.mock('@tloncorp/shared/db', () => ({
+  registerStorageItemListener: (_key: string, listener: typeof mock.reset) => {
+    mock.reset = listener;
+  },
   createStorageItem: () => ({
+    config: { key: 'browserPreviewTerminalStates' },
     useValue: () =>
       useSyncExternalStore(
         (callback) => {
@@ -57,6 +64,7 @@ vi.mock('@tloncorp/shared/db', () => ({
     }),
     setValue: async (update: (value: any) => any) => {
       cache = update(cache);
+      mock.persist(cache);
       listeners.forEach((fn) => fn());
     },
   }),
@@ -70,6 +78,7 @@ const card = () => (
 );
 beforeEach(() => {
   cache = {};
+  mock.reset(null);
   vi.useFakeTimers();
   vi.clearAllMocks();
   mock.visible = false;
@@ -243,3 +252,46 @@ it.each(['expired', 'ended'])(
     expect(mock.fetch).not.toHaveBeenCalled();
   }
 );
+
+it('keeps images in memory and persists only terminal receipts', async () => {
+  mock.visible = true;
+  await act(async () => {
+    renderer = create(card());
+  });
+  expect(renderer.root.findAllByType(Image)).toHaveLength(1);
+  expect(mock.persist).not.toHaveBeenCalled();
+  mock.fetch.mockResolvedValue({ status: 'ended' });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(5000);
+  });
+  expect(mock.persist).toHaveBeenCalledOnce();
+  expect(JSON.stringify(mock.persist.mock.calls)).not.toContain('data:image');
+  expect(cache['https://viewer.test/s/cap'].preview).toEqual({
+    status: 'ended',
+  });
+});
+it('reauthorizes after a rejected preview grant without disabling the card', async () => {
+  const { BrowserPreviewAuthorizationError } = await import('./browserPreview');
+  mock.visible = true;
+  mock.fetch.mockRejectedValueOnce(new BrowserPreviewAuthorizationError());
+  await act(async () => {
+    renderer = create(card());
+  });
+  expect(mock.persist).not.toHaveBeenCalled();
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(30000);
+  });
+  expect(mock.endpoint).toHaveBeenCalledTimes(2);
+  expect(renderer.root.findAllByType(Image)).toHaveLength(1);
+});
+it('drops in-memory images when app storage is reset on logout', async () => {
+  mock.visible = true;
+  await act(async () => {
+    renderer = create(card());
+  });
+  expect(renderer.root.findAllByType(Image)).toHaveLength(1);
+  await act(async () => {
+    mock.reset(null);
+  });
+  expect(renderer.root.findAllByType(Image)).toHaveLength(0);
+});

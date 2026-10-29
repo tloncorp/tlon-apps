@@ -1,5 +1,10 @@
 import { createDevLogger } from '@tloncorp/shared';
-import { createStorageItem } from '@tloncorp/shared/db';
+import {
+  createStorageItem,
+  registerStorageItemListener,
+} from '@tloncorp/shared/db';
+import { useSyncExternalStore } from 'react';
+import { browserCardKey } from './browserCardKey';
 import type { BrowserPreview } from './browserPreview';
 
 const logger = createDevLogger('BrowserPreviewCache', false);
@@ -8,18 +13,37 @@ export type BrowserPreviewEntry = {
   snapshot?: Extract<BrowserPreview, { status: 'ready' }>;
   checkedAt: number;
 };
-export const browserPreviewCache = createStorageItem<Record<
-  string,
-  BrowserPreviewEntry
-> | null>({
-  key: 'browserPreviewCache',
+type PreviewCache = Record<string, BrowserPreviewEntry>;
+const terminalCache = createStorageItem<PreviewCache | null>({
+  key: 'browserPreviewTerminalStates',
   defaultValue: null,
-  isLarge: true,
 });
-export function browserPreviewKey(url: string) {
-  const parsed = new URL(url);
-  return parsed.origin + parsed.pathname;
+let previews: PreviewCache = {};
+const listeners = new Set<() => void>();
+const notify = () => listeners.forEach((listener) => listener());
+const subscribe = (listener: () => void) => {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+};
+const snapshot = () => previews;
+// Storage reset runs on logout; discard in-memory page images at the same time.
+registerStorageItemListener(terminalCache.config.key, async (value) => {
+  if (value === null) {
+    previews = {};
+    notify();
+  }
+});
+function usePreviewCache() {
+  const memory = useSyncExternalStore(subscribe, snapshot, snapshot);
+  const persisted = terminalCache.useStorageItem();
+  return { ...persisted, value: { ...memory, ...persisted.value } };
 }
+export const browserPreviewCache = {
+  useStorageItem: usePreviewCache,
+  useValue: () => usePreviewCache().value,
+};
 export function isBrowserEnded(status?: BrowserPreview['status']) {
   return status === 'ended' || status === 'expired';
 }
@@ -43,32 +67,32 @@ export async function rememberBrowserPreview(
   url: string,
   preview: BrowserPreview
 ) {
+  const key = browserCardKey(url);
+  const entry = mergeBrowserPreview(previews[key], preview);
+  // Images survive card remounts, but never enter persistent app storage.
+  let imageBytes = 0;
+  previews = Object.fromEntries(
+    Object.entries({ ...previews, [key]: entry })
+      .sort((a, b) => b[1].checkedAt - a[1].checkedAt)
+      .slice(0, 1000)
+      .map(([id, value]) => {
+        imageBytes += value.snapshot?.image.length ?? 0;
+        return imageBytes > 12 * 1024 * 1024 && value.snapshot
+          ? [id, { preview: { status: 'busy' }, checkedAt: value.checkedAt }]
+          : [id, value];
+      })
+  );
+  notify();
+  if (!isBrowserEnded(entry.preview.status)) return;
   try {
-    await browserPreviewCache.setValue((current) => {
-      const key = browserPreviewKey(url);
-      const next = {
-        ...current,
-        [key]: mergeBrowserPreview(current?.[key], preview),
-      };
-      // Keep images within a bounded local cache; terminal receipts are much smaller.
-      let imageBytes = 0;
-      return Object.fromEntries(
-        Object.entries(next)
+    await terminalCache.setValue((current) =>
+      Object.fromEntries(
+        Object.entries({ ...current, [key]: entry })
           .sort((a, b) => b[1].checkedAt - a[1].checkedAt)
           .slice(0, 1000)
-          .map(([id, entry]) => {
-            imageBytes += entry.snapshot?.image.length ?? 0;
-            if (imageBytes > 12 * 1024 * 1024 && entry.snapshot) {
-              return [
-                id,
-                { ...entry, preview: { status: 'busy' }, snapshot: undefined },
-              ];
-            }
-            return [id, entry];
-          })
-      );
-    });
+      )
+    );
   } catch {
-    logger.trackError('Browser preview cache could not be saved');
+    logger.trackError('Browser preview status could not be saved');
   }
 }
