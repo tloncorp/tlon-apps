@@ -181,15 +181,6 @@ export function BrowserPreviewContent({
           )}
         </YStack>
       </Pressable>
-      {snapshot ? (
-        <Text size="$label/s" color="$secondaryText" numberOfLines={1}>
-          {label} ·{' '}
-          {new Date(snapshot.capturedAt).toLocaleTimeString([], {
-            hour: 'numeric',
-            minute: '2-digit',
-          })}
-        </Text>
-      ) : null}
     </YStack>
   );
 }

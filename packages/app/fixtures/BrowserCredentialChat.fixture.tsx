@@ -1,4 +1,8 @@
 import { useEffect, useState } from 'react';
+import {
+  secureEntryCache,
+  secureEntryKey,
+} from '../features/browser/browserSecureEntryState';
 
 import BrowserHandoffDemo, {
   browserHandoffDemoUrl,
@@ -13,6 +17,8 @@ export default function BrowserCredentialChatFixture() {
     const originalFetch = globalThis.fetch;
     const viewer = new URL(browserHandoffDemoUrl);
     const formUrl = `${viewer.origin}/credentials/${viewer.pathname.slice(3)}`;
+    const resultUrl = `${viewer.origin}/credential-result/${viewer.pathname.slice(3)}`;
+    let filled = false;
     const handoffId = 'wikipedia-design-fixture-handoff-000000000000';
     const fillUrl = `${viewer.origin}/credential-fills/${handoffId}`;
     const json = (body: unknown) =>
@@ -27,6 +33,8 @@ export default function BrowserCredentialChatFixture() {
           : input instanceof URL
             ? input.href
             : input.url;
+      if (url === resultUrl)
+        return json({ status: filled ? 'filled' : 'pending' });
       if (url === formUrl) {
         if (init?.method === 'DELETE') return json({ ok: true });
         return json({
@@ -54,14 +62,25 @@ export default function BrowserCredentialChatFixture() {
         });
       }
       if (url === fillUrl) {
+        filled = true;
         setSubmitted(true);
         return json({ ok: true, submitted: false });
       }
       return originalFetch(input, init);
     };
     globalThis.fetch = fixtureFetch;
-    setReady(true);
+    let active = true;
+    void secureEntryCache
+      .setValue((current) => {
+        const next = { ...current };
+        delete next[secureEntryKey(browserHandoffDemoUrl)];
+        return next;
+      })
+      .then(() => {
+        if (active) setReady(true);
+      });
     return () => {
+      active = false;
       globalThis.fetch = originalFetch;
     };
   }, []);

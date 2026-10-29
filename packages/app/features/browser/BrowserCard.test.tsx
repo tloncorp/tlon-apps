@@ -27,6 +27,10 @@ vi.mock('tamagui', () => ({ XStack: 'XStack', YStack: 'YStack' }));
 vi.mock('./BrowserCredentialHandoffContext', () => ({
   useOptionalBrowserCredentialHandoff: () => mocks,
 }));
+vi.mock('./BrowserSecureEntryAction', () => ({
+  BrowserSecureEntryAction: ({ children }: { children: React.ReactNode }) =>
+    children,
+}));
 vi.mock('./BrowserSessionPreview', () => ({
   BrowserSessionPreview: 'Preview',
   BrowserSessionAction: ({ children }: { children: React.ReactNode }) =>

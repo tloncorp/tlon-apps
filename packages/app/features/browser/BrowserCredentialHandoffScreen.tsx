@@ -27,6 +27,15 @@ import { useBrowserCredentialHandoff } from './BrowserCredentialHandoffContext';
 import { BrowserViewerModal } from './BrowserViewerModal';
 import { BrowserSecureFields } from './BrowserSecureFields';
 
+import {
+  fetchSecureEntryState,
+  rememberSecureEntry,
+  secureEntryCache,
+  secureEntryKey,
+  secureEntryMessages,
+  type SecureEntryState,
+} from './browserSecureEntryState';
+
 type Props = {
   navigation: { goBack(): void; isFocused(): boolean };
   route: { params: BrowserCredentialHandoffParams };
@@ -81,6 +90,7 @@ export function BrowserCredentialHandoffContent({
   }>();
   const [error, setError] = useState<string>();
   const [ended, setEnded] = useState(false);
+  const [terminalState, setTerminalState] = useState<SecureEntryState>();
   const [authorization, setAuthorization] = useState<{
     fillUrl: string;
     grant: string;
@@ -212,6 +222,7 @@ export function BrowserCredentialHandoffContent({
       setNoSecureForm(false);
       setError(undefined);
       setEnded(false);
+      setTerminalState(undefined);
       const viewerUrl = resolve(handoffId);
       if (!viewerUrl) {
         setError('Reopen the secure browser form from the conversation.');
@@ -221,6 +232,21 @@ export function BrowserCredentialHandoffContent({
       let trustedUrl: string | undefined;
       try {
         trustedUrl = trustedBrowserViewerUrl(viewerUrl);
+        const cached = await secureEntryCache.getValue();
+        const state =
+          cached?.[secureEntryKey(trustedUrl)]?.state ??
+          (await fetchSecureEntryState(
+            trustedUrl,
+            signal ?? new AbortController().signal
+          ));
+        if (signal?.aborted) return;
+        if (state) {
+          await rememberSecureEntry(trustedUrl, state);
+          setTerminalState(state);
+          setEnded(true);
+          setLoading(false);
+          return;
+        }
         const next = await beginBrowserCredentialHandoff(trustedUrl, signal);
         if (!signal?.aborted) {
           setHandoff(next);
@@ -250,7 +276,14 @@ export function BrowserCredentialHandoffContent({
               (nextError.code === 'handoff_complete' ||
                 nextError.status === 410)
           );
-          setError(errorMessage(nextError));
+          if (
+            nextError instanceof BrowserFormError &&
+            (nextError.code === 'handoff_complete' || nextError.status === 410)
+          ) {
+            const state = nextError.status === 410 ? 'expired' : 'ended';
+            await rememberSecureEntry(viewerUrl, state);
+            setTerminalState(state);
+          } else setError(errorMessage(nextError));
         }
       }
       if (!signal?.aborted) setLoading(false);
@@ -329,6 +362,8 @@ export function BrowserCredentialHandoffContent({
       setHandoff(undefined);
       // The service reports this step to the agent, which inspects the page.
       outcomes.current.set(handoffId, 'completed');
+      const viewerUrl = resolve(handoffId);
+      if (viewerUrl) await rememberSecureEntry(viewerUrl, 'used');
       if (result.saveStatus) setSaveStatus(result.saveStatus);
       setFilled(true);
       if (result.saveStatus !== 'failed') finishHandoff();
@@ -347,6 +382,7 @@ export function BrowserCredentialHandoffContent({
     values,
     handoffId,
     finishHandoff,
+    resolve,
     vaultAuth,
     choice,
     vaultEligible,
@@ -421,7 +457,8 @@ export function BrowserCredentialHandoffContent({
       <ContentScrollView
         {...(inSheet ? { style: { flexGrow: 0, flexShrink: 1 } } : {})}
         paddingHorizontal={inSheet ? '$xl' : '$l'}
-        paddingTop="$l"
+        paddingTop={inSheet && isWeb ? '$m' : '$l'}
+        {...(inSheet && isWeb ? { paddingBottom: '$xl' } : {})}
         {...(!inSheet
           ? { safeAreaBottomOffset: 24 }
           : { keyboardShouldPersistTaps: 'handled' as const })}
@@ -777,15 +814,17 @@ export function BrowserCredentialHandoffContent({
               <>
                 <Text
                   color={
-                    noSecureForm && !error
+                    terminalState || (noSecureForm && !error)
                       ? '$secondaryText'
                       : '$negativeActionText'
                   }
                 >
-                  {error ??
-                    (noSecureForm
-                      ? 'No secure form is available. Ask your bot for a new form.'
-                      : 'Could not find a supported browser form.')}
+                  {terminalState
+                    ? secureEntryMessages[terminalState]
+                    : (error ??
+                      (noSecureForm
+                        ? 'No secure form is available. Ask your bot for a new form.'
+                        : 'Could not find a supported browser form.'))}
                 </Text>
                 <Button
                   preset="secondary"

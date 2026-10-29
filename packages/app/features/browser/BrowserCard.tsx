@@ -13,6 +13,8 @@ import {
 } from './BrowserSessionPreview';
 import { trustedBrowserViewerUrl } from './browserCredentialHandoff';
 
+import { BrowserSecureEntryAction } from './BrowserSecureEntryAction';
+
 const logger = createDevLogger('BrowserCard', false);
 
 export function BrowserCardBlock({ block }: { block: BrowserCardBlockData }) {
@@ -39,7 +41,7 @@ export function BrowserCard({
   const login = !session && card.presentation?.purpose === 'login';
   const otp = !session && card.presentation?.purpose === 'otp';
   const title = session
-    ? 'Browser session'
+    ? 'Browser Use'
     : approval
       ? 'Approve saved sign-in'
       : login
@@ -135,6 +137,10 @@ export function BrowserCard({
         <BrowserSessionAction viewerUrl={card.viewerUrl}>
           {action}
         </BrowserSessionAction>
+      ) : enabled ? (
+        <BrowserSecureEntryAction viewerUrl={card.viewerUrl} enabled={enabled}>
+          {action}
+        </BrowserSecureEntryAction>
       ) : (
         action
       )}

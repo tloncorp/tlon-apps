@@ -1,5 +1,5 @@
 import { useWindowDimensions, type KeyDownEvent } from 'react-native';
-import { Icon, Pressable, Text } from '@tloncorp/ui';
+import { Icon, Pressable } from '@tloncorp/ui';
 import { useEffect } from 'react';
 import { Dialog, VisuallyHidden, XStack, isWeb } from 'tamagui';
 
@@ -58,13 +58,11 @@ export function BrowserCredentialHandoffSheet({
               <Dialog.Title>{title}</Dialog.Title>
             </VisuallyHidden>
             <XStack
-              padding="$xl"
+              paddingHorizontal="$l"
+              paddingTop="$l"
               alignItems="center"
-              justifyContent="space-between"
+              justifyContent="flex-end"
             >
-              <Text size="$label/2xl" fontWeight="600">
-                {title}
-              </Text>
               <Pressable
                 onPress={onClose}
                 role="button"
