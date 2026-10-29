@@ -783,25 +783,28 @@ export type ContactDiscoveryResult = {
   newMatches: [string, string][];
 };
 
-// Keep proof updates and match side effects together before the next run reads state.
-let contactDiscoveryQueue: Promise<void> = Promise.resolve();
+// Overlapping callers share one run, so a proof is never spent twice and each
+// caller still sees the run's matches. The joining caller's opts are ignored.
+let contactDiscoveryRun: {
+  generation: number;
+  promise: Promise<ContactDiscoveryResult>;
+} | null = null;
 
 export const syncContactDiscovery = (
   ctx?: SyncCtx,
   opts?: { invokeHandler?: boolean }
 ): Promise<ContactDiscoveryResult> => {
   const generation = getClientGeneration();
-  const result = contactDiscoveryQueue.then(() => {
-    if (generation !== getClientGeneration()) {
-      return { didSucceed: false, didDiscover: false, newMatches: [] };
+  if (contactDiscoveryRun?.generation === generation) {
+    return contactDiscoveryRun.promise;
+  }
+  const promise = syncContactDiscoveryOnce(generation, ctx, opts).finally(
+    () => {
+      if (contactDiscoveryRun?.promise === promise) contactDiscoveryRun = null;
     }
-    return syncContactDiscoveryOnce(generation, ctx, opts);
-  });
-  contactDiscoveryQueue = result.then(
-    () => {},
-    () => {}
   );
-  return result;
+  contactDiscoveryRun = { generation, promise };
+  return promise;
 };
 
 const syncContactDiscoveryOnce = async (
@@ -970,6 +973,9 @@ const syncContactDiscoveryOnce = async (
 
     return { didDiscover, didSucceed, newMatches: addedMatches };
   } catch (error) {
+    if (generation !== getClientGeneration()) {
+      return { ...empty, didDiscover, didSucceed: false };
+    }
     logger.error('error discovering contacts', error);
     logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
       context: 'failed to discover contacts',

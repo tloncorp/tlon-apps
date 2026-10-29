@@ -64,37 +64,34 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-test('overlapping discovery waits through notification before reading the next cursor', async () => {
+test('overlapping discovery shares one run and its matches', async () => {
   let finishNotification!: () => void;
   const handler = vi.fn(
     () => new Promise<void>((resolve) => (finishNotification = resolve))
   );
   setContactsMatchedHandler(handler);
   const first = syncContactDiscovery();
-  const second = syncContactDiscovery();
+  const second = syncContactDiscovery(undefined, { invokeHandler: false });
   await vi.waitFor(() => expect(handler).toHaveBeenCalledOnce());
-  expect(api.discoverContacts).toHaveBeenCalledTimes(1);
   finishNotification();
   expect((await first).newMatches).toEqual([[phoneNumber, contactId]]);
-  expect((await second).newMatches).toEqual([]);
+  expect((await second).newMatches).toEqual([[phoneNumber, contactId]]);
+  expect(api.discoverContacts).toHaveBeenCalledOnce();
+  expect(api.addContact).toHaveBeenCalledOnce();
+
+  await syncContactDiscovery();
   expect(api.discoverContacts).toHaveBeenNthCalledWith(
     2,
     [phoneNumber],
     '0vnext',
     JSON.stringify([phoneNumber])
   );
-  expect(api.addContact).toHaveBeenCalledOnce();
-  expect(handler).toHaveBeenCalledOnce();
 });
 
-test('a failed request releases the queue without advancing the proof', async () => {
+test('a failed request does not advance the proof', async () => {
   vi.mocked(api.discoverContacts).mockRejectedValueOnce(new Error('nacked'));
-  const [first, second] = await Promise.all([
-    syncContactDiscovery(),
-    syncContactDiscovery(),
-  ]);
-  expect(first.didSucceed).toBe(false);
-  expect(second.didSucceed).toBe(true);
+  expect((await syncContactDiscovery()).didSucceed).toBe(false);
+  expect((await syncContactDiscovery()).didSucceed).toBe(true);
   expect(api.discoverContacts).toHaveBeenNthCalledWith(
     2,
     [phoneNumber],
@@ -103,7 +100,7 @@ test('a failed request releases the queue without advancing the proof', async ()
   );
 });
 
-test('queued work from a prior login is skipped and a late answer is discarded', async () => {
+test('a run from a prior login discards its late answer', async () => {
   let answer!: (value: {
     matches: [string, string][];
     nextSalt: string;

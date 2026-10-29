@@ -281,9 +281,6 @@ export async function discoverContacts(
     const lastPhoneNumbers = cursor
       ? JSON.stringify(cursor.phoneNumbers)
       : await db.lastPhoneContactSetRequest.getValue();
-    if (generation !== getClientGeneration()) {
-      throw new Error('Contact discovery session changed');
-    }
     const { matches, nextSalt } = await api.discoverContacts(
       phoneNumbers,
       lastSalt,
