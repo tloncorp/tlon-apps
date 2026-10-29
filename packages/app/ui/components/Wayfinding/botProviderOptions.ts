@@ -107,12 +107,19 @@ export function buildBotCredentialOptions({
     });
   };
 
+  // The included model is the recommended start: it keeps zero data
+  // retention on, which a subscription or a direct key does not.
   if (providerConfig.defaultKeys?.basic) {
-    add('basic', 'included', getModelName(getIncludedModelId(providerConfig)));
+    add(
+      'basic',
+      'included',
+      getModelName(getIncludedModelId(providerConfig)),
+      'Recommended'
+    );
   }
 
   if (mode === 'signup' && botReady) {
-    add('openai', 'subscription', 'ChatGPT subscription', 'Recommended');
+    add('openai', 'subscription', 'ChatGPT subscription');
     add('anthropic', 'subscription', 'Claude subscription');
     add('xai', 'subscription', 'Grok subscription');
   }

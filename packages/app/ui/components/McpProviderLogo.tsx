@@ -46,15 +46,23 @@ export function McpProviderLogo({
   logoUrl,
   providerId,
   compact = false,
+  size,
 }: {
   compact?: boolean;
   displayName: string;
   logoUrl?: string;
   providerId: string;
+  /**
+   * A tile size in points, overriding the compact and default sizes. Sized
+   * tiles crop the catalog's 2:1 logo to its middle square, where the mark
+   * sits for nearly every service (wide wordmarks such as Monday's run past
+   * it, so only use this for services checked to fit).
+   */
+  size?: number;
 }) {
-  const logoSize = compact ? 20 : LOGO_SIZE;
-  const hostingLogoSize = compact ? 32 : HOSTING_LOGO_SIZE;
-  const containerSize = compact ? 32 : '$4xl';
+  const logoSize = size ? Math.round(size * 0.6) : compact ? 20 : LOGO_SIZE;
+  const hostingLogoSize = size ?? (compact ? 32 : HOSTING_LOGO_SIZE);
+  const containerSize = size ?? (compact ? 32 : '$4xl');
   const SvgLogo = svgLogos[providerId];
   const imageLogo = imageLogos[providerId];
   const fallbackLogo = SvgLogo ? (
@@ -91,7 +99,7 @@ export function McpProviderLogo({
           height={hostingLogoSize}
           source={logoUrl}
           width={hostingLogoSize}
-          contentFit="contain"
+          contentFit={size ? 'cover' : 'contain'}
         />
       ) : (
         fallbackLogo

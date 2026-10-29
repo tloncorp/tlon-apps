@@ -1,5 +1,5 @@
-import { parse, render } from '@urbit/aura';
-import { Atom, Cell, Noun, dejs, jam } from '@urbit/nockjs';
+import { parse } from '@urbit/aura';
+import { Atom, Cell, Noun, dejs } from '@urbit/nockjs';
 
 import { EventEmitter } from '../lib/EventEmitter';
 import { createDevLogger } from '../lib/logger';
@@ -7,6 +7,7 @@ import { createTimeoutSignal } from '../lib/timeoutSignal';
 import { desig, preSig } from '../lib/urbit';
 import { UrbitHttpApiEventMap, UrbitHttpApiEventType } from './events';
 import { EventSourceMessage, fetchEventSource } from './fetch-event-source';
+import { jamToUw } from './nounEncoding';
 import {
   Ack,
   AuthError,
@@ -708,7 +709,7 @@ export class Urbit {
     ...args: (Noun | any)[]
   ): Promise<void> {
     const options = this.fetchOptionsNoun('PUT', 'noun');
-    const body = render('uw', jam(dejs.list(args)).number);
+    const body = jamToUw(dejs.list(args));
     this.validatePokeBodySize(body);
 
     const response = await this.fetchFn(this.channelPutUrl([message]), {

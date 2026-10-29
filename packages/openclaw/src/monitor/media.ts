@@ -267,31 +267,55 @@ function getExtensionFromUrl(url: string): string | null {
 }
 
 /**
- * Download all images from a message and return attachment metadata.
+ * Download all images from a message and return attachment metadata, plus
+ * how many images could not be downloaded.
  * Format matches OpenClaw's expected attachment structure.
  */
 export async function downloadMessageImages(
   content: unknown,
   mediaDir?: string
-): Promise<Array<{ path: string; contentType: string }>> {
-  const images = extractImageBlocks(content);
-  if (images.length === 0) {
-    return [];
-  }
-
+): Promise<{
+  attachments: Array<{ path: string; contentType: string }>;
+  unavailableCount: number;
+}> {
   const attachments: Array<{ path: string; contentType: string }> = [];
+  let unavailableCount = 0;
 
-  for (const image of images) {
+  for (const image of extractImageBlocks(content)) {
     const downloaded = await downloadMedia(image.url, mediaDir);
     if (downloaded) {
       attachments.push({
         path: downloaded.localPath,
         contentType: downloaded.contentType,
       });
+    } else {
+      unavailableCount++;
     }
   }
 
-  return attachments;
+  return { attachments, unavailableCount };
+}
+
+/**
+ * Prepends attachment annotations to the agent-visible body (similar to
+ * Signal's format). The image URL is already in the text, so an image that
+ * failed to download gets a notice; without it the model answers as if it
+ * saw the image.
+ */
+export function formatInboundMediaBody(
+  messageText: string,
+  attachments: ReadonlyArray<{ path: string; contentType: string }>,
+  unavailableImageCount: number
+): string {
+  const lines = attachments.map(
+    (a) => `[media attached: ${a.path} (${a.contentType}) | ${a.path}]`
+  );
+  if (unavailableImageCount > 0) {
+    lines.push(
+      `[tlon ${unavailableImageCount > 1 ? `${unavailableImageCount} attachments` : 'attachment'} unavailable]`
+    );
+  }
+  return lines.length > 0 ? `${lines.join('\n')}\n${messageText}` : messageText;
 }
 
 /**

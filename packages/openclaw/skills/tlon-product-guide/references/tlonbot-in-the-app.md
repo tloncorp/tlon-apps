@@ -50,7 +50,7 @@ Notes: while the bot is starting, the `Default model`, `Fallback models` and `Ze
 
 ## Save changes to bot settings
 
-Phone: changes to the bot's name, models, permissions and channel rules are not saved as you make them. Each changed row gets a `Pending` badge, and a bar appears at the bottom with `Discard` and a button such as "Apply 2 Changes". Tap it, then `Apply & restart` on the `Restart gateway?` prompt.
+Phone: changes to the bot's name, models, browser service, permissions and channel rules are not saved as you make them. Each changed row gets a `Pending` badge, and a bar appears at the bottom with `Discard` and a button such as "Apply 2 Changes". Tap it, then `Apply & restart` on the `Restart gateway?` prompt.
 Desktop: not in the desktop app.
 Who: hosted accounts with a Tlonbot.
 Notes: the prompt says the bot restarts and will be offline for about 20 seconds. The bar shows on the Settings tab, the `Bot settings` screen, and the `Models`, `Permissions` and `Identity` screens, so go back to one of those to apply. API keys, subscriptions and connected services save straight away. A failure shows in red above the buttons.
@@ -81,7 +81,14 @@ Notes: if the default model fails, the bot tries these in order. The order is th
 Phone: on the Settings tab, tap your bot's `Models` row, then use the `Zero data retention` switch under `Default model` and `Fallback models`, then apply.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot. The switch only shows while the default model is the included Basic model with a model chosen.
-Notes: it is on by default, but the owner may run without it. The app describes it as `Zero data retention avoids model providers that retain data. It may use your included credits faster.` Requests still reach a model provider, just one that keeps nothing. Leaving Basic and coming back turns it off. With OpenRouter, the same switch is a `Zero data retention` row at the top of the OpenRouter section in the model picker, where it narrows the list to models tagged `ZDR`; switch it off to see the rest. It doesn't cover subscriptions, other providers' keys or a per-channel model.
+Notes: it is on by default, but the owner may run without it. The app describes it as `Zero data retention avoids model providers that retain data. It may use your included credits faster.` Requests still reach a model provider, just one that keeps nothing. Picking Basic again turns it back on unless Basic was already saved with it off. With OpenRouter, the Models screen shows a `Zero data retention` row reading On or Off; tapping it opens the picker, where the same switch sits at the top of the OpenRouter section and narrows the list to models tagged `ZDR`; switch it off to see the rest. It doesn't cover subscriptions, other providers' keys or a per-channel model.
+
+## Choose the browser my bot uses
+
+Phone: on the Settings tab, below your bot's rows, a `Browser service` section lists `Steel` and `Kernel`. Tap one; it gets a `Pending` badge. Then apply the change from the bar at the bottom, as with other bot settings.
+Desktop: not in the desktop app.
+Who: hosted accounts with a Tlonbot. The two rows are greyed out unless the bot runs on OpenClaw.
+Notes: the section's footer reads `Applying a change restarts your bot and stops its current browser task.`
 
 ## Add an API key for a model provider
 
@@ -217,9 +224,21 @@ Notes: a paused task reads `Paused`, or `Paused for credits` when your credits a
 
 ## Fill in a sign-in form for my bot's browser
 
-Phone: when the bot's browser reaches a sign-in or details form, it sends a card in your DM with it. Tap the card's button to open `Secure browser form`. Fill in the fields and tap `Continue` for a sign-in, or `Fill fields` for other details. If the site then asks for more, such as a password after the email, the next form opens on the same screen; fill that in too. Once nothing is left, the app returns you to the chat. If you finish in the live browser instead, tap `Return to conversation`.
+Phone: when the bot's browser reaches a sign-in or details form, it sends a card in your DM with it. Tap the card's button to open `Secure browser form`. Fill in the fields and tap `Fill fields`. The app then returns you to the chat, and the bot checks the page from there. If you finish in the live browser instead, tap `Return to conversation`.
 Who: only from a DM with your own bot.
-Notes: the screen says `These fields go directly to the live browser. They are never posted to chat or returned to the bot.` Filling in details does not submit a payment or place an order. `Open live browser` lets you finish any extra steps yourself.
+Notes: the screen says `These fields go directly to the live browser. They are not posted to chat.` Filling in details does not submit a payment or place an order. `Open live browser` lets you finish any extra steps yourself. A sign-in can also save the login for your bot; see "Let my bot use a saved login".
+
+## Let my bot use a saved login
+
+Phone: on a sign-in form, the app says the login you enter will be saved for your bot. Later, when the form comes up with a saved login, it is listed under `Saved login` or `Choose a saved login`. Tap it to use it, or `Enter a new login` to type a different one. When your bot needs to use a saved login, its card in your DM opens `Approve sign-in`. Check the site, then tap `Approve and fill`, or `Cancel` to refuse.
+Who: only from a DM with your own bot.
+Notes: `Approval allows this sign-in only.` Your password stays hidden. If the saved login has been changed or deleted, the screen says so and you choose again.
+
+## Approve a purchase my bot prepares in Link
+
+Phone: when your bot has a purchase ready, its card in your DM opens `Tlon wallet`. Under `Review payment request` you see the merchant, amount and description, with a preview of the live checkout. Compare them with the checkout, choose a payment method, tick the box, then tap `Request approval from Link`. Tap `Continue with Link` to finish in the window that opens. To connect your Link account first, tap `Continue with Link` and sign in there. `Check status` reloads the request, and `Cancel request` ends it while it is open.
+Who: only from a DM with your own bot.
+Notes: connecting does not approve any purchase. Once approved, the screen says `Payment approved. Your bot can fill this checkout. No purchase has been submitted.`
 
 ## Ask Tlon for more credits when my bot pauses scheduled tasks
 

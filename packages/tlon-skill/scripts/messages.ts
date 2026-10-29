@@ -8,6 +8,7 @@
  *   npx ts-node scripts/messages.ts channel chat/~host/channel-slug [--limit N] [--resolve-cites]
  *   npx ts-node scripts/messages.ts history "chat/~host/channel-slug" [--limit N] [--resolve-cites]
  *   npx ts-node scripts/messages.ts search "query" --channel chat/~host/channel-slug
+ *   npx ts-node scripts/messages.ts search "query" [--limit N] [--per-channel N]
  *   npx ts-node scripts/messages.ts context <channel|~ship> <postId> [--limit N] [--resolve-cites]
  *   npx ts-node scripts/messages.ts post <channel|~ship> <postId> [--author ~ship] [--resolve-cites]
  *
@@ -18,6 +19,7 @@
  */
 import {
   getChannelPosts,
+  getInitData,
   getPostReference,
   getPostWithReplies,
   searchChannel,
@@ -29,6 +31,8 @@ import {
   errorMessage,
   formatPostId,
   isHelpArg,
+  mapWithConcurrency,
+  parsePositiveInteger,
   printErrorAndExit,
   printHelpAndExit,
   printUsageAndExit,
@@ -39,13 +43,20 @@ import {
 import { renderPostJsonLine, renderPostListJsonLines } from './message-content';
 import { writePostBody } from './post-render';
 
+const SEARCH_ALL_DEFAULT_LIMIT = 20;
+const SEARCH_ALL_DEFAULT_PER_CHANNEL = 5;
+// Each search scans up to 500 posts on the ship; a bot can sit in hundreds of
+// channels, so don't scan them all at once.
+const SEARCH_ALL_CONCURRENCY = 8;
+const SEARCH_LIMIT_OPTIONS = ['--limit', '--per-channel'] as const;
+
 const MESSAGES_HELP = `Usage: tlon messages <command>
 
 Commands:
   dm ~ship                                    Show DM history
   channel <nest>                              Show channel messages
   history <nest>                              Alias for channel
-  search "query" --channel <nest>             Search in channel
+  search "query" [--channel <nest>]           Search one channel, or every chat and DM
   context <channel|~ship> <postId>            Show messages around a post
   post <channel|~ship> <postId>               Fetch a single post with replies
 
@@ -54,6 +65,7 @@ Examples:
   tlon messages channel chat/~host/channel-slug --limit 20
   tlon messages channel chat/~host/channel-slug --json
   tlon messages search "hello" --channel chat/~host/slug
+  tlon messages search "hello" --per-channel 3
   tlon messages context chat/~host/slug 170.141.184... --limit 5
   tlon messages post chat/~host/slug 170.141.184...`;
 
@@ -63,8 +75,12 @@ const MESSAGES_COMMAND_HELP: Record<string, string> = {
     'Usage: tlon messages channel chat/~host/slug [--limit N] [--resolve-cites] [--json]',
   history:
     'Usage: tlon messages history "chat/~host/channel-slug" [--limit N] [--resolve-cites] [--json]',
-  search:
-    'Usage: tlon messages search "query" --channel chat/~host/slug [--json]',
+  search: `Usage: tlon messages search "query" [--channel chat/~host/slug [--json]] [--limit N] [--per-channel N]
+
+Without --channel, searches every DM, group DM, and joined chat and gallery
+channel, grouping results by channel. --per-channel (default ${SEARCH_ALL_DEFAULT_PER_CHANNEL}) and --limit
+(default ${SEARCH_ALL_DEFAULT_LIMIT}) keep the newest results from each channel and overall.
+--json needs --channel.`,
   context:
     'Usage: tlon messages context <channel|~ship> <postId> [--limit N] [--resolve-cites] [--json]',
   post: 'Usage: tlon messages post <channel|~ship> <postId> [--author ~ship] [--resolve-cites] [--json]',
@@ -84,6 +100,33 @@ function getSearchChannel(args: string[]): string | undefined {
     }
   }
   return undefined;
+}
+
+// The query is always args[1], so `search --channel <nest>` lacks one rather
+// than searching everywhere for "--channel".
+function isSearchMissingQuery(args: string[]): boolean {
+  return (
+    !args[1] ||
+    (!getSearchChannel(args) &&
+      ['--channel', ...SEARCH_LIMIT_OPTIONS].includes(args[1]))
+  );
+}
+
+function getSearchLimits(
+  args: string[]
+): { limit: number; perChannel: number } | null {
+  const limits = {
+    limit: SEARCH_ALL_DEFAULT_LIMIT,
+    perChannel: SEARCH_ALL_DEFAULT_PER_CHANNEL,
+  };
+  for (const option of SEARCH_LIMIT_OPTIONS) {
+    const idx = args.indexOf(option, 2);
+    if (idx === -1) continue;
+    const parsed = parsePositiveInteger(args[idx + 1] ?? '');
+    if (parsed === null) return null;
+    limits[option === '--limit' ? 'limit' : 'perChannel'] = parsed;
+  }
+  return limits;
 }
 
 function isSearchQueryHelpLiteral(args: string[]): boolean {
@@ -110,7 +153,12 @@ function validateMessagesArgs(args: string[]): void {
       return;
     }
     case 'search': {
-      if (!args[1] || !getSearchChannel(args)) {
+      const channelGiven = args.indexOf('--channel', 2) !== -1;
+      if (
+        isSearchMissingQuery(args) ||
+        (channelGiven && !getSearchChannel(args)) ||
+        (!channelGiven && !getSearchLimits(args))
+      ) {
         printUsageAndExit(MESSAGES_COMMAND_HELP.search);
       }
       refuseDiaryNest(getSearchChannel(args));
@@ -290,6 +338,127 @@ async function searchMessages(
   await printPosts(results.posts, false, { json });
 }
 
+type SearchTarget = { id: string; label: string };
+type SearchResult = { target: SearchTarget; posts: Post[]; error?: string };
+
+// What the account can read: accepted DMs and group DMs, and the group
+// channels it has joined. Notes channels are searched with `tlon notes`.
+async function getSearchTargets(): Promise<SearchTarget[]> {
+  const init = await getInitData();
+  const chats = init.channels
+    .filter((chat) => !chat.isDmInvite)
+    .map((chat) => ({
+      id: chat.id,
+      label:
+        chat.type === 'dm' ? 'DM' : `Group DM: ${chat.title || 'Untitled'}`,
+    }));
+  const channelLabels = new Map<string, string>();
+  for (const group of init.groups) {
+    for (const channel of group.channels ?? []) {
+      channelLabels.set(
+        channel.id,
+        `${group.title || group.id} › ${channel.title || channel.id}`
+      );
+    }
+  }
+  const groupChannels = init.joinedGroupChannels
+    .filter((nest) => nest.startsWith('chat/') || nest.startsWith('heap/'))
+    .map((nest) => ({ id: nest, label: channelLabels.get(nest) ?? nest }));
+  return [...chats, ...groupChannels];
+}
+
+// Search every chat and DM, keeping the newest `perChannel` hits from each
+// channel and the newest `limit` overall, grouped by channel.
+async function searchAllMessages(
+  query: string,
+  limit: number,
+  perChannel: number
+): Promise<void> {
+  const targets = await getSearchTargets();
+  console.log(`Searching "${query}" in ${targets.length} channels and DMs\n`);
+
+  const results = await mapWithConcurrency(
+    targets,
+    SEARCH_ALL_CONCURRENCY,
+    async (target): Promise<SearchResult> => {
+      try {
+        const { posts } = await searchChannel({ channelId: target.id, query });
+        return { target, posts };
+      } catch (error: any) {
+        return { target, posts: [], error: error.message };
+      }
+    }
+  );
+
+  // The bot's tool runner returns only stdout on success, so a partial failure
+  // is reported there; a search that failed everywhere exits non-zero.
+  const failures = results.filter((result) => result.error !== undefined);
+  const failed = failures.map(
+    ({ target, error }) => `  ${target.id}: ${error}`
+  );
+  if (failures.length && failures.length === targets.length) {
+    throw new Error(
+      [`Could not search any of ${targets.length} channels:`, ...failed].join(
+        '\n'
+      )
+    );
+  }
+  if (failures.length) {
+    console.log(
+      [
+        `Results are incomplete: could not search ${failures.length} of ${targets.length} channels:`,
+        ...failed,
+        '',
+      ].join('\n')
+    );
+  }
+
+  const matches = results.filter((result) => result.posts.length);
+  const total = matches.reduce((sum, match) => sum + match.posts.length, 0);
+  if (!total) {
+    console.log('No results found.');
+    return;
+  }
+
+  const kept = matches
+    .flatMap((match) =>
+      [...match.posts]
+        .sort((a, b) => b.sentAt - a.sentAt)
+        .slice(0, perChannel)
+        .map((post) => ({ match, post }))
+    )
+    .sort((a, b) => b.post.sentAt - a.post.sentAt)
+    .slice(0, limit);
+
+  // Map keeps insertion order, so the channel with the newest hit comes first.
+  const shown = new Map<SearchResult, Post[]>();
+  for (const { match, post } of kept) {
+    shown.set(match, [...(shown.get(match) ?? []), post]);
+  }
+
+  const truncated = kept.length < total;
+  console.log(
+    `Found ${total} results in ${matches.length} channels` +
+      (truncated
+        ? `; showing the newest ${kept.length} (at most ${perChannel} per channel, ${limit} in all).`
+        : '.') +
+      '\n'
+  );
+  for (const [{ target, posts: found }, posts] of shown) {
+    const count =
+      posts.length < found.length
+        ? `${posts.length} of ${found.length}`
+        : `${posts.length}`;
+    console.log(`=== ${target.id} — ${target.label} (${count}) ===\n`);
+    await printPosts(posts, false);
+  }
+  if (truncated) {
+    console.log(
+      `For every result in one channel: tlon messages search "${query}" --channel <nest>`
+    );
+  }
+}
+
 // Fetch context around a specific post (messages before and after)
 // Uses the backend's native %around scry which fetches N posts in each
 // direction plus the target post itself in a single request.
@@ -461,11 +630,15 @@ async function main() {
       case 'search': {
         const query = args[1];
         const channel = getSearchChannel(args);
-
-        if (!query || !channel) {
+        if (channel) {
+          await searchMessages(query, channel, json);
+          break;
+        }
+        const limits = getSearchLimits(args);
+        if (!limits || json) {
           printUsageAndExit(MESSAGES_COMMAND_HELP.search);
         }
-        await searchMessages(query, channel, json);
+        await searchAllMessages(query, limits.limit, limits.perChannel);
         break;
       }
 
