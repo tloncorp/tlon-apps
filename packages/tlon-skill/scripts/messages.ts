@@ -41,7 +41,12 @@ import {
   wantsHelp,
 } from './cli-utils';
 import { renderPostJsonLine, renderPostListJsonLines } from './message-content';
-import { writePostBody } from './post-render';
+import {
+  type WindowContext,
+  hasReceiptOrder,
+  windowFromPage,
+} from './messages-runtime';
+import { formatTime, writePostBody, writePostList } from './post-render';
 
 const SEARCH_ALL_DEFAULT_LIMIT = 20;
 const SEARCH_ALL_DEFAULT_PER_CHANNEL = 5;
@@ -178,75 +183,48 @@ function validateMessagesArgs(args: string[]): void {
   }
 }
 
-// Format a timestamp
-function formatTime(timeVal: string | number): string {
-  try {
-    const num = typeof timeVal === 'number' ? timeVal : parseInt(timeVal, 10);
-    if (!isNaN(num) && num > 1600000000000) {
-      const date = new Date(num);
-      return date.toLocaleString();
-    }
-    const timeStr = String(timeVal);
-    const daNum = BigInt(timeStr.replace(/\./g, ''));
-    const DA_SECOND = BigInt('18446744073709551616');
-    const DA_UNIX_EPOCH = BigInt('170141184475152167957503069145530368000');
-    const offset = DA_SECOND / BigInt(2000);
-    const epochAdjusted = offset + (daNum - DA_UNIX_EPOCH);
-    const unixMs = Math.round(
-      Number((epochAdjusted * BigInt(1000)) / DA_SECOND)
-    );
-
-    const date = new Date(unixMs);
-    if (date.getFullYear() > 2020 && date.getFullYear() < 2100) {
-      return date.toLocaleString();
-    }
-    return 'unknown';
-  } catch {
-    return 'unknown';
-  }
-}
-
 interface PrintPostsOptions {
   highlightId?: string;
   /** Emit NDJSON records only: no headers, no cite resolution. */
   json?: boolean;
+  /** Opt in to receipt/sent divergence analysis (history commands only). */
+  window?: WindowContext;
+  displayLimit?: number;
 }
 
 async function printPosts(
   posts: Post[],
   resolve: boolean,
-  { highlightId, json }: PrintPostsOptions = {}
+  { highlightId, json, window, displayLimit }: PrintPostsOptions = {}
 ) {
   if (json) {
-    for (const line of renderPostListJsonLines(posts)) {
+    for (const line of renderPostListJsonLines(posts, {
+      window,
+      displayLimit,
+      highlightId,
+    })) {
       console.log(line);
     }
     return;
   }
 
-  if (!posts.length) {
-    console.log('No messages found.');
-    return;
-  }
+  await writePostList(posts, {
+    write: (line) => console.log(line),
+    getPostReference: resolve ? getPostReference : undefined,
+    highlightId,
+    window,
+    displayLimit,
+  });
+}
 
-  const sorted = [...posts].sort((a, b) => a.sentAt - b.sentAt);
-
-  for (const post of sorted) {
-    const author = post.authorId || 'unknown';
-    const time = formatTime(post.sentAt);
-    const replySuffix = post.parentId ? ` (reply to ${post.parentId})` : '';
-    const marker = highlightId && post.id === highlightId ? ' ◀ TARGET' : '';
-
-    console.log(`- ${author} @ ${time}${replySuffix}${marker}`);
-    console.log(`  ID: ${post.id}`);
-    await writePostBody(post, {
-      write: (line) => console.log(line),
-      indent: '  ',
-      getPostReference: resolve ? getPostReference : undefined,
-    });
-
-    console.log('');
-  }
+/**
+ * Posts displayed out of a fetched page: the boundary probe below is trimmed
+ * from display only where the page carries usable receipt order.
+ */
+function displayedCount(posts: Post[], limit: number): number {
+  return posts.length > limit && hasReceiptOrder(posts)
+    ? posts.length - 1
+    : posts.length;
 }
 
 // Fetch DM messages via the chat agent (not channels)
@@ -265,17 +243,27 @@ async function fetchDmMessages(
     );
   }
 
+  // Fetch one extra post as an analysis-only boundary probe: skew that
+  // crosses the window edge (a delivery burst wider than the limit) is
+  // detectable only by comparing against the next post beyond it.
   const data = await getChannelPosts({
     channelId: normalizedShip,
     mode: 'newest',
-    count: limit,
+    count: limit + 1,
     includeReplies: true,
+    skipGapFill: true,
   });
 
   if (!json) {
-    console.log(`=== DMs with ${normalizedShip} (${data.posts.length}) ===\n`);
+    console.log(
+      `=== DMs with ${normalizedShip} (${displayedCount(data.posts, limit)}) ===\n`
+    );
   }
-  await printPosts(data.posts, resolveCites, { json });
+  await printPosts(data.posts, resolveCites, {
+    json,
+    window: windowFromPage(data, limit),
+    displayLimit: limit,
+  });
 }
 
 // Fetch messages from a channel
@@ -292,11 +280,13 @@ async function fetchMessages(
     );
   }
 
+  // One extra post as an analysis-only boundary probe; see fetchDmMessages.
   const data = await getChannelPosts({
     channelId: channel,
     mode: 'newest',
-    count: limit,
+    count: limit + 1,
     includeReplies: true,
+    skipGapFill: true,
   }).catch((error: unknown) => {
     throw new Error(
       `Failed to fetch messages from ${channel}: ${errorMessage(error)}. Check that the channel path is correct (e.g., chat/~host/slug)`,
@@ -305,9 +295,15 @@ async function fetchMessages(
   });
 
   if (!json) {
-    console.log(`=== Messages in ${channel} (${data.posts.length}) ===\n`);
+    console.log(
+      `=== Messages in ${channel} (${displayedCount(data.posts, limit)}) ===\n`
+    );
   }
-  await printPosts(data.posts, resolveCites, { json });
+  await printPosts(data.posts, resolveCites, {
+    json,
+    window: windowFromPage(data, limit),
+    displayLimit: limit,
+  });
 }
 
 // Search messages in a channel
@@ -486,6 +482,7 @@ async function fetchContext(
     mode: 'around' as any,
     count: limit,
     includeReplies: true,
+    skipGapFill: true,
   });
 
   if (!json) {
@@ -494,7 +491,13 @@ async function fetchContext(
     );
   }
 
-  await printPosts(data.posts, resolve, { highlightId: postId, json });
+  // No displayLimit: an %around page is target-centered, so it carries no
+  // boundary probe to trim.
+  await printPosts(data.posts, resolve, {
+    highlightId: postId,
+    json,
+    window: windowFromPage(data),
+  });
 }
 
 async function getPostWithOptionalAuthor({

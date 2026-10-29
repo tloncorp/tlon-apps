@@ -1,11 +1,17 @@
 /**
- * Plain-text rendering of a stored post for `tlon messages`.
+ * Plain-text rendering of stored posts for `tlon messages`.
  *
  * Posts read back through `@tloncorp/api` carry `content` as the serialized,
  * API-normalized story (cites already converted to `ContentReference`). This
  * parses and converts it with the api's own `convertContent` and prints the
  * structure a reader needs — image, video and link URLs, reference paths,
  * table rows — instead of the raw JSON, plus the post's blob attachments.
+ *
+ * `writePostList` assembles a whole window on top of that: the per-post
+ * headers, and the ordering verdict the window carries (see
+ * `messages-runtime`). It lives here rather than in `messages.ts` because
+ * that script runs `main()` at import, so nothing defined in it is reachable
+ * from a test. Keep this module side-effect free.
  */
 import type { ContentReference, Post } from '@tloncorp/api';
 import { parsePostBlob } from '@tloncorp/api/client/content-helpers';
@@ -22,8 +28,20 @@ import {
 import { contentReferenceToCite } from '@tloncorp/api/client/references';
 import { citeToPath } from '@tloncorp/api/urbit';
 
+import {
+  type WindowContext,
+  analyzeWindow,
+  receiptProxyMs,
+  udToUnixMs,
+  windowContainsPost,
+  windowWarning,
+} from './messages-runtime';
+
 // The notice the app renders for an unknown blob entry (`convertContent`).
 const UNKNOWN_BLOB_ENTRY_NOTICE = 'Upgrade your app to see this post';
+
+export const TARGET_ABSENT_NOTICE =
+  '⚠ target post not in this window: the id may not exist, the post may be deleted, or its stored position may differ from its sent-time id (late-delivered messages sit at their arrival position).';
 
 export type RenderablePost = Pick<
   Post,
@@ -49,6 +67,18 @@ export interface WritePostBodyOptions {
     postId: string;
     replyId?: string;
   }) => Promise<RenderablePost>;
+}
+
+export interface WritePostListOptions extends Pick<
+  WritePostBodyOptions,
+  'write' | 'getPostReference'
+> {
+  /** Marks the requested post, and reports when the window lacks it. */
+  highlightId?: string;
+  /** Opt in to receipt/sent divergence analysis (history commands only). */
+  window?: WindowContext;
+  /** Requested window size; a page holding more carries a boundary probe. */
+  displayLimit?: number;
 }
 
 // Same quote-boundary rule as the api's `plaintextPreviewOfInlineString`,
@@ -286,5 +316,91 @@ export async function writePostBody(
     for (const line of renderPostBody(cited).lines) {
       options.write(`${indent}> ${line}`);
     }
+  }
+}
+/** Post timestamp: epoch milliseconds, or a `@da`/`@ud` id string. */
+export function formatTime(timeVal: string | number): string {
+  try {
+    const num = typeof timeVal === 'number' ? timeVal : parseInt(timeVal, 10);
+    if (!isNaN(num) && num > 1600000000000) {
+      const date = new Date(num);
+      return date.toLocaleString();
+    }
+    // udToUnixMs owns the @da conversion, including the @ud shape gate and
+    // era validation — out-of-era or malformed values read as unknown.
+    const unixMs = udToUnixMs(String(timeVal));
+    if (unixMs === null) return 'unknown';
+    return new Date(unixMs).toLocaleString();
+  } catch {
+    return 'unknown';
+  }
+}
+
+/**
+ * Write a window of posts: the ordering verdict first, then each post's
+ * header and body, in the order `analyzeWindow` chose. Without a window
+ * context this degrades to a plain sentAt sort (plus lag annotations where
+ * receipt times exist) — search results and a post's replies.
+ */
+export async function writePostList(
+  posts: Post[],
+  {
+    write,
+    getPostReference,
+    highlightId,
+    window,
+    displayLimit,
+  }: WritePostListOptions
+): Promise<void> {
+  if (!posts.length) {
+    // An empty %around page still means the requested target was not found.
+    if (highlightId) {
+      write(TARGET_ABSENT_NOTICE);
+      write('');
+    }
+    write('No messages found.');
+    return;
+  }
+
+  const analysis = analyzeWindow(posts, window, displayLimit);
+
+  const warning = window
+    ? windowWarning(
+        analysis.inversions,
+        window.truncated,
+        analysis.displayedLag
+      )
+    : null;
+  if (warning) {
+    write(warning);
+    write('');
+  }
+  if (highlightId && !windowContainsPost(analysis.ordered, highlightId)) {
+    write(TARGET_ABSENT_NOTICE);
+    write('');
+  }
+  if (analysis.sequenceGaps > 0) {
+    write(
+      `⚠ ${analysis.sequenceGaps} sequence number(s) in this window's range have no record — moderation-blocked or deleted posts, or records the ship did not return.`
+    );
+    write('');
+  }
+
+  for (const post of analysis.ordered) {
+    const author = post.authorId || 'unknown';
+    const replySuffix = post.parentId ? ` (reply to ${post.parentId})` : '';
+    const marker = highlightId && post.id === highlightId ? ' ◀ TARGET' : '';
+
+    write(`- ${author} @ ${formatTime(post.sentAt)}${replySuffix}${marker}`);
+    if (analysis.annotate.has(post)) {
+      const receipt = receiptProxyMs(post);
+      if (receipt !== null) {
+        write(`  (received ${formatTime(receipt)})`);
+      }
+    }
+    write(`  ID: ${post.id}`);
+    await writePostBody(post, { write, indent: '  ', getPostReference });
+
+    write('');
   }
 }

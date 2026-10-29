@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { da, render } from '@urbit/aura';
 
 import { renderPostJsonLine, renderPostListJsonLines } from './message-content';
 
@@ -22,7 +23,9 @@ describe('renderPostJsonLine', () => {
         })
       )
     ).toBe(
-      '{"id":"post-1","authorId":"~zod","sentAt":1724200000000,' +
+      '{"type":"post","id":"post-1","authorId":"~zod",' +
+        '"sentAt":1724200000000,' +
+        '"receivedAt":null,"annotated":false,' +
         '"parentId":"parent-1","blob":null,"content":[{"inline":["hi"]}]}'
     );
   });
@@ -30,7 +33,13 @@ describe('renderPostJsonLine', () => {
   it('carries content it cannot parse through verbatim', () => {
     expect(
       JSON.parse(renderPostJsonLine(post({ content: 'not json at all' })))
-    ).toEqual({ ...base, content: 'not json at all' });
+    ).toEqual({
+      type: 'post',
+      ...base,
+      receivedAt: null,
+      annotated: false,
+      content: 'not json at all',
+    });
   });
 
   it('keeps a group reference verse intact', () => {
@@ -166,9 +175,12 @@ describe('renderPostJsonLine', () => {
     } as never);
     expect(line).toContain('"content":null');
     expect(Object.keys(JSON.parse(line))).toEqual([
+      'type',
       'id',
       'authorId',
       'sentAt',
+      'receivedAt',
+      'annotated',
       'parentId',
       'blob',
       'content',
@@ -228,5 +240,115 @@ describe('renderPostListJsonLines', () => {
       'post-2',
       'post-1',
     ]);
+  });
+});
+
+describe('window analysis integration', () => {
+  const LIMIT_WARNING =
+    '\u26a0 receipt order \u2260 sent order in this window: messages sent within this span may be missing \u2014 increase --limit to verify.';
+
+  const unixMsToUd = (unixMs: number): string =>
+    render('ud', da.fromUnix(unixMs));
+
+  const T0 = 1_750_000_000_000;
+  const HOUR = 60 * 60 * 1000;
+
+  const windowPost = (
+    id: string,
+    seq: number,
+    sentAt: number,
+    receivedAt: number
+  ) =>
+    ({
+      id,
+      authorId: '~zod',
+      sentAt,
+      sequenceNum: seq,
+      backendTime: unixMsToUd(receivedAt),
+      parentId: null,
+      blob: null,
+      content: JSON.stringify([{ inline: [id] }]),
+    }) as never;
+
+  /** Probe (prompt, receipt-oldest) + three writs delivered ~10h late. */
+  const skewedPage = () => [
+    windowPost('probe-10', 10, T0, T0 + 400),
+    windowPost('late-11', 11, T0 - 12 * HOUR, T0 + 600_000),
+    windowPost('late-12', 12, T0 - 11 * HOUR, T0 + 600_100),
+    windowPost('late-13', 13, T0 - 10 * HOUR, T0 + 600_200),
+  ];
+
+  const cleanPage = () => [
+    windowPost('writ-1', 1, T0, T0 + 200),
+    windowPost('writ-2', 2, T0 + 60_000, T0 + 60_300),
+  ];
+
+  it('emits a window prelude record and per-post divergence fields in JSON', () => {
+    const lines = renderPostListJsonLines(skewedPage(), {
+      window: { truncated: true },
+      displayLimit: 3,
+    });
+
+    const prelude = JSON.parse(lines[0]);
+    expect(Object.keys(prelude)).toEqual([
+      'type',
+      'warning',
+      'inversions',
+      'sequenceGaps',
+      'truncated',
+    ]);
+    expect(prelude).toEqual({
+      type: 'window',
+      warning: LIMIT_WARNING,
+      inversions: 3,
+      sequenceGaps: 0,
+      truncated: true,
+    });
+
+    const posts = lines.slice(1).map((line) => JSON.parse(line));
+    // Probe trimmed here too, and ordering matches plaintext (receipt order).
+    expect(posts.map((record) => record.id)).toEqual([
+      'late-11',
+      'late-12',
+      'late-13',
+    ]);
+    for (const record of posts) {
+      expect(record.annotated).toBe(true);
+      expect(typeof record.receivedAt).toBe('number');
+    }
+  });
+
+  it('keeps a clean window quiet: null warning with, no prelude without', () => {
+    const withWindow = renderPostListJsonLines(cleanPage(), {
+      window: { truncated: false },
+    });
+    expect(JSON.parse(withWindow[0])).toEqual({
+      type: 'window',
+      warning: null,
+      inversions: 0,
+      sequenceGaps: 0,
+      truncated: false,
+    });
+    expect(
+      withWindow.slice(1).map((line) => JSON.parse(line).annotated)
+    ).toEqual([false, false]);
+
+    const withoutWindow = renderPostListJsonLines(cleanPage());
+    expect(withoutWindow).toHaveLength(2);
+    for (const line of withoutWindow) {
+      expect(JSON.parse(line).type).toBe('post');
+    }
+  });
+
+  it('emits a target-absent notice record when the target is not displayed', () => {
+    const lines = renderPostListJsonLines(cleanPage(), {
+      window: { truncated: true },
+      highlightId: 'not-here',
+    });
+    expect(JSON.parse(lines[1])).toEqual({
+      type: 'notice',
+      notice: 'target-absent',
+    });
+    expect(lines).toHaveLength(4);
   });
 });
