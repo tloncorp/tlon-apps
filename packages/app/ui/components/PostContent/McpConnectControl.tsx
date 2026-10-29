@@ -2,7 +2,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import * as api from '@tloncorp/api';
 import { A2UI } from '@tloncorp/shared/logic';
-import { Icon, LoadingSpinner } from '@tloncorp/ui';
+import { Icon, LoadingSpinner, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import { XStack, YStack } from 'tamagui';
@@ -18,9 +18,16 @@ import {
 } from '../../../lib/mcpProviders';
 import { McpProviderLogo } from '../McpProviderLogo';
 import { A2UIMenuRow } from './A2UIMenuRow';
+import {
+  A2UICardButton,
+  A2UIChoiceIndicator,
+  A2UIOptionCard,
+} from './a2uiCardParts';
 import { useOneShotAction } from './useOneShotAction';
 
 const MAX_PROVIDER_SELECTIONS = api.AGENT_PROTOCOL_LIMITS.providerCount;
+// A service row: logo, name and status line.
+const ROW_HEIGHT = 52;
 type PendingProviderSelection = {
   providerIds: string[];
   configuredKey: string | null;
@@ -492,182 +499,169 @@ export function McpConnectMenu({
     ]
   );
 
-  return (
-    <YStack
-      width="100%"
-      padding="$m"
-      borderRadius="$xl"
-      backgroundColor="$secondaryBackground"
+  const rows = loading ? (
+    <XStack
+      minHeight={ROW_HEIGHT}
+      paddingHorizontal="$xl"
+      alignItems="center"
+      justifyContent="center"
+      backgroundColor="$background"
     >
-      {/* Reserve the visible providers plus the usual “See all” row while
-          queries load so the conversation does not jump when they resolve. */}
-      <YStack
-        width="100%"
-        minHeight={loading ? (component.maxVisible + 1) * 56 : undefined}
-        borderWidth={1}
-        borderColor="$border"
-        borderRadius="$m"
-        overflow="hidden"
-      >
-        {loading ? (
-          <XStack
-            minHeight={52}
-            paddingHorizontal="$m"
-            alignItems="center"
-            justifyContent="center"
-            backgroundColor="$background"
-          >
-            <LoadingSpinner size="small" />
-          </XStack>
-        ) : failed || visibleProviders.length === 0 ? (
-          <ProviderFallbackRow
-            disabled={!onNavigate || submitting || completionLocked}
-            onPress={() => navigate()}
+      <LoadingSpinner size="small" />
+    </XStack>
+  ) : failed || visibleProviders.length === 0 ? (
+    <ProviderFallbackRow
+      disabled={!onNavigate || submitting || completionLocked}
+      onPress={() => navigate()}
+    />
+  ) : (
+    <>
+      {visibleProviders.map((provider, index) => {
+        const connected = provider.status === 'connected';
+        const selected = selectedProviderIds.includes(provider.id);
+        const selectionLimitReached =
+          connected &&
+          !selected &&
+          selectedProviderIds.length >= MAX_PROVIDER_SELECTIONS;
+        const enabled = connected
+          ? Boolean(onConfigure) &&
+            !submitting &&
+            !completionLocked &&
+            !selectionLimitReached
+          : Boolean(onNavigate) && !submitting && !completionLocked;
+        const disabled = connected
+          ? !onConfigure ||
+            submitting ||
+            completionLocked ||
+            selectionLimitReached
+          : !onNavigate || submitting || completionLocked;
+        return (
+          <A2UIMenuRow
+            key={provider.id}
+            testID={`A2UIMcpConnect-${provider.id}`}
+            accessibilityLabel={provider.displayName}
+            accessibilityState={{
+              disabled,
+              selected,
+            }}
+            disabled={disabled}
+            onPress={
+              connected
+                ? () => toggleProvider(provider.id)
+                : onNavigate
+                  ? () => navigate(provider.id)
+                  : undefined
+            }
+            minHeight={ROW_HEIGHT}
+            paddingVertical="$s"
+            dividerAfter={index < visibleProviders.length - 1 || showSeeAll}
+            dimmed={!enabled}
+            label={provider.displayName}
+            subtitle={connected ? 'Connected' : undefined}
+            leading={
+              <McpProviderLogo
+                compact
+                displayName={provider.displayName}
+                logoUrl={provider.logoUrl}
+                providerId={provider.id}
+              />
+            }
+            trailing={
+              connected ? (
+                <A2UIChoiceIndicator selected={selected} shape="square" />
+              ) : (
+                <ConnectPill />
+              )
+            }
           />
-        ) : (
+        );
+      })}
+      {showSeeAll ? (
+        <A2UIMenuRow
+          testID="A2UIMcpConnectSeeAll"
+          accessibilityLabel={component.seeAllLabel}
+          disabled={!onNavigate || submitting || completionLocked}
+          onPress={() => navigate()}
+          dimmed={!onNavigate || submitting || completionLocked}
+          label={component.seeAllLabel}
+          labelWeight="500"
+          minHeight={ROW_HEIGHT}
+          trailing={
+            <Icon
+              type="ChevronRight"
+              color="$secondaryText"
+              customSize={[16, 16]}
+            />
+          }
+        />
+      ) : null}
+    </>
+  );
+  const showSubmit = !loading && !failed && connectedProviderIds.length > 0;
+  const submitDisabled = !onConfigure || submitting || completionLocked;
+  const completionLabel = component.completionAction
+    ? component.completionLabel
+    : undefined;
+  const showCompletion = Boolean(completionLabel);
+  // Reserve the visible providers plus the usual “See all” row while queries
+  // load so the conversation does not jump when they resolve.
+  const loadingMinHeight = loading
+    ? (component.maxVisible + 1) * ROW_HEIGHT
+    : undefined;
+
+  return (
+    <A2UIOptionCard
+      footerDirection="column"
+      footer={
+        showSubmit || showCompletion ? (
           <>
-            {visibleProviders.map((provider, index) => {
-              const connected = provider.status === 'connected';
-              const selected = selectedProviderIds.includes(provider.id);
-              const selectionLimitReached =
-                connected &&
-                !selected &&
-                selectedProviderIds.length >= MAX_PROVIDER_SELECTIONS;
-              const enabled = connected
-                ? Boolean(onConfigure) &&
-                  !submitting &&
-                  !completionLocked &&
-                  !selectionLimitReached
-                : Boolean(onNavigate) && !submitting && !completionLocked;
-              const disabled = connected
-                ? !onConfigure ||
-                  submitting ||
-                  completionLocked ||
-                  selectionLimitReached
-                : !onNavigate || submitting || completionLocked;
-              return (
-                <A2UIMenuRow
-                  key={provider.id}
-                  testID={`A2UIMcpConnect-${provider.id}`}
-                  accessibilityLabel={provider.displayName}
-                  accessibilityState={{
-                    disabled,
-                    selected,
-                  }}
-                  disabled={disabled}
-                  onPress={
-                    connected
-                      ? () => toggleProvider(provider.id)
-                      : onNavigate
-                        ? () => navigate(provider.id)
-                        : undefined
-                  }
-                  minHeight={56}
-                  paddingVertical="$s"
-                  dividerAfter={
-                    index < visibleProviders.length - 1 || showSeeAll
-                  }
-                  dimmed={!enabled}
-                  label={provider.displayName}
-                  subtitle={connected ? 'Connected' : undefined}
-                  leading={
-                    <McpProviderLogo
-                      compact
-                      displayName={provider.displayName}
-                      logoUrl={provider.logoUrl}
-                      providerId={provider.id}
-                    />
-                  }
-                  trailing={
-                    connected && !selected ? (
-                      <XStack width={16} height={16} />
-                    ) : (
-                      <Icon
-                        type={selected ? 'Checkmark' : 'ChevronRight'}
-                        color={
-                          selected ? '$positiveActionText' : '$secondaryText'
-                        }
-                        customSize={[16, 16]}
-                      />
-                    )
-                  }
-                />
-              );
-            })}
-            {showSeeAll ? (
-              <A2UIMenuRow
-                testID="A2UIMcpConnectSeeAll"
-                accessibilityLabel={component.seeAllLabel}
-                disabled={!onNavigate || submitting || completionLocked}
-                onPress={() => navigate()}
-                dimmed={!onNavigate || submitting || completionLocked}
-                label={component.seeAllLabel}
-                trailing={
-                  <Icon
-                    type="ChevronRight"
-                    color="$secondaryText"
-                    customSize={[16, 16]}
-                  />
-                }
+            {showSubmit ? (
+              <A2UICardButton
+                testID="A2UIMcpConnectSubmit"
+                tone={showCompletion ? 'secondary' : 'primary'}
+                flex={undefined}
+                label={component.submitLabel}
+                disabled={submitDisabled}
+                loading={submitting}
+                onPress={configure}
+              />
+            ) : null}
+            {completionLabel ? (
+              <A2UICardButton
+                testID="A2UIMcpConnectComplete"
+                tone="primary"
+                flex={undefined}
+                label={completionLabel}
+                disabled={completionDisabled}
+                loading={completionAction.pending}
+                onPress={complete}
               />
             ) : null}
           </>
-        )}
+        ) : undefined
+      }
+    >
+      <YStack width="100%" minHeight={loadingMinHeight}>
+        {rows}
       </YStack>
-      {!loading && !failed && connectedProviderIds.length > 0 ? (
-        <A2UIMenuRow
-          testID="A2UIMcpConnectSubmit"
-          accessibilityLabel={component.submitLabel}
-          accessibilityState={{
-            disabled: !onConfigure || submitting || completionLocked,
-          }}
-          disabled={!onConfigure || submitting || completionLocked}
-          onPress={configure}
-          bordered
-          marginTop="$m"
-          dimmed={!onConfigure || submitting || completionLocked}
-          label={component.submitLabel}
-          trailing={
-            submitting ? (
-              <LoadingSpinner size="small" />
-            ) : (
-              <Icon
-                type="Checkmark"
-                color="$primaryText"
-                customSize={[16, 16]}
-              />
-            )
-          }
-        />
-      ) : null}
-      {component.completionLabel && component.completionAction ? (
-        <A2UIMenuRow
-          testID="A2UIMcpConnectComplete"
-          accessibilityLabel={component.completionLabel}
-          accessibilityState={{
-            disabled: completionDisabled,
-          }}
-          disabled={completionDisabled}
-          onPress={complete}
-          bordered
-          marginTop="$m"
-          prominent
-          dimmed={completionDisabled}
-          label={component.completionLabel}
-          trailing={
-            completionAction.pending ? (
-              <LoadingSpinner size="small" />
-            ) : (
-              <Icon
-                type="Checkmark"
-                color="$background"
-                customSize={[16, 16]}
-              />
-            )
-          }
-        />
-      ) : null}
-    </YStack>
+    </A2UIOptionCard>
+  );
+}
+
+function ConnectPill() {
+  return (
+    <XStack
+      height={28}
+      paddingHorizontal="$l"
+      borderRadius={14}
+      backgroundColor="$secondaryBackground"
+      alignItems="center"
+      flexShrink={0}
+    >
+      <Text size="$label/m" color="$primaryText" fontWeight="500">
+        Connect
+      </Text>
+    </XStack>
   );
 }
 
@@ -685,6 +679,8 @@ function ProviderFallbackRow({
       onPress={onPress}
       dimmed={disabled}
       label="See all services"
+      labelWeight="500"
+      minHeight={ROW_HEIGHT}
       trailing={
         <Icon
           type="ChevronRight"
