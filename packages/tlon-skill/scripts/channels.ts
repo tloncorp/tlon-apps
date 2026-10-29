@@ -41,6 +41,7 @@ import {
   joinChannelByNest,
   leaveChannelByNest,
 } from './channel-membership';
+import { errorMessage } from './commands/command';
 import {
   assertKnownChannelKind,
   channelCreatedLines,
@@ -68,6 +69,7 @@ import {
 } from './group-admin';
 import { createNotesChannelInGroup } from './notes-channel';
 import { createNotesChannelDeps } from './notes-channel-runtime';
+import { getChannelPerm } from './notes-migrate-runtime';
 
 function generateChannelSlug(): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz';
@@ -313,6 +315,8 @@ async function getChannelInfo(nest: string) {
   }
 
   const { group, channel } = match;
+  const readerRoles = (channel.readerRoles || []).map((r) => r.roleId);
+  const writers = await getChannelWriters(nest, kind);
 
   console.log(`\n=== ${channel.title || name} ===\n`);
   console.log(`Nest: ${nest}`);
@@ -320,10 +324,8 @@ async function getChannelInfo(nest: string) {
   console.log(`Group: ${group.title} (${group.id})`);
   console.log(`Zone: ${findChannelSectionId(group, channel.id)}`);
   console.log(`Description: ${channel.description || '(none)'}`);
-  const readerRoles = (channel.readerRoles || []).map((r) => r.roleId);
-  console.log(
-    `Readers: ${readerRoles.length > 0 ? readerRoles.join(', ') : '(all members)'}`
-  );
+  console.log(`Readers: ${formatRoles(readerRoles)}`);
+  console.log(`Writers: ${writers.line}`);
 
   return {
     nest,
@@ -334,7 +336,30 @@ async function getChannelInfo(nest: string) {
     description: channel.description,
     zone: findChannelSectionId(group, channel.id),
     readers: readerRoles,
+    writers: writers.roles,
   };
+}
+
+function formatRoles(roles: string[]): string {
+  return roles.length > 0 ? roles.join(', ') : '(all members)';
+}
+
+// Writer roles live with the channel, not the group. %channels serves them
+// only for chat and heap channels this ship has joined; %notes and %buckets
+// channels keep their own. `roles` is null when they could not be read.
+async function getChannelWriters(
+  nest: string,
+  kind: string
+): Promise<{ roles: string[] | null; line: string }> {
+  if (kind !== 'chat' && kind !== 'heap') {
+    return { roles: null, line: `(managed by %${kind})` };
+  }
+  try {
+    const { writers } = await getChannelPerm(nest);
+    return { roles: writers, line: formatRoles(writers) };
+  } catch (error) {
+    return { roles: null, line: `(unavailable: ${errorMessage(error)})` };
+  }
 }
 
 async function createChannelInGroup(

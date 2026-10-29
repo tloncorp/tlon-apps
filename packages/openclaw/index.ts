@@ -1205,8 +1205,10 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
     }
     const isOwnerOnlyTool = ownerOnlyDecision.ownerOnly;
     const blocksNonOwner = ownerOnlyDecision.blocked;
-    const isMcpDescribe = isMcpDescribeToolName(event.toolName);
-    const isMcpCall = isMcpCallToolName(event.toolName);
+    // By policy name, so the Codex native spelling (`mcp__mcp__call`) gets
+    // the onboarding-cron MCP rules and the Tlon-app browser gate too.
+    const isMcpDescribe = isMcpDescribeToolName(policyToolName);
+    const isMcpCall = isMcpCallToolName(policyToolName);
     const isMcpTool = isMcpDescribe || isMcpCall;
     const cronJobId = isMcpTool ? cronJobForSession(ctx.sessionKey) : undefined;
     const isOnboardingCron =
@@ -1493,9 +1495,12 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       event.toolName === 'tlon' && typeof event.params.command === 'string'
         ? summarizeTlonCommand(event.params.command)
         : undefined;
+    // By policy name, matching the before_tool_call gate, so a Codex-native
+    // `mcp__mcp__describe` can satisfy describe-before-call the same way.
+    const afterPolicyToolName = normalizePolicyToolName(event.toolName);
     const observesMcpCatalog =
-      isMcpListUpstreamsToolName(event.toolName) ||
-      isMcpDescribeToolName(event.toolName);
+      isMcpListUpstreamsToolName(afterPolicyToolName) ||
+      isMcpDescribeToolName(afterPolicyToolName);
     if (
       observesMcpCatalog &&
       (await isAgentOnboardingCronJob(cronJobForSession(ctx.sessionKey)))
@@ -1503,7 +1508,7 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       const allowedProviderIds = await agentOnboardingCronProviderIds(
         cronJobForSession(ctx.sessionKey)
       );
-      if (isMcpListUpstreamsToolName(event.toolName)) {
+      if (isMcpListUpstreamsToolName(afterPolicyToolName)) {
         rememberMcpUpstreams(ctx.sessionKey, event.result);
       } else {
         rememberDescribedReadOnlyMcpTool(

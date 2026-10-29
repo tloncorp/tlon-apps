@@ -698,20 +698,33 @@ export class UrbitSSEClient {
     // oxlint-disable-next-line typescript/no-explicit-any
     const stream =
       body instanceof ReadableStream ? Readable.fromWeb(body as any) : body;
+    // One decoder across chunks: a multi-byte character split by a chunk
+    // boundary would otherwise decode as two U+FFFD halves.
+    const decoder = new TextDecoder();
     let buffer = '';
+    const consume = (text: string) => {
+      buffer += text;
+      let eventEnd;
+      while ((eventEnd = buffer.indexOf('\n\n')) !== -1) {
+        const eventData = buffer.substring(0, eventEnd);
+        buffer = buffer.substring(eventEnd + 2);
+        this.processEvent(eventData);
+      }
+    };
 
     try {
       for await (const chunk of stream) {
         if (this.aborted) {
           break;
         }
-        buffer += chunk.toString();
-        let eventEnd;
-        while ((eventEnd = buffer.indexOf('\n\n')) !== -1) {
-          const eventData = buffer.substring(0, eventEnd);
-          buffer = buffer.substring(eventEnd + 2);
-          this.processEvent(eventData);
-        }
+        consume(
+          typeof chunk === 'string'
+            ? chunk
+            : decoder.decode(chunk, { stream: true })
+        );
+      }
+      if (!this.aborted) {
+        consume(decoder.decode());
       }
       // Clean EOF (the loop completed without throwing): clear the suppression
       // flag here, NOT in finally. A clean end racing our abort must not leave
@@ -1017,7 +1030,7 @@ export class UrbitSSEClient {
   }
 
   async poke(params: { app: string; mark: string; json: unknown }) {
-    // After close() the channel is unsubscribed/DELETEd on the ship. A stale
+    // After close() the channel is deleted on the ship. A stale
     // poke from an old monitor (e.g. across a config-reload restart) would
     // otherwise recreate that channel as a side effect, so reject once closed.
     if (this.aborted) {
@@ -1582,59 +1595,37 @@ export class UrbitSSEClient {
     this.generationZeroEligibleActionIds.clear();
     this.generationZeroEligibilitySaturated = false;
 
+    // Eyre only accepts PUT/GET/POST on a channel; deletion is the %delete
+    // action, which also cancels the channel's subscriptions. Unreaped, the
+    // channel lingers on the ship for 12h.
     try {
-      const unsubscribes = this.subscriptions.map((sub) => ({
-        id: sub.id,
-        action: 'unsubscribe',
-        subscription: sub.id,
-      }));
-
-      {
-        const { response, release } = await urbitFetch({
-          baseUrl: this.url,
-          path: `/~/channel/${this.channelId}`,
-          init: {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              Cookie: this.cookie,
-            },
-            body: JSON.stringify(unsubscribes),
+      const { response, release } = await urbitFetch({
+        baseUrl: this.url,
+        path: `/~/channel/${this.channelId}`,
+        init: {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Cookie: this.cookie,
           },
-          ssrfPolicy: this.ssrfPolicy,
-          lookupFn: this.lookupFn,
-          fetchImpl: this.fetchImpl,
-          timeoutMs: 30_000,
-          auditContext: 'tlon-urbit-unsubscribe',
-        });
-        try {
-          void response.body?.cancel();
-        } finally {
-          await release();
+          body: JSON.stringify([{ action: 'delete' }]),
+        },
+        ssrfPolicy: this.ssrfPolicy,
+        lookupFn: this.lookupFn,
+        fetchImpl: this.fetchImpl,
+        timeoutMs: 30_000,
+        auditContext: 'tlon-urbit-channel-close',
+      });
+      try {
+        if (!response.ok) {
+          throw new UrbitHttpError({
+            operation: 'Channel close',
+            status: response.status,
+          });
         }
-      }
-
-      {
-        const { response, release } = await urbitFetch({
-          baseUrl: this.url,
-          path: `/~/channel/${this.channelId}`,
-          init: {
-            method: 'DELETE',
-            headers: {
-              Cookie: this.cookie,
-            },
-          },
-          ssrfPolicy: this.ssrfPolicy,
-          lookupFn: this.lookupFn,
-          fetchImpl: this.fetchImpl,
-          timeoutMs: 30_000,
-          auditContext: 'tlon-urbit-channel-close',
-        });
-        try {
-          void response.body?.cancel();
-        } finally {
-          await release();
-        }
+      } finally {
+        // release() cancels the unread body and observes a rejected cancel.
+        await release();
       }
     } catch (error) {
       this.logger.error?.(`Error closing channel: ${String(error)}`);

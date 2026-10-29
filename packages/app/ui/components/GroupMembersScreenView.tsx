@@ -33,6 +33,8 @@ export function GroupMembersScreenView({
   onPressAcceptJoinRequest,
   onPressRejectJoinRequest,
   onPressGoToProfile,
+  onLoadMore,
+  isLoadingMore,
 }: {
   goBack: () => void;
   members: db.ChatMember[];
@@ -45,6 +47,9 @@ export function GroupMembersScreenView({
   onPressAcceptJoinRequest: (contactId: string) => void;
   onPressRejectJoinRequest: (contactId: string) => void;
   onPressGoToProfile: (contactId: string) => void;
+  // set while a big group's roster has pages left to load from the host
+  onLoadMore?: () => void;
+  isLoadingMore?: boolean;
 }) {
   const { disableNicknames } = useCalm();
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
@@ -186,8 +191,38 @@ export function GroupMembersScreenView({
         ],
       });
     }
+    // a search filters the loaded members, so it never asks for pages
+    if (hidden === 0 && onLoadMore && !searchQuery.trim()) {
+      shown.push({
+        key: 'load-more',
+        rows: [
+          {
+            key: 'load-more',
+            title: isLoadingMore
+              ? 'Loading more members…'
+              : 'Load more members',
+            action: true,
+            disabled: isLoadingMore,
+            onPress: () => {
+              // so the page shows on arrival, not behind "Show more"
+              setLimit((current) => current + pageSize);
+              onLoadMore();
+            },
+            testID: 'LoadMoreMembers',
+          },
+        ],
+      });
+    }
     return shown;
-  }, [disableNicknames, groups, limit, onPressGoToProfile, searchQuery]);
+  }, [
+    disableNicknames,
+    groups,
+    isLoadingMore,
+    limit,
+    onLoadMore,
+    onPressGoToProfile,
+    searchQuery,
+  ]);
 
   const selectedIsRequest = joinRequests.some(
     (request) => request.contactId === selectedContact
@@ -205,7 +240,10 @@ export function GroupMembersScreenView({
       search={{
         value: searchQuery,
         onChangeText: setSearchQuery,
-        placeholder: 'Search by name or ID',
+        // until the last page lands, search covers the loaded members only
+        placeholder: onLoadMore
+          ? 'Search loaded members by name or ID'
+          : 'Search by name or ID',
       }}
     >
       {selectedContact !== null && !selectedIsRequest && (

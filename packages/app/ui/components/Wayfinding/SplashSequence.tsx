@@ -89,6 +89,7 @@ import { SearchBar } from '../SearchBar';
 import { SystemContactListItem } from '../listItems';
 import { BotChatPreview } from './BotChatPreview';
 import { TlonBotSetupPaneView } from './TlonBotSetupPaneView';
+import { applyBotPrimaryModel } from './botModelSetup';
 import { getDefaultBotName } from './botName';
 import {
   BotCredentialOption,
@@ -580,70 +581,17 @@ function SplashSequenceComponent(props: {
         setCustomBotSetupStatus('pending');
       }
 
-      const promise = (async () => {
-        const meta = { provider, model };
-        logger.trackEvent('Wayfinding Bot Reconfigure Started', meta);
-
-        if (!userId || !shipId) {
-          if (isMountedRef.current) {
-            setCustomBotSetupStatus('failed');
-          }
-          logger.trackError('Wayfinding Bot Reconfigure Failed', {
-            ...meta,
-            step: 'missing_ids',
-            hasUserId: !!userId,
-            hasShipId: !!shipId,
-          });
-          return false;
-        }
-
-        try {
-          await withRetry(
-            () => api.setTlawnPrimaryModel(userId, { provider, model }),
-            {
-              startingDelay: 750,
-              numOfAttempts: 4,
-              maxDelay: 4000,
-            }
-          );
-          logger.trackEvent(
-            'Wayfinding Bot Primary Model Sync Succeeded',
-            meta
-          );
-        } catch (error) {
-          if (isMountedRef.current) {
-            setCustomBotSetupStatus('failed');
-          }
-          logger.trackError('Wayfinding Bot Reconfigure Failed', {
-            ...meta,
-            step: 'set_primary_model',
-            error,
-          });
-          return false;
-        }
-
-        const running = await api.awaitBotRunning(shipId, {
-          timeoutMs: 30_000,
-          pollIntervalMs: 1500,
-        });
-
-        if (running) {
-          if (isMountedRef.current) {
-            setCustomBotSetupStatus('ready');
-          }
-          logger.trackEvent('Wayfinding Bot Reconfigure Ready', meta);
-          return true;
-        }
-
+      const promise = applyBotPrimaryModel({
+        userId,
+        shipId,
+        provider,
+        model,
+      }).then((ready) => {
         if (isMountedRef.current) {
-          setCustomBotSetupStatus('failed');
+          setCustomBotSetupStatus(ready ? 'ready' : 'failed');
         }
-        logger.trackError('Wayfinding Bot Reconfigure Failed', {
-          ...meta,
-          step: 'await_bot_running_timeout',
-        });
-        return false;
-      })();
+        return ready;
+      });
 
       customBotSetupPromiseRef.current = promise;
       return promise;
@@ -2924,16 +2872,19 @@ function ModelOptionCard({
         borderColor={selected ? '$primaryText' : '$border'}
       >
         <ListItem.MainContent>
-          <ListItem.Title color="$primaryText">{option.label}</ListItem.Title>
-          {option.recommendationLabel ? (
-            <Badge
-              text={option.recommendationLabel}
-              type="positive"
-              size="micro"
-              alignSelf="flex-start"
-              marginTop="$m"
-            />
-          ) : option.description ? (
+          <XStack alignItems="center" gap="$s">
+            <ListItem.Title color="$primaryText" flexShrink={1}>
+              {option.label}
+            </ListItem.Title>
+            {option.recommendationLabel ? (
+              <Badge
+                text={option.recommendationLabel}
+                type="positive"
+                size="micro"
+              />
+            ) : null}
+          </XStack>
+          {option.description ? (
             <ListItem.Subtitle color="$secondaryText">
               {option.description}
             </ListItem.Subtitle>

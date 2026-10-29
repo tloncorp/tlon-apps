@@ -891,6 +891,35 @@ describe('formatBlockedList', () => {
 });
 
 describe('formatPendingList', () => {
+  it('never cuts a preview inside a surrogate pair', () => {
+    const text = formatPendingList([
+      {
+        id: 'da1b2',
+        type: 'dm',
+        requestingShip: '~zod',
+        messagePreview: 'a'.repeat(76) + '\u{1F600}' + 'b'.repeat(10),
+        timestamp: Date.now(),
+      },
+    ]);
+    expect(text).toContain(`"${'a'.repeat(76)}..."`);
+    expect(text).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/);
+  });
+
+  it('builds DM and channel previews without a lone surrogate', () => {
+    // monitorTlonProvider is not unit-testable, so the call sites are pinned.
+    const monitorSource = fs.readFileSync(
+      path.resolve(path.dirname(fileURLToPath(import.meta.url)), './index.ts'),
+      'utf8'
+    );
+    const previews = [
+      ...monitorSource.matchAll(/messagePreview: ([^\n]*rawText[^\n]*)/g),
+    ];
+    expect(previews.map((m) => m[1])).toEqual([
+      'truncateUtf16Safe(rawText, 100),',
+      'truncateUtf16Safe(rawText, 100),',
+    ]);
+  });
+
   it('shows empty state', () => {
     expect(formatPendingList([])).toBe('No pending approval requests.');
   });

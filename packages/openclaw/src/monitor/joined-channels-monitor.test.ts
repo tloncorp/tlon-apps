@@ -372,7 +372,7 @@ describe('joined set wiring', () => {
     expect(sliceFrom('const mergeDiscoveredChannels = async')).toContain(
       'await syncJoinedChannels();'
     );
-    const tick = source.slice(source.indexOf('const pollInterval'));
+    const tick = source.slice(source.indexOf('const channelRefresh ='));
     const discovery = tick.indexOf('if (effectiveAutoDiscoverChannels) {');
     const merge = tick.indexOf('await mergeDiscoveredChannels();');
     const otherwise = tick.indexOf('} else {', merge);
@@ -384,9 +384,9 @@ describe('joined set wiring', () => {
   });
 
   it('re-scans recent joins on every poll tick, with discovery on or off', () => {
-    const tick = source.slice(source.indexOf('const pollInterval'));
+    const tick = source.slice(source.indexOf('const channelRefresh ='));
     const merge = tick.indexOf('await mergeDiscoveredChannels();');
-    const branchEnd = tick.indexOf('\n              }\n', merge);
+    const branchEnd = tick.indexOf('\n            }\n', merge);
     const rescan = tick.indexOf('await rescanRecentlyJoinedChannels();');
     expect(branchEnd).toBeGreaterThan(merge);
     expect(rescan).toBeGreaterThan(branchEnd);

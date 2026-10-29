@@ -6,7 +6,11 @@ import {
   prioritizeMcpMenuProviders,
   selectMcpMenuProviders,
 } from '../../lib/mcpProviders';
-import { buildProviderRows } from './botMcpSettingsHelpers';
+import {
+  GENERIC_ERROR_MESSAGE,
+  buildProviderRows,
+  connectionEventMessage,
+} from './botMcpSettingsHelpers';
 
 vi.mock('@tloncorp/shared', () => ({
   AnalyticsEvent: {
@@ -99,5 +103,35 @@ describe('buildProviderRows', () => {
         4
       ).map((provider) => provider.id)
     ).toEqual(['a', 'b', 'c', 'd', 'e']);
+  });
+});
+
+describe('connectionEventMessage', () => {
+  it('says what happened, and stays quiet on a plain return', () => {
+    expect(
+      connectionEventMessage({
+        type: 'completed',
+        providerId: 'notion',
+        success: true,
+        message: 'Connected Notion.',
+      })
+    ).toBe('Connected Notion.');
+    expect(
+      connectionEventMessage({
+        type: 'completed',
+        providerId: 'notion',
+        success: false,
+        message: 'raw provider error',
+      })
+    ).toBe(GENERIC_ERROR_MESSAGE);
+    expect(
+      connectionEventMessage({ type: 'disconnect-failed', providerId: 'x' })
+    ).toBe(GENERIC_ERROR_MESSAGE);
+    expect(connectionEventMessage({ type: 'load-failed' })).toBe(
+      GENERIC_ERROR_MESSAGE
+    );
+    expect(
+      connectionEventMessage({ type: 'returned', providerId: 'x' })
+    ).toBeNull();
   });
 });

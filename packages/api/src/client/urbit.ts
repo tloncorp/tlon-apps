@@ -74,6 +74,7 @@ interface Config extends Pick<ClientParams, 'onQuitOrReset'> {
   deskSupportsStewardPrompts: boolean | null;
   deskSupportsTaskRuns: boolean | null;
   deskCountsAllSeats: boolean;
+  deskServesRosterPages: boolean | null;
   deskSupportsStewardBots: boolean | null;
 }
 
@@ -207,6 +208,9 @@ const config: Config = {
   // in init and changes, so a member count of 15 stays suspect by default.
   deskCountsAllSeats: false,
   // Unknown (null) until the app confirms the backend's groups version.
+  // Unknown reads as unsupported for choosing how to sync a big group, so a
+  // ship whose version we cannot read gets the full roster it always had.
+  deskServesRosterPages: null,
   // Guarded requests refuse only false.
   deskSupportsStewardBots: null,
 };
@@ -317,6 +321,38 @@ export const setDeskCountsAllSeats = (value: boolean) => {
 
 export const getDeskCountsAllSeats = (): boolean => {
   return config.deskCountsAllSeats;
+};
+
+const deskServesRosterPagesListeners = new Set<() => void>();
+
+// Whether the connected backend serves a big roster in parts: the light ui
+// group and the seat pages. Picks how a big group syncs and loads members;
+// a mounted members screen listens below.
+export const setDeskServesRosterPages = (value: boolean | null) => {
+  const changed = config.deskServesRosterPages !== value;
+  config.deskServesRosterPages = value;
+  if (changed) {
+    deskServesRosterPagesListeners.forEach((listener) => listener());
+  }
+};
+
+export const onDeskServesRosterPagesChange = (
+  listener: () => void
+): (() => void) => {
+  deskServesRosterPagesListeners.add(listener);
+  return () => {
+    deskServesRosterPagesListeners.delete(listener);
+  };
+};
+
+export const getDeskServesRosterPages = (): boolean => {
+  return config.deskServesRosterPages === true;
+};
+
+// null until sync start resolves the capability; the request guard refuses
+// only a known false.
+export const getDeskServesRosterPagesState = (): boolean | null => {
+  return config.deskServesRosterPages;
 };
 
 const deskSupportsStewardBotsListeners = new Set<() => void>();
@@ -646,6 +682,7 @@ export function internalRemoveClient() {
   setDeskSupportsStewardPrompts(null);
   setDeskSupportsTaskRuns(null);
   setDeskCountsAllSeats(false);
+  setDeskServesRosterPages(null);
   setDeskSupportsStewardBots(null);
 }
 
