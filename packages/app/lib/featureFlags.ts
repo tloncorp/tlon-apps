@@ -6,17 +6,6 @@ import create from 'zustand';
 
 // Add new feature flags here:
 export const featureMeta = {
-  browserCardPreviews: {
-    default: Boolean(
-      process.env.TLON_BROWSER_VIEWER_DEV_ORIGIN ||
-      (typeof __DEV__ !== 'undefined' &&
-        __DEV__ &&
-        process.env.EXPO_PUBLIC_BROWSER_VIEWER_DEV_ORIGIN)
-    ),
-    label: 'Browser card previews',
-    description: 'Show on-demand page screenshots in browser session cards.',
-    onlyTlon: true,
-  },
   markdownNotebooks: {
     default: false,
     label: 'Markdown notebooks',

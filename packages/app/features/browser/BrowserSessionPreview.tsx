@@ -5,7 +5,6 @@ import { type ComponentRef, useEffect, useRef } from 'react';
 import { Image, View } from 'react-native';
 import { Spinner, YStack } from 'tamagui';
 
-import { useFeatureFlag } from '../../lib/featureFlags';
 import { useOptionalBrowserCredentialHandoff } from './BrowserCredentialHandoffContext';
 import {
   BrowserPreviewAuthorizationError,
@@ -32,13 +31,9 @@ export function BrowserSessionPreview({
   viewerUrl: string;
   onOpen: () => void;
 }) {
-  const [enabled] = useFeatureFlag('browserCardPreviews');
   const handoff = useOptionalBrowserCredentialHandoff();
   const ref = useRef<ComponentRef<typeof View>>(null);
-  const visible = useBrowserPreviewVisible(
-    ref,
-    enabled && !handoff?.viewerOpen
-  );
+  const visible = useBrowserPreviewVisible(ref, !handoff?.viewerOpen);
   const { value: cache, isLoading } = browserPreviewCache.useStorageItem();
   const entry = cache?.[browserCardKey(viewerUrl)];
   const preview = entry?.preview ?? { status: 'busy' as const };
@@ -112,7 +107,7 @@ export function BrowserSessionPreview({
     };
   }, [visible, viewerUrl, stopped, isLoading]);
 
-  if (!enabled || preview.status === 'unsupported') return null;
+  if (preview.status === 'unsupported') return null;
   return (
     <View ref={ref} collapsable={false}>
       <BrowserPreviewContent
