@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { da, render } from '@urbit/aura';
 
 import {
   type RenderablePost,
@@ -481,15 +482,8 @@ describe('writePostList', () => {
   const GAP_NOTE =
     "⚠ 1 sequence number(s) in this window's range have no record — moderation-blocked or deleted posts, or records the ship did not return.";
 
-  const DA_SECOND = BigInt('18446744073709551616');
-  const DA_UNIX_EPOCH = BigInt('170141184475152167957503069145530368000');
-  /** Inverse of the runtime's @da conversion, as in messages-runtime.test.ts. */
-  const unixMsToUd = (unixMs: number): string => {
-    const offset = DA_SECOND / BigInt(2000);
-    const daNum =
-      DA_UNIX_EPOCH - offset + (BigInt(unixMs) * DA_SECOND) / BigInt(1000);
-    return daNum.toString(10).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  };
+  const unixMsToUd = (unixMs: number): string =>
+    render('ud', da.fromUnix(unixMs));
 
   const T0 = 1_750_000_000_000;
   const HOUR = 60 * 60 * 1000;

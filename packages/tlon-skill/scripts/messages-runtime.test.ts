@@ -1,5 +1,6 @@
 import type { Post } from '@tloncorp/api';
 import { describe, expect, it } from 'bun:test';
+import { da, render } from '@urbit/aura';
 
 import {
   INVERSION_TOLERANCE_MS,
@@ -24,16 +25,9 @@ const LAG_WARNING =
 const NEUTRAL_WARNING =
   '⚠ receipt order ≠ sent order in this span (late-delivered messages are marked with "received" where receipt times are available).';
 
-const DA_SECOND = BigInt('18446744073709551616');
-const DA_UNIX_EPOCH = BigInt('170141184475152167957503069145530368000');
-
-// Inverse of the runtime's @da conversion; renders a dot-separated decimal ud
-// so fixtures carry the same shape as live backendTime values.
+// Renders canonical dotted @ud, the shape live backendTime values carry.
 function unixMsToUd(unixMs: number): string {
-  const offset = DA_SECOND / BigInt(2000);
-  const daNum =
-    DA_UNIX_EPOCH - offset + (BigInt(unixMs) * DA_SECOND) / BigInt(1000);
-  return daNum.toString(10).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return render('ud', da.fromUnix(unixMs));
 }
 
 function makePost(fields: {
@@ -514,28 +508,29 @@ describe('messages runtime', () => {
     expect(udToUnixMs('not-a-da')).toBeNull();
     expect(udToUnixMs('')).toBeNull();
     expect(udToUnixMs('170.141.abc')).toBeNull();
-    // Parseable by BigInt but implausible as a @da: out-of-era values must
-    // read as unparseable, not as enormous receipt lag.
+    // Well-formed @ud but implausible as a @da: out-of-era values must read
+    // as unparseable, not as enormous receipt lag.
+    expect(udToUnixMs('0')).toBeNull();
     expect(udToUnixMs('1')).toBeNull();
+    expect(
+      udToUnixMs('999.999.999.999.999.999.999.999.999.999.999.999.999.999')
+    ).toBeNull();
+    // Non-@ud syntax (signs, whitespace, hex prefixes, oversized raw digits)
+    // is rejected on shape, even when the numeric value would land inside
+    // the supported era.
     expect(udToUnixMs('-1')).toBeNull();
     expect(udToUnixMs('999999999999999999999999999999999999999999')).toBeNull();
-    // Non-@ud syntax that BigInt would otherwise parse (hex/octal/binary
-    // prefixes, signs, whitespace) is rejected on shape, even when the
-    // numeric value would land inside the supported era.
     expect(udToUnixMs('0x8000000d361293000000000000000000')).toBeNull();
     expect(udToUnixMs('+170141184508120246532342846161124589568')).toBeNull();
     expect(udToUnixMs(' 170141184508120246532342846161124589568')).toBeNull();
-    // Non-canonical dot grouping strips into an in-era number but signals
-    // corruption — only raw digits or canonical 3-digit groups parse.
+    // Non-canonical dot grouping signals corruption.
     expect(udToUnixMs('170141184508120246532342846161124589.568')).toBeNull();
     expect(
       udToUnixMs('170.141.184.508.120.246.532.342.846.161.124.589.568')
     ).not.toBeNull();
-    // Both shapes the API actually produces still convert: canonical dotted
-    // and raw undotted digits.
-    expect(
-      udToUnixMs('170141184508120246532342846161124589568')
-    ).not.toBeNull();
+    // Raw undotted digits are not canonical @ud: the api canonicalizes
+    // backendTime to dotted form (getCanonicalPostId), so they never arrive.
+    expect(udToUnixMs('170141184508120246532342846161124589568')).toBeNull();
 
     const malformed = makePost({
       id: 'writ-2',

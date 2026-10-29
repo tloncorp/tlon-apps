@@ -48,6 +48,7 @@ function redactBlobJson(blob: Post['blob']): string | null {
 /** One lossless record: the parsed story, not the plain-text rendering. */
 export function renderPostJsonLine(post: Post, annotated = false): string {
   return JSON.stringify({
+    type: 'post',
     id: post.id,
     authorId: post.authorId,
     sentAt: post.sentAt,

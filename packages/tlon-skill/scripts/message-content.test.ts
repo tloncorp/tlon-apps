@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { da, render } from '@urbit/aura';
 
 import { renderPostJsonLine, renderPostListJsonLines } from './message-content';
 
@@ -22,7 +23,8 @@ describe('renderPostJsonLine', () => {
         })
       )
     ).toBe(
-      '{"id":"post-1","authorId":"~zod","sentAt":1724200000000,' +
+      '{"type":"post","id":"post-1","authorId":"~zod",' +
+        '"sentAt":1724200000000,' +
         '"receivedAt":null,"annotated":false,' +
         '"parentId":"parent-1","blob":null,"content":[{"inline":["hi"]}]}'
     );
@@ -32,6 +34,7 @@ describe('renderPostJsonLine', () => {
     expect(
       JSON.parse(renderPostJsonLine(post({ content: 'not json at all' })))
     ).toEqual({
+      type: 'post',
       ...base,
       receivedAt: null,
       annotated: false,
@@ -172,6 +175,7 @@ describe('renderPostJsonLine', () => {
     } as never);
     expect(line).toContain('"content":null');
     expect(Object.keys(JSON.parse(line))).toEqual([
+      'type',
       'id',
       'authorId',
       'sentAt',
@@ -243,15 +247,8 @@ describe('window analysis integration', () => {
   const LIMIT_WARNING =
     '\u26a0 receipt order \u2260 sent order in this window: messages sent within this span may be missing \u2014 increase --limit to verify.';
 
-  const DA_SECOND = BigInt('18446744073709551616');
-  const DA_UNIX_EPOCH = BigInt('170141184475152167957503069145530368000');
-  /** Inverse of the runtime's @da conversion, as in messages-runtime.test.ts. */
-  const unixMsToUd = (unixMs: number): string => {
-    const offset = DA_SECOND / BigInt(2000);
-    const daNum =
-      DA_UNIX_EPOCH - offset + (BigInt(unixMs) * DA_SECOND) / BigInt(1000);
-    return daNum.toString(10).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  };
+  const unixMsToUd = (unixMs: number): string =>
+    render('ud', da.fromUnix(unixMs));
 
   const T0 = 1_750_000_000_000;
   const HOUR = 60 * 60 * 1000;
@@ -339,7 +336,7 @@ describe('window analysis integration', () => {
     const withoutWindow = renderPostListJsonLines(cleanPage());
     expect(withoutWindow).toHaveLength(2);
     for (const line of withoutWindow) {
-      expect(JSON.parse(line).type).toBeUndefined();
+      expect(JSON.parse(line).type).toBe('post');
     }
   });
 

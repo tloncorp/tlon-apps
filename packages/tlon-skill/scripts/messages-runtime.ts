@@ -5,40 +5,25 @@
  * bun test.
  */
 import type { Post } from '@tloncorp/api';
+import { da, slaw } from '@urbit/aura';
 
 // Same-second jitter only; anything larger is a real ordering disagreement
 export const INVERSION_TOLERANCE_MS = 1_000;
 // |receipt - sent| beyond this marks the message with a (received ...) note
 export const RECEIPT_LAG_NOTE_MS = 5 * 60 * 1000;
 
-const DA_SECOND = BigInt('18446744073709551616');
-const DA_UNIX_EPOCH = BigInt('170141184475152167957503069145530368000');
-
 // Convert a @da ud (e.g. '170.141.184...') to unix milliseconds
 export function udToUnixMs(ud: string): number | null {
-  try {
-    // Enforce the unsigned @ud shape before parsing: BigInt also accepts
-    // hex/octal/binary prefixes, and arbitrary dot grouping (1.23.4567)
-    // signals corruption — real values are raw digits or the canonical
-    // three-digit grouping.
-    if (!/^(?:\d+|\d{1,3}(?:\.\d{3})*)$/.test(ud)) return null;
-    const digits = ud.replace(/\./g, '');
-    const daNum = BigInt(digits);
-    const offset = DA_SECOND / BigInt(2000);
-    const epochAdjusted = offset + (daNum - DA_UNIX_EPOCH);
-    const unixMs = Math.round(
-      Number((epochAdjusted * BigInt(1000)) / DA_SECOND)
-    );
-    // Malformed-but-parseable input ("1", "-1", hex strings) converts to an
-    // implausible date; treat anything outside the supported era as
-    // unparseable rather than fabricating enormous receipt lag (same bounds
-    // as formatTime's display check).
-    const year = new Date(unixMs).getFullYear();
-    if (!(year > 2020 && year < 2100)) return null;
-    return unixMs;
-  } catch {
-    return null;
-  }
+  const daNum = slaw('ud', ud);
+  if (daNum === null) return null;
+  const unixMs = da.toUnix(daNum);
+  // slaw accepts any canonical @ud, so a corrupt but well-formed value (a
+  // small counter, an oversized atom) still parses. Treat anything outside
+  // the supported era as unparseable rather than fabricating enormous
+  // receipt lag (same bounds as formatTime's display check).
+  const year = new Date(unixMs).getFullYear();
+  if (!(year > 2020 && year < 2100)) return null;
+  return unixMs;
 }
 
 // Receipt time of a post from its backendTime (@da ud), if present
