@@ -174,7 +174,7 @@
         ::
           ^-  (list [cord json])
           ?~  retry-after.u.brk  ~
-          ~[['retryAfterMs' (numb (div (mul u.retry-after.u.brk 1.000) ~s1))]]
+          ~[['retryAfterMs' (numb u.retry-after.u.brk)]]
         ::
           ^-  (list [cord json])
           ?~  scope.u.brk  ~

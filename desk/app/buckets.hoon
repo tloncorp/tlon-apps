@@ -1258,15 +1258,17 @@
   ::
   ::  A wait the broker asks for is capped at the time this session has
   ::  left, not at the whole window: past its expiry the session is swept,
-  ::  and a client told to wait longer comes back to find it gone. A finish
-  ::  is accepted past expiry, so there may be no time left at all.
+  ::  and a client told to wait longer comes back to find it gone. The cap is
+  ::  in whole milliseconds, the fraction dropped: a bound is one the client
+  ::  stays inside, so it rounds down. A finish is accepted past expiry, so
+  ::  there may be no time left at all.
   ::
   ++  up-refused
     |=  [kind=?(%grant %retry %cancel %complete) res=client-response:iris]
     ^+  up-core
-    =/  left=@dr
-      ?:  (lte expires-at.ses now.bowl)  ~s0
-      (sub expires-at.ses now.bowl)
+    =/  left=@ud
+      ?:  (lte expires-at.ses now.bowl)  0
+      (div (mul (sub expires-at.ses now.bowl) 1.000) ~s1)
     =/  [why=@t err=broker-error:b]  (broker-error:util res left)
     =/  kept=?  &(?=(?(%retry %complete) kind) retryable.err)
     =.  cor

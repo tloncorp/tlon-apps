@@ -765,7 +765,7 @@
   ;<  ~  b
     %+  ex-cards  refused
     :~  %+  grant-fact  0v1
-        [%error %unknown 'slow down' `['rate_limited' & `~s5 `'host']]
+        [%error %unknown 'slow down' `['rate_limited' & `5.000 `'host']]
     ==
   ;<  sv=vase  b  get-save
   =/  st=state-1:bu  !<(state-1:bu sv)
@@ -944,7 +944,7 @@
       :*  ~[/v1/request/~bus/0v6]
           %buckets-req-response-2
           !>  ^-  req-response:bu
-          [0v6 [%error %unknown 'slow down' `['rate_limited' & `~s5 `'host']]]
+          [0v6 [%error %unknown 'slow down' `['rate_limited' & `5.000 `'host']]]
       ==
   ==
 ::
@@ -1085,7 +1085,7 @@
   ;<  ~  b
     %+  ex-cards  refused
     :~  %+  grant-fact  0v2
-        [%error %unknown 'slow down' `['rate_limited' & `~s5 `'host']]
+        [%error %unknown 'slow down' `['rate_limited' & `5.000 `'host']]
     ==
   ;<  ses=upload-session:bu  b  (saved-session seed)
   %+  ex-equal
@@ -1113,7 +1113,7 @@
   ;<  ~  b
     %+  ex-cards  refused
     :~  %+  grant-fact  0v2
-        [%error %unknown 'slow down' `['rate_limited' & `~m10 ~]]
+        [%error %unknown 'slow down' `['rate_limited' & `600.000 ~]]
     ==
   ;<  ~  b  (jab-bowl |=(bol=bowl bol(now (add ~2026.1.1 ~m70))))
   ;<  done=wire  b  (finish-call 0v3 seed)
@@ -2613,7 +2613,7 @@
   =*  b  bind:m
   ^-  form:m
   =/  act=action:bu  [%bucket flag [%create-folder ~ 'Launch']]
-  =/  detail=broker-error:bu  ['rate_limited' & `~s5 `'host']
+  =/  detail=broker-error:bu  ['rate_limited' & `5.000 `'host']
   ;<  ~  b  (setup-as ~bus)
   ;<  *  b
     (do-poke %group-channel-join !>(`channel-join:bu`[[%buckets ~sampel-palnet %project-files] group]))

@@ -312,13 +312,15 @@
 ::  carried to the requester so it can decide whether and when to try again.
 ::
 ::  .code is the broker's own name for the refusal, verbatim. .retryable is
-::  its word on whether another attempt could work, .retry-after how long it
-::  asks us to wait first, and .scope what that wait covers.
+::  its word on whether another attempt could work, .retry-after how many
+::  milliseconds it asks us to wait first, and .scope what that wait covers.
+::  The delay stays in the broker's unit: a millisecond is not a whole number
+::  of @dr units, so it passes through unchanged only as milliseconds.
 ::
 +$  broker-error
   $:  code=@t
       retryable=?
-      retry-after=(unit @dr)
+      retry-after=(unit @ud)
       scope=(unit @t)
   ==
 ::
