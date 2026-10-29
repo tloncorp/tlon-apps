@@ -1,7 +1,12 @@
 import { useRef, useState } from 'react';
 import { Linking } from 'react-native';
 
-import { type BucketItem, canPreviewAsText } from '../../ui';
+import {
+  type BucketItem,
+  canPreviewFromText,
+  getBucketPreviewKind,
+  readPreviewText,
+} from '../../ui';
 
 type ReadGrant = (entryId: number) => Promise<{ readUrl: string }>;
 
@@ -34,16 +39,23 @@ export function useBucketPreview(readGrant: ReadGrant) {
       // Checked against the manifest size before fetching, not after: the
       // read itself is what would exhaust memory.
       if (
-        canPreviewAsText(readableItem) &&
+        canPreviewFromText(readableItem) &&
         readableItem.textContent === undefined
       ) {
         const response = await fetch(previewUri);
         if (!response.ok) {
           throw new Error(`File request failed (${response.status})`);
         }
-        const textContent = await response.text();
+        // The manifest size is the writer's word; the body is bounded as
+        // it is read. Over the cap the item keeps no text and the viewer
+        // falls back to its unsupported notice, as for an oversize manifest.
+        const textContent = await readPreviewText(response, {
+          html: getBucketPreviewKind(readableItem) === 'html',
+        });
         if (requestId.current !== currentRequestId) return;
-        setItem({ ...readableItem, textContent });
+        if (textContent !== null) {
+          setItem({ ...readableItem, textContent });
+        }
       }
 
       if (requestId.current === currentRequestId) {

@@ -98,7 +98,9 @@ export async function downloadMedia(
     // Validate URL is http/https before fetching
     const parsedUrl = new URL(url);
     if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
-      console.warn(`[tlon-media] Rejected non-http(s) URL: ${url}`);
+      console.warn(
+        `[tlon-media] Rejected non-http(s) URL: ${parsedUrl.protocol}`
+      );
       return null;
     }
 
@@ -117,7 +119,7 @@ export async function downloadMedia(
     try {
       if (!response.ok) {
         console.error(
-          `[tlon-media] Failed to fetch ${url}: ${response.status}`
+          `[tlon-media] Failed to fetch from ${parsedUrl.host}: ${response.status}`
         );
         return null;
       }
@@ -142,7 +144,7 @@ export async function downloadMedia(
       ) {
         options.onTooLarge?.({ declaredSizeBytes });
         console.warn(
-          `[tlon-media] Skipping ${url}: declared size ${declaredSizeBytes} exceeds ${options.maxBytes} byte limit`
+          `[tlon-media] Skipping media from ${parsedUrl.host}: declared size ${declaredSizeBytes} exceeds ${options.maxBytes} byte limit`
         );
         return null;
       }
@@ -154,7 +156,7 @@ export async function downloadMedia(
       // Stream to file
       const body = response.body;
       if (!body) {
-        console.error(`[tlon-media] No response body for ${url}`);
+        console.error(`[tlon-media] No response body from ${parsedUrl.host}`);
         return null;
       }
 
@@ -198,15 +200,36 @@ export async function downloadMedia(
     if (error instanceof MediaTooLargeError) {
       options.onTooLarge?.({ observedSizeBytes: error.observedSizeBytes });
       console.warn(
-        `[tlon-media] Skipping ${url}: streamed size ${error.observedSizeBytes} exceeds ${error.maxBytes} byte limit`
+        `[tlon-media] Skipping media from ${describeMediaHost(url)}: streamed size ${error.observedSizeBytes} exceeds ${error.maxBytes} byte limit`
       );
       return null;
     }
 
-    const message = error instanceof Error ? error.message : String(error);
-    console.error(`[tlon-media] Error downloading ${url}: ${message}`);
+    console.error(
+      `[tlon-media] Error downloading media from ${describeMediaHost(url)}: ${describeErrorClass(error)}`
+    );
     return null;
   }
+}
+
+// Media URLs can be signed or private, so logs carry only the host.
+function describeMediaHost(url: string): string {
+  try {
+    return new URL(url).host || '(no host)';
+  } catch {
+    return '(invalid url)';
+  }
+}
+
+// Error messages can echo the URL; log the class and transport code only.
+function describeErrorClass(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return typeof error;
+  }
+  const code =
+    (error as { code?: unknown }).code ??
+    (error.cause as { code?: unknown } | undefined)?.code;
+  return typeof code === 'string' ? `${error.name} (${code})` : error.name;
 }
 
 function getExtensionFromContentType(contentType: string): string | null {

@@ -3,13 +3,7 @@ import { FontStyle, Text } from '@tloncorp/ui';
 import { useCopy } from '@tloncorp/ui';
 import { PropsWithChildren, useCallback, useEffect, useState } from 'react';
 import React from 'react';
-import {
-  NativeSyntheticEvent,
-  Platform,
-  StyleSheet,
-  TextLayoutEventData,
-  TextLayoutLine,
-} from 'react-native';
+import { Platform, StyleSheet, TextLayoutEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { styled } from 'tamagui';
 
@@ -95,7 +89,7 @@ type TextMeasures = {
 };
 
 type FontInfo = {
-  metrics: TextLayoutLine;
+  metrics: TextLayoutEvent['nativeEvent']['lines'][number];
   measures: TextMeasures;
   offset: number;
   marginTop: number;
@@ -111,7 +105,7 @@ const TextSpecimen = React.memo(function TextSpecimenInner({
 }>) {
   const [info, setInfo] = useState<FontInfo | null>(null);
 
-  const handleLayout = (e: NativeSyntheticEvent<TextLayoutEventData>) => {
+  const handleLayout = (e: TextLayoutEvent) => {
     const metrics = e.nativeEvent.lines[0];
     const { y, ascender, descender, xHeight, capHeight, height } = metrics;
 

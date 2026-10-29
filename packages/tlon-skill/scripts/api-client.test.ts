@@ -1,3 +1,12 @@
+// The api's real tracked pokes, by subpath, which the root mock does not
+// intercept; they run on the src copy of the client configured below.
+import { createChannel } from '@tloncorp/api/client/channelsApi';
+import { updateGroupMeta } from '@tloncorp/api/client/groupsApi';
+import {
+  internalConfigureClient,
+  internalRemoveClient,
+  subscribe as realSubscribe,
+} from '@tloncorp/api/client/urbit';
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 
 import {
@@ -7,7 +16,7 @@ import {
   ensureClient,
   validateConfiguredCookie,
 } from './api-client';
-import { mockedScry } from './tloncorp-api-mock';
+import { mockedScry, mockedSubscribe } from './tloncorp-api-mock';
 
 function resolution(
   overrides: Omit<Partial<CredentialResolution>, 'config'> & {
@@ -428,5 +437,79 @@ describe('validateConfiguredCookie classification', () => {
   it('presumes validity on transient non-auth failures', async () => {
     failingWith(new Error('fetch failed'));
     expect(await validateConfiguredCookie()).toBe(true);
+  });
+});
+
+describe('subscriptions for tracked pokes', () => {
+  const defaultSubscribe = mockedSubscribe.impl;
+
+  afterEach(() => {
+    mockedSubscribe.impl = defaultSubscribe;
+    internalRemoveClient();
+  });
+
+  // The fake ship sends each poke's fact on every subscription to the poked
+  // agent, so a tracked poke misses it only when no CLI subscription is on
+  // the endpoint it watches. The CLI's subscriptions reach this ship through
+  // the mocked root `subscribe`.
+  function connectFakeShip(facts: Record<string, unknown>) {
+    const subs: Array<{ app: string; event: (fact: unknown) => void }> = [];
+    const ship = {
+      on: () => {},
+      delete: () => {},
+      subscribe: async (sub: (typeof subs)[number]) => subs.push(sub),
+      poke: async ({ app }: { app: string }) => {
+        for (const sub of subs) {
+          if (sub.app === app) sub.event(facts[app]);
+        }
+        return 1;
+      },
+    };
+    internalConfigureClient({
+      shipName: 'zod',
+      shipUrl: 'http://localhost',
+      client: ship as any,
+    });
+    mockedSubscribe.impl = (...args) => (realSubscribe as any)(...args);
+  }
+
+  // A missed fact rejects only at the api's 20 s timeout; report it now.
+  function heard(poke: Promise<unknown>) {
+    poke.catch(() => {});
+    return Promise.race([
+      poke.then(() => true),
+      new Promise((resolve) => setTimeout(() => resolve(false), 100)),
+    ]);
+  }
+
+  it('hears the tracked pokes the groups commands send', async () => {
+    const groupId = '~zod/crew';
+    const nest = 'chat/~zod/general';
+    connectFakeShip({
+      groups: { flag: groupId, 'r-group': { meta: {} } },
+      channels: { nest, response: { create: {} } },
+    });
+    const { setupSubscriptions: _recorder, ...deps } = makeDeps(
+      resolution({ config: { cookie: 'urbauth-~zod=0v1' } })
+    ).deps;
+    await ensureClient(['groups', 'channels'], deps);
+
+    const meta = { title: 'Crew', description: '', image: '', cover: '' };
+    expect(await heard(updateGroupMeta({ groupId, meta }))).toBe(true);
+    expect(
+      await heard(
+        createChannel({
+          id: nest,
+          kind: 'chat',
+          group: groupId,
+          name: 'general',
+          title: 'General',
+          description: '',
+          meta: null,
+          readers: [],
+          writers: [],
+        })
+      )
+    ).toBe(true);
   });
 });

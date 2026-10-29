@@ -1,3 +1,4 @@
+import type { A2UI } from '@tloncorp/api/client/a2ui';
 import type {
   NavigationProp,
   NavigatorScreenParams,
@@ -29,6 +30,7 @@ export type ChannelRouteParams = {
 
 export type RootStackParamList = {
   BrowserCredentialHandoff: BrowserCredentialHandoffParams;
+  BrowserWallet: { requestId: string };
   MainTabs: NavigatorScreenParams<TopLevelTabParamList> | undefined;
   OnboardingStartup: {
     channelId: string;
@@ -154,6 +156,14 @@ export type RootStackParamList = {
     /** For a new task: the channel it was started from, where it should post. */
     channelId?: string;
   };
+  ScheduledTaskRuns: { botShip: string; taskId: string };
+  ScheduledTaskRun: {
+    botShip: string;
+    taskId: string;
+    lensId: string;
+    /** A test run just asked for, whose record may not have synced yet. */
+    starting?: boolean;
+  };
   BlockedUsers: undefined;
   PrivacySettings: undefined;
   AppInfo: undefined;
@@ -215,6 +225,7 @@ export type RootDrawerParamList = {
 
 export type BrowserCredentialHandoffParams = {
   handoffId: string;
+  loginApproval?: A2UI.BrowserCredentialHandoffNavigationTarget['loginApproval'];
 };
 
 export type MobileBasePathStackParamList = {
@@ -224,6 +235,7 @@ export type MobileBasePathStackParamList = {
 export type DesktopBasePathStackParamList = {
   Root: NavigatorScreenParams<RootDrawerParamList>;
   BrowserCredentialHandoff: BrowserCredentialHandoffParams;
+  BrowserWallet: { requestId: string };
 };
 
 // hack: adding the true contacts types causes lots of tsc failures that need
@@ -257,6 +269,8 @@ export type ProfileDrawerParamList = Pick<RootStackParamList, 'Contacts'> &
     | 'UserProfile'
     | 'ScheduledTasks'
     | 'ScheduledTaskEditor'
+    | 'ScheduledTaskRuns'
+    | 'ScheduledTaskRun'
     | 'BotPromptFiles'
     | 'BotPromptFile'
     | 'EditProfile'
@@ -269,6 +283,8 @@ export type ActivityDrawerParamList = Pick<
   | 'UserProfile'
   | 'ScheduledTasks'
   | 'ScheduledTaskEditor'
+  | 'ScheduledTaskRuns'
+  | 'ScheduledTaskRun'
   | 'BotPromptFiles'
   | 'BotPromptFile'
   | 'EditProfile'
@@ -299,6 +315,8 @@ export type SettingsDrawerParamList = Pick<
   | 'BotModels'
   | 'ScheduledTasks'
   | 'ScheduledTaskEditor'
+  | 'ScheduledTaskRuns'
+  | 'ScheduledTaskRun'
   | 'BlockedUsers'
   | 'AppInfo'
   | 'PushNotificationSettings'
@@ -334,6 +352,8 @@ export type ChannelStackParamList = {
   UserProfile: RootStackParamList['UserProfile'];
   ScheduledTasks: RootStackParamList['ScheduledTasks'];
   ScheduledTaskEditor: RootStackParamList['ScheduledTaskEditor'];
+  ScheduledTaskRuns: RootStackParamList['ScheduledTaskRuns'];
+  ScheduledTaskRun: RootStackParamList['ScheduledTaskRun'];
   BotPromptFiles: RootStackParamList['BotPromptFiles'];
   BotPromptFile: RootStackParamList['BotPromptFile'];
   EditProfile: RootStackParamList['EditProfile'];
@@ -355,6 +375,8 @@ export type DesktopChannelStackParamList = Pick<
   | 'UserProfile'
   | 'ScheduledTasks'
   | 'ScheduledTaskEditor'
+  | 'ScheduledTaskRuns'
+  | 'ScheduledTaskRun'
   | 'BotPromptFiles'
   | 'BotPromptFile'
   | 'EditProfile'

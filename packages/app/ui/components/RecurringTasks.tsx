@@ -19,6 +19,7 @@ import type {
 } from './automationTaskDraft';
 import {
   type IdentifiedAutomationTask,
+  type TaskRunsEntry,
   type TimeSelection,
   fromTimeSelection,
   scheduledTaskListSections,
@@ -147,6 +148,7 @@ export function RecurringTaskEditorView({
   destinationFilter,
   destinationChannelChats,
   status,
+  runs,
   save,
   onDelete,
   deleting = false,
@@ -175,6 +177,8 @@ export function RecurringTaskEditorView({
     busy: boolean;
     onChange: (enabled: boolean) => void;
   };
+  /** A saved task's run history and test run. */
+  runs?: TaskRunsEntry;
   save: {
     label: string;
     disabled: boolean;
@@ -228,6 +232,7 @@ export function RecurringTaskEditorView({
             }
           : undefined,
         status,
+        runs,
         onDelete,
         deleting,
       })}

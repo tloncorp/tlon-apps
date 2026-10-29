@@ -2,8 +2,8 @@ import { AppInvite, getBranchLinkMeta, isLureMeta } from '../client/branch';
 import { createDevLogger } from '../lib/logger';
 import { getConstants } from '../types/constants';
 import type { ContentReference } from '../types/references';
-import { citeToPath } from '../urbit';
 import { whomIsFlag } from '../urbit/utils';
+import { getGroupReferencePath } from './references';
 import { normalizeUrbitColor } from './utils';
 
 const logger = createDevLogger('deeplinks', false);
@@ -52,7 +52,7 @@ export async function getReferenceFromDeeplink({
           referenceType: 'group',
           groupId: linkMeta.invitedGroupId,
         },
-        path: citeToPath({ group: linkMeta.invitedGroupId }),
+        path: getGroupReferencePath(linkMeta.invitedGroupId),
       };
     }
   }

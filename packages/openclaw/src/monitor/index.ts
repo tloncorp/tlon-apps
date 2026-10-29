@@ -120,6 +120,7 @@ import {
   STEWARD_AUTOMATION_FINALIZE_PATH,
   StewardAutomationEditProcessor,
 } from '../steward-automation-edit.js';
+import { defaultCronAgentId, startCronTestRun } from '../cron-test-run.js';
 import {
   getStewardAutomationReconciler,
   isStewardAutomationProjectionEligible,
@@ -217,6 +218,7 @@ import {
   applyApprovalRequest,
   buildApprovalA2UIBlob,
   buildPendingApprovalsResponse,
+  createApprovalOverflowNotifier,
   createPendingApproval,
   emojiToApprovalAction,
   findPendingApproval,
@@ -224,6 +226,7 @@ import {
   formatApprovalRequestNotification,
   formatBlockedList,
   formatChannelApprovalAck,
+  isDirectDmApproval,
   isExpired,
   isNotificationDelivered,
   mergeApprovalDeliveryState,
@@ -298,7 +301,7 @@ import {
   setLastNudgeStageShadow,
   setLastOwnerActivity,
 } from './nudge-state.js';
-import { recordSentTlonReply } from './output.js';
+import { recordSentTlonReply, sanitizeTlonReplyText } from './output.js';
 import { createOwnerReplyPersistenceQueue } from './owner-reply-persistence.js';
 import { createPendingNudgePersistenceQueue } from './pending-nudge-persistence.js';
 import { buildProgressReplyOptions } from './progress-reply-options.js';
@@ -310,7 +313,10 @@ import {
   routeUpdateWillSkipByPin,
   tlonDeliveryContext,
 } from './session-routing.js';
-import { resolveSettingsMirrorSync } from './settings-sync.js';
+import {
+  resolveSettingsAllowlist,
+  resolveSettingsMirrorSync,
+} from './settings-sync.js';
 import { resolveTlonSourceReplyDeliveryMode } from './source-reply-delivery.js';
 import {
   parseSseStaleThresholdMs,
@@ -318,10 +324,13 @@ import {
 } from './sse-watchdog-config.js';
 import {
   extractCites,
+  extractDmPartnerShip,
   formatModelName,
   inboundCommandFields,
   isChannelRestricted,
+  isDirectDmWhom,
   isDmAllowed,
+  isDmPartnerAuthorized,
   isOwnerListenSlashCommand,
   isRegisteredCommandText,
   isSummarizationRequest,
@@ -2247,6 +2256,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     // the in-channel status (TLON-6451) must not claim the request was sent
     // when it wasn't, and must stay silent when a sender's block status
     // couldn't be confirmed.
+    const notifyApprovalOverflow = createApprovalOverflowNotifier((text) =>
+      sendOwnerNotification(text)
+    );
+    const approvalAdmissions = { inFlight: 0 };
+
     async function queueApprovalRequest(approval: PendingApproval): Promise<{
       outcome: ApprovalRequestOutcome;
       ownerNotified: boolean;
@@ -2279,6 +2293,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           return notifId;
         },
         persist: savePendingApprovals,
+        notifyOverflow: (count) => notifyApprovalOverflow(count, Date.now()),
+        admissions: approvalAdmissions,
         now: () => Date.now(),
         log: runtime.log,
       });
@@ -2291,11 +2307,25 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       approval: PendingApproval,
       action: 'approve' | 'deny' | 'block'
     ): Promise<string> {
+      if (!isDirectDmApproval(approval)) {
+        runtime.log?.(
+          `[tlon] Dropping approval #${approval.id}: group DMs are deprecated`
+        );
+        pendingApprovals = removePendingApproval(pendingApprovals, approval.id);
+        await savePendingApprovals();
+        return `Dropped request #${approval.id}: group DMs are no longer supported.`;
+      }
       if (action === 'approve') {
         switch (approval.type) {
           case 'dm':
             await addToDmAllowlist(approval.requestingShip);
-            if (approval.originalMessage) {
+            // Records saved before `whom` was recorded may come from a group
+            // DM (club); allow the ship but do not replay their message.
+            if (approval.originalMessage && !approval.originalMessage.whom) {
+              runtime.log?.(
+                `[tlon] Not replaying message for approval #${approval.id}: no DM recorded`
+              );
+            } else if (approval.originalMessage) {
               runtime.log?.(
                 `[tlon] Processing original message from ${approval.requestingShip} after approval`
               );
@@ -2681,26 +2711,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         return false;
       }
       return normalizeShip(ship) === effectiveOwnerShip;
-    }
-
-    /**
-     * Extract the DM partner ship from the 'whom' field.
-     * This is the canonical source for DM routing (more reliable than essay.author).
-     * Returns empty string if whom doesn't contain a valid patp-like value.
-     */
-    function extractDmPartnerShip(whom: unknown): string {
-      const raw =
-        typeof whom === 'string'
-          ? whom
-          : whom &&
-              typeof whom === 'object' &&
-              'ship' in whom &&
-              typeof whom.ship === 'string'
-            ? whom.ship
-            : '';
-      const normalized = normalizeShip(raw);
-      // Keep DM routing strict: accept only patp-like values.
-      return /^~?[a-z-]+$/i.test(normalized) ? normalized : '';
     }
 
     const processMessage = async (
@@ -3820,7 +3830,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                         deliver: async (payload: ReplyPayload, info) => {
                           contextLenses.setStatus(lens.lensId, 'delivering');
                           const blob = getReplyBlob(payload);
-                          let replyText = payload.text ?? '';
+                          let replyText = sanitizeTlonReplyText(
+                            payload.text ?? '',
+                            info.kind
+                          );
                           replyText = rewriteGenericTerminalErrorReply({
                             text: replyText,
                             isError: payload.isError === true,
@@ -5132,6 +5145,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     // Firehose handler for all DM messages (/v4)
     // Track which DM invites we've already processed to avoid duplicate accepts
     const processedDmInvites = new Set<string>();
+    const ignoredGroupDms = new Set<string>();
 
     const handleChatFirehose = async (event: ChatFirehoseEvent) => {
       let endActivityRead: ((handled?: boolean) => void) | undefined;
@@ -5199,8 +5213,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 },
                 pendingApprovals.map((a) => a.id)
               );
-              await queueApprovalRequest(approval);
-              processedDmInvites.add(ship); // Mark as processed to avoid duplicate notifications
+              const { outcome } = await queueApprovalRequest(approval);
+              // An overflowed invite stays unprocessed so a later event retries it.
+              if (outcome !== 'overflow') {
+                processedDmInvites.add(ship); // Mark as processed to avoid duplicate notifications
+              }
             }
           }
           return;
@@ -5209,7 +5226,19 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           return;
         }
 
-        const whom = event.whom; // DM partner ship or club ID
+        const whom = event.whom;
+        // Group DMs (clubs) are deprecated; the plugin handles 1:1 DMs only.
+        if (!isDirectDmWhom(whom)) {
+          const key = String(whom);
+          if (!ignoredGroupDms.has(key)) {
+            ignoredGroupDms.add(key);
+            runtime.log?.(
+              `[tlon] Ignoring group DM ${key}: the plugin handles 1:1 DMs only`
+            );
+          }
+          return;
+        }
+        const partnerShip = extractDmPartnerShip(whom);
         const messageId = event.id;
         const response = event.response;
 
@@ -5245,9 +5274,22 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             );
             return;
           }
+          // A 1:1 DM reaction not made by the bot is the DM partner's.
           if (reactAuthor && reactAuthor !== botShipName) {
+            if (
+              !isDmPartnerAuthorized(
+                partnerShip,
+                effectiveOwnerShip,
+                effectiveDmAllowlist
+              )
+            ) {
+              runtime.log?.(
+                `[tlon] Ignoring DM reaction from ${partnerShip}: not in allowlist`
+              );
+              return;
+            }
             // Check if this is an approval reaction from the owner on a notification message
-            if (isAdd && isOwner(reactAuthor)) {
+            if (isAdd && isOwner(partnerShip)) {
               const approvalAction = emojiToApprovalAction(reactEmoji);
               if (approvalAction) {
                 const normalizedEventId = normalizeNotificationId(messageId);
@@ -5282,12 +5324,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             }
 
             try {
-              const partnerShip = extractDmPartnerShip(whom);
               const route = core.channel.routing.resolveAgentRoute({
                 cfg,
                 channel: 'tlon',
                 accountId: opts.accountId ?? undefined,
-                peer: { kind: 'direct', id: partnerShip || reactAuthor },
+                peer: { kind: 'direct', id: partnerShip },
               });
 
               // Look up cached DM message for context
@@ -5303,11 +5344,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   ? `${reactEmoji} (reacting to: "${cached.content}")`
                   : reactEmoji;
                 runtime.log?.(
-                  `[tlon] Dispatching DM reaction as message: ${reactEmoji} from ${reactAuthor}`
+                  `[tlon] Dispatching DM reaction as message: ${reactEmoji} from ${partnerShip}`
                 );
                 await processMessage({
-                  messageId: `react-${messageId}-${reactAuthor}-${Date.now()}`,
-                  senderShip: reactAuthor,
+                  messageId: `react-${messageId}-${partnerShip}-${Date.now()}`,
+                  senderShip: partnerShip,
                   messageText: reactText,
                   trigger: 'reaction',
                   fromReaction: true,
@@ -5326,14 +5367,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 const authorInfo = cached?.author
                   ? ` (by ${formatShipWithNickname(cached.author)})`
                   : '';
-                const reactorDisplay = formatShipWithNickname(reactAuthor);
+                const reactorDisplay = formatShipWithNickname(partnerShip);
                 const eventText = `Tlon DM reaction ${action}: ${reactEmoji} by ${reactorDisplay} on message ${messageId}${authorInfo}${contentSnippet}`;
                 core.system.enqueueSystemEvent(eventText, {
                   sessionKey: route.sessionKey,
-                  contextKey: `tlon:dm-reaction:${messageId}:${reactEmoji}:${reactAuthor}:${action}`,
+                  contextKey: `tlon:dm-reaction:${messageId}:${reactEmoji}:${partnerShip}:${action}`,
                   // Route any resulting system/heartbeat turn back to Tlon.
                   deliveryContext: tlonDeliveryContext(
-                    `tlon:${partnerShip || reactAuthor}`,
+                    `tlon:${partnerShip}`,
                     route.accountId
                   ),
                 });
@@ -5380,8 +5421,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         );
 
         const authorShip = normalizeShip(extractAuthorShip(dmContent.author));
-        const partnerShip = extractDmPartnerShip(whom);
-        const senderShip = partnerShip || authorShip;
+        const senderShip = partnerShip;
         const { rawText, engagementText } = prepareInboundText(
           dmContent.content,
           botShipName,
@@ -5467,6 +5507,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                     : undefined,
                   isThreadReply: isDmThreadReply,
                   blob: dmContent.blob ?? undefined,
+                  whom,
                 },
               },
               pendingApprovals.map((a) => a.id)
@@ -6080,6 +6121,28 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               response
             ),
           getCron: () => getTlonCronService(),
+          // A test run's only output is its lens, so without one reaching
+          // the owner there is nothing to run it for.
+          ...(isContextLensEffectivelyEnabled(cfg, account.accountId)
+            ? {
+                runTest: (jobId: string) => {
+                  const cron = getTlonCronService();
+                  const config = core.config.current() as OpenClawConfig;
+                  return startCronTestRun(jobId, {
+                    listJobs: async () =>
+                      cron ? cron.list({ includeDisabled: true }) : [],
+                    defaultAgentId: () => defaultCronAgentId(cron, config),
+                    config,
+                    runtime: core.agent,
+                    stateDir: () => core.state.resolveStateDir(),
+                    publish: (phase, lens) =>
+                      publishContextLensEvent(phase, lens),
+                    logger: { warn: (message) => runtime.error?.(message) },
+                    ...(opts.abortSignal ? { signal: opts.abortSignal } : {}),
+                  });
+                },
+              }
+            : {}),
           logger: {
             log: (message) => runtime.log?.(message),
             warn: (message) => runtime.error?.(message),
@@ -6233,12 +6296,19 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           return;
         }
 
-        // Update DM allowlist — respect empty lists (don't fall back to file config)
-        if (newSettings.dmAllowlist !== undefined) {
-          effectiveDmAllowlist = newSettings.dmAllowlist;
-          runtime.log?.(
-            `[tlon] Settings: dmAllowlist updated to ${effectiveDmAllowlist.length > 0 ? effectiveDmAllowlist.join(', ') : '(empty)'}`
+        // Re-derived from every snapshot; see resolveSettingsAllowlist.
+        {
+          const next = resolveSettingsAllowlist(
+            newSettings.dmAllowlist,
+            account.dmAllowlist,
+            effectiveDmAllowlist
           );
+          effectiveDmAllowlist = next.allowlist;
+          if (next.changed) {
+            runtime.log?.(
+              `[tlon] Settings: dmAllowlist updated to ${effectiveDmAllowlist.length > 0 ? effectiveDmAllowlist.join(', ') : '(empty)'}`
+            );
+          }
         }
 
         // Update model signature setting
@@ -6274,15 +6344,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         // would let a ship removed from the allowlist go on auto-joining groups
         // until the gateway restarted.
         {
-          const nextAllowlist =
-            newSettings.groupInviteAllowlist ?? account.groupInviteAllowlist;
-          const changed =
-            nextAllowlist.length !== effectiveGroupInviteAllowlist.length ||
-            nextAllowlist.some(
-              (ship, i) => ship !== effectiveGroupInviteAllowlist[i]
-            );
-          effectiveGroupInviteAllowlist = nextAllowlist;
-          if (changed) {
+          const next = resolveSettingsAllowlist(
+            newSettings.groupInviteAllowlist,
+            account.groupInviteAllowlist,
+            effectiveGroupInviteAllowlist
+          );
+          effectiveGroupInviteAllowlist = next.allowlist;
+          if (next.changed) {
             runtime.log?.(
               `[tlon] Settings: groupInviteAllowlist updated to ${effectiveGroupInviteAllowlist.length > 0 ? effectiveGroupInviteAllowlist.join(', ') : '(empty)'}`
             );

@@ -5,9 +5,8 @@ import { layoutForType } from '@tloncorp/shared';
 import * as React from 'react';
 import {
   Platform,
-  StyleSheet,
   type LayoutChangeEvent,
-  type ScrollView,
+  type ScrollViewInstance,
 } from 'react-native';
 import {
   KeyboardChatScrollView,
@@ -20,6 +19,8 @@ import {
   useReducedMotion,
   useSharedValue,
 } from 'react-native-reanimated';
+
+import { flattenViewStyle } from '../../../utils/flattenViewStyle';
 
 import {
   useConversationComposerHeight,
@@ -544,7 +545,7 @@ const ConversationPostListAttempt = React.forwardRef<
         overlayHeight
           ? {
               paddingBottom:
-                ((StyleSheet.flatten(contentContainerStyle)
+                ((flattenViewStyle(contentContainerStyle)
                   ?.paddingBottom as number) ?? 0) + overlayHeight,
             }
           : undefined,
@@ -703,7 +704,7 @@ const ConversationPostListAttempt = React.forwardRef<
       // LegendList types the native ref as the bare ScrollView component class;
       // at runtime it is the ScrollView instance with its scroll methods.
       const scrollView = listRef.current?.getNativeScrollRef() as
-        | ScrollView
+        | ScrollViewInstance
         | undefined;
       scrollView?.scrollToEnd({ animated: false });
     }, []);
@@ -766,8 +767,9 @@ const ConversationPostListAttempt = React.forwardRef<
         // Native scroll events can trail consecutive layout frames. Retain
         // the end anchor until the user chooses a different reading position.
         if (followsViewportEnd.current) {
+          // LegendList's native scroll ref is an instance, not the RN component type.
           const scrollView = listRef.current?.getNativeScrollRef() as
-            | ScrollView
+            | ScrollViewInstance
             | undefined;
           scrollView?.scrollToEnd({ animated: false });
         }

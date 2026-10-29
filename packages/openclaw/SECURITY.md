@@ -89,7 +89,10 @@ Suppression invariants: queued invites are never marked in the in-process
 dedup set (it records only auto-accept success and confirmed-blocked); the
 persisted approval record suppresses re-notification once delivered, gates
 retries of failed sends behind a 10-minute cooldown, and its 48h TTL is the
-reminder cadence. The reconciliation sweeps (connect and the 2-minute poll)
+reminder cadence. New approval records are capped at 100
+(`TLON_PENDING_APPROVAL_LIMIT`): past the cap a new request is not persisted,
+its invite stays unmarked so a later event retries it, and the owner gets at
+most one queue-full notice per 10-minute window. The reconciliation sweeps (connect and the 2-minute poll)
 clear the dedup marker for a join whose `progress` reached `error`, so a join
 that acked locally but failed on the backend becomes actionable again at a
 bounded cadence — live error facts leave the marker, because a persistently

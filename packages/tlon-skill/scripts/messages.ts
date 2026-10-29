@@ -14,7 +14,7 @@
  * Options:
  *   --resolve-cites, --quotes   Fetch and display quoted/cited message content
  *   --json                      Emit one NDJSON record per post instead of
- *                               framed plaintext
+ *                               plain text
  */
 import {
   getChannelPosts,
@@ -26,6 +26,7 @@ import type { Post } from '@tloncorp/api';
 
 import { ensureClient, normalizeShip } from './api-client';
 import {
+  errorMessage,
   formatPostId,
   isHelpArg,
   printErrorAndExit,
@@ -35,26 +36,13 @@ import {
   refuseNotesContentTarget,
   wantsHelp,
 } from './cli-utils';
-import {
-  type FetchRef,
-  type RefBudget,
-  TARGET_ABSENT_NOTICE,
-  createRefBudget,
-  extractPostText,
-  extractReferences,
-  formatTime,
-  renderPostJsonLine,
-  renderPostListJsonLines,
-  renderPostListLines,
-  renderRefLines,
-  formatQuoteLines,
-  formatBodyLines,
-} from './message-content';
+import { renderPostJsonLine, renderPostListJsonLines } from './message-content';
 import {
   type WindowContext,
   hasReceiptOrder,
   windowFromPage,
 } from './messages-runtime';
+import { formatTime, writePostBody, writePostList } from './post-render';
 
 const MESSAGES_HELP = `Usage: tlon messages <command>
 
@@ -147,12 +135,9 @@ function validateMessagesArgs(args: string[]): void {
   }
 }
 
-const fetchRef: FetchRef = (ref) => getPostReference(ref);
-
 interface PrintPostsOptions {
   highlightId?: string;
-  budget?: RefBudget;
-  /** Emit NDJSON records only: no framing, no headers, no cite resolution. */
+  /** Emit NDJSON records only: no headers, no cite resolution. */
   json?: boolean;
   /** Opt in to receipt/sent divergence analysis (history commands only). */
   window?: WindowContext;
@@ -162,7 +147,7 @@ interface PrintPostsOptions {
 async function printPosts(
   posts: Post[],
   resolve: boolean,
-  { highlightId, budget, json, window, displayLimit }: PrintPostsOptions = {}
+  { highlightId, json, window, displayLimit }: PrintPostsOptions = {}
 ) {
   if (json) {
     for (const line of renderPostListJsonLines(posts, {
@@ -175,27 +160,23 @@ async function printPosts(
     return;
   }
 
-  if (!posts.length) {
-    // An empty %around page still means the requested target was not found.
-    if (highlightId) {
-      console.log(TARGET_ABSENT_NOTICE);
-      console.log('');
-    }
-    console.log('No messages found.');
-    return;
-  }
-
-  const lines = await renderPostListLines(posts, {
-    resolve,
-    fetchRef,
+  await writePostList(posts, {
+    write: (line) => console.log(line),
+    getPostReference: resolve ? getPostReference : undefined,
     highlightId,
-    budget,
     window,
     displayLimit,
   });
-  for (const line of lines) {
-    console.log(line);
-  }
+}
+
+/**
+ * Posts displayed out of a fetched page: the boundary probe below is trimmed
+ * from display only where the page carries usable receipt order.
+ */
+function displayedCount(posts: Post[], limit: number): number {
+  return posts.length > limit && hasReceiptOrder(posts)
+    ? posts.length - 1
+    : posts.length;
 }
 
 // Fetch DM messages via the chat agent (not channels)
@@ -214,33 +195,27 @@ async function fetchDmMessages(
     );
   }
 
-  try {
-    // Fetch one extra post as an analysis-only boundary probe: skew that
-    // crosses the window edge (a delivery burst wider than the limit) is
-    // detectable only by comparing against the next post beyond it.
-    const data = await getChannelPosts({
-      channelId: normalizedShip,
-      mode: 'newest',
-      count: limit + 1,
-      includeReplies: true,
-      skipGapFill: true,
-    });
+  // Fetch one extra post as an analysis-only boundary probe: skew that
+  // crosses the window edge (a delivery burst wider than the limit) is
+  // detectable only by comparing against the next post beyond it.
+  const data = await getChannelPosts({
+    channelId: normalizedShip,
+    mode: 'newest',
+    count: limit + 1,
+    includeReplies: true,
+    skipGapFill: true,
+  });
 
-    if (!json) {
-      const shown =
-        data.posts.length > limit && hasReceiptOrder(data.posts)
-          ? data.posts.length - 1
-          : data.posts.length;
-      console.log(`=== DMs with ${normalizedShip} (${shown}) ===\n`);
-    }
-    await printPosts(data.posts, resolveCites, {
-      json,
-      window: windowFromPage(data, limit),
-      displayLimit: limit,
-    });
-  } catch (error: any) {
-    console.error(`Error fetching DMs: ${error.message}`);
+  if (!json) {
+    console.log(
+      `=== DMs with ${normalizedShip} (${displayedCount(data.posts, limit)}) ===\n`
+    );
   }
+  await printPosts(data.posts, resolveCites, {
+    json,
+    window: windowFromPage(data, limit),
+    displayLimit: limit,
+  });
 }
 
 // Fetch messages from a channel
@@ -257,36 +232,30 @@ async function fetchMessages(
     );
   }
 
-  try {
-    // One extra post as an analysis-only boundary probe; see fetchDmMessages.
-    const data = await getChannelPosts({
-      channelId: channel,
-      mode: 'newest',
-      count: limit + 1,
-      includeReplies: true,
-      skipGapFill: true,
-    });
+  // One extra post as an analysis-only boundary probe; see fetchDmMessages.
+  const data = await getChannelPosts({
+    channelId: channel,
+    mode: 'newest',
+    count: limit + 1,
+    includeReplies: true,
+    skipGapFill: true,
+  }).catch((error: unknown) => {
+    throw new Error(
+      `Failed to fetch messages from ${channel}: ${errorMessage(error)}. Check that the channel path is correct (e.g., chat/~host/slug)`,
+      { cause: error }
+    );
+  });
 
-    if (!json) {
-      const shown =
-        data.posts.length > limit && hasReceiptOrder(data.posts)
-          ? data.posts.length - 1
-          : data.posts.length;
-      console.log(`=== Messages in ${channel} (${shown}) ===\n`);
-    }
-    await printPosts(data.posts, resolveCites, {
-      json,
-      window: windowFromPage(data, limit),
-      displayLimit: limit,
-    });
-  } catch (error: any) {
-    console.error(`Error fetching messages: ${error.message}`);
-    if (!json) {
-      console.log(
-        'Note: Check that the channel path is correct (e.g., chat/~host/slug)'
-      );
-    }
+  if (!json) {
+    console.log(
+      `=== Messages in ${channel} (${displayedCount(data.posts, limit)}) ===\n`
+    );
   }
+  await printPosts(data.posts, resolveCites, {
+    json,
+    window: windowFromPage(data, limit),
+    displayLimit: limit,
+  });
 }
 
 // Search messages in a channel
@@ -299,26 +268,22 @@ async function searchMessages(
     console.log(`Searching "${query}" in: ${channel}\n`);
   }
 
-  try {
-    const results = await searchChannel({
-      channelId: channel,
-      query,
-    });
+  const results = await searchChannel({
+    channelId: channel,
+    query,
+  });
 
-    if (!results.posts.length) {
-      if (!json) {
-        console.log('No results found.');
-      }
-      return;
-    }
-
+  if (!results.posts.length) {
     if (!json) {
-      console.log(`Found ${results.posts.length} results:\n`);
+      console.log('No results found.');
     }
-    await printPosts(results.posts, false, { json });
-  } catch (error: any) {
-    console.error(`Error searching messages: ${error.message}`);
+    return;
   }
+
+  if (!json) {
+    console.log(`Found ${results.posts.length} results:\n`);
+  }
+  await printPosts(results.posts, false, { json });
 }
 
 // Fetch context around a specific post (messages before and after)
@@ -339,33 +304,31 @@ async function fetchContext(
     );
   }
 
-  try {
-    // The backend supports %around mode which fetches N older + N newer + the
-    // target post in one scry. The JS API types only declare "older"|"newer"
-    // but the path builder is generic, so "around" just works at runtime.
-    const data = await getChannelPosts({
-      channelId,
-      cursor: postId,
-      mode: 'around' as any,
-      count: limit,
-      includeReplies: true,
-      skipGapFill: true,
-    });
+  // The backend supports %around mode which fetches N older + N newer + the
+  // target post in one scry. The JS API types only declare "older"|"newer"
+  // but the path builder is generic, so "around" just works at runtime.
+  const data = await getChannelPosts({
+    channelId,
+    cursor: postId,
+    mode: 'around' as any,
+    count: limit,
+    includeReplies: true,
+    skipGapFill: true,
+  });
 
-    if (!json) {
-      console.log(
-        `=== Context around ${postId} (${data.posts.length} messages) ===\n`
-      );
-    }
-
-    await printPosts(data.posts, resolve, {
-      highlightId: postId,
-      json,
-      window: windowFromPage(data),
-    });
-  } catch (error: any) {
-    console.error(`Error fetching context: ${error.message}`);
+  if (!json) {
+    console.log(
+      `=== Context around ${postId} (${data.posts.length} messages) ===\n`
+    );
   }
+
+  // No displayLimit: an %around page is target-centered, so it carries no
+  // boundary probe to trim.
+  await printPosts(data.posts, resolve, {
+    highlightId: postId,
+    json,
+    window: windowFromPage(data),
+  });
 }
 
 async function getPostWithOptionalAuthor({
@@ -397,63 +360,43 @@ async function fetchPost(
     console.log(`Fetching post ${postId} from ${channelId}\n`);
   }
 
-  try {
-    const post = await getPostWithOptionalAuthor({
-      channelId,
-      postId,
-      authorId,
-    });
+  const post = await getPostWithOptionalAuthor({
+    channelId,
+    postId,
+    authorId,
+  });
 
-    if (!post) {
-      if (!json) {
-        console.log('Post not found.');
-      }
-      return;
+  if (!post) {
+    if (!json) {
+      console.log('Post not found.');
     }
+    return;
+  }
 
-    if (json) {
-      console.log(renderPostJsonLine(post));
-      if (post.replies && post.replies.length > 0) {
-        await printPosts(post.replies, resolve, { json });
-      }
-      return;
-    }
-
-    const author = post.authorId || 'unknown';
-    const time = formatTime(post.sentAt);
-    const text = extractPostText(post.content);
-    // One budget for the whole command, shared with the replies below.
-    const budget = createRefBudget();
-
-    console.log(`=== Post ${postId} ===\n`);
-    console.log(`Author: ${author}`);
-    console.log(`Time: ${time}`);
-    console.log(`ID: ${post.id}`);
-    if (text) {
-      console.log('');
-      for (const line of formatBodyLines(text)) {
-        console.log(line);
-      }
-    }
-
-    const refLines = await renderRefLines(extractReferences(post.content), {
-      resolve,
-      fetchRef,
-      budget,
-    });
-    for (const ref of refLines) {
-      console.log('');
-      for (const line of formatQuoteLines(ref)) {
-        console.log(line);
-      }
-    }
-
+  if (json) {
+    console.log(renderPostJsonLine(post));
     if (post.replies && post.replies.length > 0) {
-      console.log(`\n--- Replies (${post.replies.length}) ---\n`);
-      await printPosts(post.replies, resolve, { budget });
+      await printPosts(post.replies, resolve, { json });
     }
-  } catch (error: any) {
-    console.error(`Error fetching post: ${error.message}`);
+    return;
+  }
+
+  const author = post.authorId || 'unknown';
+  const time = formatTime(post.sentAt);
+
+  console.log(`=== Post ${postId} ===\n`);
+  console.log(`Author: ${author}`);
+  console.log(`Time: ${time}`);
+  console.log(`ID: ${post.id}`);
+  console.log('');
+  await writePostBody(post, {
+    write: (line) => console.log(line),
+    getPostReference: resolve ? getPostReference : undefined,
+  });
+
+  if (post.replies && post.replies.length > 0) {
+    console.log(`\n--- Replies (${post.replies.length}) ---\n`);
+    await printPosts(post.replies, resolve);
   }
 }
 

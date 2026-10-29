@@ -8,7 +8,13 @@
       "sqlocal/drizzle": ["../../node_modules/sqlocal/dist/drizzle"],
       // needed to prevent TS mistakenly finding the old-web posthog-js version in root node_modules
       "posthog-js": ["../../node_modules/posthog-js"],
-      "expo-image": ["../../node_modules/expo-image"]
+      "expo-image": ["../../node_modules/expo-image"],
+      // Tests import the package's TypeScript source to exercise our patch. Type
+      // them against its published declarations: the source itself does not
+      // typecheck against React Native 0.88's strict types.
+      "react-native-keyboard-controller/src/*": [
+        "../../node_modules/react-native-keyboard-controller/lib/typescript/*"
+      ]
     }
   }
 }
