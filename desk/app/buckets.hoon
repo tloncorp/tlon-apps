@@ -1378,7 +1378,7 @@
   ++  up-take
     |=  [kind=?(%grant %retry %cancel %complete) res=client-response:iris]
     ^+  up-core
-    ?:  &(=(%cancelled status.ses) ?=(?(%grant %retry %complete) kind))
+    ?:  &(!=(%pending status.ses) ?=(?(%grant %retry %complete) kind))
       (up-late kind res)
     ?:  ?=(%cancel -.res)  (up-refused kind res)
     =/  code=@ud  status-code.response-header.res
@@ -1430,21 +1430,22 @@
     =.  ses  ses(error ~)
     %-  up-answer
     [%upload [id.ses id.entry.ses p.u.url headers expiry]]
-  ::  +up-late: a grant, retry or completion answered after the uploader
-  ::  cancelled.
+  ::  +up-late: a grant, retry or completion answered after the session has
+  ::  settled, by the uploader's cancel or by an earlier receipt.
   ::
-  ::  The request still held open on this session is the cancel's, and only
-  ::  the /cancel answer may complete it. An answer to the earlier call must
-  ::  not: it would tell the canceller the outcome of a finish or grant it did
-  ::  not ask about, and the /cancel answer would then find no request left
-  ::  to complete.
+  ::  No client request is answered here. On a cancelled session the request
+  ::  still held open is the cancel's, and only the /cancel answer may
+  ::  complete it: the earlier call's answer would tell the canceller the
+  ::  outcome of a finish or grant it did not ask about, and the /cancel
+  ::  answer would then find no request left to complete. On a completed
+  ::  session nothing is owed and nothing is left to do: the reservation is
+  ::  settled and the entry published, so a second answer is only logged.
   ::
-  ::  So no client request is answered here, and the session is changed only
-  ::  as far as the broker's answer forces. A reservation the broker issued
-  ::  holds quota, so it is bound and released. A receipt means the bytes are
-  ::  stored and charged for whatever the uploader said, so the entry is
-  ::  published. Anything else is logged and left: the cancel is what settles
-  ::  this session.
+  ::  On a cancelled session the broker's answer can still force a change. A
+  ::  reservation the broker issued holds quota, so it is bound and released.
+  ::  A receipt means the bytes are stored and charged for whatever the
+  ::  uploader said, so the entry is published. Anything else is logged and
+  ::  left: the cancel is what settles this session.
   ::
   ++  up-late
     |=  [kind=?(%grant %retry %complete) res=client-response:iris]
@@ -1454,12 +1455,14 @@
       `status-code.response-header.res
     =.  cor
       %^  note  %warn
-        ~[leaf+"buckets: storage answered an upload call after its cancel"]
+        ~[leaf+"buckets: storage answered an upload call after it settled"]
       %+  weld  (log-bucket flag.ses)
       ^-  (list (pair @t json))
       :~  ['call' s+(scot %tas kind)]
+          ['session' s+(scot %tas status.ses)]
           ['status' ?~(code ~ (numb:enjs:format u.code))]
       ==
+    ?:  =(%complete status.ses)  up-core
     ?~  code  up-core
     ?.  &((gte u.code 200) (lth u.code 300))  up-core
     ?-  kind

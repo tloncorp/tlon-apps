@@ -2018,6 +2018,65 @@
 ::  A bucket or token we do not have is [~ ~], which Eyre serves as a 404.
 ::  A bare ~ is a 500, and clients treat only a 404 as absent.
 ::
+::  A retry still out when the receipt lands is refused by the broker, the
+::  reservation being complete. The refusal arrives on a completed session
+::  and changes nothing: the session stays complete, no cancel is sent, and
+::  the entry stays published.
+::
+++  test-late-retry-on-complete
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'raced.pdf' 42)
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  ;<  done=wire  b  (finish-call 0v2 seed)
+  ;<  caz=(list card)  b  (ask 0v3 [%bucket flag [%retry-upload seed]])
+  =/  retry=[=wire =request:http]  (only-iris caz)
+  ;<  *  b  (do-arvo done (receipt-for ses))
+  ;<  late=(list card)  b
+    %+  do-arvo  wire.retry
+    %+  iris-json  409
+    '{"code":"invalid_state","message":"reservation is complete","retryable":false}'
+  ;<  ~  b  (ex-cards late ~)
+  ;<  ses2=upload-session:bu  b  (saved-session seed)
+  ;<  bs=bucket-state:bu  b  saved-bucket
+  %+  ex-equal
+    !>([status.ses2 error.ses2 ~(wyt by entries.bs)])
+  !>([%complete ~ 1])
+::
+::  Two finishes out at once, both answered with the receipt. The first
+::  publishes; the second lands on a completed session and is only logged,
+::  so the entry is not created twice and the revision does not move.
+::
+++  test-late-complete-on-complete
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'twice.pdf' 42)
+  ;<  ses=upload-session:bu  b  (saved-session seed)
+  ;<  done=wire  b  (finish-call 0v2 seed)
+  ;<  caz=(list card)  b  (ask 0v3 [%bucket flag [%finish-upload seed]])
+  ;<  ~  b
+    %+  ex-cards  (answers caz)
+    :~  %+  grant-fact  0v2
+        [%error %unknown 'superseded by another request on this upload' ~]
+        (grant-fact 0v3 [%pending ~])
+    ==
+  ;<  *  b  (do-arvo done (receipt-for ses))
+  ;<  bs=bucket-state:bu  b  saved-bucket
+  ;<  late=(list card)  b  (do-arvo done (receipt-for ses))
+  ;<  ~  b  (ex-cards late ~)
+  ;<  bs2=bucket-state:bu  b  saved-bucket
+  %+  ex-equal
+    !>([revision.bs2 ~(wyt by entries.bs2)])
+  !>([revision.bs 1])
+::
 ++  test-missing-bucket-peeks-are-empty
   %-  eval-mare
   =/  m  (mare ,~)
