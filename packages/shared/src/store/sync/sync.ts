@@ -845,6 +845,7 @@ export const syncContactDiscovery = async (
     });
     const newMatchIds = newMatches.map(([, id]) => id);
     let addedMatches: [string, string][] = [];
+    const failedNewIds = new Set<string>();
 
     await db.linkSystemContacts({ matches }).catch((e) => {
       didSucceed = false;
@@ -864,6 +865,7 @@ export const syncContactDiscovery = async (
         await addContacts(newMatchIds);
       if (failedContactIds.length > 0) {
         didSucceed = false;
+        for (const id of failedContactIds) failedNewIds.add(id);
       }
       const addedIds = new Set(addedContactIds);
       addedMatches = newMatches.filter(([, id]) => addedIds.has(id));
@@ -881,30 +883,37 @@ export const syncContactDiscovery = async (
             error: e,
           });
         });
+    }
 
-      // Apply the address-book name as customNickname only for new
-      // matches whose contact doesn't already have one. The query
-      // does the join + filter, so we just map to API calls here.
-      const contactsToName =
-        await db.getUnnamedSystemContactsByContactId(addedContactIds);
-      const metadataResults = await Promise.all(
-        contactsToName.map((c) =>
-          updateContactMetadata(c.contactId, {
-            nickname: `${c.firstName || ''} ${c.lastName || ''}`.trim(),
-          })
-        )
-      ).catch((e) => {
-        didSucceed = false;
-        logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
-          context: 'failed to update contact metadata',
-          severity: AnalyticsSeverity.Critical,
-          error: e,
-        });
-        return [];
+    // Failed additions must stay skeletal so rediscovery can retry them.
+    const contactsToName = await db.getSystemContactsBatchByContactId(
+      matches.map(([, id]) => id).filter((id) => !failedNewIds.has(id))
+    );
+    const metadataResults = await Promise.all(
+      contactsToName.map(async (systemContact) => {
+        const nickname =
+          `${systemContact.firstName || ''} ${systemContact.lastName || ''}`.trim();
+        if (!nickname || !systemContact.contactId) return true;
+        const contact = await db.getContact({ id: systemContact.contactId });
+        if (!contact || contact.customNickname === nickname) return true;
+        // Only saved contacts have a ship address-book entry to edit.
+        if (contact.isContact) {
+          return updateContactMetadata(contact.id, { nickname });
+        }
+        await db.updateContact({ id: contact.id, customNickname: nickname });
+        return true;
+      })
+    ).catch((e) => {
+      didSucceed = false;
+      logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+        context: 'failed to update contact metadata',
+        severity: AnalyticsSeverity.Critical,
+        error: e,
       });
-      if (metadataResults.some((didUpdate) => !didUpdate)) {
-        didSucceed = false;
-      }
+      return [];
+    });
+    if (metadataResults.some((didUpdate) => !didUpdate)) {
+      didSucceed = false;
     }
 
     if (invokeHandler && addedMatches.length > 0) {

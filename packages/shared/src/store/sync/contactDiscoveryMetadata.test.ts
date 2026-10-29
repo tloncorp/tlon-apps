@@ -55,12 +55,13 @@ afterEach(() => {
 });
 
 test.each(['Chosen nickname', null])(
-  'linking a known contact preserves its custom nickname (%s)',
+  'a saved contact uses the address-book name over its nickname (%s)',
   async (customNickname) => {
     await db.upsertContact({
       id: contactId,
       isContact: true,
       peerNickname: 'Peer name',
+      customAvatarImage: 'saved-avatar',
       customNickname,
     });
 
@@ -69,14 +70,18 @@ test.each(['Chosen nickname', null])(
     ).toEqual({ didSucceed: true, didDiscover: true, newMatches: [] });
 
     const contact = await db.getContact({ id: contactId });
-    expect(contact?.customNickname).toBe(customNickname);
-    expect(contact?.nickname).toBe(customNickname ?? 'Peer name');
+    expect(contact?.customNickname).toBe('Address Book');
+    expect(contact?.nickname).toBe('Address Book');
+    expect(contact?.customAvatarImage).toBe('saved-avatar');
     expect(contact?.isContact).toBe(true);
     expect(await db.getSystemContactsBatchByContactId([contactId])).toEqual([
       expect.objectContaining({ id: systemContact.id, contactId }),
     ]);
     expect(api.addContact).not.toHaveBeenCalled();
-    expect(api.updateContactMetadata).not.toHaveBeenCalled();
+    expect(api.updateContactMetadata).toHaveBeenCalledWith(contactId, {
+      nickname: 'Address Book',
+      avatarImage: undefined,
+    });
   }
 );
 
@@ -108,3 +113,109 @@ test.each(['absent', 'skeletal'])(
     );
   }
 );
+
+test.each([false, true])(
+  'a known unsaved contact gets the book name without saving (suggestion: %s)',
+  async (isContactSuggestion) => {
+    await db.upsertContact({
+      id: contactId,
+      isContact: false,
+      isContactSuggestion,
+      peerNickname: 'Peer name',
+      customNickname: 'Chosen name',
+      customAvatarImage: 'avatar',
+    });
+    expect(
+      await syncContactDiscovery(undefined, { invokeHandler: false })
+    ).toEqual({
+      didSucceed: true,
+      didDiscover: true,
+      newMatches: [],
+    });
+    expect(await db.getContact({ id: contactId })).toEqual(
+      expect.objectContaining({
+        isContact: false,
+        isContactSuggestion,
+        customNickname: 'Address Book',
+        customAvatarImage: 'avatar',
+      })
+    );
+    expect(api.addContact).not.toHaveBeenCalled();
+    expect(api.updateContactMetadata).not.toHaveBeenCalled();
+  }
+);
+
+test('an empty address-book name leaves the existing name intact', async () => {
+  await db.insertSystemContacts({
+    systemContacts: [{ ...systemContact, firstName: '', lastName: '' }],
+  });
+  await db.upsertContact({
+    id: contactId,
+    isContact: true,
+    customNickname: 'Chosen name',
+  });
+  await syncContactDiscovery(undefined, { invokeHandler: false });
+  expect((await db.getContact({ id: contactId }))?.customNickname).toBe(
+    'Chosen name'
+  );
+  expect(api.updateContactMetadata).not.toHaveBeenCalled();
+});
+
+test('a failed skeletal add retries on rediscovery and persists the book name', async () => {
+  await db.upsertContact({ id: contactId, isContact: false });
+  vi.mocked(api.addContact).mockRejectedValueOnce(new Error('offline'));
+  expect(
+    await syncContactDiscovery(undefined, { invokeHandler: false })
+  ).toEqual({
+    didSucceed: false,
+    didDiscover: true,
+    newMatches: [],
+  });
+  expect((await db.getContact({ id: contactId }))?.customNickname).toBeNull();
+  expect(api.updateContactMetadata).not.toHaveBeenCalled();
+  expect(
+    await syncContactDiscovery(undefined, { invokeHandler: false })
+  ).toEqual({
+    didSucceed: true,
+    didDiscover: true,
+    newMatches: [[phoneNumber, contactId]],
+  });
+  expect(api.addContact).toHaveBeenCalledTimes(2);
+  expect((await db.getContact({ id: contactId }))?.customNickname).toBe(
+    'Address Book'
+  );
+});
+
+test('a metadata failure rolls back and rediscovery retries the book name', async () => {
+  await db.upsertContact({
+    id: contactId,
+    isContact: true,
+    customNickname: 'Chosen name',
+  });
+  vi.mocked(api.updateContactMetadata).mockRejectedValueOnce(
+    new Error('offline')
+  );
+  expect(
+    await syncContactDiscovery(undefined, { invokeHandler: false })
+  ).toEqual({
+    didSucceed: false,
+    didDiscover: true,
+    newMatches: [],
+  });
+  expect((await db.getContact({ id: contactId }))?.customNickname).toBe(
+    'Chosen name'
+  );
+  expect(
+    await syncContactDiscovery(undefined, { invokeHandler: false })
+  ).toEqual({
+    didSucceed: true,
+    didDiscover: true,
+    newMatches: [],
+  });
+  expect(api.updateContactMetadata).toHaveBeenCalledTimes(2);
+  expect((await db.getContact({ id: contactId }))?.customNickname).toBe(
+    'Address Book'
+  );
+  await syncContactDiscovery(undefined, { invokeHandler: false });
+  expect(api.updateContactMetadata).toHaveBeenCalledTimes(2);
+});
