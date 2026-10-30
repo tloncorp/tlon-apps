@@ -235,38 +235,28 @@ export async function invokeContactsMatchedHandler(contactIds: string[]) {
   }
 }
 
-// A contact is "already known" if any signal indicates the user has a
-// prior relationship: explicitly added, surfaced as a suggestion, the
-// peer's profile has been fetched (any peer field set), or the user
-// labelled them. Anyone who matches that bar should not be treated as a
-// fresh discovery — no notification or pill.
-export function isAlreadyKnownContact(contact: db.Contact): boolean {
-  return !!(
-    contact.isContact ||
-    contact.isContactSuggestion ||
-    contact.peerNickname ||
-    contact.customNickname ||
-    contact.peerAvatarImage ||
-    contact.bio ||
-    contact.status
-  );
-}
-
 // Splits raw lanyard matches into "new" (unseen by the user) vs.
-// already-known. Under the dev mock, treat every match as new so
-// repeated test runs keep surfacing matches even after they've been
-// added as contacts in a prior run.
+// already-known. A match is known if it is saved, already suggested, or
+// hidden: addContact hides as it saves, so hidden-but-unsaved means the user
+// removed or declined them. A cached profile alone is not a relationship;
+// the app fetches profiles for anyone it meets, e.g. in a shared group.
+// Under the dev mock, treat every match as new so repeated test runs keep
+// surfacing matches even after they've been added as contacts in a prior run.
 export async function partitionDiscoveryMatches(
   matches: [string, string][],
   { isMocked }: { isMocked: boolean }
 ): Promise<{ newMatches: [string, string][] }> {
   if (isMocked) return { newMatches: matches };
   const contactIds = matches.map((m) => m[1]);
-  const existingContacts = await db.getContactsBatch({ contactIds });
+  const [existingContacts, hiddenIds] = await Promise.all([
+    db.getContactsBatch({ contactIds }),
+    api.getHiddenContactSuggestions(),
+  ]);
+  const hidden = new Set(hiddenIds);
   const existingById = new Map(existingContacts.map((c) => [c.id, c] as const));
   const newMatches = matches.filter(([, contactId]) => {
     const c = existingById.get(contactId);
-    return !c || !isAlreadyKnownContact(c);
+    return !hidden.has(contactId) && !c?.isContact && !c?.isContactSuggestion;
   });
   return { newMatches };
 }

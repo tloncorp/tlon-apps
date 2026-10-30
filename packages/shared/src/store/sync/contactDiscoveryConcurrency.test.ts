@@ -57,6 +57,7 @@ beforeEach(async () => {
     Promise.all(ids.map((id) => api.addContact(id)))
   );
   vi.spyOn(api, 'updateContactMetadata').mockResolvedValue(1);
+  vi.spyOn(api, 'getHiddenContactSuggestions').mockResolvedValue([]);
 });
 afterEach(() => {
   setContactsMatchedHandler(null);

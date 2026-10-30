@@ -942,11 +942,20 @@ const syncContactDiscoveryOnce = async (
         namesByContactId.set(systemContact.contactId, nickname);
       }
     }
+    const savedThisScan = new Set(addedMatches.map(([, id]) => id));
     const metadataResults = await Promise.all(
       Array.from(namesByContactId, async ([contactId, nickname]) => {
         const contact = await db.getContact({ id: contactId });
+        if (!contact) return true;
+        // A name given before saving lived only in the local db, which the
+        // next contacts sync overwrites, so carry it to the new book entry.
+        if (savedThisScan.has(contactId) && contact.customNickname) {
+          return updateContactMetadata(contact.id, {
+            nickname: contact.customNickname,
+          });
+        }
         // Existing names may be user-chosen; discovery only fills empty names.
-        if (!contact || contact.customNickname) return true;
+        if (contact.customNickname) return true;
         // Only saved contacts have a ship address-book entry to edit.
         if (contact.isContact) {
           return updateContactMetadata(contact.id, { nickname });
