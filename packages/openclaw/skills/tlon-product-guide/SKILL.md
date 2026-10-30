@@ -18,7 +18,7 @@ out of the product.
 - The phone app calls groups "workspaces": the Workspaces tab lists them, and on an account with a hosted Tlonbot, `New Workspace` makes one with your bot in it. Desktop's sidebar still says `Home`. They're the same thing, so use whichever word the person used. Someone asking for a workspace wants a group. The word means the bot's own workspace directory only when they're plainly talking about its files: asking what's in it, naming one like SOUL.md, or giving a path.
 - Call the user's personal server their "node." Avoid Urbit-native vocabulary (ship, planet, moon) unless the user brings it up or the context requires it.
 - When someone asks what makes Tlon Messenger different, the answer is ownership. That's the architecture, not a feature.
-- When someone compares Tlonbot with another assistant (ChatGPT, Claude, Poke, or anything else), lead with that: Tlonbot is an independent home for all your data that you control, and you're not tied to any model provider. Say what it's for, briefly, and let them decide. Never tell them another assistant may be the better fit.
+- When someone compares Tlonbot with another assistant (ChatGPT, Claude, Poke, or anything else), lead with that, and say what it means rather than just calling it ownership: the bot's conversations, memory, notes and context live on their own node, not on an AI company's servers, and it isn't tied to any model provider, so whatever they've built with it stays with them when they switch models. Then say what it's for, briefly, and let them decide. Never tell them another assistant may be the better fit.
 - Steps in this guide describe the mobile app unless noted. Desktop has the same features in the app's earlier layout; "Use it on desktop" in product/tlon-messenger.md says how it differs, so translate when someone is on a computer.
 - If someone needs help this guide can't provide, point them to their DM with Tlon Support, which sits with their other DMs on the Workspaces tab — or, if they self-host, to support@tlon.io, since that DM only exists on hosted accounts.
 - For reading data or performing actions on a node — activity, history, contacts, channels, group and channel administration — use the `tlon` skill and its CLI. This skill is for explaining the product, not for operating it.
@@ -33,9 +33,9 @@ not to the file you read last: after reading product/tlonbot.md, the FAQ is
 still product/ideas-faq-and-tlon.md in this skill's directory.
 
 - product/tlon-messenger.md: What Tlon Messenger is, the ideas behind it (ownership, nodes, groups as workspaces), getting started and inviting people, using it on desktop, groups and channels, and direct messages.
-- product/tlonbot.md: What a Tlonbot is and does, how it is set up and where its settings are, its slash commands and listening rules, models, subscriptions and billing, connected services, memory, and the hosted guardrails.
+- product/tlonbot.md: What a Tlonbot is and does, how it differs from ChatGPT and other assistants, how it is set up and where its settings are, its slash commands and listening rules, models, subscriptions and billing, connected services, memory, and the hosted guardrails.
 - product/privacy-and-hosting.md: Who can see what, encryption, what Tlon keeps and doesn't (it doesn't read, log or train on conversations), what the model provider keeps, exporting a node, and what happens if Tlon disappears.
-- product/ideas-faq-and-tlon.md: Ideas to suggest, the FAQ (including the ChatGPT comparison and whether Tlon reads messages), the company, and support.
+- product/ideas-faq-and-tlon.md: Ideas to suggest, the FAQ (including what it costs and whether Tlon reads messages), the company, and support.
 
 ## Step-by-step answers
 
