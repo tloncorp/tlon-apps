@@ -1587,9 +1587,15 @@ export function shouldCreateWorkspaceOnOwner(
   );
 }
 
-const CHANNEL_CREATE_COMMANDS: ReadonlyArray<readonly [string, string]> = [
+type GroupCommand = readonly [string, string];
+
+const CHANNEL_CREATE_COMMANDS: ReadonlyArray<GroupCommand> = [
   ['channels', 'create'],
   ['groups', 'add-channel'],
+];
+
+const GROUP_DELETE_COMMANDS: ReadonlyArray<GroupCommand> = [
+  ['groups', 'delete'],
 ];
 
 /**
@@ -1603,6 +1609,26 @@ export function shouldCreateChannelOnOwner(
   args: string[],
   ownerShip: string | undefined
 ): boolean {
+  return runsInOwnerHostedGroup(args, ownerShip, CHANNEL_CREATE_COMMANDS);
+}
+
+/**
+ * The same truth table for `groups delete` (Hermes too): only a group's host
+ * can delete it, so the workspace a bot made for its owner, which the owner
+ * hosts, is refused when the bot deletes it as itself.
+ */
+export function shouldDeleteGroupOnOwner(
+  args: string[],
+  ownerShip: string | undefined
+): boolean {
+  return runsInOwnerHostedGroup(args, ownerShip, GROUP_DELETE_COMMANDS);
+}
+
+function runsInOwnerHostedGroup(
+  args: string[],
+  ownerShip: string | undefined,
+  commands: ReadonlyArray<GroupCommand>
+): boolean {
   if (!ownerShip) return false;
   if (hasCredentialOverride(args)) return false;
 
@@ -1611,9 +1637,7 @@ export function shouldCreateChannelOnOwner(
   const commandArgs = args.slice(subIdx);
   const command = commandArgs[0]?.toLowerCase();
   const operation = commandArgs[1]?.toLowerCase();
-  if (
-    !CHANNEL_CREATE_COMMANDS.some(([c, o]) => c === command && o === operation)
-  ) {
+  if (!commands.some(([c, o]) => c === command && o === operation)) {
     return false;
   }
   if (
@@ -1804,6 +1828,21 @@ function routeChannelToOwner(
     };
   }
   return { args: ['--ship', ownerShip, ...args] };
+}
+
+/**
+ * Deletes the owner's group as the owner. Without the owner's credentials it
+ * runs as the bot, and the CLI's refusal names the host.
+ */
+function routeGroupDeleteToOwner(
+  args: string[],
+  deps: TlonToolExecutorDeps
+): string[] {
+  const ownerShip = deps.ownerShip;
+  if (!ownerShip || resolveBotShip(deps) === ownerShip) return args;
+  return locateOwnerShipConfig(ownerShip, deps).kind === 'found'
+    ? ['--ship', ownerShip, ...args]
+    : args;
 }
 
 const ADMIN_OPTION_PROBE_ARGS = ['groups', 'create-owned', '--help'];
@@ -2216,6 +2255,11 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
           args,
           deps
         ));
+      } else if (
+        !normalized.selfRequested &&
+        shouldDeleteGroupOnOwner(args, deps.ownerShip)
+      ) {
+        runArgs = routeGroupDeleteToOwner(args, deps);
       }
 
       let ran: string;
