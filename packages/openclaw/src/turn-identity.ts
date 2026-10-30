@@ -38,6 +38,15 @@
  * first observed. A config reload that reassigns the owner demotes it at its
  * next observation, like a non-owner message would: the commands would
  * otherwise run with the new owner's credentials on the old owner's say-so.
+ *
+ * Heartbeat runs (TLON-7008): a run that agent_turn_prepare reports as a
+ * heartbeat-runner turn (trigger and input provenance both `heartbeat`) gets a
+ * grant to run an allowlist of owner reads, bound to the owner configured when
+ * it was recognised. The grant is revoked, for good, by an owner change and
+ * by the events that demote a session. The gate seals the run when it
+ * approves the first owner read; a sealed run keeps the seal for the rest of
+ * the record's life, revoked or not, and only an allowlist of tools stays
+ * available to it (index.ts before_tool_call).
  */
 import {
   getTlonSessionRunSurface,
@@ -62,6 +71,15 @@ type RunRecord = {
   accountId?: string;
   /** The configured owner when an owner-directed run was first observed. */
   ownerShip?: string;
+  /**
+   * A heartbeat-runner run's grant to read as the owner, bound to the owner
+   * configured when it was recognised (undefined: the grant is inert).
+   */
+  heartbeat?: { ownerShip: string | undefined };
+  /** The heartbeat grant was revoked; the run is never marked again. */
+  heartbeatRevoked?: true;
+  /** The gate approved an owner read on this heartbeat run. */
+  sealed?: true;
   lastSeenAt: number;
 };
 
@@ -152,12 +170,77 @@ export function observeRun(
     record.identity === 'owner' &&
     Object.hasOwn(ctx, 'ownerShip') &&
     record.ownerShip !== ctx.ownerShip;
-  return setActive(
-    runId,
-    ownerChanged
-      ? { ...record, identity: 'bot', senderRole: 'user', lastSeenAt: now }
-      : { ...record, lastSeenAt: now }
-  ).identity;
+  const heartbeatOwnerChanged =
+    record.heartbeat !== undefined &&
+    Object.hasOwn(ctx, 'ownerShip') &&
+    record.heartbeat.ownerShip !== ctx.ownerShip;
+  const next: RunRecord = ownerChanged
+    ? { ...record, identity: 'bot', senderRole: 'user', lastSeenAt: now }
+    : { ...record, lastSeenAt: now };
+  return setActive(runId, heartbeatOwnerChanged ? revokeHeartbeat(next) : next)
+    .identity;
+}
+
+function revokeHeartbeat(record: RunRecord): RunRecord {
+  const revoked: RunRecord = { ...record, heartbeatRevoked: true };
+  delete revoked.heartbeat;
+  return revoked;
+}
+
+/**
+ * Grant a heartbeat-runner run (recognised by agent_turn_prepare, never by a
+ * tool hook) reads as `ownerShip`, the owner configured now. A run that is
+ * not yet recorded, tombstoned, revoked or answering a non-owner stays as it
+ * is; an existing grant keeps the owner it was bound to.
+ */
+export function markHeartbeatRun(
+  runId: string | undefined,
+  ownerShip: string | undefined
+): void {
+  const key = runId?.trim();
+  if (!key || tombstones.has(key)) return;
+  const record = activeRuns.get(key);
+  if (
+    !record ||
+    record.heartbeat !== undefined ||
+    record.heartbeatRevoked ||
+    record.senderRole === 'user'
+  ) {
+    return;
+  }
+  // In place: insertion order is lastSeenAt order, which this leaves alone.
+  activeRuns.set(key, { ...record, heartbeat: { ownerShip } });
+}
+
+/**
+ * Whether a run holds a live heartbeat grant for `liveOwnerShip`: active,
+ * marked, and bound to that same, configured owner. Checked directly, so a
+ * grant from before an owner change is refused even before an observation
+ * revokes it.
+ */
+export function isHeartbeatOwnerReadRun(
+  run: { runId?: string; sessionKey?: string },
+  liveOwnerShip: string | undefined
+): boolean {
+  const key = run.runId?.trim();
+  if (!key || tombstones.has(key) || liveOwnerShip === undefined) return false;
+  const grant = activeRuns.get(key)?.heartbeat;
+  return grant !== undefined && grant.ownerShip === liveOwnerShip;
+}
+
+/** Seal a heartbeat run that the gate let read as the owner. */
+export function sealHeartbeatRun(runId: string | undefined): void {
+  const key = runId?.trim();
+  const record = key ? activeRuns.get(key) : undefined;
+  if (key && record && !record.sealed) {
+    activeRuns.set(key, { ...record, sealed: true });
+  }
+}
+
+/** Whether the run is a sealed heartbeat run (gone with its record). */
+export function isSealedHeartbeatRun(runId: string | undefined): boolean {
+  const key = runId?.trim();
+  return key ? activeRuns.get(key)?.sealed === true : false;
 }
 
 export const resolveTurnIdentity = observeRun;
@@ -188,9 +271,9 @@ export function getRunAccountId(
 /**
  * Demote every active run, and every unstarted snapshot, on a session: identity
  * to the bot and the veto role to a non-owner, so every owner-only tool is
- * refused for the rest of those runs. Roleless runs (subagents, internal and
- * control-UI turns) are included: a non-owner message can be steered into them
- * as well.
+ * refused for the rest of those runs, and any heartbeat grant is revoked.
+ * Roleless runs (subagents, internal and control-UI turns, heartbeats) are
+ * included: a non-owner message can be steered into them as well.
  */
 function demoteSession(
   canonicalKey: string,
@@ -209,6 +292,7 @@ function demoteSession(
         ...firstSight(runId, undefined, now),
         identity: 'bot',
         senderRole: 'user',
+        heartbeatRevoked: true,
       });
     }
   }
@@ -217,7 +301,11 @@ function demoteSession(
       canonicalSessionKey(record.sessionKey) === canonicalKey &&
       !keeps(record.accountId)
     ) {
-      activeRuns.set(runId, { ...record, identity: 'bot', senderRole: 'user' });
+      activeRuns.set(runId, {
+        ...revokeHeartbeat(record),
+        identity: 'bot',
+        senderRole: 'user',
+      });
     }
   }
 }

@@ -134,6 +134,79 @@ export const NON_OWNER_ALLOWED_TOOLS: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * The only tools a sealed heartbeat run (TLON-7008: the gate let it read the
+ * owner's data) may call for the rest of the run, by policy name. An
+ * allowlist, so a tool core adds later is closed by default. `tlon` is
+ * limited further to reads (isSealedHeartbeatTlonCall), `browser_*` tools are
+ * allowed by prefix, and heartbeat_respond's persisted fields are removed
+ * (sealedHeartbeatRespondParams). Web, browser, MCP and workspace writes stay
+ * open by product decision; SECURITY.md lists them as accepted exits.
+ */
+export const SEALED_HEARTBEAT_ALLOWED_TOOLS: ReadonlySet<string> = new Set([
+  'tlon',
+  // Workspace files: the heartbeat's notes, memory and ledger.
+  'read',
+  'ls',
+  'write',
+  'edit',
+  'apply_patch',
+  // Research.
+  'web_search',
+  'web_fetch',
+  'browser',
+  'memory_search',
+  'memory_get',
+  // The owner's own MCP connections (list, search, describe, call).
+  ...MCP_CATALOG_TOOL_NAMES,
+  'heartbeat_respond',
+]);
+
+export const SEALED_HEARTBEAT_BLOCK_REASON =
+  "Blocked by policy: this heartbeat run read the owner's data, so only Tlon reads, files, memory, web, browser, MCP and heartbeat_respond remain; reply with your final text to reach the owner.";
+
+/** Whether a sealed heartbeat run may call this tool (by name alone). */
+export function isSealedHeartbeatAllowedTool(toolName: string): boolean {
+  const name = normalizePolicyToolName(toolName);
+  return (
+    SEALED_HEARTBEAT_ALLOWED_TOOLS.has(name) || name.startsWith('browser_')
+  );
+}
+
+/**
+ * heartbeat_respond fields core carries into a later turn: the monitor
+ * scratch for the next heartbeat, and the silent outcome's reason and next
+ * check, which core appends to the next user turn. Both spellings core reads.
+ */
+const SEALED_HEARTBEAT_RESPOND_DROPPED_KEYS = [
+  'scratch',
+  'reason',
+  'nextCheck',
+  'next_check',
+];
+
+/**
+ * A sealed run's heartbeat_respond params without the fields that reach a
+ * later turn. Core requires a non-empty `summary` and persists it with a
+ * silent outcome, so it is replaced with the outcome (core's own fallback for
+ * an empty summary) rather than removed. `notify`, `notificationText` and
+ * `outcome` are kept: a notification is the run's final text to the owner.
+ */
+export function sealedHeartbeatRespondParams(
+  params: Record<string, unknown>
+): Record<string, unknown> {
+  const kept = Object.fromEntries(
+    Object.entries(params).filter(
+      ([key]) =>
+        key !== 'summary' &&
+        !SEALED_HEARTBEAT_RESPOND_DROPPED_KEYS.includes(key)
+    )
+  );
+  return 'summary' in params && typeof params.outcome === 'string'
+    ? { ...kept, summary: params.outcome }
+    : kept;
+}
+
+/**
  * Tool Search controls that only find or invoke catalog tools. Core wraps every
  * catalog tool in before_tool_call, so a `tool_call` target runs this gate
  * again under its own name (core 2026.9.33 tool-search-catalog.ts
