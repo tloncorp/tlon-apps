@@ -118,7 +118,6 @@ export default function ChannelScreen(props: Props) {
     agentShipId,
     navigationLocked: agentOnboardingNavigationLocked,
   } = useAgentOnboardingChannel({
-    navigation: props.navigation,
     channelId,
     currentChannelId,
     groupId,

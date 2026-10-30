@@ -1,5 +1,4 @@
 import { useFocusEffect } from '@react-navigation/native';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as api from '@tloncorp/api';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -8,7 +7,6 @@ import { useCallback, useEffect } from 'react';
 import { BackHandler } from 'react-native';
 
 import { useAgentGroupOnboardingLock } from '../../hooks/useAgentGroupOnboardingLock';
-import type { RootStackParamList } from '../../navigation/types';
 import { shouldAcknowledgeAgentOnboardingLanding } from './agentOnboardingLanding';
 
 const logger = createDevLogger('useAgentOnboardingChannel', false);
@@ -20,16 +18,11 @@ const logger = createDevLogger('useAgentOnboardingChannel', false);
  * while the lock is active.
  */
 export function useAgentOnboardingChannel({
-  navigation,
   channelId,
   currentChannelId,
   groupId,
   routeGroupId,
 }: {
-  navigation: NativeStackScreenProps<
-    RootStackParamList,
-    'Channel'
-  >['navigation'];
   /** Channel id from the route — the landing handoff's target. */
   channelId: string;
   /** Channel currently rendered (can lag the route during transitions). */
