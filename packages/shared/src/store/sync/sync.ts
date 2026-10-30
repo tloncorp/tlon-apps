@@ -783,7 +783,32 @@ export type ContactDiscoveryResult = {
   newMatches: [string, string][];
 };
 
-export const syncContactDiscovery = async (
+// Overlapping callers share one run, so a proof is never spent twice and each
+// caller still sees the run's matches. The joining caller's opts are ignored.
+let contactDiscoveryRun: {
+  generation: number;
+  promise: Promise<ContactDiscoveryResult>;
+} | null = null;
+
+export const syncContactDiscovery = (
+  ctx?: SyncCtx,
+  opts?: { invokeHandler?: boolean }
+): Promise<ContactDiscoveryResult> => {
+  const generation = getClientGeneration();
+  if (contactDiscoveryRun?.generation === generation) {
+    return contactDiscoveryRun.promise;
+  }
+  const promise = syncContactDiscoveryOnce(generation, ctx, opts).finally(
+    () => {
+      if (contactDiscoveryRun?.promise === promise) contactDiscoveryRun = null;
+    }
+  );
+  contactDiscoveryRun = { generation, promise };
+  return promise;
+};
+
+const syncContactDiscoveryOnce = async (
+  generation: number,
   ctx?: SyncCtx,
   opts?: { invokeHandler?: boolean }
 ): Promise<ContactDiscoveryResult> => {
@@ -843,10 +868,16 @@ export const syncContactDiscovery = async (
   let didSucceed = true;
   try {
     const matches = (
-      await syncQueue.add('discoverContacts', ctx, () =>
-        discoverContacts(phoneNumbers)
-      )
+      await syncQueue.add('discoverContacts', ctx, () => {
+        if (generation !== getClientGeneration()) {
+          throw new Error('Contact discovery session changed');
+        }
+        return discoverContacts(phoneNumbers);
+      })
     ).filter((match) => match[1] !== currentUserId);
+    if (generation !== getClientGeneration()) {
+      throw new Error('Contact discovery session changed');
+    }
     didDiscover = true;
     logger.log('syncContactDiscovery: got contact discovery matches', matches);
 
@@ -942,6 +973,9 @@ export const syncContactDiscovery = async (
 
     return { didDiscover, didSucceed, newMatches: addedMatches };
   } catch (error) {
+    if (generation !== getClientGeneration()) {
+      return { ...empty, didDiscover, didSucceed: false };
+    }
     logger.error('error discovering contacts', error);
     logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
       context: 'failed to discover contacts',

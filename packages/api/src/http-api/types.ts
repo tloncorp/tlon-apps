@@ -99,6 +99,7 @@ export interface NounPoke {
   mark: Mark;
 
   noun: Noun;
+  signal?: AbortSignal;
   onError?: (e: Noun) => void;
 }
 

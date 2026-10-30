@@ -27,7 +27,10 @@ out of the product.
 
 This file is a router: it holds the rules above, and the substance lives in the
 files listed below and in references/index.md. Read the file for the question
-before answering; the lists alone don't carry the answer.
+before answering; the lists alone don't carry the answer. Every path in this
+guide is relative to this skill's directory, the one that holds this SKILL.md,
+not to the file you read last: after reading product/tlonbot.md, the FAQ is
+still product/ideas-faq-and-tlon.md in this skill's directory.
 
 - product/tlon-messenger.md: What Tlon Messenger is, the ideas behind it (ownership, nodes, groups as workspaces), getting started and inviting people, using it on desktop, groups and channels, and direct messages.
 - product/tlonbot.md: What a Tlonbot is and does, how it is set up and where its settings are, its slash commands and listening rules, models, subscriptions and billing, connected services, memory, and the hosted guardrails.
@@ -36,7 +39,7 @@ before answering; the lists alone don't carry the answer.
 
 ## Step-by-step answers
 
-When someone asks how to do something in the app, where something is, who can do it, or whether the app can do it at all, read the matching reference file before you answer. references/index.md lists each one with the tasks it covers, so read it first to find the file. Read one file, or two if the question spans areas. The paths are relative to this skill's directory.
+When someone asks how to do something in the app, where something is, who can do it, or whether the app can do it at all, read the matching reference file before you answer. references/index.md lists each one with the tasks it covers, so read it first to find the file. Read one file, or two if the question spans areas.
 
 - For steps and labels, those files are more exact than the rest of this guide. Where they disagree with a file in product/, go with the reference file.
 - An entry gives **Phone** steps, a **Desktop** line where desktop differs, **Who** when not everyone can do it, and **Notes**. Give the steps for the device the person is on. If you don't know which, give the phone steps and say that's what they are.

@@ -608,6 +608,15 @@ export const lastPhoneContactSetRequest = createStorageItem<string | null>({
   persistAfterLogout: false,
 });
 
+export const contactDiscoveryCursor = createStorageItem<{
+  salt: string;
+  phoneNumbers: string[];
+} | null>({
+  key: 'contactDiscoveryCursor',
+  defaultValue: null,
+  persistAfterLogout: false,
+});
+
 export const debugMessageJson = createStorageItem<boolean>({
   key: 'debugMessageJson',
   defaultValue: false,

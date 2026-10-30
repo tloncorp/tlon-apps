@@ -3,6 +3,7 @@ import {
   isTrustedBrowserViewerHost,
   isBrowserViewerDevelopmentOrigin,
   MAX_BROWSER_VIEWER_URL_LENGTH,
+  BrowserCardPresentationSchema,
 } from '@tloncorp/api';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 import { z } from 'zod';
@@ -184,7 +185,10 @@ async function resolveViewerUrl(
   allowPrivateNetwork: boolean | null,
   prepareForm: boolean,
   fields?: FormFields
-): Promise<string> {
+): Promise<{
+  viewerUrl: string;
+  presentation?: { purpose: 'login' | 'otp' | 'details'; site: string };
+}> {
   try {
     const server = record(record(record(record(config).mcp).servers).mcp);
     if (
@@ -307,7 +311,15 @@ async function resolveViewerUrl(
           if (metadata.session_id !== handle) {
             throw new Error('Browser session lookup refused.');
           }
-          return validateViewerUrl(metadata.viewer_url, prepareForm);
+          const presentation = BrowserCardPresentationSchema.safeParse(
+            metadata.card
+          );
+          return {
+            viewerUrl: validateViewerUrl(metadata.viewer_url, prepareForm),
+            ...(presentation.success
+              ? { presentation: presentation.data }
+              : {}),
+          };
         } finally {
           await request.release();
         }
@@ -390,7 +402,7 @@ export async function runBrowserSessionHandoff(
   const account = resolveBrowserHandoffAccount(config);
   if (args[1] !== 'share' && !watchHandoff)
     throw new Error('Secure entry requires result delivery to the agent.');
-  const viewerUrl = await resolveViewerUrl(
+  const { viewerUrl, presentation } = await resolveViewerUrl(
     args[2],
     config,
     account.allowPrivateNetwork,
@@ -409,6 +421,9 @@ export async function runBrowserSessionHandoff(
         args[1],
         viewerUrl,
         ...(loginRecord ? ['--record', JSON.stringify(loginRecord)] : []),
+        ...(presentation
+          ? ['--presentation', JSON.stringify(presentation)]
+          : []),
         ...(args[1] !== 'share' ? ['--service-result'] : []),
       ],
       config
