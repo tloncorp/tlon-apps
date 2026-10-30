@@ -55,10 +55,8 @@ import { NotesSearchScreen } from '../features/top/NotesSearchScreen';
 import PostScreen from '../features/top/PostScreen';
 import { UserProfileScreen } from '../features/top/UserProfileScreen';
 import { useIsDarkMode } from '../hooks/useDarkMode';
-import { useAgentGroupOnboardingStartupRoute } from '../hooks/useAgentGroupOnboardingLock';
 import { useTheme } from '../ui';
 import { GroupSettingsStack } from './GroupSettingsStack';
-import { OnboardingStartupScreen } from './OnboardingStartupScreen';
 import { TopLevelTabNavigator } from './TopLevelTabNavigator';
 import { nativeHeaderPresentationOptions } from './nativeHeaderOptions';
 import type { RootStackParamList } from './types';
@@ -91,15 +89,10 @@ function RootStackContent() {
   });
 
   const theme = useTheme();
-  const onboardingStartup = useAgentGroupOnboardingStartupRoute();
-
-  if (onboardingStartup.isLoading) return null;
 
   return (
     <Root.Navigator
-      initialRouteName={
-        onboardingStartup.route ? 'OnboardingStartup' : 'MainTabs'
-      }
+      initialRouteName="MainTabs"
       screenOptions={{
         ...nativeHeaderPresentationOptions,
         headerBackVisible: false,
@@ -107,14 +100,6 @@ function RootStackContent() {
         contentStyle: { backgroundColor: theme.background?.val },
       }}
     >
-      {onboardingStartup.route ? (
-        <Root.Screen
-          name="OnboardingStartup"
-          component={OnboardingStartupScreen}
-          initialParams={onboardingStartup.route}
-          options={{ animation: 'none', gestureEnabled: false }}
-        />
-      ) : null}
       {/* top level tabs */}
       <Root.Screen
         name="MainTabs"

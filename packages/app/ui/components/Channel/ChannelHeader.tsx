@@ -168,10 +168,8 @@ export function ChannelHeader({
   showSpinner,
   loadingSubtitle = 'Loading messages…',
   hideIdentity = false,
-  backDisabled = false,
   showSearchButton = false,
   showEditButton = false,
-  onPressLogout,
   preferProvidedTitle = false,
   post,
 }: {
@@ -193,10 +191,8 @@ export function ChannelHeader({
   showSpinner?: boolean;
   loadingSubtitle?: string | null;
   hideIdentity?: boolean;
-  backDisabled?: boolean;
   showSearchButton?: boolean;
   showEditButton?: boolean;
-  onPressLogout?: () => void;
   preferProvidedTitle?: boolean;
   post?: db.Post;
 }) {
@@ -470,21 +466,6 @@ export function ChannelHeader({
       backgroundTint: contextLensOpen ? '$secondaryBackground' : undefined,
       visible: !!onToggleContextLens,
     },
-    {
-      id: 'agent-onboarding-options',
-      icon: 'Overflow',
-      label: 'More options',
-      testID: 'AgentOnboardingOverflowButton',
-      visible: !!onPressLogout,
-      items: [
-        {
-          id: 'agent-onboarding-logout',
-          label: 'Log out',
-          destructive: true,
-          onPress: onPressLogout ?? (() => {}),
-        },
-      ],
-    },
   ];
   const usesNavigationHeader =
     isChatChannel(channel) || channel.type === 'notes';
@@ -507,7 +488,6 @@ export function ChannelHeader({
         {...headerProps}
         placement="navigation"
         backAction={goBack}
-        backDisabled={backDisabled}
         rightActions={rightActions}
       />
     );
@@ -517,7 +497,6 @@ export function ChannelHeader({
     <ScreenHeader
       {...headerProps}
       backAction={goBack}
-      backDisabled={backDisabled}
       rightActions={rightActions}
       rightControls={
         contextItems.length ? (

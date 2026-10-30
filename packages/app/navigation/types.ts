@@ -31,10 +31,6 @@ export type ChannelRouteParams = {
 export type RootStackParamList = {
   BrowserWallet: { requestId: string };
   MainTabs: NavigatorScreenParams<TopLevelTabParamList> | undefined;
-  OnboardingStartup: {
-    channelId: string;
-    groupId: string;
-  };
   VerifierStub: undefined;
   Empty: undefined;
   Contacts: undefined;
