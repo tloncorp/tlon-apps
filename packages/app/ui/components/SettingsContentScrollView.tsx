@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { type ComponentProps, type ReactNode } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { SizeTokens } from 'tamagui';
 
@@ -14,6 +14,10 @@ interface SettingsContentScrollViewProps {
   paddingHorizontal?: SpacingValue;
   paddingTop?: SpacingValue;
   safeAreaBottomOffset?: number;
+  style?: ComponentProps<typeof ScreenScrollView>['style'];
+  keyboardShouldPersistTaps?: ComponentProps<
+    typeof ScreenScrollView
+  >['keyboardShouldPersistTaps'];
 }
 
 export function SettingsContentScrollView({
@@ -24,6 +28,8 @@ export function SettingsContentScrollView({
   paddingHorizontal,
   paddingTop,
   safeAreaBottomOffset,
+  style,
+  keyboardShouldPersistTaps,
 }: SettingsContentScrollViewProps) {
   const insets = useSafeAreaInsets();
   const bottomPadding =
@@ -33,10 +39,8 @@ export function SettingsContentScrollView({
 
   return (
     <ScreenScrollView
-      style={{
-        flex: 1,
-        width: '100%',
-      }}
+      style={[{ flex: 1, width: '100%' }, style]}
+      keyboardShouldPersistTaps={keyboardShouldPersistTaps}
       contentContainerStyle={{
         alignSelf: 'center',
         gap,

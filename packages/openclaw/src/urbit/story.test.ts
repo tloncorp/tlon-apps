@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { extractMessageText } from '../monitor/utils.js';
 import {
   ALL_ONLY,
   type RoleMentionScope,
@@ -415,6 +416,204 @@ describe('markdownToStory', () => {
         },
       ]);
     });
+  });
+});
+
+describe('code fences', () => {
+  it('round-trips inbound code that contains a fence', () => {
+    const code = 'a```b\n```md\n# h\n```\nafter';
+    const echoed = extractMessageText([
+      { block: { code: { code, lang: 'markdown' } } },
+    ]);
+    expect(markdownToStory(echoed)).toEqual([
+      { block: { code: { code, lang: 'markdown' } } },
+    ]);
+  });
+
+  it('closes a block only on a fence at least as long as the opener', () => {
+    expect(markdownToStory('````\n```\nx\n```\n````\nafter')).toEqual([
+      { block: { code: { code: '```\nx\n```', lang: 'plaintext' } } },
+      { inline: ['after'] },
+    ]);
+  });
+
+  it('parses CRLF input like LF input', { timeout: 2000 }, () => {
+    const lf = 'intro\n```js\nconst a = 1;\n```\nafter';
+    expect(markdownToStory(lf.replace(/\n/g, '\r\n'))).toEqual(
+      markdownToStory(lf)
+    );
+  });
+
+  it(
+    'treats a backtick line that is not a fence as text',
+    { timeout: 2000 },
+    () => {
+      expect(markdownToStory('```literal```')).toEqual([
+        { inline: ['``', { 'inline-code': 'literal' }, '``'] },
+      ]);
+    }
+  );
+
+  it('never puts a backtick in a fence language', () => {
+    const story = markdownToStory('```markdown\n```js\n```\n```literal```');
+    expect(story).toEqual([
+      { block: { code: { code: '```js', lang: 'markdown' } } },
+      { inline: ['``', { 'inline-code': 'literal' }, '``'] },
+    ]);
+  });
+
+  it('falls back to plaintext for a language the ship cannot decode', () => {
+    expect(markdownToStory('```c++\nint a;\n```')).toEqual([
+      { block: { code: { code: 'int a;', lang: 'plaintext' } } },
+    ]);
+    expect(markdownToStory('```JS\nx\n```')).toEqual([
+      { block: { code: { code: 'x', lang: 'js' } } },
+    ]);
+  });
+
+  it('keeps triple-fence blocks as before', () => {
+    expect(markdownToStory('```js\nconst a = 1;\n```\nafter')).toEqual([
+      { block: { code: { code: 'const a = 1;', lang: 'js' } } },
+      { inline: ['after'] },
+    ]);
+  });
+});
+
+describe('hostile input', () => {
+  // Each case once rescanned the rest of the text per character: seconds
+  // at these sizes, milliseconds when linear.
+  it.each([
+    ['unclosed destinations', '[x]('.repeat(8000) + ')'],
+    ['unclosed destinations, 64 KB', '[x]('.repeat(16000) + ')'],
+    ['open brackets', '['.repeat(128000)],
+    ['open image brackets', '!['.repeat(64000)],
+    ['open parens', '('.repeat(128000)],
+    ['backticks', '`'.repeat(128000)],
+    [
+      'a punctuation run in a reference',
+      '/1/group/~zod/' + '!'.repeat(63985) + 'a',
+    ],
+    ['a long run of spaces before a CR', '#' + ' '.repeat(63996) + 'a\rb'],
+    ['a long run of spaces before U+2028', '#' + ' '.repeat(63996) + '\u2028'],
+  ])('parses %s quickly, as text', (_name, md) => {
+    const started = performance.now();
+    const story = markdownToStory(md);
+    expect(performance.now() - started).toBeLessThan(1000);
+    expect(JSON.stringify(story)).not.toContain('"link"');
+  });
+
+  it('parses a heading after a long run of spaces quickly', () => {
+    const started = performance.now();
+    const story = markdownToStory('#' + ' '.repeat(63996) + 'a b');
+    expect(performance.now() - started).toBeLessThan(1000);
+    expect(story).toEqual([
+      { block: { header: { tag: 'h1', content: ['a b'] } } },
+    ]);
+  });
+
+  it('keeps a 3 KB link and image destination', () => {
+    const url = 'https://cdn.example.com/' + 'a'.repeat(3072);
+    expect(markdownToStory(`[download](${url})`)).toEqual([
+      { inline: [{ link: { href: url, content: 'download' } }] },
+    ]);
+    expect(markdownToStory(`![photo](${url})`)).toEqual([
+      { block: { image: { src: url, alt: 'photo', height: 0, width: 0 } } },
+    ]);
+  });
+
+  it('trims a long run of open parens off a bare URL quickly', () => {
+    const started = performance.now();
+    const [verse] = markdownToStory('http://a' + '('.repeat(128000));
+    expect(performance.now() - started).toBeLessThan(1000);
+    expect('inline' in verse && verse.inline[0]).toEqual({
+      link: { href: 'http://a', content: 'http://a' },
+    });
+  });
+});
+
+describe('parenthesized and bare URLs', () => {
+  it('keeps balanced parentheses in a link destination', () => {
+    expect(
+      markdownToStory(
+        'see [math](https://en.wikipedia.org/wiki/Function_(mathematics)) now'
+      )
+    ).toEqual([
+      {
+        inline: [
+          'see ',
+          {
+            link: {
+              href: 'https://en.wikipedia.org/wiki/Function_(mathematics)',
+              content: 'math',
+            },
+          },
+          ' now',
+        ],
+      },
+    ]);
+  });
+
+  it('keeps balanced parentheses in an image source', () => {
+    expect(markdownToStory('![d](https://x.io/diagram_(final).png)')).toEqual([
+      {
+        block: {
+          image: {
+            src: 'https://x.io/diagram_(final).png',
+            alt: 'd',
+            height: 0,
+            width: 0,
+          },
+        },
+      },
+    ]);
+  });
+
+  it.each([
+    ['see https://example.com/a.', 'https://example.com/a', '.'],
+    ['(see https://example.com/a)', 'https://example.com/a', ')'],
+    ['go https://example.com/a?!', 'https://example.com/a', '?!'],
+    [
+      'https://en.wikipedia.org/wiki/Function_(mathematics).',
+      'https://en.wikipedia.org/wiki/Function_(mathematics)',
+      '.',
+    ],
+  ])('drops trailing punctuation from a bare URL: %s', (md, href, tail) => {
+    const inline = markdownToStory(md)[0];
+    expect('inline' in inline && inline.inline).toContainEqual({
+      link: { href, content: href },
+    });
+    const last = 'inline' in inline ? inline.inline.at(-1) : undefined;
+    expect(typeof last === 'string' && last.endsWith(tail)).toBe(true);
+  });
+});
+
+describe('images inside formatting', () => {
+  const image = {
+    block: {
+      image: { src: 'https://x.io/c.png', alt: 'c', height: 0, width: 0 },
+    },
+  };
+
+  it.each([
+    [
+      '**look ![c](https://x.io/c.png)** now',
+      [{ inline: [{ bold: ['look '] }, ' now'] }, image],
+    ],
+    ['*![c](https://x.io/c.png)*', [image]],
+    [
+      '## Results ![c](https://x.io/c.png)',
+      [{ block: { header: { tag: 'h2', content: ['Results '] } } }, image],
+    ],
+    ['# ![c](https://x.io/c.png)', [image]],
+    [
+      '> quoted ![c](https://x.io/c.png)',
+      [{ inline: [{ blockquote: ['quoted '] }] }, image],
+    ],
+    ['> ![c](https://x.io/c.png)', [image]],
+  ])('hoists the image to a block: %s', (md, expected) => {
+    const story = markdownToStory(md);
+    expect(story).toEqual(expected);
+    expect(JSON.stringify(story)).not.toContain('__image');
   });
 });
 

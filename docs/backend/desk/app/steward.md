@@ -94,6 +94,10 @@ The lens action is a tagged union of three shapes:
 - **`%retry`** `[%retry bot=ship id=@t]` — an owner-initiated request to re-dispatch a failed/aborted run. The symmetric case to `%entry` (bot → owner): retry flows owner → bot. If `bot == our`, the agent emits a `%retry-requested` fact on `/v1/lens` for the local gateway to act on; if `bot != our`, the owner's steward relays a cross-ship `%retry` poke to that bot's steward, which then emits the fact for its own gateway. Retry never mutates stored state — the gateway creates a fresh run and pokes it back via `%entry`.
 - **`%configure`** `[%configure max-runs-per-bot=@ud]` — set the per-ship retention cap (local only); applied to every bot immediately.
 
+### cron runs
+
+A scheduled task's runs are lens runs. The gateway stamps each cron run's payload with `lens.cron`: the job's `jobId`, `test: true` for a [test run](#edit-loop), the reply a test run produced as `output` (it is posted nowhere else), and the host's verdict on a scheduled run as `outcome` (`status` `ok`/`error`/`skipped`, `error`, `summary`, `delivered`, `deliveryStatus`, `deliveryError`). Runs recorded before the stamp carry the job only in their trigger preview, `"cron job <id>"` with `runKind` `"cron"`. The `/x/v1/lens/cron` scries page one job's runs by either mark (see the [scry surface](#scry-surface)); steward reads the payload only for that match and still stores and relays it opaquely.
+
 ### retention
 
 Count-bounded only — lens runs are durable memory, not transient logs, so there is **no time-based expiry**. Each bot keeps at most `max-runs-per-bot` records (default 3,000, seeded at install; changed via `%configure`). When a bot exceeds the cap, the oldest by `received` are dropped. Enforced on every insert (bounds that bot's tail) and on `%configure` (re-applies a new cap to every bot). No prune timer.
@@ -198,7 +202,7 @@ The inbound action and the feed/scry update use separate, independently versione
 
 An equal projection against an existing entry is a complete no-op: no state write, no facts — the harness reconciler re-reads on every `cron_changed` (including execution-only events), and those re-submissions must be silent. Equal-but-absent is the exception: the very first projection creates the `our` entry even when its task list is empty. Entry creation is inexpressible as task-level deltas, so the first accepted projection announces itself on the feed as one fresh full `%tasks` snapshot (even when empty); once the entry exists, a changed projection emits per-task `%set`/`%del` deltas naming the local ship, described below.
 
-The task map has exactly one writer per entry: the harness's `%project` for `our`, a bot's subscription for that bot. The [edit loop](#edit-loop) never writes it — an edit is relayed to the harness and becomes visible only through the harness's next `%project`. Automation excludes cron execution *state*: execution events, run history, delivery outcome and status, session keys, `deleteAfterRun`, and other runtime-only OpenClaw fields. Those values do not enter the Hoon task type, the automation facts, or the JSON scries. The delivery *definition* — where a run's output is addressed — is part of the task and is mirrored; see [`delivery`](#module-automation) above.
+The task map has exactly one writer per entry: the harness's `%project` for `our`, a bot's subscription for that bot. The [edit loop](#edit-loop) never writes it — an edit is relayed to the harness and becomes visible only through the harness's next `%project`. Automation excludes cron execution *state*: execution events, run history (which lives in the [lens module](#cron-runs)), delivery outcome and status, session keys, `deleteAfterRun`, and other runtime-only OpenClaw fields. Those values do not enter the Hoon task type, the automation facts, or the JSON scries. The delivery *definition* — where a run's output is addressed — is part of the task and is mirrored; see [`delivery`](#module-automation) above.
 
 ### feed: `/v1/automation/tasks`
 
@@ -222,7 +226,7 @@ Application is **wire-ship-scoped**: every received fact arrives on a wire namin
 
 ### edit loop
 
-The owner creates, updates, and deletes a bot's tasks through a request/response loop laid out on the ACUR pattern (see channels, groups, notes, and tloncorp/hoon-reference): `a-automation` local-only actions, a `c-automation` owner-gated command, the existing `update` as `u-automation`, and a notes-style per-request `response`. Every edit carries a `request-id` (`@uv`, minted from entropy when the client supplies none) and terminates in exactly one typed `response-body`: `%created id`, `%updated id`, `%deleted id`, `%error type message`, or `%pending status`. `action-error` is `%not-authorized`, `%not-found`, `%invalid`, `%harness-offline`, `%harness-error`, `%unknown`. Errors are returned as data, never as a crash, so the client can tell them apart.
+The owner creates, updates, and deletes a bot's tasks through a request/response loop laid out on the ACUR pattern (see channels, groups, notes, and tloncorp/hoon-reference): `a-automation` local-only actions, a `c-automation` owner-gated command, the existing `update` as `u-automation`, and a notes-style per-request `response`. Every edit carries a `request-id` (`@uv`, minted from entropy when the client supplies none) and terminates in exactly one typed `response-body`: `%created id`, `%updated id`, `%deleted id`, `%started id run`, `%error type message`, or `%pending status`. `action-error` is `%not-authorized`, `%not-found`, `%invalid`, `%harness-offline`, `%harness-error`, `%unknown`. Errors are returned as data, never as a crash, so the client can tell them apart.
 
 The verb is flat and reuses `task`, whose all-optional fields make `%update` a natural patch:
 
@@ -230,7 +234,10 @@ The verb is flat and reuses `task`, whose all-optional fields make `%update` a n
 [%create =task]
 [%update id=@t =task]
 [%delete id=@t]
+[%test id=@t]
 ```
+
+`%test` asks the harness to run task `id` once, now, outside its schedule and delivering nowhere. The harness answers `%started id run` once the run is under way, `run` naming the lens run that records it; the run's progress and reply then arrive like any lens run. Nothing about the task changes, so no mirror delta follows. A bot whose desk predates `%test` nacks the command poke (`%unknown`), and a plugin that predates it answers `%invalid`.
 
 **Steward is a pure relay.** No hop writes the task map. OpenClaw applies the edit, fires `cron_changed`, the plugin re-projects, and the mirror emits `%set`/`%del`; the response tells the client "accepted or rejected", the mirror delta confirms.
 
@@ -265,7 +272,7 @@ The `response` JSON is type-discriminated like the notes v1 envelope, with the m
 
 ### OpenClaw reconciliation
 
-The implementation targets OpenClaw `2026.9.33` (hosted bots stay on `2026.7.1` until the bundle flips; the plugin's SDK devDependency matches, the repo pins Node 24.22.1, and the dev container also runs `2026.9.33`), which provides `gateway_start`, `cron_changed`, `gateway_stop`, and `getCron()`, but not `cron_reconciled`. A job the plugin cannot represent (an unsupported schedule kind such as `on-exit`, a malformed field, a duplicate ID) is dropped from the snapshot and reported to telemetry rather than failing it, so one odd job cannot leave the mirror permanently stale. On `gateway_start` and on every `cron_changed` action—including execution-related `started` and `finished` actions—the Tlon plugin calls `getCron().list({ includeDisabled: true })`, normalizes the complete result, and submits one `%project` poke. A genuinely successful empty list therefore clears the projection; unavailable cron access or a failed read does not masquerade as an empty list.
+The implementation targets OpenClaw `2026.9.33` (hosted bots stay on `2026.7.1` until the bundle flips; the plugin's SDK devDependency matches, the repo pins Node 24.22.1, and the dev container also runs `2026.9.33`), which provides `gateway_start`, `cron_changed`, `gateway_stop`, and `getCron()`, but not `cron_reconciled`. A job the plugin cannot represent (an unsupported schedule kind such as `on-exit`, a malformed field, a duplicate ID) is dropped from the snapshot and reported to telemetry rather than failing it, so one odd job cannot leave the mirror permanently stale. OpenClaw's own monitor jobs (declaration keys `heartbeat:` and `skill-collection-review:`) are left out without a report: core refuses every client edit and delete of them. On `gateway_start` and on every `cron_changed` action—including execution-related `started` and `finished` actions—the Tlon plugin calls `getCron().list({ includeDisabled: true })`, normalizes the complete result, and submits one `%project` poke. A genuinely successful empty list therefore clears the projection; unavailable cron access or a failed read does not masquerade as an empty list.
 
 Two descriptions are refused at the plugin, as typed `invalid` answers rather than silent corrections. Agent onboarding keeps its primary job's slot key in `description` (`tlon-agent-primary:<groupId>`) and finds that job by matching the string exactly, so an edit may neither rename a slot description — which orphans the slot and makes onboarding create a duplicate job — nor mint one on an ordinary job. Resending a slot description unchanged is allowed, so a client that round-trips a whole task is unaffected, and an edit that leaves `description` alone never reads the job list.
 
@@ -471,6 +478,8 @@ With no entries at all the snapshot's exact JSON shape is `{ "tasks": {} }`. The
 - `/x/v1/lens/recent/[count]` → `[%recent entries]` — newest `count` runs.
 - `/x/v1/lens/since/[da]` → `[%recent entries]` — every run with `received >= da`, newest first; paginate history by passing the oldest `received` from the last page.
 - `/x/v1/lens/run/[ship]/[id]` → `[%entry entry]`, or empty (`[~ ~]`) when absent.
+- `/x/v1/lens/cron/[ship]/[job]/[count]` → `[%page total entries]` — the newest `count` of `ship`'s runs of cron job `job` (see [cron runs](#cron-runs)), newest first, and `total`, how many it holds. Grows to `{ "page": { "total": 24, "entries": [ entry, … ] } }`.
+- `/x/v1/lens/cron/[ship]/[job]/[count]/[da]` → `[%page total entries]` — the same, for the runs received strictly before `da`; a client pages back by passing the oldest `received` it holds.
 - `/x/v1/gateway/status` → `%noun` `[status:v1:gateway (unit @da)]` — current liveness and lease expiry.
 - `/x/v1/gateway/owner-activity` → `%noun` `@da` — timestamp of the most recent owner DM.
 - `/x/v1/prompts/files` → `%steward-prompts-files-1` `(map ship prompts:v1:prompts)` — the complete ship-keyed file map, the same value as `GET /steward/~/v1/prompts/files`.

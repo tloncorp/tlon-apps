@@ -2,7 +2,7 @@ import { ALL_MENTION_ID as allID } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { valid } from '@urbit/aura';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { formatUserId } from '../../utils';
 
@@ -67,23 +67,85 @@ export function createMentionRoleOptions(
   return [...roles, all];
 }
 
+// The first index where the two strings differ, or the shorter length when
+// one is a prefix of the other.
+export function firstDifference(a: string, b: string) {
+  let index = 0;
+  while (index < a.length && a[index] === b[index]) {
+    index += 1;
+  }
+  return index;
+}
+
+// Moves the mentions at or after an edit by its length change, dropping any
+// the edit broke.
+export function shiftMentions(
+  mentions: Mention[],
+  editPosition: number,
+  delta: number,
+  newText: string
+): Mention[] {
+  return mentions
+    .map((mention) =>
+      mention.start >= editPosition
+        ? { ...mention, start: mention.start + delta, end: mention.end + delta }
+        : mention
+    )
+    .filter(
+      (mention) =>
+        mention.start >= 0 &&
+        mention.end <= newText.length &&
+        newText.slice(mention.start, mention.end) === mention.display
+    );
+}
+
+// Where an index lands after the same edit, or null when the edit removed the
+// text it pointed into.
+export function shiftIndex(
+  index: number,
+  editPosition: number,
+  delta: number
+): number | null {
+  if (index < editPosition) {
+    return index;
+  }
+  return index >= editPosition - Math.min(delta, 0) ? index + delta : null;
+}
+
 export const useMentions = ({
   chatId,
+  groupId,
   roleOptions,
 }: {
   chatId: string;
+  groupId?: string | null;
   roleOptions: MentionOption[];
 }) => {
   const [isMentionModeActive, setIsMentionModeActive] = useState(false);
   const [mentionStartIndex, setMentionStartIndex] = useState<number | null>(
     null
   );
+  // shiftActiveMention runs after an async lookup, possibly before the render
+  // that follows a keystroke, so every write updates this ref along with state.
+  const mentionStartIndexRef = useRef<number | null>(null);
+  const setTrigger = useCallback((next: number | null) => {
+    mentionStartIndexRef.current = next;
+    setMentionStartIndex(next);
+  }, []);
   const [mentionSearchText, setMentionSearchText] = useState<string>('');
   const [mentions, setMentions] = useState<Mention[]>([]);
   const [wasDismissedByEscape, setWasDismissedByEscape] = useState(false);
   const [lastDismissedTriggerIndex, setLastDismissedTriggerIndex] = useState<
     number | null
   >(null);
+
+  // a big group stores only the members loaded so far, so mentioning anyone
+  // else needs its whole roster
+  useEffect(() => {
+    if (isMentionModeActive && groupId) {
+      store.syncRosterForMentions(groupId);
+    }
+  }, [isMentionModeActive, groupId]);
 
   const { data: mentionCandidateRows } = store.useMentionCandidates({
     chatId,
@@ -140,12 +202,10 @@ export const useMentions = ({
     } else {
       cursorPosition = newText.length;
       if (oldText.length !== newText.length) {
-        for (let i = 0; i < Math.min(oldText.length, newText.length); i++) {
-          if (oldText[i] !== newText[i]) {
-            firstDiffIndex = i;
-            cursorPosition = i + (newText.length > oldText.length ? 1 : 0);
-            break;
-          }
+        const index = firstDifference(oldText, newText);
+        if (index < Math.min(oldText.length, newText.length)) {
+          firstDiffIndex = index;
+          cursorPosition = index + (newText.length > oldText.length ? 1 : 0);
         }
       }
     }
@@ -174,7 +234,7 @@ export const useMentions = ({
       const deletedChar = oldText[cursorPosition];
       if (deletedChar === '@' || deletedChar === '~') {
         setIsMentionModeActive(false);
-        setMentionStartIndex(null);
+        setTrigger(null);
         setMentionSearchText('');
         return;
       }
@@ -216,16 +276,16 @@ export const useMentions = ({
           cursorPosition > lastTriggerIndex)
       ) {
         setIsMentionModeActive(true);
-        setMentionStartIndex(lastTriggerIndex);
+        setTrigger(lastTriggerIndex);
         setMentionSearchText(textBetweenTriggerAndCursor);
       } else {
         setIsMentionModeActive(false);
-        setMentionStartIndex(null);
+        setTrigger(null);
         setMentionSearchText('');
       }
     } else {
       setIsMentionModeActive(false);
-      setMentionStartIndex(null);
+      setTrigger(null);
       setMentionSearchText('');
     }
 
@@ -236,23 +296,12 @@ export const useMentions = ({
         explicitCursorPosition != null
           ? cursorPosition - (delta > 0 ? delta : 0)
           : (firstDiffIndex ?? cursorPosition);
-      const updatedMentions = mentions
-        .map((mention) => {
-          if (mention.start >= editPosition) {
-            return {
-              ...mention,
-              start: mention.start + delta,
-              end: mention.end + delta,
-            };
-          }
-          return mention;
-        })
-        .filter(
-          (mention) =>
-            mention.start >= 0 &&
-            mention.end <= newText.length &&
-            newText.slice(mention.start, mention.end) === mention.display
-        );
+      const updatedMentions = shiftMentions(
+        mentions,
+        editPosition,
+        delta,
+        newText
+      );
       if (
         updatedMentions.length !== mentions.length ||
         updatedMentions.some((m, i) => m.start !== mentions[i]?.start)
@@ -307,7 +356,7 @@ export const useMentions = ({
       ].sort((a, b) => a.start - b.start)
     );
     setIsMentionModeActive(false);
-    setMentionStartIndex(null);
+    setTrigger(null);
     setMentionSearchText('');
     setWasDismissedByEscape(false);
     setLastDismissedTriggerIndex(null);
@@ -332,9 +381,29 @@ export const useMentions = ({
     setIsMentionModeActive(false);
   };
 
+  const shiftActiveMention = useCallback(
+    (editPosition: number, delta: number) => {
+      const current = mentionStartIndexRef.current;
+      if (current !== null) {
+        const next = shiftIndex(current, editPosition, delta);
+        setTrigger(next);
+        if (next === null) {
+          setIsMentionModeActive(false);
+          setMentionSearchText('');
+        }
+      }
+      setLastDismissedTriggerIndex((dismissed) =>
+        dismissed === null
+          ? dismissed
+          : shiftIndex(dismissed, editPosition, delta)
+      );
+    },
+    [setTrigger]
+  );
+
   const resetMentionMode = () => {
     setIsMentionModeActive(false);
-    setMentionStartIndex(null);
+    setTrigger(null);
     setMentionSearchText('');
     setWasDismissedByEscape(false);
     setLastDismissedTriggerIndex(null);
@@ -354,5 +423,6 @@ export const useMentions = ({
     handleMentionSoftDismiss,
     hasMentionCandidates,
     resetMentionMode,
+    shiftActiveMention,
   };
 };

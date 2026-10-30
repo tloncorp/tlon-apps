@@ -5,16 +5,17 @@ import {
   useNotificationPermissions,
 } from '@tloncorp/app/lib/notifications';
 import { prepareTlonbotRevivalNotifications } from '@tloncorp/app/lib/tlonbotRevivalNotifications';
-import { Button, TlonText } from '@tloncorp/app/ui';
+import {
+  Button,
+  OnboardingStepLayout,
+  TlonText,
+  useNotificationPromptFrame,
+} from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useRef } from 'react';
 import { Image, Platform } from 'react-native';
 
-import {
-  OnboardingStepLayout,
-  useNotificationPromptFrame,
-} from '../../components/OnboardingStepLayout';
 import { useSignupContext } from '../../lib/signupContext';
 import type { OnboardingStackParamList } from '../../types';
 

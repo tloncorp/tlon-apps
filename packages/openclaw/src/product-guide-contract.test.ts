@@ -2,12 +2,31 @@ import { readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
-const guide = readFileSync(
-  new URL('../skills/tlon-product-guide/SKILL.md', import.meta.url),
-  'utf8'
-);
+// The guide is a router (SKILL.md) plus the product files it points to; the
+// contracts below hold across all of them.
+const guideDir = new URL('../skills/tlon-product-guide/', import.meta.url);
+const guide = [
+  'SKILL.md',
+  'product/tlon-messenger.md',
+  'product/tlonbot.md',
+  'product/privacy-and-hosting.md',
+  'product/ideas-faq-and-tlon.md',
+]
+  .map((file) => readFileSync(new URL(file, guideDir), 'utf8'))
+  .join('\n');
 
 describe('Tlon product guide contracts', () => {
+  // On a model with under 100K tokens of context, OpenClaw caps a tool result
+  // at 16,000 characters. It refuses a SKILL.md over that outright, and pages
+  // any other file, so a longer index would take a second read to see whole.
+  it.each(['SKILL.md', 'references/index.md'])(
+    'keeps %s within one read on a small model',
+    (file) => {
+      const text = readFileSync(new URL(file, guideDir), 'utf8');
+      expect(text.length).toBeLessThanOrEqual(16_000);
+    }
+  );
+
   it('distinguishes hosted subscriptions from API-key billing', () => {
     const frontmatter = guide.match(/^---\n([\s\S]*?)\n---/)?.[1];
     expect(frontmatter).toContain(

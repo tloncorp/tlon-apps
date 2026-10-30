@@ -233,7 +233,9 @@ export function CreateChannelSheet({
             <Button
               preset="primary"
               onPress={
-                isPrivate ? handlePressNext : handleSubmit(handlePressSave)
+                isPrivate
+                  ? handlePressNext
+                  : () => handleSubmit(handlePressSave)()
               }
               label={isPrivate ? 'Next' : 'Create channel'}
               loading={isCreating}

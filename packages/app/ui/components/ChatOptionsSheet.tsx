@@ -1,14 +1,7 @@
 import * as ub from '@tloncorp/api/urbit';
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import {
-  ActionSheetContext,
-  Icon,
-  useIsWindowNarrow,
-  useToast,
-} from '@tloncorp/ui';
-import * as Clipboard from 'expo-clipboard';
+import { ActionSheetContext, Icon, useIsWindowNarrow } from '@tloncorp/ui';
 import { IconButton } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import React, {
@@ -26,6 +19,7 @@ import { useCurrentUserId } from '../contexts/appDataContext';
 import { ChatOptionsContext } from '../contexts/chatOptions/context';
 import { useChatOptions } from '../contexts/chatOptions/useChatOptions';
 import { useChatVolumeOptions } from '../contexts/chatOptions/useChatVolumeOptions';
+import { useCopyChannelLink } from '../hooks/useCopyChannelLink';
 import { useIsNativeSheet } from '../hooks/useIsNativeSheet';
 import * as utils from '../utils';
 import {
@@ -768,11 +762,7 @@ export function ChannelOptionsSheetContent({
     });
   }, [channel.id, channel.groupId, onPressChatDetails]);
 
-  const toast = useToast();
-  const handleCopyChannelLink = useCallback(async () => {
-    await Clipboard.setStringAsync(logic.getChannelReferencePath(channel.id));
-    toast({ message: 'Copied!', duration: 1500 });
-  }, [channel.id, toast]);
+  const handleCopyChannelLink = useCopyChannelLink(channel.id);
 
   const wrappedAction = useCallback(
     (action: () => void, clearChat = true) => {
@@ -836,9 +826,7 @@ export function ChannelOptionsSheetContent({
             endIcon: 'ChevronRight',
             testID: 'GroupOptionsGroupInfoButton',
           },
-          // Notebook cites aren't rendered as cards yet and would show
-          // "Upgrade your app".
-          channel.type !== 'notes' && {
+          {
             title: 'Copy link to channel',
             endIcon: 'Copy',
             action: wrappedAction.bind(null, handleCopyChannelLink),
@@ -912,7 +900,7 @@ export function ChannelOptionsSheetContent({
       default:
         return group
           ? isSingleChannelGroup
-            ? `Workspace with ${group.members?.length ?? 0} members`
+            ? `Workspace with ${utils.getGroupMemberCount(group)} members`
             : `Channel in ${groupTitle}`
           : '';
     }

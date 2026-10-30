@@ -54,7 +54,9 @@ Self-hosted installs without this environment variable are unaffected.
 
 While limited, enabled `cron` and `every` tasks are disabled with a visible
 `[Paused: credit budget]` description prefix. One-shot (`at`) and event-driven
-schedules are excluded. The owner receives one notice per budget episode:
+schedules are excluded. OpenClaw's system-owned monitor jobs (heartbeat, skill
+collection review) are left alone because core rejects client edits to them.
+The owner receives one notice per budget episode:
 “Your token credits are low. Your 3 scheduled tasks have been paused.” It includes
 an A2UI **Request credit increase** button. Failed delivery is retried.
 New or re-enabled recurring tasks are held as well. Already-running work is not
@@ -75,7 +77,8 @@ Deploy the matching tlonbot wrapper and plugin together. Before launching a
 gateway, the wrapper runs `dist/src/cron-budget-bootstrap.js` as the gateway
 user, after ensuring no old gateway is running. This applies holds through the
 public SDK's cron store API before the scheduler can catch up overdue tasks.
-The bootstrap must never run alongside a live gateway. Recovery is left to the
+It also removes a stale budget label from OpenClaw's system-owned monitor jobs,
+which the live API cannot edit. The bootstrap must never run alongside a live gateway. Recovery is left to the
 plugin's live API. A failed bootstrap prevents gateway launch rather than
 silently starting unprotected scheduled work.
 
@@ -256,6 +259,12 @@ The owner can create, update, and delete the bot's cron jobs from a Tlon client.
 
 A create requests a job id derived from its request id (`steward-<requestId>`) and reports back whatever id OpenClaw actually assigned. Hosts from 2026.7.1 honor the requested id, so a command replayed after the plugin applied it and died before answering is rejected as a duplicate and answered as the create that already landed; 2026.5.28 and earlier ignore the requested id and assign a UUID, so replay is not idempotent there. Every outstanding command is replayed when the plugin (re)subscribes. Outcomes are typed: `created`/`updated`/`deleted` with the job id, or `error` with `invalid` (the dispatch failed validation before reaching the service), `not-found` (no such job), or `harness-error` (the service threw; the message rides along). The subscription is gated like the projection: exactly one runnable Tlon account. A ship whose `%steward` predates the edit loop nacks the subscribe, and owner edits then fail fast on the bot as `harness-offline` while everything else keeps working. Steward never mutates its task map on an edit; the change becomes visible through the next `%project` reconciliation.
 
+### Run history and test runs
+
+Every cron run's Context Lens record carries the job it ran (`lens.cron.jobId`), and when the host reports the run `finished` the plugin records its verdict there and finishes the lens, so the owner's ship can page one task's runs (`/x/v1/lens/cron`). A run that never reaches the agent has no record yet, as when it fails in setup or is a system event the host queues for the main session and calls done; its verdict creates one, already finished, so the run still shows in the task's history. A skipped run records nothing. Test runs need Context Lens to reach the owner, and are refused as `invalid` without it.
+
+A `test` command runs a job once without touching it: `src/cron-test-run.ts` reads the job, frames its prompt the way the host frames a cron turn, and runs it through `runtime.agent.runEmbeddedAgent` (with the job's model and fallbacks, failing over the way a scheduled run does, and its `lightContext` and `thinking` settings; a job without its own thinking level runs with the runner's default, which can differ from the default a scheduled run resolves) in a scratch session with the message tool off, so the job's last-run state, next run and delivery are unchanged. The command is answered `started` with the lens id as soon as the run begins; the run's reply is kept on its lens (`lens.cron.output`) rather than posted. For the length of the run the tool hook fails closed: only tools known to just read run (the host's read-only set, `tlon` reads, and an MCP server's catalog), and anything else is refused with a reason that asks the model to say what it would have done. A run that answers with nothing but an error payload is recorded as failed. The run stops as aborted if its monitor is torn down, and as timed out when it reaches its time limit, and its scratch transcript and any MCP runtime it started are removed afterwards. Asking again while a test of the same job is running answers with that run, unless the job has changed since that run started, which gets a run of its own. A job the credit budget has paused is refused as `invalid`, since a test would spend the same credits. Only agent-turn jobs that run in their own session can be tested: a main-session job or a system event runs inside the bot's ongoing conversation, which a scratch session cannot stand in for, so those are refused as `invalid`.
+
 ## Approval System
 
 The approval system lets you control who can interact with your bot. When `ownerShip` is configured, you'll receive DM notifications for:
@@ -334,7 +343,7 @@ The skill is automatically available to your agent. For standalone usage, see th
 
 Keep it a product reference, not an operating manual: anything that reads or mutates a node belongs in the `tlon` CLI skill. Edit `SKILL.md` directly to update the guide; the `description` frontmatter is what OpenClaw puts in the system prompt, so trigger coverage lives there.
 
-The step-by-step half of the guide is not edited here. `skills/tlon-product-guide/references/` and the index under "Step-by-step answers" in `SKILL.md` are written from the feature map in `docs/feature-map/`, one file per area of the app. The map describes the app at one store build and is brought up to date once per build, so it does not follow `develop`. To change a step, edit the map and run `node scripts/feature-map.mjs publish`. See `docs/feature-map/README.md`.
+The step-by-step half of the guide is not edited here. `skills/tlon-product-guide/references/`, including the `index.md` that "Step-by-step answers" in `SKILL.md` points to, is written from the feature map in `docs/feature-map/`, one file per area of the app. The map describes the app at one store build and is brought up to date once per build, so it does not follow `develop`. To change a step, edit the map and run `node scripts/feature-map.mjs publish`. See `docs/feature-map/README.md`.
 
 The rest of the guide makes claims about product behavior, so it goes stale the way code comments do — a renamed screen or a changed command turns it into confidently wrong support copy. When you change a slash command, a channel type, or a permissions rule, grep this file. When the guide changes, CI checks that every label it quotes still appears somewhere in the app's source, which catches a removed label but not a moved one. It does not run on app changes, so a label renamed in the app goes unnoticed here until the guide is next touched. `packages/openclaw/skills/**` is on `bot-harness-deploy.yml`'s path filter, so a content-only fix does reach bots on its own — but only the internal fleet. The push trigger hardcodes `TAG="tlon-internal"`; Hermes and external ships restart only via `workflow_dispatch` with the matching selector. A guide correction that needs to reach them is a manual dispatch, plus a package publish for anyone running the npm build.
 

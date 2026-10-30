@@ -67,7 +67,7 @@ describe('iOS browser view menu', () => {
     act(() => renderer.unmount());
   });
 
-  it('uses the viewer-confirmed toolbar state and disables unsupported viewers', () => {
+  it('uses the viewer-confirmed toolbar state and hides unsupported controls', () => {
     const onBrowserControlsChange = vi.fn();
     const props = {
       topInset: 44,
@@ -80,16 +80,14 @@ describe('iOS browser view menu', () => {
     act(() => {
       renderer = create(<BrowserViewerMenu {...props} />);
     });
-    let toggle = renderer.root.findByType(Toggle);
-    expect(toggle.props.modifiers).toContainEqual({ disabled: true });
-    act(() => toggle.props.onIsOnChange(true));
+    expect(renderer.root.findAllByType(Toggle)).toHaveLength(0);
     expect(onBrowserControlsChange).not.toHaveBeenCalled();
     act(() => {
       renderer.update(
         <BrowserViewerMenu {...props} browserControlsVisible={false} />
       );
     });
-    toggle = renderer.root.findByType(Toggle);
+    const toggle = renderer.root.findByType(Toggle);
     expect(toggle.props.isOn).toBe(false);
     // Toolbar visibility is local and does not require remote input control.
     act(() => toggle.props.onIsOnChange(true));

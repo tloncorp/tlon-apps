@@ -19,8 +19,10 @@ import {
   activityVersionSupportsNotes,
   deskVersionSupportsAutomations,
   deskVersionCountsAllSeats,
+  deskVersionServesRosterPages,
   deskVersionSupportsBuckets,
   deskVersionSupportsStewardPrompts,
+  deskVersionSupportsTaskRuns,
   deskVersionSupportsStewardBots,
   activityVersionSupportsReactions,
   classifyDeskVersion,
@@ -675,8 +677,14 @@ export const syncAppInfo = async (
     deskVersionSupportsAutomations(appInfo?.groupsVersion)
   );
   api.setDeskCountsAllSeats(deskVersionCountsAllSeats(appInfo?.groupsVersion));
+  api.setDeskServesRosterPages(
+    deskVersionServesRosterPages(appInfo?.groupsVersion)
+  );
   api.setDeskSupportsStewardPrompts(
     deskVersionSupportsStewardPrompts(appInfo?.groupsVersion)
+  );
+  api.setDeskSupportsTaskRuns(
+    deskVersionSupportsTaskRuns(appInfo?.groupsVersion)
   );
   api.setDeskSupportsStewardBots(
     deskVersionSupportsStewardBots(appInfo?.groupsVersion)
@@ -719,9 +727,11 @@ export const syncReactionSupport = async () => {
   api.setDeskSupportsBuckets(deskVersionSupportsBuckets(groupsVersion));
   api.setDeskSupportsAutomations(deskVersionSupportsAutomations(groupsVersion));
   api.setDeskCountsAllSeats(deskVersionCountsAllSeats(groupsVersion));
+  api.setDeskServesRosterPages(deskVersionServesRosterPages(groupsVersion));
   api.setDeskSupportsStewardPrompts(
     deskVersionSupportsStewardPrompts(groupsVersion)
   );
+  api.setDeskSupportsTaskRuns(deskVersionSupportsTaskRuns(groupsVersion));
   api.setDeskSupportsStewardBots(deskVersionSupportsStewardBots(groupsVersion));
 };
 
@@ -773,7 +783,32 @@ export type ContactDiscoveryResult = {
   newMatches: [string, string][];
 };
 
-export const syncContactDiscovery = async (
+// Overlapping callers share one run, so a proof is never spent twice and each
+// caller still sees the run's matches. The joining caller's opts are ignored.
+let contactDiscoveryRun: {
+  generation: number;
+  promise: Promise<ContactDiscoveryResult>;
+} | null = null;
+
+export const syncContactDiscovery = (
+  ctx?: SyncCtx,
+  opts?: { invokeHandler?: boolean }
+): Promise<ContactDiscoveryResult> => {
+  const generation = getClientGeneration();
+  if (contactDiscoveryRun?.generation === generation) {
+    return contactDiscoveryRun.promise;
+  }
+  const promise = syncContactDiscoveryOnce(generation, ctx, opts).finally(
+    () => {
+      if (contactDiscoveryRun?.promise === promise) contactDiscoveryRun = null;
+    }
+  );
+  contactDiscoveryRun = { generation, promise };
+  return promise;
+};
+
+const syncContactDiscoveryOnce = async (
+  generation: number,
   ctx?: SyncCtx,
   opts?: { invokeHandler?: boolean }
 ): Promise<ContactDiscoveryResult> => {
@@ -802,7 +837,17 @@ export const syncContactDiscovery = async (
     });
     return empty;
   }
-  const systemContacts = await getSystemContacts();
+  let systemContacts: db.SystemContact[];
+  try {
+    systemContacts = await getSystemContacts();
+  } catch (error) {
+    logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+      context: 'failed to read system contacts for discovery',
+      severity: AnalyticsSeverity.Critical,
+      error,
+    });
+    return { ...empty, didSucceed: false };
+  }
   const phoneNumbers = systemContacts
     .map((contact) => contact.phoneNumber)
     .filter((phoneNumber) => phoneNumber && phoneNumber.length > 0) as string[];
@@ -823,10 +868,16 @@ export const syncContactDiscovery = async (
   let didSucceed = true;
   try {
     const matches = (
-      await syncQueue.add('discoverContacts', ctx, () =>
-        discoverContacts(phoneNumbers)
-      )
+      await syncQueue.add('discoverContacts', ctx, () => {
+        if (generation !== getClientGeneration()) {
+          throw new Error('Contact discovery session changed');
+        }
+        return discoverContacts(phoneNumbers);
+      })
     ).filter((match) => match[1] !== currentUserId);
+    if (generation !== getClientGeneration()) {
+      throw new Error('Contact discovery session changed');
+    }
     didDiscover = true;
     logger.log('syncContactDiscovery: got contact discovery matches', matches);
 
@@ -834,6 +885,8 @@ export const syncContactDiscovery = async (
       isMocked,
     });
     const newMatchIds = newMatches.map(([, id]) => id);
+    let addedMatches: [string, string][] = [];
+    const failedNewIds = new Set<string>();
 
     await db.linkSystemContacts({ matches }).catch((e) => {
       didSucceed = false;
@@ -849,19 +902,19 @@ export const syncContactDiscovery = async (
     );
 
     if (newMatchIds.length > 0) {
-      await addContacts(newMatchIds).catch((e) => {
+      const { addedContactIds, failedContactIds } =
+        await addContacts(newMatchIds);
+      if (failedContactIds.length > 0) {
         didSucceed = false;
-        logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
-          context: 'failed to add contacts',
-          severity: AnalyticsSeverity.Critical,
-          error: e,
-        });
-      });
-      logger.log('syncContactDiscovery: added contacts', newMatchIds);
+        for (const id of failedContactIds) failedNewIds.add(id);
+      }
+      const addedIds = new Set(addedContactIds);
+      addedMatches = newMatches.filter(([, id]) => addedIds.has(id));
+      logger.log('syncContactDiscovery: added contacts', addedContactIds);
 
       await db
         .markContactsAsMatched({
-          contactIds: newMatchIds,
+          contactIds: addedContactIds,
           matchedAt: Date.now(),
         })
         .catch((e) => {
@@ -871,34 +924,58 @@ export const syncContactDiscovery = async (
             error: e,
           });
         });
+    }
 
-      // Apply the address-book name as customNickname only for new
-      // matches whose contact doesn't already have one. The query
-      // does the join + filter, so we just map to API calls here.
-      const contactsToName =
-        await db.getUnnamedSystemContactsByContactId(newMatchIds);
-      await Promise.all(
-        contactsToName.map((c) =>
-          updateContactMetadata(c.contactId, {
-            nickname: `${c.firstName || ''} ${c.lastName || ''}`.trim(),
-          })
-        )
-      ).catch((e) => {
-        didSucceed = false;
-        logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
-          context: 'failed to update contact metadata',
-          severity: AnalyticsSeverity.Critical,
-          error: e,
-        });
+    // Failed additions must stay skeletal so rediscovery can retry them.
+    const contactsToName = await db.getSystemContactsBatchByContactId(
+      matches.map(([, id]) => id).filter((id) => !failedNewIds.has(id))
+    );
+    const namesByContactId = new Map<string, string>();
+    for (const systemContact of contactsToName) {
+      const nickname =
+        `${systemContact.firstName || ''} ${systemContact.lastName || ''}`.trim();
+      if (
+        nickname &&
+        systemContact.contactId &&
+        !namesByContactId.has(systemContact.contactId)
+      ) {
+        namesByContactId.set(systemContact.contactId, nickname);
+      }
+    }
+    const metadataResults = await Promise.all(
+      Array.from(namesByContactId, async ([contactId, nickname]) => {
+        const contact = await db.getContact({ id: contactId });
+        // Existing names may be user-chosen; discovery only fills empty names.
+        if (!contact || contact.customNickname) return true;
+        // Only saved contacts have a ship address-book entry to edit.
+        if (contact.isContact) {
+          return updateContactMetadata(contact.id, { nickname });
+        }
+        await db.updateContact({ id: contact.id, customNickname: nickname });
+        return true;
+      })
+    ).catch((e) => {
+      didSucceed = false;
+      logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+        context: 'failed to update contact metadata',
+        severity: AnalyticsSeverity.Critical,
+        error: e,
       });
+      return [];
+    });
+    if (metadataResults.some((didUpdate) => !didUpdate)) {
+      didSucceed = false;
     }
 
-    if (invokeHandler && newMatches.length > 0) {
-      await invokeContactsMatchedHandler(newMatchIds);
+    if (invokeHandler && addedMatches.length > 0) {
+      await invokeContactsMatchedHandler(addedMatches.map(([, id]) => id));
     }
 
-    return { didDiscover, didSucceed, newMatches };
+    return { didDiscover, didSucceed, newMatches: addedMatches };
   } catch (error) {
+    if (generation !== getClientGeneration()) {
+      return { ...empty, didDiscover, didSucceed: false };
+    }
     logger.error('error discovering contacts', error);
     logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
       context: 'failed to discover contacts',

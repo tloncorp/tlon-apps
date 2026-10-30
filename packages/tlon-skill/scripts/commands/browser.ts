@@ -1,3 +1,5 @@
+import type { appendToPostBlob } from '@tloncorp/api/client/content-helpers';
+import type { BrowserCardPresentationSchema } from '@tloncorp/api/client/browserCards';
 import { z } from 'zod';
 import { validateBrowserViewerUrl } from '../browser-viewer';
 import { markdownToStory } from '../markdown';
@@ -29,7 +31,7 @@ subcommand is the plugin's delivery transport, not a shell session-handle lookup
 
 export const BROWSER_HELP = `${BROWSER_HANDOFF_HELP}
 
-Use browser share to send a rich link card that opens the live session in the browser.
+Use browser share to send a browser card that opens the live session.
 Never send raw or labeled browser-session links in ordinary messages.
 
 Use browser approve-login to ask for permission to use a saved login. The owner reviews the site and account, then approves or cancels without entering credentials.
@@ -51,113 +53,10 @@ export interface BrowserDeps extends Pick<
   PostsDeps,
   'stdout' | 'stderr' | 'authenticate' | 'getCurrentUserId' | 'now' | 'postsApi'
 > {
+  appendToPostBlob: typeof appendToPostBlob;
+  parseBrowserCardPresentation: typeof BrowserCardPresentationSchema.parse;
   browserWalletCard: (requestId: string, surfaceId: string) => unknown;
   getOwnerShip: () => string;
-}
-
-function browserCredentialHandoffBlob(
-  viewerUrl: string,
-  surfaceId: string,
-  loginApproval?: { record?: { id: string; revision: number } }
-): string {
-  const components = [
-    { id: 'root', component: 'Card', child: 'body' },
-    {
-      id: 'body',
-      component: 'Column',
-      children: [
-        'title',
-        'title-divider',
-        'explanation',
-        'privacy-direct',
-        'privacy-context',
-        'action-divider',
-        'actions',
-      ],
-    },
-    {
-      id: 'title',
-      component: 'Text',
-      variant: 'h3',
-      text: loginApproval ? 'Approve saved sign-in' : 'Secure browser input',
-    },
-    { id: 'title-divider', component: 'Divider' },
-    {
-      id: 'explanation',
-      component: 'Text',
-      text: loginApproval
-        ? 'Your bot is asking to use a saved login. Review the account and site before approving.'
-        : 'The browser needs information you can enter securely.',
-    },
-    {
-      id: 'privacy-direct',
-      component: 'Text',
-      variant: 'caption',
-      text: loginApproval
-        ? 'Approval allows this sign-in only.'
-        : 'Your input goes directly to the live browser.',
-    },
-    {
-      id: 'privacy-context',
-      component: 'Text',
-      variant: 'caption',
-      text: loginApproval
-        ? 'Your password stays hidden from chat and your bot.'
-        : 'It does not pass through chat or the bot.',
-    },
-    { id: 'action-divider', component: 'Divider' },
-    {
-      id: 'actions',
-      component: 'Row',
-      children: ['open-form'],
-      align: 'center',
-    },
-    {
-      id: 'open-form',
-      component: 'Button',
-      weight: 1,
-      variant: 'primary',
-      child: 'open-form-label',
-      action: {
-        event: {
-          name: 'tlon.navigate',
-          context: {
-            target: {
-              type: 'screen',
-              screen: 'browserSecureEntry',
-              viewerUrl,
-              ...(loginApproval ? { loginApproval } : {}),
-            },
-          },
-        },
-      },
-    },
-    {
-      id: 'open-form-label',
-      component: 'Text',
-      text: loginApproval ? 'Review sign-in' : 'Open secure form',
-    },
-  ];
-
-  const entry = {
-    type: 'a2ui',
-    version: 1,
-    storyMode: 'fallback',
-    messages: [
-      {
-        version: 'v0.9',
-        createSurface: {
-          surfaceId,
-          catalogId: 'tlon.a2ui.basic.v2',
-        },
-      },
-      {
-        version: 'v0.9',
-        updateComponents: { surfaceId, root: 'root', components },
-      },
-    ],
-  };
-  return JSON.stringify([entry]);
 }
 
 export async function run(args: string[], deps: BrowserDeps): Promise<number> {
@@ -199,6 +98,22 @@ export async function run(args: string[], deps: BrowserDeps): Promise<number> {
           'Secure entry requires service result delivery. Request a new card through the browser handoff tool.'
         );
       args = args.slice(0, -1);
+    }
+
+    let presentation;
+    const presentationIndex = args.indexOf('--presentation');
+    if (presentationIndex !== -1) {
+      try {
+        presentation = deps.parseBrowserCardPresentation(
+          JSON.parse(args[presentationIndex + 1])
+        );
+      } catch {
+        throw usageError('Invalid browser card presentation.');
+      }
+      args = [
+        ...args.slice(0, presentationIndex),
+        ...args.slice(presentationIndex + 2),
+      ];
     }
 
     if (
@@ -245,33 +160,25 @@ export async function run(args: string[], deps: BrowserDeps): Promise<number> {
       channelId: target,
       authorId: deps.getCurrentUserId(),
       sentAt,
-      content: sharing
-        ? [
-            {
-              block: {
-                link: {
-                  url: viewerUrl,
-                  meta: {
-                    siteName: 'Browser session',
-                    title: 'Open browser',
-                    description: 'View and control the shared browser.',
-                  },
-                },
-              },
-            },
-          ]
-        : markdownToStory(
-            loginApproval
-              ? 'Your bot needs approval to use a saved login.'
-              : 'The browser needs information you can enter securely.'
-          ),
-      blob: sharing
-        ? undefined
-        : browserCredentialHandoffBlob(
-            viewerUrl,
-            `browser-form-${sentAt}`,
-            loginApproval
-          ),
+      content: markdownToStory(
+        sharing
+          ? 'Your bot shared a browser session. Open it in an updated Tlon app.'
+          : loginApproval
+            ? 'Your bot needs approval to use a saved login. Review it in an updated Tlon app.'
+            : 'Your bot needs secure input. Open the secure form in an updated Tlon app.'
+      ),
+      blob: deps.appendToPostBlob(
+        undefined,
+        sharing
+          ? { type: 'browser-session', version: 1, viewerUrl }
+          : {
+              type: 'browser-secure-entry',
+              version: 1,
+              viewerUrl,
+              presentation,
+              loginApproval,
+            }
+      ),
       botProfile: { nickname: null, avatar: null },
     });
     writeLine(

@@ -28,6 +28,7 @@ export function usePostLastEditContent(post: Post): BlockData[] {
 
 export interface ContentContextProps {
   groupId?: string | null;
+  canUseBrowserCards?: boolean;
   isNotice?: boolean;
   onPressImage?: (src: string) => void;
   getImageViewerId?: (src: string) => string | undefined;

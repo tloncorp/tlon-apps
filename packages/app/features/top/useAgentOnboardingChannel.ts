@@ -4,22 +4,18 @@ import * as api from '@tloncorp/api';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect } from 'react';
 import { BackHandler } from 'react-native';
 
 import { useAgentGroupOnboardingLock } from '../../hooks/useAgentGroupOnboardingLock';
 import type { RootStackParamList } from '../../navigation/types';
-import { createTypedReset, getTopLevelTabRoute } from '../../navigation/utils';
-import {
-  shouldAcknowledgeAgentOnboardingLanding,
-  shouldRestoreAgentOnboardingFallback,
-} from './agentOnboardingLanding';
+import { shouldAcknowledgeAgentOnboardingLanding } from './agentOnboardingLanding';
 
 const logger = createDevLogger('useAgentOnboardingChannel', false);
 
 /**
- * Everything ChannelScreen owes agent onboarding: consume or restore the
- * durable landing handoff, reconcile the bot's provision receipt onto the
+ * Everything ChannelScreen owes agent onboarding: acknowledge the durable
+ * landing handoff, reconcile the bot's provision receipt onto the
  * navigation lock, and hold navigation captive (back gesture, hardware back)
  * while the lock is active.
  */
@@ -44,24 +40,6 @@ export function useAgentOnboardingChannel({
   routeGroupId?: string;
 }) {
   const onboardingLanding = db.agentOnboardingLanding.useValue();
-  const resetNavigation = useMemo(
-    () => createTypedReset(navigation),
-    [navigation]
-  );
-  useEffect(() => {
-    if (!shouldRestoreAgentOnboardingFallback(onboardingLanding, channelId)) {
-      return;
-    }
-    // The legacy splash is still covering the navigator. Restore its normal
-    // Home destination underneath before the fallback can be completed.
-    resetNavigation([getTopLevelTabRoute('ChatList')]);
-    void db.agentOnboardingLanding.resetValue().catch((error) => {
-      logger.trackError('Failed to clear agent onboarding fallback route', {
-        error,
-        ...onboardingLanding,
-      });
-    });
-  }, [channelId, onboardingLanding, resetNavigation]);
   useEffect(() => {
     if (
       !shouldAcknowledgeAgentOnboardingLanding(onboardingLanding, channelId)

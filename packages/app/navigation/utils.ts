@@ -29,7 +29,6 @@ import {
 import { carriedConversationParams } from './drawerDestination';
 import { getTopLevelTabRoute } from './topLevelTabs';
 import {
-  BrowserCredentialHandoffParams,
   CombinedParamList,
   DesktopBasePathStackParamList,
   MobileBasePathStackParamList,
@@ -560,19 +559,6 @@ export function useRootNavigation() {
     [navigationRef]
   );
 
-  const navigateToBrowserCredentialHandoff = useCallback(
-    (
-      handoffId: string,
-      loginApproval?: BrowserCredentialHandoffParams['loginApproval']
-    ) => {
-      navigationRef.current.navigate('BrowserCredentialHandoff', {
-        handoffId,
-        ...(loginApproval ? { loginApproval } : {}),
-      });
-    },
-    [navigationRef]
-  );
-
   const resetToChannel = useResetToChannel();
   const navigateToChannel = useNavigateToChannel();
   const navigateToChatDetails = useNavigateToChatDetails();
@@ -601,7 +587,6 @@ export function useRootNavigation() {
       navigateBack,
       navigateToBotSettings,
       navigateToBotMcpSettings,
-      navigateToBrowserCredentialHandoff,
     }),
     [
       navigation,
@@ -611,7 +596,6 @@ export function useRootNavigation() {
       navigateToChatVolume,
       navigateToBotSettings,
       navigateToBotMcpSettings,
-      navigateToBrowserCredentialHandoff,
       navigateBackFromPost,
       navigateToGroup,
       navigateToPost,

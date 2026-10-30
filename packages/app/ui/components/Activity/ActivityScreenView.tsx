@@ -270,6 +270,7 @@ export function ActivityScreenView({
       onRefreshTriggered={onRefresh}
       seenMarker={activitySeenMarker ?? Date.now()}
       onGroupAction={onGroupAction}
+      onPressChannelRef={goToChannel}
       subtitle={subtitle}
       loadingSubtitle={loadingSubtitle}
       onNavigateToContacts={onNavigateToContacts}
@@ -291,6 +292,7 @@ export function ActivityScreenContent({
   onEndReached,
   onRefreshTriggered,
   onGroupAction,
+  onPressChannelRef,
   seenMarker,
   subtitle,
   loadingSubtitle,
@@ -310,6 +312,7 @@ export function ActivityScreenContent({
   onRefreshTriggered: () => void;
   seenMarker: number;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
+  onPressChannelRef?: (channel: db.Channel) => void;
   subtitle?: string;
   loadingSubtitle?: string | null;
   onNavigateToContacts?: () => void;
@@ -397,7 +400,10 @@ export function ActivityScreenContent({
   const nativeTabInsetStyle = { paddingBottom: bottomContentInset };
 
   return (
-    <NavigationProvider onPressGroupRef={setSelectedGroup}>
+    <NavigationProvider
+      onPressGroupRef={setSelectedGroup}
+      onPressChannelRef={onPressChannelRef}
+    >
       <View flex={1}>
         <ScreenHeader
           title="Activity"
@@ -429,7 +435,9 @@ export function ActivityScreenContent({
                 keyExtractor={keyExtractor}
                 contentContainerStyle={[containerStyle, nativeTabInsetStyle]}
                 onEndReached={onEndReached}
-                ListFooterComponent={isFetching ? <LoadingSpinner /> : null}
+                ListFooterComponent={
+                  isFetching ? <LoadingSpinner /> : undefined
+                }
                 refreshControl={
                   <RefreshControl
                     refreshing={isRefreshing}

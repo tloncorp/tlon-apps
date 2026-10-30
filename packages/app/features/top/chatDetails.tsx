@@ -1,7 +1,6 @@
 // Wires the group and channel info screen to the app: its data, where its
 // rows lead, and what its actions do. `ChatDetailsScreenView` draws it.
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import * as Clipboard from 'expo-clipboard';
 import { useCallback, useMemo, useState } from 'react';
@@ -23,6 +22,7 @@ import {
 } from '../../ui';
 import { ChatDetailsScreenView } from '../../ui/components/ChatDetailsScreenView';
 import { CreateChannelSheet } from '../../ui/components/ManageChannels/CreateChannelSheet';
+import { useCopyChannelLink } from '../../ui/hooks/useCopyChannelLink';
 import {
   WorkspaceInstructionsSheet,
   hasWorkspaceInstructions,
@@ -141,10 +141,8 @@ export function ChatDetailsView({
     }
   }, [copyText, group]);
 
-  // DMs have no nest, so only group channels can be referenced. Notebook
-  // cites aren't rendered as cards yet and would show "Upgrade your app".
-  const canReference =
-    chatType === 'channel' && !!channel?.groupId && channel.type !== 'notes';
+  // DMs have no nest, so only group channels can be referenced.
+  const canReference = chatType === 'channel' && !!channel?.groupId;
 
   const handleForwardChannel = useCallback(() => {
     if (channel) {
@@ -152,11 +150,7 @@ export function ChatDetailsView({
     }
   }, [forwardChannelSheet, channel]);
 
-  const handleCopyChannelLink = useCallback(() => {
-    if (channel) {
-      copyText(logic.getChannelReferencePath(channel.id));
-    }
-  }, [copyText, channel]);
+  const handleCopyChannelLink = useCopyChannelLink(channel?.id ?? '');
 
   const handlePressNotifications = useCallback(() => {
     if (chatType === 'group' && group) {

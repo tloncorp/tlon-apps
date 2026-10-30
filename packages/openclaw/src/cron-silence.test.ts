@@ -4,6 +4,7 @@ import {
   beginCronSilenceObservation,
   clearCronSilenceObservations,
   consumeCronSilenceOutput,
+  peekCronSilenceOutput,
   recordCronSilenceOutput,
 } from './cron-silence.js';
 
@@ -85,6 +86,15 @@ describe('cron silence evidence', () => {
       expect(consumeCronSilenceOutput(finished)).toBe(expected);
     }
   );
+
+  it('lets the lens read the evidence and leaves it for telemetry', () => {
+    beginCronSilenceObservation(ctx);
+    recordCronSilenceOutput(end, ctx);
+    expect(peekCronSilenceOutput(finished)).toBe(true);
+    expect(peekCronSilenceOutput(finished)).toBe(true);
+    expect(consumeCronSilenceOutput(finished)).toBe(true);
+    expect(peekCronSilenceOutput(finished)).toBe(false);
+  });
 
   it('requires a matching observed run and session', () => {
     recordCronSilenceOutput(end, ctx);

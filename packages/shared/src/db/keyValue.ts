@@ -571,7 +571,7 @@ export const splashNickname = createStorageItem<string>({
 export type AgentOnboardingLanding = {
   groupId: string;
   channelId: string;
-  status?: 'pending' | 'claimed' | 'fallback';
+  status?: 'pending' | 'claimed';
 };
 
 /** One-shot handoff from the pre-navigation splash into the agent chat. */
@@ -604,6 +604,15 @@ export const lastLanyardSalt = createStorageItem<string | null>({
 
 export const lastPhoneContactSetRequest = createStorageItem<string | null>({
   key: 'lastPhoneContactSetRequest',
+  defaultValue: null,
+  persistAfterLogout: false,
+});
+
+export const contactDiscoveryCursor = createStorageItem<{
+  salt: string;
+  phoneNumbers: string[];
+} | null>({
+  key: 'contactDiscoveryCursor',
   defaultValue: null,
   persistAfterLogout: false,
 });

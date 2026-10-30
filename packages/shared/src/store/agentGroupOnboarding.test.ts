@@ -1,6 +1,7 @@
 import * as api from '@tloncorp/api';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { AGENT_GROUP_NAVIGATION_LOCK_FAILSAFE_MS } from '../db';
 import { appendToPostBlob } from '../logic';
 import {
   agentGroupOnboardingTesting,
@@ -573,5 +574,52 @@ describe('initial onboarding campaign metadata', () => {
       agentGroupOnboardingTesting.buildIntroRequest('~zod/later', false, true)
         .campaignVersion
     ).toBeUndefined();
+  });
+});
+
+describe('furnishing lock marker', () => {
+  const { furnishingLockMarker } = agentGroupOnboardingTesting;
+  const now = 100_000;
+  const base = {
+    chatChannelId: 'chat/~zod/home/chat',
+    initialGroupTitle: 'Untitled workspace',
+    canRenameGroup: true,
+    now,
+  };
+
+  it('locks the first run’s group for the failsafe window', () => {
+    expect(
+      furnishingLockMarker(undefined, { ...base, isFirstGroup: true })
+        .navigationLockExpiresAt
+    ).toBe(now + AGENT_GROUP_NAVIGATION_LOCK_FAILSAFE_MS);
+  });
+
+  it('keeps a lock the first run already ended', () => {
+    // Setup ran late, so the app opened and ended the lock. The attempt that
+    // finishes afterwards must not lock someone already using the app.
+    const ended = { createdAt: 1, navigationLockExpiresAt: now - 5_000 };
+    const marker = furnishingLockMarker(ended, {
+      ...base,
+      isFirstGroup: true,
+    });
+    expect(marker.navigationLockExpiresAt).toBe(now - 5_000);
+    expect(marker.createdAt).toBe(1);
+    expect(marker.canRenameGroup).toBe(true);
+  });
+
+  it('never locks a later group', () => {
+    expect(
+      furnishingLockMarker(undefined, { ...base, isFirstGroup: false })
+        .navigationLockExpiresAt
+    ).toBeUndefined();
+  });
+
+  it('keeps rename provenance recorded before', () => {
+    const marker = furnishingLockMarker(
+      { createdAt: 1, canRenameGroup: false, initialGroupTitle: 'Bikes' },
+      { ...base, isFirstGroup: true }
+    );
+    expect(marker.canRenameGroup).toBe(false);
+    expect(marker.initialGroupTitle).toBe('Bikes');
   });
 });

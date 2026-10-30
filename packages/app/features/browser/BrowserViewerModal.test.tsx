@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal } from 'react-native';
+import { Alert, Modal } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -17,6 +17,7 @@ vi.mock('../../ui/components/GlassSurface', () => ({
 }));
 vi.mock('react-native', () => ({
   Modal: 'Modal',
+  Alert: { alert: vi.fn() },
   Pressable: 'Pressable',
   Keyboard: {
     addListener: vi.fn(() => ({ remove: vi.fn() })),
@@ -42,22 +43,22 @@ vi.mock('tamagui', () => ({
 }));
 const viewerUrl = 'https://browser-session.tlon.network/s/payload.signature';
 
-function render() {
+function render(url = viewerUrl) {
   const onClose = vi.fn();
   let renderer!: ReactTestRenderer;
   act(() => {
-    renderer = create(
-      <BrowserViewerModal viewerUrl={viewerUrl} onClose={onClose} />
-    );
+    renderer = create(<BrowserViewerModal viewerUrl={url} onClose={onClose} />);
   });
   return { renderer, onClose };
 }
 
 describe('native live browser modal', () => {
   beforeAll(() => {
+    vi.stubGlobal('__DEV__', true);
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   });
   afterAll(() => {
+    vi.unstubAllGlobals();
     delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean })
       .IS_REACT_ACT_ENVIRONMENT;
   });
@@ -104,16 +105,78 @@ describe('native live browser modal', () => {
     act(() => renderer.unmount());
   });
 
-  it('dismisses with the close button and Android back action', () => {
+  it('dismisses with the close button and Android back action', async () => {
     const { renderer, onClose } = render();
-    act(() => renderer.root.findByType(Modal).props.onRequestClose());
+    await act(async () =>
+      renderer.root.findByType(Modal).props.onRequestClose()
+    );
     expect(onClose).toHaveBeenCalledOnce();
-    act(() =>
+    await act(async () =>
       renderer.root
         .findByProps({ accessibilityLabel: 'Close browser' })
         .props.onPress()
     );
     expect(onClose).toHaveBeenCalledTimes(2);
     act(() => renderer.unmount());
+  });
+  it('shows takeover without native input controls and waits for confirmed handback before closing', async () => {
+    vi.stubEnv(
+      'EXPO_PUBLIC_BROWSER_VIEWER_DEV_ORIGIN',
+      'http://127.0.0.1:43841'
+    );
+    const url = 'http://127.0.0.1:43841/s/payload.signature';
+    const { renderer, onClose } = render(url);
+    const view = renderer.root.findByType(WebView);
+    const message = (data: object) =>
+      act(() =>
+        view.props.onMessage({
+          nativeEvent: { url, data: JSON.stringify(data) },
+        })
+      );
+    const status = (ready: boolean) =>
+      message({
+        type: 'tlon.browser.input',
+        version: 1,
+        context: 1,
+        ready,
+        keyboardOpen: false,
+        nativeControl: true,
+        canTakeControl: true,
+      });
+    status(false);
+    expect(
+      renderer.root.findAllByProps({ label: 'Take control' })
+    ).toHaveLength(1);
+    expect(
+      renderer.root.findAllByProps({ accessibilityLabel: 'Keyboard' })
+    ).toHaveLength(0);
+    status(true);
+    expect(
+      renderer.root.findAllByProps({ label: 'Take control' })
+    ).toHaveLength(0);
+    expect(
+      renderer.root.findAllByProps({ accessibilityLabel: 'Keyboard' })
+    ).toHaveLength(0);
+    let closing!: Promise<void>;
+    act(() => {
+      closing = renderer.root.findByType(Modal).props.onRequestClose();
+    });
+    expect(onClose).not.toHaveBeenCalled();
+    await act(async () => {
+      message({ type: 'tlon.browser.closed', ok: false });
+      await closing;
+    });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(Alert.alert).toHaveBeenCalled();
+    act(() => {
+      closing = renderer.root.findByType(Modal).props.onRequestClose();
+    });
+    await act(async () => {
+      message({ type: 'tlon.browser.closed', ok: true });
+      await closing;
+    });
+    expect(onClose).toHaveBeenCalledOnce();
+    act(() => renderer.unmount());
+    vi.unstubAllEnvs();
   });
 });

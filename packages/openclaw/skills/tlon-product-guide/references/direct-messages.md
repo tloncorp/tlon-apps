@@ -53,9 +53,9 @@ Notes: group DMs you're already in still work. They're listed under their member
 
 ## Rename a group DM or change its icon
 
-Phone: on the Workspaces tab, press and hold the group DM and tap `Edit group info`. On the `Edit chat info` screen, change `Name`, `Icon image` (tap `Change icon image`) or `Description`, then tap `Save` at the top right. The screen stays open after saving, so tap back to leave.
+Phone: on the Workspaces tab, press and hold the group DM and tap `Edit group info`. On the `Edit chat info` screen, change `Name`, tap the icon to pick a picture (`Choose photo` or `Take photo`), or change `Description`, then tap `Save` at the top right. Saving takes you back to the chat.
 Desktop: hover the group DM in the sidebar, open its three-dot menu, and pick `Edit group info`.
-Notes: any member gets this option. Names are capped at 30 characters, descriptions at 300. The new name shows at the top of the chat, but the row in your list keeps showing the members' names. If the icon button reads `Storage not configured`, you can't change the icon. One-to-one DMs can't be renamed.
+Notes: any member gets this option. Names are capped at 30 characters, descriptions at 300. The new name shows at the top of the chat, but the row in your list keeps showing the members' names. One-to-one DMs can't be renamed.
 
 ## See who is in a group DM
 

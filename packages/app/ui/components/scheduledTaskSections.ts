@@ -150,6 +150,21 @@ export function scheduledTaskListSections({
   return sections;
 }
 
+/** A saved task's way into its runs, and its test run. */
+export interface TaskRunsEntry {
+  /** How the last run went, e.g. "Last run Today, successful". */
+  subtitle: string;
+  count?: number;
+  onPress: () => void;
+  test?: {
+    busy: boolean;
+    disabled: boolean;
+    onPress: () => void;
+    /** Why a test cannot run, or what one does. */
+    note: string;
+  };
+}
+
 /** One task as an editable form. */
 export function taskEditorSections({
   draft,
@@ -163,6 +178,7 @@ export function taskEditorSections({
   onPressTime,
   onPressDestination,
   status,
+  runs,
   onDelete,
   deleting = false,
 }: {
@@ -185,6 +201,7 @@ export function taskEditorSections({
     busy: boolean;
     onChange: (enabled: boolean) => void;
   };
+  runs?: TaskRunsEntry;
   onDelete?: () => void;
   deleting?: boolean;
 }): SettingsSectionModel[] {
@@ -317,6 +334,35 @@ export function taskEditorSections({
       },
     ],
   });
+
+  if (runs) {
+    sections.push({
+      key: 'runs',
+      footer: runs.test?.note,
+      rows: [
+        {
+          key: 'history',
+          title: 'Run history',
+          subtitle: runs.subtitle,
+          badge: runs.count ? String(runs.count) : undefined,
+          onPress: runs.onPress,
+          testID: 'ScheduledTaskRunHistoryRow',
+        },
+        ...(runs.test
+          ? [
+              {
+                key: 'test',
+                title: runs.test.busy ? 'Starting test run…' : 'Test run',
+                action: true,
+                disabled: runs.test.disabled || runs.test.busy,
+                onPress: runs.test.onPress,
+                testID: 'ScheduledTaskTestRunRow',
+              },
+            ]
+          : []),
+      ],
+    });
+  }
 
   if (onDelete) {
     sections.push({
