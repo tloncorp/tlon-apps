@@ -79,7 +79,7 @@
 ::
 ++  grant-fact
   |=  [rid=@uv body=response-body:bu]
-  (ex-fact ~[/v1/requests] %buckets-req-response-2 !>(`req-response:bu`[rid body]))
+  (ex-fact ~[/v1/requests] %buckets-req-response-3 !>(`req-response:bu`[rid body]))
 ::
 ::  +genuine-scries: %buckets authenticates itself to the broker with the
 ::  secret %genuine holds, so anything that mints or revokes a token reads it.
@@ -447,7 +447,7 @@
   |=  caz=(list card)
   ^-  (list card)
   %+  skim  caz
-  |=(=card ?=([%give %fact * %buckets-req-response-2 *] card))
+  |=(=card ?=([%give %fact * %buckets-req-response-3 *] card))
 ::
 ::  +secretless-scries: the group is there, but %genuine has not initialised.
 ::  A real state on a fresh ship, and the one place a mint is answered in the
@@ -930,7 +930,7 @@
     %+  ex-cards  (answers caz)
     :~  %-  ex-fact
         :*  ~[/v1/request/~bus/0v6]
-            %buckets-req-response-2
+            %buckets-req-response-3
             !>(`req-response:bu`[0v6 [%pending ~]])
         ==
     ==
@@ -942,7 +942,7 @@
   %+  ex-cards  refused
   :~  %-  ex-fact
       :*  ~[/v1/request/~bus/0v6]
-          %buckets-req-response-2
+          %buckets-req-response-3
           !>  ^-  req-response:bu
           [0v6 [%error %unknown 'slow down' `['rate_limited' & `5.000 `'host']]]
       ==
@@ -1558,7 +1558,7 @@
   %+  ex-cards  other
   :~  %-  ex-fact
       :*  ~[/v1/request/~bus/0v6]
-          %buckets-req-response-2
+          %buckets-req-response-3
           !>(`req-response:bu`[0v6 [%error %not-authorized 'not the uploader' ~]])
       ==
   ==
@@ -2299,7 +2299,7 @@
   ;<  ~  b
     %+  ex-cards  (skim revoke-caz |=(car=card ?=([%give %fact *] car)))
     :~  %+  ex-fact  ~[/v1/request/~bus/0v9]
-        :-  %buckets-req-response-2
+        :-  %buckets-req-response-3
         !>  ^-  req-response:bu
         :-  0v9
         [%error %not-authorized 'access changed while the token was being issued' ~]
@@ -2861,7 +2861,7 @@
     %^    do-agent
         /buckets/req/~sampel-palnet/0v4/watch
       [~sampel-palnet %buckets]
-    :+  %fact  %buckets-req-response-2
+    :+  %fact  %buckets-req-response-3
     !>(`req-response:bu`[0v4 [%pending ~]])
   ;<  ~  b  (ex-cards waiting ~)
   ::  then the real answer lands, and it settles
@@ -2870,7 +2870,7 @@
     %^    do-agent
         /buckets/req/~sampel-palnet/0v4/watch
       [~sampel-palnet %buckets]
-    :+  %fact  %buckets-req-response-2
+    :+  %fact  %buckets-req-response-3
     !>(`req-response:bu`[0v4 [%token tok]])
   ;<  sv=vase  b  get-save
   =/  st=state-1:bu  !<(state-1:bu sv)
@@ -2908,7 +2908,8 @@
   =*  b  bind:m
   ^-  form:m
   =/  act=action:bu  [%bucket flag [%create-folder ~ 'Launch']]
-  =/  detail=broker-error:bu  ['rate_limited' & `5.000 `'host']
+  =/  detail=broker-error:bu  ['rate_limited' & `~s5 `'host']
+  =/  room=capacity:bu  [123 4 99 (silt ~['image/png'])]
   ;<  ~  b  (setup-as ~bus)
   ;<  *  b
     (do-poke %group-channel-join !>(`channel-join:bu`[[%buckets ~sampel-palnet %project-files] group]))
@@ -2939,7 +2940,7 @@
         /buckets/req/~sampel-palnet/0v5/watch
       [~sampel-palnet %buckets]
     :+  %fact  %buckets-req-response-2
-    !>(`req-response:bu`[0v5 [%error %unknown 'slow down' `detail]])
+    !>(`req-response:v2:bu`[0v5 [%error %unknown 'slow down' `detail]])
   ;<  ~  b
     %+  ex-cards  new
     :~  %-  ex-task
@@ -2957,7 +2958,7 @@
     %^    do-agent
         /buckets/req/~sampel-palnet/0v6/watch
       [~sampel-palnet %buckets]
-    :+  %fact  %buckets-req-response-3
+    :+  %fact  %buckets-req-response-4
     !>([0v6 %ok ~])
   ;<  ~  b  (ex-cards dropped ~)
   ;<  sv=vase  b  get-save
@@ -2971,8 +2972,8 @@
     %^    do-agent
         /buckets/req/~sampel-palnet/0v6/watch
       [~sampel-palnet %buckets]
-    :+  %fact  %buckets-req-response-2
-    !>(`req-response:bu`[0v6 [%ok ~]])
+    :+  %fact  %buckets-req-response-3
+    !>(`req-response:bu`[0v6 [%capacity room]])
   %+  ex-cards  late
   :~  %-  ex-task
       :*  /buckets/req/~sampel-palnet/0v6/watch
@@ -2983,7 +2984,7 @@
       :*  /buckets/req/~sampel-palnet/0v6/wake
           [%b %rest (add ~2026.1.1 ~m2)]
       ==
-      (grant-fact 0v6 [%ok ~])
+      (grant-fact 0v6 [%capacity room])
   ==
 ::
 ::  A refused action that has nothing to do with tokens must leave ours alone.
@@ -3006,7 +3007,7 @@
     %^    do-agent
         /buckets/req/~sampel-palnet/0v4/watch
       [~sampel-palnet %buckets]
-    :+  %fact  %buckets-req-response-2
+    :+  %fact  %buckets-req-response-3
     !>(`req-response:bu`[0v4 [%token tok]])
   ::  now a folder rename is refused
   ;<  *  b  (ask 0v5 [%bucket flag [%entry 1 [%rename 'nope']]])
@@ -3088,7 +3089,7 @@
         %-  ex-arvo
         [/buckets/reader-retry [%b %wait (add ~2026.1.1 ~m2)]]
         %+  ex-fact  ~[/v1/requests]
-        :-  %buckets-req-response-2
+        :-  %buckets-req-response-3
         !>  ^-  req-response:bu
         [0v7 %error %unknown 'this ship cannot reach storage yet' ~]
     ==
@@ -3386,7 +3387,7 @@
     |=  =card
     ^-  (unit @uv)
     ?.  ?=([%give %fact *] card)  ~
-    ?.  =(%buckets-req-response-2 p.cage.p.card)  ~
+    ?.  =(%buckets-req-response-3 p.cage.p.card)  ~
     `request-id:!<(req-response:bu q.cage.p.card)
   %+  ex-equal
     !>(answered)
@@ -3606,7 +3607,7 @@
   %+  ex-cards  caz
   :~  %-  ex-fact
       :*  ~[/v1/request/~bus/0v5]
-          %buckets-req-response-2
+          %buckets-req-response-3
           !>(`req-response:bu`[0v5 [%error %not-authorized 'not authorized for this bucket' ~]])
       ==
   ==
@@ -3963,6 +3964,340 @@
   ;<  caz=(list card)  b  (http-post & '{"action":{"type":"no-such-verb"}}')
   %+  ex-cards  caz
   :~  (http-header 400 'text/plain')
+      (ex-fact-paths [/http-response/eyre-0]~)
+      (ex-card [%give %kick [/http-response/eyre-0]~ ~])
+  ==
+::
+++  admin-scries
+  |=  pax=path
+  ^-  (unit vase)
+  ?:  (group-exists-path pax)  `!>(&)
+  ?:  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %can-read %noun ~] pax)
+    `!>(|=([who=ship =nest:bu] &))
+  ?:  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %buckets @ @ %can-write @ %noun ~] pax)
+    `!>(`(unit [admin=? roles=(set @tas)])`[~ [admin=& roles=~]])
+  (genuine-scries pax)
+::
+++  reader-without-role-scries
+  |=  pax=path
+  ^-  (unit vase)
+  ?:  (group-exists-path pax)  `!>(&)
+  ?:  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %can-read %noun ~] pax)
+    `!>(|=([who=ship =nest:bu] &))
+  ?:  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %buckets @ @ %can-write @ %noun ~] pax)
+    `!>(`(unit [admin=? roles=(set @tas)])`[~ [admin=| roles=(silt ~[%reader])]])
+  (genuine-scries pax)
+::
+++  writer-without-secret-scries
+  |=  pax=path
+  ^-  (unit vase)
+  ?:  ?=([%gu @ %genuine *] pax)  `!>(|)
+  (group-permission-scries pax)
+::
+++  capacity-asked
+  |=  [rid=@uv writers=(set @tas) scries=$-(path (unit vase))]
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m
+    (ask 0v0 [%create %project-files 'Project Files' group ~ writers])
+  ;<  ~  bind:m  (set-scry-gate scries)
+  %-  (do-as ~bus)
+  %+  do-poke  %buckets-command-1
+  !>(`command:bu`[rid [%bucket flag [%query-capacity ~]]])
+::
+++  iris-cards
+  |=  caz=(list card)
+  ^-  (list card)
+  (skim caz |=(=card ?=([%pass * %arvo %i %request * *] card)))
+::
+++  capacity-pending
+  |=  rid=@uv
+  %-  ex-fact
+  :*  ~[/v1/request/~bus/(scot %uv rid)]
+      %buckets-req-response-3
+      !>(`req-response:bu`[rid [%pending ~]])
+  ==
+::
+++  capacity-answer
+  |=  [rid=@uv body=response-body:bu]
+  %-  ex-fact
+  :*  ~[/v1/request/~bus/(scot %uv rid)]
+      %buckets-req-response-3
+      !>(`req-response:bu`[rid body])
+  ==
+::
+++  test-capacity-answered-to-a-writer
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  caz=(list card)  b
+    (capacity-asked 0v7 (silt ~[%editor]) uploader-scries)
+  ;<  ~  b  (ex-cards (answers caz) ~[(capacity-pending 0v7)])
+  =/  push=[=wire =request:http]  (only-iris caz)
+  ;<  ~  b
+    (ex-equal !>(wire.push) !>(/buckets/capacity/~sampel-palnet/project-files/~bus/0v7))
+  ;<  ~  b
+    %+  ex-equal
+      !>([method.request.push url.request.push])
+    !>([%'POST' 'https://memex.tlon.network/v2/buckets/capacity'])
+  ;<  ~  b
+    %+  ex-equal
+      !>(header-list.request.push)
+    !>(~[['content-type' 'application/json'] ['x-landscape-token' '0wsecret']])
+  ;<  sv=vase  b  get-save
+  =/  bs=bucket-state:bu  (state-for !<(state-1:bu sv) flag)
+  =/  sent=(unit json)
+    ?~  body.request.push  ~
+    (de:json:html q.u.body.request.push)
+  ;<  ~  b
+    %+  ex-equal
+      !>(sent)
+    !>  ^-  (unit json)
+    :-  ~
+    %-  pairs:enjs:format
+    :~  ['host' s+'sampel-palnet']
+        ['bucketHost' s+'sampel-palnet']
+        ['bucketId' s+(scot %ud id.bucket.bs)]
+    ==
+  ;<  got=(list card)  b
+    %+  do-arvo  wire.push
+    %+  iris-json  200
+    '{"bytes":123,"files":4,"maxObjectBytes":99,"mimeTypes":["image/png"]}'
+  %+  ex-cards  got
+  :~  (capacity-answer 0v7 [%capacity 123 4 99 (silt ~['image/png'])])
+  ==
+::
+::  A broker refusal is relayed with the broker's own account, as a grant
+::  refusal is; a readable success that is not a capacity, and a cancelled
+::  call, are the same unknown and outcome-unknown errors a grant gives.
+::  Each query gets exactly one terminal answer.
+::
+++  test-capacity-refusals-are-relayed-not-substituted
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  caz=(list card)  b
+    (capacity-asked 0v7 (silt ~[%editor]) uploader-scries)
+  ;<  refused=(list card)  b
+    %+  do-arvo  wire:(only-iris caz)
+    %+  iris-json  429
+    '{"code":"rate_limited","message":"slow down","retryable":true,"retryAfterMs":5000,"scope":"host"}'
+  ;<  ~  b
+    %+  ex-cards  (answers refused)
+    :~  (capacity-answer 0v7 [%error %unknown 'slow down' `['rate_limited' & `~s5 `'host']])
+    ==
+  ;<  caz=(list card)  b
+    %-  (do-as ~bus)
+    %+  do-poke  %buckets-command-1
+    !>(`command:bu`[0v8 [%bucket flag [%query-capacity ~]]])
+  ;<  unreadable=(list card)  b
+    (do-arvo wire:(only-iris caz) (iris-json 200 '{"bytes":1}'))
+  ;<  ~  b
+    %+  ex-cards  (answers unreadable)
+    :~  (capacity-answer 0v8 [%error %unknown 'storage returned an unreadable capacity' ~])
+    ==
+  ;<  caz=(list card)  b
+    %-  (do-as ~bus)
+    %+  do-poke  %buckets-command-1
+    !>(`command:bu`[0v9 [%bucket flag [%query-capacity ~]]])
+  ;<  cancelled=(list card)  b  (do-arvo wire:(only-iris caz) iris-cancelled)
+  %+  ex-cards  (answers cancelled)
+  :~  %+  capacity-answer  0v9
+      [%error %unknown 'the storage request was cancelled' `['outcome_unknown' & ~ ~]]
+  ==
+::
+::  The gate is the one an upload faces: an admin, a holder of a writer role,
+::  or anyone who may read when no writer role is set, is asked for; a reader
+::  without a writer role, or a ship outside the group, is refused before the
+::  broker hears of it.
+::
+++  test-capacity-answered-for-an-admin
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  caz=(list card)  b  (capacity-asked 0v7 (silt ~[%editor]) admin-scries)
+  ;<  ~  b  (ex-cards (answers caz) ~[(capacity-pending 0v7)])
+  (ex-equal !>((lent (iris-cards caz))) !>(1))
+::
+++  test-capacity-answered-when-no-writer-role-is-set
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  caz=(list card)  b  (capacity-asked 0v7 ~ reader-without-role-scries)
+  ;<  ~  b  (ex-cards (answers caz) ~[(capacity-pending 0v7)])
+  (ex-equal !>((lent (iris-cards caz))) !>(1))
+::
+++  test-capacity-refused-to-a-reader-without-a-writer-role
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  caz=(list card)  b
+    (capacity-asked 0v7 (silt ~[%editor]) reader-without-role-scries)
+  %+  ex-cards  caz
+  :~  (capacity-answer 0v7 [%error %not-authorized 'not authorized for this bucket' ~])
+  ==
+::
+++  test-capacity-refused-to-a-non-member
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  caz=(list card)  b
+    (capacity-asked 0v7 (silt ~[%editor]) deny-group-scries)
+  %+  ex-cards  caz
+  :~  (capacity-answer 0v7 [%error %not-authorized 'not authorized for this bucket' ~])
+  ==
+::
+::  Without the %genuine secret the host cannot ask the broker, and says so
+::  in the same event rather than leaving the query to time out.
+::
+++  test-capacity-without-a-secret-is-refused-without-a-call
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  caz=(list card)  b
+    (capacity-asked 0v7 (silt ~[%editor]) writer-without-secret-scries)
+  ;<  ~  b
+    %+  ex-cards  (answers caz)
+    :~  (capacity-answer 0v7 [%error %unknown 'this ship cannot reach storage yet' ~])
+    ==
+  (ex-equal !>((lent (iris-cards caz))) !>(0))
+::
+++  test-capacity-forwarded-and-relayed
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  =/  act=action:bu  [%bucket flag [%query-capacity ~]]
+  =/  room=capacity:bu  [123 4 99 (silt ~['image/png'])]
+  ;<  ~  b  (setup-as ~bus)
+  ;<  *  b
+    (do-poke %group-channel-join !>(`channel-join:bu`[[%buckets ~sampel-palnet %project-files] group]))
+  ;<  caz=(list card)  b  (ask 0v7 act)
+  ;<  ~  b
+    %+  ex-cards  caz
+    :~  %-  ex-task
+        :*  /buckets/req/~sampel-palnet/0v7/watch
+            [~sampel-palnet %buckets]
+            [%watch /v1/request/~bus/0v7]
+        ==
+        %-  ex-poke
+        :*  /buckets/req/~sampel-palnet/0v7/poke
+            [~sampel-palnet %buckets]
+            %buckets-command-1
+            !>(`command:bu`[0v7 act])
+        ==
+        %-  ex-arvo
+        :*  /buckets/req/~sampel-palnet/0v7/wake
+            [%b %wait (add ~2026.1.1 ~m2)]
+        ==
+        (grant-fact 0v7 [%pending ~])
+    ==
+  ;<  relayed=(list card)  b
+    %^    do-agent
+        /buckets/req/~sampel-palnet/0v7/watch
+      [~sampel-palnet %buckets]
+    :+  %fact  %buckets-req-response-3
+    !>(`req-response:bu`[0v7 [%capacity room]])
+  ;<  ~  b
+    %+  ex-cards  relayed
+    :~  %-  ex-task
+        :*  /buckets/req/~sampel-palnet/0v7/watch
+            [~sampel-palnet %buckets]
+            [%leave ~]
+        ==
+        %-  ex-arvo
+        :*  /buckets/req/~sampel-palnet/0v7/wake
+            [%b %rest (add ~2026.1.1 ~m2)]
+        ==
+        (grant-fact 0v7 [%capacity room])
+    ==
+  ;<  *  b  (ask 0v8 act)
+  ;<  timed=(list card)  b
+    (do-arvo /buckets/req/~sampel-palnet/0v8/wake [%behn %wake ~])
+  %+  ex-cards  timed
+  :~  %-  ex-task
+      :*  /buckets/req/~sampel-palnet/0v8/watch
+          [~sampel-palnet %buckets]
+          [%leave ~]
+      ==
+      (grant-fact 0v8 [%error %unknown 'the host did not answer in time' ~])
+  ==
+::
+::  The JSON decoder knows the verb: reaching the broker call is the proof.
+::
+++  test-http-decodes-query-capacity
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate uploader-scries)
+  ;<  caz=(list card)  b
+    %-  http-post
+    :-  &
+    '{"requestId":"0v2","action":{"type":"query-capacity","flag":{"host":"~sampel-palnet","name":"project-files"}}}'
+  %+  ex-equal
+    !>(wire:(only-iris caz))
+  !>(/buckets/capacity/~sampel-palnet/project-files/~sampel-palnet/0v2)
+::
+::  The per-object limit relayed is the lower of the broker's and our own:
+::  +begin-upload refuses over 5 GiB before the broker is asked, so a broker
+::  configured higher must not be allowed to promise more.
+::
+++  test-capacity-object-limit-is-the-lower-of-the-two
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  caz=(list card)  b
+    (capacity-asked 0v7 (silt ~[%editor]) uploader-scries)
+  ;<  got=(list card)  b
+    %+  do-arvo  wire:(only-iris caz)
+    %+  iris-json  200
+    '{"bytes":1,"files":1,"maxObjectBytes":10737418240,"mimeTypes":[]}'
+  %+  ex-cards  got
+  :~  (capacity-answer 0v7 [%capacity 1 1 5.368.709.120 ~])
+  ==
+::
+++  test-capacity-over-http-is-held-answered-and-replayed
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  =/  body=@t
+    '{"requestId":"0v2","action":{"type":"query-capacity","flag":{"host":"~sampel-palnet","name":"project-files"}}}'
+  =/  room=capacity:bu  [123 4 99 (silt ~['image/png'])]
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate uploader-scries)
+  ;<  caz=(list card)  b  (http-post & body)
+  ;<  ~  b  (ex-cards (answers caz) ~[(grant-fact 0v2 [%pending ~])])
+  ;<  ~  b
+    (ex-equal !>((lent (skim caz |=(=card ?=([%give %fact [[%http-response *] ~] *] card))))) !>(0))
+  ;<  got=(list card)  b
+    %+  do-arvo  wire:(only-iris caz)
+    %+  iris-json  200
+    '{"bytes":123,"files":4,"maxObjectBytes":99,"mimeTypes":["image/png"]}'
+  ;<  ~  b
+    %+  ex-cards  got
+    :~  (grant-fact 0v2 [%capacity room])
+        (http-header 200 'application/json')
+        (ex-fact-paths [/http-response/eyre-0]~)
+        (ex-card [%give %kick [/http-response/eyre-0]~ ~])
+    ==
+  ;<  again=(list card)  b  (http-post & body)
+  ;<  ~  b  (ex-equal !>((lent (iris-cards again))) !>(0))
+  %+  ex-cards  again
+  :~  (http-header 200 'application/json')
       (ex-fact-paths [/http-response/eyre-0]~)
       (ex-card [%give %kick [/http-response/eyre-0]~ ~])
   ==

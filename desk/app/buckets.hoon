@@ -579,7 +579,7 @@
   |=  [rid=request-id:b paths=(list path) body=response-body:b]
   ^+  cor
   =/  res=req-response:b  [rid body]
-  =.  cor  (give [%fact paths buckets-req-response-2+!>(res)])
+  =.  cor  (give [%fact paths buckets-req-response-3+!>(res)])
   ?:  ?=(%pending -.body)  cor
   ?~  req=(~(get by requests) rid)  cor
   =.  requests
@@ -757,6 +757,7 @@
     %create-folder  (create-folder flag parent.act name.act actor)
     %begin-upload
   (begin-upload flag parent.act name.act mime.act size.act checksum.act actor `rid)
+    %query-capacity  (query-capacity flag actor rid)
     %finish-upload  (finish-upload flag session.act actor `rid)
     %retry-upload   (retry-upload flag session.act actor `rid)
     %cancel-upload  (cancel-upload flag session.act reason.act actor `rid)
@@ -1073,6 +1074,37 @@
         payload
     ==
   `[%pass wire %arvo %i %request request *outbound-config:iris]
+::
+::  +query-capacity: no session and no reservation. A call that never returns
+::  leaves the request record unsettled: a forwarded query is bounded by the
+::  requester's own timeout, a local one is not, and a sweep is not worth a
+::  timer for a query that holds nothing.
+::
+++  query-capacity
+  |=  [=flag:b actor=ship rid=request-id:b]
+  ^+  cor
+  =/  st=bucket-state:b  (need-state flag)
+  =/  body=json
+    %-  pairs:enjs:format
+    :~  ['host' s+(ship-text:util our.bowl)]
+        ['bucketHost' s+(ship-text:util ship.flag)]
+        ['bucketId' s+(scot %ud id.bucket.st)]
+    ==
+  =/  card=(unit card)
+    (broker-post (capacity-wire flag actor rid) '/capacity' `body)
+  ?~  card
+    =.  cor
+      %^  note  %warn
+        ~[leaf+"buckets: cannot reach storage, capacity query refused"]
+      (log-bucket flag)
+    (answer [%error %unknown 'this ship cannot reach storage yet' ~])
+  =.  cor  (emit u.card)
+  (answer [%pending ~])
+::
+++  capacity-wire
+  |=  [=flag:b who=ship rid=request-id:b]
+  ^-  wire
+  /buckets/capacity/(scot %p ship.flag)/[name.flag]/(scot %p who)/(scot %uv rid)
 ::
 ::  +up-core: one in-flight upload session.
 ::
@@ -1602,6 +1634,31 @@
       ~[leaf+"buckets: broker answered about an upload we no longer hold"]
     ~[['session' s+(scot %uv sid)] ['call' s+(scot %tas kind)]]
   up-abet:(up-take:(up-abed:up-core sid) kind res)
+::
+::  +take-capacity: there is nothing to release and nothing to retry.
+::
+++  take-capacity
+  |=  [=flag:b who=ship rid=request-id:b res=client-response:iris]
+  ^+  cor
+  =/  paths=(list path)  (answer-paths who rid)
+  =/  code=@ud
+    ?:(?=(%cancel -.res) 0 status-code.response-header.res)
+  ?.  &((gte code 200) (lth code 300))
+    =/  [why=@t err=broker-error:b]
+      (broker-refusal:util res upload-window 'storage refused the capacity query')
+    =.  cor
+      %^  note  %warn
+        ~[leaf+"buckets: storage refused a capacity query"]
+      %+  weld  (log-bucket flag)
+      ^-  (list (pair @t json))
+      ~[['asker' s+(scot %p who)] ['code' s+code.err]]
+    (respond rid paths [%error %unknown why `err])
+  ?~  cap=(broker-capacity:util res)
+    (deny rid paths %unknown 'storage returned an unreadable capacity')
+  ::  The limit an upload faces is the lower of the broker's and our own:
+  ::  +begin-upload refuses over .max-object-size before the broker is asked.
+  =/  limit=@ud  (min max-object-bytes.u.cap max-object-size)
+  (respond rid paths [%capacity u.cap(max-object-bytes limit)])
 ::
 ::  +verify-receipt: does what landed match what we asked for.
 ::
@@ -2634,6 +2691,9 @@
     %issue-bucket-read  (group-can-read group.st flag who)
     %create-folder  (group-can-write group.st flag writers.st who)
     %begin-upload   (group-can-write group.st flag writers.st who)
+    ::  The answer is about what the hosting account is spending, so only a
+    ::  ship that could spend it may ask.
+    %query-capacity  (group-can-write group.st flag writers.st who)
     ::  The session verbs check the uploader owns the session as well, so a
     ::  writer cannot finish, retry or cancel someone else's upload.
     %finish-upload  (group-can-write group.st flag writers.st who)
@@ -2999,12 +3059,16 @@
     =/  rid=request-id:b  (slav %uv rid.pole)
     ?+  -.sign  cor
         %fact
-      ::  A host that predates the broker detail still answers -1, and that
-      ::  is lifted; anything but the two is not an answer.
+      ::  A host that predates %capacity still answers -2, and one that
+      ::  predates the broker detail -1; both are lifted. Anything but the
+      ::  three is not an answer.
       =/  got=(unit req-response:b)
         ?+  p.cage.sign  ~
-            %buckets-req-response-2
+            %buckets-req-response-3
           `!<(req-response:b q.cage.sign)
+        ::
+            %buckets-req-response-2
+          `!<(req-response:v2:b q.cage.sign)
         ::
             %buckets-req-response-1
           `(req-response-1-to-2:util !<(req-response:v1:b q.cage.sign))
@@ -3108,6 +3172,13 @@
     =*  res  client-response.sign-arvo
     ?:  ?=(%progress -.res)  cor
     (take-upload (slav %uv sid.pole) kind.pole res)
+  ::
+      [%buckets %capacity host=@ name=@ who=@ rid=@ ~]
+    ?.  ?=([%iris %http-response *] sign-arvo)  cor
+    =*  res  client-response.sign-arvo
+    ?:  ?=(%progress -.res)  cor
+    =/  =flag:b  [(slav %p host.pole) `@tas`name.pole]
+    (take-capacity flag (slav %p who.pole) (slav %uv rid.pole) res)
   ::
       [%buckets %reader host=@ name=@ who=@ rev=@ ~]
     ?.  ?=([%iris %http-response *] sign-arvo)  cor
