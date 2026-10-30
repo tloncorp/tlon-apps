@@ -1,6 +1,6 @@
 import React from 'react';
-import { Button } from '@tloncorp/ui';
 import { ReferenceSkeleton } from '../../ui/components/ContentReference/Reference';
+import { A2UICardButton } from '../../ui/components/PostContent/a2uiCardParts';
 import { BrowserSessionPreview } from './BrowserSessionPreview';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
@@ -19,7 +19,6 @@ vi.mock('@tloncorp/shared', () => ({
   }),
 }));
 vi.mock('@tloncorp/ui', () => ({
-  Button: 'Button',
   Icon: 'Icon',
   Text: 'Text',
   useToast: () => mocks.toast,
@@ -27,7 +26,20 @@ vi.mock('@tloncorp/ui', () => ({
 vi.mock('../../ui/components/ContentReference/Reference', () => ({
   ReferenceSkeleton: 'ReferenceSkeleton',
 }));
-vi.mock('tamagui', () => ({ XStack: 'XStack', YStack: 'YStack' }));
+vi.mock('tamagui', () => ({
+  XStack: 'XStack',
+  YStack: 'YStack',
+  isWeb: false,
+}));
+vi.mock(
+  '../../ui/components/PostContent/a2uiCardParts',
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import('../../ui/components/PostContent/a2uiCardParts')
+    >()),
+    A2UICardButton: 'A2UICardButton',
+  })
+);
 vi.mock('./BrowserCredentialHandoffContext', () => ({
   useOptionalBrowserCredentialHandoff: () => mocks,
 }));
@@ -63,7 +75,7 @@ function mount(node: React.ReactElement) {
   act(() => {
     tree = create(node);
   });
-  return tree.root.findByType(Button);
+  return tree.root.findByType(A2UICardButton);
 }
 it('renders the real vault card and allows reopening its sheet', async () => {
   const button = mount(
@@ -113,7 +125,7 @@ it.each([login, { type: 'browser-session', version: 1, viewerUrl } as const])(
     expect(tree.root.findByType(ReferenceSkeleton).props.message).toBe(
       'This message isn’t visible to you.'
     );
-    expect(tree.root.findAllByType(Button)).toHaveLength(0);
+    expect(tree.root.findAllByType(A2UICardButton)).toHaveLength(0);
     expect(tree.root.findAllByType(BrowserSessionPreview)).toHaveLength(0);
     expect(JSON.stringify(tree.toJSON())).not.toContain('wikipedia.org');
     expect(mocks.openForm).not.toHaveBeenCalled();
