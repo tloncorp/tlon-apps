@@ -17,6 +17,7 @@ vi.mock('../types', () => ({
 }));
 import {
   browserOwnerRequest,
+  browserOwnerSessionMoon,
   clearBrowserOwnerSessions,
 } from './browserOwnerSession';
 const origin = 'https://browser-session.test.tlon.systems';
@@ -62,6 +63,43 @@ describe('browser owner sessions', () => {
       });
       expect(options.body).toBeUndefined();
     }
+  });
+  it('keeps tokens and pending exchanges separate for bots on the same service', async () => {
+    state.fetch.mockImplementation(
+      async (url: string, options: RequestInit) => {
+        if (url.endsWith('/owner/sessions')) {
+          const { botMoon } = JSON.parse(options.body as string);
+          return response({ ...session(), token: `owner_${botMoon}` });
+        }
+        return response({ credentials: [] });
+      }
+    );
+    await Promise.all([
+      browserOwnerRequest(endpoint, '~bot-a', 'GET'),
+      browserOwnerRequest(endpoint, 'bot-b', 'GET'),
+    ]);
+    await browserOwnerRequest(endpoint, 'bot-a', 'GET');
+    const calls = state.fetch.mock.calls.filter(([url]) => url === endpoint);
+    expect(calls.map(([, options]) => options.headers.Authorization)).toEqual([
+      'Bearer owner_bot-a',
+      'Bearer owner_bot-b',
+      'Bearer owner_bot-a',
+    ]);
+    expect(state.authorize).toHaveBeenCalledTimes(2);
+  });
+  it('reuses auth only for a bound credential capability, never the shared viewer route', async () => {
+    const credential = `${origin}/credential-vault/${'a'.repeat(43)}`;
+    await browserOwnerRequest(credential, 'bot-a', 'POST', {});
+    await browserOwnerRequest(
+      `${origin}/viewer-authorize`,
+      'bot-b',
+      'POST',
+      {}
+    );
+    expect(browserOwnerSessionMoon(credential)).toBe('bot-a');
+    expect(
+      browserOwnerSessionMoon(`${origin}/viewer-authorize`)
+    ).toBeUndefined();
   });
   it('rejects foreign and cross-environment origins before reading proof', async () => {
     for (const url of [

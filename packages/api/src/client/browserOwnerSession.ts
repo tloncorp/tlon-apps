@@ -12,6 +12,7 @@ import {
 
 const logger = createDevLogger('browserOwnerSession', false);
 type Session = {
+  origin: string;
   token: string;
   expiresAt: number;
   idleTimeoutMs: number;
@@ -20,6 +21,9 @@ type Session = {
 };
 const sessions = new Map<string, Session>();
 const pending = new Map<string, Promise<Session>>();
+const endpointBots = new Map<string, string>();
+const sessionKey = (origin: string, botMoon: string) =>
+  JSON.stringify([origin, botMoon.replace(/^~/, '')]);
 let lastIssuedAt = 0;
 
 export function trustedBrowserOwnerEndpoint(endpoint: string): URL {
@@ -62,9 +66,12 @@ export function browserOwnerServiceOrigin(): string {
   return url.origin;
 }
 
-/** Reuse a verified session for viewer/approval requests on the same service. */
+/** A credential capability identifies one bot; the shared viewer route does not. */
 export function browserOwnerSessionMoon(endpoint: string): string | undefined {
-  return sessions.get(trustedBrowserOwnerEndpoint(endpoint).origin)?.botMoon;
+  const url = trustedBrowserOwnerEndpoint(endpoint);
+  return url.pathname.startsWith('/credential-vault/')
+    ? endpointBots.get(url.href)
+    : undefined;
 }
 
 export class BrowserOwnerRequestError extends Error {
@@ -115,15 +122,17 @@ async function revoke(origin: string, session: Session) {
 }
 
 export function clearBrowserOwnerSessions() {
-  const previous = [...sessions.entries()];
+  const previous = [...sessions.values()];
   sessions.clear();
   pending.clear();
-  for (const [origin, session] of previous) void revoke(origin, session);
+  endpointBots.clear();
+  for (const session of previous) void revoke(session.origin, session);
 }
 onClientSessionChange(clearBrowserOwnerSessions);
 
 async function sessionFor(origin: string, botMoon: string): Promise<Session> {
-  const cached = sessions.get(origin),
+  const key = sessionKey(origin, botMoon);
+  const cached = sessions.get(key),
     now = Date.now();
   if (
     cached &&
@@ -131,7 +140,7 @@ async function sessionFor(origin: string, botMoon: string): Promise<Session> {
     cached.used + cached.idleTimeoutMs > now
   )
     return cached;
-  const existing = pending.get(origin);
+  const existing = pending.get(key);
   if (existing) return existing;
   const generation = getClientGeneration();
   const work = (async () => {
@@ -167,15 +176,16 @@ async function sessionFor(origin: string, botMoon: string): Promise<Session> {
       throw new Error('Account changed.');
     }
     result.used = Date.now();
-    result.botMoon = botMoon;
-    sessions.set(origin, result);
+    result.botMoon = botMoon.replace(/^~/, '');
+    result.origin = origin;
+    sessions.set(key, result);
     return result;
   })();
-  pending.set(origin, work);
+  pending.set(key, work);
   try {
     return await work;
   } finally {
-    if (pending.get(origin) === work) pending.delete(origin);
+    if (pending.get(key) === work) pending.delete(key);
   }
 }
 
@@ -205,6 +215,8 @@ export async function browserOwnerRequest(
       if (generation !== getClientGeneration())
         throw new Error('Account changed.');
       session.used = Date.now();
+      if (url.pathname.startsWith('/credential-vault/'))
+        endpointBots.set(url.href, session.botMoon);
       return result;
     } catch (error) {
       // Only a rejected authentication can be retried. A failed mutation may
@@ -215,7 +227,8 @@ export async function browserOwnerRequest(
         attempt > 0
       )
         throw error;
-      if (sessions.get(url.origin) === session) sessions.delete(url.origin);
+      const key = sessionKey(url.origin, botMoon);
+      if (sessions.get(key) === session) sessions.delete(key);
     }
   }
   throw new Error('Owner authentication failed.');
