@@ -1,11 +1,20 @@
 import type { BrowserCardData } from '@tloncorp/api/client/browserCards';
 import type { BrowserCardBlockData } from '@tloncorp/api/client/postContent';
 import { createDevLogger } from '@tloncorp/shared';
-import { Button, Icon, Text, useToast } from '@tloncorp/ui';
+import { Icon, Text, useToast } from '@tloncorp/ui';
 import { useRef, useState } from 'react';
 import { XStack, YStack } from 'tamagui';
 
 import { ReferenceSkeleton } from '../../ui/components/ContentReference/Reference';
+import {
+  A2UICardButton,
+  A2UI_CARD_PADDING,
+  A2UI_CARD_PADDING_TOP,
+  A2UI_CARD_RADIUS,
+  A2UI_SPACE,
+  A2UI_TEXT_BREAKING,
+  A2UI_TYPE,
+} from '../../ui/components/PostContent/a2uiCardParts';
 import { useContentContext } from '../../ui/components/PostContent/contentUtils';
 import { useOptionalBrowserCredentialHandoff } from './BrowserCredentialHandoffContext';
 import {
@@ -51,6 +60,11 @@ export function BrowserCard({
   const approval = !session && card.loginApproval;
   const login = !session && card.presentation?.purpose === 'login';
   const otp = !session && card.presentation?.purpose === 'otp';
+  const kicker = session
+    ? 'Browser'
+    : approval
+      ? 'Saved sign-in'
+      : 'Secure input';
   const title = session
     ? 'Browser Use'
     : approval
@@ -105,56 +119,100 @@ export function BrowserCard({
       setPending(false);
     }
   };
+  // The gap above the button travels with it, so a card whose action is
+  // hidden (an ended session, a finished entry) ends at the card's padding.
   const action = (
-    <Button
-      fill="solid"
-      intent="primary"
-      disabled={!enabled || pending}
-      onPress={open}
-      testID="browser-card-open"
-      label={pending ? 'Opening…' : label}
-    />
+    <XStack paddingTop={A2UI_SPACE.beforeButtons}>
+      <A2UICardButton
+        tone="primary"
+        disabled={!enabled || pending}
+        onPress={open}
+        testID="browser-card-open"
+        label={pending ? 'Opening…' : label}
+      />
+    </XStack>
   );
 
   return (
     <YStack
+      width="100%"
+      maxWidth={560}
+      backgroundColor="$background"
       borderWidth={1}
       borderColor="$border"
-      borderRadius="$m"
-      backgroundColor="$secondaryBackground"
-      padding="$l"
-      gap="$m"
-      maxWidth={400}
-      width="100%"
+      borderRadius={A2UI_CARD_RADIUS}
+      overflow="hidden"
     >
       {session && enabled ? (
         <BrowserSessionPreview viewerUrl={card.viewerUrl} onOpen={open} />
       ) : null}
-      <XStack gap="$m" alignItems="center">
-        {!session ? (
-          <Icon type="Lock" customSize={['$xl', '$xl']} color="$primaryText" />
+      <YStack
+        paddingTop={A2UI_CARD_PADDING_TOP}
+        paddingHorizontal={A2UI_CARD_PADDING}
+        paddingBottom={A2UI_CARD_PADDING}
+      >
+        <XStack alignItems="center" gap={6}>
+          <Icon
+            type={session ? 'Discover' : 'Lock'}
+            color="$secondaryText"
+            customSize={[14, 14]}
+          />
+          <Text
+            size="$label/m"
+            {...A2UI_TYPE.kicker}
+            color="$secondaryText"
+            trimmed={false}
+          >
+            {kicker}
+          </Text>
+        </XStack>
+        <Text
+          size="$label/l"
+          {...A2UI_TYPE.title}
+          color="$primaryText"
+          trimmed={false}
+          marginTop={A2UI_SPACE.afterKicker}
+          {...A2UI_TEXT_BREAKING}
+        >
+          {title}
+        </Text>
+        {!session && card.presentation?.site ? (
+          <Text
+            size="$label/m"
+            {...A2UI_TYPE.note}
+            color="$secondaryText"
+            trimmed={false}
+            numberOfLines={1}
+            marginTop={A2UI_SPACE.line}
+          >
+            {card.presentation.site}
+          </Text>
         ) : null}
-        <YStack gap="$xs" flex={1}>
-          <Text size="$label/l">{title}</Text>
-          {!session && card.presentation?.site ? (
-            <Text size="$label/s" color="$secondaryText">
-              {card.presentation.site}
-            </Text>
-          ) : null}
-        </YStack>
-      </XStack>
-      <Text color="$secondaryText">{description}</Text>
-      {session ? (
-        <BrowserSessionAction viewerUrl={card.viewerUrl}>
-          {action}
-        </BrowserSessionAction>
-      ) : enabled ? (
-        <BrowserSecureEntryAction viewerUrl={card.viewerUrl} enabled={enabled}>
-          {action}
-        </BrowserSecureEntryAction>
-      ) : (
-        action
-      )}
+        <Text
+          size="$label/l"
+          {...A2UI_TYPE.body}
+          color="$secondaryText"
+          trimmed={false}
+          marginTop={A2UI_SPACE.line}
+          {...A2UI_TEXT_BREAKING}
+        >
+          {description}
+        </Text>
+        {session ? (
+          <BrowserSessionAction viewerUrl={card.viewerUrl}>
+            {action}
+          </BrowserSessionAction>
+        ) : enabled ? (
+          <BrowserSecureEntryAction
+            viewerUrl={card.viewerUrl}
+            enabled={enabled}
+          >
+            {action}
+          </BrowserSecureEntryAction>
+        ) : (
+          action
+        )}
+      </YStack>
     </YStack>
   );
 }
