@@ -82,6 +82,11 @@ type RenderOptions = {
   /** A button sharing a row of buttons takes an equal width. */
   fillRow?: boolean;
   parentAlign?: A2UI.Container['align'];
+  /**
+   * How a row lays its children out along the line. In a row, `align` is
+   * vertical, so text takes its own alignment from this instead.
+   */
+  rowJustify?: A2UI.Container['justify'];
   standaloneControlTopMargin?: boolean;
 };
 
@@ -951,8 +956,15 @@ function getComponentFlex(component: A2UI.Component) {
   return component.weight === undefined ? undefined : component.weight;
 }
 
-function getTextAlign(align?: A2UI.Container['align']) {
-  return align === 'center' ? 'center' : undefined;
+/**
+ * Text centres its lines when its container centres things across the line:
+ * a column's `align`, or a row's `justify` (a row's `align` is vertical).
+ */
+function getTextAlign({ parentAlign, rowJustify }: RenderOptions) {
+  const centered = rowJustify
+    ? rowJustify === 'center'
+    : parentAlign === 'center';
+  return centered ? 'center' : undefined;
 }
 
 function getComponentText(
@@ -1379,7 +1391,7 @@ export function A2UIBlock({
               {...getTextStyle(component)}
               color={getTextColor(component)}
               trimmed={false}
-              textAlign={getTextAlign(options.parentAlign)}
+              textAlign={getTextAlign(options)}
               flex={getComponentFlex(component)}
               marginTop={options.spacingTop}
               marginLeft={
@@ -1467,6 +1479,7 @@ export function A2UIBlock({
                   cardScope: options.cardScope,
                   fillRow: buttonFooter,
                   parentAlign: component.align,
+                  rowJustify: component.justify ?? 'start',
                   standaloneControlTopMargin:
                     !options.cardDepth &&
                     index > 0 &&

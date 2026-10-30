@@ -320,3 +320,51 @@ it('draws the last row of an inner card as a footer line', async () => {
     false
   );
 });
+
+it("centres text by a column's align but not by a row's", async () => {
+  const centered: A2UIBlockData = {
+    type: 'a2ui',
+    a2ui: {
+      type: 'a2ui',
+      version: 1,
+      messages: [
+        {
+          version: 'v0.9',
+          createSurface: { surfaceId: 'al', catalogId: 'tlon.a2ui.basic.v1' },
+        },
+        {
+          version: 'v0.9',
+          updateComponents: {
+            surfaceId: 'al',
+            root: 'root',
+            components: [
+              { id: 'root', component: 'Card', child: 'body' },
+              {
+                id: 'body',
+                component: 'Column',
+                align: 'center',
+                children: ['heading', 'row'],
+              },
+              { id: 'heading', component: 'Text', text: 'In a column' },
+              {
+                id: 'row',
+                component: 'Row',
+                align: 'center',
+                justify: 'spaceBetween',
+                children: ['rowText'],
+              },
+              { id: 'rowText', component: 'Text', text: 'In a row' },
+            ],
+          },
+        },
+      ],
+    },
+  };
+  await act(async () => {
+    renderer = create(<A2UIBlock block={centered} />);
+  });
+  const textAlign = (text: string) =>
+    texts().find((node) => node.text === text)?.props.textAlign;
+  expect(textAlign('In a column')).toBe('center');
+  expect(textAlign('In a row')).toBeUndefined();
+});
