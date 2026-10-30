@@ -39,7 +39,9 @@ beforeEach(async () => {
   declined = new Set();
   hidden = new Set();
   suggestions = new Set([id]);
-  vi.mocked(api.scry).mockImplementation(async ({ path }) => {
+  vi.mocked(api.scry).mockImplementation(async ({ app, path }) => {
+    if (app === 'groups-ui' && path === '/v1/contact-decline-protection')
+      return true;
     if (path === '/v3/init')
       return {
         directory: {},
@@ -283,9 +285,17 @@ test('Remove, Add and Decline share one explicit-decision queue', async () => {
   expect(saved.has(id)).toBe(true);
 });
 
-test('complete capability requires v3 and distinguishes unsupported from transient/auth failures', async () => {
+test('complete capability requires both agents and distinguishes unsupported from transient/auth failures', async () => {
   await syncContactDecisionSupport('12.5.0');
   expect(api.getDeskSupportsContactDecisionsState()).toBe(true);
+  expect(api.scry).toHaveBeenNthCalledWith(1, {
+    app: 'contacts',
+    path: '/v3/init',
+  });
+  expect(api.scry).toHaveBeenNthCalledWith(2, {
+    app: 'groups-ui',
+    path: '/v1/contact-decline-protection',
+  });
   vi.mocked(api.scry).mockRejectedValueOnce(
     new api.BadResponseError(404, 'missing')
   );
@@ -307,6 +317,40 @@ test('complete capability requires v3 and distinguishes unsupported from transie
   }
   expect(api.scry).not.toHaveBeenCalled();
 });
+
+test.each([404, 403, 503])(
+  'a successful contacts probe does not hide a groups-ui marker failure (%s)',
+  async (status) => {
+    api.setDeskSupportsContactDecisions(null);
+    const scry = vi.mocked(api.scry).getMockImplementation()!;
+    vi.mocked(api.scry).mockImplementation(async (request) => {
+      if (
+        request.app === 'groups-ui' &&
+        request.path === '/v1/contact-decline-protection'
+      ) {
+        throw new api.BadResponseError(status, 'groups-ui probe failed');
+      }
+      return scry(request);
+    });
+    const probe = syncContactDecisionSupport('12.5.0');
+    if (status === 404) {
+      await expect(probe).resolves.toBeUndefined();
+      expect(api.getDeskSupportsContactDecisionsState()).toBe(false);
+    } else {
+      await expect(probe).rejects.toMatchObject({ status });
+      expect(api.getDeskSupportsContactDecisionsState()).toBeNull();
+    }
+    expect(api.scry).toHaveBeenCalledTimes(2);
+    expect(api.scry).toHaveBeenNthCalledWith(1, {
+      app: 'contacts',
+      path: '/v3/init',
+    });
+    expect(api.scry).toHaveBeenNthCalledWith(2, {
+      app: 'groups-ui',
+      path: '/v1/contact-decline-protection',
+    });
+  }
+);
 
 test('a superseded failed Add rolls back before the latest queued Add can treat it as saved', async () => {
   const dispatch = createDeferred<void>();
