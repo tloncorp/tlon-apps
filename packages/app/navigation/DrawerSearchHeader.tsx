@@ -12,10 +12,11 @@ import Animated, {
   interpolate,
   useAnimatedStyle,
   useSharedValue,
+  withTiming,
 } from 'react-native-reanimated';
 import { View, getTokenValue, useTheme } from 'tamagui';
 
-import { RawTextInput, type TextInputRef, interactionWithTiming } from '../ui';
+import { RawTextInput, type TextInputRef } from '../ui';
 import {
   GlassSurface,
   supportsLiquidGlass,
@@ -80,12 +81,10 @@ export const DrawerSearchHeader = forwardRef<
   const progress = useSharedValue(open ? 1 : 0);
   useEffect(() => {
     const target = open ? 1 : 0;
-    // Already there on mount, and an animation to where it stands would only
-    // hold off the app's other interactions while it ran.
     if (progress.value === target) {
       return;
     }
-    progress.value = interactionWithTiming(target, {
+    progress.value = withTiming(target, {
       duration: OPEN_DURATION,
       easing: Easing.inOut(Easing.quad),
     });

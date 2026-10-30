@@ -105,7 +105,7 @@ const textInputAcceptProps = {
 // interface is the same type under a name we export.
 export interface TextInputRef extends TextInputInstance {}
 
-const RawTextInput = styled(
+export const RawTextInput = styled(
   RNTextInput as (
     props: TextInputProps & { ref?: Ref<TextInputRef> }
   ) => ReactNode,

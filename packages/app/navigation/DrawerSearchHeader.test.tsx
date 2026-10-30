@@ -12,6 +12,7 @@ vi.mock('react-native-reanimated', () => ({
   interpolate: (value: number, input: number[], output: number[]) =>
     output[0] +
     ((value - input[0]) / (input[1] - input[0])) * (output[1] - output[0]),
+  withTiming: (value: number) => value,
 }));
 vi.mock('tamagui', () => ({
   View: 'View',
@@ -25,7 +26,6 @@ vi.mock('@tloncorp/ui', () => ({
 }));
 vi.mock('../ui', () => ({
   RawTextInput: 'RawTextInput',
-  interactionWithTiming: (value: number) => value,
 }));
 vi.mock('../ui/components/GlassSurface', () => ({
   GlassSurface: 'GlassSurface',
