@@ -71,6 +71,7 @@ function makeDeps(
 
   const deps: ActivityDeps = {
     ...unusedVolumeDeps(),
+    getCurrentUserId: () => '~zod',
     stdout: (text) => stdout.push(text),
     stderr: (text) => stderr.push(text),
     authenticate: async () => {
@@ -124,7 +125,7 @@ function makeDeps(
         calls.eventFormatter.push(event.id);
         return `EVENT:${event.id}`;
       },
-      unreadsHeader: () => 'UNREADS',
+      unreadsHeader: (ship) => `UNREADS:${ship}`,
       noUnreads: () => 'NO_UNREADS',
       baseUnread: (summary) => `BASE:${summary.count ?? 0}`,
       groupUnread: (summary) =>
@@ -275,7 +276,7 @@ describe('activity command run', () => {
     expect(context.calls.authenticate).toBe(1);
     expect(context.calls.getInitialActivity).toBe(0);
     expect(context.calls.getGroupAndChannelUnreads).toBe(1);
-    expect(context.stdout()).toContain('UNREADS\n');
+    expect(context.stdout()).toContain('UNREADS:~zod\n');
     expect(context.stdout()).toContain('BASE:1\n');
     expect(context.stdout()).toContain('GROUP:~zod/test:2\n');
     expect(context.stdout()).toContain('CHANNEL:chat/~zod/test:3\n');
