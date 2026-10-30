@@ -1,0 +1,46 @@
+diff --git a/ios/OPSQLite.mm b/ios/OPSQLite.mm
+index 8200ea7113da461245c546c7d82f3f936e0b6112..489818f9c68bb70bf0fb41eee3d05aefd3e12dda 100644
+--- a/ios/OPSQLite.mm
++++ b/ios/OPSQLite.mm
+@@ -6,6 +6,14 @@
+ #import <ReactCommon/RCTTurboModule.h>
+ #import <jsi/jsi.h>
+ 
++// Backported from op-sqlite 18.1.0 (OP-Engineering/op-sqlite#433). React
++// Native 0.87 removed RCTCxxBridge with the old architecture. In bridgeless
++// mode `_bridge` is an RCTBridgeProxy, which implements `-(void *)runtime`
++// directly, so a duck-typed protocol reaches it without naming either class.
++@protocol OPSQLiteRuntimeProvider <NSObject>
++- (void *)runtime;
++@end
++
+ @implementation OPSQLite
+ 
+ @synthesize bridge = _bridge;
+@@ -33,12 +41,23 @@ RCT_EXPORT_MODULE()
+ }
+ 
+ RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(install) {
+-  RCTCxxBridge *cxxBridge = (RCTCxxBridge *)_bridge;
+-  if (cxxBridge == nil) {
++  if (_bridge == nil) {
+     return @false;
+   }
+ 
+-  auto jsiRuntime = (facebook::jsi::Runtime *)cxxBridge.runtime;
++  // RCTBridgeProxy's introspection reports this directly implemented method
++  // as missing, so call it and guard with an exception handler instead.
++  facebook::jsi::Runtime *jsiRuntime = nullptr;
++  @try {
++    id<OPSQLiteRuntimeProvider> runtimeProvider =
++        (id<OPSQLiteRuntimeProvider>)_bridge;
++    jsiRuntime = (facebook::jsi::Runtime *)[runtimeProvider runtime];
++  } @catch (NSException *exception) {
++    RCTLogError(
++        @"[OP-SQLITE] Failed to obtain the JSI runtime from the bridge: %@",
++        exception);
++    return @false;
++  }
+   if (jsiRuntime == nil) {
+     return @false;
+   }

@@ -13,7 +13,7 @@ const REF_PATH_START_REGEX = /\/1\/(?:chan|group|desk)\//;
 // Prose ends sentences after a path — "See /1/group/~ten/workspace." — and
 // closes quotations around one; neither the punctuation nor the closing quote
 // is part of the reference.
-const REF_TRAILING_PUNCTUATION = /[.,;:!?)\]"'\u201D\u2019\u00BB]+$/;
+const REF_TRAILING_PUNCTUATION = '.,;:!?)]"\'\u201D\u2019\u00BB';
 
 /** A slug as the wire accepts it: a Hoon sym is lowercase, no underscores. */
 const REF_SYM_REGEX = /^[a-z][a-z0-9-]*$/;
@@ -182,6 +182,99 @@ export type StoryVerse = { block: StoryBlock } | { inline: StoryInline[] };
 export type Story = StoryVerse[];
 
 /**
+ * Matches `[label](url)` or `![alt](url)` at the start of `text`. The URL may
+ * hold balanced parentheses, as in .../wiki/Function_(mathematics).
+ */
+function matchMarkdownDestination(
+  text: string,
+  image: boolean,
+  labelEnd: number,
+  closingParen: (open: number) => number
+): [whole: string, label: string, url: string] | null {
+  // The caller finds the first `]` and the `)` matching each `(` once per
+  // text, so a run of unclosed `[` or `[x](` is not rescanned from each one.
+  const labelStart = image ? 2 : 1;
+  if (
+    !text.startsWith(image ? '![' : '[') ||
+    labelEnd < (image ? labelStart : labelStart + 1) ||
+    text[labelEnd + 1] !== '('
+  ) {
+    return null;
+  }
+  const label = text.slice(labelStart, labelEnd);
+  const start = labelEnd + 2;
+  const end = closingParen(labelEnd + 1);
+  return end > start
+    ? [text.slice(0, end + 1), label, text.slice(start, end)]
+    : null;
+}
+
+/**
+ * For each `(` in text, the index of the `)` that balances it, or -1.
+ * A backslash escapes the character after it.
+ */
+function matchParens(text: string): Int32Array {
+  const closes = new Int32Array(text.length).fill(-1);
+  const open: number[] = [];
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '\\') {
+      i++;
+    } else if (text[i] === '(') {
+      open.push(i);
+    } else if (text[i] === ')' && open.length > 0) {
+      closes[open.pop()!] = i;
+    }
+  }
+  return closes;
+}
+
+/** `text` without its trailing run of `chars`, scanned right to left. */
+function trimTrailing(text: string, chars: string): string {
+  let end = text.length;
+  while (end > 0 && chars.includes(text[end - 1])) end--;
+  return text.slice(0, end);
+}
+
+/**
+ * In running prose a bare URL never ends in sentence punctuation or a stray
+ * paren. A closing paren ends the URL only when it balances one inside it.
+ */
+function matchBareUrl(text: string): string | null {
+  let url = /^https?:\/\/[^\s<>"\]]+/.exec(text)?.[0];
+  if (!url) {
+    return null;
+  }
+  let unbalanced = url.split(')').length - url.split('(').length;
+  while (/[.,;:!?(]$/.test(url) || (url.endsWith(')') && unbalanced > 0)) {
+    unbalanced += url.endsWith(')') ? -1 : url.endsWith('(') ? 1 : 0;
+    url = url.slice(0, -1);
+  }
+  return /^https?:\/\/./.test(url) ? url : null;
+}
+
+type PlainTextStop = string | RegExp;
+
+/**
+ * Where a plain-text run must end so a later rule can claim what follows:
+ * markdown tokens, a URL start (so "https" is not swallowed before "://"),
+ * and a reference path start.
+ */
+const PLAIN_TEXT_STOPS: readonly PlainTextStop[] = [
+  '**',
+  '__',
+  '~~',
+  '`',
+  '[',
+  '!',
+  '~',
+  '\n',
+  '*',
+  '_',
+  /https?:\/\//g,
+  new RegExp(REF_PATH_START_REGEX.source, 'g'),
+];
+
+/**
  * Parse inline markdown formatting (bold, italic, code, links, mentions)
  */
 /**
@@ -197,6 +290,36 @@ function parseInlineMarkdown(
 ): StoryInline[] {
   const result: StoryInline[] = [];
   let remaining = text;
+  // Absolute index of each stop's next occurrence, reused until the parser
+  // passes it: searching the whole tail again at every step is quadratic.
+  const stopCache = new Map<PlainTextStop, number>();
+  const nextStop = (stop: PlainTextStop, from: number): number => {
+    const cached = stopCache.get(stop);
+    if (cached !== undefined && (cached === -1 || cached >= from)) {
+      return cached;
+    }
+    let found: number;
+    if (typeof stop === 'string') {
+      found = text.indexOf(stop, from);
+    } else {
+      stop.lastIndex = from;
+      found = stop.exec(text)?.index ?? -1;
+    }
+    stopCache.set(stop, found);
+    return found;
+  };
+  let parenCloses: Int32Array | undefined;
+  const closingParen = (open: number): number => {
+    const pos = text.length - remaining.length;
+    parenCloses ??= matchParens(text);
+    const close = parenCloses[pos + open];
+    return close < 0 ? -1 : close - pos;
+  };
+  const labelEnd = (): number => {
+    const pos = text.length - remaining.length;
+    const found = nextStop(']', pos);
+    return found < 0 ? -1 : found - pos;
+  };
 
   while (remaining.length > 0) {
     // Ship mentions: ~sampel-palnet
@@ -248,7 +371,12 @@ function parseInlineMarkdown(
     }
 
     // Links: [text](url)
-    const linkMatch = remaining.match(/^\[([^\]]+)\]\(([^)]+)\)/);
+    const linkMatch = matchMarkdownDestination(
+      remaining,
+      false,
+      labelEnd(),
+      closingParen
+    );
     if (linkMatch) {
       result.push({ link: { href: linkMatch[2], content: linkMatch[1] } });
       remaining = remaining.slice(linkMatch[0].length);
@@ -258,7 +386,7 @@ function parseInlineMarkdown(
     // Reference paths, hoisted to a cite block like images below.
     const refMatch = remaining.match(REF_PATH_REGEX);
     if (refMatch) {
-      const path = refMatch[0].replace(REF_TRAILING_PUNCTUATION, '');
+      const path = trimTrailing(refMatch[0], REF_TRAILING_PUNCTUATION);
       if (!allowRefs) {
         // Consumed whole as text so the ship-mention scanner cannot claim
         // the host out of the middle of the path.
@@ -282,7 +410,12 @@ function parseInlineMarkdown(
     }
 
     // Markdown images: ![alt](url)
-    const imageMatch = remaining.match(/^!\[([^\]]*)\]\(([^)]+)\)/);
+    const imageMatch = matchMarkdownDestination(
+      remaining,
+      true,
+      labelEnd(),
+      closingParen
+    );
     if (imageMatch) {
       // Return a special marker that will be hoisted to a block
       result.push({
@@ -293,10 +426,10 @@ function parseInlineMarkdown(
     }
 
     // Plain URL detection
-    const urlMatch = remaining.match(/^(https?:\/\/[^\s<>"\]]+)/);
-    if (urlMatch) {
-      result.push({ link: { href: urlMatch[1], content: urlMatch[1] } });
-      remaining = remaining.slice(urlMatch[0].length);
+    const url = matchBareUrl(remaining);
+    if (url) {
+      result.push({ link: { href: url, content: url } });
+      remaining = remaining.slice(url.length);
       continue;
     }
 
@@ -308,33 +441,16 @@ function parseInlineMarkdown(
     //   continue;
     // }
 
-    // Plain text: consume until next markdown token or URL start.
-    // This prevents swallowing the "https" prefix before "://".
-    const specialTokenIndices = [
-      remaining.indexOf('**'),
-      remaining.indexOf('__'),
-      remaining.indexOf('~~'),
-      remaining.indexOf('`'),
-      remaining.indexOf('['),
-      remaining.indexOf('!'),
-      remaining.indexOf('~'),
-      remaining.indexOf('\n'),
-      remaining.indexOf('*'),
-      remaining.indexOf('_'),
-    ].filter((idx) => idx >= 0);
-
-    const urlIndex = remaining.search(/https?:\/\//);
-    if (urlIndex >= 0) {
-      specialTokenIndices.push(urlIndex);
-    }
-
-    const refIndex = remaining.search(REF_PATH_START_REGEX);
-    if (refIndex >= 0) {
-      specialTokenIndices.push(refIndex);
-    }
+    // Plain text: consume until the next stop.
+    const pos = text.length - remaining.length;
+    const specialTokenIndices = PLAIN_TEXT_STOPS.map((stop) =>
+      nextStop(stop, pos)
+    ).filter((idx) => idx >= 0);
 
     const nextTokenIndex =
-      specialTokenIndices.length > 0 ? Math.min(...specialTokenIndices) : -1;
+      specialTokenIndices.length > 0
+        ? Math.min(...specialTokenIndices) - pos
+        : -1;
 
     if (nextTokenIndex > 0) {
       result.push(remaining.slice(0, nextTokenIndex));
@@ -386,6 +502,41 @@ export function createImageBlock(
 }
 
 /**
+ * Stories carry images only as blocks, so move every image marker out of its
+ * inline context, at any depth, and drop the styles it leaves empty.
+ */
+function hoistImageMarkers(
+  inlines: StoryInline[],
+  blocks: StoryVerse[]
+): StoryInline[] {
+  const hoisted: StoryInline[] = [];
+  for (const inline of inlines) {
+    if (typeof inline !== 'object') {
+      hoisted.push(inline);
+    } else if ('__image' in inline) {
+      const img = (
+        inline as unknown as { __image: { src: string; alt: string } }
+      ).__image;
+      blocks.push(createImageBlock(img.src, img.alt));
+    } else {
+      const key = WRAPPERS.find((k) => k in inline);
+      if (!key) {
+        hoisted.push(inline);
+        continue;
+      }
+      const content = hoistImageMarkers(
+        (inline as Record<typeof key, StoryInline[]>)[key],
+        blocks
+      );
+      if (content.length > 0) {
+        hoisted.push({ [key]: content } as StoryInline);
+      }
+    }
+  }
+  return mergeAdjacentStrings(hoisted);
+}
+
+/**
  * Process inlines and extract image and reference markers into blocks
  */
 function processInlinesForBlocks(inlines: StoryInline[]): {
@@ -396,16 +547,11 @@ function processInlinesForBlocks(inlines: StoryInline[]): {
   const blocks: StoryVerse[] = [];
 
   for (const inline of inlines) {
-    if (typeof inline === 'object' && '__image' in inline) {
-      const img = (
-        inline as unknown as { __image: { src: string; alt: string } }
-      ).__image;
-      blocks.push(createImageBlock(img.src, img.alt));
-    } else if (typeof inline === 'object' && '__cite' in inline) {
+    if (typeof inline === 'object' && '__cite' in inline) {
       const { __cite: cite } = inline as unknown as { __cite: Cite };
       blocks.push({ block: { cite } });
     } else {
-      cleanInlines.push(inline);
+      cleanInlines.push(...hoistImageMarkers([inline], blocks));
     }
   }
 
@@ -678,20 +824,40 @@ export function markdownToStory(
     : parseMarkdownStory(markdown);
 }
 
+/**
+ * An opening code fence: three or more backticks and an info string with no
+ * backtick (CommonMark 4.5), so ```literal``` stays an inline code span.
+ */
+function matchFenceOpener(line: string): RegExpMatchArray | null {
+  return line.match(/^(`{3,})([^`]*)$/);
+}
+
+/**
+ * `\s` and `\S` cannot overlap, so a long run of spaces before a character
+ * `.` rejects (a lone \r, U+2028) fails in linear time instead of trying
+ * every split of the run.
+ */
+const HEADING_REGEX = /^(#{1,6})\s+(\S.*)$/;
+
 function parseMarkdownStory(markdown: string): Story {
   const story: Story = [];
-  const lines = markdown.split('\n');
+  const lines = markdown.split(/\r?\n/);
   let i = 0;
 
   while (i < lines.length) {
     const line = lines[i];
 
-    // Code block: ```lang\ncode\n```
-    if (line.startsWith('```')) {
-      const lang = line.slice(3).trim() || 'plaintext';
+    // Code block: ```lang\ncode\n```. Only a line of at least as many
+    // backticks closes it, so a longer fence can carry ``` lines as content.
+    const fenceMatch = matchFenceOpener(line);
+    if (fenceMatch) {
+      const closingFence = new RegExp(`^\`{${fenceMatch[1].length},}\\s*$`);
+      // The ship decodes lang as a @tas, so anything else would fail the poke.
+      const info = fenceMatch[2].trim().toLowerCase();
+      const lang = /^[a-z][a-z0-9-]*$/.test(info) ? info : 'plaintext';
       const codeLines: string[] = [];
       i++;
-      while (i < lines.length && !lines[i].startsWith('```')) {
+      while (i < lines.length && !closingFence.test(lines[i])) {
         codeLines.push(lines[i]);
         i++;
       }
@@ -703,23 +869,24 @@ function parseMarkdownStory(markdown: string): Story {
           },
         },
       });
-      i++; // skip closing ```
+      i++; // skip closing fence
       continue;
     }
 
     // Headers: # H1, ## H2, etc.
-    const headerMatch = line.match(/^(#{1,6})\s+(.+)$/);
+    const headerMatch = line.match(HEADING_REGEX);
     if (headerMatch) {
       const level = headerMatch[1].length as 1 | 2 | 3 | 4 | 5 | 6;
       const tag = `h${level}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
-      story.push({
-        block: {
-          header: {
-            tag,
-            content: parseInlineMarkdown(headerMatch[2], { allowRefs: false }),
-          },
-        },
-      });
+      const imageBlocks: StoryVerse[] = [];
+      const content = hoistImageMarkers(
+        parseInlineMarkdown(headerMatch[2], { allowRefs: false }),
+        imageBlocks
+      );
+      if (content.length > 0) {
+        story.push({ block: { header: { tag, content } } });
+      }
+      story.push(...imageBlocks);
       i++;
       continue;
     }
@@ -739,11 +906,15 @@ function parseMarkdownStory(markdown: string): Story {
         i++;
       }
       const quoteText = quoteLines.join('\n');
-      story.push({
-        inline: [
-          { blockquote: parseInlineMarkdown(quoteText, { allowRefs: false }) },
-        ],
-      });
+      const imageBlocks: StoryVerse[] = [];
+      const inline = hoistImageMarkers(
+        [{ blockquote: parseInlineMarkdown(quoteText, { allowRefs: false }) }],
+        imageBlocks
+      );
+      if (inline.length > 0) {
+        story.push({ inline });
+      }
+      story.push(...imageBlocks);
       continue;
     }
 
@@ -754,17 +925,17 @@ function parseMarkdownStory(markdown: string): Story {
     }
 
     // Regular paragraph - collect consecutive non-empty lines
+    // The first line is always taken: no branch above claimed it, so
+    // excluding it here would leave i unadvanced and spin forever.
     const paragraphLines: string[] = [];
     while (
       i < lines.length &&
-      lines[i].trim() !== '' &&
-      // Only a line that will actually parse as a heading may end the
-      // paragraph: a bare '#' or '#no-space' matches no other branch, so
-      // excluding it here would leave i unadvanced and spin forever.
-      !/^#{1,6}\s+.+$/.test(lines[i]) &&
-      !lines[i].startsWith('```') &&
-      !lines[i].startsWith('> ') &&
-      !/^(-{3,}|\*{3,})$/.test(lines[i].trim())
+      (paragraphLines.length === 0 ||
+        (lines[i].trim() !== '' &&
+          !HEADING_REGEX.test(lines[i]) &&
+          !matchFenceOpener(lines[i]) &&
+          !lines[i].startsWith('> ') &&
+          !/^(-{3,}|\*{3,})$/.test(lines[i].trim())))
     ) {
       paragraphLines.push(lines[i]);
       i++;

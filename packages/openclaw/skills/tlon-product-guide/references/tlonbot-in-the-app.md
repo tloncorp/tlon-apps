@@ -50,7 +50,7 @@ Notes: while the bot is starting, the `Default model`, `Fallback models` and `Ze
 
 ## Save changes to bot settings
 
-Phone: changes to the bot's name, models, permissions and channel rules are not saved as you make them. Each changed row gets a `Pending` badge, and a bar appears at the bottom with `Discard` and a button such as "Apply 2 Changes". Tap it, then `Apply & restart` on the `Restart gateway?` prompt.
+Phone: changes to the bot's name, models, browser service, permissions and channel rules are not saved as you make them. Each changed row gets a `Pending` badge, and a bar appears at the bottom with `Discard` and a button such as "Apply 2 Changes". Tap it, then `Apply & restart` on the `Restart gateway?` prompt.
 Desktop: not in the desktop app.
 Who: hosted accounts with a Tlonbot.
 Notes: the prompt says the bot restarts and will be offline for about 20 seconds. The bar shows on the Settings tab, the `Bot settings` screen, and the `Models`, `Permissions` and `Identity` screens, so go back to one of those to apply. API keys, subscriptions and connected services save straight away. A failure shows in red above the buttons.
@@ -81,18 +81,25 @@ Notes: if the default model fails, the bot tries these in order. The order is th
 Phone: on the Settings tab, tap your bot's `Models` row, then use the `Zero data retention` switch under `Default model` and `Fallback models`, then apply.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot. The switch only shows while the default model is the included Basic model with a model chosen.
-Notes: it is on by default, but the owner may run without it. The app describes it as `Zero data retention avoids model providers that retain data. It may use your included credits faster.` Requests still reach a model provider, just one that keeps nothing. Leaving Basic and coming back turns it off. With OpenRouter, the same switch is a `Zero data retention` row at the top of the OpenRouter section in the model picker, where it narrows the list to models tagged `ZDR`; switch it off to see the rest. It doesn't cover subscriptions, other providers' keys or a per-channel model.
+Notes: it is on by default, but the owner may run without it. The app describes it as `Zero data retention avoids model providers that retain data. It may use your included credits faster.` Requests still reach a model provider, just one that keeps nothing. Picking Basic again turns it back on unless Basic was already saved with it off. With OpenRouter, the Models screen shows a `Zero data retention` row reading On or Off; tapping it opens the picker, where the same switch sits at the top of the OpenRouter section and narrows the list to models tagged `ZDR`; switch it off to see the rest. It doesn't cover subscriptions, other providers' keys or a per-channel model.
+
+## Choose the browser my bot uses
+
+Phone: on the Settings tab, below your bot's rows, a `Browser service` section lists `Steel` and `Kernel`. Tap one; it gets a `Pending` badge. Then apply the change from the bar at the bottom, as with other bot settings.
+Desktop: not in the desktop app.
+Who: hosted accounts with a Tlonbot. The two rows are greyed out unless the bot runs on OpenClaw.
+Notes: the section's footer reads `Applying a change restarts your bot and stops its current browser task.`
 
 ## Add an API key for a model provider
 
-Phone: on the Settings tab, tap your bot's `Models` row, then `API keys`, then the provider: `Anthropic`, `OpenAI`, `OpenRouter` or `xAI (Grok)`. Paste the key into `API key` and tap `Save key`.
+Phone: on the Settings tab, tap your bot's `Models` row, then `API keys`, then the provider: `Anthropic`, `OpenAI`, `OpenRouter` or `xAI (Grok)`. Paste the key into `API key` and tap `Save` at the top right.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
-Notes: the key saves straight away, and that provider then appears when you choose a model. The eye icon shows what you typed. Afterwards only the last four characters are shown. Keys in the wrong shape are refused: OpenAI keys start with "sk-", OpenRouter with "sk-or-", Anthropic with "sk-ant-" or "anthropic-".
+Notes: the key saves straight away, and that provider then appears when you choose a model. The `Show key` switch shows what you typed. Afterwards only the last four characters are shown. Keys in the wrong shape are refused: OpenAI keys start with "sk-", OpenRouter with "sk-or-", Anthropic with "sk-ant-" or "anthropic-".
 
 ## Replace or remove an API key
 
-Phone: on the Settings tab, tap your bot's `Models` row, then `API keys`, then the provider. To replace the key, type the new one where it says `Enter replacement key` and tap `Save key`. To remove it, tap `Remove key`, then `Remove`.
+Phone: on the Settings tab, tap your bot's `Models` row, then `API keys`, then the provider. To replace the key, type the new one where it says `Enter replacement key` and tap `Save` at the top right. To remove it, tap `Remove key`, then `Remove`.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
 Notes: the confirmation says `Tlonbot will stop using custom models from this provider.` Both changes are saved straight away, with no apply step. The full key is never shown again, only its last four characters.
@@ -141,7 +148,7 @@ Notes: you'll see `Connection disconnected.` and the service moves back under `A
 
 ## Choose who can DM my bot
 
-Phone: on the Settings tab, tap `Permissions`, then `DM allowlist`. Tap the plus at the top right, then pick a contact or type any username. To take someone off, tap their row, which is marked `Remove`. Go back to `Permissions` and apply.
+Phone: on the Settings tab, tap `Permissions`, then `DM allowlist`. Tap the plus at the top right, then pick a contact or type any username. To take someone off, tap `Remove` beside their name. Go back to `Permissions` and apply.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
 Notes: the app says `Users on the allowlist can DM Tlonbot directly.` Someone already on the list can't be picked a second time.
@@ -161,7 +168,7 @@ Notes: the app says `These users can always interact with Tlonbot, regardless of
 
 ## Choose who can invite my bot to groups
 
-Phone: on the Settings tab, tap `Permissions`, then `Can invite to workspaces`. Tap the plus at the top right and pick a contact or type a username. Tap a row marked `Remove` to take that person off. Go back to `Permissions` and apply.
+Phone: on the Settings tab, tap `Permissions`, then `Can invite to workspaces`. Tap the plus at the top right and pick a contact or type a username. Tap `Remove` beside that person to take them off. Go back to `Permissions` and apply.
 Desktop: not in the desktop app. `Settings` → `Bot Settings` opens Tlon's bot settings web page instead.
 Who: hosted accounts with a Tlonbot.
 Notes: the app says `These users can invite Tlonbot to workspaces.`
@@ -175,14 +182,14 @@ Notes: a group the bot is not in has a `Join workspace` row; tap it, then `Join`
 
 ## Turn my bot on or off in one channel
 
-Phone: on `Channel rules`, tap the channel and flip `Enable Tlonbot here`. Under `Access mode` pick `Open` (`Anyone in the channel can chat`) or `Allowlist only` (`Authorized users only`). For an allowlist, type a username such as ~sampel-palnet and tap `Add`; tap the X beside a name to remove it. Tap `Done`, then apply from `Permissions`.
+Phone: on `Channel rules`, tap the channel and flip `Enable Tlonbot here`. Under `Access mode` pick `Open` (`Anyone in the channel can chat`) or `Allowlist only` (`Authorized users only`). For an allowlist, tap `Add user…`, type a username such as ~sampel-palnet in the `Filter by nickname or @p` box, and tap that person when they appear; tap `Remove` beside a name to take it off. Go back, then apply from `Permissions`.
 Desktop: not in the desktop app.
 Who: hosted accounts with a Tlonbot.
 Notes: a newly enabled channel starts as `Allowlist only`, holding a copy of the people you always allow. `Reset to defaults` puts it back to that. The switch stays off until the bot has joined the group.
 
 ## Use a different model in one channel
 
-Phone: on `Channel rules`, tap a channel where the bot is enabled. Under `Model`, tap `Custom model`, pick a provider, then search for and tap a model. `Default model` goes back to the bot's usual one. Tap `Done`, then apply from `Permissions`.
+Phone: on `Channel rules`, tap a channel where the bot is enabled. Under `Model`, tap `Custom model`, pick a provider, then search for and tap a model. `Default model` goes back to the bot's usual one. Go back, then apply from `Permissions`.
 Desktop: not in the desktop app.
 Who: hosted accounts with a Tlonbot that has a saved API key or a connected subscription. Without one the option is greyed out and reads `Add an API key in Bot settings to use a custom model here.`
 Notes: in the channel list the row then shows the provider beside its access mode.
@@ -217,9 +224,21 @@ Notes: a paused task reads `Paused`, or `Paused for credits` when your credits a
 
 ## Fill in a sign-in form for my bot's browser
 
-Phone: when the bot's browser reaches a sign-in or details form, it sends a card in your DM with it. Tap the card's button to open `Secure browser form`. Fill in the fields and tap `Continue` for a sign-in, or `Fill fields` for other details. If the site then asks for more, such as a password after the email, the next form opens on the same screen; fill that in too. Once nothing is left, the app returns you to the chat. If you finish in the live browser instead, tap `Return to conversation`.
+Phone: when the bot's browser reaches a sign-in or details form, it sends a card in your DM with it. Tap the card's button to open `Secure browser form`. Fill in the fields and tap `Fill fields`. The app then returns you to the chat, and the bot checks the page from there. If you finish in the live browser instead, tap `Return to conversation`.
 Who: only from a DM with your own bot.
-Notes: the screen says `These fields go directly to the live browser. They are never posted to chat or returned to the bot.` Filling in details does not submit a payment or place an order. `Open live browser` lets you finish any extra steps yourself.
+Notes: the screen says `These fields go directly to the live browser. They are not posted to chat.` Filling in details does not submit a payment or place an order. `Open live browser` lets you finish any extra steps yourself. A sign-in can also save the login for your bot; see "Let my bot use a saved login".
+
+## Let my bot use a saved login
+
+Phone: on a sign-in form, the app says the login you enter will be saved for your bot. Later, when the form comes up with a saved login, it is listed under `Saved login` or `Choose a saved login`. Tap it to use it, or `Enter a new login` to type a different one. When your bot needs to use a saved login, its card in your DM opens `Approve sign-in`. Check the site, then tap `Approve and fill`, or `Cancel` to refuse.
+Who: only from a DM with your own bot.
+Notes: `Approval allows this sign-in only.` Your password stays hidden. If the saved login has been changed or deleted, the screen says so and you choose again.
+
+## Approve a purchase my bot prepares in Link
+
+Phone: when your bot has a purchase ready, its card in your DM opens `Tlon wallet`. Under `Review payment request` you see the merchant, amount and description, with a preview of the live checkout. Compare them with the checkout, choose a payment method, tick the box, then tap `Request approval from Link`. Tap `Continue with Link` to finish in the window that opens. To connect your Link account first, tap `Continue with Link` and sign in there. `Check status` reloads the request, and `Cancel request` ends it while it is open.
+Who: only from a DM with your own bot.
+Notes: connecting does not approve any purchase. Once approved, the screen says `Payment approved. Your bot can fill this checkout. No purchase has been submitted.`
 
 ## Ask Tlon for more credits when my bot pauses scheduled tasks
 

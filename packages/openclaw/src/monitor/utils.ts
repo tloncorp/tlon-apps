@@ -1,3 +1,7 @@
+import {
+  formatAgentEnvelope,
+  resolveEnvelopeFormatOptions,
+} from 'openclaw/plugin-sdk/channel-inbound';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 
 import { normalizeShip } from '../targets.js';
@@ -619,8 +623,14 @@ export function extractMessageText(
         // Code blocks
         if (block.code && typeof block.code === 'object') {
           const lang = block.code.lang || '';
-          const code = block.code.code || '';
-          return `\n\`\`\`${lang}\n${code}\n\`\`\`\n`;
+          const code = String(block.code.code || '');
+          // A backtick run inside the code would close a fixed ``` fence early.
+          let fenceLength = 3;
+          for (const match of code.matchAll(/`+/g)) {
+            fenceLength = Math.max(fenceLength, match[0].length + 1);
+          }
+          const fence = '`'.repeat(fenceLength);
+          return `\n${fence}${lang}\n${code}\n${fence}\n`;
         }
 
         // Header blocks
@@ -696,6 +706,29 @@ export function isSummarizationRequest(messageText: string): boolean {
     /tldr/i,
   ];
   return patterns.some((pattern) => pattern.test(messageText));
+}
+
+/** Renders summarization history in the configured user timezone, not the host's. */
+export function formatSummarizationHistoryText(
+  history: ReadonlyArray<{
+    author: string;
+    content: string;
+    timestamp: number;
+  }>,
+  cfg?: OpenClawConfig
+): string {
+  const envelope = resolveEnvelopeFormatOptions(cfg);
+  return history
+    .map((msg) =>
+      formatAgentEnvelope({
+        channel: 'Tlon',
+        from: msg.author,
+        timestamp: msg.timestamp,
+        body: msg.content,
+        envelope,
+      })
+    )
+    .join('\n');
 }
 
 export function formatChangesDate(daysAgo = 5): string {

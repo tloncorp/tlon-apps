@@ -3,7 +3,6 @@ export * from './channelUtils';
 export * from './groupUtils';
 export * from './colorUtils';
 export * from './user';
-export * from './animation';
 export * from './themeUtils';
 export * from './roundedBackground';
 

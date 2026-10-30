@@ -12,6 +12,12 @@ The `message` tool's Tlon `media` argument takes an HTTPS URL, not a local file 
 {"command":"upload https://example.com/image.png"}
 ```
 
+Several files or URLs can go in one call; `-t` then applies to all of them. Each result line starts with the input's position: `input 2: <uploaded-url>` or `input 2: <error>`. The call succeeds when at least one input uploaded; check every line and use only the URLs that were returned. A whole batch shares one command timeout, so split large batches.
+
+```json
+{"command":"upload chart-1.png chart-2.png"}
+```
+
 Use this standalone-media path for posts/profiles and attachments. To put an image in a Gallery, use `posts send` instead; see [below](#gallery-posts-and-attachments-with-posts-send). For files inside a group Bucket, read [buckets.md](buckets.md).
 
 Relative file paths use the active agent workspace. The tool cannot provide stdin, expand variables, or execute pipes. Use `help upload` for options; its stdin examples apply only to an operator's shell.

@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
 import {
+  getBotOwnerId,
   getBotUserIdForUser,
   getChannelIdType,
   isBotUserIdForUser,
@@ -20,6 +21,22 @@ describe('bot user ids', () => {
     expect(isBotUserIdForUser('pinser-botter-zod', 'zod')).toBe(true);
     expect(isBotUserIdForUser('~pinser-botter-marzod', '~zod')).toBe(false);
     expect(isBotUserIdForUser('~pinser-botter-zod', '')).toBe(false);
+  });
+
+  test('finds the planet that owns a hosted bot', () => {
+    expect(getBotOwnerId('~pinser-botter-malmur-halmex')).toBe(
+      '~malmur-halmex'
+    );
+    expect(getBotOwnerId(getBotUserIdForUser('~sampel-palnet'))).toBe(
+      '~sampel-palnet'
+    );
+  });
+
+  test('finds no owner for other ships', () => {
+    expect(getBotOwnerId('~malmur-halmex')).toBe(null);
+    expect(getBotOwnerId('~dirmec-dolbes-malmur-halmex')).toBe(null);
+    expect(getBotOwnerId('~pinser-botter-')).toBe(null);
+    expect(getBotOwnerId(null)).toBe(null);
   });
 });
 

@@ -1,4 +1,3 @@
-import { A2UI } from '@tloncorp/api/client/a2ui';
 import {
   convertContent,
   type LinkBlockData,
@@ -22,20 +21,10 @@ describe('browser share link cards', () => {
       undefined
     );
     const card = browserSessionLinkCard(block, 'share');
-    expect(card.type).toBe('a2ui');
-    if (card.type !== 'a2ui') throw new Error('Expected a browser card');
-    expect(A2UI.validateBlobEntry(card.a2ui)).toBe(true);
-    const actions = A2UI.getUpdateMessage(
-      card.a2ui
-    )!.updateComponents.components.filter((c) => c.component === 'Button');
-    expect(actions).toHaveLength(1);
-    expect(actions[0].action.event).toEqual({
-      name: 'tlon.navigate',
-      context: {
-        target: { type: 'screen', screen: 'browserSession', viewerUrl: url },
-      },
+    expect(card).toEqual({
+      type: 'browser-card',
+      card: { type: 'browser-session', version: 1, viewerUrl: url },
     });
-    expect(JSON.stringify(card)).not.toContain('browserSecureEntry');
   });
 
   it('leaves old masked inline links unchanged', () => {

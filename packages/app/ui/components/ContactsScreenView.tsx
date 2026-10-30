@@ -20,10 +20,10 @@ interface Props {
   onAddContact: (contact: db.Contact) => void;
   onContactLongPress: (contact: db.Contact) => void;
   onInviteSystemContact: (contact: db.SystemContact) => void;
-  scrollRef?: RefObject<SectionList<db.Contact> | null>;
+  scrollRef?: RefObject<SectionList<db.Contact, ContactSection> | null>;
 }
 
-interface Section {
+export interface ContactSection {
   title?: string;
   data: readonly db.Contact[];
 }
@@ -43,7 +43,7 @@ export function ContactsScreenView(props: Props) {
   }, [props.systemContacts]);
 
   const sections = useMemo(() => {
-    const result: Section[] = [];
+    const result: ContactSection[] = [];
 
     result.push({
       data: [userContact ?? db.getFallbackContact(currentUserId)],
@@ -144,7 +144,7 @@ export function ContactsScreenView(props: Props) {
   );
 
   const renderSectionHeader = useCallback(
-    ({ section }: { section: Section }) => {
+    ({ section }: { section: ContactSection }) => {
       if (!section.title) {
         return null;
       }

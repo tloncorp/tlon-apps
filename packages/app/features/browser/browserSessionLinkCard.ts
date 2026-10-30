@@ -1,4 +1,3 @@
-import { browserSessionCard } from '@tloncorp/api/client/browserSession';
 import type { BlockData } from '@tloncorp/api/client/postContent';
 
 import { trustedBrowserViewerUrl } from './browserCredentialHandoff';
@@ -6,7 +5,7 @@ import { trustedBrowserViewerUrl } from './browserCredentialHandoff';
 /** Recognize the rich link card sent by `browser share`, not inline links. */
 export function browserSessionLinkCard(
   block: BlockData,
-  surfaceId: string
+  _surfaceId: string
 ): BlockData {
   if (
     block.type !== 'link' ||
@@ -18,7 +17,10 @@ export function browserSessionLinkCard(
   try {
     const viewerUrl = trustedBrowserViewerUrl(block.url);
     // Reuse the viewer action and its owner/bot trust gate in ChatMessage.
-    return { type: 'a2ui', a2ui: browserSessionCard(viewerUrl, surfaceId) };
+    return {
+      type: 'browser-card',
+      card: { type: 'browser-session', version: 1, viewerUrl },
+    };
   } catch {
     return block;
   }

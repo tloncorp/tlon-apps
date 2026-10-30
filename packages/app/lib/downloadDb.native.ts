@@ -20,7 +20,7 @@ export async function downloadDb(): Promise<string | null> {
         exportFile.name,
         'application/vnd.sqlite3'
       );
-      destination.write(await exportFile.bytes());
+      await destination.write(await exportFile.bytes());
       return destination.uri;
     }
 

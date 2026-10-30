@@ -11,13 +11,12 @@ import { createDevLogger } from '../debug';
 const logger = createDevLogger('SystemContactsApi', true);
 
 export async function getSystemContacts(): Promise<db.SystemContact[]> {
-  const { status } = await Contacts.getPermissionsAsync();
-  if (status !== 'granted') {
-    return [];
-  }
-
   let nativeContactBook: Contacts.ExistingContact[] = [];
   try {
+    const { status } = await Contacts.getPermissionsAsync();
+    if (status !== 'granted') {
+      return [];
+    }
     const { data } = await Contacts.getContactsAsync({
       fields: [Contacts.Fields.PhoneNumbers, Contacts.Fields.Emails],
     });
@@ -29,7 +28,7 @@ export async function getSystemContacts(): Promise<db.SystemContact[]> {
       error: e,
       errorMessage: e instanceof Error ? e.message : String(e),
     });
-    return [];
+    throw e;
   }
   try {
     const processedContacts = parseNativeContacts(nativeContactBook);
@@ -41,7 +40,7 @@ export async function getSystemContacts(): Promise<db.SystemContact[]> {
       error: e,
       errorMessage: e instanceof Error ? e.message : String(e),
     });
-    return [];
+    throw e;
   }
 }
 

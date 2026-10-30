@@ -1,5 +1,10 @@
 import { DraftInputId } from '@tloncorp/api';
-import { ComponentProps, PropsWithChildren, useEffect } from 'react';
+import {
+  ComponentProps,
+  ComponentPropsWithoutRef,
+  PropsWithChildren,
+  useEffect,
+} from 'react';
 import { Platform, StyleSheet } from 'react-native';
 import {
   KeyboardController,
@@ -69,7 +74,7 @@ function IOSKeyboardTrackingView({
   offset,
   enabled = true,
   ...props
-}: ComponentProps<typeof KeyboardStickyView>) {
+}: ComponentPropsWithoutRef<typeof KeyboardStickyView>) {
   const isVisible = KeyboardController.isVisible();
   const height = useSharedValue(
     isVisible ? KeyboardController.state().height : 0

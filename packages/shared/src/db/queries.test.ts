@@ -245,6 +245,53 @@ test('full group payload reconciles stale duplicate nav-section memberships', as
   });
 });
 
+// Rows land in the table in the order this device learned of them, such as
+// a section made here after the rest, which needn't be their saved order.
+test('getGroup returns nav sections in their saved order', async () => {
+  const groupId = '~bus/section-order-test';
+  const section = (sectionId: string, sectionIndex: number) => ({
+    id: `${groupId}-${sectionId}`,
+    sectionId,
+    groupId,
+    sectionIndex,
+    channels: [],
+  });
+  await queries.insertGroups({
+    groups: [
+      {
+        id: groupId,
+        currentUserIsMember: true,
+        currentUserIsHost: false,
+        hostUserId: '~bus',
+        channels: [],
+        navSections: [
+          section('default', 2),
+          section('outdoors', 1),
+          section('indoors', 0),
+        ],
+      } as unknown as Parameters<
+        typeof queries.insertGroups
+      >[0]['groups'][number],
+    ],
+  });
+
+  // Added since the last full sync, so it has no saved index yet.
+  await queries.addNavSectionToGroup({
+    id: `${groupId}-new`,
+    sectionId: 'new',
+    groupId,
+    meta: { title: 'New' },
+  });
+
+  const group = await queries.getGroup({ id: groupId });
+  expect(group?.navSections.map((s) => s.sectionId)).toEqual([
+    'new',
+    'indoors',
+    'outdoors',
+    'default',
+  ]);
+});
+
 test('updateNavSectionOrder skips a missing section list', async () => {
   await expect(
     queries.updateNavSectionOrder({

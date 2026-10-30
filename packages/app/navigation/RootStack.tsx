@@ -7,7 +7,6 @@ import { Platform, StatusBar } from 'react-native';
 import { InviteUsersScreen } from '../features/InviteUsersScreen';
 import { BrowserCredentialHandoffProvider } from '../features/browser/BrowserCredentialHandoffProvider';
 import { BrowserWalletScreen } from '../features/browser/BrowserWalletScreen';
-import { BrowserCredentialHandoffScreen } from '../features/browser/BrowserCredentialHandoffScreen';
 import { ChannelMembersScreen } from '../features/channels/ChannelMembersScreen';
 import { ChannelMetaScreen } from '../features/channels/ChannelMetaScreen';
 import { ChannelTemplateScreen } from '../features/channels/ChannelTemplateScreen';
@@ -17,6 +16,8 @@ import { ContextLensRunScreen } from '../features/lens/ContextLensRunScreen';
 import { ContextLensRunsScreen } from '../features/lens/ContextLensRunsScreen';
 import { AttestationScreen } from '../features/profile/AttestationScreen';
 import { ScheduledTaskEditorScreen } from '../features/automations/ScheduledTaskEditorScreen';
+import { ScheduledTaskRunScreen } from '../features/automations/ScheduledTaskRunScreen';
+import { ScheduledTaskRunsScreen } from '../features/automations/ScheduledTaskRunsScreen';
 import { ScheduledTasksScreen } from '../features/automations/ScheduledTasksScreen';
 import { AppInfoScreen } from '../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../features/settings/BlockedUsersScreen';
@@ -94,10 +95,10 @@ export function RootStack() {
 function RootStackContent() {
   const isDarkMode = useIsDarkMode();
 
-  // Android status bar has a solid color by default, so we clear it
+  // Android draws edge to edge, so the status bar is always transparent; only
+  // its content style follows the theme.
   useFocusEffect(() => {
     if (Platform.OS === 'android') {
-      StatusBar.setBackgroundColor('transparent');
       StatusBar.setBarStyle(isDarkMode ? 'light-content' : 'dark-content');
     }
   });
@@ -166,11 +167,6 @@ function RootStackContent() {
       <Root.Screen
         name="BrowserWallet"
         component={BrowserWalletScreen}
-        options={{ presentation: 'modal' }}
-      />
-      <Root.Screen
-        name="BrowserCredentialHandoff"
-        component={BrowserCredentialHandoffScreen}
         options={{ presentation: 'modal' }}
       />
       <Root.Screen name="AddContacts" component={AddContactsScreen} />
@@ -354,6 +350,16 @@ function RootStackContent() {
       <Root.Screen
         name="ScheduledTaskEditor"
         component={ScheduledTaskEditorScreen}
+        options={nativeHeaderScreenOptions}
+      />
+      <Root.Screen
+        name="ScheduledTaskRuns"
+        component={ScheduledTaskRunsScreen}
+        options={nativeHeaderScreenOptions}
+      />
+      <Root.Screen
+        name="ScheduledTaskRun"
+        component={ScheduledTaskRunScreen}
         options={nativeHeaderScreenOptions}
       />
       <Root.Screen name="Attestation" component={AttestationScreen} />

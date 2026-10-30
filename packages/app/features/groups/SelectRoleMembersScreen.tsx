@@ -38,7 +38,11 @@ export function SelectRoleMembersScreen({ navigation, route }: Props) {
   const [selectedMembers, setSelectedMembers] =
     useState<string[]>(initialSelected);
   const [limit, setLimit] = useState(pageSize);
-  const { groupMembers, groupRoles } = useGroupContext({ groupId });
+  // any member can be picked, so load the whole roster
+  const { groupMembers, groupRoles } = useGroupContext({
+    groupId,
+    wholeRoster: true,
+  });
 
   const role = useMemo(
     () => groupRoles.find((r) => r.id === roleId),

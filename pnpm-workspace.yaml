@@ -35,7 +35,6 @@ peerDependencyRules:
 
 patchedDependencies:
   "@tamagui/build@2.4.2": patches/@tamagui__build@2.4.2.patch
-  "@react-navigation/bottom-tabs@7.18.14": patches/@react-navigation__bottom-tabs@7.18.14.patch
   "@types/testing-library__jest-dom": patches/@types__testing-library__jest-dom@5.14.5.patch
   any-ascii: patches/any-ascii@0.3.2.patch
   react-cosmos: patches/react-cosmos@7.2.0.patch
@@ -43,18 +42,17 @@ patchedDependencies:
   drizzle-orm: patches/drizzle-orm@0.39.3.patch
   react-native-country-codes-picker: patches/react-native-country-codes-picker@2.3.5.patch
   "@simform_solutions/react-native-audio-waveform": patches/@simform_solutions__react-native-audio-waveform@2.1.6.patch
-  react-native-reanimated: patches/react-native-reanimated@4.5.5.patch
-  react-native-screens@4.25.2: patches/react-native-screens@4.25.2.patch
-  react-native-gesture-handler: patches/react-native-gesture-handler@2.32.0.patch
-  expo-image-manipulator: patches/expo-image-manipulator@57.0.1.patch
-  expo-background-task: patches/expo-background-task@57.0.1.patch
   '@mattermost/react-native-paste-input@2.0.1': patches/@mattermost__react-native-paste-input@2.0.1.patch
-  react-native-keyboard-controller@1.22.0: patches/react-native-keyboard-controller@1.22.0.patch
-  expo-notifications@57.0.21: patches/expo-notifications@57.0.21.patch
-  react-native@0.86.3: patches/react-native@0.86.3.patch
-  react-native-worklets@0.10.3: patches/react-native-worklets@0.10.3.patch
   '@legendapp/list@3.3.3': patches/@legendapp__list@3.3.3.patch
-  '@expo/ui@57.0.21': patches/@expo__ui@57.0.21.patch
+  react-native-reanimated@4.7.1: patches/react-native-reanimated@4.7.1.patch
+  react-native-screens@4.30.0: patches/react-native-screens@4.30.0.patch
+  '@expo/ui@58.0.19': patches/@expo__ui@58.0.19.patch
+  expo-background-task@58.0.11: patches/expo-background-task@58.0.11.patch
+  react-native-keyboard-controller@1.22.7: patches/react-native-keyboard-controller@1.22.7.patch
+  '@op-engineering/op-sqlite@15.2.5': patches/@op-engineering__op-sqlite@15.2.5.patch
+  react-native-branch@5.9.2: patches/react-native-branch@5.9.2.patch
+  '@react-native-cookies/cookies@6.2.1': patches/@react-native-cookies__cookies@6.2.1.patch
+  expo-modules-core@58.0.20: patches/expo-modules-core@58.0.20.patch
 
 allowUnusedPatches: false
 
@@ -83,19 +81,22 @@ overrides:
   prosemirror-view: 1.33.4
   prosemirror-state: 1.4.3
   "@tiptap/pm": 2.6.6
-  react: 19.2.3
-  react-dom: 19.2.3
-  react-test-renderer: 19.2.3
-  react-native: 0.86.3
-  "@types/react": ~19.2.0
-  react-native-reanimated: 4.5.5
-  react-native-gesture-handler: ~2.32.0
+  react: 19.3.0
+  react-dom: 19.3.0
+  react-test-renderer: 19.3.0
+  react-native: 0.88.0
+  "@types/react": ~19.3.0
+  react-native-reanimated: 4.7.1
+  react-native-gesture-handler: ~3.3.0
   get-intrinsic: 1.2.4
   esbuild: 0.27.3
 
 allowBuilds:
   "@firebase/util": true
   "@google/genai": true
+  # Only builds when npm_config_build_from_source is set; the prebuilt
+  # platform package is used otherwise. Arrived with jest-expo 58 (Jest 30).
+  "@parcel/watcher": false
   "@sentry/cli": true
   "@shopify/react-native-skia": true
   "@swc/core": true

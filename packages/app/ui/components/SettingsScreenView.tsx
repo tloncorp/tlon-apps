@@ -62,6 +62,8 @@ interface Props {
 const scheduledTaskRouteNames = new Set([
   'ScheduledTasks',
   'ScheduledTaskEditor',
+  'ScheduledTaskRuns',
+  'ScheduledTaskRun',
 ]);
 
 const botSettingsRouteNames = new Set([

@@ -58,7 +58,7 @@ Notes: the same choices open as a full screen headed `Notifications` from `Works
 
 ## Set notifications for one channel
 
-Phone: open the group, press and hold the channel in its channel list and tap `Channel notifications`. Pick `All channel activity`, `Channel posts, mentions, and replies`, `Mentions and replies` or `Nothing`. Another way in: open the channel, tap its name at the top, then tap `Notifications`.
+Phone: open the group, press and hold the channel in its channel list and tap `Channel notifications`. Pick `All channel activity`, `Channel posts, mentions, and replies`, `Mentions and replies` or `Nothing`. Another way in: open the channel, tap its name at the top, then tap `Notifications`, where the top choice reads `All activity` and the next `Posts and mentions`, with the longer names beneath.
 Desktop: hover the channel in the sidebar, open its three-dot menu and pick `Channel notifications`.
 Notes: on your node, a channel with no setting of its own follows its group's level, and a group with none follows the app-wide one. The menu doesn't show that: for an unset channel, the checkmark and the "(app default)" label show the app-wide level, even when its group has its own. In a group with a single channel, tapping the name opens the group's details, so `Notifications` there sets the group's level.
 
