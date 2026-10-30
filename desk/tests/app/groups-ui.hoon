@@ -159,6 +159,7 @@
     |=  =(pole knot)
     ?+  pole  ~
       [%gu @ ?(%chat %pals) @ %$ ~]  `!>(|)
+      [%gx @ %contacts @ %v1 %declined %noun ~]  `!>(*(set ship))
     ==
   ;<  *  bind:m  do-ui-init
   ;<  *  bind:m  (do-poke ui-hide-contact+!>(~sun))
@@ -175,5 +176,47 @@
   ;<  ~  bind:m  (ex-equal q.peek !>(*(set ship)))
   ;<  ~  bind:m  (set-src ~nec)
   (ex-fail (do-poke ui-suggest-contact+!>(~sun)))
+
+::
+++  test-declined-suggestion-stays-hidden
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  =bowl  bind:m  get-bowl
+  ;<  ~  bind:m  (set-src our.bowl)
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =(pole knot)
+    ?+  pole  ~
+      [%gu @ ?(%chat %pals) @ %$ ~]  `!>(|)
+      [%gx @ %contacts @ %v1 %declined %noun ~]  `!>((silt ~[~sun]))
+    ==
+  ;<  *  bind:m  do-ui-init
+  ;<  *  bind:m  (do-poke ui-add-contact-suggestions+!>(~[~sun ~nec]))
+  ;<  *  bind:m  (do-poke ui-hide-contact+!>(~sun))
+  ;<  *  bind:m  (do-poke ui-suggest-contact+!>(~sun))
+  ;<  peek=cage  bind:m  (peek-ui /x/hidden-contact-suggestions)
+  ;<  ~  bind:m  (ex-equal q.peek !>((silt ~[~sun])))
+  ;<  peek=cage  bind:m  (peek-ui /x/suggested-contacts)
+  (ex-equal q.peek !>((silt ~[~nec])))
+
+::
+++  test-suggestion-during-contacts-upgrade
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  =bowl  bind:m  get-bowl
+  ;<  ~  bind:m  (set-src our.bowl)
+  ;<  ~  bind:m  (set-scry-gate |=(=(pole knot) ~))
+  ;<  *  bind:m  do-ui-init
+  ;<  *  bind:m  (do-poke ui-hide-contact+!>(~sun))
+  ;<  *  bind:m  (do-poke ui-suggest-contact+!>(~sun))
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =(pole knot)
+    ?+  pole  ~
+      [%gu @ ?(%chat %pals) @ %$ ~]  `!>(|)
+      [%gx @ %contacts @ %v1 %declined %noun ~]  `!>(*(set ship))
+    ==
+  ;<  peek=cage  bind:m  (peek-ui /x/suggested-contacts)
+  (ex-equal q.peek !>((silt ~[~sun])))
 
 --

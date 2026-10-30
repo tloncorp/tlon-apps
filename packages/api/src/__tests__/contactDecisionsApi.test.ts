@@ -2,10 +2,13 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 import {
   discoverContact,
+  probeContactDecisions,
   removeContactSuggestion,
 } from '../client/contactsApi';
 import {
+  BadResponseError,
   poke,
+  scry,
   setDeskSupportsContactDecisions,
   setDeskSupportsContactRemoval,
 } from '../client/urbit';
@@ -13,6 +16,7 @@ import {
 vi.mock('../client/urbit', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../client/urbit')>()),
   poke: vi.fn(),
+  scry: vi.fn(),
 }));
 
 beforeEach(() => {
@@ -84,4 +88,47 @@ test('complete Decline uses contacts ownership, while unsupported and unknown de
       json: '~nec',
     });
   }
+});
+
+test('complete capability probes contacts state and the groups-ui enforcement marker', async () => {
+  vi.mocked(scry)
+    .mockResolvedValueOnce({
+      directory: {},
+      book: {},
+      removed: [],
+      declined: [],
+    })
+    .mockResolvedValueOnce(true);
+  await probeContactDecisions();
+  expect(vi.mocked(scry).mock.calls).toEqual([
+    [{ app: 'contacts', path: '/v3/init' }],
+    [{ app: 'groups-ui', path: '/v1/contact-decline-protection' }],
+  ]);
+});
+
+test.each([404, 403, 503])(
+  'the groups-ui marker failure remains an HTTP %s error for capability policy',
+  async (status) => {
+    const error = new BadResponseError(status, 'marker unavailable');
+    vi.mocked(scry)
+      .mockResolvedValueOnce({
+        directory: {},
+        book: {},
+        removed: [],
+        declined: [],
+      })
+      .mockRejectedValueOnce(error);
+    await expect(probeContactDecisions()).rejects.toBe(error);
+    expect(scry).toHaveBeenLastCalledWith({
+      app: 'groups-ui',
+      path: '/v1/contact-decline-protection',
+    });
+  }
+);
+
+test('a missing contacts contract stops the probe before groups-ui', async () => {
+  const error = new BadResponseError(404, 'state unavailable');
+  vi.mocked(scry).mockRejectedValueOnce(error);
+  await expect(probeContactDecisions()).rejects.toBe(error);
+  expect(scry).toHaveBeenCalledTimes(1);
 });

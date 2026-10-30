@@ -75,6 +75,7 @@ const getContactDecisionInit = () =>
 
 export const probeContactDecisions = async () => {
   await getContactDecisionInit();
+  await scryRequest(groupsUi.contactDeclineProtection)<true>({});
 };
 
 export const getContacts = async () => (await getContactState()).contacts;
