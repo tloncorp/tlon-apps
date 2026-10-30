@@ -3,7 +3,6 @@ import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useEffect, useRef } from 'react';
 
-import { startAgentGroupNavigationLockFailsafe } from '../../hooks/useAgentGroupOnboardingLock';
 import { getTopLevelTabRoute } from '../../navigation/topLevelTabs';
 import { useRootNavigation, useTypedReset } from '../../navigation/utils';
 import {
@@ -16,9 +15,8 @@ const logger = createDevLogger('useAgentOnboardingLandingConsumer', false);
 /**
  * The tab navigator's half of the onboarding handoff: wait for a group-chat
  * landing to exist locally (a DM landing needs no row), claim the durable
- * landing exactly once, then reset navigation into it with the failsafe clock
- * started at the handoff. It lives above the tabs because they mount lazily
- * and the Bot tab is the initial one.
+ * landing exactly once, then reset navigation into it. It lives above the tabs
+ * because they mount lazily and the Bot tab is the initial one.
  */
 export function useAgentOnboardingLandingConsumer() {
   const { resetToChannel } = useRootNavigation();
@@ -52,12 +50,6 @@ export function useAgentOnboardingLandingConsumer() {
             ? null
             : await db.getChannel({ id: onboardingLanding.channelId });
           if (landsInBotDm || channel) {
-            // Furnishing may have taken much longer than the lock failsafe.
-            // Start its clock at the actual handoff so the setup chat gets the
-            // full bounded lock window once it becomes visible.
-            await startAgentGroupNavigationLockFailsafe(
-              onboardingLanding.groupId
-            );
             // Claim this handoff durably before resetting navigation. The reset
             // remounts ChatListScreen, so component-local state alone cannot
             // prevent the new instance from consuming the same handoff again.
@@ -70,8 +62,8 @@ export function useAgentOnboardingLandingConsumer() {
               // leaves the user where onboarding continues, rather than one
               // back-press above Workspaces. The group rides along: a DM has
               // no groupId of its own, and the channel's onboarding hook needs
-              // it for the navigation lock, the agent, and clearing the
-              // durable marker once the first entry lands.
+              // it for the agent and clearing the durable marker once the
+              // first entry lands.
               resetRef.current([
                 getTopLevelTabRoute('BotChat', {
                   channelId: onboardingLanding.channelId,

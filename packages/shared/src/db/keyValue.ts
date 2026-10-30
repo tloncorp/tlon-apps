@@ -175,27 +175,10 @@ export const tlonbotRevivalDeferredConfig =
     defaultValue: {},
   });
 
-export const AGENT_GROUP_NAVIGATION_LOCK_FAILSAFE_MS = 30_000;
-
 export type AgentGroupOnboardingLock = {
-  /** The furnished setup chat; the launch restore when no landing is recorded. */
-  chatChannelId?: string;
-  /**
-   * Where first-run onboarding actually landed — the bot DM for a hosted first
-   * run, the setup chat otherwise. Restored on launch while navigation is
-   * locked, so a restart reopens the conversation that holds the pickers.
-   */
-  landingChannelId?: string;
   provision?: PostBlobDataEntryAgentProvision;
-  /** The bot accepted the plan; navigation is unlocked while its first entry runs. */
+  /** The bot accepted the plan; its first entry is running. */
   provisionAcknowledgedAt?: number;
-  /**
-   * Navigation is trapped in the setup conversation until this deadline (or
-   * acknowledgement). Set only for the provisioned first group — at furnishing,
-   * then re-armed for a full window when the setup chat is handed to
-   * navigation. Absent for later Tlonbot groups, which never lock.
-   */
-  navigationLockExpiresAt?: number;
   createdAt: number;
   /** Title observed before onboarding, used to avoid overwriting later edits. */
   initialGroupTitle?: string | null;
@@ -235,7 +218,7 @@ export const agentOnboardingBackTooltipShown = createStorageItem<
   persistAfterLogout: true,
 });
 
-/** One-way onboarding navigation locks, keyed by group id. */
+/** Agent group onboarding records, keyed by group id. */
 export const agentGroupOnboardingLocks = createStorageItem<
   Record<string, AgentGroupOnboardingLock>
 >({

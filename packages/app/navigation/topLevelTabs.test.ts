@@ -6,7 +6,6 @@ import {
   getTopLevelTabRoute,
   isAtColdStartPosition,
   isAwaitingRestoredBotTab,
-  isTabPressBlockedByOnboardingLock,
 } from './topLevelTabs';
 
 vi.mock('@tloncorp/shared', () => ({
@@ -80,21 +79,6 @@ describe('mobile top-level tab links', () => {
         routes: [{ name: 'MainTabs' }, { name: 'Contacts' }],
       },
     });
-  });
-});
-
-describe('isTabPressBlockedByOnboardingLock', () => {
-  test('refuses every tab but Bot while onboarding is locked', () => {
-    expect(isTabPressBlockedByOnboardingLock(true, 'ChatList')).toBe(true);
-    expect(isTabPressBlockedByOnboardingLock(true, 'Activity')).toBe(true);
-    expect(isTabPressBlockedByOnboardingLock(true, 'Settings')).toBe(true);
-    expect(isTabPressBlockedByOnboardingLock(true, 'BotChat')).toBe(false);
-  });
-
-  test('lets every tab through once the lock lifts', () => {
-    expect(isTabPressBlockedByOnboardingLock(false, 'ChatList')).toBe(false);
-    expect(isTabPressBlockedByOnboardingLock(false, 'Activity')).toBe(false);
-    expect(isTabPressBlockedByOnboardingLock(false, 'Settings')).toBe(false);
   });
 });
 
