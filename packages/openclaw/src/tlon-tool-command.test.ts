@@ -564,6 +564,22 @@ describe('owner-by-default identity selection', () => {
       ]);
     });
 
+    it.each([
+      ['activity mentions --self --limit 20', true],
+      ['activity unread --self', true],
+      ['activity replies --limit 20', false],
+    ])(
+      'reads an activity read with `%s` as the bot: %s',
+      async (command, asBot) => {
+        const { execute, runCommand } = makeExecutor();
+        await execute('activity-read', { command });
+        const args = shellSplitCommand(command);
+        expect(ranWith(runCommand)).toEqual(
+          asBot ? args : ['--ship', '~owner', ...args]
+        );
+      }
+    );
+
     it('accepts a leading tlon token for owner commands', async () => {
       const { execute, runCommand } = makeExecutor();
       await execute('tlon', { command: 'tlon contacts self' });
@@ -3013,6 +3029,9 @@ describe('owner-hosted workspaces and channels with ownerDefault', () => {
       ['notes note-publish notes/~h/b --self 12', true],
       ['groups invite-link ~h/g --self', true],
       ['activity mark-read --self --all', true],
+      // Activity reads: options only, and --limit takes a value.
+      ['activity mentions --limit 5 --self', true],
+      ['activity replies --limit --self', false],
       // groups join: the optional group flag, and --invite's value.
       ['groups join --invite "--self"', false],
       ['groups join ~zod/team', false],
@@ -4098,6 +4117,10 @@ describe('tlon tool telemetry summarizer', () => {
     }
     expect(summarizeTlonCommand('activity unreads')).toMatchObject({
       summaryKey: 'activity.unreads',
+      intent: 'read',
+    });
+    expect(summarizeTlonCommand('activity unread')).toMatchObject({
+      summaryKey: 'activity.unread',
       intent: 'read',
     });
     expect(summarizeTlonCommand('activity volume base')).toMatchObject({

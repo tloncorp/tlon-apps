@@ -25,6 +25,29 @@ function flagLabel(flag: CredentialFlag): string {
   return `--${flag}`;
 }
 
+const CREDENTIAL_FLAG_VALUES: Record<CredentialFlag, string> = {
+  config: '<file>',
+  url: '<url>',
+  ship: '<ship>',
+  code: '<code>',
+  cookie: '<cookie>',
+};
+
+/**
+ * The credential flag `arg` spells (bare or `--flag=value`) and its usage, or
+ * null. Only the global prefix carries credentials, so after the command a
+ * credential flag reaches the command's parser as an unknown option.
+ */
+export function credentialFlagUsage(
+  arg: string
+): { flag: string; usage: string } | null {
+  if (!arg.startsWith('--')) return null;
+  const name = arg.slice(2).split('=', 1)[0];
+  if (!isCredentialFlagName(name)) return null;
+  const flag = flagLabel(name);
+  return { flag, usage: `${flag} ${CREDENTIAL_FLAG_VALUES[name]}` };
+}
+
 function invalidFormsMessage(): string {
   return (
     'Invalid credential flags: use one of ' +
