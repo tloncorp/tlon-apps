@@ -51,7 +51,7 @@ const send = (text: string) => ({
   event: { name: 'tlon.sendMessage' as const, context: { text } },
 });
 
-// A DM approval in the hinted shape from docs/tlon-apps/a2ui-approval-cards.md.
+// A DM approval with rendering hints (docs/tlon-apps/post-blobs.md).
 const block: A2UIBlockData = {
   type: 'a2ui',
   a2ui: {

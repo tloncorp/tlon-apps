@@ -174,11 +174,41 @@ Hints count toward the text budget.
 | `resultLabel` | `Button` | string | Once the button is used, replaces its card's button row. |
 | `statusLabel` | `Button` | string | Once the button is used, shown as its card's status. |
 
-A nested `Card` draws as a bordered inner card. Its last child, when that is a
-`Row` other than a row of buttons, is a footer line under a hairline. A card's answer is scoped to
-the buttons of that card, not of cards inside it, so each request in a list
-answers on its own. See `docs/tlon-apps/a2ui-approval-cards.md` for how the
-approval and pending-request cards use these.
+Rules for adding a hint, so older apps keep drawing the card:
+
+- Hints are optional fields on existing components. A new component type, a new
+  value on an existing enum, or a blob `version` bump makes older apps reject
+  the post and show "Upgrade your app to see this post"; unknown keys are
+  stripped.
+- Each hint uses `.catch(undefined)`, so a value this app doesn't know drops
+  that one field, never the card.
+- Hints never carry words that older apps would miss. Every hinted component
+  keeps a readable `text`.
+- The usual limits apply: 50 components, depth 8, 12 children per container,
+  8,000 characters.
+
+How the renderer lays hinted cards out:
+
+- A nested `Card` draws as a bordered inner card. Its last child, when that is
+  a `Row` other than a row of buttons, is a footer line under a hairline.
+- An inner card that holds its own buttons, like one pending request, draws
+  its person row with a smaller avatar.
+- A borderless `Button` that isn't in a row of buttons draws as a small text
+  link.
+- Text in a `Row` takes its horizontal alignment from the row's `justify`; a
+  row's `align` is vertical.
+- A card's answer is scoped to the buttons of that card, not of cards inside
+  it, so each request in a list answers on its own. The result line takes the
+  used button's tone: positive for the primary button, red for a
+  `tone: 'destructive'` one, neutral otherwise. It reflects the owner's tap,
+  not the bot's success; the bot's own confirmation message follows.
+- A person or group row's accessible label is its `text` (plus a caption
+  joined to it), so screen readers hear what older apps show. A group the app
+  can't preview falls back to `name` and the flag.
+
+The `ApprovalDM`, `ApprovalChannel`, `ApprovalGroup` and `PendingRequests`
+fixtures in `packages/app/fixtures/A2UI.fixture.tsx` are approval cards built
+from these hints.
 
 `McpConnect` is a client-populated menu rather than bot-authored provider data.
 The blob supplies only bounded presentation labels and three validated actions:

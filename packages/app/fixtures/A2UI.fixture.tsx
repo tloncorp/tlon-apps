@@ -419,8 +419,8 @@ const groupApprovalA2UI = makeApprovalA2UI({
   requestId: 'g5f6a',
 });
 
-// Approval cards in the shape proposed in docs/tlon-apps/a2ui-approval-cards.md:
-// the same words as today's cards, regrouped, with optional rendering hints.
+// Approval cards with rendering hints (docs/tlon-apps/post-blobs.md): the same
+// words as today's cards, regrouped.
 type HintedSubject = {
   requester: A2UI.TextEntity & { fallback: string };
   lines?: string[];
