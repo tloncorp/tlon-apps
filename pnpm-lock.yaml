@@ -46,7 +46,7 @@ patchedDependencies:
   react-cosmos: 658acdaf59c16d70e54b6b0b9d522593cd973839891ed5446a3dd3045d4e37eb
   react-native-branch@5.9.2: 39d64a6069c02d7c08e6ec3c29fac44f45e4da04ab905eab878197ccfc3b9fcf
   react-native-country-codes-picker: af6c5c204e199c8a9536f528b6891647dca6528ed5b190b652c828e1cca0f37a
-  react-native-keyboard-controller@1.22.7: 5710d30ed334274ab369045ea0c044bcda165d3ff97db81bfa6ecc77b6713486
+  react-native-keyboard-controller@1.22.7: 2fa72ebf254155dba6cd97236871e4bbf048ff1d786c23dc83a785c9fd1a69d2
   react-native-reanimated@4.7.1: e8d416240ed59dae2a462f71d1c6a6748eaae9342628cfef788cb1c3ad70e4da
   react-native-screens@4.30.0: e3fb8406bde878460a791272f3f73fee105145251fc9d2fe074e702d48591508
 
@@ -387,7 +387,7 @@ importers:
         version: 1.11.0(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))
       react-native-keyboard-controller:
         specifier: 1.22.7
-        version: 1.22.7(patch_hash=5710d30ed334274ab369045ea0c044bcda165d3ff97db81bfa6ecc77b6713486)(react-native-reanimated@4.7.1(patch_hash=e8d416240ed59dae2a462f71d1c6a6748eaae9342628cfef788cb1c3ad70e4da)(react-native-worklets@0.13.0(@babel/core@7.29.0)(@react-native/metro-config@0.88.0)(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0))(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0))(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
+        version: 1.22.7(patch_hash=2fa72ebf254155dba6cd97236871e4bbf048ff1d786c23dc83a785c9fd1a69d2)(react-native-reanimated@4.7.1(patch_hash=e8d416240ed59dae2a462f71d1c6a6748eaae9342628cfef788cb1c3ad70e4da)(react-native-worklets@0.13.0(@babel/core@7.29.0)(@react-native/metro-config@0.88.0)(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0))(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0))(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
       react-native-reanimated:
         specifier: 4.7.1
         version: 4.7.1(patch_hash=e8d416240ed59dae2a462f71d1c6a6748eaae9342628cfef788cb1c3ad70e4da)(react-native-worklets@0.13.0(@babel/core@7.29.0)(@react-native/metro-config@0.88.0)(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0))(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
@@ -27958,7 +27958,7 @@ snapshots:
       react: 19.3.0
       react-native: 0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0)
 
-  react-native-keyboard-controller@1.22.7(patch_hash=5710d30ed334274ab369045ea0c044bcda165d3ff97db81bfa6ecc77b6713486)(react-native-reanimated@4.7.1(patch_hash=e8d416240ed59dae2a462f71d1c6a6748eaae9342628cfef788cb1c3ad70e4da)(react-native-worklets@0.13.0(@babel/core@7.29.0)(@react-native/metro-config@0.88.0)(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0))(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0))(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0):
+  react-native-keyboard-controller@1.22.7(patch_hash=2fa72ebf254155dba6cd97236871e4bbf048ff1d786c23dc83a785c9fd1a69d2)(react-native-reanimated@4.7.1(patch_hash=e8d416240ed59dae2a462f71d1c6a6748eaae9342628cfef788cb1c3ad70e4da)(react-native-worklets@0.13.0(@babel/core@7.29.0)(@react-native/metro-config@0.88.0)(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0))(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0))(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0):
     dependencies:
       react: 19.3.0
       react-native: 0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0)

@@ -132,7 +132,7 @@ index ae97d611a7f727ebbb0e17eabbb3294e1cc76a2f..5297266bf86b48513df7eea6ebf78f2c
    @objc public init(
      handler: @escaping (NSString, NSNumber, NSNumber, NSNumber, NSNumber) -> Void,
 diff --git a/lib/commonjs/components/KeyboardChatScrollView/useChatKeyboard/index.ios.js b/lib/commonjs/components/KeyboardChatScrollView/useChatKeyboard/index.ios.js
-index 6481228c59b02fe9efea538bcf094701006a5970..d229fde3dfb579078c3520640bf7ec2b15723c31 100644
+index 6481228c59b02fe9efea538bcf094701006a5970..14a666e6439411aa067bc54044dc95b13ca3b1c2 100644
 --- a/lib/commonjs/components/KeyboardChatScrollView/useChatKeyboard/index.ios.js
 +++ b/lib/commonjs/components/KeyboardChatScrollView/useChatKeyboard/index.ios.js
 @@ -12,7 +12,8 @@ function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e
@@ -145,7 +145,7 @@ index 6481228c59b02fe9efea538bcf094701006a5970..d229fde3dfb579078c3520640bf7ec2b
   *
   * @param scrollViewRef - Animated ref to the scroll view.
   * @param options - Configuration for inverted and keyboardLiftBehavior.
-@@ -39,7 +40,16 @@ function useChatKeyboard(scrollViewRef, options) {
+@@ -39,115 +40,203 @@ function useChatKeyboard(scrollViewRef, options) {
    const contentOffsetY = (0, _reactNativeReanimated.useSharedValue)(options.initialContentOffsetY ?? 0);
    const targetKeyboardHeight = (0, _reactNativeReanimated.useSharedValue)(0);
    const prevAbsorption = (0, _reactNativeReanimated.useSharedValue)(0);
@@ -158,12 +158,14 @@ index 6481228c59b02fe9efea538bcf094701006a5970..d229fde3dfb579078c3520640bf7ec2b
 +    fromPadding: 0,
 +    toPadding: 0,
 +    fromScroll: 0,
-+    toScroll: 0
++    toScroll: 0,
++    followEnd: false
 +  });
    const {
      layout,
      size,
-@@ -47,107 +57,160 @@ function useChatKeyboard(scrollViewRef, options) {
++    sizeAtScroll,
+     offset: scroll,
      onLayout,
      onContentSizeChange
    } = (0, _useScrollState.default)(scrollViewRef, options.initialContentOffsetY);
@@ -227,7 +229,8 @@ index 6481228c59b02fe9efea538bcf094701006a5970..d229fde3dfb579078c3520640bf7ec2b
 +    const actualTotalPadding = Math.max(blankSpace.value, effective + extraContentPadding.value);
 +    const target = {
 +      padding: effective,
-+      scroll: scroll.value
++      scroll: scroll.value,
++      followEnd: false
 +    };
  
 -      // never mode: when keyboard shrinks, clamp to valid range
@@ -298,6 +301,14 @@ index 6481228c59b02fe9efea538bcf094701006a5970..d229fde3dfb579078c3520640bf7ec2b
 +    const prevScrollEffective = (0, _helpers.getScrollEffective)(padding.value, prevAbsorption.value);
 +    const relativeScroll = inverted ? scroll.value + prevScrollEffective : scroll.value - prevScrollEffective;
 +    prevAbsorption.value = minimumPaddingAbsorbed;
++
++    // A list that sat at its true end (inset included) when it last scrolled
++    // stays there for the whole transition, including rows that laid out
++    // since or arrive mid-animation. Following a trajectory fixed here would
++    // overwrite the list's own follow-scroll on every frame and strand those
++    // rows behind the input.
++    const heightAtScroll = sizeAtScroll.value > 0 ? sizeAtScroll.value : size.value.height;
++    target.followEnd = !inverted && keyboardLiftBehavior !== "never" && blankSpace.value === 0 && (0, _helpers.isScrollAtEnd)(scroll.value, layout.value.height, heightAtScroll + Math.min(layout.value.height, padding.value + extraContentPadding.value), inverted);
 +    if (!(0, _helpers.shouldShiftContent)(keyboardLiftBehavior, atEnd)) {
 +      // Preserve current scroll position so animated props
 +      // don't re-apply a stale contentOffset when padding changes
@@ -312,6 +323,15 @@ index 6481228c59b02fe9efea538bcf094701006a5970..d229fde3dfb579078c3520640bf7ec2b
 +    target.scroll = (0, _helpers.computeIOSContentOffset)(relativeScroll, scrollEffective, size.value.height, layout.value.height, inverted, actualTotalPadding);
 +    return target;
 +  };
++
++  // The end as of this frame: rows that laid out since the last scroll event
++  // count, and so does the inset being applied.
++  const getLiveEnd = () => {
++    "worklet";
++
++    const totalPadding = Math.min(layout.value.height, padding.value + extraContentPadding.value);
++    return Math.max(size.value.height - layout.value.height + totalPadding, 0);
++  };
 +  const move = e => {
 +    "worklet";
 +
@@ -324,8 +344,12 @@ index 6481228c59b02fe9efea538bcf094701006a5970..d229fde3dfb579078c3520640bf7ec2b
 +    const distance = t.toHeight - t.fromHeight;
 +    const progress = distance === 0 ? 1 : Math.max(0, Math.min(1, (e.height - t.fromHeight) / distance));
 +    padding.value = t.fromPadding + progress * (t.toPadding - t.fromPadding);
-+    // Keep composer-height adjustments made between keyboard frames.
-+    contentOffsetY.value += (progress - t.progress) * (t.toScroll - t.fromScroll);
++    if (t.followEnd) {
++      contentOffsetY.value = getLiveEnd();
++    } else {
++      // Keep composer-height adjustments made between keyboard frames.
++      contentOffsetY.value += (progress - t.progress) * (t.toScroll - t.fromScroll);
++    }
 +    transition.value = {
 +      ...t,
 +      progress
@@ -358,7 +382,8 @@ index 6481228c59b02fe9efea538bcf094701006a5970..d229fde3dfb579078c3520640bf7ec2b
 +        fromPadding,
 +        toPadding: target.padding,
 +        fromScroll,
-+        toScroll: target.scroll
++        toScroll: target.scroll,
++        followEnd: target.followEnd
 +      };
 +      padding.value = fromPadding;
 +      contentOffsetY.value = fromScroll;
@@ -371,7 +396,8 @@ index 6481228c59b02fe9efea538bcf094701006a5970..d229fde3dfb579078c3520640bf7ec2b
  
 -      // iOS doesn't need per-frame updates (contentOffset handles it)
 +      // Interactive frames arrive after onEnd, without a new onStart. Apply
-+      // each observed height directly and preserve the user's scroll delta.
++      // each observed height directly and preserve the user's scroll delta,
++      // unless the list is at its end: it follows rows arriving mid-swipe.
 +      transition.value = {
 +        ...transition.value,
 +        active: false
@@ -380,7 +406,7 @@ index 6481228c59b02fe9efea538bcf094701006a5970..d229fde3dfb579078c3520640bf7ec2b
 +      if (freeze.value) return;
 +      const target = getTarget(e);
 +      padding.value = target.padding;
-+      contentOffsetY.value = target.scroll;
++      contentOffsetY.value = target.followEnd ? getLiveEnd() : target.scroll;
      },
      onEnd: e => {
        "worklet";
@@ -455,8 +481,38 @@ index 6fd39e90bdb3784ef5bf786e02753086a3e47773..3b7e445b7d1a55db3a9c56c0b96676ec
          prevContentOffsetY.value = y;
          result.contentOffset = {
            x: (contentOffset === null || contentOffset === void 0 ? void 0 : contentOffset.x) ?? 0,
+diff --git a/lib/commonjs/components/hooks/useScrollState.js b/lib/commonjs/components/hooks/useScrollState.js
+index f8cb20e67c6184a87a997004fde50cd3371e108a..3b8b3faf94853a10eb119aca3db40cf6ef23885d 100644
+--- a/lib/commonjs/components/hooks/useScrollState.js
++++ b/lib/commonjs/components/hooks/useScrollState.js
+@@ -18,6 +18,9 @@ const useScrollState = (ref, initialOffset = 0) => {
+     width: 0,
+     height: 0
+   });
++  // Content height as of the last native scroll event. Unlike `size`, content
++  // that grows without the view scrolling leaves it behind.
++  const sizeAtScroll = (0, _reactNativeReanimated.useSharedValue)(0);
+   const register = (0, _internal.useEventHandlerRegistration)(ref);
+   const eventHandler = (0, _reactNativeReanimated.useEvent)(event => {
+     "worklet";
+@@ -26,6 +29,7 @@ const useScrollState = (ref, initialOffset = 0) => {
+     offset.value = event.contentOffset.y;
+     layout.value = event.layoutMeasurement;
+     size.value = event.contentSize;
++    sizeAtScroll.value = event.contentSize.height;
+   }, NATIVE_SCROLL_EVENT_NAMES);
+   (0, _react.useEffect)(() => {
+     const cleanup = register(eventHandler);
+@@ -54,6 +58,7 @@ const useScrollState = (ref, initialOffset = 0) => {
+     offset,
+     layout,
+     size,
++    sizeAtScroll,
+     onLayout,
+     onContentSizeChange
+   };
 diff --git a/lib/module/components/KeyboardChatScrollView/useChatKeyboard/index.ios.js b/lib/module/components/KeyboardChatScrollView/useChatKeyboard/index.ios.js
-index 043b97382c551d9e47557f3e175a42668ce5cef3..670b6f59d460ed0035c8e68d3ba05403febcca8d 100644
+index 043b97382c551d9e47557f3e175a42668ce5cef3..71817a5439b65839fca549c9aaaa6cf48d1b71a6 100644
 --- a/lib/module/components/KeyboardChatScrollView/useChatKeyboard/index.ios.js
 +++ b/lib/module/components/KeyboardChatScrollView/useChatKeyboard/index.ios.js
 @@ -5,7 +5,8 @@ import { computeIOSContentOffset, getEffectiveHeight, getScrollEffective, getVis
@@ -469,7 +525,7 @@ index 043b97382c551d9e47557f3e175a42668ce5cef3..670b6f59d460ed0035c8e68d3ba05403
   *
   * @param scrollViewRef - Animated ref to the scroll view.
   * @param options - Configuration for inverted and keyboardLiftBehavior.
-@@ -32,7 +33,16 @@ function useChatKeyboard(scrollViewRef, options) {
+@@ -32,115 +33,203 @@ function useChatKeyboard(scrollViewRef, options) {
    const contentOffsetY = useSharedValue(options.initialContentOffsetY ?? 0);
    const targetKeyboardHeight = useSharedValue(0);
    const prevAbsorption = useSharedValue(0);
@@ -482,12 +538,14 @@ index 043b97382c551d9e47557f3e175a42668ce5cef3..670b6f59d460ed0035c8e68d3ba05403
 +    fromPadding: 0,
 +    toPadding: 0,
 +    fromScroll: 0,
-+    toScroll: 0
++    toScroll: 0,
++    followEnd: false
 +  });
    const {
      layout,
      size,
-@@ -40,107 +50,160 @@ function useChatKeyboard(scrollViewRef, options) {
++    sizeAtScroll,
+     offset: scroll,
      onLayout,
      onContentSizeChange
    } = useScrollState(scrollViewRef, options.initialContentOffsetY);
@@ -551,7 +609,8 @@ index 043b97382c551d9e47557f3e175a42668ce5cef3..670b6f59d460ed0035c8e68d3ba05403
 +    const actualTotalPadding = Math.max(blankSpace.value, effective + extraContentPadding.value);
 +    const target = {
 +      padding: effective,
-+      scroll: scroll.value
++      scroll: scroll.value,
++      followEnd: false
 +    };
  
 -      // never mode: when keyboard shrinks, clamp to valid range
@@ -622,6 +681,14 @@ index 043b97382c551d9e47557f3e175a42668ce5cef3..670b6f59d460ed0035c8e68d3ba05403
 +    const prevScrollEffective = getScrollEffective(padding.value, prevAbsorption.value);
 +    const relativeScroll = inverted ? scroll.value + prevScrollEffective : scroll.value - prevScrollEffective;
 +    prevAbsorption.value = minimumPaddingAbsorbed;
++
++    // A list that sat at its true end (inset included) when it last scrolled
++    // stays there for the whole transition, including rows that laid out
++    // since or arrive mid-animation. Following a trajectory fixed here would
++    // overwrite the list's own follow-scroll on every frame and strand those
++    // rows behind the input.
++    const heightAtScroll = sizeAtScroll.value > 0 ? sizeAtScroll.value : size.value.height;
++    target.followEnd = !inverted && keyboardLiftBehavior !== "never" && blankSpace.value === 0 && isScrollAtEnd(scroll.value, layout.value.height, heightAtScroll + Math.min(layout.value.height, padding.value + extraContentPadding.value), inverted);
 +    if (!shouldShiftContent(keyboardLiftBehavior, atEnd)) {
 +      // Preserve current scroll position so animated props
 +      // don't re-apply a stale contentOffset when padding changes
@@ -636,6 +703,15 @@ index 043b97382c551d9e47557f3e175a42668ce5cef3..670b6f59d460ed0035c8e68d3ba05403
 +    target.scroll = computeIOSContentOffset(relativeScroll, scrollEffective, size.value.height, layout.value.height, inverted, actualTotalPadding);
 +    return target;
 +  };
++
++  // The end as of this frame: rows that laid out since the last scroll event
++  // count, and so does the inset being applied.
++  const getLiveEnd = () => {
++    "worklet";
++
++    const totalPadding = Math.min(layout.value.height, padding.value + extraContentPadding.value);
++    return Math.max(size.value.height - layout.value.height + totalPadding, 0);
++  };
 +  const move = e => {
 +    "worklet";
 +
@@ -648,8 +724,12 @@ index 043b97382c551d9e47557f3e175a42668ce5cef3..670b6f59d460ed0035c8e68d3ba05403
 +    const distance = t.toHeight - t.fromHeight;
 +    const progress = distance === 0 ? 1 : Math.max(0, Math.min(1, (e.height - t.fromHeight) / distance));
 +    padding.value = t.fromPadding + progress * (t.toPadding - t.fromPadding);
-+    // Keep composer-height adjustments made between keyboard frames.
-+    contentOffsetY.value += (progress - t.progress) * (t.toScroll - t.fromScroll);
++    if (t.followEnd) {
++      contentOffsetY.value = getLiveEnd();
++    } else {
++      // Keep composer-height adjustments made between keyboard frames.
++      contentOffsetY.value += (progress - t.progress) * (t.toScroll - t.fromScroll);
++    }
 +    transition.value = {
 +      ...t,
 +      progress
@@ -682,7 +762,8 @@ index 043b97382c551d9e47557f3e175a42668ce5cef3..670b6f59d460ed0035c8e68d3ba05403
 +        fromPadding,
 +        toPadding: target.padding,
 +        fromScroll,
-+        toScroll: target.scroll
++        toScroll: target.scroll,
++        followEnd: target.followEnd
 +      };
 +      padding.value = fromPadding;
 +      contentOffsetY.value = fromScroll;
@@ -695,7 +776,8 @@ index 043b97382c551d9e47557f3e175a42668ce5cef3..670b6f59d460ed0035c8e68d3ba05403
  
 -      // iOS doesn't need per-frame updates (contentOffset handles it)
 +      // Interactive frames arrive after onEnd, without a new onStart. Apply
-+      // each observed height directly and preserve the user's scroll delta.
++      // each observed height directly and preserve the user's scroll delta,
++      // unless the list is at its end: it follows rows arriving mid-swipe.
 +      transition.value = {
 +        ...transition.value,
 +        active: false
@@ -704,7 +786,7 @@ index 043b97382c551d9e47557f3e175a42668ce5cef3..670b6f59d460ed0035c8e68d3ba05403
 +      if (freeze.value) return;
 +      const target = getTarget(e);
 +      padding.value = target.padding;
-+      contentOffsetY.value = target.scroll;
++      contentOffsetY.value = target.followEnd ? getLiveEnd() : target.scroll;
      },
      onEnd: e => {
        "worklet";
@@ -779,8 +861,38 @@ index 5cee63e9048f47b466bab88b9bf6f0743f2d1184..33b5a5f57ae18d79259dc2c4b9eb5435
          prevContentOffsetY.value = y;
          result.contentOffset = {
            x: (contentOffset === null || contentOffset === void 0 ? void 0 : contentOffset.x) ?? 0,
+diff --git a/lib/module/components/hooks/useScrollState.js b/lib/module/components/hooks/useScrollState.js
+index dbe8e21b488d92e78c781429947bb6e83226aedb..76ad41f9d01050980c36361d9cf01ea847255234 100644
+--- a/lib/module/components/hooks/useScrollState.js
++++ b/lib/module/components/hooks/useScrollState.js
+@@ -12,6 +12,9 @@ const useScrollState = (ref, initialOffset = 0) => {
+     width: 0,
+     height: 0
+   });
++  // Content height as of the last native scroll event. Unlike `size`, content
++  // that grows without the view scrolling leaves it behind.
++  const sizeAtScroll = useSharedValue(0);
+   const register = useEventHandlerRegistration(ref);
+   const eventHandler = useEvent(event => {
+     "worklet";
+@@ -20,6 +23,7 @@ const useScrollState = (ref, initialOffset = 0) => {
+     offset.value = event.contentOffset.y;
+     layout.value = event.layoutMeasurement;
+     size.value = event.contentSize;
++    sizeAtScroll.value = event.contentSize.height;
+   }, NATIVE_SCROLL_EVENT_NAMES);
+   useEffect(() => {
+     const cleanup = register(eventHandler);
+@@ -48,6 +52,7 @@ const useScrollState = (ref, initialOffset = 0) => {
+     offset,
+     layout,
+     size,
++    sizeAtScroll,
+     onLayout,
+     onContentSizeChange
+   };
 diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts b/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts
-index 1ae9b811d26d1b1fa043c7f7a41fbeb5509afa03..ae125b26ce38e1fd485d2efe8da31b64e13ebcfa 100644
+index 1ae9b811d26d1b1fa043c7f7a41fbeb5509afa03..b4da3cc0540540fad88664abb17ab69f4393d372 100644
 --- a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts
 +++ b/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts
 @@ -13,13 +13,15 @@ import {
@@ -800,7 +912,7 @@ index 1ae9b811d26d1b1fa043c7f7a41fbeb5509afa03..ae125b26ce38e1fd485d2efe8da31b64
   *
   * @param scrollViewRef - Animated ref to the scroll view.
   * @param options - Configuration for inverted and keyboardLiftBehavior.
-@@ -50,7 +52,16 @@ function useChatKeyboard(
+@@ -50,203 +52,269 @@ function useChatKeyboard(
    const contentOffsetY = useSharedValue(options.initialContentOffsetY ?? 0);
    const targetKeyboardHeight = useSharedValue(0);
    const prevAbsorption = useSharedValue(0);
@@ -814,11 +926,15 @@ index 1ae9b811d26d1b1fa043c7f7a41fbeb5509afa03..ae125b26ce38e1fd485d2efe8da31b64
 +    toPadding: 0,
 +    fromScroll: 0,
 +    toScroll: 0,
++    followEnd: false,
 +  });
  
    const {
      layout,
-@@ -60,193 +71,205 @@ function useChatKeyboard(
+     size,
++    sizeAtScroll,
+     offset: scroll,
+     onLayout,
      onContentSizeChange,
    } = useScrollState(scrollViewRef, options.initialContentOffsetY);
  
@@ -840,6 +956,23 @@ index 1ae9b811d26d1b1fa043c7f7a41fbeb5509afa03..ae125b26ce38e1fd485d2efe8da31b64
 -          e.height,
 -          targetKeyboardHeight.value,
 -          offset,
+-        );
+-
+-        const atEnd = isScrollAtEnd(
+-          scroll.value,
+-          layout.value.height,
+-          size.value.height,
+-          inverted,
+-        );
+-
+-        // Scale minimum padding absorption by how much of it is visible.
+-        // Fully visible → full absorption; fully off-screen → no absorption.
+-        const visibleFraction = getVisibleMinimumPaddingFraction(
+-          scroll.value,
+-          layout.value.height,
+-          size.value.height,
+-          blankSpace.value,
+-          inverted,
 +  // Compute the destination without publishing animated layout values. Even
 +  // temporarily assigning the target here can flush an early native commit.
 +  const getTarget = (e: NativeEvent) => {
@@ -881,7 +1014,11 @@ index 1ae9b811d26d1b1fa043c7f7a41fbeb5509afa03..ae125b26ce38e1fd485d2efe8da31b64
 +      blankSpace.value,
 +      effective + extraContentPadding.value,
 +    );
-+    const target = { padding: effective, scroll: scroll.value };
++    const target = {
++      padding: effective,
++      scroll: scroll.value,
++      followEnd: false,
++    };
 +
 +    // persistent mode: when keyboard shrinks, clamp to valid range
 +    if (keyboardLiftBehavior === "persistent" && effective < padding.value) {
@@ -894,23 +1031,6 @@ index 1ae9b811d26d1b1fa043c7f7a41fbeb5509afa03..ae125b26ce38e1fd485d2efe8da31b64
 +          -actualTotalPadding,
 +          Math.min(scroll.value, maxScroll),
          );
--
--        const atEnd = isScrollAtEnd(
--          scroll.value,
--          layout.value.height,
--          size.value.height,
--          inverted,
--        );
--
--        // Scale minimum padding absorption by how much of it is visible.
--        // Fully visible → full absorption; fully off-screen → no absorption.
--        const visibleFraction = getVisibleMinimumPaddingFraction(
--          scroll.value,
--          layout.value.height,
--          size.value.height,
--          blankSpace.value,
--          inverted,
--        );
 -        const visiblePadding = visibleFraction * blankSpace.value;
 -        const minimumPaddingAbsorbed = Math.max(
 +      } else {
@@ -918,7 +1038,7 @@ index 1ae9b811d26d1b1fa043c7f7a41fbeb5509afa03..ae125b26ce38e1fd485d2efe8da31b64
 +          size.value.height - layout.value.height + actualTotalPadding,
            0,
 -          visiblePadding - extraContentPadding.value,
--        );
+         );
 -        const scrollEffective = getScrollEffective(
 -          effective,
 -          minimumPaddingAbsorbed,
@@ -926,8 +1046,8 @@ index 1ae9b811d26d1b1fa043c7f7a41fbeb5509afa03..ae125b26ce38e1fd485d2efe8da31b64
 -        const actualTotalPadding = Math.max(
 -          blankSpace.value,
 -          effective + extraContentPadding.value,
-         );
- 
+-        );
+-
 -        // `onInteractive` owns the native scroll offset. When its final
 -        // keyboardWillHide event arrives, consume the marker so this
 -        // transition only removes the inset and does not scroll programmatically.
@@ -938,7 +1058,7 @@ index 1ae9b811d26d1b1fa043c7f7a41fbeb5509afa03..ae125b26ce38e1fd485d2efe8da31b64
 -
 -          return;
 -        }
--
+ 
 -        // persistent mode: when keyboard shrinks, clamp to valid range
 -        if (
 -          keyboardLiftBehavior === "persistent" &&
@@ -1040,9 +1160,14 @@ index 1ae9b811d26d1b1fa043c7f7a41fbeb5509afa03..ae125b26ce38e1fd485d2efe8da31b64
 -        const relativeScroll = inverted
 -          ? scroll.value + prevScrollEffective
 -          : scroll.value - prevScrollEffective;
- 
+-
 -        padding.value = effective;
 -        prevAbsorption.value = minimumPaddingAbsorbed;
+ 
+-        if (!shouldShiftContent(keyboardLiftBehavior, atEnd)) {
+-          // Preserve current scroll position so animated props
+-          // don't re-apply a stale contentOffset when padding changes
+-          contentOffsetY.value = scroll.value;
 +        target.scroll = Math.max(0, Math.min(scroll.value, maxScroll));
 +      }
 +
@@ -1062,6 +1187,28 @@ index 1ae9b811d26d1b1fa043c7f7a41fbeb5509afa03..ae125b26ce38e1fd485d2efe8da31b64
 +      : scroll.value - prevScrollEffective;
 +
 +    prevAbsorption.value = minimumPaddingAbsorbed;
++
++    // A list that sat at its true end (inset included) when it last scrolled
++    // stays there for the whole transition, including rows that laid out
++    // since or arrive mid-animation. Following a trajectory fixed here would
++    // overwrite the list's own follow-scroll on every frame and strand those
++    // rows behind the input.
++    const heightAtScroll =
++      sizeAtScroll.value > 0 ? sizeAtScroll.value : size.value.height;
++    target.followEnd =
++      !inverted &&
++      keyboardLiftBehavior !== "never" &&
++      blankSpace.value === 0 &&
++      isScrollAtEnd(
++        scroll.value,
++        layout.value.height,
++        heightAtScroll +
++          Math.min(
++            layout.value.height,
++            padding.value + extraContentPadding.value,
++          ),
++        inverted,
++      );
 +
 +    if (!shouldShiftContent(keyboardLiftBehavior, atEnd)) {
 +      // Preserve current scroll position so animated props
@@ -1086,9 +1233,26 @@ index 1ae9b811d26d1b1fa043c7f7a41fbeb5509afa03..ae125b26ce38e1fd485d2efe8da31b64
 +    return target;
 +  };
  
--        if (!shouldShiftContent(keyboardLiftBehavior, atEnd)) {
--          // Preserve current scroll position so animated props
--          // don't re-apply a stale contentOffset when padding changes
+-          return;
+-        }
++  // The end as of this frame: rows that laid out since the last scroll event
++  // count, and so does the inset being applied.
++  const getLiveEnd = () => {
++    "worklet";
++    const totalPadding = Math.min(
++      layout.value.height,
++      padding.value + extraContentPadding.value,
++    );
++    return Math.max(size.value.height - layout.value.height + totalPadding, 0);
++  };
+ 
+-        // When blankSpace fully absorbs the keyboard opening, preserve current scroll position
+-        // (only when keyboard is open — effective > 0 — not when closing)
+-        if (
+-          scrollEffective === 0 &&
+-          minimumPaddingAbsorbed > 0 &&
+-          effective > 0
+-        ) {
 -          contentOffsetY.value = scroll.value;
 +  const move = (e: NativeEvent) => {
 +    "worklet";
@@ -1104,31 +1268,24 @@ index 1ae9b811d26d1b1fa043c7f7a41fbeb5509afa03..ae125b26ce38e1fd485d2efe8da31b64
 +        ? 1
 +        : Math.max(0, Math.min(1, (e.height - t.fromHeight) / distance));
 +    padding.value = t.fromPadding + progress * (t.toPadding - t.fromPadding);
-+    // Keep composer-height adjustments made between keyboard frames.
-+    contentOffsetY.value +=
-+      (progress - t.progress) * (t.toScroll - t.fromScroll);
++    if (t.followEnd) {
++      contentOffsetY.value = getLiveEnd();
++    } else {
++      // Keep composer-height adjustments made between keyboard frames.
++      contentOffsetY.value +=
++        (progress - t.progress) * (t.toScroll - t.fromScroll);
++    }
 +    transition.value = { ...t, progress };
 +    currentHeight.value = e.height;
 +  };
  
--          return;
 +  useKeyboardHandler(
 +    {
 +      onStart: (e) => {
 +        "worklet";
 +        if (e.height > 0) {
 +          targetKeyboardHeight.value = e.height;
-         }
--
--        // When blankSpace fully absorbs the keyboard opening, preserve current scroll position
--        // (only when keyboard is open — effective > 0 — not when closing)
--        if (
--          scrollEffective === 0 &&
--          minimumPaddingAbsorbed > 0 &&
--          effective > 0
--        ) {
--          contentOffsetY.value = scroll.value;
--
++        }
 +        if (freeze.value) {
 +          transition.value = { ...transition.value, active: false };
            return;
@@ -1159,6 +1316,7 @@ index 1ae9b811d26d1b1fa043c7f7a41fbeb5509afa03..ae125b26ce38e1fd485d2efe8da31b64
 +          toPadding: target.padding,
 +          fromScroll,
 +          toScroll: target.scroll,
++          followEnd: target.followEnd,
 +        };
 +        padding.value = fromPadding;
 +        contentOffsetY.value = fromScroll;
@@ -1171,14 +1329,15 @@ index 1ae9b811d26d1b1fa043c7f7a41fbeb5509afa03..ae125b26ce38e1fd485d2efe8da31b64
 -
 -        // iOS doesn't need per-frame updates (contentOffset handles it)
 +        // Interactive frames arrive after onEnd, without a new onStart. Apply
-+        // each observed height directly and preserve the user's scroll delta.
++        // each observed height directly and preserve the user's scroll delta,
++        // unless the list is at its end: it follows rows arriving mid-swipe.
 +        transition.value = { ...transition.value, active: false };
 +        currentHeight.value = e.height;
 +        if (freeze.value) return;
 +
 +        const target = getTarget(e);
 +        padding.value = target.padding;
-+        contentOffsetY.value = target.scroll;
++        contentOffsetY.value = target.followEnd ? getLiveEnd() : target.scroll;
        },
        onEnd: (e) => {
          "worklet";
@@ -1189,7 +1348,7 @@ index 1ae9b811d26d1b1fa043c7f7a41fbeb5509afa03..ae125b26ce38e1fd485d2efe8da31b64
            return;
          }
  
-@@ -256,6 +279,9 @@ function useChatKeyboard(
+@@ -256,6 +324,9 @@ function useChatKeyboard(
            offset,
          );
  
@@ -1254,3 +1413,34 @@ index 6902a73cd39b165d6aa919d5058f032b4e316a93..6de3f7667d6b1f6a0803cf5e2ff96c42
            prevContentOffsetY.value = y;
            result.contentOffset = { x: contentOffset?.x ?? 0, y };
          }
+diff --git a/src/components/hooks/useScrollState.ts b/src/components/hooks/useScrollState.ts
+index f20902c309b351b8db5c9bdcf4589befa99e8b30..f27220e2d3865648a3c219000a4a8f80bc5834b3 100644
+--- a/src/components/hooks/useScrollState.ts
++++ b/src/components/hooks/useScrollState.ts
+@@ -37,6 +37,9 @@ const useScrollState = (
+   const offset = useSharedValue(initialOffset);
+   const layout = useSharedValue({ width: 0, height: 0 });
+   const size = useSharedValue({ width: 0, height: 0 });
++  // Content height as of the last native scroll event. Unlike `size`, content
++  // that grows without the view scrolling leaves it behind.
++  const sizeAtScroll = useSharedValue(0);
+ 
+   const register = useEventHandlerRegistration(ref);
+ 
+@@ -47,6 +50,7 @@ const useScrollState = (
+     offset.value = event.contentOffset.y;
+     layout.value = event.layoutMeasurement;
+     size.value = event.contentSize;
++    sizeAtScroll.value = event.contentSize.height;
+   }, NATIVE_SCROLL_EVENT_NAMES);
+ 
+   useEffect(() => {
+@@ -78,7 +82,7 @@ const useScrollState = (
+     [size],
+   );
+ 
+-  return { offset, layout, size, onLayout, onContentSizeChange };
++  return { offset, layout, size, sizeAtScroll, onLayout, onContentSizeChange };
+ };
+ 
+ export default useScrollState;

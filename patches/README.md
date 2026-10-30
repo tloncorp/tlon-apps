@@ -277,6 +277,11 @@ What it does:
   frames directly, including the user's scroll delta; interrupted, instant,
   and duplicate end events do not replay stale offsets. Existing lift policies,
   safe-area handling, and `freeze` behavior are preserved.
+- When a non-inverted list sits at its true end as a transition starts, each
+  frame (interactive ones included) scrolls to the live end instead of a
+  trajectory fixed at the start, so messages that lay out or arrive while the
+  keyboard moves stay above the composer. `useScrollState` records the content
+  height at the last scroll event to decide this.
 - On iOS Fabric, re-publishes the currently observed offset when an
   `extraContentPadding` change should not shift the content. The guard keeps
   the workaround out of Android, web, and the legacy iOS architecture.
