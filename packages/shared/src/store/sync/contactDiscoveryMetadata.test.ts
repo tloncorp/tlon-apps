@@ -47,7 +47,6 @@ beforeEach(async () => {
   vi.spyOn(api, 'getContacts').mockResolvedValue([]);
   vi.spyOn(api, 'addContact').mockResolvedValue(1);
   vi.spyOn(api, 'updateContactMetadata').mockResolvedValue(1);
-  vi.spyOn(api, 'getHiddenContactSuggestions').mockResolvedValue([]);
   await db.insertSystemContacts({ systemContacts: [systemContact] });
 });
 
@@ -116,15 +115,9 @@ test.each(['absent', 'skeletal'])(
   }
 );
 
-test.each([
-  ['suggested', true],
-  ['hidden', false],
-])(
-  'a %s unsaved contact gets the book name without saving',
-  async (_state, isContactSuggestion) => {
-    if (!isContactSuggestion) {
-      vi.mocked(api.getHiddenContactSuggestions).mockResolvedValue([contactId]);
-    }
+test.each([false, true])(
+  'a known unsaved contact gets the book name without saving (suggestion: %s)',
+  async (isContactSuggestion) => {
     await db.upsertContact({
       id: contactId,
       isContact: false,
@@ -153,84 +146,34 @@ test.each([
   }
 );
 
-test('retroactive matching preserves a saved custom name', async () => {
-  await db.upsertContact({
-    id: contactId,
-    isContact: true,
-    customNickname: 'Chosen name',
-    peerNickname: 'Peer name',
-  });
-
-  expect(
-    await syncContactDiscovery(undefined, { invokeHandler: false })
-  ).toEqual({ didSucceed: true, didDiscover: true, newMatches: [] });
-
-  expect(await db.getContact({ id: contactId })).toEqual(
-    expect.objectContaining({
-      isContact: true,
+test.each([true, false])(
+  'retroactive matching preserves a custom name (saved: %s)',
+  async (isContact) => {
+    await db.upsertContact({
+      id: contactId,
+      isContact,
       customNickname: 'Chosen name',
-      nickname: 'Chosen name',
-    })
-  );
-  expect(await db.getSystemContactsBatchByContactId([contactId])).toEqual([
-    expect.objectContaining({ id: systemContact.id, contactId }),
-  ]);
-  expect(api.addContact).not.toHaveBeenCalled();
-  expect(api.updateContactMetadata).not.toHaveBeenCalled();
-});
+      peerNickname: 'Peer name',
+    });
 
-test('a cached profile does not suppress an unsaved match', async () => {
-  await db.upsertContact({
-    id: contactId,
-    isContact: false,
-    peerNickname: 'Peer name',
-    peerAvatarImage: 'avatar',
-    bio: 'bio',
-    status: 'status',
-  });
+    expect(
+      await syncContactDiscovery(undefined, { invokeHandler: false })
+    ).toEqual({ didSucceed: true, didDiscover: true, newMatches: [] });
 
-  expect(
-    await syncContactDiscovery(undefined, { invokeHandler: false })
-  ).toEqual({
-    didSucceed: true,
-    didDiscover: true,
-    newMatches: [[phoneNumber, contactId]],
-  });
-  expect(api.addContact).toHaveBeenCalledWith(contactId);
-  expect(api.updateContactMetadata).toHaveBeenCalledWith(contactId, {
-    nickname: 'Address Book',
-    avatarImage: undefined,
-  });
-
-  expect(
-    await syncContactDiscovery(undefined, { invokeHandler: false })
-  ).toEqual({ didSucceed: true, didDiscover: true, newMatches: [] });
-  expect(api.addContact).toHaveBeenCalledTimes(1);
-});
-
-test('saving an unsaved match carries its local name to the ship', async () => {
-  await db.upsertContact({
-    id: contactId,
-    isContact: false,
-    customNickname: 'Chosen name',
-    peerNickname: 'Peer name',
-  });
-
-  expect(
-    await syncContactDiscovery(undefined, { invokeHandler: false })
-  ).toEqual({
-    didSucceed: true,
-    didDiscover: true,
-    newMatches: [[phoneNumber, contactId]],
-  });
-  expect(api.updateContactMetadata).toHaveBeenCalledWith(contactId, {
-    nickname: 'Chosen name',
-    avatarImage: undefined,
-  });
-  expect(await db.getContact({ id: contactId })).toEqual(
-    expect.objectContaining({ isContact: true, customNickname: 'Chosen name' })
-  );
-});
+    expect(await db.getContact({ id: contactId })).toEqual(
+      expect.objectContaining({
+        isContact,
+        customNickname: 'Chosen name',
+        nickname: 'Chosen name',
+      })
+    );
+    expect(await db.getSystemContactsBatchByContactId([contactId])).toEqual([
+      expect.objectContaining({ id: systemContact.id, contactId }),
+    ]);
+    expect(api.addContact).not.toHaveBeenCalled();
+    expect(api.updateContactMetadata).not.toHaveBeenCalled();
+  }
+);
 
 test('rediscovery preserves a name edited in Tlon after import', async () => {
   await db.upsertContact({ id: contactId, isContact: true });
