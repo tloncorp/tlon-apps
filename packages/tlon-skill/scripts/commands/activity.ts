@@ -25,6 +25,7 @@ import {
   errorMessage,
   handleExpectedCommandError,
   isHelpArg,
+  unknownOptionError,
   usageError,
   writeHelp,
   writeLine,
@@ -128,10 +129,10 @@ export interface ActivityDeps extends CommandDeps {
 export const ACTIVITY_HELP = `Usage: tlon activity <command>
 
 Commands:
-  mentions [--limit N]                      Show mention activity
-  replies [--limit N]                       Show reply activity
-  all [--limit N]                           Show all activity
-  unreads                                   Show unread counts
+  mentions [--limit N] [--self]             Show mention activity
+  replies [--limit N] [--self]              Show reply activity
+  all [--limit N] [--self]                  Show all activity
+  unreads [--self]                          Show unread counts
   mute <target> [--self]                    Mute notifications for a DM, group, channel, or thread
   unmute <target> [--self]                  Remove a mute or custom level (back to the inherited default)
   volume <target> <level> [--self]          Set the notification level
@@ -387,7 +388,7 @@ function parseVolumeArgs(
   for (const arg of rest) {
     if (arg === '--self') continue;
     if (arg.startsWith('-')) {
-      throw usageError(`Unknown option: ${arg}`, help);
+      throw unknownOptionError(arg, help, `activity ${command}`);
     }
     positionals.push(arg);
   }
@@ -481,7 +482,7 @@ function parseMarkReadArgs(rest: string[]): ParsedActivityArgs {
       continue;
     }
     if (arg.startsWith('-')) {
-      throw usageError(`Unknown option: ${arg}`, help);
+      throw unknownOptionError(arg, help, 'activity mark-read');
     }
     positionals.push(arg);
   }
@@ -508,7 +509,8 @@ function parseMarkReadArgs(rest: string[]): ParsedActivityArgs {
 }
 
 function parseArgs(args: string[]): ParsedActivityArgs {
-  const command = args[0];
+  // Agents write `unread` for `unreads` (the flag elsewhere is `--unread`).
+  const command = args[0] === 'unread' ? 'unreads' : args[0];
 
   if (isHelpArg(command)) {
     return { kind: 'help' };
@@ -552,8 +554,11 @@ function parseArgs(args: string[]): ParsedActivityArgs {
       continue;
     }
 
+    // As for the writes: reads act on the credentials they were given.
+    if (arg === '--self') continue;
+
     if (arg.startsWith('-')) {
-      throw usageError(`Unknown option: ${arg}`, ACTIVITY_HELP);
+      throw unknownOptionError(arg, ACTIVITY_HELP, `activity ${command}`);
     }
 
     throw usageError(`Unknown argument: ${arg}`, ACTIVITY_HELP);
