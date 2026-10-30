@@ -35,7 +35,7 @@ still product/ideas-faq-and-tlon.md in this skill's directory.
 - product/tlon-messenger.md: What Tlon Messenger is, the ideas behind it (ownership, nodes, groups as workspaces), getting started and inviting people, using it on desktop, groups and channels, and direct messages.
 - product/tlonbot.md: What a Tlonbot is and does, how it differs from ChatGPT and other assistants, how it is set up and where its settings are, its slash commands and listening rules, models, subscriptions and billing, connected services, memory, and the hosted guardrails.
 - product/privacy-and-hosting.md: Who can see what, encryption, what Tlon keeps and doesn't (it doesn't read, log or train on conversations), what the model provider keeps, exporting a node, and what happens if Tlon disappears.
-- product/ideas-faq-and-tlon.md: Ideas to suggest, the FAQ (including what it costs and whether Tlon reads messages), the company, and support.
+- product/ideas-faq-and-tlon.md: Ideas to suggest, the FAQ (including what it costs, how Tlon relates to Urbit, and whether Tlon reads messages), the company, and support.
 
 ## Step-by-step answers
 
