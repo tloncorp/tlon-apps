@@ -8,6 +8,12 @@ export const groupsUi = {
     path: '/suggested-contacts',
     since: '12.2.0',
   },
+  hiddenContactSuggestions: {
+    kind: 'scry',
+    agent: 'groups-ui',
+    path: '/hidden-contact-suggestions',
+    since: '12.2.0',
+  },
   init: {
     kind: 'scry',
     agent: 'groups-ui',
