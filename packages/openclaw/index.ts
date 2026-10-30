@@ -1168,7 +1168,7 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       : undefined;
     // A heartbeat run that read the owner's data keeps only the tools in
     // SEALED_HEARTBEAT_ALLOWED_TOOLS, `tlon` only for reads, and
-    // heartbeat_respond without the fields that reach a later turn.
+    // heartbeat_respond with the fields core always persists cleared.
     const sealedRun = isSealedHeartbeatRun(ctx.runId);
     const blocksSealedHeartbeat =
       sealedRun &&

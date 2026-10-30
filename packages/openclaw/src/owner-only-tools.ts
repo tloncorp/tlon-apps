@@ -138,9 +138,10 @@ export const NON_OWNER_ALLOWED_TOOLS: ReadonlySet<string> = new Set([
  * owner's data) may call for the rest of the run, by policy name. An
  * allowlist, so a tool core adds later is closed by default. `tlon` is
  * limited further to reads (isSealedHeartbeatTlonCall), `browser_*` tools are
- * allowed by prefix, and heartbeat_respond's persisted fields are removed
- * (sealedHeartbeatRespondParams). Web, browser, MCP and workspace writes stay
- * open by product decision; SECURITY.md lists them as accepted exits.
+ * allowed by prefix, and heartbeat_respond's always-persisted fields are
+ * cleared (sealedHeartbeatRespondParams). Web, browser, MCP, workspace writes
+ * and the notification text stay open by product decision; SECURITY.md lists
+ * them as accepted exits.
  */
 export const SEALED_HEARTBEAT_ALLOWED_TOOLS: ReadonlySet<string> = new Set([
   'tlon',
@@ -158,6 +159,12 @@ export const SEALED_HEARTBEAT_ALLOWED_TOOLS: ReadonlySet<string> = new Set([
   'memory_get',
   // The owner's own MCP connections (list, search, describe, call).
   ...MCP_CATALOG_TOOL_NAMES,
+  // Tool Search controls (NON_OWNER_DISPATCH_CONTROLS): core runs this gate
+  // again on a tool_call target under the target's own name, so the seal
+  // still applies to whatever they invoke.
+  'tool_search',
+  'tool_describe',
+  'tool_call',
   'heartbeat_respond',
 ]);
 
@@ -173,11 +180,12 @@ export function isSealedHeartbeatAllowedTool(toolName: string): boolean {
 }
 
 /**
- * heartbeat_respond fields core carries into a later turn: the monitor
- * scratch for the next heartbeat, and the silent outcome's reason and next
- * check, which core appends to the next user turn. Both spellings core reads.
+ * heartbeat_respond fields core persists whether or not the notification is
+ * delivered: the monitor scratch for the next heartbeat, and the silent
+ * outcome's reason and next check, which core appends to the next user turn.
+ * Both spellings core reads.
  */
-const SEALED_HEARTBEAT_RESPOND_DROPPED_KEYS = [
+const SEALED_HEARTBEAT_RESPOND_CLEARED_KEYS = [
   'scratch',
   'reason',
   'nextCheck',
@@ -185,25 +193,33 @@ const SEALED_HEARTBEAT_RESPOND_DROPPED_KEYS = [
 ];
 
 /**
- * A sealed run's heartbeat_respond params without the fields that reach a
- * later turn. Core requires a non-empty `summary` and persists it with a
- * silent outcome, so it is replaced with the outcome (core's own fallback for
- * an empty summary) rather than removed. `notify`, `notificationText` and
- * `outcome` are kept: a notification is the run's final text to the owner.
+ * The params a sealed run's heartbeat_respond hook result returns. Core
+ * merges a hook's params over the model's (`{ ...original, ...hookParams }`,
+ * mergeParamsWithApprovalOverrides in core's before-tool-call wrapper), so a
+ * field is cleared by setting it to `undefined`, never by omitting it.
+ * `undefined` is the only value core treats as absent: its argument
+ * validator converts `null` to `""`, and an empty scratch replaces the stored
+ * one. Core requires a non-empty `summary` and persists it with a silent
+ * outcome, so it becomes the outcome (core's own fallback for an empty
+ * summary). `notify`, `notificationText` and `outcome` are kept: the
+ * notification text is the message to the owner. Core still retains it when
+ * delivery fails (as a silent outcome) or, after delivery, as target-session
+ * awareness; that is accepted alongside workspace writes (SECURITY.md).
  */
 export function sealedHeartbeatRespondParams(
   params: Record<string, unknown>
 ): Record<string, unknown> {
-  const kept = Object.fromEntries(
-    Object.entries(params).filter(
-      ([key]) =>
-        key !== 'summary' &&
-        !SEALED_HEARTBEAT_RESPOND_DROPPED_KEYS.includes(key)
-    )
-  );
-  return 'summary' in params && typeof params.outcome === 'string'
-    ? { ...kept, summary: params.outcome }
-    : kept;
+  return {
+    ...Object.fromEntries(
+      SEALED_HEARTBEAT_RESPOND_CLEARED_KEYS.map((key) => [key, undefined])
+    ),
+    ...('summary' in params
+      ? {
+          summary:
+            typeof params.outcome === 'string' ? params.outcome : undefined,
+        }
+      : {}),
+  };
 }
 
 /**

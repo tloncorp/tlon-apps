@@ -172,7 +172,7 @@ channels:
         # restart; a run the previous owner directed loses owner identity.
         # A heartbeat run may read the owner's activity, messages and
         # conversation lists as the owner; after that read it keeps only
-        # reads, workspace files, memory, web, browser, MCP and
+        # reads, workspace files, memory, web, browser, MCP, Tool Search and
         # heartbeat_respond (see SECURITY.md).
         ownerDefault: false
 
