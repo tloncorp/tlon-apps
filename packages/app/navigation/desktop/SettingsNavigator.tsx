@@ -27,6 +27,7 @@ import { BotPermissionsSettingsScreen } from '../../features/settings/BotPermiss
 import { BotPromptFileScreen } from '../../features/settings/BotPromptFileScreen';
 import { BotPromptFilesScreen } from '../../features/settings/BotPromptFilesScreen';
 import { BotProviderListSettingsScreen } from '../../features/settings/BotProviderListSettingsScreen';
+import { SecureVaultScreen } from '../../features/settings/SecureVaultScreen';
 import { BotSettingsScreen } from '../../features/settings/BotSettingsScreen';
 import { BotShipListSettingsScreen } from '../../features/settings/BotShipListSettingsScreen';
 import { FeatureFlagScreen } from '../../features/settings/FeatureFlagScreen';
@@ -185,6 +186,7 @@ export const SettingsNavigator = () => {
         component={ManageAccountScreen}
       />
       <SettingsDrawer.Screen name="BotSettings" component={BotSettingsScreen} />
+      <SettingsDrawer.Screen name="SecureVault" component={SecureVaultScreen} />
       <SettingsDrawer.Screen
         name="BotMcpSettings"
         component={BotMcpSettingsScreen}

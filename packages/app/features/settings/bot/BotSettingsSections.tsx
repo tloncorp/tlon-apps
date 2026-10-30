@@ -42,6 +42,7 @@ export type BotSettingsNavigate = (
     | 'BotModelSettings'
     | 'BotProviderListSettings'
     | 'BotMcpSettings'
+    | 'SecureVault'
     | 'BotPermissionsSettings'
     | 'BotIdentitySettings'
     | 'BotPromptFiles'
@@ -315,6 +316,13 @@ export function useBotSettingsSectionModels(
               value: connectionsValue,
               onPress: () => navigate('BotMcpSettings'),
               testID: 'BotConnectionsRow',
+            },
+            {
+              key: 'secure-vault',
+              title: 'Secure Vault',
+              leading: { kind: 'icon', icon: 'Lock' },
+              onPress: () => navigate('SecureVault'),
+              testID: 'BotSecureVaultRow',
             },
             {
               key: 'permissions',
