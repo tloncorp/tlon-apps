@@ -158,14 +158,99 @@
   ^-  (unit [@t @t])
   ?.  ?=([%a [%s *] [%s *] ~] json)  ~
   `[p.i.p.json p.i.t.p.json]
-::  +broker-message: what the broker said went wrong, if it said anything.
+::  +broker-error: the broker's account of a refused call, for the uploader.
 ::
-++  broker-message
-  |=  res=client-response:iris
-  ^-  @t
-  ?~  body=(broker-body res)  'storage refused the upload'
-  ?~  got=(~(get by u.body) 'message')  'storage refused the upload'
-  ?.(?=([%s *] u.got) 'storage refused the upload' p.u.got)
+::  A cancelled Iris request says nothing about what the broker did, so it
+::  is an unknown outcome worth asking about again. A body we cannot read,
+::  or one that names no code, is a refusal we know nothing more about.
+::  Whether it is worth repeating is what .retryable in the body says, and
+::  when there is no such flag the status decides, as in +broker-retryable:
+::  a proxy answering a 502 with its own error page must not read as the
+::  broker's final word. .retry-after is clamped to .ceiling, the whole
+::  milliseconds the session has left: a wait past that is one no session
+::  survives, and a session with no time left is not asked to wait at all.
+::
+::  The delay is read by +retry-after-ms, exactly and rounded up, so a
+::  delay computed as a float does not come out as no delay.
+::
+++  broker-error
+  |=  [res=client-response:iris ceiling=@ud]
+  ^-  [message=@t =broker-error:b]
+  =/  fallback=@t  'storage refused the upload'
+  ?:  ?=(%cancel -.res)
+    ['the storage request was cancelled' ['outcome_unknown' & ~ ~]]
+  =*  unknown  ['unknown' (broker-retryable res) ~ ~]
+  ?~  body=(broker-body res)  [fallback unknown]
+  =/  message=@t
+    ?~  got=(~(get by u.body) 'message')  fallback
+    ?.(?=([%s *] u.got) fallback p.u.got)
+  ?~  code=(~(get by u.body) 'code')  [message unknown]
+  ?.  ?=([%s *] u.code)  [message unknown]
+  =/  retryable=?  (broker-retryable res)
+  =/  retry-after=(unit @ud)
+    ?~  got=(~(get by u.body) 'retryAfterMs')  ~
+    (retry-after-ms u.got ceiling)
+  =/  scope=(unit @t)
+    ?~  got=(~(get by u.body) 'scope')  ~
+    ?.(?=([%s *] u.got) ~ `p.u.got)
+  [message [p.u.code retryable retry-after scope]]
+::  +year-ms: a year in milliseconds, longer than any wait worth computing.
+::
+++  year-ms  ^-(@ud (div (mul ~d365 1.000) ~s1))
+::  +retry-after-ms: a JSON number as whole milliseconds, rounded up and
+::  capped at .ceiling; none when it is not a positive number.
+::
+::  The text is parsed into the stock decimal form, a mantissa and a power
+::  of ten, and the ceiling is taken in integer arithmetic from there. No
+::  float is made: a double would lose the value past 2^53 and the stock
+::  conversion raises five to the exponent's power, which a hostile exponent
+::  makes unbounded. Here the only power computed is ten to at most the
+::  mantissa's own digit count, and an exponent past that is decided by its
+::  sign: a positive one is longer than a year, so longer than any wait a
+::  session survives, and a negative one on a nonzero mantissa is a fraction
+::  that rounds up to one millisecond.
+::
+++  retry-after-ms
+  |=  [jon=json ceiling=@ud]
+  ^-  (unit @ud)
+  ?.  ?=([%n *] jon)  ~
+  =/  num=(unit dn)
+    (rush (drop-zero-exponent p.jon) (cook royl-cell:so json-rn:format))
+  ?~  num  ~
+  ?.  ?=([%d *] u.num)  ~
+  =/  [sign=? exp=@s mantissa=@u]  [s e a]:u.num
+  ?:  =(0 mantissa)  ~
+  ?.  sign  ~
+  =/  digits=@ud  (lent (a-co:co mantissa))
+  =/  mag=@ud  (abs:si exp)
+  =/  ms=@ud
+    ?:  (syn:si exp)
+      ?:  (gth mag (lent (a-co:co year-ms)))  ceiling
+      (mul mantissa (pow 10 mag))
+    ?:  (gth mag digits)  1
+    =/  scale=@ud  (pow 10 mag)
+    (div (add mantissa (dec scale)) scale)
+  =/  wait=@ud  (min ms ceiling)
+  ?:  =(0 wait)  ~
+  `wait
+::  +drop-zero-exponent: a JSON number's text with an exponent of zeros cut.
+::
+::  The stock number parser reads an exponent as zeros followed by a
+::  decimal, or as a decimal alone, and a decimal begins with a nonzero digit
+::  or is a single 0. An exponent of two or more zeros matches neither in
+::  full, so the parse fails on valid JSON. An exponent of zero scales
+::  nothing, and cutting it leaves the same number in a form the parser reads.
+::
+++  drop-zero-exponent
+  |=  txt=@ta
+  ^-  @ta
+  =/  tap=tape  (trip txt)
+  ?~  at=(find "e" (cass tap))  txt
+  =/  exp=tape  (slag +(u.at) tap)
+  =?  exp  ?=([?(%'+' %'-') *] exp)  t.exp
+  ?~  exp  txt
+  ?.  (levy `tape`exp |=(c=@tD =('0' c)))  txt
+  (crip (scag u.at tap))
 ::  +broker-applied: whether the broker took the write, as it reported it.
 ::
 ::  The receipt says so outright, and inferring it from revisions instead gets
@@ -189,18 +274,39 @@
   ?~  body=(broker-body res)  ~
   ?~  got=(~(get by u.body) 'currentRevision')  ~
   ?.  ?=([%n *] u.got)  ~
-  `(rash p.u.got dem)
+  (rush p.u.got dem)
 ::  +broker-retryable: whether the broker says another attempt could work.
 ::
 ::  It marks a validation failure retryable:false and a service failure
-::  retryable:true. Absent, we assume it is worth another go -- a transport
-::  failure carries no body at all, and those are exactly the retryable ones.
+::  retryable:true. When the body says nothing -- an answer from something
+::  in front of the broker that carries no JSON -- the status decides: a 429
+::  or a 5xx is a transient refusal worth repeating, any other status is not.
+::  A cancelled request has no status, and is worth asking about again.
 ::
 ++  broker-retryable
   |=  res=client-response:iris
   ^-  ?
-  ?~  body=(broker-body res)  &
-  ?~  got=(~(get by u.body) 'retryable')  &
-  ?.  ?=([%b *] u.got)  &
-  p.u.got
+  ?:  ?=(%cancel -.res)  &
+  =/  body=(unit (map @t json))  (broker-body res)
+  =/  flag=(unit json)
+    ?~(body ~ (~(get by u.body) 'retryable'))
+  ?:  ?=([~ %b *] flag)  p.u.flag
+  =/  code=@ud  status-code.response-header.res
+  ?|  =(429 code)
+      &((gte code 500) (lth code 600))
+  ==
+::  +response-body-1-to-2: a v1 answer in the current shape. An error gains
+::  no broker detail, because whoever sent v1 had none to give.
+::
+++  response-body-1-to-2
+  |=  body=response-body:v1:b
+  ^-  response-body:v2:b
+  ?.  ?=(%error -.body)  body
+  [%error action-error.body message.body ~]
+::  +req-response-1-to-2: +response-body-1-to-2 under its request id.
+::
+++  req-response-1-to-2
+  |=  res=req-response:v1:b
+  ^-  req-response:v2:b
+  [request-id.res (response-body-1-to-2 body.res)]
 --
