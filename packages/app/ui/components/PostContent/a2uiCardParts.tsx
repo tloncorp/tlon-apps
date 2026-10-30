@@ -1,4 +1,4 @@
-import { Button, Icon, LoadingSpinner } from '@tloncorp/ui';
+import { Button, Icon, LoadingSpinner, Text } from '@tloncorp/ui';
 import type { ComponentProps, ReactNode } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
@@ -51,6 +51,10 @@ export const A2UI_SPACE = {
   beforeInnerButtons: 12,
   /** Between inner cards, such as pending requests. */
   betweenInnerCards: 10,
+  /** A person or group row to the text under it. */
+  afterEntity: 6,
+  /** Before a link such as "View message". */
+  beforeLink: 8,
 };
 
 /**
@@ -209,5 +213,88 @@ export function A2UICardButton({
         </Button.Text>
       )}
     </Button.Frame>
+  );
+}
+
+/** How a card's answer reads: the primary choice, another one, or a block. */
+export type A2UIResultTone = 'positive' | 'neutral' | 'destructive';
+
+function resultColors(tone: A2UIResultTone | undefined) {
+  switch (tone) {
+    case 'positive':
+      return {
+        background: '$positiveBackground',
+        foreground: '$positiveActionText',
+      } as const;
+    case 'destructive':
+      return {
+        background: '$negativeBackground',
+        foreground: '$negativeActionText',
+      } as const;
+    default:
+      return {
+        background: '$secondaryBackground',
+        foreground: '$primaryText',
+      } as const;
+  }
+}
+
+/** A card's state beside its kicker, such as "2 waiting" or "Allowed". */
+export function A2UIStatusText({
+  label,
+  tone,
+}: {
+  label: string;
+  tone?: A2UIResultTone;
+}) {
+  const color = tone ? resultColors(tone).foreground : '$secondaryText';
+  return (
+    <Text
+      size="$label/m"
+      {...A2UI_TYPE.kicker}
+      color={color}
+      trimmed={false}
+      flexShrink={0}
+    >
+      {label}
+    </Text>
+  );
+}
+
+/** Takes the place of a card's button row once one of its buttons is used. */
+export function A2UIResultLine({
+  label,
+  marginTop,
+  tone,
+}: {
+  label: string;
+  marginTop?: number;
+  tone: A2UIResultTone;
+}) {
+  const { background, foreground } = resultColors(tone);
+  return (
+    <XStack
+      marginTop={marginTop}
+      gap={10}
+      alignItems="center"
+      paddingVertical={12}
+      paddingHorizontal={14}
+      borderRadius={12}
+      backgroundColor={background}
+      accessible
+      accessibilityLabel={label}
+    >
+      <Icon type="Checkmark" color={foreground} customSize={[18, 18]} />
+      <Text
+        size="$label/l"
+        {...A2UI_TYPE.label}
+        color={foreground}
+        trimmed={false}
+        flex={1}
+        {...A2UI_TEXT_BREAKING}
+      >
+        {label}
+      </Text>
+    </XStack>
   );
 }
