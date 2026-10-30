@@ -75,6 +75,7 @@ interface Config extends Pick<ClientParams, 'onQuitOrReset'> {
   deskCountsAllSeats: boolean;
   deskServesRosterPages: boolean | null;
   deskSupportsStewardBots: boolean | null;
+  deskSupportsContactDiscovery: boolean | null;
 }
 
 type Predicate = (event: any, mark: string) => boolean;
@@ -212,6 +213,9 @@ const config: Config = {
   deskServesRosterPages: null,
   // Guarded requests refuse only false.
   deskSupportsStewardBots: null,
+  // Unknown (null) until the app confirms the backend's groups version.
+  // Unknown reads as unsupported for choosing how to run contact discovery.
+  deskSupportsContactDiscovery: null,
 };
 
 type ClientResolver = () => Urbit | null | undefined;
@@ -322,6 +326,14 @@ export const getActivitySupportsNotes = (): boolean => {
 // Whether the connected backend's init and changes member counts cover every
 // seat. Older desks counted only the 15 seats they keep, so
 // withoutTruncatedMemberCount distrusts a count of exactly 15 until this is set.
+export const setDeskSupportsContactDiscovery = (value: boolean | null) => {
+  config.deskSupportsContactDiscovery = value;
+};
+
+export const getDeskSupportsContactDiscoveryState = (): boolean | null => {
+  return config.deskSupportsContactDiscovery;
+};
+
 export const setDeskCountsAllSeats = (value: boolean) => {
   config.deskCountsAllSeats = value;
 };
@@ -680,6 +692,7 @@ export function internalRemoveClient() {
   setDeskCountsAllSeats(false);
   setDeskServesRosterPages(null);
   setDeskSupportsStewardBots(null);
+  setDeskSupportsContactDiscovery(null);
 }
 
 function printEndpoint(endpoint: UrbitEndpoint) {

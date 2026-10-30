@@ -13,6 +13,7 @@ export * from './rosterPagesSupport';
 export * from './stewardPromptsSupport';
 export * from './taskRunsSupport';
 export * from './stewardBotsSupport';
+export * from './contactDiscoverySupport';
 export * from './notesActivitySupport';
 export * from './notesPublish';
 export * from './notesPermissionsCompat';

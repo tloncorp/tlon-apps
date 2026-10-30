@@ -1,15 +1,16 @@
 /-  u=ui, gv=groups-ver, c=chat, cv=chat-ver, d=channels, dv=channels-ver,
-    a=activity, av=activity-ver, b=buckets
-/+  default-agent, dbug, verb, vita-client
+    a=activity, av=activity-ver, b=buckets, ct=contacts
+/+  default-agent, dbug, verb, vita-client, logs
 ::  performance, keep warm
 ^-  agent:gall
 =>
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %3
+    $:  %4
         hidden-contact-suggestions=(set ship)
         manual-contact-suggestions=(set ship)
+        discovered-contacts=(set ship)
         pins=(list whom:u)
         first-load=?
     ==
@@ -92,12 +93,20 @@
       =?  old  ?=(%0 -.old)  (state-0-to-1 old)
       =?  old  ?=(%1 -.old)  (state-1-to-2 old)
       =?  old  ?=(%2 -.old)  (state-2-to-3 old)
-      ?>  ?=(%3 -.old)
+      =?  old  ?=(%3 -.old)  (state-3-to-4 old)
+      ?>  ?=(%4 -.old)
       =.  state  old
       init
   ::
-  +$  versioned-state  $@(~ $%(state-3 state-2 state-1 state-0))
-  +$  state-3  current-state
+  +$  versioned-state  $@(~ $%(state-4 state-3 state-2 state-1 state-0))
+  +$  state-4  current-state
+  +$  state-3
+    $:  %3
+        hidden-contact-suggestions=(set ship)
+        manual-contact-suggestions=(set ship)
+        pins=(list whom:u)
+        first-load=?
+    ==
   +$  state-2
     $:  %2
         hidden-contact-suggestions=(set ship)
@@ -110,6 +119,9 @@
         first-load=?
     ==
   ::
+  ++  state-3-to-4
+    |=  state-3
+    [%4 hidden-contact-suggestions manual-contact-suggestions ~ pins first-load]
   ++  state-2-to-3
     |=(state-2 [%3 hidden-contact-suggestions ~ pins first-load])
   ++  state-1-to-2
@@ -130,6 +142,9 @@
   ::
       [%x %suggested-contacts ~]
     ``ships+!>(get-suggested-contacts)
+  ::
+      [%x %v1 %discovery-known ~]
+    ``ships+!>(discovery-known)
   ::
       [%x %v1 %heads since=?(~ [u=@ ~])]
     =+  .^(chan=channel-heads:v7:dv (scry %gx %channels %v2 %heads (snoc since.pole %channel-heads)))
@@ -445,6 +460,10 @@
       (~(put in hidden-contact-suggestions) ship)
     cor
   ::
+      %ui-discover-contacts
+    ?>  =(our src):bowl
+    (discover-contacts !<((list discovered-contact:u) vase))
+  ::
       %ui-add-contact-suggestions
     =+  ship-list=!<((list @p) vase)
     =.  manual-contact-suggestions
@@ -503,6 +522,13 @@
   ?+    pole  ~|(bad-agent-take/pole !!)
     ~  cor
     [%contact ~]  cor
+    [%logs ~]  cor
+  ::
+      [%discover ~]
+    ?>  ?=(%poke-ack -.sign)
+    ?~  p.sign  cor
+    (emit (~(fail logs bowl /logs) %error ~['failed to save discovered contact'] u.p.sign ~))
+  ::
     [%vita-toggle ~]  cor
     [%set-activity ~]  cor
   ==
@@ -534,7 +560,49 @@
   =?  suggestions  pals-running
     =+  .^(targets=(set ship) (scry %gx %pals /targets/noun))
     (~(uni in suggestions) targets)
+  ::  discovered matches the user has since removed come back as suggestions
+  ::
+  =.  suggestions
+    (~(uni in suggestions) (~(dif in discovered-contacts) book-ships))
   (~(dif in suggestions) hidden-contact-suggestions)
+::  +book-ships: ships saved in the address book
+::
+++  book-ships
+  ^-  (set ship)
+  =+  .^(=book:ct (scry %gx %contacts /v1/book/contact-book-0))
+  %-  sy
+  %+  murn  ~(tap in ~(key by book))
+  |=(=kip:ct ?@(kip `kip ~))
+::  +discovery-known: ships contact discovery leaves alone
+::
+::    saved, suggested and hidden ships already have a relationship with the
+::    user, and discovered ones have been announced before.
+::
+++  discovery-known
+  ^-  (set ship)
+  %-  ~(uni in discovered-contacts)
+  %-  ~(uni in hidden-contact-suggestions)
+  (~(uni in get-suggested-contacts) book-ships)
+::  +discover-contacts: record address-book matches and save the new ones
+::
+++  discover-contacts
+  |=  matches=(list discovered-contact:u)
+  ^+  cor
+  =/  known  discovery-known
+  =/  new=(map ship (unit @t))
+    %-  malt
+    %+  skip  matches
+    |=(d=discovered-contact:u (~(has in known) ship.d))
+  =.  discovered-contacts  (~(uni in discovered-contacts) ~(key by new))
+  %-  emil
+  %+  turn  ~(tap by new)
+  |=  [=ship nickname=(unit @t)]
+  ^-  card
+  =/  =contact:ct
+    ?~  nickname  ~
+    ?:  =('' u.nickname)  ~
+    (~(put by *contact:ct) %nickname text+u.nickname)
+  [%pass /discover %agent [our.bowl %contacts] %poke contact-action-1+!>(`action:ct`[%page ship contact])]
 ++  import-pals
   =+  .^(pals-running=? (scry %gu %pals /$))
   ?.  pals-running  cor

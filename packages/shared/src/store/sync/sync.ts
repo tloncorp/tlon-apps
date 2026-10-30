@@ -24,6 +24,7 @@ import {
   deskVersionSupportsStewardPrompts,
   deskVersionSupportsTaskRuns,
   deskVersionSupportsStewardBots,
+  deskVersionSupportsContactDiscovery,
   activityVersionSupportsReactions,
   classifyDeskVersion,
 } from '../../logic';
@@ -689,6 +690,9 @@ export const syncAppInfo = async (
   api.setDeskSupportsStewardBots(
     deskVersionSupportsStewardBots(appInfo?.groupsVersion)
   );
+  api.setDeskSupportsContactDiscovery(
+    deskVersionSupportsContactDiscovery(appInfo?.groupsVersion)
+  );
   // Awaited so the App Info screen and the notes-search gate see it promptly.
   // The capability flags don't depend on it landing: what protects those is
   // the in-memory version recorded above.
@@ -733,6 +737,9 @@ export const syncReactionSupport = async () => {
   );
   api.setDeskSupportsTaskRuns(deskVersionSupportsTaskRuns(groupsVersion));
   api.setDeskSupportsStewardBots(deskVersionSupportsStewardBots(groupsVersion));
+  api.setDeskSupportsContactDiscovery(
+    deskVersionSupportsContactDiscovery(groupsVersion)
+  );
 };
 
 export const syncVolumeSettings = async (ctx?: SyncCtx) => {
@@ -806,6 +813,60 @@ export const syncContactDiscovery = (
   contactDiscoveryRun = { generation, promise };
   return promise;
 };
+
+// The name each contact's first named address-book card gives them.
+async function getAddressBookNames(contactIds: string[]) {
+  const systemContacts = await db.getSystemContactsBatchByContactId(contactIds);
+  const names = new Map<string, string>();
+  for (const systemContact of systemContacts) {
+    const nickname =
+      `${systemContact.firstName || ''} ${systemContact.lastName || ''}`.trim();
+    if (
+      nickname &&
+      systemContact.contactId &&
+      !names.has(systemContact.contactId)
+    ) {
+      names.set(systemContact.contactId, nickname);
+    }
+  }
+  return names;
+}
+
+// The ship keeps every match it has handled, so it decides which are new and
+// saves them; a match is announced once however many devices, reinstalls or
+// cache rebuilds see it. A name the user already gave someone outranks their
+// address-book name.
+async function recordDiscoveredMatches(
+  matches: [string, string][]
+): Promise<[string, string][]> {
+  const known = new Set(await api.getDiscoveryKnownContacts());
+  const newMatches = matches.filter(([, id]) => !known.has(id));
+  const newIds = [...new Set(newMatches.map(([, id]) => id))];
+  if (newIds.length === 0) return [];
+  const [bookNames, existing] = await Promise.all([
+    getAddressBookNames(newIds),
+    db.getContactsBatch({ contactIds: newIds }),
+  ]);
+  const customNames = new Map(
+    existing.map((contact) => [contact.id, contact.customNickname])
+  );
+  const discovered = newIds.map((id) => ({
+    ship: id,
+    nickname: customNames.get(id) || bookNames.get(id) || null,
+  }));
+  await api.recordDiscoveredContacts(discovered);
+  await Promise.all(
+    discovered.map(({ ship, nickname }) =>
+      db.upsertContact({
+        id: ship,
+        isContact: true,
+        isContactSuggestion: false,
+        ...(nickname ? { customNickname: nickname } : {}),
+      })
+    )
+  );
+  return newMatches;
+}
 
 const syncContactDiscoveryOnce = async (
   generation: number,
@@ -881,10 +942,6 @@ const syncContactDiscoveryOnce = async (
     didDiscover = true;
     logger.log('syncContactDiscovery: got contact discovery matches', matches);
 
-    const { newMatches } = await partitionDiscoveryMatches(matches, {
-      isMocked,
-    });
-    const newMatchIds = newMatches.map(([, id]) => id);
     let addedMatches: [string, string][] = [];
     const failedNewIds = new Set<string>();
 
@@ -901,17 +958,28 @@ const syncContactDiscoveryOnce = async (
       matches
     );
 
-    if (newMatchIds.length > 0) {
-      const { addedContactIds, failedContactIds } =
-        await addContacts(newMatchIds);
-      if (failedContactIds.length > 0) {
-        didSucceed = false;
-        for (const id of failedContactIds) failedNewIds.add(id);
+    if (api.getDeskSupportsContactDiscoveryState() === true && !isMocked) {
+      addedMatches = await recordDiscoveredMatches(matches);
+    } else {
+      const { newMatches } = await partitionDiscoveryMatches(matches, {
+        isMocked,
+      });
+      const newMatchIds = newMatches.map(([, id]) => id);
+      if (newMatchIds.length > 0) {
+        const { addedContactIds, failedContactIds } =
+          await addContacts(newMatchIds);
+        if (failedContactIds.length > 0) {
+          didSucceed = false;
+          for (const id of failedContactIds) failedNewIds.add(id);
+        }
+        const addedIds = new Set(addedContactIds);
+        addedMatches = newMatches.filter(([, id]) => addedIds.has(id));
       }
-      const addedIds = new Set(addedContactIds);
-      addedMatches = newMatches.filter(([, id]) => addedIds.has(id));
-      logger.log('syncContactDiscovery: added contacts', addedContactIds);
+    }
 
+    if (addedMatches.length > 0) {
+      const addedContactIds = [...new Set(addedMatches.map(([, id]) => id))];
+      logger.log('syncContactDiscovery: added contacts', addedContactIds);
       await db
         .markContactsAsMatched({
           contactIds: addedContactIds,
@@ -927,21 +995,9 @@ const syncContactDiscoveryOnce = async (
     }
 
     // Failed additions must stay skeletal so rediscovery can retry them.
-    const contactsToName = await db.getSystemContactsBatchByContactId(
+    const namesByContactId = await getAddressBookNames(
       matches.map(([, id]) => id).filter((id) => !failedNewIds.has(id))
     );
-    const namesByContactId = new Map<string, string>();
-    for (const systemContact of contactsToName) {
-      const nickname =
-        `${systemContact.firstName || ''} ${systemContact.lastName || ''}`.trim();
-      if (
-        nickname &&
-        systemContact.contactId &&
-        !namesByContactId.has(systemContact.contactId)
-      ) {
-        namesByContactId.set(systemContact.contactId, nickname);
-      }
-    }
     const metadataResults = await Promise.all(
       Array.from(namesByContactId, async ([contactId, nickname]) => {
         const contact = await db.getContact({ id: contactId });
