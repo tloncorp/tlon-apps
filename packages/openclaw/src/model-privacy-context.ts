@@ -10,6 +10,12 @@ type ConfigWithModels = {
 
 const ROUTED_PROVIDER = 'openrouter';
 
+// The note answers only for the provider, and a bot asked about retention
+// would otherwise answer from it alone and leave Tlon's side out.
+const TLON_SIDE =
+  " That covers the model provider only: for Tlon's side, read the " +
+  'tlon-product-guide privacy page.';
+
 export function modelPrivacyNote(
   config: unknown,
   provider: string | undefined,
@@ -21,7 +27,8 @@ export function modelPrivacyNote(
       `Data retention: you're running ${provider}/${model}, which goes to ` +
       `${provider} directly under that provider's own data policy. Zero data ` +
       'retention settings only apply to models routed through OpenRouter, ' +
-      'including the included Basic model.'
+      'including the included Basic model.' +
+      TLON_SIDE
     );
   }
   const models = (config as ConfigWithModels | undefined)?.agents?.defaults
@@ -30,11 +37,13 @@ export function modelPrivacyNote(
   return zdr
     ? `Data retention: zero data retention is on for ${provider}/${model}, ` +
         'the model you are running now. OpenRouter only sends requests to ' +
-        'companies serving the model that keep no data.'
+        'companies serving the model that keep no data.' +
+        TLON_SIDE
     : `Data retention: zero data retention is off for ${provider}/${model}, ` +
         'the model you are running now. OpenRouter routes each request to a ' +
         'company serving the model, which may keep it under its own policy. ' +
         "That can be the owner's choice: some models are only served by " +
         'companies that keep data. On a hosted account the owner sets it in ' +
-        'settings.';
+        'settings.' +
+        TLON_SIDE;
 }
