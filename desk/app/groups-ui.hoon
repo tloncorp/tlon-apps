@@ -125,8 +125,11 @@
   ?+    pole  [~ ~]
       [%x %pins ~]  ``ui-pins+!>(pins)
   ::
+      [%x %v1 %contact-decline-protection ~]
+    ``loob+!>(&)
+  ::
       [%x %hidden-contact-suggestions ~]
-    ``ships+!>(hidden-contact-suggestions)
+    ``ships+!>((~(uni in hidden-contact-suggestions) get-declined-contacts))
   ::
       [%x %suggested-contacts ~]
     ``ships+!>(get-suggested-contacts)
@@ -543,7 +546,13 @@
   =?  suggestions  pals-running
     =+  .^(targets=(set ship) (scry %gx %pals /targets/noun))
     (~(uni in suggestions) targets)
-  (~(dif in suggestions) hidden-contact-suggestions)
+  =.  suggestions  (~(dif in suggestions) hidden-contact-suggestions)
+  (~(dif in suggestions) get-declined-contacts)
+::
+++  get-declined-contacts
+  ^-  (set ship)
+  .^((set ship) (scry %gx %contacts /v1/declined/noun))
+::
 ++  import-pals
   =+  .^(pals-running=? (scry %gu %pals /$))
   ?.  pals-running  cor

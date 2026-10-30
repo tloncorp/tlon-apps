@@ -26,6 +26,7 @@ import {
   channels,
   contacts,
   groups,
+  groupsUi,
   httpRequest,
   lanyard,
   notes,
@@ -388,6 +389,9 @@ test('complete contact decision requests have a distinct guard from removal-only
   setDeskSupportsContactRemoval(true);
   setDeskSupportsContactDecisions(false);
   expect(() => scryRequest(contacts.init3)({})).toThrow(DeskUnsupportedError);
+  expect(() => scryRequest(groupsUi.contactDeclineProtection)({})).toThrow(
+    DeskUnsupportedError
+  );
   expect(() => pokeRequest(contacts.decline)('~nec')).toThrow(
     DeskUnsupportedError
   );
@@ -398,8 +402,12 @@ test('complete contact decision requests have a distinct guard from removal-only
   expect(calls(poke)).toEqual([]);
   setDeskSupportsContactDecisions(true);
   await scryRequest(contacts.init3)({});
+  await scryRequest(groupsUi.contactDeclineProtection)({});
   await pokeRequest(contacts.decline)('~nec');
-  expect(calls(scry)).toEqual([[{ app: 'contacts', path: '/v3/init' }]]);
+  expect(calls(scry)).toEqual([
+    [{ app: 'contacts', path: '/v3/init' }],
+    [{ app: 'groups-ui', path: '/v1/contact-decline-protection' }],
+  ]);
   expect(calls(poke)).toEqual([
     [{ app: 'contacts', mark: 'contact-decline-1', json: '~nec' }],
   ]);

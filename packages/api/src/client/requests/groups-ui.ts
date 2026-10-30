@@ -1,6 +1,13 @@
 import type { Entry } from './types';
 
 export const groupsUi = {
+  contactDeclineProtection: {
+    kind: 'scry',
+    agent: 'groups-ui',
+    path: '/v1/contact-decline-protection',
+    since: '12.5.0',
+    guardedBy: 'deskSupportsContactDecisions',
+  },
   hiddenSuggestionIds: {
     kind: 'scry',
     agent: 'groups-ui',
