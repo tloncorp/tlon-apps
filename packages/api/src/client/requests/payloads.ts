@@ -22,6 +22,8 @@ export interface PokePayloads {
   'chat-toggle-message': ub.ToggleMessage;
   'chat-unblock-ship': { ship: string };
   'contact-discover': string;
+  'contact-discover-1': { kip: string; nickname: string | null };
+  'contact-decline-1': string;
   'contact-remove': { kip: string; suggest: boolean };
   'contact-action': ub.ContactsAction;
   'contact-action-1':

@@ -45,6 +45,16 @@
       removed=(map ship ?)
       retry=(map ship @da)  ::  retry sub at time
   ==
++$  state-6
+  $:  %6
+      rof=profile
+      =book
+      =peers
+      last-updated=(list [=kip =time])
+      removed=(map ship ?)
+      declined=(set ship)
+      retry=(map ship @da)  ::  retry sub at time
+  ==
 --
 %-  %^  agent:neg
         notify=|
@@ -53,7 +63,7 @@
 %-  agent:dbug
 %^  verb  |  %warn
 ^-  agent:gall
-=|  state-5
+=|  state-6
 =*  state  -
 =<  |_  =bowl:gall
     +*  this  .
@@ -268,6 +278,7 @@
       |=  [=kip =page]
       ~>  %spin.['p-commit-page']
       =?  removed  ?=(ship kip)  (~(del by removed) kip)
+      =?  declined  ?=(ship kip)  (~(del in declined) kip)
       =.  book  (~(put by book) kip page)
       =.  cor  (p-response [%page kip page])
       ?.  ?=(ship kip)  cor
@@ -561,7 +572,8 @@
         =?  old  ?=(%2 -.old)  (state-2-to-3 old)
         =?  old  ?=(%3 -.old)  (state-3-to-4 old)
         =?  old  ?=(%4 -.old)  (state-4-to-5 old)
-        ?>  ?=(%5 -.old)
+        =?  old  ?=(%5 -.old)  (state-5-to-6 old)
+        ?>  ?=(%6 -.old)
         =.  state  old
         inflate-io
     ::
@@ -589,13 +601,17 @@
           retry=(map ship @da)  ::  retry sub at time
       ==
     +$  versioned-state
-      $%  state-5
+      $%  state-6
+          state-5
           state-4
           state-3
           state-2
           state-1
           state-0
       ==
+    ::
+    ++  state-5-to-6
+      |=(state-5 [%6 rof book peers last-updated removed ~ retry])
     ::
     ++  state-4-to-5
       |=(state-4 [%5 rof book peers last-updated ~ retry])
@@ -710,12 +726,21 @@
     ~>  %spin.['poke']
     ^+  cor
     ?+    mark  ~|(bad-mark+mark !!)
-        %contact-discover
+        %contact-decline-1
       ?>  =(our src):bowl
       =/  who=ship  !<(ship vase)
-      ?:  (~(has by removed) who)  (suggest-removed who)
-      ?:  (~(has by book) who)  cor
-      (poke %contact-action-1 !>(`action`[%page who ~]))
+      =.  cor  (poke %contact-action-1 !>(`action`[%wipe ~[who]]))
+      =.  declined  (~(put in declined) who)
+      (emit %pass /removed-suggestion %agent [our.bowl %groups-ui] %poke ui-hide-contact+who)
+      ::
+        %contact-discover
+      ?>  =(our src):bowl
+      (discover-contact !<(ship vase) ~)
+      ::
+        %contact-discover-1
+      ?>  =(our src):bowl
+      =+  !<([who=ship nickname=(unit @t)] vase)
+      (discover-contact who nickname)
       ::
         %contact-remove
       ?>  =(our src):bowl
@@ -775,9 +800,28 @@
       |=  [=kip =_last-updated]
       (~(put ol last-updated) kip now.bowl)
     ==
+  ++  discover-contact
+    |=  [who=ship nickname=(unit @t)]
+    ^+  cor
+    ?:  (~(has in declined) who)  cor
+    ?:  (~(has by removed) who)  (suggest-removed who)
+    ?:  (~(has by book) who)  cor
+    =/  hidden=(set ship)
+      .^((set ship) %gx /(scot %p our.bowl)/groups-ui/(scot %da now.bowl)/hidden-contact-suggestions/noun)
+    ?:  (~(has in hidden) who)  cor
+    =/  suggested=(set ship)
+      .^((set ship) %gx /(scot %p our.bowl)/groups-ui/(scot %da now.bowl)/suggested-contacts/noun)
+    ?:  (~(has in suggested) who)  cor
+    =/  mod=contact
+      ?~  nickname  ~
+      ?:  =('' u.nickname)  ~
+      (~(put by *contact) %nickname text+u.nickname)
+    (poke %contact-action-1 !>(`action`[%page who mod]))
+  ::
   ++  suggest-removed
     |=  who=ship
     ^+  cor
+    ?:  (~(has in declined) who)  cor
     ?:  (~(got by removed) who)  cor
     =.  removed  (~(put by removed) who &)
     (emit %pass /removed-suggestion %agent [our.bowl %groups-ui] %poke ui-suggest-contact+who)
@@ -886,6 +930,22 @@
       =/  page=(unit page)
         (~(get by book) id+u.id)
       ``contact-page-0+`^page`(fall page *^page)
+      ::
+        [%u %v1 %declined ~]
+      ``loob+&
+      ::
+        [%x %v1 %declined ~]
+      ``ships+declined
+      ::
+        [%x %v3 %init ~]
+      =/  init=json
+        %-  pairs:enjs:format
+        :~  'directory'^(directory:enjs:j1 get-directory)
+            'book'^(book:enjs:j1 book)
+            'removed'^a/(turn ~(tap in ~(key by removed)) |=(who=ship s+(scot %p who)))
+            'declined'^a/(turn ~(tap in declined) |=(who=ship s+(scot %p who)))
+        ==
+      ``json+init
       ::
         [%x %v2 %init ~]
       =/  init=json

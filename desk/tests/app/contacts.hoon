@@ -1373,5 +1373,212 @@
   ;<  ~  bind:m  (ex-equal !>((~(got by p.init) 'removed')) !>(`json`a/~))
   (pure:m ~)
 
+::
+++  discovery-scries
+  |=  hidden=(set ship)
+  =/  m  (mare ,~)
+  %-  set-scry-gate
+  |=  =(pole knot)
+  ?+  pole  ~
+    [%gx @ %groups-ui @ %hidden-contact-suggestions %noun ~]  `!>(hidden)
+    [%gx @ %groups-ui @ %suggested-contacts %noun ~]  `!>(*(set ship))
+  ==
+::
+++  init-discovery
+  =/  m  (mare ,~)
+  ;<  =bowl  bind:m  get-bowl
+  ;<  ~  bind:m  (set-src our.bowl)
+  ;<  ~  bind:m  (discovery-scries ~)
+  ;<  *  bind:m  (do-init %contacts contacts-agent)
+  (pure:m ~)
+::
+++  ex-saved
+  |=  [who=ship saved=?]
+  =/  m  (mare ,~)
+  ;<  peek=cage  bind:m  (got-peek /u/v1/book/(scot %p who))
+  (ex-equal q.peek !>(saved))
+::
+++  ex-declined
+  |=  ships=(set ship)
+  =/  m  (mare ,~)
+  ;<  peek=cage  bind:m  (got-peek /x/v1/declined)
+  (ex-equal q.peek !>(ships))
+::
+++  test-decline-before-discovery
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  init-discovery
+  ;<  *  bind:m  (do-poke contact-decline-1+!>(~sun))
+  ;<  ~  bind:m  (ex-declined (silt ~[~sun]))
+  ;<  cards=(list card)  bind:m  (do-poke contact-discover+!>(~sun))
+  ;<  ~  bind:m  (ex-cards cards ~)
+  ;<  ~  bind:m  (ex-saved ~sun |)
+  ;<  saved=vase  bind:m  get-save
+  ;<  *  bind:m  (do-load agent `saved)
+  ;<  ~  bind:m  (ex-declined (silt ~[~sun]))
+  ;<  cards=(list card)  bind:m  (do-poke contact-discover+!>(~sun))
+  (ex-cards cards ~)
+::
+++  test-decline-after-discovery
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  init-discovery
+  ;<  *  bind:m  (do-poke contact-discover+!>(~sun))
+  ;<  ~  bind:m  (ex-saved ~sun &)
+  ;<  cards=(list card)  bind:m  (do-poke contact-decline-1+!>(~sun))
+  ;<  =bowl  bind:m  get-bowl
+  ;<  ~  bind:m
+    %+  ex-cards  (skim cards |=(=card ?=([%pass [%removed-suggestion ~] *] card)))
+    ~[(ex-ui-card our.bowl ui-hide-contact+~sun)]
+  ;<  ~  bind:m  (ex-saved ~sun |)
+  ;<  ~  bind:m  (ex-declined (silt ~[~sun]))
+  ;<  cards=(list card)  bind:m  (do-poke contact-remove+!>([~sun &]))
+  ;<  ~  bind:m
+    %+  ex-cards  (skim cards |=(=card ?=([%pass [%removed-suggestion ~] *] card)))
+    ~
+  ;<  cards=(list card)  bind:m  (do-poke contact-discover+!>(~sun))
+  (ex-cards cards ~)
+::
+++  test-explicit-add-clears-decline
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  init-discovery
+  ;<  *  bind:m  (do-poke contact-decline-1+!>(~sun))
+  =/  name  (contact-nickname 'Chosen name')
+  ;<  *  bind:m  (do-poke contact-action-1+!>([%page ~sun name]))
+  ;<  ~  bind:m  (ex-saved ~sun &)
+  ;<  ~  bind:m  (ex-declined ~)
+  ;<  ~  bind:m  (ex-removed ~)
+  ;<  cards=(list card)  bind:m  (do-poke contact-discover+!>(~sun))
+  ;<  ~  bind:m  (ex-cards cards ~)
+  ;<  peek=cage  bind:m  (got-peek /x/v1/book/~sun)
+  =+  !<(page=page:c q.peek)
+  ;<  ~  bind:m  (ex-equal !>(mod.page) !>(name))
+  ;<  *  bind:m  (do-poke contact-decline-1+!>(~sun))
+  ;<  ~  bind:m  (ex-saved ~sun |)
+  (ex-declined (silt ~[~sun]))
+::
+++  test-historical-hidden-discovery
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  init-discovery
+  ;<  ~  bind:m  (discovery-scries (silt ~[~sun]))
+  ;<  cards=(list card)  bind:m  (do-poke contact-discover+!>(~sun))
+  ;<  ~  bind:m  (ex-cards cards ~)
+  ;<  ~  bind:m  (ex-saved ~sun |)
+  ;<  ~  bind:m  (ex-declined ~)
+  ;<  *  bind:m  (do-poke contact-action-1+!>([%page ~sun ~]))
+  ;<  *  bind:m  (do-poke contact-remove+!>([~sun |]))
+  ;<  cards=(list card)  bind:m  (do-poke contact-discover+!>(~sun))
+  ;<  =bowl  bind:m  get-bowl
+  (ex-cards cards ~[(ex-ui-card our.bowl ui-suggest-contact+~sun)])
+::
+++  test-decline-authority
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  init-discovery
+  ;<  ~  bind:m  (set-src ~nec)
+  (ex-fail (do-poke contact-decline-1+!>(~sun)))
+::
+++  test-migration-declined
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =/  old=[%5 rof=profile book=book peers=peers last-updated=(list [kip time]) removed=(map ship ?) retry=(map ship @da)]
+    [%5 *profile (~(put by *book) ~sun [~ ~]) *peers ~ (~(put by *(map ship ?)) ~nec &) ~]
+  ;<  *  bind:m  (do-load agent `!>([old ~]))
+  ;<  ~  bind:m  (ex-saved ~sun &)
+  ;<  ~  bind:m  (ex-removed ~[~nec])
+  (ex-declined ~)
+
+::
+++  test-existing-suggestion-discovery
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  init-discovery
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =(pole knot)
+    ?+  pole  ~
+      [%gx @ %groups-ui @ %hidden-contact-suggestions %noun ~]  `!>(*(set ship))
+      [%gx @ %groups-ui @ %suggested-contacts %noun ~]  `!>((silt ~[~sun]))
+    ==
+  ;<  cards=(list card)  bind:m  (do-poke contact-discover+!>(~sun))
+  ;<  ~  bind:m  (ex-cards cards ~)
+  (ex-saved ~sun |)
+
+::
+++  peek-contacts
+  |=  =path
+  =/  m  (mare ,cage)
+  ;<  cards=(list card)  bind:m
+    %-  do
+    |=  s=state
+    =/  peek=(unit (unit cage))
+      (~(on-peek agent.s bowl.s) path)
+    ?>  ?=([~ ~ *] peek)
+    [~[[%give %fact ~[/test-peek] u.u.peek]] agent.s]
+  ?>  ?=(^ cards)
+  =/  card  i.cards
+  ?>  ?=([%give %fact *] card)
+  (pure:m cage.p.card)
+::
+++  test-decline-init-compatibility
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  init-discovery
+  ;<  *  bind:m  (do-poke contact-decline-1+!>(~sun))
+  ;<  peek=cage  bind:m  (peek-contacts /x/v3/init)
+  =+  !<(init=json q.peek)
+  ?>  ?=(%o -.init)
+  ;<  ~  bind:m
+    %+  ex-equal  !>((~(got by p.init) 'declined'))
+    !>(`json`a/~[s/'~sun'])
+  ;<  peek=cage  bind:m  (peek-contacts /x/v2/init)
+  =+  !<(old=json q.peek)
+  ?>  ?=(%o -.old)
+  (ex-equal !>((~(has by p.old) 'declined')) !>(|))
+
+::
+++  test-decline-init-independent-of-suggestions
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  init-discovery
+  ;<  ~  bind:m  (set-scry-gate |=(=(pole knot) ~))
+  ;<  peek=cage  bind:m  (peek-contacts /x/v3/init)
+  =+  !<(init=json q.peek)
+  ?>  ?=(%o -.init)
+  (ex-equal !>((~(has by p.init) 'declined')) !>(&))
+
+::
+++  test-discovery-promotes-local-name
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  init-discovery
+  ;<  *  bind:m  (do-poke contact-discover-1+!>([~sun `'Local name']))
+  ;<  peek=cage  bind:m  (got-peek /x/v1/book/~sun)
+  =+  !<(page=page:c q.peek)
+  ;<  ~  bind:m
+    %+  ex-equal  !>((~(get cy:c mod.page) %nickname %text))
+    !>(`'Local name')
+  ;<  *  bind:m  (do-poke contact-action-1+!>([%edit ~sun (contact-nickname 'New explicit name')]))
+  ;<  *  bind:m  (do-poke contact-discover-1+!>([~sun `'Stale local name']))
+  ;<  peek=cage  bind:m  (got-peek /x/v1/book/~sun)
+  =+  !<(page=page:c q.peek)
+  ;<  ~  bind:m
+    %+  ex-equal  !>((~(get cy:c mod.page) %nickname %text))
+    !>(`'New explicit name')
+  ;<  *  bind:m  (do-poke contact-decline-1+!>(~sun))
+  ;<  *  bind:m  (do-poke contact-discover-1+!>([~sun `'Local name']))
+  ;<  ~  bind:m  (ex-saved ~sun |)
+  ;<  *  bind:m  (do-poke contact-action-1+!>([%page ~sun (contact-nickname 'Manual name')]))
+  ;<  *  bind:m  (do-poke contact-discover-1+!>([~sun `'Stale local name']))
+  ;<  peek=cage  bind:m  (got-peek /x/v1/book/~sun)
+  =+  !<(page=page:c q.peek)
+  ;<  ~  bind:m
+    %+  ex-equal  !>((~(get cy:c mod.page) %nickname %text))
+    !>(`'Manual name')
+  ;<  ~  bind:m  (set-src ~nec)
+  (ex-fail (do-poke contact-discover-1+!>([~sun ~])))
+
 --
 

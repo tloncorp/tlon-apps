@@ -194,9 +194,11 @@
 /%  contact-book-0                 %contact-book-0
 /%  contact-changed-contacts       %contact-changed-contacts
 /%  contact-changed-pages          %contact-changed-pages
+/%  contact-decline-1              %contact-decline-1
 /%  contact-directory              %contact-directory
 /%  contact-directory-0            %contact-directory-0
 /%  contact-discover               %contact-discover
+/%  contact-discover-1             %contact-discover-1
 /%  contact-news                   %contact-news
 /%  contact-page                   %contact-page
 /%  contact-page-0                 %contact-page-0
@@ -624,9 +626,11 @@
       $:  %contact-book-0                 $+  contact-book-0                 p=_*vale:contact-book-0                 ==
       $:  %contact-changed-contacts       $+  contact-changed-contacts       p=_*vale:contact-changed-contacts       ==
       $:  %contact-changed-pages          $+  contact-changed-pages          p=_*vale:contact-changed-pages          ==
+      $:  %contact-decline-1              $+  contact-decline-1              p=_*vale:contact-decline-1              ==
       $:  %contact-directory              $+  contact-directory              p=_*vale:contact-directory              ==
       $:  %contact-directory-0            $+  contact-directory-0            p=_*vale:contact-directory-0            ==
       $:  %contact-discover               $+  contact-discover               p=_*vale:contact-discover               ==
+      $:  %contact-discover-1             $+  contact-discover-1             p=_*vale:contact-discover-1             ==
       $:  %contact-news                   $+  contact-news                   p=_*vale:contact-news                   ==
       $:  %contact-page                   $+  contact-page                   p=_*vale:contact-page                   ==
       $:  %contact-page-0                 $+  contact-page-0                 p=_*vale:contact-page-0                 ==
@@ -1056,9 +1060,11 @@
     %contact-book-0                 [-.rail !>(+.rail)]
     %contact-changed-contacts       [-.rail !>(+.rail)]
     %contact-changed-pages          [-.rail !>(+.rail)]
+    %contact-decline-1              [-.rail !>(+.rail)]
     %contact-directory              [-.rail !>(+.rail)]
     %contact-directory-0            [-.rail !>(+.rail)]
     %contact-discover               [-.rail !>(+.rail)]
+    %contact-discover-1             [-.rail !>(+.rail)]
     %contact-news                   [-.rail !>(+.rail)]
     %contact-page                   [-.rail !>(+.rail)]
     %contact-page-0                 [-.rail !>(+.rail)]
@@ -1486,9 +1492,11 @@
     %contact-book-0                 [p !<(_*vale:contact-book-0 q)]
     %contact-changed-contacts       [p !<(_*vale:contact-changed-contacts q)]
     %contact-changed-pages          [p !<(_*vale:contact-changed-pages q)]
+    %contact-decline-1              [p !<(_*vale:contact-decline-1 q)]
     %contact-directory              [p !<(_*vale:contact-directory q)]
     %contact-directory-0            [p !<(_*vale:contact-directory-0 q)]
     %contact-discover               [p !<(_*vale:contact-discover q)]
+    %contact-discover-1             [p !<(_*vale:contact-discover-1 q)]
     %contact-news                   [p !<(_*vale:contact-news q)]
     %contact-page                   [p !<(_*vale:contact-page q)]
     %contact-page-0                 [p !<(_*vale:contact-page-0 q)]
@@ -1916,9 +1924,11 @@
       :-  %contact-book-0                 -:!>(*vale:contact-book-0)
       :-  %contact-changed-contacts       -:!>(*vale:contact-changed-contacts)
       :-  %contact-changed-pages          -:!>(*vale:contact-changed-pages)
+      :-  %contact-decline-1              -:!>(*vale:contact-decline-1)
       :-  %contact-directory              -:!>(*vale:contact-directory)
       :-  %contact-directory-0            -:!>(*vale:contact-directory-0)
       :-  %contact-discover               -:!>(*vale:contact-discover)
+      :-  %contact-discover-1             -:!>(*vale:contact-discover-1)
       :-  %contact-news                   -:!>(*vale:contact-news)
       :-  %contact-page                   -:!>(*vale:contact-page)
       :-  %contact-page-0                 -:!>(*vale:contact-page-0)
