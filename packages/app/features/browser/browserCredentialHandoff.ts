@@ -32,7 +32,13 @@ export type BrowserCredentialHandoff = {
   expiresAt: number;
   kind: 'login' | 'details';
   fields: BrowserSecureField[];
-  vault?: { authorizeUrl: string; planet: string; moon: string };
+  vault?: {
+    authorizeUrl: string;
+    planet: string;
+    moon: string;
+    saveBeforeFill?: boolean;
+    ownerSessions?: boolean;
+  };
 };
 export type BrowserCredentialValues = {
   values?: Record<string, string>;
@@ -91,13 +97,15 @@ export function trustedBrowserViewerUrl(viewerUrl: string): string {
 
 /** Exchange a session capability for an owner-authorized viewer URL. */
 export async function authorizeBrowserViewer(
-  viewerUrl: string
+  viewerUrl: string,
+  signal?: AbortSignal
 ): Promise<string> {
   const { url, capability } = parseViewerUrl(viewerUrl);
   if (url.protocol === 'http:') return url.toString();
   const result = await browserVaultOwnerRequest(
     new URL('/viewer-authorize', url.origin).toString(),
-    { capability }
+    { capability },
+    signal
   );
   if (
     !result ||
@@ -316,6 +324,13 @@ export async function beginBrowserCredentialHandoff(
             ).toString(),
             planet: body.vault.planet,
             moon: body.vault.moon,
+            ownerSessions:
+              'ownerSessions' in body.vault &&
+              body.vault.ownerSessions === true,
+            ...('saveBeforeFill' in body.vault &&
+            body.vault.saveBeforeFill === true
+              ? { saveBeforeFill: true }
+              : {}),
           },
         }
       : {}),
@@ -352,6 +367,7 @@ export async function submitBrowserCredentials(
 ): Promise<{
   submitted: boolean;
   saveStatus?: 'saved' | 'pending' | 'failed';
+  fillStatus?: 'pending';
 }> {
   if (Date.now() >= handoff.expiresAt)
     throw new Error('This secure form has expired.');
@@ -365,6 +381,9 @@ export async function submitBrowserCredentials(
       submit: false,
       ...(values.grant ? { grant: values.grant } : {}),
       ...(values.save ? { save: values.save } : {}),
+      ...(values.save && handoff.vault?.saveBeforeFill
+        ? { respondAfterSave: true }
+        : {}),
       ...(values.use
         ? { use: values.use, allowAutomatic: values.allowAutomatic === true }
         : {}),
@@ -383,8 +402,13 @@ export async function submitBrowserCredentials(
     );
   if (body.ok !== true)
     throw new Error('The browser did not confirm that the fields were filled.');
+  if (body.fillStatus === 'pending' && body.saveStatus !== 'saved')
+    throw new Error('The browser did not confirm that the login was saved.');
   return {
     submitted: body.submitted === true,
+    ...(body.fillStatus === 'pending'
+      ? { fillStatus: 'pending' as const }
+      : {}),
     ...(['saved', 'pending', 'failed'].includes(String(body.saveStatus))
       ? { saveStatus: body.saveStatus as 'saved' | 'pending' | 'failed' }
       : {}),
@@ -397,5 +421,9 @@ export async function authorizeBrowserLogins(
 ) {
   if (!handoff.vault)
     throw new Error('Saved logins are unavailable for this form.');
-  return authorizeBrowserLoginHandoff(handoff.vault.authorizeUrl, signal);
+  return authorizeBrowserLoginHandoff(
+    handoff.vault.authorizeUrl,
+    signal,
+    handoff.vault.ownerSessions ? handoff.vault.moon : undefined
+  );
 }

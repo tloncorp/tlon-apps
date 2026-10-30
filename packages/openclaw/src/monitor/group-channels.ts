@@ -172,7 +172,7 @@ export function applyGroupsUiRoleFact(
   }
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
@@ -183,7 +183,7 @@ function isJournaledNest(value: unknown): value is string {
   );
 }
 
-function extractMetaTitle(value: unknown): string | undefined {
+export function extractMetaTitle(value: unknown): string | undefined {
   if (!isRecord(value)) {
     return undefined;
   }

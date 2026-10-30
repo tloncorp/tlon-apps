@@ -92,6 +92,15 @@ export function isBotUserIdForUser(
   );
 }
 
+// The planet a Tlon-hosted bot belongs to, or null for any other ship.
+export function getBotOwnerId(botUserId: string | null | undefined) {
+  if (!isBotUserId(botUserId)) {
+    return null;
+  }
+  const ownerId = botUserId!.slice(BOT_USER_ID_PREFIX.length);
+  return ownerId ? `~${ownerId}` : null;
+}
+
 // A moon's @p is its parent's @p prefixed with exactly two more words
 // (~dirmec-dolbes-finned-palmer is a moon of ~finned-palmer). The word-count
 // guard assumes the owner is a planet; it also rejects comets, whose 8-word

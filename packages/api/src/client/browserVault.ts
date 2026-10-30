@@ -2,10 +2,15 @@ import { z } from 'zod';
 
 import { getConstants } from '../types';
 import { isTrustedBrowserViewerHost } from './browserSession';
+import {
+  browserOwnerRequest,
+  browserOwnerSessionMoon,
+  BrowserOwnerRequestError,
+} from './browserOwnerSession';
 import { getBrowserVaultOwnerAuthorization } from './urbit';
 
 export const savedBrowserLoginSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().min(1).max(128),
   origin: z.string().url(),
   revision: z.number().int().positive(),
   updatedAt: z.number(),
@@ -18,9 +23,12 @@ export type BrowserLoginChoice = Pick<SavedBrowserLogin, 'id' | 'revision'>;
 
 export async function authorizeBrowserLoginHandoff(
   endpoint: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  botMoon?: string
 ) {
-  const result = await browserVaultOwnerRequest(endpoint, {}, signal);
+  const result = botMoon
+    ? await browserOwnerRequest(endpoint, botMoon, 'POST', {}, signal)
+    : await browserVaultOwnerRequest(endpoint, {}, signal);
   const parsed = z
     .object({
       grant: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
@@ -30,6 +38,13 @@ export async function authorizeBrowserLoginHandoff(
   if (!parsed.success)
     throw new Error('The browser returned an invalid saved-login response.');
   return parsed.data;
+}
+
+export class BrowserVaultRequestError extends Error {
+  constructor(readonly status: number) {
+    super('Saved logins are unavailable. Reconnect and try again.');
+    this.name = 'BrowserVaultRequestError';
+  }
 }
 
 /** Send an owner proof only to a trusted browser endpoint in this environment. */
@@ -61,6 +76,16 @@ export async function browserVaultOwnerRequest(
     throw new Error(
       'Saved logins require a trusted browser host in this environment.'
     );
+  const moon = browserOwnerSessionMoon(endpoint);
+  if (moon) {
+    try {
+      return await browserOwnerRequest(endpoint, moon, 'POST', body, signal);
+    } catch (error) {
+      if (error instanceof BrowserOwnerRequestError)
+        throw new BrowserVaultRequestError(error.status);
+      throw error;
+    }
+  }
   const { planet, ownerToken } = await getBrowserVaultOwnerAuthorization();
   if (signal?.aborted) throw new Error('Canceled');
   const response = await fetch(url.toString(), {
@@ -73,7 +98,6 @@ export async function browserVaultOwnerRequest(
     redirect: 'error',
     signal,
   });
-  if (!response.ok)
-    throw new Error('Saved logins are unavailable. Reconnect and try again.');
+  if (!response.ok) throw new BrowserVaultRequestError(response.status);
   return response.json();
 }

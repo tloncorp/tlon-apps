@@ -244,15 +244,13 @@ it('stops on task events even if the task is removed before a scheduler query', 
   row.enrolledAt = now;
   campaign.start();
   await campaign.check();
-  notifyCampaignCronChanged({
-    action: 'added',
-    jobId: 'task-1',
-    job: {
-      id: 'task-1',
-      schedule: { kind: 'every', everyMs: DAY },
-      payload: { kind: 'agentTurn' },
-    },
-  });
+  const job = {
+    id: 'task-1',
+    schedule: { kind: 'every', everyMs: DAY },
+    payload: { kind: 'agentTurn' },
+  } as const;
+  mock.list.mockResolvedValueOnce([job]);
+  notifyCampaignCronChanged({ action: 'added', jobId: job.id, job });
   await campaign.check();
   expect(row.status).toBe('feedback');
   expect(mock.send).not.toHaveBeenCalled();
@@ -261,18 +259,51 @@ it('stops on task events for a long-lived stream job, not just cron/every', asyn
   row.enrolledAt = now;
   campaign.start();
   await campaign.check();
-  notifyCampaignCronChanged({
-    action: 'added',
-    jobId: 'task-1',
-    job: {
-      id: 'task-1',
-      schedule: { kind: 'stream', command: ['tail', '-f', 'log'] },
-      payload: { kind: 'agentTurn' },
-    },
-  });
+  const job = {
+    id: 'task-1',
+    schedule: { kind: 'stream', command: ['tail', '-f', 'log'] },
+    payload: { kind: 'agentTurn' },
+  } as const;
+  mock.list.mockResolvedValueOnce([job]);
+  notifyCampaignCronChanged({ action: 'added', jobId: job.id, job });
   await campaign.check();
   expect(row.status).toBe('feedback');
   expect(mock.send).not.toHaveBeenCalled();
+});
+it('ignores task events for OpenClaw’s skill review job', async () => {
+  row.enrolledAt = now;
+  const job = {
+    id: 'review',
+    name: 'skill-collection-review-main',
+    schedule: { kind: 'every' },
+    payload: { kind: 'agentTurn' },
+  } as const;
+  // The listed job carries the declarationKey that the event's copy lacks.
+  mock.list.mockResolvedValue([
+    { ...job, declarationKey: 'skill-collection-review:main' },
+  ]);
+  campaign.start();
+  await campaign.check();
+  notifyCampaignCronChanged({ action: 'added', jobId: job.id, job });
+  // The second check queues behind the event's store write, if any.
+  await campaign.check();
+  await campaign.check();
+  expect(row.status).toBe('active');
+});
+it('suggests a first task while only OpenClaw’s skill review job exists', async () => {
+  mock.list.mockResolvedValue([
+    {
+      id: 'review',
+      name: 'skill-collection-review-main',
+      declarationKey: 'skill-collection-review:main',
+      enabled: true,
+      schedule: { kind: 'every', everyMs: 7 * DAY },
+      payload: { kind: 'agentTurn' },
+    },
+  ]);
+  await campaign.check();
+  expect(row.status).toBe('active');
+  expect(row.sent.at(-1)?.step).toBe('useful-request');
 });
 it('recognizes disabled user tasks but excludes one-shot and internal heartbeat jobs', () => {
   expect(
@@ -298,6 +329,15 @@ it('recognizes disabled user tasks but excludes one-shot and internal heartbeat 
       payload: { kind: 'heartbeat' },
     })
   ).toBe(false);
+  // A HEARTBEAT.md task that doctor migrated into cron is the owner's.
+  expect(
+    isUserRecurringTask({
+      id: 'imported',
+      declarationKey: 'heartbeat-task:check-mail',
+      schedule: { kind: 'every' },
+      payload: { kind: 'agentTurn' },
+    })
+  ).toBe(true);
 });
 it('picks up a stream job through the jobs() cron list lookup', async () => {
   mock.list.mockResolvedValue([

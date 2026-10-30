@@ -1245,6 +1245,32 @@ function parseArgs(args: string[]): ParsedPostsArgs {
   throw usageError(POSTS_HELP);
 }
 
+// The host stores a reaction under whatever id it is given, so a mistyped id
+// (one group dropped from a 13-group post id, say) prints success while the
+// post the user meant stays unreacted. Read the target first, as delete does.
+async function requireReactionTarget(
+  parsed: { channelId: string; postId: string; parentId?: string },
+  verb: 'added' | 'removed',
+  deps: PostsDeps
+): Promise<void> {
+  const nest = parsed.channelId;
+  const id = formatPostId(parsed.postId);
+  if (parsed.parentId) {
+    const pid = formatPostId(parsed.parentId);
+    if (!(await fetchExistingReply(nest, pid, id, deps))) {
+      throw commandError(
+        `Could not read reply ${id} under ${pid} in ${nest}; no reaction was ${verb}. Read the thread (\`messages post ${nest} ${pid}\`) and use its ID line.`
+      );
+    }
+    return;
+  }
+  if (!(await fetchExistingPost(nest, id, deps))) {
+    throw commandError(
+      `Could not read ${id} in ${nest}; no reaction was ${verb}. The id may not be the post's: read the channel (\`messages channel ${nest}\`) and use its ID line.`
+    );
+  }
+}
+
 async function reactToPost(
   parsed: {
     channelId: string;
@@ -1254,6 +1280,7 @@ async function reactToPost(
   },
   deps: PostsDeps
 ): Promise<void> {
+  await requireReactionTarget(parsed, 'added', deps);
   const our = deps.getCurrentUserId();
   await deps.postsApi.addReaction({
     channelId: parsed.channelId,
@@ -1269,6 +1296,7 @@ async function unreactToPost(
   parsed: { channelId: string; postId: string; parentId?: string },
   deps: PostsDeps
 ): Promise<void> {
+  await requireReactionTarget(parsed, 'removed', deps);
   const our = deps.getCurrentUserId();
   await deps.postsApi.removeReaction({
     channelId: parsed.channelId,
@@ -1279,13 +1307,24 @@ async function unreactToPost(
   });
 }
 
+// The host acks a %del for an id it has never seen, so without this read a
+// wrong id (a sent-time id in place of the host's, say) prints success while
+// the post stays up.
 async function deletePost(
   parsed: { channelId: string; postId: string },
   deps: PostsDeps
 ): Promise<void> {
+  const nest = parsed.channelId;
+  const id = formatPostId(parsed.postId);
+  const existing = await fetchExistingPost(nest, id, deps);
+  if (!existing) {
+    throw commandError(
+      `Could not read ${id} in ${nest}; nothing was deleted. The id may not be the post's: read the channel (\`messages channel ${nest}\`) and use its ID line.`
+    );
+  }
   await deps.postsApi.deletePost({
-    channelId: parsed.channelId,
-    postId: formatPostId(parsed.postId),
+    channelId: nest,
+    postId: id,
     authorId: deps.getCurrentUserId(),
   });
 }

@@ -51,7 +51,10 @@ jobs:
       # The guide's own text is edited on develop alongside the app, unlike the
       # map, so its labels are looked for in this checkout's source.
       - name: Check the guide's own quoted labels
-        run: node scripts/feature-map.mjs labels packages/openclaw/skills/tlon-product-guide/SKILL.md --ref HEAD
+        run: |
+          for f in packages/openclaw/skills/tlon-product-guide/SKILL.md packages/openclaw/skills/tlon-product-guide/product/*.md; do
+            node scripts/feature-map.mjs labels "$f" --ref HEAD
+          done
 
       # `publish` rewrites the copy from the map. Any difference means the copy
       # was edited by hand, or the map changed without being published.

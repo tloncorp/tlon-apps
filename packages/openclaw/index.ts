@@ -78,6 +78,7 @@ import {
   onboardingToolBlockReason,
 } from './src/onboarding-tool-boundary.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
+import { handleGroupContextBeforePromptBuild } from './src/group-context.js';
 import {
   registerBudgetHoldHooks,
   registerBudgetRunGuard,
@@ -1436,11 +1437,15 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
 
     // An argument gate fires for any role; only set membership means an
     // owner-only tool was used.
-    api.logger.info(
+    const allowedLog =
       ownerOnlyDecision.gate === 'arguments'
         ? `[tlon] Allowed ${event.toolName} call with owner-only arguments for ${role ?? 'internal'} session. Session: ${ctx.sessionKey}`
-        : `[tlon] Allowed ${event.toolName} tool for ${role ?? 'internal'} session. Session: ${ctx.sessionKey}`
-    );
+        : `[tlon] Allowed ${event.toolName} tool for ${role ?? 'internal'} session. Session: ${ctx.sessionKey}`;
+    if (event.toolName === 'tlon') {
+      api.logger.info(allowedLog);
+    } else {
+      api.logger.debug?.(allowedLog);
+    }
     if (event.toolName === 'tlon' && typeof event.params.command === 'string') {
       // Only owner-default commands need the rewrite; with the flag off the
       // bot is already the default.
@@ -1647,6 +1652,13 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       return undefined;
     }
   });
+
+  // ── Group context ──────────────────────────────────────────────────
+  // Which workspace a group channel turn belongs to, plus what the bot has
+  // seen in its open channels. A no-op until the monitor publishes.
+  api.on('before_prompt_build', (_event, ctx) =>
+    handleGroupContextBeforePromptBuild(ctx)
+  );
 
   // ── Session lifecycle / watchdog telemetry ─────────────────────────
   // These hooks are global to OpenClaw, so telemetry.ts filters them through
@@ -1943,14 +1955,15 @@ export default defineBundledChannelEntry({
     };
 
     const browserLoginApprovals = createBrowserLoginApprovalHandler(
-      (sessionId, record, ctx, fields) =>
+      (sessionId, record, ctx, fields, formId) =>
         runBrowserCommand(
           [
             'browser',
             'approve-login',
             sessionId,
-            '--fields',
-            JSON.stringify(fields),
+            ...(formId
+              ? ['--form-id', formId]
+              : ['--fields', JSON.stringify(fields)]),
             ...(record ? ['--record', JSON.stringify(record)] : []),
           ],
           ctx

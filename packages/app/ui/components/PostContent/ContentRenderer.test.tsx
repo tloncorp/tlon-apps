@@ -65,8 +65,8 @@ describe('browser session card rendering scope', () => {
   it.each([
     { enabled: false, web: false, type: 'link' },
     { enabled: false, web: true, type: 'link' },
-    { enabled: true, web: false, type: 'a2ui' },
-    { enabled: true, web: true, type: 'a2ui' },
+    { enabled: true, web: false, type: 'browser-card' },
+    { enabled: true, web: true, type: 'browser-card' },
   ])(
     'routes opted-in chat through the authenticated viewer card: %j',
     ({ enabled, web, type }) => {

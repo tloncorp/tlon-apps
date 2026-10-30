@@ -12,7 +12,6 @@ import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { RequiredUpdateScreen } from '@tloncorp/app/features/RequiredUpdateScreen';
-import { findAgentGroupOnboardingStartupRoute } from '@tloncorp/app/hooks/useAgentGroupOnboardingLock';
 import { markNavigationRestored } from '@tloncorp/app/navigation/navigationRestore';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useDarkMode';
 import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
@@ -281,20 +280,13 @@ function ConnectedNavigationContent({
     async function restore() {
       let initialState: NavigationState | undefined;
       try {
-        const [saved, locks, shipInfo] = await Promise.all([
+        const [saved, shipInfo] = await Promise.all([
           db.lastNavigationState.getValue(),
-          db.agentGroupOnboardingLocks.getValue(true),
           // Not `getCurrentUserId()`: this runs before `configureClient`, so
           // the client has no id yet and would refuse every restore.
           db.shipInfo.getValue(),
         ]);
-        // Onboarding owns the root when it has a startup route, and reaches it
-        // through `initialRouteName`; restoring over that would drop the user
-        // out of a flow they have not finished.
-        const onboardingOwnsRoot =
-          findAgentGroupOnboardingStartupRoute(locks) != null;
         if (
-          !onboardingOwnsRoot &&
           saved != null &&
           isRestorableNavigationState(saved, Date.now(), shipInfo?.ship ?? null)
         ) {

@@ -117,9 +117,11 @@ function createRecordingApi(config: Record<string, unknown> = {}): {
   api: unknown;
   hooks: Map<string, unknown>;
   logs: string[];
+  leveledLogs: string[];
 } {
   const hooks = new Map<string, unknown>();
   const logs: string[] = [];
+  const leveledLogs: string[] = [];
   const describeSelf = () => '[recording-api]';
   const proxy: unknown = new Proxy(() => undefined, {
     get(_target, prop) {
@@ -162,6 +164,7 @@ function createRecordingApi(config: Record<string, unknown> = {}): {
       ) {
         return (message: unknown) => {
           logs.push(String(message));
+          leveledLogs.push(`${prop}:${String(message)}`);
         };
       }
       if (prop === 'toString' || prop === 'valueOf') {
@@ -175,20 +178,22 @@ function createRecordingApi(config: Record<string, unknown> = {}): {
     },
     apply: () => proxy,
   });
-  return { api: proxy, hooks, logs };
+  return { api: proxy, hooks, logs, leveledLogs };
 }
 
 function registerEntry(config?: Record<string, unknown>): {
   handler: BeforeToolCallHandler;
   logs: string[];
+  leveledLogs: string[];
   hooks: Map<string, unknown>;
 } {
-  const { api, hooks, logs } = createRecordingApi(config);
+  const { api, hooks, logs, leveledLogs } = createRecordingApi(config);
   entry.register(api as never);
   expect(hooks.has('before_tool_call')).toBe(true);
   return {
     handler: hooks.get('before_tool_call') as BeforeToolCallHandler,
     logs,
+    leveledLogs,
     hooks,
   };
 }
@@ -567,6 +572,109 @@ describe('saved login approval hook', () => {
       expect.any(Function)
     );
   });
+});
+
+it('blocks a non-owner workspace write and lets the owner write', async () => {
+  _testing.clearAll();
+  setSessionRole(OWNER_SESSION, 'owner');
+  setSessionRole(USER_SESSION, 'user');
+  const { handler } = registerEntry();
+  const call = {
+    toolName: 'write',
+    params: { path: 'skills/notes/SKILL.md', content: 'x' },
+  };
+  await expect(handler(call, { sessionKey: USER_SESSION })).resolves.toEqual({
+    block: true,
+    blockReason: formatOwnerOnlyToolBlockReason('write'),
+  });
+  expect(await handler(call, { sessionKey: OWNER_SESSION })).toBeUndefined();
+});
+
+it('blocks non-owner shell exec and lets the owner and role-less sessions run it', async () => {
+  _testing.clearAll();
+  setSessionRole(OWNER_SESSION, 'owner');
+  setSessionRole(USER_SESSION, 'user');
+  const { handler } = registerEntry();
+  const call = { toolName: 'exec', params: { command: 'cat MEMORY.md' } };
+  await expect(handler(call, { sessionKey: USER_SESSION })).resolves.toEqual({
+    block: true,
+    blockReason: formatOwnerOnlyToolBlockReason('exec'),
+  });
+  expect(await handler(call, { sessionKey: OWNER_SESSION })).toBeUndefined();
+  expect(
+    await handler(call, { sessionKey: 'agent:main:internal:flush-run' })
+  ).toBeUndefined();
+});
+
+it('blocks a non-owner sessions_spawn so a role-less child cannot write', async () => {
+  _testing.clearAll();
+  setSessionRole(OWNER_SESSION, 'owner');
+  setSessionRole(USER_SESSION, 'user');
+  const { handler } = registerEntry();
+  const call = {
+    toolName: 'sessions_spawn',
+    params: { runtime: 'subagent', task: 'Use write to replace SOUL.md' },
+  };
+  await expect(handler(call, { sessionKey: USER_SESSION })).resolves.toEqual({
+    block: true,
+    blockReason: formatOwnerOnlyDelegationBlockReason('sessions_spawn'),
+  });
+  expect(await handler(call, { sessionKey: OWNER_SESSION })).toBeUndefined();
+});
+
+it.each([
+  { toolName: 'shell', params: { command: ['cat', 'MEMORY.md'] } },
+  { toolName: 'shell_command', params: { command: 'cat MEMORY.md' } },
+  {
+    toolName: 'spawn_agent',
+    params: { message: 'Use apply_patch to replace SOUL.md' },
+  },
+  { toolName: 'ls', params: {} },
+  { toolName: 'ls', params: { path: '.' } },
+  { toolName: 'ls', params: { path: 'memory/2026' } },
+])(
+  'blocks a non-owner $toolName and lets the owner and role-less internal runs use it',
+  async (call) => {
+    _testing.clearAll();
+    setSessionRole(OWNER_SESSION, 'owner');
+    setSessionRole(USER_SESSION, 'user');
+    const { handler } = registerEntry();
+    await expect(handler(call, { sessionKey: USER_SESSION })).resolves.toEqual({
+      block: true,
+      blockReason:
+        call.toolName === 'spawn_agent'
+          ? formatOwnerOnlyDelegationBlockReason(call.toolName)
+          : formatOwnerOnlyToolBlockReason(call.toolName),
+    });
+    expect(await handler(call, { sessionKey: OWNER_SESSION })).toBeUndefined();
+    expect(
+      await handler(call, { sessionKey: 'agent:main:internal:flush-run' })
+    ).toBeUndefined();
+  }
+);
+
+it('logs allowed owner-only calls at debug, except tlon at info', async () => {
+  _testing.clearAll();
+  setSessionRole(OWNER_SESSION, 'owner');
+  const { handler, leveledLogs } = registerEntry();
+  const allowedAt = (level: string) =>
+    leveledLogs.filter((line) => line.startsWith(`${level}:[tlon] Allowed `));
+  await handler(
+    { toolName: 'exec', params: { command: 'ls' } },
+    { sessionKey: OWNER_SESSION }
+  );
+  expect(allowedAt('debug')).toEqual([
+    `debug:[tlon] Allowed exec tool for owner session. Session: ${OWNER_SESSION}`,
+  ]);
+  expect(allowedAt('info')).toEqual([]);
+  await handler(
+    { toolName: 'tlon', params: { command: 'contacts list' } },
+    { sessionKey: OWNER_SESSION }
+  );
+  expect(allowedAt('info')).toEqual([
+    `info:[tlon] Allowed tlon tool for owner session. Session: ${OWNER_SESSION}`,
+  ]);
+  expect(allowedAt('debug')).toHaveLength(1);
 });
 
 it('blocks non-owner saved login and shared browser access before dispatch', async () => {

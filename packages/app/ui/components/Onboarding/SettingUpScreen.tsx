@@ -3,11 +3,16 @@ import { Icon, LoadingSpinner, TlonText } from '@tloncorp/ui';
 import type { ReactNode } from 'react';
 import { View, XStack, YStack } from 'tamagui';
 
-import { ArvosDiscussing } from '../ArvosDiscussing';
+import { AnimatedPillHeads } from './AnimatedPillHeads';
 import { OnboardingStepLayout, STEP_ROW_HEIGHT } from './OnboardingStepLayout';
 
 const ART_HEIGHT = 200;
 const ART_GAP = 48;
+// The first step's text sits about 20 pt inside its row, and the heads'
+// bottom edge sits about 19 pt inside the art's box, with only a sparkle below
+// it. Taking this much off the margin below the art makes the space above and
+// below the heads look even.
+const ART_MARGIN_TRIM = 35;
 
 export type SetupStepKey = 'computer' | 'network' | 'bot';
 
@@ -70,10 +75,9 @@ export function SettingUpScreen({
   return (
     <OnboardingStepLayout title="Setting up" body={body}>
       <YStack flex={1}>
-        {/* The art takes the spot the permission prompt had on Allow
-            notifications, and shrinks on short screens to keep the steps
-            above the bottom slot. */}
-        <View flex={1} minHeight={0} marginBottom={ART_GAP}>
+        {/* The art sits midway between the text and the first step, and
+            shrinks on short screens to keep the steps above the bottom slot. */}
+        <View flex={1} minHeight={0} marginBottom={ART_GAP - ART_MARGIN_TRIM}>
           {/* Placed absolutely so the art only takes the room that's left and
               never pushes the steps down; with large text it gives way. */}
           <View
@@ -86,7 +90,7 @@ export function SettingUpScreen({
             justifyContent="center"
           >
             <View width="100%" height="100%" maxHeight={ART_HEIGHT}>
-              <ArvosDiscussing width="100%" height="100%" />
+              <AnimatedPillHeads />
             </View>
           </View>
         </View>

@@ -45,10 +45,8 @@ type StateSnapshot = {
 };
 
 /**
- * The root stack is rooted at `MainTabs` through a normal session, and at
- * `OnboardingStartup` while first-run onboarding owns the root. Only the first
- * is a position worth returning to: saving the second would let a relaunch
- * restore a half-finished onboarding as though it were an ordinary screen.
+ * The root stack is always rooted at `MainTabs`; a state rooted anywhere else
+ * is not one this navigator produced, so it is not a position to return to.
  */
 export function isPersistableNavigationState(state: unknown): boolean {
   const routes = (state as StateSnapshot | undefined)?.routes;
