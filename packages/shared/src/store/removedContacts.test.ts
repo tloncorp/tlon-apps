@@ -625,14 +625,11 @@ test('a confirmation already queued for SQLite cannot overwrite a later Remove',
   });
   releaseSnapshot();
   await confirmQueued;
-  await removeContact(id);
-  expect(saved.has(id)).toBe(false);
-  expect(await db.getContact({ id })).toMatchObject({
-    isContact: false,
-    isContactSuggestion: true,
-  });
+  const removal = removeContact(id);
   releaseWriter();
   await writer;
+  await removal;
+  expect(saved.has(id)).toBe(false);
   const result = await discovery;
   expect(result).toEqual({ addedContactIds: [], failedContactIds: [] });
   expect(await db.getContact({ id })).toMatchObject({

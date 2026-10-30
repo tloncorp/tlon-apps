@@ -75,7 +75,11 @@ import {
 import { clearChannelPostsQueries } from '../useChannelPosts/queries';
 import { addToChannelPosts } from '../useChannelPosts/subscriptions';
 import { logger } from './logger';
-import { syncContacts, syncContactSuggestions } from './syncContacts';
+import {
+  syncContacts,
+  syncContactSuggestions,
+  syncContactDecisionSupport,
+} from './syncContacts';
 import { syncGroup } from './syncGroup';
 import { updateLastActivityTime } from './updateLastActivityTime';
 
@@ -656,10 +660,13 @@ export const syncAppInfo = async (
     isStale?: () => boolean;
   }
 ) => {
+  const generation = getClientGeneration();
+  const isStale = () =>
+    generation !== getClientGeneration() || !!options?.isStale?.();
   const appInfo = await syncQueue.add('appInfo', ctx, () =>
     api.getAppInfo({ timeout: options?.timeout })
   );
-  if (options?.isStale?.()) {
+  if (isStale()) {
     return null;
   }
   fetchedGroupsVersion = {
@@ -675,6 +682,8 @@ export const syncAppInfo = async (
   api.setDeskSupportsContactRemoval(
     deskVersionSupportsContactRemoval(appInfo?.groupsVersion)
   );
+  await syncContactDecisionSupport(appInfo?.groupsVersion);
+  if (isStale()) return null;
   api.setDeskSupportsBuckets(
     deskVersionSupportsBuckets(appInfo?.groupsVersion)
   );
@@ -721,10 +730,12 @@ let fetchedGroupsVersion: {
 // client lifetime fetched, falling back to the last-known persisted one on a
 // fresh launch, before any fetch has happened.
 export const syncReactionSupport = async () => {
+  const generation = getClientGeneration();
   const groupsVersion =
     fetchedGroupsVersion?.generation === getClientGeneration()
       ? fetchedGroupsVersion.groupsVersion
       : (await db.appInfo.getValue())?.groupsVersion;
+  if (generation !== getClientGeneration()) return;
   api.setActivitySupportsReactions(
     activityVersionSupportsReactions(groupsVersion)
   );
@@ -732,6 +743,10 @@ export const syncReactionSupport = async () => {
   api.setDeskSupportsContactRemoval(
     deskVersionSupportsContactRemoval(groupsVersion)
   );
+  if (api.getDeskSupportsContactDecisionsState() === null) {
+    await syncContactDecisionSupport(groupsVersion);
+    if (generation !== getClientGeneration()) return;
+  }
   api.setDeskSupportsBuckets(deskVersionSupportsBuckets(groupsVersion));
   api.setDeskSupportsAutomations(deskVersionSupportsAutomations(groupsVersion));
   api.setDeskCountsAllSeats(deskVersionCountsAllSeats(groupsVersion));

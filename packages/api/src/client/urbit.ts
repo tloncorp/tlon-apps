@@ -69,6 +69,7 @@ interface Config extends Pick<ClientParams, 'onQuitOrReset'> {
   activitySupportsReactions: boolean;
   activitySupportsNotes: boolean;
   deskSupportsContactRemoval: boolean | null;
+  deskSupportsContactDecisions: boolean | null;
   deskSupportsBuckets: boolean | null;
   deskSupportsAutomations: boolean | null;
   deskSupportsStewardPrompts: boolean | null;
@@ -199,6 +200,7 @@ const config: Config = {
   // a 404 there costs the whole init. Guarded requests refuse only false.
   deskSupportsBuckets: null,
   deskSupportsContactRemoval: null,
+  deskSupportsContactDecisions: null,
   // Unknown (null) until the app confirms the backend's groups version.
   // Guarded requests refuse only false.
   deskSupportsAutomations: null,
@@ -468,6 +470,13 @@ export const onDeskSupportsStewardPromptsChange = (
   };
 };
 
+export const setDeskSupportsContactDecisions = (value: boolean | null) => {
+  config.deskSupportsContactDecisions = value;
+};
+
+export const getDeskSupportsContactDecisionsState = (): boolean | null =>
+  config.deskSupportsContactDecisions;
+
 export const setDeskSupportsContactRemoval = (value: boolean | null) => {
   config.deskSupportsContactRemoval = value;
 };
@@ -677,6 +686,7 @@ export function internalRemoveClient() {
   setActivitySupportsReactions(false);
   setActivitySupportsNotes(false);
   setDeskSupportsContactRemoval(null);
+  setDeskSupportsContactDecisions(null);
   setDeskSupportsBuckets(null);
   setDeskSupportsAutomations(null);
   setDeskSupportsStewardPrompts(null);

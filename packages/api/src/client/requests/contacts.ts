@@ -1,12 +1,33 @@
 import type { Entry } from './types';
 
 export const contacts = {
+  init3: {
+    kind: 'scry',
+    agent: 'contacts',
+    path: '/v3/init',
+    since: '12.5.0',
+    guardedBy: 'deskSupportsContactDecisions',
+  },
+  decline: {
+    kind: 'poke',
+    agent: 'contacts',
+    mark: 'contact-decline-1',
+    since: '12.5.0',
+    guardedBy: 'deskSupportsContactDecisions',
+  },
   init2: {
     kind: 'scry',
     agent: 'contacts',
     path: '/v2/init',
     since: '12.5.0',
     guardedBy: 'deskSupportsContactRemoval',
+  },
+  discover1: {
+    kind: 'poke',
+    agent: 'contacts',
+    mark: 'contact-discover-1',
+    since: '12.5.0',
+    guardedBy: 'deskSupportsContactDecisions',
   },
   discover: {
     kind: 'poke',

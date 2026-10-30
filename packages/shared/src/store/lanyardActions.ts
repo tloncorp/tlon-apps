@@ -266,10 +266,12 @@ export async function partitionDiscoveryMatches(
   if (isMocked) return { newMatches: matches };
   const contactIds = matches.map((m) => m[1]);
   let removedContactIds = new Set<string>();
+  let declinedContactIds = new Set<string>();
   let contactState: api.ContactState | undefined;
   if (api.getDeskSupportsContactRemovalState() === true) {
     contactState = await api.getContactState();
     removedContactIds = new Set(contactState.removedContactIds);
+    declinedContactIds = new Set(contactState.declinedContactIds ?? []);
   }
   const existingContacts = await db.getContactsBatch({ contactIds });
   const existingById = new Map(existingContacts.map((c) => [c.id, c] as const));
@@ -282,6 +284,7 @@ export async function partitionDiscoveryMatches(
     const authoritative = authoritativeById.get(contactId);
     return (
       !removedContactIds.has(contactId) &&
+      !declinedContactIds.has(contactId) &&
       (!c || !isAlreadyKnownContact(c)) &&
       (!authoritative || !isAlreadyKnownContact(authoritative))
     );

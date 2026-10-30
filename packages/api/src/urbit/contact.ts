@@ -182,3 +182,11 @@ export function isSelfResponse(
 ): response is ContactsSelfResponse1 {
   return 'self' in response;
 }
+
+export type ContactsInit2 = {
+  directory: ContactsDirectoryScryResult1;
+  book: ContactBookScryResult1;
+  removed: string[];
+};
+
+export type ContactsInit3 = ContactsInit2 & { declined: string[] };

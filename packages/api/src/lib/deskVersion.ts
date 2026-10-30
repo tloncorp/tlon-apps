@@ -91,3 +91,6 @@ export const STEWARD_BOTS_MIN_GROUPS_VERSION = '12.5.0';
 
 // Contacts removal history and conditional discovery prevent automatic re-adds.
 export const CONTACT_REMOVAL_MIN_GROUPS_VERSION = '12.5.0';
+
+// Complete Decline enforcement and authoritative intent reads.
+export const CONTACT_DECISIONS_MIN_GROUPS_VERSION = '12.5.0';

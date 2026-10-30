@@ -13,7 +13,11 @@ import {
   scryRequest,
   subscribeRequest,
 } from './requests';
-import { getCurrentUserId, getDeskSupportsContactRemovalState } from './urbit';
+import {
+  getCurrentUserId,
+  getDeskSupportsContactRemovalState,
+  getDeskSupportsContactDecisionsState,
+} from './urbit';
 import { normalizeUrbitColor } from './utils';
 
 const logger = createDevLogger('contactsApi', false);
@@ -21,17 +25,20 @@ const logger = createDevLogger('contactsApi', false);
 export type ContactState = {
   contacts: db.Contact[];
   removedContactIds: string[];
+  declinedContactIds?: string[];
+  hiddenSuggestionIds?: string[];
 };
 
 export const getContactState = async (): Promise<ContactState> => {
-  const init =
-    getDeskSupportsContactRemovalState() === true
-      ? await scryRequest(contacts.init2)<{
-          directory: ub.ContactsDirectoryScryResult1;
-          book: ub.ContactBookScryResult1;
-          removed: string[];
-        }>({})
+  const decisionState =
+    getDeskSupportsContactDecisionsState() === true
+      ? await getContactDecisionInit()
       : null;
+  const init =
+    decisionState ??
+    (getDeskSupportsContactRemovalState() === true
+      ? await scryRequest(contacts.init2)<ub.ContactsInit2>({})
+      : null);
   const directoryResponse =
     init?.directory ??
     (await scryRequest(contacts.directory)<ub.ContactsDirectoryScryResult1>(
@@ -44,15 +51,30 @@ export const getContactState = async (): Promise<ContactState> => {
     string[]
   >({});
 
+  const declinedContactIds = decisionState?.declined ?? [];
+  const hiddenSuggestionIds =
+    getDeskSupportsContactDecisionsState() === true
+      ? await scryRequest(groupsUi.hiddenSuggestionIds)<string[]>({})
+      : [];
   return {
     contacts: toContactsData({
       directoryResponse,
       contactsResponse,
       suggestionsResponse,
       removedContactIds: init?.removed,
+      declinedContactIds,
     }),
     removedContactIds: init?.removed ?? [],
+    declinedContactIds,
+    hiddenSuggestionIds,
   };
+};
+
+const getContactDecisionInit = () =>
+  scryRequest(contacts.init3)<ub.ContactsInit3>({});
+
+export const probeContactDecisions = async () => {
+  await getContactDecisionInit();
 };
 
 export const getContacts = async () => (await getContactState()).contacts;
@@ -62,14 +84,19 @@ export const toContactsData = ({
   contactsResponse,
   suggestionsResponse,
   removedContactIds,
+  declinedContactIds,
 }: {
   directoryResponse: ub.ContactsDirectoryScryResult1;
   contactsResponse: ub.ContactBookScryResult1;
   suggestionsResponse: string[];
   removedContactIds?: string[];
+  declinedContactIds?: string[];
 }) => {
   const skipContacts = new Set(Object.keys(contactsResponse));
-  const contactSuggestions = new Set(suggestionsResponse);
+  const declined = new Set(declinedContactIds);
+  const contactSuggestions = new Set(
+    suggestionsResponse.filter((id) => !declined.has(id))
+  );
 
   const peerProfiles = directoryToClientProfiles(directoryResponse, {
     userIdsToOmit: skipContacts,
@@ -84,6 +111,7 @@ export const toContactsData = ({
   for (const id of new Set([
     ...suggestionsResponse,
     ...(removedContactIds ?? []),
+    ...(declinedContactIds ?? []),
   ])) {
     if (!byId.has(id)) {
       const contact: db.Contact = {
@@ -122,6 +150,9 @@ export const directoryToClientProfiles = (
 };
 
 export const removeContactSuggestion = async (contactId: string) => {
+  if (getDeskSupportsContactDecisionsState() === true) {
+    return pokeRequest(contacts.decline)(contactId);
+  }
   return pokeRequest(groupsUi.hideContact)(contactId);
 };
 
@@ -191,7 +222,16 @@ export const addUserContacts = async (contactIds: string[]) => {
   return Promise.all(promises);
 };
 
-export const discoverContact = async (contactId: string) => {
+export const discoverContact = async (
+  contactId: string,
+  nickname?: string | null
+) => {
+  if (getDeskSupportsContactDecisionsState() === true) {
+    return pokeRequest(contacts.discover1)({
+      kip: contactId,
+      nickname: nickname ?? null,
+    });
+  }
   if (getDeskSupportsContactRemovalState() === true) {
     return pokeRequest(contacts.discover)(contactId);
   }

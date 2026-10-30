@@ -5,6 +5,7 @@ import {
   getDeskSupportsBuckets,
   getDeskSupportsContactRemoval,
   getDeskSupportsContactRemovalState,
+  getDeskSupportsContactDecisionsState,
   internalConfigureClient,
   internalRemoveClient,
   poke,
@@ -14,6 +15,7 @@ import {
   scryNoun,
   setDeskSupportsBuckets,
   setDeskSupportsContactRemoval,
+  setDeskSupportsContactDecisions,
   setDeskSupportsStewardBots,
   subscribe,
   thread,
@@ -58,6 +60,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   setDeskSupportsBuckets(null);
   setDeskSupportsContactRemoval(null);
+  setDeskSupportsContactDecisions(null);
 });
 
 test('caller options cannot change the declared request', async () => {
@@ -373,8 +376,31 @@ test('contact removal capability resets when the client session ends', () => {
   expect(getDeskSupportsContactRemoval()).toBe(false);
   setDeskSupportsContactRemoval(true);
   expect(getDeskSupportsContactRemoval()).toBe(true);
+  setDeskSupportsContactDecisions(true);
   internalRemoveClient();
   vi.unstubAllGlobals();
   expect(getDeskSupportsContactRemovalState()).toBe(null);
+  expect(getDeskSupportsContactDecisionsState()).toBe(null);
   expect(getDeskSupportsContactRemoval()).toBe(false);
+});
+
+test('complete contact decision requests have a distinct guard from removal-only support', async () => {
+  setDeskSupportsContactRemoval(true);
+  setDeskSupportsContactDecisions(false);
+  expect(() => scryRequest(contacts.init3)({})).toThrow(DeskUnsupportedError);
+  expect(() => pokeRequest(contacts.decline)('~nec')).toThrow(
+    DeskUnsupportedError
+  );
+  expect(() =>
+    pokeRequest(contacts.discover1)({ kip: '~nec', nickname: null })
+  ).toThrow(DeskUnsupportedError);
+  expect(calls(scry)).toEqual([]);
+  expect(calls(poke)).toEqual([]);
+  setDeskSupportsContactDecisions(true);
+  await scryRequest(contacts.init3)({});
+  await pokeRequest(contacts.decline)('~nec');
+  expect(calls(scry)).toEqual([[{ app: 'contacts', path: '/v3/init' }]]);
+  expect(calls(poke)).toEqual([
+    [{ app: 'contacts', mark: 'contact-decline-1', json: '~nec' }],
+  ]);
 });
