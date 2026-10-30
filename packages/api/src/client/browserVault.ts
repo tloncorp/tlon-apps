@@ -5,6 +5,7 @@ import { isTrustedBrowserViewerHost } from './browserSession';
 import {
   browserOwnerRequest,
   browserOwnerSessionMoon,
+  BrowserOwnerRequestError,
 } from './browserOwnerSession';
 import { getBrowserVaultOwnerAuthorization } from './urbit';
 
@@ -76,7 +77,15 @@ export async function browserVaultOwnerRequest(
       'Saved logins require a trusted browser host in this environment.'
     );
   const moon = browserOwnerSessionMoon(endpoint);
-  if (moon) return browserOwnerRequest(endpoint, moon, 'POST', body, signal);
+  if (moon) {
+    try {
+      return await browserOwnerRequest(endpoint, moon, 'POST', body, signal);
+    } catch (error) {
+      if (error instanceof BrowserOwnerRequestError)
+        throw new BrowserVaultRequestError(error.status);
+      throw error;
+    }
+  }
   const { planet, ownerToken } = await getBrowserVaultOwnerAuthorization();
   if (signal?.aborted) throw new Error('Canceled');
   const response = await fetch(url.toString(), {
