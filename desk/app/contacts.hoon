@@ -9,7 +9,7 @@
 ::
 /-  activity-ver
 /+  default-agent, dbug, verb, neg=negotiate,
-    guard
+    guard, logs
 /+  *contacts, kol
 ::
 ::  performance, keep warm
@@ -36,6 +36,15 @@
       last-updated=(list [=kip =time])
       retry=(map ship @da)  ::  retry sub at time
   ==
++$  state-5
+  $:  %5
+      rof=profile
+      =book
+      =peers
+      last-updated=(list [=kip =time])
+      removed=(map ship ?)
+      retry=(map ship @da)  ::  retry sub at time
+  ==
 --
 %-  %^  agent:neg
         notify=|
@@ -44,7 +53,7 @@
 %-  agent:dbug
 %^  verb  |  %warn
 ^-  agent:gall
-=|  state-4
+=|  state-5
 =*  state  -
 =<  |_  =bowl:gall
     +*  this  .
@@ -258,8 +267,11 @@
     ++  p-commit-page
       |=  [=kip =page]
       ~>  %spin.['p-commit-page']
+      =?  removed  ?=(ship kip)  (~(del by removed) kip)
       =.  book  (~(put by book) kip page)
-      (p-response [%page kip page])
+      =.  cor  (p-response [%page kip page])
+      ?.  ?=(ship kip)  cor
+      (emit %pass /removed-suggestion %agent [our.bowl %groups-ui] %poke ui-hide-contact+kip)
     ::  +p-commit-edit: publish contact page update
     ::
     ++  p-commit-edit
@@ -273,6 +285,8 @@
     ++  p-commit-wipe
       |=  =kip
       ~>  %spin.['p-commit-wipe']
+      =?  removed  &(?=(ship kip) !(~(has by removed) kip))
+        (~(put by removed) kip |)
       =.  book
         (~(del by book) kip)
       (p-response [%wipe kip])
@@ -546,7 +560,8 @@
           cor
         =?  old  ?=(%2 -.old)  (state-2-to-3 old)
         =?  old  ?=(%3 -.old)  (state-3-to-4 old)
-        ?>  ?=(%4 -.old)
+        =?  old  ?=(%4 -.old)  (state-4-to-5 old)
+        ?>  ?=(%5 -.old)
         =.  state  old
         inflate-io
     ::
@@ -574,12 +589,16 @@
           retry=(map ship @da)  ::  retry sub at time
       ==
     +$  versioned-state
-      $%  state-4
+      $%  state-5
+          state-4
           state-3
           state-2
           state-1
           state-0
       ==
+    ::
+    ++  state-4-to-5
+      |=(state-4 [%5 rof book peers last-updated ~ retry])
     ::
     ++  state-3-to-4
       |=  state-3
@@ -691,6 +710,20 @@
     ~>  %spin.['poke']
     ^+  cor
     ?+    mark  ~|(bad-mark+mark !!)
+        %contact-discover
+      ?>  =(our src):bowl
+      =/  who=ship  !<(ship vase)
+      ?:  (~(has by removed) who)  (suggest-removed who)
+      ?:  (~(has by book) who)  cor
+      (poke %contact-action-1 !>(`action`[%page who ~]))
+      ::
+        %contact-remove
+      ?>  =(our src):bowl
+      =+  !<([who=ship suggest=?] vase)
+      =.  cor  (poke %contact-action-1 !>(`action`[%wipe ~[who]]))
+      ?:  suggest  (suggest-removed who)
+      cor
+      ::
         %noun
       ?+  q.vase  !!
         %migrate  migrate
@@ -742,6 +775,37 @@
       |=  [=kip =_last-updated]
       (~(put ol last-updated) kip now.bowl)
     ==
+  ++  suggest-removed
+    |=  who=ship
+    ^+  cor
+    ?:  (~(got by removed) who)  cor
+    =.  removed  (~(put by removed) who &)
+    (emit %pass /removed-suggestion %agent [our.bowl %groups-ui] %poke ui-suggest-contact+who)
+  ::
+  ++  get-directory
+    ^-  directory
+    =|  dir=directory
+    ::  export self
+    ::
+    =.  dir  (~(put by dir) our.bowl [& con.rof ~])
+    ::  export all ship contacts
+    ::
+    =.  dir
+      %-  ~(rep by book)
+      |=  [[=kip =page] =_dir]
+      ?^  kip  dir
+      =*  who  kip
+      (~(put by dir) who [& page])
+    ::  export all peers skipping contacts
+    ::
+    =.  dir
+      %-  ~(rep by peers)
+      |=  [[who=ship far=foreign] =_dir]
+      ?~  for.far  dir
+      ?:  (~(has by dir) who)  dir
+      (~(put by dir) who [| con.for.far ~])
+    dir
+  ::
   ::  +peek: scry
   ::
   ::  v0 scries
@@ -823,28 +887,17 @@
         (~(get by book) id+u.id)
       ``contact-page-0+`^page`(fall page *^page)
       ::
+        [%x %v2 %init ~]
+      =/  init=json
+        %-  pairs:enjs:format
+        :~  'directory'^(directory:enjs:j1 get-directory)
+            'book'^(book:enjs:j1 book)
+            'removed'^a/(turn ~(tap in ~(key by removed)) |=(who=ship s+(scot %p who)))
+        ==
+      ``json+init
+      ::
         [%x %v1 %directory ~]
-      =|  dir=directory
-      ::  export self
-      ::
-      =.  dir  (~(put by dir) our.bowl [& con.rof ~])
-      ::  export all ship contacts
-      ::
-      =.  dir
-        %-  ~(rep by book)
-        |=  [[=kip =page] =_dir]
-        ?^  kip  dir
-        =*  who  kip
-        (~(put by dir) who [& page])
-      ::  export all peers skipping contacts
-      ::
-      =.  dir
-        %-  ~(rep by peers)
-        |=  [[who=ship far=foreign] =_dir]
-        ?~  for.far  dir
-        ?:  (~(has by dir) who)  dir
-        (~(put by dir) who [| con.for.far ~])
-      ``contact-directory-0+dir
+      ``contact-directory-0+get-directory
       ::
         [%x %v1 %changes since=@ ~]
       =+  since=(slav %da since.pat)
@@ -932,6 +985,17 @@
     ?+    wire  ~|(evil-agent+wire !!)
         [%contact ~]
       si-abet:(si-take:(sub src.bowl) wire sign)
+      ::
+        [%logs ~]
+      cor
+      ::
+        [%removed-suggestion ~]
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign  cor
+      =/  log  ~(. logs [bowl /logs])
+      =/  card=card:agent:gall
+        (fail:log %error ~['removed contact suggestion failed'] u.p.sign ~)
+      (emit (unsafe:guard card))
       ::
         [%migrate ~]
       ?>  ?=(%poke-ack -.sign)

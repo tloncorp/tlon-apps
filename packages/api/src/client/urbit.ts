@@ -68,6 +68,7 @@ interface Config extends Pick<ClientParams, 'onQuitOrReset'> {
   lastStatus: string;
   activitySupportsReactions: boolean;
   activitySupportsNotes: boolean;
+  deskSupportsContactRemoval: boolean | null;
   deskSupportsBuckets: boolean | null;
   deskSupportsAutomations: boolean | null;
   deskSupportsStewardPrompts: boolean | null;
@@ -198,6 +199,7 @@ const config: Config = {
   // whose version we cannot read is asked for /v10, which every backend has —
   // a 404 there costs the whole init. Guarded requests refuse only false.
   deskSupportsBuckets: null,
+  deskSupportsContactRemoval: null,
   // Unknown (null) until the app confirms the backend's groups version.
   // Guarded requests refuse only false.
   deskSupportsAutomations: null,
@@ -467,6 +469,18 @@ export const onDeskSupportsStewardPromptsChange = (
   };
 };
 
+export const setDeskSupportsContactRemoval = (value: boolean | null) => {
+  config.deskSupportsContactRemoval = value;
+};
+
+export const getDeskSupportsContactRemoval = (): boolean => {
+  return config.deskSupportsContactRemoval === true;
+};
+
+export const getDeskSupportsContactRemovalState = (): boolean | null => {
+  return config.deskSupportsContactRemoval;
+};
+
 const deskSupportsTaskRunsListeners = new Set<() => void>();
 
 // Whether the connected backend's %steward pages a task's runs and relays
@@ -663,6 +677,7 @@ export function internalRemoveClient() {
   // login's guarded requests go out until the probe says otherwise.
   setActivitySupportsReactions(false);
   setActivitySupportsNotes(false);
+  setDeskSupportsContactRemoval(null);
   setDeskSupportsBuckets(null);
   setDeskSupportsAutomations(null);
   setDeskSupportsStewardPrompts(null);

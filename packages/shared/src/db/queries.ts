@@ -6602,6 +6602,24 @@ export const updateContact = createWriteQuery(
   ['contacts']
 );
 
+export const setContactSuggestion = createWriteQuery(
+  'setContactSuggestion',
+  async (
+    { id, isContactSuggestion }: { id: string; isContactSuggestion: boolean },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .update($contacts)
+      .set({
+        isContactSuggestion: isContactSuggestion
+          ? sql<boolean>`not coalesce(${$contacts.isContact}, 0)`
+          : false,
+      })
+      .where(eq($contacts.id, id));
+  },
+  ['contacts']
+);
+
 export const markContactsAsMatched = createWriteQuery(
   'markContactsAsMatched',
   async (
@@ -6662,6 +6680,34 @@ export const resetContactAttestations = createWriteQuery(
     }
   },
   ['contactAttestations']
+);
+
+export const applyContactMembership = createWriteQuery(
+  'applyContactMembership',
+  async (
+    {
+      contact,
+      isCurrent,
+    }: {
+      contact: Pick<Contact, 'id' | 'isContact' | 'isContactSuggestion'>;
+      isCurrent: () => boolean;
+    },
+    ctx: QueryCtx
+  ) =>
+    withTransactionCtx(ctx, async (txCtx) => {
+      if (!isCurrent()) return;
+      await txCtx.db
+        .insert($contacts)
+        .values(contact)
+        .onConflictDoUpdate({
+          target: $contacts.id,
+          set: {
+            isContact: contact.isContact,
+            isContactSuggestion: contact.isContactSuggestion,
+          },
+        });
+    }),
+  ['contacts']
 );
 
 export const upsertContact = createWriteQuery(

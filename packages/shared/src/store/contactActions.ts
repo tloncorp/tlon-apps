@@ -5,26 +5,43 @@ import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import * as GroupActions from './groupActions';
-import { syncContacts } from './sync/syncContacts';
+import * as LocalCache from './cachedData';
+import { syncContactSuggestions, syncContacts } from './sync/syncContacts';
 import { syncGroup } from './sync/syncGroup';
+import { getSystemContacts } from './systemContactsApi';
+import { captureContactIntent, recordContactIntent } from './contactIntent';
 
 const logger = createDevLogger('ContactActions', false);
 
 export async function addContact(contactId: string) {
+  const wasCurrent = captureContactIntent(contactId);
+  const previous = await db.getContact({ id: contactId });
+  if (!wasCurrent() || previous?.isContact) return;
+  recordContactIntent(contactId);
+  const isCurrent = captureContactIntent(contactId);
   logger.trackEvent(AnalyticsEvent.ActionContactAdded, { count: 1 });
-  // Optimistic update
-  await db.upsertContact({
+  const update = {
     id: contactId,
     isContact: true,
     isContactSuggestion: false,
-  });
-
+  };
+  await db.applyContactMembership({ contact: update, isCurrent });
+  if (!isCurrent()) return;
   try {
     await api.addContact(contactId);
+    if (!isCurrent()) return;
+    await db.updateContact(update);
+    if (!isCurrent()) return;
+    const cached = await db.getContacts();
+    if (isCurrent()) LocalCache.cacheContacts(cached);
   } catch (e) {
-    console.error('Error adding contact', e);
-    // Rollback the update
-    await db.updateContact({ id: contactId, isContact: false });
+    if (!isCurrent()) return;
+    logger.trackError('Error adding contact', e);
+    await db.updateContact({
+      id: contactId,
+      isContact: previous?.isContact ?? false,
+      isContactSuggestion: previous?.isContactSuggestion ?? false,
+    });
   }
 }
 
@@ -34,17 +51,48 @@ export type AddContactsResult = {
 };
 
 export async function addContacts(
-  contactIds: string[]
+  contactIds: string[],
+  {
+    source = 'manual',
+    contactState,
+  }: { source?: 'manual' | 'discovery'; contactState?: api.ContactState } = {}
 ): Promise<AddContactsResult> {
   const contacts = [...new Set(contactIds)];
-  logger.trackEvent(AnalyticsEvent.ActionContactAdded, {
-    count: contacts.length,
-  });
+  const intents = new Map(
+    contacts.map((id) => [
+      id,
+      captureContactIntent(id, {
+        includeObservedRemovals: source === 'discovery',
+      }),
+    ])
+  );
+  const isCurrent = (id: string) => intents.get(id)!();
+  if (source === 'manual') {
+    logger.trackEvent(AnalyticsEvent.ActionContactAdded, {
+      count: contacts.length,
+    });
+  }
   const previousContacts = await db.getContactsBatch({ contactIds: contacts });
+  if (!contacts.some(isCurrent))
+    return { addedContactIds: [], failedContactIds: [] };
   const previousById = new Map(previousContacts.map((c) => [c.id, c]));
+  const needsAdd = (id: string) =>
+    isCurrent(id) && (source !== 'manual' || !previousById.get(id)?.isContact);
+  if (source === 'manual') {
+    for (const id of contacts) {
+      if (!needsAdd(id)) continue;
+      recordContactIntent(id);
+      intents.set(id, captureContactIntent(id));
+    }
+  }
+  if (!contacts.some(needsAdd))
+    return {
+      addedContactIds: contacts.filter(isCurrent),
+      failedContactIds: [],
+    };
   const rollback = (contactIds: string[]) =>
     Promise.all(
-      contactIds.map((id) =>
+      contactIds.filter(needsAdd).map((id) =>
         db.updateContact({
           id,
           isContact: previousById.get(id)?.isContact ?? false,
@@ -54,45 +102,56 @@ export async function addContacts(
       )
     );
 
-  // Use upsert (matching the singular addContact) so a contact row is
-  // created locally if one doesn't exist yet. Otherwise downstream
-  // writes that target an existing row by id (e.g. markContactsAsMatched
-  // for the lanyard match flow) silently no-op until %contacts pushes
-  // a subscription event back, by which point the matchedAt window
-  // has already passed.
-  const optimisticUpdates = contacts.map((contactId) =>
-    db.upsertContact({
-      id: contactId,
-      isContact: true,
-      isContactSuggestion: false,
-    })
+  const guardedDiscovery =
+    source === 'discovery' && api.getDeskSupportsContactRemovalState() === true;
+  let existingContacts: db.Contact[] = [];
+  let removedContactIds = new Set<string>();
+  if (guardedDiscovery) {
+    try {
+      const state = contactState ?? (await api.getContactState());
+      existingContacts = state.contacts;
+      removedContactIds = new Set(state.removedContactIds);
+    } catch (error) {
+      logger.trackError('Error reading discovery contact state', error);
+      return { addedContactIds: [], failedContactIds: contacts };
+    }
+  }
+  if (!contacts.some(isCurrent))
+    return { addedContactIds: [], failedContactIds: [] };
+  await Promise.all(
+    contacts
+      .filter((id) => needsAdd(id) && !removedContactIds.has(id))
+      .map((id) =>
+        db.applyContactMembership({
+          contact: { id, isContact: true, isContactSuggestion: false },
+          isCurrent: () => isCurrent(id),
+        })
+      )
   );
-  await Promise.all(optimisticUpdates);
-  logger.log('Optimistic updates complete', {
-    optimisticUpdates,
-    contacts,
-  });
-
-  let existingContacts: db.Contact[];
-  try {
-    // Backend will balk if we try to add the same contact twice, so filter out
-    // any that are already contacts
-    existingContacts = await api.getContacts();
-  } catch (e) {
-    logger.trackError('Error adding contacts', e);
-    await rollback(contacts);
-    return { addedContactIds: [], failedContactIds: contacts };
+  if (!guardedDiscovery) {
+    try {
+      existingContacts = await api.getContacts();
+    } catch (error) {
+      logger.trackError('Error adding contacts', error);
+      await rollback(contacts);
+      return { addedContactIds: [], failedContactIds: contacts };
+    }
   }
 
   const existingIds = new Set(
     existingContacts.filter((c) => c.isContact).map((c) => c.id)
   );
-  const newContacts = contacts.filter((id) => !existingIds.has(id));
+  const newContacts = contacts.filter(
+    (id) => needsAdd(id) && !existingIds.has(id)
+  );
   const results = await Promise.allSettled(
-    newContacts.map((id) => api.addContact(id))
+    newContacts.map((id) =>
+      guardedDiscovery ? api.discoverContact(id) : api.addContact(id)
+    )
   );
   const failedContactIds = results.flatMap((result, index) => {
-    if (result.status === 'fulfilled') return [];
+    if (result.status === 'fulfilled' || !isCurrent(newContacts[index]))
+      return [];
     logger.trackError('Error adding contact', result.reason);
     return [newContacts[index]];
   });
@@ -100,34 +159,150 @@ export async function addContacts(
     await rollback(failedContactIds);
   }
   const failedIds = new Set(failedContactIds);
+  let addedContactIds = contacts.filter(
+    (id) => isCurrent(id) && !failedIds.has(id)
+  );
+  if (addedContactIds.length === 0)
+    return {
+      addedContactIds,
+      failedContactIds: failedContactIds.filter(isCurrent),
+    };
+  if (guardedDiscovery) {
+    try {
+      const state = await api.getContactState();
+      const confirmed = new Map(
+        state.contacts.map((contact) => [contact.id, contact])
+      );
+      for (const id of addedContactIds) {
+        if (!isCurrent(id)) continue;
+        const contact = confirmed.get(id);
+        await db.applyContactMembership({
+          contact: {
+            id,
+            isContact: contact?.isContact ?? false,
+            isContactSuggestion: contact?.isContactSuggestion ?? false,
+          },
+          isCurrent: () => isCurrent(id),
+        });
+      }
+      const savedIds = new Set(
+        state.contacts.filter((c) => c.isContact).map((c) => c.id)
+      );
+      addedContactIds = addedContactIds.filter(
+        (id) => isCurrent(id) && savedIds.has(id)
+      );
+    } catch (e) {
+      if (addedContactIds.some(isCurrent))
+        logger.trackError('Error confirming discovered contacts', e);
+      await rollback(addedContactIds);
+      failedContactIds.push(...addedContactIds.filter(isCurrent));
+      addedContactIds = [];
+    }
+  } else {
+    await Promise.all(
+      addedContactIds.filter(needsAdd).map((id) =>
+        db.updateContact({
+          id,
+          isContact: true,
+          isContactSuggestion: false,
+        })
+      )
+    );
+  }
+  const currentContacts = await db.getContactsBatch({
+    contactIds: addedContactIds,
+  });
+  const currentlySaved = new Set(
+    currentContacts.filter((c) => c.isContact).map((c) => c.id)
+  );
+  addedContactIds = addedContactIds.filter(
+    (id) => isCurrent(id) && currentlySaved.has(id)
+  );
+  if (source === 'discovery' && addedContactIds.length > 0) {
+    logger.trackEvent(AnalyticsEvent.ActionContactAdded, {
+      count: addedContactIds.length,
+    });
+  }
   return {
-    addedContactIds: contacts.filter((id) => !failedIds.has(id)),
-    failedContactIds,
+    addedContactIds,
+    failedContactIds: failedContactIds.filter(isCurrent),
   };
 }
 
 export async function removeContact(contactId: string) {
+  recordContactIntent(contactId);
+  const isCurrent = captureContactIntent(contactId);
   logger.trackEvent(AnalyticsEvent.ActionContactRemoved, { count: 1 });
-  // Optimistic update
-  await db.updateContact({ id: contactId, isContact: false });
-
+  const previous = await db.getContact({ id: contactId });
+  if (!isCurrent()) return;
+  let suggest = false;
   try {
-    await api.removeContact(contactId);
+    const linked = await db.getSystemContactsBatchByContactId([contactId]);
+    if (!isCurrent()) return;
+    const liveBook = await getSystemContacts();
+    if (!isCurrent()) return;
+    const liveNumbers = new Set(
+      liveBook.map((c) => c.phoneNumber).filter(Boolean)
+    );
+    suggest = linked.some(
+      (c) => !!c.phoneNumber && liveNumbers.has(c.phoneNumber)
+    );
   } catch (e) {
-    console.error('Error removing contact', e);
-    // Rollback the update
-    await db.updateContact({ id: contactId, isContact: true });
+    if (!isCurrent()) return;
+    logger.trackError('Error looking up removed contact in address book', e);
   }
+  if (!isCurrent()) return;
+  await db.updateContact({
+    id: contactId,
+    isContact: false,
+    isContactSuggestion: false,
+  });
+  if (!isCurrent()) return;
+  try {
+    await api.removeContact(contactId, suggest);
+  } catch (e) {
+    if (!isCurrent()) return;
+    logger.trackError('Error removing contact', e);
+    await db.updateContact({
+      id: contactId,
+      isContact: previous?.isContact ?? false,
+      isContactSuggestion: previous?.isContactSuggestion ?? false,
+      customNickname: previous?.customNickname,
+      customAvatarImage: previous?.customAvatarImage,
+    });
+    return;
+  }
+  if (!isCurrent()) return;
+  await db.updateContact({
+    id: contactId,
+    isContact: false,
+  });
+  if (!isCurrent()) return;
+  if (suggest) {
+    try {
+      await syncContactSuggestions([contactId]);
+    } catch (e) {
+      if (!isCurrent()) return;
+      logger.trackError('Error refreshing removed contact suggestion', e);
+    }
+  }
+  if (!isCurrent()) return;
+  const contacts = await db.getContacts();
+  if (isCurrent()) LocalCache.cacheContacts(contacts);
 }
 
 export async function removeContactSuggestion(contactId: string) {
+  recordContactIntent(contactId);
+  const isCurrent = captureContactIntent(contactId);
   logger.trackEvent(AnalyticsEvent.ActionRemoveContactSuggestion, { count: 1 });
   // Optimistic update
   await db.updateContact({ id: contactId, isContactSuggestion: false });
 
+  if (!isCurrent()) return;
   try {
     await api.removeContactSuggestion(contactId);
   } catch (e) {
+    if (!isCurrent()) return;
     // Rollback the update
     console.error('Error removing contact suggestion', e);
     await db.updateContact({ id: contactId, isContactSuggestion: true });
@@ -135,21 +310,11 @@ export async function removeContactSuggestion(contactId: string) {
 }
 
 export async function addContactSuggestions(contactIds: string[]) {
-  // optimistic update
-  const contacts = await db.getContacts();
-  const toUpdate = contacts.filter(
-    (c) => contactIds.includes(c.id) && !c.isContact
-  );
-  const optimisticUpdates = toUpdate.map((contact) =>
-    db.updateContact({ id: contact.id, isContactSuggestion: true })
-  );
-  await Promise.all(optimisticUpdates);
-
   try {
     await api.addContactSuggestions(contactIds);
+    await syncContactSuggestions(contactIds);
   } catch (e) {
-    // Intentionally unhandled, make a best effort to persist the suggestions
-    // failure is acceptable
+    logger.trackError('Error adding contact suggestions', e);
   }
 }
 
@@ -288,7 +453,8 @@ export async function updateContactMetadata(
   metadata: {
     nickname?: string | null;
     avatarImage?: string | null;
-  }
+  },
+  isCurrent: () => boolean = () => true
 ) {
   logger.trackEvent(AnalyticsEvent.ActionContactEdited, {
     hasCustomNickname: !!metadata.nickname,
@@ -297,6 +463,7 @@ export async function updateContactMetadata(
   const { nickname, avatarImage } = metadata;
 
   const existingContact = await db.getContact({ id: contactId });
+  if (!isCurrent()) return true;
 
   // optimistic update
   await db.updateContact({
@@ -305,6 +472,7 @@ export async function updateContactMetadata(
     customAvatarImage: avatarImage,
   });
 
+  if (!isCurrent()) return true;
   try {
     await api.updateContactMetadata(contactId, {
       nickname: nickname ? nickname : nickname === null ? '' : undefined,
@@ -316,6 +484,7 @@ export async function updateContactMetadata(
     });
     return true;
   } catch (e) {
+    if (!isCurrent()) return true;
     logger.trackError('Error updating contact metadata', e);
     // rollback the update
     await db.updateContact({
