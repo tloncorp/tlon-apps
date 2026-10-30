@@ -51,8 +51,8 @@ vi.mock('../../hooks/useNag', () => ({
 vi.mock('../../lib/notifications', () => ({
   useNotificationPermissions: vi.fn(),
 }));
-vi.mock('../../navigation/useTopLevelTabBarContentInset', () => ({
-  useTopLevelTabBarContentInset: () => 0,
+vi.mock('../../navigation/useTopLevelContentInset', () => ({
+  useTopLevelContentInset: () => 0,
 }));
 
 import { ContactBookPrompt } from './SystemNotices';
