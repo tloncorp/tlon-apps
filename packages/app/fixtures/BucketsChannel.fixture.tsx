@@ -1,12 +1,15 @@
 import * as db from '@tloncorp/shared/db';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Linking, useWindowDimensions } from 'react-native';
 
+import { useBucketPreview } from '../features/buckets/useBucketPreview';
+import { toViewerItem } from '../features/buckets/BucketsLiveChannel';
 import { imagePickerAssetsToBucketUploadCandidates } from '../features/buckets/bucketMediaPicker';
 import {
   BucketFileViewer,
+  BucketFileViewerItem,
   BucketItem,
   BucketSearchResult,
   BucketUploadCandidate,
@@ -685,7 +688,150 @@ function RegisteredHeaderActions({
   return null;
 }
 
+const previewFiles: BucketFileViewerItem[] = [
+  {
+    id: 'photo',
+    name: 'Garden.jpg',
+    mimeType: 'image/jpeg',
+    sizeLabel: '1.2 MB',
+    uri: 'https://d2w9rnfcy7mm78.cloudfront.net/25296321/original_81eb3ac8a95ce36dc8d64b1038234ec8.jpg',
+  },
+  {
+    id: 'audio',
+    name: 'Recording.mp3',
+    mimeType: 'audio/mpeg',
+    sizeLabel: '39 KB',
+    uri: 'https://interactive-examples.mdn.mozilla.net/media/cc0-audio/t-rex-roar.mp3',
+  },
+  {
+    id: 'archive',
+    name: 'Project-assets.zip',
+    mimeType: 'application/zip',
+    sizeLabel: '12.4 MB',
+    uri: 'data:application/zip;base64,AA==',
+  },
+  {
+    id: 'notes',
+    name: 'Notes.txt',
+    mimeType: 'text/plain',
+    sizeLabel: '42 B',
+    textContent: 'Files can be browsed without leaving the preview.',
+    uri: 'data:text/plain,Files',
+  },
+];
+
+function PreviewFilesFixture({
+  initialIndex = 0,
+  readDelay = 0,
+}: {
+  initialIndex?: number;
+  readDelay?: number;
+}) {
+  const [index, setIndex] = useState(initialIndex);
+  const [readyIndex, setReadyIndex] = useState(initialIndex);
+  useEffect(() => {
+    if (!readDelay) return;
+    const timer = setTimeout(() => setReadyIndex(index), readDelay);
+    return () => clearTimeout(timer);
+  }, [index, readDelay]);
+  const loading = readDelay > 0 && readyIndex !== index;
+  const { height } = useWindowDimensions();
+  return (
+    <FixtureWrapper fillWidth fillHeight>
+      <YStack width="100%" height={height}>
+        <BucketFileViewer
+          item={{
+            ...previewFiles[index],
+            uri: loading ? undefined : previewFiles[index].uri,
+          }}
+          loading={loading}
+          navigation={{ items: previewFiles, index, onSelect: setIndex }}
+          onClose={() => setIndex(0)}
+          onOpenExternally={() => Linking.openURL(previewFiles[index].uri!)}
+        />
+      </YStack>
+    </FixtureWrapper>
+  );
+}
+
+const cacheFixtureFiles = [
+  ...previewFiles,
+  {
+    id: 'pdf',
+    name: 'Preview.pdf',
+    mimeType: 'application/pdf',
+    uri: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+  },
+  {
+    id: 'video',
+    name: 'Demo.mp4',
+    mimeType: 'video/mp4',
+    uri: 'https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4',
+  },
+];
+
+const cachedPreviewFiles: BucketItem[] = cacheFixtureFiles.map(
+  (item, index) => ({
+    ...item,
+    id: String(index),
+    kind: 'file',
+    author: '~zod',
+    modifiedLabel: 'Just now',
+  })
+);
+
+function CachedPreviewFilesFixture() {
+  const preview = useBucketPreview(async (id) => {
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    return {
+      readUrl: cacheFixtureFiles[id].uri!,
+      expiresAt: new Date(Date.now() + 300_000).toISOString(),
+    };
+  }, 'fixture/cached-previews');
+  const requested = useRef(false);
+  const { load } = preview;
+  useEffect(() => {
+    if (requested.current) return;
+    requested.current = true;
+    void load(cachedPreviewFiles[0]);
+  }, [load]);
+  const { height } = useWindowDimensions();
+  const item = preview.item ?? cachedPreviewFiles[0];
+  return (
+    <FixtureWrapper fillWidth fillHeight>
+      <YStack width="100%" height={height}>
+        <BucketFileViewer
+          item={toViewerItem(item)}
+          loading={!preview.item || preview.loading}
+          error={preview.error}
+          navigation={{
+            items: cachedPreviewFiles.map((file) =>
+              toViewerItem(preview.getCached(file) ?? file)
+            ),
+            index: Number(item.id),
+            onSelect: (index) => {
+              void preview.load(cachedPreviewFiles[index]);
+            },
+          }}
+          onClose={preview.close}
+          onImageLoad={() => preview.markImageLoaded(item)}
+          onPreviewError={() => preview.invalidate(item)}
+          onRetry={() => {
+            void preview.load(item, { refresh: true });
+          }}
+          onOpenExternally={preview.openExternally}
+        />
+      </YStack>
+    </FixtureWrapper>
+  );
+}
+
 export default {
+  'File previews': <PreviewFilesFixture />,
+  'Cached file previews': <CachedPreviewFilesFixture />,
+  'Header transitions': <PreviewFilesFixture readDelay={600} />,
+  'Audio preview': <PreviewFilesFixture initialIndex={1} />,
+  'Unsupported preview': <PreviewFilesFixture initialIndex={2} />,
   Mobile: <BucketsFixture viewport="mobile" />,
   'Mobile folder': (
     <BucketsFixture viewport="mobile" initialFolderId="launch" />

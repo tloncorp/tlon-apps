@@ -49,6 +49,7 @@ import { bucketLinkCopiedMessage, copyPendingText } from './bucketLinkCopy';
 import { imagePickerAssetsToBucketUploadCandidates } from './bucketMediaPicker';
 import { findUploadShadowEntryIds } from './bucketUploadReconciliation';
 import { useBucketPreview } from './useBucketPreview';
+import { getBucketPreviewFiles } from './bucketPreviewFiles';
 import {
   formatBucketTimestamp,
   formatFileSize,
@@ -89,6 +90,10 @@ export function toItem(
     // Files are always fetched through a short-lived read grant, so there is
     // no URL to show until one is issued.
     previewUri: undefined,
+    previewCacheKey: JSON.stringify([
+      entry.file.objectKey,
+      entry.file.checksum,
+    ]),
     size: entry.file.size,
     sizeLabel: formatFileSize(entry.file.size),
     uploadSize: entry.file.status === 'pending' ? entry.file.size : undefined,
@@ -165,8 +170,13 @@ export function BucketsLiveChannel({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchOrigin, setSearchOrigin] = useState<SearchOrigin | null>(null);
   const [query, setQuery] = useState('');
-  const preview = useBucketPreview(live.readGrant);
+  const preview = useBucketPreview(live.readGrant, `${flag.host}/${flag.name}`);
   const previewItem = preview.item;
+  const previewFiles = previewItem
+    ? getBucketPreviewFiles(live.entries, Number(previewItem.id)).map((entry) =>
+        toItem(entry)
+      )
+    : [];
   const [operationError, setOperationError] = useState<string | null>(null);
   const [folderPendingDeletion, setFolderPendingDeletion] =
     useState<BucketItem | null>(null);
@@ -614,9 +624,26 @@ export function BucketsLiveChannel({
             error={preview.error}
             item={toViewerItem(previewItem)}
             loading={preview.loading}
+            navigation={{
+              items: previewFiles.map((file) =>
+                toViewerItem(preview.getCached(file) ?? file)
+              ),
+              index: previewFiles.findIndex(
+                (file) => file.id === previewItem.id
+              ),
+              onSelect: (index) => {
+                const file = previewFiles[index];
+                if (file) {
+                  setSelectedItemId(file.id);
+                  void preview.load(file);
+                }
+              },
+            }}
             onClose={preview.close}
+            onImageLoad={() => preview.markImageLoaded(previewItem)}
+            onPreviewError={() => preview.invalidate(previewItem)}
             onOpenExternally={preview.openExternally}
-            onRetry={() => void preview.load(previewItem)}
+            onRetry={() => void preview.load(previewItem, { refresh: true })}
           />
         ) : searchOpen ? (
           <BucketsSearchScreen
@@ -749,11 +776,15 @@ export function BucketsLiveChannel({
 
 export function toViewerItem(item: BucketItem) {
   return {
+    id: item.id,
+    size: item.size,
     name: item.name,
     mimeType: item.mimeType,
     sizeLabel: item.sizeLabel,
     textContent: item.textContent,
     uri: item.previewUri,
+    cached: item.previewCached,
+    imageLoaded: item.previewImageLoaded,
   };
 }
 
