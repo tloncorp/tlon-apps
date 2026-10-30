@@ -227,7 +227,7 @@ export function setClientResolver(resolver: ClientResolver | null): void {
 }
 
 /** Derive a short-lived owner proof from the authenticated ship session. */
-export async function getBrowserVaultOwnerAuthorization() {
+export async function getBrowserVaultOwnerAuthorization(issuedAt = Date.now()) {
   const session = config.session;
   if (!session || session.loggingOut)
     throw new Error('Owner authentication is unavailable.');
@@ -239,7 +239,7 @@ export async function getBrowserVaultOwnerAuthorization() {
     throw new Error('Owner authentication is unavailable.');
   return {
     planet: session.shipName.replace(/^~/, ''),
-    ownerToken: deriveBrowserOwnerToken(code),
+    ownerToken: deriveBrowserOwnerToken(code, issuedAt),
   };
 }
 
@@ -284,6 +284,14 @@ export const setActivitySupportsReactions = (value: boolean) => {
     bumpActivityCapabilitiesEpoch();
   }
 };
+
+const clientSessionListeners = new Set<() => void>();
+export function onClientSessionChange(listener: () => void): () => void {
+  clientSessionListeners.add(listener);
+  return () => {
+    clientSessionListeners.delete(listener);
+  };
+}
 
 // The generation of the currently configured session. Read this immediately
 // before acting on something a reauth produced -- with no await in between --
@@ -577,6 +585,7 @@ export function internalConfigureClient({
       loggingOut: false,
     };
     config.sessionGeneration += 1;
+    clientSessionListeners.forEach((listener) => listener());
   }
   config.onQuitOrReset = onQuitOrReset;
   config.subWatchers = {};
@@ -655,6 +664,7 @@ export function internalRemoveClient() {
   // the configured one and stops; see reauth and performReauth
   config.session = null;
   config.sessionGeneration += 1;
+  clientSessionListeners.forEach((listener) => listener());
   config.subWatchers = {};
   // backend capabilities belong to the ship we were connected to; reset
   // so an account switch to an older backend doesn't request newer

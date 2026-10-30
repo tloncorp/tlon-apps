@@ -86,6 +86,25 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('browser session handoff', () => {
+  it('uses a prepared form without selecting its inputs again', async () => {
+    const formId = '123e4567-e89b-42d3-a456-426614174000';
+    const url = viewerUrl('session-viewer', Date.now() + 300000, formId);
+    reply({ session_id: handle, viewer_url: url });
+    await runBrowserSessionHandoff(
+      'tlon',
+      ['browser', 'approve-login', handle, '--form-id', formId],
+      config
+    );
+    expect(
+      JSON.parse(urbitFetch.mock.calls[0][0].init.body).params.arguments
+    ).toEqual({ session_id: handle, action: 'prepare_form', form_id: formId });
+    expect(runBrowserHandoffCommand).toHaveBeenCalledWith(
+      'tlon',
+      ['browser', 'approve-login', url, '--service-result'],
+      config
+    );
+  });
+
   it('passes service-provided presentation to the private delivery command', async () => {
     const url = viewerUrl(
       'session-viewer',

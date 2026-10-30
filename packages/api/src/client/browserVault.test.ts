@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   apiUrl: 'https://test.tlon.systems',
 }));
 vi.mock('./urbit', () => ({
+  onClientSessionChange: vi.fn(),
+  getClientGeneration: () => 0,
   getBrowserVaultOwnerAuthorization: () => mocks.authorize(),
 }));
 vi.mock('../types', () => ({

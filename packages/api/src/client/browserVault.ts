@@ -2,10 +2,14 @@ import { z } from 'zod';
 
 import { getConstants } from '../types';
 import { isTrustedBrowserViewerHost } from './browserSession';
+import {
+  browserOwnerRequest,
+  browserOwnerSessionMoon,
+} from './browserOwnerSession';
 import { getBrowserVaultOwnerAuthorization } from './urbit';
 
 export const savedBrowserLoginSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().min(1).max(128),
   origin: z.string().url(),
   revision: z.number().int().positive(),
   updatedAt: z.number(),
@@ -18,9 +22,12 @@ export type BrowserLoginChoice = Pick<SavedBrowserLogin, 'id' | 'revision'>;
 
 export async function authorizeBrowserLoginHandoff(
   endpoint: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  botMoon?: string
 ) {
-  const result = await browserVaultOwnerRequest(endpoint, {}, signal);
+  const result = botMoon
+    ? await browserOwnerRequest(endpoint, botMoon, 'POST', {}, signal)
+    : await browserVaultOwnerRequest(endpoint, {}, signal);
   const parsed = z
     .object({
       grant: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
@@ -68,6 +75,8 @@ export async function browserVaultOwnerRequest(
     throw new Error(
       'Saved logins require a trusted browser host in this environment.'
     );
+  const moon = browserOwnerSessionMoon(endpoint);
+  if (moon) return browserOwnerRequest(endpoint, moon, 'POST', body, signal);
   const { planet, ownerToken } = await getBrowserVaultOwnerAuthorization();
   if (signal?.aborted) throw new Error('Canceled');
   const response = await fetch(url.toString(), {
