@@ -5,7 +5,7 @@
 ::    intersected with the currently-pinned set), substituting them into the
 ::    slots they already occupy and leaving every omitted pin fixed in place.
 ::
-/-  u=ui
+/-  u=ui, ct=contacts
 /+  *test-agent
 /=  groups-ui-agent  /app/groups-ui
 |%
@@ -133,4 +133,141 @@
   ;<  *  bind:m  (ex-pins ~[whom-c whom-b whom-a])
   ;<  *  bind:m  (do-del whom-b)
   (ex-pins ~[whom-c whom-a])
+::
+::  contact discovery
+::
+++  faux-scry
+  |=  book=(set ship)
+  |=  =path
+  ^-  (unit vase)
+  ?+  path  ~
+    [%gu @ %chat @ %$ ~]  `!>(|)
+    [%gu @ %pals @ %$ ~]  `!>(|)
+  ::
+      [%gx @ %contacts @ %v1 %book %contact-book-0 ~]
+    `!>(`book:ct`(malt (turn ~(tap in book) |=(=ship [ship *page:ct]))))
+  ==
+::
+++  init-discovery
+  |=  book=(set ship)
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (set-scry-gate (faux-scry book))
+  ;<  *  bind:m  do-ui-init
+  (pure:m ~)
+::
+++  do-discover
+  |=  matches=(list discovered-contact:u)
+  =/  m  (mare ,(list card:agent:gall))
+  ^-  form:m
+  (do-poke ui-discover-contacts+!>(matches))
+::
+++  ex-save
+  |=  [our=ship =ship =contact:ct]
+  %^  ex-poke  /discover  [our %contacts]
+  [%contact-action-1 !>(`action:ct`[%page ship contact])]
+::
+++  get-ships
+  |=  =path
+  =/  m  (mare ,(set ship))
+  ^-  form:m
+  ;<  peek=cage  bind:m  (got-peek-mocked path)
+  (pure:m !<((set ship) q.peek))
+::  +test-discover-saves-new-match: a new match is saved once, under its
+::  address-book name, and skipped when it is matched again.
+::
+++  test-discover-saves-new-match
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (init-discovery ~)
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  caz=(list card:agent:gall)  bind:m
+    (do-discover ~[[~nec `'Nec'] [~nec `'Nec']])
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  (ex-save our.bowl ~nec (~(put by *contact:ct) %nickname text+'Nec'))
+    ==
+  ;<  caz=(list card:agent:gall)  bind:m  (do-discover ~[[~nec `'Nec']])
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  known=(set ship)  bind:m  (get-ships /x/v1/discovery-known)
+  (ex-equal !>(known) !>((sy ~[~nec])))
+::  +test-discover-skips-related-ships: saved, hidden and suggested ships are
+::  never saved by discovery.
+::
+++  test-discover-skips-related-ships
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (init-discovery (sy ~[~bus]))
+  ;<  *  bind:m  (do-poke ui-hide-contact+!>(~nec))
+  ;<  *  bind:m  (do-poke ui-add-contact-suggestions+!>(~[~wes]))
+  ;<  caz=(list card:agent:gall)  bind:m
+    (do-discover ~[[~bus ~] [~nec ~] [~wes ~]])
+  (ex-cards caz ~)
+::  +test-discover-empty-name: a match with a blank address-book name is
+::  saved without a nickname.
+::
+++  test-discover-empty-name
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (init-discovery ~)
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  caz=(list card:agent:gall)  bind:m  (do-discover ~[[~nec `'']])
+  (ex-cards caz (ex-save our.bowl ~nec ~) ~)
+::  +test-removed-discovery-is-suggested: a discovered ship that is not in
+::  the address book is suggested until it is hidden.
+::
+++  test-removed-discovery-is-suggested
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (init-discovery ~)
+  ;<  *  bind:m  (do-discover ~[[~nec ~]])
+  ;<  suggested=(set ship)  bind:m  (get-ships /x/suggested-contacts)
+  ;<  ~  bind:m  (ex-equal !>(suggested) !>((sy ~[~nec])))
+  ;<  *  bind:m  (do-poke ui-hide-contact+!>(~nec))
+  ;<  suggested=(set ship)  bind:m  (get-ships /x/suggested-contacts)
+  (ex-equal !>(suggested) !>(*(set ship)))
+::  +test-saved-discovery-is-not-suggested: a discovered ship in the address
+::  book is not suggested.
+::
+++  test-saved-discovery-is-not-suggested
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (init-discovery ~)
+  ;<  *  bind:m  (do-discover ~[[~nec ~]])
+  ;<  ~  bind:m  (set-scry-gate (faux-scry (sy ~[~nec])))
+  ;<  suggested=(set ship)  bind:m  (get-ships /x/suggested-contacts)
+  (ex-equal !>(suggested) !>(*(set ship)))
+::  +test-discover-rejects-foreign-ship: only our own ship may record
+::  discoveries.
+::
+++  test-discover-rejects-foreign-ship
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (init-discovery ~)
+  (ex-fail ((do-as ~nec) (do-discover ~[[~nec ~]])))
+::  +test-load-state-3: the migration keeps suggestions and pins and starts
+::  with nothing discovered.
+::
+++  test-load-state-3
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (init-discovery ~)
+  ;<  *  bind:m
+    %+  do-load  groups-ui-agent
+    `!>([%3 (sy ~[~nec]) (sy ~[~wes]) ~[whom-a] |])
+  ;<  hidden=(set ship)  bind:m  (get-ships /x/hidden-contact-suggestions)
+  ;<  ~  bind:m  (ex-equal !>(hidden) !>((sy ~[~nec])))
+  ;<  suggested=(set ship)  bind:m  (get-ships /x/suggested-contacts)
+  ;<  ~  bind:m  (ex-equal !>(suggested) !>((sy ~[~wes])))
+  ;<  ~  bind:m  (ex-pins ~[whom-a])
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  caz=(list card:agent:gall)  bind:m  (do-discover ~[[~bus ~]])
+  (ex-cards caz (ex-save our.bowl ~bus ~) ~)
 --
