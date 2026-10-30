@@ -1,5 +1,5 @@
-import { useFocusEffect } from '@react-navigation/native';
-import { useQuery } from '@tanstack/react-query';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
+import { Query, useQuery } from '@tanstack/react-query';
 import * as api from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { formatCount, formatMemorySize } from '@tloncorp/shared/utils';
@@ -10,6 +10,7 @@ import {
   StorageInfo,
   useStorageInfoQuery,
 } from '../../ui/components/StorageQuotaIndicator';
+import { RETRY_INTERVAL_MS } from './bot/constants';
 import { useBotSettingsIds } from './bot/useBotSettingsData';
 import { useHostingSession } from './bot/useHostingSession';
 
@@ -31,11 +32,13 @@ export function useSettingsUsageLabels() {
     hostingBotEnabled &&
     hostingSession === 'valid' &&
     Boolean(ship);
+  const isFocused = useIsFocused();
   const tokenUsageQuery = useQuery({
     queryKey: ['tlonbot', 'token-usage', ship],
     queryFn: () => api.getTlawnTokenUsage(ship),
     enabled: showsTokenUsage,
     retry: false,
+    refetchInterval: pollUnfinishedTokenUsage(isFocused),
   });
 
   // Settings stays mounted, so each visit asks again rather than showing
@@ -85,6 +88,23 @@ function formatStorageSize(bytes: number) {
   );
 }
 
+// OpenClaw finishes an unfinished count in the background, so Settings asks
+// again until it is fresh. A busy bot's sessions can keep it unfinished, and
+// then this polls for as long as Settings is on screen. A failed read stops
+// it until the next visit.
+export function pollUnfinishedTokenUsage(isFocused: boolean) {
+  return (query: Query<api.TlawnTokenUsage, Error>) =>
+    isFocused &&
+    query.state.status === 'success' &&
+    !isCounted(query.state.data?.cacheStatus)
+      ? RETRY_INTERVAL_MS
+      : false;
+}
+
+function isCounted(cacheStatus: api.TlawnTokenUsage['cacheStatus']) {
+  return (cacheStatus?.status ?? 'fresh') === 'fresh';
+}
+
 export function getTokenUsageLabel(query: {
   data?: api.TlawnTokenUsage;
   error: unknown;
@@ -94,8 +114,7 @@ export function getTokenUsageLabel(query: {
     // old total, so an unfinished count is close. One that was never read
     // counts nothing, so a zero is only real once the count is fresh.
     const { totals, cacheStatus } = query.data;
-    return totals.totalTokens === 0 &&
-      (cacheStatus?.status ?? 'fresh') !== 'fresh'
+    return totals.totalTokens === 0 && !isCounted(cacheStatus)
       ? 'Counting…'
       : formatCount(totals.totalTokens).text;
   }

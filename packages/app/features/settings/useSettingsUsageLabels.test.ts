@@ -1,10 +1,21 @@
+// @vitest-environment jsdom
+// jsdom, because React Query runs no refetch interval where there is no window.
+import { QueryClient, QueryObserver } from '@tanstack/react-query';
 import { HostingError, type TlawnTokenUsage } from '@tloncorp/api';
 import { convert } from '@tloncorp/shared/utils';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { getStorageLabel, getTokenUsageLabel } from './useSettingsUsageLabels';
+import { RETRY_INTERVAL_MS } from './bot/constants';
+import {
+  getStorageLabel,
+  getTokenUsageLabel,
+  pollUnfinishedTokenUsage,
+} from './useSettingsUsageLabels';
 
-vi.mock('@react-navigation/native', () => ({ useFocusEffect: () => {} }));
+vi.mock('@react-navigation/native', () => ({
+  useFocusEffect: () => {},
+  useIsFocused: () => true,
+}));
 vi.mock('@tloncorp/shared/db', () => ({}));
 vi.mock('../../ui/components/StorageQuotaIndicator', () => ({
   useStorageInfoQuery: () => ({}),
@@ -79,6 +90,66 @@ describe('getTokenUsageLabel', () => {
     expect(
       getTokenUsageLabel({ data: undefined, error: hostingError(502) })
     ).toBe('Unavailable');
+  });
+});
+
+describe('pollUnfinishedTokenUsage', () => {
+  const counting = usage({ cacheStatus: { status: 'refreshing' } });
+  counting.totals = { ...counting.totals, totalTokens: 0 };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function watch(
+    responses: Array<TlawnTokenUsage | Error>,
+    { isFocused = true, polls = 3 } = {}
+  ) {
+    const queryFn = vi.fn();
+    for (const response of responses) {
+      if (response instanceof Error) queryFn.mockRejectedValueOnce(response);
+      else queryFn.mockResolvedValueOnce(response);
+    }
+    const client = new QueryClient();
+    const observer = new QueryObserver(client, {
+      queryKey: ['token-usage'],
+      queryFn,
+      retry: false,
+      refetchInterval: pollUnfinishedTokenUsage(isFocused),
+    });
+    const unsubscribe = observer.subscribe(() => {});
+    const labels = [];
+    for (let i = 0; i <= polls; i++) {
+      await vi.advanceTimersByTimeAsync(i === 0 ? 0 : RETRY_INTERVAL_MS);
+      labels.push(getTokenUsageLabel(observer.getCurrentResult()));
+    }
+    unsubscribe();
+    client.clear();
+    return { labels, requests: queryFn.mock.calls.length };
+  }
+
+  it('asks again until the count is fresh', async () => {
+    expect(await watch([counting, counting, usage()])).toEqual({
+      labels: ['Counting…', 'Counting…', '1.2M', '1.2M'],
+      requests: 3,
+    });
+  });
+
+  it('stops after a failed read', async () => {
+    expect(await watch([counting, hostingError(502)])).toEqual({
+      labels: ['Counting…', 'Counting…', 'Counting…', 'Counting…'],
+      requests: 2,
+    });
+  });
+
+  it('does not poll while Settings is off screen', async () => {
+    expect(await watch([counting], { isFocused: false })).toEqual({
+      labels: ['Counting…', 'Counting…', 'Counting…', 'Counting…'],
+      requests: 1,
+    });
   });
 });
 
