@@ -138,10 +138,10 @@ export const NON_OWNER_ALLOWED_TOOLS: ReadonlySet<string> = new Set([
  * owner's data) may call for the rest of the run, by policy name. An
  * allowlist, so a tool core adds later is closed by default. `tlon` is
  * limited further to reads (isSealedHeartbeatTlonCall), `browser_*` tools are
- * allowed by prefix, and heartbeat_respond's always-persisted fields are
- * cleared (sealedHeartbeatRespondParams). Web, browser, MCP, workspace writes
- * and the notification text stay open by product decision; SECURITY.md lists
- * them as accepted exits.
+ * allowed by prefix, and heartbeat_respond is blocked when it carries a field
+ * core always persists (sealedHeartbeatRespondBlockReason). Web, browser,
+ * MCP, workspace writes and heartbeat_respond's summary and notification text
+ * stay open by product decision; SECURITY.md lists them as accepted exits.
  */
 export const SEALED_HEARTBEAT_ALLOWED_TOOLS: ReadonlySet<string> = new Set([
   'tlon',
@@ -183,43 +183,37 @@ export function isSealedHeartbeatAllowedTool(toolName: string): boolean {
  * heartbeat_respond fields core persists whether or not the notification is
  * delivered: the monitor scratch for the next heartbeat, and the silent
  * outcome's reason and next check, which core appends to the next user turn.
- * Both spellings core reads.
+ * `next_check` is core's alias for `nextCheck`; a model may send it.
  */
-const SEALED_HEARTBEAT_RESPOND_CLEARED_KEYS = [
+const SEALED_HEARTBEAT_RESPOND_PERSISTED_KEYS = [
   'scratch',
   'reason',
   'nextCheck',
   'next_check',
 ];
 
+export const SEALED_HEARTBEAT_RESPOND_BLOCK_REASON =
+  "Blocked by policy: this heartbeat run read the owner's data; call heartbeat_respond again without scratch, reason or nextCheck.";
+
 /**
- * The params a sealed run's heartbeat_respond hook result returns. Core
- * merges a hook's params over the model's (`{ ...original, ...hookParams }`,
- * mergeParamsWithApprovalOverrides in core's before-tool-call wrapper), so a
- * field is cleared by setting it to `undefined`, never by omitting it.
- * `undefined` is the only value core treats as absent: its argument
- * validator converts `null` to `""`, and an empty scratch replaces the stored
- * one. Core requires a non-empty `summary` and persists it with a silent
- * outcome, so it becomes the outcome (core's own fallback for an empty
- * summary). `notify`, `notificationText` and `outcome` are kept: the
- * notification text is the message to the owner. Core still retains it when
- * delivery fails (as a silent outcome) or, after delivery, as target-session
- * awareness; that is accepted alongside workspace writes (SECURITY.md).
+ * Why a sealed run's heartbeat_respond call is blocked: it carries a field
+ * core persists for a later turn. Blocked rather than rewritten: the Codex
+ * native relay refuses any hook change to the params (and its schema check
+ * rejects undeclared keys), so a rewrite would refuse every heartbeat_respond
+ * on a Codex-harness bot. `summary` and `notificationText` pass: core
+ * requires a non-empty summary and persists it as the silent outcome when
+ * `notify` is false and the outcome is not `no_change`, and keeps the
+ * notification text when delivery fails or, after delivery, as target-session
+ * awareness. Both are accepted alongside workspace writes (SECURITY.md).
  */
-export function sealedHeartbeatRespondParams(
+export function sealedHeartbeatRespondBlockReason(
   params: Record<string, unknown>
-): Record<string, unknown> {
-  return {
-    ...Object.fromEntries(
-      SEALED_HEARTBEAT_RESPOND_CLEARED_KEYS.map((key) => [key, undefined])
-    ),
-    ...('summary' in params
-      ? {
-          summary:
-            typeof params.outcome === 'string' ? params.outcome : undefined,
-        }
-      : {}),
-  };
+): string | undefined {
+  return SEALED_HEARTBEAT_RESPOND_PERSISTED_KEYS.some(
+    (key) => params[key] !== undefined
+  )
+    ? SEALED_HEARTBEAT_RESPOND_BLOCK_REASON
+    : undefined;
 }
 
 /**

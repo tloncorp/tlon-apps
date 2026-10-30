@@ -14,6 +14,7 @@ import {
 } from './onboarding-tool-boundary.js';
 import {
   SEALED_HEARTBEAT_BLOCK_REASON,
+  SEALED_HEARTBEAT_RESPOND_BLOCK_REASON,
   formatOwnerOnlyDelegationBlockReason,
   formatOwnerOnlyToolBlockReason,
 } from './owner-only-tools.js';
@@ -1248,56 +1249,47 @@ describe('before_tool_call turn identity', () => {
         ).resolves.toBeUndefined();
       });
 
-      it('clears the fields core persists from heartbeat_respond, after core merges them', async () => {
-        const harness = registerEntry(OWNER);
-        const params = {
-          outcome: 'progress',
-          notify: false,
-          summary: 'owner inbox: ~bus asked about the launch',
-          notificationText: 'Two new mentions',
-          scratch: 'inbox digest',
-          reason: 'mentions pending',
-          nextCheck: 'in an hour',
-          next_check: 'in an hour',
-        };
-        await expect(
-          gate(harness, 'heartbeat_respond', params, {
-            sessionKey: HB,
-            runId: 'hb-1',
-          })
-        ).resolves.toBeUndefined();
-        const ctx = await sealed(harness);
-        const outcome = (await gate(
-          harness,
-          'heartbeat_respond',
-          params,
-          ctx
-        )) as { params: Record<string, unknown> };
-        // Core applies a hook's params over the model's: `{ ...original,
-        // ...hookParams }` (mergeParamsWithApprovalOverrides in openclaw
-        // 2026.9.33 dist/agent-tools.before-tool-call-*.mjs).
-        const merged = { ...params, ...outcome.params };
-        expect(merged).toStrictEqual({
-          outcome: 'progress',
-          notify: false,
-          summary: 'progress',
-          notificationText: 'Two new mentions',
-          scratch: undefined,
-          reason: undefined,
-          nextCheck: undefined,
-          next_check: undefined,
-        });
-        // What core's normalizeHeartbeatToolResponse keeps: scratch only when
-        // a string, reason and nextCheck/next_check only when a non-blank
-        // string (dist/heartbeat-tool-response-*.mjs).
-        const kept = (key: string) =>
-          typeof merged[key as keyof typeof merged] === 'string' &&
-          String(merged[key as keyof typeof merged]).trim() !== '';
-        expect(typeof merged.scratch).not.toBe('string');
-        for (const key of ['reason', 'nextCheck', 'next_check']) {
-          expect(kept(key)).toBe(false);
+      const RESPOND = {
+        outcome: 'progress',
+        notify: false,
+        summary: 'Two new mentions',
+        notificationText: 'Two new mentions',
+      };
+
+      it.each([
+        ['scratch', 'inbox digest'],
+        ['reason', 'mentions pending'],
+        ['nextCheck', 'in an hour'],
+        ['next_check', 'in an hour'],
+      ])(
+        'blocks heartbeat_respond carrying %s, without rewriting it',
+        async (key, value) => {
+          const harness = registerEntry(OWNER);
+          const params = { ...RESPOND, [key]: value };
+          // Not this rule's business before the seal.
+          await expect(
+            gate(harness, 'heartbeat_respond', params, {
+              sessionKey: HB,
+              runId: 'hb-1',
+            })
+          ).resolves.toBeUndefined();
+          const ctx = await sealed(harness);
+          await expect(
+            gate(harness, 'heartbeat_respond', params, ctx)
+          ).resolves.toStrictEqual({
+            block: true,
+            blockReason: SEALED_HEARTBEAT_RESPOND_BLOCK_REASON,
+          });
         }
-        expect(kept('summary')).toBe(true);
+      );
+
+      it('passes heartbeat_respond without persisted fields unchanged', async () => {
+        const harness = registerEntry(OWNER);
+        const ctx = await sealed(harness);
+        // No params in the result: the Codex native relay refuses a rewrite.
+        await expect(
+          gate(harness, 'heartbeat_respond', RESPOND, ctx)
+        ).resolves.toBeUndefined();
       });
     });
 

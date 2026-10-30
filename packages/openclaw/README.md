@@ -173,7 +173,8 @@ channels:
         # A heartbeat run may read the owner's activity, messages and
         # conversation lists as the owner; after that read it keeps only
         # reads, workspace files, memory, web, browser, MCP, Tool Search and
-        # heartbeat_respond (see SECURITY.md).
+        # heartbeat_respond without scratch, reason or nextCheck (see
+        # SECURITY.md).
         ownerDefault: false
 
         # Ships allowed to DM the bot directly

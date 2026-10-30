@@ -121,7 +121,7 @@ import {
   isSealedHeartbeatAllowedTool,
   normalizePolicyToolName,
   resolveOwnerOnlyToolBlock,
-  sealedHeartbeatRespondParams,
+  sealedHeartbeatRespondBlockReason,
 } from './src/owner-only-tools.js';
 import { getSessionRole } from './src/session-roles.js';
 import { sharedSlot } from './src/shared-state.js';
@@ -1166,29 +1166,28 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
     const cronParams = isCronToolName(event.toolName)
       ? cleanCronToolArgs(event.params)
       : undefined;
+    const allowed = () => (cronParams ? { params: cronParams } : undefined);
     // A heartbeat run that read the owner's data keeps only the tools in
     // SEALED_HEARTBEAT_ALLOWED_TOOLS, `tlon` only for reads, and
-    // heartbeat_respond with the fields core always persists cleared.
+    // heartbeat_respond only without the fields core always persists.
     const sealedRun = isSealedHeartbeatRun(ctx.runId);
-    const blocksSealedHeartbeat =
+    const sealedToolReason =
       sealedRun &&
       !(
         isSealedHeartbeatAllowedTool(event.toolName) &&
         (normalizePolicyToolName(event.toolName) !== 'tlon' ||
           (typeof event.params.command === 'string' &&
             isSealedHeartbeatTlonCall(event.params.command)))
-      );
-    const sealedRespondParams =
-      sealedRun &&
-      normalizePolicyToolName(event.toolName) === 'heartbeat_respond'
-        ? sealedHeartbeatRespondParams(event.params)
+      )
+        ? SEALED_HEARTBEAT_BLOCK_REASON
         : undefined;
-    const allowed = () =>
-      cronParams
-        ? { params: cronParams }
-        : sealedRespondParams
-          ? { params: sealedRespondParams }
-          : undefined;
+    const sealedHeartbeatReason =
+      sealedToolReason ??
+      (sealedRun &&
+      normalizePolicyToolName(event.toolName) === 'heartbeat_respond'
+        ? sealedHeartbeatRespondBlockReason(event.params)
+        : undefined);
+    const blocksSealedHeartbeat = sealedHeartbeatReason !== undefined;
     const runSurface = getTlonSessionRunSurface(ctx.runId);
     // A seen run keeps the role recorded at its first sight (the answered
     // message's sender, else the session's role then); only a call with no
@@ -1356,7 +1355,7 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       });
     }
     const blockReason = blocksSealedHeartbeat
-      ? SEALED_HEARTBEAT_BLOCK_REASON
+      ? sealedHeartbeatReason
       : blocksOnboardingMcp
         ? 'This scheduled onboarding update may inspect and call only selected-provider MCP tools explicitly described as read-only.'
         : blocksCronArgs
