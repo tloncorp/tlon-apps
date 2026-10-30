@@ -1022,6 +1022,142 @@ function makeControlA2UI(
   };
 }
 
+// Today's pending-approvals card, as openclaw's buildPendingApprovalsA2UIBlob
+// sends it: a request with a source message gets View message in its button
+// row, so that row has four buttons.
+const pendingApprovalsA2UI: A2UI.BlobEntry = (() => {
+  const requests = [
+    {
+      prefix: 'item0',
+      id: 'da1b2',
+      title: 'Nocsyx (~nocsyx-lassul)',
+      context: 'wants to DM the bot',
+      preview: 'Message: "Can you help me find the launch notes?"',
+    },
+    {
+      prefix: 'item1',
+      id: 'c3d4e',
+      title: 'Littel Wolfur (~littel-wolfur)',
+      context: 'mentioned the bot in Design',
+      preview: 'Message: "@bot can you review this build before I merge?"',
+      view: true,
+    },
+  ];
+  const bodyChildren = ['eyebrow', 'title', 'titleDivider'];
+  const components: A2UI.Component[] = [
+    { id: 'root', component: 'Card', child: 'body' },
+    { id: 'body', component: 'Column', children: bodyChildren },
+    {
+      id: 'eyebrow',
+      component: 'Text',
+      variant: 'caption',
+      text: 'Pending requests',
+    },
+    {
+      id: 'title',
+      component: 'Text',
+      variant: 'h3',
+      text: '2 approval requests',
+    },
+    { id: 'titleDivider', component: 'Divider' },
+    { id: 'allowLabel', component: 'Text', text: 'Allow' },
+    { id: 'rejectLabel', component: 'Text', text: 'Reject' },
+    { id: 'blockLabel', component: 'Text', text: 'Block' },
+    { id: 'viewMessageLabel', component: 'Text', text: 'View message' },
+  ];
+  requests.forEach((request, index) => {
+    const { prefix } = request;
+    if (index > 0) {
+      bodyChildren.push(`${prefix}Divider`);
+      components.push({ id: `${prefix}Divider`, component: 'Divider' });
+    }
+    bodyChildren.push(prefix);
+    components.push(
+      {
+        id: prefix,
+        component: 'Column',
+        children: [
+          `${prefix}Title`,
+          `${prefix}Context`,
+          `${prefix}Preview`,
+          `${prefix}Actions`,
+        ],
+      },
+      {
+        id: `${prefix}Title`,
+        component: 'Text',
+        variant: 'h4',
+        text: request.title,
+      },
+      {
+        id: `${prefix}Context`,
+        component: 'Text',
+        variant: 'caption',
+        text: request.context,
+      },
+      {
+        id: `${prefix}Preview`,
+        component: 'Text',
+        variant: 'caption',
+        text: request.preview,
+      },
+      {
+        id: `${prefix}Actions`,
+        component: 'Row',
+        children: [
+          `${prefix}Allow`,
+          `${prefix}Reject`,
+          `${prefix}Block`,
+          ...(request.view ? [`${prefix}View`] : []),
+        ],
+      },
+      {
+        id: `${prefix}Allow`,
+        component: 'Button',
+        variant: 'primary',
+        child: 'allowLabel',
+        action: sendMessage(`/allow ${request.id}`),
+      },
+      {
+        id: `${prefix}Reject`,
+        component: 'Button',
+        child: 'rejectLabel',
+        action: sendMessage(`/reject ${request.id}`),
+      },
+      {
+        id: `${prefix}Block`,
+        component: 'Button',
+        variant: 'borderless',
+        child: 'blockLabel',
+        action: sendMessage(`/ban ${request.id}`),
+      }
+    );
+    if (request.view) {
+      components.push({
+        id: `${prefix}View`,
+        component: 'Button',
+        variant: 'secondary',
+        child: 'viewMessageLabel',
+        action: {
+          event: {
+            name: 'tlon.navigate',
+            context: {
+              target: {
+                type: 'message',
+                channelId: 'chat/~zod/design',
+                postId: '170.141.184.621',
+                authorId: '~littel-wolfur',
+                groupId: '~zod/garden-club',
+              },
+            },
+          },
+        },
+      });
+    }
+  });
+  return makeControlA2UI('fixture-pending-approvals', components);
+})();
+
 const smallChoiceA2UI = makeControlA2UI('fixture-small-choice', [
   {
     id: 'root',
@@ -1268,6 +1404,16 @@ const weatherPost = makePost(
   }
 );
 
+const pendingApprovalsPost = makePost(
+  exampleContacts.groupAdmin,
+  [verse.inline('2 pending approval requests')],
+  {
+    blob: appendToPostBlob(undefined, pendingApprovalsA2UI),
+    channelId: dmChannelId,
+    replyCount: 0,
+  }
+);
+
 const confirmationPost = makePost(
   exampleContacts.groupAdmin,
   [verse.inline('DM request from Sam Palnet (~sampel-palnet)')],
@@ -1415,6 +1561,7 @@ export default {
   BasicComponents: () => <A2UIFixture post={basicComponentsPost} />,
   Weather: () => <A2UIFixture post={weatherPost} />,
   ConfirmationDialog: () => <A2UIFixture post={confirmationPost} />,
+  PendingApprovals: () => <A2UIFixture post={pendingApprovalsPost} />,
   ApprovalDM: () => <A2UIFixture post={hintedDmPost} />,
   ApprovalChannel: () => <A2UIFixture post={hintedChannelPost} />,
   ApprovalGroup: () => <A2UIFixture post={hintedGroupPost} />,
