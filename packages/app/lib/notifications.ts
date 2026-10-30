@@ -434,7 +434,7 @@ export async function discoverContactsAndNotify({
   if (!result || result.newMatches.length === 0) {
     return { newMatchCount: 0, didSucceed: result?.didSucceed ?? false };
   }
-  const ids = result.newMatches.map(([, contactId]) => contactId);
+  const ids = [...new Set(result.newMatches.map(([, contactId]) => contactId))];
   let didSucceed = result.didSucceed;
   await notifyAboutMatchedContacts(ids).catch((err) => {
     didSucceed = false;

@@ -6695,9 +6695,11 @@ export const applyContactMembership = createWriteQuery(
     {
       contact,
       isCurrent,
+      nickname,
     }: {
       contact: Pick<Contact, 'id' | 'isContact' | 'isContactSuggestion'>;
       isCurrent: () => boolean;
+      nickname?: { expected: string | null; confirmed: string };
     },
     ctx: QueryCtx
   ) =>
@@ -6713,6 +6715,19 @@ export const applyContactMembership = createWriteQuery(
             isContactSuggestion: contact.isContactSuggestion,
           },
         });
+      if (nickname && isCurrent()) {
+        await txCtx.db
+          .update($contacts)
+          .set({ customNickname: nickname.confirmed })
+          .where(
+            and(
+              eq($contacts.id, contact.id),
+              nickname.expected === null
+                ? isNull($contacts.customNickname)
+                : eq($contacts.customNickname, nickname.expected)
+            )
+          );
+      }
     }),
   ['contacts']
 );

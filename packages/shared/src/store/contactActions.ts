@@ -162,7 +162,9 @@ export async function addContacts(
       )
     );
 
-  const guardedDiscovery = api.getDeskSupportsContactRemovalState() === true;
+  const supportsDecisions = api.getDeskSupportsContactDecisionsState() === true;
+  const guardedDiscovery =
+    supportsDecisions || api.getDeskSupportsContactRemovalState() === true;
   let existingContacts: db.Contact[] = [];
   let removedContactIds = new Set<string>();
   if (guardedDiscovery) {
@@ -172,6 +174,12 @@ export async function addContacts(
       removedContactIds = new Set([
         ...state.removedContactIds,
         ...(state.declinedContactIds ?? []),
+        ...(supportsDecisions ? (state.hiddenSuggestionIds ?? []) : []),
+        ...(supportsDecisions
+          ? state.contacts
+              .filter((contact) => contact.isContactSuggestion)
+              .map((contact) => contact.id)
+          : []),
       ]);
     } catch (error) {
       logger.trackError('Error reading discovery contact state', error);
@@ -208,7 +216,11 @@ export async function addContacts(
   );
   const results = await Promise.allSettled(
     newContacts.map((id) =>
-      guardedDiscovery ? api.discoverContact(id) : api.addContact(id)
+      supportsDecisions
+        ? api.discoverContact(id, previousById.get(id)?.customNickname)
+        : guardedDiscovery
+          ? api.discoverContact(id)
+          : api.addContact(id)
     )
   );
   const failedContactIds = results.flatMap((result, index) => {
@@ -222,7 +234,7 @@ export async function addContacts(
   }
   const failedIds = new Set(failedContactIds);
   let addedContactIds = contacts.filter(
-    (id) => isCurrent(id) && !failedIds.has(id)
+    (id) => isCurrent(id) && !failedIds.has(id) && !existingIds.has(id)
   );
   if (addedContactIds.length === 0)
     return {
@@ -245,6 +257,14 @@ export async function addContacts(
             isContactSuggestion: contact?.isContactSuggestion ?? false,
           },
           isCurrent: () => isCurrent(id),
+          ...(supportsDecisions && contact?.isContact && contact.customNickname
+            ? {
+                nickname: {
+                  expected: previousById.get(id)?.customNickname ?? null,
+                  confirmed: contact.customNickname,
+                },
+              }
+            : {}),
         });
       }
       const savedIds = new Set(
