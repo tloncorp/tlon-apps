@@ -91,11 +91,6 @@ export const removeContactSuggestion = async (contactId: string) => {
   return pokeRequest(groupsUi.hideContact)(contactId);
 };
 
-// Ships hidden from suggestions. addContact hides as it saves, so this also
-// holds everyone ever saved from the app, not just declined suggestions.
-export const getHiddenContactSuggestions = async () =>
-  scryRequest(groupsUi.hiddenContactSuggestions)<string[]>({});
-
 export const addContactSuggestions = async (contactIds: string[]) => {
   return pokeRequest(groupsUi.addContactSuggestions)(contactIds);
 };
