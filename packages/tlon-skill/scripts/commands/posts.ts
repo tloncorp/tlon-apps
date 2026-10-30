@@ -144,9 +144,9 @@ Channel format: chat/~host/channel-name, heap/~host/name
 Use 'tlon messages channel <nest> --limit N' to see post IDs.`;
 
 export const POSTS_COMMAND_HELP: Record<string, string> = {
-  send: 'Usage: tlon posts send <channel> [message] [--image <url>]... [--file <url>]... [--video <url>]... [--link <url>] [--blob <json>] [--title <text>] [--quote <channel> <post-id> [--quote-parent <post-id>]] [--sent-at <ms>] [--bot] (message optional with an attachment or --quote; a gallery post takes one attachment)',
+  send: 'Usage: tlon posts send <channel> [message] [--image <url>]... [--file <url>]... [--video <url>]... [--link <url>] [--blob <json>] [--title <text>] [--quote <channel> <post-id> [--quote-parent <post-id>]] [--sent-at <ms>] [--bot] (message optional with an attachment or --quote; a gallery post takes one attachment)\n~ship in the message mentions that person and notifies them; @role-id mentions a group role, @all every member.',
   reply:
-    'Usage: tlon posts reply <channel> <post-id> [message] [--author ~ship] [--blob <json>] [--quote <channel> <post-id> [--quote-parent <post-id>]] [--sent-at <ms>] [--bot] (message optional with --quote)',
+    'Usage: tlon posts reply <channel> <post-id> [message] [--author ~ship] [--blob <json>] [--quote <channel> <post-id> [--quote-parent <post-id>]] [--sent-at <ms>] [--bot] (message optional with --quote)\n~ship in the message mentions that person and notifies them; @role-id mentions a group role, @all every member.',
   forward:
     'Usage: tlon posts forward <src-channel> <src-id> <target> [--parent <src-parent-id>] [--sent-at <ms>]',
   react:
