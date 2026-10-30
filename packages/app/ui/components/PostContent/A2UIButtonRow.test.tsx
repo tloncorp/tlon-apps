@@ -143,3 +143,42 @@ it('puts the primary button last and gives every row button a surface', async ()
   }
   expect(allow.props.flex).toBe(1);
 });
+
+it('pairs up a row of four buttons instead of squeezing them onto one line', async () => {
+  // The pending-approvals card adds View message to the same row.
+  const four = structuredClone(block);
+  const update = four.a2ui.messages[1];
+  if (!('updateComponents' in update)) throw new Error('no components');
+  const components = update.updateComponents.components;
+  const actions = components.find((c) => c.id === 'actions');
+  if (actions?.component !== 'Row') throw new Error('no actions row');
+  actions.children.push('view');
+  components.push(
+    {
+      id: 'view',
+      component: 'Button',
+      variant: 'secondary',
+      child: 'viewLabel',
+      action: send('/view 1'),
+    },
+    { id: 'viewLabel', component: 'Text', text: 'View message' }
+  );
+  await act(async () => {
+    renderer = create(<A2UIBlock block={four} />);
+  });
+  const frames = buttons();
+  expect(frames.map(buttonLabel)).toEqual([
+    'Reject',
+    'Block',
+    'View message',
+    'Allow',
+  ]);
+  for (const frame of frames) {
+    expect(frame.props).toMatchObject({ flexGrow: 1, flexBasis: '40%' });
+    expect(frame.props.flex).toBeUndefined();
+  }
+  const row = renderer.root
+    .findAllByType('XStack' as never)
+    .find((node) => node.props.gap === 8);
+  expect(row?.props.flexWrap).toBe('wrap');
+});

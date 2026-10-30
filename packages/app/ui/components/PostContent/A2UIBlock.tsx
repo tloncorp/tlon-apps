@@ -54,6 +54,8 @@ type RenderOptions = {
   spacingTop?: number;
   /** A button sharing a row of buttons takes an equal width. */
   fillRow?: boolean;
+  /** A row of more buttons than fit on one line wraps them two to a line. */
+  pairRow?: boolean;
   parentAlign?: A2UI.Container['align'];
   standaloneControlTopMargin?: boolean;
 };
@@ -78,6 +80,8 @@ const CHOICE_ACCENT_COLORS: Record<
 // Cardless choice controls sit alongside ordinary chat text inside the same
 // A2UI post. Keep that outer rhythm identical around cards and pill groups.
 const CHOICE_CONTROL_OUTER_MARGIN = 15;
+/** The most equal-width buttons a card's button row holds on one line. */
+const MAX_BUTTONS_PER_LINE = 3;
 
 function isConsumableA2UIAction(action: A2UI.ButtonAction) {
   return (
@@ -1155,6 +1159,10 @@ export function A2UIBlock({
             component.children.every(
               (child) => components.get(child)?.component === 'Button'
             );
+          // Past three, equal-width buttons get too narrow for their labels
+          // (the pending-approvals card sends four), so they pair up.
+          const pairButtons =
+            buttonFooter && component.children.length > MAX_BUTTONS_PER_LINE;
           const children = buttonFooter
             ? [...component.children].sort((a, b) => {
                 const aButton = components.get(a);
@@ -1176,7 +1184,7 @@ export function A2UIBlock({
               }
               alignItems={getAlignItems(component.align)}
               justifyContent={getJustifyContent(component.justify)}
-              flexWrap={buttonFooter ? 'nowrap' : 'wrap'}
+              flexWrap={buttonFooter && !pairButtons ? 'nowrap' : 'wrap'}
               width="100%"
               flex={getComponentFlex(component)}
             >
@@ -1184,6 +1192,7 @@ export function A2UIBlock({
                 renderComponent(child, {
                   cardDepth: options.cardDepth,
                   fillRow: buttonFooter,
+                  pairRow: pairButtons,
                   parentAlign: component.align,
                   standaloneControlTopMargin:
                     !options.cardDepth &&
@@ -1338,7 +1347,10 @@ export function A2UIBlock({
               height={inInnerCard ? 36 : 44}
               borderRadius={inInnerCard ? 10 : 12}
               paddingHorizontal={fillsRow ? 8 : 16}
-              flex={fillsRow ? 1 : getComponentFlex(component)}
+              {...(fillsRow && options.pairRow
+                ? // Two to a line: 40% each plus the gap leaves no room for a third.
+                  { flexGrow: 1, flexShrink: 0, flexBasis: '40%' }
+                : { flex: fillsRow ? 1 : getComponentFlex(component) })}
               opacity={actionConsumed ? 0.5 : 1}
               pointerEvents={actionConsumed ? 'none' : 'auto'}
               accessibilityElementsHidden={false}
