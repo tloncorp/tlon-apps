@@ -435,6 +435,23 @@ The hook decides *who may invoke* the tool from the sender of the triggering mes
 
 The prompt frames prepended channel and thread history as context written by other people, not instructions, and marks the current message as the only instruction in the turn. Quoted posts attached to a message are framed the same way, as context written by the people named, and are kept out of the current-message block; with `ownerDefault` on, the `tlon` tool guidance adds that an owner-credentialed command must come from the owner's own words in the current message. This framing lowers the odds that a planted post steers the run, but it is a mitigation, not the enforcement boundary: the model can still be persuaded, so the controls above remain what decides access.
 
+**Heartbeat owner reads (`ownerDefault`, TLON-7008):**
+
+With `ownerDefault` on, every run that is not answering the owner acts as the bot, with one exception: a heartbeat run may read an allowlist of the owner's data as the owner, so the heartbeat can check the owner's inbox.
+
+- *Allowlist.* `activity mentions|replies|unreads|unread|all`, `messages dm|channel|history|context` and `channels dms|group-dms|groups|all`, without `--self` (before the command, or after an activity read) and without a help token. Every other command on the run, including `messages search`, `groups`, `contacts`, `channels info` and the activity settings, is rewritten to `--self`. Credential flags stay rejected.
+- *Recognition, fail closed.* A run is a heartbeat run only when `agent_turn_prepare` reports `trigger: 'heartbeat'` and `inputProvenance.sourceTool: 'heartbeat'`. Missing provenance, cron runs on the main session (`sourceTool: 'cron'`), exec completions and restart recovery are not heartbeat runs, and there are no session-key heuristics. Core also gives this provenance to manual and source-unspecified wakes and queued system-event processing, so the grant covers heartbeat-runner runs, not only periodic heartbeats; the grant is read-only and the run is sealed on first use.
+- *Binding and revocation.* The grant is bound to the owner configured when the run was recognised and is checked against the live owner on every call and again just before the CLI runs. An owner change, a non-owner message dispatched on the run's session and a `sessions_send` into it revoke the grant for the rest of the run; a revoked run is never granted again.
+- *Seal.* When the gate approves the first owner read (whether or not it then executes), the run is sealed for the rest of its life, revoked or not. A sealed run may call only `tlon` reads (the allowlisted owner reads, and reads or help as the bot), `read`, `ls`, `write`, `edit`, `apply_patch`, `web_search`, `web_fetch`, `browser` and every `browser_*` tool, `memory_search`, `memory_get`, the MCP catalog tools (`mcp__list_upstreams`, `mcp__search`, `mcp__describe`, `mcp__call`) and `heartbeat_respond`, whose `scratch`, `reason` and `nextCheck` are removed and whose `summary` is replaced with the outcome, since core carries those into later turns. Every other tool, including `message`, `conversations_send`, `sessions_*`, `spawn_agent`, `subagents`, `cron`, the shell family, goals, media generation, `ask_user` and any tool a later core adds, is blocked. The run delivers its findings through its final text.
+
+The seal is a within-run mitigation against a planted instruction that reads the owner's inbox and sends the result somewhere in the same run. It is not a disclosure boundary. Three exits stay open by decision:
+
+- Web fetch, web search, the hosted browser and MCP calls. The heartbeat's job includes research, and a per-run seal is all-or-nothing. The exposure is a widening of what a URL or MCP exfiltration could carry (the owner's inbox content), not a new channel: internal runs already hold the owner's affairs in memory and the ledger and already read third-party content through the bot's own inbox.
+- Workspace writes (memory, ledger). Writing them is the heartbeat's purpose. Data written there reaches later runs, which are not sealed; that cross-run path exists today for anything the bot reads.
+- The hour-idle tombstone. A run idle for an hour loses its record, so it is no longer sealed; it is also no longer a heartbeat run, and is vetoed from every owner-only tool and rewritten to `--self`.
+
+Hosting sets the delivery target (`heartbeat.target = "tlon"`, `heartbeat.to` the owner) and denies `bash`, `exec` and `process` to every hosted bot; the seal blocks the shell family anyway, for the harness names hosting does not list. Cron jobs and subagents act as the bot.
+
 ---
 
 

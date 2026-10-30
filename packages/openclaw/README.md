@@ -170,6 +170,10 @@ channels:
         # config on every tool call, so a channels.tlon reload (a rollback to
         # false, or a new owner) applies to the next call with no gateway
         # restart; a run the previous owner directed loses owner identity.
+        # A heartbeat run may read the owner's activity, messages and
+        # conversation lists as the owner; after that read it keeps only
+        # reads, workspace files, memory, web, browser, MCP and
+        # heartbeat_respond (see SECURITY.md).
         ownerDefault: false
 
         # Ships allowed to DM the bot directly
