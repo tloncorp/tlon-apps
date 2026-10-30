@@ -3,6 +3,7 @@ import * as api from '@tloncorp/api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
+import { getClientGeneration } from './session';
 
 const logger = createDevLogger('lanyardActions', true);
 
@@ -225,7 +226,7 @@ export function setContactsMatchedHandler(
 export async function invokeContactsMatchedHandler(contactIds: string[]) {
   if (!contactsMatchedHandler || contactIds.length === 0) return;
   try {
-    await contactsMatchedHandler(contactIds);
+    await contactsMatchedHandler([...new Set(contactIds)]);
   } catch (e) {
     logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
       error: e,
@@ -234,11 +235,8 @@ export async function invokeContactsMatchedHandler(contactIds: string[]) {
   }
 }
 
-// A contact is "already known" if any signal indicates the user has a
-// prior relationship: explicitly added, surfaced as a suggestion, the
-// peer's profile has been fetched (any peer field set), or the user
-// labelled them. Anyone who matches that bar should not be treated as a
-// fresh discovery — no notification or pill.
+// Older desks cannot enforce the complete discovery intent contract, so they
+// retain the conservative profile-based suppression rule.
 export function isAlreadyKnownContact(contact: db.Contact): boolean {
   return !!(
     contact.isContact ||
@@ -267,11 +265,15 @@ export async function partitionDiscoveryMatches(
   const contactIds = matches.map((m) => m[1]);
   let removedContactIds = new Set<string>();
   let declinedContactIds = new Set<string>();
+  let hiddenSuggestionIds = new Set<string>();
+  const supportsDecisions = api.getDeskSupportsContactDecisionsState() === true;
   let contactState: api.ContactState | undefined;
-  if (api.getDeskSupportsContactRemovalState() === true) {
+  if (supportsDecisions || api.getDeskSupportsContactRemovalState() === true) {
     contactState = await api.getContactState();
     removedContactIds = new Set(contactState.removedContactIds);
     declinedContactIds = new Set(contactState.declinedContactIds ?? []);
+    if (supportsDecisions)
+      hiddenSuggestionIds = new Set(contactState.hiddenSuggestionIds ?? []);
   }
   const existingContacts = await db.getContactsBatch({ contactIds });
   const existingById = new Map(existingContacts.map((c) => [c.id, c] as const));
@@ -279,15 +281,56 @@ export async function partitionDiscoveryMatches(
     contactState?.contacts.map((c) => [c.id, c] as const)
   );
   const removedMatches = matches.filter(([, id]) => removedContactIds.has(id));
+  const isKnown = supportsDecisions
+    ? (contact: db.Contact) =>
+        !!(contact.isContact || contact.isContactSuggestion)
+    : isAlreadyKnownContact;
   const newMatches = matches.filter(([, contactId]) => {
     const c = existingById.get(contactId);
     const authoritative = authoritativeById.get(contactId);
     return (
       !removedContactIds.has(contactId) &&
       !declinedContactIds.has(contactId) &&
-      (!c || !isAlreadyKnownContact(c)) &&
-      (!authoritative || !isAlreadyKnownContact(authoritative))
+      !hiddenSuggestionIds.has(contactId) &&
+      (!c || !isKnown(c)) &&
+      (!authoritative || !isKnown(authoritative))
     );
+  });
+  const uniqueIds = [...new Set(contactIds)];
+  logger.trackEvent('Contact discovery eligibility', {
+    matchCount: uniqueIds.length,
+    savedCount: uniqueIds.filter(
+      (id) =>
+        existingById.get(id)?.isContact || authoritativeById.get(id)?.isContact
+    ).length,
+    suggestedCount: uniqueIds.filter(
+      (id) =>
+        existingById.get(id)?.isContactSuggestion ||
+        authoritativeById.get(id)?.isContactSuggestion
+    ).length,
+    profileOnlyCount: supportsDecisions
+      ? 0
+      : uniqueIds.filter((id) => {
+          const local = existingById.get(id);
+          const authoritative = authoritativeById.get(id);
+          return (
+            !local?.isContact &&
+            !local?.isContactSuggestion &&
+            !authoritative?.isContact &&
+            !authoritative?.isContactSuggestion &&
+            ((!!local && isAlreadyKnownContact(local)) ||
+              (!!authoritative && isAlreadyKnownContact(authoritative)))
+          );
+        }).length,
+    eligibleCount: new Set(newMatches.map(([, id]) => id)).size,
+    removedCount: new Set(contactIds.filter((id) => removedContactIds.has(id)))
+      .size,
+    declinedCount: new Set(
+      contactIds.filter((id) => declinedContactIds.has(id))
+    ).size,
+    hiddenCount: new Set(contactIds.filter((id) => hiddenSuggestionIds.has(id)))
+      .size,
+    completeProtection: supportsDecisions,
   });
   return {
     newMatches,
@@ -299,8 +342,11 @@ export async function partitionDiscoveryMatches(
 export async function discoverContacts(
   phoneNumbers: string[]
 ): Promise<[string, string][]> {
+  const generation = getClientGeneration();
+  const isCurrent = () => generation === getClientGeneration();
   const lastSalt = await db.lastLanyardSalt.getValue();
   const lastPhoneNumbers = await db.lastPhoneContactSetRequest.getValue();
+  if (!isCurrent()) return [];
 
   try {
     const { matches, nextSalt } = await api.discoverContacts(
@@ -309,9 +355,11 @@ export async function discoverContacts(
       lastPhoneNumbers
     );
 
+    if (!isCurrent()) return [];
     // always store the phone numbers we just successfully sent, will be used to diff
     // against the next time we send a request
     await db.lastPhoneContactSetRequest.setValue(JSON.stringify(phoneNumbers));
+    if (!isCurrent()) return [];
     await db.lastLanyardSalt.setValue(nextSalt);
     return matches;
   } catch (e) {

@@ -811,6 +811,8 @@ export const syncContactDiscovery = async (
   opts?: { invokeHandler?: boolean }
 ): Promise<ContactDiscoveryResult> => {
   logger.log('syncContactDiscovery: starting');
+  const generation = getClientGeneration();
+  const isSessionCurrent = () => generation === getClientGeneration();
   const invokeHandler = opts?.invokeHandler !== false;
   const empty: ContactDiscoveryResult = {
     didSucceed: true,
@@ -822,7 +824,7 @@ export const syncContactDiscovery = async (
   const currentUserAttestations = await db.getUserAttestations({
     userId: currentUserId,
   });
-  logger.log('got current user attestations', currentUserAttestations);
+  if (!isSessionCurrent()) return empty;
   const hasPhoneAttestation = currentUserAttestations.some(
     (attestation) => attestation.type === 'phone' && attestation.value
   );
@@ -836,6 +838,7 @@ export const syncContactDiscovery = async (
     return empty;
   }
   const systemContacts = await getSystemContacts();
+  if (!isSessionCurrent()) return empty;
   const phoneNumbers = systemContacts
     .map((contact) => contact.phoneNumber)
     .filter((phoneNumber) => phoneNumber && phoneNumber.length > 0) as string[];
@@ -860,8 +863,8 @@ export const syncContactDiscovery = async (
         discoverContacts(phoneNumbers)
       )
     ).filter((match) => match[1] !== currentUserId);
+    if (!isSessionCurrent()) return empty;
     didDiscover = true;
-    logger.log('syncContactDiscovery: got contact discovery matches', matches);
 
     const {
       newMatches,
@@ -870,6 +873,7 @@ export const syncContactDiscovery = async (
     } = await partitionDiscoveryMatches(matches, {
       isMocked,
     });
+    if (!isSessionCurrent()) return empty;
     const newMatchIds = newMatches.map(([, id]) => id);
     const intents = new Map(
       matches.map(([, id]) => [
@@ -877,7 +881,8 @@ export const syncContactDiscovery = async (
         captureContactIntent(id, { includeObservedRemovals: true }),
       ])
     );
-    const isCurrent = (id: string) => intents.get(id)?.() ?? false;
+    const isCurrent = (id: string) =>
+      isSessionCurrent() && (intents.get(id)?.() ?? false);
     let addedMatches: [string, string][] = [];
     const failedNewIds = new Set<string>();
 
@@ -889,10 +894,7 @@ export const syncContactDiscovery = async (
         error: e,
       });
     });
-    logger.log(
-      'syncContactDiscovery: inserted contact discovery matches',
-      matches
-    );
+    if (!isSessionCurrent()) return empty;
 
     const discoveredIds = [
       ...newMatchIds,
@@ -912,7 +914,10 @@ export const syncContactDiscovery = async (
       }
       const addedIds = new Set(addedContactIds.filter(isCurrent));
       addedMatches = newMatches.filter(([, id]) => addedIds.has(id));
-      logger.log('syncContactDiscovery: added contacts', addedContactIds);
+      logger.trackEvent('Contact discovery additions', {
+        addedCount: addedIds.size,
+        failedCount: failedContactIds.length,
+      });
 
       await db
         .markContactsAsMatched({
