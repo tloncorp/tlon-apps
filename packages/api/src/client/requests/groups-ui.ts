@@ -8,6 +8,13 @@ export const groupsUi = {
     path: '/suggested-contacts',
     since: '12.2.0',
   },
+  discoveryKnown: {
+    kind: 'scry',
+    agent: 'groups-ui',
+    path: '/v1/discovery-known',
+    since: '12.5.0',
+    guardedBy: 'deskSupportsContactDiscovery',
+  },
   init: {
     kind: 'scry',
     agent: 'groups-ui',
@@ -57,6 +64,13 @@ export const groupsUi = {
     agent: 'groups-ui',
     mark: 'ui-add-contact-suggestions',
     since: '12.2.0',
+  },
+  discoverContacts: {
+    kind: 'poke',
+    agent: 'groups-ui',
+    mark: 'ui-discover-contacts',
+    since: '12.5.0',
+    guardedBy: 'deskSupportsContactDiscovery',
   },
   hideContact: {
     kind: 'poke',
