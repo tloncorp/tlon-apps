@@ -861,6 +861,8 @@
     (toggle-message toggle)
   ::
       %chat-remark-action
+    ?.  from-self
+      ~|("%remark-action poke failed: only allowed from self" !!)
     =/  act=remark-action:c  p.rail  ::NOTE  =* brings shenanigans
     ?-  -.p.act
       %ship  di-abet:(di-remark-diff:(di-abed:di-core p.p.act) q.act)
@@ -906,11 +908,15 @@
     :: di-abet:(di-take-counter:(di-abed-soft:di-core src.bowl) diff)
   ::
       %chat-club-create
+    ?.  from-self
+      ~|("%club-create poke failed: only allowed from self" !!)
     cu-abet:(cu-create:cu-core `create:club:c`p.rail)
   ::
       %chat-club-action-2
     =*  action=action:club:v7:cv  p.rail
     =/  cu  (cu-abed p.action)
+    ?.  (cu-can-poke:cu q.q.action)
+      ~|("%club-action poke failed: {<src.bowl>} not in club" !!)
     cu-abet:(cu-diff:cu q.action)
   ::
       %chat-club-action-1
@@ -962,6 +968,8 @@
     action(diff.q.q (v3:diff-writs:v2:cc diff.q.q.action))
   ::
       %egg-any
+    ?.  from-self
+      ~|("%egg-any poke failed: only allowed from self" !!)
     =/  =egg:gall  (latest:egg-aid:gall `egg-any:gall`p.rail)
     ?.  ?=(%live -.egg)
       ~&  [dap.bowl %egg-not-live]
@@ -1564,7 +1572,7 @@
   =*  delta  q.diff
   =*  should  =(her src.bowl)
   ?-  -.delta
-      %reply  (check-reply-ownership delta should)
+      %reply  (check-reply-ownership delta)
       %add  ?.  should  |
             =(src.bowl (get-ship-dw delta))
       %del  should
@@ -1572,11 +1580,17 @@
       %del-react  =(src.bowl (get-ship-dw delta))
   ==
 ::
+::  +check-reply-ownership: like +check-writ-ownership, but for a reply
+::
+::    the writ id names the parent, which may be anyone's, so the reply
+::    id is what has to match the sender.
+::
 ++  check-reply-ownership
-  |=  [d=delta:writs:c should=?]
+  |=  d=delta:writs:c
   ~>  %spin.['check-reply-ownership']
   ?>  ?=(%reply -.d)
   =*  delta  delta.d
+  =*  should  =(p.id.d src.bowl)
   ?-  -.delta
       %add  ?.(should | =(src.bowl (get-ship-dr delta)))
       %del  should
@@ -1960,6 +1974,25 @@
   ++  cu-out  (~(del in cu-circle) our.bowl)
   ++  cu-circle
     (~(uni in team.crew.club) hive.crew.club)
+  ::  +cu-can-poke: whether src.bowl may send us .delta
+  ::
+  ::    club actions are gossiped, so they may arrive from any member
+  ::    rather than their author. we can only require the sender to be
+  ::    in the club. until we know a club's members (we may hold an
+  ::    entry with an empty crew), we only accept the %init that invites
+  ::    us, from a ship that is part of it.
+  ::
+  ++  cu-can-poke
+    |=  =delta:club:c
+    ~>  %spin.['cu-can-poke']
+    ^-  ?
+    ?:  from-self  &
+    ?.  =(~ cu-circle)
+      (~(has in cu-circle) src.bowl)
+    ?&  ?=(%init -.delta)
+        (~(has in hive.delta) our.bowl)
+        (~(has in (~(uni in team.delta) hive.delta)) src.bowl)
+    ==
   ::
   ++  cu-area  `wire`/club/(scot %uv id)
   ++  cu-area-writs  `wire`/club/(scot %uv id)/writs
@@ -2781,6 +2814,8 @@
     |=  =diff:dm:c
     ~>  %spin.['di-take-counter']
     ?<  (~(has in blocked) ship)
+    ?.  (check-writ-ownership diff)
+      ~|("%dm-diff poke failed: {<src.bowl>} not the author" !!)
     =?  di-core  ?=(%inviting net.dm)
       (di-receive-rsvp &)
     (di-ingest-diff diff)
