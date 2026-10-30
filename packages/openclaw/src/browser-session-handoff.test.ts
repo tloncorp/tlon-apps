@@ -86,6 +86,33 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('browser session handoff', () => {
+  it('passes service-provided presentation to the private delivery command', async () => {
+    const url = viewerUrl(
+      'session-viewer',
+      Date.now() + 300_000,
+      '223e4567-e89b-42d3-a456-426614174000'
+    );
+    const card = { purpose: 'otp', site: 'wikipedia.org' };
+    reply({ session_id: handle, viewer_url: url, card });
+    await runBrowserSessionHandoff(
+      'tlon',
+      ['browser', 'handoff', handle, '--fields', '["@e1"]'],
+      config
+    );
+    expect(runBrowserHandoffCommand).toHaveBeenCalledWith(
+      'tlon',
+      [
+        'browser',
+        'handoff',
+        url,
+        '--presentation',
+        JSON.stringify(card),
+        '--service-result',
+      ],
+      config
+    );
+  });
+
   it('prepares selected refs and names and passes the bound capability privately to delivery', async () => {
     const url = viewerUrl(
       'session-viewer',

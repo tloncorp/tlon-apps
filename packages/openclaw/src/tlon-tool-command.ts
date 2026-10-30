@@ -96,6 +96,8 @@ const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
       'replies',
       'all',
       'unreads',
+      // The CLI reads `unread` as `unreads`.
+      'unread',
       'mute',
       'unmute',
       'volume',
@@ -942,8 +944,18 @@ const LEGACY_OWNER_FORMS = new Map<string, (operands: string[]) => boolean>([
  *   then `--kind` and `--description` with values (getOption from 3).
  * - groups join: one optional group flag (plain `groups join <flag>`), then
  *   `--invite` with a value (`groups join --invite <url|token> [--self]`).
+ * - The activity reads: options only, `--limit` with a value. With
+ *   ownerDefault off they act as the bot anyway; with it on, `--self` keeps
+ *   a model asking for the bot's activity from reading the owner's.
  */
 const NO_VALUE_OPTIONS: ReadonlySet<string> = new Set();
+const ACTIVITY_READ_OPERATIONS = [
+  'activity mentions',
+  'activity replies',
+  'activity all',
+  'activity unreads',
+  'activity unread',
+];
 const SELF_OPTION_POSITIONS = new Map<
   string,
   {
@@ -982,6 +994,10 @@ const SELF_OPTION_POSITIONS = new Map<
       optionalPositional: true,
     },
   ],
+  ...ACTIVITY_READ_OPERATIONS.map(
+    (operation) =>
+      [operation, { start: 2, valueOptions: new Set(['--limit']) }] as const
+  ),
 ]);
 
 /**
@@ -1860,7 +1876,7 @@ export type TlonToolExecutorDeps = {
  */
 export function formatTlonIdentityGuidance(ownerDefault: boolean): string {
   return ownerDefault
-    ? 'Commands act as your owner by default: reads return the owner\'s data and writes land on the owner\'s ship. Put --self before the command (for example --self contacts self) to act as this bot: its own DMs, profile, contacts, membership, hosted groups, and uploads you send with message. When run as the owner, posts send|reply|forward and dms send|reply post in the owner\'s name and look exactly like something the owner typed (--bot adds only a Bot tag); your own voice is the message tool. Before sending in the owner\'s name, confirm with the owner unless their instruction was explicit ("tell ~x I\'m late" is explicit; "handle this" is not). A workspace for your owner is groups create-owned "Name" --admin <your ship>: it runs as the owner, so the owner\'s ship hosts it and you are its admin (naming the owner as --admin is rewritten to you). A group you host yourself, for your own automation, is --self groups create-owned "Name" --admin <owner>. A --self after the command is an ordinary argument, except in groups create-owned, channels create, groups add-channel, groups join, groups invite-link, notes note-publish and note-unpublish, and activity mute, unmute, volume and mark-read, where --self as an option (not a title or an option\'s value) also selects the bot. settings, browser and hooks always act as the bot. Credential flags are rejected. Only turns answering the owner act as the owner; scheduled jobs, the heartbeat and subagents act as the bot, and so does an answer to the owner while an earlier reply is still in progress (say so and let them ask again).'
+    ? 'Commands act as your owner by default: reads return the owner\'s data and writes land on the owner\'s ship. Put --self before the command (for example --self contacts self) to act as this bot: its own DMs, profile, contacts, membership, hosted groups, and uploads you send with message. When run as the owner, posts send|reply|forward and dms send|reply post in the owner\'s name and look exactly like something the owner typed (--bot adds only a Bot tag); your own voice is the message tool. Before sending in the owner\'s name, confirm with the owner unless their instruction was explicit ("tell ~x I\'m late" is explicit; "handle this" is not). A workspace for your owner is groups create-owned "Name" --admin <your ship>: it runs as the owner, so the owner\'s ship hosts it and you are its admin (naming the owner as --admin is rewritten to you). A group you host yourself, for your own automation, is --self groups create-owned "Name" --admin <owner>. A --self after the command is an ordinary argument, except in groups create-owned, channels create, groups add-channel, groups join, groups invite-link, notes note-publish and note-unpublish, and activity mentions, replies, all, unreads, mute, unmute, volume and mark-read, where --self as an option (not a title or an option\'s value) also selects the bot. settings, browser and hooks always act as the bot. Credential flags are rejected. Only turns answering the owner act as the owner; scheduled jobs, the heartbeat and subagents act as the bot, and so does an answer to the owner while an earlier reply is still in progress (say so and let them ask again).'
     : 'Commands act as this bot. groups invite-link, groups join --invite, notes note-publish and note-unpublish, and activity mute, unmute, volume and mark-read act as the owner unless --self is given. Owner credentials from the documented owner configuration are accepted.';
 }
 

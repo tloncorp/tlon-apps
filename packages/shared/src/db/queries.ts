@@ -1021,13 +1021,12 @@ export const insertSystemContacts = createWriteQuery(
     const { systemContacts } = params;
     if (!systemContacts.length) return;
 
-    // Process in batches of 200
-    const batchSize = 200;
-    for (let i = 0; i < systemContacts.length; i += batchSize) {
-      const batch = systemContacts.slice(i, i + batchSize);
-      if (!batch.length) continue;
-      try {
-        await ctx.db
+    await withTransactionCtx(ctx, async (txCtx) => {
+      // Keep the import atomic if a later batch fails.
+      const batchSize = 200;
+      for (let i = 0; i < systemContacts.length; i += batchSize) {
+        const batch = systemContacts.slice(i, i + batchSize);
+        await txCtx.db
           .insert($systemContacts)
           .values(batch)
           .onConflictDoUpdate({
@@ -1039,14 +1038,8 @@ export const insertSystemContacts = createWriteQuery(
           count: batch.length,
           startIndex: i,
         });
-      } catch (e) {
-        logger.trackEvent(domain.AnalyticsEvent.ErrorSystemContacts, {
-          context: 'failed to insert system contacts',
-          count: batch.length,
-          totalNumContacts: systemContacts.length,
-        });
       }
-    }
+    });
   },
   ['systemContacts', 'systemContactSentInvites', 'contacts']
 );
@@ -1185,50 +1178,6 @@ export const getSystemContactsBatchByContactId = createReadQuery(
     }
   },
   ['systemContacts', 'systemContactSentInvites']
-);
-
-// Returns the system contacts linked to the given contactIds whose
-// linked contact has no customNickname yet. Used by contact-discovery
-// to apply the address-book name as a default — we only fill in names
-// the user hasn't set themselves.
-export const getUnnamedSystemContactsByContactId = createReadQuery(
-  'getUnnamedSystemContactsByContactId',
-  async (
-    contactIds: string[],
-    ctx: QueryCtx
-  ): Promise<
-    Array<{
-      contactId: string;
-      firstName: string | null;
-      lastName: string | null;
-    }>
-  > => {
-    if (!contactIds.length) return [];
-    const rows = await ctx.db
-      .select({
-        contactId: $systemContacts.contactId,
-        firstName: $systemContacts.firstName,
-        lastName: $systemContacts.lastName,
-      })
-      .from($systemContacts)
-      .leftJoin($contacts, eq($systemContacts.contactId, $contacts.id))
-      .where(
-        and(
-          inArray($systemContacts.contactId, contactIds),
-          or(isNull($contacts.customNickname), eq($contacts.customNickname, ''))
-        )
-      );
-    return rows.filter(
-      (
-        r
-      ): r is {
-        contactId: string;
-        firstName: string | null;
-        lastName: string | null;
-      } => r.contactId !== null
-    );
-  },
-  ['systemContacts', 'contacts']
 );
 
 export const getUninvitedSystemContactsShortlist = createReadQuery(

@@ -194,102 +194,43 @@ connected provider for the group; configuration is applied only when the owner
 submits it. The completion action is one-shot and remains disabled when a live
 `tlon-a2ui-selection` receipt exists for that surface and component.
 
-### Browser credential handoff
+### Browser cards v1
 
-A trusted bot can offer a standard A2UI card that opens a native Tlon
-credential form for an existing hosted-browser session. Keep the hierarchy
-quiet: one clear title, a short explanation, two short privacy lines, and one
-explicit action. The card carries the session's signed viewer URL, not
-credentials. Bots should create this card with
-the `browser handoff <session_id>` tool instead of constructing the blob.
-The `browserSecureEntry` target requires service-managed result delivery.
-Unsupported screen targets fail validation before the owner can fill anything:
+`browser-session` and `browser-secure-entry` entries render built-in app cards
+on web, iOS, and Android. The sender supplies data, not an A2UI layout:
 
 ```json
-[
-  { "id": "root", "component": "Card", "child": "body" },
-  {
-    "id": "body",
-    "component": "Column",
-    "children": [
-      "title",
-      "title-divider",
-      "explanation",
-      "privacy-direct",
-      "privacy-context",
-      "action-divider",
-      "actions"
-    ]
-  },
-  {
-    "id": "title",
-    "component": "Text",
-    "variant": "h3",
-    "text": "Sign in to continue"
-  },
-  { "id": "title-divider", "component": "Divider" },
-  {
-    "id": "explanation",
-    "component": "Text",
-    "text": "The browser reached a login screen that needs your input."
-  },
-  {
-    "id": "privacy-direct",
-    "component": "Text",
-    "variant": "caption",
-    "text": "Your credentials go directly to the live browser."
-  },
-  {
-    "id": "privacy-context",
-    "component": "Text",
-    "variant": "caption",
-    "text": "They are never posted to chat or returned to the bot."
-  },
-  { "id": "action-divider", "component": "Divider" },
-  {
-    "id": "actions",
-    "component": "Row",
-    "children": ["open-login"],
-    "align": "center"
-  },
-  {
-    "id": "open-login",
-    "component": "Button",
-    "weight": 1,
-    "variant": "primary",
-    "child": "open-login-label",
-    "action": {
-      "event": {
-        "name": "tlon.navigate",
-        "context": {
-          "target": {
-            "type": "screen",
-            "screen": "browserSecureEntry",
-            "viewerUrl": "https://browser-session-ovh1.tlon.network/s/<signed-capability>"
-          }
-        }
-      }
-    }
-  },
-  {
-    "id": "open-login-label",
-    "component": "Text",
-    "text": "Open secure login"
-  }
-]
+{
+  "type": "browser-secure-entry",
+  "version": 1,
+  "viewerUrl": "https://browser-session.tlon.network/s/<signed-capability>",
+  "presentation": { "purpose": "login", "site": "wikipedia.org" }
+}
 ```
 
-The screen accepts signed viewer URLs from
-`browser-session-*.tlon.network` and
-`browser-session-*.test.tlon.systems`. It exchanges that capability directly
-with the viewer gateway for a one-use, short-lived fill handle, displays the
-origin of the login form discovered in the live browser, and posts the user's
-values directly to the gateway. Passwords and usernames are never written to
-the post blob, chat, bot context, or fill response.
+Both entries require `viewerUrl`. Secure entry accepts optional `presentation`
+(`purpose`: `login`, `otp`, or `details`; `site`: hostname) and optional
+`loginApproval` (`record`: optional `{id, revision}` saved-login pointer).
+No credential values, account names, or form selectors belong in these blobs.
+The service supplies the presentation from the prepared form; an older service
+without presentation metadata gets a generic secure-entry card.
 
-The bot keeps the browser session live while the card is usable. The OpenClaw
-result service resumes the originating conversation after entry or cancellation.
-The card has no chat continuation action.
+Only the owner's trusted bot can enable the card's actions or preview requests.
+The client validates the viewer origin and uses the existing owner-authorized
+viewer/credential flow. The site label is presentation, never authorization.
+Session cards open the viewer modal/sheet; secure-entry cards open the existing
+native input sheet or web modal. Login, OTP, and saved-login approval use distinct
+copy. Closing a sheet does not consume the card.
+
+The `tlon browser` delivery command writes these entries with a plain Story
+fallback. Clients predating these entry types show that fallback and the normal
+upgrade notice; ship reader support before updating hosted senders. Existing
+A2UI secure-entry cards and rich session links remain supported. The fixtures
+send these same typed blobs through the real chat renderer.
+
+The signed capability identifies the form/session; the browser service still
+owns expiry, owner authorization, field binding, and result delivery. No Hoon
+change is required.
 
 ## Read/write behavior
 

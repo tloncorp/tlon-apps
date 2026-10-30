@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   authorizeBrowserLoginHandoff,
   browserVaultOwnerRequest,
+  BrowserVaultRequestError,
 } from './browserVault';
 
 const mocks = vi.hoisted(() => ({
@@ -126,3 +127,18 @@ describe('browser vault owner requests', () => {
     ).not.toContain('private-password');
   });
 });
+
+it.each([401, 403, 404, 503])(
+  'preserves HTTP %s without exposing the response body',
+  async (status) => {
+    mocks.fetch.mockResolvedValue(
+      new Response('private error details', { status })
+    );
+    const result = browserVaultOwnerRequest(endpoint, {});
+    await expect(result).rejects.toBeInstanceOf(BrowserVaultRequestError);
+    await expect(result).rejects.toMatchObject({
+      status,
+      message: 'Saved logins are unavailable. Reconnect and try again.',
+    });
+  }
+);
