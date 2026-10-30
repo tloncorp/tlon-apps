@@ -1955,14 +1955,15 @@ export default defineBundledChannelEntry({
     };
 
     const browserLoginApprovals = createBrowserLoginApprovalHandler(
-      (sessionId, record, ctx, fields) =>
+      (sessionId, record, ctx, fields, formId) =>
         runBrowserCommand(
           [
             'browser',
             'approve-login',
             sessionId,
-            '--fields',
-            JSON.stringify(fields),
+            ...(formId
+              ? ['--form-id', formId]
+              : ['--fields', JSON.stringify(fields)]),
             ...(record ? ['--record', JSON.stringify(record)] : []),
           ],
           ctx

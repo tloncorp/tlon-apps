@@ -27,7 +27,7 @@ export const PostBlobDataEntryBrowserSecureEntrySchema = z
       .object({
         record: z
           .object({
-            id: z.string().uuid(),
+            id: z.string().min(1).max(128),
             revision: z.number().int().positive(),
           })
           .strict()
