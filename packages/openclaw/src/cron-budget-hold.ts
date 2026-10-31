@@ -105,6 +105,19 @@ export function isSystemOwnedJob(job: BudgetCronJob): boolean {
   );
 }
 
+// memory-core accepts edits to its dreaming job but puts it back to enabled,
+// with its own description, every minute (`buildManagedDreamingPatch` in core's
+// `extensions/memory-core/src/dreaming-cron.ts`). A hold on it never sticks,
+// so each pass would pause it again.
+const MEMORY_DREAMING_DECLARATION_KEY = 'memory-core:memory-dreaming-promotion';
+
+function isHoldExempt(job: BudgetCronJob): boolean {
+  return (
+    isSystemOwnedJob(job) ||
+    job.declarationKey === MEMORY_DREAMING_DECLARATION_KEY
+  );
+}
+
 // Older plugins labelled system-owned jobs. Core re-enables them on start but
 // does not converge `description`, so the label outlives the pause. Returns the
 // labelled system-owned jobs with the label removed; only the pre-gateway
@@ -303,7 +316,7 @@ export async function reconcileBudgetHolds(opts: {
   // One failing job must not stall the rest of the pass or the notice.
   for (const job of jobs) {
     try {
-      if (isSystemOwnedJob(job)) {
+      if (isHoldExempt(job)) {
         if (state.holds[job.id]) {
           delete state.holds[job.id];
           await save();
