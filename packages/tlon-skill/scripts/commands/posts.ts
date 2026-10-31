@@ -1485,16 +1485,28 @@ async function sendReply(
     parsed.parentAuthor
   );
   const sentAt = parsed.sentAt ?? deps.now();
-  await deps.postsApi.sendReply({
-    channelId: parsed.channelId,
-    parentId,
-    parentAuthor,
-    content,
-    sentAt,
-    authorId,
-    blob: parsed.blob,
-    ...(parsed.botProfile ? { botProfile: parsed.botProfile } : {}),
-  });
+  try {
+    await deps.postsApi.sendReply({
+      channelId: parsed.channelId,
+      parentId,
+      parentAuthor,
+      content,
+      sentAt,
+      authorId,
+      blob: parsed.blob,
+      ...(parsed.botProfile ? { botProfile: parsed.botProfile } : {}),
+    });
+  } catch (error) {
+    // A reply to a parent that doesn't exist fails in the host with a bare
+    // Hoon trace, which says nothing about the id.
+    const problem = postIdLengthProblem(parsed.postId);
+    if (problem) {
+      throw commandError(
+        `${problem}. Copy it again from \`messages channel ${parsed.channelId}\`; nothing was sent.`
+      );
+    }
+    throw error;
+  }
   return { sentAt, parentAuthor };
 }
 
