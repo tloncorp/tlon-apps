@@ -18,8 +18,8 @@ import { getTlonCronService } from './cron-telemetry.js';
 import { isCronToolName } from './cron-tool-args-guard.js';
 import { buildCreditIncreaseCard } from './credit-increase-request.js';
 import {
-  billingFailureKeyOwner,
   creditFailureNoticeText,
+  describeBillingFailure,
   isApiKeyBillingReply,
   reconcileCreditNotice,
 } from './credit-notice.js';
@@ -363,8 +363,12 @@ export function registerBudgetHoldHooks(
   // A scheduled run has no chat reply for the owner's credit notice to
   // replace: core keeps the billing error out of the task's channel and
   // alerts only after repeated failures.
-  const notifyCreditFailure = async (task: string | undefined) => {
-    const keyOwner = billingFailureKeyOwner(
+  const notifyCreditFailure = async (
+    error: string,
+    task: string | undefined
+  ) => {
+    const { keyOwner, provider } = describeBillingFailure(
+      error,
       await readBudgetSignalDetails(paths.signal)
     );
     // Tlon's own account refused the run; core's failure alert covers it.
@@ -381,6 +385,7 @@ export function registerBudgetHoldHooks(
     cooldown.recordSent(keyOwner, now);
     const message = creditFailureNoticeText(
       keyOwner,
+      provider,
       task ? `run your scheduled task "${task}"` : 'run a scheduled task'
     );
     const blob =
@@ -405,7 +410,7 @@ export function registerBudgetHoldHooks(
       event.status === 'error' &&
       isApiKeyBillingReply(event.error)
     ) {
-      void notifyCreditFailure(event.job?.name).catch((error) => {
+      void notifyCreditFailure(event.error, event.job?.name).catch((error) => {
         api.logger.warn(
           `[tlon] Scheduled-run credit notice failed: ${String(error)}`
         );

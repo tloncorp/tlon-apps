@@ -293,7 +293,7 @@ describe('resolveSilentFailureNotice', () => {
     expect(
       resolveSilentFailureNotice({
         ...input,
-        billingFailure: { keyOwner: 'owner' },
+        billingFailure: { keyOwner: 'owner', provider: 'openrouter' },
       })
     ).toEqual({
       kind: 'credit_exhausted',
@@ -302,7 +302,15 @@ describe('resolveSilentFailureNotice', () => {
     expect(
       resolveSilentFailureNotice({
         ...input,
-        billingFailure: { keyOwner: 'tlon' },
+        billingFailure: { keyOwner: 'owner', provider: 'anthropic' },
+      })?.text
+    ).toBe(
+      "⚠️ I couldn't reply to a request from ~ravmel-ropdyl in chat/~host/lobby: your anthropic API key is out of credits. Add credits to your anthropic account or switch to a different key."
+    );
+    expect(
+      resolveSilentFailureNotice({
+        ...input,
+        billingFailure: { keyOwner: 'tlon', provider: 'openrouter' },
       })?.text
     ).toBe(
       "⚠️ I couldn't reply to a request from ~ravmel-ropdyl in chat/~host/lobby: this month's included credits are used up."
@@ -316,14 +324,14 @@ describe('resolveSilentFailureNotice', () => {
           toolCallCount: 0,
           toolErrorCount: 0,
         }),
-        billingFailure: { keyOwner: 'owner' },
+        billingFailure: { keyOwner: 'owner', provider: null },
       })?.kind
     ).toBe('credit_exhausted');
     // Not the owner's credit: the plain run failure, not a billing claim.
     expect(
       resolveSilentFailureNotice({
         ...input,
-        billingFailure: { keyOwner: null },
+        billingFailure: { keyOwner: null, provider: 'openrouter' },
       })
     ).toEqual({
       kind: 'run_failure',

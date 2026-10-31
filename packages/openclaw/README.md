@@ -56,11 +56,20 @@ While limited, enabled `cron` and `every` tasks are disabled with a visible
 `[Paused: credit budget]` description prefix. One-shot (`at`) and event-driven
 schedules are excluded. OpenClaw's system-owned monitor jobs (heartbeat, skill
 collection review) are left alone because core rejects client edits to them.
-The owner receives one notice per budget episode:
-“Your token credits are low. Your 3 scheduled tasks have been paused.” It includes
-an A2UI **Request credit increase** button. Failed delivery is retried.
 New or re-enabled recurring tasks are held as well. Already-running work is not
 cancelled; live reconciliation runs on job changes and every five seconds.
+
+The signal's optional `credit` field (`keyOwner`, `remainingUsd`, `limitUsd`)
+describes the bot's OpenRouter key. The owner is told once when it falls below
+20% of its limit, and once when hosting limits the bot: “You've used almost all
+of this month's included credits, so I've switched to a free model and paused
+your 3 scheduled tasks until they reset.” Notices about Tlon's included key
+carry an A2UI **Request credit increase** button. Failed delivery is retried.
+
+When a chat turn or scheduled run fails because an API key is out of credits,
+core's billing reply is held back from the chat and the owner is told whose key
+it was, at most once per six hours per key owner. A provider other than
+OpenRouter is always the owner's own key, and the notice names it.
 
 On confirmed recovery, only unchanged budget-held tasks are re-enabled using
 the live cron API, which computes the next scheduled occurrence without replaying

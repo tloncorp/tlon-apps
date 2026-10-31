@@ -194,7 +194,7 @@ import {
 import { installBudgetHoldNotifier } from '../cron-budget-runtime.js';
 import { buildCreditIncreaseCard } from '../credit-increase-request.js';
 import {
-  billingFailureKeyOwner,
+  describeBillingFailure,
   isApiKeyBillingReply,
 } from '../credit-notice.js';
 import {
@@ -3677,7 +3677,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       let replyWordCount = 0;
       let replyMediaCount = 0;
       let dispatchTimedOut = false;
-      let billingReplyHeld = false;
+      let heldBillingReply: string | undefined;
       const compactionTimeoutObserver = createCompactionTimeoutObserver({
         timeoutMs: compactionObservationTimeoutMs,
         onTimeout: () => {
@@ -3894,7 +3894,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                             payload.isError === true &&
                             isApiKeyBillingReply(replyText)
                           ) {
-                            billingReplyHeld = true;
+                            heldBillingReply = replyText;
                             recordDeliverySkip('provider_billing_error');
                             return;
                           }
@@ -4213,12 +4213,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           ? (channelNest ?? _channelName ?? 'a group channel')
           : `our DM with ${senderShip}`;
         const billingFailure =
-          billingReplyHeld && hostedBudgetPaths
-            ? {
-                keyOwner: billingFailureKeyOwner(
-                  await readBudgetSignalDetails(hostedBudgetPaths.signal)
-                ),
-              }
+          heldBillingReply !== undefined && hostedBudgetPaths
+            ? describeBillingFailure(
+                heldBillingReply,
+                await readBudgetSignalDetails(hostedBudgetPaths.signal)
+              )
             : undefined;
         const notice = resolveSilentFailureNotice({
           summary: turnSummary,

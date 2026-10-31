@@ -6,7 +6,7 @@ import {
   type CreditSignal,
 } from './cron-budget-hold.js';
 import {
-  billingFailureKeyOwner,
+  describeBillingFailure,
   isApiKeyBillingReply,
   reconcileCreditNotice,
 } from './credit-notice.js';
@@ -104,13 +104,18 @@ describe('credit notice', () => {
   });
 });
 
+const billingReply = (provider: string) =>
+  `⚠️ ${provider} returned a billing error — your API key has run out of credits or has an insufficient balance. Check your provider's billing dashboard and top up or switch to a different API key.`;
+const UNNAMED = billingReply('API provider');
+const OPENROUTER = billingReply('openrouter (openai/gpt-5.6-luna)');
+
 describe('billing failures', () => {
-  it.each([
-    "⚠️ API provider returned a billing error — your API key has run out of credits or has an insufficient balance. Check your provider's billing dashboard and top up or switch to a different API key.",
-    '⚠️ openrouter (openai/gpt-5.6-luna) returned a billing error — your API key has run out of credits or has an insufficient balance. Check your openrouter billing dashboard and top up or switch to a different API key.',
-  ])('recognizes core API-key billing reply %#', (text) => {
-    expect(isApiKeyBillingReply(text)).toBe(true);
-  });
+  it.each([UNNAMED, OPENROUTER])(
+    'recognizes core API-key billing reply %#',
+    (text) => {
+      expect(isApiKeyBillingReply(text)).toBe(true);
+    }
+  );
 
   it('leaves subscription billing replies and other errors alone', () => {
     expect(
@@ -130,6 +135,31 @@ describe('billing failures', () => {
     ['available', tlon(2.5), null],
     ['available', null, null],
   ])('with %s credit %o, blames %s', (state, credit, keyOwner) => {
-    expect(billingFailureKeyOwner({ state, credit })).toBe(keyOwner);
+    expect(describeBillingFailure(OPENROUTER, { state, credit })).toEqual({
+      keyOwner,
+      provider: 'openrouter',
+    });
+    expect(describeBillingFailure(UNNAMED, { state, credit })).toEqual({
+      keyOwner,
+      provider: null,
+    });
+  });
+
+  it("blames the owner's own key for any provider but OpenRouter", () => {
+    // Tlon's included key has credit left; it isn't the one that failed.
+    const signal = { state: 'available' as const, credit: tlon(4) };
+    expect(
+      describeBillingFailure(
+        billingReply('anthropic (claude-sonnet-4-6)'),
+        signal
+      )
+    ).toEqual({ keyOwner: 'owner', provider: 'anthropic' });
+    // A failed scheduled run's error carries core's status suffix.
+    expect(
+      describeBillingFailure(
+        `${billingReply('openai (gpt-5.5)')} | credit_balance_exhausted`,
+        { state: 'limited', credit: null }
+      )
+    ).toEqual({ keyOwner: 'owner', provider: 'openai' });
   });
 });

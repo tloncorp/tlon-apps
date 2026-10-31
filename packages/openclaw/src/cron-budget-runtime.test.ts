@@ -22,11 +22,14 @@ import {
   registerBudgetHoldHooks,
   registerBudgetRunGuard,
 } from './cron-budget-runtime.js';
+import { sharedSlot } from './shared-state.js';
 
 const cleanups: (() => Promise<void> | void)[] = [];
 afterEach(async () => {
   for (const cleanup of cleanups.reverse()) await cleanup();
   cleanups.length = 0;
+  // Credit-failure notices share a cooldown across the process.
+  sharedSlot('silentFailureNotice.creditCooldown').set(null);
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });
@@ -178,6 +181,32 @@ it('offers a credit increase when a scheduled run uses up the included credit', 
     expect(notify).toHaveBeenCalledWith(
       "⚠️ I couldn't run a scheduled task: this month's included credits are used up.",
       expect.any(String)
+    )
+  );
+});
+
+it("names the owner's own provider key when a scheduled run fails on it", async () => {
+  const f = await setup();
+  // Tlon's included key has credit left; the task runs on the owner's key.
+  await f.setBudget('available', {
+    keyOwner: 'tlon',
+    remainingUsd: 4,
+    limitUsd: 5,
+  });
+  const notify = vi.fn(async () => true);
+  cleanups.push(installBudgetHoldNotifier('default', notify, f.config));
+  await f.fire(
+    'cron_changed',
+    failedRun(
+      BILLING_REPLY.replace('API provider', 'anthropic (claude-sonnet-4-6)') +
+        ' | 400',
+      'Crypto digest'
+    )
+  );
+  await vi.waitFor(() =>
+    expect(notify).toHaveBeenCalledWith(
+      '⚠️ I couldn\'t run your scheduled task "Crypto digest": your anthropic API key is out of credits. Add credits to your anthropic account or switch to a different key.',
+      undefined
     )
   );
 });

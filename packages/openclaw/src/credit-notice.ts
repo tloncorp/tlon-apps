@@ -143,30 +143,52 @@ export async function reconcileCreditNotice(opts: {
 const API_KEY_BILLING_REPLY =
   'returned a billing error — your API key has run out of credits';
 
-export function isApiKeyBillingReply(text: string | undefined): boolean {
+export function isApiKeyBillingReply(text: string | undefined): text is string {
   return text?.includes(API_KEY_BILLING_REPLY) === true;
 }
 
-/**
- * Whose credit a billing failure ran out of, or null when it wasn't the
- * owner's: Tlon's key with credit left failed on Tlon's own account.
- */
-export function billingFailureKeyOwner(signal: {
-  state: BudgetState;
-  credit: CreditSignal | null;
-}): CreditSignal['keyOwner'] | null {
-  if (signal.credit?.keyOwner === 'owner') return 'owner';
-  if (signal.state === 'limited') return 'tlon';
+// `⚠️ <provider> (<model>) returned …`; core writes `⚠️ API provider
+// returned …` when it doesn't know the provider.
+const BILLING_REPLY_PROVIDER =
+  /⚠️ (\S+)(?: \([^)]*\))? returned a billing error/;
+
+export type BillingFailure = {
+  /** Null when it wasn't the owner's credit: Tlon's own account refused it. */
+  keyOwner: CreditSignal['keyOwner'] | null;
+  /** The provider core's reply names, or null when it names none. */
+  provider: string | null;
+};
+
+/** Whose credit the billing failure in core's reply ran out of. */
+export function describeBillingFailure(
+  reply: string,
+  signal: { state: BudgetState; credit: CreditSignal | null }
+): BillingFailure {
+  const provider = BILLING_REPLY_PROVIDER.exec(reply)?.[1] ?? null;
+  // Tlon only provides an OpenRouter key, and the signal describes only that.
+  if (provider !== null && provider !== 'openrouter') {
+    return { keyOwner: 'owner', provider };
+  }
+  if (signal.credit?.keyOwner === 'owner')
+    return { keyOwner: 'owner', provider };
   const share = remainingShare(signal.credit);
-  return share !== null && share < LIMITED_CREDIT_RATIO ? 'tlon' : null;
+  // Tlon's key with credit left failed on Tlon's own account.
+  const spent =
+    signal.state === 'limited' ||
+    (share !== null && share < LIMITED_CREDIT_RATIO);
+  return { keyOwner: spent ? 'tlon' : null, provider };
 }
 
 /** `failed` completes "I couldn't …", e.g. `run your scheduled task "Digest"`. */
 export function creditFailureNoticeText(
   keyOwner: CreditSignal['keyOwner'],
+  provider: string | null,
   failed: string
 ): string {
-  return keyOwner === 'owner'
+  if (keyOwner === 'tlon') {
+    return `⚠️ I couldn't ${failed}: this month's included credits are used up.`;
+  }
+  return provider === null || provider === 'openrouter'
     ? `⚠️ I couldn't ${failed}: your OpenRouter key is out of credits. Add credits or raise its limit on OpenRouter.`
-    : `⚠️ I couldn't ${failed}: this month's included credits are used up.`;
+    : `⚠️ I couldn't ${failed}: your ${provider} API key is out of credits. Add credits to your ${provider} account or switch to a different key.`;
 }

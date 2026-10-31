@@ -1,8 +1,8 @@
 import { metrics } from '@opentelemetry/api';
 
 import type { ContextLensStatus } from './context-lens.js';
-import type { CreditSignal } from './cron-budget-hold.js';
 import {
+  type BillingFailure,
   CREDIT_FAILURE_NOTICE_COOLDOWN_MS,
   creditFailureNoticeText,
 } from './credit-notice.js';
@@ -40,12 +40,8 @@ export function resolveSilentFailureNotice(input: {
   deliveredCount: number;
   requester: string;
   conversation: string;
-  /**
-   * The run's billing-error reply was held back from the chat. `keyOwner`
-   * names whose OpenRouter credit ran out, or is null when it wasn't the
-   * owner's.
-   */
-  billingFailure?: { keyOwner: CreditSignal['keyOwner'] | null };
+  /** The run's billing-error reply was held back from the chat. */
+  billingFailure?: BillingFailure;
 }): SilentFailureNotice | null {
   const { summary, deliveredCount, requester, conversation } = input;
   const request = `a request from ${requester} in ${conversation}`;
@@ -55,6 +51,7 @@ export function resolveSilentFailureNotice(input: {
       kind: 'credit_exhausted',
       text: creditFailureNoticeText(
         input.billingFailure.keyOwner,
+        input.billingFailure.provider,
         `reply to ${request}`
       ),
     };
