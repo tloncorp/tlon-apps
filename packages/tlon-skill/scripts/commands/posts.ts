@@ -15,6 +15,7 @@ import {
   isNotesNest,
   mapWithConcurrency,
   parseNest,
+  postIdLengthProblem,
   undottedPostId,
 } from '../cli-utils';
 import { assertPostableMediaUrl } from '../image-attach';
@@ -144,9 +145,9 @@ Channel format: chat/~host/channel-name, heap/~host/name
 Use 'tlon messages channel <nest> --limit N' to see post IDs.`;
 
 export const POSTS_COMMAND_HELP: Record<string, string> = {
-  send: 'Usage: tlon posts send <channel> [message] [--image <url>]... [--file <url>]... [--video <url>]... [--link <url>] [--blob <json>] [--title <text>] [--quote <channel> <post-id> [--quote-parent <post-id>]] [--sent-at <ms>] [--bot] (message optional with an attachment or --quote; a gallery post takes one attachment)',
+  send: 'Usage: tlon posts send <channel> [message] [--image <url>]... [--file <url>]... [--video <url>]... [--link <url>] [--blob <json>] [--title <text>] [--quote <channel> <post-id> [--quote-parent <post-id>]] [--sent-at <ms>] [--bot] (message optional with an attachment or --quote; a gallery post takes one attachment)\n~ship in the message mentions that person and notifies them; @role-id mentions a group role, @all every member.',
   reply:
-    'Usage: tlon posts reply <channel> <post-id> [message] [--author ~ship] [--blob <json>] [--quote <channel> <post-id> [--quote-parent <post-id>]] [--sent-at <ms>] [--bot] (message optional with --quote)',
+    'Usage: tlon posts reply <channel> <post-id> [message] [--author ~ship] [--blob <json>] [--quote <channel> <post-id> [--quote-parent <post-id>]] [--sent-at <ms>] [--bot] (message optional with --quote)\n~ship in the message mentions that person and notifies them; @role-id mentions a group role, @all every member.',
   forward:
     'Usage: tlon posts forward <src-channel> <src-id> <target> [--parent <src-parent-id>] [--sent-at <ms>]',
   react:
@@ -1484,16 +1485,28 @@ async function sendReply(
     parsed.parentAuthor
   );
   const sentAt = parsed.sentAt ?? deps.now();
-  await deps.postsApi.sendReply({
-    channelId: parsed.channelId,
-    parentId,
-    parentAuthor,
-    content,
-    sentAt,
-    authorId,
-    blob: parsed.blob,
-    ...(parsed.botProfile ? { botProfile: parsed.botProfile } : {}),
-  });
+  try {
+    await deps.postsApi.sendReply({
+      channelId: parsed.channelId,
+      parentId,
+      parentAuthor,
+      content,
+      sentAt,
+      authorId,
+      blob: parsed.blob,
+      ...(parsed.botProfile ? { botProfile: parsed.botProfile } : {}),
+    });
+  } catch (error) {
+    // A reply to a parent that doesn't exist fails in the host with a bare
+    // Hoon trace, which says nothing about the id.
+    const problem = postIdLengthProblem(parsed.postId);
+    if (problem) {
+      throw commandError(
+        `${problem}. Copy it again from \`messages channel ${parsed.channelId}\`; nothing was sent.`
+      );
+    }
+    throw error;
+  }
   return { sentAt, parentAuthor };
 }
 
@@ -1610,8 +1623,11 @@ async function editPost(
     // and cover — is replaced by whatever is sent now. Editing blind is a
     // silent, durable rewrite; failing is visible and retryable once the post
     // is readable.
+    const problem = postIdLengthProblem(parsed.postId);
     throw commandError(
-      `Could not read ${formatPostId(parsed.postId)} in ${parsed.channelId} to preserve its authorship and metadata; the post may not be readable yet. Retry the edit.`
+      problem
+        ? `${problem}. Copy it again from \`messages channel ${parsed.channelId}\`; nothing was changed.`
+        : `Could not read ${formatPostId(parsed.postId)} in ${parsed.channelId} to preserve its authorship and metadata; the post may not be readable yet. Retry the edit.`
     );
   }
 
