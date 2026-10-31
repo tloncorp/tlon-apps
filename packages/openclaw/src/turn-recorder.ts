@@ -60,6 +60,8 @@ export type TlonAgentTurnSkipReason =
   | 'block_directive_only'
   | 'media_only_payload_not_sent'
   | 'source_reply_delivery_mode_message_tool_only'
+  // Core's billing reply, replaced by an owner notice.
+  | 'provider_billing_error'
   // The turn kernel admitted the message but did not dispatch it (bot-loop
   // protection, outbound echo, duplicate): no run, no reply owed.
   | 'not_dispatched';
