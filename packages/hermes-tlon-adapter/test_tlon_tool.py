@@ -2215,11 +2215,32 @@ class OwnerChannelPredicateTests(unittest.TestCase):
             "--config=/tmp/x.json channels create ~owner/team Discussion",
             "channels update chat/~owner/abc --title New",
             "channels create",
+            "groups delete ~owner/team",
         ]
         for command in commands:
             with self.subTest(command=command):
                 self.assertFalse(
                     tlon_tool.should_create_channel_on_owner(
+                        self._args(command), OWNER_SHIP
+                    )
+                )
+
+    def test_routes_only_a_delete_of_an_owner_hosted_group(self):
+        self.assertTrue(
+            tlon_tool.should_delete_group_on_owner(
+                self._args("groups delete ~owner/team"), OWNER_SHIP
+            )
+        )
+        for command in (
+            "groups delete ~someone/team",
+            "groups delete ~owner/team --self",
+            "groups delete ~owner/team --help",
+            "--ship ~bot groups delete ~owner/team",
+            "channels create ~owner/team Discussion",
+        ):
+            with self.subTest(command=command):
+                self.assertFalse(
+                    tlon_tool.should_delete_group_on_owner(
                         self._args(command), OWNER_SHIP
                     )
                 )
@@ -2289,6 +2310,37 @@ class OwnerChannelRoutingTests(unittest.TestCase):
                 payload, calls = self._run(command, cfg, OWNER_ENV)
 
                 self.assertTrue(payload["success"])
+                _argv, run_env = calls[-1]
+                self.assertEqual(run_env["TLON_SHIP"], "~bot")
+
+    def test_deletes_a_group_the_owner_hosts_as_the_owner(self):
+        cfg = _bot_config(TLON_COOKIE=BOT_COOKIE)
+
+        payload, calls = self._run("groups delete ~owner/team", cfg, OWNER_ENV)
+
+        self.assertTrue(payload["success"])
+        argv, run_env = calls[-1]
+        self.assertEqual(argv, ("tlon-test", "groups", "delete", "~owner/team"))
+        self.assertEqual(run_env["TLON_SHIP"], OWNER_SHIP)
+        self.assertEqual(run_env["TLON_CODE"], OWNER_CODE)
+        self.assertNotIn(BOT_COOKIE, run_env.values())
+
+    def test_deletes_as_the_bot_without_the_owner_triple_or_for_other_hosts(
+        self,
+    ):
+        cfg = _bot_config()
+        no_owner = {key: "" for key in OWNER_ENV}
+
+        for command, env in (
+            ("groups delete ~owner/team", no_owner),
+            ("groups delete ~someone/team", OWNER_ENV),
+            ("groups delete ~owner/team --self", OWNER_ENV),
+        ):
+            with self.subTest(command=command):
+                payload, calls = self._run(command, cfg, env)
+
+                self.assertTrue(payload["success"])
+                self.assertNotIn("note", payload)
                 _argv, run_env = calls[-1]
                 self.assertEqual(run_env["TLON_SHIP"], "~bot")
 

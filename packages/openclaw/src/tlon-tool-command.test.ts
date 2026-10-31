@@ -2923,6 +2923,82 @@ describe("owner-hosted channels in the owner's groups", () => {
   );
 });
 
+describe("deleting the owner's groups", () => {
+  const OWNER_CONFIG = '/srv/tlon-skill/ships/owner.json';
+
+  function makeExecutor(
+    overrides: { botShip?: string; fileExists?: (path: string) => boolean } = {}
+  ) {
+    const runCommand = vi.fn(async () => 'Deleted group ~owner/team');
+    const execute = createTlonToolExecutor({
+      runCommand,
+      notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+      ownerShip: '~owner',
+      botShip: '~pinser-botter-owner',
+      env: { TLON_SKILL_DIR: '/srv/tlon-skill' } as NodeJS.ProcessEnv,
+      fileExists: (path: string) => path === OWNER_CONFIG,
+      ...overrides,
+    });
+    return { execute, runCommand };
+  }
+
+  it('deletes a group the owner hosts as the owner', async () => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('delete', { command: 'groups delete ~owner/team' });
+
+    expect(runCommand).toHaveBeenCalledWith([
+      '--ship',
+      '~owner',
+      'groups',
+      'delete',
+      '~owner/team',
+    ]);
+  });
+
+  it.each([
+    ["the bot's own group", 'groups delete ~pinser-botter-owner/team'],
+    ['another host', 'groups delete ~someone/team'],
+    ['--help', 'groups delete ~owner/team --help'],
+    ['separate-value --ship', '--ship ~bot groups delete ~owner/team'],
+  ])('leaves the command untouched for %s', async (_label, command) => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('skip', { command });
+
+    const [args] = runCommand.mock.calls[0] as unknown as [string[]];
+    expect(args).toEqual(command.split(' '));
+  });
+
+  it.each([
+    ['before the command', '--self groups delete ~owner/team'],
+    ['after the group', 'groups delete ~owner/team --self'],
+  ])('runs as the bot when asked with --self %s', async (_label, command) => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('self', { command });
+
+    const [args] = runCommand.mock.calls[0] as unknown as [string[]];
+    expect(args).not.toContain('~owner');
+    expect(args).toContain('~owner/team');
+  });
+
+  it.each([
+    ['without owner credentials', { fileExists: () => false }],
+    ['when the bot is its own owner', { botShip: '~owner' }],
+  ])('runs as written %s', async (_label, overrides) => {
+    const { execute, runCommand } = makeExecutor(overrides);
+
+    await execute('as-written', { command: 'groups delete ~owner/team' });
+
+    expect(runCommand).toHaveBeenCalledWith([
+      'groups',
+      'delete',
+      '~owner/team',
+    ]);
+  });
+});
+
 describe('owner-hosted workspaces and channels with ownerDefault', () => {
   const SKILL_DIR = '/srv/tlon-skill';
   const OWNER_CONFIG = '/srv/tlon-skill/ships/owner.json';
