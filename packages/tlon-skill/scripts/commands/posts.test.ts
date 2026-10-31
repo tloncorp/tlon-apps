@@ -843,6 +843,30 @@ describe('posts reply', () => {
     ]);
   });
 
+  it('says a parent id with a group missing was mis-copied when the reply fails', async () => {
+    const context = makeDeps({
+      sendReply: async () => {
+        throw new Error('/sys/lull/hoon:<[287 5].[287 21]>');
+      },
+    });
+
+    const exitCode = await run(
+      [
+        'reply',
+        'chat/~host/channel',
+        // WHOLE_POST_ID with its next-to-last group dropped
+        '170.141.184.508.234.811.553.575.128.700.846.432',
+        'on it',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toContain("isn't a whole post ID");
+    expect(context.stderr()).toContain('nothing was sent');
+    expect(context.stderr()).not.toContain('/sys/lull/hoon');
+  });
+
   it('replies to a gallery post with the exact heap target input', async () => {
     const context = makeDeps({ currentUserId: '~nec', now: 7 });
     const exitCode = await run(
@@ -925,7 +949,7 @@ describe('posts reply', () => {
     });
 
     const exitCode = await run(
-      ['reply', 'chat/~host/channel', '170.141', 'hi'],
+      ['reply', 'chat/~host/channel', WHOLE_POST_ID, 'hi'],
       context.deps
     );
 
