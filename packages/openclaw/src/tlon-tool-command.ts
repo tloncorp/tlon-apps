@@ -1937,6 +1937,7 @@ const OWNER_DEFAULT_IDENTITY_TABLE = [
 export function formatTlonToolDescription(ownerDefault: boolean): string {
   return (
     'Read Tlon data and manage Tlon workspaces (groups), channels, notes, shared Bucket files, contacts, and settings. ' +
+    'What was said in Tlon, by you or anyone, is in its DMs and channels: to recall something you told someone earlier, a recommendation or an answer, run messages search "<words>", which searches every DM and channel at once. Session search covers only your own recent sessions. ' +
     formatTlonIdentityGuidance(ownerDefault) +
     ' ' +
     'In Tlon requests, "workspace" means a group; use groups commands and groups create-owned to create one for a user. Explicit requests about files or paths refer to the agent workspace directory. ' +
