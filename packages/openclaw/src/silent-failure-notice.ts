@@ -1,6 +1,12 @@
 import { metrics } from '@opentelemetry/api';
 
 import type { ContextLensStatus } from './context-lens.js';
+import type { CreditSignal } from './cron-budget-hold.js';
+import {
+  CREDIT_FAILURE_NOTICE_COOLDOWN_MS,
+  creditFailureNoticeText,
+} from './credit-notice.js';
+import { sharedSlot } from './shared-state.js';
 import type { TlonAgentTurnSummary } from './turn-recorder.js';
 
 export type SilentFailureNoticeKind =
@@ -8,7 +14,8 @@ export type SilentFailureNoticeKind =
   | 'delivery_failure'
   | 'run_failure'
   | 'tool_error'
-  | 'dm_empty';
+  | 'dm_empty'
+  | 'credit_exhausted';
 
 export type SilentFailureNotice = {
   kind: SilentFailureNoticeKind;
@@ -33,8 +40,25 @@ export function resolveSilentFailureNotice(input: {
   deliveredCount: number;
   requester: string;
   conversation: string;
+  /**
+   * The run's billing-error reply was held back from the chat. `keyOwner`
+   * names whose OpenRouter credit ran out, or is null when it wasn't the
+   * owner's.
+   */
+  billingFailure?: { keyOwner: CreditSignal['keyOwner'] | null };
 }): SilentFailureNotice | null {
   const { summary, deliveredCount, requester, conversation } = input;
+  const request = `a request from ${requester} in ${conversation}`;
+  // Running out of credit is the owner's to fix, whatever the turn was for.
+  if (input.billingFailure?.keyOwner) {
+    return {
+      kind: 'credit_exhausted',
+      text: creditFailureNoticeText(
+        input.billingFailure.keyOwner,
+        `reply to ${request}`
+      ),
+    };
+  }
   if (!USER_FACING_TRIGGERS.has(summary.trigger)) {
     return null;
   }
@@ -59,11 +83,18 @@ export function resolveSilentFailureNotice(input: {
   if (summary.deliverySuccessCount > 0) {
     return null;
   }
-  const request = `a request from ${requester} in ${conversation}`;
   if (summary.execution === 'timed_out') {
     return {
       kind: 'timeout',
       text: `⚠️ ${request} timed out before I could reply. You may want to retry.`,
+    };
+  }
+  // A billing failure on Tlon's side: the turn failed, but not for the
+  // owner's credit.
+  if (input.billingFailure) {
+    return {
+      kind: 'run_failure',
+      text: `⚠️ ${request} failed before I could reply. You may want to retry.`,
     };
   }
   if (summary.deliveryFailureCount > 0 || summary.delivery === 'failed') {
@@ -121,7 +152,7 @@ type FailureNoticeMeterProviderLike = {
 export function recordFailureNoticeMetric(
   input: {
     kind: SilentFailureNoticeKind;
-    destinationKind: TlonAgentTurnSummary['destinationKind'];
+    destinationKind: TlonAgentTurnSummary['destinationKind'] | 'scheduled_task';
     suppressed: boolean;
   },
   options?: { getMeterProvider?: () => FailureNoticeMeterProviderLike }
@@ -180,6 +211,26 @@ export function createSilentFailureNoticeCooldown(
       }
     },
   };
+}
+
+const creditFailureCooldown = sharedSlot<
+  ReturnType<typeof createSilentFailureNoticeCooldown>
+>('silentFailureNotice.creditCooldown');
+
+/**
+ * One empty key fails every chat turn and scheduled run alike, so their credit
+ * notices share a window per key owner. Shared across module contexts: the
+ * monitor and the scheduler hooks load separately.
+ */
+export function creditFailureNoticeCooldown() {
+  let cooldown = creditFailureCooldown.get();
+  if (!cooldown) {
+    cooldown = createSilentFailureNoticeCooldown(
+      CREDIT_FAILURE_NOTICE_COOLDOWN_MS
+    );
+    creditFailureCooldown.set(cooldown);
+  }
+  return cooldown;
 }
 
 const GENERIC_LLM_FAILURE = 'LLM request failed.';

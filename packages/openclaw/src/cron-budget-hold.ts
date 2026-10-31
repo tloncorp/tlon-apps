@@ -35,6 +35,13 @@ export function budgetHoldPaths(env = process.env) {
 
 export const BUDGET_HOLD_PREFIX = '[Paused: credit budget] ';
 export type BudgetState = 'limited' | 'available' | 'unknown';
+/** What hosting last read of the bot's OpenRouter key. */
+export type CreditSignal = {
+  keyOwner: 'tlon' | 'owner';
+  // Null for a key without a spending limit.
+  remainingUsd: number | null;
+  limitUsd: number | null;
+};
 export type BudgetCronService = {
   list: (opts: { includeDisabled: true }) => Promise<BudgetCronJob[]>;
   update: (
@@ -63,7 +70,11 @@ export type BudgetHoldChange = {
 export type BudgetHoldState = {
   version: 1;
   limited: boolean;
+  // `notified`, `notice*` and `notification*` track the owner's credit notice
+  // (reconcileCreditNotice); `episodeId` is the hold episode.
   notified: boolean;
+  noticeLevel?: 'low' | 'limited';
+  noticeId?: string;
   episodeId?: string;
   notifiedRecipients?: string[];
   notificationAttempts?: number;
@@ -129,6 +140,23 @@ export function stripSystemOwnedHoldLabels<T extends BudgetCronJob>(
 }
 
 export async function readBudgetSignal(path: string): Promise<BudgetState> {
+  return (await readBudgetSignalDetails(path)).state;
+}
+
+function parseCreditSignal(value: unknown): CreditSignal | null {
+  const credit = value as Partial<CreditSignal> | null | undefined;
+  const amount = (n: unknown) => n === null || Number.isFinite(n);
+  return credit &&
+    (credit.keyOwner === 'tlon' || credit.keyOwner === 'owner') &&
+    amount(credit.remainingUsd) &&
+    amount(credit.limitUsd)
+    ? (credit as CreditSignal)
+    : null;
+}
+
+export async function readBudgetSignalDetails(
+  path: string
+): Promise<{ state: BudgetState; credit: CreditSignal | null }> {
   // The wrapper supplies a fresh observation if publication failed at startup.
   // Ignore that specific stale file until a later successful publication gives
   // it a new revision. Both preflight and the live gateway use this handoff.
@@ -155,18 +183,22 @@ export async function readBudgetSignal(path: string): Promise<BudgetState> {
         data.version === 1 &&
         ['limited', 'available', 'unknown'].includes(data.state);
       if (!valid || revision === null || revision === startup.staleRevision)
-        return startup.state;
+        return { state: startup.state, credit: null };
       // Retire the process-wide handoff once a fresh publication supersedes it.
       // Later read failures must be unknown, never resurrect an old limit.
       delete process.env[BUDGET_STARTUP_ENV];
     }
-    return data.version === 1 &&
-      (data.state === 'limited' || data.state === 'available')
-      ? data.state
-      : 'unknown';
+    if (data.version !== 1) return { state: 'unknown', credit: null };
+    return {
+      state:
+        data.state === 'limited' || data.state === 'available'
+          ? data.state
+          : 'unknown',
+      credit: parseCreditSignal(data.credit),
+    };
   } catch {
     // Probe/file failures cannot release an existing hold.
-    return startup?.state ?? 'unknown';
+    return { state: startup?.state ?? 'unknown', credit: null };
   }
 }
 
@@ -187,6 +219,10 @@ export async function readBudgetHoldState(
     typeof data.limited !== 'boolean' ||
     typeof data.notified !== 'boolean' ||
     (data.episodeId !== undefined && typeof data.episodeId !== 'string') ||
+    (data.noticeLevel !== undefined &&
+      data.noticeLevel !== 'low' &&
+      data.noticeLevel !== 'limited') ||
+    (data.noticeId !== undefined && typeof data.noticeId !== 'string') ||
     (data.notifiedRecipients !== undefined &&
       (!Array.isArray(data.notifiedRecipients) ||
         data.notifiedRecipients.some(
@@ -251,7 +287,6 @@ export async function reconcileBudgetHolds(opts: {
   state: BudgetHoldState;
   cron: BudgetCronService;
   save: () => Promise<void>;
-  notify?: (message: string) => Promise<boolean>;
   // Before gateway startup we only apply holds. Core's live update API must
   // release them so it computes a future next-run time without a catch-up run.
   pauseOnly?: boolean;
@@ -272,10 +307,6 @@ export async function reconcileBudgetHolds(opts: {
   };
   if (opts.budget === 'limited' && !state.limited) {
     state.limited = true;
-    state.notified = false;
-    delete state.notifiedRecipients;
-    delete state.notificationAttempts;
-    delete state.nextNotificationAtMs;
     state.episodeId = randomUUID();
     await save();
   }
@@ -395,44 +426,8 @@ export async function reconcileBudgetHolds(opts: {
   }
 
   try {
-    // An intent left by a failed update is not a paused task.
-    const count = Object.values(state.holds).filter(
-      (hold) => hold.revision !== undefined
-    ).length;
-    const now = (opts.now ?? Date.now)();
-    if (
-      limited &&
-      count > 0 &&
-      // A pass with failures may still change the count; notify once it is clean.
-      errors.length === 0 &&
-      !state.notified &&
-      opts.notify &&
-      now >= (state.nextNotificationAtMs ?? 0)
-    ) {
-      // Persist before delivery so throws or restarts cannot reset the backoff.
-      // Reconciliation still runs every five seconds, independently of notices.
-      const attempts = state.notificationAttempts ?? 0;
-      state.notificationAttempts = Math.min(attempts + 1, 5);
-      state.nextNotificationAtMs =
-        now + Math.min(60_000 * 2 ** Math.min(attempts, 4), 900_000);
-      await save();
-      if (
-        await opts.notify(
-          `Your token credits are low. Your ${count} scheduled ${count === 1 ? 'task has' : 'tasks have'} been paused.`
-        )
-      ) {
-        state.notified = true;
-        delete state.notificationAttempts;
-        delete state.nextNotificationAtMs;
-        await save();
-      }
-    }
-    if (!limited) {
+    if (!limited && state.limited) {
       state.limited = false;
-      state.notified = false;
-      delete state.notifiedRecipients;
-      delete state.notificationAttempts;
-      delete state.nextNotificationAtMs;
       await save();
     }
   } catch (error) {

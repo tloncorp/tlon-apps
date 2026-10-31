@@ -22,7 +22,9 @@
   "extraPaths": [
     "package.json",
     "src/state/openclaw-state-db-contract.ts",
-    "src/config/zod-schema*.ts"
+    "src/config/zod-schema*.ts",
+    "src/agents/failover/user-copy.ts",
+    "src/cron/isolated-agent/helpers.ts"
   ],
   "workarounds": [
     {
@@ -36,6 +38,10 @@
     {
       "id": "core-message-text-dist-loader",
       "note": "core-message-media.ts loads stripFormattedReasoningMessage, stripInternalRuntimeContext, hasInboundMetadataSentinel, stripInboundMetadata, stripUnsupportedCitationControlMarkers, normalizeReplyPayloadsForDelivery, parseReplyDirectives, parseInlineDirectives and stripPlainTextToolCallBlocks from the installed dist chunks by export name because plugin-sdk does not export them; unnecessary once plugin-sdk exports them"
+    },
+    {
+      "id": "billing-reply-text-match",
+      "note": "the monitor recognizes core's API-key billing reply by its copy (credit-notice.ts, from formatBillingErrorMessage in src/agents/failover/user-copy.ts) to hold it back and tell the owner, because the reply payload carries no failover reason; the scheduler hooks match the same copy in a failed scheduled run's error, which core takes from the run's last error payload (src/cron/isolated-agent/helpers.ts); unnecessary once reply payloads and cron_changed expose the failure reason"
     }
   ],
   "profile": {

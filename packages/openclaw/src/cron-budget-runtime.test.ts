@@ -10,6 +10,7 @@ import {
   reconcileBudgetHolds,
   writeBudgetHoldState,
   type BudgetCronJob,
+  type CreditSignal,
 } from './cron-budget-hold.js';
 import { getCurrentUserId } from '@tloncorp/api';
 import {
@@ -74,8 +75,8 @@ async function setup(accountIds = ['default']) {
   const signal = join(dir, 'signal.json');
   vi.stubEnv('TLON_CRON_BUDGET_FILE', signal);
   vi.stubEnv('OPENCLAW_STATE_DIR', dir);
-  const setBudget = (state: string) =>
-    writeFile(signal, JSON.stringify({ version: 1, state }));
+  const setBudget = (state: string, credit?: CreditSignal) =>
+    writeFile(signal, JSON.stringify({ version: 1, state, credit }));
   await setBudget('limited');
   const hooks = new Map<string, (...args: unknown[]) => unknown>();
   const warn = vi.fn();
@@ -127,6 +128,82 @@ async function setup(accountIds = ['default']) {
   };
 }
 
+const BILLING_REPLY =
+  "⚠️ API provider returned a billing error — your API key has run out of credits or has an insufficient balance. Check your provider's billing dashboard and top up or switch to a different API key.";
+const failedRun = (error: string, name?: string) => ({
+  action: 'finished',
+  jobId: 'news',
+  job: name ? { id: 'news', name } : undefined,
+  status: 'error',
+  error,
+});
+// For notices that must not arrive: the hook sends without awaiting.
+const settle = () => new Promise((resolve) => setTimeout(resolve, 100));
+
+it('DMs the owner when a scheduled run fails on their empty key, once per window', async () => {
+  const f = await setup();
+  await f.setBudget('unknown', {
+    keyOwner: 'owner',
+    remainingUsd: null,
+    limitUsd: null,
+  });
+  const notify = vi.fn(async () => false);
+  cleanups.push(installBudgetHoldNotifier('default', notify, f.config));
+  await f.fire('cron_changed', failedRun(BILLING_REPLY, 'Morning digest'));
+  await vi.waitFor(() => expect(notify).toHaveBeenCalledTimes(1));
+  // A DM that didn't arrive doesn't use up the window.
+  notify.mockResolvedValue(true);
+  await f.fire('cron_changed', failedRun(BILLING_REPLY, 'Morning digest'));
+  await vi.waitFor(() => expect(notify).toHaveBeenCalledTimes(2));
+  expect(notify).toHaveBeenLastCalledWith(
+    '⚠️ I couldn\'t run your scheduled task "Morning digest": your OpenRouter key is out of credits. Add credits or raise its limit on OpenRouter.',
+    undefined
+  );
+  await f.fire('cron_changed', failedRun(BILLING_REPLY, 'Morning digest'));
+  await settle();
+  expect(notify).toHaveBeenCalledTimes(2);
+});
+
+it('offers a credit increase when a scheduled run uses up the included credit', async () => {
+  const f = await setup();
+  await f.setBudget('limited', {
+    keyOwner: 'tlon',
+    remainingUsd: 0.1,
+    limitUsd: 5,
+  });
+  const notify = vi.fn(async () => true);
+  cleanups.push(installBudgetHoldNotifier('default', notify, f.config));
+  await f.fire('cron_changed', failedRun(BILLING_REPLY));
+  await vi.waitFor(() =>
+    expect(notify).toHaveBeenCalledWith(
+      "⚠️ I couldn't run a scheduled task: this month's included credits are used up.",
+      expect.any(String)
+    )
+  );
+});
+
+it("leaves other scheduled-run failures to core's failure alert", async () => {
+  const f = await setup();
+  // Tlon's own account refused the run, not the owner's credit.
+  await f.setBudget('available', {
+    keyOwner: 'tlon',
+    remainingUsd: 2.5,
+    limitUsd: 5,
+  });
+  const notify = vi.fn(async () => true);
+  cleanups.push(installBudgetHoldNotifier('default', notify, f.config));
+  await f.fire('cron_changed', failedRun(BILLING_REPLY));
+  await settle();
+  await f.setBudget('limited', {
+    keyOwner: 'tlon',
+    remainingUsd: 0.1,
+    limitUsd: 5,
+  });
+  await f.fire('cron_changed', failedRun('LLM request failed.'));
+  await settle();
+  expect(notify).not.toHaveBeenCalled();
+});
+
 it('holds without a connected owner, then notifies once when delivery becomes available', async () => {
   const f = await setup();
   await f.fire('gateway_start', {}, f.ctx);
@@ -136,7 +213,7 @@ it('holds without a connected owner, then notifies once when delivery becomes av
   await f.fire('cron_changed', { action: 'added', jobId: 'another' });
   await vi.waitFor(() =>
     expect(notify).toHaveBeenCalledWith(
-      'Your token credits are low. Your 1 scheduled task has been paused.',
+      "You've used almost all of this month's included credits, so I've switched to a free model and paused your 1 scheduled task until they reset.",
       expect.any(String)
     )
   );

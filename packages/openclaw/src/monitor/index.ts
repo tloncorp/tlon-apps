@@ -122,6 +122,7 @@ import {
 import { sharedSlot } from '../shared-state.js';
 import {
   createSilentFailureNoticeCooldown,
+  creditFailureNoticeCooldown,
   recordFailureNoticeMetric,
   resolveSilentFailureNotice,
   resolveTurnTerminalLensStatus,
@@ -186,7 +187,16 @@ import {
 import { ssrfPolicyFromAllowPrivateNetwork } from '../urbit/context.js';
 import { describeError } from '../urbit/errors.js';
 import type { DmInvite, Foreigns } from '../urbit/foreigns.js';
+import {
+  budgetHoldPaths,
+  readBudgetSignalDetails,
+} from '../cron-budget-hold.js';
 import { installBudgetHoldNotifier } from '../cron-budget-runtime.js';
+import { buildCreditIncreaseCard } from '../credit-increase-request.js';
+import {
+  billingFailureKeyOwner,
+  isApiKeyBillingReply,
+} from '../credit-notice.js';
 import {
   type BotProfile,
   formatSentAt,
@@ -1308,6 +1318,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     // Track threads we've participated in (by parentId) - respond without mention requirement
     const participatedThreads = new Set<string>();
     const failureNoticeCooldown = createSilentFailureNoticeCooldown();
+    // Only hosting publishes the bot's credit, and only hosted bots run on a
+    // key the owner may not hold.
+    const hostedBudgetPaths = budgetHoldPaths();
 
     // Track consecutive bot responses per channel/DM for rate limiting
     // Key: channel nest or dm partner ship, Value: count of consecutive bot messages
@@ -3664,6 +3677,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       let replyWordCount = 0;
       let replyMediaCount = 0;
       let dispatchTimedOut = false;
+      let billingReplyHeld = false;
       const compactionTimeoutObserver = createCompactionTimeoutObserver({
         timeoutMs: compactionObservationTimeoutMs,
         onTimeout: () => {
@@ -3872,6 +3886,18 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                             payload.text ?? '',
                             info.kind
                           );
+                          // Core's billing reply tells the requester to top up
+                          // an API key they can't act on. The owner hears
+                          // instead, in the terminal notice below.
+                          if (
+                            hostedBudgetPaths &&
+                            payload.isError === true &&
+                            isApiKeyBillingReply(replyText)
+                          ) {
+                            billingReplyHeld = true;
+                            recordDeliverySkip('provider_billing_error');
+                            return;
+                          }
                           replyText = rewriteGenericTerminalErrorReply({
                             text: replyText,
                             isError: payload.isError === true,
@@ -4186,16 +4212,33 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         const noticeConversation = isGroup
           ? (channelNest ?? _channelName ?? 'a group channel')
           : `our DM with ${senderShip}`;
+        const billingFailure =
+          billingReplyHeld && hostedBudgetPaths
+            ? {
+                keyOwner: billingFailureKeyOwner(
+                  await readBudgetSignalDetails(hostedBudgetPaths.signal)
+                ),
+              }
+            : undefined;
         const notice = resolveSilentFailureNotice({
           summary: turnSummary,
           deliveredCount: effectiveDeliveredCount,
           requester: senderShip,
           conversation: noticeConversation,
+          billingFailure,
         });
         if (notice) {
+          const creditKeyOwner =
+            notice.kind === 'credit_exhausted'
+              ? billingFailure?.keyOwner
+              : undefined;
+          const cooldown = creditKeyOwner
+            ? creditFailureNoticeCooldown()
+            : failureNoticeCooldown;
+          const cooldownKey = creditKeyOwner ?? noticeConversation;
           const noticeNow = Date.now();
-          const suppressedByCooldown = failureNoticeCooldown.isCoolingDown(
-            noticeConversation,
+          const suppressedByCooldown = cooldown.isCoolingDown(
+            cooldownKey,
             noticeNow
           );
           let noticeMessageId: string | undefined;
@@ -4206,13 +4249,18 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           } else {
             // Reserve before the await so a concurrent turn for the same
             // conversation can't double-notify; release if the DM failed.
-            failureNoticeCooldown.recordSent(noticeConversation, noticeNow);
+            cooldown.recordSent(cooldownKey, noticeNow);
             runtime.log?.(
               `[tlon] Terminal no-reply turn ${turnSummary.runId} (${notice.kind}); notifying owner`
             );
-            noticeMessageId = await sendOwnerNotification(notice.text);
+            noticeMessageId = await sendOwnerNotification(
+              notice.text,
+              creditKeyOwner === 'tlon'
+                ? buildCreditIncreaseCard(notice.text, randomUUID())
+                : undefined
+            );
             if (!noticeMessageId) {
-              failureNoticeCooldown.release(noticeConversation, noticeNow);
+              cooldown.release(cooldownKey, noticeNow);
             }
           }
           recordFailureNoticeMetric({

@@ -8,11 +8,16 @@ import {
   emptyBudgetHoldState,
   readBudgetHoldState,
   readBudgetSignal,
+  readBudgetSignalDetails,
   reconcileBudgetHolds,
   stripSystemOwnedHoldLabels,
   writeBudgetHoldState,
   type BudgetState,
 } from './cron-budget-hold.js';
+import { reconcileCreditNotice } from './credit-notice.js';
+
+const limitedNotice = (tasks: number) =>
+  `You've used almost all of this month's included credits, so I've switched to a free model and paused your ${tasks} scheduled tasks until they reset.`;
 
 function fixture() {
   let now = 1_000_000;
@@ -46,7 +51,9 @@ function fixture() {
   ];
   const state = emptyBudgetHoldState();
   const save = vi.fn(async () => {});
-  const notify = vi.fn(async (_message: string) => true);
+  const notify = vi.fn(
+    async (_message: string, _offerIncrease: boolean) => true
+  );
   const update = vi.fn(
     async (id: string, patch: { enabled?: boolean; description?: string }) => {
       const job = jobs.find((j) => j.id === id)!;
@@ -56,16 +63,28 @@ function fixture() {
     }
   );
   const cron = { list: async () => structuredClone(jobs), update };
-  const reconcile = (budget: BudgetState, pauseOnly = false) =>
-    reconcileBudgetHolds({
+  // The runner's order: the notice counts the holds of a clean pass. The
+  // pre-gateway bootstrap sends none.
+  const reconcile = async (budget: BudgetState, pauseOnly = false) => {
+    await reconcileBudgetHolds({
       budget,
       state,
       cron,
       save,
-      notify,
       pauseOnly,
       now: () => now,
     });
+    if (!pauseOnly) {
+      await reconcileCreditNotice({
+        budget,
+        credit: null,
+        state,
+        save,
+        notify,
+        now: () => now,
+      });
+    }
+  };
   return {
     jobs,
     state,
@@ -153,9 +172,7 @@ describe('cron budget holds', () => {
     expect(f.jobs.map((j) => j.enabled)).toEqual([false, false, false, true]);
     expect(f.jobs[0].description).toBe(BUDGET_HOLD_PREFIX + 'Morning news');
     expect(Object.keys(f.state.holds)).toEqual(['report', 'watch']);
-    expect(f.notify).toHaveBeenCalledExactlyOnceWith(
-      'Your token credits are low. Your 2 scheduled tasks have been paused.'
-    );
+    expect(f.notify).toHaveBeenCalledExactlyOnceWith(limitedNotice(2), true);
     await f.reconcile('limited');
     expect(f.notify).toHaveBeenCalledTimes(1);
     expect(f.update).toHaveBeenCalledTimes(2);
@@ -258,11 +275,15 @@ describe('cron budget holds', () => {
     expect(f.jobs[0].enabled).toBe(true);
   });
 
-  it('does not label or notify when no enabled recurring tasks exist', async () => {
+  it('labels nothing but still tells the owner when no enabled recurring tasks exist', async () => {
     const f = fixture();
     f.jobs.splice(0, 2);
     await f.reconcile('limited');
-    expect(f.notify).not.toHaveBeenCalled();
+    expect(f.update).not.toHaveBeenCalled();
+    expect(f.notify).toHaveBeenCalledExactlyOnceWith(
+      "You've used almost all of this month's included credits, so I've switched to a free model until they reset.",
+      true
+    );
   });
 
   it('never edits system-owned monitor jobs and still holds later user jobs', async () => {
@@ -313,9 +334,7 @@ describe('cron budget holds', () => {
       'watch',
       'imported-task',
     ]);
-    expect(f.notify).toHaveBeenCalledExactlyOnceWith(
-      'Your token credits are low. Your 3 scheduled tasks have been paused.'
-    );
+    expect(f.notify).toHaveBeenCalledExactlyOnceWith(limitedNotice(3), true);
     await f.reconcile('available');
     expect(touched()).not.toContain('skill-review');
     expect(touched()).not.toContain('heartbeat');
@@ -376,9 +395,7 @@ describe('cron budget holds', () => {
     await f.reconcile('limited');
     expect(f.jobs[0].enabled).toBe(false);
     expect(f.state.holds.report.revision).toBeDefined();
-    expect(f.notify).toHaveBeenCalledExactlyOnceWith(
-      'Your token credits are low. Your 2 scheduled tasks have been paused.'
-    );
+    expect(f.notify).toHaveBeenCalledExactlyOnceWith(limitedNotice(2), true);
   });
 });
 
@@ -402,6 +419,12 @@ it('persists ownership and notice deduplication across process restarts', async 
     state: restored,
     cron: f.cron,
     save: async () => {},
+  });
+  await reconcileCreditNotice({
+    budget: 'limited',
+    credit: null,
+    state: restored,
+    save: async () => {},
     notify: f.notify,
   });
   expect(f.notify).toHaveBeenCalledTimes(1);
@@ -422,6 +445,31 @@ it('treats missing, malformed, or unknown signals as unknown', async () => {
   }
   await writeFile(path, '{"version":1,"state":"limited"}');
   expect(await readBudgetSignal(path)).toBe('limited');
+});
+
+it('reads the credit hosting publishes, and ignores one it cannot use', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'budget-credit-'));
+  temporaryDirs.push(dir);
+  const path = join(dir, 'signal.json');
+  const credit = { keyOwner: 'owner', remainingUsd: 3, limitUsd: null };
+  await writeFile(
+    path,
+    JSON.stringify({ version: 1, state: 'available', credit })
+  );
+  expect(await readBudgetSignalDetails(path)).toEqual({
+    state: 'available',
+    credit,
+  });
+  for (const bad of [
+    { ...credit, keyOwner: 'tlonbot' },
+    { ...credit, limitUsd: '5' },
+  ]) {
+    await writeFile(
+      path,
+      JSON.stringify({ version: 1, state: 'available', credit: bad })
+    );
+    expect((await readBudgetSignalDetails(path)).credit).toBeNull();
+  }
 });
 
 it('backs off failed notices exponentially without delaying new holds or recovery', async () => {
@@ -460,10 +508,10 @@ it('persists the retry deadline before a throwing delivery and honors it after r
     const state = await readBudgetHoldState(path);
     expect(state.notificationAttempts).toBe(1);
     expect(state.nextNotificationAtMs).toBe(1_060_000);
-    await reconcileBudgetHolds({
+    await reconcileCreditNotice({
       budget: 'limited',
+      credit: null,
       state,
-      cron: f.cron,
       save: async () => {},
       notify: f.notify,
       now: () => 1_030_000,
