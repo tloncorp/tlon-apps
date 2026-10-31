@@ -15,6 +15,7 @@ import {
   isNotesNest,
   mapWithConcurrency,
   parseNest,
+  postIdLengthProblem,
   undottedPostId,
 } from '../cli-utils';
 import { assertPostableMediaUrl } from '../image-attach';
@@ -1610,8 +1611,11 @@ async function editPost(
     // and cover — is replaced by whatever is sent now. Editing blind is a
     // silent, durable rewrite; failing is visible and retryable once the post
     // is readable.
+    const problem = postIdLengthProblem(parsed.postId);
     throw commandError(
-      `Could not read ${formatPostId(parsed.postId)} in ${parsed.channelId} to preserve its authorship and metadata; the post may not be readable yet. Retry the edit.`
+      problem
+        ? `${problem}. Copy it again from \`messages channel ${parsed.channelId}\`; nothing was changed.`
+        : `Could not read ${formatPostId(parsed.postId)} in ${parsed.channelId} to preserve its authorship and metadata; the post may not be readable yet. Retry the edit.`
     );
   }
 
