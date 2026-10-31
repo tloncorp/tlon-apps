@@ -942,6 +942,8 @@ const LEGACY_OWNER_FORMS = new Map<string, (operands: string[]) => boolean>([
  *   `--description` with values (getCreateOwnedAdmin in tlon-skill).
  * - channels create, groups add-channel: the group at 2 and the title at 3,
  *   then `--kind` and `--description` with values (getOption from 3).
+ * - groups delete: the group at 2. Its parser ignores what follows, so a
+ *   `--self` there only opts out of owner routing, as it does in Hermes.
  * - groups join: one optional group flag (plain `groups join <flag>`), then
  *   `--invite` with a value (`groups join --invite <url|token> [--self]`).
  * - The activity reads: options only, `--limit` with a value. With
@@ -986,6 +988,7 @@ const SELF_OPTION_POSITIONS = new Map<
     'groups add-channel',
     { start: 4, valueOptions: new Set(['--kind', '--description']) },
   ],
+  ['groups delete', { start: 3, valueOptions: NO_VALUE_OPTIONS }],
   [
     'groups join',
     {

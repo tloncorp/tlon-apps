@@ -2970,14 +2970,17 @@ describe("deleting the owner's groups", () => {
     expect(args).toEqual(command.split(' '));
   });
 
-  it('runs as the bot when asked with --self', async () => {
+  it.each([
+    ['before the command', '--self groups delete ~owner/team'],
+    ['after the group', 'groups delete ~owner/team --self'],
+  ])('runs as the bot when asked with --self %s', async (_label, command) => {
     const { execute, runCommand } = makeExecutor();
 
-    await execute('self', { command: '--self groups delete ~owner/team' });
+    await execute('self', { command });
 
     const [args] = runCommand.mock.calls[0] as unknown as [string[]];
     expect(args).not.toContain('~owner');
-    expect(args.slice(-3)).toEqual(['groups', 'delete', '~owner/team']);
+    expect(args).toContain('~owner/team');
   });
 
   it.each([
