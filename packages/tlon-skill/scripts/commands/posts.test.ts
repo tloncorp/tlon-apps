@@ -33,6 +33,9 @@ import {
   run,
 } from './posts';
 
+// A post id as the backend writes one: an @da, 39 digits in 13 groups.
+const WHOLE_POST_ID = '170.141.184.508.234.811.553.575.128.700.846.866.432';
+
 // The suffix walkers name a stray token by position only (it may be a
 // signed URL or blob JSON).
 const unexpectedAt = (position: number) =>
@@ -1785,6 +1788,29 @@ describe('posts edit', () => {
     });
   });
 
+  it('says an id with a group missing was mis-copied, not that the post is unreadable', async () => {
+    const context = makeDeps({
+      getChannelPosts: withExistingPost(null),
+    });
+
+    const exitCode = await run(
+      // WHOLE_POST_ID with its next-to-last group dropped
+      [
+        'edit',
+        'chat/~host/channel',
+        '170.141.184.508.234.811.553.575.128.700.846.432',
+        'Body',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.calls.editPost).toHaveLength(0);
+    expect(context.stderr()).toContain("isn't a whole post ID");
+    expect(context.stderr()).toContain('this one has 36');
+    expect(context.stderr()).not.toContain('may not be readable yet');
+  });
+
   it('refuses to edit a post it cannot read, rather than wiping it', async () => {
     // %edit submits the whole essay, so editing on a failed lookup silently
     // replaces authorship and metadata with nothing. Retried once, then refused.
@@ -1793,7 +1819,7 @@ describe('posts edit', () => {
     });
 
     const exitCode = await run(
-      ['edit', 'chat/~host/channel', '170.141.184', 'Body'],
+      ['edit', 'chat/~host/channel', WHOLE_POST_ID, 'Body'],
       context.deps
     );
 
@@ -1813,7 +1839,7 @@ describe('posts edit', () => {
     });
 
     const exitCode = await run(
-      ['edit', 'chat/~host/channel', '170.141.184', 'Body'],
+      ['edit', 'chat/~host/channel', WHOLE_POST_ID, 'Body'],
       context.deps
     );
 
