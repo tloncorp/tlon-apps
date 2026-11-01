@@ -3,16 +3,14 @@ import type {
   VaultLogin,
   VaultLoginDetail,
 } from '@tloncorp/api/client/browserVaultManagement';
-import { ActionSheetContext, ConfirmDialog, Icon } from '@tloncorp/ui';
-import { useContext, useMemo, useState } from 'react';
+import { ConfirmDialog } from '@tloncorp/ui';
+import { useMemo, useState } from 'react';
+import { useWindowDimensions } from 'react-native';
 
-import {
-  ActionSheet,
-  type ActionGroup,
-} from '../../../ui/components/ActionSheet';
-import { ExpoUIActionContent } from '../../../ui/components/ExpoUISheet';
+import { ActionSheet } from '../../../ui/components/ActionSheet';
 import {
   SettingsListScreenView,
+  SettingsList,
   SETTINGS_LIST_COLUMN_WIDTH,
   type SettingsSectionModel,
 } from '../../../ui/components/SettingsList';
@@ -56,7 +54,7 @@ export function SecureVaultView({
         key: 'logins',
         title: 'Saved logins',
         footer:
-          'These logins are shared across your bots. Your approval is required each time a bot uses one.',
+          'Your Tlonbot will use your vault logins when using the shared browser. Your approval is required each time it uses one.',
         rows: error
           ? [
               { key: 'error', title: error },
@@ -86,22 +84,6 @@ export function SecureVaultView({
                 },
               ],
       },
-      ...(!error
-        ? [
-            {
-              key: 'refresh',
-              rows: [
-                {
-                  key: 'refresh',
-                  title: 'Refresh',
-                  action: true,
-                  onPress: onRefresh,
-                  testID: 'VaultRefresh',
-                },
-              ],
-            },
-          ]
-        : []),
     ],
     [error, logins, onRefresh, onSelect]
   );
@@ -117,38 +99,6 @@ export function SecureVaultView({
     >
       {children}
     </SettingsListScreenView>
-  );
-}
-
-function LoginSheetContent({
-  title,
-  groups,
-}: {
-  title: string;
-  groups: ActionGroup[];
-}) {
-  const { nativePresentation } = useContext(ActionSheetContext);
-  const icon = <Icon type="Lock" size="$xl" />;
-  if (nativePresentation)
-    return (
-      <ExpoUIActionContent
-        title={title}
-        subtitle="Secure Vault"
-        icon={icon}
-        actionGroups={groups}
-      />
-    );
-  return (
-    <>
-      <ActionSheet.SimpleHeader
-        title={title}
-        subtitle="Secure Vault"
-        icon={icon}
-      />
-      <ActionSheet.Content>
-        <ActionSheet.SimpleActionGroupList actionGroups={groups} />
-      </ActionSheet.Content>
-    </>
   );
 }
 
@@ -174,42 +124,43 @@ export function VaultLoginSheet({
   onRemove: () => void;
 }) {
   const [confirm, setConfirm] = useState(false);
+  const { height } = useWindowDimensions();
   const title = vaultSite(login);
-  const groups = useMemo<ActionGroup[]>(
+  const sections = useMemo<SettingsSectionModel[]>(
     () => [
-      {
-        accent: 'neutral',
-        actions: loading
-          ? [{ title: 'Loading login…', disabled: true }]
-          : error
-            ? [{ title: error }, { title: 'Try again', action: onRetry }]
-            : (detail?.fields ?? []).map((field) => ({
-                title: vaultFieldLabel(field),
-                description: vaultFieldValue(field),
-              })),
-      },
-      ...(detail && !error
+      ...(loading || error
         ? [
             {
-              accent: 'neutral' as const,
-              actions: detail.origins.map((site) => ({
-                title: 'Site',
-                description: site,
-              })),
+              key: 'status',
+              rows: error
+                ? [
+                    { key: 'error', title: error },
+                    {
+                      key: 'retry',
+                      title: 'Try again',
+                      action: true,
+                      onPress: onRetry,
+                    },
+                  ]
+                : [{ key: 'loading', title: 'Loading login…' }],
             },
           ]
-        : []),
-      ...(removeError
-        ? [{ accent: 'neutral' as const, actions: [{ title: removeError }] }]
-        : []),
+        : (detail?.fields ?? []).map((field) => ({
+            key: field.name,
+            title: vaultFieldLabel(field),
+            rows: [{ key: field.name, title: vaultFieldValue(field) }],
+          }))),
       {
-        accent: 'negative',
-        actions: [
+        key: 'remove',
+        footer: removeError,
+        rows: [
           {
+            key: 'remove',
             title: removing ? 'Removing…' : 'Remove login',
-            description: 'Removes this login for all your bots.',
+            destructive: true,
+            action: true,
             disabled: removing || loading || !!error,
-            action: () => setConfirm(true),
+            onPress: () => setConfirm(true),
             testID: 'VaultRemove',
           },
         ],
@@ -224,17 +175,29 @@ export function VaultLoginSheet({
         onOpenChange={(open: boolean) => {
           if (!open && !removing) onClose();
         }}
-        nativeExpoUI
+        snapPoints={[75]}
+        snapPointsMode="percent"
+        enableContentPanningGesture={false}
+        dialogScrollEnabled={false}
+        dialogContentProps={{
+          height: height * 0.75,
+          maxWidth: SETTINGS_LIST_COLUMN_WIDTH,
+        }}
         closeButton
         title="Secure Vault"
       >
-        <LoginSheetContent title={title} groups={groups} />
+        <ActionSheet.SimpleHeader title={title} subtitle="Secure Vault" />
+        <SettingsList
+          surface="sheet"
+          sections={sections}
+          maxWidth={SETTINGS_LIST_COLUMN_WIDTH}
+        />
       </ActionSheet>
       <ConfirmDialog
         open={confirm}
         onOpenChange={setConfirm}
         title="Remove this login?"
-        description={`Your bots will no longer have this saved login for ${title}. This won’t sign out existing browser sessions.`}
+        description={`This bot will no longer have this saved login for ${title}. This won’t sign out existing browser sessions.`}
         confirmText="Remove login"
         destructive
         onConfirm={onRemove}

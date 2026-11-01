@@ -1,27 +1,27 @@
-import { createElement, createContext, type PropsWithChildren } from 'react';
+import { createElement, type PropsWithChildren } from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
 import type { VaultLoginDetail } from '@tloncorp/api/client/browserVaultManagement';
 import { setupReactTestEnvironment } from '../../../test/sheetTestUtils';
 import { SecureVaultView, VaultLoginSheet } from './SecureVaultView';
 
+vi.mock('react-native', () => ({
+  useWindowDimensions: () => ({ height: 800 }),
+}));
 vi.mock('@tloncorp/ui', () => ({
-  ActionSheetContext: createContext({ nativePresentation: true }),
   ConfirmDialog: 'ConfirmDialog',
   Icon: 'Icon',
 }));
 vi.mock('../../../ui/components/ActionSheet', () => ({
-  ActionSheet: ({
-    children,
-    ...props
-  }: PropsWithChildren<Record<string, unknown>>) =>
-    createElement('ActionSheet', props, children),
-}));
-vi.mock('../../../ui/components/ExpoUISheet', () => ({
-  ExpoUIActionContent: 'ExpoUIActionContent',
+  ActionSheet: Object.assign(
+    ({ children, ...props }: PropsWithChildren<Record<string, unknown>>) =>
+      createElement('ActionSheet', props, children),
+    { SimpleHeader: 'SimpleHeader' }
+  ),
 }));
 vi.mock('../../../ui/components/SettingsList', () => ({
   SettingsListScreenView: 'SettingsListScreenView',
+  SettingsList: 'SettingsList',
   SETTINGS_LIST_COLUMN_WIDTH: 600,
 }));
 setupReactTestEnvironment();
@@ -51,7 +51,7 @@ const byType = (tree: ReactTestRenderer, type: string) =>
   tree.root.find((node) => (node.type as unknown) === type);
 
 describe('Secure Vault UI', () => {
-  it('opens a login from the shared settings list and identifies the owner-wide scope', async () => {
+  it('opens a login from the shared settings list and identifies the bot scope', async () => {
     const select = vi.fn();
     let tree!: ReactTestRenderer;
     await act(async () => {
@@ -65,7 +65,7 @@ describe('Secure Vault UI', () => {
       );
     });
     const section = byType(tree, 'SettingsListScreenView').props.sections[0];
-    expect(section.footer).toContain('shared across your bots');
+    expect(section.footer).toContain('Your Tlonbot will use your vault logins');
     expect(section.rows[0].title).toBe('www.wikipedia.org');
     section.rows[0].onPress();
     expect(select).toHaveBeenCalledWith(login);
@@ -92,7 +92,7 @@ describe('Secure Vault UI', () => {
     expect(retry).toHaveBeenCalledOnce();
     await act(async () => tree.unmount());
   });
-  it('uses Expo UI content, masks secrets and confirms before removal', async () => {
+  it('uses profile settings sections, masks secrets and confirms before removal', async () => {
     let tree!: ReactTestRenderer;
     const remove = vi.fn(),
       close = vi.fn();
@@ -108,19 +108,21 @@ describe('Secure Vault UI', () => {
         />
       );
     });
-    expect(byType(tree, 'ActionSheet').props.nativeExpoUI).toBe(true);
-    const groups = byType(tree, 'ExpoUIActionContent').props.actionGroups;
-    expect(groups[0].actions[0].description).toBe('test@example.com');
-    expect(groups[0].actions[1].description).toBe('••••••••');
-    expect(JSON.stringify(groups)).not.toContain('must-never-render');
-    await act(async () => groups.at(-1).actions[0].action());
+    const sections = byType(tree, 'SettingsList').props.sections;
+    expect(sections[0].title).toBe('Email');
+    expect(sections[0].rows[0].title).toBe('test@example.com');
+    expect(sections[1].title).toBe('Password');
+    expect(sections[1].rows[0].title).toBe('••••••••');
+    expect(sections.at(-1).rows[0].destructive).toBe(true);
+    expect(JSON.stringify(sections)).not.toContain('must-never-render');
+    await act(async () => sections.at(-1).rows[0].onPress());
     expect(remove).not.toHaveBeenCalled();
     expect(byType(tree, 'ConfirmDialog').props.open).toBe(true);
     await act(async () =>
       byType(tree, 'ConfirmDialog').props.onOpenChange(false)
     );
     expect(remove).not.toHaveBeenCalled();
-    await act(async () => groups.at(-1).actions[0].action());
+    await act(async () => sections.at(-1).rows[0].onPress());
     byType(tree, 'ConfirmDialog').props.onConfirm();
     expect(remove).toHaveBeenCalledOnce();
     await act(async () => tree.unmount());

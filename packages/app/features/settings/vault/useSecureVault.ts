@@ -3,7 +3,6 @@ import * as api from '@tloncorp/api';
 import { BrowserOwnerRequestError } from '@tloncorp/api/client/browserOwnerSession';
 import {
   getVaultLogin,
-  listVaultLogins,
   removeVaultLogin,
   type VaultLogin,
 } from '@tloncorp/api/client/browserVaultManagement';
@@ -13,6 +12,7 @@ import { useCallback, useRef, useState } from 'react';
 
 import { KERNEL_SERVICE_ORIGIN } from '../../../lib/envVars';
 import { normalizeMoonName } from '../bot/helpers';
+import { useVaultLogins } from './useVaultLogins';
 
 const logger = createDevLogger('SecureVault', false);
 const origin = KERNEL_SERVICE_ORIGIN;
@@ -41,23 +41,7 @@ export function useSecureVault(ship: string) {
     (service.data?.active ?? service.data?.browserService) === 'kernel';
   const botMoon = moon.data ? normalizeMoonName(moon.data, ship) : '';
   const ready = kernel && !!botMoon && !!origin;
-  const listKey = ['secure-vault', ship, origin];
-  const list = useQuery({
-    queryKey: listKey,
-    enabled: ready && focused,
-    gcTime: 0,
-    retry: false,
-    queryFn: async ({ signal }) => {
-      try {
-        const result = await listVaultLogins(botMoon, signal);
-        logger.trackEvent('Secure Vault Listed');
-        return result;
-      } catch (error) {
-        if (!signal.aborted) logger.trackError('Secure Vault list failed');
-        throw error;
-      }
-    },
-  });
+  const list = useVaultLogins(ship, botMoon, ready && focused);
   const detail = useQuery({
     queryKey: ['secure-vault-detail', ship, origin, selected?.key],
     enabled: ready && focused && !!selected,
@@ -102,7 +86,7 @@ export function useSecureVault(ship: string) {
       logger.trackError('Secure Vault removal failed');
       setRemoveError(
         error instanceof BrowserOwnerRequestError && error.status === 404
-          ? 'This login is no longer in your vault. Close this sheet and refresh the list.'
+          ? 'This login is no longer in your vault. Close this sheet and reopen your vault.'
           : 'Couldn’t confirm removal. Try again.'
       );
     }

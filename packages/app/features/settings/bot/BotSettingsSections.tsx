@@ -320,7 +320,6 @@ export function useBotSettingsSectionModels(
             {
               key: 'secure-vault',
               title: 'Secure Vault',
-              leading: { kind: 'icon', icon: 'Lock' },
               onPress: () => navigate('SecureVault'),
               testID: 'BotSecureVaultRow',
             },
