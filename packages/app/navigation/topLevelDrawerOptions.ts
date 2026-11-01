@@ -1,6 +1,7 @@
 import type { DrawerNavigationOptions } from '@react-navigation/drawer';
 import { useMemo } from 'react';
 import { useWindowDimensions } from 'react-native';
+import type { LegacyPanGesture } from 'react-native-gesture-handler';
 import { useTheme } from 'tamagui';
 
 import { drawerOwnsEdge } from './drawerDestination';
@@ -16,6 +17,28 @@ const DRAWER_WIDTH_FRACTION = 0.88;
 // A wider edge than the default 32, so the swipe is findable without a hunt,
 // but short of the iOS interactive-pop gesture's own reach.
 const DRAWER_SWIPE_EDGE_WIDTH = 44;
+// How far a touch on the edge has to travel sideways, before it travels as far
+// up or down, for the drawer to claim it. react-native-drawer-layout's own 5 is
+// inside the 8 a touch can drift and still be a tap on Android, and the library
+// opens the panel on a flick barely longer than that — so a tap that rolled a
+// little on the way off the glass could open the drawer.
+const DRAWER_SWIPE_ACTIVATION_DISTANCE = 12;
+
+// The library hands this its legacy `Gesture.Pan()` builder, and applies it
+// after its own offsets so these replace them. The navigator types the
+// parameter as gesture-handler 3's hook-based `PanGesture`, which that object
+// is not, hence the cast.
+function configureDrawerSwipe(gesture: LegacyPanGesture): LegacyPanGesture {
+  return gesture
+    .activeOffsetX([
+      -DRAWER_SWIPE_ACTIVATION_DISTANCE,
+      DRAWER_SWIPE_ACTIVATION_DISTANCE,
+    ])
+    .failOffsetY([
+      -DRAWER_SWIPE_ACTIVATION_DISTANCE,
+      DRAWER_SWIPE_ACTIVATION_DISTANCE,
+    ]);
+}
 
 /**
  * Whether the edge swipe should open the drawer, given the stack's state.
@@ -76,6 +99,8 @@ export function useTopLevelDrawerScreenOptions(): DrawerNavigationOptions {
       drawerType: 'slide',
       overlayColor: 'transparent',
       swipeEdgeWidth: DRAWER_SWIPE_EDGE_WIDTH,
+      configureGestureHandler:
+        configureDrawerSwipe as unknown as DrawerNavigationOptions['configureGestureHandler'],
       drawerStyle: {
         width: drawerWidth,
         backgroundColor: background,
