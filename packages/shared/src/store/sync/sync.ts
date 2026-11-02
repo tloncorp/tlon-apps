@@ -832,17 +832,20 @@ async function getAddressBookNames(contactIds: string[]) {
   return names;
 }
 
-// The ship keeps every match it has handled, so it decides which are new and
+// The ship keeps every match it has been shown, so it decides which are new and
 // saves them; a match is announced once however many devices, reinstalls or
-// cache rebuilds see it. A name the user already gave someone outranks their
-// address-book name.
+// cache rebuilds see it. Known matches are sent too, so a contact saved before
+// the ship kept this record still stays removed. A name the user already gave
+// someone outranks their address-book name.
 async function recordDiscoveredMatches(
+  generation: number,
   matches: [string, string][]
 ): Promise<[string, string][]> {
+  const ids = [...new Set(matches.map(([, id]) => id))];
+  if (ids.length === 0) return [];
   const known = new Set(await api.getDiscoveryKnownContacts());
   const newMatches = matches.filter(([, id]) => !known.has(id));
-  const newIds = [...new Set(newMatches.map(([, id]) => id))];
-  if (newIds.length === 0) return [];
+  const newIds = ids.filter((id) => !known.has(id));
   const [bookNames, existing] = await Promise.all([
     getAddressBookNames(newIds),
     db.getContactsBatch({ contactIds: newIds }),
@@ -850,20 +853,29 @@ async function recordDiscoveredMatches(
   const customNames = new Map(
     existing.map((contact) => [contact.id, contact.customNickname])
   );
-  const discovered = newIds.map((id) => ({
-    ship: id,
-    nickname: customNames.get(id) || bookNames.get(id) || null,
-  }));
-  await api.recordDiscoveredContacts(discovered);
+  const nicknames = new Map(
+    newIds.map((id) => [id, customNames.get(id) || bookNames.get(id) || null])
+  );
+  if (generation !== getClientGeneration()) {
+    throw new Error('Contact discovery session changed');
+  }
+  await api.recordDiscoveredContacts(
+    ids.map((ship) => ({ ship, nickname: nicknames.get(ship) ?? null }))
+  );
+  // An upsert would drop an existing row's attestations.
   await Promise.all(
-    discovered.map(({ ship, nickname }) =>
-      db.upsertContact({
-        id: ship,
+    newIds.map((id) => {
+      const nickname = nicknames.get(id);
+      const contact = {
+        id,
         isContact: true,
         isContactSuggestion: false,
         ...(nickname ? { customNickname: nickname } : {}),
-      })
-    )
+      };
+      return customNames.has(id)
+        ? db.updateContact(contact)
+        : db.upsertContact(contact);
+    })
   );
   return newMatches;
 }
@@ -959,7 +971,7 @@ const syncContactDiscoveryOnce = async (
     );
 
     if (api.getDeskSupportsContactDiscoveryState() === true && !isMocked) {
-      addedMatches = await recordDiscoveredMatches(matches);
+      addedMatches = await recordDiscoveredMatches(generation, matches);
     } else {
       const { newMatches } = await partitionDiscoveryMatches(matches, {
         isMocked,

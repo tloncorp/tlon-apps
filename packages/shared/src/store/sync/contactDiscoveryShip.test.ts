@@ -101,7 +101,7 @@ test('a name the user already gave a match outranks the book name', async () => 
   ]);
 });
 
-test('a match the ship already knows is not announced', async () => {
+test('a match the ship already knows is recorded but not announced', async () => {
   vi.mocked(api.getDiscoveryKnownContacts).mockResolvedValue([contactId]);
 
   expect(await discover()).toEqual({
@@ -109,7 +109,39 @@ test('a match the ship already knows is not announced', async () => {
     didDiscover: true,
     newMatches: [],
   });
-  expect(api.recordDiscoveredContacts).not.toHaveBeenCalled();
+  expect(api.recordDiscoveredContacts).toHaveBeenCalledWith([
+    { ship: contactId, nickname: null },
+  ]);
+});
+
+test('saving a cached profile keeps its attestations', async () => {
+  const attestation = {
+    id: 'peer-phone',
+    contactId,
+    provider: 'test',
+    type: 'phone',
+    value: null,
+    discoverability: 'verified',
+    status: 'verified',
+    initiatedAt: null,
+    statusMessage: null,
+    providerUrl: null,
+    provingTweetId: null,
+    signature: null,
+  } as const;
+  await db.upsertContact({
+    id: contactId,
+    isContact: false,
+    attestations: [{ contactId, attestationId: attestation.id, attestation }],
+  });
+
+  await discover();
+
+  const contact = await db.getContact({ id: contactId });
+  expect(contact?.isContact).toBe(true);
+  expect(contact?.attestations).toEqual([
+    expect.objectContaining({ attestationId: attestation.id }),
+  ]);
 });
 
 test('one account matched by several cards is recorded once', async () => {
