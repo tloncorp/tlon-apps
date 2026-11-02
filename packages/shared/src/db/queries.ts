@@ -5404,14 +5404,20 @@ async function setLastPosts(
   // Single-channel fast path — the common receive case.
   // Monotonic UPDATE driven by the incoming batch avoids correlated subqueries
   // and only advances lastPost* forward.
-  if (newPosts?.length && channelIds?.length === 1) {
+  if (
+    newPosts?.length &&
+    channelIds?.length === 1 &&
+    !(await tombstonesChannelHead(newPosts, channelIds[0], ctx))
+  ) {
     await setLastPostsMonotonic(newPosts, ctx);
     return;
   }
 
-  // Multi-channel batches and metadata-only calls (e.g. channels inserted after
-  // heads posts) recompute from local rows. This keeps the result idempotent no
-  // matter whether posts or channel/group metadata were written first.
+  // Multi-channel batches, metadata-only calls (e.g. channels inserted after
+  // heads posts) and batches that tombstone a channel's head recompute from
+  // local rows. This keeps the result idempotent no matter whether posts or
+  // channel/group metadata were written first, and lets a deleted head fall
+  // back to the previous post.
   if (channelIds && channelIds.length === 0) {
     return;
   }
@@ -5561,6 +5567,28 @@ async function setLastPosts(
         .limit(1)}`,
     })
     .where(groupIdFilter);
+}
+
+async function tombstonesChannelHead(
+  newPosts: Post[],
+  channelId: string,
+  ctx: QueryCtx
+) {
+  const deletedIds = newPosts
+    .filter((p) => p.isDeleted && p.type !== 'reply')
+    .map((p) => p.id);
+  if (!deletedIds.length) return false;
+  const [head] = await ctx.db
+    .select({ id: $channels.id })
+    .from($channels)
+    .where(
+      and(
+        eq($channels.id, channelId),
+        inArray($channels.lastPostId, deletedIds)
+      )
+    )
+    .limit(1);
+  return !!head;
 }
 
 async function setLastPostsMonotonic(newPosts: Post[], ctx: QueryCtx) {
@@ -6165,7 +6193,7 @@ export const undoOptimisticReplyBump = createWriteQuery(
 /**
  * Repoint `channels.lastPostId` / `lastPostAt` to the newest remaining
  * previewable (non-reply, non-deleted) top-level post, or null them if no
- * such post exists. Used after a hard-delete to keep chat-list / channel
+ * such post exists. Used after a delete to keep chat-list / channel
  * preview state in sync without waiting for a sync repair.
  */
 export const recomputeChannelLastPost = createWriteQuery(

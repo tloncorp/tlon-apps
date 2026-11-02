@@ -1760,6 +1760,104 @@ describe('deleting a pinned post', () => {
   });
 });
 
+// TLON-6252: deleting the newest post must move the chat-list preview back to
+// the previous post, for the channel and for its group.
+describe('deleting the newest post', () => {
+  const GROUP_CHANNEL = 'chat/~zod/preview';
+  const GROUP_ID = '~zod/preview-group';
+
+  beforeEach(async () => {
+    await getClient()!
+      .insert(db.schema.groups)
+      .values({
+        id: GROUP_ID,
+        currentUserIsMember: true,
+        currentUserIsHost: false,
+        hostUserId: '~zod',
+      })
+      .onConflictDoNothing();
+    await db.insertChannels([
+      db.buildChannel({
+        id: GROUP_CHANNEL,
+        type: 'chat',
+        groupId: GROUP_ID,
+      }),
+    ]);
+    vi.mocked(poke).mockResolvedValue(0);
+    updateSession({ startTime: Date.now(), channelStatus: 'active' });
+  });
+
+  afterEach(() => {
+    vi.mocked(poke).mockReset();
+    updateSession(null);
+  });
+
+  async function seedPosts() {
+    const channel = (await db.getChannel({ id: GROUP_CHANNEL }))!;
+    const [previous, head] = ['previous', 'head'].map((text, i) =>
+      db.buildPost({
+        authorId: '~zod',
+        author: null,
+        channel,
+        sequenceNum: i + 1,
+        content: [{ inline: [text] }],
+        deliveryStatus: 'sent',
+      })
+    );
+    await db.insertChannelPosts({ posts: [previous] });
+    await db.insertChannelPosts({ posts: [head] });
+    return { previous, head };
+  }
+
+  async function expectPreview(post: db.Post) {
+    const channel = await db.getChannel({ id: GROUP_CHANNEL });
+    expect(channel!.lastPostId).toBe(post.id);
+    expect(channel!.lastPostAt).toBe(post.receivedAt);
+    const group = await db.getGroup({ id: GROUP_ID });
+    expect(group!.lastPostId).toBe(post.id);
+    expect(group!.lastPostAt).toBe(post.receivedAt);
+  }
+
+  test('deletePost falls back to the previous post', async () => {
+    const { previous, head } = await seedPosts();
+
+    await deletePost({ post: head });
+
+    await expectPreview(previous);
+  });
+
+  test('a failed deletePost restores the deleted post as the preview', async () => {
+    const { head } = await seedPosts();
+    vi.mocked(poke).mockRejectedValue(new Error('delete failed'));
+
+    await deletePost({ post: head });
+
+    expect((await fetchPost(head.id))!.deleteStatus).toBe('failed');
+    await expectPreview(head);
+  });
+
+  test('deleting a reply leaves the preview alone', async () => {
+    const { head } = await seedPosts();
+    const reply = {
+      ...db.buildPost({
+        authorId: '~zod',
+        author: null,
+        channel: (await db.getChannel({ id: GROUP_CHANNEL }))!,
+        sequenceNum: null,
+        content: [{ inline: ['reply'] }],
+        deliveryStatus: 'sent',
+        parentId: head.id,
+      }),
+      type: 'reply' as const,
+    };
+    await sync.handleAddPost(reply);
+
+    await deletePost({ post: reply });
+
+    await expectPreview(head);
+  });
+});
+
 // The %edit arm stores the submitted essay wholesale, so an edit that drops the
 // author object rewrites a bot-authored post to a bare ship and strips its
 // "Bot" tag.
