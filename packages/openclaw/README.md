@@ -56,6 +56,8 @@ While limited, enabled `cron` and `every` tasks are disabled with a visible
 `[Paused: credit budget]` description prefix. One-shot (`at`) and event-driven
 schedules are excluded. OpenClaw's system-owned monitor jobs (heartbeat, skill
 collection review) are left alone because core rejects client edits to them.
+memory-core's dreaming job stays enabled, since memory-core re-enables it every
+minute; its runs end without dreaming until the budget recovers.
 The owner receives one notice per budget episode:
 “Your token credits are low. Your 3 scheduled tasks have been paused.” It includes
 an A2UI **Request credit increase** button. Failed delivery is retried.
