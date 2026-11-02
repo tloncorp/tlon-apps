@@ -56,6 +56,8 @@ While limited, enabled `cron` and `every` tasks are disabled with a visible
 `[Paused: credit budget]` description prefix. One-shot (`at`) and event-driven
 schedules are excluded. OpenClaw's system-owned monitor jobs (heartbeat, skill
 collection review) are left alone because core rejects client edits to them.
+memory-core's dreaming job stays enabled, since memory-core re-enables it every
+minute; its runs end without dreaming until the budget recovers.
 New or re-enabled recurring tasks are held as well. Already-running work is not
 cancelled; live reconciliation runs on job changes and every five seconds.
 

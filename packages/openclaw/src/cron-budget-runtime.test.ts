@@ -120,6 +120,7 @@ async function setup(accountIds = ['default']) {
     job,
     config,
     dir,
+    on,
     register,
     update,
     list,
@@ -279,6 +280,29 @@ it('observes live recovery and prevents model-forced runs while held', async () 
   await f.setBudget('limited');
   await f.fire('cron_changed', { action: 'updated', jobId: 'another' });
   expect(f.job.enabled).toBe(true);
+  expect(f.warn).not.toHaveBeenCalled();
+});
+
+it("skips memory-core's dreaming runs while limited without pausing the job", async () => {
+  const f = await setup();
+  f.job.declarationKey = 'memory-core:memory-dreaming-promotion';
+  await f.fire('gateway_start', {}, f.ctx);
+  expect(f.update).not.toHaveBeenCalled();
+  expect(f.on).toHaveBeenCalledWith(
+    'before_agent_reply',
+    expect.any(Function),
+    { priority: 100, eligibleTriggers: ['cron'] }
+  );
+  const reply = (jobId: string) =>
+    f.fire(
+      'before_agent_reply',
+      { cleanedBody: '' },
+      { jobId, trigger: 'cron' }
+    );
+  expect(await reply(f.job.id)).toMatchObject({ handled: true });
+  expect(await reply('another')).toBeUndefined();
+  await f.setBudget('available');
+  expect(await reply(f.job.id)).toBeUndefined();
   expect(f.warn).not.toHaveBeenCalled();
 });
 

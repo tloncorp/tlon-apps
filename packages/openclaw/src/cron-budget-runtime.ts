@@ -4,6 +4,7 @@ import type { OpenClawPluginApi } from 'openclaw/plugin-sdk/core';
 
 import {
   budgetHoldPaths,
+  isMemoryDreamingJob,
   isRecurringJob,
   type BudgetCronService,
   type BudgetHoldState,
@@ -79,7 +80,8 @@ type Runner = {
 const runnerSlot = sharedSlot<Runner>('cronBudget.runner');
 
 /**
- * Blocks model-forced runs of budget-held recurring jobs. Registered from the
+ * Blocks model-forced runs of budget-held recurring jobs, and memory-core's
+ * dreaming runs, while the budget is limited. Registered from the
  * entry's registerCapabilities (see registerAgentTurnHooks in index.ts): a
  * turn that loads the plugin in discovery mode never runs registerFull, so a
  * guard registered only there is inert for that turn. Reads only shared
@@ -88,6 +90,17 @@ const runnerSlot = sharedSlot<Runner>('cronBudget.runner');
 export function registerBudgetRunGuard(api: Pick<OpenClawPluginApi, 'on'>) {
   const paths = budgetHoldPaths();
   if (!paths) return;
+  // The job a run would start, if the budget is limited.
+  const limitedJob = async (id: string, state: BudgetHoldState) => {
+    const budget = await readBudgetSignal(paths.signal);
+    const limited =
+      budget === 'limited' || (budget === 'unknown' && state.limited);
+    const cron = runnerSlot.get()?.getCron() ?? getTlonCronService();
+    if (!limited || !cron) return undefined;
+    return (await cron.list({ includeDisabled: true })).find(
+      (job) => job.id === id
+    );
+  };
 
   api.on('before_tool_call', async (event) => {
     // Covers both scheduler tool names (`automations` and legacy `cron`).
@@ -99,16 +112,8 @@ export function registerBudgetRunGuard(api: Pick<OpenClawPluginApi, 'on'>) {
     const state = await readBudgetHoldState(paths.state);
     let blocked = Object.hasOwn(state.holds, id);
     if (!blocked) {
-      const budget = await readBudgetSignal(paths.signal);
-      const limited =
-        budget === 'limited' || (budget === 'unknown' && state.limited);
-      const cron = runnerSlot.get()?.getCron() ?? getTlonCronService();
-      if (limited && cron) {
-        const job = (await cron.list({ includeDisabled: true })).find(
-          (job) => job.id === id
-        );
-        blocked = Boolean(job && isRecurringJob(job));
-      }
+      const job = await limitedJob(id, state);
+      blocked = Boolean(job && isRecurringJob(job));
     }
     if (blocked) {
       return {
@@ -118,6 +123,22 @@ export function registerBudgetRunGuard(api: Pick<OpenClawPluginApi, 'on'>) {
       };
     }
   });
+
+  // memory-core runs its dreaming sweep from its own before_agent_reply
+  // handler. Claiming the turn first ends the run without spending credit.
+  api.on(
+    'before_agent_reply',
+    async (_event, ctx) => {
+      if (!ctx.jobId) return;
+      const state = await readBudgetHoldState(paths.state);
+      const job = await limitedJob(ctx.jobId, state);
+      if (job && isMemoryDreamingJob(job)) {
+        return { handled: true, reason: 'credit budget limited' };
+      }
+    },
+    // Ahead of memory-core, which registers at the default priority, 0.
+    { priority: 100, eligibleTriggers: ['cron'] }
+  );
 }
 
 /**

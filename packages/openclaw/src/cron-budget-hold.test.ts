@@ -363,6 +363,32 @@ describe('cron budget holds', () => {
     expect(f.update.mock.calls.map(([id]) => id)).toEqual(['report', 'watch']);
   });
 
+  it("leaves memory-core's dreaming job to memory-core", async () => {
+    const f = fixture();
+    const description =
+      '[managed-by=memory-core.short-term-promotion] Promote weighted short-term recalls into MEMORY.md.';
+    // Paused by an earlier pass.
+    f.jobs.unshift({
+      id: 'dreaming',
+      declarationKey: 'memory-core:memory-dreaming-promotion',
+      enabled: false,
+      updatedAtMs: 1,
+      schedule: { kind: 'cron', expr: '0 3 * * *' },
+      payload: { kind: 'agentTurn' },
+      description: BUDGET_HOLD_PREFIX + description,
+    });
+    f.state.limited = true;
+    f.state.episodeId = 'episode';
+    f.state.holds.dreaming = { description, revision: 1 };
+    await f.reconcile('limited');
+    // memory-core's next sweep puts it back.
+    Object.assign(f.jobs[0], { enabled: true, description, updatedAtMs: 2 });
+    await f.reconcile('limited');
+    expect(f.state.holds.dreaming).toBeUndefined();
+    expect(f.update.mock.calls.map(([id]) => id)).toEqual(['report', 'watch']);
+    expect(f.notify).toHaveBeenCalledExactlyOnceWith(limitedNotice(2), true);
+  });
+
   it('strips stale budget labels from system-owned jobs only', () => {
     const system = { declarationKey: 'skill-collection-review:main' };
     const stripped = stripSystemOwnedHoldLabels([
