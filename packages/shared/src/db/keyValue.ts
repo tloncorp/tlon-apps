@@ -15,7 +15,8 @@ import {
   WayfindingProgress,
 } from '../domain';
 import { Lure } from '../logic';
-import { createStorageItem } from './storageItem';
+import { largeBinaryStorage } from './getStorageMethods';
+import { createStorageItem, registerStorageItemForReset } from './storageItem';
 
 export const pushNotificationSettings =
   createStorageItem<ub.PushNotificationsSetting>({
@@ -618,14 +619,33 @@ export const didSyncInitialPosts = createStorageItem<boolean>({
   persistAfterLogout: false,
 });
 
-export const sqliteContent = createStorageItem<ArrayBuffer | null>({
-  key: 'sqliteContent',
-  defaultValue: null,
-  persistAfterLogout: false,
-  serialize: (value) => (value == null ? '' : arrayBufferToString(value)),
-  deserialize: (str) => (str.length === 0 ? null : stringToArrayBuffer(str)),
-  isLarge: true,
-});
+/**
+ * Web's persisted copy of the SQLite database. Stored as binary because
+ * serializing a large database to a string blocks the main thread for seconds.
+ */
+export const sqliteContent = {
+  config: { key: 'sqliteContent', persistAfterLogout: false },
+  async getValue(): Promise<Blob | null> {
+    const value = await largeBinaryStorage?.getItem(sqliteContent.config.key);
+    // Older clients stored a string of one char per byte ('' when reset); the
+    // next save replaces it with binary.
+    if (typeof value === 'string') {
+      return value.length === 0 ? null : new Blob([stringToArrayBuffer(value)]);
+    }
+    return value ?? null;
+  },
+  async setValue(value: Blob): Promise<void> {
+    if (largeBinaryStorage == null) {
+      throw new Error('IndexedDB is unavailable');
+    }
+    await largeBinaryStorage.setItem(sqliteContent.config.key, value);
+  },
+  async resetValue(): Promise<null> {
+    await largeBinaryStorage?.removeItem(sqliteContent.config.key);
+    return null;
+  },
+};
+registerStorageItemForReset(sqliteContent);
 
 /**
  * Contains locale codes (e.g. `en-US`) that we've already prompted the user to
@@ -701,12 +721,6 @@ function stringToArrayBuffer(str: string) {
     bufView[i] = str.charCodeAt(i);
   }
   return buf;
-}
-
-function arrayBufferToString(buf: ArrayBuffer) {
-  const uint8s = new Uint8Array(buf);
-  const chars = Array.from(uint8s, (byte) => String.fromCharCode(byte));
-  return chars.join('');
 }
 
 export type NagState = {
