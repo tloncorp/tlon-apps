@@ -5,7 +5,11 @@ import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 import { PostHog } from 'posthog-node';
 
 import type { TlonAuthPhase } from './auth-retry-state.js';
-import type { BudgetHoldChange, BudgetState } from './cron-budget-hold.js';
+import type {
+  BudgetHoldChange,
+  BudgetHoldState,
+  BudgetState,
+} from './cron-budget-hold.js';
 import { sharedMap, sharedSlot } from './shared-state.js';
 import type {
   TlonChannelKind,
@@ -150,6 +154,8 @@ export type TlonDeliverySkipReason =
   | 'block_directive_only'
   | 'media_only_payload_not_sent'
   | 'source_reply_delivery_mode_message_tool_only'
+  // Core's billing reply, replaced by an owner notice.
+  | 'provider_billing_error'
   | 'not_dispatched';
 
 export type TlonReplyOutcomeEvent = {
@@ -401,6 +407,8 @@ export type TlonCronBudgetSnapshot = TlonCronBudgetIdentity & {
   budgetState: BudgetState;
   episodeId: string | null;
   budgetPausedCronCount: number;
+  creditNoticeLevel: BudgetHoldState['noticeLevel'] | null;
+  creditNoticeDelivered: boolean;
   reason: 'gateway_start' | 'state_change';
 };
 export type TlonCronBudgetChanged = TlonCronBudgetIdentity & BudgetHoldChange;
