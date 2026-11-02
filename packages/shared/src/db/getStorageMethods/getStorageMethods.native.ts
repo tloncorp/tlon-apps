@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 
-import { GetStorageMethods } from './types';
+import { GetStorageMethods, StorageMethods } from './types';
 
 export const getStorageMethods: GetStorageMethods = ({ isSecure }) => {
   if (isSecure) {
@@ -30,3 +30,7 @@ export const getStorageMethods: GetStorageMethods = ({ isSecure }) => {
     removeItem: AsyncStorage.removeItem,
   };
 };
+
+// Only the web database snapshot uses binary storage.
+export const largeBinaryStorage: StorageMethods<ArrayBuffer | string> | null =
+  null;
