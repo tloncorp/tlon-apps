@@ -2,6 +2,8 @@ import {
   type PostContent,
   activityAction,
   adjustVolumeSetting,
+  deskSupports,
+  getAppInfo,
   getChannelPosts,
   getCurrentUserId,
   getGroupAndChannelUnreads,
@@ -11,8 +13,7 @@ import {
   getVolumeSettings,
   poke,
   readChannel,
-  setActivitySupportsNotes,
-  setActivitySupportsReactions,
+  setDeskVersion,
 } from '@tloncorp/api';
 import {
   NotificationNamesShort,
@@ -172,14 +173,17 @@ function createActivityFormatter(): ActivityFormatter {
   };
 }
 
-// Every supported desk (>= the 12.2.0 floor) serves activity-action-2 and
-// /v6/volume-settings, but the CLI never runs the app's version sync that
-// sets these flags. Without them the poke uses the v8 mark, which strips the
-// react and note keys, so older loud entries for those would keep notifying
-// after a mute. Set per call: idempotent, and survives a client reset.
-function enableCurrentActivityEndpoints(): void {
-  setActivitySupportsReactions(true);
-  setActivitySupportsNotes(true);
+// The CLI never runs the app's sync, which records the ship's %groups
+// version that picks the activity endpoints. Without it the poke uses the v8
+// mark, which strips the react and note keys, so older loud entries for those
+// would keep notifying after a mute; a failed read fails the command rather
+// than send that. Checked per call: a client reset forgets the version.
+async function ensureDeskVersion(): Promise<void> {
+  if (deskSupports('activityNotes') !== null) {
+    return;
+  }
+  const { groupsVersion } = await getAppInfo();
+  setDeskVersion(groupsVersion);
 }
 
 // eyre reports a nack as its `err` value, not an Error; anything thrown as an
@@ -194,7 +198,7 @@ export async function adjustVolume(
   source: Source,
   volume: VolumeMap | null
 ): Promise<PokeOutcome> {
-  enableCurrentActivityEndpoints();
+  await ensureDeskVersion();
   try {
     await adjustVolumeSetting(source, volume);
     return { kind: 'acked' };
@@ -216,7 +220,7 @@ function pokeDeepRead(source: Source): Promise<unknown> {
 }
 
 export async function markRead(target: MarkReadTarget): Promise<PokeOutcome> {
-  enableCurrentActivityEndpoints();
+  await ensureDeskVersion();
   try {
     switch (target.kind) {
       case 'dm-ship':
@@ -254,11 +258,11 @@ export async function markRead(target: MarkReadTarget): Promise<PokeOutcome> {
   }
 }
 
-// /v6/activity carries notebook sources; without the flags the api falls back
-// to /v4, which drops them.
+// /v6/activity carries notebook sources; without the version the api falls
+// back to /v4, which drops them.
 export async function readUnreads() {
-  enableCurrentActivityEndpoints();
   try {
+    await ensureDeskVersion();
     return await getGroupAndChannelUnreads();
   } catch (error) {
     throw commandError(errorMessage(error));
@@ -266,8 +270,8 @@ export async function readUnreads() {
 }
 
 export async function readVolumeSettings() {
-  enableCurrentActivityEndpoints();
   try {
+    await ensureDeskVersion();
     return await getVolumeSettings();
   } catch (error) {
     throw commandError(errorMessage(error));
