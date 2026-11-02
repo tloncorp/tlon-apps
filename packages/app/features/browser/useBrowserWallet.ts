@@ -31,7 +31,7 @@ export function useBrowserWallet(requestId: string, open = true) {
   const request = useCallback(
     async (
       operation: 'view' | 'approve' | 'cancel' = 'view',
-      body?: { confirmed: true; payment_method_id: string },
+      body?: { confirmed: true; payment_method_id?: string },
       signal?: AbortSignal
     ) => {
       const next = await browserWalletRequest(
@@ -49,7 +49,7 @@ export function useBrowserWallet(requestId: string, open = true) {
   const perform = useCallback(
     async (
       operation: 'view' | 'approve' | 'cancel' = 'view',
-      body?: { confirmed: true; payment_method_id: string }
+      body?: { confirmed: true; payment_method_id?: string }
     ) => {
       setBusy(true);
       setError('');
@@ -120,8 +120,11 @@ export function useBrowserWallet(requestId: string, open = true) {
     view,
     error: moon.isError ? 'Couldn’t connect to your bot. Try again.' : error,
     busy,
-    onApprove: (id: string) =>
-      void perform('approve', { confirmed: true, payment_method_id: id }),
+    onApprove: (id?: string) =>
+      void perform('approve', {
+        confirmed: true,
+        ...(id ? { payment_method_id: id } : {}),
+      }),
     onOpenLink: () => void openProvider(),
     onRetry: () => {
       setError('');

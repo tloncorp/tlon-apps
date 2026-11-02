@@ -46,6 +46,11 @@ export const walletViewSchema = z.object({
     'unknown',
   ]),
   expires_at: z.number(),
+  connection_mode: z.literal('tlon_oauth').optional(),
+  payment_source: z.enum(['link', 'site_saved']).optional(),
+  saved_payment: z
+    .object({ method: z.string(), destination: z.string().optional() })
+    .optional(),
   purchase: z
     .object({
       merchant: z.string(),
@@ -76,7 +81,7 @@ export async function browserWalletRequest(
   botMoon: string,
   requestId: string,
   operation: 'view' | 'approve' | 'cancel' = 'view',
-  body?: { confirmed: true; payment_method_id: string },
+  body?: { confirmed: true; payment_method_id?: string },
   signal?: AbortSignal
 ): Promise<WalletView> {
   z.string().uuid().parse(requestId);

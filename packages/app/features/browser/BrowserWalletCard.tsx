@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button, Text } from '@tloncorp/ui';
 import { Spinner, YStack } from 'tamagui';
 import { BrowserPaymentCard, BrowserPaymentSheet } from './BrowserPayment';
+import { BrowserWalletConnectCard } from './BrowserWalletConnectCard';
 import { useBrowserWallet } from './useBrowserWallet';
 
 export function BrowserWalletCard({ requestId }: { requestId: string }) {
@@ -9,7 +10,9 @@ export function BrowserWalletCard({ requestId }: { requestId: string }) {
   const wallet = useBrowserWallet(requestId, open);
   return (
     <>
-      {wallet.view ? (
+      {wallet.view?.connection_mode === 'tlon_oauth' ? (
+        <BrowserWalletConnectCard view={wallet.view} />
+      ) : wallet.view ? (
         <BrowserPaymentCard
           view={wallet.view}
           error={wallet.error}

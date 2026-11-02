@@ -32,7 +32,7 @@ export const walletStatusCopy: Record<
   review: {
     title: 'Review payment',
     description:
-      'After you approve in Link, your Tlonbot will place this order for the amount shown.',
+      'After you approve, your Tlonbot will complete this purchase for the amount shown.',
   },
   authorizing: {
     title: 'Waiting for Link',
@@ -92,6 +92,12 @@ export function paymentStatus(
 }
 
 export function paymentStatusCopy(view: WalletView) {
+  if (view.payment_source === 'site_saved' && view.status === 'review')
+    return {
+      title: 'Authorize payment',
+      description:
+        'Authorize your Tlonbot to complete this purchase using the payment method saved on this site. Nothing is submitted until you approve.',
+    };
   if (view.kind === 'payment' && view.status === 'pending')
     return {
       title: 'Pending',

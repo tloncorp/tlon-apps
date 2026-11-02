@@ -46,6 +46,22 @@ function PaymentHeader({ view }: { view: WalletView }) {
   );
 }
 
+function SavedPaymentSummary({ view }: { view: WalletView }) {
+  if (!view.saved_payment) return null;
+  return (
+    <YStack gap="$s">
+      <Text size="$label/m">
+        {view.saved_payment.method} · saved on this site
+      </Text>
+      {view.saved_payment.destination ? (
+        <Text size="$label/m" color="$secondaryText">
+          {view.saved_payment.destination}
+        </Text>
+      ) : null}
+    </YStack>
+  );
+}
+
 function AmountRow({
   label,
   amount,
@@ -156,6 +172,7 @@ export function BrowserPaymentCard({
     >
       <YStack padding="$l" gap="$l">
         <PaymentHeader view={view} />
+        {view.saved_payment ? <SavedPaymentSummary view={view} /> : null}
         {purchase ? (
           <Text size="$title/l">
             {displayPaymentAmount(purchase.amount, purchase.currency)}
@@ -224,7 +241,7 @@ export type BrowserPaymentContentProps = {
   busy?: boolean;
   error?: string;
   preview?: ReactNode;
-  onApprove(paymentMethodId: string): void;
+  onApprove(paymentMethodId?: string): void;
   onOpenLink(): void;
   onRetry(): void;
   onCancel(): void;
@@ -239,6 +256,7 @@ function BrowserPaymentDetails({
   return (
     <YStack gap="$l">
       <PaymentHeader view={view} />
+      {view.saved_payment ? <SavedPaymentSummary view={view} /> : null}
       {purchase ? (
         <>
           <Text size="$title/l">
@@ -325,7 +343,15 @@ function BrowserPaymentActions({
           <Button label="Check status" disabled={busy} onPress={onRetry} />
         </YStack>
       ) : null}
-      {view?.status === 'review' ? (
+      {view?.status === 'review' && view.payment_source === 'site_saved' ? (
+        <Button
+          fill="solid"
+          intent="primary"
+          label={busy ? 'Authorizing…' : 'Authorize payment'}
+          disabled={busy || !!error || !view.purchase || !view.saved_payment}
+          onPress={() => onApprove()}
+        />
+      ) : view?.status === 'review' ? (
         <>
           <Text size="$label/l">Payment method</Text>
           {methods.length === 1 ? (

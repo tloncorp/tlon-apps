@@ -165,9 +165,11 @@ export function createWalletHandoffs(deps: {
             idempotencyKey: `tlon-wallet:${row.requestId}`,
             deliver: true,
             message: `Wallet request ${row.requestId}: ${status}. Read payment_status for details. ${
-              status === 'ready'
-                ? 'The owner approved the reviewed purchase. Fill the approved checkout, inspect it and verify the merchant, items and total still match, then submit once and verify the result from the page. No second approval is needed for the unchanged order. Respect any original fill-only or no-purchase boundary. If the order changed, obtain fresh approval. If submission is ambiguous, inspect the page or order history without resubmitting. Report completion only after seeing an order confirmation; otherwise report what remains unresolved.'
-                : 'Approval or filling does not mean a purchase succeeded. If cancelled, expired, failed or unknown, do not repeat payment authorization or fill; report the outcome and wait for the owner.'
+              status === 'connected'
+                ? 'Link is now connected. Continue the original task, inspect the current checkout and request separate payment approval for the verified purchase. Connecting Link is not authorization to spend.'
+                : status === 'ready'
+                  ? 'The owner approved the reviewed purchase. Read payment_source from payment_status. For site_saved, skip payment-field inspection and filling: use the selected method already saved on the site. For link, fill the approved checkout. Inspect and verify the merchant, items, total, selected payment method and destination still match, then submit once and verify the result from the page. No second approval is needed for the unchanged order. Respect any original fill-only or no-purchase boundary. If the order changed, obtain fresh approval. If submission is ambiguous, inspect the page or order history without resubmitting. Report completion only after seeing an order confirmation; otherwise report what remains unresolved.'
+                  : 'Approval or filling does not mean a purchase succeeded. If cancelled, expired, failed or unknown, do not repeat payment authorization or fill; report the outcome and wait for the owner.'
             }`,
           });
           await deps.store.delete(key);

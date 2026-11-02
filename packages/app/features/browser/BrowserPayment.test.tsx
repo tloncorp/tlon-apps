@@ -180,3 +180,38 @@ it('opens the prepared approval from the card and keeps details separate', () =>
   act(() => button('View details').props.onPress());
   expect(details).toHaveBeenCalledOnce();
 });
+
+it('authorizes a saved site method in Tlon without a Link picker or external approval', () => {
+  mount({
+    ...view,
+    payment_source: 'site_saved',
+    payment_methods: undefined,
+    saved_payment: {
+      method: 'Bank account ending 6789',
+      destination: 'Service address · Seattle',
+    },
+  });
+  const rendered = JSON.stringify(tree.toJSON());
+  expect(rendered).toContain('Bank account ending 6789');
+  expect(rendered).toContain('Service address · Seattle');
+  expect(rendered).not.toContain('Stripe Link');
+  expect(button('Prepare Link approval')).toBeUndefined();
+  expect(button('Authorize payment').props.disabled).toBe(false);
+  act(() => button('Authorize payment').props.onPress());
+  expect(approve).toHaveBeenCalledWith();
+  expect(openLink).not.toHaveBeenCalled();
+});
+it('does not authorize a saved method without its review details or when refresh failed', () => {
+  mount({ ...view, payment_source: 'site_saved' });
+  expect(button('Authorize payment').props.disabled).toBe(true);
+  act(() => tree.unmount());
+  mount(
+    {
+      ...view,
+      payment_source: 'site_saved',
+      saved_payment: { method: 'Visa ending 4242' },
+    },
+    'Unable to refresh'
+  );
+  expect(button('Authorize payment').props.disabled).toBe(true);
+});

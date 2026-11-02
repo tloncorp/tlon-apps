@@ -82,3 +82,29 @@ it('opens mobile approvals through the system link handler', async () => {
   expect(Linking.openURL).toHaveBeenCalledWith('https://link.example/approve');
   expect(browserWalletRequest).toHaveBeenCalledTimes(1);
 });
+
+it('sends saved-method approval without a Link payment-method id', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  vi.mocked(browserWalletRequest).mockResolvedValue({
+    request_id: 'request',
+    kind: 'payment',
+    status: 'review',
+    expires_at: Date.now() + 60000,
+    payment_source: 'site_saved',
+    saved_payment: { method: 'Card ending 4242' },
+  });
+  await act(async () => {
+    tree = create(<Harness />);
+  });
+  await act(async () => {
+    wallet.onApprove();
+  });
+  expect(browserWalletRequest).toHaveBeenLastCalledWith(
+    '~zod',
+    'request',
+    'approve',
+    { confirmed: true },
+    undefined
+  );
+  expect(Linking.openURL).not.toHaveBeenCalled();
+});

@@ -1,6 +1,7 @@
 import { View } from 'tamagui';
 import { ScreenHeader, SettingsContentScrollView } from '../../ui';
 import { BrowserPaymentContent } from './BrowserPayment';
+import { BrowserWalletConnectCard } from './BrowserWalletConnectCard';
 import { useBrowserWallet } from './useBrowserWallet';
 
 export function BrowserWalletScreen({
@@ -18,7 +19,11 @@ export function BrowserWalletScreen({
         title="Payment request"
       />
       <SettingsContentScrollView>
-        <BrowserPaymentContent {...wallet} />
+        {wallet.view?.connection_mode === 'tlon_oauth' ? (
+          <BrowserWalletConnectCard view={wallet.view} />
+        ) : (
+          <BrowserPaymentContent {...wallet} />
+        )}
       </SettingsContentScrollView>
     </View>
   );

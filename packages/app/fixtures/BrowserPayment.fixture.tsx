@@ -1,3 +1,4 @@
+import { BrowserWalletConnectContent } from '../features/browser/BrowserWalletConnectCard';
 import type { WalletView } from '@tloncorp/api/client/browserWallet';
 import { Button, Text } from '@tloncorp/ui';
 import { useState } from 'react';
@@ -99,12 +100,12 @@ function Demo({
       : undefined
   );
   return (
-    <FixtureWrapper fillWidth fillHeight>
+    <FixtureWrapper fillWidth fillHeight safeArea>
       <YStack padding="$l" gap="$l" width="100%" maxWidth={560}>
         <Text color="$secondaryText">
           Demo only. No connection to Link and no purchase.
         </Text>
-        <Text size="$label/l">~zod</Text>
+        <Text size="$label/l">Tlonbot</Text>
         <Text>
           Your payment is ready to review. After you approve in Stripe Link,
           I’ll complete it.
@@ -121,8 +122,26 @@ function Demo({
           error={error}
           onRetry={() => setError(undefined)}
           onCancel={() => setView({ ...view, status: 'cancelled' })}
-          onApprove={() => setView({ ...view, status: 'authorizing' })}
+          onApprove={() =>
+            setView({
+              ...view,
+              status: 'pending',
+              action: {
+                name: 'approve',
+                url: 'https://example.com/fixture-only',
+              },
+            })
+          }
           onOpenLink={() => setView({ ...view, status: 'ready' })}
+        />
+        <Button
+          label="Reset demo"
+          fill="text"
+          onPress={() => {
+            setOpen(false);
+            setError(undefined);
+            setView({ ...view, status });
+          }}
         />
         {view.status === 'authorizing' ? (
           <YStack gap="$m">
@@ -142,7 +161,123 @@ function Demo({
   );
 }
 
+function SavedPaymentDemo({
+  initialStatus = 'review',
+}: {
+  initialStatus?: WalletView['status'];
+}) {
+  const [status, setStatus] = useState<WalletView['status']>(initialStatus);
+  const [open, setOpen] = useState(false);
+  const view: WalletView = {
+    ...payment,
+    status,
+    payment_source: 'site_saved',
+    payment_methods: undefined,
+    saved_payment: {
+      method: 'Bank account ending 6789',
+      destination: 'Service address · Seattle',
+    },
+    purchase: {
+      merchant: 'Utility provider',
+      page_url: 'https://example.com/bill',
+      amount: 7200,
+      currency: 'usd',
+      description: 'Pay the October bill.',
+      order: {
+        items: [{ name: 'October service', quantity: 1, amount: 7200 }],
+        subtotal: 7200,
+      },
+    },
+  };
+  return (
+    <FixtureWrapper fillWidth fillHeight safeArea>
+      <YStack padding="$l" gap="$l" width="100%" maxWidth={560}>
+        <Text color="$secondaryText">Demo only. No payment is submitted.</Text>
+        <Text size="$label/l">Tlonbot</Text>
+        <Text>
+          Your bill is ready. Review the details and authorize payment using the
+          method saved on this site.
+        </Text>
+        <BrowserPaymentCard view={view} onOpen={() => setOpen(true)} />
+        <Button
+          label="Reset demo"
+          fill="text"
+          onPress={() => {
+            setOpen(false);
+            setStatus(initialStatus);
+          }}
+        />
+      </YStack>
+      {open ? (
+        <BrowserPaymentSheet
+          view={view}
+          open
+          onClose={() => setOpen(false)}
+          onApprove={() => setStatus('ready')}
+          onOpenLink={() => {}}
+          onRetry={() => {}}
+          onCancel={() => setStatus('cancelled')}
+        />
+      ) : null}
+    </FixtureWrapper>
+  );
+}
+
+function WalletConnectionDemo({
+  initialStatus = 'pending',
+  busy = false,
+  loadError = false,
+}: {
+  initialStatus?: WalletView['status'];
+  busy?: boolean;
+  loadError?: boolean;
+}) {
+  const [status, setStatus] = useState<WalletView['status']>(initialStatus);
+  return (
+    <FixtureWrapper fillWidth fillHeight safeArea>
+      <YStack padding="$l" gap="$l" width="100%" maxWidth={560}>
+        <Text color="$secondaryText">
+          Demo only. Connect simulates OAuth completion without opening Stripe.
+        </Text>
+        <Text size="$label/l">Tlonbot</Text>
+        <Text>
+          Connect your wallet to continue. I’ll ask you to approve the payment
+          separately.
+        </Text>
+        <BrowserWalletConnectContent
+          view={{
+            request_id: payment.request_id,
+            kind: 'connect',
+            status,
+            expires_at: payment.expires_at,
+            connection_mode: 'tlon_oauth',
+          }}
+          busy={busy}
+          error={
+            loadError ? 'Couldn’t open Stripe Link. Try again.' : undefined
+          }
+          onConnect={() => setStatus('connected')}
+        />
+        <Button
+          label="Reset demo"
+          fill="text"
+          onPress={() => setStatus(initialStatus)}
+        />
+      </YStack>
+    </FixtureWrapper>
+  );
+}
+
 export default {
+  GiveTlonbotWallet: <WalletConnectionDemo />,
+  WalletConnecting: <WalletConnectionDemo busy />,
+  WalletConnected: <WalletConnectionDemo initialStatus="connected" />,
+  WalletExpired: <WalletConnectionDemo initialStatus="expired" />,
+  WalletConnectionError: <WalletConnectionDemo loadError />,
+  PurchaseApproval: <Demo status="review" single />,
+  SavedPaymentApproval: <SavedPaymentDemo />,
+  SavedPaymentApproved: <SavedPaymentDemo initialStatus="ready" />,
+  SavedPaymentExpired: <SavedPaymentDemo initialStatus="expired" />,
   Pending: <Demo />,
   ChoosePaymentMethod: <Demo status="review" />,
   Flight: (
