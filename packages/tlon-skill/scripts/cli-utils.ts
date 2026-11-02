@@ -486,6 +486,22 @@ export function formatPostId(postId: string): string {
   return formatUd(extractNumericId(postId));
 }
 
+// A post id is an @da: 39 digits, written in 13 dot-separated groups.
+const POST_ID_DIGITS = 39;
+
+/**
+ * Why `postId` can't be a whole post id, or undefined when it can be. A
+ * dropped or repeated group is the usual slip when an id is copied by hand,
+ * and the read it fails is otherwise indistinguishable from a post that isn't
+ * visible yet.
+ */
+export function postIdLengthProblem(postId: string): string | undefined {
+  const digits = extractNumericId(postId).replace(/\./g, '').length;
+  return digits === POST_ID_DIGITS
+    ? undefined
+    : `${formatPostId(postId)} isn't a whole post ID: post IDs have ${POST_ID_DIGITS} digits (13 dot-separated groups) and this one has ${digits}`;
+}
+
 // The undotted @ud the app writes into a cite's `where` path. Throws on
 // anything that is not a post id, so a bad id can't become a dangling cite.
 export function undottedPostId(postId: string): string {
