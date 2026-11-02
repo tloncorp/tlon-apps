@@ -24,17 +24,16 @@ thread, or a response shape. The judgment is recorded as the registry entry's
 The E2E job that runs the candidate client against a pinned N-1 pier proves the
 result.
 
-**Guarded requests.** `guardedBy` names a capability (today
-`deskSupportsBuckets`, read by `getDeskSupportsBuckets`,
-`deskSupportsAutomations`, read by `getDeskSupportsAutomationsState`, and
-`deskSupportsStewardPrompts`, read by `getDeskSupportsStewardPromptsState`).
-Each is set from the desk version at sync start. The request helpers
-assert it at call time and throw `DeskUnsupportedError` before any network
-call once the desk is known not to serve it; until the sync-start probe (or
-persisted app info) has resolved the capability, the request goes out as an
-unguarded one would. A guarded entry's `since` must equal its guard's version
-(floor check). Once the floor reaches that version, the check fails until the
-guard is removed.
+**Guarded requests.** `guardedBy` names a capability from
+`DESK_CAPABILITIES` (`packages/api/src/lib/deskVersion.ts`), which maps each
+to the first desk release that has it. `deskSupports(capability)` reads it
+from the desk version sync start records. The request helpers assert it at
+call time and throw `DeskUnsupportedError` before any network call once the
+desk is known not to serve it; until sync start (or persisted app info) has
+resolved the version, the request goes out as an unguarded one would. A
+guarded entry's `since` must equal its capability's version (floor check).
+Once the floor reaches that version, the check fails until the guard is
+removed.
 
 **(c) Desk removal is bounded by the support window** — the currently released
 client plus the candidate client. The released desk and web client are the
