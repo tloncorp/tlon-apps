@@ -1,8 +1,8 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { Button } from '@tloncorp/ui';
 import type { WalletView } from '@tloncorp/api/client/browserWallet';
+import { A2UICardButton } from '../../ui/components/PostContent/a2uiCardParts';
 import { BrowserWalletConnectCard } from './BrowserWalletConnectCard';
 
 const mocks = vi.hoisted(() => ({
@@ -15,7 +15,20 @@ vi.mock('@tloncorp/ui', () => ({
   Icon: 'Icon',
   Text: 'Text',
 }));
-vi.mock('tamagui', () => ({ XStack: 'XStack', YStack: 'YStack' }));
+vi.mock('tamagui', () => ({
+  XStack: 'XStack',
+  YStack: 'YStack',
+  isWeb: false,
+}));
+vi.mock(
+  '../../ui/components/PostContent/a2uiCardParts',
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import('../../ui/components/PostContent/a2uiCardParts')
+    >()),
+    A2UICardButton: 'A2UICardButton',
+  })
+);
 vi.mock('../settings/useMcpConnections', () => ({
   useMcpConnections: ({ onEvent }: { onEvent: typeof mocks.onEvent }) => {
     mocks.onEvent = onEvent;
@@ -53,7 +66,7 @@ it('starts the existing connector OAuth flow only after tapping Connect', async 
   mount();
   expect(mocks.refreshStatus).toHaveBeenCalledOnce();
   expect(mocks.connect).not.toHaveBeenCalled();
-  const button = tree.root.findByType(Button);
+  const button = tree.root.findByType(A2UICardButton);
   expect(button.props.label).toBe('Connect Stripe Link');
   await act(async () => button.props.onPress());
   expect(mocks.connect).toHaveBeenCalledTimes(1);
@@ -63,14 +76,14 @@ it.each(['connected', 'expired', 'cancelled'] as const)(
   'removes the action for %s requests',
   (status) => {
     mount({ ...view, status });
-    expect(tree.root.findAllByType(Button)).toHaveLength(0);
+    expect(tree.root.findAllByType(A2UICardButton)).toHaveLength(0);
   }
 );
 it('surfaces an OAuth start failure and keeps the connect action available', () => {
   mount();
   act(() => mocks.onEvent?.({ type: 'start-failed' }));
   expect(JSON.stringify(tree.toJSON())).toContain('Couldn’t open Stripe Link');
-  expect(tree.root.findByType(Button).props.disabled).toBeFalsy();
+  expect(tree.root.findByType(A2UICardButton).props.disabled).toBeFalsy();
 });
 
 it('shows a wallet polling failure and lets the owner retry it', () => {
@@ -88,7 +101,7 @@ it('shows a wallet polling failure and lets the owner retry it', () => {
     'Unable to refresh this wallet request.'
   );
   const retry = tree.root
-    .findAllByType(Button)
+    .findAllByType(A2UICardButton)
     .find(({ props }) => props.label === 'Try again');
   act(() => retry?.props.onPress());
   expect(onRetry).toHaveBeenCalledOnce();

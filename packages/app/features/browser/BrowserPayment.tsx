@@ -7,6 +7,12 @@ import { Platform, useWindowDimensions } from 'react-native';
 import { BottomSheetScrollView } from '../../ui/components/BottomSheetWrapper';
 import { ActionSheet } from '../../ui/components/ActionSheet';
 import {
+  A2UICardButton,
+  A2UI_INNER_CARD,
+  A2UI_SPACE,
+} from '../../ui/components/PostContent/a2uiCardParts';
+import { BrowserCardFrame, BrowserCardText } from './BrowserCardFrame';
+import {
   displayPaymentAmount,
   walletFinished,
   paymentStatusCopy,
@@ -49,8 +55,27 @@ function PaymentHeader({ view }: { view: WalletView }) {
   );
 }
 
-function SavedPaymentSummary({ view }: { view: WalletView }) {
+function SavedPaymentSummary({
+  view,
+  card = false,
+}: {
+  view: WalletView;
+  card?: boolean;
+}) {
   if (!view.saved_payment) return null;
+  if (card)
+    return (
+      <YStack>
+        <BrowserCardText type="label" color="$primaryText">
+          {view.saved_payment.method} · saved on this site
+        </BrowserCardText>
+        {view.saved_payment.destination ? (
+          <BrowserCardText type="note" marginTop={A2UI_SPACE.line}>
+            {view.saved_payment.destination}
+          </BrowserCardText>
+        ) : null}
+      </YStack>
+    );
   return (
     <YStack gap="$s">
       <Text size="$label/m">
@@ -70,12 +95,26 @@ function AmountRow({
   amount,
   currency,
   total = false,
+  card = false,
 }: {
   label: string;
   amount: number;
   currency: string;
   total?: boolean;
+  card?: boolean;
 }) {
+  if (card) {
+    return (
+      <XStack gap={12} justifyContent="space-between" alignItems="flex-start">
+        <BrowserCardText type="note" flex={1}>
+          {label}
+        </BrowserCardText>
+        <BrowserCardText type="note" color="$primaryText">
+          {displayPaymentAmount(amount, currency)}
+        </BrowserCardText>
+      </XStack>
+    );
+  }
   return (
     <XStack gap="$l" justifyContent="space-between" alignItems="flex-start">
       <Text
@@ -94,28 +133,30 @@ function AmountRow({
 
 function PaymentTotals({
   view,
-  showTotal = true,
+  card = false,
 }: {
   view: WalletView;
-  showTotal?: boolean;
+  card?: boolean;
 }) {
   const purchase = view.purchase;
   if (!purchase) return null;
   const { order, currency } = purchase;
   return (
-    <YStack gap="$m">
+    <YStack gap={card ? A2UI_SPACE.line : '$m'}>
       {order ? (
         <>
           <AmountRow
             label="Subtotal"
             amount={order.subtotal}
             currency={currency}
+            card={card}
           />
           {order.discount ? (
             <AmountRow
               label="Discount"
               amount={-order.discount}
               currency={currency}
+              card={card}
             />
           ) : null}
           {order.shipping ? (
@@ -123,6 +164,7 @@ function PaymentTotals({
               label={`Shipping · ${order.shipping.method}`}
               amount={order.shipping.amount}
               currency={currency}
+              card={card}
             />
           ) : null}
           {order.tax ? (
@@ -130,14 +172,22 @@ function PaymentTotals({
               label={order.tax.estimated ? 'Estimated tax' : 'Tax'}
               amount={order.tax.amount}
               currency={currency}
+              card={card}
             />
           ) : null}
           {order.fees ? (
-            <AmountRow label="Fees" amount={order.fees} currency={currency} />
+            <AmountRow
+              label="Fees"
+              amount={order.fees}
+              currency={currency}
+              card={card}
+            />
           ) : null}
         </>
       ) : null}
-      {showTotal ? (
+      {/* The card shows the amount above these rows, so it leaves out the
+          total. */}
+      {card ? null : (
         <YStack borderTopWidth={1} borderColor="$border" paddingTop="$m">
           <AmountRow
             label="Total"
@@ -146,7 +196,7 @@ function PaymentTotals({
             total
           />
         </YStack>
-      ) : null}
+      )}
     </YStack>
   );
 }
@@ -166,38 +216,52 @@ export function BrowserPaymentCard({
   const purchase = view.purchase;
   const order = purchase?.order;
   const count = order?.items.reduce((sum, item) => sum + item.quantity, 0);
+  const finished = walletFinished.has(view.status);
   const canOpenLink =
-    !!view.action &&
-    !walletFinished.has(view.status) &&
-    view.status !== 'review' &&
-    !error;
+    !!view.action && !finished && view.status !== 'review' && !error;
   return (
-    <YStack
-      width="100%"
-      maxWidth={400}
-      borderWidth={1}
-      borderColor="$border"
-      borderRadius="$m"
-      backgroundColor="$background"
-      overflow="hidden"
+    <BrowserCardFrame
+      icon="Lock"
+      kicker="Tlon wallet"
+      status={paymentStatus(view)}
     >
-      <YStack padding="$xl" gap="$m">
-        <PaymentHeader view={view} />
-        {purchase ? (
-          <Text size="$title/l">
-            {displayPaymentAmount(purchase.amount, purchase.currency)}
-          </Text>
-        ) : null}
-        {view.saved_payment ? <SavedPaymentSummary view={view} /> : null}
-      </YStack>
+      <BrowserCardText
+        type="title"
+        color="$primaryText"
+        marginTop={A2UI_SPACE.afterKicker}
+      >
+        {view.kind === 'connect' ? 'Wallet connection' : 'Payment Request'}
+      </BrowserCardText>
+      <BrowserCardText
+        type="note"
+        numberOfLines={1}
+        marginTop={A2UI_SPACE.line}
+      >
+        {purchase?.merchant ?? 'Stripe Link'}
+      </BrowserCardText>
       {purchase ? (
-        <YStack borderTopWidth={1} borderColor="$border" padding="$xl" gap="$m">
+        // The inner card holds what the request is about.
+        <YStack
+          marginTop={A2UI_SPACE.afterTitle}
+          borderWidth={1}
+          borderColor="$border"
+          borderRadius={A2UI_INNER_CARD.radius}
+          paddingHorizontal={A2UI_INNER_CARD.paddingX}
+          paddingVertical={A2UI_INNER_CARD.paddingY}
+        >
+          <BrowserCardText type="title" color="$primaryText">
+            {displayPaymentAmount(purchase.amount, purchase.currency)}
+          </BrowserCardText>
           {order ? (
-            <YStack gap="$s">
-              <Text size="$label/m" color="$secondaryText">
+            <>
+              <BrowserCardText type="note" marginTop={A2UI_SPACE.line}>
                 {count} {count === 1 ? 'item' : 'items'}
-              </Text>
-              <Text size="$label/m" color="$secondaryText" numberOfLines={2}>
+              </BrowserCardText>
+              <BrowserCardText
+                type="note"
+                numberOfLines={2}
+                marginTop={A2UI_SPACE.line}
+              >
                 {order.items
                   .map(
                     (item) =>
@@ -205,52 +269,56 @@ export function BrowserPaymentCard({
                       (item.quantity > 1 ? ` ×${item.quantity}` : '')
                   )
                   .join(', ')}
-              </Text>
-            </YStack>
+              </BrowserCardText>
+              <YStack marginTop={A2UI_SPACE.block}>
+                <PaymentTotals view={view} card />
+              </YStack>
+            </>
           ) : (
-            <Text size="$label/m" color="$secondaryText" numberOfLines={3}>
+            <BrowserCardText
+              type="note"
+              numberOfLines={3}
+              marginTop={A2UI_SPACE.line}
+            >
               {purchase.description}
-            </Text>
+            </BrowserCardText>
           )}
-          {order ? <PaymentTotals view={view} showTotal={false} /> : null}
         </YStack>
       ) : null}
-      <YStack borderTopWidth={1} borderColor="$border" padding="$m">
-        <Button
-          fill="text"
-          intent="primary"
+      {view.saved_payment ? (
+        <YStack marginTop={purchase ? A2UI_SPACE.block : A2UI_SPACE.afterTitle}>
+          <SavedPaymentSummary view={view} card />
+        </YStack>
+      ) : null}
+      {finished ? (
+        <BrowserCardText type="body" marginTop={A2UI_SPACE.block}>
+          {copy.description}
+        </BrowserCardText>
+      ) : null}
+      <XStack gap={8} paddingTop={A2UI_SPACE.beforeButtons}>
+        <A2UICardButton
+          tone="secondary"
           label="View details"
-          trailingIcon="ChevronRight"
           onPress={onOpen}
         />
-      </YStack>
-      <YStack borderTopWidth={1} borderColor="$border" padding="$xl" gap="$m">
-        {!walletFinished.has(view.status) ? (
-          <>
-            <Button
-              fill="solid"
-              intent="primary"
-              label={
-                view.kind === 'connect' ? 'Connect Link' : 'Review payment'
-              }
-              leadingIcon="Lock"
-              onPress={canOpenLink && onOpenLink ? onOpenLink : onOpen}
-            />
-            <Text size="$label/s" color="$secondaryText">
-              {error
-                ? 'Unable to refresh. Open details to check status.'
-                : canOpenLink
-                  ? 'Opens Stripe Link to approve this amount.'
-                  : copy.description}
-            </Text>
-          </>
-        ) : (
-          <Text size="$label/m" color="$secondaryText">
-            {copy.description}
-          </Text>
-        )}
-      </YStack>
-    </YStack>
+        {!finished ? (
+          <A2UICardButton
+            tone="primary"
+            label={view.kind === 'connect' ? 'Connect Link' : 'Review payment'}
+            onPress={canOpenLink && onOpenLink ? onOpenLink : onOpen}
+          />
+        ) : null}
+      </XStack>
+      {!finished ? (
+        <BrowserCardText type="note" marginTop={A2UI_SPACE.block}>
+          {error
+            ? 'Unable to refresh. Open details to check status.'
+            : canOpenLink
+              ? 'Opens Stripe Link to approve this amount.'
+              : copy.description}
+        </BrowserCardText>
+      ) : null}
+    </BrowserCardFrame>
   );
 }
 

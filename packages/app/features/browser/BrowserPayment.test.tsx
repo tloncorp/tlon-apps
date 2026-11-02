@@ -4,6 +4,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { WalletView } from '@tloncorp/api/client/browserWallet';
 
+import { A2UICardButton } from '../../ui/components/PostContent/a2uiCardParts';
 import { BrowserPaymentCard, BrowserPaymentContent } from './BrowserPayment';
 import {
   displayPaymentAmount,
@@ -19,7 +20,17 @@ vi.mock('tamagui', () => ({
   YStack: 'YStack',
   XStack: 'XStack',
   Spinner: 'Spinner',
+  isWeb: false,
 }));
+vi.mock(
+  '../../ui/components/PostContent/a2uiCardParts',
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import('../../ui/components/PostContent/a2uiCardParts')
+    >()),
+    A2UICardButton: 'A2UICardButton',
+  })
+);
 vi.mock('../../ui/components/BottomSheetWrapper', () => ({
   BottomSheetScrollView: 'ScrollView',
 }));
@@ -72,6 +83,10 @@ function mount(next = view, error?: string) {
 const buttons = () => tree.root.findAllByType(Button);
 const button = (label: string) =>
   buttons().find((item) => item.props.label === label)!;
+const cardButton = (label: string) =>
+  tree.root
+    .findAllByType(A2UICardButton)
+    .find((item) => item.props.label === label)!;
 
 it('requires a choice when multiple methods exist and sends only the selected id', () => {
   mount();
@@ -128,7 +143,7 @@ it('opening an approved card shows details, not another approval', () => {
       <BrowserPaymentCard view={{ ...view, status: 'ready' }} onOpen={open} />
     );
   });
-  act(() => button('View details').props.onPress());
+  act(() => cardButton('View details').props.onPress());
   expect(open).toHaveBeenCalledOnce();
   expect(approve).not.toHaveBeenCalled();
 });
@@ -174,10 +189,10 @@ it('opens the prepared approval from the card and keeps details separate', () =>
       />
     );
   });
-  act(() => button('Review payment').props.onPress());
+  act(() => cardButton('Review payment').props.onPress());
   expect(openLink).toHaveBeenCalledOnce();
   expect(details).not.toHaveBeenCalled();
-  act(() => button('View details').props.onPress());
+  act(() => cardButton('View details').props.onPress());
   expect(details).toHaveBeenCalledOnce();
 });
 

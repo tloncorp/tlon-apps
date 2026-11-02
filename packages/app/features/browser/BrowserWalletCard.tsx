@@ -1,6 +1,11 @@
 import { useState } from 'react';
-import { Button, Text } from '@tloncorp/ui';
-import { Spinner, YStack } from 'tamagui';
+import { Spinner, XStack } from 'tamagui';
+
+import {
+  A2UICardButton,
+  A2UI_SPACE,
+} from '../../ui/components/PostContent/a2uiCardParts';
+import { BrowserCardFrame, BrowserCardText } from './BrowserCardFrame';
 import { BrowserPaymentCard, BrowserPaymentSheet } from './BrowserPayment';
 import { BrowserWalletConnectCard } from './BrowserWalletConnectCard';
 import { useBrowserWallet } from './useBrowserWallet';
@@ -24,17 +29,31 @@ export function BrowserWalletCard({ requestId }: { requestId: string }) {
           onOpen={() => setOpen(true)}
         />
       ) : (
-        <YStack padding="$l" gap="$m" width="100%" maxWidth={400}>
-          <Text size="$label/l">Payment request</Text>
+        <BrowserCardFrame icon="Lock" kicker="Tlon wallet">
+          <BrowserCardText
+            type="title"
+            color="$primaryText"
+            marginTop={A2UI_SPACE.afterKicker}
+          >
+            Payment request
+          </BrowserCardText>
           {wallet.error ? (
             <>
-              <Text>{wallet.error}</Text>
-              <Button label="Try again" onPress={wallet.onRetry} />
+              <BrowserCardText type="body" marginTop={A2UI_SPACE.line}>
+                {wallet.error}
+              </BrowserCardText>
+              <XStack paddingTop={A2UI_SPACE.beforeButtons}>
+                <A2UICardButton
+                  tone="primary"
+                  label="Try again"
+                  onPress={wallet.onRetry}
+                />
+              </XStack>
             </>
           ) : (
-            <Spinner />
+            <Spinner alignSelf="flex-start" marginTop={A2UI_SPACE.block} />
           )}
-        </YStack>
+        </BrowserCardFrame>
       )}
       {open ? (
         <BrowserPaymentSheet {...wallet} open onClose={() => setOpen(false)} />
