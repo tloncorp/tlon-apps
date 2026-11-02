@@ -625,16 +625,16 @@ export const didSyncInitialPosts = createStorageItem<boolean>({
  */
 export const sqliteContent = {
   config: { key: 'sqliteContent', persistAfterLogout: false },
-  async getValue(): Promise<ArrayBuffer | null> {
+  async getValue(): Promise<Blob | null> {
     const value = await largeBinaryStorage?.getItem(sqliteContent.config.key);
     // Older clients stored a string of one char per byte ('' when reset); the
     // next save replaces it with binary.
     if (typeof value === 'string') {
-      return value.length === 0 ? null : stringToArrayBuffer(value);
+      return value.length === 0 ? null : new Blob([stringToArrayBuffer(value)]);
     }
     return value ?? null;
   },
-  async setValue(value: ArrayBuffer): Promise<void> {
+  async setValue(value: Blob): Promise<void> {
     if (largeBinaryStorage == null) {
       throw new Error('IndexedDB is unavailable');
     }

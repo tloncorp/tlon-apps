@@ -90,9 +90,7 @@ const indexedDbStorage = createIndexedDbStorage<string>();
  * structured clone, so large binary values skip string serialization on the
  * main thread. Strings are values written by a string-serialized item.
  */
-export const largeBinaryStorage = createIndexedDbStorage<
-  ArrayBuffer | string
->();
+export const largeBinaryStorage = createIndexedDbStorage<Blob | string>();
 
 export const getStorageMethods: GetStorageMethods = (config) => {
   if (config.isLarge) {

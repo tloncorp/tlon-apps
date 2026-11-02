@@ -32,5 +32,4 @@ export const getStorageMethods: GetStorageMethods = ({ isSecure }) => {
 };
 
 // Only the web database snapshot uses binary storage.
-export const largeBinaryStorage: StorageMethods<ArrayBuffer | string> | null =
-  null;
+export const largeBinaryStorage: StorageMethods<Blob | string> | null = null;
