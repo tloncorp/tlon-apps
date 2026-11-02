@@ -916,7 +916,7 @@
     =*  action=action:club:v7:cv  p.rail
     =/  cu  (cu-abed p.action)
     ?.  (cu-can-poke:cu q.q.action)
-      ~|("%club-action poke failed: {<src.bowl>} not in club" !!)
+      ~|("%club-action poke failed: {<src.bowl>} may not send {<-.q.q.action>} to club {<p.action>}" !!)
     cu-abet:(cu-diff:cu q.action)
   ::
       %chat-club-action-1
