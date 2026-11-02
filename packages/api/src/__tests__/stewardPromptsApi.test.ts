@@ -1,7 +1,7 @@
 import { beforeEach, expect, test, vi } from 'vitest';
 import {
   DeskUnsupportedError,
-  getDeskSupportsStewardPromptsState,
+  deskSupports,
   requestJson,
   subscribe,
 } from '../client/urbit';
@@ -18,7 +18,7 @@ import {
 vi.mock('../client/urbit', () => ({
   // The registry helpers throw it for a guard that is off.
   DeskUnsupportedError: class DeskUnsupportedError extends Error {},
-  getDeskSupportsStewardPromptsState: vi.fn(),
+  deskSupports: vi.fn(),
   requestJson: vi.fn(),
   subscribe: vi.fn(),
 }));
@@ -162,7 +162,7 @@ test('a watch refused after it resolved reaches the caller', async () => {
   );
 });
 test('a desk without the prompts module is refused before anything is sent', async () => {
-  vi.mocked(getDeskSupportsStewardPromptsState).mockReturnValue(false);
+  vi.mocked(deskSupports).mockReturnValue(false);
   await expect(getStewardPromptFiles()).rejects.toBeInstanceOf(
     DeskUnsupportedError
   );

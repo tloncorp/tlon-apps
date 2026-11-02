@@ -3,8 +3,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import {
   DeskUnsupportedError,
-  getDeskSupportsAutomationsState,
-  getDeskSupportsTaskRunsState,
+  deskSupports,
   requestJson,
   scry,
   subscribe,
@@ -28,8 +27,7 @@ vi.mock('../client/urbit', async (importOriginal) => ({
   DeskUnsupportedError: (
     await importOriginal<typeof import('../client/urbit')>()
   ).DeskUnsupportedError,
-  getDeskSupportsAutomationsState: vi.fn(),
-  getDeskSupportsTaskRunsState: vi.fn(),
+  deskSupports: vi.fn(),
   requestJson: vi.fn(),
   scry: vi.fn(),
   subscribe: vi.fn().mockResolvedValue(7),
@@ -50,8 +48,7 @@ beforeEach(() => {
   vi.mocked(requestJson).mockReset();
   vi.mocked(scry).mockReset();
   vi.mocked(subscribe).mockClear();
-  vi.mocked(getDeskSupportsAutomationsState).mockReturnValue(true);
-  vi.mocked(getDeskSupportsTaskRunsState).mockReturnValue(true);
+  vi.mocked(deskSupports).mockReturnValue(true);
 });
 
 describe('createAutomation', () => {
@@ -225,7 +222,7 @@ describe('testAutomation', () => {
   });
 
   test('is refused before sending on a desk without test runs', () => {
-    vi.mocked(getDeskSupportsTaskRunsState).mockReturnValue(false);
+    vi.mocked(deskSupports).mockImplementation((cap) => cap !== 'taskRuns');
 
     expect(() => testAutomation({ bot, id: 'job-1' })).toThrow(
       DeskUnsupportedError
@@ -371,7 +368,7 @@ describe('newAutomationRequestId', () => {
 
 describe('on a desk older than the one that added delivery', () => {
   beforeEach(() => {
-    vi.mocked(getDeskSupportsAutomationsState).mockReturnValue(false);
+    vi.mocked(deskSupports).mockReturnValue(false);
   });
 
   test('every request is refused before anything is sent', async () => {
@@ -395,7 +392,7 @@ describe('on a desk older than the one that added delivery', () => {
   });
 
   test('requests go out while the desk version is not yet known', async () => {
-    vi.mocked(getDeskSupportsAutomationsState).mockReturnValue(null);
+    vi.mocked(deskSupports).mockReturnValue(null);
     vi.mocked(scry).mockResolvedValue({});
 
     await expect(scryAutomations()).resolves.toEqual({});

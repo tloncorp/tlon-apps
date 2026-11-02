@@ -13,7 +13,7 @@ import {
 } from './groupsApi';
 import { toClientHiddenPosts } from './postsApi';
 import { groupsUi, scryRequest } from './requests';
-import { getCurrentUserId, getDeskSupportsBuckets } from './urbit';
+import { deskSupports, getCurrentUserId } from './urbit';
 
 const logger = createDevLogger('initApi', false);
 
@@ -50,9 +50,10 @@ export const getInitData = async () => {
   // Buckets, so the older path degrades to Buckets arriving without their
   // writer roles until the subscription fills them in.
   // Two bound calls: the helpers refuse an entry typed as a union.
-  const response = getDeskSupportsBuckets()
-    ? await scryRequest(groupsUi.initBuckets)<ub.GroupsInit11>({})
-    : await scryRequest(groupsUi.init)<ub.GroupsInit11>({});
+  const response =
+    deskSupports('buckets') === true
+      ? await scryRequest(groupsUi.initBuckets)<ub.GroupsInit11>({})
+      : await scryRequest(groupsUi.init)<ub.GroupsInit11>({});
 
   logger.crumb('got init data from api');
 

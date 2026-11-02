@@ -1,33 +1,10 @@
-import {
-  AUTOMATIONS_MIN_GROUPS_VERSION,
-  BUCKETS_MIN_GROUPS_VERSION,
-  ROSTER_PAGES_MIN_GROUPS_VERSION,
-  STEWARD_PROMPTS_MIN_GROUPS_VERSION,
-  TASK_RUNS_MIN_GROUPS_VERSION,
-  STEWARD_BOTS_MIN_GROUPS_VERSION,
-} from '../../lib/deskVersion';
+import { type DeskCapability, type DeskVersion } from '../../lib/deskVersion';
 
-// Shape only: `${number}` admits '1e0'. The registry check re-validates every
-// `since` strictly.
-export type DeskVersion = `${number}.${number}.${number}`;
+export type { DeskVersion };
 
 // Desks other than %groups that host an agent the client talks to. Only the
 // registry check decides whether a label is honest (it owns the agent map).
 export type ExternalDesk = 'base' | 'landscape';
-
-// Runtime capabilities a guarded entry may name, each with the desk release
-// that turns it on. A guarded entry's `since` must equal its guard's (the
-// registry check), and the request helpers refuse it once the guard is known
-// to be off (not while it is still unresolved).
-export const GUARDS = {
-  deskSupportsBuckets: { since: BUCKETS_MIN_GROUPS_VERSION },
-  deskServesRosterPages: { since: ROSTER_PAGES_MIN_GROUPS_VERSION },
-  deskSupportsAutomations: { since: AUTOMATIONS_MIN_GROUPS_VERSION },
-  deskSupportsStewardPrompts: { since: STEWARD_PROMPTS_MIN_GROUPS_VERSION },
-  deskSupportsTaskRuns: { since: TASK_RUNS_MIN_GROUPS_VERSION },
-  deskSupportsStewardBots: { since: STEWARD_BOTS_MIN_GROUPS_VERSION },
-} as const satisfies Record<string, { since: DeskVersion }>;
-export type GuardName = keyof typeof GUARDS;
 
 interface BaseEntry {
   readonly agent: string;
@@ -36,8 +13,8 @@ interface BaseEntry {
   readonly desk?: ExternalDesk;
   // Lets `since` exceed the floor: the helpers throw DeskUnsupportedError
   // while this capability is off (docs/tlon-apps/desk-compatibility.md,
-  // "Guarded requests").
-  readonly guardedBy?: GuardName;
+  // "Guarded requests"). `since` must equal its DESK_CAPABILITIES version.
+  readonly guardedBy?: DeskCapability;
 }
 
 export interface ScryEntry extends BaseEntry {

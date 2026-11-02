@@ -9,7 +9,8 @@ import {
   parseVersion,
 } from '../../lib/deskVersion';
 import { REGISTRY } from './index';
-import { GUARDS, type Entry } from './types';
+import { DESK_CAPABILITIES } from '../../lib/deskVersion';
+import { type Entry } from './types';
 
 // The N-1 check. Every declared request must be served by the oldest %groups
 // desk the client supports; nothing is credited for a fallback except a
@@ -139,7 +140,7 @@ export function checkRegistry(
 
       const guard = entry.guardedBy;
       const guarded = guard !== undefined;
-      if (guarded && !Object.hasOwn(GUARDS, guard)) {
+      if (guarded && !Object.hasOwn(DESK_CAPABILITIES, guard)) {
         failures.push(`${label}: guardedBy ${guard} names no guard`);
       } else if (guarded && exempt) {
         failures.push(
@@ -149,9 +150,9 @@ export function checkRegistry(
         failures.push(
           `${label}: guardedBy ${guard}, but the N-1 desk serves it; drop the guard`
         );
-      } else if (guarded && entry.since !== GUARDS[guard].since) {
+      } else if (guarded && entry.since !== DESK_CAPABILITIES[guard]) {
         failures.push(
-          `${label}: since ${entry.since} differs from ${guard} since ${GUARDS[guard].since}`
+          `${label}: since ${entry.since} differs from ${guard} since ${DESK_CAPABILITIES[guard]}`
         );
       }
 
@@ -234,18 +235,18 @@ describe('the check fails closed', () => {
     ],
     [
       'a guard on a request N-1 serves',
-      scry('/x', { guardedBy: 'deskSupportsBuckets' }),
+      scry('/x', { guardedBy: 'buckets' }),
       'the N-1 desk serves it',
     ],
     [
       'a guard on a request below the floor',
-      scry('/x', { since: '12.1.0', guardedBy: 'deskSupportsBuckets' }),
+      scry('/x', { since: '12.1.0', guardedBy: 'buckets' }),
       'the N-1 desk serves it',
     ],
     [
       'a guarded request whose since is not its guard version',
-      scry('/x', { since: '12.4.0', guardedBy: 'deskSupportsBuckets' }),
-      'since 12.4.0 differs from deskSupportsBuckets since 12.3.0',
+      scry('/x', { since: '12.4.0', guardedBy: 'buckets' }),
+      'since 12.4.0 differs from buckets since 12.3.0',
     ],
     [
       'a guard that names no guard',
@@ -287,7 +288,7 @@ describe('the check fails closed', () => {
   });
 
   test('a guarded request above the floor passes', () => {
-    const e = scry('/x', { since: '12.3.0', guardedBy: 'deskSupportsBuckets' });
+    const e = scry('/x', { since: '12.3.0', guardedBy: 'buckets' });
     expect(fails(e)).toEqual([]);
   });
 

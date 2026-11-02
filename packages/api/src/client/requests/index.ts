@@ -1,13 +1,9 @@
 import type { Noun } from '@urbit/nockjs';
 
+import { DESK_CAPABILITIES, type DeskCapability } from '../../lib/deskVersion';
 import {
   DeskUnsupportedError,
-  getDeskServesRosterPagesState,
-  getDeskSupportsAutomationsState,
-  getDeskSupportsBucketsState,
-  getDeskSupportsStewardPromptsState,
-  getDeskSupportsTaskRunsState,
-  getDeskSupportsStewardBotsState,
+  deskSupports,
   poke,
   pokeNoun,
   request,
@@ -35,8 +31,6 @@ import { reel } from './reel';
 import type { PayloadOf } from './payloads';
 import { steward } from './steward';
 import {
-  GUARDS,
-  type GuardName,
   type HttpEntry,
   type HttpInitArgs,
   type One,
@@ -103,17 +97,6 @@ function nameOf(entry: { agent: string; path?: string }) {
   return entryNames.get(entry) ?? `${entry.agent} ${entry.path ?? ''}`;
 }
 
-// Read at call time, not when this module loads: a helper can be bound
-// before the capability is known, and tests mock '../urbit' partially.
-const GUARD_FNS: Record<GuardName, () => boolean | null> = {
-  deskSupportsBuckets: () => getDeskSupportsBucketsState(),
-  deskServesRosterPages: () => getDeskServesRosterPagesState(),
-  deskSupportsAutomations: () => getDeskSupportsAutomationsState(),
-  deskSupportsStewardPrompts: () => getDeskSupportsStewardPromptsState(),
-  deskSupportsTaskRuns: () => getDeskSupportsTaskRunsState(),
-  deskSupportsStewardBots: () => getDeskSupportsStewardBotsState(),
-};
-
 // Refuses a guarded request before anything is sent once its capability is
 // known to be off. Throws synchronously, as fillPath does. An unknown (null)
 // capability lets the request through as an unguarded one: the flag hydrates
@@ -122,11 +105,15 @@ const GUARD_FNS: Record<GuardName, () => boolean | null> = {
 export function assertGuard(entry: {
   agent: string;
   path?: string;
-  guardedBy?: GuardName;
+  guardedBy?: DeskCapability;
 }) {
   const guard = entry.guardedBy;
-  if (guard && GUARD_FNS[guard]() === false) {
-    throw new DeskUnsupportedError(nameOf(entry), GUARDS[guard].since, guard);
+  if (guard && deskSupports(guard) === false) {
+    throw new DeskUnsupportedError(
+      nameOf(entry),
+      DESK_CAPABILITIES[guard],
+      guard
+    );
   }
 }
 

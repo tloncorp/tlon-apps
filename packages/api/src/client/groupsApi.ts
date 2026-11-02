@@ -24,11 +24,7 @@ import {
   threadRequest,
   trackedPokeRequest,
 } from './requests';
-import {
-  BadResponseError,
-  getCurrentUserId,
-  getDeskCountsAllSeats,
-} from './urbit';
+import { BadResponseError, getCurrentUserId, deskSupports } from './urbit';
 
 const logger = createDevLogger('groupsApi', false);
 
@@ -2056,7 +2052,8 @@ const TRUNCATED_SEAT_COUNT = 15;
  * since a group can shrink to exactly that.
  */
 export function withoutTruncatedMemberCount(group: db.Group): db.Group {
-  return !getDeskCountsAllSeats() && group.memberCount === TRUNCATED_SEAT_COUNT
+  return deskSupports('allSeatsCounted') !== true &&
+    group.memberCount === TRUNCATED_SEAT_COUNT
     ? { ...group, memberCount: undefined }
     : group;
 }

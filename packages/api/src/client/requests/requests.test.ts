@@ -2,7 +2,8 @@ import { type Mock, beforeEach, expect, test, vi } from 'vitest';
 
 import {
   DeskUnsupportedError,
-  getDeskSupportsBuckets,
+  clearDeskVersion,
+  deskSupports,
   internalConfigureClient,
   internalRemoveClient,
   poke,
@@ -10,8 +11,7 @@ import {
   requestJson,
   scry,
   scryNoun,
-  setDeskSupportsBuckets,
-  setDeskSupportsStewardBots,
+  setDeskVersion,
   subscribe,
   thread,
 } from '../urbit';
@@ -52,7 +52,7 @@ const calls = (fn: unknown) => (fn as Mock).mock.calls;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  setDeskSupportsBuckets(null);
+  clearDeskVersion();
 });
 
 test('caller options cannot change the declared request', async () => {
@@ -131,13 +131,13 @@ test('httpRequest encodes the query and forwards method, body and options', asyn
 });
 
 test('a guarded request is refused unsent while its guard is off', async () => {
-  setDeskSupportsBuckets(false);
+  setDeskVersion('12.2.0');
   expect(() => scryRequest(buckets.list)({})).toThrow(DeskUnsupportedError);
   expect(() => subscribeRequest(buckets.updates)({}, vi.fn())).toThrow(
     DeskUnsupportedError
   );
   expect(() => httpRequest(buckets.action)({})).toThrow(
-    'buckets.action needs desk 12.3.0 (deskSupportsBuckets is off)'
+    'buckets.action needs desk 12.3.0 (buckets is off)'
   );
   expect([calls(scry), calls(subscribe), calls(requestJson)]).toEqual([
     [],
@@ -145,19 +145,19 @@ test('a guarded request is refused unsent while its guard is off', async () => {
     [],
   ]);
 
-  setDeskSupportsBuckets(true);
+  setDeskVersion('12.3.0');
   await scryRequest(buckets.list)({});
   expect(calls(scry)).toEqual([[{ app: 'buckets', path: '/v1/buckets' }]]);
 });
 
 test('the steward bots read is refused unsent on a desk without it', async () => {
-  setDeskSupportsStewardBots(false);
+  setDeskVersion('12.4.0');
   expect(() => scryRequest(steward.bots)({})).toThrow(
-    'steward.bots needs desk 12.5.0 (deskSupportsStewardBots is off)'
+    'steward.bots needs desk 12.5.0 (stewardBots is off)'
   );
   expect(calls(scry)).toEqual([]);
 
-  setDeskSupportsStewardBots(true);
+  setDeskVersion('12.5.0');
   await scryRequest(steward.bots)({});
   expect(calls(scry)).toEqual([[{ app: 'steward', path: '/v1/bots' }]]);
 });
@@ -172,7 +172,7 @@ async function sendGuardedRequests() {
 }
 
 test('a guarded request goes out while its capability is unknown', async () => {
-  expect(getDeskSupportsBuckets()).toBe(false);
+  expect(deskSupports('buckets')).toBeNull();
   expect(await sendGuardedRequests()).toEqual([1, 1, 1]);
 });
 
@@ -182,10 +182,10 @@ test('logout leaves the capability unknown, not unsupported', async () => {
     'fetch',
     vi.fn(async () => new Response(null))
   );
-  setDeskSupportsBuckets(false);
+  setDeskVersion('12.2.0');
   internalRemoveClient();
   vi.unstubAllGlobals();
-  expect(getDeskSupportsBuckets()).toBe(false);
+  expect(deskSupports('buckets')).toBeNull();
   internalConfigureClient({
     shipName: 'solfer-magfed',
     shipUrl: 'http://localhost:8080',

@@ -3,9 +3,9 @@ import { type Mock, beforeEach, describe, expect, test, vi } from 'vitest';
 import { getGroupLight, getGroupMembersPage } from '../client/groupsApi';
 import {
   DeskUnsupportedError,
-  onDeskServesRosterPagesChange,
+  onDeskVersionChange,
   scry,
-  setDeskServesRosterPages,
+  setDeskVersion,
 } from '../client/urbit';
 import type * as ub from '../urbit';
 
@@ -30,7 +30,7 @@ const page = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  setDeskServesRosterPages(true);
+  setDeskVersion('12.5.0');
 });
 
 describe('getGroupMembersPage', () => {
@@ -80,7 +80,7 @@ describe('getGroupMembersPage', () => {
 
   // an older desk 404s these paths; the guard stops the request first
   test('is refused unsent on a desk without pages', async () => {
-    setDeskServesRosterPages(false);
+    setDeskVersion('12.4.0');
     await expect(getGroupMembersPage({ groupId, limit: 50 })).rejects.toThrow(
       DeskUnsupportedError
     );
@@ -120,15 +120,15 @@ describe('getGroupLight', () => {
   });
 });
 
-test('tells listeners when roster page support changes, and only then', () => {
+test('tells listeners when the desk version changes, and only then', () => {
   const listener = vi.fn();
-  const unsubscribe = onDeskServesRosterPagesChange(listener);
+  const unsubscribe = onDeskVersionChange(listener);
 
-  setDeskServesRosterPages(true);
-  setDeskServesRosterPages(false);
-  setDeskServesRosterPages(false);
+  setDeskVersion('12.5.0');
+  setDeskVersion('12.4.0');
+  setDeskVersion('12.4.0');
   unsubscribe();
-  setDeskServesRosterPages(true);
+  setDeskVersion('12.5.0');
 
   expect(listener).toHaveBeenCalledTimes(1);
 });
