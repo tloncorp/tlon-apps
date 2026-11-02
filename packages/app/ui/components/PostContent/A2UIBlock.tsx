@@ -19,12 +19,16 @@ import { useConversationScrollEndAnchor } from '../../contexts/scroll';
 import { ActionSheet } from '../ActionSheet';
 import { resolveAgentProvisionButtonLabel } from '../ChatMessage/agentProvision';
 import { TextInput } from '../Form';
+import { A2UIEntityRow, getA2UIEntityIndent } from './A2UIEntityRow';
 import { A2UIMenuRow } from './A2UIMenuRow';
 import { shouldDismissKeyboardForChoice } from './a2uiActionConsumption';
 import {
   A2UICardButton,
   A2UIChoiceIndicator,
   A2UIOptionCard,
+  A2UIResultLine,
+  type A2UIResultTone,
+  A2UIStatusText,
   A2UI_CARD_PADDING,
   A2UI_CARD_PADDING_TOP,
   A2UI_CARD_RADIUS,
@@ -48,8 +52,31 @@ import { McpConnectControl } from './McpConnectControl';
 import { useContentContext } from './contentUtils';
 import { useOneShotAction } from './useOneShotAction';
 
+/** A used button's result, shown in place of its card's button row. */
+type CardAnswer = {
+  buttonId: string;
+  resultLabel?: string;
+  statusLabel?: string;
+  tone: A2UIResultTone;
+};
+
+/** What a card's own components (not those of cards inside it) carry. */
+type CardScope = {
+  answer?: CardAnswer;
+  hasStatusText: boolean;
+};
+
 type RenderOptions = {
+  /** Text right after a person or group row lines up under the name. */
+  alignUnderEntity?: boolean;
   cardDepth?: number;
+  cardScope?: CardScope;
+  /** A request that holds its own answers draws its person row smaller. */
+  compactEntity?: boolean;
+  /** A caption joined to a person or group row's handle line. */
+  entityDetail?: string;
+  /** The last row of an inner card: a footer line under a hairline. */
+  footerLine?: boolean;
   /** Space above this component, from its column's rhythm. */
   spacingTop?: number;
   /** A button sharing a row of buttons takes an equal width. */
@@ -57,6 +84,11 @@ type RenderOptions = {
   /** A row of more buttons than fit on one line wraps them two to a line. */
   pairRow?: boolean;
   parentAlign?: A2UI.Container['align'];
+  /**
+   * How a row lays its children out along the line. In a row, `align` is
+   * vertical, so text takes its own alignment from this instead.
+   */
+  rowJustify?: A2UI.Container['justify'];
   standaloneControlTopMargin?: boolean;
 };
 
@@ -680,6 +712,62 @@ function isButtonRow(
   );
 }
 
+/** A line of text, or a row holding only text, such as a kicker and status. */
+function isTextLine(
+  component: A2UI.Component,
+  components: Map<string, A2UI.Component>
+) {
+  if (component.component === 'Text') return true;
+  return (
+    component.component === 'Row' &&
+    component.children.every(
+      (child) => components.get(child)?.component === 'Text'
+    )
+  );
+}
+
+/** A row holding only borderless buttons, which draw as links. */
+function isLinkRow(
+  component: A2UI.Component | undefined,
+  components: Map<string, A2UI.Component>
+) {
+  return (
+    component?.component === 'Row' &&
+    component.children.length > 0 &&
+    component.children.every((child) => {
+      const button = components.get(child);
+      return button?.component === 'Button' && button.variant === 'borderless';
+    })
+  );
+}
+
+/**
+ * Captions that sit right after a person or group row join that row's handle
+ * line, such as "wants to DM the bot" in a pending request.
+ */
+function getEntityDetails(
+  children: string[],
+  components: Map<string, A2UI.Component>
+) {
+  const details = new Map<string, string>();
+  const joined = new Set<string>();
+  children.forEach((id, index) => {
+    const component = components.get(id);
+    const next = components.get(children[index + 1]);
+    if (
+      component?.component === 'Text' &&
+      A2UI.getTextHints(component).entity &&
+      next?.component === 'Text' &&
+      next.variant === 'caption' &&
+      isPlainText(next)
+    ) {
+      details.set(id, next.text);
+      joined.add(next.id);
+    }
+  });
+  return { details, joined };
+}
+
 /** Space above a column child, following the design's rhythm. */
 function getStackSpacing(
   previous: A2UI.Component | undefined,
@@ -693,11 +781,19 @@ function getStackSpacing(
       ? A2UI_SPACE.beforeInnerButtons
       : A2UI_SPACE.beforeButtons;
   }
-  // A short line before a heading is its kicker.
-  if (isHeading(current) && previous.component === 'Text') {
+  // A short line, or a row of them, before a heading is its kicker.
+  if (isHeading(current) && isTextLine(previous, components)) {
     return A2UI_SPACE.afterKicker;
   }
   if (isHeading(previous)) return A2UI_SPACE.afterTitle;
+  if (isLinkRow(current, components)) return A2UI_SPACE.beforeLink;
+  if (
+    previous.component === 'Text' &&
+    A2UI.getTextHints(previous).entity &&
+    current.component === 'Text'
+  ) {
+    return A2UI_SPACE.afterEntity;
+  }
   if (previous.component === 'Card' && current.component === 'Card') {
     return A2UI_SPACE.betweenInnerCards;
   }
@@ -733,6 +829,79 @@ function hasButtonChild(
   return component.children.some(
     (child) => components.get(child)?.component === 'Button'
   );
+}
+
+function collectCardScope(
+  childId: string,
+  components: Map<string, A2UI.Component>,
+  isButtonUsed: (component: A2UI.Button) => boolean
+): CardScope {
+  let answer: CardAnswer | undefined;
+  let hasStatusText = false;
+  const visit = (id: string, depth: number) => {
+    const component = components.get(id);
+    if (!component || depth > 8) return;
+    switch (component.component) {
+      case 'Row':
+      case 'Column':
+        component.children.forEach((child) => visit(child, depth + 1));
+        return;
+      case 'Text':
+        if (A2UI.getTextHints(component).role === 'status') {
+          hasStatusText = true;
+        }
+        return;
+      case 'Button': {
+        if (answer || !isButtonUsed(component)) return;
+        const hints = A2UI.getButtonHints(component);
+        if (!hints.resultLabel && !hints.statusLabel) return;
+        answer = {
+          buttonId: component.id,
+          resultLabel: hints.resultLabel,
+          statusLabel: hints.statusLabel,
+          tone:
+            hints.tone === 'destructive'
+              ? 'destructive'
+              : isPrimaryButton(component)
+                ? 'positive'
+                : 'neutral',
+        };
+        return;
+      }
+      // A nested card answers for itself.
+      default:
+        return;
+    }
+  };
+  visit(childId, 0);
+  return { answer, hasStatusText };
+}
+
+function isPlainText(component: A2UI.Component | undefined) {
+  if (component?.component !== 'Text') return false;
+  const hints = A2UI.getTextHints(component);
+  return !hints.entity && !hints.role;
+}
+
+/**
+ * Whether a column child is plain text in a run that starts right after a
+ * person or group row, such as the reason and message under a requester.
+ */
+function followsEntityRow(
+  children: string[],
+  index: number,
+  components: Map<string, A2UI.Component>
+) {
+  const current = components.get(children[index]);
+  if (!isPlainText(current) && !isLinkRow(current, components)) return false;
+  for (let previous = index - 1; previous >= 0; previous -= 1) {
+    const component = components.get(children[previous]);
+    if (isLinkRow(component, components)) continue;
+    if (component?.component !== 'Text') return false;
+    if (A2UI.getTextHints(component).entity) return true;
+    if (!isPlainText(component)) return false;
+  }
+  return false;
 }
 
 function isPrimaryButton(component: A2UI.Button) {
@@ -791,8 +960,15 @@ function getComponentFlex(component: A2UI.Component) {
   return component.weight === undefined ? undefined : component.weight;
 }
 
-function getTextAlign(align?: A2UI.Container['align']) {
-  return align === 'center' ? 'center' : undefined;
+/**
+ * Text centres its lines when its container centres things across the line:
+ * a column's `align`, or a row's `justify` (a row's `align` is vertical).
+ */
+function getTextAlign({ parentAlign, rowJustify }: RenderOptions) {
+  const centered = rowJustify
+    ? rowJustify === 'center'
+    : parentAlign === 'center';
+  return centered ? 'center' : undefined;
 }
 
 function getComponentText(
@@ -1126,6 +1302,20 @@ export function A2UIBlock({
     surfaceId,
   ]);
 
+  const isButtonUsed = useCallback(
+    (component: A2UI.Button) =>
+      isConsumableA2UIAction(component.action) &&
+      (locallyConsumedComponentIds.includes(component.id) ||
+        Boolean(getConsumedA2UISelection?.(surfaceId, component.id)) ||
+        isA2UIActionConsumed?.(component.action) === true),
+    [
+      getConsumedA2UISelection,
+      isA2UIActionConsumed,
+      locallyConsumedComponentIds,
+      surfaceId,
+    ]
+  );
+
   const renderComponent = useCallback(
     (id: string, options: RenderOptions = {}): React.ReactNode => {
       const component = components.get(id);
@@ -1135,6 +1325,69 @@ export function A2UIBlock({
 
       switch (component.component) {
         case 'Text': {
+          const hints = A2UI.getTextHints(component);
+          const answer = options.cardScope?.answer;
+          if (hints.entity) {
+            return (
+              <A2UIEntityRow
+                key={component.id}
+                compact={options.compactEntity}
+                detail={options.entityDetail}
+                entity={hints.entity}
+                fallbackText={component.text}
+                marginTop={options.spacingTop}
+              />
+            );
+          }
+          if (hints.role === 'kicker') {
+            // A card with no status of its own shows its answer's status here.
+            const status =
+              answer?.statusLabel && !options.cardScope?.hasStatusText
+                ? answer
+                : undefined;
+            return (
+              <XStack
+                key={component.id}
+                alignItems="center"
+                gap={6}
+                flex={getComponentFlex(component)}
+                marginTop={options.spacingTop}
+              >
+                {hints.icon ? (
+                  <Icon
+                    type={hints.icon}
+                    color="$secondaryText"
+                    customSize={[14, 14]}
+                  />
+                ) : null}
+                <Text
+                  size="$label/m"
+                  {...A2UI_TYPE.kicker}
+                  color="$secondaryText"
+                  trimmed={false}
+                  flex={status ? 1 : undefined}
+                  {...A2UI_TEXT_BREAKING}
+                >
+                  {component.text}
+                </Text>
+                {status?.statusLabel ? (
+                  <A2UIStatusText
+                    label={status.statusLabel}
+                    tone={status.tone}
+                  />
+                ) : null}
+              </XStack>
+            );
+          }
+          if (hints.role === 'status') {
+            return (
+              <A2UIStatusText
+                key={component.id}
+                label={answer?.statusLabel ?? component.text}
+                tone={answer?.statusLabel ? answer.tone : undefined}
+              />
+            );
+          }
           return (
             <Text
               key={component.id}
@@ -1142,9 +1395,14 @@ export function A2UIBlock({
               {...getTextStyle(component)}
               color={getTextColor(component)}
               trimmed={false}
-              textAlign={getTextAlign(options.parentAlign)}
+              textAlign={getTextAlign(options)}
               flex={getComponentFlex(component)}
               marginTop={options.spacingTop}
+              marginLeft={
+                options.alignUnderEntity
+                  ? getA2UIEntityIndent(options.compactEntity)
+                  : undefined
+              }
               {...A2UI_TEXT_BREAKING}
             >
               {component.text}
@@ -1174,6 +1432,21 @@ export function A2UIBlock({
                 return Number(aPrimary) - Number(bPrimary);
               })
             : component.children;
+          const answer = options.cardScope?.answer;
+          if (
+            buttonFooter &&
+            answer?.resultLabel &&
+            component.children.includes(answer.buttonId)
+          ) {
+            return (
+              <A2UIResultLine
+                key={component.id}
+                label={answer.resultLabel}
+                marginTop={options.spacingTop}
+                tone={answer.tone}
+              />
+            );
+          }
           return (
             <XStack
               key={component.id}
@@ -1182,18 +1455,40 @@ export function A2UIBlock({
                 options.spacingTop ??
                 (hasButtonChild(component, components) ? 16 : undefined)
               }
+              marginLeft={
+                options.alignUnderEntity
+                  ? getA2UIEntityIndent(options.compactEntity)
+                  : undefined
+              }
+              // A footer line runs edge to edge across its inner card.
+              {...(options.footerLine
+                ? {
+                    marginHorizontal: -A2UI_INNER_CARD.paddingX,
+                    paddingTop: 10,
+                    paddingHorizontal: A2UI_INNER_CARD.paddingX,
+                    borderTopWidth: 1,
+                    borderTopColor: '$border',
+                  }
+                : null)}
               alignItems={getAlignItems(component.align)}
               justifyContent={getJustifyContent(component.justify)}
               flexWrap={buttonFooter && !pairButtons ? 'nowrap' : 'wrap'}
-              width="100%"
+              // An offset row stretches to what is left rather than overflowing.
+              width={
+                options.footerLine || options.alignUnderEntity
+                  ? undefined
+                  : '100%'
+              }
               flex={getComponentFlex(component)}
             >
               {children.map((child, index) =>
                 renderComponent(child, {
                   cardDepth: options.cardDepth,
+                  cardScope: options.cardScope,
                   fillRow: buttonFooter,
                   pairRow: pairButtons,
                   parentAlign: component.align,
+                  rowJustify: component.justify ?? 'start',
                   standaloneControlTopMargin:
                     !options.cardDepth &&
                     index > 0 &&
@@ -1208,6 +1503,23 @@ export function A2UIBlock({
           // Spacing comes from each child's place in the design's rhythm,
           // not one gap for the whole column.
           const inInnerCard = (options.cardDepth ?? 0) >= 2;
+          const { details, joined } = getEntityDetails(
+            component.children,
+            components
+          );
+          const shown = component.children.filter(
+            (child) => !joined.has(child)
+          );
+          const lastChild = components.get(shown[shown.length - 1]);
+          const hasFooterLine =
+            inInnerCard &&
+            lastChild?.component === 'Row' &&
+            !isButtonRow(lastChild, components);
+          const compactEntity =
+            inInnerCard &&
+            shown.some((child) =>
+              isButtonRow(components.get(child), components)
+            );
           return (
             <YStack
               key={component.id}
@@ -1216,14 +1528,21 @@ export function A2UIBlock({
               flex={getComponentFlex(component)}
               marginTop={options.spacingTop}
             >
-              {component.children.map((child, index) =>
+              {shown.map((child, index) =>
                 renderComponent(child, {
+                  alignUnderEntity: followsEntityRow(
+                    component.children,
+                    component.children.indexOf(child),
+                    components
+                  ),
                   cardDepth: options.cardDepth,
+                  cardScope: options.cardScope,
+                  compactEntity,
+                  entityDetail: details.get(child),
+                  footerLine: hasFooterLine && index === shown.length - 1,
                   parentAlign: component.align,
                   spacingTop: getStackSpacing(
-                    index > 0
-                      ? components.get(component.children[index - 1])
-                      : undefined,
+                    index > 0 ? components.get(shown[index - 1]) : undefined,
                     components.get(child),
                     components,
                     inInnerCard
@@ -1263,6 +1582,11 @@ export function A2UIBlock({
             >
               {renderComponent(component.child, {
                 cardDepth: (options.cardDepth ?? 0) + 1,
+                cardScope: collectCardScope(
+                  component.child,
+                  components,
+                  isButtonUsed
+                ),
               })}
             </YStack>
           );
@@ -1282,11 +1606,9 @@ export function A2UIBlock({
           const actionCanBeConsumed = isConsumableA2UIAction(component.action);
           const consumptionPending =
             actionCanBeConsumed && areA2UISelectionsPending;
-          const actionConsumed =
-            actionCanBeConsumed &&
-            (locallyConsumedComponentIds.includes(component.id) ||
-              Boolean(getConsumedA2UISelection?.(surfaceId, component.id)) ||
-              isA2UIActionConsumed?.(component.action) === true);
+          const actionConsumed = isButtonUsed(component);
+          const destructive =
+            A2UI.getButtonHints(component).tone === 'destructive';
           const disabled =
             pendingButtonIds.includes(component.id) ||
             actionConsumed ||
@@ -1314,6 +1636,51 @@ export function A2UIBlock({
             options.fillRow && component.weight === undefined
           );
           const inInnerCard = (options.cardDepth ?? 0) >= 2;
+          if (component.variant === 'borderless' && !options.fillRow) {
+            // On its own, a borderless button is a quiet link, such as
+            // "View message" on a request's footer line.
+            const linkColor = destructive
+              ? '$negativeActionText'
+              : '$primaryText';
+            return (
+              <Pressable
+                key={component.id}
+                accessibilityRole="button"
+                accessibilityLabel={visibleLabel}
+                accessibilityState={{ disabled }}
+                testID={`A2UIButton-${component.id}`}
+                disabled={disabled}
+                marginTop={options.spacingTop}
+                // The link is one 18 px line; the touch area is a full 44.
+                hitSlop={{ top: 13, bottom: 13, left: 8, right: 8 }}
+                onPress={
+                  disabled ? undefined : () => handleButtonPress(component)
+                }
+              >
+                <XStack
+                  alignItems="center"
+                  gap={4}
+                  opacity={disabled ? 0.5 : 1}
+                >
+                  <Text
+                    size="$label/m"
+                    {...A2UI_TYPE.noteStrong}
+                    color={linkColor}
+                    trimmed={false}
+                  >
+                    {visibleLabel}
+                  </Text>
+                  {component.action.event.name === A2UI.action.navigate ? (
+                    <Icon
+                      type="ChevronRight"
+                      color={linkColor}
+                      customSize={[12, 12]}
+                    />
+                  ) : null}
+                </XStack>
+              </Pressable>
+            );
+          }
           return (
             <Button.Frame
               key={component.id}
@@ -1368,6 +1735,7 @@ export function A2UIBlock({
                 size="medium"
                 {...A2UI_TYPE.labelStrong}
                 numberOfLines={fillsRow ? 1 : undefined}
+                {...(destructive ? { color: '$negativeActionText' } : null)}
               >
                 {visibleLabel}
               </Button.Text>
@@ -1633,7 +2001,7 @@ export function A2UIBlock({
       handleSmallChoiceSubmit,
       isA2UIActionAvailable,
       isA2UIActionConsumed,
-      locallyConsumedComponentIds,
+      isButtonUsed,
       locallyConsumedChoices,
       pendingButtonIds,
       onA2UIAction,
