@@ -73,9 +73,8 @@ export function useBotSystemPrompts(botShip: string) {
 // to it. Its every prompts request is refused, but a snapshot cached while it
 // was supported never goes stale on its own, so readers gate on this too.
 export function useDeskSupportsPrompts() {
-  return useSyncExternalStore(
-    api.onDeskSupportsStewardPromptsChange,
-    api.getDeskSupportsStewardPromptsState
+  return useSyncExternalStore(api.onDeskVersionChange, () =>
+    api.deskSupports('stewardPrompts')
   );
 }
 

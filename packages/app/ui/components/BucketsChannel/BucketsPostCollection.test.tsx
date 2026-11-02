@@ -29,7 +29,7 @@ vi.mock('@tloncorp/api', () => ({
 }));
 
 vi.mock('@tloncorp/shared', () => ({
-  useDeskSupportsBuckets: () => mocks.deskSupportsBuckets,
+  useDeskSupports: () => mocks.deskSupportsBuckets,
 }));
 
 vi.mock('@tloncorp/ui', () => ({ Text: 'Text' }));

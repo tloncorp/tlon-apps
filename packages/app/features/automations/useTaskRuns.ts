@@ -25,7 +25,7 @@ export function useTaskRuns({
   taskId: string | undefined;
   enabled?: boolean;
 }) {
-  const supported = store.useDeskSupportsTaskRuns() === true;
+  const supported = store.useDeskSupports('taskRuns') === true;
   const jobId = taskId ?? '';
   const on = enabled && supported && Boolean(taskId);
   const page = useQuery({
