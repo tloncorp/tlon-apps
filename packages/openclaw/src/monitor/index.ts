@@ -1,4 +1,8 @@
 import {
+  createBrowserContinuationRunner,
+  publishBrowserContinuationRunner,
+} from '../browser-continuation.js';
+import {
   type PostBlobDataEntryAgentIntroRequest,
   type Story,
   getGroup,
@@ -995,11 +999,20 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   // edits in this large pre-try region) would leave the shared slot
   // orphaned. This outer finally catches all of those and runs cleanup
   // unconditionally.
+  let stopBrowserContinuations: (() => void) | undefined;
   let workspaceInstructions: WorkspaceInstructionsRuntime | null = null;
   let groupContext: GroupContextRuntime | null = null;
   let roleMentionResolver: RoleMentionResolver | null = null;
   try {
     const computingPresence = createComputingPresenceTracker({ runtime });
+    stopBrowserContinuations = publishBrowserContinuationRunner(
+      createBrowserContinuationRunner({
+        runtime: core,
+        presence: computingPresence,
+        showCommentary: account.showCommentary,
+        warn: (message) => runtime.error?.(message),
+      })
+    );
     const contextLensConfig = account.contextLens;
     const contextLensEnabled = isContextLensEffectivelyEnabled(
       cfg,
@@ -7371,6 +7384,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       }
     }
   } finally {
+    stopBrowserContinuations?.();
     // Outer finally — covers throws in the long bootstrap region
     // between slot publication (above) and the inner try (which begins
     // after the helper definitions). Anything that throws before the

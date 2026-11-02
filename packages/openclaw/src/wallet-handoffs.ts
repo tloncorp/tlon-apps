@@ -1,3 +1,4 @@
+import { resumeBrowserContinuation } from './browser-continuation.js';
 import { randomUUID } from 'node:crypto';
 import type {
   OpenClawPluginApi,
@@ -261,7 +262,7 @@ export function registerWalletHandoffs(api: OpenClawPluginApi, binary: string) {
         runBrowserHandoffCommand(binary, ['browser', 'wallet', id], api.config),
       sessionIdFor: (sessionKey) =>
         api.runtime.agent.session.getSessionEntry({ sessionKey })?.sessionId,
-      resume: (request) => api.runtime.subagent.run(request),
+      resume: (request) => resumeBrowserContinuation(api.runtime, request),
       warn: () => api.logger.warn('[tlon] Wallet handoff delivery will retry.'),
     });
     slot.set(service);
