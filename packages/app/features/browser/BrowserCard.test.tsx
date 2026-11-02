@@ -1,3 +1,4 @@
+vi.mock('./BrowserWalletCard', () => ({ BrowserWalletCard: () => null }));
 import React from 'react';
 import { Button } from '@tloncorp/ui';
 import { ReferenceSkeleton } from '../../ui/components/ContentReference/Reference';

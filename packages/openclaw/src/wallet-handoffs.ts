@@ -164,7 +164,11 @@ export function createWalletHandoffs(deps: {
             sessionKey: row.sessionKey,
             idempotencyKey: `tlon-wallet:${row.requestId}`,
             deliver: true,
-            message: `Wallet request ${row.requestId}: ${status}. Read payment_status for details. Approval or filling does not mean a purchase succeeded. If cancelled, expired, failed or unknown, do not repeat payment authorization or fill; report the outcome and wait for the owner.`,
+            message: `Wallet request ${row.requestId}: ${status}. Read payment_status for details. ${
+              status === 'ready'
+                ? 'The owner approved the reviewed purchase. Fill the approved checkout, inspect it and verify the merchant, items and total still match, then submit once and verify the result from the page. No second approval is needed for the unchanged order. Respect any original fill-only or no-purchase boundary. If the order changed, obtain fresh approval. If submission is ambiguous, inspect the page or order history without resubmitting. Report completion only after seeing an order confirmation; otherwise report what remains unresolved.'
+                : 'Approval or filling does not mean a purchase succeeded. If cancelled, expired, failed or unknown, do not repeat payment authorization or fill; report the outcome and wait for the owner.'
+            }`,
           });
           await deps.store.delete(key);
         } catch {

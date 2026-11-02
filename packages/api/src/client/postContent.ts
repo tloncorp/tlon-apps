@@ -481,6 +481,7 @@ export function convertContent(
           break;
         }
 
+        case 'browser-wallet':
         case 'browser-session':
         case 'browser-secure-entry': {
           out.push({ type: 'browser-card', card: entry });

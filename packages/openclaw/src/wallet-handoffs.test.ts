@@ -101,6 +101,13 @@ it('durably retries delivery without putting provider URLs in continuation messa
   expect(f.resume).toHaveBeenCalledTimes(2);
   expect(f.resume.mock.calls[0][0]).toEqual(f.resume.mock.calls[1][0]);
   expect(JSON.stringify(f.resume.mock.calls)).not.toContain('private.example');
+  expect(f.resume.mock.calls[0][0].message).toContain(
+    'submit once and verify the result from the page'
+  );
+  expect(f.resume.mock.calls[0][0].message).toContain(
+    'Respect any original fill-only or no-purchase boundary'
+  );
+  expect(f.resume.mock.calls[0][0].message).toContain('without resubmitting');
 });
 it('drops a pending request when its conversation has been reset', async () => {
   const f = fixture();

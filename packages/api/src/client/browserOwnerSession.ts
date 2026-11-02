@@ -136,6 +136,7 @@ async function sessionFor(origin: string, botMoon: string): Promise<Session> {
     now = Date.now();
   if (
     cached &&
+    cached.botMoon === botMoon &&
     cached.expiresAt > now &&
     cached.used + cached.idleTimeoutMs > now
   )
@@ -199,7 +200,7 @@ export async function browserOwnerRequest(
 ): Promise<unknown> {
   const url = trustedBrowserOwnerEndpoint(endpoint);
   if (
-    !/^\/(?:owner\/credentials(?:\/[a-zA-Z0-9_-]+)?|viewer-authorize|credential-vault\/[A-Za-z0-9_-]{40,64})$/.test(
+    !/^\/(?:owner\/credentials(?:\/[a-zA-Z0-9_-]+)?|owner\/wallet-actions\/[a-f0-9-]{36}(?:\/(?:approve|cancel))?|viewer-authorize|credential-vault\/[A-Za-z0-9_-]{40,64})$/.test(
       url.pathname
     )
   ) {
