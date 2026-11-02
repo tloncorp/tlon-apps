@@ -585,6 +585,9 @@
   (~(uni in get-suggested-contacts) book-ships)
 ::  +discover-contacts: record address-book matches and save the new ones
 ::
+::    known matches are recorded too, so a contact saved before this record
+::    existed is not saved again once the user removes it.
+::
 ++  discover-contacts
   |=  matches=(list discovered-contact:u)
   ^+  cor
@@ -593,7 +596,9 @@
     %-  malt
     %+  skip  matches
     |=(d=discovered-contact:u (~(has in known) ship.d))
-  =.  discovered-contacts  (~(uni in discovered-contacts) ~(key by new))
+  =.  discovered-contacts
+    %-  ~(gas in discovered-contacts)
+    (turn matches |=(d=discovered-contact:u ship.d))
   %-  emil
   %+  turn  ~(tap by new)
   |=  [=ship nickname=(unit @t)]

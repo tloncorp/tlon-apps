@@ -242,6 +242,21 @@
   ;<  ~  bind:m  (set-scry-gate (faux-scry (sy ~[~nec])))
   ;<  suggested=(set ship)  bind:m  (get-ships /x/suggested-contacts)
   (ex-equal !>(suggested) !>(*(set ship)))
+::  +test-removed-saved-match-stays-removed: a match saved before discovery
+::  saw it is recorded, so it is not saved again once the user removes it.
+::
+++  test-removed-saved-match-stays-removed
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (init-discovery (sy ~[~nec]))
+  ;<  caz=(list card:agent:gall)  bind:m  (do-discover ~[[~nec ~]])
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  ~  bind:m  (set-scry-gate (faux-scry ~))
+  ;<  caz=(list card:agent:gall)  bind:m  (do-discover ~[[~nec ~]])
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  suggested=(set ship)  bind:m  (get-ships /x/suggested-contacts)
+  (ex-equal !>(suggested) !>((sy ~[~nec])))
 ::  +test-discover-rejects-foreign-ship: only our own ship may record
 ::  discoveries.
 ::
