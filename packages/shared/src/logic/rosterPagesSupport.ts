@@ -1,25 +1,8 @@
-import { ROSTER_PAGES_MIN_GROUPS_VERSION } from '@tloncorp/api/lib/deskVersion';
 import { tryParse } from '@urbit/aura';
-
-import { isVersionBelow, parseVersion } from './semver';
-
-export { ROSTER_PAGES_MIN_GROUPS_VERSION };
 
 // Groups above this many members sync with the light roster and load the
 // rest a page at a time, when the desk serves pages.
 export const PAGED_ROSTER_THRESHOLD = 500;
-
-// Whether a backend at the given groups version serves the light ui group and
-// seat pages. Conservative, like deskVersionSupportsBuckets: a version that
-// isn't fully valid semver keeps syncing the whole roster.
-export function deskVersionServesRosterPages(
-  groupsVersion?: string | null
-): boolean {
-  if (!groupsVersion || parseVersion(groupsVersion) === null) {
-    return false;
-  }
-  return !isVersionBelow(groupsVersion, ROSTER_PAGES_MIN_GROUPS_VERSION);
-}
 
 /**
  * Whether a group's stored roster is whole: a whole-roster sync landed this

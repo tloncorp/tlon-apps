@@ -1,10 +1,18 @@
 import {
+  DESK_CAPABILITIES,
+  type DeskCapability,
   MIN_GROUPS_VERSION,
   isVersionBelow,
   parseVersion,
+  versionSupports,
 } from '@tloncorp/api/lib/deskVersion';
 
-export { MIN_GROUPS_VERSION };
+export {
+  DESK_CAPABILITIES,
+  type DeskCapability,
+  MIN_GROUPS_VERSION,
+  versionSupports,
+};
 
 export type DeskVersionClassification = 'ok' | 'outdated' | 'unknown';
 

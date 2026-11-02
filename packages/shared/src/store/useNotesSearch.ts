@@ -4,7 +4,7 @@ import { useEffect, useMemo } from 'react';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
-import { groupsVersionSupportsNotesSearch } from '../logic/notesSearchSupport';
+import { versionSupports } from '@tloncorp/api/lib/deskVersion';
 
 const logger = createDevLogger('notes search', false);
 
@@ -34,7 +34,7 @@ export function nextNotesSearchCursor(
  */
 export function useNotesSearchSupported(): boolean {
   const appInfo = db.appInfo.useValue();
-  return groupsVersionSupportsNotesSearch(appInfo?.groupsVersion);
+  return versionSupports(appInfo?.groupsVersion, 'notesSearch');
 }
 
 /**

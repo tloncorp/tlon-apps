@@ -40,7 +40,7 @@ import rawChannelPostWithRepliesData from '../../../../api/src/__tests__/fixture
 import rawChannelPostsData from '../../../../api/src/__tests__/fixtures/channelPosts.json';
 import * as db from '../../db';
 import { useDebugStore } from '../../debug';
-import { BUCKETS_MIN_GROUPS_VERSION, MIN_GROUPS_VERSION } from '../../logic';
+import { DESK_CAPABILITIES, MIN_GROUPS_VERSION } from '../../logic';
 import rawNewestPostData from '../../test/channelNewestPost.json';
 import rawAfterNewestPostData from '../../test/channelPostsAfterNewest.json';
 import rawContactsData from '../../test/contactsDirectory.json';
@@ -1618,7 +1618,7 @@ describe('desk compatibility gate', () => {
     logIn();
     // What removing the client resets it to, so a Buckets desk seen by an
     // earlier test can't leave this one's subscriptions already decided.
-    api.setDeskSupportsBuckets(false);
+    api.clearDeskVersion();
     vi.mocked(subscribe).mockClear();
     // The shared storage mock discards writes, so reads always come back as
     // the default: assert on the writes instead.
@@ -2626,11 +2626,11 @@ describe('desk compatibility gate', () => {
 
       // Upgraded from 12.2 while the app stayed open. Recovery subscribes to
       // nothing, since the rest of the set is still up.
-      reportedDeskVersion = BUCKETS_MIN_GROUPS_VERSION;
+      reportedDeskVersion = DESK_CAPABILITIES.buckets;
       scryCalls = [];
       await handleDiscontinuity({ context: 'test' });
 
-      expect(api.getDeskSupportsBuckets()).toBe(true);
+      expect(api.deskSupports('buckets')).toBe(true);
       expect(bucketsSubscribeCount()).toBe(1);
       // The recovery's own init already moves to /v11: it reads the version
       // its re-probe fetched, not the one the session started with.
@@ -2665,7 +2665,7 @@ describe('desk compatibility gate', () => {
         return 1;
       }) as unknown as typeof subscribe);
 
-      reportedDeskVersion = BUCKETS_MIN_GROUPS_VERSION;
+      reportedDeskVersion = DESK_CAPABILITIES.buckets;
       await handleDiscontinuity({ context: 'test' });
       expect(bucketsSubscribeCount()).toBe(1);
 
@@ -2685,7 +2685,7 @@ describe('desk compatibility gate', () => {
     'a later recovery reopens a %buckets watch the ship nacked',
     async () => {
       await syncStart();
-      reportedDeskVersion = BUCKETS_MIN_GROUPS_VERSION;
+      reportedDeskVersion = DESK_CAPABILITIES.buckets;
       await handleDiscontinuity({ context: 'test' });
       expect(bucketsSubscribeCount()).toBe(1);
 
@@ -2709,7 +2709,7 @@ describe('desk compatibility gate', () => {
       // The probe turns the capability on before the high-priority set reads
       // it, and the set opens %buckets itself; the change must not open a
       // second one.
-      reportedDeskVersion = BUCKETS_MIN_GROUPS_VERSION;
+      reportedDeskVersion = DESK_CAPABILITIES.buckets;
       await syncStart();
 
       expect(bucketsSubscribeCount()).toBe(1);
@@ -2717,9 +2717,9 @@ describe('desk compatibility gate', () => {
       // Removing the client turns the capability off. That change, and any
       // late one after it, belong to a login that is gone.
       logOut();
-      api.setDeskSupportsBuckets(false);
-      api.setDeskSupportsBuckets(true);
-      api.setDeskSupportsBuckets(false);
+      api.setDeskVersion('12.2.0');
+      api.setDeskVersion(DESK_CAPABILITIES.buckets);
+      api.setDeskVersion('12.2.0');
 
       expect(bucketsSubscribeCount()).toBe(1);
 

@@ -56,12 +56,12 @@ async function storedMemberIds() {
 }
 
 beforeEach(() => {
-  api.setDeskServesRosterPages(true);
+  api.setDeskVersion('12.5.0');
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
-  api.setDeskServesRosterPages(null);
+  api.clearDeskVersion();
 });
 
 describe('syncGroup on a big group', () => {
@@ -232,7 +232,7 @@ describe('syncGroup on a big group', () => {
   });
 
   test('syncs whole when the desk serves no pages', async () => {
-    api.setDeskServesRosterPages(false);
+    api.setDeskVersion('12.4.0');
     await queries.insertGroups({ groups: [group({ memberCount: 600 })] });
     const getGroupLight = vi.spyOn(api, 'getGroupLight');
     const getGroup = vi

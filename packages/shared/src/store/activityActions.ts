@@ -320,7 +320,7 @@ export async function setChannelVolumeLevel(params: {
   // — and if the capability just hasn't resolved yet, a local-only write
   // would silently diverge from the ship. Fail before the optimistic
   // update so the UI keeps showing the real setting.
-  if (isNotesChannel && !api.getActivitySupportsNotes()) {
+  if (isNotesChannel && api.deskSupports('activityNotes') !== true) {
     return false;
   }
 
