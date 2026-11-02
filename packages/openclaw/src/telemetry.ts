@@ -598,14 +598,15 @@ export type TlonHarnessDebugEvent = TlonHarnessDebugSnapshotFields & {
   harness: TlonHarnessName;
   harnessEventType: string;
   debugEventKind: string;
-  sessionKey: string;
+  // Null for process-scoped events, which belong to no Tlon session.
+  sessionKey: string | null;
   sessionId: string | null;
   runId: string | null;
   accountId: string | null;
   agentId: string | null;
   ownerShip: string | null;
   botShip: string;
-  destinationKind: TlonDestinationKind;
+  destinationKind: TlonDestinationKind | null;
   provider: string | null;
   model: string | null;
   phase: string | null;
@@ -3004,6 +3005,73 @@ export function reportHarnessError(event: TlonHarnessErrorReportInput): void {
       isCron: cronAttribution != null,
       cronJobId: cronAttribution?.cronJobId ?? null,
     },
+  });
+}
+
+/**
+ * Reports a process-scoped debug event (e.g. a memory sample). These belong to
+ * no Tlon session, so they skip the remembered-session gate and the
+ * per-session debug snapshot that `reportHarnessDebug` applies.
+ */
+export function reportProcessHarnessDebug(event: {
+  harnessEventType: string;
+  debugEventKind: string;
+  message?: string | null;
+  logAttributes?: TlonDiagnosticLogAttributes | null;
+}): void {
+  debugTelemetryReporterSlot.get()?.({
+    harness: 'openclaw',
+    harnessEventType: event.harnessEventType,
+    debugEventKind: event.debugEventKind,
+    sessionKey: null,
+    sessionId: null,
+    runId: null,
+    accountId: null,
+    agentId: null,
+    ownerShip: null,
+    botShip: '',
+    destinationKind: null,
+    provider: null,
+    model: null,
+    phase: null,
+    outcome: null,
+    durationMs: null,
+    toolName: null,
+    toolCallId: null,
+    toolSource: null,
+    toolOwner: null,
+    pluginId: null,
+    harnessId: null,
+    modelCallId: null,
+    modelApi: null,
+    modelTransport: null,
+    requestPayloadBytes: null,
+    responseStreamBytes: null,
+    timeToFirstByteMs: null,
+    logLevel: null,
+    message: optionalString(event.message),
+    loggerName: null,
+    codeFunctionName: null,
+    codeLine: null,
+    logAttributes: normalizeLogAttributes(event.logAttributes),
+    contextEngineEvent: null,
+    contextEngineTaskId: null,
+    contextEngineOperation: null,
+    contextEngineLane: null,
+    errorName: null,
+    errorCode: null,
+    messageCount: null,
+    historyTextChars: null,
+    historyImageBlocks: null,
+    maxMessageTextChars: null,
+    systemPromptChars: null,
+    promptChars: null,
+    promptImages: null,
+    contextTokenBudget: null,
+    reserveTokens: null,
+    contextChannel: null,
+    contextTrigger: null,
+    ...harnessDebugSnapshotFields(null),
   });
 }
 
