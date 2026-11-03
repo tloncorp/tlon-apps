@@ -3,6 +3,7 @@
  * really really good typescript.
  */
 export * from '@tloncorp/api/lib/assertNever';
+export * from '@tloncorp/api/lib/blob';
 export * from '@tloncorp/api/lib/object';
 export type * from '@tloncorp/api/lib/utilityTypes';
 export * from '@tloncorp/api/lib/timeoutSignal';

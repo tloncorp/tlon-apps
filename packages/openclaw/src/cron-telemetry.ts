@@ -63,7 +63,6 @@ export type GatewayCronJob = {
   agentId?: string;
   name?: string;
   description?: string;
-  declarationKey?: string;
   enabled?: boolean;
   schedule?: GatewayCronSchedule;
   sessionTarget?: string;

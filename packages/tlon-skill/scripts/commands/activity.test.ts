@@ -71,7 +71,6 @@ function makeDeps(
 
   const deps: ActivityDeps = {
     ...unusedVolumeDeps(),
-    getCurrentUserId: () => '~zod',
     stdout: (text) => stdout.push(text),
     stderr: (text) => stderr.push(text),
     authenticate: async () => {
@@ -125,7 +124,7 @@ function makeDeps(
         calls.eventFormatter.push(event.id);
         return `EVENT:${event.id}`;
       },
-      unreadsHeader: (ship) => `UNREADS:${ship}`,
+      unreadsHeader: () => 'UNREADS',
       noUnreads: () => 'NO_UNREADS',
       baseUnread: (summary) => `BASE:${summary.count ?? 0}`,
       groupUnread: (summary) =>
@@ -221,52 +220,6 @@ describe('activity command run', () => {
     expect(context.stderr()).toBe('');
   });
 
-  it('reads `unread` as `unreads` and accepts --self on reads', async () => {
-    for (const args of [
-      ['unread'],
-      ['unreads', '--self'],
-      ['mentions', '--self', '--limit', '1'],
-    ]) {
-      const context = makeDeps();
-      expect(await run(args, context.deps)).toBe(0);
-      expect(context.stderr()).toBe('');
-      expect(context.calls.authenticate).toBe(1);
-    }
-  });
-
-  it('says where a credential flag after the command goes, without its value', async () => {
-    const cases = [
-      {
-        args: ['mentions', '--config', '/srv/ships/zod.json'],
-        expected:
-          'Unknown option: --config. Credential flags go before the command: tlon --config <file> activity mentions',
-      },
-      {
-        args: ['replies', '--cookie=secret-cookie'],
-        expected:
-          'Unknown option: --cookie. Credential flags go before the command: tlon --cookie <cookie> activity replies',
-      },
-      {
-        args: ['mute', '~zod/g', '--ship', '~zod'],
-        expected:
-          'Unknown option: --ship. Credential flags go before the command: tlon --ship <ship> activity mute',
-      },
-      {
-        args: ['mark-read', '--all', '--url', 'http://localhost'],
-        expected:
-          'Unknown option: --url. Credential flags go before the command: tlon --url <url> activity mark-read',
-      },
-    ];
-
-    for (const testCase of cases) {
-      const context = makeDeps();
-      expect(await run(testCase.args, context.deps)).toBe(1);
-      expect(context.stderr()).toContain(testCase.expected);
-      expect(context.stderr()).not.toContain('secret-cookie');
-      expect(context.calls.authenticate).toBe(0);
-    }
-  });
-
   it('uses the injected unreads API and formatter', async () => {
     const context = makeDeps();
 
@@ -276,7 +229,7 @@ describe('activity command run', () => {
     expect(context.calls.authenticate).toBe(1);
     expect(context.calls.getInitialActivity).toBe(0);
     expect(context.calls.getGroupAndChannelUnreads).toBe(1);
-    expect(context.stdout()).toContain('UNREADS:~zod\n');
+    expect(context.stdout()).toContain('UNREADS\n');
     expect(context.stdout()).toContain('BASE:1\n');
     expect(context.stdout()).toContain('GROUP:~zod/test:2\n');
     expect(context.stdout()).toContain('CHANNEL:chat/~zod/test:3\n');

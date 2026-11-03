@@ -12,8 +12,6 @@ import {
 } from 'openclaw/plugin-sdk/diagnostic-runtime';
 
 import { cleanCronToolArgs } from './src/cron-tool-args.js';
-import { diagnosticSummary } from './src/diagnostic-summary.js';
-import { reportMemorySampleDiagnostic } from './src/memory-sample-telemetry.js';
 import { modelPrivacyNote } from './src/model-privacy-context.js';
 import { registerTlonCommands } from './src/commands-registry.js';
 import { notifyCampaignCronChanged } from './src/monitor/campaign/live.js';
@@ -80,7 +78,6 @@ import {
   onboardingToolBlockReason,
 } from './src/onboarding-tool-boundary.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
-import { handleGroupContextBeforePromptBuild } from './src/group-context.js';
 import {
   registerBudgetHoldHooks,
   registerBudgetRunGuard,
@@ -344,6 +341,17 @@ function stringListField(event: DiagnosticCandidate, key: string): string[] {
   return value
     .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
     .filter(Boolean);
+}
+
+function diagnosticSummary(
+  parts: Array<[string, string | number | boolean | null | undefined]>
+): string {
+  return parts
+    .filter(
+      ([, value]) => value !== null && value !== undefined && value !== ''
+    )
+    .map(([key, value]) => `${key}=${String(value)}`)
+    .join(' ');
 }
 
 const HARNESS_DEBUG_EVENT_TYPES = new Set([
@@ -830,9 +838,6 @@ function reportHarnessDiagnostic(event: DiagnosticCandidate): void {
       });
       return;
     }
-    case 'diagnostic.memory.sample':
-      reportMemorySampleDiagnostic(event);
-      return;
     case 'payload.large':
       if (stringField(event, 'action') !== 'rejected') {
         return;
@@ -1431,15 +1436,11 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
 
     // An argument gate fires for any role; only set membership means an
     // owner-only tool was used.
-    const allowedLog =
+    api.logger.info(
       ownerOnlyDecision.gate === 'arguments'
         ? `[tlon] Allowed ${event.toolName} call with owner-only arguments for ${role ?? 'internal'} session. Session: ${ctx.sessionKey}`
-        : `[tlon] Allowed ${event.toolName} tool for ${role ?? 'internal'} session. Session: ${ctx.sessionKey}`;
-    if (event.toolName === 'tlon') {
-      api.logger.info(allowedLog);
-    } else {
-      api.logger.debug?.(allowedLog);
-    }
+        : `[tlon] Allowed ${event.toolName} tool for ${role ?? 'internal'} session. Session: ${ctx.sessionKey}`
+    );
     if (event.toolName === 'tlon' && typeof event.params.command === 'string') {
       // Only owner-default commands need the rewrite; with the flag off the
       // bot is already the default.
@@ -1646,13 +1647,6 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       return undefined;
     }
   });
-
-  // ── Group context ──────────────────────────────────────────────────
-  // Which workspace a group channel turn belongs to, plus what the bot has
-  // seen in its open channels. A no-op until the monitor publishes.
-  api.on('before_prompt_build', (_event, ctx) =>
-    handleGroupContextBeforePromptBuild(ctx)
-  );
 
   // ── Session lifecycle / watchdog telemetry ─────────────────────────
   // These hooks are global to OpenClaw, so telemetry.ts filters them through
@@ -1949,15 +1943,14 @@ export default defineBundledChannelEntry({
     };
 
     const browserLoginApprovals = createBrowserLoginApprovalHandler(
-      (sessionId, record, ctx, fields, formId) =>
+      (sessionId, record, ctx, fields) =>
         runBrowserCommand(
           [
             'browser',
             'approve-login',
             sessionId,
-            ...(formId
-              ? ['--form-id', formId]
-              : ['--fields', JSON.stringify(fields)]),
+            '--fields',
+            JSON.stringify(fields),
             ...(record ? ['--record', JSON.stringify(record)] : []),
           ],
           ctx

@@ -39,6 +39,18 @@ jest.mock('@tloncorp/app/contexts/ship', () => ({
   useShip: () => ({ ship: '~zod' }),
 }));
 
+jest.mock('@tloncorp/app/hooks/useAgentGroupOnboardingLock', () => {
+  const gate = {
+    locked: false,
+    isLoading: false,
+    runWhenUnlocked: async (fn: () => unknown) => ({
+      ran: true,
+      result: await fn(),
+    }),
+  };
+  return { useAgentGroupOnboardingNavGate: () => gate };
+});
+
 jest.mock('@tloncorp/app/lib/notifications', () => ({
   connectNotifications: jest.fn(),
   presentContactMatchNotification: jest.fn(),

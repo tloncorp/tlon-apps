@@ -31,7 +31,6 @@ import type {
   TlawnPrimaryModelUpdate,
   TlawnProviderConfigInfo,
   TlawnProviderModel,
-  TlawnTokenUsage,
 } from '../types/hosting';
 
 export type {
@@ -65,8 +64,6 @@ export type {
   TlawnProviderConfigInfo,
   TlawnProviderModel,
   TlawnSubscriptionModel,
-  TlawnTokenUsage,
-  TlawnTokenUsageTotals,
 } from '../types/hosting';
 
 export type HostingRecaptchaPlatform =
@@ -542,14 +539,6 @@ export async function getTlawnLLMAuthStatus(
     { cache: 'no-store' }
   );
   return parseTlawnLLMAuthStatus(response);
-}
-
-export async function getTlawnTokenUsage(
-  ship: string
-): Promise<TlawnTokenUsage> {
-  return hostingFetch<TlawnTokenUsage>(
-    `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/token-usage`
-  );
 }
 
 export async function startTlawnLLMAuth(

@@ -1,9 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import * as ownerSessions from './browserOwnerSession';
 import {
   authorizeBrowserLoginHandoff,
   browserVaultOwnerRequest,
-  BrowserVaultRequestError,
 } from './browserVault';
 
 const mocks = vi.hoisted(() => ({
@@ -12,8 +10,6 @@ const mocks = vi.hoisted(() => ({
   apiUrl: 'https://test.tlon.systems',
 }));
 vi.mock('./urbit', () => ({
-  onClientSessionChange: vi.fn(),
-  getClientGeneration: () => 0,
   getBrowserVaultOwnerAuthorization: () => mocks.authorize(),
 }));
 vi.mock('../types', () => ({
@@ -30,7 +26,6 @@ const account = {
   permission: 'ask',
 };
 beforeEach(() => {
-  vi.restoreAllMocks();
   vi.clearAllMocks();
   mocks.apiUrl = 'https://test.tlon.systems';
   vi.stubGlobal('fetch', mocks.fetch);
@@ -47,26 +42,6 @@ beforeEach(() => {
 });
 
 describe('browser vault owner requests', () => {
-  it.each([401, 404, 410])(
-    'preserves viewer HTTP %s errors when reusing an owner session',
-    async (status) => {
-      vi.spyOn(ownerSessions, 'browserOwnerSessionMoon').mockReturnValue(
-        'moon'
-      );
-      vi.spyOn(ownerSessions, 'browserOwnerRequest').mockRejectedValue(
-        new ownerSessions.BrowserOwnerRequestError(status, 'private error')
-      );
-      const result = browserVaultOwnerRequest(
-        'https://browser-session.test.tlon.systems/viewer-authorize',
-        { capability: 'viewer-capability' }
-      );
-      await expect(result).rejects.toBeInstanceOf(BrowserVaultRequestError);
-      await expect(result).rejects.toMatchObject({
-        status,
-        message: 'Saved logins are unavailable. Reconnect and try again.',
-      });
-    }
-  );
   it('reads a fresh planet proof and sends it only in the trusted HTTPS body', async () => {
     expect(await authorizeBrowserLoginHandoff(endpoint)).toEqual({
       grant: 'g'.repeat(43),
@@ -151,18 +126,3 @@ describe('browser vault owner requests', () => {
     ).not.toContain('private-password');
   });
 });
-
-it.each([401, 403, 404, 503])(
-  'preserves HTTP %s without exposing the response body',
-  async (status) => {
-    mocks.fetch.mockResolvedValue(
-      new Response('private error details', { status })
-    );
-    const result = browserVaultOwnerRequest(endpoint, {});
-    await expect(result).rejects.toBeInstanceOf(BrowserVaultRequestError);
-    await expect(result).rejects.toMatchObject({
-      status,
-      message: 'Saved logins are unavailable. Reconnect and try again.',
-    });
-  }
-);

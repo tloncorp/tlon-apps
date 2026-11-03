@@ -700,57 +700,39 @@ export class Urbit {
     return eventId;
   }
 
-  //NOTE  the command is interpreted (through nockjs.dwim) as a noun, which
+  //NOTE  every arg is interpreted (through nockjs.dwim) as a noun, which
   //      should result in a noun nesting inside of the xx $eyre-command type
   //      `message` describes the same command in json shape, purely so the
   //      channel url transformer sees noun PUTs on the same terms as json ones
   private async sendNounsToChannel(
     message: Message,
-    noun: unknown,
-    signal?: AbortSignal
+    ...args: (Noun | any)[]
   ): Promise<void> {
     const options = this.fetchOptionsNoun('PUT', 'noun');
-    const body = jamToUw(dejs.list([noun]));
+    const body = jamToUw(dejs.list(args));
     this.validatePokeBodySize(body);
 
-    const channelSignal = this.channelAbort.signal;
-    const requestAbort = signal ? new AbortController() : undefined;
-    const abort = () => requestAbort?.abort();
-    if (signal) {
-      signal.addEventListener('abort', abort, { once: true });
-      channelSignal.addEventListener('abort', abort, { once: true });
-      if (signal.aborted || channelSignal.aborted) abort();
+    const response = await this.fetchFn(this.channelPutUrl([message]), {
+      ...options,
+      signal: this.channelAbort.signal,
+      method: 'PUT',
+      body,
+    });
+    if (!response.ok) {
+      console.log(response.status, response.statusText, await response.text());
+      throw new ChannelPutError(response.status, response.statusText);
     }
-    try {
-      const response = await this.fetchFn(this.channelPutUrl([message]), {
-        ...options,
-        signal: requestAbort?.signal ?? channelSignal,
-        method: 'PUT',
-        body,
-      });
-      if (!response.ok) {
-        console.log(
-          response.status,
-          response.statusText,
-          await response.text()
-        );
-        throw new ChannelPutError(response.status, response.statusText);
+    if (!this.sseClientInitialized) {
+      if (this.verbose) {
+        console.log('initializing event source');
       }
-      if (!this.sseClientInitialized) {
-        if (this.verbose) {
-          console.log('initializing event source');
-        }
-        await Promise.all([this.getOurName(), this.getShipName()]);
+      await Promise.all([this.getOurName(), this.getShipName()]);
 
-        if (this.our !== this.nodeId) {
-          throw new AuthError('invalid session');
-        }
-
-        await this.eventSource();
+      if (this.our !== this.nodeId) {
+        throw new AuthError('invalid session');
       }
-    } finally {
-      signal?.removeEventListener('abort', abort);
-      channelSignal.removeEventListener('abort', abort);
+
+      await this.eventSource();
     }
   }
 
@@ -811,128 +793,88 @@ export class Urbit {
     app: string,
     path: string,
     ship?: string,
-    timeout?: number,
-    signal?: AbortSignal
+    timeout?: number
   ) {
-    if (signal?.aborted) {
-      throw signal.reason ?? new Error('Request aborted');
-    }
     return new Promise<T>((resolve, reject) => {
       let done = false;
       let timer: ReturnType<typeof setTimeout> | undefined;
-      const finish = (sendUnsubscribe = false) => {
-        if (done) return false;
+      const finish = () => {
+        if (done) {
+          return false;
+        }
+        // A reset can reuse this subscription's id. Once settled, neither a
+        // late PUT nor an existing timeout may unsubscribe that replacement.
         done = true;
         clearTimeout(timer);
-        signal?.removeEventListener('abort', abort);
-        if (sendUnsubscribe) {
-          // Only unsubscribe once the watch PUT has landed, or Eyre can see the
-          // unsubscribe first and keep the watch. A reset since then may have
-          // reused the id, so check the slot still holds this one-shot.
-          subscribed
-            .then((id) => {
-              if (this.outstandingSubscriptions.get(id)?.event === event) {
-                return this.unsubscribe(id);
-              }
-            })
-            .catch(() => {});
-        }
         return true;
       };
       const fail = (error: unknown) => {
-        if (finish()) reject(error);
+        if (finish()) {
+          reject(error);
+        }
       };
-      const abort = () => {
-        if (finish(true))
-          reject(signal?.reason ?? new Error('Request aborted'));
+      const quit = () => fail('quit');
+      const event = (e: T, mark: string, id: number) => {
+        if (finish()) {
+          resolve(e);
+          // `unsubscribe` chains a `.then` with no rejection handler, so a
+          // failed PUT rejects the promise it returns. The outer promise is
+          // already settled by `resolve` above, so catch here or it escapes.
+          this.unsubscribe(id).catch(() => {});
+        }
       };
-      const event = (e: T) => {
-        if (finish(true)) resolve(e);
-      };
-      const subscribed = this.subscribe({
+      const request = {
         app,
         path,
         ship,
         resubOnQuit: false,
         event,
         err: fail,
-        quit: () => fail('quit'),
-      });
-      subscribed.catch(fail);
-      signal?.addEventListener('abort', abort, { once: true });
-      if (timeout) {
-        timer = setTimeout(() => {
-          if (finish(true)) reject('timeout');
-        }, timeout);
-      }
+        quit,
+      };
+
+      this.subscribe(request).then((subId) => {
+        if (timeout && !done) {
+          timer = setTimeout(() => {
+            if (finish()) {
+              reject('timeout');
+              // Same as the event path above. This runs from a timer, so it
+              // is outside the `.then(..., fail)` chain below and `fail`
+              // cannot catch it.
+              this.unsubscribe(subId).catch(() => {});
+            }
+          }, timeout);
+        }
+      }, fail);
     });
   }
 
   async pokeNoun(params: NounPokeInterface): Promise<number> {
-    const { app, mark, noun, ship, signal } = {
+    params.onSuccess = params.onSuccess || (() => {});
+    params.onError = params.onError || (() => {});
+    const { app, mark, noun, ship } = {
       ship: this.nodeId?.replace('~', '') || '',
       ...params,
     };
-    if (!isNoun(noun)) throw new Error('pokeNoun requires a noun');
-    if (signal?.aborted) throw signal.reason ?? new Error('Request aborted');
 
     if (this.lastEventId === 0) {
       this.emit('status-update', { status: 'opening' });
     }
 
-    const shipAtom = new Atom(parse('p', `~${ship}`));
     const eventId = this.getEventId();
-    const non = ['poke', eventId, shipAtom, app, mark, noun];
-    return new Promise((resolve, reject) => {
-      let sent = false;
-      let acknowledged = false;
-      const forget = () => {
-        if (this.outstandingPokes.get(eventId) === entry) {
-          this.outstandingPokes.delete(eventId);
-        }
-      };
-      const cleanup = () => {
-        signal?.removeEventListener('abort', abort);
-        forget();
-      };
-      const acknowledge = () => {
-        acknowledged = true;
-        forget();
-        if (sent) cleanup();
-      };
-      const abort = () => {
-        cleanup();
-        reject(signal?.reason ?? new Error('Request aborted'));
-      };
-      const entry: PokeHandlers = {
-        onSuccess: () => {
-          acknowledge();
-          params.onSuccess?.();
-        },
-        onError: (error) => {
-          acknowledge();
-          params.onError?.(error);
-        },
-      };
-      this.outstandingPokes.set(eventId, entry);
-      signal?.addEventListener('abort', abort, { once: true });
+    this.outstandingPokes.set(eventId, params);
 
-      this.sendNounsToChannel(
+    if (isNoun(noun)) {
+      const shipAtom = new Atom(parse('p', `~${ship}`));
+      const non = ['poke', eventId, shipAtom, app, mark, noun];
+      await this.sendNounsToChannel(
         { id: eventId, action: 'poke', ship, app, mark },
-        non,
-        signal
-      ).then(
-        () => {
-          sent = true;
-          if (acknowledged) cleanup();
-          resolve(eventId);
-        },
-        (error) => {
-          cleanup();
-          reject(error);
-        }
+        non
       );
-    });
+    } else {
+      throw new Error('pokeNoun requires a noun');
+    }
+    return eventId;
   }
 
   /**
@@ -1084,15 +1026,16 @@ export class Urbit {
    * @param subscription
    */
   async unsubscribe(subscription: number) {
-    // Drop the handlers before the PUT: a reset while it is pending must not
-    // replay this subscription, and afterwards the id may belong to another.
-    if (this.outstandingSubscriptions.delete(subscription)) {
-      this.emit('subscription', { id: subscription, status: 'close' });
-    }
-    await this.sendJSONtoChannel({
+    return this.sendJSONtoChannel({
       id: this.getEventId(),
       action: 'unsubscribe',
       subscription,
+    }).then(() => {
+      this.emit('subscription', {
+        id: subscription,
+        status: 'close',
+      });
+      this.outstandingSubscriptions.delete(subscription);
     });
   }
 

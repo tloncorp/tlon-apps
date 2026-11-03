@@ -73,17 +73,15 @@ export function BrowserViewerMenu({
             <Text modifiers={[tag('agent')]}>Agent View</Text>
             <Text modifiers={[tag('mobile')]}>Mobile View</Text>
           </Picker>
-          {browserControlsVisible !== undefined && (
-            <Toggle
-              label="Show browser controls"
-              isOn={browserControlsVisible ?? false}
-              modifiers={[disabled(browserControlsVisible === undefined)]}
-              onIsOnChange={(visible) => {
-                if (browserControlsVisible !== undefined)
-                  onBrowserControlsChange(visible);
-              }}
-            />
-          )}
+          <Toggle
+            label="Show browser controls"
+            isOn={browserControlsVisible ?? false}
+            modifiers={[disabled(browserControlsVisible === undefined)]}
+            onIsOnChange={(visible) => {
+              if (browserControlsVisible !== undefined)
+                onBrowserControlsChange(visible);
+            }}
+          />
         </Menu>
       </Host>
     </View>

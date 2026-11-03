@@ -5,6 +5,7 @@ import { Platform, StatusBar } from 'react-native';
 import { InviteUsersScreen } from '../features/InviteUsersScreen';
 import { BrowserCredentialHandoffProvider } from '../features/browser/BrowserCredentialHandoffProvider';
 import { BrowserWalletScreen } from '../features/browser/BrowserWalletScreen';
+import { BrowserCredentialHandoffScreen } from '../features/browser/BrowserCredentialHandoffScreen';
 import { ChannelMembersScreen } from '../features/channels/ChannelMembersScreen';
 import { ChannelMetaScreen } from '../features/channels/ChannelMetaScreen';
 import { ChannelTemplateScreen } from '../features/channels/ChannelTemplateScreen';
@@ -55,8 +56,10 @@ import { NotesSearchScreen } from '../features/top/NotesSearchScreen';
 import PostScreen from '../features/top/PostScreen';
 import { UserProfileScreen } from '../features/top/UserProfileScreen';
 import { useIsDarkMode } from '../hooks/useDarkMode';
+import { useAgentGroupOnboardingStartupRoute } from '../hooks/useAgentGroupOnboardingLock';
 import { useTheme } from '../ui';
 import { GroupSettingsStack } from './GroupSettingsStack';
+import { OnboardingStartupScreen } from './OnboardingStartupScreen';
 import { TopLevelTabNavigator } from './TopLevelTabNavigator';
 import { nativeHeaderPresentationOptions } from './nativeHeaderOptions';
 import type { RootStackParamList } from './types';
@@ -89,10 +92,15 @@ function RootStackContent() {
   });
 
   const theme = useTheme();
+  const onboardingStartup = useAgentGroupOnboardingStartupRoute();
+
+  if (onboardingStartup.isLoading) return null;
 
   return (
     <Root.Navigator
-      initialRouteName="MainTabs"
+      initialRouteName={
+        onboardingStartup.route ? 'OnboardingStartup' : 'MainTabs'
+      }
       screenOptions={{
         ...nativeHeaderPresentationOptions,
         headerBackVisible: false,
@@ -100,6 +108,14 @@ function RootStackContent() {
         contentStyle: { backgroundColor: theme.background?.val },
       }}
     >
+      {onboardingStartup.route ? (
+        <Root.Screen
+          name="OnboardingStartup"
+          component={OnboardingStartupScreen}
+          initialParams={onboardingStartup.route}
+          options={{ animation: 'none', gestureEnabled: false }}
+        />
+      ) : null}
       {/* top level tabs */}
       <Root.Screen
         name="MainTabs"
@@ -120,6 +136,11 @@ function RootStackContent() {
       <Root.Screen
         name="BrowserWallet"
         component={BrowserWalletScreen}
+        options={{ presentation: 'modal' }}
+      />
+      <Root.Screen
+        name="BrowserCredentialHandoff"
+        component={BrowserCredentialHandoffScreen}
         options={{ presentation: 'modal' }}
       />
       <Root.Screen name="AddContacts" component={AddContactsScreen} />

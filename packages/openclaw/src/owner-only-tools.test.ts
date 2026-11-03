@@ -29,18 +29,6 @@ const EXPECTED_OWNER_ONLY_TOOLS = [
   'cron',
   'automations',
   'read',
-  'ls',
-  'write',
-  'edit',
-  'apply_patch',
-  'skill_workshop',
-  'exec',
-  'process',
-  'shell',
-  'shell_command',
-  'gateway_exec',
-  'gateway_process',
-  'terminal',
   'tlon_agent_choice',
   'tlon_agent_task_plan',
   'tlon_agent_service_setup',
@@ -51,16 +39,17 @@ const EXPECTED_OWNER_ONLY_TOOLS = [
   'mcp__prompts_get',
   'sessions_spawn',
   'sessions_send',
-  'spawn_agent',
   'openclaw',
   'gateway',
   'plugins',
   'secrets',
   'nodes',
   'personal_instructions',
+  'skill_workshop',
   'sessions',
   'github_publish',
   'presence',
+  'terminal',
   'mobile_ui',
   'transcripts',
   'pdf',
@@ -76,7 +65,6 @@ const EXPECTED_OWNER_ONLY_TOOLS = [
 const DELEGATION_TOOLS: readonly string[] = [
   'sessions_spawn',
   'sessions_send',
-  'spawn_agent',
   'openclaw',
 ];
 
@@ -312,19 +300,6 @@ describe('resolveOwnerOnlyToolBlock', () => {
         ownerOnly: true,
         gate: 'tool',
         blocked: false,
-      });
-    }
-  );
-
-  it.each(['sandbox_exec', 'sandbox_process', 'node_exec', 'bash'])(
-    'does not list %s, which reaches the gate as exec or process',
-    (tool) => {
-      expect(OWNER_ONLY_TOOLS.has(tool)).toBe(false);
-      expect(resolveOwnerOnlyToolBlock(tool, 'user')).toEqual({
-        ownerOnly: true,
-        gate: 'tool',
-        blocked: true,
-        reason: formatOwnerOnlyToolBlockReason(tool),
       });
     }
   );

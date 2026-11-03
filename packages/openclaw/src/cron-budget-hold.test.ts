@@ -8,16 +8,10 @@ import {
   emptyBudgetHoldState,
   readBudgetHoldState,
   readBudgetSignal,
-  readBudgetSignalDetails,
   reconcileBudgetHolds,
-  stripSystemOwnedHoldLabels,
   writeBudgetHoldState,
   type BudgetState,
 } from './cron-budget-hold.js';
-import { reconcileCreditNotice } from './credit-notice.js';
-
-const limitedNotice = (tasks: number) =>
-  `You've used almost all of this month's included credits, so I've switched to a free model and paused your ${tasks} scheduled tasks until they reset.`;
 
 function fixture() {
   let now = 1_000_000;
@@ -51,9 +45,7 @@ function fixture() {
   ];
   const state = emptyBudgetHoldState();
   const save = vi.fn(async () => {});
-  const notify = vi.fn(
-    async (_message: string, _offerIncrease: boolean) => true
-  );
+  const notify = vi.fn(async (_message: string) => true);
   const update = vi.fn(
     async (id: string, patch: { enabled?: boolean; description?: string }) => {
       const job = jobs.find((j) => j.id === id)!;
@@ -63,28 +55,16 @@ function fixture() {
     }
   );
   const cron = { list: async () => structuredClone(jobs), update };
-  // The runner's order: the notice counts the holds of a clean pass. The
-  // pre-gateway bootstrap sends none.
-  const reconcile = async (budget: BudgetState, pauseOnly = false) => {
-    await reconcileBudgetHolds({
+  const reconcile = (budget: BudgetState, pauseOnly = false) =>
+    reconcileBudgetHolds({
       budget,
       state,
       cron,
       save,
+      notify,
       pauseOnly,
       now: () => now,
     });
-    if (!pauseOnly) {
-      await reconcileCreditNotice({
-        budget,
-        credit: null,
-        state,
-        save,
-        notify,
-        now: () => now,
-      });
-    }
-  };
   return {
     jobs,
     state,
@@ -172,7 +152,9 @@ describe('cron budget holds', () => {
     expect(f.jobs.map((j) => j.enabled)).toEqual([false, false, false, true]);
     expect(f.jobs[0].description).toBe(BUDGET_HOLD_PREFIX + 'Morning news');
     expect(Object.keys(f.state.holds)).toEqual(['report', 'watch']);
-    expect(f.notify).toHaveBeenCalledExactlyOnceWith(limitedNotice(2), true);
+    expect(f.notify).toHaveBeenCalledExactlyOnceWith(
+      'Your token credits are low. Your 2 scheduled tasks have been paused.'
+    );
     await f.reconcile('limited');
     expect(f.notify).toHaveBeenCalledTimes(1);
     expect(f.update).toHaveBeenCalledTimes(2);
@@ -275,153 +257,11 @@ describe('cron budget holds', () => {
     expect(f.jobs[0].enabled).toBe(true);
   });
 
-  it('labels nothing but still tells the owner when no enabled recurring tasks exist', async () => {
+  it('does not label or notify when no enabled recurring tasks exist', async () => {
     const f = fixture();
     f.jobs.splice(0, 2);
     await f.reconcile('limited');
-    expect(f.update).not.toHaveBeenCalled();
-    expect(f.notify).toHaveBeenCalledExactlyOnceWith(
-      "You've used almost all of this month's included credits, so I've switched to a free model until they reset.",
-      true
-    );
-  });
-
-  it('never edits system-owned monitor jobs and still holds later user jobs', async () => {
-    const f = fixture();
-    const monitors: PluginHookGatewayCronJob[] = [
-      {
-        id: 'skill-review',
-        declarationKey: 'skill-collection-review:main',
-        enabled: true,
-        updatedAtMs: 1,
-        schedule: { kind: 'every', everyMs: 604_800_000 },
-        payload: { kind: 'agentTurn' },
-      },
-      {
-        id: 'heartbeat',
-        declarationKey: 'heartbeat:main',
-        enabled: true,
-        updatedAtMs: 1,
-        schedule: { kind: 'every', everyMs: 1_800_000 },
-        payload: { kind: 'agentTurn' },
-      },
-      {
-        id: 'heartbeat-payload',
-        enabled: true,
-        updatedAtMs: 1,
-        schedule: { kind: 'every', everyMs: 1_800_000 },
-        payload: { kind: 'heartbeat' },
-      },
-    ];
-    f.jobs.unshift(...monitors);
-    f.jobs.push({
-      id: 'imported-task',
-      declarationKey: 'heartbeat-task:check-mail',
-      enabled: true,
-      updatedAtMs: 1,
-      schedule: { kind: 'every', everyMs: 60_000 },
-    });
-    await f.reconcile('limited');
-    const touched = () => f.update.mock.calls.map(([id]) => id);
-    expect(touched()).toEqual(['report', 'watch', 'imported-task']);
-    expect(f.jobs.slice(0, 3).map((j) => j.enabled)).toEqual([
-      true,
-      true,
-      true,
-    ]);
-    expect(Object.keys(f.state.holds)).toEqual([
-      'report',
-      'watch',
-      'imported-task',
-    ]);
-    expect(f.notify).toHaveBeenCalledExactlyOnceWith(limitedNotice(3), true);
-    await f.reconcile('available');
-    expect(touched()).not.toContain('skill-review');
-    expect(touched()).not.toContain('heartbeat');
-    expect(touched()).not.toContain('heartbeat-payload');
-    expect(f.jobs.find((j) => j.id === 'report')?.enabled).toBe(true);
-    expect(f.jobs.find((j) => j.id === 'imported-task')?.enabled).toBe(true);
-    expect(f.state.holds).toEqual({});
-  });
-
-  it('drops a stale hold on a system-owned job without editing it', async () => {
-    const f = fixture();
-    f.jobs.unshift({
-      id: 'skill-review',
-      declarationKey: 'skill-collection-review:main',
-      enabled: true,
-      updatedAtMs: 1,
-      schedule: { kind: 'every', everyMs: 604_800_000 },
-      payload: { kind: 'agentTurn' },
-      description: BUDGET_HOLD_PREFIX + 'Review skills',
-    });
-    f.state.limited = true;
-    f.state.episodeId = 'episode';
-    f.state.holds['skill-review'] = { description: 'Review skills' };
-    await f.reconcile('limited');
-    expect(f.state.holds['skill-review']).toBeUndefined();
-    expect(f.update.mock.calls.map(([id]) => id)).toEqual(['report', 'watch']);
-  });
-
-  it("leaves memory-core's dreaming job to memory-core", async () => {
-    const f = fixture();
-    const description =
-      '[managed-by=memory-core.short-term-promotion] Promote weighted short-term recalls into MEMORY.md.';
-    // Paused by an earlier pass.
-    f.jobs.unshift({
-      id: 'dreaming',
-      declarationKey: 'memory-core:memory-dreaming-promotion',
-      enabled: false,
-      updatedAtMs: 1,
-      schedule: { kind: 'cron', expr: '0 3 * * *' },
-      payload: { kind: 'agentTurn' },
-      description: BUDGET_HOLD_PREFIX + description,
-    });
-    f.state.limited = true;
-    f.state.episodeId = 'episode';
-    f.state.holds.dreaming = { description, revision: 1 };
-    await f.reconcile('limited');
-    // memory-core's next sweep puts it back.
-    Object.assign(f.jobs[0], { enabled: true, description, updatedAtMs: 2 });
-    await f.reconcile('limited');
-    expect(f.state.holds.dreaming).toBeUndefined();
-    expect(f.update.mock.calls.map(([id]) => id)).toEqual(['report', 'watch']);
-    expect(f.notify).toHaveBeenCalledExactlyOnceWith(limitedNotice(2), true);
-  });
-
-  it('strips stale budget labels from system-owned jobs only', () => {
-    const system = { declarationKey: 'skill-collection-review:main' };
-    const stripped = stripSystemOwnedHoldLabels([
-      { id: 'spaced', ...system, description: BUDGET_HOLD_PREFIX + 'Review' },
-      { id: 'bare', ...system, description: BUDGET_HOLD_PREFIX.trimEnd() },
-      {
-        id: 'payload',
-        payload: { kind: 'heartbeat' },
-        description: BUDGET_HOLD_PREFIX + 'Beat',
-      },
-      { id: 'unlabelled', ...system, description: 'Review' },
-      { id: 'undescribed', ...system },
-      { id: 'user', description: BUDGET_HOLD_PREFIX + 'Mine' },
-    ]);
-    expect(stripped).toEqual([
-      { id: 'spaced', ...system, description: 'Review' },
-      { id: 'bare', ...system },
-      { id: 'payload', payload: { kind: 'heartbeat' }, description: 'Beat' },
-    ]);
-  });
-
-  it('keeps holding other jobs when one update fails and notifies once clean', async () => {
-    const f = fixture();
-    f.update.mockRejectedValueOnce(new Error('update rejected'));
-    await expect(f.reconcile('limited')).rejects.toThrow('update rejected');
-    expect(f.jobs[0].enabled).toBe(true);
-    expect(f.jobs[1].enabled).toBe(false);
-    expect(f.state.holds.watch.revision).toBeDefined();
     expect(f.notify).not.toHaveBeenCalled();
-    await f.reconcile('limited');
-    expect(f.jobs[0].enabled).toBe(false);
-    expect(f.state.holds.report.revision).toBeDefined();
-    expect(f.notify).toHaveBeenCalledExactlyOnceWith(limitedNotice(2), true);
   });
 });
 
@@ -445,12 +285,6 @@ it('persists ownership and notice deduplication across process restarts', async 
     state: restored,
     cron: f.cron,
     save: async () => {},
-  });
-  await reconcileCreditNotice({
-    budget: 'limited',
-    credit: null,
-    state: restored,
-    save: async () => {},
     notify: f.notify,
   });
   expect(f.notify).toHaveBeenCalledTimes(1);
@@ -471,31 +305,6 @@ it('treats missing, malformed, or unknown signals as unknown', async () => {
   }
   await writeFile(path, '{"version":1,"state":"limited"}');
   expect(await readBudgetSignal(path)).toBe('limited');
-});
-
-it('reads the credit hosting publishes, and ignores one it cannot use', async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'budget-credit-'));
-  temporaryDirs.push(dir);
-  const path = join(dir, 'signal.json');
-  const credit = { keyOwner: 'owner', remainingUsd: 3, limitUsd: null };
-  await writeFile(
-    path,
-    JSON.stringify({ version: 1, state: 'available', credit })
-  );
-  expect(await readBudgetSignalDetails(path)).toEqual({
-    state: 'available',
-    credit,
-  });
-  for (const bad of [
-    { ...credit, keyOwner: 'tlonbot' },
-    { ...credit, limitUsd: '5' },
-  ]) {
-    await writeFile(
-      path,
-      JSON.stringify({ version: 1, state: 'available', credit: bad })
-    );
-    expect((await readBudgetSignalDetails(path)).credit).toBeNull();
-  }
 });
 
 it('backs off failed notices exponentially without delaying new holds or recovery', async () => {
@@ -534,10 +343,10 @@ it('persists the retry deadline before a throwing delivery and honors it after r
     const state = await readBudgetHoldState(path);
     expect(state.notificationAttempts).toBe(1);
     expect(state.nextNotificationAtMs).toBe(1_060_000);
-    await reconcileCreditNotice({
+    await reconcileBudgetHolds({
       budget: 'limited',
-      credit: null,
       state,
+      cron: f.cron,
       save: async () => {},
       notify: f.notify,
       now: () => 1_030_000,
@@ -585,24 +394,20 @@ describe('budget transition journal', () => {
 
   it('does not report failed mutations or manual ownership changes as budget transitions', async () => {
     const f = fixture();
-    const changes = () =>
-      f.state.pendingTelemetryChanges?.map((e) => [e.jobId, e.action]);
     f.update.mockRejectedValueOnce(new Error('mutation failed'));
     await expect(f.reconcile('limited')).rejects.toThrow('mutation failed');
-    expect(changes()).toEqual([['watch', 'paused']]);
+    expect(f.state.pendingTelemetryChanges).toBeUndefined();
     await f.reconcile('limited');
-    expect(changes()).toEqual([
-      ['watch', 'paused'],
-      ['report', 'paused'],
-    ]);
+    expect(f.state.pendingTelemetryChanges).toHaveLength(2);
     delete f.state.pendingTelemetryChanges;
     f.update.mockRejectedValueOnce(new Error('resume failed'));
     await expect(f.reconcile('available')).rejects.toThrow('resume failed');
-    expect(changes()).toEqual([['watch', 'resumed']]);
-    delete f.state.pendingTelemetryChanges;
+    expect(f.state.pendingTelemetryChanges).toBeUndefined();
     f.jobs[0].updatedAtMs = 999; // manual edit while held
     await f.reconcile('available');
-    expect(f.state.pendingTelemetryChanges).toBeUndefined();
+    expect(
+      f.state.pendingTelemetryChanges?.map((e) => [e.jobId, e.action])
+    ).toEqual([['watch', 'resumed']]);
   });
 
   it('recovers a confirmed pause from a persisted write-ahead intent once', async () => {

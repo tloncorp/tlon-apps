@@ -2,6 +2,7 @@ import { AnalyticsEvent, AnalyticsSeverity } from '@tloncorp/shared';
 import type { Schema } from '@tloncorp/shared/db';
 import { schema, setClient, sqliteContent } from '@tloncorp/shared/db';
 import { migrations } from '@tloncorp/shared/db/migrations';
+import { readArrayBufferFromBlob } from '@tloncorp/shared/utils';
 import { drizzle } from 'drizzle-orm/sqlite-proxy';
 import { debounce } from 'lodash';
 import { SQLocalDrizzle } from 'sqlocal/drizzle';
@@ -342,7 +343,8 @@ export class WebDb extends BaseDb {
           return;
         }
 
-        await sqliteContent.setValue(dbFile);
+        const encoded = await readArrayBufferFromBlob(dbFile);
+        await sqliteContent.setValue(encoded);
       } catch (e) {
         console.error('Failed to save to file', e);
       }

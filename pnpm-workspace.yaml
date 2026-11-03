@@ -87,7 +87,7 @@ overrides:
   react-native: 0.88.0
   "@types/react": ~19.3.0
   react-native-reanimated: 4.7.1
-  react-native-gesture-handler: ~3.4.0
+  react-native-gesture-handler: ~3.3.0
   get-intrinsic: 1.2.4
   esbuild: 0.27.3
 

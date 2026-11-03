@@ -360,13 +360,9 @@ export function ContactBookPrompt(props: {
     if (perms.canAskPermission) {
       const result = await perms.requestPermissions();
       if (result === 'granted') {
-        try {
-          await store.syncSystemContacts();
-        } catch {
-          Alert.alert('Unable to sync contacts', 'Please try again later.');
-          return;
-        }
-        Alert.alert('Success', 'Your contacts have been synced.');
+        await store.syncSystemContacts().then(() => {
+          Alert.alert('Success', 'Your contacts have been synced.');
+        });
         const result = await store.syncContactDiscovery().catch(() => null);
         if (result?.didDiscover) {
           trackEvent(AnalyticsEvent.ContactDiscoveryCompleted);

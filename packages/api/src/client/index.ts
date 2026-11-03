@@ -74,7 +74,6 @@ export {
   getTlawnOAuthProviders,
   getTlawnOAuthStatus,
   getTlawnLLMAuthStatus,
-  getTlawnTokenUsage,
   startTlawnLLMAuth,
   getTlawnLLMAuthFlow,
   completeTlawnLLMAuth,
@@ -132,8 +131,6 @@ export type {
   TlawnLLMAuthProviderStatus,
   TlawnLLMAuthStatus,
   TlawnSubscriptionModel,
-  TlawnTokenUsage,
-  TlawnTokenUsageTotals,
 } from '../types/hosting';
 export * from './apiUtils';
 export * from './metagrabApi';

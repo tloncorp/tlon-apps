@@ -53,8 +53,6 @@ import { getNativeTitleMaxWidth } from './titleLayout';
 interface SharedScreenHeaderProps {
   title?: string | ReactNode;
   titleIcon?: ReactNode;
-  /** Shown right after the title, before the chevron (e.g. a status badge). */
-  titleBadge?: ReactNode;
   subtitle?: string | ReactNode;
   showSubtitle?: boolean;
   backgroundColor?: string;
@@ -95,7 +93,6 @@ export const ScreenHeaderComponent = ({
   children,
   title,
   titleIcon,
-  titleBadge,
   subtitle,
   showSubtitle = false,
   backgroundColor,
@@ -293,20 +290,9 @@ export const ScreenHeaderComponent = ({
           {displayTitle}
         </Text>
       )}
-      {titleBadge}
-      {onTitlePress &&
-        (useHorizontalTitleLayout ? (
-          // Larger and 1px low on desktop, so the chevron centers on the
-          // title's lowercase letters instead of floating above them.
-          <Icon
-            type="ChevronDown"
-            color="$primaryText"
-            customSize={['$xl', '$xl']}
-            top={1}
-          />
-        ) : (
-          <Icon type="ChevronDown" color="$primaryText" size="$s" />
-        ))}
+      {onTitlePress && (
+        <Icon type="ChevronDown" color="$primaryText" size="$s" />
+      )}
     </XStack>
   );
 
@@ -344,7 +330,6 @@ export const ScreenHeaderComponent = ({
   const usesCustomNativeTitle =
     typeof title !== 'string' ||
     titleIcon != null ||
-    titleBadge != null ||
     onTitlePress != null ||
     loadingSubtitle !== undefined;
   const shouldUseNativeHeader = useNativeHeader({
@@ -389,9 +374,6 @@ export const ScreenHeaderComponent = ({
               justifyContent="center"
               paddingHorizontal={'$l'}
               position="relative"
-              // Centers the smaller subtitle on the title's lowercase letters,
-              // matching the chevron; centering the line boxes leaves it high.
-              top={1}
             >
               {subtitleWithDisclosure}
             </View>

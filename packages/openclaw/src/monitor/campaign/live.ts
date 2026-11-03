@@ -5,10 +5,7 @@ import {
   parsePostBlob,
 } from '@tloncorp/api';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
-import {
-  RECURRING_SCHEDULE_KINDS,
-  isSystemOwnedJob,
-} from '../../cron-budget-hold.js';
+import { RECURRING_SCHEDULE_KINDS } from '../../cron-budget-hold.js';
 import {
   type CronChangedEvent as PluginHookCronChangedEvent,
   type GatewayCronJob as PluginHookGatewayCronJob,
@@ -76,7 +73,7 @@ export function notifyCampaignCronChanged(event: PluginHookCronChangedEvent) {
 export function isUserRecurringTask(job: PluginHookGatewayCronJob): boolean {
   return (
     RECURRING_SCHEDULE_KINDS.has(job.schedule?.kind ?? '') &&
-    !isSystemOwnedJob(job) &&
+    job.payload?.kind !== 'heartbeat' &&
     !job.description?.startsWith('tlon-internal:')
   );
 }
@@ -321,15 +318,12 @@ export function createLiveCampaign(deps: {
     if (event.action === 'started') runningJobs.add(event.jobId);
     if (event.action === 'finished' || event.action === 'removed')
       runningJobs.delete(event.jobId);
-    // The event's job lacks the declarationKey that marks OpenClaw's own
-    // jobs, so only the cron list can tell them from the owner's.
-    if (event.action === 'added' || event.action === 'updated') {
-      void jobs()
-        .then(async (tasks) => {
-          if (tasks.some((task) => task.id === event.jobId))
-            await campaign.taskCreated();
-        })
-        .catch(deps.error);
+    if (
+      (event.action === 'added' || event.action === 'updated') &&
+      event.job &&
+      isUserRecurringTask(event.job)
+    ) {
+      void campaign.taskCreated().catch(deps.error);
     }
   };
   return {
