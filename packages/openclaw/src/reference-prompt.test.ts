@@ -15,7 +15,9 @@ describe('cross-channel reference prompt guidance', () => {
     expect(prompt).toContain(
       'A bare reference path on its own line renders as a card; do not wrap it in a link or bold.'
     );
-    expect(prompt).toContain('The messageId a send returns is not the post ID');
+    expect(prompt).toContain(
+      'The messageId a channel send returns is the post ID'
+    );
     expect(prompt).toContain(
       '`tlon messages channel <nest>` for /1/chan/<nest>/msg/<id>'
     );

@@ -245,6 +245,53 @@ test('full group payload reconciles stale duplicate nav-section memberships', as
   });
 });
 
+// Rows land in the table in the order this device learned of them, such as
+// a section made here after the rest, which needn't be their saved order.
+test('getGroup returns nav sections in their saved order', async () => {
+  const groupId = '~bus/section-order-test';
+  const section = (sectionId: string, sectionIndex: number) => ({
+    id: `${groupId}-${sectionId}`,
+    sectionId,
+    groupId,
+    sectionIndex,
+    channels: [],
+  });
+  await queries.insertGroups({
+    groups: [
+      {
+        id: groupId,
+        currentUserIsMember: true,
+        currentUserIsHost: false,
+        hostUserId: '~bus',
+        channels: [],
+        navSections: [
+          section('default', 2),
+          section('outdoors', 1),
+          section('indoors', 0),
+        ],
+      } as unknown as Parameters<
+        typeof queries.insertGroups
+      >[0]['groups'][number],
+    ],
+  });
+
+  // Added since the last full sync, so it has no saved index yet.
+  await queries.addNavSectionToGroup({
+    id: `${groupId}-new`,
+    sectionId: 'new',
+    groupId,
+    meta: { title: 'New' },
+  });
+
+  const group = await queries.getGroup({ id: groupId });
+  expect(group?.navSections.map((s) => s.sectionId)).toEqual([
+    'new',
+    'indoors',
+    'outdoors',
+    'default',
+  ]);
+});
+
 test('updateNavSectionOrder skips a missing section list', async () => {
   await expect(
     queries.updateNavSectionOrder({
@@ -3774,6 +3821,66 @@ describe('recomputeChannelLastPost', () => {
     expect(group!.lastPostId).toBe('valid-sibling-head');
     expect(group!.lastPostAt).toBe(2000);
   });
+});
+
+// TLON-6252: channels deliver a delete as a tombstone on the add-post path,
+// so the head must fall back to the previous post rather than stay on the
+// emptied row.
+test('a tombstone for the channel head repoints channel and group to the previous post', async () => {
+  const groupId = '~zod/tombstone-head';
+  const channelId = 'chat/~zod/tombstone-head';
+  await queries.insertGroups({
+    groups: [
+      {
+        id: groupId,
+        currentUserIsMember: true,
+        currentUserIsHost: false,
+        hostUserId: '~zod',
+      } as unknown as Parameters<
+        typeof queries.insertGroups
+      >[0]['groups'][number],
+    ],
+  });
+  await queries.insertChannels([{ id: channelId, type: 'chat', groupId }]);
+  const post = (id: string, at: number) =>
+    ({
+      id,
+      type: 'chat',
+      channelId,
+      authorId: '~zod',
+      sentAt: at,
+      receivedAt: at,
+      sequenceNum: at,
+      content: JSON.stringify([{ inline: [id] }]),
+      syncedAt: at,
+    }) as unknown as Post;
+  await queries.insertChannelPosts({ posts: [post('previous', 1000)] });
+  await queries.insertChannelPosts({ posts: [post('head', 2000)] });
+
+  // The shape `toPostData` builds from a tombstone: no content.
+  await queries.insertChannelPosts({
+    posts: [
+      {
+        id: 'head',
+        type: 'chat',
+        channelId,
+        authorId: '~zod',
+        sentAt: 2000,
+        receivedAt: 2000,
+        sequenceNum: 2000,
+        isDeleted: true,
+        deletedAt: 3000,
+      } as Post,
+    ],
+  });
+
+  const channel = await queries.getChannel({ id: channelId });
+  expect(channel!.lastPostId).toBe('previous');
+  expect(channel!.lastPostAt).toBe(1000);
+  expect(channel!.lastPostSequenceNum).toBe(2000);
+  const group = await queries.getGroup({ id: groupId });
+  expect(group!.lastPostId).toBe('previous');
+  expect(group!.lastPostAt).toBe(1000);
 });
 
 describe('last post repair after channel metadata insert', () => {

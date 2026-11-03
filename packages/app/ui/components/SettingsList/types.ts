@@ -123,6 +123,13 @@ export interface SettingsRowModel {
     /** Gives the keyboard a Done key that runs this. */
     onSubmit?: () => void;
   };
+  /**
+   * iOS only, in a section that can be reordered: names the rows after it,
+   * like a section's title. One list of headings and rows can stand in for
+   * several sections, so a row can be dragged from one group into another.
+   * A heading can be dragged too, which moves where its group starts.
+   */
+  heading?: boolean;
   /** Desktop highlight for the row whose screen is open beside the list. */
   isFocused?: boolean;
   testID?: string;

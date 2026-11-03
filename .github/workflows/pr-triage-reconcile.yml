@@ -1,0 +1,67 @@
+name: PR triage reconciliation
+
+on:
+  push:
+    branches: [develop]
+  # Covers other base branches and missed/delayed events without inference.
+  schedule:
+    - cron: '17,47 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  discover:
+    if: github.repository == 'tloncorp/tlon-apps'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      numbers: ${{ steps.targets.outputs.numbers }}
+      policy: ${{ steps.targets.outputs.policy }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.22.0'
+      - id: targets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/pr-triage/triage.mjs reconciliation-targets
+
+  reconcile:
+    needs: discover
+    if: needs.discover.outputs.numbers != '[]'
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        number: ${{ fromJSON(needs.discover.outputs.numbers) }}
+    # Share the publisher's lock; inspect fresh state after any active run.
+    concurrency:
+      group: pr-triage-https://github.com/tloncorp/tlon-apps/pull/${{ matrix.number }}
+      cancel-in-progress: false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.discover.outputs.policy }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.22.0'
+      - name: Withdraw obsolete automatic routing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TRIAGE_PR: ${{ matrix.number }}
+        run: node scripts/pr-triage/triage.mjs reconcile

@@ -9,6 +9,7 @@ const envVars = {
   postHogApiKey: env.VITE_POST_HOG_API_KEY,
   postHogInDev: env.VITE_POST_HOG_IN_DEV,
   apiUrl: env.VITE_API_URL,
+  kernelServiceOrigin: env.VITE_KERNEL_SERVICE_ORIGIN,
   apiAuthUsername: env.VITE_API_AUTH_USERNAME,
   apiAuthPassword: env.VITE_API_AUTH_PASSWORD,
   recaptchaSiteKey: env.VITE_RECAPTCHA_SITE_KEY,
@@ -49,6 +50,7 @@ export const POST_HOG_API_KEY = envVars.postHogApiKey ?? '';
 export const POST_HOG_IN_DEV = envVars.postHogInDev === 'true';
 export const APP_SCHEME = 'io.tlon.groups';
 export const API_URL = envVars.apiUrl ?? 'https://tlon.network';
+export const KERNEL_SERVICE_ORIGIN = envVars.kernelServiceOrigin;
 export const API_AUTH_USERNAME = envVars.apiAuthUsername;
 export const API_AUTH_PASSWORD = envVars.apiAuthPassword;
 export const RECAPTCHA_SITE_KEY = undefined; // Not used on web
@@ -97,6 +99,7 @@ export const ENV_VARS = {
   POST_HOG_IN_DEV,
   APP_SCHEME,
   API_URL,
+  KERNEL_SERVICE_ORIGIN,
   API_AUTH_USERNAME,
   API_AUTH_PASSWORD,
   RECAPTCHA_SITE_KEY,

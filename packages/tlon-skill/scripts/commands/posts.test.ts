@@ -33,6 +33,9 @@ import {
   run,
 } from './posts';
 
+// A post id as the backend writes one: an @da, 39 digits in 13 groups.
+const WHOLE_POST_ID = '170.141.184.508.234.811.553.575.128.700.846.866.432';
+
 // The suffix walkers name a stray token by position only (it may be a
 // signed URL or blob JSON).
 const unexpectedAt = (position: number) =>
@@ -840,6 +843,30 @@ describe('posts reply', () => {
     ]);
   });
 
+  it('says a parent id with a group missing was mis-copied when the reply fails', async () => {
+    const context = makeDeps({
+      sendReply: async () => {
+        throw new Error('/sys/lull/hoon:<[287 5].[287 21]>');
+      },
+    });
+
+    const exitCode = await run(
+      [
+        'reply',
+        'chat/~host/channel',
+        // WHOLE_POST_ID with its next-to-last group dropped
+        '170.141.184.508.234.811.553.575.128.700.846.432',
+        'on it',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toContain("isn't a whole post ID");
+    expect(context.stderr()).toContain('nothing was sent');
+    expect(context.stderr()).not.toContain('/sys/lull/hoon');
+  });
+
   it('replies to a gallery post with the exact heap target input', async () => {
     const context = makeDeps({ currentUserId: '~nec', now: 7 });
     const exitCode = await run(
@@ -922,7 +949,7 @@ describe('posts reply', () => {
     });
 
     const exitCode = await run(
-      ['reply', 'chat/~host/channel', '170.141', 'hi'],
+      ['reply', 'chat/~host/channel', WHOLE_POST_ID, 'hi'],
       context.deps
     );
 
@@ -1098,7 +1125,10 @@ describe('posts react', () => {
     ];
 
     for (const testCase of cases) {
-      const context = makeDeps({ currentUserId: '~bus' });
+      const context = makeDeps({
+        currentUserId: '~bus',
+        getChannelPosts: reactionTarget,
+      });
       const exitCode = await run(
         ['react', 'chat/~host/channel', testCase.rawPostId, '👍'],
         context.deps
@@ -1118,8 +1148,11 @@ describe('posts react', () => {
     }
   });
 
-  it('authenticates once before reacting and ignores extra args', async () => {
-    const context = makeDeps({ currentUserId: '~nec' });
+  it('authenticates once, reads the post, then reacts, ignoring extra args', async () => {
+    const context = makeDeps({
+      currentUserId: '~nec',
+      getChannelPosts: reactionTarget,
+    });
     const exitCode = await run(
       ['react', 'chat/~host/channel', '170141184', '🔥', 'ignored'],
       context.deps
@@ -1129,6 +1162,7 @@ describe('posts react', () => {
     expect(context.stdout()).toBe('✓ Reaction added\n');
     expect(context.calls.order).toEqual([
       'authenticate',
+      'getChannelPosts',
       'getCurrentUserId',
       'addReaction',
     ]);
@@ -1140,8 +1174,50 @@ describe('posts react', () => {
     });
   });
 
+  it('refuses to react to a post it cannot read, rather than reporting success', async () => {
+    // The host stores a reaction under any id, so an id with a group dropped
+    // from it would otherwise print "added" while the post the user meant
+    // stays unreacted. Retried once, then refused with nothing sent.
+    const context = makeDeps({
+      currentUserId: '~nec',
+      getChannelPosts: async () => ({ posts: [] }),
+    });
+    const exitCode = await run(
+      ['react', 'chat/~host/channel', '170.141.184.508.228.022', '❤️'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.calls.addReaction).toHaveLength(0);
+    expect(context.calls.getChannelPosts).toHaveLength(2);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('no reaction was added');
+    expect(context.stderr()).toContain('messages channel chat/~host/channel');
+  });
+
+  it('refuses to react to a reply that is not under the given parent', async () => {
+    const context = makeDeps({
+      currentUserId: '~nec',
+      threads: [topLevel('170.141')],
+    });
+    const exitCode = await run(
+      ['react', 'chat/~host/channel', '170142', '🔥', '--parent', '170141'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.calls.addReaction).toHaveLength(0);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain(
+      'Could not read reply 170.142 under 170.141 in chat/~host/channel; no reaction was added'
+    );
+  });
+
   it('passes --parent through for thread-reply reactions', async () => {
-    const context = makeDeps({ currentUserId: '~nec' });
+    const context = makeDeps({
+      currentUserId: '~nec',
+      threads: [topLevel('170.141', { replies: [replyTarget('170.142')] })],
+    });
     const exitCode = await run(
       ['react', 'chat/~host/channel', '170142', '🔥', '--parent', '170141'],
       context.deps
@@ -1161,7 +1237,10 @@ describe('posts react', () => {
   });
 
   it('passes a gallery comment reaction parent through exactly', async () => {
-    const context = makeDeps({ currentUserId: '~nec' });
+    const context = makeDeps({
+      currentUserId: '~nec',
+      threads: [topLevel('170.141', { replies: [replyTarget('170.142')] })],
+    });
     const exitCode = await run(
       ['react', 'heap/~host/gallery', '170142', '🔥', '--parent', '170141'],
       context.deps
@@ -1267,7 +1346,10 @@ describe('posts unreact', () => {
     ];
 
     for (const testCase of cases) {
-      const context = makeDeps({ currentUserId: '~bus' });
+      const context = makeDeps({
+        currentUserId: '~bus',
+        getChannelPosts: reactionTarget,
+      });
       const exitCode = await run(
         ['unreact', 'chat/~host/channel', testCase.rawPostId, 'extra'],
         context.deps
@@ -1278,6 +1360,7 @@ describe('posts unreact', () => {
       expect(context.stderr()).toBe('');
       expect(context.calls.order).toEqual([
         'authenticate',
+        'getChannelPosts',
         'getCurrentUserId',
         'removeReaction',
       ]);
@@ -1294,6 +1377,7 @@ describe('posts unreact', () => {
 
   it('routes facade failures through the shared command-error path', async () => {
     const context = makeDeps({
+      getChannelPosts: reactionTarget,
       removeReaction: async () => {
         throw commandError('remove failed');
       },
@@ -1309,8 +1393,27 @@ describe('posts unreact', () => {
     expect(context.stderr()).toBe('Error: remove failed\n');
   });
 
+  it('refuses to remove a reaction from a post it cannot read', async () => {
+    const context = makeDeps({
+      getChannelPosts: async () => ({ posts: [] }),
+    });
+
+    const exitCode = await run(
+      ['unreact', 'chat/~host/channel', '170141184'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.calls.removeReaction).toHaveLength(0);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('no reaction was removed');
+  });
+
   it('passes --parent through for thread-reply reaction removal', async () => {
-    const context = makeDeps({ currentUserId: '~bus' });
+    const context = makeDeps({
+      currentUserId: '~bus',
+      threads: [topLevel('170.141', { replies: [replyTarget('170.142')] })],
+    });
     const exitCode = await run(
       ['unreact', 'chat/~host/channel', '170142', '--parent', '170141'],
       context.deps
@@ -1406,6 +1509,10 @@ describe('posts delete', () => {
     }
   });
 
+  const existingPost = async (): Promise<PostLookupResult> => ({
+    posts: [{ id: '170.141.184', sentAt: 1111 }],
+  });
+
   it('deletes a post with the formatted id and current user as author', async () => {
     const cases = [
       { rawPostId: '170.141.184', expectedPostId: '170.141.184' },
@@ -1414,7 +1521,10 @@ describe('posts delete', () => {
     ];
 
     for (const testCase of cases) {
-      const context = makeDeps({ currentUserId: '~nec' });
+      const context = makeDeps({
+        currentUserId: '~nec',
+        getChannelPosts: existingPost,
+      });
       const exitCode = await run(
         ['delete', 'chat/~host/channel', testCase.rawPostId, 'ignored'],
         context.deps
@@ -1425,6 +1535,7 @@ describe('posts delete', () => {
       expect(context.stderr()).toBe('');
       expect(context.calls.order).toEqual([
         'authenticate',
+        'getChannelPosts',
         'getCurrentUserId',
         'deletePost',
       ]);
@@ -1438,8 +1549,31 @@ describe('posts delete', () => {
     }
   });
 
+  it('refuses to delete a post it cannot read, rather than reporting success', async () => {
+    // The host acks a %del for an unknown id, so a wrong id (the sent-time id
+    // a sender computed, say) would otherwise print "deleted" over a post
+    // that is still up. Retried once, then refused with nothing deleted.
+    const context = makeDeps({
+      getChannelPosts: async () => ({ posts: [] }),
+    });
+
+    const exitCode = await run(
+      ['delete', 'chat/~host/channel', '170141184'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.calls.deletePost).toHaveLength(0);
+    expect(context.calls.getChannelPosts).toHaveLength(2);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('nothing was deleted');
+  });
+
   it('deletes a gallery post with the exact heap target input', async () => {
-    const context = makeDeps({ currentUserId: '~nec' });
+    const context = makeDeps({
+      currentUserId: '~nec',
+      getChannelPosts: existingPost,
+    });
     const exitCode = await run(
       ['delete', 'heap/~host/gallery', '170141184'],
       context.deps
@@ -1457,6 +1591,7 @@ describe('posts delete', () => {
 
   it('routes facade failures through the shared command-error path', async () => {
     const context = makeDeps({
+      getChannelPosts: existingPost,
       deletePost: async () => {
         throw commandError('delete failed');
       },
@@ -1677,6 +1812,29 @@ describe('posts edit', () => {
     });
   });
 
+  it('says an id with a group missing was mis-copied, not that the post is unreadable', async () => {
+    const context = makeDeps({
+      getChannelPosts: withExistingPost(null),
+    });
+
+    const exitCode = await run(
+      // WHOLE_POST_ID with its next-to-last group dropped
+      [
+        'edit',
+        'chat/~host/channel',
+        '170.141.184.508.234.811.553.575.128.700.846.432',
+        'Body',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.calls.editPost).toHaveLength(0);
+    expect(context.stderr()).toContain("isn't a whole post ID");
+    expect(context.stderr()).toContain('this one has 36');
+    expect(context.stderr()).not.toContain('may not be readable yet');
+  });
+
   it('refuses to edit a post it cannot read, rather than wiping it', async () => {
     // %edit submits the whole essay, so editing on a failed lookup silently
     // replaces authorship and metadata with nothing. Retried once, then refused.
@@ -1685,7 +1843,7 @@ describe('posts edit', () => {
     });
 
     const exitCode = await run(
-      ['edit', 'chat/~host/channel', '170.141.184', 'Body'],
+      ['edit', 'chat/~host/channel', WHOLE_POST_ID, 'Body'],
       context.deps
     );
 
@@ -1705,7 +1863,7 @@ describe('posts edit', () => {
     });
 
     const exitCode = await run(
-      ['edit', 'chat/~host/channel', '170.141.184', 'Body'],
+      ['edit', 'chat/~host/channel', WHOLE_POST_ID, 'Body'],
       context.deps
     );
 
@@ -1895,6 +2053,16 @@ function joined(order: string[], groupId = GROUP): ChannelState {
 
 function topLevel(id = X, over: Partial<ExistingThread> = {}): ExistingThread {
   return { id, authorId: '~host', replies: [], ...over };
+}
+
+// What `posts react` and `posts unreact` read before touching a post: the
+// target itself, so an id the channel does not hold is refused.
+const reactionTarget = async (): Promise<PostLookupResult> => ({
+  posts: [{ id: '170.141.184', sentAt: 1111 }],
+});
+
+function replyTarget(id: string): ExistingReply {
+  return { id, authorId: '~zod', sentAt: 1, contentKey: '[]' };
 }
 
 function deferred() {
@@ -2992,7 +3160,9 @@ describe('posts delete --parent (thread reply)', () => {
   });
 
   it('keeps delete without --parent on the top-level path', async () => {
-    const context = makeDeps();
+    const context = makeDeps({
+      getChannelPosts: async () => ({ posts: [{ id: R, sentAt: 1111 }] }),
+    });
 
     expect(await run(['delete', NEST, R], context.deps)).toBe(0);
     expect(context.stdout()).toBe('✓ Post deleted\n');
@@ -3112,6 +3282,7 @@ describe('posts notes nest refusal', () => {
 describe('posts unexpected errors', () => {
   it('leaves unexpected exceptions for the adapter formatter', async () => {
     const context = makeDeps({
+      getChannelPosts: reactionTarget,
       addReaction: async () => {
         throw new Error('unexpected reaction failure');
       },
@@ -5439,7 +5610,7 @@ describe('posts send attachments', () => {
 
   describe('--blob entry validation', () => {
     const KNOWN =
-      'Known types: file, voicememo, video, metadata, tlon-context-lens, tlon-agent-intro-request, tlon-agent-provision, tlon-agent-provider-config, tlon-agent-provision-ack, tlon-agent-post-marker, tlon-a2ui-selection, a2ui.';
+      'Known types: file, voicememo, video, metadata, tlon-context-lens, tlon-agent-intro-request, tlon-agent-provision, tlon-agent-provider-config, tlon-agent-provision-ack, tlon-agent-post-marker, tlon-a2ui-selection, a2ui, browser-session, browser-secure-entry.';
     const cases: Array<[string, string, string]> = [
       [
         'an unknown type',

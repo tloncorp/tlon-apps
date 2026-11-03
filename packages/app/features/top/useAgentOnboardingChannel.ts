@@ -1,35 +1,25 @@
-import { useFocusEffect } from '@react-navigation/native';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as api from '@tloncorp/api';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useEffect, useRef } from 'react';
-import { BackHandler } from 'react-native';
+import { useEffect } from 'react';
 
 import { useAgentGroupOnboardingLock } from '../../hooks/useAgentGroupOnboardingLock';
-import type { RootStackParamList } from '../../navigation/types';
 import { shouldAcknowledgeAgentOnboardingLanding } from './agentOnboardingLanding';
 
 const logger = createDevLogger('useAgentOnboardingChannel', false);
 
 /**
  * Everything ChannelScreen owes agent onboarding: acknowledge the durable
- * landing handoff, reconcile the bot's provision receipt onto the
- * navigation lock, and hold navigation captive (back gesture, hardware back)
- * while the lock is active.
+ * landing handoff and reconcile the bot's provision receipt onto the group's
+ * onboarding record.
  */
 export function useAgentOnboardingChannel({
-  navigation,
   channelId,
   currentChannelId,
   groupId,
   routeGroupId,
 }: {
-  navigation: NativeStackScreenProps<
-    RootStackParamList,
-    'Channel'
-  >['navigation'];
   /** Channel id from the route — the landing handoff's target. */
   channelId: string;
   /** Channel currently rendered (can lag the route during transitions). */
@@ -39,9 +29,6 @@ export function useAgentOnboardingChannel({
   /** Group id passed on the route, available before records load. */
   routeGroupId?: string;
 }) {
-  const navigationRef = useRef(navigation);
-  navigationRef.current = navigation;
-
   const onboardingLanding = db.agentOnboardingLanding.useValue();
   useEffect(() => {
     if (
@@ -62,9 +49,6 @@ export function useAgentOnboardingChannel({
 
   const agentOnboardingGroupId = routeGroupId ?? groupId;
   const agentOnboarding = useAgentGroupOnboardingLock(agentOnboardingGroupId);
-  const navigationLocked =
-    agentOnboarding.locked ||
-    Boolean(agentOnboardingGroupId && agentOnboarding.isLoading);
   const agentGroupAgents = db.agentGroupAgents.useValue();
   // A DM has no loaded group; the route carries it. Everything that keys
   // on the group — agent, acknowledgement, marker — uses the same id.
@@ -132,22 +116,5 @@ export function useAgentOnboardingChannel({
     latestChannelSequenceNum,
   ]);
 
-  useEffect(() => {
-    navigationRef.current.setOptions({
-      gestureEnabled: !navigationLocked,
-    });
-  }, [navigationLocked]);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (!navigationLocked) return;
-      const subscription = BackHandler.addEventListener(
-        'hardwareBackPress',
-        () => true
-      );
-      return () => subscription.remove();
-    }, [navigationLocked])
-  );
-
-  return { agentOnboarding, agentShipId, navigationLocked };
+  return { agentOnboarding, agentShipId };
 }

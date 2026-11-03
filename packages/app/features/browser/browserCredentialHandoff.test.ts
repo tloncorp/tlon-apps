@@ -174,6 +174,61 @@ describe('secure browser form transport', () => {
     });
   });
 
+  it.each([true, false])(
+    'requests early save acknowledgement only when advertised (%s)',
+    async (supported) => {
+      const request = vi
+        .fn()
+        .mockResolvedValueOnce(
+          response(
+            body({
+              vault: {
+                available: true,
+                planet: 'sampel-palnet',
+                moon: 'pinser-botter-sampel-palnet',
+                ...(supported ? { saveBeforeFill: true } : {}),
+              },
+            })
+          )
+        )
+        .mockResolvedValueOnce(
+          response(
+            {
+              ok: true,
+              submitted: false,
+              saveStatus: 'saved',
+              ...(supported ? { fillStatus: 'pending' } : {}),
+            },
+            supported ? 202 : 200
+          )
+        );
+      vi.stubGlobal('fetch', request);
+      const target = await beginBrowserCredentialHandoff(viewer);
+      const result = await submitBrowserCredentials(target, {
+        values: { f0: 'secret' },
+        grant: 'owner-grant',
+        save: { permission: 'ask' },
+      });
+      expect(JSON.parse(request.mock.calls[1][1].body).respondAfterSave).toBe(
+        supported ? true : undefined
+      );
+      expect(result.saveStatus).toBe('saved');
+      expect(result.fillStatus).toBe(supported ? 'pending' : undefined);
+    }
+  );
+
+  it('does not dismiss for a pending fill without a confirmed save', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(response({ ok: true, fillStatus: 'pending' }, 202))
+    );
+    await expect(
+      submitBrowserCredentials(handoff(), { values: { f0: 'secret' } })
+    ).rejects.toThrow('login was saved');
+  });
+
   it.each([{}, { ok: false }, { ok: 'true' }])(
     'requires an explicit acknowledgement: %j',
     async (result) => {

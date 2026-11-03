@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'bun:test';
+import { da, render } from '@urbit/aura';
 
 import {
   type RenderablePost,
+  type WritePostListOptions,
+  TARGET_ABSENT_NOTICE,
   renderPostBody,
   writePostBody,
+  writePostList,
 } from './post-render';
 
 const POST_ID = '170.141.184.507.799.231.400.135.497.023.488.000.000';
@@ -465,6 +469,178 @@ describe('writePostBody', () => {
       '📎 [root.pdf] (application/pdf, 1KB)',
       '   https://cdn.example/root.pdf',
       '  a reply',
+    ]);
+  });
+});
+describe('writePostList', () => {
+  const LIMIT_WARNING =
+    '⚠ receipt order ≠ sent order in this window: messages sent within this span may be missing — increase --limit to verify.';
+  const SPAN_WARNING =
+    '⚠ receipt order ≠ sent order in this span (late-delivered messages are marked with "received" where receipt times are available).';
+  const LAG_WARNING =
+    '⚠ sent and received times diverge materially in this window: messages sent within this span may fall outside it — increase --limit to verify.';
+  const GAP_NOTE =
+    "⚠ 1 sequence number(s) in this window's range have no record — moderation-blocked or deleted posts, or records the ship did not return.";
+
+  const unixMsToUd = (unixMs: number): string =>
+    render('ud', da.fromUnix(unixMs));
+
+  const T0 = 1_750_000_000_000;
+  const HOUR = 60 * 60 * 1000;
+
+  const windowPost = (
+    id: string,
+    seq: number,
+    sentAt: number,
+    receivedAt: number
+  ) =>
+    ({
+      id,
+      authorId: '~zod',
+      sentAt,
+      sequenceNum: seq,
+      backendTime: unixMsToUd(receivedAt),
+      parentId: null,
+      blob: null,
+      content: JSON.stringify([{ inline: [id] }]),
+    }) as never;
+
+  /** Probe (prompt, receipt-oldest) + three writs delivered ~10h late. */
+  const skewedPage = () => [
+    windowPost('probe-10', 10, T0, T0 + 400),
+    windowPost('late-11', 11, T0 - 12 * HOUR, T0 + 600_000),
+    windowPost('late-12', 12, T0 - 11 * HOUR, T0 + 600_100),
+    windowPost('late-13', 13, T0 - 10 * HOUR, T0 + 600_200),
+  ];
+
+  const cleanPage = () => [
+    windowPost('writ-1', 1, T0, T0 + 200),
+    windowPost('writ-2', 2, T0 + 60_000, T0 + 60_300),
+  ];
+
+  /** Internally ordered, but every writ delivered ~10h after it was sent. */
+  const laggedPage = () => [
+    windowPost('lag-1', 1, T0 - 10 * HOUR, T0),
+    windowPost('lag-2', 2, T0 - 10 * HOUR + 60_000, T0 + 60_000),
+  ];
+
+  /** Clean order with sequence number 2 missing from the window's range. */
+  const gappedPage = () => [
+    windowPost('gap-1', 1, T0, T0 + 200),
+    windowPost('gap-3', 3, T0 + 60_000, T0 + 60_300),
+  ];
+
+  async function run(
+    posts: ReturnType<typeof cleanPage>,
+    options: Omit<WritePostListOptions, 'write'> = {}
+  ): Promise<string[]> {
+    const written: string[] = [];
+    await writePostList(posts, {
+      write: (line) => written.push(line),
+      ...options,
+    });
+    return written;
+  }
+
+  const idLines = (written: string[]) =>
+    written.filter((line) => line.startsWith('  ID: '));
+
+  it('leads with the warning and marks divergent posts in place', async () => {
+    const written = await run(skewedPage(), {
+      window: { truncated: true },
+      displayLimit: 3,
+    });
+
+    expect(written[0]).toBe(LIMIT_WARNING);
+    expect(written[1]).toBe('');
+    // Receipt (seq) order, probe trimmed from display.
+    expect(idLines(written)).toEqual([
+      '  ID: late-11',
+      '  ID: late-12',
+      '  ID: late-13',
+    ]);
+    // The (received ...) line sits between the author line and the ID line.
+    const authorIdx = written.findIndex((line) => line.startsWith('- ~zod @ '));
+    expect(written[authorIdx + 1]).toStartWith('  (received ');
+    expect(written[authorIdx + 2]).toBe('  ID: late-11');
+    // The post body still renders through `renderPostBody`, indented.
+    expect(written[authorIdx + 3]).toBe('  late-11');
+  });
+
+  it('warns without the limit advice when the window is complete', async () => {
+    const written = await run(skewedPage(), { window: { truncated: false } });
+
+    expect(written[0]).toBe(SPAN_WARNING);
+    expect(idLines(written)).toEqual([
+      '  ID: probe-10',
+      '  ID: late-11',
+      '  ID: late-12',
+      '  ID: late-13',
+    ]);
+  });
+
+  it('warns on material lag alone when a truncated window looks ordered', async () => {
+    const written = await run(laggedPage(), { window: { truncated: true } });
+
+    expect(written[0]).toBe(LAG_WARNING);
+    expect(idLines(written)).toEqual(['  ID: lag-1', '  ID: lag-2']);
+  });
+
+  it('notes sequence numbers the window never returned', async () => {
+    const written = await run(gappedPage(), { window: { truncated: false } });
+
+    expect(written[0]).toBe(GAP_NOTE);
+    expect(written[1]).toBe('');
+    expect(idLines(written)).toEqual(['  ID: gap-1', '  ID: gap-3']);
+  });
+
+  it('stays quiet on a clean window and keeps sent order', async () => {
+    const written = await run(cleanPage(), { window: { truncated: false } });
+
+    expect(written.some((line) => line.startsWith('⚠'))).toBe(false);
+    expect(written.some((line) => line.includes('(received '))).toBe(false);
+    expect(idLines(written)).toEqual(['  ID: writ-1', '  ID: writ-2']);
+  });
+
+  it('reports a target the window does not contain', async () => {
+    const written = await run(cleanPage(), {
+      window: { truncated: true },
+      highlightId: 'not-here',
+    });
+
+    expect(written[0]).toBe(TARGET_ABSENT_NOTICE);
+    expect(written[1]).toBe('');
+    expect(idLines(written)).toEqual(['  ID: writ-1', '  ID: writ-2']);
+
+    // Present targets are marked instead, with no notice.
+    const found = await run(cleanPage(), {
+      window: { truncated: true },
+      highlightId: 'writ-2',
+    });
+    expect(found).not.toContain(TARGET_ABSENT_NOTICE);
+    expect(found.some((line) => line.endsWith(' ◀ TARGET'))).toBe(true);
+  });
+
+  it('reports an absent target on an empty page too', async () => {
+    expect(await run([], { highlightId: 'not-here' })).toEqual([
+      TARGET_ABSENT_NOTICE,
+      '',
+      'No messages found.',
+    ]);
+    expect(await run([])).toEqual(['No messages found.']);
+  });
+
+  it('falls back to sent order without a window context', async () => {
+    // Search results and a post's replies: no receipt-order analysis, so no
+    // warning and no probe trimming even on an oversized page.
+    const written = await run(skewedPage(), { displayLimit: 3 });
+
+    expect(written.some((line) => line.startsWith('⚠'))).toBe(false);
+    expect(idLines(written)).toEqual([
+      '  ID: late-11',
+      '  ID: late-12',
+      '  ID: late-13',
+      '  ID: probe-10',
     ]);
   });
 });

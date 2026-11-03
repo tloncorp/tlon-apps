@@ -1,3 +1,5 @@
+import { credentialFlagUsage } from '../credential-flags';
+
 export type CommandWriter = (text: string) => void;
 
 export interface CommandDeps {
@@ -41,6 +43,26 @@ export function usageError(messageOrHelp: string, help?: string): UsageError {
     return new UsageError(null, messageOrHelp);
   }
   return new UsageError(messageOrHelp, help);
+}
+
+/**
+ * An unknown option in `command` (`activity mentions`). A credential flag
+ * there was meant for the global prefix: say so, naming only the flag since
+ * an inline value may be a secret.
+ */
+export function unknownOptionError(
+  arg: string,
+  help: string,
+  command: string
+): UsageError {
+  const credential = credentialFlagUsage(arg);
+  if (credential) {
+    return usageError(
+      `Unknown option: ${credential.flag}. Credential flags go before the command: tlon ${credential.usage} ${command}`,
+      help
+    );
+  }
+  return usageError(`Unknown option: ${arg}`, help);
 }
 
 export function isHelpArg(arg: string | undefined): boolean {
