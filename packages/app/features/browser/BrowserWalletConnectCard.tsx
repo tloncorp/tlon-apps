@@ -1,7 +1,7 @@
 import type { WalletView } from '@tloncorp/api/client/browserWallet';
 import { Button, Icon, Text } from '@tloncorp/ui';
 import { useEffect, useState } from 'react';
-import { YStack } from 'tamagui';
+import { XStack, YStack } from 'tamagui';
 
 import { useMcpConnections } from '../settings/useMcpConnections';
 import { walletFinished } from './browserPaymentPresentation';
@@ -82,14 +82,25 @@ export function BrowserWalletConnectContent({
       backgroundColor="$background"
       overflow="hidden"
     >
-      <YStack padding="$l" gap="$m" alignItems="center">
-        <Icon type="Lock" />
-        <Text size="$label/l">
+      <YStack padding="$xl" gap="$m" alignItems="center">
+        <YStack
+          width={48}
+          height={48}
+          alignItems="center"
+          justifyContent="center"
+          borderRadius="$m"
+          borderWidth={1}
+          borderColor="$border"
+          backgroundColor="$secondaryBackground"
+        >
+          <Icon type="Lock" size="$l" />
+        </YStack>
+        <Text size="$label/xl" textAlign="center">
           {view.status === 'connected'
             ? 'Wallet connected'
             : 'Give Tlonbot a wallet'}
         </Text>
-        <Text color="$secondaryText">
+        <Text size="$label/m" color="$secondaryText" textAlign="center">
           {view.status === 'connected'
             ? 'Your Tlonbot can continue. Each payment needs your approval.'
             : ended
@@ -97,12 +108,21 @@ export function BrowserWalletConnectContent({
               : 'Add a payment method and Tlonbot can complete checkouts for you.'}
         </Text>
         {!ended ? (
-          <>
-            <Text>Nothing is charged until you approve a payment request.</Text>
-            <Text>
-              Your card details stay with Stripe and are never visible in Tlon.
-            </Text>
-          </>
+          <YStack alignSelf="stretch" gap="$m" paddingTop="$s">
+            <XStack gap="$m" alignItems="flex-start">
+              <Icon type="Checkmark" size="$m" color="$secondaryText" />
+              <Text flex={1} size="$label/m">
+                Nothing is charged until you approve a payment request.
+              </Text>
+            </XStack>
+            <XStack gap="$m" alignItems="flex-start">
+              <Icon type="Checkmark" size="$m" color="$secondaryText" />
+              <Text flex={1} size="$label/m">
+                Your card details stay with Stripe and are never visible in
+                Tlon.
+              </Text>
+            </XStack>
+          </YStack>
         ) : null}
         {error ? <Text color="$negativeActionText">{error}</Text> : null}
         {walletError ? (
@@ -113,11 +133,12 @@ export function BrowserWalletConnectContent({
         ) : null}
       </YStack>
       {!ended ? (
-        <YStack borderTopWidth={1} borderColor="$border" padding="$l">
+        <YStack borderTopWidth={1} borderColor="$border" padding="$xl">
           <Button
             fill="solid"
             intent="primary"
             label={busy ? 'Opening Stripe Link…' : 'Connect Stripe Link'}
+            leadingIcon="Link"
             disabled={busy}
             onPress={onConnect}
           />

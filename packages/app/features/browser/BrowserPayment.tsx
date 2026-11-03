@@ -20,11 +20,14 @@ function PaymentHeader({ view }: { view: WalletView }) {
       <YStack
         backgroundColor="$secondaryBackground"
         borderRadius="$m"
-        padding="$m"
+        width={36}
+        height={36}
+        alignItems="center"
+        justifyContent="center"
       >
-        <Icon type="Lock" customSize={['$l', '$l']} />
+        <Icon type="Lock" size="$m" />
       </YStack>
-      <YStack flex={1} gap="$xs">
+      <YStack flex={1} minWidth={0} gap="$xs">
         <Text size="$label/l">
           {view.kind === 'connect' ? 'Wallet connection' : 'Payment Request'}
         </Text>
@@ -89,7 +92,13 @@ function AmountRow({
   );
 }
 
-function PaymentTotals({ view }: { view: WalletView }) {
+function PaymentTotals({
+  view,
+  showTotal = true,
+}: {
+  view: WalletView;
+  showTotal?: boolean;
+}) {
   const purchase = view.purchase;
   if (!purchase) return null;
   const { order, currency } = purchase;
@@ -128,14 +137,16 @@ function PaymentTotals({ view }: { view: WalletView }) {
           ) : null}
         </>
       ) : null}
-      <YStack borderTopWidth={1} borderColor="$border" paddingTop="$m">
-        <AmountRow
-          label="Total"
-          amount={purchase.amount}
-          currency={currency}
-          total
-        />
-      </YStack>
+      {showTotal ? (
+        <YStack borderTopWidth={1} borderColor="$border" paddingTop="$m">
+          <AmountRow
+            label="Total"
+            amount={purchase.amount}
+            currency={currency}
+            total
+          />
+        </YStack>
+      ) : null}
     </YStack>
   );
 }
@@ -170,44 +181,50 @@ export function BrowserPaymentCard({
       backgroundColor="$background"
       overflow="hidden"
     >
-      <YStack padding="$l" gap="$l">
+      <YStack padding="$xl" gap="$m">
         <PaymentHeader view={view} />
-        {view.saved_payment ? <SavedPaymentSummary view={view} /> : null}
         {purchase ? (
           <Text size="$title/l">
             {displayPaymentAmount(purchase.amount, purchase.currency)}
           </Text>
         ) : null}
-        {order ? (
-          <YStack gap="$s">
-            <Text size="$label/m" color="$secondaryText">
-              {count} {count === 1 ? 'item' : 'items'}
-            </Text>
-            <Text size="$label/m" color="$secondaryText" numberOfLines={2}>
-              {order.items
-                .map(
-                  (item) =>
-                    item.name + (item.quantity > 1 ? ` ×${item.quantity}` : '')
-                )
-                .join(', ')}
-            </Text>
-          </YStack>
-        ) : purchase ? (
-          <Text color="$secondaryText" numberOfLines={3}>
-            {purchase.description}
-          </Text>
-        ) : null}
-        {order ? <PaymentTotals view={view} /> : null}
+        {view.saved_payment ? <SavedPaymentSummary view={view} /> : null}
       </YStack>
+      {purchase ? (
+        <YStack borderTopWidth={1} borderColor="$border" padding="$xl" gap="$m">
+          {order ? (
+            <YStack gap="$s">
+              <Text size="$label/m" color="$secondaryText">
+                {count} {count === 1 ? 'item' : 'items'}
+              </Text>
+              <Text size="$label/m" color="$secondaryText" numberOfLines={2}>
+                {order.items
+                  .map(
+                    (item) =>
+                      item.name +
+                      (item.quantity > 1 ? ` ×${item.quantity}` : '')
+                  )
+                  .join(', ')}
+              </Text>
+            </YStack>
+          ) : (
+            <Text size="$label/m" color="$secondaryText" numberOfLines={3}>
+              {purchase.description}
+            </Text>
+          )}
+          {order ? <PaymentTotals view={view} showTotal={false} /> : null}
+        </YStack>
+      ) : null}
       <YStack borderTopWidth={1} borderColor="$border" padding="$m">
         <Button
           fill="text"
           intent="primary"
           label="View details"
+          trailingIcon="ChevronRight"
           onPress={onOpen}
         />
       </YStack>
-      <YStack borderTopWidth={1} borderColor="$border" padding="$l" gap="$m">
+      <YStack borderTopWidth={1} borderColor="$border" padding="$xl" gap="$m">
         {!walletFinished.has(view.status) ? (
           <>
             <Button
@@ -216,6 +233,7 @@ export function BrowserPaymentCard({
               label={
                 view.kind === 'connect' ? 'Connect Link' : 'Review payment'
               }
+              leadingIcon="Lock"
               onPress={canOpenLink && onOpenLink ? onOpenLink : onOpen}
             />
             <Text size="$label/s" color="$secondaryText">
@@ -259,12 +277,14 @@ function BrowserPaymentDetails({
       {view.saved_payment ? <SavedPaymentSummary view={view} /> : null}
       {purchase ? (
         <>
-          <Text size="$title/l">
-            {displayPaymentAmount(purchase.amount, purchase.currency)}
-          </Text>
-          <Text size="$label/m" color="$secondaryText">
-            {new URL(purchase.page_url).hostname}
-          </Text>
+          <YStack gap="$xs">
+            <Text size="$title/l">
+              {displayPaymentAmount(purchase.amount, purchase.currency)}
+            </Text>
+            <Text size="$label/m" color="$secondaryText">
+              {new URL(purchase.page_url).hostname}
+            </Text>
+          </YStack>
           {purchase.order ? (
             <>
               <YStack borderTopWidth={1} borderColor="$border">
@@ -312,7 +332,9 @@ function BrowserPaymentDetails({
           )}
         </>
       ) : null}
-      <Text color="$secondaryText">{paymentStatusCopy(view).description}</Text>
+      <Text size="$label/m" color="$secondaryText">
+        {paymentStatusCopy(view).description}
+      </Text>
     </YStack>
   );
 }
@@ -430,6 +452,7 @@ export function BrowserPaymentSheet({
 }: BrowserPaymentContentProps & { open: boolean; onClose(): void }) {
   const { height } = useWindowDimensions();
   const detailsHeight = height * 0.75;
+  const isWeb = Platform.OS === 'web';
   const PaymentScroll =
     Platform.OS === 'web' ? ScrollView : BottomSheetScrollView;
   return (
@@ -443,17 +466,21 @@ export function BrowserPaymentSheet({
       snapPoints={[85]}
       snapPointsMode="percent"
       dialogScrollEnabled={false}
-      dialogContentProps={{ maxWidth: 560, height: detailsHeight }}
+      dialogContentProps={{ maxWidth: 520, maxHeight: detailsHeight }}
     >
-      <YStack height={detailsHeight} flexShrink={1}>
+      <YStack
+        height={isWeb ? undefined : detailsHeight}
+        maxHeight={detailsHeight}
+        flexShrink={1}
+      >
         <ActionSheet.SimpleHeader title="Payment details" />
-        <PaymentScroll style={{ flex: 1 }}>
-          <YStack padding="$l">
+        <PaymentScroll style={isWeb ? { flexShrink: 1 } : { flex: 1 }}>
+          <YStack padding="$xl">
             <BrowserPaymentDetails view={props.view} error={props.error} />
           </YStack>
         </PaymentScroll>
         <YStack
-          padding="$l"
+          padding="$xl"
           borderTopWidth={1}
           borderColor="$border"
           backgroundColor="$background"

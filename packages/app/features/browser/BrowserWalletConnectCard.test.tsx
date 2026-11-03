@@ -15,7 +15,7 @@ vi.mock('@tloncorp/ui', () => ({
   Icon: 'Icon',
   Text: 'Text',
 }));
-vi.mock('tamagui', () => ({ YStack: 'YStack' }));
+vi.mock('tamagui', () => ({ XStack: 'XStack', YStack: 'YStack' }));
 vi.mock('../settings/useMcpConnections', () => ({
   useMcpConnections: ({ onEvent }: { onEvent: typeof mocks.onEvent }) => {
     mocks.onEvent = onEvent;
