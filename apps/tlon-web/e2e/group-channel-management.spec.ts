@@ -161,29 +161,31 @@ test('should handle channel management operations', async ({ zodPage }) => {
   await page.getByText('Sort', { exact: true }).click();
   await page.waitForTimeout(500);
 
-  // Verify both sections visible with correct indices
-  // "Sectionless" is the default section name
-  await expect(page.getByTestId('SectionDragHandle-Sectionless-0')).toBeVisible(
+  // Verify both sections visible with correct indices. The backend puts a
+  // new section first; "Sectionless" is the default section's name.
+  await expect(
+    page.getByTestId('SectionDragHandle-Testing section-0')
+  ).toBeVisible({ timeout: 10000 });
+  await expect(page.getByTestId('SectionDragHandle-Sectionless-1')).toBeVisible(
     { timeout: 10000 }
   );
-  await expect(
-    page.getByTestId('SectionDragHandle-Testing section-1')
-  ).toBeVisible({ timeout: 10000 });
 
-  // Drag "Testing section" above "Sectionless"
+  // Drag "Testing section" below the last channel. Channels belong to the
+  // section named above them, so this moves the section without moving any
+  // channels out of "Sectionless".
   const testingSectionHandle = page.getByTestId(
-    'SectionDragHandle-Testing section-1'
+    'SectionDragHandle-Testing section-0'
   );
-  const sectionlessHandle = page.getByTestId('SectionDragHandle-Sectionless-0');
+  const lastChannelHandle = page.getByTestId('ChannelDragHandle-General-1');
 
   const testingBox = await testingSectionHandle.boundingBox();
-  const sectionlessBox = await sectionlessHandle.boundingBox();
+  const lastChannelBox = await lastChannelHandle.boundingBox();
 
-  if (testingBox && sectionlessBox) {
+  if (testingBox && lastChannelBox) {
     const startX = testingBox.x + testingBox.width / 2;
     const startY = testingBox.y + testingBox.height / 2;
-    const endX = sectionlessBox.x + sectionlessBox.width / 2;
-    const endY = sectionlessBox.y - 20; // Drop above Sectionless
+    const endX = lastChannelBox.x + lastChannelBox.width / 2;
+    const endY = lastChannelBox.y + lastChannelBox.height + 20; // Drop below General
 
     await page.mouse.move(startX, startY);
     await page.mouse.down();
@@ -196,18 +198,17 @@ test('should handle channel management operations', async ({ zodPage }) => {
   await page.waitForTimeout(1000);
 
   // Verify sections reordered
-  await expect(
-    page.getByTestId('SectionDragHandle-Testing section-0')
-  ).toBeVisible({ timeout: 10000 });
-  await expect(page.getByTestId('SectionDragHandle-Sectionless-1')).toBeVisible(
+  await expect(page.getByTestId('SectionDragHandle-Sectionless-0')).toBeVisible(
     { timeout: 10000 }
   );
+  await expect(
+    page.getByTestId('SectionDragHandle-Testing section-1')
+  ).toBeVisible({ timeout: 10000 });
 
   // Exit sort mode
   await page.getByText('Done', { exact: true }).click();
 
   // Test section name editing
-  // After reordering, "Testing section" is at position 0
   await page
     .getByTestId('NavSection-Testing section')
     .getByTestId('SectionMenuButton')

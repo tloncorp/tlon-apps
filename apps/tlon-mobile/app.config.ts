@@ -43,6 +43,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     notifyService: process.env.NOTIFY_SERVICE,
     inviteProvider: process.env.INVITE_PROVIDER,
     apiUrl: process.env.API_URL,
+    kernelServiceOrigin: process.env.KERNEL_SERVICE_ORIGIN,
     apiAuthUsername: process.env.API_AUTH_USERNAME,
     apiAuthPassword: process.env.API_AUTH_PASSWORD,
     shipUrlPattern: process.env.SHIP_URL_PATTERN,

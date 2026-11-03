@@ -1,6 +1,5 @@
 import { Button, Text } from '@tloncorp/ui';
 import { useState } from 'react';
-import { Platform } from 'react-native';
 import { YStack } from 'tamagui';
 
 import { BrowserViewerModal } from '../features/browser/BrowserViewerModal';
@@ -11,15 +10,8 @@ export default function BrowserViewerFixture() {
   return (
     <FixtureWrapper fillWidth fillHeight>
       <YStack padding="$xl" gap="$l">
-        {Platform.OS === 'web' ? (
-          <Text>The in-app viewer is available on iOS and Android.</Text>
-        ) : null}
         <Text>Browser handoff</Text>
-        <Button
-          label="Open live browser"
-          disabled={Platform.OS === 'web'}
-          onPress={() => setOpen(true)}
-        />
+        <Button label="Open live browser" onPress={() => setOpen(true)} />
       </YStack>
       {open ? (
         <BrowserViewerModal

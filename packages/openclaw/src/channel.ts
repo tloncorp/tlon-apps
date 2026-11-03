@@ -359,7 +359,7 @@ export const tlonPlugin = createChatChannelPlugin({
           '',
           "Mentions: ~ship mentions a person; @role-id (the id shown when reading, e.g. @admin) mentions a group role and @all every member; DMs support @all only. An @word that is not a role of the channel's group is sent as plain text. Mentions notify only in plain text (not inside bold, quotes or headings). Use @all only when asked.",
           '',
-          'When you act in another channel (a note, a post, a new group or channel, a cron job that posts elsewhere), include the returned Ref: path in your reply here. A bare reference path on its own line renders as a card; do not wrap it in a link or bold. The messageId a send returns is not the post ID — read the ID back before referencing a post: `tlon messages channel <nest>` for /1/chan/<nest>/msg/<id>, or `tlon messages post <nest> <parent>` for a thread reply at /1/chan/<nest>/msg/<parent>/<id>.'
+          'When you act in another channel (a note, a post, a new group or channel, a cron job that posts elsewhere), include the returned Ref: path in your reply here. A bare reference path on its own line renders as a card; do not wrap it in a link or bold. The messageId a channel send returns is the post ID (the part after the slash); if an edit, delete or reference with it reports the post unreadable, read the ID back: `tlon messages channel <nest>` for /1/chan/<nest>/msg/<id>, or `tlon messages post <nest> <parent>` for a thread reply at /1/chan/<nest>/msg/<parent>/<id>.'
         );
 
         const level = account.reactionLevel ?? 'minimal';

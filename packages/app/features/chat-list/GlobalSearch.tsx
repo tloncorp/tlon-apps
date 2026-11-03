@@ -17,13 +17,11 @@ import { FilteredChatList, FilteredChatListRef } from './FilteredChatList';
 export interface GlobalSearchProps {
   navigateToGroup: (id: string) => void;
   navigateToChannel: (channel: db.Channel) => void;
-  disabled?: boolean;
 }
 
 export function GlobalSearch({
   navigateToGroup,
   navigateToChannel,
-  disabled = false,
 }: GlobalSearchProps) {
   const { isOpen, setIsOpen } = useGlobalSearch();
   const [searchQuery, setSearchQuery] = useState('');
@@ -32,10 +30,6 @@ export function GlobalSearch({
 
   const onPressItem = useCallback(
     async (item: db.Chat) => {
-      if (disabled) {
-        setIsOpen(false);
-        return;
-      }
       trackEvent(AnalyticsEvent.GlobalSearchResultSelected, {
         type: item.type === 'group' ? 'group' : item.channel.type,
       });
@@ -46,7 +40,7 @@ export function GlobalSearch({
       }
       setIsOpen(false);
     },
-    [disabled, navigateToGroup, navigateToChannel, setIsOpen]
+    [navigateToGroup, navigateToChannel, setIsOpen]
   );
 
   const handleNavigationKey = useCallback(
@@ -95,7 +89,7 @@ export function GlobalSearch({
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
-        setIsOpen(disabled ? false : !isOpen);
+        setIsOpen(!isOpen);
       } else if (event.key === 'Escape') {
         event.preventDefault();
         setIsOpen(false);
@@ -114,11 +108,7 @@ export function GlobalSearch({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [disabled, isOpen, handleNavigationKey, setIsOpen]);
-
-  useEffect(() => {
-    if (disabled && isOpen) setIsOpen(false);
-  }, [disabled, isOpen, setIsOpen]);
+  }, [isOpen, handleNavigationKey, setIsOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -128,7 +118,7 @@ export function GlobalSearch({
     }
   }, [isOpen]);
 
-  if (disabled || !isOpen) return null;
+  if (!isOpen) return null;
 
   return (
     <>

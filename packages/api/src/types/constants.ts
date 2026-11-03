@@ -7,6 +7,7 @@ interface Constants {
   NOTIFY_SERVICE: string;
   POST_HOG_API_KEY: string;
   API_URL: string;
+  KERNEL_SERVICE_ORIGIN?: string;
   API_AUTH_USERNAME: string | undefined;
   API_AUTH_PASSWORD: string | undefined;
   RECAPTCHA_SITE_KEY: string;

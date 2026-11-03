@@ -37,6 +37,11 @@ await saveCronStore(storePath, {
     job('repeat', { kind: 'every', everyMs: 60_000 }),
     job('manual', { kind: 'every', everyMs: 60_000 }, false),
     job('once', { kind: 'at', at: new Date(past).toISOString() }),
+    {
+      ...job('skill-review', { kind: 'every', everyMs: 60_000 }),
+      declarationKey: 'skill-collection-review:main',
+      description: '[Paused: credit budget] Retain me',
+    },
   ],
 });
 const run = () =>
@@ -49,8 +54,10 @@ run();
 let store = await loadCronStore(storePath);
 assert.deepEqual(
   store.jobs.map((j) => j.enabled),
-  [false, false, true]
+  [false, false, true, true]
 );
+assert.equal(store.jobs[3].description, 'Retain me');
+assert.ok(store.jobs[3].updatedAtMs > past);
 assert.equal(store.jobs[0].state.nextRunAtMs, undefined);
 assert.equal(store.jobs[2].state.nextRunAtMs, past);
 assert.equal(store.jobs[0].description, '[Paused: credit budget] Retain me');
@@ -81,5 +88,5 @@ assert.equal(
   'release must wait for live scheduling API'
 );
 console.log(
-  'bootstrap smoke passed (due recurring task held, manual pause and one-shot preserved, restart idempotent)'
+  'bootstrap smoke passed (due recurring task held, manual pause and one-shot preserved, system job unlabelled and not held, restart idempotent)'
 );

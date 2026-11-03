@@ -1,42 +1,30 @@
 import {
-  createContext,
   type PropsWithChildren,
   useCallback,
-  useContext,
   useMemo,
   useRef,
   useState,
 } from 'react';
-import { isWeb } from 'tamagui';
+
+import {
+  BrowserCredentialHandoffContext,
+  type Handoff,
+} from './BrowserCredentialHandoffContext';
+import { BrowserCredentialHandoffSheet } from './BrowserCredentialHandoffSheet';
+import type { BrowserCredentialHandoffParams } from '../../navigation/types';
 
 import { BrowserViewerModal } from './BrowserViewerModal';
 import { authorizeBrowserViewer } from './browserCredentialHandoff';
-import { openBrowserViewerWindow } from './browserViewerWindow';
-
-type Handoff = {
-  viewerUrl: string;
-};
-
-type BrowserCredentialHandoffContextValue = {
-  openViewer: (viewerUrl: string) => Promise<void>;
-  register: (handoff: Handoff) => string;
-  resolve: (id: string) => string | undefined;
-  discard: (id: string) => void;
-};
-
-const BrowserCredentialHandoffContext =
-  createContext<BrowserCredentialHandoffContextValue | null>(null);
 
 export function BrowserCredentialHandoffProvider({
   children,
 }: PropsWithChildren) {
-  const [viewerUrl, setViewerUrl] = useState<string>();
+  const [form, setForm] = useState<
+    BrowserCredentialHandoffParams & { open: boolean }
+  >();
+  const [viewer, setViewer] = useState<{ url: string; sourceUrl: string }>();
   const openViewer = useCallback(async (url: string) => {
-    if (isWeb) {
-      await openBrowserViewerWindow(url);
-    } else {
-      setViewerUrl(await authorizeBrowserViewer(url));
-    }
+    setViewer({ url: await authorizeBrowserViewer(url), sourceUrl: url });
   }, []);
   const handoffs = useRef(new Map<string, Handoff>());
   const sequence = useRef(0);
@@ -56,32 +44,57 @@ export function BrowserCredentialHandoffProvider({
     handoffs.current.delete(id);
   }, []);
 
+  const openForm = useCallback(
+    (
+      url: string,
+      loginApproval?: BrowserCredentialHandoffParams['loginApproval']
+    ) => {
+      setForm({
+        handoffId: register({ viewerUrl: url }),
+        loginApproval,
+        open: true,
+      });
+    },
+    [register]
+  );
+  const closeForm = useCallback(() => {
+    setForm((current) => (current ? { ...current, open: false } : current));
+  }, []);
+
   const value = useMemo(
-    () => ({ register, resolve, discard, openViewer }),
-    [discard, register, resolve, openViewer]
+    () => ({
+      register,
+      resolve,
+      discard,
+      openViewer,
+      openForm,
+      viewerOpen: Boolean(viewer),
+    }),
+    [discard, register, resolve, openViewer, openForm, viewer]
   );
 
   return (
     <BrowserCredentialHandoffContext.Provider value={value}>
       {children}
-      {viewerUrl ? (
+      {form ? (
+        <BrowserCredentialHandoffSheet
+          key={form.handoffId}
+          {...form}
+          onClose={closeForm}
+          onDismiss={() =>
+            setForm((current) =>
+              current?.handoffId === form.handoffId ? undefined : current
+            )
+          }
+        />
+      ) : null}
+      {viewer ? (
         <BrowserViewerModal
-          viewerUrl={viewerUrl}
-          onClose={() => setViewerUrl(undefined)}
+          viewerUrl={viewer.url}
+          sourceViewerUrl={viewer.sourceUrl}
+          onClose={() => setViewer(undefined)}
         />
       ) : null}
     </BrowserCredentialHandoffContext.Provider>
   );
-}
-
-export function useOptionalBrowserCredentialHandoff() {
-  return useContext(BrowserCredentialHandoffContext);
-}
-
-export function useBrowserCredentialHandoff() {
-  const value = useOptionalBrowserCredentialHandoff();
-  if (!value) {
-    throw new Error('Browser credential handoff provider is unavailable.');
-  }
-  return value;
 }

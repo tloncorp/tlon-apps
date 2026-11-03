@@ -24,7 +24,8 @@ export function createBrowserLoginApprovalHandler(
     sessionId: string,
     choice: { id: string; revision: number } | undefined,
     ctx: RunContext,
-    fields: FormFields
+    fields: FormFields | undefined,
+    formId?: string
   ) => Promise<unknown>
 ) {
   const runKey = (ctx: RunContext) =>
@@ -52,8 +53,12 @@ export function createBrowserLoginApprovalHandler(
     const args = record(argumentsValue);
     const sessionId = args.session_id;
     const fields = formFieldsSchema.safeParse(args.fields);
+    const formId =
+      typeof args.form_id === 'string' && /^[a-f0-9-]{36}$/.test(args.form_id)
+        ? args.form_id
+        : undefined;
     if (
-      !fields.success ||
+      (!fields.success && !formId) ||
       (args.action !== undefined && args.action !== 'use') ||
       typeof sessionId !== 'string' ||
       !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(sessionId)
@@ -74,7 +79,8 @@ export function createBrowserLoginApprovalHandler(
     const delivered =
       deliveries.get(key) ?? new Map<string, Promise<unknown>>();
     deliveries.set(key, delivered);
-    const existing = delivered.get(sessionId);
+    const deliveryKey = formId ? `${sessionId}:${formId}` : sessionId;
+    const existing = delivered.get(deliveryKey);
     if (existing) {
       await existing;
       return;
@@ -88,13 +94,20 @@ export function createBrowserLoginApprovalHandler(
         ? { id: requested.id, revision: requested.revision }
         : undefined;
     const promise = Promise.resolve().then(() =>
-      sendHandoff(sessionId, choice, ctx, fields.data)
+      formId
+        ? sendHandoff(sessionId, choice, ctx, undefined, formId)
+        : sendHandoff(
+            sessionId,
+            choice,
+            ctx,
+            fields.success ? fields.data : undefined
+          )
     );
-    delivered.set(sessionId, promise);
+    delivered.set(deliveryKey, promise);
     try {
       await promise;
     } catch (error) {
-      delivered.delete(sessionId);
+      delivered.delete(deliveryKey);
       throw error;
     }
   };

@@ -1,0 +1,176 @@
+name: PR triage
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review, edited, converted_to_draft, closed, labeled, unlabeled]
+  # Codex creates this status comment and EDITS it when review is complete.
+  issue_comment:
+    types: [created, edited, deleted]
+  workflow_run:
+    workflows: [PR triage review activity]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      pr_url:
+        description: 'Canonical URL: https://github.com/tloncorp/tlon-apps/pull/123'
+        required: true
+        type: string
+
+permissions: {}
+
+# Observer completions queue behind analysis; duplicate evidence is skipped by the gate.
+concurrency:
+  group: >-
+    pr-triage-${{
+      (github.event_name == 'workflow_dispatch' ||
+        (github.event_name == 'pull_request_target' &&
+         (!(github.event.action == 'labeled' || github.event.action == 'unlabeled') ||
+          github.event.label.name == 'review:human-required')) ||
+        (github.event_name == 'issue_comment' && github.event.issue.pull_request &&
+         github.event.comment.user.login == 'chatgpt-codex-connector[bot]' &&
+         github.event.sender.login == 'chatgpt-codex-connector[bot]') ||
+        (github.event_name == 'workflow_run' &&
+         github.event.workflow_run.actor.login == 'chatgpt-codex-connector[bot]' &&
+         github.event.workflow_run.triggering_actor.login == 'chatgpt-codex-connector[bot]' &&
+         github.event.workflow_run.head_repository.full_name == github.repository &&
+         github.event.workflow_run.pull_requests[0].number)) &&
+      (inputs.pr_url || format('https://github.com/{0}/pull/{1}', github.repository,
+        github.event.pull_request.number || github.event.issue.number ||
+        github.event.workflow_run.pull_requests[0].number)) || github.run_id }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_run' }}
+
+jobs:
+  gate:
+    name: PR triage gate
+    if: >-
+      github.repository == 'tloncorp/tlon-apps' &&
+      (github.event_name == 'workflow_dispatch' ||
+        (github.event_name == 'pull_request_target' &&
+         (!(github.event.action == 'labeled' || github.event.action == 'unlabeled') ||
+          github.event.label.name == 'review:human-required')) ||
+        (github.event_name == 'issue_comment' && github.event.issue.pull_request &&
+         github.event.comment.user.login == 'chatgpt-codex-connector[bot]' &&
+         github.event.sender.login == 'chatgpt-codex-connector[bot]') ||
+        (github.event_name == 'workflow_run' &&
+         github.event.workflow_run.actor.login == 'chatgpt-codex-connector[bot]' &&
+         github.event.workflow_run.triggering_actor.login == 'chatgpt-codex-connector[bot]' &&
+         github.event.workflow_run.head_repository.full_name == github.repository &&
+         github.event.workflow_run.pull_requests[0].number))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: write
+      actions: read
+      checks: read
+      statuses: read
+    outputs:
+      analyze: ${{ steps.gate.outputs.analyze }}
+      number: ${{ steps.gate.outputs.number }}
+      head: ${{ steps.gate.outputs.head }}
+      policy: ${{ steps.gate.outputs.policy }}
+    steps:
+      # Never check out PR-controlled code in a job with secrets/write access.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.22.0'
+      - id: gate
+        name: Validate event and invalidate previous automatic routing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/pr-triage/triage.mjs gate
+
+  assess:
+    name: PR triage assessment
+    needs: gate
+    if: needs.gate.outputs.analyze == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      checks: read
+      statuses: read
+    outputs:
+      expected: ${{ steps.collect.outputs.expected }}
+      report: ${{ steps.codex.outputs.final-message }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.gate.outputs.policy }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.22.0'
+      - name: Check inference configuration
+        env:
+          HAS_API_KEY: ${{ secrets.OPENROUTER_API_KEY != '' }}
+        run: |
+          if [ "$HAS_API_KEY" != true ]; then
+            echo "::error::Configure the OPENROUTER_API_KEY Actions secret."
+            exit 1
+          fi
+      - id: collect
+        name: Collect revision-pinned source, reviews and checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TRIAGE_PR: ${{ needs.gate.outputs.number }}
+          TRIAGE_HEAD: ${{ needs.gate.outputs.head }}
+          TRIAGE_DIR: ${{ runner.temp }}/pr-triage
+        run: node scripts/pr-triage/triage.mjs collect
+      # Codex is the final step. No write token is available in this job.
+      # The proxy receives the inference key; the agent reads a local snapshot.
+      - id: codex
+        name: Run the trusted PR triage skill
+        uses: openai/codex-action@bdf19a4a223ec2549a3e2274a0cf61556bc07675 # v1
+        with:
+          openai-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          responses-api-endpoint: https://openrouter.ai/api/v1/responses
+          model: ${{ vars.PR_TRIAGE_MODEL || 'openai/gpt-5.6-sol' }}
+          effort: high
+          codex-version: '0.163.0'
+          codex-home: ${{ runner.temp }}/pr-triage-codex
+          prompt-file: ${{ runner.temp }}/pr-triage/prompt.txt
+          output-schema-file: ${{ runner.temp }}/pr-triage/schema.json
+          sandbox: read-only
+          safety-strategy: drop-sudo
+          allow-bot-users: chatgpt-codex-connector[bot]
+          codex-args: '["--ephemeral", "-c", "web_search=\"disabled\""]'
+
+  publish:
+    name: PR triage publication
+    needs: [gate, assess]
+    if: ${{ !cancelled() && needs.gate.outputs.analyze == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      checks: read
+      statuses: read
+    steps:
+      # Fresh runner, trusted scripts. Model output is parsed strictly as data.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.gate.outputs.policy }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.22.0'
+      - name: Validate and publish the current assessment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TRIAGE_PR: ${{ needs.gate.outputs.number }}
+          TRIAGE_HEAD: ${{ needs.gate.outputs.head }}
+          TRIAGE_EXPECTED: ${{ needs.assess.outputs.expected }}
+          TRIAGE_REPORT: ${{ needs.assess.outputs.report }}
+          TRIAGE_RESULT: ${{ needs.assess.result }}
+        run: node scripts/pr-triage/triage.mjs publish
