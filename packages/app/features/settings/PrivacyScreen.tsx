@@ -187,7 +187,7 @@ export function PrivacySettingsScreen(props: Props) {
     return [
       toggleSection(
         'telemetry',
-        'Share Usage Statistics',
+        'Share usage statistics',
         !state.telemetryDisabled,
         toggleSetTelemetry,
         'By sharing, you help us improve the app for everyone.'
@@ -212,14 +212,14 @@ export function PrivacySettingsScreen(props: Props) {
       ),
       toggleSection(
         'nicknames',
-        'Hide Nicknames',
+        'Hide nicknames',
         state.disableNicknames,
         toggleDisableNicknames,
         'If enabled, real ship names will be displayed instead of nicknames.'
       ),
       toggleSection(
         'avatars',
-        'Hide Avatars',
+        'Hide avatars',
         state.disableAvatars,
         toggleDisableAvatars,
         'If enabled, avatar images will be hidden throughout the app.'
@@ -237,7 +237,7 @@ export function PrivacySettingsScreen(props: Props) {
 
   return (
     <SettingsListScreenView
-      title="Privacy Settings"
+      title="Privacy settings"
       sections={sections}
       onBackPressed={() => props.navigation.goBack()}
     />

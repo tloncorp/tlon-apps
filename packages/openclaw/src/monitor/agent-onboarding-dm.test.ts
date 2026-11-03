@@ -2,6 +2,10 @@ import { appendToPostBlob } from '@tloncorp/api';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  _testing as ownerToolPostsTesting,
+  sharedOwnerToolPostLedger,
+} from '../owner-tool-posts.js';
+import {
   findOnboardingRequestInChannel,
   isDmNest,
 } from './agent-onboarding.js';
@@ -76,6 +80,33 @@ describe('findOnboardingRequestInChannel', () => {
         withHistory([introEntry(WORKSPACE, '~bot', 1)])
       )
     ).resolves.toBeUndefined();
+  });
+
+  it("skips a request a bot of this process posted in the owner's name", async () => {
+    // Another account's tool DMed this bot as the owner (a DM to that
+    // account's own bot is refused). This bot's DM nest is the owner, its
+    // partner; the entry names this bot, the recipient.
+    const bot = '~pinser-botter-ten';
+    try {
+      sharedOwnerToolPostLedger().reserve({
+        kind: 'send',
+        accountId: 'other',
+        author: OWNER,
+        target: bot,
+        sentAt: 5,
+      });
+      await expect(
+        findOnboardingRequestInChannel(
+          { ...dmContext, channelNest: OWNER, botShip: bot },
+          withHistory([
+            introEntry('~ten/older', OWNER, 1),
+            introEntry('~ten/forged', OWNER, 5),
+          ])
+        )
+      ).resolves.toEqual({ groupId: '~ten/older', requestedAt: 1 });
+    } finally {
+      ownerToolPostsTesting.clear();
+    }
   });
 
   it('is undefined before furnishing has posted one', async () => {

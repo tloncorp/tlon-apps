@@ -605,3 +605,108 @@ describe('a2ui blob entries', () => {
     expect(A2UI.getRootComponentId(entry)).toBe('root');
   });
 });
+
+describe('a2ui rendering hints', () => {
+  function withHints(
+    textHints: Record<string, unknown>,
+    buttonHints: Record<string, unknown>
+  ) {
+    const entry = structuredClone(a2uiBlobEntry);
+    const components = A2UI.getUpdateMessage(entry)!.updateComponents
+      .components as unknown as Record<string, unknown>[];
+    Object.assign(
+      components.find((component) => component.id === 'title')!,
+      textHints
+    );
+    Object.assign(
+      components.find((component) => component.id === 'refreshButton')!,
+      buttonHints
+    );
+    return entry;
+  }
+  function component<T extends A2UI.Component['component']>(
+    entry: A2UI.BlobEntry,
+    id: string,
+    kind: T
+  ) {
+    const found = A2UI.getUpdateMessage(
+      entry
+    )!.updateComponents.components.find((candidate) => candidate.id === id);
+    if (!found || found.component !== kind) throw new Error(`missing ${id}`);
+    return found as Extract<A2UI.Component, { component: T }>;
+  }
+
+  test('accepts and reads valid hints', () => {
+    const entry = withHints(
+      {
+        role: 'kicker',
+        icon: 'AddPerson',
+        entity: { type: 'ship', id: '~sampel-palnet', name: 'Sam Palnet' },
+      },
+      {
+        tone: 'destructive',
+        resultLabel: 'You blocked Sam Palnet.',
+        statusLabel: 'Blocked',
+      }
+    );
+    expect(A2UI.validateBlobEntry(entry)).toBe(true);
+    expect(A2UI.getTextHints(component(entry, 'title', 'Text'))).toEqual({
+      role: 'kicker',
+      icon: 'AddPerson',
+      entity: { type: 'ship', id: '~sampel-palnet', name: 'Sam Palnet' },
+    });
+    expect(
+      A2UI.getButtonHints(component(entry, 'refreshButton', 'Button'))
+    ).toEqual({
+      tone: 'destructive',
+      resultLabel: 'You blocked Sam Palnet.',
+      statusLabel: 'Blocked',
+    });
+  });
+
+  test('drops unknown hint values without rejecting the card', () => {
+    const entry = withHints(
+      { role: 'banner', icon: 'Rocket', entity: { type: 'planet', id: '' } },
+      { tone: 'celebratory', resultLabel: '', statusLabel: 42 }
+    );
+    expect(A2UI.validateBlobEntry(entry)).toBe(true);
+    expect(A2UI.getTextHints(component(entry, 'title', 'Text'))).toEqual({
+      role: undefined,
+      icon: undefined,
+      entity: undefined,
+    });
+    expect(
+      A2UI.getButtonHints(component(entry, 'refreshButton', 'Button'))
+    ).toEqual({
+      tone: undefined,
+      resultLabel: undefined,
+      statusLabel: undefined,
+    });
+  });
+
+  test('counts result labels toward the text budget', () => {
+    const withLabels = (length: number) => {
+      const entry = withHints({}, { resultLabel: 'x'.repeat(length) });
+      const components = A2UI.getUpdateMessage(entry)!.updateComponents
+        .components as unknown as Record<string, unknown>[];
+      for (let index = 0; index < 8; index += 1) {
+        components.push({
+          id: `filler${index}`,
+          component: 'Button',
+          child: 'refreshLabel',
+          resultLabel: 'x'.repeat(length),
+          action: {
+            event: { name: 'tlon.sendMessage', context: { text: 'refresh' } },
+          },
+        });
+      }
+      (
+        components.find((component) => component.id === 'body')!
+          .children as string[]
+      ).push(...Array.from({ length: 8 }, (_, index) => `filler${index}`));
+      return entry;
+    };
+    expect(A2UI.validateBlobEntry(withLabels(10))).toBe(true);
+    expect(A2UI.validateBlobEntry(withLabels(1000))).toBe(false);
+  });
+});

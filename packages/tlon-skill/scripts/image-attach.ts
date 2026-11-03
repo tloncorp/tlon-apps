@@ -18,10 +18,12 @@ import type { StoryVerse } from './markdown';
 import {
   HTTPS_ONLY_ERROR,
   INVALID_MEDIA_ERROR,
-  LOCAL_MEDIA_ERROR,
+  type MediaProbe,
   USERINFO_ERROR,
   classifyMediaUrl,
   fetchGuardedMedia,
+  localMediaError,
+  probeGuardedMedia,
 } from './media-guard';
 
 /** Single wall-clock budget for the whole `--image` fetch, per the contract. */
@@ -153,15 +155,15 @@ function altFromUrl(url: string): string {
 }
 
 /**
- * Classify a `--image` value and return the canonical https URL to fetch and
- * post. Throws the contract's fixed error for every rejected shape; no network
- * call is made on any rejection path.
+ * Classify a media flag's value (`--image`, `--file`, `--video`) and return
+ * the canonical https URL to fetch and post. Throws the contract's fixed error
+ * for every rejected shape; no network call is made on any rejection path.
  */
-export function assertPostableImageUrl(raw: string): string {
+export function assertPostableMediaUrl(raw: string, flag: string): string {
   const classified = classifyMediaUrl(raw);
   switch (classified.kind) {
     case 'local':
-      throw commandError(LOCAL_MEDIA_ERROR);
+      throw commandError(localMediaError(flag));
     case 'http':
       throw commandError(HTTPS_ONLY_ERROR);
     case 'userinfo':
@@ -171,6 +173,31 @@ export function assertPostableImageUrl(raw: string): string {
     case 'https':
       return classified.canonical;
   }
+}
+
+/** `assertPostableMediaUrl` for `--image`. */
+export function assertPostableImageUrl(raw: string): string {
+  return assertPostableMediaUrl(raw, '--image');
+}
+
+/** Per-probe budget for a `--file`/`--video` HEAD (TLON-6877). */
+export const MEDIA_PROBE_DEADLINE_MS = 10_000;
+
+export const MEDIA_PROBE_OPTIONS = {
+  deadlineMs: MEDIA_PROBE_DEADLINE_MS,
+  maxRedirects: 3,
+  requireHttps: true,
+} as const;
+
+/**
+ * Headers-only probe of an attachment URL through the guard: a host-policy
+ * refusal throws the guard's fixed error; any other failure yields unknown
+ * metadata (`size: -1`).
+ */
+export function probeAttachmentMedia(
+  canonicalUrl: string
+): Promise<MediaProbe> {
+  return probeGuardedMedia(canonicalUrl, MEDIA_PROBE_OPTIONS);
 }
 
 export type ImageFetcher = (

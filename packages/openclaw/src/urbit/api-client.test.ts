@@ -153,6 +153,63 @@ describe('scoped API client', () => {
     );
   });
 
+  it('redacts a reflected session cookie from JSON request errors', async () => {
+    const body = JSON.stringify({
+      error: 'denied',
+      cookie: 'urbauth-~zod=0v1g.abcde',
+    });
+    authenticate.mockResolvedValue('urbauth-~zod=0v1g.abcde');
+    createHttpPokeApi.mockResolvedValue({
+      poke: vi.fn(),
+      delete: vi.fn().mockResolvedValue(undefined),
+    });
+    urbitFetch.mockResolvedValue({
+      response: {
+        ok: false,
+        status: 500,
+        text: vi.fn().mockResolvedValue(body),
+      },
+      release: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const { withAuthenticatedTlonApi } = await import('./api-client.js');
+    const error = (await withAuthenticatedTlonApi(
+      { url: 'http://ships:8080', code: 'test-code', ship: '~zod' },
+      () => requestJson('/notes', 'GET')
+    ).catch((caught: unknown) => caught)) as Error;
+
+    // requestJson rethrows the transport error's body as BadResponseError.
+    const surfaced = JSON.stringify({ message: error.message, ...error });
+    expect(surfaced).toContain('denied');
+    expect(surfaced).not.toContain('0v1g.abcde');
+  });
+
+  it('masks the bare request cookie value in JSON request errors', async () => {
+    authenticate.mockResolvedValue('urbauth-~zod=0v7.requestcookie; Path=/');
+    createHttpPokeApi.mockResolvedValue({
+      poke: vi.fn(),
+      delete: vi.fn().mockResolvedValue(undefined),
+    });
+    urbitFetch.mockResolvedValue({
+      response: {
+        ok: false,
+        status: 500,
+        text: vi.fn().mockResolvedValue('session 0v7.requestcookie rejected'),
+      },
+      release: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const { withAuthenticatedTlonApi } = await import('./api-client.js');
+    const error = (await withAuthenticatedTlonApi(
+      { url: 'http://ships:8080', code: 'test-code', ship: '~zod' },
+      () => requestJson('/notes', 'GET')
+    ).catch((caught: unknown) => caught)) as Error;
+
+    const surfaced = JSON.stringify({ message: error.message, ...error });
+    expect(surfaced).toContain('rejected');
+    expect(surfaced).not.toContain('0v7.requestcookie');
+  });
+
   it('restores the monitor client after nested outbound work', async () => {
     authenticate.mockResolvedValue('cookie');
     createHttpPokeApi.mockResolvedValue({

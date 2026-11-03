@@ -132,7 +132,7 @@
   entry: "Make a channel where only admins can post"
   must:
     - "open the channel info and tap Permissions"
-    - "enable Custom Permissions and empty Members Write while leaving Read filled"
+    - "set Everyone to Can view"
     - "tap Save"
 
 - id: notebook-read-only-role
@@ -170,9 +170,9 @@
   file: channels.md
   entry: "Group channels into sections"
   must:
-    - "on the group Channels screen tap New, then New section"
+    - "on the group Channels screen tap New (the plus icon on an iPhone), then New section"
     - "enter a Title and Save"
-    - "tap Sort and drag channels under the new header"
+    - "move channels in: on an iPhone, press and hold each channel and pick Move to and the section; on Android, tap Sort and drag them under the new header"
 
 - id: contacts-computer
   ask: "where are all my contacts on the website? settings looks different"
@@ -211,7 +211,7 @@
   file: contacts-and-profile.md
   entry: "Verify your phone number"
   must:
-    - "Settings, Your profile, pencil icon, then Phone under Connected Accounts"
+    - "Settings, Your profile, pencil icon, then Phone under Connected accounts"
     - "enter the number and tap Connect Phone Number"
     - "enter the six-digit code sent to that number"
 
@@ -299,7 +299,7 @@
   file: groups.md
   entry: "Give a member a role, or make them an admin"
   must:
-    - "Group info & settings, Manage members, select the person, then Assign role"
+    - "Workspace info & settings, Manage members, select the person, then Assign role"
     - "give them the Admin role"
 
 - id: private-group-inviter
@@ -456,7 +456,7 @@
   must:
     - "on Channel rules select the channel and enable Tlonbot there"
     - "choose Allowlist only and add usernames"
-    - "tap Done and apply from Permissions"
+    - "go back and apply from Permissions"
 
 - id: bot-settings-pending
   ask: "i changed my included bot's name on my phone but nothing happened. how do i actually save it?"
@@ -620,7 +620,7 @@
   entry: "See who is in a channel"
   must:
     - "says a group channel has no member list of its own"
-    - "look at the group members and their roles in Group info & settings"
+    - "look at the group members and their roles in Workspace info & settings"
   must_not:
     - "claims the channel info screen lists its members"
 
@@ -667,7 +667,7 @@
   file: groups.md
   entry: "Understand the Admin role"
   must:
-    - "only the group host sees Delete group"
+    - "only the group host sees Delete workspace"
     - "an admin who is not the host cannot delete the group"
 
 - id: remove-group-message
@@ -754,7 +754,7 @@
   file: contacts-and-profile.md
   entry: "Remove a verified phone number or X account"
   must:
-    - "Settings, Your profile, pencil icon, then Phone under Connected Accounts"
+    - "Settings, Your profile, pencil icon, then Phone under Connected accounts"
     - "tap Revoke at the bottom"
 
 - id: gallery-readonly-comment

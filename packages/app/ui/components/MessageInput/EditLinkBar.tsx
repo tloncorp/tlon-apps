@@ -4,6 +4,8 @@ import React from 'react';
 import { TouchableOpacity } from 'react-native';
 import { Input, View, useTheme } from 'tamagui';
 
+import { flattenViewStyle } from '../../utils/flattenViewStyle';
+
 interface EditLinkBarProps {
   theme: EditorTheme;
   onBlur: () => void;
@@ -32,7 +34,7 @@ export const EditLinkBar = ({
   ];
 
   return (
-    <View style={containerStyle}>
+    <View style={flattenViewStyle(containerStyle)}>
       {/* TODO: replace with our own button component and styles */}
       <TouchableOpacity
         onPress={onLinkIconClick}
@@ -42,7 +44,10 @@ export const EditLinkBar = ({
         ]}
       >
         <View
-          style={[theme.toolbar.iconWrapper, theme.toolbar.iconWrapperActive]}
+          style={flattenViewStyle([
+            theme.toolbar.iconWrapper,
+            theme.toolbar.iconWrapperActive,
+          ])}
         >
           {/*
           <Image

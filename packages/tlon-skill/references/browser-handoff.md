@@ -10,8 +10,8 @@ than inventing a workflow or collecting secrets in chat.
 ## Invocation and delivery
 
 Call the model-facing `tlon` tool with an argument string. Do not include the
-`tlon` executable name or invoke a shell. Both commands accept the `session_id`
-(`sess_` handle) returned by `browser_session_create` for the live session.
+`tlon` executable name or invoke a shell. These commands accept the `session_id` returned by
+`browser_session_create` for the live session.
 
 The plugin resolves a fresh signed viewer URL through the authenticated
 browser service and passes it privately to its delivery transport. Do not
@@ -60,19 +60,29 @@ when available; do not place a literal apostrophe inside a single-quoted array.
 
 Text inputs, textareas, dropdowns, checkboxes, and radio groups are supported.
 Each fill is bound to the selected live controls and origin; values go directly
-to the browser service without passing through chat or the bot. Completing
-entry generates a task continuation. A selected-field card fills one step
-without submitting the page. Sending the card or filling fields does not
-grant purchase approval.
+to the browser service without passing through chat or the bot. The browser service reports each step’s result to the originating
+agent conversation. Wait for that result before using the browser again. Each card
+fills one step without submitting. The agent inspects the page and chooses the next action.
+Sending the card or filling fields does not grant purchase approval.
 
 A replaced control can resolve by its recorded name or label only inside its
 original form and document. An ambiguous name, changed document, expired card,
 or changed control requires a fresh snapshot and a new handoff. Do not remove
 `--fields` to recover from a selection failure: that broadens the request.
 
-Omitting `--fields` requests automatic discovery of the visible form. This mode
-supports successive login steps in one card. Use explicit selection whenever
-the owner is asked to enter only part of a form.
+Both `browser handoff` and `browser approve-login` require `--fields`. Saved
+login approval uses the same selection; an optional `--record` selects the saved
+account. Always request the owner's approval through `browser approve-login`
+before filling a saved login, even if the service reports automatic use is
+allowed. Never treat a previous approval as permission for another sign-in.
+The secure-entry sheet saves supported logins with ask-before-use permission;
+do not ask the owner to enable saving or automatic sign-in. An existing signed-in
+browser session can still be reused without filling credentials again.
+
+After the service reports a result, inspect the page and request a
+fresh card if another private field needs input. Click Continue or Sign in
+through browser tools when appropriate. Dismiss optional passkey enrollment
+unless the owner asked to create a passkey.
 
 `browser_session_handoff` is a separate MCP viewer/elicitation operation, not
 a prerequisite for either Tlon command or a way to refresh signed viewer URLs.

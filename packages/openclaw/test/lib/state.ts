@@ -18,6 +18,7 @@ import {
   getSettings,
   inviteGroupMembers,
   joinGroup,
+  leaveGroup,
   poke,
   scry,
   sendPost,
@@ -74,6 +75,7 @@ export interface StateClient {
 
   /** Join a group (accept invite) */
   joinGroup(groupId: string): Promise<void>;
+  leaveGroup(groupId: string): Promise<void>;
 
   /** Check if this ship is a member of a group */
   isMemberOfGroup(groupId: string): Promise<boolean>;
@@ -247,6 +249,12 @@ export function createStateClient(config: StateClientConfig): StateClient {
     async joinGroup(groupId: string) {
       return withClient(async () => {
         await joinGroup(groupId);
+      });
+    },
+
+    async leaveGroup(groupId: string) {
+      return withClient(async () => {
+        await leaveGroup(groupId);
       });
     },
 

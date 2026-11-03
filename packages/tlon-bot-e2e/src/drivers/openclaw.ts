@@ -44,12 +44,79 @@ const LEGACY_OPENCLAW_TOOLS = [
   'web_search',
   'image_search',
   'read',
-  'cron',
+  'automations',
   'tlon',
   'message',
 ] as const;
 const BASELINE_OPENCLAW_TOOLS = ['tlon', 'message'] as const;
 const OPENCLAW_CRON_AT_OFFSET_MS = 180_000;
+// Must match dev/Dockerfile.test's ARG OPENCLAW_CORE_VERSION default and the
+// compose build-arg fallback.
+const DEFAULT_OPENCLAW_CORE_VERSION = '2026.9.33';
+
+export interface OpenClawCoreEnv {
+  composeEnv: Record<string, string>;
+  testEnv: Record<string, string>;
+}
+
+/**
+ * The compose process env is allowlisted (runtime/env.ts), so a core/image
+ * override in the harness env reaches neither the image build nor test 08
+ * unless forwarded here. Both sides come from one resolved version so the
+ * installed core and the asserted one cannot disagree.
+ */
+export function resolveOpenClawCoreEnv(
+  env: NodeJS.ProcessEnv = process.env
+): OpenClawCoreEnv {
+  const requested = env.OPENCLAW_CORE_VERSION || undefined;
+  const coreVersion = requested ?? DEFAULT_OPENCLAW_CORE_VERSION;
+  const composeEnv: Record<string, string> = {};
+  // Unset keys stay out so the compose `${VAR:-default}` fallbacks apply.
+  if (requested) {
+    composeEnv.OPENCLAW_CORE_VERSION = requested;
+  }
+  if (env.NODE_IMAGE) {
+    composeEnv.NODE_IMAGE = env.NODE_IMAGE;
+  }
+  const expectPrewarm =
+    env.TEST_EXPECT_OPENCLAW_PREWARM || derivePrewarmExpectation(coreVersion);
+  return {
+    composeEnv,
+    testEnv: {
+      TEST_OPENCLAW_CORE_VERSION: coreVersion,
+      ...(expectPrewarm ? { TEST_EXPECT_OPENCLAW_PREWARM: expectPrewarm } : {}),
+    },
+  };
+}
+
+/**
+ * Mirrors the prewarm table in packages/openclaw/test/run.sh as of PR #6408
+ * (5.28, 9.4 and 9.33 → 0, 6.11 and 7.1 → 1), generalised per release line so the
+ * canary can name any core: 9.x dropped the "agent runtime plugins
+ * pre-warmed" log marker, and later lines are assumed not to bring it back.
+ * The 8.x line was never checked, so it (like anything older or unparseable)
+ * stays unset and test 08 demands an explicit expectation.
+ */
+export function derivePrewarmExpectation(
+  coreVersion: string
+): '0' | '1' | undefined {
+  if (coreVersion === '2026.5.28') {
+    return '0';
+  }
+  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(coreVersion);
+  if (!match) {
+    return undefined;
+  }
+  const year = Number(match[1]);
+  const line = Number(match[2]);
+  if (year > 2026 || (year === 2026 && line >= 9)) {
+    return '0';
+  }
+  if (year === 2026 && (line === 6 || line === 7)) {
+    return '1';
+  }
+  return undefined;
+}
 
 export function workspaceApiTarballPath(packageDir: string): string {
   return path.join(packageDir, 'dev', 'tlon-api-workspace.tgz');
@@ -231,6 +298,7 @@ export const openclawDriver: BotDriver = {
       'CI_LIVE_TOOL_TRACE_CONTENTS'
     );
     const maxConsecutiveBotResponses = sharedLoopLimitEnv();
+    const core = resolveOpenClawCoreEnv();
     const localTlonbot = localTlonbotMount(seed.repoRoot, packageDir);
     const composeFiles = [
       path.join(sharedPackageDir, 'docker/docker-compose.base.yml'),
@@ -264,6 +332,13 @@ export const openclawDriver: BotDriver = {
         TLON_SHIP: seed.endpoints.ships.zod.ship,
         TLON_CODE: seed.endpoints.ships.zod.code,
         TLON_OWNER_SHIP: seed.endpoints.ships.ten.ship,
+        // Commands act as the owner by default; the entrypoint writes the
+        // owner's credential file from these.
+        TLON_OWNER_URL: seed.endpoints.ships.ten.containerUrl,
+        TLON_OWNER_CODE: seed.endpoints.ships.ten.code,
+        // The suite exercises owner-default commands (off by default in
+        // production for staged rollout).
+        TLON_OWNER_DEFAULT: 'true',
         TLON_DM_ALLOWLIST: seed.endpoints.ships.ten.ship,
         FAKE_MODEL_BASE_URL: seed.endpoints.fakeModel.containerOpenAiBaseUrl,
         MODEL: 'custom-proxy/tlon-test-scripted',
@@ -295,6 +370,7 @@ export const openclawDriver: BotDriver = {
           ? { FAKE_SHIP_CACHE_DIR: process.env.FAKE_SHIP_CACHE_DIR }
           : {}),
         ...pickOptionalEnvForPartition(seed, OPTIONAL_COMPOSE_ENV_KEYS),
+        ...core.composeEnv,
       },
       testEnv: {
         TLON_BOT_E2E_DRIVER: 'openclaw',
@@ -314,6 +390,7 @@ export const openclawDriver: BotDriver = {
         TEST_LIVE_TOOL_TRACE_CONTENTS: liveToolTraceContents ?? '0',
         ...(localTlonbot ? { TEST_TLONBOT_MOUNTED: '1' } : {}),
         ...pickOptionalEnvForPartition(seed, OPTIONAL_TEST_ENV_KEYS),
+        ...core.testEnv,
       },
     };
   },
@@ -392,6 +469,8 @@ export const openclawDriver: BotDriver = {
       };
     },
 
+    botSelfPrefix: '--self ',
+
     readOrAdmin(command, finalText = 'OpenClaw completed the tlon command.') {
       return {
         steps: [
@@ -424,7 +503,7 @@ export const openclawDriver: BotDriver = {
         steps: [
           {
             kind: 'tool_call',
-            name: 'cron',
+            name: 'automations',
             args: {
               action: 'add',
               job: {
@@ -444,7 +523,7 @@ export const openclawDriver: BotDriver = {
           { kind: 'text', content: finalText },
         ],
         expectations: {
-          advertisedTools: { exact: ['message', 'tlon', 'cron'] },
+          advertisedTools: { exact: ['message', 'tlon', 'automations'] },
           expectedCallCount: 2,
           toolEffectOnly: true,
         },
@@ -857,7 +936,7 @@ function openClawToolsForCapability(
   capability: RuntimeCapability
 ): readonly string[] {
   if (capability === 'cron') {
-    return ['cron'];
+    return ['automations'];
   }
   if (capability === 'image_search') {
     return ['image_search'];

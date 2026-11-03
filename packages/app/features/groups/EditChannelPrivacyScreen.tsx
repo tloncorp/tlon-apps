@@ -1,26 +1,24 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import {
-  NOTES_PERMISSIONS_COMPAT_NOTICE,
-  notesPermissionsCompatActive,
-} from '@tloncorp/shared/logic/notesPermissionsCompat';
-import { Text } from '@tloncorp/ui';
+import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect, useRef } from 'react';
-import { FormProvider, useForm, useWatch } from 'react-hook-form';
-import { ScrollView, View, YStack } from 'tamagui';
+import { useForm, useWatch } from 'react-hook-form';
 
 import { useChannelEditScreen } from '../../hooks/useChannelEditScreen';
 import { GroupSettingsStackParamList } from '../../navigation/types';
 import {
-  PermissionTable,
-  PrivateChannelToggle,
-} from '../../ui/components/ManageChannels/ChannelPermissions';
-import { PermissionActionButtons } from '../../ui/components/ManageChannels/ChannelPermissionsContent';
+  type ChannelAccess,
+  channelAccessSections,
+  withCreatedRole,
+} from '../../ui/components/ManageChannels/channelAccessSections';
 import {
-  MEMBERS_MARKER,
   getChannelPrivacyDefaults,
   processFinalPermissions,
 } from '../../ui/components/ManageChannels/channelFormUtils';
-import { ScreenHeader } from '../../ui/components/ScreenHeader';
+import {
+  SETTINGS_LIST_COLUMN_WIDTH,
+  type SettingsSectionModel,
+  SettingsListScreenView,
+} from '../../ui/components/SettingsList';
 
 type Props = NativeStackScreenProps<
   GroupSettingsStackParamList,
@@ -28,13 +26,8 @@ type Props = NativeStackScreenProps<
 >;
 
 export function EditChannelPrivacyScreen(props: Props) {
-  const {
-    groupId,
-    channelId,
-    fromChatDetails,
-    createdRoleId,
-    selectedRoleIds,
-  } = props.route.params;
+  const { groupId, channelId, fromChatDetails, createdRoleId } =
+    props.route.params;
   const { navigation } = props;
 
   const { channel, group, updateChannel, handleGoBack } = useChannelEditScreen({
@@ -51,19 +44,16 @@ export function EditChannelPrivacyScreen(props: Props) {
   });
 
   const isPrivate = useWatch({ control: form.control, name: 'isPrivate' });
-  const usesNotesPermissionsCompat = notesPermissionsCompatActive(
-    channel?.type
-  );
+  const readers = useWatch({ control: form.control, name: 'readers' });
+  const writers = useWatch({ control: form.control, name: 'writers' });
+  const isWindowNarrow = useIsWindowNarrow();
   const { isDirty } = form.formState;
   const channelIdRef = useRef(channel?.id);
 
   // Reset form when channel data loads or channel changes, but not when
   // background DB updates arrive while the user has unsaved edits.
-  // Skip when selectedRoleIds is present — the dedicated selectedRoleIds
-  // effect below handles that case. Running both effects would overwrite
-  // writers with stale defaults from the (not-yet-saved) channel data.
   useEffect(() => {
-    if (!channel || selectedRoleIds) return;
+    if (!channel) return;
     if (channel.id !== channelIdRef.current || !isDirty) {
       channelIdRef.current = channel.id;
       const defaults = getChannelPrivacyDefaults(channel);
@@ -73,76 +63,34 @@ export function EditChannelPrivacyScreen(props: Props) {
         writers: defaults.writers,
       });
     }
-  }, [channel, selectedRoleIds, form, isDirty]);
+  }, [channel, form, isDirty]);
 
-  // Handle newly created role returned from AddRole screen
-  useEffect(() => {
-    if (!createdRoleId) return;
-    const currentReaders = form.getValues('readers');
-    if (!currentReaders.includes(createdRoleId)) {
-      const base = currentReaders.includes('admin')
-        ? currentReaders
-        : ['admin', ...currentReaders];
-      form.setValue('readers', [...base, createdRoleId]);
-      if (usesNotesPermissionsCompat) {
-        form.setValue('writers', [...base, createdRoleId]);
-      }
-      form.setValue('isPrivate', true);
-    }
-  }, [createdRoleId, form, usesNotesPermissionsCompat]);
-
-  // Handle roles selected from SelectChannelRoles screen
-  useEffect(() => {
-    if (!selectedRoleIds) return;
-    form.setValue('readers', selectedRoleIds);
-    if (usesNotesPermissionsCompat) {
-      form.setValue('writers', selectedRoleIds);
-      form.setValue('isPrivate', true);
-      return;
-    }
-    const currentWriters = form.getValues('writers');
-    form.setValue(
-      'writers',
-      currentWriters.filter((w) => selectedRoleIds.includes(w))
-    );
-    form.setValue('isPrivate', true);
-  }, [selectedRoleIds, form, usesNotesPermissionsCompat]);
-
-  const handleTogglePrivate = useCallback(
-    (value: boolean) => {
-      form.setValue('isPrivate', value, { shouldDirty: true });
-      if (value) {
-        form.setValue('readers', ['admin', MEMBERS_MARKER], {
-          shouldDirty: true,
-        });
-        form.setValue('writers', ['admin', MEMBERS_MARKER], {
-          shouldDirty: true,
-        });
-      } else {
-        form.setValue('readers', [], { shouldDirty: true });
-        form.setValue('writers', [], { shouldDirty: true });
-      }
+  const handleAccessChange = useCallback(
+    (access: ChannelAccess) => {
+      form.setValue('isPrivate', access.isPrivate, { shouldDirty: true });
+      form.setValue('readers', access.readers, { shouldDirty: true });
+      form.setValue('writers', access.writers, { shouldDirty: true });
     },
     [form]
   );
 
-  const handleSelectRoles = useCallback(() => {
-    const currentReaders = form.getValues('readers');
-    const currentWriters = form.getValues('writers');
-    // Pass the union of readers and writers so writer-only roles
-    // are pre-selected in the picker and don't get dropped.
-    const allRoleIds = [...new Set([...currentReaders, ...currentWriters])];
-    navigation.navigate('SelectChannelRoles', {
+  // A role made from here comes back with access of its own.
+  useEffect(() => {
+    if (!createdRoleId) return;
+    const current = form.getValues();
+    const next = withCreatedRole(current, createdRoleId, channel?.type);
+    if (next !== current) {
+      handleAccessChange(next);
+    }
+  }, [channel?.type, createdRoleId, form, handleAccessChange]);
+
+  const handleCreateRole = useCallback(() => {
+    navigation.navigate('AddRole', {
       groupId,
-      selectedRoleIds: allRoleIds,
       returnScreen: 'EditChannelPrivacy',
-      returnParams: {
-        groupId,
-        channelId,
-        fromChatDetails,
-      },
+      returnParams: { groupId, channelId, fromChatDetails },
     });
-  }, [navigation, groupId, channelId, fromChatDetails, form]);
+  }, [navigation, groupId, channelId, fromChatDetails]);
 
   const handleSave = useCallback(() => {
     if (!channel) return;
@@ -163,55 +111,39 @@ export function EditChannelPrivacyScreen(props: Props) {
     handleGoBack();
   }, [channel, form, updateChannel, handleGoBack]);
 
-  if (!group || !channel) {
-    return null;
-  }
+  const sections: SettingsSectionModel[] =
+    group && channel
+      ? channelAccessSections({
+          groupRoles: group.roles ?? [],
+          channelType: channel.type,
+          isPrivate,
+          readers,
+          writers,
+          onChange: handleAccessChange,
+          onCreateRole: handleCreateRole,
+        })
+      : [];
 
   return (
-    <FormProvider {...form}>
-      <View backgroundColor="$background" flex={1}>
-        <ScreenHeader
-          title="Channel permissions"
-          backAction={handleGoBack}
-          rightControls={
-            <ScreenHeader.TextButton
-              onPress={handleSave}
-              color="$positiveActionText"
-              testID="ChannelPrivacySaveButton"
-            >
-              Save
-            </ScreenHeader.TextButton>
-          }
-        />
-        <ScrollView flex={1}>
-          <YStack gap="$2xl" padding="$xl">
-            <YStack
-              width="100%"
-              overflow="hidden"
-              borderRadius="$m"
-              borderWidth={1}
-              borderColor="$secondaryBorder"
-            >
-              <PrivateChannelToggle
-                isPrivate={isPrivate}
-                onTogglePrivate={handleTogglePrivate}
-              />
-            </YStack>
-            {usesNotesPermissionsCompat && isPrivate && (
-              <Text size="$label/s" color="$tertiaryText">
-                {NOTES_PERMISSIONS_COMPAT_NOTICE}
-              </Text>
-            )}
-            <PermissionTable
-              groupRoles={group.roles ?? []}
-              channelType={channel.type}
-            />
-            {isPrivate && (
-              <PermissionActionButtons onSelectRoles={handleSelectRoles} />
-            )}
-          </YStack>
-        </ScrollView>
-      </View>
-    </FormProvider>
+    <SettingsListScreenView
+      title="Channel permissions"
+      sections={sections}
+      loading={!group || !channel}
+      onBackPressed={handleGoBack}
+      showsBackOnWideWindows
+      useHorizontalTitleLayout={!isWindowNarrow}
+      maxWidth={SETTINGS_LIST_COLUMN_WIDTH}
+      rightActions={[
+        {
+          id: 'ChannelPrivacySaveButton',
+          text: 'Save',
+          tint: '$positiveActionText',
+          prominent: true,
+          disabled: !channel || !isDirty,
+          onPress: handleSave,
+          testID: 'ChannelPrivacySaveButton',
+        },
+      ]}
+    />
   );
 }

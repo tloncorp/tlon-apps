@@ -28,25 +28,44 @@ const mocks = vi.hoisted(() => ({
   hydrateEditPost: vi.fn(),
   noop: vi.fn(),
   refRegex: /NEVER_A_REFERENCE/ as RegExp,
+  channels: [] as string[],
+  getChannel: vi.fn<[{ id: string }], Promise<{ id: string } | null>>(),
+  showToast: vi.fn(),
+  jsonToInlines: vi.fn((_json: unknown) => []),
 }));
 
 vi.mock('@tloncorp/api', async () => {
-  const { toContentReference } =
-    await import('@tloncorp/api/client/references');
-  return { toContentReference };
+  const {
+    channelToContentReference,
+    findBareChannelPaths,
+    isReferenceBoundary,
+    replaceBareChannelPath,
+    toContentReference,
+    uneditableCitesMessage,
+  } = await import('@tloncorp/api/client/references');
+  return {
+    channelToContentReference,
+    findBareChannelPaths,
+    isReferenceBoundary,
+    replaceBareChannelPath,
+    toContentReference,
+    uneditableCitesMessage,
+  };
 });
 vi.mock('@tloncorp/api/urbit', async () => {
   const { pathToCite } = await import('@tloncorp/api/urbit/utils');
   return { pathToCite };
 });
-vi.mock('@tloncorp/shared', () => ({
+vi.mock('@tloncorp/shared', async () => ({
   ALL_MENTION_ID: 'all',
+  extractContentTypesFromPost: (await import('@tloncorp/api/client/utils'))
+    .extractContentTypesFromPost,
   get REF_REGEX() {
     return mocks.refRegex;
   },
   createDevLogger: () => ({ log: mocks.noop, error: mocks.noop }),
   useDebouncedValue: () => '',
-  JSONToInlines: () => [],
+  JSONToInlines: (json: unknown) => mocks.jsonToInlines(json),
   diaryMixedToJSON: () => ({
     type: 'doc',
     content: [
@@ -54,7 +73,7 @@ vi.mock('@tloncorp/shared', () => ({
     ],
   }),
 }));
-vi.mock('@tloncorp/shared/db', () => ({}));
+vi.mock('@tloncorp/shared/db', () => ({ getChannel: mocks.getChannel }));
 vi.mock('@tloncorp/shared/logic', () => ({}));
 vi.mock('@tloncorp/shared/store', () => ({
   useMentionCandidates: () => ({ data: [] }),
@@ -64,6 +83,7 @@ vi.mock('@tloncorp/ui', () => ({
   RawText: 'RawText',
   Text: 'Text',
   useGlobalSearch: () => ({ setIsOpen: mocks.noop }),
+  useToast: () => mocks.showToast,
 }));
 vi.mock('react-native', () => ({
   Platform: {
@@ -143,6 +163,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.attachments = [];
   mocks.refRegex = /NEVER_A_REFERENCE/;
+  mocks.channels = [];
+  mocks.getChannel.mockImplementation(async ({ id }) =>
+    mocks.channels.includes(id) ? { id } : null
+  );
   frames = [];
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
@@ -158,6 +182,11 @@ afterEach(() => {
 
 function input() {
   return renderer.root.findByType('PasteableTextInput' as React.ElementType);
+}
+
+// Native renders the controlled text as the input's decorated child.
+function inputText() {
+  return input().props.children.props.text;
 }
 
 function container() {
@@ -668,21 +697,485 @@ test.each(['ios', 'android'])(
   }
 );
 
-test('pasting a bare channel path attaches a channel link reference', async () => {
+const channelLinkAttachment = {
+  type: 'reference',
+  path: '/1/chan/chat/~zod/test',
+  reference: {
+    type: 'reference',
+    referenceType: 'channelLink',
+    channelId: 'chat/~zod/test',
+  },
+};
+
+async function mountWithChannelPaths(
+  channels = ['chat/~zod/test'],
+  overrides: Partial<React.ComponentProps<typeof BareChatInput>> = {}
+) {
   const { REF_REGEX } = await import('@tloncorp/api/client/utils');
   mocks.refRegex = REF_REGEX;
-  await mount();
+  mocks.channels = channels;
+  await mount(overrides);
+}
+
+// Lets pending channel lookups resolve and apply.
+async function settle() {
+  await act(async () => {});
+}
+
+async function typeText(text: string) {
+  for (let i = 1; i <= text.length; i++) {
+    act(() => input().props.onChangeText(text.slice(0, i)));
+    await settle();
+  }
+}
+
+test('pasting a bare channel path attaches a channel link reference', async () => {
+  await mountWithChannelPaths();
   act(() => input().props.onChangeText('/1/chan/chat/~zod/test'));
+  await settle();
+
+  expect(mocks.attachments).toEqual([channelLinkAttachment]);
+  expect(inputText()).toBe('');
+});
+
+test('typing a path never converts at a channel that is its prefix', async () => {
+  await mountWithChannelPaths(['chat/~zod/te', 'chat/~zod/test']);
+  await typeText('/1/chan/chat/~zod/test');
+
+  expect(mocks.attachments).toEqual([]);
+  expect(inputText()).toBe('/1/chan/chat/~zod/test');
+});
+
+test('a typed channel path converts once followed by a space', async () => {
+  await mountWithChannelPaths(['chat/~zod/te', 'chat/~zod/test']);
+  await typeText('see /1/chan/chat/~zod/test ');
+
+  expect(mocks.attachments).toEqual([channelLinkAttachment]);
+  expect(inputText()).toBe('see  ');
+});
+
+test('trailing punctuation stays out of the channel path', async () => {
+  await mountWithChannelPaths();
+  act(() => input().props.onChangeText('see /1/chan/chat/~zod/test.'));
+  await settle();
+
+  expect(mocks.attachments).toEqual([channelLinkAttachment]);
+  expect(inputText()).toBe('see .');
+});
+
+test('a channel path naming an unknown channel stays text', async () => {
+  await mountWithChannelPaths();
+  act(() => input().props.onChangeText('/1/chan/chat/~zod/other '));
+  await settle();
+
+  expect(mocks.attachments).toEqual([]);
+  expect(inputText()).toBe('/1/chan/chat/~zod/other ');
+});
+
+test('an unknown channel is looked up once', async () => {
+  await mountWithChannelPaths();
+  act(() => input().props.onChangeText('/1/chan/chat/~zod/other '));
+  await settle();
+  act(() => input().props.onChangeText('/1/chan/chat/~zod/other hi'));
+  await settle();
+
+  expect(mocks.getChannel).toHaveBeenCalledTimes(1);
+  expect(mocks.attachments).toEqual([]);
+});
+
+test('a channel path inside a URL stays text', async () => {
+  await mountWithChannelPaths();
+  act(() =>
+    input().props.onChangeText('https://example.com/1/chan/chat/~zod/test ')
+  );
+  await settle();
+
+  expect(mocks.attachments).toEqual([]);
+  expect(inputText()).toBe('https://example.com/1/chan/chat/~zod/test ');
+});
+
+test('a lookup that returns after the path was edited away does nothing', async () => {
+  await mountWithChannelPaths();
+  let finishLookup!: () => void;
+  mocks.getChannel.mockImplementationOnce(
+    ({ id }) =>
+      new Promise((done) => {
+        finishLookup = () => done({ id });
+      })
+  );
+  act(() => input().props.onChangeText('/1/chan/chat/~zod/test '));
+  act(() => input().props.onChangeText('/1/chan/chat/~zod/tes'));
+  await act(async () => finishLookup());
+
+  expect(mocks.attachments).toEqual([]);
+  expect(inputText()).toBe('/1/chan/chat/~zod/tes');
+});
+
+test('native keeps the text left around a converted path', async () => {
+  await mountWithChannelPaths();
+  vi.useFakeTimers();
+  try {
+    act(() => input().props.onChangeText('see /1/chan/chat/~zod/test '));
+    await settle();
+    act(() => {
+      vi.runAllTimers();
+    });
+    act(() => frames.splice(0).forEach((callback) => callback(0)));
+
+    expect(inputText()).toBe('see  ');
+    expect(mocks.input.clear).not.toHaveBeenCalled();
+    expect(mocks.input.setNativeProps).not.toHaveBeenCalled();
+    expect(mocks.input.setSelection).toHaveBeenLastCalledWith(5, 5);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test('native keeps the text and the card after a pasted reference, and the next keystroke does not attach it again', async () => {
+  await mountWithChannelPaths();
+  vi.useFakeTimers();
+  try {
+    act(() => input().props.onChangeText('see /1/group/~zod/test hi'));
+    await settle();
+    act(() => {
+      vi.runAllTimers();
+    });
+    act(() => frames.splice(0).forEach((callback) => callback(0)));
+
+    expect(inputText()).toBe('see  hi');
+    expect(mocks.input.clear).not.toHaveBeenCalled();
+    expect(mocks.input.setNativeProps).not.toHaveBeenCalled();
+    expect(mocks.input.setSelection).toHaveBeenLastCalledWith(7, 7);
+
+    act(() => input().props.onChangeText('see  hi!'));
+    await settle();
+
+    expect(mocks.addAttachment).toHaveBeenCalledTimes(1);
+    expect(mocks.attachments).toHaveLength(1);
+    expect(inputText()).toBe('see  hi!');
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test('native leaves text it could not convert alone', async () => {
+  await mountWithChannelPaths();
+  vi.useFakeTimers();
+  try {
+    act(() => input().props.onChangeText('/1/chan/chat/~zod/other '));
+    await settle();
+    act(() => {
+      vi.runAllTimers();
+    });
+
+    expect(inputText()).toBe('/1/chan/chat/~zod/other ');
+    expect(mocks.input.clear).not.toHaveBeenCalled();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test('native clears its buffer when a converted path was all the text', async () => {
+  await mountWithChannelPaths();
+  vi.useFakeTimers();
+  try {
+    act(() => input().props.onChangeText('/1/chan/chat/~zod/test'));
+    await settle();
+    act(() => {
+      vi.runAllTimers();
+    });
+
+    expect(mocks.input.clear).toHaveBeenCalled();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test('sending leaves a channel path typed as the last word as text', async () => {
+  mocks.platform = 'android';
+  const sendPostFromDraft = vi.fn(async () => {});
+  await mountWithChannelPaths(['chat/~zod/test'], {
+    ...draftStorage(),
+    sendPostFromDraft,
+  });
+  await typeText('see /1/chan/chat/~zod/test');
+
+  await act(async () => container().props.onPressSend());
+
+  expect(sendPostFromDraft).toHaveBeenCalledWith(
+    expect.objectContaining({ attachments: [] }),
+    expect.anything()
+  );
+  expect(JSON.stringify(mocks.jsonToInlines.mock.lastCall)).toContain(
+    'see /1/chan/chat/~zod/test'
+  );
+  expect(mocks.getChannel).not.toHaveBeenCalledWith({ id: 'chat/~zod/test' });
+});
+
+test('a post path converts without a channel lookup', async () => {
+  await mountWithChannelPaths([]);
+  act(() =>
+    input().props.onChangeText(
+      '/1/chan/chat/~zod/other/msg/170141184506535164684262900635183087616'
+    )
+  );
 
   expect(mocks.attachments).toEqual([
-    {
-      type: 'reference',
-      path: '/1/chan/chat/~zod/test',
-      reference: {
-        type: 'reference',
-        referenceType: 'channelLink',
-        channelId: 'chat/~zod/test',
-      },
-    },
+    expect.objectContaining({
+      reference: expect.objectContaining({
+        referenceType: 'channel',
+        channelId: 'chat/~zod/other',
+      }),
+    }),
+  ]);
+  expect(mocks.getChannel).not.toHaveBeenCalled();
+});
+
+test('a post path inside a URL stays text', async () => {
+  await mountWithChannelPaths([]);
+  const url =
+    'https://example.com/1/chan/chat/~zod/other/msg/170141184506535164684262900635183087616';
+  act(() => input().props.onChangeText(url));
+
+  expect(mocks.attachments).toEqual([]);
+  expect(inputText()).toBe(url);
+});
+
+test('a post path is removed where it was found, not from a URL before it', async () => {
+  await mountWithChannelPaths([]);
+  const path =
+    '/1/chan/chat/~zod/other/msg/170141184506535164684262900635183087616';
+  act(() => input().props.onChangeText(`https://example.com${path} ${path}`));
+
+  expect(mocks.attachments).toHaveLength(1);
+  expect(inputText()).toBe(`https://example.com${path} `);
+});
+
+test('a post path after opening punctuation converts', async () => {
+  await mountWithChannelPaths([]);
+  act(() =>
+    input().props.onChangeText(
+      'see (/1/chan/chat/~zod/other/msg/170141184506535164684262900635183087616 x'
+    )
+  );
+
+  expect(mocks.attachments).toHaveLength(1);
+  expect(inputText()).toBe('see ( x');
+});
+
+test('a channel path after opening punctuation converts', async () => {
+  await mountWithChannelPaths();
+  act(() => input().props.onChangeText('see "/1/chan/chat/~zod/test" x'));
+  await settle();
+
+  expect(mocks.attachments).toEqual([channelLinkAttachment]);
+  expect(inputText()).toBe('see "" x');
+});
+
+test('a channel path pasted before a mention keeps the mention', async () => {
+  await mountWithChannelPaths();
+  act(() => input().props.onChangeText('@Al'));
+  act(() =>
+    container().props.onSelectMention({
+      id: 'all',
+      title: 'All',
+      type: 'group',
+      priority: 8,
+    })
+  );
+  const path = '/1/chan/chat/~zod/test';
+  act(() => input().props.onChangeText(`${path} @All `));
+  await settle();
+
+  expect(mocks.attachments).toEqual([channelLinkAttachment]);
+  expect(inputText()).toBe(' @All ');
+  expect(input().props.children.props.mentions).toEqual([
+    { id: 'all', display: '@All', start: 1, end: 5 },
   ]);
 });
+
+test('a lookup that returns while a mention is being typed moves the mention with the text', async () => {
+  await mountWithChannelPaths();
+  let finishLookup!: () => void;
+  mocks.getChannel.mockImplementationOnce(
+    ({ id }) =>
+      new Promise((done) => {
+        finishLookup = () => done({ id });
+      })
+  );
+  act(() => input().props.onChangeText('/1/chan/chat/~zod/test @zo'));
+  expect(container().props.isMentionModeActive).toBe(true);
+
+  await act(async () => finishLookup());
+  expect(inputText()).toBe(' @zo');
+  expect(container().props.isMentionModeActive).toBe(true);
+
+  act(() =>
+    container().props.onSelectMention({
+      id: '~zod',
+      title: 'Zod',
+      type: 'contact',
+      priority: 1,
+    })
+  );
+  expect(inputText()).toBe(' @Zod ');
+  expect(input().props.children.props.mentions).toEqual([
+    { id: '~zod', display: '@Zod', start: 1, end: 5 },
+  ]);
+});
+
+test('a lookup that returns before the typed mention renders moves the mention with the text', async () => {
+  await mountWithChannelPaths();
+  let finishLookup!: () => void;
+  mocks.getChannel.mockImplementationOnce(
+    ({ id }) =>
+      new Promise((done) => {
+        finishLookup = () => done({ id });
+      })
+  );
+  await act(async () => {
+    input().props.onChangeText('/1/chan/chat/~zod/test @zo');
+    finishLookup();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  expect(inputText()).toBe(' @zo');
+  expect(container().props.isMentionModeActive).toBe(true);
+
+  act(() =>
+    container().props.onSelectMention({
+      id: '~zod',
+      title: 'Zod',
+      type: 'contact',
+      priority: 1,
+    })
+  );
+  expect(inputText()).toBe(' @Zod ');
+  expect(input().props.children.props.mentions).toEqual([
+    { id: '~zod', display: '@Zod', start: 1, end: 5 },
+  ]);
+});
+
+test.each([
+  ['an unknown cite', { future: {} }, 'Upgrade your app to edit this post'],
+  // Stored before this build parsed bare notes-channel cites, so the row
+  // holds the raw cite rather than a reference the edit can rebuild.
+  [
+    'a cite stored unparsed',
+    { chan: { nest: 'notes/~zod/notes', where: '/' } },
+    "This post has a reference that can't be edited",
+  ],
+])(
+  'saving an edit of a post with %s keeps the edit',
+  async (_, cite, message) => {
+    mocks.platform = 'android';
+    mocks.hydrateEditPost.mockReturnValue({
+      story: [],
+      attachments: [],
+      isEmpty: false,
+    });
+    const sendPostFromDraft = vi.fn(async () => {});
+    const setEditingPost = vi.fn();
+    await mount({
+      ...draftStorage(),
+      editingPost: {
+        ...makeEditingPost(),
+        content: JSON.stringify([{ block: { cite } }]),
+      },
+      setEditingPost,
+      sendPostFromDraft,
+    });
+    expect(inputText()).toBe('Edited post');
+
+    await act(async () => container().props.onPressEdit());
+
+    expect(sendPostFromDraft).not.toHaveBeenCalled();
+    expect(setEditingPost).not.toHaveBeenCalled();
+    expect(mocks.clearAttachments).not.toHaveBeenCalled();
+    expect(inputText()).toBe('Edited post');
+    expect(container().props.sendError).toBe(true);
+    expect(mocks.showToast).toHaveBeenCalledWith(
+      expect.objectContaining({ message })
+    );
+  }
+);
+
+test('a lookup that returns after the send leaves the composer empty', async () => {
+  mocks.platform = 'android';
+  const sendPostFromDraft = vi.fn(async () => {});
+  await mountWithChannelPaths(['chat/~zod/test'], {
+    ...draftStorage(),
+    sendPostFromDraft,
+  });
+  let finishLookup!: () => void;
+  mocks.getChannel.mockImplementationOnce(
+    ({ id }) =>
+      new Promise((done) => {
+        finishLookup = () => done({ id });
+      })
+  );
+  act(() => input().props.onChangeText('/1/chan/chat/~zod/test hello'));
+  await act(async () => container().props.onPressSend());
+  expect(sendPostFromDraft).toHaveBeenCalledWith(
+    expect.objectContaining({ attachments: [] }),
+    expect.anything()
+  );
+
+  await act(async () => finishLookup());
+
+  expect(mocks.attachments).toEqual([]);
+  expect(inputText()).toBe('');
+});
+
+test('a typed channel path stays text beside a video', async () => {
+  const video: Attachment = {
+    type: 'video',
+    localFile: 'file:///clip.mp4',
+    size: 1000,
+    mimeType: 'video/mp4',
+    name: 'clip.mp4',
+    width: 100,
+    height: 100,
+    duration: 1,
+    posterUri: 'file:///poster.jpg',
+  };
+  mocks.attachments = [video];
+  await mountWithChannelPaths();
+  await typeText('see /1/chan/chat/~zod/test ');
+
+  expect(mocks.attachments).toEqual([video]);
+  expect(inputText()).toBe('see /1/chan/chat/~zod/test ');
+});
+
+test('a channel path stays text when the provider refuses the card', async () => {
+  await mountWithChannelPaths();
+  mocks.addAttachment.mockImplementationOnce(() => false);
+  await typeText('see /1/chan/chat/~zod/test ');
+
+  expect(mocks.addAttachment).toHaveBeenCalledTimes(1);
+  expect(mocks.attachments).toEqual([]);
+  expect(inputText()).toBe('see /1/chan/chat/~zod/test ');
+});
+
+test.each([
+  ['before', 'see  hello'.length, 'see /1/chan/chat/~zod/test hello'.length],
+  ['after', 3, 3],
+])(
+  'native keeps the caret where it was when a path %s it converts',
+  async (_where, expected, caret) => {
+    await mountWithChannelPaths();
+    act(() =>
+      input().props.onSelectionChange({
+        nativeEvent: { selection: { start: caret, end: caret } },
+      })
+    );
+    act(() => input().props.onChangeText('see /1/chan/chat/~zod/test hello'));
+    await settle();
+    act(() => frames.splice(0).forEach((callback) => callback(0)));
+
+    expect(inputText()).toBe('see  hello');
+    expect(mocks.input.setSelection).toHaveBeenLastCalledWith(
+      expected,
+      expected
+    );
+  }
+);

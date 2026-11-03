@@ -8,16 +8,35 @@ export const GENERATED_DESK_FILES: ReadonlySet<string> = new Set([
   'commit.txt',
 ]);
 
-const hashFile = (filePath: string): string => {
-  const content = fs.readFileSync(filePath);
+const DOCKET = 'desk.docket-0';
+
+// The glob bot rewrites this docket line several times a day, and a pier whose
+// docket names an older glob runs the same Hoon, so it must not force a desk
+// copy and |commit. A line in any other format is kept (compared raw), so a
+// format change costs a spurious commit, never a missed one. Kept in step with
+// DOCKET_GLOB_LINE in scripts/desk-identity.sh.
+const DOCKET_GLOB_LINE = /^ *glob-http\+\[[^ ]+ +0v[0-9a-v.]+\] *$/;
+
+const normalizeDocket = (docket: string): string =>
+  docket
+    .split('\n')
+    .filter((line) => !DOCKET_GLOB_LINE.test(line))
+    .join('\n');
+
+const hashFile = (filePath: string, relativePath: string): string => {
+  const content =
+    relativePath === DOCKET
+      ? normalizeDocket(fs.readFileSync(filePath, 'utf8'))
+      : fs.readFileSync(filePath);
   return crypto
     .createHash('md5')
     .update(content as any)
     .digest('hex');
 };
 
-// relative path -> md5 of contents, for every file under `root`, excluding
-// GENERATED_DESK_FILES. Returns an empty Map if `root` does not exist.
+// relative path -> md5 of contents (the docket's normalized), for every file
+// under `root`, excluding GENERATED_DESK_FILES. Returns an empty Map if `root`
+// does not exist.
 export function buildDeskManifest(root: string): Map<string, string> {
   const manifest = new Map<string, string>();
 
@@ -40,7 +59,7 @@ export function buildDeskManifest(root: string): Map<string, string> {
         if (GENERATED_DESK_FILES.has(relativePath)) {
           continue;
         }
-        manifest.set(relativePath, hashFile(fullPath));
+        manifest.set(relativePath, hashFile(fullPath, relativePath));
       }
     }
   };
@@ -50,7 +69,8 @@ export function buildDeskManifest(root: string): Map<string, string> {
   return manifest;
 }
 
-// True when two desk trees are byte-identical apart from generated files.
+// True when two desk trees are byte-identical apart from generated files and
+// the docket's glob line.
 // MUST be symmetric: differing key sets in EITHER direction mean no match.
 export function desksMatch(aRoot: string, bRoot: string): boolean {
   if (!fs.existsSync(aRoot) || !fs.existsSync(bRoot)) {

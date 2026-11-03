@@ -4,7 +4,7 @@ import { Platform, StatusBar } from 'react-native';
 
 import { InviteUsersScreen } from '../features/InviteUsersScreen';
 import { BrowserCredentialHandoffProvider } from '../features/browser/BrowserCredentialHandoffProvider';
-import { BrowserCredentialHandoffScreen } from '../features/browser/BrowserCredentialHandoffScreen';
+import { BrowserWalletScreen } from '../features/browser/BrowserWalletScreen';
 import { ChannelMembersScreen } from '../features/channels/ChannelMembersScreen';
 import { ChannelMetaScreen } from '../features/channels/ChannelMetaScreen';
 import { ChannelTemplateScreen } from '../features/channels/ChannelTemplateScreen';
@@ -14,6 +14,8 @@ import { ContextLensRunScreen } from '../features/lens/ContextLensRunScreen';
 import { ContextLensRunsScreen } from '../features/lens/ContextLensRunsScreen';
 import { AttestationScreen } from '../features/profile/AttestationScreen';
 import { ScheduledTaskEditorScreen } from '../features/automations/ScheduledTaskEditorScreen';
+import { ScheduledTaskRunScreen } from '../features/automations/ScheduledTaskRunScreen';
+import { ScheduledTaskRunsScreen } from '../features/automations/ScheduledTaskRunsScreen';
 import { ScheduledTasksScreen } from '../features/automations/ScheduledTasksScreen';
 import { AppInfoScreen } from '../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../features/settings/BlockedUsersScreen';
@@ -53,10 +55,8 @@ import { NotesSearchScreen } from '../features/top/NotesSearchScreen';
 import PostScreen from '../features/top/PostScreen';
 import { UserProfileScreen } from '../features/top/UserProfileScreen';
 import { useIsDarkMode } from '../hooks/useDarkMode';
-import { useAgentGroupOnboardingStartupRoute } from '../hooks/useAgentGroupOnboardingLock';
 import { useTheme } from '../ui';
 import { GroupSettingsStack } from './GroupSettingsStack';
-import { OnboardingStartupScreen } from './OnboardingStartupScreen';
 import { TopLevelTabNavigator } from './TopLevelTabNavigator';
 import { nativeHeaderPresentationOptions } from './nativeHeaderOptions';
 import type { RootStackParamList } from './types';
@@ -80,24 +80,19 @@ export function RootStack() {
 function RootStackContent() {
   const isDarkMode = useIsDarkMode();
 
-  // Android status bar has a solid color by default, so we clear it
+  // Android draws edge to edge, so the status bar is always transparent; only
+  // its content style follows the theme.
   useFocusEffect(() => {
     if (Platform.OS === 'android') {
-      StatusBar.setBackgroundColor('transparent');
       StatusBar.setBarStyle(isDarkMode ? 'light-content' : 'dark-content');
     }
   });
 
   const theme = useTheme();
-  const onboardingStartup = useAgentGroupOnboardingStartupRoute();
-
-  if (onboardingStartup.isLoading) return null;
 
   return (
     <Root.Navigator
-      initialRouteName={
-        onboardingStartup.route ? 'OnboardingStartup' : 'MainTabs'
-      }
+      initialRouteName="MainTabs"
       screenOptions={{
         ...nativeHeaderPresentationOptions,
         headerBackVisible: false,
@@ -105,14 +100,6 @@ function RootStackContent() {
         contentStyle: { backgroundColor: theme.background?.val },
       }}
     >
-      {onboardingStartup.route ? (
-        <Root.Screen
-          name="OnboardingStartup"
-          component={OnboardingStartupScreen}
-          initialParams={onboardingStartup.route}
-          options={{ animation: 'none', gestureEnabled: false }}
-        />
-      ) : null}
       {/* top level tabs */}
       <Root.Screen
         name="MainTabs"
@@ -131,8 +118,8 @@ function RootStackContent() {
 
       {/* individual screens */}
       <Root.Screen
-        name="BrowserCredentialHandoff"
-        component={BrowserCredentialHandoffScreen}
+        name="BrowserWallet"
+        component={BrowserWalletScreen}
         options={{ presentation: 'modal' }}
       />
       <Root.Screen name="AddContacts" component={AddContactsScreen} />
@@ -306,6 +293,16 @@ function RootStackContent() {
       <Root.Screen
         name="ScheduledTaskEditor"
         component={ScheduledTaskEditorScreen}
+        options={nativeHeaderScreenOptions}
+      />
+      <Root.Screen
+        name="ScheduledTaskRuns"
+        component={ScheduledTaskRunsScreen}
+        options={nativeHeaderScreenOptions}
+      />
+      <Root.Screen
+        name="ScheduledTaskRun"
+        component={ScheduledTaskRunScreen}
         options={nativeHeaderScreenOptions}
       />
       <Root.Screen name="Attestation" component={AttestationScreen} />

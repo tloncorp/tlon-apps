@@ -1,7 +1,6 @@
 {
   "expo.jsEngine": "hermes",
   "ios.useFrameworks": "static",
-  "ios.forceStaticLinking": "[\"RNFBApp\",\"RNFBCrashlytics\",\"RNFBPerf\"]",
-  "ios.buildReactNativeFromSource": "true",
+  "ios.forceStaticLinking": "[\"RNFBApp\",\"RNFBCrashlytics\"]",
   "newArchEnabled": "true"
 }

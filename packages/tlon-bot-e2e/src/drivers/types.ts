@@ -198,6 +198,12 @@ export interface ModelScriptExpectations {
 export type { ModelAuxiliaryCallKind };
 
 export interface ModelScriptAdapter {
+  /**
+   * Prefix for a tlon command that must act as the bot. OpenClaw runs tlon
+   * commands as the owner unless they carry `--self`; Hermes runs them as the
+   * bot already.
+   */
+  botSelfPrefix: string;
   replyText(text: string): ModelScript;
   replyTexts(texts: string[]): ModelScript;
   sendMessage(args: SendMessageArgs): ModelScript;

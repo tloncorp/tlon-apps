@@ -221,3 +221,28 @@ export function canRetryLens(lens: ContextLens) {
     lens.runKind !== 'internal'
   );
 }
+
+/** What a run took in and did: context, tools, writes, model, runtime. */
+export function runMetrics(
+  lens: ContextLens
+): { label: string; value: string }[] {
+  return [
+    { label: 'Context', value: summarizeContext(lens) },
+    { label: 'Run', value: runKindLabel(lens) },
+    {
+      label: 'Tools',
+      value: lens.tools.callCount
+        ? `${lens.tools.callCount} / ${lens.tools.called.join(', ')}`
+        : 'none',
+    },
+    { label: 'Writes', value: summarizeWrites(lens) },
+    {
+      label: 'Model',
+      value:
+        lens.provider || lens.model
+          ? [lens.provider, lens.model].filter(Boolean).join(' / ')
+          : 'pending',
+    },
+    { label: 'Runtime', value: formatDuration(lens.lifecycle.durationMs) },
+  ];
+}

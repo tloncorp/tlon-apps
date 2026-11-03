@@ -28,7 +28,7 @@ import { useGroupTitle } from '../utils';
 import { ContactAvatar } from './Avatar';
 import { BotBadge } from './BotBadge';
 import { useHasBotPromptFiles, useIsOwnedBot } from './BotSystemPrompts';
-import { ContactName } from './ContactNameV2';
+import { ContactName, useContactNameProps } from './ContactNameV2';
 import { GroupAvatar } from './GroupAvatar';
 import { ListItem } from './ListItem';
 import {
@@ -48,6 +48,7 @@ interface Props {
   /** Shown only for a bot whose prompt files our ship mirrors. */
   onPressPromptFiles?: () => void;
   onPressGroup: (group: db.Group) => void;
+  onPressUserProfile: (userId: string) => void;
 }
 
 export function UserProfileScreenView(props: Props) {
@@ -56,6 +57,10 @@ export function UserProfileScreenView(props: Props) {
   const currentUserId = useCurrentUserId();
   const userContact = useContact(props.userId);
   const hasPromptFiles = useHasBotPromptFiles(props.userId);
+  const ownerId = api.getBotOwnerId(props.userId);
+  const botId = api.getBotUserIdForUser(props.userId);
+  // Every planet has a would-be Tlonbot @p; only show one we know exists.
+  const botContact = useContact(botId);
   const pinnedGroups = useMemo(() => {
     return (
       userContact?.pinnedGroups?.flatMap((g) => (g.group ? [g.group] : [])) ??
@@ -132,6 +137,22 @@ export function UserProfileScreenView(props: Props) {
 
         {currentUserId !== props.userId ? (
           <ProfileButtons userId={props.userId} contact={userContact} />
+        ) : null}
+
+        {ownerId ? (
+          <LinkedProfileCard
+            title="Owner"
+            contactId={ownerId}
+            testID="ProfileOwnerCard"
+            onPress={props.onPressUserProfile}
+          />
+        ) : botContact ? (
+          <LinkedProfileCard
+            title="Tlonbot"
+            contactId={botId}
+            testID="ProfileTlonbotCard"
+            onPress={props.onPressUserProfile}
+          />
         ) : null}
 
         {props.onPressBotSettings ? (
@@ -251,6 +272,61 @@ function ProfileLinkItem({
             backgroundColor="$transparent"
           />
         </ListItem>
+      </Pressable>
+    </View>
+  );
+}
+
+function LinkedProfileCard({
+  title,
+  contactId,
+  testID,
+  onPress,
+}: {
+  title: string;
+  contactId: string;
+  testID: string;
+  onPress: (contactId: string) => void;
+}) {
+  const contact = useContact(contactId);
+  // ContactName doesn't wrap on web, and a moon's @p must stay readable on a
+  // phone, so the @p line renders as plain text.
+  const contactIdProps = useContactNameProps({
+    contactId,
+    mode: 'contactId',
+    expandLongIds: true,
+  });
+  const hasNickname = !!contact?.nickname?.length;
+
+  const handlePress = useCallback(() => {
+    onPress(contactId);
+    triggerHaptic('baseButtonClick');
+  }, [contactId, onPress]);
+
+  return (
+    <View paddingHorizontal="$xl" width="100%">
+      <Pressable borderRadius="$2xl" onPress={handlePress} testID={testID}>
+        <WidgetPane>
+          <WidgetPane.Title>{title}</WidgetPane.Title>
+          <XStack alignItems="center" gap="$l">
+            <ContactAvatar contactId={contactId} size="$4xl" />
+            <YStack flex={1} minWidth={0} gap="$m">
+              {hasNickname ? (
+                <Text size="$label/l" numberOfLines={1}>
+                  <ContactName contactId={contactId} mode="nickname" />
+                </Text>
+              ) : null}
+              <Text
+                size={hasNickname ? '$label/m' : '$label/l'}
+                color={hasNickname ? '$tertiaryText' : '$primaryText'}
+                aria-label={contactIdProps['aria-label']}
+              >
+                {contactIdProps.children}
+              </Text>
+            </YStack>
+            <Icon type="ChevronRight" color="$tertiaryText" />
+          </XStack>
+        </WidgetPane>
       </Pressable>
     </View>
   );

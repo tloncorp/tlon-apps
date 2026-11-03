@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it, spyOn } from 'bun:test';
 import http from 'node:http';
 import https from 'node:https';
-import type { AddressInfo } from 'node:net';
+import net, { type AddressInfo } from 'node:net';
 import zlib from 'node:zlib';
 
 import {
@@ -13,10 +13,13 @@ import {
   THROTTLE_MAX_WAIT_MS,
   THROTTLE_MIN_WAIT_MS,
   type ResolvedAddress,
+  USERINFO_ERROR,
   classifyMediaUrl,
   fetchGuardedMedia,
   isAllowedAddress,
+  isMediaPolicyRejection,
   isDeniedHostname,
+  probeGuardedMedia,
   strictPostableUrl,
   throttleWaitMs,
 } from './media-guard';
@@ -1383,5 +1386,346 @@ describe('fetchGuardedMedia — leak safety', () => {
     expect(message).not.toContain('SUPERSECRET');
     expect(message).not.toContain('storage.example.com');
     expect(message).not.toContain('10.0.0.5');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// probeGuardedMedia: the headers-only operation used for --file/--video. It
+// shares the GET path's guard; only the failure classes differ.
+// ---------------------------------------------------------------------------
+
+/** A raw-socket server, for response heads node's http server won't send. */
+async function startRawServer(head: string): Promise<{
+  port: number;
+  methods: string[];
+}> {
+  const methods: string[] = [];
+  const server = net.createServer((socket) => {
+    socket.once('data', (chunk) => {
+      methods.push(chunk.toString('latin1').split(' ')[0]);
+      socket.end(head);
+    });
+  });
+  await new Promise<void>((resolve) => {
+    server.listen(0, '127.0.0.1', () => resolve());
+  });
+  openServers.push({
+    port: 0,
+    requests: [],
+    connections: 0,
+    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+  });
+  return { port: (server.address() as AddressInfo).port, methods };
+}
+
+describe('probeGuardedMedia', () => {
+  const probeOptions = (resolver: ReturnType<typeof countingResolver>) => ({
+    deadlineMs: 5_000,
+    resolveHost: resolver.resolveHost,
+    allowAddress: allowLoopback,
+  });
+
+  it('reads type and length from a HEAD without reading a body', async () => {
+    const methods: string[] = [];
+    const server = await startServer((req, res) => {
+      methods.push(req.method ?? '');
+      res.writeHead(200, {
+        'content-type': 'Application/PDF; charset=binary',
+        'content-length': '1234',
+      });
+      res.end();
+    });
+    const resolver = countingResolver();
+
+    const result = await probeGuardedMedia(
+      `http://${PINNED_HOST}:${server.port}/report.pdf`,
+      probeOptions(resolver)
+    );
+
+    expect(result).toEqual({ mimeType: 'application/pdf', size: 1234 });
+    expect(methods).toEqual(['HEAD']);
+    expect(resolver.calls).toEqual([PINNED_HOST]);
+    expect(server.requests[0].remoteAddress).toBe('127.0.0.1');
+  });
+
+  it('reports an unknown size when content-length is absent', async () => {
+    const raw = await startRawServer(
+      'HTTP/1.1 200 OK\r\nContent-Type: video/mp4\r\nConnection: close\r\n\r\n'
+    );
+    const resolver = countingResolver();
+
+    const result = await probeGuardedMedia(
+      `http://${PINNED_HOST}:${raw.port}/clip.mp4`,
+      probeOptions(resolver)
+    );
+
+    expect(result).toEqual({ mimeType: 'video/mp4', size: -1 });
+    expect(raw.methods).toEqual(['HEAD']);
+  });
+
+  it('reports an unknown size for an encoded or unparsable length', async () => {
+    for (const headers of [
+      { 'content-length': '10', 'content-encoding': 'gzip' },
+      { 'content-length': '12abc' },
+    ]) {
+      const head = Object.entries(headers)
+        .map(([name, value]) => `${name}: ${value}\r\n`)
+        .join('');
+      const raw = await startRawServer(
+        `HTTP/1.1 200 OK\r\n${head}Connection: close\r\n\r\n`
+      );
+      const result = await probeGuardedMedia(
+        `http://${PINNED_HOST}:${raw.port}/f`,
+        probeOptions(countingResolver())
+      );
+      expect(result.size).toBe(-1);
+    }
+  });
+
+  it('follows a redirect with the same pinned HEAD per hop', async () => {
+    const methods: string[] = [];
+    const server = await startServer((req, res) => {
+      methods.push(`${req.method} ${req.url}`);
+      if (req.url === '/start') {
+        res.writeHead(302, { location: '/final' });
+        res.end();
+        return;
+      }
+      res.writeHead(200, { 'content-length': '7' });
+      res.end();
+    });
+    const resolver = countingResolver();
+
+    const result = await probeGuardedMedia(
+      `http://${PINNED_HOST}:${server.port}/start`,
+      probeOptions(resolver)
+    );
+
+    expect(result).toEqual({ size: 7 });
+    expect(methods).toEqual(['HEAD /start', 'HEAD /final']);
+    expect(resolver.calls).toEqual([PINNED_HOST, PINNED_HOST]);
+  });
+
+  it('completes over the pinned https transport', async () => {
+    const server = await startServer((req, res) => {
+      res.writeHead(200, {
+        'content-type': 'video/mp4',
+        'content-length': '99',
+      });
+      res.end();
+    }, true);
+
+    const result = await probeGuardedMedia(
+      `https://${PINNED_HOST}:${server.port}/clip.mp4`,
+      {
+        ...probeOptions(countingResolver()),
+        requireHttps: true,
+        tlsOptions: { ca: [FIXTURE_CERT] },
+      }
+    );
+
+    expect(result).toEqual({ mimeType: 'video/mp4', size: 99 });
+  });
+
+  describe('host-policy rejections are fatal', () => {
+    it('refuses a denied hostname before resolving', async () => {
+      const resolver = countingResolver();
+      const error = await probeGuardedMedia(
+        'https://localhost/x.pdf',
+        probeOptions(resolver)
+      ).catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toBe(FETCH_FAILED_ERROR);
+      expect(isMediaPolicyRejection(error)).toBe(true);
+      expect(resolver.calls).toEqual([]);
+    });
+
+    it('refuses a private resolved address before connecting', async () => {
+      const server = await startServer((req, res) => {
+        res.writeHead(200);
+        res.end();
+      });
+      const resolver = countingResolver('10.0.0.5');
+
+      const error = await probeGuardedMedia(
+        `http://${PINNED_HOST}:${server.port}/x.pdf`,
+        // Real policy, not the loopback override.
+        { deadlineMs: 5_000, resolveHost: resolver.resolveHost }
+      ).catch((caught: unknown) => caught);
+
+      expect(isMediaPolicyRejection(error)).toBe(true);
+      expect(server.connections).toBe(0);
+    });
+
+    it('applies the policy to every redirect hop', async () => {
+      const server = await startServer((req, res) => {
+        res.writeHead(302, { location: 'http://localhost/x.pdf' });
+        res.end();
+      });
+      const resolver = countingResolver();
+
+      const error = await probeGuardedMedia(
+        `http://${PINNED_HOST}:${server.port}/start`,
+        probeOptions(resolver)
+      ).catch((caught: unknown) => caught);
+
+      expect(isMediaPolicyRejection(error)).toBe(true);
+      // The denied second hop is never resolved.
+      expect(resolver.calls).toEqual([PINNED_HOST]);
+    });
+
+    it('refuses a plain-http target under requireHttps', async () => {
+      const resolver = countingResolver();
+      const error = await probeGuardedMedia(`http://${PINNED_HOST}/x.pdf`, {
+        ...probeOptions(resolver),
+        requireHttps: true,
+      }).catch((caught: unknown) => caught);
+
+      expect(isMediaPolicyRejection(error)).toBe(true);
+      expect(resolver.calls).toEqual([]);
+    });
+  });
+
+  it('refuses a 404 or 410 with the fetch error, as the image fetch does', async () => {
+    for (const status of [404, 410]) {
+      const server = await startServer((req, res) => {
+        res.writeHead(status, { 'content-length': '5' });
+        res.end();
+      });
+      const error = await probeGuardedMedia(
+        `http://${PINNED_HOST}:${server.port}/x`,
+        probeOptions(countingResolver())
+      ).catch((caught: unknown) => caught);
+      expect((error as Error).message).toBe(FETCH_FAILED_ERROR);
+      expect(isMediaPolicyRejection(error)).toBe(false);
+    }
+  });
+
+  describe('other failures are soft: unknown metadata, no error', () => {
+    it('treats any other 4xx/5xx answer as unknown', async () => {
+      for (const status of [403, 405, 500, 501]) {
+        const server = await startServer((req, res) => {
+          res.writeHead(status, { 'content-length': '5' });
+          res.end();
+        });
+        expect(
+          await probeGuardedMedia(
+            `http://${PINNED_HOST}:${server.port}/x`,
+            probeOptions(countingResolver())
+          )
+        ).toEqual({ size: -1 });
+      }
+    });
+
+    it('treats a refused connection as unknown', async () => {
+      const server = await startServer((req, res) => {
+        res.end();
+      });
+      const port = server.port;
+      await server.close();
+
+      expect(
+        await probeGuardedMedia(
+          `http://${PINNED_HOST}:${port}/x`,
+          probeOptions(countingResolver())
+        )
+      ).toEqual({ size: -1 });
+    });
+
+    it('treats a resolver failure as unknown', async () => {
+      expect(
+        await probeGuardedMedia(`http://${PINNED_HOST}/x`, {
+          deadlineMs: 5_000,
+          resolveHost: async () => {
+            throw new Error('ENOTFOUND');
+          },
+          allowAddress: allowLoopback,
+        })
+      ).toEqual({ size: -1 });
+    });
+
+    it('treats a missed deadline as unknown', async () => {
+      const server = await startServer(() => {
+        // Never answers.
+      });
+
+      const started = Date.now();
+      expect(
+        await probeGuardedMedia(`http://${PINNED_HOST}:${server.port}/x`, {
+          ...probeOptions(countingResolver()),
+          deadlineMs: 200,
+        })
+      ).toEqual({ size: -1 });
+      expect(Date.now() - started).toBeLessThan(2_000);
+    });
+  });
+});
+
+describe('fetchGuardedMedia — failure classes', () => {
+  it('marks host-policy refusals and leaves network failures unmarked', async () => {
+    const denied = await fetchGuardedMedia('https://localhost/x.png', {
+      maxBytes: 1024,
+      deadlineMs: 5_000,
+    }).catch((caught: unknown) => caught);
+    expect(isMediaPolicyRejection(denied)).toBe(true);
+
+    const server = await startServer((req, res) => {
+      res.writeHead(404);
+      res.end();
+    });
+    const missing = await fetchGuardedMedia(
+      `http://${PINNED_HOST}:${server.port}/x.png`,
+      {
+        maxBytes: 1024,
+        deadlineMs: 5_000,
+        resolveHost: countingResolver().resolveHost,
+        allowAddress: allowLoopback,
+      }
+    ).catch((caught: unknown) => caught);
+    expect((missing as Error).message).toBe(FETCH_FAILED_ERROR);
+    expect(isMediaPolicyRejection(missing)).toBe(false);
+  });
+});
+
+describe('redirects to a URL with embedded credentials', () => {
+  it('refuses the hop for GET and HEAD alike, as a marked policy rejection', async () => {
+    const server = await startServer((req, res) => {
+      if (req.url === '/start') {
+        res.writeHead(302, {
+          location: `http://user:pass@creds.invalid:${server.port}/end`,
+        });
+        res.end();
+        return;
+      }
+      res.writeHead(200, { 'content-length': '3' });
+      res.end('abc');
+    });
+    const getResolver = countingResolver();
+    const headResolver = countingResolver();
+    const options = { deadlineMs: 5_000, allowAddress: allowLoopback };
+    const url = `http://${PINNED_HOST}:${server.port}/start`;
+
+    const get = await fetchGuardedMedia(url, {
+      ...options,
+      resolveHost: getResolver.resolveHost,
+      maxBytes: 1024,
+    }).catch((caught: unknown) => caught);
+    const head = await probeGuardedMedia(url, {
+      ...options,
+      resolveHost: headResolver.resolveHost,
+    }).catch((caught: unknown) => caught);
+
+    for (const error of [get, head]) {
+      expect((error as Error).message).toBe(USERINFO_ERROR);
+      expect(isMediaPolicyRejection(error)).toBe(true);
+    }
+    // Only the first hop's host reaches DNS; the credentialed one never does.
+    expect(getResolver.calls).toEqual([PINNED_HOST]);
+    expect(headResolver.calls).toEqual([PINNED_HOST]);
+    expect(server.requests.map((request) => request.url)).toEqual([
+      '/start',
+      '/start',
+    ]);
   });
 });

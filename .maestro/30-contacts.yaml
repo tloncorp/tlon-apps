@@ -23,7 +23,7 @@ appId: io.tlon.groups
 - tapOn: '~zod'
 - assertVisible: 'Remove Contact'
 - tapOn: 'Edit'
-- assertVisible: 'Edit Profile'
+- assertVisible: 'Edit profile'
 - tapOn: '~zod'
 - inputText: 'Testing pet name'
 - 'hideKeyboard'

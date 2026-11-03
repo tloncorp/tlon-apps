@@ -140,8 +140,8 @@ test('should navigate to channel privacy settings from channel details', async (
   await expect(page.getByText('Channel permissions')).toBeVisible({
     timeout: 5000,
   });
-  // The privacy toggle should be visible
-  await expect(page.getByTestId('PrivateChannelToggle')).toBeVisible({
+  // Everyone's access level should be visible
+  await expect(page.getByTestId('AccessLevel-Everyone')).toBeVisible({
     timeout: 5000,
   });
   // Save button should be visible

@@ -12,6 +12,8 @@ import { SaveFormat, manipulateAsync } from 'expo-image-manipulator';
 import * as db from '../../db';
 import { createDevLogger, escapeLog } from '../../debug';
 import { AnalyticsEvent } from '../../domain';
+import { syncStorageSettings } from '../sync/sync';
+import { SyncPriority } from '../syncQueue';
 import { getLocalFileSize } from './getLocalFileSize';
 import { setUploadState } from './storageUploadState';
 import {
@@ -252,6 +254,30 @@ async function uploadImageAsset(
   });
 }
 
+// On web these live in localStorage, which every tab on the origin shares, so a
+// logout in another tab can clear them under a tab that stays open and never
+// resyncs (TLON-5617). Refetch from the ship instead of failing the upload.
+async function getUploadSettings() {
+  const read = async () => {
+    const [config, credentials] = await Promise.all([
+      db.storageConfiguration.getValue(),
+      db.storageCredentials.getValue(),
+    ]);
+    return { config, credentials };
+  };
+
+  const settings = await read();
+  if (settings.config && settings.credentials) {
+    return settings;
+  }
+  logger.trackEvent('Storage settings missing at upload; resyncing', {
+    hasConfig: !!settings.config,
+    hasCredentials: !!settings.credentials,
+  });
+  await syncStorageSettings({ priority: SyncPriority.High });
+  return read();
+}
+
 export const performUpload = async (
   params:
     | (Pick<RNFile, 'uri' | 'height' | 'width'> & {
@@ -265,10 +291,7 @@ export const performUpload = async (
   if (!(params instanceof File)) {
     logger.log('performing upload', params.uri, 'isWeb', isWeb);
   }
-  const [config, credentials] = await Promise.all([
-    db.storageConfiguration.getValue(),
-    db.storageCredentials.getValue(),
-  ]);
+  const { config, credentials } = await getUploadSettings();
 
   if (!credentials || !config) {
     throw new Error('unable to upload: missing storage configuration');

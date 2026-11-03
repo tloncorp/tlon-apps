@@ -16,6 +16,7 @@ import { ScrollView, XStack, YStack } from 'tamagui';
 
 import { useCurrentUserId } from '../contexts/appDataContext';
 import { ActionSheet } from './ActionSheet';
+import { BotPromptHeader } from './BotPromptHeader';
 import { joinPromptFile, promptLabel, splitPromptFile } from './botPromptFiles';
 import { ControlledTextareaField } from './Form';
 import { NotebookContentRenderer } from './NotebookPost/NotebookPost';
@@ -457,35 +458,13 @@ export function BotSystemPromptEditorSheet({
           paddingBottom={isWindowNarrow ? 0 : '$m'}
         >
           <YStack gap={isWindowNarrow ? '$xl' : '$2xl'}>
-            <YStack
-              gap="$xs"
+            <BotPromptHeader
+              title={title}
+              meta={prompt.name}
+              description="Added to Tlon's defaults and kept when Tlon updates them."
               paddingLeft="$xl"
               paddingRight={isWindowNarrow ? '$xl' : '$4xl'}
-            >
-              <XStack alignItems="baseline" gap="$l">
-                <Text
-                  size="$label/xl"
-                  fontWeight="600"
-                  color="$primaryText"
-                  flex={1}
-                  minWidth={0}
-                  numberOfLines={1}
-                >
-                  {title}
-                </Text>
-                <Text
-                  size="$label/s"
-                  color="$tertiaryText"
-                  flexShrink={0}
-                  numberOfLines={1}
-                >
-                  {prompt.name}
-                </Text>
-              </XStack>
-              <Text size="$label/m" color="$secondaryText">
-                {"Added to Tlon's defaults and kept when Tlon updates them."}
-              </Text>
-            </YStack>
+            />
 
             <YStack>
               <XStack

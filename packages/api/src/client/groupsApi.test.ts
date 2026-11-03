@@ -62,6 +62,16 @@ test('createGroup recovers only when a response body stalls after headers', asyn
   });
 });
 
+test('createGroup sends the group description in the create thread', async () => {
+  threadMock.mockRejectedValue(new Error('stop after the request'));
+
+  await expect(
+    createGroup({ group: { ...group, description: 'Shared work' } })
+  ).rejects.toThrow('stop after the request');
+
+  expect(threadMock.mock.calls[0][0].body.meta.description).toBe('Shared work');
+});
+
 test('toGroupsUpdate maps blob responses to editGroupBlob', () => {
   expect(
     toGroupsUpdate({

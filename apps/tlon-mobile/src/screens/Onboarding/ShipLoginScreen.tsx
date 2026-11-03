@@ -227,7 +227,7 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
                       trigger('accessCode');
                     }}
                     onChangeText={onChange}
-                    onSubmitEditing={onSubmit}
+                    onSubmitEditing={() => onSubmit()}
                     value={value}
                     secureTextEntry={!codevisible}
                     autoCapitalize="none"

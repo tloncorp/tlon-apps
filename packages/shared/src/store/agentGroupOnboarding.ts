@@ -179,26 +179,13 @@ async function startAgentGroupFurnishingOnce(
       : params.canRenameGroup &&
         isProvisionedAgentGroupTitle(initialGroupTitle, await ownerNaming());
 
-  // Every newly created agent group starts with the same placeholder title,
-  // even when it is not the hosted first group. Keep rename provenance for all
-  // of them; only the first-run path receives the navigation lock.
   await db.agentGroupOnboardingLocks.setValue((current) => ({
     ...current,
-    [group.id]: {
-      ...current[group.id],
-      chatChannelId: chatChannel.id,
-      createdAt: current[group.id]?.createdAt ?? Date.now(),
-      ...(params.isFirstGroup
-        ? {
-            navigationLockExpiresAt:
-              current[group.id]?.navigationLockExpiresAt ??
-              Date.now() + db.AGENT_GROUP_NAVIGATION_LOCK_FAILSAFE_MS,
-          }
-        : {}),
-      initialGroupTitle:
-        current[group.id]?.initialGroupTitle ?? initialGroupTitle,
-      canRenameGroup: current[group.id]?.canRenameGroup ?? canRenameGroup,
-    },
+    [group.id]: furnishingLockMarker(current[group.id], {
+      initialGroupTitle,
+      canRenameGroup,
+      now: Date.now(),
+    }),
   }));
   const complete = finishAgentGroupFurnishing({
     group,
@@ -341,6 +328,31 @@ async function waitForPendingGroupWithChat(
     if (attempt + 1 < attempts && delayMs > 0) await wait(delayMs);
   }
   throw lastError ?? new Error('The pending workspace is not ready yet.');
+}
+
+/**
+ * The onboarding record a furnishing attempt leaves for its group. Every new
+ * agent group starts with the same placeholder title, so rename provenance is
+ * kept for all of them, and a late attempt keeps what an earlier one recorded.
+ */
+function furnishingLockMarker(
+  existing: db.AgentGroupOnboardingLock | undefined,
+  {
+    initialGroupTitle,
+    canRenameGroup,
+    now,
+  }: {
+    initialGroupTitle: string | null;
+    canRenameGroup: boolean;
+    now: number;
+  }
+): db.AgentGroupOnboardingLock {
+  return {
+    ...existing,
+    createdAt: existing?.createdAt ?? now,
+    initialGroupTitle: existing?.initialGroupTitle ?? initialGroupTitle,
+    canRenameGroup: existing?.canRenameGroup ?? canRenameGroup,
+  };
 }
 
 async function finishAgentGroupFurnishing({
@@ -1103,6 +1115,7 @@ export const agentGroupOnboardingTesting = {
   buildIntroRequest,
   addCordonThenJoin,
   ensureIntroRequest,
+  furnishingLockMarker,
   isProvisionedAgentGroupTitle,
   agentGroupFurnishingFlightKey,
   agentHasAdmin,

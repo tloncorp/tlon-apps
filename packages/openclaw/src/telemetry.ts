@@ -5,7 +5,11 @@ import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 import { PostHog } from 'posthog-node';
 
 import type { TlonAuthPhase } from './auth-retry-state.js';
-import type { BudgetHoldChange, BudgetState } from './cron-budget-hold.js';
+import type {
+  BudgetHoldChange,
+  BudgetHoldState,
+  BudgetState,
+} from './cron-budget-hold.js';
 import { sharedMap, sharedSlot } from './shared-state.js';
 import type {
   TlonChannelKind,
@@ -145,10 +149,14 @@ export type TlonDeliverySkipReason =
   | 'empty'
   | 'silent'
   | 'heartbeat'
+  | 'channel_transform'
   | 'empty_payload_text'
   | 'block_directive_only'
   | 'media_only_payload_not_sent'
-  | 'source_reply_delivery_mode_message_tool_only';
+  | 'source_reply_delivery_mode_message_tool_only'
+  // Core's billing reply, replaced by an owner notice.
+  | 'provider_billing_error'
+  | 'not_dispatched';
 
 export type TlonReplyOutcomeEvent = {
   sessionKey: string;
@@ -399,6 +407,8 @@ export type TlonCronBudgetSnapshot = TlonCronBudgetIdentity & {
   budgetState: BudgetState;
   episodeId: string | null;
   budgetPausedCronCount: number;
+  creditNoticeLevel: BudgetHoldState['noticeLevel'] | null;
+  creditNoticeDelivered: boolean;
   reason: 'gateway_start' | 'state_change';
 };
 export type TlonCronBudgetChanged = TlonCronBudgetIdentity & BudgetHoldChange;
@@ -454,6 +464,7 @@ export type TlonCronSnapshotEvent = TlonCronCountFields & {
   scheduleKindEveryCount: number | null;
   scheduleKindAtCount: number | null;
   scheduleKindOnExitCount: number | null;
+  scheduleKindStreamCount: number | null;
 };
 
 /**
@@ -587,14 +598,15 @@ export type TlonHarnessDebugEvent = TlonHarnessDebugSnapshotFields & {
   harness: TlonHarnessName;
   harnessEventType: string;
   debugEventKind: string;
-  sessionKey: string;
+  // Null for process-scoped events, which belong to no Tlon session.
+  sessionKey: string | null;
   sessionId: string | null;
   runId: string | null;
   accountId: string | null;
   agentId: string | null;
   ownerShip: string | null;
   botShip: string;
-  destinationKind: TlonDestinationKind;
+  destinationKind: TlonDestinationKind | null;
   provider: string | null;
   model: string | null;
   phase: string | null;
@@ -2034,6 +2046,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           scheduleKindEveryCount: event.scheduleKindEveryCount,
           scheduleKindAtCount: event.scheduleKindAtCount,
           scheduleKindOnExitCount: event.scheduleKindOnExitCount,
+          scheduleKindStreamCount: event.scheduleKindStreamCount,
           ...this.cronCountPersonProps(event),
         },
         { omitNullish: true }
@@ -2992,6 +3005,73 @@ export function reportHarnessError(event: TlonHarnessErrorReportInput): void {
       isCron: cronAttribution != null,
       cronJobId: cronAttribution?.cronJobId ?? null,
     },
+  });
+}
+
+/**
+ * Reports a process-scoped debug event (e.g. a memory sample). These belong to
+ * no Tlon session, so they skip the remembered-session gate and the
+ * per-session debug snapshot that `reportHarnessDebug` applies.
+ */
+export function reportProcessHarnessDebug(event: {
+  harnessEventType: string;
+  debugEventKind: string;
+  message?: string | null;
+  logAttributes?: TlonDiagnosticLogAttributes | null;
+}): void {
+  debugTelemetryReporterSlot.get()?.({
+    harness: 'openclaw',
+    harnessEventType: event.harnessEventType,
+    debugEventKind: event.debugEventKind,
+    sessionKey: null,
+    sessionId: null,
+    runId: null,
+    accountId: null,
+    agentId: null,
+    ownerShip: null,
+    botShip: '',
+    destinationKind: null,
+    provider: null,
+    model: null,
+    phase: null,
+    outcome: null,
+    durationMs: null,
+    toolName: null,
+    toolCallId: null,
+    toolSource: null,
+    toolOwner: null,
+    pluginId: null,
+    harnessId: null,
+    modelCallId: null,
+    modelApi: null,
+    modelTransport: null,
+    requestPayloadBytes: null,
+    responseStreamBytes: null,
+    timeToFirstByteMs: null,
+    logLevel: null,
+    message: optionalString(event.message),
+    loggerName: null,
+    codeFunctionName: null,
+    codeLine: null,
+    logAttributes: normalizeLogAttributes(event.logAttributes),
+    contextEngineEvent: null,
+    contextEngineTaskId: null,
+    contextEngineOperation: null,
+    contextEngineLane: null,
+    errorName: null,
+    errorCode: null,
+    messageCount: null,
+    historyTextChars: null,
+    historyImageBlocks: null,
+    maxMessageTextChars: null,
+    systemPromptChars: null,
+    promptChars: null,
+    promptImages: null,
+    contextTokenBudget: null,
+    reserveTokens: null,
+    contextChannel: null,
+    contextTrigger: null,
+    ...harnessDebugSnapshotFields(null),
   });
 }
 

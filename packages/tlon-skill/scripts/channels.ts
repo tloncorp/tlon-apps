@@ -41,6 +41,7 @@ import {
   joinChannelByNest,
   leaveChannelByNest,
 } from './channel-membership';
+import { errorMessage } from './commands/command';
 import {
   assertKnownChannelKind,
   channelCreatedLines,
@@ -62,8 +63,13 @@ import {
   refuseNotesWriters,
   refuseRemovedChannelKind,
 } from './cli-utils';
+import {
+  actingShipHostsChannel,
+  assertActingShipCanAdminister,
+} from './group-admin';
 import { createNotesChannelInGroup } from './notes-channel';
 import { createNotesChannelDeps } from './notes-channel-runtime';
+import { getChannelPerm } from './notes-migrate-runtime';
 
 function generateChannelSlug(): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz';
@@ -309,6 +315,8 @@ async function getChannelInfo(nest: string) {
   }
 
   const { group, channel } = match;
+  const readerRoles = (channel.readerRoles || []).map((r) => r.roleId);
+  const writers = await getChannelWriters(nest, kind);
 
   console.log(`\n=== ${channel.title || name} ===\n`);
   console.log(`Nest: ${nest}`);
@@ -316,10 +324,8 @@ async function getChannelInfo(nest: string) {
   console.log(`Group: ${group.title} (${group.id})`);
   console.log(`Zone: ${findChannelSectionId(group, channel.id)}`);
   console.log(`Description: ${channel.description || '(none)'}`);
-  const readerRoles = (channel.readerRoles || []).map((r) => r.roleId);
-  console.log(
-    `Readers: ${readerRoles.length > 0 ? readerRoles.join(', ') : '(all members)'}`
-  );
+  console.log(`Readers: ${formatRoles(readerRoles)}`);
+  console.log(`Writers: ${writers.line}`);
 
   return {
     nest,
@@ -330,7 +336,30 @@ async function getChannelInfo(nest: string) {
     description: channel.description,
     zone: findChannelSectionId(group, channel.id),
     readers: readerRoles,
+    writers: writers.roles,
   };
+}
+
+function formatRoles(roles: string[]): string {
+  return roles.length > 0 ? roles.join(', ') : '(all members)';
+}
+
+// Writer roles live with the channel, not the group. %channels serves them
+// only for chat and heap channels this ship has joined; %notes and %buckets
+// channels keep their own. `roles` is null when they could not be read.
+async function getChannelWriters(
+  nest: string,
+  kind: string
+): Promise<{ roles: string[] | null; line: string }> {
+  if (kind !== 'chat' && kind !== 'heap') {
+    return { roles: null, line: `(managed by %${kind})` };
+  }
+  try {
+    const { writers } = await getChannelPerm(nest);
+    return { roles: writers, line: formatRoles(writers) };
+  } catch (error) {
+    return { roles: null, line: `(unavailable: ${errorMessage(error)})` };
+  }
 }
 
 async function createChannelInGroup(
@@ -391,6 +420,7 @@ async function updateChannelMeta(
   }
 
   const { group, channel } = match;
+  await assertActingShipCanAdminister(group.id, 'update channels');
   const sectionId = findChannelSectionId(group, channel.id) || 'default';
   const description = options.description ?? channel.description ?? '';
   const channelContentConfiguration = channel.contentConfiguration ?? undefined;
@@ -431,6 +461,7 @@ async function deleteChannelByNest(nest: string) {
   if (!match) {
     throw new Error(`Channel ${nest} not found in any group`);
   }
+  await assertActingShipCanAdminister(match.group.id, 'delete channels');
 
   console.log(`Deleting channel ${nest} from group ${match.group.id}...`);
 
@@ -466,8 +497,21 @@ function findChannelSectionId(group: ApiGroup, channelId: string): string {
   return section?.sectionId || 'default';
 }
 
+// Writers are kept by the channel host, not the group host.
+async function assertCanChangeWriters(nest: string) {
+  if (actingShipHostsChannel(nest)) {
+    return;
+  }
+  const match = await findChannelGroup(nest);
+  if (!match) {
+    throw new Error(`Channel ${nest} not found in any group`);
+  }
+  await assertActingShipCanAdminister(match.group.id, 'change writers');
+}
+
 // Add writers to a channel
 async function addWriters(nest: string, roles: string[]) {
+  await assertCanChangeWriters(nest);
   console.log(`Adding writers to ${nest}: ${roles.join(', ')}...`);
   await apiAddWriters({ channelId: nest, writers: roles });
   console.log(`✅ Writers added: ${roles.join(', ')}`);
@@ -475,6 +519,7 @@ async function addWriters(nest: string, roles: string[]) {
 
 // Remove writers from a channel
 async function removeWriters(nest: string, roles: string[]) {
+  await assertCanChangeWriters(nest);
   console.log(`Removing writers from ${nest}: ${roles.join(', ')}...`);
   await apiRemoveWriters({ channelId: nest, writers: roles });
   console.log(`✅ Writers removed: ${roles.join(', ')}`);
@@ -482,6 +527,7 @@ async function removeWriters(nest: string, roles: string[]) {
 
 // Add readers to a channel (requires group context)
 async function addReaders(groupFlag: string, nest: string, roles: string[]) {
+  await assertActingShipCanAdminister(groupFlag, 'change readers');
   console.log(
     `Adding readers to ${nest} in group ${groupFlag}: ${roles.join(', ')}...`
   );
@@ -507,6 +553,7 @@ async function addReaders(groupFlag: string, nest: string, roles: string[]) {
 
 // Remove readers from a channel (requires group context)
 async function removeReaders(groupFlag: string, nest: string, roles: string[]) {
+  await assertActingShipCanAdminister(groupFlag, 'change readers');
   console.log(
     `Removing readers from ${nest} in group ${groupFlag}: ${roles.join(', ')}...`
   );
@@ -621,6 +668,7 @@ async function main() {
         }
         const kind =
           (getOption(args, 'kind', 3) as 'chat' | 'heap' | 'notes') || 'chat';
+        await assertActingShipCanAdminister(groupId, 'add channels');
         // %notes group channels are created by %notes itself (it registers the
         // %groups listing) — never via createChannel/%channels.
         if (kind === 'notes') {

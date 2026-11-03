@@ -56,3 +56,4 @@ export {
   type GatewayRestartPreflightCounts,
   type LiveToolTraceHandle,
 } from './docker-logs.js';
+export { waitForRuntimeIdle } from './runtime-idle.js';

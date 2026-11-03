@@ -343,6 +343,45 @@ describe('Steward automation projection normalization', () => {
     ]);
   });
 
+  it("leaves out OpenClaw's own monitor jobs without reporting them", () => {
+    // As a fresh OpenClaw 2026.9.33 gateway lists them for agent "dev".
+    const result = normalizeStewardAutomationProjectionWithRejections([
+      runtimeJob({
+        id: 'heartbeat',
+        name: 'heartbeat-dev',
+        declarationKey: 'heartbeat:dev',
+        enabled: true,
+        schedule: { kind: 'every', everyMs: 1_800_000 },
+        sessionTarget: 'main',
+        payload: { kind: 'heartbeat' },
+      }),
+      runtimeJob({
+        id: 'skill-review',
+        name: 'skill-collection-review-dev',
+        declarationKey: 'skill-collection-review:dev',
+        enabled: true,
+        schedule: { kind: 'every', everyMs: 604_800_000 },
+        sessionTarget: 'isolated',
+        payload: { kind: 'agentTurn', message: 'Review the skills.' },
+        delivery: { mode: 'none' },
+      }),
+      // A HEARTBEAT.md task doctor moved into cron stays the owner's.
+      runtimeJob({
+        id: 'imported',
+        name: 'Check mail',
+        declarationKey: 'heartbeat-task:dev:0123456789abcdef01234567',
+        sessionTarget: 'main',
+        payload: { kind: 'systemEvent', message: 'Check mail.' },
+      }),
+      runtimeJob({ id: 'daily', name: 'Daily digest' }),
+    ]);
+    expect(result.projection.project.tasks.map(({ id }) => id)).toEqual([
+      'imported',
+      'daily',
+    ]);
+    expect(result.rejected).toEqual([]);
+  });
+
   it('normalizeStewardAutomationProjection returns the projection alone', () => {
     expect(
       normalizeStewardAutomationProjection([

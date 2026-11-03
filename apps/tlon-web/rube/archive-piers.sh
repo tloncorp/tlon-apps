@@ -307,8 +307,9 @@ urbit_version() {
 write_sidecar() {
     local generation=$1
     local out=$2
-    local desk_tree peru_blob assemble_blob sync_deps_blob vere produced_at
-    desk_tree=$(git -C "$PROJECT_ROOT" rev-parse "$SOURCE_SHA:desk") || return 1
+    local desk_tree_no_glob peru_blob assemble_blob sync_deps_blob vere produced_at
+    desk_tree_no_glob=$("$PROJECT_ROOT/scripts/desk-identity.sh" tree "$SOURCE_SHA") ||
+        return 1
     peru_blob=$(git_blob_at "$SOURCE_SHA" peru.yaml) || return 1
     assemble_blob=$(git_blob_at "$SOURCE_SHA" scripts/assemble-desk.sh) || return 1
     sync_deps_blob=$(git_blob_at "$SOURCE_SHA" scripts/sync-deps.sh) || return 1
@@ -317,15 +318,16 @@ write_sidecar() {
     jq -n \
         --argjson generation "$generation" \
         --arg sourceSha "$SOURCE_SHA" \
-        --arg deskTree "$desk_tree" \
+        --arg deskTreeNoGlob "$desk_tree_no_glob" \
         --arg peruBlob "$peru_blob" \
         --arg assembleBlob "$assemble_blob" \
         --arg syncDepsBlob "$sync_deps_blob" \
         --arg vere "$vere" \
         --arg producedAt "$produced_at" \
-        '{generation: $generation, sourceSha: $sourceSha, deskTree: $deskTree,
-          peruBlob: $peruBlob, assembleBlob: $assembleBlob,
-          syncDepsBlob: $syncDepsBlob, vere: $vere, producedAt: $producedAt}' \
+        '{generation: $generation, sourceSha: $sourceSha,
+          deskTreeNoGlob: $deskTreeNoGlob, peruBlob: $peruBlob,
+          assembleBlob: $assembleBlob, syncDepsBlob: $syncDepsBlob,
+          vere: $vere, producedAt: $producedAt}' \
         > "$out"
 }
 

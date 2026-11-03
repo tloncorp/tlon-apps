@@ -290,6 +290,7 @@ function BotProviderPaneFixture() {
             provider: 'basic',
             credentialMode: 'included',
             requiresKey: false,
+            recommendationLabel: 'Recommended',
           },
           {
             id: 'openai:subscription',
@@ -297,7 +298,6 @@ function BotProviderPaneFixture() {
             provider: 'openai',
             credentialMode: 'subscription',
             requiresKey: false,
-            recommendationLabel: 'Recommended',
           },
           {
             id: 'anthropic:api-key',

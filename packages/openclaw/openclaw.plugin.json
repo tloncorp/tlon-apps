@@ -79,6 +79,9 @@
           "showModelSignature": {
             "type": "boolean"
           },
+          "showCommentary": {
+            "type": "boolean"
+          },
           "authorization": {
             "type": "object",
             "properties": {
@@ -182,6 +185,9 @@
                 "showModelSignature": {
                   "type": "boolean"
                 },
+                "showCommentary": {
+                  "type": "boolean"
+                },
                 "autoAcceptDmInvites": {
                   "type": "boolean"
                 },
@@ -191,6 +197,10 @@
                 "ownerShip": {
                   "type": "string",
                   "minLength": 1
+                },
+                "ownerDefault": {
+                  "not": {},
+                  "description": "Not allowed per account: set ownerDefault on the root Tlon channel config."
                 },
                 "reactionLevel": {
                   "type": "string",
@@ -327,6 +337,9 @@
           "ownerShip": {
             "type": "string",
             "minLength": 1
+          },
+          "ownerDefault": {
+            "type": "boolean"
           },
           "reactionLevel": {
             "type": "string",

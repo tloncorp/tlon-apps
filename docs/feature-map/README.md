@@ -24,11 +24,11 @@ Desktop: hover the chat in the sidebar, open its three-dot menu, pick `Pin`.
 Notes: pinned chats move to a `Pinned` section at the top.
 ```
 
-- The `# ` title and the first line under it become the file's line in the
-  skill's index, so the first line says what questions the file answers. That
-  line is published as written, whatever the release, so keep it to the area
-  and do not name a feature that is behind a flag or newer than the store
-  build. The index lists each published entry by its heading anyway.
+- The `# ` title and the first line under it open the published file, so the
+  first line says what questions the file answers. That line is published as
+  written, whatever the release, so keep it to the area and do not name a
+  feature that is behind a flag or newer than the store build. The index lists
+  each published entry by its heading anyway.
 - Each `## ` heading is one task, phrased the way a person would ask about it.
   Headings are also listed in the index, so the bot picks a file by them.
 - `<!-- src: … -->` lists the files the entry was written from, as paths from
@@ -187,7 +187,8 @@ reach them a build before its entry does.
 
 `publish` writes `packages/openclaw/skills/tlon-product-guide/references/`
 from the map: the same text without the anchors, without the entries whose flag
-is off in the store build, and it rewrites the index in `SKILL.md`. CI fails
+is off in the store build, and an `index.md` listing each file with its
+entries, which `SKILL.md` sends bots to. CI fails
 when that copy differs from what `publish` writes.
 
 `release.json` names the store build the map describes: its tag, and the

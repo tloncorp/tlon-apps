@@ -9,6 +9,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useFullGroupRosters } from '../../hooks/useFullGroupRosters';
 import type { RootStackParamList } from '../../navigation/types';
+import { useIsWindowNarrow } from '../../ui';
 import {
   RecurringTaskEditorView,
   ScheduledTasksNotice,
@@ -19,7 +20,9 @@ import {
   buildTaskCreate,
   buildTaskUpdate,
   canEditPrompt,
+  canTestTask,
   describeAutomationError,
+  describeTestRunError,
   destinationForChannel,
   draftFromTask,
   firstDestinationIn,
@@ -29,8 +32,10 @@ import {
   validateDraft,
 } from '../../ui/components/automationTaskDraft';
 import { formatAutomationSchedule } from '../../ui/components/formatAutomationSchedule';
+import { runHistorySubtitle } from '../../ui/components/taskRuns';
 import { useContact } from '../../ui/contexts/appDataContext';
 import { useBotDelivery } from './useBotDelivery';
+import { useNowOnFocus, useStartTestRun, useTaskRuns } from './useTaskRuns';
 import {
   refetchAutomationsOnFocus,
   tasksForShip,
@@ -102,7 +107,9 @@ function TaskEditor({ navigation, route }: Props) {
   // Deleting removes the task from the mirror before the screen has gone
   // back; keep showing the copy being deleted rather than a "not found"
   // notice.
-  const [busy, setBusy] = useState<'save' | 'delete' | 'status' | null>(null);
+  const [busy, setBusy] = useState<
+    'save' | 'delete' | 'status' | 'test' | null
+  >(null);
   const [deleting, setDeleting] = useState<StewardAutomationTask>();
   const task =
     (taskId ? tasksForShip(query.data, botShip)?.[taskId] : undefined) ??
@@ -260,6 +267,43 @@ function TaskEditor({ navigation, route }: Props) {
     }
   }, [actions, navigation, report, startEdit, task, taskId]);
 
+  const isWindowNarrow = useIsWindowNarrow();
+  const history = useTaskRuns({ botShip, taskId, enabled: Boolean(task) });
+  const now = useNowOnFocus();
+  const openRuns = useCallback(
+    (screen: 'ScheduledTaskRuns' | 'ScheduledTaskRun', lensId?: string) => {
+      if (!taskId) return;
+      const params = { botShip, taskId };
+      if (screen === 'ScheduledTaskRun' && lensId) {
+        const run = { ...params, lensId, starting: true };
+        if (isWindowNarrow) navigation.push(screen, run);
+        else navigation.navigate(screen, run);
+        return;
+      }
+      if (isWindowNarrow) navigation.push('ScheduledTaskRuns', params);
+      else navigation.navigate('ScheduledTaskRuns', params);
+    },
+    [botShip, isWindowNarrow, navigation, taskId]
+  );
+  const startTestRun = useStartTestRun(botShip);
+  const testRun = useCallback(async () => {
+    if (!taskId) return;
+    const edit = startEdit();
+    setBusy('test');
+    try {
+      const lensId = await startTestRun(taskId);
+      if (edit.onScreen()) openRuns('ScheduledTaskRun', lensId);
+    } catch (error) {
+      // A test asked for on another visit, possibly of another task, would
+      // read as this one failing.
+      if (edit.onScreen()) {
+        showToast({ message: describeTestRunError(error), duration: 4000 });
+      }
+    } finally {
+      if (edit.onScreen()) setBusy(null);
+    }
+  }, [openRuns, showToast, startEdit, startTestRun, taskId]);
+
   const destinationFilter = useCallback(
     (channel: db.Channel) => destinationForChannel(channel, delivery) !== null,
     [delivery]
@@ -356,6 +400,27 @@ function TaskEditor({ navigation, route }: Props) {
 
   const status = task ? taskStatus(task) : undefined;
   const held = status === 'held';
+  const testable = task ? canTestTask(task) : false;
+  const runs =
+    task && history.supported
+      ? {
+          subtitle: runHistorySubtitle(history.runs, now),
+          count: Math.max(history.total ?? 0, history.runs.length),
+          onPress: () => openRuns('ScheduledTaskRuns'),
+          test: {
+            busy: busy === 'test',
+            disabled: !testable || held || Boolean(patch) || busy !== null,
+            onPress: () => void testRun(),
+            note: !testable
+              ? "This task runs in your bot's main session, so it can't be tested on its own."
+              : held
+                ? 'Testing is paused while credits are limited.'
+                : patch
+                  ? 'Save your changes to test them. A test runs the saved task.'
+                  : 'A test run shows you what this task produces now. It only reads: it posts and changes nothing, and leaves the schedule as it is.',
+          },
+        }
+      : undefined;
   const schedule = task?.schedule?.kind === 'cron' ? task.schedule : undefined;
 
   return (
@@ -374,6 +439,7 @@ function TaskEditor({ navigation, route }: Props) {
         onSelectDestination={selectDestination}
         onOpenDestinations={openDestinations}
         destinationFilter={destinationFilter}
+        runs={runs}
         status={
           status
             ? {

@@ -748,12 +748,9 @@ export function makeListing(listing: Listing): JSONContent {
 
 export const blockToContent = (content: Block): JSONContent => {
   if ('cite' in content) {
-    return {
-      type: 'diary-cite',
-      attrs: {
-        path: citeToPath(content.cite),
-      },
-    };
+    const path = citeToPath(content.cite);
+    // A cite kind this build doesn't know has no path to round-trip.
+    return path ? { type: 'diary-cite', attrs: { path } } : makeParagraph();
   }
 
   if ('image' in content) {

@@ -4,10 +4,11 @@ import Animated, {
   Easing,
   useAnimatedStyle,
   useSharedValue,
+  withTiming,
 } from 'react-native-reanimated';
 import { View, YStack, useTheme } from 'tamagui';
 
-import { TextInput, TextInputRef, interactionWithTiming } from '../../ui';
+import { TextInput, TextInputRef } from '../../ui';
 
 export const ChatListSearch = React.memo(function ChatListSearchComponent({
   isOpen,
@@ -30,13 +31,13 @@ export const ChatListSearch = React.memo(function ChatListSearchComponent({
 
   useEffect(() => {
     if (isOpen) {
-      openProgress.value = interactionWithTiming(1, {
+      openProgress.value = withTiming(1, {
         easing: Easing.inOut(Easing.quad),
         duration: 200,
       });
       inputRef.current?.focus();
     } else {
-      openProgress.value = interactionWithTiming(0, {
+      openProgress.value = withTiming(0, {
         easing: Easing.inOut(Easing.quad),
         duration: 200,
       });

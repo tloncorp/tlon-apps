@@ -1,7 +1,16 @@
+import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import {
+  copyFile,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { promisify } from 'node:util';
 
 import type { RuntimeContext, ShipEndpoint } from '../drivers/types.js';
 import { runCommand } from './compose.js';
@@ -21,6 +30,8 @@ type ShipLabel = keyof RuntimeContext['endpoints']['ships'];
 // poke path crashes outright (`%poke-to-mismatching-gill`) rather than deferring.
 const DEFAULT_DESK_SHIPS = '~zod,~ten,~mug';
 const STAGED_DESK = '/tmp/tlon-bot-e2e-groups';
+const DOCKET = 'desk.docket-0';
+const DESK_IDENTITY = 'desk-identity.sh';
 const COMMIT_ATTEMPTS = 4;
 const ASSEMBLE_DESK_TIMEOUT_MS = 300_000;
 const MOUNT_STABLE_SAMPLES = 3;
@@ -122,25 +133,40 @@ export async function withShipRebootRetry<T>(
   throw new Error('Unreachable desk commit retry state.');
 }
 
-export async function createDeskManifest(deskDir: string): Promise<string> {
+const sha256 = (content: Buffer) =>
+  createHash('sha256').update(content).digest('hex');
+
+// Frontend-only commits must not force an otherwise identical Hoon desk
+// through an expensive |commit: assemble-desk.sh stamps HEAD into commit.txt,
+// and the glob bot rewrites the docket's glob-http line several times a day on
+// develop. So commit.txt is skipped and the docket is hashed through
+// desk-identity.sh, which drops only that line; other docket changes (a
+// version bump the client's compatibility gate reads) still force a commit.
+// The docket line goes last, matching readMountedDeskManifest, which runs the
+// same script on the ship. A glob-only skip leaves the pier's archived docket
+// in place.
+export async function createDeskManifest(
+  deskDir: string,
+  deskIdentityScript: string
+): Promise<string> {
   const files = await listFiles(deskDir);
   const lines = await Promise.all(
     files
-      // Frontend-only commits must not force an otherwise identical Hoon desk
-      // through an expensive |commit: assemble-desk.sh stamps HEAD into
-      // commit.txt, and the glob bot rewrites the glob hash in desk.docket-0
-      // (several times a day on develop). Neither affects anything the bot
-      // harness exercises, and the docket-only skip leaves the pier's
-      // archived docket in place.
-      .filter((file) => file !== 'commit.txt' && file !== 'desk.docket-0')
+      .filter((file) => file !== 'commit.txt' && file !== DOCKET)
       .sort()
       .map(async (file) => {
-        const digest = createHash('sha256')
-          .update(await readFile(path.join(deskDir, file)))
-          .digest('hex');
+        const digest = sha256(await readFile(path.join(deskDir, file)));
         return `${digest}  ./${file.split(path.sep).join('/')}`;
       })
   );
+  if (files.includes(DOCKET)) {
+    const { stdout } = await promisify(execFile)(
+      'bash',
+      [deskIdentityScript, 'docket', path.join(deskDir, DOCKET)],
+      { encoding: 'buffer' }
+    );
+    lines.push(`${sha256(stdout)}  ./${DOCKET}`);
+  }
   return `${lines.join('\n')}\n`;
 }
 
@@ -181,8 +207,16 @@ export async function applyBranchDesk(
       path.join(deskDir, 'commit.txt'),
       `${ctx.runId} ${new Date().toISOString()}\n`
     );
-    const manifest = await createDeskManifest(deskDir);
+    const deskIdentityScript = path.join(
+      ctx.repoRoot,
+      'scripts',
+      DESK_IDENTITY
+    );
+    const manifest = await createDeskManifest(deskDir, deskIdentityScript);
     await writeFile(manifestPath, manifest);
+    // Staged beside the desk so readMountedDeskManifest hashes the mounted
+    // docket with the same script.
+    await copyFile(deskIdentityScript, path.join(tempDir, DESK_IDENTITY));
 
     await requireShipExec(ctx, dependencies, [
       'bash',
@@ -288,9 +322,10 @@ async function readMountedDeskManifest(
     [
       'bash',
       '-c',
-      'set -euo pipefail; mount="$1"; test -d "$mount" && test -r "$mount" && test -x "$mount" || exit 20; cd "$mount"; find . -type f ! -path ./commit.txt ! -path ./desk.docket-0 -print0 | sort -z | xargs -0r sha256sum',
+      'set -euo pipefail; mount="$1"; identity="$2"; test -d "$mount" && test -r "$mount" && test -x "$mount" || exit 20; cd "$mount"; find . -type f ! -path ./commit.txt ! -path ./desk.docket-0 -print0 | sort -z | xargs -0r sha256sum; if [ -f desk.docket-0 ]; then docket=$(bash "$identity" docket desk.docket-0 | sha256sum); printf "%s  ./desk.docket-0\\n" "${docket%% *}"; fi',
       'bash',
       `/data/${ship}/groups`,
+      `${STAGED_DESK}/${DESK_IDENTITY}`,
     ]
   );
   if (result.exitCode !== 0) {

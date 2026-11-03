@@ -35,6 +35,7 @@ import {
   ListRenderItem,
   Platform,
   View as RNView,
+  type ViewInstance,
   StyleProp,
   ViewStyle,
   useWindowDimensions,
@@ -240,9 +241,9 @@ const Scroller = forwardRef(
       }
     }, [isLoading, onPressScrollToBottom]);
 
-    const activeMessageRefs = useRef<Record<string, RefObject<RNView | null>>>(
-      {}
-    );
+    const activeMessageRefs = useRef<
+      Record<string, RefObject<ViewInstance | null>>
+    >({});
 
     const handleSetActive = useCallback((active: db.Post) => {
       if (active.type !== 'notice') {
@@ -865,7 +866,7 @@ const BaseScrollerItem = ({
   onShowEmojiPicker: (post: db.Post) => void;
   onPressEdit?: (post: db.Post) => void;
   activeMessage?: db.Post | null;
-  messageRef: RefObject<RNView | null>;
+  messageRef: RefObject<ViewInstance | null>;
   isSelected: boolean;
   displayDebugMode?: boolean;
   isLastPostOfBlock: boolean;
@@ -1021,7 +1022,7 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
 });
 
 const PressableMessage = React.memo(
-  forwardRef<RNView, PropsWithChildren<{ isActive: boolean }>>(
+  forwardRef<ViewInstance, PropsWithChildren<{ isActive: boolean }>>(
     function PressableMessageComponent({ isActive, children }, ref) {
       return isActive ? (
         // need the extra React Native View for ref measurement

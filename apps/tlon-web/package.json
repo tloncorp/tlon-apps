@@ -64,8 +64,8 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@radix-ui/react-accordion": "^1.1.2",
     "@radix-ui/react-popover": "^1.0.2",
-    "@react-navigation/drawer": "^7.7.13",
-    "@react-navigation/native": "7.3.14",
+    "@react-navigation/drawer": "^7.14.4",
+    "@react-navigation/native": "7.5.1",
     "@sentry/react": "^10.29.0",
     "@tamagui/vite-plugin": "2.4.2",
     "@tanstack/react-query": "^5.32.1",
@@ -139,13 +139,13 @@
     "zustand": "^3.7.2"
   },
   "peerDependencies": {
-    "react-native-safe-area-context": "~5.7.0",
-    "react-native-screens": "4.25.2"
+    "react-native-safe-area-context": "~5.10.1",
+    "react-native-screens": "4.30.0"
   },
   "devDependencies": {
     "@babel/plugin-proposal-export-namespace-from": "^7.18.9",
     "@faker-js/faker": "^8.4.1",
-    "@playwright/test": "^1.52.0",
+    "@playwright/test": "^1.60.0",
     "@sentry/vite-plugin": "^2.22.0",
     "@testing-library/jest-dom": "^5.16.4",
     "@testing-library/react": "^14.0.0",

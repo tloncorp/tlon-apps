@@ -15,7 +15,8 @@ import {
   WayfindingProgress,
 } from '../domain';
 import { Lure } from '../logic';
-import { createStorageItem } from './storageItem';
+import { largeBinaryStorage } from './getStorageMethods';
+import { createStorageItem, registerStorageItemForReset } from './storageItem';
 
 export const pushNotificationSettings =
   createStorageItem<ub.PushNotificationsSetting>({
@@ -175,27 +176,10 @@ export const tlonbotRevivalDeferredConfig =
     defaultValue: {},
   });
 
-export const AGENT_GROUP_NAVIGATION_LOCK_FAILSAFE_MS = 30_000;
-
 export type AgentGroupOnboardingLock = {
-  /** The furnished setup chat; the launch restore when no landing is recorded. */
-  chatChannelId?: string;
-  /**
-   * Where first-run onboarding actually landed — the bot DM for a hosted first
-   * run, the setup chat otherwise. Restored on launch while navigation is
-   * locked, so a restart reopens the conversation that holds the pickers.
-   */
-  landingChannelId?: string;
   provision?: PostBlobDataEntryAgentProvision;
-  /** The bot accepted the plan; navigation is unlocked while its first entry runs. */
+  /** The bot accepted the plan; its first entry is running. */
   provisionAcknowledgedAt?: number;
-  /**
-   * Navigation is trapped in the setup conversation until this deadline (or
-   * acknowledgement). Set only for the provisioned first group — at furnishing,
-   * then re-armed for a full window when the setup chat is handed to
-   * navigation. Absent for later Tlonbot groups, which never lock.
-   */
-  navigationLockExpiresAt?: number;
   createdAt: number;
   /** Title observed before onboarding, used to avoid overwriting later edits. */
   initialGroupTitle?: string | null;
@@ -235,7 +219,7 @@ export const agentOnboardingBackTooltipShown = createStorageItem<
   persistAfterLogout: true,
 });
 
-/** One-way onboarding navigation locks, keyed by group id. */
+/** Agent group onboarding records, keyed by group id. */
 export const agentGroupOnboardingLocks = createStorageItem<
   Record<string, AgentGroupOnboardingLock>
 >({
@@ -571,7 +555,7 @@ export const splashNickname = createStorageItem<string>({
 export type AgentOnboardingLanding = {
   groupId: string;
   channelId: string;
-  status?: 'pending' | 'claimed' | 'fallback';
+  status?: 'pending' | 'claimed';
 };
 
 /** One-shot handoff from the pre-navigation splash into the agent chat. */
@@ -608,6 +592,15 @@ export const lastPhoneContactSetRequest = createStorageItem<string | null>({
   persistAfterLogout: false,
 });
 
+export const contactDiscoveryCursor = createStorageItem<{
+  salt: string;
+  phoneNumbers: string[];
+} | null>({
+  key: 'contactDiscoveryCursor',
+  defaultValue: null,
+  persistAfterLogout: false,
+});
+
 export const debugMessageJson = createStorageItem<boolean>({
   key: 'debugMessageJson',
   defaultValue: false,
@@ -626,14 +619,33 @@ export const didSyncInitialPosts = createStorageItem<boolean>({
   persistAfterLogout: false,
 });
 
-export const sqliteContent = createStorageItem<ArrayBuffer | null>({
-  key: 'sqliteContent',
-  defaultValue: null,
-  persistAfterLogout: false,
-  serialize: (value) => (value == null ? '' : arrayBufferToString(value)),
-  deserialize: (str) => (str.length === 0 ? null : stringToArrayBuffer(str)),
-  isLarge: true,
-});
+/**
+ * Web's persisted copy of the SQLite database. Stored as binary because
+ * serializing a large database to a string blocks the main thread for seconds.
+ */
+export const sqliteContent = {
+  config: { key: 'sqliteContent', persistAfterLogout: false },
+  async getValue(): Promise<Blob | null> {
+    const value = await largeBinaryStorage?.getItem(sqliteContent.config.key);
+    // Older clients stored a string of one char per byte ('' when reset); the
+    // next save replaces it with binary.
+    if (typeof value === 'string') {
+      return value.length === 0 ? null : new Blob([stringToArrayBuffer(value)]);
+    }
+    return value ?? null;
+  },
+  async setValue(value: Blob): Promise<void> {
+    if (largeBinaryStorage == null) {
+      throw new Error('IndexedDB is unavailable');
+    }
+    await largeBinaryStorage.setItem(sqliteContent.config.key, value);
+  },
+  async resetValue(): Promise<null> {
+    await largeBinaryStorage?.removeItem(sqliteContent.config.key);
+    return null;
+  },
+};
+registerStorageItemForReset(sqliteContent);
 
 /**
  * Contains locale codes (e.g. `en-US`) that we've already prompted the user to
@@ -709,12 +721,6 @@ function stringToArrayBuffer(str: string) {
     bufView[i] = str.charCodeAt(i);
   }
   return buf;
-}
-
-function arrayBufferToString(buf: ArrayBuffer) {
-  const uint8s = new Uint8Array(buf);
-  const chars = Array.from(uint8s, (byte) => String.fromCharCode(byte));
-  return chars.join('');
 }
 
 export type NagState = {

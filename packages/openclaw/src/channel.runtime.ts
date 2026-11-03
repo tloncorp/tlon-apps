@@ -5,6 +5,7 @@ import type {
   ChannelPlugin,
   OpenClawConfig,
 } from 'openclaw/plugin-sdk/core';
+import { runTasksWithConcurrency } from 'openclaw/plugin-sdk/infra-runtime';
 import { chunkText } from 'openclaw/plugin-sdk/reply-chunking';
 import {
   formatTextWithAttachmentLinks,
@@ -39,6 +40,10 @@ import {
   sendDmWithStory,
 } from './urbit/send.js';
 import { ALL_ONLY, markdownToStory } from './urbit/story.js';
+import {
+  NON_OWNER_MEDIA_ERROR,
+  filterActiveTurnMedia,
+} from './non-owner-media.js';
 import { prepareOutboundMedia } from './urbit/upload.js';
 
 type ResolvedTlonAccount = ReturnType<typeof resolveTlonAccount>;
@@ -442,6 +447,7 @@ const coreTlonRuntimeOutbound: Pick<
       async () => {
         const media = mediaUrl
           ? await prepareOutboundMedia(mediaUrl, {
+              cfg,
               mediaAccess,
               mediaLocalRoots,
               mediaReadFile,
@@ -533,13 +539,59 @@ const coreTlonRuntimeOutbound: Pick<
   },
 };
 
+// Notebook entries prepare their attachments before posting; each can be a
+// 10 MiB download, so only a few run at once.
+export const NOTEBOOK_MEDIA_CONCURRENCY = 4;
+
+type TlonPayloadContext = Parameters<
+  NonNullable<ChannelOutboundAdapter['sendPayload']>
+>[0];
+
+// A non-owner turn's payload keeps its text and the media the rule allows;
+// with neither left there is nothing to send.
+function withPayloadMedia(
+  ctx: TlonPayloadContext,
+  mediaUrls: string[]
+): TlonPayloadContext {
+  if (mediaUrls.length === 0 && !ctx.payload.text?.trim()) {
+    throw new Error(NON_OWNER_MEDIA_ERROR);
+  }
+  return {
+    ...ctx,
+    mediaUrl: undefined,
+    payload: { ...ctx.payload, mediaUrl: undefined, mediaUrls },
+  };
+}
+
 export const tlonRuntimeOutbound: Pick<
   ChannelOutboundAdapter,
   'sendPayload' | 'sendText' | 'sendMedia'
 > = {
   sendText: (params) => coreTlonRuntimeOutbound.sendText!(params),
-  sendMedia: (params) => coreTlonRuntimeOutbound.sendMedia!(params),
-  sendPayload: async (ctx) => {
+  sendMedia: async (params) => {
+    // A non-owner turn delivers its text and drops media the rule refuses;
+    // with no text there is nothing to send, so the send fails and the model
+    // is told why.
+    if (
+      params.mediaUrl &&
+      filterActiveTurnMedia([params.mediaUrl], params).dropped
+    ) {
+      if (!params.text?.trim()) throw new Error(NON_OWNER_MEDIA_ERROR);
+      return await coreTlonRuntimeOutbound.sendText!({
+        ...params,
+        mediaUrl: undefined,
+      });
+    }
+    return await coreTlonRuntimeOutbound.sendMedia!(params);
+  },
+  sendPayload: async (payloadCtx) => {
+    const media = filterActiveTurnMedia(
+      resolvePayloadMediaUrls(payloadCtx.payload),
+      payloadCtx
+    );
+    const ctx = media.dropped
+      ? withPayloadMedia(payloadCtx, media.kept)
+      : payloadCtx;
     const parsed = parseTlonTarget(ctx.to);
     if (parsed?.kind === 'notebook') {
       const { account } = resolveOutboundContext({
@@ -554,13 +606,29 @@ export const tlonRuntimeOutbound: Pick<
           ship: account.ship,
           allowPrivateNetwork: account.allowPrivateNetwork ?? undefined,
         },
-        async () =>
-          Promise.all(
-            resolvePayloadMediaUrls(ctx.payload).map(
-              async (mediaUrl) =>
-                (await prepareOutboundMedia(mediaUrl, ctx)).url
-            )
-          )
+        async () => {
+          // The first failure stops the batch and aborts the downloads in
+          // flight; the batch settles before the send returns, so nothing
+          // keeps fetching after it.
+          const batch = new AbortController();
+          const { results, hasError, firstError } =
+            await runTasksWithConcurrency({
+              tasks: resolvePayloadMediaUrls(ctx.payload).map(
+                (mediaUrl) => async () =>
+                  (
+                    await prepareOutboundMedia(mediaUrl, {
+                      ...ctx,
+                      signal: batch.signal,
+                    })
+                  ).url
+              ),
+              limit: NOTEBOOK_MEDIA_CONCURRENCY,
+              errorMode: 'stop',
+              onTaskError: () => batch.abort(),
+            });
+          if (hasError) throw firstError;
+          return results;
+        }
       );
       const text = formatTextWithAttachmentLinks(ctx.payload.text, mediaUrls);
       return await coreTlonRuntimeOutbound.sendText!({ ...ctx, text });

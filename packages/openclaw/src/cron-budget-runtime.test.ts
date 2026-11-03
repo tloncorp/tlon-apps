@@ -3,13 +3,14 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { OpenClawPluginApi } from 'openclaw/plugin-sdk/core';
-import type { PluginHookGatewayCronJob } from 'openclaw/plugin-sdk/types';
 import { afterEach, expect, it, vi } from 'vitest';
 import {
   readBudgetHoldState,
   emptyBudgetHoldState,
   reconcileBudgetHolds,
   writeBudgetHoldState,
+  type BudgetCronJob,
+  type CreditSignal,
 } from './cron-budget-hold.js';
 import { getCurrentUserId } from '@tloncorp/api';
 import {
@@ -19,12 +20,16 @@ import {
 import {
   installBudgetHoldNotifier,
   registerBudgetHoldHooks,
+  registerBudgetRunGuard,
 } from './cron-budget-runtime.js';
+import { sharedSlot } from './shared-state.js';
 
 const cleanups: (() => Promise<void> | void)[] = [];
 afterEach(async () => {
   for (const cleanup of cleanups.reverse()) await cleanup();
   cleanups.length = 0;
+  // Credit-failure notices share a cooldown across the process.
+  sharedSlot('silentFailureNotice.creditCooldown').set(null);
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });
@@ -73,8 +78,8 @@ async function setup(accountIds = ['default']) {
   const signal = join(dir, 'signal.json');
   vi.stubEnv('TLON_CRON_BUDGET_FILE', signal);
   vi.stubEnv('OPENCLAW_STATE_DIR', dir);
-  const setBudget = (state: string) =>
-    writeFile(signal, JSON.stringify({ version: 1, state }));
+  const setBudget = (state: string, credit?: CreditSignal) =>
+    writeFile(signal, JSON.stringify({ version: 1, state, credit }));
   await setBudget('limited');
   const hooks = new Map<string, (...args: unknown[]) => unknown>();
   const warn = vi.fn();
@@ -82,19 +87,22 @@ async function setup(accountIds = ['default']) {
   const on = vi.fn((name: string, handler: unknown) => {
     hooks.set(name, handler as (...args: unknown[]) => unknown);
   });
-  const register = () =>
-    registerBudgetHoldHooks({
+  const register = () => {
+    const api = {
       on,
       logger: { warn, info },
       config,
-    } as unknown as Pick<OpenClawPluginApi, 'on' | 'logger' | 'config'>);
+    } as unknown as Pick<OpenClawPluginApi, 'on' | 'logger' | 'config'>;
+    registerBudgetHoldHooks(api);
+    registerBudgetRunGuard(api);
+  };
   register();
   const fire = async (name: string, ...args: unknown[]) =>
     hooks.get(name)?.(...args);
   cleanups.push(async () => {
     await fire('gateway_stop');
   });
-  const job: PluginHookGatewayCronJob = {
+  const job: BudgetCronJob = {
     id: 'news',
     enabled: true,
     schedule: { kind: 'every', everyMs: 60_000 },
@@ -112,6 +120,7 @@ async function setup(accountIds = ['default']) {
     job,
     config,
     dir,
+    on,
     register,
     update,
     list,
@@ -123,6 +132,108 @@ async function setup(accountIds = ['default']) {
   };
 }
 
+const BILLING_REPLY =
+  "⚠️ API provider returned a billing error — your API key has run out of credits or has an insufficient balance. Check your provider's billing dashboard and top up or switch to a different API key.";
+const failedRun = (error: string, name?: string) => ({
+  action: 'finished',
+  jobId: 'news',
+  job: name ? { id: 'news', name } : undefined,
+  status: 'error',
+  error,
+});
+// For notices that must not arrive: the hook sends without awaiting.
+const settle = () => new Promise((resolve) => setTimeout(resolve, 100));
+
+it('DMs the owner when a scheduled run fails on their empty key, once per window', async () => {
+  const f = await setup();
+  await f.setBudget('unknown', {
+    keyOwner: 'owner',
+    remainingUsd: null,
+    limitUsd: null,
+  });
+  const notify = vi.fn(async () => false);
+  cleanups.push(installBudgetHoldNotifier('default', notify, f.config));
+  await f.fire('cron_changed', failedRun(BILLING_REPLY, 'Morning digest'));
+  await vi.waitFor(() => expect(notify).toHaveBeenCalledTimes(1));
+  // A DM that didn't arrive doesn't use up the window.
+  notify.mockResolvedValue(true);
+  await f.fire('cron_changed', failedRun(BILLING_REPLY, 'Morning digest'));
+  await vi.waitFor(() => expect(notify).toHaveBeenCalledTimes(2));
+  expect(notify).toHaveBeenLastCalledWith(
+    '⚠️ I couldn\'t run your scheduled task "Morning digest": your OpenRouter key is out of credits. Add credits or raise its limit on OpenRouter.',
+    undefined
+  );
+  await f.fire('cron_changed', failedRun(BILLING_REPLY, 'Morning digest'));
+  await settle();
+  expect(notify).toHaveBeenCalledTimes(2);
+});
+
+it('offers a credit increase when a scheduled run uses up the included credit', async () => {
+  const f = await setup();
+  await f.setBudget('limited', {
+    keyOwner: 'tlon',
+    remainingUsd: 0.1,
+    limitUsd: 5,
+  });
+  const notify = vi.fn(async () => true);
+  cleanups.push(installBudgetHoldNotifier('default', notify, f.config));
+  await f.fire('cron_changed', failedRun(BILLING_REPLY));
+  await vi.waitFor(() =>
+    expect(notify).toHaveBeenCalledWith(
+      "⚠️ I couldn't run a scheduled task: this month's included credits are used up.",
+      expect.any(String)
+    )
+  );
+});
+
+it("names the owner's own provider key when a scheduled run fails on it", async () => {
+  const f = await setup();
+  // Tlon's included key has credit left; the task runs on the owner's key.
+  await f.setBudget('available', {
+    keyOwner: 'tlon',
+    remainingUsd: 4,
+    limitUsd: 5,
+  });
+  const notify = vi.fn(async () => true);
+  cleanups.push(installBudgetHoldNotifier('default', notify, f.config));
+  await f.fire(
+    'cron_changed',
+    failedRun(
+      BILLING_REPLY.replace('API provider', 'anthropic (claude-sonnet-4-6)') +
+        ' | 400',
+      'Crypto digest'
+    )
+  );
+  await vi.waitFor(() =>
+    expect(notify).toHaveBeenCalledWith(
+      '⚠️ I couldn\'t run your scheduled task "Crypto digest": your anthropic API key is out of credits. Add credits to your anthropic account or switch to a different key.',
+      undefined
+    )
+  );
+});
+
+it("leaves other scheduled-run failures to core's failure alert", async () => {
+  const f = await setup();
+  // Tlon's own account refused the run, not the owner's credit.
+  await f.setBudget('available', {
+    keyOwner: 'tlon',
+    remainingUsd: 2.5,
+    limitUsd: 5,
+  });
+  const notify = vi.fn(async () => true);
+  cleanups.push(installBudgetHoldNotifier('default', notify, f.config));
+  await f.fire('cron_changed', failedRun(BILLING_REPLY));
+  await settle();
+  await f.setBudget('limited', {
+    keyOwner: 'tlon',
+    remainingUsd: 0.1,
+    limitUsd: 5,
+  });
+  await f.fire('cron_changed', failedRun('LLM request failed.'));
+  await settle();
+  expect(notify).not.toHaveBeenCalled();
+});
+
 it('holds without a connected owner, then notifies once when delivery becomes available', async () => {
   const f = await setup();
   await f.fire('gateway_start', {}, f.ctx);
@@ -132,7 +243,7 @@ it('holds without a connected owner, then notifies once when delivery becomes av
   await f.fire('cron_changed', { action: 'added', jobId: 'another' });
   await vi.waitFor(() =>
     expect(notify).toHaveBeenCalledWith(
-      'Your token credits are low. Your 1 scheduled task has been paused.',
+      "You've used almost all of this month's included credits, so I've switched to a free model and paused your 1 scheduled task until they reset.",
       expect.any(String)
     )
   );
@@ -152,6 +263,12 @@ it('observes live recovery and prevents model-forced runs while held', async () 
   ).toMatchObject({ block: true });
   expect(
     await f.fire('before_tool_call', {
+      toolName: 'automations',
+      params: { action: 'run', jobId: 'news' },
+    })
+  ).toMatchObject({ block: true });
+  expect(
+    await f.fire('before_tool_call', {
       toolName: 'cron',
       params: { action: 'run', jobId: 'one-shot' },
     })
@@ -166,13 +283,38 @@ it('observes live recovery and prevents model-forced runs while held', async () 
   expect(f.warn).not.toHaveBeenCalled();
 });
 
+it("skips memory-core's dreaming runs while limited without pausing the job", async () => {
+  const f = await setup();
+  f.job.declarationKey = 'memory-core:memory-dreaming-promotion';
+  await f.fire('gateway_start', {}, f.ctx);
+  expect(f.update).not.toHaveBeenCalled();
+  expect(f.on).toHaveBeenCalledWith(
+    'before_agent_reply',
+    expect.any(Function),
+    { priority: 100, eligibleTriggers: ['cron'] }
+  );
+  const reply = (jobId: string) =>
+    f.fire(
+      'before_agent_reply',
+      { cleanedBody: '' },
+      { jobId, trigger: 'cron' }
+    );
+  expect(await reply(f.job.id)).toMatchObject({ handled: true });
+  expect(await reply('another')).toBeUndefined();
+  await f.setBudget('available');
+  expect(await reply(f.job.id)).toBeUndefined();
+  expect(f.warn).not.toHaveBeenCalled();
+});
+
 it('does not install budget policy for self-hosted instances without a signal', () => {
   vi.stubEnv('TLON_CRON_BUDGET_FILE', '');
   const on = vi.fn();
-  registerBudgetHoldHooks({ on } as unknown as Pick<
+  const api = { on } as unknown as Pick<
     OpenClawPluginApi,
     'on' | 'logger' | 'config'
-  >);
+  >;
+  registerBudgetHoldHooks(api);
+  registerBudgetRunGuard(api);
   expect(on).not.toHaveBeenCalled();
 });
 
@@ -192,7 +334,7 @@ it('preserves a manual pause when completion overwrites its revision during reco
   const f = await setup();
   f.job.state = { runningAtMs: 50 };
   await f.fire('gateway_start', {}, f.ctx);
-  let finishList!: (jobs: PluginHookGatewayCronJob[]) => void;
+  let finishList!: (jobs: BudgetCronJob[]) => void;
   f.list.mockImplementationOnce(
     () =>
       new Promise((resolve) => {
@@ -221,7 +363,7 @@ it('preserves a manual pause when completion overwrites its revision during reco
 it('does not revoke a new hold when an edit was already handled by the active pass', async () => {
   const f = await setup();
   await f.fire('gateway_start', {}, f.ctx);
-  let finishList!: (jobs: PluginHookGatewayCronJob[]) => void;
+  let finishList!: (jobs: BudgetCronJob[]) => void;
   f.list.mockImplementationOnce(
     () =>
       new Promise((resolve) => {
@@ -304,7 +446,7 @@ it('blocks a newly added recurring task before reconciliation persists its hold'
   await f.setBudget('available');
   await f.fire('gateway_start', {}, f.ctx);
   await f.setBudget('limited');
-  let finishList!: (jobs: PluginHookGatewayCronJob[]) => void;
+  let finishList!: (jobs: BudgetCronJob[]) => void;
   f.list.mockImplementationOnce(
     () =>
       new Promise((resolve) => {
@@ -317,6 +459,14 @@ it('blocks a newly added recurring task before reconciliation persists its hold'
     (await readBudgetHoldState(join(f.dir, 'tlon-cron-budget-holds.json')))
       .holds
   ).toEqual({});
+  expect(
+    await f.fire('before_tool_call', {
+      toolName: 'cron',
+      params: { action: 'run', id: f.job.id },
+    })
+  ).toMatchObject({ block: true });
+  // A stream job fires on every output batch, so it is held like one.
+  f.job.schedule = { kind: 'stream', command: ['tail', '-f', 'app.log'] };
   expect(
     await f.fire('before_tool_call', {
       toolName: 'cron',

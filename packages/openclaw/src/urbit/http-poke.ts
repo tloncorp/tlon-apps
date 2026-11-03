@@ -4,6 +4,7 @@ import type { SsrFPolicy } from 'openclaw/plugin-sdk/ssrf-runtime';
 import { authenticate } from './auth.js';
 import { ssrfPolicyFromAllowPrivateNetwork } from './context.js';
 import { urbitFetch } from './fetch.js';
+import { redactUrbitErrorText } from './redact.js';
 
 export type HttpPokeApi = {
   poke: (params: {
@@ -62,7 +63,9 @@ export async function createHttpPokeApi(params: {
       try {
         if (!response.ok && response.status !== 204) {
           const errorText = await response.text();
-          throw new Error(`Poke failed: ${response.status} - ${errorText}`);
+          throw new Error(
+            `Poke failed: ${response.status} - ${redactUrbitErrorText(errorText, { cookie })}`
+          );
         }
         return pokeId;
       } finally {

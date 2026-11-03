@@ -73,7 +73,8 @@ export type StewardAutomationTaskInput = Omit<
 export type StewardAutomationEdit =
   | { create: StewardAutomationTaskInput }
   | { update: { id: string } & StewardAutomationTaskInput }
-  | { delete: { id: string } };
+  | { delete: { id: string } }
+  | { test: { id: string } };
 
 /** POST /steward/~/v1/automation body. `requestId` is minted when absent. */
 export interface StewardAutomationEditRequest {
@@ -94,6 +95,8 @@ export type StewardAutomationPokeStatus = 'sending' | 'acked' | 'nacked';
 
 export type StewardAutomationResponseBody =
   | { type: 'created' | 'updated' | 'deleted'; id: string }
+  /** A test run is under way; `lensId` names the lens run recording it. */
+  | { type: 'started'; id: string; lensId: string }
   | {
       type: 'error';
       errorType: StewardAutomationErrorType | string;

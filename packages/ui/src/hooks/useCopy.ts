@@ -13,8 +13,13 @@ export function useCopy(copied: string) {
     };
   }, []);
 
-  const doCopy = useCallback(async () => {
-    await Clipboard.setStringAsync(copied);
+  // Resolves false when the platform refuses the write; Expo reports that
+  // with a boolean rather than a rejection.
+  const doCopy = useCallback(async (): Promise<boolean> => {
+    const copiedOk = await Clipboard.setStringAsync(copied);
+    if (!copiedOk) {
+      return false;
+    }
     setDidCopy(true);
 
     if (timeoutRef.current) {
@@ -23,6 +28,7 @@ export function useCopy(copied: string) {
     timeoutRef.current = setTimeout(() => {
       setDidCopy(false);
     }, 2000);
+    return true;
   }, [copied]);
 
   return { doCopy, didCopy };

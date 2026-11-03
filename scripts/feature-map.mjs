@@ -33,8 +33,11 @@ const QUESTIONS_DIR = `${MAP_DIR}/questions`;
 // The store build the map describes: its tag, and the commit the tag pointed
 // at. The commit is what gets read, since a build's tag can be moved.
 const RELEASE_FILE = `${MAP_DIR}/release.json`;
-const INDEX_START = '<!-- feature-map:index:start -->';
-const INDEX_END = '<!-- feature-map:index:end -->';
+// The list of published files and the tasks each covers. It is kept out of
+// SKILL.md, and to headings alone, because on a model with under 100K tokens
+// of context OpenClaw caps a tool result at 16,000 characters: it refuses a
+// SKILL.md over that, and pages any other file.
+const INDEX_FILE = 'index.md';
 
 // Where user-visible text can come from. Used for "absent" terms and for the
 // loose `labels` check; entries themselves cite exact files.
@@ -567,13 +570,8 @@ export function checkMap(map, code) {
 
 /** Quoted labels in any Markdown file that appear nowhere in the source. */
 export function checkLooseLabels(text, reader) {
-  // The index is generated from the map, which has its own, stricter check.
-  const start = text.indexOf(INDEX_START);
-  const end = text.indexOf(INDEX_END);
-  const prose =
-    start !== -1 && end > start ? text.slice(0, start) + text.slice(end) : text;
   const skip = /^(https?:|~|[a-z-]+\/~)|[<>|]|^tlon\b/;
-  return extractLabels(prose)
+  return extractLabels(text)
     .filter((label) => !skip.test(label))
     .filter((label) => reader.grep(needleFor(label)).length === 0);
 }
@@ -618,20 +616,19 @@ function renderPublished(file, entries) {
 }
 
 function renderIndex(published) {
-  const lines = [];
-  for (const { name, file, entries } of published) {
-    const scope = file.intro.split('\n')[0];
-    lines.push(`- \`references/${name}\`: ${scope}`);
-    lines.push(`  ${entries.map((entry) => entry.heading).join(' · ')}`);
+  const lines = [
+    '# Step-by-step answers: index',
+    '',
+    'Each file below is listed with the tasks it covers. ' +
+      'Read the one that matches the question, or two if it spans areas. ' +
+      "The paths are relative to the skill's directory, the one that holds SKILL.md.",
+    '',
+  ];
+  for (const { name, entries } of published) {
+    const headings = entries.map((entry) => entry.heading).join(' · ');
+    lines.push(`- \`references/${name}\`: ${headings}`);
   }
-  return lines.join('\n');
-}
-
-export function replaceIndex(skillText, index) {
-  const start = skillText.indexOf(INDEX_START);
-  const end = skillText.indexOf(INDEX_END);
-  if (start === -1 || end === -1 || end < start) return null;
-  return `${skillText.slice(0, start + INDEX_START.length)}\n${index}\n${skillText.slice(end)}`;
+  return `${lines.join('\n')}\n`;
 }
 
 /** The store build the map describes, from RELEASE_FILE. */
@@ -701,17 +698,6 @@ export function publish(root, app) {
     ].map((m) => m[1])
   );
   const { published, leftOut } = publishedFiles(files, flagsOn);
-  const skillPath = path.join(root, SKILL_DIR, 'SKILL.md');
-  const skill = replaceIndex(
-    fs.readFileSync(skillPath, 'utf8'),
-    renderIndex(published)
-  );
-  if (skill === null) {
-    throw new Error(
-      `${SKILL_DIR}/SKILL.md has lost its index markers (${INDEX_START} … ${INDEX_END}), ` +
-        'so bots could not find what was published'
-    );
-  }
 
   const outDir = path.join(root, PUBLISHED_DIR);
   fs.rmSync(outDir, { recursive: true, force: true });
@@ -719,7 +705,7 @@ export function publish(root, app) {
   for (const { name, file, entries } of published) {
     fs.writeFileSync(path.join(outDir, name), renderPublished(file, entries));
   }
-  fs.writeFileSync(skillPath, skill);
+  fs.writeFileSync(path.join(outDir, INDEX_FILE), renderIndex(published));
   if (app) {
     fs.writeFileSync(
       path.join(root, RELEASE_FILE),

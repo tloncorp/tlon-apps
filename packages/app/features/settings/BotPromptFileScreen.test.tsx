@@ -74,19 +74,13 @@ vi.mock('../../ui/components/SettingsList', () => ({
   useSettingsListHeaderColor: () => 'white',
   useSettingsListSurfaces: () => ({ page: 'white' }),
 }));
-vi.mock('./bot/BotSettingsUI', async () => {
-  const { createElement } = await import('react');
-  return {
-    // Keeps the subtitle, which is where a read-only file says who keeps it.
-    BotSettingsSection: ({
-      children,
-      subtitle,
-    }: {
-      children?: ReactNode;
-      subtitle?: string;
-    }) => createElement('BotSettingsSection', { subtitle }, children),
-  };
-});
+vi.mock('../../ui/components/BotPromptHeader', () => ({
+  // Keeps the description, which is where a read-only file says who keeps it.
+  BotPromptHeader: 'BotPromptHeader',
+}));
+vi.mock('./bot/BotSettingsUI', () => ({
+  BotSettingsSection: 'BotSettingsSection',
+}));
 
 setupReactTestEnvironment();
 
@@ -144,9 +138,9 @@ function press(tree: ReactTestRenderer, testID: string) {
   });
 }
 
-const sectionSubtitle = (tree: ReactTestRenderer) =>
-  tree.root.find((node) => (node.type as unknown) === 'BotSettingsSection')
-    .props.subtitle;
+const headerDescription = (tree: ReactTestRenderer) =>
+  tree.root.find((node) => (node.type as unknown) === 'BotPromptHeader').props
+    .description;
 
 describe('BotPromptFileScreen', () => {
   it('shows a file Tlon maintains without any way to edit it', async () => {
@@ -154,7 +148,7 @@ describe('BotPromptFileScreen', () => {
     expect(byTestID(tree, 'BotPromptFileContents')).toHaveLength(1);
     expect(byTestID(tree, 'BotPromptFileEdit')).toHaveLength(0);
     expect(byTestID(tree, 'BotPromptFileReset')).toHaveLength(0);
-    expect(sectionSubtitle(tree)).toContain('Tlon keeps this file');
+    expect(headerDescription(tree)).toContain('Tlon keeps this file');
   });
 
   it("shows the bot's memory, kept by the bot, without any way to edit it", async () => {
@@ -165,7 +159,7 @@ describe('BotPromptFileScreen', () => {
       ).props.content
     ).toEqual(['# MEMORY.md\n\nPrefers metric units.']);
     expect(byTestID(tree, 'BotPromptFileEdit')).toHaveLength(0);
-    expect(sectionSubtitle(tree)).toContain('Your bot keeps this file');
+    expect(headerDescription(tree)).toContain('Your bot keeps this file');
   });
 
   it('warns before the first edit, then opens the additions editor', async () => {

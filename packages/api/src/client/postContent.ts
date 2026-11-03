@@ -1,3 +1,4 @@
+import type { BrowserCardData } from './browserCards';
 import type { A2UI } from '../client/a2ui';
 import {
   PostBlobDataEntryFile,
@@ -106,8 +107,9 @@ export type VideoContentData = Pick<
 > & {
   src: string;
   alt: string;
-  width: number;
-  height: number;
+  /** Unknown (both undefined) unless both are finite and positive. */
+  width?: number;
+  height?: number;
 };
 
 export type VideoBlockData = {
@@ -123,6 +125,11 @@ export type FileUploadBlockData = {
 export type VoiceMemoBlockData = {
   type: 'voicememo';
   voiceMemo: PostBlobDataEntryVoiceMemo;
+};
+
+export type BrowserCardBlockData = {
+  type: 'browser-card';
+  card: BrowserCardData;
 };
 
 export type A2UIBlockData = {
@@ -193,6 +200,7 @@ export type BlockData =
   | ParagraphBlockData
   | ImageBlockData
   | A2UIBlockData
+  | BrowserCardBlockData
   | VideoBlockData
   | FileUploadBlockData
   | VoiceMemoBlockData
@@ -326,7 +334,7 @@ function plaintextPreviewOfListData(
 // wrapper adjacent to a quote inside another wrapper — no Markdown or editor
 // path produces it — so it is left alone rather than pushing edge-walking
 // through empty nodes.
-function opensWithQuote(inline: InlineData): boolean {
+export function opensWithQuote(inline: InlineData): boolean {
   if (inline.type === 'blockquote') return true;
   if (inline.type === 'style') {
     const first = inline.children[0];
@@ -335,7 +343,7 @@ function opensWithQuote(inline: InlineData): boolean {
   return false;
 }
 
-function closesWithQuote(inline: InlineData): boolean {
+export function closesWithQuote(inline: InlineData): boolean {
   if (inline.type === 'blockquote') return true;
   if (inline.type === 'style' || inline.type === 'task') {
     const last = inline.children.at(-1);
@@ -345,7 +353,7 @@ function closesWithQuote(inline: InlineData): boolean {
 }
 
 // A leading line break supplies its own delimiter, through wrappers too.
-function opensWithBreak(inline: InlineData): boolean {
+export function opensWithBreak(inline: InlineData): boolean {
   if (inline.type === 'lineBreak') return true;
   if (inline.type === 'style') {
     const first = inline.children[0];
@@ -406,6 +414,18 @@ export function plaintextPreviewOfInline(
   }
 }
 
+// A video entry may omit its dimensions (the CLI attaches a video by URL
+// alone). Half a pair, or a zero, is as unknown as none: renderers then size
+// the video from its container instead of from a 1x1 box.
+function knownVideoDimensions(
+  width: number | undefined,
+  height: number | undefined
+): { width?: number; height?: number } {
+  const known = (value: number | undefined): value is number =>
+    value !== undefined && Number.isFinite(value) && value > 0;
+  return known(width) && known(height) ? { width, height } : {};
+}
+
 /**
  * Preprocess content for rendering. Alterations include:
  * - Removing line breaks at end of content
@@ -453,12 +473,17 @@ export function convertContent(
             video: {
               src: entry.fileUri,
               alt: entry.name ?? 'video',
-              width: entry.width ?? 1,
-              height: entry.height ?? 1,
+              ...knownVideoDimensions(entry.width, entry.height),
               duration: entry.duration,
               posterUri: entry.posterUri,
             },
           });
+          break;
+        }
+
+        case 'browser-session':
+        case 'browser-secure-entry': {
+          out.push({ type: 'browser-card', card: entry });
           break;
         }
 
@@ -650,8 +675,8 @@ function convertBlock(block: ub.Block): BlockData {
           video: {
             src: block.image.src,
             alt: block.image.alt,
-            width: block.image.width,
-            height: block.image.height,
+            // Story images built from markdown carry 0x0 when unmeasured.
+            ...knownVideoDimensions(block.image.width, block.image.height),
           },
         };
       } else {
@@ -688,16 +713,24 @@ function convertBlock(block: ub.Block): BlockData {
       };
     }
     case is(block, 'cite'): {
-      return (
-        toContentReference(block.cite) ?? {
-          type: 'blockquote',
-          content: [
-            { type: 'text', text: 'Upgrade your app to see this reference' },
-            { type: 'lineBreak' },
-            { type: 'text', text: ub.citeToPath(block.cite) },
-          ],
-        }
-      );
+      const reference = toContentReference(block.cite);
+      if (reference) {
+        return reference;
+      }
+      // citeToPath only knows the cite kinds this build does, so a missing
+      // path means a newer kind an upgrade may render. A known kind that
+      // still fails to parse is malformed, and upgrading won't help.
+      const path = ub.citeToPath(block.cite);
+      return {
+        type: 'blockquote',
+        content: path
+          ? [
+              { type: 'text', text: "This reference can't be shown" },
+              { type: 'lineBreak' },
+              { type: 'text', text: path },
+            ]
+          : [{ type: 'text', text: 'Upgrade your app to see this reference' }],
+      };
     }
     case is(block, 'link'): {
       return {

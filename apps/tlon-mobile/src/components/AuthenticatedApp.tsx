@@ -555,18 +555,29 @@ export default function ConnectedAuthenticatedApp({
     return authenticatedContent;
   }
 
+  // Only once the desk is known good. The overlay is opaque and full-screen,
+  // so it would bury the notice — and the spinner that precedes it — and its
+  // onboarding sequence starts furnishing a group straight away, which an
+  // incompatible desk can't serve.
+  const overlay = deskCompat?.status === 'ok' ? authenticatedOverlay : null;
+  const covered = overlay != null;
+
   return (
     <ZStack flex={1}>
-      <AuthenticatedAppContent
-        onLogout={onLogout}
-        requireHostingAuth={requireHostingAuth}
-        initializeSession={initializeSession}
-      />
-      {/* Only once the desk is known good. The overlay is opaque and
-          full-screen, so it would bury the notice — and the spinner that
-          precedes it — and its onboarding sequence starts furnishing a group
-          straight away, which an incompatible desk can't serve. */}
-      {deskCompat?.status === 'ok' ? authenticatedOverlay : null}
+      {/* The app keeps running under the overlay; screen readers stay on
+          the overlay until it's gone. */}
+      <View
+        flex={1}
+        accessibilityElementsHidden={covered}
+        importantForAccessibility={covered ? 'no-hide-descendants' : 'auto'}
+      >
+        <AuthenticatedAppContent
+          onLogout={onLogout}
+          requireHostingAuth={requireHostingAuth}
+          initializeSession={initializeSession}
+        />
+      </View>
+      {overlay}
     </ZStack>
   );
 }

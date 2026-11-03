@@ -31,7 +31,7 @@ export interface WhoseBulkResponseEvent {
           'next-salt': string;
           results: Record<string, string | null>;
         }
-      | 'rate limited';
+      | string;
   };
 }
 

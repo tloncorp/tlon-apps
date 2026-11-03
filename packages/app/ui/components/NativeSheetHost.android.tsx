@@ -21,6 +21,7 @@ import {
 } from 'react';
 import {
   type LayoutChangeEvent,
+  type ColorValue,
   ScrollView,
   StyleSheet,
   View,
@@ -28,6 +29,8 @@ import {
   processColor,
   useWindowDimensions,
 } from 'react-native';
+
+import { flattenViewStyle } from '../utils/flattenViewStyle';
 
 import type { NativeSheetHostProps } from './NativeSheetHost.types';
 
@@ -37,9 +40,9 @@ const COVER_SETTLE_MS = 120;
 
 function extractBackgroundColor(
   backgroundStyle: NativeSheetHostProps['backgroundStyle']
-): string | undefined {
+): ColorValue | undefined {
   if (!backgroundStyle) return undefined;
-  return (StyleSheet.flatten(backgroundStyle) as any)?.backgroundColor;
+  return flattenViewStyle(backgroundStyle)?.backgroundColor;
 }
 
 // Material3 picks the status and navigation bar icon colors from the sheet's
@@ -48,7 +51,7 @@ function extractBackgroundColor(
 // readable under a sheet that reaches the top of the screen when the app's
 // theme differs from the system's.
 function getContrastingContentColor(
-  containerColor: string | undefined
+  containerColor: ColorValue | undefined
 ): string | undefined {
   const processed =
     containerColor == null ? null : processColor(containerColor);

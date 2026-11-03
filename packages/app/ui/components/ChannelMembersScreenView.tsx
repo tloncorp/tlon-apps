@@ -1,13 +1,16 @@
 import * as db from '@tloncorp/shared/db';
-import { useCallback } from 'react';
-import { FlatList, ListRenderItemInfo } from 'react-native';
-import { View, XStack, getTokenValue } from 'tamagui';
+import { useMemo, useState } from 'react';
 
-import { BotBadge } from './BotBadge';
-import ContactName from './ContactName';
-import { ListItem } from './ListItem';
-import { ScreenHeader } from './ScreenHeader';
-import { useScreenScrollProps } from './useScreenScrollProps';
+import { useCalm, useContactIndex } from '../contexts/appDataContext';
+import { botBadgeLabel } from './BotBadge';
+import {
+  SETTINGS_LIST_COLUMN_WIDTH,
+  type SettingsSectionModel,
+  SettingsListScreenView,
+  contactSettingsRow,
+} from './SettingsList';
+
+const pageSize = 100;
 
 export function ChannelMembersScreenView({
   channel,
@@ -16,43 +19,57 @@ export function ChannelMembersScreenView({
   channel?: db.Channel;
   goBack: () => void;
 }) {
-  const screenScrollProps = useScreenScrollProps();
-  const renderItem = useCallback(
-    ({ item }: ListRenderItemInfo<db.ChatMember>) => {
-      return (
-        <ListItem>
-          <ListItem.ContactIcon contactId={item.contactId} />
-          <ListItem.MainContent minWidth={0}>
-            <XStack alignItems="center" gap="$s">
-              <ListItem.Title flex={1} minWidth={0}>
-                <ContactName showNickname={true} userId={item.contactId} />
-              </ListItem.Title>
-              <BotBadge contactId={item.contactId} />
-            </XStack>
-            <ListItem.Subtitle>{item.contactId}</ListItem.Subtitle>
-          </ListItem.MainContent>
-        </ListItem>
-      );
-    },
-    []
-  );
+  const contactIndex = useContactIndex();
+  const { disableNicknames } = useCalm();
+  // The native lists draw every row they are given, so a big channel is
+  // shown a page at a time, as the workspace's members are.
+  const [limit, setLimit] = useState(pageSize);
+
+  const sections = useMemo((): SettingsSectionModel[] => {
+    const members = channel?.members ?? [];
+    if (members.length === 0) {
+      return [];
+    }
+    const hidden = members.length - limit;
+    return [
+      {
+        key: 'members',
+        rows: members.slice(0, limit).map(({ contactId }) => {
+          const contact = contactIndex?.[contactId];
+          return {
+            ...contactSettingsRow(contactId, contact, disableNicknames),
+            // A bot's row says so, in its badge's words.
+            value: botBadgeLabel(contactId, contact)?.text,
+          };
+        }),
+      },
+      ...(hidden > 0
+        ? [
+            {
+              key: 'more',
+              rows: [
+                {
+                  key: 'more',
+                  title: `Show ${Math.min(hidden, pageSize)} more`,
+                  action: true,
+                  onPress: () => setLimit((current) => current + pageSize),
+                  testID: 'ShowMoreMembers',
+                },
+              ],
+            },
+          ]
+        : []),
+    ];
+  }, [channel?.members, contactIndex, disableNicknames, limit]);
 
   return (
-    <View flex={1} backgroundColor="$background">
-      <ScreenHeader
-        title="Members"
-        loadingSubtitle={channel ? null : 'Loading…'}
-        backAction={goBack}
-        placement="navigation"
-      />
-      <FlatList
-        data={channel?.members}
-        {...screenScrollProps}
-        contentContainerStyle={{
-          paddingHorizontal: getTokenValue('$l', 'size'),
-        }}
-        renderItem={renderItem}
-      />
-    </View>
+    <SettingsListScreenView
+      title="Members"
+      sections={sections}
+      loading={!channel}
+      onBackPressed={goBack}
+      showsBackOnWideWindows
+      maxWidth={SETTINGS_LIST_COLUMN_WIDTH}
+    />
   );
 }

@@ -974,6 +974,19 @@
     (ex-cards caz ex ~)
   (ex-poke /query/result [who dude.qer] %verifier-result !>([nonce.qer res]))
 ::
+++  expect-discovery-response
+  |=  [who=@p id=identifier:v owner=(unit @p)]
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m
+    %^  expect-query-response  who
+      [[%some-dude %my-nonce] %whose id]
+    [%whose owner]
+  ;<  =bowl:gall  bind:m  get-bowl
+  %^  expect-query-response  who
+    [[%some-dude %my-nonce] %whose-bulk 0x0 ~ (sy id ~) ~]
+  [%whose-bulk (shas %whose-salt eny.bowl) (my [id owner] ~)]
+::
 ++  test-query-has-any
   %-  eval-mare
   =/  m  (mare ,~)
@@ -1034,10 +1047,10 @@
     %^  expect-query-response  ~fed
       [[%some-dude %my-nonce] %whose id]
     [%whose ~]
-  ;<  *  bind:m  ::  ~fed registers a %dummy id of its own
-    ;<  *  bind:m  (user-does ~fed %start %dummy 'FED')
-    ;<  *  bind:m  (host-does %dummy 'FED' %grant)
-    (pure:m ~)
+  ;<  *  bind:m  (user-does ~fed %start %dummy 'FED')
+  ;<  ~  bind:m
+    (expect-discovery-response ~fed id ~)
+  ;<  *  bind:m  (host-does %dummy 'FED' %grant)
   ;<  ~  bind:m
     %^  expect-query-response  ~fed
       [[%some-dude %my-nonce] %whose id]
@@ -1049,6 +1062,51 @@
       [[%my-dude %some-nonce] %whose %dummy 'not-in-use']
     [%whose ~]
   (pure:m ~)
+::
+++  test-query-whose-verified-phone
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =/  nr=@t            '+15555550102'
+  =/  id=identifier:v   [%phone '+15555550101']
+  =/  own=identifier:v  [%phone nr]
+  =/  wir=wire  /id/phone/(scot %t nr)
+  ;<  *  bind:m  (do-setup-with-id id)
+  ;<  ~  bind:m  (expect-discovery-response ~fed id ~)
+  ;<  *  bind:m  (user-does ~nec %config id %public)
+  ;<  ~  bind:m  (expect-discovery-response ~fed id `~nec)
+  ;<  *  bind:m  (user-does ~nec %config id %verified)
+  ;<  ~  bind:m  (expect-discovery-response ~fed id ~)
+  ;<  *  bind:m  (user-does ~fed %start %dummy 'FED')
+  ;<  *  bind:m  (host-does %dummy 'FED' %grant)
+  ;<  ~  bind:m  (expect-discovery-response ~fed id ~)
+  ;<  *  bind:m  (user-does ~fed %start own)
+  ;<  ~  bind:m  (expect-discovery-response ~fed id ~)
+  ;<  *  bind:m
+    %+  do-phone-api-res  (snoc wir %status)
+    [200 `'{"known":false,"verified":false}']
+  ;<  *  bind:m  (do-phone-api-res (snoc wir %verify) [200 ~])
+  ;<  ~  bind:m  (expect-discovery-response ~fed id ~)
+  %-  branch
+  :~  :-  'expires while awaiting otp'
+      ;<  =bowl:gall  bind:m  get-bowl
+      ;<  *  bind:m
+        (do-arvo /expire/phone/(scot %t nr)/(scot %da now.bowl) %behn %wake ~)
+      ;<  =state:v  bind:m  get-state
+      ;<  ~  bind:m  (ex-equal !>((~(get by records.state) own)) !>(~))
+      (expect-discovery-response ~fed id ~)
+    ::
+      :-  'completes verification'
+      ;<  *  bind:m  (user-does ~fed %work own %phone '333777')
+      ;<  *  bind:m  (do-phone-api-res (snoc wir %submit) [200 ~])
+      ;<  ~  bind:m  (expect-discovery-response ~fed id `~nec)
+      ;<  *  bind:m  (user-does ~nec %config id %hidden)
+      ;<  ~  bind:m  (expect-discovery-response ~fed id ~)
+      ;<  *  bind:m  (user-does ~nec %config id %public)
+      ;<  ~  bind:m  (expect-discovery-response ~fed id `~nec)
+      ;<  *  bind:m  (user-does ~nec %config id %verified)
+      ;<  *  bind:m  (user-does ~fed %revoke own)
+      (expect-discovery-response ~fed id ~)
+  ==
 ::
 ++  test-query-whose-bulk
   %-  eval-mare

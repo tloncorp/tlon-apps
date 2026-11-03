@@ -4,7 +4,6 @@ import {
   canClaimAgentOnboardingLanding,
   claimAgentOnboardingLanding,
   shouldAcknowledgeAgentOnboardingLanding,
-  shouldRestoreAgentOnboardingFallback,
 } from './agentOnboardingLanding';
 
 const landing = {
@@ -43,19 +42,4 @@ describe('agent onboarding landing lifecycle', () => {
       shouldAcknowledgeAgentOnboardingLanding(landing, landing.channelId)
     ).toBe(false);
   });
-});
-
-it('restores a fallback only from its mounted agent channel', () => {
-  const fallback = {
-    groupId: '~zod/group',
-    channelId: 'chat/~zod/group/general',
-    status: 'fallback' as const,
-  };
-  expect(
-    shouldRestoreAgentOnboardingFallback(fallback, fallback.channelId)
-  ).toBe(true);
-  expect(
-    shouldRestoreAgentOnboardingFallback(fallback, 'chat/~zod/other')
-  ).toBe(false);
-  expect(canClaimAgentOnboardingLanding(fallback)).toBe(false);
 });

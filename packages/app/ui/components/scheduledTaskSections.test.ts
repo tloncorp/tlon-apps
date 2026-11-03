@@ -156,6 +156,35 @@ describe('taskEditorSections', () => {
     ]);
   });
 
+  it("puts a saved task's run history and test run last, above delete", () => {
+    const sections = taskEditorSections({
+      ...base,
+      runs: {
+        subtitle: 'Last run Today, successful',
+        count: 12,
+        onPress: vi.fn(),
+        test: { busy: false, disabled: false, onPress: vi.fn(), note: 'Note' },
+      },
+      onDelete: vi.fn(),
+    });
+    expect(sections.map((section) => section.key).slice(-3)).toEqual([
+      'destination',
+      'runs',
+      'delete',
+    ]);
+    expect(sections.at(-2)).toMatchObject({
+      footer: 'Note',
+      rows: [
+        {
+          title: 'Run history',
+          subtitle: 'Last run Today, successful',
+          badge: '12',
+        },
+        { title: 'Test run', action: true, disabled: false },
+      ],
+    });
+  });
+
   it('toggles a day and keeps the days sorted', () => {
     const onChange = vi.fn();
     const sections = taskEditorSections({ ...base, onChange });

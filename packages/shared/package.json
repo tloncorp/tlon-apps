@@ -25,7 +25,6 @@
     "./logic/noun": "./src/logic/index.ts",
     "./logic/pinning": "./src/logic/index.ts",
     "./logic/*": "./src/logic/*.ts",
-    "./perf": "./src/perf.ts",
     "./perfLog": "./src/perfLog.ts",
     "./store": "./src/store/index.ts",
     "./urbit": "./src/urbit/index.ts",

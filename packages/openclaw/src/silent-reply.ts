@@ -1,13 +1,11 @@
-import type { PluginHookAgentEndEvent } from 'openclaw/plugin-sdk/types';
+import type { AgentEndEvent } from './agent-hook-types.js';
 
 export function isExplicitSilentReply(text: string | undefined): boolean {
   return text?.trim().toUpperCase() === 'NO_REPLY';
 }
 
 // Inspect only the final assistant output; never retain message contents.
-export function isSuccessfulSilentAgentOutput(
-  event: PluginHookAgentEndEvent
-): boolean {
+export function isSuccessfulSilentAgentOutput(event: AgentEndEvent): boolean {
   if (!event.success || event.error) return false;
   const last = event.messages.at(-1);
   if (!last || typeof last !== 'object') return false;

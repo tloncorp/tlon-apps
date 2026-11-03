@@ -1,94 +1,43 @@
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test';
 
-import { __resetApiClientForTests } from './api-client';
+import * as groupAdmin from './group-admin';
+import { runScriptCli } from './script-cli-runner';
 import {
+  MockBadResponseError,
   mockedCreateChannel,
   mockedGetGroup,
+  mockedGetGroups,
+  mockedManagementCalls,
   mockedNotesV1,
+  mockedPoke,
+  mockedScry,
 } from './tloncorp-api-mock';
 
 const GROUP = '~zod/test-group';
 
-const ENV_KEYS = [
-  'TLON_CONFIG_FILE',
-  'URBIT_URL',
-  'TLON_URL',
-  'URBIT_SHIP',
-  'TLON_SHIP',
-  'URBIT_COOKIE',
-  'TLON_COOKIE',
-  'URBIT_CODE',
-  'TLON_CODE',
-  'TLON_SKILL_DIR',
-  'TLON_CACHE_DIR',
-  'OPENCLAW_CONFIG',
-];
-
-let savedEnv: Record<string, string | undefined> = {};
 const originalCreateGroupNotebook = mockedNotesV1.createGroupNotebook;
 const originalGetGroup = mockedGetGroup.impl;
+const originalGetGroups = mockedGetGroups.impl;
 const originalCreateChannel = mockedCreateChannel.impl;
-
-beforeEach(() => {
-  savedEnv = {};
-  for (const key of ENV_KEYS) {
-    savedEnv[key] = process.env[key];
-    delete process.env[key];
-  }
-  process.env.TLON_URL = 'https://zod.tlon.network';
-  process.env.TLON_SHIP = '~zod';
-  process.env.TLON_CODE = 'sampel-ticlyt-migfun-falmel';
-  __resetApiClientForTests();
-});
+const originalPoke = mockedPoke.impl;
+const originalScry = mockedScry.impl;
 
 afterEach(() => {
-  for (const key of ENV_KEYS) {
-    if (savedEnv[key] === undefined) delete process.env[key];
-    else process.env[key] = savedEnv[key];
-  }
   mockedNotesV1.createGroupNotebook = originalCreateGroupNotebook;
   mockedGetGroup.impl = originalGetGroup;
+  mockedGetGroups.impl = originalGetGroups;
   mockedCreateChannel.impl = originalCreateChannel;
-  __resetApiClientForTests();
+  mockedPoke.impl = originalPoke;
+  mockedScry.impl = originalScry;
+  mockedManagementCalls.length = 0;
 });
 
-let runCount = 0;
-
-// channels.ts runs its CLI main() on import, reading process.argv and ending
-// with process.exit, so each run imports a fresh module instance.
-async function runChannels(
-  args: string[]
-): Promise<{ exitCode: number | undefined; stdout: string[] }> {
-  const originalArgv = process.argv;
-  const originalExit = process.exit;
-  const originalLog = console.log;
-  const originalError = console.error;
-  const stdout: string[] = [];
-  let finish: (code: number | undefined) => void = () => {};
-  const exited = new Promise<number | undefined>((resolve) => {
-    finish = resolve;
-  });
-  process.argv = ['tlon', 'channels', ...args];
-  process.exit = ((code?: number) => {
-    finish(code);
-    return undefined as never;
-  }) as typeof process.exit;
-  console.log = (...parts: unknown[]) => {
-    stdout.push(parts.map(String).join(' '));
-  };
-  console.error = () => {};
-  try {
-    runCount += 1;
-    const specifier = `./channels?run=${runCount}`;
-    await import(specifier);
-    const exitCode = await exited;
-    return { exitCode, stdout };
-  } finally {
-    process.argv = originalArgv;
-    process.exit = originalExit;
-    console.log = originalLog;
-    console.error = originalError;
-  }
+function runChannels(args: string[]) {
+  return runScriptCli(
+    'channels',
+    args,
+    (run) => import(`./channels?run=${run}`)
+  );
 }
 
 describe('channels create output', () => {
@@ -146,6 +95,163 @@ describe('channels create output', () => {
       `   Group: ${GROUP}`,
       `   Ref: /1/group/${GROUP}`,
       '   Share: channels have no card yet; name the channel and its Nest, and include the group Ref path in a chat message to post a tappable group card.',
+    ]);
+  });
+});
+
+describe('channels info writers', () => {
+  const NEST = 'chat/~zod/general';
+  const NOTES_NEST = 'notes/~zod/docs';
+  let scries: unknown[] = [];
+
+  function answerPerm(answer: () => Promise<unknown>) {
+    mockedScry.impl = async (input: unknown) => {
+      scries.push(input);
+      return answer();
+    };
+  }
+
+  beforeEach(() => {
+    scries = [];
+    mockedGetGroups.impl = async () => [
+      {
+        id: GROUP,
+        title: 'Test',
+        channels: [
+          { id: NEST, title: 'General', readerRoles: [] },
+          { id: NOTES_NEST, title: 'Docs', readerRoles: [] },
+        ],
+      },
+    ];
+  });
+
+  it('prints (all members) when the writer set is empty', async () => {
+    answerPerm(async () => ({ writers: [], group: GROUP }));
+
+    const { exitCode, stdout } = await runChannels(['info', NEST]);
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toEqual([
+      '\n=== General ===\n',
+      `Nest: ${NEST}`,
+      'Kind: chat',
+      `Group: Test (${GROUP})`,
+      'Zone: default',
+      'Description: (none)',
+      'Readers: (all members)',
+      'Writers: (all members)',
+    ]);
+    expect(scries).toEqual([{ app: 'channels', path: `/${NEST}/perm` }]);
+  });
+
+  it('lists the writer roles of a restricted channel', async () => {
+    answerPerm(async () => ({ writers: ['admin', 'mods'], group: GROUP }));
+
+    const { exitCode, stdout } = await runChannels(['info', NEST]);
+
+    expect(exitCode).toBe(0);
+    expect(stdout.at(-1)).toBe('Writers: admin, mods');
+  });
+
+  it('reports a failed perm scry in the line instead of failing', async () => {
+    answerPerm(async () => {
+      throw new MockBadResponseError(500, '');
+    });
+
+    const { exitCode, stdout } = await runChannels(['info', NEST]);
+
+    expect(exitCode).toBe(0);
+    expect(stdout.at(-2)).toBe('Readers: (all members)');
+    expect(stdout.at(-1)).toBe('Writers: (unavailable: HTTP 500)');
+  });
+
+  it('leaves %notes writers to %notes without scrying %channels', async () => {
+    answerPerm(async () => ({ writers: [], group: GROUP }));
+
+    const { exitCode, stdout } = await runChannels(['info', NOTES_NEST]);
+
+    expect(exitCode).toBe(0);
+    expect(stdout.at(-1)).toBe('Writers: (managed by %notes)');
+    expect(scries).toEqual([]);
+  });
+});
+
+describe('channels admin commands', () => {
+  const FOREIGN_GROUP = '~bus/team';
+  const FOREIGN_NEST = 'chat/~bus/general';
+  // Other ways a command could reach the ship, beside mockedManagementCalls.
+  let sent: string[] = [];
+  // Stubbed so the helper's real retry loop (5 reads, 500 ms apart) never runs.
+  let helper: ReturnType<typeof refuseAdmin>;
+
+  function refuseAdmin() {
+    return spyOn(
+      groupAdmin,
+      'assertActingShipCanAdminister'
+    ).mockImplementation(async (groupId: string, action: string) => {
+      throw new Error(`Can't ${action} in ${groupId}: not an admin`);
+    });
+  }
+
+  beforeEach(() => {
+    sent = [];
+    helper = refuseAdmin();
+    mockedGetGroups.impl = async () => [
+      { id: FOREIGN_GROUP, channels: [{ id: FOREIGN_NEST }] },
+    ];
+    mockedPoke.impl = async () => {
+      sent.push('poke');
+    };
+    mockedCreateChannel.impl = async () => {
+      sent.push('createChannel');
+    };
+    mockedNotesV1.createGroupNotebook = async () => {
+      sent.push('createGroupNotebook');
+    };
+  });
+
+  afterEach(() => {
+    helper.mockRestore();
+  });
+
+  const refusals: Array<[string[], string]> = [
+    [['create', FOREIGN_GROUP, 'General'], 'add channels'],
+    [['create', FOREIGN_GROUP, 'Docs', '--kind', 'notes'], 'add channels'],
+    [['update', FOREIGN_NEST, '--title', 'News'], 'update channels'],
+    [['rename', FOREIGN_NEST, 'News'], 'update channels'],
+    [['delete', FOREIGN_NEST], 'delete channels'],
+    [['add-writers', FOREIGN_NEST, 'admin'], 'change writers'],
+    [['del-writers', FOREIGN_NEST, 'admin'], 'change writers'],
+    [['add-readers', FOREIGN_GROUP, FOREIGN_NEST, 'admin'], 'change readers'],
+    [['del-readers', FOREIGN_GROUP, FOREIGN_NEST, 'admin'], 'change readers'],
+  ];
+
+  for (const [args, action] of refusals) {
+    it(`refuses ${args.join(' ')} for a non-admin before sending anything`, async () => {
+      const { exitCode, stderr } = await runChannels(args);
+
+      expect(exitCode).toBe(1);
+      expect(stderr).toEqual([
+        `Error: Can't ${action} in ${FOREIGN_GROUP}: not an admin`,
+      ]);
+      expect(helper.mock.calls).toEqual([[FOREIGN_GROUP, action]]);
+      expect(sent).toEqual([]);
+      expect(mockedManagementCalls).toEqual([]);
+    });
+  }
+
+  it('lets the channel host change writers without the group admin check', async () => {
+    const nest = 'chat/~zod/general';
+
+    const { exitCode } = await runChannels(['add-writers', nest, 'admin']);
+
+    expect(exitCode).toBe(0);
+    expect(helper.mock.calls).toEqual([]);
+    expect(mockedManagementCalls).toEqual([
+      {
+        op: 'addChannelWriters',
+        args: [{ channelId: nest, writers: ['admin'] }],
+      },
     ]);
   });
 });

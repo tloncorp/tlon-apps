@@ -134,6 +134,28 @@ export const useContextLensRun = ({
   });
 };
 
+/** One scheduled task's synced runs, newest first. */
+export const useCronJobRuns = ({
+  botShip,
+  jobId,
+  since,
+  limit,
+}: {
+  botShip: string;
+  jobId: string;
+  /** Only runs received at or after this time. */
+  since?: number;
+  /** The newest this many; all of them when unset. */
+  limit?: number;
+}) => {
+  const deps = useKeyFromQueryDeps(db.getContextLensRunsForCronJob);
+  return useQuery({
+    queryKey: ['cronJobRuns', deps, botShip, jobId, since, limit],
+    queryFn: () =>
+      db.getContextLensRunsForCronJob({ botShip, jobId, since, limit }),
+  });
+};
+
 export const useRecentContextLensRuns = (count?: number) => {
   const deps = useKeyFromQueryDeps(db.getRecentContextLensRuns);
   return useQuery({
@@ -878,6 +900,25 @@ export const useDeskSupportsAutomations = (): boolean | undefined => {
     return undefined;
   }
   return logic.deskVersionSupportsAutomations(appInfo?.groupsVersion);
+};
+
+/**
+ * Whether this ship's %steward pages a scheduled task's runs and relays test
+ * runs, resolved the same way as useDeskSupportsAutomations.
+ */
+export const useDeskSupportsTaskRuns = (): boolean | undefined => {
+  const clientSupports = useSyncExternalStore(
+    api.onDeskSupportsTaskRunsChange,
+    api.getDeskSupportsTaskRunsState
+  );
+  const { value: appInfo, isLoading } = db.appInfo.useStorageItem();
+  if (clientSupports !== null) {
+    return clientSupports;
+  }
+  if (isLoading) {
+    return undefined;
+  }
+  return logic.deskVersionSupportsTaskRuns(appInfo?.groupsVersion);
 };
 
 /**

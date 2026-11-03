@@ -7,6 +7,7 @@ interface Constants {
   NOTIFY_SERVICE: string;
   POST_HOG_API_KEY: string;
   API_URL: string;
+  KERNEL_SERVICE_ORIGIN?: string;
   API_AUTH_USERNAME: string | undefined;
   API_AUTH_PASSWORD: string | undefined;
   RECAPTCHA_SITE_KEY: string;
@@ -32,7 +33,6 @@ interface Constants {
   GIT_HASH: string;
   DISABLE_SPLASH_MODAL: boolean;
   AUTOMATED_TEST: boolean;
-  OPENROUTER_API_KEY: string;
 }
 
 export function getConstants(): Constants {
@@ -45,11 +45,4 @@ export function getConstants(): Constants {
   }
 
   return (global as any)[TLON_NAMESPACE] as Constants;
-}
-
-export function isOpenRouterConfigured(): boolean {
-  const constants = getConstants();
-  return (
-    !!constants.OPENROUTER_API_KEY && constants.OPENROUTER_API_KEY.length > 0
-  );
 }

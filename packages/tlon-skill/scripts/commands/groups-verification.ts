@@ -7,7 +7,8 @@
  * for the same reason — callers pass the canonical normalizer.
  */
 
-export type RawSectionMeta = {
+// The metadata of a group and of each of its sections.
+export type RawMeta = {
   title?: string;
   description?: string;
   image?: string;
@@ -16,10 +17,11 @@ export type RawSectionMeta = {
 
 /**
  * Narrow view of the `/v2/ui/groups/{id}` scry response — only the fields the
- * admin-verification and section flows read. A subset of `@tloncorp/api`'s
- * `GroupV11`.
+ * admin-verification, section and group-update flows read. A subset of
+ * `@tloncorp/api`'s `GroupV11`.
  */
 export type RawGroupForAdminVerification = {
+  meta?: RawMeta;
   admins?: string[];
   seats?: Record<string, { roles?: string[] }>;
   admissions?: {
@@ -29,7 +31,7 @@ export type RawGroupForAdminVerification = {
     invited?: Record<string, unknown>;
   };
   channels?: Record<string, { section?: string }>;
-  sections?: Record<string, { meta?: RawSectionMeta; order?: string[] }>;
+  sections?: Record<string, { meta?: RawMeta; order?: string[] }>;
   'section-order'?: string[];
 };
 

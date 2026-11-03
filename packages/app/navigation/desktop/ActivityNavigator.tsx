@@ -10,6 +10,8 @@ import { useCallback, useMemo } from 'react';
 
 import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
 import { ScheduledTaskEditorScreen } from '../../features/automations/ScheduledTaskEditorScreen';
+import { ScheduledTaskRunScreen } from '../../features/automations/ScheduledTaskRunScreen';
+import { ScheduledTaskRunsScreen } from '../../features/automations/ScheduledTaskRunsScreen';
 import { ScheduledTasksScreen } from '../../features/automations/ScheduledTasksScreen';
 import { ActivityEmptyState } from '../../features/top/DesktopEmptyStates';
 import { BotPromptFileScreen } from '../../features/settings/BotPromptFileScreen';
@@ -131,6 +133,14 @@ export const ActivityNavigator = () => {
       <ActivityDrawer.Screen
         name="ScheduledTaskEditor"
         component={ScheduledTaskEditorScreen}
+      />
+      <ActivityDrawer.Screen
+        name="ScheduledTaskRuns"
+        component={ScheduledTaskRunsScreen}
+      />
+      <ActivityDrawer.Screen
+        name="ScheduledTaskRun"
+        component={ScheduledTaskRunScreen}
       />
       <ActivityDrawer.Screen
         name="BotPromptFiles"

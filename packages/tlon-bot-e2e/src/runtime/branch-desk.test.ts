@@ -1,7 +1,10 @@
+import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import type {
@@ -19,6 +22,11 @@ import {
 import { type WaitForOptions, waitFor } from './waiters.js';
 
 const tempDirs: string[] = [];
+// Real, not a placeholder: applyBranchDesk stages scripts/desk-identity.sh.
+const REPO_ROOT = fileURLToPath(new URL('../../../../', import.meta.url));
+const DESK_IDENTITY_SCRIPT = path.join(REPO_ROOT, 'scripts/desk-identity.sh');
+const manifestOf = (root: string) =>
+  createDeskManifest(root, DESK_IDENTITY_SCRIPT);
 const DESK_CONTENT = 'branch desk';
 const DESK_MANIFEST = `${createHash('sha256').update(DESK_CONTENT).digest('hex')}  ./app.hoon\n`;
 const OLD_MANIFEST = `${createHash('sha256').update('old desk').digest('hex')}  ./app.hoon\n`;
@@ -57,7 +65,7 @@ describe('branch desk manifest', () => {
     await writeFile(path.join(root, 'app/a.hoon'), 'a');
     await writeFile(path.join(root, 'commit.txt'), 'frontend-only-change');
 
-    const manifest = await createDeskManifest(root);
+    const manifest = await manifestOf(root);
     const hash = (value: string) =>
       createHash('sha256').update(value).digest('hex');
     expect(manifest).toBe(
@@ -65,27 +73,91 @@ describe('branch desk manifest', () => {
     );
 
     await writeFile(path.join(root, 'commit.txt'), 'another-commit');
-    expect(await createDeskManifest(root)).toBe(manifest);
+    expect(await manifestOf(root)).toBe(manifest);
     await writeFile(path.join(root, 'z.hoon'), 'changed');
-    expect(await createDeskManifest(root)).not.toBe(manifest);
+    expect(await manifestOf(root)).not.toBe(manifest);
   });
 
-  test('ignores glob-bot rewrites of desk.docket-0', async () => {
+  const docket = (globLine: string, version = '[12 5 0]') =>
+    [
+      ":~  title+'Tlon'",
+      globLine,
+      "    base+'groups'",
+      `    version+${version}`,
+      '==',
+      '',
+    ].join('\n');
+  const globLine = (hash: string) =>
+    `    glob-http+['https://bootstrap.urbit.org/glob-${hash}.glob' ${hash}]`;
+
+  test('ignores glob-bot rewrites of the docket glob line only', async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), 'branch-desk-test-'));
     tempDirs.push(root);
     await writeFile(path.join(root, 'z.hoon'), 'z');
-    await writeFile(path.join(root, 'desk.docket-0'), 'glob-0v1.aaaaa');
+    await writeFile(
+      path.join(root, 'desk.docket-0'),
+      docket(globLine('0v1.aaaaa.bbbbb'))
+    );
 
-    const manifest = await createDeskManifest(root);
-    await writeFile(path.join(root, 'desk.docket-0'), 'glob-0v1.bbbbb');
-    expect(await createDeskManifest(root)).toBe(manifest);
+    const manifest = await manifestOf(root);
+    expect(manifest.split('\n').at(-2)).toMatch(/ {2}\.\/desk\.docket-0$/);
+    await writeFile(
+      path.join(root, 'desk.docket-0'),
+      docket(globLine('0v5.ccccc.ddddd'))
+    );
+    expect(await manifestOf(root)).toBe(manifest);
 
-    await writeFile(path.join(root, 'z.hoon'), 'changed');
-    expect(await createDeskManifest(root)).not.toBe(manifest);
+    await writeFile(
+      path.join(root, 'desk.docket-0'),
+      docket(globLine('0v5.ccccc.ddddd'), '[12 6 0]')
+    );
+    expect(await manifestOf(root)).not.toBe(manifest);
+  });
+
+  test('compares a glob line in an unrecognized format raw', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'branch-desk-test-'));
+    tempDirs.push(root);
+    await writeFile(
+      path.join(root, 'desk.docket-0'),
+      docket('    glob-ames+[~zod 0v1.aaaaa]')
+    );
+
+    const manifest = await manifestOf(root);
+    await writeFile(
+      path.join(root, 'desk.docket-0'),
+      docket('    glob-ames+[~zod 0v5.ccccc]')
+    );
+    expect(await manifestOf(root)).not.toBe(manifest);
   });
 });
 
 describe('applyBranchDesk control flow', () => {
+  test('reads the mounted desk with the same manifest as the host', async () => {
+    const harness = new BranchDeskHarness({ mountedManifest: DESK_MANIFEST });
+    await harness.apply();
+    const argv = harness.mountManifestArgv;
+    expect(argv?.[5]).toBe('/tmp/tlon-bot-e2e-groups/desk-identity.sh');
+
+    const root = await mkdtemp(path.join(os.tmpdir(), 'branch-desk-test-'));
+    tempDirs.push(root);
+    await mkdir(path.join(root, 'app'));
+    await writeFile(path.join(root, 'app/a.hoon'), 'a');
+    await writeFile(path.join(root, 'z.hoon'), 'z');
+    await writeFile(path.join(root, 'commit.txt'), 'stamp');
+    await writeFile(
+      path.join(root, 'desk.docket-0'),
+      ":~\n    glob-http+['https://x/glob-0v1.aa.glob' 0v1.aa]\n==\n"
+    );
+    const { stdout } = await promisify(execFile)('bash', [
+      '-c',
+      argv![2],
+      'bash',
+      root,
+      DESK_IDENTITY_SCRIPT,
+    ]);
+    expect(stdout).toBe(await manifestOf(root));
+  });
+
   test('waits for a stable mount and skips an unchanged desk', async () => {
     const harness = new BranchDeskHarness({ mountedManifest: DESK_MANIFEST });
 
@@ -309,6 +381,7 @@ class BranchDeskHarness {
   readonly ctx = context();
   readonly events: string[] = [];
   readonly waitedShipUrls: string[] = [];
+  mountManifestArgv: string[] | undefined;
   readonly restartComposeService = vi.fn(async () => {
     this.events.push('restart-ships');
   });
@@ -408,6 +481,7 @@ class BranchDeskHarness {
         return success();
       }
       if (script.includes('mount="$1"')) {
+        this.mountManifestArgv = argv;
         const ship = shipFromPath(argv[4]);
         this.events.push(`read-mount:${ship}`);
         const reading = this.mountReads.shift();
@@ -491,8 +565,8 @@ function context(): RuntimeContext {
     hostPort: 8080,
   });
   return {
-    repoRoot: '/repo',
-    packageDir: '/repo/packages/tlon-bot-e2e',
+    repoRoot: REPO_ROOT,
+    packageDir: path.join(REPO_ROOT, 'packages/tlon-bot-e2e'),
     composeProjectName: 'branch-desk-unit',
     composeFiles: [],
     composeEnv: {},

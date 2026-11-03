@@ -6,6 +6,7 @@ import { authenticate } from './auth.js';
 import { ssrfPolicyFromAllowPrivateNetwork } from './context.js';
 import { urbitFetch } from './fetch.js';
 import { createHttpPokeApi } from './http-poke.js';
+import { redactUrbitErrorText } from './redact.js';
 
 type PokeFn = (params: {
   app: string;
@@ -177,23 +178,27 @@ export async function withAuthenticatedTlonApi<T>(
     reauthStatuses: readonly number[] = [403],
     signal?: AbortSignal
   ) => {
-    const request = () =>
-      urbitFetch({
+    // The cookie actually sent, so error bodies can be redacted against it.
+    let usedCookie = cookie;
+    const request = () => {
+      usedCookie = cookie;
+      return urbitFetch({
         baseUrl: params.url,
         path,
-        init: { ...init, headers: { ...init.headers, Cookie: cookie } },
+        init: { ...init, headers: { ...init.headers, Cookie: usedCookie } },
         ssrfPolicy,
         timeoutMs: 30_000,
         signal,
         auditContext,
       });
+    };
     let result = await request();
     if (reauthStatuses.includes(result.response.status)) {
       await result.release();
       await reauthenticate();
       result = await request();
     }
-    return result;
+    return { ...result, cookie: usedCookie };
   };
 
   const scryFn: ScryFn = async ({ app, path }) => {
@@ -224,7 +229,11 @@ export async function withAuthenticatedTlonApi<T>(
   ) => {
     const headers: Record<string, string> = {};
     if (body !== undefined) headers['Content-Type'] = 'application/json';
-    const { response, release } = await fetchAuthenticated(
+    const {
+      response,
+      release,
+      cookie: requestCookie,
+    } = await fetchAuthenticated(
       path,
       {
         method,
@@ -238,14 +247,15 @@ export async function withAuthenticatedTlonApi<T>(
     try {
       const responseText = await response.text();
       if (!response.ok) {
-        throw Object.assign(
-          new Error(responseText || `HTTP ${response.status}`),
-          {
-            status: response.status,
-            body: responseText,
-            text: async () => responseText,
-          }
-        );
+        // The body can echo the request's session cookie.
+        const bodyText = redactUrbitErrorText(responseText, {
+          cookie: requestCookie,
+        });
+        throw Object.assign(new Error(bodyText || `HTTP ${response.status}`), {
+          status: response.status,
+          body: bodyText,
+          text: async () => bodyText,
+        });
       }
       return responseText.trim()
         ? (JSON.parse(responseText) as T)

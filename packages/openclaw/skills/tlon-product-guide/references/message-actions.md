@@ -98,7 +98,7 @@ Notes: the confirmation warns `This action cannot be undone.` There is one kind 
 
 Phone: press and hold the message and tap `Forward`. In the `Forward to channel` sheet, tap the chat you want (`Search channels` narrows the list), then tap the button at the bottom, which reads "Forward to" and the chat's name.
 Desktop: hover the message, open its three-dot menu and pick `Forward`.
-Notes: you can forward from group chat channels, Galleries and Bulletins, but not from a DM or group DM. The destination can be any DM, group DM or channel in your list except Notebook channels. What arrives is a new post from you that embeds the original and links back to it; you cannot add a comment in the same step. To send a whole group this way, use `Forward reference` on the group's info screen.
+Notes: you can forward from group chat channels, Galleries and Bulletins, but not from a DM or group DM. The destination can be any DM, group DM or channel in your list except Notebook channels. What arrives is a new post from you that embeds the original and links back to it; you cannot add a comment in the same step. To send a whole group this way, use `Forward` on the group's info screen.
 
 ## Hide a message, or show it again
 
@@ -110,7 +110,7 @@ Notes: hiding only changes what you see; everyone else still sees the message. Y
 
 Phone: press and hold the message and tap `Report message`. On a Gallery or Bulletin post it reads `Report post`.
 Desktop: hover the message, open its three-dot menu and pick `Report message`.
-Notes: group channels only; DMs and group DMs have no report option. Reporting hides the message for you, with the line `Message hidden or flagged.`, and flags it to the group. Everyone else still sees it until its author or a group admin deletes it. Group admins other than the reporter see a line in Activity saying the reporter "flagged a post in your group"; tapping it opens the message. There is no list of reported messages and no way to withdraw a report, though you can unhide the message for yourself.
+Notes: group channels only; DMs and group DMs have no report option. Reporting hides the message for you, with the line `Message hidden or flagged.`, and flags it to the group. Everyone else still sees it until its author or a group admin deletes it. Group admins other than the reporter see a line in Activity saying the reporter "flagged a post in your workspace"; tapping it opens the message. There is no list of reported messages and no way to withdraw a report, though you can unhide the message for yourself.
 
 ## Pin a post to the top of a channel
 

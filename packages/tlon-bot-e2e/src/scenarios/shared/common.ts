@@ -165,8 +165,9 @@ export const commonScenarios: readonly SharedScenario[] = [
         { kind: 'profile-rollback', label: 'restore bot nickname' }
       );
 
+      // The bot's own nickname: an explicitly bot-identity command.
       const script = driver.model.readOrAdmin(
-        `contacts update-profile --nickname ${JSON.stringify(nicknameToken)}`,
+        `${driver.model.botSelfPrefix}contacts update-profile --nickname ${JSON.stringify(nicknameToken)}`,
         finalReply
       );
       const tag = await registerModelScript(ctx.fakeModel, key, script);

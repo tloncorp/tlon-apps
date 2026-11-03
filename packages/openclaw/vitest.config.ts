@@ -9,7 +9,7 @@ config();
 // recursive test sweep (`pnpm run -r test`) from ever picking up test/cases.
 export default defineConfig({
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'scripts/upstream-watch/**/*.test.ts'],
     testTimeout: 180_000,
     hookTimeout: 180_000,
     sequence: { shuffle: false },

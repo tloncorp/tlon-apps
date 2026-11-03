@@ -2,7 +2,9 @@ import { describe, expect, it } from 'bun:test';
 
 import {
   IMAGE_GUARD_OPTIONS,
+  MEDIA_PROBE_OPTIONS,
   assertPostableImageUrl,
+  assertPostableMediaUrl,
   fetchImageVerse,
   imageDimensions,
   imageFlagIndex,
@@ -14,6 +16,7 @@ import {
   INVALID_MEDIA_ERROR,
   LOCAL_MEDIA_ERROR,
   USERINFO_ERROR,
+  localMediaError,
 } from './media-guard';
 
 function bytes(...parts: (number[] | string)[]): Uint8Array {
@@ -258,5 +261,32 @@ describe('image flag parsing', () => {
 
     expect(idx).toBe(4);
     expect(imageFlagValue(args, 'usage')).toBe('https://x.example/y.png');
+  });
+});
+
+describe('attachment media URLs (--file/--video)', () => {
+  it('applies the --image contract and names the flag in the local-path error', () => {
+    expect(
+      assertPostableMediaUrl('HTTPS://X.example/a%20b.pdf', '--file')
+    ).toBe('https://x.example/a%20b.pdf');
+    expect(() => assertPostableMediaUrl('./clip.mp4', '--video')).toThrow(
+      localMediaError('--video')
+    );
+    expect(localMediaError('--video')).toContain('for --video — upload');
+    expect(LOCAL_MEDIA_ERROR).toBe(localMediaError('--image'));
+    expect(() =>
+      assertPostableMediaUrl('http://x.example/f.pdf', '--file')
+    ).toThrow(HTTPS_ONLY_ERROR);
+    expect(() =>
+      assertPostableMediaUrl('https://u:p@x.example/f.pdf', '--file')
+    ).toThrow(USERINFO_ERROR);
+  });
+
+  it('pins the probe budget: https only, 10 s per probe', () => {
+    expect(MEDIA_PROBE_OPTIONS).toEqual({
+      deadlineMs: 10_000,
+      maxRedirects: 3,
+      requireHttps: true,
+    });
   });
 });

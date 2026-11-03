@@ -34,6 +34,8 @@ export type ContextLens = {
   };
   /** lensId of the run this one retries, when trigger is "retry". */
   retryOf?: string;
+  /** The scheduled task behind a cron run; see ContextLensCron. */
+  cron?: ContextLensCron;
   model: string | null;
   provider: string | null;
   status: ContextLensStatus;
@@ -74,6 +76,27 @@ export type ContextLens = {
     queuedFinal: boolean;
     queuedFinalCount: number;
     queuedBlockCount: number;
+  };
+};
+
+/**
+ * The scheduled task (cron job) a cron run ran. A test run is one the owner
+ * asked for outside the schedule: it posts nothing, so its reply is kept as
+ * `output`. `outcome` is the host's verdict on a scheduled run.
+ */
+export type ContextLensCron = {
+  jobId: string;
+  test?: boolean;
+  output?: string;
+  outcome?: {
+    status: 'ok' | 'error' | 'skipped';
+    error?: string;
+    summary?: string;
+    delivered?: boolean;
+    deliveryStatus?: string;
+    deliveryError?: string;
+    /** The plugin saw the run reply NO_REPLY, for an empty summary. */
+    silent?: boolean;
   };
 };
 

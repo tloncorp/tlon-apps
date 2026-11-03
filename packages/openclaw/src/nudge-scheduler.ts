@@ -1,5 +1,6 @@
 /**
- * Interval-driven scheduler for re-engagement nudge ticks.
+ * Interval-driven single-flight scheduler for re-engagement nudge ticks and
+ * the monitor's periodic refreshes.
  *
  * Owns the timer lifecycle, reentrancy guard, and abort handling. Knows
  * nothing about Urbit, settings, or telemetry — the caller supplies a
@@ -12,6 +13,10 @@ export type NudgeSchedulerOptions = {
   tick: () => Promise<void> | void;
   intervalMs?: number;
   abortSignal?: AbortSignal;
+  /** Run the first tick right after start (default) rather than one interval later. */
+  immediate?: boolean;
+  /** Names the scheduler in tick-failure logs. */
+  label?: string;
   log?: (msg: string) => void;
   error?: (msg: string) => void;
 };
@@ -52,7 +57,9 @@ export function createNudgeScheduler(
       try {
         await opts.tick();
       } catch (err) {
-        opts.error?.(`[tlon] nudge tick failed: ${String(err)}`);
+        opts.error?.(
+          `[tlon] ${opts.label ?? 'nudge'} tick failed: ${String(err)}`
+        );
       } finally {
         running = false;
       }
@@ -78,12 +85,14 @@ export function createNudgeScheduler(
       started = true;
       // Schedule the first tick on the next macrotask so callers can finish
       // their synchronous startup wiring before the tick observes state.
-      setTimeout(() => {
-        if (opts.abortSignal?.aborted || !started) {
-          return;
-        }
-        void runTick();
-      }, 0);
+      if (opts.immediate !== false) {
+        setTimeout(() => {
+          if (opts.abortSignal?.aborted || !started) {
+            return;
+          }
+          void runTick();
+        }, 0);
+      }
       timer = setInterval(() => {
         if (opts.abortSignal?.aborted) {
           return;

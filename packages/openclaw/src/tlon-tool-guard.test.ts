@@ -9,6 +9,45 @@ import {
   refusedDiaryNest,
 } from './tlon-tool-guard.js';
 
+const QUOTE_FORWARD_DIARY_CASES = [
+  {
+    name: 'posts forward diary target',
+    args: ['posts', 'forward', 'chat/~zod/c', '170.141', 'diary/~zod/log'],
+    cliRefusesDiary: true,
+  },
+  {
+    name: 'posts forward diary source',
+    args: ['posts', 'forward', 'diary/~zod/log', '170.141', '~bus'],
+    cliRefusesDiary: true,
+  },
+  {
+    name: 'posts send --quote diary source',
+    args: [
+      'posts',
+      'send',
+      'chat/~zod/c',
+      'hi',
+      '--quote',
+      'diary/~zod/log',
+      '170.141',
+    ],
+    cliRefusesDiary: true,
+  },
+  {
+    name: 'posts reply --quote diary source',
+    args: [
+      'posts',
+      'reply',
+      'chat/~zod/c',
+      '170.142',
+      '--quote',
+      'diary/~zod/log',
+      '170.141',
+    ],
+    cliRefusesDiary: true,
+  },
+];
+
 describe('tlon tool guard', () => {
   describe('allowed subcommands', () => {
     it('allows notes commands through the tlon tool gate', () => {
@@ -310,6 +349,65 @@ describe('tlon tool guard', () => {
         args: ['messages', 'Search', 'query', '--channel', 'diary/~zod/log'],
         cliRefusesDiary: false,
       },
+      ...(['--file', '--video', '--link'] as const).flatMap((flag) => [
+        {
+          name: `posts send help after ${flag} (help wins)`,
+          args: [
+            'posts',
+            'send',
+            'diary/~zod/log',
+            flag,
+            'https://x/a',
+            '--help',
+          ],
+          cliRefusesDiary: false,
+        },
+        {
+          name: `posts send help as message text before ${flag}`,
+          args: [
+            'posts',
+            'send',
+            'diary/~zod/log',
+            '--help',
+            flag,
+            'https://x/a',
+          ],
+          cliRefusesDiary: true,
+        },
+      ]),
+      ...QUOTE_FORWARD_DIARY_CASES,
+      {
+        name: 'posts forward from notes to a diary target (notes wins)',
+        args: ['posts', 'forward', 'notes/~zod/n', '170.141', 'diary/~zod/log'],
+        cliRefusesDiary: false,
+      },
+      {
+        name: 'posts send into notes quoting a diary source (notes wins)',
+        args: [
+          'posts',
+          'send',
+          'notes/~zod/n',
+          'hi',
+          '--quote',
+          'diary/~zod/log',
+          '170.141',
+        ],
+        cliRefusesDiary: false,
+      },
+      {
+        name: 'posts forward with --quote is not a quote',
+        args: [
+          'posts',
+          'forward',
+          'chat/~zod/c',
+          '170.141',
+          '~bus',
+          '--quote',
+          'diary/~zod/log',
+          '170.1',
+        ],
+        cliRefusesDiary: false,
+      },
     ])(
       'matches CLI validation order for $name',
       ({ args, validArgs, cliRefusesDiary }) => {
@@ -319,6 +417,13 @@ describe('tlon tool guard', () => {
           expect(checkBlockedDiaryOperation(validArgs)).not.toBeNull();
           expect(refusedDiaryNest(validArgs)).toBe('diary/~zod/log');
         }
+      }
+    );
+
+    it.each(QUOTE_FORWARD_DIARY_CASES)(
+      'names the diary nest for $name',
+      ({ args }) => {
+        expect(refusedDiaryNest(args)).toBe('diary/~zod/log');
       }
     );
   });

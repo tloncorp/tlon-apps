@@ -61,7 +61,7 @@ vi.mock('../../ui', () => {
     ScreenHeader: () => null,
     XStack: Container,
     YStack: Container,
-    canPreviewAsText: () => false,
+    canPreviewFromText: () => false,
     useCalm: () => ({ disableNicknames: false }),
     useCanWrite: () => true,
     useContactIndex: () => ({}),

@@ -6,6 +6,7 @@ import {
 
 import { UrbitAuthError, UrbitHttpError, UrbitUrlError } from './errors.js';
 import { urbitFetch } from './fetch.js';
+import { registerSecret, registerUrbitCookie } from './redact.js';
 
 export type UrbitAuthenticateOptions = {
   ssrfPolicy?: SsrFPolicy;
@@ -30,6 +31,7 @@ export async function authenticate(
   code: string,
   options: UrbitAuthenticateOptions = {}
 ): Promise<string> {
+  registerSecret(code);
   const { response, release } = await urbitFetch({
     baseUrl: url,
     path: '/~/login',
@@ -69,6 +71,7 @@ export async function authenticate(
         'No authentication cookie received'
       );
     }
+    registerUrbitCookie(cookie);
     return cookie;
   } finally {
     await release();

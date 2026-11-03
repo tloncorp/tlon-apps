@@ -83,3 +83,37 @@ export function lensRunMatchesChannel(
     channelId
   );
 }
+
+/**
+ * The cron job a lens run payload records a run of, or null when it is not a
+ * cron run: the gateway's `cron.jobId`, or for runs recorded before it
+ * stamped one, the "cron job <id>" trigger preview it has always written.
+ * Matches the owner ship's /v1/lens/cron scry and getContextLensRunsForCronJob.
+ */
+export function lensRunCronJobId(payload: unknown): string | null {
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+  const lens = (payload as { lens?: unknown }).lens as
+    | {
+        runKind?: unknown;
+        cron?: { jobId?: unknown } | null;
+        triggerDetails?: { preview?: unknown };
+      }
+    | undefined;
+  if (!lens || typeof lens !== 'object') {
+    return null;
+  }
+  if (lens.cron && typeof lens.cron === 'object') {
+    return typeof lens.cron.jobId === 'string' ? lens.cron.jobId : null;
+  }
+  const preview = lens.triggerDetails?.preview;
+  if (
+    lens.runKind === 'cron' &&
+    typeof preview === 'string' &&
+    preview.startsWith('cron job ')
+  ) {
+    return preview.slice('cron job '.length) || null;
+  }
+  return null;
+}

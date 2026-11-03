@@ -1,4 +1,6 @@
-import { Atom, Noun, cue, jam } from '@urbit/nockjs';
+import { Noun, cue_bytes } from '@urbit/nockjs';
+
+import { jamBytes } from './nounEncoding';
 
 export function camelize(str: string) {
   return str
@@ -20,15 +22,11 @@ export function uncamelize(str: string, separator = '-') {
 }
 
 export async function unpackJamBytes(buf: ArrayBuffer): Promise<Noun> {
-  const hex = [...new Uint8Array(buf)]
-    .reverse() //  endianness shenanigans
-    .map((x) => x.toString(16).padStart(2, '0'))
-    .join('');
-  return cue(Atom.fromString(hex, 16));
+  return cue_bytes(new DataView(buf));
 }
 
 export function packJamBytes(non: Noun): BodyInit {
-  return new Uint8Array(jam(non).bytes());
+  return jamBytes(non);
 }
 
 /**

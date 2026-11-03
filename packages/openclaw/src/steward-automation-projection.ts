@@ -1,5 +1,9 @@
-import type { PluginHookGatewayCronJob } from 'openclaw/plugin-sdk/types';
+// OpenClaw 2026.9.x does not export the cron hook types; use the local
+// structural contract that mirrors them.
+import type { GatewayCronJob as PluginHookGatewayCronJob } from './cron-telemetry.js';
 import { z } from 'zod';
+
+import { isSystemOwnedJob } from './cron-budget-hold.js';
 
 const EXPECTED_NUMBER = 'expected a number';
 const EXPECTED_SAFE_INTEGER = 'expected a safe integer';
@@ -227,6 +231,10 @@ function jobIdOf(job: unknown): string | null {
  * odd job, and the reconciler would retry it forever. The projection is
  * still complete for every job it can represent, so omission removes a
  * dropped job from the ship's map until it parses again.
+ *
+ * OpenClaw's own monitor jobs (a heartbeat and a skill review per agent) are
+ * left out too: core refuses every edit and delete of them, so the owner
+ * could only look at them.
  */
 export function normalizeStewardAutomationProjectionWithRejections(
   jobs: readonly PluginHookGatewayCronJob[]
@@ -244,6 +252,7 @@ export function normalizeStewardAutomationProjectionWithRejections(
       });
       continue;
     }
+    if (isSystemOwnedJob(job)) continue;
     if (seenIds.has(parsed.data.id)) {
       rejected.push({
         id: parsed.data.id,

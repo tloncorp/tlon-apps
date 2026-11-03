@@ -17,14 +17,19 @@
  * `handleWorkspaceBeforePromptBuild`.
  */
 import { readWorkspaceConfig } from '@tloncorp/api';
-import type {
-  PluginHookAgentContext,
-  PluginHookBeforePromptBuildResult,
-  PluginHookGatewayCronService,
-} from 'openclaw/plugin-sdk/types';
 
+import type { AgentHookContext } from './agent-hook-types.js';
+import type { GatewayCronService } from './cron-telemetry.js';
 import { sharedSlot } from './shared-state.js';
 import { normalizeShip, parseTlonTarget } from './targets.js';
+
+// OpenClaw 2026.9.x ships no declarations for openclaw/plugin-sdk/types, so
+// these declare the hook fields this module reads and returns; the host's
+// PluginHookAgentContext and PluginHookBeforePromptBuildResult stay
+// assignable to and from them.
+type PluginHookAgentContext = AgentHookContext & { jobId?: string };
+type PluginHookBeforePromptBuildResult = { prependSystemContext?: string };
+type PluginHookGatewayCronService = Pick<GatewayCronService, 'list'>;
 
 const DEFAULT_TTL_MS = 60_000;
 

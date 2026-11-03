@@ -377,6 +377,8 @@ type ButtonBaseProps = Omit<
   glow?: boolean;
   // Additional props
   centered?: boolean;
+  /** Maximum label lines; zero allows wrapping without truncation. */
+  labelNumberOfLines?: number;
   /** Disable haptic feedback on press. */
   disableHaptic?: boolean;
   /** Preset configuration that sets intent, fill, and optionally size. Individual props override preset values. */
@@ -407,6 +409,7 @@ const ButtonImpl = React.forwardRef<
 >(function ButtonImpl(
   {
     label,
+    labelNumberOfLines = 1,
     icon,
     leadingIcon,
     trailingIcon,
@@ -497,6 +500,8 @@ const ButtonImpl = React.forwardRef<
             {leading}
             {label && (
               <ButtonText
+                numberOfLines={labelNumberOfLines}
+                flexShrink={labelNumberOfLines === 0 ? 1 : undefined}
                 size={fill === 'text' ? 'medium' : size}
                 centered={centered}
               >

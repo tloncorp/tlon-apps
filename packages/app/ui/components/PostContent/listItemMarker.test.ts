@@ -51,6 +51,9 @@ vi.mock('../../contexts/nowPlaying', () => ({
 vi.mock('../AudioRecorder/Waveform', () => ({ Waveform: () => null }));
 vi.mock('../FileUploadPreview', () => ({ FileUploadPreview: () => null }));
 vi.mock('../VideoPreview', () => ({ VideoPreview: () => null }));
+vi.mock('../../../features/browser/BrowserCard', () => ({
+  BrowserCardBlock: () => null,
+}));
 vi.mock('./InlineRenderer', () => ({ InlineRenderer: () => null }));
 
 function firstList(markdown: string) {

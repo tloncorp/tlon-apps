@@ -22,6 +22,11 @@ import {
 } from '../urbit';
 import { A2UI } from './a2ui';
 import {
+  PostBlobDataEntryBrowserSessionSchema,
+  PostBlobDataEntryBrowserSecureEntrySchema,
+} from './browserCards';
+export * from './browserCards';
+import {
   AGENT_PROTOCOL_LIMITS,
   AgentProviderConfigContextSchema,
   AgentProvisionActionContextSchema,
@@ -831,6 +836,8 @@ const postBlobDataEntryDefinitions = [
   PostBlobDataEntryAgentPostMarkerSchema,
   PostBlobDataEntryA2UISelectionSchema,
   A2UI.blobEntrySchema,
+  PostBlobDataEntryBrowserSessionSchema,
+  PostBlobDataEntryBrowserSecureEntrySchema,
 ] as const;
 
 export const PostBlobDataEntrySchema = z.union(postBlobDataEntryDefinitions);
@@ -840,12 +847,42 @@ export const PostBlobDataEntrySchema = z.union(postBlobDataEntryDefinitions);
  * arbitrary off-schema data.
  */
 export type PostBlobDataEntry = z.infer<typeof PostBlobDataEntrySchema>;
+
+/** The `type` of every registered post-blob entry, for messages naming them. */
+export const POST_BLOB_ENTRY_TYPES = [
+  'file',
+  'voicememo',
+  'video',
+  'metadata',
+  'tlon-context-lens',
+  'tlon-agent-intro-request',
+  'tlon-agent-provision',
+  'tlon-agent-provider-config',
+  'tlon-agent-provision-ack',
+  'tlon-agent-post-marker',
+  'tlon-a2ui-selection',
+  'a2ui',
+  'browser-session',
+  'browser-secure-entry',
+] as const satisfies readonly PostBlobDataEntry['type'][];
+
+// Compile-time completeness: a type registered in postBlobDataEntryDefinitions
+// but missing from POST_BLOB_ENTRY_TYPES fails here.
+const allPostBlobEntryTypesListed: [
+  Exclude<PostBlobDataEntry['type'], (typeof POST_BLOB_ENTRY_TYPES)[number]>,
+] extends [never]
+  ? true
+  : never = true;
+void allPostBlobEntryTypesListed;
 export type UnknownPostBlobDataEntry = { type: 'unknown' };
 
-/** Keep schema diagnostics without copying browser bearer capabilities into logs. */
-function redactPostBlobForLogging(value: unknown): unknown {
+/**
+ * Replaces browser bearer capabilities at any depth, so blob data can be
+ * logged or shown to a model without granting access to the session.
+ */
+export function redactPostBlobCapabilities(value: unknown): unknown {
   if (Array.isArray(value)) {
-    return value.map(redactPostBlobForLogging);
+    return value.map(redactPostBlobCapabilities);
   }
   if (value && typeof value === 'object') {
     return Object.fromEntries(
@@ -853,7 +890,7 @@ function redactPostBlobForLogging(value: unknown): unknown {
         key,
         key === 'viewerUrl' || key === 'fillUrl'
           ? '[REDACTED]'
-          : redactPostBlobForLogging(entry),
+          : redactPostBlobCapabilities(entry),
       ])
     );
   }
@@ -886,7 +923,7 @@ export function appendToPostBlob(
   const parsedEntry = PostBlobDataEntrySchema.safeParse(entry);
   if (!parsedEntry.success) {
     logger.trackError('Failed to validate PostBlobDataEntry before append', {
-      entry: redactPostBlobForLogging(entry),
+      entry: redactPostBlobCapabilities(entry),
       issueCodes: parsedEntry.error.issues.map((issue) => issue.code),
     });
     throw new Error('Invalid PostBlobDataEntry');
@@ -988,7 +1025,7 @@ export function parsePostBlob(blob: string): ClientPostBlobData {
     }
     // Unknown content still needs the renderer's upgrade notice.
     logger.warn('Failed to parse PostBlobDataEntry', {
-      entry: redactPostBlobForLogging(entry),
+      entry: redactPostBlobCapabilities(entry),
     });
     return [{ type: 'unknown' }];
   });
@@ -1021,9 +1058,8 @@ export function postHasBrowserHandoff(blob: string): boolean {
   function containsHandoff(value: unknown): boolean {
     if (!value || typeof value !== 'object') return false;
     return (
-      ('screen' in value &&
-        (value.screen === 'browserCredentialHandoff' ||
-          value.screen === 'browserSession')) ||
+      ('viewerUrl' in value && typeof value.viewerUrl === 'string') ||
+      ('screen' in value && value.screen === 'browserWallet') ||
       Object.values(value).some(containsHandoff)
     );
   }

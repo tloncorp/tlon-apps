@@ -1,11 +1,35 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 
 import { APP_SCHEME, MCP_OAUTH_COMPLETION_PATH } from '../../constants';
+import type { McpConnectionEvent } from './useMcpConnections';
 
 export { buildProviderRows } from '../../lib/mcpProviders';
 
 export const GENERIC_ERROR_MESSAGE = 'Something went wrong. Please try again.';
 export const TOAST_BOTTOM_OFFSET = 24;
+
+/**
+ * What to tell someone after a connection event, or null when there's
+ * nothing to say. Every screen that lists services uses these words.
+ */
+export function connectionEventMessage(
+  event: McpConnectionEvent
+): string | null {
+  switch (event.type) {
+    case 'completed':
+      return event.success ? event.message : GENERIC_ERROR_MESSAGE;
+    case 'canceled':
+      return 'Connection canceled. You can try again.';
+    case 'disconnected':
+      return 'Connection disconnected.';
+    case 'load-failed':
+    case 'start-failed':
+    case 'disconnect-failed':
+      return GENERIC_ERROR_MESSAGE;
+    case 'returned':
+      return null;
+  }
+}
 export const MCP_TELEMETRY_EVENTS = {
   initiatedOAuth: AnalyticsEvent.TlonbotMcpInitiatedOAuth,
   connected: AnalyticsEvent.TlonbotMcpConnected,

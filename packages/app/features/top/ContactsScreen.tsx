@@ -19,6 +19,7 @@ import {
   isWeb,
   useInviteSystemContacts,
 } from '../../ui';
+import type { ContactSection } from '../../ui/components/ContactsScreenView';
 import SystemNotices from '../../ui/components/SystemNotices';
 
 export default function ContactsScreen() {
@@ -33,7 +34,8 @@ export default function ContactsScreen() {
     inviteLink
   );
   const currentUser = useCurrentUserId();
-  const scrollRef = useScrollToTabTop<SectionList<db.Contact>>();
+  const scrollRef =
+    useScrollToTabTop<SectionList<db.Contact, ContactSection>>();
 
   const { data: userContacts } = store.useUserContacts();
   const { data: contacts } = store.useContacts();

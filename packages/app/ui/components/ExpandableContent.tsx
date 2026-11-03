@@ -3,6 +3,7 @@ import { transparentize } from 'color2k';
 import { PropsWithChildren, useCallback, useState } from 'react';
 import {
   AccessibilityActionEvent,
+  KeyDownEvent,
   LayoutChangeEvent,
   Platform,
   View,
@@ -45,7 +46,9 @@ export function ExpandableContent({
   }, []);
   const toggle = useCallback(() => setExpanded((value) => !value), []);
   const handleKeyDown = useCallback(
-    (event: { key: string; repeat?: boolean; preventDefault(): void }) => {
+    // On web this is React DOM's keyboard event, which carries `key` and
+    // `repeat` itself; React Native's own key event does not.
+    (event: KeyDownEvent & { key?: string; repeat?: boolean }) => {
       if (event.key !== 'Enter' && event.key !== ' ') {
         return;
       }

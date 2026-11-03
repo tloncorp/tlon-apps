@@ -1,0 +1,88 @@
+import { browserCardKey } from '../features/browser/browserCardKey';
+import { useEffect, useState } from 'react';
+import { secureEntryCache } from '../features/browser/browserSecureEntryState';
+
+import BrowserHandoffDemo, {
+  browserHandoffDemoUrl,
+} from './BrowserHandoffDemo.fixture';
+
+// Only these fixture endpoints are intercepted. The real card, sheet,
+// validation, and native inputs run unchanged; no entered value leaves the app.
+export default function BrowserCredentialChatFixture() {
+  const [ready, setReady] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  useEffect(() => {
+    const originalFetch = globalThis.fetch;
+    const viewer = new URL(browserHandoffDemoUrl);
+    const formUrl = `${viewer.origin}/credentials/${viewer.pathname.slice(3)}`;
+    const resultUrl = `${viewer.origin}/credential-result/${viewer.pathname.slice(3)}`;
+    let filled = false;
+    const handoffId = 'wikipedia-design-fixture-handoff-000000000000';
+    const fillUrl = `${viewer.origin}/credential-fills/${handoffId}`;
+    const json = (body: unknown) =>
+      new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    const fixtureFetch: typeof fetch = async (input, init) => {
+      const url =
+        typeof input === 'string'
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (url === resultUrl)
+        return json({ status: filled ? 'filled' : 'pending' });
+      if (url === formUrl) {
+        if (init?.method === 'DELETE') return json({ ok: true });
+        return json({
+          handoffId,
+          formId: 'wikipedia-login',
+          origin: 'https://www.wikipedia.org',
+          kind: 'login',
+          expiresAt: Date.now() + 60 * 60 * 1000,
+          fields: [
+            {
+              id: 'f1',
+              purpose: 'username',
+              label: 'Email',
+              inputType: 'email',
+              required: true,
+            },
+            {
+              id: 'f2',
+              purpose: 'current-password',
+              label: 'Password',
+              inputType: 'password',
+              required: true,
+            },
+          ],
+        });
+      }
+      if (url === fillUrl) {
+        filled = true;
+        setSubmitted(true);
+        return json({ ok: true, submitted: false });
+      }
+      return originalFetch(input, init);
+    };
+    globalThis.fetch = fixtureFetch;
+    let active = true;
+    void secureEntryCache
+      .setValue((current) => {
+        const next = { ...current };
+        delete next[browserCardKey(browserHandoffDemoUrl)];
+        return next;
+      })
+      .then(() => {
+        if (active) setReady(true);
+      });
+    return () => {
+      active = false;
+      globalThis.fetch = originalFetch;
+    };
+  }, []);
+  return ready ? (
+    <BrowserHandoffDemo credentialOnly submitted={submitted} />
+  ) : null;
+}

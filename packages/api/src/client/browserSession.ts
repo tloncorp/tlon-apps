@@ -11,6 +11,28 @@ export function isTrustedBrowserViewerHost(hostname: string): boolean {
   return VIEWER_HOST.test(hostname);
 }
 
+/** Exact, operator-configured development origin; never inferred from a link. */
+export function isBrowserViewerDevelopmentOrigin(
+  url: URL,
+  configuredOrigin: string | undefined
+): boolean {
+  if (!configuredOrigin || url.username || url.password) return false;
+  try {
+    const configured = new URL(configuredOrigin);
+    return (
+      ['http:', 'https:'].includes(configured.protocol) &&
+      configured.pathname === '/' &&
+      !configured.search &&
+      !configured.hash &&
+      !configured.username &&
+      !configured.password &&
+      url.origin === configured.origin
+    );
+  } catch {
+    return false;
+  }
+}
+
 /** A standalone session card, separate from secure credential handoffs. */
 export function browserSessionCard(
   viewerUrl: string,

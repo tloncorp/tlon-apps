@@ -15,6 +15,8 @@ import {
   Platform,
   Text as NativeText,
   TextInput,
+  type TextInputInstance,
+  type TextInstance,
   findNodeHandle,
 } from 'react-native';
 import { XStack, YStack, useTheme } from 'tamagui';
@@ -94,8 +96,8 @@ export function MessageTextSelectionSheet({
   onNativeDismissed?: () => void;
 }) {
   const theme = useTheme();
-  const inputRef = useRef<TextInput>(null);
-  const textRef = useRef<NativeText>(null);
+  const inputRef = useRef<TextInputInstance>(null);
+  const textRef = useRef<TextInstance>(null);
   const didSelectAll = useRef(false);
 
   useEffect(() => {
@@ -109,7 +111,7 @@ export function MessageTextSelectionSheet({
       inputRef.current.setSelection(0, text.length);
     } else if (Platform.OS === 'android') {
       const viewTag = findNodeHandle(textRef.current);
-      if (viewTag === null) return;
+      if (viewTag == null) return;
       // Older Android builds can still select manually until rebuilt.
       const nativeSelection = requireOptionalNativeModule<{
         selectAll: (viewTag: number) => Promise<boolean>;

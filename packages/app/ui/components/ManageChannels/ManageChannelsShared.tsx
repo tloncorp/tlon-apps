@@ -14,6 +14,7 @@ import { ScreenHeader } from '../ScreenHeader';
 import { CreateChannelSheet } from './CreateChannelSheet';
 import { EditSectionNameSheet } from './EditSectionNameSheet';
 import { ManageChannelsScrollContainer } from './ManageChannelsScrollContainer';
+import { channelOrder, emptySection, navigationUpdate } from './channelReorder';
 
 const logger = createDevLogger('ManageChannelsShared', false);
 
@@ -100,6 +101,9 @@ export function ChannelItem({
   );
 }
 
+/** What the default section is called; its stored title is "Sectionless". */
+export const defaultSectionTitle = 'No section';
+
 export function SectionHeader({
   section,
   index,
@@ -127,7 +131,7 @@ export function SectionHeader({
       testID={`NavSection-${section.title}`}
     >
       <Text paddingLeft="$l" fontSize="$s" color="$secondaryText">
-        {section.title}
+        {isDefault ? defaultSectionTitle : section.title}
       </Text>
       <XStack gap="$s" alignItems="center">
         {!isDefault && !isEditMode && (
@@ -199,65 +203,25 @@ export function useManageChannelsState({
 
   const handleDeleteSection = useCallback(
     async (sectionId: string) => {
-      const sectionIndex = groupNavSectionsWithChannels.findIndex(
+      const navSection = groupNavSectionsWithChannels.find(
         (s) => s.sectionId === sectionId
       );
 
-      if (sectionIndex === -1) {
+      if (!navSection) {
         logger.error(`Section not found: ${sectionId} (for deletion)`);
         return;
       }
 
-      const navSection = groupNavSectionsWithChannels[sectionIndex];
-      const hasChannels = navSection.channels.length > 0;
-
       try {
-        // If the section has channels, move them to the previous section first
-        if (hasChannels && sectionIndex > 0) {
-          // Build the new navigation structure with channels moved to previous section
-          const updatedNavSections = groupNavSectionsWithChannels.map(
-            (section, idx) => {
-              if (idx === sectionIndex - 1) {
-                // Previous section gets the deleted section's channels appended
-                return {
-                  sectionId: section.sectionId,
-                  sectionIndex: idx,
-                  channels: [
-                    ...section.channels.map((ch, chIdx) => ({
-                      channelId: ch.id,
-                      channelIndex: chIdx,
-                    })),
-                    ...navSection.channels.map((ch, chIdx) => ({
-                      channelId: ch.id,
-                      channelIndex: section.channels.length + chIdx,
-                    })),
-                  ],
-                };
-              } else if (idx === sectionIndex) {
-                // Section being deleted has empty channels
-                return {
-                  sectionId: section.sectionId,
-                  sectionIndex: idx,
-                  channels: [],
-                };
-              } else {
-                // Other sections remain unchanged
-                return {
-                  sectionId: section.sectionId,
-                  sectionIndex: idx,
-                  channels: section.channels.map((ch, chIdx) => ({
-                    channelId: ch.id,
-                    channelIndex: chIdx,
-                  })),
-                };
-              }
-            }
-          );
-
-          await updateGroupNavigation(updatedNavSections);
+        // Deleting a section doesn't move its channels on this device, so
+        // they'd drop out of the list until the next full sync.
+        const emptied = emptySection(
+          channelOrder(groupNavSectionsWithChannels),
+          sectionId
+        );
+        if (emptied) {
+          await updateGroupNavigation(navigationUpdate(emptied));
         }
-
-        // Now delete the section
         await deleteNavSection(navSection.id);
       } catch (e) {
         logger.error('Failed to delete section:', e);
@@ -401,95 +365,116 @@ export function ManageChannelsProvider({
             </ManageChannelsScrollContainer>
           </YStack>
         </YStack>
-        {state.showCreateChannel && group && (
-          <CreateChannelSheet
-            group={group}
-            onOpenChange={(open) => state.setShowCreateChannel(open)}
-          />
-        )}
-        <EditSectionNameSheet
-          open={state.showAddSection}
-          mode="add"
-          onOpenChange={(open) => state.setShowAddSection(open)}
-          onSave={async (title) => {
-            try {
-              await createNavSection({
-                title,
-              });
-            } catch (e) {
-              logger.error('Failed to create section:', e);
-            }
-          }}
-        />
-        <EditSectionNameSheet
-          open={!!state.editSection}
-          mode="edit"
-          name={state.editSection?.title}
-          onOpenChange={(open) =>
-            state.setEditSection(open ? state.editSection : null)
-          }
-          onSave={
-            state.editSection
-              ? (title) =>
-                  state.handleUpdateSection(state.editSection!.id, title)
-              : undefined
-          }
-        />
-        <SimpleActionSheet
-          open={state.showNewMenu}
-          onOpenChange={(open) => state.setShowNewMenu(open)}
-          actions={[
-            {
-              title: 'New channel',
-              description: 'Create a new channel in this workspace',
-              action: () => {
-                state.setShowNewMenu(false);
-                state.setShowCreateChannel(true);
-              },
-            },
-            {
-              title: 'New section',
-              description: 'Create a section to organize channels',
-              action: () => {
-                state.setShowNewMenu(false);
-                state.setShowAddSection(true);
-              },
-            },
-          ]}
-        />
-        <SimpleActionSheet
-          open={!!state.sectionMenuSection}
-          onOpenChange={(open) =>
-            state.setSectionMenuSection(open ? state.sectionMenuSection : null)
-          }
-          actions={[
-            {
-              title: 'Edit name',
-              description: 'Edit the name of this section',
-              action: () => {
-                if (state.sectionMenuSection) {
-                  state.setEditSection(state.sectionMenuSection.section);
-                  state.setSectionMenuSection(null);
-                }
-              },
-            },
-            {
-              title: 'Delete section',
-              description: state.sectionMenuSection?.isEmpty
-                ? 'Remove this section'
-                : 'Remove this section and move its channels to the previous section',
-              action: () => {
-                if (state.sectionMenuSection) {
-                  state.handleDeleteSection(
-                    state.sectionMenuSection.section.id
-                  );
-                  state.setSectionMenuSection(null);
-                }
-              },
-            },
-          ]}
+        <ManageChannelsSheets
+          state={state}
+          group={group}
+          createNavSection={createNavSection}
         />
       </View>
     </ManageChannelsContext.Provider>
+  );
+}
+
+/**
+ * The sheets the channel manager opens: creating a channel, adding or
+ * renaming a section, the New menu, and a section's own menu.
+ */
+export function ManageChannelsSheets({
+  state,
+  group,
+  createNavSection,
+}: {
+  state: ReturnType<typeof useManageChannelsState>;
+  group: db.Group | null;
+  createNavSection: ({ title }: { title: string }) => Promise<void>;
+}) {
+  return (
+    <>
+      {state.showCreateChannel && group && (
+        <CreateChannelSheet
+          group={group}
+          onOpenChange={(open) => state.setShowCreateChannel(open)}
+        />
+      )}
+      <EditSectionNameSheet
+        open={state.showAddSection}
+        mode="add"
+        onOpenChange={(open) => state.setShowAddSection(open)}
+        onSave={async (title) => {
+          try {
+            await createNavSection({
+              title,
+            });
+          } catch (e) {
+            logger.error('Failed to create section:', e);
+          }
+        }}
+      />
+      <EditSectionNameSheet
+        open={!!state.editSection}
+        mode="edit"
+        name={state.editSection?.title}
+        onOpenChange={(open) =>
+          state.setEditSection(open ? state.editSection : null)
+        }
+        onSave={
+          state.editSection
+            ? (title) => state.handleUpdateSection(state.editSection!.id, title)
+            : undefined
+        }
+      />
+      <SimpleActionSheet
+        open={state.showNewMenu}
+        onOpenChange={(open) => state.setShowNewMenu(open)}
+        actions={[
+          {
+            title: 'New channel',
+            description: 'Create a new channel in this workspace',
+            action: () => {
+              state.setShowNewMenu(false);
+              state.setShowCreateChannel(true);
+            },
+          },
+          {
+            title: 'New section',
+            description: 'Create a section to organize channels',
+            action: () => {
+              state.setShowNewMenu(false);
+              state.setShowAddSection(true);
+            },
+          },
+        ]}
+      />
+      <SimpleActionSheet
+        open={!!state.sectionMenuSection}
+        onOpenChange={(open) =>
+          state.setSectionMenuSection(open ? state.sectionMenuSection : null)
+        }
+        actions={[
+          {
+            title: 'Edit name',
+            description: 'Edit the name of this section',
+            action: () => {
+              if (state.sectionMenuSection) {
+                state.setEditSection(state.sectionMenuSection.section);
+                state.setSectionMenuSection(null);
+              }
+            },
+          },
+          {
+            title: 'Delete section',
+            description: state.sectionMenuSection?.isEmpty
+              ? 'Remove this section'
+              : 'Remove this section and move its channels to the previous section',
+            action: () => {
+              if (state.sectionMenuSection) {
+                state.handleDeleteSection(state.sectionMenuSection.section.id);
+                state.setSectionMenuSection(null);
+              }
+            },
+          },
+        ]}
+      />
+    </>
   );
 }

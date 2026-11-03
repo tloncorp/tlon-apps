@@ -1,19 +1,33 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { randomUUID } from 'node:crypto';
 import type { OpenClawPluginApi } from 'openclaw/plugin-sdk/core';
 
 import {
   budgetHoldPaths,
+  isMemoryDreamingJob,
   isRecurringJob,
   type BudgetCronService,
   type BudgetHoldState,
   readBudgetHoldState,
   readBudgetSignal,
+  readBudgetSignalDetails,
   reconcileBudgetHolds,
   writeBudgetHoldState,
 } from './cron-budget-hold.js';
 import { createBudgetHoldObserver } from './cron-budget-observability.js';
 import { getTlonCronService } from './cron-telemetry.js';
+import { isCronToolName } from './cron-tool-args-guard.js';
 import { buildCreditIncreaseCard } from './credit-increase-request.js';
+import {
+  creditFailureNoticeText,
+  describeBillingFailure,
+  isApiKeyBillingReply,
+  reconcileCreditNotice,
+} from './credit-notice.js';
+import {
+  creditFailureNoticeCooldown,
+  recordFailureNoticeMetric,
+} from './silent-failure-notice.js';
 import { normalizeShip } from './targets.js';
 import { listRunnableTlonAccountIds, resolveTlonAccount } from './types.js';
 import { sharedMap, sharedSlot } from './shared-state.js';
@@ -65,30 +79,41 @@ type Runner = {
 };
 const runnerSlot = sharedSlot<Runner>('cronBudget.runner');
 
-/** Hosted-only. The wrapper supplies an explicit signal, never inferred from a model name. */
-export function registerBudgetHoldHooks(
-  api: Pick<OpenClawPluginApi, 'on' | 'logger' | 'config'>
-) {
+/**
+ * Blocks model-forced runs of budget-held recurring jobs, and memory-core's
+ * dreaming runs, while the budget is limited. Registered from the
+ * entry's registerCapabilities (see registerAgentTurnHooks in index.ts): a
+ * turn that loads the plugin in discovery mode never runs registerFull, so a
+ * guard registered only there is inert for that turn. Reads only shared
+ * state, so it works from any registration.
+ */
+export function registerBudgetRunGuard(api: Pick<OpenClawPluginApi, 'on'>) {
   const paths = budgetHoldPaths();
   if (!paths) return;
+  // The job a run would start, if the budget is limited.
+  const limitedJob = async (id: string, state: BudgetHoldState) => {
+    const budget = await readBudgetSignal(paths.signal);
+    const limited =
+      budget === 'limited' || (budget === 'unknown' && state.limited);
+    const cron = runnerSlot.get()?.getCron() ?? getTlonCronService();
+    if (!limited || !cron) return undefined;
+    return (await cron.list({ includeDisabled: true })).find(
+      (job) => job.id === id
+    );
+  };
 
   api.on('before_tool_call', async (event) => {
-    if (event.toolName !== 'cron' || event.params.action !== 'run') return;
+    // Covers both scheduler tool names (`automations` and legacy `cron`).
+    if (!isCronToolName(event.toolName) || event.params.action !== 'run') {
+      return;
+    }
     const id = event.params.jobId ?? event.params.id;
     if (typeof id !== 'string') return;
     const state = await readBudgetHoldState(paths.state);
     let blocked = Object.hasOwn(state.holds, id);
     if (!blocked) {
-      const budget = await readBudgetSignal(paths.signal);
-      const limited =
-        budget === 'limited' || (budget === 'unknown' && state.limited);
-      const cron = runnerSlot.get()?.getCron() ?? getTlonCronService();
-      if (limited && cron) {
-        const job = (await cron.list({ includeDisabled: true })).find(
-          (job) => job.id === id
-        );
-        blocked = Boolean(job && isRecurringJob(job));
-      }
+      const job = await limitedJob(id, state);
+      blocked = Boolean(job && isRecurringJob(job));
     }
     if (blocked) {
       return {
@@ -99,6 +124,34 @@ export function registerBudgetHoldHooks(
     }
   });
 
+  // memory-core runs its dreaming sweep from its own before_agent_reply
+  // handler. Claiming the turn first ends the run without spending credit.
+  api.on(
+    'before_agent_reply',
+    async (_event, ctx) => {
+      if (!ctx.jobId) return;
+      const state = await readBudgetHoldState(paths.state);
+      const job = await limitedJob(ctx.jobId, state);
+      if (job && isMemoryDreamingJob(job)) {
+        return { handled: true, reason: 'credit budget limited' };
+      }
+    },
+    // Ahead of memory-core, which registers at the default priority, 0.
+    { priority: 100, eligibleTriggers: ['cron'] }
+  );
+}
+
+/**
+ * Gateway-lifetime budget hold machinery; registered from registerFull.
+ * Hosted-only. The wrapper supplies an explicit signal, never inferred from a
+ * model name.
+ */
+export function registerBudgetHoldHooks(
+  api: Pick<OpenClawPluginApi, 'on' | 'logger' | 'config'>
+) {
+  const paths = budgetHoldPaths();
+  if (!paths) return;
+
   api.on('gateway_start', (_event, ctx) => {
     if (runnerSlot.get()) return;
     const observer = createBudgetHoldObserver(api.logger);
@@ -108,7 +161,7 @@ export function registerBudgetHoldHooks(
     let activeEdits: Set<string> | undefined;
     let flight: Promise<void> | undefined;
     let notificationFlight: Promise<void> | undefined;
-    const deliveryReceipts: { episodeId: string; key: string }[] = [];
+    const deliveryReceipts: { noticeId: string; key: string }[] = [];
     // Merge delivery results into the latest ledger under the reconciliation
     // writer. A slow send must never retain a stale copy of hold ownership.
     const persistDeliveryReceipts = async (
@@ -118,7 +171,7 @@ export function registerBudgetHoldHooks(
       const count = deliveryReceipts.length;
       if (!count) return;
       for (const receipt of deliveryReceipts.slice(0, count)) {
-        if (!state.limited || receipt.episodeId !== state.episodeId) continue;
+        if (receipt.noticeId !== state.noticeId) continue;
         const received = (state.notifiedRecipients ??= []);
         if (!received.includes(receipt.key)) received.push(receipt.key);
       }
@@ -126,7 +179,7 @@ export function registerBudgetHoldHooks(
         recipientKey(id, config)
       );
       state.notified =
-        state.limited &&
+        state.noticeLevel !== undefined &&
         recipients.length > 0 &&
         recipients.every((key) => state.notifiedRecipients?.includes(key));
       if (state.notified) {
@@ -176,7 +229,9 @@ export function registerBudgetHoldHooks(
                 pendingRecipients.some(
                   ({ id, key }) => notifiers.get(id)?.key === key
                 ));
-            const budget = await readBudgetSignal(paths.signal);
+            const { state: budget, credit } = await readBudgetSignalDetails(
+              paths.signal
+            );
             try {
               await reconcileBudgetHolds({
                 budget,
@@ -211,12 +266,20 @@ export function registerBudgetHoldHooks(
                 },
                 externallyEditedJobs: edits,
                 save: () => writeBudgetHoldState(paths.state, state),
+              });
+              await reconcileCreditNotice({
+                budget,
+                credit,
+                state,
+                save: () => writeBudgetHoldState(paths.state, state),
                 notify: canNotify
-                  ? async (message) => {
+                  ? async (message, offerIncrease) => {
                       if (pendingRecipients.length === 0) return true;
-                      const episodeId = state.episodeId;
-                      if (!episodeId) return false;
-                      const blob = buildCreditIncreaseCard(message, episodeId);
+                      const noticeId = state.noticeId;
+                      if (!noticeId) return false;
+                      const blob = offerIncrease
+                        ? buildCreditIncreaseCard(message, noticeId)
+                        : undefined;
                       // Reconciliation already persisted the retry backoff.
                       // Delivery runs separately; only its receipt is merged
                       // on a later pass, without blocking scheduler updates.
@@ -226,7 +289,7 @@ export function registerBudgetHoldHooks(
                           if (notifier?.key !== key) continue;
                           try {
                             if (await notifier.send(message, blob)) {
-                              deliveryReceipts.push({ episodeId, key });
+                              deliveryReceipts.push({ noticeId, key });
                             }
                           } catch (error) {
                             api.logger.warn(
@@ -318,10 +381,62 @@ export function registerBudgetHoldHooks(
     });
     return tick();
   });
+  // A scheduled run has no chat reply for the owner's credit notice to
+  // replace: core keeps the billing error out of the task's channel and
+  // alerts only after repeated failures.
+  const notifyCreditFailure = async (
+    error: string,
+    task: string | undefined
+  ) => {
+    const { keyOwner, provider } = describeBillingFailure(
+      error,
+      await readBudgetSignalDetails(paths.signal)
+    );
+    // Tlon's own account refused the run; core's failure alert covers it.
+    if (!keyOwner) return;
+    const cooldown = creditFailureNoticeCooldown();
+    const now = Date.now();
+    const suppressed = cooldown.isCoolingDown(keyOwner, now);
+    recordFailureNoticeMetric({
+      kind: 'credit_exhausted',
+      destinationKind: 'scheduled_task',
+      suppressed,
+    });
+    if (suppressed) return;
+    cooldown.recordSent(keyOwner, now);
+    const message = creditFailureNoticeText(
+      keyOwner,
+      provider,
+      task ? `run your scheduled task "${task}"` : 'run a scheduled task'
+    );
+    const blob =
+      keyOwner === 'tlon'
+        ? buildCreditIncreaseCard(message, randomUUID())
+        : undefined;
+    let sent = false;
+    try {
+      for (const notifier of notifiers.values()) {
+        if (await notifier.send(message, blob)) sent = true;
+      }
+    } finally {
+      if (!sent) cooldown.release(keyOwner, now);
+    }
+  };
   // Do not await inside a cron mutation's hook. Reconciliation itself mutates
   // cron jobs; awaiting here could deadlock the host's mutation lock.
   api.on('cron_changed', (event) => {
     runnerSlot.get()?.changed(event);
+    if (
+      event.action === 'finished' &&
+      event.status === 'error' &&
+      isApiKeyBillingReply(event.error)
+    ) {
+      void notifyCreditFailure(event.error, event.job?.name).catch((error) => {
+        api.logger.warn(
+          `[tlon] Scheduled-run credit notice failed: ${String(error)}`
+        );
+      });
+    }
   });
   api.on('gateway_stop', async () => {
     const runner = runnerSlot.get();

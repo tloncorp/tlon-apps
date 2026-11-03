@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import type { PendingNudge } from '../pending-nudge.js';
 import type { TlonSettingsStore } from '../settings.js';
-import { resolveSettingsMirrorSync } from './settings-sync.js';
+import {
+  resolveSettingsAllowlist,
+  resolveSettingsMirrorSync,
+} from './settings-sync.js';
 
 function makeNudge(overrides?: Partial<PendingNudge>): PendingNudge {
   return {
@@ -71,5 +74,26 @@ describe('resolveSettingsMirrorSync', () => {
       expect(result).not.toHaveProperty('ownerShipChanged');
       expect(result).not.toHaveProperty('effectiveOwnerShip');
     });
+  });
+});
+
+describe('resolveSettingsAllowlist', () => {
+  it('falls back to the file list when the settings key is missing', () => {
+    expect(
+      resolveSettingsAllowlist(undefined, ['~zod'], ['~zod', '~nec'])
+    ).toEqual({ allowlist: ['~zod'], changed: true });
+  });
+
+  it('keeps an explicit empty settings list', () => {
+    expect(resolveSettingsAllowlist([], ['~zod'], ['~zod'])).toEqual({
+      allowlist: [],
+      changed: true,
+    });
+  });
+
+  it('reports no change for an identical list', () => {
+    expect(resolveSettingsAllowlist(['~zod'], [], ['~zod']).changed).toBe(
+      false
+    );
   });
 });

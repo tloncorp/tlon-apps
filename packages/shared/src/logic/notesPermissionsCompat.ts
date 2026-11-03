@@ -11,6 +11,3 @@ export function notesPermissionsCompatActive(
 ): boolean {
   return channelType === 'notes';
 }
-
-export const NOTES_PERMISSIONS_COMPAT_NOTICE =
-  'Notebook channels do not support separate read and write permissions. Roles that can read a notebook can also edit it.';

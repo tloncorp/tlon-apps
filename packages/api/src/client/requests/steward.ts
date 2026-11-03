@@ -83,6 +83,21 @@ export const steward = {
     path: '/v1/lens',
     since: '12.2.0',
   },
+  // One scheduled task's runs, a page at a time.
+  lensCronPage: {
+    kind: 'scry',
+    agent: 'steward',
+    path: '/v1/lens/cron/{bot}/{job}/{count}',
+    since: '12.5.0',
+    guardedBy: 'deskSupportsTaskRuns',
+  },
+  lensCronPageBefore: {
+    kind: 'scry',
+    agent: 'steward',
+    path: '/v1/lens/cron/{bot}/{job}/{count}/{before}',
+    since: '12.5.0',
+    guardedBy: 'deskSupportsTaskRuns',
+  },
   action: {
     kind: 'poke',
     agent: 'steward',

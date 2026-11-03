@@ -30,7 +30,9 @@ export function usePoorUxShakeReport() {
   const session = useCurrentSession();
   const [visible, setVisible] = useState(false);
   const [details, setDetails] = useState('');
-  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const appStateRef = useRef<typeof AppState.currentState>(
+    AppState.currentState
+  );
   const ignoreShakesUntilRef = useRef<number>(
     Date.now() + FOREGROUND_SHAKE_GRACE_MS
   );

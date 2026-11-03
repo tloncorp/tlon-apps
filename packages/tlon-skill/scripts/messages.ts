@@ -8,26 +8,31 @@
  *   npx ts-node scripts/messages.ts channel chat/~host/channel-slug [--limit N] [--resolve-cites]
  *   npx ts-node scripts/messages.ts history "chat/~host/channel-slug" [--limit N] [--resolve-cites]
  *   npx ts-node scripts/messages.ts search "query" --channel chat/~host/channel-slug
+ *   npx ts-node scripts/messages.ts search "query" [--limit N] [--per-channel N]
  *   npx ts-node scripts/messages.ts context <channel|~ship> <postId> [--limit N] [--resolve-cites]
  *   npx ts-node scripts/messages.ts post <channel|~ship> <postId> [--author ~ship] [--resolve-cites]
  *
  * Options:
  *   --resolve-cites, --quotes   Fetch and display quoted/cited message content
+ *   --json                      Emit one NDJSON record per post instead of
+ *                               plain text
  */
 import {
   getChannelPosts,
+  getInitData,
   getPostReference,
   getPostWithReplies,
-  getTextContent,
-  parsePostBlob,
   searchChannel,
 } from '@tloncorp/api';
-import type { ClientPostBlobData, ContentReference, Post } from '@tloncorp/api';
+import type { Post } from '@tloncorp/api';
 
 import { ensureClient, normalizeShip } from './api-client';
 import {
+  errorMessage,
   formatPostId,
   isHelpArg,
+  mapWithConcurrency,
+  parsePositiveInteger,
   printErrorAndExit,
   printHelpAndExit,
   printUsageAndExit,
@@ -35,6 +40,20 @@ import {
   refuseNotesContentTarget,
   wantsHelp,
 } from './cli-utils';
+import { renderPostJsonLine, renderPostListJsonLines } from './message-content';
+import {
+  type WindowContext,
+  hasReceiptOrder,
+  windowFromPage,
+} from './messages-runtime';
+import { formatTime, writePostBody, writePostList } from './post-render';
+
+const SEARCH_ALL_DEFAULT_LIMIT = 20;
+const SEARCH_ALL_DEFAULT_PER_CHANNEL = 5;
+// Each search scans up to 500 posts on the ship; a bot can sit in hundreds of
+// channels, so don't scan them all at once.
+const SEARCH_ALL_CONCURRENCY = 8;
+const SEARCH_LIMIT_OPTIONS = ['--limit', '--per-channel'] as const;
 
 const MESSAGES_HELP = `Usage: tlon messages <command>
 
@@ -42,27 +61,34 @@ Commands:
   dm ~ship                                    Show DM history
   channel <nest>                              Show channel messages
   history <nest>                              Alias for channel
-  search "query" --channel <nest>             Search in channel
+  search "query" [--channel <nest>]           Search one channel, or every chat and DM
   context <channel|~ship> <postId>            Show messages around a post
   post <channel|~ship> <postId>               Fetch a single post with replies
 
 Examples:
   tlon messages dm ~sampel-palnet --limit 10
   tlon messages channel chat/~host/channel-slug --limit 20
+  tlon messages channel chat/~host/channel-slug --json
   tlon messages search "hello" --channel chat/~host/slug
+  tlon messages search "hello" --per-channel 3
   tlon messages context chat/~host/slug 170.141.184... --limit 5
   tlon messages post chat/~host/slug 170.141.184...`;
 
 const MESSAGES_COMMAND_HELP: Record<string, string> = {
-  dm: 'Usage: tlon messages dm ~ship [--limit N] [--resolve-cites]',
+  dm: 'Usage: tlon messages dm ~ship [--limit N] [--resolve-cites] [--json]',
   channel:
-    'Usage: tlon messages channel chat/~host/slug [--limit N] [--resolve-cites]',
+    'Usage: tlon messages channel chat/~host/slug [--limit N] [--resolve-cites] [--json]',
   history:
-    'Usage: tlon messages history "chat/~host/channel-slug" [--limit N] [--resolve-cites]',
-  search: 'Usage: tlon messages search "query" --channel chat/~host/slug',
+    'Usage: tlon messages history "chat/~host/channel-slug" [--limit N] [--resolve-cites] [--json]',
+  search: `Usage: tlon messages search "query" [--channel chat/~host/slug [--json]] [--limit N] [--per-channel N]
+
+Without --channel, searches every DM, group DM, and joined chat and gallery
+channel, grouping results by channel. --per-channel (default ${SEARCH_ALL_DEFAULT_PER_CHANNEL}) and --limit
+(default ${SEARCH_ALL_DEFAULT_LIMIT}) keep the newest results from each channel and overall.
+--json needs --channel.`,
   context:
-    'Usage: tlon messages context <channel|~ship> <postId> [--limit N] [--resolve-cites]',
-  post: 'Usage: tlon messages post <channel|~ship> <postId> [--author ~ship] [--resolve-cites]',
+    'Usage: tlon messages context <channel|~ship> <postId> [--limit N] [--resolve-cites] [--json]',
+  post: 'Usage: tlon messages post <channel|~ship> <postId> [--author ~ship] [--resolve-cites] [--json]',
 };
 
 function getMessagesHelp(command?: string): string {
@@ -79,6 +105,33 @@ function getSearchChannel(args: string[]): string | undefined {
     }
   }
   return undefined;
+}
+
+// The query is always args[1], so `search --channel <nest>` lacks one rather
+// than searching everywhere for "--channel".
+function isSearchMissingQuery(args: string[]): boolean {
+  return (
+    !args[1] ||
+    (!getSearchChannel(args) &&
+      ['--channel', ...SEARCH_LIMIT_OPTIONS].includes(args[1]))
+  );
+}
+
+function getSearchLimits(
+  args: string[]
+): { limit: number; perChannel: number } | null {
+  const limits = {
+    limit: SEARCH_ALL_DEFAULT_LIMIT,
+    perChannel: SEARCH_ALL_DEFAULT_PER_CHANNEL,
+  };
+  for (const option of SEARCH_LIMIT_OPTIONS) {
+    const idx = args.indexOf(option, 2);
+    if (idx === -1) continue;
+    const parsed = parsePositiveInteger(args[idx + 1] ?? '');
+    if (parsed === null) return null;
+    limits[option === '--limit' ? 'limit' : 'perChannel'] = parsed;
+  }
+  return limits;
 }
 
 function isSearchQueryHelpLiteral(args: string[]): boolean {
@@ -105,7 +158,12 @@ function validateMessagesArgs(args: string[]): void {
       return;
     }
     case 'search': {
-      if (!args[1] || !getSearchChannel(args)) {
+      const channelGiven = args.indexOf('--channel', 2) !== -1;
+      if (
+        isSearchMissingQuery(args) ||
+        (channelGiven && !getSearchChannel(args)) ||
+        (!channelGiven && !getSearchLimits(args))
+      ) {
         printUsageAndExit(MESSAGES_COMMAND_HELP.search);
       }
       refuseDiaryNest(getSearchChannel(args));
@@ -125,214 +183,275 @@ function validateMessagesArgs(args: string[]): void {
   }
 }
 
-// Extract text content from a Story
-function extractText(content: any): string {
-  if (!content) return '';
-  // getTextContent expects an array (Story/Verse[])
-  if (!Array.isArray(content)) {
-    // Handle case where content might be wrapped or in unexpected format
-    if (typeof content === 'string') return content;
-    if (content.story && Array.isArray(content.story)) {
-      return getTextContent(content.story) || '';
-    }
-    return JSON.stringify(content);
-  }
-  return getTextContent(content) || '';
-}
-
-function extractChannelReferences(content: any): ContentReference[] {
-  if (!Array.isArray(content)) return [];
-  return content.filter(
-    (verse) => verse && typeof verse === 'object' && verse.type === 'reference'
-  ) as ContentReference[];
-}
-
-// Format a timestamp
-function formatTime(timeVal: string | number): string {
-  try {
-    const num = typeof timeVal === 'number' ? timeVal : parseInt(timeVal, 10);
-    if (!isNaN(num) && num > 1600000000000) {
-      const date = new Date(num);
-      return date.toLocaleString();
-    }
-    const timeStr = String(timeVal);
-    const daNum = BigInt(timeStr.replace(/\./g, ''));
-    const DA_SECOND = BigInt('18446744073709551616');
-    const DA_UNIX_EPOCH = BigInt('170141184475152167957503069145530368000');
-    const offset = DA_SECOND / BigInt(2000);
-    const epochAdjusted = offset + (daNum - DA_UNIX_EPOCH);
-    const unixMs = Math.round(
-      Number((epochAdjusted * BigInt(1000)) / DA_SECOND)
-    );
-
-    const date = new Date(unixMs);
-    if (date.getFullYear() > 2020 && date.getFullYear() < 2100) {
-      return date.toLocaleString();
-    }
-    return 'unknown';
-  } catch {
-    return 'unknown';
-  }
-}
-
-async function resolveCites(post: Post): Promise<string[]> {
-  const references = extractChannelReferences(post.content);
-  if (!references.length) return [];
-
-  const citeTexts: string[] = [];
-  for (const ref of references) {
-    if (ref.referenceType !== 'channel') continue;
-    try {
-      const refPost = await getPostReference({
-        channelId: ref.channelId,
-        postId: ref.postId,
-        replyId: ref.replyId,
-      });
-      const text = extractText(refPost.content);
-      if (text) {
-        citeTexts.push(text);
-      }
-    } catch {
-      // ignore cite failures
-    }
-  }
-  return citeTexts;
+interface PrintPostsOptions {
+  highlightId?: string;
+  /** Emit NDJSON records only: no headers, no cite resolution. */
+  json?: boolean;
+  /** Opt in to receipt/sent divergence analysis (history commands only). */
+  window?: WindowContext;
+  displayLimit?: number;
 }
 
 async function printPosts(
   posts: Post[],
   resolve: boolean,
-  highlightId?: string
+  { highlightId, json, window, displayLimit }: PrintPostsOptions = {}
 ) {
-  if (!posts.length) {
-    console.log('No messages found.');
+  if (json) {
+    for (const line of renderPostListJsonLines(posts, {
+      window,
+      displayLimit,
+      highlightId,
+    })) {
+      console.log(line);
+    }
     return;
   }
 
-  const sorted = [...posts].sort((a, b) => a.sentAt - b.sentAt);
+  await writePostList(posts, {
+    write: (line) => console.log(line),
+    getPostReference: resolve ? getPostReference : undefined,
+    highlightId,
+    window,
+    displayLimit,
+  });
+}
 
-  for (const post of sorted) {
-    const author = post.authorId || 'unknown';
-    const time = formatTime(post.sentAt);
-    const text = extractText(post.content);
-    const replySuffix = post.parentId ? ` (reply to ${post.parentId})` : '';
-    const marker = highlightId && post.id === highlightId ? ' ◀ TARGET' : '';
-
-    console.log(`- ${author} @ ${time}${replySuffix}${marker}`);
-    console.log(`  ID: ${post.id}`);
-    if (text) {
-      console.log(`  ${text}`);
-    }
-
-    // Show blob/attachment info (PDFs, files, voice memos)
-    if (post.blob) {
-      try {
-        const blobData: ClientPostBlobData = parsePostBlob(post.blob);
-        for (const entry of blobData) {
-          if (entry.type === 'file') {
-            console.log(
-              `  📎 [${entry.name || 'file'}] (${entry.mimeType || 'unknown'}, ${entry.size ? Math.round(entry.size / 1024) + 'KB' : '?'})`
-            );
-            if (entry.fileUri) console.log(`     ${entry.fileUri}`);
-          } else if (entry.type === 'voicememo') {
-            const dur = entry.duration ? `${Math.round(entry.duration)}s` : '?';
-            console.log(`  🎙️ [voice memo] (${dur})`);
-            if (entry.transcription)
-              console.log(`     "${entry.transcription}"`);
-          } else if (entry.type === 'video') {
-            console.log(
-              `  🎬 [${entry.name || 'video'}] (${entry.mimeType || 'video'})`
-            );
-          }
-        }
-      } catch {
-        console.log(`  [blob: ${post.blob.slice(0, 100)}...]`);
-      }
-    }
-
-    if (resolve) {
-      const cites = await resolveCites(post);
-      for (const cite of cites) {
-        console.log(`  > ${cite}`);
-      }
-    }
-
-    console.log('');
-  }
+/**
+ * Posts displayed out of a fetched page: the boundary probe below is trimmed
+ * from display only where the page carries usable receipt order.
+ */
+function displayedCount(posts: Post[], limit: number): number {
+  return posts.length > limit && hasReceiptOrder(posts)
+    ? posts.length - 1
+    : posts.length;
 }
 
 // Fetch DM messages via the chat agent (not channels)
 async function fetchDmMessages(
   ship: string,
   limit: number = 20,
-  resolveCites: boolean = false
+  resolveCites: boolean = false,
+  json: boolean = false
 ): Promise<void> {
   const normalizedShip = normalizeShip(ship);
 
-  console.log(`Fetching DMs with: ${normalizedShip}`);
-  console.log(`Limit: ${limit}${resolveCites ? ' (resolving quotes)' : ''}\n`);
-
-  try {
-    const data = await getChannelPosts({
-      channelId: normalizedShip,
-      mode: 'newest',
-      count: limit,
-      includeReplies: true,
-    });
-
-    console.log(`=== DMs with ${normalizedShip} (${data.posts.length}) ===\n`);
-    await printPosts(data.posts, resolveCites);
-  } catch (error: any) {
-    console.error(`Error fetching DMs: ${error.message}`);
+  if (!json) {
+    console.log(`Fetching DMs with: ${normalizedShip}`);
+    console.log(
+      `Limit: ${limit}${resolveCites ? ' (resolving quotes)' : ''}\n`
+    );
   }
+
+  // Fetch one extra post as an analysis-only boundary probe: skew that
+  // crosses the window edge (a delivery burst wider than the limit) is
+  // detectable only by comparing against the next post beyond it.
+  const data = await getChannelPosts({
+    channelId: normalizedShip,
+    mode: 'newest',
+    count: limit + 1,
+    includeReplies: true,
+    skipGapFill: true,
+  });
+
+  if (!json) {
+    console.log(
+      `=== DMs with ${normalizedShip} (${displayedCount(data.posts, limit)}) ===\n`
+    );
+  }
+  await printPosts(data.posts, resolveCites, {
+    json,
+    window: windowFromPage(data, limit),
+    displayLimit: limit,
+  });
 }
 
 // Fetch messages from a channel
 async function fetchMessages(
   channel: string,
   limit: number = 20,
-  resolveCites: boolean = false
+  resolveCites: boolean = false,
+  json: boolean = false
 ): Promise<void> {
-  console.log(`Fetching messages from: ${channel}`);
-  console.log(`Limit: ${limit}${resolveCites ? ' (resolving quotes)' : ''}\n`);
-
-  try {
-    const data = await getChannelPosts({
-      channelId: channel,
-      mode: 'newest',
-      count: limit,
-      includeReplies: true,
-    });
-
-    console.log(`=== Messages in ${channel} (${data.posts.length}) ===\n`);
-    await printPosts(data.posts, resolveCites);
-  } catch (error: any) {
-    console.error(`Error fetching messages: ${error.message}`);
+  if (!json) {
+    console.log(`Fetching messages from: ${channel}`);
     console.log(
-      'Note: Check that the channel path is correct (e.g., chat/~host/slug)'
+      `Limit: ${limit}${resolveCites ? ' (resolving quotes)' : ''}\n`
     );
   }
+
+  // One extra post as an analysis-only boundary probe; see fetchDmMessages.
+  const data = await getChannelPosts({
+    channelId: channel,
+    mode: 'newest',
+    count: limit + 1,
+    includeReplies: true,
+    skipGapFill: true,
+  }).catch((error: unknown) => {
+    throw new Error(
+      `Failed to fetch messages from ${channel}: ${errorMessage(error)}. Check that the channel path is correct (e.g., chat/~host/slug)`,
+      { cause: error }
+    );
+  });
+
+  if (!json) {
+    console.log(
+      `=== Messages in ${channel} (${displayedCount(data.posts, limit)}) ===\n`
+    );
+  }
+  await printPosts(data.posts, resolveCites, {
+    json,
+    window: windowFromPage(data, limit),
+    displayLimit: limit,
+  });
 }
 
 // Search messages in a channel
-async function searchMessages(query: string, channel: string): Promise<void> {
-  console.log(`Searching "${query}" in: ${channel}\n`);
+async function searchMessages(
+  query: string,
+  channel: string,
+  json: boolean = false
+): Promise<void> {
+  if (!json) {
+    console.log(`Searching "${query}" in: ${channel}\n`);
+  }
 
-  try {
-    const results = await searchChannel({
-      channelId: channel,
-      query,
-    });
+  const results = await searchChannel({
+    channelId: channel,
+    query,
+  });
 
-    if (!results.posts.length) {
+  if (!results.posts.length) {
+    if (!json) {
       console.log('No results found.');
-      return;
     }
+    return;
+  }
 
+  if (!json) {
     console.log(`Found ${results.posts.length} results:\n`);
-    await printPosts(results.posts, false);
-  } catch (error: any) {
-    console.error(`Error searching messages: ${error.message}`);
+  }
+  await printPosts(results.posts, false, { json });
+}
+
+type SearchTarget = { id: string; label: string };
+type SearchResult = { target: SearchTarget; posts: Post[]; error?: string };
+
+// What the account can read: accepted DMs and group DMs, and the group
+// channels it has joined. Notes channels are searched with `tlon notes`.
+async function getSearchTargets(): Promise<SearchTarget[]> {
+  const init = await getInitData();
+  const chats = init.channels
+    .filter((chat) => !chat.isDmInvite)
+    .map((chat) => ({
+      id: chat.id,
+      label:
+        chat.type === 'dm' ? 'DM' : `Group DM: ${chat.title || 'Untitled'}`,
+    }));
+  const channelLabels = new Map<string, string>();
+  for (const group of init.groups) {
+    for (const channel of group.channels ?? []) {
+      channelLabels.set(
+        channel.id,
+        `${group.title || group.id} › ${channel.title || channel.id}`
+      );
+    }
+  }
+  const groupChannels = init.joinedGroupChannels
+    .filter((nest) => nest.startsWith('chat/') || nest.startsWith('heap/'))
+    .map((nest) => ({ id: nest, label: channelLabels.get(nest) ?? nest }));
+  return [...chats, ...groupChannels];
+}
+
+// Search every chat and DM, keeping the newest `perChannel` hits from each
+// channel and the newest `limit` overall, grouped by channel.
+async function searchAllMessages(
+  query: string,
+  limit: number,
+  perChannel: number
+): Promise<void> {
+  const targets = await getSearchTargets();
+  console.log(`Searching "${query}" in ${targets.length} channels and DMs\n`);
+
+  const results = await mapWithConcurrency(
+    targets,
+    SEARCH_ALL_CONCURRENCY,
+    async (target): Promise<SearchResult> => {
+      try {
+        const { posts } = await searchChannel({ channelId: target.id, query });
+        return { target, posts };
+      } catch (error: any) {
+        return { target, posts: [], error: error.message };
+      }
+    }
+  );
+
+  // The bot's tool runner returns only stdout on success, so a partial failure
+  // is reported there; a search that failed everywhere exits non-zero.
+  const failures = results.filter((result) => result.error !== undefined);
+  const failed = failures.map(
+    ({ target, error }) => `  ${target.id}: ${error}`
+  );
+  if (failures.length && failures.length === targets.length) {
+    throw new Error(
+      [`Could not search any of ${targets.length} channels:`, ...failed].join(
+        '\n'
+      )
+    );
+  }
+  if (failures.length) {
+    console.log(
+      [
+        `Results are incomplete: could not search ${failures.length} of ${targets.length} channels:`,
+        ...failed,
+        '',
+      ].join('\n')
+    );
+  }
+
+  const matches = results.filter((result) => result.posts.length);
+  const total = matches.reduce((sum, match) => sum + match.posts.length, 0);
+  if (!total) {
+    console.log('No results found.');
+    return;
+  }
+
+  const kept = matches
+    .flatMap((match) =>
+      [...match.posts]
+        .sort((a, b) => b.sentAt - a.sentAt)
+        .slice(0, perChannel)
+        .map((post) => ({ match, post }))
+    )
+    .sort((a, b) => b.post.sentAt - a.post.sentAt)
+    .slice(0, limit);
+
+  // Map keeps insertion order, so the channel with the newest hit comes first.
+  const shown = new Map<SearchResult, Post[]>();
+  for (const { match, post } of kept) {
+    shown.set(match, [...(shown.get(match) ?? []), post]);
+  }
+
+  const truncated = kept.length < total;
+  console.log(
+    `Found ${total} results in ${matches.length} channels` +
+      (truncated
+        ? `; showing the newest ${kept.length} (at most ${perChannel} per channel, ${limit} in all).`
+        : '.') +
+      '\n'
+  );
+  for (const [{ target, posts: found }, posts] of shown) {
+    const count =
+      posts.length < found.length
+        ? `${posts.length} of ${found.length}`
+        : `${posts.length}`;
+    console.log(`=== ${target.id} — ${target.label} (${count}) ===\n`);
+    await printPosts(posts, false);
+  }
+  if (truncated) {
+    console.log(
+      `For every result in one channel: tlon messages search "${query}" --channel <nest>`
+    );
   }
 }
 
@@ -343,34 +462,42 @@ async function fetchContext(
   channelId: string,
   postId: string,
   limit: number = 10,
-  resolve: boolean = false
+  resolve: boolean = false,
+  json: boolean = false
 ): Promise<void> {
   postId = formatPostId(postId);
-  console.log(`Fetching context around post ${postId} in ${channelId}`);
-  console.log(
-    `Limit: ${limit} messages each direction${resolve ? ' (resolving quotes)' : ''}\n`
-  );
+  if (!json) {
+    console.log(`Fetching context around post ${postId} in ${channelId}`);
+    console.log(
+      `Limit: ${limit} messages each direction${resolve ? ' (resolving quotes)' : ''}\n`
+    );
+  }
 
-  try {
-    // The backend supports %around mode which fetches N older + N newer + the
-    // target post in one scry. The JS API types only declare "older"|"newer"
-    // but the path builder is generic, so "around" just works at runtime.
-    const data = await getChannelPosts({
-      channelId,
-      cursor: postId,
-      mode: 'around' as any,
-      count: limit,
-      includeReplies: true,
-    });
+  // The backend supports %around mode which fetches N older + N newer + the
+  // target post in one scry. The JS API types only declare "older"|"newer"
+  // but the path builder is generic, so "around" just works at runtime.
+  const data = await getChannelPosts({
+    channelId,
+    cursor: postId,
+    mode: 'around' as any,
+    count: limit,
+    includeReplies: true,
+    skipGapFill: true,
+  });
 
+  if (!json) {
     console.log(
       `=== Context around ${postId} (${data.posts.length} messages) ===\n`
     );
-
-    await printPosts(data.posts, resolve, postId);
-  } catch (error: any) {
-    console.error(`Error fetching context: ${error.message}`);
   }
+
+  // No displayLimit: an %around page is target-centered, so it carries no
+  // boundary probe to trim.
+  await printPosts(data.posts, resolve, {
+    highlightId: postId,
+    json,
+    window: windowFromPage(data),
+  });
 }
 
 async function getPostWithOptionalAuthor({
@@ -394,48 +521,51 @@ async function fetchPost(
   channelId: string,
   postId: string,
   authorId?: string,
-  resolve: boolean = false
+  resolve: boolean = false,
+  json: boolean = false
 ): Promise<void> {
   postId = formatPostId(postId);
-  console.log(`Fetching post ${postId} from ${channelId}\n`);
+  if (!json) {
+    console.log(`Fetching post ${postId} from ${channelId}\n`);
+  }
 
-  try {
-    const post = await getPostWithOptionalAuthor({
-      channelId,
-      postId,
-      authorId,
-    });
+  const post = await getPostWithOptionalAuthor({
+    channelId,
+    postId,
+    authorId,
+  });
 
-    if (!post) {
+  if (!post) {
+    if (!json) {
       console.log('Post not found.');
-      return;
     }
+    return;
+  }
 
-    const author = post.authorId || 'unknown';
-    const time = formatTime(post.sentAt);
-    const text = extractText(post.content);
-
-    console.log(`=== Post ${postId} ===\n`);
-    console.log(`Author: ${author}`);
-    console.log(`Time: ${time}`);
-    console.log(`ID: ${post.id}`);
-    if (text) {
-      console.log(`\n${text}`);
-    }
-
-    if (resolve) {
-      const cites = await resolveCites(post);
-      for (const cite of cites) {
-        console.log(`\n> ${cite}`);
-      }
-    }
-
+  if (json) {
+    console.log(renderPostJsonLine(post));
     if (post.replies && post.replies.length > 0) {
-      console.log(`\n--- Replies (${post.replies.length}) ---\n`);
-      await printPosts(post.replies, resolve);
+      await printPosts(post.replies, resolve, { json });
     }
-  } catch (error: any) {
-    console.error(`Error fetching post: ${error.message}`);
+    return;
+  }
+
+  const author = post.authorId || 'unknown';
+  const time = formatTime(post.sentAt);
+
+  console.log(`=== Post ${postId} ===\n`);
+  console.log(`Author: ${author}`);
+  console.log(`Time: ${time}`);
+  console.log(`ID: ${post.id}`);
+  console.log('');
+  await writePostBody(post, {
+    write: (line) => console.log(line),
+    getPostReference: resolve ? getPostReference : undefined,
+  });
+
+  if (post.replies && post.replies.length > 0) {
+    console.log(`\n--- Replies (${post.replies.length}) ---\n`);
+    await printPosts(post.replies, resolve);
   }
 }
 
@@ -466,6 +596,11 @@ async function main() {
   const resolveCites =
     args.includes('--resolve-cites') || args.includes('--quotes');
 
+  // NDJSON mode. The search query may itself be an option-like literal (see
+  // isSearchQueryHelpLiteral) and must not flip modes.
+  const flagArgs = command === 'search' ? [args[0], ...args.slice(2)] : args;
+  const json = flagArgs.includes('--json');
+
   try {
     switch (command) {
       case 'dm': {
@@ -473,7 +608,7 @@ async function main() {
         if (!ship) {
           printUsageAndExit(MESSAGES_COMMAND_HELP.dm);
         }
-        await fetchDmMessages(ship, limit, resolveCites);
+        await fetchDmMessages(ship, limit, resolveCites, json);
         break;
       }
 
@@ -482,7 +617,7 @@ async function main() {
         if (!channelPath) {
           printUsageAndExit(MESSAGES_COMMAND_HELP.channel);
         }
-        await fetchMessages(channelPath, limit, resolveCites);
+        await fetchMessages(channelPath, limit, resolveCites, json);
         break;
       }
 
@@ -491,18 +626,22 @@ async function main() {
         if (!channelPath) {
           printUsageAndExit(MESSAGES_COMMAND_HELP.history);
         }
-        await fetchMessages(channelPath, limit, resolveCites);
+        await fetchMessages(channelPath, limit, resolveCites, json);
         break;
       }
 
       case 'search': {
         const query = args[1];
         const channel = getSearchChannel(args);
-
-        if (!query || !channel) {
+        if (channel) {
+          await searchMessages(query, channel, json);
+          break;
+        }
+        const limits = getSearchLimits(args);
+        if (!limits || json) {
           printUsageAndExit(MESSAGES_COMMAND_HELP.search);
         }
-        await searchMessages(query, channel);
+        await searchAllMessages(query, limits.limit, limits.perChannel);
         break;
       }
 
@@ -512,7 +651,7 @@ async function main() {
         if (!target || !postId) {
           printUsageAndExit(MESSAGES_COMMAND_HELP.context);
         }
-        await fetchContext(target, postId, limit, resolveCites);
+        await fetchContext(target, postId, limit, resolveCites, json);
         break;
       }
 
@@ -527,7 +666,7 @@ async function main() {
         if (authorIdx !== -1 && args[authorIdx + 1]) {
           author = normalizeShip(args[authorIdx + 1]);
         }
-        await fetchPost(target, postId, author, resolveCites);
+        await fetchPost(target, postId, author, resolveCites, json);
         break;
       }
 

@@ -1,7 +1,7 @@
 /**
  * CLI argument parsing utilities
  */
-import { valid } from '@urbit/aura';
+import { da, valid } from '@urbit/aura';
 
 /**
  * Get an option value from command line args
@@ -64,6 +64,41 @@ export function getRequiredOptionValue(
 /**
  * Check if help was requested for a command/subcommand
  */
+export function parsePositiveInteger(raw: string): number | null {
+  if (!/^[0-9]+$/.test(raw)) return null;
+  const parsed = Number(raw);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
+// Runs fn over items in order with at most `limit` in flight; results keep
+// the input order, and the first rejection rejects the whole run and starts
+// no further items.
+export async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  let failed = false;
+  const worker = async () => {
+    while (!failed && next < items.length) {
+      const index = next++;
+      try {
+        results[index] = await fn(items[index], index);
+      } catch (error) {
+        failed = true;
+        throw error;
+      }
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, worker)
+  );
+  return results;
+}
+
 export function wantsHelp(args: string[]): boolean {
   return args.includes('--help') || args.includes('-h');
 }
@@ -449,4 +484,36 @@ function formatUd(id: string): string {
 // both agree on the wire format they send.
 export function formatPostId(postId: string): string {
   return formatUd(extractNumericId(postId));
+}
+
+// A post id is an @da: 39 digits, written in 13 dot-separated groups.
+const POST_ID_DIGITS = 39;
+
+/**
+ * Why `postId` can't be a whole post id, or undefined when it can be. A
+ * dropped or repeated group is the usual slip when an id is copied by hand,
+ * and the read it fails is otherwise indistinguishable from a post that isn't
+ * visible yet.
+ */
+export function postIdLengthProblem(postId: string): string | undefined {
+  const digits = extractNumericId(postId).replace(/\./g, '').length;
+  return digits === POST_ID_DIGITS
+    ? undefined
+    : `${formatPostId(postId)} isn't a whole post ID: post IDs have ${POST_ID_DIGITS} digits (13 dot-separated groups) and this one has ${digits}`;
+}
+
+// The undotted @ud the app writes into a cite's `where` path. Throws on
+// anything that is not a post id, so a bad id can't become a dangling cite.
+export function undottedPostId(postId: string): string {
+  const id = extractNumericId(postId).replace(/\./g, '');
+  if (!/^\d+$/.test(id)) {
+    throw new Error(`Invalid post id: ${postId}`);
+  }
+  return id;
+}
+
+// The time half of a DM post's id (`~author/<time>`), derived from its sent
+// time the way @tloncorp/api's sendPost derives the id it pokes with.
+export function dmWritTime(sentAt: number): string {
+  return formatUd(da.fromUnix(sentAt).toString());
 }

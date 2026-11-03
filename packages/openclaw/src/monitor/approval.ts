@@ -1,5 +1,6 @@
 import { A2UI } from '@tloncorp/api';
 import { randomUUID } from 'node:crypto';
+import { truncateUtf16Safe } from 'openclaw/plugin-sdk/string-coerce-runtime';
 
 /**
  * Approval system for managing DM, channel mention, and group invite approvals.
@@ -8,8 +9,14 @@ import { randomUUID } from 'node:crypto';
  * a notification and can approve or deny the request via slash commands
  * (/allow, /reject, /ban).
  */
-import { APPROVAL_TTL_MS, type PendingApproval } from '../settings.js';
+import { createSilentFailureNoticeCooldown } from '../silent-failure-notice.js';
+import {
+  APPROVAL_TTL_MS,
+  type PendingApproval,
+  TLON_PENDING_APPROVAL_LIMIT,
+} from '../settings.js';
 import { type TlonA2UIBlob, makeA2UIBlob } from '../urbit/blob.js';
+import { extractDmPartnerShip } from './utils.js';
 
 export type { PendingApproval };
 export { APPROVAL_TTL_MS };
@@ -36,6 +43,8 @@ export type CreateApprovalParams = {
     parentAuthorId?: string;
     isThreadReply?: boolean;
     blob?: string;
+    /** Chat `whom` the message arrived on (DM approvals). */
+    whom?: string;
   };
 };
 
@@ -207,6 +216,20 @@ export function normalizeNotificationId(id: string): string {
 // ============================================================================
 
 /** Check if a pending approval has expired (TTL defined in settings.ts). */
+/**
+ * Group DMs (clubs) are deprecated; a DM approval is acted on only when its
+ * requesting ship is a ship and any recorded `whom` is that ship's 1:1 DM.
+ */
+export function isDirectDmApproval(
+  approval: Pick<PendingApproval, 'type' | 'requestingShip' | 'originalMessage'>
+): boolean {
+  if (approval.type !== 'dm') return true;
+  const ship = extractDmPartnerShip(approval.requestingShip);
+  if (!ship) return false;
+  const whom = approval.originalMessage?.whom;
+  return whom === undefined || extractDmPartnerShip(whom) === ship;
+}
+
 export function isExpired(approval: PendingApproval): boolean {
   return Date.now() - approval.timestamp > APPROVAL_TTL_MS;
 }
@@ -267,7 +290,7 @@ function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) {
     return text;
   }
-  return text.substring(0, maxLength - 3) + '...';
+  return truncateUtf16Safe(text, maxLength - 3) + '...';
 }
 
 // ============================================================================
@@ -285,13 +308,15 @@ export const RENOTIFY_COOLDOWN_MS = 10 * 60 * 1000;
  * What applyApprovalRequest did with the request: 'queued' created a new
  * record, 'updated' refreshed an existing one (owner re-notified), 'blocked'
  * dropped it silently, 'suppressed' left a group record untouched
- * (already delivered, or within the re-notify cooldown).
+ * (already delivered, or within the re-notify cooldown), 'overflow' dropped
+ * a new request because the queue is at TLON_PENDING_APPROVAL_LIMIT.
  */
 export type ApprovalRequestOutcome =
   | 'queued'
   | 'updated'
   | 'blocked'
-  | 'suppressed';
+  | 'suppressed'
+  | 'overflow';
 
 export type ApprovalQueueContext = {
   /**
@@ -304,9 +329,65 @@ export type ApprovalQueueContext = {
   /** Send the owner DM for an approval. Success = defined message ID. */
   notify(approval: PendingApproval): Promise<string | undefined>;
   persist(): Promise<void>;
+  /** Tell the owner the queue is full (rate-limited by the implementation). */
+  notifyOverflow(pendingCount: number): Promise<void>;
+  /**
+   * Admissions past the limit check but not yet in the pending list. Shared
+   * across calls (one per monitor) so concurrent requests cannot overshoot.
+   */
+  admissions: { inFlight: number };
   now(): number;
   log?: (msg: string) => void;
 };
+
+/**
+ * Reserves a slot synchronously (before any await) and returns its release,
+ * or returns null after the overflow notice. On overflow nothing is persisted
+ * or sent for the request itself; the caller retries later.
+ */
+async function reserveAdmission(
+  approval: PendingApproval,
+  ctx: ApprovalQueueContext
+): Promise<(() => void) | null> {
+  const occupied = ctx.getPending().length + ctx.admissions.inFlight;
+  if (occupied < TLON_PENDING_APPROVAL_LIMIT) {
+    ctx.admissions.inFlight += 1;
+    let released = false;
+    return () => {
+      if (!released) {
+        released = true;
+        ctx.admissions.inFlight -= 1;
+      }
+    };
+  }
+  ctx.log?.(
+    `[tlon] Pending approval limit reached; dropping ${approval.type} request from ${approval.requestingShip}`
+  );
+  await ctx.notifyOverflow(occupied);
+  return null;
+}
+
+const OVERFLOW_NOTICE_KEY = 'approval-overflow';
+
+/**
+ * Owner notice for a full approval queue: at most one send per window. The
+ * window is reserved before sending, so a failed send waits for the next one.
+ */
+export function createApprovalOverflowNotifier(
+  send: (text: string) => Promise<unknown>,
+  windowMs: number = RENOTIFY_COOLDOWN_MS
+): (pendingCount: number, now: number) => Promise<void> {
+  const cooldown = createSilentFailureNoticeCooldown(windowMs);
+  return async (pendingCount, now) => {
+    if (cooldown.isCoolingDown(OVERFLOW_NOTICE_KEY, now)) {
+      return;
+    }
+    cooldown.recordSent(OVERFLOW_NOTICE_KEY, now);
+    await send(
+      `Pending approval queue is full (${pendingCount}). New requests are dropped until existing ones are approved, denied, or blocked.`
+    ).catch(() => undefined);
+  };
+}
 
 /**
  * Queue an approval request and notify the owner, idempotently.
@@ -370,13 +451,22 @@ export async function applyApprovalRequest(
     return 'updated';
   }
 
+  const release = await reserveAdmission(approval, ctx);
+  if (!release) {
+    return 'overflow';
+  }
+
   // Send notification before saving so notificationMessageId is included
   // in the single save. See comment above about the settings subscription race.
-  const notifId = await ctx.notify(approval);
-  if (notifId) {
-    approval.notificationMessageId = normalizeNotificationId(notifId);
+  try {
+    const notifId = await ctx.notify(approval);
+    if (notifId) {
+      approval.notificationMessageId = normalizeNotificationId(notifId);
+    }
+    ctx.setPending([...ctx.getPending(), approval]);
+  } finally {
+    release();
   }
-  ctx.setPending([...ctx.getPending(), approval]);
   await ctx.persist();
   ctx.log?.(
     `[tlon] Queued approval request: ${approval.id} (${approval.type} from ${approval.requestingShip})`
@@ -456,18 +546,29 @@ async function applyGroupApprovalRequest(
     return 'updated';
   }
 
+  const release = await reserveAdmission(approval, ctx);
+  if (!release) {
+    return 'overflow';
+  }
+
   // New group approval: push first so /pending shows it regardless of the
   // send outcome, then re-sync after the (possibly long) notify — the
   // settings subscription may have replaced the pending list wholesale.
+  // The reservation is held until the re-sync below, so a snapshot that drops
+  // the record mid-notify cannot hand its slot to another request.
   approval.notifyAttemptAt = ctx.now();
   ctx.setPending([...ctx.getPending(), approval]);
-  const notifId = await ctx.notify(approval);
-  if (notifId) {
-    approval.notificationMessageId = normalizeNotificationId(notifId);
-  }
-  const current = ctx.getPending();
-  if (!current.some((a) => a.id === approval.id)) {
-    ctx.setPending([...current, approval]);
+  try {
+    const notifId = await ctx.notify(approval);
+    if (notifId) {
+      approval.notificationMessageId = normalizeNotificationId(notifId);
+    }
+    const current = ctx.getPending();
+    if (!current.some((a) => a.id === approval.id)) {
+      ctx.setPending([...current, approval]);
+    }
+  } finally {
+    release();
   }
   await ctx.persist();
   ctx.log?.(

@@ -1,6 +1,7 @@
 import { render } from '@urbit/aura';
 import { z } from 'zod';
 
+import { TASK_RUNS_MIN_GROUPS_VERSION } from '../lib/deskVersion';
 import type * as ub from '../urbit';
 import {
   httpRequest,
@@ -8,6 +9,7 @@ import {
   steward,
   subscribeRequest,
 } from './requests';
+import { DeskUnsupportedError, getDeskSupportsTaskRunsState } from './urbit';
 
 /**
  * Client for %steward's automation module on the owner ship: read the
@@ -16,7 +18,7 @@ import {
  *
  * Each edit is a POST held open until the terminal response or the owner's
  * 20-second pending wake. The envelope's `body.type` decides the outcome:
- * `created` / `updated` / `deleted` resolve, `error` throws a
+ * `created` / `updated` / `deleted` / `started` resolve, `error` throws a
  * StewardAutomationEditError carrying the typed error, and `pending` throws
  * a StewardAutomationPendingError carrying the request id so the caller can
  * pick the result up later with getAutomationRequest. The mirror is the
@@ -65,6 +67,11 @@ const responseBodySchema = z.union([
   z.object({
     type: z.enum(['created', 'updated', 'deleted']),
     id: z.string(),
+  }),
+  z.object({
+    type: z.literal('started'),
+    id: z.string(),
+    lensId: z.string(),
   }),
   z.object({
     type: z.literal('error'),
@@ -126,14 +133,17 @@ export interface StewardAutomationEditResult {
   requestId: string;
   /** The harness's job id: the created id, or the id that was updated or deleted. */
   id: string;
+  /** For a test run, the lens run that records it. */
+  lensId?: string;
 }
 
 /**
  * POST one edit and resolve its terminal envelope. Throws
  * StewardAutomationEditError on `error`, StewardAutomationPendingError on
- * `pending`.
+ * `pending`. Private: each action goes through its own helper below, and a
+ * test's helper is the only thing guarding it.
  */
-export async function editAutomation(
+async function editAutomation(
   request: ub.StewardAutomationEditRequest
 ): Promise<StewardAutomationEditResult> {
   const raw = await httpRequest(steward.automationEdit)<unknown>(
@@ -153,6 +163,12 @@ function settle(
     case 'updated':
     case 'deleted':
       return { requestId: response.requestId, id: body.id };
+    case 'started':
+      return {
+        requestId: response.requestId,
+        id: body.id,
+        lensId: body.lensId,
+      };
     case 'error':
       throw new StewardAutomationEditError(
         errorMessage(body),
@@ -215,6 +231,37 @@ export function deleteAutomation(params: {
     ...(params.requestId ? { requestId: params.requestId } : {}),
     bot: params.bot,
     action: { delete: { id: params.id } },
+  });
+}
+
+/**
+ * Run task `id` on `bot` once, now, as a test: outside its schedule and
+ * delivering nowhere. Resolves once the run is under way, with the lens run
+ * that records it; the run's progress and reply arrive with that lens run.
+ */
+export function testAutomation(params: {
+  bot: string;
+  id: string;
+  requestId?: string;
+}): Promise<StewardAutomationEditResult & { lensId: string }> {
+  // The route predates test runs, and the registry holds one entry per
+  // route, so its entry cannot guard them; this helper does.
+  if (getDeskSupportsTaskRunsState() === false) {
+    throw new DeskUnsupportedError(
+      'steward.automationEdit (test)',
+      TASK_RUNS_MIN_GROUPS_VERSION,
+      'deskSupportsTaskRuns'
+    );
+  }
+  return editAutomation({
+    ...(params.requestId ? { requestId: params.requestId } : {}),
+    bot: params.bot,
+    action: { test: { id: params.id } },
+  }).then((result) => {
+    if (!result.lensId) {
+      throw new Error('%steward automation test answered without a run');
+    }
+    return { ...result, lensId: result.lensId };
   });
 }
 

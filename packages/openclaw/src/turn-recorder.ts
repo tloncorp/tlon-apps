@@ -1,9 +1,5 @@
 import { metrics } from '@opentelemetry/api';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import type {
-  PluginHookAgentContext,
-  PluginHookAgentEndEvent,
-} from 'openclaw/plugin-sdk/types';
 import { createSubsystemLogger } from 'openclaw/plugin-sdk/runtime-env';
 
 import {
@@ -11,6 +7,8 @@ import {
   type TlonMessageJourneyDestinationKind,
   recordTlonMessageJourneyEvent,
 } from './message-journey.js';
+import type { AgentEndEvent, AgentHookContext } from './agent-hook-types.js';
+import type { SenderRole } from './session-roles.js';
 import { sharedMap, sharedSlot } from './shared-state.js';
 import { isSuccessfulSilentAgentOutput } from './silent-reply.js';
 import { isSupersededToolOutcome } from './superseded-turn.js';
@@ -57,10 +55,16 @@ export type TlonAgentTurnSkipReason =
   | 'empty'
   | 'silent'
   | 'heartbeat'
+  | 'channel_transform'
   | 'empty_payload_text'
   | 'block_directive_only'
   | 'media_only_payload_not_sent'
-  | 'source_reply_delivery_mode_message_tool_only';
+  | 'source_reply_delivery_mode_message_tool_only'
+  // Core's billing reply, replaced by an owner notice.
+  | 'provider_billing_error'
+  // The turn kernel admitted the message but did not dispatch it (bot-loop
+  // protection, outbound echo, duplicate): no run, no reply owed.
+  | 'not_dispatched';
 
 export type TlonAgentTurnReason =
   | TlonAgentTurnSkipReason
@@ -82,6 +86,8 @@ export type TlonAgentTurnStart = {
   sessionKey: string;
   ship: string;
   trigger: TlonAgentTurnTrigger;
+  /** Sender of the message this turn answers. */
+  senderRole?: SenderRole;
 };
 
 export type TlonAgentTurnTerminal = {
@@ -645,9 +651,7 @@ export function startTlonAgentTurn(
 }
 
 // Reset before every model attempt, including retries after a silent completion.
-export function beginTlonTurnSilenceObservation(
-  ctx: PluginHookAgentContext
-): void {
+export function beginTlonTurnSilenceObservation(ctx: AgentHookContext): void {
   const output = ctx.runId ? agentOutputsByRunId.get(ctx.runId) : undefined;
   if (!output || output.sessionKey !== ctx.sessionKey) return;
   output.silent = false;
@@ -656,8 +660,8 @@ export function beginTlonTurnSilenceObservation(
 }
 
 export function recordTlonTurnSilenceOutput(
-  event: PluginHookAgentEndEvent,
-  ctx: PluginHookAgentContext
+  event: AgentEndEvent,
+  ctx: AgentHookContext
 ): void {
   const output = ctx.runId ? agentOutputsByRunId.get(ctx.runId) : undefined;
   if (
@@ -676,6 +680,22 @@ function updateActiveTurn(update: (state: TlonAgentTurnState) => void): void {
     return;
   }
   update(state);
+}
+
+/** The active turn's run, session, and sender role, if a turn is active. */
+export function getActiveTlonTurnRequester(): {
+  runId: string;
+  sessionKey: string;
+  senderRole: SenderRole | undefined;
+} | null {
+  const state = turnStorage.getStore();
+  return state && !state.finalized
+    ? {
+        runId: state.runId,
+        sessionKey: state.sessionKey,
+        senderRole: state.senderRole,
+      }
+    : null;
 }
 
 export function getActiveTlonTurnAccountId(): string | null {

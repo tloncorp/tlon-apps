@@ -28,9 +28,12 @@ jobs:
   #      merge before the GCS service account and GitHub App exist.
   #   2. No open pier-refresh PR. One refresh PR at a time; a human merges or
   #      closes it before the next one is cut (no branch reuse).
-  #   3. Desk inputs changed. The four git hashes in the sidecar are the exact
-  #      identity of everything assemble-desk.sh reads, so equal hashes mean
-  #      the archived desk already matches and a refresh would change nothing.
+  #   3. Desk inputs changed. The four hashes in the sidecar identify
+  #      everything assemble-desk.sh reads, so equal hashes mean the archived
+  #      desk already matches and a refresh would change nothing. The desk
+  #      hash (scripts/desk-identity.sh) ignores the docket's glob-http line:
+  #      the glob bot rewrites it several times a day, and a pier whose
+  #      docket names an older glob runs the same Hoon.
   # Each skip is a job output gating the refresh job, not an `exit 0` (which
   # would only end the step). A dry run reports what would have skipped and
   # runs anyway: it needs no secrets and opens nothing.
@@ -88,11 +91,11 @@ jobs:
             sidecar=packages/tlon-bot-e2e/docker/pier-archive.json
             blob() { git show "HEAD:$1" | git hash-object --stdin; }
             if [ -f "$sidecar" ] && jq -e \
-              --arg desk "$(git rev-parse HEAD:desk)" \
+              --arg desk "$(scripts/desk-identity.sh tree HEAD)" \
               --arg peru "$(blob peru.yaml)" \
               --arg assemble "$(blob scripts/assemble-desk.sh)" \
               --arg sync "$(blob scripts/sync-deps.sh)" \
-              '.deskTree == $desk and .peruBlob == $peru and
+              '.deskTreeNoGlob == $desk and .peruBlob == $peru and
                .assembleBlob == $assemble and .syncDepsBlob == $sync' \
               "$sidecar" > /dev/null; then
               skip="desk inputs unchanged since generation $(jq -r .generation "$sidecar")"

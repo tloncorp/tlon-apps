@@ -63,6 +63,7 @@ export async function pokeUrbitChannel(
         operation: 'Poke',
         status: response.status,
         bodyText: errorText || undefined,
+        cookie: deps.cookie,
       });
     }
     return pokeId;

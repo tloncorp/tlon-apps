@@ -1,3 +1,5 @@
+import { sanitizeAssistantVisibleTextWithProfile } from 'openclaw/plugin-sdk/text-chunking';
+
 import type { ContextLensRegistry } from '../context-lens.js';
 import { cacheMessage } from './history.js';
 
@@ -48,4 +50,16 @@ export function recordSentTlonReply({
     preview: replyPreview,
     chunkIndex: deliveredMessageCount - 1,
   });
+}
+
+/**
+ * Strips internal tool-call scaffolding from reply text before it is posted.
+ * Tool payloads are intentional progress summaries, so they use the
+ * tool-progress profile, which keeps their trace lines.
+ */
+export function sanitizeTlonReplyText(text: string, kind: string): string {
+  return sanitizeAssistantVisibleTextWithProfile(
+    text,
+    kind === 'tool' ? 'tool-progress' : 'delivery'
+  );
 }

@@ -19,7 +19,7 @@ export function ChannelMetaScreen(props: Props) {
   const handleSubmit = useCallback(
     (meta: db.ClientMeta) => {
       store.updateDMMeta(channelId, meta);
-      () => props.navigation.goBack();
+      props.navigation.goBack();
     },
     [channelId, props.navigation]
   );

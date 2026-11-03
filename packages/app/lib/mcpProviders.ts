@@ -1,3 +1,4 @@
+import * as api from '@tloncorp/api';
 import type { TlawnOAuthGrant, TlawnOAuthProvider } from '@tloncorp/api';
 
 export const mcpProviderQueryKeys = {
@@ -5,6 +6,19 @@ export const mcpProviderQueryKeys = {
   status: (ship: string) =>
     ['tlonbot', 'oauth-status', ship.replace(/^~/, '')] as const,
 };
+
+/** The connector catalog, the same list for every hosted account. */
+export const mcpProvidersQuery = {
+  queryKey: mcpProviderQueryKeys.providers,
+  queryFn: () => api.getTlawnOAuthProviders(),
+  staleTime: 5 * 60 * 1000,
+};
+
+/** What a row needs from a catalog entry. */
+export type McpCatalogEntry = Pick<
+  TlawnOAuthProvider,
+  'id' | 'displayName' | 'logoUrl' | 'scopes'
+>;
 
 export type McpProviderStatus = 'connected' | 'expired' | 'not-connected';
 
@@ -19,7 +33,7 @@ const DISABLED_PROVIDER_IDS = new Set(['supabase']);
 
 /** Hosting owns the provider order; the client only adds live grant status. */
 export function buildProviderRows(
-  providers: TlawnOAuthProvider[],
+  providers: McpCatalogEntry[],
   grants: TlawnOAuthGrant[]
 ): McpProviderRow[] {
   const grantsByProvider = new Map(
@@ -47,7 +61,7 @@ export function buildProviderRows(
 }
 
 const FEATURED_PROVIDER_ORDER = new Map(
-  ['gmail', 'google-calendar', 'notion', 'github'].map((id, index) => [
+  ['google-gmail', 'google-calendar', 'notion', 'github'].map((id, index) => [
     id,
     index,
   ])

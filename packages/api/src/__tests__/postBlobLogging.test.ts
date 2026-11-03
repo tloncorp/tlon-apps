@@ -37,7 +37,7 @@ function handoffEntry() {
                   context: {
                     target: {
                       type: 'screen',
-                      screen: 'browserCredentialHandoff',
+                      screen: 'browserSecureEntry',
                       viewerUrl,
                     },
                   },

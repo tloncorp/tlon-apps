@@ -10,6 +10,7 @@ import { useCalm } from '../../ui';
 import {
   type SettingsSectionModel,
   SettingsListScreenView,
+  contactSettingsRow,
 } from '../../ui/components/SettingsList';
 import { formatUserId } from '../../ui/utils/user';
 
@@ -60,19 +61,12 @@ export function BlockedUsersScreen(props: Props) {
       {
         key: 'blocked',
         footer: 'Tap someone to unblock them.',
-        rows: contacts.map((contact) => {
-          const userId = formatUserId(contact.id)?.display ?? contact.id;
-          const nickname = disableNicknames ? null : contact.nickname;
-          return {
-            key: contact.id,
-            title: nickname || userId,
-            subtitle: nickname ? userId : undefined,
-            leading: { kind: 'contact', contactId: contact.id },
-            value: 'Unblock',
-            accessory: 'none',
-            onPress: () => onBlockedContactPress(contact),
-          };
-        }),
+        rows: contacts.map((contact) => ({
+          ...contactSettingsRow(contact.id, contact, disableNicknames),
+          value: 'Unblock',
+          accessory: 'none',
+          onPress: () => onBlockedContactPress(contact),
+        })),
       },
     ];
   }, [blockedContacts, disableNicknames, onBlockedContactPress]);

@@ -43,11 +43,12 @@ COMPOSE_PROJECT_NAME="$(printf '%s' "$requested_project_name" | tr '[:upper:]' '
 TEST_COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME"
 export COMPOSE_PROJECT_NAME TEST_COMPOSE_PROJECT_NAME
 
-# The image defaults to 5.28. Affected/future versions must carry an explicit
-# prewarm expectation so a missing core marker never silently becomes smoke.
-OPENCLAW_CORE_VERSION="${OPENCLAW_CORE_VERSION:-2026.5.28}"
+# Known core versions carry an explicit prewarm expectation so a missing core
+# marker never silently becomes smoke.
+OPENCLAW_CORE_VERSION="${OPENCLAW_CORE_VERSION:-2026.9.33}"
 case "$OPENCLAW_CORE_VERSION" in
-  2026.5.28) derived_expect_prewarm=0 ;;
+  # 2026.9.x dropped the plugin prewarm log marker; see 08-gateway-status.
+  2026.5.28|2026.9.4|2026.9.33) derived_expect_prewarm=0 ;;
   2026.6.11|2026.7.1) derived_expect_prewarm=1 ;;
   *)
     if [ -z "${TEST_EXPECT_OPENCLAW_PREWARM:-}" ]; then
@@ -186,13 +187,17 @@ check_urbit_ready() {
   curl -sf -c - -X POST "$url/~/login" -d "password=$code" 2>/dev/null | grep -q "urbauth"
 }
 
+# Seconds to wait for each ship. A cold pier download on a dev machine can
+# need longer than the CI default: SHIP_READY_TIMEOUT=900 test/run.sh
+SHIP_READY_ATTEMPTS=$(( (${SHIP_READY_TIMEOUT:-180} + 2) / 3 ))
+
 echo "==> Waiting for ~zod (port $ZOD_PORT)..."
-for i in $(seq 1 60); do
+for i in $(seq 1 "$SHIP_READY_ATTEMPTS"); do
   if check_urbit_ready "$ZOD_URL" "$ZOD_CODE"; then
     echo "~zod ready"
     break
   fi
-  if [ $i -eq 60 ]; then
+  if [ "$i" -eq "$SHIP_READY_ATTEMPTS" ]; then
     echo "Timeout waiting for ~zod"
     docker compose $COMPOSE_FILES logs ships
     exit 1
@@ -201,12 +206,12 @@ for i in $(seq 1 60); do
 done
 
 echo "==> Waiting for ~ten (port $TEN_PORT)..."
-for i in $(seq 1 60); do
+for i in $(seq 1 "$SHIP_READY_ATTEMPTS"); do
   if check_urbit_ready "$TEN_URL" "$TEN_CODE"; then
     echo "~ten ready"
     break
   fi
-  if [ $i -eq 60 ]; then
+  if [ "$i" -eq "$SHIP_READY_ATTEMPTS" ]; then
     echo "Timeout waiting for ~ten"
     docker compose $COMPOSE_FILES logs ships
     exit 1
@@ -215,12 +220,12 @@ for i in $(seq 1 60); do
 done
 
 echo "==> Waiting for ~mug (port $MUG_PORT)..."
-for i in $(seq 1 60); do
+for i in $(seq 1 "$SHIP_READY_ATTEMPTS"); do
   if check_urbit_ready "$MUG_URL" "$MUG_CODE"; then
     echo "~mug ready"
     break
   fi
-  if [ $i -eq 60 ]; then
+  if [ "$i" -eq "$SHIP_READY_ATTEMPTS" ]; then
     echo "Timeout waiting for ~mug"
     docker compose $COMPOSE_FILES logs ships
     exit 1

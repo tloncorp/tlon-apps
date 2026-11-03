@@ -3,20 +3,39 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useMemo } from 'react';
 
+import { sortGroupRoles } from '../ui/utils/groupUtils';
 import { useCurrentUserId } from './useCurrentUser';
 
-export const useGroupContext = ({ groupId }: { groupId: string }) => {
+export const useGroupContext = ({
+  groupId,
+  wholeRoster,
+}: {
+  groupId: string;
+  // sync every seat of a big group, for screens that read the whole roster
+  wholeRoster?: boolean;
+}) => {
   const currentUserId = useCurrentUserId();
 
   const groupQuery = store.useGroup({
     id: groupId,
   });
 
+  // a whole roster only counts for the session it synced in (isRosterWhole),
+  // so it syncs again in each new one
+  const sessionStartTime = store.useCurrentSession()?.startTime;
+  const wholeRosterSession = wholeRoster ? sessionStartTime : undefined;
+
   useEffect(() => {
-    if (groupId) {
-      sync.syncGroup(groupId, { priority: store.SyncPriority.High });
+    if (groupId && (!wholeRoster || wholeRosterSession !== undefined)) {
+      sync.syncGroup(
+        groupId,
+        // screens that need the whole roster stay gated until it lands, so
+        // a failed fetch is retried rather than leaving them stuck
+        { priority: store.SyncPriority.High, retry: !!wholeRoster },
+        { wholeRoster }
+      );
     }
-  }, [groupId]);
+  }, [groupId, wholeRoster, wholeRosterSession]);
 
   const group = groupQuery.data ?? null;
 
@@ -33,7 +52,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   }, [group?.members]);
 
   const groupRoles = useMemo(() => {
-    return group?.roles ?? [];
+    return sortGroupRoles(group?.roles ?? []);
   }, [group?.roles]);
 
   const groupChannels = useMemo(() => {

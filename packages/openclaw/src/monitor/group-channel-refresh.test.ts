@@ -12,17 +12,20 @@ import {
   type GroupChannelJournal,
   createGroupChannelJournal,
 } from './group-channels.js';
+import { resolveSettingsAllowlist } from './settings-sync.js';
 
 type MonitorDeps = {
   groupChannelJournal: GroupChannelJournal;
   settingsManager: ReturnType<typeof createSettingsManager>;
   applySettingsUpdate: typeof applySettingsUpdate;
   runtime: { log: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
+  accountDmAllowlist?: string[];
 };
 type Monitor = {
   refresh(): Promise<void>;
   readonly current: TlonSettingsStore;
   readonly watched: Set<string>;
+  readonly dmAllowlist: string[];
   feedDown: boolean;
 };
 let makeMonitor: (deps: MonitorDeps) => Monitor;
@@ -43,11 +46,12 @@ beforeAll(async () => {
   const { code } = await transformWithOxc(
     `
     function createMonitor(deps) {
-      const { groupChannelJournal, settingsManager, applySettingsUpdate, runtime } = deps;
+      const { groupChannelJournal, settingsManager, applySettingsUpdate, runtime, resolveSettingsAllowlist } = deps;
       let currentSettings = settingsManager.current;
       const pendingNudgeRehydrated = true;
       const getPendingNudge = () => undefined;
-      const account = { accountId: 'test', groupInviteAllowlist: [] };
+      const account = { accountId: 'test', groupInviteAllowlist: [], dmAllowlist: deps.accountDmAllowlist ?? [] };
+      let effectiveDmAllowlist = currentSettings.dmAllowlist ?? account.dmAllowlist;
       let effectiveGroupInviteAllowlist = [];
       let effectiveAutoDiscoverChannels = false;
       const resolveSettingsMirrorSync = () => ({});
@@ -64,6 +68,7 @@ beforeAll(async () => {
         refresh: refreshSettingsNow,
         get current() { return currentSettings; },
         get watched() { return watchedChannels; },
+        get dmAllowlist() { return effectiveDmAllowlist; },
         set feedDown(value) { settingsFeedDown = value; },
       };
     }
@@ -71,9 +76,10 @@ beforeAll(async () => {
     'group-channel-refresh.ts',
     { lang: 'ts', target: 'es2022' }
   );
-  makeMonitor = compileFunction(`${code}\nreturn createMonitor(deps);`, [
+  const compiled = compileFunction(`${code}\nreturn createMonitor(deps);`, [
     'deps',
-  ]) as typeof makeMonitor;
+  ]) as (deps: unknown) => Monitor;
+  makeMonitor = (deps) => compiled({ resolveSettingsAllowlist, ...deps });
 });
 
 describe('group-channel refresh single-flight', () => {
@@ -353,5 +359,46 @@ describe('group-channel refresh while the settings subscription is down', () => 
     expect(runtime.error).not.toHaveBeenCalled();
     expect(journal.trusted).toBe(true);
     expect(putEntry).toHaveBeenCalledExactlyOnceWith([kept, joined].sort());
+  });
+});
+
+describe('dm allowlist settings re-derivation', () => {
+  it('falls back to the file allowlist when the settings key is deleted', async () => {
+    let emit!: (event: unknown) => void;
+    const settingsManager = createSettingsManager({
+      scry: () =>
+        Promise.resolve({
+          all: { moltbot: { tlon: { dmAllowlist: ['~nec', '~bud'] } } },
+        }),
+      subscribe: async (params: { event: typeof emit }) => {
+        emit = params.event;
+      },
+    } as never);
+    await settingsManager.load();
+    await settingsManager.startSubscription();
+    const monitor = makeMonitor({
+      groupChannelJournal: createGroupChannelJournal({
+        initial: [],
+        trusted: true,
+        protectedNests: () => new Set(),
+        putEntry: async () => undefined,
+      }),
+      settingsManager,
+      applySettingsUpdate,
+      runtime: { log: vi.fn(), error: vi.fn() },
+      accountDmAllowlist: ['~zod'],
+    });
+    expect(monitor.dmAllowlist).toEqual(['~nec', '~bud']);
+
+    emit({
+      'del-entry': {
+        desk: 'moltbot',
+        'bucket-key': 'tlon',
+        'entry-key': 'dmAllowlist',
+      },
+    });
+
+    expect(settingsManager.current.dmAllowlist).toBeUndefined();
+    expect(monitor.dmAllowlist).toEqual(['~zod']);
   });
 });

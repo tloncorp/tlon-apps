@@ -7,6 +7,7 @@ import {
 
 const noPending: BotSettingsPendingFields = {
   nickname: false,
+  browserService: false,
   modelProvider: false,
   model: false,
   zdr: false,

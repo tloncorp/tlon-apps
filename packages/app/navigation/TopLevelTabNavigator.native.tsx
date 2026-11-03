@@ -13,7 +13,6 @@ import * as store from '@tloncorp/shared/store';
 
 import { useWarmBotSettingsCard } from '../features/settings/bot/useWarmBotSettingsCard';
 import { useAgentOnboardingLandingConsumer } from '../features/top/useAgentOnboardingLandingConsumer';
-import { useAnyAgentGroupOnboardingLock } from '../hooks/useAgentGroupOnboardingLock';
 import { useBotDmTab } from '../hooks/useBotDmTab';
 import { useCalm, useContact } from '../ui/contexts/appDataContext';
 import { useSigilColors } from '../ui/utils/colorUtils';
@@ -26,7 +25,6 @@ import {
   getTopLevelTabRoute,
   isAtColdStartPosition,
   isAwaitingRestoredBotTab,
-  isTabPressBlockedByOnboardingLock,
   trackTopLevelTabSelection,
 } from './topLevelTabs';
 import type { TopLevelTabParamList } from './types';
@@ -70,11 +68,6 @@ export function TopLevelTabNavigator() {
   // sits here, above every tab, and can reset the root stack from here.
   useAgentOnboardingLandingConsumer();
   useWarmBotSettingsCard();
-  // Read through a ref: `screenListeners` closes over render-time values, and
-  // the lock can lift without this navigator rendering again.
-  const onboardingLock = useAnyAgentGroupOnboardingLock();
-  const onboardingLockedRef = useRef(onboardingLock.locked);
-  onboardingLockedRef.current = onboardingLock.locked;
   // A DM's channel id is the other party's id, so this is the bot's contact.
   const botContact = useContact(botDm.enabled ? botDm.channelId : '');
   const calm = useCalm();
@@ -188,16 +181,6 @@ export function TopLevelTabNavigator() {
       backBehavior="history"
       screenListeners={({ navigation, route }) => ({
         tabPress: () => {
-          // Selection is disabled below while locked; the press still fires,
-          // and is neither a tab change to record nor a deliberate choice.
-          if (
-            isTabPressBlockedByOnboardingLock(
-              onboardingLockedRef.current,
-              route.name
-            )
-          ) {
-            return;
-          }
           // A deliberate tab choice outranks the bot-tab claim above.
           changedTabs.current = true;
           // Match the web nav bar: track selections, not re-presses of the
@@ -241,19 +224,12 @@ export function TopLevelTabNavigator() {
           }}
         />
       ) : null}
-      {/* The other tabs would carry the user out of the locked onboarding
-          conversation. UIKit switches before JS could refuse the press, so
-          their selection is disabled for as long as the lock holds. */}
       <Tabs.Screen
         name="ChatList"
         component={ChatListScreen}
         options={{
           title: TOP_LEVEL_TABS.ChatList.title,
           tabBarIcon: ({ focused }) => tabIcon('workspaces', focused),
-          tabBarSelectionEnabled: !isTabPressBlockedByOnboardingLock(
-            onboardingLock.locked,
-            'ChatList'
-          ),
         }}
       />
       <Tabs.Screen
@@ -264,10 +240,6 @@ export function TopLevelTabNavigator() {
           tabBarIcon: ({ focused }) => tabIcon('activity', focused),
           tabBarBadge: dot(unseenActivityCount > 0),
           tabBarBadgeStyle,
-          tabBarSelectionEnabled: !isTabPressBlockedByOnboardingLock(
-            onboardingLock.locked,
-            'Activity'
-          ),
         }}
       />
       <Tabs.Screen
@@ -276,10 +248,6 @@ export function TopLevelTabNavigator() {
         options={{
           title: TOP_LEVEL_TABS.Settings.title,
           tabBarIcon: ({ focused }) => tabIcon('settings', focused),
-          tabBarSelectionEnabled: !isTabPressBlockedByOnboardingLock(
-            onboardingLock.locked,
-            'Settings'
-          ),
         }}
       />
     </Tabs.Navigator>

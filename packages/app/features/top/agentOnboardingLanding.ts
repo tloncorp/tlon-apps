@@ -21,10 +21,3 @@ export function shouldAcknowledgeAgentOnboardingLanding(
 ) {
   return landing?.status === 'claimed' && landing.channelId === channelId;
 }
-
-export function shouldRestoreAgentOnboardingFallback(
-  landing: AgentOnboardingLanding | null,
-  channelId: string
-) {
-  return landing?.status === 'fallback' && landing.channelId === channelId;
-}

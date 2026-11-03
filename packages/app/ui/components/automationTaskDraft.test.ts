@@ -10,6 +10,8 @@ import {
   canEditPrompt,
   cronExpressionFor,
   describeAutomationError,
+  describeTestRunError,
+  canTestTask,
   destinationForChannel,
   destinationFromDelivery,
   draftFromTask,
@@ -1062,5 +1064,62 @@ describe('describeAutomationError', () => {
     expect(describeAutomationError(new Error('network'))).toBe(
       'Could not reach your bot. Check your connection and try again.'
     );
+  });
+});
+
+describe('describeTestRunError', () => {
+  const refusal = (errorType: string, detail = '') =>
+    Object.assign(
+      new Error(`%steward automation error (${errorType}): ${detail}`),
+      { errorType }
+    );
+
+  it('tells a bot with Context Lens off from one that needs an update', () => {
+    expect(
+      describeTestRunError(
+        refusal(
+          'invalid',
+          'test runs need Context Lens, which is off on this bot'
+        )
+      )
+    ).toBe('Test runs need Context Lens, which is turned off on your bot.');
+    expect(
+      describeTestRunError(refusal('invalid', 'this task has no prompt to run'))
+    ).toBe('This task has no prompt to test.');
+    expect(
+      describeTestRunError(
+        refusal('invalid', 'this task is paused while credits are limited')
+      )
+    ).toBe('Testing is paused while credits are limited.');
+    expect(
+      describeTestRunError(
+        refusal('invalid', 'Invalid steward automation dispatch: action')
+      )
+    ).toBe('Your bot needs an update before it can test tasks.');
+    expect(
+      describeTestRunError(
+        refusal(
+          'invalid',
+          'only a task that runs in its own session can be tested; this one runs in the main session'
+        )
+      )
+    ).toBe(
+      "Only a task that runs on its own can be tested. This one runs in your bot's main session."
+    );
+    expect(describeTestRunError(refusal('unknown'))).toBe(
+      'Your bot needs an update before it can test tasks.'
+    );
+  });
+});
+
+describe('canTestTask', () => {
+  it('offers tests only for agent turns in a session of their own', () => {
+    const turn = { payload: { kind: 'agentTurn', message: 'Go' } };
+    expect(canTestTask(turn)).toBe(true);
+    expect(canTestTask({ ...turn, sessionTarget: 'isolated' })).toBe(true);
+    expect(canTestTask({ ...turn, sessionTarget: 'main' })).toBe(false);
+    expect(
+      canTestTask({ payload: { kind: 'systemEvent', message: 'Go' } })
+    ).toBe(false);
   });
 });

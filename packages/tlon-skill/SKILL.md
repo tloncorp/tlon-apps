@@ -7,7 +7,7 @@ description: Read Tlon activity and message history; manage workspaces (Tlon gro
 
 Use the `tlon` tool for Tlon data and administration. Read the task reference below before an unfamiliar workflow. For explanations of the app, use `tlon-product-guide` if available.
 
-In Tlon requests, **workspace** means a group: create, join, rename, invite, and list workspaces using `groups` commands. Explicit requests about the agent’s files or paths refer to its filesystem workspace instead.
+In Tlon requests, **workspace** means a group: create, join (including by invite link), rename, invite, and list workspaces using `groups` commands. Explicit requests about the agent’s files or paths refer to its filesystem workspace instead.
 
 ## Invoke and discover
 
@@ -29,11 +29,11 @@ Resolve these links relative to this skill's discovered directory. Use the locat
 
 | Task | Reference |
 | --- | --- |
-| Read activity, search history, manage reactions, pins, notification levels, or existing posts | [Reading](references/reading.md) |
+| Read activity, mark chats read, search history (shows image, link and file URLs and gallery titles), manage reactions, pins, notification levels, or existing posts | [Reading](references/reading.md) |
 | Workspaces (groups), membership, permissions, channels, channel sections, public exposure | [Groups and channels](references/groups-channels.md) |
 | Find notebooks, create/edit Markdown notes, and publish them | [Notes](references/notes.md) |
 | Shared group files and folders | [Buckets](references/buckets.md) |
-| Upload media for messages or profiles | [Media](references/media.md) |
+| Upload media for messages or profiles; post an image, file, video or link to a Gallery (`heap/` channel) | [Media](references/media.md) |
 | Contacts, profile changes, bot settings | [Contacts and settings](references/contacts-settings.md) |
 | Browser card command arguments, delivery, and errors; browser workflow lives in `hosted-browser` | [Browser card commands](references/browser-handoff.md) |
 | Channel hooks and advanced automation | [Hooks](references/hooks-workflow.md) |
@@ -42,14 +42,16 @@ Resolve these links relative to this skill's discovered directory. Use the locat
 
 - Use returned group flags, channel nests, note IDs, and revisions. Display titles are not identifiers. Resolve ambiguous targets before writing.
 - When a write lands outside the conversation you are replying in (a note, a post in another channel, a new group or channel, a cron job that will post to another channel), put a reference to it in your reply so Tlon renders a card. Forms: `/1/group/<host>/<slug>`, `/1/chan/<nest>/msg/<id>`, thread reply `/1/chan/<nest>/msg/<parent>/<id>`, `/1/chan/notes/<host>/<name>/note/<id>`. Prefer the `Ref:` path a command prints. A post's ID is host-assigned: read it back with `messages channel <nest>`, or `messages post <nest> <parent>` for a thread reply; the `message` tool's `messageId` is not it. A channel (including a cron job's target) has no card yet: name it, give its nest, and share its group's `Ref:`.
-- Put the path bare on its own line after the sentence introducing it; a link, bold, or malformed path stays literal text. Paths render only in your normal reply — `tlon posts send` posts them as literal text.
-- Credentials are supplied by the runtime. Use the current account; do not collect access codes, print credentials, or switch to the owner's identity to work around permissions. Some documented commands, such as invite-link retrieval, note publishing, notification settings, creating a workspace for the owner, and creating a channel in a group the owner hosts, have an explicit owner-bound behavior.
-- Use `message` for ordinary outbound messages and replies. For local media, upload first and pass the returned HTTPS URL; see the media reference.
+- Put the path bare on its own line after the sentence introducing it; a link, bold, or malformed path stays literal text. Paths render only in your normal reply; `tlon posts send` posts a typed path as literal text. To quote or forward a post as a card, use `posts send|reply --quote` or `posts forward` (see Reading).
+- Before filling a saved website login, request fresh owner approval with `browser approve-login`; see [Browser card commands](references/browser-handoff.md). Do not use automatic-fill permission to skip approval. Existing signed-in browser sessions may be reused.
+- Credentials are supplied by the runtime. Never collect access codes or print credentials. Your harness's tool description states which identity (your owner or you, the bot) is the default and how to select the other; follow it. Some commands are documented as owner-bound in the references; the tool description governs which identity they run as. Do not switch identities to work around a permission error.
+- Use `message` for ordinary outbound messages and replies. For local media, upload first and pass the returned HTTPS URL. To post an image, file, video or link to a gallery, use `posts send`; see the media reference. A message sent under the owner's identity appears in the owner's name, exactly as if the owner had typed it (`--bot` adds only a Bot tag; it is still the owner's message): send one only when the owner explicitly asked for that message, and confirm with the owner first otherwise.
+- A post someone asks to be pinged, tagged or @'d in has to contain their `~ship`, which mentions and notifies them: "ping me in General" is a post in General that mentions them, and one without their `~ship` pings nobody.
 - Use `groups create-owned` to create a group for a user and make them an admin. Read the groups reference for the identity requirements.
-- Use `notes` for Markdown notebooks. Deprecated `%diary` management is unavailable through this tool; ask the owner to use `/migrate <diary-nest>` instead of attempting migration writes yourself.
+- Markdown notebooks: a new notebook for a workspace is a group channel (`channels create <group> "Title" --kind notes`), and a request in a group channel means that group unless the user names another; `notes create` makes a standalone notebook outside every workspace. Use `notes` to read and write notes. Deprecated `%diary` management is unavailable through this tool; ask the owner to use `/migrate <diary-nest>` instead of attempting migration writes yourself.
 - Do not use LaTeX delimiters in note bodies or messages; use plain text/Unicode or code blocks.
 - Report a concrete failure if the task could not be completed. Verify the requested state before claiming success. A pending or host-confirmed write needs status/readback, not an immediate duplicate write.
 
 ## When discovery fails
 
-If this skill or a linked reference is unavailable, `help` and command help still provide local syntax. Report a missing installation resource rather than inventing a path. A permission failure or unsupported command is not a reason to bypass the tool through a shell, raw API, or the hosted browser. If neither `tlon` nor `message` covers the request, tell the user your Tlon tools do not support it yet and, where the Tlon app offers it, that they can do it there.
+If this skill or a linked reference is unavailable, `help` and command help still provide local syntax. Report a missing installation resource rather than inventing a path. A permission failure or unsupported command is not a reason to bypass the tool through a shell, raw API, or the hosted browser. Never tell the user a Tlon command or capability does not exist without first running `help` and `help <command>`: the command index is authoritative and lists options these references omit. If neither `tlon` nor `message` covers the request, tell the user your Tlon tools do not support it yet and, where the Tlon app offers it, that they can do it there.

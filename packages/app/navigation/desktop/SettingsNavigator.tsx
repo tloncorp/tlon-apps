@@ -10,6 +10,8 @@ import { Platform } from 'react-native';
 
 import { SettingsDrawerParamList } from '../types';
 import { ScheduledTaskEditorScreen } from '../../features/automations/ScheduledTaskEditorScreen';
+import { ScheduledTaskRunScreen } from '../../features/automations/ScheduledTaskRunScreen';
+import { ScheduledTaskRunsScreen } from '../../features/automations/ScheduledTaskRunsScreen';
 import { ScheduledTasksScreen } from '../../features/automations/ScheduledTasksScreen';
 import { AppInfoScreen } from '../../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../../features/settings/BlockedUsersScreen';
@@ -35,6 +37,7 @@ import { ThemeScreen } from '../../features/settings/ThemeScreen';
 import { UserBugReportScreen } from '../../features/settings/UserBugReportScreen';
 import { SettingsEmptyState } from '../../features/top/DesktopEmptyStates';
 import { useSettingsRowLabels } from '../../features/settings/useSettingsRowLabels';
+import { useSettingsUsageLabels } from '../../features/settings/useSettingsUsageLabels';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
@@ -65,6 +68,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
       : isHostedUser && hostingBotEnabled;
   const focusedRoute = props.state.routes[props.state.index];
   const { themeLabel, notificationsLabel } = useSettingsRowLabels();
+  const { storageLabel, tokenUsageLabel } = useSettingsUsageLabels();
   const scheduledTasks = useScheduledTasksEntry({
     enabled: botEnabled,
     whileLoading: true,
@@ -140,6 +144,8 @@ function DrawerContent(props: DrawerContentComponentProps) {
       botEnabled={botEnabled}
       themeLabel={themeLabel}
       notificationsLabel={notificationsLabel}
+      storageLabel={storageLabel}
+      tokenUsageLabel={tokenUsageLabel}
     />
   );
 }
@@ -239,6 +245,14 @@ export const SettingsNavigator = () => {
       <SettingsDrawer.Screen
         name="ScheduledTaskEditor"
         component={ScheduledTaskEditorScreen}
+      />
+      <SettingsDrawer.Screen
+        name="ScheduledTaskRuns"
+        component={ScheduledTaskRunsScreen}
+      />
+      <SettingsDrawer.Screen
+        name="ScheduledTaskRun"
+        component={ScheduledTaskRunScreen}
       />
       <SettingsDrawer.Screen
         name="FeatureFlags"

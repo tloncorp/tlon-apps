@@ -7,9 +7,9 @@ import RNBranch
 import react_native_paste_input
 
 @main
-class AppDelegate: ExpoAppDelegate {
+class AppDelegate: ExpoAppDelegate, ExpoReactNativeFactoryProvider {
   var window: UIWindow?
-    
+
   var reactNativeDelegate: ReactNativeDelegate?
   var reactNativeFactory: RCTReactNativeFactory?
 
@@ -26,6 +26,8 @@ class AppDelegate: ExpoAppDelegate {
     #endif
 
     RNBranch.branch.checkPasteboardOnInstall()
+    // Under the scene life cycle the launch options carry no link; SceneDelegate
+    // passes a link that cold-starts the app to Branch.
     RNBranch.initSession(launchOptions: launchOptions, isReferrable: true)
 
     // Setup cookie storage forwarding
@@ -45,52 +47,13 @@ class AppDelegate: ExpoAppDelegate {
     reactNativeDelegate = delegate
     reactNativeFactory = factory
 
-    window = UIWindow(frame: UIScreen.main.bounds)
-
-    factory.startReactNative(
-      withModuleName: "main",
-      in: window,
-      launchOptions: launchOptions
-    )
-
-    // Must run after startReactNative, which is what populates the factory's
-    // rootViewFactory host that the paste module hooks into.
+    // The factory creates its rootViewFactory on init, and the patched paste
+    // module reads the React host from it only when an input mounts, so this
+    // can run before SceneDelegate starts React Native.
     PasteInputModule.setup(factory.rootViewFactory)
 
+    // SceneDelegate creates the window, starts React Native, and handles links.
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
-  }
-
-  // MARK: - Linking API
-  override func application(
-    _ application: UIApplication,
-    open url: URL,
-    options: [UIApplication.OpenURLOptionsKey : Any] = [:]
-  ) -> Bool {
-    if RNBranch.application(application, open: url, options: options) {
-      return true
-    }
-
-    return super.application(application, open: url, options: options) ||
-           RCTLinkingManager.application(application, open: url, options: options)
-  }
-
-  // MARK: - Universal Links
-  override func application(
-    _ application: UIApplication,
-    continue userActivity: NSUserActivity,
-    restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void
-  ) -> Bool {
-    if RNBranch.continue(userActivity) {
-      return true
-    }
-
-    let result = RCTLinkingManager.application(
-      application,
-      continue: userActivity,
-      restorationHandler: restorationHandler
-    )
-
-    return super.application(application, continue: userActivity, restorationHandler: restorationHandler) || result
   }
 
   // MARK: - Remote Notifications

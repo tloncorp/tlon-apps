@@ -11,8 +11,9 @@ module.exports = {
   preset: 'jest-expo',
   // react-native-worklets (pulled in by reanimated) only loads under jest with
   // its `.native` variants filtered out; without this its module registry
-  // blows up as soon as anything imports @tloncorp/ui.
-  resolver: 'react-native-worklets/jest/resolver',
+  // blows up as soon as anything imports @tloncorp/ui. Reanimated's resolver
+  // wraps worklets' and also keeps its own mock off the native initializers.
+  resolver: 'react-native-reanimated/jest/resolver',
   setupFiles: ['./src/test/jestSetup.tsx'],
   transform: {
     // from babel-jest-preset

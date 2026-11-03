@@ -39,7 +39,9 @@ const mocks = vi.hoisted(() => ({
   noop: vi.fn(),
 }));
 
-vi.mock('@tloncorp/api', () => ({}));
+vi.mock('@tloncorp/api', () => ({
+  findBareChannelPaths: () => [],
+}));
 vi.mock('@tloncorp/api/urbit', () => ({ getChannelType: () => 'notebook' }));
 vi.mock('@tloncorp/shared', async () => ({
   Attachment: (await import('@tloncorp/api/types/attachment')).Attachment,
@@ -50,6 +52,7 @@ vi.mock('@tloncorp/shared', async () => ({
   ALL_MENTION_ID: 'all',
   REF_REGEX: /NEVER_A_REFERENCE/,
   createDevLogger: () => ({ log: mocks.noop, error: mocks.noop }),
+  extractContentTypesFromPost: () => ({ blocks: [] }),
   getMd5: (uri: string) => uri,
   Transcription: {
     setupTranscriptionIfNeeded: async () => ({ canTranscribe: true }),
@@ -134,6 +137,7 @@ vi.mock('@tloncorp/ui', () => ({
   RawText: 'RawText',
   Text: 'Text',
   useGlobalSearch: () => ({ setIsOpen: mocks.noop }),
+  useToast: () => mocks.noop,
 }));
 vi.mock('react-native', () => ({
   Platform: {

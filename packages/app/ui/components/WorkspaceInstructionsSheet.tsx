@@ -10,6 +10,7 @@ import { Keyboard } from 'react-native';
 import { ScrollView, XStack, YStack } from 'tamagui';
 
 import { ActionSheet } from './ActionSheet';
+import { BotPromptHeader } from './BotPromptHeader';
 import { ControlledTextareaField } from './Form';
 import { NotebookContentRenderer } from './NotebookPost/NotebookPost';
 
@@ -188,38 +189,13 @@ export function WorkspaceInstructionsSheet({
           paddingBottom={isWindowNarrow ? 0 : '$m'}
         >
           <YStack gap={isWindowNarrow ? '$xl' : '$2xl'}>
-            <YStack
-              gap="$xs"
+            <BotPromptHeader
+              title="Instructions"
+              meta={bot ?? undefined}
+              description={`How your Tlonbot behaves in every channel of ${group.title || 'this group'}.`}
               paddingLeft="$xl"
               paddingRight={isWindowNarrow ? '$xl' : '$4xl'}
-            >
-              <XStack alignItems="baseline" gap="$l">
-                <Text
-                  size="$label/xl"
-                  fontWeight="600"
-                  color="$primaryText"
-                  flex={1}
-                  minWidth={0}
-                  numberOfLines={1}
-                >
-                  Instructions
-                </Text>
-                {bot ? (
-                  <Text
-                    size="$label/s"
-                    color="$tertiaryText"
-                    flexShrink={0}
-                    numberOfLines={1}
-                  >
-                    {bot}
-                  </Text>
-                ) : null}
-              </XStack>
-              <Text size="$label/m" color="$secondaryText">
-                How your Tlonbot behaves in every channel of{' '}
-                {group.title || 'this group'}.
-              </Text>
-            </YStack>
+            />
 
             <YStack>
               <XStack

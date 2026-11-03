@@ -2,7 +2,7 @@ import { Post } from '@tloncorp/shared/db';
 import { PostContent, convertContent } from '@tloncorp/shared/logic';
 import { ComponentProps, useMemo } from 'react';
 import React from 'react';
-import { YStack, isWeb, styled } from 'tamagui';
+import { YStack, styled } from 'tamagui';
 
 import { browserSessionLinkCard } from '../../../features/browser/browserSessionLinkCard';
 
@@ -65,6 +65,7 @@ function ContentRenderer({
   onPressImage,
   getImageViewerId,
   onLongPress,
+  canUseBrowserCards,
   onA2UIAction,
   isA2UIActionAvailable,
   isA2UIActionConsumed,
@@ -92,6 +93,7 @@ function ContentRenderer({
       onPressImage={onPressImage}
       getImageViewerId={getImageViewerId}
       onLongPress={onLongPress}
+      canUseBrowserCards={canUseBrowserCards}
       onA2UIAction={onA2UIAction}
       isA2UIActionAvailable={isA2UIActionAvailable}
       isA2UIActionConsumed={isA2UIActionConsumed}
@@ -112,9 +114,9 @@ function ContentRenderer({
             <BlockRenderer
               key={k}
               block={
-                isWeb || !renderBrowserSessionCards
-                  ? block
-                  : browserSessionLinkCard(block, `browser-link-${k}`)
+                renderBrowserSessionCards
+                  ? browserSessionLinkCard(block, `browser-link-${k}`)
+                  : block
               }
             />
           );

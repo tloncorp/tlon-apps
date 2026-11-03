@@ -14,7 +14,7 @@ Notes: `Notifications` and `Appearance` show their current choice under the name
 <!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/SettingsScreen.tsx, packages/app/navigation/desktop/SettingsNavigator.tsx, packages/app/features/settings/bot/BotSettingsSections.tsx, apps/tlon-web/src/logic/useMedia.ts -->
 
 Who: `Manage Tlon account` and `Tlon Messenger on the Web` are for accounts Tlon hosts, and neither shows in the desktop layout. A self-hosted node gets neither.
-Notes: with a hosted Tlonbot, the phone puts the bot's own rows (`Models`, `Connections`, `Permissions` and more) between `Your profile` and the rest. If the app can't use your hosted login just then, for example because it has expired, you get a single `Bot Settings` row instead, with a `Scheduled tasks` row under it when the app can show your bot's tasks. On desktop a hosted bot always gets the single `Bot Settings` row, which opens the bot's settings in a new browser tab. No hosted bot means no bot rows at all. Desktop also leaves out `Your profile`, `Contacts` and `Log out`. A browser window under 768 pixels wide gets the phone layout instead, which still has no `Log out`.
+Notes: with a hosted Tlonbot, the phone puts the bot's own rows (`Models`, `Connections`, `Permissions` and more) between `Your profile` and the rest. If the app can't use your hosted login just then, for example because it has expired, you get a single `Bot Settings` row instead, with a `Scheduled tasks` row under it when the app can show your bot's tasks, and a `Prompt files` row. On desktop a hosted bot always gets the single `Bot Settings` row, which opens the bot's settings in a new browser tab, and a `Prompt files` row. No hosted bot means no bot rows at all. Desktop also leaves out `Your profile`, `Contacts` and `Log out`. A browser window under 768 pixels wide gets the phone layout instead, which still has no `Log out`.
 
 ## Set my status from the Settings tab
 <!-- src: packages/app/features/settings/SettingsScreen.tsx, packages/app/ui/components/SettingsScreenView.tsx, packages/app/ui/components/ProfileStatusSheet.tsx -->
@@ -49,7 +49,7 @@ Notes: `Build version` is the app's build on this phone. The three `Desk` rows d
 <!-- src: packages/app/features/settings/AppInfoScreen.tsx, packages/app/constants.ts, packages/app/features/settings/PrivacyScreen.tsx -->
 
 Phone: Settings tab, then `App info`. Switch on `Enable Developer Logs` and tap `OK` on the `Debug mode enabled` notice. Close the app fully, reopen it and repeat the problem. Go back to `App info` and tap the "Upload logs" button, which shows a count. The logs go to Tlon's reporting service, and your mail app opens a message to support@tlon.io with your ID and app details already filled in; describe the problem and send it.
-Notes: the email does not contain the logs, and the upload may not go out if `Share Usage Statistics` is off, so describe the problem in the email too. Logs can slow the app, so switch them off afterwards. The button only appears once some logs have been captured. With no mail app, the screen shows the log ID so you can email it yourself.
+Notes: the email does not contain the logs, and the upload may not go out if `Share usage statistics` is off, so describe the problem in the email too. Logs can slow the app, so switch them off afterwards. The button only appears once some logs have been captured. With no mail app, the screen shows the log ID so you can email it yourself.
 
 ## Export the app's local database
 <!-- src: packages/app/features/settings/AppInfoScreen.tsx, packages/app/lib/downloadDb.native.ts, packages/app/lib/downloadDb.ts -->
@@ -62,7 +62,7 @@ Notes: the file is a copy of what the app keeps on this phone, named with the da
 <!-- src: packages/app/features/settings/PrivacyScreen.tsx, packages/app/ui/components/SettingsScreenView.tsx, packages/shared/src/store/settingsActions.ts, apps/tlon-mobile/src/screens/Onboarding/SetTelemetryScreen.tsx -->
 <!-- covers: route:PrivacySettings -->
 
-Phone: Settings tab, then `Privacy`. On the `Privacy Settings` screen, switch off `Share Usage Statistics`.
+Phone: Settings tab, then `Privacy`. On the `Privacy settings` screen, switch off `Share usage statistics`.
 Desktop: the gear in the left rail, then `Privacy`.
 Notes: the screen describes sharing as helping Tlon improve the app (`By sharing, you help us improve the app for everyone.`). The choice is saved to your node, not just to this device. Self-hosted logins on the phone are also asked once, right after connecting, on a `Usage Statistics` screen with an `Enable anonymous usage stats` switch.
 
@@ -77,7 +77,7 @@ Notes: while it's on, friends who already have your number can find you on Tlon 
 ## Hide nicknames or avatars
 <!-- src: packages/app/features/settings/PrivacyScreen.tsx -->
 
-Phone: Settings tab, then `Privacy`. Switch on `Hide Nicknames` to see real node names instead of the nicknames people chose. Switch on `Hide Avatars` to hide avatar images throughout the app.
+Phone: Settings tab, then `Privacy`. Switch on `Hide nicknames` to see real node names instead of the nicknames people chose. Switch on `Hide avatars` to hide avatar images throughout the app.
 Desktop: the gear in the left rail, then `Privacy`.
 Notes: these are your own viewing preferences. They don't change what other people see.
 
@@ -117,7 +117,7 @@ Notes: the screen says diagnostic information is attached automatically. What yo
 <!-- src: apps/tlon-mobile/src/hooks/usePoorUxShakeReport.tsx, apps/tlon-mobile/src/components/AuthenticatedApp.tsx, packages/app/features/settings/PrivacyScreen.tsx -->
 
 Phone: shake the phone a few times while the app is open. A `Report Poor UX` box appears. Type in the `What went wrong?` field and tap `Submit`, or tap `Cancel` to close it.
-Notes: phone only, and only once you're logged in. Submitting reports your note together with whether the app was syncing at that moment. Like usage reports, it may not be sent if `Share Usage Statistics` is off. If the box pops up by accident, tap `Cancel` or anywhere outside it.
+Notes: phone only, and only once you're logged in. Submitting reports your note together with whether the app was syncing at that moment. Like usage reports, it may not be sent if `Share usage statistics` is off. If the box pops up by accident, tap `Cancel` or anywhere outside it.
 
 ## Email Tlon support from the app
 <!-- src: packages/app/ui/components/EmailSupportLink.tsx, packages/app/constants.ts, apps/tlon-mobile/src/screens/Onboarding/GettingNodeReadyScreen.tsx, apps/tlon-mobile/src/screens/Onboarding/UnderMaintenance.tsx, packages/app/features/DeskOutdatedScreen.tsx, apps/tlon-mobile/src/App.main.tsx, packages/app/ui/components/SettingsScreenView.tsx -->
@@ -129,17 +129,10 @@ Notes: if the phone has no mail app, the links show `No mail app found` with the
 <!-- src: packages/app/features/settings/FeatureFlagScreen.tsx, packages/app/ui/components/FeatureFlagScreenView.tsx, packages/app/lib/featureFlags.ts, packages/app/ui/components/SettingsScreenView.tsx -->
 <!-- covers: route:FeatureFlags -->
 
-Phone: Settings tab, then `Experimental features`. Flip the switch beside the one you want: `Performance reporting`, `Buckets channels` or `Markdown notebooks`. Below the switches are two text boxes, `Context lens gateway URL` and `Context lens gateway token`.
+Phone: Settings tab, then `Experimental features`. Flip the switch beside the one you want: `Buckets channels` or `Markdown notebooks`. Below the switches are two text boxes, `Context lens gateway URL` and `Context lens gateway token`.
 Desktop: the gear in the left rail, then `Experimental features`.
 Who: everyone can open the screen. `Markdown notebooks` is only listed for Tlon staff.
 Notes: every switch starts off. They are saved on the device you set them on, not to your node, so set them again on each device.
-
-## Turn performance data reporting on or off
-<!-- src: packages/app/lib/featureFlags.ts, packages/app/utils/perf.tsx, apps/tlon-mobile/src/App.main.tsx, packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/PrivacyScreen.tsx -->
-<!-- covers: flag:instrumentationEnabled -->
-
-Phone: Settings tab, then `Experimental features`, then the switch `Performance reporting`.
-Notes: it starts off. While it's on, the phone app measures how long things take and reports those measurements. It is separate from `Share Usage Statistics` on the Privacy screen. The switch is also listed on desktop, but only the phone app collects this data.
 
 ## Log out
 <!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/hooks/useHandleLogout.native.ts -->
@@ -184,7 +177,7 @@ Notes: `Confirmation code is incorrect or expired.` means ask for a new one. `Mu
 ## What sign-up asks after the code
 <!-- src: apps/tlon-mobile/src/screens/Onboarding/SetNicknameScreen.tsx, apps/tlon-mobile/src/screens/Onboarding/SetNotificationsScreen.tsx, apps/tlon-mobile/src/screens/Onboarding/AllowNotificationsScreen.tsx, apps/tlon-mobile/src/screens/Onboarding/ReserveShipScreen.tsx -->
 
-Phone: three short steps. `Nickname`: type the name people will see (30 characters at most) and tap `Next`. `Notifications`: pick how much you want to be notified and tap `Next`, then tap `Next` once more and choose Allow when the phone asks. Then a `We're setting you up` screen works through `Preparing your Tlon computer`, `Connecting to the network` and `Setting up your Tlonbot`, and ends on `Setup complete!`.
+Phone: three short steps. `Nickname`: type the name people will see (30 characters at most) and tap `Next`. `Notifications`: pick how much you want to be notified and tap `Next`, then tap `Next` once more and choose Allow when the phone asks. Then a `Setting up` screen works through `Preparing your Tlon computer`, `Connecting to the network` and `Setting up your Tlonbot`.
 Notes: you can't go back during these steps. The notifications screen says you can change that choice any time; it lives under `Notifications` in Settings afterwards.
 
 ## Sign-up sent me to a waitlist
@@ -304,4 +297,4 @@ Notes: there is nothing to download or install. No yellow button means the app h
 <!-- src: packages/shared/src/store/storage/storageUtils.ts, packages/app/ui/components/Form/inputs.tsx -->
 <!-- absent: S3 endpoint, secret access key -->
 
-Notes: Tlon Messenger has no screen for storage settings, on the phone or on desktop. It uses whatever storage your node already has set up: Tlon's on a hosted account, or your own S3-compatible storage if that was configured on the node outside the app. When the node has no storage at all, image pickers such as the one for a group's icon are greyed out and read `Storage not configured`.
+Notes: Tlon Messenger has no screen for storage settings, on the phone or on desktop. It uses whatever storage your node already has set up: Tlon's on a hosted account, or your own S3-compatible storage if that was configured on the node outside the app. When the node has no storage at all, picking a photo for a group's icon or your avatar shows `Please configure storage settings to upload images` instead.

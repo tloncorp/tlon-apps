@@ -2,7 +2,7 @@
 // Browser handoff capabilities are redacted before serialization. To fit the
 // budget, drop empty padding, clamp individual values, then describe the shape.
 
-import { redactBrowserHandoffCommand } from './tlon-tool-command.js';
+import { redactTlonCommand } from './tlon-tool-command.js';
 
 export const MAX_TOOL_PARAM_DETAIL_CHARS = 2000;
 // Values longer than this are elided individually. Generous enough to keep the
@@ -124,7 +124,7 @@ export function detailToolParams(params: unknown): string | undefined {
   if (isPlainRecord(params) && typeof params.command === 'string') {
     params = {
       ...params,
-      command: redactBrowserHandoffCommand(params.command),
+      command: redactTlonCommand(params.command),
     };
   }
 

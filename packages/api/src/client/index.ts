@@ -12,6 +12,7 @@ export * from './workspaceConfig';
 export * from './landscapeApi';
 export * from './notesApi';
 export * from './postsApi';
+export * from './references';
 export * from './urbit';
 export * from './initApi';
 export * from './upload';
@@ -60,6 +61,8 @@ export {
   markUserTlonbotEnabled,
   checkNodeIsTlonbotReady,
   // Tlawn (bot) endpoints
+  getTlawnBrowserService,
+  setTlawnBrowserService,
   getTlawnProviderKeys,
   setTlawnProviderKey,
   deleteTlawnProviderKey,
@@ -71,6 +74,7 @@ export {
   getTlawnOAuthProviders,
   getTlawnOAuthStatus,
   getTlawnLLMAuthStatus,
+  getTlawnTokenUsage,
   startTlawnLLMAuth,
   getTlawnLLMAuthFlow,
   completeTlawnLLMAuth,
@@ -102,6 +106,8 @@ export type {
   TlawnProviderConfigInfo,
   TlawnModelEntry,
   TlawnPrimaryModelUpdate,
+  TlawnBrowserService,
+  TlawnBrowserServiceInfo,
   TlawnBotInfo,
   TlawnChannelGroupEntry,
   TlawnChannelGroups,
@@ -126,6 +132,8 @@ export type {
   TlawnLLMAuthProviderStatus,
   TlawnLLMAuthStatus,
   TlawnSubscriptionModel,
+  TlawnTokenUsage,
+  TlawnTokenUsageTotals,
 } from '../types/hosting';
 export * from './apiUtils';
 export * from './metagrabApi';

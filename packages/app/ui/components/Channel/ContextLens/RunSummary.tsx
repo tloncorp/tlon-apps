@@ -5,13 +5,10 @@ import { SizableText, View, XStack, YStack } from 'tamagui';
 import {
   TONE_COLORS,
   canRetryLens,
-  formatDuration,
   formatWallTime,
-  runKindLabel,
+  runMetrics,
   statusLabel,
   statusTone,
-  summarizeContext,
-  summarizeWrites,
 } from './format';
 import { Metric } from './primitives';
 import { type ContextLens } from './types';
@@ -82,37 +79,24 @@ export function RunSummary({
         </SizableText>
       </XStack>
 
-      <YStack gap="$s">
-        <Metric label="Context" value={summarizeContext(lens)} />
-        <Metric label="Run" value={runKindLabel(lens)} />
-        <Metric
-          label="Tools"
-          value={
-            lens.tools.callCount
-              ? `${lens.tools.callCount} / ${lens.tools.called.join(', ')}`
-              : 'none'
-          }
-        />
-        <Metric label="Writes" value={summarizeWrites(lens)} />
-        <Metric
-          label="Model"
-          value={
-            lens.provider || lens.model
-              ? [lens.provider, lens.model].filter(Boolean).join(' / ')
-              : 'pending'
-          }
-        />
-        <Metric
-          label="Runtime"
-          value={formatDuration(lens.lifecycle.durationMs)}
-        />
-      </YStack>
+      <RunMetrics lens={lens} />
 
       {lens.error ? (
         <SizableText size="$s" color="$negativeActionText">
           {lens.error}
         </SizableText>
       ) : null}
+    </YStack>
+  );
+}
+
+/** What a run took in and did: context, tools, writes, model, runtime. */
+export function RunMetrics({ lens }: { lens: ContextLens }) {
+  return (
+    <YStack gap="$s">
+      {runMetrics(lens).map((metric) => (
+        <Metric key={metric.label} label={metric.label} value={metric.value} />
+      ))}
     </YStack>
   );
 }

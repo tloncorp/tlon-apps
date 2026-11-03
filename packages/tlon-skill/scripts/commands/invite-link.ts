@@ -4,6 +4,7 @@ import {
   commandError,
   handleExpectedCommandError,
   isHelpArg,
+  isNotFoundError,
   usageError,
   writeHelp,
   writeLine,
@@ -26,13 +27,12 @@ service if the group has none yet. Prints exactly one line on success: the
 canonical invite URL (https://invite.tlon.io/<token>).
 
 The link is retrieved as whichever ship the current credentials resolve to,
-and that ship becomes the inviter of record. Bot harnesses run this command
-as the owner by default, so recipients onboard attributed to the owner rather
-than the bot.
+and that ship becomes the inviter of record. Bot harnesses that act for an
+owner run this as the owner, so invitees onboard attributed to the owner.
 
 Options:
-  --self         Use the current credentials (the default; meaningful under
-                 bot harnesses, which otherwise act as the owner)
+  --self         Use the current credentials (the CLI default; under a bot
+                 harness, selects the bot)
   -h, --help     Show this help
 
 Private/secret groups require the acting ship to be the host or an admin — a
@@ -92,7 +92,7 @@ export function parseInviteLinkArgs(args: string[]): ParsedInviteLinkArgs {
   return { kind: 'run', flag, self };
 }
 
-function withSig(ship: string): string {
+export function withSig(ship: string): string {
   return ship.startsWith('~') ? ship : `~${ship}`;
 }
 
@@ -114,17 +114,6 @@ function classifyTokenUrl(rawUrl: string): TokenState {
   const ship = segments.pop();
   if (token && ship && ship.startsWith('~')) return 'legacy';
   return 'in-flight';
-}
-
-// The API wrapper folds HTTP failures into BadResponseError; only a real 404
-// from the group scry means the ship is not a member. Statusless (fetch-level)
-// and 5xx failures must surface as transport/API errors, never as membership.
-function isMembershipFailure(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    error.name === 'BadResponseError' &&
-    (error as { status?: unknown }).status === 404
-  );
 }
 
 function assertCanInvite(
@@ -225,7 +214,8 @@ export async function run(
     try {
       rawGroup = await deps.scryRawGroup(parsed.flag);
     } catch (error) {
-      if (isMembershipFailure(error)) {
+      // Only a real 404 from the group scry means the ship is not a member.
+      if (isNotFoundError(error)) {
         throw commandError(
           `${withSig(actingShip)} is not a member of ${parsed.flag}`
         );

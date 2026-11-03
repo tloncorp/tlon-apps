@@ -29,6 +29,7 @@ Unsandboxed because `gh auth status` cannot reach the keyring inside a shell san
 | `stim skill` | `stim` skill in `~/.agents/skills` or this repo | `npx skills add appandflow/stim -g -y` |
 | `agent-device` | installed, 0.21.13 or newer (the loop was last verified with agent-device 0.21.14 and stim 1.10.0; older pairs lost Fast Refresh and broke the session lease); a note when npm has a newer one | `npm install -g agent-device` |
 | `agent-device skill` | `agent-device` skill in `~/.agents/skills` or this repo | `npx skills add callstack/agent-device -g -y` |
+| `xcode` | `xcodebuild -version` succeeds, so iOS builds on this machine; without it (Linux, or Command Line Tools only) a note that `stim ios` takes `--eas-profile development-simulator` | nothing |
 | `ship login` | `DEFAULT_SHIP_LOGIN_URL` + `DEFAULT_SHIP_LOGIN_ACCESS_CODE`, or `DEFAULT_TLON_LOGIN_EMAIL` + `DEFAULT_TLON_LOGIN_PASSWORD`, in the source checkout's `apps/tlon-mobile/.env.local` | nothing; they are credentials (see the tlon-workflow skill, Sign in) |
 | `stim doctor` | no `cost` finding in `apps/tlon-mobile`; one is a note with its fix, since it slows builds without blocking them | nothing; prints each finding and its fix |
 

@@ -54,14 +54,13 @@ test('should customize group name, icon, and description', async ({
     // Test image upload functionality
     await helpers.changeGroupIcon(page); // This will test the upload interface
 
-    // Wait deterministically for the upload to complete: the ImageInput
-    // preview src switches from a local/file URI to the S3 remoteUri once
+    // Wait deterministically for the upload to complete: the icon's src
+    // switches from a local/file URI to the S3 remoteUri once
     // attachment.uploadState.status === 'success'. The testID lives on the
-    // preview frame (Tamagui Image does not surface testID as a DOM
-    // attribute), so poll the inner img — same pattern as the GroupIcon
-    // assertion below.
+    // icon's button, so poll the image inside it (the camera badge beside
+    // it is not an img).
     await expect(
-      page.getByTestId('ImageInputPreview').getByRole('img').last()
+      page.getByTestId('ImageInputPreview').locator('img').first()
     ).toHaveAttribute('src', /^https?:\/\//, { timeout: 45000 });
 
     // press the save button

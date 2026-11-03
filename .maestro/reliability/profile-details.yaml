@@ -10,7 +10,7 @@ onFlowComplete:
       commands:
         - runFlow:
             when:
-              notVisible: '^Edit Profile$'
+              notVisible: '^Edit profile$'
             commands:
               - launchApp
               - runFlow: subflows/contacts-screen.yaml

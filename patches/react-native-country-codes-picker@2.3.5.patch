@@ -1,5 +1,5 @@
 diff --git a/index.tsx b/index.tsx
-index 6464ae12194d6ed49d2e1a3fe201490178c49cb2..052bdd97615e27a17da23b1ceafdf6e4a19a657a 100644
+index 6464ae12194d6ed49d2e1a3fe201490178c49cb2..2a9abc45cdc5dcc293ef73909df2d7eccbe53906 100644
 --- a/index.tsx
 +++ b/index.tsx
 @@ -58,8 +58,8 @@ interface Props {
@@ -23,7 +23,17 @@ index 6464ae12194d6ed49d2e1a3fe201490178c49cb2..052bdd97615e27a17da23b1ceafdf6e4
                              value={searchValue}
                              onChangeText={setSearchValue}
                              placeholder={inputPlaceholder || 'Search your country'}
-@@ -339,8 +340,8 @@ interface CountryListProps {
+@@ -312,7 +313,8 @@ export const CountryPicker = ({
+                                         typeof pickerButtonOnPress === 'function' && pickerButtonOnPress(item);
+                                     }}
+                                 />
+-                                : null
++                                // Patched -- React Native 0.88's strict types reject a null list header.
++                                : undefined
+                             }
+                             {...rest}
+                         />
+@@ -339,8 +341,8 @@ interface CountryListProps {
      popularCountries?: string[],
      showOnly?: string[],
  

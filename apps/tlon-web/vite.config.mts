@@ -263,6 +263,12 @@ export default ({ mode }: { mode: string }) => {
     // `platform`" at boot.
     define: {
       'process.env.EXPO_OS': JSON.stringify('web'),
+      // Explicit local-build opt-in. Empty in ordinary production builds.
+      'process.env.TLON_BROWSER_VIEWER_DEV_ORIGIN': JSON.stringify(
+        process.env.TLON_BROWSER_VIEWER_DEV_ORIGIN ??
+          process.env.VITE_BROWSER_VIEWER_DEV_ORIGIN ??
+          ''
+      ),
       // Nothing else reaches the browser through process.env -- envPrefix only
       // exposes VITE_* via import.meta.env -- so without this the storage
       // broker override is inert on web and uploads silently go to production

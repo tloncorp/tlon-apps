@@ -250,7 +250,9 @@ export function ContactBook({
       ) : (
         <View flex={1} onTouchStart={Keyboard.dismiss}>
           <List
-            ListHeaderComponent={!showSearchResults ? quickActions : null}
+            ListHeaderComponent={
+              !showSearchResults ? (quickActions ?? undefined) : undefined
+            }
             ListEmptyComponent={
               showSearchResults ? (
                 <ListEmptyState

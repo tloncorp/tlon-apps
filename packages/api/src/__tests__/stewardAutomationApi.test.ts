@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import {
   DeskUnsupportedError,
   getDeskSupportsAutomationsState,
+  getDeskSupportsTaskRunsState,
   requestJson,
   scry,
   subscribe,
@@ -19,6 +20,7 @@ import {
   newAutomationRequestId,
   scryAutomations,
   subscribeToAutomations,
+  testAutomation,
   updateAutomation,
 } from '../client/stewardAutomationApi';
 
@@ -27,6 +29,7 @@ vi.mock('../client/urbit', async (importOriginal) => ({
     await importOriginal<typeof import('../client/urbit')>()
   ).DeskUnsupportedError,
   getDeskSupportsAutomationsState: vi.fn(),
+  getDeskSupportsTaskRunsState: vi.fn(),
   requestJson: vi.fn(),
   scry: vi.fn(),
   subscribe: vi.fn().mockResolvedValue(7),
@@ -48,6 +51,7 @@ beforeEach(() => {
   vi.mocked(scry).mockReset();
   vi.mocked(subscribe).mockClear();
   vi.mocked(getDeskSupportsAutomationsState).mockReturnValue(true);
+  vi.mocked(getDeskSupportsTaskRunsState).mockReturnValue(true);
 });
 
 describe('createAutomation', () => {
@@ -186,6 +190,47 @@ describe('updateAutomation and deleteAutomation', () => {
       { bot, action: { delete: { id: 'job-1' } } },
       { reauthStatuses: [401] }
     );
+  });
+});
+
+describe('testAutomation', () => {
+  test('asks for a test run and resolves with the lens run recording it', async () => {
+    vi.mocked(requestJson).mockResolvedValue({
+      requestId,
+      body: { type: 'started', id: 'job-1', lensId: 'lens-1' },
+    });
+
+    await expect(testAutomation({ bot, id: 'job-1' })).resolves.toEqual({
+      requestId,
+      id: 'job-1',
+      lensId: 'lens-1',
+    });
+    expect(requestJson).toHaveBeenCalledWith(
+      '/steward/~/v1/automation',
+      'POST',
+      { bot, action: { test: { id: 'job-1' } } },
+      { reauthStatuses: [401] }
+    );
+  });
+
+  test('passes the typed refusal of a bot that cannot test through', async () => {
+    vi.mocked(requestJson).mockResolvedValue({
+      requestId,
+      body: { type: 'error', errorType: 'invalid', message: ['no tests'] },
+    });
+
+    await expect(testAutomation({ bot, id: 'job-1' })).rejects.toMatchObject({
+      errorType: 'invalid',
+    });
+  });
+
+  test('is refused before sending on a desk without test runs', () => {
+    vi.mocked(getDeskSupportsTaskRunsState).mockReturnValue(false);
+
+    expect(() => testAutomation({ bot, id: 'job-1' })).toThrow(
+      DeskUnsupportedError
+    );
+    expect(requestJson).not.toHaveBeenCalled();
   });
 });
 

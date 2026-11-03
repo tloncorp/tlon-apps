@@ -1,6 +1,9 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 import type { ResolvedAgentRoute } from 'openclaw/plugin-sdk/routing';
-import { describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import {
   type TlonInboundRouteInput,
@@ -18,8 +21,8 @@ function makeRoute(
     agentId: 'default',
     channel: 'tlon',
     accountId: 'default',
-    sessionKey: 'tlon:main',
-    mainSessionKey: 'tlon:main',
+    sessionKey: 'agent:default:main',
+    mainSessionKey: 'agent:default:main',
     lastRoutePolicy: 'main',
     matchedBy: 'default',
     ...overrides,
@@ -49,7 +52,7 @@ function groupInput(
     cfg: cfgWithDmScope('main'),
     // group peers resolve to a session-specific route, not the main session
     route: makeRoute({
-      sessionKey: 'tlon:group:chat/~host/general',
+      sessionKey: 'agent:default:tlon:group:chat/~host/general',
       lastRoutePolicy: 'session',
     }),
     isGroup: true,
@@ -58,6 +61,18 @@ function groupInput(
     ...overrides,
   };
 }
+
+let stateDir: string;
+
+beforeAll(() => {
+  stateDir = mkdtempSync(join(tmpdir(), 'tlon-route-unit-'));
+  vi.stubEnv('OPENCLAW_STATE_DIR', stateDir);
+});
+
+afterAll(() => {
+  vi.unstubAllEnvs();
+  rmSync(stateDir, { recursive: true, force: true });
+});
 
 describe('buildTlonInboundRouteRecord — DM', () => {
   it('records channel tlon, provider-qualified to, and no thread id', () => {
@@ -88,17 +103,17 @@ describe('buildTlonInboundRouteRecord — DM', () => {
     const r = buildTlonInboundRouteRecord(
       dmInput({
         route: makeRoute({
-          sessionKey: 'tlon:peer',
-          mainSessionKey: 'tlon:main',
+          sessionKey: 'agent:default:tlon:peer',
+          mainSessionKey: 'agent:default:main',
           lastRoutePolicy: 'main',
         }),
-        ctxSessionKey: 'tlon:ctx',
+        ctxSessionKey: 'agent:default:tlon:ctx',
       })
     );
     // policy 'main' => last-route key collapses to mainSessionKey
-    expect(r.lastRouteSessionKey).toBe('tlon:main');
-    expect(r.recordSessionKey).toBe('tlon:ctx');
-    expect(r.updateLastRoute?.sessionKey).toBe('tlon:main');
+    expect(r.lastRouteSessionKey).toBe('agent:default:main');
+    expect(r.recordSessionKey).toBe('agent:default:tlon:ctx');
+    expect(r.updateLastRoute?.sessionKey).toBe('agent:default:main');
   });
 });
 
@@ -150,8 +165,8 @@ describe('buildTlonInboundRouteRecord — DM main-session pinning', () => {
       dmInput({
         cfg: cfgWithDmScope('per-channel-peer'),
         route: makeRoute({
-          sessionKey: 'tlon:peer:~nec',
-          mainSessionKey: 'tlon:main',
+          sessionKey: 'agent:default:tlon:peer:~nec',
+          mainSessionKey: 'agent:default:main',
           lastRoutePolicy: 'session',
         }),
         senderShip: '~nec',
@@ -159,7 +174,7 @@ describe('buildTlonInboundRouteRecord — DM main-session pinning', () => {
       })
     );
     expect(r.updateLastRoute).toBeDefined();
-    expect(r.updateLastRoute?.sessionKey).toBe('tlon:peer:~nec');
+    expect(r.updateLastRoute?.sessionKey).toBe('agent:default:tlon:peer:~nec');
     expect(r.updateLastRoute?.mainDmOwnerPin).toBeUndefined();
   });
 });
@@ -169,7 +184,9 @@ describe('buildTlonInboundRouteRecord — group/channel', () => {
     const r = buildTlonInboundRouteRecord(groupInput());
     expect(r.target).toBe('tlon:chat/~host/general');
     expect(r.updateLastRoute?.to).toBe('tlon:chat/~host/general');
-    expect(r.updateLastRoute?.sessionKey).toBe('tlon:group:chat/~host/general');
+    expect(r.updateLastRoute?.sessionKey).toBe(
+      'agent:default:tlon:group:chat/~host/general'
+    );
   });
 
   it('records group thread id from deliverParentId ?? parentId', () => {
@@ -190,8 +207,8 @@ describe('buildTlonInboundRouteRecord — group/channel', () => {
     const r = buildTlonInboundRouteRecord(
       groupInput({
         route: makeRoute({
-          sessionKey: 'tlon:main',
-          mainSessionKey: 'tlon:main',
+          sessionKey: 'agent:default:main',
+          mainSessionKey: 'agent:default:main',
           lastRoutePolicy: 'main',
         }),
       })
@@ -259,8 +276,8 @@ describe('prepareTlonRouteUpdate', () => {
     const record = buildTlonInboundRouteRecord(
       groupInput({
         route: makeRoute({
-          sessionKey: 'tlon:main',
-          mainSessionKey: 'tlon:main',
+          sessionKey: 'agent:default:main',
+          mainSessionKey: 'agent:default:main',
           lastRoutePolicy: 'main',
         }),
       })
@@ -320,7 +337,7 @@ describe('recordTlonRouteAndDispatch (monitor boundary)', () => {
     const recordInboundSession = vi.fn().mockImplementation(async () => {
       order.push('record');
     });
-    const resolveStorePath = vi.fn().mockReturnValue('/tmp/store.json');
+    const resolveStorePath = vi.fn().mockReturnValue('');
     return { order, recordInboundSession, resolveStorePath };
   }
 
@@ -335,8 +352,8 @@ describe('recordTlonRouteAndDispatch (monitor boundary)', () => {
       session: { recordInboundSession, resolveStorePath },
       cfg: cfgWithDmScope('main'),
       route: makeRoute(),
-      ctxPayload: { SessionKey: 'tlon:main' } as never,
-      ctxSessionKey: 'tlon:main',
+      ctxPayload: { SessionKey: 'agent:default:main' } as never,
+      ctxSessionKey: 'agent:default:main',
       isGroup: false,
       senderShip: '~zod',
       dispatch,
@@ -360,11 +377,13 @@ describe('recordTlonRouteAndDispatch (monitor boundary)', () => {
       session: { recordInboundSession, resolveStorePath },
       cfg: cfgWithDmScope('main'),
       route: makeRoute({
-        sessionKey: 'tlon:group:chat/~host/general',
+        sessionKey: 'agent:default:tlon:group:chat/~host/general',
         lastRoutePolicy: 'session',
       }),
-      ctxPayload: { SessionKey: 'tlon:group:chat/~host/general' } as never,
-      ctxSessionKey: 'tlon:group:chat/~host/general',
+      ctxPayload: {
+        SessionKey: 'agent:default:tlon:group:chat/~host/general',
+      } as never,
+      ctxSessionKey: 'agent:default:tlon:group:chat/~host/general',
       isGroup: true,
       groupChannel: 'chat/~host/general',
       senderShip: '~nec',
@@ -384,12 +403,12 @@ describe('recordTlonRouteAndDispatch (monitor boundary)', () => {
       session: { recordInboundSession, resolveStorePath },
       cfg: cfgWithDmScope('main'),
       route: makeRoute({
-        sessionKey: 'tlon:peer',
-        mainSessionKey: 'tlon:main',
+        sessionKey: 'agent:default:tlon:peer',
+        mainSessionKey: 'agent:default:main',
         lastRoutePolicy: 'main',
       }),
-      ctxPayload: { SessionKey: 'tlon:ctx' } as never,
-      ctxSessionKey: 'tlon:ctx',
+      ctxPayload: { SessionKey: 'agent:default:tlon:ctx' } as never,
+      ctxSessionKey: 'agent:default:tlon:ctx',
       isGroup: false,
       senderShip: '~zod',
       dispatch: async () => undefined,
@@ -397,8 +416,8 @@ describe('recordTlonRouteAndDispatch (monitor boundary)', () => {
 
     expect(recordInboundSession).toHaveBeenCalledTimes(1);
     const arg = recordInboundSession.mock.calls[0][0];
-    expect(arg.sessionKey).toBe('tlon:ctx');
-    expect(arg.updateLastRoute.sessionKey).toBe('tlon:main');
+    expect(arg.sessionKey).toBe('agent:default:tlon:ctx');
+    expect(arg.updateLastRoute.sessionKey).toBe('agent:default:main');
     expect(arg.updateLastRoute.to).toBe('tlon:~zod');
   });
 
@@ -411,7 +430,7 @@ describe('recordTlonRouteAndDispatch (monitor boundary)', () => {
       cfg: cfgWithDmScope('main'),
       route: makeRoute(),
       ctxPayload: {} as never,
-      ctxSessionKey: 'tlon:main',
+      ctxSessionKey: 'agent:default:main',
       isGroup: false,
       senderShip: '~zod',
       onRecord,
@@ -424,7 +443,7 @@ describe('recordTlonRouteAndDispatch (monitor boundary)', () => {
 
   it('still dispatches when recording fails (fail open)', async () => {
     const recordInboundSession = vi.fn().mockRejectedValue(new Error('boom'));
-    const resolveStorePath = vi.fn().mockReturnValue('/tmp/store.json');
+    const resolveStorePath = vi.fn().mockReturnValue('');
     const dispatch = vi.fn().mockResolvedValue('ok');
     const logError = vi.fn();
 
@@ -433,7 +452,7 @@ describe('recordTlonRouteAndDispatch (monitor boundary)', () => {
       cfg: cfgWithDmScope('main'),
       route: makeRoute(),
       ctxPayload: {} as never,
-      ctxSessionKey: 'tlon:main',
+      ctxSessionKey: 'agent:default:main',
       isGroup: false,
       senderShip: '~zod',
       logError,
@@ -458,7 +477,7 @@ describe('recordTlonRouteAndDispatch (monitor boundary)', () => {
       cfg: cfgWithDmScope('main'),
       route: makeRoute(),
       ctxPayload: {} as never,
-      ctxSessionKey: 'tlon:main',
+      ctxSessionKey: 'agent:default:main',
       isGroup: false,
       senderShip: '~zod',
       logError,
@@ -484,8 +503,8 @@ describe('recordTlonRouteAndDispatch (monitor boundary)', () => {
       session: { recordInboundSession, resolveStorePath },
       cfg: cfgWithDmScope('main'),
       route: makeRoute(),
-      ctxPayload: { SessionKey: 'tlon:main' } as never,
-      ctxSessionKey: 'tlon:main',
+      ctxPayload: { SessionKey: 'agent:default:main' } as never,
+      ctxSessionKey: 'agent:default:main',
       isGroup: false,
       senderShip: '~zod',
       onRecord: () => {
@@ -517,12 +536,12 @@ describe('recordTlonRouteAndDispatch (monitor boundary)', () => {
       session: { recordInboundSession, resolveStorePath },
       cfg: cfgWithDmScope('main'),
       route: makeRoute({
-        sessionKey: 'tlon:main',
-        mainSessionKey: 'tlon:main',
+        sessionKey: 'agent:default:main',
+        mainSessionKey: 'agent:default:main',
         lastRoutePolicy: 'main',
       }),
-      ctxPayload: { SessionKey: 'tlon:main' } as never,
-      ctxSessionKey: 'tlon:main',
+      ctxPayload: { SessionKey: 'agent:default:main' } as never,
+      ctxSessionKey: 'agent:default:main',
       isGroup: true,
       groupChannel: 'chat/~host/general',
       senderShip: '~nec',
@@ -550,7 +569,7 @@ describe('recordTlonRouteAndDispatch (monitor boundary)', () => {
       cfg: cfgWithDmScope('main'),
       route: makeRoute(),
       ctxPayload: {} as never,
-      ctxSessionKey: 'tlon:main',
+      ctxSessionKey: 'agent:default:main',
       isGroup: false,
       senderShip: '~zod',
       logError,
@@ -563,7 +582,7 @@ describe('recordTlonRouteAndDispatch (monitor boundary)', () => {
   });
 
   it('still dispatches when onRecordError fires and the meta task rejects', async () => {
-    const resolveStorePath = vi.fn().mockReturnValue('/tmp/store.json');
+    const resolveStorePath = vi.fn().mockReturnValue('');
     // Simulate the SDK recorder invoking the forwarded onRecordError and
     // handing trackSessionMetaTask a rejected promise (the backstop must catch
     // it so it never becomes an unhandled rejection or aborts dispatch).
@@ -582,8 +601,8 @@ describe('recordTlonRouteAndDispatch (monitor boundary)', () => {
       session: { recordInboundSession, resolveStorePath },
       cfg: cfgWithDmScope('main'),
       route: makeRoute(),
-      ctxPayload: { SessionKey: 'tlon:main' } as never,
-      ctxSessionKey: 'tlon:main',
+      ctxPayload: { SessionKey: 'agent:default:main' } as never,
+      ctxSessionKey: 'agent:default:main',
       isGroup: false,
       senderShip: '~zod',
       logError,
@@ -614,8 +633,8 @@ describe('recordTlonRouteAndDispatch (monitor boundary)', () => {
       session: { recordInboundSession, resolveStorePath },
       cfg: cfgWithDmScope('main'),
       route: makeRoute(),
-      ctxPayload: { SessionKey: 'tlon:main' } as never,
-      ctxSessionKey: 'tlon:main',
+      ctxPayload: { SessionKey: 'agent:default:main' } as never,
+      ctxSessionKey: 'agent:default:main',
       isGroup: false,
       senderShip: '~zod',
       logDebug,

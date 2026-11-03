@@ -25,6 +25,37 @@ describe('nudge-scheduler', () => {
     scheduler.stop();
   });
 
+  it('with immediate: false, first ticks one interval after start', async () => {
+    const tick = vi.fn().mockResolvedValue(undefined);
+    const scheduler = createNudgeScheduler({
+      tick,
+      intervalMs: 5_000,
+      immediate: false,
+    });
+
+    scheduler.start();
+    await vi.advanceTimersByTimeAsync(4_999);
+    expect(tick).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(tick).toHaveBeenCalledTimes(1);
+    scheduler.stop();
+  });
+
+  it('names the scheduler label in tick-failure logs', async () => {
+    const errorLog = vi.fn();
+    const scheduler = createNudgeScheduler({
+      tick: vi.fn().mockRejectedValue(new Error('boom')),
+      label: 'settings refresh',
+      error: errorLog,
+    });
+
+    await scheduler.tickNow();
+    expect(errorLog).toHaveBeenCalledWith(
+      '[tlon] settings refresh tick failed: Error: boom'
+    );
+  });
+
   it('fires subsequent ticks on the configured interval', async () => {
     const tick = vi.fn().mockResolvedValue(undefined);
     const scheduler = createNudgeScheduler({ tick, intervalMs: 5_000 });

@@ -83,6 +83,42 @@ describe('desksMatch', () => {
     expect(desksMatch(stagingRoot, targetRoot)).toBe(false);
   });
 
+  const docket = (globLine: string, version = '[12 5 0]') =>
+    [
+      ":~  title+'Tlon'",
+      globLine,
+      "    base+'groups'",
+      `    version+${version}`,
+      '==',
+      '',
+    ].join('\n');
+  const globA =
+    "    glob-http+['https://bootstrap.urbit.org/glob-0v1.aaaaa.bbbbb.glob' 0v1.aaaaa.bbbbb]";
+  const globB =
+    "    glob-http+['https://bootstrap.urbit.org/glob-0v5.ccccc.ddddd.glob' 0v5.ccccc.ddddd]";
+
+  it('ignores a docket whose only difference is the glob line', () => {
+    writeFile(stagingRoot, 'desk.docket-0', docket(globA));
+    writeFile(targetRoot, 'desk.docket-0', docket(globB));
+
+    expect(desksMatch(stagingRoot, targetRoot)).toBe(true);
+  });
+
+  it('detects a docket version change alongside a glob change', () => {
+    writeFile(stagingRoot, 'desk.docket-0', docket(globA, '[12 6 0]'));
+    writeFile(targetRoot, 'desk.docket-0', docket(globB));
+
+    expect(desksMatch(stagingRoot, targetRoot)).toBe(false);
+  });
+
+  it('compares a glob line in an unrecognized format raw', () => {
+    const unrecognized = (hash: string) => `    glob-ames+[~zod ${hash}]`;
+    writeFile(stagingRoot, 'desk.docket-0', docket(unrecognized('0v1.aaaaa')));
+    writeFile(targetRoot, 'desk.docket-0', docket(unrecognized('0v5.ccccc')));
+
+    expect(desksMatch(stagingRoot, targetRoot)).toBe(false);
+  });
+
   it('returns false when either directory does not exist', () => {
     writeFile(stagingRoot, 'app/groups.hoon', 'groups-code');
     const missingDir = fs.mkdtempSync(path.join(os.tmpdir(), 'desk-missing-'));

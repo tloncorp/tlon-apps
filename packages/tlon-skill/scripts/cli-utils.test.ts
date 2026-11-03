@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'bun:test';
+import { da } from '@urbit/aura';
 
 import {
   channelCreatedLines,
+  dmWritTime,
+  formatPostId,
   getOption,
   getRequiredOptionValue,
   hasOptionValue,
@@ -11,6 +14,7 @@ import {
   isSubcommandHelpRequest,
   looksLikePositionalChannelKind,
   looksLikeRemovedPositionalChannelKind,
+  undottedPostId,
   wantsHelp,
 } from './cli-utils';
 
@@ -177,6 +181,31 @@ describe('cli-utils', () => {
       expect(isCommandHelpRequest(['--help'])).toBe(true);
       expect(isCommandHelpRequest(['-h'])).toBe(true);
       expect(isCommandHelpRequest(['chat/~zod/test', '--help'])).toBe(false);
+    });
+  });
+
+  describe('undottedPostId', () => {
+    it('strips dots and any author or channel prefix', () => {
+      expect(undottedPostId('170.141.184.507')).toBe('170141184507');
+      expect(undottedPostId('170141184507')).toBe('170141184507');
+      expect(undottedPostId('~bus/170.141.184.507')).toBe('170141184507');
+    });
+
+    it('rejects ids that are not numeric', () => {
+      for (const id of ['abc', '170.1x', '', '~bus/', '-12']) {
+        expect(() => undottedPostId(id)).toThrow(`Invalid post id: ${id}`);
+      }
+    });
+  });
+
+  describe('dmWritTime', () => {
+    it('is the dotted @da of the sent time', () => {
+      const sent = 1700000000000;
+      const time = dmWritTime(sent);
+
+      expect(time).toBe(formatPostId(da.fromUnix(sent).toString()));
+      expect(time.replace(/\./g, '')).toBe(da.fromUnix(sent).toString());
+      expect(time).toMatch(/^\d{1,3}(\.\d{3})+$/);
     });
   });
 });

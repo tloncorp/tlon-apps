@@ -3,7 +3,12 @@ import { compileFunction } from 'node:vm';
 import { transformWithOxc } from 'vite';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { isDmNest } from '../targets.js';
+import {
+  type GroupContextRuntime,
+  createGroupContextRuntime,
+  parseGroupChannels,
+} from '../group-context.js';
+import { isDmNest, normalizeShip } from '../targets.js';
 import {
   type JoinedChannels,
   createJoinedChannels,
@@ -41,6 +46,7 @@ type Deps = {
   scanAgentOnboardingChannel: ReturnType<typeof vi.fn>;
   fetchInitData: ReturnType<typeof vi.fn>;
   runtime: { log: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
+  groupContextRuntime?: GroupContextRuntime;
 };
 type Monitor = {
   handleChannelsFirehose(event: unknown): Promise<void>;
@@ -50,7 +56,12 @@ type Monitor = {
   onboardingDiscoveryFlights: Set<Promise<boolean | undefined>>;
   startDrainingOnboardingDiscovery(): void;
 };
-let makeMonitor: (deps: Deps & { isDmNest: typeof isDmNest }) => Monitor;
+let makeMonitor: (
+  deps: Deps & {
+    isDmNest: typeof isDmNest;
+    normalizeShip: typeof normalizeShip;
+  }
+) => Monitor;
 
 beforeAll(async () => {
   // Execute the real monitor callbacks. Only the paths these tests reach
@@ -61,7 +72,7 @@ beforeAll(async () => {
       const {
         watchedChannels, joinedChannels, clearAgentOnboardingRetry,
         onboardingCatchUp, processedTracker, scanAgentOnboardingChannel,
-        fetchInitData, runtime, isDmNest,
+        fetchInitData, runtime, isDmNest, normalizeShip,
       } = deps;
       const opts = {};
       const account = { accountId: 'test' };
@@ -75,6 +86,23 @@ beforeAll(async () => {
       const randomUUID = () => 'uuid';
       const createAgentOnboardingReconciliationPresence = () => ({});
       const markBootstrapComplete = () => {};
+      const groupContextRuntime = deps.groupContextRuntime ?? {
+        applySnapshot: () => {},
+        beginSnapshot: () => 0,
+        forgetMessage: () => {},
+        recordMessage: () => {},
+      };
+      // Enough of the message path to reach the group-context record.
+      const activityReads = { begin: () => () => {} };
+      const channelReadKey = (nest) => nest;
+      const extractAuthorShip = (author) =>
+        typeof author === 'string' ? author : (author?.ship ?? '');
+      const botNickname = null;
+      const prepareInboundText = () => ({ rawText: 'in the thread' });
+      const cacheMessage = () => {};
+      const sharedOwnerToolPostLedger = () => ({ match: () => undefined });
+      const channelInboundPost = () => ({});
+      const knownBotShips = new Set();
       const enrollCampaign = () => {};
       const onboardingDiscoveryFlights = new Set();
       let drainingOnboardingDiscovery = false;
@@ -112,6 +140,7 @@ function setup(options: {
   watched?: string[];
   joined?: string[] | null;
   now?: () => number;
+  groupContextRuntime?: GroupContextRuntime;
 }) {
   const joinedChannels = createJoinedChannels({ now: options.now });
   if (options.joined !== null) {
@@ -133,8 +162,9 @@ function setup(options: {
     scanAgentOnboardingChannel: vi.fn(async () => true),
     fetchInitData: vi.fn(async () => ({ joinedChannels: null })),
     runtime: { log: vi.fn(), error: vi.fn() },
+    groupContextRuntime: options.groupContextRuntime,
   };
-  return { deps, monitor: makeMonitor({ ...deps, isDmNest }) };
+  return { deps, monitor: makeMonitor({ ...deps, isDmNest, normalizeShip }) };
 }
 
 const post = (nest: string) => ({
@@ -372,7 +402,7 @@ describe('joined set wiring', () => {
     expect(sliceFrom('const mergeDiscoveredChannels = async')).toContain(
       'await syncJoinedChannels();'
     );
-    const tick = source.slice(source.indexOf('const pollInterval'));
+    const tick = source.slice(source.indexOf('const channelRefresh ='));
     const discovery = tick.indexOf('if (effectiveAutoDiscoverChannels) {');
     const merge = tick.indexOf('await mergeDiscoveredChannels();');
     const otherwise = tick.indexOf('} else {', merge);
@@ -384,12 +414,70 @@ describe('joined set wiring', () => {
   });
 
   it('re-scans recent joins on every poll tick, with discovery on or off', () => {
-    const tick = source.slice(source.indexOf('const pollInterval'));
+    const tick = source.slice(source.indexOf('const channelRefresh ='));
     const merge = tick.indexOf('await mergeDiscoveredChannels();');
-    const branchEnd = tick.indexOf('\n              }\n', merge);
+    const branchEnd = tick.indexOf('\n            }\n', merge);
     const rescan = tick.indexOf('await rescanRecentlyJoinedChannels();');
     expect(branchEnd).toBeGreaterThan(merge);
     expect(rescan).toBeGreaterThan(branchEnd);
     expect(rescan).toBeLessThan(tick.indexOf('} catch'));
+  });
+});
+
+describe('channel firehose and group context', () => {
+  it("drops a reply's snippet when its thread is deleted", async () => {
+    const groupContextRuntime = createGroupContextRuntime();
+    groupContextRuntime.applySnapshot(
+      new Map([
+        [
+          '~zod/test',
+          {
+            title: 'Test',
+            channels: parseGroupChannels({
+              [general]: { meta: { title: 'General' }, readers: [] },
+              'chat/~zod/random': { meta: { title: 'Random' }, readers: [] },
+            }),
+          },
+        ],
+      ]),
+      groupContextRuntime.beginSnapshot()
+    );
+    const { deps, monitor } = setup({ joined: [general], groupContextRuntime });
+    deps.processedTracker.mark.mockReturnValue(true);
+    const root = '170141184507000000000000000000000000';
+    const context = () =>
+      groupContextRuntime.handleBeforePromptBuild({
+        sessionKey: 'agent:main:tlon:group:chat/~zod/random',
+      })?.prependContext;
+
+    await monitor.handleChannelsFirehose({
+      nest: general,
+      response: {
+        post: {
+          id: root,
+          'r-post': {
+            reply: {
+              id: '170141184507000000000000000000000001',
+              'r-reply': {
+                set: {
+                  'reply-essay': {
+                    author: '~nec',
+                    content: [],
+                    sent: Date.now(),
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    expect(context()).toContain('in the thread');
+
+    await monitor.handleChannelsFirehose({
+      nest: general,
+      response: { post: { id: root, 'r-post': { set: null } } },
+    });
+    expect(context()).not.toContain('in the thread');
   });
 });

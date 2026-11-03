@@ -1,4 +1,4 @@
-import { redactBrowserHandoffCommand } from './tlon-tool-command.js';
+import { redactTlonCommand } from './tlon-tool-command.js';
 
 const TOOL_TRACE_CONTENT_ENV_VARS = [
   'TEST_LIVE_TOOL_TRACE_CONTENTS',
@@ -130,7 +130,7 @@ function sanitizeValue(value: unknown, depth = 0): unknown {
         ? REDACTED
         : sanitizeValue(
             key === 'command' && typeof nested === 'string'
-              ? redactBrowserHandoffCommand(nested)
+              ? redactTlonCommand(nested)
               : nested,
             depth + 1
           );

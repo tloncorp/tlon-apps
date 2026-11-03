@@ -1,6 +1,18 @@
-import { beforeAll, beforeEach, describe, expect, test } from 'vitest';
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  test,
+} from 'vitest';
 
-import { type TestFixtures, getFixtures, waitFor } from '../lib/index.js';
+import {
+  type TestFixtures,
+  getFixtures,
+  waitFor,
+  waitForRuntimeIdle,
+} from '../lib/index.js';
 import {
   extractPostText,
   getLatestSequenceForAuthor,
@@ -43,6 +55,10 @@ describe('media', () => {
   beforeEach(async () => {
     await fakeModel.reset();
   });
+
+  // The upload test's final reply can still be in delivery when it returns;
+  // the next prompt would then take that reply as its own response.
+  afterEach(() => waitForRuntimeIdle('after the test'));
 
   const mediaTest = hasStorageEnv ? test : test.skip;
 

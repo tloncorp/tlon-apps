@@ -1,0 +1,17 @@
+diff --git a/android/build.gradle b/android/build.gradle
+index 2b38e65a52a764da4816c56531fbc71fc7f3d103..62b807f4eb7cab84e67907881f4ea0dc76e69364 100644
+--- a/android/build.gradle
++++ b/android/build.gradle
+@@ -33,6 +33,12 @@ def safeExtGet(prop, fallback) {
+     android {
+         compileSdkVersion safeExtGet('compileSdkVersion', DEFAULT_COMPILE_SDK_VERSION)
+ 
++        // AGP 9 no longer generates BuildConfig by default, and defaultConfig
++        // below declares a field on it.
++        buildFeatures {
++            buildConfig true
++        }
++
+         defaultConfig {
+             minSdkVersion safeExtGet('minSdkVersion', DEFAULT_MIN_SDK_VERSION)
+             targetSdkVersion safeExtGet('targetSdkVersion', DEFAULT_TARGET_SDK_VERSION)

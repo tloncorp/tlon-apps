@@ -25,6 +25,7 @@ import * as fixture19 from './../../packages/app/fixtures/Channel.fixture';
 import * as fixture21 from './../../packages/app/fixtures/ChannelDivider.fixture';
 import * as fixture22 from './../../packages/app/fixtures/ChannelHeader.fixture';
 import * as fixture23 from './../../packages/app/fixtures/ChannelListItem.fixture';
+import * as fixture81 from './../../packages/app/fixtures/ChatDetails.fixture';
 import * as fixture24 from './../../packages/app/fixtures/ChatMessage.fixture';
 import * as fixture25 from './../../packages/app/fixtures/ChatOptionsSheet.fixture';
 import * as fixture26 from './../../packages/app/fixtures/ConfirmDialog.fixture';
@@ -37,6 +38,7 @@ import * as fixture32 from './../../packages/app/fixtures/DmInviteOptions.fixtur
 import * as fixture33 from './../../packages/app/fixtures/EditProfileScreen.fixture';
 import * as fixture35 from './../../packages/app/fixtures/EmptyChannelNotice.fixture';
 import * as fixture36 from './../../packages/app/fixtures/FacePile.fixture';
+import * as fixtureFirstRun from './../../packages/app/fixtures/FirstRun.fixture';
 import * as fixture37 from './../../packages/app/fixtures/Form.fixture';
 import * as fixture38 from './../../packages/app/fixtures/ForwardChannelListItem.fixture';
 import * as fixture39 from './../../packages/app/fixtures/GalleryPost.fixture';
@@ -45,7 +47,6 @@ import * as fixture41 from './../../packages/app/fixtures/Input.fixture';
 import * as fixture42 from './../../packages/app/fixtures/InviteFriendsToTlonButton.fixture';
 import * as fixture43 from './../../packages/app/fixtures/InviteUsersSheet.fixture';
 import * as fixture44 from './../../packages/app/fixtures/MediaImageViewer.fixture';
-import * as fixtureMeetYourBot from './../../packages/app/fixtures/MeetYourBot.fixture';
 import * as fixture45 from './../../packages/app/fixtures/MessageActions.fixture';
 import * as fixture46 from './../../packages/app/fixtures/MessageInput.fixture';
 import * as fixture47 from './../../packages/app/fixtures/MetaEditorScreen.fixture';
@@ -145,6 +146,7 @@ const fixtures = {
   '../../packages/app/fixtures/ChannelListItem.fixture.tsx': {
     module: fixture23,
   },
+  '../../packages/app/fixtures/ChatDetails.fixture.tsx': { module: fixture81 },
   '../../packages/app/fixtures/ChatMessage.fixture.tsx': { module: fixture24 },
   '../../packages/app/fixtures/ChatOptionsSheet.fixture.tsx': {
     module: fixture25,
@@ -175,6 +177,9 @@ const fixtures = {
     module: fixture35,
   },
   '../../packages/app/fixtures/FacePile.fixture.tsx': { module: fixture36 },
+  '../../packages/app/fixtures/FirstRun.fixture.tsx': {
+    module: fixtureFirstRun,
+  },
   '../../packages/app/fixtures/Form.fixture.tsx': { module: fixture37 },
   '../../packages/app/fixtures/ForwardChannelListItem.fixture.tsx': {
     module: fixture38,
@@ -192,9 +197,6 @@ const fixtures = {
   },
   '../../packages/app/fixtures/MediaImageViewer.fixture.tsx': {
     module: fixture44,
-  },
-  '../../packages/app/fixtures/MeetYourBot.fixture.tsx': {
-    module: fixtureMeetYourBot,
   },
   '../../packages/app/fixtures/MessageActions.fixture.tsx': {
     module: fixture45,

@@ -124,6 +124,7 @@
     :~  [%create task]
         [%update identified-task]
         [%delete (ot id+so ~)]
+        [%test (ot id+so ~)]
     ==
   ::  +response-body: type-discriminated like the %notes v1 envelope, so
   ::  clients switch on body.type
@@ -136,6 +137,8 @@
     ?:  =('created' type)  [%created (so (~(got by p.jon) 'id'))]
     ?:  =('updated' type)  [%updated (so (~(got by p.jon) 'id'))]
     ?:  =('deleted' type)  [%deleted (so (~(got by p.jon) 'id'))]
+    ?:  =('started' type)
+      [%started (so (~(got by p.jon) 'id')) (so (~(got by p.jon) 'lensId'))]
     ?:  =('pending' type)
       [%pending ;;(poke-status:v1:a (so:dejs:format (~(got by p.jon) 'status')))]
     ?:  =('error' type)
@@ -297,6 +300,7 @@
       %create  (frond 'create' (task task.edit))
       %update  (frond 'update' (identified-task [id task]:edit))
       %delete  (frond 'delete' (frond 'id' s+id.edit))
+      %test    (frond 'test' (frond 'id' s+id.edit))
     ==
   ::  =, enjs:format shadows +tank, so reach past it for the type
   ::
@@ -313,6 +317,13 @@
     ?-  -.body
         ?(%created %updated %deleted)
       (pairs ~[['type' s+(scot %tas -.body)] ['id' s+id.body]])
+    ::
+        %started
+      %-  pairs
+      :~  ['type' s+'started']
+          ['id' s+id.body]
+          ['lensId' s+run.body]
+      ==
     ::
         %error
       %-  pairs

@@ -108,21 +108,26 @@
       %unknown
   ==
 ::  $edit: the verb. every $task field is optional, so %update carries a
-::  patch in the same shape as a stored task
+::  patch in the same shape as a stored task. %test asks the harness to run
+::  task .id once, now, outside its schedule and delivering nowhere; the
+::  task itself is left as it was
 ::
 +$  edit
   $%  [%create =task]
       [%update id=@t =task]
       [%delete id=@t]
+      [%test id=@t]
   ==
 ::  $response-body: the terminal outcome of one edit. %created carries
-::  the job id the harness assigned; %pending closes a held wait while
-::  the request stays open for its late answer
+::  the job id the harness assigned; %started answers a %test once its run
+::  is under way, naming the lens run that records it; %pending closes a
+::  held wait while the request stays open for its late answer
 ::
 +$  response-body
   $%  [%created id=@t]
       [%updated id=@t]
       [%deleted id=@t]
+      [%started id=@t run=@t]
       [%error type=action-error message=tang]
       [%pending status=poke-status]
   ==

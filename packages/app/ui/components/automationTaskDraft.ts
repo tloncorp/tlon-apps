@@ -661,3 +661,62 @@ export function describeAutomationError(error: unknown): string {
   }
   return 'Could not reach your bot. Check your connection and try again.';
 }
+
+/**
+ * Whether a test run can stand in for the task: an agent turn in a session
+ * of its own. A main-session task, or a system event, runs inside the bot's
+ * ongoing conversation, which a test cannot reproduce; the bot refuses those.
+ */
+export function canTestTask(task: StewardAutomationTask): boolean {
+  const target = task.sessionTarget?.trim();
+  return (
+    (!target || target === 'isolated') &&
+    (task.payload?.kind ?? 'agentTurn') === 'agentTurn'
+  );
+}
+
+/**
+ * A failed test run request, for a toast. A bot whose node or plugin
+ * predates test runs turns the request down as one it cannot read: an
+ * `invalid` from the plugin, or an `unknown` from its node refusing the poke.
+ * A current plugin says `invalid` too, for a task with no prompt or a bot
+ * with Context Lens off, and says which in its message.
+ */
+export function describeTestRunError(error: unknown): string {
+  const errorType =
+    error && typeof error === 'object' && 'errorType' in error
+      ? String(error.errorType)
+      : undefined;
+  const detail = error instanceof Error ? error.message.toLowerCase() : '';
+  switch (errorType) {
+    case 'harness-offline':
+      return 'Your bot is offline. Try again once it is back.';
+    case 'not-found':
+      return 'This task no longer exists.';
+    case 'invalid':
+      if (detail.includes('main session')) {
+        return "Only a task that runs on its own can be tested. This one runs in your bot's main session.";
+      }
+      if (detail.includes('context lens')) {
+        return 'Test runs need Context Lens, which is turned off on your bot.';
+      }
+      if (detail.includes('no prompt')) {
+        return 'This task has no prompt to test.';
+      }
+      if (detail.includes('credits are limited')) {
+        return 'Testing is paused while credits are limited.';
+      }
+      return 'Your bot needs an update before it can test tasks.';
+    case 'unknown':
+      return 'Your bot needs an update before it can test tasks.';
+    case 'harness-error':
+      return 'Your bot could not start the test run.';
+  }
+  if (
+    error instanceof Error &&
+    error.name === 'StewardAutomationPendingError'
+  ) {
+    return 'Your bot has not answered yet. Try again in a moment.';
+  }
+  return 'Could not reach your bot. Check your connection and try again.';
+}

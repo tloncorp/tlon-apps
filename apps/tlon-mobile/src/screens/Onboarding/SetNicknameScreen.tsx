@@ -216,7 +216,7 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
                 placeholder="Sampel Palnet"
                 onBlur={onBlur}
                 onChangeText={onChange}
-                onSubmitEditing={onSubmit}
+                onSubmitEditing={() => onSubmit()}
                 autoFocus
                 autoCapitalize="words"
                 autoComplete="name"

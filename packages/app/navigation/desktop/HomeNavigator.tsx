@@ -29,6 +29,8 @@ import { BotPromptFileScreen } from '../../features/settings/BotPromptFileScreen
 import { BotPromptFilesScreen } from '../../features/settings/BotPromptFilesScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { ScheduledTaskEditorScreen } from '../../features/automations/ScheduledTaskEditorScreen';
+import { ScheduledTaskRunScreen } from '../../features/automations/ScheduledTaskRunScreen';
+import { ScheduledTaskRunsScreen } from '../../features/automations/ScheduledTaskRunsScreen';
 import { ScheduledTasksScreen } from '../../features/automations/ScheduledTasksScreen';
 import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
 import { DESKTOP_SIDEBAR_WIDTH, useGlobalSearch } from '../../ui';
@@ -272,6 +274,14 @@ function ChannelStack(
         <ChannelStackNavigator.Screen
           name="ScheduledTaskEditor"
           component={ScheduledTaskEditorScreen}
+        />
+        <ChannelStackNavigator.Screen
+          name="ScheduledTaskRuns"
+          component={ScheduledTaskRunsScreen}
+        />
+        <ChannelStackNavigator.Screen
+          name="ScheduledTaskRun"
+          component={ScheduledTaskRunScreen}
         />
         <ChannelStackNavigator.Screen
           name="BotPromptFiles"

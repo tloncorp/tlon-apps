@@ -1,6 +1,8 @@
+import { readFileSync } from 'node:fs';
 import { mkdtemp, readdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { fetchWithSsrFGuard } from 'openclaw/plugin-sdk/ssrf-runtime';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -8,6 +10,8 @@ import {
   MAX_BLOB_DOWNLOAD_BYTES,
   downloadBlobAttachments,
   downloadMedia,
+  downloadMessageImages,
+  formatInboundMediaBody,
   formatBlobAnnotations,
   formatBlobForHistory,
   parseBlobData,
@@ -502,5 +506,129 @@ describe('guard invocation', () => {
     expect(guardArg.init?.headers?.['User-Agent']).toMatch(
       /^TlonBot\/\S+ \(https:\/\/tlon\.io; support@tlon\.io\) openclaw-tlon\/\S+$/
     );
+  });
+});
+
+describe('media download logging', () => {
+  const url = 'https://storage.example.com/private/photo.png?sig=abc123';
+  let mediaDir: string;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    mediaDir = await mkdtemp(path.join(tmpdir(), 'tlon-media-log-test-'));
+  });
+
+  afterEach(async () => {
+    vi.restoreAllMocks();
+    await rm(mediaDir, { recursive: true, force: true });
+  });
+
+  function loggedText(): string {
+    return JSON.stringify([
+      vi.mocked(console.warn).mock.calls,
+      vi.mocked(console.error).mock.calls,
+    ]);
+  }
+
+  it('logs only the host when a download throws', async () => {
+    mockedFetchWithSsrFGuard.mockRejectedValue(
+      new TypeError(`fetch failed for ${url}`)
+    );
+
+    expect(await downloadMedia(url, mediaDir)).toBeNull();
+    const logged = loggedText();
+    expect(logged).toContain('storage.example.com');
+    expect(logged).toContain('TypeError');
+    expect(logged).not.toContain('/private/photo.png');
+    expect(logged).not.toContain('sig=abc123');
+  });
+
+  it('logs only the host on a failed status', async () => {
+    mockedFetchWithSsrFGuard.mockResolvedValue({
+      response: new Response('denied', { status: 403 }),
+      release: vi.fn().mockResolvedValue(undefined),
+    } as Awaited<ReturnType<typeof fetchWithSsrFGuard>>);
+
+    expect(await downloadMedia(url, mediaDir)).toBeNull();
+    const logged = loggedText();
+    expect(logged).toContain('403');
+    expect(logged).not.toContain('/private/photo.png');
+    expect(logged).not.toContain('sig=abc123');
+  });
+
+  it('does not log the contents of a non-http URL', async () => {
+    const dataUrl = 'data:image/png;base64,cHJpdmF0ZQ==';
+    expect(await downloadMedia(dataUrl, mediaDir)).toBeNull();
+    expect(mockedFetchWithSsrFGuard).not.toHaveBeenCalled();
+    expect(loggedText()).not.toContain('cHJpdmF0ZQ==');
+  });
+});
+
+describe('downloadMessageImages', () => {
+  let mediaDir: string;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    mediaDir = await mkdtemp(path.join(tmpdir(), 'tlon-media-test-'));
+  });
+
+  afterEach(async () => {
+    await rm(mediaDir, { recursive: true, force: true });
+  });
+
+  it('counts images that fail to download', async () => {
+    mockedFetchWithSsrFGuard
+      .mockResolvedValueOnce({
+        response: new Response('missing', { status: 404 }),
+        release: vi.fn().mockResolvedValue(undefined),
+      } as Awaited<ReturnType<typeof fetchWithSsrFGuard>>)
+      .mockResolvedValueOnce({
+        response: new Response('png', {
+          status: 200,
+          headers: { 'content-type': 'image/png' },
+        }),
+        release: vi.fn().mockResolvedValue(undefined),
+      } as Awaited<ReturnType<typeof fetchWithSsrFGuard>>);
+
+    const result = await downloadMessageImages(
+      [
+        { block: { image: { src: 'https://storage.example.com/gone.png' } } },
+        { block: { image: { src: 'https://storage.example.com/ok.png' } } },
+      ],
+      mediaDir
+    );
+
+    expect(result.unavailableCount).toBe(1);
+    expect(result.attachments).toHaveLength(1);
+    expect(result.attachments[0].contentType).toBe('image/png');
+  });
+
+  it('puts the unavailable-image notice in the agent body', () => {
+    const attachment = { path: '/m/ok.png', contentType: 'image/png' };
+    expect(formatInboundMediaBody('look', [attachment], 1)).toBe(
+      '[media attached: /m/ok.png (image/png) | /m/ok.png]\n' +
+        '[tlon attachment unavailable]\nlook'
+    );
+    expect(formatInboundMediaBody('look', [], 2)).toBe(
+      '[tlon 2 attachments unavailable]\nlook'
+    );
+    expect(formatInboundMediaBody('look', [], 0)).toBe('look');
+  });
+
+  it('builds BodyForAgent from the download result', () => {
+    // monitorTlonProvider is not unit-testable, so the wiring is pinned.
+    const monitorSource = readFileSync(
+      path.resolve(path.dirname(fileURLToPath(import.meta.url)), './index.ts'),
+      'utf8'
+    );
+    expect(monitorSource).toContain(
+      'unavailableImageCount = unavailableCount;'
+    );
+    expect(monitorSource).toMatch(
+      /let bodyWithAttachments = formatInboundMediaBody\(\s*messageText,\s*attachments,\s*unavailableImageCount\s*\);/
+    );
+    expect(monitorSource).toContain('BodyForAgent: bodyWithAttachments,');
   });
 });

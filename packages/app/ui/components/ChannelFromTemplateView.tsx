@@ -168,7 +168,7 @@ export function ChannelFromTemplateView({
         <Button
           preset="primary"
           marginHorizontal="$2xl"
-          onPress={handleSubmit(onConfirm)}
+          onPress={() => handleSubmit(onConfirm)()}
           disabled={!channel || !selectedGroup || !isValid}
           label="Create Channel"
           centered

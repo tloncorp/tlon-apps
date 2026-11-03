@@ -1,7 +1,10 @@
+import { getCanonicalPostId } from '@tloncorp/api/client';
 import { preSig } from '@tloncorp/api/lib/urbit';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import { da, parse } from '@urbit/aura';
+
+import type { ContextLensOutput } from './types';
 
 export interface ContextLensStamp {
   lensId: string;
@@ -32,6 +35,36 @@ export function parseLensMessageId(
   } catch {
     return null;
   }
+}
+
+/**
+ * The post a run's output became, from the local db, or null when it hasn't
+ * synced. A channel post is keyed by its host's receipt time rather than the
+ * bot's send time, so it is found by channel, author and send time instead.
+ */
+export async function findLensOutputPost(
+  output: ContextLensOutput
+): Promise<db.Post | null> {
+  let canonicalId: string | null = null;
+  try {
+    canonicalId = getCanonicalPostId(output.messageId);
+  } catch {
+    canonicalId = null;
+  }
+  const direct = canonicalId
+    ? await db.getPostWithRelations({ id: canonicalId })
+    : null;
+  if (direct) {
+    return direct;
+  }
+  const parsed = parseLensMessageId(output.messageId);
+  return parsed && output.conversationId
+    ? db.getPostBySentAt({
+        channelId: output.conversationId,
+        authorId: parsed.authorId,
+        sentAt: parsed.sentAt,
+      })
+    : null;
 }
 
 export function getContextLensStamp(post: db.Post): ContextLensStamp | null {

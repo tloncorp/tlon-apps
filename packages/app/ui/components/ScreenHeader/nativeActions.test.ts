@@ -32,6 +32,20 @@ describe('native header actions', () => {
     ).toMatchObject({ identifier: 'rename' });
   });
 
+  it('fills a prominent text button', () => {
+    expect(
+      buildNativeHeaderItem({
+        id: 'save',
+        text: 'Save',
+        tint: '#0000ff',
+        prominent: true,
+      })
+    ).toMatchObject({ variant: 'prominent', tintColor: '#0000ff' });
+    expect(
+      buildNativeHeaderItem({ id: 'edit', text: 'Edit' })
+    ).not.toHaveProperty('variant');
+  });
+
   it('badges a button natively from iOS 26', () => {
     (Platform as { Version?: number }).Version = 26;
     expect(

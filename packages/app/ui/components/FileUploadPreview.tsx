@@ -41,6 +41,8 @@ function FileSizeLabel({
   file: { size: number };
 }) {
   const formattedSize = useMemo(() => formatMemorySize(file.size), [file.size]);
+  // A negative size is the app's unknown-size sentinel (-1).
+  if (file.size < 0) return null;
   return (
     <Text size="$label/m" color="$secondaryText" {...passed}>
       {formattedSize}

@@ -575,3 +575,21 @@ describe('initial onboarding campaign metadata', () => {
     ).toBeUndefined();
   });
 });
+
+describe('furnishing lock marker', () => {
+  const { furnishingLockMarker } = agentGroupOnboardingTesting;
+  const base = {
+    initialGroupTitle: 'Untitled workspace',
+    canRenameGroup: true,
+    now: 100_000,
+  };
+
+  it('keeps rename provenance recorded before', () => {
+    const marker = furnishingLockMarker(
+      { createdAt: 1, canRenameGroup: false, initialGroupTitle: 'Bikes' },
+      base
+    );
+    expect(marker.canRenameGroup).toBe(false);
+    expect(marker.initialGroupTitle).toBe('Bikes');
+  });
+});

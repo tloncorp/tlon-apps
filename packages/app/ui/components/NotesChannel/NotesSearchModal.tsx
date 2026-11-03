@@ -3,7 +3,7 @@ import { noteSearchQueryIsCurrent } from '@tloncorp/shared/logic';
 import { Pressable, TlonText } from '@tloncorp/ui';
 import { debounce } from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { NativeSyntheticEvent, TextInputKeyPressEventData } from 'react-native';
+import { TextInputKeyPressEvent } from 'react-native';
 import { Portal, View, XStack, YStack } from 'tamagui';
 
 import { TextInput } from '../Form';
@@ -191,7 +191,7 @@ export function NotesSearchModal({
   );
 
   const handleKeyPress = useCallback(
-    (e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
+    (e: TextInputKeyPressEvent) => {
       const key = e.nativeEvent.key;
       if (
         key === 'ArrowDown' ||

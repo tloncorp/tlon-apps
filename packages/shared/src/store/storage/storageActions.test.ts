@@ -3,6 +3,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import * as db from '../../db';
+import { syncStorageSettings } from '../sync/sync';
 import { performUpload } from './storageActions';
 import { hasCustomS3Creds, hasHostingUploadCreds } from './storageUtils';
 
@@ -18,6 +19,10 @@ vi.mock('@aws-sdk/s3-request-presigner', () => ({
 vi.mock('../../db', () => ({
   storageConfiguration: { getValue: vi.fn() },
   storageCredentials: { getValue: vi.fn() },
+}));
+
+vi.mock('../sync/sync', () => ({
+  syncStorageSettings: vi.fn(),
 }));
 
 vi.mock('./storageUtils', async (importOriginal) => {
@@ -88,10 +93,34 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.mocked(syncStorageSettings).mockReset();
   uploadResponses.length = 0;
   fetchMock.mockClear();
   getSignedUrlMock.mockReset();
   putObjectCommandMock.mockClear();
+});
+
+describe('performUpload missing storage settings', () => {
+  test('resyncs from the ship and uploads', async () => {
+    credsGetValue.mockResolvedValueOnce(null);
+    getSignedUrlMock.mockResolvedValueOnce(
+      'https://bucket.example.com/signed?sig=x'
+    );
+
+    const result = await performUpload(makeFile(), true);
+
+    expect(syncStorageSettings).toHaveBeenCalledTimes(1);
+    expect(result).toBe('https://bucket.example.com/signed');
+  });
+
+  test('fails when the ship has none either', async () => {
+    credsGetValue.mockResolvedValue(null);
+
+    await expect(performUpload(makeFile(), true)).rejects.toThrow(
+      'missing storage configuration'
+    );
+    expect(syncStorageSettings).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('performUpload custom-S3 ACL retry (browser path)', () => {

@@ -1,6 +1,7 @@
 import { BadResponseError } from '@tloncorp/api';
 import { describe, expect, it } from 'bun:test';
 
+import { isNotFoundError } from './command';
 import type { RawGroupForAdminVerification } from './groups-verification';
 import {
   INVITE_LINK_HELP,
@@ -341,18 +342,37 @@ describe('invite-link retrieval', () => {
 });
 
 describe('invite-link membership and privacy', () => {
-  it('maps a 404 group scry to a membership error', async () => {
-    const context = makeDeps({
-      scryRawGroupError: new BadResponseError(404, 'not found'),
-    });
+  it('maps a 404 group scry, wrapped or raw after reauth, to a membership error', async () => {
+    for (const error of [
+      new BadResponseError(404, 'not found'),
+      new Response('not found', { status: 404 }),
+    ]) {
+      const context = makeDeps({ scryRawGroupError: error });
 
-    const exitCode = await run([FLAG], context.deps);
+      const exitCode = await run([FLAG], context.deps);
 
-    expect(exitCode).toBe(1);
-    expect(context.stdout()).toBe('');
-    expect(context.stderr()).toContain(`~ten is not a member of ${FLAG}`);
-    expect(context.calls.scryIdUrl).toEqual([]);
-    expect(context.calls.enableGrouper).toEqual([]);
+      expect(exitCode).toBe(1);
+      expect(context.stdout()).toBe('');
+      expect(context.stderr()).toContain(`~ten is not a member of ${FLAG}`);
+      expect(context.calls.scryIdUrl).toEqual([]);
+      expect(context.calls.enableGrouper).toEqual([]);
+    }
+  });
+
+  it('recognizes only a real 404 as not found', () => {
+    expect(isNotFoundError(new BadResponseError(404, 'not found'))).toBe(true);
+    expect(isNotFoundError(new Response('', { status: 404 }))).toBe(true);
+    for (const error of [
+      new BadResponseError(0, 'connection refused'),
+      new BadResponseError(500, 'internal error'),
+      new Response('', { status: 403 }),
+      new Error('not found'),
+      Object.assign(new Error('x'), { status: 404 }),
+      { status: 404 },
+      'timeout',
+    ]) {
+      expect(isNotFoundError(error)).toBe(false);
+    }
   });
 
   it('surfaces statusless and 5xx group scry failures as transport errors', async () => {
