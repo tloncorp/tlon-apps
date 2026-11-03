@@ -1060,6 +1060,9 @@ export function Channel({
                             goBack={isTopLevelTab ? undefined : handleGoBack}
                             goToProfile={handleGoToProfile}
                             actions={botBaubleActions}
+                            latestPostId={posts?.[0]?.id}
+                            latestPostAuthorId={posts?.[0]?.authorId}
+                            forcedThinkingLabel={pendingThinkingLabel}
                           />
                         ) : (
                           <ChannelHeader

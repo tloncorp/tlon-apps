@@ -1,7 +1,7 @@
 import type { useConnectionStatus } from '@tloncorp/shared';
 import type * as domain from '@tloncorp/shared/domain';
 
-import type { ConversationComputingState } from './useConversationComputingState';
+import type { ThinkingIndicator } from './useThinkingIndicator';
 
 /** What the bot is doing, as far as its bauble shows it. */
 export type BotBaubleState =
@@ -13,11 +13,12 @@ export type BotBaubleState =
 
 export function getBotBaubleState({
   liveness,
-  computing,
+  thinking,
   connectionStatus,
 }: {
   liveness: domain.BotLivenessState | null;
-  computing: ConversationComputingState | null;
+  /** The conversation's thinking indicator, which the bauble follows. */
+  thinking: Pick<ThinkingIndicator, 'visible' | 'computingState'>;
   connectionStatus: ReturnType<typeof useConnectionStatus>;
 }): BotBaubleState {
   // Without our own connection, presence and liveness are both stale.
@@ -30,20 +31,22 @@ export function getBotBaubleState({
   if (liveness === 'offline') {
     return 'offline';
   }
-  if (computing) {
-    return computing.toolCalls.length > 0 ? 'working' : 'thinking';
+  if (thinking.visible) {
+    return (thinking.computingState?.toolCalls.length ?? 0) > 0
+      ? 'working'
+      : 'thinking';
   }
   return 'idle';
 }
 
 export function getBotBaubleStatusText(
   state: BotBaubleState,
-  computing: ConversationComputingState | null
+  thinkingLabel: string
 ): string | null {
   switch (state) {
     case 'thinking':
     case 'working':
-      return computing?.label ?? 'Thinking…';
+      return thinkingLabel;
     case 'offline':
       return 'Offline';
     case 'connecting':

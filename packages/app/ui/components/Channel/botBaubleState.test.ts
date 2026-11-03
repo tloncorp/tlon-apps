@@ -18,12 +18,24 @@ const working: ConversationComputingState = {
   toolCalls: [{ toolName: 'web_fetch', label: 'Checking the web' }],
 };
 
+const idleIndicator = { visible: false, computingState: null };
+
 describe('getBotBaubleState', () => {
+  it('keeps thinking while the indicator holds for the reply', () => {
+    expect(
+      getBotBaubleState({
+        liveness: 'online',
+        thinking: { visible: true, computingState: null },
+        connectionStatus: 'Connected',
+      })
+    ).toBe('thinking');
+  });
+
   it('rests when connected with nothing in flight', () => {
     expect(
       getBotBaubleState({
         liveness: 'online',
-        computing: null,
+        thinking: idleIndicator,
         connectionStatus: 'Connected',
       })
     ).toBe('idle');
@@ -33,14 +45,14 @@ describe('getBotBaubleState', () => {
     expect(
       getBotBaubleState({
         liveness: 'online',
-        computing: thinking,
+        thinking: { visible: true, computingState: thinking },
         connectionStatus: 'Connected',
       })
     ).toBe('thinking');
     expect(
       getBotBaubleState({
         liveness: null,
-        computing: working,
+        thinking: { visible: true, computingState: working },
         connectionStatus: 'Connected',
       })
     ).toBe('working');
@@ -50,7 +62,7 @@ describe('getBotBaubleState', () => {
     expect(
       getBotBaubleState({
         liveness: 'offline',
-        computing: thinking,
+        thinking: { visible: true, computingState: thinking },
         connectionStatus: 'Connected',
       })
     ).toBe('offline');
@@ -60,7 +72,7 @@ describe('getBotBaubleState', () => {
     expect(
       getBotBaubleState({
         liveness: 'offline',
-        computing: thinking,
+        thinking: { visible: true, computingState: thinking },
         connectionStatus: 'Reconnecting',
       })
     ).toBe('connecting');
@@ -68,10 +80,12 @@ describe('getBotBaubleState', () => {
 });
 
 describe('getBotBaubleStatusText', () => {
-  it('uses the computing label while busy and nothing at rest', () => {
-    expect(getBotBaubleStatusText('working', working)).toBe('Checking the web');
-    expect(getBotBaubleStatusText('idle', null)).toBeNull();
-    expect(getBotBaubleStatusText('offline', null)).toBe('Offline');
+  it('uses the thinking label while busy and nothing at rest', () => {
+    expect(getBotBaubleStatusText('working', 'Checking the web')).toBe(
+      'Checking the web'
+    );
+    expect(getBotBaubleStatusText('idle', 'Thinking...')).toBeNull();
+    expect(getBotBaubleStatusText('offline', 'Thinking...')).toBe('Offline');
   });
 });
 

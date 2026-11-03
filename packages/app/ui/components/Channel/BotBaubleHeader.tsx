@@ -44,7 +44,7 @@ import {
   getBotBaubleState,
   getBotBaubleStatusText,
 } from './botBaubleState';
-import { useConversationComputingState } from './useConversationComputingState';
+import { useThinkingIndicator } from './useThinkingIndicator';
 
 // The avatar tile is top-aligned with the controls on either side and hangs
 // below them; the name sits in a capsule tucked under it, overlapping its edge.
@@ -108,12 +108,20 @@ export function BotBaubleHeader({
   goBack,
   goToProfile,
   actions,
+  latestPostId,
+  latestPostAuthorId,
+  forcedThinkingLabel,
 }: {
   channel: db.Channel;
   botId: string;
   goBack?: () => void;
   goToProfile: () => void;
   actions: BotBaubleAction[];
+  /** The newest post, so the tile thinks until the reply actually lands. */
+  latestPostId?: string;
+  latestPostAuthorId?: string;
+  /** A thinking label shown before the bot reports anything. */
+  forcedThinkingLabel?: string;
 }) {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
@@ -121,15 +129,23 @@ export function BotBaubleHeader({
   const reduceMotion = useReducedMotion();
   const contact = useContact(botId);
   const name = useContactName(botId) ?? botId;
-  const computing = useConversationComputingState(channel.id);
+  // The same indicator as the thinking row, so the tile and the row agree.
+  const thinking = useThinkingIndicator({
+    conversationId: channel.id,
+    latestPostId,
+    latestPostAuthorId,
+    forcedLabel: forcedThinkingLabel,
+  });
   const connectionStatus = useConnectionStatus();
   const state = getBotBaubleState({
     liveness: domain.botLivenessOf(contact),
-    computing,
+    thinking,
     connectionStatus,
   });
-  const statusText = getBotBaubleStatusText(state, computing);
-  const toolKey = computing?.toolCalls.map((call) => call.label).join('|');
+  const statusText = getBotBaubleStatusText(state, thinking.label);
+  const toolKey = thinking.computingState?.toolCalls
+    .map((call) => call.label)
+    .join('|');
   const motion = useBotTileMotion({ state, reduceMotion, toolKey });
 
   useInstalledNavigationOptions(navigation ?? undefined, hiddenHeaderOptions);

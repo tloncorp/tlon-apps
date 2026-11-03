@@ -16,6 +16,8 @@ type Phase =
   | { state: 'idle' }
   | { state: 'thinking' }
   | { state: 'working'; tools: { toolName: string; label: string }[] }
+  // The bot stops computing and its answer lands in the conversation.
+  | { state: 'reply' }
   | { state: 'offline' };
 
 const bot = claimBotContact;
@@ -70,6 +72,17 @@ const posts = lines
   )
   .reverse();
 
+function replyPost() {
+  return makePost(bot, [verse.inline('Thursday is clear after 2pm.')], {
+    id: `bauble-reply-${Date.now()}`,
+    channelId: channel.id,
+    groupId: null,
+    replyCount: 0,
+    sentAt: Date.now(),
+    receivedAt: Date.now(),
+  });
+}
+
 function computing(tools: { toolName: string; label: string }[] = []) {
   const status: PresenceStatus = {
     key: { context: `/dm/${bot.id}`, ship: bot.id, topic: 'computing' },
@@ -118,7 +131,7 @@ const cycle: { phase: Phase; ms: number }[] = [
     },
     ms: 2400,
   },
-  { phase: { state: 'idle' }, ms: 5000 },
+  { phase: { state: 'reply' }, ms: 5000 },
   { phase: { state: 'offline' }, ms: 5000 },
 ];
 
@@ -131,6 +144,7 @@ function BotBaubleFixture({
 }) {
   const [index, setIndex] = useState(0);
   const phase = fixedPhase ?? cycle[index].phase;
+  const [conversation, setConversation] = useState(posts);
 
   useEffect(() => {
     setEnabled('botBaubleHeader', true);
@@ -151,7 +165,12 @@ function BotBaubleFixture({
 
   useEffect(() => {
     applyPhase(phase);
-  }, [phase]);
+    if (phase.state === 'reply') {
+      setConversation((current) => [replyPost(), ...current]);
+    } else if (index === 0) {
+      setConversation(posts);
+    }
+  }, [index, phase]);
 
   const contacts = useMemo(
     () =>
@@ -172,7 +191,7 @@ function BotBaubleFixture({
         {...baseProps}
         channel={channel}
         group={null}
-        posts={posts}
+        posts={conversation}
         // The owner's view, which adds the scheduled tasks action.
         goToScheduledTasks={() => {}}
       />
