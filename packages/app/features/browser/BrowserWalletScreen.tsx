@@ -20,7 +20,11 @@ export function BrowserWalletScreen({
       />
       <SettingsContentScrollView>
         {wallet.view?.connection_mode === 'tlon_oauth' ? (
-          <BrowserWalletConnectCard view={wallet.view} />
+          <BrowserWalletConnectCard
+            view={wallet.view}
+            walletError={wallet.error}
+            onRetry={wallet.onRetry}
+          />
         ) : (
           <BrowserPaymentContent {...wallet} />
         )}

@@ -11,7 +11,11 @@ export function BrowserWalletCard({ requestId }: { requestId: string }) {
   return (
     <>
       {wallet.view?.connection_mode === 'tlon_oauth' ? (
-        <BrowserWalletConnectCard view={wallet.view} />
+        <BrowserWalletConnectCard
+          view={wallet.view}
+          walletError={wallet.error}
+          onRetry={wallet.onRetry}
+        />
       ) : wallet.view ? (
         <BrowserPaymentCard
           view={wallet.view}

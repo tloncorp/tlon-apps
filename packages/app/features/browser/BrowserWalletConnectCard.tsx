@@ -1,12 +1,20 @@
 import type { WalletView } from '@tloncorp/api/client/browserWallet';
 import { Button, Icon, Text } from '@tloncorp/ui';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { YStack } from 'tamagui';
 
 import { useMcpConnections } from '../settings/useMcpConnections';
 import { walletFinished } from './browserPaymentPresentation';
 
-export function BrowserWalletConnectCard({ view }: { view: WalletView }) {
+export function BrowserWalletConnectCard({
+  view,
+  walletError,
+  onRetry,
+}: {
+  view: WalletView;
+  walletError?: string;
+  onRetry?: () => void;
+}) {
   const [error, setError] = useState('');
   const connections = useMcpConnections({
     onEvent: (event) => {
@@ -16,6 +24,12 @@ export function BrowserWalletConnectCard({ view }: { view: WalletView }) {
         setError(event.message);
     },
   });
+  const { refreshStatus } = connections;
+  const ended = walletFinished.has(view.status);
+  useEffect(() => {
+    if (!ended) void refreshStatus();
+  }, [ended, refreshStatus]);
+
   const connect = async () => {
     setError('');
     const provider = connections.providerConfigs.find(
@@ -34,6 +48,8 @@ export function BrowserWalletConnectCard({ view }: { view: WalletView }) {
     <BrowserWalletConnectContent
       view={view}
       error={error}
+      walletError={walletError}
+      onRetry={onRetry}
       busy={connections.initialLoading || !!connections.busyProviderId}
       onConnect={() => void connect()}
     />
@@ -45,11 +61,15 @@ export function BrowserWalletConnectContent({
   error,
   busy,
   onConnect,
+  walletError,
+  onRetry,
 }: {
   view: WalletView;
   error?: string;
   busy?: boolean;
   onConnect(): void;
+  walletError?: string;
+  onRetry?: () => void;
 }) {
   const ended = walletFinished.has(view.status);
   return (
@@ -85,6 +105,12 @@ export function BrowserWalletConnectContent({
           </>
         ) : null}
         {error ? <Text color="$negativeActionText">{error}</Text> : null}
+        {walletError ? (
+          <>
+            <Text color="$negativeActionText">{walletError}</Text>
+            <Button label="Try again" onPress={onRetry} />
+          </>
+        ) : null}
       </YStack>
       {!ended ? (
         <YStack borderTopWidth={1} borderColor="$border" padding="$l">

@@ -51,6 +51,7 @@ function mount(next = view) {
 }
 it('starts the existing connector OAuth flow only after tapping Connect', async () => {
   mount();
+  expect(mocks.refreshStatus).toHaveBeenCalledOnce();
   expect(mocks.connect).not.toHaveBeenCalled();
   const button = tree.root.findByType(Button);
   expect(button.props.label).toBe('Connect Stripe Link');
@@ -70,4 +71,25 @@ it('surfaces an OAuth start failure and keeps the connect action available', () 
   act(() => mocks.onEvent?.({ type: 'start-failed' }));
   expect(JSON.stringify(tree.toJSON())).toContain('Couldn’t open Stripe Link');
   expect(tree.root.findByType(Button).props.disabled).toBeFalsy();
+});
+
+it('shows a wallet polling failure and lets the owner retry it', () => {
+  const onRetry = vi.fn();
+  act(() => {
+    tree = create(
+      <BrowserWalletConnectCard
+        view={view}
+        walletError="Unable to refresh this wallet request."
+        onRetry={onRetry}
+      />
+    );
+  });
+  expect(JSON.stringify(tree.toJSON())).toContain(
+    'Unable to refresh this wallet request.'
+  );
+  const retry = tree.root
+    .findAllByType(Button)
+    .find(({ props }) => props.label === 'Try again');
+  act(() => retry?.props.onPress());
+  expect(onRetry).toHaveBeenCalledOnce();
 });

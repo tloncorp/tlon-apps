@@ -180,6 +180,13 @@ describe('browser owner sessions', () => {
   });
 });
 
+it('reuses the owner session for either spelling of the bot moon', async () => {
+  await browserOwnerRequest(endpoint, '~moon', 'GET');
+  await browserOwnerRequest(endpoint, '~moon', 'GET');
+  await browserOwnerRequest(endpoint, 'moon', 'GET');
+  expect(state.authorize).toHaveBeenCalledOnce();
+});
+
 it('exchanges a new owner session when switching bots on the same service', async () => {
   await browserOwnerRequest(endpoint, 'first-moon', 'GET');
   await browserOwnerRequest(endpoint, 'second-moon', 'GET');

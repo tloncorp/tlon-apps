@@ -136,7 +136,6 @@ async function sessionFor(origin: string, botMoon: string): Promise<Session> {
     now = Date.now();
   if (
     cached &&
-    cached.botMoon === botMoon &&
     cached.expiresAt > now &&
     cached.used + cached.idleTimeoutMs > now
   )
