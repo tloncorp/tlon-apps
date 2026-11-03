@@ -156,8 +156,9 @@ async function handleChatCompletion(state, req, res) {
     .filter(Boolean)
     .join('\n');
 
-  const latestUserKey = extractTagFromLastUserTurn(messages);
-  const historicalKey = extractLatestScriptKey(messages);
+  const noteCall = isRecentContextNoteCall(messages);
+  const latestUserKey = noteCall ? null : extractTagFromLastUserTurn(messages);
+  const historicalKey = noteCall ? null : extractLatestScriptKey(messages);
   let key = null;
   let provenance = 'none';
   if (latestUserKey) {
@@ -194,6 +195,14 @@ async function handleChatCompletion(state, req, res) {
     responseToolCalls: [],
   };
   state.receivedCalls.push(callRecord);
+
+  if (noteCall) {
+    callRecord.auxiliaryKind = 'openclaw_recent_context_note';
+    const scripted = benignFiller();
+    recordScriptedResponse(callRecord, scripted);
+    respondScripted(res, body, scripted);
+    return;
+  }
 
   if (!key) {
     console.log(
@@ -427,9 +436,34 @@ function isHermesTitleGenerationCall(call) {
   );
 }
 
+// The Tlon plugin's recent-context runtime summarizes each conversation in
+// the background and quotes other conversations into a turn's prompt. Both
+// carry other tests' [tlon-test:KEY] tags as data: a note call belongs to no
+// test, and a quoted block never names the turn's key.
+const RECENT_CONTEXT_NOTE_PROMPT = 'You maintain a one-line status note';
+const RECENT_ACTIVITY_BLOCK_RE =
+  /<recent-activity>[\s\S]*?<\/recent-activity>/g;
+
+function isRecentContextNoteCall(messages) {
+  const systemText = extractText(
+    messages.find(
+      (message) => message?.role === 'system' || message?.role === 'developer'
+    )?.content
+  );
+  return (
+    typeof systemText === 'string' &&
+    systemText.startsWith(RECENT_CONTEXT_NOTE_PROMPT)
+  );
+}
+
+function extractKeyText(content) {
+  const text = extractText(content);
+  return text ? text.replace(RECENT_ACTIVITY_BLOCK_RE, '') : text;
+}
+
 function extractLatestScriptKey(messages) {
   const text = messages
-    .map((message) => extractText(message?.content))
+    .map((message) => extractKeyText(message?.content))
     .filter(Boolean)
     .join('\n');
   let latest = null;
@@ -454,7 +488,7 @@ function extractTagFromLastUserTurn(messages) {
     if (messages[i]?.role !== 'user') {
       continue;
     }
-    const text = extractText(messages[i]?.content);
+    const text = extractKeyText(messages[i]?.content);
     if (isOpenClawInternalContext(text)) {
       continue;
     }

@@ -4,7 +4,9 @@ export type Step =
   /** Delays the next step's response, within the same model request. */
   | { kind: 'hold'; ms: number };
 
-export type ModelAuxiliaryCallKind = 'hermes_title_generation';
+export type ModelAuxiliaryCallKind =
+  | 'hermes_title_generation'
+  | 'openclaw_recent_context_note';
 
 export interface ScriptOptions {
   /**
