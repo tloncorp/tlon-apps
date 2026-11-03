@@ -29,7 +29,7 @@ services:
 
         echo "==> fake ships runtime pin"
         echo "    vere: latest release (see pier-archive.json for the producing vere)"
-        echo "    pier generation: 46"
+        echo "    pier generation: 47"
         echo "    zod code: lidlut-tabwed-pillex-ridrup"
         echo "    ten code: lapseg-nolmel-riswen-hopryc"
         echo "    mug code: ravsut-bolryd-hapsum-pastul"
@@ -130,23 +130,23 @@ services:
         }
 
         zod_archive="$$(artifact \
-          rube-zod46.tgz \
-          https://bootstrap.urbit.org/rube-zod46.tgz \
+          rube-zod47.tgz \
+          https://bootstrap.urbit.org/rube-zod47.tgz \
           md5 \
-          561b703c99c7eff1af7695d9a664b33d \
-          406069819)"
+          31946c50084f8c6acf90eb8470058644 \
+          407594497)"
         ten_archive="$$(artifact \
-          rube-ten46.tgz \
-          https://bootstrap.urbit.org/rube-ten46.tgz \
+          rube-ten47.tgz \
+          https://bootstrap.urbit.org/rube-ten47.tgz \
           md5 \
-          cd1919f605ab5920965b26275454098c \
-          405006087)"
+          ab01cf9b9c3aa6d12836b2d5927e7cb9 \
+          406436110)"
         mug_archive="$$(artifact \
-          rube-mug46.tgz \
-          https://bootstrap.urbit.org/rube-mug46.tgz \
+          rube-mug47.tgz \
+          https://bootstrap.urbit.org/rube-mug47.tgz \
           md5 \
-          4f2c0b01f2b18e048f811f6986f56a5d \
-          405158002)"
+          3757a9179cb17370f1f138d30cba45e7 \
+          406747417)"
 
         if [ ! -d zod ]; then
           echo "==> Extracting zod"
