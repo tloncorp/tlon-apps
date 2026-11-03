@@ -5,10 +5,7 @@ import {
   sourceIdToSource,
   toClientUnreads,
 } from '../client/activityApi';
-import {
-  setActivitySupportsNotes,
-  setActivitySupportsReactions,
-} from '../client/urbit';
+import { clearDeskVersion, setDeskVersion } from '../client/urbit';
 import type { ActivityAction, ActivitySummary } from '../urbit';
 
 const volume = {
@@ -24,13 +21,12 @@ const adjustAction: ActivityAction = {
 };
 
 afterEach(() => {
-  setActivitySupportsReactions(false);
-  setActivitySupportsNotes(false);
+  clearDeskVersion();
 });
 
 describe('activityAction mark gating', () => {
   test('uses the v9 mark, keeps react keys, strips note keys', () => {
-    setActivitySupportsReactions(true);
+    setDeskVersion('11.4.0');
     const action = activityAction(adjustAction);
     expect(action.mark).toBe('activity-action-1');
     const sent = action.json as typeof adjustAction;
@@ -42,7 +38,7 @@ describe('activityAction mark gating', () => {
   });
 
   test('uses the v8 mark and strips react and note keys when unsupported', () => {
-    setActivitySupportsReactions(false);
+    setDeskVersion('11.3.0');
     const action = activityAction(adjustAction);
     expect(action.mark).toBe('activity-action');
     const sent = action.json as typeof adjustAction;
@@ -58,14 +54,14 @@ describe('activityAction mark gating', () => {
   });
 
   test('passes non-adjust actions through unchanged on the v8 mark', () => {
-    setActivitySupportsReactions(false);
+    setDeskVersion('11.3.0');
     const action = activityAction({ 'clear-group-invites': null });
     expect(action.mark).toBe('activity-action');
     expect(action.json).toEqual({ 'clear-group-invites': null });
   });
 
   test('uses the v10 mark and keeps note keys when the backend supports notes', () => {
-    setActivitySupportsNotes(true);
+    setDeskVersion('12.1.0');
     const action = activityAction(adjustAction);
     expect(action.mark).toBe('activity-action-2');
     expect(action.json).toEqual(adjustAction);

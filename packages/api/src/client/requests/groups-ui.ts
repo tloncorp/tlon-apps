@@ -19,7 +19,7 @@ export const groupsUi = {
     agent: 'groups-ui',
     path: '/v11/init',
     since: '12.3.0',
-    guardedBy: 'deskSupportsBuckets',
+    guardedBy: 'buckets',
   },
   changes: {
     kind: 'scry',

@@ -26,11 +26,11 @@ vi.mock('@tloncorp/api', () => ({
   getStewardPromptFiles: async () => mocks.files,
   subscribeToStewardPrompts: async () => 1,
   unsubscribe: vi.fn(),
-  onDeskSupportsStewardPromptsChange: (listener: () => void) => {
+  onDeskVersionChange: (listener: () => void) => {
     mocks.deskListeners.add(listener);
     return () => mocks.deskListeners.delete(listener);
   },
-  getDeskSupportsStewardPromptsState: () => mocks.deskSupports,
+  deskSupports: () => mocks.deskSupports,
   setStewardPrompt: mocks.setStewardPrompt,
   awaitStewardPromptRequest: vi.fn(),
   mintRequestId: () => `0v${++mocks.minted}`,

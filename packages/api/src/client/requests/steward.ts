@@ -13,14 +13,14 @@ export const steward = {
     agent: 'steward',
     path: '/v1/automation/tasks',
     since: '12.3.1',
-    guardedBy: 'deskSupportsAutomations',
+    guardedBy: 'automations',
   },
   automationTasksFeed: {
     kind: 'subscribe',
     agent: 'steward',
     path: '/v1/automation/tasks',
     since: '12.3.1',
-    guardedBy: 'deskSupportsAutomations',
+    guardedBy: 'automations',
   },
   automationTasksHttp: {
     kind: 'http',
@@ -28,7 +28,7 @@ export const steward = {
     method: 'GET',
     path: '/steward/~/v1/automation/tasks',
     since: '12.3.1',
-    guardedBy: 'deskSupportsAutomations',
+    guardedBy: 'automations',
   },
   automationEdit: {
     kind: 'http',
@@ -36,7 +36,7 @@ export const steward = {
     method: 'POST',
     path: '/steward/~/v1/automation',
     since: '12.3.1',
-    guardedBy: 'deskSupportsAutomations',
+    guardedBy: 'automations',
   },
   automationRequest: {
     kind: 'http',
@@ -44,7 +44,7 @@ export const steward = {
     method: 'GET',
     path: '/steward/~/v1/automation/request/{requestId}',
     since: '12.3.1',
-    guardedBy: 'deskSupportsAutomations',
+    guardedBy: 'automations',
   },
   lensRecent: {
     kind: 'scry',
@@ -75,7 +75,7 @@ export const steward = {
     agent: 'steward',
     path: '/v1/bots',
     since: '12.5.0',
-    guardedBy: 'deskSupportsStewardBots',
+    guardedBy: 'stewardBots',
   },
   lensFeed: {
     kind: 'subscribe',
@@ -89,14 +89,14 @@ export const steward = {
     agent: 'steward',
     path: '/v1/lens/cron/{bot}/{job}/{count}',
     since: '12.5.0',
-    guardedBy: 'deskSupportsTaskRuns',
+    guardedBy: 'taskRuns',
   },
   lensCronPageBefore: {
     kind: 'scry',
     agent: 'steward',
     path: '/v1/lens/cron/{bot}/{job}/{count}/{before}',
     since: '12.5.0',
-    guardedBy: 'deskSupportsTaskRuns',
+    guardedBy: 'taskRuns',
   },
   action: {
     kind: 'poke',
@@ -122,7 +122,7 @@ export const steward = {
     method: 'GET',
     path: '/steward/~/v1/prompts/files',
     since: '12.4.0',
-    guardedBy: 'deskSupportsStewardPrompts',
+    guardedBy: 'stewardPrompts',
   },
   promptEdit: {
     kind: 'http',
@@ -130,7 +130,7 @@ export const steward = {
     method: 'POST',
     path: '/steward/~/v1/prompts',
     since: '12.4.0',
-    guardedBy: 'deskSupportsStewardPrompts',
+    guardedBy: 'stewardPrompts',
   },
   promptRequest: {
     kind: 'http',
@@ -138,13 +138,13 @@ export const steward = {
     method: 'GET',
     path: '/steward/~/v1/prompts/request/{requestId}',
     since: '12.4.0',
-    guardedBy: 'deskSupportsStewardPrompts',
+    guardedBy: 'stewardPrompts',
   },
   promptFeed: {
     kind: 'subscribe',
     agent: 'steward',
     path: '/v1/prompts/files',
     since: '12.4.0',
-    guardedBy: 'deskSupportsStewardPrompts',
+    guardedBy: 'stewardPrompts',
   },
 } as const satisfies Record<string, Entry>;

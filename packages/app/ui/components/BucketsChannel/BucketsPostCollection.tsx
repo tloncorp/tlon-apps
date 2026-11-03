@@ -1,5 +1,5 @@
 import { type BucketsFlag, parseBucketsChannelId } from '@tloncorp/api';
-import { useDeskSupportsBuckets } from '@tloncorp/shared';
+import { useDeskSupports } from '@tloncorp/shared';
 import { Text } from '@tloncorp/ui';
 import { type ReactElement, forwardRef } from 'react';
 import { YStack } from 'tamagui';
@@ -51,7 +51,7 @@ export function BucketsGate({
   children: (flag: BucketsFlag) => ReactElement;
 }) {
   const flag = parseBucketsChannelId(channelId);
-  const deskSupportsBuckets = useDeskSupportsBuckets();
+  const deskSupportsBuckets = useDeskSupports('buckets');
 
   if (!flag) {
     return (

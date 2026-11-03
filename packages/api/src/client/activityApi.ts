@@ -19,18 +19,19 @@ import {
   scryRequest,
   subscribeRequest,
 } from './requests';
-import {
-  getActivitySupportsNotes,
-  getActivitySupportsReactions,
-} from './urbit';
+import { deskSupports } from './urbit';
 import { normalizeUrbitColor } from './utils';
+
+// Unknown reads as unsupported: an old backend gets the older endpoints.
+const supportsNotes = () => deskSupports('activityNotes') === true;
+const supportsReactions = () => deskSupports('activityReactions') === true;
 
 const logger = createDevLogger('activityApi', false);
 
 export async function getGroupAndChannelUnreads() {
   // v6 is the v10-native summary (carries notebook/note sources); v4
   // down-converts and drops them. Old backends don't serve v6.
-  const activity = getActivitySupportsNotes()
+  const activity = supportsNotes()
     ? await scryRequest(activityRequests.fullV6)<ub.Activity>({})
     : await scryRequest(activityRequests.fullV4)<ub.Activity>({});
   const deserialized = toClientUnreads(activity);
@@ -52,7 +53,7 @@ export async function getThreadUnreadsByChannel(
     // capability resolves (or on a backend without notes activity) we can't
     // query at all — return null, NOT an empty list, so callers don't treat
     // it as an authoritative "no unreads" and clear local state.
-    if (!getActivitySupportsNotes()) {
+    if (!supportsNotes()) {
       return null;
     }
     const { host, name } = parseGroupChannelId(channel.id);
@@ -84,7 +85,7 @@ export async function getThreadUnreadsByChannel(
 export async function getVolumeSettings(): Promise<ub.VolumeSettings> {
   // the bare path serves v4-converted settings, which drop %notebook
   // sources — request the v10-native path when the backend has it
-  const settings = getActivitySupportsNotes()
+  const settings = supportsNotes()
     ? await scryRequest(activityRequests.volumeSettingsV6)<ub.VolumeSettings>(
         {}
       )
@@ -98,10 +99,10 @@ export const ACTIVITY_SOURCE_PAGESIZE = 30;
 // (reacts, no notes), and v5 down-converts to v8. Old backends don't serve
 // the newer paths, so only request what the backend is known to support.
 function feedVersion(): 'v7' | 'v6' | 'v5' {
-  if (getActivitySupportsNotes()) {
+  if (supportsNotes()) {
     return 'v7';
   }
-  return getActivitySupportsReactions() ? 'v6' : 'v5';
+  return supportsReactions() ? 'v6' : 'v5';
 }
 
 function scryInitFeed() {
@@ -811,12 +812,12 @@ export function subscribeToActivity(
   };
   // v6 is the v10-native update stream (notes), v5 the v9-native one
   // (reacts), v4 the oldest. Fall back by backend capability.
-  return getActivitySupportsNotes()
+  return supportsNotes()
     ? subscribeRequest(activityRequests.updatesV6)<ub.ActivityUpdate>(
         {},
         onUpdate
       )
-    : getActivitySupportsReactions()
+    : supportsReactions()
       ? subscribeRequest(activityRequests.updatesV5)<ub.ActivityUpdate>(
           {},
           onUpdate
@@ -859,21 +860,21 @@ export function activityAction(action: ub.ActivityAction) {
   // keys; activity-action-1 (v9) parses react keys; the agent accepts all
   // marks. Old backends only have the v8 activity-action mark, so use it and
   // strip reacts.
-  if (getActivitySupportsNotes()) {
+  if (supportsNotes()) {
     return {
       app: activityRequests.action2.agent,
       mark: activityRequests.action2.mark,
       json: action,
     };
   }
-  const supportsReactions = getActivitySupportsReactions();
+  const reactions = supportsReactions();
   const stripped = stripNoteVolumeKeys(action);
   return {
     app: activityRequests.action1.agent,
-    mark: supportsReactions
+    mark: reactions
       ? activityRequests.action1.mark
       : activityRequests.action0.mark,
-    json: supportsReactions ? stripped : stripReactVolumeKeys(stripped),
+    json: reactions ? stripped : stripReactVolumeKeys(stripped),
   };
 }
 
@@ -882,9 +883,9 @@ export function activityAction(action: ub.ActivityAction) {
 // request.
 function activityPoke(payload: ub.ActivityAction) {
   const action = activityAction(payload);
-  const send = getActivitySupportsNotes()
+  const send = supportsNotes()
     ? pokeRequest(activityRequests.action2)
-    : getActivitySupportsReactions()
+    : supportsReactions()
       ? pokeRequest(activityRequests.action1)
       : pokeRequest(activityRequests.action0);
   return { action, send: () => send(action.json) };
@@ -938,7 +939,7 @@ export const readChannel = async ({
     source = { dm: { club: channelId } };
   } else if (channelType === 'notes') {
     // notebooks are their own source kind, not %channel
-    if (!getActivitySupportsNotes()) {
+    if (!supportsNotes()) {
       return;
     }
     const { host, name } = parseGroupChannelId(channelId);
@@ -1036,7 +1037,7 @@ export const readNote = async ({
   noteId: string;
   groupId?: string | null;
 }) => {
-  if (!getActivitySupportsNotes()) {
+  if (!supportsNotes()) {
     return;
   }
   const { host, name } = parseGroupChannelId(channelId);

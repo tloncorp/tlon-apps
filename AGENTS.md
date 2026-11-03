@@ -57,8 +57,9 @@ Where a typical change goes:
   and migration, sync handler case, query, action with rollback) → app (hook
   and UI) → E2E. Each layer has its own tests; split commits by subsystem.
 - Client-only feature: shared (query, logic) and app only.
-- A new desk dependency the N-1 desk lacks: a guard in the api registry and a
-  capability check in shared `logic/*Support.ts`.
+- A new desk dependency the N-1 desk lacks: a capability in
+  `DESK_CAPABILITIES` (`packages/api/src/lib/deskVersion.ts`), named by the
+  registry entry's `guardedBy` and read with `deskSupports`/`useDeskSupports`.
 
 ## How we build
 

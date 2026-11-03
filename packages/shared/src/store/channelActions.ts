@@ -936,7 +936,7 @@ export async function markChannelRead({
   // the notebook read poke can't be sent until the notes capability
   // resolves (or ever, on a backend below the gate) — skip the optimistic
   // clear too, or local state diverges from the ship with no retry
-  if (id.startsWith('notes/') && !api.getActivitySupportsNotes()) {
+  if (id.startsWith('notes/') && api.deskSupports('activityNotes') !== true) {
     return false;
   }
   logger.log(`marking channel as read`, id, 'includeThreads', includeThreads);

@@ -1,6 +1,7 @@
 import { Noun } from '@urbit/nockjs';
 import _ from 'lodash';
 import { deriveBrowserOwnerToken } from '../lib/browserOwnerToken';
+import { type DeskCapability, versionSupports } from '../lib/deskVersion';
 
 import {
   AuthError,
@@ -66,15 +67,9 @@ interface Config extends Pick<ClientParams, 'onQuitOrReset'> {
   readonly shipUrl: string;
   subWatchers: Watchers;
   lastStatus: string;
-  activitySupportsReactions: boolean;
-  activitySupportsNotes: boolean;
-  deskSupportsBuckets: boolean | null;
-  deskSupportsAutomations: boolean | null;
-  deskSupportsStewardPrompts: boolean | null;
-  deskSupportsTaskRuns: boolean | null;
-  deskCountsAllSeats: boolean;
-  deskServesRosterPages: boolean | null;
-  deskSupportsStewardBots: boolean | null;
+  // The backend's %groups version once the app has resolved it, null until
+  // then. `groupsVersion` is null when the backend reported none.
+  deskVersion: { groupsVersion: string | null } | null;
 }
 
 type Predicate = (event: any, mark: string) => boolean;
@@ -187,31 +182,7 @@ const config: Config = {
   lastStatus: '',
   subWatchers: {},
   onQuitOrReset: undefined,
-  // Off until the app confirms the backend's groups version ships reactions.
-  // Drives which %activity endpoint versions the client uses (feed/sub/marks).
-  activitySupportsReactions: false,
-  // Off until the app confirms the backend's groups version ships notes
-  // activity (v10 %activity endpoints).
-  activitySupportsNotes: false,
-  // Unknown (null) until the app confirms the backend's groups version.
-  // Unknown reads as unsupported for picking /v10 vs /v11 init, so a ship
-  // whose version we cannot read is asked for /v10, which every backend has —
-  // a 404 there costs the whole init. Guarded requests refuse only false.
-  deskSupportsBuckets: null,
-  // Unknown (null) until the app confirms the backend's groups version.
-  // Guarded requests refuse only false.
-  deskSupportsAutomations: null,
-  deskSupportsStewardPrompts: null,
-  deskSupportsTaskRuns: null,
-  // Off until the app confirms the backend's groups version counts every seat
-  // in init and changes, so a member count of 15 stays suspect by default.
-  deskCountsAllSeats: false,
-  // Unknown (null) until the app confirms the backend's groups version.
-  // Unknown reads as unsupported for choosing how to sync a big group, so a
-  // ship whose version we cannot read gets the full roster it always had.
-  deskServesRosterPages: null,
-  // Guarded requests refuse only false.
-  deskSupportsStewardBots: null,
+  deskVersion: null,
 };
 
 type ClientResolver = () => Urbit | null | undefined;
@@ -268,23 +239,6 @@ export const onActivityCapabilitiesChange = (
   };
 };
 
-const bumpActivityCapabilitiesEpoch = () => {
-  activityCapabilitiesEpoch += 1;
-  activityCapabilityListeners.forEach((listener) => listener());
-};
-
-// Whether the connected backend supports reaction activity (v9 %activity
-// endpoints). Set by the app from the backend's groups version; read by the
-// activity client to pick endpoint versions. Defaults false so an old backend
-// gets the pre-reaction (v5 feed / v4 subscription / v8 mark) endpoints.
-export const setActivitySupportsReactions = (value: boolean) => {
-  const changed = config.activitySupportsReactions !== value;
-  config.activitySupportsReactions = value;
-  if (changed) {
-    bumpActivityCapabilitiesEpoch();
-  }
-};
-
 const clientSessionListeners = new Set<() => void>();
 export function onClientSessionChange(listener: () => void): () => void {
   clientSessionListeners.add(listener);
@@ -300,204 +254,55 @@ export const getClientGeneration = (): number => {
   return config.sessionGeneration;
 };
 
-export const getActivitySupportsReactions = (): boolean => {
-  return config.activitySupportsReactions;
+const deskVersionListeners = new Set<() => void>();
+
+// Whether the connected backend has a capability, from the %groups version
+// the app resolved for it; null until it has. Callers that must not guess
+// read null as unsupported (`=== true`); guarded requests refuse only false.
+export const deskSupports = (capability: DeskCapability): boolean | null => {
+  return config.deskVersion
+    ? versionSupports(config.deskVersion.groupsVersion, capability)
+    : null;
 };
 
-// Whether the connected backend supports notes activity (v10 %activity
-// endpoints: v6 subscription, v7 feed, activity-action-2 mark). Same pattern
-// as reactions above; defaults false so old backends get older endpoints.
-export const setActivitySupportsNotes = (value: boolean) => {
-  const changed = config.activitySupportsNotes !== value;
-  config.activitySupportsNotes = value;
-  if (changed) {
-    bumpActivityCapabilitiesEpoch();
+const activityCapabilities = () =>
+  `${deskSupports('activityReactions') === true}/${deskSupports('activityNotes') === true}`;
+
+const applyDeskVersion = (next: Config['deskVersion']) => {
+  const current = config.deskVersion;
+  if (
+    current === next ||
+    (current && next && current.groupsVersion === next.groupsVersion)
+  ) {
+    return;
   }
-};
-
-export const getActivitySupportsNotes = (): boolean => {
-  return config.activitySupportsNotes;
-};
-
-// Whether the connected backend's init and changes member counts cover every
-// seat. Older desks counted only the 15 seats they keep, so
-// withoutTruncatedMemberCount distrusts a count of exactly 15 until this is set.
-export const setDeskCountsAllSeats = (value: boolean) => {
-  config.deskCountsAllSeats = value;
-};
-
-export const getDeskCountsAllSeats = (): boolean => {
-  return config.deskCountsAllSeats;
-};
-
-const deskServesRosterPagesListeners = new Set<() => void>();
-
-// Whether the connected backend serves a big roster in parts: the light ui
-// group and the seat pages. Picks how a big group syncs and loads members;
-// a mounted members screen listens below.
-export const setDeskServesRosterPages = (value: boolean | null) => {
-  const changed = config.deskServesRosterPages !== value;
-  config.deskServesRosterPages = value;
-  if (changed) {
-    deskServesRosterPagesListeners.forEach((listener) => listener());
+  const activityBefore = activityCapabilities();
+  config.deskVersion = next;
+  // The activity client picks endpoint versions from these two, and live
+  // subscriptions key on the epoch to resubscribe when they change.
+  if (activityCapabilities() !== activityBefore) {
+    activityCapabilitiesEpoch += 1;
+    activityCapabilityListeners.forEach((listener) => listener());
   }
+  deskVersionListeners.forEach((listener) => listener());
 };
 
-export const onDeskServesRosterPagesChange = (
-  listener: () => void
-): (() => void) => {
-  deskServesRosterPagesListeners.add(listener);
+// Records the backend's %groups version, from which every capability is
+// read. A missing version is resolved, not unknown: every capability reads
+// as unsupported.
+export const setDeskVersion = (groupsVersion: string | null | undefined) => {
+  applyDeskVersion({ groupsVersion: groupsVersion ?? null });
+};
+
+// Forgets the backend's version, so every capability reads as unknown again.
+export const clearDeskVersion = () => {
+  applyDeskVersion(null);
+};
+
+export const onDeskVersionChange = (listener: () => void): (() => void) => {
+  deskVersionListeners.add(listener);
   return () => {
-    deskServesRosterPagesListeners.delete(listener);
-  };
-};
-
-export const getDeskServesRosterPages = (): boolean => {
-  return config.deskServesRosterPages === true;
-};
-
-// null until sync start resolves the capability; the request guard refuses
-// only a known false.
-export const getDeskServesRosterPagesState = (): boolean | null => {
-  return config.deskServesRosterPages;
-};
-
-const deskSupportsStewardBotsListeners = new Set<() => void>();
-
-// Whether the connected backend's %steward serves its trusted bots. Views
-// gated on it listen below.
-export const setDeskSupportsStewardBots = (value: boolean | null) => {
-  const changed = config.deskSupportsStewardBots !== value;
-  config.deskSupportsStewardBots = value;
-  if (changed) {
-    deskSupportsStewardBotsListeners.forEach((listener) => listener());
-  }
-};
-
-// null until sync start resolves the capability; the request guard refuses
-// only a known false.
-export const getDeskSupportsStewardBotsState = (): boolean | null => {
-  return config.deskSupportsStewardBots;
-};
-
-export const onDeskSupportsStewardBotsChange = (
-  listener: () => void
-): (() => void) => {
-  deskSupportsStewardBotsListeners.add(listener);
-  return () => {
-    deskSupportsStewardBotsListeners.delete(listener);
-  };
-};
-
-const deskSupportsBucketsListeners = new Set<() => void>();
-
-// Whether the connected backend serves /v11/init (Buckets and their writer
-// roles). No capabilities epoch to bump: this picks one path at init time
-// rather than steering live subscriptions. Views gated on it listen below.
-export const setDeskSupportsBuckets = (value: boolean | null) => {
-  const changed = config.deskSupportsBuckets !== value;
-  config.deskSupportsBuckets = value;
-  if (changed) {
-    deskSupportsBucketsListeners.forEach((listener) => listener());
-  }
-};
-
-export const getDeskSupportsBuckets = (): boolean => {
-  return config.deskSupportsBuckets === true;
-};
-
-// null until sync start resolves the capability; the request guard refuses
-// only a known false.
-export const getDeskSupportsBucketsState = (): boolean | null => {
-  return config.deskSupportsBuckets;
-};
-
-const deskSupportsAutomationsListeners = new Set<() => void>();
-
-// Whether the connected backend's %steward serves scheduled tasks with their
-// delivery block. The request guard reads it, and so do the ways into the
-// task screens, which listen below.
-export const setDeskSupportsAutomations = (value: boolean | null) => {
-  const changed = config.deskSupportsAutomations !== value;
-  config.deskSupportsAutomations = value;
-  if (changed) {
-    deskSupportsAutomationsListeners.forEach((listener) => listener());
-  }
-};
-
-// null until sync start resolves the capability; the request guard refuses
-// only a known false.
-export const getDeskSupportsAutomationsState = (): boolean | null => {
-  return config.deskSupportsAutomations;
-};
-
-export const onDeskSupportsAutomationsChange = (
-  listener: () => void
-): (() => void) => {
-  deskSupportsAutomationsListeners.add(listener);
-  return () => {
-    deskSupportsAutomationsListeners.delete(listener);
-  };
-};
-
-export const onDeskSupportsBucketsChange = (
-  listener: () => void
-): (() => void) => {
-  deskSupportsBucketsListeners.add(listener);
-  return () => {
-    deskSupportsBucketsListeners.delete(listener);
-  };
-};
-
-const deskSupportsStewardPromptsListeners = new Set<() => void>();
-
-// Whether the connected backend's %steward serves the prompts routes. The
-// request guard refuses a known false; a view that already met that refusal
-// listens below to try again once a desk upgrade turns it on.
-export const setDeskSupportsStewardPrompts = (value: boolean | null) => {
-  const changed = config.deskSupportsStewardPrompts !== value;
-  config.deskSupportsStewardPrompts = value;
-  if (changed) {
-    deskSupportsStewardPromptsListeners.forEach((listener) => listener());
-  }
-};
-
-export const getDeskSupportsStewardPromptsState = (): boolean | null => {
-  return config.deskSupportsStewardPrompts;
-};
-
-export const onDeskSupportsStewardPromptsChange = (
-  listener: () => void
-): (() => void) => {
-  deskSupportsStewardPromptsListeners.add(listener);
-  return () => {
-    deskSupportsStewardPromptsListeners.delete(listener);
-  };
-};
-
-const deskSupportsTaskRunsListeners = new Set<() => void>();
-
-// Whether the connected backend's %steward pages a task's runs and relays
-// test runs. Like the prompts capability, a view listens to try again once a
-// desk upgrade turns it on.
-export const setDeskSupportsTaskRuns = (value: boolean | null) => {
-  const changed = config.deskSupportsTaskRuns !== value;
-  config.deskSupportsTaskRuns = value;
-  if (changed) {
-    deskSupportsTaskRunsListeners.forEach((listener) => listener());
-  }
-};
-
-export const getDeskSupportsTaskRunsState = (): boolean | null => {
-  return config.deskSupportsTaskRuns;
-};
-
-export const onDeskSupportsTaskRunsChange = (
-  listener: () => void
-): (() => void) => {
-  deskSupportsTaskRunsListeners.add(listener);
-  return () => {
-    deskSupportsTaskRunsListeners.delete(listener);
+    deskVersionListeners.delete(listener);
   };
 };
 
@@ -668,18 +473,10 @@ export function internalRemoveClient() {
   config.subWatchers = {};
   // backend capabilities belong to the ship we were connected to; reset
   // so an account switch to an older backend doesn't request newer
-  // endpoints until app-info sync resolves the new ship's version. The
-  // guarded capabilities go back to unknown, not unsupported: the next
-  // login's guarded requests go out until the probe says otherwise.
-  setActivitySupportsReactions(false);
-  setActivitySupportsNotes(false);
-  setDeskSupportsBuckets(null);
-  setDeskSupportsAutomations(null);
-  setDeskSupportsStewardPrompts(null);
-  setDeskSupportsTaskRuns(null);
-  setDeskCountsAllSeats(false);
-  setDeskServesRosterPages(null);
-  setDeskSupportsStewardBots(null);
+  // endpoints until app-info sync resolves the new ship's version. They go
+  // back to unknown, not unsupported: the next login's guarded requests go
+  // out until the version says otherwise.
+  clearDeskVersion();
 }
 
 function printEndpoint(endpoint: UrbitEndpoint) {

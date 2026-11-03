@@ -20,7 +20,7 @@ export const ROSTER_PAGE_SIZE = 50;
  */
 export function isRosterPaged(group: Pick<db.Group, 'memberCount'>): boolean {
   return (
-    api.getDeskServesRosterPages() &&
+    api.deskSupports('rosterPages') === true &&
     (group.memberCount ?? 0) > PAGED_ROSTER_THRESHOLD
   );
 }

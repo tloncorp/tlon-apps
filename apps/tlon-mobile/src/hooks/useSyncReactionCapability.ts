@@ -1,10 +1,7 @@
 import { UrbitModuleSpec } from '@tloncorp/app/utils/urbitModule';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import {
-  activityVersionSupportsNotes,
-  activityVersionSupportsReactions,
-} from '@tloncorp/shared/logic';
+import { versionSupports } from '@tloncorp/shared/logic';
 import { useEffect } from 'react';
 import { Platform, TurboModuleRegistry } from 'react-native';
 
@@ -28,10 +25,10 @@ export function useSyncReactionCapability() {
     }
     try {
       UrbitModule.setActivitySupportsReactions(
-        activityVersionSupportsReactions(groupsVersion)
+        versionSupports(groupsVersion, 'activityReactions')
       );
       UrbitModule.setActivitySupportsNotes(
-        activityVersionSupportsNotes(groupsVersion)
+        versionSupports(groupsVersion, 'activityNotes')
       );
     } catch (e) {
       logger.trackError('Failed to sync activity capability', {

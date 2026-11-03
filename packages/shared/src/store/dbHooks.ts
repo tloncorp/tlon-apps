@@ -852,24 +852,24 @@ export const useChannelSearchResults = (
 };
 
 /**
- * Whether this ship runs %buckets, for gating the views that talk to it.
+ * Whether this ship's %groups desk has a capability, for gating views on what
+ * the user's own ship serves. A group's channel list comes from its host, so
+ * a 12.3-hosted group lists its Buckets to members whose own ship is still on
+ * 12.2.x, and everything a Bucket view does goes through the local %buckets
+ * agent, which those ships do not have.
  *
- * A group's channel list comes from its host, so a 12.3-hosted group lists
- * its Buckets to members whose own ship is still on 12.2.x. Everything a
- * Bucket view does goes through the local %buckets agent, which those ships
- * do not have.
- *
- * The client capability wins once sync start has resolved it from the
- * version it fetched, and it stands even when persisting that version failed.
- * Before then it is null, and the stored app info is the only answer: gating
- * on the capability alone would tell a 12.3 ship it needs an update.
- * Undefined while the capability is unresolved and the stored value has not
- * been read, so a gate can wait instead of flashing the unsupported state.
+ * The client's recorded version wins once sync start has resolved it, and it
+ * stands even when persisting that version failed. Before then it is null,
+ * and the stored app info is the only answer: gating on the client alone
+ * would tell a ship that has the capability that it needs an update.
+ * Undefined while neither is known, so a gate can wait instead of flashing
+ * the unsupported state.
  */
-export const useDeskSupportsBuckets = (): boolean | undefined => {
-  const clientSupports = useSyncExternalStore(
-    api.onDeskSupportsBucketsChange,
-    api.getDeskSupportsBucketsState
+export const useDeskSupports = (
+  capability: logic.DeskCapability
+): boolean | undefined => {
+  const clientSupports = useSyncExternalStore(api.onDeskVersionChange, () =>
+    api.deskSupports(capability)
   );
   const { value: appInfo, isLoading } = db.appInfo.useStorageItem();
   if (clientSupports !== null) {
@@ -878,68 +878,7 @@ export const useDeskSupportsBuckets = (): boolean | undefined => {
   if (isLoading) {
     return undefined;
   }
-  return logic.deskVersionSupportsBuckets(appInfo?.groupsVersion);
-};
-
-/**
- * Whether this ship's %steward serves scheduled tasks the way the app uses
- * them, for showing the ways into the task screens. Resolved the same way as
- * useDeskSupportsBuckets: the client capability once sync start has set it,
- * the stored app info before then, and undefined while neither is known.
- */
-export const useDeskSupportsAutomations = (): boolean | undefined => {
-  const clientSupports = useSyncExternalStore(
-    api.onDeskSupportsAutomationsChange,
-    api.getDeskSupportsAutomationsState
-  );
-  const { value: appInfo, isLoading } = db.appInfo.useStorageItem();
-  if (clientSupports !== null) {
-    return clientSupports;
-  }
-  if (isLoading) {
-    return undefined;
-  }
-  return logic.deskVersionSupportsAutomations(appInfo?.groupsVersion);
-};
-
-/**
- * Whether this ship's %steward pages a scheduled task's runs and relays test
- * runs, resolved the same way as useDeskSupportsAutomations.
- */
-export const useDeskSupportsTaskRuns = (): boolean | undefined => {
-  const clientSupports = useSyncExternalStore(
-    api.onDeskSupportsTaskRunsChange,
-    api.getDeskSupportsTaskRunsState
-  );
-  const { value: appInfo, isLoading } = db.appInfo.useStorageItem();
-  if (clientSupports !== null) {
-    return clientSupports;
-  }
-  if (isLoading) {
-    return undefined;
-  }
-  return logic.deskVersionSupportsTaskRuns(appInfo?.groupsVersion);
-};
-
-/**
- * Whether the user's own ship serves %steward's trusted bots, which editing
- * workspace instructions needs. Resolved as useDeskSupportsBuckets is: the
- * client capability once sync start sets it, else the stored app info, and
- * undefined until either is known.
- */
-export const useDeskSupportsStewardBots = (): boolean | undefined => {
-  const clientSupports = useSyncExternalStore(
-    api.onDeskSupportsStewardBotsChange,
-    api.getDeskSupportsStewardBotsState
-  );
-  const { value: appInfo, isLoading } = db.appInfo.useStorageItem();
-  if (clientSupports !== null) {
-    return clientSupports;
-  }
-  if (isLoading) {
-    return undefined;
-  }
-  return logic.deskVersionSupportsStewardBots(appInfo?.groupsVersion);
+  return logic.versionSupports(appInfo?.groupsVersion, capability);
 };
 
 /**

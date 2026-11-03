@@ -1,7 +1,7 @@
 import { render } from '@urbit/aura';
 import { z } from 'zod';
 
-import { TASK_RUNS_MIN_GROUPS_VERSION } from '../lib/deskVersion';
+import { DESK_CAPABILITIES } from '../lib/deskVersion';
 import type * as ub from '../urbit';
 import {
   httpRequest,
@@ -9,7 +9,7 @@ import {
   steward,
   subscribeRequest,
 } from './requests';
-import { DeskUnsupportedError, getDeskSupportsTaskRunsState } from './urbit';
+import { DeskUnsupportedError, deskSupports } from './urbit';
 
 /**
  * Client for %steward's automation module on the owner ship: read the
@@ -246,11 +246,11 @@ export function testAutomation(params: {
 }): Promise<StewardAutomationEditResult & { lensId: string }> {
   // The route predates test runs, and the registry holds one entry per
   // route, so its entry cannot guard them; this helper does.
-  if (getDeskSupportsTaskRunsState() === false) {
+  if (deskSupports('taskRuns') === false) {
     throw new DeskUnsupportedError(
       'steward.automationEdit (test)',
-      TASK_RUNS_MIN_GROUPS_VERSION,
-      'deskSupportsTaskRuns'
+      DESK_CAPABILITIES.taskRuns,
+      'taskRuns'
     );
   }
   return editAutomation({

@@ -10,8 +10,8 @@ const session = vi.hoisted(() => ({ startTime: 1 as number | undefined }));
 const syncGroupMembersPage = vi.hoisted(() => vi.fn());
 
 vi.mock('@tloncorp/api', () => ({
-  getDeskServesRosterPages: () => true,
-  onDeskServesRosterPagesChange: () => () => {},
+  deskSupports: () => true,
+  onDeskVersionChange: () => () => {},
 }));
 
 vi.mock('@tloncorp/shared/store', () => ({

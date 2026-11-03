@@ -91,7 +91,7 @@ export function ChatDetailsView({
   // Bots honor a workspace config only in groups their owner hosts, so
   // only the host gets the editor.
   const supportsInstructions =
-    store.useDeskSupportsStewardBots() === true &&
+    store.useDeskSupports('stewardBots') === true &&
     group?.hostUserId === currentUserId;
   const [instructionsOpen, setInstructionsOpen] = useState(false);
 

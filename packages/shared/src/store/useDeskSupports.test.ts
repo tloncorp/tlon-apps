@@ -21,17 +21,17 @@ vi.mock('../db', async (importOriginal) => {
   };
 });
 
-import { useDeskSupportsBuckets } from './dbHooks';
+import { useDeskSupports } from './dbHooks';
 
 const RESULT_NODE = 'Result';
 
 // Unmounted after each test: a harness left mounted stays subscribed to the
-// flag, and resetting it would then update a tree outside act.
+// version, and resetting it would then update a tree outside act.
 const mounted: ReactTestRenderer[] = [];
 
 function Harness() {
   return React.createElement(RESULT_NODE, {
-    supported: useDeskSupportsBuckets(),
+    supported: useDeskSupports('buckets'),
   });
 }
 
@@ -50,7 +50,7 @@ function resultOf(renderer: ReactTestRenderer) {
 }
 
 beforeEach(() => {
-  api.setDeskSupportsBuckets(null);
+  api.clearDeskVersion();
   mocks.appInfo = { value: null, isLoading: false };
 });
 
@@ -58,7 +58,7 @@ afterEach(() => {
   act(() => {
     mounted.splice(0).forEach((renderer) => renderer.unmount());
   });
-  api.setDeskSupportsBuckets(null);
+  api.clearDeskVersion();
 });
 
 test('is unsupported on a 12.2 ship', () => {
@@ -67,27 +67,27 @@ test('is unsupported on a 12.2 ship', () => {
   expect(resultOf(render())).toBe(false);
 });
 
-test('waits for the stored version while the client flag is off', () => {
+test('waits for the stored version while the client version is unknown', () => {
   mocks.appInfo = { value: null, isLoading: true };
 
   expect(resultOf(render())).toBeUndefined();
 });
 
-test('trusts the stored version before sync start sets the client flag', () => {
+test('trusts the stored version before sync start sets the client version', () => {
   mocks.appInfo = { value: { groupsVersion: '12.3.0' }, isLoading: false };
 
   expect(resultOf(render())).toBe(true);
 });
 
-// syncAppInfo sets the flag and then persists; a failed write leaves the
+// syncAppInfo records the version and then persists; a failed write leaves the
 // stored version behind while the rest of the session runs with Buckets on.
-test('follows the client flag when the stored version lags it', () => {
+test('follows the client version when the stored version lags it', () => {
   mocks.appInfo = { value: { groupsVersion: '12.2.0' }, isLoading: false };
   const renderer = render();
   expect(resultOf(renderer)).toBe(false);
 
   act(() => {
-    api.setDeskSupportsBuckets(true);
+    api.setDeskVersion('12.3.0');
   });
 
   expect(resultOf(renderer)).toBe(true);
@@ -97,7 +97,7 @@ test('follows the client flag when the stored version lags it', () => {
 // write that would have corrected the store failed.
 test('a known-unsupported desk overrides stale stored app info', () => {
   mocks.appInfo = { value: { groupsVersion: '12.3.0' }, isLoading: false };
-  api.setDeskSupportsBuckets(false);
+  api.setDeskVersion('12.2.0');
 
   expect(resultOf(render())).toBe(false);
 });

@@ -24,11 +24,11 @@ app concerns stay out. Inside the package, `lib` → `http-api` → `urbit` →
 2. For a poke, add its mark → payload type in `requests/payloads.ts`.
 3. Call it through its helper (`scryRequest(channels.search)<T>(params)`).
    `tlon/no-raw-desk-request` rejects raw `scry`/`poke`/`subscribe`.
-4. If only the current desk serves it, name a guard from `GUARDS`
-   (`requests/types.ts`) in `guardedBy`, with `since` equal to the guard's
-   version; `requests/floor.test.ts` enforces this. A guarded call is refused
-   only once the desk is known not to serve it, and sent while that is still
-   unknown.
+4. If only the current desk serves it, name a capability from
+   `DESK_CAPABILITIES` (`lib/deskVersion.ts`, adding one if needed) in
+   `guardedBy`, with `since` equal to its version; `requests/floor.test.ts`
+   enforces this. A guarded call is refused only once the desk is known not
+   to serve it, and sent while that is still unknown.
 5. Entries for agents outside %groups (hood, docket, settings, storage) carry
    `desk: 'base' | 'landscape'` and are exempt from the version floor. Bot-only
    modules listed in `oxlint/desk-request-scope.json` keep raw requests and
@@ -50,10 +50,11 @@ feature their own ship lacks. See `docs/tlon-apps/desk-compatibility.md`.
   cannot send.
 - `MIN_GROUPS_VERSION` records the N-1 floor and is raised only at release.
   It is never the lever for shipping a new desk dependency.
-- Version-gated endpoint choice reads capability flags in `client/urbit.ts`
-  (`getActivitySupportsNotes`, `getDeskSupportsBuckets`, …), which shared's
-  sync sets from the backend version. An unparseable version falls back to the
-  endpoint every backend serves.
+- Version-gated endpoint choice reads `deskSupports(capability)` in
+  `client/urbit.ts`, derived from the %groups version shared's sync records
+  with `setDeskVersion`. It is null until that version is known; an
+  unparseable version reads as unsupported, falling back to the endpoint every
+  backend serves.
 - Session-scoped code checks `getClientGeneration()` before acting on a reauth
   or retry result; logout or an account switch can happen mid-flight.
 - Post blobs: follow `docs/tlon-apps/post-blobs.md`. Register a new entry

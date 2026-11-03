@@ -14,19 +14,7 @@ import { SETTINGS_SINGLETON_KEY } from '../../db/schema';
 import { runIfDev } from '../../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../../domain';
 import { httpStatusFromError, isIgnoredError } from '../../errorReporting';
-import {
-  MIN_GROUPS_VERSION,
-  activityVersionSupportsNotes,
-  deskVersionSupportsAutomations,
-  deskVersionCountsAllSeats,
-  deskVersionServesRosterPages,
-  deskVersionSupportsBuckets,
-  deskVersionSupportsStewardPrompts,
-  deskVersionSupportsTaskRuns,
-  deskVersionSupportsStewardBots,
-  activityVersionSupportsReactions,
-  classifyDeskVersion,
-} from '../../logic';
+import { MIN_GROUPS_VERSION, classifyDeskVersion } from '../../logic';
 import { perfMark, perfTime } from '../../perfLog';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
@@ -664,31 +652,7 @@ export const syncAppInfo = async (
     generation: getClientGeneration(),
     groupsVersion: appInfo?.groupsVersion,
   };
-  api.setActivitySupportsReactions(
-    activityVersionSupportsReactions(appInfo?.groupsVersion)
-  );
-  api.setActivitySupportsNotes(
-    activityVersionSupportsNotes(appInfo?.groupsVersion)
-  );
-  api.setDeskSupportsBuckets(
-    deskVersionSupportsBuckets(appInfo?.groupsVersion)
-  );
-  api.setDeskSupportsAutomations(
-    deskVersionSupportsAutomations(appInfo?.groupsVersion)
-  );
-  api.setDeskCountsAllSeats(deskVersionCountsAllSeats(appInfo?.groupsVersion));
-  api.setDeskServesRosterPages(
-    deskVersionServesRosterPages(appInfo?.groupsVersion)
-  );
-  api.setDeskSupportsStewardPrompts(
-    deskVersionSupportsStewardPrompts(appInfo?.groupsVersion)
-  );
-  api.setDeskSupportsTaskRuns(
-    deskVersionSupportsTaskRuns(appInfo?.groupsVersion)
-  );
-  api.setDeskSupportsStewardBots(
-    deskVersionSupportsStewardBots(appInfo?.groupsVersion)
-  );
+  api.setDeskVersion(appInfo?.groupsVersion);
   // Awaited so the App Info screen and the notes-search gate see it promptly.
   // The capability flags don't depend on it landing: what protects those is
   // the in-memory version recorded above.
@@ -720,19 +684,7 @@ export const syncReactionSupport = async () => {
     fetchedGroupsVersion?.generation === getClientGeneration()
       ? fetchedGroupsVersion.groupsVersion
       : (await db.appInfo.getValue())?.groupsVersion;
-  api.setActivitySupportsReactions(
-    activityVersionSupportsReactions(groupsVersion)
-  );
-  api.setActivitySupportsNotes(activityVersionSupportsNotes(groupsVersion));
-  api.setDeskSupportsBuckets(deskVersionSupportsBuckets(groupsVersion));
-  api.setDeskSupportsAutomations(deskVersionSupportsAutomations(groupsVersion));
-  api.setDeskCountsAllSeats(deskVersionCountsAllSeats(groupsVersion));
-  api.setDeskServesRosterPages(deskVersionServesRosterPages(groupsVersion));
-  api.setDeskSupportsStewardPrompts(
-    deskVersionSupportsStewardPrompts(groupsVersion)
-  );
-  api.setDeskSupportsTaskRuns(deskVersionSupportsTaskRuns(groupsVersion));
-  api.setDeskSupportsStewardBots(deskVersionSupportsStewardBots(groupsVersion));
+  api.setDeskVersion(groupsVersion);
 };
 
 export const syncVolumeSettings = async (ctx?: SyncCtx) => {
@@ -3131,7 +3083,7 @@ let bucketsCheckedGeneration: number | null = null;
 async function subscribeToBucketsOnce() {
   const generation = getClientGeneration();
   if (
-    !api.getDeskSupportsBuckets() ||
+    api.deskSupports('buckets') !== true ||
     bucketsSubscribedGeneration === generation
   ) {
     return;
@@ -3180,7 +3132,7 @@ function watchBucketsSupport() {
     return;
   }
   watchingBucketsSupport = true;
-  api.onDeskSupportsBucketsChange(subscribeToBucketsIfMissed);
+  api.onDeskVersionChange(subscribeToBucketsIfMissed);
 }
 
 export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {

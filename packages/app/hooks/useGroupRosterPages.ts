@@ -1,8 +1,5 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import {
-  getDeskServesRosterPages,
-  onDeskServesRosterPagesChange,
-} from '@tloncorp/api';
+import { deskSupports, onDeskVersionChange } from '@tloncorp/api';
 import type * as db from '@tloncorp/shared/db';
 import { isRosterWhole } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -22,8 +19,8 @@ export function useGroupRosterPages(group: db.Group | null) {
   const groupId = group?.id ?? '';
   // re-render when the desk starts or stops serving pages
   const servesPages = useSyncExternalStore(
-    onDeskServesRosterPagesChange,
-    getDeskServesRosterPages
+    onDeskVersionChange,
+    () => deskSupports('rosterPages') === true
   );
   // a new session follows a dropped connection, which may have missed seat
   // events, so the pages start over with it

@@ -20,7 +20,7 @@ export const groups = {
     agent: 'groups',
     path: '/v3/ui/groups/{groupId*}/light',
     since: '12.5.0',
-    guardedBy: 'deskServesRosterPages',
+    guardedBy: 'rosterPages',
   },
   // A big group's roster a page at a time, in @p order after `after`.
   seatsPage: {
@@ -28,28 +28,28 @@ export const groups = {
     agent: 'groups',
     path: '/v3/groups/{groupId*}/seats/page/{limit}',
     since: '12.5.0',
-    guardedBy: 'deskServesRosterPages',
+    guardedBy: 'rosterPages',
   },
   seatsPageAfter: {
     kind: 'scry',
     agent: 'groups',
     path: '/v3/groups/{groupId*}/seats/page/{limit}/{after}',
     since: '12.5.0',
-    guardedBy: 'deskServesRosterPages',
+    guardedBy: 'rosterPages',
   },
   roleSeatsPage: {
     kind: 'scry',
     agent: 'groups',
     path: '/v3/groups/{groupId*}/seats/role/{roleId}/page/{limit}',
     since: '12.5.0',
-    guardedBy: 'deskServesRosterPages',
+    guardedBy: 'rosterPages',
   },
   roleSeatsPageAfter: {
     kind: 'scry',
     agent: 'groups',
     path: '/v3/groups/{groupId*}/seats/role/{roleId}/page/{limit}/{after}',
     since: '12.5.0',
-    guardedBy: 'deskServesRosterPages',
+    guardedBy: 'rosterPages',
   },
   negotiateStatus: {
     kind: 'scry',

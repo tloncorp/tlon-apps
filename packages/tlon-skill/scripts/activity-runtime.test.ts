@@ -19,8 +19,8 @@ import {
 afterEach(() => {
   mockedVolume.adjustVolumeSetting = async () => undefined;
   mockedVolume.getVolumeSettings = async () => ({});
-  mockedVolume.supportsReactions = false;
-  mockedVolume.supportsNotes = false;
+  mockedVolume.deskVersion = undefined;
+  mockedVolume.getAppInfo = async () => ({ groupsVersion: '12.2.0' });
   mockedScry.impl = async () => undefined;
   mockedPoke.impl = async () => undefined;
   mockedActivityRead.readChannel = async () => undefined;
@@ -77,9 +77,9 @@ describe('activity runtime formatting', () => {
 
 describe('activity runtime volume endpoints', () => {
   it('enables the current activity mark for the volume poke', async () => {
-    const seen: Array<[boolean, boolean]> = [];
+    const seen: Array<string | null | undefined> = [];
     mockedVolume.adjustVolumeSetting = async () => {
-      seen.push([mockedVolume.supportsReactions, mockedVolume.supportsNotes]);
+      seen.push(mockedVolume.deskVersion);
     };
 
     await createActivityDeps().volumeApi.adjustVolumeSetting(
@@ -87,26 +87,57 @@ describe('activity runtime volume endpoints', () => {
       null
     );
 
-    expect(seen).toEqual([[true, true]]);
+    expect(seen).toEqual(['12.2.0']);
   });
 
   it('enables the current settings path for the read-back', async () => {
-    const seen: Array<[boolean, boolean]> = [];
+    const seen: Array<string | null | undefined> = [];
     mockedVolume.getVolumeSettings = async () => {
-      seen.push([mockedVolume.supportsReactions, mockedVolume.supportsNotes]);
+      seen.push(mockedVolume.deskVersion);
       return {};
     };
 
     await createActivityDeps().volumeApi.getVolumeSettings();
 
-    expect(seen).toEqual([[true, true]]);
+    expect(seen).toEqual(['12.2.0']);
   });
 
-  it('leaves the flags alone for activity reads', async () => {
+  it('fails the volume poke unsent when the version read fails', async () => {
+    let poked = false;
+    mockedVolume.getAppInfo = async () => {
+      throw new Error('charges scry failed');
+    };
+    mockedVolume.adjustVolumeSetting = async () => {
+      poked = true;
+    };
+
+    await expect(
+      createActivityDeps().volumeApi.adjustVolumeSetting(
+        { group: '~zod/book-club' },
+        null
+      )
+    ).rejects.toThrow('charges scry failed');
+    expect(poked).toBe(false);
+  });
+
+  it('reads the version once while the client keeps it', async () => {
+    let reads = 0;
+    mockedVolume.getAppInfo = async () => {
+      reads += 1;
+      return { groupsVersion: '12.2.0' };
+    };
+    const { volumeApi } = createActivityDeps();
+
+    await volumeApi.adjustVolumeSetting({ group: '~zod/book-club' }, null);
+    await volumeApi.getVolumeSettings();
+
+    expect(reads).toBe(1);
+  });
+
+  it('leaves the desk version alone for activity reads', async () => {
     await createActivityDeps().activityApi.getInitialActivity();
 
-    expect(mockedVolume.supportsReactions).toBe(false);
-    expect(mockedVolume.supportsNotes).toBe(false);
+    expect(mockedVolume.deskVersion).toBeUndefined();
   });
 
   it('forwards the source and map to the api', async () => {
@@ -285,10 +316,10 @@ describe('activity runtime mark read', () => {
   for (const { target, args } of readTargets) {
     it(`reads a ${target.kind} through readChannel with the current endpoints`, async () => {
       const received: unknown[] = [];
-      const seen: Array<[boolean, boolean]> = [];
+      const seen: Array<string | null | undefined> = [];
       mockedActivityRead.readChannel = async (...callArgs: unknown[]) => {
         received.push(callArgs);
-        seen.push([mockedVolume.supportsReactions, mockedVolume.supportsNotes]);
+        seen.push(mockedVolume.deskVersion);
       };
       mockedPoke.impl = async () => {
         throw new Error('poke used for a channel read');
@@ -298,7 +329,7 @@ describe('activity runtime mark read', () => {
         kind: 'acked',
       });
       expect(received).toEqual([[args]]);
-      expect(seen).toEqual([[true, true]]);
+      expect(seen).toEqual(['12.2.0']);
     });
   }
 
@@ -355,9 +386,9 @@ describe('activity runtime mark read', () => {
   });
 
   it('enables the current summary path for the read-back', async () => {
-    const seen: Array<[boolean, boolean]> = [];
+    const seen: Array<string | null | undefined> = [];
     mockedActivityRead.getGroupAndChannelUnreads = async () => {
-      seen.push([mockedVolume.supportsReactions, mockedVolume.supportsNotes]);
+      seen.push(mockedVolume.deskVersion);
       return {
         groupUnreads: [],
         channelUnreads: [],
@@ -367,7 +398,7 @@ describe('activity runtime mark read', () => {
 
     await createActivityDeps().readApi.getUnreads();
 
-    expect(seen).toEqual([[true, true]]);
+    expect(seen).toEqual(['12.2.0']);
   });
 
   it('reports an unreadable summary as a command error', async () => {

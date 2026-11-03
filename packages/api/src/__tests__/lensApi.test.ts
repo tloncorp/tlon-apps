@@ -1,18 +1,14 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { getLensCronRuns } from '../client/lensApi';
-import {
-  DeskUnsupportedError,
-  getDeskSupportsTaskRunsState,
-  scry,
-} from '../client/urbit';
+import { DeskUnsupportedError, deskSupports, scry } from '../client/urbit';
 
 vi.mock('../client/urbit', async (importOriginal) => {
   const original = await importOriginal<typeof import('../client/urbit')>();
   return {
     BadResponseError: original.BadResponseError,
     DeskUnsupportedError: original.DeskUnsupportedError,
-    getDeskSupportsTaskRunsState: vi.fn(),
+    deskSupports: vi.fn(),
     scry: vi.fn(),
   };
 });
@@ -28,7 +24,7 @@ const entry = {
 
 beforeEach(() => {
   vi.mocked(scry).mockReset();
-  vi.mocked(getDeskSupportsTaskRunsState).mockReturnValue(true);
+  vi.mocked(deskSupports).mockReturnValue(true);
 });
 
 describe('getLensCronRuns', () => {
@@ -75,7 +71,7 @@ describe('getLensCronRuns', () => {
   });
 
   test('is refused on a desk without task runs', async () => {
-    vi.mocked(getDeskSupportsTaskRunsState).mockReturnValue(false);
+    vi.mocked(deskSupports).mockReturnValue(false);
 
     await expect(
       getLensCronRuns({ botShip: bot, jobId: 'job-1', count: 50 })

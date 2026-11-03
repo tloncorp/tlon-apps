@@ -23,9 +23,9 @@
  * `invite-link-runtime.ts` (subscribeOnce, createInviteLink, groupsDescribe,
  * enableGroup, BadResponseError), `activity-runtime.ts`
  * (getInitialActivity, getGroupAndChannelUnreads, getTextContent,
- * adjustVolumeSetting, getVolumeSettings, setActivitySupportsReactions,
- * setActivitySupportsNotes, getGroups, getChannelPosts, readChannel,
- * activityAction, poke),
+ * adjustVolumeSetting, getVolumeSettings, deskSupports, getAppInfo,
+ * setDeskVersion, getGroups, getChannelPosts, readChannel, activityAction,
+ * poke),
  * `group-sections-runtime.ts` (poke), `posts-runtime.ts` (editPost,
  * getPostWithReplies, deleteReply, setOrder, toPostContent, getTextContent),
  * `join-invite-runtime.ts` (getGroup, scry, subscribeOnce, joinGroup,
@@ -47,6 +47,10 @@ import { toClientGroupFromForeign as realToClientGroupFromForeign } from '@tlonc
 import { toPostContent as realToPostContent } from '@tloncorp/api/client/postsApi';
 // The real plain-text conversion: the posts runtime quotes DM text with it.
 import { getTextContent as realGetTextContent } from '@tloncorp/api/client/postContent';
+import {
+  type DeskCapability,
+  versionSupports,
+} from '@tloncorp/api/lib/deskVersion';
 import { afterEach, mock } from 'bun:test';
 
 export const NOTES_V1_OPS = [
@@ -189,15 +193,18 @@ export const mockedGetGroups = resettable({
 });
 
 /**
- * The activity volume surface: reassign per test. The two flags record the
- * values the runtime last set, so a test can read them from inside a call.
+ * The activity volume surface: reassign per test. `deskVersion` records the
+ * version the runtime last set, so a test can read it from inside a call;
+ * `getAppInfo` answers the runtime's version read.
  */
 export const mockedVolume = resettable({
   adjustVolumeSetting: async (..._args: unknown[]): Promise<unknown> =>
     undefined,
   getVolumeSettings: async (..._args: unknown[]): Promise<unknown> => ({}),
-  supportsReactions: false,
-  supportsNotes: false,
+  deskVersion: undefined as string | null | undefined,
+  getAppInfo: async (): Promise<{ groupsVersion?: string }> => ({
+    groupsVersion: '12.2.0',
+  }),
 });
 
 /**
@@ -435,11 +442,13 @@ mock.module('@tloncorp/api', () => ({
   getGroupAndChannelUnreads: () =>
     mockedActivityRead.getGroupAndChannelUnreads(),
   readChannel: (...args: unknown[]) => mockedActivityRead.readChannel(...args),
-  // The mark follows the flag, so a poke records the flag state it was built
-  // under.
+  // The mark follows the recorded version, so a poke records the version it
+  // was built under.
   activityAction: (json: unknown) => ({
     app: 'activity',
-    mark: mockedVolume.supportsNotes ? 'activity-action-2' : 'activity-action',
+    mark: versionSupports(mockedVolume.deskVersion, 'activityNotes')
+      ? 'activity-action-2'
+      : 'activity-action',
     json,
   }),
   getTextContent: realGetTextContent,
@@ -447,11 +456,13 @@ mock.module('@tloncorp/api', () => ({
     mockedVolume.adjustVolumeSetting(...args),
   getVolumeSettings: (...args: unknown[]) =>
     mockedVolume.getVolumeSettings(...args),
-  setActivitySupportsReactions: (value: boolean) => {
-    mockedVolume.supportsReactions = value;
-  },
-  setActivitySupportsNotes: (value: boolean) => {
-    mockedVolume.supportsNotes = value;
+  deskSupports: (capability: DeskCapability) =>
+    mockedVolume.deskVersion === undefined
+      ? null
+      : versionSupports(mockedVolume.deskVersion, capability),
+  getAppInfo: () => mockedVolume.getAppInfo(),
+  setDeskVersion: (version: string | null | undefined) => {
+    mockedVolume.deskVersion = version ?? null;
   },
   // channels.ts value imports
   createChannel: (...args: unknown[]) => mockedCreateChannel.impl(...args),

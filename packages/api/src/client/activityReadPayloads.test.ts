@@ -5,12 +5,7 @@ import {
   getGroupAndChannelUnreads,
   readChannel,
 } from './activityApi';
-import {
-  poke,
-  scry,
-  setActivitySupportsNotes,
-  setActivitySupportsReactions,
-} from './urbit';
+import { poke, scry, clearDeskVersion, setDeskVersion } from './urbit';
 
 // The wire payloads `tlon activity mark-read` relies on, through the real
 // helpers: the CLI's own suite runs against a mocked @tloncorp/api.
@@ -34,13 +29,11 @@ const deepRead = (source: unknown) => ({
 beforeEach(() => {
   vi.mocked(poke).mockReset();
   vi.mocked(scry).mockReset();
-  setActivitySupportsReactions(true);
-  setActivitySupportsNotes(true);
+  setDeskVersion('12.1.0');
 });
 
 afterEach(() => {
-  setActivitySupportsReactions(false);
-  setActivitySupportsNotes(false);
+  clearDeskVersion();
 });
 
 describe('mark-read wire payloads', () => {
