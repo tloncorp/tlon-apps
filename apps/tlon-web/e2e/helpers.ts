@@ -1523,7 +1523,7 @@ export async function sendMessage(page: Page, message: string) {
   await expect(page.getByTestId('MessageInputSendButton')).toBeVisible({
     timeout: 10000,
   });
-  await page.getByTestId('MessageInputSendButton').click({ force: true });
+  await page.getByTestId('MessageInputSendButton').click();
   // Wait for message to appear
   await expect(
     page.getByTestId('Post').getByText(message, { exact: true }).first()
@@ -2191,7 +2191,7 @@ export async function editMessageWithCodeBlock(
     '[data-testid="MessageInput"]',
     [lead, fencedCode].join('\n')
   );
-  await page.getByTestId('MessageInputSendButton').click({ force: true });
+  await page.getByTestId('MessageInputSendButton').click();
 
   const renderedCode = page.getByTestId('Post').getByText(code).first();
   await expect(renderedCode).toBeVisible({ timeout: 10000 });
