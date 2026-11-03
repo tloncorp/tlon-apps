@@ -907,7 +907,9 @@ export async function deletePost({ post }: { post: db.Post }) {
   deleteFromChannelPosts(post);
   await db.markPostAsDeleted(post.id);
   await db.updatePost({ id: post.id, deleteStatus: 'enqueued' });
-  await db.updateChannel({ id: post.channelId, lastPostId: null });
+  if (!post.parentId) {
+    await db.recomputeChannelLastPost({ channelId: post.channelId });
+  }
   if (orderWithPost) {
     await db.updateChannel({
       id: post.channelId,
@@ -966,7 +968,9 @@ export async function deletePost({ post }: { post: db.Post }) {
       id: post.id,
       deleteStatus: 'failed',
     });
-    await db.updateChannel({ id: post.channelId, lastPostId: post.id });
+    if (!post.parentId) {
+      await db.recomputeChannelLastPost({ channelId: post.channelId });
+    }
     if (orderWithPost) {
       await db.updateChannel({ id: post.channelId, order: orderWithPost });
     }
@@ -995,7 +999,9 @@ export async function deleteFailedPost({ post }: { post: db.Post }) {
   }
 
   await db.markPostAsDeleted(post.id);
-  await db.updateChannel({ id: post.channelId, lastPostId: null });
+  if (!post.parentId) {
+    await db.recomputeChannelLastPost({ channelId: post.channelId });
+  }
 }
 
 export async function reportPost({

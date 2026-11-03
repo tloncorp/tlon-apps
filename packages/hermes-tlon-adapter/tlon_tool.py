@@ -1157,6 +1157,8 @@ CHANNEL_CREATE_COMMANDS = frozenset(
     {("channels", "create"), ("groups", "add-channel")}
 )
 
+GROUP_DELETE_COMMANDS = frozenset({("groups", "delete")})
+
 
 def should_create_channel_on_owner(args: Sequence[str], owner_ship: str) -> bool:
     """The shared owner-channel predicate — the OpenClaw plugin implements the
@@ -1165,6 +1167,20 @@ def should_create_channel_on_owner(args: Sequence[str], owner_ship: str) -> bool
     no ``--self``, and no help token. A channel is hosted by the ship that
     creates it, so run as the bot — a non-host admin there — it would land on
     the bot node."""
+    return _runs_in_owner_hosted_group(args, owner_ship, CHANNEL_CREATE_COMMANDS)
+
+
+def should_delete_group_on_owner(args: Sequence[str], owner_ship: str) -> bool:
+    """The same truth table for ``groups delete`` (the OpenClaw plugin's too):
+    only a group's host can delete it, so the workspace a bot made for its
+    owner, which the owner hosts, is refused when the bot deletes it as
+    itself."""
+    return _runs_in_owner_hosted_group(args, owner_ship, GROUP_DELETE_COMMANDS)
+
+
+def _runs_in_owner_hosted_group(
+    args: Sequence[str], owner_ship: str, commands: frozenset[tuple[str, str]]
+) -> bool:
     owner = normalize_ship(owner_ship).lower()
     if not owner or _has_credential_flag(args):
         return False
@@ -1176,7 +1192,7 @@ def should_create_channel_on_owner(args: Sequence[str], owner_ship: str) -> bool
     if len(command_args) < 3:
         return False
     operation = (command_args[0].lower(), command_args[1].lower())
-    if operation not in CHANNEL_CREATE_COMMANDS:
+    if operation not in commands:
         return False
     if any(arg == "--self" or _is_help_arg(arg) for arg in command_args):
         return False
@@ -1266,6 +1282,18 @@ def route_channel_to_owner(
             f"is hosted on your own node rather than {owner}'s.",
         )
     return OwnerRouting(owner_cfg, list(args))
+
+
+def route_group_delete_to_owner(
+    cfg: TlonConfig, args: Sequence[str], env: Mapping[str, str] | None = None
+) -> OwnerRouting:
+    """Deletes the owner's group as the owner. Without the owner triple it
+    runs as the bot, and the CLI's refusal names the host."""
+    bot = normalize_ship(cfg.ship_name)
+    owner = normalize_ship(cfg.owner_ship)
+    if bot and bot.lower() == owner.lower():
+        return OwnerRouting(cfg, list(args))
+    return OwnerRouting(_hosted_owner_config(cfg, env) or cfg, list(args))
 
 
 async def route_create_owned(
@@ -1403,6 +1431,8 @@ async def execute_tlon_tool(
         cfg, args, routing_note = await route_create_owned(cfg, args, runner=runner)
     elif should_create_channel_on_owner(args, cfg.owner_ship):
         cfg, args, routing_note = route_channel_to_owner(cfg, args)
+    elif should_delete_group_on_owner(args, cfg.owner_ship):
+        cfg, args, routing_note = route_group_delete_to_owner(cfg, args)
 
     # Lazy import keeps this module importable standalone (no cycle at load).
     from .telemetry import cli_context, get_active_telemetry

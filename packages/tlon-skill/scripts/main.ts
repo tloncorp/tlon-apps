@@ -19,6 +19,8 @@
  *   posts        Gallery attachments, post quotes, forwards, reactions, edits, deletes, pins
  *   settings     OpenClaw settings management
  */
+import { appendToPostBlob } from '@tloncorp/api/client/content-helpers';
+import { BrowserCardPresentationSchema } from '@tloncorp/api/client/browserCards';
 import { browserWalletCard } from '@tloncorp/api/client/browserWallet';
 import { createActivityDeps } from './activity-runtime';
 import { getConfig, setCliCredentialOverrides } from './api-client';
@@ -171,6 +173,9 @@ async function main() {
       case 'browser': {
         const exitCode = await runBrowserCommand(scriptArgs, {
           ...createPostsDeps(),
+          appendToPostBlob,
+          parseBrowserCardPresentation: (value) =>
+            BrowserCardPresentationSchema.parse(value),
           browserWalletCard,
           getOwnerShip: () =>
             resolveBrowserOwnerShip({ activeShip: getConfig().ship }),

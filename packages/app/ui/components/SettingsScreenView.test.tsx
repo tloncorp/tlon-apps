@@ -43,13 +43,16 @@ async function render(
 }
 
 type Row = { key: string; isFocused?: boolean; onPress?: () => void };
+type Section = { key: string; footer?: string; rows: Row[] };
+
+const findSection = (tree: ReactTestRenderer, key: string) =>
+  (
+    tree.root.find((node) => (node.type as unknown) === 'SettingsList').props
+      .sections as Section[]
+  ).find((section) => section.key === key);
 
 const botLinkRows = (tree: ReactTestRenderer): Row[] =>
-  tree.root
-    .find((node) => (node.type as unknown) === 'SettingsList')
-    .props.sections.find(
-      (section: { key: string }) => section.key === 'bot-link'
-    )?.rows ?? [];
+  findSection(tree, 'bot-link')?.rows ?? [];
 
 describe('SettingsScreenView prompt files row', () => {
   it('follows Scheduled tasks where the bot card is not shown', async () => {
@@ -98,4 +101,31 @@ describe('SettingsScreenView prompt files row', () => {
       expect(focused).toEqual(['prompt-files']);
     }
   );
+});
+
+describe('SettingsScreenView usage section', () => {
+  it('shows storage and bot tokens, saying whose tokens they are', async () => {
+    const tree = await render({
+      storageLabel: '1.00 GB of 10.00 GB used',
+      tokenUsageLabel: '1.2M',
+    });
+    const usage = findSection(tree, 'usage');
+    expect(usage?.rows.map((row) => row.key)).toEqual([
+      'storage',
+      'token-usage',
+    ]);
+    expect(usage?.footer).toMatch(/your own API keys/);
+  });
+
+  it('drops the token footer where only storage is known', async () => {
+    const tree = await render({ storageLabel: '1.00 GB of 10.00 GB used' });
+    const usage = findSection(tree, 'usage');
+    expect(usage?.rows.map((row) => row.key)).toEqual(['storage']);
+    expect(usage?.footer).toBeUndefined();
+  });
+
+  it('is absent with nothing to show', async () => {
+    const tree = await render();
+    expect(findSection(tree, 'usage')).toBeUndefined();
+  });
 });

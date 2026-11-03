@@ -97,6 +97,7 @@ export type NounPokeParams = {
   app: string;
   mark: string;
   noun: Noun;
+  signal?: AbortSignal;
 };
 
 export class BadResponseError extends Error {
@@ -226,7 +227,7 @@ export function setClientResolver(resolver: ClientResolver | null): void {
 }
 
 /** Derive a short-lived owner proof from the authenticated ship session. */
-export async function getBrowserVaultOwnerAuthorization() {
+export async function getBrowserVaultOwnerAuthorization(issuedAt = Date.now()) {
   const session = config.session;
   if (!session || session.loggingOut)
     throw new Error('Owner authentication is unavailable.');
@@ -238,7 +239,7 @@ export async function getBrowserVaultOwnerAuthorization() {
     throw new Error('Owner authentication is unavailable.');
   return {
     planet: session.shipName.replace(/^~/, ''),
-    ownerToken: deriveBrowserOwnerToken(code),
+    ownerToken: deriveBrowserOwnerToken(code, issuedAt),
   };
 }
 
@@ -283,6 +284,14 @@ export const setActivitySupportsReactions = (value: boolean) => {
     bumpActivityCapabilitiesEpoch();
   }
 };
+
+const clientSessionListeners = new Set<() => void>();
+export function onClientSessionChange(listener: () => void): () => void {
+  clientSessionListeners.add(listener);
+  return () => {
+    clientSessionListeners.delete(listener);
+  };
+}
 
 // The generation of the currently configured session. Read this immediately
 // before acting on something a reauth produced -- with no await in between --
@@ -576,6 +585,7 @@ export function internalConfigureClient({
       loggingOut: false,
     };
     config.sessionGeneration += 1;
+    clientSessionListeners.forEach((listener) => listener());
   }
   config.onQuitOrReset = onQuitOrReset;
   config.subWatchers = {};
@@ -654,6 +664,7 @@ export function internalRemoveClient() {
   // the configured one and stops; see reauth and performReauth
   config.session = null;
   config.sessionGeneration += 1;
+  clientSessionListeners.forEach((listener) => listener());
   config.subWatchers = {};
   // backend capabilities belong to the ship we were connected to; reset
   // so an account switch to an older backend doesn't request newer
@@ -886,13 +897,16 @@ export async function subscribeOnce<T>(
   endpoint: UrbitEndpoint,
   timeout?: number,
   ship?: string,
-  requestConfig?: { tag?: string }
+  requestConfig?: { tag?: string; signal?: AbortSignal }
 ) {
   if (!config.client) {
     throw new Error('Client not initialized');
   }
   if (config.session?.pendingAuth) {
     await config.session.pendingAuth;
+  }
+  if (requestConfig?.signal?.aborted) {
+    throw requestConfig.signal.reason ?? new Error('Request aborted');
   }
   logger.log('subscribing once to', printEndpoint(endpoint));
 
@@ -912,7 +926,8 @@ export async function subscribeOnce<T>(
         endpoint.app,
         endpoint.path,
         ship,
-        timeout
+        timeout,
+        requestConfig?.signal
       );
       if (isRetry) {
         // the reauth earned its keep; counted in PostHog rather than reported
@@ -929,13 +944,17 @@ export async function subscribeOnce<T>(
       // in flight, and attempt() reads the configured session — so a retry
       // would replay this endpoint against a different ship's session.
       const willRetry =
-        !isRetry && err instanceof AuthError && config.session === session;
+        !isRetry &&
+        err instanceof AuthError &&
+        config.session === session &&
+        !requestConfig?.signal?.aborted;
 
       // Only report once we know the caller is actually going to see a
       // failure. A first attempt that recovers on retry was never visible to
       // the user, and reporting it would fill Sentry with errors that did not
       // happen from their point of view.
       const reportTerminalFailure = () => {
+        if (requestConfig?.signal?.aborted) return;
         if (err !== 'timeout' && err !== 'quit') {
           logger.trackError('bad subscribeOnce', {
             ...describeError(err),
@@ -995,6 +1014,9 @@ export async function subscribeOnce<T>(
         reportTerminalFailure();
         throw err;
       }
+      if (requestConfig?.signal?.aborted) {
+        throw requestConfig.signal.reason ?? new Error('Request aborted');
+      }
       return attempt(true);
     }
   };
@@ -1027,7 +1049,7 @@ export async function unsubscribe(id: number) {
   }
 }
 
-export async function pokeNoun<T>({ app, mark, noun }: NounPokeParams) {
+export async function pokeNoun<T>({ app, mark, noun, signal }: NounPokeParams) {
   const session = config.session;
   let sent = captureSendContext(config.client);
   const doPoke = async (params?: Partial<NounPokeInterface>) => {
@@ -1037,6 +1059,7 @@ export async function pokeNoun<T>({ app, mark, noun }: NounPokeParams) {
     if (session.pendingAuth) {
       await session.pendingAuth;
     }
+    if (signal?.aborted) throw signal.reason ?? new Error('Request aborted');
     logger.log('noun poke', { app, mark });
     sent = captureSendContext(session.client);
     return session.client.pokeNoun({
@@ -1044,19 +1067,22 @@ export async function pokeNoun<T>({ app, mark, noun }: NounPokeParams) {
       app,
       mark,
       noun,
+      signal,
     });
   };
   const fail = (err: any) => {
-    logger.trackError('bad noun poke', {
-      ...describeError(err),
-      app,
-      mark,
-    });
+    if (!signal?.aborted) {
+      logger.trackError('bad noun poke', {
+        ...describeError(err),
+        app,
+        mark,
+      });
+    }
     throw err;
   };
   const retry = async (err: any) => {
     // as in poke: not retried once the account it went out for is gone
-    if (!session || session !== config.session) {
+    if (!session || session !== config.session || signal?.aborted) {
       return fail(err);
     }
     if (isChannelIdentityMismatch(err)) {

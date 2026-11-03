@@ -1,9 +1,12 @@
 import React from 'react';
-import { Alert } from 'react-native';
+import { Alert, Keyboard, Platform, TextInput } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { BrowserViewer as NativeBrowserViewer } from './BrowserViewer.native';
+import {
+  BrowserViewer as NativeBrowserViewer,
+  type BrowserViewerHandle,
+} from './BrowserViewer.native';
 
 vi.mock('@tloncorp/ui', () => ({
   Button: 'Button',
@@ -24,7 +27,9 @@ vi.mock('tamagui', () => ({
   YStack: 'YStack',
 }));
 vi.mock('react-native', () => ({
+  Platform: { OS: 'ios' },
   Pressable: 'Pressable',
+  TextInput: 'TextInput',
   Alert: { alert: vi.fn() },
   Keyboard: {
     addListener: vi.fn(() => ({ remove: vi.fn() })),
@@ -42,11 +47,48 @@ const viewerUrl =
 
 describe('embedded browser boundaries', () => {
   beforeAll(() => {
+    vi.stubGlobal('__DEV__', true);
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   });
   afterAll(() => {
+    vi.unstubAllGlobals();
     delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean })
       .IS_REACT_ACT_ENVIRONMENT;
+  });
+
+  it('reserves top space only when the native controls are available', () => {
+    let renderer!: ReactTestRenderer;
+    act(() => {
+      renderer = create(
+        <NativeBrowserViewer
+          viewerUrl={viewerUrl}
+          topInset={62}
+          onLoad={vi.fn()}
+          onError={vi.fn()}
+        />
+      );
+    });
+    const view = renderer.root.findByType(WebView);
+    expect(view.props.style.marginTop).toBe(0);
+    for (const nativeControl of [true, false]) {
+      act(() =>
+        view.props.onMessage({
+          nativeEvent: {
+            url: viewerUrl,
+            data: JSON.stringify({
+              type: 'tlon.browser.input',
+              version: 1,
+              ready: true,
+              keyboardOpen: false,
+              context: 2,
+              nativeControl,
+            }),
+          },
+        })
+      );
+      expect(view.props.style.marginTop).toBe(nativeControl ? 130 : 0);
+    }
+    act(() => renderer.unmount());
   });
 
   it('resynchronizes the retained viewer when React reconnects effects', () => {
@@ -87,10 +129,25 @@ describe('embedded browser boundaries', () => {
       );
     });
     const view = renderer.root.findByType(WebView);
+    expect(view.props.injectedJavaScript).toBeUndefined();
     expect(view.props.incognito).toBe(true);
     expect(view.props.sharedCookiesEnabled).toBe(false);
     const navigate = view.props.onShouldStartLoadWithRequest;
     expect(navigate({ url: viewerUrl })).toBe(true);
+    const kernelFrame =
+      'https://prod-iad-hypeman-52.kernel.sh:8443/browser/live';
+    expect(navigate({ url: kernelFrame, isTopFrame: false })).toBe(true);
+    expect(navigate({ url: kernelFrame, isTopFrame: true })).toBe(false);
+    expect(navigate({ url: 'https://evil.example', isTopFrame: false })).toBe(
+      false
+    );
+    expect(navigate({ url: 'https://fakekernel.sh', isTopFrame: false })).toBe(
+      false
+    );
+    expect(navigate({ url: 'http://host.kernel.sh', isTopFrame: false })).toBe(
+      false
+    );
+    expect(view.props.mediaPlaybackRequiresUserAction).toBe(false);
     for (const url of [
       'https://evil.example',
       'tel:123',
@@ -99,6 +156,159 @@ describe('embedded browser boundaries', () => {
     ]) {
       expect(navigate({ url })).toBe(false);
     }
+    for (const host of [
+      'kernel.sh',
+      'live.kernel.sh',
+      'onkernel.com',
+      'api.onkernel.com',
+    ]) {
+      expect(
+        navigate({
+          url: `https://${host}/browser/live/session`,
+          isTopFrame: false,
+        })
+      ).toBe(true);
+      expect(
+        navigate({
+          url: `https://${host}/browser/live/session`,
+          isTopFrame: true,
+        })
+      ).toBe(false);
+    }
+    for (const url of [
+      'https://evilkernel.sh/browser/live',
+      'https://onkernel.com.evil.example',
+      'http://live.kernel.sh/browser/live',
+    ]) {
+      expect(navigate({ url, isTopFrame: false })).toBe(false);
+    }
+    act(() => renderer.unmount());
+  });
+  it('requests the CDP viewer on Android without replacing the signed capability', () => {
+    const previous = Platform.OS;
+    Object.assign(Platform, { OS: 'android' });
+    let renderer!: ReactTestRenderer;
+    try {
+      act(() => {
+        renderer = create(
+          <NativeBrowserViewer
+            viewerUrl={viewerUrl + '&theme=dark&viewer=kernel-native'}
+            onLoad={vi.fn()}
+            onError={vi.fn()}
+          />
+        );
+      });
+      const view = renderer.root.findByType(WebView);
+      const url = new URL(view.props.source.uri);
+      expect(url.pathname).toBe(new URL(viewerUrl).pathname);
+      expect(url.searchParams.get('viewer')).toBe('cdp');
+      expect(url.searchParams.get('theme')).toBe('dark');
+      expect(url.searchParams.get('clipboardBridge')).toBe('true');
+      expect(view.props.injectedJavaScript).toBeUndefined();
+      expect(
+        view.props.onShouldStartLoadWithRequest({
+          url: url.toString(),
+          isTopFrame: true,
+        })
+      ).toBe(true);
+    } finally {
+      act(() => renderer?.unmount());
+      Object.assign(Platform, { OS: previous });
+    }
+  });
+  it('shows native keyboard, paste and navigation for the thin viewer after takeover', () => {
+    let renderer!: ReactTestRenderer;
+    act(() => {
+      renderer = create(
+        <NativeBrowserViewer
+          viewerUrl={viewerUrl}
+          onLoad={vi.fn()}
+          onError={vi.fn()}
+        />,
+        {
+          createNodeMock: (node) =>
+            node.type === 'WebView' ? { injectJavaScript } : null,
+        }
+      );
+    });
+    const web = renderer.root.findByType(WebView);
+    act(() =>
+      web.props.onMessage({
+        nativeEvent: {
+          url: viewerUrl,
+          data: JSON.stringify({
+            type: 'tlon.browser.input',
+            version: 1,
+            ready: true,
+            keyboardOpen: false,
+            context: 2,
+            nativeControl: true,
+            nativeInput: true,
+            mode: 'agent',
+          }),
+        },
+      })
+    );
+    expect(
+      renderer.root.findByProps({ accessibilityLabel: 'Keyboard' })
+    ).toBeDefined();
+    expect(
+      renderer.root.findByProps({ accessibilityLabel: 'Paste' })
+    ).toBeDefined();
+    act(() =>
+      renderer.root.findByProps({ accessibilityLabel: 'Back' }).props.onPress()
+    );
+    expect(injectJavaScript.mock.lastCall?.[0]).toContain(
+      '"type":"back","context":2'
+    );
+    act(() => renderer.root.findByType(TextInput).props.onChangeText(' hello'));
+    expect(injectJavaScript.mock.lastCall?.[0]).toContain(
+      '"type":"textEdit","text":" hello","context":2'
+    );
+    act(() => renderer.root.findByType(TextInput).props.onSubmitEditing());
+    expect(injectJavaScript.mock.lastCall?.[0]).toContain(
+      '"type":"keyEnter","context":2'
+    );
+    act(() => renderer.unmount());
+  });
+  it('waits for hosted thin-viewer handback before closing', async () => {
+    const ref = React.createRef<BrowserViewerHandle>();
+    let renderer!: ReactTestRenderer;
+    act(() => {
+      renderer = create(
+        <NativeBrowserViewer
+          ref={ref}
+          viewerUrl={viewerUrl}
+          onLoad={vi.fn()}
+          onError={vi.fn()}
+        />,
+        {
+          createNodeMock: (node) =>
+            node.type === 'WebView' ? { injectJavaScript } : null,
+        }
+      );
+    });
+    const message = (data: object) =>
+      renderer.root.findByType(WebView).props.onMessage({
+        nativeEvent: { url: viewerUrl, data: JSON.stringify(data) },
+      });
+    act(() =>
+      message({
+        type: 'tlon.browser.input',
+        version: 1,
+        ready: true,
+        keyboardOpen: false,
+        context: 1,
+        nativeControl: true,
+      })
+    );
+    let closed!: Promise<boolean>;
+    act(() => {
+      closed = ref.current!.close();
+    });
+    expect(injectJavaScript.mock.lastCall?.[0]).toContain('"type":"close"');
+    act(() => message({ type: 'tlon.browser.closed', ok: true }));
+    expect(await closed).toBe(true);
     act(() => renderer.unmount());
   });
   it('sends the safe area and control footprint once the viewer is loaded', () => {
@@ -170,14 +380,14 @@ describe('embedded browser boundaries', () => {
         })
       );
     expect(
-      renderer.root.findByProps({ accessibilityLabel: 'Paste' }).props.disabled
-    ).toBe(true);
+      renderer.root.findAllByProps({ accessibilityLabel: 'Paste' })
+    ).toHaveLength(0);
     status({}, 'https://evil.example');
     status({ version: 2 });
     status({ context: '2' });
     expect(
-      renderer.root.findByProps({ accessibilityLabel: 'Paste' }).props.disabled
-    ).toBe(true);
+      renderer.root.findAllByProps({ accessibilityLabel: 'Paste' })
+    ).toHaveLength(0);
     expect(getStringAsync).not.toHaveBeenCalled();
     status();
     act(() =>
@@ -188,13 +398,24 @@ describe('embedded browser boundaries', () => {
     expect(injectJavaScript.mock.lastCall?.[0]).toContain(
       '"type":"keyboard","open":true,"context":2'
     );
-    status({ keyboardOpen: true });
+    status({ keyboardOpen: true, nativeInput: true });
+    injectJavaScript.mockClear();
     act(() =>
       renderer.root
         .findByProps({ accessibilityLabel: 'Hide keyboard' })
         .props.onPress()
     );
-    expect(injectJavaScript.mock.lastCall?.[0]).toContain('"open":false');
+    act(() => {
+      renderer.root.findByType(TextInput).props.onBlur();
+      const hide = vi
+        .mocked(Keyboard.addListener)
+        .mock.calls.findLast(([event]) => event === 'keyboardDidHide')?.[1];
+      hide?.({} as never);
+    });
+    expect(injectJavaScript).toHaveBeenCalledTimes(1);
+    expect(injectJavaScript.mock.lastCall?.[0]).toContain(
+      '"type":"keyboard","open":false,"context":2'
+    );
     getStringAsync.mockResolvedValue('emoji 🌈 " </script>');
     await act(async () =>
       renderer.root.findByProps({ accessibilityLabel: 'Paste' }).props.onPress()
@@ -325,6 +546,10 @@ describe('embedded browser boundaries', () => {
           },
         })
       );
+    expect(
+      renderer.root.findAllByProps({ accessibilityLabel: 'Browser options' })
+    ).toHaveLength(0);
+    status();
     // Open the Android/fallback menu to exercise the actual control callbacks.
     act(() =>
       renderer.root

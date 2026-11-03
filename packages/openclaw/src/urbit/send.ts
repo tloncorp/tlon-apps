@@ -1,6 +1,9 @@
 import {
   addReaction as apiAddReaction,
   deletePost as apiDeletePost,
+  getChannelPosts as apiGetChannelPosts,
+  getPostWithReplies as apiGetPostWithReplies,
+  toPostContent,
   removeReaction as apiRemoveReaction,
   sendPost as apiSendPost,
   sendReply as apiSendReply,
@@ -87,6 +90,17 @@ export function formatSentAt(sentAt: number): string {
   return scot('ud', da.fromUnix(sentAt));
 }
 
+// Date.now() is millisecond-resolution, so two sends in the same millisecond
+// by the same author would be told apart by nothing: a DM writ's id is
+// author/sent, and a channel post is read back by author and sent time. One
+// clock per process hands out strictly increasing sent times instead.
+let lastSentAt = 0;
+function uniqueSentAt(): number {
+  const now = Date.now();
+  lastSentAt = now > lastSentAt ? now : lastSentAt + 1;
+  return lastSentAt;
+}
+
 // --- DMs ---
 
 /** Optional bot profile for custom display name/avatar */
@@ -132,7 +146,7 @@ export async function sendDmWithStory({
   parentAuthor,
   botProfile,
 }: SendStoryParams) {
-  const sentAt = Date.now();
+  const sentAt = uniqueSentAt();
   const messageId = `${fromShip}/${formatSentAt(sentAt)}`;
 
   if (replyToId) {
@@ -174,6 +188,143 @@ export async function sendDmWithStory({
 
 // --- Channel posts (chat, heap, diary) ---
 
+// A channel post's id is the time the host received it, which the sender
+// can't know when it pokes: the sent time it chose is only the app's cache
+// key. The host's id is what edits, deletes and reactions take, so after the
+// poke the post is read back by author and sent time. A self-hosted channel
+// has it at once; a remote host echoes it within a round trip.
+const POST_ID_LOOKUP_ATTEMPTS = 8;
+const POST_ID_LOOKUP_DELAY_MS = 250;
+
+function isSameShip(a: string | null | undefined, b: string): boolean {
+  return !!a && a.replace(/^~/, '') === b.replace(/^~/, '');
+}
+
+async function findHostPostId(
+  nest: string,
+  fromShip: string,
+  sentAt: number,
+  sent: string[],
+  parentId: string | undefined
+): Promise<string | undefined> {
+  if (parentId) {
+    const parent = await apiGetPostWithReplies({
+      channelId: nest,
+      postId: parentId,
+      // Only DM lookups read the author; channel posts are found by nest and id.
+      authorId: '',
+    });
+    return onlyMatch(parent.replies ?? [], fromShip, sentAt, sent);
+  }
+  const { posts } = await apiGetChannelPosts({
+    channelId: nest,
+    mode: 'newest',
+    count: 20,
+    skipGapFill: true,
+  });
+  return onlyMatch(posts, fromShip, sentAt, sent);
+}
+
+// The post is ours only if it carries this author, this sent time and the
+// content we sent, and only one post does. The clock above keeps this
+// process's sent times apart, but the bot's CLI subprocess sends as the same
+// ship on its own clock, and the channels agent drops the second add it sees
+// for a (nest, sent) pair: the lone post with our sent time may then be the
+// other send's, and naming it would point a later edit or delete at it. A
+// text preview can't tell two such posts apart (a bare link and a reference
+// card both preview empty), so the whole content is compared.
+function onlyMatch(
+  posts: Array<{
+    id: string;
+    authorId?: string | null;
+    sentAt?: number | null;
+    content?: unknown;
+  }>,
+  fromShip: string,
+  sentAt: number,
+  sent: string[]
+): string | undefined {
+  const matches = posts.filter(
+    (post) =>
+      post.sentAt === sentAt &&
+      isSameShip(post.authorId, fromShip) &&
+      sent.includes(canonical(parseContent(post.content)))
+  );
+  return matches.length === 1 ? matches[0].id : undefined;
+}
+
+// The forms the api may have stored our story under: its own conversion of
+// the verses, and for a gallery post that is one bare image link, the image
+// block it rewrites that into (postsApi's galleryImageLink). Both derive from
+// the story alone, so another post can match only by being the same post.
+function sentContentForms(nest: string, story: Story): string[] {
+  const forms = [canonical(toPostContent(story)[0])];
+  const verse = story.length === 1 ? story[0] : undefined;
+  const inline = verse && 'inline' in verse ? verse.inline : undefined;
+  const only = inline?.length === 1 ? inline[0] : undefined;
+  const href =
+    only && typeof only === 'object' && 'link' in only
+      ? only.link.href
+      : undefined;
+  if (href && nest.startsWith('heap/')) {
+    forms.push(
+      canonical([{ block: { image: { src: href, alt: 'heap image' } } }])
+    );
+  }
+  return forms;
+}
+
+// The api hands content back as the JSON string it stored.
+function parseContent(content: unknown): unknown {
+  if (typeof content !== 'string') return content ?? null;
+  try {
+    return JSON.parse(content);
+  } catch {
+    return content;
+  }
+}
+
+// JSON with object keys sorted at every level: the stored content came back
+// through the ship's JSON, whose key order need not be ours.
+function canonical(value: unknown): string {
+  return JSON.stringify(value, (_key, v) =>
+    v && typeof v === 'object' && !Array.isArray(v)
+      ? Object.fromEntries(
+          Object.entries(v as Record<string, unknown>).sort(([a], [b]) =>
+            a < b ? -1 : a > b ? 1 : 0
+          )
+        )
+      : v
+  );
+}
+
+// The message was sent before this runs, so a lookup that never finds it
+// cannot fail the send (the caller would resend): it falls back to the sent
+// time id, which is what every send returned before the lookup existed.
+async function resolveChannelPostId(
+  nest: string,
+  fromShip: string,
+  sentAt: number,
+  story: Story,
+  parentId?: string
+): Promise<string> {
+  const sent = sentContentForms(nest, story);
+  for (let attempt = 0; attempt < POST_ID_LOOKUP_ATTEMPTS; attempt++) {
+    if (attempt > 0) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, POST_ID_LOOKUP_DELAY_MS)
+      );
+    }
+    try {
+      const id = await findHostPostId(nest, fromShip, sentAt, sent, parentId);
+      if (id) return id;
+    } catch {
+      // Not readable yet, or not at all; the next attempt or the fallback.
+    }
+  }
+  return formatSentAt(sentAt);
+}
+
 type SendChannelPostParams = {
   fromShip: string;
   /** Full nest like "chat/~host/channel", "heap/~host/channel", or "diary/~host/channel" */
@@ -200,7 +351,7 @@ export async function sendChannelPost({
   title,
   botProfile,
 }: SendChannelPostParams) {
-  const sentAt = Date.now();
+  const sentAt = uniqueSentAt();
 
   if (replyToId) {
     const formattedReplyId = formatPostId(replyToId);
@@ -217,7 +368,7 @@ export async function sendChannelPost({
     return reportSuccessfulChannelSend(
       {
         channel: 'tlon',
-        messageId: `${fromShip}/${formatSentAt(sentAt)}`,
+        messageId: `${fromShip}/${await resolveChannelPostId(nest, fromShip, sentAt, story, formattedReplyId)}`,
         sentAt,
       },
       nest,
@@ -237,7 +388,7 @@ export async function sendChannelPost({
   return reportSuccessfulChannelSend(
     {
       channel: 'tlon',
-      messageId: `${fromShip}/${formatSentAt(sentAt)}`,
+      messageId: `${fromShip}/${await resolveChannelPostId(nest, fromShip, sentAt, story)}`,
       sentAt,
     },
     nest,

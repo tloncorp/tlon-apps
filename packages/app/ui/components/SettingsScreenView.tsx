@@ -56,6 +56,10 @@ interface Props {
   botEnabled?: boolean;
   themeLabel?: string;
   notificationsLabel?: string;
+  /** Hosted storage in use; absent for storage Tlon doesn't host. */
+  storageLabel?: string;
+  /** The bot's tokens this month; absent where hosting can't report them. */
+  tokenUsageLabel?: string;
 }
 
 const scheduledTaskRouteNames = new Set([
@@ -228,6 +232,26 @@ function useSettingsSections(
       });
     }
 
+    const usageRows: SettingsRowModel[] = [];
+    if (props.storageLabel) {
+      usageRows.push({
+        key: 'storage',
+        title: 'Tlon Storage',
+        value: props.storageLabel,
+        leading: { kind: 'icon', icon: 'Folder' },
+        testID: 'SettingsStorageRow',
+      });
+    }
+    if (props.tokenUsageLabel) {
+      usageRows.push({
+        key: 'token-usage',
+        title: 'Bot tokens this month',
+        value: props.tokenUsageLabel,
+        leading: { kind: 'icon', icon: 'SmushStar' },
+        testID: 'SettingsTokenUsageRow',
+      });
+    }
+
     const preferenceRows: SettingsRowModel[] = [
       {
         key: 'notifications',
@@ -299,6 +323,16 @@ function useSettingsSections(
       ...(botSections ?? []),
       { key: 'bot-link', rows: botLinkRows },
       {
+        key: 'usage',
+        title: 'Usage',
+        // The count can't be split by credential, so it isn't usage against
+        // anything Tlon provides.
+        footer: props.tokenUsageLabel
+          ? 'Bot tokens count every model provider your bot uses, including your own API keys and subscriptions.'
+          : undefined,
+        rows: usageRows,
+      },
+      {
         key: 'options',
         rows: [...accountRows, ...preferenceRows, ...aboutRows],
       },
@@ -343,6 +377,8 @@ function useSettingsSections(
     props.onSendBugReportPressed,
     props.onThemePressed,
     props.onWebAppPressed,
+    props.storageLabel,
     props.themeLabel,
+    props.tokenUsageLabel,
   ]);
 }

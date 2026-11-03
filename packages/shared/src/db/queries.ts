@@ -1021,13 +1021,12 @@ export const insertSystemContacts = createWriteQuery(
     const { systemContacts } = params;
     if (!systemContacts.length) return;
 
-    // Process in batches of 200
-    const batchSize = 200;
-    for (let i = 0; i < systemContacts.length; i += batchSize) {
-      const batch = systemContacts.slice(i, i + batchSize);
-      if (!batch.length) continue;
-      try {
-        await ctx.db
+    await withTransactionCtx(ctx, async (txCtx) => {
+      // Keep the import atomic if a later batch fails.
+      const batchSize = 200;
+      for (let i = 0; i < systemContacts.length; i += batchSize) {
+        const batch = systemContacts.slice(i, i + batchSize);
+        await txCtx.db
           .insert($systemContacts)
           .values(batch)
           .onConflictDoUpdate({
@@ -1039,14 +1038,8 @@ export const insertSystemContacts = createWriteQuery(
           count: batch.length,
           startIndex: i,
         });
-      } catch (e) {
-        logger.trackEvent(domain.AnalyticsEvent.ErrorSystemContacts, {
-          context: 'failed to insert system contacts',
-          count: batch.length,
-          totalNumContacts: systemContacts.length,
-        });
       }
-    }
+    });
   },
   ['systemContacts', 'systemContactSentInvites', 'contacts']
 );
@@ -1185,50 +1178,6 @@ export const getSystemContactsBatchByContactId = createReadQuery(
     }
   },
   ['systemContacts', 'systemContactSentInvites']
-);
-
-// Returns the system contacts linked to the given contactIds whose
-// linked contact has no customNickname yet. Used by contact-discovery
-// to apply the address-book name as a default — we only fill in names
-// the user hasn't set themselves.
-export const getUnnamedSystemContactsByContactId = createReadQuery(
-  'getUnnamedSystemContactsByContactId',
-  async (
-    contactIds: string[],
-    ctx: QueryCtx
-  ): Promise<
-    Array<{
-      contactId: string;
-      firstName: string | null;
-      lastName: string | null;
-    }>
-  > => {
-    if (!contactIds.length) return [];
-    const rows = await ctx.db
-      .select({
-        contactId: $systemContacts.contactId,
-        firstName: $systemContacts.firstName,
-        lastName: $systemContacts.lastName,
-      })
-      .from($systemContacts)
-      .leftJoin($contacts, eq($systemContacts.contactId, $contacts.id))
-      .where(
-        and(
-          inArray($systemContacts.contactId, contactIds),
-          or(isNull($contacts.customNickname), eq($contacts.customNickname, ''))
-        )
-      );
-    return rows.filter(
-      (
-        r
-      ): r is {
-        contactId: string;
-        firstName: string | null;
-        lastName: string | null;
-      } => r.contactId !== null
-    );
-  },
-  ['systemContacts', 'contacts']
 );
 
 export const getUninvitedSystemContactsShortlist = createReadQuery(
@@ -5455,14 +5404,20 @@ async function setLastPosts(
   // Single-channel fast path — the common receive case.
   // Monotonic UPDATE driven by the incoming batch avoids correlated subqueries
   // and only advances lastPost* forward.
-  if (newPosts?.length && channelIds?.length === 1) {
+  if (
+    newPosts?.length &&
+    channelIds?.length === 1 &&
+    !(await tombstonesChannelHead(newPosts, channelIds[0], ctx))
+  ) {
     await setLastPostsMonotonic(newPosts, ctx);
     return;
   }
 
-  // Multi-channel batches and metadata-only calls (e.g. channels inserted after
-  // heads posts) recompute from local rows. This keeps the result idempotent no
-  // matter whether posts or channel/group metadata were written first.
+  // Multi-channel batches, metadata-only calls (e.g. channels inserted after
+  // heads posts) and batches that tombstone a channel's head recompute from
+  // local rows. This keeps the result idempotent no matter whether posts or
+  // channel/group metadata were written first, and lets a deleted head fall
+  // back to the previous post.
   if (channelIds && channelIds.length === 0) {
     return;
   }
@@ -5612,6 +5567,28 @@ async function setLastPosts(
         .limit(1)}`,
     })
     .where(groupIdFilter);
+}
+
+async function tombstonesChannelHead(
+  newPosts: Post[],
+  channelId: string,
+  ctx: QueryCtx
+) {
+  const deletedIds = newPosts
+    .filter((p) => p.isDeleted && p.type !== 'reply')
+    .map((p) => p.id);
+  if (!deletedIds.length) return false;
+  const [head] = await ctx.db
+    .select({ id: $channels.id })
+    .from($channels)
+    .where(
+      and(
+        eq($channels.id, channelId),
+        inArray($channels.lastPostId, deletedIds)
+      )
+    )
+    .limit(1);
+  return !!head;
 }
 
 async function setLastPostsMonotonic(newPosts: Post[], ctx: QueryCtx) {
@@ -6216,7 +6193,7 @@ export const undoOptimisticReplyBump = createWriteQuery(
 /**
  * Repoint `channels.lastPostId` / `lastPostAt` to the newest remaining
  * previewable (non-reply, non-deleted) top-level post, or null them if no
- * such post exists. Used after a hard-delete to keep chat-list / channel
+ * such post exists. Used after a delete to keep chat-list / channel
  * preview state in sync without waiting for a sync repair.
  */
 export const recomputeChannelLastPost = createWriteQuery(
@@ -6495,7 +6472,12 @@ export const getGroup = createReadQuery(
           },
           joinRequests: true,
           bannedMembers: true,
+          // In their saved order: rows land in the table in whatever order
+          // this device learned of them, such as a new section after the rest.
+          // A section added since the last full sync has no index yet and
+          // sorts first, which is where the backend puts a new section.
           navSections: {
+            orderBy: [asc($groupNavSections.sectionIndex)],
             with: {
               channels: true,
             },
