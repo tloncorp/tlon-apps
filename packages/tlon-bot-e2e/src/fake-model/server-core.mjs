@@ -419,8 +419,14 @@ function isHermesTitleGenerationCall(call) {
   }
   const systemText = call.messages.find((message) => message.role === 'system')
     ?.content?.text;
+  if (typeof systemText !== 'string') {
+    return false;
+  }
+  // Hermes >= 0.22 titles from the opening user message alone.
+  if (systemText.startsWith('You name chat sessions.')) {
+    return true;
+  }
   return (
-    typeof systemText === 'string' &&
     systemText.startsWith('Generate a short, descriptive title') &&
     call.userText.includes('User:') &&
     call.userText.includes('Assistant:')

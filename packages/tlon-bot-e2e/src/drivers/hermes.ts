@@ -10,7 +10,7 @@ import type {
   RuntimeSeed,
 } from './types.js';
 
-const HERMES_AGENT_REF = 'v2026.6.19';
+const HERMES_AGENT_REF = process.env.HERMES_AGENT_REF?.trim() || 'v0.22.6';
 
 const FORBIDDEN_CONTAINER_ENV = [
   'OPENROUTER_API_KEY',
@@ -216,11 +216,13 @@ export const hermesDriver: BotDriver = {
         steps: [
           {
             kind: 'tool_call',
-            name: 'cronjob',
+            name: 'cronjob_manage',
             args: {
               action: 'create',
               name,
-              schedule: '1m',
+              // Hermes >= 0.22 reads a bare duration as a recurring interval;
+              // 'in <duration>' is the one-shot form.
+              schedule: 'in 1m',
               prompt: firedPrompt,
               deliver: 'origin',
             },
@@ -229,11 +231,11 @@ export const hermesDriver: BotDriver = {
         ],
         options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
         expectations: {
-          advertisedTools: { include: ['cronjob', 'tlon'] },
+          advertisedTools: { include: ['cronjob_manage', 'tlon'] },
           expectedCallCount: 2,
           expectedCallSequence: [
             { kind: 'model_request' },
-            { kind: 'tool_call', toolName: 'cronjob' },
+            { kind: 'tool_call', toolName: 'cronjob_manage' },
             { kind: 'model_request' },
             { kind: 'final_model_text' },
           ],

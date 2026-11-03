@@ -123,11 +123,11 @@ describe('Hermes driver runtime spec', () => {
       steps: [
         {
           kind: 'tool_call',
-          name: 'cronjob',
+          name: 'cronjob_manage',
           args: {
             action: 'create',
             name: 'scheduled-job',
-            schedule: '1m',
+            schedule: 'in 1m',
             prompt: '[tlon-test:fired] Reply with the marker.',
             deliver: 'origin',
           },
@@ -135,7 +135,7 @@ describe('Hermes driver runtime spec', () => {
         { kind: 'text', content: 'Scheduled.' },
       ],
       expectations: {
-        advertisedTools: { include: ['cronjob', 'tlon'] },
+        advertisedTools: { include: ['cronjob_manage', 'tlon'] },
         expectedCallCount: 2,
       },
     });

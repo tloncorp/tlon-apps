@@ -1,10 +1,13 @@
 FROM node:24.22.1-bookworm-slim
 
 ARG HERMES_AGENT_REPO=https://github.com/NousResearch/hermes-agent.git
-ARG HERMES_AGENT_REF=v2026.6.19
+ARG HERMES_AGENT_REF=v0.22.6
+ARG UV_VERSION=0.12.3
+ARG HERMES_PYTHON=3.14
 
 ENV HERMES_AGENT_DIR=/opt/hermes-agent
 ENV HERMES_VENV=/opt/hermes-venv
+ENV UV_PYTHON_INSTALL_DIR=/opt/uv-python
 ENV PATH="/opt/hermes-venv/bin:/root/.bun/bin:${PATH}"
 
 RUN apt-get update \
@@ -31,10 +34,16 @@ RUN git clone --depth 1 --branch "$HERMES_AGENT_REF" "$HERMES_AGENT_REPO" "$HERM
     && cd "$HERMES_AGENT_DIR" \
     && git checkout "$HERMES_AGENT_REF")
 
-RUN python3 -m venv "$HERMES_VENV" \
-  && "$HERMES_VENV/bin/python" -m pip install --upgrade pip setuptools wheel \
-  && "$HERMES_VENV/bin/python" -m pip install -e "$HERMES_AGENT_DIR[all]" \
-  && "$HERMES_VENV/bin/python" -m pip install "aiohttp>=3.9" "posthog>=3"
+# Hermes >= 0.22 gates its core dependencies on Python >= 3.14, and pip cannot
+# resolve its [all] extra (upstream settles a Pillow pin clash with uv
+# override-dependencies), so install from upstream's uv.lock the way upstream
+# does. PyYAML is no longer in Hermes' environment (it moved to ruamel.yaml);
+# dev/e2e/write_config.py needs it to read and write config.yaml.
+RUN curl -LsSf "https://astral.sh/uv/${UV_VERSION}/install.sh" | env UV_INSTALL_DIR=/usr/local/bin sh \
+  && uv python install "$HERMES_PYTHON" \
+  && cd "$HERMES_AGENT_DIR" \
+  && UV_PROJECT_ENVIRONMENT="$HERMES_VENV" uv sync --frozen --extra all --python "$HERMES_PYTHON" \
+  && uv pip install --python "$HERMES_VENV/bin/python" "aiohttp>=3.9" "posthog>=3" "pyyaml>=6"
 
 WORKDIR /workspace
 

@@ -54,6 +54,7 @@ class HermesE2EConfigTests(unittest.TestCase):
         self.assertNotIn("web", config)
         self.assertEqual(config["platform_toolsets"]["tlon"], ["tlon", "no_mcp"])
         self.assertEqual(config["mcp_servers"], {})
+        self.assertEqual(config["tools"]["tool_search"]["enabled"], "off")
         self.assertIn("cronjob", config["agent"]["disabled_toolsets"])
         self.assertEqual(config["tlon"]["known_bot_users"], "~mug")
         self.assertEqual(config["tlon"]["max_consecutive_bot_responses"], 2)

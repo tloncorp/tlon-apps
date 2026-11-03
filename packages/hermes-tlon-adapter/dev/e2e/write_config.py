@@ -71,6 +71,9 @@ def render_config(env: Mapping[str, str | None]) -> dict[str, object]:
             else ["tlon", "no_mcp"],
         },
         "mcp_servers": {},
+        # Hermes >= 0.22 defers plugin tools behind tool_search/tool_describe/
+        # tool_call bridges by default; keep the tlon tool directly advertised.
+        "tools": {"tool_search": {"enabled": "off"}},
         "agent": {
             "disabled_toolsets": [] if enable_cronjob else ["cronjob"],
         },

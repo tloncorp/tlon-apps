@@ -2792,6 +2792,7 @@ class AdapterAttentionTests(unittest.TestCase):
     def test_adapter_enforces_own_access_policy_for_core(self):
         adapter = self.make_adapter({"owner_ship": "~mug"})
         self.assertIs(adapter.enforces_own_access_policy, True)
+        self.assertIs(adapter.authorization_is_upstream, True)
         self.assertEqual(adapter._dm_policy, "allowlist")
         self.assertEqual(adapter._group_policy, "allowlist")
 
@@ -2963,6 +2964,7 @@ class AdapterAttentionTests(unittest.TestCase):
         owner_only_tools = (
             "tlon",
             "cronjob",
+            "cronjob_manage",
             "read",
             "read_file",
             "write_file",
@@ -2990,6 +2992,7 @@ class AdapterAttentionTests(unittest.TestCase):
         owner_only_tools = (
             "tlon",
             "cronjob",
+            "cronjob_manage",
             "read",
             "read_file",
             "write_file",
