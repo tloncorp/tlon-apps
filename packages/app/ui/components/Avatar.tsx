@@ -16,6 +16,7 @@ import {
 } from 'tamagui';
 
 import { useCalm, useContact } from '../contexts/appDataContext';
+import { useFeatureFlag } from '../../lib/featureFlags';
 import * as utils from '../utils';
 import { getChannelTypeIcon } from '../utils';
 import { getContrastingColor, useSigilColors } from '../utils/colorUtils';
@@ -77,24 +78,50 @@ export type AvatarProps = ComponentProps<typeof AvatarFrame> & {
   isGroupIcon?: boolean;
 };
 
+/**
+ * Whether to draw this contact as a single sigil glyph: bots do, while the
+ * bot bauble is being tried out. `assumeBot` is for callers that already know,
+ * such as a post flagged as written by a bot.
+ */
+export function useShowsBotGlyph(contactId: string, assumeBot = false) {
+  const [enabled] = useFeatureFlag('botBaubleHeader');
+  const contact = useContact(contactId);
+  return (
+    enabled &&
+    (assumeBot ||
+      domain.isBotContact({ id: contactId, botInfo: contact?.botInfo }))
+  );
+}
+
 export const ContactAvatar = React.memo(function ContactAvatarComponent({
   contactId,
   contactOverride,
   overrideUrl,
   innerSigilSize,
   ignoreCalm = false,
+  singleGlyph = false,
   ...props
 }: {
   contactId: string;
   contactOverride?: db.Contact;
   overrideUrl?: string;
   innerSigilSize?: number;
+  /** Draw one glyph of the contact's sigil instead of its avatar image. */
+  singleGlyph?: boolean;
 } & AvatarProps) {
   const dbContact = useContact(contactId);
   const contact = contactOverride ?? dbContact;
   const offline = domain.botLivenessOf(contact) === 'offline';
 
-  const avatar = (
+  const avatar = singleGlyph ? (
+    <SigilAvatar
+      contactId={utils.getSingleGlyphSigilPoint(contactId)}
+      // Colors still come from the contact, not the glyph's own point.
+      contactOverride={contact ?? undefined}
+      innerSigilSize={innerSigilSize}
+      {...props}
+    />
+  ) : (
     <ImageAvatar
       imageUrl={overrideUrl ?? contact?.avatarImage ?? undefined}
       fallback={

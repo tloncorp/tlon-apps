@@ -22,7 +22,10 @@ vi.mock('./useConversationComputingState', () => ({
   useConversationComputingState: () => mocks.computing,
 }));
 
-vi.mock('../Avatar', () => ({ ContactAvatar: 'ContactAvatar' }));
+vi.mock('../Avatar', () => ({
+  ContactAvatar: 'ContactAvatar',
+  useShowsBotGlyph: () => false,
+}));
 vi.mock('@tloncorp/ui', () => ({
   Text: 'Text',
   mobileTypeStyles: { '$label/m': { lineHeight: 20 } },

@@ -1,4 +1,5 @@
 // tamagui-ignore
+import type * as db from '@tloncorp/shared/db';
 import {
   NavigationContainer,
   NavigationIndependentTree,
@@ -43,6 +44,7 @@ type FixtureWrapperProps = PropsWithChildren<{
   innerBackgroundColor?: ColorProp;
   safeArea?: boolean;
   currentUserId?: string;
+  contacts?: db.Contact[];
   urbitClient?: FixtureUrbitClient;
 }>;
 
@@ -121,6 +123,7 @@ const InnerWrapper = ({
   innerBackgroundColor,
   safeArea,
   currentUserId = '~zod',
+  contacts = initialContacts,
   children,
 }: FixtureWrapperProps) => {
   const insets = useSafeAreaInsets();
@@ -134,7 +137,7 @@ const InnerWrapper = ({
       <GestureHandlerRootView style={{ flex: 1 }}>
         <AppDataContextProvider
           currentUserId={currentUserId}
-          contacts={[...initialContacts]}
+          contacts={[...contacts]}
           branchDomain="test"
           branchKey="test"
           calmSettings={{

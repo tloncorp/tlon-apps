@@ -34,11 +34,12 @@ import {
 } from 'tamagui';
 
 import { useIsUserActive } from '../../../hooks/useUserActivity';
+import { useFeatureFlag } from '../../../lib/featureFlags';
 import { useTopLevelTabBarClearance } from '../../../navigation/useTopLevelTabBarContentInset';
 import { useRootNavigation } from '../../../navigation/utils';
 import type { ChannelShareIntent } from '../../../types/shareIntent';
 import { normalizeUploadIntent } from '../../../utils/filepicker';
-import { useCurrentUserId } from '../../contexts/appDataContext';
+import { useContact, useCurrentUserId } from '../../contexts/appDataContext';
 import { useAttachmentContext } from '../../contexts/attachment';
 import { ChannelProvider } from '../../contexts/channel';
 import { GroupsProvider } from '../../contexts/groups';
@@ -66,6 +67,11 @@ import {
   GalleryDraftType,
 } from '../draftInputs/shared';
 import { PostCollectionHandle } from '../postCollectionViews/shared';
+import {
+  BotBaubleHeader,
+  type BotBaubleAction,
+  useBotBaubleHeaderHeight,
+} from './BotBaubleHeader';
 import { ChannelHeader, ChannelHeaderItemsProvider } from './ChannelHeader';
 import { ContextLensPanel, useContextLensController } from './ContextLens';
 import { DmInviteOptions } from './DmInviteOptions';
@@ -502,6 +508,13 @@ export function Channel({
     }
   }, [dmRecipientId, goToUserProfile]);
 
+  const [botBaubleEnabled] = useFeatureFlag('botBaubleHeader');
+  const dmContact = useContact(dmRecipientId ?? '');
+  const isBotDm =
+    channel.type === 'dm' &&
+    !!dmRecipientId &&
+    domain.isBotContact({ id: dmRecipientId, botInfo: dmContact?.botInfo });
+
   const onPressGroupRef = useCallback((group: db.Group) => {
     setGroupPreview(group);
   }, []);
@@ -909,12 +922,88 @@ export function Channel({
   const usesFloatingPinnedPostBanner = isChatChannel && supportsLiquidGlass();
   const shouldReservePinnedPostBannerSpace =
     usesFloatingPinnedPostBanner && shouldRenderPinnedPostBanner;
-  const { contentInsets, navigationHeaderHeight, floatingHeaderHeight } =
-    useConversationInsets({
-      hasFloatingComposer: false,
-      hasTransparentHeader: isChatChannel,
-      hasFloatingPinnedPostBanner: shouldReservePinnedPostBannerSpace,
-    });
+  const usesBotBauble =
+    botBaubleEnabled &&
+    isBotDm &&
+    isNarrow &&
+    Platform.OS !== 'web' &&
+    draftInputPresentationMode !== 'fullscreen';
+  const botBaubleHeight = useBotBaubleHeaderHeight();
+  // The same actions the navigation header shows for this conversation.
+  const botBaubleActions = useMemo<BotBaubleAction[]>(
+    () => [
+      {
+        id: 'channel-search',
+        icon: 'Search',
+        label: 'Search',
+        onPress: goToSearch,
+      },
+      ...(goToScheduledTasks
+        ? [
+            {
+              id: 'scheduled-tasks',
+              icon: 'Clock' as const,
+              label: 'Scheduled tasks',
+              onPress: goToScheduledTasks,
+              testID: 'ChannelHeaderScheduledTasksButton',
+            },
+          ]
+        : []),
+      ...(contextLensAvailable
+        ? [
+            {
+              id: 'channel-context-lens',
+              icon: 'RightSidebar' as const,
+              label: 'Toggle context lens',
+              onPress: goToContextLensRuns ?? toggleContextLens,
+              active: contextLensActive,
+              testID: 'ContextLensHeaderButton',
+            },
+          ]
+        : []),
+    ],
+    [
+      contextLensActive,
+      contextLensAvailable,
+      goToContextLensRuns,
+      goToScheduledTasks,
+      goToSearch,
+      toggleContextLens,
+    ]
+  );
+  const {
+    contentInsets: conversationContentInsets,
+    navigationHeaderHeight,
+    floatingHeaderHeight: navigationFloatingHeaderHeight,
+  } = useConversationInsets({
+    hasFloatingComposer: false,
+    hasTransparentHeader: isChatChannel,
+    hasFloatingPinnedPostBanner: shouldReservePinnedPostBannerSpace,
+  });
+  // The bauble replaces the navigation header and floats over the list the
+  // same way, so content clears it on every platform.
+  const floatingHeaderHeight = usesBotBauble
+    ? botBaubleHeight
+    : navigationFloatingHeaderHeight;
+  const contentInsets = useMemo(
+    () =>
+      usesBotBauble
+        ? {
+            ...conversationContentInsets,
+            top:
+              botBaubleHeight +
+              (shouldReservePinnedPostBannerSpace
+                ? floatingPinnedPostBannerClearance
+                : 0),
+          }
+        : conversationContentInsets,
+    [
+      botBaubleHeight,
+      conversationContentInsets,
+      shouldReservePinnedPostBannerSpace,
+      usesBotBauble,
+    ]
+  );
   const sharedTopInset =
     floatingHeaderHeight +
     (shouldReservePinnedPostBannerSpace
@@ -964,35 +1053,45 @@ export function Channel({
                   >
                     <ChannelHeaderItemsProvider>
                       <>
-                        <ChannelHeader
-                          channel={channel}
-                          group={group}
-                          title={title ?? ''}
-                          description={''}
-                          goBack={
-                            (isNarrow && !isTopLevelTab) ||
-                            draftInputPresentationMode === 'fullscreen'
-                              ? handleGoBack
-                              : undefined
-                          }
-                          goToChatDetails={goToChatDetails}
-                          goToProfile={handleGoToProfile}
-                          goToSearch={goToSearch}
-                          goToScheduledTasks={goToScheduledTasks}
-                          onToggleContextLens={
-                            contextLensAvailable
-                              ? isNarrow && goToContextLensRuns
-                                ? goToContextLensRuns
-                                : toggleContextLens
-                              : undefined
-                          }
-                          contextLensOpen={
-                            contextLensAvailable && contextLensOpen
-                          }
-                          contextLensActive={contextLensActive}
-                          showSpinner={showHeaderLoading}
-                          showSearchButton={isChatChannel}
-                        />
+                        {usesBotBauble && dmRecipientId ? (
+                          <BotBaubleHeader
+                            channel={channel}
+                            botId={dmRecipientId}
+                            goBack={isTopLevelTab ? undefined : handleGoBack}
+                            goToProfile={handleGoToProfile}
+                            actions={botBaubleActions}
+                          />
+                        ) : (
+                          <ChannelHeader
+                            channel={channel}
+                            group={group}
+                            title={title ?? ''}
+                            description={''}
+                            goBack={
+                              (isNarrow && !isTopLevelTab) ||
+                              draftInputPresentationMode === 'fullscreen'
+                                ? handleGoBack
+                                : undefined
+                            }
+                            goToChatDetails={goToChatDetails}
+                            goToProfile={handleGoToProfile}
+                            goToSearch={goToSearch}
+                            goToScheduledTasks={goToScheduledTasks}
+                            onToggleContextLens={
+                              contextLensAvailable
+                                ? isNarrow && goToContextLensRuns
+                                  ? goToContextLensRuns
+                                  : toggleContextLens
+                                : undefined
+                            }
+                            contextLensOpen={
+                              contextLensAvailable && contextLensOpen
+                            }
+                            contextLensActive={contextLensActive}
+                            showSpinner={showHeaderLoading}
+                            showSearchButton={isChatChannel}
+                          />
+                        )}
                         {showOnboardingBackTooltip && inView ? (
                           <AgentOnboardingBackTooltip
                             top={

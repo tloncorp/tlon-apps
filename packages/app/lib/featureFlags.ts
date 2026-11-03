@@ -19,6 +19,13 @@ export const featureMeta = {
       'Offer Buckets, shared files for members and agents, as a channel type.',
     onlyTlon: false,
   },
+  botBaubleHeader: {
+    default: false,
+    label: 'Bot bauble and glyph avatars',
+    description:
+      "Show a bot's avatar as a floating tile atop its DM, animated while it works, and draw bots as one sigil glyph.",
+    onlyTlon: true,
+  },
 } satisfies Record<
   string,
   {

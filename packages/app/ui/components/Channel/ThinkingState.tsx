@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useWindowDimensions } from 'react-native';
 import { AnimatePresence, Spinner, View, XStack } from 'tamagui';
 
-import { ContactAvatar } from '../Avatar';
+import { ContactAvatar, useShowsBotGlyph } from '../Avatar';
 import { useConversationComputingState } from './useConversationComputingState';
 
 const MAX_VISIBLE_AVATARS = 3;
@@ -165,7 +165,7 @@ export function ThinkingState({
                     marginLeft={index === 0 ? 0 : -6}
                     zIndex={visibleShips.length - index}
                   >
-                    <ContactAvatar contactId={shipState.ship} size="$xl" />
+                    <ThinkingAvatar ship={shipState.ship} />
                   </View>
                 ))}
               </AnimatePresence>
@@ -188,5 +188,13 @@ export function ThinkingState({
         </XStack>
       ) : null}
     </View>
+  );
+}
+
+// Only bots publish computing status, so every avatar here is a bot's.
+function ThinkingAvatar({ ship }: { ship: string }) {
+  const singleGlyph = useShowsBotGlyph(ship, true);
+  return (
+    <ContactAvatar contactId={ship} size="$xl" singleGlyph={singleGlyph} />
   );
 }
