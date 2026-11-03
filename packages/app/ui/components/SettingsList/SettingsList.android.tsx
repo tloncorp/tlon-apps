@@ -56,8 +56,8 @@ const cardShape = Shapes.RoundedCorner(16);
 const pillShape = Shapes.RoundedCorner(50);
 
 /** Settings drawn as a Compose list of grouped cards, in Tlon's theme colors. */
-export function SettingsList({ sections }: SettingsListProps) {
-  const colors = useSettingsListColors();
+export function SettingsList({ sections, surface }: SettingsListProps) {
+  const colors = useSettingsListColors(surface);
   const bottomContentInset = useTopLevelTabBarContentInset();
   // A pushed screen's list runs to the bottom of the window, under the system
   // navigation bar, so its last rows must stop above that bar. The tab bar's

@@ -114,6 +114,7 @@ export type RootStackParamList = {
   FeatureFlags: undefined;
   ManageAccount: undefined;
   BotSettings: undefined;
+  SecureVault: undefined;
   BotMcpSettings: { providerId?: string } | undefined;
   BotModelSettings: { mode: 'default' | 'fallbacks' };
   BotApiKeySettings: { provider: string };
@@ -294,6 +295,7 @@ export type SettingsDrawerParamList = Pick<
   | 'FeatureFlags'
   | 'ManageAccount'
   | 'BotSettings'
+  | 'SecureVault'
   | 'BotMcpSettings'
   | 'BotModelSettings'
   | 'BotApiKeySettings'
