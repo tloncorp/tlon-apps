@@ -82,6 +82,11 @@ import {
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
 import { handleGroupContextBeforePromptBuild } from './src/group-context.js';
 import {
+  handleRecentContextBeforePromptBuild,
+  recordRecentContextInbound,
+  recordRecentContextReply,
+} from './src/recent-context.js';
+import {
   registerBudgetHoldHooks,
   registerBudgetRunGuard,
 } from './src/cron-budget-runtime.js';
@@ -1652,6 +1657,40 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
   // seen in its open channels. A no-op until the monitor publishes.
   api.on('before_prompt_build', (_event, ctx) =>
     handleGroupContextBeforePromptBuild(ctx)
+  );
+
+  // ── Recent context ─────────────────────────────────────────────────
+  // What the bot just did in its other Tlon conversations, for audiences
+  // allowed to see it. Appended after the request: above the history, the
+  // model weighed it below the conversation's own older turns.
+  api.on('before_prompt_build', async (event, ctx) => {
+    try {
+      return await handleRecentContextBeforePromptBuild(ctx, event.messages);
+    } catch (error) {
+      api.logger.warn(`[tlon] recent context failed: ${String(error)}`);
+      return undefined;
+    }
+  });
+  api.on('message_received', (event, ctx) => {
+    // In a channel `from` is the conversation, not the sender.
+    recordRecentContextInbound({
+      sessionKey: ctx.sessionKey ?? event.sessionKey,
+      sender: event.senderId ?? event.from,
+      text: event.content,
+    });
+  });
+  // Tlon delivers replies itself, so they never reach message_sent; they do
+  // pass through here. Lowest priority sees the payload after rewrites.
+  api.on(
+    'reply_payload_sending',
+    (event, ctx) => {
+      if (event.kind === 'tool' || event.payload.isError) return;
+      recordRecentContextReply({
+        sessionKey: event.sessionKey ?? ctx.sessionKey,
+        text: event.payload.text,
+      });
+    },
+    { priority: -1000 }
   );
 
   // ── Session lifecycle / watchdog telemetry ─────────────────────────
