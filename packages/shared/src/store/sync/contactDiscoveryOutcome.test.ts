@@ -92,16 +92,9 @@ test.each(['link', 'add', 'mark', 'metadata'] as const)(
     mocks.partitionDiscoveryMatches.mockResolvedValue({ newMatches: matches });
     vi.spyOn(db, 'linkSystemContacts').mockResolvedValue(undefined);
     vi.spyOn(db, 'markContactsAsMatched').mockResolvedValue(undefined);
-    vi.spyOn(db, 'getSystemContactsBatchByContactId').mockResolvedValue([
-      {
-        id: 'native',
-        phoneNumber: 'phone-hash',
-        contactId: '~zod',
-        firstName: 'Test',
-        lastName: '',
-      },
+    vi.spyOn(db, 'getUnnamedSystemContactsByContactId').mockResolvedValue([
+      { contactId: '~zod', firstName: 'Test', lastName: '' },
     ]);
-    await db.upsertContact({ id: '~zod', isContact: true });
     const error = new Error('persist failed');
     if (stage === 'link')
       vi.mocked(db.linkSystemContacts).mockRejectedValueOnce(error);

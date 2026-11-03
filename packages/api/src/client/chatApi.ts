@@ -94,7 +94,7 @@ export type ChatEvent =
   | { type: 'dmStatus'; channelId: string; net: ub.DmNet | null }
   | { type: 'groupDmsUpdate' }
   | { type: 'addPost'; post: db.Post; replyMeta?: db.ReplyMeta | null }
-  | { type: 'deletePost'; postId: string; channelId: string }
+  | { type: 'deletePost'; postId: string }
   | { type: 'addReaction'; postId: string; userId: string; react: string }
   | { type: 'deleteReaction'; postId: string; userId: string }
   | { type: 'unknown' };
@@ -163,7 +163,7 @@ export function subscribeToChatUpdates(
 
       if ('del' in delta) {
         logger.log('del dm', id, delta);
-        return eventHandler({ type: 'deletePost', postId: id, channelId });
+        return eventHandler({ type: 'deletePost', postId: id });
       }
 
       if ('add-react' in delta) {
@@ -221,11 +221,7 @@ export function subscribeToChatUpdates(
 
         if ('del' in replyDelta) {
           logger.log('del dm reply', id, delta);
-          return eventHandler({
-            type: 'deletePost',
-            postId: replyId,
-            channelId,
-          });
+          return eventHandler({ type: 'deletePost', postId: replyId });
         }
 
         if ('add-react' in replyDelta) {

@@ -3,6 +3,7 @@ import { memo } from 'react';
 
 import { BrowserCredentialHandoffProvider } from '../features/browser/BrowserCredentialHandoffProvider';
 import { BrowserWalletScreen } from '../features/browser/BrowserWalletScreen';
+import { BrowserCredentialHandoffScreen } from '../features/browser/BrowserCredentialHandoffScreen';
 import { useRenderCount } from '../hooks/useRenderCount';
 import { RootStack } from './RootStack';
 import { TopLevelDrawer } from './desktop/TopLevelDrawer';
@@ -53,6 +54,11 @@ export const BasePathNavigator = memo(({ isMobile }: { isMobile: boolean }) => {
         <DesktopBasePathStackNavigator.Screen
           name="BrowserWallet"
           component={BrowserWalletScreen}
+          options={{ presentation: 'modal' }}
+        />
+        <DesktopBasePathStackNavigator.Screen
+          name="BrowserCredentialHandoff"
+          component={BrowserCredentialHandoffScreen}
           options={{ presentation: 'modal' }}
         />
       </DesktopBasePathStackNavigator.Navigator>

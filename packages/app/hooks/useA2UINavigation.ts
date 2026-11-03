@@ -5,7 +5,7 @@ import { A2UI } from '@tloncorp/shared/logic';
 import { useToast } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
-import { useOptionalBrowserCredentialHandoff } from '../features/browser/BrowserCredentialHandoffContext';
+import { useOptionalBrowserCredentialHandoff } from '../features/browser/BrowserCredentialHandoffProvider';
 import { useRootNavigation } from '../navigation/utils';
 
 const logger = createDevLogger('a2ui-navigation', false);
@@ -194,7 +194,8 @@ export function useA2UINavigation() {
                     ));
               } catch (error) {
                 showToast({
-                  message: "Couldn't open the browser. Please try again.",
+                  message:
+                    "Couldn't open the browser. Please try again and allow pop-ups if prompted.",
                 });
                 throw error;
               }
@@ -209,7 +210,13 @@ export function useA2UINavigation() {
                   'Browser credential handoff provider is unavailable.'
                 );
               }
-              browserHandoff.openForm(target.viewerUrl, target.loginApproval);
+              const handoffId = browserHandoff.register({
+                viewerUrl: target.viewerUrl,
+              });
+              rootNavigation.navigateToBrowserCredentialHandoff(
+                handoffId,
+                target.loginApproval
+              );
               return;
           }
       }

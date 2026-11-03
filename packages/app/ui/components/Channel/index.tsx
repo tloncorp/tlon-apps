@@ -284,6 +284,8 @@ interface ChannelProps {
    * and the floating tab bar would otherwise cover its message input.
    */
   isTopLevelTab?: boolean;
+  disableBackButton?: boolean;
+  onPressLogout?: () => void;
   suppressEmptyState?: boolean;
   suppressAnimatedSendScroll?: boolean;
   pendingThinkingLabel?: string;
@@ -331,6 +333,8 @@ export function Channel({
   groupIsLoading,
   goBack,
   isTopLevelTab,
+  disableBackButton,
+  onPressLogout,
   suppressEmptyState,
   suppressAnimatedSendScroll,
   pendingThinkingLabel,
@@ -410,6 +414,7 @@ export function Channel({
 
   useEffect(() => {
     if (
+      disableBackButton ||
       // The hint points at the back control. A tab root has none, so the
       // one-shot waits for a pushed conversation that does.
       isTopLevelTab ||
@@ -427,6 +432,7 @@ export function Channel({
     claimedOnboardingBackTooltipRef.current = orientationCompletePostId;
     setShowOnboardingBackTooltip(true);
   }, [
+    disableBackButton,
     hasFirstGroupOnboardingRequest,
     inView,
     isNarrow,
@@ -731,6 +737,8 @@ export function Channel({
     stableGroupRef.current = null;
   }
 
+  // The onboarding lock hides the free-form composer below, but its A2UI
+  // choices still send ordinary channel posts through this draft context.
   const canStartDraft =
     canRead &&
     canWrite &&
@@ -797,6 +805,7 @@ export function Channel({
   );
 
   const handleGoBack = useCallback(() => {
+    if (disableBackButton) return;
     if (
       draftInputPresentationMode === 'fullscreen' &&
       draftInputRef.current != null
@@ -807,7 +816,13 @@ export function Channel({
     } else {
       goBack();
     }
-  }, [goBack, draftInputPresentationMode, draftInputRef, setEditingPost]);
+  }, [
+    disableBackButton,
+    goBack,
+    draftInputPresentationMode,
+    draftInputRef,
+    setEditingPost,
+  ]);
 
   useEffect(() => {
     if (startDraft) {
@@ -946,12 +961,20 @@ export function Channel({
           >
             <DraftInputContextProvider value={draftInputContext}>
               <NavigationProvider
-                onPressRef={handleRefPress}
-                onPressGroupRef={onPressGroupRef}
-                onPressChannelRef={onPressChannelRef}
-                onPressGoToDm={goToDm}
-                onGoToUserProfile={goToUserProfile}
-                onGoToGroupSettings={goToGroupSettings}
+                onPressRef={disableBackButton ? undefined : handleRefPress}
+                onPressGroupRef={
+                  disableBackButton ? undefined : onPressGroupRef
+                }
+                onPressChannelRef={
+                  disableBackButton ? undefined : onPressChannelRef
+                }
+                onPressGoToDm={disableBackButton ? undefined : goToDm}
+                onGoToUserProfile={
+                  disableBackButton ? undefined : goToUserProfile
+                }
+                onGoToGroupSettings={
+                  disableBackButton ? undefined : goToGroupSettings
+                }
               >
                 <View backgroundColor={backgroundColor} flex={1}>
                   <FileDrop
@@ -969,18 +992,27 @@ export function Channel({
                           group={group}
                           title={title ?? ''}
                           description={''}
+                          backDisabled={disableBackButton}
                           goBack={
                             (isNarrow && !isTopLevelTab) ||
                             draftInputPresentationMode === 'fullscreen'
                               ? handleGoBack
                               : undefined
                           }
-                          goToChatDetails={goToChatDetails}
-                          goToProfile={handleGoToProfile}
-                          goToSearch={goToSearch}
-                          goToScheduledTasks={goToScheduledTasks}
+                          goToChatDetails={
+                            disableBackButton ? undefined : goToChatDetails
+                          }
+                          goToProfile={
+                            disableBackButton ? undefined : handleGoToProfile
+                          }
+                          goToSearch={
+                            disableBackButton ? undefined : goToSearch
+                          }
+                          goToScheduledTasks={
+                            disableBackButton ? undefined : goToScheduledTasks
+                          }
                           onToggleContextLens={
-                            contextLensAvailable
+                            !disableBackButton && contextLensAvailable
                               ? isNarrow && goToContextLensRuns
                                 ? goToContextLensRuns
                                 : toggleContextLens
@@ -991,9 +1023,12 @@ export function Channel({
                           }
                           contextLensActive={contextLensActive}
                           showSpinner={showHeaderLoading}
-                          showSearchButton={isChatChannel}
+                          showSearchButton={isChatChannel && !disableBackButton}
+                          onPressLogout={onPressLogout}
                         />
-                        {showOnboardingBackTooltip && inView ? (
+                        {showOnboardingBackTooltip &&
+                        inView &&
+                        !disableBackButton ? (
                           <AgentOnboardingBackTooltip
                             top={
                               // iOS portals into full-window coordinates, so

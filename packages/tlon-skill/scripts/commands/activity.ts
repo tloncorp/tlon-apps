@@ -25,7 +25,6 @@ import {
   errorMessage,
   handleExpectedCommandError,
   isHelpArg,
-  unknownOptionError,
   usageError,
   writeHelp,
   writeLine,
@@ -50,7 +49,7 @@ export interface ActivityFormatter {
   activityHeader: (bucket: ActivityBucket, count: number) => string;
   noActivity: (bucket: ActivityBucket) => string;
   event: (event: ActivityEvent) => string;
-  unreadsHeader: (ship: string) => string;
+  unreadsHeader: () => string;
   noUnreads: () => string;
   baseUnread: (summary: BaseUnread) => string;
   groupUnread: (summary: GroupUnread) => string;
@@ -129,10 +128,10 @@ export interface ActivityDeps extends CommandDeps {
 export const ACTIVITY_HELP = `Usage: tlon activity <command>
 
 Commands:
-  mentions [--limit N] [--self]             Show mention activity
-  replies [--limit N] [--self]              Show reply activity
-  all [--limit N] [--self]                  Show all activity
-  unreads [--self]                          Show unread counts
+  mentions [--limit N]                      Show mention activity
+  replies [--limit N]                       Show reply activity
+  all [--limit N]                           Show all activity
+  unreads                                   Show unread counts
   mute <target> [--self]                    Mute notifications for a DM, group, channel, or thread
   unmute <target> [--self]                  Remove a mute or custom level (back to the inherited default)
   volume <target> <level> [--self]          Set the notification level
@@ -388,7 +387,7 @@ function parseVolumeArgs(
   for (const arg of rest) {
     if (arg === '--self') continue;
     if (arg.startsWith('-')) {
-      throw unknownOptionError(arg, help, `activity ${command}`);
+      throw usageError(`Unknown option: ${arg}`, help);
     }
     positionals.push(arg);
   }
@@ -482,7 +481,7 @@ function parseMarkReadArgs(rest: string[]): ParsedActivityArgs {
       continue;
     }
     if (arg.startsWith('-')) {
-      throw unknownOptionError(arg, help, 'activity mark-read');
+      throw usageError(`Unknown option: ${arg}`, help);
     }
     positionals.push(arg);
   }
@@ -509,8 +508,7 @@ function parseMarkReadArgs(rest: string[]): ParsedActivityArgs {
 }
 
 function parseArgs(args: string[]): ParsedActivityArgs {
-  // Agents write `unread` for `unreads` (the flag elsewhere is `--unread`).
-  const command = args[0] === 'unread' ? 'unreads' : args[0];
+  const command = args[0];
 
   if (isHelpArg(command)) {
     return { kind: 'help' };
@@ -554,11 +552,8 @@ function parseArgs(args: string[]): ParsedActivityArgs {
       continue;
     }
 
-    // As for the writes: reads act on the credentials they were given.
-    if (arg === '--self') continue;
-
     if (arg.startsWith('-')) {
-      throw unknownOptionError(arg, ACTIVITY_HELP, `activity ${command}`);
+      throw usageError(`Unknown option: ${arg}`, ACTIVITY_HELP);
     }
 
     throw usageError(`Unknown argument: ${arg}`, ACTIVITY_HELP);
@@ -608,7 +603,7 @@ async function showActivity(
 async function showUnreads(deps: ActivityDeps): Promise<void> {
   const activity = await deps.activityApi.getGroupAndChannelUnreads();
 
-  writeLine(deps.stdout, deps.format.unreadsHeader(deps.getCurrentUserId()));
+  writeLine(deps.stdout, deps.format.unreadsHeader());
 
   const groupEntries = activity.groupUnreads.filter(hasUnread);
   const channelEntries = activity.channelUnreads.filter(hasUnread);

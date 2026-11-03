@@ -34,17 +34,7 @@ export type StorageItem<T> = {
   config: StorageItemConfig<T>;
 };
 
-type ResettableStorageItem = {
-  resetValue: () => Promise<unknown>;
-  config: Pick<StorageItemConfig<unknown>, 'persistAfterLogout'>;
-};
-
-const storageItems: ResettableStorageItem[] = [];
-
-/** Clears an item not built by `createStorageItem` along with the others. */
-export function registerStorageItemForReset(item: ResettableStorageItem) {
-  storageItems.push(item);
-}
+const storageItems: Array<StorageItem<any>> = [];
 
 const storageItemListeners = new Map<
   string,
@@ -190,7 +180,7 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
   };
 
   if (config.registerForReset !== false) {
-    registerStorageItemForReset(storageItem);
+    storageItems.push(storageItem);
   }
 
   return storageItem;

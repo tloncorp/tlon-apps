@@ -1,4 +1,3 @@
-import type { BrowserCardData } from './browserCards';
 import type { A2UI } from '../client/a2ui';
 import {
   PostBlobDataEntryFile,
@@ -127,11 +126,6 @@ export type VoiceMemoBlockData = {
   voiceMemo: PostBlobDataEntryVoiceMemo;
 };
 
-export type BrowserCardBlockData = {
-  type: 'browser-card';
-  card: BrowserCardData;
-};
-
 export type A2UIBlockData = {
   type: 'a2ui';
   a2ui: A2UI.BlobEntry;
@@ -200,7 +194,6 @@ export type BlockData =
   | ParagraphBlockData
   | ImageBlockData
   | A2UIBlockData
-  | BrowserCardBlockData
   | VideoBlockData
   | FileUploadBlockData
   | VoiceMemoBlockData
@@ -478,12 +471,6 @@ export function convertContent(
               posterUri: entry.posterUri,
             },
           });
-          break;
-        }
-
-        case 'browser-session':
-        case 'browser-secure-entry': {
-          out.push({ type: 'browser-card', card: entry });
           break;
         }
 

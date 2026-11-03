@@ -142,6 +142,10 @@ vi.mock('@tloncorp/shared/db/migrations', () => ({
   migrations: { journal: { entries: [] }, migrations: {} },
 }));
 
+vi.mock('@tloncorp/shared/utils', () => ({
+  readArrayBufferFromBlob: vi.fn(async () => new ArrayBuffer(0)),
+}));
+
 vi.mock('./webMigrator', () => ({
   default: webMigratorSpies.migrate,
 }));

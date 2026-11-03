@@ -24,8 +24,7 @@ export function createBrowserLoginApprovalHandler(
     sessionId: string,
     choice: { id: string; revision: number } | undefined,
     ctx: RunContext,
-    fields: FormFields | undefined,
-    formId?: string
+    fields: FormFields
   ) => Promise<unknown>
 ) {
   const runKey = (ctx: RunContext) =>
@@ -53,12 +52,8 @@ export function createBrowserLoginApprovalHandler(
     const args = record(argumentsValue);
     const sessionId = args.session_id;
     const fields = formFieldsSchema.safeParse(args.fields);
-    const formId =
-      typeof args.form_id === 'string' && /^[a-f0-9-]{36}$/.test(args.form_id)
-        ? args.form_id
-        : undefined;
     if (
-      (!fields.success && !formId) ||
+      !fields.success ||
       (args.action !== undefined && args.action !== 'use') ||
       typeof sessionId !== 'string' ||
       !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(sessionId)
@@ -79,8 +74,7 @@ export function createBrowserLoginApprovalHandler(
     const delivered =
       deliveries.get(key) ?? new Map<string, Promise<unknown>>();
     deliveries.set(key, delivered);
-    const deliveryKey = formId ? `${sessionId}:${formId}` : sessionId;
-    const existing = delivered.get(deliveryKey);
+    const existing = delivered.get(sessionId);
     if (existing) {
       await existing;
       return;
@@ -94,20 +88,13 @@ export function createBrowserLoginApprovalHandler(
         ? { id: requested.id, revision: requested.revision }
         : undefined;
     const promise = Promise.resolve().then(() =>
-      formId
-        ? sendHandoff(sessionId, choice, ctx, undefined, formId)
-        : sendHandoff(
-            sessionId,
-            choice,
-            ctx,
-            fields.success ? fields.data : undefined
-          )
+      sendHandoff(sessionId, choice, ctx, fields.data)
     );
-    delivered.set(deliveryKey, promise);
+    delivered.set(sessionId, promise);
     try {
       await promise;
     } catch (error) {
-      delivered.delete(deliveryKey);
+      delivered.delete(sessionId);
       throw error;
     }
   };

@@ -263,7 +263,7 @@ export function subscribeRequest<E extends SubscribeReg>(entry: One<E>) {
 type SubscribeOnceRest = [
   timeout?: number,
   ship?: string,
-  requestConfig?: { tag?: string; signal?: AbortSignal },
+  requestConfig?: { tag?: string },
 ];
 
 export function subscribeOnceRequest<E extends SubscribeReg>(entry: One<E>) {
@@ -287,9 +287,9 @@ export function pokeRequest<E extends PokeReg>(entry: One<E>) {
 }
 
 export function pokeNounRequest<E extends PokeReg>(entry: One<E>) {
-  return (noun: Noun, options?: { signal?: AbortSignal }) => {
+  return (noun: Noun) => {
     assertGuard(entry);
-    return pokeNoun({ app: entry.agent, mark: entry.mark, noun, ...options });
+    return pokeNoun({ app: entry.agent, mark: entry.mark, noun });
   };
 }
 

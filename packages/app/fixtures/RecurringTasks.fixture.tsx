@@ -402,7 +402,6 @@ function BotProfileFixture() {
             connectionStatus={{ complete: true, status: 'yes' }}
             onPressBotSettings={noop}
             onPressGroup={noop}
-            onPressUserProfile={noop}
           />
         </View>
       </AppDataContextProvider>

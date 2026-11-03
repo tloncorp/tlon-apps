@@ -62,12 +62,8 @@ export function UserProfileScreen({ route, navigation }: Props) {
   }, [userId]);
 
   useEffect(() => {
-    // A bot's profile links to its owner, whom we may never have met.
-    const profileIds = [userId, api.getBotOwnerId(userId)].filter(
-      (id): id is string => !!id && id !== currentUserId
-    );
-    if (profileIds.length) {
-      api.syncUserProfiles(profileIds);
+    if (userId && userId !== currentUserId) {
+      api.syncUserProfiles([userId]);
     }
   }, [userId, currentUserId]);
 
@@ -93,20 +89,6 @@ export function UserProfileScreen({ route, navigation }: Props) {
 
     navigation.navigate('EditProfile', { userId });
   }, [isWindowNarrow, navigation, userId]);
-
-  const handlePressUserProfile = useCallback(
-    (profileUserId: string) => {
-      // By navigator, not window: a wide tablet still has the phone's stack,
-      // and only the desktop drawers show one profile at a time.
-      if (navigation.getState().type === 'stack') {
-        navigation.push('UserProfile', { userId: profileUserId });
-        return;
-      }
-
-      navigation.navigate('UserProfile', { userId: profileUserId });
-    },
-    [navigation]
-  );
 
   const canUpload = store.useCanUpload();
 
@@ -220,7 +202,6 @@ export function UserProfileScreen({ route, navigation }: Props) {
               scheduledTaskCount={scheduledTasks.count}
               onPressPromptFiles={handlePressPromptFiles}
               onPressGroup={handlePressGroup}
-              onPressUserProfile={handlePressUserProfile}
             />
           </View>
           <GroupPreviewSheet

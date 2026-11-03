@@ -182,6 +182,8 @@ async function startAgentGroupFurnishingOnce(
   await db.agentGroupOnboardingLocks.setValue((current) => ({
     ...current,
     [group.id]: furnishingLockMarker(current[group.id], {
+      chatChannelId: chatChannel.id,
+      isFirstGroup: params.isFirstGroup ?? false,
       initialGroupTitle,
       canRenameGroup,
       now: Date.now(),
@@ -333,15 +335,21 @@ async function waitForPendingGroupWithChat(
 /**
  * The onboarding record a furnishing attempt leaves for its group. Every new
  * agent group starts with the same placeholder title, so rename provenance is
- * kept for all of them, and a late attempt keeps what an earlier one recorded.
+ * kept for all of them; only the first run's group gets the navigation lock.
+ * A lock time already there is kept, so a lock the first run ended (a time in
+ * the past) stays ended when a late attempt finishes.
  */
 function furnishingLockMarker(
   existing: db.AgentGroupOnboardingLock | undefined,
   {
+    chatChannelId,
+    isFirstGroup,
     initialGroupTitle,
     canRenameGroup,
     now,
   }: {
+    chatChannelId: string;
+    isFirstGroup: boolean;
     initialGroupTitle: string | null;
     canRenameGroup: boolean;
     now: number;
@@ -349,7 +357,15 @@ function furnishingLockMarker(
 ): db.AgentGroupOnboardingLock {
   return {
     ...existing,
+    chatChannelId,
     createdAt: existing?.createdAt ?? now,
+    ...(isFirstGroup
+      ? {
+          navigationLockExpiresAt:
+            existing?.navigationLockExpiresAt ??
+            now + db.AGENT_GROUP_NAVIGATION_LOCK_FAILSAFE_MS,
+        }
+      : {}),
     initialGroupTitle: existing?.initialGroupTitle ?? initialGroupTitle,
     canRenameGroup: existing?.canRenameGroup ?? canRenameGroup,
   };

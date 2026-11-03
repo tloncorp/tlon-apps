@@ -1,8 +1,8 @@
 import type { StorageItemConfig } from '../storageItem';
 
-export interface StorageMethods<V = string> {
-  getItem: (key: string) => Promise<V | null>;
-  setItem: (key: string, value: V) => Promise<void>;
+export interface StorageMethods {
+  getItem: (key: string) => Promise<string | null>;
+  setItem: (key: string, value: string) => Promise<void>;
   removeItem: (key: string) => Promise<void>;
 }
 

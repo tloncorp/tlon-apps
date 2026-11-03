@@ -60,7 +60,6 @@ import { FileUploadPreview } from '../FileUploadPreview';
 import { HighlightedCode } from '../HighlightedCode';
 import { VideoPreview } from '../VideoPreview';
 import { A2UIBlock } from './A2UIBlock';
-import { BrowserCardBlock } from '../../../features/browser/BrowserCard';
 import { BlockquoteSideBorder } from './BlockquoteSideBorder';
 import { InlineRenderer } from './InlineRenderer';
 import {
@@ -1086,7 +1085,6 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   blockquote: BlockquoteBlock,
   paragraph: ParagraphBlock,
   a2ui: () => null,
-  'browser-card': BrowserCardBlock,
   link: LinkBlock,
   image: ImageBlock,
   video: VideoBlock,
@@ -1115,7 +1113,6 @@ export type DefaultRendererProps = {
   blockquote: BlockSettings<typeof BlockquoteBlock>;
   paragraph: BlockSettings<typeof ParagraphBlock>;
   a2ui: BlockSettings<typeof A2UIBlock>;
-  'browser-card': BlockSettings<typeof BrowserCardBlock>;
   link: BlockSettings<typeof LinkBlock>;
   image: BlockSettings<typeof ImageBlock>;
   video: BlockSettings<typeof VideoBlock>;

@@ -40,7 +40,7 @@ export function isLanyardMockEnabled(): boolean {
 
 export async function runLanyardMockDiscovery(
   phoneNums: string[]
-): Promise<{ matches: [string, string][]; nextSalt: string }> {
+): Promise<{ matches: [string, string][]; nextSalt: string | null }> {
   const count = Math.min(
     parseInt(process.env.MOCK_LANYARD_DISCOVERY || '3', 10),
     10
