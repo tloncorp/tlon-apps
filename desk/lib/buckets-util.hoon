@@ -183,7 +183,7 @@
 ::  +broker-error: the broker's account of a refused upload call.
 ::
 ++  broker-error
-  |=  [res=client-response:iris ceiling=@dr]
+  |=  [res=client-response:iris ceiling=@ud]
   ^-  [message=@t =broker-error:b]
   (broker-refusal res ceiling 'storage refused the upload')
 ::  +broker-refusal: the broker's account of a refused call.
@@ -202,7 +202,7 @@
 ::  delay computed as a float does not come out as no delay.
 ::
 ++  broker-refusal
-  |=  [res=client-response:iris ceiling=@dr fallback=@t]
+  |=  [res=client-response:iris ceiling=@ud fallback=@t]
   ^-  [message=@t =broker-error:b]
   ?:  ?=(%cancel -.res)
     ['the storage request was cancelled' ['outcome_unknown' & ~ ~]]
@@ -221,9 +221,15 @@
     ?~  got=(~(get by u.body) 'scope')  ~
     ?.(?=([%s *] u.got) ~ `p.u.got)
   [message [p.u.code retryable retry-after scope]]
+::  +to-ms: a duration in whole milliseconds, the fraction dropped.
+::
+++  to-ms
+  |=  d=@dr
+  ^-  @ud
+  (div (mul d 1.000) ~s1)
 ::  +year-ms: a year in milliseconds, longer than any wait worth computing.
 ::
-++  year-ms  ^-(@ud (div (mul ~d365 1.000) ~s1))
+++  year-ms  ^-(@ud (to-ms ~d365))
 ::  +retry-after-ms: a JSON number as whole milliseconds, rounded up and
 ::  capped at .ceiling; none when it is not a positive number.
 ::

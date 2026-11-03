@@ -1302,7 +1302,7 @@
     ^+  up-core
     =/  left=@ud
       ?:  (lte expires-at.ses now.bowl)  0
-      (div (mul (sub expires-at.ses now.bowl) 1.000) ~s1)
+      (to-ms:util (sub expires-at.ses now.bowl))
     =/  [why=@t err=broker-error:b]  (broker-error:util res left)
     =/  kept=?  &(?=(?(%retry %complete) kind) retryable.err)
     =.  cor
@@ -1645,7 +1645,8 @@
     ?:(?=(%cancel -.res) 0 status-code.response-header.res)
   ?.  &((gte code 200) (lth code 300))
     =/  [why=@t err=broker-error:b]
-      (broker-refusal:util res upload-window 'storage refused the capacity query')
+      %^  broker-refusal:util  res  (to-ms:util upload-window)
+      'storage refused the capacity query'
     =.  cor
       %^  note  %warn
         ~[leaf+"buckets: storage refused a capacity query"]

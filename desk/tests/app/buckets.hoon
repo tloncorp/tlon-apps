@@ -2908,7 +2908,7 @@
   =*  b  bind:m
   ^-  form:m
   =/  act=action:bu  [%bucket flag [%create-folder ~ 'Launch']]
-  =/  detail=broker-error:bu  ['rate_limited' & `~s5 `'host']
+  =/  detail=broker-error:bu  ['rate_limited' & `5.000 `'host']
   =/  room=capacity:bu  [123 4 99 (silt ~['image/png'])]
   ;<  ~  b  (setup-as ~bus)
   ;<  *  b
@@ -4006,11 +4006,6 @@
   %+  do-poke  %buckets-command-1
   !>(`command:bu`[rid [%bucket flag [%query-capacity ~]]])
 ::
-++  iris-cards
-  |=  caz=(list card)
-  ^-  (list card)
-  (skim caz |=(=card ?=([%pass * %arvo %i %request * *] card)))
-::
 ++  capacity-pending
   |=  rid=@uv
   %-  ex-fact
@@ -4087,7 +4082,7 @@
     '{"code":"rate_limited","message":"slow down","retryable":true,"retryAfterMs":5000,"scope":"host"}'
   ;<  ~  b
     %+  ex-cards  (answers refused)
-    :~  (capacity-answer 0v7 [%error %unknown 'slow down' `['rate_limited' & `~s5 `'host']])
+    :~  (capacity-answer 0v7 [%error %unknown 'slow down' `['rate_limited' & `5.000 `'host']])
     ==
   ;<  caz=(list card)  b
     %-  (do-as ~bus)
@@ -4107,6 +4102,23 @@
   %+  ex-cards  (answers cancelled)
   :~  %+  capacity-answer  0v9
       [%error %unknown 'the storage request was cancelled' `['outcome_unknown' & ~ ~]]
+  ==
+::  A capacity query has no session to outlive, so its retry delay is
+::  capped at the upload window: a two-hour delay is passed on as an hour.
+::
+++  test-capacity-retry-after-cap
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  caz=(list card)  b
+    (capacity-asked 0v7 (silt ~[%editor]) uploader-scries)
+  ;<  refused=(list card)  b
+    %+  do-arvo  wire:(only-iris caz)
+    %+  iris-json  429
+    '{"code":"rate_limited","message":"slow down","retryable":true,"retryAfterMs":7200000}'
+  %+  ex-cards  (answers refused)
+  :~  (capacity-answer 0v7 [%error %unknown 'slow down' `['rate_limited' & `3.600.000 ~]])
   ==
 ::
 ::  The gate is the one an upload faces: an admin, a holder of a writer role,
