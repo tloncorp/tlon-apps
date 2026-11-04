@@ -242,7 +242,12 @@ function NativePdfPreview({
   return failed || !webview ? (
     <FailedPreview onRetry={onRetry} />
   ) : (
-    <WebView {...webview} source={{ uri }} onError={fail} onHttpError={fail} />
+    <WebView<{}>
+      {...webview}
+      source={{ uri }}
+      onError={fail}
+      onHttpError={fail}
+    />
   );
 }
 
