@@ -1,5 +1,15 @@
 export type Step =
-  | { kind: 'text'; content: string }
+  | {
+      kind: 'text';
+      content: string;
+      /**
+       * Answer with `template` instead when `pattern` (a RegExp source)
+       * matches the request's message text; `$1` in the template becomes the
+       * first capture group. For prompts carrying a per-call value the client
+       * requires back, such as lcm-x's summary nonce.
+       */
+      echo?: { pattern: string; template: string };
+    }
   | { kind: 'tool_call'; name: string; args: Record<string, unknown> }
   /** Delays the next step's response, within the same model request. */
   | { kind: 'hold'; ms: number };

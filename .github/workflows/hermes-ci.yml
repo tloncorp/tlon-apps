@@ -34,13 +34,15 @@ jobs:
     name: Bot E2E (${{ matrix.shard }})
     runs-on: blacksmith-8vcpu-ubuntu-2204
     # One stack per shard: the baseline and cron scenario partitions and the
-    # package suite. Each stack boots fresh, builds the hermes-agent image
-    # (from source, with uv on Python 3.14, inside Docker — the runner needs no
-    # Python), and re-applies the branch %groups desk. The ceiling sits above
-    # cold setup ~15 + the 45-min step cap + the 5-min failure capture +
-    # upload, so a step that runs to its cap hits a *step* timeout (a step
-    # failure), never this job timeout (a cancellation) — the capture steps
-    # below then still run with the orphaned stack alive.
+    # package suite. The lcm shard runs the package suite with the opt-in LCM
+    # context engine (lcm-x at its pinned ref), then a second stack for the
+    # targeted compaction scenario. Each stack boots fresh, builds the
+    # hermes-agent image (from source, with uv on Python 3.14, inside Docker —
+    # the runner needs no Python), and re-applies the branch %groups desk. The
+    # ceiling sits above cold setup ~15 + the 45-min step cap + the 5-min
+    # failure capture + upload, so a step that runs to its cap hits a *step*
+    # timeout (a step failure), never this job timeout (a cancellation) — the
+    # capture steps below then still run with the orphaned stack alive.
     timeout-minutes: 75
     strategy:
       fail-fast: false
@@ -57,6 +59,10 @@ jobs:
           - shard: package
             id: p
             script: test:e2e:hermes:package
+          - shard: lcm
+            id: l
+            script: test:e2e:hermes:package
+            lcm: "1"
     env:
       # assemble-desk.sh runs `peru sync` unless told otherwise, and
       # branch-desk.ts caps an assemble at 300s — a cold sync has measured
@@ -134,6 +140,8 @@ jobs:
             ${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.id }}
           # Ignored by the package suite.
           TLON_BOT_E2E_SCENARIO_PARTITIONS: ${{ matrix.partitions }}
+          # Empty (off) outside the lcm shard.
+          TLON_E2E_HERMES_LCM: ${{ matrix.lcm }}
         run: |
           pnpm --filter '@tloncorp/tlon-bot-e2e' ${{ matrix.script }}
 

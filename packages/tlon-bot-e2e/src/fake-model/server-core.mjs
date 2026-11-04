@@ -272,7 +272,7 @@ async function handleChatCompletion(state, req, res) {
   const scripted =
     step.kind === 'tool_call'
       ? toolCallResponse({ name: step.name, args: step.args })
-      : textResponse(step.content);
+      : textResponse(echoedContent(step, messages));
   recordScriptedResponse(callRecord, scripted);
 
   console.log(
@@ -283,6 +283,24 @@ async function handleChatCompletion(state, req, res) {
     await new Promise((resolve) => setTimeout(resolve, holdMs));
   }
   respondScripted(res, body, scripted);
+}
+
+// A text step's `echo` answers with `template` when `pattern` matches the
+// request text, `$1` replaced by the first capture group: for a client whose
+// prompt carries a per-call value it requires back (e.g. a nonce). With no
+// match the step answers with `content`.
+function echoedContent(step, messages) {
+  if (!step.echo) {
+    return step.content;
+  }
+  const requestText = messages
+    .map((message) => extractText(message?.content))
+    .filter(Boolean)
+    .join('\n');
+  const match = new RegExp(step.echo.pattern).exec(requestText);
+  return match
+    ? step.echo.template.split('$1').join(match[1] ?? match[0])
+    : step.content;
 }
 
 function recordScriptedResponse(callRecord, scripted) {
@@ -373,6 +391,13 @@ function validateScript(key, steps, extra, allowedAuxiliaryCalls) {
     if (step.kind === 'text') {
       if (typeof step.content !== 'string') {
         return `step ${i}: text step requires string 'content'`;
+      }
+      if (
+        step.echo !== undefined &&
+        (typeof step.echo?.pattern !== 'string' ||
+          typeof step.echo?.template !== 'string')
+      ) {
+        return `step ${i}: text step 'echo' requires string 'pattern' and 'template'`;
       }
     } else if (step.kind === 'tool_call') {
       if (typeof step.name !== 'string' || step.name.length === 0) {

@@ -45,6 +45,27 @@ RUN curl -LsSf "https://astral.sh/uv/${UV_VERSION}/install.sh" | env UV_INSTALL_
   && UV_PROJECT_ENVIRONMENT="$HERMES_VENV" uv sync --frozen --extra all --python "$HERMES_PYTHON" \
   && uv pip install --python "$HERMES_VENV/bin/python" "aiohttp>=3.9" "posthog>=3" "pyyaml>=6"
 
+# Opt-in LCM context engine (lcm-x by default, whose plugin lives in the repo's
+# plugin/ subdirectory; an empty subdir means the repo root, as for hermes-lcm),
+# installed the way the hosted pioneer image does: fetch only, the plugins
+# declare no required third-party dependencies. HERMES_LCM_REF may be a branch,
+# tag or commit sha (fetched by ref, so detached commits work); empty leaves
+# LCM out. Declared late so the layers above stay shared with the non-LCM image.
+ARG HERMES_LCM_REPO=https://github.com/electricsheephq/lcm-x.git
+ARG HERMES_LCM_REF=
+ARG HERMES_LCM_SUBDIR=plugin
+ENV HERMES_LCM_DIR=/usr/local/share/hermes-lcm
+RUN if [ -n "$HERMES_LCM_REF" ]; then \
+    src="$(mktemp -d)" \
+    && git -C "$src" init -q \
+    && git -C "$src" fetch -q --depth 1 "$HERMES_LCM_REPO" "$HERMES_LCM_REF" \
+    && git -C "$src" checkout -q FETCH_HEAD \
+    && test -f "$src/${HERMES_LCM_SUBDIR:-.}/plugin.yaml" \
+    && cp -a "$src/${HERMES_LCM_SUBDIR:-.}" "$HERMES_LCM_DIR" \
+    && git -C "$src" rev-parse HEAD > "$HERMES_LCM_DIR/.tested-sha" \
+    && rm -rf "$src" "$HERMES_LCM_DIR/.git"; \
+  fi
+
 WORKDIR /workspace
 
 COPY dev/e2e/entrypoint.sh /usr/local/bin/hermes-tlon-e2e-entrypoint

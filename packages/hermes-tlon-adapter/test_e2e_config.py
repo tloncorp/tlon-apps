@@ -97,3 +97,26 @@ class HermesE2EConfigTests(unittest.TestCase):
             ["tlon", "cronjob", "no_mcp"],
         )
         self.assertNotIn("cronjob", config["agent"]["disabled_toolsets"])
+
+    def test_lcm_lane_wires_named_plugin_and_engine(self):
+        base = {"HERMES_HOME": "/h", "TLON_HOME_CHANNEL": "~ten"}
+        default = write_config.render_config({**base, "TLON_E2E_HERMES_LCM": "1"})
+        hermes_lcm = write_config.render_config(
+            {
+                **base,
+                "TLON_E2E_HERMES_LCM": "1",
+                "TLON_E2E_HERMES_LCM_PLUGIN": "hermes-lcm",
+                "TLON_E2E_HERMES_LCM_ENGINE": "lcm",
+            }
+        )
+        off = write_config.render_config(base)
+
+        self.assertEqual(default["plugins"]["enabled"], ["platforms/tlon", "hermes-lcm-x"])
+        self.assertEqual(default["context"], {"engine": "lcm-x"})
+        self.assertEqual(
+            default["platform_toolsets"]["tlon"], ["tlon", "no_mcp", "context_engine"]
+        )
+        self.assertEqual(hermes_lcm["plugins"]["enabled"], ["platforms/tlon", "hermes-lcm"])
+        self.assertEqual(hermes_lcm["context"], {"engine": "lcm"})
+        self.assertNotIn("context", off)
+        self.assertNotIn("context_length", off["model"])

@@ -62,6 +62,8 @@ HERMES_AGENT_REPO=https://github.com/NousResearch/hermes-agent.git
 HERMES_AGENT_REF=v2026.6.19
 ```
 
+The shared E2E image (`dev/Dockerfile.e2e`) can also install an LCM context-engine plugin for the opt-in LCM lane (`TLON_E2E_HERMES_LCM=1`). It defaults to lcm-x (`https://github.com/electricsheephq/lcm-x.git` at the Hermes plugin-catalog pin `1a13744482a2448c38d6f9f0b98803f07aac6e81`, subdir `plugin`, plugin `hermes-lcm-x`, engine `lcm-x`, `LCM_EMBEDDINGS_ENABLED=false`). hermes-lcm stays selectable with `HERMES_LCM_REPO=https://github.com/stephenschoettler/hermes-lcm.git HERMES_LCM_REF=main HERMES_LCM_SUBDIR= TLON_E2E_HERMES_LCM_PLUGIN=hermes-lcm TLON_E2E_HERMES_LCM_ENGINE=lcm`, but hermes-lcm at `main` currently faults on hermes-agent v0.22.6 (per-turn ingest fails with "file is not a database", Hermes falls back to its built-in compressor, and the `lcm_*` tools disappear). See `packages/tlon-bot-e2e/README.md` for the lane's details.
+
 ## Managed Prompt Profile
 
 The dev container renders templates from `prompts/` into the disposable Hermes profile on every `pnpm dev` run:
