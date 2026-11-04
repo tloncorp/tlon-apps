@@ -16,16 +16,16 @@ Notes: while locked, the three-dot icon at the top right of the chat has `Log ou
 
 ## What happens the first time I open the app with a Tlonbot?
 
-Phone: after signup two slides open, `Meet your Tlonbot.` and then `Yours to keep.`. Tap `Next` to go from the first to the second. On the second the button reads `Getting your chat ready` until the chat is ready, then `Start chatting` opens your private chat with your bot. Setup happens in the chat: the bot asks questions and you tap your answers. While it writes its first post, a status line shows messages such as `Writing your first entry…`.
+Phone: after signup, five short screens open while your bot sets up. Tap `Next` through `Meet your Tlonbot.` and `Yours to keep.`. On `Connect your services.`, tap `Connect` beside a service, then `Continue` (`Continue without connecting` until one is connected). On `Change models.`, keep the included model with its `Use` button, or pick a subscription or `Add an API key`. On `Make space for something.`, tap `Let’s get started` to open your private chat with your bot.
 Desktop: this runs in the phone app only.
 Who: hosted accounts with a Tlonbot.
-Notes: the app does not ask you to name the bot, pick an avatar or choose a model here. If you have a nickname, the bot is named after you automatically, as "<your nickname>'s Tlonbot 🌱". Change the name or model later in bot settings. If the chat isn't ready within about two minutes, the app shows its step-by-step setup screens instead.
+Notes: the app doesn't ask you to name the bot or pick an avatar. With a nickname, the bot takes your name, as "<your nickname>'s Tlonbot 🌱". If you tap `Let’s get started` before setup is done, the screen says `Getting your Tlonbot ready…` and the chat opens when it's ready. After about two minutes the chat opens as soon as you tap, and setup finishes in the background.
 
 ## Set up my bot step by step (name, avatar, model)
 
 Phone: tap `Configure now`. Type a name (50 characters at most) and tap `Next`. Tap `Upload photo` for an avatar, or `Skip`. Then pick what powers the bot: the included model, or a provider marked `Requires API key`. For a key provider, paste the key, tap `Next`, choose a model and tap `Save`.
 Desktop: this runs in the phone app only.
-Who: only after tapping `Begin Setup` on the `Ready for Tlonbot?` prompt, or when the usual first-run chat setup could not start.
+Who: only after tapping `Begin Setup` on the `Ready for Tlonbot?` prompt, or when the first-run setup can't start at all.
 Notes: the included model needs no key and skips the model step. In the signup fallback the screens start with `Let's get started`, and the list can also offer `ChatGPT subscription`. To connect a Claude or Grok subscription, use bot settings later.
 
 ## What is the "Ready for Tlonbot?" prompt?
@@ -222,11 +222,25 @@ Desktop: click the gear in the left rail, then `Scheduled tasks`. The list and t
 Who: hosted accounts with a Tlonbot.
 Notes: a paused task reads `Paused`, or `Paused for credits` when your credits are low. A list opened for one group or channel is headed `Posting to` that name. If the list says `Scheduled tasks unavailable`, your node needs an update. `Scheduled tasks not synced` means the bot hasn't shared its tasks yet; `Refresh` checks again.
 
+## See a scheduled task's past runs
+
+Phone: open a scheduled task (Settings tab, `Scheduled tasks`, then the task). Its `Run history` row shows the day and result of the last run, with a count. Tap it to list the runs, newest first; recent ones are dated `Today` or `Yesterday`. Tap a run to see what it did. Its title reads `Run`, or `Test run` for a test run.
+Desktop: the same.
+Who: hosted accounts with a Tlonbot.
+Notes: `Run history` only appears once your node has the update that keeps a task's runs. A task with no runs yet reads `No runs yet` on that row. A run that hasn't reached your node yet shows `Run not found`, with a note that it may still arrive.
+
+## Test a scheduled task
+
+Phone: open a saved task and tap `Test run`, under `Run history` on its editor, or on the `Run history` screen. The row reads `Starting test run…` while the bot answers. The test's run then opens by itself.
+Desktop: the same.
+Who: hosted accounts with a Tlonbot.
+Notes: the footer under the row says a test only reads: it changes nothing and leaves the schedule as it is. Save unsaved edits first; the row is greyed out until you do. It is also greyed out when credits are low, and for a task that runs in your bot's main session, which can't be tested on its own.
+
 ## Fill in a sign-in form for my bot's browser
 
-Phone: when the bot's browser reaches a sign-in or details form, it sends a card in your DM with it. Tap the card's button to open `Secure browser form`. Fill in the fields and tap `Fill fields`. The app then returns you to the chat, and the bot checks the page from there. If you finish in the live browser instead, tap `Return to conversation`.
+Phone: when the bot's browser reaches a sign-in or details form, it sends a card in your DM with it. Tap the card's button to open `Secure browser form`, which slides up over the chat. Fill in the fields and tap `Continue`. The form then closes and returns you to the chat, and the bot checks the page from there. If you finish in the live browser instead, tap `Return to conversation`.
 Who: only from a DM with your own bot.
-Notes: the screen says `These fields go directly to the live browser. They are not posted to chat.` Filling in details does not submit a payment or place an order. `Open live browser` lets you finish any extra steps yourself. A sign-in can also save the login for your bot; see "Let my bot use a saved login".
+Notes: the form says `Your details go directly to the browser and stay out of chat.` Filling in details does not submit a payment or place an order. A sign-in can also save the login for your bot; see "Let my bot use a saved login".
 
 ## Let my bot use a saved login
 

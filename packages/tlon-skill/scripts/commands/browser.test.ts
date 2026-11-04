@@ -327,7 +327,7 @@ describe('wallet card delivery', () => {
     const content = JSON.stringify(
       convertContent(context.sent[0].content, context.sent[0].blob)
     );
-    expect(content).toContain('browserWallet');
+    expect(content).toContain('browser-wallet');
     expect(content).toContain(id);
     expect(content).not.toContain('https://');
     expect(content).not.toContain('viewerUrl');
