@@ -374,6 +374,15 @@ export function httpRequest<E extends HttpReg>(entry: One<E>) {
 
 // The plain `request` transport, for routes declared `kind: 'raw'`. The
 // method is the entry's; the caller supplies the rest of the fetch init.
+// For a raw entry whose response isn't JSON (binary bodies), callers fetch
+// the path themselves rather than going through the client's request.
+export function rawRequestPath<E extends RawReg>(entry: One<E>) {
+  return (params: Params<E['path']>): string => {
+    assertGuard(entry);
+    return fillPath(entry, params);
+  };
+}
+
 export function rawRequest<E extends RawReg>(entry: One<E>) {
   return <T = unknown>(
     params: Params<E['path']>,

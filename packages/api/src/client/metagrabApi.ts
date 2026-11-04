@@ -5,9 +5,18 @@ import { createDevLogger } from '../lib/logger';
 import * as domain from '../types';
 import { getConstants } from '../types';
 import * as ub from '../urbit';
-import { base, rawRequest } from './requests';
+import { base, rawRequest, rawRequestPath } from './requests';
+import { getConfiguredShipUrl } from './urbit';
 
 const logger = createDevLogger('metagrabApi', false);
+
+// Route a GET for an arbitrary url through the ship's %dumb-proxy agent. The
+// ship fetches it server-side, so hosts that send no CORS headers still work.
+export function getDumbProxyUrl(url: string): string {
+  const encodedUrl = render('uw', Atom.fromCord(url).number);
+  const path = rawRequestPath(base.dumbProxy)({ url: encodedUrl });
+  return `${getConfiguredShipUrl() ?? ''}${path}`;
+}
 
 export async function getLinkMetadata(
   url: string
