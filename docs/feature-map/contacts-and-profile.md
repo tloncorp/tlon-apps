@@ -84,7 +84,7 @@ Notes: the screen is titled `Profile`. The member sheet in a group also has `Blo
 <!-- src: packages/app/ui/components/UserProfileScreenView.tsx, packages/app/features/top/UserProfileScreen.tsx, packages/app/ui/components/Profile/ConnectedAccountsWidget.tsx -->
 <!-- absent: share profile, last seen -->
 
-Notes: at the top are their avatar, nickname and ID. Tap the avatar to see the picture full screen, if they have set one. Under that is a row of buttons: `Message`, `Add Contact` or `Remove Contact`, and `Block` or `Unblock`. Then come their `Status` and `About` text if they wrote any, tiles for a verified `𝕏 Account` or `Phone`, two tiles marked `Node` and `Sponsor`, and any groups they pinned. Tap a pinned group to open its preview. There is no button to share a profile, and the app does not show when someone was last active.
+Notes: at the top are their avatar, nickname and ID. Tap the avatar to see the picture full screen, if they have set one. Under that is a row of buttons: `Message`, `Add Contact` or `Remove Contact`, and `Block` or `Unblock`. Under the buttons, a card links to the other account: `Owner` on a bot's profile, which opens the owner, or `Tlonbot` on a person's profile when the app knows they have a bot, which opens the bot. Then come their `Status` and `About` text if they wrote any, tiles for a verified `𝕏 Account` or `Phone`, two tiles marked `Node` and `Sponsor`, and any groups they pinned. Tap a pinned group to open its preview. There is no button to share a profile, and the app does not show when someone was last active.
 
 ## Message someone from their profile
 <!-- src: packages/app/ui/components/UserProfileScreenView.tsx, packages/app/features/top/UserProfileScreen.tsx -->

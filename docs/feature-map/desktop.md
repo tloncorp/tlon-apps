@@ -48,9 +48,9 @@ Notes: Settings on desktop has no `Your profile` or `Contacts` row, so the avata
 ## Open Settings on desktop
 <!-- src: packages/app/navigation/desktop/SettingsNavigator.tsx, packages/app/ui/components/SettingsScreenView.tsx -->
 
-Desktop: click the gear near the bottom of the left rail. The sidebar lists the settings, and the one you click opens in the main pane. The rows are `Notifications`, `Appearance`, `Privacy`, `Blocked users`, `App info`, `Report a bug` and `Experimental features`.
+Desktop: click the gear near the bottom of the left rail. The sidebar lists the settings, and the one you click opens in the main pane. The rows are `Notifications`, `Appearance`, `Privacy`, `Blocked users`, `App info`, `Report a bug` and `Experimental features`. On a hosted account, a `Usage` heading with `Tlon Storage` sits above them.
 Who: `Bot Settings` shows above that list only on a hosted account that already has a DM with its bot, with `Scheduled tasks` under it when your node can show tasks, and `Prompt files` under that.
-Notes: rows the phone has that desktop lacks: `Your profile` and `Contacts` (use your avatar in the rail), `Tlon Messenger on the Web` and `Log out`.
+Notes: rows the phone has that desktop lacks: `Your profile` and `Contacts` (use your avatar in the rail), `Bot tokens this month`, `Tlon Messenger on the Web` and `Log out`.
 
 ## Find my bot's chat and its settings on desktop
 <!-- src: packages/app/navigation/desktop/TopLevelDrawer.tsx, packages/app/navigation/desktop/SettingsNavigator.tsx, packages/app/ui/components/SettingsScreenView.tsx, packages/app/utils/botSettings.ts, packages/app/features/top/UserProfileScreen.tsx, packages/app/ui/components/UserProfileScreenView.tsx, packages/app/ui/components/BotSystemPrompts.tsx -->
