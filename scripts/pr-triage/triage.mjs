@@ -144,7 +144,9 @@ export function trigger(eventName, event) {
         codexActivity: true,
       };
     // CI completion re-enters the same path as Codex activity: it analyzes
-    // only once the current head's Codex review has completed.
+    // only once the current head's Codex review has completed, a state whose
+    // own completion event already starts analysis without a writer check.
+    // It changes when analysis runs, never who can cause it.
     if (ciRun(run))
       return {
         number: run.pull_requests[0].number,
