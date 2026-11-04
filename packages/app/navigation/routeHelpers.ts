@@ -1,8 +1,4 @@
-import {
-  isDmChannelId,
-  isGroupDmChannelId,
-  parseNotesChannelId,
-} from '@tloncorp/api/client';
+import { isDmChannelId, isGroupDmChannelId } from '@tloncorp/api/client';
 
 // Pure, side-effect-light navigation route helpers.
 //
@@ -26,13 +22,8 @@ export function getDesktopChannelRoute(
   selectedPostId?: string
 ) {
   const screenName = screenNameFromChannelId(channelId);
-  // Notes channels always open under Home: the notebook sidebar wiring
-  // (NotebookSidebarProvider + the GroupChannelsScreenView takeover) exists
-  // only in that drawer, so under Messages the desktop split view would
-  // render a note detail with no tree or create actions.
-  const resolvedTab = parseNotesChannelId(channelId) ? 'Home' : tab;
   return {
-    name: resolvedTab,
+    name: tab,
     params: {
       screen: screenName,
       pop: true,
@@ -231,11 +222,8 @@ export function getDesktopPostRoute(
   }
 ) {
   const screen = screenNameFromChannelId(postParams.channelId);
-  // Notes channels always open under Home, where the notebook sidebar and
-  // channel takeover providers are mounted.
-  const resolvedTab = parseNotesChannelId(postParams.channelId) ? 'Home' : tab;
   return {
-    name: resolvedTab,
+    name: tab,
     params: {
       screen,
       pop: true,

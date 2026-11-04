@@ -32,6 +32,7 @@ import {
   BucketsSearchScreen,
   ChannelHeader,
   ChannelHeaderItemsProvider,
+  ChannelNestedSidebar,
   ScreenHeader,
   XStack,
   YStack,
@@ -680,13 +681,7 @@ export function BucketsLiveChannel({
           </YStack>
         ) : (
           <XStack flex={1} width="100%" height="100%">
-            <YStack
-              width={325}
-              height="100%"
-              backgroundColor="$background"
-              borderRightColor="$border"
-              borderRightWidth={1}
-            >
+            <ChannelNestedSidebar>
               <ScreenHeader borderBottom title={rootLabel} />
               <BucketsPane
                 canEdit={canEdit}
@@ -701,7 +696,7 @@ export function BucketsLiveChannel({
                 state={live.loading ? 'loading' : 'populated'}
                 onOpenItem={(item) => void openItem(item)}
               />
-            </YStack>
+            </ChannelNestedSidebar>
             <YStack flex={1} minWidth={0} backgroundColor="$background">
               <ScreenHeader
                 borderBottom
