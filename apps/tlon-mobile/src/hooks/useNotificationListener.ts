@@ -10,7 +10,6 @@ import {
   presentContactMatchNotification,
   presentContactsMatchedNotification,
 } from '@tloncorp/app/lib/notifications';
-import { useAgentGroupOnboardingNavGate } from '@tloncorp/app/hooks/useAgentGroupOnboardingLock';
 import { startPushNotifTapMeasurement } from '@tloncorp/app/lib/pushNotifTapTelemetry';
 import { buildDrawerChannelRoute } from '@tloncorp/app/navigation/drawerDestination';
 import {
@@ -219,11 +218,6 @@ export function getMissingNotificationTargetRecovery(
 export default function useNotificationListener() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const isTlonEmployee = db.isTlonEmployee.useValue();
-  const {
-    locked: agentOnboardingLocked,
-    isLoading: agentOnboardingLockLoading,
-    runWhenUnlocked,
-  } = useAgentGroupOnboardingNavGate();
 
   const [notifToProcess, setNotifToProcess] =
     useState<ProcessableNotificationData | null>(null);
@@ -446,12 +440,7 @@ export default function useNotificationListener() {
     }
 
     // See deskOk above.
-    if (
-      deskOk &&
-      notifToProcess &&
-      !agentOnboardingLockLoading &&
-      !agentOnboardingLocked
-    ) {
+    if (deskOk && notifToProcess) {
       const notificationData = notifToProcess;
       const handleNavigate = (() => {
         switch (notificationData.type) {
@@ -500,29 +489,17 @@ export default function useNotificationListener() {
             }
           }
 
-          let navigated = false;
-          if (canNavigate) {
-            const attempt = await runWhenUnlocked(handleNavigate);
-            if (!attempt.ran) {
-              // Keep the notification pending; the effect retries it after
-              // the onboarding lock clears.
-              return;
-            }
-            navigated = attempt.result === true;
-          }
-          if (!navigated) {
+          let didNavigate = canNavigate ? await handleNavigate() : false;
+
+          if (!didNavigate) {
             const recovered = await syncMissingNotificationTarget(
               notificationData,
               preparedDmInviteTarget
             );
-            if (recovered) {
-              const retry = await runWhenUnlocked(handleNavigate);
-              if (!retry.ran) return;
-              navigated = retry.result === true;
-            }
+            didNavigate = recovered ? await handleNavigate() : false;
 
             // If still not found, clear out the requested channel ID
-            if (!navigated) {
+            if (!didNavigate) {
               if (isTlonEmployee) {
                 logger.trackEvent(AnalyticsEvent.ErrorPushNotifNavigate, {
                   routeCategory: getNotificationRouteCategory(notificationData),
@@ -543,13 +520,5 @@ export default function useNotificationListener() {
         }
       })();
     }
-  }, [
-    deskOk,
-    agentOnboardingLocked,
-    agentOnboardingLockLoading,
-    runWhenUnlocked,
-    notifToProcess,
-    navigation,
-    isTlonEmployee,
-  ]);
+  }, [deskOk, notifToProcess, navigation, isTlonEmployee]);
 }

@@ -27,7 +27,7 @@ export const PostBlobDataEntryBrowserSecureEntrySchema = z
       .object({
         record: z
           .object({
-            id: z.string().uuid(),
+            id: z.string().min(1).max(128),
             revision: z.number().int().positive(),
           })
           .strict()
@@ -44,6 +44,15 @@ export type PostBlobDataEntryBrowserSession = z.infer<
 export type PostBlobDataEntryBrowserSecureEntry = z.infer<
   typeof PostBlobDataEntryBrowserSecureEntrySchema
 >;
+export const PostBlobDataEntryBrowserWalletSchema = z
+  .object({
+    type: z.literal('browser-wallet'),
+    version: z.literal(1),
+    requestId: z.string().uuid(),
+  })
+  .strict();
+
 export type BrowserCardData =
+  | z.infer<typeof PostBlobDataEntryBrowserWalletSchema>
   | PostBlobDataEntryBrowserSession
   | PostBlobDataEntryBrowserSecureEntry;

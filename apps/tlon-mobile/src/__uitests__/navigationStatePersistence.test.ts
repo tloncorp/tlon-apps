@@ -75,8 +75,8 @@ describe('isPersistableNavigationState', () => {
     expect(isPersistableNavigationState(stackState())).toBe(false);
   });
 
-  it('refuses a stack rooted at OnboardingStartup', () => {
-    const state = { index: 0, routes: [{ name: 'OnboardingStartup' }] };
+  it('refuses a stack not rooted at MainTabs', () => {
+    const state = { index: 0, routes: [{ name: 'Contacts' }] };
     expect(isPersistableNavigationState(state)).toBe(false);
   });
 
@@ -90,8 +90,8 @@ describe('isPersistableNavigationState', () => {
 
 describe('sanitizeNavigationStateForPersistence', () => {
   it('returns null for a state not worth saving', () => {
-    const onboarding = { index: 0, routes: [{ name: 'OnboardingStartup' }] };
-    expect(sanitizeStack(onboarding)).toBeNull();
+    const unrooted = { index: 0, routes: [{ name: 'Contacts' }] };
+    expect(sanitizeNavigationStateForPersistence(unrooted)).toBeNull();
     expect(sanitizeNavigationStateForPersistence(undefined)).toBeNull();
   });
 
@@ -350,8 +350,8 @@ describe('isRestorableNavigationState', () => {
     expect(isRestorableNavigationState(undefined, NOW, SHIP)).toBe(false);
   });
 
-  it('refuses an onboarding-rooted state', () => {
-    const state = { index: 0, routes: [{ name: 'OnboardingStartup' }] };
+  it('refuses a state not rooted at MainTabs', () => {
+    const state = { index: 0, routes: [{ name: 'Contacts' }] };
     expect(isRestorableNavigationState(saved(state), NOW, SHIP)).toBe(false);
   });
 

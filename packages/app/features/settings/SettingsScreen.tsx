@@ -26,6 +26,7 @@ import {
 } from './bot/BotSettingsSections';
 import { useHostingSession } from './bot/useHostingSession';
 import { useSettingsRowLabels } from './useSettingsRowLabels';
+import { useSettingsUsageLabels } from './useSettingsUsageLabels';
 
 export default function SettingsScreen() {
   const resetDb = useResetDb();
@@ -66,6 +67,7 @@ export default function SettingsScreen() {
   const navigationRef = useMutableRef(useNavigation());
   const [statusSheetOpen, setStatusSheetOpen] = useState(false);
   const { themeLabel, notificationsLabel } = useSettingsRowLabels();
+  const { storageLabel, tokenUsageLabel } = useSettingsUsageLabels();
 
   const onAppInfoPressed = useCallback(() => {
     navigationRef.current.navigate('AppInfo');
@@ -160,6 +162,8 @@ export default function SettingsScreen() {
     botEnabled,
     themeLabel,
     notificationsLabel,
+    storageLabel,
+    tokenUsageLabel,
   };
 
   return (

@@ -35,6 +35,35 @@ describe('saved login approval delivery', () => {
     );
   });
 
+  it('preserves prepared form IDs and delivers a fresh approval for each step', async () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    const handler = createBrowserLoginApprovalHandler(send);
+    for (const formId of [
+      '123e4567-e89b-42d3-a456-426614174000',
+      '223e4567-e89b-42d3-a456-426614174000',
+    ]) {
+      const base = event();
+      const args = {
+        session_id: 'fresh-ivory-finch',
+        action: 'use',
+        form_id: formId,
+        record: { id: 'provider-item', revision: 1 },
+        bindings: [{ sourceField: 'email', targetField: 'f0' }],
+      };
+      const request = { ...base, params: { ...base.params, arguments: args } };
+      await handler.handle(request);
+      await handler.handle(request);
+      expect(send).toHaveBeenLastCalledWith(
+        'fresh-ivory-finch',
+        { id: 'provider-item', revision: 1 },
+        {},
+        undefined,
+        formId
+      );
+    }
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
   it.each([
     ['browser_browser_login', false],
     ['browser_browser_login', true],

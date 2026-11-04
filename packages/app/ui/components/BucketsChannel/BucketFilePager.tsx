@@ -1,0 +1,98 @@
+import { ReactNode, useRef } from 'react';
+
+import { useRetainedBucketPages } from './useRetainedBucketPages';
+import { BucketFileNavigation } from './BucketFileViewer.shared';
+
+export function BucketFilePager({
+  children,
+  navigation,
+  retainActivePage = false,
+}: {
+  children: ReactNode;
+  navigation?: BucketFileNavigation;
+  retainActivePage?: boolean;
+}) {
+  const retained = useRetainedBucketPages(
+    children,
+    navigation,
+    retainActivePage
+  );
+  const activeItem = navigation?.items[navigation.index];
+  const activeKey = activeItem ? (activeItem.id ?? activeItem.name) : undefined;
+  // Keep both DOM size and reconciliation bounded. Stable order also avoids
+  // moving retained iframes in the DOM when the cache's LRU order changes.
+  const pageKeys =
+    activeKey === undefined
+      ? []
+      : [...new Set([...retained.keys(), activeKey])].sort();
+  const touch = useRef<{ x: number; y: number } | null>(null);
+  const move = (direction: number) => {
+    if (!navigation) return;
+    const index = navigation.index + direction;
+    if (index >= 0 && index < navigation.items.length)
+      navigation.onSelect(index);
+  };
+  const isControl = (target: EventTarget | null) =>
+    target instanceof Element &&
+    target.closest('audio,video,button,input,textarea,select,[role="button"]');
+  return (
+    <div
+      role="region"
+      aria-label="File preview"
+      tabIndex={0}
+      style={{ display: 'flex', flex: 1, minHeight: 0, outline: 'none' }}
+      onKeyDown={(event) => {
+        if (
+          isControl(event.target) ||
+          event.altKey ||
+          event.ctrlKey ||
+          event.metaKey ||
+          event.shiftKey
+        )
+          return;
+        if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+          event.preventDefault();
+          move(event.key === 'ArrowLeft' ? -1 : 1);
+        }
+      }}
+      onTouchStart={(event) => {
+        const first = event.touches[0];
+        touch.current =
+          !isControl(event.target) && event.touches.length === 1
+            ? { x: first.clientX, y: first.clientY }
+            : null;
+      }}
+      onTouchCancel={() => {
+        touch.current = null;
+      }}
+      onTouchEnd={(event) => {
+        const start = touch.current;
+        touch.current = null;
+        if (!start) return;
+        const end = event.changedTouches[0];
+        const dx = end.clientX - start.x;
+        if (
+          Math.abs(dx) > 60 &&
+          Math.abs(dx) > Math.abs(end.clientY - start.y) * 2
+        )
+          move(dx < 0 ? 1 : -1);
+      }}
+    >
+      {activeKey !== undefined
+        ? pageKeys.map((key) => (
+            <div
+              key={key}
+              style={{
+                display: key === activeKey ? 'flex' : 'none',
+                flex: 1,
+                minHeight: 0,
+              }}
+              aria-hidden={key !== activeKey}
+            >
+              {key === activeKey ? children : retained.get(key)?.node}
+            </div>
+          ))
+        : children}
+    </div>
+  );
+}

@@ -23,9 +23,7 @@ import React, {
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupActions } from '../../hooks/useGroupActions';
-import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { usePushNotifTapTelemetry } from '../../hooks/usePushNotifTapTelemetry';
-import { useResetDb } from '../../hooks/useResetDb';
 import type {
   ChannelScreenParamList,
   RootStackParamList,
@@ -113,11 +111,7 @@ export default function ChannelScreen(props: Props) {
   const groupId = channel?.groupId ?? group?.id;
   // The bot DM belongs to no group; onboarding's group rides on the route.
   const onboardingGroupId = routeGroupId ?? groupId;
-  const {
-    agentOnboarding,
-    agentShipId,
-    navigationLocked: agentOnboardingNavigationLocked,
-  } = useAgentOnboardingChannel({
+  const { agentOnboarding, agentShipId } = useAgentOnboardingChannel({
     channelId,
     currentChannelId,
     groupId,
@@ -130,8 +124,6 @@ export default function ChannelScreen(props: Props) {
   // and this screen needs both conditions to hold at once.
   useDrawerEdgeGesture(props.route.key, agentOnboardingNavigationLocked);
   const currentUserId = api.getCurrentUserId();
-  const resetDb = useResetDb();
-  const handleLogout = useHandleLogout({ resetDb });
 
   const channelIsPending = !channel || channel.isPendingChannel;
   useFocusEffect(
@@ -693,8 +685,6 @@ export default function ChannelScreen(props: Props) {
           goBack={navigationRef.current.goBack}
           isTopLevelTab={isTabRoot}
           isConversationRoot={isConversationRoot}
-          disableBackButton={agentOnboardingNavigationLocked}
-          onPressLogout={agentOnboarding.locked ? handleLogout : undefined}
           suppressEmptyState={agentGroupSetupActive}
           suppressAnimatedSendScroll={agentGroupSetupActive}
           pendingThinkingLabel={pendingThinkingLabel}

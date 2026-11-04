@@ -6,6 +6,7 @@ import {
 } from './browserPreview';
 
 vi.mock('@tloncorp/api/client/urbit', () => ({
+  onClientSessionChange: vi.fn(),
   getBrowserVaultOwnerAuthorization: async () => ({
     planet: 'sampel-palnet',
     ownerToken: 'test-proof',

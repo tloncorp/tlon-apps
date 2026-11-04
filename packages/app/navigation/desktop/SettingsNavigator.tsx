@@ -27,6 +27,7 @@ import { BotPermissionsSettingsScreen } from '../../features/settings/BotPermiss
 import { BotPromptFileScreen } from '../../features/settings/BotPromptFileScreen';
 import { BotPromptFilesScreen } from '../../features/settings/BotPromptFilesScreen';
 import { BotProviderListSettingsScreen } from '../../features/settings/BotProviderListSettingsScreen';
+import { SecureVaultScreen } from '../../features/settings/SecureVaultScreen';
 import { BotSettingsScreen } from '../../features/settings/BotSettingsScreen';
 import { BotShipListSettingsScreen } from '../../features/settings/BotShipListSettingsScreen';
 import { FeatureFlagScreen } from '../../features/settings/FeatureFlagScreen';
@@ -37,6 +38,7 @@ import { ThemeScreen } from '../../features/settings/ThemeScreen';
 import { UserBugReportScreen } from '../../features/settings/UserBugReportScreen';
 import { SettingsEmptyState } from '../../features/top/DesktopEmptyStates';
 import { useSettingsRowLabels } from '../../features/settings/useSettingsRowLabels';
+import { useSettingsUsageLabels } from '../../features/settings/useSettingsUsageLabels';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
@@ -67,6 +69,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
       : isHostedUser && hostingBotEnabled;
   const focusedRoute = props.state.routes[props.state.index];
   const { themeLabel, notificationsLabel } = useSettingsRowLabels();
+  const { storageLabel, tokenUsageLabel } = useSettingsUsageLabels();
   const scheduledTasks = useScheduledTasksEntry({
     enabled: botEnabled,
     whileLoading: true,
@@ -142,6 +145,8 @@ function DrawerContent(props: DrawerContentComponentProps) {
       botEnabled={botEnabled}
       themeLabel={themeLabel}
       notificationsLabel={notificationsLabel}
+      storageLabel={storageLabel}
+      tokenUsageLabel={tokenUsageLabel}
     />
   );
 }
@@ -185,6 +190,7 @@ export const SettingsNavigator = () => {
         component={ManageAccountScreen}
       />
       <SettingsDrawer.Screen name="BotSettings" component={BotSettingsScreen} />
+      <SettingsDrawer.Screen name="SecureVault" component={SecureVaultScreen} />
       <SettingsDrawer.Screen
         name="BotMcpSettings"
         component={BotMcpSettingsScreen}

@@ -1,8 +1,4 @@
-import {
-  isDmChannelId,
-  isGroupDmChannelId,
-  parseNotesChannelId,
-} from '@tloncorp/api/client';
+import { isDmChannelId, isGroupDmChannelId } from '@tloncorp/api/client';
 
 // Pure, side-effect-light navigation route helpers.
 //
@@ -26,13 +22,8 @@ export function getDesktopChannelRoute(
   selectedPostId?: string
 ) {
   const screenName = screenNameFromChannelId(channelId);
-  // Notes channels always open under Home: the notebook sidebar wiring
-  // (NotebookSidebarProvider + the GroupChannelsScreenView takeover) exists
-  // only in that drawer, so under Messages the desktop split view would
-  // render a note detail with no tree or create actions.
-  const resolvedTab = parseNotesChannelId(channelId) ? 'Home' : tab;
   return {
-    name: resolvedTab,
+    name: tab,
     params: {
       screen: screenName,
       pop: true,
@@ -158,28 +149,6 @@ type NestedRouteLike = {
   };
 };
 
-/** Read the active desktop navigation branch and return its group id. */
-export function getActiveNestedGroupId(value: unknown): string | undefined {
-  if (typeof value !== 'object' || value === null) return undefined;
-  const candidate = value as {
-    groupId?: unknown;
-    params?: unknown;
-    index?: number;
-    routes?: unknown[];
-    state?: unknown;
-  };
-  if (typeof candidate.groupId === 'string') return candidate.groupId;
-
-  const stateMatch = getActiveNestedGroupId(candidate.state);
-  if (stateMatch) return stateMatch;
-  if (candidate.routes?.length) {
-    const activeRoute = candidate.routes[candidate.index ?? 0];
-    const routeMatch = getActiveNestedGroupId(activeRoute);
-    if (routeMatch) return routeMatch;
-  }
-  return getActiveNestedGroupId(candidate.params);
-}
-
 /**
  * Return whether a Post's preceding root route represents Activity.
  *
@@ -253,11 +222,8 @@ export function getDesktopPostRoute(
   }
 ) {
   const screen = screenNameFromChannelId(postParams.channelId);
-  // Notes channels always open under Home, where the notebook sidebar and
-  // channel takeover providers are mounted.
-  const resolvedTab = parseNotesChannelId(postParams.channelId) ? 'Home' : tab;
   return {
-    name: resolvedTab,
+    name: tab,
     params: {
       screen,
       pop: true,

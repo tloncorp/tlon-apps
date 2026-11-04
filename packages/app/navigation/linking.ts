@@ -120,6 +120,7 @@ export const getMobileLinkingConfig = (
           },
         },
       },
+      SecureVault: 'settings/secure-vault',
       AppSettings: 'app-settings',
       FeatureFlags: 'feature-flags',
       ManageAccount: 'manage-account',
@@ -238,6 +239,7 @@ export const getDesktopLinkingConfig = (
             path: 'settings',
             screens: {
               SettingsEmpty: '',
+              SecureVault: 'secure-vault',
             },
           },
         },

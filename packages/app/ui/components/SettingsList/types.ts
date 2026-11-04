@@ -156,6 +156,8 @@ export interface SettingsSectionModel {
 }
 
 export interface SettingsListProps {
+  /** Primary sheet background with secondary value rows. */
+  surface?: 'sheet';
   sections: SettingsSectionModel[];
   /**
    * Web only: keeps the rows to a centered column at most this wide, rather

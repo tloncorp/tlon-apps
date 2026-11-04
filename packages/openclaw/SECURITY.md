@@ -433,6 +433,8 @@ The `before_tool_call` hook provides defense-in-depth by blocking restricted too
 
 The hook decides *who may invoke* the tool from the sender of the triggering message. It does not decide *what the run was told*. An owner-triggered run in a group channel is prompted with recent channel posts, including posts by senders who could not trigger the bot themselves, so a planted instruction can reach the model. With `ownerDefault` off, such a run acts as the bot (and as the owner only for the six legacy owner operations). With `ownerDefault` on, every `tlon` call in that run acts with the owner's credentials, so the same injection can read or change owner data. No per-call check can tell a planted instruction from the owner's. `ownerDefault` is off by default; TLON-6907 (owner-default only in the owner↔bot 1:1 DM) must land before it is enabled for a bot that watches group channels.
 
+The prompt frames prepended channel and thread history as context written by other people, not instructions, and marks the current message as the only instruction in the turn. Quoted posts attached to a message are framed the same way, as context written by the people named, and are kept out of the current-message block; with `ownerDefault` on, the `tlon` tool guidance adds that an owner-credentialed command must come from the owner's own words in the current message. This framing lowers the odds that a planted post steers the run, but it is a mitigation, not the enforcement boundary: the model can still be persuaded, so the controls above remain what decides access.
+
 ---
 
 

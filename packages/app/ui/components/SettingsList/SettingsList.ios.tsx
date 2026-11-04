@@ -97,12 +97,13 @@ export function SettingsList({
   scrollMark,
   editing,
   compactSections,
+  surface,
 }: SettingsListProps) {
-  const colors = useSettingsListColors();
+  const colors = useSettingsListColors(surface);
   const scrollMarkModifier = useScrollMark(scrollMark);
-  // Keeps the transparent header the tab's other scroll views install on iOS
-  // 26; the form scrolls beneath it, and iOS gives it the soft edge on its own.
-  useScreenScrollProps();
+  // A sheet shares the parent route's navigation context. Its list must not
+  // install or reset that screen's header appearance when it mounts or closes.
+  useScreenScrollProps({ enabled: surface !== 'sheet' });
 
   return (
     <Host style={{ flex: 1 }} colorScheme={colors.colorScheme}>
