@@ -34,7 +34,6 @@ import {
 } from 'tamagui';
 
 import { useIsUserActive } from '../../../hooks/useUserActivity';
-import { useFeatureFlag } from '../../../lib/featureFlags';
 import { useTopLevelTabBarClearance } from '../../../navigation/useTopLevelTabBarContentInset';
 import { useRootNavigation } from '../../../navigation/utils';
 import type { ChannelShareIntent } from '../../../types/shareIntent';
@@ -508,7 +507,6 @@ export function Channel({
     }
   }, [dmRecipientId, goToUserProfile]);
 
-  const [botBaubleEnabled] = useFeatureFlag('botBaubleHeader');
   const dmContact = useContact(dmRecipientId ?? '');
   const isBotDm =
     channel.type === 'dm' &&
@@ -923,7 +921,6 @@ export function Channel({
   const shouldReservePinnedPostBannerSpace =
     usesFloatingPinnedPostBanner && shouldRenderPinnedPostBanner;
   const usesBotBauble =
-    botBaubleEnabled &&
     isBotDm &&
     isNarrow &&
     Platform.OS !== 'web' &&

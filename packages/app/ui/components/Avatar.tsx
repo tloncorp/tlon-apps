@@ -16,7 +16,6 @@ import {
 } from 'tamagui';
 
 import { useCalm, useContact } from '../contexts/appDataContext';
-import { useFeatureFlag } from '../../lib/featureFlags';
 import * as utils from '../utils';
 import { getChannelTypeIcon } from '../utils';
 import { getContrastingColor, useSigilColors } from '../utils/colorUtils';
@@ -79,17 +78,15 @@ export type AvatarProps = ComponentProps<typeof AvatarFrame> & {
 };
 
 /**
- * Whether to draw this contact as a single sigil glyph: bots do, while the
- * bot bauble is being tried out. `assumeBot` is for callers that already know,
- * such as a post flagged as written by a bot.
+ * Whether to draw this contact as a single sigil glyph, as bots are drawn.
+ * `assumeBot` is for callers that already know, such as a post flagged as
+ * written by a bot.
  */
 export function useShowsBotGlyph(contactId: string, assumeBot = false) {
-  const [enabled] = useFeatureFlag('botBaubleHeader');
   const contact = useContact(contactId);
   return (
-    enabled &&
-    (assumeBot ||
-      domain.isBotContact({ id: contactId, botInfo: contact?.botInfo }))
+    assumeBot ||
+    domain.isBotContact({ id: contactId, botInfo: contact?.botInfo })
   );
 }
 

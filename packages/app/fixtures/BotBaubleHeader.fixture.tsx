@@ -6,7 +6,6 @@ import {
 } from '@tloncorp/shared/store';
 import { useEffect, useMemo, useState } from 'react';
 
-import { setEnabled } from '../lib/featureFlags';
 import { Channel } from '../ui';
 import { ChannelFixtureWrapper, baseProps } from './Channel.fixture';
 import { makePost, verse } from './contentHelpers';
@@ -147,11 +146,7 @@ function BotBaubleFixture({
   const [conversation, setConversation] = useState(posts);
 
   useEffect(() => {
-    setEnabled('botBaubleHeader', true);
-    return () => {
-      setEnabled('botBaubleHeader', false);
-      clearPresenceState();
-    };
+    return () => clearPresenceState();
   }, []);
 
   useEffect(() => {
