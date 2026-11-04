@@ -219,49 +219,53 @@ export function BrowserPaymentCard({
   const finished = walletFinished.has(view.status);
   const canOpenLink =
     !!view.action && !finished && view.status !== 'review' && !error;
+  const payee = [
+    purchase?.merchant ?? 'Stripe Link',
+    order ? `${count} ${count === 1 ? 'item' : 'items'}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
   return (
     <BrowserCardFrame
       icon="Lock"
-      kicker="Tlon wallet"
+      kicker={view.kind === 'connect' ? 'Wallet connection' : 'Payment request'}
       status={paymentStatus(view)}
     >
-      <BrowserCardText
-        type="title"
-        color="$primaryText"
-        marginTop={A2UI_SPACE.afterKicker}
-      >
-        {view.kind === 'connect' ? 'Wallet connection' : 'Payment Request'}
-      </BrowserCardText>
-      <BrowserCardText
-        type="note"
-        numberOfLines={1}
-        marginTop={A2UI_SPACE.line}
-      >
-        {purchase?.merchant ?? 'Stripe Link'}
-      </BrowserCardText>
       {purchase ? (
-        // The inner card holds what the request is about.
+        // The display size bot cards give an h1. It stays trimmed, so its
+        // large line box adds no extra space on any platform, and takes the
+        // title gap to sit where an untrimmed heading would.
+        <YStack marginTop={A2UI_SPACE.afterTitle}>
+          <Text size="$title/l" color="$primaryText">
+            {displayPaymentAmount(purchase.amount, purchase.currency)}
+          </Text>
+        </YStack>
+      ) : null}
+      <BrowserCardText
+        type="label"
+        numberOfLines={1}
+        marginTop={purchase ? A2UI_SPACE.afterEntity : A2UI_SPACE.afterKicker}
+      >
+        {payee}
+      </BrowserCardText>
+      {view.saved_payment ? (
+        <YStack marginTop={A2UI_SPACE.afterEntity}>
+          <SavedPaymentSummary view={view} card />
+        </YStack>
+      ) : null}
+      {purchase ? (
+        // The inner card holds what the amount is for.
         <YStack
-          marginTop={A2UI_SPACE.afterTitle}
+          marginTop={A2UI_SPACE.block}
           borderWidth={1}
           borderColor="$border"
           borderRadius={A2UI_INNER_CARD.radius}
           paddingHorizontal={A2UI_INNER_CARD.paddingX}
           paddingVertical={A2UI_INNER_CARD.paddingY}
         >
-          <BrowserCardText type="title" color="$primaryText">
-            {displayPaymentAmount(purchase.amount, purchase.currency)}
-          </BrowserCardText>
           {order ? (
             <>
-              <BrowserCardText type="note" marginTop={A2UI_SPACE.line}>
-                {count} {count === 1 ? 'item' : 'items'}
-              </BrowserCardText>
-              <BrowserCardText
-                type="note"
-                numberOfLines={2}
-                marginTop={A2UI_SPACE.line}
-              >
+              <BrowserCardText type="note" numberOfLines={2}>
                 {order.items
                   .map(
                     (item) =>
@@ -275,25 +279,11 @@ export function BrowserPaymentCard({
               </YStack>
             </>
           ) : (
-            <BrowserCardText
-              type="note"
-              numberOfLines={3}
-              marginTop={A2UI_SPACE.line}
-            >
+            <BrowserCardText type="note" numberOfLines={3}>
               {purchase.description}
             </BrowserCardText>
           )}
         </YStack>
-      ) : null}
-      {view.saved_payment ? (
-        <YStack marginTop={purchase ? A2UI_SPACE.block : A2UI_SPACE.afterTitle}>
-          <SavedPaymentSummary view={view} card />
-        </YStack>
-      ) : null}
-      {finished ? (
-        <BrowserCardText type="body" marginTop={A2UI_SPACE.block}>
-          {copy.description}
-        </BrowserCardText>
       ) : null}
       <XStack gap={8} paddingTop={A2UI_SPACE.beforeButtons}>
         <A2UICardButton
@@ -309,15 +299,13 @@ export function BrowserPaymentCard({
           />
         ) : null}
       </XStack>
-      {!finished ? (
-        <BrowserCardText type="note" marginTop={A2UI_SPACE.block}>
-          {error
-            ? 'Unable to refresh. Open details to check status.'
-            : canOpenLink
-              ? 'Opens Stripe Link to approve this amount.'
-              : copy.description}
-        </BrowserCardText>
-      ) : null}
+      <BrowserCardText type="note" marginTop={A2UI_SPACE.block}>
+        {!finished && error
+          ? 'Unable to refresh. Open details to check status.'
+          : canOpenLink
+            ? 'Opens Stripe Link to approve this amount.'
+            : copy.description}
+      </BrowserCardText>
     </BrowserCardFrame>
   );
 }
