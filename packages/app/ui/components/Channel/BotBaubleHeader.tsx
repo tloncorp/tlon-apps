@@ -270,6 +270,9 @@ export function BotBaubleHeader({
         style={[styles.tileRow, { top: insets.top + TOP_GAP }]}
         pointerEvents="box-none"
       >
+        {/* The tile and the name are separate targets, each only as big as
+            what it draws: one wrapped around both would grow with a long name
+            and reach under the action buttons. */}
         <Pressable
           accessibilityLabel={statusText ? `${name}, ${statusText}` : name}
           accessibilityRole="button"
@@ -292,9 +295,21 @@ export function BotBaubleHeader({
               borderRadius={AVATAR_RADIUS}
             />
           </Animated.View>
-          {/* Glass tucked just under the tile, which sits in front of it, as
-              Muse's name capsule does. Regular glass keeps a visible shell
-              over a plain background, where clear glass would vanish. */}
+        </Pressable>
+        {/* Glass tucked just under the tile, which sits in front of it, as
+            Muse's name capsule does. Regular glass keeps a visible shell over
+            a plain background, where clear glass would vanish. It sits below
+            the controls row, so its width never reaches them. The tile
+            already speaks for both to assistive tech. */}
+        <Pressable
+          accessible={false}
+          importantForAccessibility="no-hide-descendants"
+          onPress={handleTilePress}
+          onPressIn={motion.pressIn}
+          onPressOut={motion.pressOut}
+          testID="BotBaubleName"
+          style={styles.namePressable}
+        >
           <GlassSurface
             glassEffectStyle="regular"
             style={[
@@ -696,13 +711,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tilePressable: {
-    alignItems: 'center',
+    zIndex: 1,
+  },
+  namePressable: {
+    marginTop: -NAME_OVERLAP,
     maxWidth: '100%',
   },
   name: {
-    marginTop: -NAME_OVERLAP,
     height: NAME_HEIGHT,
-    maxWidth: '100%',
     paddingHorizontal: 10,
     borderRadius: NAME_HEIGHT / 2,
     justifyContent: 'center',
