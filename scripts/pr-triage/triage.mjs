@@ -93,6 +93,29 @@ function observedRun(run) {
   );
 }
 
+// A finished CI run for a same-repository PR head. Which workflows count is
+// decided by the workflow_run list in pr-triage.yml on the default branch.
+function ciRun(run) {
+  return (
+    run?.event === 'pull_request' &&
+    sha(run.head_sha) &&
+    run.head_repository?.full_name === REPO &&
+    run.pull_requests?.length === 1 &&
+    Number.isSafeInteger(run.pull_requests[0].number)
+  );
+}
+
+// Statuses arrive newest first; only each context's latest state counts.
+function pendingChecks({ checks, statuses }) {
+  const latest = new Map();
+  for (const s of statuses)
+    if (!latest.has(s.context)) latest.set(s.context, s.state);
+  return [
+    ...checks.filter((c) => c.status !== 'completed').map((c) => c.name),
+    ...[...latest].filter(([, state]) => state === 'pending').map(([c]) => c),
+  ];
+}
+
 export function parseUrl(input) {
   const url = new URL(input);
   const match = url.pathname.match(
@@ -112,13 +135,24 @@ export function parseUrl(input) {
 export function trigger(eventName, event) {
   if (event.repository?.full_name !== REPO) return null;
   if (eventName === 'workflow_run') {
-    if (event.action !== 'completed' || !observedRun(event.workflow_run))
-      return null;
-    return {
-      number: event.workflow_run.pull_requests[0].number,
-      analyze: true,
-      codexActivity: true,
-    };
+    const run = event.workflow_run;
+    if (event.action !== 'completed') return null;
+    if (observedRun(run))
+      return {
+        number: run.pull_requests[0].number,
+        analyze: true,
+        codexActivity: true,
+      };
+    // CI completion re-enters the same path as Codex activity: it analyzes
+    // only once the current head's Codex review has completed.
+    if (ciRun(run))
+      return {
+        number: run.pull_requests[0].number,
+        analyze: true,
+        eventHead: run.head_sha,
+        codexActivity: true,
+      };
+    return null;
   }
   if (eventName === 'workflow_dispatch') {
     const number = parseUrl(event.inputs?.pr_url);
@@ -154,7 +188,7 @@ export function trigger(eventName, event) {
   return {
     number: event.issue.number,
     analyze: true,
-    reviewedHead: review?.commit_sha,
+    eventHead: review?.commit_sha,
     codexActivity: true,
   };
 }
@@ -243,14 +277,18 @@ export async function gate(api, eventName, event) {
     throw new Error('Invalid PR number');
   const pr = await api.request(prPath(number));
   if (pr.head.repo?.full_name !== REPO) return null;
-  if (target.reviewedHead && target.reviewedHead !== pr.head.sha) return null;
+  if (target.eventHead && target.eventHead !== pr.head.sha) return null;
   if (eventName === 'workflow_run') {
     const run = await api.request(
       `repos/${REPO}/actions/runs/${event.workflow_run.id}`
     );
-    if (!observedRun(run) || run.pull_requests[0].number !== number)
+    if (
+      !(observedRun(run) || (ciRun(run) && run.head_sha === pr.head.sha)) ||
+      run.pull_requests[0].number !== number
+    )
       return null;
   }
+  let context;
   // Codex activity is explicitly allowlisted. Other paid analyses require a
   // writer; triage-role state changes may invalidate existing routing only.
   if (!target.codexActivity) {
@@ -270,7 +308,7 @@ export async function gate(api, eventName, event) {
         'PR state changed. A repository writer can request a fresh analysis.';
     }
   } else {
-    const context = await collect(api, number);
+    context = await collect(api, number);
     const review = latestCodeReview(context.conversation);
     target.analyze =
       review?.status === 'completed' && review.commit_sha === pr.head.sha;
@@ -284,6 +322,17 @@ export async function gate(api, eventName, event) {
       markerJson(previous?.body, REVISION)?.fingerprint === fingerprint(context)
     )
       return null;
+  }
+  // A check finishing mid-analysis changes the fingerprint and publication
+  // refuses the report, so wait; the last CI completion starts the analysis.
+  if (target.analyze && pr.state === 'open' && !pr.draft) {
+    const pending = pendingChecks(context ?? (await collect(api, number)));
+    if (pending.length) {
+      console.log(`Waiting for checks: ${pending.join(', ')}`);
+      target.analyze = false;
+      target.reason =
+        'Waiting for checks on this head to finish. Analysis starts when CI completes.';
+    }
   }
   for (const label of VOLATILE) await removeLabel(api, number, label);
   const analyze = target.analyze && pr.state === 'open' && !pr.draft;

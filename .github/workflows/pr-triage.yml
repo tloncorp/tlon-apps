@@ -6,8 +6,16 @@ on:
   # Codex creates this status comment and EDITS it when review is complete.
   issue_comment:
     types: [created, edited, deleted]
+  # The review observer, and the PR CI workflows: analysis waits until the
+  # head's checks finish, and the last one to complete starts it.
   workflow_run:
-    workflows: [PR triage review activity]
+    workflows:
+      - PR triage review activity
+      - CI (Test and Build)
+      - OpenClaw Plugin CI
+      - Feature Map
+      - Agent QA harness checks
+      - PR triage tooling checks
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -18,7 +26,7 @@ on:
 
 permissions: {}
 
-# Observer completions queue behind analysis; duplicate evidence is skipped by the gate.
+# Observer and CI completions queue behind analysis; duplicate evidence is skipped by the gate.
 concurrency:
   group: >-
     pr-triage-${{
@@ -30,10 +38,11 @@ concurrency:
          github.event.comment.user.login == 'chatgpt-codex-connector[bot]' &&
          github.event.sender.login == 'chatgpt-codex-connector[bot]') ||
         (github.event_name == 'workflow_run' &&
-         github.event.workflow_run.actor.login == 'chatgpt-codex-connector[bot]' &&
-         github.event.workflow_run.triggering_actor.login == 'chatgpt-codex-connector[bot]' &&
          github.event.workflow_run.head_repository.full_name == github.repository &&
-         github.event.workflow_run.pull_requests[0].number)) &&
+         github.event.workflow_run.pull_requests[0].number &&
+         (github.event.workflow_run.event == 'pull_request' ||
+          (github.event.workflow_run.actor.login == 'chatgpt-codex-connector[bot]' &&
+           github.event.workflow_run.triggering_actor.login == 'chatgpt-codex-connector[bot]')))) &&
       (inputs.pr_url || format('https://github.com/{0}/pull/{1}', github.repository,
         github.event.pull_request.number || github.event.issue.number ||
         github.event.workflow_run.pull_requests[0].number)) || github.run_id }}
@@ -52,10 +61,11 @@ jobs:
          github.event.comment.user.login == 'chatgpt-codex-connector[bot]' &&
          github.event.sender.login == 'chatgpt-codex-connector[bot]') ||
         (github.event_name == 'workflow_run' &&
-         github.event.workflow_run.actor.login == 'chatgpt-codex-connector[bot]' &&
-         github.event.workflow_run.triggering_actor.login == 'chatgpt-codex-connector[bot]' &&
          github.event.workflow_run.head_repository.full_name == github.repository &&
-         github.event.workflow_run.pull_requests[0].number))
+         github.event.workflow_run.pull_requests[0].number &&
+         (github.event.workflow_run.event == 'pull_request' ||
+          (github.event.workflow_run.actor.login == 'chatgpt-codex-connector[bot]' &&
+           github.event.workflow_run.triggering_actor.login == 'chatgpt-codex-connector[bot]'))))
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
