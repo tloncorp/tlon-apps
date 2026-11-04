@@ -272,12 +272,13 @@ function OwnerRow({
       <XStack
         alignItems="center"
         gap="$l"
-        padding="$xl"
+        paddingVertical="$xl"
+        paddingHorizontal="$2xl"
         borderRadius="$2xl"
         backgroundColor="$background"
       >
         <ContactAvatar contactId={ownerId} size="$4xl" />
-        <YStack flex={1} minWidth={0} gap="$xs">
+        <YStack flex={1} minWidth={0} gap="$m">
           {isYours ? (
             <Text size="$label/l">This is your bot</Text>
           ) : (
@@ -520,7 +521,7 @@ function BotsCard({
         </Text>
         <XStack alignItems="center" gap="$l">
           <ContactAvatar contactId={botId} size="$4xl" />
-          <YStack flex={1} minWidth={0} gap="$xs">
+          <YStack flex={1} minWidth={0} gap="$m">
             <XStack alignItems="center" gap="$s">
               <Text size="$label/l" numberOfLines={1} flexShrink={1}>
                 <ContactName contactId={botId} />

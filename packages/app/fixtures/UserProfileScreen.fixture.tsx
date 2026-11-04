@@ -1,12 +1,25 @@
 import { faker } from '@faker-js/faker';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as api from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
+import { useWindowDimensions } from 'react-native';
 import { useFixtureInput } from 'react-cosmos/client';
+import { View, useTheme } from 'tamagui';
 
-import { AppDataContextProvider, UserProfileScreenView } from '../ui';
+import { nativeHeaderPresentationOptions } from '../navigation/nativeHeaderOptions';
+import {
+  AppDataContextProvider,
+  ScreenHeader,
+  UserProfileScreenView,
+} from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
 import { group, hostedBotContact } from './fakeData';
+
+// The same people and pictures on every load, so screenshots compare.
+faker.seed(7);
+
+const FixtureStack = createNativeStackNavigator<{ Surface: undefined }>();
 
 const exampleContacts: Record<string, db.Contact> = {
   base: {
@@ -52,7 +65,7 @@ const exampleContacts: Record<string, db.Contact> = {
   ownedBot: {
     ...hostedBotContact,
     nickname: 'Tlonbot',
-    avatarImage: faker.image.avatar(),
+    avatarImage: 'https://picsum.photos/seed/tlonbot/400',
     botInfo: JSON.stringify({ v: 1, harness: 'openclaw', version: '0.19.0' }),
     botLiveness: JSON.stringify({ v: 1, state: 'online' }),
   },
@@ -77,24 +90,75 @@ function ProfileScreenFixture({
   const ownsBot = !!viewerId && api.getBotOwnerId(userId) === viewerId;
 
   return (
-    <FixtureWrapper fillWidth fillHeight>
+    <FullScreen>
       <AppDataContextProvider
         currentUserId={isCurrentUser ? contactId : (viewerId ?? '~zod')}
         contacts={Object.values(exampleContacts)}
       >
-        <UserProfileScreenView
-          userId={userId}
-          connectionStatus={{ complete: true, status: 'yes' }}
-          onPressGroup={() => {
-            console.log('group pressed');
-          }}
-          onPressUserProfile={setUserId}
-          onPressBotSettings={ownsBot ? noop : undefined}
-          onPressScheduledTasks={ownsBot ? noop : undefined}
-          scheduledTaskCount={ownsBot ? 3 : undefined}
-        />
+        <ProfileSurface>
+          <UserProfileScreenView
+            userId={userId}
+            connectionStatus={{ complete: true, status: 'yes' }}
+            onPressGroup={() => {
+              console.log('group pressed');
+            }}
+            onPressUserProfile={setUserId}
+            onPressBotSettings={ownsBot ? noop : undefined}
+            onPressScheduledTasks={ownsBot ? noop : undefined}
+            scheduledTaskCount={ownsBot ? 3 : undefined}
+          />
+        </ProfileSurface>
       </AppDataContextProvider>
+    </FullScreen>
+  );
+}
+
+/** The profile as the app shows it: the Profile header over the view. */
+function ProfileSurface({ children }: { children: ReactNode }) {
+  const theme = useTheme();
+  return (
+    <View flex={1} backgroundColor={theme.secondaryBackground.val}>
+      <ScreenHeader
+        title="Profile"
+        backgroundColor={theme.secondaryBackground.val}
+        backAction={noop}
+        placement="navigation"
+      />
+      {children}
+    </View>
+  );
+}
+
+function FullScreen({ children }: { children: ReactNode }) {
+  return (
+    <FixtureWrapper fillHeight fillWidth verticalAlign="top">
+      <FixtureNavigator>{children}</FixtureNavigator>
     </FixtureWrapper>
+  );
+}
+
+function FixtureNavigator({ children }: { children: ReactNode }) {
+  // The web renderer gives the page no height, so the stack would collapse
+  // to its header.
+  const { height } = useWindowDimensions();
+  // Inside the fixture's theme, so the native title follows dark mode.
+  const theme = useTheme();
+  return (
+    <View style={{ height }} width="100%">
+      <FixtureStack.Navigator
+        screenOptions={{
+          ...nativeHeaderPresentationOptions,
+          headerShown: true,
+          headerBackVisible: false,
+          headerTintColor: theme.primaryText.val,
+          headerTitleStyle: { color: theme.primaryText.val },
+        }}
+      >
+        <FixtureStack.Screen name="Surface">
+          {() => children}
+        </FixtureStack.Screen>
+      </FixtureStack.Navigator>
+    </View>
   );
 }
 
