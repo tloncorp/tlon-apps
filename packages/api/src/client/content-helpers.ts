@@ -22,6 +22,7 @@ import {
 } from '../urbit';
 import { A2UI } from './a2ui';
 import {
+  PostBlobDataEntryBrowserWalletSchema,
   PostBlobDataEntryBrowserSessionSchema,
   PostBlobDataEntryBrowserSecureEntrySchema,
 } from './browserCards';
@@ -836,6 +837,7 @@ const postBlobDataEntryDefinitions = [
   PostBlobDataEntryAgentPostMarkerSchema,
   PostBlobDataEntryA2UISelectionSchema,
   A2UI.blobEntrySchema,
+  PostBlobDataEntryBrowserWalletSchema,
   PostBlobDataEntryBrowserSessionSchema,
   PostBlobDataEntryBrowserSecureEntrySchema,
 ] as const;
@@ -862,6 +864,7 @@ export const POST_BLOB_ENTRY_TYPES = [
   'tlon-agent-post-marker',
   'tlon-a2ui-selection',
   'a2ui',
+  'browser-wallet',
   'browser-session',
   'browser-secure-entry',
 ] as const satisfies readonly PostBlobDataEntry['type'][];

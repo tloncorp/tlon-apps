@@ -170,10 +170,8 @@ export function ChannelHeader({
   showSpinner,
   loadingSubtitle = 'Loading messages…',
   hideIdentity = false,
-  backDisabled = false,
   showSearchButton = false,
   showEditButton = false,
-  onPressLogout,
   preferProvidedTitle = false,
   post,
   isTopLevelTab = false,
@@ -197,10 +195,8 @@ export function ChannelHeader({
   showSpinner?: boolean;
   loadingSubtitle?: string | null;
   hideIdentity?: boolean;
-  backDisabled?: boolean;
   showSearchButton?: boolean;
   showEditButton?: boolean;
-  onPressLogout?: () => void;
   preferProvidedTitle?: boolean;
   post?: db.Post;
   /** Rendered as the Bot tab's root, rather than pushed onto the stack. */
@@ -492,21 +488,6 @@ export function ChannelHeader({
       backgroundTint: contextLensOpen ? '$secondaryBackground' : undefined,
       visible: !!onToggleContextLens,
     },
-    {
-      id: 'agent-onboarding-options',
-      icon: 'Overflow',
-      label: 'More options',
-      testID: 'AgentOnboardingOverflowButton',
-      visible: !!onPressLogout,
-      items: [
-        {
-          id: 'agent-onboarding-logout',
-          label: 'Log out',
-          destructive: true,
-          onPress: onPressLogout ?? (() => {}),
-        },
-      ],
-    },
   ];
   const usesNavigationHeader = channelTypeUsesNativeHeader(channel.type);
   // The conversation list owns its scroll props, but this call installs the
@@ -528,7 +509,6 @@ export function ChannelHeader({
         {...headerProps}
         placement="navigation"
         backAction={showsDrawerToggle ? undefined : goBack}
-        backDisabled={backDisabled}
         leftActions={leftActions}
         rightActions={rightActions}
       />
@@ -539,7 +519,6 @@ export function ChannelHeader({
     <ScreenHeader
       {...headerProps}
       backAction={showsDrawerToggle ? undefined : goBack}
-      backDisabled={backDisabled}
       leftActions={leftActions}
       rightActions={rightActions}
       rightControls={

@@ -12,6 +12,8 @@ import {
 } from 'openclaw/plugin-sdk/diagnostic-runtime';
 
 import { cleanCronToolArgs } from './src/cron-tool-args.js';
+import { diagnosticSummary } from './src/diagnostic-summary.js';
+import { reportMemorySampleDiagnostic } from './src/memory-sample-telemetry.js';
 import { modelPrivacyNote } from './src/model-privacy-context.js';
 import { registerTlonCommands } from './src/commands-registry.js';
 import { notifyCampaignCronChanged } from './src/monitor/campaign/live.js';
@@ -342,17 +344,6 @@ function stringListField(event: DiagnosticCandidate, key: string): string[] {
   return value
     .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
     .filter(Boolean);
-}
-
-function diagnosticSummary(
-  parts: Array<[string, string | number | boolean | null | undefined]>
-): string {
-  return parts
-    .filter(
-      ([, value]) => value !== null && value !== undefined && value !== ''
-    )
-    .map(([key, value]) => `${key}=${String(value)}`)
-    .join(' ');
 }
 
 const HARNESS_DEBUG_EVENT_TYPES = new Set([
@@ -839,6 +830,9 @@ function reportHarnessDiagnostic(event: DiagnosticCandidate): void {
       });
       return;
     }
+    case 'diagnostic.memory.sample':
+      reportMemorySampleDiagnostic(event);
+      return;
     case 'payload.large':
       if (stringField(event, 'action') !== 'rejected') {
         return;
@@ -1955,14 +1949,15 @@ export default defineBundledChannelEntry({
     };
 
     const browserLoginApprovals = createBrowserLoginApprovalHandler(
-      (sessionId, record, ctx, fields) =>
+      (sessionId, record, ctx, fields, formId) =>
         runBrowserCommand(
           [
             'browser',
             'approve-login',
             sessionId,
-            '--fields',
-            JSON.stringify(fields),
+            ...(formId
+              ? ['--form-id', formId]
+              : ['--fields', JSON.stringify(fields)]),
             ...(record ? ['--record', JSON.stringify(record)] : []),
           ],
           ctx

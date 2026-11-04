@@ -46,11 +46,9 @@ type StateSnapshot = {
 
 /**
  * The container's root is the top-level drawer, whose one screen holds the
- * root stack. That stack is rooted at `MainTabs` through a normal session, and
- * at `OnboardingStartup` while first-run onboarding owns the root. Only the
- * first is a position worth returning to: saving the second would let a
- * relaunch restore a half-finished onboarding as though it were an ordinary
- * screen.
+ * root stack. That stack is always rooted at `MainTabs`; a stack rooted
+ * anywhere else is not one this navigator produced, so it is not a position to
+ * return to.
  *
  * A position saved before the drawer existed is rooted at the stack itself.
  * Refusing it here is what keeps it from being restored into a tree it no

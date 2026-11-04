@@ -38,10 +38,6 @@ export type ChannelRouteParams = {
 export type RootStackParamList = {
   BrowserWallet: { requestId: string };
   MainTabs: NavigatorScreenParams<TopLevelTabParamList> | undefined;
-  OnboardingStartup: {
-    channelId: string;
-    groupId: string;
-  };
   VerifierStub: undefined;
   Empty: undefined;
   Contacts: undefined;
@@ -125,6 +121,7 @@ export type RootStackParamList = {
   FeatureFlags: undefined;
   ManageAccount: undefined;
   BotSettings: undefined;
+  SecureVault: undefined;
   BotMcpSettings: { providerId?: string } | undefined;
   BotModelSettings: { mode: 'default' | 'fallbacks' };
   BotApiKeySettings: { provider: string };
@@ -314,6 +311,7 @@ export type SettingsDrawerParamList = Pick<
   | 'FeatureFlags'
   | 'ManageAccount'
   | 'BotSettings'
+  | 'SecureVault'
   | 'BotMcpSettings'
   | 'BotModelSettings'
   | 'BotApiKeySettings'

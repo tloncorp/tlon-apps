@@ -44,7 +44,6 @@ import {
   CreateChatSheet,
   type CreateChatSheetMethods,
 } from '../features/top/CreateChatSheet';
-import { useAnyAgentGroupOnboardingLock } from '../hooks/useAgentGroupOnboardingLock';
 import { useBotDmTab } from '../hooks/useBotDmTab';
 import { useChatSearch } from '../hooks/useChatSearch';
 import { useChatSettingsNavigation } from '../hooks/useChatSettingsNavigation';
@@ -106,7 +105,6 @@ import {
   getInitialTopLevelTab,
   getStandingTopLevelTabRoute,
   getTopLevelTabNavigateAction,
-  isTabPressBlockedByOnboardingLock,
   trackTopLevelTabSelection,
 } from './topLevelTabs';
 import { getMainGroupRoute, useTypedReset } from './utils';
@@ -240,7 +238,6 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
   chat,
   title,
   selected,
-  disabled,
   unfurls,
   unfurled,
   matches,
@@ -252,7 +249,6 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
   chat: db.Chat;
   title: string;
   selected: boolean;
-  disabled: boolean;
   /** Whether pressing this row opens its channels below it. */
   unfurls: boolean;
   unfurled: boolean;
@@ -274,7 +270,7 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
     () => onLongPress?.(chat),
     [chat, onLongPress]
   );
-  const showsSettings = unfurled && !disabled && onPressSettings != null;
+  const showsSettings = unfurled && onPressSettings != null;
   const handlePressSettings = useCallback(
     () => onPressSettings?.(chat),
     [chat, onPressSettings]
@@ -296,9 +292,8 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
 
   return (
     <Pressable
-      onPress={disabled ? undefined : handlePress}
-      onLongPress={disabled || !onLongPress ? undefined : handleLongPress}
-      disabled={disabled}
+      onPress={handlePress}
+      onLongPress={onLongPress ? handleLongPress : undefined}
       accessibilityRole="button"
       // The dot is decorative, and its colour carries a distinction a screen
       // reader would otherwise lose entirely, so the label makes it in words.
@@ -311,7 +306,6 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
       // by the state rather than the label: the panel says it in words for
       // nothing else, and a row that merely opens a chat has no such state.
       accessibilityState={{
-        disabled,
         selected,
         ...(unfurls ? { expanded } : {}),
       }}
@@ -325,7 +319,6 @@ const DrawerChatRow = React.memo(function DrawerChatRowComponent({
       paddingHorizontal={CONTENT_INSET}
       justifyContent="center"
       minHeight={CHAT_ROW_MIN_HEIGHT}
-      opacity={disabled ? 0.4 : 1}
       backgroundColor={
         unfurled
           ? UNFURLED_FILL
@@ -402,7 +395,6 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
   channel,
   title,
   selected,
-  disabled,
   groupMuted,
   last,
   match,
@@ -414,7 +406,6 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
   channel: db.Channel;
   title: string;
   selected: boolean;
-  disabled: boolean;
   /** Muted at the workspace, which silences every channel that has not been
       turned back up on its own. */
   groupMuted: boolean;
@@ -443,11 +434,9 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
 
   return (
     <Pressable
-      onPress={disabled || joining ? undefined : handlePress}
-      onLongPress={
-        disabled || joining || !onLongPress ? undefined : handleLongPress
-      }
-      disabled={disabled || joining}
+      onPress={joining ? undefined : handlePress}
+      onLongPress={joining || !onLongPress ? undefined : handleLongPress}
+      disabled={joining}
       accessibilityRole="button"
       accessibilityLabel={
         joining
@@ -460,7 +449,7 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
       }
       accessibilityHint={joined ? undefined : 'Joins the channel'}
       accessibilityState={{
-        disabled: disabled || joining,
+        disabled: joining,
         selected,
         busy: joining,
       }}
@@ -468,7 +457,6 @@ const DrawerChannelRow = React.memo(function DrawerChannelRowComponent({
       paddingHorizontal={CONTENT_INSET}
       justifyContent="center"
       minHeight={CHAT_ROW_MIN_HEIGHT}
-      opacity={disabled ? 0.4 : 1}
       {...(match
         ? {
             borderRadius: '$l',
@@ -699,7 +687,6 @@ function BubbleSlot({
   icon,
   label,
   selected,
-  disabled,
   hasUnread,
   testID,
   onPress,
@@ -707,27 +694,24 @@ function BubbleSlot({
   icon: IconType;
   label: string;
   selected: boolean;
-  disabled: boolean;
   hasUnread: boolean;
   testID: string;
   onPress: () => void;
 }) {
   return (
     <Pressable
-      onPress={disabled ? undefined : onPress}
-      disabled={disabled}
+      onPress={onPress}
       accessibilityRole="button"
       // The dot is decorative, so the unread state has to reach a screen
       // reader through the label itself.
       accessibilityLabel={hasUnread ? `${label}, unread` : label}
-      accessibilityState={{ disabled, selected }}
+      accessibilityState={{ selected }}
       testID={testID}
       width={FOOTER_CONTROL_SIZE}
       height={FOOTER_CONTROL_SIZE}
       borderRadius={FOOTER_CONTROL_RADIUS}
       alignItems="center"
       justifyContent="center"
-      opacity={disabled ? 0.4 : 1}
       // Under glass these carry no selected state at all: the bubble is the
       // composer's `+` in another place and reads the same way, and the `+`
       // has none. Off glass the fill is the only thing they would have.
@@ -772,12 +756,9 @@ function BubbleSlot({
 function DrawerUtilityBubble({
   flexShrink,
   createLabel,
-  createDisabled,
   activitySelected,
   activityHasUnread,
-  activityDisabled,
   settingsSelected,
-  settingsDisabled,
   onPressCreate,
   onPressActivity,
   onPressSettings,
@@ -785,12 +766,9 @@ function DrawerUtilityBubble({
   flexShrink?: number;
   /** What this tab's `+` makes, which is the only thing that says so. */
   createLabel: string;
-  createDisabled: boolean;
   activitySelected: boolean;
   activityHasUnread: boolean;
-  activityDisabled: boolean;
   settingsSelected: boolean;
-  settingsDisabled: boolean;
   onPressCreate: () => void;
   onPressActivity: () => void;
   onPressSettings: () => void;
@@ -805,7 +783,6 @@ function DrawerUtilityBubble({
         icon="Add"
         label={createLabel}
         selected={false}
-        disabled={createDisabled}
         hasUnread={false}
         testID="TopLevelDrawerCreate"
         onPress={onPressCreate}
@@ -814,7 +791,6 @@ function DrawerUtilityBubble({
         icon={TOP_LEVEL_TABS.Activity.icon}
         label={TOP_LEVEL_TABS.Activity.title}
         selected={activitySelected}
-        disabled={activityDisabled}
         hasUnread={activityHasUnread}
         testID="TopLevelDrawerSection-Activity"
         onPress={onPressActivity}
@@ -823,7 +799,6 @@ function DrawerUtilityBubble({
         icon={TOP_LEVEL_TABS.Settings.icon}
         label={TOP_LEVEL_TABS.Settings.title}
         selected={settingsSelected}
-        disabled={settingsDisabled}
         hasUnread={false}
         testID="TopLevelDrawerSection-Settings"
         onPress={onPressSettings}
@@ -894,7 +869,6 @@ function DrawerPanel(props: DrawerContentComponentProps) {
     botDm.enabled ? botDm.channelId : undefined
   );
   const haveUnseenActivity = store.useHaveUnreadUnseenActivity();
-  const onboardingLock = useAnyAgentGroupOnboardingLock();
   // Every request to leave the drawer takes the next number; a continuation
   // that finishes holding an older one has been superseded and drops what it
   // was going to do. A chat open can outlive its own tap — the group has to be
@@ -976,9 +950,6 @@ function DrawerPanel(props: DrawerContentComponentProps) {
 
   const select = useCallback(
     (section: TopLevelTabName) => {
-      if (isTabPressBlockedByOnboardingLock(onboardingLock.locked, section)) {
-        return;
-      }
       // Choosing a section supersedes a chat still resolving its route.
       navigationRequestRef.current += 1;
       // Match the bar this replaces: track selections, not re-selections of
@@ -998,14 +969,7 @@ function DrawerPanel(props: DrawerContentComponentProps) {
       // either way.
       navigation.closeDrawer();
     },
-    [navigation, onboardingLock.locked, selected]
-  );
-
-  // Every chat is a destination inside Workspaces, so the lock that refuses
-  // that section refuses these rows with it.
-  const chatsLocked = isTabPressBlockedByOnboardingLock(
-    onboardingLock.locked,
-    'ChatList'
+    [navigation, selected]
   );
 
   // Whether the app is already showing the route a row would build.
@@ -1044,9 +1008,6 @@ function DrawerPanel(props: DrawerContentComponentProps) {
       channel: db.Channel,
       source: 'drawer' | 'drawer_search' | 'drawer_workspace'
     ) => {
-      if (chatsLocked) {
-        return;
-      }
       // Supersede anything still resolving its route, the same as any other
       // way of leaving the panel.
       navigationRequestRef.current += 1;
@@ -1062,7 +1023,7 @@ function DrawerPanel(props: DrawerContentComponentProps) {
       }
       navigation.closeDrawer();
     },
-    [chatsLocked, navigation, reset, showsFocusedRoute, state]
+    [navigation, reset, showsFocusedRoute, state]
   );
 
   const openWorkspaceChannel = useCallback(
@@ -1122,9 +1083,6 @@ function DrawerPanel(props: DrawerContentComponentProps) {
 
   const openChat = useCallback(
     (chat: db.Chat) => {
-      if (chatsLocked) {
-        return;
-      }
       if (chat.type === 'channel') {
         openChannel(chat.channel, chatSource);
         return;
@@ -1214,7 +1172,6 @@ function DrawerPanel(props: DrawerContentComponentProps) {
     },
     [
       chatSource,
-      chatsLocked,
       focusedStackRoute,
       navigation,
       openChannel,
@@ -1253,12 +1210,9 @@ function DrawerPanel(props: DrawerContentComponentProps) {
   // Opening the search is a request to stay in the panel, so it supersedes
   // anything still resolving its route, as changing tabs does.
   const openSearch = useCallback(() => {
-    if (chatsLocked) {
-      return;
-    }
     navigationRequestRef.current += 1;
     setSearchOpen(true);
-  }, [chatsLocked]);
+  }, []);
   // Typing is staying in the panel too, and supersedes the same way. Each
   // query is a new list, and it starts at its top for the reason a tab change
   // does: the list is still holding whatever offset the last one was scrolled
@@ -1347,37 +1301,25 @@ function DrawerPanel(props: DrawerContentComponentProps) {
     () => unjoinedChannels ?? [],
     [unjoinedChannels]
   );
-  const toggleWorkspace = useCallback(
-    (chat: db.Chat) => {
-      if (chatsLocked) {
-        return;
+  const toggleWorkspace = useCallback((chat: db.Chat) => {
+    // Opening a workspace is a request to stay in the panel, so it supersedes
+    // anything still resolving its route — a workspace with nothing to
+    // unfurl yet, tapped a moment ago, would otherwise come back, reset the
+    // stack and close the panel out from under the channels just unfurled.
+    navigationRequestRef.current += 1;
+    setUnfurledGroupId((current) => toggleUnfurled(current, chat.id));
+  }, []);
+  const toggleMatches = useCallback((chat: db.Chat) => {
+    // Staying in the panel, as unfurling a workspace is.
+    navigationRequestRef.current += 1;
+    setFoldedMatchIds((ids) => {
+      const next = new Set(ids);
+      if (!next.delete(chat.id)) {
+        next.add(chat.id);
       }
-      // Opening a workspace is a request to stay in the panel, so it supersedes
-      // anything still resolving its route — a workspace with nothing to
-      // unfurl yet, tapped a moment ago, would otherwise come back, reset the
-      // stack and close the panel out from under the channels just unfurled.
-      navigationRequestRef.current += 1;
-      setUnfurledGroupId((current) => toggleUnfurled(current, chat.id));
-    },
-    [chatsLocked]
-  );
-  const toggleMatches = useCallback(
-    (chat: db.Chat) => {
-      if (chatsLocked) {
-        return;
-      }
-      // Staying in the panel, as unfurling a workspace is.
-      navigationRequestRef.current += 1;
-      setFoldedMatchIds((ids) => {
-        const next = new Set(ids);
-        if (!next.delete(chat.id)) {
-          next.add(chat.id);
-        }
-        return next;
-      });
-    },
-    [chatsLocked]
-  );
+      return next;
+    });
+  }, []);
 
   // Held down, a chat row offers what the workspace list offers for the same
   // chat — the sheet below is that list's own.
@@ -1389,21 +1331,15 @@ function DrawerPanel(props: DrawerContentComponentProps) {
   // settings" does, by the same handler, which closes the panel on its way.
   const openGroupSettings = useCallback(
     (chat: db.Chat) => {
-      if (chatsLocked) {
-        return;
-      }
       // Leaving the panel supersedes anything still resolving its route, as
       // every other way out of it does.
       navigationRequestRef.current += 1;
       onPressChatDetailsRef.current({ type: 'group', id: chat.id });
     },
-    [chatsLocked, onPressChatDetailsRef]
+    [onPressChatDetailsRef]
   );
   const openOptions = useCallback(
     (chat: { id: string; type: 'group' | 'channel'; asChannel?: boolean }) => {
-      if (chatsLocked) {
-        return;
-      }
       // A request to stay in the panel, so it supersedes anything still
       // resolving a route, the same as unfurling a workspace or changing tabs.
       // A workspace with nothing to unfurl yet, tapped a moment ago, is still
@@ -1416,7 +1352,7 @@ function DrawerPanel(props: DrawerContentComponentProps) {
       searchInputRef.current?.blur();
       openChatOptions(chat.id, chat.type, { asChannel: chat.asChannel });
     },
-    [chatsLocked, openChatOptions]
+    [openChatOptions]
   );
   // A channel of an unfurled workspace is held down for its own options, and
   // the workspace's are the row above it — the only channel of a workspace
@@ -1500,7 +1436,6 @@ function DrawerPanel(props: DrawerContentComponentProps) {
             focusedStackRoute,
             item.unfurled || item.matches === 'shown'
           )}
-          disabled={chatsLocked}
           unfurls={item.unfurls}
           unfurled={item.unfurled}
           matches={item.matches}
@@ -1530,7 +1465,6 @@ function DrawerPanel(props: DrawerContentComponentProps) {
               focusedStackRoute
             )
           }
-          disabled={chatsLocked}
           groupMuted={item.groupMuted}
           last={item.last}
           match={item.match}
@@ -1547,7 +1481,6 @@ function DrawerPanel(props: DrawerContentComponentProps) {
         />
       ),
     [
-      chatsLocked,
       focusedStackRoute,
       joiningChannelIds,
       joinWorkspaceChannel,
@@ -1577,31 +1510,19 @@ function DrawerPanel(props: DrawerContentComponentProps) {
   // picker straight away.
   const createChatSheetRef = useRef<CreateChatSheetMethods | null>(null);
   const pressCreate = useCallback(() => {
-    if (chatsLocked) {
-      return;
-    }
     // Supersedes a chat still resolving its route, for the reason every other
     // control that keeps the user in the panel does.
     navigationRequestRef.current += 1;
     // Out of the sheet's way, as for the chat options above.
     searchInputRef.current?.blur();
     createChatSheetRef.current?.open(filter === 'messages' ? 'dm' : undefined);
-  }, [chatsLocked, filter]);
+  }, [filter]);
   // The sheet covers the panel, so the panel stays put while it is up; the
   // chat it makes is navigated to underneath, which is when to get out of the
   // way. A sheet dismissed without making anything leaves the panel as it was.
   const closeForCreatedChat = useCallback(() => {
     navigation.closeDrawer();
   }, [navigation]);
-
-  const settingsDisabled = isTabPressBlockedByOnboardingLock(
-    onboardingLock.locked,
-    'Settings'
-  );
-  const activityDisabled = isTabPressBlockedByOnboardingLock(
-    onboardingLock.locked,
-    'Activity'
-  );
 
   return (
     <YStack
@@ -1618,7 +1539,6 @@ function DrawerPanel(props: DrawerContentComponentProps) {
           ref={searchInputRef}
           open={searchOpen}
           query={searchQuery}
-          disabled={chatsLocked}
           onOpen={openSearch}
           onChangeQuery={changeSearchQuery}
           onClose={closeSearch}
@@ -1728,12 +1648,9 @@ function DrawerPanel(props: DrawerContentComponentProps) {
           createLabel={
             filter === 'messages' ? 'New message' : 'Start a conversation'
           }
-          createDisabled={chatsLocked}
           activitySelected={selected === 'Activity'}
           activityHasUnread={haveUnseenActivity}
-          activityDisabled={activityDisabled}
           settingsSelected={selected === 'Settings'}
-          settingsDisabled={settingsDisabled}
           onPressCreate={pressCreate}
           onPressActivity={() => select('Activity')}
           onPressSettings={() => select('Settings')}

@@ -1,10 +1,8 @@
-import { useFocusEffect } from '@react-navigation/native';
 import * as api from '@tloncorp/api';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useEffect } from 'react';
-import { BackHandler } from 'react-native';
+import { useEffect } from 'react';
 
 import { useAgentGroupOnboardingLock } from '../../hooks/useAgentGroupOnboardingLock';
 import { shouldAcknowledgeAgentOnboardingLanding } from './agentOnboardingLanding';
@@ -13,9 +11,8 @@ const logger = createDevLogger('useAgentOnboardingChannel', false);
 
 /**
  * Everything ChannelScreen owes agent onboarding: acknowledge the durable
- * landing handoff, reconcile the bot's provision receipt onto the
- * navigation lock, and hold navigation captive (back gesture, hardware back)
- * while the lock is active.
+ * landing handoff and reconcile the bot's provision receipt onto the group's
+ * onboarding record.
  */
 export function useAgentOnboardingChannel({
   channelId,
@@ -52,9 +49,6 @@ export function useAgentOnboardingChannel({
 
   const agentOnboardingGroupId = routeGroupId ?? groupId;
   const agentOnboarding = useAgentGroupOnboardingLock(agentOnboardingGroupId);
-  const navigationLocked =
-    agentOnboarding.locked ||
-    Boolean(agentOnboardingGroupId && agentOnboarding.isLoading);
   const agentGroupAgents = db.agentGroupAgents.useValue();
   // A DM has no loaded group; the route carries it. Everything that keys
   // on the group — agent, acknowledgement, marker — uses the same id.
@@ -122,23 +116,5 @@ export function useAgentOnboardingChannel({
     latestChannelSequenceNum,
   ]);
 
-  // `navigationLocked` is returned rather than applied here. `setOptions` is
-  // last-write-wins across a screen's effects, and this one ran after the
-  // drawer's and re-enabled the pop gesture it had just turned off, leaving
-  // both that and the drawer's swipe on the same edge. `useDrawerEdgeGesture`
-  // is the one writer of `gestureEnabled` for these screens and takes the lock
-  // as an argument.
-
-  useFocusEffect(
-    useCallback(() => {
-      if (!navigationLocked) return;
-      const subscription = BackHandler.addEventListener(
-        'hardwareBackPress',
-        () => true
-      );
-      return () => subscription.remove();
-    }, [navigationLocked])
-  );
-
-  return { agentOnboarding, agentShipId, navigationLocked };
+  return { agentOnboarding, agentShipId };
 }

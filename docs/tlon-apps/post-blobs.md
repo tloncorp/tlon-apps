@@ -137,8 +137,11 @@ Definitions and validation helpers live in `packages/api/src/client/a2ui.ts`; th
 | ---------- | ------------------ |
 | `type`     | `'a2ui'`           |
 | `version`  | `1`                |
-| `messages` | `A2UI.Message[]`   |
-| `recipe`   | `unknown` optional |
+| `messages`  | `A2UI.Message[]`        |
+| `recipe`    | `unknown` optional      |
+| `storyMode` | `'fallback'` optional   |
+
+With `storyMode: 'fallback'`, the post's text is a fallback for clients that can't draw the card, and is hidden under a rendered card.
 
 The current renderer expects one `createSurface` message and one `updateComponents` message in the entry. The `updateComponents` message describes the component tree rendered for that post. It does not update surfaces in previous messages or elsewhere in message history.
 
@@ -152,6 +155,60 @@ The supported v1 client subset is intentionally small:
     - message reply targets should include `parentAuthorId` when `parentId` is not already prefixed as `~author/id`
 - rendering policy: A2UI blocks render only in direct messages for now
 - validation limits: component count, tree depth, text length, and expanded render size
+
+#### Rendering hints
+
+Optional fields that tell newer apps how to draw a component. Older apps strip
+them and draw the component as before, so every hinted component keeps
+readable text. Each hint parses leniently: a value an app doesn't know drops
+that hint, never the card. The renderer reads components from the raw message,
+so it reads hints only through `A2UI.getTextHints` and `A2UI.getButtonHints`.
+Hints count toward the text budget.
+
+| field | on | values | drawn as |
+| --- | --- | --- | --- |
+| `role` | `Text` | `'kicker'`, `'status'` | Kicker: the card's kind at its top. Status: the card's state beside it. |
+| `icon` | `Text` with `role: 'kicker'` | `AddPerson`, `Channel`, `ChannelMultiDM`, `ChannelNotebooks`, `Clock`, `Link`, `Lock`, `Mail` | An icon before the kicker. |
+| `entity` | `Text` | `{ type: 'ship' \| 'group', id, name? }` | A person or group row from the app's own contacts or group preview; `name` is used when the app has nothing better. A caption right after the row joins its handle line; other plain text after it lines up under the name. |
+| `tone` | `Button` | `'destructive'` | A red label. |
+| `resultLabel` | `Button` | string | Once the button is used, replaces its card's button row. |
+| `statusLabel` | `Button` | string | Once the button is used, shown as its card's status. |
+
+Rules for adding a hint, so older apps keep drawing the card:
+
+- Hints are optional fields on existing components. A new component type, a new
+  value on an existing enum, or a blob `version` bump makes older apps reject
+  the post and show "Upgrade your app to see this post"; unknown keys are
+  stripped.
+- Each hint uses `.catch(undefined)`, so a value this app doesn't know drops
+  that one field, never the card.
+- Hints never carry words that older apps would miss. Every hinted component
+  keeps a readable `text`.
+- The usual limits apply: 50 components, depth 8, 12 children per container,
+  8,000 characters.
+
+How the renderer lays hinted cards out:
+
+- A nested `Card` draws as a bordered inner card. Its last child, when that is
+  a `Row` other than a row of buttons, is a footer line under a hairline.
+- An inner card that holds its own buttons, like one pending request, draws
+  its person row with a smaller avatar.
+- A borderless `Button` that isn't in a row of buttons draws as a small text
+  link.
+- Text in a `Row` takes its horizontal alignment from the row's `justify`; a
+  row's `align` is vertical.
+- A card's answer is scoped to the buttons of that card, not of cards inside
+  it, so each request in a list answers on its own. The result line takes the
+  used button's tone: positive for the primary button, red for a
+  `tone: 'destructive'` one, neutral otherwise. It reflects the owner's tap,
+  not the bot's success; the bot's own confirmation message follows.
+- A person or group row's accessible label is its `text` (plus a caption
+  joined to it), so screen readers hear what older apps show. A group the app
+  can't preview falls back to `name` and the flag.
+
+The `ApprovalDM`, `ApprovalChannel`, `ApprovalGroup` and `PendingRequests`
+fixtures in `packages/app/fixtures/A2UI.fixture.tsx` are approval cards built
+from these hints.
 
 `McpConnect` is a client-populated menu rather than bot-authored provider data.
 The blob supplies only bounded presentation labels and three validated actions:

@@ -81,6 +81,12 @@ it('delivers one native card and resumes the original conversation once after co
       message: expect.stringContaining(': connected.'),
     })
   );
+  expect(f.resume.mock.calls[0][0].message).toContain(
+    'Connecting Link is not authorization to spend'
+  );
+  expect(f.resume.mock.calls[0][0].message).not.toContain(
+    'report the outcome and wait for the owner'
+  );
   expect(f.records.size).toBe(0);
 });
 it('durably retries delivery without putting provider URLs in continuation messages', async () => {
@@ -101,6 +107,16 @@ it('durably retries delivery without putting provider URLs in continuation messa
   expect(f.resume).toHaveBeenCalledTimes(2);
   expect(f.resume.mock.calls[0][0]).toEqual(f.resume.mock.calls[1][0]);
   expect(JSON.stringify(f.resume.mock.calls)).not.toContain('private.example');
+  expect(f.resume.mock.calls[0][0].message).toContain(
+    'submit once and verify the result from the page'
+  );
+  expect(f.resume.mock.calls[0][0].message).toContain(
+    'Respect any original fill-only or no-purchase boundary'
+  );
+  expect(f.resume.mock.calls[0][0].message).toContain('without resubmitting');
+  expect(f.resume.mock.calls[0][0].message).toContain(
+    'For site_saved, skip payment-field inspection and filling'
+  );
 });
 it('drops a pending request when its conversation has been reset', async () => {
   const f = fixture();

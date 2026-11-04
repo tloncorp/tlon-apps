@@ -11,6 +11,7 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useMemo } from 'react';
 
+import { useVaultLogins } from '../vault/useVaultLogins';
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
 import { useFullGroupRosters } from '../../../hooks/useFullGroupRosters';
 import { mcpProviderQueryKeys } from '../../../lib/mcpProviders';
@@ -135,6 +136,15 @@ export function useBotSettingsQueries() {
   });
 
   const moon = moonQuery.data ? normalizeMoonName(moonQuery.data, ship) : null;
+  useVaultLogins(
+    ship,
+    moon ?? '',
+    isFocused &&
+      !!ship &&
+      !!moon &&
+      (browserServiceQuery.data?.active ??
+        browserServiceQuery.data?.browserService) === 'kernel'
+  );
 
   const moonChannelsQuery = useQuery({
     queryKey: ['tlonbot', 'moon-channels', ship, moon],

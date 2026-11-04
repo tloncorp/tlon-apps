@@ -19,7 +19,9 @@ import {
 } from 'react-native';
 import Animated, {
   Easing,
+  ReduceMotion,
   cancelAnimation,
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -52,6 +54,7 @@ import { getNativeTitleMaxWidth } from './titleLayout';
 
 interface SharedScreenHeaderProps {
   title?: string | ReactNode;
+  animateTitleChanges?: boolean;
   titleIcon?: ReactNode;
   /** Shown right after the title, before the chevron (e.g. a status badge). */
   titleBadge?: ReactNode;
@@ -94,6 +97,7 @@ export const InlineScreenHeaderProvider = InlineScreenHeaderContext.Provider;
 export const ScreenHeaderComponent = ({
   children,
   title,
+  animateTitleChanges = false,
   titleIcon,
   titleBadge,
   subtitle,
@@ -274,6 +278,7 @@ export const ScreenHeaderComponent = ({
       {shouldUseAnimatedTitleLayout ? (
         <HeaderAnimatedTitle
           title={title}
+          animateTitleChanges={animateTitleChanges}
           isLoading={isLoadingActive}
           loadingText={displayLoadingText}
           leftAlignLoadingText={useHorizontalTitleLayout}
@@ -343,6 +348,7 @@ export const ScreenHeaderComponent = ({
   // titles are reserved for elements the native string title cannot express.
   const usesCustomNativeTitle =
     typeof title !== 'string' ||
+    animateTitleChanges ||
     titleIcon != null ||
     titleBadge != null ||
     onTitlePress != null ||
@@ -509,6 +515,7 @@ function HeaderAnimatedCluster({
 
 function HeaderAnimatedTitle({
   title,
+  animateTitleChanges,
   isLoading,
   loadingText,
   leftAlignLoadingText = false,
@@ -516,6 +523,7 @@ function HeaderAnimatedTitle({
   titleHeight,
 }: {
   title: string;
+  animateTitleChanges: boolean;
   isLoading: boolean;
   loadingText: string;
   leftAlignLoadingText?: boolean;
@@ -598,6 +606,19 @@ function HeaderAnimatedTitle({
     borderTopColor: 'transparent',
   };
 
+  const titleText = (
+    <Text
+      size="$label/2xl"
+      color="$primaryText"
+      numberOfLines={1}
+      ellipsizeMode="tail"
+      maxWidth="100%"
+      testID="ScreenHeaderTitle"
+    >
+      {title}
+    </Text>
+  );
+
   return (
     <View
       height={titleHeight ?? '$4xl'}
@@ -635,16 +656,7 @@ function HeaderAnimatedTitle({
           ) : null}
         </View>
       ) : null}
-      <Text
-        size="$label/2xl"
-        color="$primaryText"
-        numberOfLines={1}
-        ellipsizeMode="tail"
-        maxWidth="100%"
-        testID="ScreenHeaderTitle"
-      >
-        {title}
-      </Text>
+      {animateTitleChanges ? <HeaderFadingTitle title={title} /> : titleText}
       <Animated.View
         style={[
           {
@@ -706,6 +718,49 @@ function HeaderAnimatedTitle({
         ) : null}
       </Animated.View>
     </View>
+  );
+}
+
+function HeaderFadingTitle({ title }: { title: string }) {
+  const [displayedTitle, setDisplayedTitle] = useState(title);
+  const opacity = useSharedValue(1);
+  useEffect(() => {
+    let current = true;
+    const replaceTitle = () => {
+      if (current) setDisplayedTitle(title);
+    };
+    const isCurrentTitle = title === displayedTitle;
+    opacity.set(
+      withTiming(
+        isCurrentTitle ? 1 : 0,
+        {
+          duration: isCurrentTitle ? 140 : 80,
+          easing: Easing.out(Easing.cubic),
+          reduceMotion: ReduceMotion.System,
+        },
+        (finished) => {
+          if (finished && !isCurrentTitle) runOnJS(replaceTitle)();
+        }
+      )
+    );
+    return () => {
+      current = false;
+      cancelAnimation(opacity);
+    };
+  }, [displayedTitle, opacity, title]);
+  const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.get() }));
+
+  return (
+    <Animated.View style={[{ maxWidth: '100%' }, animatedStyle]}>
+      <HeaderTitleText
+        color="$primaryText"
+        ellipsizeMode="tail"
+        maxWidth="100%"
+        testID="ScreenHeaderTitle"
+      >
+        {displayedTitle}
+      </HeaderTitleText>
+    </Animated.View>
   );
 }
 

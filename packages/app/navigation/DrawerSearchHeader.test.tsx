@@ -39,7 +39,6 @@ function render(overrides: Partial<Props> = {}) {
     children: 'tabs',
     open: false,
     query: '',
-    disabled: false,
     onOpen: vi.fn(),
     onChangeQuery: vi.fn(),
     onClose: vi.fn(),
@@ -84,15 +83,6 @@ describe('DrawerSearchHeader', () => {
     expect(header.props.onOpen).toHaveBeenCalledTimes(1);
   });
 
-  it('refuses to open while disabled', () => {
-    const header = render({ disabled: true });
-
-    expect(header.control().props.onPress).toBeUndefined();
-    expect(header.control().props.accessibilityState).toMatchObject({
-      disabled: true,
-    });
-  });
-
   it('opens into a focused field and puts the tabs out of reach', () => {
     const header = render({ open: true, query: 'tlon' });
     const [input] = header.input();
@@ -115,7 +105,7 @@ describe('DrawerSearchHeader', () => {
   });
 
   it('focuses the field when its glyph is pressed, rather than opening again', () => {
-    const header = render({ open: true, disabled: true });
+    const header = render({ open: true });
 
     header.control().props.onPress();
 
