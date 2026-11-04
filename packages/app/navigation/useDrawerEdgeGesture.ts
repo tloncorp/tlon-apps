@@ -16,20 +16,17 @@ import { drawerOwnsEdge } from './drawerDestination';
  *
  * This is the one writer of `gestureEnabled` for the screens that call it, and
  * has to be: `setOptions` is last-write-wins across a screen's effects, so a
- * second effect elsewhere in the same screen silently undoes this one. Anything
- * else with a reason to hold the gesture shut passes it in as `alsoDisabled`
- * rather than setting the option itself — onboarding's navigation lock is the
- * one such reason today.
+ * second effect elsewhere in the same screen silently undoes this one.
  *
  * Android's system back is untouched; this is only the edge.
  */
-export function useDrawerEdgeGesture(routeKey: string, alsoDisabled = false) {
+export function useDrawerEdgeGesture(routeKey: string) {
   const navigation = useNavigation();
   const ownsEdge = useNavigationState((state) =>
     drawerOwnsEdge(state, routeKey)
   );
 
   useEffect(() => {
-    navigation.setOptions({ gestureEnabled: !ownsEdge && !alsoDisabled });
-  }, [navigation, ownsEdge, alsoDisabled]);
+    navigation.setOptions({ gestureEnabled: !ownsEdge });
+  }, [navigation, ownsEdge]);
 }

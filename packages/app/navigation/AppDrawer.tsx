@@ -3,7 +3,6 @@ import type { DrawerScreenProps } from '@react-navigation/drawer';
 import { useNavigationState } from '@react-navigation/native';
 import { useEffect } from 'react';
 
-import { useAnyAgentGroupOnboardingLock } from '../hooks/useAgentGroupOnboardingLock';
 import { RootStack } from './RootStack';
 import { TopLevelDrawerContent } from './TopLevelDrawerContent';
 import {
@@ -30,18 +29,13 @@ const Drawer = createDrawerNavigator<AppDrawerParamList>();
 function DrawerMainScreen({
   navigation,
 }: DrawerScreenProps<AppDrawerParamList, 'Main'>) {
-  // Selecting any other section would carry the user out of the locked
-  // onboarding conversation, so the gesture that opens the drawer is off for
-  // as long as the lock holds, and its rows are disabled to match.
-  const onboardingLock = useAnyAgentGroupOnboardingLock();
   const stackState = useNavigationState(
     (state) =>
       state.routes[state.index]?.state as
         | { index?: number; routes?: ReadonlyArray<object> }
         | undefined
   );
-  const swipeEnabled =
-    !onboardingLock.locked && isTopLevelDrawerSwipeTarget(stackState);
+  const swipeEnabled = isTopLevelDrawerSwipeTarget(stackState);
 
   useEffect(() => {
     navigation.setOptions({ swipeEnabled });

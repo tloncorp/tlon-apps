@@ -119,10 +119,8 @@ export default function ChannelScreen(props: Props) {
   });
   // The drawer takes the left edge only on a conversation it opened; reached
   // any other way the pop gesture keeps it, since the header here shows no
-  // caret to get back with. Onboarding's lock is passed in rather than applied
-  // separately: two effects writing `gestureEnabled` means the later one wins,
-  // and this screen needs both conditions to hold at once.
-  useDrawerEdgeGesture(props.route.key, agentOnboardingNavigationLocked);
+  // caret to get back with.
+  useDrawerEdgeGesture(props.route.key);
   const currentUserId = api.getCurrentUserId();
 
   const channelIsPending = !channel || channel.isPendingChannel;

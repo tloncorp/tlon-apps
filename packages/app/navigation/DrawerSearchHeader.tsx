@@ -61,15 +61,13 @@ export const DrawerSearchHeader = forwardRef<
     children: ReactNode;
     open: boolean;
     query: string;
-    /** Refuses the control, not a field already open. */
-    disabled: boolean;
     onOpen: () => void;
     onChangeQuery: (query: string) => void;
     /** The field's `X`: clears the query and gives the tabs back. */
     onClose: () => void;
   }
 >(function DrawerSearchHeader(
-  { children, open, query, disabled, onOpen, onChangeQuery, onClose },
+  { children, open, query, onOpen, onChangeQuery, onClose },
   inputRef
 ) {
   const theme = useTheme();
@@ -152,18 +150,16 @@ export const DrawerSearchHeader = forwardRef<
           <Pressable
             // Open, the glyph is part of the field, and pressing it is
             // pressing the field.
-            onPress={open ? focusField : disabled ? undefined : onOpen}
-            disabled={!open && disabled}
+            onPress={open ? focusField : onOpen}
             accessibilityRole="button"
             accessibilityLabel="Search"
-            accessibilityState={{ disabled: !open && disabled, expanded: open }}
+            accessibilityState={{ expanded: open }}
             testID="TopLevelDrawerSearch"
             width={SEARCH_CONTROL_SIZE}
             height={SEARCH_CONTROL_SIZE}
             flexShrink={0}
             alignItems="center"
             justifyContent="center"
-            opacity={!open && disabled ? 0.4 : 1}
           >
             <Icon
               type="Search"
