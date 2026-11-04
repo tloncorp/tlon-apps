@@ -20,7 +20,10 @@ import {
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
+  type SharedValue,
+  runOnJS,
   useAnimatedStyle,
+  useFrameCallback,
   useReducedMotion,
   useSharedValue,
   withSequence,
@@ -44,6 +47,17 @@ import {
   getBotBaubleState,
   getBotBaubleStatusText,
 } from './botBaubleState';
+import {
+  type Hop,
+  type SpringConfig,
+  TICK_LEAN_MS,
+  type TiltMove,
+  hopAirtime,
+  hopLiftAt,
+  hopSquashAt,
+  tickSquashAt,
+  tiltAt,
+} from './botBaubleMotion';
 import { useThinkingIndicator } from './useThinkingIndicator';
 
 // The avatar tile is top-aligned with the controls on either side and hangs
@@ -74,16 +88,27 @@ const RESERVED_HEIGHT =
 // the tile wobbles like jelly before it comes to rest.
 const EASE_IN_OUT = Easing.bezier(0.65, 0, 0.35, 1);
 const EASE_OUT = Easing.bezier(0.16, 1, 0.3, 1);
-const EASE_IN = Easing.bezier(0.55, 0, 1, 0.45);
 const ELASTIC = { damping: 7.8, stiffness: 320, mass: 0.7 };
 const SWING = { damping: 10, stiffness: 220, mass: 0.7 };
 const HEAVY = { damping: 16, stiffness: 70, mass: 1 };
 // The reply's bounce settles faster, with the same bounce.
 const SNAPPY = { damping: 9, stiffness: 420, mass: 0.7 };
 const TICK_ANGLE = 2.5;
-// The reply's bounce waits until the new message has been drawn. Started
-// together, the list's work starves the bounce and it stutters.
-const LANDING_DELAY_MS = 400;
+const REPLY_HOP: Hop = { height: 4, tempo: 0.8, settle: SNAPPY };
+const TOOL_HOP: Hop = { height: 6, tempo: 1, settle: ELASTIC };
+const STILL: TiltMove = { from: 0, lean: 0, to: 0, leanMs: 0, spring: SWING };
+// Long enough for any gesture to come to rest; a clock this far along reads
+// as no gesture at all.
+const GESTURE_MS = 2000;
+const DONE = GESTURE_MS;
+// The reply's bounce waits for the conversation to finish drawing it. The
+// list's work when a reply lands drops frames for a while, and a bounce
+// started in the middle of that stutters. So the tile watches its own frames
+// and bounces once they have run smoothly for a moment.
+const LANDING_MIN_WAIT_MS = 250;
+const LANDING_CALM_MS = 200;
+const LANDING_MAX_WAIT_MS = 1200;
+const SLOW_FRAME_MS = 24;
 
 const hiddenHeaderOptions: NativeStackNavigationOptions = {
   headerShown: false,
@@ -371,43 +396,90 @@ function useBotTileMotion({
   reduceMotion: boolean;
   toolKey: string | undefined;
 }) {
-  const tilt = useSharedValue(0);
-  const lift = useSharedValue(0);
+  // Ticks and hops each play from one clock (see botBaubleMotion). Hops get
+  // two slots, so one can start while the last still wobbles, and the two
+  // add up rather than one cutting the other off.
+  const tiltMove = useSharedValue<TiltMove>(STILL);
+  const tiltClock = useSharedValue(DONE);
+  const tickClock = useSharedValue(DONE);
+  const hopShapeA = useSharedValue<Hop>(REPLY_HOP);
+  const hopClockA = useSharedValue(DONE);
+  const hopShapeB = useSharedValue<Hop>(REPLY_HOP);
+  const hopClockB = useSharedValue(DONE);
+  const hopSlot = useSharedValue(0);
+  // While a reply's bounce waits for the screen to calm down: when the wait
+  // began and when frames last ran slow, in frame timestamps (-1 until the
+  // first frame).
+  const landingPending = useSharedValue(false);
+  const landingSince = useSharedValue(-1);
+  const landingLastSlow = useSharedValue(-1);
+  // Slow poses that each take a single timing or spring.
+  const lift = useSharedValue(state === 'offline' ? 2 : 0);
   const squash = useSharedValue(state === 'offline' ? 0.03 : 0);
   const press = useSharedValue(0);
   const rest = useSharedValue(state === 'offline' ? 0.94 : 1);
   const previousState = useRef(state);
   const previousToolKey = useRef(toolKey);
-  // A hop or bounce owns the tile until it lands; ticks wait their turn.
+  // A hop owns the tile until it lands; ticks wait their turn.
   const busyUntil = useRef(0);
 
-  // `tempo` scales every beat of the hop; below 1 is quicker.
-  const hop = useCallback(
-    (height: number, tempo = 1, settle = ELASTIC) => {
-      const beat = (ms: number) => Math.round(ms * tempo);
-      busyUntil.current = Date.now() + beat(700);
-      tilt.value = withSpring(0, SWING);
-      lift.value = withSequence(
-        withTiming(0, { duration: beat(120) }),
-        withTiming(-height, { duration: beat(200), easing: EASE_OUT }),
-        withTiming(0, { duration: beat(170), easing: EASE_IN })
-      );
-      squash.value = withSequence(
-        // Crouch.
-        withTiming(0.07, { duration: beat(120), easing: EASE_IN_OUT }),
-        // Launch, stretched.
-        withTiming(-0.06, { duration: beat(110), easing: EASE_OUT }),
-        // Round out at the top.
-        withTiming(0, { duration: beat(160), easing: EASE_IN_OUT }),
-        // Stretch into the fall.
-        withTiming(-0.03, { duration: beat(100), easing: EASE_IN }),
-        // Land.
-        withTiming(0.08, { duration: beat(70), easing: EASE_OUT }),
-        withSpring(0, settle)
-      );
+  /** Swings the tile from wherever it is now to `to`, leaning first if asked. */
+  const moveTilt = useCallback(
+    (to: number, spring: SpringConfig, lean?: number) => {
+      if (lean == null && tiltMove.value.to === to) return;
+      const from = tiltAt(tiltMove.value, tiltClock.value);
+      tiltMove.value = {
+        from,
+        lean: lean ?? from,
+        to,
+        leanMs: lean == null ? 0 : TICK_LEAN_MS,
+        spring,
+      };
+      tiltClock.value = playClock();
     },
-    [lift, squash, tilt]
+    [tiltClock, tiltMove]
   );
+
+  const hop = useCallback(
+    (shape: Hop) => {
+      busyUntil.current = Date.now() + hopAirtime(shape) + 200;
+      moveTilt(0, SWING);
+      startHop(shape, hopSlot, [hopShapeA, hopClockA], [hopShapeB, hopClockB]);
+    },
+    [hopClockA, hopClockB, hopShapeA, hopShapeB, hopSlot, moveTilt]
+  );
+
+  const landingWatch = useFrameCallback((frame) => {
+    'worklet';
+    // Turning the watch off takes a trip through JS; until then, idle.
+    if (!landingPending.value) return;
+    const now = frame.timestamp;
+    if (landingSince.value < 0) {
+      landingSince.value = now;
+      landingLastSlow.value = now;
+    }
+    if ((frame.timeSincePreviousFrame ?? 0) > SLOW_FRAME_MS) {
+      landingLastSlow.value = now;
+    }
+    const waited = now - landingSince.value;
+    const calm = now - landingLastSlow.value;
+    if (
+      (waited >= LANDING_MIN_WAIT_MS && calm >= LANDING_CALM_MS) ||
+      waited >= LANDING_MAX_WAIT_MS
+    ) {
+      startHop(
+        REPLY_HOP,
+        hopSlot,
+        [hopShapeA, hopClockA],
+        [hopShapeB, hopClockB]
+      );
+      landingPending.value = false;
+      runOnJS(stopLandingWatch)();
+    }
+  }, false);
+  function stopLandingWatch() {
+    landingWatch.setActive(false);
+  }
 
   // Transitions between states each get one gesture.
   useEffect(() => {
@@ -417,7 +489,11 @@ function useBotTileMotion({
 
     const offline = state === 'offline';
     if (reduceMotion) {
-      tilt.value = 0;
+      tiltMove.value = STILL;
+      tiltClock.value = DONE;
+      tickClock.value = DONE;
+      hopClockA.value = DONE;
+      hopClockB.value = DONE;
       lift.value = 0;
       squash.value = 0;
       rest.value = offline ? 0.94 : 1;
@@ -427,7 +503,7 @@ function useBotTileMotion({
     if (offline) {
       // Slump: lean back upright, sag and settle low.
       busyUntil.current = Date.now() + 700;
-      tilt.value = withSpring(0, HEAVY);
+      moveTilt(0, HEAVY);
       squash.value = withTiming(0.03, { duration: 600, easing: EASE_IN_OUT });
       rest.value = withTiming(0.94, { duration: 600, easing: EASE_IN_OUT });
       lift.value = withTiming(2, { duration: 600, easing: EASE_IN_OUT });
@@ -437,26 +513,43 @@ function useBotTileMotion({
     if (previous === 'offline') {
       // Back up: pop tall, then wobble into shape.
       rest.value = withSpring(1, ELASTIC);
-      squash.value = withSequence(
-        withTiming(-0.06, { duration: 180, easing: EASE_OUT }),
-        withSpring(0, ELASTIC)
-      );
+      squash.value = withSpring(0, { ...ELASTIC, velocity: -1.7 });
       lift.value = withSpring(0, SWING);
       return;
     }
 
     if (isBusy(previous) && state === 'idle') {
-      // The reply landed. Hold still until it has been drawn, then bounce.
-      busyUntil.current = Date.now() + LANDING_DELAY_MS + 700;
-      tilt.value = withSpring(0, SWING);
-      const timeout = setTimeout(() => hop(4, 0.8, SNAPPY), LANDING_DELAY_MS);
-      return () => clearTimeout(timeout);
+      // The reply landed. Settle upright, wait for the conversation to finish
+      // drawing it, then bounce.
+      moveTilt(0, SWING);
+      landingSince.value = -1;
+      landingPending.value = true;
+      landingWatch.setActive(true);
+      return () => {
+        landingPending.value = false;
+        landingWatch.setActive(false);
+      };
     }
 
     if (!isBusy(state)) {
-      tilt.value = withSpring(0, SWING);
+      moveTilt(0, SWING);
     }
-  }, [hop, lift, reduceMotion, rest, squash, state, tilt]);
+  }, [
+    hopClockA,
+    hopClockB,
+    landingPending,
+    landingSince,
+    landingWatch,
+    lift,
+    moveTilt,
+    reduceMotion,
+    rest,
+    squash,
+    state,
+    tickClock,
+    tiltClock,
+    tiltMove,
+  ]);
 
   // The escapement: one tick per beat, alternating sides.
   useEffect(() => {
@@ -465,37 +558,39 @@ function useBotTileMotion({
     let side = 1;
     const tick = () => {
       if (Date.now() < busyUntil.current) return;
-      tilt.value = withSequence(
-        // Lean back a little before swinging over.
-        withTiming(-side * 1, { duration: 140, easing: EASE_IN_OUT }),
-        withSpring(side * TICK_ANGLE, SWING)
-      );
-      squash.value = withSequence(
-        withTiming(0.035, { duration: 140, easing: EASE_IN_OUT }),
-        withTiming(-0.03, { duration: 150, easing: EASE_OUT }),
-        withSpring(0, ELASTIC)
-      );
+      // Lean back a little, then swing over.
+      moveTilt(side * TICK_ANGLE, SWING, -side * 1);
+      tickClock.value = playClock();
       side = -side;
     };
     tick();
     const interval = setInterval(tick, beat);
     return () => clearInterval(interval);
-  }, [reduceMotion, squash, state, tilt]);
+  }, [moveTilt, reduceMotion, state, tickClock]);
 
   // A new tool call gets a hop.
   useEffect(() => {
     const previous = previousToolKey.current;
     previousToolKey.current = toolKey;
     if (reduceMotion || state !== 'working' || toolKey === previous) return;
-    hop(6);
+    hop(TOOL_HOP);
   }, [hop, reduceMotion, state, toolKey]);
 
   const tileStyle = useAnimatedStyle(() => {
-    const amount = squash.value + press.value;
+    const amount =
+      squash.value +
+      press.value +
+      tickSquashAt(ELASTIC, tickClock.value) +
+      hopSquashAt(hopShapeA.value, hopClockA.value) +
+      hopSquashAt(hopShapeB.value, hopClockB.value);
+    const height =
+      lift.value +
+      hopLiftAt(hopShapeA.value, hopClockA.value) +
+      hopLiftAt(hopShapeB.value, hopClockB.value);
     return {
       transform: [
-        { translateY: lift.value },
-        { rotate: `${tilt.value}deg` },
+        { translateY: height },
+        { rotate: `${tiltAt(tiltMove.value, tiltClock.value)}deg` },
         { scaleX: (1 + amount) * rest.value },
         { scaleY: (1 - amount) * rest.value },
       ],
@@ -510,6 +605,32 @@ function useBotTileMotion({
   }, [press]);
 
   return { tileStyle, pressIn, pressOut };
+}
+
+/** A clock that counts milliseconds from now until any gesture is over. */
+function playClock() {
+  'worklet';
+  return withSequence(
+    withTiming(0, { duration: 0 }),
+    withTiming(GESTURE_MS, { duration: GESTURE_MS, easing: Easing.linear })
+  );
+}
+
+type HopSlot = [SharedValue<Hop>, SharedValue<number>];
+
+/** Plays a hop in whichever slot is free next, from either thread. */
+function startHop(
+  shape: Hop,
+  slot: SharedValue<number>,
+  a: HopSlot,
+  b: HopSlot
+) {
+  'worklet';
+  const useA = slot.value === 0;
+  slot.value = useA ? 1 : 0;
+  const [shapeValue, clock] = useA ? a : b;
+  shapeValue.value = shape;
+  clock.value = playClock();
 }
 
 function isBusy(state: BotBaubleState) {
