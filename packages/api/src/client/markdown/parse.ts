@@ -40,23 +40,31 @@ function parseTree(markdown: string): Root {
 // Escapes the pipes inside code spans on table body rows (see
 // escapeCodeSpanPipes). Only the parsed tree knows which lines are table
 // rows: the same `\|` in a code span outside a table is a literal backslash.
-// Header rows are left alone, since their cell count has to match the
-// delimiter row for the table to exist at all.
+// Rows are located by source offset, which agrees with remark whatever the
+// line endings. Header rows are left alone, since their cell count has to
+// match the delimiter row for the table to exist at all.
 function escapeTableCodeSpanPipes(markdown: string, tree: Root): string {
-  const lines = markdown.split('\n');
-  let changed = false;
+  const rows: Array<{ start: number; end: number }> = [];
   visit<Table>(tree, 'table', (table) => {
     for (const row of table.children.slice(1)) {
-      const line = row.position?.start.line;
-      if (line === undefined) continue;
-      const escaped = escapeCodeSpanPipes(lines[line - 1]);
-      if (escaped !== lines[line - 1]) {
-        lines[line - 1] = escaped;
-        changed = true;
-      }
+      const start = row.position?.start.offset;
+      const end = row.position?.end.offset;
+      if (start === undefined || end === undefined) continue;
+      rows.push({ start, end });
     }
   });
-  return changed ? lines.join('\n') : markdown;
+  if (rows.length === 0) return markdown;
+  rows.sort((a, b) => a.start - b.start);
+
+  let out = '';
+  let cursor = 0;
+  for (const { start, end } of rows) {
+    out +=
+      markdown.slice(cursor, start) +
+      escapeCodeSpanPipes(markdown.slice(start, end));
+    cursor = end;
+  }
+  return out + markdown.slice(cursor);
 }
 
 // The tree and the Markdown it was parsed from, which differs from the input
