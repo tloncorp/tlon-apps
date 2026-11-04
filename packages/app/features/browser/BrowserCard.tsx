@@ -14,6 +14,7 @@ import {
 } from './BrowserSessionPreview';
 import { trustedBrowserViewerUrl } from './browserCredentialHandoff';
 
+import { BrowserWalletCard } from './BrowserWalletCard';
 import { BrowserSecureEntryAction } from './BrowserSecureEntryAction';
 
 const logger = createDevLogger('BrowserCard', false);
@@ -47,6 +48,8 @@ export function BrowserCard({
       />
     );
   }
+  if (card.type === 'browser-wallet')
+    return <BrowserWalletCard requestId={card.requestId} />;
   const session = card.type === 'browser-session';
   const approval = !session && card.loginApproval;
   const login = !session && card.presentation?.purpose === 'login';

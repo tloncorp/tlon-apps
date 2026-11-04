@@ -3,6 +3,8 @@
 // React Cosmos renderer along with the renderer config.
 import type { RendererConfig, UserModuleWrappers } from 'react-cosmos-core';
 
+import * as browserPaymentFixture from '../../packages/app/fixtures/BrowserPayment.fixture';
+
 import * as secureVaultFixture from '../../packages/app/fixtures/SecureVault.fixture';
 
 import * as fixture0 from './../../packages/app/fixtures/ActionSheet/AddGalleryPostSheet.fixture';
@@ -94,6 +96,9 @@ export const rendererConfig: RendererConfig = {
 };
 
 const fixtures = {
+  '../../packages/app/fixtures/BrowserPayment.fixture.tsx': {
+    module: browserPaymentFixture,
+  },
   '../../packages/app/fixtures/SecureVault.fixture.tsx': {
     module: secureVaultFixture,
   },

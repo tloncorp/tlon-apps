@@ -179,3 +179,35 @@ describe('browser owner sessions', () => {
     ).toHaveLength(1);
   });
 });
+
+it('reuses the owner session for either spelling of the bot moon', async () => {
+  await browserOwnerRequest(endpoint, '~moon', 'GET');
+  await browserOwnerRequest(endpoint, '~moon', 'GET');
+  await browserOwnerRequest(endpoint, 'moon', 'GET');
+  expect(state.authorize).toHaveBeenCalledOnce();
+});
+
+it('exchanges a new owner session when switching bots on the same service', async () => {
+  await browserOwnerRequest(endpoint, 'first-moon', 'GET');
+  await browserOwnerRequest(endpoint, 'second-moon', 'GET');
+  const exchanges = state.fetch.mock.calls.filter(([url]) =>
+    url.endsWith('/owner/sessions')
+  );
+  expect(
+    exchanges.map(([, options]) => JSON.parse(options.body).botMoon)
+  ).toEqual(['first-moon', 'second-moon']);
+});
+it('sends payment approval through owner auth once and never retries a lost response', async () => {
+  const payment = `${origin}/owner/wallet-actions/a9569797-ccae-4a4d-bd28-0772d351c8a4`;
+  await browserOwnerRequest(payment, 'moon', 'GET');
+  state.fetch.mockRejectedValue(new Error('connection lost'));
+  await expect(
+    browserOwnerRequest(payment + '/approve', 'moon', 'POST', {
+      confirmed: true,
+      payment_method_id: 'pm',
+    })
+  ).rejects.toThrow('connection lost');
+  expect(
+    state.fetch.mock.calls.filter(([url]) => url.endsWith('/approve'))
+  ).toHaveLength(1);
+});
