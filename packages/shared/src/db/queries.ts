@@ -365,6 +365,33 @@ export const getGroupsWithMemberThreshold = createReadQuery(
   ['groups']
 );
 
+/**
+ * The joined groups someone else is also a member of, by title. A big group's
+ * stored roster is partial, so a group can be missing until its full roster
+ * has been fetched.
+ */
+export const getSharedGroups = createReadQuery(
+  'getSharedGroups',
+  async ({ contactId }: { contactId: string }, ctx: QueryCtx) => {
+    const rows = await ctx.db
+      .select(getTableColumns($groups))
+      .from($chatMembers)
+      .innerJoin($groups, eq($groups.id, $chatMembers.chatId))
+      .where(
+        and(
+          eq($chatMembers.membershipType, 'group'),
+          eq($chatMembers.contactId, contactId),
+          // status is only set for invite flows; anything but 'invited' is a
+          // joined seat (see getJoinedGroupSeats).
+          or(isNull($chatMembers.status), ne($chatMembers.status, 'invited')),
+          eq($groups.currentUserIsMember, true)
+        )
+      );
+    return rows.sort((a, b) => (a.title ?? '').localeCompare(b.title ?? ''));
+  },
+  ['chatMembers', 'groups']
+);
+
 export const getGroups = createReadQuery(
   'getGroups',
   async (

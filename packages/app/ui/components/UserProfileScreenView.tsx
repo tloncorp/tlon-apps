@@ -2,6 +2,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as api from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
+import * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import { useCopy, useToast } from '@tloncorp/ui';
 import { triggerHaptic } from '@tloncorp/ui';
@@ -9,7 +10,13 @@ import { Button } from '@tloncorp/ui';
 import { Icon, type IconType } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
-import { ComponentProps, useCallback, useEffect, useMemo } from 'react';
+import {
+  ComponentProps,
+  ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+} from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ScrollView,
@@ -26,9 +33,8 @@ import { useContact, useCurrentUserId } from '../contexts/appDataContext';
 import { useNavigation as useContextNavigation } from '../contexts/navigation';
 import { useGroupTitle } from '../utils';
 import { ContactAvatar } from './Avatar';
-import { BotBadge } from './BotBadge';
 import { useHasBotPromptFiles, useIsOwnedBot } from './BotSystemPrompts';
-import { ContactName, useContactNameProps } from './ContactNameV2';
+import { ContactName } from './ContactNameV2';
 import { GroupAvatar } from './GroupAvatar';
 import { ListItem } from './ListItem';
 import {
@@ -61,6 +67,14 @@ export function UserProfileScreenView(props: Props) {
   const botId = api.getBotUserIdForUser(props.userId);
   // Every planet has a would-be Tlonbot @p; only show one we know exists.
   const botContact = useContact(botId);
+  const isOwnProfile = currentUserId === props.userId;
+  const isBot = domain.isBotContact({
+    id: props.userId,
+    botInfo: userContact?.botInfo,
+  });
+  const { data: sharedGroups } = store.useSharedGroups({
+    contactId: isOwnProfile ? undefined : props.userId,
+  });
   const pinnedGroups = useMemo(() => {
     return (
       userContact?.pinnedGroups?.flatMap((g) => (g.group ? [g.group] : [])) ??
@@ -109,9 +123,8 @@ export function UserProfileScreenView(props: Props) {
     [props]
   );
 
-  const canEdit = useMemo(() => {
-    return currentUserId === props.userId || userContact?.isContact;
-  }, [currentUserId, props.userId, userContact]);
+  const showsBotSettings =
+    !!props.onPressBotSettings || !!props.onPressScheduledTasks;
 
   return (
     <View flex={1} backgroundColor={theme.secondaryBackground.val}>
@@ -121,108 +134,513 @@ export function UserProfileScreenView(props: Props) {
           width: '100%',
           maxWidth: 600,
           marginHorizontal: 'auto',
-          gap: '$l',
           paddingBottom: insets.bottom + getTokenValue('$3xl'),
-          flexWrap: 'wrap',
-          flexDirection: 'row',
         }}
       >
-        <View paddingHorizontal={'$l'} width="100%">
-          <UserInfoRow
-            userId={props.userId}
-            hasNickname={!!userContact?.nickname?.length}
-          />
-          {userContact?.status && <View width="100%"></View>}
-        </View>
-
-        {currentUserId !== props.userId ? (
-          <ProfileButtons userId={props.userId} contact={userContact} />
-        ) : null}
-
-        {ownerId ? (
-          <LinkedProfileCard
-            title="Owner"
-            contactId={ownerId}
-            testID="ProfileOwnerCard"
-            onPress={props.onPressUserProfile}
-          />
-        ) : botContact ? (
-          <LinkedProfileCard
-            title="Tlonbot"
-            contactId={botId}
-            testID="ProfileTlonbotCard"
-            onPress={props.onPressUserProfile}
-          />
-        ) : null}
-
-        {props.onPressBotSettings ? (
-          <ProfileLinkItem
-            icon="Face"
-            title="Bot settings"
-            onPress={props.onPressBotSettings}
-          />
-        ) : null}
-
-        {props.onPressScheduledTasks ? (
-          <ProfileLinkItem
-            icon="Clock"
-            title="Scheduled tasks"
-            value={
-              props.scheduledTaskCount === undefined
-                ? undefined
-                : `${props.scheduledTaskCount}`
-            }
-            testID="ScheduledTasksButton"
-            onPress={props.onPressScheduledTasks}
-          />
-        ) : null}
-
-        {/* Data-gated rather than riding the hosted-bot check: our steward
-            only mirrors prompt files for bots that configured us as their
-            owner (including a self-owned bot on this very ship), so the
-            mirror is itself the ownership signal. */}
-        {props.onPressPromptFiles && hasPromptFiles ? (
-          <ProfileLinkItem
-            icon="ChannelNote"
-            title="Prompt files"
-            testID="BotPromptFilesButton"
-            onPress={props.onPressPromptFiles}
-          />
-        ) : null}
-
-        {userContact?.status && (
-          <StatusDisplay status={userContact?.status ?? ''} />
-        )}
-        <BioDisplay bio={userContact?.bio ?? ''} />
-
-        <XStack gap="$l" width="100%" flexWrap="wrap" paddingHorizontal={'$xl'}>
-          {twitterAttestation && (
-            <View width="48%" height={120}>
-              <TwitterAttestDisplay attestation={twitterAttestation} />
-            </View>
-          )}
-
-          {phoneAttestation && (
-            <View width="48%" height={120}>
-              <PhoneAttestDisplay attestation={phoneAttestation} />
-            </View>
-          )}
-
-          <View width="48%" height={120}>
-            <StatusBlock status={nodeStatus} label="Node" />
-          </View>
-
-          <View width="48%" height={120}>
-            <StatusBlock status={sponsorStatus} label="Sponsor" />
-          </View>
-        </XStack>
-
-        <PinnedGroupsDisplay
-          groups={pinnedGroups}
-          onPressGroup={onPressGroup}
+        <ProfileHeader
+          userId={props.userId}
+          ownerId={ownerId}
+          isBot={isBot}
+          hasNickname={!!userContact?.nickname?.length}
         />
+
+        {!isOwnProfile ? (
+          <View marginTop="$3xl">
+            <ProfileButtons userId={props.userId} contact={userContact} />
+          </View>
+        ) : null}
+
+        <YStack marginTop="$2xl" gap="$l" paddingHorizontal="$xl">
+          {ownerId ? (
+            <OwnerRow
+              ownerId={ownerId}
+              isYours={ownerId === currentUserId}
+              onPress={props.onPressUserProfile}
+            />
+          ) : null}
+
+          {isBot ? <BotStatusCard contactId={props.userId} /> : null}
+
+          {showsBotSettings ? (
+            <BotSettingsCard
+              onPressBotSettings={props.onPressBotSettings}
+              onPressScheduledTasks={props.onPressScheduledTasks}
+              scheduledTaskCount={props.scheduledTaskCount}
+            />
+          ) : null}
+
+          {/* Data-gated rather than riding the hosted-bot check: our steward
+              only mirrors prompt files for bots that configured us as their
+              owner (including a self-owned bot on this very ship), so the
+              mirror is itself the ownership signal. A bot with a settings
+              card reaches them from its settings. */}
+          {!showsBotSettings && props.onPressPromptFiles && hasPromptFiles ? (
+            <ProfileLinkItem
+              icon="ChannelNote"
+              title="Prompt files"
+              testID="BotPromptFilesButton"
+              onPress={props.onPressPromptFiles}
+            />
+          ) : null}
+
+          {userContact?.status ? (
+            <StatusDisplay status={userContact.status} />
+          ) : null}
+          <BioDisplay bio={userContact?.bio ?? ''} />
+
+          {!ownerId && botContact ? (
+            <BotsCard botId={botId} onPress={props.onPressUserProfile} />
+          ) : null}
+
+          <XStack gap="$l" width="100%" flexWrap="wrap">
+            {twitterAttestation && (
+              <View width="48%" flexGrow={1} height={120}>
+                <TwitterAttestDisplay attestation={twitterAttestation} />
+              </View>
+            )}
+
+            {phoneAttestation && (
+              <View width="48%" flexGrow={1} height={120}>
+                <PhoneAttestDisplay attestation={phoneAttestation} />
+              </View>
+            )}
+
+            <View width="48%" flexGrow={1} height={120}>
+              <StatusBlock status={nodeStatus} label="Node" />
+            </View>
+
+            <View width="48%" flexGrow={1} height={120}>
+              <StatusBlock status={sponsorStatus} label="Sponsor" />
+            </View>
+          </XStack>
+
+          <PinnedGroupsList groups={pinnedGroups} onPressGroup={onPressGroup} />
+
+          {sharedGroups?.length ? (
+            <GroupsListCard
+              title={`In ${sharedGroups.length} of your workspaces`}
+              groups={sharedGroups}
+              onPressGroup={onPressGroup}
+              testID="ProfileSharedGroups"
+            />
+          ) : null}
+        </YStack>
       </ScrollView>
     </View>
+  );
+}
+
+/** The name under the avatar ends with this when the profile is a bot's. */
+function BotTag({ onCard }: { onCard?: boolean }) {
+  return (
+    <View
+      // On the page it is a white chip; inside a white card, a gray one.
+      backgroundColor={onCard ? '$secondaryBackground' : '$background'}
+      borderRadius="$m"
+      paddingHorizontal="$m"
+      paddingVertical="$2xs"
+      flexShrink={0}
+      testID="ProfileBotTag"
+    >
+      <Text size="$label/s" color="$secondaryText">
+        Bot
+      </Text>
+    </View>
+  );
+}
+
+function OwnerRow({
+  ownerId,
+  isYours,
+  onPress,
+}: {
+  ownerId: string;
+  isYours: boolean;
+  onPress: (contactId: string) => void;
+}) {
+  const handlePress = useCallback(() => {
+    onPress(ownerId);
+    triggerHaptic('baseButtonClick');
+  }, [onPress, ownerId]);
+
+  return (
+    <Pressable
+      borderRadius="$2xl"
+      onPress={handlePress}
+      testID="ProfileOwnerCard"
+    >
+      <XStack
+        alignItems="center"
+        gap="$l"
+        padding="$xl"
+        borderRadius="$2xl"
+        backgroundColor="$background"
+      >
+        <ContactAvatar contactId={ownerId} size="$4xl" />
+        <YStack flex={1} minWidth={0} gap="$xs">
+          {isYours ? (
+            <Text size="$label/l">This is your bot</Text>
+          ) : (
+            <Text size="$label/l" numberOfLines={1}>
+              <ContactName contactId={ownerId} expandLongIds />
+            </Text>
+          )}
+          <Text size="$label/m" color="$secondaryText">
+            {isYours ? 'Only you can change how it works' : 'Owns this bot'}
+          </Text>
+        </YStack>
+        {isYours ? null : <Icon type="ChevronRight" color="$tertiaryText" />}
+      </XStack>
+    </Pressable>
+  );
+}
+
+function botVersionLabel(contact: db.Contact | null | undefined) {
+  const info = domain.parseBotInfo(contact?.botInfo);
+  return info ? `Tlonbot ${info.version}` : null;
+}
+
+/**
+ * Whether the bot says it is running. Bots publish only online or offline, so
+ * these are the two states shown.
+ */
+function BotStatusCard({ contactId }: { contactId: string }) {
+  const contact = useContact(contactId);
+  const liveness = domain.botLivenessOf(contact);
+  const version = botVersionLabel(contact);
+  if (!liveness && !version) {
+    return null;
+  }
+  return (
+    <PaddedBlock testID="ProfileBotStatus">
+      <XStack justifyContent="space-between" alignItems="center">
+        <Text size="$body" color="$tertiaryText">
+          Status
+        </Text>
+        {version ? (
+          <Text size="$label/s" color="$secondaryText">
+            {version}
+          </Text>
+        ) : null}
+      </XStack>
+      {liveness ? (
+        <XStack
+          gap="$xs"
+          padding="$xs"
+          borderRadius="$2xl"
+          backgroundColor="$secondaryBackground"
+        >
+          <StatusSegment label="Offline" active={liveness === 'offline'} />
+          <StatusSegment label="Online" active={liveness === 'online'} />
+        </XStack>
+      ) : null}
+    </PaddedBlock>
+  );
+}
+
+function StatusSegment({ label, active }: { label: string; active: boolean }) {
+  return (
+    <XStack
+      flex={1}
+      height="$3.5xl"
+      borderRadius="$xl"
+      alignItems="center"
+      justifyContent="center"
+      gap="$s"
+      backgroundColor={active ? '$primaryText' : 'transparent'}
+    >
+      {active ? (
+        <View
+          width={6}
+          height={6}
+          borderRadius={3}
+          backgroundColor={
+            label === 'Online' ? '$positiveActionText' : '$tertiaryText'
+          }
+        />
+      ) : null}
+      <Text
+        size="$label/m"
+        color={active ? '$background' : '$tertiaryText'}
+        accessibilityState={{ selected: active }}
+      >
+        {label}
+      </Text>
+    </XStack>
+  );
+}
+
+/**
+ * The owner's bot settings at a glance. Model and connections are the values
+ * the bot settings screen last loaded; a row shows once there is one.
+ */
+function BotSettingsCard({
+  onPressBotSettings,
+  onPressScheduledTasks,
+  scheduledTaskCount,
+}: {
+  onPressBotSettings?: () => void;
+  onPressScheduledTasks?: () => void;
+  scheduledTaskCount?: number;
+}) {
+  const currentUserId = useCurrentUserId();
+  const summary = db.botSettingsSummary.useValue();
+  const remembered =
+    summary && summary.ship === currentUserId.replace(/^~/, '')
+      ? summary
+      : null;
+
+  const rows: {
+    key: string;
+    title: string;
+    value?: ReactNode;
+    onPress?: () => void;
+    testID?: string;
+  }[] = [];
+  if (onPressBotSettings && remembered?.models) {
+    rows.push({
+      key: 'model',
+      title: 'Model',
+      value: remembered.models,
+      onPress: onPressBotSettings,
+    });
+  }
+  if (onPressScheduledTasks) {
+    rows.push({
+      key: 'tasks',
+      title: 'Scheduled tasks',
+      value: (
+        <XStack alignItems="center" gap="$s">
+          <Icon type="Clock" size="$m" color="$primaryText" />
+          {scheduledTaskCount !== undefined ? (
+            <Text size="$body">{scheduledTaskCount}</Text>
+          ) : null}
+        </XStack>
+      ),
+      onPress: onPressScheduledTasks,
+      testID: 'ScheduledTasksButton',
+    });
+  }
+  if (onPressBotSettings && remembered?.connections) {
+    rows.push({
+      key: 'connections',
+      title: 'Connections',
+      value: remembered.connections,
+      onPress: onPressBotSettings,
+    });
+  }
+
+  return (
+    <PaddedBlock gap="$s" paddingBottom="$l" testID="ProfileBotSettings">
+      <XStack justifyContent="space-between" alignItems="center">
+        <Text size="$body" color="$tertiaryText">
+          Bot settings
+        </Text>
+        {onPressBotSettings ? (
+          <Pressable
+            onPress={() => {
+              onPressBotSettings();
+              triggerHaptic('baseButtonClick');
+            }}
+            testID="BotSettingsButton"
+          >
+            <XStack alignItems="center" gap="$xs">
+              <Text size="$label/m" color="$secondaryText">
+                Open
+              </Text>
+              <Icon type="ChevronRight" size="$s" color="$tertiaryText" />
+            </XStack>
+          </Pressable>
+        ) : null}
+      </XStack>
+      <YStack>
+        {rows.map((row, i) => (
+          <Pressable
+            key={row.key}
+            onPress={
+              row.onPress
+                ? () => {
+                    row.onPress?.();
+                    triggerHaptic('baseButtonClick');
+                  }
+                : undefined
+            }
+            testID={row.testID}
+          >
+            <XStack
+              minHeight="$4xl"
+              alignItems="center"
+              justifyContent="space-between"
+              gap="$l"
+              borderTopWidth={i === 0 ? 0 : 1}
+              borderColor="$border"
+            >
+              <Text size="$body" color="$secondaryText">
+                {row.title}
+              </Text>
+              {typeof row.value === 'string' ? (
+                <Text size="$body" numberOfLines={1} flexShrink={1}>
+                  {row.value}
+                </Text>
+              ) : (
+                row.value
+              )}
+            </XStack>
+          </Pressable>
+        ))}
+      </YStack>
+    </PaddedBlock>
+  );
+}
+
+/** A person's own bot, linked from their profile. */
+function BotsCard({
+  botId,
+  onPress,
+}: {
+  botId: string;
+  onPress: (contactId: string) => void;
+}) {
+  const botContact = useContact(botId);
+  const version = botVersionLabel(botContact);
+  const handlePress = useCallback(() => {
+    onPress(botId);
+    triggerHaptic('baseButtonClick');
+  }, [botId, onPress]);
+
+  return (
+    <Pressable
+      borderRadius="$2xl"
+      onPress={handlePress}
+      testID="ProfileTlonbotCard"
+    >
+      <PaddedBlock>
+        <Text size="$body" color="$tertiaryText">
+          Bots
+        </Text>
+        <XStack alignItems="center" gap="$l">
+          <ContactAvatar contactId={botId} size="$4xl" />
+          <YStack flex={1} minWidth={0} gap="$xs">
+            <XStack alignItems="center" gap="$s">
+              <Text size="$label/l" numberOfLines={1} flexShrink={1}>
+                <ContactName contactId={botId} />
+              </Text>
+              <BotTag onCard />
+            </XStack>
+            {version ? (
+              <Text size="$label/m" color="$secondaryText">
+                {version}
+              </Text>
+            ) : null}
+          </YStack>
+          <Icon type="ChevronRight" color="$tertiaryText" />
+        </XStack>
+      </PaddedBlock>
+    </Pressable>
+  );
+}
+
+function PinnedGroupsList({
+  groups,
+  onPressGroup,
+}: {
+  groups: db.Group[];
+  onPressGroup: (group: db.Group) => void;
+}) {
+  const pinnedGroupsKey = useMemo(() => {
+    return groups.map((g) => g.id).join(',');
+  }, [groups]);
+
+  useEffect(() => {
+    if (pinnedGroupsKey.length) {
+      store.syncGroupPreviews(pinnedGroupsKey.split(','));
+    }
+  }, [pinnedGroupsKey]);
+
+  if (!groups.length) {
+    return null;
+  }
+  return (
+    <GroupsListCard
+      title="Pinned workspaces"
+      groups={groups}
+      onPressGroup={onPressGroup}
+      testID="ProfilePinnedGroups"
+    />
+  );
+}
+
+function GroupsListCard({
+  title,
+  groups,
+  onPressGroup,
+  testID,
+}: {
+  title: string;
+  groups: db.Group[];
+  onPressGroup: (group: db.Group) => void;
+  testID?: string;
+}) {
+  return (
+    <YStack
+      borderRadius="$2xl"
+      backgroundColor="$background"
+      paddingTop="$2xl"
+      paddingBottom="$s"
+      testID={testID}
+    >
+      <Text
+        size="$body"
+        color="$tertiaryText"
+        paddingHorizontal="$2xl"
+        paddingBottom="$s"
+      >
+        {title}
+      </Text>
+      {groups.map((group, i) => (
+        <GroupListRow
+          key={group.id}
+          model={group}
+          first={i === 0}
+          onPress={onPressGroup}
+        />
+      ))}
+    </YStack>
+  );
+}
+
+function GroupListRow({
+  model,
+  first,
+  onPress,
+}: {
+  model: db.Group;
+  first: boolean;
+  onPress: (group: db.Group) => void;
+}) {
+  const handlePress = useBoundHandler(model, onPress);
+  const title = useGroupTitle(model);
+  return (
+    <Pressable onPress={handlePress}>
+      {first ? null : (
+        <View
+          height={1}
+          marginLeft={getTokenValue('$2xl') + getTokenValue('$4xl') + 12}
+          backgroundColor="$border"
+        />
+      )}
+      <XStack
+        alignItems="center"
+        gap="$l"
+        paddingHorizontal="$2xl"
+        paddingVertical="$m"
+      >
+        <GroupAvatar model={model} size="$4xl" />
+        <Text size="$label/l" flex={1} numberOfLines={1}>
+          {title}
+        </Text>
+      </XStack>
+    </Pressable>
   );
 }
 
@@ -245,7 +663,7 @@ function ProfileLinkItem({
   }, [onPress]);
 
   return (
-    <View paddingHorizontal="$xl" width="100%">
+    <View width="100%">
       <Pressable
         borderRadius="$2xl"
         onPress={handlePress}
@@ -272,61 +690,6 @@ function ProfileLinkItem({
             backgroundColor="$transparent"
           />
         </ListItem>
-      </Pressable>
-    </View>
-  );
-}
-
-function LinkedProfileCard({
-  title,
-  contactId,
-  testID,
-  onPress,
-}: {
-  title: string;
-  contactId: string;
-  testID: string;
-  onPress: (contactId: string) => void;
-}) {
-  const contact = useContact(contactId);
-  // ContactName doesn't wrap on web, and a moon's @p must stay readable on a
-  // phone, so the @p line renders as plain text.
-  const contactIdProps = useContactNameProps({
-    contactId,
-    mode: 'contactId',
-    expandLongIds: true,
-  });
-  const hasNickname = !!contact?.nickname?.length;
-
-  const handlePress = useCallback(() => {
-    onPress(contactId);
-    triggerHaptic('baseButtonClick');
-  }, [contactId, onPress]);
-
-  return (
-    <View paddingHorizontal="$xl" width="100%">
-      <Pressable borderRadius="$2xl" onPress={handlePress} testID={testID}>
-        <WidgetPane>
-          <WidgetPane.Title>{title}</WidgetPane.Title>
-          <XStack alignItems="center" gap="$l">
-            <ContactAvatar contactId={contactId} size="$4xl" />
-            <YStack flex={1} minWidth={0} gap="$m">
-              {hasNickname ? (
-                <Text size="$label/l" numberOfLines={1}>
-                  <ContactName contactId={contactId} mode="nickname" />
-                </Text>
-              ) : null}
-              <Text
-                size={hasNickname ? '$label/m' : '$label/l'}
-                color={hasNickname ? '$tertiaryText' : '$primaryText'}
-                aria-label={contactIdProps['aria-label']}
-              >
-                {contactIdProps.children}
-              </Text>
-            </YStack>
-            <Icon type="ChevronRight" color="$tertiaryText" />
-          </XStack>
-        </WidgetPane>
       </Pressable>
     </View>
   );
@@ -412,14 +775,12 @@ export function BioDisplay({
   ...rest
 }: { bio: string } & ComponentProps<typeof WidgetPane>) {
   return bio.length ? (
-    <View paddingHorizontal={'$xl'} width={'100%'}>
-      <WidgetPane borderRadius="$2xl" padding="$2xl" width="100%" {...rest}>
-        <WidgetPane.Title>About</WidgetPane.Title>
-        <Text size="$body" trimmed={false}>
-          {bio}
-        </Text>
-      </WidgetPane>
-    </View>
+    <WidgetPane borderRadius="$2xl" padding="$2xl" width="100%" {...rest}>
+      <WidgetPane.Title>About</WidgetPane.Title>
+      <Text size="$body" trimmed={false}>
+        {bio}
+      </Text>
+    </WidgetPane>
   ) : null;
 }
 
@@ -428,104 +789,21 @@ export function StatusDisplay({
   ...rest
 }: { status: string } & ComponentProps<typeof WidgetPane>) {
   return (
-    <View paddingHorizontal={'$xl'} width={'100%'}>
-      <WidgetPane borderRadius="$2xl" padding="$2xl" width="100%" {...rest}>
-        <WidgetPane.Title>Status</WidgetPane.Title>
-        <Text size="$body" trimmed={false}>
-          {status}
-        </Text>
-      </WidgetPane>
-    </View>
+    <WidgetPane borderRadius="$2xl" padding="$2xl" width="100%" {...rest}>
+      <WidgetPane.Title>Status</WidgetPane.Title>
+      <Text size="$body" trimmed={false}>
+        {status}
+      </Text>
+    </WidgetPane>
   );
 }
 
-export function PinnedGroupsDisplay({
-  groups,
-  onPressGroup,
-  itemProps,
-}: {
-  groups: db.Group[];
-  onPressGroup: (group: db.Group) => void;
-  itemProps?: Omit<ComponentProps<typeof PaddedBlock>, 'onPress'>;
+function ProfileHeader(props: {
+  userId: string;
+  ownerId: string | null;
+  isBot: boolean;
+  hasNickname: boolean;
 }) {
-  const pinnedGroupsKey = useMemo(() => {
-    return groups.map((g) => g.id).join(',');
-  }, [groups]);
-
-  useEffect(() => {
-    if (pinnedGroupsKey.length) {
-      store.syncGroupPreviews(pinnedGroupsKey.split(','));
-    }
-  }, [pinnedGroupsKey]);
-
-  if (!groups.length) {
-    return null;
-  }
-
-  return (
-    <View
-      width="100%"
-      flexDirection="row"
-      flexWrap="wrap"
-      gap="$l"
-      paddingHorizontal={'$xl'}
-    >
-      {groups.map((group, i) => {
-        return (
-          <GroupBlock
-            key={group.id}
-            model={group}
-            width={i === 0 ? '100%' : '48%'}
-            showDescription={i === 0}
-            onPress={onPressGroup}
-            {...itemProps}
-          />
-        );
-      })}
-    </View>
-  );
-}
-
-type GroupBlockProps = {
-  model: db.Group;
-  onPress: (group: db.Group) => void;
-  showDescription?: boolean;
-} & Omit<ComponentProps<typeof PaddedBlock>, 'onPress'>;
-
-function GroupBlock({
-  model,
-  onPress,
-  showDescription,
-  ...rest
-}: GroupBlockProps) {
-  const handlePress = useBoundHandler(model, onPress);
-  const title = useGroupTitle(model);
-
-  return (
-    <PaddedBlock alignItems="center" onPress={handlePress} {...rest}>
-      <GroupAvatar model={model} size="$4xl" />
-      <YStack gap="$m" alignItems="center">
-        <Text size="$label/s" textAlign="center">
-          {title}
-        </Text>
-
-        {showDescription && (
-          <Text
-            size="$label/s"
-            textAlign="center"
-            color="$tertiaryText"
-            maxWidth={150}
-            numberOfLines={3}
-          >
-            {model.description}
-          </Text>
-        )}
-      </YStack>
-    </PaddedBlock>
-  );
-}
-
-function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
   const { doCopy } = useCopy(props.userId);
   const showToast = useToast();
   const navigation =
@@ -553,46 +831,74 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
     : { mode: 'contactId' as const };
 
   return (
-    <XStack alignItems="center" padding="$l" gap="$xl" width={'100%'}>
+    <YStack alignItems="center" paddingTop="$l" paddingHorizontal="$xl">
+      <View position="relative">
+        <Pressable
+          onPress={handleAvatarPress}
+          accessibilityLabel={`Profile avatar color ${contact?.color ?? 'default'}`}
+          testID="ProfileAvatar"
+        >
+          <View {...avatarShadow}>
+            <ContactAvatar contactId={props.userId} size="$9xl" />
+          </View>
+        </Pressable>
+        {props.ownerId ? (
+          // The owner, tucked on the bot's avatar. The owner row below names
+          // them; this keeps who is behind the bot in view with the bot.
+          <View
+            position="absolute"
+            right={-getTokenValue('$m')}
+            bottom={-getTokenValue('$m')}
+            padding="$xs"
+            borderRadius="$l"
+            backgroundColor="$secondaryBackground"
+            testID="ProfileOwnerBadge"
+          >
+            <ContactAvatar contactId={props.ownerId} size="$3xl" />
+          </View>
+        ) : null}
+      </View>
       <Pressable
-        onPress={handleAvatarPress}
-        accessibilityLabel={`Profile avatar color ${contact?.color ?? 'default'}`}
-        testID="ProfileAvatar"
+        marginTop="$xl"
+        maxWidth="100%"
+        onPress={handleCopy}
+        alignItems="center"
       >
-        <ContactAvatar contactId={props.userId} size="$5xl" />
-      </Pressable>
-      <Pressable flex={1} minWidth={0} onPress={handleCopy}>
-        <YStack justifyContent="center">
-          <XStack alignItems="center" gap="$s">
+        <XStack alignItems="center" gap="$s" maxWidth="100%">
+          <ContactName
+            contactId={props.userId}
+            fontSize={28}
+            lineHeight={34}
+            numberOfLines={1}
+            color="$primaryText"
+            flexShrink={1}
+            minWidth={0}
+            {...primaryNameProps}
+          />
+          {props.isBot ? <BotTag /> : null}
+        </XStack>
+        {props.hasNickname ? (
+          <Text size="$label/l" color="$secondaryText" marginTop="$xs">
             <ContactName
               contactId={props.userId}
-              fontSize={24}
-              lineHeight={32}
-              maxWidth="100%"
-              numberOfLines={1}
-              color="$primaryText"
-              flex={1}
-              minWidth={0}
-              {...primaryNameProps}
+              mode="contactId"
+              expandLongIds
             />
-            <BotBadge contactId={props.userId} />
-          </XStack>
-          {props.hasNickname && (
-            <XStack alignItems="center">
-              <Text color="$secondaryText">
-                <ContactName
-                  contactId={props.userId}
-                  mode="contactId"
-                  expandLongIds
-                />
-              </Text>
-            </XStack>
-          )}
-        </YStack>
+          </Text>
+        ) : null}
       </Pressable>
-    </XStack>
+    </YStack>
   );
 }
+
+// A small lift under the header avatar, the one shadow on the screen.
+const avatarShadow = {
+  borderRadius: '$xl',
+  shadowColor: '#000000',
+  shadowOpacity: 0.14,
+  shadowRadius: 12,
+  shadowOffset: { width: 0, height: 6 },
+} as const;
 
 function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
   const navContext = useContextNavigation();
