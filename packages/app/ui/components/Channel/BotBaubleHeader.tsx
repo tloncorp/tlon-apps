@@ -55,6 +55,10 @@ const AVATAR_SIZE = 64;
 // The glyph fills the tile edge to edge; only a soft shadow sets it off.
 const TILE_SIZE = AVATAR_SIZE;
 const TILE_RADIUS = 16;
+// iOS doesn't antialias the edges of a rotated layer, so the tile is drawn
+// with a transparent margin and rasterized: the visible edge then sits inside
+// the bitmap, which is filtered smoothly as it turns.
+const EDGE_MARGIN = 2;
 const AVATAR_RADIUS = TILE_RADIUS;
 const BOTTOM_GAP = 8;
 const NAME_HEIGHT = mobileTypeStyles['$label/l'].lineHeight + 4;
@@ -71,10 +75,13 @@ const RESERVED_HEIGHT =
 const EASE_IN_OUT = Easing.bezier(0.65, 0, 0.35, 1);
 const EASE_OUT = Easing.bezier(0.16, 1, 0.3, 1);
 const EASE_IN = Easing.bezier(0.55, 0, 1, 0.45);
-const ELASTIC = { damping: 9, stiffness: 320, mass: 0.7 };
-const SWING = { damping: 11, stiffness: 220, mass: 0.7 };
+const ELASTIC = { damping: 7.8, stiffness: 320, mass: 0.7 };
+const SWING = { damping: 10, stiffness: 220, mass: 0.7 };
 const HEAVY = { damping: 16, stiffness: 70, mass: 1 };
 const TICK_ANGLE = 2.5;
+// The reply's bounce waits until the new message has been drawn. Started
+// together, the list's work starves the bounce and it stutters.
+const LANDING_DELAY_MS = 400;
 
 const hiddenHeaderOptions: NativeStackNavigationOptions = {
   headerShown: false,
@@ -246,7 +253,10 @@ export function BotBaubleHeader({
           testID="BotBaubleTile"
           style={styles.tilePressable}
         >
-          <Animated.View style={[styles.tile, motion.tileStyle]}>
+          <Animated.View
+            shouldRasterizeIOS
+            style={[styles.tile, motion.tileStyle]}
+          >
             {/* One glyph of the bot's sigil, in the bot's own colors. */}
             <ContactAvatar
               contactId={botId}
@@ -432,9 +442,11 @@ function useBotTileMotion({
     }
 
     if (isBusy(previous) && state === 'idle') {
-      // The reply landed.
-      hop(4);
-      return;
+      // The reply landed. Hold still until it has been drawn, then bounce.
+      busyUntil.current = Date.now() + LANDING_DELAY_MS + 700;
+      tilt.value = withSpring(0, SWING);
+      const timeout = setTimeout(() => hop(4), LANDING_DELAY_MS);
+      return () => clearTimeout(timeout);
     }
 
     if (!isBusy(state)) {
@@ -579,9 +591,10 @@ const styles = StyleSheet.create({
   },
   tile: {
     zIndex: 1,
-    width: TILE_SIZE,
-    height: TILE_SIZE,
-    borderRadius: TILE_RADIUS,
+    width: TILE_SIZE + 2 * EDGE_MARGIN,
+    height: TILE_SIZE + 2 * EDGE_MARGIN,
+    margin: -EDGE_MARGIN,
+    padding: EDGE_MARGIN,
     alignItems: 'center',
     justifyContent: 'center',
     // Squash and lean from the bottom edge, as if resting on a surface.
