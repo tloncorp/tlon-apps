@@ -8,14 +8,20 @@ import {
 import type { ConversationComputingState } from './useConversationComputingState';
 
 const thinking: ConversationComputingState = {
-  ships: [{ ship: '~bot', label: 'Thinking...', toolCalls: [] }],
+  ships: [
+    { ship: '~bot', label: 'Thinking...', toolCalls: [], activeToolCalls: [] },
+  ],
   label: 'Thinking...',
   toolCalls: [],
+  activeToolCalls: [],
 };
+// One tool call whose label is the status text: the row's list drops it, but
+// the bot is still working.
 const working: ConversationComputingState = {
   ships: [],
   label: 'Checking the web',
-  toolCalls: [{ toolName: 'web_fetch', label: 'Checking the web' }],
+  toolCalls: [],
+  activeToolCalls: [{ toolName: 'web_fetch', label: 'Checking the web' }],
 };
 
 const idleIndicator = { visible: false, computingState: null };

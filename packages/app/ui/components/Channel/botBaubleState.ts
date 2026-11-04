@@ -32,7 +32,7 @@ export function getBotBaubleState({
     return 'offline';
   }
   if (thinking.visible) {
-    return (thinking.computingState?.toolCalls.length ?? 0) > 0
+    return (thinking.computingState?.activeToolCalls.length ?? 0) > 0
       ? 'working'
       : 'thinking';
   }

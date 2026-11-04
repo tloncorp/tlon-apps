@@ -177,7 +177,7 @@ export function BotBaubleHeader({
     connectionStatus,
   });
   const statusText = getBotBaubleStatusText(state, thinking.label);
-  const toolKey = thinking.computingState?.toolCalls
+  const toolKey = thinking.computingState?.activeToolCalls
     .map((call) => call.label)
     .join('|');
   const motion = useBotTileMotion({ state, reduceMotion, toolKey });
