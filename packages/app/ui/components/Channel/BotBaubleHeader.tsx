@@ -78,6 +78,8 @@ const EASE_IN = Easing.bezier(0.55, 0, 1, 0.45);
 const ELASTIC = { damping: 7.8, stiffness: 320, mass: 0.7 };
 const SWING = { damping: 10, stiffness: 220, mass: 0.7 };
 const HEAVY = { damping: 16, stiffness: 70, mass: 1 };
+// The reply's bounce settles faster, with the same bounce.
+const SNAPPY = { damping: 9, stiffness: 420, mass: 0.7 };
 const TICK_ANGLE = 2.5;
 // The reply's bounce waits until the new message has been drawn. Started
 // together, the list's work starves the bounce and it stutters.
@@ -379,27 +381,29 @@ function useBotTileMotion({
   // A hop or bounce owns the tile until it lands; ticks wait their turn.
   const busyUntil = useRef(0);
 
+  // `tempo` scales every beat of the hop; below 1 is quicker.
   const hop = useCallback(
-    (height: number) => {
-      busyUntil.current = Date.now() + 700;
+    (height: number, tempo = 1, settle = ELASTIC) => {
+      const beat = (ms: number) => Math.round(ms * tempo);
+      busyUntil.current = Date.now() + beat(700);
       tilt.value = withSpring(0, SWING);
       lift.value = withSequence(
-        withTiming(0, { duration: 120 }),
-        withTiming(-height, { duration: 200, easing: EASE_OUT }),
-        withTiming(0, { duration: 170, easing: EASE_IN })
+        withTiming(0, { duration: beat(120) }),
+        withTiming(-height, { duration: beat(200), easing: EASE_OUT }),
+        withTiming(0, { duration: beat(170), easing: EASE_IN })
       );
       squash.value = withSequence(
         // Crouch.
-        withTiming(0.07, { duration: 120, easing: EASE_IN_OUT }),
+        withTiming(0.07, { duration: beat(120), easing: EASE_IN_OUT }),
         // Launch, stretched.
-        withTiming(-0.06, { duration: 110, easing: EASE_OUT }),
+        withTiming(-0.06, { duration: beat(110), easing: EASE_OUT }),
         // Round out at the top.
-        withTiming(0, { duration: 160, easing: EASE_IN_OUT }),
+        withTiming(0, { duration: beat(160), easing: EASE_IN_OUT }),
         // Stretch into the fall.
-        withTiming(-0.03, { duration: 100, easing: EASE_IN }),
+        withTiming(-0.03, { duration: beat(100), easing: EASE_IN }),
         // Land.
-        withTiming(0.08, { duration: 70, easing: EASE_OUT }),
-        withSpring(0, ELASTIC)
+        withTiming(0.08, { duration: beat(70), easing: EASE_OUT }),
+        withSpring(0, settle)
       );
     },
     [lift, squash, tilt]
@@ -445,7 +449,7 @@ function useBotTileMotion({
       // The reply landed. Hold still until it has been drawn, then bounce.
       busyUntil.current = Date.now() + LANDING_DELAY_MS + 700;
       tilt.value = withSpring(0, SWING);
-      const timeout = setTimeout(() => hop(4), LANDING_DELAY_MS);
+      const timeout = setTimeout(() => hop(4, 0.8, SNAPPY), LANDING_DELAY_MS);
       return () => clearTimeout(timeout);
     }
 
