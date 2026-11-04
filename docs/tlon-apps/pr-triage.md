@@ -45,7 +45,20 @@ open, reopen, ready, push, or PR edits. Codex activity has two detection paths:
 
 Codex-triggered inference waits for a completed code review at the current head.
 While it is pending, existing automatic routing is withdrawn without inference.
-Observer completions queue behind active analysis; identical already-published
+
+Every analysis also waits for the head's checks: while any check run is not
+completed, or any commit status context's latest state is `pending`, the gate
+withdraws routing and the summary says it is waiting. The PR CI workflows
+(`CI (Test and Build)`, `OpenClaw Plugin CI`, `Feature Map`,
+`Agent QA harness checks`, `PR triage tooling checks`) signal triage through
+`workflow_run` when they complete, so the last one to finish starts the
+analysis once the Codex review is also complete. The gate verifies that the run
+is a `pull_request` run for the PR's current head in this repository, and that
+the run's triggering actor has write access. A new PR
+workflow belongs in that list too; otherwise triage waits for its checks but is
+not started when they finish.
+
+Observer and CI completions queue behind active analysis; identical already-published
 head/evidence fingerprints are skipped. New or edited findings change that
 fingerprint and request another assessment. The triage bot's own comments are
 excluded, preventing reply loops. Findings across all surfaces and earlier
@@ -173,8 +186,11 @@ every claim or reached the correct technical conclusion.
 The hosted pass relies on source inspection and collected check results.
 It must disclose missing reproductions or device evidence, and may return
 `incomplete` until a local agent supplies that evidence. Checks changing during
-analysis invalidate the result. There is no automatic retry on CI completion:
-rerun manually once checks settle, or let the next push/Codex review trigger it.
+analysis invalidate the result. The gate's wait for pending checks avoids that
+in the usual case; a check re-run during analysis still fails publication, and
+the re-run's completion triggers a fresh assessment. A check that never
+completes, such as one waiting on an environment approval, holds triage until
+it finishes.
 Only the gate, assessment, publication, and review-activity job names are
 excluded from their own evidence fingerprint; `PR triage tooling tests` remains
 visible, including failures.
