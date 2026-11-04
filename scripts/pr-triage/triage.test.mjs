@@ -1524,6 +1524,33 @@ test('CI completion analyzes the current head only after its Codex review', asyn
   assert.equal(done.writes.length, 0);
 });
 
+test('CI completion requires a writer to have triggered the run', async () => {
+  for (const [permission, status] of [
+    ['read', 200],
+    ['triage', 200],
+    [null, 404],
+  ]) {
+    const api = new FakeGitHub();
+    api.permission = permission;
+    const request = api.request.bind(api);
+    api.request = async (endpoint, ...rest) => {
+      if (status === 404 && endpoint.endsWith('/permission'))
+        throw Object.assign(new Error('Not found'), { status });
+      return request(endpoint, ...rest);
+    };
+    assert.equal(await gate(api, 'workflow_run', ciEvent(api)), null);
+    assert.equal(api.writes.length, 0);
+  }
+  const api = new FakeGitHub();
+  const asked = [];
+  api.beforeRequest = (endpoint) => asked.push(endpoint);
+  assert.deepEqual(await gate(api, 'workflow_run', ciEvent(api)), {
+    number: 6794,
+    head: HEAD,
+  });
+  assert.ok(asked.some((e) => e.endsWith('/collaborators/writer/permission')));
+});
+
 test('stale or untrusted CI runs cannot start paid analysis', async () => {
   for (const mutate of [
     (run) => {

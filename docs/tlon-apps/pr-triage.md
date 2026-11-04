@@ -53,7 +53,8 @@ withdraws routing and the summary says it is waiting. The PR CI workflows
 `Agent QA harness checks`, `PR triage tooling checks`) signal triage through
 `workflow_run` when they complete, so the last one to finish starts the
 analysis once the Codex review is also complete. The gate verifies that the run
-is a `pull_request` run for the PR's current head in this repository. A new PR
+is a `pull_request` run for the PR's current head in this repository, and that
+the run's triggering actor has write access. A new PR
 workflow belongs in that list too; otherwise triage waits for its checks but is
 not started when they finish.
 

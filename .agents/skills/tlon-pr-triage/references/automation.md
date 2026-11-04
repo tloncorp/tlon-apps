@@ -115,7 +115,7 @@ Codex issue comments and the unprivileged review-activity observer trigger a
 fresh evidence collection. Automated Codex-triggered inference waits for a
 completed code review at the current head. Every analysis also waits until the
 head's check runs complete and no commit status is pending; PR CI workflow
-completions trigger the gate again, so the last check to finish starts the
+completions triggered by a writer trigger the gate again, so the last check to finish starts the
 analysis. Repeated signals matching the last published evidence fingerprint are
 skipped. Own summaries and replies do not
 retrigger triage or enter the fingerprint. Blank COMMENTED review records

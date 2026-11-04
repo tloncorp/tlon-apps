@@ -143,10 +143,9 @@ export function trigger(eventName, event) {
         analyze: true,
         codexActivity: true,
       };
-    // CI completion re-enters the same path as Codex activity: it analyzes
-    // only once the current head's Codex review has completed, a state whose
-    // own completion event already starts analysis without a writer check.
-    // It changes when analysis runs, never who can cause it.
+    // CI completion re-enters the Codex path, so it analyzes only once the
+    // head's Codex review has completed; the gate also requires the run's
+    // triggering actor to be a writer, as for other non-Codex triggers.
     if (ciRun(run))
       return {
         number: run.pull_requests[0].number,
@@ -271,6 +270,20 @@ async function upsertSummary(api, number, body) {
   );
 }
 
+// Bot accounts that are not collaborators have no permission record.
+async function isWriter(api, login) {
+  if (!login) return false;
+  try {
+    const { permission } = await api.request(
+      `repos/${REPO}/collaborators/${encodeURIComponent(login)}/permission`
+    );
+    return ['admin', 'maintain', 'write'].includes(permission);
+  } catch (error) {
+    if (error.status !== 404) throw error;
+    return false;
+  }
+}
+
 export async function gate(api, eventName, event) {
   const target = trigger(eventName, event);
   if (!target) return null;
@@ -288,6 +301,8 @@ export async function gate(api, eventName, event) {
       !(observedRun(run) || (ciRun(run) && run.head_sha === pr.head.sha)) ||
       run.pull_requests[0].number !== number
     )
+      return null;
+    if (ciRun(run) && !(await isWriter(api, run.triggering_actor?.login)))
       return null;
   }
   let context;
