@@ -255,6 +255,16 @@ class FakeGitHub {
       head_repository: { full_name: REPO },
       pull_requests: [{ number: 6794 }],
     };
+    this.ciRun = {
+      id: 60,
+      path: '.github/workflows/ci.yml',
+      event: 'pull_request',
+      head_sha: HEAD,
+      actor: { login: 'writer' },
+      triggering_actor: { login: 'writer' },
+      head_repository: { full_name: REPO },
+      pull_requests: [{ number: 6794 }],
+    };
     this.beforeRequest = () => {};
   }
   async pages(endpoint) {
@@ -280,6 +290,8 @@ class FakeGitHub {
         return { permission: this.permission, role_name: this.role };
       if (endpoint.endsWith('/actions/runs/50'))
         return structuredClone(this.observedRun);
+      if (endpoint.endsWith('/actions/runs/60'))
+        return structuredClone(this.ciRun);
       if (endpoint.includes('/labels/')) {
         const label = decodeURIComponent(endpoint.split('/labels/')[1]);
         if (this.labels.has(label)) return { name: label };
@@ -365,7 +377,7 @@ test('only authenticated Codex discussion events trigger counter-review; edits c
   assert.deepEqual(trigger('issue_comment', e), {
     number: 6794,
     analyze: true,
-    reviewedHead: HEAD,
+    eventHead: HEAD,
     codexActivity: true,
   });
   e.comment.body = codexState(HEAD, 'in_progress');
@@ -1210,7 +1222,7 @@ test('code-review completion is independent of a missing or stale security block
     assert.deepEqual(trigger('issue_comment', e), {
       number: 6794,
       analyze: true,
-      reviewedHead: HEAD,
+      eventHead: HEAD,
       codexActivity: true,
     });
   }
@@ -1449,6 +1461,134 @@ test('repeated completion signals skip identical published evidence, edits rerun
     head: HEAD,
   });
   assert.ok(api.writes.some((w) => w.method === 'DELETE'));
+});
+
+const ciEvent = (api) => ({
+  repository: { full_name: REPO },
+  action: 'completed',
+  workflow_run: structuredClone(api.ciRun),
+});
+
+test('analysis waits while head checks or commit statuses are pending', async () => {
+  const pending = [
+    (c) => {
+      c.checks[0].status = 'in_progress';
+      c.checks[0].conclusion = null;
+    },
+    (c) => {
+      c.statuses = [{ context: 'deploy', state: 'pending' }];
+    },
+  ];
+  const starts = [
+    ['pull_request_target', () => event()],
+    ['issue_comment', () => event('issue_comment')],
+    ['workflow_dispatch', () => ({ ...event(), inputs: { pr_url: url } })],
+    ['workflow_run', (api) => ciEvent(api)],
+  ];
+  for (const mutate of pending)
+    for (const [eventName, make] of starts) {
+      const api = new FakeGitHub();
+      api.context.pr.labels = [{ name: 'review:agent-eligible' }];
+      mutate(api.context);
+      assert.equal(await gate(api, eventName, make(api)), null, eventName);
+      assert.deepEqual(api.context.pr.labels, []);
+      assert.match(
+        api.context.conversation.at(-1).body,
+        /Waiting for checks on this head to finish/
+      );
+    }
+  // Only the latest state per status context counts.
+  const api = new FakeGitHub();
+  api.context.statuses = [
+    { context: 'deploy', state: 'success' },
+    { context: 'deploy', state: 'pending' },
+  ];
+  assert.deepEqual(await gate(api, 'workflow_run', ciEvent(api)), {
+    number: 6794,
+    head: HEAD,
+  });
+});
+
+test('CI completion analyzes the current head only after its Codex review', async () => {
+  const api = new FakeGitHub();
+  assert.deepEqual(await gate(api, 'workflow_run', ciEvent(api)), {
+    number: 6794,
+    head: HEAD,
+  });
+  api.context.conversation[0].body = codexState(HEAD, 'in_progress');
+  assert.equal(await gate(api, 'workflow_run', ciEvent(api)), null);
+  const done = new FakeGitHub();
+  await publish(done, 6794, expected(done.context), report());
+  done.writes = [];
+  assert.equal(await gate(done, 'workflow_run', ciEvent(done)), null);
+  assert.equal(done.writes.length, 0);
+});
+
+test('CI completion requires a writer to have triggered the run', async () => {
+  for (const [permission, status] of [
+    ['read', 200],
+    ['triage', 200],
+    [null, 404],
+  ]) {
+    const api = new FakeGitHub();
+    api.permission = permission;
+    const request = api.request.bind(api);
+    api.request = async (endpoint, ...rest) => {
+      if (status === 404 && endpoint.endsWith('/permission'))
+        throw Object.assign(new Error('Not found'), { status });
+      return request(endpoint, ...rest);
+    };
+    assert.equal(await gate(api, 'workflow_run', ciEvent(api)), null);
+    assert.equal(api.writes.length, 0);
+  }
+  const api = new FakeGitHub();
+  const asked = [];
+  api.beforeRequest = (endpoint) => asked.push(endpoint);
+  assert.deepEqual(await gate(api, 'workflow_run', ciEvent(api)), {
+    number: 6794,
+    head: HEAD,
+  });
+  assert.ok(asked.some((e) => e.endsWith('/collaborators/writer/permission')));
+});
+
+test('stale or untrusted CI runs cannot start paid analysis', async () => {
+  for (const mutate of [
+    (run) => {
+      run.head_sha = OTHER;
+    },
+    (run) => {
+      run.event = 'pull_request_target';
+    },
+    (run) => {
+      run.head_repository.full_name = 'other/fork';
+    },
+    (run) => {
+      run.pull_requests = [];
+    },
+    (run) => {
+      run.pull_requests.push({ number: 7000 });
+    },
+  ]) {
+    const api = new FakeGitHub();
+    const e = ciEvent(api);
+    mutate(e.workflow_run);
+    assert.equal(await gate(api, 'workflow_run', e), null);
+    assert.equal(api.writes.length, 0);
+  }
+  for (const mutate of [
+    (run) => {
+      run.head_sha = OTHER;
+    },
+    (run) => {
+      run.pull_requests[0].number = 7000;
+    },
+  ]) {
+    const api = new FakeGitHub();
+    const e = ciEvent(api);
+    mutate(api.ciRun);
+    assert.equal(await gate(api, 'workflow_run', e), null);
+    assert.equal(api.writes.length, 0);
+  }
 });
 
 test('triage-role close and reopen events invalidate without allowing paid analysis', async () => {
