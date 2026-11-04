@@ -165,9 +165,7 @@ describe('getActiveTopLevelTab', () => {
 
   test('names nothing before the stack has built MainTabs', () => {
     expect(getActiveTopLevelTab(undefined)).toBeNull();
-    expect(
-      getActiveTopLevelTab(stack([{ name: 'OnboardingStartup' }]))
-    ).toBeNull();
+    expect(getActiveTopLevelTab(stack([{ name: 'Contacts' }]))).toBeNull();
     expect(getActiveTopLevelTab(stack([{ name: 'MainTabs' }]))).toBeNull();
   });
 
@@ -414,7 +412,7 @@ describe('getStandingTopLevelTabRoute', () => {
     });
     expect(
       getStandingTopLevelTabRoute(
-        { index: 0, routes: [{ name: 'OnboardingStartup' }] },
+        { index: 0, routes: [{ name: 'Contacts' }] },
         'BotChat'
       )
     ).toEqual({ name: 'MainTabs', params: { screen: 'BotChat' } });

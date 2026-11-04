@@ -76,7 +76,7 @@ describe('isPersistableNavigationState', () => {
   });
 
   it('refuses a stack not rooted at MainTabs', () => {
-    const state = { index: 0, routes: [{ name: 'Contacts' }] };
+    const state = drawerState({ index: 0, routes: [{ name: 'Contacts' }] });
     expect(isPersistableNavigationState(state)).toBe(false);
   });
 
@@ -91,7 +91,7 @@ describe('isPersistableNavigationState', () => {
 describe('sanitizeNavigationStateForPersistence', () => {
   it('returns null for a state not worth saving', () => {
     const unrooted = { index: 0, routes: [{ name: 'Contacts' }] };
-    expect(sanitizeNavigationStateForPersistence(unrooted)).toBeNull();
+    expect(sanitizeStack(unrooted)).toBeNull();
     expect(sanitizeNavigationStateForPersistence(undefined)).toBeNull();
   });
 
@@ -351,7 +351,7 @@ describe('isRestorableNavigationState', () => {
   });
 
   it('refuses a state not rooted at MainTabs', () => {
-    const state = { index: 0, routes: [{ name: 'Contacts' }] };
+    const state = drawerState({ index: 0, routes: [{ name: 'Contacts' }] });
     expect(isRestorableNavigationState(saved(state), NOW, SHIP)).toBe(false);
   });
 
