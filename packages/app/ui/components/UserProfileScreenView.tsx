@@ -24,6 +24,7 @@ import {
   XStack,
   YStack,
   getTokenValue,
+  isWeb,
   styled,
   useTheme,
 } from 'tamagui';
@@ -125,6 +126,9 @@ export function UserProfileScreenView(props: Props) {
 
   const showsBotSettings =
     !!props.onPressBotSettings || !!props.onPressScheduledTasks;
+  // In-app bot settings list the prompt files under Advanced. The web opens
+  // hosting's settings instead, which don't.
+  const promptFilesInSettings = !!props.onPressBotSettings && !isWeb;
 
   return (
     <View flex={1} backgroundColor={theme.secondaryBackground.val}>
@@ -172,9 +176,11 @@ export function UserProfileScreenView(props: Props) {
           {/* Data-gated rather than riding the hosted-bot check: our steward
               only mirrors prompt files for bots that configured us as their
               owner (including a self-owned bot on this very ship), so the
-              mirror is itself the ownership signal. A bot with a settings
-              card reaches them from its settings. */}
-          {!showsBotSettings && props.onPressPromptFiles && hasPromptFiles ? (
+              mirror is itself the ownership signal. Where the settings card
+              opens the app's bot settings, they are reached from there. */}
+          {!promptFilesInSettings &&
+          props.onPressPromptFiles &&
+          hasPromptFiles ? (
             <ProfileLinkItem
               icon="ChannelNote"
               title="Prompt files"
