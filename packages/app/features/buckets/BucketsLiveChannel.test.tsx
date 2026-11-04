@@ -62,6 +62,7 @@ vi.mock('../../ui', () => {
     BucketsSearchScreen: mocks.search,
     ChannelHeader: () => null,
     ChannelHeaderItemsProvider: Container,
+    ChannelNestedSidebar: Container,
     ScreenHeader: () => null,
     XStack: Container,
     YStack: Container,
