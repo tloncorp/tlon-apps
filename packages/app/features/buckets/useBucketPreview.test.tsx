@@ -310,7 +310,7 @@ describe('external-open ownership', () => {
       const hook = render();
       const other = { ...photo, id: '3', name: 'other.jpg' };
       await act(async () => hook.current.load(photo));
-      const rejected = deferred<ReturnType<typeof grant>>();
+      const rejected = deferred<never>();
       if (stage === 'grant')
         hook.readGrant.mockImplementationOnce(() => rejected.promise);
       else
