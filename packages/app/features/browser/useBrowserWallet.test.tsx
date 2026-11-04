@@ -1,6 +1,7 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, expect, it, vi } from 'vitest';
+import { getTlawnMoon } from '@tloncorp/api';
 import { browserWalletRequest } from '@tloncorp/api/client/browserWallet';
 import { useBrowserWallet } from './useBrowserWallet';
 import { Linking } from 'react-native';
@@ -10,31 +11,27 @@ const platform = vi.hoisted(() => ({ isWeb: true }));
 vi.mock('@tloncorp/api/client/browserWallet', () => ({
   browserWalletRequest: vi.fn(),
 }));
-vi.mock('@tloncorp/api', () => ({ getTlawnMoon: vi.fn() }));
+vi.mock('@tloncorp/api', () => ({
+  getTlawnMoon: vi.fn(() => {
+    throw new Error('Hosting lookup is unavailable');
+  }),
+}));
 vi.mock('@tloncorp/shared', () => ({
   createDevLogger: () => ({ trackError: vi.fn(), trackEvent: vi.fn() }),
-}));
-vi.mock('@tanstack/react-query', () => ({
-  useQuery: () => ({ data: '~zod', refetch: vi.fn() }),
-}));
-vi.mock('../settings/bot/useBotSettingsData', () => ({
-  useBotSettingsIds: () => ({ ship: '~ten' }),
-}));
-vi.mock('../settings/bot/helpers', () => ({
-  normalizeMoonName: (name: string) => name,
 }));
 vi.mock('react-native', () => ({ Linking: { openURL: vi.fn() } }));
 vi.mock('tamagui', () => platform);
 
 let tree: ReactTestRenderer;
 let wallet: ReturnType<typeof useBrowserWallet>;
-function Harness() {
-  wallet = useBrowserWallet('request', false);
+function Harness({ botMoon = '~zod' }: { botMoon?: string }) {
+  wallet = useBrowserWallet('request', botMoon || undefined, false);
   return null;
 }
 afterEach(() => {
   if (tree) act(() => tree.unmount());
   vi.unstubAllGlobals();
+  expect(getTlawnMoon).not.toHaveBeenCalled();
   vi.clearAllMocks();
   platform.isWeb = true;
 });
@@ -107,4 +104,35 @@ it('sends saved-method approval without a Link payment-method id', async () => {
     undefined
   );
   expect(Linking.openURL).not.toHaveBeenCalled();
+});
+
+it('uses the sending bot for owner authentication without a hosting lookup', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  vi.mocked(browserWalletRequest).mockResolvedValue({
+    request_id: 'request',
+    kind: 'payment',
+    status: 'filled',
+    expires_at: Date.now() + 60000,
+  });
+  await act(async () => {
+    tree = create(<Harness botMoon="~pinser-botter-dopwed-magrev" />);
+  });
+  expect(browserWalletRequest).toHaveBeenCalledWith(
+    '~pinser-botter-dopwed-magrev',
+    'request',
+    'view',
+    undefined,
+    expect.any(AbortSignal)
+  );
+  expect(wallet.view?.status).toBe('filled');
+  expect(wallet.error).toBe('');
+});
+
+it('does not discover a replacement bot when sender context is absent', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  await act(async () => {
+    tree = create(<Harness botMoon="" />);
+  });
+  expect(browserWalletRequest).not.toHaveBeenCalled();
+  expect(wallet.error).toBe('This payment request is missing its bot.');
 });

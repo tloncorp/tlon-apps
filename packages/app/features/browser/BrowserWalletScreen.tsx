@@ -9,9 +9,9 @@ export function BrowserWalletScreen({
   route,
 }: {
   navigation: { goBack(): void };
-  route: { params: { requestId: string } };
+  route: { params: { requestId: string; botMoon: string } };
 }) {
-  const wallet = useBrowserWallet(route.params.requestId);
+  const wallet = useBrowserWallet(route.params.requestId, route.params.botMoon);
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
