@@ -89,4 +89,34 @@
         ['message' s+'no such bucket']
     ==
   !>((error-of [%error %not-found 'no such bucket' ~]))
+::
+::  A capacity answer goes out as the four fields a writer needs and nothing
+::  else: no account, no tier, no other bucket.
+::
+++  test-capacity-carries-the-four-fields
+  %+  expect-eq
+    !>  ^-  (map @t json)
+    %-  ~(gas by *(map @t json))
+    :~  ['bytes' (numb:enjs:format 123)]
+        ['files' (numb:enjs:format 4)]
+        ['maxObjectBytes' (numb:enjs:format 99)]
+        ['mimeTypes' a+~[s+'image/png']]
+    ==
+  !>  ^-  (map @t json)
+  =/  jon=json
+    (req-response:enjs:buckets-json [0v1 [%capacity 123 4 99 (silt ~['image/png'])]])
+  =/  cap=json
+    (get:dejs:buckets-json 'capacity' (get:dejs:buckets-json 'body' jon))
+  ?>  ?=([%o *] cap)
+  p.cap
+::
+++  test-decodes-query-capacity
+  %+  expect-eq
+    !>  ^-  action:b
+    [%bucket [~sampel-palnet %project-files] [%query-capacity ~]]
+  !>  ^-  action:b
+  %-  action:dejs:buckets-json
+  %-  need
+  %-  de:json:html
+  '{"type":"query-capacity","flag":{"host":"~sampel-palnet","name":"project-files"}}'
 --

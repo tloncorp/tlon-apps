@@ -142,6 +142,16 @@
         ['expiresAt' s+(scot %da expires-at.tok)]
     ==
   ::
+  ++  capacity
+    |=  cap=capacity:b
+    ^-  json
+    %-  pairs
+    :~  ['bytes' (numb bytes.cap)]
+        ['files' (numb files.cap)]
+        ['maxObjectBytes' (numb max-object-bytes.cap)]
+        ['mimeTypes' a+(turn ~(tap in mime-types.cap) |=(t=@t `json`s+t))]
+    ==
+  ::
   ++  req-response
     |=  res=req-response:b
     ^-  json
@@ -152,6 +162,7 @@
         %grant    (frond 'grant' (grant grant.body.res))
         %upload   (frond 'upload' (upload-grant upload-grant.body.res))
         %token    (frond 'token' (read-token read-token.body.res))
+        %capacity  (frond 'capacity' (capacity capacity.body.res))
       ::
           %error
         %-  frond
@@ -317,6 +328,7 @@
         %'delete-bucket'  [%delete ~]
         %'set-title'      [%set-title (so (get 'title' jon))]
         %'set-writers'    [%set-writers (roles (get 'writers' jon))]
+        %'query-capacity'  [%query-capacity ~]
     ::
         %'create-folder'
       :*  %create-folder
