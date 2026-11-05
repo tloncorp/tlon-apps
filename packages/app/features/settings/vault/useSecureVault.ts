@@ -10,12 +10,12 @@ import { createDevLogger } from '@tloncorp/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef, useState } from 'react';
 
-import { KERNEL_SERVICE_ORIGIN } from '../../../lib/envVars';
+import { BROWSER_SERVICE_ENDPOINT } from '../../../lib/envVars';
 import { normalizeMoonName } from '../bot/helpers';
 import { useVaultLogins } from './useVaultLogins';
 
 const logger = createDevLogger('SecureVault', false);
-const origin = KERNEL_SERVICE_ORIGIN;
+const origin = BROWSER_SERVICE_ENDPOINT;
 
 export function useSecureVault(ship: string) {
   const focused = useIsFocused();

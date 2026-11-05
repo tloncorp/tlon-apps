@@ -44,6 +44,7 @@ jobs:
           name: "ui-dist"
           path: apps/tlon-web/dist
     env:
+      VITE_BROWSER_SERVICE_ENDPOINT: ${{ secrets.BROWSER_SERVICE_ENDPOINT }}
       VITE_BRANCH_DOMAIN_PROD: ${{ secrets.VITE_BRANCH_DOMAIN_PROD}}
       VITE_BRANCH_DOMAIN_TEST: ${{ secrets.VITE_BRANCH_DOMAIN_TEST}}
       VITE_BRANCH_KEY_PROD: ${{ secrets.VITE_BRANCH_KEY_PROD}}

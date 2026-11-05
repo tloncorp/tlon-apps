@@ -26,7 +26,7 @@ vi.mock('@tloncorp/shared', () => ({
   createDevLogger: () => ({ trackError: mocks.error, trackEvent: mocks.event }),
 }));
 vi.mock('../../../lib/envVars', () => ({
-  KERNEL_SERVICE_ORIGIN: 'https://kernel.tlon.systems',
+  BROWSER_SERVICE_ENDPOINT: 'https://kernel.tlon.systems',
 }));
 vi.mock('../bot/helpers', () => ({
   normalizeMoonName: (moon: string) => moon,
