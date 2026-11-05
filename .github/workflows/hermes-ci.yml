@@ -34,9 +34,11 @@ jobs:
     name: Bot E2E (${{ matrix.shard }})
     runs-on: blacksmith-8vcpu-ubuntu-2204
     # One stack per shard: the baseline and cron scenario partitions and the
-    # package suite. The lcm shard runs the package suite with the opt-in LCM
-    # context engine (lcm-x at its pinned ref), then a second stack for the
-    # targeted compaction scenario. Each stack boots fresh, builds the
+    # package suite. Two shards repeat work with the opt-in LCM context engine
+    # (lcm-x at its pinned ref): lcm runs the package suite, then a second
+    # stack for the targeted compaction scenario; lcm-baseline runs the
+    # baseline partition, whose long-lived DM turns are where hermes-lcm lost
+    # its database connection. Each stack boots fresh, builds the
     # hermes-agent image (from source, with uv on Python 3.14, inside Docker —
     # the runner needs no Python), and re-applies the branch %groups desk. The
     # ceiling sits above cold setup ~15 + the 45-min step cap + the 5-min
@@ -62,6 +64,11 @@ jobs:
           - shard: lcm
             id: l
             script: test:e2e:hermes:package
+            lcm: "1"
+          - shard: lcm-baseline
+            id: lb
+            script: test:e2e:hermes
+            partitions: baseline
             lcm: "1"
     env:
       # assemble-desk.sh runs `peru sync` unless told otherwise, and
