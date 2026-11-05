@@ -338,6 +338,10 @@ At connect (and on reconnect catch-up) the adapter publishes the bot's identity 
 
 The registry in `commands.py` is the single source of truth for command detection, and holds shared usage constants for `/owner-listen`, `/channel-access`, and `/migrate`; the remaining commands carry their usage text in their handlers. `fixtures/commands.json` is its committed token list — a CI artifact, not a wire payload: the client's drift contract (`packages/shared/src/domain/runtimeCommandContract.test.ts`, run by the `bot-checks` job) asserts it names exactly the runtime-owned portion of the client's Hermes list, so adding or removing a command here fails until the client list changes too; the six host-core entries that list also suggests are audit-pinned constants outside that relation. `/tlon-version` is handled but deliberately absent from the fixture (legacy alias of `/tlon version`). **Removals are two-phase**: hosted bots redeploy on restart while the app releases slowly, so keep a removed command's handler alive until an app release stops suggesting it.
 
+## Model note
+
+As the OpenClaw plugin does (`packages/openclaw/src/model-privacy-context.ts`), every Tlon turn gets a note naming the model it runs, how requests reach it (through OpenRouter or the provider directly) and whether zero data retention is on, and pointing at the product guide for Tlon's side (`model_note.py`, a `pre_llm_call` hook). Hermes adds it to the turn's user message at API-call time; it never enters the session. Hermes can't send OpenRouter's `zdr` preference (`provider_routing` has no such key), so for an OpenRouter model the note says zero data retention is off.
+
 ## Telemetry
 
 Opt-in PostHog telemetry (official `posthog` SDK): set `TLON_TELEMETRY=true` and `TLON_TELEMETRY_API_KEY` (optional `TLON_TELEMETRY_HOST`). Disabled by default and zero-cost when off.

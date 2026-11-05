@@ -109,6 +109,7 @@ from .mention import (
     extract_profile_nickname,
 )
 from .migration import MigrationCommandController, is_migrate_command
+from .model_note import make_pre_llm_call_model_note
 from .owner_listen import (
     SETTINGS_DESK,
     SETTINGS_KEY_GROUP_CHANNELS,
@@ -5616,6 +5617,11 @@ def register(ctx) -> None:
         'skill_view("tlon-platform:tlon-product-guide") and answer from it. '
         if product_guide_path is not None
         else ""
+    )
+
+    ctx.register_hook(
+        "pre_llm_call",
+        make_pre_llm_call_model_note(product_guide=product_guide_path is not None),
     )
 
     ctx.register_platform(
