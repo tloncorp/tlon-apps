@@ -297,6 +297,15 @@ export async function lookupOrFetchCachedChannelMessage(
   return undefined;
 }
 
+/**
+ * Drop cached channel history. getChannelHistory serves a full cache without
+ * fetching, so a cache that outlived a monitor restart would hide messages
+ * posted while the monitor was down; each monitor start begins empty.
+ */
+export function clearChannelHistoryCache(): void {
+  messageCache.clear();
+}
+
 export function cacheMessage(channelNest: string, message: TlonHistoryEntry) {
   if (!messageCache.has(channelNest)) {
     messageCache.set(channelNest, []);

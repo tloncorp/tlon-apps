@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Foreigns } from '../urbit/foreigns.js';
 import {
   type GroupInviteDeps,
+  blockedInviteMark,
   clearErroredMarkers,
   createCatchUpRunner,
   parseForeignsSnapshot,
@@ -114,7 +115,7 @@ describe('processPendingForeigns', () => {
     );
   });
 
-  it('marks the flag on a decision-level confirmed-blocked ignore', async () => {
+  it('marks the inviter on a decision-level confirmed-blocked ignore', async () => {
     deps = makeDeps({
       allowlist: () => ['~inviter'],
       fetchBlockedShips: vi.fn().mockResolvedValue(['~inviter']),
@@ -122,7 +123,12 @@ describe('processPendingForeigns', () => {
 
     await processPendingForeigns(makeForeign('~host/group', '~inviter'), deps);
 
-    expect(deps.processedGroupInvites.has('~host/group')).toBe(true);
+    expect(
+      deps.processedGroupInvites.has(
+        blockedInviteMark('~host/group', '~inviter')
+      )
+    ).toBe(true);
+    expect(deps.processedGroupInvites.has('~host/group')).toBe(false);
     expect(deps.queueApproval).not.toHaveBeenCalled();
     expect(deps.acceptInvite).not.toHaveBeenCalled();
   });
@@ -245,7 +251,9 @@ describe('processPendingForeigns', () => {
 
   it('re-decides and re-marks a confirmed-blocked flag when the join errors', async () => {
     const deps = makeDeps({
-      processedGroupInvites: new Set(['~host/garden']),
+      processedGroupInvites: new Set([
+        blockedInviteMark('~host/garden', '~inviter'),
+      ]),
       allowlist: () => ['~inviter'],
       fetchBlockedShips: vi.fn().mockResolvedValue(['~inviter']),
     });
@@ -258,7 +266,11 @@ describe('processPendingForeigns', () => {
 
     // Bounded cost: one batch-memoized block-list read, no owner card.
     expect(deps.fetchBlockedShips).toHaveBeenCalledTimes(1);
-    expect(deps.processedGroupInvites.has('~host/garden')).toBe(true);
+    expect(
+      deps.processedGroupInvites.has(
+        blockedInviteMark('~host/garden', '~inviter')
+      )
+    ).toBe(true);
     expect(deps.queueApproval).not.toHaveBeenCalled();
   });
 
@@ -276,6 +288,73 @@ describe('processPendingForeigns', () => {
       requestingShip: '~stranger',
       groupFlag: '~host/group',
     });
+  });
+
+  it('re-decides a re-invite after the accepted join completed', async () => {
+    await processPendingForeigns(makeForeign('~host/group', '~owner'), deps);
+    await processPendingForeigns(
+      makeForeign('~host/group', '~owner', { progress: 'done' }),
+      deps
+    );
+    // Kicked or left: %groups deleted the foreign, so the next fact is fresh.
+    await processPendingForeigns(makeForeign('~host/group', '~owner'), deps);
+
+    expect(deps.acceptInvite).toHaveBeenCalledTimes(2);
+    expect(deps.processedGroupInvites.has('~host/group')).toBe(true);
+  });
+
+  it('re-decides a group whose invite was revoked and re-sent', async () => {
+    await processPendingForeigns(makeForeign('~host/group', '~owner'), deps);
+    await processPendingForeigns(
+      makeForeign('~host/group', '~owner', { valid: false }),
+      deps
+    );
+    await processPendingForeigns(makeForeign('~host/group', '~owner'), deps);
+
+    expect(deps.acceptInvite).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps an accepted mark while the join is in flight', async () => {
+    await processPendingForeigns(makeForeign('~host/group', '~owner'), deps);
+    await processPendingForeigns(makeForeign('~host/group', '~owner'), deps);
+
+    expect(deps.acceptInvite).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not let a blocked inviter suppress another inviter to the same group', async () => {
+    deps = makeDeps({
+      allowlist: () => ['~blocked', '~friend'],
+      fetchBlockedShips: vi.fn().mockResolvedValue(['~blocked']),
+    });
+
+    await processPendingForeigns(makeForeign('~host/group', '~blocked'), deps);
+    await processPendingForeigns(makeForeign('~host/group', '~blocked'), deps);
+    expect(deps.fetchBlockedShips).toHaveBeenCalledTimes(1);
+    expect(deps.acceptInvite).not.toHaveBeenCalled();
+
+    await processPendingForeigns(makeForeign('~host/group', '~friend'), deps);
+
+    expect(deps.acceptInvite).toHaveBeenCalledWith('~host/group');
+  });
+
+  it('retires blocked marks with the group on a terminal fact', async () => {
+    const processed = new Set([
+      blockedInviteMark('~host/group', '~blocked'),
+      blockedInviteMark('~host/other', '~blocked'),
+    ]);
+    deps = makeDeps({ processedGroupInvites: processed });
+
+    await processPendingForeigns(
+      makeForeign('~host/group', '~blocked', { valid: false }),
+      deps
+    );
+
+    expect(processed.has(blockedInviteMark('~host/group', '~blocked'))).toBe(
+      false
+    );
+    expect(processed.has(blockedInviteMark('~host/other', '~blocked'))).toBe(
+      true
+    );
   });
 
   it('stays silent for foreigners without invites (previews/joins-in-progress)', async () => {

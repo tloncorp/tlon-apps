@@ -63,7 +63,7 @@ Evaluated in this order per unprocessed valid invite:
 | 2   | Not on `groupInviteAllowlist`, owner configured    | Queue approval card                       | no                  |
 | 3   | Not on allowlist, no owner configured              | Log + ignore                              | no                  |
 | 4   | On allowlist, **confirmed not blocked**            | ✅ Auto-accept                            | yes                 |
-| 5   | On allowlist, **confirmed blocked**                | Silent ignore (no card), mark processed   | yes                 |
+| 5   | On allowlist, **confirmed blocked**                | Silent ignore (no card), mark inviter     | yes                 |
 | 6   | On allowlist, lookup failed/timed out (_unknown_)  | Fall through to row 2/3 (card, or ignore) | yes (attempted)     |
 
 The `autoAcceptGroupInvites` flag no longer governs invite authorization or
@@ -86,7 +86,9 @@ falls through to the approval path.
 ```
 
 Suppression invariants: queued invites are never marked in the in-process
-dedup set (it records only auto-accept success and confirmed-blocked); the
+dedup set (it records only auto-accept success per group and confirmed-blocked
+per group and inviter, so a blocked inviter never suppresses another inviter
+to the same group); the
 persisted approval record suppresses re-notification once delivered, gates
 retries of failed sends behind a 10-minute cooldown, and its 48h TTL is the
 reminder cadence. New approval records are capped at 100
@@ -97,6 +99,10 @@ clear the dedup marker for a join whose `progress` reached `error`, so a join
 that acked locally but failed on the backend becomes actionable again at a
 bounded cadence — live error facts leave the marker, because a persistently
 failing join would otherwise retry at %groups' own error-emission rate.
+A completed join (`progress` `done`, after which `%groups` deletes the foreign)
+or a fact with no valid invite left retires that group's markers, so a
+re-invite after the bot is kicked, leaves, or has an invite revoked is decided
+again.
 Catch-up rescries foreigns at connect and on the 2-minute poll. Rejecting a group request
 declines the invite on the ship (`%groups` `invite-decline`), and banning the
 inviter blocks the ship, revokes its DM grant, and then declines the same way —

@@ -302,6 +302,7 @@ import {
 import {
   buildThreadContextMessage,
   cacheMessage,
+  clearChannelHistoryCache,
   composeInboundMessageText,
   fetchChannelHistory,
   fetchParentPostAuthor,
@@ -372,6 +373,7 @@ import {
   shouldEngageInGroup,
   stripBotMentionOutsidePlaceholders,
 } from './utils.js';
+import { createParticipatedThreadTracker } from './tracking.js';
 import { probeWebSearchBootStatus } from './web-search-status.js';
 
 // Local structural types — @tloncorp/api defines these internally but
@@ -565,6 +567,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   if (!account.configured || !account.ship || !account.url || !account.code) {
     throw new Error('Tlon account not configured (ship/url/code required)');
   }
+
+  clearChannelHistoryCache();
 
   // Capture validated values for use in nested functions
   const accountUrl = account.url;
@@ -1330,8 +1334,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       }
     });
 
-    // Track threads we've participated in (by parentId) - respond without mention requirement
-    const participatedThreads = new Set<string>();
+    // Track recent threads we've participated in so replies can omit a mention.
+    const participatedThreads = createParticipatedThreadTracker();
     const failureNoticeCooldown = createSilentFailureNoticeCooldown();
     // Only hosting publishes the bot's credit, and only hosted bots run on a
     // key the owner may not hold.
