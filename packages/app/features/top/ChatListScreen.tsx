@@ -501,10 +501,11 @@ export function ChatListScreenView({
                 // Centered so it stays clear of the + tooltip, which is
                 // pinned to the top of this region.
                 <View flex={1} justifyContent="center">
-                  {loadingSubtitle != null ? (
-                    // Matches the header: spin while it reports loading,
-                    // connecting or a first sync, so an empty local db is
-                    // not presented as an empty account.
+                  {loadingSubtitle != null || !initSyncSettled ? (
+                    // Spin until the high-priority init has landed chats, and
+                    // while the header reports loading or connecting, so an
+                    // empty local db is not presented as an empty account.
+                    // `isSyncing` alone misses this: only a resume sets it.
                     <View alignItems="center">
                       <LoadingSpinner />
                     </View>
