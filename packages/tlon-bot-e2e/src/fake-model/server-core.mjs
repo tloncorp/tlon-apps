@@ -4,6 +4,8 @@ import http from 'node:http';
 const TLON_TEST_KEY_RE = /\[tlon-test:([a-zA-Z0-9_.:-]+)\]/g;
 const MAX_REGISTRATION_HISTORY = 500;
 const MAX_SUMMARY_TEXT_LENGTH = 300;
+// Tool results get more room so scenarios can parse structured payloads.
+const MAX_TOOL_RESULT_TEXT_LENGTH = 8000;
 
 export function createFakeModelServer() {
   const state = {
@@ -548,7 +550,12 @@ function summarizeRequestMessages(messages) {
     const summary = {
       role: typeof message?.role === 'string' ? message.role : '<unknown>',
     };
-    const contentSummary = summarizeContent(message?.content);
+    const contentSummary = summarizeContent(
+      message?.content,
+      message?.role === 'tool'
+        ? MAX_TOOL_RESULT_TEXT_LENGTH
+        : MAX_SUMMARY_TEXT_LENGTH
+    );
     if (contentSummary) {
       summary.content = contentSummary;
     }
@@ -566,27 +573,27 @@ function summarizeRequestMessages(messages) {
   });
 }
 
-function summarizeContent(content) {
+function summarizeContent(content, limit) {
   if (content == null) {
     return { kind: 'empty' };
   }
   if (typeof content === 'string') {
     return {
       kind: 'text',
-      text: sanitizePreview(content),
+      ...previewText(content, limit),
     };
   }
   if (Array.isArray(content)) {
     return {
       kind: 'parts',
       partCount: content.length,
-      text: sanitizePreview(extractText(content)),
+      ...previewText(extractText(content), limit),
     };
   }
   if (typeof content === 'object') {
     return {
       kind: 'object',
-      text: sanitizePreview(extractText(content)),
+      ...previewText(extractText(content), limit),
     };
   }
   return { kind: typeof content };
@@ -615,14 +622,18 @@ function summarizeToolCalls(toolCalls) {
 }
 
 function sanitizePreview(value) {
+  return previewText(value, MAX_SUMMARY_TEXT_LENGTH).text;
+}
+
+function previewText(value, limit) {
   const normalized = String(value).replace(/\s+/g, ' ').trim();
   const redacted = normalized.replace(
     /("(?:api[_-]?key|token|secret|password|credential|code)"\s*:\s*")[^"]+(")/gi,
     '$1<redacted>$2'
   );
-  return redacted.length > MAX_SUMMARY_TEXT_LENGTH
-    ? `${redacted.slice(0, MAX_SUMMARY_TEXT_LENGTH)}...`
-    : redacted;
+  return redacted.length > limit
+    ? { text: `${redacted.slice(0, limit)}...`, truncated: true }
+    : { text: redacted };
 }
 
 function textResponse(content) {

@@ -366,6 +366,29 @@ describe('fake model server', () => {
       },
     ]);
   });
+
+  test('caps tool-result previews separately from other roles and flags cuts', async () => {
+    const key = 'preview-caps';
+    await fakeModel.script(key, [{ kind: 'text', content: 'ok' }]);
+    const mid = 'x'.repeat(1000);
+    const huge = 'y'.repeat(9000);
+    const response = await postChat(server.baseUrl, key, {
+      messages: [
+        { role: 'user', content: `[tlon-test:${key}] ${mid}` },
+        { role: 'tool', tool_call_id: 'call_a', content: mid },
+        { role: 'tool', tool_call_id: 'call_b', content: huge },
+      ],
+    });
+    expect(response.ok).toBe(true);
+
+    const [call] = await fakeModel.received(key);
+    const [user, toolFits, toolCut] = call.messages.map((m) => m.content);
+    expect(user?.text).toHaveLength(303);
+    expect(user?.truncated).toBe(true);
+    expect(toolFits).toEqual({ kind: 'text', text: mid });
+    expect(toolCut?.text).toHaveLength(8003);
+    expect(toolCut?.truncated).toBe(true);
+  });
 });
 
 async function postChat(

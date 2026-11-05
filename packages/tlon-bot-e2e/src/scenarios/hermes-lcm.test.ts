@@ -2,7 +2,11 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { beforeAll, describe, expect, test } from 'vitest';
 
-import { HERMES_LCM_ENABLED, hermesLcmTools } from '../drivers/hermes.js';
+import {
+  HERMES_LCM_ENABLED,
+  assertLcmGrepRecalls,
+  hermesLcmTools,
+} from '../drivers/hermes.js';
 import { FakeModelClient } from '../fake-model/index.js';
 import { requireEnv } from '../runtime/util.js';
 import { actorFromEnv, normalizeShip } from '../tlon/index.js';
@@ -107,8 +111,12 @@ describe.skipIf(!HERMES_LCM_ENABLED)('Hermes LCM context engine', () => {
     console.log(
       `[hermes-lcm] lcm_grep result preview: ${toolText.slice(0, 300)}`
     );
-    expect(toolText).not.toBe('');
     expect(toolText).not.toMatch(/unknown tool|not available|Traceback/i);
+    expect(
+      toolMessage?.content?.truncated,
+      'lcm_grep result was truncated by the fake-model preview cap'
+    ).toBeFalsy();
+    assertLcmGrepRecalls(toolText, markers[0]);
 
     const db = await queryLcmDb();
     console.log(`[hermes-lcm] db: ${JSON.stringify(db, null, 2)}`);

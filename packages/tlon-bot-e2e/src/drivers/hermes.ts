@@ -69,6 +69,24 @@ export function hermesLcmTools(): string[] {
   return JSON.parse(raw) as string[];
 }
 
+// lcm_grep returns JSON whose top level echoes the query, so recall counts only
+// when the marker turns up inside the results array itself.
+export function assertLcmGrepRecalls(toolText: string, marker: string): void {
+  let parsed: { results?: unknown } | null;
+  try {
+    parsed = JSON.parse(toolText);
+  } catch {
+    throw new Error(`lcm_grep result is not JSON: ${toolText.slice(0, 200)}`);
+  }
+  const results = parsed?.results;
+  if (!Array.isArray(results) || results.length === 0) {
+    throw new Error(`lcm_grep returned no results: ${toolText.slice(0, 200)}`);
+  }
+  if (!JSON.stringify(results).includes(marker)) {
+    throw new Error(`lcm_grep results do not mention ${marker}`);
+  }
+}
+
 function baseTools(): string[] {
   return ['tlon', ...hermesLcmTools()];
 }

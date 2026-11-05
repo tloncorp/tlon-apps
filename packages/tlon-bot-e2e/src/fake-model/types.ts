@@ -80,6 +80,8 @@ export interface FakeModelMessageSummary {
 export interface FakeModelContentSummary {
   kind: string;
   text?: string;
+  /** Set when `text` was cut to the per-role preview cap. */
+  truncated?: boolean;
   partCount?: number;
 }
 
