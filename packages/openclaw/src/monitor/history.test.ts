@@ -345,6 +345,19 @@ describe('clearChannelHistoryCache', () => {
     expect(scry).toHaveBeenCalledOnce();
   });
 
+  it('keeps DM entries so reactions to pre-restart bot DMs still resolve', () => {
+    const suffix = Date.now().toString(36);
+    const dm = `dm/~ship-${suffix}`;
+    const channel = `chat/~zod/clear-${suffix}`;
+    cacheMessage(dm, makeEntry({ id: '3000', author: '~bot' }));
+    cacheMessage(channel, makeEntry({ id: '3001' }));
+
+    clearChannelHistoryCache();
+
+    expect(lookupCachedMessage(dm, '3000')?.author).toBe('~bot');
+    expect(lookupCachedMessage(channel, '3001')).toBeUndefined();
+  });
+
   it('is called at monitor start', () => {
     const here = path.dirname(fileURLToPath(import.meta.url));
     const source = fs.readFileSync(path.resolve(here, './index.ts'), 'utf8');

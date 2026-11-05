@@ -100,12 +100,12 @@ export async function processPendingForeigns(
     (blockedShipsOnce ??= deps.fetchBlockedShips());
 
   for (const [groupFlag, foreign] of Object.entries(foreigns)) {
-    const validInvite = foreign.invites?.find((inv) => inv.valid);
+    const anyValid = foreign.invites?.some((inv) => inv.valid) ?? false;
     // Foreigns facts are per-group deltas. A completed join (%groups then
     // deletes the foreign, so any later invite is fresh) or a group with no
     // valid invite left retires this group's marks, so a re-invite after a
     // kick, leave, or revoke is decided again.
-    if (foreign.progress === 'done' || !validInvite) {
+    if (foreign.progress === 'done' || !anyValid) {
       retireGroupMarks(deps.processedGroupInvites, groupFlag);
     }
     if (deps.processedGroupInvites.has(groupFlag)) {
@@ -130,19 +130,28 @@ export async function processPendingForeigns(
       continue;
     }
 
-    if (!validInvite) {
+    if (!anyValid) {
       deps.log?.(
         `[tlon] Group ${groupFlag} has ${foreign.invites.length} invite(s) but none valid; skipping`
       );
       continue;
     }
 
-    const inviterShip = validInvite.from;
-    if (
-      deps.processedGroupInvites.has(blockedInviteMark(groupFlag, inviterShip))
-    ) {
+    // The foreign carries every invite, newest first, so skip inviters
+    // already confirmed blocked: otherwise a blocked newest inviter would
+    // shadow older valid ones for as long as its invite stays valid. When
+    // only blocked-marked inviters remain, stay silent and keep their marks,
+    // so the block-list is not re-scried on every fact.
+    const validInvite = foreign.invites.find(
+      (inv) =>
+        inv.valid &&
+        !deps.processedGroupInvites.has(blockedInviteMark(groupFlag, inv.from))
+    );
+    if (!validInvite) {
       continue;
     }
+
+    const inviterShip = validInvite.from;
 
     const decision = await resolveGroupInviteAction(
       {

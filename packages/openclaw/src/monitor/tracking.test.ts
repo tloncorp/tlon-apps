@@ -8,15 +8,16 @@ import { createParticipatedThreadTracker } from './tracking.js';
 describe('createParticipatedThreadTracker', () => {
   it('evicts the least recently used thread at the limit', () => {
     const tracker = createParticipatedThreadTracker(3);
-    tracker.add('oldest');
-    tracker.add('refreshed');
+    tracker.add('touched');
+    tracker.add('untouched');
     tracker.add('recent');
 
-    expect(tracker.has('refreshed')).toBe(true);
+    // has() must refresh recency, so the oldest entry survives once touched.
+    expect(tracker.has('touched')).toBe(true);
     tracker.add('newest');
 
-    expect(tracker.has('oldest')).toBe(false);
-    expect(tracker.has('refreshed')).toBe(true);
+    expect(tracker.has('untouched')).toBe(false);
+    expect(tracker.has('touched')).toBe(true);
     expect(tracker.has('recent')).toBe(true);
     expect(tracker.has('newest')).toBe(true);
   });

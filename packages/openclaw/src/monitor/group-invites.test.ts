@@ -50,6 +50,17 @@ function makeForeign(
   };
 }
 
+/** One foreign carrying several inviters, newest first, as %groups delivers it. */
+function makeMultiInviteForeign(flag: string, froms: string[]): Foreigns {
+  const [first, ...rest] = froms.map((from) => makeForeign(flag, from)[flag]);
+  return {
+    [flag]: {
+      ...first,
+      invites: [first, ...rest].flatMap((foreign) => foreign.invites),
+    },
+  };
+}
+
 type FakeDeps = GroupInviteDeps & {
   acceptInvite: ReturnType<typeof vi.fn>;
   queueApproval: ReturnType<typeof vi.fn>;
@@ -327,14 +338,52 @@ describe('processPendingForeigns', () => {
       fetchBlockedShips: vi.fn().mockResolvedValue(['~blocked']),
     });
 
-    await processPendingForeigns(makeForeign('~host/group', '~blocked'), deps);
-    await processPendingForeigns(makeForeign('~host/group', '~blocked'), deps);
-    expect(deps.fetchBlockedShips).toHaveBeenCalledTimes(1);
+    // ~friend invited first, then ~blocked: the newest invite leads.
+    const foreigns = makeMultiInviteForeign('~host/group', [
+      '~blocked',
+      '~friend',
+    ]);
+
+    await processPendingForeigns(foreigns, deps);
+    expect(
+      deps.processedGroupInvites.has(
+        blockedInviteMark('~host/group', '~blocked')
+      )
+    ).toBe(true);
     expect(deps.acceptInvite).not.toHaveBeenCalled();
 
-    await processPendingForeigns(makeForeign('~host/group', '~friend'), deps);
+    await processPendingForeigns(foreigns, deps);
 
     expect(deps.acceptInvite).toHaveBeenCalledWith('~host/group');
+    expect(deps.log).toHaveBeenCalledWith(
+      expect.stringContaining('(from ~friend)')
+    );
+  });
+
+  it('keeps a blocked mark without re-deciding while only the blocked inviter is valid', async () => {
+    deps = makeDeps({
+      allowlist: () => ['~blocked', '~friend'],
+      fetchBlockedShips: vi.fn().mockResolvedValue(['~blocked']),
+    });
+    // ~friend's older invite was revoked; only ~blocked's is still valid.
+    const foreigns = makeMultiInviteForeign('~host/group', [
+      '~blocked',
+      '~friend',
+    ]);
+    foreigns['~host/group'].invites[1].valid = false;
+
+    await processPendingForeigns(foreigns, deps);
+    await processPendingForeigns(foreigns, deps);
+    await processPendingForeigns(foreigns, deps);
+
+    expect(deps.fetchBlockedShips).toHaveBeenCalledTimes(1);
+    expect(
+      deps.processedGroupInvites.has(
+        blockedInviteMark('~host/group', '~blocked')
+      )
+    ).toBe(true);
+    expect(deps.acceptInvite).not.toHaveBeenCalled();
+    expect(deps.queueApproval).not.toHaveBeenCalled();
   });
 
   it('retires blocked marks with the group on a terminal fact', async () => {
