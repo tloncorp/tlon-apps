@@ -2,7 +2,7 @@ import * as api from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { triggerHaptic } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, Linking } from 'react-native';
+import { AppState, Linking, Platform } from 'react-native';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { mcpProviderQueryKeys } from '../../lib/mcpProviders';
@@ -215,22 +215,18 @@ export function useMcpConnections({
   );
 
   useEffect(() => {
+    // Active sessions return through openOAuthUrl; only a cold launch needs
+    // its initial link read here.
     Linking.getInitialURL().then((initialUrl) => {
       if (initialUrl) {
         handleOAuthCompletion(initialUrl);
       }
     });
-    const subscription = Linking.addEventListener('url', (event) => {
-      handleOAuthCompletion(event.url);
-    });
-
-    return () => {
-      subscription.remove();
-    };
   }, [handleOAuthCompletion]);
 
   useEffect(() => {
-    if (!startingProviderId) {
+    // Native sessions own completion: foregrounding can precede their result.
+    if (Platform.OS !== 'web' || !startingProviderId) {
       return;
     }
 
@@ -271,6 +267,7 @@ export function useMcpConnections({
         return 'busy';
       }
 
+      handledCompletionUrls.current.clear();
       setStarting(providerId);
       trackMcpEvent(MCP_TELEMETRY_EVENTS.initiatedOAuth, { providerId });
       try {
@@ -288,6 +285,7 @@ export function useMcpConnections({
         } else if (openResult.type === 'canceled') {
           setStarting(null);
           emit({ type: 'canceled', providerId });
+          refreshStatus();
         }
       } catch (err) {
         trackMcpError('Failed to start OAuth flow', {
@@ -305,6 +303,7 @@ export function useMcpConnections({
       disconnectingProviderId,
       emit,
       handleOAuthCompletion,
+      refreshStatus,
       setStarting,
       startingProviderId,
     ]
