@@ -5681,6 +5681,9 @@ def register(ctx) -> None:
             "For Tlon reads and administration, use the tlon tool; if unsure, "
             "load skill_view(\"tlon-platform:tlon\") or run a tlon subcommand "
             "with --help. "
+            "A user's shared files or shared folder are a group's Buckets "
+            "(tlon buckets); the file tools reach only the machine you run on, "
+            "never the user's files. "
             + product_guide_hint
             + skill_files_hint
             + "When a user asks you to create a Tlon group for them, use "

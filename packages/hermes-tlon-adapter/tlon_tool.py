@@ -91,8 +91,9 @@ POSTS_COMMANDS = frozenset(
 EXPOSE_TARGET_COMMANDS = frozenset({"show", "hide", "check", "url"})
 
 TLON_TOOL_DESCRIPTION = (
-    "Tlon/Urbit CLI for reading data and administration: activity, channels, "
-    "contacts, groups, messages, notes, posts, settings, upload, expose, hooks. "
+    "Tlon/Urbit CLI for reading data and administration: activity, buckets, "
+    "channels, contacts, groups, messages, notes, posts, settings, upload, "
+    "expose, hooks. "
     "Use the notes commands to manage %notes notebooks (Markdown notes at "
     "notes/~host/name nests). For notes bodies, use --body <file> "
     "(note-create also accepts --markdown <file>); --stdin is blocked because "
