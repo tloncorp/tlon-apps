@@ -71,7 +71,7 @@ describe('Hermes driver runtime spec', () => {
       steps: [{ kind: 'text', content: 'hello' }],
       options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
       expectations: {
-        advertisedTools: { exact: ['tlon'] },
+        advertisedTools: { exact: ['tlon', 'set_timezone'] },
         expectedCallCount: 1,
       },
     });
@@ -82,7 +82,7 @@ describe('Hermes driver runtime spec', () => {
         { kind: 'text', content: 'done' },
       ],
       expectations: {
-        advertisedTools: { exact: ['tlon'] },
+        advertisedTools: { exact: ['tlon', 'set_timezone'] },
         expectedCallCount: 2,
         expectedCallSequence: [
           { kind: 'model_request' },
@@ -99,7 +99,7 @@ describe('Hermes driver runtime spec', () => {
     ).toMatchObject({
       options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
       expectations: {
-        advertisedTools: { exact: ['tlon'] },
+        advertisedTools: { exact: ['tlon', 'set_timezone'] },
         expectedCallCount: 1,
       },
     });
