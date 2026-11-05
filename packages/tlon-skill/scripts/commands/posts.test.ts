@@ -1236,6 +1236,62 @@ describe('posts react', () => {
     ]);
   });
 
+  it('addresses a DM reaction by the author of the post it read', async () => {
+    const dmPost = async (): Promise<PostLookupResult> => ({
+      posts: [{ id: '170.141.184', sentAt: 1111, authorId: '~ten' }],
+    });
+    const react = makeDeps({ currentUserId: '~zod', getChannelPosts: dmPost });
+    const unreact = makeDeps({
+      currentUserId: '~zod',
+      getChannelPosts: dmPost,
+    });
+
+    expect(await run(['react', '~ten', '170141184', '👍'], react.deps)).toBe(0);
+    expect(await run(['unreact', '~ten', '170141184'], unreact.deps)).toBe(0);
+
+    expect(react.calls.addReaction).toEqual([
+      {
+        channelId: '~ten',
+        postId: '170.141.184',
+        emoji: '👍',
+        our: '~zod',
+        postAuthor: '~ten',
+      },
+    ]);
+    expect(unreact.calls.removeReaction).toEqual([
+      {
+        channelId: '~ten',
+        postId: '170.141.184',
+        our: '~zod',
+        postAuthor: '~ten',
+      },
+    ]);
+  });
+
+  it('addresses a DM thread-reply reaction by the reply and parent authors', async () => {
+    const context = makeDeps({
+      currentUserId: '~bus',
+      threads: [topLevel('170.141', { replies: [replyTarget('170.142')] })],
+    });
+    const exitCode = await run(
+      ['react', '~host', '170142', '🔥', '--parent', '170141'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.addReaction).toEqual([
+      {
+        channelId: '~host',
+        postId: '170.142',
+        emoji: '🔥',
+        our: '~bus',
+        postAuthor: '~zod',
+        parentAuthorId: '~host',
+        parentId: '170.141',
+      },
+    ]);
+  });
+
   it('passes a gallery comment reaction parent through exactly', async () => {
     const context = makeDeps({
       currentUserId: '~nec',
