@@ -25,7 +25,7 @@ When this package can find `@tloncorp/tlon-skill/SKILL.md`, it registers that fi
 
 A second skill registers the same way: when `skills/tlon-product-guide/SKILL.md` is findable in the OpenClaw plugin tree, it becomes `tlon-platform:tlon-product-guide` and the platform hint points at it for questions about what Tlon Messenger is and how its features work — as opposed to requests to *do* something, which stay on the `tlon` tool. Set `TLON_PRODUCT_GUIDE_PATH` for an explicit file, or `TLON_PLUGIN_DIR` when you know the plugin root but not its internal layout. A deployment without the plugin tree simply doesn't register it.
 
-The pinned Hermes serves a plugin skill's `SKILL.md` and nothing else: `skill_view` ignores `file_path` for plugin skills (later releases serve them). Both skills link to further files (`references/…`, `product/…`), so the platform hint names each registered skill's directory and has the model `read_file` them there. Drop that sentence once the pin reaches a release that serves plugin skill files.
+Before 0.22, Hermes serves a plugin skill's `SKILL.md` and nothing else: `skill_view` ignores `file_path` for plugin skills. Both skills link to further files (`references/…`, `product/…`), so on those releases the platform hint names each registered skill's directory and has the model `read_file` them there. From 0.22 `skill_view` serves them, and the adapter leaves that sentence out, since `read_file` is owner-only in Tlon chats.
 
 If you explicitly want the skill to appear in Hermes' normal skill index as bare `tlon`, add the directory containing the skill to `skills.external_dirs` in the Hermes profile config. That is optional install-time configuration, not required for the plugin-owned default path.
 

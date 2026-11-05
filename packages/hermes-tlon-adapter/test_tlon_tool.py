@@ -425,6 +425,39 @@ class TlonToolGuardTests(unittest.TestCase):
             'skill_view("tlon-platform:tlon")', missing.platform["platform_hint"]
         )
 
+    def test_platform_hint_sends_skill_files_to_read_file_only_when_skill_view_cannot(self):
+        # read_file is owner-only in Tlon chats, so pointing the model at it
+        # where skill_view could serve the file shuts other users out.
+        class RecordingContext:
+            def __init__(self):
+                self.platform = None
+
+            def register_hook(self, *_args):
+                pass
+
+            def register_tool(self, **_kwargs):
+                pass
+
+            def register_skill(self, *_args, **_kwargs):
+                pass
+
+            def register_platform(self, **kwargs):
+                self.platform = kwargs
+
+        hints = {}
+        for serves in (False, True):
+            context = RecordingContext()
+            with patch.object(
+                adapter_mod, "resolve_tlon_skill_path", return_value=Path("/plugin/skills/tlon/SKILL.md")
+            ), patch.object(
+                adapter_mod, "hermes_serves_plugin_skill_files", return_value=serves
+            ):
+                adapter_mod.register(context)
+            hints[serves] = context.platform["platform_hint"]
+
+        self.assertIn("use read_file on the skill's directory", hints[False])
+        self.assertNotIn("read_file", hints[True])
+
     def test_tool_description_includes_latex_guidance(self):
         description = tlon_tool.TLON_TOOL_DESCRIPTION
 

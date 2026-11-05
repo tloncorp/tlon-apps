@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import inspect
 import json
 import logging
 import math
@@ -262,13 +263,13 @@ REQUIRED_ENV = [
     "TLON_ACCESS_CODE",
     "TLON_OWNER_SHIP",
 ]
+# Hermes 0.22 renamed cronjob to cronjob_manage, and pre_tool_call hooks see
+# the new name even when the model uses the old one.
+CRONJOB_TOOL_NAMES = frozenset({"cronjob", "cronjob_manage"})
 OWNER_ONLY_TLON_TOOLS = frozenset(
     {
         "tlon",
-        "cronjob",
-        # Hermes >= 0.22 renamed the model tool; pre_tool_call hooks see the
-        # new name even when the model uses the legacy alias.
-        "cronjob_manage",
+        *CRONJOB_TOOL_NAMES,
         "read",
         "read_file",
         "write_file",
@@ -277,9 +278,6 @@ OWNER_ONLY_TLON_TOOLS = frozenset(
     }
 )
 OWNER_ONLY_TLON_TOOLSETS = frozenset({"file"})
-# Hermes 0.22 renamed cronjob to cronjob_manage and resolves the old name
-# before pre_tool_call hooks run.
-CRONJOB_TOOL_NAMES = frozenset({"cronjob", "cronjob_manage"})
 OPTIONAL_ENV = [
     "TLON_CHANNELS",
     "TLON_AUTO_DISCOVER",
@@ -5576,6 +5574,14 @@ def _reaction_platform_hint(level: str) -> str:
     )
 
 
+def hermes_serves_plugin_skill_files() -> bool:
+    try:
+        from tools.skills_tool_plugin import _serve_plugin_skill  # type: ignore
+    except ImportError:
+        return False
+    return "file_path" in inspect.signature(_serve_plugin_skill).parameters
+
+
 def register(ctx) -> None:
     ctx.register_hook("pre_tool_call", handle_pre_tool_call)
     ctx.register_hook("pre_tool_call", handle_pre_tool_call_lens)
@@ -5645,10 +5651,10 @@ def register(ctx) -> None:
         else ""
     )
 
-    # The pinned Hermes (v2026.6.19) serves only a plugin skill's SKILL.md and
-    # ignores skill_view's file_path, so the references and product pages
-    # both skills link to are reachable only by reading them from disk.
-    # Remove once the pin reaches a release that serves plugin skill files.
+    # Before 0.22, Hermes serves only a plugin skill's SKILL.md and ignores
+    # skill_view's file_path, so the references and product pages both skills
+    # link to are reachable only from disk. From 0.22 skill_view serves them,
+    # and read_file, which is owner-only here, would only shut other users out.
     skill_dirs = [
         f"{name} in {path.parent}"
         for name, path in (
@@ -5662,7 +5668,7 @@ def register(ctx) -> None:
         "ignores file_path. To read a file a skill links to (references/..., "
         "product/...), use read_file on the skill's directory joined with the "
         "link: " + "; ".join(skill_dirs) + ". "
-        if skill_dirs
+        if skill_dirs and not hermes_serves_plugin_skill_files()
         else ""
     )
 
