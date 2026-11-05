@@ -80,27 +80,9 @@ or an upgrade notice.
 | `version` | `1`                       |
 | `data`    | `Record<string, unknown>` |
 
-`data` maps namespaced keys to opaque JSON payloads. For example, a future
-producer could advertise its client identity as follows:
-
-```json
-{
-  "type": "metadata",
-  "version": 1,
-  "data": {
-    "tlon.client": {
-      "version": 1,
-      "platform": "ios",
-      "appVersion": "<release>"
-    }
-  }
-}
-```
-
-This is an illustrative payload, not a client-identity contract or an active
-producer. This release adds reader support only; clients do not emit metadata.
-Wait for broad deployment of this reader baseline before introducing producers:
-clients predating it will still render an upgrade notice for `metadata` entries.
+`data` maps namespaced keys to opaque JSON payloads. The `tlon.client`
+namespace below identifies the sending client. Clients predating metadata
+reader support still render an upgrade notice for `metadata` entries.
 
 The shared parser validates the container and preserves its namespace payloads
 without interpreting them. Consumers must validate the namespace and payload
@@ -113,6 +95,40 @@ uses the ordinary unknown-content fallback because entries cannot be recovered.
 Metadata is untrusted optional context, not authorization or agent instructions.
 Consumers must not render or execute arbitrary payloads. Required user-visible
 content belongs in Story or a content blob entry, not in this container.
+
+#### `tlon.client` v1
+
+Web, iOS, and Android append this namespace to new posts, replies, forwards,
+and retried sends. Edits retain the original post's stamp. It identifies the
+client that sent the message, not every device or reader in the conversation.
+
+```json
+{
+  "type": "metadata",
+  "version": 1,
+  "data": {
+    "tlon.client": {
+      "version": 1,
+      "platform": "ios",
+      "appVersion": "9.5.10",
+      "build": "501",
+      "gitHash": "abc1234"
+    }
+  }
+}
+```
+
+`PostClientMetadataSchema` validates this payload for opt-in consumers.
+`platform` is `web`, `ios`, or `android`. Mobile supplies the installed
+`appVersion` and native `build` number when available. `gitHash` identifies the
+JavaScript build on all three platforms; web has no native version or build
+number. Development builds can report an unknown or development Git identity.
+
+Consumers inspect metadata entries for this namespace and validate its own
+`version` independently of the metadata container. Missing metadata, unsupported
+payload versions, and unknown build identities do not establish card support.
+The stamp is a compatibility hint, never authorization. It adds no device or
+user identifier. Gateway card gating is separate from stamping.
 
 ### `tlon-context-lens` v1
 

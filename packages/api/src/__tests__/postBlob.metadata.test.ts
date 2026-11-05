@@ -4,6 +4,7 @@ import {
   appendToPostBlob,
   findPostBlobEntry,
   parsePostBlob,
+  PostClientMetadataSchema,
   type PostBlobDataEntryMetadata,
 } from '../client/content-helpers';
 import { convertContent, uploadedFileUrlsOf } from '../client/postContent';
@@ -39,6 +40,24 @@ const unsupportedMetadata = [
 ];
 
 describe('post blob metadata', () => {
+  test('client metadata is opt-in and rejects unsupported payload versions', () => {
+    const client = {
+      version: 1,
+      platform: 'android',
+      appVersion: '9.5.10',
+      build: '469',
+      gitHash: 'abc1234',
+    };
+    expect(PostClientMetadataSchema.parse(client)).toEqual(client);
+    expect(
+      PostClientMetadataSchema.safeParse({ ...client, version: 2 }).success
+    ).toBe(false);
+    const blob = JSON.stringify([
+      { ...metadata, data: { 'tlon.client': { ...client, version: 2 } } },
+    ]);
+    expect(convertContent(story, blob)).toEqual(convertContent(story, null));
+  });
+
   test('preserves opaque namespaces and payload versions for opt-in consumers', () => {
     const blob = JSON.stringify([metadata]);
     expect(parsePostBlob(blob)).toEqual([metadata]);

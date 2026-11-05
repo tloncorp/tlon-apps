@@ -714,6 +714,16 @@ export type PostBlobDataEntryMetadata = z.infer<
   typeof PostBlobDataEntryMetadataSchema
 >;
 
+export const PostClientMetadataSchema = z.object({
+  version: z.literal(1),
+  platform: z.enum(['web', 'ios', 'android']),
+  appVersion: z.string().optional(),
+  build: z.string().optional(),
+  gitHash: z.string().optional(),
+});
+
+export type PostClientMetadata = z.infer<typeof PostClientMetadataSchema>;
+
 export const PostBlobDataEntryContextLensSchema = definePostBlobDataEntrySchema(
   'tlon-context-lens',
   1,

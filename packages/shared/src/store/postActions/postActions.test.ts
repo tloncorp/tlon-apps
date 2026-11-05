@@ -17,6 +17,7 @@ import { updateSession } from '../session';
 import { setUploadState } from '../storage';
 import * as sync from '../sync';
 import { mergePendingPosts } from '../useMergePendingPosts';
+import { setPostClientMetadata } from './clientMetadata';
 import {
   deleteFailedPost,
   deletePost,
@@ -33,6 +34,16 @@ import { verifyPostDelivery } from './verifyPostDelivery';
 const TEST_CHANNEL = '~zod';
 const LOCAL_URI = 'LOCAL_URI';
 const REMOTE_URI = 'REMOTE_URI';
+const CLIENT_METADATA = {
+  version: 1,
+  platform: 'web',
+  gitHash: 'abc1234',
+} as const;
+const CLIENT_BLOB = JSON.stringify([
+  { type: 'metadata', version: 1, data: { 'tlon.client': CLIENT_METADATA } },
+]);
+
+afterEach(() => setPostClientMetadata(undefined));
 
 function buildTestDraft(
   overrides: Partial<Omit<PostDataDraft, 'isEdit'>> = {}
@@ -67,6 +78,7 @@ describe('sendPost', () => {
   });
 
   test('queue post when session is inactive', async () => {
+    setPostClientMetadata(CLIENT_METADATA);
     vi.useFakeTimers();
 
     // explicitly clear session so we'll enqueue the post
@@ -77,6 +89,7 @@ describe('sendPost', () => {
     // post starts as enqueued (since we don't have an active session)
     expect(await fetchLatestPostFromDb()).toMatchObject({
       deliveryStatus: 'enqueued',
+      blob: CLIENT_BLOB,
     });
 
     updateSession({
@@ -98,7 +111,11 @@ describe('sendPost', () => {
     await sendPostPromise;
     expect(await fetchLatestPostFromDb()).toMatchObject({
       deliveryStatus: 'pending',
+      blob: CLIENT_BLOB,
     });
+    expect(JSON.stringify(vi.mocked(poke).mock.calls[0][0].json)).toContain(
+      JSON.stringify(CLIENT_BLOB)
+    );
 
     // directly after the message succeeds sending, sendPosts fetches the
     // channel posts to verify post was received - check for that scry
@@ -390,6 +407,7 @@ describe('finalizeAndSendPost', () => {
   });
 
   test('tracks completion when a failed send succeeds on retry', async () => {
+    setPostClientMetadata(CLIENT_METADATA);
     const capture = vi.fn();
     useDebugStore.getState().initializeErrorLogger({ capture });
     vi.useFakeTimers();
@@ -413,6 +431,11 @@ describe('finalizeAndSendPost', () => {
     await vi.runOnlyPendingTimersAsync();
     await retry;
 
+    expect((await fetchLatestPostFromDb())?.blob).toBe(CLIENT_BLOB);
+    expect(
+      JSON.stringify(vi.mocked(poke).mock.calls.at(-1)![0].json)
+    ).toContain(JSON.stringify(CLIENT_BLOB));
+
     expect(
       capture.mock.calls.filter(
         ([event]) => event === AnalyticsEvent.ContentSendCompleted
@@ -421,6 +444,7 @@ describe('finalizeAndSendPost', () => {
   });
 
   test('tracks completion when a post is forwarded', async () => {
+    setPostClientMetadata(CLIENT_METADATA);
     const capture = vi.fn();
     useDebugStore.getState().initializeErrorLogger({ capture });
     vi.useFakeTimers();
@@ -439,6 +463,11 @@ describe('finalizeAndSendPost', () => {
     });
     await vi.runOnlyPendingTimersAsync();
     await forward;
+
+    expect((await fetchLatestPostFromDb())?.blob).toBe(CLIENT_BLOB);
+    expect(
+      JSON.stringify(vi.mocked(poke).mock.calls.at(-1)![0].json)
+    ).toContain(JSON.stringify(CLIENT_BLOB));
 
     expect(
       capture.mock.calls.filter(
@@ -743,6 +772,7 @@ describe('finalizeAndSendPost', () => {
   });
 
   test('sendReply', async () => {
+    setPostClientMetadata(CLIENT_METADATA);
     await db.insertChannels([
       db.buildChannel({ id: 'zod/group/channel', type: 'chat' }),
     ]);
@@ -806,7 +836,7 @@ describe('finalizeAndSendPost', () => {
                       content: toPostData({ ...draft, attachments: [] }).story,
                       author: api.getCurrentUserId(),
                       sent: expect.any(Number),
-                      blob: null,
+                      blob: CLIENT_BLOB,
                     },
                   },
                 },
@@ -1942,11 +1972,17 @@ describe('editing preserves authorship shape', () => {
   });
 
   test('a human-authored post keeps its bare ship author through an edit', async () => {
-    const post = await seedPost(false);
+    const post = { ...(await seedPost(false)), blob: CLIENT_BLOB };
+    await db.updatePost({ id: post.id, blob: post.blob });
+    setPostClientMetadata({ ...CLIENT_METADATA, gitHash: 'newer-build' });
 
     await editPost({ post, content: [{ inline: ['edited'] }] });
 
     expect(editedEssayAuthor()).toBe(BOT_SHIP);
+    expect((await fetchPost(post.id))?.blob).toBe(CLIENT_BLOB);
+    expect(JSON.stringify(vi.mocked(poke).mock.calls[0][0].json)).toContain(
+      JSON.stringify(CLIENT_BLOB)
+    );
   });
 
   // The call-site assertion below proves every edit path shares one call; it
