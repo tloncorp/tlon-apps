@@ -277,6 +277,9 @@ OWNER_ONLY_TLON_TOOLS = frozenset(
     }
 )
 OWNER_ONLY_TLON_TOOLSETS = frozenset({"file"})
+# Hermes 0.22 renamed cronjob to cronjob_manage and resolves the old name
+# before pre_tool_call hooks run.
+CRONJOB_TOOL_NAMES = frozenset({"cronjob", "cronjob_manage"})
 OPTIONAL_ENV = [
     "TLON_CHANNELS",
     "TLON_AUTO_DISCOVER",
@@ -5428,10 +5431,11 @@ def _non_owner_reaction_carveout(args: Optional[dict], config: TlonConfig) -> Op
 
 
 def block_naive_cron_timestamp(tool_name: str, args: Optional[dict] = None, **_kwargs: Any) -> Optional[dict]:
-    """Hermes reads a cronjob timestamp without a UTC offset in the server's
-    zone (UTC on a hosted pod), not the user's, so 09:00 meant for Tokyo
-    fires nine hours late. Make the model state the offset."""
-    if tool_name != "cronjob" or _session_env("HERMES_SESSION_PLATFORM", "").lower() != "tlon":
+    """Hermes reads a cronjob timestamp without a UTC offset in its own zone
+    (the server's before 0.22, its configured one from 0.22), not the zone of
+    a place the user names, so 09:00 meant for Tokyo fires hours off. Make
+    the model state the offset."""
+    if tool_name not in CRONJOB_TOOL_NAMES or _session_env("HERMES_SESSION_PLATFORM", "").lower() != "tlon":
         return None
     schedule = str((args or {}).get("schedule") or "").strip()
     try:
@@ -5442,7 +5446,7 @@ def block_naive_cron_timestamp(tool_name: str, args: Optional[dict] = None, **_k
         return None
     return _tool_access_block(
         f"Blocked: the schedule {schedule} has no UTC offset, and Hermes would "
-        "read it in this server's zone rather than the user's. Add the offset "
+        "read it in its own zone rather than the user's. Add the offset "
         "of the zone the user means, e.g. 2035-03-13T09:00:00+09:00 for 9:00 "
         "in Tokyo."
     )
