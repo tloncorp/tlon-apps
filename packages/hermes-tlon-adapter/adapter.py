@@ -5619,6 +5619,27 @@ def register(ctx) -> None:
         else ""
     )
 
+    # The pinned Hermes (v2026.6.19) serves only a plugin skill's SKILL.md and
+    # ignores skill_view's file_path, so the references and product pages
+    # both skills link to are reachable only by reading them from disk.
+    # Remove once the pin reaches a release that serves plugin skill files.
+    skill_dirs = [
+        f"{name} in {path.parent}"
+        for name, path in (
+            ("tlon-platform:tlon", skill_path),
+            ("tlon-platform:tlon-product-guide", product_guide_path),
+        )
+        if path is not None
+    ]
+    skill_files_hint = (
+        "skill_view on a tlon-platform skill returns only its SKILL.md and "
+        "ignores file_path. To read a file a skill links to (references/..., "
+        "product/...), use read_file on the skill's directory joined with the "
+        "link: " + "; ".join(skill_dirs) + ". "
+        if skill_dirs
+        else ""
+    )
+
     ctx.register_hook(
         "pre_llm_call",
         make_pre_llm_call_model_note(product_guide=product_guide_path is not None),
@@ -5661,6 +5682,7 @@ def register(ctx) -> None:
             "load skill_view(\"tlon-platform:tlon\") or run a tlon subcommand "
             "with --help. "
             + product_guide_hint
+            + skill_files_hint
             + "When a user asks you to create a Tlon group for them, use "
             "groups create-owned with --owner set to that user's ship so they "
             "are invited and made admin. "
