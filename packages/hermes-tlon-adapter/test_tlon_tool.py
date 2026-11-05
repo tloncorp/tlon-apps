@@ -956,6 +956,12 @@ class TlonToolGuardTests(unittest.TestCase):
         self.assertIn("Allowed:", blocked)
         self.assertIn("notes", blocked)
 
+    def test_allows_buckets(self):
+        args, error = tlon_tool.split_tlon_command("buckets list")
+
+        self.assertIsNone(error)
+        self.assertIsNone(tlon_tool.check_tlon_tool_command(args))
+
     def test_normalizes_global_help_and_version_aliases(self):
         self.assertEqual(tlon_tool.normalize_global_command_args(["help"]), ["--help"])
         self.assertEqual(tlon_tool.normalize_global_command_args(["version"]), ["--version"])
