@@ -1,7 +1,12 @@
 import type { WalletView } from '@tloncorp/api/client/browserWallet';
-import { Button, Icon, Text } from '@tloncorp/ui';
+import { Icon } from '@tloncorp/ui';
 import { XStack, YStack } from 'tamagui';
 
+import {
+  A2UICardButton,
+  A2UI_SPACE,
+} from '../../ui/components/PostContent/a2uiCardParts';
+import { BrowserCardFrame, BrowserCardText } from './BrowserCardFrame';
 import { walletFinished } from './browserPaymentPresentation';
 
 export function BrowserWalletConnectCard({
@@ -49,77 +54,82 @@ export function BrowserWalletConnectContent({
 }) {
   const ended = walletFinished.has(view.status);
   return (
-    <YStack
-      width="100%"
-      maxWidth={400}
-      borderWidth={1}
-      borderColor="$border"
-      borderRadius="$m"
-      backgroundColor="$background"
-      overflow="hidden"
-    >
-      <YStack padding="$xl" gap="$m" alignItems="center">
-        <YStack
-          width={48}
-          height={48}
-          alignItems="center"
-          justifyContent="center"
-          borderRadius="$m"
-          borderWidth={1}
-          borderColor="$border"
-          backgroundColor="$secondaryBackground"
-        >
-          <Icon type="Lock" size="$l" />
-        </YStack>
-        <Text size="$label/xl" textAlign="center">
-          {view.status === 'connected'
-            ? 'Wallet connected'
-            : 'Give Tlonbot a wallet'}
-        </Text>
-        <Text size="$label/m" color="$secondaryText" textAlign="center">
-          {view.status === 'connected'
-            ? 'Your Tlonbot can continue. Each payment needs your approval.'
-            : ended
-              ? 'This connection request has ended. Ask your bot for a new one.'
-              : 'Add a payment method and Tlonbot can complete checkouts for you.'}
-        </Text>
-        {!ended ? (
-          <YStack alignSelf="stretch" gap="$m" paddingTop="$s">
-            <XStack gap="$m" alignItems="flex-start">
-              <Icon type="Checkmark" size="$m" color="$secondaryText" />
-              <Text flex={1} size="$label/m">
-                Nothing is charged until you approve a payment request.
-              </Text>
-            </XStack>
-            <XStack gap="$m" alignItems="flex-start">
-              <Icon type="Checkmark" size="$m" color="$secondaryText" />
-              <Text flex={1} size="$label/m">
-                Your card details stay with Stripe and are never visible in
-                Tlon.
-              </Text>
-            </XStack>
-          </YStack>
-        ) : null}
-        {error ? <Text color="$negativeActionText">{error}</Text> : null}
-        {walletError ? (
-          <>
-            <Text color="$negativeActionText">{walletError}</Text>
-            <Button label="Try again" onPress={onRetry} />
-          </>
-        ) : null}
-      </YStack>
+    <BrowserCardFrame icon="Lock" kicker="Tlon wallet">
+      <BrowserCardText
+        type="title"
+        color="$primaryText"
+        marginTop={A2UI_SPACE.afterKicker}
+      >
+        {view.status === 'connected'
+          ? 'Wallet connected'
+          : 'Give Tlonbot a wallet'}
+      </BrowserCardText>
+      <BrowserCardText type="body" marginTop={A2UI_SPACE.line}>
+        {view.status === 'connected'
+          ? 'Your Tlonbot can continue. Each payment needs your approval.'
+          : ended
+            ? 'This connection request has ended. Ask your bot for a new one.'
+            : 'Add a payment method and Tlonbot can complete checkouts for you.'}
+      </BrowserCardText>
       {!ended ? (
-        <YStack borderTopWidth={1} borderColor="$border" padding="$xl">
-          <Button
-            fill="solid"
-            intent="primary"
-            label="Connect Stripe Link"
-            leadingIcon="Link"
-            disabled={busy}
-            onPress={onConnect}
-          />
+        <YStack marginTop={A2UI_SPACE.block} gap={A2UI_SPACE.line}>
+          <Reassurance>
+            Nothing is charged until you approve a payment request.
+          </Reassurance>
+          <Reassurance>
+            Your card details stay with Stripe and are never visible in Tlon.
+          </Reassurance>
         </YStack>
       ) : null}
-    </YStack>
+      {error || walletError ? (
+        <YStack marginTop={A2UI_SPACE.block} gap={A2UI_SPACE.line}>
+          {error ? (
+            <BrowserCardText type="note" color="$negativeActionText">
+              {error}
+            </BrowserCardText>
+          ) : null}
+          {walletError ? (
+            <BrowserCardText type="note" color="$negativeActionText">
+              {walletError}
+            </BrowserCardText>
+          ) : null}
+        </YStack>
+      ) : null}
+      {walletError || !ended ? (
+        <XStack gap={8} paddingTop={A2UI_SPACE.beforeButtons}>
+          {walletError ? (
+            <A2UICardButton
+              tone="secondary"
+              label="Try again"
+              onPress={onRetry}
+            />
+          ) : null}
+          {!ended ? (
+            <A2UICardButton
+              tone="primary"
+              label="Connect Stripe Link"
+              disabled={busy}
+              onPress={onConnect}
+            />
+          ) : null}
+        </XStack>
+      ) : null}
+    </BrowserCardFrame>
+  );
+}
+
+function Reassurance({ children }: { children: string }) {
+  return (
+    <XStack gap={8} alignItems="flex-start">
+      <Icon
+        type="Checkmark"
+        color="$secondaryText"
+        customSize={[14, 14]}
+        marginTop={2}
+      />
+      <BrowserCardText type="note" flex={1}>
+        {children}
+      </BrowserCardText>
+    </XStack>
   );
 }

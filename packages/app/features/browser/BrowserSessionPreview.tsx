@@ -5,6 +5,10 @@ import { type ComponentRef, useEffect, useRef } from 'react';
 import { Image, View } from 'react-native';
 import { Spinner, YStack } from 'tamagui';
 
+import {
+  A2UI_CARD_PADDING,
+  A2UI_TYPE,
+} from '../../ui/components/PostContent/a2uiCardParts';
 import { useOptionalBrowserCredentialHandoff } from './BrowserCredentialHandoffContext';
 import {
   BrowserPreviewAuthorizationError,
@@ -148,12 +152,14 @@ export function BrowserPreviewContent({
         accessibilityRole="button"
         accessibilityLabel="Open browser preview"
       >
+        {/* Fills the top of the card, whose corners clip it. */}
         <YStack
           aspectRatio={1.6}
           width="100%"
-          borderRadius="$s"
           overflow="hidden"
-          backgroundColor="$background"
+          backgroundColor="$secondaryBackground"
+          borderBottomWidth={1}
+          borderBottomColor="$border"
           alignItems="center"
           justifyContent="center"
         >
@@ -173,7 +179,14 @@ export function BrowserPreviewContent({
               accessibilityLabel="Loading browser preview"
             />
           ) : (
-            <Text color="$secondaryText" textAlign="center" padding="$m">
+            <Text
+              size="$label/m"
+              {...A2UI_TYPE.note}
+              color="$secondaryText"
+              textAlign="center"
+              trimmed={false}
+              paddingHorizontal={A2UI_CARD_PADDING}
+            >
               {label}
             </Text>
           )}

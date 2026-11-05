@@ -1,8 +1,8 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { Button } from '@tloncorp/ui';
 import type { WalletView } from '@tloncorp/api/client/browserWallet';
+import { A2UICardButton } from '../../ui/components/PostContent/a2uiCardParts';
 import { BrowserWalletConnectCard } from './BrowserWalletConnectCard';
 
 vi.mock('@tloncorp/ui', () => ({
@@ -10,7 +10,20 @@ vi.mock('@tloncorp/ui', () => ({
   Icon: 'Icon',
   Text: 'Text',
 }));
-vi.mock('tamagui', () => ({ XStack: 'XStack', YStack: 'YStack' }));
+vi.mock('tamagui', () => ({
+  XStack: 'XStack',
+  YStack: 'YStack',
+  isWeb: false,
+}));
+vi.mock(
+  '../../ui/components/PostContent/a2uiCardParts',
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import('../../ui/components/PostContent/a2uiCardParts')
+    >()),
+    A2UICardButton: 'A2UICardButton',
+  })
+);
 const view: WalletView = {
   request_id: 'request',
   kind: 'connect',
@@ -39,7 +52,7 @@ function mount(next = view) {
 it('opens the prepared owner link directly when Connect is tapped', () => {
   mount();
   expect(onOpenLink).not.toHaveBeenCalled();
-  const button = tree.root.findByType(Button);
+  const button = tree.root.findByType(A2UICardButton);
   expect(button.props.label).toBe('Connect Stripe Link');
   expect(button.props.disabled).toBeFalsy();
   act(() => button.props.onPress());
@@ -49,7 +62,7 @@ it.each(['connected', 'expired', 'cancelled'] as const)(
   'removes the action for %s requests',
   (status) => {
     mount({ ...view, status });
-    expect(tree.root.findAllByType(Button)).toHaveLength(0);
+    expect(tree.root.findAllByType(A2UICardButton)).toHaveLength(0);
   }
 );
 it('disables an unavailable link with an actionable explanation', () => {
@@ -57,7 +70,7 @@ it('disables an unavailable link with an actionable explanation', () => {
   expect(JSON.stringify(tree.toJSON())).toContain(
     'Ask your bot for a new one.'
   );
-  expect(tree.root.findByType(Button).props.disabled).toBe(true);
+  expect(tree.root.findByType(A2UICardButton).props.disabled).toBe(true);
 });
 
 it('shows a wallet polling failure and lets the owner retry it', () => {
@@ -76,7 +89,7 @@ it('shows a wallet polling failure and lets the owner retry it', () => {
     'Unable to refresh this wallet request.'
   );
   const retry = tree.root
-    .findAllByType(Button)
+    .findAllByType(A2UICardButton)
     .find(({ props }) => props.label === 'Try again');
   act(() => retry?.props.onPress());
   expect(onRetry).toHaveBeenCalledOnce();
