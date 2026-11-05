@@ -25,9 +25,13 @@ import { BrowserSecureEntryAction } from './BrowserSecureEntryAction';
 const logger = createDevLogger('BrowserCard', false);
 
 export function BrowserCardBlock({ block }: { block: BrowserCardBlockData }) {
-  const { canUseBrowserCards } = useContentContext();
+  const { canUseBrowserCards, browserCardBot } = useContentContext();
   return (
-    <BrowserCard card={block.card} allowed={canUseBrowserCards === true} />
+    <BrowserCard
+      card={block.card}
+      allowed={canUseBrowserCards === true}
+      botMoon={browserCardBot}
+    />
   );
 }
 
@@ -35,9 +39,11 @@ export function BrowserCardBlock({ block }: { block: BrowserCardBlockData }) {
 export function BrowserCard({
   card,
   allowed,
+  botMoon,
 }: {
   card: BrowserCardData;
   allowed: boolean;
+  botMoon?: string;
 }) {
   const handoff = useOptionalBrowserCredentialHandoff();
   const showToast = useToast();
@@ -54,7 +60,7 @@ export function BrowserCard({
     );
   }
   if (card.type === 'browser-wallet')
-    return <BrowserWalletCard requestId={card.requestId} />;
+    return <BrowserWalletCard requestId={card.requestId} botMoon={botMoon} />;
   const session = card.type === 'browser-session';
   const approval = !session && card.loginApproval;
   const login = !session && card.presentation?.purpose === 'login';

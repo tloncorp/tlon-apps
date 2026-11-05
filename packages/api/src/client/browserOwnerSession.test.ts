@@ -4,6 +4,7 @@ const state = vi.hoisted(() => ({
   authorize: vi.fn(),
   fetch: vi.fn(),
   change: undefined as undefined | (() => void),
+  endpoint: undefined as string | undefined,
 }));
 vi.mock('./urbit', () => ({
   getClientGeneration: () => state.generation,
@@ -13,10 +14,14 @@ vi.mock('./urbit', () => ({
   getBrowserVaultOwnerAuthorization: (time: number) => state.authorize(time),
 }));
 vi.mock('../types', () => ({
-  getConstants: () => ({ API_URL: 'https://test.tlon.systems' }),
+  getConstants: () => ({
+    API_URL: 'https://test.tlon.systems',
+    BROWSER_SERVICE_ENDPOINT: state.endpoint,
+  }),
 }));
 import {
   browserOwnerRequest,
+  browserOwnerServiceOrigin,
   browserOwnerSessionMoon,
   clearBrowserOwnerSessions,
 } from './browserOwnerSession';
@@ -33,6 +38,7 @@ beforeEach(() => {
   clearBrowserOwnerSessions();
   vi.clearAllMocks();
   state.generation = 0;
+  state.endpoint = undefined;
   state.authorize.mockResolvedValue({
     planet: 'sampel-palnet',
     ownerToken: 'private-proof',
@@ -43,6 +49,19 @@ beforeEach(() => {
   vi.stubGlobal('fetch', state.fetch);
 });
 describe('browser owner sessions', () => {
+  it('uses BROWSER_SERVICE_ENDPOINT for owner operations', () => {
+    state.endpoint = origin;
+    expect(browserOwnerServiceOrigin()).toBe(origin);
+    state.endpoint = `${origin}/mcp`;
+    expect(() => browserOwnerServiceOrigin()).toThrow(
+      'Configure BROWSER_SERVICE_ENDPOINT as an origin, without a path.'
+    );
+    state.endpoint = undefined;
+    expect(() => browserOwnerServiceOrigin()).toThrow(
+      'Browser service is not configured for this environment.'
+    );
+  });
+
   it('coalesces exchange and sends only bearer headers on later operations', async () => {
     await Promise.all([
       browserOwnerRequest(endpoint, 'moon', 'GET'),

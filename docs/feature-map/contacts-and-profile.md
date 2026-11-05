@@ -48,7 +48,7 @@ Notes: these are your own labels for that person. Their real profile does not ch
 <!-- src: packages/app/features/top/ContactsScreen.tsx, packages/app/ui/components/SystemNotices.tsx, packages/app/ui/components/ContactsScreenView.tsx, packages/app/hooks/useContactPermissions.native.ts, packages/shared/src/store/sync/sync.ts, packages/app/lib/notifications.ts -->
 
 Phone: open the Settings tab and tap `Contacts`. Until you share your address book, a `Find people you know` card is at the top. Tap `Continue` and allow access. The app confirms with `Success`.
-Who: phone app only. Matching only runs once your own profile has a phone number on it.
+Who: phone app only. Matching only runs once your own profile has a verified phone number on it.
 Notes: matches are added to your contacts and marked `New`. Later matches also send a notification. Everyone else is listed under `From your address book`. The access prompt is the phone's own, so its choices vary by phone; the app has no contact-by-contact picker. If you tapped `Not now`, the card does not come back. Allow Contacts access for Tlon Messenger in the phone's settings instead.
 
 ## Invite people from your address book

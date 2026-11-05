@@ -5,11 +5,6 @@ import type { WalletView } from '@tloncorp/api/client/browserWallet';
 import { A2UICardButton } from '../../ui/components/PostContent/a2uiCardParts';
 import { BrowserWalletConnectCard } from './BrowserWalletConnectCard';
 
-const mocks = vi.hoisted(() => ({
-  connect: vi.fn(),
-  refreshStatus: vi.fn(),
-  onEvent: undefined as undefined | ((event: { type: string }) => void),
-}));
 vi.mock('@tloncorp/ui', () => ({
   Button: 'Button',
   Icon: 'Icon',
@@ -29,29 +24,19 @@ vi.mock(
     A2UICardButton: 'A2UICardButton',
   })
 );
-vi.mock('../settings/useMcpConnections', () => ({
-  useMcpConnections: ({ onEvent }: { onEvent: typeof mocks.onEvent }) => {
-    mocks.onEvent = onEvent;
-    return {
-      connect: mocks.connect,
-      refreshStatus: mocks.refreshStatus,
-      providerConfigs: [{ id: 'stripe', template: 'link' }],
-      initialLoading: false,
-    };
-  },
-}));
 const view: WalletView = {
   request_id: 'request',
   kind: 'connect',
   status: 'pending',
   expires_at: Date.now() + 60000,
   connection_mode: 'tlon_oauth',
+  action: { name: 'link_oauth', url: 'https://link.example/authorize' },
 };
 let tree: ReactTestRenderer;
+const onOpenLink = vi.fn();
 beforeEach(() => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   vi.clearAllMocks();
-  mocks.connect.mockResolvedValue('started');
 });
 afterEach(() => {
   if (tree) act(() => tree.unmount());
@@ -59,18 +44,19 @@ afterEach(() => {
 });
 function mount(next = view) {
   act(() => {
-    tree = create(<BrowserWalletConnectCard view={next} />);
+    tree = create(
+      <BrowserWalletConnectCard view={next} onOpenLink={onOpenLink} />
+    );
   });
 }
-it('starts the existing connector OAuth flow only after tapping Connect', async () => {
+it('opens the prepared owner link directly when Connect is tapped', () => {
   mount();
-  expect(mocks.refreshStatus).toHaveBeenCalledOnce();
-  expect(mocks.connect).not.toHaveBeenCalled();
+  expect(onOpenLink).not.toHaveBeenCalled();
   const button = tree.root.findByType(A2UICardButton);
   expect(button.props.label).toBe('Connect Stripe Link');
-  await act(async () => button.props.onPress());
-  expect(mocks.connect).toHaveBeenCalledTimes(1);
-  expect(mocks.connect).toHaveBeenCalledWith('stripe');
+  expect(button.props.disabled).toBeFalsy();
+  act(() => button.props.onPress());
+  expect(onOpenLink).toHaveBeenCalledOnce();
 });
 it.each(['connected', 'expired', 'cancelled'] as const)(
   'removes the action for %s requests',
@@ -79,11 +65,12 @@ it.each(['connected', 'expired', 'cancelled'] as const)(
     expect(tree.root.findAllByType(A2UICardButton)).toHaveLength(0);
   }
 );
-it('surfaces an OAuth start failure and keeps the connect action available', () => {
-  mount();
-  act(() => mocks.onEvent?.({ type: 'start-failed' }));
-  expect(JSON.stringify(tree.toJSON())).toContain('Couldn’t open Stripe Link');
-  expect(tree.root.findByType(A2UICardButton).props.disabled).toBeFalsy();
+it('disables an unavailable link with an actionable explanation', () => {
+  mount({ ...view, action: undefined });
+  expect(JSON.stringify(tree.toJSON())).toContain(
+    'Ask your bot for a new one.'
+  );
+  expect(tree.root.findByType(A2UICardButton).props.disabled).toBe(true);
 });
 
 it('shows a wallet polling failure and lets the owner retry it', () => {
@@ -92,6 +79,7 @@ it('shows a wallet polling failure and lets the owner retry it', () => {
     tree = create(
       <BrowserWalletConnectCard
         view={view}
+        onOpenLink={onOpenLink}
         walletError="Unable to refresh this wallet request."
         onRetry={onRetry}
       />

@@ -57,12 +57,14 @@ export function trustedBrowserOwnerEndpoint(endpoint: string): URL {
 
 /** Configured independently of browser cards so settings work with no session. */
 export function browserOwnerServiceOrigin(): string {
-  const configured = getConstants().KERNEL_SERVICE_ORIGIN;
+  const configured = getConstants().BROWSER_SERVICE_ENDPOINT;
   if (!configured)
-    throw new Error('Kernel service is not configured for this environment.');
+    throw new Error('Browser service is not configured for this environment.');
   const url = trustedBrowserOwnerEndpoint(configured);
   if (url.pathname !== '/')
-    throw new Error('Configure a Kernel service origin, without a path.');
+    throw new Error(
+      'Configure BROWSER_SERVICE_ENDPOINT as an origin, without a path.'
+    );
   return url.origin;
 }
 

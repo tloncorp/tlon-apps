@@ -10,14 +10,21 @@ import { BrowserPaymentCard, BrowserPaymentSheet } from './BrowserPayment';
 import { BrowserWalletConnectCard } from './BrowserWalletConnectCard';
 import { useBrowserWallet } from './useBrowserWallet';
 
-export function BrowserWalletCard({ requestId }: { requestId: string }) {
+export function BrowserWalletCard({
+  requestId,
+  botMoon,
+}: {
+  requestId: string;
+  botMoon?: string;
+}) {
   const [open, setOpen] = useState(false);
-  const wallet = useBrowserWallet(requestId, open);
+  const wallet = useBrowserWallet(requestId, botMoon, open);
   return (
     <>
       {wallet.view?.connection_mode === 'tlon_oauth' ? (
         <BrowserWalletConnectCard
           view={wallet.view}
+          onOpenLink={wallet.onOpenLink}
           walletError={wallet.error}
           onRetry={wallet.onRetry}
         />
