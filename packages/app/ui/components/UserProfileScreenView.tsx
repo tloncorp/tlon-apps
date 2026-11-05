@@ -16,6 +16,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useState,
 } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -588,6 +589,13 @@ function GroupsListCard({
   onPressGroup: (group: db.Group) => void;
   testID?: string;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const toggleExpanded = useCallback(() => setExpanded((e) => !e), []);
+  const canCollapse = groups.length > GROUPS_LIST_COLLAPSED_COUNT;
+  const visibleGroups =
+    canCollapse && !expanded
+      ? groups.slice(0, GROUPS_LIST_COLLAPSED_COUNT)
+      : groups;
   return (
     <YStack
       borderRadius="$2xl"
@@ -604,7 +612,7 @@ function GroupsListCard({
       >
         {title}
       </Text>
-      {groups.map((group, i) => (
+      {visibleGroups.map((group, i) => (
         <GroupListRow
           key={group.id}
           model={group}
@@ -612,9 +620,33 @@ function GroupsListCard({
           onPress={onPressGroup}
         />
       ))}
+      {canCollapse ? (
+        <Pressable
+          onPress={toggleExpanded}
+          testID={testID ? `${testID}Toggle` : undefined}
+        >
+          <View height={1} backgroundColor="$border" />
+          <XStack
+            alignItems="center"
+            justifyContent="space-between"
+            paddingHorizontal="$2xl"
+            paddingVertical="$l"
+          >
+            <Text size="$label/l" color="$secondaryText">
+              {expanded ? 'Show less' : `See all ${groups.length}`}
+            </Text>
+            <Icon
+              type={expanded ? 'ChevronUp' : 'ChevronDown'}
+              color="$tertiaryText"
+            />
+          </XStack>
+        </Pressable>
+      ) : null}
     </YStack>
   );
 }
+
+const GROUPS_LIST_COLLAPSED_COUNT = 5;
 
 function GroupListRow({
   model,
