@@ -339,6 +339,53 @@ describe('fake model server', () => {
       },
     ]);
   });
+
+  test('answers recent-context note calls without spending a script step', async () => {
+    const key = 'quoted-in-note';
+    await fakeModel.script(key, [{ kind: 'text', content: 'real reply' }]);
+
+    const note = await postChat(server.baseUrl, key, {
+      messages: [
+        {
+          role: 'system',
+          content: 'You maintain a one-line status note for a chat.',
+        },
+        {
+          role: 'user',
+          content: `Newest messages:\n~zod: [tlon-test:${key}] hi`,
+        },
+      ],
+    });
+    expect(note.ok).toBe(true);
+    const turn = await postChat(server.baseUrl, key);
+    const body = (await turn.json()) as ChatCompletionResponse;
+    expect(body.choices[0].message.content).toBe('real reply');
+
+    const calls = await fakeModel.received();
+    expect(calls[0]).toMatchObject({
+      key: null,
+      auxiliaryKind: 'openclaw_recent_context_note',
+    });
+    expect(calls[1].key).toBe(key);
+  });
+
+  test('ignores keys quoted in a recent-activity block', async () => {
+    const key = 'this-turn';
+    await fakeModel.script(key, [{ kind: 'text', content: 'ok' }]);
+
+    const res = await postChat(server.baseUrl, key, {
+      messages: [
+        {
+          role: 'user',
+          content:
+            `[tlon-test:${key}] hello\n\n<recent-activity>\n` +
+            '~nec: [tlon-test:other-test] elsewhere\n</recent-activity>',
+        },
+      ],
+    });
+    expect(res.ok).toBe(true);
+    expect((await fakeModel.received(key)).length).toBe(1);
+  });
 });
 
 async function postChat(

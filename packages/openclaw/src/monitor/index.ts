@@ -76,6 +76,12 @@ import {
   publishGroupContextRuntime,
   unpublishGroupContextRuntime,
 } from '../group-context.js';
+import {
+  type RecentContextRuntime,
+  createRecentContextRuntime,
+  publishRecentContextRuntime,
+  unpublishRecentContextRuntime,
+} from '../recent-context.js';
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
 import { recordTlonMessageJourneyEvent } from '../message-journey.js';
 import {
@@ -1006,6 +1012,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   let stopBrowserContinuations: (() => void) | undefined;
   let workspaceInstructions: WorkspaceInstructionsRuntime | null = null;
   let groupContext: GroupContextRuntime | null = null;
+  let recentContext: RecentContextRuntime | null = null;
   let roleMentionResolver: RoleMentionResolver | null = null;
   try {
     const computingPresence = createComputingPresenceTracker({ runtime });
@@ -1119,6 +1126,22 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     const groupContextRuntime = createGroupContextRuntime();
     groupContext = groupContextRuntime;
     publishGroupContextRuntime(groupContextRuntime);
+    recentContext = createRecentContextRuntime({
+      botShip: botShipName,
+      channelToGroup,
+      fetchGroup: (flag) => inApiScope(() => getGroup(flag)),
+      complete: async ({ systemPrompt, prompt }) =>
+        (
+          await core.llm.complete({
+            systemPrompt,
+            messages: [{ role: 'user', content: prompt }],
+            maxTokens: 150,
+            purpose: 'tlon recent-context session note',
+          })
+        ).text,
+      log: (msg) => runtime.log?.(msg),
+    });
+    publishRecentContextRuntime(recentContext);
     roleMentionResolver = createRoleMentionResolver({
       channelToGroup,
       refreshChannelGroups,
@@ -7399,6 +7422,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     }
     if (groupContext) {
       unpublishGroupContextRuntime(groupContext);
+    }
+    if (recentContext) {
+      unpublishRecentContextRuntime(recentContext);
     }
     if (roleMentionResolver) {
       unpublishRoleMentionResolver(account.accountId, roleMentionResolver);

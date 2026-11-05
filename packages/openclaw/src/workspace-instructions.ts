@@ -47,6 +47,22 @@ export function nestFromSessionKey(
   return match ? match[1] : null;
 }
 
+/**
+ * The group a session's nest belongs to. Session keys are lowercased; the
+ * index holds canonical nests, whose channel names keep their case.
+ */
+export function groupForSessionNest(
+  channelToGroup: ReadonlyMap<string, string>,
+  nest: string
+): string | null {
+  const exact = channelToGroup.get(nest);
+  if (exact) return exact;
+  for (const [candidate, flag] of channelToGroup) {
+    if (candidate.toLowerCase() === nest) return flag;
+  }
+  return null;
+}
+
 export type WorkspaceInstructionsRuntime = {
   handleBeforePromptBuild(
     ctx: PluginHookAgentContext
@@ -74,16 +90,8 @@ export function createWorkspaceInstructionsRuntime(deps: {
   const blobs = new Map<string, { at: number; blob: string | null }>();
   const inFlight = new Map<string, Promise<string | null>>();
 
-  // Session keys are lowercased; the index holds canonical nests, whose
-  // channel names keep their case.
-  const groupForNest = (nest: string): string | null => {
-    const exact = deps.channelToGroup.get(nest);
-    if (exact) return exact;
-    for (const [candidate, flag] of deps.channelToGroup) {
-      if (candidate.toLowerCase() === nest) return flag;
-    }
-    return null;
-  };
+  const groupForNest = (nest: string) =>
+    groupForSessionNest(deps.channelToGroup, nest);
 
   const nestForCronJob = async (jobId: string): Promise<string | null> => {
     const cron = deps.getCron?.();
