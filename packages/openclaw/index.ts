@@ -2119,11 +2119,9 @@ export default defineBundledChannelEntry({
               (approved.ownerRun !== undefined &&
                 !isOwnerRun(approved.ownerRun, liveAccount().ownerShip)) ||
               (approved.heartbeatRead !== undefined &&
-                !(
-                  isHeartbeatOwnerReadRun(
-                    approved.heartbeatRead,
-                    liveAccount().ownerShip
-                  ) && isHeartbeatOwnerRead(params.command)
+                !isHeartbeatOwnerReadRun(
+                  approved.heartbeatRead,
+                  liveAccount().ownerShip
                 )),
           })(id, params);
         };

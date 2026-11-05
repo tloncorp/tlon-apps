@@ -169,7 +169,7 @@ export const SEALED_HEARTBEAT_ALLOWED_TOOLS: ReadonlySet<string> = new Set([
 ]);
 
 export const SEALED_HEARTBEAT_BLOCK_REASON =
-  "Blocked by policy: this heartbeat run read the owner's data, so only Tlon reads, files, memory, web, browser, MCP and heartbeat_respond remain; reply with your final text to reach the owner.";
+  "Blocked by policy: this heartbeat run read the owner's data, so only Tlon reads, files, memory, web, browser, MCP and heartbeat_respond remain; reply with your final text (or heartbeat_respond) to reach the owner.";
 
 /** Whether a sealed heartbeat run may call this tool (by name alone). */
 export function isSealedHeartbeatAllowedTool(toolName: string): boolean {
