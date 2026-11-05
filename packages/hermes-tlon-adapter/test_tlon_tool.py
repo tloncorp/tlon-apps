@@ -2252,6 +2252,35 @@ class OwnerChannelPredicateTests(unittest.TestCase):
                 )
 
 
+    def test_routes_activity_to_the_owner_unless_self_or_help(self):
+        for command in (
+            "activity mute chat/~host/general",
+            "activity mark-read --all",
+            "activity unreads",
+        ):
+            with self.subTest(command=command):
+                self.assertTrue(
+                    tlon_tool.should_run_activity_as_owner(
+                        self._args(command), OWNER_SHIP
+                    )
+                )
+        for command in (
+            "activity mute chat/~host/general --self",
+            "activity mute --help",
+            "--ship ~bot activity unreads",
+            "groups list",
+        ):
+            with self.subTest(command=command):
+                self.assertFalse(
+                    tlon_tool.should_run_activity_as_owner(
+                        self._args(command), OWNER_SHIP
+                    )
+                )
+        self.assertFalse(
+            tlon_tool.should_run_activity_as_owner(self._args("activity unreads"), "")
+        )
+
+
 class OwnerChannelRoutingTests(unittest.TestCase):
     def _run(self, command, cfg, env=None):
         calls = []
@@ -2349,6 +2378,37 @@ class OwnerChannelRoutingTests(unittest.TestCase):
                 self.assertNotIn("note", payload)
                 _argv, run_env = calls[-1]
                 self.assertEqual(run_env["TLON_SHIP"], "~bot")
+
+
+    def test_runs_activity_on_the_owner_account(self):
+        cfg = _bot_config(TLON_COOKIE=BOT_COOKIE)
+
+        payload, calls = self._run(
+            "activity mute chat/~host/general", cfg, OWNER_ENV
+        )
+
+        self.assertTrue(payload["success"])
+        argv, run_env = calls[-1]
+        self.assertEqual(
+            argv, ("tlon-test", "activity", "mute", "chat/~host/general")
+        )
+        self.assertEqual(run_env["TLON_SHIP"], OWNER_SHIP)
+        self.assertEqual(run_env["TLON_CODE"], OWNER_CODE)
+        self.assertNotIn(BOT_COOKIE, run_env.values())
+
+    def test_runs_activity_on_the_bot_with_self_or_without_the_owner_triple(
+        self,
+    ):
+        cfg = _bot_config()
+        no_owner = {key: "" for key in OWNER_ENV}
+
+        payload, calls = self._run("activity unreads --self", cfg, OWNER_ENV)
+        self.assertNotIn("note", payload)
+        self.assertEqual(calls[-1][1]["TLON_SHIP"], "~bot")
+
+        payload, calls = self._run("activity unreads", cfg, no_owner)
+        self.assertIn("ran on your own account", payload["note"])
+        self.assertEqual(calls[-1][1]["TLON_SHIP"], "~bot")
 
 
 class TlonSkillPathTests(unittest.TestCase):

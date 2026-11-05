@@ -1184,6 +1184,23 @@ def should_delete_group_on_owner(args: Sequence[str], owner_ship: str) -> bool:
     return _runs_in_owner_hosted_group(args, owner_ship, GROUP_DELETE_COMMANDS)
 
 
+def should_run_activity_as_owner(args: Sequence[str], owner_ship: str) -> bool:
+    """`activity` reads and changes the unreads and notifications a person sees
+    in their app, and a hosted bot's owner asks about theirs; the OpenClaw
+    plugin runs these as the owner too. True iff the parsed subcommand is
+    ``activity``, with an owner configured, no credential flag in either form,
+    no ``--self``, and no help token."""
+    if not normalize_ship(owner_ship) or _has_credential_flag(args):
+        return False
+    sub_idx = find_subcommand_index(args)
+    if sub_idx < 0:
+        return False
+    command_args = [str(arg) for arg in args[sub_idx:]]
+    if command_args[0].lower() != "activity":
+        return False
+    return not any(arg == "--self" or _is_help_arg(arg) for arg in command_args)
+
+
 def _runs_in_owner_hosted_group(
     args: Sequence[str], owner_ship: str, commands: frozenset[tuple[str, str]]
 ) -> bool:
@@ -1300,6 +1317,27 @@ def route_group_delete_to_owner(
     if bot and bot.lower() == owner.lower():
         return OwnerRouting(cfg, list(args))
     return OwnerRouting(_hosted_owner_config(cfg, env) or cfg, list(args))
+
+
+def route_activity_to_owner(
+    cfg: TlonConfig, args: Sequence[str], env: Mapping[str, str] | None = None
+) -> OwnerRouting:
+    """Runs an activity command on the owner's account. Without the owner
+    triple it runs on the bot's, and the note says so: the command's
+    "for ~ship" line is otherwise the only sign whose account changed."""
+    bot = normalize_ship(cfg.ship_name)
+    owner = normalize_ship(cfg.owner_ship)
+    if bot and bot.lower() == owner.lower():
+        return OwnerRouting(cfg, list(args))
+    owner_cfg = _hosted_owner_config(cfg, env)
+    if owner_cfg is None:
+        return OwnerRouting(
+            cfg,
+            list(args),
+            "Your owner's credentials aren't available here, so this ran on "
+            f"your own account, not {owner}'s.",
+        )
+    return OwnerRouting(owner_cfg, list(args))
 
 
 async def route_create_owned(
@@ -1439,6 +1477,8 @@ async def execute_tlon_tool(
         cfg, args, routing_note = route_channel_to_owner(cfg, args)
     elif should_delete_group_on_owner(args, cfg.owner_ship):
         cfg, args, routing_note = route_group_delete_to_owner(cfg, args)
+    elif should_run_activity_as_owner(args, cfg.owner_ship):
+        cfg, args, routing_note = route_activity_to_owner(cfg, args)
 
     # Lazy import keeps this module importable standalone (no cycle at load).
     from .telemetry import cli_context, get_active_telemetry
