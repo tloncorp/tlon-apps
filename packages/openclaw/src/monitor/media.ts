@@ -7,6 +7,7 @@ import { homedir } from 'node:os';
 import * as path from 'node:path';
 import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
+import { MAX_IMAGE_BYTES } from 'openclaw/plugin-sdk/media-runtime';
 import { fetchWithSsrFGuard } from 'openclaw/plugin-sdk/ssrf-runtime';
 
 import { getDefaultSsrFPolicy } from '../urbit/context.js';
@@ -21,6 +22,13 @@ const DEFAULT_MEDIA_DIR = path.join(
   'inbound'
 );
 export const MAX_BLOB_DOWNLOAD_BYTES = 100 * 1024 * 1024;
+export const MAX_IMAGES_PER_MESSAGE = 8;
+// Header wait and body progress are separate failure modes: a server that
+// never answers, and one that stops sending mid-body.
+export const MEDIA_FETCH_TIMEOUTS = {
+  responseHeaderTimeoutMs: 120_000,
+  readIdleTimeoutMs: 30_000,
+} as const;
 
 export interface ExtractedImage {
   url: string;
@@ -50,6 +58,13 @@ type DownloadableBlobEntry = Extract<
   ClientPostBlobData[number],
   { type: 'file' | 'voicememo' | 'video' }
 >;
+
+class MediaTimeoutError extends Error {
+  constructor(phase: 'headers' | 'body') {
+    super(`media download stalled waiting for ${phase}`);
+    this.name = 'MediaTimeoutError';
+  }
+}
 
 class MediaTooLargeError extends Error {
   constructor(
@@ -93,6 +108,15 @@ export async function downloadMedia(
   options: DownloadMediaOptions = {}
 ): Promise<DownloadedMedia | null> {
   let localPath: string | null = null;
+  const deadline = new AbortController();
+  let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+  const armDeadline = (phase: 'headers' | 'body', ms: number) => {
+    clearTimeout(deadlineTimer);
+    deadlineTimer = setTimeout(
+      () => deadline.abort(new MediaTimeoutError(phase)),
+      ms
+    );
+  };
 
   try {
     // Validate URL is http/https before fetching
@@ -109,12 +133,17 @@ export async function downloadMedia(
 
     // Fetch with SSRF protection
     // Use fetchWithSsrFGuard directly (not urbitFetch) to preserve the full URL path
+    armDeadline('headers', MEDIA_FETCH_TIMEOUTS.responseHeaderTimeoutMs);
     const { response, release } = await fetchWithSsrFGuard({
       url,
       init: { method: 'GET', headers: { 'User-Agent': tlonMediaUserAgent() } },
       policy: getDefaultSsrFPolicy(),
       auditContext: 'tlon-media-download',
+      signal: deadline.signal,
     });
+    const armIdle = () =>
+      armDeadline('body', MEDIA_FETCH_TIMEOUTS.readIdleTimeoutMs);
+    armIdle();
 
     try {
       if (!response.ok) {
@@ -162,26 +191,28 @@ export async function downloadMedia(
 
       const writeStream = createWriteStream(localPath);
       let observedSizeBytes = 0;
-      const limitTransform =
-        options.maxBytes === undefined
-          ? undefined
-          : new Transform({
-              transform(chunk, _encoding, callback) {
-                observedSizeBytes += Buffer.byteLength(chunk);
-                if (observedSizeBytes > options.maxBytes!) {
-                  callback(
-                    new MediaTooLargeError(observedSizeBytes, options.maxBytes!)
-                  );
-                  return;
-                }
-                callback(null, chunk);
-              },
-            });
+      const progressTransform = new Transform({
+        transform(chunk, _encoding, callback) {
+          armIdle();
+          observedSizeBytes += Buffer.byteLength(chunk);
+          if (
+            options.maxBytes !== undefined &&
+            observedSizeBytes > options.maxBytes
+          ) {
+            callback(
+              new MediaTooLargeError(observedSizeBytes, options.maxBytes)
+            );
+            return;
+          }
+          callback(null, chunk);
+        },
+      });
 
       await pipeline(
         Readable.fromWeb(body as any),
-        ...(limitTransform ? [limitTransform] : []),
-        writeStream
+        progressTransform,
+        writeStream,
+        { signal: deadline.signal }
       );
 
       return {
@@ -205,10 +236,13 @@ export async function downloadMedia(
       return null;
     }
 
+    const reason = deadline.signal.aborted ? deadline.signal.reason : error;
     console.error(
-      `[tlon-media] Error downloading media from ${describeMediaHost(url)}: ${describeErrorClass(error)}`
+      `[tlon-media] Error downloading media from ${describeMediaHost(url)}: ${describeErrorClass(reason)}`
     );
     return null;
+  } finally {
+    clearTimeout(deadlineTimer);
   }
 }
 
@@ -279,10 +313,14 @@ export async function downloadMessageImages(
   unavailableCount: number;
 }> {
   const attachments: Array<{ path: string; contentType: string }> = [];
-  let unavailableCount = 0;
+  const images = extractImageBlocks(content);
+  // Images past the cap are reported unavailable rather than downloaded.
+  let unavailableCount = Math.max(0, images.length - MAX_IMAGES_PER_MESSAGE);
 
-  for (const image of extractImageBlocks(content)) {
-    const downloaded = await downloadMedia(image.url, mediaDir);
+  for (const image of images.slice(0, MAX_IMAGES_PER_MESSAGE)) {
+    const downloaded = await downloadMedia(image.url, mediaDir, {
+      maxBytes: MAX_IMAGE_BYTES,
+    });
     if (downloaded) {
       attachments.push({
         path: downloaded.localPath,

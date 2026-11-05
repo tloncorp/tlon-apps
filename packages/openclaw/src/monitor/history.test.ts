@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -10,6 +13,7 @@ import {
   QUOTED_POSTS_NOTE,
   buildThreadContextMessage,
   cacheMessage,
+  clearChannelHistoryCache,
   composeInboundMessageText,
   fetchChannelHistory,
   fetchChannelHistoryOrThrow,
@@ -322,6 +326,44 @@ describe('fetchChannelHistory', () => {
     expect(scry).toHaveBeenCalledWith(expect.any(String), {
       signal: controller.signal,
     });
+  });
+});
+
+describe('clearChannelHistoryCache', () => {
+  it('makes a full cache fetch again after a monitor restart', async () => {
+    const channel = `chat/~zod/restart-${Date.now().toString(36)}`;
+    for (let i = 0; i < 50; i++) {
+      cacheMessage(channel, makeEntry({ id: String(2_000 + i) }));
+    }
+    const scry = vi.fn(async () => []);
+
+    await getChannelHistory({ scry }, channel, 50);
+    expect(scry).not.toHaveBeenCalled();
+
+    clearChannelHistoryCache();
+    await getChannelHistory({ scry }, channel, 50);
+    expect(scry).toHaveBeenCalledOnce();
+  });
+
+  it('keeps DM entries so reactions to pre-restart bot DMs still resolve', () => {
+    const suffix = Date.now().toString(36);
+    const dm = `dm/~ship-${suffix}`;
+    const channel = `chat/~zod/clear-${suffix}`;
+    cacheMessage(dm, makeEntry({ id: '3000', author: '~bot' }));
+    cacheMessage(channel, makeEntry({ id: '3001' }));
+
+    clearChannelHistoryCache();
+
+    expect(lookupCachedMessage(dm, '3000')?.author).toBe('~bot');
+    expect(lookupCachedMessage(channel, '3001')).toBeUndefined();
+  });
+
+  it('is called at monitor start', () => {
+    const here = path.dirname(fileURLToPath(import.meta.url));
+    const source = fs.readFileSync(path.resolve(here, './index.ts'), 'utf8');
+    expect(source).toMatch(
+      /async function monitorTlonProviderScoped\([\s\S]*?clearChannelHistoryCache\(\);[\s\S]*?await api\.connect\(\)/
+    );
   });
 });
 
