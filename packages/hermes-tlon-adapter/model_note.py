@@ -13,8 +13,8 @@ ROUTED_PROVIDER = "openrouter"
 _ASKED = (
     " When asked what model or company you run on, or whether you are "
     "connected to OpenAI or any other AI company, answer from this note: name "
-    "the model and the route. Hermes is the software you run in, not a model "
-    "service."
+    "the model, the route and whether zero data retention is on. Hermes is "
+    "the software you run in, not a model service."
 )
 
 # The note answers only for the provider, and a bot asked about retention
