@@ -29,13 +29,15 @@ const STORE_DEADLINE_MS = 60_000;
 
 /** Settles with `work`, or rejects once `signal` aborts. */
 function abortable<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
-  signal.throwIfAborted();
   return new Promise<T>((resolve, reject) => {
+    // `work` is observed before any abort rejects, so an abandoned rejection
+    // is never unhandled.
     const onAbort = () => reject(signal.reason);
-    signal.addEventListener('abort', onAbort, { once: true });
     work
       .then(resolve, reject)
       .finally(() => signal.removeEventListener('abort', onAbort));
+    if (signal.aborted) onAbort();
+    else signal.addEventListener('abort', onAbort, { once: true });
   });
 }
 
