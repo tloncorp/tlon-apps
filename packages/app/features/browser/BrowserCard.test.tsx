@@ -1,4 +1,5 @@
-vi.mock('./BrowserWalletCard', () => ({ BrowserWalletCard: () => null }));
+vi.mock('./BrowserWalletCard', () => ({ BrowserWalletCard: 'WalletCard' }));
+import { BrowserWalletCard } from './BrowserWalletCard';
 import React from 'react';
 import { Button } from '@tloncorp/ui';
 import { ReferenceSkeleton } from '../../ui/components/ContentReference/Reference';
@@ -42,7 +43,10 @@ vi.mock('./BrowserSessionPreview', () => ({
     children,
 }));
 vi.mock('../../ui/components/PostContent/contentUtils', () => ({
-  useContentContext: () => ({ canUseBrowserCards: mocks.allowed }),
+  useContentContext: () => ({
+    canUseBrowserCards: mocks.allowed,
+    browserCardBot: '~pinser-botter-dopwed-magrev',
+  }),
 }));
 const viewerUrl = 'https://browser-session.tlon.network/s/payload.signature';
 const login = {
@@ -152,4 +156,23 @@ it('reports viewer failure without leaking capabilities and allows retry', async
   expect(mocks.toast).toHaveBeenCalled();
   expect(JSON.stringify(mocks.trackError.mock.calls)).not.toContain(viewerUrl);
   expect(button.props.disabled).toBe(false);
+});
+
+it('passes the message bot to wallet cards and keeps foreign cards inert', () => {
+  const block = {
+    type: 'browser-card',
+    card: { type: 'browser-wallet', version: 1, requestId: 'request' },
+  } as const;
+  act(() => {
+    tree = create(<BrowserCardBlock block={block} />);
+  });
+  expect(tree.root.findByType(BrowserWalletCard).props).toMatchObject({
+    requestId: 'request',
+    botMoon: '~pinser-botter-dopwed-magrev',
+  });
+  mocks.allowed = false;
+  act(() => {
+    tree.update(<BrowserCardBlock block={block} />);
+  });
+  expect(tree.root.findAllByType(BrowserWalletCard)).toHaveLength(0);
 });
