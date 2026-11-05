@@ -241,7 +241,8 @@ What it does:
 - A share URL with no fragment emits `onError` and returns `error`.
 
 Upstream:
-- none filed; 9.0.0 (latest on November 5, 2026) ships the same module
+- issue: [achorein/expo-share-intent#243](https://github.com/achorein/expo-share-intent/issues/243);
+  9.0.0 (latest on November 5, 2026) ships the same module
 - Linear: `TLON-6980` (Crashlytics `df44f1d9d4542ec89fc3f66c2f37a90b`)
 
 Validation:
