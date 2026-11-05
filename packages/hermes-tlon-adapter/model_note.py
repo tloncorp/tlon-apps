@@ -4,14 +4,13 @@ an OpenClaw bot. Nothing else in the bot's context says any of this, and a
 bot asked otherwise guesses, down to inventing a model service.
 """
 
-from typing import Any, Callable, Optional
+from typing import Callable, Optional, Tuple
 
 ROUTED_PROVIDER = "openrouter"
 
 # Hermes is the bot's software, and a bot asked what powers it otherwise
-# names that instead of the model. Hermes adds the note to the user's
-# message, not the system prompt as OpenClaw does, and there a bot brought
-# it into unrelated answers, so it also says when it applies.
+# names that instead of the model. A bot given the note without saying when
+# it applies brought it into unrelated answers.
 _ASKED = (
     " When asked what model or company you run on, whether you are connected "
     "to OpenAI or any other AI company, or whether the AI company keeps or "
@@ -51,25 +50,25 @@ def model_privacy_note(
     )
 
 
-def configured_model_provider() -> Optional[str]:
+def configured_model() -> Tuple[Optional[str], Optional[str]]:
     from hermes_cli.config import load_config  # type: ignore
 
     model = load_config().get("model")
-    provider = model.get("provider") if isinstance(model, dict) else None
-    return str(provider) if provider else None
+    if not isinstance(model, dict):
+        return None, None
+    provider, name = model.get("provider"), model.get("default")
+    return (str(provider) if provider else None, str(name) if name else None)
 
 
-def make_pre_llm_call_model_note(
+def configured_model_note(
     *,
     product_guide: bool,
-    provider: Callable[[], Optional[str]] = configured_model_provider,
-) -> Callable[..., Optional[dict]]:
-    def handle(**kwargs: Any) -> Optional[dict]:
-        if kwargs.get("platform") != "tlon":
-            return None
-        note = model_privacy_note(
-            provider(), kwargs.get("model"), product_guide=product_guide
-        )
-        return {"context": note} if note else None
-
-    return handle
+    configured: Callable[[], Tuple[Optional[str], Optional[str]]] = configured_model,
+) -> str:
+    """The note for the platform hint, as OpenClaw puts it in the system
+    prompt. Not a pre_llm_call hook: from 0.22 Hermes keeps hook context in
+    each turn's stored message, so a per-turn note piles up in the history.
+    Hosted Hermes restarts the gateway when the model changes."""
+    provider, model = configured()
+    note = model_privacy_note(provider, model, product_guide=product_guide)
+    return note + " " if note else ""

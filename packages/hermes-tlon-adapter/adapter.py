@@ -110,7 +110,7 @@ from .mention import (
     extract_profile_nickname,
 )
 from .migration import MigrationCommandController, is_migrate_command
-from .model_note import make_pre_llm_call_model_note
+from .model_note import configured_model_note
 from .owner_listen import (
     SETTINGS_DESK,
     SETTINGS_KEY_GROUP_CHANNELS,
@@ -5672,11 +5672,6 @@ def register(ctx) -> None:
         else ""
     )
 
-    ctx.register_hook(
-        "pre_llm_call",
-        make_pre_llm_call_model_note(product_guide=product_guide_path is not None),
-    )
-
     ctx.register_platform(
         name="tlon",
         label="Tlon",
@@ -5718,6 +5713,7 @@ def register(ctx) -> None:
             "never the user's files. "
             + product_guide_hint
             + skill_files_hint
+            + configured_model_note(product_guide=product_guide_path is not None)
             + "When a user asks you to create a Tlon group for them, use "
             "groups create-owned with --owner set to that user's ship so they "
             "are invited and made admin. "

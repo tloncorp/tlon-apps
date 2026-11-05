@@ -342,7 +342,7 @@ The registry in `commands.py` is the single source of truth for command detectio
 
 ## Model note
 
-As the OpenClaw plugin does (`packages/openclaw/src/model-privacy-context.ts`), every Tlon turn gets a note naming the model it runs, how requests reach it (through OpenRouter or the provider directly) and whether zero data retention is on, and pointing at the product guide for Tlon's side (`model_note.py`, a `pre_llm_call` hook). Hermes adds it to the turn's user message at API-call time; it never enters the session. Hermes can't send OpenRouter's `zdr` preference (`provider_routing` has no such key), so for an OpenRouter model the note says zero data retention is off.
+As the OpenClaw plugin does (`packages/openclaw/src/model-privacy-context.ts`), the platform hint carries a note naming the configured model, how requests reach it (through OpenRouter or the provider directly) and whether zero data retention is on, and pointing at the product guide for Tlon's side (`model_note.py`). It isn't a `pre_llm_call` hook: from 0.22 Hermes stores hook context in each turn's message, so a per-turn note would pile up in the history. Hosted Hermes restarts the gateway when the model changes, which rebuilds the hint. Hermes can't send OpenRouter's `zdr` preference (`provider_routing` has no such key), so for an OpenRouter model the note says zero data retention is off.
 
 ## Telemetry
 

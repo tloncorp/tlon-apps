@@ -51,6 +51,26 @@ def load_module(name):
     return module
 
 
+# register() reads the configured model for the platform hint's model note.
+_hermes_cli = types.ModuleType("hermes_cli")
+_hermes_cli.__path__ = []
+_hermes_cli_config = types.ModuleType("hermes_cli.config")
+_hermes_cli_config.load_config = lambda: {
+    "model": {"provider": "openrouter", "default": "openai/gpt-5.6-luna"}
+}
+_hermes_cli_stub = patch.dict(
+    sys.modules, {"hermes_cli": _hermes_cli, "hermes_cli.config": _hermes_cli_config}
+)
+
+
+def setUpModule():
+    _hermes_cli_stub.start()
+
+
+def tearDownModule():
+    _hermes_cli_stub.stop()
+
+
 tlon_api = load_module("tlon_api")
 tlon_tool = load_module("tlon_tool")
 approval = sys.modules[f"{PACKAGE_NAME}.approval"]
@@ -457,6 +477,33 @@ class TlonToolGuardTests(unittest.TestCase):
 
         self.assertIn("use read_file on the skill's directory", hints[False])
         self.assertNotIn("read_file", hints[True])
+
+    def test_platform_hint_carries_the_model_note(self):
+        class RecordingContext:
+            def __init__(self):
+                self.platform = None
+                self.hooks: list[str] = []
+
+            def register_hook(self, name, *_args):
+                self.hooks.append(name)
+
+            def register_tool(self, **_kwargs):
+                pass
+
+            def register_skill(self, *_args, **_kwargs):
+                pass
+
+            def register_platform(self, **kwargs):
+                self.platform = kwargs
+
+        context = RecordingContext()
+        adapter_mod.register(context)
+
+        self.assertIn(
+            "you're running openai/gpt-5.6-luna, routed through OpenRouter",
+            context.platform["platform_hint"],
+        )
+        self.assertNotIn("pre_llm_call", context.hooks)
 
     def test_tool_description_includes_latex_guidance(self):
         description = tlon_tool.TLON_TOOL_DESCRIPTION
