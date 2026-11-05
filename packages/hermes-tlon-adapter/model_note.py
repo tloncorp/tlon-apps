@@ -9,12 +9,15 @@ from typing import Any, Callable, Optional
 ROUTED_PROVIDER = "openrouter"
 
 # Hermes is the bot's software, and a bot asked what powers it otherwise
-# names that instead of the model.
+# names that instead of the model. Hermes adds the note to the user's
+# message, not the system prompt as OpenClaw does, and there a bot brought
+# it into unrelated answers, so it also says when it applies.
 _ASKED = (
-    " When asked what model or company you run on, or whether you are "
-    "connected to OpenAI or any other AI company, answer from this note: name "
-    "the model, the route and whether zero data retention is on. Hermes is "
-    "the software you run in, not a model service."
+    " When asked what model or company you run on, whether you are connected "
+    "to OpenAI or any other AI company, or whether the AI company keeps or "
+    "trains on what people say, answer from this note: name the model, the "
+    "route and whether zero data retention is on. Otherwise leave it out of "
+    "your reply. Hermes is the software you run in, not a model service."
 )
 
 # The note answers only for the provider, and a bot asked about retention
