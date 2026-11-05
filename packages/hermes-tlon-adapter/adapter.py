@@ -5427,6 +5427,27 @@ def _non_owner_reaction_carveout(args: Optional[dict], config: TlonConfig) -> Op
     return None
 
 
+def block_naive_cron_timestamp(tool_name: str, args: Optional[dict] = None, **_kwargs: Any) -> Optional[dict]:
+    """Hermes reads a cronjob timestamp without a UTC offset in the server's
+    zone (UTC on a hosted pod), not the user's, so 09:00 meant for Tokyo
+    fires nine hours late. Make the model state the offset."""
+    if tool_name != "cronjob" or _session_env("HERMES_SESSION_PLATFORM", "").lower() != "tlon":
+        return None
+    schedule = str((args or {}).get("schedule") or "").strip()
+    try:
+        parsed = datetime.fromisoformat(schedule.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is not None:
+        return None
+    return _tool_access_block(
+        f"Blocked: the schedule {schedule} has no UTC offset, and Hermes would "
+        "read it in this server's zone rather than the user's. Add the offset "
+        "of the zone the user means, e.g. 2035-03-13T09:00:00+09:00 for 9:00 "
+        "in Tokyo."
+    )
+
+
 def block_tlon_session_tool(tool_name: str, args: Optional[dict] = None, **_kwargs: Any) -> Optional[dict]:
     if _session_env("HERMES_SESSION_PLATFORM", "").lower() != "tlon":
         return None
@@ -5555,6 +5576,7 @@ def register(ctx) -> None:
     ctx.register_hook("pre_tool_call", handle_pre_tool_call)
     ctx.register_hook("pre_tool_call", handle_pre_tool_call_lens)
     ctx.register_hook("pre_tool_call", block_tlon_session_tool)
+    ctx.register_hook("pre_tool_call", block_naive_cron_timestamp)
     ctx.register_hook("post_api_request", handle_post_api_request)
     ctx.register_hook("post_api_request", handle_post_api_request_telemetry)
     ctx.register_hook("post_api_request", handle_post_api_request_lens)

@@ -2951,6 +2951,39 @@ class AdapterAttentionTests(unittest.TestCase):
         self.assertEqual(block["action"], "block")
         self.assertIn("managed Tlon prompt", block["message"])
 
+    def test_tlon_session_blocks_cron_timestamp_without_offset(self):
+        with patch.dict(os.environ, {"HERMES_SESSION_PLATFORM": "tlon"}, clear=True):
+            naive = adapter_mod.block_naive_cron_timestamp(
+                "cronjob", {"action": "create", "schedule": "2035-03-13T09:00:00"}
+            )
+            offset = adapter_mod.block_naive_cron_timestamp(
+                "cronjob", {"action": "create", "schedule": "2035-03-13T09:00:00+09:00"}
+            )
+            utc = adapter_mod.block_naive_cron_timestamp(
+                "cronjob", {"action": "create", "schedule": "2035-03-13T00:00:00Z"}
+            )
+            cron = adapter_mod.block_naive_cron_timestamp(
+                "cronjob", {"action": "create", "schedule": "0 9 * * *"}
+            )
+            interval = adapter_mod.block_naive_cron_timestamp(
+                "cronjob", {"action": "create", "schedule": "every 2h"}
+            )
+
+        self.assertEqual(naive["action"], "block")
+        self.assertIn("no UTC offset", naive["message"])
+        self.assertIsNone(offset)
+        self.assertIsNone(utc)
+        self.assertIsNone(cron)
+        self.assertIsNone(interval)
+
+    def test_non_tlon_session_allows_cron_timestamp_without_offset(self):
+        with patch.dict(os.environ, {"HERMES_SESSION_PLATFORM": "cli"}, clear=True):
+            block = adapter_mod.block_naive_cron_timestamp(
+                "cronjob", {"action": "create", "schedule": "2035-03-13T09:00:00"}
+            )
+
+        self.assertIsNone(block)
+
     def test_non_tlon_session_allows_skill_management_hook(self):
         with patch.dict(os.environ, {"HERMES_SESSION_PLATFORM": "cli"}, clear=True):
             block = adapter_mod.block_tlon_session_tool(
