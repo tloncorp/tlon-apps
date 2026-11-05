@@ -36,49 +36,57 @@ afterEach(() => {
   platform.isWeb = true;
 });
 
-it('opens the prepared owner-only URL synchronously, without another wallet request or blank tab', async () => {
-  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
-  const popup = { opener: {} };
-  const open = vi.fn(() => popup);
-  vi.stubGlobal('window', { open });
-  vi.mocked(browserWalletRequest).mockResolvedValue({
-    request_id: 'request',
-    kind: 'payment',
-    status: 'pending',
-    expires_at: Date.now() + 60000,
-    action: { name: 'spend_approval', url: 'https://link.example/approve' },
-  });
-  await act(async () => {
-    tree = create(<Harness />);
-  });
-  expect(browserWalletRequest).toHaveBeenCalledTimes(1);
-  act(() => {
-    wallet.onOpenLink();
-  });
-  expect(open).toHaveBeenCalledWith('https://link.example/approve', '_blank');
-  expect(popup.opener).toBeNull();
-  expect(browserWalletRequest).toHaveBeenCalledTimes(1);
-});
+it.each(['payment', 'connect'] as const)(
+  'opens a prepared %s URL synchronously without another request or blank tab',
+  async (kind) => {
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+    const popup = { opener: {} };
+    const open = vi.fn(() => popup);
+    vi.stubGlobal('window', { open });
+    vi.mocked(browserWalletRequest).mockResolvedValue({
+      request_id: 'request',
+      kind,
+      status: 'pending',
+      expires_at: Date.now() + 60000,
+      action: { name: 'spend_approval', url: 'https://link.example/approve' },
+    });
+    await act(async () => {
+      tree = create(<Harness />);
+    });
+    expect(browserWalletRequest).toHaveBeenCalledTimes(1);
+    act(() => {
+      wallet.onOpenLink();
+    });
+    expect(open).toHaveBeenCalledWith('https://link.example/approve', '_blank');
+    expect(popup.opener).toBeNull();
+    expect(browserWalletRequest).toHaveBeenCalledTimes(1);
+  }
+);
 
-it('opens mobile approvals through the system link handler', async () => {
-  platform.isWeb = false;
-  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
-  vi.mocked(browserWalletRequest).mockResolvedValue({
-    request_id: 'request',
-    kind: 'payment',
-    status: 'pending',
-    expires_at: Date.now() + 60000,
-    action: { name: 'spend_approval', url: 'https://link.example/approve' },
-  });
-  await act(async () => {
-    tree = create(<Harness />);
-  });
-  await act(async () => {
-    wallet.onOpenLink();
-  });
-  expect(Linking.openURL).toHaveBeenCalledWith('https://link.example/approve');
-  expect(browserWalletRequest).toHaveBeenCalledTimes(1);
-});
+it.each(['payment', 'connect'] as const)(
+  'opens mobile %s links through the system link handler',
+  async (kind) => {
+    platform.isWeb = false;
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+    vi.mocked(browserWalletRequest).mockResolvedValue({
+      request_id: 'request',
+      kind,
+      status: 'pending',
+      expires_at: Date.now() + 60000,
+      action: { name: 'spend_approval', url: 'https://link.example/approve' },
+    });
+    await act(async () => {
+      tree = create(<Harness />);
+    });
+    await act(async () => {
+      wallet.onOpenLink();
+    });
+    expect(Linking.openURL).toHaveBeenCalledWith(
+      'https://link.example/approve'
+    );
+    expect(browserWalletRequest).toHaveBeenCalledTimes(1);
+  }
+);
 
 it('sends saved-method approval without a Link payment-method id', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);

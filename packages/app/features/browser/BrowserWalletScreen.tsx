@@ -22,6 +22,7 @@ export function BrowserWalletScreen({
         {wallet.view?.connection_mode === 'tlon_oauth' ? (
           <BrowserWalletConnectCard
             view={wallet.view}
+            onOpenLink={wallet.onOpenLink}
             walletError={wallet.error}
             onRetry={wallet.onRetry}
           />

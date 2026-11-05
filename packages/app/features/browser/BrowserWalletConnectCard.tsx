@@ -1,57 +1,33 @@
 import type { WalletView } from '@tloncorp/api/client/browserWallet';
 import { Button, Icon, Text } from '@tloncorp/ui';
-import { useEffect, useState } from 'react';
 import { XStack, YStack } from 'tamagui';
 
-import { useMcpConnections } from '../settings/useMcpConnections';
 import { walletFinished } from './browserPaymentPresentation';
 
 export function BrowserWalletConnectCard({
   view,
   walletError,
   onRetry,
+  onOpenLink,
 }: {
   view: WalletView;
   walletError?: string;
   onRetry?: () => void;
+  onOpenLink(): void;
 }) {
-  const [error, setError] = useState('');
-  const connections = useMcpConnections({
-    onEvent: (event) => {
-      if (event.type === 'start-failed')
-        setError('Couldn’t open Stripe Link. Try again.');
-      else if (event.type === 'completed' && !event.success)
-        setError(event.message);
-    },
-  });
-  const { refreshStatus } = connections;
-  const ended = walletFinished.has(view.status);
-  useEffect(() => {
-    if (!ended) void refreshStatus();
-  }, [ended, refreshStatus]);
-
-  const connect = async () => {
-    setError('');
-    const provider = connections.providerConfigs.find(
-      (entry) => entry.template === 'link'
-    );
-    if (!provider) {
-      setError('Stripe Link is unavailable. Try again shortly.');
-      void connections.refreshStatus();
-      return;
-    }
-    const result = await connections.connect(provider.id);
-    if (result === 'unavailable')
-      setError('Sign in to Tlon hosting to connect Stripe Link.');
-  };
+  const missingLink = !walletFinished.has(view.status) && !view.action;
   return (
     <BrowserWalletConnectContent
       view={view}
-      error={error}
+      error={
+        missingLink
+          ? 'This connection link is unavailable. Ask your bot for a new one.'
+          : undefined
+      }
       walletError={walletError}
       onRetry={onRetry}
-      busy={connections.initialLoading || !!connections.busyProviderId}
-      onConnect={() => void connect()}
+      busy={missingLink}
+      onConnect={onOpenLink}
     />
   );
 }
@@ -137,7 +113,7 @@ export function BrowserWalletConnectContent({
           <Button
             fill="solid"
             intent="primary"
-            label={busy ? 'Opening Stripe Link…' : 'Connect Stripe Link'}
+            label="Connect Stripe Link"
             leadingIcon="Link"
             disabled={busy}
             onPress={onConnect}
