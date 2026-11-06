@@ -36,6 +36,10 @@ export async function main(argv: string[]): Promise<number> {
     console.log(`tlon-memory ${VERSION}`);
     return 0;
   }
+  if (cmd === '--help' || cmd === '-h' || cmd === 'help') {
+    process.stdout.write(USAGE);
+    return 0;
+  }
   try {
     switch (cmd) {
       case 'setup': return await (await import('./setup')).setup(rest);

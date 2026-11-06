@@ -18,7 +18,7 @@ node /path/to/tlon-apps/packages/tlon-memory/bin/tlon-memory.js setup
 
 You need `node` and `bun` installed, and `pnpm install` run once at the repo root. Setup asks a few questions and ends with a live check against your ship.
 
-You can build a standalone binary with `pnpm build` in `packages/tlon-memory`, before or after setup. It is written to `dist/tlon-memory`, and the `bin/tlon-memory.js` shim uses it automatically when it exists. Run from the binary, setup finds the package from the binary's location (`dist/tlon-memory` → the package directory), so hooks and the MCP server still point at `bin/tlon-memory.js`, and the skill is copied from `SKILL.md`. The binary also carries a copy of `SKILL.md` from build time, which setup installs if the file is missing.
+`pnpm build` in `packages/tlon-memory` writes `dist/tlon-memory.js`, a bundle that needs only `node`, and `dist/tlon-memory`, a standalone binary. The `bin/tlon-memory.js` shim runs the bundle under the same `node` when it exists, else the binary, else `bun` on the source. Run from the binary, setup finds the package from the binary's location (`dist/tlon-memory` → the package directory), so hooks and the MCP server still point at `bin/tlon-memory.js`, and the skill is copied from `SKILL.md`. The binary also carries a copy of `SKILL.md` from build time, which setup installs if the file is missing.
 
 The examples below write `tlon-memory` for the command. Either put `bin/tlon-memory.js` on your PATH under that name, or type the full `node .../bin/tlon-memory.js` path.
 
@@ -124,7 +124,7 @@ Codex skips new hooks until you trust them. After setup, start Codex, run `/hook
 
 ### GUI apps and PATH
 
-The hook and MCP commands run `bin/tlon-memory.js` through its `#!/usr/bin/env node` line, so `node` must be on the PATH the client gives its hooks. The shim then runs `dist/tlon-memory` if it exists. If not, it looks for `bun` on PATH, then in `~/.bun/bin`, `/opt/homebrew/bin` and `/usr/local/bin`. Apps launched from the Dock or Finder (for example the Claude desktop app) can get a minimal PATH without bun. Run `pnpm build` in `packages/tlon-memory` (before or after setup) so hooks use the compiled binary and do not need bun at all.
+The hook and MCP commands run `bin/tlon-memory.js` through its `#!/usr/bin/env node` line, so `node` must be on the PATH the client gives its hooks. The shim then runs `dist/tlon-memory.js` under that `node`, or `dist/tlon-memory` if only the binary exists. With neither, it looks for `bun` on PATH, then in `~/.bun/bin`, `/opt/homebrew/bin` and `/usr/local/bin`. Apps launched from the Dock or Finder (for example the Claude desktop app) can get a minimal PATH without bun. Run `pnpm build` in `packages/tlon-memory` so hooks need only `node`.
 
 ## What is captured
 
@@ -319,7 +319,7 @@ Everything lives under `~/.tlon/memory/` (or `$TLON_MEMORY_HOME`). Directories a
 cd packages/tlon-memory
 bun test          # unit tests
 pnpm typecheck
-pnpm build        # dist/tlon-memory, version from package.json
+pnpm build        # dist/tlon-memory.js (node) and dist/tlon-memory (binary), version from package.json
 ```
 
 From the repo root, `pnpm test:tlon-memory` runs the typecheck and the tests.
