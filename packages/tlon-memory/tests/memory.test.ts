@@ -9,7 +9,9 @@ import { Paths } from '../src/paths';
 import { Config, defaultConfig, saveConfig } from '../src/config';
 import { ensureNotebook } from '../src/notebook';
 import { MemoryStore } from '../src/memory';
-import { enqueue, syncQueue } from '../src/sync';
+import { enqueue, syncQueue, syncSession } from '../src/sync';
+import { parseClaudeTranscript } from '../src/transcript/claude';
+import { rmSync } from 'node:fs';
 
 const fake = new FakeNotes(); let paths: Paths; let cfg: Config; let store: MemoryStore;
 beforeAll(async () => { fake.start(); const c = new NotesClient({ shipUrl: fake.url, apiKey: 'test-key' });
@@ -83,6 +85,58 @@ describe('MemoryStore', () => {
     expect(ex.text).toContain('## e1');
     expect(ex.truncated).toBe(true);
     const fromE3 = await store.getConversation({ sessionKey: hits[0].sessionKey, fromEvent: 'e3', maxChars: 20_000 });
-    expect(fromE3.text.startsWith('## e3')).toBe(true);
+    expect(fromE3.text.startsWith('part 1/1\n## e3')).toBe(true);
+    await expect(store.getConversation({ sessionKey: hits[0].sessionKey, fromEvent: 'e999' })).rejects.toThrow('unknown anchor');
+  });
+  it('update: rejects empty patches and text, and reports conflicts without renaming', async () => {
+    const a = await store.save({ type: 'decision', text: 'Original.', agent: 'claude-code', project: 'demo' });
+    await expect(store.update(a.id, {})).rejects.toThrow('nothing to update');
+    await expect(store.update(a.id, { text: '   ' })).rejects.toThrow('empty');
+    fake.unknownNext = false;
+    // the ship answers the guarded PUT with a conflict: someone edited the memory meanwhile
+    const orig = fake.handle.bind(fake); let once = true;
+    fake.handle = async (req: Request) => {
+      if (once && req.method === 'PUT') { once = false; const n = fake.notes.get(a.id)!; n.revision++; }
+      return orig(req);
+    };
+    try { await expect(store.update(a.id, { text: 'Changed.' })).rejects.toMatchObject({ code: 'conflict', message: 'memory changed on the ship; re-read and retry' }); }
+    finally { fake.handle = orig; }
+    expect(fake.notes.get(a.id)!.title).toBe('Original.');
+  });
+  it('short queries: one-letter words match nothing, two-letter words count', async () => {
+    await store.save({ type: 'decision', text: 'Use a DB for the queue.', agent: 'claude-code', project: 'demo' });
+    expect(await store.search({ query: 'a b' })).toEqual([]);
+    expect((await store.search({ query: 'db' })).length).toBe(1);
+  });
+  it('lists and searches memories without downloading the notebook', async () => {
+    await store.save({ type: 'decision', text: 'Cheap listing.', agent: 'claude-code', project: 'demo' });
+    const fx = join(paths.root, 't.jsonl'); copyFileSync(join(import.meta.dir, 'fixtures', 'claude-session.jsonl'), fx);
+    enqueue(paths, { client: 'claude', sessionId: 's', transcriptPath: fx, cwd: '/Users/bill/Projects/demo' });
+    await syncQueue(paths, cfg, { budgetMs: 10_000 });
+    fake.requests = [];
+    await store.search({ query: 'cheap' });
+    await store.listRecent('memories');
+    const conv = await store.listRecent('conversations');
+    expect(conv[0].sessionKey).toBe('claude-code:11111111-aaaa-4bbb-8ccc-222222222222');
+    const listing = (p: string) => /\/notes$/.test(p.split('?')[0]);
+    expect(fake.requests.some((r) => r.method === 'GET' && listing(r.path))).toBe(false);
+    expect(fake.requests.every((r) => r.path.includes('needle=tlon-memory%3A%20memory%2Fv1'))).toBe(true);
+  });
+  it('cites and reads the part that holds the event, with or without local state', async () => {
+    const t = parseClaudeTranscript(join(import.meta.dir, 'fixtures', 'claude-session.jsonl'));
+    const big = { ...t, events: Array.from({ length: 400 }, (_, i) => ({ ...t.events[0], anchor: `e${i + 1}`, text: `event ${i + 1} ` + 'x'.repeat(1000) })) };
+    await syncSession(paths, cfg, new NotesClient({ shipUrl: fake.url, apiKey: 'test-key' }), big, { recover: false });
+    const key = 'claude-code:11111111-aaaa-4bbb-8ccc-222222222222';
+    const ids = (await import('../src/state')).loadSessionState(paths, 'claude-code', '11111111-aaaa-4bbb-8ccc-222222222222')!.noteIds;
+    const m = await store.save({ type: 'context', text: 'Cites part 2.', agent: 'claude-code', project: 'demo', sessionKey: key, event: 'e250' });
+    expect(fake.notes.get(m.id)!.bodyMd).toContain(`source_note: ${ids[1]}`);
+    const ex = await store.getConversation({ sessionKey: key, fromEvent: 'e250', maxChars: 200 });
+    expect(ex.noteId).toBe(ids[1]);
+    expect(ex.text.startsWith(`part 2/${ids.length}\n## e250 ·`)).toBe(true);
+    expect((await store.getConversation({ noteId: ids[0], fromEvent: 'e250', maxChars: 200 })).noteId).toBe(ids[1]);
+    rmSync(paths.stateDir, { recursive: true });
+    const m2 = await store.save({ type: 'context', text: 'Cites part 2 again.', agent: 'claude-code', project: 'demo', sessionKey: key, event: 'e250' });
+    expect(fake.notes.get(m2.id)!.bodyMd).toContain(`source_note: ${ids[1]}`);
+    expect((await store.getConversation({ sessionKey: key })).noteId).toBe(ids[0]);
   });
 });
