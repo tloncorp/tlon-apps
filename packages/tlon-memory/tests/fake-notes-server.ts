@@ -10,6 +10,10 @@ export class FakeNotes {
   notes = new Map<number, FakeNote>();
   requests: { method: string; path: string; body: any; headers: Headers }[] = [];
   failNext: number | null = null;   // set to an HTTP status to fail the next request once
+  failNextOn: { path: string; status: number } | null = null; // fail the next request to this pathname once
+  legacyConflict = false;           // older desks answer a stale expectedRevision with errorType 'unknown'
+  unknownNext = false;              // answer the next note PUT with errorType 'unknown'
+  scryNull = false;                 // the api-key scry returns null (no key minted yet)
   nextId = 100;
   server!: ReturnType<typeof Bun.serve>;
   get url() { return `http://127.0.0.1:${this.server.port}`; }
@@ -36,6 +40,7 @@ export class FakeNotes {
     this.requests.push({ method: req.method, path: u.pathname + u.search, body, headers: req.headers });
     if (this.failNext) { const s = this.failNext; this.failNext = null; return new Response('fail', { status: s }); }
     const p = u.pathname;
+    if (this.failNextOn?.path === p) { const s = this.failNextOn.status; this.failNextOn = null; return new Response('fail', { status: s }); }
     if (p === '/~/host') return new Response(this.ship);
     if (p === '/~/login' && req.method === 'POST') {
       const form = new URLSearchParams(raw);
@@ -43,7 +48,7 @@ export class FakeNotes {
       return new Response(null, { status: 303, headers: { 'set-cookie': `urbauth-${this.ship}=cookie-1; Path=/; Max-Age=1800` } });
     }
     if (!this.authed(req)) return new Response('unauthorized', { status: 401 });
-    if (p === '/~/scry/notes/v0/api-key.json') return Response.json(this.apiKey);
+    if (p === '/~/scry/notes/v0/api-key.json') return Response.json(this.scryNull ? null : this.apiKey);
     if (p === '/notes/~/v1' && req.method === 'POST') {
       if (body?.action?.type === 'regenerate-api-key') { this.apiKey = `key-${this.nextId++}`; return Response.json({ requestId: this.rid(), body: { type: 'api-key', apiKey: this.apiKey } }); }
       return this.err('unknown');
@@ -81,8 +86,9 @@ export class FakeNotes {
     }
     if (kind === 'notes' && req.method === 'PUT') {
       const n = this.notes.get(id!); if (!n || !inNb(n)) return this.err('not-found');
+      if (this.unknownNext) { this.unknownNext = false; return this.err('unknown'); }
       if (typeof body.body === 'string') {
-        if (body.expectedRevision != null && body.expectedRevision !== n.revision) return this.err('conflict');
+        if (body.expectedRevision != null && body.expectedRevision !== n.revision) return this.err(this.legacyConflict ? 'unknown' : 'conflict');
         if (body.body === n.bodyMd) return Response.json({ requestId: this.rid(), body: { type: 'no-change' } });
         n.bodyMd = body.body; n.revision++; n.updatedAt++;
       }
