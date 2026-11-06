@@ -20,6 +20,9 @@ export const USAGE = `Usage: tlon-memory <command>
   pause | resume
   scope add DIR [--force-scope] | scope remove DIR | scope list
   sync
+  import <transcript.jsonl>  upload one conversation (Claude Code or Codex)
+  import --session claude-code:ID|codex:ID
+  import --all [--dry-run]  every conversation whose directory is in scope
   export [--out DIR]        default ~/tlon-memory-export-<date>
   delete --session claude-code:ID|codex:ID | --memory ID | --all  [--yes]
   disconnect [--revoke-key]
@@ -39,7 +42,7 @@ export async function main(argv: string[]): Promise<number> {
       case 'hook': return await (await import('./hook')).hook(rest);
       case 'mcp': return await (await import('./mcp')).serve();
       case 'status': case 'pause': case 'resume': case 'scope': case 'sync':
-      case 'export': case 'delete': case 'disconnect':
+      case 'export': case 'delete': case 'disconnect': case 'import':
         return await (await import('./commands')).command(cmd, rest);
       default:
         process.stderr.write(USAGE);

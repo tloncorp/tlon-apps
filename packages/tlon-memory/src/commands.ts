@@ -72,6 +72,7 @@ export async function command(cmd: string, args: string[]): Promise<number> {
     }
     case 'export': return exportNotes(paths, cfg, client, args);
     case 'delete': return deleteNotes(paths, cfg, client, args);
+    case 'import': return (await import('./import')).importCommand(paths, cfg, args);
     default: return 2;
   }
 }

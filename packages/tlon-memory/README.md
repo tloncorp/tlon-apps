@@ -226,6 +226,7 @@ All commands below run in a terminal.
 - `tlon-memory pause` stops uploads from hooks. `tlon-memory resume` turns them back on. Pausing does not empty the queue: uploads already queued stay there, and `tlon-memory sync` still sends them.
 - `tlon-memory scope add DIR` captures sessions started in `DIR` or below it. The directory must exist. Your home directory, `/` and any parent of your home directory are refused unless you add `--force-scope`. `tlon-memory scope remove DIR` stops capturing it. `tlon-memory scope list` shows the current scopes. Symlinks are resolved, so a linked path cannot step into or out of a scope.
 - `tlon-memory export [--out DIR]` writes every conversation and memory note as a Markdown file under `DIR/conversations/` and `DIR/memories/`, plus `DIR/index.json` with each note's id, kind, title, file, revision, update time and session key. The default `DIR` is `~/tlon-memory-export-<date>`. Directories are created readable only by you (0700), and files are written 0600. The export does not contain the API key, but transcripts can contain anything that was in a session, so keep it private.
+- `tlon-memory import <transcript.jsonl>`, `import --session claude-code:<id>|codex:<id>` and `import --all [--dry-run]` upload conversations the hooks did not, see "Backing up past conversations".
 - `tlon-memory delete` removes notes from the ship. It asks for confirmation on a terminal; elsewhere it needs `--yes`.
   - `--session claude-code:<id>` or `--session codex:<id>` deletes that conversation's notes (all parts), its local sync state, its pending memory links and its queued upload.
   - `--memory <id>` deletes one memory. It refuses a note that is not in the `memories/` folder.
@@ -241,6 +242,10 @@ All commands below run in a terminal.
 - Local queues and state on other machines where you set up tlon-memory.
 - Tlon's hosting backups of your ship.
 - A note's revision history is removed together with the note, so there is no undo.
+
+## Backing up past conversations
+
+The hooks upload a conversation only while they are installed and trusted, so a conversation from before setup, or from Codex before you trusted its hooks, is not on your ship. `tlon-memory import` uploads it: give it a transcript file, a session key (`--session`, found under `~/.claude/projects/` or `~/.codex/sessions/`), or `--all` for every Claude Code and Codex conversation on this device whose directory is in scope (`--dry-run` lists them, with event and part counts, without uploading; a long scan prints progress to stderr). The scope rule is the hooks' rule, applied to the directory the conversation last ran in, and there is no way around it: an out-of-scope conversation is refused until you `tlon-memory scope add` its directory. `--all` checks each transcript's first directory before parsing it, so a Claude Code session that moved into a scope after starting outside it is skipped; import it by path. Conversations with nothing captured are skipped, and nothing is uploaded while capture is paused. Each conversation goes through the queue and the same upload as the hooks, so importing is idempotent: a second run reports `unchanged`. Each prints its key and the link to its first part, then `synced N, unchanged N, failed N, remaining N`; anything left over is uploaded by `tlon-memory sync`. Agents can do the same for one conversation with the `tlon_backup_conversation` tool.
 
 ## Reliability
 
