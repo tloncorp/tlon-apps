@@ -10,26 +10,33 @@ It has three parts, shipped as one plugin for Claude Code and Codex. Hooks uploa
 
 ### Start
 
-This is a prototype inside the `tlon-apps` repo. It is not published to npm or to a plugin marketplace yet. You need `node`, and `bun` to build. Run `pnpm install` once at the repo root, then build and connect your ship from the project directory whose sessions you want captured:
+This is a prototype inside the `tlon-apps` repo. It is not published to npm or to a plugin marketplace yet. You need `node`, and `bun` to build.
+
+The clients run the plugin from the directory you install it from, so install it from a worktree used only for that. A branch switch in your working checkout would otherwise swap the hooks and MCP server under running sessions. From your `tlon-apps` checkout (`--detach`, because a branch can be checked out in only one worktree):
 
 ```bash
-cd /path/to/tlon-apps/packages/tlon-memory && pnpm build
+git worktree add --detach ../tlon-memory-plugin bill/tlon-memory-prototype
+cd ../tlon-memory-plugin/packages/tlon-memory && pnpm build
 cd ~/Projects/demo
-node /path/to/tlon-apps/packages/tlon-memory/bin/tlon-memory.js setup
+node /path/to/tlon-memory-plugin/packages/tlon-memory/bin/tlon-memory.js setup
 ```
 
-Setup asks a few questions, ends with a live check against your ship, and prints the install command for each client it finds on PATH. Install the plugin with one command per client, from the checkout:
+Setup asks a few questions, ends with a live check against your ship, and prints the install command for each client it finds on PATH, naming the directory setup ran from. Install the plugin with one command per client:
 
 ```bash
 # Claude Code
-claude plugin install tlon-memory --marketplace /path/to/tlon-apps/packages/tlon-memory
+claude plugin install tlon-memory --marketplace /path/to/tlon-memory-plugin/packages/tlon-memory
 # Codex
-codex plugin marketplace add /path/to/tlon-apps/packages/tlon-memory && codex plugin add tlon-memory@tlon-memory
+codex plugin marketplace add /path/to/tlon-memory-plugin/packages/tlon-memory && codex plugin add tlon-memory@tlon-memory
 ```
 
 Then, in Codex only, run `/hooks` once and trust the three tlon-memory hooks (see "Codex: trust the hooks"). Start a new session in either client to load the plugin.
 
-The package directory is both the plugin and a one-plugin marketplace named `tlon-memory`: `.claude-plugin/marketplace.json`, which Codex also reads. Claude Code loads the plugin in place from the checkout, so a rebuild or an edit takes effect in the next session. Codex copies the package into `~/.codex/plugins/cache/tlon-memory/tlon-memory/0.1.0/` when you add it, so after a rebuild or an edit run `codex plugin add tlon-memory@tlon-memory` again. The copy includes `dist/`, so build before you add it.
+The package directory is both the plugin and a one-plugin marketplace named `tlon-memory`: `.claude-plugin/marketplace.json`, which Codex also reads.
+
+**Updating.** Claude Code keeps a copy in its plugin cache but runs the plugin from the path in the marketplace entry, the worktree, live. The hooks and MCP server run `dist/` when it exists, so a source change takes effect only after `pnpm build`, in the next session. Codex runs its own copy in `~/.codex/plugins/cache/tlon-memory/tlon-memory/0.1.0/`, made when you add the plugin (with `dist/`, so build first). After a rebuild, run `codex plugin add tlon-memory@tlon-memory` again. To move the worktree to a newer commit: `git -C ../tlon-memory-plugin checkout --detach bill/tlon-memory-prototype`, then build (and re-add for Codex).
+
+**Upgrading from the earlier setup.** Versions before the plugin had setup register the MCP server and write hooks into each client's own files. Remove those, or every hook runs twice and each client sees two `tlon-memory` servers: `claude mcp remove -s user tlon-memory`, `codex mcp remove tlon-memory`, the entries running `…/bin/tlon-memory.js" hook claude` in `~/.claude/settings.json` and `…" hook codex` in `~/.codex/hooks.json`, and the copied skills in `~/.claude/skills/tlon-memory` and `~/.agents/skills/tlon-memory`. Your `~/.tlon/memory/` config keeps working.
 
 `pnpm build` writes `dist/tlon-memory.js`, a bundle that needs only `node`, and `dist/tlon-memory`, a standalone binary. The hooks and the MCP server run `bin/tlon-memory.js`, which runs the bundle under the same `node` when it exists, else the binary, else `bun` on the source.
 
@@ -308,7 +315,7 @@ The log (`~/.tlon/memory/log`) only records an allow-listed set of fields (statu
 - **Search horizon.** Every text search (memories, conversation history, and the `session_key` lookup used to recover lost local state) scans only the newest 2000 notes in the notebook: 20 requests of 100 notes each. Older notes are not found. `tlon-memory status` says `scan truncated` when the memory count stopped at this horizon. Recovering a session whose notes are older than the horizon creates new notes instead of updating the old ones.
 - **Search cursor.** The first search request carries no `from` parameter, because the desk treats `from=0` as an empty range; later pages pass the `last` id of the previous one.
 - **Codex hooks need trust.** Installing the plugin does not trust its hooks; run `/hooks` in Codex. See "Codex: trust the hooks".
-- **Codex runs a copy.** `codex plugin add` copies the package into its plugin cache. Re-run it after a rebuild or an edit. Claude Code reads the checkout in place.
+- **Codex runs a copy.** `codex plugin add` copies the package into its plugin cache. Re-run it after a rebuild. Claude Code runs the worktree live, so keep that worktree on a fixed commit; see "Updating".
 - **Codex MCP path.** The Codex MCP command finds the installed copy under `${CODEX_HOME:-~/.codex}/plugins/cache/tlon-memory/tlon-memory/`; see "What the plugin adds to each client". A Codex that moves its plugin cache would need this changed.
 - **`tlon_list_recent` with `conversations`** lists conversations synced from this device, from local state. It only asks the ship when this device has none.
 - **Not captured:** subagent transcripts, attachments and thinking.

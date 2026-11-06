@@ -249,7 +249,7 @@ removed with the note (to be verified during build).
 ## 5. Initial end-to-end slice (the demo)
 
 1. `npx @tloncorp/tlon-memory setup` on this machine against `~malmur-halmex`, notebook
-   "Agent Memory (test)", scope = a demo project directory, both clients configured.
+   "Agent Memory (test)", scope = a demo project directory, the plugin installed in both clients.
 2. Claude Code session in that directory: discuss, decide; Claude calls `tlon_save_memory`
    (type decision). `Stop` hook uploads the conversation note.
 3. Codex in the same directory: `SessionStart` context shows the connection; user asks to
