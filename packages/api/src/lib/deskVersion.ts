@@ -88,3 +88,10 @@ export const TASK_RUNS_MIN_GROUPS_VERSION = '12.5.0';
 // for. Guarded registry entries name it as their `since`. Must move in
 // lockstep with desk/desk.docket-0's version if the release number changes.
 export const STEWARD_BOTS_MIN_GROUPS_VERSION = '12.5.0';
+
+// The first %groups release whose %groups-ui records contact discovery
+// (/v1/discovery-known, %ui-discover-contacts), so the ship decides which
+// address-book matches are new. Guarded registry entries name it as their
+// `since`. Must move in lockstep with desk/desk.docket-0's version if the
+// release number changes.
+export const CONTACT_DISCOVERY_MIN_GROUPS_VERSION = '12.5.0';

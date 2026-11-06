@@ -329,6 +329,7 @@
 /%  txt                         %txt
 /%  ui-action                   %ui-action
 /%  ui-add-contact-suggestions  %ui-add-contact-suggestions
+/%  ui-discover-contacts        %ui-discover-contacts
 /%  ui-heads                    %ui-heads
 /%  ui-heads-2                  %ui-heads-2
 /%  ui-heads-3                  %ui-heads-3
@@ -689,6 +690,7 @@
       $:  %txt                         $+  txt                         p=_*vale:txt                         ==
       $:  %ui-action                   $+  ui-action                   p=_*vale:ui-action                   ==
       $:  %ui-add-contact-suggestions  $+  ui-add-contact-suggestions  p=_*vale:ui-add-contact-suggestions  ==
+      $:  %ui-discover-contacts        $+  ui-discover-contacts        p=_*vale:ui-discover-contacts        ==
       $:  %ui-heads                    $+  ui-heads                    p=_*vale:ui-heads                    ==
       $:  %ui-heads-2                  $+  ui-heads-2                  p=_*vale:ui-heads-2                  ==
       $:  %ui-heads-3                  $+  ui-heads-3                  p=_*vale:ui-heads-3                  ==
@@ -1051,6 +1053,7 @@
     %txt                         [-.rail !>(+.rail)]
     %ui-action                   [-.rail !>(+.rail)]
     %ui-add-contact-suggestions  [-.rail !>(+.rail)]
+    %ui-discover-contacts        [-.rail !>(+.rail)]
     %ui-heads                    [-.rail !>(+.rail)]
     %ui-heads-2                  [-.rail !>(+.rail)]
     %ui-heads-3                  [-.rail !>(+.rail)]
@@ -1411,6 +1414,7 @@
     %txt                         [p !<(_*vale:txt q)]
     %ui-action                   [p !<(_*vale:ui-action q)]
     %ui-add-contact-suggestions  [p !<(_*vale:ui-add-contact-suggestions q)]
+    %ui-discover-contacts        [p !<(_*vale:ui-discover-contacts q)]
     %ui-heads                    [p !<(_*vale:ui-heads q)]
     %ui-heads-2                  [p !<(_*vale:ui-heads-2 q)]
     %ui-heads-3                  [p !<(_*vale:ui-heads-3 q)]
@@ -1771,6 +1775,7 @@
       :-  %txt                         -:!>(*vale:txt)
       :-  %ui-action                   -:!>(*vale:ui-action)
       :-  %ui-add-contact-suggestions  -:!>(*vale:ui-add-contact-suggestions)
+      :-  %ui-discover-contacts        -:!>(*vale:ui-discover-contacts)
       :-  %ui-heads                    -:!>(*vale:ui-heads)
       :-  %ui-heads-2                  -:!>(*vale:ui-heads-2)
       :-  %ui-heads-3                  -:!>(*vale:ui-heads-3)

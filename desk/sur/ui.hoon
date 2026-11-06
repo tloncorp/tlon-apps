@@ -176,4 +176,8 @@
   ==
 ::
 +$  vita-enabled  ?
+::  $discovered-contact: an address-book match, with the name the user's
+::  address book gives them
+::
++$  discovered-contact  [=ship nickname=(unit @t)]
 --
