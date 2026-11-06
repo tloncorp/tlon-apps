@@ -125,8 +125,10 @@ export function createWalletHandoffs(deps: {
   const send = (row: Pending) => {
     if (deliveries.has(row.requestId)) return deliveries.get(row.requestId)!;
     const task = (async () => {
+      const current = await deps.store.lookup(row.requestId);
+      if (!current || current.sent) return;
       await deps.send(row.requestId);
-      await deps.store.register(row.requestId, { ...row, sent: true });
+      await deps.store.register(row.requestId, { ...current, sent: true });
     })().finally(() => deliveries.delete(row.requestId));
     deliveries.set(row.requestId, task);
     return task;

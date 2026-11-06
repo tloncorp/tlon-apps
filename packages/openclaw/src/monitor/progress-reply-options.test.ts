@@ -14,6 +14,10 @@ vi.mock('@tloncorp/api', () => ({
   setConversationPresence: vi.fn(async () => {}),
 }));
 
+vi.mock('../urbit/api-client.js', () => ({
+  captureTlonApiScope: () => undefined,
+}));
+
 async function flushPresenceQueue() {
   for (let index = 0; index < 8; index += 1) {
     await Promise.resolve();
