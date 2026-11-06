@@ -14,8 +14,8 @@ export interface ClientInstall {
 
 export interface Config {
   version: 1;
-  shipUrl: string;           // https://sitrul-nacwyl.tlon.network (no trailing slash)
-  ship: string;              // ~sitrul-nacwyl
+  shipUrl: string;           // https://sampel-palnet.tlon.network (no trailing slash)
+  ship: string;              // ~sampel-palnet
   apiKey: string;            // Notes X-Api-Key (the only secret stored)
   notebook: { host: string; name: string; title: string; rootFolderId: number;
               conversationsFolderId: number; memoriesFolderId: number } | null;
