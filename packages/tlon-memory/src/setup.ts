@@ -13,11 +13,11 @@ import { Paths } from './paths';
 import { ask, askHidden, confirm, readSecret } from './prompt';
 import { markInitialized, resetBackoff } from './state';
 import { saveConnection } from './status';
-import skillText from '../SKILL.md' with { type: 'text' };
+import skillText from '../skills/tlon-memory/SKILL.md' with { type: 'text' };
 
 export const SIGNUP_URL = 'https://tlon.network/signup?source=agent';
 /**
- * The package directory (holding bin/, SKILL.md, dist/). Run from source, it is one level above this file.
+ * The package directory (holding bin/, skills/, dist/). Run from source, it is one level above this file.
  * Inside a bun-compiled binary, import.meta.url points into bun's embedded filesystem (file:///$bunfs/...),
  * so the root is found from the binary's own path instead: <root>/dist/tlon-memory.
  */
@@ -28,7 +28,7 @@ export function packageRoot(execPath: string, importMetaUrl: string): string {
 const realOr = (p: string) => { try { return realpathSync(p); } catch { return p; } };
 const ROOT = packageRoot(realOr(process.execPath), import.meta.url);
 export const BIN_PATH = resolve(ROOT, 'bin', 'tlon-memory.js');
-export const SKILL_SOURCE = resolve(ROOT, 'SKILL.md');
+export const SKILL_SOURCE = resolve(ROOT, 'skills', 'tlon-memory', 'SKILL.md');
 /** SKILL.md as of the build, used when SKILL_SOURCE is missing (a binary copied away from its package). */
 export const SKILL_TEXT: string = skillText;
 

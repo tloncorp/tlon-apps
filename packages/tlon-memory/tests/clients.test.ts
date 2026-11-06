@@ -13,7 +13,7 @@ describe('claude installer', () => {
   it('merges hooks, keeps existing ones, registers MCP, installs skill; uninstall reverses only ours', async () => {
     const settings = join(home, '.claude', 'settings.json');
     writeFileSync(settings, JSON.stringify({ model: 'opus', hooks: { Stop: [{ hooks: [{ type: 'command', command: 'other-tool' }] }] } }));
-    await installClient('claude', { home, binPath: '/opt/tm/bin/tlon-memory.js', exec, skillSource: join(import.meta.dir, '..', 'SKILL.md') });
+    await installClient('claude', { home, binPath: '/opt/tm/bin/tlon-memory.js', exec, skillSource: join(import.meta.dir, '..', 'skills', 'tlon-memory', 'SKILL.md') });
     const s = JSON.parse(readFileSync(settings, 'utf8'));
     expect(s.model).toBe('opus');
     expect(s.hooks.Stop.length).toBe(2);
@@ -34,7 +34,7 @@ describe('claude installer', () => {
     expect(await uninstallClient('claude', { home, binPath: '/opt/tm/bin/tlon-memory.js', exec, skillSource: '' })).toMatchObject({ hooks: false, skill: false });
   });
   it('is idempotent', async () => {
-    const o = { home, binPath: '/b', exec, skillSource: join(import.meta.dir, '..', 'SKILL.md') };
+    const o = { home, binPath: '/b', exec, skillSource: join(import.meta.dir, '..', 'skills', 'tlon-memory', 'SKILL.md') };
     await installClient('claude', o); await installClient('claude', o);
     const s = JSON.parse(readFileSync(join(home, '.claude', 'settings.json'), 'utf8'));
     expect(s.hooks.Stop.length).toBe(1);
@@ -42,7 +42,7 @@ describe('claude installer', () => {
 });
 
 describe('hook file merging', () => {
-  const skillSource = join(import.meta.dir, '..', 'SKILL.md');
+  const skillSource = join(import.meta.dir, '..', 'skills', 'tlon-memory', 'SKILL.md');
   const o = () => ({ home, binPath: '/b/tlon-memory.js', exec, skillSource });
   const other = (cmd: string) => ({ hooks: [{ type: 'command', command: cmd }] });
   const read = (f: string) => JSON.parse(readFileSync(f, 'utf8'));
@@ -98,7 +98,7 @@ describe('hook file merging', () => {
 
 describe('codex installer', () => {
   it('writes hooks.json with Stop timeout 20 and SessionEnd timeout 3, registers MCP, installs skill', async () => {
-    await installClient('codex', { home, binPath: '/b/tlon-memory.js', exec, skillSource: join(import.meta.dir, '..', 'SKILL.md') });
+    await installClient('codex', { home, binPath: '/b/tlon-memory.js', exec, skillSource: join(import.meta.dir, '..', 'skills', 'tlon-memory', 'SKILL.md') });
     const h = JSON.parse(readFileSync(join(home, '.codex', 'hooks.json'), 'utf8'));
     expect(h.hooks.SessionStart[0].hooks[0].command).toBe('"/b/tlon-memory.js" hook codex');
     expect(h.hooks.Stop[0].hooks[0].timeout).toBe(20);
@@ -116,7 +116,7 @@ describe('skill install', () => {
 });
 
 describe('mcp registration', () => {
-  const skillSource = join(import.meta.dir, '..', 'SKILL.md');
+  const skillSource = join(import.meta.dir, '..', 'skills', 'tlon-memory', 'SKILL.md');
   it('replaces an existing registration only after add reports it exists', async () => {
     let adds = 0;
     const ex = async (cmd: string, args: string[]) => {

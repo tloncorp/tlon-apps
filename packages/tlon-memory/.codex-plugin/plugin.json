@@ -1,0 +1,23 @@
+{
+  "name": "tlon-memory",
+  "version": "0.1.0",
+  "description": "Shared memory for Claude Code and Codex, stored in your Tlon Notes: archives conversations and lets agents save and search memories.",
+  "author": { "name": "Tlon", "url": "https://tlon.io" },
+  "homepage": "https://github.com/tloncorp/tlon-apps/tree/develop/packages/tlon-memory",
+  "repository": "https://github.com/tloncorp/tlon-apps",
+  "license": "MIT",
+  "keywords": ["memory", "tlon", "urbit", "notes"],
+  "skills": "./skills/",
+  "mcpServers": "./codex-mcp.json",
+  "hooks": "./hooks/codex-hooks.json",
+  "interface": {
+    "displayName": "Tlon Memory",
+    "shortDescription": "Archive conversations and share memories through Tlon Notes",
+    "longDescription": "Uploads Codex and Claude Code conversations from the directories you choose to a notebook on your Tlon ship, and lets agents save and search short memories there.",
+    "developerName": "Tlon",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://tlon.io",
+    "defaultPrompt": ["What do my memories say about this project?", "Back up this conversation to Tlon"]
+  }
+}

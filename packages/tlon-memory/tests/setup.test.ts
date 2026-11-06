@@ -186,6 +186,6 @@ describe('packageRoot', () => {
   it('BIN_PATH and SKILL_SOURCE point into this package when run from source', async () => {
     const { BIN_PATH, SKILL_SOURCE } = await import('../src/setup');
     expect(BIN_PATH).toBe(join(import.meta.dir, '..', 'bin', 'tlon-memory.js'));
-    expect(SKILL_SOURCE).toBe(join(import.meta.dir, '..', 'SKILL.md'));
+    expect(SKILL_SOURCE).toBe(join(import.meta.dir, '..', 'skills', 'tlon-memory', 'SKILL.md'));
   });
 });
