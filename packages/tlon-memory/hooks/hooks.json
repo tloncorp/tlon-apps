@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}/bin/tlon-memory.js\" hook claude",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/tlon-memory.js\" hook claude",
             "timeout": 5
           }
         ]
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}/bin/tlon-memory.js\" hook claude",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/tlon-memory.js\" hook claude",
             "timeout": 20
           }
         ]
@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}/bin/tlon-memory.js\" hook claude",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/tlon-memory.js\" hook claude",
             "timeout": 20
           }
         ]

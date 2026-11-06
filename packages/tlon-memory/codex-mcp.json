@@ -4,7 +4,7 @@
       "command": "sh",
       "args": ["-c", "for f in \"${CODEX_HOME:-$HOME/.codex}\"/plugins/cache/tlon-memory/tlon-memory/*/bin/tlon-memory.js; do :; done; exec node \"$f\" mcp"],
       "env": { "TLON_MEMORY_AGENT": "codex" },
-      "env_vars": ["CODEX_HOME"],
+      "env_vars": ["CODEX_HOME", "TLON_MEMORY_HOME"],
       "tool_timeout_sec": 120
     }
   }

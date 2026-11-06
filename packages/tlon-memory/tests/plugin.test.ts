@@ -96,7 +96,7 @@ describe('plugin commands', () => {
     const codexHome = mkdtempSync(join(tmpdir(), 'tm-codex-'));
     const cached = join(codexHome, 'plugins', 'cache', 'tlon-memory', 'tlon-memory');
     mkdirSync(cached, { recursive: true }); symlinkSync(root, join(cached, version));
-    expect(s.env_vars).toEqual(['CODEX_HOME']);
+    expect(s.env_vars).toEqual(['CODEX_HOME', 'TLON_MEMORY_HOME']); // Codex clears the env; the hooks see TLON_MEMORY_HOME, so the server must too
     const argv = [s.command, ...s.args].map((a: string) => `'${a.replaceAll("'", `'\\''`)}'`).join(' ');
     const r = await sh(argv, { CODEX_HOME: codexHome, TLON_MEMORY_HOME: connectedHome().root }, MCP_INIT);
     expect(r.out).toContain('"name":"tlon_search_memory"');
