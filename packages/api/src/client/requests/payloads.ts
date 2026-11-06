@@ -21,6 +21,8 @@ export interface PokePayloads {
   'chat-remark-action': { whom: string; diff: { read: null } };
   'chat-toggle-message': ub.ToggleMessage;
   'chat-unblock-ship': { ship: string };
+  'contact-discover': string;
+  'contact-remove': { kip: string; suggest: boolean };
   'contact-action': ub.ContactsAction;
   'contact-action-1':
     | { self: ub.ContactBookProfileEdit }
@@ -59,6 +61,7 @@ export interface PokePayloads {
   'ui-action': { pins: Pins };
   'ui-add-contact-suggestions': string[];
   'ui-hide-contact': string;
+  'ui-show-contact': string;
   'ui-vita-toggle': boolean;
 }
 

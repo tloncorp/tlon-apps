@@ -1,6 +1,27 @@
 import type { Entry } from './types';
 
 export const contacts = {
+  init2: {
+    kind: 'scry',
+    agent: 'contacts',
+    path: '/v2/init',
+    since: '12.5.0',
+    guardedBy: 'deskSupportsContactRemoval',
+  },
+  discover: {
+    kind: 'poke',
+    agent: 'contacts',
+    mark: 'contact-discover',
+    since: '12.5.0',
+    guardedBy: 'deskSupportsContactRemoval',
+  },
+  remove: {
+    kind: 'poke',
+    agent: 'contacts',
+    mark: 'contact-remove',
+    since: '12.5.0',
+    guardedBy: 'deskSupportsContactRemoval',
+  },
   book: { kind: 'scry', agent: 'contacts', path: '/v1/book', since: '12.2.0' },
   directory: {
     kind: 'scry',
