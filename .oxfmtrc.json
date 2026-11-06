@@ -28,6 +28,7 @@
     ".pnpm-store/",
     ".DS_Store",
     "/packages/hermes-tlon-adapter/.env",
+    "/packages/tlon-memory/dist/",
     "/packages/tlon-bot-e2e/.env",
     "packages/tlon-bot-e2e/diagnostics/",
     "__pycache__/",
