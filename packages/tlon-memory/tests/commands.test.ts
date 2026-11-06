@@ -139,6 +139,7 @@ describe('disconnect', () => {
     expect(readFileSync(join(home, 'codex.calls'), 'utf8')).toContain('mcp remove tlon-memory');
     expect(r.out).toMatch(/claude: hooks and skill removed · MCP server removed/);
     expect(r.out).toContain('codex: no hooks or skill to remove');
+    expect(existsSync(settings() + '.bak-tlon-memory')).toBe(false);
   });
   it('a second disconnect says nothing was there, including Codex answering "not found" with exit 0', async () => {
     seedClaude(); await run(['disconnect']);

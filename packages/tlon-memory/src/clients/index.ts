@@ -3,7 +3,7 @@ import { copyFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
-import { HooksMap, mergeHooks, unmergeHooks } from './json-merge';
+import { HooksMap, backupFile, mergeHooks, unmergeHooks } from './json-merge';
 
 export type Client = 'claude' | 'codex';
 export interface ExecResult { code: number; out: string; err: string }
@@ -77,6 +77,7 @@ export async function installClient(client: Client, o: InstallOptions): Promise<
 export async function uninstallClient(client: Client, o: InstallOptions): Promise<{ mcp: ExecResult; mcpNotFound: boolean; hooks: boolean; skill: boolean; shifted: boolean }> {
   const exec = o.exec ?? defaultExec; const p = paths(client, o.home);
   const { removed: hooks, shifted } = unmergeHooks(p.hooksFile, MARKER(client), o.home);
+  rmSync(backupFile(p.hooksFile), { force: true }); // the hooks file no longer holds anything of ours to restore
   const [cmd, args] = mcpRemoveArgs(client);
   const mcp = await exec(cmd, args);
   const skill = existsSync(p.skillDir);

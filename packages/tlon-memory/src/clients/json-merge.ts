@@ -32,12 +32,14 @@ export function readHooksFile(file: string, home = homedir()): any {
   return data;
 }
 
+export const backupFile = (file: string) => `${file}.bak-tlon-memory`;
+
 /** Back up the current file, then replace it atomically. A symlinked file (dotfile managers) stays a symlink. */
 function writeHooksFile(file: string, data: any) {
   mkdirSync(dirname(file), { recursive: true });
   const exists = existsSync(file);
   const target = exists ? realpathSync(file) : file;
-  if (exists) copyFileSync(target, `${file}.bak-tlon-memory`);
+  if (exists) copyFileSync(target, backupFile(file));
   writeAtomic(target, JSON.stringify(data, null, 2) + '\n', exists ? statSync(target).mode & 0o777 : 0o600);
 }
 

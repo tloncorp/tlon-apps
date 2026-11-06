@@ -25,6 +25,7 @@ describe('claude installer', () => {
     expect(existsSync(settings + '.bak-tlon-memory')).toBe(true);
     const u = await uninstallClient('claude', { home, binPath: '/opt/tm/bin/tlon-memory.js', exec, skillSource: '' });
     expect(u).toMatchObject({ hooks: true, skill: true });
+    expect(existsSync(settings + '.bak-tlon-memory')).toBe(false);
     const after = JSON.parse(readFileSync(settings, 'utf8'));
     expect(after.hooks.Stop).toEqual([{ hooks: [{ type: 'command', command: 'other-tool' }] }]);
     expect(after.hooks.SessionStart).toBeUndefined();
@@ -79,16 +80,17 @@ describe('hook file merging', () => {
     await expect(uninstallClient('claude', o())).rejects.toThrow('cannot parse ~/.claude/settings.json:');
     expect(readFileSync(settings, 'utf8')).toBe('{ nope');
   });
-  it('writes atomically through a symlink, keeps the file mode, and backs up on every change', async () => {
+  it('writes atomically through a symlink, keeps the file mode, backs up before a change and removes the backup on uninstall', async () => {
     const real = join(home, 'dotfiles-settings.json'); writeFileSync(real, JSON.stringify({ model: 'a' })); chmodSync(real, 0o644);
     const settings = join(home, '.claude', 'settings.json'); symlinkSync(real, settings);
     await installClient('claude', o());
     expect(lstatSync(settings).isSymbolicLink()).toBe(true);
     expect(read(real).hooks.Stop.length).toBe(1);
     expect(statSync(real).mode & 0o777).toBe(0o644);
-    const r = read(real); r.model = 'b'; writeFileSync(real, JSON.stringify(r));
+    expect(read(settings + '.bak-tlon-memory').model).toBe('a');
     await uninstallClient('claude', o());
-    expect(read(settings + '.bak-tlon-memory').model).toBe('b');
+    expect(existsSync(settings + '.bak-tlon-memory')).toBe(false);
+    expect(lstatSync(settings).isSymbolicLink()).toBe(true);
     await installClient('codex', o());
     expect(statSync(codexFile()).mode & 0o777).toBe(0o600);
   });

@@ -103,7 +103,7 @@ With `--reconnect`, the new key must belong to the same ship as the existing not
 | Hooks | SessionStart (5 s timeout), Stop (20 s), SessionEnd (20 s), each running `"<repo>/packages/tlon-memory/bin/tlon-memory.js" hook claude` | SessionStart (5 s), Stop (20 s), SessionEnd (3 s), each running `"…/bin/tlon-memory.js" hook codex` |
 | Skill | `~/.claude/skills/tlon-memory/SKILL.md` | `~/.agents/skills/tlon-memory/SKILL.md` |
 
-Hooks are merged into the existing file in place. Other hooks are left alone. Setup adds the `tlon-memory` MCP registration first. Only if the client says it already exists does setup remove the old one and add it again, so re-running setup is safe and a failed add never removes a working registration. Each `claude`/`codex` command setup runs is stopped after 30 seconds and reported as failed.
+Hooks are merged into the existing file in place. Other hooks are left alone. Before each change the previous file is copied to `~/.claude/settings.json.bak-tlon-memory` or `~/.codex/hooks.json.bak-tlon-memory`. Setup adds the `tlon-memory` MCP registration first. Only if the client says it already exists does setup remove the old one and add it again, so re-running setup is safe and a failed add never removes a working registration. Each `claude`/`codex` command setup runs is stopped after 30 seconds and reported as failed.
 
 ### Codex: trust the hooks
 
@@ -232,7 +232,7 @@ All commands below run in a terminal.
   - `--all` deletes every conversation and memory note in the notebook, all local sync state and the whole queue.
 
   If a deleted session is still running, pause capture first (`tlon-memory pause`). Otherwise its next hook uploads it again.
-- `tlon-memory disconnect` removes, for both clients whatever the config says: the tlon-memory hook entries, the `tlon-memory` MCP registration, and the installed skill directory. It then removes `config.json` (and the key in it), `state/`, `queue/` and `log` from `~/.tlon/memory/`, and removes that directory if nothing else is in it. It keeps the notebook and all notes on your ship. Use `export` and `delete` first if you want them gone. It works even when `config.json` is missing or unreadable. An MCP server that was never registered is reported as such, not as a failure, and hooks or a skill that are not installed are reported as nothing to remove.
+- `tlon-memory disconnect` removes, for both clients whatever the config says: the tlon-memory hook entries, the `tlon-memory` MCP registration, and the installed skill directory, and then deletes the `.bak-tlon-memory` copy of each hooks file. It then removes `config.json` (and the key in it), `state/`, `queue/` and `log` from `~/.tlon/memory/`, and removes that directory if nothing else is in it. It keeps the notebook and all notes on your ship. Use `export` and `delete` first if you want them gone. It works even when `config.json` is missing or unreadable. An MCP server that was never registered is reported as such, not as a failure, and hooks or a skill that are not installed are reported as nothing to remove.
   - `--revoke-key` first asks for your +code and rotates the Notes API key on the ship, so the stored key stops working everywhere. If rotation fails, nothing is removed. Rotating the key also breaks anything else that used it.
 
 **What deletion cannot reach:**
