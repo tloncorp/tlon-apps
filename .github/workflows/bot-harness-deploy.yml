@@ -74,7 +74,7 @@ jobs:
 
       - name: Authenticate to Google Cloud
         if: steps.creds.outputs.present == 'true'
-        uses: google-github-actions/setup-gcloud@v0.3.0
+        uses: google-github-actions/setup-gcloud@a45a0825993ace67ae6e11cf3011b3e7d6795f82 # v0.3.0
         with:
           service_account_key: ${{ secrets.GCP_SA_KEY }}
           project_id: prod-f0181862
@@ -88,7 +88,7 @@ jobs:
       # The OVH API servers are only reachable on their private addresses.
       - name: Connect to Tailscale
         if: steps.creds.outputs.present == 'true'
-        uses: tailscale/github-action@v4
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}

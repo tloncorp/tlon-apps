@@ -1,0 +1,22 @@
+name: Action pins
+
+on:
+  pull_request:
+  push:
+    branches: ["develop"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  action-pins:
+    name: Check immutable action references
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Check workflow and local action references
+        run: ruby .github/scripts/check-action-pins.rb

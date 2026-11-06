@@ -17,14 +17,14 @@ jobs:
     runs-on: ubuntu-latest
     name: "Build Frontend"
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26 # v3
         with:
           ref: ${{ env.tag }}
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@3235b876344d2a9aa001b8d1453c930bba69e610 # v3
         with:
           node-version-file: .nvmrc
       - name: Setup PNPM
-        uses: pnpm/action-setup@v3
+        uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d # v3
         with:
           run_install: |
             - recursive: true
@@ -40,7 +40,7 @@ jobs:
         run: pnpm build
         env:
           VITE_GIT_HASH: ${{ steps.gitHash.outputs.gitHash }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: "ui-dist"
           path: apps/tlon-web/dist
@@ -59,20 +59,20 @@ jobs:
     name: "Make a glob"
     needs: build-frontend
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26 # v3
         with:
           ref: ${{ env.tag }}
           ssh-key: ${{ secrets.DEPLOY_KEY }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: "ui-dist"
           path: apps/tlon-web/dist
       - id: "auth"
-        uses: "google-github-actions/auth@v1"
+        uses: "google-github-actions/auth@3a3c4c57d294ef65efaaee4ff17b22fa88dd3c69" # v1
         with:
           credentials_json: "${{ secrets.GCP_SERVICE_KEY }}"
       - name: "Set up Cloud SDK"
-        uses: "google-github-actions/setup-gcloud@v1"
+        uses: "google-github-actions/setup-gcloud@e30db14379863a8c79331b04a9969f4c1e225e0b" # v1
       - name: "glob"
         id: "glob"
         uses: ./.github/actions/glob
