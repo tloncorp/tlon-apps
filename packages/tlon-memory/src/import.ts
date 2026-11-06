@@ -10,7 +10,7 @@ import { Paths } from './paths';
 import { renderConversation, sessionKey } from './render';
 import { listJobs, loadJob, loadSessionState } from './state';
 import { clientId, enqueue, parseTranscript, syncQueue } from './sync';
-import { SESSION_KEY, detectClient, findTranscript, listTranscripts, peekTranscript } from './transcripts';
+import { SESSION_KEY, clientOfKey, detectClient, findTranscript, listTranscripts, peekTranscript } from './transcripts';
 
 export interface Prepared { client: ClientName; path: string; t: ParsedTranscript }
 export interface Outcome { key: string; kind: 'uploaded' | 'unchanged' | 'failed' | 'remaining'; parts?: number; url?: string; error?: string }
@@ -81,7 +81,7 @@ export async function importCommand(paths: Paths, cfg: Config, args: string[]): 
       if (!SESSION_KEY.test(session)) throw new UsageError(`--session needs claude-code:ID or codex:ID, got ${session}`);
       const found = findTranscript(session);
       if (!found) { err(`no transcript for ${session} on this device`); return 1; }
-      client = session.startsWith('codex:') ? 'codex' : 'claude'; path = found;
+      client = clientOfKey(session); path = found;
     } else {
       path = resolve(file!);
       if (!existsSync(path)) throw new UsageError(`no such file: ${path}`);

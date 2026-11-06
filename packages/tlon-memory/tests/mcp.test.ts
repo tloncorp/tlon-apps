@@ -1,7 +1,7 @@
 // tests/mcp.test.ts
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { spawn, ChildProcess } from 'node:child_process';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FakeNotes } from './fake-notes-server';
@@ -10,6 +10,7 @@ import { Paths } from '../src/paths';
 import { Config, defaultConfig, saveConfig } from '../src/config';
 import { FRAME, agentFromEnv, callTool } from '../src/mcp';
 import { ensureNotebook } from '../src/notebook';
+import { CLAUDE_ID, fakeHome } from './transcript-home';
 
 const fake = new FakeNotes(); let proc: ChildProcess; let id = 0; const pending = new Map<number | null, (v: any) => void>();
 let paths: Paths; let cfg: Config;
@@ -33,7 +34,9 @@ beforeAll(async () => {
   paths = new Paths(mkdtempSync(join(tmpdir(), 'tm-mcp-')));
   cfg = { ...defaultConfig(), shipUrl: fake.url, ship: '~zod', apiKey: 'test-key', scopes: ['/p'], notebook: await ensureNotebook(c, 'Agent Memory') };
   saveConfig(paths, cfg);
-  proc = spawn('bun', ['run', join(import.meta.dir, '..', 'src', 'main.ts'), 'mcp'], { env: { ...process.env, TLON_MEMORY_HOME: paths.root, TLON_MEMORY_AGENT: 'claude-code', TLON_MEMORY_CWD: '/p/demo' } });
+  // HOME is a temp dir holding a transcript in scope, so tlon_backup_conversation never reads the real ~/.claude.
+  const { home, claude } = fakeHome(); writeFileSync(claude, readFileSync(claude, 'utf8').replaceAll('/Users/bill/Projects/demo', '/p/demo'));
+  proc = spawn('bun', ['run', join(import.meta.dir, '..', 'src', 'main.ts'), 'mcp'], { env: { ...process.env, HOME: home, TLON_MEMORY_HOME: paths.root, TLON_MEMORY_AGENT: 'claude-code', TLON_MEMORY_CWD: '/p/demo' } });
   let buf = '';
   proc.stdout!.on('data', (d) => { buf += d; let i; while ((i = buf.indexOf('\n')) >= 0) { const line = buf.slice(0, i); buf = buf.slice(i + 1); if (!line.trim()) continue; const m = JSON.parse(line); const k = m.id ?? null; pending.get(k)?.(m); pending.delete(k); } });
 });
@@ -46,7 +49,7 @@ describe('mcp server', () => {
     expect(r.result.capabilities.tools).toBeDefined();
     proc.stdin!.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) + '\n');
     const t = await rpc('tools/list');
-    expect(t.result.tools.map((x: any) => x.name).sort()).toEqual(['tlon_get_conversation', 'tlon_list_recent', 'tlon_save_memory', 'tlon_search_history', 'tlon_search_memory', 'tlon_status', 'tlon_update_memory']);
+    expect(t.result.tools.map((x: any) => x.name).sort()).toEqual(['tlon_backup_conversation', 'tlon_get_conversation', 'tlon_list_recent', 'tlon_save_memory', 'tlon_search_history', 'tlon_search_memory', 'tlon_status', 'tlon_update_memory']);
     for (const tool of t.result.tools) expect(tool.inputSchema.type).toBe('object');
   });
   it('saves and finds a memory, framing results as data', async () => {
@@ -61,6 +64,16 @@ describe('mcp server', () => {
     expect(text).toContain('Use SQLite for the queue.');
     expect(text).toContain('agent: claude-code');
     expect(text).toContain('project: demo');
+  });
+  it('backs up a conversation by session key', async () => {
+    const call = (session_key: string) => rpc('tools/call', { name: 'tlon_backup_conversation', arguments: { session_key } });
+    const r = await call(`claude-code:${CLAUDE_ID}`);
+    expect(r.result.isError).toBeFalsy();
+    expect(r.result.content[0].text).toMatch(new RegExp(`^Backed up claude-code:${CLAUDE_ID}: 1 part\\(s\\), ${fake.url}/notes/nb/~zod/`));
+    expect((await call(`claude-code:${CLAUDE_ID}`)).result.content[0].text).toStartWith(`Already up to date: ${fake.url}/notes/nb/~zod/`);
+    const missing = await call('claude-code:nope');
+    expect(missing.result.isError).toBe(true);
+    expect(missing.result.content[0].text).toContain('no transcript for claude-code:nope on this device');
   });
   it('reports status and validates input', async () => {
     const st = await rpc('tools/call', { name: 'tlon_status', arguments: {} });
@@ -102,6 +115,8 @@ describe('tool argument validation', () => {
     ['tlon_save_memory', { type: 'decision', text: '  ' }, 'text must be a non-empty string'],
     ['tlon_save_memory', { type: 'decision', text: 'x', event: 'e17; drop' }, 'event must be'],
     ['tlon_save_memory', { type: 'decision', text: 'x', session_key: 'claude-code:a b' }, 'session_key must be'],
+    ['tlon_backup_conversation', {}, 'session_key must be'],
+    ['tlon_backup_conversation', { session_key: 'claude-code:a/b' }, 'session_key must be'],
     ['tlon_update_memory', { id: 1.5 }, 'id must be a positive integer'],
     ['tlon_update_memory', { id: '3' }, 'id must be a positive integer'],
     ['tlon_update_memory', { id: 3, status: 'gone' }, 'status must be one of'],
@@ -116,6 +131,9 @@ describe('tool argument validation', () => {
     ['tlon_search_memory', [1, 2], 'arguments must be an object'],
   ];
   for (const [name, args, msg] of bad) it(`${name} ${JSON.stringify(args)}`, async () => { await expect(call(name, args)).rejects.toThrow(msg); });
+  it('tlon_backup_conversation refuses while capture is paused', async () => {
+    await expect(callTool('tlon_backup_conversation', { session_key: 'claude-code:x' }, { ...cfg, paused: true }, paths, 'claude-code', '/p/demo')).rejects.toThrow('Capture is paused');
+  });
   it('clamps limits and repeats the frame after long results', async () => {
     for (let i = 0; i < 30; i++) await call('tlon_save_memory', { type: 'context', text: `Long result memory number ${i} ${'pad '.repeat(20)}` });
     const out = await call('tlon_search_memory', { query: 'long result memory', limit: 1000 });

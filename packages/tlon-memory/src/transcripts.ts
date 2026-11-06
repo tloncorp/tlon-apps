@@ -9,6 +9,8 @@ import { ClientName } from './config';
 export interface TranscriptFile { client: ClientName; path: string }
 
 export const SESSION_KEY = /^(claude-code|codex):[A-Za-z0-9._-]{1,128}$/;
+/** The client of a key that matches SESSION_KEY. */
+export const clientOfKey = (key: string): ClientName => (key.startsWith('codex:') ? 'codex' : 'claude');
 
 export const claudeProjectsDir = (home = homedir()) => join(home, '.claude', 'projects');
 export const codexSessionsDir = (home = homedir()) => join(home, '.codex', 'sessions');
