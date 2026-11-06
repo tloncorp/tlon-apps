@@ -63,6 +63,20 @@ describe('MemoryStore', () => {
       expect(fake.notes.get(b.id)!.bodyMd).toContain(`source_note: ${ids[0]}`);
       expect(existsSync(pendingFile())).toBe(false);
     });
+    it('keeps a pending link saved while the sync was linking another', async () => {
+      const a = await store.save({ type: 'context', text: 'Linked first.', agent: 'claude-code', project: 'demo', sessionKey: key });
+      const { loadPendingLinks, savePendingLinks } = await import('../src/state');
+      const orig = fake.handle.bind(fake); let once = true;
+      fake.handle = async (req: Request) => {
+        if (once && req.method === 'PUT' && req.url.endsWith(`/notes/${a.id}`)) { // another process saves a memory meanwhile
+          once = false; savePendingLinks(paths, 'claude-code', SID, [...loadPendingLinks(paths, 'claude-code', SID), { memoryId: 999_999 }]);
+        }
+        return orig(req);
+      };
+      try { await syncSession(paths, cfg, client(), big(), { recover: false }); } finally { fake.handle = orig; }
+      expect(fake.notes.get(a.id)!.bodyMd).toMatch(/source_note: \d+/);
+      expect(loadPendingLinks(paths, 'claude-code', SID)).toEqual([{ memoryId: 999_999 }]);
+    });
     it('stays pending when the memory keeps conflicting, and links on a later sync', async () => {
       const a = await store.save({ type: 'context', text: 'Conflicted.', agent: 'claude-code', project: 'demo', sessionKey: key, event: 'e3' });
       const orig = NotesClient.prototype.updateNote; let tries = 0;

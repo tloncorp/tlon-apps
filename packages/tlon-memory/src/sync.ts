@@ -38,7 +38,8 @@ const sha = (parts: string[]) => createHash('sha256').update(parts.join('\u0000'
 const isCode = (e: unknown, code: NotesError['code']) => e instanceof NotesError && e.code === code;
 
 /*
- * Cost model: a sync of a known session sends one PUT per changed part and nothing for an unchanged one.
+ * Cost model: a sync of a known session sends one PUT per changed part and nothing for an unchanged one (beyond
+ * a GET and PUT per memory waiting for its source link).
  * The ship is searched (a scan of the notebook) only to recover lost local state, before creating a second
  * or later part, and after a create whose answer was lost. A session with no state file is looked up when
  * state/.initialized is absent (fresh or wiped state dir, or a notebook adopted from another device) or
@@ -128,14 +129,14 @@ export async function syncSession(p: Paths, cfg: Config, c: NotesClient, t: Pars
  * conflicting stays pending for the next sync; one deleted or no longer a memory is dropped.
  */
 async function linkPendingMemories(p: Paths, cfg: Config, c: NotesClient, s: SessionState) {
-  let pending = loadPendingLinks(p, s.client, s.sessionId);
+  const pending = loadPendingLinks(p, s.client, s.sessionId);
   if (!pending.length) return;
   const parts = s.noteIds.map((id, i) => ({ id, first: s.anchors?.[i]?.[0], last: s.anchors?.[i]?.[1] }));
-  for (const l of [...pending]) {
+  for (const l of pending) {
     const note = partHolding(parts, l.event);
     if (note === undefined || !(await linkMemory(p, cfg, c, l.memoryId, note))) continue;
-    pending = pending.filter((x) => x !== l);
-    savePendingLinks(p, s.client, s.sessionId, pending);
+    // Re-read: the MCP server may have added a link while this one was being written.
+    savePendingLinks(p, s.client, s.sessionId, loadPendingLinks(p, s.client, s.sessionId).filter((x) => x.memoryId !== l.memoryId));
   }
 }
 
