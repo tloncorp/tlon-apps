@@ -194,6 +194,10 @@ start date, or if we stop relying on frequent background refresh.
 Local patch:
 `patches/expo-modules-core@58.0.20.patch`
 
+The patch makes two independent changes.
+
+### Empty runtime `global.js`
+
 Why:
 `build/ts-declarations/global.js`, which `build/index.js` imports for its side
 effects, imports `EventEmitter`, `NativeModule`, `SharedObject` and `SharedRef`
@@ -215,8 +219,41 @@ Validation:
   "No matching export" errors, and the web E2E tests load the app.
 
 Removal:
-Drop the patch once expo-modules-core emits type-only imports (or no imports)
+Drop this part once expo-modules-core emits type-only imports (or no imports)
 in `build/ts-declarations/global.js`.
+
+### Android: stop the `AsyncFunctionQueue` thread on destroy
+
+Why:
+Every Android `AppContext` (one per React instance) starts a
+`HandlerThread("expo.modules.AsyncFunctionQueue")`. `AppContext.onDestroy()`
+cancels the coroutine scope that runs on it but never quits the looper, so the
+thread outlives the instance. Our background sync (`expo-background-task`)
+starts the React host headlessly and destroys it after each run. A process that
+FCM and background sync keep alive therefore leaks one thread per sync. On a
+Pixel 7a, 20 forced background-task runs grew the process from 125 to 154
+threads, 20 of them `AsyncFunctionQueue`. Crashlytics thread lists from the
+`pthread_create … failed: Try again` crashes (TLON-6956, TLON-6892) show 27–28
+of these threads.
+
+What it does:
+Keeps a reference to the `HandlerThread` and calls `quitSafely()` on it in
+`onDestroy()`, right after the scope is cancelled.
+
+Upstream:
+- none filed; expo/expo `main` still starts the thread without quitting it
+
+Validation:
+- On a Pixel 7a with a `previewReleaseDebuggable` build, force the background
+  task repeatedly (`adb shell cmd jobscheduler run -f <package> <job id>`)
+  while the app is in the background, then count threads with
+  `adb shell ps -T -p <pid>`. Unpatched, one `AsyncFunctionQueue` thread is
+  left behind per run. Patched, none are left after nine runs, and the app
+  still opens and runs normally in the foreground.
+
+Removal:
+Drop this part once expo-modules-core quits the `AsyncFunctionQueue` looper in
+`AppContext.onDestroy()`.
 
 ## @10play/tentap-editor@0.5.21
 
