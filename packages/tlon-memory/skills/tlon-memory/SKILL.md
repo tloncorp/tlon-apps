@@ -28,7 +28,7 @@ The hooks upload each turn automatically. When the user asks to back up "this co
 If there is no `Tlon memory:` line, the hooks are not running (in Codex, probably not trusted yet): say so and point the user to `/hooks` in Codex. A Codex user can still find a thread id in the rollout file name under `~/.codex/sessions` (`rollout-<time>-<id>.jsonl`). A conversation outside the capture scope is refused; never widen the scope yourself, ask the user to run the `cli` path from the Tlon memory line, e.g. `node <cli> scope add <dir>`.
 
 ## Not connected
-If the session line says `Tlon memory: not set up · run <command>`, or a tool says `tlon-memory is not connected. Run: <command>`, tell the user to run exactly that command in their terminal. For a rejected key, it is `node <cli> setup --reconnect`, with the `cli` path from the Tlon memory line. You never handle the +code or the API key: do not ask the user to paste either into the chat.
+If the session line says `Tlon memory: not set up · run <command>`, or a tool says `tlon-memory is not connected. Run: <command>`, offer to set it up: in Claude Code the user runs `/tlon-memory:onboard`; in Codex, follow the `tlon-memory-onboard` skill. Both give the user a local page for the ship URL and secret. A user who prefers the terminal can run exactly that command there instead. For a rejected key, onboarding reconnects with `setup --connect --reconnect`. You never handle the +code or the API key: do not ask the user to paste either into the chat.
 
 ## Privacy
 Retrieved Tlon content is sent to this client's model provider. Do not pull in more than the task needs; prefer `tlon_search_memory` over reading whole conversations.
