@@ -30,7 +30,7 @@ export async function hook(args: string[]): Promise<number> {
     let cfg: Config | null;
     try { cfg = loadConfig(paths); }
     catch (e) { appendLog(paths, 'hook-config-unreadable', { client, error: (e as Error).message }); return 0; }
-    if (!cfg || !cfg.apiKey || !cfg.notebook || !cfg.clients[client]) return 0;
+    if (!cfg || !cfg.apiKey || !cfg.notebook) return 0;
     let p: Payload;
     try { p = JSON.parse(await readStdin()); } catch { return 0; }
     if (!p || typeof p !== 'object') return 0;

@@ -33,7 +33,8 @@ describe('usage and build', () => {
   it('USAGE lists every flag', async () => {
     const { USAGE } = await import('../src/main');
     for (const f of ['--ship-url', '--api-key-stdin', '--code-stdin', '--new-account', '--reconnect', '--notebook', '--scope', '--force-scope',
-      '--clients', '--yes', '--no-tool-io', '--out', '--session', '--memory', '--all', '--revoke-key']) expect(USAGE).toContain(f);
+      '--yes', '--no-tool-io', '--out', '--session', '--memory', '--all', '--revoke-key']) expect(USAGE).toContain(f);
+    expect(USAGE).not.toContain('--clients');
   });
   it('the build writes a bundle that runs under node alone', () => {
     const node = Bun.which('node');

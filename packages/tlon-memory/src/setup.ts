@@ -1,11 +1,10 @@
 // src/setup.ts
 import { existsSync, realpathSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, dirname, resolve, sep } from 'node:path';
+import { basename, dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { UsageError, flag, has } from './cli-util';
 import { Config, defaultConfig, loadConfig, saveConfig } from './config';
-import { Client, detectClient, installClient } from './clients';
 import { MemoryStore } from './memory';
 import { ensureNotebook, notebookUrl } from './notebook';
 import { NotesClient } from './notes-client';
@@ -13,7 +12,7 @@ import { Paths } from './paths';
 import { ask, askHidden, confirm, readSecret } from './prompt';
 import { markInitialized, resetBackoff } from './state';
 import { saveConnection } from './status';
-import skillText from '../skills/tlon-memory/SKILL.md' with { type: 'text' };
+import { CLIENTS, CLIENT_NAMES, CODEX_TRUST_NOTE, installCommand, onPath } from './plugin';
 
 export const SIGNUP_URL = 'https://tlon.network/signup?source=agent';
 /**
@@ -26,11 +25,8 @@ export function packageRoot(execPath: string, importMetaUrl: string): string {
   return compiled ? dirname(dirname(execPath)) : resolve(dirname(fileURLToPath(importMetaUrl)), '..');
 }
 const realOr = (p: string) => { try { return realpathSync(p); } catch { return p; } };
-const ROOT = packageRoot(realOr(process.execPath), import.meta.url);
-export const BIN_PATH = resolve(ROOT, 'bin', 'tlon-memory.js');
-export const SKILL_SOURCE = resolve(ROOT, 'skills', 'tlon-memory', 'SKILL.md');
-/** SKILL.md as of the build, used when SKILL_SOURCE is missing (a binary copied away from its package). */
-export const SKILL_TEXT: string = skillText;
+/** The checkout the plugin is installed from. */
+export const PLUGIN_ROOT = packageRoot(realOr(process.execPath), import.meta.url);
 
 export const DISCLOSURE = `tlon-memory stores selected Claude Code / Codex conversations and memories in a Notes
 notebook on your Tlon ship, and lets those agents search them.
@@ -76,14 +72,13 @@ export function normaliseShipUrl(raw: string): string {
   return u.origin;
 }
 
-const CLIENT_NAMES: Record<Client, string> = { claude: 'Claude Code', codex: 'Codex' };
-
-function parseClients(v: string | undefined): Client[] | undefined {
-  if (v === undefined) return undefined;
-  const list = v.split(',').map((c) => c.trim()).filter(Boolean);
-  const bad = list.filter((c) => c !== 'claude' && c !== 'codex' && c !== 'none');
-  if (bad.length) throw new UsageError(`--clients takes claude, codex or none; got ${bad.join(', ')}`);
-  return list.filter((c): c is Client => c !== 'none');
+/** The plugin carries the hooks, MCP server and skill; setup only says how to install it. */
+function printInstall(out: (s: string) => void) {
+  const found = CLIENTS.filter((c) => onPath(c));
+  out(found.length ? '\nInstall the plugin (hooks, MCP server and skill):' : '\nNeither `claude` nor `codex` is on PATH. To install the plugin later:');
+  for (const c of found.length ? found : CLIENTS) out(`  ${CLIENT_NAMES[c]}: ${installCommand(c, PLUGIN_ROOT)}`);
+  if (!found.length || found.includes('codex')) out(CODEX_TRUST_NOTE);
+  if (!existsSync(join(PLUGIN_ROOT, 'dist', 'tlon-memory.js'))) out(`Run \`pnpm build\` in ${PLUGIN_ROOT} first, so the hooks need only node.`);
 }
 
 export async function setup(args: string[]): Promise<number> {
@@ -92,7 +87,6 @@ export async function setup(args: string[]): Promise<number> {
   const err = (s: string) => process.stderr.write(s + '\n');
   const newAccount = has(args, '--new-account'); const reconnectFlag = has(args, '--reconnect'); const force = has(args, '--force-scope');
   const shipUrlArg = flag(args, '--ship-url'); const scopeArg = flag(args, '--scope'); const notebookArg = flag(args, '--notebook');
-  const wanted = parseClients(flag(args, '--clients'));
   const stdinKey = has(args, '--api-key-stdin'); const stdinCode = has(args, '--code-stdin');
   // With --yes nothing is prompted, so every required input must come from a flag; checked before any network call.
   if (yes && !newAccount) {
@@ -110,7 +104,7 @@ export async function setup(args: string[]): Promise<number> {
   out(DISCLOSURE);
   if (!yes && !(await confirm('Continue?', true, '--yes'))) return 1;
   if (existing && !reconnect && !newAccount) {
-    out(`A setup already exists (${existing.ship || existing.shipUrl}). Running setup again resets scopes and client settings; use --reconnect to replace only the key.`);
+    out(`A setup already exists (${existing.ship || existing.shipUrl}). Running setup again resets scopes; use --reconnect to replace only the key.`);
     if (!yes && !(await confirm('Start over?', false, '--yes'))) return 1;
   }
   const cfg: Config = reconnect ? existing! : defaultConfig();
@@ -173,30 +167,9 @@ export async function setup(args: string[]): Promise<number> {
     cfg.scopes = scope === 'none' ? [] : [resolve(scope)];
     cfg.captureToolIo = !has(args, '--no-tool-io') && (yes || (await confirm('Include tool inputs/outputs (truncated to 2 KB each)?', true, '--no-tool-io')));
   }
-  cfg.binPath = BIN_PATH;
   saveConfig(paths, cfg);
 
-  // 6. clients: one at a time, so prompts never overlap; one client's failure does not stop the other.
-  const failures: string[] = [];
-  if (!reconnect) {
-    const chosen: Client[] = [];
-    for (const c of wanted ?? (['claude', 'codex'] as const)) {
-      if (!(await detectClient(c))) { if (wanted || yes) out(`${CLIENT_NAMES[c]}: \`${c}\` not found on PATH; skipped.`); continue; }
-      if (wanted || yes || (await confirm(`Configure ${CLIENT_NAMES[c]} (MCP server, hooks, skill)?`, true, '--clients'))) chosen.push(c);
-    }
-    for (const c of chosen) {
-      try {
-        const r = await installClient(c, { binPath: BIN_PATH, skillSource: SKILL_SOURCE, skillText: SKILL_TEXT });
-        cfg.clients[c] = { mcp: r.mcp, hooks: r.hooks, skill: r.skill, installedAt: new Date().toISOString() };
-        out(`${CLIENT_NAMES[c]}: hooks ${r.hooks ? 'ok' : 'FAILED'} · MCP ${r.mcp ? 'ok' : 'FAILED (' + r.mcpError + ')'} · skill ${r.skill ? 'ok' : 'FAILED'}`);
-        if (!r.mcp) failures.push(`${CLIENT_NAMES[c]}: MCP registration failed: ${r.mcpError}`);
-        if (c === 'codex') out('Codex: run /hooks inside Codex once to review and trust the tlon-memory hooks (they are skipped until trusted).');
-      } catch (e) { failures.push(`${CLIENT_NAMES[c]}: ${(e as Error).message}`); out(`${CLIENT_NAMES[c]}: FAILED (details below)`); }
-    }
-    saveConfig(paths, cfg);
-  }
-
-  // 7. probe: write a memory, read it back, delete it
+  // 6. probe: write a memory, read it back, delete it
   let probeId: number | undefined;
   try {
     const store = new MemoryStore(paths, cfg);
@@ -206,7 +179,6 @@ export async function setup(args: string[]): Promise<number> {
     if (!back.some((h) => h.id === p.id)) throw new Error('probe memory not found after write');
   } catch (e) {
     err(`Probe failed: ${(e as Error).message} (setup saved; run \`tlon-memory status\` to check the connection).`);
-    for (const f of failures) err(f);
     return 1;
   } finally {
     if (probeId !== undefined) await client.deleteNote(cfg.notebook!.host, cfg.notebook!.name, probeId)
@@ -216,6 +188,6 @@ export async function setup(args: string[]): Promise<number> {
   out(`\nConnected. Open ${notebookUrl(cfg.shipUrl, cfg.notebook!)} to see your notebook.`);
   out(`Capture: ${cfg.paused ? 'paused' : cfg.scopes.length ? 'on for ' + cfg.scopes.join(', ') : 'off (no scope)'} · tool I/O: ${cfg.captureToolIo ? 'included (truncated)' : 'text only'}`);
   out(`\n${PRIVACY_NOTE}`);
-  if (failures.length) { err('\nSome client wiring failed:'); for (const f of failures) err(`  ${f}`); return 1; }
+  if (!reconnect) printInstall(out);
   return 0;
 }

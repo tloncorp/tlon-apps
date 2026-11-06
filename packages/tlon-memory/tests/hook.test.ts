@@ -20,8 +20,7 @@ async function hook(client: string, fixture: string, env: Record<string, string>
   return { code, out, err };
 }
 beforeAll(async () => { fake.start(); const c = new NotesClient({ shipUrl: fake.url, apiKey: 'test-key' });
-  cfg = { ...defaultConfig(), shipUrl: fake.url, ship: '~zod', apiKey: 'test-key', scopes: ['/Users/bill/Projects/demo'], notebook: await ensureNotebook(c, 'Agent Memory'),
-    clients: { claude: { mcp: true, hooks: true, skill: true, installedAt: '' }, codex: { mcp: true, hooks: true, skill: true, installedAt: '' } } }; });
+  cfg = { ...defaultConfig(), shipUrl: fake.url, ship: '~zod', apiKey: 'test-key', scopes: ['/Users/bill/Projects/demo'], notebook: await ensureNotebook(c, 'Agent Memory') }; });
 afterAll(() => fake.stop());
 beforeEach(() => { paths = new Paths(mkdtempSync(join(tmpdir(), 'tm-hook-'))); saveConfig(paths, cfg);
   fx = join(paths.root, 't.jsonl'); copyFileSync(join(import.meta.dir, 'fixtures', 'claude-session.jsonl'), fx); fake.notes.clear(); });

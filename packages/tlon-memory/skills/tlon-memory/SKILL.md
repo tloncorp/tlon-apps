@@ -25,7 +25,7 @@ The hooks upload each turn automatically. When the user asks to back up "this co
 - **A past one:** call `tlon_backup_conversation` with its key, or run `tlon-memory import --session <key>`.
 - **Everything in scope:** run `tlon-memory import --all`. Suggest `tlon-memory import --all --dry-run` first and show the user the list.
 
-If there is no `Tlon memory:` line, the hooks are not installed or (Codex) not trusted yet: say so and point to `tlon-memory setup`, or `/hooks` in Codex. A Codex user can still find a thread id in the rollout file name under `~/.codex/sessions` (`rollout-<time>-<id>.jsonl`). A conversation outside the capture scope is refused; never widen the scope yourself, ask the user to run `tlon-memory scope add <dir>`.
+If there is no `Tlon memory:` line, tlon-memory is not connected yet, or (Codex) its hooks are not trusted yet: say so and point to `tlon-memory setup`, or `/hooks` in Codex. A Codex user can still find a thread id in the rollout file name under `~/.codex/sessions` (`rollout-<time>-<id>.jsonl`). A conversation outside the capture scope is refused; never widen the scope yourself, ask the user to run `tlon-memory scope add <dir>`.
 
 ## Not connected
 If a tool reports no config or a rejected key, tell the user to run `tlon-memory setup` (or `tlon-memory setup --reconnect`) in their terminal. You never handle the +code or the API key: do not ask the user to paste either into the chat.

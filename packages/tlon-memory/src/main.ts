@@ -4,16 +4,15 @@ import { VERSION } from './version';
 
 export const USAGE = `Usage: tlon-memory <command>
 
-  setup [options]           connect a ship, create the notebook, wire up clients
+  setup [options]           connect a ship and create the notebook; prints the plugin install commands
       --ship-url URL          ship URL (https; http only for localhost); a copied browser URL is fine
       --api-key-stdin         read the Notes API key from stdin (hidden prompt on a terminal)
       --code-stdin            read your +code from stdin to fetch the key (hidden prompt on a terminal)
       --new-account           print the sign-up link and stop
-      --reconnect             replace the key (and with --ship-url, the URL); keeps notebook, scopes, clients
+      --reconnect             replace the key (and with --ship-url, the URL); keeps notebook and scopes
       --notebook TITLE        notebook title (default "Agent Memory")
       --scope DIR|none        directory whose sessions are captured (required with --yes)
       --force-scope           allow home, / or a parent of home as the scope
-      --clients LIST          claude,codex | claude | codex | none
       --no-tool-io            do not upload tool inputs/outputs
       --yes                   no prompts; missing required flags are errors
   status

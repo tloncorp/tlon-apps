@@ -1,11 +1,12 @@
 // tests/plugin.test.ts
-import { describe, expect, it } from 'bun:test';
-import { spawn } from 'node:child_process';
+import { beforeAll, describe, expect, it } from 'bun:test';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Paths } from '../src/paths';
 import { defaultConfig, saveConfig } from '../src/config';
+import { installCommand, onPath, uninstallCommand } from '../src/plugin';
 
 const root = join(import.meta.dir, '..');
 const json = (f: string) => JSON.parse(readFileSync(join(root, f), 'utf8'));
@@ -23,8 +24,7 @@ function sh(command: string, env: Record<string, string>, stdin: string): Promis
 function connectedHome() {
   const paths = new Paths(mkdtempSync(join(tmpdir(), 'tm-plugin-')));
   saveConfig(paths, { ...defaultConfig(), shipUrl: 'http://localhost:1', ship: '~zod', apiKey: 'k', scopes: ['/Users/bill/Projects/demo'],
-    notebook: { host: '~zod', name: 'n', title: 'Agent Memory', rootFolderId: 1, conversationsFolderId: 2, memoriesFolderId: 3 },
-    clients: { claude: { mcp: true, hooks: true, skill: true, installedAt: '' }, codex: { mcp: true, hooks: true, skill: true, installedAt: '' } } });
+    notebook: { host: '~zod', name: 'n', title: 'Agent Memory', rootFolderId: 1, conversationsFolderId: 2, memoriesFolderId: 3 } });
   return paths;
 }
 const START = readFileSync(join(import.meta.dir, 'fixtures', 'hook-claude-start.json'), 'utf8');
@@ -53,6 +53,8 @@ describe('plugin manifests', () => {
 });
 
 describe('plugin commands', () => {
+  // The shim runs dist/ when it exists, so a stale build would test old code.
+  beforeAll(() => { expect(spawnSync('node', [join(root, 'scripts', 'build.js')]).status).toBe(0); });
   it('each SessionStart hook prints the context line from the plugin root', async () => {
     const paths = connectedHome();
     for (const [f, client] of [['hooks/hooks.json', 'claude'], ['hooks/codex-hooks.json', 'codex']]) {
@@ -82,5 +84,22 @@ describe('plugin commands', () => {
     const argv = [s.command, ...s.args].map((a: string) => `'${a.replaceAll("'", `'\\''`)}'`).join(' ');
     const r = await sh(argv, { CODEX_HOME: codexHome, TLON_MEMORY_HOME: connectedHome().root }, MCP_INIT);
     expect(r.out).toContain('"name":"tlon_search_memory"');
+  });
+});
+
+describe('install commands', () => {
+  it('name the checkout, quoting a path the shell would split', () => {
+    expect(installCommand('claude', '/r/tlon-memory')).toBe('claude plugin install tlon-memory --marketplace /r/tlon-memory');
+    expect(installCommand('codex', "/My Code/it's")).toBe(`codex plugin marketplace add '/My Code/it'\\''s' && codex plugin add tlon-memory@tlon-memory`);
+    expect(uninstallCommand('codex')).toBe('codex plugin remove tlon-memory@tlon-memory && codex plugin marketplace remove tlon-memory');
+  });
+  it('the marketplace and plugin names they use are the ones the manifests declare', () => {
+    const mkt = json('.claude-plugin/marketplace.json');
+    expect(uninstallCommand('claude')).toBe(`claude plugin uninstall ${mkt.plugins[0].name}@${mkt.name} && claude plugin marketplace remove ${mkt.name}`);
+  });
+  it('onPath finds only executables', () => {
+    expect(onPath('sh', '/nonexistent:/bin')).toBe(true);
+    expect(onPath('sh', '/nonexistent')).toBe(false);
+    expect(onPath('passwd', '/etc')).toBe(false); // a file, not executable
   });
 });

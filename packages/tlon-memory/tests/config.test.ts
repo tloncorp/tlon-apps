@@ -17,6 +17,11 @@ describe('config', () => {
     expect(statSync(paths.configFile).mode & 0o777).toBe(0o600);
     expect(loadConfig(paths)).toEqual(c);
   });
+  it('loads a config written by an older setup, ignoring fields it no longer uses', () => {
+    const c = { ...defaultConfig(), shipUrl: 'https://x.tlon.network', ship: '~zod', apiKey: 'k' };
+    writeFileSync(paths.configFile, JSON.stringify({ ...c, clients: { claude: { mcp: true, hooks: true, skill: true, installedAt: '' } }, binPath: '/x/bin/tlon-memory.js' }));
+    expect(loadConfig(paths)).toMatchObject(c);
+  });
   it('returns null when absent', () => {
     expect(loadConfig(paths)).toBeNull();
   });

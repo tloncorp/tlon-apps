@@ -6,21 +6,34 @@ Shared memory for AI coding agents, stored in your Tlon Notes.
 
 tlon-memory saves your Claude Code and Codex conversations, for the directories you choose, as Markdown notes in a notebook on your Tlon ship. Agents can save short memories there (decisions, preferences, project context, next steps) and search them later, so a decision made in Claude Code is visible to Codex and the other way round. Every memory links back to the conversation it came from, and you can read, edit, export or delete all of it.
 
-It has three parts. Client hooks upload each conversation when a turn ends. A local MCP server (a small program the agent can call as a tool) lets agents search and save memories. A skill file tells the agent when to use those tools.
+It has three parts, shipped as one plugin for Claude Code and Codex. Hooks upload each conversation when a turn ends. A local MCP server (a small program the agent can call as a tool) lets agents search and save memories. A skill tells the agent when to use those tools. The `tlon-memory` command connects your ship and manages what is captured.
 
-### One-command start
+### Start
 
-This is a prototype inside the `tlon-apps` repo. It is not published to npm yet. From the project directory whose sessions you want captured, run:
+This is a prototype inside the `tlon-apps` repo. It is not published to npm or to a plugin marketplace yet. You need `node`, and `bun` to build. Run `pnpm install` once at the repo root, then build and connect your ship from the project directory whose sessions you want captured:
 
 ```bash
+cd /path/to/tlon-apps/packages/tlon-memory && pnpm build
+cd ~/Projects/demo
 node /path/to/tlon-apps/packages/tlon-memory/bin/tlon-memory.js setup
 ```
 
-You need `node` and `bun` installed, and `pnpm install` run once at the repo root. Setup asks a few questions and ends with a live check against your ship.
+Setup asks a few questions, ends with a live check against your ship, and prints the install command for each client it finds on PATH. Install the plugin with one command per client, from the checkout:
 
-`pnpm build` in `packages/tlon-memory` writes `dist/tlon-memory.js`, a bundle that needs only `node`, and `dist/tlon-memory`, a standalone binary. The `bin/tlon-memory.js` shim runs the bundle under the same `node` when it exists, else the binary, else `bun` on the source. Run from the binary, setup finds the package from the binary's location (`dist/tlon-memory` → the package directory), so hooks and the MCP server still point at `bin/tlon-memory.js`, and the skill is copied from `SKILL.md`. The binary also carries a copy of `SKILL.md` from build time, which setup installs if the file is missing.
+```bash
+# Claude Code
+claude plugin install tlon-memory --marketplace /path/to/tlon-apps/packages/tlon-memory
+# Codex
+codex plugin marketplace add /path/to/tlon-apps/packages/tlon-memory && codex plugin add tlon-memory@tlon-memory
+```
 
-The examples below write `tlon-memory` for the command. Either put `bin/tlon-memory.js` on your PATH under that name, or type the full `node .../bin/tlon-memory.js` path.
+Then, in Codex only, run `/hooks` once and trust the three tlon-memory hooks (see "Codex: trust the hooks"). Start a new session in either client to load the plugin.
+
+The package directory is both the plugin and a one-plugin marketplace named `tlon-memory`: `.claude-plugin/marketplace.json`, which Codex also reads. Claude Code loads the plugin in place from the checkout, so a rebuild or an edit takes effect in the next session. Codex copies the package into `~/.codex/plugins/cache/tlon-memory/tlon-memory/0.1.0/` when you add it, so after a rebuild or an edit run `codex plugin add tlon-memory@tlon-memory` again. The copy includes `dist/`, so build before you add it.
+
+`pnpm build` writes `dist/tlon-memory.js`, a bundle that needs only `node`, and `dist/tlon-memory`, a standalone binary. The hooks and the MCP server run `bin/tlon-memory.js`, which runs the bundle under the same `node` when it exists, else the binary, else `bun` on the source.
+
+The examples below write `tlon-memory` for the command. Either put `bin/tlon-memory.js` on your PATH under that name, or type the full `node .../bin/tlon-memory.js` path. (While the plugin is enabled, Claude Code also puts `bin/` on its Bash tool's PATH, as `tlon-memory.js`.)
 
 ## Access requested
 
@@ -53,7 +66,7 @@ is summarized. Details: README.md.
 Run `tlon-memory setup` in a terminal. It goes through these steps:
 
 1. Prints the access disclosure and asks to continue.
-2. If a setup already exists, warns that running setup again resets scopes and client settings, and suggests `--reconnect` to replace only the key.
+2. If a setup already exists, warns that running setup again resets scopes, and suggests `--reconnect` to replace only the key.
 3. Asks whether you already have a Tlon account. If not, it opens `https://tlon.network/signup?source=agent` and tells you to re-run setup once you have your ship URL. Sign-up may need an invite or be capacity-limited.
 4. Asks for your ship URL, for example `https://sampel-palnet.tlon.network`. A URL copied from the browser with a path is fine; only the origin is kept. It must be `https://`. Plain `http://` is accepted only for `localhost`, `127.0.0.1` and `[::1]`.
 5. Asks how to authorize: paste your Notes API key, or enter your +code once (the default). Both prompts hide what you type.
@@ -61,10 +74,10 @@ Run `tlon-memory setup` in a terminal. It goes through these steps:
 7. Asks for a notebook title (default `Agent Memory`). It finds a notebook with that title hosted on your ship, or creates a private one, and makes sure it has `conversations/` and `memories/` folders.
 8. Asks which directory to capture (default: the current directory, or `none`). It refuses your home directory, `/` and any directory that contains your home directory (such as `/Users`) unless you pass `--force-scope`, because every session started anywhere under them would be uploaded. Symlinks are resolved before the check.
 9. Asks whether to include tool inputs and outputs (truncated to 2 KB each).
-10. Looks for the `claude` and `codex` commands. For each one found, asks whether to configure it, then registers the MCP server, adds the hooks and installs the skill. Clients are configured one at a time. If one fails, the other still runs.
-11. Writes a probe memory, finds it again by search, deletes it, and prints the notebook URL, the capture summary and the privacy note.
+10. Writes a probe memory, finds it again by search, deletes it, and prints the notebook URL, the capture summary and the privacy note.
+11. Prints the plugin install command for each of `claude` and `codex` found on PATH (both when neither is found), the Codex `/hooks` reminder, and a reminder to run `pnpm build` if `dist/tlon-memory.js` is missing. Setup does not run these commands or write any client file.
 
-Setup exits 1 if the probe fails (the configuration is still saved) or if any client wiring failed.
+Setup exits 1 if the probe fails. The configuration is still saved.
 
 ### Non-interactive
 
@@ -76,11 +89,10 @@ Every question has a flag. With `--yes` nothing is prompted, and a missing requi
 | `--api-key-stdin` | Read the Notes API key from stdin (hidden prompt on a terminal). |
 | `--code-stdin` | Read your +code from stdin and exchange it for the key (hidden prompt on a terminal). |
 | `--new-account` | Print the sign-up link and stop. |
-| `--reconnect` | Replace the key (and the URL, with `--ship-url`). Keeps notebook, scopes and clients. |
+| `--reconnect` | Replace the key (and the URL, with `--ship-url`). Keeps notebook and scopes. Does not repeat the install commands. |
 | `--notebook TITLE` | Notebook title. Default `Agent Memory`. |
 | `--scope DIR` or `--scope none` | Directory whose sessions are captured. Required with `--yes`, except with `--reconnect`. |
 | `--force-scope` | Allow your home directory, `/` or a parent of your home directory as the scope. |
-| `--clients LIST` | `claude,codex`, `claude`, `codex` or `none`. |
 | `--no-tool-io` | Do not upload tool inputs and outputs. |
 | `--yes` | No prompts. Needs `--api-key-stdin` or `--code-stdin`. |
 
@@ -89,29 +101,33 @@ Example:
 ```bash
 printf '%s' "$NOTES_KEY" | tlon-memory setup --yes \
   --ship-url https://sampel-palnet.tlon.network --api-key-stdin \
-  --scope ~/Projects/demo --clients claude,codex
+  --scope ~/Projects/demo
 ```
 
 With `--reconnect`, the new key must belong to the same ship as the existing notebook. Otherwise setup stops and tells you to run it without `--reconnect`.
 
-### What setup changes in each client
+### What the plugin adds to each client
 
 | | Claude Code | Codex |
 |---|---|---|
-| MCP server | `claude mcp add -s user tlon-memory -e TLON_MEMORY_AGENT=claude-code -- <repo>/packages/tlon-memory/bin/tlon-memory.js mcp` | `codex mcp add --env TLON_MEMORY_AGENT=codex tlon-memory -- <repo>/packages/tlon-memory/bin/tlon-memory.js mcp` |
-| Hooks file | `~/.claude/settings.json` | `~/.codex/hooks.json` |
-| Hooks | SessionStart (5 s timeout), Stop (20 s), SessionEnd (20 s), each running `"<repo>/packages/tlon-memory/bin/tlon-memory.js" hook claude` | SessionStart (5 s), Stop (20 s), SessionEnd (3 s), each running `"…/bin/tlon-memory.js" hook codex` |
-| Skill | `~/.claude/skills/tlon-memory/SKILL.md` | `~/.agents/skills/tlon-memory/SKILL.md` |
+| Manifest | `.claude-plugin/plugin.json` | `.codex-plugin/plugin.json` |
+| MCP server | `.mcp.json`: `node ${CLAUDE_PLUGIN_ROOT}/bin/tlon-memory.js mcp` with `TLON_MEMORY_AGENT=claude-code` | `codex-mcp.json`: `node <installed copy>/bin/tlon-memory.js mcp` with `TLON_MEMORY_AGENT=codex`, tool timeout 120 s |
+| Hooks | `hooks/hooks.json`: SessionStart (5 s timeout), Stop (20 s), SessionEnd (20 s), each running `node "${CLAUDE_PLUGIN_ROOT}/bin/tlon-memory.js" hook claude` | `hooks/codex-hooks.json`: SessionStart (5 s), Stop (20 s), SessionEnd (3 s), each running `node "${PLUGIN_ROOT}/bin/tlon-memory.js" hook codex` |
+| Skill | `skills/tlon-memory/SKILL.md` | the same file |
 
-Hooks are merged into the existing file in place. Other hooks are left alone. Before each change the previous file is copied to `~/.claude/settings.json.bak-tlon-memory` or `~/.codex/hooks.json.bak-tlon-memory`. Setup adds the `tlon-memory` MCP registration first. Only if the client says it already exists does setup remove the old one and add it again, so re-running setup is safe and a failed add never removes a working registration. Each `claude`/`codex` command setup runs is stopped after 30 seconds and reported as failed.
+The install commands record the marketplace and enable the plugin in the client's own settings (`~/.claude/settings.json`, `~/.codex/config.toml`). They do not touch your other hooks or MCP servers.
+
+**Why the Codex MCP command looks for the installed copy.** Codex 0.144 does not expand `${PLUGIN_ROOT}` in a plugin's MCP config, and a relative `cwd` would start the server in the plugin cache. The server names the project after its working directory, so it must start in the session's directory, which is what Codex does when `cwd` is unset. The command therefore runs `sh -c` and finds `bin/tlon-memory.js` under `${CODEX_HOME:-~/.codex}/plugins/cache/tlon-memory/tlon-memory/`.
+
+**Tool timeout.** `tlon_backup_conversation` can run for up to 45 s. Codex's documented default MCP tool timeout is 60 s, so `codex-mcp.json` sets `tool_timeout_sec` to 120. Claude Code's plugin MCP config has no per-server tool timeout; if a backup is cut off there, set `MCP_TOOL_TIMEOUT` (milliseconds) in the environment Claude Code starts with.
 
 ### Codex: trust the hooks
 
-Codex skips new hooks until you trust them. After setup, start Codex, run `/hooks`, and trust the three tlon-memory hooks. Until you do, Codex sessions are not captured and the status line does not appear.
+Installing a Codex plugin does not trust its hooks. After `codex plugin add`, start Codex, run `/hooks`, and trust the three tlon-memory hooks. Until you do, Codex sessions are not captured and the status line does not appear. Codex trusts a hook by its contents, so review them again after an update changes them. Claude Code runs plugin hooks without a separate trust step.
 
 ### Verify
 
-- `tlon-memory status` prints the status line, the ship and notebook, the number of memories (shown as `200+` past 200, and marked `scan truncated` when the notebook is larger than the search horizon, so older memories were not counted), the number of conversations synced from this device, scopes, tool I/O, configured clients, any pending uploads with their last error, and the search horizon.
+- `tlon-memory status` prints the status line, the ship and notebook, the number of memories (shown as `200+` past 200, and marked `scan truncated` when the notebook is larger than the search horizon, so older memories were not counted), the number of conversations synced from this device, scopes, tool I/O, any pending uploads with their last error, and the search horizon.
 - Start a session in a captured directory. The agent's context begins with a line like:
 
   ```
@@ -120,11 +136,11 @@ Codex skips new hooks until you trust them. After setup, start Codex, run `/hook
 
   The `session` value is what the agent passes as `session_key` when it saves a memory. Outside a captured directory the line says `capture OFF for <dir> (not in scope)`. When paused it says `capture PAUSED`.
 - Ask the agent to call `tlon_status`. It returns the same line, without the session value, and a note on the search horizon.
-- `claude mcp list` and `codex mcp list` should show `tlon-memory`.
+- `claude plugin list` and `codex plugin list` should show `tlon-memory@tlon-memory` as installed. `codex mcp list` also shows the `tlon-memory` server; `claude mcp list` does not list plugin servers, so use `tlon_status` or `/mcp` inside a session.
 
 ### GUI apps and PATH
 
-The hook and MCP commands run `bin/tlon-memory.js` through its `#!/usr/bin/env node` line, so `node` must be on the PATH the client gives its hooks. The shim then runs `dist/tlon-memory.js` under that `node`, or `dist/tlon-memory` if only the binary exists. With neither, it looks for `bun` on PATH, then in `~/.bun/bin`, `/opt/homebrew/bin` and `/usr/local/bin`. Apps launched from the Dock or Finder (for example the Claude desktop app) can get a minimal PATH without bun. Run `pnpm build` in `packages/tlon-memory` so hooks need only `node`.
+The hook and MCP commands run `node bin/tlon-memory.js`, so `node` must be on the PATH the client gives its hooks and MCP servers. The shim then runs `dist/tlon-memory.js` under that `node`, or `dist/tlon-memory` if only the binary exists. With neither, it looks for `bun` on PATH, then in `~/.bun/bin`, `/opt/homebrew/bin` and `/usr/local/bin`. Apps launched from the Dock or Finder (for example the Claude desktop app) can get a minimal PATH without bun. Run `pnpm build` in `packages/tlon-memory` so hooks need only `node`.
 
 ## What is captured
 
@@ -234,7 +250,14 @@ All commands below run in a terminal.
   - `--all` deletes every conversation and memory note in the notebook, all local sync state (pending memory links included) and the whole queue.
 
   If a deleted session is still running, pause capture first (`tlon-memory pause`). Otherwise its next hook uploads it again.
-- `tlon-memory disconnect` removes, for both clients whatever the config says: the tlon-memory hook entries, the `tlon-memory` MCP registration, and the installed skill directory, and then deletes the `.bak-tlon-memory` copy of each hooks file. It then removes `config.json` (and the key in it), `state/`, `queue/` and `log` from `~/.tlon/memory/`, and removes that directory if nothing else is in it. It keeps the notebook and all notes on your ship. Use `export` and `delete` first if you want them gone. It works even when `config.json` is missing or unreadable. An MCP server that was never registered is reported as such, not as a failure, and hooks or a skill that are not installed are reported as nothing to remove.
+- `tlon-memory disconnect` removes `config.json` (and the key in it), `state/`, `queue/` and `log` from `~/.tlon/memory/`, and removes that directory if nothing else is in it. It keeps the notebook and all notes on your ship. Use `export` and `delete` first if you want them gone. It works even when `config.json` is missing or unreadable. It does not change the clients. It prints the commands that remove the plugin, which you run yourself:
+
+  ```bash
+  claude plugin uninstall tlon-memory@tlon-memory && claude plugin marketplace remove tlon-memory
+  codex plugin remove tlon-memory@tlon-memory && codex plugin marketplace remove tlon-memory
+  ```
+
+  Until you do, the hooks still run but find no config and do nothing, and the MCP tools answer that tlon-memory is not connected.
   - `--revoke-key` first asks for your +code and rotates the Notes API key on the ship, so the stored key stops working everywhere. If rotation fails, nothing is removed. Rotating the key also breaks anything else that used it.
 
 **What deletion cannot reach:**
@@ -284,17 +307,18 @@ The log (`~/.tlon/memory/log`) only records an allow-listed set of fields (statu
 - **Search is simple.** Memory search ranks by word overlap and recency, with no full-text index or embeddings. It looks at most at 200 memory notes. Conversation search uses the ship's substring search, which scans the notebook note by note, so it gets slower as the notebook grows.
 - **Search horizon.** Every text search (memories, conversation history, and the `session_key` lookup used to recover lost local state) scans only the newest 2000 notes in the notebook: 20 requests of 100 notes each. Older notes are not found. `tlon-memory status` says `scan truncated` when the memory count stopped at this horizon. Recovering a session whose notes are older than the horizon creates new notes instead of updating the old ones.
 - **Search cursor.** The first search request carries no `from` parameter, because the desk treats `from=0` as an empty range; later pages pass the `last` id of the previous one.
-- **`codex mcp add` rewrites `~/.codex/config.toml`.** Codex reorders keys, reformats numbers and drops settings equal to their defaults (such as `enabled = true`). Codex behaves the same afterwards.
-- **Codex hooks need trust.** Codex runs a new hook only after you trust it with `/hooks`; see "Codex: trust the hooks".
+- **Codex hooks need trust.** Installing the plugin does not trust its hooks; run `/hooks` in Codex. See "Codex: trust the hooks".
+- **Codex runs a copy.** `codex plugin add` copies the package into its plugin cache. Re-run it after a rebuild or an edit. Claude Code reads the checkout in place.
+- **Codex MCP path.** The Codex MCP command finds the installed copy under `${CODEX_HOME:-~/.codex}/plugins/cache/tlon-memory/tlon-memory/`; see "What the plugin adds to each client". A Codex that moves its plugin cache would need this changed.
 - **`tlon_list_recent` with `conversations`** lists conversations synced from this device, from local state. It only asks the ship when this device has none.
 - **Not captured:** subagent transcripts, attachments and thinking.
-- **Local MCP server only.** Each machine needs its own install. There is no hosted MCP endpoint.
+- **Local MCP server only.** Each machine needs its own checkout, build and plugin install. There is no hosted MCP endpoint.
 - **Transcripts can lag.** A client's transcript file can be behind the live conversation when a hook fires. The next Stop or SessionEnd catches up.
 - **In-app viewing** of the notebook in the Tlon app depends on the `markdownNotebooks` feature flag. The Notes web UI at `/notes/` works today.
 - **Sign-up has no resume.** After creating an account, you re-run setup with your ship URL. The sign-up link depends on a separate change to the Tlon hosting site.
 - **GUI apps and PATH.** Hooks need `node`, and `bun` unless you have run `pnpm build`. See "GUI apps and PATH".
-- **Keep the binary in `dist/`.** The compiled binary finds the package (and `bin/tlon-memory.js`, which hooks run) two levels above itself. A copy moved elsewhere would register hook paths that do not exist. Rebuild after changing `SKILL.md` so the embedded copy matches.
-- **Not published to npm yet.** Run it from the repo.
+- **Keep the binary in `dist/`.** Run from the compiled binary, setup finds the package (whose path it prints in the install commands) two levels above it.
+- **Not published to npm or a plugin marketplace yet.** Install it from the checkout.
 - **Workspace install.** The package's dev dependencies come from the `tlon-apps` pnpm workspace. Run `pnpm install` at the repo root, not inside the package.
 - **One device's view of the queue.** Pending uploads and sync state live on the machine that made them.
 
@@ -304,7 +328,7 @@ Everything lives under `~/.tlon/memory/` (or `$TLON_MEMORY_HOME`). Directories a
 
 | Path | Contents |
 |---|---|
-| `config.json` | Ship URL, ship name, Notes API key, notebook ids, scopes, tool I/O setting, pause flag, configured clients, shim path. The only secret stored. |
+| `config.json` | Ship URL, ship name, Notes API key, notebook ids, scopes, tool I/O setting, pause flag. The only secret stored. A config from an earlier version may also hold `clients` and `binPath`; they are ignored. |
 | `state/<client>-<session>.json` | Per session: note ids, revisions, anchor range and hash for each part, event count, last sync time. |
 | `state/pending-links-<client>-<session>.json` | Memories saved before this session was uploaded, waiting for their `source_note` link. |
 | `state/connection.json` | Last known connection state (`ok`, `key-rejected` or `unreachable`) and error. |

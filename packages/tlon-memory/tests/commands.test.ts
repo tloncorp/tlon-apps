@@ -11,14 +11,12 @@ import { ensureNotebook } from '../src/notebook';
 import { MemoryStore } from '../src/memory';
 import { enqueue, syncQueue } from '../src/sync';
 import { listJobs, pendingLinksFile, savePendingLinks } from '../src/state';
-import { hookEntries } from '../src/clients';
-import { BIN_PATH } from '../src/setup';
 
 const fake = new FakeNotes(); let home: string; let paths: Paths; let cfg: Config;
 const main = join(import.meta.dir, '..', 'src', 'main.ts');
 const SESSION = 'claude-code:11111111-aaaa-4bbb-8ccc-222222222222';
 // Async spawn: spawnSync would block this process's event loop, so the in-process fake server could not answer the child.
-// HOME is a temp dir so `disconnect` never touches the real ~/.claude or ~/.codex; fake `claude`/`codex` record their args.
+// HOME is a temp dir so nothing here touches the real ~/.claude or ~/.codex; fake `claude`/`codex` record any call.
 const run = async (args: string[], input?: string) => {
   const r = Bun.spawn(['bun', 'run', main, ...args], { stdin: input === undefined ? 'ignore' : new TextEncoder().encode(input), stdout: 'pipe', stderr: 'pipe',
     env: { ...process.env, HOME: home, TLON_MEMORY_HOME: paths.root, PATH: `${home}/bin:${process.env.PATH}` } });
@@ -128,52 +126,34 @@ describe('commands', () => {
 
 describe('disconnect', () => {
   const settings = () => join(home, '.claude', 'settings.json');
-  const skill = () => join(home, '.claude', 'skills', 'tlon-memory');
-  function seedClaude() {
-    mkdirSync(skill(), { recursive: true }); writeFileSync(join(skill(), 'SKILL.md'), 'x');
-    const ours = hookEntries('claude', BIN_PATH);
-    writeFileSync(settings(), JSON.stringify({ model: 'opus', hooks: { ...ours, Stop: [{ hooks: [{ type: 'command', command: 'other-tool' }] }, ...ours.Stop] } }));
-  }
-  it('removes only what tlon-memory owns, client hooks and skill, and reports mcp remove', async () => {
-    seedClaude(); writeFileSync(join(paths.root, 'notes.txt'), 'mine');
+  it('removes only what tlon-memory owns and prints the plugin uninstalls without running them', async () => {
+    mkdirSync(join(home, '.claude')); writeFileSync(settings(), '{"model":"opus"}');
+    writeFileSync(join(paths.root, 'notes.txt'), 'mine');
     const r = await run(['disconnect']); expect(r.code).toBe(0);
     expect(existsSync(paths.configFile)).toBe(false); expect(existsSync(paths.stateDir)).toBe(false); expect(existsSync(paths.queueDir)).toBe(false);
     expect(readFileSync(join(paths.root, 'notes.txt'), 'utf8')).toBe('mine');
     expect(r.out).toContain('Notes on your ship were kept');
-    const s = JSON.parse(readFileSync(settings(), 'utf8'));
-    expect(s.model).toBe('opus'); expect(s.hooks).toEqual({ Stop: [{ hooks: [{ type: 'command', command: 'other-tool' }] }] });
-    expect(existsSync(skill())).toBe(false);
-    expect(readFileSync(join(home, 'claude.calls'), 'utf8')).toContain('mcp remove -s user tlon-memory');
-    expect(readFileSync(join(home, 'codex.calls'), 'utf8')).toContain('mcp remove tlon-memory');
-    expect(r.out).toMatch(/claude: hooks and skill removed · MCP server removed/);
-    expect(r.out).toContain('codex: no hooks or skill to remove');
-    expect(existsSync(settings() + '.bak-tlon-memory')).toBe(false);
+    expect(r.out).toContain('claude plugin uninstall tlon-memory@tlon-memory && claude plugin marketplace remove tlon-memory');
+    expect(r.out).toContain('codex plugin remove tlon-memory@tlon-memory && codex plugin marketplace remove tlon-memory');
+    expect(readFileSync(settings(), 'utf8')).toBe('{"model":"opus"}');
+    expect(existsSync(join(home, 'claude.calls'))).toBe(false); expect(existsSync(join(home, 'codex.calls'))).toBe(false);
   });
-  it('a second disconnect says nothing was there, including Codex answering "not found" with exit 0', async () => {
-    seedClaude(); await run(['disconnect']);
-    writeFileSync(join(home, 'bin', 'codex'), `#!/bin/sh\necho "No MCP server named 'tlon-memory' found."\nexit 0\n`, { mode: 0o755 });
+  it('a second disconnect says there is nothing local to remove', async () => {
+    await run(['disconnect']);
     const r = await run(['disconnect']); expect(r.code).toBe(0);
-    expect(r.out).toContain('claude: no hooks or skill to remove');
-    expect(r.out).toContain('codex: no hooks or skill to remove · MCP server was not registered');
     expect(r.out).toContain('No local config, state or queue to remove.');
   });
   it('works with a corrupt config and removes an emptied root', async () => {
-    seedClaude(); writeFileSync(paths.configFile, '{ broken');
+    writeFileSync(paths.configFile, '{ broken');
     const r = await run(['disconnect']); expect(r.code).toBe(0);
-    expect(existsSync(paths.root)).toBe(false); expect(existsSync(skill())).toBe(false);
+    expect(existsSync(paths.root)).toBe(false);
   });
-  it('reports a failing mcp remove instead of claiming success', async () => {
-    writeFileSync(join(home, 'bin', 'codex'), '#!/bin/sh\necho "boom" >&2\nexit 4\n', { mode: 0o755 });
-    const r = await run(['disconnect']); expect(r.out).toContain('codex: no hooks or skill to remove · MCP remove exited 4: boom'); expect(r.code).toBe(1);
-  });
-  it('--revoke-key failing leaves everything installed', async () => {
-    seedClaude();
+  it('--revoke-key failing leaves everything in place', async () => {
     const r = await run(['disconnect', '--revoke-key'], 'wrong-code\n'); expect(r.code).toBe(1);
     expect(r.err).toContain('Nothing was removed');
-    expect(existsSync(paths.configFile)).toBe(true); expect(existsSync(skill())).toBe(true);
-    expect(existsSync(join(home, 'claude.calls'))).toBe(false);
+    expect(existsSync(paths.configFile)).toBe(true); expect(r.out).not.toContain('plugin uninstall');
   });
-  it('--revoke-key rotates the key first, then uninstalls', async () => {
+  it('--revoke-key rotates the key first, then removes local state', async () => {
     const r = await run(['disconnect', '--revoke-key'], `${fake.code}\n`); expect(r.code).toBe(0);
     expect(fake.apiKey).not.toBe('test-key'); expect(r.out).toContain('rotated'); expect(existsSync(paths.configFile)).toBe(false);
   });

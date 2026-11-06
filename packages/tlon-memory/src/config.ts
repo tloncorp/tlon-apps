@@ -5,13 +5,6 @@ import { Paths, writePrivate } from './paths';
 
 export type ClientName = 'claude' | 'codex';
 
-export interface ClientInstall {
-  mcp: boolean;        // MCP server registered
-  hooks: boolean;      // hook entries merged
-  skill: boolean;      // SKILL.md installed
-  installedAt: string; // ISO
-}
-
 export interface Config {
   version: 1;
   shipUrl: string;           // https://sampel-palnet.tlon.network (no trailing slash)
@@ -22,14 +15,12 @@ export interface Config {
   scopes: string[];          // absolute directories where capture is on
   captureToolIo: boolean;    // include tool inputs/outputs (truncated)
   paused: boolean;
-  clients: Partial<Record<ClientName, ClientInstall>>;
-  binPath: string;           // absolute path of bin/tlon-memory.js used in hook/MCP commands
 }
 
 export function defaultConfig(): Config {
   return {
     version: 1, shipUrl: '', ship: '', apiKey: '', notebook: null, scopes: [],
-    captureToolIo: true, paused: false, clients: {}, binPath: '',
+    captureToolIo: true, paused: false,
   };
 }
 

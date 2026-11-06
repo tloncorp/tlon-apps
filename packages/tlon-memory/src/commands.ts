@@ -3,8 +3,7 @@ import { existsSync, mkdirSync, readdirSync, rmSync, rmdirSync, unlinkSync } fro
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { UsageError, flag, has, safeName } from './cli-util';
-import { Client, uninstallClient } from './clients';
-import { Config, loadConfig, requireConfig, saveConfig } from './config';
+import { ClientName, Config, loadConfig, requireConfig, saveConfig } from './config';
 import { MEMORY_SCAN, MemoryStore } from './memory';
 import { NotesClient, NotesError, SEARCH_HORIZON_NOTE } from './notes-client';
 import { Paths, writePrivate } from './paths';
@@ -13,12 +12,12 @@ import { parseFrontMatter } from './render';
 import { deleteAllPendingLinks, deleteSessionState, listJobs, listSessionStates, queueFile, savePendingLinks } from './state';
 import { loadConnection, statusLine } from './status';
 import { syncQueue } from './sync';
-import { BIN_PATH, SKILL_SOURCE, scopeProblem } from './setup';
+import { CLIENTS, CLIENT_NAMES, uninstallCommand } from './plugin';
+import { scopeProblem } from './setup';
 
 const out = (s: string) => process.stdout.write(s + '\n');
 const err = (s: string) => process.stderr.write(s + '\n');
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
-const CLIENTS: Client[] = ['claude', 'codex'];
 const SESSION_CLIENT = { 'claude-code': 'claude', codex: 'codex' } as const;
 
 export async function command(cmd: string, args: string[]): Promise<number> {
@@ -46,7 +45,7 @@ export async function command(cmd: string, args: string[]): Promise<number> {
       const conn = loadConnection(paths);
       out(statusLine(cfg, conn, process.cwd(), jobs.length));
       out(`ship: ${cfg.ship} (${cfg.shipUrl}) · notebook: ${nb.host}/${nb.name} · ${counts}`);
-      out(`scopes: ${cfg.scopes.join(', ') || '(none)'} · tool I/O: ${cfg.captureToolIo ? 'included' : 'off'} · clients: ${Object.keys(cfg.clients).join(', ') || 'none'}`);
+      out(`scopes: ${cfg.scopes.join(', ') || '(none)'} · tool I/O: ${cfg.captureToolIo ? 'included' : 'off'}`);
       for (const j of jobs) out(`  pending: ${j.client} ${j.sessionId} attempts=${j.attempts}${j.lastError ? ' last error: ' + j.lastError : ''}`);
       out(`${SEARCH_HORIZON_NOTE}.`);
       if (conn.state !== 'ok') out(`connection: ${conn.state}${conn.lastError ? ' — ' + conn.lastError : ''}`);
@@ -98,7 +97,7 @@ async function deleteNotes(paths: Paths, cfg: Config, client: NotesClient, args:
   const session = flag(args, '--session'); const memory = flag(args, '--memory'); const all = has(args, '--all');
   if (!session && !memory && !all) throw new UsageError('delete needs --session KEY | --memory ID | --all');
   if (memory !== undefined && !/^[1-9]\d*$/.test(memory)) throw new UsageError(`--memory needs a note id (a positive integer), got ${memory}`);
-  let sessionRef: { client: Client; key: keyof typeof SESSION_CLIENT; id: string } | undefined;
+  let sessionRef: { client: ClientName; key: keyof typeof SESSION_CLIENT; id: string } | undefined;
   if (session !== undefined) {
     const [c, ...rest] = session.split(':'); const id = rest.join(':');
     if ((c !== 'claude-code' && c !== 'codex') || !id) throw new UsageError(`--session needs claude-code:ID or codex:ID, got ${session}`);
@@ -162,21 +161,9 @@ async function disconnect(paths: Paths, args: string[]): Promise<number> {
     } catch (e) { err(`Could not rotate the Notes API key: ${msg(e)}. Nothing was removed.`); return 1; }
     out('Notes API key rotated on the ship; the stored key no longer works.');
   }
-  let failed = false;
-  // Both clients, whatever the config says: uninstall is idempotent and the config may be stale or gone.
-  for (const c of CLIENTS) {
-    try {
-      const r = await uninstallClient(c, { binPath: BIN_PATH, skillSource: SKILL_SOURCE });
-      const mcp = r.mcpNotFound ? 'MCP server was not registered' : r.mcp.code === 0 ? 'MCP server removed'
-        : `MCP remove exited ${r.mcp.code}: ${(r.mcp.err || r.mcp.out).trim().slice(0, 300)}`;
-      if (r.mcp.code !== 0 && !r.mcpNotFound) failed = true;
-      const local = r.hooks && r.skill ? 'hooks and skill removed' : r.hooks ? 'hooks removed, no skill to remove'
-        : r.skill ? 'skill removed, no hooks to remove' : 'no hooks or skill to remove';
-      out(`${c}: ${local} · ${mcp}`);
-      if (c === 'codex' && r.shifted) out('codex: run /hooks in Codex to re-trust any remaining hooks (their positions changed).');
-    } catch (e) { failed = true; out(`${c}: could not remove wiring: ${msg(e)}`); }
-  }
+  out('To remove the plugin (hooks, MCP server and skill), run:');
+  for (const c of CLIENTS) out(`  ${CLIENT_NAMES[c]}: ${uninstallCommand(c)}`);
   out(removeOwned(paths));
   out('Notes on your ship were kept; use `export`/`delete` before disconnecting if you want them gone.');
-  return failed ? 1 : 0;
+  return 0;
 }
