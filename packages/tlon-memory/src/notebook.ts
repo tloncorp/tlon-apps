@@ -1,6 +1,7 @@
 // src/notebook.ts
 import { Config } from './config';
-import { NotesClient } from './notes-client';
+import { Note, NotesClient } from './notes-client';
+import { parseFrontMatter, partOf } from './render';
 
 export type NotebookInfo = NonNullable<Config['notebook']>;
 
@@ -20,4 +21,22 @@ export async function ensureNotebook(c: NotesClient, title: string): Promise<Not
 
 export function noteUrl(shipUrl: string, nb: Pick<NotebookInfo, 'host' | 'name'>, noteId: number) {
   return `${shipUrl.replace(/\/+$/, '')}/notes/nb/${nb.host}/${nb.name}/n/${noteId}`;
+}
+
+export interface SessionNote extends Note { part: number; parts: number; first?: string; last?: string }
+
+/**
+ * Conversation notes whose front matter names exactly this session key, one per part, ordered by part.
+ * Substring search alone would also match keys that merely start with this one.
+ */
+export async function findSessionNotes(c: NotesClient, nb: NotebookInfo, key: string): Promise<SessionNote[]> {
+  const hits = await c.searchText(nb.host, nb.name, `session_key: ${key}`, 50);
+  const byPart = new Map<number, SessionNote>();
+  for (const n of hits.filter((h) => h.folderId === nb.conversationsFolderId).sort((a, b) => a.id - b.id)) {
+    const f = parseFrontMatter(n.bodyMd).fields;
+    if (f['tlon-memory'] !== 'conversation/v1' || f.session_key !== key) continue;
+    const p = partOf(f);
+    if (!byPart.has(p.part)) byPart.set(p.part, { ...n, ...p, first: f.first, last: f.last });
+  }
+  return [...byPart.values()].sort((a, b) => a.part - b.part);
 }

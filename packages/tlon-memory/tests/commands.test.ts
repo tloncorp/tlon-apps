@@ -45,7 +45,7 @@ describe('commands', () => {
   it('delete --session removes the conversation note and local state; --memory removes a memory; --all empties both folders', async () => {
     expect((await run('delete', '--session', 'claude-code:11111111-aaaa-4bbb-8ccc-222222222222', '--yes')).code).toBe(0);
     expect([...fake.notes.values()].filter((n) => n.folderId === cfg.notebook!.conversationsFolderId).length).toBe(0);
-    expect(readdirSync(paths.stateDir).length).toBe(0);
+    expect(readdirSync(paths.stateDir).filter((f) => /^(claude-code|codex)-/.test(f)).length).toBe(0);
     const mem = [...fake.notes.values()][0]; expect((await run('delete', '--memory', String(mem.id), '--yes')).code).toBe(0); expect(fake.notes.size).toBe(0);
     expect((await run('delete', '--all')).code).toBe(1); // needs --yes
   });

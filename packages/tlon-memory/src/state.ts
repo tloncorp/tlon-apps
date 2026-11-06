@@ -10,6 +10,7 @@ export interface SessionState {
   noteIds: number[];            // one per part, in order
   revisions: number[];          // last known revision per part
   anchors?: [string, string][]; // [first, last] event anchor per part
+  hashes?: string[];            // sha256 per rendered part, so unchanged parts are not re-sent
   contentHash: string;          // sha256 of all rendered parts
   eventCount: number; lastSynced: string;
 }
@@ -51,6 +52,14 @@ export function removeJob(p: Paths, j: QueueJob): boolean {
   const cur = readJson<QueueJob>(p, f);
   if (cur && cur.enqueuedAt !== j.enqueuedAt) return false;
   unlinkSync(f);
+  return true;
+}
+/** Record a failed attempt, unless the hook re-enqueued the session meanwhile (its fresh job wins). */
+export function replaceJob(p: Paths, j: QueueJob): boolean {
+  const f = queueFile(p, j);
+  const cur = existsSync(f) ? readJson<QueueJob>(p, f) : null;
+  if (cur && cur.enqueuedAt !== j.enqueuedAt) return false;
+  saveJob(p, j);
   return true;
 }
 export function listJobs(p: Paths): QueueJob[] {

@@ -13,6 +13,9 @@ export type UpdateResult =
 
 const enc = (s: string) => encodeURIComponent(s);
 const REQUEST_TIMEOUT_MS = 25_000;
+export const DEADLINE_EXCEEDED = 'deadline exceeded';
+/** The caller's time budget ran out; not evidence about the ship's health. */
+export const isDeadline = (e: unknown) => e instanceof NotesError && e.code === 'unreachable' && e.message === DEADLINE_EXCEEDED;
 const CODE_TIMEOUT_MS = 10_000;
 
 function asArray<T>(v: unknown, what: string): T[] {
@@ -31,7 +34,7 @@ export class NotesClient {
   private signal(): AbortSignal {
     if (this.deadline === undefined) return AbortSignal.timeout(REQUEST_TIMEOUT_MS);
     const left = this.deadline - Date.now();
-    if (left <= 0) throw new NotesError('unreachable', 'deadline exceeded');
+    if (left <= 0) throw new NotesError('unreachable', DEADLINE_EXCEEDED);
     return AbortSignal.timeout(Math.min(REQUEST_TIMEOUT_MS, left));
   }
 
@@ -45,7 +48,10 @@ export class NotesClient {
         method, headers: { 'X-Api-Key': this.apiKey, ...(body !== undefined ? { 'content-type': 'application/json' } : {}) },
         body: body !== undefined ? JSON.stringify(body) : undefined, signal,
       });
-    } catch (e) { throw new NotesError('unreachable', `cannot reach ${this.shipUrl}: ${(e as Error).message}`); }
+    } catch (e) {
+      if (this.deadline !== undefined && Date.now() >= this.deadline) throw new NotesError('unreachable', DEADLINE_EXCEEDED);
+      throw new NotesError('unreachable', `cannot reach ${this.shipUrl}: ${(e as Error).message}`);
+    }
     if (res.status === 401 || res.status === 403) throw new NotesError('key-rejected', 'the ship rejected the API key', res.status);
     if (res.status === 404) throw new NotesError('not-found', `${where}: not found`, 404);
     if (res.status >= 500 || res.status === 429) throw new NotesError('unreachable', `${where}: HTTP ${res.status}`, res.status);
