@@ -111,7 +111,7 @@ With `--reconnect`, the new key must belong to the same ship as the existing not
 | | Claude Code | Codex |
 |---|---|---|
 | Manifest | `.claude-plugin/plugin.json` | `.codex-plugin/plugin.json` |
-| MCP server | `.mcp.json`: `node ${CLAUDE_PLUGIN_ROOT}/bin/tlon-memory.js mcp` with `TLON_MEMORY_AGENT=claude-code` | `codex-mcp.json`: `node <installed copy>/bin/tlon-memory.js mcp` with `TLON_MEMORY_AGENT=codex`, tool timeout 120 s |
+| MCP server | `mcpServers` in `.claude-plugin/plugin.json`: `node ${CLAUDE_PLUGIN_ROOT}/bin/tlon-memory.js mcp` with `TLON_MEMORY_AGENT=claude-code` | `codex-mcp.json`: `node <installed copy>/bin/tlon-memory.js mcp` with `TLON_MEMORY_AGENT=codex`, tool timeout 120 s |
 | Hooks | `hooks/hooks.json`: SessionStart (5 s timeout), Stop (20 s), SessionEnd (20 s), each running `node "${CLAUDE_PLUGIN_ROOT}/bin/tlon-memory.js" hook claude` | `hooks/codex-hooks.json`: SessionStart (5 s), Stop (20 s), SessionEnd (3 s), each running `node "${PLUGIN_ROOT}/bin/tlon-memory.js" hook codex` |
 | Skill | `skills/tlon-memory/SKILL.md` | the same file |
 

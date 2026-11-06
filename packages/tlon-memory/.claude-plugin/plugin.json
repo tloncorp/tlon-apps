@@ -2,9 +2,29 @@
   "name": "tlon-memory",
   "version": "0.1.0",
   "description": "Shared memory for Claude Code and Codex, stored in your Tlon Notes: archives conversations and lets agents save and search memories.",
-  "author": { "name": "Tlon", "url": "https://tlon.io" },
+  "author": {
+    "name": "Tlon",
+    "url": "https://tlon.io"
+  },
   "homepage": "https://github.com/tloncorp/tlon-apps/tree/develop/packages/tlon-memory",
   "repository": "https://github.com/tloncorp/tlon-apps",
   "license": "MIT",
-  "keywords": ["memory", "tlon", "urbit", "notes"]
+  "keywords": [
+    "memory",
+    "tlon",
+    "urbit",
+    "notes"
+  ],
+  "mcpServers": {
+    "tlon-memory": {
+      "command": "node",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/bin/tlon-memory.js",
+        "mcp"
+      ],
+      "env": {
+        "TLON_MEMORY_AGENT": "claude-code"
+      }
+    }
+  }
 }

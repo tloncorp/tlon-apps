@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "tlon-memory": {
-      "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/bin/tlon-memory.js", "mcp"],
-      "env": { "TLON_MEMORY_AGENT": "claude-code" }
-    }
-  }
-}

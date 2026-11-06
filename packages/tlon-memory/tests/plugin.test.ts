@@ -40,6 +40,9 @@ describe('plugin manifests', () => {
     expect(mkt.name).toBe('tlon-memory');
     expect(mkt.plugins).toEqual([expect.objectContaining({ name: 'tlon-memory', source: './', version })]);
   });
+  it('ships no root .mcp.json, which a session opened in the package would offer as a project server', () => {
+    expect(existsSync(join(root, '.mcp.json'))).toBe(false);
+  });
   it('every path a manifest names exists', () => {
     const codex = json('.codex-plugin/plugin.json');
     for (const p of [codex.skills, codex.mcpServers, codex.hooks]) expect(existsSync(join(root, p))).toBe(true);
@@ -66,7 +69,7 @@ describe('plugin commands', () => {
     }
   });
   it('the Claude MCP entry starts the server', async () => {
-    const s = json('.mcp.json').mcpServers['tlon-memory'];
+    const s = json('.claude-plugin/plugin.json').mcpServers['tlon-memory'];
     expect(s.env).toEqual({ TLON_MEMORY_AGENT: 'claude-code' });
     const argv = [s.command, ...s.args].map((a: string) => `'${a.replaceAll('${CLAUDE_PLUGIN_ROOT}', root)}'`).join(' ');
     const r = await sh(argv, { TLON_MEMORY_HOME: connectedHome().root }, MCP_INIT);
