@@ -9,6 +9,7 @@ import { useMcpConnections } from './useMcpConnections';
 const mocks = vi.hoisted(() => ({
   platform: { OS: 'ios' },
   appStateListeners: new Set<(state: string) => void>(),
+  urlListeners: new Set<(event: { url: string }) => void>(),
   onEvent: vi.fn(),
 }));
 
@@ -40,7 +41,13 @@ vi.mock('react-native', () => ({
   Platform: mocks.platform,
   Linking: {
     getInitialURL: async () => null,
-    addEventListener: vi.fn(() => ({ remove: vi.fn() })),
+    addEventListener: (
+      _event: string,
+      listener: (event: { url: string }) => void
+    ) => {
+      mocks.urlListeners.add(listener);
+      return { remove: () => mocks.urlListeners.delete(listener) };
+    },
   },
   AppState: {
     addEventListener: (_event: string, listener: (state: string) => void) => {
@@ -71,6 +78,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   if (tree) act(() => tree.unmount());
+  expect(mocks.urlListeners.size).toBe(0);
   vi.unstubAllGlobals();
 });
 
@@ -99,6 +107,14 @@ it.each(['ios', 'android'])(
     expect(await connections.connect('github')).toBe('busy');
 
     await act(async () => {
+      mocks.urlListeners.forEach((listener) =>
+        listener({ url: completion.url })
+      );
+    });
+    expect(connections.busyProviderId).toBe('notion');
+    expect(mocks.onEvent).not.toHaveBeenCalled();
+
+    await act(async () => {
       finish(completion);
       await pending;
     });
@@ -125,6 +141,44 @@ it('handles the same callback URL again for a later connection attempt', async (
     });
     expect(connections.busyProviderId).toBeNull();
   }
+  expect(mocks.onEvent).toHaveBeenCalledTimes(2);
+  expect(api.getTlawnOAuthStatus).toHaveBeenCalledTimes(2);
+});
+
+it('handles a late Android callback after the authentication session was dismissed', async () => {
+  mocks.platform.OS = 'android';
+  vi.mocked(openOAuthUrl).mockResolvedValueOnce({ type: 'canceled' });
+  await act(async () => {
+    tree = create(<Harness />);
+  });
+  await act(async () => {
+    await connections.connect('notion');
+  });
+  expect(connections.status?.grants).toEqual([]);
+
+  const grant: api.TlawnOAuthGrant = {
+    provider: 'notion',
+    connected: true,
+    expired: false,
+    expiresAt: null,
+    hasRefreshToken: true,
+    scopes: '',
+    tokenType: 'Bearer',
+  };
+  vi.mocked(api.getTlawnOAuthStatus).mockResolvedValueOnce({
+    available: true,
+    grants: [grant],
+  });
+  await act(async () => {
+    mocks.urlListeners.forEach((listener) => listener({ url: completion.url }));
+  });
+  expect(connections.status?.grants).toEqual([grant]);
+  expect(mocks.onEvent).toHaveBeenLastCalledWith(
+    expect.objectContaining({ type: 'completed', success: true })
+  );
+  await act(async () => {
+    mocks.urlListeners.forEach((listener) => listener({ url: completion.url }));
+  });
   expect(mocks.onEvent).toHaveBeenCalledTimes(2);
   expect(api.getTlawnOAuthStatus).toHaveBeenCalledTimes(2);
 });

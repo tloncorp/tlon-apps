@@ -215,13 +215,23 @@ export function useMcpConnections({
   );
 
   useEffect(() => {
-    // Active sessions return through openOAuthUrl; only a cold launch needs
-    // its initial link read here.
     Linking.getInitialURL().then((initialUrl) => {
       if (initialUrl) {
         handleOAuthCompletion(initialUrl);
       }
     });
+
+    if (Platform.OS !== 'android') {
+      return;
+    }
+    // Android can dismiss the Expo session while its browser task stays open.
+    // An active session owns its result; later callbacks still need a listener.
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      if (!startingProviderIdRef.current) {
+        handleOAuthCompletion(url);
+      }
+    });
+    return () => subscription.remove();
   }, [handleOAuthCompletion]);
 
   useEffect(() => {
