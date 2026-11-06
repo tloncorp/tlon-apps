@@ -1,5 +1,5 @@
 import React, { useSyncExternalStore } from 'react';
-import { Image } from 'react-native';
+import { Image } from 'expo-image';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import {
@@ -17,8 +17,12 @@ const mock = vi.hoisted(() => ({
 vi.mock('@tloncorp/shared', () => ({
   createDevLogger: () => ({ trackError: mock.error }),
 }));
-vi.mock('@tloncorp/ui', () => ({ Pressable: 'Pressable', Text: 'Text' }));
-vi.mock('react-native', () => ({ Image: 'Image', View: 'View' }));
+vi.mock('expo-image', () => ({ Image: 'Image' }));
+vi.mock('@tloncorp/ui', () => ({
+  Pressable: 'Pressable',
+  Text: 'Text',
+}));
+vi.mock('react-native', () => ({ View: 'View' }));
 vi.mock('tamagui', () => ({
   YStack: 'YStack',
   Spinner: 'Spinner',
@@ -89,7 +93,7 @@ beforeEach(() => {
   mock.endpoint.mockResolvedValue('https://viewer.test/s/cap/preview');
   mock.fetch.mockResolvedValue({
     status: 'ready',
-    image: 'data:image/jpeg;base64,test',
+    image: 'https://viewer.test/s/cap/preview/image?version=test',
     title: 'Page',
     hostname: 'example.test',
     capturedAt: 100,
@@ -110,7 +114,7 @@ it('requests only while visible and stops when the session ends', async () => {
   });
   expect(mock.fetch).toHaveBeenCalledTimes(1);
   await act(async () => {
-    await vi.advanceTimersByTimeAsync(5000);
+    await vi.advanceTimersByTimeAsync(10000);
   });
   expect(mock.fetch).toHaveBeenCalledTimes(2);
   mock.visible = false;
@@ -139,7 +143,7 @@ it('removes the previous image during secure entry', async () => {
   expect(renderer.root.findAllByType(Image)).toHaveLength(1);
   mock.fetch.mockResolvedValue({ status: 'protected' });
   await act(async () => {
-    await vi.advanceTimersByTimeAsync(5000);
+    await vi.advanceTimersByTimeAsync(10000);
   });
   expect(renderer.root.findAllByType(Image)).toHaveLength(0);
 });
@@ -159,7 +163,7 @@ it('backs off after a timeout and can retry', async () => {
   });
   expect(mock.error).toHaveBeenCalledTimes(1);
   await act(async () => {
-    await vi.advanceTimersByTimeAsync(30000);
+    await vi.advanceTimersByTimeAsync(5000);
   });
   expect(mock.fetch).toHaveBeenCalledTimes(2);
   expect(renderer.root.findAllByType(Image)).toHaveLength(1);
@@ -178,13 +182,13 @@ it('remounts with the previous image and remembers terminal states without anoth
   expect(mock.fetch).toHaveBeenCalledTimes(1);
   mock.fetch.mockResolvedValue({ status: 'ended' });
   await act(async () => {
-    await vi.advanceTimersByTimeAsync(5000);
+    await vi.advanceTimersByTimeAsync(10000);
   });
   expect(renderer.root.findAllByType(Image)).toHaveLength(0);
   act(() => renderer.unmount());
   await act(async () => {
     renderer = create(card());
-    await vi.advanceTimersByTimeAsync(30000);
+    await vi.advanceTimersByTimeAsync(5000);
   });
   expect(mock.fetch).toHaveBeenCalledTimes(2);
   expect(JSON.stringify(renderer.toJSON())).toContain('Session ended');
@@ -202,7 +206,7 @@ it('shows a spinner only before the first preview, and preserves images on trans
   });
   mock.fetch.mockRejectedValueOnce(new Error('offline'));
   await act(async () => {
-    await vi.advanceTimersByTimeAsync(5000);
+    await vi.advanceTimersByTimeAsync(10000);
   });
   expect(renderer.root.findAllByType(Image)).toHaveLength(1);
 });
@@ -256,7 +260,7 @@ it.each(['expired', 'ended'])(
   }
 );
 
-it('keeps images in memory and persists only terminal receipts', async () => {
+it('remembers thumbnail URLs and persists only terminal receipts', async () => {
   mock.visible = true;
   await act(async () => {
     renderer = create(card());
@@ -265,7 +269,7 @@ it('keeps images in memory and persists only terminal receipts', async () => {
   expect(mock.persist).not.toHaveBeenCalled();
   mock.fetch.mockResolvedValue({ status: 'ended' });
   await act(async () => {
-    await vi.advanceTimersByTimeAsync(5000);
+    await vi.advanceTimersByTimeAsync(10000);
   });
   expect(mock.persist).toHaveBeenCalledOnce();
   expect(JSON.stringify(mock.persist.mock.calls)).not.toContain('data:image');
@@ -282,12 +286,12 @@ it('reauthorizes after a rejected preview grant without disabling the card', asy
   });
   expect(mock.persist).not.toHaveBeenCalled();
   await act(async () => {
-    await vi.advanceTimersByTimeAsync(30000);
+    await vi.advanceTimersByTimeAsync(5000);
   });
   expect(mock.endpoint).toHaveBeenCalledTimes(2);
   expect(renderer.root.findAllByType(Image)).toHaveLength(1);
 });
-it('drops in-memory images when app storage is reset on logout', async () => {
+it('drops thumbnail metadata when app storage is reset on logout', async () => {
   mock.visible = true;
   await act(async () => {
     renderer = create(card());
@@ -297,4 +301,19 @@ it('drops in-memory images when app storage is reset on logout', async () => {
     mock.reset(null);
   });
   expect(renderer.root.findAllByType(Image)).toHaveLength(0);
+});
+
+it('gets its first image after agent activity without opening the viewer', async () => {
+  mock.visible = true;
+  mock.fetch.mockResolvedValueOnce({ status: 'busy' });
+  await act(async () => {
+    renderer = create(card());
+  });
+  expect(renderer.root.findAllByType(Image)).toHaveLength(0);
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(1000);
+  });
+  const image = renderer.root.findByType(Image);
+  expect(image.props.source.uri).toContain('/preview/image?version=');
+  expect(image.props.cachePolicy).toBe('memory-disk');
 });
