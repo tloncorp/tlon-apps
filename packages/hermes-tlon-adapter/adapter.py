@@ -156,6 +156,14 @@ from .image_search import (
     check_image_search_requirements,
     handle_image_search_tool,
 )
+from .owner_timezone import (
+    SET_TIMEZONE_TOOL_DESCRIPTION,
+    SET_TIMEZONE_TOOL_SCHEMA,
+    SETTINGS_KEY_OWNER_TIMEZONE,
+    apply_owner_timezone,
+    handle_set_timezone_tool,
+    settings_timezone,
+)
 from .telemetry import (
     TlonTelemetry,
     clear_active_telemetry,
@@ -275,6 +283,7 @@ OWNER_ONLY_TLON_TOOLS = frozenset(
         "write_file",
         "patch",
         "search_files",
+        "set_timezone",
     }
 )
 OWNER_ONLY_TLON_TOOLSETS = frozenset({"file"})
@@ -1065,6 +1074,9 @@ class TlonAdapter(BasePlatformAdapter):
         self._settings_default_authorized_ships: set[str] = set()
         self._auto_accept_dm_invites: bool = False
         self._auto_discover: bool = self.tlon_config.auto_discover
+        # ownerTimezone, the owner's set_timezone choice; None means the
+        # zone config.yaml gave the gateway at boot.
+        self._owner_timezone: Optional[str] = None
 
     def _open_lens_store(self) -> Optional[LensRunStore]:
         """Durable lens-run store backing owner retries across restarts.
@@ -1306,8 +1318,19 @@ class TlonAdapter(BasePlatformAdapter):
             start=self.tlon_config.nudge_active_hours_start,
             end=self.tlon_config.nudge_active_hours_end,
             timezone=self.tlon_config.nudge_active_hours_timezone,
-            user_timezone=self.tlon_config.user_timezone,
+            # OpenClaw's `user` zone is userTimezone, which the owner's
+            # set_timezone choice replaces.
+            user_timezone=self._owner_timezone or self.tlon_config.user_timezone,
         )
+
+    def _apply_owner_timezone(self, value: Any) -> None:
+        timezone = settings_timezone(value)
+        if timezone != self._owner_timezone:
+            logger.info(
+                "[tlon] owner timezone: %s", timezone or "unset, using the configured zone"
+            )
+        self._owner_timezone = timezone
+        apply_owner_timezone(timezone)
 
     def _set_nudge_owner_activity(
         self, activity: Optional[tuple[int, str]]
@@ -1421,6 +1444,7 @@ class TlonAdapter(BasePlatformAdapter):
                 bucket.get(SETTINGS_KEY_AUTO_DISCOVER_CHANNELS),
                 self.tlon_config.auto_discover,
             )
+            self._apply_owner_timezone(bucket.get(SETTINGS_KEY_OWNER_TIMEZONE))
             self._apply_nudge_settings_bucket(bucket)
             self._settings_loaded = True
         logger.info(
@@ -1582,6 +1606,9 @@ class TlonAdapter(BasePlatformAdapter):
             self._auto_discover = settings_bool(
                 event.value, self.tlon_config.auto_discover
             )
+            return
+        if event.key == SETTINGS_KEY_OWNER_TIMEZONE:
+            self._apply_owner_timezone(event.value)
             return
         if event.key == SETTINGS_KEY_GROUP_CHANNELS:
             new_channels = (
@@ -5612,6 +5639,16 @@ def register(ctx) -> None:
         is_async=True,
         description=IMAGE_SEARCH_TOOL_DESCRIPTION,
         emoji="I",
+    )
+    ctx.register_tool(
+        name="set_timezone",
+        toolset="tlon",
+        schema=SET_TIMEZONE_TOOL_SCHEMA,
+        handler=handle_set_timezone_tool,
+        check_fn=check_tlon_tool_requirements,
+        is_async=True,
+        description=SET_TIMEZONE_TOOL_DESCRIPTION,
+        emoji="Z",
     )
 
     skill_path = resolve_tlon_skill_path()

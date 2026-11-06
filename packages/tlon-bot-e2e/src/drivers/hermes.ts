@@ -87,8 +87,9 @@ export function assertLcmGrepRecalls(toolText: string, marker: string): void {
   }
 }
 
+// The adapter registers set_timezone under the same check as tlon.
 function baseTools(): string[] {
-  return ['tlon', ...hermesLcmTools()];
+  return ['tlon', 'set_timezone', ...hermesLcmTools()];
 }
 
 function hermesLcmComposeEnv(seed: RuntimeSeed): Record<string, string> {

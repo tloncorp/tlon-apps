@@ -134,7 +134,7 @@ TLON_NUDGE_ACTIVE_HOURS_TIMEZONE=America/New_York
 TLON_TIMEZONE=America/Chicago # used when the active-hours timezone is user
 ```
 
-`TLON_OWNER_SHIP` is required: it defines the owner identity for approvals, owner-only tools such as `tlon`/`cronjob`/MCP/file tools, owner-listen, telemetry identity, and home-channel defaults. Without it, Tlon chat-session tool calls fail closed.
+`TLON_OWNER_SHIP` is required: it defines the owner identity for approvals, owner-only tools such as `tlon`/`cronjob`/`set_timezone`/MCP/file tools, owner-listen, telemetry identity, and home-channel defaults. Without it, Tlon chat-session tool calls fail closed.
 
 ## Context Lens
 
@@ -343,6 +343,18 @@ The registry in `commands.py` is the single source of truth for command detectio
 ## Model note
 
 As the OpenClaw plugin does (`packages/openclaw/src/model-privacy-context.ts`), the platform hint carries a note naming the configured model, how requests reach it (through OpenRouter or the provider directly) and whether zero data retention is on, and pointing at the product guide for Tlon's side (`model_note.py`). It isn't a `pre_llm_call` hook: from 0.22 Hermes stores hook context in each turn's message, so a per-turn note would pile up in the history. Hosted Hermes restarts the gateway when the model changes, which rebuilds the hint. Hermes can't send OpenRouter's `zdr` preference (`provider_routing` has no such key), so for an OpenRouter model the note says zero data retention is off.
+
+## Owner timezone
+
+`set_timezone` lets the owner tell the bot where they are, as the OpenClaw plugin's tool of the same name does (`packages/openclaw/src/owner-timezone-tool.ts`, TLON-6882). It takes an IANA zone name (`Asia/Tokyo`, `UTC`) and rejects abbreviations and offsets (`PST`, `+09:00`), which don't follow daylight saving or name a place. It is owner-only in Tlon chats and registers wherever the `tlon` tool does. Its reply gives the new zone and the current time there, so the bot can schedule in that zone in the same turn.
+
+Hermes reads its zone from `HERMES_TIMEZONE`, which the gateway sets at startup from config.yaml's `timezone` (hosted bots get that from hosting's `TLON_TIMEZONE`), and caches it in `hermes_time`. The tool saves the choice as `ownerTimezone` in the `%settings` `moltbot`/`tlon` bucket, then sets `HERMES_TIMEZONE` and resets that cache. Cron expressions, message timestamps and new sessions' dates follow at once, with no restart. The adapter applies the key on every settings load and live update, so the choice survives restarts and redeploys; an invalid or deleted entry reverts to the zone the gateway booted with. Nudges' `user` active-hours zone follows it too, as OpenClaw's follows `userTimezone`.
+
+OpenClaw's tool instead writes a file that tlonbot's wrapper reads into `userTimezone` before restarting the gateway. Hermes can change zone in-process and the ship already holds this adapter's runtime state, so nothing outside this package is involved. Limits:
+
+-   A recurring cron job keeps the next run it had already computed and follows the new zone from the run after it.
+-   At startup the gateway runs on the config.yaml zone until the adapter has loaded settings from the ship.
+-   Hermes 0.22 ignores `HERMES_TIMEZONE` under a multiplexed gateway, which hosted bots don't run.
 
 ## Telemetry
 

@@ -3011,6 +3011,7 @@ class AdapterAttentionTests(unittest.TestCase):
             "write_file",
             "patch",
             "search_files",
+            "set_timezone",
             "mcp_tlon_mcp_search",
         )
         with patch.dict(
@@ -3039,6 +3040,7 @@ class AdapterAttentionTests(unittest.TestCase):
             "write_file",
             "patch",
             "search_files",
+            "set_timezone",
             "mcp_tlon_mcp_search",
         )
         with patch.dict(
