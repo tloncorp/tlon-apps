@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'bun:test';
 import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { installClient, uninstallClient, hookEntries } from '../src/clients';
+import { installClient, uninstallClient, hookEntries, makeExec } from '../src/clients';
 
 let home: string; let calls: string[][];
 const exec = async (cmd: string, args: string[]) => { calls.push([cmd, ...args]); return { code: 0, out: '', err: '' }; };
@@ -20,8 +20,7 @@ describe('claude installer', () => {
     expect(s.hooks.SessionStart[0].hooks[0].command).toBe('"/opt/tm/bin/tlon-memory.js" hook claude');
     expect(s.hooks.Stop[1].hooks[0].timeout).toBe(20);
     expect(s.hooks.SessionEnd[0].hooks[0].command).toContain('hook claude');
-    expect(calls[0]).toEqual(['claude', 'mcp', 'remove', '-s', 'user', 'tlon-memory']);
-    expect(calls[1]).toEqual(['claude', 'mcp', 'add', '-s', 'user', 'tlon-memory', '-e', 'TLON_MEMORY_AGENT=claude-code', '--', '/opt/tm/bin/tlon-memory.js', 'mcp']);
+    expect(calls).toEqual([['claude', 'mcp', 'add', '-s', 'user', 'tlon-memory', '-e', 'TLON_MEMORY_AGENT=claude-code', '--', '/opt/tm/bin/tlon-memory.js', 'mcp']]);
     expect(existsSync(join(home, '.claude', 'skills', 'tlon-memory', 'SKILL.md'))).toBe(true);
     expect(existsSync(settings + '.bak-tlon-memory')).toBe(true);
     await uninstallClient('claude', { home, binPath: '/opt/tm/bin/tlon-memory.js', exec, skillSource: '' });
@@ -100,8 +99,7 @@ describe('codex installer', () => {
     expect(h.hooks.SessionStart[0].hooks[0].command).toBe('"/b/tlon-memory.js" hook codex');
     expect(h.hooks.Stop[0].hooks[0].timeout).toBe(20);
     expect(h.hooks.SessionEnd[0].hooks[0].timeout).toBe(3);
-    expect(calls[0]).toEqual(['codex', 'mcp', 'remove', 'tlon-memory']);
-    expect(calls[1]).toEqual(['codex', 'mcp', 'add', '--env', 'TLON_MEMORY_AGENT=codex', 'tlon-memory', '--', '/b/tlon-memory.js', 'mcp']);
+    expect(calls).toEqual([['codex', 'mcp', 'add', '--env', 'TLON_MEMORY_AGENT=codex', 'tlon-memory', '--', '/b/tlon-memory.js', 'mcp']]);
     expect(existsSync(join(home, '.agents', 'skills', 'tlon-memory', 'SKILL.md'))).toBe(true);
   });
 });
@@ -110,6 +108,39 @@ describe('skill install', () => {
   it('writes the embedded skill text when the source file is missing', async () => {
     await installClient('claude', { home, binPath: '/b', exec, skillSource: join(home, 'missing', 'SKILL.md'), skillText: '# embedded skill\n' });
     expect(readFileSync(join(home, '.claude', 'skills', 'tlon-memory', 'SKILL.md'), 'utf8')).toBe('# embedded skill\n');
+  });
+});
+
+describe('mcp registration', () => {
+  const skillSource = join(import.meta.dir, '..', 'SKILL.md');
+  it('replaces an existing registration only after add reports it exists', async () => {
+    let adds = 0;
+    const ex = async (cmd: string, args: string[]) => {
+      calls.push([cmd, ...args]);
+      if (args[1] === 'add' && ++adds === 1) return { code: 1, out: '', err: 'MCP server tlon-memory already exists in user config' };
+      return { code: 0, out: '', err: '' };
+    };
+    const r = await installClient('claude', { home, binPath: '/b', exec: ex, skillSource });
+    expect(r.mcp).toBe(true);
+    expect(calls.map((c) => c[2])).toEqual(['add', 'remove', 'add']);
+  });
+  it('a failed add for another reason leaves the existing registration alone', async () => {
+    const ex = async (cmd: string, args: string[]) => { calls.push([cmd, ...args]); return { code: 1, out: '', err: 'invalid scope' }; };
+    const r = await installClient('claude', { home, binPath: '/b', exec: ex, skillSource });
+    expect(r).toMatchObject({ mcp: false, mcpError: 'invalid scope' });
+    expect(calls.map((c) => c[2])).toEqual(['add']);
+  });
+});
+
+describe('exec', () => {
+  it('kills a command that runs past the timeout and reports it', async () => {
+    const t0 = Date.now();
+    const r = await makeExec(200)('sleep', ['5']);
+    expect(Date.now() - t0).toBeLessThan(3000);
+    expect(r.code).not.toBe(0); expect(r.err).toContain('timed out');
+  });
+  it('returns output and exit code', async () => {
+    expect(await makeExec(5000)('sh', ['-c', 'echo hi; exit 3'])).toMatchObject({ code: 3, out: 'hi\n' });
   });
 });
 

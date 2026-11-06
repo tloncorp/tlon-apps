@@ -103,7 +103,7 @@ With `--reconnect`, the new key must belong to the same ship as the existing not
 | Hooks | SessionStart (5 s timeout), Stop (20 s), SessionEnd (20 s), each running `"<repo>/packages/tlon-memory/bin/tlon-memory.js" hook claude` | SessionStart (5 s), Stop (20 s), SessionEnd (3 s), each running `"…/bin/tlon-memory.js" hook codex` |
 | Skill | `~/.claude/skills/tlon-memory/SKILL.md` | `~/.agents/skills/tlon-memory/SKILL.md` |
 
-Hooks are merged into the existing file in place. Other hooks are left alone. Setup removes any old `tlon-memory` MCP registration before adding the new one, so re-running it is safe.
+Hooks are merged into the existing file in place. Other hooks are left alone. Setup adds the `tlon-memory` MCP registration first. Only if the client says it already exists does setup remove the old one and add it again, so re-running setup is safe and a failed add never removes a working registration. Each `claude`/`codex` command setup runs is stopped after 30 seconds and reported as failed.
 
 ### Codex: trust the hooks
 
