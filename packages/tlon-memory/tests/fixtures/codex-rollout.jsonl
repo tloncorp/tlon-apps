@@ -1,0 +1,14 @@
+{"timestamp":"2026-11-05T15:00:00.000Z","ordinal":0,"type":"session_meta","payload":{"session_id":"01a1b2c3-d4e5-7f00-8000-000000000001","cwd":"/Users/bill/Projects/demo","cli_version":"0.144.4","base_instructions":"SECRET BASE INSTRUCTIONS"}}
+{"timestamp":"2026-11-05T15:00:00.100Z","ordinal":1,"type":"event_msg","payload":{"type":"task_started","turn_id":"t1"}}
+{"timestamp":"2026-11-05T15:00:00.200Z","ordinal":2,"type":"response_item","payload":{"type":"message","role":"developer","content":[{"type":"input_text","text":"developer injection must not be captured"}]}}
+{"timestamp":"2026-11-05T15:00:00.300Z","ordinal":3,"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"<environment_context>cwd=/x</environment_context>"}]}}
+{"timestamp":"2026-11-05T15:00:01.000Z","ordinal":4,"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Continue the queue work. token ghp_abcdefghijklmnopqrstuvwxyz0123456789"}]}}
+{"timestamp":"2026-11-05T15:00:02.000Z","ordinal":5,"type":"response_item","payload":{"type":"reasoning","summary":[],"encrypted_content":"gAAAA"}}
+{"timestamp":"2026-11-05T15:00:03.000Z","ordinal":6,"type":"response_item","payload":{"type":"function_call","name":"tlon_search_memory","namespace":"mcp__tlon-memory","arguments":"{\"query\":\"queue\"}","call_id":"c1"}}
+{"timestamp":"2026-11-05T15:00:03.500Z","ordinal":7,"type":"response_item","payload":{"type":"function_call_output","call_id":"c1","output":[{"type":"input_text","text":"1 memory: use SQLite"}]}}
+{"timestamp":"2026-11-05T15:00:04.000Z","ordinal":8,"type":"response_item","payload":{"type":"custom_tool_call","name":"shell","input":"ls","call_id":"c2"}}
+{"timestamp":"2026-11-05T15:00:04.500Z","ordinal":9,"type":"response_item","payload":{"type":"custom_tool_call_output","call_id":"c2","output":"README.md\n"}}
+{"timestamp":"2026-11-05T15:00:05.000Z","ordinal":10,"type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Found the SQLite decision; continuing."}]}}
+{"timestamp":"2026-11-05T15:00:06.000Z","ordinal":11,"type":"event_msg","payload":{"type":"turn_aborted","reason":"interrupted","turn_id":"t1"}}
+{"timestamp":"2026-11-05T15:00:07.000Z","ordinal":12,"type":"token_usage_record","payload":{}}
+{"timestamp":"2026-11-05T15:00:07.000Z","ordinal":13,"type":"event_msg","payload":{"type":"item_completed","item":{"type":"UserMessage","text":"duplicate of ordinal 4 must not be captured twice"}}}
