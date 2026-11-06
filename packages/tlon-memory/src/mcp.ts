@@ -149,7 +149,8 @@ export async function callTool(name: string, raw: unknown, cfg: Config, paths: P
       const noteId = a.id('note_id');
       if (!sessionKey && noteId === undefined) throw new Error('pass session_key or note_id');
       const r = await store.getConversation({ sessionKey, noteId, fromEvent: a.match('from_event', EVENT, 'an event anchor like e17'), maxChars: a.clamp('max_chars', 20_000, 8000) });
-      return framed(`${r.title} (note ${r.noteId}) ${r.url}`, [r.text]);
+      // The title is ship content too (anyone who can edit the note can set it), so it goes inside the item.
+      return framed('1 conversation excerpt:', [`${r.title} (note ${r.noteId}) ${r.url}\n${r.text}`]);
     }
     case 'tlon_list_recent': {
       const kind = a.oneOf('kind', KINDS);
