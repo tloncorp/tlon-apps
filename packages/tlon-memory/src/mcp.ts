@@ -172,9 +172,9 @@ export async function callTool(name: string, raw: unknown, cfg: Config, paths: P
       if (!p.events) return `Nothing to back up yet in ${key}`;
       if (!inScope(cfg, p.cwd)) throw new Error(outOfScope(cfg, p));
       const [o] = (await importSessions(paths, cfg, [p], TOOL_BUDGET_MS)).outcomes;
-      if (o.kind === 'failed') throw new Error(`backup of ${key} failed: ${o.error}`);
+      if (o.kind === 'failed') throw new Error(`backup of ${o.key} failed: ${o.error}`);
       if (o.kind === 'remaining') return `Queued; ${listJobs(paths).length} remaining, the next sync continues it`;
-      return o.kind === 'uploaded' ? `Backed up ${key}: ${o.parts} part(s), ${o.url}` : `Already up to date: ${o.url}`;
+      return o.kind === 'uploaded' ? `Backed up ${o.key}: ${o.parts} part(s), ${o.url}` : `Already up to date: ${o.url}`;
     }
     case 'tlon_status': return `${statusLine(cfg, loadConnection(paths), cwd, listJobs(paths).length)}\nNote: ${SEARCH_HORIZON_NOTE}; older notes are not found by search.`;
     default: { const e: any = new Error(`unknown tool ${name}`); e.code = -32602; throw e; }

@@ -27,6 +27,7 @@ describe('transcripts', () => {
     expect(findTranscript(`codex:${CODEX_ID}`, home)).toBe(codex);
     expect(findTranscript('claude-code:nope', home)).toBeNull();
     expect(findTranscript('codex:nope', home)).toBeNull();
+    expect(findTranscript(`codex:${CODEX_ID.split('-').pop()}`, home)).toBeNull(); // a tail of the id is another session's
   });
   it('lists top-level Claude transcripts and Codex rollouts, not subagents', () => {
     expect(listTranscripts(home).sort((a, b) => a.path.localeCompare(b.path))).toEqual([{ client: 'claude', path: claude }, { client: 'codex', path: codex }]);

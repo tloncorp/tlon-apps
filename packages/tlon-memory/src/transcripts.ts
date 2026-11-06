@@ -65,7 +65,8 @@ function claudeFiles(home?: string): string[] {
 export function findTranscript(key: string, home?: string): string | null {
   const i = key.indexOf(':'); const client = key.slice(0, i), id = key.slice(i + 1);
   if (client === 'claude-code') return claudeFiles(home).find((f) => basename(f) === `${id}.jsonl`) ?? null;
-  if (client === 'codex') return walk(codexSessionsDir(home)).find((f) => basename(f).endsWith(`-${id}.jsonl`)) ?? null;
+  // The file name ends in the thread id, so a tail of an id would also match: confirm it inside.
+  if (client === 'codex') return walk(codexSessionsDir(home)).find((f) => basename(f).endsWith(`-${id}.jsonl`) && peekTranscript('codex', f)?.sessionId === id) ?? null;
   return null;
 }
 
