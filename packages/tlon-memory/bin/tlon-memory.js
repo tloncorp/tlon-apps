@@ -11,4 +11,5 @@ const args = process.argv.slice(2);
 const r = existsSync(compiled)
   ? spawnSync(compiled, args, { stdio: 'inherit' })
   : spawnSync('bun', ['run', join(here, '..', 'src', 'main.ts'), ...args], { stdio: 'inherit' });
+if (r.error) process.stderr.write(`tlon-memory: ${r.error.message}\n`);
 process.exit(r.status ?? 1);

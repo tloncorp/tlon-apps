@@ -1,5 +1,5 @@
 // src/config.ts
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 import { Paths, writePrivate } from './paths';
 
@@ -35,7 +35,9 @@ export function defaultConfig(): Config {
 
 export function loadConfig(paths: Paths): Config | null {
   if (!existsSync(paths.configFile)) return null;
-  return JSON.parse(readFileSync(paths.configFile, 'utf8')) as Config;
+  const c = JSON.parse(readFileSync(paths.configFile, 'utf8'));
+  if (c?.version !== 1) throw new Error(`unsupported config version ${JSON.stringify(c?.version)} in ${paths.configFile}`);
+  return c as Config;
 }
 
 export function saveConfig(paths: Paths, c: Config) {
@@ -43,9 +45,14 @@ export function saveConfig(paths: Paths, c: Config) {
   writePrivate(paths.configFile, JSON.stringify(c, null, 2) + '\n');
 }
 
+/** Symlinks are resolved on both sides so a linked path cannot step in or out of a scope. */
+function real(p: string): string {
+  try { return realpathSync(p); } catch { return resolve(p); } // a path that does not exist yet has nothing to resolve
+}
+
 export function isInScope(c: Config, cwd: string): boolean {
-  const dir = resolve(cwd);
-  return c.scopes.some((s) => dir === resolve(s) || dir.startsWith(resolve(s) + sep));
+  const dir = real(cwd);
+  return c.scopes.some((s) => { const r = real(s); return r === sep || dir === r || dir.startsWith(r + sep); });
 }
 
 export function requireConfig(paths: Paths): Config {
