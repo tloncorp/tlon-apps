@@ -29,12 +29,14 @@ describe('claude parser', () => {
     expect(t.events[0].sourceId).toBe('u1');
   });
   it('counts omissions and never captures system prompts, blobs, sidechains, thinking', () => {
-    expect(t.omitted).toEqual({ thinking: 1, sidechain: 2, attachments: 1, system: 1, other: 4, redactions: 1 });
+    expect(t.omitted).toEqual({ thinking: 1, sidechain: 2, attachments: 1, system: 3, other: 4, redactions: 1 });
     const all = JSON.stringify(t);
     expect(all).not.toContain('SECRET SYSTEM PROMPT');
     expect(all).not.toContain('blob must not');
     expect(all).not.toContain('subagent');
     expect(all).not.toContain('private reasoning');
+    expect(all).not.toContain('meta injection');
+    expect(all).not.toContain('compact summary');
   });
   it('redacts secrets in text', () => {
     expect(t.events[0].text).toContain('[redacted:urbit-code]');
@@ -47,5 +49,26 @@ describe('claude parser known secrets', () => {
     const t = parseClaudeTranscript(fx, { known: ['README.md'] });
     expect(JSON.stringify(t.events)).not.toContain('README.md');
     expect(JSON.stringify(t.events)).toContain('[redacted:known-secret]');
+  });
+});
+
+describe('claude parser limits', () => {
+  const { mkdtempSync, writeFileSync } = require('node:fs') as typeof import('node:fs');
+  const { tmpdir } = require('node:os') as typeof import('node:os');
+  const tmp = (lines: object[]) => { const f = join(mkdtempSync(join(tmpdir(), 'tm-cl-')), 't.jsonl'); writeFileSync(f, lines.map((l) => JSON.stringify(l)).join('\n')); return f; };
+  const base = { uuid: 'u', isSidechain: false, sessionId: 's', cwd: '/x' };
+  it('clips long text at 64 KB with size bookkeeping', () => {
+    const t = parseClaudeTranscript(tmp([{ ...base, type: 'user', timestamp: '2026-01-01T00:00:00Z', message: { content: 'y'.repeat(300 * 1024) } }]));
+    expect(t.events[0].truncated).toEqual({ shownBytes: 64 * 1024, totalBytes: 300 * 1024 });
+    expect(t.events[0].text.length).toBe(64 * 1024);
+  });
+  it('counts skipped tool events as other when tool I/O is off; falls back to the previous timestamp', () => {
+    const t = parseClaudeTranscript(tmp([
+      { ...base, type: 'assistant', timestamp: '2026-01-01T00:00:00Z', message: { content: [{ type: 'tool_use', id: 't', name: 'Bash', input: {} }] } },
+      { ...base, type: 'user', timestamp: '', message: { content: 'hi' } },
+    ]), { toolIo: false });
+    expect(t.omitted.other).toBe(1);
+    expect(t.events[0].timestamp).toBe('2026-01-01T00:00:00Z');
+    expect(t.toolIo).toBe(false);
   });
 });

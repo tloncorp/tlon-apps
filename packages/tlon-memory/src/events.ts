@@ -32,17 +32,19 @@ export interface ParsedTranscript {
   updated: string;
   events: Event[];
   omitted: Omissions;
+  toolIo: boolean;       // whether tool inputs/outputs were captured
 }
 
 export const emptyOmissions = (): Omissions =>
   ({ thinking: 0, sidechain: 0, attachments: 0, system: 0, other: 0, redactions: 0 });
 
 export const TOOL_IO_LIMIT = 2048;
+export const TEXT_LIMIT = 64 * 1024; // one message never fills a whole note part
 
-/** Truncate tool I/O to TOOL_IO_LIMIT bytes, recording sizes. */
-export function clip(text: string): { text: string; truncated?: Event['truncated'] } {
+/** Truncate to `limit` bytes (tool I/O by default), recording sizes. */
+export function clip(text: string, limit = TOOL_IO_LIMIT): { text: string; truncated?: Event['truncated'] } {
   const total = Buffer.byteLength(text, 'utf8');
-  if (total <= TOOL_IO_LIMIT) return { text };
-  const shown = Buffer.from(text, 'utf8').subarray(0, TOOL_IO_LIMIT).toString('utf8');
-  return { text: shown, truncated: { shownBytes: TOOL_IO_LIMIT, totalBytes: total } };
+  if (total <= limit) return { text };
+  const shown = Buffer.from(text, 'utf8').subarray(0, limit).toString('utf8');
+  return { text: shown, truncated: { shownBytes: limit, totalBytes: total } };
 }

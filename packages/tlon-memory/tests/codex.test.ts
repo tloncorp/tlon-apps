@@ -34,3 +34,24 @@ describe('codex parser', () => {
     expect(all).not.toContain('ghp_');
   });
 });
+
+describe('codex parser extras', () => {
+  const { mkdtempSync, writeFileSync } = require('node:fs') as typeof import('node:fs');
+  const { tmpdir } = require('node:os') as typeof import('node:os');
+  it('marks input_image items, reuses the previous timestamp, counts skipped tool calls', () => {
+    const f = join(mkdtempSync(join(tmpdir(), 'tm-cx-')), 'r.jsonl');
+    writeFileSync(f, [
+      { timestamp: '2026-01-01T00:00:00Z', ordinal: 0, type: 'session_meta', payload: { session_id: 's', cwd: '/x' } },
+      { ordinal: 1, type: 'response_item', payload: { type: 'message', role: 'user', content: [{ type: 'input_image', image_url: 'data:AAAA' }, { type: 'input_text', text: 'look' }] } },
+      { timestamp: '2026-01-01T00:00:05Z', ordinal: 2, type: 'response_item', payload: { type: 'function_call', name: 'shell', arguments: '{}', call_id: 'c' } },
+    ].map((l) => JSON.stringify(l)).join('\n'));
+    const t = parseCodexTranscript(f, { toolIo: false });
+    expect(t.events.map((e) => [e.kind, e.text, e.timestamp])).toEqual([
+      ['attachment', '[attachment omitted: image]', '2026-01-01T00:00:00Z'],
+      ['user', 'look', '2026-01-01T00:00:00Z'],
+    ]);
+    expect(t.omitted.attachments).toBe(1);
+    expect(t.omitted.other).toBe(1);
+    expect(JSON.stringify(t)).not.toContain('data:AAAA');
+  });
+});

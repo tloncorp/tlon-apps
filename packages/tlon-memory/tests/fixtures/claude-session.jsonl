@@ -12,3 +12,5 @@
 {"type":"assistant","uuid":"a2","parentUuid":"u4","isSidechain":false,"sessionId":"11111111-aaaa-4bbb-8ccc-222222222222","cwd":"/Users/bill/Projects/demo","timestamp":"2026-11-05T14:03:10.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Stopped."}]}}
 not json at all
 {"type":"cost-state","sessionId":"11111111-aaaa-4bbb-8ccc-222222222222","totalCostUSD":0.1}
+{"type":"user","uuid":"m1","parentUuid":"a2","isSidechain":false,"isMeta":true,"sessionId":"11111111-aaaa-4bbb-8ccc-222222222222","cwd":"/Users/bill/Projects/demo","timestamp":"2026-11-05T14:03:11.000Z","message":{"role":"user","content":"meta injection must not be captured"}}
+{"type":"user","uuid":"c1","parentUuid":"m1","isSidechain":false,"isCompactSummary":true,"sessionId":"11111111-aaaa-4bbb-8ccc-222222222222","cwd":"/Users/bill/Projects/demo","timestamp":"2026-11-05T14:03:12.000Z","message":{"role":"user","content":"compact summary must not be captured"}}
