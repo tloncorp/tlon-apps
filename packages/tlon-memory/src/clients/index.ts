@@ -1,7 +1,7 @@
 // src/clients/index.ts
 import { copyFileSync, mkdirSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { HooksMap, mergeHooks, unmergeHooks } from './json-merge';
 
@@ -33,29 +33,38 @@ export const paths = (client: Client, home = homedir()) => ({
 
 export function mcpAddArgs(client: Client, binPath: string): [string, string[]] {
   return client === 'claude'
-    ? ['claude', ['mcp', 'add', '-s', 'user', '-e', 'TLON_MEMORY_AGENT=claude-code', 'tlon-memory', '--', binPath, 'mcp']]
+    ? ['claude', ['mcp', 'add', '-s', 'user', 'tlon-memory', '-e', 'TLON_MEMORY_AGENT=claude-code', '--', binPath, 'mcp']]
     : ['codex', ['mcp', 'add', '--env', 'TLON_MEMORY_AGENT=codex', 'tlon-memory', '--', binPath, 'mcp']];
 }
 export function mcpRemoveArgs(client: Client): [string, string[]] {
   return client === 'claude' ? ['claude', ['mcp', 'remove', '-s', 'user', 'tlon-memory']] : ['codex', ['mcp', 'remove', 'tlon-memory']];
 }
 
+const NOT_FOUND = /not found|no .*mcp server|does not exist/i;
+const brief = (r: ExecResult) => (r.err || r.out).trim().slice(0, 300);
+
 export async function installClient(client: Client, o: InstallOptions): Promise<{ mcp: boolean; hooks: boolean; skill: boolean; mcpError?: string }> {
   const exec = o.exec ?? defaultExec; const p = paths(client, o.home);
-  mergeHooks(p.hooksFile, hookEntries(client, o.binPath), MARKER(client));
+  mergeHooks(p.hooksFile, hookEntries(client, o.binPath), MARKER(client), o.home);
+  // `mcp add` fails when the name is already registered, so a re-install removes it first.
+  const [rc, ra] = mcpRemoveArgs(client);
+  const removed = await exec(rc, ra);
   const [cmd, args] = mcpAddArgs(client, o.binPath);
   const r = await exec(cmd, args);
   mkdirSync(p.skillDir, { recursive: true });
   copyFileSync(o.skillSource, join(p.skillDir, 'SKILL.md'));
-  return { mcp: r.code === 0, hooks: true, skill: true, ...(r.code !== 0 ? { mcpError: (r.err || r.out).trim().slice(0, 300) } : {}) };
+  const removeErr = removed.code !== 0 && !NOT_FOUND.test(brief(removed)) ? `; mcp remove: ${brief(removed)}` : '';
+  return { mcp: r.code === 0, hooks: true, skill: true, ...(r.code !== 0 ? { mcpError: brief(r) + removeErr } : {}) };
 }
 
-export async function uninstallClient(client: Client, o: InstallOptions): Promise<void> {
+/** Idempotent: safe to run for a client that was never installed. Returns the `mcp remove` result for reporting. */
+export async function uninstallClient(client: Client, o: InstallOptions): Promise<{ mcp: ExecResult; mcpNotFound: boolean; shifted: boolean }> {
   const exec = o.exec ?? defaultExec; const p = paths(client, o.home);
-  unmergeHooks(p.hooksFile, MARKER(client));
+  const { shifted } = unmergeHooks(p.hooksFile, MARKER(client), o.home);
   const [cmd, args] = mcpRemoveArgs(client);
-  await exec(cmd, args);
+  const mcp = await exec(cmd, args);
   rmSync(p.skillDir, { recursive: true, force: true });
+  return { mcp, mcpNotFound: mcp.code !== 0 && NOT_FOUND.test(brief(mcp)), shifted };
 }
 
 export async function detectClient(client: Client, exec: Exec = defaultExec): Promise<boolean> {

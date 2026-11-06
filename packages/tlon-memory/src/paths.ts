@@ -1,5 +1,5 @@
 // src/paths.ts
-import { mkdirSync, writeFileSync, chmodSync, existsSync, renameSync } from 'node:fs';
+import { mkdirSync, writeFileSync, chmodSync, existsSync, renameSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -20,11 +20,15 @@ export class Paths {
   }
 }
 
-/** Write a file readable only by the user, atomically (tmp + rename). */
-export function writePrivate(file: string, data: string) {
+/** Replace `file` atomically (tmp + rename in the same directory) with the given mode. */
+export function writeAtomic(file: string, data: string, mode: number) {
   const tmp = `${file}.tmp-${process.pid}`;
-  writeFileSync(tmp, data, { mode: 0o600 });
-  chmodSync(tmp, 0o600);
-  // rename is atomic on the same filesystem
-  renameSync(tmp, file);
+  try {
+    writeFileSync(tmp, data, { mode });
+    chmodSync(tmp, mode); // the create mode is masked by umask
+    renameSync(tmp, file); // atomic on the same filesystem
+  } catch (e) { rmSync(tmp, { force: true }); throw e; }
 }
+
+/** Write a file readable only by the user, atomically. */
+export function writePrivate(file: string, data: string) { writeAtomic(file, data, 0o600); }

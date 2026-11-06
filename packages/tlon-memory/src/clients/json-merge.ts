@@ -1,40 +1,92 @@
 // src/clients/json-merge.ts
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { dirname } from 'node:path';
+import { writeAtomic } from '../paths';
 
-export type HookEntry = { matcher?: string; hooks: { type: 'command'; command: string; timeout?: number }[] };
+export type HookCommand = { type: 'command'; command: string; timeout?: number };
+export type HookEntry = { matcher?: string; hooks: HookCommand[] };
 export type HooksMap = Record<string, HookEntry[]>;
 
-export const isOurs = (e: HookEntry, marker: string) => e.hooks.some((h) => h.command.includes(marker));
+const tilde = (file: string, home: string) => (file.startsWith(home + '/') ? '~' + file.slice(home.length) : file);
 
-export function readJson(file: string): any { return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {}; }
+function shapeError(d: any): string | null {
+  if (d === null || typeof d !== 'object' || Array.isArray(d)) return 'top level is not an object';
+  if (d.hooks === undefined) return null;
+  if (d.hooks === null || typeof d.hooks !== 'object' || Array.isArray(d.hooks)) return '"hooks" is not an object';
+  for (const [ev, es] of Object.entries(d.hooks)) {
+    if (!Array.isArray(es)) return `hooks.${ev} is not an array`;
+    for (const [i, e] of es.entries()) if (!e || typeof e !== 'object' || !Array.isArray(e.hooks)) return `hooks.${ev}[${i}] has no "hooks" array`;
+  }
+  return null;
+}
 
-export function writeJsonWithBackup(file: string, data: any) {
+/** Read a settings/hooks file owned by another tool; the `hooks` part we edit must have the documented shape. */
+export function readHooksFile(file: string, home = homedir()): any {
+  if (!existsSync(file)) return {};
+  let data: any;
+  try { data = JSON.parse(readFileSync(file, 'utf8')); }
+  catch (e) { throw new Error(`cannot parse ${tilde(file, home)}: ${(e as Error).message}`); }
+  const reason = shapeError(data);
+  if (reason) throw new Error(`cannot parse ${tilde(file, home)}: ${reason}`);
+  return data;
+}
+
+/** Back up the current file, then replace it atomically. A symlinked file (dotfile managers) stays a symlink. */
+function writeHooksFile(file: string, data: any) {
   mkdirSync(dirname(file), { recursive: true });
-  if (existsSync(file) && !existsSync(`${file}.bak-tlon-memory`)) copyFileSync(file, `${file}.bak-tlon-memory`);
-  writeFileSync(file, JSON.stringify(data, null, 2) + '\n');
+  const exists = existsSync(file);
+  const target = exists ? realpathSync(file) : file;
+  if (exists) copyFileSync(target, `${file}.bak-tlon-memory`);
+  writeAtomic(target, JSON.stringify(data, null, 2) + '\n', exists ? statSync(target).mode & 0o777 : 0o600);
 }
 
-/** Add our entries under `hooks.<Event>`, replacing any earlier entries of ours
- *  (matched by marker, or by an identical command so re-installs with any bin path stay idempotent). */
-export function mergeHooks(file: string, ours: HooksMap, marker: string) {
-  const data = readJson(file); data.hooks ??= {};
+/**
+ * Install our entries under `hooks.<Event>`. Ownership is per hook command (marker, or an identical command so
+ * re-installs with any bin path stay idempotent). Our entry is replaced at the index it already had, because
+ * Codex records hook trust per index and moving other tools' entries would invalidate their trust.
+ */
+export function mergeHooks(file: string, ours: HooksMap, marker: string, home = homedir()) {
+  const data = readHooksFile(file, home); data.hooks ??= {};
   const incoming = new Set(Object.values(ours).flatMap((es) => es.flatMap((e) => e.hooks.map((h) => h.command))));
-  const replaced = (e: HookEntry) => isOurs(e, marker) || e.hooks.some((h) => incoming.has(h.command));
+  const mine = (h: HookCommand) => typeof h?.command === 'string' && (h.command.includes(marker) || incoming.has(h.command));
   for (const [ev, entries] of Object.entries(ours)) {
-    const keep = (data.hooks[ev] ?? []).filter((e: HookEntry) => !replaced(e));
-    data.hooks[ev] = [...keep, ...entries];
+    const list: HookEntry[] = data.hooks[ev] ?? [];
+    let slot = -1;
+    const next: HookEntry[] = [];
+    for (const e of list) {
+      if (!e.hooks.some(mine)) { next.push(e); continue; }
+      const rest = e.hooks.filter((h) => !mine(h));
+      if (rest.length) next.push({ ...e, hooks: rest });
+      else if (slot < 0) { slot = next.length; next.push(e); } // placeholder, replaced below
+    }
+    if (slot >= 0) next.splice(slot, 1, ...entries); else next.push(...entries);
+    data.hooks[ev] = next;
   }
-  writeJsonWithBackup(file, data);
+  writeHooksFile(file, data);
 }
 
-export function unmergeHooks(file: string, marker: string) {
-  if (!existsSync(file)) return;
-  const data = readJson(file);
+/** Remove our hook commands; an entry is dropped only when nothing else is left in it. Returns whether a
+ *  remaining entry moved to a lower index (Codex then needs `/hooks` to re-trust it). */
+export function unmergeHooks(file: string, marker: string, home = homedir()): { shifted: boolean } {
+  if (!existsSync(file)) return { shifted: false };
+  const data = readHooksFile(file, home);
+  const mine = (h: HookCommand) => typeof h?.command === 'string' && h.command.includes(marker);
+  let changed = false, shifted = false;
   for (const ev of Object.keys(data.hooks ?? {})) {
-    data.hooks[ev] = data.hooks[ev].filter((e: HookEntry) => !isOurs(e, marker));
-    if (data.hooks[ev].length === 0) delete data.hooks[ev];
+    const list: HookEntry[] = data.hooks[ev];
+    if (!list.some((e) => e.hooks.some(mine))) continue;
+    changed = true;
+    const next: HookEntry[] = []; let dropped = false;
+    for (const e of list) {
+      if (!e.hooks.some(mine)) { if (dropped) shifted = true; next.push(e); continue; }
+      const rest = e.hooks.filter((h) => !mine(h));
+      if (rest.length) next.push({ ...e, hooks: rest }); else dropped = true;
+    }
+    if (next.length) data.hooks[ev] = next; else delete data.hooks[ev];
   }
-  if (data.hooks && Object.keys(data.hooks).length === 0) delete data.hooks;
-  writeJsonWithBackup(file, data);
+  if (!changed) return { shifted: false };
+  if (Object.keys(data.hooks).length === 0) delete data.hooks;
+  writeHooksFile(file, data);
+  return { shifted };
 }
