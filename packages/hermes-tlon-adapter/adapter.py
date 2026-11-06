@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import inspect
 import json
 import logging
 import math
@@ -109,6 +110,7 @@ from .mention import (
     extract_profile_nickname,
 )
 from .migration import MigrationCommandController, is_migrate_command
+from .model_note import configured_model_note
 from .owner_listen import (
     SETTINGS_DESK,
     SETTINGS_KEY_GROUP_CHANNELS,
@@ -261,13 +263,13 @@ REQUIRED_ENV = [
     "TLON_ACCESS_CODE",
     "TLON_OWNER_SHIP",
 ]
+# Hermes 0.22 renamed cronjob to cronjob_manage, and pre_tool_call hooks see
+# the new name even when the model uses the old one.
+CRONJOB_TOOL_NAMES = frozenset({"cronjob", "cronjob_manage"})
 OWNER_ONLY_TLON_TOOLS = frozenset(
     {
         "tlon",
-        "cronjob",
-        # Hermes >= 0.22 renamed the model tool; pre_tool_call hooks see the
-        # new name even when the model uses the legacy alias.
-        "cronjob_manage",
+        *CRONJOB_TOOL_NAMES,
         "read",
         "read_file",
         "write_file",
@@ -5426,6 +5428,28 @@ def _non_owner_reaction_carveout(args: Optional[dict], config: TlonConfig) -> Op
     return None
 
 
+def block_naive_cron_timestamp(tool_name: str, args: Optional[dict] = None, **_kwargs: Any) -> Optional[dict]:
+    """Hermes reads a cronjob timestamp without a UTC offset in its own zone
+    (the server's before 0.22, its configured one from 0.22), not the zone of
+    a place the user names, so 09:00 meant for Tokyo fires hours off. Make
+    the model state the offset."""
+    if tool_name not in CRONJOB_TOOL_NAMES or _session_env("HERMES_SESSION_PLATFORM", "").lower() != "tlon":
+        return None
+    schedule = str((args or {}).get("schedule") or "").strip()
+    try:
+        parsed = datetime.fromisoformat(schedule.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is not None:
+        return None
+    return _tool_access_block(
+        f"Blocked: the schedule {schedule} has no UTC offset, and Hermes would "
+        "read it in its own zone rather than the user's. Add the offset "
+        "of the zone the user means, e.g. 2035-03-13T09:00:00+09:00 for 9:00 "
+        "in Tokyo."
+    )
+
+
 def block_tlon_session_tool(tool_name: str, args: Optional[dict] = None, **_kwargs: Any) -> Optional[dict]:
     if _session_env("HERMES_SESSION_PLATFORM", "").lower() != "tlon":
         return None
@@ -5550,10 +5574,19 @@ def _reaction_platform_hint(level: str) -> str:
     )
 
 
+def hermes_serves_plugin_skill_files() -> bool:
+    try:
+        from tools.skills_tool_plugin import _serve_plugin_skill  # type: ignore
+    except ImportError:
+        return False
+    return "file_path" in inspect.signature(_serve_plugin_skill).parameters
+
+
 def register(ctx) -> None:
     ctx.register_hook("pre_tool_call", handle_pre_tool_call)
     ctx.register_hook("pre_tool_call", handle_pre_tool_call_lens)
     ctx.register_hook("pre_tool_call", block_tlon_session_tool)
+    ctx.register_hook("pre_tool_call", block_naive_cron_timestamp)
     ctx.register_hook("post_api_request", handle_post_api_request)
     ctx.register_hook("post_api_request", handle_post_api_request_telemetry)
     ctx.register_hook("post_api_request", handle_post_api_request_lens)
@@ -5618,6 +5651,27 @@ def register(ctx) -> None:
         else ""
     )
 
+    # Before 0.22, Hermes serves only a plugin skill's SKILL.md and ignores
+    # skill_view's file_path, so the references and product pages both skills
+    # link to are reachable only from disk. From 0.22 skill_view serves them,
+    # and read_file, which is owner-only here, would only shut other users out.
+    skill_dirs = [
+        f"{name} in {path.parent}"
+        for name, path in (
+            ("tlon-platform:tlon", skill_path),
+            ("tlon-platform:tlon-product-guide", product_guide_path),
+        )
+        if path is not None
+    ]
+    skill_files_hint = (
+        "skill_view on a tlon-platform skill returns only its SKILL.md and "
+        "ignores file_path. To read a file a skill links to (references/..., "
+        "product/...), use read_file on the skill's directory joined with the "
+        "link: " + "; ".join(skill_dirs) + ". "
+        if skill_dirs and not hermes_serves_plugin_skill_files()
+        else ""
+    )
+
     ctx.register_platform(
         name="tlon",
         label="Tlon",
@@ -5654,7 +5708,12 @@ def register(ctx) -> None:
             "For Tlon reads and administration, use the tlon tool; if unsure, "
             "load skill_view(\"tlon-platform:tlon\") or run a tlon subcommand "
             "with --help. "
+            "A user's shared files or shared folder are a group's Buckets "
+            "(tlon buckets); the file tools reach only the machine you run on, "
+            "never the user's files. "
             + product_guide_hint
+            + skill_files_hint
+            + configured_model_note(product_guide=product_guide_path is not None)
             + "When a user asks you to create a Tlon group for them, use "
             "groups create-owned with --owner set to that user's ship so they "
             "are invited and made admin. "

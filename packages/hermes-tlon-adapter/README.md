@@ -25,6 +25,8 @@ When this package can find `@tloncorp/tlon-skill/SKILL.md`, it registers that fi
 
 A second skill registers the same way: when `skills/tlon-product-guide/SKILL.md` is findable in the OpenClaw plugin tree, it becomes `tlon-platform:tlon-product-guide` and the platform hint points at it for questions about what Tlon Messenger is and how its features work — as opposed to requests to *do* something, which stay on the `tlon` tool. Set `TLON_PRODUCT_GUIDE_PATH` for an explicit file, or `TLON_PLUGIN_DIR` when you know the plugin root but not its internal layout. A deployment without the plugin tree simply doesn't register it.
 
+Before 0.22, Hermes serves a plugin skill's `SKILL.md` and nothing else: `skill_view` ignores `file_path` for plugin skills. Both skills link to further files (`references/…`, `product/…`), so on those releases the platform hint names each registered skill's directory and has the model `read_file` them there. From 0.22 `skill_view` serves them, and the adapter leaves that sentence out, since `read_file` is owner-only in Tlon chats.
+
 If you explicitly want the skill to appear in Hermes' normal skill index as bare `tlon`, add the directory containing the skill to `skills.external_dirs` in the Hermes profile config. That is optional install-time configuration, not required for the plugin-owned default path.
 
 ## Tests
@@ -337,6 +339,10 @@ Nothing is generated or checked in; identity is resolved at runtime. The same su
 At connect (and on reconnect catch-up) the adapter publishes the bot's identity — harness, adapter version, Hermes version — in the bot's own contact profile under `bot-info`, compare-then-poke (`bot_info.py`). Tlon clients use the claimed harness to pick which of _their_ static slash-command lists to suggest; this adapter publishes no command list of its own. Wire contract and clear-to-null rollback procedure: [docs/bot-info.md](../../docs/bot-info.md).
 
 The registry in `commands.py` is the single source of truth for command detection, and holds shared usage constants for `/owner-listen`, `/channel-access`, and `/migrate`; the remaining commands carry their usage text in their handlers. `fixtures/commands.json` is its committed token list — a CI artifact, not a wire payload: the client's drift contract (`packages/shared/src/domain/runtimeCommandContract.test.ts`, run by the `bot-checks` job) asserts it names exactly the runtime-owned portion of the client's Hermes list, so adding or removing a command here fails until the client list changes too; the six host-core entries that list also suggests are audit-pinned constants outside that relation. `/tlon-version` is handled but deliberately absent from the fixture (legacy alias of `/tlon version`). **Removals are two-phase**: hosted bots redeploy on restart while the app releases slowly, so keep a removed command's handler alive until an app release stops suggesting it.
+
+## Model note
+
+As the OpenClaw plugin does (`packages/openclaw/src/model-privacy-context.ts`), the platform hint carries a note naming the configured model, how requests reach it (through OpenRouter or the provider directly) and whether zero data retention is on, and pointing at the product guide for Tlon's side (`model_note.py`). It isn't a `pre_llm_call` hook: from 0.22 Hermes stores hook context in each turn's message, so a per-turn note would pile up in the history. Hosted Hermes restarts the gateway when the model changes, which rebuilds the hint. Hermes can't send OpenRouter's `zdr` preference (`provider_routing` has no such key), so for an OpenRouter model the note says zero data retention is off.
 
 ## Telemetry
 
