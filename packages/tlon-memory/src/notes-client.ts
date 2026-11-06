@@ -152,11 +152,12 @@ export class NotesClient {
   /**
    * Bounded substring search, newest notes first; pages until `last === 0` or `max` hits. It scans at most
    * SEARCH_PAGES × SEARCH_PAGE_SIZE notes: `truncated` says older notes were left unscanned.
+   * The desk starts at the newest note when `from` is absent, scans ids below `from` otherwise, and treats `from=0` as empty.
    */
   async searchText(host: string, name: string, needle: string, max = 25): Promise<SearchResult> {
     const out: Note[] = []; let from = 0; let truncated = false;
     for (let i = 0; i < SEARCH_PAGES; i++) {
-      const r = await this.req('GET', `/notes/~/v1/notebooks/${enc(host)}/${enc(name)}/search/bounded/text?needle=${enc(needle)}&from=${from}&tries=${SEARCH_PAGE_SIZE}`);
+      const r = await this.req('GET', `/notes/~/v1/notebooks/${enc(host)}/${enc(name)}/search/bounded/text?needle=${enc(needle)}${from ? `&from=${from}` : ''}&tries=${SEARCH_PAGE_SIZE}`);
       out.push(...asArray<Note>(r?.notes, 'search'));
       if (!r.last || out.length >= max) break;
       from = r.last;

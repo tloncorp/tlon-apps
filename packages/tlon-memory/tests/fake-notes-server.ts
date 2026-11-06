@@ -106,8 +106,10 @@ export class FakeNotes {
       this.notes.delete(id!); return this.ok({ type: 'note-update', host: nb.host, flagName: nb.flagName, noteUpdate: { type: 'note-deleted', id } });
     }
     if (kind === 'search/bounded/text') {
-      const needle = u.searchParams.get('needle') ?? ''; const from = Number(u.searchParams.get('from') ?? 0); const tries = Number(u.searchParams.get('tries') ?? 100);
-      const all = [...this.notes.values()].filter(inNb).sort((a, b) => b.id - a.id).filter((n) => from === 0 || n.id < from);
+      // Mirrors the desk's +no-search: no `from` starts at the newest note, `from=0` is an empty range, `from=N` scans ids below N.
+      const needle = u.searchParams.get('needle') ?? ''; const fromParam = u.searchParams.get('from'); const tries = Number(u.searchParams.get('tries') ?? 100);
+      if (fromParam !== null && Number(fromParam) === 0) return Response.json({ last: 0, notes: [] });
+      const all = [...this.notes.values()].filter(inNb).sort((a, b) => b.id - a.id).filter((n) => fromParam === null || n.id < Number(fromParam));
       const page = all.slice(0, tries);
       const hits = page.filter((n) => n.title.includes(needle) || n.bodyMd.includes(needle));
       const last = all.length > tries ? page[page.length - 1].id : 0;

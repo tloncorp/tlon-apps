@@ -44,6 +44,19 @@ describe('NotesClient', () => {
     expect(r.notes).toEqual([]); // the oldest note is past the horizon
     for (let i = 0; i < SEARCH_HORIZON + 50; i++) fake.notes.delete(50_000 + i);
   });
+  it('omits `from` on the first search page (the desk reads from=0 as an empty range) and pages below `last`', async () => {
+    const nb = await c.createNotebook('Paged');
+    const f = await c.createFolder(nb.host, nb.flagName, 'f', nb.rootFolderId);
+    const nbId = [...fake.notebooks.values()].find((x) => x.flagName === nb.flagName)!.id;
+    for (let i = 0; i < 250; i++) { const id = 70_000 + i;
+      fake.notes.set(id, { id, notebookId: nbId, folderId: f, title: 't', slug: null, bodyMd: i === 0 || i === 249 ? 'needle-page' : 'x', createdBy: '~zod', createdAt: 1, updatedBy: '~zod', updatedAt: 1, revision: 1 }); }
+    fake.requests = [];
+    const r = await c.searchText(nb.host, nb.flagName, 'needle-page');
+    expect(r.notes.map((n) => n.id)).toEqual([70_249, 70_000]);
+    const froms = fake.requests.map((q) => new URL(q.path, 'http://x').searchParams.get('from'));
+    expect(froms).toEqual([null, '70150', '70050']);
+    for (let i = 0; i < 250; i++) fake.notes.delete(70_000 + i);
+  });
   it('maps 401/403 to KeyRejected and 5xx to Unreachable', async () => {
     const bad = new NotesClient({ shipUrl: fake.url, apiKey: 'wrong' });
     await expect(bad.listNotebooks()).rejects.toMatchObject({ code: 'key-rejected' });
