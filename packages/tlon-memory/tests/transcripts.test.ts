@@ -29,8 +29,13 @@ describe('transcripts', () => {
   it('peeks the ids without parsing the whole file', () => {
     expect(peekTranscript('claude', claude)).toEqual({ sessionId: CLAUDE_ID, cwd: '/Users/bill/Projects/demo' });
     expect(peekTranscript('codex', codex)).toEqual({ sessionId: CODEX_ID, cwd: '/Users/bill/Projects/demo' });
+    // Real transcripts open with an api-request record (system prompt, tool definitions) well over 64 KB.
+    const big = join(home, 'big.jsonl');
+    writeFileSync(big, [{ type: 'queue-operation', sessionId: 's' }, { type: 'api-request', sessionId: 's', params: { system: 'y'.repeat(300 * 1024) } },
+      { type: 'user', sessionId: 's', cwd: '/c' }].map((r) => JSON.stringify(r)).join('\n') + '\n');
+    expect(peekTranscript('claude', big)).toEqual({ sessionId: 's', cwd: '/c' });
     const late = join(home, 'late.jsonl');
-    writeFileSync(late, `${JSON.stringify({ type: 'x', pad: 'y'.repeat(70 * 1024) })}\n${JSON.stringify({ type: 'user', sessionId: 's', cwd: '/c' })}\n`);
+    writeFileSync(late, Array.from({ length: 60 }, () => JSON.stringify({ type: 'x', sessionId: 's' })).concat(JSON.stringify({ type: 'user', sessionId: 's', cwd: '/c' })).join('\n'));
     expect(peekTranscript('claude', late)).toBeNull();
   });
 });

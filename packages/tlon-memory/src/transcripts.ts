@@ -16,6 +16,8 @@ export const claudeProjectsDir = (home = homedir()) => join(home, '.claude', 'pr
 export const codexSessionsDir = (home = homedir()) => join(home, '.codex', 'sessions');
 
 const PEEK_BYTES = 64 * 1024;
+/** Records read before a peek gives up; the ids come within the first few in practice. */
+const PEEK_RECORDS = 50;
 
 /** Up to `max` bytes from the start of the file. */
 function head(path: string, max: number): string {
@@ -28,11 +30,23 @@ function head(path: string, max: number): string {
   } finally { closeSync(fd); }
 }
 
-function* records(path: string, max: number): Generator<any> {
-  for (const line of head(path, max).split('\n')) {
-    if (!line.trim()) continue;
-    try { yield JSON.parse(line); } catch { /* the window can end mid-line */ }
-  }
+/** The first `max` non-empty lines, read in chunks: a long record costs its own length and nothing after it is read. */
+function* lines(path: string, max: number): Generator<string> {
+  const fd = openSync(path, 'r'), chunk = Buffer.alloc(PEEK_BYTES);
+  let parts: Buffer[] = [], pos = 0, seen = 0;
+  try {
+    for (;;) {
+      const r = readSync(fd, chunk, 0, chunk.length, pos); pos += r;
+      if (!r) { const l = Buffer.concat(parts).toString('utf8'); if (l.trim()) yield l; return; }
+      const data = chunk.subarray(0, r);
+      let start = 0, i: number;
+      while ((i = data.indexOf(10, start)) >= 0) {
+        parts.push(data.subarray(start, i)); const l = Buffer.concat(parts).toString('utf8'); parts = []; start = i + 1;
+        if (l.trim()) { yield l; if (++seen >= max) return; }
+      }
+      parts.push(Buffer.from(data.subarray(start))); // a copy: the chunk is reused
+    }
+  } finally { closeSync(fd); }
 }
 
 export function detectClient(path: string): ClientName {
@@ -72,9 +86,11 @@ export function listTranscripts(home?: string): TranscriptFile[] {
   ];
 }
 
-/** Session id and cwd from the first 64 KB, or null if they are not there. Field names as in the parsers. */
+/** Session id and cwd from the first record holding both, within PEEK_RECORDS, or null. Field names as in the parsers. */
 export function peekTranscript(client: ClientName, path: string): { sessionId: string; cwd: string } | null {
-  for (const rec of records(path, PEEK_BYTES)) {
+  for (const line of lines(path, PEEK_RECORDS)) {
+    if (!line.includes('"cwd"')) continue; // skips parsing the large records that come first
+    let rec: any; try { rec = JSON.parse(line); } catch { continue; }
     if (client === 'codex' && rec?.type === 'session_meta' && rec.payload?.session_id && rec.payload?.cwd)
       return { sessionId: String(rec.payload.session_id), cwd: String(rec.payload.cwd) };
     if (client === 'claude' && rec?.sessionId && rec?.cwd) return { sessionId: String(rec.sessionId), cwd: String(rec.cwd) };

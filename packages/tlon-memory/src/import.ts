@@ -4,7 +4,6 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { UsageError, flag, has } from './cli-util';
 import { ClientName, Config, isInScope } from './config';
-import { ParsedTranscript } from './events';
 import { noteUrl } from './notebook';
 import { Paths } from './paths';
 import { renderConversation, sessionKey } from './render';
@@ -12,7 +11,8 @@ import { listJobs, loadJob, loadSessionState } from './state';
 import { clientId, enqueue, parseTranscript, syncQueue } from './sync';
 import { SESSION_KEY, clientOfKey, detectClient, findTranscript, listTranscripts, peekTranscript } from './transcripts';
 
-export interface Prepared { client: ClientName; path: string; t: ParsedTranscript }
+/** What an import needs of a transcript. `--all` holds one per session, so never the parsed transcript itself. */
+export interface Prepared { client: ClientName; path: string; sessionId: string; cwd: string; events: number; parts?: number }
 export interface Outcome { key: string; kind: 'uploaded' | 'unchanged' | 'failed' | 'remaining'; parts?: number; url?: string; error?: string }
 
 export const PAUSED = 'Capture is paused; run tlon-memory resume first.';
@@ -22,19 +22,23 @@ export const SINGLE_BUDGET_MS = 120_000;
 export const TOOL_BUDGET_MS = 45_000;
 const PROGRESS_EVERY = 25;
 
-export const prepare = (cfg: Config, client: ClientName, path: string): Prepared =>
-  ({ client, path, t: parseTranscript(client, path, cfg.captureToolIo, [cfg.apiKey]) });
+/** `withParts` renders the conversation to count its notes, for --dry-run only. */
+export function prepare(cfg: Config, client: ClientName, path: string, withParts = false): Prepared {
+  const t = parseTranscript(client, path, cfg.captureToolIo, [cfg.apiKey]);
+  return { client, path, sessionId: t.sessionId, cwd: t.cwd, events: t.events.length, ...(withParts ? { parts: renderConversation(t).length } : {}) };
+}
+export const keyOf = (p: Pick<Prepared, 'client' | 'sessionId'>) => sessionKey({ client: clientId(p.client), sessionId: p.sessionId });
 export const inScope = (cfg: Config, cwd: string) => cwd !== '' && isInScope(cfg, cwd);
 export const outOfScope = (cfg: Config, p: Prepared) =>
-  `${sessionKey(p.t)} (${p.t.cwd || 'no directory recorded'}) is outside the capture scope (${cfg.scopes.join(', ') || 'none'}); add it with tlon-memory scope add`;
+  `${keyOf(p)} (${p.cwd || 'no directory recorded'}) is outside the capture scope (${cfg.scopes.join(', ') || 'none'}); add it with tlon-memory scope add`;
 
 /** Queue the sessions and sync until they are done, a run makes no progress, or `budgetMs` (for the whole call) runs out. */
 export async function importSessions(paths: Paths, cfg: Config, list: Prepared[], budgetMs: number): Promise<{ outcomes: Outcome[]; locked: boolean }> {
-  const before = list.map(({ client, path, t }) => {
-    enqueue(paths, { client, sessionId: t.sessionId, transcriptPath: path, cwd: t.cwd });
-    return { attempts: loadJob(paths, { client, sessionId: t.sessionId })!.attempts, synced: loadSessionState(paths, t.client, t.sessionId)?.lastSynced };
+  const before = list.map(({ client, path, sessionId, cwd }) => {
+    enqueue(paths, { client, sessionId, transcriptPath: path, cwd });
+    return { attempts: loadJob(paths, { client, sessionId })!.attempts, synced: loadSessionState(paths, clientId(client), sessionId)?.lastSynced };
   });
-  const queued = () => list.filter(({ client, t }) => loadJob(paths, { client, sessionId: t.sessionId })).length;
+  const queued = () => list.filter((p) => loadJob(paths, p)).length;
   const deadline = Date.now() + budgetMs;
   let locked = false;
   for (let left = budgetMs; left > 0; left = deadline - Date.now()) {
@@ -42,11 +46,11 @@ export async function importSessions(paths: Paths, cfg: Config, list: Prepared[]
     if (r.locked) { locked = true; break; }
     if (!queued() || !r.synced) break;
   }
-  const outcomes = list.map(({ client, t }, i): Outcome => {
-    const key = sessionKey(t);
-    const job = loadJob(paths, { client, sessionId: t.sessionId });
+  const outcomes = list.map((p, i): Outcome => {
+    const key = keyOf(p);
+    const job = loadJob(paths, p);
     if (job) return job.attempts > before[i].attempts ? { key, kind: 'failed', error: job.lastError } : { key, kind: 'remaining' };
-    const st = loadSessionState(paths, t.client, t.sessionId);
+    const st = loadSessionState(paths, clientId(p.client), p.sessionId);
     // The queue dropped the job without syncing: the transcript vanished, or it failed too often.
     if (!st) return { key, kind: 'failed', error: 'dropped from the queue; see the log' };
     return { key, kind: st.lastSynced === before[i].synced ? 'unchanged' : 'uploaded', parts: st.noteIds.length, url: noteUrl(cfg.shipUrl, cfg.notebook!, st.noteIds[0]) };
@@ -74,9 +78,10 @@ export async function importCommand(paths: Paths, cfg: Config, args: string[]): 
       // The peek sees a Claude session's first cwd, the scope check needs its last: a session that moved into
       // a scope after starting outside it is missed here. `import <path>` uploads it.
       if (peek && !inScope(cfg, peek.cwd)) return;
-      const p = prepare(cfg, client, path);
-      if (!p.t.events.length) { empty.push(`${clientId(client)}:${p.t.sessionId || peek?.sessionId || path}`); return; }
-      if (p.t.sessionId && inScope(cfg, p.t.cwd)) list.push(p);
+      const p = prepare(cfg, client, path, dryRun);
+      // An empty transcript records no cwd of its own; list it only when the peek placed it in scope.
+      if (!p.events) { if (peek) empty.push(keyOf({ client, sessionId: p.sessionId || peek.sessionId })); return; }
+      if (p.sessionId && inScope(cfg, p.cwd)) list.push(p);
     });
   } else {
     let client: ClientName, path: string;
@@ -90,15 +95,15 @@ export async function importCommand(paths: Paths, cfg: Config, args: string[]): 
       if (!existsSync(path)) throw new UsageError(`no such file: ${path}`);
       client = detectClient(path);
     }
-    const p = prepare(cfg, client, path);
-    if (!p.t.events.length) { out(`${path}: no conversation to upload`); return 0; }
-    if (!p.t.sessionId) { err(`${path} has no session id`); return 1; }
-    if (!inScope(cfg, p.t.cwd)) { err(outOfScope(cfg, p)); return 1; }
+    const p = prepare(cfg, client, path, dryRun);
+    if (!p.events) { out(`${path}: no conversation to upload`); return 0; }
+    if (!p.sessionId) { err(`${path} has no session id`); return 1; }
+    if (!inScope(cfg, p.cwd)) { err(outOfScope(cfg, p)); return 1; }
     list = [p];
   }
 
   if (dryRun) {
-    for (const { t } of list) out(`${sessionKey(t)}  ${t.cwd}  ${t.events.length} events  ${renderConversation(t).length} part(s)`);
+    for (const p of list) out(`${keyOf(p)}  ${p.cwd}  ${p.events} events  ${p.parts} part(s)`);
     for (const k of empty) out(`${k}  empty`);
     out(`${list.length} to upload, ${empty.length} empty`);
     return 0;

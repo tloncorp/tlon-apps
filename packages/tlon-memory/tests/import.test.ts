@@ -14,7 +14,7 @@ import { enqueue } from '../src/sync';
 
 const fake = new FakeNotes(); let home: string; let claude: string; let paths: Paths; let cfg: Config;
 let outside: string;
-const OUTSIDE_ID = '33333333-aaaa-4bbb-8ccc-444444444444', EMPTY_ID = '55555555-aaaa-4bbb-8ccc-666666666666';
+const OUTSIDE_ID = '33333333-aaaa-4bbb-8ccc-444444444444', EMPTY_ID = '55555555-aaaa-4bbb-8ccc-666666666666', UNKNOWN_ID = '88888888-aaaa-4bbb-8ccc-999999999999';
 const main = join(import.meta.dir, '..', 'src', 'main.ts');
 const run = async (args: string[]) => {
   const r = Bun.spawn(['bun', 'run', main, 'import', ...args], { stdin: 'ignore', stdout: 'pipe', stderr: 'pipe',
@@ -30,6 +30,8 @@ beforeEach(() => {
   const elsewhere = join(claudeProjectsDir(home), '-elsewhere'); mkdirSync(elsewhere);
   outside = join(elsewhere, `${OUTSIDE_ID}.jsonl`);
   writeFileSync(outside, readFileSync(claude, 'utf8').replaceAll(CLAUDE_ID, OUTSIDE_ID).replaceAll('/Users/bill/Projects/demo', '/elsewhere'));
+  // Empty and no directory recorded: its scope is unknown, so --all must not list it.
+  writeFileSync(join(elsewhere, `${UNKNOWN_ID}.jsonl`), JSON.stringify({ type: 'queue-operation', sessionId: UNKNOWN_ID }) + '\n');
   writeFileSync(join(claudeProjectsDir(home), '-Users-bill-Projects-demo', `${EMPTY_ID}.jsonl`),
     JSON.stringify({ type: 'system', sessionId: EMPTY_ID, cwd: '/Users/bill/Projects/demo', content: 'x' }) + '\n');
   fake.requests.length = 0;
@@ -65,6 +67,7 @@ describe('import', () => {
     expect(r.out).toContain(`codex:${CODEX_ID}  /Users/bill/Projects/demo`);
     expect(r.out).toContain(`claude-code:${EMPTY_ID}  empty`);
     expect(r.out).not.toContain(OUTSIDE_ID);
+    expect(r.out).not.toContain(UNKNOWN_ID);
     expect(r.out).toContain('2 to upload, 1 empty');
     expect(fake.requests.length).toBe(0);
   });
