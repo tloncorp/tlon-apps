@@ -8,6 +8,7 @@ import {
 import { dr, render } from '@urbit/aura';
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 
+import { captureTlonApiScope } from '../urbit/api-client.js';
 import { describeError } from '../urbit/errors.js';
 
 type RunState = {
@@ -90,7 +91,9 @@ export function formatCommentaryForPresence(text: string): string | null {
 }
 
 export function createComputingPresenceReporter(): ComputingPresenceReporter {
-  return {
+  // Continuation timers and agent events run outside the monitor's API scope.
+  const runInMonitorScope = captureTlonApiScope();
+  const reporter: ComputingPresenceReporter = {
     publish: async ({ conversationId, thinking, toolNames, commentary }) => {
       if (!thinking) {
         await clearConversationPresence({
@@ -114,6 +117,11 @@ export function createComputingPresenceReporter(): ComputingPresenceReporter {
         },
       });
     },
+  };
+  return {
+    publish: runInMonitorScope
+      ? (params) => runInMonitorScope(() => reporter.publish(params))
+      : reporter.publish,
   };
 }
 
