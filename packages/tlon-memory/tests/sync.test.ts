@@ -213,11 +213,40 @@ describe('sync', () => {
     expect(jobs().length).toBe(0);
     expect(existsSync(paths.queueLock)).toBe(false);
   });
-  it('replaces a stale lock', async () => {
+  it('replaces a stale lock, leaving nothing behind', async () => {
     paths.ensure();
     writeFileSync(paths.queueLock, JSON.stringify({ pid: 1, at: new Date(Date.now() - 120_000).toISOString() }));
     enqueue(paths, { client: 'claude', sessionId: 's1', transcriptPath: fx, cwd: '/x' });
     expect((await syncQueue(paths, cfg, { budgetMs: 10_000 })).synced).toBe(1);
+    expect(readdirSync(paths.queueDir)).toEqual([]);
+  });
+  it('a fresh lock skips the run and logs sync-locked', async () => {
+    paths.ensure();
+    writeFileSync(paths.queueLock, JSON.stringify({ pid: 1, at: new Date().toISOString() }));
+    enqueue(paths, { client: 'claude', sessionId: 's1', transcriptPath: fx, cwd: '/x' });
+    expect(await syncQueue(paths, cfg, { budgetMs: 10_000 })).toMatchObject({ locked: true, remaining: 1, synced: 0 });
+    expect(readFileSync(paths.logFile, 'utf8')).toContain('sync-locked');
+    expect(JSON.parse(readFileSync(paths.queueLock, 'utf8')).pid).toBe(1); // not ours: untouched
+  });
+  it('refreshes the lock after every ship request', async () => {
+    enqueue(paths, { client: 'claude', sessionId: 's1', transcriptPath: fx, cwd: '/x' });
+    const orig = fake.handle.bind(fake); const ages: number[] = [];
+    fake.handle = async (req: Request) => {
+      const l = JSON.parse(readFileSync(paths.queueLock, 'utf8'));
+      ages.push(Date.now() - Date.parse(l.at));
+      writeFileSync(paths.queueLock, JSON.stringify({ ...l, at: new Date(Date.now() - 50_000).toISOString() })); // age it
+      return orig(req);
+    };
+    try { await syncQueue(paths, cfg, { budgetMs: 10_000 }); } finally { fake.handle = orig; }
+    expect(ages.length).toBeGreaterThan(1);
+    for (const a of ages.slice(1)) expect(a).toBeLessThan(10_000); // each request found the lock refreshed by the previous one
+  });
+  it('neither refreshes nor releases a lock another process took over', async () => {
+    enqueue(paths, { client: 'claude', sessionId: 's1', transcriptPath: fx, cwd: '/x' });
+    const orig = fake.handle.bind(fake); const theirs = JSON.stringify({ pid: process.pid + 1, at: new Date().toISOString() });
+    fake.handle = async (req: Request) => { writeFileSync(paths.queueLock, theirs); return orig(req); }; // our lock looked stale and was replaced
+    try { await syncQueue(paths, cfg, { budgetMs: 10_000 }); } finally { fake.handle = orig; }
+    expect(readFileSync(paths.queueLock, 'utf8')).toBe(theirs);
   });
   it('a job re-enqueued while it was being synced survives', async () => {
     enqueue(paths, { client: 'claude', sessionId: 's1', transcriptPath: fx, cwd: '/x' });

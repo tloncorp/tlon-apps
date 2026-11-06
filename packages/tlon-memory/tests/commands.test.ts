@@ -67,6 +67,12 @@ describe('commands', () => {
     expect(r.out).toContain('synced 1, failed 0, remaining 0');
     expect(listJobs(paths).length).toBe(0);
   });
+  it('sync says when another sync holds the lock', async () => {
+    enqueue(paths, { client: 'claude', sessionId: 's2', transcriptPath: join(home, 't.jsonl'), cwd: '/Users/bill/Projects/demo' });
+    writeFileSync(paths.queueLock, JSON.stringify({ pid: 1, at: new Date().toISOString() }));
+    const r = await run(['sync']);
+    expect(r.code).toBe(0); expect(r.out).toContain('another sync is running; 1 job queued');
+  });
   it('export writes private markdown + index without the key, by default under HOME', async () => {
     const out = join(home, 'export'); const r = await run(['export', '--out', out]); expect(r.code).toBe(0);
     expect(r.out).toContain('sensitive');

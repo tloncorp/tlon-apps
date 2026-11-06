@@ -57,7 +57,11 @@ export async function command(cmd: string, args: string[]): Promise<number> {
       if (sub && sub !== 'list') throw new UsageError('usage: scope add|remove DIR | scope list');
       out(cfg.scopes.join('\n') || '(no scopes: nothing is captured)'); return 0;
     }
-    case 'sync': { const r = await syncQueue(paths, cfg, { budgetMs: 120_000, ignoreBackoff: true }); out(`synced ${r.synced}, failed ${r.failed}, remaining ${r.remaining}${r.lastError ? ' — ' + r.lastError : ''}`); return r.failed ? 1 : 0; }
+    case 'sync': {
+      const r = await syncQueue(paths, cfg, { budgetMs: 120_000, ignoreBackoff: true });
+      if (r.locked) { out(`another sync is running; ${r.remaining} job${r.remaining === 1 ? '' : 's'} queued`); return 0; }
+      out(`synced ${r.synced}, failed ${r.failed}, remaining ${r.remaining}${r.lastError ? ' — ' + r.lastError : ''}`); return r.failed ? 1 : 0;
+    }
     case 'export': return exportNotes(paths, cfg, client, args);
     case 'delete': return deleteNotes(paths, cfg, client, args);
     default: return 2;

@@ -27,9 +27,12 @@ export class NotesClient {
   shipUrl: string; private apiKey: string;
   /** Absolute ms timestamp; requests share it so a sync run cannot outlive its budget. */
   deadline?: number;
-  constructor(o: { shipUrl: string; apiKey: string; deadline?: number }) {
-    this.shipUrl = o.shipUrl.replace(/\/+$/, ''); this.apiKey = o.apiKey; this.deadline = o.deadline;
+  /** Called after every request to the ship, whatever its outcome (the sync run refreshes its queue lock here). */
+  private onRequest?: () => void;
+  constructor(o: { shipUrl: string; apiKey: string; deadline?: number; onRequest?: () => void }) {
+    this.shipUrl = o.shipUrl.replace(/\/+$/, ''); this.apiKey = o.apiKey; this.deadline = o.deadline; this.onRequest = o.onRequest;
   }
+  private afterRequest() { try { this.onRequest?.(); } catch { /* a bookkeeping failure must not fail the request */ } }
 
   private signal(): AbortSignal {
     if (this.deadline === undefined) return AbortSignal.timeout(REQUEST_TIMEOUT_MS);
@@ -39,6 +42,9 @@ export class NotesClient {
   }
 
   private async req(method: string, path: string, body?: unknown): Promise<any> {
+    try { return await this.send(method, path, body); } finally { this.afterRequest(); }
+  }
+  private async send(method: string, path: string, body?: unknown): Promise<any> {
     // errors name the path only: the query string can carry a search needle taken from conversation text
     const where = `${method} ${path.split('?')[0]}`;
     const signal = this.signal();

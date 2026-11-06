@@ -1,12 +1,12 @@
 // src/sync.ts
-import { createHash } from 'node:crypto';
-import { closeSync, openSync, readFileSync, statSync, unlinkSync, writeFileSync, writeSync } from 'node:fs';
+import { createHash, randomUUID } from 'node:crypto';
+import { closeSync, linkSync, openSync, readFileSync, renameSync, rmSync, statSync, writeSync } from 'node:fs';
 import { Config } from './config';
 import { ClientId, ParsedTranscript } from './events';
 import { appendLog } from './log';
 import { findSessionNotes } from './notebook';
 import { DEADLINE_EXCEEDED, NotesClient, NotesError, isDeadline } from './notes-client';
-import { Paths } from './paths';
+import { Paths, writePrivate } from './paths';
 import { renderConversation, sessionKey } from './render';
 import { QueueJob, SessionState, initializedAt, listJobs, loadSessionState, markInitialized, removeJob, replaceJob, saveJob, saveSessionState } from './state';
 import { loadConnection, saveConnection } from './status';
@@ -124,35 +124,55 @@ export const MAX_ATTEMPTS = 8;
 const isTransient = (e: unknown) => isCode(e, 'unreachable') || isCode(e, 'key-rejected');
 const LOCK_STALE_MS = 60_000;
 
-/** Exclusive queue lock; one older than LOCK_STALE_MS belongs to a dead or stuck run and is replaced. */
-function acquireLock(p: Paths): boolean {
+interface LockInfo { pid: number; token?: string; at: string }
+const readLock = (f: string): LockInfo | null => {
+  try { return JSON.parse(readFileSync(f, 'utf8')); } catch { return null; }
+};
+/** When the lock at `f` was last taken or refreshed (ms), or null if it is gone. Unreadable contents fall back to the file's age. */
+function lockTime(f: string): number | null {
+  const at = Date.parse(readLock(f)?.at ?? '');
+  if (Number.isFinite(at)) return at;
+  try { return statSync(f).mtimeMs; } catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null; throw e; }
+}
+
+/**
+ * Exclusive queue lock. Returns this run's token, or null when another run holds it. A lock not refreshed for
+ * LOCK_STALE_MS belongs to a dead or stuck run: it is moved aside with a rename (atomic, so only one breaker
+ * wins) and then taken with an exclusive create.
+ */
+function acquireLock(p: Paths): string | null {
   p.ensure();
+  const token = randomUUID();
   const take = () => {
     const fd = openSync(p.queueLock, 'wx', 0o600);
-    try { writeSync(fd, JSON.stringify({ pid: process.pid, at: new Date().toISOString() })); } finally { closeSync(fd); }
+    try { writeSync(fd, JSON.stringify({ pid: process.pid, token, at: new Date().toISOString() })); } finally { closeSync(fd); }
   };
-  try { take(); return true; } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e; }
-  let takenAt: number;
-  try {
-    const at = Date.parse(JSON.parse(readFileSync(p.queueLock, 'utf8')).at);
-    takenAt = Number.isFinite(at) ? at : statSync(p.queueLock).mtimeMs;
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return tryTake(take);
-    takenAt = statSync(p.queueLock).mtimeMs; // unreadable contents: fall back to the file's age
+  const tryTake = () => { try { take(); return token; } catch (e) { if ((e as NodeJS.ErrnoException).code === 'EEXIST') return null; throw e; } };
+  const held = tryTake();
+  if (held) return held;
+  const takenAt = lockTime(p.queueLock);
+  if (takenAt === null) return tryTake(); // released meanwhile
+  if (Date.now() - takenAt < LOCK_STALE_MS) return null;
+  const aside = `${p.queueLock}.stale-${process.pid}-${token}`;
+  try { renameSync(p.queueLock, aside); }
+  catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') return tryTake(); throw e; }
+  // Between our check and the rename another run may have broken the stale lock and taken a fresh one: give it back.
+  const movedAt = lockTime(aside);
+  if (movedAt !== null && Date.now() - movedAt < LOCK_STALE_MS) {
+    try { linkSync(aside, p.queueLock); } catch { /* a third run holds it now; either way it is not ours */ }
+    rmSync(aside, { force: true });
+    return null;
   }
-  if (Date.now() - takenAt < LOCK_STALE_MS) return false;
-  try { unlinkSync(p.queueLock); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; }
-  return tryTake(take);
+  rmSync(aside, { force: true });
+  return tryTake();
 }
-function tryTake(take: () => void): boolean {
-  try { take(); return true; } catch (e) { if ((e as NodeJS.ErrnoException).code === 'EEXIST') return false; throw e; }
+const ownsLock = (p: Paths, token: string) => { const l = readLock(p.queueLock); return l?.pid === process.pid && l.token === token; };
+/** Keep a long run from looking stale to a hook. Only touches a lock this run still holds. */
+function refreshLock(p: Paths, token: string) {
+  if (ownsLock(p, token)) writePrivate(p.queueLock, JSON.stringify({ pid: process.pid, token, at: new Date().toISOString() }));
 }
-/** Keep a long `tlon-memory sync` run from looking stale to a hook. */
-function refreshLock(p: Paths) {
-  writeFileSync(p.queueLock, JSON.stringify({ pid: process.pid, at: new Date().toISOString() }), { mode: 0o600 });
-}
-function releaseLock(p: Paths) {
-  try { unlinkSync(p.queueLock); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; }
+function releaseLock(p: Paths, token: string) {
+  if (ownsLock(p, token)) rmSync(p.queueLock, { force: true });
 }
 
 /** Drain the queue within a time budget. Network and transcript errors are recorded on the job, not thrown. */
@@ -160,9 +180,15 @@ export async function syncQueue(p: Paths, cfg: Config,
   o: { budgetMs: number; now?: () => number; ignoreBackoff?: boolean } = { budgetMs: 15_000 }): Promise<SyncReport> {
   const now = o.now ?? Date.now; const start = now();
   const rep: SyncReport = { synced: 0, failed: 0, remaining: 0, keyRejected: false };
-  if (!acquireLock(p)) { rep.remaining = listJobs(p).length; rep.locked = true; return rep; }
+  const token = acquireLock(p);
+  if (!token) {
+    rep.remaining = listJobs(p).length; rep.locked = true;
+    appendLog(p, 'sync-locked', { queued: rep.remaining });
+    return rep;
+  }
   try {
-    const c = new NotesClient({ shipUrl: cfg.shipUrl, apiKey: cfg.apiKey, deadline: Date.now() + o.budgetMs });
+    const c = new NotesClient({ shipUrl: cfg.shipUrl, apiKey: cfg.apiKey, deadline: Date.now() + o.budgetMs,
+      onRequest: () => refreshLock(p, token) });
     let attempted = 0, reachedShip = false, netError: NotesError | undefined;
     for (const job of listJobs(p)) {
       if (now() - start >= o.budgetMs || rep.keyRejected) { rep.remaining++; continue; }
@@ -197,8 +223,9 @@ export async function syncQueue(p: Paths, cfg: Config,
           replaceJob(p, job);
         }
         appendLog(p, 'sync-error', { client: job.client, session: job.sessionId, error: err.message, status: e instanceof NotesError ? e.status : undefined });
+      } finally {
+        refreshLock(p, token); // every path, `continue` included; covers jobs that made no request
       }
-      refreshLock(p);
     }
     if (attempted > 0) {
       const state = rep.keyRejected ? 'key-rejected' : netError ? 'unreachable' : reachedShip ? 'ok' : undefined;
@@ -208,5 +235,5 @@ export async function syncQueue(p: Paths, cfg: Config,
     }
     if (rep.remaining === 0) markInitialized(p); // no-op when present; sessions started from now on skip the recovery search
     return rep;
-  } finally { releaseLock(p); }
+  } finally { releaseLock(p, token); }
 }
