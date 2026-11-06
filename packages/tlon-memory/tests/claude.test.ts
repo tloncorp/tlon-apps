@@ -41,3 +41,11 @@ describe('claude parser', () => {
     expect(t.events[0].text).not.toContain('lidlut');
   });
 });
+
+describe('claude parser known secrets', () => {
+  it('redacts literal known secrets passed by the caller', () => {
+    const t = parseClaudeTranscript(fx, { known: ['README.md'] });
+    expect(JSON.stringify(t.events)).not.toContain('README.md');
+    expect(JSON.stringify(t.events)).toContain('[redacted:known-secret]');
+  });
+});

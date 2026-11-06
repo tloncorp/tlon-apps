@@ -7,6 +7,7 @@ import { Note, NotesClient } from './notes-client';
 import { Paths } from './paths';
 import { Memory, MemoryStatus, MemoryType, parseFrontMatter, parseMemory, renderMemory } from './render';
 import { listSessionStates } from './state';
+import { redact } from './redact';
 
 export interface SaveInput { type: MemoryType; text: string; agent: ClientId; project: string; sessionKey?: string; event?: string }
 export interface MemoryHit extends Memory { id: number; url: string; score: number; updatedAt: number }
@@ -32,7 +33,7 @@ export class MemoryStore {
 
   /** Create a memory note; identical active text in the same project returns the existing note. */
   async save(i: SaveInput): Promise<{ id: number; url: string; created: boolean }> {
-    const text = i.text.trim();
+    const text = redact(i.text.trim(), [this.cfg.apiKey]);
     if (!text) throw new Error('memory text is empty');
     const dup = (await this.memoryNotes()).find((n) => n.memory.status === 'active' && n.memory.project === i.project && n.memory.text === text);
     if (dup) return { id: dup.id, url: this.url(dup.id), created: false };

@@ -20,9 +20,9 @@ export function enqueue(p: Paths, j: Omit<QueueJob, 'enqueuedAt' | 'attempts'>) 
   saveJob(p, { ...j, enqueuedAt: new Date().toISOString(), attempts: 0 });
 }
 
-export function parseTranscript(client: 'claude' | 'codex', path: string, toolIo: boolean): ParsedTranscript {
+export function parseTranscript(client: 'claude' | 'codex', path: string, toolIo: boolean, known: string[] = []): ParsedTranscript {
   if (!existsSync(path)) throw new Error(`transcript not found: ${path}`);
-  return client === 'claude' ? parseClaudeTranscript(path, { toolIo }) : parseCodexTranscript(path, { toolIo });
+  return client === 'claude' ? parseClaudeTranscript(path, { toolIo, known }) : parseCodexTranscript(path, { toolIo, known });
 }
 
 const sha = (parts: string[]) => createHash('sha256').update(parts.join('\u0000')).digest('hex');
@@ -79,7 +79,7 @@ export async function syncQueue(p: Paths, cfg: Config, o: { budgetMs: number; no
     if (job.nextAttemptAt && new Date(job.nextAttemptAt).getTime() > now()) { rep.remaining++; continue; }
     if (rep.keyRejected) { rep.remaining++; continue; }
     try {
-      const t = parseTranscript(job.client, job.transcriptPath, cfg.captureToolIo);
+      const t = parseTranscript(job.client, job.transcriptPath, cfg.captureToolIo, [cfg.apiKey]);
       if (!t.sessionId) throw new Error('transcript has no session id');
       const r = await syncSession(p, cfg, c, t);
       removeJob(p, job); rep.synced++;

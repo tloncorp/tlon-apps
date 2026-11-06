@@ -8,14 +8,14 @@ type Block = { type: string; text?: string; name?: string; id?: string; input?: 
 type Rec = { type?: string; uuid?: string; isSidechain?: boolean; sessionId?: string; cwd?: string;
   timestamp?: string; message?: { role?: string; content?: string | Block[] } };
 
-export interface ParseOptions { toolIo?: boolean }
+export interface ParseOptions { toolIo?: boolean; known?: string[] }
 
 export function parseClaudeTranscript(path: string, opts: ParseOptions = {}): ParsedTranscript {
   const toolIo = opts.toolIo ?? true;
   const omitted = emptyOmissions();
   const events: Event[] = [];
   let sessionId = '', cwd = '', started = '', updated = '';
-  const r = (s: string) => { const o = redact(s); if (o !== s) omitted.redactions++; return o; };
+  const r = (s: string) => { const o = redact(s, opts.known); if (o !== s) omitted.redactions++; return o; };
   const push = (e: Omit<Event, 'anchor'>) => events.push({ anchor: `e${events.length + 1}`, ...e });
 
   for (const line of readFileSync(path, 'utf8').split('\n')) {

@@ -34,3 +34,13 @@ describe('config', () => {
     expect(txt).not.toContain('SECRET');
   });
 });
+
+describe('log redaction', () => {
+  it('redacts secrets that appear in logged values', () => {
+    const p = new Paths(mkdtempSync(join(tmpdir(), 'tm-log-')));
+    appendLog(p, 'sync-error', { error: 'bad header Authorization: Bearer abc.def.ghi' });
+    const txt = readFileSync(p.logFile, 'utf8');
+    expect(txt).toContain('[redacted:bearer]');
+    expect(txt).not.toContain('abc.def.ghi');
+  });
+});

@@ -18,7 +18,7 @@ export function parseCodexTranscript(path: string, opts: ParseOptions = {}): Par
   const omitted = emptyOmissions();
   const events: Event[] = [];
   let sessionId = '', cwd = '', started = '', updated = '';
-  const r = (s: string) => { const o = redact(s); if (o !== s) omitted.redactions++; return o; };
+  const r = (s: string) => { const o = redact(s, opts.known); if (o !== s) omitted.redactions++; return o; };
   const push = (e: Omit<Event, 'anchor'>) => { events.push({ anchor: `e${events.length + 1}`, ...e }); };
   const mark = (ts: string) => { started ||= ts; updated = ts; };
 
