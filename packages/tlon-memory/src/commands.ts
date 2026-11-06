@@ -140,7 +140,7 @@ async function deleteNotes(paths: Paths, cfg: Config, client: NotesClient, args:
 const OWNED = ['config.json', 'state', 'queue', 'log'];
 
 function removeOwned(paths: Paths): string {
-  if (!existsSync(paths.root)) return 'Local config, state and queue removed.';
+  if (!existsSync(paths.root)) return 'No local config, state or queue to remove.';
   for (const f of OWNED) rmSync(join(paths.root, f), { recursive: true, force: true });
   for (const f of readdirSync(paths.root)) if (f.includes('.tmp-')) rmSync(join(paths.root, f), { force: true });
   const left = readdirSync(paths.root);

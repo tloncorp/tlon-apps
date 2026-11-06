@@ -155,6 +155,7 @@ describe('disconnect', () => {
     const r = await run(['disconnect']); expect(r.code).toBe(0);
     expect(r.out).toContain('claude: no hooks or skill to remove');
     expect(r.out).toContain('codex: no hooks or skill to remove · MCP server was not registered');
+    expect(r.out).toContain('No local config, state or queue to remove.');
   });
   it('works with a corrupt config and removes an emptied root', async () => {
     seedClaude(); writeFileSync(paths.configFile, '{ broken');

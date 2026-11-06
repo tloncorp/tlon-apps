@@ -39,13 +39,13 @@ Before you start:
 
 | Step | Pass / fail | Notes |
 |---|---|---|
-| 1. Setup | | |
-| 2. Build, GUI PATH | | |
-| 3. Codex hook trust | | |
-| 4. Claude Code saves a decision | | |
-| 5. Codex finds it, SessionEnd fires | | |
-| 6. Claude Code sees Codex's memory | | |
-| 7. On the ship | | |
-| 8. Pause, offline, retry | | |
-| 9. Revoke and reconnect | | |
-| 10. Export, delete, disconnect | | |
+| 1. Setup | Pass | Run 2, fixed build, from source (no dist). Exit 0, probe found and deleted, full tail printed (notebook URL, capture summary, privacy note). Notebook `Agent Memory (test 2)`. |
+| 2. Build, GUI PATH | Partial | Run 1 only: binary 0.1.0, paths and SKILL.md correct. Not re-run in run 2 (source only). GUI-from-Dock not run. |
+| 3. Codex hook trust | Needs Bill | Trust needs interactive `/hooks`; untrusted hooks confirmed not firing (no codex lines in log, runs 1 and 2). |
+| 4. Claude Code saves a decision | Pass | Run 2, fixed build. Save with type decision, session_key, event e1; result notes the pending link. After Stop: `memories: 1`, 0 pending; memory has source_event e1, source_note, source_url; pending-links file gone. `claude mcp list` logs `hook-no-transcript`, no job. |
+| 5. Codex finds it, SessionEnd fires | Partial | Run 2, fixed build (`-m gpt-5.6-sol`): search returned `source: claude-code:<id> e1 <url>`, get_conversation from e1 started at e1, next-step saved. Needs Bill: hooks untrusted, so no codex: key, no Codex note, SessionEnd untested. |
+| 6. Claude Code sees Codex's memory | Partial | Run 2, fixed build: `tlon_list_recent` lists the Codex next-step; no source link (Codex hooks untrusted). |
+| 7. On the ship | Partial | Run 1 (via API): edit via `tlon_update_memory` then search returned new text. Run 2: decision memory front matter has all source fields. No Codex conversation note (hooks untrusted). UI not opened. |
+| 8. Pause, offline, retry | Pass | Pause tested in run 1. Run 2, fixed build: offline simulated (shipUrl 127.0.0.1:9); attempts=2 then attempts=4 with last error after a resumed second turn; `memories: unknown (ship unreachable: …)`; after restore `synced 1, failed 0, remaining 0`, one note per session_key. |
+| 9. Revoke and reconnect | Pass | Run 1 only (key rotated once): KEY REJECTED line, `connection: key-rejected`, `--reconnect` then `synced 2, failed 0, remaining 0`. Not re-run in run 2. |
+| 10. Export, delete, disconnect | Pass | Run 2, fixed build: export 0700/0600 with no key or +code; `delete --all` printed `Deleted 5 notes.`; second disconnect printed `no hooks or skill to remove · MCP server was not registered` for both; hook files JSON-equal to originals, no `.bak-tlon-memory`, MCP/skills/~/.tlon/memory gone. |
