@@ -1,4 +1,5 @@
 // src/main.ts
+import { UsageError } from './cli-util';
 import { VERSION } from './version';
 
 export const USAGE = `Usage: tlon-memory <command>
@@ -21,16 +22,22 @@ export async function main(argv: string[]): Promise<number> {
     console.log(`tlon-memory ${VERSION}`);
     return 0;
   }
-  switch (cmd) {
-    case 'setup': return (await import('./setup')).setup(rest);
-    case 'hook': return (await import('./hook')).hook(rest);
-    case 'mcp': return (await import('./mcp')).serve();
-    case 'status': case 'pause': case 'resume': case 'scope': case 'sync':
-    case 'export': case 'delete': case 'disconnect':
-      return (await import('./commands')).command(cmd, rest);
-    default:
-      process.stderr.write(USAGE);
-      return 2;
+  try {
+    switch (cmd) {
+      case 'setup': return await (await import('./setup')).setup(rest);
+      case 'hook': return await (await import('./hook')).hook(rest);
+      case 'mcp': return await (await import('./mcp')).serve();
+      case 'status': case 'pause': case 'resume': case 'scope': case 'sync':
+      case 'export': case 'delete': case 'disconnect':
+        return await (await import('./commands')).command(cmd, rest);
+      default:
+        process.stderr.write(USAGE);
+        return 2;
+    }
+  } catch (e) {
+    if (!(e instanceof UsageError)) throw e;
+    process.stderr.write(`tlon-memory: ${e.message}\n`);
+    return 2;
   }
 }
 

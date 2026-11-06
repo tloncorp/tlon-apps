@@ -1,4 +1,5 @@
 // src/hook.ts
+import { readStdin } from './cli-util';
 import { Config, isInScope, loadConfig } from './config';
 import { appendLog } from './log';
 import { Paths } from './paths';
@@ -8,12 +9,6 @@ import { clientId, enqueue, syncQueue } from './sync';
 
 type Client = 'claude' | 'codex';
 interface Payload { session_id?: string; transcript_path?: string | null; cwd?: string; hook_event_name?: string; reason?: string }
-
-async function readStdin(): Promise<string> {
-  const chunks: Buffer[] = [];
-  for await (const c of process.stdin) chunks.push(Buffer.from(c));
-  return Buffer.concat(chunks).toString('utf8');
-}
 
 export const DEFAULT_BUDGET_MS = 15_000;
 export function budgetFromEnv(v = process.env.TLON_MEMORY_SYNC_BUDGET_MS): number {

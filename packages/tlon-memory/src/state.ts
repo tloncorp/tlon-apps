@@ -1,6 +1,7 @@
 // src/state.ts
 import { existsSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { safeName } from './cli-util';
 import { Paths, writePrivate } from './paths';
 import { ClientId } from './events';
 import { appendLog } from './log';
@@ -18,9 +19,8 @@ export interface SessionState {
 export interface QueueJob { client: 'claude' | 'codex'; sessionId: string; transcriptPath: string; cwd: string;
   enqueuedAt: string; attempts: number; lastError?: string; nextAttemptAt?: string }
 
-const safe = (s: string) => s.replace(/[^A-Za-z0-9._-]/g, '_');
 const SESSION_FILE = /^(claude-code|codex)-.+\.json$/;
-export const stateFile = (p: Paths, client: ClientId, sessionId: string) => join(p.stateDir, `${client}-${safe(sessionId)}.json`);
+export const stateFile = (p: Paths, client: ClientId, sessionId: string) => join(p.stateDir, `${client}-${safeName(sessionId)}.json`);
 
 /** Parse a JSON file; an unreadable one is logged and skipped so one bad file cannot stop the hook or the queue. */
 function readJson<T>(p: Paths, f: string): T | null {
@@ -43,7 +43,7 @@ export function listSessionStates(p: Paths): SessionState[] {
 export const isInitialized = (p: Paths) => existsSync(p.initializedMarker);
 export function markInitialized(p: Paths) { p.ensure(); if (!isInitialized(p)) writeFileSync(p.initializedMarker, new Date().toISOString() + '\n', { mode: 0o600 }); }
 
-export const queueFile = (p: Paths, j: Pick<QueueJob, 'client' | 'sessionId'>) => join(p.queueDir, `${j.client}-${safe(j.sessionId)}.json`);
+export const queueFile = (p: Paths, j: Pick<QueueJob, 'client' | 'sessionId'>) => join(p.queueDir, `${j.client}-${safeName(j.sessionId)}.json`);
 export function saveJob(p: Paths, j: QueueJob) { p.ensure(); writePrivate(queueFile(p, j), JSON.stringify(j, null, 2)); }
 /** Remove a finished job unless the hook re-enqueued it (new enqueuedAt) while it was being synced. */
 export function removeJob(p: Paths, j: QueueJob): boolean {

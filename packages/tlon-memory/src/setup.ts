@@ -2,13 +2,14 @@
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { flag, has } from './cli-util';
 import { Config, defaultConfig, loadConfig, saveConfig } from './config';
 import { detectClient, installClient } from './clients';
 import { MemoryStore } from './memory';
 import { ensureNotebook, noteUrl } from './notebook';
 import { NotesClient, NotesError } from './notes-client';
 import { Paths } from './paths';
-import { ask, askHidden, confirm, readLineFromStdin } from './prompt';
+import { ask, askHidden, confirm, readSecret } from './prompt';
 import { markInitialized } from './state';
 import { saveConnection } from './status';
 
@@ -35,8 +36,6 @@ is summarized. Details: README.md.
 export const PRIVACY_NOTE = `Note: when an agent retrieves Tlon content, that content is sent to the model provider
 configured for that client (Anthropic for Claude Code, OpenAI for Codex).`;
 
-function flag(args: string[], name: string): string | undefined { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : undefined; }
-const has = (args: string[], name: string) => args.includes(name);
 
 export async function setup(args: string[]): Promise<number> {
   const paths = new Paths(); const yes = has(args, '--yes');
@@ -62,8 +61,8 @@ export async function setup(args: string[]): Promise<number> {
 
   // 2. credential (paste key, or +code once)
   let apiKey: string;
-  if (has(args, '--api-key-stdin')) apiKey = await readLineFromStdin();
-  else if (has(args, '--code-stdin')) apiKey = await NotesClient.apiKeyFromCode(cfg.shipUrl, await readLineFromStdin()).catch((e) => { throw new Error(`could not fetch the API key with +code: ${e.message}`); });
+  if (has(args, '--api-key-stdin')) apiKey = await readSecret('Notes API key:', '--api-key-stdin');
+  else if (has(args, '--code-stdin')) apiKey = await NotesClient.apiKeyFromCode(cfg.shipUrl, await readSecret('+code:', '--code-stdin')).catch((e) => { throw new Error(`could not fetch the API key with +code: ${e.message}`); });
   else {
     out('\nHow do you want to authorize?\n  1) paste your Notes API key\n  2) enter your +code once (used only to fetch the key, then discarded)');
     const choice = await ask('Choice:', '2');

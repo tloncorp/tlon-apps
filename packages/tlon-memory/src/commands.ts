@@ -2,6 +2,7 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { flag, safeName } from './cli-util';
 import { uninstallClient } from './clients';
 import { loadConfig, requireConfig, saveConfig } from './config';
 import { NotesClient } from './notes-client';
@@ -13,9 +14,7 @@ import { loadConnection, statusLine } from './status';
 import { syncQueue } from './sync';
 import { BIN_PATH, SKILL_SOURCE } from './setup';
 
-const flag = (a: string[], n: string) => { const i = a.indexOf(n); return i >= 0 ? a[i + 1] : undefined; };
 const out = (s: string) => process.stdout.write(s + '\n');
-const safeName = (s: string) => s.replace(/[^A-Za-z0-9._ ~-]/g, '_').slice(0, 100);
 
 export async function command(cmd: string, args: string[]): Promise<number> {
   const paths = new Paths();
@@ -51,7 +50,7 @@ export async function command(cmd: string, args: string[]): Promise<number> {
       mkdirSync(join(dir, 'conversations'), { recursive: true }); mkdirSync(join(dir, 'memories'), { recursive: true });
       const notes = (await client.listNotes(nb.host, nb.name)).filter((n) => n.folderId === nb.conversationsFolderId || n.folderId === nb.memoriesFolderId);
       const index = notes.map((n) => { const kind = n.folderId === nb.memoriesFolderId ? 'memories' : 'conversations';
-        const file = join(dir, kind, `${n.id}-${safeName(n.title)}.md`); writeFileSync(file, n.bodyMd);
+        const file = join(dir, kind, `${n.id}-${safeName(n.title).slice(0, 100)}.md`); writeFileSync(file, n.bodyMd);
         return { id: n.id, kind, title: n.title, file, revision: n.revision, updatedAt: n.updatedAt, session_key: parseFrontMatter(n.bodyMd).fields.session_key }; });
       writeFileSync(join(dir, 'index.json'), JSON.stringify({ exportedAt: new Date().toISOString(), ship: cfg.ship, notebook: `${nb.host}/${nb.name}`, notes: index }, null, 2));
       out(`Exported ${index.length} notes to ${dir}`); return 0;
