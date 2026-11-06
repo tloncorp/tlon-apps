@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path';
 import { UsageError, flag, has, safeName } from './cli-util';
 import { ClientName, Config, loadConfig, requireConfig, saveConfig } from './config';
 import { MEMORY_SCAN, MemoryStore } from './memory';
+import { notebookUrl } from './notebook';
 import { NotesClient, NotesError, SEARCH_HORIZON_NOTE } from './notes-client';
 import { Paths, writePrivate } from './paths';
 import { askHidden, confirm } from './prompt';
@@ -44,7 +45,7 @@ export async function command(cmd: string, args: string[]): Promise<number> {
       counts += ` · conversations synced from this device: ${conversations}`;
       const conn = loadConnection(paths);
       out(statusLine(cfg, conn, process.cwd(), jobs.length));
-      out(`ship: ${cfg.ship} (${cfg.shipUrl}) · notebook: ${nb.host}/${nb.name} · ${counts}`);
+      out(`ship: ${cfg.ship} (${cfg.shipUrl}) · notebook: ${notebookUrl(cfg.shipUrl, nb)} · ${counts}`);
       out(`scopes: ${cfg.scopes.join(', ') || '(none)'} · tool I/O: ${cfg.captureToolIo ? 'included' : 'off'}`);
       for (const j of jobs) out(`  pending: ${j.client} ${j.sessionId} attempts=${j.attempts}${j.lastError ? ' last error: ' + j.lastError : ''}`);
       out(`${SEARCH_HORIZON_NOTE}.`);

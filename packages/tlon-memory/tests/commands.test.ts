@@ -37,6 +37,7 @@ describe('commands', () => {
     fake.requests.length = 0;
     const r = await run(['status']); expect(r.code).toBe(0);
     expect(r.out).toContain('~zod'); expect(r.out).toContain('/Users/bill/Projects/demo');
+    expect(r.out).toContain(`notebook: ${fake.url}/notes/nb/${cfg.notebook!.host}/${cfg.notebook!.name} ·`);
     expect(r.out).toContain('memories: 1'); expect(r.out).toContain('conversations synced from this device: 1'); expect(r.out).not.toContain('test-key');
     expect(fake.requests.some((q) => q.method === 'GET' && /\/notes$/.test(q.path.split('?')[0]))).toBe(false);
     expect(r.out).toContain('newest 2000 notes'); expect(r.out).not.toContain('scan truncated');

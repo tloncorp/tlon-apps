@@ -2695,7 +2695,7 @@ async function command(cmd, args) {
       counts += ` · conversations synced from this device: ${conversations}`;
       const conn = loadConnection(paths);
       out2(statusLine(cfg, conn, process.cwd(), jobs.length));
-      out2(`ship: ${cfg.ship} (${cfg.shipUrl}) · notebook: ${nb.host}/${nb.name} · ${counts}`);
+      out2(`ship: ${cfg.ship} (${cfg.shipUrl}) · notebook: ${notebookUrl(cfg.shipUrl, nb)} · ${counts}`);
       out2(`scopes: ${cfg.scopes.join(", ") || "(none)"} · tool I/O: ${cfg.captureToolIo ? "included" : "off"}`);
       for (const j of jobs)
         out2(`  pending: ${j.client} ${j.sessionId} attempts=${j.attempts}${j.lastError ? " last error: " + j.lastError : ""}`);
@@ -2890,6 +2890,7 @@ var init_commands = __esm(() => {
   init_cli_util();
   init_config();
   init_memory();
+  init_notebook();
   init_notes_client();
   init_paths();
   init_prompt();

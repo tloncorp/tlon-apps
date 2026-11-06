@@ -58,6 +58,14 @@ describe('plugin manifests', () => {
     for (const p of [codex.skills, codex.mcpServers, codex.hooks]) expect(existsSync(join(root, p))).toBe(true);
     expect(existsSync(join(root, 'skills', 'tlon-memory', 'SKILL.md'))).toBe(true);
   });
+  it('onboarding is a Claude command and, for Codex, a skill with the same instructions', () => {
+    const split = (f: string) => readFileSync(join(root, f), 'utf8').match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/)!.slice(1);
+    const [cmdMeta, cmdBody] = split('commands/onboard.md'), [skillMeta, skillBody] = split('skills/tlon-memory-onboard/SKILL.md');
+    expect(skillBody).toBe(cmdBody);
+    expect(cmdMeta).toStartWith('description: '); expect(skillMeta).toStartWith('name: tlon-memory-onboard\ndescription: "');
+    for (const s of ['setup --connect --scope', 'status', '/hooks', 'https://tlon.network/signup?source=agent']) expect(cmdBody).toContain(s);
+    expect(cmdBody.split('\n').length).toBeLessThan(60);
+  });
   it('hooks keep their per-client timeouts', () => {
     const timeouts = (f: string) => Object.fromEntries(Object.entries(json(f).hooks).map(([e, v]: [string, any]) => [e, v[0].hooks[0].timeout]));
     expect(timeouts('hooks/hooks.json')).toEqual({ SessionStart: 5, Stop: 20, SessionEnd: 20 });
