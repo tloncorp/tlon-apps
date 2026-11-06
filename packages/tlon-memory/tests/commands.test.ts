@@ -41,6 +41,13 @@ describe('commands', () => {
     expect(r.out).toContain('~zod'); expect(r.out).toContain('/Users/bill/Projects/demo');
     expect(r.out).toContain('memories: 1'); expect(r.out).toContain('conversations synced from this device: 1'); expect(r.out).not.toContain('test-key');
     expect(fake.requests.some((q) => q.method === 'GET' && /\/notes$/.test(q.path.split('?')[0]))).toBe(false);
+    expect(r.out).toContain('newest 2000 notes'); expect(r.out).not.toContain('scan truncated');
+  });
+  it('status says when the memory scan hit the search horizon', async () => {
+    const nb = cfg.notebook!; const nbId = [...fake.notebooks.values()][0].id;
+    for (let i = 0; i < 2050; i++) fake.notes.set(60_000 + i, { id: 60_000 + i, notebookId: nbId, folderId: nb.conversationsFolderId, title: 't', slug: null, bodyMd: 'x', createdBy: '~zod', createdAt: 1, updatedBy: '~zod', updatedAt: 1, revision: 1 });
+    const r = await run(['status']);
+    expect(r.out).toContain('scan truncated');
   });
   it('pause/resume toggle and scope add/remove/list', async () => {
     expect((await run(['pause'])).out).toContain('paused'); expect(loadConfig(paths)!.paused).toBe(true);

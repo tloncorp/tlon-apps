@@ -5,6 +5,7 @@ import { Config, loadConfig } from './config';
 import { appendLog } from './log';
 import { ClientId } from './events';
 import { MemoryStore, projectOf } from './memory';
+import { SEARCH_HORIZON_NOTE } from './notes-client';
 import { Paths } from './paths';
 import { MEMORY_TYPES } from './render';
 import { listJobs } from './state';
@@ -158,7 +159,7 @@ export async function callTool(name: string, raw: unknown, cfg: Config, paths: P
       const rows = await store.listRecent(kind, a.clamp('limit', 25, 10));
       return framed(`${rows.length} recent ${kind}:`, rows.map((r) => r.memory ? fmtMemory({ ...r.memory, id: r.id, url: r.url }) : `${r.sessionKey ?? '?'} · ${r.title} · note ${r.id} · ${r.url}`));
     }
-    case 'tlon_status': return statusLine(cfg, loadConnection(paths), cwd, listJobs(paths).length);
+    case 'tlon_status': return `${statusLine(cfg, loadConnection(paths), cwd, listJobs(paths).length)}\nNote: ${SEARCH_HORIZON_NOTE}; older notes are not found by search.`;
     default: { const e: any = new Error(`unknown tool ${name}`); e.code = -32602; throw e; }
   }
 }

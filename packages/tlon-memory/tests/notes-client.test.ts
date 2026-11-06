@@ -1,7 +1,7 @@
 // tests/notes-client.test.ts
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { FakeNotes } from './fake-notes-server';
-import { NotesClient, NotesError } from '../src/notes-client';
+import { NotesClient, NotesError, SEARCH_HORIZON } from '../src/notes-client';
 
 const fake = new FakeNotes();
 beforeAll(() => fake.start());
@@ -28,9 +28,21 @@ describe('NotesClient', () => {
     expect((await c.getNote(nb.host, nb.flagName, n.id)).bodyMd).toBe('body v2');
     expect((await c.listNotes(nb.host, nb.flagName)).length).toBe(1);
     const hits = await c.searchText(nb.host, nb.flagName, 'v2');
-    expect(hits.map((h) => h.id)).toEqual([n.id]);
+    expect(hits.notes.map((h) => h.id)).toEqual([n.id]);
+    expect(hits.truncated).toBe(false);
     await c.deleteNote(nb.host, nb.flagName, n.id);
     expect((await c.listNotes(nb.host, nb.flagName)).length).toBe(0);
+  });
+  it('flags a search that stopped at the scan horizon', async () => {
+    const nb = await c.createNotebook('Big');
+    const f = await c.createFolder(nb.host, nb.flagName, 'f', nb.rootFolderId);
+    const nbId = [...fake.notebooks.values()].find((x) => x.flagName === nb.flagName)!.id;
+    for (let i = 0; i < SEARCH_HORIZON + 50; i++) { const id = 50_000 + i;
+      fake.notes.set(id, { id, notebookId: nbId, folderId: f, title: 't', slug: null, bodyMd: i === 0 ? 'needle-old' : 'x', createdBy: '~zod', createdAt: 1, updatedBy: '~zod', updatedAt: 1, revision: 1 }); }
+    const r = await c.searchText(nb.host, nb.flagName, 'needle-old');
+    expect(r.truncated).toBe(true);
+    expect(r.notes).toEqual([]); // the oldest note is past the horizon
+    for (let i = 0; i < SEARCH_HORIZON + 50; i++) fake.notes.delete(50_000 + i);
   });
   it('maps 401/403 to KeyRejected and 5xx to Unreachable', async () => {
     const bad = new NotesClient({ shipUrl: fake.url, apiKey: 'wrong' });

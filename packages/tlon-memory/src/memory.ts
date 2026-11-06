@@ -34,10 +34,13 @@ export class MemoryStore {
   private url(id: number) { return noteUrl(this.cfg.shipUrl, this.nb, id); }
 
   /** Up to MEMORY_SCAN memory notes, found by text search so conversation bodies are not downloaded. */
-  async memoryNotes(): Promise<(Note & { memory: Memory })[]> {
-    const notes = await this.c.searchText(this.nb.host, this.nb.name, 'tlon-memory: memory/v1', MEMORY_SCAN);
-    return notes.filter((n) => n.folderId === this.nb.memoriesFolderId)
+  async memoryNotes(): Promise<(Note & { memory: Memory })[]> { return (await this.memoryScan()).notes; }
+  /** memoryNotes, plus whether the search stopped at its horizon (older memories were not seen). */
+  async memoryScan(): Promise<{ notes: (Note & { memory: Memory })[]; truncated: boolean }> {
+    const r = await this.c.searchText(this.nb.host, this.nb.name, 'tlon-memory: memory/v1', MEMORY_SCAN);
+    const notes = r.notes.filter((n) => n.folderId === this.nb.memoriesFolderId)
       .map((n) => ({ ...n, memory: parseMemory(n.bodyMd)! })).filter((n) => n.memory);
+    return { notes, truncated: r.truncated };
   }
 
   /** The session's parts in order, from local sync state or, without it, from an exact session_key search. */
@@ -112,14 +115,14 @@ export class MemoryStore {
       return local.sort((a, b) => b.lastSynced.localeCompare(a.lastSynced)).slice(0, n)
         .map((s) => ({ id: s.noteIds[0], title: s.title, url: this.url(s.noteIds[0]), updatedAt: Math.floor(Date.parse(s.lastSynced) / 1000), sessionKey: `${s.client}:${s.sessionId}` }));
     }
-    return (await this.c.searchText(this.nb.host, this.nb.name, 'tlon-memory: conversation/v1', n))
+    return (await this.c.searchText(this.nb.host, this.nb.name, 'tlon-memory: conversation/v1', n)).notes
       .filter((x) => x.folderId === this.nb.conversationsFolderId && partOf(parseFrontMatter(x.bodyMd).fields).part === 1)
       .sort((a, b) => b.updatedAt - a.updatedAt)
       .map((x) => ({ id: x.id, title: x.title, url: this.url(x.id), updatedAt: x.updatedAt, sessionKey: parseFrontMatter(x.bodyMd).fields.session_key }));
   }
 
   async searchHistory(q: { query: string; client?: ClientId; limit?: number }): Promise<HistoryHit[]> {
-    const hits = await this.c.searchText(this.nb.host, this.nb.name, q.query, cap(q.limit, 10));
+    const hits = (await this.c.searchText(this.nb.host, this.nb.name, q.query, cap(q.limit, 10))).notes;
     const out: HistoryHit[] = [];
     for (const n of hits) {
       if (n.folderId !== this.nb.conversationsFolderId) continue;

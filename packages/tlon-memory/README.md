@@ -111,7 +111,7 @@ Codex skips new hooks until you trust them. After setup, start Codex, run `/hook
 
 ### Verify
 
-- `tlon-memory status` prints the status line, the ship and notebook, the number of memories (shown as `200+` past 200), the number of conversations synced from this device, scopes, tool I/O, configured clients, and any pending uploads with their last error.
+- `tlon-memory status` prints the status line, the ship and notebook, the number of memories (shown as `200+` past 200, and marked `scan truncated` when the notebook is larger than the search horizon, so older memories were not counted), the number of conversations synced from this device, scopes, tool I/O, configured clients, any pending uploads with their last error, and the search horizon.
 - Start a session in a captured directory. The agent's context begins with a line like:
 
   ```
@@ -119,7 +119,7 @@ Codex skips new hooks until you trust them. After setup, start Codex, run `/hook
   ```
 
   The `session` value is what the agent passes as `session_key` when it saves a memory. Outside a captured directory the line says `capture OFF for <dir> (not in scope)`. When paused it says `capture PAUSED`.
-- Ask the agent to call `tlon_status`. It returns the same line, without the session value.
+- Ask the agent to call `tlon_status`. It returns the same line, without the session value, and a note on the search horizon.
 - `claude mcp list` and `codex mcp list` should show `tlon-memory`.
 
 ### GUI apps and PATH
@@ -215,7 +215,7 @@ Search ranks memories by word overlap with your query and by recency. By default
 | `tlon_search_history` | `query`, `client` (`claude-code` or `codex`), `limit` (up to 25) | Conversations containing the text, with session key, snippet and link |
 | `tlon_get_conversation` | `session_key` or `note_id`, `from_event`, `max_chars` (up to 20,000, default 8,000) | An excerpt of one part, starting at `from_event` if given |
 | `tlon_list_recent` | `kind` (`memories` or `conversations`), `limit` (up to 25) | Recent items |
-| `tlon_status` | none | The status line |
+| `tlon_status` | none | The status line and the search horizon |
 
 Every argument is checked before use. Session keys must look like `claude-code:<id>` or `codex:<id>`, anchors like `e17`, ids must be positive integers.
 
@@ -276,6 +276,7 @@ The log (`~/.tlon/memory/log`) only records an allow-listed set of fields (statu
 
 - **The key covers all Notes on your ship.** It is a single ship-wide key, not one per notebook or per client. Revoking it affects everything that uses it. Narrower keys need a change to the Notes backend.
 - **Search is simple.** Memory search ranks by word overlap and recency, with no full-text index or embeddings. It looks at most at 200 memory notes. Conversation search uses the ship's substring search, which scans the notebook note by note, so it gets slower as the notebook grows.
+- **Search horizon.** Every text search (memories, conversation history, and the `session_key` lookup used to recover lost local state) scans only the newest 2000 notes in the notebook: 20 requests of 100 notes each. Older notes are not found. `tlon-memory status` says `scan truncated` when the memory count stopped at this horizon. Recovering a session whose notes are older than the horizon creates new notes instead of updating the old ones.
 - **`tlon_list_recent` with `conversations`** lists conversations synced from this device, from local state. It only asks the ship when this device has none.
 - **Not captured:** subagent transcripts, attachments and thinking.
 - **Local MCP server only.** Each machine needs its own install. There is no hosted MCP endpoint.

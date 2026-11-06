@@ -65,6 +65,7 @@ describe('mcp server', () => {
   it('reports status and validates input', async () => {
     const st = await rpc('tools/call', { name: 'tlon_status', arguments: {} });
     expect(st.result.content[0].text).toContain('connected as ~zod');
+    expect(st.result.content[0].text).toContain('newest 2000 notes');
     const bad = await rpc('tools/call', { name: 'tlon_save_memory', arguments: { type: 'nonsense', text: 'x' } });
     expect(bad.result.isError).toBe(true);
     const unknown = await rpc('tools/call', { name: 'nope', arguments: {} });

@@ -11,6 +11,11 @@ export type UpdateResult =
   | { kind: 'no-change'; revision?: undefined }
   | { kind: 'conflict'; revision?: undefined };
 
+export interface SearchResult { notes: Note[]; truncated: boolean }
+/** Text search scans newest notes first, SEARCH_PAGE_SIZE per request, for at most SEARCH_PAGES requests. */
+export const SEARCH_PAGES = 20, SEARCH_PAGE_SIZE = 100, SEARCH_HORIZON = SEARCH_PAGES * SEARCH_PAGE_SIZE;
+export const SEARCH_HORIZON_NOTE = `search covers the newest ${SEARCH_HORIZON} notes in the notebook (${SEARCH_PAGES} pages × ${SEARCH_PAGE_SIZE})`;
+
 const enc = (s: string) => encodeURIComponent(s);
 const REQUEST_TIMEOUT_MS = 25_000;
 export const DEADLINE_EXCEEDED = 'deadline exceeded';
@@ -144,16 +149,20 @@ export class NotesClient {
   async deleteNote(host: string, name: string, id: number): Promise<void> {
     this.unwrap(await this.req('DELETE', `/notes/~/v1/notebooks/${enc(host)}/${enc(name)}/notes/${id}`));
   }
-  /** Bounded substring search; pages until `last === 0` or `max` hits. */
-  async searchText(host: string, name: string, needle: string, max = 25): Promise<Note[]> {
-    const out: Note[] = []; let from = 0;
-    for (let i = 0; i < 20; i++) {
-      const r = await this.req('GET', `/notes/~/v1/notebooks/${enc(host)}/${enc(name)}/search/bounded/text?needle=${enc(needle)}&from=${from}&tries=100`);
+  /**
+   * Bounded substring search, newest notes first; pages until `last === 0` or `max` hits. It scans at most
+   * SEARCH_PAGES × SEARCH_PAGE_SIZE notes: `truncated` says older notes were left unscanned.
+   */
+  async searchText(host: string, name: string, needle: string, max = 25): Promise<SearchResult> {
+    const out: Note[] = []; let from = 0; let truncated = false;
+    for (let i = 0; i < SEARCH_PAGES; i++) {
+      const r = await this.req('GET', `/notes/~/v1/notebooks/${enc(host)}/${enc(name)}/search/bounded/text?needle=${enc(needle)}&from=${from}&tries=${SEARCH_PAGE_SIZE}`);
       out.push(...asArray<Note>(r?.notes, 'search'));
       if (!r.last || out.length >= max) break;
       from = r.last;
+      if (i === SEARCH_PAGES - 1) truncated = true;
     }
-    return out.slice(0, max);
+    return { notes: out.slice(0, max), truncated };
   }
 
   /** Setup only: exchange +code for the Notes API key. The cookie and code are discarded. */

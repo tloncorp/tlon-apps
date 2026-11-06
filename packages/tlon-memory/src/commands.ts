@@ -6,7 +6,7 @@ import { UsageError, flag, has, safeName } from './cli-util';
 import { Client, uninstallClient } from './clients';
 import { Config, loadConfig, requireConfig, saveConfig } from './config';
 import { MEMORY_SCAN, MemoryStore } from './memory';
-import { NotesClient } from './notes-client';
+import { NotesClient, SEARCH_HORIZON_NOTE } from './notes-client';
 import { Paths, writePrivate } from './paths';
 import { askHidden, confirm } from './prompt';
 import { parseFrontMatter } from './render';
@@ -33,7 +33,10 @@ export async function command(cmd: string, args: string[]): Promise<number> {
       const jobs = listJobs(paths);
       const conversations = listSessionStates(paths).filter((s) => s.noteIds[0] != null).length;
       let counts: string;
-      try { const m = (await new MemoryStore(paths, cfg).memoryNotes()).length; counts = `memories: ${m >= MEMORY_SCAN ? `${MEMORY_SCAN}+` : m}`; }
+      try {
+        const scan = await new MemoryStore(paths, cfg).memoryScan(); const m = scan.notes.length;
+        counts = `memories: ${m >= MEMORY_SCAN ? `${MEMORY_SCAN}+` : m}${scan.truncated ? ` (scan truncated: older notes not searched)` : ''}`;
+      }
       catch (e) { counts = `ship unreachable: ${msg(e)}`; }
       counts += ` · conversations synced from this device: ${conversations}`;
       const conn = loadConnection(paths);
@@ -41,6 +44,7 @@ export async function command(cmd: string, args: string[]): Promise<number> {
       out(`ship: ${cfg.ship} (${cfg.shipUrl}) · notebook: ${nb.host}/${nb.name} · ${counts}`);
       out(`scopes: ${cfg.scopes.join(', ') || '(none)'} · tool I/O: ${cfg.captureToolIo ? 'included' : 'off'} · clients: ${Object.keys(cfg.clients).join(', ') || 'none'}`);
       for (const j of jobs) out(`  pending: ${j.client} ${j.sessionId} attempts=${j.attempts}${j.lastError ? ' last error: ' + j.lastError : ''}`);
+      out(`${SEARCH_HORIZON_NOTE}.`);
       if (conn.state !== 'ok') out(`connection: ${conn.state}${conn.lastError ? ' — ' + conn.lastError : ''}`);
       return 0;
     }

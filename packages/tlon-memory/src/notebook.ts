@@ -34,7 +34,7 @@ export interface SessionNote extends Note { part: number; parts: number; first?:
  * Substring search alone would also match keys that merely start with this one.
  */
 export async function findSessionNotes(c: NotesClient, nb: NotebookInfo, key: string): Promise<SessionNote[]> {
-  const hits = await c.searchText(nb.host, nb.name, `session_key: ${key}`, 50);
+  const hits = (await c.searchText(nb.host, nb.name, `session_key: ${key}`, 50)).notes;
   const byPart = new Map<number, SessionNote>();
   for (const n of hits.filter((h) => h.folderId === nb.conversationsFolderId).sort((a, b) => a.id - b.id)) {
     const f = parseFrontMatter(n.bodyMd).fields;
