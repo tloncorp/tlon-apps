@@ -8,7 +8,7 @@ import { noteUrl } from './notebook';
 import { Paths } from './paths';
 import { renderConversation, sessionKey } from './render';
 import { listJobs, loadJob, loadSessionState } from './state';
-import { clientId, enqueue, parseTranscript, syncQueue } from './sync';
+import { SyncReport, clientId, enqueue, parseTranscript, syncQueue } from './sync';
 import { SESSION_KEY, clientOfKey, detectClient, findTranscript, listTranscripts, peekTranscript } from './transcripts';
 
 /** What an import needs of a transcript. `--all` holds one per session, so never the parsed transcript itself. */
@@ -41,18 +41,20 @@ export async function importSessions(paths: Paths, cfg: Config, list: Prepared[]
   const queued = () => list.filter((p) => loadJob(paths, p)).length;
   const deadline = Date.now() + budgetMs;
   let locked = false;
+  const dropped: SyncReport['dropped'] = [];
   for (let left = budgetMs; left > 0; left = deadline - Date.now()) {
     const r = await syncQueue(paths, cfg, { budgetMs: left, ignoreBackoff: true });
     if (r.locked) { locked = true; break; }
+    dropped.push(...r.dropped);
     if (!queued() || !r.synced) break;
   }
   const outcomes = list.map((p, i): Outcome => {
     const key = keyOf(p);
     const job = loadJob(paths, p);
     if (job) return job.attempts > before[i].attempts ? { key, kind: 'failed', error: job.lastError } : { key, kind: 'remaining' };
-    const st = loadSessionState(paths, clientId(p.client), p.sessionId);
-    // The queue dropped the job without syncing: the transcript vanished, or it failed too often.
-    if (!st) return { key, kind: 'failed', error: 'dropped from the queue; see the log' };
+    const drop = dropped.find((d) => d.client === p.client && d.sessionId === p.sessionId);
+    if (drop) return { key, kind: 'failed', error: drop.reason };
+    const st = loadSessionState(paths, clientId(p.client), p.sessionId)!;
     return { key, kind: st.lastSynced === before[i].synced ? 'unchanged' : 'uploaded', parts: st.noteIds.length, url: noteUrl(cfg.shipUrl, cfg.notebook!, st.noteIds[0]) };
   });
   return { outcomes, locked };

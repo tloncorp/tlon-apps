@@ -155,7 +155,9 @@ async function linkMemory(p: Paths, cfg: Config, c: NotesClient, id: number, not
   return false;
 }
 
-export interface SyncReport { synced: number; failed: number; remaining: number; keyRejected: boolean; locked?: boolean; lastError?: string }
+/** `dropped`: jobs removed without an upload (transcript gone, or too many failures), with the reason. */
+export interface SyncReport { synced: number; failed: number; remaining: number; keyRejected: boolean; locked?: boolean; lastError?: string;
+  dropped: { client: QueueJob['client']; sessionId: string; reason: string }[] }
 
 const BACKOFF_MS = [0, 30_000, 120_000, 600_000, 3_600_000]; // the last delay (1 h) repeats
 /** Deterministic failures before a job is dropped. Transient ones (ship unreachable, key rejected) never drop it. */
@@ -219,7 +221,7 @@ function releaseLock(p: Paths, token: string) {
 export async function syncQueue(p: Paths, cfg: Config,
   o: { budgetMs: number; now?: () => number; ignoreBackoff?: boolean } = { budgetMs: 15_000 }): Promise<SyncReport> {
   const now = o.now ?? Date.now; const start = now();
-  const rep: SyncReport = { synced: 0, failed: 0, remaining: 0, keyRejected: false };
+  const rep: SyncReport = { synced: 0, failed: 0, remaining: 0, keyRejected: false, dropped: [] };
   const token = acquireLock(p);
   if (!token) {
     rep.remaining = listJobs(p).length; rep.locked = true;
@@ -246,7 +248,7 @@ export async function syncQueue(p: Paths, cfg: Config,
         if (isDeadline(e)) { rep.remaining++; continue; } // out of time, not a failure: retry next run without backoff
         // Transcript gone: nothing left to upload. An ENOENT about any other file is an ordinary failure.
         if ((e as NodeJS.ErrnoException).code === 'ENOENT' && !existsSync(job.transcriptPath)) {
-          removeJob(p, job);
+          removeJob(p, job); rep.dropped.push({ client: job.client, sessionId: job.sessionId, reason: 'transcript removed' });
           appendLog(p, 'sync-drop', { client: job.client, session: job.sessionId, error: err.message });
           continue;
         }
@@ -256,7 +258,7 @@ export async function syncQueue(p: Paths, cfg: Config,
         job.attempts++; job.lastError = err.message.slice(0, 200);
         if (!isTransient(e)) job.hardFailures = (job.hardFailures ?? 0) + 1;
         if ((job.hardFailures ?? 0) >= MAX_ATTEMPTS) {
-          removeJob(p, job);
+          removeJob(p, job); rep.dropped.push({ client: job.client, sessionId: job.sessionId, reason: `gave up after ${job.attempts} attempts (see ${p.logFile}): ${err.message}` });
           appendLog(p, 'sync-giveup', { client: job.client, session: job.sessionId, count: job.attempts, error: err.message });
         } else {
           rep.remaining++;

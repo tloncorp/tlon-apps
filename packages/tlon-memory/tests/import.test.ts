@@ -10,7 +10,8 @@ import { Config, defaultConfig, saveConfig } from '../src/config';
 import { ensureNotebook } from '../src/notebook';
 import { claudeProjectsDir } from '../src/transcripts';
 import { importSessions, prepare } from '../src/import';
-import { enqueue } from '../src/sync';
+import { MAX_ATTEMPTS, enqueue } from '../src/sync';
+import { loadJob, saveJob } from '../src/state';
 
 const fake = new FakeNotes(); let home: string; let claude: string; let paths: Paths; let cfg: Config;
 let outside: string;
@@ -79,6 +80,18 @@ describe('import', () => {
     expect(r.out).toContain('synced 2, unchanged 0, failed 0, remaining 0');
     expect(r.out).not.toContain(EMPTY_ID);
     expect(conversations().length).toBe(2);
+  });
+  it('reports a job the queue gives up on as failed, not unchanged', async () => {
+    await run([claude]);
+    writeFileSync(claude, readFileSync(claude, 'utf8') + '\n');
+    const job = { client: 'claude' as const, sessionId: CLAUDE_ID, transcriptPath: claude, cwd: '/Users/bill/Projects/demo' };
+    enqueue(paths, job); saveJob(paths, { ...loadJob(paths, job)!, attempts: MAX_ATTEMPTS - 1, hardFailures: MAX_ATTEMPTS - 1 });
+    writeFileSync(claude, readFileSync(claude, 'utf8').replace('Agreed: SQLite.', 'Agreed: SQLite, changed.'));
+    fake.failNext = 400;
+    const r = await run([claude]);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain(`claude-code:${CLAUDE_ID} → failed: gave up after ${MAX_ATTEMPTS} attempts`);
+    expect(r.out).toContain(join(paths.root, 'log'));
   });
   it('refuses while capture is paused', async () => {
     saveConfig(paths, { ...cfg, paused: true });
