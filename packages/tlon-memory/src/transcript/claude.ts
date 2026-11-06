@@ -30,7 +30,8 @@ export function parseClaudeTranscript(path: string, opts: ParseOptions = {}): Pa
     if (rec.isMeta === true || rec.isCompactSummary === true) { omitted.system++; continue; }
     const ts = rec.timestamp || updated || new Date(0).toISOString();
     sessionId ||= rec.sessionId ?? '';
-    cwd ||= rec.cwd ?? '';
+    // A session can move (a scratch workspace to the repo); the hook reports the live cwd, so the last one wins.
+    cwd = rec.cwd || cwd;
     started ||= ts; updated = ts;
     const role = rec.type;
     const content = rec.message?.content;

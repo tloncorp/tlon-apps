@@ -62,6 +62,14 @@ describe('claude parser limits', () => {
     expect(t.events[0].truncated).toEqual({ shownBytes: 64 * 1024, totalBytes: 300 * 1024 });
     expect(t.events[0].text.length).toBe(64 * 1024);
   });
+  it('keeps the last cwd: a session can move to another directory', () => {
+    const t = parseClaudeTranscript(tmp([
+      { ...base, type: 'user', cwd: '/scratch', timestamp: '2026-01-01T00:00:00Z', message: { content: 'a' } },
+      { ...base, type: 'assistant', cwd: '/repo', timestamp: '2026-01-01T00:00:01Z', message: { content: 'b' } },
+      { ...base, type: 'user', cwd: '', timestamp: '2026-01-01T00:00:02Z', message: { content: 'c' } },
+    ]));
+    expect(t.cwd).toBe('/repo');
+  });
   it('counts skipped tool events as other when tool I/O is off; falls back to the previous timestamp', () => {
     const t = parseClaudeTranscript(tmp([
       { ...base, type: 'assistant', timestamp: '2026-01-01T00:00:00Z', message: { content: [{ type: 'tool_use', id: 't', name: 'Bash', input: {} }] } },
