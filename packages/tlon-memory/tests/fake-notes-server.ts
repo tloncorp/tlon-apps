@@ -14,6 +14,7 @@ export class FakeNotes {
   legacyConflict = false;           // older desks answer a stale expectedRevision with errorType 'unknown'
   unknownNext = false;              // answer the next note PUT with errorType 'unknown'
   scryNull = false;                 // the api-key scry returns null (no key minted yet)
+  dropResponseOnce = false;         // apply the next note create, then break the response so the client sees a failure
   nextId = 100;
   server!: ReturnType<typeof Bun.serve>;
   get url() { return `http://127.0.0.1:${this.server.port}`; }
@@ -82,6 +83,10 @@ export class FakeNotes {
       if (Buffer.byteLength(body.body ?? '') > 1_000_000) return this.err('request-too-large');
       const n: FakeNote = { id: this.nextId++, notebookId: nb.id, folderId: body.folder, title: body.title, slug: null, bodyMd: body.body ?? '', createdBy: this.ship, createdAt: 1, updatedBy: this.ship, updatedAt: 1, revision: 1 };
       this.notes.set(n.id, n);
+      if (this.dropResponseOnce) { // the create happened; the client never learns its id
+        this.dropResponseOnce = false;
+        return new Response(new ReadableStream({ start(c) { c.enqueue(new TextEncoder().encode('{"requestId":')); c.error(new Error('connection dropped')); } }), { headers: { 'content-type': 'application/json' } });
+      }
       return this.ok({ type: 'note-update', host: nb.host, flagName: nb.flagName, noteUpdate: { type: 'note-created', id: n.id, note: n } });
     }
     if (kind === 'notes' && req.method === 'PUT') {

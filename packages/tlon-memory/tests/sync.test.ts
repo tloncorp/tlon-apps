@@ -9,7 +9,7 @@ import { Paths } from '../src/paths';
 import { defaultConfig, saveConfig, Config } from '../src/config';
 import { ensureNotebook } from '../src/notebook';
 import { enqueue, syncQueue, syncSession, loadSessionState, MAX_ATTEMPTS } from '../src/sync';
-import { listJobs, saveJob, saveSessionState } from '../src/state';
+import { listJobs, markInitialized, saveJob, saveSessionState } from '../src/state';
 import { loadConnection } from '../src/status';
 import { parseClaudeTranscript } from '../src/transcript/claude';
 
@@ -153,6 +153,27 @@ describe('sync', () => {
     expect(await syncQueue(paths, cfg, { budgetMs: 10_000 })).toMatchObject({ synced: 0, remaining: 1 }); // backing off
     expect(await syncQueue(paths, cfg, { budgetMs: 10_000, ignoreBackoff: true })).toMatchObject({ synced: 1, remaining: 0 });
     expect(jobs().length).toBe(0);
+  });
+  it('a create the ship applied but whose response was lost is not duplicated on the next run', async () => {
+    const t = parseClaudeTranscript(fx);
+    const c = new NotesClient({ shipUrl: fake.url, apiKey: 'test-key' });
+    markInitialized(paths); // an initialized device would otherwise create without searching
+    fake.dropResponseOnce = true;
+    await expect(syncSession(paths, cfg, c, t)).rejects.toBeDefined();
+    expect(fake.notes.size).toBe(1);
+    expect(loadSessionState(paths, 'claude-code', SID)!.creating).toBe(0);
+    expect(await syncSession(paths, cfg, c, t)).toBe('created');
+    expect(fake.notes.size).toBe(1);
+    const st = loadSessionState(paths, 'claude-code', SID)!;
+    expect(st.noteIds[0]).toBe([...fake.notes.keys()][0]);
+    expect(st.creating).toBeUndefined();
+  });
+  it('does not start a create with less than 5 s of budget left', async () => {
+    const t = parseClaudeTranscript(fx);
+    const c = new NotesClient({ shipUrl: fake.url, apiKey: 'test-key', deadline: Date.now() + 4_000 });
+    markInitialized(paths);
+    await expect(syncSession(paths, cfg, c, t)).rejects.toMatchObject({ code: 'unreachable', message: 'deadline exceeded' });
+    expect(fake.notes.size).toBe(0);
   });
   it('recreates a part whose note was deleted on the ship', async () => {
     enqueue(paths, { client: 'claude', sessionId: 's1', transcriptPath: fx, cwd: '/x' });

@@ -13,6 +13,7 @@ export interface SessionState {
   anchors?: [string, string][]; // [first, last] event anchor per part
   hashes?: string[];            // sha256 per rendered part, so unchanged parts are not re-sent
   contentHash: string;          // sha256 of all rendered parts
+  creating?: number;            // index of a part whose create was sent but not confirmed: look it up before creating again
   eventCount: number; lastSynced: string;
 }
 

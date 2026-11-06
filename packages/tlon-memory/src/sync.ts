@@ -5,7 +5,7 @@ import { Config } from './config';
 import { ClientId, ParsedTranscript } from './events';
 import { appendLog } from './log';
 import { findSessionNotes } from './notebook';
-import { NotesClient, NotesError, isDeadline } from './notes-client';
+import { DEADLINE_EXCEEDED, NotesClient, NotesError, isDeadline } from './notes-client';
 import { Paths } from './paths';
 import { renderConversation, sessionKey } from './render';
 import { QueueJob, SessionState, isInitialized, listJobs, loadSessionState, markInitialized, removeJob, replaceJob, saveJob, saveSessionState } from './state';
@@ -25,6 +25,8 @@ export function parseTranscript(client: 'claude' | 'codex', path: string, toolIo
   return client === 'claude' ? parseClaudeTranscript(path, { toolIo, known }) : parseCodexTranscript(path, { toolIo, known });
 }
 
+/** Minimum budget left to start a note create. */
+export const CREATE_MARGIN_MS = 5_000;
 const sha = (parts: string[]) => createHash('sha256').update(parts.join('\u0000')).digest('hex');
 const isCode = (e: unknown, code: NotesError['code']) => e instanceof NotesError && e.code === code;
 
@@ -56,13 +58,16 @@ export async function syncSession(p: Paths, cfg: Config, c: NotesClient, t: Pars
 
   const create = async (i: number) => {
     const part = parts[i];
-    if (i > 0) {
-      // A run killed between create and save, or a concurrent run, may already have made this part.
+    if (i > 0 || s.creating !== undefined) {
+      // A create whose answer was lost (killed run, dropped connection), or a concurrent run, may already have made this part.
       const existing = (await findSessionNotes(c, nb, key)).find((n) => n.part === i + 1);
-      if (existing) { s.noteIds[i] = existing.id; s.revisions[i] = existing.revision; return false; }
+      if (existing) { s.noteIds[i] = existing.id; s.revisions[i] = existing.revision; delete s.creating; saveSessionState(p, s); return false; }
     }
+    // A create cut off by the deadline may still land on the ship; with under CREATE_MARGIN_MS left, leave it to the next run.
+    if (c.deadline !== undefined && c.deadline - Date.now() < CREATE_MARGIN_MS) throw new NotesError('unreachable', DEADLINE_EXCEEDED);
+    s.creating = i; saveSessionState(p, s); // persisted first: if the answer is lost, the next run searches before creating
     const n = await c.createNote(nb.host, nb.name, nb.conversationsFolderId, part.title, part.body);
-    s.noteIds[i] = n.id; s.revisions[i] = n.revision; s.hashes![i] = hashes[i];
+    s.noteIds[i] = n.id; s.revisions[i] = n.revision; s.hashes![i] = hashes[i]; delete s.creating;
     saveSessionState(p, s); // persisted at once so a later kill cannot make this part twice
     return true;
   };
