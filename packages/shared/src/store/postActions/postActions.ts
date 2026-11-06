@@ -745,7 +745,6 @@ async function _editPost({
     lastEditContent: JSON.stringify(contentForDb),
     lastEditTitle: optimisticPostData.metadata?.title,
     lastEditImage: optimisticPostData.metadata?.image,
-    blob: postBeforeEdit.blob,
     ...flags,
   });
   logger.log('editPost optimistic update done');

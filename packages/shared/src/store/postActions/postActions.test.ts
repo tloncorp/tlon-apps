@@ -36,8 +36,7 @@ const LOCAL_URI = 'LOCAL_URI';
 const REMOTE_URI = 'REMOTE_URI';
 const CLIENT_METADATA = {
   version: 1,
-  platform: 'web',
-  gitHash: 'abc1234',
+  rendererRevision: 1,
 } as const;
 const CLIENT_BLOB = JSON.stringify([
   { type: 'metadata', version: 1, data: { 'tlon.client': CLIENT_METADATA } },
@@ -1974,7 +1973,7 @@ describe('editing preserves authorship shape', () => {
   test('a human-authored post keeps its bare ship author through an edit', async () => {
     const post = { ...(await seedPost(false)), blob: CLIENT_BLOB };
     await db.updatePost({ id: post.id, blob: post.blob });
-    setPostClientMetadata({ ...CLIENT_METADATA, gitHash: 'newer-build' });
+    setPostClientMetadata({ ...CLIENT_METADATA, rendererRevision: 2 });
 
     await editPost({ post, content: [{ inline: ['edited'] }] });
 

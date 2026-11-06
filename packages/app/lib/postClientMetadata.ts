@@ -1,7 +1,9 @@
 import type { PostClientMetadata } from '@tloncorp/api/client/content-helpers';
 
-import { GIT_HASH } from '../constants';
+// Advance when adding renderer capabilities that senders need to gate;
+// each revision retains the capabilities of earlier revisions.
+export const CLIENT_RENDERER_REVISION = 1;
 
 export function getPostClientMetadata(): PostClientMetadata {
-  return { version: 1, platform: 'web', gitHash: GIT_HASH };
+  return { version: 1, rendererRevision: CLIENT_RENDERER_REVISION };
 }

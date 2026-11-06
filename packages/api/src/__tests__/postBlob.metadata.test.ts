@@ -13,7 +13,7 @@ const metadata = {
   type: 'metadata',
   version: 1,
   data: {
-    'tlon.client': { version: 1, platform: 'ios', appVersion: '1.2.3' },
+    'tlon.client': { version: 1, rendererRevision: 1 },
     'example.future': {
       version: 999,
       nested: { values: [true, null, 'opaque context'] },
@@ -43,10 +43,7 @@ describe('post blob metadata', () => {
   test('client metadata is opt-in and rejects unsupported payload versions', () => {
     const client = {
       version: 1,
-      platform: 'android',
-      appVersion: '9.5.10',
-      build: '469',
-      gitHash: 'abc1234',
+      rendererRevision: 1,
     };
     expect(PostClientMetadataSchema.parse(client)).toEqual(client);
     expect(
@@ -57,6 +54,18 @@ describe('post blob metadata', () => {
     ]);
     expect(convertContent(story, blob)).toEqual(convertContent(story, null));
   });
+
+  test.each([undefined, null, '1', 0, -1, 1.5])(
+    'rejects an invalid renderer revision without disrupting the post: %s',
+    (rendererRevision) => {
+      const client = { version: 1, rendererRevision };
+      expect(PostClientMetadataSchema.safeParse(client).success).toBe(false);
+      const blob = JSON.stringify([
+        { ...metadata, data: { 'tlon.client': client } },
+      ]);
+      expect(convertContent(story, blob)).toEqual(convertContent(story, null));
+    }
+  );
 
   test('preserves opaque namespaces and payload versions for opt-in consumers', () => {
     const blob = JSON.stringify([metadata]);

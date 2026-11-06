@@ -716,10 +716,7 @@ export type PostBlobDataEntryMetadata = z.infer<
 
 export const PostClientMetadataSchema = z.object({
   version: z.literal(1),
-  platform: z.enum(['web', 'ios', 'android']),
-  appVersion: z.string().optional(),
-  build: z.string().optional(),
-  gitHash: z.string().optional(),
+  rendererRevision: z.number().int().positive(),
 });
 
 export type PostClientMetadata = z.infer<typeof PostClientMetadataSchema>;

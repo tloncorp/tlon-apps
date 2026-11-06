@@ -23,10 +23,7 @@ test('the stamp preserves existing attachments and opaque metadata without rende
   const blob = JSON.stringify([file, context]);
   const client = {
     version: 1,
-    platform: 'ios',
-    appVersion: '9.5.10',
-    build: '501',
-    gitHash: 'abc1234',
+    rendererRevision: 1,
   } as const;
   setPostClientMetadata(client);
 
