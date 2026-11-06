@@ -62,6 +62,7 @@ describe('setup (non-interactive)', () => {
     const r = await run(['setup', '--reconnect', '--api-key-stdin', '--yes'], 'rotated\n');
     expect(r.code).toBe(0);
     const cfg = JSON.parse(readFileSync(join(tmHome, 'config.json'), 'utf8'));
-    expect(cfg.apiKey).toBe('rotated'); expect(cfg.scopes).toEqual(['/p']); expect(cfg.connection.state).toBe('ok');
+    expect(cfg.apiKey).toBe('rotated'); expect(cfg.scopes).toEqual(['/p']); expect(cfg.connection).toBeUndefined();
+    expect(JSON.parse(readFileSync(join(tmHome, 'state', 'connection.json'), 'utf8')).state).toBe('ok');
   });
 });

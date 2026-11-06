@@ -1,5 +1,5 @@
 // src/paths.ts
-import { mkdirSync, writeFileSync, chmodSync, existsSync } from 'node:fs';
+import { mkdirSync, writeFileSync, chmodSync, existsSync, renameSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -7,7 +7,11 @@ export class Paths {
   constructor(public readonly root = process.env.TLON_MEMORY_HOME ?? join(homedir(), '.tlon', 'memory')) {}
   get configFile() { return join(this.root, 'config.json'); }
   get stateDir() { return join(this.root, 'state'); }
+  get connectionFile() { return join(this.stateDir, 'connection.json'); }
+  /** Present once this state dir has been through a sync or setup; absent means local state may have been lost. */
+  get initializedMarker() { return join(this.stateDir, '.initialized'); }
   get queueDir() { return join(this.root, 'queue'); }
+  get queueLock() { return join(this.queueDir, '.lock'); }
   get logFile() { return join(this.root, 'log'); }
   ensure() {
     for (const d of [this.root, this.stateDir, this.queueDir]) {
@@ -22,5 +26,5 @@ export function writePrivate(file: string, data: string) {
   writeFileSync(tmp, data, { mode: 0o600 });
   chmodSync(tmp, 0o600);
   // rename is atomic on the same filesystem
-  require('node:fs').renameSync(tmp, file);
+  renameSync(tmp, file);
 }

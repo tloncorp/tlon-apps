@@ -4,12 +4,12 @@ import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { uninstallClient } from './clients';
 import { loadConfig, requireConfig, saveConfig } from './config';
-import { statusLine } from './hook';
 import { NotesClient } from './notes-client';
 import { Paths } from './paths';
 import { askHidden, confirm } from './prompt';
 import { parseFrontMatter } from './render';
 import { deleteSessionState, listJobs, listSessionStates } from './state';
+import { loadConnection, statusLine } from './status';
 import { syncQueue } from './sync';
 import { BIN_PATH, SKILL_SOURCE } from './setup';
 
@@ -29,11 +29,12 @@ export async function command(cmd: string, args: string[]): Promise<number> {
       try { const notes = await client.listNotes(nb.host, nb.name);
         counts = `conversations: ${notes.filter((n) => n.folderId === nb.conversationsFolderId).length} · memories: ${notes.filter((n) => n.folderId === nb.memoriesFolderId).length}`; }
       catch (e) { counts = `ship unreachable: ${(e as Error).message}`; }
-      out(statusLine(cfg, process.cwd(), jobs.length));
+      const conn = loadConnection(paths);
+      out(statusLine(cfg, conn, process.cwd(), jobs.length));
       out(`ship: ${cfg.ship} (${cfg.shipUrl}) · notebook: ${nb.host}/${nb.name} · ${counts}`);
       out(`scopes: ${cfg.scopes.join(', ') || '(none)'} · tool I/O: ${cfg.captureToolIo ? 'included' : 'off'} · clients: ${Object.keys(cfg.clients).join(', ') || 'none'}`);
       for (const j of jobs) out(`  pending: ${j.client} ${j.sessionId} attempts=${j.attempts}${j.lastError ? ' last error: ' + j.lastError : ''}`);
-      if (cfg.connection.state !== 'ok') out(`connection: ${cfg.connection.state}${cfg.connection.lastError ? ' — ' + cfg.connection.lastError : ''}`);
+      if (conn.state !== 'ok') out(`connection: ${conn.state}${conn.lastError ? ' — ' + conn.lastError : ''}`);
       return 0;
     }
     case 'pause': cfg.paused = true; saveConfig(paths, cfg); out('Capture paused. Sessions are not uploaded until `tlon-memory resume`.'); return 0;

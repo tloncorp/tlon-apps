@@ -23,14 +23,13 @@ export interface Config {
   captureToolIo: boolean;    // include tool inputs/outputs (truncated)
   paused: boolean;
   clients: Partial<Record<ClientName, ClientInstall>>;
-  connection: { state: 'ok' | 'key-rejected' | 'unreachable'; lastError?: string; checkedAt?: string };
   binPath: string;           // absolute path of bin/tlon-memory.js used in hook/MCP commands
 }
 
 export function defaultConfig(): Config {
   return {
     version: 1, shipUrl: '', ship: '', apiKey: '', notebook: null, scopes: [],
-    captureToolIo: true, paused: false, clients: {}, connection: { state: 'ok' }, binPath: '',
+    captureToolIo: true, paused: false, clients: {}, binPath: '',
   };
 }
 

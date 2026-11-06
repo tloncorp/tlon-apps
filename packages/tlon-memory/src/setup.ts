@@ -9,6 +9,8 @@ import { ensureNotebook, noteUrl } from './notebook';
 import { NotesClient, NotesError } from './notes-client';
 import { Paths } from './paths';
 import { ask, askHidden, confirm, readLineFromStdin } from './prompt';
+import { markInitialized } from './state';
+import { saveConnection } from './status';
 
 export const SIGNUP_URL = 'https://tlon.network/signup?source=agent';
 const here = dirname(fileURLToPath(import.meta.url));
@@ -74,7 +76,7 @@ export async function setup(args: string[]): Promise<number> {
   const client = new NotesClient({ shipUrl: cfg.shipUrl, apiKey });
   try { cfg.ship = await client.hostName(); await client.listNotebooks(); }
   catch (e) { process.stderr.write(`Could not connect: ${(e as Error).message}\n`); return 1; }
-  cfg.apiKey = apiKey; cfg.connection = { state: 'ok', checkedAt: new Date().toISOString() };
+  cfg.apiKey = apiKey; saveConnection(paths, { state: 'ok', checkedAt: new Date().toISOString() }); markInitialized(paths);
   out(`\nConnected as ${cfg.ship}.`);
 
   // 4. notebook

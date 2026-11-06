@@ -1,7 +1,7 @@
 // src/sync.ts
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { Config, saveConfig } from './config';
+import { Config } from './config';
 import { ClientId, ParsedTranscript } from './events';
 import { appendLog } from './log';
 import { NotesClient, NotesError } from './notes-client';
@@ -10,6 +10,7 @@ import { renderConversation, sessionKey } from './render';
 import { QueueJob, SessionState, listJobs, loadSessionState, removeJob, saveJob, saveSessionState } from './state';
 import { parseClaudeTranscript } from './transcript/claude';
 import { parseCodexTranscript } from './transcript/codex';
+import { loadConnection, saveConnection } from './status';
 
 export { loadSessionState } from './state';
 
@@ -93,9 +94,7 @@ export async function syncQueue(p: Paths, cfg: Config, o: { budgetMs: number; no
     }
   }
   const state = rep.keyRejected ? 'key-rejected' : rep.failed && !rep.synced ? 'unreachable' : 'ok';
-  if (cfg.connection.state !== state || rep.lastError !== cfg.connection.lastError) {
-    cfg.connection = { state, lastError: rep.lastError, checkedAt: new Date().toISOString() };
-    saveConfig(p, cfg);
-  }
+  const prev = loadConnection(p);
+  if (prev.state !== state || rep.lastError !== prev.lastError) saveConnection(p, { state, lastError: rep.lastError, checkedAt: new Date().toISOString() });
   return rep;
 }

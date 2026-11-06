@@ -3,6 +3,7 @@ import { Config, isInScope, loadConfig } from './config';
 import { appendLog } from './log';
 import { Paths } from './paths';
 import { listJobs } from './state';
+import { loadConnection, statusLine } from './status';
 import { clientId, enqueue, syncQueue } from './sync';
 
 type Client = 'claude' | 'codex';
@@ -14,37 +15,42 @@ async function readStdin(): Promise<string> {
   return Buffer.concat(chunks).toString('utf8');
 }
 
-export function statusLine(cfg: Config, cwd: string, pending: number, sessionKey?: string): string {
-  const scope = cfg.paused ? 'capture PAUSED' : isInScope(cfg, cwd) ? `capture ON for ${cwd}` : `capture OFF for ${cwd} (not in scope)`;
-  const conn = cfg.connection.state === 'key-rejected' ? 'KEY REJECTED — run `tlon-memory setup --reconnect`'
-    : cfg.connection.state === 'unreachable' ? `ship unreachable (${cfg.connection.lastError ?? 'unknown'})` : `connected as ${cfg.ship}`;
-  return `Tlon memory: ${conn} · notebook "${cfg.notebook?.title ?? '-'}" · ${scope} · ${pending} pending sync${pending === 1 ? '' : 's'}`
-    + (sessionKey ? ` · session ${sessionKey}` : '');
+export const DEFAULT_BUDGET_MS = 15_000;
+export function budgetFromEnv(v = process.env.TLON_MEMORY_SYNC_BUDGET_MS): number {
+  const n = Number(v);
+  return v !== undefined && v.trim() !== '' && Number.isFinite(n) && n >= 0 ? n : DEFAULT_BUDGET_MS;
 }
 
-/** `tlon-memory hook <claude|codex>`: always exits 0; only SessionStart prints. */
+const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
+
+/** `tlon-memory hook <claude|codex>`: always exits 0; only SessionStart prints. Never writes config.json. */
 export async function hook(args: string[]): Promise<number> {
   const client = args[0] as Client;
   if (client !== 'claude' && client !== 'codex') return 0;
   const paths = new Paths();
-  const cfg = loadConfig(paths);
-  if (!cfg || !cfg.apiKey || !cfg.notebook || !cfg.clients[client]) return 0;
-  let p: Payload = {};
-  try { p = JSON.parse(await readStdin()); } catch { return 0; }
-  const cwd = p.cwd ?? process.cwd();
-  const event = p.hook_event_name ?? '';
+  let event = '';
   try {
+    let cfg: Config | null;
+    try { cfg = loadConfig(paths); }
+    catch (e) { appendLog(paths, 'hook-config-unreadable', { client, error: (e as Error).message }); return 0; }
+    if (!cfg || !cfg.apiKey || !cfg.notebook || !cfg.clients[client]) return 0;
+    let p: Payload;
+    try { p = JSON.parse(await readStdin()); } catch { return 0; }
+    if (!p || typeof p !== 'object') return 0;
+    const cwd = str(p.cwd) ?? process.cwd();
+    event = str(p.hook_event_name) ?? '';
+    const sessionId = str(p.session_id), transcript = str(p.transcript_path);
     if (event === 'SessionStart') {
-      const key = p.session_id ? `${clientId(client)}:${p.session_id}` : undefined;
-      process.stdout.write(statusLine(cfg, cwd, listJobs(paths).length, key) + '\n');
+      const key = sessionId ? `${clientId(client)}:${sessionId}` : undefined;
+      process.stdout.write(statusLine(cfg, loadConnection(paths), cwd, listJobs(paths).length, key) + '\n');
       return 0;
     }
     if (event !== 'Stop' && event !== 'SessionEnd') return 0;
-    if (cfg.paused || !isInScope(cfg, cwd) || !p.session_id || !p.transcript_path) return 0;
-    enqueue(paths, { client, sessionId: p.session_id, transcriptPath: p.transcript_path, cwd });
-    appendLog(paths, 'enqueue', { client, session: p.session_id, event });
+    if (cfg.paused || !isInScope(cfg, cwd) || !sessionId || !transcript) return 0;
+    enqueue(paths, { client, sessionId, transcriptPath: transcript, cwd });
+    appendLog(paths, 'enqueue', { client, session: sessionId, event });
     // SessionEnd is advisory and (Codex) capped at 3 s: enqueue only. Stop gets a 15 s inline budget.
-    if (event === 'Stop') await syncQueue(paths, cfg, { budgetMs: Number(process.env.TLON_MEMORY_SYNC_BUDGET_MS ?? 15_000) });
+    if (event === 'Stop') await syncQueue(paths, cfg, { budgetMs: budgetFromEnv() });
   } catch (e) {
     appendLog(paths, 'hook-error', { client, event, error: (e as Error).message });
   }

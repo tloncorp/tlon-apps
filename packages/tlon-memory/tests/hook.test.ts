@@ -1,6 +1,6 @@
 // tests/hook.test.ts
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
-import { copyFileSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -61,6 +61,12 @@ describe('hook', () => {
     await hook('claude', 'hook-claude-stop.json');
     expect(fake.requests.length).toBe(before);
   });
+  it('corrupt config: exits 0 silently and logs', async () => {
+    writeFileSync(paths.configFile, '{not json');
+    const r = await hook('claude', 'hook-claude-stop.json');
+    expect(r.code).toBe(0); expect(r.out).toBe('');
+    expect(readFileSync(paths.logFile, 'utf8')).toContain('hook-config-unreadable');
+  });
   it('not configured: exits 0 silently', async () => {
     const empty = mkdtempSync(join(tmpdir(), 'tm-none-'));
     const r = await hook('claude', 'hook-claude-stop.json', { TLON_MEMORY_HOME: empty });
@@ -68,10 +74,27 @@ describe('hook', () => {
   });
   it('key rejected: Stop keeps the job queued; next SessionStart reports it', async () => {
     saveConfig(paths, { ...cfg, apiKey: 'wrong' });
+    const cfgBefore = readFileSync(paths.configFile, 'utf8');
     await hook('claude', 'hook-claude-stop.json');
-    expect(readdirSync(paths.queueDir).length).toBe(1);
+    expect(readdirSync(paths.queueDir).filter((f) => f.endsWith('.json')).length).toBe(1);
+    expect(readFileSync(paths.configFile, 'utf8')).toBe(cfgBefore); // the hook never rewrites config.json
+    expect(JSON.parse(readFileSync(paths.connectionFile, 'utf8')).state).toBe('key-rejected');
     const r = await hook('claude', 'hook-claude-start.json');
     expect(r.out).toContain('KEY REJECTED');
     expect(r.out).toContain('1 pending');
+  });
+});
+
+describe('hook helpers', () => {
+  it('falls back to the default budget for a non-numeric TLON_MEMORY_SYNC_BUDGET_MS', async () => {
+    const { budgetFromEnv, DEFAULT_BUDGET_MS } = await import('../src/hook');
+    expect(budgetFromEnv('abc')).toBe(DEFAULT_BUDGET_MS);
+    expect(budgetFromEnv('')).toBe(DEFAULT_BUDGET_MS);
+    expect(budgetFromEnv(undefined)).toBe(DEFAULT_BUDGET_MS);
+    expect(budgetFromEnv('2500')).toBe(2500);
+  });
+  it('connection defaults to ok when the file is absent', async () => {
+    const { loadConnection } = await import('../src/status');
+    expect(loadConnection(new Paths(mkdtempSync(join(tmpdir(), 'tm-conn-'))))).toEqual({ state: 'ok' });
   });
 });
