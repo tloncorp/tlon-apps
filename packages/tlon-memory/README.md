@@ -277,6 +277,9 @@ The log (`~/.tlon/memory/log`) only records an allow-listed set of fields (statu
 - **The key covers all Notes on your ship.** It is a single ship-wide key, not one per notebook or per client. Revoking it affects everything that uses it. Narrower keys need a change to the Notes backend.
 - **Search is simple.** Memory search ranks by word overlap and recency, with no full-text index or embeddings. It looks at most at 200 memory notes. Conversation search uses the ship's substring search, which scans the notebook note by note, so it gets slower as the notebook grows.
 - **Search horizon.** Every text search (memories, conversation history, and the `session_key` lookup used to recover lost local state) scans only the newest 2000 notes in the notebook: 20 requests of 100 notes each. Older notes are not found. `tlon-memory status` says `scan truncated` when the memory count stopped at this horizon. Recovering a session whose notes are older than the horizon creates new notes instead of updating the old ones.
+- **Search cursor.** The first search request carries no `from` parameter, because the desk treats `from=0` as an empty range; later pages pass the `last` id of the previous one.
+- **`codex mcp add` rewrites `~/.codex/config.toml`.** Codex reorders keys, reformats numbers and drops settings equal to their defaults (such as `enabled = true`). Codex behaves the same afterwards.
+- **Codex hooks need trust.** Codex runs a new hook only after you trust it with `/hooks`; see "Codex: trust the hooks".
 - **`tlon_list_recent` with `conversations`** lists conversations synced from this device, from local state. It only asks the ship when this device has none.
 - **Not captured:** subagent transcripts, attachments and thinking.
 - **Local MCP server only.** Each machine needs its own install. There is no hosted MCP endpoint.
