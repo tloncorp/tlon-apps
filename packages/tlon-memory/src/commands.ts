@@ -10,7 +10,7 @@ import { NotesClient, SEARCH_HORIZON_NOTE } from './notes-client';
 import { Paths, writePrivate } from './paths';
 import { askHidden, confirm } from './prompt';
 import { parseFrontMatter } from './render';
-import { deleteSessionState, listJobs, listSessionStates, queueFile } from './state';
+import { deleteSessionState, listJobs, listSessionStates, queueFile, savePendingLinks } from './state';
 import { loadConnection, statusLine } from './status';
 import { syncQueue } from './sync';
 import { BIN_PATH, SKILL_SOURCE, scopeProblem } from './setup';
@@ -119,6 +119,7 @@ async function deleteNotes(paths: Paths, cfg: Config, client: NotesClient, args:
   // Remove local state and queued uploads too, or the next sync would re-create the deleted notes.
   if (sessionRef) {
     deleteSessionState(paths, sessionRef.key, sessionRef.id);
+    savePendingLinks(paths, sessionRef.key, sessionRef.id, []);
     const f = queueFile(paths, { client: sessionRef.client, sessionId: sessionRef.id }); if (existsSync(f)) unlinkSync(f);
   }
   if (all) {

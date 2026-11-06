@@ -197,7 +197,7 @@ Each memory's front matter records:
 - `source_event`: the event anchor, for example `e17`
 - `source_note` and `source_url`: the conversation note (the part holding that event) and its link
 
-The source fields are filled when the agent passes `session_key` to `tlon_save_memory`, copied from the `session` value in the status line. It passes `event` when it can point at the exact message. The link resolves once that conversation has been uploaded. Saving the same active text again in the same project returns the existing memory instead of a duplicate.
+The source fields are filled when the agent passes `session_key` to `tlon_save_memory`, copied from the `session` value in the status line. It passes `event` when it can point at the exact message. A memory saved before its conversation is uploaded (the first turn of a session) gets `source_note` and `source_url` when that session next syncs; the save result says the link is pending. Saving the same active text again in the same project returns the existing memory instead of a duplicate.
 
 Search ranks memories by word overlap with your query and by recency. By default it only looks at memories from the current project. The agent can pass `project: "*"` to search all projects. Results show the agent, project, date and source, for example `source: claude-code:1c53f3bb-… e17 https://sampel-palnet.tlon.network/notes/nb/~sampel-palnet/agent-memory/n/42`.
 
@@ -227,7 +227,7 @@ All commands below run in a terminal.
 - `tlon-memory scope add DIR` captures sessions started in `DIR` or below it. The directory must exist. Your home directory, `/` and any parent of your home directory are refused unless you add `--force-scope`. `tlon-memory scope remove DIR` stops capturing it. `tlon-memory scope list` shows the current scopes. Symlinks are resolved, so a linked path cannot step into or out of a scope.
 - `tlon-memory export [--out DIR]` writes every conversation and memory note as a Markdown file under `DIR/conversations/` and `DIR/memories/`, plus `DIR/index.json` with each note's id, kind, title, file, revision, update time and session key. The default `DIR` is `~/tlon-memory-export-<date>`. Directories are created readable only by you (0700), and files are written 0600. The export does not contain the API key, but transcripts can contain anything that was in a session, so keep it private.
 - `tlon-memory delete` removes notes from the ship. It asks for confirmation on a terminal; elsewhere it needs `--yes`.
-  - `--session claude-code:<id>` or `--session codex:<id>` deletes that conversation's notes (all parts), its local sync state and its queued upload.
+  - `--session claude-code:<id>` or `--session codex:<id>` deletes that conversation's notes (all parts), its local sync state, its pending memory links and its queued upload.
   - `--memory <id>` deletes one memory. It refuses a note that is not in the `memories/` folder.
   - `--all` deletes every conversation and memory note in the notebook, all local sync state and the whole queue.
 
@@ -297,6 +297,7 @@ Everything lives under `~/.tlon/memory/` (or `$TLON_MEMORY_HOME`). Directories a
 |---|---|
 | `config.json` | Ship URL, ship name, Notes API key, notebook ids, scopes, tool I/O setting, pause flag, configured clients, shim path. The only secret stored. |
 | `state/<client>-<session>.json` | Per session: note ids, revisions, anchor range and hash for each part, event count, last sync time. |
+| `state/pending-links-<client>-<session>.json` | Memories saved before this session was uploaded, waiting for their `source_note` link. |
 | `state/connection.json` | Last known connection state (`ok`, `key-rejected` or `unreachable`) and error. |
 | `state/.initialized` | The time (ISO) from which this state directory is known to be complete. Setup writes it only when it created the notebook; a sync writes it after it empties the queue. A session with no state file is looked up on the ship by its `session_key` before anything is created when the marker is missing (fresh or wiped state, or a notebook adopted from another setup) or newer than the session's start. Sessions that started after the marker are created without that search. |
 | `queue/<client>-<session>.json` | A pending upload: transcript path, attempts, last error, next attempt time. |

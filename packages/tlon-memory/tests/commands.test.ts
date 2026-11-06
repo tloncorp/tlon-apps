@@ -10,7 +10,7 @@ import { Config, defaultConfig, saveConfig, loadConfig } from '../src/config';
 import { ensureNotebook } from '../src/notebook';
 import { MemoryStore } from '../src/memory';
 import { enqueue, syncQueue } from '../src/sync';
-import { listJobs } from '../src/state';
+import { listJobs, pendingLinksFile, savePendingLinks } from '../src/state';
 import { hookEntries } from '../src/clients';
 import { BIN_PATH } from '../src/setup';
 
@@ -94,9 +94,11 @@ describe('commands', () => {
   });
   it('delete --session removes the conversation note, local state and queued job; --memory removes a memory; --all needs --yes', async () => {
     enqueue(paths, { client: 'claude', sessionId: '11111111-aaaa-4bbb-8ccc-222222222222', transcriptPath: '/x', cwd: '/y' });
+    savePendingLinks(paths, 'claude-code', '11111111-aaaa-4bbb-8ccc-222222222222', [{ memoryId: 1 }]);
     const r = await run(['delete', '--session', SESSION, '--yes']); expect(r.code).toBe(0); expect(r.out).toContain('pause capture first');
     expect([...fake.notes.values()].filter((n) => n.folderId === cfg.notebook!.conversationsFolderId).length).toBe(0);
     expect(readdirSync(paths.stateDir).filter((f) => /^(claude-code|codex)-/.test(f)).length).toBe(0);
+    expect(existsSync(pendingLinksFile(paths, 'claude-code', '11111111-aaaa-4bbb-8ccc-222222222222'))).toBe(false);
     expect(listJobs(paths).length).toBe(0);
     const mem = [...fake.notes.values()][0]; expect((await run(['delete', '--memory', String(mem.id), '--yes'])).code).toBe(0); expect(fake.notes.size).toBe(0);
     expect((await run(['delete', '--all'])).code).toBe(1); // needs --yes

@@ -46,6 +46,20 @@ export function listSessionStates(p: Paths): SessionState[] {
     .map((f) => readJson<SessionState>(p, join(p.stateDir, f))).filter((s): s is SessionState => s !== null);
 }
 
+/** A memory saved before its conversation was uploaded; sync links it to its part once the session's notes exist. */
+export interface PendingLink { memoryId: number; event?: string }
+/** Named so SESSION_FILE does not match it. */
+export const pendingLinksFile = (p: Paths, client: ClientId, sessionId: string) => join(p.stateDir, `pending-links-${client}-${safeName(sessionId)}.json`);
+export function loadPendingLinks(p: Paths, client: ClientId, sessionId: string): PendingLink[] {
+  const f = pendingLinksFile(p, client, sessionId);
+  return (existsSync(f) && readJson<PendingLink[]>(p, f)) || [];
+}
+/** An empty list removes the file. */
+export function savePendingLinks(p: Paths, client: ClientId, sessionId: string, links: PendingLink[]) {
+  const f = pendingLinksFile(p, client, sessionId);
+  if (links.length) { p.ensure(); writePrivate(f, JSON.stringify(links, null, 2)); } else if (existsSync(f)) unlinkSync(f);
+}
+
 export const isInitialized = (p: Paths) => existsSync(p.initializedMarker);
 /** Write the marker (an ISO timestamp) unless it exists. */
 export function markInitialized(p: Paths, at = new Date().toISOString()) { p.ensure(); if (!isInitialized(p)) writeFileSync(p.initializedMarker, at + '\n', { mode: 0o600 }); }

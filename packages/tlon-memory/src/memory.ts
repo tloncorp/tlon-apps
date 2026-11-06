@@ -6,7 +6,7 @@ import { findSessionNotes, noteUrl } from './notebook';
 import { Note, NotesClient, NotesError } from './notes-client';
 import { Paths } from './paths';
 import { Memory, MemoryStatus, MemoryType, anchorInRange, parseFrontMatter, parseMemory, partOf, renderMemory } from './render';
-import { listSessionStates, loadSessionState } from './state';
+import { listSessionStates, loadPendingLinks, loadSessionState, savePendingLinks } from './state';
 import { redact } from './redact';
 
 export interface SaveInput { type: MemoryType; text: string; agent: ClientId; project: string; sessionKey?: string; event?: string }
@@ -20,7 +20,17 @@ export const MEMORY_SCAN = 200;
 const cap = (n: number | undefined, d: number) => Math.min(n ?? d, MAX_RESULTS);
 
 /** One part of a conversation: its note id and the event anchors it holds. */
-interface PartRef { id: number; first?: string; last?: string }
+export interface PartRef { id: number; first?: string; last?: string }
+
+/** The part holding `event` (part 1 without one); an event past the synced range belongs to the last part (sessions only grow). */
+export function partHolding(parts: PartRef[], event?: string): number | undefined {
+  if (!parts.length) return undefined;
+  if (!event) return parts[0].id;
+  const hit = parts.find((p) => anchorInRange(event, p.first, p.last));
+  if (hit) return hit.id;
+  const last = parts[parts.length - 1];
+  return last.last && Number(event.slice(1)) > Number(last.last.slice(1)) ? last.id : undefined;
+}
 
 /*
  * Cost model: memory listing uses the ship's text search for the memory marker, which returns only matching
@@ -52,29 +62,25 @@ export class MemoryStore {
     return (await findSessionNotes(this.c, this.nb, sessionKey)).map((n) => ({ id: n.id, first: n.first, last: n.last }));
   }
 
-  /** The part holding `event`; an event past the synced range belongs to the last part (sessions only grow). */
-  private async sourcePart(sessionKey: string, event?: string): Promise<number | undefined> {
-    const parts = await this.partsFor(sessionKey);
-    if (!parts.length) return undefined;
-    if (!event) return parts[0].id;
-    const hit = parts.find((p) => anchorInRange(event, p.first, p.last));
-    if (hit) return hit.id;
-    const last = parts[parts.length - 1];
-    return last.last && Number(event.slice(1)) > Number(last.last.slice(1)) ? last.id : undefined;
-  }
-
-  /** Create a memory note; identical active text in the same project returns the existing note. */
-  async save(i: SaveInput): Promise<{ id: number; url: string; created: boolean }> {
+  /**
+   * Create a memory note; identical active text in the same project returns the existing note. A memory whose
+   * conversation is not uploaded yet gets a pending link, which the session's next sync fills in (`linkPending`).
+   */
+  async save(i: SaveInput): Promise<{ id: number; url: string; created: boolean; linkPending?: boolean }> {
     const text = redact(i.text.trim(), [this.cfg.apiKey]);
     if (!text) throw new Error('memory text is empty');
     const dup = (await this.memoryNotes()).find((n) => n.memory.status === 'active' && n.memory.project === i.project && n.memory.text === text);
     if (dup) return { id: dup.id, url: this.url(dup.id), created: false };
-    const note = i.sessionKey ? await this.sourcePart(i.sessionKey, i.event) : undefined;
+    const note = i.sessionKey ? partHolding(await this.partsFor(i.sessionKey), i.event) : undefined;
     const m: Memory = { type: i.type, status: 'active', agent: i.agent, project: i.project, created: new Date().toISOString(), text,
       ...(i.sessionKey ? { source: { session: i.sessionKey, ...(i.event ? { event: i.event } : {}), ...(note !== undefined ? { note, url: this.url(note) } : {}) } } : {}) };
     const title = text.split('\n')[0].slice(0, 120);
     const r = await this.c.createNote(this.nb.host, this.nb.name, this.nb.memoriesFolderId, title, renderMemory(m));
-    return { id: r.id, url: this.url(r.id), created: true };
+    const [client, ...rest] = i.sessionKey?.split(':') ?? [];
+    if (note !== undefined || (client !== 'claude-code' && client !== 'codex')) return { id: r.id, url: this.url(r.id), created: true };
+    const sessionId = rest.join(':');
+    savePendingLinks(this.paths, client, sessionId, [...loadPendingLinks(this.paths, client, sessionId), { memoryId: r.id, ...(i.event ? { event: i.event } : {}) }]);
+    return { id: r.id, url: this.url(r.id), created: true, linkPending: true };
   }
 
   async update(id: number, patch: { text?: string; type?: MemoryType; status?: MemoryStatus }): Promise<{ revision: number }> {

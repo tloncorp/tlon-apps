@@ -129,7 +129,7 @@ export async function callTool(name: string, raw: unknown, cfg: Config, paths: P
         if (SESSION_KEY.test(k)) sessionKey = k; else appendLog(paths, 'mcp-session-invalid', { client: agent });
       }
       const r = await store.save({ type, text, agent, project, sessionKey, event });
-      return `${r.created ? 'Saved' : 'Already saved'} memory [${r.id}] ${r.url}`;
+      return `${r.created ? 'Saved' : 'Already saved'} memory [${r.id}] ${r.url}${r.linkPending ? ' (source link will be added when this conversation uploads)' : ''}`;
     }
     case 'tlon_update_memory': {
       const id = a.id('id');

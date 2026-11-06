@@ -1,6 +1,6 @@
 // tests/memory.test.ts
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
-import { copyFileSync, mkdtempSync } from 'node:fs';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, spyOn } from 'bun:test';
+import { copyFileSync, existsSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FakeNotes } from './fake-notes-server';
@@ -41,6 +41,43 @@ describe('MemoryStore', () => {
     const body = fake.notes.get(m.id)!.bodyMd;
     expect(body).toMatch(/source_note: \d+/);
     expect(body).toContain('/notes/nb/~zod/');
+  });
+  describe('a memory saved before its conversation is uploaded', () => {
+    const SID = '11111111-aaaa-4bbb-8ccc-222222222222', key = `claude-code:${SID}`;
+    const pendingFile = () => join(paths.stateDir, `pending-links-claude-code-${SID}.json`);
+    const big = () => { const t = parseClaudeTranscript(join(import.meta.dir, 'fixtures', 'claude-session.jsonl'));
+      return { ...t, events: Array.from({ length: 400 }, (_, i) => ({ ...t.events[0], anchor: `e${i + 1}`, text: `event ${i + 1} ` + 'x'.repeat(1000) })) }; };
+    const client = () => new NotesClient({ shipUrl: fake.url, apiKey: 'test-key' });
+    it('is linked to the part holding its event (part 1 without one) when the session syncs', async () => {
+      const a = await store.save({ type: 'context', text: 'Cites part 2.', agent: 'claude-code', project: 'demo', sessionKey: key, event: 'e250' });
+      const b = await store.save({ type: 'context', text: 'Cites no event.', agent: 'claude-code', project: 'demo', sessionKey: key });
+      expect(a.linkPending).toBe(true);
+      const body = fake.notes.get(a.id)!.bodyMd;
+      expect(body).toContain(`source_session: ${key}`); expect(body).not.toContain('source_note');
+      expect(existsSync(pendingFile())).toBe(true);
+      await syncSession(paths, cfg, client(), big(), { recover: false });
+      const ids = (await import('../src/state')).loadSessionState(paths, 'claude-code', SID)!.noteIds;
+      const linked = fake.notes.get(a.id)!.bodyMd;
+      expect(linked).toContain(`source_note: ${ids[1]}`); expect(linked).toContain(`source_url: ${fake.url}/notes/nb/~zod/${cfg.notebook!.name}/n/${ids[1]}`);
+      expect(linked).toContain(`source_session: ${key}`); expect(linked).toContain('source_event: e250');
+      expect(fake.notes.get(b.id)!.bodyMd).toContain(`source_note: ${ids[0]}`);
+      expect(existsSync(pendingFile())).toBe(false);
+    });
+    it('stays pending when the memory keeps conflicting, and links on a later sync', async () => {
+      const a = await store.save({ type: 'context', text: 'Conflicted.', agent: 'claude-code', project: 'demo', sessionKey: key, event: 'e3' });
+      const orig = NotesClient.prototype.updateNote; let tries = 0;
+      const spy = spyOn(NotesClient.prototype, 'updateNote').mockImplementation(async function (this: NotesClient, ...args: Parameters<NotesClient['updateNote']>) {
+        if (args[2] === a.id) { tries++; return { kind: 'conflict' }; }
+        return orig.apply(this, args);
+      });
+      try { await syncSession(paths, cfg, client(), big(), { recover: false }); } finally { spy.mockRestore(); }
+      expect(tries).toBe(2);
+      expect(fake.notes.get(a.id)!.bodyMd).not.toContain('source_note');
+      expect(existsSync(pendingFile())).toBe(true);
+      expect(await syncSession(paths, cfg, client(), big(), { recover: false })).toBe('unchanged');
+      expect(fake.notes.get(a.id)!.bodyMd).toMatch(/source_note: \d+/);
+      expect(existsSync(pendingFile())).toBe(false);
+    });
   });
   it('searches by token overlap and recency, filters by type/project, hides retracted', async () => {
     await store.save({ type: 'decision', text: 'Use SQLite for the local queue.', agent: 'claude-code', project: 'demo' });

@@ -4,11 +4,12 @@ import { closeSync, existsSync, linkSync, openSync, readFileSync, renameSync, rm
 import { Config } from './config';
 import { ClientId, ParsedTranscript } from './events';
 import { appendLog } from './log';
-import { findSessionNotes } from './notebook';
-import { DEADLINE_EXCEEDED, NotesClient, NotesError, isDeadline } from './notes-client';
+import { findSessionNotes, noteUrl } from './notebook';
+import { partHolding } from './memory';
+import { DEADLINE_EXCEEDED, Note, NotesClient, NotesError, isDeadline } from './notes-client';
 import { Paths, writePrivate } from './paths';
-import { renderConversation, sessionKey } from './render';
-import { QueueJob, SessionState, initializedAt, listJobs, loadSessionState, markInitialized, removeJob, replaceJob, saveJob, saveSessionState } from './state';
+import { parseMemory, renderConversation, renderMemory, sessionKey } from './render';
+import { QueueJob, SessionState, initializedAt, listJobs, loadPendingLinks, loadSessionState, markInitialized, removeJob, replaceJob, savePendingLinks, saveJob, saveSessionState } from './state';
 import { loadConnection, saveConnection } from './status';
 import { parseClaudeTranscript } from './transcript/claude';
 import { parseCodexTranscript } from './transcript/codex';
@@ -54,7 +55,7 @@ export async function syncSession(p: Paths, cfg: Config, c: NotesClient, t: Pars
   const hashes = parts.map((x) => sha([x.body]));
   const hash = sha(parts.map((x) => x.body));
   let st = loadSessionState(p, t.client, t.sessionId);
-  if (st && st.contentHash === hash && st.noteIds.length === parts.length) return 'unchanged';
+  if (st && st.contentHash === hash && st.noteIds.length === parts.length) { await linkPendingMemories(p, cfg, c, st); return 'unchanged'; }
   if (!st) {
     st = { client: t.client, sessionId: t.sessionId, cwd: t.cwd, title: parts[0].title,
       noteIds: [], revisions: [], hashes: [], anchors: [], contentHash: '', eventCount: 0, lastSynced: '' };
@@ -112,7 +113,39 @@ export async function syncSession(p: Paths, cfg: Config, c: NotesClient, t: Pars
   }
   s.contentHash = hash; s.eventCount = t.events.length; s.lastSynced = new Date().toISOString(); s.title = parts[0].title; s.cwd = t.cwd;
   saveSessionState(p, s);
+  await linkPendingMemories(p, cfg, c, s);
   return result;
+}
+
+/**
+ * Fill in source_note/source_url of memories saved before this session's notes existed. A memory that keeps
+ * conflicting stays pending for the next sync; one deleted or no longer a memory is dropped.
+ */
+async function linkPendingMemories(p: Paths, cfg: Config, c: NotesClient, s: SessionState) {
+  let pending = loadPendingLinks(p, s.client, s.sessionId);
+  if (!pending.length) return;
+  const parts = s.noteIds.map((id, i) => ({ id, first: s.anchors?.[i]?.[0], last: s.anchors?.[i]?.[1] }));
+  for (const l of [...pending]) {
+    const note = partHolding(parts, l.event);
+    if (note === undefined || !(await linkMemory(p, cfg, c, l.memoryId, note))) continue;
+    pending = pending.filter((x) => x !== l);
+    savePendingLinks(p, s.client, s.sessionId, pending);
+  }
+}
+
+/** True when the memory needs no more work: linked, or gone. False after a second conflict. */
+async function linkMemory(p: Paths, cfg: Config, c: NotesClient, id: number, note: number): Promise<boolean> {
+  const nb = cfg.notebook!;
+  for (let i = 0; i < 2; i++) {
+    let n: Note;
+    try { n = await c.getNote(nb.host, nb.name, id); }
+    catch (e) { if (!isCode(e, 'not-found')) throw e; appendLog(p, 'link-drop', { note: id, error: 'not found' }); return true; }
+    const m = parseMemory(n.bodyMd);
+    if (!m) { appendLog(p, 'link-drop', { note: id, error: 'not a memory' }); return true; }
+    const r = await c.updateNote(nb.host, nb.name, id, renderMemory({ ...m, source: { ...m.source, note, url: noteUrl(cfg.shipUrl, nb, note) } }), n.revision);
+    if (r.kind !== 'conflict') return true;
+  }
+  return false;
 }
 
 export interface SyncReport { synced: number; failed: number; remaining: number; keyRejected: boolean; locked?: boolean; lastError?: string }
