@@ -69,6 +69,15 @@ describe('setup (non-interactive)', () => {
     expect(JSON.parse(readFileSync(join(tmHome, 'state', 'connection.json'), 'utf8')).state).toBe('ok');
   });
 
+  it('--reconnect clears the backoff of every queued job', async () => {
+    await run(['setup', '--ship-url', fake.url, '--api-key-stdin', '--notebook', 'AM', '--scope', '/p', '--clients', 'none', '--yes'], 'test-key\n');
+    const q = join(tmHome, 'queue'); mkdirSync(q, { recursive: true });
+    const job = { client: 'claude', sessionId: 's', transcriptPath: '/nope', cwd: '/p', enqueuedAt: new Date().toISOString(), attempts: 6, hardFailures: 2, nextAttemptAt: new Date(Date.now() + 3_600_000).toISOString() };
+    writeFileSync(join(q, 'claude-s.json'), JSON.stringify(job));
+    expect((await run(['setup', '--reconnect', '--api-key-stdin', '--yes'], 'test-key\n')).code).toBe(0);
+    const after = JSON.parse(readFileSync(join(q, 'claude-s.json'), 'utf8'));
+    expect(after.attempts).toBe(0); expect(after.hardFailures).toBe(0); expect(after.nextAttemptAt).toBeUndefined();
+  });
   it('--reconnect accepts --ship-url to move to a new URL, and needs an existing setup', async () => {
     expect((await run(['setup', '--reconnect', '--api-key-stdin', '--yes'], 'test-key\n')).code).toBe(2);
     await run(['setup', '--ship-url', fake.url, '--api-key-stdin', '--notebook', 'AM', '--scope', '/p', '--clients', 'none', '--yes'], 'test-key\n');

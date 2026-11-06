@@ -123,11 +123,36 @@ describe('sync', () => {
   it('gives up on a job after the attempt limit', async () => {
     writeFileSync(fx, line('u1', '2026-11-05T14:00:00.000Z', 'hi').replace(SID, '')); // no session id: a permanent failure
     enqueue(paths, { client: 'claude', sessionId: 's1', transcriptPath: fx, cwd: '/x' });
-    saveJob(paths, { ...listJobs(paths)[0], attempts: MAX_ATTEMPTS - 1 });
+    saveJob(paths, { ...listJobs(paths)[0], attempts: MAX_ATTEMPTS - 1, hardFailures: MAX_ATTEMPTS - 1 });
     const r = await syncQueue(paths, cfg, { budgetMs: 10_000 });
     expect(r).toMatchObject({ failed: 1, remaining: 0 });
     expect(jobs().length).toBe(0);
     expect(readFileSync(paths.logFile, 'utf8')).toContain('sync-giveup');
+  });
+  it('never gives up on a job that keeps failing with a transient error, and caps its backoff at 1 h', async () => {
+    enqueue(paths, { client: 'claude', sessionId: 's1', transcriptPath: fx, cwd: '/x' });
+    let t = Date.now();
+    for (let i = 0; i < 9; i++) {
+      fake.failNext = 503;
+      const r = await syncQueue(paths, cfg, { budgetMs: 10_000, now: () => t });
+      expect(r).toMatchObject({ failed: 1, remaining: 1 });
+      const job = listJobs(paths)[0];
+      expect(job.attempts).toBe(i + 1);
+      expect(job.hardFailures ?? 0).toBe(0);
+      expect(Date.parse(job.nextAttemptAt!) - t).toBeLessThanOrEqual(3_600_000);
+      t = Date.parse(job.nextAttemptAt!) + 1; // the next run is due
+    }
+    expect(jobs().length).toBe(1);
+    expect(readFileSync(paths.logFile, 'utf8')).not.toContain('sync-giveup');
+  });
+  it('ignoreBackoff runs a job whose next attempt is not due yet', async () => {
+    enqueue(paths, { client: 'claude', sessionId: 's1', transcriptPath: fx, cwd: '/x' });
+    fake.failNext = 503;
+    await syncQueue(paths, cfg, { budgetMs: 10_000 });
+    saveJob(paths, { ...listJobs(paths)[0], nextAttemptAt: new Date(Date.now() + 600_000).toISOString() }); // as after a few failures
+    expect(await syncQueue(paths, cfg, { budgetMs: 10_000 })).toMatchObject({ synced: 0, remaining: 1 }); // backing off
+    expect(await syncQueue(paths, cfg, { budgetMs: 10_000, ignoreBackoff: true })).toMatchObject({ synced: 1, remaining: 0 });
+    expect(jobs().length).toBe(0);
   });
   it('recreates a part whose note was deleted on the ship', async () => {
     enqueue(paths, { client: 'claude', sessionId: 's1', transcriptPath: fx, cwd: '/x' });

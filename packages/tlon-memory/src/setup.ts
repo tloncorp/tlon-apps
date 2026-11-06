@@ -11,7 +11,7 @@ import { ensureNotebook, notebookUrl } from './notebook';
 import { NotesClient } from './notes-client';
 import { Paths } from './paths';
 import { ask, askHidden, confirm, readSecret } from './prompt';
-import { markInitialized } from './state';
+import { markInitialized, resetBackoff } from './state';
 import { saveConnection } from './status';
 
 export const SIGNUP_URL = 'https://tlon.network/signup?source=agent';
@@ -136,6 +136,7 @@ export async function setup(args: string[]): Promise<number> {
   if (reconnect && cfg.ship && ship !== cfg.ship) { err(`This key belongs to ${ship}, but the notebook is on ${cfg.ship}. Run setup without --reconnect to start over.`); return 1; }
   cfg.ship = ship; cfg.apiKey = apiKey; saveConnection(paths, { state: 'ok', checkedAt: new Date().toISOString() }); markInitialized(paths);
   out(`\nConnected as ${cfg.ship}.`);
+  if (reconnect) { const n = resetBackoff(paths); if (n) out(`${n} queued upload${n === 1 ? '' : 's'} will retry on the next sync.`); }
 
   // 4. notebook
   if (!reconnect) {

@@ -57,6 +57,16 @@ describe('commands', () => {
     expect(loadConfig(paths)!.scopes).toEqual(cfg.scopes);
     expect((await run(['scope', 'add', home, '--force-scope'])).code).toBe(0); expect(loadConfig(paths)!.scopes).toContain(home);
   });
+  it('sync runs a job that is still backing off', async () => {
+    const fx = join(home, 't.jsonl');
+    writeFileSync(fx, readFileSync(fx, 'utf8') + '\n');
+    enqueue(paths, { client: 'claude', sessionId: 's', transcriptPath: fx, cwd: '/Users/bill/Projects/demo' });
+    const j = listJobs(paths)[0];
+    writeFileSync(join(paths.queueDir, 'claude-s.json'), JSON.stringify({ ...j, attempts: 3, nextAttemptAt: new Date(Date.now() + 3_600_000).toISOString() }));
+    const r = await run(['sync']);
+    expect(r.out).toContain('synced 1, failed 0, remaining 0');
+    expect(listJobs(paths).length).toBe(0);
+  });
   it('export writes private markdown + index without the key, by default under HOME', async () => {
     const out = join(home, 'export'); const r = await run(['export', '--out', out]); expect(r.code).toBe(0);
     expect(r.out).toContain('sensitive');

@@ -104,8 +104,11 @@ export async function syncSession(p: Paths, cfg: Config, c: NotesClient, t: Pars
 
 export interface SyncReport { synced: number; failed: number; remaining: number; keyRejected: boolean; locked?: boolean; lastError?: string }
 
-const BACKOFF_MS = [0, 30_000, 120_000, 600_000, 3_600_000];
+const BACKOFF_MS = [0, 30_000, 120_000, 600_000, 3_600_000]; // the last delay (1 h) repeats
+/** Deterministic failures before a job is dropped. Transient ones (ship unreachable, key rejected) never drop it. */
 export const MAX_ATTEMPTS = 8;
+/** A ship that is down or a rejected key: retry forever with backoff, the job is not at fault. */
+const isTransient = (e: unknown) => isCode(e, 'unreachable') || isCode(e, 'key-rejected');
 const LOCK_STALE_MS = 60_000;
 
 /** Exclusive queue lock; one older than LOCK_STALE_MS belongs to a dead or stuck run and is replaced. */
@@ -140,7 +143,8 @@ function releaseLock(p: Paths) {
 }
 
 /** Drain the queue within a time budget. Network and transcript errors are recorded on the job, not thrown. */
-export async function syncQueue(p: Paths, cfg: Config, o: { budgetMs: number; now?: () => number } = { budgetMs: 15_000 }): Promise<SyncReport> {
+export async function syncQueue(p: Paths, cfg: Config,
+  o: { budgetMs: number; now?: () => number; ignoreBackoff?: boolean } = { budgetMs: 15_000 }): Promise<SyncReport> {
   const now = o.now ?? Date.now; const start = now();
   const rep: SyncReport = { synced: 0, failed: 0, remaining: 0, keyRejected: false };
   if (!acquireLock(p)) { rep.remaining = listJobs(p).length; rep.locked = true; return rep; }
@@ -150,7 +154,7 @@ export async function syncQueue(p: Paths, cfg: Config, o: { budgetMs: number; no
     let attempted = 0, reachedShip = false, netError: NotesError | undefined;
     for (const job of listJobs(p)) {
       if (now() - start >= o.budgetMs || rep.keyRejected) { rep.remaining++; continue; }
-      if (job.nextAttemptAt && new Date(job.nextAttemptAt).getTime() > now()) { rep.remaining++; continue; }
+      if (!o.ignoreBackoff && job.nextAttemptAt && new Date(job.nextAttemptAt).getTime() > now()) { rep.remaining++; continue; }
       attempted++;
       try {
         const t = parseTranscript(job.client, job.transcriptPath, cfg.captureToolIo, [cfg.apiKey]);
@@ -171,7 +175,8 @@ export async function syncQueue(p: Paths, cfg: Config, o: { budgetMs: number; no
         if (isCode(e, 'key-rejected')) rep.keyRejected = true;
         if (isCode(e, 'key-rejected') || isCode(e, 'unreachable')) netError = e as NotesError;
         job.attempts++; job.lastError = err.message.slice(0, 200);
-        if (job.attempts >= MAX_ATTEMPTS) {
+        if (!isTransient(e)) job.hardFailures = (job.hardFailures ?? 0) + 1;
+        if ((job.hardFailures ?? 0) >= MAX_ATTEMPTS) {
           removeJob(p, job);
           appendLog(p, 'sync-giveup', { client: job.client, session: job.sessionId, count: job.attempts, error: err.message });
         } else {

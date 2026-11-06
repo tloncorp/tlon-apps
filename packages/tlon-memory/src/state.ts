@@ -16,8 +16,13 @@ export interface SessionState {
   eventCount: number; lastSynced: string;
 }
 
+/**
+ * `attempts` counts every failed try and sets the backoff delay. `hardFailures` counts only deterministic
+ * failures (a bad response, a note too large, a conflict that will not resolve, an unparsable transcript);
+ * only those lead to giving up. A ship that is down or a rejected key never drops a job.
+ */
 export interface QueueJob { client: 'claude' | 'codex'; sessionId: string; transcriptPath: string; cwd: string;
-  enqueuedAt: string; attempts: number; lastError?: string; nextAttemptAt?: string }
+  enqueuedAt: string; attempts: number; hardFailures?: number; lastError?: string; nextAttemptAt?: string }
 
 const SESSION_FILE = /^(claude-code|codex)-.+\.json$/;
 export const stateFile = (p: Paths, client: ClientId, sessionId: string) => join(p.stateDir, `${client}-${safeName(sessionId)}.json`);
@@ -68,4 +73,10 @@ export function listJobs(p: Paths): QueueJob[] {
     .map((f) => readJson<QueueJob>(p, join(p.queueDir, f)))
     .filter((j): j is QueueJob => j !== null && typeof j.enqueuedAt === 'string')
     .sort((a, b) => a.enqueuedAt.localeCompare(b.enqueuedAt));
+}
+/** After a fix (a new key, a reachable ship): make every queued job due now, with a clean failure count. */
+export function resetBackoff(p: Paths): number {
+  const jobs = listJobs(p);
+  for (const j of jobs) { const { nextAttemptAt: _, ...rest } = j; saveJob(p, { ...rest, attempts: 0, hardFailures: 0 }); }
+  return jobs.length;
 }
