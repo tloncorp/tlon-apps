@@ -23,12 +23,14 @@ describe('claude installer', () => {
     expect(calls).toEqual([['claude', 'mcp', 'add', '-s', 'user', 'tlon-memory', '-e', 'TLON_MEMORY_AGENT=claude-code', '--', '/opt/tm/bin/tlon-memory.js', 'mcp']]);
     expect(existsSync(join(home, '.claude', 'skills', 'tlon-memory', 'SKILL.md'))).toBe(true);
     expect(existsSync(settings + '.bak-tlon-memory')).toBe(true);
-    await uninstallClient('claude', { home, binPath: '/opt/tm/bin/tlon-memory.js', exec, skillSource: '' });
+    const u = await uninstallClient('claude', { home, binPath: '/opt/tm/bin/tlon-memory.js', exec, skillSource: '' });
+    expect(u).toMatchObject({ hooks: true, skill: true });
     const after = JSON.parse(readFileSync(settings, 'utf8'));
     expect(after.hooks.Stop).toEqual([{ hooks: [{ type: 'command', command: 'other-tool' }] }]);
     expect(after.hooks.SessionStart).toBeUndefined();
     expect(calls.at(-1)).toEqual(['claude', 'mcp', 'remove', '-s', 'user', 'tlon-memory']);
     expect(existsSync(join(home, '.claude', 'skills', 'tlon-memory'))).toBe(false);
+    expect(await uninstallClient('claude', { home, binPath: '/opt/tm/bin/tlon-memory.js', exec, skillSource: '' })).toMatchObject({ hooks: false, skill: false });
   });
   it('is idempotent', async () => {
     const o = { home, binPath: '/b', exec, skillSource: join(import.meta.dir, '..', 'SKILL.md') };

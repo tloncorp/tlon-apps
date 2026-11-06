@@ -73,14 +73,16 @@ export async function installClient(client: Client, o: InstallOptions): Promise<
   return { mcp: r.code === 0, hooks: true, skill: true, ...(r.code !== 0 ? { mcpError: brief(r) + removeErr } : {}) };
 }
 
-/** Idempotent: safe to run for a client that was never installed. Returns the `mcp remove` result for reporting. */
-export async function uninstallClient(client: Client, o: InstallOptions): Promise<{ mcp: ExecResult; mcpNotFound: boolean; shifted: boolean }> {
+/** Idempotent: safe to run for a client that was never installed. Reports what was actually there to remove. */
+export async function uninstallClient(client: Client, o: InstallOptions): Promise<{ mcp: ExecResult; mcpNotFound: boolean; hooks: boolean; skill: boolean; shifted: boolean }> {
   const exec = o.exec ?? defaultExec; const p = paths(client, o.home);
-  const { shifted } = unmergeHooks(p.hooksFile, MARKER(client), o.home);
+  const { removed: hooks, shifted } = unmergeHooks(p.hooksFile, MARKER(client), o.home);
   const [cmd, args] = mcpRemoveArgs(client);
   const mcp = await exec(cmd, args);
+  const skill = existsSync(p.skillDir);
   rmSync(p.skillDir, { recursive: true, force: true });
-  return { mcp, mcpNotFound: mcp.code !== 0 && NOT_FOUND.test(brief(mcp)), shifted };
+  // `codex mcp remove` reports an unknown name on stdout and exits 0.
+  return { mcp, mcpNotFound: NOT_FOUND.test(brief(mcp)), hooks, skill, shifted };
 }
 
 export async function detectClient(client: Client, exec: Exec = defaultExec): Promise<boolean> {

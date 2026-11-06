@@ -137,7 +137,15 @@ describe('disconnect', () => {
     expect(existsSync(skill())).toBe(false);
     expect(readFileSync(join(home, 'claude.calls'), 'utf8')).toContain('mcp remove -s user tlon-memory');
     expect(readFileSync(join(home, 'codex.calls'), 'utf8')).toContain('mcp remove tlon-memory');
-    expect(r.out).toMatch(/claude: .*MCP server removed/);
+    expect(r.out).toMatch(/claude: hooks and skill removed · MCP server removed/);
+    expect(r.out).toContain('codex: no hooks or skill to remove');
+  });
+  it('a second disconnect says nothing was there, including Codex answering "not found" with exit 0', async () => {
+    seedClaude(); await run(['disconnect']);
+    writeFileSync(join(home, 'bin', 'codex'), `#!/bin/sh\necho "No MCP server named 'tlon-memory' found."\nexit 0\n`, { mode: 0o755 });
+    const r = await run(['disconnect']); expect(r.code).toBe(0);
+    expect(r.out).toContain('claude: no hooks or skill to remove');
+    expect(r.out).toContain('codex: no hooks or skill to remove · MCP server was not registered');
   });
   it('works with a corrupt config and removes an emptied root', async () => {
     seedClaude(); writeFileSync(paths.configFile, '{ broken');
@@ -146,7 +154,7 @@ describe('disconnect', () => {
   });
   it('reports a failing mcp remove instead of claiming success', async () => {
     writeFileSync(join(home, 'bin', 'codex'), '#!/bin/sh\necho "boom" >&2\nexit 4\n', { mode: 0o755 });
-    const r = await run(['disconnect']); expect(r.out).toContain('codex: hooks and skill removed · MCP remove exited 4: boom'); expect(r.code).toBe(1);
+    const r = await run(['disconnect']); expect(r.out).toContain('codex: no hooks or skill to remove · MCP remove exited 4: boom'); expect(r.code).toBe(1);
   });
   it('--revoke-key failing leaves everything installed', async () => {
     seedClaude();

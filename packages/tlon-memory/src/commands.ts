@@ -161,10 +161,12 @@ async function disconnect(paths: Paths, args: string[]): Promise<number> {
   for (const c of CLIENTS) {
     try {
       const r = await uninstallClient(c, { binPath: BIN_PATH, skillSource: SKILL_SOURCE });
-      const mcp = r.mcp.code === 0 ? 'MCP server removed' : r.mcpNotFound ? 'MCP server was not registered'
+      const mcp = r.mcpNotFound ? 'MCP server was not registered' : r.mcp.code === 0 ? 'MCP server removed'
         : `MCP remove exited ${r.mcp.code}: ${(r.mcp.err || r.mcp.out).trim().slice(0, 300)}`;
       if (r.mcp.code !== 0 && !r.mcpNotFound) failed = true;
-      out(`${c}: hooks and skill removed · ${mcp}`);
+      const local = r.hooks && r.skill ? 'hooks and skill removed' : r.hooks ? 'hooks removed, no skill to remove'
+        : r.skill ? 'skill removed, no hooks to remove' : 'no hooks or skill to remove';
+      out(`${c}: ${local} · ${mcp}`);
       if (c === 'codex' && r.shifted) out('codex: run /hooks in Codex to re-trust any remaining hooks (their positions changed).');
     } catch (e) { failed = true; out(`${c}: could not remove wiring: ${msg(e)}`); }
   }

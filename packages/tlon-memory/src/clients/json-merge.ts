@@ -66,10 +66,10 @@ export function mergeHooks(file: string, ours: HooksMap, marker: string, home = 
   writeHooksFile(file, data);
 }
 
-/** Remove our hook commands; an entry is dropped only when nothing else is left in it. Returns whether a
- *  remaining entry moved to a lower index (Codex then needs `/hooks` to re-trust it). */
-export function unmergeHooks(file: string, marker: string, home = homedir()): { shifted: boolean } {
-  if (!existsSync(file)) return { shifted: false };
+/** Remove our hook commands; an entry is dropped only when nothing else is left in it. Returns whether any were
+ *  there and whether a remaining entry moved to a lower index (Codex then needs `/hooks` to re-trust it). */
+export function unmergeHooks(file: string, marker: string, home = homedir()): { removed: boolean; shifted: boolean } {
+  if (!existsSync(file)) return { removed: false, shifted: false };
   const data = readHooksFile(file, home);
   const mine = (h: HookCommand) => typeof h?.command === 'string' && h.command.includes(marker);
   let changed = false, shifted = false;
@@ -85,8 +85,8 @@ export function unmergeHooks(file: string, marker: string, home = homedir()): { 
     }
     if (next.length) data.hooks[ev] = next; else delete data.hooks[ev];
   }
-  if (!changed) return { shifted: false };
+  if (!changed) return { removed: false, shifted: false };
   if (Object.keys(data.hooks).length === 0) delete data.hooks;
   writeHooksFile(file, data);
-  return { shifted };
+  return { removed: true, shifted };
 }
