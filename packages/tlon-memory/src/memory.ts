@@ -16,7 +16,7 @@ export interface HistoryHit { noteId: number; sessionKey: string; client: string
 
 const tokens = (s: string) => new Set(s.toLowerCase().split(/[^a-z0-9~_-]+/).filter((t) => t.length >= 2));
 const MAX_RESULTS = 25;
-const MEMORY_SCAN = 200;
+export const MEMORY_SCAN = 200;
 const cap = (n: number | undefined, d: number) => Math.min(n ?? d, MAX_RESULTS);
 
 /** One part of a conversation: its note id and the event anchors it holds. */
@@ -33,7 +33,8 @@ export class MemoryStore {
   private get nb() { return this.cfg.notebook!; }
   private url(id: number) { return noteUrl(this.cfg.shipUrl, this.nb, id); }
 
-  private async memoryNotes(): Promise<(Note & { memory: Memory })[]> {
+  /** Up to MEMORY_SCAN memory notes, found by text search so conversation bodies are not downloaded. */
+  async memoryNotes(): Promise<(Note & { memory: Memory })[]> {
     const notes = await this.c.searchText(this.nb.host, this.nb.name, 'tlon-memory: memory/v1', MEMORY_SCAN);
     return notes.filter((n) => n.folderId === this.nb.memoriesFolderId)
       .map((n) => ({ ...n, memory: parseMemory(n.bodyMd)! })).filter((n) => n.memory);

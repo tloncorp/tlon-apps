@@ -1,6 +1,6 @@
 // tests/commands.test.ts
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
-import { copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FakeNotes } from './fake-notes-server';
@@ -10,50 +10,126 @@ import { Config, defaultConfig, saveConfig, loadConfig } from '../src/config';
 import { ensureNotebook } from '../src/notebook';
 import { MemoryStore } from '../src/memory';
 import { enqueue, syncQueue } from '../src/sync';
+import { listJobs } from '../src/state';
+import { hookEntries } from '../src/clients';
+import { BIN_PATH } from '../src/setup';
 
-const fake = new FakeNotes(); let paths: Paths; let cfg: Config;
+const fake = new FakeNotes(); let home: string; let paths: Paths; let cfg: Config;
 const main = join(import.meta.dir, '..', 'src', 'main.ts');
+const SESSION = 'claude-code:11111111-aaaa-4bbb-8ccc-222222222222';
 // Async spawn: spawnSync would block this process's event loop, so the in-process fake server could not answer the child.
-// HOME also points at the temp dir so `disconnect` never touches the real ~/.claude or ~/.codex.
-const run = async (...args: string[]) => { const r = Bun.spawn(['bun', 'run', main, ...args], { stdin: 'ignore', stdout: 'pipe', stderr: 'pipe', env: { ...process.env, HOME: paths.root, TLON_MEMORY_HOME: paths.root, PATH: `${paths.root}/bin:${process.env.PATH}` } });
+// HOME is a temp dir so `disconnect` never touches the real ~/.claude or ~/.codex; fake `claude`/`codex` record their args.
+const run = async (args: string[], input?: string) => {
+  const r = Bun.spawn(['bun', 'run', main, ...args], { stdin: input === undefined ? 'ignore' : new TextEncoder().encode(input), stdout: 'pipe', stderr: 'pipe',
+    env: { ...process.env, HOME: home, TLON_MEMORY_HOME: paths.root, PATH: `${home}/bin:${process.env.PATH}` } });
   const [out, err, code] = await Promise.all([new Response(r.stdout).text(), new Response(r.stderr).text(), r.exited]); return { code, out, err }; };
 beforeAll(async () => { fake.start(); const c = new NotesClient({ shipUrl: fake.url, apiKey: 'test-key' });
   cfg = { ...defaultConfig(), shipUrl: fake.url, ship: '~zod', apiKey: 'test-key', scopes: ['/Users/bill/Projects/demo'], notebook: await ensureNotebook(c, 'Agent Memory') }; });
 afterAll(() => fake.stop());
-beforeEach(async () => { paths = new Paths(mkdtempSync(join(tmpdir(), 'tm-cmd-'))); saveConfig(paths, cfg); fake.notes.clear();
-  const fx = join(paths.root, 't.jsonl'); copyFileSync(join(import.meta.dir, 'fixtures', 'claude-session.jsonl'), fx);
+beforeEach(async () => {
+  home = mkdtempSync(join(tmpdir(), 'tm-cmd-')); paths = new Paths(join(home, '.tlon', 'memory')); saveConfig(paths, cfg); fake.notes.clear(); fake.apiKey = 'test-key';
+  mkdirSync(join(home, 'bin'));
+  for (const c of ['claude', 'codex']) writeFileSync(join(home, 'bin', c), `#!/bin/sh\necho "$@" >> "${home}/${c}.calls"\nexit 0\n`, { mode: 0o755 });
+  const fx = join(home, 't.jsonl'); copyFileSync(join(import.meta.dir, 'fixtures', 'claude-session.jsonl'), fx);
   enqueue(paths, { client: 'claude', sessionId: 's', transcriptPath: fx, cwd: '/Users/bill/Projects/demo' }); await syncQueue(paths, cfg, { budgetMs: 10_000 });
-  await new MemoryStore(paths, cfg).save({ type: 'decision', text: 'Use SQLite.', agent: 'claude-code', project: 'demo', sessionKey: 'claude-code:11111111-aaaa-4bbb-8ccc-222222222222', event: 'e2' }); });
+  await new MemoryStore(paths, cfg).save({ type: 'decision', text: 'Use SQLite.', agent: 'claude-code', project: 'demo', sessionKey: SESSION, event: 'e2' }); });
 
 describe('commands', () => {
-  it('status shows connection, scope, counts', async () => {
-    const r = await run('status'); expect(r.code).toBe(0);
-    expect(r.out).toContain('~zod'); expect(r.out).toContain('/Users/bill/Projects/demo'); expect(r.out).toContain('conversations: 1'); expect(r.out).toContain('memories: 1'); expect(r.out).not.toContain('test-key');
+  it('status shows connection, scope, counts without listing note bodies', async () => {
+    fake.requests.length = 0;
+    const r = await run(['status']); expect(r.code).toBe(0);
+    expect(r.out).toContain('~zod'); expect(r.out).toContain('/Users/bill/Projects/demo');
+    expect(r.out).toContain('memories: 1'); expect(r.out).toContain('conversations synced from this device: 1'); expect(r.out).not.toContain('test-key');
+    expect(fake.requests.some((q) => q.method === 'GET' && /\/notes$/.test(q.path.split('?')[0]))).toBe(false);
   });
   it('pause/resume toggle and scope add/remove/list', async () => {
-    expect((await run('pause')).out).toContain('paused'); expect(loadConfig(paths)!.paused).toBe(true);
-    expect((await run('resume')).out).toContain('resumed'); expect(loadConfig(paths)!.paused).toBe(false);
-    await run('scope', 'add', '/tmp/x'); expect(loadConfig(paths)!.scopes).toContain('/tmp/x');
-    expect((await run('scope', 'list')).out).toContain('/tmp/x');
-    await run('scope', 'remove', '/tmp/x'); expect(loadConfig(paths)!.scopes).not.toContain('/tmp/x');
+    expect((await run(['pause'])).out).toContain('paused'); expect(loadConfig(paths)!.paused).toBe(true);
+    expect((await run(['resume'])).out).toContain('resumed'); expect(loadConfig(paths)!.paused).toBe(false);
+    const dir = mkdtempSync(join(tmpdir(), 'tm-scope-'));
+    await run(['scope', 'add', dir]); expect(loadConfig(paths)!.scopes).toContain(dir);
+    expect((await run(['scope', 'list'])).out).toContain(dir);
+    await run(['scope', 'remove', dir]); expect(loadConfig(paths)!.scopes).not.toContain(dir);
   });
-  it('export writes markdown + index without the key', async () => {
-    const out = join(paths.root, 'export'); const r = await run('export', '--out', out); expect(r.code).toBe(0);
-    expect(readdirSync(join(out, 'conversations')).length).toBe(1); expect(readdirSync(join(out, 'memories')).length).toBe(1);
+  it('scope add refuses home or / without --force-scope, and a missing directory', async () => {
+    const r = await run(['scope', 'add', home]); expect(r.code).toBe(2); expect(r.err).toContain('--force-scope');
+    expect((await run(['scope', 'add', '/'])).code).toBe(2);
+    expect((await run(['scope', 'add', join(home, 'nope')])).code).toBe(2);
+    expect(loadConfig(paths)!.scopes).toEqual(cfg.scopes);
+    expect((await run(['scope', 'add', home, '--force-scope'])).code).toBe(0); expect(loadConfig(paths)!.scopes).toContain(home);
+  });
+  it('export writes private markdown + index without the key, by default under HOME', async () => {
+    const out = join(home, 'export'); const r = await run(['export', '--out', out]); expect(r.code).toBe(0);
+    expect(r.out).toContain('sensitive');
+    expect(statSync(out).mode & 0o777).toBe(0o700);
+    const conv = readdirSync(join(out, 'conversations')); expect(conv.length).toBe(1); expect(readdirSync(join(out, 'memories')).length).toBe(1);
+    expect(statSync(join(out, 'conversations', conv[0])).mode & 0o777).toBe(0o600);
     const idx = JSON.parse(readFileSync(join(out, 'index.json'), 'utf8')); expect(idx.notes.length).toBe(2); expect(JSON.stringify(idx)).not.toContain('test-key');
+    const d = await run(['export']); expect(d.code).toBe(0);
+    expect(readdirSync(home).some((f) => f.startsWith('tlon-memory-export-'))).toBe(true);
   });
-  it('delete --session removes the conversation note and local state; --memory removes a memory; --all empties both folders', async () => {
-    expect((await run('delete', '--session', 'claude-code:11111111-aaaa-4bbb-8ccc-222222222222', '--yes')).code).toBe(0);
+  it('delete --session removes the conversation note, local state and queued job; --memory removes a memory; --all needs --yes', async () => {
+    enqueue(paths, { client: 'claude', sessionId: '11111111-aaaa-4bbb-8ccc-222222222222', transcriptPath: '/x', cwd: '/y' });
+    const r = await run(['delete', '--session', SESSION, '--yes']); expect(r.code).toBe(0); expect(r.out).toContain('pause capture first');
     expect([...fake.notes.values()].filter((n) => n.folderId === cfg.notebook!.conversationsFolderId).length).toBe(0);
     expect(readdirSync(paths.stateDir).filter((f) => /^(claude-code|codex)-/.test(f)).length).toBe(0);
-    const mem = [...fake.notes.values()][0]; expect((await run('delete', '--memory', String(mem.id), '--yes')).code).toBe(0); expect(fake.notes.size).toBe(0);
-    expect((await run('delete', '--all')).code).toBe(1); // needs --yes
+    expect(listJobs(paths).length).toBe(0);
+    const mem = [...fake.notes.values()][0]; expect((await run(['delete', '--memory', String(mem.id), '--yes'])).code).toBe(0); expect(fake.notes.size).toBe(0);
+    expect((await run(['delete', '--all'])).code).toBe(1); // needs --yes
   });
-  it('disconnect removes local config and client wiring', async () => {
-    const bin = join(paths.root, 'bin'); require('node:fs').mkdirSync(bin, { recursive: true });
-    for (const c of ['claude', 'codex']) require('node:fs').writeFileSync(join(bin, c), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
-    saveConfig(paths, { ...cfg, clients: { claude: { mcp: true, hooks: true, skill: true, installedAt: '' } } });
-    const r = await run('disconnect'); expect(r.code).toBe(0);
-    expect(existsSync(paths.configFile)).toBe(false); expect(r.out).toContain('Notes on your ship were kept');
+  it('delete validates its arguments and only deletes memories with --memory', async () => {
+    expect((await run(['delete', '--memory', 'abc', '--yes'])).code).toBe(2);
+    expect((await run(['delete', '--memory', '0', '--yes'])).code).toBe(2);
+    expect((await run(['delete', '--session', 'gpt:abc', '--yes'])).code).toBe(2);
+    const conv = [...fake.notes.values()].find((n) => n.folderId === cfg.notebook!.conversationsFolderId)!;
+    const r = await run(['delete', '--memory', String(conv.id), '--yes']); expect(r.code).toBe(1); expect(r.err).toContain('not a memory');
+    expect(fake.notes.has(conv.id)).toBe(true);
+  });
+  it('delete --all removes every queued job', async () => {
+    enqueue(paths, { client: 'codex', sessionId: 'x', transcriptPath: '/x', cwd: '/y' });
+    expect((await run(['delete', '--all', '--yes'])).code).toBe(0);
+    expect(fake.notes.size).toBe(0); expect(listJobs(paths).length).toBe(0);
+  });
+});
+
+describe('disconnect', () => {
+  const settings = () => join(home, '.claude', 'settings.json');
+  const skill = () => join(home, '.claude', 'skills', 'tlon-memory');
+  function seedClaude() {
+    mkdirSync(skill(), { recursive: true }); writeFileSync(join(skill(), 'SKILL.md'), 'x');
+    const ours = hookEntries('claude', BIN_PATH);
+    writeFileSync(settings(), JSON.stringify({ model: 'opus', hooks: { ...ours, Stop: [{ hooks: [{ type: 'command', command: 'other-tool' }] }, ...ours.Stop] } }));
+  }
+  it('removes only what tlon-memory owns, client hooks and skill, and reports mcp remove', async () => {
+    seedClaude(); writeFileSync(join(paths.root, 'notes.txt'), 'mine');
+    const r = await run(['disconnect']); expect(r.code).toBe(0);
+    expect(existsSync(paths.configFile)).toBe(false); expect(existsSync(paths.stateDir)).toBe(false); expect(existsSync(paths.queueDir)).toBe(false);
+    expect(readFileSync(join(paths.root, 'notes.txt'), 'utf8')).toBe('mine');
+    expect(r.out).toContain('Notes on your ship were kept');
+    const s = JSON.parse(readFileSync(settings(), 'utf8'));
+    expect(s.model).toBe('opus'); expect(s.hooks).toEqual({ Stop: [{ hooks: [{ type: 'command', command: 'other-tool' }] }] });
+    expect(existsSync(skill())).toBe(false);
+    expect(readFileSync(join(home, 'claude.calls'), 'utf8')).toContain('mcp remove -s user tlon-memory');
+    expect(readFileSync(join(home, 'codex.calls'), 'utf8')).toContain('mcp remove tlon-memory');
+    expect(r.out).toMatch(/claude: .*MCP server removed/);
+  });
+  it('works with a corrupt config and removes an emptied root', async () => {
+    seedClaude(); writeFileSync(paths.configFile, '{ broken');
+    const r = await run(['disconnect']); expect(r.code).toBe(0);
+    expect(existsSync(paths.root)).toBe(false); expect(existsSync(skill())).toBe(false);
+  });
+  it('reports a failing mcp remove instead of claiming success', async () => {
+    writeFileSync(join(home, 'bin', 'codex'), '#!/bin/sh\necho "boom" >&2\nexit 4\n', { mode: 0o755 });
+    const r = await run(['disconnect']); expect(r.out).toContain('codex: hooks and skill removed · MCP remove exited 4: boom'); expect(r.code).toBe(1);
+  });
+  it('--revoke-key failing leaves everything installed', async () => {
+    seedClaude();
+    const r = await run(['disconnect', '--revoke-key'], 'wrong-code\n'); expect(r.code).toBe(1);
+    expect(r.err).toContain('Nothing was removed');
+    expect(existsSync(paths.configFile)).toBe(true); expect(existsSync(skill())).toBe(true);
+    expect(existsSync(join(home, 'claude.calls'))).toBe(false);
+  });
+  it('--revoke-key rotates the key first, then uninstalls', async () => {
+    const r = await run(['disconnect', '--revoke-key'], `${fake.code}\n`); expect(r.code).toBe(0);
+    expect(fake.apiKey).not.toBe('test-key'); expect(r.out).toContain('rotated'); expect(existsSync(paths.configFile)).toBe(false);
   });
 });

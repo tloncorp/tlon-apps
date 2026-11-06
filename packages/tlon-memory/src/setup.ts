@@ -1,4 +1,6 @@
 // src/setup.ts
+import { existsSync, realpathSync, statSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -36,6 +38,17 @@ is summarized. Details: README.md.
 export const PRIVACY_NOTE = `Note: when an agent retrieves Tlon content, that content is sent to the model provider
 configured for that client (Anthropic for Claude Code, OpenAI for Codex).`;
 
+
+const realOr = (p: string) => { try { return realpathSync(p); } catch { return p; } };
+
+/** Why `dir` should not become a capture scope, or null. Home and / would upload every session on the machine. */
+export function scopeProblem(dir: string, o: { force: boolean; mustExist: boolean }): string | null {
+  const d = resolve(dir);
+  if (o.mustExist && !(existsSync(d) && statSync(d).isDirectory())) return `${d} is not an existing directory`;
+  if (!o.force && [realOr(homedir()), '/'].includes(realOr(d)))
+    return `refusing scope ${d}: every Claude Code / Codex session started anywhere under it would be uploaded. Pick a project directory, or pass --force-scope if you mean it.`;
+  return null;
+}
 
 export async function setup(args: string[]): Promise<number> {
   const paths = new Paths(); const yes = has(args, '--yes');
