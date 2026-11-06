@@ -10,7 +10,7 @@ const NAME = 'tlon-memory', ID = `${NAME}@${NAME}`;
 
 export const CODEX_TRUST_NOTE = 'Codex: after installing, run /hooks in Codex once to review and trust the tlon-memory hooks. They do not run until trusted.';
 
-const quote = (s: string) => (/^[\w@%+=:,./-]+$/.test(s) ? s : `'${s.replaceAll("'", `'\\''`)}'`);
+export const quote = (s: string) => (/^[\w@%+=:,./-]+$/.test(s) ? s : `'${s.replaceAll("'", `'\\''`)}'`);
 
 export function installCommand(client: ClientName, root: string): string {
   return client === 'claude' ? `claude plugin install ${NAME} --marketplace ${quote(root)}`

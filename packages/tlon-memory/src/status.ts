@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { Config, isInScope } from './config';
 import { appendLog } from './log';
 import { Paths, writePrivate } from './paths';
+import { quote } from './plugin';
 
 export interface Connection { state: 'ok' | 'key-rejected' | 'unreachable'; lastError?: string; checkedAt?: string }
 const STATES: Connection['state'][] = ['ok', 'key-rejected', 'unreachable'];
@@ -23,6 +24,11 @@ export function loadConnection(paths: Paths): Connection {
 export function saveConnection(paths: Paths, c: Connection) {
   paths.ensure();
   writePrivate(paths.connectionFile, JSON.stringify(c, null, 2) + '\n');
+}
+
+/** The shim sets TLON_MEMORY_CLI to its own path; agents have no `tlon-memory` on PATH, so they need that path. */
+export function setupCommand(cli = process.env.TLON_MEMORY_CLI): string {
+  return cli ? `node ${quote(cli)} setup` : 'tlon-memory setup';
 }
 
 export function statusLine(cfg: Config, conn: Connection, cwd: string, pending: number, sessionKey?: string, cli?: string): string {

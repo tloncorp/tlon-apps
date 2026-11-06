@@ -10,7 +10,7 @@ import { SEARCH_HORIZON_NOTE } from './notes-client';
 import { Paths } from './paths';
 import { MEMORY_TYPES } from './render';
 import { listJobs } from './state';
-import { loadConnection, statusLine } from './status';
+import { loadConnection, setupCommand, statusLine } from './status';
 import { SESSION_KEY, clientOfKey, findTranscript } from './transcripts';
 import { VERSION } from './version';
 
@@ -204,7 +204,7 @@ export async function serve(): Promise<number> {
       else if (method === 'tools/list') send({ jsonrpc: '2.0', id, result: { tools: TOOLS } });
       else if (method === 'tools/call') {
         const cfg = loadConfig(paths);
-        if (!cfg?.apiKey || !cfg.notebook) { send({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: 'tlon-memory is not connected. Run `tlon-memory setup`.' }], isError: true } }); continue; }
+        if (!cfg?.apiKey || !cfg.notebook) { send({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: `tlon-memory is not connected. Run: ${setupCommand()}` }], isError: true } }); continue; }
         if (!TOOLS.some((t) => t.name === params?.name)) { send({ jsonrpc: '2.0', id, error: { code: -32602, message: `unknown tool ${params?.name}` } }); continue; }
         try { send({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: await callTool(params.name, params.arguments, cfg, paths, agent, cwd) }] } }); }
         catch (e) { send({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: `tlon-memory error: ${(e as Error).message}` }], isError: true } }); }

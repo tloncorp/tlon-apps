@@ -5,7 +5,7 @@ import { Config, isInScope, loadConfig } from './config';
 import { appendLog } from './log';
 import { Paths } from './paths';
 import { listJobs } from './state';
-import { loadConnection, statusLine } from './status';
+import { loadConnection, setupCommand, statusLine } from './status';
 import { clientId, enqueue, syncQueue } from './sync';
 
 type Client = 'claude' | 'codex';
@@ -16,6 +16,10 @@ const SESSION_END_BUDGET_MS = 2_000;
 export function budgetFromEnv(v = process.env.TLON_MEMORY_SYNC_BUDGET_MS): number {
   const n = Number(v);
   return v !== undefined && v.trim() !== '' && Number.isFinite(n) && n >= 0 ? n : DEFAULT_BUDGET_MS;
+}
+
+async function readPayload(): Promise<Payload | null> {
+  try { const p = JSON.parse(await readStdin()); return p && typeof p === 'object' ? p : null; } catch { return null; }
 }
 
 const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
@@ -30,10 +34,13 @@ export async function hook(args: string[]): Promise<number> {
     let cfg: Config | null;
     try { cfg = loadConfig(paths); }
     catch (e) { appendLog(paths, 'hook-config-unreadable', { client, error: (e as Error).message }); return 0; }
-    if (!cfg || !cfg.apiKey || !cfg.notebook) return 0;
-    let p: Payload;
-    try { p = JSON.parse(await readStdin()); } catch { return 0; }
-    if (!p || typeof p !== 'object') return 0;
+    const p = await readPayload();
+    if (!p) return 0;
+    if (!cfg?.apiKey || !cfg.notebook) {
+      // Not set up: SessionStart can still tell the agent how, when the shim gave a runnable CLI path.
+      if (p.hook_event_name === 'SessionStart' && process.env.TLON_MEMORY_CLI) process.stdout.write(`Tlon memory: not set up · run ${setupCommand()}\n`);
+      return 0;
+    }
     const cwd = str(p.cwd) ?? process.cwd();
     event = str(p.hook_event_name) ?? '';
     const sessionId = str(p.session_id), transcript = str(p.transcript_path);

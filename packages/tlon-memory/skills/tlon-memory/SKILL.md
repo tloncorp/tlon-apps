@@ -25,10 +25,10 @@ The hooks upload each turn automatically. When the user asks to back up "this co
 - **A past one:** call `tlon_backup_conversation` with its key, or run the `cli` path from the Tlon memory line, e.g. `node <cli> import --session <key>`.
 - **Everything in scope:** run the `cli` path from the Tlon memory line, e.g. `node <cli> import --all`. Suggest `node <cli> import --all --dry-run` first and show the user the list.
 
-If there is no `Tlon memory:` line, tlon-memory is not connected yet, or (Codex) its hooks are not trusted yet: say so and point the user to `tlon-memory setup` (`node <repo>/packages/tlon-memory/bin/tlon-memory.js setup`), or `/hooks` in Codex. A Codex user can still find a thread id in the rollout file name under `~/.codex/sessions` (`rollout-<time>-<id>.jsonl`). A conversation outside the capture scope is refused; never widen the scope yourself, ask the user to run the `cli` path from the Tlon memory line, e.g. `node <cli> scope add <dir>`.
+If there is no `Tlon memory:` line, the hooks are not running (in Codex, probably not trusted yet): say so and point the user to `/hooks` in Codex. A Codex user can still find a thread id in the rollout file name under `~/.codex/sessions` (`rollout-<time>-<id>.jsonl`). A conversation outside the capture scope is refused; never widen the scope yourself, ask the user to run the `cli` path from the Tlon memory line, e.g. `node <cli> scope add <dir>`.
 
 ## Not connected
-If a tool reports no config or a rejected key, tell the user to run `node <cli> setup` (or `node <cli> setup --reconnect`) in their terminal, with the `cli` path from the Tlon memory line. You never handle the +code or the API key: do not ask the user to paste either into the chat.
+If the session line says `Tlon memory: not set up · run <command>`, or a tool says `tlon-memory is not connected. Run: <command>`, tell the user to run exactly that command in their terminal. For a rejected key, it is `node <cli> setup --reconnect`, with the `cli` path from the Tlon memory line. You never handle the +code or the API key: do not ask the user to paste either into the chat.
 
 ## Privacy
 Retrieved Tlon content is sent to this client's model provider. Do not pull in more than the task needs; prefer `tlon_search_memory` over reading whole conversations.

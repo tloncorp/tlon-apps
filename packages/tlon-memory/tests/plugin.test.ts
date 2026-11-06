@@ -69,6 +69,18 @@ describe('plugin commands', () => {
       expect(r.out.trim()).toEndWith(` · cli ${join(root, 'bin', 'tlon-memory.js')}`); // the shim, not the bundle it runs
     }
   });
+  it('not set up: SessionStart and the MCP tools name the runnable setup command', async () => {
+    const empty = mkdtempSync(join(tmpdir(), 'tm-plugin-empty-')), cli = join(root, 'bin', 'tlon-memory.js');
+    const cmd: string = json('hooks/hooks.json').hooks.SessionStart[0].hooks[0].command;
+    const r = await sh(cmd, { CLAUDE_PLUGIN_ROOT: root, TLON_MEMORY_HOME: empty }, START);
+    expect(r.out).toBe(`Tlon memory: not set up · run node ${cli} setup\n`);
+    const call = MCP_INIT + '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"tlon_status","arguments":{}}}\n';
+    expect((await sh(`node '${cli}' mcp`, { TLON_MEMORY_HOME: empty }, call)).out).toContain(`tlon-memory is not connected. Run: node ${cli} setup`);
+    // Run without the shim there is no path to give, so the hook stays silent and the tool names the bare command.
+    const main = join(root, 'src', 'main.ts');
+    expect((await sh(`bun run '${main}' hook claude`, { TLON_MEMORY_HOME: empty }, START)).out).toBe('');
+    expect((await sh(`bun run '${main}' mcp`, { TLON_MEMORY_HOME: empty }, call)).out).toContain('tlon-memory is not connected. Run: tlon-memory setup');
+  });
   it('the Claude MCP entry starts the server', async () => {
     const s = json('.claude-plugin/plugin.json').mcpServers['tlon-memory'];
     expect(s.env).toEqual({ TLON_MEMORY_AGENT: 'claude-code' });
