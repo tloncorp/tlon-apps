@@ -5,7 +5,7 @@ import { ComponentProps } from 'react';
 import { ColorTokens, View, XStack } from 'tamagui';
 
 import { useNavigation } from '../contexts/navigation';
-import { ContactAvatar } from './Avatar';
+import { ContactAvatar, useShowsBotGlyph } from './Avatar';
 import { BotBadge } from './BotBadge';
 import { ChatMessageDeliveryStatus } from './ChatMessage/ChatMessageDeliveryStatus';
 import { ContactName } from './ContactNameV2';
@@ -91,6 +91,7 @@ export function DetailViewAuthorRow({
     editStatus === 'failed' ||
     deleteStatus === 'failed';
   const shouldTruncate = showEditedIndicator || deliveryFailed;
+  const singleGlyph = useShowsBotGlyph(authorId, isBot);
 
   return (
     <XStack
@@ -104,6 +105,7 @@ export function DetailViewAuthorRow({
         cursor="pointer"
         size="$2xl"
         contactId={authorId}
+        singleGlyph={singleGlyph}
         onPress={openProfile}
       />
       <Text
@@ -143,6 +145,7 @@ export function ChatAuthorRow({
     deleteStatus === 'failed';
 
   const shouldTruncate = showEditedIndicator || firstRole || deliveryFailed;
+  const singleGlyph = useShowsBotGlyph(authorId, isBot);
 
   return (
     <XStack
@@ -157,6 +160,7 @@ export function ChatAuthorRow({
         onPress={openProfile}
         size="$2xl"
         contactId={authorId}
+        singleGlyph={singleGlyph}
       />
       <XStack gap="$l" alignItems="center" flex={1}>
         <Text

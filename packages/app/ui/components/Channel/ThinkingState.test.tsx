@@ -22,7 +22,10 @@ vi.mock('./useConversationComputingState', () => ({
   useConversationComputingState: () => mocks.computing,
 }));
 
-vi.mock('../Avatar', () => ({ ContactAvatar: 'ContactAvatar' }));
+vi.mock('../Avatar', () => ({
+  ContactAvatar: 'ContactAvatar',
+  useShowsBotGlyph: () => false,
+}));
 vi.mock('@tloncorp/ui', () => ({
   Text: 'Text',
   mobileTypeStyles: { '$label/m': { lineHeight: 20 } },
@@ -43,9 +46,12 @@ vi.mock('tamagui', () => ({
 }));
 
 const computing = (): ConversationComputingState => ({
-  ships: [{ ship: '~bot', label: 'Thinking...', toolCalls: [] }],
+  ships: [
+    { ship: '~bot', label: 'Thinking...', toolCalls: [], activeToolCalls: [] },
+  ],
   label: 'Thinking...',
   toolCalls: [],
+  activeToolCalls: [],
 });
 
 describe('ThinkingState', () => {
