@@ -1,0 +1,172 @@
+name: Hermes Tlon Adapter CI
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "packages/hermes-tlon-adapter/**"
+      - "packages/tlon-bot-e2e/**"
+      - "packages/tlon-skill/**"
+      - "packages/api/**"
+      - "desk/**"
+      - "peru.yaml"
+      - "scripts/assemble-desk.sh"
+      - "scripts/sync-deps.sh"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/hermes-ci.yml"
+
+jobs:
+  unit-test:
+    name: Unit Tests
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # dev/test.sh runs the suite under `uv run --python 3.14` (the only
+      # Python hermes-agent v0.22.6 supports); uv fetches the interpreter.
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Run Hermes adapter unit tests
+        run: ./packages/hermes-tlon-adapter/dev/test.sh
+
+  shared-e2e:
+    name: Bot E2E (${{ matrix.shard }})
+    runs-on: blacksmith-8vcpu-ubuntu-2204
+    # One stack per shard: the baseline and cron scenario partitions and the
+    # package suite. Two shards repeat work with the opt-in LCM context engine
+    # (lcm-x at its pinned ref): lcm runs the package suite, then a second
+    # stack for the targeted compaction scenario; lcm-baseline runs the
+    # baseline partition, whose long-lived DM turns are where hermes-lcm lost
+    # its database connection. Each stack boots fresh, builds the
+    # hermes-agent image (from source, with uv on Python 3.14, inside Docker —
+    # the runner needs no Python), and re-applies the branch %groups desk. The
+    # ceiling sits above cold setup ~15 + the 45-min step cap + the 5-min
+    # failure capture + upload, so a step that runs to its cap hits a *step*
+    # timeout (a step failure), never this job timeout (a cancellation) — the
+    # capture steps below then still run with the orphaned stack alive.
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: baseline
+            id: b
+            script: test:e2e:hermes
+            partitions: baseline
+          - shard: cron
+            id: c
+            script: test:e2e:hermes
+            partitions: cron
+          - shard: package
+            id: p
+            script: test:e2e:hermes:package
+          - shard: lcm
+            id: l
+            script: test:e2e:hermes:package
+            lcm: "1"
+          - shard: lcm-baseline
+            id: lb
+            script: test:e2e:hermes
+            partitions: baseline
+            lcm: "1"
+    env:
+      # assemble-desk.sh runs `peru sync` unless told otherwise, and
+      # branch-desk.ts caps an assemble at 300s — a cold sync has measured
+      # 277s. The step below syncs once, unbounded. See TLON-6338.
+      SKIP_SYNC: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install peru
+        run: pipx install --force peru
+
+      - name: Cache vendored desk dependencies
+        id: desk-deps
+        uses: actions/cache@v4
+        with:
+          path: desk-deps
+          # The picked output is 25 files (~150K) and fully determined by
+          # peru.yaml's pins; peru's own .peru/ cache holds full clones (~800MB).
+          key: tlon-desk-deps-${{ hashFiles('peru.yaml') }}
+
+      - name: Sync desk dependencies
+        if: steps.desk-deps.outputs.cache-hit != 'true'
+        run: ./scripts/sync-deps.sh
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      # No Bun step: unlike the openclaw driver, the hermes driver has no
+      # beforeComposeBuild cross-compile — dev/Dockerfile.e2e installs Bun and
+      # builds the tlon CLI inside the image.
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          run_install: |
+            - recursive: true
+              args: [--frozen-lockfile]
+
+      - name: Typecheck shared E2E harness
+        if: matrix.shard == 'baseline'
+        run: pnpm --filter '@tloncorp/tlon-bot-e2e' tsc
+
+      - name: Run shared E2E unit tests
+        if: matrix.shard == 'baseline'
+        run: pnpm --filter '@tloncorp/tlon-bot-e2e' test:unit
+
+      - name: Cache fake ship archives
+        uses: actions/cache@v4
+        with:
+          path: .cache/tlon-bot-e2e/fake-ships
+          # Keyed on the compose file so a pier-generation bump rolls the
+          # cache: Actions caches are immutable, and a stale exact-key hit
+          # would leave every job re-downloading ~1GB of archives forever.
+          key:
+            tlon-bot-e2e-fake-ships-${{
+            hashFiles('packages/tlon-bot-e2e/docker/docker-compose.base.yml') }}
+
+      - name: Prepare fake ship cache
+        run: mkdir -p .cache/tlon-bot-e2e/fake-ships
+
+      # No secrets block: the hermes driver passes none of TLONBOT_TOKEN,
+      # BRAVE_API_KEY or TEST_STORAGE_* to its stack (BRAVE_API_KEY is on its
+      # forbidden-container-env list), and its package suite is the
+      # hermes-smoke scenario against the fake model.
+      - name: Run Hermes shared E2E
+        timeout-minutes: 45
+        env:
+          FAKE_SHIP_CACHE_DIR:
+            ${{ github.workspace }}/.cache/tlon-bot-e2e/fake-ships
+          # Compact: run.ts appends the stack key and truncates at 32 chars.
+          TLON_BOT_E2E_RUN_ID:
+            ${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.id }}
+          # Ignored by the package suite.
+          TLON_BOT_E2E_SCENARIO_PARTITIONS: ${{ matrix.partitions }}
+          # Empty (off) outside the lcm shard.
+          TLON_E2E_HERMES_LCM: ${{ matrix.lcm }}
+        run: |
+          pnpm --filter '@tloncorp/tlon-bot-e2e' ${{ matrix.script }}
+
+      - name: Capture leftover docker state
+        if: failure() || cancelled()
+        timeout-minutes: 5
+        run:
+          bash ./packages/tlon-bot-e2e/scripts/capture-docker-state.sh
+          packages/tlon-bot-e2e/diagnostics/docker-state
+
+      - name: Upload E2E diagnostics
+        if: failure() || cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          # run_attempt: v4 artifact names are immutable across attempts of a
+          # run — a rerun of a failed job must not collide with the previous
+          # attempt's upload, or the rerun's diagnostics are rejected.
+          name: tlon-bot-e2e-diagnostics-hermes-${{ matrix.shard }}-${{ github.run_attempt }}
+          path: packages/tlon-bot-e2e/diagnostics/
+          if-no-files-found: warn
+          retention-days: 7

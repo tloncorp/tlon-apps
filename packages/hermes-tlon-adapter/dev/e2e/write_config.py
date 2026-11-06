@@ -27,6 +27,18 @@ def _flag(env: Mapping[str, str | None], name: str) -> bool:
 
 def render_config(env: Mapping[str, str | None]) -> dict[str, object]:
     enable_cronjob = _flag(env, "HERMES_E2E_ENABLE_CRONJOB")
+    # Mirrors the hosted entrypoint's LCM wiring (tlonbot entrypoint/hermes.py):
+    # the LCM plugin enabled beside the Tlon platform plugin, context.engine
+    # naming its engine, and the context_engine toolset so the lcm_* tools are
+    # advertised. Defaults to lcm-x (plugin "hermes-lcm-x", engine "lcm-x");
+    # hermes-lcm is plugin "hermes-lcm" with engine "lcm".
+    enable_lcm = _flag(env, "TLON_E2E_HERMES_LCM")
+    lcm_plugin = _clean(env, "TLON_E2E_HERMES_LCM_PLUGIN", "hermes-lcm-x")
+    lcm_engine = _clean(env, "TLON_E2E_HERMES_LCM_ENGINE", "lcm-x")
+    platform_toolsets = ["tlon", "cronjob", "no_mcp"] if enable_cronjob else ["tlon", "no_mcp"]
+    if enable_lcm:
+        platform_toolsets.append("context_engine")
+    context_length = _clean(env, "HERMES_MODEL_CONTEXT_LENGTH")
     home_channel = (
         _clean(env, "TLON_HOME_CHANNEL")
         or _clean(env, "TLON_OWNER_SHIP")
@@ -47,10 +59,12 @@ def render_config(env: Mapping[str, str | None]) -> dict[str, object]:
             ),
             "api_key": _clean(env, "HERMES_MODEL_API_KEY", "no-key-required"),
             "api_mode": _clean(env, "HERMES_MODEL_API_MODE", "chat_completions"),
+            **({"context_length": int(context_length)} if context_length else {}),
         },
         "plugins": {
-            "enabled": ["platforms/tlon"],
+            "enabled": ["platforms/tlon", lcm_plugin] if enable_lcm else ["platforms/tlon"],
         },
+        **({"context": {"engine": lcm_engine}} if enable_lcm else {}),
         "platforms": {
             "tlon": {
                 "enabled": True,
@@ -66,11 +80,12 @@ def render_config(env: Mapping[str, str | None]) -> dict[str, object]:
             },
         },
         "platform_toolsets": {
-            "tlon": ["tlon", "cronjob", "no_mcp"]
-            if enable_cronjob
-            else ["tlon", "no_mcp"],
+            "tlon": platform_toolsets,
         },
         "mcp_servers": {},
+        # Hermes >= 0.22 defers plugin tools behind tool_search/tool_describe/
+        # tool_call bridges by default; keep the tlon tool directly advertised.
+        "tools": {"tool_search": {"enabled": "off"}},
         "agent": {
             "disabled_toolsets": [] if enable_cronjob else ["cronjob"],
         },

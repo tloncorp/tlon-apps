@@ -119,6 +119,39 @@ describe('shared model script helpers', () => {
     ).resolves.toHaveLength(1);
   });
 
+  test('allows Hermes 0.22 opening-message title-generation calls', async () => {
+    const script: ModelScript = {
+      steps: [{ kind: 'text', content: 'ok' }],
+      options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
+      expectations: {
+        expectedCallCount: 1,
+      },
+    };
+    const tag = await registerModelScript(
+      fakeModel,
+      'hermes-title-v022',
+      script
+    );
+
+    await postChat(server.baseUrl, tag);
+    await postChat(server.baseUrl, tag, {
+      messages: [
+        {
+          role: 'system',
+          content:
+            "You name chat sessions. Given the user's opening message, write a title.",
+        },
+        { role: 'user', content: `${tag} Hello.` },
+      ],
+    });
+
+    await expect(
+      expectModelExpectations(fakeModel, 'hermes-title-v022', script, noSettle)
+    ).resolves.toHaveLength(1);
+    const calls = await fakeModel.received('hermes-title-v022');
+    expect(calls[1]?.auxiliaryKind).toBe('hermes_title_generation');
+  });
+
   test('does not let an early auxiliary call satisfy primary settling', async () => {
     const script: ModelScript = {
       steps: [{ kind: 'text', content: 'ok' }],
