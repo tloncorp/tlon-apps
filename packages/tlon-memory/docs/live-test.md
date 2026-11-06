@@ -39,6 +39,42 @@ Before you start:
     - `$TM disconnect`. Expect the two uninstall commands (`claude plugin uninstall tlon-memory@tlon-memory && claude plugin marketplace remove tlon-memory`, and the Codex `plugin remove` / `marketplace remove` pair), `Local config, state and queue removed.`, and exit 0. `~/.tlon/memory/` is gone. The notes you did not delete are still on the ship. Start a Claude Code session before uninstalling: no status line appears, and `tlon_status` answers that tlon-memory is not connected.
     - Run the uninstall commands. `claude plugin list` and `codex plugin list` no longer show `tlon-memory`; `~/.claude/settings.json` has empty `enabledPlugins` and `extraKnownMarketplaces` entries for it, and `~/.codex/config.toml` has no `tlon-memory` section.
 
+## Plugin smoke test (no ship, client settings untouched)
+
+This checks that each client loads the plugin from the checkout, without a ship and without changing your real `~/.claude` or `~/.codex`. It needs the real `claude` and `codex` CLIs, so it is not an automated test. Run it from a terminal outside Claude Code (or unset `CLAUDECODE` and `CLAUDE_CODE_ENTRYPOINT`).
+
+```bash
+cd <repo>/packages/tlon-memory && pnpm build
+export SMOKE=$(mktemp -d) PKG=$PWD
+mkdir -p "$SMOKE/demo" "$SMOKE/tm" "$SMOKE/.codex"
+cat > "$SMOKE/tm/config.json" <<JSON
+{"version":1,"shipUrl":"http://localhost:1","ship":"~zod","apiKey":"k","scopes":["$(cd "$SMOKE/demo" && pwd -P)"],
+ "notebook":{"host":"~zod","name":"n","title":"Agent Memory","rootFolderId":1,"conversationsFolderId":2,"memoriesFolderId":3},
+ "captureToolIo":true,"paused":false}
+JSON
+cd "$SMOKE/demo"
+```
+
+1. **Claude Code, session-only plugin.** `--plugin-dir` loads the plugin for one session. With HOME pointed at the temp dir Claude Code is not logged in, so the model call fails, but the hook and MCP server start before it.
+
+   ```bash
+   env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT HOME=$SMOKE TLON_MEMORY_HOME=$SMOKE/tm \
+     claude --plugin-dir "$PKG" -p 'Call tlon_status.' --output-format stream-json --verbose --include-hook-events < /dev/null
+   ```
+
+   Expect a `hook_response` event for `SessionStart` whose output is `Tlon memory: connected as ~zod · notebook "Agent Memory" · capture ON for <demo> · 0 pending syncs · session claude-code:<id>`. (On a second run it says `ship unreachable (cannot reach http://localhost:1 …)` and `1 pending sync`, because the first run's SessionEnd hook tried to upload.) The `init` event lists `plugin:tlon-memory:tlon-memory` with status `connected` under `mcp_servers`, the eight `mcp__plugin_tlon-memory_tlon-memory__tlon_*` tools under `tools`, and the `tlon-memory:tlon-memory` skill. While it runs, `lsof -a -p $(pgrep -f 'tlon-memory.js mcp' | head -1) -d cwd` shows the demo directory. When logged in (HOME left alone, which uses your real settings for that one session), add `--allowedTools mcp__plugin_tlon-memory_tlon-memory__tlon_status` and the reply contains the same status line.
+2. **Codex, installed into a temp `CODEX_HOME`.** Codex has no session-only plugin flag.
+
+   ```bash
+   export HOME=$SMOKE CODEX_HOME=$SMOKE/.codex TLON_MEMORY_HOME=$SMOKE/tm
+   codex plugin marketplace add "$PKG" && codex plugin add tlon-memory@tlon-memory
+   codex mcp get tlon-memory
+   codex debug prompt-input hi | grep -o 'tlon-memory:tlon-memory'
+   ```
+
+   Expect `Installed plugin root: $SMOKE/.codex/plugins/cache/tlon-memory/tlon-memory/0.1.0`, `codex mcp get` showing the `sh -c … exec node "$f" mcp` command with `tool_timeout_sec: 120`, and the skill in the prompt input. `codex exec 'hi'` (not logged in, so it fails at the model call) starts the MCP server first; `lsof` as above shows its cwd is the demo directory. The hooks do not run until trusted in `/hooks`, which needs an interactive, logged-in session.
+3. `rm -rf "$SMOKE"` removes everything the test created.
+
 ## Results
 
 | Step | Pass / fail | Notes |
