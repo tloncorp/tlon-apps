@@ -106,6 +106,13 @@ describe('codex installer', () => {
   });
 });
 
+describe('skill install', () => {
+  it('writes the embedded skill text when the source file is missing', async () => {
+    await installClient('claude', { home, binPath: '/b', exec, skillSource: join(home, 'missing', 'SKILL.md'), skillText: '# embedded skill\n' });
+    expect(readFileSync(join(home, '.claude', 'skills', 'tlon-memory', 'SKILL.md'), 'utf8')).toBe('# embedded skill\n');
+  });
+});
+
 describe('hookEntries', () => {
   it('tags entries so they can be found later', () => {
     const e = hookEntries('claude', '/x/tlon-memory.js');

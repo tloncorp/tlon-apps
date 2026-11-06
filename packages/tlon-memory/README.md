@@ -18,7 +18,7 @@ node /path/to/tlon-apps/packages/tlon-memory/bin/tlon-memory.js setup
 
 You need `node` and `bun` installed, and `pnpm install` run once at the repo root. Setup asks a few questions and ends with a live check against your ship.
 
-After setup you can build a standalone binary with `pnpm build` in `packages/tlon-memory`. It is written to `dist/tlon-memory`, and the `bin/tlon-memory.js` shim uses it automatically when it exists. Run setup first and build second. See "Limitations" for why.
+You can build a standalone binary with `pnpm build` in `packages/tlon-memory`, before or after setup. It is written to `dist/tlon-memory`, and the `bin/tlon-memory.js` shim uses it automatically when it exists. Run from the binary, setup finds the package from the binary's location (`dist/tlon-memory` → the package directory), so hooks and the MCP server still point at `bin/tlon-memory.js`, and the skill is copied from `SKILL.md`. The binary also carries a copy of `SKILL.md` from build time, which setup installs if the file is missing.
 
 The examples below write `tlon-memory` for the command. Either put `bin/tlon-memory.js` on your PATH under that name, or type the full `node .../bin/tlon-memory.js` path.
 
@@ -283,7 +283,7 @@ The log (`~/.tlon/memory/log`) only records an allow-listed set of fields (statu
 - **In-app viewing** of the notebook in the Tlon app depends on the `markdownNotebooks` feature flag. The Notes web UI at `/notes/` works today.
 - **Sign-up has no resume.** After creating an account, you re-run setup with your ship URL. The sign-up link depends on a separate change to the Tlon hosting site.
 - **GUI apps and PATH.** Hooks need `node`, and `bun` unless you have run `pnpm build`. See "GUI apps and PATH".
-- **Run setup before building.** Inside the compiled `dist/tlon-memory` binary, setup cannot find its own files, so it would write wrong hook paths and fail to install the skill. Once `dist/` exists, the shim always uses it. If you need to run setup again after building, delete `packages/tlon-memory/dist` first, run setup, then run `pnpm build` again. Every other command works from the compiled binary.
+- **Keep the binary in `dist/`.** The compiled binary finds the package (and `bin/tlon-memory.js`, which hooks run) two levels above itself. A copy moved elsewhere would register hook paths that do not exist. Rebuild after changing `SKILL.md` so the embedded copy matches.
 - **Not published to npm yet.** Run it from the repo.
 - **Workspace install.** The package's dev dependencies come from the `tlon-apps` pnpm workspace. Run `pnpm install` at the repo root, not inside the package.
 - **One device's view of the queue.** Pending uploads and sync state live on the machine that made them.

@@ -1,7 +1,7 @@
 // src/setup.ts
 import { existsSync, realpathSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, resolve, sep } from 'node:path';
+import { basename, dirname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { UsageError, flag, has } from './cli-util';
 import { Config, defaultConfig, loadConfig, saveConfig } from './config';
@@ -13,11 +13,24 @@ import { Paths } from './paths';
 import { ask, askHidden, confirm, readSecret } from './prompt';
 import { markInitialized, resetBackoff } from './state';
 import { saveConnection } from './status';
+import skillText from '../SKILL.md' with { type: 'text' };
 
 export const SIGNUP_URL = 'https://tlon.network/signup?source=agent';
-const here = dirname(fileURLToPath(import.meta.url));
-export const BIN_PATH = resolve(here, '..', 'bin', 'tlon-memory.js');
-export const SKILL_SOURCE = resolve(here, '..', 'SKILL.md');
+/**
+ * The package directory (holding bin/, SKILL.md, dist/). Run from source, it is one level above this file.
+ * Inside a bun-compiled binary, import.meta.url points into bun's embedded filesystem (file:///$bunfs/...),
+ * so the root is found from the binary's own path instead: <root>/dist/tlon-memory.
+ */
+export function packageRoot(execPath: string, importMetaUrl: string): string {
+  const compiled = importMetaUrl.startsWith('file:///$bunfs/') || basename(execPath) === 'tlon-memory';
+  return compiled ? dirname(dirname(execPath)) : resolve(dirname(fileURLToPath(importMetaUrl)), '..');
+}
+const realOr = (p: string) => { try { return realpathSync(p); } catch { return p; } };
+const ROOT = packageRoot(realOr(process.execPath), import.meta.url);
+export const BIN_PATH = resolve(ROOT, 'bin', 'tlon-memory.js');
+export const SKILL_SOURCE = resolve(ROOT, 'SKILL.md');
+/** SKILL.md as of the build, used when SKILL_SOURCE is missing (a binary copied away from its package). */
+export const SKILL_TEXT: string = skillText;
 
 export const DISCLOSURE = `tlon-memory stores selected Claude Code / Codex conversations and memories in a Notes
 notebook on your Tlon ship, and lets those agents search them.
@@ -37,8 +50,6 @@ is summarized. Details: README.md.
 export const PRIVACY_NOTE = `Note: when an agent retrieves Tlon content, that content is sent to the model provider
 configured for that client (Anthropic for Claude Code, OpenAI for Codex).`;
 
-
-const realOr = (p: string) => { try { return realpathSync(p); } catch { return p; } };
 
 /**
  * Why `dir` should not become a capture scope, or null. Home, `/` and any directory that contains home (like
@@ -175,7 +186,7 @@ export async function setup(args: string[]): Promise<number> {
     }
     for (const c of chosen) {
       try {
-        const r = await installClient(c, { binPath: BIN_PATH, skillSource: SKILL_SOURCE });
+        const r = await installClient(c, { binPath: BIN_PATH, skillSource: SKILL_SOURCE, skillText: SKILL_TEXT });
         cfg.clients[c] = { mcp: r.mcp, hooks: r.hooks, skill: r.skill, installedAt: new Date().toISOString() };
         out(`${CLIENT_NAMES[c]}: hooks ${r.hooks ? 'ok' : 'FAILED'} · MCP ${r.mcp ? 'ok' : 'FAILED (' + r.mcpError + ')'} · skill ${r.skill ? 'ok' : 'FAILED'}`);
         if (!r.mcp) failures.push(`${CLIENT_NAMES[c]}: MCP registration failed: ${r.mcpError}`);

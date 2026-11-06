@@ -5,7 +5,7 @@ This checklist runs tlon-memory against a real ship. A person runs it; the agent
 Before you start:
 
 - `pnpm install` at the repo root. Make sure `node` and `bun` are installed.
-- Do not build yet. If `packages/tlon-memory/dist/` exists, delete it: setup run from the compiled binary writes wrong hook paths (see README, Limitations). You build in step 2.
+- Delete `packages/tlon-memory/dist/` if it exists, so step 1 runs setup from source and step 2 checks a fresh build. (Setup from the compiled binary is supported too; step 2 checks that.)
 - `TM="node <repo>/packages/tlon-memory/bin/tlon-memory.js"` saves typing below.
 
 1. **Setup.** `cd ~/Projects/<demo-dir>` and run `$TM setup`.
@@ -13,7 +13,7 @@ Before you start:
    - Non-interactive equivalent: `printf '%s' "$KEY" | $TM setup --yes --ship-url https://sampel-palnet.tlon.network --api-key-stdin --notebook "Agent Memory (test)" --scope . --clients claude,codex` (or `--code-stdin` with the +code on stdin).
    - Expect, in order: the access disclosure; `Connected as ~sampel-palnet.`; `Notebook "Agent Memory (test)" ready (…) with folders conversations/ and memories/.`; one line per client like `Claude Code: hooks ok · MCP ok · skill ok`; the Codex line telling you to run `/hooks`; `Connected. Open https://sampel-palnet.tlon.network/notes/nb/… to see your notebook.`; the capture summary; the privacy note. Exit code 0.
    - Then check: `claude mcp list` and `codex mcp list` both list `tlon-memory`. `~/.claude/settings.json` and `~/.codex/hooks.json` each have SessionStart, Stop and SessionEnd entries running `"…/bin/tlon-memory.js" hook claude` (or `codex`). `~/.claude/skills/tlon-memory/SKILL.md` and `~/.agents/skills/tlon-memory/SKILL.md` exist. `ls -l ~/.tlon/memory/config.json` shows `-rw-------`.
-2. **Build, and the GUI PATH.** `cd <repo>/packages/tlon-memory && pnpm build`. Expect `dist/tlon-memory --version` to print `tlon-memory 0.1.0`. If you use a GUI client (for example the Claude desktop app), start it from the Dock, not a terminal, for steps 3 to 5. Confirm the status line appears. If it does not, check that `node` is on the PATH the app gives its hooks.
+2. **Build, and the GUI PATH.** `cd <repo>/packages/tlon-memory && pnpm build`. Expect `dist/tlon-memory --version` to print `tlon-memory 0.1.0`. Then run `$TM setup` again with the same answers (the shim now runs the compiled binary; confirm the "Start over?" prompt). Expect the same output as step 1, and check that `~/.claude/settings.json` and `~/.codex/hooks.json` still run `"<repo>/packages/tlon-memory/bin/tlon-memory.js" hook …` (not a `$bunfs` path), `claude mcp list` shows the same `bin/tlon-memory.js mcp` command, `binPath` in `~/.tlon/memory/config.json` is that path, and both installed `SKILL.md` files match `packages/tlon-memory/SKILL.md`. If you use a GUI client (for example the Claude desktop app), start it from the Dock, not a terminal, for steps 3 to 5. Confirm the status line appears. If it does not, check that `node` is on the PATH the app gives its hooks.
 3. **Codex hook trust.** Start Codex in the demo directory, run `/hooks`, and trust the three tlon-memory hooks. Before trusting, no status line appears. After trusting and starting a new Codex session, it does.
 4. **Claude Code saves a decision.** Start Claude Code in the demo directory.
    - The first context line reads `Tlon memory: connected as ~sampel-palnet · notebook "Agent Memory (test)" · capture ON for <demo-dir> · 0 pending syncs · session claude-code:<id>`.

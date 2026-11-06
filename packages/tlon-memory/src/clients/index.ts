@@ -1,5 +1,5 @@
 // src/clients/index.ts
-import { copyFileSync, mkdirSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
@@ -8,7 +8,9 @@ import { HooksMap, mergeHooks, unmergeHooks } from './json-merge';
 export type Client = 'claude' | 'codex';
 export interface ExecResult { code: number; out: string; err: string }
 export type Exec = (cmd: string, args: string[]) => Promise<ExecResult>;
-export interface InstallOptions { home?: string; binPath: string; exec?: Exec; skillSource: string }
+export interface InstallOptions { home?: string; binPath: string; exec?: Exec; skillSource: string;
+  /** Written instead when skillSource does not exist (the compiled binary embeds SKILL.md). */
+  skillText?: string }
 
 export const defaultExec: Exec = (cmd, args) => new Promise((res) => {
   const p = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] });
@@ -52,7 +54,8 @@ export async function installClient(client: Client, o: InstallOptions): Promise<
   const [cmd, args] = mcpAddArgs(client, o.binPath);
   const r = await exec(cmd, args);
   mkdirSync(p.skillDir, { recursive: true });
-  copyFileSync(o.skillSource, join(p.skillDir, 'SKILL.md'));
+  if (o.skillText !== undefined && !existsSync(o.skillSource)) writeFileSync(join(p.skillDir, 'SKILL.md'), o.skillText);
+  else copyFileSync(o.skillSource, join(p.skillDir, 'SKILL.md'));
   const removeErr = removed.code !== 0 && !NOT_FOUND.test(brief(removed)) ? `; mcp remove: ${brief(removed)}` : '';
   return { mcp: r.code === 0, hooks: true, skill: true, ...(r.code !== 0 ? { mcpError: brief(r) + removeErr } : {}) };
 }

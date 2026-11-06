@@ -175,3 +175,17 @@ describe('normaliseShipUrl', () => {
     expect(() => normaliseShipUrl('sampel-palnet.tlon.network')).toThrow('not a URL');
   });
 });
+
+describe('packageRoot', () => {
+  it('uses the source tree when run from source, and the binary location inside a compiled binary', async () => {
+    const { packageRoot } = await import('../src/setup');
+    expect(packageRoot('/Users/x/.bun/bin/bun', 'file:///repo/packages/tlon-memory/src/setup.ts')).toBe('/repo/packages/tlon-memory');
+    expect(packageRoot('/repo/packages/tlon-memory/dist/tlon-memory', 'file:///$bunfs/root/tlon-memory')).toBe('/repo/packages/tlon-memory');
+    expect(packageRoot('/opt/tm/dist/tlon-memory', 'file:///somewhere/else.js')).toBe('/opt/tm'); // named binary, unusual url
+  });
+  it('BIN_PATH and SKILL_SOURCE point into this package when run from source', async () => {
+    const { BIN_PATH, SKILL_SOURCE } = await import('../src/setup');
+    expect(BIN_PATH).toBe(join(import.meta.dir, '..', 'bin', 'tlon-memory.js'));
+    expect(SKILL_SOURCE).toBe(join(import.meta.dir, '..', 'SKILL.md'));
+  });
+});
