@@ -6,7 +6,7 @@
           {
             "type": "command",
             "command": "node \"${PLUGIN_ROOT}/bin/tlon-memory.js\" hook codex",
-            "timeout": 3
+            "timeout": 5
           }
         ]
       }

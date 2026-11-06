@@ -48,7 +48,7 @@ describe('plugin manifests', () => {
   it('hooks keep their per-client timeouts', () => {
     const timeouts = (f: string) => Object.fromEntries(Object.entries(json(f).hooks).map(([e, v]: [string, any]) => [e, v[0].hooks[0].timeout]));
     expect(timeouts('hooks/hooks.json')).toEqual({ SessionStart: 5, Stop: 20, SessionEnd: 20 });
-    expect(timeouts('hooks/codex-hooks.json')).toEqual({ SessionStart: 3, Stop: 20, SessionEnd: 3 });
+    expect(timeouts('hooks/codex-hooks.json')).toEqual({ SessionStart: 5, Stop: 20, SessionEnd: 3 });
   });
 });
 
