@@ -4,16 +4,27 @@ import { VERSION } from './version';
 
 export const USAGE = `Usage: tlon-memory <command>
 
-  setup [--ship-url U --api-key-stdin --notebook T --scope DIR --clients claude,codex --yes --no-tool-io]
+  setup [options]           connect a ship, create the notebook, wire up clients
+      --ship-url URL          ship URL (https; http only for localhost); a copied browser URL is fine
+      --api-key-stdin         read the Notes API key from stdin (hidden prompt on a terminal)
+      --code-stdin            read your +code from stdin to fetch the key (hidden prompt on a terminal)
+      --new-account           print the sign-up link and stop
+      --reconnect             replace the key (and with --ship-url, the URL); keeps notebook, scopes, clients
+      --notebook TITLE        notebook title (default "Agent Memory")
+      --scope DIR|none        directory whose sessions are captured (required with --yes)
+      --force-scope           allow your home directory or / as the scope
+      --clients LIST          claude,codex | claude | codex | none
+      --no-tool-io            do not upload tool inputs/outputs
+      --yes                   no prompts; missing required flags are errors
   status
   pause | resume
-  scope add|remove|list [DIR]
+  scope add DIR [--force-scope] | scope remove DIR | scope list
   sync
-  export [--out DIR]
-  delete --session ID | --memory ID | --all
+  export [--out DIR]        default ~/tlon-memory-export-<date>
+  delete --session claude-code:ID|codex:ID | --memory ID | --all  [--yes]
   disconnect [--revoke-key]
-  hook <claude|codex>     (called by client hooks; reads JSON on stdin)
-  mcp                     (stdio MCP server)
+  hook <claude|codex>       (called by client hooks; reads JSON on stdin)
+  mcp                       (stdio MCP server)
 `;
 
 export async function main(argv: string[]): Promise<number> {
