@@ -123,6 +123,13 @@ describe('setup input validation', () => {
     expect((await run(['setup', '--ship-url', fake.url, ...ok, '--scope', '/', '--yes'], 'test-key\n')).code).toBe(2);
     expect((await run(['setup', '--ship-url', fake.url, ...ok, '--scope', home, '--force-scope', '--yes'], 'test-key\n')).code).toBe(0);
   });
+  it('refuses an ancestor of home (like /Users) unless --force-scope', async () => {
+    const parent = dirname(home);
+    const r = await run(['setup', '--ship-url', fake.url, ...ok, '--scope', parent, '--yes'], 'test-key\n');
+    expect(r.code).toBe(2); expect(r.err).toContain('--force-scope'); expect(r.err).toContain('home');
+    expect((await run(['setup', '--ship-url', fake.url, ...ok, '--scope', join(home, 'proj'), '--yes'], 'test-key\n')).code).toBe(0);
+    expect((await run(['setup', '--ship-url', fake.url, ...ok, '--scope', parent, '--force-scope', '--yes'], 'test-key\n')).code).toBe(0);
+  });
   it('normalises a ship URL copied with a path, and rejects plain http to a remote host', async () => {
     const r = await run(['setup', '--ship-url', `${fake.url}/apps/groups/`, ...ok, '--scope', '/p', '--yes'], 'test-key\n');
     expect(r.code).toBe(0); expect(r.out).toContain(`Ship URL: ${fake.url}`);

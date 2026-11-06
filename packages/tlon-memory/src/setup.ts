@@ -1,7 +1,7 @@
 // src/setup.ts
 import { existsSync, realpathSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, resolve } from 'node:path';
+import { dirname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { UsageError, flag, has } from './cli-util';
 import { Config, defaultConfig, loadConfig, saveConfig } from './config';
@@ -40,12 +40,17 @@ configured for that client (Anthropic for Claude Code, OpenAI for Codex).`;
 
 const realOr = (p: string) => { try { return realpathSync(p); } catch { return p; } };
 
-/** Why `dir` should not become a capture scope, or null. Home and / would upload every session on the machine. */
+/**
+ * Why `dir` should not become a capture scope, or null. Home, `/` and any directory that contains home (like
+ * /Users) would upload every session on the machine. Compared by realpath, so a symlink cannot sneak past.
+ */
 export function scopeProblem(dir: string, o: { force: boolean; mustExist: boolean }): string | null {
   const d = resolve(dir);
   if (o.mustExist && !(existsSync(d) && statSync(d).isDirectory())) return `${d} is not an existing directory`;
-  if (!o.force && [realOr(homedir()), '/'].includes(realOr(d)))
-    return `refusing scope ${d}: every Claude Code / Codex session started anywhere under it would be uploaded. Pick a project directory, or pass --force-scope if you mean it.`;
+  if (o.force) return null;
+  const real = realOr(d), home = realOr(homedir());
+  if (real === '/' || real === home || home.startsWith(real.endsWith(sep) ? real : real + sep))
+    return `refusing scope ${d}: it is ${real === home ? 'your home directory' : real === '/' ? '/' : 'a parent of your home directory'}, so every Claude Code / Codex session started anywhere under it would be uploaded. Pick a project directory, or pass --force-scope if you mean it.`;
   return null;
 }
 

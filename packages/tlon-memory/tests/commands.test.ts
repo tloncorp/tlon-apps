@@ -55,6 +55,8 @@ describe('commands', () => {
     expect((await run(['scope', 'add', '/'])).code).toBe(2);
     expect((await run(['scope', 'add', join(home, 'nope')])).code).toBe(2);
     expect(loadConfig(paths)!.scopes).toEqual(cfg.scopes);
+    const parent = join(home, '..');
+    const up = await run(['scope', 'add', parent]); expect(up.code).toBe(2); expect(up.err).toContain('--force-scope');
     expect((await run(['scope', 'add', home, '--force-scope'])).code).toBe(0); expect(loadConfig(paths)!.scopes).toContain(home);
   });
   it('sync runs a job that is still backing off', async () => {

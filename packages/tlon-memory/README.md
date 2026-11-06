@@ -59,7 +59,7 @@ Run `tlon-memory setup` in a terminal. It goes through these steps:
 5. Asks how to authorize: paste your Notes API key, or enter your +code once (the default). Both prompts hide what you type.
 6. Checks the key against the ship and prints `Connected as ~sampel-palnet.`
 7. Asks for a notebook title (default `Agent Memory`). It finds a notebook with that title hosted on your ship, or creates a private one, and makes sure it has `conversations/` and `memories/` folders.
-8. Asks which directory to capture (default: the current directory, or `none`). It refuses your home directory and `/` unless you pass `--force-scope`, because every session started anywhere under them would be uploaded.
+8. Asks which directory to capture (default: the current directory, or `none`). It refuses your home directory, `/` and any directory that contains your home directory (such as `/Users`) unless you pass `--force-scope`, because every session started anywhere under them would be uploaded. Symlinks are resolved before the check.
 9. Asks whether to include tool inputs and outputs (truncated to 2 KB each).
 10. Looks for the `claude` and `codex` commands. For each one found, asks whether to configure it, then registers the MCP server, adds the hooks and installs the skill. Clients are configured one at a time. If one fails, the other still runs.
 11. Writes a probe memory, finds it again by search, deletes it, and prints the notebook URL, the capture summary and the privacy note.
@@ -79,7 +79,7 @@ Every question has a flag. With `--yes` nothing is prompted, and a missing requi
 | `--reconnect` | Replace the key (and the URL, with `--ship-url`). Keeps notebook, scopes and clients. |
 | `--notebook TITLE` | Notebook title. Default `Agent Memory`. |
 | `--scope DIR` or `--scope none` | Directory whose sessions are captured. Required with `--yes`, except with `--reconnect`. |
-| `--force-scope` | Allow your home directory or `/` as the scope. |
+| `--force-scope` | Allow your home directory, `/` or a parent of your home directory as the scope. |
 | `--clients LIST` | `claude,codex`, `claude`, `codex` or `none`. |
 | `--no-tool-io` | Do not upload tool inputs and outputs. |
 | `--yes` | No prompts. Needs `--api-key-stdin` or `--code-stdin`. |
@@ -224,7 +224,7 @@ Every argument is checked before use. Session keys must look like `claude-code:<
 All commands below run in a terminal.
 
 - `tlon-memory pause` stops uploads from hooks. `tlon-memory resume` turns them back on. Pausing does not empty the queue: uploads already queued stay there, and `tlon-memory sync` still sends them.
-- `tlon-memory scope add DIR` captures sessions started in `DIR` or below it. The directory must exist. Your home directory and `/` are refused unless you add `--force-scope`. `tlon-memory scope remove DIR` stops capturing it. `tlon-memory scope list` shows the current scopes. Symlinks are resolved, so a linked path cannot step into or out of a scope.
+- `tlon-memory scope add DIR` captures sessions started in `DIR` or below it. The directory must exist. Your home directory, `/` and any parent of your home directory are refused unless you add `--force-scope`. `tlon-memory scope remove DIR` stops capturing it. `tlon-memory scope list` shows the current scopes. Symlinks are resolved, so a linked path cannot step into or out of a scope.
 - `tlon-memory export [--out DIR]` writes every conversation and memory note as a Markdown file under `DIR/conversations/` and `DIR/memories/`, plus `DIR/index.json` with each note's id, kind, title, file, revision, update time and session key. The default `DIR` is `~/tlon-memory-export-<date>`. Directories are created readable only by you (0700), and files are written 0600. The export does not contain the API key, but transcripts can contain anything that was in a session, so keep it private.
 - `tlon-memory delete` removes notes from the ship. It asks for confirmation on a terminal; elsewhere it needs `--yes`.
   - `--session claude-code:<id>` or `--session codex:<id>` deletes that conversation's notes (all parts), its local sync state and its queued upload.

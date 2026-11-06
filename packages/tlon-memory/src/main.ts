@@ -12,7 +12,7 @@ export const USAGE = `Usage: tlon-memory <command>
       --reconnect             replace the key (and with --ship-url, the URL); keeps notebook, scopes, clients
       --notebook TITLE        notebook title (default "Agent Memory")
       --scope DIR|none        directory whose sessions are captured (required with --yes)
-      --force-scope           allow your home directory or / as the scope
+      --force-scope           allow home, / or a parent of home as the scope
       --clients LIST          claude,codex | claude | codex | none
       --no-tool-io            do not upload tool inputs/outputs
       --yes                   no prompts; missing required flags are errors
