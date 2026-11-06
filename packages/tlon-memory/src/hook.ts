@@ -12,6 +12,7 @@ type Client = 'claude' | 'codex';
 interface Payload { session_id?: string; transcript_path?: string | null; cwd?: string; hook_event_name?: string; reason?: string }
 
 export const DEFAULT_BUDGET_MS = 15_000;
+const SESSION_END_BUDGET_MS = 2_000;
 export function budgetFromEnv(v = process.env.TLON_MEMORY_SYNC_BUDGET_MS): number {
   const n = Number(v);
   return v !== undefined && v.trim() !== '' && Number.isFinite(n) && n >= 0 ? n : DEFAULT_BUDGET_MS;
@@ -47,9 +48,9 @@ export async function hook(args: string[]): Promise<number> {
     if (!existsSync(transcript)) { appendLog(paths, 'hook-no-transcript', { client, session: sessionId }); return 0; }
     enqueue(paths, { client, sessionId, transcriptPath: transcript, cwd });
     appendLog(paths, 'enqueue', { client, session: sessionId, event });
-    // Both sync inline so the job does not linger. SessionEnd usually follows a Stop that already synced, so it
-    // finds the session unchanged and makes no request; Codex caps SessionEnd at 3 s, hence the shorter budget.
-    const budgetMs = event === 'SessionEnd' && client === 'codex' ? Math.min(budgetFromEnv(), 2000) : budgetFromEnv();
+    // Both sync inline so the job does not linger. SessionEnd blocks /exit and /clear (and Codex kills it at 3 s),
+    // so it gets 2 s: enough to clear a session Stop already synced, while slower work waits for the next run.
+    const budgetMs = event === 'SessionEnd' ? Math.min(budgetFromEnv(), SESSION_END_BUDGET_MS) : budgetFromEnv();
     await syncQueue(paths, cfg, { budgetMs });
   } catch (e) {
     appendLog(paths, 'hook-error', { client, event, error: (e as Error).message });

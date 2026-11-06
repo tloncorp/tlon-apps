@@ -62,6 +62,17 @@ describe('hook', () => {
     expect(readdirSync(paths.queueDir).length).toBe(0);
     expect(readFileSync(paths.logFile, 'utf8')).toContain('hook-no-transcript');
   });
+  it('SessionEnd gives up after a short budget when the ship does not answer', async () => {
+    const silent = Bun.serve({ port: 0, fetch: () => new Promise<Response>(() => {}) });
+    try {
+      saveConfig(paths, { ...cfg, shipUrl: `http://127.0.0.1:${silent.port}` });
+      const t0 = Date.now();
+      const r = await hook('claude', 'hook-claude-stop.json', {}, sessionEnd);
+      expect(r.code).toBe(0);
+      expect(Date.now() - t0).toBeLessThan(5_000);
+      expect(readdirSync(paths.queueDir).filter((f) => f.endsWith('.json')).length).toBe(1); // left for the next Stop or sync
+    } finally { silent.stop(true); }
+  }, 20_000);
   it('out-of-scope cwd: nothing leaves the machine', () => {
     const payload = readFileSync(join(import.meta.dir, 'fixtures', 'hook-claude-stop.json'), 'utf8').replace('TRANSCRIPT', fx).replace('/Users/bill/Projects/demo', '/elsewhere');
     const before = fake.requests.length;
