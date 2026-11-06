@@ -1234,6 +1234,18 @@ importers:
         specifier: ^4.0.0
         version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@25.9.3)(jsdom@23.2.0)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.46.0)(tsx@4.22.4)(yaml@2.9.1))
 
+  packages/tlon-memory:
+    devDependencies:
+      '@types/bun':
+        specifier: ^1.3.14
+        version: 1.3.14
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.19.20
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+
   packages/tlon-skill:
     devDependencies:
       '@tloncorp/api':
