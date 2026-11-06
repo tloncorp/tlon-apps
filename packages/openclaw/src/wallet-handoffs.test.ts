@@ -89,6 +89,45 @@ it('delivers one native card and resumes the original conversation once after co
   );
   expect(f.records.size).toBe(0);
 });
+it.each(['browser_wallet_connect', 'browser_payment_request'])(
+  'does not redeliver %s when a pending status read outlasts the first send',
+  async (name) => {
+    const f = fixture();
+    f.event.params.name = name;
+    const sending = Promise.withResolvers<void>();
+    const sendStarted = Promise.withResolvers<void>();
+    const reading = Promise.withResolvers<{ status: string }>();
+    const readStarted = Promise.withResolvers<void>();
+    f.send.mockImplementationOnce(() => {
+      sendStarted.resolve();
+      return sending.promise;
+    });
+    f.read.mockImplementationOnce(() => {
+      readStarted.resolve();
+      return reading.promise;
+    });
+    f.service.start();
+    await f.service.poll();
+    const handling = f.service.handle(f.event, f.ctx);
+    await sendStarted.promise;
+    const polling = f.service.poll();
+    await readStarted.promise;
+    try {
+      expect(f.records.get(f.id)?.sent).not.toBe(true);
+      sending.resolve();
+      await handling;
+      expect(f.records.get(f.id)?.sent).toBe(true);
+      reading.resolve({ status: 'pending' });
+      await polling;
+      expect(f.send).toHaveBeenCalledExactlyOnceWith(f.id);
+      expect(f.warn).not.toHaveBeenCalled();
+    } finally {
+      sending.resolve();
+      reading.resolve({ status: 'pending' });
+      await Promise.all([handling, polling]);
+    }
+  }
+);
 it('durably retries delivery without putting provider URLs in continuation messages', async () => {
   const f = fixture();
   f.send.mockRejectedValueOnce(new Error('unavailable'));
