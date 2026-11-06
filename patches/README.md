@@ -218,6 +218,45 @@ Removal:
 Drop the patch once expo-modules-core emits type-only imports (or no imports)
 in `build/ts-declarations/global.js`.
 
+## expo-share-intent@8.0.1
+
+Local patch:
+`patches/expo-share-intent@8.0.1.patch`
+
+Why:
+The iOS share extension stores every share under one app-group key: media and
+files as `[SharedMediaFile]` JSON, web URLs as `[WebUrl]` JSON. The URL it
+opens says which type to decode (`#media`, `#weburl`, …). `useShareIntent`
+also calls `getShareIntent` whenever the app becomes active, with the last
+share URL it saw. So sharing a photo and later a web page (or the reverse) in
+one app session decodes the new payload as the old type. `decodeMedia` and
+`decodeWebUrl` force-unwrap the failed decode, and the app crashes with
+SIGTRAP in `closure #1 in ExpoShareIntentModule.definition()`. An
+`io.tlon.groups://dataUrl=…` link with no `#fragment` crashes the same closure
+through `url.fragment!`.
+
+What it does:
+- A payload that does not decode as the URL's type reads as `empty`. The new
+  share URL, which arrives right after, then reads it with the right type.
+- A share URL with no fragment emits `onError` and returns `error`.
+
+Upstream:
+- issue: [achorein/expo-share-intent#243](https://github.com/achorein/expo-share-intent/issues/243);
+  9.0.0 (latest on November 5, 2026) ships the same module
+- Linear: `TLON-6980` (Crashlytics `df44f1d9d4542ec89fc3f66c2f37a90b`)
+
+Validation:
+- On iOS, open `io.tlon.groups://dataUrl=io.tlon.groupsShareKey` (no
+  fragment). The app stays open instead of crashing.
+- Share a photo to Tlon. The forward sheet still opens with it.
+- On a device, share a photo, then a web page from Safari without closing the
+  app, then repeat in the other order. Neither crashes. (On the EAS iOS 26.5
+  simulator, URL shares never reach the app, so this step needs a device.)
+
+Removal:
+Drop the patch once expo-share-intent stops force-unwrapping the decode in
+`ios/ExpoShareIntentModule.swift`.
+
 ## @10play/tentap-editor@0.5.21
 
 Why:
