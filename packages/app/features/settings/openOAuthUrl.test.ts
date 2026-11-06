@@ -27,7 +27,8 @@ describe('openOAuthUrl', () => {
     mocks.platform.OS = 'ios';
   });
 
-  it('uses the system browser when it opens successfully', async () => {
+  it('keeps the external browser on web', async () => {
+    mocks.platform.OS = 'web';
     mocks.openURL.mockResolvedValue(undefined);
 
     await expect(openOAuthUrl(AUTH_URL, REDIRECT_URL)).resolves.toEqual({
@@ -36,27 +37,30 @@ describe('openOAuthUrl', () => {
     expect(mocks.openAuthSessionAsync).not.toHaveBeenCalled();
   });
 
-  it('falls back to an iOS authentication session and returns its redirect', async () => {
-    mocks.openURL.mockRejectedValue(new Error('Unable to open URL'));
-    mocks.openAuthSessionAsync.mockResolvedValue({
-      type: 'success',
-      url: `${REDIRECT_URL}?status=success`,
-    });
+  it.each(['ios', 'android'])(
+    'opens an authentication session directly on %s and returns its redirect',
+    async (platform) => {
+      mocks.platform.OS = platform;
+      mocks.openAuthSessionAsync.mockResolvedValue({
+        type: 'success',
+        url: `${REDIRECT_URL}?status=success`,
+      });
 
-    await expect(openOAuthUrl(AUTH_URL, REDIRECT_URL)).resolves.toEqual({
-      type: 'completed',
-      url: `${REDIRECT_URL}?status=success`,
-    });
-    expect(mocks.openAuthSessionAsync).toHaveBeenCalledWith(
-      AUTH_URL,
-      REDIRECT_URL
-    );
-  });
+      await expect(openOAuthUrl(AUTH_URL, REDIRECT_URL)).resolves.toEqual({
+        type: 'completed',
+        url: `${REDIRECT_URL}?status=success`,
+      });
+      expect(mocks.openAuthSessionAsync).toHaveBeenCalledWith(
+        AUTH_URL,
+        REDIRECT_URL
+      );
+      expect(mocks.openURL).not.toHaveBeenCalled();
+    }
+  );
 
   it.each(['cancel', 'dismiss'] as const)(
-    'returns canceled when the fallback session reports %s',
+    'returns canceled when the session reports %s',
     async (type) => {
-      mocks.openURL.mockRejectedValue(new Error('Unable to open URL'));
       mocks.openAuthSessionAsync.mockResolvedValue({ type });
 
       await expect(openOAuthUrl(AUTH_URL, REDIRECT_URL)).resolves.toEqual({
@@ -65,19 +69,19 @@ describe('openOAuthUrl', () => {
     }
   );
 
-  it('surfaces a fallback failure', async () => {
-    const fallbackError = new Error('Authentication session unavailable');
-    mocks.openURL.mockRejectedValue(new Error('Unable to open URL'));
-    mocks.openAuthSessionAsync.mockRejectedValue(fallbackError);
+  it('surfaces an authentication session failure', async () => {
+    const sessionError = new Error('Authentication session unavailable');
+    mocks.openAuthSessionAsync.mockRejectedValue(sessionError);
 
     await expect(openOAuthUrl(AUTH_URL, REDIRECT_URL)).rejects.toBe(
-      fallbackError
+      sessionError
     );
+    expect(mocks.openURL).not.toHaveBeenCalled();
   });
 
-  it('preserves the existing failure on other platforms', async () => {
+  it('preserves the existing failure on web', async () => {
     const linkingError = new Error('Unable to open URL');
-    mocks.platform.OS = 'android';
+    mocks.platform.OS = 'web';
     mocks.openURL.mockRejectedValue(linkingError);
 
     await expect(openOAuthUrl(AUTH_URL, REDIRECT_URL)).rejects.toBe(

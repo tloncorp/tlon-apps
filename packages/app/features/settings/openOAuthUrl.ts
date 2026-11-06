@@ -10,13 +10,9 @@ export async function openOAuthUrl(
   authUrl: string,
   redirectUrl: string
 ): Promise<OAuthUrlOpenResult> {
-  try {
+  if (Platform.OS === 'web') {
     await Linking.openURL(authUrl);
     return { type: 'opened' };
-  } catch (linkingError) {
-    if (Platform.OS !== 'ios') {
-      throw linkingError;
-    }
   }
 
   const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
