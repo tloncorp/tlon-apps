@@ -25,10 +25,10 @@ export function saveConnection(paths: Paths, c: Connection) {
   writePrivate(paths.connectionFile, JSON.stringify(c, null, 2) + '\n');
 }
 
-export function statusLine(cfg: Config, conn: Connection, cwd: string, pending: number, sessionKey?: string): string {
+export function statusLine(cfg: Config, conn: Connection, cwd: string, pending: number, sessionKey?: string, cli?: string): string {
   const scope = cfg.paused ? 'capture PAUSED' : isInScope(cfg, cwd) ? `capture ON for ${cwd}` : `capture OFF for ${cwd} (not in scope)`;
   const state = conn.state === 'key-rejected' ? 'KEY REJECTED — run `tlon-memory setup --reconnect`'
     : conn.state === 'unreachable' ? `ship unreachable (${conn.lastError ?? 'unknown'})` : `connected as ${cfg.ship}`;
   return `Tlon memory: ${state} · notebook "${cfg.notebook?.title ?? '-'}" · ${scope} · ${pending} pending sync${pending === 1 ? '' : 's'}`
-    + (sessionKey ? ` · session ${sessionKey}` : '');
+    + (sessionKey ? ` · session ${sessionKey}` : '') + (cli ? ` · cli ${cli}` : '');
 }

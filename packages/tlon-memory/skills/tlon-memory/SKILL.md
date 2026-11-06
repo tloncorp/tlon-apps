@@ -17,18 +17,18 @@ The `tlon-memory` MCP server gives you memory shared with other agents on this u
 Memories carry `source: <client>:<session id> e<n> <url>`. When you act on a memory, mention the agent and link, e.g. "Per the decision saved by Claude Code (e17, link)".
 
 ## Session context
-The `Tlon memory:` line at session start tells you the connection state, notebook, and whether capture is on for this directory. If it says KEY REJECTED or paused, tell the user how to fix it (`tlon-memory setup --reconnect`, `tlon-memory resume`) and carry on.
+The `Tlon memory:` line at session start tells you the connection state, notebook, and whether capture is on for this directory. It ends with `cli <path>`: the `tlon-memory` command is not on your PATH, so run the `cli` path from the Tlon memory line, e.g. `node <cli> import --session <key>`. If the line says KEY REJECTED or paused, tell the user how to fix it (`node <cli> setup --reconnect`, `node <cli> resume`) and carry on.
 
 ## Backing up conversations
 The hooks upload each turn automatically. When the user asks to back up "this conversation", a past one, or everything:
 - **This conversation:** call `tlon_backup_conversation` with `session_key` set to the `session` value from the `Tlon memory:` line.
-- **A past one:** call `tlon_backup_conversation` with its key, or run `tlon-memory import --session <key>`.
-- **Everything in scope:** run `tlon-memory import --all`. Suggest `tlon-memory import --all --dry-run` first and show the user the list.
+- **A past one:** call `tlon_backup_conversation` with its key, or run the `cli` path from the Tlon memory line, e.g. `node <cli> import --session <key>`.
+- **Everything in scope:** run the `cli` path from the Tlon memory line, e.g. `node <cli> import --all`. Suggest `node <cli> import --all --dry-run` first and show the user the list.
 
-If there is no `Tlon memory:` line, tlon-memory is not connected yet, or (Codex) its hooks are not trusted yet: say so and point to `tlon-memory setup`, or `/hooks` in Codex. A Codex user can still find a thread id in the rollout file name under `~/.codex/sessions` (`rollout-<time>-<id>.jsonl`). A conversation outside the capture scope is refused; never widen the scope yourself, ask the user to run `tlon-memory scope add <dir>`.
+If there is no `Tlon memory:` line, tlon-memory is not connected yet, or (Codex) its hooks are not trusted yet: say so and point the user to `tlon-memory setup` (`node <repo>/packages/tlon-memory/bin/tlon-memory.js setup`), or `/hooks` in Codex. A Codex user can still find a thread id in the rollout file name under `~/.codex/sessions` (`rollout-<time>-<id>.jsonl`). A conversation outside the capture scope is refused; never widen the scope yourself, ask the user to run the `cli` path from the Tlon memory line, e.g. `node <cli> scope add <dir>`.
 
 ## Not connected
-If a tool reports no config or a rejected key, tell the user to run `tlon-memory setup` (or `tlon-memory setup --reconnect`) in their terminal. You never handle the +code or the API key: do not ask the user to paste either into the chat.
+If a tool reports no config or a rejected key, tell the user to run `node <cli> setup` (or `node <cli> setup --reconnect`) in their terminal, with the `cli` path from the Tlon memory line. You never handle the +code or the API key: do not ask the user to paste either into the chat.
 
 ## Privacy
 Retrieved Tlon content is sent to this client's model provider. Do not pull in more than the task needs; prefer `tlon_search_memory` over reading whole conversations.

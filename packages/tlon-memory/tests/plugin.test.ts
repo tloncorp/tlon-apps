@@ -66,6 +66,7 @@ describe('plugin commands', () => {
       // Claude Code sets CLAUDE_PLUGIN_ROOT, Codex sets PLUGIN_ROOT.
       const r = await sh(cmd, { [client === 'claude' ? 'CLAUDE_PLUGIN_ROOT' : 'PLUGIN_ROOT']: root, TLON_MEMORY_HOME: paths.root }, START);
       expect([f, r.code, r.out]).toEqual([f, 0, expect.stringContaining('Tlon memory: connected as ~zod')]);
+      expect(r.out.trim()).toEndWith(` · cli ${join(root, 'bin', 'tlon-memory.js')}`); // the shim, not the bundle it runs
     }
   });
   it('the Claude MCP entry starts the server', async () => {

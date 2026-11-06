@@ -39,7 +39,7 @@ export async function hook(args: string[]): Promise<number> {
     const sessionId = str(p.session_id), transcript = str(p.transcript_path);
     if (event === 'SessionStart') {
       const key = sessionId ? `${clientId(client)}:${sessionId}` : undefined;
-      process.stdout.write(statusLine(cfg, loadConnection(paths), cwd, listJobs(paths).length, key) + '\n');
+      process.stdout.write(statusLine(cfg, loadConnection(paths), cwd, listJobs(paths).length, key, str(process.env.TLON_MEMORY_CLI)) + '\n');
       return 0;
     }
     if (event !== 'Stop' && event !== 'SessionEnd') return 0;

@@ -20,7 +20,7 @@ Before you start:
    - If you use a GUI client (for example the Claude desktop app), start it from the Dock, not a terminal, for steps 3 to 5. Confirm the status line appears. If it does not, check that `node` is on the PATH the app gives its hooks.
 3. **Codex hook trust.** Start Codex in the demo directory. Before trusting, no status line appears. Run `/hooks` and trust the three tlon-memory hooks. In a new Codex session the status line appears.
 4. **Claude Code saves a decision.** Start Claude Code in the demo directory.
-   - The first context line reads `Tlon memory: connected as ~sampel-palnet · notebook "Agent Memory (test)" · capture ON for <demo-dir> · 0 pending syncs · session claude-code:<id>`.
+   - The first context line reads `Tlon memory: connected as ~sampel-palnet · notebook "Agent Memory (test)" · capture ON for <demo-dir> · 0 pending syncs · session claude-code:<id> · cli <repo>/packages/tlon-memory/bin/tlon-memory.js`.
    - Say: "Decision: use SQLite for the local queue." Ask Claude to remember it. Expect a `tlon_save_memory` call with `type: decision` and a `session_key` equal to the `session` value above, and a reply with the memory link.
    - End the turn. The Stop hook uploads the conversation. `$TM status` shows `memories: 1` and `conversations synced from this device: 1`, and no pending jobs.
 5. **Codex finds it.** Start Codex in the same directory. The status line shows `session codex:<id>`.
@@ -62,7 +62,7 @@ cd "$SMOKE/demo"
      claude --plugin-dir "$PKG" -p 'Call tlon_status.' --output-format stream-json --verbose --include-hook-events < /dev/null
    ```
 
-   Expect a `hook_response` event for `SessionStart` whose output is `Tlon memory: connected as ~zod · notebook "Agent Memory" · capture ON for <demo> · 0 pending syncs · session claude-code:<id>`. (On a second run it says `ship unreachable (cannot reach http://localhost:1 …)` and `1 pending sync`, because the first run's SessionEnd hook tried to upload.) The `init` event lists `plugin:tlon-memory:tlon-memory` with status `connected` under `mcp_servers`, the eight `mcp__plugin_tlon-memory_tlon-memory__tlon_*` tools under `tools`, and the `tlon-memory:tlon-memory` skill. While it runs, `lsof -a -p $(pgrep -f 'tlon-memory.js mcp' | head -1) -d cwd` shows the demo directory. When logged in (HOME left alone, which uses your real settings for that one session), add `--allowedTools mcp__plugin_tlon-memory_tlon-memory__tlon_status` and the reply contains the same status line.
+   Expect a `hook_response` event for `SessionStart` whose output is `Tlon memory: connected as ~zod · notebook "Agent Memory" · capture ON for <demo> · 0 pending syncs · session claude-code:<id> · cli $PKG/bin/tlon-memory.js`. (On a second run it says `ship unreachable (cannot reach http://localhost:1 …)` and `1 pending sync`, because the first run's SessionEnd hook tried to upload.) The `init` event lists `plugin:tlon-memory:tlon-memory` with status `connected` under `mcp_servers`, the eight `mcp__plugin_tlon-memory_tlon-memory__tlon_*` tools under `tools`, and the `tlon-memory:tlon-memory` skill. While it runs, `lsof -a -p $(pgrep -f 'tlon-memory.js mcp' | head -1) -d cwd` shows the demo directory. When logged in (HOME left alone, which uses your real settings for that one session), add `--allowedTools mcp__plugin_tlon-memory_tlon-memory__tlon_status` and the reply contains the same status line.
 2. **Codex, installed into a temp `CODEX_HOME`.** Codex has no session-only plugin flag.
 
    ```bash

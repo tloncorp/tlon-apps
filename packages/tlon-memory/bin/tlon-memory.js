@@ -10,6 +10,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 const bundle = join(here, '..', 'dist', 'tlon-memory.js');
 const compiled = join(here, '..', 'dist', 'tlon-memory');
 const args = process.argv.slice(2);
+// The hook prints this path so agents can run the CLI: the child's argv[1] is the bundle, not this shim.
+const env = { ...process.env, TLON_MEMORY_CLI: fileURLToPath(import.meta.url) };
 
 /** Hooks launched from a GUI app may get a minimal PATH without bun, so the usual install locations are tried too. */
 function runBun() {
@@ -17,7 +19,7 @@ function runBun() {
   const candidates = ['bun', join(homedir(), '.bun', 'bin', 'bun'), '/opt/homebrew/bin/bun', '/usr/local/bin/bun'];
   for (const bun of candidates) {
     if (bun !== 'bun' && !existsSync(bun)) continue;
-    const r = spawnSync(bun, ['run', main, ...args], { stdio: 'inherit' });
+    const r = spawnSync(bun, ['run', main, ...args], { stdio: 'inherit', env });
     if (r.error?.code === 'ENOENT') continue;
     return r;
   }
@@ -26,7 +28,7 @@ function runBun() {
   process.exit(127);
 }
 
-const r = existsSync(bundle) ? spawnSync(process.execPath, [bundle, ...args], { stdio: 'inherit' })
-  : existsSync(compiled) ? spawnSync(compiled, args, { stdio: 'inherit' }) : runBun();
+const r = existsSync(bundle) ? spawnSync(process.execPath, [bundle, ...args], { stdio: 'inherit', env })
+  : existsSync(compiled) ? spawnSync(compiled, args, { stdio: 'inherit', env }) : runBun();
 if (r.error) process.stderr.write(`tlon-memory: ${r.error.message}\n`);
 process.exit(r.status ?? 1);

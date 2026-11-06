@@ -63,11 +63,11 @@ describe('bin shim', () => {
 
   it('prefers the node bundle under the running node', () => {
     if (!node) return;
-    const shim = layout({ 'dist/tlon-memory.js': 'console.log("bundle", process.execPath, process.argv.slice(2).join(","))',
+    const shim = layout({ 'dist/tlon-memory.js': 'console.log("bundle", process.execPath, process.argv.slice(2).join(","), process.env.TLON_MEMORY_CLI)',
       'dist/tlon-memory': '#!/bin/sh\necho binary' });
     const r = run(shim, '/nonexistent');
     expect(r.status).toBe(0);
-    expect(r.stdout.trim()).toBe(`bundle ${realpathSync(node)} a,b`);
+    expect(r.stdout.trim()).toBe(`bundle ${realpathSync(node)} a,b ${realpathSync(shim)}`);
   });
   it('falls back to the compiled binary', () => {
     if (!node) return;

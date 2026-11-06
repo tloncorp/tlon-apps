@@ -34,6 +34,9 @@ describe('hook', () => {
     expect(r.out).toContain('capture ON');
     expect(r.out).toContain('0 pending');
     expect(r.out).toContain('session claude-code:11111111-aaaa-4bbb-8ccc-222222222222');
+    expect(r.out).not.toContain(' · cli ');
+    const viaShim = await hook('claude', 'hook-claude-start.json', { TLON_MEMORY_CLI: '/p/bin/tlon-memory.js' });
+    expect(viaShim.out.trim()).toEndWith('session claude-code:11111111-aaaa-4bbb-8ccc-222222222222 · cli /p/bin/tlon-memory.js');
   });
   it('Stop uploads the conversation and prints nothing', async () => {
     const r = await hook('claude', 'hook-claude-stop.json');

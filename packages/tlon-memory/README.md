@@ -131,10 +131,10 @@ Installing a Codex plugin does not trust its hooks. After `codex plugin add`, st
 - Start a session in a captured directory. The agent's context begins with a line like:
 
   ```
-  Tlon memory: connected as ~sampel-palnet · notebook "Agent Memory" · capture ON for /Users/you/Projects/demo · 0 pending syncs · session claude-code:1c53f3bb-…
+  Tlon memory: connected as ~sampel-palnet · notebook "Agent Memory" · capture ON for /Users/you/Projects/demo · 0 pending syncs · session claude-code:1c53f3bb-… · cli /path/to/tlon-apps/packages/tlon-memory/bin/tlon-memory.js
   ```
 
-  The `session` value is what the agent passes as `session_key` when it saves a memory. Outside a captured directory the line says `capture OFF for <dir> (not in scope)`. When paused it says `capture PAUSED`.
+  The `session` value is what the agent passes as `session_key` when it saves a memory. The `cli` value is the absolute path of `bin/tlon-memory.js` (in Codex, of the installed copy); agents run `node <cli> …` because `tlon-memory` is not on their PATH. Outside a captured directory the line says `capture OFF for <dir> (not in scope)`. When paused it says `capture PAUSED`.
 - Ask the agent to call `tlon_status`. It returns the same line, without the session value, and a note on the search horizon.
 - `claude plugin list` and `codex plugin list` should show `tlon-memory@tlon-memory` as installed. `codex mcp list` also shows the `tlon-memory` server; `claude mcp list` does not list plugin servers, so use `tlon_status` or `/mcp` inside a session.
 
