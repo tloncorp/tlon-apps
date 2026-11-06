@@ -5,6 +5,7 @@ import { basename, dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { UsageError, flag, has } from './cli-util';
 import { Config, defaultConfig, loadConfig, saveConfig } from './config';
+import { ConnectPage, DEFAULT_CONNECT_TIMEOUT_MS, SIGNUP_URL, describeMs, openConnectPage } from './connect';
 import { MemoryStore } from './memory';
 import { ensureNotebook, notebookUrl } from './notebook';
 import { NotesClient } from './notes-client';
@@ -14,7 +15,6 @@ import { markInitialized, resetBackoff } from './state';
 import { saveConnection } from './status';
 import { CLIENTS, CLIENT_NAMES, CODEX_TRUST_NOTE, installCommand, onPath } from './plugin';
 
-export const SIGNUP_URL = 'https://tlon.network/signup?source=agent';
 /**
  * The package directory (holding bin/, skills/, dist/). Run from source, it is one level above this file.
  * Inside a bun-compiled binary, import.meta.url points into bun's embedded filesystem (file:///$bunfs/...),
@@ -81,17 +81,33 @@ function printInstall(out: (s: string) => void) {
   if (!existsSync(join(PLUGIN_ROOT, 'dist', 'tlon-memory.js'))) out(`Run \`pnpm build\` in ${PLUGIN_ROOT} first, so the hooks need only node.`);
 }
 
+/** What a run leaves for the connect page's answer: the page, the first error printed, the ship once connected. */
+interface SetupRun { page?: ConnectPage; failure?: string; ship?: string }
+
 export async function setup(args: string[]): Promise<number> {
+  const run: SetupRun = {};
+  try {
+    const code = await runSetup(args, run);
+    await run.page?.finish(code === 0, code === 0 ? `Connected as ${run.ship}.` : run.failure ?? 'Setup stopped; the terminal says why.');
+    return code;
+  } catch (e) {
+    await run.page?.finish(false, (e as Error).message);
+    throw e;
+  }
+}
+
+async function runSetup(args: string[], run: SetupRun): Promise<number> {
   const paths = new Paths(); const yes = has(args, '--yes');
   const out = (s: string) => process.stdout.write(s + '\n');
-  const err = (s: string) => process.stderr.write(s + '\n');
+  const err = (s: string) => { run.failure ??= s; process.stderr.write(s + '\n'); };
   const newAccount = has(args, '--new-account'); const reconnectFlag = has(args, '--reconnect'); const force = has(args, '--force-scope');
   const shipUrlArg = flag(args, '--ship-url'); const scopeArg = flag(args, '--scope'); const notebookArg = flag(args, '--notebook');
-  const stdinKey = has(args, '--api-key-stdin'); const stdinCode = has(args, '--code-stdin');
-  // With --yes nothing is prompted, so every required input must come from a flag; checked before any network call.
+  const stdinKey = has(args, '--api-key-stdin'); const stdinCode = has(args, '--code-stdin'); const connect = has(args, '--connect');
+  if (connect && (shipUrlArg || stdinKey || stdinCode)) throw new UsageError('--connect takes the ship URL and the +code or key from the page; drop --ship-url, --api-key-stdin and --code-stdin');
+  // With --yes nothing is prompted, so every required input must come from a flag (or the connect page); checked before any network call.
   if (yes && !newAccount) {
-    if (!reconnectFlag && !shipUrlArg) throw new UsageError('--yes needs --ship-url (or --new-account / --reconnect)');
-    if (!stdinKey && !stdinCode) throw new UsageError('--yes needs --api-key-stdin or --code-stdin');
+    if (!connect && !reconnectFlag && !shipUrlArg) throw new UsageError('--yes needs --ship-url or --connect (or --new-account / --reconnect)');
+    if (!connect && !stdinKey && !stdinCode) throw new UsageError('--yes needs --api-key-stdin, --code-stdin or --connect');
     if (!reconnectFlag && scopeArg === undefined) throw new UsageError('--yes needs --scope DIR (or --scope none)');
   }
   if (scopeArg !== undefined && scopeArg !== 'none') { const p = scopeProblem(scopeArg, { force, mustExist: false }); if (p) throw new UsageError(p); }
@@ -110,7 +126,7 @@ export async function setup(args: string[]): Promise<number> {
   const cfg: Config = reconnect ? existing! : defaultConfig();
 
   // 1. account
-  if (!reconnect && (newAccount || (!shipUrlNorm && !(await confirm('Do you already have a Tlon account (a ship URL like https://sampel-palnet.tlon.network)?', true, '--ship-url'))))) {
+  if (!reconnect && (newAccount || (!connect && !shipUrlNorm && !(await confirm('Do you already have a Tlon account (a ship URL like https://sampel-palnet.tlon.network)?', true, '--ship-url'))))) {
     const browser = !process.env.TLON_MEMORY_NO_BROWSER;
     out(`\nCreate an account at ${SIGNUP_URL}${browser ? ' (opens in your browser)' : ''}; sign-up may require an invite or be capacity-limited.`);
     out('When you have your ship URL from the dashboard, re-run `tlon-memory setup`.');
@@ -121,20 +137,30 @@ export async function setup(args: string[]): Promise<number> {
     }
     return 0;
   }
-  if (!reconnect || shipUrlNorm) {
-    cfg.shipUrl = shipUrlNorm ?? normaliseShipUrl(await ask('Ship URL:', '', '--ship-url'));
-    out(`Ship URL: ${cfg.shipUrl}`);
-  }
-
-  // 2. credential (paste key, or +code once)
+  // 2. ship URL and credential (paste key, or +code once), typed here or on the connect page
   let apiKey: string;
-  if (stdinKey) apiKey = await readSecret('Notes API key:', '--api-key-stdin');
-  else if (stdinCode) apiKey = await NotesClient.apiKeyFromCode(cfg.shipUrl, await readSecret('+code:', '--code-stdin')).catch((e) => { throw new Error(`could not fetch the API key with +code: ${e.message}`); });
-  else {
-    out('\nHow do you want to authorize?\n  1) paste your Notes API key\n  2) enter your +code once (used only to fetch the key, then discarded)');
-    const choice = await ask('Choice:', '2', '--api-key-stdin or --code-stdin');
-    if (choice === '1') apiKey = await askHidden('Notes API key:', '--api-key-stdin');
-    else { const code = await askHidden('+code:', '--code-stdin'); apiKey = await NotesClient.apiKeyFromCode(cfg.shipUrl, code); }
+  const fromCode = (code: string) => NotesClient.apiKeyFromCode(cfg.shipUrl, code).catch((e) => { throw new Error(`could not fetch the API key with +code: ${e.message}`); });
+  if (connect) {
+    const ms = Number(process.env.TLON_MEMORY_CONNECT_TIMEOUT_MS) || DEFAULT_CONNECT_TIMEOUT_MS;
+    run.page = await openConnectPage(ms);
+    out(`\nOpen ${run.page.url} to connect your ship (link expires in ${describeMs(ms)})`);
+    const form = await run.page.submission;
+    cfg.shipUrl = normaliseShipUrl(form.shipUrl);
+    out(`Ship URL: ${cfg.shipUrl}`);
+    apiKey = form.kind === 'key' ? form.secret : await fromCode(form.secret);
+  } else {
+    if (!reconnect || shipUrlNorm) {
+      cfg.shipUrl = shipUrlNorm ?? normaliseShipUrl(await ask('Ship URL:', '', '--ship-url'));
+      out(`Ship URL: ${cfg.shipUrl}`);
+    }
+    if (stdinKey) apiKey = await readSecret('Notes API key:', '--api-key-stdin');
+    else if (stdinCode) apiKey = await fromCode(await readSecret('+code:', '--code-stdin'));
+    else {
+      out('\nHow do you want to authorize?\n  1) paste your Notes API key\n  2) enter your +code once (used only to fetch the key, then discarded)');
+      const choice = await ask('Choice:', '2', '--api-key-stdin or --code-stdin');
+      if (choice === '1') apiKey = await askHidden('Notes API key:', '--api-key-stdin');
+      else { const code = await askHidden('+code:', '--code-stdin'); apiKey = await NotesClient.apiKeyFromCode(cfg.shipUrl, code); }
+    }
   }
   if (!apiKey) { err('no API key provided'); return 1; }
 
@@ -144,7 +170,7 @@ export async function setup(args: string[]): Promise<number> {
   try { ship = await client.hostName(); await client.listNotebooks(); }
   catch (e) { err(`Could not connect: ${(e as Error).message}`); return 1; }
   if (reconnect && cfg.ship && ship !== cfg.ship) { err(`This key belongs to ${ship}, but the notebook is on ${cfg.ship}. Run setup without --reconnect to start over.`); return 1; }
-  cfg.ship = ship; cfg.apiKey = apiKey; saveConnection(paths, { state: 'ok', checkedAt: new Date().toISOString() });
+  cfg.ship = run.ship = ship; cfg.apiKey = apiKey; saveConnection(paths, { state: 'ok', checkedAt: new Date().toISOString() });
   out(`\nConnected as ${cfg.ship}.`);
   if (reconnect) { const n = resetBackoff(paths); if (n) out(`${n} queued upload${n === 1 ? '' : 's'} will retry on the next sync.`); }
 
@@ -188,6 +214,7 @@ export async function setup(args: string[]): Promise<number> {
   out(`\nConnected. Open ${notebookUrl(cfg.shipUrl, cfg.notebook!)} to see your notebook.`);
   out(`Capture: ${cfg.paused ? 'paused' : cfg.scopes.length ? 'on for ' + cfg.scopes.join(', ') : 'off (no scope)'} · tool I/O: ${cfg.captureToolIo ? 'included (truncated)' : 'text only'}`);
   out(`\n${PRIVACY_NOTE}`);
-  if (!reconnect) printInstall(out);
+  // The connect page is for an agent running setup from the installed plugin, so there is nothing to install.
+  if (!reconnect && !connect) printInstall(out);
   return 0;
 }

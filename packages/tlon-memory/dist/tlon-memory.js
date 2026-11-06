@@ -158,6 +158,87 @@ var init_config = __esm(() => {
   init_paths();
 });
 
+// src/connect.ts
+import { randomBytes } from "node:crypto";
+import { createServer } from "node:http";
+async function openConnectPage(timeoutMs = DEFAULT_CONNECT_TIMEOUT_MS) {
+  const token = randomBytes(16).toString("hex");
+  let used = false, held;
+  let resolve, reject;
+  const submission = new Promise((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  const send = (res, status, html) => res.writeHead(status, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "referrer-policy": "no-referrer" }).end(html);
+  const server = createServer((req, res) => {
+    if (req.headers.host !== host || req.url !== `/${token}` || req.method !== "GET" && req.method !== "POST")
+      return send(res, 404, page("<p>Not found.</p>"));
+    if (used)
+      return send(res, 410, page("<p>This link has been used. Ask your agent to run setup again for a new one.</p>"));
+    if (req.method === "GET")
+      return send(res, 200, FORM);
+    used = true;
+    let body = "";
+    req.setEncoding("utf8");
+    req.on("data", (c) => {
+      body += c;
+      if (body.length > 16384)
+        req.destroy();
+    });
+    req.on("end", () => {
+      clearTimeout(timer);
+      held = res;
+      const f = new URLSearchParams(body);
+      resolve({ shipUrl: f.get("ship_url") ?? "", kind: f.get("kind") === "key" ? "key" : "code", secret: (f.get("secret") ?? "").trim() });
+    });
+  });
+  const close = () => {
+    server.close();
+    server.closeAllConnections();
+  };
+  const timer = setTimeout(() => {
+    used = true;
+    close();
+    reject(new Error(`the connect link expired after ${describeMs(timeoutMs)} without a submission; run setup --connect again`));
+  }, timeoutMs);
+  await new Promise((res) => server.listen(0, "127.0.0.1", res));
+  const host = `127.0.0.1:${server.address().port}`;
+  return {
+    url: `http://${host}/${token}`,
+    submission,
+    finish(ok, message) {
+      const html = page(ok ? `<p>${esc(message)} You can close this tab.</p>` : `<h1>Setup did not finish</h1><p>${esc(message)}</p><p>Ask your agent to run setup again for a new link.</p>`);
+      return new Promise((res) => {
+        if (!held) {
+          close();
+          return res();
+        }
+        held.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" }).end(html, () => {
+          close();
+          res();
+        });
+      });
+    }
+  };
+}
+var SIGNUP_URL = "https://tlon.network/signup?source=agent", DEFAULT_CONNECT_TIMEOUT_MS, describeMs = (ms) => ms >= 60000 ? `${ms / 60000} minutes` : `${ms / 1000} seconds`, esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), page = (body) => `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>Connect tlon-memory</title><style>body{font:16px/1.5 system-ui,sans-serif;max-width:32rem;margin:3rem auto;padding:0 1rem}
+label{display:block;margin:1rem 0 .25rem}input[type=url],input[type=password]{width:100%;padding:.4rem;font:inherit}button{margin-top:1.25rem;padding:.5rem 1rem;font:inherit}</style>
+</head><body>${body}</body></html>`, FORM;
+var init_connect = __esm(() => {
+  DEFAULT_CONNECT_TIMEOUT_MS = 10 * 60000;
+  FORM = page(`<h1>Connect tlon-memory to your ship</h1>
+<p>This page runs on your computer and talks only to the setup command that printed its link. Your agent never sees what you enter here.</p>
+<form method="post">
+<label for="ship_url">Ship URL</label><input id="ship_url" name="ship_url" type="url" placeholder="https://sampel-palnet.tlon.network" required>
+<label><input type="radio" name="kind" value="code" checked> +code (used once to fetch the Notes API key, then discarded)</label>
+<label><input type="radio" name="kind" value="key"> Notes API key</label>
+<label for="secret">+code or key</label><input id="secret" name="secret" type="password" autocomplete="off" required>
+<button type="submit">Connect</button>
+</form>
+<p>No Tlon account? <a href="${SIGNUP_URL}" target="_blank" rel="noopener">Sign up</a>, then come back to this page.</p>`);
+});
+
 // src/render.ts
 import { basename } from "node:path";
 function sessionKey(t) {
@@ -1152,12 +1233,26 @@ Install the plugin (hooks, MCP server and skill):` : "\nNeither `claude` nor `co
     out(`Run \`pnpm build\` in ${PLUGIN_ROOT} first, so the hooks need only node.`);
 }
 async function setup(args) {
+  const run = {};
+  try {
+    const code = await runSetup(args, run);
+    await run.page?.finish(code === 0, code === 0 ? `Connected as ${run.ship}.` : run.failure ?? "Setup stopped; the terminal says why.");
+    return code;
+  } catch (e) {
+    await run.page?.finish(false, e.message);
+    throw e;
+  }
+}
+async function runSetup(args, run) {
   const paths = new Paths;
   const yes = has(args, "--yes");
   const out = (s) => process.stdout.write(s + `
 `);
-  const err = (s) => process.stderr.write(s + `
+  const err = (s) => {
+    run.failure ??= s;
+    process.stderr.write(s + `
 `);
+  };
   const newAccount = has(args, "--new-account");
   const reconnectFlag = has(args, "--reconnect");
   const force = has(args, "--force-scope");
@@ -1166,11 +1261,14 @@ async function setup(args) {
   const notebookArg = flag(args, "--notebook");
   const stdinKey = has(args, "--api-key-stdin");
   const stdinCode = has(args, "--code-stdin");
+  const connect = has(args, "--connect");
+  if (connect && (shipUrlArg || stdinKey || stdinCode))
+    throw new UsageError("--connect takes the ship URL and the +code or key from the page; drop --ship-url, --api-key-stdin and --code-stdin");
   if (yes && !newAccount) {
-    if (!reconnectFlag && !shipUrlArg)
-      throw new UsageError("--yes needs --ship-url (or --new-account / --reconnect)");
-    if (!stdinKey && !stdinCode)
-      throw new UsageError("--yes needs --api-key-stdin or --code-stdin");
+    if (!connect && !reconnectFlag && !shipUrlArg)
+      throw new UsageError("--yes needs --ship-url or --connect (or --new-account / --reconnect)");
+    if (!connect && !stdinKey && !stdinCode)
+      throw new UsageError("--yes needs --api-key-stdin, --code-stdin or --connect");
     if (!reconnectFlag && scopeArg === undefined)
       throw new UsageError("--yes needs --scope DIR (or --scope none)");
   }
@@ -1193,7 +1291,7 @@ async function setup(args) {
       return 1;
   }
   const cfg = reconnect ? existing : defaultConfig();
-  if (!reconnect && (newAccount || !shipUrlNorm && !await confirm("Do you already have a Tlon account (a ship URL like https://sampel-palnet.tlon.network)?", true, "--ship-url"))) {
+  if (!reconnect && (newAccount || !connect && !shipUrlNorm && !await confirm("Do you already have a Tlon account (a ship URL like https://sampel-palnet.tlon.network)?", true, "--ship-url"))) {
     const browser = !process.env.TLON_MEMORY_NO_BROWSER;
     out(`
 Create an account at ${SIGNUP_URL}${browser ? " (opens in your browser)" : ""}; sign-up may require an invite or be capacity-limited.`);
@@ -1204,28 +1302,40 @@ Create an account at ${SIGNUP_URL}${browser ? " (opens in your browser)" : ""}; 
     }
     return 0;
   }
-  if (!reconnect || shipUrlNorm) {
-    cfg.shipUrl = shipUrlNorm ?? normaliseShipUrl(await ask("Ship URL:", "", "--ship-url"));
-    out(`Ship URL: ${cfg.shipUrl}`);
-  }
   let apiKey;
-  if (stdinKey)
-    apiKey = await readSecret("Notes API key:", "--api-key-stdin");
-  else if (stdinCode)
-    apiKey = await NotesClient.apiKeyFromCode(cfg.shipUrl, await readSecret("+code:", "--code-stdin")).catch((e) => {
-      throw new Error(`could not fetch the API key with +code: ${e.message}`);
-    });
-  else {
+  const fromCode = (code) => NotesClient.apiKeyFromCode(cfg.shipUrl, code).catch((e) => {
+    throw new Error(`could not fetch the API key with +code: ${e.message}`);
+  });
+  if (connect) {
+    const ms = Number(process.env.TLON_MEMORY_CONNECT_TIMEOUT_MS) || DEFAULT_CONNECT_TIMEOUT_MS;
+    run.page = await openConnectPage(ms);
     out(`
+Open ${run.page.url} to connect your ship (link expires in ${describeMs(ms)})`);
+    const form = await run.page.submission;
+    cfg.shipUrl = normaliseShipUrl(form.shipUrl);
+    out(`Ship URL: ${cfg.shipUrl}`);
+    apiKey = form.kind === "key" ? form.secret : await fromCode(form.secret);
+  } else {
+    if (!reconnect || shipUrlNorm) {
+      cfg.shipUrl = shipUrlNorm ?? normaliseShipUrl(await ask("Ship URL:", "", "--ship-url"));
+      out(`Ship URL: ${cfg.shipUrl}`);
+    }
+    if (stdinKey)
+      apiKey = await readSecret("Notes API key:", "--api-key-stdin");
+    else if (stdinCode)
+      apiKey = await fromCode(await readSecret("+code:", "--code-stdin"));
+    else {
+      out(`
 How do you want to authorize?
   1) paste your Notes API key
   2) enter your +code once (used only to fetch the key, then discarded)`);
-    const choice = await ask("Choice:", "2", "--api-key-stdin or --code-stdin");
-    if (choice === "1")
-      apiKey = await askHidden("Notes API key:", "--api-key-stdin");
-    else {
-      const code = await askHidden("+code:", "--code-stdin");
-      apiKey = await NotesClient.apiKeyFromCode(cfg.shipUrl, code);
+      const choice = await ask("Choice:", "2", "--api-key-stdin or --code-stdin");
+      if (choice === "1")
+        apiKey = await askHidden("Notes API key:", "--api-key-stdin");
+      else {
+        const code = await askHidden("+code:", "--code-stdin");
+        apiKey = await NotesClient.apiKeyFromCode(cfg.shipUrl, code);
+      }
     }
   }
   if (!apiKey) {
@@ -1245,7 +1355,7 @@ How do you want to authorize?
     err(`This key belongs to ${ship}, but the notebook is on ${cfg.ship}. Run setup without --reconnect to start over.`);
     return 1;
   }
-  cfg.ship = ship;
+  cfg.ship = run.ship = ship;
   cfg.apiKey = apiKey;
   saveConnection(paths, { state: "ok", checkedAt: new Date().toISOString() });
   out(`
@@ -1295,11 +1405,11 @@ Connected. Open ${notebookUrl(cfg.shipUrl, cfg.notebook)} to see your notebook.`
   out(`Capture: ${cfg.paused ? "paused" : cfg.scopes.length ? "on for " + cfg.scopes.join(", ") : "off (no scope)"} · tool I/O: ${cfg.captureToolIo ? "included (truncated)" : "text only"}`);
   out(`
 ${PRIVACY_NOTE}`);
-  if (!reconnect)
+  if (!reconnect && !connect)
     printInstall(out);
   return 0;
 }
-var SIGNUP_URL = "https://tlon.network/signup?source=agent", realOr = (p) => {
+var realOr = (p) => {
   try {
     return realpathSync2(p);
   } catch {
@@ -1323,6 +1433,7 @@ configured for that client (Anthropic for Claude Code, OpenAI for Codex).`, LOCA
 var init_setup = __esm(() => {
   init_cli_util();
   init_config();
+  init_connect();
   init_memory();
   init_notebook();
   init_notes_client();
@@ -2800,6 +2911,7 @@ var USAGE = `Usage: tlon-memory <command>
       --ship-url URL          ship URL (https; http only for localhost); a copied browser URL is fine
       --api-key-stdin         read the Notes API key from stdin (hidden prompt on a terminal)
       --code-stdin            read your +code from stdin to fetch the key (hidden prompt on a terminal)
+      --connect               take the ship URL and +code or key from a one-time page on 127.0.0.1 (for agents)
       --new-account           print the sign-up link and stop
       --reconnect             replace the key (and with --ship-url, the URL); keeps notebook and scopes
       --notebook TITLE        notebook title (default "Agent Memory")

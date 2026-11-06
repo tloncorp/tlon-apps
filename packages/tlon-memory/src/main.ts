@@ -8,6 +8,7 @@ export const USAGE = `Usage: tlon-memory <command>
       --ship-url URL          ship URL (https; http only for localhost); a copied browser URL is fine
       --api-key-stdin         read the Notes API key from stdin (hidden prompt on a terminal)
       --code-stdin            read your +code from stdin to fetch the key (hidden prompt on a terminal)
+      --connect               take the ship URL and +code or key from a one-time page on 127.0.0.1 (for agents)
       --new-account           print the sign-up link and stop
       --reconnect             replace the key (and with --ship-url, the URL); keeps notebook and scopes
       --notebook TITLE        notebook title (default "Agent Memory")
