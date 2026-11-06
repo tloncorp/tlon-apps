@@ -1,6 +1,6 @@
 // src/sync.ts
 import { createHash, randomUUID } from 'node:crypto';
-import { closeSync, linkSync, openSync, readFileSync, renameSync, rmSync, statSync, writeSync } from 'node:fs';
+import { closeSync, existsSync, linkSync, openSync, readFileSync, renameSync, rmSync, statSync, writeSync } from 'node:fs';
 import { Config } from './config';
 import { ClientId, ParsedTranscript } from './events';
 import { appendLog } from './log';
@@ -204,7 +204,8 @@ export async function syncQueue(p: Paths, cfg: Config,
       } catch (e) {
         const err = e as Error;
         if (isDeadline(e)) { rep.remaining++; continue; } // out of time, not a failure: retry next run without backoff
-        if ((e as NodeJS.ErrnoException).code === 'ENOENT') { // transcript gone: nothing left to upload
+        // Transcript gone: nothing left to upload. An ENOENT about any other file is an ordinary failure.
+        if ((e as NodeJS.ErrnoException).code === 'ENOENT' && !existsSync(job.transcriptPath)) {
           removeJob(p, job);
           appendLog(p, 'sync-drop', { client: job.client, session: job.sessionId, error: err.message });
           continue;

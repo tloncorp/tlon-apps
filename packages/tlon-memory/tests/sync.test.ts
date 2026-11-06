@@ -1,5 +1,6 @@
 // tests/sync.test.ts
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, spyOn } from 'bun:test';
+import * as fs from 'node:fs';
 import { copyFileSync, mkdtempSync, appendFileSync, readdirSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -14,6 +15,7 @@ import { loadConnection } from '../src/status';
 import { parseClaudeTranscript } from '../src/transcript/claude';
 
 const SID = '11111111-aaaa-4bbb-8ccc-222222222222';
+const realRead = fs.readFileSync.bind(fs) as (...a: any[]) => any;
 const fake = new FakeNotes();
 let paths: Paths; let cfg: Config; let fx: string;
 const jobs = () => readdirSync(paths.queueDir).filter((f) => f.endsWith('.json'));
@@ -134,6 +136,18 @@ describe('sync', () => {
     expect(r).toMatchObject({ synced: 0, failed: 0, remaining: 0 });
     expect(jobs().length).toBe(0);
     expect(readFileSync(paths.logFile, 'utf8')).toContain('sync-drop');
+  });
+  it('keeps a job when an ENOENT names some other file than the transcript', async () => {
+    enqueue(paths, { client: 'claude', sessionId: 's1', transcriptPath: fx, cwd: '/x' });
+    const spy = spyOn(fs, 'readFileSync').mockImplementation(((f: any, ...rest: any[]) => {
+      if (f === fx) { const e: NodeJS.ErrnoException = new Error(`ENOENT: no such file or directory, open '/elsewhere'`); e.code = 'ENOENT'; e.path = '/elsewhere'; throw e; }
+      return realRead(f, ...rest);
+    }) as any);
+    let r;
+    try { r = await syncQueue(paths, cfg, { budgetMs: 10_000 }); } finally { spy.mockRestore(); }
+    expect(r).toMatchObject({ failed: 1, remaining: 1 });
+    expect(listJobs(paths)[0].hardFailures).toBe(1);
+    expect(readFileSync(paths.logFile, 'utf8')).not.toContain('sync-drop');
   });
   it('gives up on a job after the attempt limit', async () => {
     writeFileSync(fx, line('u1', '2026-11-05T14:00:00.000Z', 'hi').replace(SID, '')); // no session id: a permanent failure
