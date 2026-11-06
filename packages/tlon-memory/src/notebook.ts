@@ -5,8 +5,8 @@ import { parseFrontMatter, partOf } from './render';
 
 export type NotebookInfo = NonNullable<Config['notebook']>;
 
-/** Find-or-create the notebook (hosted by our ship, matching title) and its two folders. */
-export async function ensureNotebook(c: NotesClient, title: string): Promise<NotebookInfo> {
+/** Find-or-create the notebook (hosted by our ship, matching title) and its two folders. `created`: it did not exist. */
+export async function ensureNotebook(c: NotesClient, title: string): Promise<NotebookInfo & { created: boolean }> {
   const ship = await c.hostName();
   const existing = (await c.listNotebooks()).find((n) => n.host === ship && n.notebook.title === title);
   const nb = existing
@@ -16,7 +16,7 @@ export async function ensureNotebook(c: NotesClient, title: string): Promise<Not
   const find = (name: string) => folders.find((f) => f.name === name && f.parentFolderId === nb.rootFolderId)?.id;
   const conversationsFolderId = find('conversations') ?? (await c.createFolder(nb.host, nb.flagName, 'conversations', nb.rootFolderId));
   const memoriesFolderId = find('memories') ?? (await c.createFolder(nb.host, nb.flagName, 'memories', nb.rootFolderId));
-  return { host: nb.host, name: nb.flagName, title, rootFolderId: nb.rootFolderId, conversationsFolderId, memoriesFolderId };
+  return { host: nb.host, name: nb.flagName, title, rootFolderId: nb.rootFolderId, conversationsFolderId, memoriesFolderId, created: !existing };
 }
 
 export function noteUrl(shipUrl: string, nb: Pick<NotebookInfo, 'host' | 'name'>, noteId: number) {

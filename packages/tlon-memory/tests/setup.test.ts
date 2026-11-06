@@ -69,6 +69,16 @@ describe('setup (non-interactive)', () => {
     expect(JSON.parse(readFileSync(join(tmHome, 'state', 'connection.json'), 'utf8')).state).toBe('ok');
   });
 
+  it('writes the .initialized marker only when it created the notebook', async () => {
+    const marker = join(tmHome, 'state', '.initialized');
+    await run(['setup', '--ship-url', fake.url, '--api-key-stdin', '--notebook', 'Fresh', '--scope', '/p', '--clients', 'none', '--yes'], 'test-key\n');
+    expect(Date.parse(readFileSync(marker, 'utf8').trim())).toBeGreaterThan(0);
+    // a second device adopts the notebook the first one made: its state is empty, but the ship may hold its sessions
+    home = mkdtempSync(join(tmpdir(), 'tm-home-')); tmHome = join(home, '.tlon', 'memory');
+    const r = await run(['setup', '--ship-url', fake.url, '--api-key-stdin', '--notebook', 'Fresh', '--scope', '/p', '--clients', 'none', '--yes'], 'test-key\n');
+    expect(r.code).toBe(0);
+    expect(existsSync(join(tmHome, 'state', '.initialized'))).toBe(false);
+  });
   it('--reconnect clears the backoff of every queued job', async () => {
     await run(['setup', '--ship-url', fake.url, '--api-key-stdin', '--notebook', 'AM', '--scope', '/p', '--clients', 'none', '--yes'], 'test-key\n');
     const q = join(tmHome, 'queue'); mkdirSync(q, { recursive: true });

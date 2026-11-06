@@ -1,5 +1,5 @@
 // src/state.ts
-import { existsSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { safeName } from './cli-util';
 import { Paths, writePrivate } from './paths';
@@ -47,7 +47,14 @@ export function listSessionStates(p: Paths): SessionState[] {
 }
 
 export const isInitialized = (p: Paths) => existsSync(p.initializedMarker);
-export function markInitialized(p: Paths) { p.ensure(); if (!isInitialized(p)) writeFileSync(p.initializedMarker, new Date().toISOString() + '\n', { mode: 0o600 }); }
+/** Write the marker (an ISO timestamp) unless it exists. */
+export function markInitialized(p: Paths, at = new Date().toISOString()) { p.ensure(); if (!isInitialized(p)) writeFileSync(p.initializedMarker, at + '\n', { mode: 0o600 }); }
+/** When this state dir was marked initialized (ms), or null without a marker. Unreadable contents fall back to the file's age. */
+export function initializedAt(p: Paths): number | null {
+  if (!isInitialized(p)) return null;
+  try { const t = Date.parse(readFileSync(p.initializedMarker, 'utf8').trim()); if (Number.isFinite(t)) return t; } catch { /* fall through */ }
+  try { return statSync(p.initializedMarker).mtimeMs; } catch { return null; }
+}
 
 export const queueFile = (p: Paths, j: Pick<QueueJob, 'client' | 'sessionId'>) => join(p.queueDir, `${j.client}-${safeName(j.sessionId)}.json`);
 export function saveJob(p: Paths, j: QueueJob) { p.ensure(); writePrivate(queueFile(p, j), JSON.stringify(j, null, 2)); }

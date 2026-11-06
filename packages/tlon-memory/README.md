@@ -296,7 +296,7 @@ Everything lives under `~/.tlon/memory/` (or `$TLON_MEMORY_HOME`). Directories a
 | `config.json` | Ship URL, ship name, Notes API key, notebook ids, scopes, tool I/O setting, pause flag, configured clients, shim path. The only secret stored. |
 | `state/<client>-<session>.json` | Per session: note ids, revisions, anchor range and hash for each part, event count, last sync time. |
 | `state/connection.json` | Last known connection state (`ok`, `key-rejected` or `unreachable`) and error. |
-| `state/.initialized` | Marks that this state directory has been through setup or a sync. If it is missing, local state may have been lost, and the next sync looks for existing notes on the ship before creating new ones. |
+| `state/.initialized` | The time (ISO) from which this state directory is known to be complete. Setup writes it only when it created the notebook; a sync writes it after it empties the queue. A session with no state file is looked up on the ship by its `session_key` before anything is created when the marker is missing (fresh or wiped state, or a notebook adopted from another setup) or newer than the session's start. Sessions that started after the marker are created without that search. |
 | `queue/<client>-<session>.json` | A pending upload: transcript path, attempts, last error, next attempt time. |
 | `queue/.lock` | Present while an upload runs. |
 | `log` | One line per event, no secrets. |

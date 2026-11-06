@@ -75,16 +75,31 @@ describe('sync', () => {
     expect(fake.notes.get(1)!.bodyMd).not.toContain('## e1');
     expect(loadSessionState(paths, 'claude-code', SID)!.noteIds[0]).not.toBe(1);
   });
-  it('an initialized state dir creates new sessions without searching', async () => {
+  it('an initialized state dir creates sessions started after the marker without searching', async () => {
     enqueue(paths, { client: 'claude', sessionId: 's1', transcriptPath: fx, cwd: '/x' });
     await syncQueue(paths, cfg, { budgetMs: 10_000 }); // first run: searches, then marks initialized
     expect(existsSync(paths.initializedMarker)).toBe(true);
+    expect(Date.parse(readFileSync(paths.initializedMarker, 'utf8').trim())).toBeGreaterThan(0); // an ISO timestamp
+    writeFileSync(paths.initializedMarker, '2026-01-01T00:00:00.000Z\n'); // the fixture sessions started after this
     const codex = join(paths.root, 'codex.jsonl'); copyFileSync(join(import.meta.dir, 'fixtures', 'codex-rollout.jsonl'), codex);
     fake.requests = [];
     enqueue(paths, { client: 'codex', sessionId: 'c1', transcriptPath: codex, cwd: '/x' });
     await syncQueue(paths, cfg, { budgetMs: 10_000 });
     expect(fake.requests.map((r) => r.method + ' ' + r.path.split('?')[0]).some((r) => r.includes('/search/'))).toBe(false);
     expect(fake.notes.size).toBe(2);
+  });
+  it('without a state file, searches only for a session that started before the marker', async () => {
+    const t = parseClaudeTranscript(fx); // started 2026-11-05T14:02
+    const c = new NotesClient({ shipUrl: fake.url, apiKey: 'test-key' });
+    const searched = () => fake.requests.some((r) => r.path.includes('/search/'));
+    paths.ensure();
+    writeFileSync(paths.initializedMarker, '2026-11-06T00:00:00.000Z\n'); // marker newer than the session: state may be lost
+    await syncSession(paths, cfg, c, t);
+    expect(searched()).toBe(true);
+    rmSync(paths.stateDir, { recursive: true }); paths.ensure(); fake.requests = [];
+    writeFileSync(paths.initializedMarker, '2026-11-01T00:00:00.000Z\n'); // marker older: a new session, nothing to find
+    await syncSession(paths, cfg, c, { ...t, sessionId: 'fresh-session' });
+    expect(searched()).toBe(false);
   });
   it('keeps the job queued on transient failure and surfaces key rejection', async () => {
     enqueue(paths, { client: 'claude', sessionId: 's1', transcriptPath: fx, cwd: '/x' });
@@ -157,7 +172,7 @@ describe('sync', () => {
   it('a create the ship applied but whose response was lost is not duplicated on the next run', async () => {
     const t = parseClaudeTranscript(fx);
     const c = new NotesClient({ shipUrl: fake.url, apiKey: 'test-key' });
-    markInitialized(paths); // an initialized device would otherwise create without searching
+    markInitialized(paths, '2026-01-01T00:00:00.000Z'); // the session started after this: no recovery search on the first run
     fake.dropResponseOnce = true;
     await expect(syncSession(paths, cfg, c, t)).rejects.toBeDefined();
     expect(fake.notes.size).toBe(1);
@@ -171,7 +186,7 @@ describe('sync', () => {
   it('does not start a create with less than 5 s of budget left', async () => {
     const t = parseClaudeTranscript(fx);
     const c = new NotesClient({ shipUrl: fake.url, apiKey: 'test-key', deadline: Date.now() + 4_000 });
-    markInitialized(paths);
+    markInitialized(paths, '2026-01-01T00:00:00.000Z');
     await expect(syncSession(paths, cfg, c, t)).rejects.toMatchObject({ code: 'unreachable', message: 'deadline exceeded' });
     expect(fake.notes.size).toBe(0);
   });

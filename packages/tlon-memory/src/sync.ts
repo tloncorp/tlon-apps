@@ -8,7 +8,7 @@ import { findSessionNotes } from './notebook';
 import { DEADLINE_EXCEEDED, NotesClient, NotesError, isDeadline } from './notes-client';
 import { Paths } from './paths';
 import { renderConversation, sessionKey } from './render';
-import { QueueJob, SessionState, isInitialized, listJobs, loadSessionState, markInitialized, removeJob, replaceJob, saveJob, saveSessionState } from './state';
+import { QueueJob, SessionState, initializedAt, listJobs, loadSessionState, markInitialized, removeJob, replaceJob, saveJob, saveSessionState } from './state';
 import { loadConnection, saveConnection } from './status';
 import { parseClaudeTranscript } from './transcript/claude';
 import { parseCodexTranscript } from './transcript/codex';
@@ -32,10 +32,18 @@ const isCode = (e: unknown, code: NotesError['code']) => e instanceof NotesError
 
 /*
  * Cost model: a sync of a known session sends one PUT per changed part and nothing for an unchanged one.
- * The ship is searched (a scan of the notebook) only to recover lost local state, which the absence of
- * state/.initialized signals, and before creating a second or later part. A new session on an
- * initialized machine is created without searching.
+ * The ship is searched (a scan of the notebook) only to recover lost local state, before creating a second
+ * or later part, and after a create whose answer was lost. A session with no state file is looked up when
+ * state/.initialized is absent (fresh or wiped state dir, or a notebook adopted from another device) or
+ * older than the session's start (the state dir was recreated after the session began). A session that
+ * started after the marker was written is created without searching.
  */
+export function needsRecovery(p: Paths, t: Pick<ParsedTranscript, 'started'>): boolean {
+  const marked = initializedAt(p);
+  if (marked === null) return true;
+  const started = Date.parse(t.started);
+  return !Number.isFinite(started) || started < marked;
+}
 
 /** Upsert one session's conversation note(s). Idempotent: same content → no HTTP; known ids → PUT; lost ids → recovered by exact session_key. */
 export async function syncSession(p: Paths, cfg: Config, c: NotesClient, t: ParsedTranscript,
@@ -50,7 +58,7 @@ export async function syncSession(p: Paths, cfg: Config, c: NotesClient, t: Pars
   if (!st) {
     st = { client: t.client, sessionId: t.sessionId, cwd: t.cwd, title: parts[0].title,
       noteIds: [], revisions: [], hashes: [], anchors: [], contentHash: '', eventCount: 0, lastSynced: '' };
-    if (o.recover) for (const n of await findSessionNotes(c, nb, key)) { st.noteIds[n.part - 1] = n.id; st.revisions[n.part - 1] = n.revision; }
+    if (o.recover ?? needsRecovery(p, t)) for (const n of await findSessionNotes(c, nb, key)) { st.noteIds[n.part - 1] = n.id; st.revisions[n.part - 1] = n.revision; }
   }
   const s = st;
   s.hashes ??= []; s.anchors ??= [];
@@ -154,7 +162,6 @@ export async function syncQueue(p: Paths, cfg: Config,
   const rep: SyncReport = { synced: 0, failed: 0, remaining: 0, keyRejected: false };
   if (!acquireLock(p)) { rep.remaining = listJobs(p).length; rep.locked = true; return rep; }
   try {
-    const recover = !isInitialized(p);
     const c = new NotesClient({ shipUrl: cfg.shipUrl, apiKey: cfg.apiKey, deadline: Date.now() + o.budgetMs });
     let attempted = 0, reachedShip = false, netError: NotesError | undefined;
     for (const job of listJobs(p)) {
@@ -164,7 +171,7 @@ export async function syncQueue(p: Paths, cfg: Config,
       try {
         const t = parseTranscript(job.client, job.transcriptPath, cfg.captureToolIo, [cfg.apiKey]);
         if (!t.sessionId) throw new Error('transcript has no session id');
-        const r = await syncSession(p, cfg, c, t, { recover });
+        const r = await syncSession(p, cfg, c, t);
         if (r !== 'unchanged') reachedShip = true;
         removeJob(p, job); rep.synced++;
         appendLog(p, 'sync', { client: job.client, session: t.sessionId, count: t.events.length, event: r });
@@ -199,7 +206,7 @@ export async function syncQueue(p: Paths, cfg: Config,
       if (state && (prev.state !== state || prev.lastError !== netError?.message))
         saveConnection(p, { state, ...(netError ? { lastError: netError.message } : {}), checkedAt: new Date().toISOString() });
     }
-    if (recover && rep.remaining === 0) markInitialized(p);
+    if (rep.remaining === 0) markInitialized(p); // no-op when present; sessions started from now on skip the recovery search
     return rep;
   } finally { releaseLock(p); }
 }

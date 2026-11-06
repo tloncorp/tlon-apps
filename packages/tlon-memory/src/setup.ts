@@ -134,14 +134,18 @@ export async function setup(args: string[]): Promise<number> {
   try { ship = await client.hostName(); await client.listNotebooks(); }
   catch (e) { err(`Could not connect: ${(e as Error).message}`); return 1; }
   if (reconnect && cfg.ship && ship !== cfg.ship) { err(`This key belongs to ${ship}, but the notebook is on ${cfg.ship}. Run setup without --reconnect to start over.`); return 1; }
-  cfg.ship = ship; cfg.apiKey = apiKey; saveConnection(paths, { state: 'ok', checkedAt: new Date().toISOString() }); markInitialized(paths);
+  cfg.ship = ship; cfg.apiKey = apiKey; saveConnection(paths, { state: 'ok', checkedAt: new Date().toISOString() });
   out(`\nConnected as ${cfg.ship}.`);
   if (reconnect) { const n = resetBackoff(paths); if (n) out(`${n} queued upload${n === 1 ? '' : 's'} will retry on the next sync.`); }
 
   // 4. notebook
   if (!reconnect) {
     const title = notebookArg ?? (yes ? 'Agent Memory' : await ask('Notebook title:', 'Agent Memory', '--notebook'));
-    cfg.notebook = await ensureNotebook(client, title);
+    const { created, ...notebook } = await ensureNotebook(client, title);
+    cfg.notebook = notebook;
+    // A new notebook holds no sessions, so later sessions need no recovery search. An adopted one may hold
+    // this device's (or another's) sessions: leave the marker absent so the first sync looks before creating.
+    if (created) markInitialized(paths);
     out(`Notebook "${title}" ready (${cfg.notebook.host}/${cfg.notebook.name}) with folders conversations/ and memories/.`);
     // 5. scope + tool I/O
     let scope = scopeArg;

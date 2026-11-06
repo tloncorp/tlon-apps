@@ -13,8 +13,9 @@ describe('ensureNotebook', () => {
     const a = await ensureNotebook(c, 'Agent Memory');
     expect(a.title).toBe('Agent Memory');
     expect(a.conversationsFolderId).not.toBe(a.memoriesFolderId);
+    expect(a.created).toBe(true);
     const b = await ensureNotebook(c, 'Agent Memory');
-    expect(b).toEqual(a);
+    expect(b).toEqual({ ...a, created: false });
     expect(fake.notebooks.size).toBe(1);
     expect([...fake.folders.values()].filter((f) => f.name !== 'root').length).toBe(2);
   });
