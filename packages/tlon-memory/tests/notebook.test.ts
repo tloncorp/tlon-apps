@@ -25,3 +25,11 @@ describe('ensureNotebook', () => {
     expect(r.host).toBe('~zod');
   });
 });
+
+describe('notebookUrl', () => {
+  it('links the notebook; noteUrl extends it', async () => {
+    const { notebookUrl, noteUrl } = await import('../src/notebook');
+    expect(notebookUrl('https://a.tlon.network/', { host: '~zod', name: 'am' })).toBe('https://a.tlon.network/notes/nb/~zod/am');
+    expect(noteUrl('https://a.tlon.network', { host: '~zod', name: 'am' }, 5)).toBe('https://a.tlon.network/notes/nb/~zod/am/n/5');
+  });
+});

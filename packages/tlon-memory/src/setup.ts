@@ -1,15 +1,14 @@
 // src/setup.ts
 import { existsSync, realpathSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
-import { flag, has } from './cli-util';
+import { UsageError, flag, has } from './cli-util';
 import { Config, defaultConfig, loadConfig, saveConfig } from './config';
-import { detectClient, installClient } from './clients';
+import { Client, detectClient, installClient } from './clients';
 import { MemoryStore } from './memory';
-import { ensureNotebook, noteUrl } from './notebook';
-import { NotesClient, NotesError } from './notes-client';
+import { ensureNotebook, notebookUrl } from './notebook';
+import { NotesClient } from './notes-client';
 import { Paths } from './paths';
 import { ask, askHidden, confirm, readSecret } from './prompt';
 import { markInitialized } from './state';
@@ -50,85 +49,152 @@ export function scopeProblem(dir: string, o: { force: boolean; mustExist: boolea
   return null;
 }
 
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+/** The ship's origin: a URL copied from the browser may carry a path. Plain http only for a local ship. */
+export function normaliseShipUrl(raw: string): string {
+  let u: URL;
+  try { u = new URL(raw.trim()); } catch { throw new UsageError(`not a URL: ${raw}`); }
+  if (u.protocol !== 'https:' && !(u.protocol === 'http:' && LOCAL_HOSTS.has(u.hostname)))
+    throw new UsageError(`ship URL must start with https:// (http:// only for localhost): ${raw}`);
+  return u.origin;
+}
+
+const CLIENT_NAMES: Record<Client, string> = { claude: 'Claude Code', codex: 'Codex' };
+
+function parseClients(v: string | undefined): Client[] | undefined {
+  if (v === undefined) return undefined;
+  const list = v.split(',').map((c) => c.trim()).filter(Boolean);
+  const bad = list.filter((c) => c !== 'claude' && c !== 'codex' && c !== 'none');
+  if (bad.length) throw new UsageError(`--clients takes claude, codex or none; got ${bad.join(', ')}`);
+  return list.filter((c): c is Client => c !== 'none');
+}
+
 export async function setup(args: string[]): Promise<number> {
   const paths = new Paths(); const yes = has(args, '--yes');
   const out = (s: string) => process.stdout.write(s + '\n');
-  out(DISCLOSURE);
-  if (!yes && !(await confirm('Continue?'))) return 1;
+  const err = (s: string) => process.stderr.write(s + '\n');
+  const newAccount = has(args, '--new-account'); const reconnectFlag = has(args, '--reconnect'); const force = has(args, '--force-scope');
+  const shipUrlArg = flag(args, '--ship-url'); const scopeArg = flag(args, '--scope'); const notebookArg = flag(args, '--notebook');
+  const wanted = parseClients(flag(args, '--clients'));
+  const stdinKey = has(args, '--api-key-stdin'); const stdinCode = has(args, '--code-stdin');
+  // With --yes nothing is prompted, so every required input must come from a flag; checked before any network call.
+  if (yes && !newAccount) {
+    if (!reconnectFlag && !shipUrlArg) throw new UsageError('--yes needs --ship-url (or --new-account / --reconnect)');
+    if (!stdinKey && !stdinCode) throw new UsageError('--yes needs --api-key-stdin or --code-stdin');
+    if (!reconnectFlag && scopeArg === undefined) throw new UsageError('--yes needs --scope DIR (or --scope none)');
+  }
+  if (scopeArg !== undefined && scopeArg !== 'none') { const p = scopeProblem(scopeArg, { force, mustExist: false }); if (p) throw new UsageError(p); }
+  const shipUrlNorm = shipUrlArg !== undefined ? normaliseShipUrl(shipUrlArg) : undefined;
 
   const existing = loadConfig(paths);
-  const reconnect = has(args, '--reconnect') && existing;
+  if (reconnectFlag && !existing) throw new UsageError('--reconnect needs an existing setup; run `tlon-memory setup` first');
+  const reconnect = reconnectFlag && existing !== null;
+
+  out(DISCLOSURE);
+  if (!yes && !(await confirm('Continue?', true, '--yes'))) return 1;
+  if (existing && !reconnect && !newAccount) {
+    out(`A setup already exists (${existing.ship || existing.shipUrl}). Running setup again resets scopes and client settings; use --reconnect to replace only the key.`);
+    if (!yes && !(await confirm('Start over?', false, '--yes'))) return 1;
+  }
   const cfg: Config = reconnect ? existing! : defaultConfig();
 
   // 1. account
-  if (!reconnect) {
-    if (has(args, '--new-account') || (!yes && !flag(args, '--ship-url') && !(await confirm('Do you already have a Tlon account (a ship URL like https://sampel-palnet.tlon.network)?')))) {
-      out(`\nCreate an account at ${SIGNUP_URL} (opens in your browser; sign-up may require an invite or be capacity-limited).`);
-      out('When you have your ship URL from the dashboard, re-run `tlon-memory setup`.');
-      if (!process.env.TLON_MEMORY_NO_BROWSER) try { const { spawn } = await import('node:child_process'); spawn(process.platform === 'darwin' ? 'open' : 'xdg-open', [SIGNUP_URL], { stdio: 'ignore', detached: true }).unref(); } catch {}
-      return 0;
+  if (!reconnect && (newAccount || (!shipUrlNorm && !(await confirm('Do you already have a Tlon account (a ship URL like https://sampel-palnet.tlon.network)?', true, '--ship-url'))))) {
+    const browser = !process.env.TLON_MEMORY_NO_BROWSER;
+    out(`\nCreate an account at ${SIGNUP_URL}${browser ? ' (opens in your browser)' : ''}; sign-up may require an invite or be capacity-limited.`);
+    out('When you have your ship URL from the dashboard, re-run `tlon-memory setup`.');
+    if (browser) {
+      const { spawn } = await import('node:child_process');
+      spawn(process.platform === 'darwin' ? 'open' : 'xdg-open', [SIGNUP_URL], { stdio: 'ignore', detached: true })
+        .on('error', (e) => err(`Could not open a browser (${e.message}); open the link above yourself.`)).unref();
     }
-    cfg.shipUrl = (flag(args, '--ship-url') ?? (await ask('Ship URL:'))).replace(/\/+$/, '');
-    if (!/^https?:\/\//.test(cfg.shipUrl)) { process.stderr.write('ship URL must start with http(s)://\n'); return 1; }
+    return 0;
+  }
+  if (!reconnect || shipUrlNorm) {
+    cfg.shipUrl = shipUrlNorm ?? normaliseShipUrl(await ask('Ship URL:', '', '--ship-url'));
+    out(`Ship URL: ${cfg.shipUrl}`);
   }
 
   // 2. credential (paste key, or +code once)
   let apiKey: string;
-  if (has(args, '--api-key-stdin')) apiKey = await readSecret('Notes API key:', '--api-key-stdin');
-  else if (has(args, '--code-stdin')) apiKey = await NotesClient.apiKeyFromCode(cfg.shipUrl, await readSecret('+code:', '--code-stdin')).catch((e) => { throw new Error(`could not fetch the API key with +code: ${e.message}`); });
+  if (stdinKey) apiKey = await readSecret('Notes API key:', '--api-key-stdin');
+  else if (stdinCode) apiKey = await NotesClient.apiKeyFromCode(cfg.shipUrl, await readSecret('+code:', '--code-stdin')).catch((e) => { throw new Error(`could not fetch the API key with +code: ${e.message}`); });
   else {
     out('\nHow do you want to authorize?\n  1) paste your Notes API key\n  2) enter your +code once (used only to fetch the key, then discarded)');
-    const choice = await ask('Choice:', '2');
-    if (choice === '1') apiKey = await askHidden('Notes API key:');
-    else { const code = await askHidden('+code:'); apiKey = await NotesClient.apiKeyFromCode(cfg.shipUrl, code); }
+    const choice = await ask('Choice:', '2', '--api-key-stdin or --code-stdin');
+    if (choice === '1') apiKey = await askHidden('Notes API key:', '--api-key-stdin');
+    else { const code = await askHidden('+code:', '--code-stdin'); apiKey = await NotesClient.apiKeyFromCode(cfg.shipUrl, code); }
   }
-  if (!apiKey) { process.stderr.write('no API key provided\n'); return 1; }
+  if (!apiKey) { err('no API key provided'); return 1; }
 
   // 3. verify
   const client = new NotesClient({ shipUrl: cfg.shipUrl, apiKey });
-  try { cfg.ship = await client.hostName(); await client.listNotebooks(); }
-  catch (e) { process.stderr.write(`Could not connect: ${(e as Error).message}\n`); return 1; }
-  cfg.apiKey = apiKey; saveConnection(paths, { state: 'ok', checkedAt: new Date().toISOString() }); markInitialized(paths);
+  let ship: string;
+  try { ship = await client.hostName(); await client.listNotebooks(); }
+  catch (e) { err(`Could not connect: ${(e as Error).message}`); return 1; }
+  if (reconnect && cfg.ship && ship !== cfg.ship) { err(`This key belongs to ${ship}, but the notebook is on ${cfg.ship}. Run setup without --reconnect to start over.`); return 1; }
+  cfg.ship = ship; cfg.apiKey = apiKey; saveConnection(paths, { state: 'ok', checkedAt: new Date().toISOString() }); markInitialized(paths);
   out(`\nConnected as ${cfg.ship}.`);
 
   // 4. notebook
   if (!reconnect) {
-    const title = flag(args, '--notebook') ?? (yes ? 'Agent Memory' : await ask('Notebook title:', 'Agent Memory'));
+    const title = notebookArg ?? (yes ? 'Agent Memory' : await ask('Notebook title:', 'Agent Memory', '--notebook'));
     cfg.notebook = await ensureNotebook(client, title);
     out(`Notebook "${title}" ready (${cfg.notebook.host}/${cfg.notebook.name}) with folders conversations/ and memories/.`);
     // 5. scope + tool I/O
-    const scope = flag(args, '--scope') ?? (yes ? process.cwd() : await ask('Capture conversations started in which directory?', process.cwd()));
+    let scope = scopeArg;
+    while (scope === undefined) {
+      const a = await ask('Capture conversations started in which directory? ("none" for no capture)', process.cwd(), '--scope');
+      const p = a === 'none' ? null : scopeProblem(a, { force, mustExist: false });
+      if (p) err(p); else scope = a;
+    }
     cfg.scopes = scope === 'none' ? [] : [resolve(scope)];
-    cfg.captureToolIo = !has(args, '--no-tool-io') && (yes || (await confirm('Include tool inputs/outputs (truncated to 2 KB each)?')));
+    cfg.captureToolIo = !has(args, '--no-tool-io') && (yes || (await confirm('Include tool inputs/outputs (truncated to 2 KB each)?', true, '--no-tool-io')));
   }
   cfg.binPath = BIN_PATH;
   saveConfig(paths, cfg);
 
-  // 6. clients
+  // 6. clients: one at a time, so prompts never overlap; one client's failure does not stop the other.
+  const failures: string[] = [];
   if (!reconnect) {
-    const want = (flag(args, '--clients') ?? (yes ? 'claude,codex' : '')).split(',').filter((c) => c === 'claude' || c === 'codex') as ('claude' | 'codex')[];
-    const chosen = want.length || flag(args, '--clients') === 'none' ? want
-      : (await Promise.all((['claude', 'codex'] as const).map(async (c) => (await detectClient(c)) && (await confirm(`Configure ${c === 'claude' ? 'Claude Code' : 'Codex'} (MCP server, hooks, skill)?`)) ? c : null))).filter(Boolean) as ('claude' | 'codex')[];
+    const chosen: Client[] = [];
+    for (const c of wanted ?? (['claude', 'codex'] as const)) {
+      if (!(await detectClient(c))) { if (wanted || yes) out(`${CLIENT_NAMES[c]}: \`${c}\` not found on PATH; skipped.`); continue; }
+      if (wanted || yes || (await confirm(`Configure ${CLIENT_NAMES[c]} (MCP server, hooks, skill)?`, true, '--clients'))) chosen.push(c);
+    }
     for (const c of chosen) {
-      const r = await installClient(c, { binPath: BIN_PATH, skillSource: SKILL_SOURCE });
-      cfg.clients[c] = { mcp: r.mcp, hooks: r.hooks, skill: r.skill, installedAt: new Date().toISOString() };
-      out(`${c === 'claude' ? 'Claude Code' : 'Codex'}: hooks ${r.hooks ? 'ok' : 'FAILED'} · MCP ${r.mcp ? 'ok' : 'FAILED (' + r.mcpError + ')'} · skill ${r.skill ? 'ok' : 'FAILED'}`);
-      if (c === 'codex') out('Codex: run /hooks inside Codex once to review and trust the tlon-memory hooks (they are skipped until trusted).');
+      try {
+        const r = await installClient(c, { binPath: BIN_PATH, skillSource: SKILL_SOURCE });
+        cfg.clients[c] = { mcp: r.mcp, hooks: r.hooks, skill: r.skill, installedAt: new Date().toISOString() };
+        out(`${CLIENT_NAMES[c]}: hooks ${r.hooks ? 'ok' : 'FAILED'} · MCP ${r.mcp ? 'ok' : 'FAILED (' + r.mcpError + ')'} · skill ${r.skill ? 'ok' : 'FAILED'}`);
+        if (!r.mcp) failures.push(`${CLIENT_NAMES[c]}: MCP registration failed: ${r.mcpError}`);
+        if (c === 'codex') out('Codex: run /hooks inside Codex once to review and trust the tlon-memory hooks (they are skipped until trusted).');
+      } catch (e) { failures.push(`${CLIENT_NAMES[c]}: ${(e as Error).message}`); out(`${CLIENT_NAMES[c]}: FAILED (details below)`); }
     }
     saveConfig(paths, cfg);
   }
 
   // 7. probe: write a memory, read it back, delete it
+  let probeId: number | undefined;
   try {
     const store = new MemoryStore(paths, cfg);
     const p = await store.save({ type: 'context', text: `tlon-memory setup probe ${Date.now()}`, agent: 'claude-code', project: 'tlon-memory-setup' });
+    probeId = p.id;
     const back = await store.search({ query: 'setup probe', project: 'tlon-memory-setup' });
     if (!back.some((h) => h.id === p.id)) throw new Error('probe memory not found after write');
-    await client.deleteNote(cfg.notebook!.host, cfg.notebook!.name, p.id);
-  } catch (e) { process.stderr.write(`Probe failed: ${(e as Error).message}\n`); return 1; }
+  } catch (e) {
+    err(`Probe failed: ${(e as Error).message} (setup saved; run \`tlon-memory status\` to check the connection).`);
+    for (const f of failures) err(f);
+    return 1;
+  } finally {
+    if (probeId !== undefined) await client.deleteNote(cfg.notebook!.host, cfg.notebook!.name, probeId)
+      .catch((e) => err(`Could not delete the setup probe note ${probeId}: ${(e as Error).message}`));
+  }
 
-  out(`\nConnected. Open ${noteUrl(cfg.shipUrl, cfg.notebook!, 0).replace(/\/n\/0$/, '')} to see your notebook.`);
+  out(`\nConnected. Open ${notebookUrl(cfg.shipUrl, cfg.notebook!)} to see your notebook.`);
   out(`Capture: ${cfg.paused ? 'paused' : cfg.scopes.length ? 'on for ' + cfg.scopes.join(', ') : 'off (no scope)'} · tool I/O: ${cfg.captureToolIo ? 'included (truncated)' : 'text only'}`);
   out(`\n${PRIVACY_NOTE}`);
+  if (failures.length) { err('\nSome client wiring failed:'); for (const f of failures) err(`  ${f}`); return 1; }
   return 0;
 }

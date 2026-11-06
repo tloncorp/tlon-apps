@@ -20,7 +20,11 @@ export async function ensureNotebook(c: NotesClient, title: string): Promise<Not
 }
 
 export function noteUrl(shipUrl: string, nb: Pick<NotebookInfo, 'host' | 'name'>, noteId: number) {
-  return `${shipUrl.replace(/\/+$/, '')}/notes/nb/${nb.host}/${nb.name}/n/${noteId}`;
+  return `${notebookUrl(shipUrl, nb)}/n/${noteId}`;
+}
+
+export function notebookUrl(shipUrl: string, nb: Pick<NotebookInfo, 'host' | 'name'>) {
+  return `${shipUrl.replace(/\/+$/, '')}/notes/nb/${nb.host}/${nb.name}`;
 }
 
 export interface SessionNote extends Note { part: number; parts: number; first?: string; last?: string }
