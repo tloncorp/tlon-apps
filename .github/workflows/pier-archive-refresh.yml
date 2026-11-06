@@ -46,7 +46,7 @@ jobs:
       # A manual dispatch tests the branch it was dispatched from; the
       # schedule always cuts from develop.
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || 'develop' }}
 
@@ -127,18 +127,18 @@ jobs:
       # persisted GITHUB_TOKEN: its auth header would override the App token
       # used for the push.
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ needs.preflight.outputs.sha }}
           persist-credentials: false
 
       - name: Setup Node.js environment
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .nvmrc
 
       - name: Setup PNPM
-        uses: pnpm/action-setup@v3
+        uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d # v3
         with:
           run_install: |
             - recursive: true
@@ -164,13 +164,13 @@ jobs:
 
       - name: Authenticate to Google Cloud
         if: env.DRY_RUN_INPUT != 'true'
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
         with:
           credentials_json: ${{ secrets.PIER_ARCHIVE_GCS_KEY }}
 
       - name: Set up Cloud SDK
         if: env.DRY_RUN_INPUT != 'true'
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2
 
       # archive-piers.sh requires an active `gcloud auth list` account, which
       # the auth action's credential-file override does not provide.
@@ -283,7 +283,7 @@ jobs:
 
       - name: Upload archive logs
         if: failure() || cancelled()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           # run_attempt: v4 artifact names are immutable across attempts.
           name: pier-archive-logs-${{ github.run_attempt }}
