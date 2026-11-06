@@ -18,6 +18,8 @@ export interface Outcome { key: string; kind: 'uploaded' | 'unchanged' | 'failed
 export const PAUSED = 'Capture is paused; run tlon-memory resume first.';
 const ALL_BUDGET_MS = 600_000;
 export const SINGLE_BUDGET_MS = 120_000;
+/** Under Codex's default 60 s MCP tool timeout; the MCP server answers nothing else while a tool runs. */
+export const TOOL_BUDGET_MS = 45_000;
 const PROGRESS_EVERY = 25;
 
 export const prepare = (cfg: Config, client: ClientName, path: string): Prepared =>
@@ -26,16 +28,17 @@ export const inScope = (cfg: Config, cwd: string) => cwd !== '' && isInScope(cfg
 export const outOfScope = (cfg: Config, p: Prepared) =>
   `${sessionKey(p.t)} (${p.t.cwd || 'no directory recorded'}) is outside the capture scope (${cfg.scopes.join(', ') || 'none'}); add it with tlon-memory scope add`;
 
-/** Queue the sessions and sync until they are done or a run makes no progress. */
+/** Queue the sessions and sync until they are done, a run makes no progress, or `budgetMs` (for the whole call) runs out. */
 export async function importSessions(paths: Paths, cfg: Config, list: Prepared[], budgetMs: number): Promise<{ outcomes: Outcome[]; locked: boolean }> {
   const before = list.map(({ client, path, t }) => {
     enqueue(paths, { client, sessionId: t.sessionId, transcriptPath: path, cwd: t.cwd });
     return { attempts: loadJob(paths, { client, sessionId: t.sessionId })!.attempts, synced: loadSessionState(paths, t.client, t.sessionId)?.lastSynced };
   });
   const queued = () => list.filter(({ client, t }) => loadJob(paths, { client, sessionId: t.sessionId })).length;
+  const deadline = Date.now() + budgetMs;
   let locked = false;
-  for (;;) {
-    const r = await syncQueue(paths, cfg, { budgetMs, ignoreBackoff: true });
+  for (let left = budgetMs; left > 0; left = deadline - Date.now()) {
+    const r = await syncQueue(paths, cfg, { budgetMs: left, ignoreBackoff: true });
     if (r.locked) { locked = true; break; }
     if (!queued() || !r.synced) break;
   }

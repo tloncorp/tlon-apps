@@ -9,6 +9,8 @@ import { Paths } from '../src/paths';
 import { Config, defaultConfig, saveConfig } from '../src/config';
 import { ensureNotebook } from '../src/notebook';
 import { claudeProjectsDir } from '../src/transcripts';
+import { importSessions, prepare } from '../src/import';
+import { enqueue } from '../src/sync';
 
 const fake = new FakeNotes(); let home: string; let claude: string; let paths: Paths; let cfg: Config;
 let outside: string;
@@ -81,4 +83,27 @@ describe('import', () => {
     expect(r.code).toBe(1); expect(r.err).toContain('Capture is paused; run tlon-memory resume first.');
     expect(fake.requests.length).toBe(0);
   });
+});
+
+describe('importSessions', () => {
+  it('stops at one total deadline even while each run makes progress', async () => {
+    const slow = Bun.serve({ port: 0, fetch: async (req) => {
+      await Bun.sleep(400);
+      const u = new URL(req.url);
+      return fetch(fake.url + u.pathname + u.search, { method: req.method, headers: req.headers, body: req.method === 'GET' ? undefined : await req.text() });
+    } });
+    try {
+      const c = { ...cfg, shipUrl: `http://127.0.0.1:${slow.port}` };
+      for (let i = 0; i < 6; i++) { // a backlog queued ahead of the imported session
+        const id = `77777777-aaaa-4bbb-8ccc-00000000000${i}`, f = join(home, `${id}.jsonl`);
+        writeFileSync(f, readFileSync(claude, 'utf8').replaceAll(CLAUDE_ID, id));
+        enqueue(paths, { client: 'claude', sessionId: id, transcriptPath: f, cwd: '/Users/bill/Projects/demo' });
+      }
+      await Bun.sleep(5);
+      const t0 = Date.now();
+      const { outcomes } = await importSessions(paths, c, [prepare(c, 'claude', claude)], 6_000);
+      expect(Date.now() - t0).toBeLessThan(8_000);
+      expect(outcomes[0].kind).toBe('remaining');
+    } finally { slow.stop(true); }
+  }, 60_000);
 });

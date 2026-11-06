@@ -2,7 +2,7 @@
 // Minimal MCP stdio server: newline-delimited JSON-RPC 2.0; initialize / tools/list / tools/call / ping.
 import { createInterface } from 'node:readline';
 import { Config, loadConfig } from './config';
-import { PAUSED, SINGLE_BUDGET_MS, importSessions, inScope, outOfScope, prepare } from './import';
+import { PAUSED, TOOL_BUDGET_MS, importSessions, inScope, outOfScope, prepare } from './import';
 import { appendLog } from './log';
 import { ClientId } from './events';
 import { MemoryStore, projectOf } from './memory';
@@ -171,7 +171,7 @@ export async function callTool(name: string, raw: unknown, cfg: Config, paths: P
       const p = prepare(cfg, clientOfKey(key), path);
       if (!p.t.events.length) return `Nothing to back up yet in ${key}`;
       if (!inScope(cfg, p.t.cwd)) throw new Error(outOfScope(cfg, p));
-      const [o] = (await importSessions(paths, cfg, [p], SINGLE_BUDGET_MS)).outcomes;
+      const [o] = (await importSessions(paths, cfg, [p], TOOL_BUDGET_MS)).outcomes;
       if (o.kind === 'failed') throw new Error(`backup of ${key} failed: ${o.error}`);
       if (o.kind === 'remaining') return `Queued; ${listJobs(paths).length} remaining, the next sync continues it`;
       return o.kind === 'uploaded' ? `Backed up ${key}: ${o.parts} part(s), ${o.url}` : `Already up to date: ${o.url}`;

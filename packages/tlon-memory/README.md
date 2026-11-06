@@ -215,7 +215,7 @@ Search ranks memories by word overlap with your query and by recency. By default
 | `tlon_search_history` | `query`, `client` (`claude-code` or `codex`), `limit` (up to 25) | Conversations containing the text, with session key, snippet and link |
 | `tlon_get_conversation` | `session_key` or `note_id`, `from_event`, `max_chars` (up to 20,000, default 8,000) | An excerpt of one part, starting at `from_event` if given |
 | `tlon_list_recent` | `kind` (`memories` or `conversations`), `limit` (up to 25) | Recent items |
-| `tlon_backup_conversation` | `session_key` | Uploads that conversation now (the same scope and pause rules as the hooks) and returns the link to its first part, `Already up to date`, or `Queued` when the upload did not finish |
+| `tlon_backup_conversation` | `session_key` | Uploads that conversation now (the same scope and pause rules as the hooks) and returns the link to its first part, `Already up to date`, or `Queued` when the upload did not finish within 45 seconds (the next sync continues it) |
 | `tlon_status` | none | The status line and the search horizon |
 
 Every argument is checked before use. Session keys must look like `claude-code:<id>` or `codex:<id>`, anchors like `e17`, ids must be positive integers.
