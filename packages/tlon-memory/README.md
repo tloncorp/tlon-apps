@@ -124,7 +124,7 @@ Codex skips new hooks until you trust them. After setup, start Codex, run `/hook
 
 ### GUI apps and PATH
 
-The hook and MCP commands run `bin/tlon-memory.js` through its `#!/usr/bin/env node` line, so `node` must be on the PATH the client gives its hooks. The shim then runs `dist/tlon-memory` if it exists. If not, it looks for `bun` on PATH, then in `~/.bun/bin`, `/opt/homebrew/bin` and `/usr/local/bin`. Apps launched from the Dock or Finder (for example the Claude desktop app) can get a minimal PATH without bun. Run `pnpm build` in `packages/tlon-memory` after setup so hooks use the compiled binary and do not need bun at all.
+The hook and MCP commands run `bin/tlon-memory.js` through its `#!/usr/bin/env node` line, so `node` must be on the PATH the client gives its hooks. The shim then runs `dist/tlon-memory` if it exists. If not, it looks for `bun` on PATH, then in `~/.bun/bin`, `/opt/homebrew/bin` and `/usr/local/bin`. Apps launched from the Dock or Finder (for example the Claude desktop app) can get a minimal PATH without bun. Run `pnpm build` in `packages/tlon-memory` (before or after setup) so hooks use the compiled binary and do not need bun at all.
 
 ## What is captured
 
