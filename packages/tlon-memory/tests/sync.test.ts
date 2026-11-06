@@ -56,6 +56,15 @@ describe('sync', () => {
     expect([...fake.notes.values()][0].bodyMd).toContain('## e9 · assistant');
     expect([...fake.notes.values()][0].revision).toBe(2);
   });
+  it('re-enqueueing keeps the failure history and makes the job due now', async () => {
+    saveJob(paths, { client: 'claude', sessionId: 's1', transcriptPath: fx, cwd: '/x', enqueuedAt: '2026-01-01T00:00:00.000Z',
+      attempts: 3, hardFailures: 1, lastError: 'HTTP 503', nextAttemptAt: '2099-01-01T00:00:00.000Z' });
+    enqueue(paths, { client: 'claude', sessionId: 's1', transcriptPath: fx, cwd: '/x' });
+    const [j] = listJobs(paths);
+    expect(j).toMatchObject({ attempts: 3, hardFailures: 1, lastError: 'HTTP 503' });
+    expect(j.nextAttemptAt).toBeUndefined();
+    expect(j.enqueuedAt).not.toBe('2026-01-01T00:00:00.000Z');
+  });
   it('recovers the note id by session key when local state is lost', async () => {
     enqueue(paths, { client: 'claude', sessionId: 's1', transcriptPath: fx, cwd: '/x' });
     await syncQueue(paths, cfg, { budgetMs: 10_000 });

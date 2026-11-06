@@ -71,6 +71,10 @@ export function initializedAt(p: Paths): number | null {
 }
 
 export const queueFile = (p: Paths, j: Pick<QueueJob, 'client' | 'sessionId'>) => join(p.queueDir, `${j.client}-${safeName(j.sessionId)}.json`);
+export function loadJob(p: Paths, j: Pick<QueueJob, 'client' | 'sessionId'>): QueueJob | null {
+  const f = queueFile(p, j);
+  return existsSync(f) ? readJson<QueueJob>(p, f) : null;
+}
 export function saveJob(p: Paths, j: QueueJob) { p.ensure(); writePrivate(queueFile(p, j), JSON.stringify(j, null, 2)); }
 /** Remove a finished job unless the hook re-enqueued it (new enqueuedAt) while it was being synced. */
 export function removeJob(p: Paths, j: QueueJob): boolean {

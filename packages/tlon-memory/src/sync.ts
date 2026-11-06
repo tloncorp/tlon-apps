@@ -9,7 +9,7 @@ import { partHolding } from './memory';
 import { DEADLINE_EXCEEDED, Note, NotesClient, NotesError, isDeadline } from './notes-client';
 import { Paths, writePrivate } from './paths';
 import { parseMemory, renderConversation, renderMemory, sessionKey } from './render';
-import { QueueJob, SessionState, initializedAt, listJobs, loadPendingLinks, loadSessionState, markInitialized, removeJob, replaceJob, savePendingLinks, saveJob, saveSessionState } from './state';
+import { QueueJob, SessionState, initializedAt, listJobs, loadJob, loadPendingLinks, loadSessionState, markInitialized, removeJob, replaceJob, savePendingLinks, saveJob, saveSessionState } from './state';
 import { loadConnection, saveConnection } from './status';
 import { parseClaudeTranscript } from './transcript/claude';
 import { parseCodexTranscript } from './transcript/codex';
@@ -18,8 +18,14 @@ export { loadSessionState } from './state';
 
 export const clientId = (c: 'claude' | 'codex'): ClientId => (c === 'claude' ? 'claude-code' : 'codex');
 
+/**
+ * Queue a session. A job already queued keeps its failure history (so `status` still shows why it is stuck) but
+ * is due at once: new content is worth one immediate try. The new enqueuedAt tells a running sync it was re-queued.
+ */
 export function enqueue(p: Paths, j: Omit<QueueJob, 'enqueuedAt' | 'attempts'>) {
-  saveJob(p, { ...j, enqueuedAt: new Date().toISOString(), attempts: 0 });
+  const prev = loadJob(p, j);
+  saveJob(p, { ...j, enqueuedAt: new Date().toISOString(), attempts: prev?.attempts ?? 0,
+    ...(prev?.hardFailures ? { hardFailures: prev.hardFailures } : {}), ...(prev?.lastError ? { lastError: prev.lastError } : {}) });
 }
 
 export function parseTranscript(client: 'claude' | 'codex', path: string, toolIo: boolean, known: string[] = []): ParsedTranscript {
