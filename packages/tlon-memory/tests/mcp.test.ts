@@ -78,7 +78,7 @@ describe('mcp server', () => {
     expect(s.result.isError).toBeFalsy();
     const n = [...fake.notes.values()].find((x) => x.bodyMd.includes('Session-attributed memory.'))!;
     expect(n.bodyMd).toContain('source_session: claude-code:abc');
-    expect(s.result.content[0].text).toContain('(source link will be added when this conversation uploads)');
+    expect(s.result.content[0].text).toContain('(source link is added when this conversation is uploaded from this device)');
   });
   it('negotiates the protocol version', async () => {
     expect((await rpc('initialize', { protocolVersion: '2024-11-05' })).result.protocolVersion).toBe('2024-11-05');

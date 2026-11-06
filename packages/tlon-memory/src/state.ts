@@ -49,7 +49,8 @@ export function listSessionStates(p: Paths): SessionState[] {
 /** A memory saved before its conversation was uploaded; sync links it to its part once the session's notes exist. */
 export interface PendingLink { memoryId: number; event?: string }
 /** Named so SESSION_FILE does not match it. */
-export const pendingLinksFile = (p: Paths, client: ClientId, sessionId: string) => join(p.stateDir, `pending-links-${client}-${safeName(sessionId)}.json`);
+const PENDING_PREFIX = 'pending-links-';
+export const pendingLinksFile = (p: Paths, client: ClientId, sessionId: string) => join(p.stateDir, `${PENDING_PREFIX}${client}-${safeName(sessionId)}.json`);
 export function loadPendingLinks(p: Paths, client: ClientId, sessionId: string): PendingLink[] {
   const f = pendingLinksFile(p, client, sessionId);
   return (existsSync(f) && readJson<PendingLink[]>(p, f)) || [];
@@ -58,6 +59,10 @@ export function loadPendingLinks(p: Paths, client: ClientId, sessionId: string):
 export function savePendingLinks(p: Paths, client: ClientId, sessionId: string, links: PendingLink[]) {
   const f = pendingLinksFile(p, client, sessionId);
   if (links.length) { p.ensure(); writePrivate(f, JSON.stringify(links, null, 2)); } else if (existsSync(f)) unlinkSync(f);
+}
+
+export function deleteAllPendingLinks(p: Paths) {
+  if (existsSync(p.stateDir)) for (const f of readdirSync(p.stateDir)) if (f.startsWith(PENDING_PREFIX)) unlinkSync(join(p.stateDir, f));
 }
 
 export const isInitialized = (p: Paths) => existsSync(p.initializedMarker);

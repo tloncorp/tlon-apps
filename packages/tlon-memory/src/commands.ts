@@ -10,7 +10,7 @@ import { NotesClient, NotesError, SEARCH_HORIZON_NOTE } from './notes-client';
 import { Paths, writePrivate } from './paths';
 import { askHidden, confirm } from './prompt';
 import { parseFrontMatter } from './render';
-import { deleteSessionState, listJobs, listSessionStates, queueFile, savePendingLinks } from './state';
+import { deleteAllPendingLinks, deleteSessionState, listJobs, listSessionStates, queueFile, savePendingLinks } from './state';
 import { loadConnection, statusLine } from './status';
 import { syncQueue } from './sync';
 import { BIN_PATH, SKILL_SOURCE, scopeProblem } from './setup';
@@ -128,6 +128,7 @@ async function deleteNotes(paths: Paths, cfg: Config, client: NotesClient, args:
   }
   if (all) {
     for (const s of listSessionStates(paths)) deleteSessionState(paths, s.client, s.sessionId);
+    deleteAllPendingLinks(paths);
     for (const j of listJobs(paths)) { const f = queueFile(paths, j); if (existsSync(f)) unlinkSync(f); }
   }
   out(`Deleted ${n} note${n === 1 ? '' : 's'}. Not affected: copies already sent to a model provider, other devices' queues, Tlon hosting backups.`);

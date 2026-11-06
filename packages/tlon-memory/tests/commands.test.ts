@@ -119,7 +119,9 @@ describe('commands', () => {
   });
   it('delete --all removes every queued job', async () => {
     enqueue(paths, { client: 'codex', sessionId: 'x', transcriptPath: '/x', cwd: '/y' });
+    savePendingLinks(paths, 'codex', 'x', [{ memoryId: 1 }]);
     expect((await run(['delete', '--all', '--yes'])).code).toBe(0);
+    expect(existsSync(pendingLinksFile(paths, 'codex', 'x'))).toBe(false);
     expect(fake.notes.size).toBe(0); expect(listJobs(paths).length).toBe(0);
   });
 });

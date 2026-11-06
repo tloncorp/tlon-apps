@@ -197,7 +197,7 @@ Each memory's front matter records:
 - `source_event`: the event anchor, for example `e17`
 - `source_note` and `source_url`: the conversation note (the part holding that event) and its link
 
-The source fields are filled when the agent passes `session_key` to `tlon_save_memory`, copied from the `session` value in the status line. It passes `event` when it can point at the exact message. A memory saved before its conversation is uploaded (the first turn of a session) gets `source_note` and `source_url` when that session next syncs; the save result says the link is pending. Saving the same active text again in the same project returns the existing memory instead of a duplicate.
+The source fields are filled when the agent passes `session_key` to `tlon_save_memory`, copied from the `session` value in the status line. It passes `event` when it can point at the exact message. A memory saved before its conversation is uploaded (the first turn of a session) gets `source_note` and `source_url` when that session is next uploaded from this device; the save result says the link is pending. Saving the same active text again in the same project returns the existing memory instead of a duplicate.
 
 Search ranks memories by word overlap with your query and by recency. By default it only looks at memories from the current project. The agent can pass `project: "*"` to search all projects. Results show the agent, project, date and source, for example `source: claude-code:1c53f3bb-… e17 https://sampel-palnet.tlon.network/notes/nb/~sampel-palnet/agent-memory/n/42`.
 
@@ -229,7 +229,7 @@ All commands below run in a terminal.
 - `tlon-memory delete` removes notes from the ship. It asks for confirmation on a terminal; elsewhere it needs `--yes`.
   - `--session claude-code:<id>` or `--session codex:<id>` deletes that conversation's notes (all parts), its local sync state, its pending memory links and its queued upload.
   - `--memory <id>` deletes one memory. It refuses a note that is not in the `memories/` folder.
-  - `--all` deletes every conversation and memory note in the notebook, all local sync state and the whole queue.
+  - `--all` deletes every conversation and memory note in the notebook, all local sync state (pending memory links included) and the whole queue.
 
   If a deleted session is still running, pause capture first (`tlon-memory pause`). Otherwise its next hook uploads it again.
 - `tlon-memory disconnect` removes, for both clients whatever the config says: the tlon-memory hook entries, the `tlon-memory` MCP registration, and the installed skill directory, and then deletes the `.bak-tlon-memory` copy of each hooks file. It then removes `config.json` (and the key in it), `state/`, `queue/` and `log` from `~/.tlon/memory/`, and removes that directory if nothing else is in it. It keeps the notebook and all notes on your ship. Use `export` and `delete` first if you want them gone. It works even when `config.json` is missing or unreadable. An MCP server that was never registered is reported as such, not as a failure, and hooks or a skill that are not installed are reported as nothing to remove.
