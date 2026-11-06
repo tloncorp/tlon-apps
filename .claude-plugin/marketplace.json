@@ -1,0 +1,15 @@
+{
+  "name": "tlon-apps",
+  "owner": { "name": "Tlon" },
+  "description": "Tlon plugins for Claude Code and Codex.",
+  "plugins": [
+    {
+      "name": "tlon-memory",
+      "source": "./packages/tlon-memory",
+      "description": "Shared memory for Claude Code and Codex, stored in your Tlon Notes: archives conversations and lets agents save and search memories.",
+      "version": "0.1.0",
+      "author": { "name": "Tlon" },
+      "category": "productivity"
+    }
+  ]
+}

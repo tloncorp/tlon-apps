@@ -5,20 +5,22 @@ import { ClientName } from './config';
 
 export const CLIENTS: ClientName[] = ['claude', 'codex'];
 export const CLIENT_NAMES: Record<ClientName, string> = { claude: 'Claude Code', codex: 'Codex' };
-/** .claude-plugin/marketplace.json names the marketplace and its one plugin the same; Codex reads that file too. */
-const NAME = 'tlon-memory', ID = `${NAME}@${NAME}`;
+/**
+ * The marketplace is the tlon-apps repo (.claude-plugin/marketplace.json at its root, which Codex reads too); the package's own
+ * marketplace.json, for installing from a checkout, uses the same name, so the plugin id is the same either way.
+ */
+const MARKETPLACE = 'tlon-apps', REPO = 'tloncorp/tlon-apps', ID = `tlon-memory@${MARKETPLACE}`;
 
 export const CODEX_TRUST_NOTE = 'Codex: after installing, run /hooks in Codex once to review and trust the tlon-memory hooks. They do not run until trusted.';
 
 export const quote = (s: string) => (/^[\w@%+=:,./-]+$/.test(s) ? s : `'${s.replaceAll("'", `'\\''`)}'`);
 
-export function installCommand(client: ClientName, root: string): string {
-  return client === 'claude' ? `claude plugin install ${NAME} --marketplace ${quote(root)}`
-    : `codex plugin marketplace add ${quote(root)} && codex plugin add ${ID}`;
+export function installCommand(client: ClientName): string {
+  return `${client} plugin marketplace add ${REPO} && ${client} plugin ${client === 'claude' ? 'install' : 'add'} ${ID}`;
 }
 
 export function uninstallCommand(client: ClientName): string {
-  return `${client} plugin ${client === 'claude' ? 'uninstall' : 'remove'} ${ID} && ${client} plugin marketplace remove ${NAME}`;
+  return `${client} plugin ${client === 'claude' ? 'uninstall' : 'remove'} ${ID} && ${client} plugin marketplace remove ${MARKETPLACE}`;
 }
 
 export function onPath(cmd: string, path = process.env.PATH ?? ''): boolean {

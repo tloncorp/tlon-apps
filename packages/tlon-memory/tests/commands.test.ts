@@ -133,8 +133,8 @@ describe('disconnect', () => {
     expect(existsSync(paths.configFile)).toBe(false); expect(existsSync(paths.stateDir)).toBe(false); expect(existsSync(paths.queueDir)).toBe(false);
     expect(readFileSync(join(paths.root, 'notes.txt'), 'utf8')).toBe('mine');
     expect(r.out).toContain('Notes on your ship were kept');
-    expect(r.out).toContain('claude plugin uninstall tlon-memory@tlon-memory && claude plugin marketplace remove tlon-memory');
-    expect(r.out).toContain('codex plugin remove tlon-memory@tlon-memory && codex plugin marketplace remove tlon-memory');
+    expect(r.out).toContain('claude plugin uninstall tlon-memory@tlon-apps && claude plugin marketplace remove tlon-apps');
+    expect(r.out).toContain('codex plugin remove tlon-memory@tlon-apps && codex plugin marketplace remove tlon-apps');
     expect(readFileSync(settings(), 'utf8')).toBe('{"model":"opus"}');
     expect(existsSync(join(home, 'claude.calls'))).toBe(false); expect(existsSync(join(home, 'codex.calls'))).toBe(false);
   });

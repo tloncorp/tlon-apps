@@ -1,7 +1,7 @@
 {
-  "name": "tlon-memory",
+  "name": "tlon-apps",
   "owner": { "name": "Tlon" },
-  "description": "Local marketplace for the tlon-memory plugin in this checkout.",
+  "description": "The tlon-memory plugin from this checkout. Users add the repo root instead: tloncorp/tlon-apps.",
   "plugins": [
     {
       "name": "tlon-memory",

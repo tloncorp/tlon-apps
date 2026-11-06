@@ -1,5 +1,5 @@
 // tests/plugin.test.ts
-import { beforeAll, describe, expect, it } from 'bun:test';
+import { describe, expect, it } from 'bun:test';
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -36,9 +36,19 @@ describe('plugin manifests', () => {
       const m = json(f);
       expect([f, m.name, m.version, m.author?.name]).toEqual([f, 'tlon-memory', version, 'Tlon']);
     }
-    const mkt = json('.claude-plugin/marketplace.json');
-    expect(mkt.name).toBe('tlon-memory');
-    expect(mkt.plugins).toEqual([expect.objectContaining({ name: 'tlon-memory', source: './', version })]);
+    // The repo root is the marketplace users add (`tloncorp/tlon-apps`); the package's own copy serves a checkout. Both are named
+    // tlon-apps, so the plugin id and Codex's cache path (plugins/cache/<marketplace>/<plugin>) are the same either way.
+    for (const [f, source] of [['../../.claude-plugin/marketplace.json', './packages/tlon-memory'], ['.claude-plugin/marketplace.json', './']]) {
+      const mkt = json(f);
+      expect([f, mkt.name, mkt.owner.name]).toEqual([f, 'tlon-apps', 'Tlon']);
+      expect(mkt.plugins).toEqual([expect.objectContaining({ name: 'tlon-memory', source, version })]);
+    }
+  });
+  it('commits the node bundle, built from the current source, and ignores the compiled binary', () => {
+    const ignored = (f: string) => spawnSync('git', ['check-ignore', '-q', f], { cwd: root }).status === 0;
+    expect([ignored('dist/tlon-memory.js'), ignored('dist/tlon-memory')]).toEqual([false, true]);
+    const r = spawnSync('node', [join(root, 'scripts', 'build.js'), '--check'], { encoding: 'utf8' });
+    expect([r.status, r.stderr]).toEqual([0, '']);
   });
   it('ships no root .mcp.json, which a session opened in the package would offer as a project server', () => {
     expect(existsSync(join(root, '.mcp.json'))).toBe(false);
@@ -56,8 +66,6 @@ describe('plugin manifests', () => {
 });
 
 describe('plugin commands', () => {
-  // The shim runs dist/ when it exists, so a stale build would test old code.
-  beforeAll(() => { expect(spawnSync('node', [join(root, 'scripts', 'build.js')]).status).toBe(0); });
   it('each SessionStart hook prints the context line from the plugin root', async () => {
     const paths = connectedHome();
     for (const [f, client] of [['hooks/hooks.json', 'claude'], ['hooks/codex-hooks.json', 'codex']]) {
@@ -94,7 +102,7 @@ describe('plugin commands', () => {
     expect(s.cwd).toBeUndefined(); // without cwd Codex starts the server in the session directory, which names the project
     expect(s.tool_timeout_sec).toBeGreaterThan(45); // tlon_backup_conversation runs up to 45 s
     const codexHome = mkdtempSync(join(tmpdir(), 'tm-codex-'));
-    const cached = join(codexHome, 'plugins', 'cache', 'tlon-memory', 'tlon-memory');
+    const cached = join(codexHome, 'plugins', 'cache', 'tlon-apps', 'tlon-memory');
     mkdirSync(cached, { recursive: true }); symlinkSync(root, join(cached, version));
     expect(s.env_vars).toEqual(['CODEX_HOME', 'TLON_MEMORY_HOME']); // Codex clears the env; the hooks see TLON_MEMORY_HOME, so the server must too
     const argv = [s.command, ...s.args].map((a: string) => `'${a.replaceAll("'", `'\\''`)}'`).join(' ');
@@ -104,10 +112,10 @@ describe('plugin commands', () => {
 });
 
 describe('install commands', () => {
-  it('name the checkout, quoting a path the shell would split', () => {
-    expect(installCommand('claude', '/r/tlon-memory')).toBe('claude plugin install tlon-memory --marketplace /r/tlon-memory');
-    expect(installCommand('codex', "/My Code/it's")).toBe(`codex plugin marketplace add '/My Code/it'\\''s' && codex plugin add tlon-memory@tlon-memory`);
-    expect(uninstallCommand('codex')).toBe('codex plugin remove tlon-memory@tlon-memory && codex plugin marketplace remove tlon-memory');
+  it('install from the GitHub marketplace', () => {
+    expect(installCommand('claude')).toBe('claude plugin marketplace add tloncorp/tlon-apps && claude plugin install tlon-memory@tlon-apps');
+    expect(installCommand('codex')).toBe('codex plugin marketplace add tloncorp/tlon-apps && codex plugin add tlon-memory@tlon-apps');
+    expect(uninstallCommand('codex')).toBe('codex plugin remove tlon-memory@tlon-apps && codex plugin marketplace remove tlon-apps');
   });
   it('the marketplace and plugin names they use are the ones the manifests declare', () => {
     const mkt = json('.claude-plugin/marketplace.json');

@@ -76,7 +76,7 @@ export function normaliseShipUrl(raw: string): string {
 function printInstall(out: (s: string) => void) {
   const found = CLIENTS.filter((c) => onPath(c));
   out(found.length ? '\nInstall the plugin (hooks, MCP server and skill):' : '\nNeither `claude` nor `codex` is on PATH. To install the plugin later:');
-  for (const c of found.length ? found : CLIENTS) out(`  ${CLIENT_NAMES[c]}: ${installCommand(c, PLUGIN_ROOT)}`);
+  for (const c of found.length ? found : CLIENTS) out(`  ${CLIENT_NAMES[c]}: ${installCommand(c)}`);
   if (!found.length || found.includes('codex')) out(CODEX_TRUST_NOTE);
   if (!existsSync(join(PLUGIN_ROOT, 'dist', 'tlon-memory.js'))) out(`Run \`pnpm build\` in ${PLUGIN_ROOT} first, so the hooks need only node.`);
 }

@@ -30,8 +30,8 @@ describe('setup (non-interactive)', () => {
     expect(r.out).toContain('can read and write all Notes on your ship');
     expect(r.out).toContain('Connected as ~zod');
     expect(r.out).toContain('model provider');
-    expect(r.out).toContain(`claude plugin install tlon-memory --marketplace ${root}`);
-    expect(r.out).toContain(`codex plugin marketplace add ${root} && codex plugin add tlon-memory@tlon-memory`);
+    expect(r.out).toContain('claude plugin marketplace add tloncorp/tlon-apps && claude plugin install tlon-memory@tlon-apps');
+    expect(r.out).toContain('codex plugin marketplace add tloncorp/tlon-apps && codex plugin add tlon-memory@tlon-apps');
     expect(r.out).toContain('/hooks');
     const cfg = JSON.parse(readFileSync(join(tmHome, 'config.json'), 'utf8'));
     expect(statSync(join(tmHome, 'config.json')).mode & 0o777).toBe(0o600);
