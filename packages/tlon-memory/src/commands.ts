@@ -6,7 +6,7 @@ import { UsageError, flag, has, safeName } from './cli-util';
 import { Client, uninstallClient } from './clients';
 import { Config, loadConfig, requireConfig, saveConfig } from './config';
 import { MEMORY_SCAN, MemoryStore } from './memory';
-import { NotesClient, SEARCH_HORIZON_NOTE } from './notes-client';
+import { NotesClient, NotesError, SEARCH_HORIZON_NOTE } from './notes-client';
 import { Paths, writePrivate } from './paths';
 import { askHidden, confirm } from './prompt';
 import { parseFrontMatter } from './render';
@@ -37,7 +37,11 @@ export async function command(cmd: string, args: string[]): Promise<number> {
         const scan = await new MemoryStore(paths, cfg).memoryScan(); const m = scan.notes.length;
         counts = `memories: ${m >= MEMORY_SCAN ? `${MEMORY_SCAN}+` : m}${scan.truncated ? ` (scan truncated: older notes not searched)` : ''}`;
       }
-      catch (e) { counts = `ship unreachable: ${msg(e)}`; }
+      catch (e) {
+        const why = !(e instanceof NotesError) ? msg(e) : e.code === 'key-rejected' ? `key rejected: ${e.message}`
+          : e.code === 'unreachable' ? `ship unreachable: ${e.message}` : `${e.code}: ${e.message}`;
+        counts = `memories: unknown (${why})`;
+      }
       counts += ` · conversations synced from this device: ${conversations}`;
       const conn = loadConnection(paths);
       out(statusLine(cfg, conn, process.cwd(), jobs.length));

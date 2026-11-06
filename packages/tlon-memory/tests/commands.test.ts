@@ -43,6 +43,12 @@ describe('commands', () => {
     expect(fake.requests.some((q) => q.method === 'GET' && /\/notes$/.test(q.path.split('?')[0]))).toBe(false);
     expect(r.out).toContain('newest 2000 notes'); expect(r.out).not.toContain('scan truncated');
   });
+  it('status tells a rejected key from an unreachable ship and still shows the memories line', async () => {
+    saveConfig(paths, { ...cfg, apiKey: 'wrong' });
+    expect((await run(['status'])).out).toContain('memories: unknown (key rejected: the ship rejected the API key)');
+    saveConfig(paths, { ...cfg, shipUrl: 'http://127.0.0.1:1' });
+    expect((await run(['status'])).out).toContain('memories: unknown (ship unreachable: cannot reach http://127.0.0.1:1');
+  });
   it('status says when the memory scan hit the search horizon', async () => {
     const nb = cfg.notebook!; const nbId = [...fake.notebooks.values()][0].id;
     for (let i = 0; i < 2050; i++) fake.notes.set(60_000 + i, { id: 60_000 + i, notebookId: nbId, folderId: nb.conversationsFolderId, title: 't', slug: null, bodyMd: 'x', createdBy: '~zod', createdAt: 1, updatedBy: '~zod', updatedAt: 1, revision: 1 });
