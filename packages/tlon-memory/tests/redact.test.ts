@@ -25,6 +25,16 @@ describe('redact', () => {
     ['  password: hunter2', '  password: [redacted:password]'],
     ['-----BEGIN RSA PRIVATE KEY-----\nMIIEow\nabc\n-----END RSA PRIVATE KEY-----', '[redacted:private-key]'],
     ['-----BEGIN PRIVATE KEY-----\nMIIE\n-----END PRIVATE KEY----- tail', '[redacted:private-key] tail'],
+    ['{"password":"hunter2"}', '{"password":"[redacted:password]"}'],
+    ['{"Password": "hunter2", "x": 1}', '{"Password": "[redacted:password]", "x": 1}'],
+    ['PASSWORD="s3cret word"', 'PASSWORD="[redacted:password] word"'], // only the first word of a quoted value with spaces
+    ['passwd: abc pwd=def', 'passwd: [redacted:password] pwd=[redacted:password]'],
+    ['client_secret=abc123 token: xyz', 'client_secret=[redacted:password] token: [redacted:password]'],
+    ['bearer abc', 'bearer [redacted:bearer]'],
+    ['BEARER abc', 'BEARER [redacted:bearer]'],
+    ['postgres://u:pw@host/db', 'postgres://u:[redacted:url-password]@host/db'],
+    ['see https://user:p%40ss@example.com:8080/x', 'see https://user:[redacted:url-password]@example.com:8080/x'],
+    ['https://example.com:8080/path@v2', 'https://example.com:8080/path@v2'],
     ['plain text with no secrets', 'plain text with no secrets'],
   ];
   for (const [input, want] of cases) it(input.slice(0, 30), () => expect(redact(input)).toBe(want));

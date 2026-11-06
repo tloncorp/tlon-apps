@@ -167,13 +167,14 @@ Before upload, every captured string is scrubbed. This is best effort; it catche
 - Urbit +codes: four lowercase six-letter groups joined by hyphens, not preceded by `~` (`urbit-code`)
 - `urbauth-~…=` login cookies (`urbauth-cookie`)
 - values after `x-api-key:` or `x-api-key=` and after `api_key`, `api-key` or `apikey` with `:` or `=` (`api-key`)
-- `Bearer <token>` (`bearer`)
+- `Bearer <token>`, any case (`bearer`)
+- the password in a URL such as `postgres://user:password@host` (`url-password`); one containing `/` is not caught
 - `Authorization: Basic <value>` (`basic-auth`)
 - `sk-` keys of 20 or more characters (`provider-key`)
 - AWS access key ids `AKIA…` (`aws-key`)
 - GitHub tokens: `ghp_`, `github_pat_`, `gho_`, `ghs_`, `ghu_` (`github-token`)
 - Slack tokens `xoxa-`, `xoxb-`, `xoxp-` (`slack-token`)
-- values after `password=` or `password:` (`password`)
+- values after `password`, `passwd`, `pwd`, `secret` or `token` (any case, also inside longer names like `DB_PASSWORD` or `client_secret`, with or without JSON quotes) followed by `=` or `:` (`password`). The value ends at whitespace, a quote or `&`, so in `PASSWORD="two words"` only the first word is redacted. Ordinary prose like `the secret: …` loses its next word too.
 
 Memory text saved by an agent goes through the same rules.
 
