@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Modal } from 'react-native';
+import { Alert, KeyboardAvoidingView, Modal } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -19,6 +19,7 @@ vi.mock('react-native', () => ({
   Modal: 'Modal',
   Alert: { alert: vi.fn() },
   Pressable: 'Pressable',
+  TextInput: 'TextInput',
   Keyboard: {
     addListener: vi.fn(() => ({ remove: vi.fn() })),
     dismiss: vi.fn(),
@@ -102,6 +103,43 @@ describe('native live browser modal', () => {
       })
     );
     expect(renderer.root.findByType(WebView)).toBe(original);
+    act(() => renderer.unmount());
+  });
+
+  it('keeps keyboard avoidance around the controls without resizing the WebView', () => {
+    const { renderer } = render();
+    const view = renderer.root.findByType(WebView);
+    let initialStyle: typeof view.props.style;
+    for (const keyboardOpen of [false, true, false]) {
+      act(() =>
+        view.props.onMessage({
+          nativeEvent: {
+            url: viewerUrl,
+            data: JSON.stringify({
+              type: 'tlon.browser.input',
+              version: 1,
+              context: 1,
+              ready: true,
+              keyboardOpen,
+              nativeControl: true,
+              nativeInput: true,
+            }),
+          },
+        })
+      );
+      const avoidance = renderer.root.findByType(KeyboardAvoidingView);
+      initialStyle ??= view.props.style;
+      expect(avoidance.props.behavior).toBe('padding');
+      expect(avoidance.props.style.position).toBe('absolute');
+      expect(avoidance.findAllByType(WebView)).toHaveLength(0);
+      expect(
+        avoidance.findAllByProps({
+          accessibilityLabel: keyboardOpen ? 'Hide keyboard' : 'Keyboard',
+        }).length
+      ).toBeGreaterThan(0);
+      expect(view.props.style).toEqual(initialStyle);
+      expect(view.props.source.uri).toBe(viewerUrl);
+    }
     act(() => renderer.unmount());
   });
 
