@@ -16,19 +16,8 @@ export const claudeProjectsDir = (home = homedir()) => join(home, '.claude', 'pr
 export const codexSessionsDir = (home = homedir()) => join(home, '.codex', 'sessions');
 
 const PEEK_BYTES = 64 * 1024;
-/** Records read before a peek gives up; the ids come within the first few in practice. */
+/** Records read before a peek or detectClient gives up; the ids come within the first few in practice. */
 const PEEK_RECORDS = 50;
-
-/** Up to `max` bytes from the start of the file. */
-function head(path: string, max: number): string {
-  const fd = openSync(path, 'r');
-  try {
-    const buf = Buffer.alloc(max);
-    let n = 0, r: number;
-    while (n < max && (r = readSync(fd, buf, n, max - n, n)) > 0) n += r;
-    return buf.subarray(0, n).toString('utf8');
-  } finally { closeSync(fd); }
-}
 
 /** The first `max` non-empty lines, read in chunks: a long record costs its own length and nothing after it is read. */
 function* lines(path: string, max: number): Generator<string> {
@@ -49,12 +38,13 @@ function* lines(path: string, max: number): Generator<string> {
   } finally { closeSync(fd); }
 }
 
+/** By the first records: Codex opens with session_meta, Claude records carry sessionId (a summary may come first). */
 export function detectClient(path: string): ClientName {
-  // Codex puts its instructions in session_meta, so the first line can run well past the peek window.
-  const first = head(path, 16 * PEEK_BYTES).split('\n').find((l) => l.trim());
-  let rec: any; try { rec = JSON.parse(first ?? ''); } catch { /* reported below */ }
-  if (rec?.type === 'session_meta') return 'codex';
-  if (rec && typeof rec.sessionId === 'string') return 'claude';
+  for (const line of lines(path, PEEK_RECORDS)) {
+    let rec: any; try { rec = JSON.parse(line); } catch { continue; }
+    if (rec?.type === 'session_meta') return 'codex';
+    if (typeof rec?.sessionId === 'string') return 'claude';
+  }
   throw new UsageError(`${path} is not a Claude Code or Codex transcript`);
 }
 

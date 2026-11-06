@@ -12,6 +12,12 @@ describe('transcripts', () => {
   it('detects the client from the first record', () => {
     expect(detectClient(claude)).toBe('claude');
     expect(detectClient(codex)).toBe('codex');
+    const summaryFirst = join(home, 'summary-first.jsonl');
+    writeFileSync(summaryFirst, [{ type: 'summary', summary: 'x' }, { type: 'file-history-snapshot', snapshot: {} }, { type: 'user', sessionId: 's', cwd: '/c' }].map((r) => JSON.stringify(r)).join('\n'));
+    expect(detectClient(summaryFirst)).toBe('claude');
+    const metaLater = join(home, 'meta-later.jsonl');
+    writeFileSync(metaLater, [{ type: 'event_msg', payload: {} }, { type: 'session_meta', payload: { session_id: 'c', cwd: '/c' } }].map((r) => JSON.stringify(r)).join('\n'));
+    expect(detectClient(metaLater)).toBe('codex');
     const other = join(home, 'other.jsonl'); writeFileSync(other, '\n{"hello":1}\n');
     expect(() => detectClient(other)).toThrow(UsageError);
     expect(() => detectClient(other)).toThrow(other);
