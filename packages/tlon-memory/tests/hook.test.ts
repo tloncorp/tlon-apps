@@ -13,8 +13,8 @@ import { ensureNotebook } from '../src/notebook';
 const fake = new FakeNotes(); let paths: Paths; let cfg: Config; let fx: string;
 const main = join(import.meta.dir, '..', 'src', 'main.ts');
 // Async spawn: spawnSync would block this process's event loop, so the in-process fake server could not answer the child.
-async function hook(client: string, fixture: string, env: Record<string, string> = {}) {
-  const payload = readFileSync(join(import.meta.dir, 'fixtures', fixture), 'utf8').replace('TRANSCRIPT', fx);
+async function hook(client: string, fixture: string, env: Record<string, string> = {}, edit = (s: string) => s) {
+  const payload = edit(readFileSync(join(import.meta.dir, 'fixtures', fixture), 'utf8').replace('TRANSCRIPT', fx));
   const r = Bun.spawn(['bun', 'run', main, 'hook', client], { stdin: new TextEncoder().encode(payload), stdout: 'pipe', stderr: 'pipe', env: { ...process.env, TLON_MEMORY_HOME: paths.root, ...env } });
   const [out, err, code] = await Promise.all([new Response(r.stdout).text(), new Response(r.stderr).text(), r.exited]);
   return { code, out, err };
@@ -47,6 +47,20 @@ describe('hook', () => {
     const r = await hook('codex', 'hook-codex-stop.json');
     expect(r.code).toBe(0); expect(r.out).toBe('');
     expect(fake.notes.size).toBe(1);
+  });
+  const sessionEnd = (s: string) => s.replace('"Stop"', '"SessionEnd"');
+  it('SessionEnd after a synced Stop leaves no pending job', async () => {
+    await hook('claude', 'hook-claude-stop.json');
+    const r = await hook('claude', 'hook-claude-stop.json', {}, sessionEnd);
+    expect(r.code).toBe(0); expect(r.out).toBe('');
+    expect(fake.notes.size).toBe(1);
+    expect(readdirSync(paths.queueDir).filter((f) => f.endsWith('.json')).length).toBe(0);
+  });
+  it('SessionEnd without a transcript file (e.g. `claude mcp list`) enqueues nothing', async () => {
+    const r = await hook('claude', 'hook-claude-stop.json', {}, (s) => sessionEnd(s).replace(fx, join(paths.root, 'missing.jsonl')));
+    expect(r.code).toBe(0);
+    expect(readdirSync(paths.queueDir).length).toBe(0);
+    expect(readFileSync(paths.logFile, 'utf8')).toContain('hook-no-transcript');
   });
   it('out-of-scope cwd: nothing leaves the machine', () => {
     const payload = readFileSync(join(import.meta.dir, 'fixtures', 'hook-claude-stop.json'), 'utf8').replace('TRANSCRIPT', fx).replace('/Users/bill/Projects/demo', '/elsewhere');

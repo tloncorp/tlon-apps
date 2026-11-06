@@ -1,4 +1,5 @@
 // src/hook.ts
+import { existsSync } from 'node:fs';
 import { readStdin } from './cli-util';
 import { Config, isInScope, loadConfig } from './config';
 import { appendLog } from './log';
@@ -42,10 +43,14 @@ export async function hook(args: string[]): Promise<number> {
     }
     if (event !== 'Stop' && event !== 'SessionEnd') return 0;
     if (cfg.paused || !isInScope(cfg, cwd) || !sessionId || !transcript) return 0;
+    // Non-session invocations (`claude mcp list`) fire SessionEnd with a transcript path that was never written.
+    if (!existsSync(transcript)) { appendLog(paths, 'hook-no-transcript', { client, session: sessionId }); return 0; }
     enqueue(paths, { client, sessionId, transcriptPath: transcript, cwd });
     appendLog(paths, 'enqueue', { client, session: sessionId, event });
-    // SessionEnd is advisory and (Codex) capped at 3 s: enqueue only. Stop gets a 15 s inline budget.
-    if (event === 'Stop') await syncQueue(paths, cfg, { budgetMs: budgetFromEnv() });
+    // Both sync inline so the job does not linger. SessionEnd usually follows a Stop that already synced, so it
+    // finds the session unchanged and makes no request; Codex caps SessionEnd at 3 s, hence the shorter budget.
+    const budgetMs = event === 'SessionEnd' && client === 'codex' ? Math.min(budgetFromEnv(), 2000) : budgetFromEnv();
+    await syncQueue(paths, cfg, { budgetMs });
   } catch (e) {
     appendLog(paths, 'hook-error', { client, event, error: (e as Error).message });
   }
