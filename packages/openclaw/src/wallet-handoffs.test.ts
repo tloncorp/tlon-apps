@@ -178,3 +178,38 @@ it('expiry produces a terminal notification and malformed or failed calls produc
     expect.objectContaining({ message: expect.stringContaining(': expired.') })
   );
 });
+
+it('resumes uncertain payments with inspection instead of an unconditional owner wait', async () => {
+  const f = fixture();
+  f.event.params.name = 'browser_payment_request';
+  await f.service.handle(f.event, f.ctx);
+  f.read.mockResolvedValue({ status: 'unknown' });
+  f.service.start();
+  await f.service.poll();
+  expect(f.resume).toHaveBeenCalledTimes(1);
+  const message = f.resume.mock.calls[0][0].message;
+  expect(message).toContain('Use ordinary browser tools to inspect');
+  expect(message).toContain('original purchase approval and task boundaries');
+  expect(message).toContain(
+    'Do not repeat payment authorization or fill automatically'
+  );
+  expect(message).toContain('without resubmitting');
+  expect(message).not.toContain('report the outcome and wait for the owner');
+  expect(f.records.size).toBe(0);
+});
+it.each(['cancelled', 'expired', 'failed'])(
+  'keeps the owner wait for %s payments',
+  async (status) => {
+    const f = fixture();
+    f.event.params.name = 'browser_payment_request';
+    await f.service.handle(f.event, f.ctx);
+    f.read.mockResolvedValue({ status });
+    f.service.start();
+    await f.service.poll();
+    expect(f.resume).toHaveBeenCalledTimes(1);
+    expect(f.resume.mock.calls[0][0].message).toContain(
+      'report the outcome and wait for the owner'
+    );
+    expect(f.records.size).toBe(0);
+  }
+);
