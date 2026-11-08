@@ -37,6 +37,7 @@ final class TlonNotePreviewView: ExpoView, UITextViewDelegate {
   private var copyButtons: [UIButton] = []
   private var attachments: [(location: Int, attachment: NoteViewAttachment)] = []
   private var theme = NoteTheme()
+  private var fontScale: CGFloat = 1
 
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
@@ -93,11 +94,13 @@ final class TlonNotePreviewView: ExpoView, UITextViewDelegate {
     theme = NoteTheme(json: themeJson)
     let blocks =
       (try? JSONDecoder().decode([NoteBlock].self, from: Data(documentJson.utf8))) ?? []
+    fontScale =
+      UIFontMetrics(forTextStyle: .body).scaledValue(for: 100, compatibleWith: traitCollection)
+      / 100
     let builder = NoteAttributedBuilder(
       theme: theme,
       width: bounds.width,
-      fontScale: UIFontMetrics(forTextStyle: .body).scaledValue(
-        for: 100, compatibleWith: traitCollection) / 100,
+      fontScale: fontScale,
       onPressURL: { [weak self] url in self?.handle(url) },
       onPressImage: { [weak self] src in self?.onPressImage(["src": src]) },
       onPressVideo: { [weak self] src, posterUri in
@@ -147,6 +150,9 @@ final class TlonNotePreviewView: ExpoView, UITextViewDelegate {
 
   // MARK: Code copy buttons
 
+  // The Copy button's row grows with the text size, as its label does.
+  private var codeHeader: CGFloat { NoteMetrics.codeHeader * fontScale }
+
   private func rebuildCopyButtons() {
     copyButtons.forEach { $0.removeFromSuperview() }
     copyButtons = codeBlocks.enumerated().map { index, _ in
@@ -177,7 +183,7 @@ final class TlonNotePreviewView: ExpoView, UITextViewDelegate {
       button.frame = CGRect(
         x: bounds.width - size.width - 4,
         y: textView.textContainerInset.top + frame.minY + lineTop - NoteMetrics.codePadding
-          - NoteMetrics.codeHeader + (NoteMetrics.codeHeader - size.height) / 2 + 4,
+          - codeHeader + (codeHeader - size.height) / 2 + 4,
         width: size.width,
         height: size.height)
     }
@@ -267,9 +273,9 @@ final class TlonNotePreviewView: ExpoView, UITextViewDelegate {
       switch decoration.kind {
       case .code:
         rect = CGRect(
-          x: 0, y: top + lines.minY - NoteMetrics.codePadding - NoteMetrics.codeHeader,
+          x: 0, y: top + lines.minY - NoteMetrics.codePadding - codeHeader,
           width: bounds.width,
-          height: lines.height + NoteMetrics.codePadding * 2 + NoteMetrics.codeHeader)
+          height: lines.height + NoteMetrics.codePadding * 2 + codeHeader)
       case .quote:
         rect = CGRect(x: 0, y: top + lines.minY, width: 2, height: lines.height)
       case .rule:

@@ -178,10 +178,10 @@ struct NoteAttributedBuilder {
     paragraph.maximumLineHeight = lineHeight
     var prefix = ""
     if let indent {
-      let start = CGFloat(indent) * NoteMetrics.listIndent
+      let start = CGFloat(indent) * NoteMetrics.listIndent * fontScale
       paragraph.firstLineHeadIndent = start
       if let marker {
-        let contentStart = start + NoteMetrics.markerColumn + 6
+        let contentStart = start + (NoteMetrics.markerColumn + 6) * fontScale
         paragraph.headIndent = contentStart
         paragraph.tabStops = [NSTextTab(textAlignment: .left, location: contentStart)]
         prefix = "\(marker)\t"
@@ -318,7 +318,7 @@ struct NoteAttributedBuilder {
       paragraph.headIndent = NoteMetrics.codePadding
       paragraph.tailIndent = -NoteMetrics.codePadding
       paragraph.paragraphSpacingBefore =
-        first ? spacingBefore + NoteMetrics.codeHeader + NoteMetrics.codePadding : 0
+        first ? spacingBefore + NoteMetrics.codeHeader * fontScale + NoteMetrics.codePadding : 0
       paragraph.paragraphSpacing = last ? NoteMetrics.codePadding : 0
       code.addAttributes(
         [
