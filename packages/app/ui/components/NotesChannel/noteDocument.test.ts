@@ -66,6 +66,7 @@ describe('buildNoteDocument', () => {
         runs: [{ text: 'one' }],
         indent: 0,
         marker: '1.',
+        listStart: true,
       },
       {
         type: 'text',
@@ -92,6 +93,7 @@ describe('buildNoteDocument', () => {
         runs: [{ text: '☑ ' }, { text: 'done' }],
         indent: 0,
         marker: undefined,
+        listStart: true,
       },
       {
         type: 'text',

@@ -39,9 +39,11 @@ export type NoteDocumentBlock =
       style: NoteDocumentTextStyle;
       runs: NoteDocumentRun[];
       // List nesting: each level indents one step, and `marker` ("1.", "•")
-      // hangs in front of the first line.
+      // hangs in front of the first line. `listStart` marks a list's first
+      // item, so two lists in a row are spaced as separate blocks.
       indent?: number;
       marker?: string;
+      listStart?: boolean;
     }
   | { type: 'code'; runs: NoteDocumentRun[] }
   | {
@@ -106,7 +108,7 @@ export function buildNoteDocument(
         });
         break;
       case 'list':
-        pushListItems(blocks, block.list, 0, toRuns);
+        pushListItems(blocks, block.list, 0, toRuns, true);
         break;
       case 'code':
         blocks.push({
@@ -158,7 +160,8 @@ function pushListItems(
   blocks: NoteDocumentBlock[],
   list: cn.ListData,
   depth: number,
-  toRuns: (inlines: cn.InlineData[]) => NoteDocumentRun[]
+  toRuns: (inlines: cn.InlineData[]) => NoteDocumentRun[],
+  startsList = false
 ) {
   list.children?.forEach((item, index) => {
     const markerType = listItemMarkerType(list.type ?? 'unordered', item);
@@ -174,6 +177,7 @@ function pushListItems(
           : markerType === 'unordered'
             ? '•'
             : undefined,
+      ...(startsList && index === 0 ? { listStart: true } : {}),
     });
     if (item.children?.length) {
       pushListItems(blocks, item, depth + 1, toRuns);
