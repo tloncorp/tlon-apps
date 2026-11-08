@@ -34,11 +34,9 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
   type ScrollViewInstance,
-  type TextInputInstance,
 } from 'react-native';
 import {
   ScrollView as TamaguiScrollView,
-  TextArea as TamaguiTextArea,
   XStack,
   YStack,
   getTokenValue,
@@ -48,6 +46,7 @@ import {
 import { matchAgentOnboardingFirstEntryNote } from '../../../features/top/agentOnboardingFirstEntry';
 import { pickFile } from '../../../utils/filepicker';
 import AttachmentSheet from '../AttachmentSheet';
+import type { PastedFile } from '../BareChatInput/pastedImage';
 import {
   useRegisterChannelHeaderItem,
   useRegisterChannelHeaderLoadingSubtitle,
@@ -63,6 +62,7 @@ import {
   NotesMessage,
   useNotebookData,
 } from './NotesData';
+import { NoteBodyTextArea } from './NoteBodyTextArea';
 import { NotesBanner, errorMessage } from './NotesFeedback';
 import type { NoteBodySelection } from './noteImageMarkdown';
 import { trackNotesActionError } from './notesTelemetry';
@@ -76,11 +76,6 @@ import {
 const ScrollView = TamaguiScrollView as ForwardRefExoticComponent<
   ComponentPropsWithoutRef<typeof TamaguiScrollView> &
     RefAttributes<ScrollViewInstance>
->;
-// Tamagui types this native ref as the View component instead of the input instance.
-const TextArea = TamaguiTextArea as ForwardRefExoticComponent<
-  ComponentPropsWithoutRef<typeof TamaguiTextArea> &
-    RefAttributes<Pick<TextInputInstance, 'focus'>>
 >;
 
 type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
@@ -562,7 +557,7 @@ export function NotesNoteDetail({
   }, [selectedNoteKey]);
   const titleInputRef = useRef<TextInputRef>(null);
   const autoFocusedTitleNoteIdRef = useRef<string | null>(null);
-  const bodyInputRef = useRef<ElementRef<typeof TextArea>>(null);
+  const bodyInputRef = useRef<ElementRef<typeof NoteBodyTextArea>>(null);
   const scrollViewRef = useRef<ElementRef<typeof ScrollView>>(null);
   const scrolledNoteIdRef = useRef<number | null>(null);
   // Offsets are raw UIScrollView contentOffset values. Under a transparent
@@ -1773,6 +1768,24 @@ export function NotesNoteDetail({
     [insertImages]
   );
 
+  const handleBodyPasteFiles = useCallback(
+    (files: PastedFile[]) => {
+      const images = files.filter((file) => file.type.startsWith('image/'));
+      if (images.length === 0) return;
+      void insertImages(
+        images.map((file) => ({
+          type: 'fileUri',
+          name: file.fileName,
+          localUri: file.uri,
+          size: file.fileSize,
+          mimeType: file.type,
+        })),
+        'paste'
+      );
+    },
+    [insertImages]
+  );
+
   const handleBodyInputFocus = useCallback(() => {
     preserveScrollOffset();
   }, [preserveScrollOffset]);
@@ -2027,7 +2040,7 @@ export function NotesNoteDetail({
                 paddingBottom={useWebEditorPane ? 0 : '$xl'}
                 testID="NotesBodyScrollView"
               >
-                <TextArea
+                <NoteBodyTextArea
                   ref={bodyInputRef}
                   width="100%"
                   flex={useWebEditorPane ? 1 : undefined}
@@ -2038,6 +2051,9 @@ export function NotesNoteDetail({
                   onFocus={handleBodyInputFocus}
                   onBlur={handleBodyInputBlur}
                   onSelectionChange={handleBodySelectionChange}
+                  onPasteFiles={
+                    canInsertImage ? handleBodyPasteFiles : undefined
+                  }
                   onLayout={handleBodyInputLayout}
                   placeholder="Note body"
                   placeholderTextColor="$tertiaryText"

@@ -70,6 +70,8 @@ vi.mock('react-native', () => ({
   },
 }));
 
+vi.mock('./NoteBodyTextArea', () => ({ NoteBodyTextArea: 'TextArea' }));
+
 vi.mock('tamagui', () => ({
   Input: 'Input',
   ScrollView: 'ScrollView',
