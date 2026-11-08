@@ -53,16 +53,18 @@ export function useNoteImageUpload({
 
   const insertImages = useMutableCallback(
     async (intents: Attachment.UploadIntent[], source: NoteImageSource) => {
+      // Taken before any await, so images go to the note they were added to.
+      const targetNoteKey = noteKeyRef.current;
+      const { uploadIntents } = await normalizeUploadIntents(intents);
       // Normalization leaves an image the platform can't decode (HEIC in most
       // browsers) as a plain file.
-      const images = intents.filter((intent) => intent.type === 'image');
+      const images = uploadIntents.filter((intent) => intent.type === 'image');
       if (images.length < intents.length) {
         onError(UNREADABLE_IMAGE_MESSAGE);
       }
       if (images.length === 0) {
         return;
       }
-      const targetNoteKey = noteKeyRef.current;
       const startedAt = Date.now();
       setPendingBatches((count) => count + 1);
       const results = await Promise.allSettled(
@@ -146,11 +148,11 @@ export function useNoteImagePasteAndDrop(
       return;
     }
 
-    const insertFiles = async (files: File[], source: NoteImageSource) => {
-      const { uploadIntents } = await normalizeUploadIntents(
-        files.map((file) => Attachment.UploadIntent.fromFile(file))
+    const insertFiles = (files: File[], source: NoteImageSource) => {
+      handleImages(
+        files.map((file) => Attachment.UploadIntent.fromFile(file)),
+        source
       );
-      handleImages(uploadIntents, source);
     };
 
     const handlePaste = (event: ClipboardEvent) => {
@@ -160,7 +162,7 @@ export function useNoteImagePasteAndDrop(
       const files = imageFiles(event.clipboardData);
       if (files.length === 0) return;
       event.preventDefault();
-      void insertFiles(files, 'paste');
+      insertFiles(files, 'paste');
     };
 
     // Claims the drag only while it carries an image, and keeps it from
@@ -179,7 +181,7 @@ export function useNoteImagePasteAndDrop(
     };
     const handleDrop = (event: DragEvent) => {
       if (!claimImageDrag(event)) return;
-      void insertFiles(imageFiles(event.dataTransfer), 'drop');
+      insertFiles(imageFiles(event.dataTransfer), 'drop');
     };
 
     element.addEventListener('paste', handlePaste);

@@ -13,6 +13,7 @@ import {
 import { useNoteImageUpload } from './useNoteImageUpload';
 
 const mocks = vi.hoisted(() => ({
+  normalizeUploadIntents: vi.fn(),
   uploadAssetForUrl: vi.fn(),
   trackEvent: vi.fn(),
 }));
@@ -31,7 +32,7 @@ vi.mock('@tloncorp/shared/store', () => ({
 vi.mock('tamagui', () => ({ isWeb: false }));
 // Pulls in expo modules vitest cannot load.
 vi.mock('../../../utils/filepicker', () => ({
-  normalizeUploadIntents: vi.fn(),
+  normalizeUploadIntents: mocks.normalizeUploadIntents,
 }));
 
 function deferred<T>() {
@@ -88,6 +89,11 @@ describe('useNoteImageUpload', () => {
   });
   beforeEach(() => {
     mocks.uploadAssetForUrl.mockReset();
+    mocks.normalizeUploadIntents.mockReset();
+    mocks.normalizeUploadIntents.mockImplementation(async (intents) => ({
+      uploadIntents: intents,
+      errorMessage: null,
+    }));
     mocks.trackEvent.mockReset();
   });
 
@@ -133,6 +139,32 @@ describe('useNoteImageUpload', () => {
       'NoteImageInsertFailed',
       expect.objectContaining({ reason: 'note closed' })
     );
+  });
+
+  it('keeps images with the note they were added to while they normalize', async () => {
+    const normalized = deferred<{
+      uploadIntents: ReturnType<typeof image>[];
+      errorMessage: null;
+    }>();
+    mocks.normalizeUploadIntents.mockReturnValue(normalized.promise);
+    mocks.uploadAssetForUrl.mockResolvedValue('https://cdn.example/a.jpg');
+    const { state, rerender } = renderUpload('~zod/notes/1');
+
+    let done!: Promise<void>;
+    act(() => {
+      done = state.insertImages!([image('file:///a.jpg')], 'paste');
+    });
+    rerender('~zod/notes/2');
+    state.body = 'another note';
+
+    await act(async () => {
+      normalized.resolve({
+        uploadIntents: [image('file:///a.jpg')],
+        errorMessage: null,
+      });
+      await done;
+    });
+    expect(state.body).toBe('another note');
   });
 
   it('reports a failed upload and leaves the body alone', async () => {
