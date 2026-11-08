@@ -1,3 +1,5 @@
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import type * as cn from '@tloncorp/shared/logic';
 import { requireNativeViewManager } from 'expo-modules-core';
@@ -5,8 +7,8 @@ import { type ComponentType, useCallback, useMemo, useState } from 'react';
 import { Linking, type ViewProps, processColor } from 'react-native';
 import { useTheme } from 'tamagui';
 
+import type { RootStackParamList } from '../../../navigation/types';
 import { useCalm, useContactIndex } from '../../contexts/appDataContext';
-import { useNavigation } from '../../contexts/navigation';
 import { resolveContactNameProps } from '../contactNameResolver';
 import { buildNoteDocument } from './noteDocument';
 
@@ -20,7 +22,10 @@ type NativeNotePreviewProps = ViewProps & {
   onContentHeight: (event: NativeEvent<{ height: number }>) => void;
   onPressLink: (event: NativeEvent<{ url: string }>) => void;
   onPressMention: (event: NativeEvent<{ contactId: string }>) => void;
-  onPressVideo: (event: NativeEvent<{ src: string }>) => void;
+  onPressImage: (event: NativeEvent<{ src: string }>) => void;
+  onPressVideo: (
+    event: NativeEvent<{ src: string; posterUri?: string }>
+  ) => void;
 };
 
 const NativeNotePreview: ComponentType<NativeNotePreviewProps> =
@@ -48,7 +53,8 @@ export function NotePreview({
   const theme = useTheme();
   const contactIndex = useContactIndex();
   const calm = useCalm();
-  const { onGoToUserProfile } = useNavigation();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [height, setHeight] = useState(0);
 
   const documentJson = useMemo(
@@ -89,15 +95,30 @@ export function NotePreview({
   }, []);
   const handlePressMention = useCallback(
     (event: NativeEvent<{ contactId: string }>) => {
-      onGoToUserProfile?.(event.nativeEvent.contactId);
+      navigation.navigate('UserProfile', {
+        userId: event.nativeEvent.contactId,
+      });
     },
-    [onGoToUserProfile]
+    [navigation]
+  );
+  const handlePressImage = useCallback(
+    (event: NativeEvent<{ src: string }>) => {
+      navigation.navigate('MediaViewer', {
+        mediaType: 'image',
+        uri: event.nativeEvent.src,
+      });
+    },
+    [navigation]
   );
   const handlePressVideo = useCallback(
-    (event: NativeEvent<{ src: string }>) => {
-      void Linking.openURL(event.nativeEvent.src);
+    (event: NativeEvent<{ src: string; posterUri?: string }>) => {
+      navigation.navigate('MediaViewer', {
+        mediaType: 'video',
+        uri: event.nativeEvent.src,
+        posterUri: event.nativeEvent.posterUri,
+      });
     },
-    []
+    [navigation]
   );
 
   return (
@@ -109,6 +130,7 @@ export function NotePreview({
       onContentHeight={(event) => setHeight(event.nativeEvent.height)}
       onPressLink={handlePressLink}
       onPressMention={handlePressMention}
+      onPressImage={handlePressImage}
       onPressVideo={handlePressVideo}
     />
   );
