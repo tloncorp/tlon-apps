@@ -1749,8 +1749,13 @@ export function NotesNoteDetail({
 
   const [imageSheetOpen, setImageSheetOpen] = useState(false);
   const [hasOpenedImageSheet, setHasOpenedImageSheet] = useState(false);
+  // The pickers decode what they return before handing it over, so the
+  // destination is the note open when Add image was pressed.
+  const imageSheetNoteKeyRef = useRef<string | null>(null);
   const handleAddImage = useCallback(async () => {
+    const targetNoteKey = selectedNoteKeyRef.current;
     if (!isWeb) {
+      imageSheetNoteKeyRef.current = targetNoteKey;
       setHasOpenedImageSheet(true);
       setImageSheetOpen(true);
       return;
@@ -1759,11 +1764,11 @@ export function NotesNoteDetail({
     if (errorMessage) {
       Alert.alert('Unable to attach', errorMessage);
     }
-    void insertImages(uploadIntents, 'picker');
+    void insertImages(uploadIntents, 'picker', targetNoteKey);
   }, [insertImages]);
   const handleImageSheetAttach = useCallback(
     (intents: Attachment.UploadIntent[]) => {
-      void insertImages(intents, 'picker');
+      void insertImages(intents, 'picker', imageSheetNoteKeyRef.current);
     },
     [insertImages]
   );

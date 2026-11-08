@@ -52,9 +52,14 @@ export function useNoteImageUpload({
   }, []);
 
   const insertImages = useMutableCallback(
-    async (intents: Attachment.UploadIntent[], source: NoteImageSource) => {
-      // Taken before any await, so images go to the note they were added to.
-      const targetNoteKey = noteKeyRef.current;
+    async (
+      intents: Attachment.UploadIntent[],
+      source: NoteImageSource,
+      // The note the images were added to, for callers that awaited a picker
+      // before getting here; otherwise the note open now.
+      noteKey: string | null = noteKeyRef.current
+    ) => {
+      const targetNoteKey = noteKey;
       const { uploadIntents } = await normalizeUploadIntents(intents);
       // Normalization leaves an image the platform can't decode (HEIC in most
       // browsers) as a plain file.

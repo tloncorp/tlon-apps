@@ -167,6 +167,20 @@ describe('useNoteImageUpload', () => {
     expect(state.body).toBe('another note');
   });
 
+  it('drops images picked for a note that is no longer open', async () => {
+    mocks.uploadAssetForUrl.mockResolvedValue('https://cdn.example/a.jpg');
+    const { state } = renderUpload('~zod/notes/2');
+
+    await act(async () => {
+      await state.insertImages!(
+        [image('file:///a.jpg')],
+        'picker',
+        '~zod/notes/1'
+      );
+    });
+    expect(state.body).toBe('first\nsecond');
+  });
+
   it('reports a failed upload and leaves the body alone', async () => {
     mocks.uploadAssetForUrl.mockRejectedValue(new Error('403'));
     const { state } = renderUpload('~zod/notes/1');
