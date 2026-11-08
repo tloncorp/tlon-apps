@@ -18,7 +18,17 @@ const TextArea = TamaguiTextArea as ForwardRefExoticComponent<
 export const NoteBodyTextArea: ForwardRefExoticComponent<
   NoteBodyTextAreaProps & RefAttributes<Pick<TextInputInstance, 'focus'>>
 > = forwardRef<Pick<TextInputInstance, 'focus'>, NoteBodyTextAreaProps>(
-  function NoteBodyTextArea({ onPasteFiles: _onPasteFiles, ...props }, ref) {
+  function NoteBodyTextArea(
+    {
+      onPasteFiles: _onPasteFiles,
+      onPasteFailed: _onPasteFailed,
+      menuItems: _menuItems,
+      onMenuItemPress: _onMenuItemPress,
+      caretRequest: _caretRequest,
+      ...props
+    },
+    ref
+  ) {
     return <TextArea ref={ref} {...props} />;
   }
 );

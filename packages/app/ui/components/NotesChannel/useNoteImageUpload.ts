@@ -18,7 +18,8 @@ import {
 export type NoteImageSource = 'paste' | 'drop' | 'picker';
 
 const UPLOAD_FAILED_MESSAGE = 'Couldn’t upload the image. Try again.';
-const UNREADABLE_IMAGE_MESSAGE = 'Couldn’t read that image. Try a JPEG or PNG.';
+export const UNREADABLE_IMAGE_MESSAGE =
+  'Couldn’t read that image. Try a JPEG or PNG.';
 
 /**
  * Uploads images and inserts their markdown at the caret once they land.

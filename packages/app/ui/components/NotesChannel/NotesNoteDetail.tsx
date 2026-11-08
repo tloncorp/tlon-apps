@@ -63,11 +63,13 @@ import {
   useNotebookData,
 } from './NotesData';
 import { NoteBodyTextArea } from './NoteBodyTextArea';
+import type { NoteBodyCaretRequest } from './NoteBodyTextArea.shared';
 import { NotesBanner, errorMessage } from './NotesFeedback';
 import type { NoteBodySelection } from './noteImageMarkdown';
 import { trackNotesActionError } from './notesTelemetry';
 import { formatNoteDate, getFolderPath } from './notesTree';
 import {
+  UNREADABLE_IMAGE_MESSAGE,
   useNoteImagePasteAndDrop,
   useNoteImageUpload,
 } from './useNoteImageUpload';
@@ -99,6 +101,8 @@ type NotesNoteSaveChain = {
 // covered by the flush paths and the draft stash either way.
 const AUTOSAVE_DEBOUNCE_MS = 10_000;
 export const MIN_BODY_INPUT_HEIGHT = 360;
+// The native body input's long-press menu; web keeps the browser's own.
+const ADD_IMAGE_MENU_ITEM = { id: 'add-image', title: 'Add image' };
 const NOTE_COLUMN_MAX_WIDTH = 760;
 const BODY_FONT_SIZE = 14;
 export const BODY_LINE_HEIGHT = 22;
@@ -1690,9 +1694,11 @@ export function NotesNoteDetail({
     () => bodyInputRef.current as unknown as HTMLTextAreaElement | null,
     []
   );
-  // A controlled web textarea moves the caret to the end whenever its value is
-  // replaced, so put it back after an insertion re-renders the body.
-  const pendingBodyCaretRef = useRef<number | null>(null);
+  // Where the caret goes after an insertion re-renders the body. A controlled
+  // web textarea moves it to the end when its value is replaced; the native
+  // input takes it together with the new text.
+  const [bodyCaretRequest, setBodyCaretRequest] =
+    useState<NoteBodyCaretRequest | null>(null);
   // On web onSelectionChange misses caret moves that don't edit (a click, an
   // arrow key), so read the textarea itself while it has focus, and when it
   // loses focus to the Add image button.
@@ -1709,14 +1715,12 @@ export function NotesNoteDetail({
     }
   }, [getBodyInputElement, storeWebBodySelection]);
   useLayoutEffect(() => {
-    const caret = pendingBodyCaretRef.current;
-    pendingBodyCaretRef.current = null;
     const element = isWeb ? getBodyInputElement() : null;
-    if (caret === null || !element || document.activeElement !== element) {
+    if (!bodyCaretRequest || !element || document.activeElement !== element) {
       return;
     }
-    element.setSelectionRange(caret, caret);
-  }, [bodyDraft, getBodyInputElement]);
+    element.setSelectionRange(bodyCaretRequest.caret, bodyCaretRequest.caret);
+  }, [bodyCaretRequest, getBodyInputElement]);
   const { insertImages, isUploading: isUploadingImage } = useNoteImageUpload({
     noteKey: selectedNoteKey,
     getBody: () => bodyDraftRef.current,
@@ -1731,7 +1735,10 @@ export function NotesNoteDetail({
     applyBody: (body, caret) => {
       handleBodyDraftChange(body);
       bodySelectionRef.current = { start: caret, end: caret };
-      pendingBodyCaretRef.current = caret;
+      setBodyCaretRequest((previous) => ({
+        caret,
+        id: (previous?.id ?? 0) + 1,
+      }));
     },
     onError: setError,
   });
@@ -1784,6 +1791,23 @@ export function NotesNoteDetail({
       );
     },
     [insertImages]
+  );
+
+  const handleBodyPasteFailed = useCallback(() => {
+    setError(UNREADABLE_IMAGE_MESSAGE);
+  }, []);
+
+  const bodyMenuItems = useMemo(
+    () => (canInsertImage ? [ADD_IMAGE_MENU_ITEM] : undefined),
+    [canInsertImage]
+  );
+  const handleBodyMenuItemPress = useCallback(
+    (id: string) => {
+      if (id === ADD_IMAGE_MENU_ITEM.id) {
+        void handleAddImage();
+      }
+    },
+    [handleAddImage]
   );
 
   const handleBodyInputFocus = useCallback(() => {
@@ -2054,6 +2078,10 @@ export function NotesNoteDetail({
                   onPasteFiles={
                     canInsertImage ? handleBodyPasteFiles : undefined
                   }
+                  onPasteFailed={handleBodyPasteFailed}
+                  menuItems={bodyMenuItems}
+                  onMenuItemPress={handleBodyMenuItemPress}
+                  caretRequest={bodyCaretRequest}
                   onLayout={handleBodyInputLayout}
                   placeholder="Note body"
                   placeholderTextColor="$tertiaryText"
