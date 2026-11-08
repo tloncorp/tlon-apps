@@ -1,10 +1,11 @@
 import { expect } from '@playwright/test';
+import * as fs from 'fs';
 import * as path from 'path';
 
 import * as helpers from './helpers';
 import { test } from './test-fixtures';
 
-test('should add an image to a note from the Add image button', async ({
+test('should add an image to a note by dropping it on the body', async ({
   zodSetup,
 }) => {
   const page = zodSetup.page;
@@ -32,13 +33,18 @@ test('should add an image to a note from the Add image button', async ({
   await expect(body).toBeVisible({ timeout: 10000 });
   await body.fill('Before the image.');
 
-  const [fileChooser] = await Promise.all([
-    page.waitForEvent('filechooser'),
-    page.getByTestId('NotesAddImage').click(),
-  ]);
-  await fileChooser.setFiles(
-    path.join(__dirname, 'assets', 'test-group-icon.jpg')
-  );
+  const image = fs
+    .readFileSync(path.join(__dirname, 'assets', 'test-group-icon.jpg'))
+    .toString('base64');
+  const dataTransfer = await page.evaluateHandle((base64) => {
+    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    const transfer = new DataTransfer();
+    transfer.items.add(
+      new File([bytes], 'test-group-icon.jpg', { type: 'image/jpeg' })
+    );
+    return transfer;
+  }, image);
+  await body.dispatchEvent('drop', { dataTransfer });
 
   await expect(body).toHaveValue(
     /^Before the image\.\n\n!\[\]\(https?:\/\/\S+\)$/,

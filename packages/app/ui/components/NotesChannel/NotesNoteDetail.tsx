@@ -14,7 +14,7 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCanUpload } from '@tloncorp/shared/store';
-import { Button, Text } from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
 import {
   type ElementRef,
   type ComponentPropsWithoutRef,
@@ -29,7 +29,6 @@ import {
   useSyncExternalStore,
 } from 'react';
 import {
-  Alert,
   AppState,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -44,7 +43,6 @@ import {
 } from 'tamagui';
 
 import { matchAgentOnboardingFirstEntryNote } from '../../../features/top/agentOnboardingFirstEntry';
-import { pickFile } from '../../../utils/filepicker';
 import AttachmentSheet from '../AttachmentSheet';
 import type { PastedFile } from '../BareChatInput/pastedImage';
 import {
@@ -1754,20 +1752,13 @@ export function NotesNoteDetail({
   // The pickers decode what they return before handing it over, so the
   // destination is the note open when Add image was pressed.
   const imageSheetNoteKeyRef = useRef<string | null>(null);
-  const handleAddImage = useCallback(async () => {
-    const targetNoteKey = selectedNoteKeyRef.current;
-    if (!isWeb) {
-      imageSheetNoteKeyRef.current = targetNoteKey;
-      setHasOpenedImageSheet(true);
-      setImageSheetOpen(true);
-      return;
-    }
-    const { uploadIntents, errorMessage } = await pickFile(['image/*'], true);
-    if (errorMessage) {
-      Alert.alert('Unable to attach', errorMessage);
-    }
-    void insertImages(uploadIntents, 'picker', targetNoteKey);
-  }, [insertImages]);
+  // The native body input's Add image menu item opens the photo sheet; web
+  // has paste and drop instead.
+  const handleAddImage = useCallback(() => {
+    imageSheetNoteKeyRef.current = selectedNoteKeyRef.current;
+    setHasOpenedImageSheet(true);
+    setImageSheetOpen(true);
+  }, []);
   const handleImageSheetAttach = useCallback(
     (intents: Attachment.UploadIntent[]) => {
       void insertImages(intents, 'picker', imageSheetNoteKeyRef.current);
@@ -1804,7 +1795,7 @@ export function NotesNoteDetail({
   const handleBodyMenuItemPress = useCallback(
     (id: string) => {
       if (id === ADD_IMAGE_MENU_ITEM.id) {
-        void handleAddImage();
+        handleAddImage();
       }
     },
     [handleAddImage]
@@ -2013,17 +2004,6 @@ export function NotesNoteDetail({
               )}
               {inlineActions}
             </XStack>
-            {canInsertImage ? (
-              <Button
-                preset="secondary"
-                leadingIcon="Attachment"
-                label="Add image"
-                alignSelf="flex-start"
-                loading={isUploadingImage}
-                onPress={handleAddImage}
-                testID="NotesAddImage"
-              />
-            ) : null}
           </YStack>
           <YStack
             flexGrow={1}
