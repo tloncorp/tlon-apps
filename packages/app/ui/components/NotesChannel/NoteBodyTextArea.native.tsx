@@ -8,7 +8,7 @@ import type { TextInputInstance } from 'react-native';
 import { Text, styled } from 'tamagui';
 
 import { PasteableTextInput } from '../BareChatInput/PasteableTextInput';
-import type { NoteBodyTextAreaProps } from './NoteBodyTextArea';
+import type { NoteBodyTextAreaProps } from './NoteBodyTextArea.shared';
 
 // Tamagui's TextArea is bound to RN's TextInput, which drops images from the
 // system Paste menu. This is the same styled input on the paste input chat uses.

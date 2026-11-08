@@ -7,20 +7,13 @@ import {
 import type { TextInputInstance } from 'react-native';
 import { TextArea as TamaguiTextArea } from 'tamagui';
 
-import type { PastedFile } from '../BareChatInput/pastedImage';
+import type { NoteBodyTextAreaProps } from './NoteBodyTextArea.shared';
 
 // Tamagui types this native ref as the View component instead of the input instance.
 const TextArea = TamaguiTextArea as ForwardRefExoticComponent<
   ComponentPropsWithoutRef<typeof TamaguiTextArea> &
     RefAttributes<Pick<TextInputInstance, 'focus'>>
 >;
-
-export type NoteBodyTextAreaProps = ComponentPropsWithoutRef<
-  typeof TextArea
-> & {
-  // Native only: web reads pasted images from the textarea's paste event.
-  onPasteFiles?: (files: PastedFile[]) => void;
-};
 
 export const NoteBodyTextArea: ForwardRefExoticComponent<
   NoteBodyTextAreaProps & RefAttributes<Pick<TextInputInstance, 'focus'>>
