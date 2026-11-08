@@ -3,11 +3,19 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import type * as cn from '@tloncorp/shared/logic';
 import { requireNativeViewManager } from 'expo-modules-core';
-import { type ComponentType, useCallback, useMemo, useState } from 'react';
+import {
+  type ComponentType,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Linking, type ViewProps, processColor } from 'react-native';
 import { useTheme } from 'tamagui';
 
 import type { RootStackParamList } from '../../../navigation/types';
+import { imageSize } from '../../../utils/images';
 import { useCalm, useContactIndex } from '../../contexts/appDataContext';
 import { resolveContactNameProps } from '../contactNameResolver';
 import { buildNoteDocument } from './noteDocument';
@@ -40,6 +48,33 @@ const themeColors = {
   border: 'border',
 } as const;
 
+type ImageSizes = Record<string, { width: number; height: number }>;
+
+// Markdown images carry no dimensions, so each one is measured once; until its
+// size arrives the native view reserves a default aspect for it.
+function useMeasuredImageSizes(content: cn.PostContent): ImageSizes {
+  const [sizes, setSizes] = useState<ImageSizes>({});
+  const requested = useRef(new Set<string>());
+  useEffect(() => {
+    for (const block of content) {
+      if (block.type !== 'image' || (block.width > 0 && block.height > 0)) {
+        continue;
+      }
+      const { src } = block;
+      if (requested.current.has(src)) continue;
+      requested.current.add(src);
+      imageSize(src).then(
+        ([width, height]) =>
+          setSizes((current) => ({ ...current, [src]: { width, height } })),
+        // An image that can't be measured keeps the default aspect; the
+        // native view shows the same load failure either way.
+        () => undefined
+      );
+    }
+  }, [content]);
+  return sizes;
+}
+
 // On iOS and Android the preview is one native text document, so a selection
 // can run across the whole note: through headings, lists, quotes, code,
 // images and tables.
@@ -56,6 +91,7 @@ export function NotePreview({
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [height, setHeight] = useState(0);
+  const imageSizes = useMeasuredImageSizes(content);
 
   const documentJson = useMemo(
     () =>
@@ -68,9 +104,13 @@ export function NotePreview({
               contactId,
               calmDisableNicknames: calm.disableNicknames,
             }).children
+        ).map((block) =>
+          block.type === 'image' && imageSizes[block.src]
+            ? { ...block, ...imageSizes[block.src] }
+            : block
         )
       ),
-    [calm.disableNicknames, contactIndex, content]
+    [calm.disableNicknames, contactIndex, content, imageSizes]
   );
 
   const themeJson = useMemo(

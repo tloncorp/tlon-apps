@@ -55,6 +55,15 @@ final class TlonNotePreviewView: ExpoView, UITextViewDelegate {
     addSubview(textView)
   }
 
+  // Text sizes follow Dynamic Type, so a new preferred size rebuilds.
+  override func traitCollectionDidChange(_ previous: UITraitCollection?) {
+    super.traitCollectionDidChange(previous)
+    if previous?.preferredContentSizeCategory != traitCollection.preferredContentSizeCategory {
+      needsRebuild = true
+      setNeedsLayout()
+    }
+  }
+
   override func layoutSubviews() {
     super.layoutSubviews()
     textView.frame = bounds
@@ -87,6 +96,9 @@ final class TlonNotePreviewView: ExpoView, UITextViewDelegate {
     let builder = NoteAttributedBuilder(
       theme: theme,
       width: bounds.width,
+      fontScale: UIFontMetrics(forTextStyle: .body).scaledValue(
+        for: 100, compatibleWith: traitCollection) / 100,
+      onPressURL: { [weak self] url in self?.handle(url) },
       onPressImage: { [weak self] src in self?.onPressImage(["src": src]) },
       onPressVideo: { [weak self] src, posterUri in
         var payload: [String: Any] = ["src": src]
@@ -164,7 +176,8 @@ final class TlonNotePreviewView: ExpoView, UITextViewDelegate {
       let lineTop = fragment.textLineFragments.first?.typographicBounds.minY ?? 0
       button.frame = CGRect(
         x: bounds.width - size.width - 4,
-        y: textView.textContainerInset.top + frame.minY + lineTop - NoteMetrics.codePadding + 4,
+        y: textView.textContainerInset.top + frame.minY + lineTop - NoteMetrics.codePadding
+          - NoteMetrics.codeHeader + (NoteMetrics.codeHeader - size.height) / 2 + 4,
         width: size.width,
         height: size.height)
     }
@@ -254,8 +267,9 @@ final class TlonNotePreviewView: ExpoView, UITextViewDelegate {
       switch decoration.kind {
       case .code:
         rect = CGRect(
-          x: 0, y: top + lines.minY - NoteMetrics.codePadding,
-          width: bounds.width, height: lines.height + NoteMetrics.codePadding * 2)
+          x: 0, y: top + lines.minY - NoteMetrics.codePadding - NoteMetrics.codeHeader,
+          width: bounds.width,
+          height: lines.height + NoteMetrics.codePadding * 2 + NoteMetrics.codeHeader)
       case .quote:
         rect = CGRect(x: 0, y: top + lines.minY, width: 2, height: lines.height)
       case .rule:

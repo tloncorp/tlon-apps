@@ -19,6 +19,8 @@ enum NoteMetrics {
   static let markerColumn: CGFloat = 18
   static let quoteIndent: CGFloat = 12
   static let codePadding: CGFloat = 12
+  // The row above the code that holds its Copy button.
+  static let codeHeader: CGFloat = 24
   static let cornerRadius: CGFloat = 6
 }
 
@@ -38,6 +40,10 @@ final class NoteDecoration: NSObject {
 struct NoteAttributedBuilder {
   let theme: NoteTheme
   let width: CGFloat
+  // The Dynamic Type factor: text sizes and their line heights follow the
+  // user's preferred text size, as React Native text does.
+  let fontScale: CGFloat
+  let onPressURL: (URL) -> Void
   let onPressImage: (String) -> Void
   let onPressVideo: (_ src: String, _ posterUri: String?) -> Void
 
@@ -116,7 +122,7 @@ struct NoteAttributedBuilder {
         output.append(
           attachmentBlock(
             NoteViewAttachment(
-              view: NoteTableView(layout: grid, border: theme.border),
+              view: NoteTableView(layout: grid, border: theme.border, onPressURL: onPressURL),
               height: ceil(grid.size.height)),
             copyText: ([header] + rows)
               .map { $0.map { $0.map(\.text).joined() }.joined(separator: "\t") }
@@ -151,18 +157,18 @@ struct NoteAttributedBuilder {
     let lineHeight: CGFloat
     switch style {
     case "bigEmoji":
-      size = NoteMetrics.bigEmojiSize
+      size = NoteMetrics.bigEmojiSize * fontScale
       bold = false
       lineHeight = ceil(size * 1.25)
     default:
       if let headingSize = NoteMetrics.headingSizes[style] {
-        size = headingSize
+        size = headingSize * fontScale
         bold = true
-        lineHeight = max(NoteMetrics.bodyLineHeight, ceil(headingSize * 1.25))
+        lineHeight = max(NoteMetrics.bodyLineHeight * fontScale, ceil(size * 1.25))
       } else {
-        size = NoteMetrics.bodySize
+        size = NoteMetrics.bodySize * fontScale
         bold = false
-        lineHeight = NoteMetrics.bodyLineHeight
+        lineHeight = ceil(NoteMetrics.bodyLineHeight * fontScale)
       }
     }
 
@@ -228,7 +234,8 @@ struct NoteAttributedBuilder {
     var attributes = baseAttributes(size: size, bold: bold, lineHeight: lineHeight, paragraph: paragraph)
     let font: UIFont
     if run.code == true {
-      font = UIFont.monospacedSystemFont(ofSize: NoteMetrics.monoSize, weight: .regular)
+      font = UIFont.monospacedSystemFont(
+        ofSize: NoteMetrics.monoSize * fontScale, weight: .regular)
       attributes[.backgroundColor] = theme.codeBackground
       attributes[.kern] = 0
     } else {
@@ -272,14 +279,16 @@ struct NoteAttributedBuilder {
   // MARK: Code
 
   private func codeBlock(runs: [NoteRun], spacingBefore: CGFloat) -> NSAttributedString {
-    let font = UIFont.monospacedSystemFont(ofSize: NoteMetrics.monoSize, weight: .regular)
+    let monoSize = NoteMetrics.monoSize * fontScale
+    let monoLineHeight = ceil(NoteMetrics.monoLineHeight * fontScale)
+    let font = UIFont.monospacedSystemFont(ofSize: monoSize, weight: .regular)
     let code = NSMutableAttributedString()
     for run in runs {
       var traits: UIFontDescriptor.SymbolicTraits = []
       if run.bold == true { traits.insert(.traitBold) }
       if run.italic == true { traits.insert(.traitItalic) }
       let runFont = font.fontDescriptor.withSymbolicTraits(traits).map {
-        UIFont(descriptor: $0, size: NoteMetrics.monoSize)
+        UIFont(descriptor: $0, size: monoSize)
       } ?? font
       code.append(
         NSAttributedString(
@@ -293,7 +302,7 @@ struct NoteAttributedBuilder {
       code.append(NSAttributedString(string: "\u{200B}", attributes: [.font: font]))
     }
     // Spacing above the first line and below the last leaves room for the
-    // background's padding.
+    // background's padding, and above the first for the Copy button's row.
     let lines = (code.string as NSString).components(separatedBy: "\n")
     let decoration = NoteDecoration(.code, color: theme.codeBackground)
     var location = 0
@@ -303,17 +312,18 @@ struct NoteAttributedBuilder {
       let first = index == 0
       let last = index == lines.count - 1
       let paragraph = NSMutableParagraphStyle()
-      paragraph.minimumLineHeight = NoteMetrics.monoLineHeight
-      paragraph.maximumLineHeight = NoteMetrics.monoLineHeight
+      paragraph.minimumLineHeight = monoLineHeight
+      paragraph.maximumLineHeight = monoLineHeight
       paragraph.firstLineHeadIndent = NoteMetrics.codePadding
       paragraph.headIndent = NoteMetrics.codePadding
       paragraph.tailIndent = -NoteMetrics.codePadding
-      paragraph.paragraphSpacingBefore = first ? spacingBefore + NoteMetrics.codePadding : 0
+      paragraph.paragraphSpacingBefore =
+        first ? spacingBefore + NoteMetrics.codeHeader + NoteMetrics.codePadding : 0
       paragraph.paragraphSpacing = last ? NoteMetrics.codePadding : 0
       code.addAttributes(
         [
           .paragraphStyle: paragraph,
-          .baselineOffset: (NoteMetrics.monoLineHeight - font.lineHeight) / 2,
+          .baselineOffset: (monoLineHeight - font.lineHeight) / 2,
           .noteDecoration: decoration,
         ], range: range)
       location += length
@@ -345,8 +355,8 @@ struct NoteAttributedBuilder {
     for run in runs {
       text.append(
         runText(
-          run, size: NoteMetrics.bodySize, bold: bold,
-          lineHeight: NoteMetrics.bodyLineHeight, paragraph: paragraph))
+          run, size: NoteMetrics.bodySize * fontScale, bold: bold,
+          lineHeight: ceil(NoteMetrics.bodyLineHeight * fontScale), paragraph: paragraph))
     }
     return text
   }

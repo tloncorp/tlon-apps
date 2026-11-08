@@ -151,7 +151,7 @@ struct NoteTableLayout {
 
 // A horizontally scrolling grid; wide tables scroll instead of squeezing.
 final class NoteTableView: UIScrollView {
-  init(layout: NoteTableLayout, border: UIColor) {
+  init(layout: NoteTableLayout, border: UIColor, onPressURL: @escaping (URL) -> Void) {
     super.init(frame: .zero)
     showsHorizontalScrollIndicator = false
     alwaysBounceHorizontal = false
@@ -169,18 +169,20 @@ final class NoteTableView: UIScrollView {
     for (rowIndex, row) in ([layout.header] + layout.rows).enumerated() {
       var x: CGFloat = 0
       for (column, width) in layout.columnWidths.enumerated() {
-        let label = UILabel(
-          frame: CGRect(
-            x: x + pad, y: y + pad, width: width - pad * 2,
-            height: layout.rowHeights[rowIndex] - pad * 2))
-        label.numberOfLines = 0
-        label.attributedText = row.indices.contains(column) ? row[column] : nil
+        let alignment: NSTextAlignment
         switch layout.align.indices.contains(column) ? layout.align[column] : nil {
-        case "center": label.textAlignment = .center
-        case "right": label.textAlignment = .right
-        default: label.textAlignment = .natural
+        case "center": alignment = .center
+        case "right": alignment = .right
+        default: alignment = .natural
         }
-        grid.addSubview(label)
+        let cell = NoteTableCellView(
+          text: row.indices.contains(column) ? row[column] : nil,
+          alignment: alignment,
+          onPressURL: onPressURL)
+        cell.frame = CGRect(
+          x: x + pad, y: y + pad, width: width - pad * 2,
+          height: layout.rowHeights[rowIndex] - pad * 2)
+        grid.addSubview(cell)
         if column > 0 {
           let line = UIView(frame: CGRect(x: x, y: y, width: 1, height: layout.rowHeights[rowIndex]))
           line.backgroundColor = border
@@ -199,5 +201,51 @@ final class NoteTableView: UIScrollView {
 
   required init?(coder: NSCoder) {
     fatalError("init(coder:) is not supported")
+  }
+}
+
+// A cell's text, read-only. Unlike a label it passes link and mention taps on.
+final class NoteTableCellView: UITextView, UITextViewDelegate {
+  private let onPressURL: (URL) -> Void
+
+  init(text: NSAttributedString?, alignment: NSTextAlignment, onPressURL: @escaping (URL) -> Void) {
+    self.onPressURL = onPressURL
+    super.init(frame: .zero, textContainer: nil)
+    isEditable = false
+    isSelectable = true
+    isScrollEnabled = false
+    backgroundColor = .clear
+    textContainerInset = .zero
+    textContainer.lineFragmentPadding = 0
+    linkTextAttributes = [:]
+    attributedText = text
+    textAlignment = alignment
+    delegate = self
+  }
+
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) is not supported")
+  }
+
+  @available(iOS 17.0, *)
+  func textView(
+    _ textView: UITextView,
+    primaryActionFor textItem: UITextItem,
+    defaultAction: UIAction
+  ) -> UIAction? {
+    guard case .link(let url) = textItem.content else { return defaultAction }
+    return UIAction { [weak self] _ in self?.onPressURL(url) }
+  }
+
+  func textView(
+    _ textView: UITextView,
+    shouldInteractWith URL: URL,
+    in characterRange: NSRange,
+    interaction: UITextItemInteraction
+  ) -> Bool {
+    if interaction == .invokeDefaultAction {
+      onPressURL(URL)
+    }
+    return false
   }
 }
