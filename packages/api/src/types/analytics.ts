@@ -163,6 +163,8 @@ export enum AnalyticsEvent {
   AgentEntryFirstOpened = 'Agent Entry First Opened',
   NoteCreated = 'Note Created',
   NoteSaved = 'Note Saved',
+  NoteImageInserted = 'Note Image Inserted',
+  NoteImageInsertFailed = 'Note Image Insert Failed',
   NoteMoved = 'Note Moved',
   NotePublished = 'Note Published',
   NoteUnpublished = 'Note Unpublished',
