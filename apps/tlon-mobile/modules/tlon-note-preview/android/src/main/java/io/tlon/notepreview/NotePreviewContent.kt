@@ -120,6 +120,7 @@ private fun NoteBlockView(block: NoteBlock, theme: NoteTheme, callbacks: NotePre
       src = block.src,
       aspect = aspectOf(block.width, block.height),
       modifier = Modifier,
+      description = block.alt.ifEmpty { null },
       onPress = { callbacks.onImage(block.src) }
     )
     is NoteBlock.Video -> VideoBlockView(block, theme, callbacks)
@@ -292,6 +293,7 @@ private fun RemoteImage(
   src: String,
   aspect: Float,
   modifier: Modifier,
+  description: String? = null,
   onPress: (() -> Unit)? = null
 ) {
   val radius = with(LocalDensity.current) { Corner.toPx() }
@@ -314,6 +316,7 @@ private fun RemoteImage(
       }
       // The ImageView takes its own clicks; a Compose clickable around an
       // AndroidView doesn't see them.
+      view.contentDescription = description
       view.setOnClickListener(onPress?.let { press -> View.OnClickListener { press() } })
       view.isClickable = onPress != null
     },

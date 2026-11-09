@@ -29,7 +29,12 @@ sealed class NoteBlock {
 
   data class Code(val runs: List<NoteRun>) : NoteBlock()
 
-  data class Image(val src: String, val width: Float, val height: Float) : NoteBlock()
+  data class Image(
+    val src: String,
+    val width: Float,
+    val height: Float,
+    val alt: String
+  ) : NoteBlock()
 
   data class Video(
     val src: String,
@@ -90,7 +95,8 @@ object NoteDocumentParser {
       "image" -> NoteBlock.Image(
         src = obj.optString("src"),
         width = obj.optDouble("width", 0.0).toFloat(),
-        height = obj.optDouble("height", 0.0).toFloat()
+        height = obj.optDouble("height", 0.0).toFloat(),
+        alt = obj.optString("alt", "")
       )
       "video" -> NoteBlock.Video(
         src = obj.optString("src"),
