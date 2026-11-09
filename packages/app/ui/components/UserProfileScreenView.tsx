@@ -32,10 +32,9 @@ import {
 
 import { RootStackParamList } from '../../navigation/types';
 import { useContact, useCurrentUserId } from '../contexts/appDataContext';
-import { useNavigation as useContextNavigation } from '../contexts/navigation';
 import { useGroupTitle } from '../utils';
 import { ContactAvatar } from './Avatar';
-import { useHasBotPromptFiles, useIsOwnedBot } from './BotSystemPrompts';
+import { useHasBotPromptFiles } from './BotSystemPrompts';
 import { ContactName } from './ContactNameV2';
 import { GroupAvatar } from './GroupAvatar';
 import { ListItem } from './ListItem';
@@ -46,9 +45,28 @@ import {
 import { WidgetPane } from './WidgetPane';
 import { useBoundHandler } from './listItems/listItemUtils';
 
+/** What the circles under a profile's header do; the screen supplies them. */
+export interface ProfileActions {
+  isBlocked: boolean;
+  isContact: boolean;
+  isMuted: boolean;
+  /** Muting acts on the DM, so it needs one to exist. */
+  canMute: boolean;
+  onMessage: () => void;
+  onToggleContact: () => void;
+  onToggleMute: () => void;
+  onToggleBlock: () => void;
+  onShare: () => void;
+}
+
 interface Props {
   userId: string;
   connectionStatus: api.ConnectionStatus | null;
+  /** Absent on your own profile, which has no circles. */
+  actions?: ProfileActions;
+  /** Your own profile's Status and About cards open these. */
+  onPressStatus?: () => void;
+  onPressBio?: () => void;
   onPressBotSettings?: () => void;
   /** Present on the owner's bot when it can show its scheduled tasks. */
   onPressScheduledTasks?: () => void;
@@ -132,7 +150,11 @@ export function UserProfileScreenView(props: Props) {
   const promptFilesInSettings = !!props.onPressBotSettings && !isWeb;
 
   return (
-    <View flex={1} backgroundColor={theme.secondaryBackground.val}>
+    <View
+      flex={1}
+      backgroundColor={theme.secondaryBackground.val}
+      testID="UserProfileScreen"
+    >
       <ScrollView
         flex={1}
         contentContainerStyle={{
@@ -149,22 +171,47 @@ export function UserProfileScreenView(props: Props) {
           hasNickname={!!userContact?.nickname?.length}
         />
 
-        {!isOwnProfile ? (
-          <View marginTop="$3xl">
-            <ProfileButtons userId={props.userId} contact={userContact} />
+        {props.actions && !isOwnProfile ? (
+          <View marginTop="$3xl" paddingHorizontal="$xl">
+            <ProfileActionCircles
+              actions={props.actions}
+              isOwnBot={ownerId === currentUserId}
+            />
           </View>
         ) : null}
 
-        <YStack marginTop="$2xl" gap="$l" paddingHorizontal="$xl">
-          {ownerId ? (
-            <OwnerRow
-              ownerId={ownerId}
-              isYours={ownerId === currentUserId}
-              onPress={props.onPressUserProfile}
+        <YStack
+          marginTop={props.actions && !isOwnProfile ? '$2xl' : '$3xl'}
+          gap="$l"
+          paddingHorizontal="$xl"
+        >
+          {props.actions?.isBlocked ? (
+            <BlockedNote userId={props.userId} />
+          ) : null}
+
+          {/* Your own bot needs no row saying so. */}
+          {ownerId && ownerId !== currentUserId ? (
+            <OwnerRow ownerId={ownerId} onPress={props.onPressUserProfile} />
+          ) : null}
+
+          {userContact?.status || isOwnProfile ? (
+            <StatusDisplay
+              status={userContact?.status ?? ''}
+              placeholder="Add a status"
+              onPress={isOwnProfile ? props.onPressStatus : undefined}
+              testID="ProfileStatus"
+            />
+          ) : null}
+          {userContact?.bio || isOwnProfile ? (
+            <BioDisplay
+              bio={userContact?.bio ?? ''}
+              placeholder="Add a few words about yourself"
+              onPress={isOwnProfile ? props.onPressBio : undefined}
+              testID="ProfileBio"
             />
           ) : null}
 
-          {isBot ? <BotStatusCard contactId={props.userId} /> : null}
+          {isBot ? <BotActivityCard contactId={props.userId} /> : null}
 
           {showsBotSettings ? (
             <BotSettingsCard
@@ -190,13 +237,19 @@ export function UserProfileScreenView(props: Props) {
             />
           ) : null}
 
-          {userContact?.status ? (
-            <StatusDisplay status={userContact.status} />
-          ) : null}
-          <BioDisplay bio={userContact?.bio ?? ''} />
-
           {!ownerId && botContact ? (
             <BotsCard botId={botId} onPress={props.onPressUserProfile} />
+          ) : null}
+
+          <PinnedGroupsList groups={pinnedGroups} onPressGroup={onPressGroup} />
+
+          {sharedGroups?.length ? (
+            <GroupsListCard
+              title={`In ${sharedGroups.length} of your workspaces`}
+              groups={sharedGroups}
+              onPressGroup={onPressGroup}
+              testID="ProfileSharedGroups"
+            />
           ) : null}
 
           <XStack gap="$l" width="100%" flexWrap="wrap">
@@ -220,17 +273,6 @@ export function UserProfileScreenView(props: Props) {
               <StatusBlock status={sponsorStatus} label="Sponsor" />
             </View>
           </XStack>
-
-          <PinnedGroupsList groups={pinnedGroups} onPressGroup={onPressGroup} />
-
-          {sharedGroups?.length ? (
-            <GroupsListCard
-              title={`In ${sharedGroups.length} of your workspaces`}
-              groups={sharedGroups}
-              onPressGroup={onPressGroup}
-              testID="ProfileSharedGroups"
-            />
-          ) : null}
         </YStack>
       </ScrollView>
     </View>
@@ -258,11 +300,9 @@ function BotTag({ onCard }: { onCard?: boolean }) {
 
 function OwnerRow({
   ownerId,
-  isYours,
   onPress,
 }: {
   ownerId: string;
-  isYours: boolean;
   onPress: (contactId: string) => void;
 }) {
   const handlePress = useCallback(() => {
@@ -286,18 +326,13 @@ function OwnerRow({
       >
         <ContactAvatar contactId={ownerId} size="$4xl" />
         <YStack flex={1} minWidth={0} gap="$m">
-          {isYours ? (
-            <Text size="$label/l">This is your bot</Text>
-          ) : (
-            <Text size="$label/l" numberOfLines={1}>
-              <ContactName contactId={ownerId} expandLongIds />
-            </Text>
-          )}
+          <Text size="$label/l" numberOfLines={1}>
+            <ContactName contactId={ownerId} expandLongIds />
+          </Text>
           <Text size="$label/m" color="$secondaryText">
-            {isYours ? 'Only you can change how it works' : 'Owns this bot'}
+            Owns this bot
           </Text>
         </YStack>
-        {isYours ? null : <Icon type="ChevronRight" color="$tertiaryText" />}
       </XStack>
     </Pressable>
   );
@@ -310,9 +345,10 @@ function botVersionLabel(contact: db.Contact | null | undefined) {
 
 /**
  * Whether the bot says it is running. Bots publish only online or offline, so
- * these are the two states shown.
+ * these are the two states shown. Called Activity so it can't be confused with
+ * a person's text status.
  */
-function BotStatusCard({ contactId }: { contactId: string }) {
+function BotActivityCard({ contactId }: { contactId: string }) {
   const contact = useContact(contactId);
   const liveness = domain.botLivenessOf(contact);
   const version = botVersionLabel(contact);
@@ -323,7 +359,7 @@ function BotStatusCard({ contactId }: { contactId: string }) {
     <PaddedBlock testID="ProfileBotStatus">
       <XStack justifyContent="space-between" alignItems="center">
         <Text size="$body" color="$tertiaryText">
-          Status
+          Activity
         </Text>
         {version ? (
           <Text size="$label/s" color="$secondaryText">
@@ -354,19 +390,8 @@ function StatusSegment({ label, active }: { label: string; active: boolean }) {
       borderRadius="$xl"
       alignItems="center"
       justifyContent="center"
-      gap="$s"
       backgroundColor={active ? '$primaryText' : 'transparent'}
     >
-      {active ? (
-        <View
-          width={6}
-          height={6}
-          borderRadius={3}
-          backgroundColor={
-            label === 'Online' ? '$positiveActionText' : '$tertiaryText'
-          }
-        />
-      ) : null}
       <Text
         size="$label/m"
         color={active ? '$background' : '$tertiaryText'}
@@ -379,8 +404,8 @@ function StatusSegment({ label, active }: { label: string; active: boolean }) {
 }
 
 /**
- * The owner's bot settings at a glance. Model and connections are the values
- * the bot settings screen last loaded; a row shows once there is one.
+ * The owner's bot settings at a glance. Model and connections show the values
+ * the bot settings screen last loaded, blank until it has loaded once.
  */
 function BotSettingsCard({
   onPressBotSettings,
@@ -405,12 +430,13 @@ function BotSettingsCard({
     onPress?: () => void;
     testID?: string;
   }[] = [];
-  if (onPressBotSettings && remembered?.models) {
+  if (onPressBotSettings) {
     rows.push({
       key: 'model',
       title: 'Model',
-      value: remembered.models,
+      value: remembered?.models ?? undefined,
       onPress: onPressBotSettings,
+      testID: 'BotSettingsButton',
     });
   }
   if (onPressScheduledTasks) {
@@ -429,11 +455,11 @@ function BotSettingsCard({
       testID: 'ScheduledTasksButton',
     });
   }
-  if (onPressBotSettings && remembered?.connections) {
+  if (onPressBotSettings) {
     rows.push({
       key: 'connections',
       title: 'Connections',
-      value: remembered.connections,
+      value: remembered?.connections ?? undefined,
       onPress: onPressBotSettings,
     });
   }
@@ -444,22 +470,7 @@ function BotSettingsCard({
         <Text size="$body" color="$tertiaryText">
           Bot settings
         </Text>
-        {onPressBotSettings ? (
-          <Pressable
-            onPress={() => {
-              onPressBotSettings();
-              triggerHaptic('baseButtonClick');
-            }}
-            testID="BotSettingsButton"
-          >
-            <XStack alignItems="center" gap="$xs">
-              <Text size="$label/m" color="$secondaryText">
-                Open
-              </Text>
-              <Icon type="ChevronRight" size="$s" color="$tertiaryText" />
-            </XStack>
-          </Pressable>
-        ) : null}
+        <CardScopeLabel>Only you</CardScopeLabel>
       </XStack>
       <YStack>
         {rows.map((row, i) => (
@@ -486,18 +497,30 @@ function BotSettingsCard({
               <Text size="$body" color="$secondaryText">
                 {row.title}
               </Text>
-              {typeof row.value === 'string' ? (
-                <Text size="$body" numberOfLines={1} flexShrink={1}>
-                  {row.value}
-                </Text>
-              ) : (
-                row.value
-              )}
+              <XStack alignItems="center" gap="$s" flexShrink={1} minWidth={0}>
+                {typeof row.value === 'string' ? (
+                  <Text size="$body" numberOfLines={1} flexShrink={1}>
+                    {row.value}
+                  </Text>
+                ) : (
+                  row.value
+                )}
+                <Icon type="ChevronRight" size="$s" color="$tertiaryText" />
+              </XStack>
             </XStack>
           </Pressable>
         ))}
       </YStack>
     </PaddedBlock>
+  );
+}
+
+/** Who can see or change a card's settings, at the right of its title. */
+function CardScopeLabel({ children }: { children: string }) {
+  return (
+    <Text size="$label/m" color="$tertiaryText">
+      {children}
+    </Text>
   );
 }
 
@@ -812,28 +835,65 @@ export const PaddedBlock = styled(YStack, {
 export function BioDisplay({
   bio,
   ...rest
-}: { bio: string } & ComponentProps<typeof WidgetPane>) {
-  return bio.length ? (
-    <WidgetPane borderRadius="$2xl" padding="$2xl" width="100%" {...rest}>
-      <WidgetPane.Title>About</WidgetPane.Title>
-      <Text size="$body" trimmed={false}>
-        {bio}
-      </Text>
-    </WidgetPane>
-  ) : null;
+}: { bio: string } & Omit<TextCardProps, 'title' | 'text'>) {
+  return <TextCard title="About" text={bio} {...rest} />;
 }
 
 export function StatusDisplay({
   status,
   ...rest
-}: { status: string } & ComponentProps<typeof WidgetPane>) {
-  return (
+}: { status: string } & Omit<TextCardProps, 'title' | 'text'>) {
+  return <TextCard title="Status" text={status} {...rest} />;
+}
+
+type TextCardProps = {
+  title: string;
+  text: string;
+  /** Shown in place of empty text, in grey. */
+  placeholder?: string;
+  /** Makes the card a button with a chevron. */
+  onPress?: () => void;
+} & ComponentProps<typeof WidgetPane>;
+
+function TextCard({
+  title,
+  text,
+  placeholder,
+  onPress,
+  ...rest
+}: TextCardProps) {
+  const handlePress = useCallback(() => {
+    onPress?.();
+    triggerHaptic('baseButtonClick');
+  }, [onPress]);
+  if (!text.length && !placeholder) {
+    return null;
+  }
+  const card = (
     <WidgetPane borderRadius="$2xl" padding="$2xl" width="100%" {...rest}>
-      <WidgetPane.Title>Status</WidgetPane.Title>
-      <Text size="$body" trimmed={false}>
-        {status}
-      </Text>
+      <XStack alignItems="center" gap="$l">
+        <YStack flex={1} minWidth={0}>
+          <WidgetPane.Title>{title}</WidgetPane.Title>
+          <Text
+            size="$body"
+            trimmed={false}
+            color={text.length ? '$primaryText' : '$tertiaryText'}
+          >
+            {text.length ? text : placeholder}
+          </Text>
+        </YStack>
+        {onPress ? (
+          <Icon type="ChevronRight" size="$s" color="$tertiaryText" />
+        ) : null}
+      </XStack>
     </WidgetPane>
+  );
+  return onPress ? (
+    <Pressable borderRadius="$2xl" onPress={handlePress}>
+      {card}
+    </Pressable>
+  ) : (
+    card
   );
 }
 
@@ -878,7 +938,13 @@ function ProfileHeader(props: {
           testID="ProfileAvatar"
         >
           <View {...avatarShadow}>
-            <ContactAvatar contactId={props.userId} size="$9xl" />
+            <ContactAvatar
+              contactId={props.userId}
+              size="custom"
+              width={HEADER_AVATAR_SIZE}
+              height={HEADER_AVATAR_SIZE}
+              borderRadius={30}
+            />
           </View>
         </Pressable>
         {props.ownerId ? (
@@ -886,19 +952,25 @@ function ProfileHeader(props: {
           // them; this keeps who is behind the bot in view with the bot.
           <View
             position="absolute"
-            right={-getTokenValue('$m')}
-            bottom={-getTokenValue('$m')}
+            right={-10}
+            bottom={-10}
             padding="$xs"
-            borderRadius="$l"
+            borderRadius={15}
             backgroundColor="$secondaryBackground"
             testID="ProfileOwnerBadge"
           >
-            <ContactAvatar contactId={props.ownerId} size="$3xl" />
+            <ContactAvatar
+              contactId={props.ownerId}
+              size="custom"
+              width={40}
+              height={40}
+              borderRadius={11}
+            />
           </View>
         ) : null}
       </View>
       <Pressable
-        marginTop="$xl"
+        marginTop={20}
         maxWidth="100%"
         onPress={handleCopy}
         alignItems="center"
@@ -930,100 +1002,131 @@ function ProfileHeader(props: {
   );
 }
 
+const HEADER_AVATAR_SIZE = 112;
+
 // A small lift under the header avatar, the one shadow on the screen.
 const avatarShadow = {
-  borderRadius: '$xl',
+  borderRadius: 30,
   shadowColor: '#000000',
   shadowOpacity: 0.14,
   shadowRadius: 12,
   shadowOffset: { width: 0, height: 6 },
 } as const;
 
-function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
-  const navContext = useContextNavigation();
-  const queryClient = db.queryClient;
-  const currentUserId = useCurrentUserId();
-  // Blocking your own bot makes no sense; hide the button on an owned
-  // bot's profile. Unblock stays reachable so an already-blocked bot
-  // can't get stranded.
-  const { isOwnedBot, isPending: isOwnedBotPending } = useIsOwnedBot(
-    props.userId
-  );
-  const isCurrentUsersBot = api.isBotUserIdForUser(props.userId, currentUserId);
-
-  const handleMessageUser = useCallback(() => {
-    if (!navContext.onPressGoToDm) {
-      console.warn('Navigation context missing onPressGoToDm handler');
-      return;
-    }
-
-    if (props.contact?.isBlocked) {
-      return;
-    }
-
-    try {
-      navContext.onPressGoToDm([props.userId]);
-    } catch (error) {
-      console.error('Error navigating to DM:', error);
-    }
-  }, [navContext, props.userId, props.contact?.isBlocked]);
-
-  const handleBlock = useCallback(async () => {
-    if (props.contact && props.contact.isBlocked) {
-      await store.unblockUser(props.userId);
-    } else {
-      await store.blockUser(props.userId);
-    }
-    queryClient.invalidateQueries({
-      queryKey: [['contact', props.userId]],
-    });
-  }, [props, queryClient]);
-
-  const handleToggleContact = useCallback(() => {
-    if (props.contact && props.contact.isContact) {
-      store.removeContact(props.userId);
-    } else {
-      store.addContact(props.userId);
-    }
-  }, [props]);
-
-  const handleRemoveContactSuggestion = useCallback(() => {
-    store.removeContactSuggestion(props.userId);
-  }, [props]);
-
-  const isBlocked = useMemo(() => {
-    return props.contact?.isBlocked ?? false;
-  }, [props.contact]);
-
-  return (
-    <View width="100%">
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        paddingLeft={'$xl'}
-      >
-        {!isBlocked && (
-          <ProfileButton title="Message" onPress={handleMessageUser} hero />
-        )}
-        <ProfileButton
-          title={props.contact?.isContact ? 'Remove Contact' : 'Add Contact'}
-          onPress={handleToggleContact}
+/**
+ * Round buttons under the header. Message leads in the dark fill; Add turns
+ * to Added once they are a contact, and removing them is in the ⋯ menu.
+ */
+function ProfileActionCircles({
+  actions,
+  isOwnBot,
+}: {
+  actions: ProfileActions;
+  isOwnBot: boolean;
+}) {
+  if (actions.isBlocked) {
+    return (
+      <XStack justifyContent="center" gap={20}>
+        <ActionCircle
+          icon="Block"
+          label="Unblock"
+          hero
+          onPress={actions.onToggleBlock}
+          testID="ProfileUnblockButton"
         />
-        {props.contact?.isContactSuggestion ? (
-          <ProfileButton
-            title="Clear Suggestion"
-            onPress={handleRemoveContactSuggestion}
-          />
-        ) : null}
-        {isBlocked ||
-        (!isOwnedBot && !isCurrentUsersBot && !isOwnedBotPending) ? (
-          <ProfileButton
-            title={isBlocked ? 'Unblock' : 'Block'}
-            onPress={handleBlock}
-          />
-        ) : null}
-      </ScrollView>
-    </View>
+      </XStack>
+    );
+  }
+  return (
+    <XStack justifyContent="center" gap={20}>
+      <ActionCircle
+        icon="Messages"
+        label="Message"
+        hero
+        onPress={actions.onMessage}
+        testID="ProfileMessageButton"
+      />
+      <ActionCircle
+        icon={actions.isContact ? 'Checkmark' : 'AddPerson'}
+        label={actions.isContact ? 'Added' : 'Add'}
+        onPress={actions.isContact ? undefined : actions.onToggleContact}
+        testID="ProfileAddContactButton"
+      />
+      {/* Your own bot keeps Mute in the ⋯ menu. */}
+      {!isOwnBot && actions.canMute ? (
+        <ActionCircle
+          icon={actions.isMuted ? 'Muted' : 'Notifications'}
+          label={actions.isMuted ? 'Unmute' : 'Mute'}
+          onPress={actions.onToggleMute}
+          testID="ProfileMuteButton"
+        />
+      ) : null}
+      <ActionCircle
+        icon="ArrowRef"
+        label="Share"
+        onPress={actions.onShare}
+        testID="ProfileShareButton"
+      />
+    </XStack>
+  );
+}
+
+function ActionCircle({
+  icon,
+  label,
+  hero,
+  onPress,
+  testID,
+}: {
+  icon: IconType;
+  label: string;
+  hero?: boolean;
+  onPress?: () => void;
+  testID?: string;
+}) {
+  const handlePress = useCallback(() => {
+    onPress?.();
+    triggerHaptic('baseButtonClick');
+  }, [onPress]);
+  return (
+    <YStack width={64} alignItems="center" gap="$m">
+      <Pressable
+        width={56}
+        height={56}
+        borderRadius={28}
+        alignItems="center"
+        justifyContent="center"
+        backgroundColor={hero ? '$primaryText' : '$background'}
+        onPress={onPress ? handlePress : undefined}
+        disabled={!onPress}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        testID={testID}
+      >
+        <Icon
+          type={icon}
+          customSize={[32, 32]}
+          color={hero ? '$background' : '$primaryText'}
+        />
+      </Pressable>
+      <Text size="$label/s" numberOfLines={1}>
+        {label}
+      </Text>
+    </YStack>
+  );
+}
+
+function BlockedNote({ userId }: { userId: string }) {
+  return (
+    <PaddedBlock gap="$xs" testID="ProfileBlockedNote">
+      <Text size="$label/l">
+        You blocked <ContactName contactId={userId} />
+      </Text>
+      <Text size="$label/m" color="$secondaryText">
+        They can’t send you direct messages. Unblock to message each other
+        again.
+      </Text>
+    </PaddedBlock>
   );
 }
 

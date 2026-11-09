@@ -10,7 +10,7 @@ test('should allow users to edit their own profile', async ({ zodSetup }) => {
   await zodPage.getByTestId('AvatarNavIcon').click();
   await expect(zodPage.getByText('Contacts')).toBeVisible();
   await zodPage.getByText('You').click();
-  await expect(zodPage.getByText('Profile')).toBeVisible();
+  await expect(zodPage.getByTestId('UserProfileScreen')).toBeVisible();
 
   // Edit profile
   await zodPage.getByTestId('ContactEditButton').click();

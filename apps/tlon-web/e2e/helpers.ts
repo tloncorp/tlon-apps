@@ -2467,7 +2467,9 @@ export async function cleanupOwnProfile(page: Page) {
   }
 
   // Wait for Profile to be visible
-  await expect(page.getByText('Profile')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByTestId('UserProfileScreen')).toBeVisible({
+    timeout: 5000,
+  });
 
   // Click Edit button
   const editButton = page.getByTestId('ContactEditButton');
@@ -2607,11 +2609,16 @@ export async function removeContact(page: Page, shipId: string) {
     await contactElement.click();
 
     // Wait for Profile to load
-    await expect(page.getByText('Profile')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId('UserProfileScreen')).toBeVisible({
+      timeout: 5000,
+    });
 
-    // Look for Remove Contact button - it should be on the profile view, not in edit mode
-    const removeButton = page.getByText('Remove Contact');
-    if (await removeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+    // Remove contact is in the profile's ⋯ menu
+    await page.getByTestId('ProfileMoreButton').click();
+    const removeButton = page.getByText('Remove contact', { exact: true });
+    if (!(await removeButton.isVisible({ timeout: 2000 }).catch(() => false))) {
+      await page.keyboard.press('Escape');
+    } else {
       await removeButton.click();
       await page.waitForTimeout(1000);
 
@@ -2683,10 +2690,13 @@ export async function clearContactNickname(
     await contactElement.click();
 
     // Wait for Profile to load
-    await expect(page.getByText('Profile')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId('UserProfileScreen')).toBeVisible({
+      timeout: 5000,
+    });
 
-    // Click Edit button
-    await page.getByTestId('ContactEditButton').click();
+    // Someone else's nickname is edited from the profile's ⋯ menu
+    await page.getByTestId('ProfileMoreButton').click();
+    await page.getByText('Edit profile', { exact: true }).click();
     await expect(page.getByText('Edit Profile')).toBeVisible({
       timeout: 5000,
     });

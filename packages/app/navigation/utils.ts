@@ -518,6 +518,21 @@ export function useRootNavigation() {
     });
   }, [isWindowNarrow, navigationRef]);
 
+  const navigateToBotIdentitySettings = useCallback(() => {
+    if (isWindowNarrow) {
+      navigationRef.current.navigate('BotIdentitySettings');
+      return;
+    }
+
+    const navigateToNestedSettings = navigationRef.current.navigate as (
+      screen: 'Settings',
+      params: { screen: 'BotIdentitySettings' }
+    ) => void;
+    navigateToNestedSettings('Settings', {
+      screen: 'BotIdentitySettings',
+    });
+  }, [isWindowNarrow, navigationRef]);
+
   const navigateToBotMcpSettings = useCallback(
     (providerId?: string) => {
       if (Platform.OS === 'web') {
@@ -557,6 +572,7 @@ export function useRootNavigation() {
       resetToPost,
       navigateBack,
       navigateToBotSettings,
+      navigateToBotIdentitySettings,
       navigateToBotMcpSettings,
     }),
     [
@@ -566,6 +582,7 @@ export function useRootNavigation() {
       navigateToChatDetails,
       navigateToChatVolume,
       navigateToBotSettings,
+      navigateToBotIdentitySettings,
       navigateToBotMcpSettings,
       navigateBackFromPost,
       navigateToGroup,

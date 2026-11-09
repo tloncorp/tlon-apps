@@ -14,7 +14,7 @@ test('should allow viewing and syncing profiles across ships', async ({
   await zodPage.getByTestId('AvatarNavIcon').click();
   await expect(zodPage.getByText('Contacts')).toBeVisible();
   await zodPage.getByText('You').click();
-  await expect(zodPage.getByText('Profile')).toBeVisible();
+  await expect(zodPage.getByTestId('UserProfileScreen')).toBeVisible();
   await zodPage.getByTestId('ContactEditButton').click();
   await expect(zodPage.getByText('Edit Profile')).toBeVisible();
 
@@ -58,7 +58,7 @@ test('should allow viewing and syncing profiles across ships', async ({
   // Click on ~zod in the contacts list - should show with their nickname once synced
   // The contact will appear with "Zod Testing nickname" after sync
   await tenPage.getByText('Zod Testing nickname').first().click();
-  await expect(tenPage.getByText('Profile')).toBeVisible();
+  await expect(tenPage.getByTestId('UserProfileScreen')).toBeVisible();
 
   // Verify ~ten can see all of ~zod's custom profile data
   await expect(tenPage.getByText('Zod Testing nickname').first()).toBeVisible();
@@ -101,7 +101,7 @@ test('should allow viewing and syncing profiles across ships', async ({
 
   // ~ten should appear with their nickname
   await zodPage.getByText('Ten Own Nickname').first().click();
-  await expect(zodPage.getByText('Profile')).toBeVisible();
+  await expect(zodPage.getByTestId('UserProfileScreen')).toBeVisible();
 
   // Verify ~zod can see all of ~ten's custom profile data
   await expect(zodPage.getByText('Ten Own Nickname').first()).toBeVisible();
