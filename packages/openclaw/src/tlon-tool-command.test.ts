@@ -21,6 +21,7 @@ import {
   createTlonToolExecutor,
   formatTlonToolDescription,
   formatTlonToolHelp,
+  isHeartbeatOwnerRead,
   isMutatingTlonCommand,
   normalizeTlonCommandArgs,
   redactTlonCommand,
@@ -1928,6 +1929,8 @@ describe('model-facing identity guidance', () => {
       );
       for (const marker of [
         "owner's own words in the current message",
+        'with one exception: the heartbeat reads activity mentions|replies|unreads|all',
+        'message, cron, delegation, shell and Tlon writes are blocked for the rest of that run',
         'groups create-owned "Name" --admin <your ship>',
         '--self groups create-owned "Name" --admin <owner>',
       ]) {
@@ -1936,7 +1939,11 @@ describe('model-facing identity guidance', () => {
       }
       expect(description).toContain('mark-read');
       expect(help).toContain('mark-read');
-      for (const marker of ['Owner or bot:', 'Put --self before the command']) {
+      for (const marker of [
+        'Owner or bot:',
+        'Put --self before the command',
+        '--self messages dm <owner> is your own conversation with the owner',
+      ]) {
         if (ownerDefault) expect(help).toContain(marker);
         else expect(help).not.toContain(marker);
       }
@@ -1978,6 +1985,50 @@ describe('model-facing identity guidance', () => {
         expect(entry.toolGuidance, name).not.toMatch(identityClaim);
       }
     }
+  });
+});
+
+describe('heartbeat owner reads', () => {
+  it.each([
+    'activity mentions',
+    'activity replies --limit 5',
+    'activity unreads',
+    'activity unread',
+    'activity all',
+    'messages dm ~bus',
+    'messages channel chat/~h/general',
+    'messages history chat/~h/general',
+    'messages context chat/~h/general 170.1',
+    'channels dms',
+    'channels group-dms',
+    'channels groups',
+    'channels all',
+    'tlon activity mentions',
+  ])('allows %s as the owner', (command) => {
+    expect(isHeartbeatOwnerRead(command)).toBe(true);
+  });
+
+  it.each([
+    ['--self activity mentions', 'a --self prefix'],
+    ['tlon --self activity mentions', 'a --self after the executable'],
+    ['activity mentions --self', "the activity read's own --self"],
+    ['activity mentions --limit 5 --self', 'a --self after a value option'],
+    ['--config /x.json activity mentions', 'a credential flag'],
+    ['--ship ~nec activity mentions', 'a credential flag'],
+    ['help activity', 'help'],
+    ['activity mentions --help', 'a help token'],
+    ['channels list', 'an invalid operation'],
+    ['nonsense mentions', 'an unknown family'],
+    ['messages search hello', 'a read outside the allowlist'],
+    ['channels info chat/~h/general', 'a read outside the allowlist'],
+    ['contacts self', 'a read outside the allowlist'],
+    ['groups list', 'a read outside the allowlist'],
+    ['activity volume chat/~h/general', 'an activity setting'],
+    ['activity mark-read', 'a write'],
+    ['posts send ~bus hi', 'a write'],
+    ['dms send ~bus hi', 'a write'],
+  ])('refuses %s (%s)', (command) => {
+    expect(isHeartbeatOwnerRead(command)).toBe(false);
   });
 });
 
