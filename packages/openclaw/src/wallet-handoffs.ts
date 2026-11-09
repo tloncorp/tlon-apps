@@ -171,7 +171,9 @@ export function createWalletHandoffs(deps: {
                 ? 'Link is now connected. Continue the original task, inspect the current checkout and request separate payment approval for the verified purchase. Connecting Link is not authorization to spend.'
                 : status === 'ready'
                   ? 'The owner approved the reviewed purchase. Read payment_source from payment_status. For site_saved, skip payment-field inspection and filling: use the selected method already saved on the site. For link, fill the approved checkout. Inspect and verify the merchant, items, total, selected payment method and destination still match, then submit once and verify the result from the page. No second approval is needed for the unchanged order. Respect any original fill-only or no-purchase boundary. If the order changed, obtain fresh approval. If submission is ambiguous, inspect the page or order history without resubmitting. Report completion only after seeing an order confirmation; otherwise report what remains unresolved.'
-                  : 'Approval or filling does not mean a purchase succeeded. If cancelled, expired, failed or unknown, do not repeat payment authorization or fill; report the outcome and wait for the owner.'
+                  : status === 'unknown'
+                    ? 'The payment outcome is uncertain. Use ordinary browser tools to inspect the existing checkout or order history; the fill may already have written card fields. Continue only if the page establishes the next step and it remains within the owner’s original purchase approval and task boundaries. Do not repeat payment authorization or fill automatically. If submission may already have happened, verify the outcome without resubmitting. Report unresolved uncertainty and ask the owner when needed.'
+                    : 'Approval or filling does not mean a purchase succeeded. If cancelled, expired or failed, do not repeat payment authorization or fill; report the outcome and wait for the owner.'
             }`,
           });
           await deps.store.delete(key);
