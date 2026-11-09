@@ -189,9 +189,12 @@ export function UserProfileScreenView(props: Props) {
             <BlockedNote userId={props.userId} />
           ) : null}
 
-          {/* Your own bot needs no row saying so. */}
-          {ownerId && ownerId !== currentUserId ? (
-            <OwnerRow ownerId={ownerId} onPress={props.onPressUserProfile} />
+          {ownerId ? (
+            <OwnerRow
+              ownerId={ownerId}
+              isYours={ownerId === currentUserId}
+              onPress={props.onPressUserProfile}
+            />
           ) : null}
 
           {userContact?.status || isOwnProfile ? (
@@ -300,9 +303,11 @@ function BotTag({ onCard }: { onCard?: boolean }) {
 
 function OwnerRow({
   ownerId,
+  isYours,
   onPress,
 }: {
   ownerId: string;
+  isYours: boolean;
   onPress: (contactId: string) => void;
 }) {
   const handlePress = useCallback(() => {
@@ -326,11 +331,15 @@ function OwnerRow({
       >
         <ContactAvatar contactId={ownerId} size="$4xl" />
         <YStack flex={1} minWidth={0} gap="$m">
-          <Text size="$label/l" numberOfLines={1}>
-            <ContactName contactId={ownerId} expandLongIds />
-          </Text>
+          {isYours ? (
+            <Text size="$label/l">This is your bot</Text>
+          ) : (
+            <Text size="$label/l" numberOfLines={1}>
+              <ContactName contactId={ownerId} expandLongIds />
+            </Text>
+          )}
           <Text size="$label/m" color="$secondaryText">
-            Owns this bot
+            {isYours ? 'Only you can change how it works' : 'Owns this bot'}
           </Text>
         </YStack>
       </XStack>
