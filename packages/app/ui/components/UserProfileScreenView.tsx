@@ -1072,6 +1072,9 @@ function ProfileActionCircles({
       ) : null}
       <ActionCircle
         icon="ArrowRef"
+        // ArrowRef fills more of its box than the other glyphs; drawn at 24
+        // it matches their weight and the design's Share arrow.
+        iconSize={24}
         label="Share"
         onPress={actions.onShare}
         testID="ProfileShareButton"
@@ -1082,12 +1085,14 @@ function ProfileActionCircles({
 
 function ActionCircle({
   icon,
+  iconSize = 32,
   label,
   hero,
   onPress,
   testID,
 }: {
   icon: IconType;
+  iconSize?: number;
   label: string;
   hero?: boolean;
   onPress?: () => void;
@@ -1114,7 +1119,7 @@ function ActionCircle({
       >
         <Icon
           type={icon}
-          customSize={[32, 32]}
+          customSize={[32, iconSize]}
           color={hero ? '$background' : '$primaryText'}
         />
       </Pressable>
