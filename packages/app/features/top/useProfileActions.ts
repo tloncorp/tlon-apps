@@ -27,6 +27,7 @@ export function useProfileActions({
   const { data: contact } = store.useContact({ id: userId });
   const { data: dmChannel } = store.useChannel({ id: userId });
   const { data: volume } = store.useChannelVolumeLevel(userId);
+  const baseVolume = store.useBaseVolumeLevel();
   const inviteLink = db.personalInviteLink.useValue();
   const { doCopy } = useCopy(userId);
   const showToast = useToast();
@@ -54,11 +55,14 @@ export function useProfileActions({
     if (!dmChannel) {
       return;
     }
+    // Clearing the override unmutes only when the default isn't muted too;
+    // otherwise the DM needs a level of its own.
+    const unmutedLevel = baseVolume === 'hush' ? 'medium' : null;
     store.setChannelVolumeLevel({
       channel: dmChannel,
-      level: isMuted ? null : 'hush',
+      level: isMuted ? unmutedLevel : 'hush',
     });
-  }, [dmChannel, isMuted]);
+  }, [baseVolume, dmChannel, isMuted]);
 
   const handleToggleBlock = useCallback(async () => {
     if (isBlocked) {
