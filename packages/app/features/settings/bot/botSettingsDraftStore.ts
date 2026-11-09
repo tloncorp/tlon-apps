@@ -19,7 +19,6 @@ export const EMPTY_VALUES: BotSettingsDraftValues = {
     dmAllowlist: '',
     defaultAuthorizedShips: '',
     groupInviteAllowlist: '',
-    autoAcceptDmInvites: false,
     autoDiscoverChannels: false,
     channelRuleDrafts: {},
   },
@@ -73,8 +72,6 @@ export const getPendingFields = (
     baseline.chat.defaultAuthorizedShips !== draft.chat.defaultAuthorizedShips,
   groupInviteAllowlist:
     baseline.chat.groupInviteAllowlist !== draft.chat.groupInviteAllowlist,
-  autoAcceptDmInvites:
-    baseline.chat.autoAcceptDmInvites !== draft.chat.autoAcceptDmInvites,
   autoDiscoverChannels:
     baseline.chat.autoDiscoverChannels !== draft.chat.autoDiscoverChannels,
   channelRules:

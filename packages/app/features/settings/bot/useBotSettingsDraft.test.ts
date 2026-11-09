@@ -14,7 +14,6 @@ const noPending: BotSettingsPendingFields = {
   dmAllowlist: false,
   defaultAuthorizedShips: false,
   groupInviteAllowlist: false,
-  autoAcceptDmInvites: false,
   autoDiscoverChannels: false,
   channelRules: false,
 };

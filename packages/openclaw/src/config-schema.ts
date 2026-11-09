@@ -121,7 +121,7 @@ export const TlonAccountSchema = z.object({
   responsePrefix: z.string().optional(),
   historyLimit: z.number().int().min(0).optional(),
   // Auto-accept settings
-  autoAcceptDmInvites: z.boolean().optional(), // Auto-accept DMs from ships in dmAllowlist
+  autoAcceptDmInvites: z.boolean().optional(), // Accepted for compatibility; no effect: DMs are accepted when the bot first replies
   autoAcceptGroupInvites: z.boolean().optional(), // No longer governs group-invite authorization or channel persistence; it has no remaining runtime effect and is only parsed, migrated, and logged. Retained for config back-compat pending retirement.
   // Owner ship for approval system
   ownerShip: ShipSchema.optional(), // Ship that receives approval requests and can approve/deny
@@ -181,7 +181,7 @@ export const TlonConfigSchema = z.object({
   defaultAuthorizedShips: z.array(ShipSchema).optional(),
   accounts: z.record(z.string(), TlonAccountSchema).optional(),
   // Auto-accept settings
-  autoAcceptDmInvites: z.boolean().optional(), // Auto-accept DMs from ships in dmAllowlist
+  autoAcceptDmInvites: z.boolean().optional(), // Accepted for compatibility; no effect: DMs are accepted when the bot first replies
   autoAcceptGroupInvites: z.boolean().optional(), // No longer governs group-invite authorization or channel persistence; it has no remaining runtime effect and is only parsed, migrated, and logged. Retained for config back-compat pending retirement.
   // Owner ship for approval system
   ownerShip: ShipSchema.optional(), // Ship that receives approval requests and can approve/deny

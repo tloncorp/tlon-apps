@@ -3,7 +3,6 @@ import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 export type TlonbotSettingUpdatedProperties = {
   setting:
     | 'api_key'
-    | 'auto_accept_dm_invites'
     | 'auto_discover_channels'
     | 'channel_rules'
     | 'connected_service'

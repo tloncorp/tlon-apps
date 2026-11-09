@@ -183,7 +183,7 @@ channels:
             - '~another-ship'
 
         # Auto-accept settings
-        autoAcceptDmInvites: true # Accept DMs from ships in dmAllowlist
+        autoAcceptDmInvites: true # Accepted for compatibility but has no effect: DMs are accepted when the bot first replies.
         autoAcceptGroupInvites: false # Legacy: no longer governs group-invite authorization or channel persistence; it has no remaining runtime effect and is only parsed, migrated, and logged. Retained for config back-compat pending retirement.
 
         # Ships allowed to invite the bot to groups (auto-accepted unless blocked)
