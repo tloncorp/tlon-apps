@@ -42,6 +42,7 @@ import {
 } from '../scenarios/shared/dsl.js';
 import {
   buildCommonScenarioEnv,
+  buildHermesLcmEnv,
   buildHermesSmokeEnv,
   buildOpenClawPackageTestEnv,
 } from './test-env.js';
@@ -357,20 +358,22 @@ async function runHermesSmoke(ctx: RuntimeContext): Promise<void> {
 }
 
 async function runHermesLcmScenario(ctx: RuntimeContext): Promise<void> {
-  const result = await runCommand(
-    'pnpm',
-    [
-      'exec',
-      'vitest',
-      'run',
-      '--config',
-      'vitest.e2e.config.ts',
-      'src/scenarios/hermes-lcm.test.ts',
-    ],
-    {
-      cwd: path.join(ctx.repoRoot, 'packages/tlon-bot-e2e'),
-      env: buildHermesSmokeEnv(ctx),
-    }
+  const result = await withRuntimeContextFile(ctx, async (contextFile) =>
+    runCommand(
+      'pnpm',
+      [
+        'exec',
+        'vitest',
+        'run',
+        '--config',
+        'vitest.e2e.config.ts',
+        'src/scenarios/hermes-lcm.test.ts',
+      ],
+      {
+        cwd: path.join(ctx.repoRoot, 'packages/tlon-bot-e2e'),
+        env: buildHermesLcmEnv(ctx, contextFile),
+      }
+    )
   );
   if (result.exitCode !== 0) {
     throw new Error(`Hermes LCM vitest failed with exit ${result.exitCode}`);
