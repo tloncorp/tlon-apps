@@ -1,4 +1,4 @@
-import { Icon, Pressable, Text } from '@tloncorp/ui';
+import { Pressable, Text } from '@tloncorp/ui';
 import * as Clipboard from 'expo-clipboard';
 import { useCallback } from 'react';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
@@ -105,6 +105,7 @@ export function FirstRunApiKeyScreen({
                       height={44}
                       alignItems="center"
                       justifyContent="center"
+                      paddingHorizontal="$xs"
                       opacity={checking && !selected ? 0.5 : 1}
                       backgroundColor={
                         selected ? '$positiveBackground' : '$background'
@@ -112,25 +113,23 @@ export function FirstRunApiKeyScreen({
                       borderLeftWidth={index === 0 ? 0 : 1}
                       borderColor="$border"
                     >
-                      <XStack alignItems="center" gap="$xs">
-                        {selected ? (
-                          <Icon
-                            type="Checkmark"
-                            customSize={[12, 12]}
-                            color="$positiveActionText"
-                          />
-                        ) : null}
-                        <Text
-                          fontSize={14}
-                          lineHeight={20}
-                          fontWeight={selected ? '500' : '400'}
-                          color={
-                            selected ? '$positiveActionText' : '$primaryText'
-                          }
-                        >
-                          {option.label}
-                        </Text>
-                      </XStack>
+                      {/* Four equal segments leave about 90pt each on a
+                          402pt phone, too narrow for "OpenRouter" plus a
+                          checkmark. The fill marks the selection, and the
+                          label shrinks rather than clipping when narrower. */}
+                      <Text
+                        fontSize={14}
+                        lineHeight={20}
+                        fontWeight={selected ? '500' : '400'}
+                        color={
+                          selected ? '$positiveActionText' : '$primaryText'
+                        }
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.75}
+                      >
+                        {option.label}
+                      </Text>
                     </View>
                   </Pressable>
                 );

@@ -1309,7 +1309,7 @@ describe('agent onboarding requests', () => {
     for (const line of [
       "Here's what I can do:",
       '• Answer questions and look things up',
-      '• Join a group to help you and your people',
+      '• Create or join a workspace to help you and your people',
       '• Keep an eye on something and report back on a schedule',
       'You choose which AI model I run on in settings.',
     ]) {
