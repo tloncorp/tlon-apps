@@ -214,10 +214,10 @@ def strip_leading_self(args: Sequence[str]) -> list[str]:
     """Drop ``--self`` before the command family.
 
     Shared prompts write bot-identity commands as ``--self <family> ...`` for
-    the OpenClaw plugin, which can also act as the owner. This tool only ever
-    acts as the bot, and the CLI's global parser does not know ``--self``, so
-    the prefix token is removed. A ``--self`` after the family is an operation
-    argument and stays.
+    the OpenClaw plugin, which can also act as the owner. The CLI's global
+    parser does not know ``--self``, so the prefix token is removed from the
+    argv; the caller still treats it as an opt-out of every owner routing. A
+    ``--self`` after the family is an operation argument and stays.
     """
     out = [str(arg) for arg in args]
     while True:
@@ -1320,6 +1320,7 @@ async def route_create_owned(
     args: Sequence[str],
     runner: Optional[CommandRunner] = None,
     env: Mapping[str, str] | None = None,
+    self_requested: bool = False,
 ) -> OwnerRouting:
     """Every create-owned goes through here. One for the configured owner runs
     as the owner, rebuilt from what the CLI would read: the title,
@@ -1339,7 +1340,9 @@ async def route_create_owned(
     # refuses.
     if bot and bot.lower() == owner.lower() and _names_own_ship_admin(args, bot):
         return OwnerRouting(cfg, _as_plain_create(args))
-    if not should_create_workspace_on_owner(args, cfg.owner_ship):
+    if self_requested or not should_create_workspace_on_owner(
+        args, cfg.owner_ship
+    ):
         return OwnerRouting(cfg, as_written)
     if not bot:
         return OwnerRouting(cfg, as_written)
@@ -1411,7 +1414,9 @@ async def execute_tlon_tool(
     args, parse_error = split_tlon_command(command_text)
     if parse_error:
         return _json({"error": f"Could not parse tlon command: {parse_error}"})
-    args = normalize_global_command_args(strip_leading_self(args))
+    stripped = strip_leading_self(args)
+    self_requested = len(stripped) != len(args)
+    args = normalize_global_command_args(stripped)
 
     cfg = config or TlonConfig.from_env()
     blocked = check_tlon_tool_command(
@@ -1441,16 +1446,22 @@ async def execute_tlon_tool(
         )
 
     routing_note: Optional[str] = None
-    if should_inject_owner_credentials(args):
+    if not self_requested and should_inject_owner_credentials(args):
         owner_cfg, owner_error = owner_invite_link_config(cfg)
         if owner_error:
             return _json({"error": owner_error})
         cfg = owner_cfg
     elif _is_create_owned(args):
-        cfg, args, routing_note = await route_create_owned(cfg, args, runner=runner)
-    elif should_create_channel_on_owner(args, cfg.owner_ship):
+        cfg, args, routing_note = await route_create_owned(
+            cfg, args, runner=runner, self_requested=self_requested
+        )
+    elif not self_requested and should_create_channel_on_owner(
+        args, cfg.owner_ship
+    ):
         cfg, args, routing_note = route_channel_to_owner(cfg, args)
-    elif should_delete_group_on_owner(args, cfg.owner_ship):
+    elif not self_requested and should_delete_group_on_owner(
+        args, cfg.owner_ship
+    ):
         cfg, args, routing_note = route_group_delete_to_owner(cfg, args)
 
     # Lazy import keeps this module importable standalone (no cycle at load).

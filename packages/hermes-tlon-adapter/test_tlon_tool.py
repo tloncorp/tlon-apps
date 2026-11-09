@@ -1637,6 +1637,54 @@ class TlonToolExecutionTests(unittest.TestCase):
             ],
         )
 
+    def test_leading_self_keeps_owner_routed_commands_on_the_bot(self):
+        # The leading --self is gone from the argv, but it still opts out of
+        # every owner routing, as it does in the OpenClaw plugin.
+        calls = []
+        cfg = _bot_config(TLON_COOKIE=BOT_COOKIE)
+
+        async def runner(argv, run_env, timeout, _on_deadline):
+            calls.append((tuple(argv), dict(run_env)))
+            if "--help" in argv:
+                return tlon_api.TlonProcessResult(
+                    returncode=0, stdout=CREATE_OWNED_HELP_WITH_ADMIN
+                )
+            return tlon_api.TlonProcessResult(returncode=0, stdout="ok\n")
+
+        cases = {
+            "--self groups delete ~owner/team": (
+                "groups", "delete", "~owner/team",
+            ),
+            "--self groups create-owned Team --admin ~owner": (
+                "groups", "create-owned", "Team", "--owner", "~owner",
+            ),
+            "--self channels create ~owner/team Discussion": (
+                "channels", "create", "~owner/team", "Discussion",
+            ),
+            "--self groups invite-link ~owner/team": (
+                "groups", "invite-link", "~owner/team",
+            ),
+        }
+        for command, expected in cases.items():
+            with self.subTest(command=command):
+                calls.clear()
+
+                async def run():
+                    return await tlon_tool.execute_tlon_tool(
+                        {"command": command}, config=cfg, runner=runner
+                    )
+
+                with patch.dict(os.environ, OWNER_ENV, clear=False):
+                    payload = json.loads(asyncio.run(run()))
+
+                self.assertTrue(payload["success"], payload)
+                self.assertNotIn("note", payload)
+                self.assertEqual(len(calls), 1)
+                argv, run_env = calls[0]
+                self.assertEqual(argv[1:], expected)
+                self.assertEqual(run_env["TLON_SHIP"], "~bot")
+                self.assertEqual(run_env["TLON_CODE"], BOT_CODE)
+
     def test_execute_tlon_tool_reports_parse_error(self):
         payload = json.loads(
             asyncio.run(tlon_tool.execute_tlon_tool({"command": 'contacts "unterminated'}))
