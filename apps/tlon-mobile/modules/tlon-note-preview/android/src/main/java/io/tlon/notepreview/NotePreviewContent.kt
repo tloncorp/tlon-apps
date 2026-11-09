@@ -88,6 +88,7 @@ fun NotePreviewContent(
   callbacks: NotePreviewCallbacks
 ) {
   val density = LocalDensity.current
+  val markerWidths = rememberMarkerWidths(blocks, theme)
   // One container, so a single selection spans every block.
   SelectionContainer {
     Column(
@@ -103,7 +104,7 @@ fun NotePreviewContent(
             !(block as NoteBlock.Text).listStart
           Spacer(Modifier.height(if (listRun) ListItemGap else BlockGap))
         }
-        NoteBlockView(block, theme, callbacks)
+        NoteBlockView(block, markerWidths[index], theme, callbacks)
       }
     }
   }
@@ -111,10 +112,45 @@ fun NotePreviewContent(
 
 private fun isListItem(block: NoteBlock) = block is NoteBlock.Text && block.indent != null
 
+// A list's markers share one column, as wide as its widest marker at the
+// current text size, so "10." fits and the items stay aligned.
 @Composable
-private fun NoteBlockView(block: NoteBlock, theme: NoteTheme, callbacks: NotePreviewCallbacks) {
+private fun rememberMarkerWidths(blocks: List<NoteBlock>, theme: NoteTheme): List<Dp?> {
+  val measurer = rememberTextMeasurer()
+  val density = LocalDensity.current
+  return remember(blocks, theme, density) {
+    var run = 0
+    val levels = blocks.map { block ->
+      if (block !is NoteBlock.Text || block.indent == null || block.listStart) run++
+      if (block is NoteBlock.Text && block.indent != null && block.marker != null) {
+        run to block.indent
+      } else {
+        null
+      }
+    }
+    val widest = mutableMapOf<Pair<Int, Int>, Dp>()
+    blocks.forEachIndexed { index, block ->
+      val level = levels[index] ?: return@forEachIndexed
+      block as NoteBlock.Text
+      val width = with(density) {
+        measurer.measure(block.marker!!, textStyleFor(block.style, theme), softWrap = false)
+          .size.width.toDp()
+      }
+      widest[level] = maxOf(widest[level] ?: MarkerWidth * density.fontScale, width)
+    }
+    levels.map { level -> level?.let(widest::getValue) }
+  }
+}
+
+@Composable
+private fun NoteBlockView(
+  block: NoteBlock,
+  markerWidth: Dp?,
+  theme: NoteTheme,
+  callbacks: NotePreviewCallbacks
+) {
   when (block) {
-    is NoteBlock.Text -> TextBlockView(block, theme, callbacks)
+    is NoteBlock.Text -> TextBlockView(block, markerWidth, theme, callbacks)
     is NoteBlock.Code -> CodeBlockView(block, theme)
     is NoteBlock.Image -> RemoteImage(
       src = block.src,
@@ -203,7 +239,12 @@ private fun annotated(
 }
 
 @Composable
-private fun TextBlockView(block: NoteBlock.Text, theme: NoteTheme, callbacks: NotePreviewCallbacks) {
+private fun TextBlockView(
+  block: NoteBlock.Text,
+  markerWidth: Dp?,
+  theme: NoteTheme,
+  callbacks: NotePreviewCallbacks
+) {
   val text = remember(block, theme) { annotated(block.runs, theme, callbacks) }
   val style = textStyleFor(block.style, theme)
   when {
@@ -218,8 +259,8 @@ private fun TextBlockView(block: NoteBlock.Text, theme: NoteTheme, callbacks: No
       BasicText(text, Modifier.weight(1f), style = style)
     }
     block.indent != null -> Row(Modifier.padding(start = IndentStep * block.indent)) {
-      if (block.marker != null) {
-        BasicText(block.marker, Modifier.width(MarkerWidth), style = style)
+      if (block.marker != null && markerWidth != null) {
+        BasicText(block.marker, Modifier.width(markerWidth), style = style, softWrap = false)
         Spacer(Modifier.width(MarkerGap))
       }
       BasicText(text, Modifier.weight(1f), style = style)

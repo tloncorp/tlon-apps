@@ -56,6 +56,7 @@ struct NoteAttributedBuilder {
     let output = NSMutableAttributedString()
     var codeBlocks: [(range: NSRange, text: String)] = []
     var previousWasListItem = false
+    let markerColumns = markerColumns(blocks)
 
     for (index, block) in blocks.enumerated() {
       var isListItem = false
@@ -82,7 +83,10 @@ struct NoteAttributedBuilder {
 
       switch block {
       case .text(let style, let runs, let indent, let marker, _):
-        output.append(textBlock(style: style, runs: runs, indent: indent, marker: marker, spacingBefore: spacingBefore))
+        output.append(
+          textBlock(
+            style: style, runs: runs, indent: indent, marker: marker,
+            markerColumn: markerColumns[index], spacingBefore: spacingBefore))
       case .code(let runs):
         let start = output.length
         let block = codeBlock(runs: runs, spacingBefore: spacingBefore)
@@ -149,8 +153,38 @@ struct NoteAttributedBuilder {
 
   // MARK: Text
 
+  // A list's markers share one column, as wide as its widest marker at the
+  // current text size, so "10." fits and the items stay aligned.
+  private func markerColumns(_ blocks: [NoteBlock]) -> [Int: CGFloat] {
+    struct ListLevel: Hashable {
+      let run: Int
+      let indent: Int
+    }
+    let attributes: [NSAttributedString.Key: Any] = [
+      .font: UIFont.systemFont(ofSize: NoteMetrics.bodySize * fontScale),
+      .kern: NoteMetrics.bodyKern,
+    ]
+    var run = 0
+    var levels: [Int: ListLevel] = [:]
+    var widest: [ListLevel: CGFloat] = [:]
+    for (index, block) in blocks.enumerated() {
+      guard case .text(_, _, let indent?, let marker, let listStart) = block else {
+        run += 1
+        continue
+      }
+      if listStart { run += 1 }
+      guard let marker else { continue }
+      let level = ListLevel(run: run, indent: indent)
+      levels[index] = level
+      let width = ceil((marker as NSString).size(withAttributes: attributes).width)
+      widest[level] = max(widest[level] ?? NoteMetrics.markerColumn * fontScale, width)
+    }
+    return levels.mapValues { widest[$0]! }
+  }
+
   private func textBlock(
-    style: String, runs: [NoteRun], indent: Int?, marker: String?, spacingBefore: CGFloat
+    style: String, runs: [NoteRun], indent: Int?, marker: String?, markerColumn: CGFloat?,
+    spacingBefore: CGFloat
   ) -> NSAttributedString {
     let size: CGFloat
     let bold: Bool
@@ -180,8 +214,8 @@ struct NoteAttributedBuilder {
     if let indent {
       let start = CGFloat(indent) * NoteMetrics.listIndent * fontScale
       paragraph.firstLineHeadIndent = start
-      if let marker {
-        let contentStart = start + (NoteMetrics.markerColumn + 6) * fontScale
+      if let marker, let markerColumn {
+        let contentStart = start + markerColumn + 6 * fontScale
         paragraph.headIndent = contentStart
         paragraph.tabStops = [NSTextTab(textAlignment: .left, location: contentStart)]
         prefix = "\(marker)\t"
