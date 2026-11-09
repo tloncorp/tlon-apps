@@ -65,7 +65,7 @@ test('should manage contacts and edit contact nicknames', async ({
   // Part 2: ~ten adds ~zod as a contact and edits their profile
   // Set up ~zod's profile first so ~ten has something to see
   await zodPage.getByTestId('AvatarNavIcon').click();
-  await zodPage.getByText('You').click();
+  await zodPage.getByText('You', { exact: true }).click();
   await expect(zodPage.getByTestId('UserProfileScreen')).toBeVisible();
   await zodPage.getByTestId('ContactEditButton').click();
   await expect(zodPage.getByText('Edit Profile')).toBeVisible();

@@ -2461,7 +2461,7 @@ export async function cleanupOwnProfile(page: Page) {
   await expect(page.getByText('Contacts')).toBeVisible({ timeout: 5000 });
 
   // Check if "You" is visible, if not we might already be on profile
-  const youButton = page.getByText('You');
+  const youButton = page.getByText('You', { exact: true });
   if (await youButton.isVisible({ timeout: 2000 }).catch(() => false)) {
     await youButton.click();
   }
@@ -2599,7 +2599,7 @@ export async function removeContact(page: Page, shipId: string) {
     // Check if this is the "You" contact (skip removal)
     if (
       await contactElement
-        .getByText('You')
+        .getByText('You', { exact: true })
         .isVisible({ timeout: 2000 })
         .catch(() => false)
     ) {
