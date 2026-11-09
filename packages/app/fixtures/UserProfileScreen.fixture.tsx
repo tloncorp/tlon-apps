@@ -10,6 +10,7 @@ import { View, useTheme } from 'tamagui';
 import { nativeHeaderPresentationOptions } from '../navigation/nativeHeaderOptions';
 import {
   AppDataContextProvider,
+  type ProfileActions,
   ScreenHeader,
   UserProfileScreenView,
 } from '../ui';
@@ -69,6 +70,14 @@ const exampleContacts: Record<string, db.Contact> = {
     botInfo: JSON.stringify({ v: 1, harness: 'openclaw', version: '0.19.0' }),
     botLiveness: JSON.stringify({ v: 1, state: 'online' }),
   },
+  blocked: {
+    id: '~ravmel-ropdyl',
+    nickname: 'galen',
+    color: faker.color.rgb(),
+    status: 'Sketching bot profiles',
+    bio: 'Designer at Tlon. Mostly here for the gardening channel.',
+    isBlocked: true,
+  },
   // Its owner, ~finned-palmer, has no contact record.
   botWithUnknownOwner: {
     id: '~pinser-botter-finned-palmer',
@@ -80,14 +89,20 @@ const noop = () => {};
 function ProfileScreenFixture({
   contactId,
   viewerId,
+  self,
 }: {
   contactId: string;
   /** Who is looking, when not ~zod: the owner, for their own bot. */
   viewerId?: string;
+  /** Looking at your own profile. */
+  self?: boolean;
 }) {
-  const [isCurrentUser] = useFixtureInput('isCurrentUser', false);
+  const [isCurrentUserInput] = useFixtureInput('isCurrentUser', false);
+  const isCurrentUser = self || isCurrentUserInput;
   const [userId, setUserId] = useState(contactId);
   const ownsBot = !!viewerId && api.getBotOwnerId(userId) === viewerId;
+  const actions = useFixtureActions(exampleContacts, userId);
+  const canEdit = isCurrentUser || ownsBot;
 
   return (
     <FullScreen>
@@ -95,10 +110,13 @@ function ProfileScreenFixture({
         currentUserId={isCurrentUser ? contactId : (viewerId ?? '~zod')}
         contacts={Object.values(exampleContacts)}
       >
-        <ProfileSurface>
+        <ProfileSurface canEdit={canEdit}>
           <UserProfileScreenView
             userId={userId}
             connectionStatus={{ complete: true, status: 'yes' }}
+            actions={isCurrentUser ? undefined : actions}
+            onPressStatus={isCurrentUser ? noop : undefined}
+            onPressBio={isCurrentUser ? noop : undefined}
             onPressGroup={() => {
               console.log('group pressed');
             }}
@@ -113,15 +131,51 @@ function ProfileScreenFixture({
   );
 }
 
-/** The profile as the app shows it: the Profile header over the view. */
-function ProfileSurface({ children }: { children: ReactNode }) {
+/** Circles that change state when pressed, as the screen's would. */
+function useFixtureActions(
+  contacts: Record<string, db.Contact>,
+  userId: string
+): ProfileActions {
+  const contact = Object.values(contacts).find((c) => c.id === userId);
+  const [isContact, setIsContact] = useState(!!contact?.isContact);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(!!contact?.isBlocked);
+  return {
+    isBlocked,
+    isContact,
+    isMuted,
+    canMute: true,
+    onMessage: noop,
+    onToggleContact: () => setIsContact((v) => !v),
+    onToggleMute: () => setIsMuted((v) => !v),
+    onToggleBlock: () => setIsBlocked((v) => !v),
+    onShare: noop,
+  };
+}
+
+/** The profile as the app shows it: its top bar over the view. */
+function ProfileSurface({
+  canEdit,
+  children,
+}: {
+  canEdit: boolean;
+  children: ReactNode;
+}) {
   const theme = useTheme();
   return (
     <View flex={1} backgroundColor={theme.secondaryBackground.val}>
       <ScreenHeader
-        title="Profile"
         backgroundColor={theme.secondaryBackground.val}
         backAction={noop}
+        rightActions={[
+          { id: 'edit', text: 'Edit', onPress: noop, visible: canEdit },
+          {
+            id: 'more',
+            icon: 'Overflow',
+            label: 'More',
+            items: [{ id: 'copy-id', label: 'Copy ID', onPress: noop }],
+          },
+        ]}
         placement="navigation"
       />
       {children}
@@ -181,6 +235,15 @@ export default {
       contactId={exampleContacts.ownedBot.id}
       viewerId={exampleContacts.botOwner.id}
     />
+  ),
+  'Your profile': (
+    <ProfileScreenFixture contactId={exampleContacts.botOwner.id} self />
+  ),
+  'Your profile, nothing set': (
+    <ProfileScreenFixture contactId={exampleContacts.empty.id} self />
+  ),
+  'Blocked person': (
+    <ProfileScreenFixture contactId={exampleContacts.blocked.id} />
   ),
   'Bot profile, owner not met': (
     <ProfileScreenFixture contactId={exampleContacts.botWithUnknownOwner.id} />

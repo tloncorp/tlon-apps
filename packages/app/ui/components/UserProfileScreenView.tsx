@@ -1118,7 +1118,7 @@ function ActionCircle({
 
 function BlockedNote({ userId }: { userId: string }) {
   return (
-    <PaddedBlock gap="$xs" testID="ProfileBlockedNote">
+    <PaddedBlock gap="$l" testID="ProfileBlockedNote">
       <Text size="$label/l">
         You blocked <ContactName contactId={userId} />
       </Text>
