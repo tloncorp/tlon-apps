@@ -67,6 +67,30 @@ class TlonToolGuardTests(unittest.TestCase):
         self.assertEqual(tlon_tool.find_subcommand_index(args), 4)
         self.assertIsNone(tlon_tool.check_tlon_tool_command(args))
 
+    def test_leading_self_is_stripped_before_the_command_family(self):
+        cases = {
+            "--self contacts update-profile --avatar https://x/a.png": [
+                "contacts", "update-profile", "--avatar", "https://x/a.png",
+            ],
+            "--self upload https://x/a.png": ["upload", "https://x/a.png"],
+            "--config /tmp/zod.json --self contacts self": [
+                "--config", "/tmp/zod.json", "contacts", "self",
+            ],
+            "--self --url=http://x --self contacts self": [
+                "--url=http://x", "contacts", "self",
+            ],
+            "groups invite-link ~zod/g --self": [
+                "groups", "invite-link", "~zod/g", "--self",
+            ],
+        }
+        for command, expected in cases.items():
+            with self.subTest(command=command):
+                args, error = tlon_tool.split_tlon_command(command)
+                self.assertIsNone(error)
+                stripped = tlon_tool.strip_leading_self(args)
+                self.assertEqual(stripped, expected)
+                self.assertIsNone(tlon_tool.check_tlon_tool_command(stripped))
+
     def test_first_positional_skips_flag_with_separate_value(self):
         args = (
             "notes",
@@ -1559,6 +1583,59 @@ class TlonToolExecutionTests(unittest.TestCase):
         self.assertTrue(help_payload["success"])
         self.assertTrue(version_payload["success"])
         self.assertEqual(calls, [("tlon-test", "--help"), ("tlon-test", "--version")])
+
+    def test_leading_self_is_dropped_from_the_executed_argv(self):
+        calls = []
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_CLI": "tlon-test",
+            }
+        )
+
+        async def runner(command, env, timeout, _on_deadline):
+            calls.append(tuple(command))
+            return tlon_api.TlonProcessResult(returncode=0, stdout="ok\n")
+
+        commands = [
+            '--self contacts update-profile --nickname "Bot Name"',
+            "--self upload https://example.com/a.png",
+            "--self --config /tmp/zod.json --self contacts self",
+            "groups invite-link ~zod/group --self",
+        ]
+
+        async def run():
+            return [
+                json.loads(
+                    await tlon_tool.execute_tlon_tool(
+                        {"command": command}, config=cfg, runner=runner
+                    )
+                )
+                for command in commands
+            ]
+
+        with patch.dict(os.environ, {}, clear=False):
+            for name in (
+                "HERMES_SESSION_PLATFORM",
+                "HERMES_SESSION_USER_ID",
+                "HERMES_SESSION_CHAT_ID",
+            ):
+                os.environ.pop(name, None)
+            payloads = asyncio.run(run())
+
+        for payload in payloads:
+            self.assertTrue(payload.get("success"), payload)
+        self.assertEqual(
+            [call[1:] for call in calls],
+            [
+                ("contacts", "update-profile", "--nickname", "Bot Name"),
+                ("upload", "https://example.com/a.png"),
+                ("--config", "/tmp/zod.json", "contacts", "self"),
+                ("groups", "invite-link", "~zod/group", "--self"),
+            ],
+        )
 
     def test_execute_tlon_tool_reports_parse_error(self):
         payload = json.loads(

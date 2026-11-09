@@ -108,6 +108,8 @@ TLON_TOOL_DESCRIPTION = (
     "image URL or local image first with tlon upload, then set the returned "
     "uploaded URL. Use image_search when available to find image URLs for "
     "user-requested avatars/covers. Do not use SVG profile images. "
+    "A leading --self (e.g. --self upload <url>) is accepted and means act "
+    "as this bot, which is the only identity this tool uses. "
     "For exact syntax, load skill_view(\"tlon-platform:tlon\") or run "
     "'<subcommand> --help'. "
     "For user-requested group creation, use groups create-owned with "
@@ -206,6 +208,23 @@ def split_tlon_command(command: str) -> tuple[list[str], Optional[str]]:
     except ValueError as exc:
         return [], str(exc)
     return args, None
+
+
+def strip_leading_self(args: Sequence[str]) -> list[str]:
+    """Drop ``--self`` before the command family.
+
+    Shared prompts write bot-identity commands as ``--self <family> ...`` for
+    the OpenClaw plugin, which can also act as the owner. This tool only ever
+    acts as the bot, and the CLI's global parser does not know ``--self``, so
+    the prefix token is removed. A ``--self`` after the family is an operation
+    argument and stays.
+    """
+    out = [str(arg) for arg in args]
+    while True:
+        idx = find_subcommand_index(out)
+        if idx < 0 or out[idx] != "--self":
+            return out
+        del out[idx]
 
 
 def normalize_global_command_args(args: Sequence[str]) -> list[str]:
@@ -1392,7 +1411,7 @@ async def execute_tlon_tool(
     args, parse_error = split_tlon_command(command_text)
     if parse_error:
         return _json({"error": f"Could not parse tlon command: {parse_error}"})
-    args = normalize_global_command_args(args)
+    args = normalize_global_command_args(strip_leading_self(args))
 
     cfg = config or TlonConfig.from_env()
     blocked = check_tlon_tool_command(
