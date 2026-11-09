@@ -19,10 +19,11 @@ import { ConnectServicesScreen } from './ConnectServicesScreen';
 import { FirstRunApiKeyScreen } from './FirstRunApiKeyScreen';
 import { FirstRunIntroScreen } from './FirstRunIntroScreen';
 import { FirstRunSetupScreen } from './FirstRunSetupScreen';
-import { MakeSpaceScreen } from './MakeSpaceScreen';
+import { StartWorkspaceScreen } from './StartWorkspaceScreen';
 import { firstRunCopy } from './firstRunCopy';
 import {
   API_KEY_PROVIDERS,
+  type FirstRunModelChoiceRow,
   type FirstRunModelRow,
   type FirstRunModelSection,
   INCLUDED_ROW_ID,
@@ -43,8 +44,8 @@ const PREVIOUS_PANE: Partial<Record<FirstRunPane, FirstRunPane>> = {
   subscriptionSignIn: 'model',
   apiKey: 'model',
   apiKeyModel: 'apiKey',
-  space: 'model',
-  setup: 'space',
+  workspace: 'model',
+  setup: 'workspace',
 };
 
 export type FirstRunPane =
@@ -56,7 +57,7 @@ export type FirstRunPane =
   | 'subscriptionSignIn'
   | 'apiKey'
   | 'apiKeyModel'
-  | 'space'
+  | 'workspace'
   | 'setup';
 
 /** Background setup, run by the onboarding bridge. */
@@ -122,9 +123,9 @@ function SubscriptionSignInPane({
 }
 
 /**
- * The five-screen first run after signup. Setup runs in the background the
- * whole time; only "Let's get started" waits for it. Choices stay in place
- * when someone goes back.
+ * The five-screen first run after signup, steps 3 to 7 of onboarding. Setup
+ * runs in the background the whole time; only the last screen's buttons wait
+ * for it. Choices stay in place when someone goes back.
  */
 export function FirstRunSequence({
   setup,
@@ -136,7 +137,8 @@ export function FirstRunSequence({
   setup: FirstRunSetupAdapter;
   services: FirstRunServicesAdapter;
   models: FirstRunModelsAdapter;
-  onOpenChat: () => void;
+  /** Opens the Tlonbot DM; with `invite`, its workspace's invite screen too. */
+  onOpenChat: (options?: { invite?: boolean }) => void;
   initialPane?: FirstRunPane;
 }) {
   const [pane, setPane] = useState<FirstRunPane>(initialPane);
@@ -158,6 +160,11 @@ export function FirstRunSequence({
   const mountedRef = useRef(true);
   const showToast = useToast();
   const [switchRow, setSwitchRow] = useState<FirstRunModelRow | null>(null);
+  const [switchPlans, setSwitchPlans] = useState<FirstRunModelRow[] | null>(
+    null
+  );
+  // Which button on the last screen sent someone to wait for setup.
+  const inviteRef = useRef(false);
   const [switchOpen, setSwitchOpen] = useState(false);
   const [apiKeyProvider, setApiKeyProvider] = useState<string>(
     API_KEY_PROVIDERS[0].id
@@ -207,16 +214,22 @@ export function FirstRunSequence({
   // ready, or once setup runs late and carries on in the background.
   const chatCanOpen = setup.status !== 'running';
   useEffect(() => {
-    if (pane === 'setup' && chatCanOpen) onOpenChat();
+    if (pane === 'setup' && chatCanOpen) {
+      onOpenChat({ invite: inviteRef.current });
+    }
   }, [chatCanOpen, onOpenChat, pane]);
 
-  const handleStart = useCallback(() => {
-    if (chatCanOpen) {
-      onOpenChat();
-    } else {
-      setPane('setup');
-    }
-  }, [chatCanOpen, onOpenChat]);
+  const handleStart = useCallback(
+    (invite: boolean) => {
+      inviteRef.current = invite;
+      if (chatCanOpen) {
+        onOpenChat({ invite });
+      } else {
+        setPane('setup');
+      }
+    },
+    [chatCanOpen, onOpenChat]
+  );
 
   // Switch the bot in the background, one switch at a time so an older one
   // can't save after a newer choice. Only the latest switch counts, and if it
@@ -253,9 +266,26 @@ export function FirstRunSequence({
   );
 
   const handleModelContinue = useCallback(
-    (row: FirstRunModelRow) => {
-      if (row.id === (applyingModelId ?? appliedModelId)) {
-        setPane('space');
+    (choice: FirstRunModelChoiceRow) => {
+      const current = applyingModelId ?? appliedModelId;
+      if (choice.plans) {
+        const onPlan = choice.plans.find((plan) => plan.id === current);
+        if (onPlan) {
+          setPane('workspace');
+          return;
+        }
+        setSwitchPlans(choice.plans);
+        setSwitchRow(
+          choice.plans.find((plan) => plan.id === switchRow?.id) ??
+            choice.plans[0]
+        );
+        setSwitchOpen(true);
+        return;
+      }
+      const row = choice.row;
+      if (!row) return;
+      if (row.id === current) {
+        setPane('workspace');
         return;
       }
       if (row.keepsZdr) {
@@ -266,13 +296,14 @@ export function FirstRunSequence({
           'basic',
           models.includedModelId
         );
-        setPane('space');
+        setPane('workspace');
         return;
       }
+      setSwitchPlans(null);
       setSwitchRow(row);
       setSwitchOpen(true);
     },
-    [appliedModelId, applyChoice, applyingModelId, models]
+    [appliedModelId, applyChoice, applyingModelId, models, switchRow?.id]
   );
 
   const handleSwitchContinue = useCallback(() => {
@@ -319,7 +350,7 @@ export function FirstRunSequence({
       API_KEY_PROVIDERS.find((option) => option.id === keyModels.provider)
         ?.label ?? keyModels.provider;
     applyChoice('api-key', providerName, keyModels.provider, keyModel);
-    setPane('space');
+    setPane('workspace');
   }, [applyChoice, keyModel, keyModels.provider]);
 
   const subscriptionProvider =
@@ -340,31 +371,23 @@ export function FirstRunSequence({
           provider: subscriptionProvider,
         });
       }
-      setPane('space');
+      setPane('workspace');
     },
     [applyChoice, subscriptionProvider, switchRow]
   );
 
-  const status = setup.status;
-
   return (
     <View flex={1} backgroundColor="$background">
       {pane === 'meet' ? (
-        <FirstRunIntroScreen
-          slide={1}
-          status={status}
-          onNext={() => setPane('private')}
-        />
+        <FirstRunIntroScreen slide={1} onNext={() => setPane('private')} />
       ) : pane === 'private' ? (
         <FirstRunIntroScreen
           slide={2}
-          status={status}
           onNext={() => setPane('connect')}
           onBack={goBack}
         />
       ) : pane === 'connect' ? (
         <ConnectServicesScreen
-          status={status}
           unavailable={services.unavailable}
           featured={services.featured}
           attempts={services.attempts}
@@ -381,7 +404,6 @@ export function FirstRunSequence({
         services.renderAllServices(goBack)
       ) : pane === 'model' ? (
         <ChooseModelScreen
-          status={status}
           sections={models.sections}
           selectedId={selectedModelId}
           onSelect={setPickedModelId}
@@ -397,7 +419,6 @@ export function FirstRunSequence({
         />
       ) : pane === 'apiKey' ? (
         <FirstRunApiKeyScreen
-          status={status}
           provider={apiKeyProvider}
           apiKey={apiKey}
           checking={apiKeyChecking}
@@ -421,10 +442,10 @@ export function FirstRunSequence({
           onBackPress={goBack}
           onActionPress={handleSaveKeyModel}
         />
-      ) : pane === 'space' ? (
-        <MakeSpaceScreen
-          status={status}
-          onStart={handleStart}
+      ) : pane === 'workspace' ? (
+        <StartWorkspaceScreen
+          onInvite={() => handleStart(true)}
+          onSkip={() => handleStart(false)}
           onBack={goBack}
         />
       ) : (
@@ -434,6 +455,8 @@ export function FirstRunSequence({
       {switchRow ? (
         <ModelSwitchSheet
           row={switchRow}
+          plans={switchPlans ?? undefined}
+          onPickPlan={setSwitchRow}
           includedName={models.includedName}
           botReady={models.botReady}
           open={switchOpen}

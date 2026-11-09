@@ -1,16 +1,17 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DEFAULT_ONBOARDING_NICKNAME } from '@tloncorp/app/constants';
 import {
-  Field,
-  Image,
-  ScreenHeader,
+  AVATAR_GLYPH_IDS,
+  type AvatarGlyphId,
+  AvatarGlyphPicker,
+  LINE,
+  LineButton,
+  LineStepFrame,
+  Text,
   TextInput,
-  TlonText,
   View,
-  XStack,
   YStack,
   isWeb,
-  useTheme,
 } from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -22,6 +23,8 @@ import {
 import * as store from '@tloncorp/shared/store';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { KeyboardStickyView } from 'react-native-keyboard-controller';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSignupContext } from '../../lib/signupContext';
 import type { OnboardingStackParamList } from '../../types';
@@ -34,15 +37,22 @@ type FormData = {
 
 const logger = createDevLogger('SetNicknameScreen', false);
 
+const NEXT_HEIGHT = 56;
+/** Next rides this far above the keyboard. */
+const NEXT_GAP = 12;
+
+/**
+ * Profile, step 1 of onboarding: pick an avatar glyph, then a name. The pick
+ * is saved as your avatar, and your Tlonbot's, once your computer is ready;
+ * the rest of onboarding draws your Tlonbot in it. Someone reviving an
+ * existing Tlonbot keeps their avatar, so they only see the name.
+ */
 export const SetNicknameScreen = ({ navigation }: Props) => {
-  const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const signupContext = useSignupContext();
   const isTlonbotRevival = signupContext.onboardingFlow === 'tlonbotRevival';
   const isRevivalOnboarding = isTlonbotRevival;
-
-  const facesImage = theme.dark
-    ? require('../../../assets/images/faces-dark.png')
-    : require('../../../assets/images/faces.png');
+  const [glyph, setGlyph] = useState<AvatarGlyphId>(AVATAR_GLYPH_IDS[0]);
 
   // Bumped when the revival prefill lands so the uncontrolled native input
   // remounts and picks up the new defaultValue.
@@ -71,6 +81,9 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
     });
 
     db.splashNickname.setValue(trimmedNickname ?? '');
+    if (!isTlonbotRevival) {
+      db.onboardingAvatar.setValue({ glyph, saved: false });
+    }
 
     if (!isTlonbotRevival) {
       // Once they've decided on a nickname, keep the existing best-effort
@@ -159,51 +172,85 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
     };
   }, [isRevivalOnboarding, setValue]);
 
-  return (
-    <View flex={1} backgroundColor={'$secondaryBackground'}>
-      <ScreenHeader
-        title="Nickname"
-        backgroundColor="$secondaryBackground"
-        rightControls={
-          <ScreenHeader.TextButton disabled={!isValid} onPress={onSubmit}>
-            Next
-          </ScreenHeader.TextButton>
-        }
-      />
-      <YStack gap="$xl" paddingHorizontal="$2xl">
-        <XStack justifyContent="center" paddingTop="$l">
-          <Image height={155} aspectRatio={862 / 609} source={facesImage} />
-        </XStack>
+  const error = errors.nickname?.message;
+  const nextButton = (
+    <LineButton
+      label="Next"
+      onPress={() => onSubmit()}
+      disabled={!isValid}
+      testID="set-nickname-next"
+    />
+  );
 
-        <TlonText.Text size="$body" padding="$xl">
-          Choose the nickname you want to use on the Tlon network.
-        </TlonText.Text>
-        <Controller
-          control={control}
-          name="nickname"
-          rules={{
-            required: 'Please enter a nickname.',
-            minLength: {
-              value: 1,
-              message: 'Please enter a nickname.',
-            },
-            maxLength: {
-              value: 30,
-              message: 'Your nickname is limited to 30 characters',
-            },
-            validate: (value) => {
-              if (!value?.trim()) {
-                return 'Please enter a nickname.';
-              }
-              const result = validateNickname(value.trim(), '');
-              if (!result.isValid) {
-                return getNicknameErrorMessage(result.errorType);
-              }
-              return true;
-            },
+  return (
+    <LineStepFrame
+      step={1}
+      title="Profile"
+      subtitle={
+        isRevivalOnboarding
+          ? 'Choose the name you want to be known as.'
+          : 'Pick an avatar, then choose the name you want to be known as.'
+      }
+      align="top"
+      keyboardBottomOffset={NEXT_HEIGHT + 2 * NEXT_GAP}
+      footer={
+        // Next rides on top of the keyboard while you type, so the avatars and
+        // the field stay where they are.
+        <KeyboardStickyView
+          offset={{
+            closed: 0,
+            opened: Math.max(insets.bottom, 14) + 10 - NEXT_GAP,
           }}
-          render={({ field: { onChange, onBlur, value } }) => (
-            <Field label="Nickname" error={errors.nickname?.message}>
+        >
+          <View paddingHorizontal="$2xl">{nextButton}</View>
+        </KeyboardStickyView>
+      }
+    >
+      {isRevivalOnboarding ? null : (
+        <View marginBottom={24}>
+          <AvatarGlyphPicker value={glyph} onChange={setGlyph} />
+        </View>
+      )}
+      <Controller
+        control={control}
+        name="nickname"
+        rules={{
+          required: 'Please enter a nickname.',
+          minLength: {
+            value: 1,
+            message: 'Please enter a nickname.',
+          },
+          maxLength: {
+            value: 30,
+            message: 'Your name is limited to 30 characters',
+          },
+          validate: (value) => {
+            if (!value?.trim()) {
+              return 'Please enter a nickname.';
+            }
+            const result = validateNickname(value.trim(), '');
+            if (!result.isValid) {
+              return getNicknameErrorMessage(result.errorType);
+            }
+            return true;
+          },
+        }}
+        render={({ field: { onChange, onBlur, value } }) => (
+          <YStack gap={8}>
+            {/* An error takes the label's place: under the field there's no
+                room once the keyboard and Next are up. */}
+            <Text
+              marginHorizontal={40}
+              fontSize={14}
+              lineHeight={20}
+              letterSpacing={-0.187}
+              color={error ? '$negativeActionText' : '$primaryText'}
+              accessibilityLiveRegion={error ? 'polite' : undefined}
+              nativeID="set-nickname-label"
+            >
+              {error ?? 'Your name'}
+            </Text>
+            <View marginHorizontal="$2xl">
               <TextInput
                 key={prefillKey}
                 // Echoing a controlled value back mid-IME-composition
@@ -217,16 +264,28 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
                 onBlur={onBlur}
                 onChangeText={onChange}
                 onSubmitEditing={() => onSubmit()}
-                autoFocus
+                autoFocus={isRevivalOnboarding}
                 autoCapitalize="words"
                 autoComplete="name"
                 returnKeyType="send"
                 enablesReturnKeyAutomatically
+                accessibilityLabelledBy="set-nickname-label"
+                frameStyle={{
+                  borderWidth: LINE,
+                  borderRadius: 12,
+                  paddingLeft: 16,
+                  paddingRight: 12,
+                  borderColor: error ? '$negativeActionText' : '$primaryText',
+                  backgroundColor: error
+                    ? '$negativeBackground'
+                    : '$background',
+                }}
+                testID="set-nickname-input"
               />
-            </Field>
-          )}
-        />
-      </YStack>
-    </View>
+            </View>
+          </YStack>
+        )}
+      />
+    </LineStepFrame>
   );
 };

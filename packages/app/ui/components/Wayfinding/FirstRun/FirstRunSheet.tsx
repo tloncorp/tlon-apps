@@ -25,6 +25,7 @@ export function FirstRunSheet({
   title,
   icon,
   intro,
+  choices,
   rows,
   footnote,
   primaryLabel,
@@ -40,6 +41,8 @@ export function FirstRunSheet({
   title: string;
   icon?: ReactElement;
   intro?: string;
+  /** Options picked inside the sheet, above its facts. */
+  choices?: ReactNode;
   rows: FirstRunSheetRow[];
   footnote?: string;
   primaryLabel: string;
@@ -80,6 +83,7 @@ export function FirstRunSheet({
               {intro}
             </Text>
           ) : null}
+          {choices ?? null}
           <YStack
             backgroundColor="$secondaryBackground"
             borderRadius={22}

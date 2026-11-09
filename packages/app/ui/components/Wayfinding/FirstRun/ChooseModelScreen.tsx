@@ -1,26 +1,34 @@
-import { Icon, Pressable, Text } from '@tloncorp/ui';
+import { Pressable, Text } from '@tloncorp/ui';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { View, XStack, YStack, useTheme } from 'tamagui';
 
-import { FirstRunFrame } from './FirstRunFrame';
-import { FirstRunSheet } from './FirstRunSheet';
-import { firstRunCopy } from './firstRunCopy';
+import { useOnboardingGlyph } from '../../Onboarding/line/AvatarGlyphPicker';
 import {
+  ART_TO_CONTENT_GAP,
+  LineStepFrame,
+} from '../../Onboarding/line/LineStepFrame';
+import { LineIcon } from '../../Onboarding/line/lineIcons';
+import { LINE } from '../../Onboarding/line/lineKit';
+import { ModelArt } from '../../Onboarding/line/onboardingArt';
+import { FirstRunSheet } from './FirstRunSheet';
+import { FIRST_RUN_STEPS, firstRunCopy } from './firstRunCopy';
+import {
+  type FirstRunModelChoiceRow,
   type FirstRunModelRow,
   type FirstRunModelSection,
-  findModelRow,
+  buildModelChoiceRows,
+  modelChoiceRowId,
   subscriptionCompany,
 } from './firstRunModelOptions';
-import type { FirstRunSetupStatus } from './types';
 
 const copy = firstRunCopy.model;
 
 /**
- * Screen 4. The same three ways to get a model as Choose a brain, each saying
- * what it means for retention and cost. The included model is picked to start.
+ * You choose the model: the included model, any subscription, or your own
+ * key, each saying what it means for retention. The included model is picked
+ * to start, and the drawing's line to the pick is solid.
  */
 export function ChooseModelScreen({
-  status,
   sections,
   selectedId,
   busy,
@@ -28,79 +36,69 @@ export function ChooseModelScreen({
   onContinue,
   onBack,
 }: {
-  status: FirstRunSetupStatus;
   sections: FirstRunModelSection[];
+  /** A model row id; a subscription plan's id selects the subscription row. */
   selectedId: string;
   busy?: boolean;
   onSelect: (id: string) => void;
-  onContinue: (row: FirstRunModelRow) => void;
+  onContinue: (choice: FirstRunModelChoiceRow) => void;
   onBack: () => void;
 }) {
-  const selected = findModelRow(sections, selectedId);
+  const glyph = useOnboardingGlyph();
+  const rows = buildModelChoiceRows(sections);
+  const pickedId = modelChoiceRowId(selectedId);
+  const selected = rows.find((row) => row.id === pickedId);
   return (
-    <FirstRunFrame
-      step={4}
+    <LineStepFrame
+      step={FIRST_RUN_STEPS.model}
       onBack={onBack}
       title={copy.title}
-      accent={copy.accent}
-      body={copy.body}
-      status={status}
-      primaryLabel={selected?.primaryLabel ?? firstRunCopy.meet.primary}
-      onPrimary={() => selected && onContinue(selected)}
-      primaryDisabled={!selected}
-      primaryLoading={busy}
+      subtitle={copy.subtitle}
+      primary={{
+        label: selected?.primaryLabel ?? firstRunCopy.meet.primary,
+        onPress: () => selected && onContinue(selected),
+        disabled: !selected,
+        loading: busy,
+        testID: 'first-run-primary',
+      }}
       testID="first-run-model"
     >
+      <ModelArt glyph={glyph} picked={rows.map((row) => row.id === pickedId)} />
       <YStack
-        marginTop="$xl"
-        marginHorizontal="$xl"
-        gap={14}
+        marginTop={ART_TO_CONTENT_GAP}
+        marginHorizontal="$2xl"
+        borderWidth={LINE}
+        borderColor="$primaryText"
+        borderRadius={14}
+        overflow="hidden"
         accessibilityRole="radiogroup"
         accessibilityLabel={copy.a11yGroup}
       >
-        {sections.map((section) => (
-          <YStack key={section.key} gap="$s">
-            <Text
-              paddingHorizontal="$xs"
-              fontSize={13}
-              lineHeight={16}
-              fontWeight="500"
-              color="$secondaryText"
-            >
-              {section.title}
-            </Text>
-            <YStack
-              borderWidth={1}
-              borderColor="$border"
-              borderRadius={14}
-              overflow="hidden"
-            >
-              {section.rows.map((row, index) => (
-                <ModelOptionRow
-                  key={row.id}
-                  row={row}
-                  selected={row.id === selectedId}
-                  showRule={index < section.rows.length - 1}
-                  onPress={() => onSelect(row.id)}
-                />
-              ))}
-            </YStack>
-          </YStack>
+        {rows.map((row, index) => (
+          <ModelOptionRow
+            key={row.id}
+            row={row}
+            selected={row.id === pickedId}
+            first={index === 0}
+            onPress={() =>
+              onSelect(row.plans ? row.id : (row.row?.id ?? row.id))
+            }
+          />
         ))}
       </YStack>
-    </FirstRunFrame>
+    </LineStepFrame>
   );
 }
 
 function ModelOptionRow({
   row,
   selected,
-  showRule,
+  first,
   onPress,
 }: {
-  row: FirstRunModelRow;
+  row: FirstRunModelChoiceRow;
   selected: boolean;
-  showRule: boolean;
+  first: boolean;
   onPress: () => void;
 }) {
   const theme = useTheme();
@@ -113,63 +111,60 @@ function ModelOptionRow({
       testID={`first-run-model-${row.id}`}
     >
       <XStack
-        minHeight={52}
+        minHeight={64}
         paddingVertical="$m"
         paddingHorizontal={14}
         alignItems="center"
-        gap="$l"
+        gap={12}
         backgroundColor={selected ? '$positiveBackground' : '$background'}
-        borderBottomWidth={showRule ? 1 : 0}
-        borderColor="$border"
+        borderTopWidth={first ? 0 : LINE}
+        borderColor="$primaryText"
       >
-        <View
-          width={22}
-          height={22}
-          borderRadius={11}
-          borderWidth={selected ? 0 : 1.5}
-          borderColor="$tertiaryText"
-          backgroundColor={selected ? '$positiveActionText' : '$background'}
-          alignItems="center"
-          justifyContent="center"
-          flexShrink={0}
-        >
-          {selected ? (
-            <Icon type="Checkmark" customSize={[12, 12]} color="$white" />
-          ) : null}
-        </View>
-        <YStack flex={1} gap={1}>
-          <XStack alignItems="center" gap="$s" flexWrap="wrap">
-            <Text
-              fontSize={16}
-              lineHeight={22}
-              fontWeight={selected ? '500' : '400'}
-              color="$primaryText"
-            >
-              {row.name}
-            </Text>
-            {row.recommended ? (
-              <View
-                paddingHorizontal="$s"
-                borderRadius={4}
-                // The accent at 12%, so the badge still shows on a selected
-                // row's pale blue (the canvas's #EAF2FD on white).
-                backgroundColor={`${theme.positiveActionText.val}1F`}
-              >
-                <Text
-                  fontSize={12}
-                  lineHeight={18}
-                  fontWeight="500"
-                  color="$positiveActionText"
-                >
-                  {copy.recommended}
-                </Text>
-              </View>
-            ) : null}
-          </XStack>
-          <Text fontSize={13} lineHeight={18} color="$secondaryText">
+        <YStack flex={1}>
+          <Text
+            fontSize={16}
+            lineHeight={22}
+            letterSpacing={-0.2}
+            color="$primaryText"
+          >
+            {row.name}
+          </Text>
+          <Text
+            fontSize={13}
+            lineHeight={18}
+            color="$secondaryText"
+            numberOfLines={1}
+          >
             {row.meta}
           </Text>
         </YStack>
+        {selected ? (
+          <View
+            width={22}
+            height={22}
+            borderRadius={11}
+            backgroundColor="$positiveActionText"
+            alignItems="center"
+            justifyContent="center"
+            flexShrink={0}
+          >
+            <LineIcon
+              name="check"
+              size={12}
+              strokeWidth={2.4}
+              color={theme.background?.val as string}
+            />
+          </View>
+        ) : (
+          <View
+            width={22}
+            height={22}
+            borderRadius={11}
+            borderWidth={LINE}
+            borderColor="$primaryText"
+            flexShrink={0}
+          />
+        )}
       </XStack>
     </Pressable>
   );
@@ -182,6 +177,8 @@ function ModelOptionRow({
  */
 export function ModelSwitchSheet({
   row,
+  plans,
+  onPickPlan,
   includedName,
   botReady,
   open,
@@ -190,6 +187,9 @@ export function ModelSwitchSheet({
   onKeepIncluded,
 }: {
   row: FirstRunModelRow;
+  /** The plans to pick from, when the subscription row led here. */
+  plans?: FirstRunModelRow[];
+  onPickPlan?: (plan: FirstRunModelRow) => void;
   includedName: string;
   botReady: boolean;
   open: boolean;
@@ -213,6 +213,11 @@ export function ModelSwitchSheet({
       open={open}
       onOpenChange={onOpenChange}
       title={isSubscription ? sheet.subscriptionTitle(plan) : sheet.apiKeyTitle}
+      choices={
+        plans && plans.length > 1 && onPickPlan ? (
+          <PlanChoices plans={plans} picked={row.id} onPick={onPickPlan} />
+        ) : undefined
+      }
       rows={[
         {
           key: 'zdr',
@@ -248,6 +253,60 @@ export function ModelSwitchSheet({
       onSecondary={onKeepIncluded}
       testID="first-run-switch-sheet"
     />
+  );
+}
+
+/** The subscription sheet's plan buttons: ChatGPT, Claude, Grok. */
+function PlanChoices({
+  plans,
+  picked,
+  onPick,
+}: {
+  plans: FirstRunModelRow[];
+  picked: string;
+  onPick: (plan: FirstRunModelRow) => void;
+}) {
+  return (
+    <XStack
+      gap="$s"
+      accessibilityRole="radiogroup"
+      accessibilityLabel={firstRunCopy.switchSheet.planChoice}
+    >
+      {plans.map((plan) => {
+        const selected = plan.id === picked;
+        return (
+          // Chips sized to their names: the native sheet lays its content
+          // out before it knows its width, so they can't share it evenly.
+          <View key={plan.id}>
+            <Pressable
+              onPress={() => onPick(plan)}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: selected }}
+              testID={`first-run-plan-${plan.id}`}
+            >
+              <View
+                height={40}
+                paddingHorizontal={18}
+                borderRadius={20}
+                alignItems="center"
+                justifyContent="center"
+                backgroundColor={
+                  selected ? '$primaryText' : '$secondaryBackground'
+                }
+              >
+                <Text
+                  fontSize={15}
+                  lineHeight={20}
+                  color={selected ? '$background' : '$primaryText'}
+                >
+                  {plan.name}
+                </Text>
+              </View>
+            </Pressable>
+          </View>
+        );
+      })}
+    </XStack>
   );
 }
 

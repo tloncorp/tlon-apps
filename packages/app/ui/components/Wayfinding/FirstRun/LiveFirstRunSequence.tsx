@@ -49,7 +49,7 @@ export function LiveFirstRunSequence({
   onOpenChat,
 }: {
   setup: FirstRunSetupAdapter;
-  onOpenChat: () => void;
+  onOpenChat: (options?: { invite?: boolean }) => void;
 }) {
   const services = useLiveServices();
   const models = useLiveModels(setup.status === 'ready');

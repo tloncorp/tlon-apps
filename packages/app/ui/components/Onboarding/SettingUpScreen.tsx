@@ -1,18 +1,13 @@
 import { NodeBootPhase } from '@tloncorp/shared/domain';
-import { Icon, LoadingSpinner, TlonText } from '@tloncorp/ui';
+import { LoadingSpinner, Text } from '@tloncorp/ui';
 import type { ReactNode } from 'react';
+import Svg, { Path } from 'react-native-svg';
 import { View, XStack, YStack } from 'tamagui';
 
-import { AnimatedPillHeads } from './AnimatedPillHeads';
-import { OnboardingStepLayout, STEP_ROW_HEIGHT } from './OnboardingStepLayout';
-
-const ART_HEIGHT = 200;
-const ART_GAP = 48;
-// The first step's text sits about 20 pt inside its row, and the heads'
-// bottom edge sits about 19 pt inside the art's box, with only a sparkle below
-// it. Taking this much off the margin below the art makes the space above and
-// below the heads look even.
-const ART_MARGIN_TRIM = 35;
+import { useOnboardingGlyph } from './line/AvatarGlyphPicker';
+import { ART_TO_CONTENT_GAP, LineStepFrame } from './line/LineStepFrame';
+import { LINE, useLineColors } from './line/lineKit';
+import { SetupArt } from './line/onboardingArt';
 
 export type SetupStepKey = 'computer' | 'network' | 'bot';
 
@@ -57,97 +52,136 @@ const SPOKEN_STATE: Record<StepState, string> = {
   pending: 'not started',
 };
 
+const STEP_ROW = 48;
+const MARKER = 32;
+
 /**
- * The Setting up screen at the end of signup. The first run shows it too,
- * when someone finishes before their Tlonbot is ready.
+ * The Setting up screen at the end of signup, step 2 of onboarding. The first
+ * run shows it too, when someone finishes before their Tlonbot is ready.
+ * Continue waits for setup; with no `onContinue`, the screen moves on by
+ * itself once it's done.
  */
 export function SettingUpScreen({
   body,
   current,
+  onContinue,
+  step = 2,
 }: {
   body: ReactNode;
   current: SetupStepKey | 'done';
+  onContinue?: () => void;
+  /** Which onboarding step's dot is lit; the first run's wait is the last. */
+  step?: number;
 }) {
+  const glyph = useOnboardingGlyph();
   const currentIndex =
     current === 'done'
       ? SETUP_STEPS.length
       : SETUP_STEPS.findIndex((step) => step.key === current);
   return (
-    <OnboardingStepLayout title="Setting up" body={body}>
-      <YStack flex={1}>
-        {/* The art sits midway between the text and the first step, and
-            shrinks on short screens to keep the steps above the bottom slot. */}
-        <View flex={1} minHeight={0} marginBottom={ART_GAP - ART_MARGIN_TRIM}>
-          {/* Placed absolutely so the art only takes the room that's left and
-              never pushes the steps down; with large text it gives way. */}
-          <View
-            position="absolute"
-            top={0}
-            bottom={0}
-            left={0}
-            right={0}
-            alignItems="center"
-            justifyContent="center"
-          >
-            <View width="100%" height="100%" maxHeight={ART_HEIGHT}>
-              <AnimatedPillHeads />
-            </View>
-          </View>
-        </View>
-        <YStack>
-          {SETUP_STEPS.map((step, index) => (
-            <SetupStepRow
-              key={step.key}
-              label={step.label}
-              state={
-                index < currentIndex
-                  ? 'done'
-                  : index === currentIndex
-                    ? 'current'
-                    : 'pending'
-              }
-            />
-          ))}
-        </YStack>
-        <View height="$l" />
+    <LineStepFrame
+      step={step}
+      title="Setting up"
+      subtitle={body}
+      primary={{
+        label: 'Continue',
+        onPress: () => onContinue?.(),
+        disabled: !onContinue || current !== 'done',
+        testID: 'setting-up-continue',
+      }}
+    >
+      <SetupArt glyph={glyph} />
+      <YStack
+        marginTop={ART_TO_CONTENT_GAP}
+        marginHorizontal="$2xl"
+        accessibilityLabel="Setup steps"
+      >
+        {/* The rule joins the markers, behind them. */}
+        <View
+          position="absolute"
+          left={MARKER / 2 - LINE / 2}
+          top={STEP_ROW / 2}
+          height={STEP_ROW * (SETUP_STEPS.length - 1)}
+          width={LINE}
+          backgroundColor="$primaryText"
+        />
+        {SETUP_STEPS.map((step, index) => (
+          <SetupStepRow
+            key={step.key}
+            label={step.label}
+            state={
+              index < currentIndex
+                ? 'done'
+                : index === currentIndex
+                  ? 'current'
+                  : 'pending'
+            }
+          />
+        ))}
       </YStack>
-    </OnboardingStepLayout>
+    </LineStepFrame>
   );
 }
 
-// A row per step, its marker on the left margin. Steps not started yet have
-// no marker, just a grey label.
 function SetupStepRow({ label, state }: { label: string; state: StepState }) {
+  const { paper } = useLineColors();
   return (
     <XStack
       // Grows with larger system text sizes.
-      minHeight={STEP_ROW_HEIGHT}
-      paddingVertical="$l"
+      minHeight={STEP_ROW}
       alignItems="center"
-      gap="$xl"
+      gap="$l"
       accessible
       accessibilityLabel={`${label}, ${SPOKEN_STATE[state]}`}
     >
       <View
-        width="$3xl"
-        height="$3xl"
+        width={MARKER}
+        height={MARKER}
+        borderRadius={MARKER / 2}
+        backgroundColor="$background"
         alignItems="center"
         justifyContent="center"
       >
         {state === 'done' ? (
-          <Icon type="Checkmark" color="$primaryText" />
+          <View
+            width={22}
+            height={22}
+            borderRadius={11}
+            backgroundColor="$primaryText"
+            alignItems="center"
+            justifyContent="center"
+          >
+            <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+              <Path
+                d="M19 7L10 17L5 12"
+                stroke={paper}
+                strokeWidth={2.6}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </Svg>
+          </View>
         ) : state === 'current' ? (
           <LoadingSpinner size="small" color="$secondaryText" />
-        ) : null}
+        ) : (
+          <View
+            width={12}
+            height={12}
+            borderRadius={6}
+            borderWidth={LINE}
+            borderColor="$primaryText"
+          />
+        )}
       </View>
-      <YStack flex={1}>
-        <TlonText.Text
-          size="$label/xl"
-          color={state === 'pending' ? '$secondaryText' : '$primaryText'}
-        >
-          {label}
-        </TlonText.Text>
-      </YStack>
+      <Text
+        flex={1}
+        fontSize={16}
+        lineHeight={24}
+        letterSpacing={-0.032}
+        color={state === 'pending' ? '$secondaryText' : '$primaryText'}
+      >
+        {label}
+      </Text>
     </XStack>
   );
 }

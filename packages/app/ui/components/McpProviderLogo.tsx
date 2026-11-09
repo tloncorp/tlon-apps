@@ -1,6 +1,6 @@
 import { Image, Text } from '@tloncorp/ui';
 import type { ComponentType } from 'react';
-import { View } from 'tamagui';
+import { type ColorTokens, View } from 'tamagui';
 
 import AirtableLogo from '../assets/mcp-logos/airtable.png';
 import ArenaLogo from '../assets/mcp-logos/arena.svg';
@@ -47,6 +47,8 @@ export function McpProviderLogo({
   providerId,
   compact = false,
   size,
+  borderColor = '$border',
+  borderWidth = 1,
 }: {
   compact?: boolean;
   displayName: string;
@@ -59,6 +61,8 @@ export function McpProviderLogo({
    * it, so only use this for services checked to fit).
    */
   size?: number;
+  borderColor?: ColorTokens;
+  borderWidth?: number;
 }) {
   const logoSize = size ? Math.round(size * 0.6) : compact ? 20 : LOGO_SIZE;
   const hostingLogoSize = size ?? (compact ? 32 : HOSTING_LOGO_SIZE);
@@ -85,9 +89,9 @@ export function McpProviderLogo({
     <View
       alignItems="center"
       backgroundColor="$secondaryBackground"
-      borderColor="$border"
+      borderColor={borderColor}
       borderRadius="$s"
-      borderWidth={1}
+      borderWidth={borderWidth}
       height={containerSize}
       justifyContent="center"
       overflow="hidden"
