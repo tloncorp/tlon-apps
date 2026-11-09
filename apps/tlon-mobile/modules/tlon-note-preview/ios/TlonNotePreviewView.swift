@@ -117,6 +117,23 @@ final class TlonNotePreviewView: ExpoView, UITextViewDelegate {
 
   // MARK: Attachment views
 
+  // The fragment holding the character at `offset`, laid out.
+  // textLayoutFragment(for:) only returns what TextKit has laid out so far,
+  // which can be nothing yet, with a zero frame, below the first screenful.
+  private func laidOutFragment(at offset: Int) -> NSTextLayoutFragment? {
+    guard let layoutManager = textView.textLayoutManager,
+      let location = layoutManager.location(
+        layoutManager.documentRange.location, offsetBy: offset)
+    else { return nil }
+    var found: NSTextLayoutFragment?
+    layoutManager.enumerateTextLayoutFragments(from: location, options: [.ensuresLayout]) {
+      fragment in
+      found = fragment
+      return false
+    }
+    return found
+  }
+
   private func rebuildAttachmentViews() {
     attachments.forEach { $0.attachment.view.removeFromSuperview() }
     attachments = []
@@ -132,13 +149,8 @@ final class TlonNotePreviewView: ExpoView, UITextViewDelegate {
   // Each view covers the line its attachment reserves, which is exactly the
   // view's height (see NoteAttributedBuilder.attachmentBlock).
   private func layoutAttachmentViews() {
-    guard let layoutManager = textView.textLayoutManager else { return }
     for (location, attachment) in attachments {
-      guard
-        let textLocation = layoutManager.location(
-          layoutManager.documentRange.location, offsetBy: location),
-        let fragment = layoutManager.textLayoutFragment(for: textLocation)
-      else { continue }
+      guard let fragment = laidOutFragment(at: location) else { continue }
       let lineTop = fragment.textLineFragments.first?.typographicBounds.minY ?? 0
       attachment.view.frame = CGRect(
         x: 0,
@@ -169,13 +181,8 @@ final class TlonNotePreviewView: ExpoView, UITextViewDelegate {
   }
 
   private func layoutCopyButtons() {
-    guard let layoutManager = textView.textLayoutManager else { return }
     for (index, block) in codeBlocks.enumerated() where index < copyButtons.count {
-      guard
-        let location = layoutManager.location(
-          layoutManager.documentRange.location, offsetBy: block.range.location),
-        let fragment = layoutManager.textLayoutFragment(for: location)
-      else { continue }
+      guard let fragment = laidOutFragment(at: block.range.location) else { continue }
       let button = copyButtons[index]
       let size = button.intrinsicContentSize
       let frame = fragment.layoutFragmentFrame
