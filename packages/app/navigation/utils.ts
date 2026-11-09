@@ -504,7 +504,9 @@ export function useRootNavigation() {
   }, [navigationRef]);
 
   const navigateToBotSettings = useCallback(() => {
-    if (isWindowNarrow) {
+    // Native always mounts the root stack, even on a wide tablet; only wide
+    // web has the nested settings navigator.
+    if (Platform.OS !== 'web' || isWindowNarrow) {
       navigationRef.current.navigate('BotSettings');
       return;
     }
@@ -519,7 +521,9 @@ export function useRootNavigation() {
   }, [isWindowNarrow, navigationRef]);
 
   const navigateToBotIdentitySettings = useCallback(() => {
-    if (isWindowNarrow) {
+    // Native always mounts the root stack, even on a wide tablet; only wide
+    // web has the nested settings navigator.
+    if (Platform.OS !== 'web' || isWindowNarrow) {
       navigationRef.current.navigate('BotIdentitySettings');
       return;
     }

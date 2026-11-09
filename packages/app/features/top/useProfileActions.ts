@@ -76,6 +76,7 @@ export function useProfileActions({
   }, [doCopy, showToast]);
 
   const shareText = isOwnProfile ? inviteLink : userId;
+  const { doCopy: copyShareText } = useCopy(shareText ?? '');
   const handleShare = useCallback(async () => {
     if (!shareText) {
       return;
@@ -87,7 +88,9 @@ export function useProfileActions({
             isOwnProfile ? { url: shareText } : { text: shareText }
           );
         } else {
-          handleCopyId();
+          copyShareText();
+          triggerHaptic('success');
+          showToast({ message: 'Copied!', duration: 1500 });
         }
         return;
       }
@@ -95,7 +98,7 @@ export function useProfileActions({
     } catch (error) {
       console.error('Error sharing profile:', error);
     }
-  }, [handleCopyId, isOwnProfile, shareText]);
+  }, [copyShareText, isOwnProfile, shareText, showToast]);
 
   const handleClearSuggestion = useCallback(() => {
     store.removeContactSuggestion(userId);
