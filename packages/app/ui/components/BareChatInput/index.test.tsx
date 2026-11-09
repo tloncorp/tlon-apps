@@ -32,6 +32,7 @@ const mocks = vi.hoisted(() => ({
   getChannel: vi.fn<[{ id: string }], Promise<{ id: string } | null>>(),
   showToast: vi.fn(),
   jsonToInlines: vi.fn((_json: unknown) => []),
+  sendDisabledRenders: [] as boolean[],
 }));
 
 vi.mock('@tloncorp/api', async () => {
@@ -140,9 +141,15 @@ vi.mock('../../utils/videoPreviewData', () => ({}));
 vi.mock('../MentionPopup', () => ({}));
 vi.mock('../MessageInput', () => ({ DEFAULT_MESSAGE_INPUT_HEIGHT: 44 }));
 vi.mock('../MessageInput/AttachmentPreviewList', () => ({}));
-vi.mock('../MessageInput/MessageInputBase', () => ({
-  MessageInputContainer: 'MessageInputContainer',
-}));
+vi.mock('../MessageInput/MessageInputBase', async () => {
+  const { createElement } = await import('react');
+  return {
+    MessageInputContainer: (props: { disableSend: boolean }) => {
+      mocks.sendDisabledRenders.push(props.disableSend);
+      return createElement('MessageInputContainer', props);
+    },
+  };
+});
 vi.mock('../MessageInput/helpers', () => ({
   hydrateEditPost: mocks.hydrateEditPost,
 }));
@@ -631,6 +638,16 @@ test('finishing a send leaves the next draft and its mentions intact', async () 
   });
   await act(async () => finishSend());
   expect(await storage.getDraft()).toEqual(nextDraft);
+});
+
+// A send pressed right after typing must not hit a disabled button: no render
+// may show the new text with send still disabled.
+test('enables send in the same render as the typed text', async () => {
+  await mount();
+  mocks.sendDisabledRenders = [];
+  act(() => input().props.onChangeText('Typed and sent at once'));
+  expect(mocks.sendDisabledRenders.length).toBeGreaterThan(0);
+  expect(mocks.sendDisabledRenders).not.toContain(true);
 });
 
 test('supports existing text-only drafts', async () => {

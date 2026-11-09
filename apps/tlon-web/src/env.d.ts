@@ -8,6 +8,7 @@ interface ImportMetaEnv extends Readonly<
   readonly VITE_NOTIFY_SERVICE: string | undefined;
   readonly VITE_POST_HOG_API_KEY: string;
   readonly VITE_API_URL: string | undeined;
+  readonly VITE_BROWSER_SERVICE_ENDPOINT: string | undefined;
   readonly VITE_API_AUTH_USERNAME: string | undefined;
   readonly VITE_API_AUTH_PASSWORD: string | undefined;
   readonly VITE_RECAPTCHA_SITE_KEY: string | undefined;

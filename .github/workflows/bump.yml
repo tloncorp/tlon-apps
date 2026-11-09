@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     name: "Bumps versions and pushes to develop"
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26 # v3
         with:
           ref: ${{ github.event.inputs.tag }}
           ssh-key: ${{ secrets.DEPLOY_KEY }}
@@ -24,7 +24,7 @@ jobs:
         run: |
           sed -i "s/version+\[.*]/version+[${{ github.event.inputs.version }}]/" desk/desk.docket-0
       - name: Commit
-        uses: EndBug/add-and-commit@v9
+        uses: EndBug/add-and-commit@a94899bca583c204427a224a7af87c02f9b325d5 # v9
         with:
           add: "-A"
           message:

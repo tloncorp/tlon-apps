@@ -1,3 +1,4 @@
+import { resumeBrowserContinuation } from './browser-continuation.js';
 import { randomUUID } from 'node:crypto';
 import type {
   OpenClawPluginApi,
@@ -124,8 +125,10 @@ export function createWalletHandoffs(deps: {
   const send = (row: Pending) => {
     if (deliveries.has(row.requestId)) return deliveries.get(row.requestId)!;
     const task = (async () => {
+      const current = await deps.store.lookup(row.requestId);
+      if (!current || current.sent) return;
       await deps.send(row.requestId);
-      await deps.store.register(row.requestId, { ...row, sent: true });
+      await deps.store.register(row.requestId, { ...current, sent: true });
     })().finally(() => deliveries.delete(row.requestId));
     deliveries.set(row.requestId, task);
     return task;
@@ -163,7 +166,13 @@ export function createWalletHandoffs(deps: {
             sessionKey: row.sessionKey,
             idempotencyKey: `tlon-wallet:${row.requestId}`,
             deliver: true,
-            message: `Wallet request ${row.requestId}: ${status}. Read payment_status for details. Approval or filling does not mean a purchase succeeded. If cancelled, expired, failed or unknown, do not repeat payment authorization or fill; report the outcome and wait for the owner.`,
+            message: `Wallet request ${row.requestId}: ${status}. Read payment_status for details. ${
+              status === 'connected'
+                ? 'Link is now connected. Continue the original task, inspect the current checkout and request separate payment approval for the verified purchase. Connecting Link is not authorization to spend.'
+                : status === 'ready'
+                  ? 'The owner approved the reviewed purchase. Read payment_source from payment_status. For site_saved, skip payment-field inspection and filling: use the selected method already saved on the site. For link, fill the approved checkout. Inspect and verify the merchant, items, total, selected payment method and destination still match, then submit once and verify the result from the page. No second approval is needed for the unchanged order. Respect any original fill-only or no-purchase boundary. If the order changed, obtain fresh approval. If submission is ambiguous, inspect the page or order history without resubmitting. Report completion only after seeing an order confirmation; otherwise report what remains unresolved.'
+                  : 'Approval or filling does not mean a purchase succeeded. If cancelled, expired, failed or unknown, do not repeat payment authorization or fill; report the outcome and wait for the owner.'
+            }`,
           });
           await deps.store.delete(key);
         } catch {
@@ -261,7 +270,7 @@ export function registerWalletHandoffs(api: OpenClawPluginApi, binary: string) {
         runBrowserHandoffCommand(binary, ['browser', 'wallet', id], api.config),
       sessionIdFor: (sessionKey) =>
         api.runtime.agent.session.getSessionEntry({ sessionKey })?.sessionId,
-      resume: (request) => api.runtime.subagent.run(request),
+      resume: (request) => resumeBrowserContinuation(api.runtime, request),
       warn: () => api.logger.warn('[tlon] Wallet handoff delivery will retry.'),
     });
     slot.set(service);

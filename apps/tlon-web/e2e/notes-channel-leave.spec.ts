@@ -92,12 +92,11 @@ test('a member who does not host a notebook can leave it', async ({
   await helpers.acceptGroupInvite(tenPage, groupName);
   await expectNotebookJoined(tenPage, groupId);
 
-  // Open the notebook, then bring the sidebar back to the channel list with
-  // the notebook still showing beside it.
+  // Open the notebook; the channel list stays beside it.
   await notebookRow(tenPage).click();
-  const notebookSidebar = tenPage.getByTestId('NotebookSidebarBackHeader');
-  await expect(notebookSidebar).toBeVisible({ timeout: 15000 });
-  await notebookSidebar.getByTestId('HeaderBackButton').click();
+  await expect(tenPage.getByTestId('NotesSidebarHeader')).toBeVisible({
+    timeout: 15000,
+  });
 
   // Leave from the channel options sheet (right-click is web's long press).
   // The open notebook must show that it's been left, not rejoin itself.

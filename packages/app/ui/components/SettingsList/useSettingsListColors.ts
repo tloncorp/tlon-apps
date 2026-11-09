@@ -8,7 +8,7 @@ import { useSettingsListSurfaces } from './settingsListSurfaces';
  * The active Tlon theme resolved to plain colors for the native lists, which
  * draw outside Tamagui. The page and rows follow `useSettingsListSurfaces`.
  */
-export function useSettingsListColors() {
+export function useSettingsListColors(surface?: 'sheet') {
   const theme = useTheme();
   const isDark = useIsDarkMode();
   const surfaces = useSettingsListSurfaces();
@@ -22,8 +22,11 @@ export function useSettingsListColors() {
       | 'secondaryBackground';
     return {
       colorScheme: isDark ? ('dark' as const) : ('light' as const),
-      page: theme[pageKey].val,
-      row: theme[cardKey].val,
+      page: surface === 'sheet' ? theme.background.val : theme[pageKey].val,
+      row:
+        surface === 'sheet'
+          ? theme.secondaryBackground.val
+          : theme[cardKey].val,
       // Warm like the rest of the palette; the platforms' own separator grays
       // are cool and read as off against it.
       separator: theme.secondaryBorder.val,
@@ -43,7 +46,7 @@ export function useSettingsListColors() {
       // Neutral, and visible on either card surface.
       badge: { text: theme.secondaryText.val, background: theme.border.val },
     };
-  }, [isDark, surfaces, theme]);
+  }, [isDark, surfaces, theme, surface]);
 }
 
 export type SettingsListColors = ReturnType<typeof useSettingsListColors>;

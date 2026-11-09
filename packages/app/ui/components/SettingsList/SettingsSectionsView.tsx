@@ -17,8 +17,10 @@ import type { SettingsRowModel, SettingsSectionModel } from './types';
  */
 export function SettingsSectionsView({
   sections,
+  surface,
 }: {
   sections: SettingsSectionModel[];
+  surface?: 'sheet';
 }) {
   return (
     <>
@@ -30,6 +32,7 @@ export function SettingsSectionsView({
             key={section.key}
             title={section.title}
             description={section.footer}
+            variant={surface === 'sheet' ? 'sheet' : 'bordered'}
           >
             {section.rows.map((row, index) => (
               <Fragment key={row.key}>

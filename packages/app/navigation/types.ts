@@ -29,7 +29,7 @@ export type ChannelRouteParams = {
 };
 
 export type RootStackParamList = {
-  BrowserWallet: { requestId: string };
+  BrowserWallet: { requestId: string; botMoon: string };
   MainTabs: NavigatorScreenParams<TopLevelTabParamList> | undefined;
   VerifierStub: undefined;
   Empty: undefined;
@@ -114,6 +114,7 @@ export type RootStackParamList = {
   FeatureFlags: undefined;
   ManageAccount: undefined;
   BotSettings: undefined;
+  SecureVault: undefined;
   BotMcpSettings: { providerId?: string } | undefined;
   BotModelSettings: { mode: 'default' | 'fallbacks' };
   BotApiKeySettings: { provider: string };
@@ -229,7 +230,7 @@ export type MobileBasePathStackParamList = {
 
 export type DesktopBasePathStackParamList = {
   Root: NavigatorScreenParams<RootDrawerParamList>;
-  BrowserWallet: { requestId: string };
+  BrowserWallet: { requestId: string; botMoon: string };
 };
 
 // hack: adding the true contacts types causes lots of tsc failures that need
@@ -294,6 +295,7 @@ export type SettingsDrawerParamList = Pick<
   | 'FeatureFlags'
   | 'ManageAccount'
   | 'BotSettings'
+  | 'SecureVault'
   | 'BotMcpSettings'
   | 'BotModelSettings'
   | 'BotApiKeySettings'
