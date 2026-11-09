@@ -20,6 +20,9 @@ type Phase =
   | { state: 'offline' };
 
 const bot = claimBotContact;
+// One of the transparent PNGs hosting gives a new bot.
+const defaultBotAvatar =
+  'https://storage.googleapis.com/tlon-prod-memex-assets/fildes-magwes/fildes-magwes/1.png';
 const channel: db.Channel = {
   ...tlonLocalIntros,
   id: bot.id,
@@ -170,10 +173,14 @@ function BotBaubleFixture({
   const contacts = useMemo(
     () =>
       initialContacts.map((contact) =>
-        contact.id === bot.id && phase.state === 'offline'
+        contact.id === bot.id
           ? {
               ...contact,
-              botLiveness: JSON.stringify({ v: 1, state: 'offline' }),
+              avatarImage: defaultBotAvatar,
+              botLiveness:
+                phase.state === 'offline'
+                  ? JSON.stringify({ v: 1, state: 'offline' })
+                  : contact.botLiveness,
             }
           : contact
       ),

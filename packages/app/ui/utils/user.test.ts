@@ -1,6 +1,6 @@
-import { describe, expect, it, test } from 'vitest';
+import { expect, test } from 'vitest';
 
-import { formatUserId, getSingleGlyphSigilPoint } from './user';
+import { formatUserId } from './user';
 
 test('format galaxy', () => {
   const galaxy = '~zod';
@@ -76,15 +76,4 @@ test('format comet (full)', () => {
   expect(formatted?.ariaLabel).toBe(
     'siclec - ramsub - tichul - riptud -  - dibnet - datryg - fiddep - binzod'
   );
-});
-
-describe('getSingleGlyphSigilPoint', () => {
-  it('draws the last syllable of any id as a single glyph', () => {
-    expect(getSingleGlyphSigilPoint('~migsyl-fodtep')).toBe('~tep');
-    expect(getSingleGlyphSigilPoint('~pinser-botter-solfer-magfed')).toBe(
-      '~fed'
-    );
-    expect(getSingleGlyphSigilPoint('~marzod')).toBe('~zod');
-    expect(getSingleGlyphSigilPoint('~zod')).toBe('~zod');
-  });
 });

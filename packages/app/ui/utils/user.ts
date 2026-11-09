@@ -59,13 +59,3 @@ export function getDisplayName(contact: db.Contact): string {
   const formatted = formatUserId(contact.id);
   return formatted?.display ?? contact.id;
 }
-
-/**
- * The point whose sigil is one glyph of this id's: its last syllable, which is
- * always a suffix and so the name of a galaxy, drawn as a single symbol.
- */
-export function getSingleGlyphSigilPoint(id: string): string {
-  const parts = id.replace(/^~/, '').split('-');
-  const last = parts[parts.length - 1] ?? '';
-  return `~${last.length > 3 ? last.slice(-3) : last}`;
-}

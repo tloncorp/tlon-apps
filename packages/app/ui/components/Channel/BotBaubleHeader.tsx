@@ -66,7 +66,7 @@ const TOP_GAP = 8;
 const CONTROL_SIZE = 44;
 const ACTION_WIDTH = 40;
 const AVATAR_SIZE = 64;
-// The glyph fills the tile edge to edge; only a soft shadow sets it off.
+// The avatar fills the tile edge to edge; only a soft shadow sets it off.
 const TILE_SIZE = AVATAR_SIZE;
 const TILE_RADIUS = 16;
 // iOS doesn't antialias the edges of a rotated layer, so the tile is drawn
@@ -287,10 +287,8 @@ export function BotBaubleHeader({
             shouldRasterizeIOS
             style={[styles.tile, motion.tileStyle]}
           >
-            {/* One glyph of the bot's sigil, in the bot's own colors. */}
             <ContactAvatar
               contactId={botId}
-              singleGlyph
               size="$5xl"
               borderRadius={AVATAR_RADIUS}
             />
