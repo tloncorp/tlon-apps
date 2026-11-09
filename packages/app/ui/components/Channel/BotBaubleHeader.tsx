@@ -17,7 +17,7 @@ import {
   useEffect,
   useRef,
 } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   type SharedValue,
@@ -739,11 +739,29 @@ const styles = StyleSheet.create({
     // Squash and lean from the bottom edge, as if resting on a surface.
     transformOrigin: 'bottom',
     // A soft shadow that pools under the tile, so it sits above the
-    // conversation rather than on it.
-    shadowColor: '#000',
-    shadowOpacity: 0.14,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 6,
+    // conversation rather than on it. It follows the avatar's own shape, so
+    // a transparent image gets no box around its empty space.
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOpacity: 0.14,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 5 },
+      },
+      // Elevation follows the view's outline, not its pixels; a drop-shadow
+      // filter matches iOS. It needs Android 12, and older versions go without.
+      android: {
+        filter: [
+          {
+            dropShadow: {
+              offsetX: 0,
+              offsetY: 5,
+              standardDeviation: 7,
+              color: 'rgba(0, 0, 0, 0.14)',
+            },
+          },
+        ],
+      },
+    }),
   },
 });
