@@ -9,7 +9,13 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Alert, Keyboard, Platform, TextInput } from 'react-native';
+import {
+  Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  TextInput,
+} from 'react-native';
 import { WebView } from 'react-native-webview';
 import { YStack } from 'tamagui';
 
@@ -375,108 +381,116 @@ export function BrowserViewer({
               }}
             />
           )}
-          <YStack
-            position="absolute"
-            bottom={16 + (input?.keyboardOpen ? 0 : bottomInset)}
-            left={16}
-            right={16 + rightInset}
-            alignItems={input.nativeControl ? 'center' : 'flex-end'}
-            gap="$s"
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 16,
+              right: 16 + rightInset,
+            }}
             pointerEvents="box-none"
           >
-            {input.nativeControl && !input.ready ? (
-              <Button
-                label={input.controlBusy ? 'Taking control…' : 'Take control'}
-                disabled={!input.canTakeControl || input.controlBusy}
-                onPress={() => send({ type: 'takeControl' })}
-              />
-            ) : !input.nativeControl || input.nativeInput ? (
-              <BrowserControlGroup>
-                {input.nativeInput && (
-                  <>
-                    <BrowserControlButton
-                      grouped
-                      icon="ChevronLeft"
-                      accessibilityLabel="Back"
-                      disabled={!input.ready || input.controlBusy}
-                      onPress={() =>
-                        send({
-                          type: 'back',
-                          context: session.current.input?.context,
-                        })
-                      }
-                    />
-                    <BrowserControlButton
-                      grouped
-                      icon="ChevronRight"
-                      accessibilityLabel="Forward"
-                      disabled={!input.ready || input.controlBusy}
-                      onPress={() =>
-                        send({
-                          type: 'forward',
-                          context: session.current.input?.context,
-                        })
-                      }
-                    />
-                  </>
-                )}
-                <BrowserControlButton
-                  grouped
-                  icon={input?.keyboardOpen ? 'ChevronDown' : 'Keyboard'}
-                  accessibilityLabel={
-                    input?.keyboardOpen ? 'Hide keyboard' : 'Keyboard'
-                  }
-                  disabled={!input?.ready || input.controlBusy}
-                  onPress={() => {
-                    if (!session.current.input?.ready) return;
-                    const open = !session.current.input.keyboardOpen;
-                    setNotice(null);
-                    if (session.current.input.nativeInput) {
-                      if (open) {
-                        setNativeText(' ');
-                        nativeKeyboard.current?.focus();
-                      } else nativeKeyboard.current?.blur();
-                    } else if (open) webView.current?.requestFocus();
-                    if (open) {
-                      send({
-                        type: 'keyboard',
-                        open: true,
-                        native: session.current.input.nativeInput,
-                        context: session.current.input.context,
-                      });
-                    } else {
-                      closeKeyboard();
-                      Keyboard.dismiss();
+            <YStack
+              paddingBottom={16 + (input?.keyboardOpen ? 0 : bottomInset)}
+              alignItems={input.nativeControl ? 'center' : 'flex-end'}
+              gap="$s"
+              pointerEvents="box-none"
+            >
+              {input.nativeControl && !input.ready ? (
+                <Button
+                  label={input.controlBusy ? 'Taking control…' : 'Take control'}
+                  disabled={!input.canTakeControl || input.controlBusy}
+                  onPress={() => send({ type: 'takeControl' })}
+                />
+              ) : !input.nativeControl || input.nativeInput ? (
+                <BrowserControlGroup>
+                  {input.nativeInput && (
+                    <>
+                      <BrowserControlButton
+                        grouped
+                        icon="ChevronLeft"
+                        accessibilityLabel="Back"
+                        disabled={!input.ready || input.controlBusy}
+                        onPress={() =>
+                          send({
+                            type: 'back',
+                            context: session.current.input?.context,
+                          })
+                        }
+                      />
+                      <BrowserControlButton
+                        grouped
+                        icon="ChevronRight"
+                        accessibilityLabel="Forward"
+                        disabled={!input.ready || input.controlBusy}
+                        onPress={() =>
+                          send({
+                            type: 'forward',
+                            context: session.current.input?.context,
+                          })
+                        }
+                      />
+                    </>
+                  )}
+                  <BrowserControlButton
+                    grouped
+                    icon={input?.keyboardOpen ? 'ChevronDown' : 'Keyboard'}
+                    accessibilityLabel={
+                      input?.keyboardOpen ? 'Hide keyboard' : 'Keyboard'
                     }
-                  }}
-                />
-                <BrowserControlButton
-                  grouped
-                  icon="Clipboard"
-                  accessibilityLabel="Paste"
-                  disabled={!input?.ready || input.controlBusy || pasteBusy}
-                  onPress={paste}
-                />
-              </BrowserControlGroup>
-            ) : null}
-            {notice || input.controlError ? (
-              <Text
-                padding="$m"
-                borderRadius="$l"
-                backgroundColor="$background"
-              >
-                {notice || input.controlError}
-              </Text>
-            ) : loaded && !input?.ready && !input.nativeControl ? (
-              <Text
-                padding="$m"
-                borderRadius="$l"
-                backgroundColor="$background"
-              >
-                Waiting for browser control…
-              </Text>
-            ) : null}
-          </YStack>
+                    disabled={!input?.ready || input.controlBusy}
+                    onPress={() => {
+                      if (!session.current.input?.ready) return;
+                      const open = !session.current.input.keyboardOpen;
+                      setNotice(null);
+                      if (session.current.input.nativeInput) {
+                        if (open) {
+                          setNativeText(' ');
+                          nativeKeyboard.current?.focus();
+                        } else nativeKeyboard.current?.blur();
+                      } else if (open) webView.current?.requestFocus();
+                      if (open) {
+                        send({
+                          type: 'keyboard',
+                          open: true,
+                          native: session.current.input.nativeInput,
+                          context: session.current.input.context,
+                        });
+                      } else {
+                        closeKeyboard();
+                        Keyboard.dismiss();
+                      }
+                    }}
+                  />
+                  <BrowserControlButton
+                    grouped
+                    icon="Clipboard"
+                    accessibilityLabel="Paste"
+                    disabled={!input?.ready || input.controlBusy || pasteBusy}
+                    onPress={paste}
+                  />
+                </BrowserControlGroup>
+              ) : null}
+              {notice || input.controlError ? (
+                <Text
+                  padding="$m"
+                  borderRadius="$l"
+                  backgroundColor="$background"
+                >
+                  {notice || input.controlError}
+                </Text>
+              ) : loaded && !input?.ready && !input.nativeControl ? (
+                <Text
+                  padding="$m"
+                  borderRadius="$l"
+                  backgroundColor="$background"
+                >
+                  Waiting for browser control…
+                </Text>
+              ) : null}
+            </YStack>
+          </KeyboardAvoidingView>
         </>
       )}
     </YStack>

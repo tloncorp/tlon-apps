@@ -12,6 +12,16 @@ import {
 } from './postVisibility';
 
 describe('isVisibleChannelPost', () => {
+  it('keeps ordinary posts with a renderer stamp visible', () => {
+    const blob = appendToPostBlob(undefined, {
+      type: 'metadata',
+      version: 1,
+      data: { 'tlon.client': { version: 1, rendererRevision: 1 } },
+    });
+    expect(isVisibleChannelPost({ authorId: '~ten', blob }, '~ten')).toBe(true);
+    expect(isVisibleChannelPost({ authorId: '~ten', blob }, '~zod')).toBe(true);
+  });
+
   it('hides typed onboarding intro requests', () => {
     expect(
       isVisibleChannelPost(

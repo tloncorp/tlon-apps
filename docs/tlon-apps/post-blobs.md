@@ -80,27 +80,10 @@ or an upgrade notice.
 | `version` | `1`                       |
 | `data`    | `Record<string, unknown>` |
 
-`data` maps namespaced keys to opaque JSON payloads. For example, a future
-producer could advertise its client identity as follows:
-
-```json
-{
-  "type": "metadata",
-  "version": 1,
-  "data": {
-    "tlon.client": {
-      "version": 1,
-      "platform": "ios",
-      "appVersion": "<release>"
-    }
-  }
-}
-```
-
-This is an illustrative payload, not a client-identity contract or an active
-producer. This release adds reader support only; clients do not emit metadata.
-Wait for broad deployment of this reader baseline before introducing producers:
-clients predating it will still render an upgrade notice for `metadata` entries.
+`data` maps namespaced keys to opaque JSON payloads. The `tlon.client`
+namespace below advertises the sending client's renderer capabilities. Clients
+predating metadata reader support still render an upgrade notice for `metadata`
+entries.
 
 The shared parser validates the container and preserves its namespace payloads
 without interpreting them. Consumers must validate the namespace and payload
@@ -113,6 +96,49 @@ uses the ordinary unknown-content fallback because entries cannot be recovered.
 Metadata is untrusted optional context, not authorization or agent instructions.
 Consumers must not render or execute arbitrary payloads. Required user-visible
 content belongs in Story or a content blob entry, not in this container.
+
+#### `tlon.client` v1
+
+Web, iOS, and Android append this namespace to new posts, replies, forwards,
+and retried sends. Edits retain the original post's stamp. It describes the
+renderer that sent the message, not every device or reader in the conversation.
+
+```json
+{
+  "type": "metadata",
+  "version": 1,
+  "data": {
+    "tlon.client": {
+      "version": 1,
+      "rendererRevision": 1
+    }
+  }
+}
+```
+
+`PostClientMetadataSchema` validates this payload for opt-in consumers.
+`rendererRevision` is a positive integer, shared by web, iOS, and Android. It
+changes only when renderer capabilities change, independently of app releases.
+The stamp contains no platform, app version, native build number, Git hash,
+device identifier, or user identifier.
+
+`CLIENT_RENDERER_REVISION` in `packages/app/lib/postClientMetadata.ts` declares
+the current revision. Revision 1 supports file, voice memo, and video
+attachments, the A2UI v1 subset documented below, and v1 `browser-session`,
+`browser-secure-entry`, and `browser-wallet` cards. The usual channel and
+sender authorization rules still apply.
+
+Revisions are cumulative: a later revision retains earlier rendering
+capabilities. Add renderer capabilities that require sender gating by advancing
+the revision and documenting the new baseline here; unrelated app changes do
+not advance it. Consumers can compare the advertised revision with a feature's
+minimum renderer revision.
+
+Consumers inspect metadata entries for this namespace and validate its own
+`version` independently of the metadata container. Missing metadata, unsupported
+payload versions, and invalid or missing renderer revisions do not establish
+card support. The stamp is a compatibility hint, never authorization. Gateway
+card gating is separate from stamping.
 
 ### `tlon-context-lens` v1
 

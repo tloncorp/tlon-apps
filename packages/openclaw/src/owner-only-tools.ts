@@ -134,6 +134,89 @@ export const NON_OWNER_ALLOWED_TOOLS: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * The only tools a sealed heartbeat run (TLON-7008: the gate let it read the
+ * owner's data) may call for the rest of the run, by policy name. An
+ * allowlist, so a tool core adds later is closed by default. `tlon` is
+ * limited further to reads (isSealedHeartbeatTlonCall), `browser_*` tools are
+ * allowed by prefix, and heartbeat_respond is blocked when it carries a field
+ * core always persists (sealedHeartbeatRespondBlockReason). Web, browser,
+ * MCP, workspace writes and heartbeat_respond's summary and notification text
+ * stay open by product decision; SECURITY.md lists them as accepted exits.
+ */
+export const SEALED_HEARTBEAT_ALLOWED_TOOLS: ReadonlySet<string> = new Set([
+  'tlon',
+  // Workspace files: the heartbeat's notes, memory and ledger.
+  'read',
+  'ls',
+  'write',
+  'edit',
+  'apply_patch',
+  // Research.
+  'web_search',
+  'web_fetch',
+  'browser',
+  'memory_search',
+  'memory_get',
+  // The owner's own MCP connections (list, search, describe, call).
+  ...MCP_CATALOG_TOOL_NAMES,
+  // Tool Search controls (NON_OWNER_DISPATCH_CONTROLS): core runs this gate
+  // again on a tool_call target under the target's own name, so the seal
+  // still applies to whatever they invoke.
+  'tool_search',
+  'tool_describe',
+  'tool_call',
+  'heartbeat_respond',
+]);
+
+export const SEALED_HEARTBEAT_BLOCK_REASON =
+  "Blocked by policy: this heartbeat run read the owner's data, so only Tlon reads, files, memory, web, browser, MCP and heartbeat_respond remain; reply with your final text (or heartbeat_respond) to reach the owner.";
+
+/** Whether a sealed heartbeat run may call this tool (by name alone). */
+export function isSealedHeartbeatAllowedTool(toolName: string): boolean {
+  const name = normalizePolicyToolName(toolName);
+  return (
+    SEALED_HEARTBEAT_ALLOWED_TOOLS.has(name) || name.startsWith('browser_')
+  );
+}
+
+/**
+ * heartbeat_respond fields core persists whether or not the notification is
+ * delivered: the monitor scratch for the next heartbeat, and the silent
+ * outcome's reason and next check, which core appends to the next user turn.
+ * `next_check` is core's alias for `nextCheck`; a model may send it.
+ */
+const SEALED_HEARTBEAT_RESPOND_PERSISTED_KEYS = [
+  'scratch',
+  'reason',
+  'nextCheck',
+  'next_check',
+];
+
+export const SEALED_HEARTBEAT_RESPOND_BLOCK_REASON =
+  "Blocked by policy: this heartbeat run read the owner's data; call heartbeat_respond again without scratch, reason or nextCheck.";
+
+/**
+ * Why a sealed run's heartbeat_respond call is blocked: it carries a field
+ * core persists for a later turn. Blocked rather than rewritten: the Codex
+ * native relay refuses any hook change to the params (and its schema check
+ * rejects undeclared keys), so a rewrite would refuse every heartbeat_respond
+ * on a Codex-harness bot. `summary` and `notificationText` pass: core
+ * requires a non-empty summary and persists it as the silent outcome when
+ * `notify` is false and the outcome is not `no_change`, and keeps the
+ * notification text when delivery fails or, after delivery, as target-session
+ * awareness. Both are accepted alongside workspace writes (SECURITY.md).
+ */
+export function sealedHeartbeatRespondBlockReason(
+  params: Record<string, unknown>
+): string | undefined {
+  return SEALED_HEARTBEAT_RESPOND_PERSISTED_KEYS.some(
+    (key) => params[key] !== undefined
+  )
+    ? SEALED_HEARTBEAT_RESPOND_BLOCK_REASON
+    : undefined;
+}
+
+/**
  * Tool Search controls that only find or invoke catalog tools. Core wraps every
  * catalog tool in before_tool_call, so a `tool_call` target runs this gate
  * again under its own name (core 2026.9.33 tool-search-catalog.ts

@@ -1,8 +1,9 @@
 import { browserCardKey } from './browserCardKey';
 import { createDevLogger } from '@tloncorp/shared';
 import { Pressable, Text } from '@tloncorp/ui';
+import { Image } from 'expo-image';
 import { type ComponentRef, useEffect, useRef } from 'react';
-import { Image, View } from 'react-native';
+import { View } from 'react-native';
 import { Spinner, YStack } from 'tamagui';
 
 import {
@@ -42,6 +43,10 @@ export function BrowserSessionPreview({
   const entry = cache?.[browserCardKey(viewerUrl)];
   const preview = entry?.preview ?? { status: 'busy' as const };
   const snapshot = entry?.snapshot;
+  const hasSnapshot = useRef(!!snapshot);
+  useEffect(() => {
+    hasSnapshot.current = !!snapshot;
+  }, [snapshot]);
   const endpoint = useRef<{ viewerUrl: string; url: string } | undefined>(
     undefined
   );
@@ -60,7 +65,7 @@ export function BrowserSessionPreview({
     const refresh = async () => {
       controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 20000);
-      let delay = 5000;
+      let delay = 10000;
       try {
         if (endpoint.current?.viewerUrl !== viewerUrl) {
           const url = await browserPreviewEndpoint(
@@ -81,6 +86,7 @@ export function BrowserSessionPreview({
         );
         if (disposed) return;
         finished = terminal.has(result.status);
+        if (result.status === 'busy' && !hasSnapshot.current) delay = 1000;
         await rememberBrowserPreview(viewerUrl, result);
         failed.current = false;
       } catch (error) {
@@ -91,7 +97,7 @@ export function BrowserSessionPreview({
         if (!failed.current)
           logger.trackError('Browser preview could not load');
         failed.current = true;
-        delay = 30000;
+        delay = hasSnapshot.current ? 30000 : 5000;
       } finally {
         clearTimeout(timeout);
         if (!disposed && !finished) timer = setTimeout(refresh, delay);
@@ -100,7 +106,7 @@ export function BrowserSessionPreview({
     // Remounts reuse the image immediately and honor the existing refresh interval.
     const remaining = Math.max(
       0,
-      5000 - (Date.now() - (entry?.checkedAt ?? 0))
+      10000 - (Date.now() - (entry?.checkedAt ?? 0))
     );
     if (remaining) timer = setTimeout(refresh, remaining);
     else void refresh();
@@ -167,8 +173,10 @@ export function BrowserPreviewContent({
           preview.status !== 'protected' &&
           !isBrowserEnded(preview.status) ? (
             <Image
+              key={`${snapshot.image}:${snapshot.capturedAt}`}
               source={{ uri: snapshot.image }}
-              resizeMode="contain"
+              contentFit="contain"
+              cachePolicy="memory-disk"
               style={{ width: '100%', height: '100%' }}
               accessibilityLabel={snapshot.title || 'Browser page preview'}
             />

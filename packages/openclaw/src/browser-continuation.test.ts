@@ -5,6 +5,9 @@ import { createBrowserContinuationRunner } from './browser-continuation.js';
 import { createComputingPresenceTracker } from './monitor/computing-presence.js';
 
 vi.mock('@tloncorp/api', () => ({}));
+vi.mock('./urbit/api-client.js', () => ({
+  captureTlonApiScope: () => undefined,
+}));
 
 type Event = Parameters<
   Parameters<PluginRuntime['events']['onAgentEvent']>[0]
