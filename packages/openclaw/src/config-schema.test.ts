@@ -287,6 +287,56 @@ describe('Tlon config schema', () => {
       schema.properties.accounts.additionalProperties.properties.showCommentary
     ).toEqual({ type: 'boolean' });
   });
+
+  // Core reads these channel keys at the channel root and per account
+  // (resolveResponsePrefix, resolveChannelConfigWrites,
+  // getHistoryLimitFromSessionKey); the closed schema must admit them.
+  it('accepts core channel keys on the channel and per account', () => {
+    const parsed = TlonConfigSchema.parse({
+      responsePrefix: '[root]',
+      configWrites: false,
+      historyLimit: 20,
+      accounts: {
+        primary: {
+          ship: '~zod',
+          responsePrefix: '',
+          configWrites: true,
+          historyLimit: 0,
+        },
+      },
+    });
+
+    expect(parsed.responsePrefix).toBe('[root]');
+    expect(parsed.configWrites).toBe(false);
+    expect(parsed.historyLimit).toBe(20);
+    expect(parsed.accounts?.primary).toMatchObject({
+      responsePrefix: '',
+      configWrites: true,
+      historyLimit: 0,
+    });
+    expect(() => TlonConfigSchema.parse({ historyLimit: -1 })).toThrow();
+    expect(() => TlonConfigSchema.parse({ historyLimit: 1.5 })).toThrow();
+    expect(() => TlonConfigSchema.parse({ configWrites: 'no' })).toThrow();
+    expect(() => TlonConfigSchema.parse({ responsePrefix: 1 })).toThrow();
+  });
+
+  it('declares core channel keys in the generated plugin manifest', () => {
+    const manifest = JSON.parse(
+      readFileSync(new URL('../openclaw.plugin.json', import.meta.url), 'utf8')
+    );
+    const schema = manifest.channelConfigs.tlon.schema;
+    const account = schema.properties.accounts.additionalProperties;
+
+    for (const level of [schema, account]) {
+      expect(level.additionalProperties).toBe(false);
+      expect(level.properties.responsePrefix).toEqual({ type: 'string' });
+      expect(level.properties.configWrites).toEqual({ type: 'boolean' });
+      expect(level.properties.historyLimit).toMatchObject({
+        type: 'integer',
+        minimum: 0,
+      });
+    }
+  });
 });
 
 describe('ownerDefault', () => {

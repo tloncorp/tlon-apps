@@ -3745,7 +3745,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
       const responsePrefix = core.channel.reply.resolveEffectiveMessagesConfig(
         cfg,
-        route.agentId
+        route.agentId,
+        { channel: 'tlon', accountId: route.accountId }
       ).responsePrefix;
       const humanDelay = core.channel.reply.resolveHumanDelayConfig(
         cfg,

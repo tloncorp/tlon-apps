@@ -76,3 +76,14 @@ describe('monitor lifecycle wiring', () => {
     expect(retry).not.toMatch(/addEventListener\(/);
   });
 });
+
+describe('monitor reply prefix wiring', () => {
+  it('resolves responsePrefix for the tlon channel and routed account', () => {
+    // Without channel/accountId core only reads messages.responsePrefix, so
+    // channels.tlon.responsePrefix and its per-account override never apply.
+    expect(source).toMatch(
+      /const responsePrefix = core\.channel\.reply\.resolveEffectiveMessagesConfig\(\s*cfg,\s*route\.agentId,\s*\{ channel: 'tlon', accountId: route\.accountId \}\s*\)\.responsePrefix;/
+    );
+    expect(source.match(/resolveEffectiveMessagesConfig\(/g)).toHaveLength(1);
+  });
+});
