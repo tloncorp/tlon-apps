@@ -172,7 +172,7 @@ export function UserProfileScreenView(props: Props) {
         />
 
         {props.actions && !isOwnProfile ? (
-          <View marginTop="$3xl" paddingHorizontal="$xl">
+          <View marginTop="$2xl" paddingHorizontal="$xl">
             <ProfileActionCircles
               actions={props.actions}
               isOwnBot={ownerId === currentUserId}
@@ -1035,7 +1035,7 @@ function ProfileActionCircles({
 }) {
   if (actions.isBlocked) {
     return (
-      <XStack justifyContent="center" gap={20}>
+      <XStack justifyContent="center" gap={ACTION_CIRCLE_GAP}>
         <ActionCircle
           icon="Block"
           label="Unblock"
@@ -1047,7 +1047,7 @@ function ProfileActionCircles({
     );
   }
   return (
-    <XStack justifyContent="center" gap={20}>
+    <XStack justifyContent="center" gap={ACTION_CIRCLE_GAP}>
       <ActionCircle
         icon="Messages"
         label="Message"
@@ -1072,9 +1072,9 @@ function ProfileActionCircles({
       ) : null}
       <ActionCircle
         icon="ArrowRef"
-        // ArrowRef fills more of its box than the other glyphs; drawn at 24
-        // it matches their weight and the design's Share arrow.
-        iconSize={24}
+        // ArrowRef fills more of its box than the other glyphs; drawn a size
+        // smaller it matches their weight.
+        iconSize={18}
         label="Share"
         onPress={actions.onShare}
         testID="ProfileShareButton"
@@ -1083,9 +1083,15 @@ function ProfileActionCircles({
   );
 }
 
+// Sized and spaced like the round buttons on an iOS contact card: 48 pt
+// circles about 69 pt apart, with room for a label under each.
+const ACTION_CIRCLE_SIZE = 48;
+const ACTION_CIRCLE_COLUMN = 60;
+const ACTION_CIRCLE_GAP = 9;
+
 function ActionCircle({
   icon,
-  iconSize = 32,
+  iconSize = 24,
   label,
   hero,
   onPress,
@@ -1103,11 +1109,11 @@ function ActionCircle({
     triggerHaptic('baseButtonClick');
   }, [onPress]);
   return (
-    <YStack width={64} alignItems="center" gap="$m">
+    <YStack width={ACTION_CIRCLE_COLUMN} alignItems="center" gap="$m">
       <Pressable
-        width={56}
-        height={56}
-        borderRadius={28}
+        width={ACTION_CIRCLE_SIZE}
+        height={ACTION_CIRCLE_SIZE}
+        borderRadius={ACTION_CIRCLE_SIZE / 2}
         alignItems="center"
         justifyContent="center"
         backgroundColor={hero ? '$primaryText' : '$background'}
@@ -1119,7 +1125,7 @@ function ActionCircle({
       >
         <Icon
           type={icon}
-          customSize={[32, iconSize]}
+          customSize={[iconSize, iconSize]}
           color={hero ? '$background' : '$primaryText'}
         />
       </Pressable>
