@@ -59,7 +59,7 @@ describe('openOAuthUrl', () => {
   );
 
   it.each(['cancel', 'dismiss'] as const)(
-    'returns canceled when the session reports %s',
+    'returns canceled when the iOS session reports %s',
     async (type) => {
       mocks.openAuthSessionAsync.mockResolvedValue({ type });
 
@@ -68,6 +68,15 @@ describe('openOAuthUrl', () => {
       });
     }
   );
+
+  it('treats Android dismissal as a return without a definitive outcome', async () => {
+    mocks.platform.OS = 'android';
+    mocks.openAuthSessionAsync.mockResolvedValue({ type: 'dismiss' });
+
+    await expect(openOAuthUrl(AUTH_URL, REDIRECT_URL)).resolves.toEqual({
+      type: 'returned',
+    });
+  });
 
   it('surfaces an authentication session failure', async () => {
     const sessionError = new Error('Authentication session unavailable');

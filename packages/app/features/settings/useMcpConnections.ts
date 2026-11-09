@@ -292,9 +292,12 @@ export function useMcpConnections({
         );
         if (openResult.type === 'completed') {
           handleOAuthCompletion(openResult.url);
-        } else if (openResult.type === 'canceled') {
+        } else if (
+          openResult.type === 'canceled' ||
+          openResult.type === 'returned'
+        ) {
           setStarting(null);
-          emit({ type: 'canceled', providerId });
+          emit({ type: openResult.type, providerId });
           refreshStatus();
         }
       } catch (err) {

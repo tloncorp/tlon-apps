@@ -147,7 +147,7 @@ it('handles the same callback URL again for a later connection attempt', async (
 
 it('handles a late Android callback after the authentication session was dismissed', async () => {
   mocks.platform.OS = 'android';
-  vi.mocked(openOAuthUrl).mockResolvedValueOnce({ type: 'canceled' });
+  vi.mocked(openOAuthUrl).mockResolvedValueOnce({ type: 'returned' });
   await act(async () => {
     tree = create(<Harness />);
   });
@@ -155,6 +155,12 @@ it('handles a late Android callback after the authentication session was dismiss
     await connections.connect('notion');
   });
   expect(connections.status?.grants).toEqual([]);
+  expect(connections.busyProviderId).toBeNull();
+  expect(mocks.onEvent).toHaveBeenCalledTimes(1);
+  expect(mocks.onEvent).toHaveBeenCalledWith({
+    type: 'returned',
+    providerId: 'notion',
+  });
 
   const grant: api.TlawnOAuthGrant = {
     provider: 'notion',
