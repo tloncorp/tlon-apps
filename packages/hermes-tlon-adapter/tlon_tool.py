@@ -1508,7 +1508,9 @@ async def execute_tlon_tool(
         args, cfg.owner_ship
     ):
         cfg, args, routing_note = route_group_delete_to_owner(cfg, args)
-    elif should_run_activity_as_owner(args, cfg.owner_ship):
+    elif not self_requested and should_run_activity_as_owner(
+        args, cfg.owner_ship
+    ):
         cfg, args, routing_note = route_activity_to_owner(cfg, args)
 
     # Lazy import keeps this module importable standalone (no cycle at load).
