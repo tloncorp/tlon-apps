@@ -66,6 +66,7 @@ export function MessagesFilterMenu({ children }: PropsWithChildren) {
   return (
     <ActionSheet
       open={isOpen}
+      compact
       onOpenChange={handleOpenChange}
       mode="popover"
       trigger={children}

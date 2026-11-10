@@ -17,6 +17,8 @@ export interface BottomSheetWrapperProps {
   snapPoints?: Array<number | string>;
 
   showHandle?: boolean;
+  /** iOS close control; does not change swipe-to-dismiss. */
+  showCloseButton?: boolean;
   footerComponent?: React.FC<any>;
 
   // Native only
