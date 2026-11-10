@@ -192,6 +192,9 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
           : 'Pick an avatar, then choose the name you want to be known as.'
       }
       align="top"
+      // The picked avatar's taller row takes its extra height from the gaps
+      // around it, so the field stays clear of Next with the keyboard up.
+      topGap={isRevivalOnboarding ? 24 : 16}
       keyboardBottomOffset={NEXT_HEIGHT + 2 * NEXT_GAP}
       footer={
         // Next rides on top of the keyboard while you type, so the avatars and
@@ -207,7 +210,7 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
       }
     >
       {isRevivalOnboarding ? null : (
-        <View marginBottom={24}>
+        <View marginBottom={16}>
           <AvatarGlyphPicker value={glyph} onChange={setGlyph} />
         </View>
       )}
