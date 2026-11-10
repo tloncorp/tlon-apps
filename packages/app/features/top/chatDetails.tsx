@@ -1,6 +1,7 @@
 // Wires the group and channel info screen to the app: its data, where its
 // rows lead, and what its actions do. `ChatDetailsScreenView` draws it.
-import { StackActions } from '@react-navigation/native';
+import type { DrawerNavigationProp } from '@react-navigation/drawer';
+import { StackActions, useNavigation } from '@react-navigation/native';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as Clipboard from 'expo-clipboard';
@@ -10,6 +11,7 @@ import { isWeb } from 'tamagui';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
+import type { ActualRootDrawerParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
   GroupMemberProfileSheet,
@@ -77,6 +79,8 @@ export function ChatDetailsView({
     onPressChannelMeta,
   } = useChatSettingsNavigation();
   const { navigation, navigateToChatDetails } = useRootNavigation();
+  const desktopNavigation =
+    useNavigation<DrawerNavigationProp<ActualRootDrawerParamList>>();
   const isWindowNarrow = useIsWindowNarrow();
   const forwardGroupSheet = useForwardGroupSheet();
   const forwardChannelSheet = useForwardChannelSheet();
@@ -100,11 +104,21 @@ export function ChatDetailsView({
     group?.hostUserId === currentUserId;
   const [instructionsOpen, setInstructionsOpen] = useState(false);
 
+  // On wide web this screen sits in a tab's drawer, whose profile screen is
+  // inside a sibling stack it can't reach, so profiles open in Contacts as
+  // the invite link does. Native and narrow web push on the root stack.
   const handlePressProfile = useCallback(
     (contactId: string) => {
-      navigation.navigate('UserProfile', { userId: contactId });
+      if (isWeb && !isWindowNarrow) {
+        desktopNavigation.navigate('Contacts', {
+          screen: 'UserProfile',
+          params: { userId: contactId },
+        });
+      } else {
+        navigation.navigate('UserProfile', { userId: contactId });
+      }
     },
-    [navigation]
+    [desktopNavigation, isWindowNarrow, navigation]
   );
 
   // A group chat's name and avatar are its members' to change.

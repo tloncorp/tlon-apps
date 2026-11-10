@@ -337,7 +337,8 @@ export function ChatDetailsScreenView({
       : []),
     // Mark read is a circle for workspaces and chats; a channel keeps the
     // circles to sharing it.
-    ...(isGroupChannel
+    // Buckets have no unreads to clear.
+    ...(isGroupChannel && channelSupportsNotifications(channel)
       ? [{ id: 'mark-read', label: 'Mark read', onPress: onMarkRead }]
       : []),
   ];
