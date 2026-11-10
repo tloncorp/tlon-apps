@@ -1196,7 +1196,7 @@ export async function setGroupPrivacy(
   // Ensure session is stable before changing privacy
   await waitForSessionStability(page);
 
-  await page.getByText('Privacy').click();
+  await page.getByTestId('GroupPrivacy').click();
 
   await expect(page.getByText('Workspace privacy')).toBeVisible();
 

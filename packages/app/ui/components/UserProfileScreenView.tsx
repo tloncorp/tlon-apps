@@ -6,18 +6,10 @@ import * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import { useCopy, useToast } from '@tloncorp/ui';
 import { triggerHaptic } from '@tloncorp/ui';
-import { Button } from '@tloncorp/ui';
 import { Icon, type IconType } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
-import {
-  ComponentProps,
-  ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ScrollView,
@@ -26,7 +18,6 @@ import {
   YStack,
   getTokenValue,
   isWeb,
-  styled,
   useTheme,
 } from 'tamagui';
 
@@ -37,12 +28,30 @@ import { ContactAvatar } from './Avatar';
 import { useHasBotPromptFiles } from './BotSystemPrompts';
 import { ContactName } from './ContactNameV2';
 import { GroupAvatar } from './GroupAvatar';
+import {
+  ActionCircle,
+  ActionCircleRow,
+  BotTag,
+  ConnectionMark,
+  INFO_HEADER_AVATAR_RADIUS,
+  INFO_HEADER_AVATAR_SIZE,
+  INFO_HEADER_BADGE,
+  InfoHeaderBadge,
+  InfoTile,
+  PaddedBlock,
+  SHARE_ICON_SIZE,
+  SettingsCard,
+  type SettingsCardRow,
+  TextCard,
+  type TextCardProps,
+  connectionStateText,
+  infoHeaderAvatarShadow,
+} from './InfoCards';
 import { ListItem } from './ListItem';
 import {
   PhoneAttestDisplay,
   TwitterAttestDisplay,
 } from './Profile/ConnectedAccountsWidget';
-import { WidgetPane } from './WidgetPane';
 import { useBoundHandler } from './listItems/listItemUtils';
 
 /** What the circles under a profile's header do; the screen supplies them. */
@@ -269,34 +278,23 @@ export function UserProfileScreenView(props: Props) {
             )}
 
             <View width="48%" flexGrow={1} height={120}>
-              <StatusBlock status={nodeStatus} label="Node" />
+              <InfoTile
+                label="Node"
+                value={connectionStateText(nodeStatus)}
+                mark={<ConnectionMark status={nodeStatus} />}
+              />
             </View>
 
             <View width="48%" flexGrow={1} height={120}>
-              <StatusBlock status={sponsorStatus} label="Sponsor" />
+              <InfoTile
+                label="Sponsor"
+                value={connectionStateText(sponsorStatus)}
+                mark={<ConnectionMark status={sponsorStatus} square />}
+              />
             </View>
           </XStack>
         </YStack>
       </ScrollView>
-    </View>
-  );
-}
-
-/** The name under the avatar ends with this when the profile is a bot's. */
-function BotTag({ onCard }: { onCard?: boolean }) {
-  return (
-    <View
-      // On the page it is a white chip; inside a white card, a gray one.
-      backgroundColor={onCard ? '$secondaryBackground' : '$background'}
-      borderRadius="$m"
-      paddingHorizontal="$m"
-      paddingVertical="$2xs"
-      flexShrink={0}
-      testID="ProfileBotTag"
-    >
-      <Text size="$label/s" color="$secondaryText">
-        Bot
-      </Text>
     </View>
   );
 }
@@ -432,13 +430,7 @@ function BotSettingsCard({
       ? summary
       : null;
 
-  const rows: {
-    key: string;
-    title: string;
-    value?: ReactNode;
-    onPress?: () => void;
-    testID?: string;
-  }[] = [];
+  const rows: SettingsCardRow[] = [];
   if (onPressBotSettings) {
     rows.push({
       key: 'model',
@@ -474,62 +466,12 @@ function BotSettingsCard({
   }
 
   return (
-    <PaddedBlock gap="$s" paddingBottom="$l" testID="ProfileBotSettings">
-      <XStack justifyContent="space-between" alignItems="center">
-        <Text size="$body" color="$tertiaryText">
-          Bot settings
-        </Text>
-        <CardScopeLabel>Only you</CardScopeLabel>
-      </XStack>
-      <YStack>
-        {rows.map((row, i) => (
-          <Pressable
-            key={row.key}
-            onPress={
-              row.onPress
-                ? () => {
-                    row.onPress?.();
-                    triggerHaptic('baseButtonClick');
-                  }
-                : undefined
-            }
-            testID={row.testID}
-          >
-            <XStack
-              minHeight="$4xl"
-              alignItems="center"
-              justifyContent="space-between"
-              gap="$l"
-              borderTopWidth={i === 0 ? 0 : 1}
-              borderColor="$border"
-            >
-              <Text size="$body" color="$secondaryText">
-                {row.title}
-              </Text>
-              <XStack alignItems="center" gap="$s" flexShrink={1} minWidth={0}>
-                {typeof row.value === 'string' ? (
-                  <Text size="$body" numberOfLines={1} flexShrink={1}>
-                    {row.value}
-                  </Text>
-                ) : (
-                  row.value
-                )}
-                <Icon type="ChevronRight" size="$s" color="$tertiaryText" />
-              </XStack>
-            </XStack>
-          </Pressable>
-        ))}
-      </YStack>
-    </PaddedBlock>
-  );
-}
-
-/** Who can see or change a card's settings, at the right of its title. */
-function CardScopeLabel({ children }: { children: string }) {
-  return (
-    <Text size="$label/m" color="$tertiaryText">
-      {children}
-    </Text>
+    <SettingsCard
+      title="Bot settings"
+      scope="Only you"
+      rows={rows}
+      testID="ProfileBotSettings"
+    />
   );
 }
 
@@ -766,81 +708,6 @@ function ProfileLinkItem({
   );
 }
 
-function StatusBlock({
-  status,
-  label,
-}: {
-  status: 'online' | 'offline' | 'pending';
-  label: string;
-}) {
-  return (
-    <PaddedBlock flex={1} padding="$2xl" gap="$2xl">
-      <XStack width="100%" justifyContent="space-between">
-        <Text size="$body" color="$tertiaryText">
-          {label}
-        </Text>
-        <Text size="$body">{statusText(status)}</Text>
-      </XStack>
-      <StatusIndicator status={status} label={label} />
-    </PaddedBlock>
-  );
-}
-
-function statusText(status: 'online' | 'offline' | 'pending') {
-  return status === 'online'
-    ? 'Online'
-    : status === 'offline'
-      ? 'Offline'
-      : 'Pending';
-}
-
-function StatusIndicator({
-  label,
-  status,
-}: {
-  label: string;
-  status: 'online' | 'offline' | 'pending';
-  children?: React.ReactNode;
-  onPress?: () => void;
-}) {
-  return (
-    <View
-      width="$3xl"
-      height="$3xl"
-      borderRadius={label === 'Sponsor' ? '$xs' : 100}
-      alignItems="center"
-      justifyContent="center"
-      backgroundColor={
-        status === 'online'
-          ? '$positiveActionText'
-          : status === 'offline'
-            ? '$negativeActionText'
-            : '$secondaryText'
-      }
-    >
-      {status === 'pending' ? (
-        <Text color="$background" size="$body">
-          ?
-        </Text>
-      ) : (
-        <Icon
-          type={status === 'offline' ? 'Stop' : 'Record'}
-          size="$s"
-          color="$background"
-        />
-      )}
-    </View>
-  );
-}
-
-export const PaddedBlock = styled(YStack, {
-  borderRadius: '$2xl',
-  padding: '$2xl',
-  gap: '$l',
-  justifyContent: 'center',
-  backgroundColor: '$background',
-});
-
 export function BioDisplay({
   bio,
   ...rest
@@ -853,57 +720,6 @@ export function StatusDisplay({
   ...rest
 }: { status: string } & Omit<TextCardProps, 'title' | 'text'>) {
   return <TextCard title="Status" text={status} {...rest} />;
-}
-
-type TextCardProps = {
-  title: string;
-  text: string;
-  /** Shown in place of empty text, in grey. */
-  placeholder?: string;
-  /** Makes the card a button with a chevron. */
-  onPress?: () => void;
-} & ComponentProps<typeof WidgetPane>;
-
-function TextCard({
-  title,
-  text,
-  placeholder,
-  onPress,
-  ...rest
-}: TextCardProps) {
-  const handlePress = useCallback(() => {
-    onPress?.();
-    triggerHaptic('baseButtonClick');
-  }, [onPress]);
-  if (!text.length && !placeholder) {
-    return null;
-  }
-  const card = (
-    <WidgetPane borderRadius="$2xl" padding="$2xl" width="100%" {...rest}>
-      <XStack alignItems="center" gap="$l">
-        <YStack flex={1} minWidth={0}>
-          <WidgetPane.Title>{title}</WidgetPane.Title>
-          <Text
-            size="$body"
-            trimmed={false}
-            color={text.length ? '$primaryText' : '$tertiaryText'}
-          >
-            {text.length ? text : placeholder}
-          </Text>
-        </YStack>
-        {onPress ? (
-          <Icon type="ChevronRight" size="$s" color="$tertiaryText" />
-        ) : null}
-      </XStack>
-    </WidgetPane>
-  );
-  return onPress ? (
-    <Pressable borderRadius="$2xl" onPress={handlePress}>
-      {card}
-    </Pressable>
-  ) : (
-    card
-  );
 }
 
 function ProfileHeader(props: {
@@ -946,36 +762,28 @@ function ProfileHeader(props: {
           accessibilityLabel={`Profile avatar color ${contact?.color ?? 'default'}`}
           testID="ProfileAvatar"
         >
-          <View {...avatarShadow}>
+          <View {...infoHeaderAvatarShadow}>
             <ContactAvatar
               contactId={props.userId}
               size="custom"
-              width={HEADER_AVATAR_SIZE}
-              height={HEADER_AVATAR_SIZE}
-              borderRadius={30}
+              width={INFO_HEADER_AVATAR_SIZE}
+              height={INFO_HEADER_AVATAR_SIZE}
+              borderRadius={INFO_HEADER_AVATAR_RADIUS}
             />
           </View>
         </Pressable>
         {props.ownerId ? (
           // The owner, tucked on the bot's avatar. The owner row below names
           // them; this keeps who is behind the bot in view with the bot.
-          <View
-            position="absolute"
-            right={-10}
-            bottom={-10}
-            padding="$xs"
-            borderRadius={15}
-            backgroundColor="$secondaryBackground"
-            testID="ProfileOwnerBadge"
-          >
+          <InfoHeaderBadge testID="ProfileOwnerBadge">
             <ContactAvatar
               contactId={props.ownerId}
               size="custom"
-              width={40}
-              height={40}
-              borderRadius={11}
+              width={INFO_HEADER_BADGE.size}
+              height={INFO_HEADER_BADGE.size}
+              borderRadius={INFO_HEADER_BADGE.radius}
             />
-          </View>
+          </InfoHeaderBadge>
         ) : null}
       </View>
       <Pressable
@@ -1011,17 +819,6 @@ function ProfileHeader(props: {
   );
 }
 
-const HEADER_AVATAR_SIZE = 112;
-
-// A small lift under the header avatar, the one shadow on the screen.
-const avatarShadow = {
-  borderRadius: 30,
-  shadowColor: '#000000',
-  shadowOpacity: 0.14,
-  shadowRadius: 12,
-  shadowOffset: { width: 0, height: 6 },
-} as const;
-
 /**
  * Round buttons under the header. Message leads in the dark fill; Add turns
  * to Added once they are a contact, and removing them is in the ⋯ menu.
@@ -1035,7 +832,7 @@ function ProfileActionCircles({
 }) {
   if (actions.isBlocked) {
     return (
-      <XStack justifyContent="center" gap={ACTION_CIRCLE_GAP}>
+      <ActionCircleRow>
         <ActionCircle
           icon="Block"
           label="Unblock"
@@ -1043,11 +840,11 @@ function ProfileActionCircles({
           onPress={actions.onToggleBlock}
           testID="ProfileUnblockButton"
         />
-      </XStack>
+      </ActionCircleRow>
     );
   }
   return (
-    <XStack justifyContent="center" gap={ACTION_CIRCLE_GAP}>
+    <ActionCircleRow>
       <ActionCircle
         icon="Messages"
         label="Message"
@@ -1072,67 +869,12 @@ function ProfileActionCircles({
       ) : null}
       <ActionCircle
         icon="ArrowRef"
-        // ArrowRef fills more of its box than the other glyphs; drawn a size
-        // smaller it matches their weight.
-        iconSize={18}
+        iconSize={SHARE_ICON_SIZE}
         label="Share"
         onPress={actions.onShare}
         testID="ProfileShareButton"
       />
-    </XStack>
-  );
-}
-
-// Sized and spaced like the round buttons on an iOS contact card: 48 pt
-// circles about 69 pt apart, with room for a label under each.
-const ACTION_CIRCLE_SIZE = 48;
-const ACTION_CIRCLE_COLUMN = 60;
-const ACTION_CIRCLE_GAP = 9;
-
-function ActionCircle({
-  icon,
-  iconSize = 24,
-  label,
-  hero,
-  onPress,
-  testID,
-}: {
-  icon: IconType;
-  iconSize?: number;
-  label: string;
-  hero?: boolean;
-  onPress?: () => void;
-  testID?: string;
-}) {
-  const handlePress = useCallback(() => {
-    onPress?.();
-    triggerHaptic('baseButtonClick');
-  }, [onPress]);
-  return (
-    <YStack width={ACTION_CIRCLE_COLUMN} alignItems="center" gap="$m">
-      <Pressable
-        width={ACTION_CIRCLE_SIZE}
-        height={ACTION_CIRCLE_SIZE}
-        borderRadius={ACTION_CIRCLE_SIZE / 2}
-        alignItems="center"
-        justifyContent="center"
-        backgroundColor={hero ? '$primaryText' : '$background'}
-        onPress={onPress ? handlePress : undefined}
-        disabled={!onPress}
-        accessibilityRole="button"
-        accessibilityLabel={label}
-        testID={testID}
-      >
-        <Icon
-          type={icon}
-          customSize={[iconSize, iconSize]}
-          color={hero ? '$background' : '$primaryText'}
-        />
-      </Pressable>
-      <Text size="$label/s" numberOfLines={1}>
-        {label}
-      </Text>
-    </YStack>
+    </ActionCircleRow>
   );
 }
 
@@ -1147,43 +889,5 @@ function BlockedNote({ userId }: { userId: string }) {
         again.
       </Text>
     </PaddedBlock>
-  );
-}
-
-export function ProfileButton({
-  title,
-  onPress,
-  hero,
-  ...props
-}: {
-  title: string;
-  onPress?: () => void;
-  hero?: boolean;
-} & ComponentProps<typeof Button.Frame>) {
-  const handlePress = useCallback(() => {
-    onPress?.();
-    triggerHaptic('baseButtonClick');
-  }, [onPress]);
-
-  const color = hero ? '$primaryText' : '$background';
-
-  return (
-    <Button.Frame
-      flex={1}
-      borderRadius="$2xl"
-      onPress={handlePress}
-      backgroundColor={color}
-      borderColor={color}
-      marginHorizontal="$xs"
-      {...props}
-    >
-      <Button.Text
-        color={hero ? '$background' : '$primaryText'}
-        whiteSpace="nowrap"
-        trimmed={false}
-      >
-        {title}
-      </Button.Text>
-    </Button.Frame>
   );
 }

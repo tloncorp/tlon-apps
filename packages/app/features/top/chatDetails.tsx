@@ -1,5 +1,6 @@
 // Wires the group and channel info screen to the app: its data, where its
 // rows lead, and what its actions do. `ChatDetailsScreenView` draws it.
+import { StackActions } from '@react-navigation/native';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as Clipboard from 'expo-clipboard';
@@ -18,6 +19,7 @@ import {
   useForwardGroupSheet,
   useGroupTitle,
   useIsAdmin,
+  useIsWindowNarrow,
   useToast,
 } from '../../ui';
 import { ChatDetailsScreenView } from '../../ui/components/ChatDetailsScreenView';
@@ -57,6 +59,7 @@ export function ChatDetailsView({
     channel,
     group,
     markGroupRead,
+    markChannelRead,
     togglePinned,
     onPressInvite,
     onPressGroupMembers,
@@ -71,8 +74,10 @@ export function ChatDetailsView({
     onPressRoles,
     onLeaveGroup,
     onLeaveChannel,
+    onPressChannelMeta,
   } = useChatSettingsNavigation();
-  const { navigation, resetToDm } = useRootNavigation();
+  const { navigation, navigateToChatDetails } = useRootNavigation();
+  const isWindowNarrow = useIsWindowNarrow();
   const forwardGroupSheet = useForwardGroupSheet();
   const forwardChannelSheet = useForwardChannelSheet();
   const toast = useToast();
@@ -101,6 +106,40 @@ export function ChatDetailsView({
     },
     [navigation]
   );
+
+  // A group chat's name and avatar are its members' to change.
+  const handlePressEdit = useCallback(() => {
+    if (channel?.type === 'groupDm') {
+      onPressChannelMeta(channel.id);
+    } else {
+      onPressEdit();
+    }
+  }, [channel, onPressChannelMeta, onPressEdit]);
+
+  // Pushed over the channel's info on a phone, so Back returns to it.
+  const handlePressWorkspace = useCallback(
+    (workspace: db.Group) => {
+      if (isWindowNarrow) {
+        navigation.dispatch(
+          StackActions.push('ChatDetails', {
+            chatType: 'group',
+            chatId: workspace.id,
+          })
+        );
+      } else {
+        navigateToChatDetails({ type: 'group', id: workspace.id });
+      }
+    },
+    [isWindowNarrow, navigateToChatDetails, navigation]
+  );
+
+  const handleMarkRead = useCallback(() => {
+    if (chatType === 'group') {
+      markGroupRead();
+    } else {
+      markChannelRead();
+    }
+  }, [chatType, markChannelRead, markGroupRead]);
 
   const handleForward = useCallback(() => {
     if (group) {
@@ -211,9 +250,9 @@ export function ChatDetailsView({
       roleCount={(groupRoles?.length ?? 0) + 1}
       scheduledTaskCount={scheduledTasks.count}
       onGoBack={onGoBack}
-      onPressEdit={onPressEdit}
+      onPressEdit={handlePressEdit}
       onPressInvite={onPressInvite}
-      onMarkRead={markGroupRead}
+      onMarkRead={handleMarkRead}
       onTogglePinned={togglePinned}
       onForward={handleForward}
       onCopyGroupId={handleCopyGroupId}
@@ -236,8 +275,8 @@ export function ChatDetailsView({
       onPressChannelPermissions={() =>
         channel?.groupId && onEditChannelPrivacy(channel.id, channel.groupId)
       }
+      onPressWorkspace={handlePressWorkspace}
       onPressProfile={handlePressProfile}
-      onMessageContact={resetToDm}
       onPressMember={setSelectedContact}
       onPressAllMembers={
         chatType === 'group' ? onPressGroupMembers : onPressChannelMembers

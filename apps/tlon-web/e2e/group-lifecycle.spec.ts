@@ -23,9 +23,8 @@ test('should create, verify, and delete a group', async ({ zodPage }) => {
   // Open the overflow menu and access group settings
   await helpers.openGroupSettings(page);
 
-  // Verify group status (check for any group with 1 member text pattern)
-  const groupStatusText = page.locator('text=/.*workspace with 1 member/');
-  await expect(groupStatusText).toBeVisible();
+  // Verify the group's member count under its name
+  await expect(page.getByText('1 member').first()).toBeVisible();
 
   // Assert we're in group settings
   await expect(page.getByText('Workspace info')).toBeVisible();
