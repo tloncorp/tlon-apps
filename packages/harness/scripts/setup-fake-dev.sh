@@ -64,7 +64,7 @@ fi
 
 if [ ! -f "$root/mcp/justfile" ]
 then
-  echo "mcp is missing; run: git submodule update --init mcp"
+  echo "mcp is missing; run: just fetch"
   exit 1
 fi
 

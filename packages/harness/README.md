@@ -61,7 +61,7 @@ Create and mount a desk in Dojo:
 ```
 
 Build the desk, copy it into the mount and commit it. This needs `git`, `rsync`,
-`socat`, `jq`, `curl` and [mikefarah/yq](https://github.com/mikefarah/yq):
+`socat`, `jq`, `curl` and [peru](https://github.com/buildinspace/peru):
 
 ```sh
 just commit /path/to/pier/harness

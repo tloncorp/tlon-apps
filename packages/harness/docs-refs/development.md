@@ -14,7 +14,7 @@ desk; JavaScript and artifact tests also run without a ship.
 | `desk/tests` | Default native unit tests |
 | `desk/tests-integration` | Whole-agent tests and benchmarks, left out of the default desk |
 | `acp` | Stdio adapter and conversation-hand helper |
-| `scripts` | Dependency fetching |
+| `scripts` | Fake-ship setup, test runners and `click` |
 | `tests-js` | Artifact checks, live conformance fixtures and owner maintenance tools |
 | `docs-refs` | Architecture, usage guides and protocol references |
 
@@ -24,8 +24,8 @@ desk; JavaScript and artifact tests also run without a ship.
 
 | Recipe | What it does |
 | --- | --- |
-| `just fetch` | Fetches the files listed in `deps.yaml` into `desk-deps/` |
-| `just build` | Runs `fetch`, then lays `desk-deps/` and `desk/` into `desk-out/` |
+| `just fetch` | Runs `peru sync`, which vendors `desk-deps/` and `mcp/` |
+| `just build` | Runs `peru sync`, then lays `desk-deps/`, the Tlon files and `desk/` into `desk-out/` |
 | `just install DESK` | Runs `build`, then copies `desk-out/` into a mounted desk |
 | `just commit DESK` | Runs `install`, then asks the running ship to commit that desk |
 | `just fake-dev [SHIP] [DIR] [OWNER]` | Boots a fake ship in tmux, installs `%mcp` and `%harness` and runs `setup` |
@@ -35,13 +35,14 @@ desk; JavaScript and artifact tests also run without a ship.
 | `just setup PIER OWNER` | Sets the owner, enables the Tlon hand and turns on Context Lens sync |
 | `just provider PIER NAME [MODEL]` | Connects a model provider and makes it the default |
 | `just clean` | Removes `desk-out/` |
-| `just distclean` | Also removes `desk-deps/` and the fetch cache |
+| `just distclean` | Also removes `desk-deps/` and the runtime downloaded into `.deps-cache/` |
 
-`deps.yaml` lists the files this desk imports but does not own: standard
-libraries and marks from `urbit/urbit`, and Tlon protocol types from `tlon-apps`.
-Each entry names a repository, a full commit hash and the files to take.
-`scripts/fetch-deps.sh` fetches each pinned commit shallowly; it needs `git` and
-[mikefarah/yq](https://github.com/mikefarah/yq).
+This desk imports files it does not own. The tlon-apps `peru.yaml` pins the
+standard libraries and marks from `urbit/urbit` (the `harness-base` module) and
+the `%mcp` repository (`harness-mcp`), which its `scripts/sync-deps.sh` vendors
+with [peru](https://github.com/buildinspace/peru). `tlon-files.txt` lists the
+Tlon protocol types that its `scripts/assemble-desk.sh` copies from its `desk/`,
+so they always match the Groups desk in the same checkout.
 
 `just install` uses `rsync` without `--delete`, so development files in the mount
 survive, and so do files this desk no longer contains. Remove those by hand.
@@ -69,9 +70,9 @@ the ships' tmux panes and a `TEST_NEST` channel that `~lux` hosts and `~zod` has
 which `tests-js/lib/test-channel.mjs` creates once. Its `skip` array names the scripts it
 can't run and why.
 
-`just fake-dev` runs `scripts/setup-fake-dev.sh`, which needs `tmux` and the `mcp`
-submodule, and refuses a pier or tmux session that already exists. It uses HTTP port
-9090 unless `HTTP_PORT` is set.
+`just fake-dev` runs `scripts/setup-fake-dev.sh`, which needs `tmux` and `mcp/`
+from `just fetch`, and refuses a pier or tmux session that already exists. It uses
+HTTP port 9090 unless `HTTP_PORT` is set.
 
 Scripts in `scripts/harness/` talk to the ship through `acp-call.sh`, which sends
 one ACP request through `click`. For a fresh ship, use the

@@ -39,6 +39,11 @@
 .git
 .gitignore
 
+# Ignore Harness's peru imports: rube runs `peru sync` in the container, which
+# refuses to overwrite files it did not write there
+packages/harness/desk-deps
+packages/harness/mcp
+
 # Ignore development environment files
 **/.env
 **/.env.*

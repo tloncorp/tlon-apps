@@ -219,8 +219,8 @@ suspended `%harness-grub` and `%harness-fileserver`.
 
 ### 14. Fixed: `local-mcp` had never run against the real proxy
 
-It now passes on a ship set up by `just fake-dev`, which installs the `%mcp` desk from the
-`mcp` submodule: discovery, a real tool call and an unchanged registry. No upstream was
+It now passes on a ship set up by `just fake-dev`, which installs the `%mcp` desk from
+`mcp/`: discovery, a real tool call and an unchanged registry. No upstream was
 configured, so the upstream catalog check didn't run.
 
 ### 15. `tlon-completion` can't fully pass on this pill
@@ -266,7 +266,7 @@ needs a real `%storage` and a decision on issue 3.
   `get-peek` and `got-peek` call `+on-peek` outside the mocked scry, so a peek that
   itself scries reaches the real ship and crashed the test thread (**Reproduced**). The
   copy runs peeks under the scry gate. Once the fix is merged in tlon-apps, delete the
-  copy and list `lib/test-agent.hoon` under `tlon` in `deps.yaml` at a commit that has it.
+  copy and list `lib/test-agent.hoon` in `tlon-files.txt`.
 
 ## Small cleanups
 

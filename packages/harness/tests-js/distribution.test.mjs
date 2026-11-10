@@ -70,7 +70,8 @@ test('every structure and library import in the desk resolves to a file', async 
 })
 test('fetched dependencies do not shadow the desk\'s own files', async () => {
   const fetched = new URL('../desk-deps/', import.meta.url)
-  for (const file of await readdir(fetched, { recursive: true })) {
+  const tlon = (await readFile(new URL('../tlon-files.txt', import.meta.url), 'utf8')).split('\n').filter((line) => /^[^#\s]/.test(line))
+  for (const file of [...await readdir(fetched, { recursive: true }), ...tlon]) {
     if (!file.endsWith('.hoon')) continue
     await assert.rejects(access(new URL(`../desk/${file}`, import.meta.url)), `${file} is both fetched and tracked`)
   }

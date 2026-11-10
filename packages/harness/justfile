@@ -8,11 +8,13 @@ heavy := "false"
 # as `-b /path/to/vere` for a pier without a docked runtime.
 click := "scripts/click"
 
-# Assemble the desk: the files fetched from deps.yaml, then this desk on top.
-build: fetch
+# Assemble the desk with the repository's scripts/assemble-desk.sh, which runs
+# `peru sync` and lays in the vendored %base files, the Tlon files listed in
+# tlon-files.txt, then this desk on top.
+build:
     rm -rf {{ quote(out) }}
     mkdir -p {{ quote(out) }}
-    cp -R desk-deps/. desk/. {{ quote(out) }}/
+    ../../scripts/assemble-desk.sh "$(cd {{ quote(out) }} && pwd)" harness
     {{ if heavy == "true" { "" } else { "rm -rf " + quote(out / "tests-integration") } }}
 
 # Copy the assembled desk into a mounted desk. Files already there are kept.
@@ -77,14 +79,16 @@ test-hoon pattern="":
 test-js pattern="":
     scripts/test-js.sh {{ quote(pattern) }}
 
-# Fetch the files listed in deps.yaml, at their pinned commits, into desk-deps/.
+# Vendor the %base files into desk-deps/ and %mcp into mcp/, as pinned in the
+# repository's peru.yaml.
 fetch:
-    scripts/fetch-deps.sh
+    ../../scripts/sync-deps.sh
 
 # Remove the assembled desk.
 clean:
     rm -rf {{ quote(out) }}
 
-# Remove everything generated: the assembled desk, fetched files and fetch cache.
+# Remove everything generated: the assembled desk, the %base files peru vendors
+# and the runtime that setup-fake-dev.sh downloads.
 distclean: clean
     rm -rf desk-deps .deps-cache
