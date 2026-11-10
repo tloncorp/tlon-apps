@@ -1,6 +1,7 @@
 import { Pressable, Text } from '@tloncorp/ui';
 import * as db from '@tloncorp/shared/db';
 import { useEffect, useRef } from 'react';
+import { useWindowDimensions } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -22,6 +23,8 @@ import { GLYPH_IN_TILE, GlyphMark, LINE, useLineColors } from './lineKit';
 const TILE = 72;
 /** The picked tile takes this much room, pushing the others along. */
 const PICKED_TILE = 88;
+/** The row's side margin: the screen's 24 pt gutter. */
+const ROW_MARGIN = 24;
 const TILE_RADIUS = 12;
 /** The solid tile's glyph lines, at TILE. */
 const PICKED_GLYPH_LINE = 2;
@@ -173,6 +176,16 @@ export function AvatarGlyphPicker({
   value: AvatarGlyphId;
   onChange: (glyph: AvatarGlyphId) => void;
 }) {
+  // The gap the four tiles would have at their normal size, edge to edge.
+  // Kept as the row grows, with the row centered, the picked tile grows about
+  // its own middle and pushes the tiles on both sides out by the same amount;
+  // the end tiles reach a little past the margins.
+  const { width } = useWindowDimensions();
+  const count = AVATAR_GLYPH_IDS.length;
+  const gap = Math.max(
+    0,
+    (width - 2 * ROW_MARGIN - count * TILE) / (count - 1)
+  );
   return (
     <YStack gap={8}>
       <Text
@@ -186,12 +199,13 @@ export function AvatarGlyphPicker({
         Avatar
       </Text>
       <XStack
-        marginHorizontal="$2xl"
+        marginHorizontal={ROW_MARGIN}
         // As tall as the picked tile, so the field below stays put while
         // one tile grows and another shrinks.
         height={PICKED_TILE}
         alignItems="center"
-        justifyContent="space-between"
+        justifyContent="center"
+        gap={gap}
         accessibilityRole="radiogroup"
         accessibilityLabelledBy="onboarding-avatar-label"
       >
