@@ -277,7 +277,7 @@ OWNER_ONLY_TLON_TOOLS = frozenset(
         "search_files",
     }
 )
-OWNER_ONLY_TLON_TOOLSETS = frozenset({"file"})
+OWNER_ONLY_TLON_TOOLSETS = frozenset({"file", "cronjob"})
 OPTIONAL_ENV = [
     "TLON_CHANNELS",
     "TLON_AUTO_DISCOVER",

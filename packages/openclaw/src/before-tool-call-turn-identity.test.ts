@@ -13,6 +13,8 @@ import {
   setTlonSessionSurface,
 } from './onboarding-tool-boundary.js';
 import {
+  SEALED_HEARTBEAT_BLOCK_REASON,
+  SEALED_HEARTBEAT_RESPOND_BLOCK_REASON,
   formatOwnerOnlyDelegationBlockReason,
   formatOwnerOnlyToolBlockReason,
 } from './owner-only-tools.js';
@@ -23,6 +25,8 @@ import { runTlonCommand } from './tlon-command-runner.js';
 import {
   RUN_ACTIVE_TTL_MS,
   _testing as identityTesting,
+  isHeartbeatOwnerReadRun,
+  isSealedHeartbeatRun,
   noteCrossSessionSend,
   noteInboundDispatching,
 } from './turn-identity.js';
@@ -51,7 +55,12 @@ type BeforeToolCallHandler = (
 ) => Promise<unknown>;
 type AgentHook = (
   event: Record<string, unknown>,
-  ctx: Ctx & { trigger?: string; messageProvider?: string; jobId?: string }
+  ctx: Ctx & {
+    trigger?: string;
+    messageProvider?: string;
+    jobId?: string;
+    inputProvenance?: { kind: string; sourceTool?: string };
+  }
 ) => unknown;
 
 type TlonTool = {
@@ -998,6 +1007,430 @@ describe('before_tool_call turn identity', () => {
     await expect(beforeToolCall(TLON_CALL, ctx)).resolves.toMatchObject({
       block: true,
       blockReason: formatOwnerOnlyToolBlockReason('tlon'),
+    });
+  });
+
+  describe('heartbeat owner reads', () => {
+    const OWNER = {
+      channels: { tlon: { ownerDefault: true, ownerShip: '~zod' } },
+    };
+    const HB = 'agent:main:main';
+    const SEAL = { block: true, blockReason: SEALED_HEARTBEAT_BLOCK_REASON };
+    const LOST =
+      'Error: this run lost owner identity while the command was pending; nothing was run. Run it again.';
+    const CHANGED =
+      "Error: the bot's owner configuration changed while this command was pending; nothing was run. Run it again.";
+    const provenance = (sourceTool: string | null) => ({
+      trigger: 'heartbeat',
+      ...(sourceTool
+        ? { inputProvenance: { kind: 'internal_system', sourceTool } }
+        : {}),
+    });
+    let skillDir: string;
+    beforeEach(() => {
+      skillDir = mkdtempSync(join(tmpdir(), 'tlon-skill-'));
+      mkdirSync(join(skillDir, 'ships'));
+      writeFileSync(join(skillDir, 'ships', 'zod.json'), '{}');
+      vi.stubEnv('TLON_SKILL_DIR', skillDir);
+    });
+    afterEach(() => {
+      vi.unstubAllEnvs();
+      rmSync(skillDir, { recursive: true, force: true });
+    });
+
+    async function heartbeat(
+      harness: ReturnType<typeof registerEntry>,
+      runId = 'hb-1',
+      sourceTool: string | null = 'heartbeat',
+      sessionKey = HB
+    ) {
+      const ctx = { sessionKey, runId };
+      await harness.prepare({}, { ...ctx, ...provenance(sourceTool) });
+      return ctx;
+    }
+    const gate = (
+      harness: ReturnType<typeof registerEntry>,
+      toolName: string,
+      params: Record<string, unknown>,
+      ctx: Ctx,
+      toolCallId?: string
+    ) => harness.beforeToolCall({ toolName, params, toolCallId }, ctx);
+    const tlonGate = (
+      harness: ReturnType<typeof registerEntry>,
+      command: string,
+      ctx: Ctx,
+      toolCallId?: string
+    ) => gate(harness, 'tlon', { command }, ctx, toolCallId);
+
+    it.each(['activity mentions', 'activity unread'])(
+      'runs %s as the owner, with no rewrite',
+      async (command) => {
+        const harness = registerEntry(OWNER);
+        const ctx = await heartbeat(harness);
+        await expect(tlonGate(harness, command, ctx)).resolves.toBeUndefined();
+        await callTlon(harness, harness.tlonTool(), command, ctx, 'c-1');
+        expect(ranArgs()).toEqual(['--ship', '~zod', ...command.split(' ')]);
+      }
+    );
+
+    it.each([
+      ['activity mentions --self', ['activity', 'mentions', '--self']],
+      ['--self activity mentions', ['activity', 'mentions']],
+    ])('keeps %s as the bot', async (command, argv) => {
+      const harness = registerEntry(OWNER);
+      const ctx = await heartbeat(harness);
+      await callTlon(harness, harness.tlonTool(), command, ctx, 'c-1');
+      expect(ranArgs()).toEqual(argv);
+      expect(isSealedHeartbeatRun('hb-1')).toBe(false);
+    });
+
+    it.each([
+      'channels list',
+      'activity volume chat/~h/general',
+      'activity volume base',
+      'messages search hello',
+      'contacts self',
+    ])('rewrites %s to --self', async (command) => {
+      const harness = registerEntry(OWNER);
+      const ctx = await heartbeat(harness);
+      await expect(tlonGate(harness, command, ctx)).resolves.toEqual({
+        params: { command: `--self ${command}` },
+      });
+    });
+
+    it('keeps rejecting credential flags', async () => {
+      const harness = registerEntry(OWNER);
+      vi.mocked(runTlonCommand).mockClear();
+      const ctx = await heartbeat(harness);
+      const text = await callTlon(
+        harness,
+        harness.tlonTool(),
+        '--config /x.json activity mentions',
+        ctx,
+        'c-1'
+      );
+      expect(text).toContain('credential flags (--config');
+      expect(runTlonCommand).not.toHaveBeenCalled();
+    });
+
+    it('rewrites a write to --self before an owner read, and blocks it after', async () => {
+      const harness = registerEntry(OWNER);
+      const ctx = await heartbeat(harness);
+      await expect(
+        tlonGate(harness, 'posts send ~bus hi', ctx)
+      ).resolves.toEqual({ params: { command: '--self posts send ~bus hi' } });
+      await callTlon(
+        harness,
+        harness.tlonTool(),
+        'activity mentions',
+        ctx,
+        'c-1'
+      );
+      vi.mocked(runTlonCommand).mockClear();
+      await expect(
+        callTlon(harness, harness.tlonTool(), 'posts send ~bus hi', ctx, 'c-2')
+      ).resolves.toBe('blocked');
+      await expect(
+        tlonGate(harness, 'posts send ~bus hi', ctx)
+      ).resolves.toEqual(SEAL);
+      expect(runTlonCommand).not.toHaveBeenCalled();
+    });
+
+    it('keeps reads available after sealing, the bot reads as the bot', async () => {
+      const harness = registerEntry(OWNER);
+      const ctx = await heartbeat(harness);
+      const tool = harness.tlonTool();
+      await callTlon(harness, tool, 'activity mentions', ctx, 'c-1');
+      await callTlon(harness, tool, '--self messages dm ~zod', ctx, 'c-2');
+      expect(ranArgs()).toEqual(['messages', 'dm', '~zod']);
+      await callTlon(harness, tool, 'settings get', ctx, 'c-3');
+      expect(ranArgs()).toEqual(['settings', 'get']);
+      await callTlon(harness, tool, 'messages dm ~bus', ctx, 'c-4');
+      expect(ranArgs()).toEqual(['--ship', '~zod', 'messages', 'dm', '~bus']);
+      await expect(
+        tlonGate(harness, 'help activity', ctx)
+      ).resolves.toMatchObject({ params: { command: '--self help activity' } });
+    });
+
+    it('seals the run at the gate, before the read executes', async () => {
+      const harness = registerEntry(OWNER);
+      const ctx = await heartbeat(harness);
+      await expect(
+        tlonGate(harness, 'activity mentions', ctx, 'c-1')
+      ).resolves.toBeUndefined();
+      const message = { action: 'send', target: '~bus', message: 'inbox' };
+      await expect(gate(harness, 'message', message, ctx)).resolves.toEqual(
+        SEAL
+      );
+      // Revoked by an owner change: the seal stays.
+      harness.reloadConfig({
+        channels: { tlon: { ownerDefault: true, ownerShip: '~nec' } },
+      });
+      await heartbeat(harness);
+      expect(isHeartbeatOwnerReadRun(ctx, '~nec')).toBe(false);
+      await expect(gate(harness, 'message', message, ctx)).resolves.toEqual(
+        SEAL
+      );
+    });
+
+    describe('a sealed run', () => {
+      async function sealed(harness: ReturnType<typeof registerEntry>) {
+        const ctx = await heartbeat(harness);
+        await tlonGate(harness, 'activity mentions', ctx, 'c-0');
+        expect(isSealedHeartbeatRun(ctx.runId)).toBe(true);
+        return ctx;
+      }
+
+      const BLOCKED: Array<[string, Record<string, unknown>]> = [
+        ['message', { action: 'send', target: '~bus', message: 'hi' }],
+        ['conversations_send', { message: 'hi' }],
+        ['sessions_spawn', { task: 'x' }],
+        ['sessions_send', { sessionKey: GROUP, message: 'hi' }],
+        ['sessions_yield', {}],
+        ['subagents', { action: 'list' }],
+        ['cron', { action: 'list' }],
+        ['exec', { command: 'ls' }],
+        ['terminal', { input: 'ls' }],
+        ['create_goal', { goal: 'x' }],
+        ['image_generate', { prompt: 'x' }],
+        ['ask_user', { question: 'x' }],
+        ['future_tool', {}],
+      ];
+      const ALLOWED: Array<[string, Record<string, unknown>]> = [
+        ['web_fetch', { url: 'https://example.com' }],
+        ['browser_navigate', { url: 'https://example.com' }],
+        ['memory_search', { query: 'deadlines' }],
+        ['read', { path: 'MEMORY.md' }],
+        ['write', { path: 'memory/today.md', content: 'notes' }],
+        ['mcp__call', { name: 'calendar_list', arguments: {} }],
+        // The target of a tool_call goes through this gate under its own name.
+        ['tool_search', { query: 'calendar' }],
+        ['tool_describe', { name: 'web_fetch' }],
+        ['tool_call', { name: 'web_fetch', arguments: {} }],
+      ];
+
+      it.each(BLOCKED)('blocks %s', async (toolName, params) => {
+        const harness = registerEntry(OWNER);
+        // On another run and session: an unsealed sessions_send demotes.
+        const before = await gate(harness, toolName, params, {
+          sessionKey: 'agent:main:other',
+          runId: 'pre-1',
+        });
+        expect(before).not.toEqual(SEAL);
+        const ctx = await sealed(harness);
+        await expect(gate(harness, toolName, params, ctx)).resolves.toEqual(
+          SEAL
+        );
+      });
+
+      it.each(ALLOWED)('allows %s', async (toolName, params) => {
+        const harness = registerEntry(OWNER);
+        const ctx = await sealed(harness);
+        await expect(
+          gate(harness, toolName, params, ctx)
+        ).resolves.toBeUndefined();
+      });
+
+      it('does not demote another session when its sessions_send is blocked', async () => {
+        const harness = registerEntry(OWNER);
+        inbound('owner', 'run-1');
+        const ctx = await sealed(harness);
+        await gate(
+          harness,
+          'sessions_send',
+          { sessionKey: GROUP, message: 'hi' },
+          ctx
+        );
+        await expect(
+          harness.beforeToolCall(TLON_CALL, {
+            sessionKey: GROUP,
+            runId: 'run-1',
+          })
+        ).resolves.toBeUndefined();
+      });
+
+      const RESPOND = {
+        outcome: 'progress',
+        notify: false,
+        summary: 'Two new mentions',
+        notificationText: 'Two new mentions',
+      };
+
+      it.each([
+        ['scratch', 'inbox digest'],
+        ['reason', 'mentions pending'],
+        ['nextCheck', 'in an hour'],
+        ['next_check', 'in an hour'],
+      ])(
+        'blocks heartbeat_respond carrying %s, without rewriting it',
+        async (key, value) => {
+          const harness = registerEntry(OWNER);
+          const params = { ...RESPOND, [key]: value };
+          // Not this rule's business before the seal.
+          await expect(
+            gate(harness, 'heartbeat_respond', params, {
+              sessionKey: HB,
+              runId: 'hb-1',
+            })
+          ).resolves.toBeUndefined();
+          const ctx = await sealed(harness);
+          await expect(
+            gate(harness, 'heartbeat_respond', params, ctx)
+          ).resolves.toStrictEqual({
+            block: true,
+            blockReason: SEALED_HEARTBEAT_RESPOND_BLOCK_REASON,
+          });
+        }
+      );
+
+      it('passes heartbeat_respond without persisted fields unchanged', async () => {
+        const harness = registerEntry(OWNER);
+        const ctx = await sealed(harness);
+        // No params in the result: the Codex native relay refuses a rewrite.
+        await expect(
+          gate(harness, 'heartbeat_respond', RESPOND, ctx)
+        ).resolves.toBeUndefined();
+      });
+    });
+
+    it.each([
+      ['no input provenance', null, HB],
+      ['cron provenance on the main session', 'cron', HB],
+      ['exec provenance', 'exec', HB],
+    ])(
+      'keeps a heartbeat trigger with %s on --self',
+      async (_l, source, key) => {
+        const harness = registerEntry(OWNER);
+        const ctx = await heartbeat(harness, 'hb-1', source, key);
+        await expect(
+          tlonGate(harness, 'activity mentions', ctx)
+        ).resolves.toEqual({ params: { command: '--self activity mentions' } });
+      }
+    );
+
+    it('keeps a run first seen at before_tool_call on --self', async () => {
+      const harness = registerEntry(OWNER);
+      await expect(
+        tlonGate(harness, 'activity mentions', { sessionKey: HB, runId: 'x' })
+      ).resolves.toEqual({ params: { command: '--self activity mentions' } });
+    });
+
+    it('on the owner-DM main session, reads as the owner and keeps the rest on --self', async () => {
+      const harness = registerEntry(OWNER);
+      setSessionRole(HB, 'owner');
+      const ctx = await heartbeat(harness);
+      await expect(harness.beforeToolCall(TLON_CALL, ctx)).resolves.toEqual(
+        SELF_CALL
+      );
+      await expect(
+        tlonGate(harness, 'activity mentions', ctx)
+      ).resolves.toBeUndefined();
+    });
+
+    it.each([
+      [
+        'a non-owner message on its session',
+        (_h: ReturnType<typeof registerEntry>) => inbound('user', 'run-2', HB),
+        LOST,
+      ],
+      [
+        'a sessions_send into its session',
+        (_h: ReturnType<typeof registerEntry>) =>
+          noteCrossSessionSend({ sessionKey: HB }, 'sender'),
+        LOST,
+      ],
+      [
+        'an owner change',
+        (h: ReturnType<typeof registerEntry>) =>
+          h.reloadConfig({
+            channels: { tlon: { ownerDefault: true, ownerShip: '~nec' } },
+          }),
+        CHANGED,
+      ],
+    ])(
+      'refuses an approved owner read after %s',
+      async (_label, revoke, message) => {
+        const harness = registerEntry(OWNER);
+        vi.mocked(runTlonCommand).mockClear();
+        const ctx = await heartbeat(harness);
+        const text = await callTlon(
+          harness,
+          harness.tlonTool(),
+          'activity mentions',
+          ctx,
+          'c-1',
+          () => revoke(harness)
+        );
+        expect(text).toBe(message);
+        expect(runTlonCommand).not.toHaveBeenCalled();
+      }
+    );
+
+    it('rewrites to --self once the owner is reassigned between calls', async () => {
+      const harness = registerEntry(OWNER);
+      const ctx = await heartbeat(harness);
+      harness.reloadConfig({
+        channels: { tlon: { ownerDefault: true, ownerShip: '~nec' } },
+      });
+      await expect(
+        tlonGate(harness, 'activity mentions', ctx)
+      ).resolves.toEqual({ params: { command: '--self activity mentions' } });
+    });
+
+    it('does not grant again on a later preparation after an owner change', async () => {
+      const harness = registerEntry(OWNER);
+      const ctx = await heartbeat(harness);
+      harness.reloadConfig({
+        channels: { tlon: { ownerDefault: true, ownerShip: '~nec' } },
+      });
+      await heartbeat(harness);
+      harness.reloadConfig(OWNER);
+      await heartbeat(harness);
+      expect(isHeartbeatOwnerReadRun(ctx, '~zod')).toBe(false);
+      await expect(
+        tlonGate(harness, 'activity mentions', ctx)
+      ).resolves.toEqual({ params: { command: '--self activity mentions' } });
+    });
+
+    it('does not grant again on a later preparation after a non-owner demotion', async () => {
+      const harness = registerEntry(OWNER);
+      const ctx = await heartbeat(harness);
+      inbound('user', 'run-2', HB);
+      await heartbeat(harness);
+      expect(isHeartbeatOwnerReadRun(ctx, '~zod')).toBe(false);
+      await expect(
+        tlonGate(harness, 'activity mentions', ctx)
+      ).resolves.toEqual({
+        block: true,
+        blockReason: formatOwnerOnlyToolBlockReason('tlon'),
+      });
+    });
+
+    it('changes nothing with ownerDefault off', async () => {
+      const harness = registerEntry({
+        channels: { tlon: { ownerDefault: false, ownerShip: '~zod' } },
+      });
+      const ctx = await heartbeat(harness);
+      await callTlon(
+        harness,
+        harness.tlonTool(),
+        'activity mentions',
+        ctx,
+        'c-1'
+      );
+      expect(ranArgs()).toEqual(['activity', 'mentions']);
+      expect(isSealedHeartbeatRun('hb-1')).toBe(false);
+      for (const [toolName, params] of [
+        ['message', { action: 'send', target: '~bus', message: 'hi' }],
+        ['future_tool', {}],
+      ] as const) {
+        await expect(
+          gate(harness, toolName, params, ctx)
+        ).resolves.toBeUndefined();
+      }
+      await expect(
+        tlonGate(harness, 'posts send ~bus hi', ctx)
+      ).resolves.toBeUndefined();
     });
   });
 });

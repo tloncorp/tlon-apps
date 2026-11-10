@@ -17,7 +17,7 @@ const isGroupedNative = (variant: SectionVariant) =>
  * `bordered` is the web card look. `grouped` is for settings forms that sit
  * beside the native settings lists: borderless cards with native corners.
  */
-type SectionVariant = 'bordered' | 'grouped';
+type SectionVariant = 'bordered' | 'grouped' | 'sheet';
 
 export function SettingsSection({
   title,
@@ -53,11 +53,17 @@ export function SettingsSection({
         </YStack>
       ) : null}
       <YStack
-        borderWidth={grouped ? 0 : 1}
+        borderWidth={grouped || variant === 'sheet' ? 0 : 1}
         borderColor="$border"
         borderRadius={grouped ? groupedCardRadius : '$xl'}
         style={grouped ? { borderCurve: 'continuous' } : undefined}
-        backgroundColor={grouped ? card : '$background'}
+        backgroundColor={
+          variant === 'sheet'
+            ? '$secondaryBackground'
+            : grouped
+              ? card
+              : '$background'
+        }
         overflow="hidden"
       >
         {children}

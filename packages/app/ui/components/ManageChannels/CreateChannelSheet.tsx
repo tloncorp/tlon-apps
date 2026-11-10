@@ -1,5 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { getCurrentUserIsHosted } from '@tloncorp/api';
 import {
   canGroupHostBuckets,
   createChannel,
@@ -12,7 +13,6 @@ import { FormProvider, useForm, useWatch } from 'react-hook-form';
 import { YStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
-import { useFeatureFlag } from '../../../lib/featureFlags';
 import { GroupSettingsStackParamList } from '../../../navigation/types';
 import { useIsAdmin } from '../../utils/channelUtils';
 import { ActionSheet } from '../ActionSheet';
@@ -96,13 +96,13 @@ export function CreateChannelSheet({
   const [isCreating, setIsCreating] = useState(false);
   const isGroupAdmin = useIsAdmin(group.id, currentUserId);
   const isNonHostAdmin = isGroupAdmin && !group.currentUserIsHost;
-  const [bucketsEnabled] = useFeatureFlag('buckets');
   const bucketsDeskAvailable = useDeskSupportsBuckets() === true;
   const bucketsHostSupported = canGroupHostBuckets(group.hostUserId);
-  // Buckets are still behind a flag. This gates the offer, not the channel
-  // type: a bucket someone already made keeps working and the host keeps
-  // serving it -- only the route to making a new one is closed.
-  const bucketsOffered = bucketsEnabled && bucketsDeskAvailable && isGroupAdmin;
+  // Only hosted users are offered Buckets. This gates the offer, not the
+  // channel type: a bucket someone already made keeps working and the host
+  // keeps serving it -- only the route to making a new one is closed.
+  const bucketsOffered =
+    getCurrentUserIsHosted() && bucketsDeskAvailable && isGroupAdmin;
   const bucketsAvailable = bucketsOffered && bucketsHostSupported;
   const channelTypes = useMemo(
     () =>

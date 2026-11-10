@@ -49,8 +49,8 @@ type NowPlayingEventMap = {
 export interface NowPlayingValue extends TypedEventEmitter<NowPlayingEventMap> {
   /** @returns promise that resolves when media item is loaded (rejects if fails to load) */
   replace: (nowPlaying: MediaItem | null) => Promise<void>;
-  play(): void;
-  pause(): void;
+  play(): Promise<void>;
+  pause(): Promise<void>;
   seekTo(seconds: number): Promise<void>;
   isPlaying: boolean;
   nowPlaying: MediaItem | null;
@@ -76,10 +76,16 @@ export function NowPlayingProvider({
   const mediaItemRef = useRef<MediaItem | null>(null);
   const isPlayingRef = useRef(false);
   const replaceGenRef = useRef(0);
+  const cancelReplaceRef = useRef<(() => void) | null>(null);
+  const playbackGenRef = useRef(0);
 
   const ctxValue = useMemo(
     () => ({
       replace(nowPlaying: MediaItem | null) {
+        // Settle superseded loads even if the native player emits no more events.
+        cancelReplaceRef.current?.();
+        cancelReplaceRef.current = null;
+        playbackGenRef.current += 1;
         const gen = ++replaceGenRef.current;
         const hadPreviousSource = mediaItemRef.current != null;
 
@@ -88,7 +94,17 @@ export function NowPlayingProvider({
         mediaItemRef.current = null;
 
         if (!nowPlaying) {
-          audioPlayer.replace(null);
+          // Native Expo Audio requires an AudioSource record, even to clear
+          // playback. Passing null throws before the new player can take over.
+          audioPlayer.pause();
+          isPlayingRef.current = false;
+          audioPlayer.replace({});
+          // Android may emit no native status when an already-paused source clears.
+          eventEmitter.emit('progress', {
+            sourceUrl: null,
+            isPlaying: false,
+            loadState: 'empty',
+          });
           return Promise.resolve();
         }
 
@@ -98,6 +114,8 @@ export function NowPlayingProvider({
         // the source swaps out:
         const cleanups: (() => void)[] = [];
         const out = new Promise<void>((resolve, reject) => {
+          cancelReplaceRef.current = () =>
+            reject(new Error('Audio source replaced before loading completed'));
           // Set up a timeout in case we don't get our expo-audio event
           let timedOut = false;
           const timeout = setTimeout(() => {
@@ -141,6 +159,7 @@ export function NowPlayingProvider({
           cleanups.push(() => unsub.remove());
         }).finally(() => {
           cleanups.forEach((fn) => fn());
+          if (replaceGenRef.current === gen) cancelReplaceRef.current = null;
         });
 
         // this shouldn't be necessary, but on web, `replace()` is implemented
@@ -160,14 +179,20 @@ export function NowPlayingProvider({
         return out;
       },
       async play() {
+        const gen = ++playbackGenRef.current;
+        const isCurrent = () =>
+          playbackGenRef.current === gen && mediaItemRef.current !== null;
+        if (!isCurrent()) return;
         await setAudioModeAsync({
           playsInSilentMode: true,
           interruptionMode: 'doNotMix',
         });
+        if (!isCurrent()) return;
         await setIsAudioActiveAsync(true);
-        audioPlayer.play();
+        if (isCurrent()) audioPlayer.play();
       },
       async pause() {
+        playbackGenRef.current += 1;
         audioPlayer.pause();
         isPlayingRef.current = false;
 
@@ -221,6 +246,7 @@ export function NowPlayingProvider({
       'playbackStatusUpdate',
       async (status) => {
         if (status.didJustFinish) {
+          playbackGenRef.current += 1;
           audioPlayer.pause();
           audioPlayer.seekTo(0);
           await setIsAudioActiveAsync(false);
@@ -255,6 +281,7 @@ export function NowPlayingProvider({
     useCallback(
       async (status) => {
         if (status === 'background') {
+          playbackGenRef.current += 1;
           audioPlayer.pause();
           await setIsAudioActiveAsync(false);
         }
@@ -267,11 +294,16 @@ export function NowPlayingProvider({
 }
 
 export function useNowPlaying() {
-  const value = useContext(ctx);
+  const value = useOptionalNowPlaying();
   if (!value) {
     throw new Error('Must call `useNowPlaying` within a `NowPlayingProvider`');
   }
   return value;
+}
+
+/** Standalone media fixtures can render without the app's playback provider. */
+export function useOptionalNowPlaying() {
+  return useContext(ctx);
 }
 
 /** Provides a controller for loading + controlling playback of the given

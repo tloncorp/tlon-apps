@@ -17,8 +17,7 @@ onFlowComplete:
     id: ProfileAvatar
     text: '^Profile avatar color (#000000|default)$'
 - runScript: profile-avatar-color.js
-- tapOn:
-    id: ContactEditButton
+- tapOn: '^Edit profile$'
 - scrollUntilVisible:
     element:
       text: '^Default avatar color$'

@@ -126,6 +126,8 @@ pnpm test:integration:shared
 
 ## Hermes Runtime Details
 
+The image builds hermes-agent at `v0.22.6`; set `TLON_E2E_HERMES_AGENT_REF` to build another ref, and the runner logs the effective one (`[hermes] hermes-agent ref ...`) before the build. The adapter's Docker dev loop reads `HERMES_AGENT_REF` instead, so a value exported for that loop does not leak into E2E.
+
 The Hermes E2E compose path does not load `packages/hermes-tlon-adapter/.env`. It writes a fresh `$HERMES_HOME/config.yaml` with:
 
 -   `model.provider: custom`

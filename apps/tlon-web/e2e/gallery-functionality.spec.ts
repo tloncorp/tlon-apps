@@ -211,7 +211,7 @@ test('should test gallery functionality', async ({ zodSetup, tenSetup }) => {
 
   // Send the prefilled reply directly — using helpers.sendMessage here would
   // clear the prefilled mention via page.fill().
-  await zodPage.getByTestId('MessageInputSendButton').click({ force: true });
+  await zodPage.getByTestId('MessageInputSendButton').click();
   await expect(zodPage.getByTestId('SelectedMention-~ten')).not.toBeVisible({
     timeout: 5000,
   });

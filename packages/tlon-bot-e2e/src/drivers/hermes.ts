@@ -10,7 +10,11 @@ import type {
   RuntimeSeed,
 } from './types.js';
 
-const HERMES_AGENT_REF = process.env.HERMES_AGENT_REF?.trim() || 'v0.22.6';
+// Not HERMES_AGENT_REF: the adapter's Docker dev loop reads that name (pinned
+// to a different release), and a developer with it exported would silently
+// get a mismatched e2e image. Passed to compose under the build-arg name.
+const HERMES_AGENT_REF =
+  process.env.TLON_E2E_HERMES_AGENT_REF?.trim() || 'v0.22.6';
 
 // Opt-in LCM lane: TLON_E2E_HERMES_LCM=1 builds the image with an LCM context
 // engine plugin and enables it the way the hosted entrypoint does. The default
@@ -146,6 +150,10 @@ export const hermesDriver: BotDriver = {
 
   packageDir(seed) {
     return path.join(seed.repoRoot, 'packages/hermes-tlon-adapter');
+  },
+
+  async beforeComposeBuild() {
+    console.log(`[hermes] hermes-agent ref ${HERMES_AGENT_REF}`);
   },
 
   resolveRuntime(seed): DriverRuntimeSpec {

@@ -1,5 +1,3 @@
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import { beforeAll, describe, expect, test } from 'vitest';
 
 import {
@@ -8,10 +6,10 @@ import {
   hermesLcmTools,
 } from '../drivers/hermes.js';
 import { FakeModelClient } from '../fake-model/index.js';
+import { runtimeContextFromEnv } from '../runtime/context.js';
+import { execInComposeService } from '../runtime/docker-direct.js';
 import { requireEnv } from '../runtime/util.js';
 import { actorFromEnv, normalizeShip } from '../tlon/index.js';
-
-const execFileAsync = promisify(execFile);
 
 // Drives one owner DM past the LCM compaction threshold, then checks that the
 // LCM engine (hermes-lcm or lcm-x) summarised the overflow into its SQLite DAG
@@ -147,19 +145,6 @@ interface LcmDbSnapshot {
 }
 
 async function queryLcmDb(): Promise<LcmDbSnapshot> {
-  const project = requireEnv('COMPOSE_PROJECT_NAME');
-  const { stdout: ids } = await execFileAsync('docker', [
-    'ps',
-    '-q',
-    '--filter',
-    `label=com.docker.compose.project=${project}`,
-    '--filter',
-    'label=com.docker.compose.service=hermes-tlon',
-  ]);
-  const container = ids.trim().split('\n')[0];
-  if (!container) {
-    throw new Error(`hermes-tlon container not found for ${project}`);
-  }
   const script = String.raw`
 import json, os, sqlite3
 path = os.environ.get("LCM_DATABASE_PATH") or os.path.join(os.environ["HERMES_HOME"], "lcm.db")
@@ -171,12 +156,17 @@ nodes = [
 ]
 print(json.dumps({"path": path, "messages": messages, "summaryNodes": nodes}))
 `;
-  const { stdout } = await execFileAsync('docker', [
-    'exec',
-    container,
+  const ctx = runtimeContextFromEnv();
+  const result = await execInComposeService(ctx, ctx.services.bot, [
     '/opt/hermes-venv/bin/python',
     '-c',
     script,
   ]);
-  return JSON.parse(stdout.trim()) as LcmDbSnapshot;
+  if (result.exitCode !== 0) {
+    throw new Error(
+      `LCM DB query failed with exit ${result.exitCode}: ` +
+        `${(result.stderr || result.stdout).trim()}`
+    );
+  }
+  return JSON.parse(result.stdout.trim()) as LcmDbSnapshot;
 }

@@ -4,6 +4,7 @@ const state = vi.hoisted(() => ({
   authorize: vi.fn(),
   fetch: vi.fn(),
   change: undefined as undefined | (() => void),
+  endpoint: undefined as string | undefined,
 }));
 vi.mock('./urbit', () => ({
   getClientGeneration: () => state.generation,
@@ -13,10 +14,14 @@ vi.mock('./urbit', () => ({
   getBrowserVaultOwnerAuthorization: (time: number) => state.authorize(time),
 }));
 vi.mock('../types', () => ({
-  getConstants: () => ({ API_URL: 'https://test.tlon.systems' }),
+  getConstants: () => ({
+    API_URL: 'https://test.tlon.systems',
+    BROWSER_SERVICE_ENDPOINT: state.endpoint,
+  }),
 }));
 import {
   browserOwnerRequest,
+  browserOwnerServiceOrigin,
   browserOwnerSessionMoon,
   clearBrowserOwnerSessions,
 } from './browserOwnerSession';
@@ -33,6 +38,7 @@ beforeEach(() => {
   clearBrowserOwnerSessions();
   vi.clearAllMocks();
   state.generation = 0;
+  state.endpoint = undefined;
   state.authorize.mockResolvedValue({
     planet: 'sampel-palnet',
     ownerToken: 'private-proof',
@@ -43,6 +49,19 @@ beforeEach(() => {
   vi.stubGlobal('fetch', state.fetch);
 });
 describe('browser owner sessions', () => {
+  it('uses BROWSER_SERVICE_ENDPOINT for owner operations', () => {
+    state.endpoint = origin;
+    expect(browserOwnerServiceOrigin()).toBe(origin);
+    state.endpoint = `${origin}/mcp`;
+    expect(() => browserOwnerServiceOrigin()).toThrow(
+      'Configure BROWSER_SERVICE_ENDPOINT as an origin, without a path.'
+    );
+    state.endpoint = undefined;
+    expect(() => browserOwnerServiceOrigin()).toThrow(
+      'Browser service is not configured for this environment.'
+    );
+  });
+
   it('coalesces exchange and sends only bearer headers on later operations', async () => {
     await Promise.all([
       browserOwnerRequest(endpoint, 'moon', 'GET'),
@@ -178,4 +197,36 @@ describe('browser owner sessions', () => {
       state.fetch.mock.calls.filter(([url]) => url.endsWith('/current'))
     ).toHaveLength(1);
   });
+});
+
+it('reuses the owner session for either spelling of the bot moon', async () => {
+  await browserOwnerRequest(endpoint, '~moon', 'GET');
+  await browserOwnerRequest(endpoint, '~moon', 'GET');
+  await browserOwnerRequest(endpoint, 'moon', 'GET');
+  expect(state.authorize).toHaveBeenCalledOnce();
+});
+
+it('exchanges a new owner session when switching bots on the same service', async () => {
+  await browserOwnerRequest(endpoint, 'first-moon', 'GET');
+  await browserOwnerRequest(endpoint, 'second-moon', 'GET');
+  const exchanges = state.fetch.mock.calls.filter(([url]) =>
+    url.endsWith('/owner/sessions')
+  );
+  expect(
+    exchanges.map(([, options]) => JSON.parse(options.body).botMoon)
+  ).toEqual(['first-moon', 'second-moon']);
+});
+it('sends payment approval through owner auth once and never retries a lost response', async () => {
+  const payment = `${origin}/owner/wallet-actions/a9569797-ccae-4a4d-bd28-0772d351c8a4`;
+  await browserOwnerRequest(payment, 'moon', 'GET');
+  state.fetch.mockRejectedValue(new Error('connection lost'));
+  await expect(
+    browserOwnerRequest(payment + '/approve', 'moon', 'POST', {
+      confirmed: true,
+      payment_method_id: 'pm',
+    })
+  ).rejects.toThrow('connection lost');
+  expect(
+    state.fetch.mock.calls.filter(([url]) => url.endsWith('/approve'))
+  ).toHaveLength(1);
 });

@@ -1,4 +1,8 @@
 import {
+  createBrowserContinuationRunner,
+  publishBrowserContinuationRunner,
+} from '../browser-continuation.js';
+import {
   type PostBlobDataEntryAgentIntroRequest,
   type Story,
   getGroup,
@@ -298,6 +302,7 @@ import {
 import {
   buildThreadContextMessage,
   cacheMessage,
+  clearChannelHistoryCache,
   composeInboundMessageText,
   fetchChannelHistory,
   fetchParentPostAuthor,
@@ -368,6 +373,7 @@ import {
   shouldEngageInGroup,
   stripBotMentionOutsidePlaceholders,
 } from './utils.js';
+import { createParticipatedThreadTracker } from './tracking.js';
 import { probeWebSearchBootStatus } from './web-search-status.js';
 
 // Local structural types — @tloncorp/api defines these internally but
@@ -561,6 +567,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   if (!account.configured || !account.ship || !account.url || !account.code) {
     throw new Error('Tlon account not configured (ship/url/code required)');
   }
+
+  clearChannelHistoryCache();
 
   // Capture validated values for use in nested functions
   const accountUrl = account.url;
@@ -995,11 +1003,20 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   // edits in this large pre-try region) would leave the shared slot
   // orphaned. This outer finally catches all of those and runs cleanup
   // unconditionally.
+  let stopBrowserContinuations: (() => void) | undefined;
   let workspaceInstructions: WorkspaceInstructionsRuntime | null = null;
   let groupContext: GroupContextRuntime | null = null;
   let roleMentionResolver: RoleMentionResolver | null = null;
   try {
     const computingPresence = createComputingPresenceTracker({ runtime });
+    stopBrowserContinuations = publishBrowserContinuationRunner(
+      createBrowserContinuationRunner({
+        runtime: core,
+        presence: computingPresence,
+        showCommentary: account.showCommentary,
+        warn: (message) => runtime.error?.(message),
+      })
+    );
     const contextLensConfig = account.contextLens;
     const contextLensEnabled = isContextLensEffectivelyEnabled(
       cfg,
@@ -1317,8 +1334,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       }
     });
 
-    // Track threads we've participated in (by parentId) - respond without mention requirement
-    const participatedThreads = new Set<string>();
+    // Track recent threads we've participated in so replies can omit a mention.
+    const participatedThreads = createParticipatedThreadTracker();
     const failureNoticeCooldown = createSilentFailureNoticeCooldown();
     // Only hosting publishes the bot's credit, and only hosted bots run on a
     // key the owner may not hold.
@@ -3728,7 +3745,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
       const responsePrefix = core.channel.reply.resolveEffectiveMessagesConfig(
         cfg,
-        route.agentId
+        route.agentId,
+        { channel: 'tlon', accountId: route.accountId }
       ).responsePrefix;
       const humanDelay = core.channel.reply.resolveHumanDelayConfig(
         cfg,
@@ -7371,6 +7389,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       }
     }
   } finally {
+    stopBrowserContinuations?.();
     // Outer finally — covers throws in the long bootstrap region
     // between slot publication (above) and the inner try (which begins
     // after the helper definitions). Anything that throws before the

@@ -23,6 +23,11 @@ export type TlonCallApproval = {
    * not an owner run.
    */
   ownerRun?: { runId?: string; sessionKey?: string };
+  /**
+   * The heartbeat run the gate let make an allowlisted owner read, for the
+   * executor to re-check the same way; absent otherwise.
+   */
+  heartbeatRead?: { runId?: string; sessionKey?: string };
 };
 
 /**
@@ -77,6 +82,7 @@ export function takeTlonCallApproval(
     ownerDefault: entry.ownerDefault,
     ownerShip: entry.ownerShip,
     ...(entry.ownerRun ? { ownerRun: entry.ownerRun } : {}),
+    ...(entry.heartbeatRead ? { heartbeatRead: entry.heartbeatRead } : {}),
   };
 }
 
