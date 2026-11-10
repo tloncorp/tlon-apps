@@ -8,7 +8,7 @@ import {
   LineStepFrame,
 } from '../../Onboarding/line/LineStepFrame';
 import { LineIcon } from '../../Onboarding/line/lineIcons';
-import { LINE } from '../../Onboarding/line/lineKit';
+import { LineOutline, LineRule } from '../../Onboarding/line/lineKit';
 import { ModelArt } from '../../Onboarding/line/onboardingArt';
 import { FirstRunSheet } from './FirstRunSheet';
 import { FIRST_RUN_STEPS, firstRunCopy } from './firstRunCopy';
@@ -67,8 +67,6 @@ export function ChooseModelScreen({
       <YStack
         marginTop={ART_TO_CONTENT_GAP}
         marginHorizontal="$2xl"
-        borderWidth={LINE}
-        borderColor="$primaryText"
         borderRadius={14}
         overflow="hidden"
         accessibilityRole="radiogroup"
@@ -85,6 +83,7 @@ export function ChooseModelScreen({
             }
           />
         ))}
+        <LineOutline radius={14} />
       </YStack>
     </LineStepFrame>
   );
@@ -117,9 +116,8 @@ function ModelOptionRow({
         alignItems="center"
         gap={12}
         backgroundColor={selected ? '$positiveBackground' : '$background'}
-        borderTopWidth={first ? 0 : LINE}
-        borderColor="$primaryText"
       >
+        {first ? null : <LineRule />}
         <YStack flex={1}>
           <Text
             fontSize={16}
@@ -156,14 +154,9 @@ function ModelOptionRow({
             />
           </View>
         ) : (
-          <View
-            width={22}
-            height={22}
-            borderRadius={11}
-            borderWidth={LINE}
-            borderColor="$primaryText"
-            flexShrink={0}
-          />
+          <View width={22} height={22} flexShrink={0}>
+            <LineOutline radius={11} />
+          </View>
         )}
       </XStack>
     </Pressable>

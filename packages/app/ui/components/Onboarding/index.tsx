@@ -18,4 +18,4 @@ export {
   LineStepFrame,
   ONBOARDING_STEP_COUNT,
 } from './line/LineStepFrame';
-export { LINE } from './line/lineKit';
+export { LINE, LineOutline } from './line/lineKit';

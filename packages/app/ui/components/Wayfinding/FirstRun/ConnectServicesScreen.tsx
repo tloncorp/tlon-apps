@@ -9,7 +9,7 @@ import {
   LineStepFrame,
 } from '../../Onboarding/line/LineStepFrame';
 import { LineIcon } from '../../Onboarding/line/lineIcons';
-import { LINE } from '../../Onboarding/line/lineKit';
+import { LineOutline, LineRule } from '../../Onboarding/line/lineKit';
 import { ConnectArt } from '../../Onboarding/line/onboardingArt';
 import { FirstRunSheet } from './FirstRunSheet';
 import { FIRST_RUN_STEPS, firstRunCopy } from './firstRunCopy';
@@ -22,6 +22,8 @@ import {
 
 const copy = firstRunCopy.connect;
 const LOGO_SIZE = 40;
+/** McpProviderLogo's corner, the `$s` radius. */
+const LOGO_RADIUS = 6;
 
 /**
  * Connect your services. Connecting happens here: Connect opens a short
@@ -110,15 +112,13 @@ export function ConnectServicesScreen({
         <View
           marginHorizontal="$2xl"
           padding="$xl"
-          borderRadius={16}
-          borderWidth={LINE}
-          borderColor="$primaryText"
           accessibilityLiveRegion="polite"
           testID="first-run-connect-none"
         >
           <Text fontSize={16} lineHeight={24} color="$primaryText">
             {copy.none}
           </Text>
+          <LineOutline radius={16} />
         </View>
       ) : (
         <>
@@ -129,8 +129,6 @@ export function ConnectServicesScreen({
           <YStack
             marginTop={ART_TO_CONTENT_GAP}
             marginHorizontal="$2xl"
-            borderWidth={LINE}
-            borderColor="$primaryText"
             borderRadius={16}
             overflow="hidden"
           >
@@ -160,9 +158,8 @@ export function ConnectServicesScreen({
                 paddingHorizontal={14}
                 alignItems="center"
                 gap="$m"
-                borderTopWidth={featured.length ? LINE : 0}
-                borderColor="$primaryText"
               >
+                {featured.length ? <LineRule /> : null}
                 <Text
                   flex={1}
                   fontSize={15}
@@ -179,6 +176,7 @@ export function ConnectServicesScreen({
                 <AllServicesChevron />
               </XStack>
             </Pressable>
+            <LineOutline radius={16} />
           </YStack>
         </>
       )}
@@ -243,18 +241,19 @@ function ServiceRow({
       paddingHorizontal={14}
       alignItems="center"
       gap={12}
-      borderTopWidth={first ? 0 : LINE}
-      borderColor="$primaryText"
       testID={`first-run-service-${row.id}`}
     >
-      <McpProviderLogo
-        displayName={row.displayName}
-        logoUrl={row.logoUrl}
-        providerId={row.id}
-        size={LOGO_SIZE}
-        borderColor="$primaryText"
-        borderWidth={LINE}
-      />
+      {first ? null : <LineRule />}
+      <View width={LOGO_SIZE} height={LOGO_SIZE}>
+        <McpProviderLogo
+          displayName={row.displayName}
+          logoUrl={row.logoUrl}
+          providerId={row.id}
+          size={LOGO_SIZE}
+          borderWidth={0}
+        />
+        <LineOutline radius={LOGO_RADIUS} />
+      </View>
       <YStack flex={1}>
         <Text
           fontSize={16}

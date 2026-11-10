@@ -1,12 +1,12 @@
 import { NodeBootPhase } from '@tloncorp/shared/domain';
 import { LoadingSpinner, Text } from '@tloncorp/ui';
 import type { ReactNode } from 'react';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Path, Rect } from 'react-native-svg';
 import { View, XStack, YStack } from 'tamagui';
 
 import { useOnboardingGlyph } from './line/AvatarGlyphPicker';
 import { ART_TO_CONTENT_GAP, LineStepFrame } from './line/LineStepFrame';
-import { LINE, useLineColors } from './line/lineKit';
+import { LINE, LineOutline, useLineColors } from './line/lineKit';
 import { SetupArt } from './line/onboardingArt';
 
 export type SetupStepKey = 'computer' | 'network' | 'bot';
@@ -74,6 +74,7 @@ export function SettingUpScreen({
   step?: number;
 }) {
   const glyph = useOnboardingGlyph();
+  const { ink } = useLineColors();
   const currentIndex =
     current === 'done'
       ? SETUP_STEPS.length
@@ -96,15 +97,19 @@ export function SettingUpScreen({
         marginHorizontal="$2xl"
         accessibilityLabel="Setup steps"
       >
-        {/* The rule joins the markers, behind them. */}
-        <View
-          position="absolute"
-          left={MARKER / 2 - LINE / 2}
-          top={STEP_ROW / 2}
+        {/* The rule joins the markers, behind them. It's drawn in SVG like
+            the other lines: a 0.5 pt wide view rounds to two pixels. */}
+        <Svg
+          width={1}
           height={STEP_ROW * (SETUP_STEPS.length - 1)}
-          width={LINE}
-          backgroundColor="$primaryText"
-        />
+          style={{
+            position: 'absolute',
+            left: MARKER / 2 - LINE / 2,
+            top: STEP_ROW / 2,
+          }}
+        >
+          <Rect width={LINE} height="100%" fill={ink} />
+        </Svg>
         {SETUP_STEPS.map((step, index) => (
           <SetupStepRow
             key={step.key}
@@ -164,13 +169,9 @@ function SetupStepRow({ label, state }: { label: string; state: StepState }) {
         ) : state === 'current' ? (
           <LoadingSpinner size="small" color="$secondaryText" />
         ) : (
-          <View
-            width={12}
-            height={12}
-            borderRadius={6}
-            borderWidth={LINE}
-            borderColor="$primaryText"
-          />
+          <View width={12} height={12}>
+            <LineOutline radius={6} />
+          </View>
         )}
       </View>
       <Text

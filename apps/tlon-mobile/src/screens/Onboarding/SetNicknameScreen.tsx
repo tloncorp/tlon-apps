@@ -4,8 +4,8 @@ import {
   AVATAR_GLYPH_IDS,
   type AvatarGlyphId,
   AvatarGlyphPicker,
-  LINE,
   LineButton,
+  LineOutline,
   LineStepFrame,
   Text,
   TextInput,
@@ -271,16 +271,19 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
                 enablesReturnKeyAutomatically
                 accessibilityLabelledBy="set-nickname-label"
                 frameStyle={{
-                  borderWidth: LINE,
+                  borderWidth: 0,
                   borderRadius: 12,
                   paddingLeft: 16,
                   paddingRight: 12,
-                  borderColor: error ? '$negativeActionText' : '$primaryText',
                   backgroundColor: error
                     ? '$negativeBackground'
                     : '$background',
                 }}
                 testID="set-nickname-input"
+              />
+              <LineOutline
+                radius={12}
+                color={error ? '$negativeActionText' : '$primaryText'}
               />
             </View>
           </YStack>

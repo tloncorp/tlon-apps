@@ -6,8 +6,9 @@ import {
   useContext,
   useEffect,
   useId,
+  useState,
 } from 'react';
-import { useWindowDimensions } from 'react-native';
+import { PixelRatio, useWindowDimensions } from 'react-native';
 import Animated, {
   Easing,
   type SharedValue,
@@ -18,7 +19,7 @@ import Animated, {
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
-import {
+import Svg, {
   Circle,
   ClipPath,
   Defs,
@@ -28,7 +29,7 @@ import {
   Rect,
   type RectProps,
 } from 'react-native-svg';
-import { View, useTheme } from 'tamagui';
+import { type ColorTokens, View, useTheme } from 'tamagui';
 
 import {
   AVATAR_GLYPHS,
@@ -52,6 +53,88 @@ export function useLineColors() {
     ink: theme.primaryText?.val as string,
     paper: theme.background?.val as string,
   };
+}
+
+/**
+ * A LINE-weight outline around its parent, drawn in SVG like the avatar
+ * tiles. React Native's own 0.5 pt rounded borders come out uneven at 3x:
+ * the top and left edges lose half a pixel. Put it last in a parent that has
+ * a size, so it draws over the parent's content.
+ */
+export function LineOutline({
+  radius,
+  color = '$primaryText',
+}: {
+  radius: number;
+  color?: ColorTokens;
+}) {
+  const stroke = useTokenColor(color);
+  const [size, setSize] = useState<{ width: number; height: number }>();
+  return (
+    <View
+      position="absolute"
+      top={0}
+      left={0}
+      right={0}
+      bottom={0}
+      pointerEvents="none"
+      onLayout={({ nativeEvent: { layout } }) => {
+        // Layout can report 191.99997 for 192; snapped, the bottom line
+        // lands on the parent's last pixel row.
+        const width = PixelRatio.roundToNearestPixel(layout.width);
+        const height = PixelRatio.roundToNearestPixel(layout.height);
+        setSize((current) =>
+          current?.width === width && current?.height === height
+            ? current
+            : { width, height }
+        );
+      }}
+    >
+      {size ? (
+        // The canvas fills the parent rather than taking the measured size,
+        // which an Svg can round down, cutting off the bottom line.
+        <Svg width="100%" height="100%">
+          <Rect
+            x={LINE / 2}
+            y={LINE / 2}
+            width={size.width - LINE}
+            height={size.height - LINE}
+            rx={radius}
+            fill="none"
+            stroke={stroke}
+            strokeWidth={LINE}
+          />
+        </Svg>
+      ) : null}
+    </View>
+  );
+}
+
+/**
+ * A LINE-weight divider along the top of its parent, drawn like LineOutline:
+ * a native 0.5 pt border comes out as two solid pixels at 3x, heavier than
+ * every other line.
+ */
+export function LineRule({ color = '$primaryText' }: { color?: ColorTokens }) {
+  const fill = useTokenColor(color);
+  return (
+    <Svg
+      width="100%"
+      height={1}
+      style={{ position: 'absolute', top: 0, left: 0, right: 0 }}
+      pointerEvents="none"
+    >
+      <Rect x={0} y={0} width="100%" height={LINE} fill={fill} />
+    </Svg>
+  );
+}
+
+function useTokenColor(color: ColorTokens) {
+  const theme = useTheme() as unknown as Record<
+    string,
+    { val?: unknown } | undefined
+  >;
+  return theme[color.slice(1)]?.val as string | undefined;
 }
 
 /** Svg ids must be unique per drawing and can't carry React's colons. */
