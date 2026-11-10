@@ -1,7 +1,6 @@
 import { Pressable, Text } from '@tloncorp/ui';
 import * as db from '@tloncorp/shared/db';
 import { useEffect, useRef } from 'react';
-import { StyleSheet } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -18,26 +17,29 @@ import {
   type AvatarGlyphId,
   isAvatarGlyphId,
 } from './avatarGlyphs';
-import { GlyphMark, LINE, useLineColors } from './lineKit';
+import { GLYPH_IN_TILE, GlyphMark, LINE, useLineColors } from './lineKit';
 
 const TILE = 72;
+/** The picked tile takes this much room, pushing the others along. */
+const PICKED_TILE = 88;
 const TILE_RADIUS = 12;
-const GLYPH = 45;
+/** The solid tile's glyph lines, at TILE. */
+const PICKED_GLYPH_LINE = 2;
 /** The canvas's pick: a 0.2 s crossfade on CSS `ease`. */
 const PICK_FADE_MS = 200;
+/** How long the picked tile takes to grow, and the old pick to shrink. */
+const PICK_GROW_MS = 250;
 const CSS_EASE = Easing.bezier(0.25, 0.1, 0.25, 1);
 const CSS_EASE_OUT = Easing.bezier(0, 0, 0.58, 1);
-/** The picked tile rests this much larger than the others. */
-const PICKED_SCALE = 1.08;
 /**
- * The pick bounce, 0.3 s from the tile's center: one small dip, then a small
- * overshoot past the picked size. Each step's scale and length, from the
- * canvas's keyframes at 35, 70 and 100%.
+ * The canvas's pick bounce, 0.3 s from the tile's center: one small dip and
+ * overshoot. Each step's scale and length, from its keyframes at 35, 70 and
+ * 100%.
  */
 const PICK_BOUNCE: [number, number][] = [
   [0.96, 105],
-  [PICKED_SCALE * 1.02, 105],
-  [PICKED_SCALE, 90],
+  [1.02, 105],
+  [1, 90],
 ];
 
 /** The glyph picked on Profile, for drawing the Tlonbot. Sam until one is. */
@@ -48,9 +50,10 @@ export function useOnboardingGlyph(): AvatarGlyphId {
 
 /**
  * A tile crossfades between outlined and solid when it's picked, as on the
- * canvas, with no dip while it's pressed, and the picked tile sits a little
- * larger. A newly picked tile bounces up to that size and the old pick eases
- * back; the pick it starts with doesn't move. Reduce Motion skips the motion.
+ * canvas, with no dip while it's pressed. The picked tile is larger and
+ * takes the room it needs; a newly picked one grows with a small bounce while
+ * the old pick shrinks back. The pick it starts with doesn't move, and Reduce
+ * Motion skips the motion.
  */
 export function AvatarGlyphTile({
   glyph,
@@ -61,44 +64,61 @@ export function AvatarGlyphTile({
 }) {
   const reduceMotion = useReducedMotion();
   const picked = useSharedValue(selected ? 1 : 0);
-  const scale = useSharedValue(selected ? PICKED_SCALE : 1);
+  const size = useSharedValue(selected ? PICKED_TILE : TILE);
+  const bounce = useSharedValue(1);
   const wasSelected = useRef(selected);
   useEffect(() => {
     const justPicked = selected && !wasSelected.current;
     wasSelected.current = selected;
     const target = selected ? 1 : 0;
+    const targetSize = selected ? PICKED_TILE : TILE;
     if (reduceMotion) {
       picked.set(target);
-      scale.set(selected ? PICKED_SCALE : 1);
+      size.set(targetSize);
       return;
     }
     picked.set(
       withTiming(target, { duration: PICK_FADE_MS, easing: CSS_EASE })
     );
+    size.set(
+      withTiming(targetSize, { duration: PICK_GROW_MS, easing: CSS_EASE })
+    );
     if (justPicked) {
-      scale.set(
+      bounce.set(
         withSequence(
           ...PICK_BOUNCE.map(([to, duration]) =>
             withTiming(to, { duration, easing: CSS_EASE_OUT })
           )
         )
       );
-    } else if (!selected) {
-      scale.set(withTiming(1, { duration: PICK_FADE_MS, easing: CSS_EASE }));
     }
-  }, [picked, reduceMotion, scale, selected]);
-  const pickedStyle = useAnimatedStyle(() => ({ opacity: picked.value }));
-  const unpickedStyle = useAnimatedStyle(() => ({ opacity: 1 - picked.value }));
-  const bounceStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
+  }, [bounce, picked, reduceMotion, selected, size]);
+
+  const frameStyle = useAnimatedStyle(() => ({
+    width: size.value,
+    height: size.value,
+  }));
+  // Each face is drawn at its own resting size, so it's sharp at rest, and
+  // scaled to the tile's current size in between.
+  const unpickedStyle = useAnimatedStyle(() => ({
+    opacity: 1 - picked.value,
+    left: (size.value - TILE) / 2,
+    top: (size.value - TILE) / 2,
+    transform: [{ scale: (size.value / TILE) * bounce.value }],
+  }));
+  const pickedStyle = useAnimatedStyle(() => ({
+    opacity: picked.value,
+    left: (size.value - PICKED_TILE) / 2,
+    top: (size.value - PICKED_TILE) / 2,
+    transform: [{ scale: (size.value / PICKED_TILE) * bounce.value }],
   }));
   return (
-    <Animated.View style={[{ width: TILE, height: TILE }, bounceStyle]}>
-      <Animated.View style={[StyleSheet.absoluteFill, unpickedStyle]}>
-        <TileFace glyph={glyph} selected={false} />
+    <Animated.View style={frameStyle}>
+      <Animated.View style={[{ position: 'absolute' }, unpickedStyle]}>
+        <TileFace glyph={glyph} selected={false} size={TILE} />
       </Animated.View>
-      <Animated.View style={[StyleSheet.absoluteFill, pickedStyle]}>
-        <TileFace glyph={glyph} selected />
+      <Animated.View style={[{ position: 'absolute' }, pickedStyle]}>
+        <TileFace glyph={glyph} selected size={PICKED_TILE} />
       </Animated.View>
     </Animated.View>
   );
@@ -107,23 +127,27 @@ export function AvatarGlyphTile({
 function TileFace({
   glyph,
   selected,
+  size,
 }: {
   glyph: AvatarGlyphId;
   selected: boolean;
+  size: number;
 }) {
   const { ink, paper } = useLineColors();
-  const inset = (TILE - GLYPH) / 2;
+  const k = size / TILE;
+  const glyphSize = size * GLYPH_IN_TILE;
+  const inset = (size - glyphSize) / 2;
   return (
-    <Svg width={TILE} height={TILE}>
+    <Svg width={size} height={size}>
       {selected ? (
-        <Rect width={TILE} height={TILE} rx={TILE_RADIUS} fill={ink} />
+        <Rect width={size} height={size} rx={TILE_RADIUS * k} fill={ink} />
       ) : (
         <Rect
           x={LINE / 2}
           y={LINE / 2}
-          width={TILE - LINE}
-          height={TILE - LINE}
-          rx={TILE_RADIUS}
+          width={size - LINE}
+          height={size - LINE}
+          rx={TILE_RADIUS * k}
           fill={paper}
           stroke={ink}
           strokeWidth={LINE}
@@ -133,9 +157,9 @@ function TileFace({
         glyph={glyph}
         x={inset}
         y={inset}
-        size={GLYPH}
+        size={glyphSize}
         variant={selected ? 'inverse' : 'line'}
-        lineWidth={2}
+        lineWidth={PICKED_GLYPH_LINE * k}
       />
     </Svg>
   );
@@ -163,6 +187,10 @@ export function AvatarGlyphPicker({
       </Text>
       <XStack
         marginHorizontal="$2xl"
+        // As tall as the picked tile, so the field below stays put while
+        // one tile grows and another shrinks.
+        height={PICKED_TILE}
+        alignItems="center"
         justifyContent="space-between"
         accessibilityRole="radiogroup"
         accessibilityLabelledBy="onboarding-avatar-label"
