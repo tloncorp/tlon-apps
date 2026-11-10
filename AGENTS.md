@@ -19,6 +19,7 @@ changing code there:
 | Web app and E2E tests | `apps/tlon-web/AGENTS.md` |
 | OpenClaw plugin | `packages/openclaw/AGENTS.md` |
 | Hermes adapter | `packages/hermes-tlon-adapter/AGENTS.md` |
+| Harness agent runtime | `packages/harness/AGENTS.md` |
 
 ## System map
 

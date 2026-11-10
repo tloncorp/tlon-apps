@@ -67,8 +67,8 @@ before each live script, which sets up what it needs; state in other desks stays
 
 `scripts/test-js.sh` gives live scripts their variables: the opt-ins, `CONTROLLED_MODEL=1`,
 the ships' tmux panes and a `TEST_NEST` channel that `~lux` hosts and `~zod` has joined,
-which `tests-js/lib/test-channel.mjs` creates once. Its `skip` array names the scripts it
-can't run and why.
+which `tests-js/lib/test-channel.mjs` creates once. Its `skip_reason` function names the scripts
+it can't run and why.
 
 `just fake-dev` runs `scripts/setup-fake-dev.sh`, which needs `tmux` and `mcp/`
 from `just fetch`, and refuses a pier or tmux session that already exists. It uses

@@ -8,10 +8,11 @@ jobs:
   # work that the change set can't affect. `app` is an ignore-list: it's true
   # for ANY change except ones confined to the isolated bot/plugin packages
   # (openclaw/hermes/tlon-bot-e2e/tlon-skill — not consumed by the app, covered
-  # by their own workflows) or docs. New packages therefore default to running
-  # the app suite, so we never silently skip needed tests. `bots` mirrors that
-  # package list positively; it gates the bot-checks job that keeps the checks
-  # only test-build used to provide (see below) running on bot-only PRs.
+  # by their own workflows), Harness (tested by harness-ci) or docs. New
+  # packages therefore default to running the app suite, so we never silently
+  # skip needed tests. `bots` mirrors the bot package list positively; it gates
+  # the bot-checks job that keeps the checks only test-build used to provide
+  # (see below) running on bot-only PRs.
   changes:
     runs-on: blacksmith-2vcpu-ubuntu-2404
     outputs:
@@ -36,6 +37,7 @@ jobs:
               - '**'
               - '!packages/openclaw/**'
               - '!packages/hermes-tlon-adapter/**'
+              - '!packages/harness/**'
               - '!packages/tlon-bot-e2e/**'
               - '!packages/tlon-skill/**'
               - '!docs/**'

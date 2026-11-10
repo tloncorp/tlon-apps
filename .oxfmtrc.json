@@ -302,6 +302,7 @@
     "/packages/app/**/.DS_Store",
     "/packages/editor/**/dist",
     "/packages/editor/**/dist-notebook",
+    "/packages/harness/",
     "/packages/openclaw/**/node_modules/",
     "/packages/openclaw/**/dist/",
     "/packages/openclaw/src/version.generated.ts",

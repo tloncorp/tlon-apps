@@ -15,10 +15,13 @@ tools="node tmux just"
 source "$(dirname "$0")/test-lib.sh" "$1"
 
 # Live scripts this run can't do, and why.
-declare -A skip=(
-  [openai-auth-conformance]="tests a real OpenAI login"
-  [tlon-media-conformance]="needs %storage, which the groups pill lacks, and a real download"
-)
+function skip_reason
+{
+  case $1 in
+    openai-auth-conformance) echo "tests a real OpenAI login" ;;
+    tlon-media-conformance) echo "needs %storage, which the groups pill lacks, and a real download" ;;
+  esac
+}
 
 # Opt-ins for scripts that post test messages. All of this runs on throwaway fake ships,
 # with local providers in place of real inference.
@@ -98,9 +101,10 @@ function live
   name=$1
   file=$2
   matches "$name" || return
-  if [ -n "${skip[$name]}" ]
+  reason=$(skip_reason "$name")
+  if [ -n "$reason" ]
   then
-    result "$name" "skipped: ${skip[$name]}"
+    result "$name" "skipped: $reason"
     return
   fi
   # Each script starts clean, so results don't depend on the order they run in.
