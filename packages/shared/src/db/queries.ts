@@ -5013,22 +5013,22 @@ export const insertChanges = createWriteQuery(
             );
             await perfTime(
               'insertChanges.groupUnreads',
-              () => insertGroupUnreads(input.unreads.groupUnreads, ctx),
+              () => insertGroupUnreads(input.unreads.groupUnreads, txCtx),
               { count: input.unreads.groupUnreads.length }
             );
             await perfTime(
               'insertChanges.channelUnreads',
-              () => insertChannelUnreads(input.unreads.channelUnreads, ctx),
+              () => insertChannelUnreads(input.unreads.channelUnreads, txCtx),
               { count: input.unreads.channelUnreads.length }
             );
             await perfTime(
               'insertChanges.threadUnreads',
-              () => insertThreadUnreads(input.unreads.threadActivity, ctx),
+              () => insertThreadUnreads(input.unreads.threadActivity, txCtx),
               { count: input.unreads.threadActivity.length }
             );
             if (input.unreads.baseUnread) {
               await perfTime('insertChanges.baseUnread', () =>
-                insertBaseUnread(input.unreads.baseUnread!, ctx)
+                insertBaseUnread(input.unreads.baseUnread!, txCtx)
               );
             }
           }),
@@ -6969,13 +6969,17 @@ export const insertGroupUnreads = createWriteQuery(
   'insertGroupUnreads',
   async (unreads: GroupUnread[], ctx: QueryCtx) => {
     if (!unreads.length) return;
-    return ctx.db
-      .insert($groupUnreads)
-      .values(unreads)
-      .onConflictDoUpdate({
-        target: [$groupUnreads.groupId],
-        set: conflictUpdateSetAll($groupUnreads),
-      });
+    return withTransactionCtx(ctx, (txCtx) =>
+      batchAction(unreads, async (batch) => {
+        await txCtx.db
+          .insert($groupUnreads)
+          .values(batch)
+          .onConflictDoUpdate({
+            target: [$groupUnreads.groupId],
+            set: conflictUpdateSetAll($groupUnreads),
+          });
+      })
+    );
   },
   (unreads) => (unreads.length ? ['groupUnreads'] : [])
 );
@@ -7053,25 +7057,29 @@ export const insertChannelUnreads = createWriteQuery(
 
     logger.log('insertChannelUnreads', unreads.length);
     return withTransactionCtx(ctx, async (txCtx) => {
-      await txCtx.db
-        .insert($channelUnreads)
-        .values(unreads)
-        .onConflictDoUpdate({
-          target: [$channelUnreads.channelId],
-          set: conflictUpdateSetAll($channelUnreads),
-        });
+      // Every DM and channel on the ship arrives here at once on init, and one
+      // statement for all of them outgrows SQLite's bound-parameter limit.
+      await batchAction(unreads, async (batch) => {
+        await txCtx.db
+          .insert($channelUnreads)
+          .values(batch)
+          .onConflictDoUpdate({
+            target: [$channelUnreads.channelId],
+            set: conflictUpdateSetAll($channelUnreads),
+          });
+      });
       const threadUnreads = unreads.flatMap((u) => {
         return u.threadUnreads ?? [];
       });
-      if (threadUnreads.length) {
+      await batchAction(threadUnreads, async (batch) => {
         await txCtx.db
           .insert($threadUnreads)
-          .values(threadUnreads)
+          .values(batch)
           .onConflictDoUpdate({
             target: [$threadUnreads.threadId, $threadUnreads.channelId],
             set: conflictUpdateSetAll($threadUnreads),
           });
-      }
+      });
     });
   },
   (unreads) => {
@@ -7141,13 +7149,17 @@ export const insertThreadUnreads = createWriteQuery(
   'insertThreadUnreads',
   async (unreads: ThreadUnreadState[], ctx: QueryCtx) => {
     if (!unreads.length) return;
-    return ctx.db
-      .insert($threadUnreads)
-      .values(unreads)
-      .onConflictDoUpdate({
-        target: [$threadUnreads.threadId, $threadUnreads.channelId],
-        set: conflictUpdateSetAll($threadUnreads),
-      });
+    return withTransactionCtx(ctx, (txCtx) =>
+      batchAction(unreads, async (batch) => {
+        await txCtx.db
+          .insert($threadUnreads)
+          .values(batch)
+          .onConflictDoUpdate({
+            target: [$threadUnreads.threadId, $threadUnreads.channelId],
+            set: conflictUpdateSetAll($threadUnreads),
+          });
+      })
+    );
   },
   (unreads) => (unreads.length ? ['threadUnreads', 'channelUnreads'] : [])
 );
