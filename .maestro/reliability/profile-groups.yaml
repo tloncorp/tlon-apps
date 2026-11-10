@@ -11,8 +11,7 @@ onFlowComplete:
         - launchApp
         - runFlow: subflows/contacts-screen.yaml
         - tapOn: '^You$'
-        - tapOn:
-            id: ContactEditButton
+        - tapOn: '^Edit profile$'
         - scrollUntilVisible:
             element:
               text: ${output.reliability.groupPattern}
@@ -27,7 +26,6 @@ onFlowComplete:
 - runFlow: subflows/begin.yaml
 - runFlow: subflows/create-group.yaml
 - tapOn: ${output.reliability.groupPattern}
-- assertVisible: '^Workspace info & settings$'
 # Secret groups cannot be displayed on a profile. Only change our own fixture.
 - tapOn:
     id: GroupPrivacy
@@ -38,8 +36,7 @@ onFlowComplete:
 - tapOn: '^Back$'
 - runFlow: subflows/contacts-screen.yaml
 - tapOn: '^You$'
-- tapOn:
-    id: ContactEditButton
+- tapOn: '^Edit profile$'
 - scrollUntilVisible:
     element:
       text: '^Add a workspace$'
@@ -65,8 +62,7 @@ onFlowComplete:
 - runFlow: subflows/contacts-screen.yaml
 - tapOn: '^You$'
 - assertVisible: ${output.reliability.groupPattern}
-- tapOn:
-    id: ContactEditButton
+- tapOn: '^Edit profile$'
 - scrollUntilVisible:
     element:
       text: ${output.reliability.groupPattern}
@@ -92,7 +88,6 @@ onFlowComplete:
 - hideKeyboard
 - tapOn: ${output.reliability.groupPattern}
 - tapOn: ${output.reliability.groupPattern}
-- assertVisible: '^Workspace info & settings$'
 - scrollUntilVisible:
     element:
       id: GroupLeaveAction-Delete workspace

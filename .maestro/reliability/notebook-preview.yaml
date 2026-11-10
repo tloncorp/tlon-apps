@@ -9,7 +9,7 @@ env:
 - runFlow: subflows/create-group.yaml
 - tapOn: '^Edit channels$'
 - assertVisible: '^Channels$'
-- tapOn: '^New$'
+- tapOn: '^New( channel or section)?$'
 - tapOn: '^New channel$'
 - assertVisible: '^Create a new channel$'
 - tapOn: '^Collaborative markdown notebooks$'
@@ -41,8 +41,7 @@ env:
     timeout: 15000
 
 # An empty note has a specific preview state and stays editable.
-- tapOn:
-    id: NotesRootNewHeaderAction
+- tapOn: '^New$'
 - tapOn:
     id: NotesNewNoteAction
 - extendedWaitUntil:
@@ -83,8 +82,36 @@ env:
 
 # Every construct in this deterministic body must render as content rather
 # than source, and the example link must open its exact host.
-- setClipboard: ${output.reliability.markdownBody}
-- pasteText
+# Pasting on Android drops the line breaks, so the body goes in a line at a
+# time there.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - setClipboard: ${output.reliability.markdownBody}
+      - pasteText
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - evalScript: ${output.bodyLine = 0}
+      - repeat:
+          times: ${output.reliability.markdownBody.split('\n').length}
+          commands:
+            - runFlow:
+                when:
+                  true: ${output.bodyLine > 0}
+                commands:
+                  - pressKey: Enter
+                  # Typed straight after Enter, the next line can land out of
+                  # order.
+                  - waitForAnimationToEnd
+            - runFlow:
+                when:
+                  true: ${output.reliability.markdownBody.split('\n')[output.bodyLine] !== ''}
+                commands:
+                  - inputText: ${output.reliability.markdownBody.split('\n')[output.bodyLine]}
+            - evalScript: ${output.bodyLine += 1}
 - assertVisible:
     id: NotesBodyInput
 - tapOn:
@@ -131,6 +158,13 @@ env:
 - assertTrue: ${maestro.copiedText.includes('X')}
 
 # Delete only this run's fixture group.
+# While the keyboard is up, Android's own Back control answers to the same
+# label as the header's.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
 - tapOn: '^Back$'
 - tapOn: '^Back$'
 - assertVisible: ${output.reliability.groupPattern}

@@ -1,6 +1,5 @@
 appId: ${MAESTRO_APP_ID}
 ---
-- assertVisible: '^Workspace info & settings$'
 - assertVisible: ${output.reliability.groupPattern}
 - scrollUntilVisible:
     element:

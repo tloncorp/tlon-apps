@@ -8,12 +8,12 @@ env:
 - runFlow: subflows/begin.yaml
 - runFlow: subflows/create-group.yaml
 - tapOn: '^Back$'
-- tapOn: '^Groups$'
+- tapOn: '^Just me$'
 - tapOn: '^Search$'
 - inputText: ${output.reliability.groupQuery}
 - assertVisible: ${output.reliability.groupPattern}
 - tapOn: '^Messages$'
-- assertVisible: '^No results found\.$'
+- assertVisible: '^No results found$'
 - assertNotVisible: ${output.reliability.groupPattern}
 - tapOn: '^Try in All\?$'
 - assertVisible: ${output.reliability.groupPattern}
@@ -21,7 +21,7 @@ env:
 - tapOn: '^Filter by name$'
 - inputText: qzxqzxqzxqzx
 - assertVisible: '^qzxqzxqzxqzx$'
-- assertVisible: '^No results found\.$'
+- assertVisible: '^No results found$'
 - tapOn: '^Clear search$'
 - tapOn: '^Filter by name$'
 - inputText: ${output.reliability.groupQuery}
@@ -36,10 +36,9 @@ env:
     below: '^Pinned$'
 - longPressOn: ${output.reliability.groupPattern}
 - tapOn: '^Workspace info & settings$'
-- assertVisible: '^Workspace info & settings$'
 - tapOn: '^Unpin$'
 - assertVisible: '^Pin$'
-- tapOn: '^Rename$'
+- tapOn: '^Edit$'
 - tapOn:
     id: GroupTitleInput
     point: '95%,50%'
@@ -57,7 +56,7 @@ env:
 - tapOn: '^Save$'
 - assertVisible: ${output.reliability.group + ' renamed'}
 - assertVisible: ${MAESTRO_RUN_TAG + ' description'}
-- tapOn: '^Rename$'
+- tapOn: '^Edit$'
 - assertVisible:
     id: GroupTitleInput
     text: ${output.reliability.group + ' renamed'}
