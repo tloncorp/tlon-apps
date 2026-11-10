@@ -27,15 +27,17 @@ const GLYPH = 45;
 const PICK_FADE_MS = 200;
 const CSS_EASE = Easing.bezier(0.25, 0.1, 0.25, 1);
 const CSS_EASE_OUT = Easing.bezier(0, 0, 0.58, 1);
+/** The picked tile rests this much larger than the others. */
+const PICKED_SCALE = 1.08;
 /**
- * The canvas's pick bounce, 0.3 s from the tile's center: one small dip and
- * overshoot. Each step's scale and length, from its keyframes at 35, 70 and
- * 100%.
+ * The pick bounce, 0.3 s from the tile's center: one small dip, then a small
+ * overshoot past the picked size. Each step's scale and length, from the
+ * canvas's keyframes at 35, 70 and 100%.
  */
 const PICK_BOUNCE: [number, number][] = [
   [0.96, 105],
-  [1.02, 105],
-  [1, 90],
+  [PICKED_SCALE * 1.02, 105],
+  [PICKED_SCALE, 90],
 ];
 
 /** The glyph picked on Profile, for drawing the Tlonbot. Sam until one is. */
@@ -46,8 +48,9 @@ export function useOnboardingGlyph(): AvatarGlyphId {
 
 /**
  * A tile crossfades between outlined and solid when it's picked, as on the
- * canvas, with no dip while it's pressed. A newly picked tile also bounces;
- * the pick it starts with doesn't. Reduce Motion skips both.
+ * canvas, with no dip while it's pressed, and the picked tile sits a little
+ * larger. A newly picked tile bounces up to that size and the old pick eases
+ * back; the pick it starts with doesn't move. Reduce Motion skips the motion.
  */
 export function AvatarGlyphTile({
   glyph,
@@ -58,7 +61,7 @@ export function AvatarGlyphTile({
 }) {
   const reduceMotion = useReducedMotion();
   const picked = useSharedValue(selected ? 1 : 0);
-  const scale = useSharedValue(1);
+  const scale = useSharedValue(selected ? PICKED_SCALE : 1);
   const wasSelected = useRef(selected);
   useEffect(() => {
     const justPicked = selected && !wasSelected.current;
@@ -66,6 +69,7 @@ export function AvatarGlyphTile({
     const target = selected ? 1 : 0;
     if (reduceMotion) {
       picked.set(target);
+      scale.set(selected ? PICKED_SCALE : 1);
       return;
     }
     picked.set(
@@ -79,6 +83,8 @@ export function AvatarGlyphTile({
           )
         )
       );
+    } else if (!selected) {
+      scale.set(withTiming(1, { duration: PICK_FADE_MS, easing: CSS_EASE }));
     }
   }, [picked, reduceMotion, scale, selected]);
   const pickedStyle = useAnimatedStyle(() => ({ opacity: picked.value }));
