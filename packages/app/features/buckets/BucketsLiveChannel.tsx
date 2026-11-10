@@ -13,6 +13,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -174,13 +175,12 @@ export function BucketsLiveChannel({
   const preview = useBucketPreview(live.readGrant, `${flag.host}/${flag.name}`);
   const previewItem = preview.item;
   const currentPreviewId = useRef(previewItem?.id);
-  currentPreviewId.current = previewItem?.id;
-  useEffect(
-    () => () => {
+  useLayoutEffect(() => {
+    currentPreviewId.current = previewItem?.id;
+    return () => {
       currentPreviewId.current = undefined;
-    },
-    []
-  );
+    };
+  }, [previewItem?.id]);
   const previewFiles = previewItem
     ? getBucketPreviewFiles(live.entries, Number(previewItem.id)).map((entry) =>
         toItem(entry)

@@ -1,7 +1,7 @@
 import type { BucketsFlag } from '@tloncorp/api';
 import { useChannel } from '@tloncorp/shared';
 import { ConfirmDialog, useToast } from '@tloncorp/ui';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { BucketFileViewer, useCanWrite, useCurrentUserId } from '../../ui';
 import { toItem, toViewerItem } from './BucketsLiveChannel';
@@ -49,13 +49,12 @@ function BucketsFileSelection({
     setSelection({ entryId, selectedId: entryId });
   const { selectedId } = selection;
   const currentSelection = useRef<number | null>(selectedId);
-  currentSelection.current = selectedId;
-  useEffect(
-    () => () => {
+  useLayoutEffect(() => {
+    currentSelection.current = selectedId;
+    return () => {
       currentSelection.current = null;
-    },
-    []
-  );
+    };
+  }, [selectedId]);
   const entry = live.entries.find((candidate) => candidate.id === selectedId);
   const files = getBucketPreviewFiles(live.entries, selectedId).map((entry) =>
     toItem(entry)
