@@ -28,14 +28,14 @@ const PICK_FADE_MS = 200;
 const CSS_EASE = Easing.bezier(0.25, 0.1, 0.25, 1);
 const CSS_EASE_OUT = Easing.bezier(0, 0, 0.58, 1);
 /**
- * The canvas's pick bounce, 0.42 s from the tile's center: each step's
- * scale and length, from its keyframes at 25, 55, 78 and 100%.
+ * The canvas's pick bounce, 0.3 s from the tile's center: one small dip and
+ * overshoot. Each step's scale and length, from its keyframes at 35, 70 and
+ * 100%.
  */
 const PICK_BOUNCE: [number, number][] = [
-  [0.9, 105],
-  [1.06, 126],
-  [0.98, 97],
-  [1, 92],
+  [0.96, 105],
+  [1.02, 105],
+  [1, 90],
 ];
 
 /** The glyph picked on Profile, for drawing the Tlonbot. Sam until one is. */
