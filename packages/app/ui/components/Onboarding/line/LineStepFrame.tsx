@@ -9,7 +9,7 @@ import { useIsDarkMode } from '../../../../hooks/useDarkMode';
 import { ScreenHeader } from '../../ScreenHeader';
 
 /** Profile, Setting up, then the five first-run screens. */
-export const ONBOARDING_STEP_COUNT = 7;
+export const ONBOARDING_STEP_COUNT = 9;
 
 const HEADER_HEIGHT = 44;
 const DOT_SIZE = 7;

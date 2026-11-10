@@ -1,9 +1,11 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as ub from '@tloncorp/api/urbit';
 import {
-  Button,
-  NotificationLevelSelector,
-  OnboardingStepLayout,
+  ART_TO_CONTENT_GAP,
+  LineChoiceList,
+  LineStepFrame,
+  NotificationsArt,
+  useNotificationLevelOptions,
 } from '@tloncorp/app/ui';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -18,6 +20,15 @@ type Props = NativeStackScreenProps<
 
 const DEFAULT_NOTIFICATION_LEVEL: ub.NotificationLevel = 'medium';
 
+// What each level lets through to your phone, as the drawing shows it:
+// direct messages, mentions, workspace posts.
+const LETS_THROUGH: Partial<Record<ub.NotificationLevel, boolean[]>> = {
+  loud: [true, true, true],
+  medium: [true, true, true],
+  soft: [true, true, false],
+  hush: [false, false, false],
+};
+
 export const SetNotificationsScreen = ({ navigation }: Props) => {
   const signupContext = useSignupContext();
   const isRevivalOnboarding = signupContext.onboardingFlow === 'tlonbotRevival';
@@ -26,6 +37,7 @@ export const SetNotificationsScreen = ({ navigation }: Props) => {
   const [selectedLevel, setSelectedLevel] = useState<ub.NotificationLevel>(
     DEFAULT_NOTIFICATION_LEVEL
   );
+  const levels = useNotificationLevelOptions({ shortDescriptions: true });
 
   useEffect(() => {
     if (!isRevivalOnboarding || didPrefillNotificationLevel.current) {
@@ -60,18 +72,33 @@ export const SetNotificationsScreen = ({ navigation }: Props) => {
     [navigation]
   );
 
+  // No back arrow: going back from here is blocked, as on Profile.
   return (
-    <OnboardingStepLayout
+    <LineStepFrame
+      step={2}
       title="Notifications"
-      body="Tlon works best when you’re notified of messages. You can change this any time."
-      footer={<Button preset="hero" shadow label="Next" onPress={handleNext} />}
+      subtitle="Tlon works best when you’re notified of messages. You can change this any time."
+      primary={{
+        label: 'Next',
+        onPress: handleNext,
+        testID: 'set-notifications-next',
+      }}
+      testID="set-notifications"
     >
-      <NotificationLevelSelector
-        value={selectedLevel}
-        onChange={setSelectedLevel}
-        config={{ shortDescriptions: true }}
-        flush
+      <NotificationsArt
+        through={LETS_THROUGH[selectedLevel] ?? [false, false, false]}
       />
-    </OnboardingStepLayout>
+      <LineChoiceList
+        marginTop={ART_TO_CONTENT_GAP}
+        accessibilityLabel="Notification level"
+        choices={levels.map((level) => ({
+          id: level.value,
+          title: level.title,
+          testID: `notification-level-${level.value}`,
+        }))}
+        selectedId={selectedLevel}
+        onSelect={(level) => setSelectedLevel(level as ub.NotificationLevel)}
+      />
+    </LineStepFrame>
   );
 };

@@ -1,20 +1,14 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useIsDarkMode } from '@tloncorp/app/hooks/useDarkMode';
 import {
   requestNotificationToken,
   useNotificationPermissions,
 } from '@tloncorp/app/lib/notifications';
 import { prepareTlonbotRevivalNotifications } from '@tloncorp/app/lib/tlonbotRevivalNotifications';
-import {
-  Button,
-  OnboardingStepLayout,
-  TlonText,
-  useNotificationPromptFrame,
-} from '@tloncorp/app/ui';
+import { AllowNotificationsArt, LineStepFrame } from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useRef } from 'react';
-import { Image, Platform } from 'react-native';
+import { Platform } from 'react-native';
 
 import { useSignupContext } from '../../lib/signupContext';
 import type { OnboardingStackParamList } from '../../types';
@@ -28,22 +22,8 @@ const logger = createDevLogger('AllowNotificationsScreen', true);
 
 export const AllowNotificationsScreen = ({ navigation }: Props) => {
   const signupContext = useSignupContext();
-  const isDarkMode = useIsDarkMode();
   const notifPerms = useNotificationPermissions();
   const hasContinued = useRef(false);
-  const prompt = useNotificationPromptFrame();
-
-  const getPromptImage = () => {
-    if (Platform.OS === 'ios') {
-      return isDarkMode
-        ? require('../../../assets/images/notif_prompt_ios_dark.png')
-        : require('../../../assets/images/notif_prompt_ios_light.png');
-    } else {
-      return isDarkMode
-        ? require('../../../assets/images/notif_prompt_android_dark.png')
-        : require('../../../assets/images/notif_prompt_android_light.png');
-    }
-  };
 
   const continueOnboarding = useCallback(
     async (notificationToken?: string) => {
@@ -133,29 +113,22 @@ export const AllowNotificationsScreen = ({ navigation }: Props) => {
     [navigation]
   );
 
+  // No back arrow: going back from here is blocked, as on Profile.
   return (
-    <OnboardingStepLayout
+    <LineStepFrame
+      step={3}
       title="Notifications"
-      body={
-        <>
-          On the next screen, make sure you tap{' '}
-          <TlonText.Text fontWeight="600">“Allow”</TlonText.Text> to enable
-          notifications.
-        </>
-      }
-      footer={<Button preset="hero" shadow label="Next" onPress={handleNext} />}
+      subtitle="On the next screen, make sure you tap “Allow” to turn on notifications."
+      primary={{
+        label: 'Next',
+        onPress: handleNext,
+        testID: 'allow-notifications-next',
+      }}
+      testID="allow-notifications"
     >
-      <Image
-        source={getPromptImage()}
-        accessibilityLabel="The notification prompt, with an arrow pointing to Allow"
-        resizeMode="contain"
-        style={{
-          width: prompt.width,
-          height: prompt.height,
-          alignSelf: 'center',
-          transform: [{ translateX: prompt.offsetX }],
-        }}
+      <AllowNotificationsArt
+        platform={Platform.OS === 'android' ? 'android' : 'ios'}
       />
-    </OnboardingStepLayout>
+    </LineStepFrame>
   );
 };

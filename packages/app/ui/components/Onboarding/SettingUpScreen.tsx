@@ -56,7 +56,7 @@ const STEP_ROW = 48;
 const MARKER = 32;
 
 /**
- * The Setting up screen at the end of signup, step 2 of onboarding. The first
+ * The Setting up screen at the end of signup, step 4 of onboarding. The first
  * run shows it too, when someone finishes before their Tlonbot is ready.
  * Continue waits for setup; with no `onContinue`, the screen moves on by
  * itself once it's done.
@@ -65,7 +65,7 @@ export function SettingUpScreen({
   body,
   current,
   onContinue,
-  step = 2,
+  step = 4,
 }: {
   body: ReactNode;
   current: SetupStepKey | 'done';

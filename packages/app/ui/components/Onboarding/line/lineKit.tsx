@@ -117,15 +117,21 @@ export function LineOutline({
  */
 export function LineRule({ color = '$primaryText' }: { color?: ColorTokens }) {
   const fill = useTokenColor(color);
+  // The holder spans the parent's padding too; an Svg's own 100% width
+  // would stop at the padding.
   return (
-    <Svg
-      width="100%"
+    <View
+      position="absolute"
+      top={0}
+      left={0}
+      right={0}
       height={1}
-      style={{ position: 'absolute', top: 0, left: 0, right: 0 }}
       pointerEvents="none"
     >
-      <Rect x={0} y={0} width="100%" height={LINE} fill={fill} />
-    </Svg>
+      <Svg width="100%" height={1}>
+        <Rect x={0} y={0} width="100%" height={LINE} fill={fill} />
+      </Svg>
+    </View>
   );
 }
 
@@ -218,6 +224,9 @@ export function ArtCanvas({
   );
 }
 
+/** Room either side of a centered caption's middle. */
+const MIDDLE_LABEL_HALF = 120;
+
 /** A mono caption in a drawing, placed by its baseline like SVG text. */
 export function ArtLabel({
   x,
@@ -227,15 +236,25 @@ export function ArtLabel({
 }: {
   x: number;
   y: number;
-  anchor?: 'start' | 'end';
+  anchor?: 'start' | 'middle' | 'end';
   children: string;
 }) {
   const { width } = useContext(ArtContext);
+  const place =
+    anchor === 'start'
+      ? { left: x }
+      : anchor === 'end'
+        ? { right: width - x }
+        : {
+            left: x - MIDDLE_LABEL_HALF,
+            width: 2 * MIDDLE_LABEL_HALF,
+            textAlign: 'center' as const,
+          };
   return (
     <Text
       position="absolute"
       top={y - 12}
-      {...(anchor === 'start' ? { left: x } : { right: width - x })}
+      {...place}
       fontFamily="$mono"
       fontSize={12}
       lineHeight={15}
@@ -671,16 +690,19 @@ export const PORT_RADIUS = 4;
 
 /**
  * A line from `from` that stops just short of the port at `to`: solid when
- * its choice is on, marching dashes when it isn't.
+ * its choice is on, marching dashes when it isn't. The dashes march toward
+ * the port, or away from it with `reverse`.
  */
 export function PortLine({
   from,
   to,
   on,
+  reverse = false,
 }: {
   from: [number, number];
   to: [number, number];
   on: boolean;
+  reverse?: boolean;
 }) {
   const [x1, y1] = from;
   const [x2, y2] = to;
@@ -691,7 +713,7 @@ export function PortLine({
   const d = `M${x1} ${y1}L${ex} ${ey}`;
   return (
     <>
-      {on ? <ArtLine d={d} /> : <MarchingPath d={d} />}
+      {on ? <ArtLine d={d} /> : <MarchingPath d={d} reverse={reverse} />}
       <Port cx={x2} cy={y2} on={on} />
     </>
   );

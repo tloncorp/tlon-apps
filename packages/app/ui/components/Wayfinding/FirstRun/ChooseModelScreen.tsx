@@ -1,14 +1,13 @@
 import { Pressable, Text } from '@tloncorp/ui';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
-import { View, XStack, YStack, useTheme } from 'tamagui';
+import { View, XStack, useTheme } from 'tamagui';
 
 import { useOnboardingGlyph } from '../../Onboarding/line/AvatarGlyphPicker';
 import {
   ART_TO_CONTENT_GAP,
   LineStepFrame,
 } from '../../Onboarding/line/LineStepFrame';
-import { LineIcon } from '../../Onboarding/line/lineIcons';
-import { LineOutline, LineRule } from '../../Onboarding/line/lineKit';
+import { LineChoiceList } from '../../Onboarding/line/LineChoiceList';
 import { ModelArt } from '../../Onboarding/line/onboardingArt';
 import { FirstRunSheet } from './FirstRunSheet';
 import { FIRST_RUN_STEPS, firstRunCopy } from './firstRunCopy';
@@ -64,102 +63,22 @@ export function ChooseModelScreen({
       testID="first-run-model"
     >
       <ModelArt glyph={glyph} picked={rows.map((row) => row.id === pickedId)} />
-      <YStack
+      <LineChoiceList
         marginTop={ART_TO_CONTENT_GAP}
-        marginHorizontal="$2xl"
-        borderRadius={14}
-        overflow="hidden"
-        accessibilityRole="radiogroup"
         accessibilityLabel={copy.a11yGroup}
-      >
-        {rows.map((row, index) => (
-          <ModelOptionRow
-            key={row.id}
-            row={row}
-            selected={row.id === pickedId}
-            first={index === 0}
-            onPress={() =>
-              onSelect(row.plans ? row.id : (row.row?.id ?? row.id))
-            }
-          />
-        ))}
-        <LineOutline radius={14} />
-      </YStack>
+        choices={rows.map((row) => ({
+          id: row.id,
+          title: row.name,
+          meta: row.meta,
+          testID: `first-run-model-${row.id}`,
+        }))}
+        selectedId={pickedId}
+        onSelect={(id) => {
+          const row = rows.find((candidate) => candidate.id === id);
+          if (row) onSelect(row.plans ? row.id : (row.row?.id ?? row.id));
+        }}
+      />
     </LineStepFrame>
-  );
-}
-
-function ModelOptionRow({
-  row,
-  selected,
-  first,
-  onPress,
-}: {
-  row: FirstRunModelChoiceRow;
-  selected: boolean;
-  first: boolean;
-  onPress: () => void;
-}) {
-  const theme = useTheme();
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="radio"
-      accessibilityState={{ checked: selected }}
-      accessibilityLabel={`${row.name}, ${row.meta}`}
-      testID={`first-run-model-${row.id}`}
-    >
-      <XStack
-        minHeight={64}
-        paddingVertical="$m"
-        paddingHorizontal={14}
-        alignItems="center"
-        gap={12}
-        backgroundColor={selected ? '$positiveBackground' : '$background'}
-      >
-        {first ? null : <LineRule />}
-        <YStack flex={1}>
-          <Text
-            fontSize={16}
-            lineHeight={22}
-            letterSpacing={-0.2}
-            color="$primaryText"
-          >
-            {row.name}
-          </Text>
-          <Text
-            fontSize={13}
-            lineHeight={18}
-            color="$secondaryText"
-            numberOfLines={1}
-          >
-            {row.meta}
-          </Text>
-        </YStack>
-        {selected ? (
-          <View
-            width={22}
-            height={22}
-            borderRadius={11}
-            backgroundColor="$positiveActionText"
-            alignItems="center"
-            justifyContent="center"
-            flexShrink={0}
-          >
-            <LineIcon
-              name="check"
-              size={12}
-              strokeWidth={2.4}
-              color={theme.background?.val as string}
-            />
-          </View>
-        ) : (
-          <View width={22} height={22} flexShrink={0}>
-            <LineOutline radius={11} />
-          </View>
-        )}
-      </XStack>
-    </Pressable>
   );
 }
 

@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { YStack } from 'tamagui';
 
 import {
+  AllowNotificationsArt,
+  LineStepFrame,
   OnboardingBenefitsSheet,
   OnboardingButton,
   OnboardingButtonWrapper,
@@ -127,9 +129,27 @@ function OnboardingBenefitsSheetFixture() {
   );
 }
 
+// Allow notifications as Android shows it, so its drawing can be checked on
+// any device. The real screen picks the drawing by platform.
+function AllowNotificationsAndroidFixture() {
+  return (
+    <FixtureWrapper fillWidth fillHeight>
+      <LineStepFrame
+        step={3}
+        title="Notifications"
+        subtitle="On the next screen, make sure you tap “Allow” to turn on notifications."
+        primary={{ label: 'Next', onPress: () => {} }}
+      >
+        <AllowNotificationsArt platform="android" />
+      </LineStepFrame>
+    </FixtureWrapper>
+  );
+}
+
 export default {
   'Onboarding Button': <OnboardingButtonFixture />,
   'Onboarding Text Block': <OnboardingTextBlockFixture />,
   'Onboarding Invite Block': <OnboardingInviteBlockFixture />,
   'Onboarding Benefits Sheet': <OnboardingBenefitsSheetFixture />,
+  'Allow notifications, Android drawing': <AllowNotificationsAndroidFixture />,
 };

@@ -14,8 +14,15 @@ export {
   isAvatarGlyphId,
 } from './line/avatarGlyphs';
 export {
+  ART_TO_CONTENT_GAP,
   LineButton,
   LineStepFrame,
   ONBOARDING_STEP_COUNT,
 } from './line/LineStepFrame';
 export { LINE, LineOutline } from './line/lineKit';
+export { type LineChoice, LineChoiceList } from './line/LineChoiceList';
+export {
+  AllowNotificationsArt,
+  NOTIFICATION_SOURCES,
+  NotificationsArt,
+} from './line/onboardingArt';

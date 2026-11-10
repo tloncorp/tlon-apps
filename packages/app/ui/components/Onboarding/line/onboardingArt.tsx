@@ -247,3 +247,129 @@ export function WorkspaceArt({ glyph }: { glyph: AvatarGlyphId }) {
     </ArtCanvas>
   );
 }
+
+/** What each notification level lets through to your phone, in list order. */
+export const NOTIFICATION_SOURCES = ['DMS', 'MENTIONS', 'POSTS'] as const;
+
+/**
+ * Notifications: DMs, mentions and posts each wired to your phone, solid for
+ * the ones the picked level lets through and marching dashes for the rest.
+ */
+export function NotificationsArt({
+  through,
+}: {
+  /** One entry per source in NOTIFICATION_SOURCES. */
+  through: boolean[];
+}) {
+  const names = ['direct messages', 'mentions', 'workspace posts'];
+  const on = names.filter((_, index) => through[index]);
+  return (
+    <ArtCanvas
+      width={240}
+      height={119}
+      label={`Direct messages, mentions and workspace posts, each wired to your phone. ${
+        on.length
+          ? `Getting through: ${on.join(', ')}.`
+          : 'Nothing gets through.'
+      }`}
+    >
+      <Svg width={240} height={119}>
+        <ArtBox x={169} y={1} width={56} height={96} />
+        <ArtLine d="M189 10L205 10" />
+        {NOTIFICATION_SOURCES.map((_, index) => (
+          <PortLine
+            key={index}
+            from={[166, 37 + 12 * index]}
+            to={[83, 17 + 28 * index]}
+            on={!!through[index]}
+            reverse
+          />
+        ))}
+      </Svg>
+      {NOTIFICATION_SOURCES.map((source, index) => (
+        <ArtLabel key={source} x={71} y={21 + 28 * index} anchor="end">
+          {source}
+        </ArtLabel>
+      ))}
+      <ArtLabel x={197} y={117} anchor="middle">
+        YOUR PHONE
+      </ArtLabel>
+    </ArtCanvas>
+  );
+}
+
+/**
+ * Allow notifications: the system prompt in lines, with an arrow from you to
+ * Allow. iOS puts Allow on the right of two halves; Android stacks it above
+ * Don't allow, so there the arrow comes in from the side.
+ */
+export function AllowNotificationsArt({
+  platform,
+}: {
+  platform: 'ios' | 'android';
+}) {
+  if (platform === 'android') {
+    return (
+      <ArtCanvas
+        width={300}
+        height={160}
+        label="The notification prompt drawn in lines, with an arrow from you to Allow"
+      >
+        <Svg width={300} height={160}>
+          <ArtBox x={64} y={1} width={234} height={158} />
+          <ArtLine d="M64 69L298 69" />
+          <ArtLine d="M64 113L298 113" />
+          <YouMark x={28} y={87} />
+          <ArtArrow from={[40, 91]} to={[104, 91]} />
+        </Svg>
+        <ArtLabel x={181} y={31} anchor="middle">
+          ALLOW TLON TO SEND YOU
+        </ArtLabel>
+        <ArtLabel x={181} y={49} anchor="middle">
+          NOTIFICATIONS?
+        </ArtLabel>
+        <ArtLabel x={181} y={95} anchor="middle">
+          ALLOW
+        </ArtLabel>
+        <ArtLabel x={181} y={140} anchor="middle">
+          DON’T ALLOW
+        </ArtLabel>
+        <ArtLabel x={24} y={95} anchor="end">
+          YOU
+        </ArtLabel>
+      </ArtCanvas>
+    );
+  }
+  return (
+    <ArtCanvas
+      width={272}
+      height={200}
+      label="The notification prompt drawn in lines, with an arrow from you to Allow"
+    >
+      <Svg width={272} height={200}>
+        <ArtBox x={1} y={1} width={270} height={144} />
+        <ArtLine d="M41 69L231 69" />
+        <ArtLine d="M71 81L201 81" />
+        <ArtLine d="M1 101L271 101" />
+        <ArtLine d="M136 101L136 145" />
+        <ArtArrow from={[203.5, 187]} to={[203.5, 134]} />
+        <YouMark x={199.5} y={191} />
+      </Svg>
+      <ArtLabel x={136} y={31} anchor="middle">
+        “TLON” WOULD LIKE TO
+      </ArtLabel>
+      <ArtLabel x={136} y={49} anchor="middle">
+        SEND YOU NOTIFICATIONS
+      </ArtLabel>
+      <ArtLabel x={68.5} y={127} anchor="middle">
+        DON’T ALLOW
+      </ArtLabel>
+      <ArtLabel x={203.5} y={127} anchor="middle">
+        ALLOW
+      </ArtLabel>
+      <ArtLabel x={217.5} y={199}>
+        YOU
+      </ArtLabel>
+    </ArtCanvas>
+  );
+}

@@ -10,15 +10,15 @@ export type FeaturePoint = {
 };
 
 /**
- * Where each screen sits in onboarding's seven steps: Profile and Setting up
- * come before the first run.
+ * Where each screen sits in onboarding's nine steps: Profile, the two
+ * notification screens and Setting up come before the first run.
  */
 export const FIRST_RUN_STEPS = {
-  meet: 3,
-  private: 4,
-  connect: 5,
-  model: 6,
-  workspace: 7,
+  meet: 5,
+  private: 6,
+  connect: 7,
+  model: 8,
+  workspace: 9,
 } as const;
 
 /**
