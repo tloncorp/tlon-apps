@@ -11,7 +11,10 @@ import { isWeb } from 'tamagui';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
-import type { ActualRootDrawerParamList } from '../../navigation/types';
+import type {
+  ActualRootDrawerParamList,
+  HomeDrawerParamList,
+} from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
   GroupMemberProfileSheet,
@@ -81,6 +84,10 @@ export function ChatDetailsView({
   const { navigation, navigateToChatDetails } = useRootNavigation();
   const desktopNavigation =
     useNavigation<DrawerNavigationProp<ActualRootDrawerParamList>>();
+  // The Home or Messages drawer this screen sits in on wide web; both
+  // register the same chat routes.
+  const drawerNavigation =
+    useNavigation<DrawerNavigationProp<HomeDrawerParamList>>();
   const isWindowNarrow = useIsWindowNarrow();
   const forwardGroupSheet = useForwardGroupSheet();
   const forwardChannelSheet = useForwardChannelSheet();
@@ -123,13 +130,27 @@ export function ChatDetailsView({
   );
 
   // A group chat's name and avatar are its members' to change.
+  // On wide web the chat's own stack may not be mounted yet (the info page
+  // was loaded directly), so open the edit screen inside it, over the chat.
   const handlePressEdit = useCallback(() => {
-    if (channel?.type === 'groupDm') {
-      onPressChannelMeta(channel.id);
-    } else {
+    if (channel?.type !== 'groupDm') {
       onPressEdit();
+    } else if (isWeb && !isWindowNarrow) {
+      drawerNavigation.navigate('GroupDM', {
+        screen: 'ChannelMeta',
+        params: { channelId: channel.id },
+        initial: false,
+      });
+    } else {
+      onPressChannelMeta(channel.id);
     }
-  }, [channel, onPressChannelMeta, onPressEdit]);
+  }, [
+    channel,
+    drawerNavigation,
+    isWindowNarrow,
+    onPressChannelMeta,
+    onPressEdit,
+  ]);
 
   // Pushed over the channel's info on native and narrow web, so Back
   // returns to it. Native mounts only the root stack, at any width.
