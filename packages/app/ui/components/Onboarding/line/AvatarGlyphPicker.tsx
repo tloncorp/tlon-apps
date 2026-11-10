@@ -1,16 +1,17 @@
 import { Pressable, Text } from '@tloncorp/ui';
 import * as db from '@tloncorp/shared/db';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { StyleSheet } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
+  withSequence,
   withTiming,
 } from 'react-native-reanimated';
 import Svg, { Rect } from 'react-native-svg';
-import { View, XStack, YStack } from 'tamagui';
+import { XStack, YStack } from 'tamagui';
 
 import {
   AVATAR_GLYPH_IDS,
@@ -25,6 +26,17 @@ const GLYPH = 45;
 /** The canvas's pick: a 0.2 s crossfade on CSS `ease`. */
 const PICK_FADE_MS = 200;
 const CSS_EASE = Easing.bezier(0.25, 0.1, 0.25, 1);
+const CSS_EASE_OUT = Easing.bezier(0, 0, 0.58, 1);
+/**
+ * The canvas's pick bounce, 0.42 s from the tile's center: each step's
+ * scale and length, from its keyframes at 25, 55, 78 and 100%.
+ */
+const PICK_BOUNCE: [number, number][] = [
+  [0.9, 105],
+  [1.06, 126],
+  [0.98, 97],
+  [1, 92],
+];
 
 /** The glyph picked on Profile, for drawing the Tlonbot. Sam until one is. */
 export function useOnboardingGlyph(): AvatarGlyphId {
@@ -34,7 +46,8 @@ export function useOnboardingGlyph(): AvatarGlyphId {
 
 /**
  * A tile crossfades between outlined and solid when it's picked, as on the
- * canvas, with no dip while it's pressed. Reduce Motion skips the fade.
+ * canvas, with no dip while it's pressed. A newly picked tile also bounces;
+ * the pick it starts with doesn't. Reduce Motion skips both.
  */
 export function AvatarGlyphTile({
   glyph,
@@ -45,25 +58,43 @@ export function AvatarGlyphTile({
 }) {
   const reduceMotion = useReducedMotion();
   const picked = useSharedValue(selected ? 1 : 0);
+  const scale = useSharedValue(1);
+  const wasSelected = useRef(selected);
   useEffect(() => {
+    const justPicked = selected && !wasSelected.current;
+    wasSelected.current = selected;
     const target = selected ? 1 : 0;
+    if (reduceMotion) {
+      picked.set(target);
+      return;
+    }
     picked.set(
-      reduceMotion
-        ? target
-        : withTiming(target, { duration: PICK_FADE_MS, easing: CSS_EASE })
+      withTiming(target, { duration: PICK_FADE_MS, easing: CSS_EASE })
     );
-  }, [picked, reduceMotion, selected]);
+    if (justPicked) {
+      scale.set(
+        withSequence(
+          ...PICK_BOUNCE.map(([to, duration]) =>
+            withTiming(to, { duration, easing: CSS_EASE_OUT })
+          )
+        )
+      );
+    }
+  }, [picked, reduceMotion, scale, selected]);
   const pickedStyle = useAnimatedStyle(() => ({ opacity: picked.value }));
   const unpickedStyle = useAnimatedStyle(() => ({ opacity: 1 - picked.value }));
+  const bounceStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
   return (
-    <View width={TILE} height={TILE}>
+    <Animated.View style={[{ width: TILE, height: TILE }, bounceStyle]}>
       <Animated.View style={[StyleSheet.absoluteFill, unpickedStyle]}>
         <TileFace glyph={glyph} selected={false} />
       </Animated.View>
       <Animated.View style={[StyleSheet.absoluteFill, pickedStyle]}>
         <TileFace glyph={glyph} selected />
       </Animated.View>
-    </View>
+    </Animated.View>
   );
 }
 
