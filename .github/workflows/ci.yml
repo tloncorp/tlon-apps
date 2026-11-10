@@ -18,6 +18,7 @@ jobs:
       app: ${{ steps.filter-app.outputs.app }}
       backend: ${{ steps.filter.outputs.backend }}
       bots: ${{ steps.filter.outputs.bots }}
+      hermes: ${{ steps.filter.outputs.hermes }}
     steps:
       # An ignore-list filter only works with predicate-quantifier `every`:
       # a file counts only if it matches every pattern — `**` AND each `!`
@@ -52,6 +53,8 @@ jobs:
               - 'packages/hermes-tlon-adapter/**'
               - 'packages/tlon-bot-e2e/**'
               - 'packages/tlon-skill/**'
+            hermes:
+              - 'packages/hermes-tlon-adapter/**'
 
   # The app-wide suite. Skipped only when the filter positively reported
   # app == 'false' (bot-/docs-only PRs). Written `!= 'false'` rather than
@@ -116,7 +119,9 @@ jobs:
   # workflow can't be a required status check (a paths-filtered workflow
   # never reports on unrelated PRs, wedging a required context), so this job
   # is what puts that coverage behind the CI OK merge gate. Their heavyweight
-  # bot E2E suites stay in openclaw-ci only, non-blocking.
+  # bot E2E suites stay in openclaw-ci only, non-blocking. The Hermes
+  # adapter's Python tests are not here: test-build doesn't run them, so they
+  # live in hermes-checks below.
   bot-checks:
     needs: changes
     if:
@@ -173,6 +178,32 @@ jobs:
           pnpm --filter '@tloncorp/shared' test run
           src/domain/runtimeCommandContract.test.ts
 
+  # Hermes adapter Python tests, behind the CI OK gate. Its own job rather
+  # than a bot-checks step because bot-checks is skipped on mixed PRs (where
+  # test-build runs instead, and test-build doesn't run Python): gating only on
+  # `hermes` means the adapter's owner-only permission guard is tested on every
+  # PR that touches it. The same suite also runs in hermes-ci, which can't be
+  # a required check (it's paths-filtered).
+  hermes-checks:
+    needs: changes
+    if: needs.changes.outputs.hermes == 'true'
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    name: Hermes Adapter Checks
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      # dev/test.sh runs under `uv run --python 3.14`, the only Python
+      # hermes-agent v0.22.6 supports; uv fetches the interpreter. The uv
+      # version matches dev/Dockerfile.e2e's.
+      - name: Setup uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: "0.12.3"
+
+      - name: Run Hermes adapter unit tests
+        run: ./packages/hermes-tlon-adapter/dev/test.sh
+
   # Merge gate: the single required status check for this repo ("CI OK" in
   # branch protection). It aggregates the conditionally-skipped jobs above
   # into one context that always reports: a skipped need is fine (the filter
@@ -183,7 +214,7 @@ jobs:
   # When adding a new filter-gated job, append it to `needs` here.
   ci-ok:
     name: CI OK
-    needs: [changes, test-build, bot-checks]
+    needs: [changes, test-build, bot-checks, hermes-checks]
     if: ${{ always() }}
     runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:

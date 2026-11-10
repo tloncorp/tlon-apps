@@ -10,7 +10,119 @@ import type {
   RuntimeSeed,
 } from './types.js';
 
-const HERMES_AGENT_REF = 'v2026.6.19';
+// Not HERMES_AGENT_REF: the adapter's Docker dev loop reads that name (pinned
+// to a different release), and a developer with it exported would silently
+// get a mismatched e2e image. Passed to compose under the build-arg name.
+const HERMES_AGENT_REF =
+  process.env.TLON_E2E_HERMES_AGENT_REF?.trim() || 'v0.22.6';
+
+// Opt-in LCM lane: TLON_E2E_HERMES_LCM=1 builds the image with an LCM context
+// engine plugin and enables it the way the hosted entrypoint does. The default
+// is lcm-x at the Hermes plugin-catalog pin; HERMES_LCM_REPO/REF/SUBDIR plus
+// TLON_E2E_HERMES_LCM_PLUGIN/ENGINE select another build (e.g. hermes-lcm).
+export const HERMES_LCM_ENABLED = /^(1|true|yes|on)$/i.test(
+  process.env.TLON_E2E_HERMES_LCM ?? ''
+);
+const HERMES_LCM_PLUGIN =
+  process.env.TLON_E2E_HERMES_LCM_PLUGIN?.trim() || 'hermes-lcm-x';
+const HERMES_LCM_ENGINE =
+  process.env.TLON_E2E_HERMES_LCM_ENGINE?.trim() || 'lcm-x';
+// Applied to every LCM stack. The subdir may be set empty (plugin at the repo
+// root). Embeddings default off so the stack never downloads an embedding
+// model.
+const HERMES_LCM_DEFAULT_ENV = {
+  HERMES_LCM_REPO:
+    process.env.HERMES_LCM_REPO?.trim() ||
+    'https://github.com/electricsheephq/lcm-x.git',
+  HERMES_LCM_REF:
+    process.env.HERMES_LCM_REF?.trim() ||
+    '1a13744482a2448c38d6f9f0b98803f07aac6e81',
+  HERMES_LCM_SUBDIR: process.env.HERMES_LCM_SUBDIR?.trim() ?? 'plugin',
+  LCM_EMBEDDINGS_ENABLED: process.env.LCM_EMBEDDINGS_ENABLED?.trim() || 'false',
+} as const;
+const HERMES_LCM_PASSTHROUGH_ENV = [
+  'LCM_ENTITIES_ENABLED',
+  'LCM_DISABLED_TOOLS',
+] as const;
+// The targeted compaction scenario runs on its own stack (seed variant below)
+// with a budget small enough to compact within a few turns. Every other stack
+// keeps the plugin defaults so the small budget never reaches smoke or common
+// scenarios. The system prompt plus tool schemas already estimate at ~16k
+// tokens, so the threshold must sit above that. Same-named env vars override.
+export const HERMES_LCM_COMPACTION_VARIANT = 'lcm-compaction';
+const HERMES_LCM_COMPACTION_DEFAULTS = {
+  HERMES_MODEL_CONTEXT_LENGTH: '64000',
+  LCM_CONTEXT_THRESHOLD: '0.3',
+  LCM_FRESH_TAIL_COUNT: '2',
+  LCM_LEAF_CHUNK_TOKENS: '2000',
+  LCM_MAX_ASSEMBLY_TOKENS: '',
+} as const;
+// Set by resolveTestEnv from the installed plugin's manifest.
+const HERMES_LCM_TOOLS_ENV = 'TLON_E2E_HERMES_LCM_TOOLS';
+
+export function hermesLcmTools(): string[] {
+  if (!HERMES_LCM_ENABLED) {
+    return [];
+  }
+  const raw = process.env[HERMES_LCM_TOOLS_ENV];
+  if (!raw) {
+    throw new Error(
+      `${HERMES_LCM_TOOLS_ENV} is unset; the runner derives it from the installed LCM plugin`
+    );
+  }
+  return JSON.parse(raw) as string[];
+}
+
+// lcm_grep returns JSON whose top level echoes the query, so recall counts only
+// when the marker turns up inside the results array itself.
+export function assertLcmGrepRecalls(toolText: string, marker: string): void {
+  let parsed: { results?: unknown } | null;
+  try {
+    parsed = JSON.parse(toolText);
+  } catch {
+    throw new Error(`lcm_grep result is not JSON: ${toolText.slice(0, 200)}`);
+  }
+  const results = parsed?.results;
+  if (!Array.isArray(results) || results.length === 0) {
+    throw new Error(`lcm_grep returned no results: ${toolText.slice(0, 200)}`);
+  }
+  if (!JSON.stringify(results).includes(marker)) {
+    throw new Error(`lcm_grep results do not mention ${marker}`);
+  }
+}
+
+function baseTools(): string[] {
+  return ['tlon', ...hermesLcmTools()];
+}
+
+function hermesLcmComposeEnv(seed: RuntimeSeed): Record<string, string> {
+  if (!HERMES_LCM_ENABLED) {
+    return {};
+  }
+  const env: Record<string, string> = {
+    TLON_E2E_HERMES_LCM: '1',
+    TLON_E2E_HERMES_LCM_PLUGIN: HERMES_LCM_PLUGIN,
+    TLON_E2E_HERMES_LCM_ENGINE: HERMES_LCM_ENGINE,
+    ...HERMES_LCM_DEFAULT_ENV,
+  };
+  for (const key of HERMES_LCM_PASSTHROUGH_ENV) {
+    const value = process.env[key]?.trim();
+    if (value) {
+      env[key] = value;
+    }
+  }
+  if (seed.variant === HERMES_LCM_COMPACTION_VARIANT) {
+    for (const [key, fallback] of Object.entries(
+      HERMES_LCM_COMPACTION_DEFAULTS
+    )) {
+      const value = process.env[key]?.trim() || fallback;
+      if (value) {
+        env[key] = value;
+      }
+    }
+  }
+  return env;
+}
 
 const FORBIDDEN_CONTAINER_ENV = [
   'OPENROUTER_API_KEY',
@@ -38,6 +150,10 @@ export const hermesDriver: BotDriver = {
 
   packageDir(seed) {
     return path.join(seed.repoRoot, 'packages/hermes-tlon-adapter');
+  },
+
+  async beforeComposeBuild() {
+    console.log(`[hermes] hermes-agent ref ${HERMES_AGENT_REF}`);
   },
 
   resolveRuntime(seed): DriverRuntimeSpec {
@@ -101,6 +217,7 @@ export const hermesDriver: BotDriver = {
         HERMES_MODEL_API_MODE: 'chat_completions',
         HERMES_GATEWAY_ARGS: '--replace -v',
         HERMES_E2E_ENABLE_CRONJOB: cronEnabled ? '1' : '0',
+        ...hermesLcmComposeEnv(seed),
         ...(process.env.FAKE_SHIP_CACHE_DIR
           ? { FAKE_SHIP_CACHE_DIR: process.env.FAKE_SHIP_CACHE_DIR }
           : {}),
@@ -117,6 +234,19 @@ export const hermesDriver: BotDriver = {
         TEST_THIRD_PARTY_SHIP: seed.endpoints.ships.mug.ship,
         TEST_THIRD_PARTY_CODE: seed.endpoints.ships.mug.code,
         FAKE_MODEL_BASE_URL: seed.endpoints.fakeModel.hostBaseUrl,
+        // Scenario processes import this driver too; without the flag their
+        // advertised-tool expectations would omit the lcm_* tools.
+        ...(HERMES_LCM_ENABLED
+          ? {
+              TLON_E2E_HERMES_LCM: '1',
+              ...(process.env.TLON_E2E_HERMES_LCM_TURNS
+                ? {
+                    TLON_E2E_HERMES_LCM_TURNS:
+                      process.env.TLON_E2E_HERMES_LCM_TURNS,
+                  }
+                : {}),
+            }
+          : {}),
       },
     };
   },
@@ -135,13 +265,21 @@ export const hermesDriver: BotDriver = {
     await assertForbiddenContainerEnv(ctx, compose);
   },
 
+  async resolveTestEnv(ctx, compose): Promise<Record<string, string>> {
+    if (!HERMES_LCM_ENABLED) {
+      return {};
+    }
+    const tools = await readHermesLcmTools(compose, ctx.services.bot);
+    return { [HERMES_LCM_TOOLS_ENV]: JSON.stringify(tools) };
+  },
+
   model: {
     replyText(text) {
       return {
         steps: [{ kind: 'text', content: text }],
         options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
         expectations: {
-          advertisedTools: { exact: ['tlon'] },
+          advertisedTools: { exact: baseTools() },
           expectedCallCount: 1,
         },
       };
@@ -152,7 +290,7 @@ export const hermesDriver: BotDriver = {
         steps: texts.map((content) => ({ kind: 'text' as const, content })),
         options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
         expectations: {
-          advertisedTools: { exact: ['tlon'] },
+          advertisedTools: { exact: baseTools() },
           expectedCallCount: texts.length,
         },
       };
@@ -171,7 +309,7 @@ export const hermesDriver: BotDriver = {
         ],
         options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
         expectations: {
-          advertisedTools: { exact: ['tlon'] },
+          advertisedTools: { exact: baseTools() },
           expectedCallCount: 1,
         },
       };
@@ -187,7 +325,7 @@ export const hermesDriver: BotDriver = {
         ],
         options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
         expectations: {
-          advertisedTools: { exact: ['tlon'] },
+          advertisedTools: { exact: baseTools() },
           expectedCallCount: 2,
           expectedCallSequence: [
             { kind: 'model_request' },
@@ -216,11 +354,13 @@ export const hermesDriver: BotDriver = {
         steps: [
           {
             kind: 'tool_call',
-            name: 'cronjob',
+            name: 'cronjob_manage',
             args: {
               action: 'create',
               name,
-              schedule: '1m',
+              // Hermes >= 0.22 reads a bare duration as a recurring interval;
+              // 'in <duration>' is the one-shot form.
+              schedule: 'in 1m',
               prompt: firedPrompt,
               deliver: 'origin',
             },
@@ -229,11 +369,11 @@ export const hermesDriver: BotDriver = {
         ],
         options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
         expectations: {
-          advertisedTools: { include: ['cronjob', 'tlon'] },
+          advertisedTools: { include: ['cronjob_manage', 'tlon'] },
           expectedCallCount: 2,
           expectedCallSequence: [
             { kind: 'model_request' },
-            { kind: 'tool_call', toolName: 'cronjob' },
+            { kind: 'tool_call', toolName: 'cronjob_manage' },
             { kind: 'model_request' },
             { kind: 'final_model_text' },
           ],
@@ -290,9 +430,13 @@ async function assertHermesConfig(
     ctx.composeEnv.TLON_MAX_CONSECUTIVE_BOT_RESPONSES ?? '3'
   );
   const cronEnabled = hasCapability(ctx, 'cron');
-  const expectedTlonToolsets = cronEnabled
-    ? ['tlon', 'cronjob', 'no_mcp']
-    : ['tlon', 'no_mcp'];
+  const expectedTlonToolsets = [
+    ...(cronEnabled ? ['tlon', 'cronjob', 'no_mcp'] : ['tlon', 'no_mcp']),
+    ...(HERMES_LCM_ENABLED ? ['context_engine'] : []),
+  ];
+  const expectedPlugins = HERMES_LCM_ENABLED
+    ? ['platforms/tlon', HERMES_LCM_PLUGIN]
+    : ['platforms/tlon'];
 
   expectConfig(model.provider === 'custom', 'model.provider must be custom');
   expectConfig(
@@ -315,6 +459,19 @@ async function assertHermesConfig(
     JSON.stringify(platformToolsets.tlon) ===
       JSON.stringify(expectedTlonToolsets),
     `platform_toolsets.tlon must be exactly [${expectedTlonToolsets.join(', ')}]`
+  );
+  expectConfig(
+    JSON.stringify(objectAt(config, 'plugins').enabled) ===
+      JSON.stringify(expectedPlugins),
+    `plugins.enabled must be exactly [${expectedPlugins.join(', ')}]`
+  );
+  expectConfig(
+    HERMES_LCM_ENABLED
+      ? objectAt(config, 'context').engine === HERMES_LCM_ENGINE
+      : !('context' in config),
+    HERMES_LCM_ENABLED
+      ? `context.engine must be ${HERMES_LCM_ENGINE} in the LCM lane`
+      : 'context config must be absent without LCM'
   );
   expectConfig(
     isEmptyObject(config.mcp_servers),
@@ -507,6 +664,59 @@ async function assertForbiddenContainerEnv(
         .join(', ')}`
     );
   }
+}
+
+// The lcm_* tools the installed plugin advertises through the context_engine
+// toolset. lcm-x keeps flag-gated tools dormant (its tool_registry marks each
+// with the config field that wakes it, e.g. lcm_memory needs entities), so ask
+// its own registry and config; hermes-lcm has no registry and advertises every
+// tool its manifest declares. LCM_DISABLED_TOOLS hides tools in both.
+async function readHermesLcmTools(
+  compose: ComposeHandle,
+  service: string
+): Promise<string[]> {
+  const script = String.raw`
+import importlib, importlib.util, json, os, sys, tempfile
+from pathlib import Path
+import yaml
+plugin = os.environ.get("TLON_E2E_HERMES_LCM_PLUGIN") or "hermes-lcm-x"
+plugin_dir = (Path(os.environ["HERMES_HOME"]) / "plugins" / plugin).resolve()
+manifest = yaml.safe_load((plugin_dir / "plugin.yaml").read_text(encoding="utf-8")) or {}
+tools = [str(t) for t in manifest.get("provides_tools") or []]
+if (plugin_dir / "tool_registry.py").exists():
+    os.environ["LCM_DATABASE_PATH"] = os.path.join(tempfile.mkdtemp(), "probe.db")
+    spec = importlib.util.spec_from_file_location("lcm_tool_probe", plugin_dir / "__init__.py", submodule_search_locations=[str(plugin_dir)])
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["lcm_tool_probe"] = module
+    spec.loader.exec_module(module)
+    config = importlib.import_module("lcm_tool_probe.config").LCMConfig.from_env()
+    registry = importlib.import_module("lcm_tool_probe.tool_registry").TOOL_REGISTRY
+    tools = [s.name for s in registry if not (s.dormant_unless and not getattr(config, s.dormant_unless))]
+disabled = {t.strip() for t in (os.environ.get("LCM_DISABLED_TOOLS") or "").split(",") if t.strip()}
+print(json.dumps({"name": manifest.get("name"), "version": str(manifest.get("version")), "tools": [t for t in tools if t not in disabled]}))
+`;
+  const result = await compose.exec(service, [
+    '/opt/hermes-venv/bin/python',
+    '-c',
+    script,
+  ]);
+  assertExecOk(result, 'LCM plugin manifest read');
+  const manifest = JSON.parse(
+    result.stdout.trim().split('\n').at(-1) ?? ''
+  ) as {
+    name: string;
+    version: string;
+    tools: string[];
+  };
+  if (manifest.name !== HERMES_LCM_PLUGIN || manifest.tools.length === 0) {
+    throw new Error(
+      `LCM plugin manifest mismatch: expected ${HERMES_LCM_PLUGIN} with tools, got ${result.stdout.trim()}`
+    );
+  }
+  console.log(
+    `[hermes-lcm] ${manifest.name} ${manifest.version}: expecting ${manifest.tools.length} tools ${manifest.tools.join(', ')}`
+  );
+  return manifest.tools;
 }
 
 async function readHermesConfig(

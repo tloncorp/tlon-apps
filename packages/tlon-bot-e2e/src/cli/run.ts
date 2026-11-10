@@ -3,7 +3,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { hermesDriver } from '../drivers/hermes.js';
+import {
+  HERMES_LCM_COMPACTION_VARIANT,
+  HERMES_LCM_ENABLED,
+  hermesDriver,
+} from '../drivers/hermes.js';
 import { openclawDriver } from '../drivers/openclaw.js';
 import type {
   BotDriver,
@@ -38,6 +42,7 @@ import {
 } from '../scenarios/shared/dsl.js';
 import {
   buildCommonScenarioEnv,
+  buildHermesLcmEnv,
   buildHermesSmokeEnv,
   buildOpenClawPackageTestEnv,
 } from './test-env.js';
@@ -86,6 +91,18 @@ async function main(): Promise<void> {
       keepStack,
       runTests: async (ctx) => runPackageSpecificTests(ctx, suite.args),
     });
+    if (driver.name === 'hermes' && HERMES_LCM_ENABLED) {
+      // Own stack: the compaction scenario needs a small context budget that
+      // must not reach the smoke tests or the common suite.
+      await runDriverRuntime({
+        driver,
+        repoRoot,
+        runId: runIdWithSuffix(baseRunId, 'lcm'),
+        keepStack,
+        variant: HERMES_LCM_COMPACTION_VARIANT,
+        runTests: async (ctx) => runHermesLcmScenario(ctx),
+      });
+    }
   }
 
   console.log(`${driver.name} shared E2E completed (${suite.kind}).`);
@@ -97,6 +114,7 @@ async function runDriverRuntime(args: {
   runId: string;
   keepStack: boolean;
   partition?: ScenarioPartition;
+  variant?: string;
   runTests(ctx: RuntimeContext): Promise<void>;
 }): Promise<void> {
   const fixedPorts = fixedRuntimePortsForDriver(args.driver.name, process.env);
@@ -123,6 +141,7 @@ async function runDriverRuntime(args: {
           },
         }
       : {}),
+    ...(args.variant ? { variant: args.variant } : {}),
   };
   const ctx = createRuntimeContext(seed, args.driver.resolveRuntime(seed));
   const compose = createComposeHandle(ctx);
@@ -152,7 +171,12 @@ async function runDriverRuntime(args: {
     await compose.up([], { timeoutMs: COMPOSE_UP_TIMEOUT_MS });
     await args.driver.waitReady(ctx, compose);
     await args.driver.assertRuntimeConfig?.(ctx, compose);
-    await args.runTests(ctx);
+    const readyTestEnv = await args.driver.resolveTestEnv?.(ctx, compose);
+    await args.runTests(
+      readyTestEnv
+        ? { ...ctx, testEnv: { ...ctx.testEnv, ...readyTestEnv } }
+        : ctx
+    );
     if (flag(process.env.DUMP_LOGS)) {
       const diagnostics = await collectDiagnostics(ctx, compose, args.driver);
       if (diagnostics) {
@@ -330,6 +354,29 @@ async function runHermesSmoke(ctx: RuntimeContext): Promise<void> {
   );
   if (result.exitCode !== 0) {
     throw new Error(`Hermes smoke vitest failed with exit ${result.exitCode}`);
+  }
+}
+
+async function runHermesLcmScenario(ctx: RuntimeContext): Promise<void> {
+  const result = await withRuntimeContextFile(ctx, async (contextFile) =>
+    runCommand(
+      'pnpm',
+      [
+        'exec',
+        'vitest',
+        'run',
+        '--config',
+        'vitest.e2e.config.ts',
+        'src/scenarios/hermes-lcm.test.ts',
+      ],
+      {
+        cwd: path.join(ctx.repoRoot, 'packages/tlon-bot-e2e'),
+        env: buildHermesLcmEnv(ctx, contextFile),
+      }
+    )
+  );
+  if (result.exitCode !== 0) {
+    throw new Error(`Hermes LCM vitest failed with exit ${result.exitCode}`);
   }
 }
 
