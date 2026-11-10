@@ -2486,6 +2486,11 @@ class OwnerChannelRoutingTests(unittest.TestCase):
         self.assertNotIn("note", payload)
         self.assertEqual(calls[-1][1]["TLON_SHIP"], "~bot")
 
+        # A leading --self opts out too. Whether the tool refuses that form or
+        # strips it and runs the command, it must never run as the owner.
+        payload, calls = self._run("--self activity unreads", cfg, OWNER_ENV)
+        self.assertNotIn(OWNER_SHIP, [run_env["TLON_SHIP"] for _, run_env in calls])
+
         payload, calls = self._run("activity unreads", cfg, no_owner)
         self.assertIn("ran on your own account", payload["note"])
         self.assertEqual(calls[-1][1]["TLON_SHIP"], "~bot")
