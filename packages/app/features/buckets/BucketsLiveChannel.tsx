@@ -173,13 +173,21 @@ export function BucketsLiveChannel({
   const [query, setQuery] = useState('');
   const preview = useBucketPreview(live.readGrant, `${flag.host}/${flag.name}`);
   const previewItem = preview.item;
+  const currentPreviewId = useRef(previewItem?.id);
+  currentPreviewId.current = previewItem?.id;
+  useEffect(
+    () => () => {
+      currentPreviewId.current = undefined;
+    },
+    []
+  );
   const previewFiles = previewItem
     ? getBucketPreviewFiles(live.entries, Number(previewItem.id)).map((entry) =>
         toItem(entry)
       )
     : [];
   const [operationError, setOperationError] = useState<string | null>(null);
-  const [folderPendingDeletion, setFolderPendingDeletion] =
+  const [itemPendingDeletion, setItemPendingDeletion] =
     useState<BucketItem | null>(null);
   const [itemPendingRename, setItemPendingRename] = useState<BucketItem | null>(
     null
@@ -550,7 +558,7 @@ export function BucketsLiveChannel({
     onMoveItem: (item: BucketItem) => setItemPendingMove(item),
     onDeleteItem: (item: BucketItem) => {
       if (item.kind === 'folder') {
-        setFolderPendingDeletion(item);
+        setItemPendingDeletion(item);
         return;
       }
       void reportOperation(live.deleteEntry(Number(item.id), false));
@@ -641,6 +649,9 @@ export function BucketsLiveChannel({
               },
             }}
             onClose={preview.close}
+            onDelete={
+              canEdit ? () => setItemPendingDeletion(previewItem) : undefined
+            }
             onImageLoad={() => preview.markImageLoaded(previewItem)}
             onPreviewError={() => preview.invalidate(previewItem)}
             onOpenExternally={preview.openExternally}
@@ -748,20 +759,41 @@ export function BucketsLiveChannel({
         }}
       />
       <ConfirmDialog
-        open={folderPendingDeletion !== null}
+        open={itemPendingDeletion !== null}
         onOpenChange={(open) => {
-          if (!open) setFolderPendingDeletion(null);
+          if (!open) setItemPendingDeletion(null);
         }}
-        title={`Delete ${folderPendingDeletion?.name ?? 'folder'}?`}
-        description="This folder and everything inside it will be permanently deleted for everyone. This cannot be undone."
-        confirmText="Delete folder"
+        title={`Delete ${itemPendingDeletion?.name ?? 'folder'}?`}
+        description={
+          itemPendingDeletion?.kind === 'folder'
+            ? 'This folder and everything inside it will be permanently deleted for everyone. This cannot be undone.'
+            : 'This file will be permanently deleted for everyone. This cannot be undone.'
+        }
+        confirmText={
+          itemPendingDeletion?.kind === 'folder'
+            ? 'Delete folder'
+            : 'Delete file'
+        }
         cancelText="Cancel"
         destructive
         onConfirm={() => {
-          const item = folderPendingDeletion;
-          setFolderPendingDeletion(null);
+          const item = itemPendingDeletion;
+          setItemPendingDeletion(null);
           if (item) {
-            void reportOperation(live.deleteEntry(Number(item.id), true));
+            const deletion = live
+              .deleteEntry(Number(item.id), item.kind === 'folder')
+              .then(() => {
+                if (currentPreviewId.current === item.id) preview.close();
+              });
+            if (item.kind === 'folder') {
+              void reportOperation(deletion);
+            } else {
+              void deletion.catch((cause) => {
+                showToast({
+                  message: `Could not delete ${item.name}: ${cause instanceof Error ? cause.message : String(cause)}`,
+                });
+              });
+            }
           }
         }}
       />
