@@ -1,0 +1,185 @@
+name: CI (Hoon and E2E Tests)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  # Work lands directly on main, so test it there too.
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to a PR supersedes its running tests; runs on main always finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # Native Hoon tests on one fake ship: Harness and %mcp unit tests, then the
+  # integration tests after a heavy commit.
+  hoon-test:
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    name: Hoon Tests
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # %mcp is installed on every test ship from the submodule.
+          submodules: true
+
+      - name: Setup just
+        # The justfiles need quote() and the `/` operator (just >= 1.5).
+        uses: extractions/setup-just@v4
+        with:
+          just-version: 1.59.0
+
+      - name: Install tools
+        # socat carries click's threads to the ship; tmux holds the running
+        # ships; rsync installs desks. fetch-deps.sh needs mikefarah/yq v4,
+        # which apt doesn't ship.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y socat tmux rsync jq
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL https://github.com/mikefarah/yq/releases/download/v4.54.1/yq_linux_amd64 -o "$RUNNER_TEMP/bin/yq"
+          chmod +x "$RUNNER_TEMP/bin/yq"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Configure tmux
+        # test-hoon.sh reads results from the ship's pane with `capture-pane -S
+        # -200000` and line offsets. tmux keeps only 2000 lines by default,
+        # which drops test output and breaks those offsets.
+        run: echo 'set-option -g history-limit 500000' > ~/.tmux.conf
+
+      - name: Cache desk deps and vere
+        # setup-fake-dev.sh pins the vere version; deps.yaml pins commits.
+        uses: actions/cache@v4
+        with:
+          path: .deps-cache
+          key: deps-${{ runner.os }}-${{ hashFiles('deps.yaml', 'scripts/setup-fake-dev.sh') }}
+          restore-keys: deps-${{ runner.os }}-
+
+      - name: Cache mcp desk deps
+        uses: actions/cache@v4
+        with:
+          path: mcp/.deps-cache
+          key: mcp-deps-${{ runner.os }}-${{ hashFiles('mcp/deps.yaml') }}
+          restore-keys: mcp-deps-${{ runner.os }}-
+
+      - name: Cache boot pill
+        # get-pill.sh pins the pill version and skips the download if present.
+        uses: actions/cache@v4
+        with:
+          path: scripts/groups-*.pill
+          key: pill-${{ hashFiles('scripts/get-pill.sh') }}
+
+      - name: Run Hoon Tests
+        run: just test-hoon
+
+      - name: Summarize results
+        if: always()
+        run: |
+          [ -f .test-run/hoon/results.txt ] || exit 0
+          { echo '### Hoon Tests'; echo '```'; cat .test-run/hoon/results.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hoon-test-results
+          path: |
+            .test-run/hoon/results.txt
+            .test-run/hoon/logs/
+          # .test-run is a dot directory, which upload-artifact skips by default.
+          include-hidden-files: true
+          retention-days: 7
+
+  # Offline Node tests, then live scripts against ~zod, ~lux and ~nec with
+  # local stand-in model providers. Needs no secrets.
+  e2e-test:
+    # Two ships run at once, plus Node and the local providers.
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    name: E2E Tests
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # %mcp is installed on every test ship from the submodule.
+          submodules: true
+
+      - name: Setup Node.js environment
+        # acp-subscription-conformance needs navigator.locks (Node >= 24.5);
+        # pinned to the version the suite is run with locally.
+        uses: actions/setup-node@v4
+        with:
+          node-version: 26.3.0
+
+      - name: Setup just
+        # The justfiles need quote() and the `/` operator (just >= 1.5).
+        uses: extractions/setup-just@v4
+        with:
+          just-version: 1.59.0
+
+      - name: Install tools
+        # socat carries click's threads to the ship; tmux holds the running
+        # ships; rsync installs desks. fetch-deps.sh needs mikefarah/yq v4,
+        # which apt doesn't ship.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y socat tmux rsync jq
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL https://github.com/mikefarah/yq/releases/download/v4.54.1/yq_linux_amd64 -o "$RUNNER_TEMP/bin/yq"
+          chmod +x "$RUNNER_TEMP/bin/yq"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Configure tmux
+        # test-js.sh reads the login code and test output from the ships' panes
+        # with `capture-pane -S -200000` and line offsets. tmux keeps only 2000
+        # lines by default, which drops output and breaks those offsets.
+        run: echo 'set-option -g history-limit 500000' > ~/.tmux.conf
+
+      - name: Cache desk deps and vere
+        # setup-fake-dev.sh pins the vere version; deps.yaml pins commits.
+        uses: actions/cache@v4
+        with:
+          path: .deps-cache
+          key: deps-${{ runner.os }}-${{ hashFiles('deps.yaml', 'scripts/setup-fake-dev.sh') }}
+          restore-keys: deps-${{ runner.os }}-
+
+      - name: Cache mcp desk deps
+        uses: actions/cache@v4
+        with:
+          path: mcp/.deps-cache
+          key: mcp-deps-${{ runner.os }}-${{ hashFiles('mcp/deps.yaml') }}
+          restore-keys: mcp-deps-${{ runner.os }}-
+
+      - name: Cache boot pill
+        # get-pill.sh pins the pill version and skips the download if present.
+        uses: actions/cache@v4
+        with:
+          path: scripts/groups-*.pill
+          key: pill-${{ hashFiles('scripts/get-pill.sh') }}
+
+      - name: Run E2E Tests
+        run: just test-js
+
+      - name: Summarize results
+        if: always()
+        run: |
+          [ -f .test-run/js/results.txt ] || exit 0
+          { echo '### E2E Tests'; echo '```'; cat .test-run/js/results.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-test-results
+          path: |
+            .test-run/js/results.txt
+            .test-run/js/logs/
+          # .test-run is a dot directory, which upload-artifact skips by default.
+          include-hidden-files: true
+          retention-days: 7
