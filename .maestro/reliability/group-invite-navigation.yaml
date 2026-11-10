@@ -8,8 +8,8 @@ env:
 - runFlow: subflows/begin.yaml
 - runFlow: subflows/create-group.yaml
 - tapOn: ${output.reliability.groupPattern}
-- assertVisible: '^Workspace info & settings$'
-- tapOn: '^Invite people$'
+- tapOn:
+    id: GroupQuickAction-Invite
 - assertVisible: '^Invite People$'
 - assertVisible: '^Share link$'
 - assertVisible: '^Filter by nickname, @p$'

@@ -15,8 +15,7 @@ onFlowComplete:
               - launchApp
               - runFlow: subflows/contacts-screen.yaml
               - tapOn: '^You$'
-              - tapOn:
-                  id: ContactEditButton
+              - tapOn: '^Edit profile$'
         - runFlow:
             when:
               true: ${typeof output.originalStatus !== 'undefined'}
@@ -62,8 +61,7 @@ onFlowComplete:
 - runFlow: subflows/begin.yaml
 - runFlow: subflows/contacts-screen.yaml
 - tapOn: '^You$'
-- tapOn:
-    id: ContactEditButton
+- tapOn: '^Edit profile$'
 - scrollUntilVisible:
     element:
       text: '^Bio$'
@@ -107,8 +105,7 @@ onFlowComplete:
 - launchApp
 - runFlow: subflows/contacts-screen.yaml
 - tapOn: '^You$'
-- tapOn:
-    id: ContactEditButton
+- tapOn: '^Edit profile$'
 - scrollUntilVisible:
     element:
       text: '^Bio$'
