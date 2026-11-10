@@ -1,9 +1,11 @@
-import type { Root } from 'mdast';
+import type { Root, Table } from 'mdast';
 import remarkGfm from 'remark-gfm';
 import remarkParse from 'remark-parse';
 import { unified } from 'unified';
 
 import { Story } from '../../urbit/channel';
+import { visit } from './astUtils';
+import { escapeCodeSpanPipes } from './codeSpanPipes';
 import {
   collectRoleMentionTokens,
   transformRoleMentions,
@@ -29,10 +31,50 @@ export interface MarkdownToStoryOptions {
   roleMentions?: { roleIds: ReadonlySet<string> };
 }
 
-function parseMarkdown(markdown: string): Root {
+function parseTree(markdown: string): Root {
   const tree = processor.parse(markdown) as Root;
   processor.runSync(tree); // Apply transformations (ship mentions, etc.)
   return tree;
+}
+
+// Escapes the pipes inside code spans on table body rows (see
+// escapeCodeSpanPipes). Only the parsed tree knows which lines are table
+// rows: the same `\|` in a code span outside a table is a literal backslash.
+// Rows are located by source offset, which agrees with remark whatever the
+// line endings. Header rows are left alone, since their cell count has to
+// match the delimiter row for the table to exist at all.
+function escapeTableCodeSpanPipes(markdown: string, tree: Root): string {
+  const rows: Array<{ start: number; end: number }> = [];
+  visit<Table>(tree, 'table', (table) => {
+    for (const row of table.children.slice(1)) {
+      const start = row.position?.start.offset;
+      const end = row.position?.end.offset;
+      if (start === undefined || end === undefined) continue;
+      rows.push({ start, end });
+    }
+  });
+  if (rows.length === 0) return markdown;
+  rows.sort((a, b) => a.start - b.start);
+
+  let out = '';
+  let cursor = 0;
+  for (const { start, end } of rows) {
+    out +=
+      markdown.slice(cursor, start) +
+      escapeCodeSpanPipes(markdown.slice(start, end));
+    cursor = end;
+  }
+  return out + markdown.slice(cursor);
+}
+
+// The tree and the Markdown it was parsed from, which differs from the input
+// only when a table body row needed its code-span pipes escaped.
+function parseMarkdown(markdown: string): { tree: Root; source: string } {
+  const tree = parseTree(markdown);
+  const source = escapeTableCodeSpanPipes(markdown, tree);
+  return source === markdown
+    ? { tree, source }
+    : { tree: parseTree(source), source };
 }
 
 /**
@@ -58,9 +100,9 @@ export function markdownToStory(
     return [];
   }
 
-  const tree = parseMarkdown(markdown);
+  const { tree, source } = parseMarkdown(markdown);
   if (options?.roleMentions) {
-    transformRoleMentions(tree, options.roleMentions.roleIds, markdown);
+    transformRoleMentions(tree, options.roleMentions.roleIds, source);
   }
 
   return mdastToStory(tree.children);
@@ -75,5 +117,6 @@ export function markdownToStory(
  * its allow-list would leave as text.
  */
 export function roleMentionCandidates(markdown: string): string[] {
-  return collectRoleMentionTokens(parseMarkdown(markdown), markdown);
+  const { tree, source } = parseMarkdown(markdown);
+  return collectRoleMentionTokens(tree, source);
 }
