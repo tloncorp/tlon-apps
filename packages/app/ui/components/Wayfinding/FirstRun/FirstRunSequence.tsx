@@ -269,14 +269,13 @@ export function FirstRunSequence({
     (choice: FirstRunModelChoiceRow) => {
       const current = applyingModelId ?? appliedModelId;
       if (choice.plans) {
-        const onPlan = choice.plans.find((plan) => plan.id === current);
-        if (onPlan) {
-          setPane('workspace');
-          return;
-        }
+        // The sheet is the only place to pick a plan, so it opens even when
+        // one is already on, starting on that plan; continuing with it again
+        // moves on without signing in twice.
         setSwitchPlans(choice.plans);
         setSwitchRow(
-          choice.plans.find((plan) => plan.id === switchRow?.id) ??
+          choice.plans.find((plan) => plan.id === current) ??
+            choice.plans.find((plan) => plan.id === switchRow?.id) ??
             choice.plans[0]
         );
         setSwitchOpen(true);
@@ -309,10 +308,14 @@ export function FirstRunSequence({
   const handleSwitchContinue = useCallback(() => {
     if (!switchRow) return;
     setSwitchOpen(false);
+    if (switchRow.id === (applyingModelId ?? appliedModelId)) {
+      setPane('workspace');
+      return;
+    }
     setPane(
       switchRow.choice.kind === 'subscription' ? 'subscriptionSignIn' : 'apiKey'
     );
-  }, [switchRow]);
+  }, [appliedModelId, applyingModelId, switchRow]);
 
   const handleKeepIncluded = useCallback(() => {
     setSwitchOpen(false);
