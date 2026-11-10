@@ -41,9 +41,11 @@ function isConfigured(account: TlonResolvedAccount): boolean {
 type TlonSetupWizardBaseParams = {
   resolveConfigured: (params: {
     cfg: OpenClawConfig;
+    accountId?: string;
   }) => boolean | Promise<boolean>;
   resolveStatusLines?: (params: {
     cfg: OpenClawConfig;
+    accountId?: string;
     configured: boolean;
   }) => string[] | Promise<string[]>;
   finalize: NonNullable<ChannelSetupWizard['finalize']>;
@@ -61,9 +63,10 @@ export function createTlonSetupWizardBase(
       unconfiguredHint: 'urbit messenger',
       configuredScore: 1,
       unconfiguredScore: 4,
-      resolveConfigured: ({ cfg }) => params.resolveConfigured({ cfg }),
-      resolveStatusLines: ({ cfg, configured }) =>
-        params.resolveStatusLines?.({ cfg, configured }) ?? [],
+      resolveConfigured: ({ cfg, accountId }) =>
+        params.resolveConfigured({ cfg, accountId }),
+      resolveStatusLines: ({ cfg, accountId, configured }) =>
+        params.resolveStatusLines?.({ cfg, accountId, configured }) ?? [],
     },
     introNote: {
       title: 'Tlon setup',
@@ -138,21 +141,30 @@ export function createTlonSetupWizardBase(
 }
 
 export async function resolveTlonSetupConfigured(
-  cfg: OpenClawConfig
+  cfg: OpenClawConfig,
+  accountId?: string
 ): Promise<boolean> {
+  if (accountId) {
+    return isConfigured(resolveTlonAccount(cfg, accountId));
+  }
   const accountIds = listTlonAccountIds(cfg);
   return accountIds.length > 0
-    ? accountIds.some((accountId) =>
-        isConfigured(resolveTlonAccount(cfg, accountId))
+    ? accountIds.some((resolvedAccountId) =>
+        isConfigured(resolveTlonAccount(cfg, resolvedAccountId))
       )
     : isConfigured(resolveTlonAccount(cfg, DEFAULT_ACCOUNT_ID));
 }
 
 export async function resolveTlonSetupStatusLines(
-  cfg: OpenClawConfig
+  cfg: OpenClawConfig,
+  accountId?: string
 ): Promise<string[]> {
-  const configured = await resolveTlonSetupConfigured(cfg);
-  return [`Tlon: ${configured ? 'configured' : 'needs setup'}`];
+  const configured = await resolveTlonSetupConfigured(cfg, accountId);
+  const label =
+    accountId && accountId !== DEFAULT_ACCOUNT_ID
+      ? `Tlon (${accountId})`
+      : 'Tlon';
+  return [`${label}: ${configured ? 'configured' : 'needs setup'}`];
 }
 
 export function applyTlonSetupConfig(params: {
@@ -211,14 +223,20 @@ export const tlonSetupAdapter: ChannelSetupAdapter = {
   validateInput: ({ cfg, accountId, input }) => {
     const setupInput = input as TlonSetupInput;
     const resolved = resolveTlonAccount(cfg, accountId ?? undefined);
-    const ship = setupInput.ship?.trim() || resolved.ship;
-    const url = setupInput.url?.trim() || resolved.url;
-    const code = setupInput.code?.trim() || resolved.code;
+    // `??`, not `||`: an explicitly empty flag is an error, not a fallback
+    // to the configured value.
+    const ship = (setupInput.ship ?? resolved.ship)?.trim();
+    const url = (setupInput.url ?? resolved.url)?.trim();
+    const code = (setupInput.code ?? resolved.code)?.trim();
     if (!ship) {
       return 'Tlon requires --ship.';
     }
     if (!url) {
       return 'Tlon requires --url.';
+    }
+    const validatedUrl = validateUrbitBaseUrl(url);
+    if (!validatedUrl.ok) {
+      return `Invalid URL: ${validatedUrl.error}`;
     }
     if (!code) {
       return 'Tlon requires --code.';

@@ -117,8 +117,11 @@ import {
 } from './src/non-owner-media.js';
 import {
   MESSAGE_MEDIA_BLOCK_REASON,
+  SEALED_HEARTBEAT_BLOCK_REASON,
+  isSealedHeartbeatAllowedTool,
   normalizePolicyToolName,
   resolveOwnerOnlyToolBlock,
+  sealedHeartbeatRespondBlockReason,
 } from './src/owner-only-tools.js';
 import { getSessionRole } from './src/session-roles.js';
 import { sharedSlot } from './src/shared-state.js';
@@ -159,6 +162,8 @@ import {
   type TlonToolExecutorDeps,
   formatTlonToolDescription,
   findTlonSubcommandIndex,
+  isHeartbeatOwnerRead,
+  isSealedHeartbeatTlonCall,
   OWNER_CONFIG_CHANGED_MESSAGE,
   summarizeTlonCommand,
 } from './src/tlon-tool-command.js';
@@ -170,9 +175,13 @@ import { buildTlonToolDiagnosticRecord } from './src/tlon-tool-diagnostics.js';
 import {
   getRecordedRunRole,
   getRunAccountId,
+  isHeartbeatOwnerReadRun,
+  isSealedHeartbeatRun,
+  markHeartbeatRun,
   noteCrossSessionSend,
   observeRun,
   resolveTurnIdentity,
+  sealHeartbeatRun,
 } from './src/turn-identity.js';
 import {
   formatToolTraceEvent,
@@ -1158,6 +1167,27 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       ? cleanCronToolArgs(event.params)
       : undefined;
     const allowed = () => (cronParams ? { params: cronParams } : undefined);
+    // A heartbeat run that read the owner's data keeps only the tools in
+    // SEALED_HEARTBEAT_ALLOWED_TOOLS, `tlon` only for reads, and
+    // heartbeat_respond only without the fields core always persists.
+    const sealedRun = isSealedHeartbeatRun(ctx.runId);
+    const sealedToolReason =
+      sealedRun &&
+      !(
+        isSealedHeartbeatAllowedTool(event.toolName) &&
+        (normalizePolicyToolName(event.toolName) !== 'tlon' ||
+          (typeof event.params.command === 'string' &&
+            isSealedHeartbeatTlonCall(event.params.command)))
+      )
+        ? SEALED_HEARTBEAT_BLOCK_REASON
+        : undefined;
+    const sealedHeartbeatReason =
+      sealedToolReason ??
+      (sealedRun &&
+      normalizePolicyToolName(event.toolName) === 'heartbeat_respond'
+        ? sealedHeartbeatRespondBlockReason(event.params)
+        : undefined);
+    const blocksSealedHeartbeat = sealedHeartbeatReason !== undefined;
     const runSurface = getTlonSessionRunSurface(ctx.runId);
     // A seen run keeps the role recorded at its first sight (the answered
     // message's sender, else the session's role then); only a call with no
@@ -1268,6 +1298,7 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
         : undefined
     );
     const choiceClaimReason =
+      !blocksSealedHeartbeat &&
       !blocksNonOwner &&
       !blocksOnboardingMcp &&
       testRunBlock === null &&
@@ -1280,6 +1311,7 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
           })
         : undefined;
     const taskPlanClaimReason =
+      !blocksSealedHeartbeat &&
       !blocksNonOwner &&
       !blocksOnboardingMcp &&
       testRunBlock === null &&
@@ -1295,6 +1327,7 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       onboardingBoundaryReason ?? choiceClaimReason ?? taskPlanClaimReason;
     const blocksOnboardingBoundary = Boolean(effectiveOnboardingBoundaryReason);
     const blocksPolicy =
+      blocksSealedHeartbeat ||
       blocksNonOwner ||
       blocksOnboardingMcp ||
       blocksOnboardingBoundary ||
@@ -1321,16 +1354,18 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
         sessionKey: ctx.sessionKey,
       });
     }
-    const blockReason = blocksOnboardingMcp
-      ? 'This scheduled onboarding update may inspect and call only selected-provider MCP tools explicitly described as read-only.'
-      : blocksCronArgs
-        ? CRON_ARGS_BLOCK_REASON
-        : (testRunBlock ??
-          effectiveOnboardingBoundaryReason ??
-          ownerOnlyDecision.reason ??
-          (blocksBrowserHandoff
-            ? 'This browser is waiting for secure entry. Stop browser tool calls and wait for the service result; it resumes this conversation.'
-            : tlonAppBrowser.reason));
+    const blockReason = blocksSealedHeartbeat
+      ? sealedHeartbeatReason
+      : blocksOnboardingMcp
+        ? 'This scheduled onboarding update may inspect and call only selected-provider MCP tools explicitly described as read-only.'
+        : blocksCronArgs
+          ? CRON_ARGS_BLOCK_REASON
+          : (testRunBlock ??
+            effectiveOnboardingBoundaryReason ??
+            ownerOnlyDecision.reason ??
+            (blocksBrowserHandoff
+              ? 'This browser is waiting for secure entry. Stop browser tool calls and wait for the service result; it resumes this conversation.'
+              : tlonAppBrowser.reason));
     if (contextLensEnabled) {
       // Capture tool activity even when no conversation run owns this
       // session (cron wakes — including jobs that reuse the main session
@@ -1403,15 +1438,17 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
           `[tlon] cron args blocked: ${forbiddenCronArgs.map((f) => `${f.path}=${f.kind}`).join(', ')}`
         );
       } else {
-        const blockCause = blocksOnboardingMcp
-          ? 'outside onboarding MCP policy'
-          : testRunBlock !== null
-            ? 'during a scheduled task test run'
-            : blocksOnboardingBoundary
-              ? 'outside the onboarding tool boundary'
-              : blocksNonOwner
-                ? 'for non-owner'
-                : 'targeting the Tlon app in the hosted browser';
+        const blockCause = blocksSealedHeartbeat
+          ? 'after an owner read on this heartbeat run'
+          : blocksOnboardingMcp
+            ? 'outside onboarding MCP policy'
+            : testRunBlock !== null
+              ? 'during a scheduled task test run'
+              : blocksOnboardingBoundary
+                ? 'outside the onboarding tool boundary'
+                : blocksNonOwner
+                  ? 'for non-owner'
+                  : 'targeting the Tlon app in the hosted browser';
         api.logger.warn(
           `[tlon] Blocked ${event.toolName} tool ${blockCause}. Session: ${ctx.sessionKey}, Role: ${role}, Reason: ${blockReason}`
         );
@@ -1445,7 +1482,17 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       // bot is already the default.
       const run = { runId: ctx.runId, sessionKey: ctx.sessionKey };
       const ownerRun = live.ownerDefault && isOwnerRun(run, live.ownerShip);
-      const rewritesToBot = live.ownerDefault && !ownerRun;
+      // A heartbeat run reads an allowlist of the owner's data as the owner.
+      const heartbeatRead =
+        live.ownerDefault &&
+        !ownerRun &&
+        isHeartbeatOwnerReadRun(run, live.ownerShip) &&
+        isHeartbeatOwnerRead(event.params.command);
+      const rewritesToBot = live.ownerDefault && !ownerRun && !heartbeatRead;
+      // Sealed here, before the approval: the model now holds an allowed
+      // owner read whether or not it executes, and sealing only removes
+      // tools. A call that misses its approval runs as the bot.
+      if (heartbeatRead) sealHeartbeatRun(ctx.runId);
       // Not owner-directed: the call runs as the bot. Not a denial.
       const command = rewritesToBot
         ? `--self ${event.params.command}`
@@ -1454,6 +1501,7 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
         recordTlonCallApproval(toolCallId, command, {
           ...live,
           ...(ownerRun ? { ownerRun: run } : {}),
+          ...(heartbeatRead ? { heartbeatRead: run } : {}),
         });
       }
       if (rewritesToBot) {
@@ -1596,7 +1644,16 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
   });
 
   api.on('agent_turn_prepare', async (_event, ctx) => {
-    observeRun({ ...ctx, ownerShip: liveOwnerShip() });
+    const ownerShip = liveOwnerShip();
+    observeRun({ ...ctx, ownerShip });
+    // Only a heartbeat-runner turn with heartbeat provenance; anything less,
+    // missing provenance included, stays a bot run.
+    if (
+      ctx.trigger === 'heartbeat' &&
+      ctx.inputProvenance?.sourceTool === 'heartbeat'
+    ) {
+      markHeartbeatRun(ctx.runId, ownerShip);
+    }
     beginCronSilenceObservation(ctx);
     beginTlonTurnSilenceObservation(ctx);
     // Cron has no active Tlon turn recorder, so its output trace stays nullable.
@@ -2051,15 +2108,21 @@ export default defineBundledChannelEntry({
             };
           }
           // A non-owner message or sessions_send may have demoted the run
-          // since the gate; the executor refuses a command that would still
+          // (or revoked a heartbeat run's grant) since the gate, as may an
+          // owner change; the executor refuses a command that would still
           // act as the owner (a rerun goes through the gate and gets --self).
           // The executor reads both again after its --sent-at probe.
           return createTlonToolExecutor({
             ...executorDeps(approved),
             ownerConfigChanged,
             ownerIdentityLost: () =>
-              approved.ownerRun !== undefined &&
-              !isOwnerRun(approved.ownerRun, liveAccount().ownerShip),
+              (approved.ownerRun !== undefined &&
+                !isOwnerRun(approved.ownerRun, liveAccount().ownerShip)) ||
+              (approved.heartbeatRead !== undefined &&
+                !isHeartbeatOwnerReadRun(
+                  approved.heartbeatRead,
+                  liveAccount().ownerShip
+                )),
           })(id, params);
         };
 

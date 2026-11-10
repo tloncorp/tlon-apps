@@ -265,6 +265,9 @@ OWNER_ONLY_TLON_TOOLS = frozenset(
     {
         "tlon",
         "cronjob",
+        # Hermes >= 0.22 renamed the model tool; pre_tool_call hooks see the
+        # new name even when the model uses the legacy alias.
+        "cronjob_manage",
         "read",
         "read_file",
         "write_file",
@@ -272,7 +275,7 @@ OWNER_ONLY_TLON_TOOLS = frozenset(
         "search_files",
     }
 )
-OWNER_ONLY_TLON_TOOLSETS = frozenset({"file"})
+OWNER_ONLY_TLON_TOOLSETS = frozenset({"file", "cronjob"})
 OPTIONAL_ENV = [
     "TLON_CHANNELS",
     "TLON_AUTO_DISCOVER",
@@ -902,6 +905,13 @@ class TlonAdapter(BasePlatformAdapter):
     # it sees no env allowlist for the platform. Newer Hermes cores also look
     # for these allowlist policy hints before trusting an own-policy adapter.
     enforces_own_access_policy = True
+    # Hermes >= 0.22 re-checks authorization at durable session admission
+    # (session_envelope._validate_native) with adapter delegation limited to
+    # relay provenance or this flag; enforces_own_access_policy is not
+    # consulted there, so without it every inbound Tlon message is refused as
+    # user_not_authorized. Sender identity is authenticated by the Urbit
+    # network and the adapter has already applied the full policy above.
+    authorization_is_upstream = True
     _dm_policy = "allowlist"
     _group_policy = "allowlist"
 

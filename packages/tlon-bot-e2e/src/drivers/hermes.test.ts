@@ -3,7 +3,7 @@ import { describe, expect, test } from 'vitest';
 
 import { createRuntimeContext } from '../runtime/context.js';
 import { allocateRuntimeEndpoints } from '../runtime/ports.js';
-import { hermesDriver } from './hermes.js';
+import { assertLcmGrepRecalls, hermesDriver } from './hermes.js';
 import type { RuntimeSeed } from './types.js';
 
 describe('Hermes driver runtime spec', () => {
@@ -123,11 +123,11 @@ describe('Hermes driver runtime spec', () => {
       steps: [
         {
           kind: 'tool_call',
-          name: 'cronjob',
+          name: 'cronjob_manage',
           args: {
             action: 'create',
             name: 'scheduled-job',
-            schedule: '1m',
+            schedule: 'in 1m',
             prompt: '[tlon-test:fired] Reply with the marker.',
             deliver: 'origin',
           },
@@ -135,7 +135,7 @@ describe('Hermes driver runtime spec', () => {
         { kind: 'text', content: 'Scheduled.' },
       ],
       expectations: {
-        advertisedTools: { include: ['cronjob', 'tlon'] },
+        advertisedTools: { include: ['cronjob_manage', 'tlon'] },
         expectedCallCount: 2,
       },
     });
@@ -174,5 +174,43 @@ describe('Hermes driver runtime spec', () => {
     expect(
       hermesDriver.resolveRuntime(base).composeEnv.HERMES_E2E_ENABLE_CRONJOB
     ).toBe('0');
+  });
+});
+
+describe('assertLcmGrepRecalls', () => {
+  const marker = 'lcmmarkerabc123t0';
+
+  test('accepts a hit whose snippet carries the marker', () => {
+    const text = JSON.stringify({
+      query: marker,
+      total_results: 1,
+      results: [
+        { type: 'message', depth: 'raw', snippet: `${marker} harbour survey` },
+      ],
+    });
+    expect(() => assertLcmGrepRecalls(text, marker)).not.toThrow();
+  });
+
+  test('rejects an empty result even though the query echoes the marker', () => {
+    const text = JSON.stringify({
+      query: marker,
+      total_results: 0,
+      results: [],
+    });
+    expect(() => assertLcmGrepRecalls(text, marker)).toThrow(/no results/);
+  });
+
+  test('rejects hits that do not mention the marker', () => {
+    const text = JSON.stringify({
+      query: marker,
+      results: [{ type: 'message', snippet: 'unrelated' }],
+    });
+    expect(() => assertLcmGrepRecalls(text, marker)).toThrow(/do not mention/);
+  });
+
+  test('rejects non-JSON text with a preview', () => {
+    expect(() => assertLcmGrepRecalls('Error: boom', marker)).toThrow(
+      /not JSON: Error: boom/
+    );
   });
 });

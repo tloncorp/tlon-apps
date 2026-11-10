@@ -29,7 +29,7 @@ If you explicitly want the skill to appear in Hermes' normal skill index as bare
 
 ## Tests
 
-Hermes is not tested in CI. Run the Python unit tests by hand with `./dev/test.sh` (or `pnpm --filter @tloncorp/hermes-tlon-adapter test:py`).
+Run the Python unit tests with `./dev/test.sh` (or `pnpm --filter @tloncorp/hermes-tlon-adapter test:py`). The script runs them under `uv run --python 3.14`, the only Python hermes-agent v0.22.6 supports, so it needs [uv](https://docs.astral.sh/uv/). CI runs the same script in `bot-checks` and in the path-triggered Hermes workflow (`.github/workflows/hermes-ci.yml`), which also runs the shared E2E suites.
 
 ## Docker Dev Loop
 
@@ -61,6 +61,8 @@ By default the image builds Hermes from `NousResearch/hermes-agent` at the pinne
 HERMES_AGENT_REPO=https://github.com/NousResearch/hermes-agent.git
 HERMES_AGENT_REF=v2026.6.19
 ```
+
+The shared E2E image (`dev/Dockerfile.e2e`) can also install an LCM context-engine plugin for the opt-in LCM lane (`TLON_E2E_HERMES_LCM=1`). It defaults to lcm-x (`https://github.com/electricsheephq/lcm-x.git` at the Hermes plugin-catalog pin `1a13744482a2448c38d6f9f0b98803f07aac6e81`, subdir `plugin`, plugin `hermes-lcm-x`, engine `lcm-x`, `LCM_EMBEDDINGS_ENABLED=false`). hermes-lcm stays selectable with `HERMES_LCM_REPO=https://github.com/stephenschoettler/hermes-lcm.git HERMES_LCM_REF=main HERMES_LCM_SUBDIR= TLON_E2E_HERMES_LCM_PLUGIN=hermes-lcm TLON_E2E_HERMES_LCM_ENGINE=lcm`, but hermes-lcm at `main` currently faults on hermes-agent v0.22.6 (per-turn ingest fails with "file is not a database", Hermes falls back to its built-in compressor, and the `lcm_*` tools disappear). See `packages/tlon-bot-e2e/README.md` for the lane's details.
 
 ## Managed Prompt Profile
 
@@ -334,7 +336,7 @@ Nothing is generated or checked in; identity is resolved at runtime. The same su
 
 At connect (and on reconnect catch-up) the adapter publishes the bot's identity — harness, adapter version, Hermes version — in the bot's own contact profile under `bot-info`, compare-then-poke (`bot_info.py`). Tlon clients use the claimed harness to pick which of _their_ static slash-command lists to suggest; this adapter publishes no command list of its own. Wire contract and clear-to-null rollback procedure: [docs/bot-info.md](../../docs/bot-info.md).
 
-The registry in `commands.py` is the single source of truth for command detection, and holds shared usage constants for `/owner-listen`, `/channel-access`, and `/migrate`; the remaining commands carry their usage text in their handlers. `fixtures/commands.json` is its committed token list — a frozen snapshot, not a wire payload: the client's drift contract (`packages/shared/src/domain/runtimeCommandContract.test.ts`, run by the `bot-checks` job) asserts it names exactly the runtime-owned portion of the client's Hermes list. Only `test_command_registry.py` ties the fixture to this registry, and it does not run in CI, so when adding or removing a command here, run the tests by hand and update the fixture and the client list together; the six host-core entries that list also suggests are audit-pinned constants outside that relation. `/tlon-version` is handled but deliberately absent from the fixture (legacy alias of `/tlon version`). **Removals are two-phase**: hosted bots redeploy on restart while the app releases slowly, so keep a removed command's handler alive until an app release stops suggesting it.
+The registry in `commands.py` is the single source of truth for command detection, and holds shared usage constants for `/owner-listen`, `/channel-access`, and `/migrate`; the remaining commands carry their usage text in their handlers. `fixtures/commands.json` is its committed token list — a CI artifact, not a wire payload: the client's drift contract (`packages/shared/src/domain/runtimeCommandContract.test.ts`, run by the `bot-checks` job) asserts it names exactly the runtime-owned portion of the client's Hermes list, so adding or removing a command here fails until the client list changes too; the six host-core entries that list also suggests are audit-pinned constants outside that relation. `/tlon-version` is handled but deliberately absent from the fixture (legacy alias of `/tlon version`). **Removals are two-phase**: hosted bots redeploy on restart while the app releases slowly, so keep a removed command's handler alive until an app release stops suggesting it.
 
 ## Telemetry
 

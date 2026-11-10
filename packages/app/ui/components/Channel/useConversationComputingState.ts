@@ -1,5 +1,6 @@
 import {
   type ComputingToolCall,
+  type PresenceStatus,
   getComputingStatusText,
   parseComputingStatus,
 } from '@tloncorp/api';
@@ -12,14 +13,43 @@ import { resolveContactNameProps } from '../contactNameResolver';
 export type ShipComputingState = {
   ship: string;
   label: string;
+  /** Tool calls to list beside the label; one that repeats it is dropped. */
   toolCalls: ComputingToolCall[];
+  /** Every tool call the bot reports, for motion that follows its work. */
+  activeToolCalls: ComputingToolCall[];
 };
 
 export type ConversationComputingState = {
   ships: ShipComputingState[];
   label: string;
   toolCalls: ComputingToolCall[];
+  activeToolCalls: ComputingToolCall[];
 };
+
+/** What one presence entry says a bot is doing, or null if it isn't working. */
+export function readComputingStatus(
+  status: PresenceStatus
+): ShipComputingState | null {
+  if (status.key.topic !== 'computing') {
+    return null;
+  }
+
+  const parsedStatus = parseComputingStatus(status.display.blob);
+  if (parsedStatus && !parsedStatus.thinking) {
+    return null;
+  }
+
+  const label =
+    status.display.text?.trim() ||
+    (parsedStatus ? getComputingStatusText(parsedStatus) : null) ||
+    'Thinking...';
+  const activeToolCalls = parsedStatus?.toolCalls ?? [];
+  const toolCalls = activeToolCalls.filter((toolCall) => {
+    return activeToolCalls.length > 1 || toolCall.label !== label;
+  });
+
+  return { ship: status.key.ship, label, toolCalls, activeToolCalls };
+}
 
 export function useConversationComputingState(conversationId: string) {
   const presenceStates = useConversationPresence(conversationId);
@@ -30,26 +60,10 @@ export function useConversationComputingState(conversationId: string) {
     const ships: ShipComputingState[] = [];
 
     for (const status of presenceStates) {
-      if (status.key.topic !== 'computing') {
-        continue;
+      const shipState = readComputingStatus(status);
+      if (shipState) {
+        ships.push(shipState);
       }
-
-      const parsedStatus = parseComputingStatus(status.display.blob);
-      if (parsedStatus && !parsedStatus.thinking) {
-        continue;
-      }
-
-      const label =
-        status.display.text?.trim() ||
-        (parsedStatus ? getComputingStatusText(parsedStatus) : null) ||
-        'Thinking...';
-
-      const toolCalls =
-        parsedStatus?.toolCalls.filter((toolCall) => {
-          return parsedStatus.toolCalls.length > 1 || toolCall.label !== label;
-        }) ?? [];
-
-      ships.push({ ship: status.key.ship, label, toolCalls });
     }
 
     if (ships.length === 0) {
@@ -64,6 +78,7 @@ export function useConversationComputingState(conversationId: string) {
         ships,
         label: ships[0].label,
         toolCalls: ships[0].toolCalls,
+        activeToolCalls: ships[0].activeToolCalls,
       };
     }
 
@@ -80,6 +95,7 @@ export function useConversationComputingState(conversationId: string) {
         ships,
         label: `${first} and ${second} are thinking...`,
         toolCalls: [],
+        activeToolCalls: ships.flatMap((ship) => ship.activeToolCalls),
       };
     }
 
@@ -87,6 +103,7 @@ export function useConversationComputingState(conversationId: string) {
       ships,
       label: `${ships.length} bots are thinking...`,
       toolCalls: [],
+      activeToolCalls: ships.flatMap((ship) => ship.activeToolCalls),
     };
   }, [presenceStates, contactIndex, calm.disableNicknames]);
 }

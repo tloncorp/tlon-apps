@@ -14,6 +14,7 @@ export * from './components/Channel/ChannelHeader';
 export { PostView } from './components/Channel/PostView';
 export * from './components/ChannelFromTemplateView';
 export * from './components/ChannelMembersScreenView';
+export * from './components/ChannelNestedSidebar';
 export * from './components/ChannelSearch';
 export * from './components/ChatMessage';
 export * from './components/ChatMessage/ChatMessageActions/Component';

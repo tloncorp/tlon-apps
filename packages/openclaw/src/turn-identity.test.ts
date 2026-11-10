@@ -12,10 +12,14 @@ import {
   _testing,
   canonicalSessionKey,
   getRecordedRunRole,
+  isHeartbeatOwnerReadRun,
+  isSealedHeartbeatRun,
+  markHeartbeatRun,
   noteCrossSessionSend,
   noteInboundDispatching,
   observeRun,
   resolveTurnIdentity,
+  sealHeartbeatRun,
 } from './turn-identity.js';
 
 const SESSION = 'agent:main:tlon:group:chat/~h/general';
@@ -325,6 +329,102 @@ describe('turn identity', () => {
       noteCrossSessionSend(params);
       expect(identity('run-1')).toBe('bot');
       expect(identity('run-2', OTHER)).toBe('bot');
+    });
+  });
+
+  describe('heartbeat grant', () => {
+    const MAIN = 'agent:main:main';
+    const run = { runId: 'hb-1', sessionKey: MAIN };
+    /** agent_turn_prepare for a recognised heartbeat run under `ownerShip`. */
+    function recognise(ownerShip: string | undefined, runId = 'hb-1') {
+      observeRun({ runId, sessionKey: MAIN, ownerShip });
+      markHeartbeatRun(runId, ownerShip);
+    }
+
+    it('binds the grant to the owner configured at recognition', () => {
+      recognise('~zod');
+      expect(isHeartbeatOwnerReadRun(run, '~zod')).toBe(true);
+      expect(identity('hb-1', MAIN)).toBe('bot');
+    });
+
+    it('is inert without an owner at recognition, or with none live', () => {
+      recognise(undefined);
+      expect(isHeartbeatOwnerReadRun(run, '~zod')).toBe(false);
+      expect(isHeartbeatOwnerReadRun(run, undefined)).toBe(false);
+      recognise('~zod', 'hb-2');
+      expect(
+        isHeartbeatOwnerReadRun({ runId: 'hb-2', sessionKey: MAIN }, undefined)
+      ).toBe(false);
+    });
+
+    it('needs a recorded run, and is never set for an unmarked one', () => {
+      markHeartbeatRun('hb-1', '~zod');
+      expect(isHeartbeatOwnerReadRun(run, '~zod')).toBe(false);
+      observeRun({ runId: 'hb-1', sessionKey: MAIN, ownerShip: '~zod' });
+      expect(isHeartbeatOwnerReadRun(run, '~zod')).toBe(false);
+    });
+
+    it('refuses a different live owner without an intervening observation', () => {
+      recognise('~zod');
+      expect(isHeartbeatOwnerReadRun(run, '~nec')).toBe(false);
+    });
+
+    it('revokes the grant for good when an observation sees another owner', () => {
+      recognise('~zod');
+      observeRun({ ...run, ownerShip: '~nec' });
+      expect(isHeartbeatOwnerReadRun(run, '~zod')).toBe(false);
+      expect(isHeartbeatOwnerReadRun(run, '~nec')).toBe(false);
+      // Back to the first owner, recognised again: still revoked.
+      recognise('~zod');
+      expect(isHeartbeatOwnerReadRun(run, '~zod')).toBe(false);
+      recognise('~nec');
+      expect(isHeartbeatOwnerReadRun(run, '~nec')).toBe(false);
+    });
+
+    it('keeps the grant across observations under the same owner', () => {
+      recognise('~zod');
+      observeRun({ ...run, ownerShip: '~zod' });
+      observeRun({ runId: 'hb-1' });
+      expect(isHeartbeatOwnerReadRun(run, '~zod')).toBe(true);
+    });
+
+    it.each([
+      [
+        'a non-owner message on its session',
+        () => noteInboundDispatching({ sessionKeys: [MAIN], role: 'user' }),
+      ],
+      [
+        'a sessions_send into its session',
+        () => noteCrossSessionSend({ sessionKey: MAIN }, 'sender'),
+      ],
+    ])('revokes the grant for good on %s', (_label, demote) => {
+      recognise('~zod');
+      demote();
+      expect(isHeartbeatOwnerReadRun(run, '~zod')).toBe(false);
+      recognise('~zod');
+      expect(isHeartbeatOwnerReadRun(run, '~zod')).toBe(false);
+    });
+
+    it('never marks a run answering a non-owner', () => {
+      inbound('user', 'hb-1');
+      recognise('~zod');
+      expect(isHeartbeatOwnerReadRun({ runId: 'hb-1' }, '~zod')).toBe(false);
+    });
+
+    it('keeps the seal through revocation, and drops it with the record', () => {
+      recognise('~zod');
+      expect(isSealedHeartbeatRun('hb-1')).toBe(false);
+      sealHeartbeatRun('hb-1');
+      expect(isSealedHeartbeatRun('hb-1')).toBe(true);
+      observeRun({ ...run, ownerShip: '~nec' });
+      expect(isSealedHeartbeatRun('hb-1')).toBe(true);
+      vi.advanceTimersByTime(RUN_ACTIVE_TTL_MS + MINUTE);
+      observeRun({ runId: 'other', ownerShip: '~nec' });
+      expect(isSealedHeartbeatRun('hb-1')).toBe(false);
+      expect(isHeartbeatOwnerReadRun(run, '~nec')).toBe(false);
+      // A tombstoned run is not recognised again.
+      recognise('~nec');
+      expect(isHeartbeatOwnerReadRun(run, '~nec')).toBe(false);
     });
   });
 });

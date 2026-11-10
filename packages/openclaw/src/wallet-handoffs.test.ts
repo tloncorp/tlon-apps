@@ -89,6 +89,45 @@ it('delivers one native card and resumes the original conversation once after co
   );
   expect(f.records.size).toBe(0);
 });
+it.each(['browser_wallet_connect', 'browser_payment_request'])(
+  'does not redeliver %s when a pending status read outlasts the first send',
+  async (name) => {
+    const f = fixture();
+    f.event.params.name = name;
+    const sending = Promise.withResolvers<void>();
+    const sendStarted = Promise.withResolvers<void>();
+    const reading = Promise.withResolvers<{ status: string }>();
+    const readStarted = Promise.withResolvers<void>();
+    f.send.mockImplementationOnce(() => {
+      sendStarted.resolve();
+      return sending.promise;
+    });
+    f.read.mockImplementationOnce(() => {
+      readStarted.resolve();
+      return reading.promise;
+    });
+    f.service.start();
+    await f.service.poll();
+    const handling = f.service.handle(f.event, f.ctx);
+    await sendStarted.promise;
+    const polling = f.service.poll();
+    await readStarted.promise;
+    try {
+      expect(f.records.get(f.id)?.sent).not.toBe(true);
+      sending.resolve();
+      await handling;
+      expect(f.records.get(f.id)?.sent).toBe(true);
+      reading.resolve({ status: 'pending' });
+      await polling;
+      expect(f.send).toHaveBeenCalledExactlyOnceWith(f.id);
+      expect(f.warn).not.toHaveBeenCalled();
+    } finally {
+      sending.resolve();
+      reading.resolve({ status: 'pending' });
+      await Promise.all([handling, polling]);
+    }
+  }
+);
 it('durably retries delivery without putting provider URLs in continuation messages', async () => {
   const f = fixture();
   f.send.mockRejectedValueOnce(new Error('unavailable'));
@@ -139,3 +178,38 @@ it('expiry produces a terminal notification and malformed or failed calls produc
     expect.objectContaining({ message: expect.stringContaining(': expired.') })
   );
 });
+
+it('resumes uncertain payments with inspection instead of an unconditional owner wait', async () => {
+  const f = fixture();
+  f.event.params.name = 'browser_payment_request';
+  await f.service.handle(f.event, f.ctx);
+  f.read.mockResolvedValue({ status: 'unknown' });
+  f.service.start();
+  await f.service.poll();
+  expect(f.resume).toHaveBeenCalledTimes(1);
+  const message = f.resume.mock.calls[0][0].message;
+  expect(message).toContain('Use ordinary browser tools to inspect');
+  expect(message).toContain('original purchase approval and task boundaries');
+  expect(message).toContain(
+    'Do not repeat payment authorization or fill automatically'
+  );
+  expect(message).toContain('without resubmitting');
+  expect(message).not.toContain('report the outcome and wait for the owner');
+  expect(f.records.size).toBe(0);
+});
+it.each(['cancelled', 'expired', 'failed'])(
+  'keeps the owner wait for %s payments',
+  async (status) => {
+    const f = fixture();
+    f.event.params.name = 'browser_payment_request';
+    await f.service.handle(f.event, f.ctx);
+    f.read.mockResolvedValue({ status });
+    f.service.start();
+    await f.service.poll();
+    expect(f.resume).toHaveBeenCalledTimes(1);
+    expect(f.resume.mock.calls[0][0].message).toContain(
+      'report the outcome and wait for the owner'
+    );
+    expect(f.records.size).toBe(0);
+  }
+);

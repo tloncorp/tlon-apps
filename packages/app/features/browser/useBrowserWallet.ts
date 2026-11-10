@@ -3,10 +3,6 @@ import {
   type WalletView,
 } from '@tloncorp/api/client/browserWallet';
 import { createDevLogger } from '@tloncorp/shared';
-import * as api from '@tloncorp/api';
-import { useQuery } from '@tanstack/react-query';
-import { useBotSettingsIds } from '../settings/bot/useBotSettingsData';
-import { normalizeMoonName } from '../settings/bot/helpers';
 import { walletFinished as finished } from './browserPaymentPresentation';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -15,15 +11,11 @@ import { isWeb } from 'tamagui';
 
 const logger = createDevLogger('BrowserWallet', true);
 
-export function useBrowserWallet(requestId: string, open = true) {
-  const { ship } = useBotSettingsIds();
-  const moon = useQuery({
-    queryKey: ['tlonbot', 'moon', ship],
-    queryFn: () => api.getTlawnMoon(ship),
-    enabled: !!ship,
-    retry: false,
-  });
-  const botMoon = moon.data ? normalizeMoonName(moon.data, ship) : '';
+export function useBrowserWallet(
+  requestId: string,
+  botMoon: string | undefined,
+  open = true
+) {
   const [view, setView] = useState<WalletView>();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -34,6 +26,7 @@ export function useBrowserWallet(requestId: string, open = true) {
       body?: { confirmed: true; payment_method_id?: string },
       signal?: AbortSignal
     ) => {
+      if (!botMoon) throw new Error('This payment request is missing its bot.');
       const next = await browserWalletRequest(
         botMoon,
         requestId,
@@ -118,7 +111,7 @@ export function useBrowserWallet(requestId: string, open = true) {
   };
   return {
     view,
-    error: moon.isError ? 'Couldn’t connect to your bot. Try again.' : error,
+    error: botMoon ? error : 'This payment request is missing its bot.',
     busy,
     onApprove: (id?: string) =>
       void perform('approve', {
@@ -128,7 +121,6 @@ export function useBrowserWallet(requestId: string, open = true) {
     onOpenLink: () => void openProvider(),
     onRetry: () => {
       setError('');
-      void moon.refetch();
       setRefresh((value) => value + 1);
     },
     onCancel: () => void perform('cancel'),
