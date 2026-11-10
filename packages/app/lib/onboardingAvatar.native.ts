@@ -24,7 +24,7 @@ const RETRY = { startingDelay: 2000, numOfAttempts: 5, maxDelay: 15000 };
 
 let running: Promise<void> | null = null;
 
-/** Draws a glyph avatar to a PNG in the cache folder. */
+/** Draws a glyph avatar to a PNG in the cache folder, with its size. */
 function renderGlyphAvatar(glyph: AvatarGlyphId, who: 'you' | 'bot') {
   const svg = Skia.SVG.MakeFromString(glyphAvatarSvg(glyph, who, PIXELS));
   const surface = Skia.Surface.Make(PIXELS, PIXELS);
@@ -36,19 +36,20 @@ function renderGlyphAvatar(glyph: AvatarGlyphId, who: 'you' | 'bot') {
   const directory = new Directory(Paths.cache, 'onboarding-avatar');
   directory.create({ intermediates: true, idempotent: true });
   const file = new File(directory, `${who}-${glyph}.png`);
-  file.write(surface.makeImageSnapshot().encodeToBase64(), {
-    encoding: 'base64',
-  });
-  return file;
+  const bytes = surface.makeImageSnapshot().encodeToBytes();
+  file.write(bytes);
+  // The size comes from the bytes written: read back from the file right
+  // after the write, it can still be 0, and storage refuses an empty upload.
+  return { file, size: bytes.length };
 }
 
 async function uploadGlyphAvatar(glyph: AvatarGlyphId, who: 'you' | 'bot') {
-  const file = renderGlyphAvatar(glyph, who);
+  const { file, size } = renderGlyphAvatar(glyph, who);
   const intent: Attachment.UploadIntent = {
     type: 'fileUri',
     localUri: file.uri,
     name: file.name,
-    size: file.size ?? 0,
+    size,
     mimeType: 'image/png',
   };
   const key = Attachment.UploadIntent.extractKey(intent);
