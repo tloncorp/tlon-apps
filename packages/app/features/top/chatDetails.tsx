@@ -174,7 +174,7 @@ export function ChatDetailsView({
     if (chatType === 'group') {
       markGroupRead();
     } else {
-      markChannelRead();
+      markChannelRead({ includeThreads: true });
     }
   }, [chatType, markChannelRead, markGroupRead]);
 
