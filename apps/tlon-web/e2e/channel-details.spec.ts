@@ -25,13 +25,16 @@ test('should display channel details screen with all expected elements', async (
     timeout: 5000,
   });
 
-  // Quick actions - verify Invite and Pin buttons are visible
-  await expect(page.getByText('Invite', { exact: true })).toBeVisible({
+  // Quick actions - a channel's circles are Pin, Share and Copy link
+  await expect(page.getByTestId('ChannelQuickAction-Pin')).toBeVisible({
     timeout: 5000,
   });
-  await expect(page.getByText('Pin', { exact: true })).toBeVisible({
-    timeout: 5000,
-  });
+  await expect(
+    page.getByTestId('ChannelQuickAction-Forward reference')
+  ).toBeVisible({ timeout: 5000 });
+  await expect(
+    page.getByTestId('ChannelQuickAction-Copy link to channel')
+  ).toBeVisible({ timeout: 5000 });
 
   // Settings section - verify settings are visible by text
   await expect(page.getByText('Permissions')).toBeVisible({

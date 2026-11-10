@@ -24,7 +24,7 @@ test('should create, verify, and delete a group', async ({ zodPage }) => {
   await helpers.openGroupSettings(page);
 
   // Verify the group's member count under its name
-  await expect(page.getByText('1 member').first()).toBeVisible();
+  await expect(page.getByTestId('GroupMembersCard')).toContainText('1 member');
 
   // Assert we're in group settings
   await expect(page.getByText('Workspace info')).toBeVisible();

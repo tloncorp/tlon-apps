@@ -23,7 +23,9 @@ test('should show group info, channel, and role changes to invited user', async 
 
   // Verify privacy setting on zod's side
   await expect(zodPage.getByTestId('GroupPrivacy')).toContainText('Private');
-  await expect(zodPage.getByText('1 member').first()).toBeVisible();
+  await expect(zodPage.getByTestId('GroupMembersCard')).toContainText(
+    '1 member'
+  );
 
   // Open group settings again to make more changes
   await helpers.openGroupSettings(zodPage);
@@ -75,7 +77,9 @@ test('should show group info, channel, and role changes to invited user', async 
   // Verify privacy setting is visible to ten
   await helpers.openGroupSettings(tenPage);
   await expect(tenPage.getByTestId('GroupPrivacy')).toContainText('Private');
-  await expect(tenPage.getByText('2 members').first()).toBeVisible();
+  await expect(tenPage.getByTestId('GroupMembersCard')).toContainText(
+    '2 members'
+  );
 
   // Verify channels are visible to ten
   await expect(tenPage.getByTestId('ChannelListItem-General')).toBeVisible();
