@@ -116,10 +116,11 @@ export function ChatDetailsView({
     }
   }, [channel, onPressChannelMeta, onPressEdit]);
 
-  // Pushed over the channel's info on a phone, so Back returns to it.
+  // Pushed over the channel's info on native and narrow web, so Back
+  // returns to it. Native mounts only the root stack, at any width.
   const handlePressWorkspace = useCallback(
     (workspace: db.Group) => {
-      if (isWindowNarrow) {
+      if (!isWeb || isWindowNarrow) {
         navigation.dispatch(
           StackActions.push('ChatDetails', {
             chatType: 'group',

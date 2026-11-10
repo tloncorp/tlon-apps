@@ -433,7 +433,9 @@ export function useRootNavigation() {
 
     return useCallback(
       (chat: { type: 'group' | 'channel'; id: string; groupId?: string }) => {
-        if (isWindowNarrow) {
+        // Native always mounts the root stack, whatever the width; only wide
+        // web has the drawer's tabs.
+        if (Platform.OS !== 'web' || isWindowNarrow) {
           navigationRef.current.navigate(
             'ChatDetails',
             {
