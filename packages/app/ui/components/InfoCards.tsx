@@ -9,7 +9,7 @@ import {
   triggerHaptic,
 } from '@tloncorp/ui';
 import { type ComponentProps, type ReactNode, useCallback } from 'react';
-import { View, XStack, YStack, styled } from 'tamagui';
+import { View, XStack, YStack, getTokenValue, styled } from 'tamagui';
 
 import { WidgetPane } from './WidgetPane';
 
@@ -329,6 +329,47 @@ function SettingsCardRowView({
         </XStack>
       </XStack>
     </Pressable>
+  );
+}
+
+/**
+ * The Scheduled tasks row: a clock and how many tasks there are, once that is
+ * known.
+ */
+export function scheduledTasksRow({
+  count,
+  onPress,
+  testID,
+}: {
+  count?: number;
+  onPress: () => void;
+  testID?: string;
+}): SettingsCardRow {
+  return {
+    key: 'scheduled-tasks',
+    title: 'Scheduled tasks',
+    value: (
+      <XStack alignItems="center" gap="$s">
+        <Icon type="Clock" size="$m" color="$primaryText" />
+        {count !== undefined ? <Text size="$body">{count}</Text> : null}
+      </XStack>
+    ),
+    onPress,
+    testID,
+  };
+}
+
+/**
+ * The hairline between rows of a list card, starting where the row's text
+ * does: past the card's inset, the avatar and the gap after it.
+ */
+export function ListCardDivider({ avatarSize }: { avatarSize: number }) {
+  return (
+    <View
+      height={1}
+      marginLeft={getTokenValue('$2xl') + avatarSize + getTokenValue('$l')}
+      backgroundColor="$border"
+    />
   );
 }
 

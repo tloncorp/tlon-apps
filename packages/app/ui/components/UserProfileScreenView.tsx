@@ -40,12 +40,14 @@ import {
   InfoTile,
   PaddedBlock,
   SHARE_ICON_SIZE,
+  ListCardDivider,
   SettingsCard,
   type SettingsCardRow,
   TextCard,
   type TextCardProps,
   connectionStateText,
   infoHeaderAvatarShadow,
+  scheduledTasksRow,
 } from './InfoCards';
 import { ListItem } from './ListItem';
 import {
@@ -441,20 +443,13 @@ function BotSettingsCard({
     });
   }
   if (onPressScheduledTasks) {
-    rows.push({
-      key: 'tasks',
-      title: 'Scheduled tasks',
-      value: (
-        <XStack alignItems="center" gap="$s">
-          <Icon type="Clock" size="$m" color="$primaryText" />
-          {scheduledTaskCount !== undefined ? (
-            <Text size="$body">{scheduledTaskCount}</Text>
-          ) : null}
-        </XStack>
-      ),
-      onPress: onPressScheduledTasks,
-      testID: 'ScheduledTasksButton',
-    });
+    rows.push(
+      scheduledTasksRow({
+        count: scheduledTaskCount,
+        onPress: onPressScheduledTasks,
+        testID: 'ScheduledTasksButton',
+      })
+    );
   }
   if (onPressBotSettings) {
     rows.push({
@@ -635,13 +630,7 @@ function GroupListRow({
   const title = useGroupTitle(model);
   return (
     <Pressable onPress={handlePress}>
-      {first ? null : (
-        <View
-          height={1}
-          marginLeft={getTokenValue('$2xl') + getTokenValue('$4xl') + 12}
-          backgroundColor="$border"
-        />
-      )}
+      {first ? null : <ListCardDivider avatarSize={getTokenValue('$4xl')} />}
       <XStack
         alignItems="center"
         gap="$l"

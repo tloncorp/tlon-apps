@@ -196,7 +196,13 @@ export function UserProfileScreen({ route, navigation }: Props) {
   const menuItems = useMemo(() => {
     const items: (ScreenHeaderMenuActionItem | false)[] = isOwnProfile
       ? [
-          { id: 'share', label: 'Share', onPress: actions.onShare },
+          // Shown once your invite link has been made, so the tap does
+          // something.
+          actions.canShare && {
+            id: 'share',
+            label: 'Share',
+            onPress: actions.onShare,
+          },
           { id: 'copy-id', label: 'Copy ID', onPress: actions.onCopyId },
         ]
       : isOwnBotProfile

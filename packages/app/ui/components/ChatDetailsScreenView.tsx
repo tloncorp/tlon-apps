@@ -26,7 +26,7 @@ import {
   useTheme,
 } from 'tamagui';
 
-import { useContact, useContactIndex } from '../contexts/appDataContext';
+import { useContact } from '../contexts/appDataContext';
 import {
   channelSupportsNotifications,
   getChannelActionCapabilities,
@@ -53,11 +53,13 @@ import {
   InfoHeaderBadge,
   InfoHeaderIconTile,
   InfoTile,
+  ListCardDivider,
   SHARE_ICON_SIZE,
   SettingsCard,
   type SettingsCardRow,
   TextCard,
   connectionStateText,
+  scheduledTasksRow,
 } from './InfoCards';
 import { ListItem } from './ListItem';
 import {
@@ -244,18 +246,11 @@ export function ChatDetailsScreenView({
     scheduledTaskCount === undefined
       ? []
       : [
-          {
-            key: 'scheduled-tasks',
-            title: 'Scheduled tasks',
-            value: (
-              <XStack alignItems="center" gap="$s">
-                <Icon type="Clock" size="$m" color="$primaryText" />
-                <Text size="$body">{scheduledTaskCount}</Text>
-              </XStack>
-            ),
+          scheduledTasksRow({
+            count: scheduledTaskCount,
             onPress: onPressScheduledTasks,
             testID: `${idPrefix}ScheduledTasks`,
-          },
+          }),
         ];
   const yourRows = [...notificationRows, ...scheduledTaskRows];
 
@@ -777,6 +772,8 @@ function MembersCard({
   );
 }
 
+const MEMBER_AVATAR = { size: 40, radius: 11 } as const;
+
 function MemberRow({
   contactId,
   groupId,
@@ -791,11 +788,10 @@ function MemberRow({
   onPress: (contactId: string) => void;
 }) {
   const contact = useContact(contactId);
-  const contactIndex = useContactIndex();
   const isAdmin = useIsAdmin(groupId ?? '', contactId);
   const isBot = domain.isBotContact({
     id: contactId,
-    botInfo: (contact ?? contactIndex?.[contactId])?.botInfo,
+    botInfo: contact?.botInfo,
   });
   const handlePress = useCallback(() => {
     onPress(contactId);
@@ -803,20 +799,14 @@ function MemberRow({
   }, [contactId, onPress]);
   return (
     <Pressable onPress={handlePress} testID={`MemberRow-${contactId}`}>
-      {first ? null : (
-        <View
-          height={1}
-          marginLeft={getTokenValue('$2xl') + 40 + getTokenValue('$l')}
-          backgroundColor="$border"
-        />
-      )}
+      {first ? null : <ListCardDivider avatarSize={MEMBER_AVATAR.size} />}
       <XStack alignItems="center" gap="$l" height={60} paddingHorizontal="$2xl">
         <ContactAvatar
           contactId={contactId}
           size="custom"
-          width={40}
-          height={40}
-          borderRadius={11}
+          width={MEMBER_AVATAR.size}
+          height={MEMBER_AVATAR.size}
+          borderRadius={MEMBER_AVATAR.radius}
         />
         <XStack flex={1} minWidth={0} alignItems="center" gap="$s">
           <Text size="$label/l" numberOfLines={1} flexShrink={1}>
