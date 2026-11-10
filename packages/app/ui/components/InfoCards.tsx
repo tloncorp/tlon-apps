@@ -427,13 +427,7 @@ export function InfoTile({
     triggerHaptic('baseButtonClick');
   }, [onPress]);
   const tile = (
-    <PaddedBlock
-      flex={1}
-      height={120}
-      padding="$2xl"
-      justifyContent="space-between"
-      testID={onPress ? undefined : testID}
-    >
+    <PaddedBlock height={120} padding="$2xl" justifyContent="space-between">
       <XStack width="100%" justifyContent="space-between" alignItems="center">
         <Text size="$body" color="$tertiaryText">
           {label}
@@ -464,9 +458,12 @@ export function InfoTile({
       </XStack>
     </PaddedBlock>
   );
+  // Both kinds sit in the same even share of the row, so a pressable tile
+  // and a plain one beside it are the same width.
   return onPress ? (
     <Pressable
       flex={1}
+      flexBasis={0}
       borderRadius="$2xl"
       onPress={handlePress}
       testID={testID}
@@ -474,7 +471,9 @@ export function InfoTile({
       {tile}
     </Pressable>
   ) : (
-    tile
+    <View flex={1} flexBasis={0} testID={testID}>
+      {tile}
+    </View>
   );
 }
 
