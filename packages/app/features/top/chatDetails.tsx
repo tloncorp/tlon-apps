@@ -110,10 +110,11 @@ export function ChatDetailsView({
   const handlePressProfile = useCallback(
     (contactId: string) => {
       if (isWeb && !isWindowNarrow) {
-        desktopNavigation.navigate('Contacts', {
-          screen: 'UserProfile',
-          params: { userId: contactId },
-        });
+        desktopNavigation.navigate(
+          'Contacts',
+          { screen: 'UserProfile', params: { userId: contactId } },
+          { pop: true }
+        );
       } else {
         navigation.navigate('UserProfile', { userId: contactId });
       }
