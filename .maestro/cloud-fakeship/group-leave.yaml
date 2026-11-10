@@ -20,9 +20,20 @@ env:
     id: GroupLeaveAction-Leave workspace
 - assertVisible: '^Leave Leave-.*[?]$'
 - assertVisible: '^You will no longer receive updates from this workspace\..*'
-- tapOn:
-    text: '^Leave Workspace$'
-    above: '^Cancel$'
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: '^Leave Workspace$'
+          above: '^Cancel$'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          text: '^Leave Workspace$'
+          rightOf: '^Cancel$'
 - assertVisible:
     id: ScreenHeaderTitle
     text: '^Workspaces$'
