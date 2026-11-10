@@ -93,7 +93,7 @@ env:
     commands:
       - tapOn:
           text: '^Delete workspace$'
-          rightOf: '^Cancel$'
+          above: '^Cancel$'
 - runFlow:
     when:
       platform: Android

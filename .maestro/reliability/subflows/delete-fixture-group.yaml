@@ -13,9 +13,10 @@ appId: ${MAESTRO_APP_ID}
     when:
       platform: iOS
     commands:
+      # Labels this long stack the alert's buttons, with Cancel last.
       - tapOn:
           text: '^Delete workspace$'
-          rightOf: '^Cancel$'
+          above: '^Cancel$'
 - runFlow:
     when:
       platform: Android

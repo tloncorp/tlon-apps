@@ -22,7 +22,7 @@ env:
 - assertVisible: '^You will no longer receive updates from this workspace\..*'
 - tapOn:
     text: '^Leave Workspace$'
-    rightOf: '^Cancel$'
+    above: '^Cancel$'
 - assertVisible:
     id: ScreenHeaderTitle
     text: '^Workspaces$'
