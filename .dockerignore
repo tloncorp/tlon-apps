@@ -39,8 +39,15 @@
 .git
 .gitignore
 
-# Ignore Harness's peru imports: rube runs `peru sync` in the container, which
-# refuses to overwrite files it did not write there
+# Ignore what scripts/backend's tools leave beside themselves: gen-moon.sh's
+# ship login cookies, and update-pill.sh's checkouts, pier, runtime and pills
+scripts/backend/.cookie-*
+scripts/backend/*-git
+scripts/backend/bud
+scripts/backend/vere-*
+scripts/backend/*.pill
+
+# Ignore Harness's fetched imports: the e2e image does not build its desk
 packages/harness/desk-deps
 packages/harness/mcp
 

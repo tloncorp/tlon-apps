@@ -12,10 +12,10 @@
 #   - gcloud + gsutil authenticated with write access to gs://bootstrap.urbit.org
 #
 # Usage (from repo root or anywhere):
-#   ./backend/make-glob.sh
+#   ./scripts/backend/make-glob.sh
 set -euo pipefail
 
-REPO="$(cd "$(dirname "$0")/.." && pwd)"
+REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 DIST="$REPO/apps/tlon-web/dist"
 DOCKET="$REPO/desk/desk.docket-0"
 

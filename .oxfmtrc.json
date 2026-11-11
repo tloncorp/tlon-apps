@@ -41,6 +41,8 @@
     "!packages/tlon-skill/bin/tlon.js",
     "packages/tlon-skill/bin/tlon",
     "/desk-deps/",
+    "/desk-out/",
+    "/.deps-cache/",
     "/.peru/",
     "/peru.lock",
     "*.tgz",

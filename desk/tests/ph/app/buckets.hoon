@@ -30,8 +30,8 @@
 ::  that refuses moons -- so the aqua convention of numbering galaxies cannot
 ::  be used here.
 ::
-::  It has to be a planet CI already boots. backend/run-tests.sh fixes the
-::  fleet at ~[~zod ~nec ~bud ~wes ~dem ~fen ~loshut-lonreg ~rivfur-livmet],
+::  It has to be a planet CI already boots. scripts/backend/run-tests.sh fixes
+::  the fleet at ~[~zod ~nec ~bud ~wes ~dem ~fen ~loshut-lonreg ~rivfur-livmet],
 ::  and a host outside that list is simply unreachable there however well it
 ::  works locally -- which is how these passed on a hand-built fleet and
 ::  failed every case in CI. Adding a planet and its sponsors would cost

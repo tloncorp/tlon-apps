@@ -23,8 +23,8 @@ screenshot. Where noted, use your tool's own verbs for those actions.
   `apps/tlon-web/.tool-versions`) — run `asdf install nodejs 24.22.1`, don't
   override `ASDF_NODEJS_VERSION` to a different Node: `pnpm-workspace.yaml`
   sets `engineStrict: true`, so installs abort outside the pinned range.
-- **peru**: rube's desk assembly needs `peru` on PATH (`brew install pipx &&
-  pipx install peru`). Without it rube dies at "Vendoring desk dependencies".
+- **just and yq**: rube's desk assembly needs `just` and mikefarah `yq` on
+  PATH (`brew install just yq`). Without them rube dies assembling the desk.
 - **Process sandbox**: launch the ship and web server as real, long-lived
   detached processes. Some agent execution sandboxes kill detached/background
   processes — if yours does, run these steps with the sandbox disabled.

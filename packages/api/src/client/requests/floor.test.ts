@@ -20,7 +20,7 @@ const REPO_ROOT = fileURLToPath(new URL('../../../../../', import.meta.url));
 // Agents that do not ship in the %groups desk, and the desk that owns each:
 // hood is in %base (urbit/urbit 408k-rc2, pkg/arvo/desk.bill); docket,
 // settings, storage and vitals are in %landscape (tloncorp/landscape 5193635,
-// desk/desk.bill). Both revs are the ones peru.yaml pins.
+// desk/desk.bill). Both revs are the ones desk-deps.yaml pins.
 const EXTERNAL_AGENTS: Record<string, 'base' | 'landscape'> = {
   // Thread entries name the desk in their agent field.
   base: 'base',
