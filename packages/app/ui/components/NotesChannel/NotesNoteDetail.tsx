@@ -50,7 +50,6 @@ import {
   useRegisterChannelHeaderLoadingSubtitle,
 } from '../Channel/ChannelHeader';
 import { TextInput, type TextInputRef } from '../Form';
-import { NotebookContentRenderer } from '../NotebookPost/NotebookPost';
 import type { ScreenHeaderAction } from '../ScreenHeader';
 import { ScreenHeaderItemElements } from '../ScreenHeader/primitives';
 import { useFloatingHeaderHeight } from '../conversationScrollChrome';
@@ -61,6 +60,7 @@ import {
   useNotebookData,
 } from './NotesData';
 import { NoteBodyTextArea } from './NoteBodyTextArea';
+import { NotePreview } from './NotePreview';
 import type { NoteBodyCaretRequest } from './NoteBodyTextArea.shared';
 import { NotesBanner, errorMessage } from './NotesFeedback';
 import type { NoteBodySelection } from './noteImageMarkdown';
@@ -2024,9 +2024,8 @@ export function NotesNoteDetail({
                     subtitle={previewState.error}
                   />
                 ) : previewState.content.length > 0 ? (
-                  <NotebookContentRenderer
+                  <NotePreview
                     content={previewState.content}
-                    marginHorizontal="$-l"
                     testID="NotesPreviewContent"
                   />
                 ) : (

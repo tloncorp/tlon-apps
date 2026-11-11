@@ -70,6 +70,7 @@ vi.mock('react-native', () => ({
 }));
 
 vi.mock('./NoteBodyTextArea', () => ({ NoteBodyTextArea: 'TextArea' }));
+vi.mock('./NotePreview', () => ({ NotePreview: () => null }));
 
 vi.mock('tamagui', () => ({
   Input: 'Input',
