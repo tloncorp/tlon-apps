@@ -531,8 +531,34 @@ This carries only the iOS native fix. `findNodeHandle` (upstream
 [#55](https://github.com/mattermost/react-native-paste-input/pull/55)) is
 intentionally NOT included — on RN 0.85 and later the input's `__nativeTag` is populated,
 so that change is unnecessary here and the lazy-host fix alone restores paste.
-Android image paste is a separate, still-open limitation (the context-menu path
-only reads `item.uri`) and is not patched here.
+Android image paste is patched separately below.
+
+### Android Paste drops URI-only clips
+
+Why:
+Long-press → Paste with an image on the clipboard pastes nothing on Android.
+`PasteInputActionCallback.getUriInClipboard` returns null whenever the clip
+item has no text, but an image copied from a browser or gallery is exactly a
+URI-only item (`ClipData.newUri`), so the paste falls through to the default
+text paste, which has no text to insert. Every `PasteInput` goes through this
+callback: the notes editor and the chat composer.
+
+What it does:
+Returns the item's URI when its text is null or empty, and still defers to the
+default paste when the clip has text.
+
+Upstream:
+- unfixed on `main` as of 2026-11-08; open
+  [mattermost/react-native-paste-input#58](https://github.com/mattermost/react-native-paste-input/pull/58)
+  replaces this path with `OnReceiveContentListener`
+
+Validation:
+- Rebuild the Android app so the native patch is compiled in
+- Copy an image in a browser ("Copy image"), long-press a note body or chat
+  composer, and choose Paste: the image is uploaded (previously nothing happened)
+
+Removal:
+Remove once #58 or an equivalent fix ships in a released version we depend on.
 
 ### Bridge fallback does not compile on React Native 0.88
 

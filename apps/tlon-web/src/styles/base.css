@@ -92,20 +92,14 @@ a:not([class]) {
   text-decoration-line: underline;
 }
 
+/* Inverts the theme's background so selected text stays legible in every theme. */
 ::selection {
-  background-color: rgb(229 231 235);
+  background-color: var(--primaryText);
+  color: var(--background);
 }
 
 .alt-highlight::selection {
   background-color: rgb(255 255 255);
-}
-
-/* Ensures text selection is visible on dark mode desktop safari */
-_::-webkit-full-page-media,
-_:future,
-:root .safari_only,
-body.dark ::selection {
-  background-color: rgb(229 231 235);
 }
 
 button,

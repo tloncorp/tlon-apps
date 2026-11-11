@@ -33,7 +33,7 @@ patchedDependencies:
   '@10play/tentap-editor': 520c7388382aa0cadd02408de7c832242dbf1d72c9a80de5712a2cddfa88ca41
   '@expo/ui@58.0.19': 96bdd4c76880d1e7fedc9d289b71bed8293f4dd943bb0bd3751cd66b9048083a
   '@legendapp/list@3.3.3': fcd44042e1c7883ea1b22893bda269f5e8dc9ee7a5cecfe36315b3d3ac3ca8cf
-  '@mattermost/react-native-paste-input@2.0.1': 6683b8bc22e0345c1616d4153a724272306ac0f4b67659e4f06e8d4143a94fcb
+  '@mattermost/react-native-paste-input@2.0.1': be2614ef9b3732a54bda5c8f8d8a4346b8a729d569a8221d2a88649a725017c5
   '@op-engineering/op-sqlite@15.2.5': d68786db70ee88fc274b9f30605c8872d03765159287ce69cb6eeb6b3efc5f2b
   '@react-native-cookies/cookies@6.2.1': f253213b0c58e56f0c955b5130bebeb1b79888bc6114166ba0e450a2f8646813
   '@simform_solutions/react-native-audio-waveform': af72fc5c183530a26f093004261c71c1d7797475d7beeb6d52b5f10a55a5cee2
@@ -151,7 +151,7 @@ importers:
         version: 18.8.2(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
       '@mattermost/react-native-paste-input':
         specifier: 2.0.1
-        version: 2.0.1(patch_hash=6683b8bc22e0345c1616d4153a724272306ac0f4b67659e4f06e8d4143a94fcb)(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
+        version: 2.0.1(patch_hash=be2614ef9b3732a54bda5c8f8d8a4346b8a729d569a8221d2a88649a725017c5)(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
       '@op-engineering/op-sqlite':
         specifier: 15.2.5
         version: 15.2.5(patch_hash=d68786db70ee88fc274b9f30605c8872d03765159287ce69cb6eeb6b3efc5f2b)(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
@@ -1024,7 +1024,7 @@ importers:
         version: 3.3.3(patch_hash=fcd44042e1c7883ea1b22893bda269f5e8dc9ee7a5cecfe36315b3d3ac3ca8cf)(react-dom@19.3.0(react@19.3.0))(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
       '@mattermost/react-native-paste-input':
         specifier: 2.0.1
-        version: 2.0.1(patch_hash=6683b8bc22e0345c1616d4153a724272306ac0f4b67659e4f06e8d4143a94fcb)(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
+        version: 2.0.1(patch_hash=be2614ef9b3732a54bda5c8f8d8a4346b8a729d569a8221d2a88649a725017c5)(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
       '@tloncorp/api':
         specifier: workspace:*
         version: link:../api
@@ -17843,7 +17843,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@mattermost/react-native-paste-input@2.0.1(patch_hash=6683b8bc22e0345c1616d4153a724272306ac0f4b67659e4f06e8d4143a94fcb)(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)':
+  '@mattermost/react-native-paste-input@2.0.1(patch_hash=be2614ef9b3732a54bda5c8f8d8a4346b8a729d569a8221d2a88649a725017c5)(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)':
     dependencies:
       react: 19.3.0
       react-native: 0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0)
