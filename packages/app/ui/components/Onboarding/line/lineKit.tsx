@@ -580,20 +580,6 @@ export function BotTile({
   );
 }
 
-/** You, in a drawing: a small solid square. */
-export function YouMark({
-  x,
-  y,
-  size = 8,
-}: {
-  x: number;
-  y: number;
-  size?: number;
-}) {
-  const { ink } = useLineColors();
-  return <Rect x={x} y={y} width={size} height={size} fill={ink} />;
-}
-
 export function ArtLine({ d }: { d: string }) {
   const { ink } = useLineColors();
   const line = useArtLine();

@@ -17,7 +17,6 @@ import {
   PortLine,
   PulseRing,
   TypedLine,
-  YouMark,
   useLineColors,
 } from './lineKit';
 
@@ -46,78 +45,75 @@ export function SetupArt({ glyph }: { glyph: AvatarGlyphId }) {
   );
 }
 
-/** Meet your Tlonbot: it reaches your chats, friends and apps; you hold it. */
+/** Meet your Tlonbot: it reaches your chats, your friends and your apps. */
 export function MeetArt({ glyph }: { glyph: AvatarGlyphId }) {
-  // YOUR APPS ends level with the YOU marker, so the drawing has a floor.
+  // The tile and the three boxes share a top and a bottom.
   const boxes = [
-    { y: 1, label: 'YOUR CHATS', from: [127, 71], to: [189, 24] },
-    { y: 108.5, label: 'YOUR FRIENDS', from: [127, 107], to: [189, 131.5] },
-    { y: 216, label: 'YOUR APPS', from: [127, 143], to: [189, 239] },
-  ] as const;
+    { y: 22, label: 'YOUR CHATS' },
+    { y: 64, label: 'YOUR FRIENDS' },
+    { y: 106, label: 'YOUR APPS' },
+  ];
   return (
     <ArtCanvas
       width={346}
-      height={265}
+      height={139}
+      foot={138}
       scale={0.85}
-      label="Your Tlonbot, with lines out to your chats, your friends and your apps, and a line down to you"
+      label="Your Tlonbot, with straight arrows to your chats, your friends and your apps"
     >
       <ArtSvg>
         {boxes.map((box) => (
-          <ArtBox key={box.label} x={195} y={box.y} width={150} height={46} />
+          <ArtBox key={box.label} x={195} y={box.y} width={150} height={32} />
         ))}
         {boxes.map((box) => (
-          <ArtArrow key={box.label} from={[...box.from]} to={[...box.to]} />
+          <ArtArrow
+            key={box.label}
+            from={[127, box.y + 16]}
+            to={[189, box.y + 16]}
+          />
         ))}
-        <BotTile glyph={glyph} x={1} y={49} size={116} />
-        <ArtLine d="M35 201L35 247" />
-        <YouMark x={31} y={254} />
-        <Packet x={33} y={245} dx={0} dy={-46} />
-        <Packet x={125} y={69} dx={58} dy={-44} delayMs={900} />
-        <Packet x={125} y={105} dx={57.3} dy={22.7} delayMs={1100} />
-        <Packet x={125} y={141} dx={59.3} dy={91.8} delayMs={1300} />
+        <BotTile glyph={glyph} x={1} y={22} size={116} />
+        {boxes.map((box, index) => (
+          <Packet
+            key={box.label}
+            x={125}
+            y={box.y + 14}
+            dx={57}
+            dy={0}
+            delayMs={900 + 200 * index}
+          />
+        ))}
       </ArtSvg>
       {boxes.map((box) => (
-        <ArtLabel key={box.label} x={209} y={box.y + 27}>
+        <ArtLabel key={box.label} x={209} y={box.y + 20}>
           {box.label}
         </ArtLabel>
       ))}
-      <ArtLabel x={1} y={189}>
+      <ArtLabel x={1} y={10}>
         TLONBOT
-      </ArtLabel>
-      <ArtLabel x={57} y={262}>
-        YOU
       </ArtLabel>
     </ArtCanvas>
   );
 }
 
-/** Yours to keep: the Tlonbot inside walls that only you reach. */
+/** Yours to keep: the Tlonbot inside your computer's walls. */
 export function PrivateArt({ glyph }: { glyph: AvatarGlyphId }) {
   return (
     <ArtCanvas
-      // x 148 sits at the screen's middle: the walls a little left of it,
-      // you on their right.
-      width={404}
+      width={236}
       height={261}
       foot={260}
-      originX={-54}
       scale={0.7}
-      label="Your Tlonbot inside your computer's walls, with only you reaching it"
+      label="Your Tlonbot inside your computer's thick walls"
     >
       <ArtSvg>
         <HatchedBox x={1} y={26} width={234} height={234} />
         <ArtBox x={41} y={66} width={154} height={154} />
         <BotTile glyph={glyph} x={74} y={99} size={88} />
         <PulseRing x={69} y={94} size={98} />
-        <YouMark x={269} y={139} />
-        <ArtArrow from={[265, 143]} to={[239, 143]} />
-        <Packet x={261} y={141} dx={-99} dy={0} durationMs={3600} />
       </ArtSvg>
       <ArtLabel x={1} y={12}>
         YOUR COMPUTER
-      </ArtLabel>
-      <ArtLabel x={269} y={131}>
-        ONLY YOU
       </ArtLabel>
     </ArtCanvas>
   );
@@ -281,7 +277,7 @@ export function ModelArt({
 
 /**
  * Start a workspace: a plan of the home group, its chat and its Updates
- * notebook, with the Tlonbot and you inside and your friends at the door.
+ * notebook, with the Tlonbot inside and your friends at the door.
  */
 export function WorkspaceArt({ glyph }: { glyph: AvatarGlyphId }) {
   const { paper } = useLineColors();
@@ -294,7 +290,7 @@ export function WorkspaceArt({ glyph }: { glyph: AvatarGlyphId }) {
       height={264}
       scale={0.85}
       foot={263}
-      label="A plan of your workspace: a chat with your Tlonbot and you, an Updates notebook, and your friends waiting at the door"
+      label="A plan of your workspace: a chat with your Tlonbot in it, an Updates notebook, and your friends waiting at the door"
     >
       <ArtSvg>
         <ArtBox x={1} y={53} width={354} height={210} fill="none" />
@@ -318,7 +314,6 @@ export function WorkspaceArt({ glyph }: { glyph: AvatarGlyphId }) {
           <ArtLine key={`body-${y}`} d={`M209 ${y + 25}L311 ${y + 25}`} />
         ))}
         <BotTile glyph={glyph} x={27} y={185} size={52} />
-        <YouMark x={242} y={214} />
         <MarchingBox x={229} y={1} width={22} height={22} dash={[3, 3]} />
         <MarchingBox x={261} y={1} width={22} height={22} dash={[3, 3]} />
         <MarchingPath d="M253 51L253 31" dash={[3, 3]} reverse />
@@ -331,9 +326,6 @@ export function WorkspaceArt({ glyph }: { glyph: AvatarGlyphId }) {
       </ArtLabel>
       <ArtLabel x={91} y={217}>
         TLONBOT
-      </ArtLabel>
-      <ArtLabel x={267} y={224}>
-        YOU
       </ArtLabel>
       <ArtLabel x={221} y={16} anchor="end">
         YOUR FRIENDS
@@ -394,8 +386,8 @@ export function NotificationsArt({
 }
 
 /**
- * Allow notifications: the system prompt in lines, with an arrow from you,
- * beside it, to Allow. iOS puts Allow on the right of two halves and Android
+ * Allow notifications: the system prompt in lines, with an arrow beside it
+ * pointing to Allow. iOS puts Allow on the right of two halves and Android
  * stacks it above Don't allow; either way the arrow comes in at its row.
  */
 export function AllowNotificationsArt({
@@ -406,15 +398,16 @@ export function AllowNotificationsArt({
   if (platform === 'android') {
     return (
       <ArtCanvas
-        width={300}
+        // The arrow starts at x 40: the prompt and it are centered together.
+        width={260}
         height={160}
-        label="The notification prompt drawn in lines, with an arrow from you to Allow"
+        originX={39}
+        label="The notification prompt drawn in lines, with an arrow pointing to Allow"
       >
         <ArtSvg>
           <ArtBox x={64} y={1} width={234} height={158} />
           <ArtLine d="M64 69L298 69" />
           <ArtLine d="M64 113L298 113" />
-          <YouMark x={28} y={87} />
           <ArtArrow from={[40, 91]} to={[104, 91]} />
         </ArtSvg>
         <ArtLabel x={181} y={31} anchor="middle">
@@ -429,21 +422,16 @@ export function AllowNotificationsArt({
         <ArtLabel x={181} y={140} anchor="middle">
           DON’T ALLOW
         </ArtLabel>
-        <ArtLabel x={24} y={95} anchor="end">
-          YOU
-        </ArtLabel>
       </ArtCanvas>
     );
   }
   return (
     <ArtCanvas
-      // Centered on x 170: the prompt sits left of the screen's middle with
-      // you beside it, and its bottom is the drawing's edge.
-      width={338}
+      // The prompt and the arrow beside it are centered together.
+      width={302}
       height={146}
       foot={145}
-      originX={0.95}
-      label="The notification prompt drawn in lines, with an arrow from you, beside it, to Allow"
+      label="The notification prompt drawn in lines, with an arrow pointing to Allow"
     >
       <ArtSvg>
         <ArtBox x={1} y={1} width={270} height={144} />
@@ -451,8 +439,7 @@ export function AllowNotificationsArt({
         <ArtLine d="M71 81L201 81" />
         <ArtLine d="M1 101L271 101" />
         <ArtLine d="M136 101L136 145" />
-        <ArtArrow from={[297, 123]} to={[275, 123]} />
-        <YouMark x={301} y={119} />
+        <ArtArrow from={[301, 123]} to={[275, 123]} />
       </ArtSvg>
       <ArtLabel x={136} y={31} anchor="middle">
         “TLON” WOULD LIKE TO
@@ -465,9 +452,6 @@ export function AllowNotificationsArt({
       </ArtLabel>
       <ArtLabel x={203.5} y={127} anchor="middle">
         ALLOW
-      </ArtLabel>
-      <ArtLabel x={317} y={127}>
-        YOU
       </ArtLabel>
     </ArtCanvas>
   );
