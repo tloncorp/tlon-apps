@@ -21,6 +21,9 @@ Run these from `packages/harness`. They need `just`, `yq`, `git`,
 - `node --test tests-js/distribution.test.mjs`: artifact checks on `desk-out/`.
 - `just test-hoon` and `just test-js`: the native and JavaScript suites on fake
   ships, as `.github/workflows/harness-ci.yml` runs them.
+- `pnpm --filter @tloncorp/tlon-bot-e2e test:e2e:harness`: the shared bot
+  E2E scenarios against Harness on Docker fake ships, as
+  `.github/workflows/harness-bot-e2e.yml` runs them.
 
 ## Dependencies
 
