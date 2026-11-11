@@ -7,26 +7,28 @@ import { View, XStack, YStack } from 'tamagui';
 
 import { useIsDarkMode } from '../../../../hooks/useDarkMode';
 import { ScreenHeader } from '../../ScreenHeader';
+import { LineOutline } from './lineKit';
 
 /** Profile, Setting up, then the five first-run screens. */
 export const ONBOARDING_STEP_COUNT = 9;
 
 const HEADER_HEIGHT = 44;
-const DOT_SIZE = 7;
-/** A drawing on a card and the list under it sit this far apart. */
+const DASH_WIDTH = 16;
+const DASH_HEIGHT = 2;
+/** The content starts this far under the subtitle. */
+const SUBTITLE_TO_CONTENT_GAP = 32;
+/** A drawing and the list under it sit this far apart. */
 export const ART_TO_CONTENT_GAP = 32;
-/**
- * A drawing with no card ends on an edge of its own, a box's bottom line;
- * the list under it starts this far below that edge.
- */
-export const ART_EDGE_TO_LIST_GAP = 28;
+/** The buttons at the foot of each screen. */
+export const LINE_BUTTON_HEIGHT = 54;
 
+/** The progress along the top: one short dash per step, the current one ink. */
 export function OnboardingStepDots({ step }: { step: number }) {
   const isDark = useIsDarkMode();
   return (
     <XStack
       justifyContent="center"
-      gap={6}
+      gap={5}
       accessible
       accessibilityRole="image"
       accessibilityLabel={`Step ${step} of ${ONBOARDING_STEP_COUNT}`}
@@ -34,9 +36,8 @@ export function OnboardingStepDots({ step }: { step: number }) {
       {Array.from({ length: ONBOARDING_STEP_COUNT }, (_, index) => (
         <View
           key={index}
-          width={DOT_SIZE}
-          height={DOT_SIZE}
-          borderRadius={DOT_SIZE / 2}
+          width={DASH_WIDTH}
+          height={DASH_HEIGHT}
           backgroundColor={
             index + 1 === step ? '$primaryText' : isDark ? '#4A4646' : '#D6D6D6'
           }
@@ -49,14 +50,17 @@ export function OnboardingStepDots({ step }: { step: number }) {
 export type LineButtonProps = {
   label: string;
   onPress: () => void;
-  /** Quiet is the gray button: a way past the screen, not its main action. */
+  /** Quiet is a text button: a way past the screen, not its main action. */
   tone?: 'primary' | 'quiet';
   disabled?: boolean;
   loading?: boolean;
   testID?: string;
 };
 
-/** The big button at the foot of each screen. */
+/**
+ * The big button at the foot of each screen: square and outlined, never
+ * filled. A quiet one is its label alone.
+ */
 export function LineButton({
   label,
   onPress,
@@ -66,16 +70,7 @@ export function LineButton({
   testID,
 }: LineButtonProps) {
   const inactive = disabled || loading;
-  const background = disabled
-    ? '$border'
-    : tone === 'quiet'
-      ? '$secondaryBackground'
-      : '$primaryText';
-  const foreground = disabled
-    ? '$tertiaryText'
-    : tone === 'quiet'
-      ? '$primaryText'
-      : '$background';
+  const foreground = disabled ? '$secondaryText' : '$primaryText';
   return (
     <Pressable
       onPress={() => {
@@ -90,17 +85,16 @@ export function LineButton({
       testID={testID}
     >
       <XStack
-        height={56}
-        borderRadius={12}
-        backgroundColor={background}
+        height={LINE_BUTTON_HEIGHT}
+        backgroundColor={tone === 'quiet' ? undefined : '$background'}
         alignItems="center"
         justifyContent="center"
         gap="$m"
         paddingHorizontal="$xl"
       >
         <Text
-          fontSize={17}
-          lineHeight={24}
+          fontSize={16}
+          lineHeight={22}
           letterSpacing={-0.2}
           color={foreground}
           numberOfLines={1}
@@ -108,16 +102,22 @@ export function LineButton({
           {label}
         </Text>
         {loading ? <LoadingSpinner size="small" color={foreground} /> : null}
+        {tone === 'quiet' ? null : (
+          <LineOutline
+            radius={0}
+            color={disabled ? '$tertiaryText' : '$primaryText'}
+          />
+        )}
       </XStack>
     </Pressable>
   );
 }
 
 /**
- * The frame every onboarding screen shares: a back arrow and the step dots,
- * a centered title and subtitle, the content, and one or two buttons. The
- * content is centered between the subtitle and the buttons unless it says to
- * sit at the top, and it scrolls on short phones.
+ * The frame every onboarding screen shares: a back arrow and the progress
+ * dashes, a centered title and subtitle, the content, and one or two
+ * buttons. The content starts a fixed gap under the subtitle, and it scrolls
+ * on short phones.
  */
 export function LineStepFrame({
   step,
@@ -125,7 +125,7 @@ export function LineStepFrame({
   title,
   subtitle,
   children,
-  align = 'center',
+  contentGap = SUBTITLE_TO_CONTENT_GAP,
   primary,
   secondary,
   footer,
@@ -138,7 +138,8 @@ export function LineStepFrame({
   title: string;
   subtitle?: ReactNode;
   children?: ReactNode;
-  align?: 'center' | 'top';
+  /** How far under the subtitle the content starts. */
+  contentGap?: number;
   primary?: LineButtonProps;
   /** A second button, under the first. */
   secondary?: LineButtonProps;
@@ -194,12 +195,12 @@ export function LineStepFrame({
           : { bottomOffset: keyboardBottomOffset })}
       >
         <Text
-          marginTop={22}
-          marginHorizontal="$2xl"
+          marginTop={28}
+          marginHorizontal={32}
           textAlign="center"
-          fontSize={34}
-          lineHeight={34}
-          letterSpacing={-0.374}
+          fontSize={30}
+          lineHeight={35}
+          letterSpacing={-0.6}
           color="$primaryText"
           accessibilityRole="header"
         >
@@ -207,29 +208,23 @@ export function LineStepFrame({
         </Text>
         {subtitle ? (
           <Text
-            marginTop={10}
-            marginHorizontal={32}
+            marginTop={9}
+            marginHorizontal={40}
             textAlign="center"
-            fontSize={16}
-            lineHeight={24}
-            letterSpacing={-0.032}
+            fontSize={15}
+            lineHeight={21}
+            letterSpacing={-0.1}
             color="$secondaryText"
           >
             {subtitle}
           </Text>
         ) : null}
-        <YStack
-          flexGrow={1}
-          justifyContent={align === 'center' ? 'center' : 'flex-start'}
-          paddingTop={24}
-        >
-          {children}
-        </YStack>
+        <YStack paddingTop={contentGap}>{children}</YStack>
       </Scroll>
 
       {footer ??
         (primary ? (
-          <YStack paddingHorizontal="$2xl" gap={12}>
+          <YStack paddingHorizontal="$2xl" gap={10}>
             <LineButton {...primary} />
             {secondary ? <LineButton tone="quiet" {...secondary} /> : null}
           </YStack>
@@ -254,9 +249,9 @@ export function LineBulletList({
           </View>
           <Text
             flex={1}
-            fontSize={16}
+            fontSize={17}
             lineHeight={24}
-            letterSpacing={-0.032}
+            letterSpacing={-0.2}
             color="$primaryText"
           >
             {item.label}

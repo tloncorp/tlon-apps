@@ -39,6 +39,8 @@ export type ServiceAccessCopy = {
   account: string;
   /** Who the app is waiting on while it checks a connection. */
   company: string;
+  /** The service's box in screen 3's drawing. */
+  drawingLabel: string;
 };
 
 export const FIRST_RUN_FEATURED_SERVICES: [string, ServiceAccessCopy][] = [
@@ -53,6 +55,7 @@ export const FIRST_RUN_FEATURED_SERVICES: [string, ServiceAccessCopy][] = [
       access: 'See, edit, share and delete all the calendars you can access.',
       account: 'The Google account you choose next.',
       company: 'Google',
+      drawingLabel: 'CALENDAR',
     },
   ],
   [
@@ -66,6 +69,7 @@ export const FIRST_RUN_FEATURED_SERVICES: [string, ServiceAccessCopy][] = [
       access: 'Send email as you. It can’t read, change or delete your email.',
       account: 'The Google account you choose next.',
       company: 'Google',
+      drawingLabel: 'MAIL',
     },
   ],
   [
@@ -79,6 +83,7 @@ export const FIRST_RUN_FEATURED_SERVICES: [string, ServiceAccessCopy][] = [
       access: 'Read, create and edit pages in the Notion workspace you pick.',
       account: 'The Notion workspace you choose next.',
       company: 'Notion',
+      drawingLabel: 'NOTION',
     },
   ],
 ];

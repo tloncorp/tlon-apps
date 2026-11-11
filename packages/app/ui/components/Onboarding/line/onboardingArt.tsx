@@ -1,4 +1,4 @@
-import { Rect } from 'react-native-svg';
+import { G, Rect } from 'react-native-svg';
 
 import type { AvatarGlyphId } from './avatarGlyphs';
 import {
@@ -95,107 +95,186 @@ export function MeetArt({ glyph }: { glyph: AvatarGlyphId }) {
 export function PrivateArt({ glyph }: { glyph: AvatarGlyphId }) {
   return (
     <ArtCanvas
-      // The walls stay centered, with you hanging off their right side.
-      width={356}
-      height={209}
-      foot={208.52}
-      originX={-90.43}
-      scale={0.9}
+      // x 148 sits at the screen's middle: the walls a little left of it,
+      // you on their right.
+      width={404}
+      height={261}
+      foot={260}
+      originX={-54}
+      scale={0.7}
       label="Your Tlonbot inside your computer's walls, with only you reaching it"
     >
       <ArtSvg>
-        <HatchedBox x={0.74} y={26} width={182.52} height={182.52} />
-        <ArtBox x={31.94} y={57.2} width={120.12} height={120.12} />
-        <BotTile
-          glyph={glyph}
-          x={57.68}
-          y={82.94}
-          size={68.64}
-          glyphLineWidth={1.25}
-        />
-        <PulseRing x={53.78} y={79.04} size={76.44} />
-        <YouMark x={227} y={113.3} />
-        <ArtArrow from={[221, 117.3]} to={[187.3, 117.3]} />
-        <Packet x={217} y={115.3} dx={-90.7} dy={0} durationMs={3600} />
+        <HatchedBox x={1} y={26} width={234} height={234} />
+        <ArtBox x={41} y={66} width={154} height={154} />
+        <BotTile glyph={glyph} x={74} y={99} size={88} />
+        <PulseRing x={69} y={94} size={98} />
+        <YouMark x={269} y={139} />
+        <ArtArrow from={[265, 143]} to={[239, 143]} />
+        <Packet x={261} y={141} dx={-99} dy={0} durationMs={3600} />
       </ArtSvg>
-      <ArtLabel x={0.7} y={12}>
+      <ArtLabel x={1} y={12}>
         YOUR COMPUTER
       </ArtLabel>
-      <ArtLabel x={231} y={103.3} anchor="middle">
+      <ArtLabel x={269} y={131}>
         ONLY YOU
       </ArtLabel>
     </ArtCanvas>
   );
 }
 
-const CONNECT_CENTER_Y = 33;
+/** Where the Tlonbot's tile is on Connect your services, and its middle. */
+const CONNECT_TILE = { x: 1, y: 15, size: 64 };
+const CONNECT_BOX = { x: 193, width: 130, height: 32, step: 40 };
 
-/** Connect your services: one line per service, solid once it's connected. */
+/**
+ * Connect your services: a labeled box per service with a line to it from
+ * the Tlonbot, marching until it's connected, then solid, and the box gets a
+ * second outline.
+ */
 export function ConnectArt({
   glyph,
-  connected,
+  services,
 }: {
   glyph: AvatarGlyphId;
   /** One entry per featured service, in list order. */
-  connected: boolean[];
+  services: { label: string; connected: boolean }[];
 }) {
-  const count = connected.length;
+  const count = services.length;
+  const middle = CONNECT_TILE.y + CONNECT_TILE.size / 2;
+  const lastBoxEnd = 1 + CONNECT_BOX.step * (count - 1) + CONNECT_BOX.height;
+  // The drawing ends at its last box, or the TLONBOT caption's baseline.
+  const foot = Math.max(lastBoxEnd, 97);
   return (
     <ArtCanvas
-      width={200}
-      height={86}
+      width={324}
+      height={Math.max(lastBoxEnd + 1, foot)}
+      foot={foot}
       label={`Your Tlonbot with a line to each service: dashed until you connect it, then solid. ${
-        connected.filter(Boolean).length
+        services.filter((service) => service.connected).length
       } of ${count} connected.`}
     >
       <ArtSvg>
-        <BotTile glyph={glyph} x={1} y={1} size={64} />
-        {connected.map((on, index) => {
-          const offset = index - (count - 1) / 2;
+        <BotTile
+          glyph={glyph}
+          x={CONNECT_TILE.x}
+          y={CONNECT_TILE.y}
+          size={CONNECT_TILE.size}
+        />
+        {services.map((service, index) => {
+          const top = 1 + CONNECT_BOX.step * index;
+          const d = `M73 ${middle + 16 * (index - (count - 1) / 2)}L${
+            CONNECT_BOX.x - 6
+          } ${top + CONNECT_BOX.height / 2}`;
           return (
-            <PortLine
-              key={index}
-              from={[73, CONNECT_CENTER_Y + 12 * offset]}
-              to={[195, CONNECT_CENTER_Y + 28 * offset]}
-              on={on}
-            />
+            <G key={index}>
+              <ArtBox
+                x={CONNECT_BOX.x}
+                y={top}
+                width={CONNECT_BOX.width}
+                height={CONNECT_BOX.height}
+              />
+              {service.connected ? (
+                <>
+                  <ArtLine d={d} />
+                  <ArtBox
+                    x={CONNECT_BOX.x + 3}
+                    y={top + 3}
+                    width={CONNECT_BOX.width - 6}
+                    height={CONNECT_BOX.height - 6}
+                    fill="none"
+                  />
+                </>
+              ) : (
+                <MarchingPath d={d} />
+              )}
+            </G>
           );
         })}
       </ArtSvg>
-      <ArtLabel x={1} y={83}>
+      <ArtLabel x={1} y={97}>
         TLONBOT
       </ArtLabel>
+      {services.map((service, index) => (
+        <ArtLabel
+          key={index}
+          x={CONNECT_BOX.x + 12}
+          y={21 + CONNECT_BOX.step * index}
+        >
+          {service.label}
+        </ArtLabel>
+      ))}
     </ArtCanvas>
   );
 }
 
-/** You choose the model: one line per way to get one, solid to your pick. */
+const MODEL_BOX = { y: 99, width: 112, height: 44, gap: 9 };
+
+/**
+ * You choose the model: a labeled box per way to get one, with an arrow to
+ * each from the Tlonbot, solid to your pick, which gets a second outline.
+ */
 export function ModelArt({
   glyph,
-  picked,
+  choices,
 }: {
   glyph: AvatarGlyphId;
-  /** One entry per row, in list order. */
-  picked: boolean[];
+  /** One entry per row, in list order: the box's two caption lines. */
+  choices: { label: [string, string]; picked: boolean }[];
 }) {
-  const count = picked.length;
+  const count = choices.length;
+  const span = count * MODEL_BOX.width + (count - 1) * MODEL_BOX.gap;
+  const left = 178 - span / 2;
+  const boxX = (index: number) =>
+    left + index * (MODEL_BOX.width + MODEL_BOX.gap);
   return (
     <ArtCanvas
-      width={252}
-      height={100}
-      label="Your Tlonbot with a line down to each way to get a model, solid to the one you pick"
+      width={356}
+      height={MODEL_BOX.y + MODEL_BOX.height + 1}
+      foot={MODEL_BOX.y + MODEL_BOX.height}
+      label="Your Tlonbot with an arrow to each way to get a model, solid to the one you pick"
     >
       <ArtSvg>
-        <BotTile glyph={glyph} x={98} y={1} size={56} />
-        {picked.map((on, index) => (
-          <PortLine
-            key={index}
-            from={[126, 65]}
-            to={[126 + 121 * (index - (count - 1) / 2), 95]}
-            on={on}
-          />
-        ))}
+        <BotTile glyph={glyph} x={150} y={1} size={56} />
+        {choices.map((choice, index) => {
+          const x = boxX(index);
+          return (
+            <G key={index}>
+              <ArtBox
+                x={x}
+                y={MODEL_BOX.y}
+                width={MODEL_BOX.width}
+                height={MODEL_BOX.height}
+              />
+              {choice.picked ? (
+                <ArtBox
+                  x={x + 3}
+                  y={MODEL_BOX.y + 3}
+                  width={MODEL_BOX.width - 6}
+                  height={MODEL_BOX.height - 6}
+                  fill="none"
+                />
+              ) : null}
+              <ArtArrow
+                from={[178, 65]}
+                to={[x + MODEL_BOX.width / 2, MODEL_BOX.y - 6]}
+                dashed={!choice.picked}
+              />
+            </G>
+          );
+        })}
       </ArtSvg>
+      {choices.map((choice, index) =>
+        choice.label.map((line, row) => (
+          <ArtLabel
+            key={`${index}-${row}`}
+            x={boxX(index) + 12}
+            y={MODEL_BOX.y + 19 + 16 * row}
+          >
+            {line}
+          </ArtLabel>
+        ))
+      )}
     </ArtCanvas>
   );
 }
@@ -281,7 +360,8 @@ export function NotificationsArt({
   return (
     <ArtCanvas
       width={240}
-      height={119}
+      // To YOUR PHONE's baseline, which the list spaces from.
+      height={115}
       label={`Direct messages, mentions and workspace posts, each wired to your phone. ${
         on.length
           ? `Getting through: ${on.join(', ')}.`
@@ -306,7 +386,7 @@ export function NotificationsArt({
           {source}
         </ArtLabel>
       ))}
-      <ArtLabel x={197} y={117} anchor="middle">
+      <ArtLabel x={197} y={115} anchor="middle">
         YOUR PHONE
       </ArtLabel>
     </ArtCanvas>
@@ -357,12 +437,12 @@ export function AllowNotificationsArt({
   }
   return (
     <ArtCanvas
-      // Centered on x 166: the prompt sits left of the screen's middle with
+      // Centered on x 170: the prompt sits left of the screen's middle with
       // you beside it, and its bottom is the drawing's edge.
-      width={349}
+      width={338}
       height={146}
       foot={145}
-      originX={-8.5}
+      originX={0.95}
       label="The notification prompt drawn in lines, with an arrow from you, beside it, to Allow"
     >
       <ArtSvg>
@@ -371,13 +451,13 @@ export function AllowNotificationsArt({
         <ArtLine d="M71 81L201 81" />
         <ArtLine d="M1 101L271 101" />
         <ArtLine d="M136 101L136 145" />
-        <ArtArrow from={[297, 123]} to={[279, 123]} />
+        <ArtArrow from={[297, 123]} to={[275, 123]} />
         <YouMark x={301} y={119} />
       </ArtSvg>
       <ArtLabel x={136} y={31} anchor="middle">
         “TLON” WOULD LIKE TO
       </ArtLabel>
-      <ArtLabel x={136} y={49} anchor="middle">
+      <ArtLabel x={136} y={48} anchor="middle">
         SEND YOU NOTIFICATIONS
       </ArtLabel>
       <ArtLabel x={68.5} y={127} anchor="middle">

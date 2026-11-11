@@ -21,16 +21,17 @@ import {
 } from './firstRunServices';
 
 const copy = firstRunCopy.connect;
-const LOGO_SIZE = 40;
-/** McpProviderLogo's corner, the `$s` radius. */
-const LOGO_RADIUS = 6;
+/** A logo's slot in its row; the logo is drawn a little larger, past it. */
+const LOGO_SLOT = 32;
+const LOGO_SIZE = 38;
+const BUTTON_HEIGHT = 32;
 
 /**
  * Connect your services. Connecting happens here: Connect opens a short
  * access sheet, then the provider; afterwards a row shows only what the
- * account's grants confirm. The drawing gives each service a line, solid once
- * it's connected. Continue always works; it stays gray until something is
- * connected, so Connect reads first.
+ * account's grants confirm. The drawing gives each service a box and a line,
+ * solid once it's connected. Continue always works: it says "without
+ * connecting" until something is.
  */
 export function ConnectServicesScreen({
   unavailable,
@@ -89,7 +90,6 @@ export function ConnectServicesScreen({
       subtitle={copy.subtitle}
       primary={{
         label: anyConnected ? copy.primaryConnected : copy.primaryNone,
-        tone: anyConnected ? 'primary' : 'quiet',
         onPress: onContinue,
         testID: 'first-run-primary',
       }}
@@ -118,20 +118,18 @@ export function ConnectServicesScreen({
           <Text fontSize={16} lineHeight={24} color="$primaryText">
             {copy.none}
           </Text>
-          <LineOutline radius={16} />
+          <LineOutline radius={0} />
         </View>
       ) : (
         <>
           <ConnectArt
             glyph={glyph}
-            connected={states.map((state) => state === 'connected')}
+            services={featured.map((service, index) => ({
+              label: service.access.drawingLabel,
+              connected: states[index] === 'connected',
+            }))}
           />
-          <YStack
-            marginTop={ART_TO_CONTENT_GAP}
-            marginHorizontal="$2xl"
-            borderRadius={16}
-            overflow="hidden"
-          >
+          <YStack marginTop={ART_TO_CONTENT_GAP} marginHorizontal="$2xl">
             {featured.map((service, index) => (
               <ServiceRow
                 key={service.row.id}
@@ -169,14 +167,19 @@ export function ConnectServicesScreen({
                   {copy.allServices}
                 </Text>
                 {allServicesCount === null ? null : (
-                  <Text fontSize={15} lineHeight={20} color="$secondaryText">
+                  <Text
+                    fontFamily="$mono"
+                    fontSize={13}
+                    lineHeight={20}
+                    color="$secondaryText"
+                  >
                     {allServicesCount}
                   </Text>
                 )}
                 <AllServicesChevron />
               </XStack>
             </Pressable>
-            <LineOutline radius={16} />
+            <LineOutline radius={0} />
           </YStack>
         </>
       )}
@@ -244,15 +247,20 @@ function ServiceRow({
       testID={`first-run-service-${row.id}`}
     >
       {first ? null : <LineRule />}
-      <View width={LOGO_SIZE} height={LOGO_SIZE}>
+      <View
+        width={LOGO_SLOT}
+        height={LOGO_SLOT}
+        alignItems="center"
+        justifyContent="center"
+        overflow="visible"
+      >
         <McpProviderLogo
           displayName={row.displayName}
           logoUrl={row.logoUrl}
           providerId={row.id}
           size={LOGO_SIZE}
-          borderWidth={0}
+          plain
         />
-        <LineOutline radius={LOGO_RADIUS} />
       </View>
       <YStack flex={1}>
         <Text
@@ -274,12 +282,15 @@ function ServiceRow({
         </Text>
       </YStack>
       {state === 'connected' ? (
-        <XStack alignItems="center" gap={4} flexShrink={0}>
-          <LineIcon name="check" size={14} />
-          <Text fontSize={14} lineHeight={20} color="$primaryText">
-            {copy.connectedBadge}
-          </Text>
-        </XStack>
+        <Text
+          flexShrink={0}
+          paddingHorizontal={2}
+          fontSize={14}
+          lineHeight={20}
+          color="$secondaryText"
+        >
+          {copy.connectedBadge}
+        </Text>
       ) : null}
       {state === 'checking' || state === 'connecting' ? (
         <View
@@ -304,10 +315,9 @@ function ServiceRow({
           testID={`first-run-service-${row.id}-button`}
         >
           <View
-            height={32}
-            paddingHorizontal={12}
-            borderRadius={16}
-            backgroundColor="$secondaryBackground"
+            height={BUTTON_HEIGHT}
+            paddingHorizontal={14}
+            backgroundColor="$background"
             justifyContent="center"
             opacity={disabled ? 0.5 : 1}
           >
@@ -319,6 +329,7 @@ function ServiceRow({
             >
               {button.label}
             </Text>
+            <LineOutline radius={0} />
           </View>
         </Pressable>
       ) : null}

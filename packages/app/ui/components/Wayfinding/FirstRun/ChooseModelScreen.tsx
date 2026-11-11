@@ -62,7 +62,13 @@ export function ChooseModelScreen({
       }}
       testID="first-run-model"
     >
-      <ModelArt glyph={glyph} picked={rows.map((row) => row.id === pickedId)} />
+      <ModelArt
+        glyph={glyph}
+        choices={rows.map((row) => ({
+          label: row.drawingLabel,
+          picked: row.id === pickedId,
+        }))}
+      />
       <LineChoiceList
         marginTop={ART_TO_CONTENT_GAP}
         accessibilityLabel={copy.a11yGroup}

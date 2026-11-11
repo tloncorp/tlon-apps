@@ -1,7 +1,6 @@
 import { Pressable, Text } from '@tloncorp/ui';
-import { View, XStack, YStack, useTheme } from 'tamagui';
+import { View, XStack, YStack } from 'tamagui';
 
-import { LineIcon } from './lineIcons';
 import { LineOutline, LineRule } from './lineKit';
 
 export type LineChoice = {
@@ -12,9 +11,13 @@ export type LineChoice = {
   testID?: string;
 };
 
+const RADIO = 20;
+const RADIO_DOT = 10;
+
 /**
- * A card of choices with one picked and a radio on the right of each row:
- * the models on You choose the model, the levels on Notifications.
+ * A box of choices, one picked, with a ring on the right of each row that
+ * fills with a dot when it's the pick: the models on You choose the model,
+ * the levels on Notifications.
  */
 export function LineChoiceList({
   choices,
@@ -33,8 +36,6 @@ export function LineChoiceList({
     <YStack
       marginTop={marginTop}
       marginHorizontal="$2xl"
-      borderRadius={14}
-      overflow="hidden"
       accessibilityRole="radiogroup"
       accessibilityLabel={accessibilityLabel}
     >
@@ -47,7 +48,7 @@ export function LineChoiceList({
           onPress={() => onSelect(choice.id)}
         />
       ))}
-      <LineOutline radius={14} />
+      <LineOutline radius={0} />
     </YStack>
   );
 }
@@ -63,7 +64,6 @@ function LineChoiceRow({
   first: boolean;
   onPress: () => void;
 }) {
-  const theme = useTheme();
   return (
     <Pressable
       onPress={onPress}
@@ -75,12 +75,11 @@ function LineChoiceRow({
       testID={choice.testID}
     >
       <XStack
-        minHeight={choice.meta ? 64 : 56}
+        minHeight={choice.meta ? 68 : 56}
         paddingVertical="$m"
         paddingHorizontal={14}
         alignItems="center"
         gap={12}
-        backgroundColor={selected ? '$positiveBackground' : '$background'}
       >
         {first ? null : <LineRule />}
         <YStack flex={1}>
@@ -94,8 +93,9 @@ function LineChoiceRow({
           </Text>
           {choice.meta ? (
             <Text
-              fontSize={13}
-              lineHeight={18}
+              fontSize={14}
+              lineHeight={20}
+              letterSpacing={-0.1}
               color="$secondaryText"
               numberOfLines={1}
             >
@@ -103,28 +103,23 @@ function LineChoiceRow({
             </Text>
           ) : null}
         </YStack>
-        {selected ? (
-          <View
-            width={22}
-            height={22}
-            borderRadius={11}
-            backgroundColor="$positiveActionText"
-            alignItems="center"
-            justifyContent="center"
-            flexShrink={0}
-          >
-            <LineIcon
-              name="check"
-              size={12}
-              strokeWidth={2.4}
-              color={theme.background?.val as string}
+        <View
+          width={RADIO}
+          height={RADIO}
+          flexShrink={0}
+          alignItems="center"
+          justifyContent="center"
+        >
+          {selected ? (
+            <View
+              width={RADIO_DOT}
+              height={RADIO_DOT}
+              borderRadius={RADIO_DOT / 2}
+              backgroundColor="$primaryText"
             />
-          </View>
-        ) : (
-          <View width={22} height={22} flexShrink={0}>
-            <LineOutline radius={11} />
-          </View>
-        )}
+          ) : null}
+          <LineOutline radius={RADIO / 2} />
+        </View>
       </XStack>
     </Pressable>
   );

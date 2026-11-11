@@ -15,6 +15,7 @@ export {
 } from './line/avatarGlyphs';
 export {
   ART_TO_CONTENT_GAP,
+  LINE_BUTTON_HEIGHT,
   LineButton,
   LineStepFrame,
   ONBOARDING_STEP_COUNT,

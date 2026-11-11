@@ -48,6 +48,7 @@ export function McpProviderLogo({
   compact = false,
   size,
   borderWidth = 1,
+  plain = false,
 }: {
   compact?: boolean;
   displayName: string;
@@ -62,6 +63,8 @@ export function McpProviderLogo({
   size?: number;
   /** 0 when the caller draws its own outline. */
   borderWidth?: number;
+  /** The logo alone, with no tile behind it. */
+  plain?: boolean;
 }) {
   const logoSize = size ? Math.round(size * 0.6) : compact ? 20 : LOGO_SIZE;
   const hostingLogoSize = size ?? (compact ? 32 : HOSTING_LOGO_SIZE);
@@ -87,10 +90,10 @@ export function McpProviderLogo({
   return (
     <View
       alignItems="center"
-      backgroundColor="$secondaryBackground"
+      backgroundColor={plain ? undefined : '$secondaryBackground'}
       borderColor="$border"
-      borderRadius="$s"
-      borderWidth={borderWidth}
+      borderRadius={plain ? 0 : '$s'}
+      borderWidth={plain ? 0 : borderWidth}
       height={containerSize}
       justifyContent="center"
       overflow="hidden"

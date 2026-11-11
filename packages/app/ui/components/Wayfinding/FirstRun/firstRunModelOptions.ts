@@ -190,6 +190,8 @@ export type FirstRunModelChoiceRow = {
   id: string;
   name: string;
   meta: string;
+  /** The row's box in the drawing, two caption lines. */
+  drawingLabel: [string, string];
   primaryLabel: string;
   row?: FirstRunModelRow;
   plans?: FirstRunModelRow[];
@@ -206,6 +208,7 @@ export function buildModelChoiceRows(
             id: SUBSCRIPTIONS_ROW_ID,
             name: copy.subscriptionsName,
             meta: copy.subscriptionsMeta(section.rows.map((row) => row.name)),
+            drawingLabel: ['OR YOUR', 'SUBSCRIPTION'],
             primaryLabel: copy.primarySubscriptions,
             plans: section.rows,
           },
@@ -214,6 +217,10 @@ export function buildModelChoiceRows(
           id: row.id,
           name: row.name,
           meta: row.meta,
+          drawingLabel:
+            section.key === 'included'
+              ? (['INCLUDED', row.name.toUpperCase()] as [string, string])
+              : (['OR YOUR', 'KEY'] as [string, string]),
           primaryLabel: row.primaryLabel,
           row,
         }))

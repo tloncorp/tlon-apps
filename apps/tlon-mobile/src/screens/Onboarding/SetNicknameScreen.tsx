@@ -4,6 +4,7 @@ import {
   AVATAR_GLYPH_IDS,
   type AvatarGlyphId,
   AvatarGlyphPicker,
+  LINE_BUTTON_HEIGHT,
   LineButton,
   LineOutline,
   LineStepFrame,
@@ -37,9 +38,10 @@ type FormData = {
 
 const logger = createDevLogger('SetNicknameScreen', false);
 
-const NEXT_HEIGHT = 56;
 /** Next rides this far above the keyboard. */
 const NEXT_GAP = 12;
+/** Profile's avatars start a little closer under the subtitle than a drawing. */
+const PROFILE_CONTENT_GAP = 24;
 
 /**
  * Profile, step 1 of onboarding: pick an avatar glyph, then a name. The pick
@@ -189,10 +191,10 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
       subtitle={
         isRevivalOnboarding
           ? 'Choose the name you want to be known as.'
-          : 'Pick an avatar, then choose the name you want to be known as.'
+          : 'Choose the name and mark your bot and your friends will see.'
       }
-      align="top"
-      keyboardBottomOffset={NEXT_HEIGHT + 2 * NEXT_GAP}
+      contentGap={PROFILE_CONTENT_GAP}
+      keyboardBottomOffset={LINE_BUTTON_HEIGHT + 2 * NEXT_GAP}
       footer={
         // Next rides on top of the keyboard while you type, so the avatars and
         // the field stay where they are.
@@ -244,7 +246,7 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
               fontSize={14}
               lineHeight={20}
               letterSpacing={-0.187}
-              color={error ? '$negativeActionText' : '$primaryText'}
+              color={error ? '$negativeActionText' : '$secondaryText'}
               accessibilityLiveRegion={error ? 'polite' : undefined}
               nativeID="set-nickname-label"
             >
@@ -270,9 +272,11 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
                 returnKeyType="send"
                 enablesReturnKeyAutomatically
                 accessibilityLabelledBy="set-nickname-label"
+                style={{ fontSize: 17, letterSpacing: -0.2 }}
+                accent={error ? 'negative' : undefined}
                 frameStyle={{
                   borderWidth: 0,
-                  borderRadius: 12,
+                  borderRadius: 0,
                   paddingLeft: 16,
                   paddingRight: 12,
                   backgroundColor: error
@@ -282,7 +286,7 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
                 testID="set-nickname-input"
               />
               <LineOutline
-                radius={12}
+                radius={0}
                 color={error ? '$negativeActionText' : '$primaryText'}
               />
             </View>

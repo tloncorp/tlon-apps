@@ -23,7 +23,6 @@ import {
 import { GlyphMark, LINE, useLineColors } from './lineKit';
 
 const TILE = 72;
-const TILE_RADIUS = 12;
 const GLYPH = 45;
 /**
  * The canvas's pick: a 0.12 s crossfade on CSS `ease-out`, so the tile is
@@ -110,14 +109,13 @@ function TileFace({
   return (
     <Svg width={TILE} height={TILE}>
       {selected ? (
-        <Rect width={TILE} height={TILE} rx={TILE_RADIUS} fill={ink} />
+        <Rect width={TILE} height={TILE} fill={ink} />
       ) : (
         <Rect
           x={LINE / 2}
           y={LINE / 2}
           width={TILE - LINE}
           height={TILE - LINE}
-          rx={TILE_RADIUS}
           fill={paper}
           stroke={ink}
           strokeWidth={LINE}
@@ -150,7 +148,7 @@ export function AvatarGlyphPicker({
         fontSize={14}
         lineHeight={20}
         letterSpacing={-0.187}
-        color="$primaryText"
+        color="$secondaryText"
         nativeID="onboarding-avatar-label"
       >
         Avatar

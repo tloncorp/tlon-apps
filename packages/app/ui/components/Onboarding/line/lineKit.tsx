@@ -186,13 +186,17 @@ const ArtContext = createContext({ width: 0, height: 0, scale: 1, originX: 0 });
  * drawing's lowest point when that's a line with room under it for its
  * stroke; the box ends there, so what's under the drawing spaces from it.
  * `originX` is the design x at the box's left edge, for a drawing whose
- * main shape stays centered while a mark hangs off one side.
+ * main shape stays centered while a mark hangs off one side. `head` is the
+ * design y of its top line: drawings are traced with a unit of room above it
+ * for the stroke, and the box starts at the line, so content above spaces
+ * from it.
  */
 export function ArtCanvas({
   width,
   height,
   scale = 1,
   foot = height,
+  head = 1,
   originX = 0,
   label,
   children,
@@ -201,6 +205,7 @@ export function ArtCanvas({
   height: number;
   scale?: number;
   foot?: number;
+  head?: number;
   originX?: number;
   label: string;
   children: ReactNode;
@@ -212,7 +217,7 @@ export function ArtCanvas({
   return (
     <View
       width={drawnWidth * fit}
-      height={foot * scale * fit}
+      height={(foot - head) * scale * fit}
       alignSelf="center"
       accessible
       accessibilityRole="image"
@@ -221,7 +226,7 @@ export function ArtCanvas({
       <View
         position="absolute"
         left={0}
-        top={0}
+        top={-head * scale * fit}
         width={drawnWidth}
         height={drawnHeight}
         style={{
@@ -262,6 +267,8 @@ function useArtLine() {
 
 /** Room either side of a centered caption's middle. */
 const MIDDLE_LABEL_HALF = 120;
+/** A caption's baseline, down from the top of its line. */
+const LABEL_BASELINE = 10.5;
 
 /** A mono caption in a drawing, placed by its baseline like SVG text. */
 export function ArtLabel({
@@ -289,12 +296,12 @@ export function ArtLabel({
   return (
     <Text
       position="absolute"
-      top={y * scale - 12}
+      top={y * scale - LABEL_BASELINE}
       {...place}
       fontFamily="$mono"
-      fontSize={12}
-      lineHeight={15}
-      letterSpacing={0.6}
+      fontSize={10.5}
+      lineHeight={13}
+      letterSpacing={0.8}
       color="$primaryText"
       numberOfLines={1}
     >
@@ -625,9 +632,12 @@ export function ArtBox({
 export function ArtArrow({
   from,
   to,
+  dashed = false,
 }: {
   from: [number, number];
   to: [number, number];
+  /** Marching dashes up to the head, for a way not taken yet. */
+  dashed?: boolean;
 }) {
   const { ink } = useLineColors();
   const line = useArtLine();
@@ -640,9 +650,14 @@ export function ArtArrow({
   const bx = x2 - ux * 5;
   const by = y2 - uy * 5;
   const head = `M${x2} ${y2}L${bx - uy * 1.9} ${by + ux * 1.9}L${bx + uy * 1.9} ${by - ux * 1.9}Z`;
+  const shaft = `M${x1} ${y1}L${bx} ${by}`;
   return (
     <>
-      <Path d={`M${x1} ${y1}L${bx} ${by}`} stroke={ink} strokeWidth={line} />
+      {dashed ? (
+        <MarchingPath d={shaft} />
+      ) : (
+        <Path d={shaft} stroke={ink} strokeWidth={line} />
+      )}
       <Path d={head} fill={ink} />
     </>
   );

@@ -54,7 +54,6 @@ export function FirstRunApiKeyScreen({
         onBack={checking ? undefined : onBack}
         title={copy.title}
         subtitle={copy.subtitle}
-        align="top"
         primary={{
           label: checking ? copy.checking : copy.primary,
           onPress: onSubmit,
