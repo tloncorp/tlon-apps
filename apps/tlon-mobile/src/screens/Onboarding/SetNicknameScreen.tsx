@@ -191,7 +191,7 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
       subtitle={
         isRevivalOnboarding
           ? 'Choose the name you want to be known as.'
-          : 'Choose the name and mark your bot and your friends will see.'
+          : 'Pick an avatar and a name. This is how your Tlonbot and friends will see you.'
       }
       contentGap={PROFILE_CONTENT_GAP}
       keyboardBottomOffset={LINE_BUTTON_HEIGHT + 2 * NEXT_GAP}
