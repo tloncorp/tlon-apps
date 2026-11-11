@@ -44,7 +44,7 @@ const chatConfig = {
 let renderer: ReactTestRenderer | undefined;
 let apply: ReturnType<typeof useApplyBotSettings>;
 
-async function mount() {
+async function mount(serverConfig = chatConfig) {
   const queries = {
     ship: 'sampel-palnet',
     providerConfig,
@@ -54,7 +54,9 @@ async function mount() {
         .mockResolvedValue({ isSuccess: true, data: providerConfig }),
     },
     configQuery: {
-      refetch: vi.fn().mockResolvedValue({ isSuccess: true, data: chatConfig }),
+      refetch: vi
+        .fn()
+        .mockResolvedValue({ isSuccess: true, data: serverConfig }),
     },
     readyQuery: { refetch: vi.fn() },
   } as unknown as BotSettingsQueries;
@@ -101,6 +103,23 @@ describe('bot settings apply', () => {
     });
     expect(mocks.chat).toHaveBeenCalledOnce();
     expect(apply.hasChanges).toBe(false);
+  });
+
+  it('forwards the server autoAcceptDmInvites value on an unrelated save', async () => {
+    useBotSettingsDraftStore.getState().commitDraft((current) => ({
+      ...current,
+      chat: { ...current.chat, autoDiscoverChannels: true },
+    }));
+    await mount({ ...chatConfig, autoAcceptDmInvites: true });
+    await act(async () => {
+      await apply.applyChanges();
+    });
+    expect(mocks.chat).toHaveBeenCalledWith(
+      'sampel-palnet',
+      expect.objectContaining({
+        config: expect.objectContaining({ autoAcceptDmInvites: true }),
+      })
+    );
   });
 
   it('applies the selected model independently of browser settings', async () => {

@@ -41,7 +41,6 @@ export type ChatFormValues = {
   dmAllowlist: string;
   defaultAuthorizedShips: string;
   groupInviteAllowlist: string;
-  autoAcceptDmInvites: boolean;
   autoDiscoverChannels: boolean;
   channelRuleDrafts: Record<string, ChannelRuleDraft>;
 };
@@ -506,7 +505,6 @@ export const toChatFormValues = (
   dmAllowlist: formatShipList(config?.dmAllowlist ?? []),
   defaultAuthorizedShips: formatShipList(config?.defaultAuthorizedShips ?? []),
   groupInviteAllowlist: formatShipList(config?.groupInviteAllowlist ?? []),
-  autoAcceptDmInvites: config?.autoAcceptDmInvites ?? false,
   autoDiscoverChannels: config?.autoDiscoverChannels ?? false,
   channelRuleDrafts: config
     ? buildChannelRuleDrafts(config, providerConfig)
@@ -637,7 +635,7 @@ export const haveChannelModelEntriesChanged = (
 
 export const buildConfigFromChatValues = (
   values: ChatFormValues
-): TlawnConfig => {
+): Omit<TlawnConfig, 'autoAcceptDmInvites'> => {
   // Every monitored channel must have an explicit channelRules entry: Solaris
   // derives groupChannels from `Map.keys channelRules` and ignores the payload's
   // groupChannels, so a channel with no rule is not monitored, and it requires
@@ -662,7 +660,6 @@ export const buildConfigFromChatValues = (
     channelRules,
     groupChannels,
     groupInviteAllowlist: normalizeShipList(values.groupInviteAllowlist),
-    autoAcceptDmInvites: values.autoAcceptDmInvites,
     autoDiscoverChannels: values.autoDiscoverChannels,
   };
 };
