@@ -1,10 +1,8 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as ub from '@tloncorp/api/urbit';
 import {
-  ART_TO_CONTENT_GAP,
   LineChoiceList,
   LineStepFrame,
-  NotificationsArt,
   useNotificationLevelOptions,
 } from '@tloncorp/app/ui';
 import * as db from '@tloncorp/shared/db';
@@ -19,15 +17,6 @@ type Props = NativeStackScreenProps<
 >;
 
 const DEFAULT_NOTIFICATION_LEVEL: ub.NotificationLevel = 'medium';
-
-// What each level lets through to your phone, as the drawing shows it:
-// direct messages, mentions, workspace posts.
-const LETS_THROUGH: Partial<Record<ub.NotificationLevel, boolean[]>> = {
-  loud: [true, true, true],
-  medium: [true, true, true],
-  soft: [true, true, false],
-  hush: [false, false, false],
-};
 
 export const SetNotificationsScreen = ({ navigation }: Props) => {
   const signupContext = useSignupContext();
@@ -85,11 +74,7 @@ export const SetNotificationsScreen = ({ navigation }: Props) => {
       }}
       testID="set-notifications"
     >
-      <NotificationsArt
-        through={LETS_THROUGH[selectedLevel] ?? [false, false, false]}
-      />
       <LineChoiceList
-        marginTop={ART_TO_CONTENT_GAP}
         accessibilityLabel="Notification level"
         choices={levels.map((level) => ({
           id: level.value,

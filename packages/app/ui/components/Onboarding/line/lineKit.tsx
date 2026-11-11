@@ -718,55 +718,6 @@ export function MarchingBox({
   );
 }
 
-/** Where a line ends: open until its choice is on, then filled. */
-export function Port({ cx, cy, on }: { cx: number; cy: number; on: boolean }) {
-  const { ink, paper } = useLineColors();
-  const line = useArtLine();
-  return (
-    <Circle
-      cx={cx}
-      cy={cy}
-      r={PORT_RADIUS}
-      fill={on ? ink : paper}
-      stroke={ink}
-      strokeWidth={line}
-    />
-  );
-}
-
-export const PORT_RADIUS = 4;
-
-/**
- * A line from `from` that stops just short of the port at `to`: solid when
- * its choice is on, marching dashes when it isn't. The dashes march toward
- * the port, or away from it with `reverse`.
- */
-export function PortLine({
-  from,
-  to,
-  on,
-  reverse = false,
-}: {
-  from: [number, number];
-  to: [number, number];
-  on: boolean;
-  reverse?: boolean;
-}) {
-  const [x1, y1] = from;
-  const [x2, y2] = to;
-  const length = Math.hypot(x2 - x1, y2 - y1);
-  const gap = PORT_RADIUS + 3;
-  const ex = x2 - ((x2 - x1) / length) * gap;
-  const ey = y2 - ((y2 - y1) / length) * gap;
-  const d = `M${x1} ${y1}L${ex} ${ey}`;
-  return (
-    <>
-      {on ? <ArtLine d={d} /> : <MarchingPath d={d} reverse={reverse} />}
-      <Port cx={x2} cy={y2} on={on} />
-    </>
-  );
-}
-
 const easeInOut = Easing.bezierFn(0.42, 0, 0.58, 1);
 
 /**

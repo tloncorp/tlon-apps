@@ -14,7 +14,6 @@ import {
   MarchingBox,
   MarchingPath,
   Packet,
-  PortLine,
   PulseRing,
   TypedLine,
   useLineColors,
@@ -49,15 +48,15 @@ export function SetupArt({ glyph }: { glyph: AvatarGlyphId }) {
 export function MeetArt({ glyph }: { glyph: AvatarGlyphId }) {
   // The tile and the three boxes share a top and a bottom.
   const boxes = [
-    { y: 22, label: 'YOUR CHATS' },
-    { y: 64, label: 'YOUR FRIENDS' },
-    { y: 106, label: 'YOUR APPS' },
+    { y: 1, label: 'YOUR CHATS' },
+    { y: 43, label: 'YOUR FRIENDS' },
+    { y: 85, label: 'YOUR APPS' },
   ];
   return (
     <ArtCanvas
       width={346}
-      height={139}
-      foot={138}
+      height={118}
+      foot={117}
       scale={0.85}
       label="Your Tlonbot, with straight arrows to your chats, your friends and your apps"
     >
@@ -72,7 +71,7 @@ export function MeetArt({ glyph }: { glyph: AvatarGlyphId }) {
             to={[189, box.y + 16]}
           />
         ))}
-        <BotTile glyph={glyph} x={1} y={22} size={116} />
+        <BotTile glyph={glyph} x={1} y={1} size={116} />
         {boxes.map((box, index) => (
           <Packet
             key={box.label}
@@ -89,9 +88,6 @@ export function MeetArt({ glyph }: { glyph: AvatarGlyphId }) {
           {box.label}
         </ArtLabel>
       ))}
-      <ArtLabel x={1} y={10}>
-        TLONBOT
-      </ArtLabel>
     </ArtCanvas>
   );
 }
@@ -101,26 +97,23 @@ export function PrivateArt({ glyph }: { glyph: AvatarGlyphId }) {
   return (
     <ArtCanvas
       width={236}
-      height={261}
-      foot={260}
+      height={236}
+      foot={235}
       scale={0.7}
       label="Your Tlonbot inside your computer's thick walls"
     >
       <ArtSvg>
-        <HatchedBox x={1} y={26} width={234} height={234} />
-        <ArtBox x={41} y={66} width={154} height={154} />
-        <BotTile glyph={glyph} x={74} y={99} size={88} />
-        <PulseRing x={69} y={94} size={98} />
+        <HatchedBox x={1} y={1} width={234} height={234} />
+        <ArtBox x={41} y={41} width={154} height={154} />
+        <BotTile glyph={glyph} x={74} y={74} size={88} />
+        <PulseRing x={69} y={69} size={98} />
       </ArtSvg>
-      <ArtLabel x={1} y={12}>
-        YOUR COMPUTER
-      </ArtLabel>
     </ArtCanvas>
   );
 }
 
-/** Where the Tlonbot's tile is on Connect your services, and its middle. */
-const CONNECT_TILE = { x: 1, y: 15, size: 64 };
+/** Where the Tlonbot's tile is on Connect your services: level with MAIL. */
+const CONNECT_TILE = { x: 1, y: 25, size: 64 };
 const CONNECT_BOX = { x: 193, width: 130, height: 32, step: 40 };
 
 /**
@@ -139,8 +132,8 @@ export function ConnectArt({
   const count = services.length;
   const middle = CONNECT_TILE.y + CONNECT_TILE.size / 2;
   const lastBoxEnd = 1 + CONNECT_BOX.step * (count - 1) + CONNECT_BOX.height;
-  // The drawing ends at its last box, or the TLONBOT caption's baseline.
-  const foot = Math.max(lastBoxEnd, 97);
+  // The drawing ends at its last box, or the tile's foot.
+  const foot = Math.max(lastBoxEnd, CONNECT_TILE.y + CONNECT_TILE.size);
   return (
     <ArtCanvas
       width={324}
@@ -188,9 +181,6 @@ export function ConnectArt({
           );
         })}
       </ArtSvg>
-      <ArtLabel x={1} y={97}>
-        TLONBOT
-      </ArtLabel>
       {services.map((service, index) => (
         <ArtLabel
           key={index}
@@ -277,33 +267,32 @@ export function ModelArt({
 
 /**
  * Start a workspace: a plan of the home group, its chat and its Updates
- * notebook, with the Tlonbot inside and your friends at the door.
+ * notebook, with the Tlonbot inside and a door in the top wall.
  */
 export function WorkspaceArt({ glyph }: { glyph: AvatarGlyphId }) {
   const { paper } = useLineColors();
-  const notes = [111, 159];
-  // The door is in the top wall, with your friends above it, so the plan's
-  // double wall is the drawing's bottom edge.
+  const notes = [59, 107];
+  // The door is a gap in the top wall, so the double wall is the bottom edge.
   return (
     <ArtCanvas
       width={356}
-      height={264}
+      height={212}
+      foot={211}
       scale={0.85}
-      foot={263}
-      label="A plan of your workspace: a chat with your Tlonbot in it, an Updates notebook, and your friends waiting at the door"
+      label="A plan of your workspace: a chat with your Tlonbot in it, an Updates notebook, and a door in its wall"
     >
       <ArtSvg>
-        <ArtBox x={1} y={53} width={354} height={210} fill="none" />
-        <ArtBox x={6} y={58} width={344} height={200} fill="none" />
-        <Rect x={223} y={51} width={60} height={10} fill={paper} />
-        <ArtLine d="M223 53L223 59" />
-        <ArtLine d="M283 53L283 59" />
-        <ArtLine d="M175 59L175 179" />
-        <ArtLine d="M181 59L181 179" />
-        <ArtLine d="M175 179L181 179" />
-        <TypedLine x1={23} x2={135} y={110} />
-        <TypedLine x1={23} x2={101} y={134} delayMs={600} />
-        <TypedLine x1={63} x2={159} y={158} delayMs={1200} />
+        <ArtBox x={1} y={1} width={354} height={210} fill="none" />
+        <ArtBox x={6} y={6} width={344} height={200} fill="none" />
+        <Rect x={223} y={0.5} width={60} height={6} fill={paper} />
+        <ArtLine d="M223 1L223 7" />
+        <ArtLine d="M283 1L283 7" />
+        <ArtLine d="M175 7L175 127" />
+        <ArtLine d="M181 7L181 127" />
+        <ArtLine d="M175 127L181 127" />
+        <TypedLine x1={23} x2={135} y={58} />
+        <TypedLine x1={23} x2={101} y={82} delayMs={600} />
+        <TypedLine x1={63} x2={159} y={106} delayMs={1200} />
         {notes.map((y) => (
           <ArtBox key={`card-${y}`} x={201} y={y} width={122} height={38} />
         ))}
@@ -313,82 +302,25 @@ export function WorkspaceArt({ glyph }: { glyph: AvatarGlyphId }) {
         {notes.map((y) => (
           <ArtLine key={`body-${y}`} d={`M209 ${y + 25}L311 ${y + 25}`} />
         ))}
-        <BotTile glyph={glyph} x={27} y={185} size={52} />
-        <MarchingBox x={229} y={1} width={22} height={22} dash={[3, 3]} />
-        <MarchingBox x={261} y={1} width={22} height={22} dash={[3, 3]} />
-        <MarchingPath d="M253 51L253 31" dash={[3, 3]} reverse />
+        <BotTile glyph={glyph} x={27} y={133} size={52} />
       </ArtSvg>
-      <ArtLabel x={21} y={85}>
+      <ArtLabel x={21} y={33}>
         # CHAT
       </ArtLabel>
-      <ArtLabel x={199} y={85}>
+      <ArtLabel x={199} y={33}>
         UPDATES
       </ArtLabel>
-      <ArtLabel x={91} y={217}>
+      <ArtLabel x={91} y={165}>
         TLONBOT
       </ArtLabel>
-      <ArtLabel x={221} y={16} anchor="end">
-        YOUR FRIENDS
-      </ArtLabel>
-    </ArtCanvas>
-  );
-}
-
-/** What each notification level lets through to your phone, in list order. */
-export const NOTIFICATION_SOURCES = ['DMS', 'MENTIONS', 'POSTS'] as const;
-
-/**
- * Notifications: DMs, mentions and posts each wired to your phone, solid for
- * the ones the picked level lets through and marching dashes for the rest.
- */
-export function NotificationsArt({
-  through,
-}: {
-  /** One entry per source in NOTIFICATION_SOURCES. */
-  through: boolean[];
-}) {
-  const names = ['direct messages', 'mentions', 'workspace posts'];
-  const on = names.filter((_, index) => through[index]);
-  return (
-    <ArtCanvas
-      width={240}
-      // To YOUR PHONE's baseline, which the list spaces from.
-      height={115}
-      label={`Direct messages, mentions and workspace posts, each wired to your phone. ${
-        on.length
-          ? `Getting through: ${on.join(', ')}.`
-          : 'Nothing gets through.'
-      }`}
-    >
-      <ArtSvg>
-        <ArtBox x={169} y={1} width={56} height={96} />
-        <ArtLine d="M189 10L205 10" />
-        {NOTIFICATION_SOURCES.map((_, index) => (
-          <PortLine
-            key={index}
-            from={[166, 37 + 12 * index]}
-            to={[83, 17 + 28 * index]}
-            on={!!through[index]}
-            reverse
-          />
-        ))}
-      </ArtSvg>
-      {NOTIFICATION_SOURCES.map((source, index) => (
-        <ArtLabel key={source} x={71} y={21 + 28 * index} anchor="end">
-          {source}
-        </ArtLabel>
-      ))}
-      <ArtLabel x={197} y={115} anchor="middle">
-        YOUR PHONE
-      </ArtLabel>
     </ArtCanvas>
   );
 }
 
 /**
- * Allow notifications: the system prompt in lines, with an arrow beside it
- * pointing to Allow. iOS puts Allow on the right of two halves and Android
- * stacks it above Don't allow; either way the arrow comes in at its row.
+ * Allow notifications: the system prompt in lines, with Allow outlined
+ * twice, the button to tap. iOS puts Allow on the right of two halves;
+ * Android stacks it above Don't allow.
  */
 export function AllowNotificationsArt({
   platform,
@@ -398,17 +330,16 @@ export function AllowNotificationsArt({
   if (platform === 'android') {
     return (
       <ArtCanvas
-        // The arrow starts at x 40: the prompt and it are centered together.
-        width={260}
+        width={236}
         height={160}
-        originX={39}
-        label="The notification prompt drawn in lines, with an arrow pointing to Allow"
+        originX={63}
+        label="The notification prompt drawn in lines, with Allow outlined twice"
       >
         <ArtSvg>
           <ArtBox x={64} y={1} width={234} height={158} />
           <ArtLine d="M64 69L298 69" />
           <ArtLine d="M64 113L298 113" />
-          <ArtArrow from={[40, 91]} to={[104, 91]} />
+          <ArtBox x={68} y={73} width={226} height={36} fill="none" />
         </ArtSvg>
         <ArtLabel x={181} y={31} anchor="middle">
           ALLOW TLON TO SEND YOU
@@ -427,11 +358,10 @@ export function AllowNotificationsArt({
   }
   return (
     <ArtCanvas
-      // The prompt and the arrow beside it are centered together.
-      width={302}
+      width={272}
       height={146}
       foot={145}
-      label="The notification prompt drawn in lines, with an arrow pointing to Allow"
+      label="The notification prompt drawn in lines, with Allow outlined twice"
     >
       <ArtSvg>
         <ArtBox x={1} y={1} width={270} height={144} />
@@ -439,7 +369,7 @@ export function AllowNotificationsArt({
         <ArtLine d="M71 81L201 81" />
         <ArtLine d="M1 101L271 101" />
         <ArtLine d="M136 101L136 145" />
-        <ArtArrow from={[301, 123]} to={[275, 123]} />
+        <ArtBox x={140} y={105} width={127} height={36} fill="none" />
       </ArtSvg>
       <ArtLabel x={136} y={31} anchor="middle">
         “TLON” WOULD LIKE TO

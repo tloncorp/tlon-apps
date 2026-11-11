@@ -4,10 +4,7 @@ import { View, XStack, YStack, useTheme } from 'tamagui';
 
 import { McpProviderLogo } from '../../McpProviderLogo';
 import { useOnboardingGlyph } from '../../Onboarding/line/AvatarGlyphPicker';
-import {
-  ART_TO_CONTENT_GAP,
-  LineStepFrame,
-} from '../../Onboarding/line/LineStepFrame';
+import { LineStepFrame } from '../../Onboarding/line/LineStepFrame';
 import { LineIcon } from '../../Onboarding/line/lineIcons';
 import { LineOutline, LineRule } from '../../Onboarding/line/lineKit';
 import { ConnectArt } from '../../Onboarding/line/onboardingArt';
@@ -25,6 +22,8 @@ const copy = firstRunCopy.connect;
 const LOGO_SLOT = 32;
 const LOGO_SIZE = 38;
 const BUTTON_HEIGHT = 32;
+/** Dan set the list lower here than under the other drawings. */
+const ART_TO_LIST_GAP = 58;
 
 /**
  * Connect your services. Connecting happens here: Connect opens a short
@@ -129,7 +128,7 @@ export function ConnectServicesScreen({
               connected: states[index] === 'connected',
             }))}
           />
-          <YStack marginTop={ART_TO_CONTENT_GAP} marginHorizontal="$2xl">
+          <YStack marginTop={ART_TO_LIST_GAP} marginHorizontal="$2xl">
             {featured.map((service, index) => (
               <ServiceRow
                 key={service.row.id}

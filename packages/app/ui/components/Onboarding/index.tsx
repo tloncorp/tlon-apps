@@ -22,8 +22,4 @@ export {
 } from './line/LineStepFrame';
 export { LINE, LineOutline } from './line/lineKit';
 export { type LineChoice, LineChoiceList } from './line/LineChoiceList';
-export {
-  AllowNotificationsArt,
-  NOTIFICATION_SOURCES,
-  NotificationsArt,
-} from './line/onboardingArt';
+export { AllowNotificationsArt } from './line/onboardingArt';

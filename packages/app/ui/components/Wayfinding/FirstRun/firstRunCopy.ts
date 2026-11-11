@@ -210,7 +210,7 @@ export const firstRunCopy = {
 
   workspace: {
     title: 'Start a workspace',
-    subtitle: 'Make a place for your team or friends to talk and share.',
+    subtitle: 'Make a place for your team, friends, and bot to talk and share.',
     // What onboarding's home group holds: its General chat and Updates
     // notebook.
     points: [
