@@ -99,7 +99,11 @@ export interface ChatDetailsScreenViewProps {
   onCopyText: (text: string) => void;
   onPressPrivacy: () => void;
   onPressRoles: () => void;
-  onPressChannels: () => void;
+  /**
+   * Opens the workspace's channel manager, from the workspace or from one of
+   * its channels. Left out, a channel has no row for it.
+   */
+  onPressChannels?: () => void;
   /** Whether the workspace has Tlonbot instructions. Left out, no row. */
   instructions?: 'On' | 'Off';
   onPressInstructions?: () => void;
@@ -303,6 +307,18 @@ export function ChatDetailsScreenView({
               onPress: onPressChannelPermissions,
               testID: 'ChannelPrivacy',
             },
+            ...(onPressChannels
+              ? [
+                  {
+                    key: 'channels',
+                    title: 'Workspace channels',
+                    value: `${group?.channels?.length ?? 0}`,
+                    disabled: !actionsEnabled,
+                    onPress: onPressChannels,
+                    testID: 'ChannelWorkspaceChannels',
+                  },
+                ]
+              : []),
           ]
         : [];
 

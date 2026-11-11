@@ -52,6 +52,7 @@ export function ChatDetailsView({
   onPressEdit,
   onEditChannelPrivacy,
   onAfterDeleteChannel,
+  hidesChannelManager,
 }: {
   chatType: ChatType;
   onGoBack: () => void;
@@ -59,6 +60,8 @@ export function ChatDetailsView({
   onEditChannelPrivacy: (channelId: string, groupId: string) => void;
   /** Where to go once a channel is deleted, if not out of the channel. */
   onAfterDeleteChannel?: () => void;
+  /** Set where the channel's info was opened from the channel manager. */
+  hidesChannelManager?: boolean;
 }) {
   const {
     channel,
@@ -298,7 +301,11 @@ export function ChatDetailsView({
       onCopyText={copyText}
       onPressPrivacy={() => group && onPressGroupPrivacy(group.id, true)}
       onPressRoles={() => group && onPressRoles(group.id, true)}
-      onPressChannels={() => group && onPressManageChannels(group.id, true)}
+      onPressChannels={
+        hidesChannelManager
+          ? undefined
+          : () => group && onPressManageChannels(group.id, true)
+      }
       instructions={
         supportsInstructions && group
           ? hasWorkspaceInstructions(group)
