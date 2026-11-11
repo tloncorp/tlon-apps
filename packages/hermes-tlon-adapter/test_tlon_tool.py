@@ -51,6 +51,26 @@ def load_module(name):
     return module
 
 
+# register() reads the configured model for the platform hint's model note.
+_hermes_cli = types.ModuleType("hermes_cli")
+_hermes_cli.__path__ = []
+_hermes_cli_config = types.ModuleType("hermes_cli.config")
+_hermes_cli_config.load_config = lambda: {
+    "model": {"provider": "openrouter", "default": "openai/gpt-5.6-luna"}
+}
+_hermes_cli_stub = patch.dict(
+    sys.modules, {"hermes_cli": _hermes_cli, "hermes_cli.config": _hermes_cli_config}
+)
+
+
+def setUpModule():
+    _hermes_cli_stub.start()
+
+
+def tearDownModule():
+    _hermes_cli_stub.stop()
+
+
 tlon_api = load_module("tlon_api")
 tlon_tool = load_module("tlon_tool")
 approval = sys.modules[f"{PACKAGE_NAME}.approval"]
@@ -448,6 +468,66 @@ class TlonToolGuardTests(unittest.TestCase):
         self.assertIn(
             'skill_view("tlon-platform:tlon")', missing.platform["platform_hint"]
         )
+
+    def test_platform_hint_sends_skill_files_to_read_file_only_when_skill_view_cannot(self):
+        # read_file is owner-only in Tlon chats, so pointing the model at it
+        # where skill_view could serve the file shuts other users out.
+        class RecordingContext:
+            def __init__(self):
+                self.platform = None
+
+            def register_hook(self, *_args):
+                pass
+
+            def register_tool(self, **_kwargs):
+                pass
+
+            def register_skill(self, *_args, **_kwargs):
+                pass
+
+            def register_platform(self, **kwargs):
+                self.platform = kwargs
+
+        hints = {}
+        for serves in (False, True):
+            context = RecordingContext()
+            with patch.object(
+                adapter_mod, "resolve_tlon_skill_path", return_value=Path("/plugin/skills/tlon/SKILL.md")
+            ), patch.object(
+                adapter_mod, "hermes_serves_plugin_skill_files", return_value=serves
+            ):
+                adapter_mod.register(context)
+            hints[serves] = context.platform["platform_hint"]
+
+        self.assertIn("use read_file on the skill's directory", hints[False])
+        self.assertNotIn("read_file", hints[True])
+
+    def test_platform_hint_carries_the_model_note(self):
+        class RecordingContext:
+            def __init__(self):
+                self.platform = None
+                self.hooks: list[str] = []
+
+            def register_hook(self, name, *_args):
+                self.hooks.append(name)
+
+            def register_tool(self, **_kwargs):
+                pass
+
+            def register_skill(self, *_args, **_kwargs):
+                pass
+
+            def register_platform(self, **kwargs):
+                self.platform = kwargs
+
+        context = RecordingContext()
+        adapter_mod.register(context)
+
+        self.assertIn(
+            "you're running openai/gpt-5.6-luna, routed through OpenRouter",
+            context.platform["platform_hint"],
+        )
+        self.assertNotIn("pre_llm_call", context.hooks)
 
     def test_tool_description_includes_latex_guidance(self):
         description = tlon_tool.TLON_TOOL_DESCRIPTION
@@ -979,6 +1059,12 @@ class TlonToolGuardTests(unittest.TestCase):
         # The block advertises the allowlist, which now includes notes.
         self.assertIn("Allowed:", blocked)
         self.assertIn("notes", blocked)
+
+    def test_allows_buckets(self):
+        args, error = tlon_tool.split_tlon_command("buckets list")
+
+        self.assertIsNone(error)
+        self.assertIsNone(tlon_tool.check_tlon_tool_command(args))
 
     def test_normalizes_global_help_and_version_aliases(self):
         self.assertEqual(tlon_tool.normalize_global_command_args(["help"]), ["--help"])
@@ -1663,6 +1749,9 @@ class TlonToolExecutionTests(unittest.TestCase):
             ),
             "--self groups invite-link ~owner/team": (
                 "groups", "invite-link", "~owner/team",
+            ),
+            "--self activity mute chat/~owner/general": (
+                "activity", "mute", "chat/~owner/general",
             ),
         }
         for command, expected in cases.items():
@@ -2371,6 +2460,35 @@ class OwnerChannelPredicateTests(unittest.TestCase):
                 )
 
 
+    def test_routes_activity_to_the_owner_unless_self_or_help(self):
+        for command in (
+            "activity mute chat/~host/general",
+            "activity mark-read --all",
+            "activity unreads",
+        ):
+            with self.subTest(command=command):
+                self.assertTrue(
+                    tlon_tool.should_run_activity_as_owner(
+                        self._args(command), OWNER_SHIP
+                    )
+                )
+        for command in (
+            "activity mute chat/~host/general --self",
+            "activity mute --help",
+            "--ship ~bot activity unreads",
+            "groups list",
+        ):
+            with self.subTest(command=command):
+                self.assertFalse(
+                    tlon_tool.should_run_activity_as_owner(
+                        self._args(command), OWNER_SHIP
+                    )
+                )
+        self.assertFalse(
+            tlon_tool.should_run_activity_as_owner(self._args("activity unreads"), "")
+        )
+
+
 class OwnerChannelRoutingTests(unittest.TestCase):
     def _run(self, command, cfg, env=None):
         calls = []
@@ -2468,6 +2586,37 @@ class OwnerChannelRoutingTests(unittest.TestCase):
                 self.assertNotIn("note", payload)
                 _argv, run_env = calls[-1]
                 self.assertEqual(run_env["TLON_SHIP"], "~bot")
+
+
+    def test_runs_activity_on_the_owner_account(self):
+        cfg = _bot_config(TLON_COOKIE=BOT_COOKIE)
+
+        payload, calls = self._run(
+            "activity mute chat/~host/general", cfg, OWNER_ENV
+        )
+
+        self.assertTrue(payload["success"])
+        argv, run_env = calls[-1]
+        self.assertEqual(
+            argv, ("tlon-test", "activity", "mute", "chat/~host/general")
+        )
+        self.assertEqual(run_env["TLON_SHIP"], OWNER_SHIP)
+        self.assertEqual(run_env["TLON_CODE"], OWNER_CODE)
+        self.assertNotIn(BOT_COOKIE, run_env.values())
+
+    def test_runs_activity_on_the_bot_with_self_or_without_the_owner_triple(
+        self,
+    ):
+        cfg = _bot_config()
+        no_owner = {key: "" for key in OWNER_ENV}
+
+        payload, calls = self._run("activity unreads --self", cfg, OWNER_ENV)
+        self.assertNotIn("note", payload)
+        self.assertEqual(calls[-1][1]["TLON_SHIP"], "~bot")
+
+        payload, calls = self._run("activity unreads", cfg, no_owner)
+        self.assertIn("ran on your own account", payload["note"])
+        self.assertEqual(calls[-1][1]["TLON_SHIP"], "~bot")
 
 
 class TlonSkillPathTests(unittest.TestCase):
