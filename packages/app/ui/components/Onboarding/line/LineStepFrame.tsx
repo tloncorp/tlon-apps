@@ -126,7 +126,6 @@ export function LineStepFrame({
   footer,
   overlay,
   keyboardBottomOffset,
-  topGap = 24,
   testID,
 }: {
   step: number;
@@ -135,8 +134,6 @@ export function LineStepFrame({
   subtitle?: ReactNode;
   children?: ReactNode;
   align?: 'center' | 'top';
-  /** The room between the subtitle and the content. */
-  topGap?: number;
   primary?: LineButtonProps;
   /** A second button, under the first. */
   secondary?: LineButtonProps;
@@ -219,7 +216,7 @@ export function LineStepFrame({
         <YStack
           flexGrow={1}
           justifyContent={align === 'center' ? 'center' : 'flex-start'}
-          paddingTop={topGap}
+          paddingTop={24}
         >
           {children}
         </YStack>
