@@ -1,5 +1,7 @@
 // Wires the group and channel info screen to the app: its data, where its
 // rows lead, and what its actions do. `ChatDetailsScreenView` draws it.
+import type { DrawerNavigationProp } from '@react-navigation/drawer';
+import { StackActions, useNavigation } from '@react-navigation/native';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as Clipboard from 'expo-clipboard';
@@ -9,6 +11,10 @@ import { isWeb } from 'tamagui';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
+import type {
+  ActualRootDrawerParamList,
+  HomeDrawerParamList,
+} from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
   GroupMemberProfileSheet,
@@ -18,6 +24,7 @@ import {
   useForwardGroupSheet,
   useGroupTitle,
   useIsAdmin,
+  useIsWindowNarrow,
   useToast,
 } from '../../ui';
 import { ChatDetailsScreenView } from '../../ui/components/ChatDetailsScreenView';
@@ -57,6 +64,7 @@ export function ChatDetailsView({
     channel,
     group,
     markGroupRead,
+    markChannelRead,
     togglePinned,
     onPressInvite,
     onPressGroupMembers,
@@ -71,8 +79,16 @@ export function ChatDetailsView({
     onPressRoles,
     onLeaveGroup,
     onLeaveChannel,
+    onPressChannelMeta,
   } = useChatSettingsNavigation();
-  const { navigation, resetToDm } = useRootNavigation();
+  const { navigation, navigateToChatDetails } = useRootNavigation();
+  const desktopNavigation =
+    useNavigation<DrawerNavigationProp<ActualRootDrawerParamList>>();
+  // The Home or Messages drawer this screen sits in on wide web; both
+  // register the same chat routes.
+  const drawerNavigation =
+    useNavigation<DrawerNavigationProp<HomeDrawerParamList>>();
+  const isWindowNarrow = useIsWindowNarrow();
   const forwardGroupSheet = useForwardGroupSheet();
   const forwardChannelSheet = useForwardChannelSheet();
   const toast = useToast();
@@ -95,12 +111,72 @@ export function ChatDetailsView({
     group?.hostUserId === currentUserId;
   const [instructionsOpen, setInstructionsOpen] = useState(false);
 
+  // On wide web this screen sits in a tab's drawer, whose profile screen is
+  // inside a sibling stack it can't reach, so profiles open in Contacts as
+  // the invite link does. Native and narrow web push on the root stack.
   const handlePressProfile = useCallback(
     (contactId: string) => {
-      navigation.navigate('UserProfile', { userId: contactId });
+      if (isWeb && !isWindowNarrow) {
+        desktopNavigation.navigate(
+          'Contacts',
+          { screen: 'UserProfile', params: { userId: contactId } },
+          { pop: true }
+        );
+      } else {
+        navigation.navigate('UserProfile', { userId: contactId });
+      }
     },
-    [navigation]
+    [desktopNavigation, isWindowNarrow, navigation]
   );
+
+  // A group chat's name and avatar are its members' to change.
+  // On wide web the chat's own stack may not be mounted yet (the info page
+  // was loaded directly), so open the edit screen inside it, over the chat.
+  const handlePressEdit = useCallback(() => {
+    if (channel?.type !== 'groupDm') {
+      onPressEdit();
+    } else if (isWeb && !isWindowNarrow) {
+      drawerNavigation.navigate('GroupDM', {
+        screen: 'ChannelMeta',
+        params: { channelId: channel.id },
+        initial: false,
+      });
+    } else {
+      onPressChannelMeta(channel.id);
+    }
+  }, [
+    channel,
+    drawerNavigation,
+    isWindowNarrow,
+    onPressChannelMeta,
+    onPressEdit,
+  ]);
+
+  // Pushed over the channel's info on native and narrow web, so Back
+  // returns to it. Native mounts only the root stack, at any width.
+  const handlePressWorkspace = useCallback(
+    (workspace: db.Group) => {
+      if (!isWeb || isWindowNarrow) {
+        navigation.dispatch(
+          StackActions.push('ChatDetails', {
+            chatType: 'group',
+            chatId: workspace.id,
+          })
+        );
+      } else {
+        navigateToChatDetails({ type: 'group', id: workspace.id });
+      }
+    },
+    [isWindowNarrow, navigateToChatDetails, navigation]
+  );
+
+  const handleMarkRead = useCallback(() => {
+    if (chatType === 'group') {
+      markGroupRead();
+    } else {
+      markChannelRead({ includeThreads: true });
+    }
+  }, [chatType, markChannelRead, markGroupRead]);
 
   const handleForward = useCallback(() => {
     if (group) {
@@ -211,9 +287,9 @@ export function ChatDetailsView({
       roleCount={(groupRoles?.length ?? 0) + 1}
       scheduledTaskCount={scheduledTasks.count}
       onGoBack={onGoBack}
-      onPressEdit={onPressEdit}
+      onPressEdit={handlePressEdit}
       onPressInvite={onPressInvite}
-      onMarkRead={markGroupRead}
+      onMarkRead={handleMarkRead}
       onTogglePinned={togglePinned}
       onForward={handleForward}
       onCopyGroupId={handleCopyGroupId}
@@ -236,8 +312,8 @@ export function ChatDetailsView({
       onPressChannelPermissions={() =>
         channel?.groupId && onEditChannelPrivacy(channel.id, channel.groupId)
       }
+      onPressWorkspace={handlePressWorkspace}
       onPressProfile={handlePressProfile}
-      onMessageContact={resetToDm}
       onPressMember={setSelectedContact}
       onPressAllMembers={
         chatType === 'group' ? onPressGroupMembers : onPressChannelMembers

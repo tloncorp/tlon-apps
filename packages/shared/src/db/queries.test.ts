@@ -2104,6 +2104,51 @@ test('getJoinedGroupSeats: returns joined group seats for the given contacts', a
   expect(await queries.getJoinedGroupSeats({ contactIds: [] })).toEqual([]);
 });
 
+test('getSharedGroups: joined groups the contact also sits in, by title', async () => {
+  const them = '~bus';
+  const client = getClient();
+  if (!client) throw new Error('test db client not initialized');
+  const group = (id: string, title: string, currentUserIsMember = true) => ({
+    id,
+    title,
+    currentUserIsMember,
+    currentUserIsHost: false,
+    hostUserId: '~zod',
+  });
+  await client
+    .insert(schema.groups)
+    .values([
+      group('~zod/zeta', 'Zeta'),
+      group('~zod/alpha', 'Alpha'),
+      group('~zod/invited', 'Invited'),
+      group('~zod/left', 'Left', false),
+      group('~zod/without', 'Without'),
+    ]);
+  for (const chatId of ['~zod/zeta', '~zod/alpha', '~zod/left']) {
+    await queries.addChatMembers({
+      chatId,
+      contactIds: [them],
+      type: 'group',
+      joinStatus: 'joined',
+    });
+  }
+  await queries.addChatMembers({
+    chatId: '~zod/invited',
+    contactIds: [them],
+    type: 'group',
+    joinStatus: 'invited',
+  });
+  await queries.addChatMembers({
+    chatId: '~zod/without',
+    contactIds: ['~ten'],
+    type: 'group',
+    joinStatus: 'joined',
+  });
+
+  const shared = await queries.getSharedGroups({ contactId: them });
+  expect(shared.map((g) => g.id)).toEqual(['~zod/alpha', '~zod/zeta']);
+});
+
 test('deleteAbsentGroupMembers: drops only candidate seats the roster omits', async () => {
   const user = '~zod';
   const moon = '~doznec-dozzod-zod';

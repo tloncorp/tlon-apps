@@ -63,10 +63,6 @@ jest.mock('@tloncorp/app/navigation/utils', () => ({
   })(),
 }));
 
-jest.mock('@tloncorp/app/ui', () => ({
-  useIsWindowNarrow: jest.fn(),
-}));
-
 jest.mock('@tloncorp/shared', () => ({
   AnalyticsEvent: {
     ActionTappedPushNotif: 'ActionTappedPushNotif',

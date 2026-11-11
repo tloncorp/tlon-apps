@@ -75,6 +75,7 @@ export * from './components/ShipPickerSheet';
 export * from './components/StoppedNodePushSheet';
 export * from './components/Tabs';
 export * from './components/TwtitterAttestationPane';
+export * from './components/InfoCards';
 export * from './components/UserProfileScreenView';
 export * from './components/Wayfinding/AgentOnboarding/AgentOnboardingSequence';
 export * from './components/Wayfinding/SplashSequence';
