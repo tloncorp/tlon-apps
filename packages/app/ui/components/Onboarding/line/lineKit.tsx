@@ -175,29 +175,44 @@ export function useLoop(durationMs: number): SharedValue<number> {
   return t;
 }
 
-const ArtContext = createContext({ width: 0 });
+const ArtContext = createContext({ width: 0, height: 0, scale: 1, originX: 0 });
 
 /**
  * A drawing at its design size, scaled down to fit a narrower phone. Labels
  * are app text placed over the lines, so they use the app's mono face.
+ *
+ * `scale` draws it smaller than its design size: the geometry shrinks, while
+ * its lines, labels and hatching keep their size on screen. `foot` is the
+ * drawing's lowest point when that's a line with room under it for its
+ * stroke; the box ends there, so what's under the drawing spaces from it.
+ * `originX` is the design x at the box's left edge, for a drawing whose
+ * main shape stays centered while a mark hangs off one side.
  */
 export function ArtCanvas({
   width,
   height,
+  scale = 1,
+  foot = height,
+  originX = 0,
   label,
   children,
 }: {
   width: number;
   height: number;
+  scale?: number;
+  foot?: number;
+  originX?: number;
   label: string;
   children: ReactNode;
 }) {
   const { width: windowWidth } = useWindowDimensions();
-  const scale = Math.min(1, (windowWidth - 2 * ART_MARGIN) / width);
+  const drawnWidth = width * scale;
+  const drawnHeight = height * scale;
+  const fit = Math.min(1, (windowWidth - 2 * ART_MARGIN) / drawnWidth);
   return (
     <View
-      width={width * scale}
-      height={height * scale}
+      width={drawnWidth * fit}
+      height={foot * scale * fit}
       alignSelf="center"
       accessible
       accessibilityRole="image"
@@ -207,21 +222,42 @@ export function ArtCanvas({
         position="absolute"
         left={0}
         top={0}
-        width={width}
-        height={height}
+        width={drawnWidth}
+        height={drawnHeight}
         style={{
           // Scaled about its center, then moved back to the top left corner.
           transform: [
-            { translateX: (width * (scale - 1)) / 2 },
-            { translateY: (height * (scale - 1)) / 2 },
-            { scale },
+            { translateX: (drawnWidth * (fit - 1)) / 2 },
+            { translateY: (drawnHeight * (fit - 1)) / 2 },
+            { scale: fit },
           ],
         }}
       >
-        <ArtContext.Provider value={{ width }}>{children}</ArtContext.Provider>
+        <ArtContext.Provider value={{ width, height, scale, originX }}>
+          {children}
+        </ArtContext.Provider>
       </View>
     </View>
   );
+}
+
+/** A drawing's lines, in its design units, at its ArtCanvas scale. */
+export function ArtSvg({ children }: { children: ReactNode }) {
+  const { width, height, scale, originX } = useContext(ArtContext);
+  return (
+    <Svg
+      width={width * scale}
+      height={height * scale}
+      viewBox={`${originX} 0 ${width} ${height}`}
+    >
+      {children}
+    </Svg>
+  );
+}
+
+/** LINE in a drawing's design units, so it stays LINE on screen. */
+function useArtLine() {
+  return LINE / useContext(ArtContext).scale;
 }
 
 /** Room either side of a centered caption's middle. */
@@ -239,21 +275,21 @@ export function ArtLabel({
   anchor?: 'start' | 'middle' | 'end';
   children: string;
 }) {
-  const { width } = useContext(ArtContext);
+  const { width, scale, originX } = useContext(ArtContext);
   const place =
     anchor === 'start'
-      ? { left: x }
+      ? { left: (x - originX) * scale }
       : anchor === 'end'
-        ? { right: width - x }
+        ? { right: (originX + width - x) * scale }
         : {
-            left: x - MIDDLE_LABEL_HALF,
+            left: (x - originX) * scale - MIDDLE_LABEL_HALF,
             width: 2 * MIDDLE_LABEL_HALF,
             textAlign: 'center' as const,
           };
   return (
     <Text
       position="absolute"
-      top={y - 12}
+      top={y * scale - 12}
       {...place}
       fontFamily="$mono"
       fontSize={12}
@@ -283,13 +319,15 @@ export function HatchedBox({
   y: number;
   width: number;
   height: number;
-  /** The distance between lines, measured across them. */
+  /** The distance between lines on screen, measured across them. */
   spacing?: number;
 }) {
   const { ink, paper } = useLineColors();
+  const line = useArtLine();
+  const { scale } = useContext(ArtContext);
   const clipId = useSvgId('hatch');
   // 45° lines spaced `spacing` apart cross the x axis this far apart.
-  const step = spacing * Math.SQRT2;
+  const step = (spacing / scale) * Math.SQRT2;
   const lines: string[] = [];
   for (let offset = step / 2; offset < width + height; offset += step) {
     lines.push(`M${x + offset} ${y}L${x + offset - height} ${y + height}`);
@@ -303,7 +341,7 @@ export function HatchedBox({
       </Defs>
       <Rect x={x} y={y} width={width} height={height} fill={paper} />
       <G clipPath={`url(#${clipId})`}>
-        <Path d={lines.join('')} stroke={ink} strokeWidth={LINE} />
+        <Path d={lines.join('')} stroke={ink} strokeWidth={line} />
       </G>
       <Rect
         x={x}
@@ -312,7 +350,7 @@ export function HatchedBox({
         height={height}
         fill="none"
         stroke={ink}
-        strokeWidth={LINE}
+        strokeWidth={line}
       />
     </>
   );
@@ -372,6 +410,7 @@ export function GlyphMark({
   lineWidth?: number;
 }) {
   const { ink, paper } = useLineColors();
+  const line = useArtLine();
   const clipId = useSvgId('glyph-clip');
   const k = size / GLYPH_SIZE;
   const { body, details } = AVATAR_GLYPHS[glyph];
@@ -394,13 +433,13 @@ export function GlyphMark({
             {shapeElement(body, {
               fill: 'none',
               stroke: ink,
-              strokeWidth: LINE / k,
+              strokeWidth: line / k,
             })}
             <G clipPath={`url(#${clipId})`}>
               {details.map((detail, index) =>
                 shapeElement(
                   detail,
-                  { fill: 'none', stroke: ink, strokeWidth: LINE / k },
+                  { fill: 'none', stroke: ink, strokeWidth: line / k },
                   index
                 )
               )}
@@ -449,6 +488,7 @@ function MarchingGlyph({
   clipId: string;
 }) {
   const { ink } = useLineColors();
+  const line = useArtLine();
   const t = useLoop(1200);
   const span = 2 * (GLYPH_DASH[0] + GLYPH_DASH[1]);
   const animatedProps = useAnimatedProps(() => ({
@@ -462,7 +502,7 @@ function MarchingGlyph({
         d={circlePath(shape.cx, shape.cy, shape.r)}
         fill="none"
         stroke={ink}
-        strokeWidth={LINE / k}
+        strokeWidth={line / k}
         strokeDasharray={GLYPH_DASH}
         strokeLinecap="round"
         animatedProps={animatedProps}
@@ -474,7 +514,7 @@ function MarchingGlyph({
         fillRule={shape.evenOdd ? 'evenodd' : undefined}
         fill="none"
         stroke={ink}
-        strokeWidth={LINE / k}
+        strokeWidth={line / k}
         strokeDasharray={GLYPH_DASH}
         strokeLinecap="round"
         animatedProps={animatedProps}
@@ -507,6 +547,7 @@ export function BotTile({
   glyphLineWidth?: number;
 }) {
   const { ink, paper } = useLineColors();
+  const line = useArtLine();
   const glyphSize = size * GLYPH_IN_TILE;
   const inset = (size - glyphSize) / 2;
   return (
@@ -518,7 +559,7 @@ export function BotTile({
         height={size}
         fill={paper}
         stroke={ink}
-        strokeWidth={LINE}
+        strokeWidth={line}
       />
       <GlyphMark
         glyph={glyph}
@@ -548,7 +589,8 @@ export function YouMark({
 
 export function ArtLine({ d }: { d: string }) {
   const { ink } = useLineColors();
-  return <Path d={d} stroke={ink} strokeWidth={LINE} fill="none" />;
+  const line = useArtLine();
+  return <Path d={d} stroke={ink} strokeWidth={line} fill="none" />;
 }
 
 export function ArtBox({
@@ -565,6 +607,7 @@ export function ArtBox({
   fill?: string;
 }) {
   const { ink, paper } = useLineColors();
+  const line = useArtLine();
   return (
     <Rect
       x={x}
@@ -573,7 +616,7 @@ export function ArtBox({
       height={height}
       fill={fill ?? paper}
       stroke={ink}
-      strokeWidth={LINE}
+      strokeWidth={line}
     />
   );
 }
@@ -587,6 +630,7 @@ export function ArtArrow({
   to: [number, number];
 }) {
   const { ink } = useLineColors();
+  const line = useArtLine();
   const [x1, y1] = from;
   const [x2, y2] = to;
   const length = Math.hypot(x2 - x1, y2 - y1);
@@ -598,7 +642,7 @@ export function ArtArrow({
   const head = `M${x2} ${y2}L${bx - uy * 1.9} ${by + ux * 1.9}L${bx + uy * 1.9} ${by - ux * 1.9}Z`;
   return (
     <>
-      <Path d={`M${x1} ${y1}L${bx} ${by}`} stroke={ink} strokeWidth={LINE} />
+      <Path d={`M${x1} ${y1}L${bx} ${by}`} stroke={ink} strokeWidth={line} />
       <Path d={head} fill={ink} />
     </>
   );
@@ -617,6 +661,7 @@ export function MarchingPath({
   reverse?: boolean;
 }) {
   const { ink } = useLineColors();
+  const line = useArtLine();
   const t = useLoop(durationMs);
   const span = 2 * (dash[0] + dash[1]);
   const animatedProps = useAnimatedProps(() => ({
@@ -627,7 +672,7 @@ export function MarchingPath({
       d={d}
       fill="none"
       stroke={ink}
-      strokeWidth={LINE}
+      strokeWidth={line}
       strokeDasharray={dash}
       animatedProps={animatedProps}
     />
@@ -651,6 +696,7 @@ export function MarchingBox({
   durationMs?: number;
 }) {
   const { ink, paper } = useLineColors();
+  const line = useArtLine();
   const t = useLoop(durationMs);
   const span = 2 * (dash[0] + dash[1]);
   const animatedProps = useAnimatedProps(() => ({
@@ -664,7 +710,7 @@ export function MarchingBox({
       height={height}
       fill={paper}
       stroke={ink}
-      strokeWidth={LINE}
+      strokeWidth={line}
       strokeDasharray={dash}
       animatedProps={animatedProps}
     />
@@ -674,6 +720,7 @@ export function MarchingBox({
 /** Where a line ends: open until its choice is on, then filled. */
 export function Port({ cx, cy, on }: { cx: number; cy: number; on: boolean }) {
   const { ink, paper } = useLineColors();
+  const line = useArtLine();
   return (
     <Circle
       cx={cx}
@@ -681,7 +728,7 @@ export function Port({ cx, cy, on }: { cx: number; cy: number; on: boolean }) {
       r={PORT_RADIUS}
       fill={on ? ink : paper}
       stroke={ink}
-      strokeWidth={LINE}
+      strokeWidth={line}
     />
   );
 }
@@ -784,6 +831,7 @@ export function PulseRing({
   durationMs?: number;
 }) {
   const { ink } = useLineColors();
+  const line = useArtLine();
   const reduceMotion = useReducedMotion();
   const t = useLoop(durationMs);
   const animatedProps = useAnimatedProps(() => {
@@ -809,7 +857,7 @@ export function PulseRing({
       height={size}
       fill="none"
       stroke={ink}
-      strokeWidth={LINE}
+      strokeWidth={line}
       animatedProps={animatedProps}
     />
   );
@@ -833,6 +881,7 @@ export function TypedLine({
   durationMs?: number;
 }) {
   const { ink } = useLineColors();
+  const line = useArtLine();
   const reduceMotion = useReducedMotion();
   const t = useLoop(durationMs);
   const length = x2 - x1;
@@ -850,7 +899,7 @@ export function TypedLine({
     <AnimatedPath
       d={`M${x1} ${y}L${x2} ${y}`}
       stroke={ink}
-      strokeWidth={LINE}
+      strokeWidth={line}
       strokeDasharray={[length, length]}
       animatedProps={animatedProps}
     />

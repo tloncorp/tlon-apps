@@ -5,7 +5,7 @@ import Svg, { Path, Rect } from 'react-native-svg';
 import { View, XStack, YStack } from 'tamagui';
 
 import { useOnboardingGlyph } from './line/AvatarGlyphPicker';
-import { ART_TO_CONTENT_GAP, LineStepFrame } from './line/LineStepFrame';
+import { ART_EDGE_TO_LIST_GAP, LineStepFrame } from './line/LineStepFrame';
 import { LINE, LineOutline, useLineColors } from './line/lineKit';
 import { SetupArt } from './line/onboardingArt';
 
@@ -93,7 +93,7 @@ export function SettingUpScreen({
     >
       <SetupArt glyph={glyph} />
       <YStack
-        marginTop={ART_TO_CONTENT_GAP}
+        marginTop={ART_EDGE_TO_LIST_GAP}
         marginHorizontal="$2xl"
         accessibilityLabel="Setup steps"
       >

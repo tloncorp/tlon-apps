@@ -2,7 +2,7 @@ import { View } from 'tamagui';
 
 import { useOnboardingGlyph } from '../../Onboarding/line/AvatarGlyphPicker';
 import {
-  ART_TO_CONTENT_GAP,
+  ART_EDGE_TO_LIST_GAP,
   LineBulletList,
   LineStepFrame,
 } from '../../Onboarding/line/LineStepFrame';
@@ -51,7 +51,7 @@ export function FirstRunIntroScreen({
       testID={slide === 1 ? 'first-run-meet' : 'first-run-private'}
     >
       {slide === 1 ? <MeetArt glyph={glyph} /> : <PrivateArt glyph={glyph} />}
-      <View marginTop={ART_TO_CONTENT_GAP}>
+      <View marginTop={ART_EDGE_TO_LIST_GAP}>
         <FeaturePointList points={copy.points} />
       </View>
     </LineStepFrame>

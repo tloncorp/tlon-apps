@@ -13,8 +13,13 @@ export const ONBOARDING_STEP_COUNT = 9;
 
 const HEADER_HEIGHT = 44;
 const DOT_SIZE = 7;
-/** The drawing and the list under it sit this far apart. */
+/** A drawing on a card and the list under it sit this far apart. */
 export const ART_TO_CONTENT_GAP = 32;
+/**
+ * A drawing with no card ends on an edge of its own, a box's bottom line;
+ * the list under it starts this far below that edge.
+ */
+export const ART_EDGE_TO_LIST_GAP = 28;
 
 export function OnboardingStepDots({ step }: { step: number }) {
   const isDark = useIsDarkMode();

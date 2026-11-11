@@ -2,7 +2,7 @@ import { View } from 'tamagui';
 
 import { useOnboardingGlyph } from '../../Onboarding/line/AvatarGlyphPicker';
 import {
-  ART_TO_CONTENT_GAP,
+  ART_EDGE_TO_LIST_GAP,
   LineStepFrame,
 } from '../../Onboarding/line/LineStepFrame';
 import { WorkspaceArt } from '../../Onboarding/line/onboardingArt';
@@ -45,7 +45,7 @@ export function StartWorkspaceScreen({
       testID="first-run-workspace"
     >
       <WorkspaceArt glyph={glyph} />
-      <View marginTop={ART_TO_CONTENT_GAP}>
+      <View marginTop={ART_EDGE_TO_LIST_GAP}>
         <FeaturePointList points={copy.points} />
       </View>
     </LineStepFrame>
