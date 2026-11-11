@@ -12,9 +12,11 @@ import type {
   RuntimeContext,
   ShipEndpoint,
 } from '../drivers/types.js';
+import type { DockerExecOptions } from './docker-direct.js';
 import {
   type BranchDeskDependencies,
   applyBranchDesk,
+  applyDesk,
   createDeskManifest,
   parseDeskShips,
   withShipRebootRetry,
@@ -33,6 +35,7 @@ const OLD_MANIFEST = `${createHash('sha256').update('old desk').digest('hex')}  
 
 afterEach(async () => {
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
   await Promise.all(
     tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true }))
   );
@@ -296,6 +299,35 @@ describe('applyBranchDesk control flow', () => {
   });
 });
 
+describe('applyDesk for a desk the ship lacks', () => {
+  test('creates, commits, then installs the desk and waits for its agents', async () => {
+    vi.stubEnv('TLON_BOT_E2E_DESK_READY_TIMEOUT_MS', '123456');
+    const harness = new BranchDeskHarness({ desk: 'extra', hashes: {} });
+
+    await applyDesk(
+      harness.ctx,
+      {
+        desk: 'extra',
+        justfile: '/repo/extra/justfile',
+        ships: ['zod'],
+        readyScry: '/~/scry/extra-agent/status.json',
+        install: true,
+      },
+      harness.dependencies()
+    );
+
+    const order = ['new-desk:zod', 'mount:zod', 'commit:zod', 'install:zod'];
+    const indexes = order.map((event) => harness.events.indexOf(event));
+    expect(indexes.every((index) => index > -1)).toBe(true);
+    expect(indexes).toEqual([...indexes].sort((a, b) => a - b));
+    expect(harness.events.indexOf('health:zod')).toBeGreaterThan(indexes[3]);
+    expect(harness.hoodOptions['install ~zod %extra']).toEqual({
+      timeoutMs: 123_456,
+    });
+    expect(harness.hoodOptions['commit %extra']).toBeUndefined();
+  });
+});
+
 describe('branch desk commit retry', () => {
   test('reboots only for unavailable failures and stops after success', async () => {
     const unavailable = { unavailable: true };
@@ -375,6 +407,8 @@ interface HarnessOptions {
   healthUnavailable?: number;
   assemblyResult?: Partial<ExecResult>;
   commitConnectionFailures?: number;
+  desk?: string;
+  hashes?: Partial<Record<ShipLabel, string>>;
 }
 
 class BranchDeskHarness {
@@ -382,6 +416,7 @@ class BranchDeskHarness {
   readonly events: string[] = [];
   readonly waitedShipUrls: string[] = [];
   mountManifestArgv: string[] | undefined;
+  readonly hoodOptions: Record<string, DockerExecOptions | undefined> = {};
   readonly restartComposeService = vi.fn(async () => {
     this.events.push('restart-ships');
   });
@@ -397,16 +432,19 @@ class BranchDeskHarness {
   private readonly options: HarnessOptions;
   private readonly mountReads: MountRead[];
   private mountedManifests: Record<ShipLabel, string>;
-  private hashes: Record<ShipLabel, string> = {
-    zod: 'old-hash',
-    ten: 'old-hash',
-    mug: 'old-hash',
-  };
+  private readonly desk: string;
+  private hashes: Partial<Record<ShipLabel, string>>;
   private unavailableHealthChecks = 0;
   private commitConnectionFailuresRemaining: number;
 
   constructor(options: HarnessOptions = {}) {
     this.options = options;
+    this.desk = options.desk ?? 'groups';
+    this.hashes = options.hashes ?? {
+      zod: 'old-hash',
+      ten: 'old-hash',
+      mug: 'old-hash',
+    };
     this.mountReads = [...(options.mountReads ?? [])];
     const mounted = options.mountedManifest ?? OLD_MANIFEST;
     this.mountedManifests = { zod: mounted, ten: mounted, mug: mounted };
@@ -418,7 +456,7 @@ class BranchDeskHarness {
     await applyBranchDesk(this.ctx, this.dependencies());
   }
 
-  private dependencies(): Partial<BranchDeskDependencies> {
+  dependencies(): Partial<BranchDeskDependencies> {
     return {
       deskShips: () => '~zod',
       runCommand: this.runCommand,
@@ -452,16 +490,26 @@ class BranchDeskHarness {
   };
 
   private readonly execInComposeService: BranchDeskDependencies['execInComposeService'] =
-    async (_ctx, _service, argv) => {
+    async (_ctx, _service, argv, opts) => {
       const script = argv[2] ?? '';
       if (argv[1] === '-e' && script.includes('+hood/')) {
         const ship = argv[3] as ShipLabel;
         const command = argv[4] ?? '';
-        if (command === 'mount %groups') {
+        this.hoodOptions[command] = opts;
+        if (command === `new-desk %${this.desk}`) {
+          this.events.push(`new-desk:${ship}`);
+          this.hashes[ship] = 'empty-hash';
+          return success();
+        }
+        if (command === `install ~${ship} %${this.desk}`) {
+          this.events.push(`install:${ship}`);
+          return success();
+        }
+        if (command === `mount %${this.desk}`) {
           this.events.push(`mount:${ship}`);
           return success();
         }
-        if (command === 'commit %groups') {
+        if (command === `commit %${this.desk}`) {
           this.events.push(`commit:${ship}`);
           if (this.commitConnectionFailuresRemaining > 0) {
             this.commitConnectionFailuresRemaining -= 1;
@@ -518,9 +566,13 @@ class BranchDeskHarness {
     }
     if (url.endsWith('/~/scry/hood/kiln/pikes.json')) {
       this.events.push(`hash:${ship}:${this.hashes[ship]}`);
-      return jsonResponse({ groups: { hash: this.hashes[ship] } });
+      const hash = this.hashes[ship];
+      return jsonResponse(hash ? { [this.desk]: { hash } } : {});
     }
-    if (url.endsWith('/~/scry/groups/groups/light.json')) {
+    if (
+      url.endsWith('/~/scry/groups/groups/light.json') ||
+      url.endsWith('/~/scry/extra-agent/status.json')
+    ) {
       this.events.push(`health:${ship}`);
       if (
         this.unavailableHealthChecks < (this.options.healthUnavailable ?? 0)

@@ -2,7 +2,7 @@
 
 Private workspace package for shared Tlon bot E2E infrastructure.
 
-The shared runner starts a driver-specific Docker runtime for Hermes or OpenClaw, then runs common scenarios through the shared scenario DSL and `ScenarioActors` abstraction. Package-specific suites remain available for driver divergences.
+The shared runner starts a driver-specific Docker runtime for Hermes, OpenClaw or Harness, then runs common scenarios through the shared scenario DSL and `ScenarioActors` abstraction. Package-specific suites remain available for driver divergences.
 
 ## Local Env Files
 
@@ -53,9 +53,12 @@ Run the baseline common scenarios with:
 ```bash
 pnpm --filter @tloncorp/tlon-bot-e2e test:e2e:hermes
 pnpm --filter @tloncorp/tlon-bot-e2e test:e2e:openclaw
+pnpm --filter @tloncorp/tlon-bot-e2e test:e2e:harness
 ```
 
-The runner allocates host ports by default, renders a unique compose project name per capability partition, scrubs ambient compose env, starts shared `ships` and `fake-model` services, then starts the selected bot service through the driver.
+The runner allocates host ports by default, renders a unique compose project name per capability partition, scrubs ambient compose env, starts shared `ships` and `fake-model` services, then starts the selected bot service through the driver. A driver without a bot service (Harness) builds and starts no bot container.
+
+A scenario's `driverSkips` names the drivers that cannot run it and why. On those drivers the scenario is registered as skipped and its reason is printed as a `[tlon-bot-e2e] skip <id>: <reason>` line.
 
 Current common scenarios are:
 
@@ -123,6 +126,12 @@ From `packages/openclaw`, this is exposed as:
 ```bash
 pnpm test:integration:shared
 ```
+
+## Harness Runtime Details
+
+Harness runs on the bot ship `~zod`. Once the branch `%groups` desk is applied, the driver builds `packages/harness` with `just --justfile packages/harness/justfile out=<dir> build`, creates and mounts a `%harness` desk on `~zod`, commits and installs it, and waits for `%harness-tlon` to answer its status scry. `%mcp` is not installed. It then configures Harness over ACP through Eyre, using `packages/harness/acp/harness-acp.mjs`: `~ten` becomes the owner, the Tlon hand is enabled with `response: mentions` and no allowed or trusted ships, and the default model endpoint is the fake model's `/v1/chat/completions` as seen from the ships container.
+
+Harness publishes a turn's final assistant text to the originating chat, so text replies are scripted as plain text steps. Its `tlon` tool takes structured actions; the adapter translates only the tlon commands that enabled scenarios send, and adapter methods no enabled scenario uses throw. Harness has only the common suite. Scenarios it cannot run, or that are not enabled for it yet, are skipped with their reasons.
 
 ## Hermes Runtime Details
 

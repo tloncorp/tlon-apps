@@ -1,5 +1,6 @@
 import path from 'node:path';
 
+import { botService } from '../runtime/context.js';
 import { waitFor } from '../runtime/waiters.js';
 import type {
   BotDriver,
@@ -270,7 +271,7 @@ export const hermesDriver: BotDriver = {
     if (!HERMES_LCM_ENABLED) {
       return {};
     }
-    const tools = await readHermesLcmTools(compose, ctx.services.bot);
+    const tools = await readHermesLcmTools(compose, botService(ctx));
     return { [HERMES_LCM_TOOLS_ENV]: JSON.stringify(tools) };
   },
 
@@ -400,7 +401,7 @@ async function waitForHermesLog(
 ): Promise<void> {
   await waitFor(
     async () => {
-      const logs = await compose.logs([ctx.services.bot], { tail: 260 });
+      const logs = await compose.logs([botService(ctx)], { tail: 260 });
       return (
         logs.includes('[tlon] connected to http://ships:8080 as ~zod') ||
         logs.includes('[tlon] connected to http://ships:8080 as zod')
@@ -418,7 +419,7 @@ async function assertHermesConfig(
   ctx: RuntimeContext,
   compose: ComposeHandle
 ): Promise<void> {
-  const config = await readHermesConfig(compose, ctx.services.bot);
+  const config = await readHermesConfig(compose, botService(ctx));
   const failures: string[] = [];
   const model = objectAt(config, 'model');
   const platformToolsets = objectAt(config, 'platform_toolsets');
@@ -543,11 +544,7 @@ print(json.dumps({
     "nudge_tick_interval_ms": config.nudge_tick_interval_ms,
 }))
 `;
-  const result = await compose.exec(ctx.services.bot, [
-    'python3',
-    '-c',
-    script,
-  ]);
+  const result = await compose.exec(botService(ctx), ['python3', '-c', script]);
   assertExecOk(result, 'Hermes nudge config probe');
   const config = JSON.parse(result.stdout.trim()) as {
     reengagement_enabled: boolean;
@@ -593,11 +590,7 @@ payload = {
 }
 print(json.dumps(payload))
 `;
-  const result = await compose.exec(ctx.services.bot, [
-    'python3',
-    '-c',
-    script,
-  ]);
+  const result = await compose.exec(botService(ctx), ['python3', '-c', script]);
   assertExecOk(result, 'Hermes setup probe');
   const setup = JSON.parse(result.stdout.trim()) as {
     plugin_ok: boolean;
@@ -622,7 +615,7 @@ print(json.dumps(payload))
     failures.push(`tlon CLI is not executable at ${setup.tlon_cli}`);
   }
 
-  const version = await compose.exec(ctx.services.bot, [
+  const version = await compose.exec(botService(ctx), [
     '/workspace/hermes-dev/bin/tlon',
     '--version',
   ]);
@@ -652,7 +645,7 @@ async function assertForbiddenContainerEnv(
       FORBIDDEN_CONTAINER_ENV
     )} if os.environ.get(k)}))`,
   ];
-  const result = await compose.exec(ctx.services.bot, script);
+  const result = await compose.exec(botService(ctx), script);
   assertExecOk(result, 'Hermes forbidden env probe');
   const forbidden = JSON.parse(result.stdout.trim() || '{}') as Record<
     string,

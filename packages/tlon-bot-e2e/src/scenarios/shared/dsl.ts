@@ -12,6 +12,8 @@ export interface ScenarioMetadata {
   orderDependent?: boolean;
   drivers?: readonly BotDriver['name'][];
   skipReason?: string;
+  /** Why a driver cannot run the scenario; it is reported as skipped there. */
+  driverSkips?: Partial<Record<BotDriver['name'], string>>;
   timeoutMs?: number | ((ctx: RuntimeContext) => number);
 }
 
@@ -28,6 +30,7 @@ export interface SharedScenario {
   orderDependent: boolean;
   drivers?: readonly BotDriver['name'][];
   skipReason?: string;
+  driverSkips?: Partial<Record<BotDriver['name'], string>>;
   timeoutMs?: number | ((ctx: RuntimeContext) => number);
   run(runCtx: ScenarioRunContext): Promise<void>;
 }
@@ -58,6 +61,7 @@ export function testScenario(
     orderDependent: metadata.orderDependent ?? false,
     drivers: metadata.drivers,
     skipReason: metadata.skipReason,
+    driverSkips: metadata.driverSkips,
     timeoutMs: metadata.timeoutMs,
     run,
   };
@@ -145,17 +149,25 @@ export function selectScenarioPartitions(
   return selected;
 }
 
+// The driver's skip reason, if any, becomes the scenario's skipReason.
 export function scenariosForPartition(
   scenarios: readonly SharedScenario[],
   partitionKeyValue: string,
   driverName?: BotDriver['name']
 ): SharedScenario[] {
-  const matching = scenarios.filter((scenario) => {
-    return (
-      partitionKey(scenario.capabilities) === partitionKeyValue &&
-      scenarioMatchesDriver(scenario, driverName)
-    );
-  });
+  const matching = scenarios
+    .filter((scenario) => {
+      return (
+        partitionKey(scenario.capabilities) === partitionKeyValue &&
+        scenarioMatchesDriver(scenario, driverName)
+      );
+    })
+    .map((scenario) => {
+      const driverSkip = driverName && scenario.driverSkips?.[driverName];
+      return driverSkip && !scenario.skipReason
+        ? { ...scenario, skipReason: driverSkip }
+        : scenario;
+    });
   return [
     ...matching.filter((scenario) => !scenario.orderDependent),
     ...matching.filter((scenario) => scenario.orderDependent),

@@ -25,6 +25,15 @@ export function createRuntimeContext(
   return deepFreeze(ctx);
 }
 
+export function botService(
+  ctx: Pick<RuntimeContext, 'driverName' | 'services'>
+): string {
+  if (!ctx.services.bot) {
+    throw new Error(`The ${ctx.driverName} driver has no bot service.`);
+  }
+  return ctx.services.bot;
+}
+
 export function runtimeContextForJson(
   ctx: RuntimeContext,
   options: RuntimeContextJsonOptions = {}

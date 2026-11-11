@@ -16,6 +16,7 @@ import type { RuntimeContext, ShipEndpoint } from '../drivers/types.js';
 import { runCommand } from './compose.js';
 import {
   copyIntoComposeService,
+  type DockerExecOptions,
   execInComposeService,
   restartComposeService,
 } from './docker-direct.js';
@@ -29,7 +30,6 @@ type ShipLabel = keyof RuntimeContext['endpoints']['ships'];
 // at which point ~zod/~ten treat ~mug as a certain-mismatch and negotiate's
 // poke path crashes outright (`%poke-to-mismatching-gill`) rather than deferring.
 const DEFAULT_DESK_SHIPS = '~zod,~ten,~mug';
-const STAGED_DESK = '/tmp/tlon-bot-e2e-groups';
 const DOCKET = 'desk.docket-0';
 const DESK_IDENTITY = 'desk-identity.sh';
 const COMMIT_ATTEMPTS = 4;
@@ -69,6 +69,16 @@ class ShipUnavailableError extends Error {}
 // for the whole CI job.
 class ShipBusyError extends Error {}
 class MountedDeskUnavailableError extends Error {}
+
+export interface DeskTarget {
+  desk: string;
+  justfile: string;
+  ships: ShipLabel[];
+  /** Eyre scry that answers once the desk's agents are running. */
+  readyScry: string;
+  /** Create the desk when the ship lacks it, and install it after its first commit. */
+  install: boolean;
+}
 
 export interface BranchDeskDependencies {
   runCommand: typeof runCommand;
@@ -175,23 +185,38 @@ export async function applyBranchDesk(
   overrides: Partial<BranchDeskDependencies> = {}
 ): Promise<void> {
   const dependencies = { ...DEFAULT_DEPENDENCIES, ...overrides };
-  const ships = parseDeskShips(dependencies.deskShips());
+  await applyDesk(
+    ctx,
+    {
+      desk: 'groups',
+      justfile: path.join(ctx.repoRoot, 'justfile'),
+      ships: parseDeskShips(dependencies.deskShips()),
+      readyScry: '/~/scry/groups/groups/light.json',
+      install: false,
+    },
+    dependencies
+  );
+}
+
+export async function applyDesk(
+  ctx: RuntimeContext,
+  target: DeskTarget,
+  overrides: Partial<BranchDeskDependencies> = {}
+): Promise<void> {
+  const dependencies = { ...DEFAULT_DEPENDENCIES, ...overrides };
+  const { desk, ships } = target;
+  const staged = stagedDeskDir(desk);
   const tempDir = await mkdtemp(path.join(os.tmpdir(), 'tlon-bot-e2e-desk-'));
-  const deskDir = path.join(tempDir, 'groups');
+  const deskDir = path.join(tempDir, desk);
   const manifestPath = path.join(tempDir, 'manifest.sha256');
 
   try {
     console.log(
-      `==> Applying branch %groups desk to ${ships.map((s) => `~${s}`).join(', ')}...`
+      `==> Applying branch %${desk} desk to ${ships.map((s) => `~${s}`).join(', ')}...`
     );
     const assembled = await dependencies.runCommand(
       'just',
-      [
-        '--justfile',
-        path.join(ctx.repoRoot, 'justfile'),
-        `out=${deskDir}`,
-        'build',
-      ],
+      ['--justfile', target.justfile, `out=${deskDir}`, 'build'],
       {
         cwd: ctx.repoRoot,
         env: processEnvRecord(),
@@ -228,28 +253,40 @@ export async function applyBranchDesk(
       '-c',
       'rm -rf -- "$1"; mkdir -p -- "$1"',
       'bash',
-      STAGED_DESK,
+      staged,
     ]);
     await dependencies.copyIntoComposeService(
       ctx,
       ctx.services.ships,
       `${tempDir}/.`,
-      STAGED_DESK
+      staged
     );
 
     for (const ship of ships) {
       const endpoint = ctx.endpoints.ships[ship];
       let cookie = await login(endpoint, dependencies);
-      await hoodCommand(ctx, ship, 'mount %groups', dependencies);
-      await waitForMountedDeskStable(ctx, ship, dependencies);
-      const startHash = await waitForGroupsHash(endpoint, cookie, dependencies);
-      if (await deskMatches(ctx, ship, manifest, dependencies)) {
+      if (
+        target.install &&
+        !(await deskHashes(endpoint, cookie, dependencies))[desk]
+      ) {
+        console.log(`    ~${ship}: creating %${desk}`);
+        await hoodCommand(ctx, ship, `new-desk %${desk}`, dependencies);
+      }
+      await hoodCommand(ctx, ship, `mount %${desk}`, dependencies);
+      await waitForMountedDeskStable(ctx, ship, desk, dependencies);
+      const startHash = await waitForDeskHash(
+        endpoint,
+        cookie,
+        desk,
+        dependencies
+      );
+      if (await deskMatches(ctx, ship, desk, manifest, dependencies)) {
         console.log(`    ~${ship}: assembled desk unchanged; skipping commit`);
         continue;
       }
       logManifestDrift(
         ship,
-        await readMountedDeskManifest(ctx, ship, dependencies),
+        await readMountedDeskManifest(ctx, ship, desk, dependencies),
         manifest
       );
 
@@ -264,17 +301,45 @@ export async function applyBranchDesk(
           // re-replacing is cheap; the mount is re-settled first, and the
           // assert directly after the copy still refuses a concurrent
           // clobber in the replace→commit window.
-          await waitForMountedDeskStable(ctx, ship, dependencies);
-          if (!(await deskMatches(ctx, ship, manifest, dependencies))) {
-            await replaceMountedDesk(ctx, ship, dependencies);
-            await assertDeskMatches(ctx, ship, manifest, dependencies);
+          await waitForMountedDeskStable(ctx, ship, desk, dependencies);
+          if (!(await deskMatches(ctx, ship, desk, manifest, dependencies))) {
+            await replaceMountedDesk(ctx, ship, desk, dependencies);
+            await assertDeskMatches(ctx, ship, desk, manifest, dependencies);
           }
           if (
-            (await groupsHash(endpoint, cookie, dependencies)) === startHash
+            (await deskHash(endpoint, cookie, desk, dependencies)) === startHash
           ) {
-            await hoodCommand(ctx, ship, 'commit %groups', dependencies);
+            await hoodCommand(ctx, ship, `commit %${desk}`, dependencies);
           }
-          await waitForDeskReady(endpoint, cookie, startHash, dependencies);
+          if (target.install) {
+            // Installing before the commit lands would start agents from the
+            // empty desk that new-desk created.
+            await waitForDeskReady(
+              endpoint,
+              cookie,
+              desk,
+              startHash,
+              null,
+              dependencies
+            );
+            // Unlike commit, install answers only once the desk's agents are
+            // built, so it gets the desk build's budget.
+            await hoodCommand(
+              ctx,
+              ship,
+              `install ${endpoint.ship} %${desk}`,
+              dependencies,
+              { timeoutMs: deskReadyTimeoutMs() }
+            );
+          }
+          await waitForDeskReady(
+            endpoint,
+            cookie,
+            desk,
+            startHash,
+            target.readyScry,
+            dependencies
+          );
         },
         async (attempt) => {
           // Vere can segfault in u3_readdir_r while rescanning a mounted desk.
@@ -316,9 +381,14 @@ async function listFiles(root: string, relative = ''): Promise<string[]> {
   return files.flat();
 }
 
+function stagedDeskDir(desk: string): string {
+  return `/tmp/tlon-bot-e2e-${desk}`;
+}
+
 async function readMountedDeskManifest(
   ctx: RuntimeContext,
   ship: ShipLabel,
+  desk: string,
   dependencies: BranchDeskDependencies
 ): Promise<string> {
   const result = await dependencies.execInComposeService(
@@ -329,13 +399,13 @@ async function readMountedDeskManifest(
       '-c',
       'set -euo pipefail; mount="$1"; identity="$2"; test -d "$mount" && test -r "$mount" && test -x "$mount" || exit 20; cd "$mount"; find . -type f ! -path ./commit.txt ! -path ./desk.docket-0 -print0 | sort -z | xargs -0r sha256sum; if [ -f desk.docket-0 ]; then docket=$(bash "$identity" docket desk.docket-0 | sha256sum); printf "%s  ./desk.docket-0\\n" "${docket%% *}"; fi',
       'bash',
-      `/data/${ship}/groups`,
-      `${STAGED_DESK}/${DESK_IDENTITY}`,
+      `/data/${ship}/${desk}`,
+      `${stagedDeskDir(desk)}/${DESK_IDENTITY}`,
     ]
   );
   if (result.exitCode !== 0) {
     throw new MountedDeskUnavailableError(
-      `Mounted %groups desk for ~${ship} is missing or unreadable ` +
+      `Mounted %${desk} desk for ~${ship} is missing or unreadable ` +
         `(exit ${result.exitCode}): ${(result.stderr || result.stdout).trim()}`
     );
   }
@@ -345,13 +415,19 @@ async function readMountedDeskManifest(
 async function waitForMountedDeskStable(
   ctx: RuntimeContext,
   ship: ShipLabel,
+  desk: string,
   dependencies: BranchDeskDependencies
 ): Promise<void> {
   let previousManifest: string | undefined;
   let stableSamples = 0;
   await dependencies.waitFor(
     async () => {
-      const manifest = await readMountedDeskManifest(ctx, ship, dependencies);
+      const manifest = await readMountedDeskManifest(
+        ctx,
+        ship,
+        desk,
+        dependencies
+      );
       stableSamples = manifest === previousManifest ? stableSamples + 1 : 1;
       previousManifest = manifest;
       return stableSamples >= MOUNT_STABLE_SAMPLES ? { manifest } : false;
@@ -359,7 +435,7 @@ async function waitForMountedDeskStable(
     {
       timeoutMs: 30_000,
       intervalMs: 1_000,
-      description: `~${ship} %groups mount to exist and settle`,
+      description: `~${ship} %${desk} mount to exist and settle`,
     }
   );
 }
@@ -367,11 +443,12 @@ async function waitForMountedDeskStable(
 async function deskMatches(
   ctx: RuntimeContext,
   ship: ShipLabel,
+  desk: string,
   expectedManifest: string,
   dependencies: BranchDeskDependencies
 ): Promise<boolean> {
   return (
-    (await readMountedDeskManifest(ctx, ship, dependencies)) ===
+    (await readMountedDeskManifest(ctx, ship, desk, dependencies)) ===
     expectedManifest
   );
 }
@@ -406,12 +483,13 @@ function logManifestDrift(
 async function assertDeskMatches(
   ctx: RuntimeContext,
   ship: ShipLabel,
+  desk: string,
   expectedManifest: string,
   dependencies: BranchDeskDependencies
 ): Promise<void> {
-  if (!(await deskMatches(ctx, ship, expectedManifest, dependencies))) {
+  if (!(await deskMatches(ctx, ship, desk, expectedManifest, dependencies))) {
     throw new Error(
-      `Mounted %groups desk for ~${ship} changed after replacement; refusing to commit.`
+      `Mounted %${desk} desk for ~${ship} changed after replacement; refusing to commit.`
     );
   }
 }
@@ -419,6 +497,7 @@ async function assertDeskMatches(
 async function replaceMountedDesk(
   ctx: RuntimeContext,
   ship: ShipLabel,
+  desk: string,
   dependencies: BranchDeskDependencies
 ) {
   await requireShipExec(ctx, dependencies, [
@@ -426,8 +505,8 @@ async function replaceMountedDesk(
     '-c',
     'set -euo pipefail; target="$1"; source="$2"; mkdir -p "$target"; find "$target" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +; cp -a "$source"/. "$target"/',
     'bash',
-    `/data/${ship}/groups`,
-    `${STAGED_DESK}/groups`,
+    `/data/${ship}/${desk}`,
+    `${stagedDeskDir(desk)}/${desk}`,
   ]);
 }
 
@@ -492,12 +571,14 @@ async function hoodCommand(
   ctx: RuntimeContext,
   ship: ShipLabel,
   command: string,
-  dependencies: BranchDeskDependencies
+  dependencies: BranchDeskDependencies,
+  opts?: DockerExecOptions
 ) {
   const result = await dependencies.execInComposeService(
     ctx,
     ctx.services.ships,
-    ['node', '-e', HOOD_LOOPBACK_SCRIPT, ship, command]
+    ['node', '-e', HOOD_LOOPBACK_SCRIPT, ship, command],
+    opts
   );
   if (result.exitCode === HOOD_CONNECTION_FAILURE_EXIT) {
     throw new ShipUnavailableError(
@@ -509,69 +590,88 @@ async function hoodCommand(
   requireSuccess(result, `exec in ${ctx.services.ships}`);
 }
 
-async function groupsHash(
+async function deskHashes(
   endpoint: ShipEndpoint,
   cookie: string,
   dependencies: BranchDeskDependencies,
   timeoutMs = REQUEST_TIMEOUT_MS
-) {
-  const data = await shipJson(
+): Promise<Record<string, { hash?: unknown } | undefined>> {
+  return (await shipJson(
     endpoint,
     cookie,
-    'read %groups desk hash',
+    'read desk hashes',
     '/~/scry/hood/kiln/pikes.json',
     dependencies,
     timeoutMs
-  );
-  const hash = (data as { groups?: { hash?: unknown } }).groups?.hash;
+  )) as Record<string, { hash?: unknown } | undefined>;
+}
+
+async function deskHash(
+  endpoint: ShipEndpoint,
+  cookie: string,
+  desk: string,
+  dependencies: BranchDeskDependencies,
+  timeoutMs = REQUEST_TIMEOUT_MS
+) {
+  const hash = (await deskHashes(endpoint, cookie, dependencies, timeoutMs))[
+    desk
+  ]?.hash;
   if (typeof hash !== 'string') {
-    throw new Error(`No %groups desk hash returned by ${endpoint.ship}.`);
+    throw new Error(`No %${desk} desk hash returned by ${endpoint.ship}.`);
   }
   return hash;
 }
 
-async function waitForGroupsHash(
+async function waitForDeskHash(
   endpoint: ShipEndpoint,
   cookie: string,
+  desk: string,
   dependencies: BranchDeskDependencies
 ) {
   return dependencies.waitFor(
-    () => groupsHash(endpoint, cookie, dependencies),
+    () => deskHash(endpoint, cookie, desk, dependencies),
     {
       timeoutMs: 30_000,
       intervalMs: 1_000,
-      description: `${endpoint.ship} %groups desk in kiln`,
+      description: `${endpoint.ship} %${desk} desk in kiln`,
     }
   );
 }
 
+// Waits for the commit to move the desk hash, then, given a readiness scry,
+// for the desk's agents to answer it.
 async function waitForDeskReady(
   endpoint: ShipEndpoint,
   cookie: string,
+  desk: string,
   startHash: string,
+  readyScry: string | null,
   dependencies: BranchDeskDependencies
 ) {
   await dependencies.waitFor(
     async () => {
       try {
         if (
-          (await groupsHash(
+          (await deskHash(
             endpoint,
             cookie,
+            desk,
             dependencies,
             COMMIT_REQUEST_TIMEOUT_MS
           )) === startHash
         ) {
           return false;
         }
-        await shipJson(
-          endpoint,
-          cookie,
-          'check %groups app health',
-          '/~/scry/groups/groups/light.json',
-          dependencies,
-          COMMIT_REQUEST_TIMEOUT_MS
-        );
+        if (readyScry) {
+          await shipJson(
+            endpoint,
+            cookie,
+            `check %${desk} app health`,
+            readyScry,
+            dependencies,
+            COMMIT_REQUEST_TIMEOUT_MS
+          );
+        }
         return true;
       } catch (error) {
         // Busy compiling is progress, not death: keep polling. Only a
@@ -586,7 +686,7 @@ async function waitForDeskReady(
     {
       timeoutMs: deskReadyTimeoutMs(),
       intervalMs: 2_000,
-      description: `${endpoint.ship} %groups desk ready after commit`,
+      description: `${endpoint.ship} %${desk} desk ready after commit`,
       rethrowError: (error) => error instanceof ShipUnavailableError,
     }
   );

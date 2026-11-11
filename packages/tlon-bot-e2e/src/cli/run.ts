@@ -8,6 +8,7 @@ import {
   HERMES_LCM_ENABLED,
   hermesDriver,
 } from '../drivers/hermes.js';
+import { harnessDriver } from '../drivers/harness.js';
 import { openclawDriver } from '../drivers/openclaw.js';
 import type {
   BotDriver,
@@ -65,6 +66,9 @@ async function main(): Promise<void> {
   );
   const suite = parseSuiteRequest(process.argv.slice(2));
   const keepStack = flag(process.env.TLON_BOT_E2E_KEEP_STACK);
+  if (driver.name === 'harness' && suite.kind !== 'common') {
+    throw new Error('The harness driver has no package-specific suite.');
+  }
 
   if (suite.kind === 'common' || suite.kind === 'all') {
     const partitions = selectScenarioPartitions(commonScenarios, {
@@ -161,7 +165,9 @@ async function runDriverRuntime(args: {
       requestedRuntimeEndpointPorts(ctx.endpoints)
     );
     await args.driver.beforeComposeBuild?.(ctx);
-    await compose.build([ctx.services.bot]);
+    if (ctx.services.bot) {
+      await compose.build([ctx.services.bot]);
+    }
     await args.driver.beforeComposeUp?.(ctx, compose);
     await compose.up([ctx.services.ships, ctx.services.fakeModel], {
       timeoutMs: COMPOSE_UP_TIMEOUT_MS,
@@ -274,6 +280,9 @@ function selectDriver(raw: string | undefined): BotDriver {
   }
   if (name === 'openclaw') {
     return openclawDriver;
+  }
+  if (name === 'harness') {
+    return harnessDriver;
   }
   throw new Error(`Unsupported TLON_BOT_E2E_DRIVER: ${name}`);
 }

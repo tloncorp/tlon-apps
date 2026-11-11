@@ -6,7 +6,7 @@ import type {
   Step,
 } from '../fake-model/index.js';
 
-export type DriverName = 'hermes' | 'openclaw';
+export type DriverName = 'harness' | 'hermes' | 'openclaw';
 
 export type RuntimeCapability =
   | 'cron'
@@ -58,7 +58,8 @@ export interface RuntimeSeed {
 }
 
 export interface DriverServices {
-  bot: string;
+  /** Absent when the bot runs on the bot ship rather than in a container. */
+  bot?: string;
   ships: string;
   fakeModel: string;
   logServices: string[];
