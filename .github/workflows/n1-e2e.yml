@@ -135,12 +135,22 @@ jobs:
         run: pnpm exec playwright install chromium
         working-directory: ./apps/tlon-web
 
-      - name: Install peru
-        # rube runs `peru sync` to vendor desk deps into desk-deps/ before
-        # assembling the desks of the ships it does commit to (~zod, ~ten).
+      - name: Setup just
+        # rube assembles ship desks with the repository justfile.
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+        with:
+          just-version: 1.59.0
+
+      - name: Install rsync and yq
+        # The desk build copies with rsync, and fetch-deps.sh reads
+        # desk-deps.yaml with mikefarah/yq v4, which apt doesn't ship.
         run: |
-          pipx install peru || pip install --user peru || pip3 install --user --break-system-packages peru
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          sudo apt-get update
+          sudo apt-get install -y rsync
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL https://github.com/mikefarah/yq/releases/download/v4.54.1/yq_linux_amd64 -o "$RUNNER_TEMP/bin/yq"
+          chmod +x "$RUNNER_TEMP/bin/yq"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
       - name: Run the N-1 desk spec
         id: n1-spec

@@ -49,7 +49,9 @@ jobs:
           filters: |
             backend:
               - 'desk/**'
-              - 'backend/**'
+              - 'scripts/backend/**'
+              - 'justfile'
+              - 'desk-deps.yaml'
             bots:
               - 'packages/openclaw/**'
               - 'packages/hermes-tlon-adapter/**'
@@ -281,13 +283,24 @@ jobs:
         run: pnpm exec playwright install chromium
         working-directory: ./apps/tlon-web
 
-      - name: Install peru
-        # rube runs `peru sync` to vendor desk deps into desk-deps/ before
-        # assembling ship desks. (The parallel e2e job gets peru from the rube
-        # Docker image; this smoke test runs on the bare runner.)
-        run:
-          pipx install peru || pip install --user peru || pip3 install --user
-          --break-system-packages peru
+      - name: Setup just
+        # rube assembles ship desks with the repository justfile. (The parallel
+        # e2e job gets just and yq from the rube Docker image; this smoke test
+        # runs on the bare runner.)
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+        with:
+          just-version: 1.59.0
+
+      - name: Install rsync and yq
+        # The desk build copies with rsync, and fetch-deps.sh reads
+        # desk-deps.yaml with mikefarah/yq v4, which apt doesn't ship.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rsync
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL https://github.com/mikefarah/yq/releases/download/v4.54.1/yq_linux_amd64 -o "$RUNNER_TEMP/bin/yq"
+          chmod +x "$RUNNER_TEMP/bin/yq"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
       - name: Run Production Build Smoke Test
         id: smoke-test
@@ -317,19 +330,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - name: Install peru
-        # run-tests.sh assembles the groups desk via scripts/assemble-desk.sh,
-        # which runs `peru sync` to vendor desk deps (desk-deps/) — including
-        # peru-only deps like sur/mcp-proxy that aren't in the test pill.
+      - name: Setup just
+        # run-tests.sh assembles the groups desk with `just build`.
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+        with:
+          just-version: 1.59.0
+
+      - name: Install yq
+        # fetch-deps.sh reads desk-deps.yaml with mikefarah/yq v4, which apt
+        # doesn't ship.
         run: |
-          pipx install peru || pip install --user peru || pip3 install --user --break-system-packages peru
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL https://github.com/mikefarah/yq/releases/download/v4.54.1/yq_linux_amd64 -o "$RUNNER_TEMP/bin/yq"
+          chmod +x "$RUNNER_TEMP/bin/yq"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
       - name: Run Backend Tests for Groups
         run: |
           sudo apt-get update
-          sudo apt-get install -y socat patch
-          ./backend/run-tests.sh
+          sudo apt-get install -y socat patch rsync
+          ./scripts/backend/run-tests.sh
   # Parallel E2E Tests using Docker containers
   e2e-parallel:
     needs: changes

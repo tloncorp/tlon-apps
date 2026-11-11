@@ -3,8 +3,9 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     # Harness, and what its desk is assembled from: the Tlon files listed in
-    # packages/harness/tlon-files.txt (tests-js/modules.test.mjs keeps both
-    # lists below in step with it) and the peru-vendored deps.
+    # packages/harness/desk-deps.yaml (tests-js/modules.test.mjs keeps both
+    # lists below in step with it), the root justfile and fetch script its
+    # build runs, and the root desk-deps.yaml, which pins %mcp.
     paths:
       - "packages/harness/**"
       - "desk/sur/activity-ver.hoon"
@@ -42,9 +43,9 @@ on:
       - "desk/sur/logs.hoon"
       - "desk/sur/meta.hoon"
       - "desk/sur/ui.hoon"
-      - "peru.yaml"
-      - "scripts/assemble-desk.sh"
-      - "scripts/sync-deps.sh"
+      - "desk-deps.yaml"
+      - "justfile"
+      - "scripts/backend/fetch-deps.sh"
       - ".github/workflows/harness-ci.yml"
   push:
     branches: [develop]
@@ -85,9 +86,9 @@ on:
       - "desk/sur/logs.hoon"
       - "desk/sur/meta.hoon"
       - "desk/sur/ui.hoon"
-      - "peru.yaml"
-      - "scripts/assemble-desk.sh"
-      - "scripts/sync-deps.sh"
+      - "desk-deps.yaml"
+      - "justfile"
+      - "scripts/backend/fetch-deps.sh"
       - ".github/workflows/harness-ci.yml"
   workflow_dispatch:
 
@@ -122,8 +123,8 @@ jobs:
 
       - name: Install tools
         # socat carries click's threads to the ship; tmux holds the running
-        # ships; rsync installs desks. %mcp's own fetch-deps.sh needs
-        # mikefarah/yq v4, which apt doesn't ship.
+        # ships; rsync installs desks. fetch-deps.sh, here and
+        # %mcp's own, needs mikefarah/yq v4, which apt doesn't ship.
         run: |
           sudo apt-get update
           sudo apt-get install -y socat tmux rsync jq
@@ -132,10 +133,13 @@ jobs:
           chmod +x "$RUNNER_TEMP/bin/yq"
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
-      - name: Install peru
-        run: |
-          pipx install peru || pip install --user peru || pip3 install --user --break-system-packages peru
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Cache vere and fetched deps
+        # setup-fake-dev.sh pins the vere version; desk-deps.yaml pins commits.
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: packages/harness/.deps-cache
+          key: deps-${{ runner.os }}-${{ hashFiles('packages/harness/desk-deps.yaml', 'packages/harness/scripts/setup-fake-dev.sh') }}
+          restore-keys: deps-${{ runner.os }}-
 
       - name: Vendor desk deps
         # setup-fake-dev.sh needs mcp/ before anything builds.
@@ -146,14 +150,6 @@ jobs:
         # -200000` and line offsets. tmux keeps only 2000 lines by default,
         # which drops test output and breaks those offsets.
         run: echo 'set-option -g history-limit 500000' > ~/.tmux.conf
-
-      - name: Cache vere
-        # setup-fake-dev.sh pins the vere version.
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: packages/harness/.deps-cache
-          key: deps-${{ runner.os }}-${{ hashFiles('packages/harness/scripts/setup-fake-dev.sh') }}
-          restore-keys: deps-${{ runner.os }}-
 
       - name: Cache mcp desk deps
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
@@ -216,8 +212,8 @@ jobs:
 
       - name: Install tools
         # socat carries click's threads to the ship; tmux holds the running
-        # ships; rsync installs desks. %mcp's own fetch-deps.sh needs
-        # mikefarah/yq v4, which apt doesn't ship.
+        # ships; rsync installs desks. fetch-deps.sh, here and
+        # %mcp's own, needs mikefarah/yq v4, which apt doesn't ship.
         run: |
           sudo apt-get update
           sudo apt-get install -y socat tmux rsync jq
@@ -226,10 +222,13 @@ jobs:
           chmod +x "$RUNNER_TEMP/bin/yq"
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
-      - name: Install peru
-        run: |
-          pipx install peru || pip install --user peru || pip3 install --user --break-system-packages peru
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Cache vere and fetched deps
+        # setup-fake-dev.sh pins the vere version; desk-deps.yaml pins commits.
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: packages/harness/.deps-cache
+          key: deps-${{ runner.os }}-${{ hashFiles('packages/harness/desk-deps.yaml', 'packages/harness/scripts/setup-fake-dev.sh') }}
+          restore-keys: deps-${{ runner.os }}-
 
       - name: Vendor desk deps
         # setup-fake-dev.sh needs mcp/ before anything builds.
@@ -240,14 +239,6 @@ jobs:
         # with `capture-pane -S -200000` and line offsets. tmux keeps only 2000
         # lines by default, which drops output and breaks those offsets.
         run: echo 'set-option -g history-limit 500000' > ~/.tmux.conf
-
-      - name: Cache vere
-        # setup-fake-dev.sh pins the vere version.
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: packages/harness/.deps-cache
-          key: deps-${{ runner.os }}-${{ hashFiles('packages/harness/scripts/setup-fake-dev.sh') }}
-          restore-keys: deps-${{ runner.os }}-
 
       - name: Cache mcp desk deps
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
