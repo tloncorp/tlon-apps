@@ -16,6 +16,7 @@ import { XStack, YStack } from 'tamagui';
 import {
   AVATAR_GLYPH_IDS,
   type AvatarGlyphId,
+  PICKED_GLYPH_LINE,
   isAvatarGlyphId,
 } from './avatarGlyphs';
 import { GlyphMark, LINE, useLineColors } from './lineKit';
@@ -129,7 +130,7 @@ function TileFace({
         y={inset}
         size={GLYPH}
         variant={selected ? 'inverse' : 'line'}
-        lineWidth={2}
+        lineWidth={PICKED_GLYPH_LINE}
       />
     </Svg>
   );

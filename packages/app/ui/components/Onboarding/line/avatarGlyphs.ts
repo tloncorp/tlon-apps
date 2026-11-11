@@ -15,6 +15,12 @@ export type AvatarGlyphId = (typeof AVATAR_GLYPH_IDS)[number];
 
 export const GLYPH_SIZE = 128;
 
+/**
+ * The picked avatar's lines on Profile's 45 pt glyph, in points; the avatar
+ * image it becomes uses the same weight.
+ */
+export const PICKED_GLYPH_LINE = 1;
+
 export const AVATAR_GLYPHS: Record<AvatarGlyphId, GlyphDefinition> = {
   sam: {
     body: {

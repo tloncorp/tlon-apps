@@ -3,6 +3,7 @@ import {
   type AvatarGlyphId,
   GLYPH_SIZE,
   type GlyphShape,
+  PICKED_GLYPH_LINE,
 } from './avatarGlyphs';
 
 const INK = '#1A1818';
@@ -35,9 +36,9 @@ export function glyphAvatarSvg(
   const background = who === 'you' ? INK : PAPER;
   const body = who === 'you' ? PAPER : INK;
   const line = who === 'you' ? INK : PAPER;
-  // The glyph's lines are 2 pt on Profile's 45 pt glyph, 1.6 pt in the bot
-  // tiles; in glyph units that's this weight at any size.
-  const weight = (who === 'you' ? 2 : 1.6) / (45 / GLYPH_SIZE);
+  // The glyph's lines are PICKED_GLYPH_LINE on Profile's 45 pt glyph, 1.6 pt
+  // in the bot tiles; in glyph units that's this weight at any size.
+  const weight = (who === 'you' ? PICKED_GLYPH_LINE : 1.6) / (45 / GLYPH_SIZE);
   const size = pixels * GLYPH_SHARE;
   const offset = (pixels - size) / 2;
   const { body: outline, details } = AVATAR_GLYPHS[glyph];
