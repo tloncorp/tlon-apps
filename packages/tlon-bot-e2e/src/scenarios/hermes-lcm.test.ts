@@ -6,7 +6,7 @@ import {
   hermesLcmTools,
 } from '../drivers/hermes.js';
 import { FakeModelClient } from '../fake-model/index.js';
-import { runtimeContextFromEnv } from '../runtime/context.js';
+import { botService, runtimeContextFromEnv } from '../runtime/context.js';
 import { execInComposeService } from '../runtime/docker-direct.js';
 import { requireEnv } from '../runtime/util.js';
 import { actorFromEnv, normalizeShip } from '../tlon/index.js';
@@ -157,7 +157,7 @@ nodes = [
 print(json.dumps({"path": path, "messages": messages, "summaryNodes": nodes}))
 `;
   const ctx = runtimeContextFromEnv();
-  const result = await execInComposeService(ctx, ctx.services.bot, [
+  const result = await execInComposeService(ctx, botService(ctx), [
     '/opt/hermes-venv/bin/python',
     '-c',
     script,

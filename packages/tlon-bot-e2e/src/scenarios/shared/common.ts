@@ -4,6 +4,7 @@ import { expect } from 'vitest';
 
 import type { DriverName, RuntimeContext } from '../../drivers/types.js';
 import type { FakeModelClient, ReceivedCall } from '../../fake-model/index.js';
+import { botService } from '../../runtime/context.js';
 import {
   connectComposeNetwork,
   disconnectComposeNetwork,
@@ -1373,15 +1374,15 @@ export const commonScenarios: readonly SharedScenario[] = [
       expectPromptSuccess(firstResult, firstReply);
       await expectModelExpectations(ctx.fakeModel, firstKey, firstScript);
 
-      await stopComposeService(ctx, ctx.services.bot);
+      await stopComposeService(ctx, botService(ctx));
       let serviceStarted = false;
       actors.bot.teardown(
         async () => {
           if (!serviceStarted) {
-            await startComposeService(ctx, ctx.services.bot);
+            await startComposeService(ctx, botService(ctx));
           }
         },
-        { label: `restore stopped service ${ctx.services.bot}` }
+        { label: `restore stopped service ${botService(ctx)}` }
       );
       const secondKey = scenarioKey('restart-boundary');
       const secondReply = `Restart boundary reply ${secondKey}`;
@@ -1394,7 +1395,7 @@ export const commonScenarios: readonly SharedScenario[] = [
       await actors.owner.sendDm(
         `${secondTag} This message arrives while the bot is stopped.`
       );
-      await startComposeService(ctx, ctx.services.bot);
+      await startComposeService(ctx, botService(ctx));
       serviceStarted = true;
       await waitForModelCalls(ctx.fakeModel, secondKey);
       await waitForDmBotReply(actors.owner, actors.bot.ship, secondReply);
@@ -1583,15 +1584,15 @@ export const commonScenarios: readonly SharedScenario[] = [
 
       const since = new Date().toISOString();
 
-      await disconnectComposeNetwork(ctx, ctx.services.bot);
+      await disconnectComposeNetwork(ctx, botService(ctx));
       let reconnected = false;
       actors.bot.teardown(
         async () => {
           if (!reconnected) {
-            await connectComposeNetwork(ctx, ctx.services.bot);
+            await connectComposeNetwork(ctx, botService(ctx));
           }
         },
-        { label: `reconnect network for ${ctx.services.bot}` }
+        { label: `reconnect network for ${botService(ctx)}` }
       );
 
       await actors.owner.sendChannelPost({
@@ -1613,7 +1614,7 @@ export const commonScenarios: readonly SharedScenario[] = [
       // resolves when any one of them appears.
       await waitFor(
         async () => {
-          const logs = await readComposeServiceLogs(ctx, ctx.services.bot, {
+          const logs = await readComposeServiceLogs(ctx, botService(ctx), {
             since,
           });
           return driver.streamFaultLogMarkers.some((marker) =>
@@ -1630,7 +1631,7 @@ export const commonScenarios: readonly SharedScenario[] = [
         }
       );
 
-      await connectComposeNetwork(ctx, ctx.services.bot);
+      await connectComposeNetwork(ctx, botService(ctx));
       reconnected = true;
 
       await waitForModelCalls(ctx.fakeModel, key);
@@ -2416,7 +2417,7 @@ async function writeHermesCronMarkerScript(
   scriptName: string,
   marker: string
 ): Promise<void> {
-  const result = await execInComposeService(ctx, ctx.services.bot, [
+  const result = await execInComposeService(ctx, botService(ctx), [
     'python3',
     '-c',
     String.raw`
@@ -2438,7 +2439,7 @@ async function createHermesCronJob(
   ctx: RuntimeContext,
   scriptName: string
 ): Promise<string> {
-  const result = await execInComposeService(ctx, ctx.services.bot, [
+  const result = await execInComposeService(ctx, botService(ctx), [
     'python3',
     '-c',
     String.raw`
@@ -2468,7 +2469,7 @@ async function runHermesCronJob(
 ): Promise<void> {
   const result = await execInComposeService(
     ctx,
-    ctx.services.bot,
+    botService(ctx),
     [
       'python3',
       '-c',
@@ -2494,7 +2495,7 @@ async function removeHermesCronMarkerScript(
   ctx: RuntimeContext,
   scriptName: string
 ): Promise<void> {
-  const result = await execInComposeService(ctx, ctx.services.bot, [
+  const result = await execInComposeService(ctx, botService(ctx), [
     'python3',
     '-c',
     String.raw`
@@ -2512,7 +2513,7 @@ async function removeHermesCronJobAndOutput(
   ctx: RuntimeContext,
   jobId: string
 ): Promise<void> {
-  const result = await execInComposeService(ctx, ctx.services.bot, [
+  const result = await execInComposeService(ctx, botService(ctx), [
     'python3',
     '-c',
     String.raw`

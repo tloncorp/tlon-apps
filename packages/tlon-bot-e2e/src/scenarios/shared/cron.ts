@@ -3,6 +3,7 @@ import type {
   ExecResult,
   RuntimeContext,
 } from '../../drivers/types.js';
+import { botService } from '../../runtime/context.js';
 import {
   execInContainer,
   resolveComposeContainer,
@@ -248,7 +249,7 @@ async function createCronCommandScope(
 ): Promise<CronCommandScope> {
   const containerId = await resolveComposeContainer(
     ctx,
-    ctx.services.bot,
+    botService(ctx),
     undefined,
     Math.min(
       commandTimeoutMs,

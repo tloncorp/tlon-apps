@@ -161,7 +161,9 @@ async function runDriverRuntime(args: {
       requestedRuntimeEndpointPorts(ctx.endpoints)
     );
     await args.driver.beforeComposeBuild?.(ctx);
-    await compose.build([ctx.services.bot]);
+    if (ctx.services.bot) {
+      await compose.build([ctx.services.bot]);
+    }
     await args.driver.beforeComposeUp?.(ctx, compose);
     await compose.up([ctx.services.ships, ctx.services.fakeModel], {
       timeoutMs: COMPOSE_UP_TIMEOUT_MS,

@@ -58,7 +58,8 @@ export interface RuntimeSeed {
 }
 
 export interface DriverServices {
-  bot: string;
+  /** Absent when the bot runs on the bot ship rather than in a container. */
+  bot?: string;
   ships: string;
   fakeModel: string;
   logServices: string[];
