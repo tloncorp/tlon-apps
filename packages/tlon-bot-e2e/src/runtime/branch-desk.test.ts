@@ -12,6 +12,7 @@ import type {
   RuntimeContext,
   ShipEndpoint,
 } from '../drivers/types.js';
+import type { DockerExecOptions } from './docker-direct.js';
 import {
   type BranchDeskDependencies,
   applyBranchDesk,
@@ -34,6 +35,7 @@ const OLD_MANIFEST = `${createHash('sha256').update('old desk').digest('hex')}  
 
 afterEach(async () => {
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
   await Promise.all(
     tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true }))
   );
@@ -299,6 +301,7 @@ describe('applyBranchDesk control flow', () => {
 
 describe('applyDesk for a desk the ship lacks', () => {
   test('creates, commits, then installs the desk and waits for its agents', async () => {
+    vi.stubEnv('TLON_BOT_E2E_DESK_READY_TIMEOUT_MS', '123456');
     const harness = new BranchDeskHarness({ desk: 'extra', hashes: {} });
 
     await applyDesk(
@@ -318,6 +321,10 @@ describe('applyDesk for a desk the ship lacks', () => {
     expect(indexes.every((index) => index > -1)).toBe(true);
     expect(indexes).toEqual([...indexes].sort((a, b) => a - b));
     expect(harness.events.indexOf('health:zod')).toBeGreaterThan(indexes[3]);
+    expect(harness.hoodOptions['install ~zod %extra']).toEqual({
+      timeoutMs: 123_456,
+    });
+    expect(harness.hoodOptions['commit %extra']).toBeUndefined();
   });
 });
 
@@ -409,6 +416,7 @@ class BranchDeskHarness {
   readonly events: string[] = [];
   readonly waitedShipUrls: string[] = [];
   mountManifestArgv: string[] | undefined;
+  readonly hoodOptions: Record<string, DockerExecOptions | undefined> = {};
   readonly restartComposeService = vi.fn(async () => {
     this.events.push('restart-ships');
   });
@@ -482,11 +490,12 @@ class BranchDeskHarness {
   };
 
   private readonly execInComposeService: BranchDeskDependencies['execInComposeService'] =
-    async (_ctx, _service, argv) => {
+    async (_ctx, _service, argv, opts) => {
       const script = argv[2] ?? '';
       if (argv[1] === '-e' && script.includes('+hood/')) {
         const ship = argv[3] as ShipLabel;
         const command = argv[4] ?? '';
+        this.hoodOptions[command] = opts;
         if (command === `new-desk %${this.desk}`) {
           this.events.push(`new-desk:${ship}`);
           this.hashes[ship] = 'empty-hash';

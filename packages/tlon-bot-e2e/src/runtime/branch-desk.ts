@@ -16,6 +16,7 @@ import type { RuntimeContext, ShipEndpoint } from '../drivers/types.js';
 import { runCommand } from './compose.js';
 import {
   copyIntoComposeService,
+  type DockerExecOptions,
   execInComposeService,
   restartComposeService,
 } from './docker-direct.js';
@@ -321,11 +322,14 @@ export async function applyDesk(
               null,
               dependencies
             );
+            // Unlike commit, install answers only once the desk's agents are
+            // built, so it gets the desk build's budget.
             await hoodCommand(
               ctx,
               ship,
               `install ${endpoint.ship} %${desk}`,
-              dependencies
+              dependencies,
+              { timeoutMs: deskReadyTimeoutMs() }
             );
           }
           await waitForDeskReady(
@@ -567,12 +571,14 @@ async function hoodCommand(
   ctx: RuntimeContext,
   ship: ShipLabel,
   command: string,
-  dependencies: BranchDeskDependencies
+  dependencies: BranchDeskDependencies,
+  opts?: DockerExecOptions
 ) {
   const result = await dependencies.execInComposeService(
     ctx,
     ctx.services.ships,
-    ['node', '-e', HOOD_LOOPBACK_SCRIPT, ship, command]
+    ['node', '-e', HOOD_LOOPBACK_SCRIPT, ship, command],
+    opts
   );
   if (result.exitCode === HOOD_CONNECTION_FAILURE_EXIT) {
     throw new ShipUnavailableError(
