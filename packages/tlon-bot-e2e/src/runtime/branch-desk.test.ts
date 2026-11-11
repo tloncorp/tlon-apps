@@ -285,7 +285,7 @@ describe('applyBranchDesk control flow', () => {
     const harness = new BranchDeskHarness({
       assemblyResult: {
         exitCode: 143,
-        stderr: 'assemble-desk.sh timed out after 300000ms',
+        stderr: 'just timed out after 300000ms',
       },
     });
 
@@ -445,8 +445,9 @@ class BranchDeskHarness {
     if (this.options.assemblyResult) {
       return success(this.options.assemblyResult);
     }
-    await mkdir(args[1], { recursive: true });
-    await writeFile(path.join(args[1], 'app.hoon'), DESK_CONTENT);
+    const out = args[2].slice('out='.length);
+    await mkdir(out, { recursive: true });
+    await writeFile(path.join(out, 'app.hoon'), DESK_CONTENT);
     return success();
   };
 

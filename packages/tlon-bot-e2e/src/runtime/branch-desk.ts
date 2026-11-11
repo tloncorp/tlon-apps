@@ -137,7 +137,7 @@ const sha256 = (content: Buffer) =>
   createHash('sha256').update(content).digest('hex');
 
 // Frontend-only commits must not force an otherwise identical Hoon desk
-// through an expensive |commit: assemble-desk.sh stamps HEAD into commit.txt,
+// through an expensive |commit: the build stamps HEAD into commit.txt,
 // and the glob bot rewrites the docket's glob-http line several times a day on
 // develop. So commit.txt is skipped and the docket is hashed through
 // desk-identity.sh, which drops only that line; other docket changes (a
@@ -185,13 +185,18 @@ export async function applyBranchDesk(
       `==> Applying branch %groups desk to ${ships.map((s) => `~${s}`).join(', ')}...`
     );
     const assembled = await dependencies.runCommand(
-      'bash',
-      [path.join(ctx.repoRoot, 'scripts/assemble-desk.sh'), deskDir],
+      'just',
+      [
+        '--justfile',
+        path.join(ctx.repoRoot, 'justfile'),
+        `out=${deskDir}`,
+        'build',
+      ],
       {
         cwd: ctx.repoRoot,
         env: processEnvRecord(),
         timeoutMs: ASSEMBLE_DESK_TIMEOUT_MS,
-        // assemble-desk.sh spawns peru/git descendants that inherit the
+        // The build spawns git descendants that inherit the
         // stdio pipes; without a tree kill a hung fetch outlives the bound.
         killTree: true,
       }

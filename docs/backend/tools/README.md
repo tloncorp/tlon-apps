@@ -2,10 +2,11 @@
 
 The following tools are available to aid development on Urbit:
 
-- `backend/run-tests.sh` — run the backend unit and Aqua test suites.
-- `backend/update-pill.sh` — generate a pill containing specified `%base` and `%groups` desks.
-- `backend/gen-moon.sh` — generate a moon.
-- `scripts/assemble-desk.sh <target-dir>` — assemble a complete `%groups` desk by layering `desk-deps/` and `desk/` into the target.
+- `scripts/backend/run-tests.sh` — run the backend unit and Aqua test suites.
+- `scripts/backend/update-pill.sh` — generate a pill containing specified `%base` and `%groups` desks.
+- `scripts/backend/gen-moon.sh` — generate a moon.
+- `just build` — assemble a complete `%groups` desk into `desk-out/` by layering `desk-deps/` and `desk/`.
+- `just install <pier>/groups` — build, then replace a mounted `%groups` desk with the result.
 
 ## Validating repository Hoon on a running ship
 
@@ -13,12 +14,13 @@ Use the complete assembled desk whenever repository changes are tested on a
 running ship. If the ship's pier is at `<pier>`, synchronize the Unix mount with:
 
 ```sh
-./scripts/assemble-desk.sh <pier>/groups
+just install <pier>/groups
 ```
 
-The script synchronizes vendored dependencies, clears stale files from the
-target, overlays repository sources, and stamps `commit.txt`. Point it only at
-the intended `%groups` Unix mount.
+The recipe fetches the pinned dependencies, layers repository sources over
+them, stamps `commit.txt`, and replaces the mount with the result, deleting
+every file there that the build did not produce. Point it only at the intended
+`%groups` Unix mount.
 
 Without switching to the ship's tmux session, send:
 

@@ -23,19 +23,19 @@ set -euo pipefail
 #   2. the boot pill: IMPLICIT, whatever `urbit -F` fetches for that vere. At
 #      v4.6 that is a %brass pill carrying %base + %landscape + %groups, and it
 #      builds `zuse: 0v1b.4qafq` (kelvin 408), matching desk/sys.kelvin. The
-#      repo's own test pill (backend/run-tests.sh, groups-v11-3-0-408k.pill) is
+#      repo's own test pill (scripts/backend/run-tests.sh, groups-v11-3-0-408k.pill) is
 #      the same kernel but installs no %docket/%settings/%storage/%landscape, so
 #      the web client cannot run on a pier booted from it — that is why this
 #      uses `-F` and not `-B <pill>`.
 #   3. the desk: the git tag named by the ship's `deskVersion`, assembled with
-#      that tag's own peru.yaml.
+#      that tag's own pinned dependencies.
 #
 # If a future vere bundles a pill on a different kelvin from desk/sys.kelvin the
 # commit will fail to build; bump $VERE_VERSION deliberately, not by drifting.
 #
 # The desk is assembled the way deploy.sh does it: a git worktree of the tag,
-# `peru sync` against that tag's peru.yaml, then scripts/assemble-desk.sh
-# (desk-deps/ with --delete, then desk/ on top).
+# then that tag's own fetch of its pinned dependencies and assembly
+# (desk-deps/, then desk/ on top), replacing the mounted desk.
 #
 # Usage:
 #   ./build-n1-pier.sh                     # ~bud at the manifest's deskVersion
@@ -54,7 +54,7 @@ MANIFEST_FILE="$RUBE_DIR/../e2e/shipManifest.json"
 SHIP="bud"
 DESK_TAG=""
 HTTP_PORT=""
-# Pinned, not `latest`: see the header. Same host/layout backend/run-tests.sh
+# Pinned, not `latest`: see the header. Same host/layout scripts/backend/run-tests.sh
 # uses for its own pinned vere.
 VERE_VERSION="${VERE_VERSION:-v4.6}"
 # A fakeship binds ames on a port derived from its @p, so two fake ~buds cannot
@@ -120,10 +120,9 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 
-for tool in jq curl rsync git peru; do
+for tool in jq curl rsync git; do
     if ! command -v "$tool" >/dev/null 2>&1; then
         print_error "$tool is required but not installed"
-        [ "$tool" = "peru" ] && print_info "install with: pipx install peru"
         exit 1
     fi
 done
@@ -250,7 +249,7 @@ if ! vere_is_pinned; then
     fi
     print_info "Downloading urbit $VERE_VERSION ($plat-$machine)..."
     mkdir -p "$(dirname "$VERE")"
-    # A bare binary, not a tarball -- the layout backend/run-tests.sh pins too.
+    # A bare binary, not a tarball -- the layout scripts/backend/run-tests.sh pins too.
     # mktemp needs an explicit XXXXXX template to be portable to GNU coreutils.
     tmp_bin="$(mktemp -t urbit-bin.XXXXXX)"
     curl -fsSL \
@@ -355,13 +354,28 @@ TAG_TREE="$WORK_DIR/$DESK_TAG"
 git -C "$PROJECT_ROOT" worktree add --detach --quiet "$TAG_TREE" "$DESK_TAG"
 print_status "$DESK_TAG checked out at $TAG_TREE ($(git -C "$TAG_TREE" rev-parse --short HEAD))"
 
-# peru sync + assemble against the TAG's peru.yaml and desk/, not this
-# checkout's — the pier must carry the N-1 desk exactly as it shipped. peru
-# caches in the tree it runs from, which is a throwaway worktree, so point it at
-# the main checkout's cache: otherwise every rebuild re-clones urbit/urbit.
-export PERU_CACHE_DIR="${PERU_CACHE_DIR:-$PROJECT_ROOT/.peru/cache}"
-"$TAG_TREE/scripts/sync-deps.sh"
-"$TAG_TREE/scripts/assemble-desk.sh" "$PIER/groups"
+# Fetch and assemble against the TAG's pinned dependencies and desk/, not this
+# checkout's — the pier must carry the N-1 desk exactly as it shipped.
+if [ -f "$TAG_TREE/justfile" ]; then
+    if ! command -v just >/dev/null 2>&1; then
+        print_error "just is required to assemble $DESK_TAG but not installed"
+        exit 1
+    fi
+    just --justfile "$TAG_TREE/justfile" install "$PIER/groups"
+else
+    # A tag from before the justfile assembles with its own scripts, which
+    # vendor with peru. peru caches in the tree it runs from, which is a
+    # throwaway worktree, so point it at the main checkout's cache: otherwise
+    # every rebuild re-clones urbit/urbit.
+    if ! command -v peru >/dev/null 2>&1; then
+        print_error "peru is required to assemble $DESK_TAG but not installed"
+        print_info "install with: pipx install peru"
+        exit 1
+    fi
+    export PERU_CACHE_DIR="${PERU_CACHE_DIR:-$PROJECT_ROOT/.peru/cache}"
+    "$TAG_TREE/scripts/sync-deps.sh"
+    "$TAG_TREE/scripts/assemble-desk.sh" "$PIER/groups"
+fi
 
 # %cz is the desk hash. A kiln commit that changes nothing still reports
 # success, so the hash is the only proof the desk actually landed.

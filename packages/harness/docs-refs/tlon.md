@@ -701,7 +701,7 @@ proceed independently.
 - React `TlonSettings`, `TlonModels`, `TlonProfile`, `ShipPicker`, `ToolOptions`: replaceable configuration UI.
 
 `just build` copies the Tlon protocol types and JSON codecs listed in
-`tlon-files.txt` from the repository's `desk/`, under their upstream names. It
+`desk-deps.yaml` from the repository's `desk/`, under their upstream names. It
 takes no applications, marks, desk bill or frontend from that desk.
 
 ## Conversation tools and scheduled work

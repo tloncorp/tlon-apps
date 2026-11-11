@@ -29,7 +29,7 @@ jobs:
   #   2. No open pier-refresh PR. One refresh PR at a time; a human merges or
   #      closes it before the next one is cut (no branch reuse).
   #   3. Desk inputs changed. The four hashes in the sidecar identify
-  #      everything assemble-desk.sh reads, so equal hashes mean the archived
+  #      everything `just build` reads, so equal hashes mean the archived
   #      desk already matches and a refresh would change nothing. The desk
   #      hash (scripts/desk-identity.sh) ignores the docket's glob-http line:
   #      the glob bot rewrites it several times a day, and a pier whose
@@ -92,11 +92,11 @@ jobs:
             blob() { git show "HEAD:$1" | git hash-object --stdin; }
             if [ -f "$sidecar" ] && jq -e \
               --arg desk "$(scripts/desk-identity.sh tree HEAD)" \
-              --arg peru "$(blob peru.yaml)" \
-              --arg assemble "$(blob scripts/assemble-desk.sh)" \
-              --arg sync "$(blob scripts/sync-deps.sh)" \
-              '.deskTreeNoGlob == $desk and .peruBlob == $peru and
-               .assembleBlob == $assemble and .syncDepsBlob == $sync' \
+              --arg deps "$(blob desk-deps.yaml)" \
+              --arg justfile "$(blob justfile)" \
+              --arg fetch "$(blob scripts/backend/fetch-deps.sh)" \
+              '.deskTreeNoGlob == $desk and .deskDepsBlob == $deps and
+               .justfileBlob == $justfile and .fetchDepsBlob == $fetch' \
               "$sidecar" > /dev/null; then
               skip="desk inputs unchanged since generation $(jq -r .generation "$sidecar")"
             fi
@@ -144,12 +144,20 @@ jobs:
             - recursive: true
               args: [--frozen-lockfile]
 
-      # rube runs `peru sync` itself on every prep, so there is no desk-deps
-      # cache step here: it would not save the sync.
-      - name: Install peru
+      - name: Setup just
+        # rube assembles ship desks with the repository justfile.
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+        with:
+          just-version: 1.59.0
+
+      - name: Install yq
+        # fetch-deps.sh reads desk-deps.yaml with yq v4, which apt
+        # doesn't ship.
         run: |
-          pipx install --force peru
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL https://github.com/mikefarah/yq/releases/download/v4.54.1/yq_linux_amd64 -o "$RUNNER_TEMP/bin/yq"
+          chmod +x "$RUNNER_TEMP/bin/yq"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
       - name: Install archive tools
         run: |

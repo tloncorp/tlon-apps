@@ -6,7 +6,7 @@
 
 set -eu
 
-# Always run in ./backend
+# Always run in ./scripts/backend
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
 fatal() {
@@ -320,7 +320,7 @@ prepare_git_checkout() {
         fatal "Failed to fetch $url at $ref"
     git -C "$dir" checkout -q --force --detach FETCH_HEAD ||
         fatal "Failed to check out $url at $ref"
-    git -C "$dir" clean -fdx -e '.peru' ||
+    git -C "$dir" clean -fdx -e '.peru' -e '.deps-cache' ||
         fatal "Failed to clean repository in $dir"
 }
 
@@ -394,7 +394,14 @@ sleep 3
 echo "Mounting groups"
 mount_desk %groups
 
-if ! (cd ./tlon-apps-git && ./scripts/assemble-desk.sh ../$pier/groups)
+# A ref from before the justfile assembles with its own script.
+if [[ -f tlon-apps-git/justfile ]]
+then
+    install_groups="just install ../$pier/groups"
+else
+    install_groups="./scripts/assemble-desk.sh ../$pier/groups"
+fi
+if ! (cd ./tlon-apps-git && $install_groups)
 then
     fatal "Failed to sync groups desk"
 fi

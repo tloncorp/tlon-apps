@@ -2,9 +2,9 @@
 
 set -eu
 
-# Always run in ./backend so the cookie cache has a predictable location.
+# Always run in ./scripts/backend so the cookie cache has a predictable location.
 # Preserve the caller's directory so a relative boot directory is resolved as
-# users expect rather than relative to ./backend.
+# users expect rather than relative to ./scripts/backend.
 caller_dir=$PWD
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
