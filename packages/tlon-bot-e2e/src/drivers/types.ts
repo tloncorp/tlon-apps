@@ -6,7 +6,7 @@ import type {
   Step,
 } from '../fake-model/index.js';
 
-export type DriverName = 'hermes' | 'openclaw';
+export type DriverName = 'harness' | 'hermes' | 'openclaw';
 
 export type RuntimeCapability =
   | 'cron'
