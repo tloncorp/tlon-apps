@@ -16,32 +16,34 @@ jobs:
       fail-fast: false
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Set up JDK 17
         if: matrix.platform == 'android'
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@e9fbacdec3bb3b6036605a3e6f7995d66773a8c6 # v3
         with:
           java-version: "17"
           distribution: "temurin"
       - name: Setup Android SDK
         if: matrix.platform == 'android'
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+        with:
+          packages: platform-tools
       - name: Set Android Home
         if: matrix.platform == 'android'
         run: export ANDROID_HOME=$RUNNER_WORKSPACE/.android/sdk
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .nvmrc
       - name: Set up Expo and EAS
-        uses: expo/expo-github-action@v8
+        uses: expo/expo-github-action@c7b66a9c327a43a8fa7c0158e7f30d6040d2481e # v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
       - name: Setup PNPM
-        uses: pnpm/action-setup@v3
+        uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d # v3
       - name: "Setup jq"
-        uses: dcarbone/install-jq-action@v3
+        uses: dcarbone/install-jq-action@b7ef57d46ece78760b4019dbc4080a1ba2a40b45 # v3
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Build for ${{ matrix.platform }}
@@ -74,7 +76,7 @@ jobs:
           echo "Downloading build from ${{ steps.build.outputs.url }}"
           curl -L ${{ steps.build.outputs.url }} -o android-build.apk
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ matrix.platform }}-build
           path: |
@@ -87,9 +89,9 @@ jobs:
     name: Test iOS build
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Download iOS build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: ios-build
           path: ./ios-build
@@ -100,7 +102,7 @@ jobs:
           echo "iOS build directory:"
           ls -la ./ios-build
       - name: Run iOS tests
-        uses: mobile-dev-inc/action-maestro-cloud@v1
+        uses: mobile-dev-inc/action-maestro-cloud@892c9dd6e50cff4f8c9046f6263047dc5bf419d5 # v1
         with:
           api-key: ${{ secrets.MAESTRO_CLOUD_API_KEY }}
           project-id: ${{ secrets.ROBIN_PROJECT_ID }}
@@ -117,9 +119,9 @@ jobs:
     name: Test Android build
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Download Android build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: android-build
           path: ./
@@ -128,7 +130,7 @@ jobs:
           echo "Current directory:"
           ls -la
       - name: Run Android tests
-        uses: mobile-dev-inc/action-maestro-cloud@v1
+        uses: mobile-dev-inc/action-maestro-cloud@892c9dd6e50cff4f8c9046f6263047dc5bf419d5 # v1
         with:
           api-key: ${{ secrets.MAESTRO_CLOUD_API_KEY }}
           project-id: ${{ secrets.ROBIN_PROJECT_ID }}

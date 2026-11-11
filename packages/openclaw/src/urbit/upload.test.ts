@@ -352,6 +352,32 @@ describe('prepareOutboundMedia', () => {
         prepareOutboundMedia(file, { mediaLocalRoots: [root] })
       ).rejects.toThrow('Media upload did not return a public https URL');
     });
+
+    it('rejects without an unhandled rejection when the batch stops during the read', async () => {
+      const unhandled: unknown[] = [];
+      const onUnhandled = (reason: unknown) => unhandled.push(reason);
+      process.on('unhandledRejection', onUnhandled);
+      try {
+        mockUploadFile.mockImplementation(async ({ signal }) => {
+          signal?.throwIfAborted();
+          return { url: 'https://storage.example.com/cat.png' };
+        });
+        const batch = new AbortController();
+        const pending = prepareOutboundMedia(file, {
+          mediaLocalRoots: [root],
+          mediaReadFile: async () => {
+            batch.abort(new Error('batch stopped'));
+            return image;
+          },
+          signal: batch.signal,
+        });
+        await expect(pending).rejects.toThrow('batch stopped');
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        expect(unhandled).toEqual([]);
+      } finally {
+        process.off('unhandledRejection', onUnhandled);
+      }
+    });
   });
 
   describe('http rejection', () => {
@@ -723,6 +749,46 @@ describe('prepareOutboundMedia', () => {
     batch.abort(new Error('batch stopped'));
     await expect(pending).rejects.toThrow('batch stopped');
   }, 1_000);
+
+  it('cancels the upload requests when the batch stops', async () => {
+    mockImageFetch();
+    mockS3Capable();
+    let uploadSignal: AbortSignal | undefined;
+    let uploading!: () => void;
+    const started = new Promise<void>((resolve) => (uploading = resolve));
+    mockUploadFile.mockImplementation(({ signal }) => {
+      uploadSignal = signal;
+      uploading();
+      return new Promise(() => undefined);
+    });
+    const batch = new AbortController();
+    const pending = prepareOutboundMedia('https://example.com/image.png', {
+      signal: batch.signal,
+    });
+    await started;
+    expect(uploadSignal?.aborted).toBe(false);
+    batch.abort(new Error('batch stopped'));
+    await expect(pending).rejects.toThrow('batch stopped');
+    expect(uploadSignal?.aborted).toBe(true);
+  }, 1_000);
+
+  it('falls back to the source URL when an upload request times out', async () => {
+    mockImageFetch();
+    mockS3Capable();
+    mockUploadFile.mockRejectedValue(
+      new DOMException(
+        'The operation was aborted due to timeout',
+        'TimeoutError'
+      )
+    );
+
+    const result = await prepareOutboundMedia('https://example.com/image.png');
+
+    expect(result.url).toBe('https://example.com/image.png');
+    expect(mockUploadFile).toHaveBeenCalledWith(
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
+  });
 
   describe('filename edge cases', () => {
     it('sniffed PNG gets .png extension', async () => {

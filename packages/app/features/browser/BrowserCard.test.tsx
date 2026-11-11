@@ -1,7 +1,8 @@
-vi.mock('./BrowserWalletCard', () => ({ BrowserWalletCard: () => null }));
+vi.mock('./BrowserWalletCard', () => ({ BrowserWalletCard: 'WalletCard' }));
+import { BrowserWalletCard } from './BrowserWalletCard';
 import React from 'react';
-import { Button } from '@tloncorp/ui';
 import { ReferenceSkeleton } from '../../ui/components/ContentReference/Reference';
+import { A2UICardButton } from '../../ui/components/PostContent/a2uiCardParts';
 import { BrowserSessionPreview } from './BrowserSessionPreview';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
@@ -20,7 +21,6 @@ vi.mock('@tloncorp/shared', () => ({
   }),
 }));
 vi.mock('@tloncorp/ui', () => ({
-  Button: 'Button',
   Icon: 'Icon',
   Text: 'Text',
   useToast: () => mocks.toast,
@@ -28,7 +28,20 @@ vi.mock('@tloncorp/ui', () => ({
 vi.mock('../../ui/components/ContentReference/Reference', () => ({
   ReferenceSkeleton: 'ReferenceSkeleton',
 }));
-vi.mock('tamagui', () => ({ XStack: 'XStack', YStack: 'YStack' }));
+vi.mock('tamagui', () => ({
+  XStack: 'XStack',
+  YStack: 'YStack',
+  isWeb: false,
+}));
+vi.mock(
+  '../../ui/components/PostContent/a2uiCardParts',
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import('../../ui/components/PostContent/a2uiCardParts')
+    >()),
+    A2UICardButton: 'A2UICardButton',
+  })
+);
 vi.mock('./BrowserCredentialHandoffContext', () => ({
   useOptionalBrowserCredentialHandoff: () => mocks,
 }));
@@ -42,7 +55,10 @@ vi.mock('./BrowserSessionPreview', () => ({
     children,
 }));
 vi.mock('../../ui/components/PostContent/contentUtils', () => ({
-  useContentContext: () => ({ canUseBrowserCards: mocks.allowed }),
+  useContentContext: () => ({
+    canUseBrowserCards: mocks.allowed,
+    browserCardBot: '~pinser-botter-dopwed-magrev',
+  }),
 }));
 const viewerUrl = 'https://browser-session.tlon.network/s/payload.signature';
 const login = {
@@ -64,7 +80,7 @@ function mount(node: React.ReactElement) {
   act(() => {
     tree = create(node);
   });
-  return tree.root.findByType(Button);
+  return tree.root.findByType(A2UICardButton);
 }
 it('renders the real vault card and allows reopening its sheet', async () => {
   const button = mount(
@@ -114,7 +130,7 @@ it.each([login, { type: 'browser-session', version: 1, viewerUrl } as const])(
     expect(tree.root.findByType(ReferenceSkeleton).props.message).toBe(
       'This message isn’t visible to you.'
     );
-    expect(tree.root.findAllByType(Button)).toHaveLength(0);
+    expect(tree.root.findAllByType(A2UICardButton)).toHaveLength(0);
     expect(tree.root.findAllByType(BrowserSessionPreview)).toHaveLength(0);
     expect(JSON.stringify(tree.toJSON())).not.toContain('wikipedia.org');
     expect(mocks.openForm).not.toHaveBeenCalled();
@@ -152,4 +168,23 @@ it('reports viewer failure without leaking capabilities and allows retry', async
   expect(mocks.toast).toHaveBeenCalled();
   expect(JSON.stringify(mocks.trackError.mock.calls)).not.toContain(viewerUrl);
   expect(button.props.disabled).toBe(false);
+});
+
+it('passes the message bot to wallet cards and keeps foreign cards inert', () => {
+  const block = {
+    type: 'browser-card',
+    card: { type: 'browser-wallet', version: 1, requestId: 'request' },
+  } as const;
+  act(() => {
+    tree = create(<BrowserCardBlock block={block} />);
+  });
+  expect(tree.root.findByType(BrowserWalletCard).props).toMatchObject({
+    requestId: 'request',
+    botMoon: '~pinser-botter-dopwed-magrev',
+  });
+  mocks.allowed = false;
+  act(() => {
+    tree.update(<BrowserCardBlock block={block} />);
+  });
+  expect(tree.root.findAllByType(BrowserWalletCard)).toHaveLength(0);
 });

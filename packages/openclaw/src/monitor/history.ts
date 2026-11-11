@@ -297,6 +297,22 @@ export async function lookupOrFetchCachedChannelMessage(
   return undefined;
 }
 
+/**
+ * Drop cached channel history. getChannelHistory serves a full cache without
+ * fetching, so a cache that outlived a monitor restart would hide messages
+ * posted while the monitor was down; each monitor start begins empty.
+ * `dm/` entries survive: getChannelHistory never reads them, and the DM
+ * reaction handler needs them to recognize a reaction to the bot's own
+ * pre-restart DM as a message rather than a system event.
+ */
+export function clearChannelHistoryCache(): void {
+  for (const key of messageCache.keys()) {
+    if (!key.startsWith('dm/')) {
+      messageCache.delete(key);
+    }
+  }
+}
+
 export function cacheMessage(channelNest: string, message: TlonHistoryEntry) {
   if (!messageCache.has(channelNest)) {
     messageCache.set(channelNest, []);

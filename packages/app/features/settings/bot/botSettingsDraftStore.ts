@@ -1,4 +1,3 @@
-import type { TlawnBrowserService } from '@tloncorp/api';
 import create from 'zustand';
 
 // Type-only, so this module carries no runtime dependency on the hosting API
@@ -9,14 +8,12 @@ import type { ChatFormValues, ModelFormValues } from './helpers';
 
 export type BotSettingsDraftValues = {
   nickname: string;
-  browserService: TlawnBrowserService;
   model: ModelFormValues;
   chat: ChatFormValues;
 };
 
 export const EMPTY_VALUES: BotSettingsDraftValues = {
   nickname: '',
-  browserService: 'steel',
   model: { provider: '', model: '', zdr: false, fallbacks: [] },
   chat: {
     dmAllowlist: '',
@@ -65,7 +62,6 @@ export const getPendingFields = (
   draft: BotSettingsDraftValues
 ): BotSettingsPendingFields => ({
   nickname: baseline.nickname !== draft.nickname,
-  browserService: baseline.browserService !== draft.browserService,
   modelProvider: baseline.model.provider !== draft.model.provider,
   model: baseline.model.model !== draft.model.model,
   zdr: baseline.model.zdr !== draft.model.zdr,

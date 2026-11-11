@@ -46,9 +46,9 @@ export function isVisibleChannelPost(
     return false;
   }
   if (!post.blob) return true;
-  const isProvisionTransport = postHasBlobEntry(
-    post.blob,
-    'tlon-agent-provision'
+  const entries = parsePostBlob(post.blob);
+  const isProvisionTransport = entries.some(
+    (entry) => entry.type === 'tlon-agent-provision'
   );
   // Automatic provision failures are recovered from the source plan card,
   // which now receives definitive send failures. Never flash its synthetic
@@ -57,7 +57,7 @@ export function isVisibleChannelPost(
     isProvisionTransport &&
     (post.authorId === currentUserId || post.authorId === groupHostUserId)
   ) {
-    const isAutomatic = parsePostBlob(post.blob).some(
+    const isAutomatic = entries.some(
       (entry) =>
         entry.type === 'tlon-a2ui-selection' &&
         entry.componentId === 'auto-provision'
@@ -68,7 +68,7 @@ export function isVisibleChannelPost(
   if (post.authorId !== currentUserId) return true;
   if (post.deliveryStatus === 'failed') return true;
 
-  return !postHasBlobEntry(post.blob, 'tlon-agent-intro-request');
+  return !entries.some((entry) => entry.type === 'tlon-agent-intro-request');
 }
 
 export function isAgentOnboardingOrientationCompletePost(

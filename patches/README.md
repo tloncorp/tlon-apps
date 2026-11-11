@@ -194,6 +194,10 @@ start date, or if we stop relying on frequent background refresh.
 Local patch:
 `patches/expo-modules-core@58.0.20.patch`
 
+The patch makes two independent changes.
+
+### Empty runtime `global.js`
+
 Why:
 `build/ts-declarations/global.js`, which `build/index.js` imports for its side
 effects, imports `EventEmitter`, `NativeModule`, `SharedObject` and `SharedRef`
@@ -215,8 +219,80 @@ Validation:
   "No matching export" errors, and the web E2E tests load the app.
 
 Removal:
-Drop the patch once expo-modules-core emits type-only imports (or no imports)
+Drop this part once expo-modules-core emits type-only imports (or no imports)
 in `build/ts-declarations/global.js`.
+
+### Android: stop the `AsyncFunctionQueue` thread on destroy
+
+Why:
+Every Android `AppContext` (one per React instance) starts a
+`HandlerThread("expo.modules.AsyncFunctionQueue")`. `AppContext.onDestroy()`
+cancels the coroutine scope that runs on it but never quits the looper, so the
+thread outlives the instance. Our background sync (`expo-background-task`)
+starts the React host headlessly and destroys it after each run. A process that
+FCM and background sync keep alive therefore leaks one thread per sync. On a
+Pixel 7a, 20 forced background-task runs grew the process from 125 to 154
+threads, 20 of them `AsyncFunctionQueue`. Crashlytics thread lists from the
+`pthread_create … failed: Try again` crashes (TLON-6956, TLON-6892) show 27–28
+of these threads.
+
+What it does:
+Keeps a reference to the `HandlerThread` and calls `quitSafely()` on it in
+`onDestroy()`, right after the scope is cancelled.
+
+Upstream:
+- none filed; expo/expo `main` still starts the thread without quitting it
+
+Validation:
+- On a Pixel 7a with a `previewReleaseDebuggable` build, force the background
+  task repeatedly (`adb shell cmd jobscheduler run -f <package> <job id>`)
+  while the app is in the background, then count threads with
+  `adb shell ps -T -p <pid>`. Unpatched, one `AsyncFunctionQueue` thread is
+  left behind per run. Patched, none are left after nine runs, and the app
+  still opens and runs normally in the foreground.
+
+Removal:
+Drop this part once expo-modules-core quits the `AsyncFunctionQueue` looper in
+`AppContext.onDestroy()`.
+
+## expo-share-intent@8.0.1
+
+Local patch:
+`patches/expo-share-intent@8.0.1.patch`
+
+Why:
+The iOS share extension stores every share under one app-group key: media and
+files as `[SharedMediaFile]` JSON, web URLs as `[WebUrl]` JSON. The URL it
+opens says which type to decode (`#media`, `#weburl`, …). `useShareIntent`
+also calls `getShareIntent` whenever the app becomes active, with the last
+share URL it saw. So sharing a photo and later a web page (or the reverse) in
+one app session decodes the new payload as the old type. `decodeMedia` and
+`decodeWebUrl` force-unwrap the failed decode, and the app crashes with
+SIGTRAP in `closure #1 in ExpoShareIntentModule.definition()`. An
+`io.tlon.groups://dataUrl=…` link with no `#fragment` crashes the same closure
+through `url.fragment!`.
+
+What it does:
+- A payload that does not decode as the URL's type reads as `empty`. The new
+  share URL, which arrives right after, then reads it with the right type.
+- A share URL with no fragment emits `onError` and returns `error`.
+
+Upstream:
+- issue: [achorein/expo-share-intent#243](https://github.com/achorein/expo-share-intent/issues/243);
+  9.0.0 (latest on November 5, 2026) ships the same module
+- Linear: `TLON-6980` (Crashlytics `df44f1d9d4542ec89fc3f66c2f37a90b`)
+
+Validation:
+- On iOS, open `io.tlon.groups://dataUrl=io.tlon.groupsShareKey` (no
+  fragment). The app stays open instead of crashing.
+- Share a photo to Tlon. The forward sheet still opens with it.
+- On a device, share a photo, then a web page from Safari without closing the
+  app, then repeat in the other order. Neither crashes. (On the EAS iOS 26.5
+  simulator, URL shares never reach the app, so this step needs a device.)
+
+Removal:
+Drop the patch once expo-share-intent stops force-unwrapping the decode in
+`ios/ExpoShareIntentModule.swift`.
 
 ## @10play/tentap-editor@0.5.21
 

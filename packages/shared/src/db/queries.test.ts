@@ -3269,6 +3269,55 @@ test('insertChannelUnreads updates nested thread unread conflicts', async () => 
   });
 });
 
+test('insertChanges writes unreads inside its existing transaction', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  await queries.insertChanges({
+    posts: [],
+    groups: [],
+    contacts: [],
+    deletedChannelIds: [],
+    unreads: {
+      groupUnreads: [makeGroupUnread()],
+      channelUnreads: [makeChannelUnread()],
+      threadActivity: [makeThreadUnread()],
+    },
+  });
+
+  expect(await client.$count(schema.groupUnreads)).toBe(1);
+  expect(await client.$count(schema.channelUnreads)).toBe(1);
+  expect(await client.$count(schema.threadUnreads)).toBe(1);
+});
+
+test('unread inserts take more rows than one statement can bind', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  // Enough rows to pass SQLite's 32,766 bound parameters in all three tables.
+  const rowCount = 7000;
+  const ids = Array.from({ length: rowCount }, (_, i) => `${i}`);
+
+  await queries.insertGroupUnreads(
+    ids.map((id) => makeGroupUnread({ groupId: `~zod/bulk-${id}` }))
+  );
+  await queries.insertChannelUnreads(
+    ids.map((id) =>
+      makeChannelUnread({
+        channelId: `chat/~zod/bulk/${id}`,
+        threadUnreads: [makeThreadUnread({ threadId: `nested-${id}` })],
+      })
+    )
+  );
+  await queries.insertThreadUnreads(
+    ids.map((id) => makeThreadUnread({ threadId: `direct-${id}` }))
+  );
+
+  expect(await client.$count(schema.groupUnreads)).toBe(rowCount);
+  expect(await client.$count(schema.channelUnreads)).toBe(rowCount);
+  expect(await client.$count(schema.threadUnreads)).toBe(rowCount * 2);
+});
+
 test('thread unread queries treat notification-only activity as unread until cleared', async () => {
   const client = getClient();
   if (!client) throw new Error('test db not initialized');

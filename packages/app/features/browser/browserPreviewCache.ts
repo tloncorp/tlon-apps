@@ -28,7 +28,7 @@ const subscribe = (listener: () => void) => {
   };
 };
 const snapshot = () => previews;
-// Storage reset runs on logout; discard in-memory page images at the same time.
+// Storage reset runs on logout; discard preview metadata at the same time.
 registerStorageItemListener(terminalCache.config.key, async (value) => {
   if (value === null) {
     previews = {};
@@ -69,7 +69,8 @@ export async function rememberBrowserPreview(
 ) {
   const key = browserCardKey(url);
   const entry = mergeBrowserPreview(previews[key], preview);
-  // Images survive card remounts, but never enter persistent app storage.
+  // Keep thumbnail URLs across remounts. The byte cap also bounds inline images
+  // from older services; new image bytes use the platform image cache.
   let imageBytes = 0;
   previews = Object.fromEntries(
     Object.entries({ ...previews, [key]: entry })

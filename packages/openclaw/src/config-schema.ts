@@ -104,6 +104,7 @@ export const TlonNudgeActiveHoursSchema = z.object({
 export const TlonAccountSchema = z.object({
   name: z.string().optional(),
   enabled: z.boolean().optional(),
+  configWrites: z.boolean().optional(),
   ship: ShipSchema.optional(),
   url: z.string().optional(),
   code: z.string().optional(),
@@ -117,6 +118,8 @@ export const TlonAccountSchema = z.object({
   showModelSignature: z.boolean().optional(),
   // Agent commentary and tool labels in the Thinking row. Default: enabled.
   showCommentary: z.boolean().optional(),
+  responsePrefix: z.string().optional(),
+  historyLimit: z.number().int().min(0).optional(),
   // Auto-accept settings
   autoAcceptDmInvites: z.boolean().optional(), // Auto-accept DMs from ships in dmAllowlist
   autoAcceptGroupInvites: z.boolean().optional(), // No longer governs group-invite authorization or channel persistence; it has no remaining runtime effect and is only parsed, migrated, and logged. Retained for config back-compat pending retirement.
@@ -158,6 +161,7 @@ export const TlonAccountSchema = z.object({
 export const TlonConfigSchema = z.object({
   name: z.string().optional(),
   enabled: z.boolean().optional(),
+  configWrites: z.boolean().optional(),
   ship: ShipSchema.optional(),
   url: z.string().optional(),
   code: z.string().optional(),
@@ -171,6 +175,8 @@ export const TlonConfigSchema = z.object({
   showModelSignature: z.boolean().optional(),
   // Agent commentary and tool labels in the Thinking row. Default: enabled.
   showCommentary: z.boolean().optional(),
+  responsePrefix: z.string().optional(),
+  historyLimit: z.number().int().min(0).optional(),
   authorization: TlonAuthorizationSchema.optional(),
   defaultAuthorizedShips: z.array(ShipSchema).optional(),
   accounts: z.record(z.string(), TlonAccountSchema).optional(),

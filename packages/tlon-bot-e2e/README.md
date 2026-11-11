@@ -126,7 +126,7 @@ pnpm test:integration:shared
 
 ## Hermes Runtime Details
 
-Hermes runtime E2E is not run in CI, and `test:e2e` runs OpenClaw only; use the `test:e2e:hermes` commands above by hand.
+The image builds hermes-agent at `v0.22.6`; set `TLON_E2E_HERMES_AGENT_REF` to build another ref, and the runner logs the effective one (`[hermes] hermes-agent ref ...`) before the build. The adapter's Docker dev loop reads `HERMES_AGENT_REF` instead, so a value exported for that loop does not leak into E2E.
 
 The Hermes E2E compose path does not load `packages/hermes-tlon-adapter/.env`. It writes a fresh `$HERMES_HOME/config.yaml` with:
 
@@ -137,6 +137,40 @@ The Hermes E2E compose path does not load `packages/hermes-tlon-adapter/.env`. I
 -   `platform_toolsets.tlon: [tlon, no_mcp]` in baseline, or `[tlon, cronjob, no_mcp]` when the cron partition sets `HERMES_E2E_ENABLE_CRONJOB=1`
 -   empty `mcp_servers`
 -   `agent.disabled_toolsets: [cronjob]` in baseline and no disabled cronjob toolset in the cron partition
+-   in the LCM lane (below), the LCM plugin in `plugins.enabled`, `context.engine` naming its engine, and `context_engine` appended to `platform_toolsets.tlon`
+
+### LCM lane
+
+`TLON_E2E_HERMES_LCM=1` builds the Hermes image with an LCM context-engine plugin, enables it beside the Tlon plugin (`plugins.enabled`, `context.engine`, and the `context_engine` toolset), and expects its `lcm_*` tools to be advertised on every primary model call. The runner reads the expected tool list from the installed plugin once the stack is ready. With the package suite it also boots a second stack with a small context budget and runs `src/scenarios/hermes-lcm.test.ts`, which drives a DM past the compaction threshold and checks the summary DAG and `lcm_grep` recall. CI runs this as the `lcm` shard of `.github/workflows/hermes-ci.yml`:
+
+```bash
+TLON_E2E_HERMES_LCM=1 pnpm --filter @tloncorp/tlon-bot-e2e test:e2e:hermes:package
+```
+
+The default plugin is lcm-x at the Hermes plugin-catalog pin, with embeddings off so no embedding model is downloaded:
+
+| Variable | Default |
+| --- | --- |
+| `HERMES_LCM_REPO` | `https://github.com/electricsheephq/lcm-x.git` |
+| `HERMES_LCM_REF` | `1a13744482a2448c38d6f9f0b98803f07aac6e81` |
+| `HERMES_LCM_SUBDIR` | `plugin` (empty means the repo root) |
+| `TLON_E2E_HERMES_LCM_PLUGIN` | `hermes-lcm-x` |
+| `TLON_E2E_HERMES_LCM_ENGINE` | `lcm-x` |
+| `LCM_EMBEDDINGS_ENABLED` | `false` |
+
+`LCM_ENTITIES_ENABLED` and `LCM_DISABLED_TOOLS` pass through to every LCM stack. The compaction stack's budget (`HERMES_MODEL_CONTEXT_LENGTH`, `LCM_CONTEXT_THRESHOLD`, `LCM_FRESH_TAIL_COUNT`, `LCM_LEAF_CHUNK_TOKENS`, `LCM_MAX_ASSEMBLY_TOKENS`) can be overridden with the same-named variables, and `TLON_E2E_HERMES_LCM_TURNS` sets how many DM turns the scenario sends (default 10).
+
+To run the lane against hermes-lcm instead, override the same variables. hermes-lcm at `main` currently faults on hermes-agent v0.22.6: its per-turn ingest fails with "file is not a database", Hermes falls back to its built-in compressor, and the `lcm_*` tools disappear.
+
+```bash
+TLON_E2E_HERMES_LCM=1 \
+HERMES_LCM_REPO=https://github.com/stephenschoettler/hermes-lcm.git \
+HERMES_LCM_REF=main \
+HERMES_LCM_SUBDIR= \
+TLON_E2E_HERMES_LCM_PLUGIN=hermes-lcm \
+TLON_E2E_HERMES_LCM_ENGINE=lcm \
+pnpm --filter @tloncorp/tlon-bot-e2e test:e2e:hermes:package
+```
 
 The fake ship service preserves the current rube-\*-group-blob / `vere-v4.5` runtime pairing and deterministic fakezod access codes. Startup logs include artifact URLs, cache hit/miss state, byte sizes, and checksum results. The rube archive checks use the MD5 ETags exposed by `bootstrap.urbit.org`; the Vere archive uses a checked SHA-256.
 

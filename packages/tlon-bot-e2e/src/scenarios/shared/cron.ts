@@ -112,7 +112,12 @@ export async function listCronJobs(
 import json
 from cron.jobs import list_jobs
 
-print(json.dumps([{"id": job["id"], "name": job.get("name", "")} for job in list_jobs(include_disabled=True)]))
+# Hermes >= 0.22 keeps a fired one-shot as a disabled "completed" record
+# instead of deleting it; that record can never run again, so it counts as gone.
+def retired(job):
+    return job.get("state") == "completed" and job.get("enabled") is False and not job.get("next_run_at")
+
+print(json.dumps([{"id": job["id"], "name": job.get("name", "")} for job in list_jobs(include_disabled=True) if not retired(job)]))
 `,
   ]);
   requireSuccess(result, 'list Hermes cron jobs');
@@ -332,9 +337,14 @@ async function preventFutureCronFire(
       String.raw`
 import json
 import sys
-from cron.jobs import pause_job
+from cron.jobs import get_job, pause_job
 
-print(json.dumps(pause_job(sys.argv[1])))
+job = get_job(sys.argv[1])
+# Hermes >= 0.22 refuses to pause a completed one-shot; it cannot fire again.
+if job and job.get("state") == "completed" and job.get("enabled") is False:
+    print(json.dumps(job))
+else:
+    print(json.dumps(pause_job(sys.argv[1])))
 `,
       jobId,
     ]
