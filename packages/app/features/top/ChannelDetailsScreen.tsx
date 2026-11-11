@@ -11,11 +11,13 @@ export function ChannelDetailsScreenView({
   onEditChannelMeta,
   onEditChannelPrivacy,
   onAfterDeleteChannel,
+  hidesChannelManager,
 }: {
   onGoBack?: () => void;
   onEditChannelMeta: (channelId: string, groupId: string) => void;
   onEditChannelPrivacy: (channelId: string, groupId: string) => void;
   onAfterDeleteChannel?: () => void;
+  hidesChannelManager?: boolean;
 }) {
   const { channel } = useChatOptions();
   const { navigateToChannel, navigateBack } = useRootNavigation();
@@ -49,6 +51,7 @@ export function ChannelDetailsScreenView({
       onPressEdit={handlePressEdit}
       onEditChannelPrivacy={onEditChannelPrivacy}
       onAfterDeleteChannel={onAfterDeleteChannel}
+      hidesChannelManager={hidesChannelManager}
     />
   );
 }

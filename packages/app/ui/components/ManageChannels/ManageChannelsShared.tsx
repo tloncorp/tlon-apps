@@ -27,6 +27,7 @@ export type GroupNavSectionWithChannels = Omit<
 
 export interface ManageChannelsScreenViewProps {
   onGoBack: () => void;
+  goToChannel: (channelId: string) => void;
   goToChannelDetails: (channelId: string) => void;
   groupNavSectionsWithChannels: GroupNavSectionWithChannels[];
   group: db.Group | null;
@@ -46,12 +47,15 @@ export interface ManageChannelsScreenViewProps {
 
 export function ChannelItem({
   channel,
+  onPress,
   onEdit,
   index,
   isEditMode,
   dragHandle,
 }: {
   channel: Pick<db.Channel, 'id' | 'type' | 'title'>;
+  /** Opens the channel. Off while sorting, when rows are dragged. */
+  onPress: () => void;
   onEdit: () => void;
   index: number;
   isEditMode?: boolean;
@@ -69,21 +73,27 @@ export function ChannelItem({
       backgroundColor="$background"
       testID={`ChannelItem-${channel.title}-${index}`}
     >
-      <XStack alignItems="center" gap="$l">
-        <ListItem.ChannelIcon
-          // @ts-expect-error - we don't need the whole channel object
-          model={{ type: channel.type }}
-          useTypeIcon
-        />
-        <YStack gap="$2xs">
-          <Text fontSize="$l" paddingVertical="$s">
-            {channel?.title}
-          </Text>
-          <Text fontSize="$s" color="$secondaryText">
-            {getChannelTypeLabel(channel.type)}
-          </Text>
-        </YStack>
-      </XStack>
+      <Pressable
+        flex={1}
+        onPress={isEditMode ? undefined : onPress}
+        testID="OpenChannelButton"
+      >
+        <XStack alignItems="center" gap="$l">
+          <ListItem.ChannelIcon
+            // @ts-expect-error - we don't need the whole channel object
+            model={{ type: channel.type }}
+            useTypeIcon
+          />
+          <YStack gap="$2xs">
+            <Text fontSize="$l" paddingVertical="$s">
+              {channel?.title}
+            </Text>
+            <Text fontSize="$s" color="$secondaryText">
+              {getChannelTypeLabel(channel.type)}
+            </Text>
+          </YStack>
+        </XStack>
+      </Pressable>
 
       <XStack alignItems="center" gap="$l">
         {isEditMode && dragHandle && (
