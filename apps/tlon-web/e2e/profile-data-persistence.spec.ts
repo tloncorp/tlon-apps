@@ -13,8 +13,8 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   // Part 1: Setup - ~zod edits their own profile
   await zodPage.getByTestId('AvatarNavIcon').click();
   await expect(zodPage.getByText('Contacts')).toBeVisible();
-  await zodPage.getByText('You').click();
-  await expect(zodPage.getByText('Profile')).toBeVisible();
+  await zodPage.getByText('You', { exact: true }).click();
+  await expect(zodPage.getByTestId('UserProfileScreen')).toBeVisible();
   await zodPage.getByTestId('ContactEditButton').click();
   await expect(zodPage.getByText('Edit Profile')).toBeVisible();
 
@@ -46,8 +46,9 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   await zodPage.getByTestId('AvatarNavIcon').click();
   await expect(zodPage.getByText('Contacts')).toBeVisible();
   await zodPage.getByText('~ten').click();
-  await expect(zodPage.getByText('Profile')).toBeVisible();
-  await zodPage.getByTestId('ContactEditButton').click();
+  await expect(zodPage.getByTestId('UserProfileScreen')).toBeVisible();
+  await zodPage.getByTestId('ProfileMoreButton').click();
+  await zodPage.getByText('Edit profile', { exact: true }).click();
   await expect(zodPage.getByText('Edit Profile')).toBeVisible();
   await zodPage.getByTestId('ProfileNicknameInput').click();
   await zodPage.getByTestId('ProfileNicknameInput').fill('Ten Custom Nickname');
@@ -59,8 +60,8 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   await zodPage.getByTestId('AvatarNavIcon').click();
   await zodPage.waitForTimeout(500);
   // Navigate to own profile
-  await zodPage.getByText('You').click();
-  await expect(zodPage.getByText('Profile')).toBeVisible();
+  await zodPage.getByText('You', { exact: true }).click();
+  await expect(zodPage.getByTestId('UserProfileScreen')).toBeVisible();
   await zodPage.getByTestId('ContactEditButton').click();
   await expect(zodPage.getByText('Edit Profile')).toBeVisible();
 
@@ -82,7 +83,7 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   // Part 4: ~ten also verifies no data persistence when editing profiles
   // First ~ten sets their own profile
   await tenPage.getByTestId('AvatarNavIcon').click();
-  await tenPage.getByText('You').click();
+  await tenPage.getByText('You', { exact: true }).click();
   await tenPage.getByTestId('ContactEditButton').click();
   await expect(tenPage.getByText('Edit Profile')).toBeVisible();
 
@@ -99,7 +100,7 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   await tenPage.getByTestId('AvatarNavIcon').click();
   await expect(tenPage.getByText('Ten Own Nickname').first()).toBeVisible();
   await expect(tenPage.getByText('Ten Status').first()).toBeVisible();
-  await tenPage.getByText('You').click();
+  await tenPage.getByText('You', { exact: true }).click();
   await expect(tenPage.getByText('Ten Bio')).toBeVisible();
 
   // Now ~ten adds ~zod as a contact
@@ -117,8 +118,9 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   await tenPage.getByTestId('AvatarNavIcon').click();
   await expect(tenPage.getByText('Contacts')).toBeVisible();
   await tenPage.getByText('Zod Testing nickname').first().click();
-  await expect(tenPage.getByText('Profile')).toBeVisible();
-  await tenPage.getByTestId('ContactEditButton').click();
+  await expect(tenPage.getByTestId('UserProfileScreen')).toBeVisible();
+  await tenPage.getByTestId('ProfileMoreButton').click();
+  await tenPage.getByText('Edit profile', { exact: true }).click();
   await expect(tenPage.getByText('Edit Profile')).toBeVisible();
   await tenPage.getByTestId('ProfileNicknameInput').click();
   await tenPage
@@ -130,7 +132,7 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   // After editing ~zod's profile, edit own profile again
   await tenPage.waitForTimeout(2000);
   await tenPage.getByTestId('AvatarNavIcon').click();
-  await tenPage.getByText('You').click();
+  await tenPage.getByText('You', { exact: true }).click();
   await tenPage.getByTestId('ContactEditButton').click();
   await expect(tenPage.getByText('Edit Profile')).toBeVisible();
 

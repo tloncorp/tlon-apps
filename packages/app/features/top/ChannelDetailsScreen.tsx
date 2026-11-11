@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { Platform } from 'react-native';
 
 import { useRootNavigation } from '../../navigation/utils';
 import { useChatOptions, useIsWindowNarrow } from '../../ui';
@@ -31,7 +32,8 @@ export function ChannelDetailsScreenView({
       onGoBack();
       return;
     }
-    if (isWindowNarrow) {
+    // Native always has the root stack to go back through.
+    if (Platform.OS !== 'web' || isWindowNarrow) {
       navigateBack();
     } else if (channel) {
       navigateToChannel(channel);

@@ -1,6 +1,7 @@
 import { useRoute } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
+import { Platform } from 'react-native';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { RootStackParamList, RootStackRouteProp } from '../../navigation/types';
@@ -97,8 +98,10 @@ function ChatDetailsScreenView() {
     [onPressEditChannelPrivacy]
   );
 
+  // Native always has the root stack to go back through, whatever the
+  // width; only wide web leaves for the drawer's group or channel.
   const handleGoBack = useCallback(() => {
-    if (isWindowNarrow) {
+    if (Platform.OS !== 'web' || isWindowNarrow) {
       navigateBack();
     } else if (chatType === 'group') {
       navigateToGroup(chatId);

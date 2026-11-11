@@ -568,6 +568,17 @@ export const useGroups = (options: db.GetGroupsOptions) => {
   });
 };
 
+export const useSharedGroups = ({ contactId }: { contactId?: string }) => {
+  return useQuery({
+    queryKey: [
+      ['sharedGroups', contactId],
+      useKeyFromQueryDeps(db.getSharedGroups, { contactId: contactId ?? '' }),
+    ],
+    queryFn: () => db.getSharedGroups({ contactId: contactId! }),
+    enabled: !!contactId,
+  });
+};
+
 const getGroupQueryOptions = (id?: string) => ({
   queryKey: [['group', id], keyFromQueryDeps(db.getGroup, id)],
   queryFn: () => {
