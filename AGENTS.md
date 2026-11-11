@@ -128,7 +128,7 @@ Don't re-propose these without new information.
 - Format before every commit: `pnpm format` (oxfmt) at the root, or
   `pnpm lint:format` in a package. Passing tsc and lint does not mean the
   formatter is satisfied, and CI checks it.
-- Desk (needs `just` and mikefarah `yq`): `just build` fetches the
+- Desk (needs `just` and `yq`): `just build` fetches the
   dependencies in `desk-deps.yaml` and assembles the full desk into
   `desk-out/`; `just install <pier>/groups` replaces a mounted desk with it.
   See `desk/AGENTS.md`.

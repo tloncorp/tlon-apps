@@ -99,7 +99,7 @@ jobs:
 
       - name: Install rsync and yq
         # The desk build copies with rsync, and fetch-deps.sh reads
-        # desk-deps.yaml with mikefarah/yq v4, which apt doesn't ship.
+        # desk-deps.yaml with yq v4, which apt doesn't ship.
         run: |
           sudo apt-get update
           sudo apt-get install -y rsync

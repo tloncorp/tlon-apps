@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y \
     rsync \
     && rm -rf /var/lib/apt/lists/*
 
-# Install just and mikefarah/yq — rube assembles ship desks at runtime with the
+# Install just and yq — rube assembles ship desks at runtime with the
 # repository justfile (needs quote() and the `/` operator, just >= 1.5), whose
 # fetch reads desk-deps.yaml with yq to vendor the desk dependencies (base-dev +
 # landscape picks) into desk-deps/.

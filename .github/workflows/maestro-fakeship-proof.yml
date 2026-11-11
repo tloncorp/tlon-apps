@@ -51,7 +51,7 @@ jobs:
           sudo apt-get install -y rsync
           for tool in nc tmux rsync nginx; do command -v "$tool"; done
           java -version
-          # fetch-deps.sh reads desk-deps.yaml with mikefarah/yq v4.
+          # fetch-deps.sh reads desk-deps.yaml with yq v4.
           curl -fsSL https://github.com/mikefarah/yq/releases/download/v4.54.1/yq_linux_amd64 -o /tmp/yq
           chmod +x /tmp/yq
           curl --connect-timeout 10 --max-time 60 -fsSL https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz | tar xz -C /tmp

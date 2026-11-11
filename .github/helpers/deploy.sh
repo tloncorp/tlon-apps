@@ -40,7 +40,7 @@ if [ -f "$workdir/src/justfile" ]; then
     curl -fsSL "https://github.com/casey/just/releases/download/1.59.0/just-1.59.0-$(uname -m)-unknown-linux-musl.tar.gz" \
       | tar xz -C "$HOME/.local/bin" just
   fi
-  # fetch-deps.sh needs mikefarah/yq v4; another tool is also called yq.
+  # fetch-deps.sh needs the Go yq, v4; another tool is also called yq.
   if ! yq --version 2>/dev/null | grep -q mikefarah; then
     echo "Installing yq..."
     curl -fsSL "https://github.com/mikefarah/yq/releases/download/v4.54.1/yq_linux_amd64" -o "$HOME/.local/bin/yq"

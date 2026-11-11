@@ -23,7 +23,7 @@ screenshot. Where noted, use your tool's own verbs for those actions.
   `apps/tlon-web/.tool-versions`) — run `asdf install nodejs 24.22.1`, don't
   override `ASDF_NODEJS_VERSION` to a different Node: `pnpm-workspace.yaml`
   sets `engineStrict: true`, so installs abort outside the pinned range.
-- **just and yq**: rube's desk assembly needs `just` and mikefarah `yq` on
+- **just and yq**: rube's desk assembly needs `just` and `yq` on
   PATH (`brew install just yq`). Without them rube dies assembling the desk.
 - **Process sandbox**: launch the ship and web server as real, long-lived
   detached processes. Some agent execution sandboxes kill detached/background

@@ -9,7 +9,7 @@ and tests).
 
 ## Build and test
 
-Run these from `packages/harness`. They need `just`, mikefarah `yq`, `git`,
+Run these from `packages/harness`. They need `just`, `yq`, `git`,
 `rsync` and, for fake ships, `tmux`, `socat`, `jq` and `curl`.
 
 - `just fetch`: the repository justfile's `fetch` copies the files listed in

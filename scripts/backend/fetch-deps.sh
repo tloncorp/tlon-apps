@@ -13,7 +13,7 @@ deps=$(basename "$manifest") out=desk-deps cache=.deps-cache
 
 # Two unrelated tools are called yq; this needs the Go one.
 yq --version 2>/dev/null | grep -q mikefarah ||
-  { echo "fetch needs mikefarah/yq v4 (https://github.com/mikefarah/yq)" >&2; exit 1; }
+  { echo "fetch needs yq v4 (https://github.com/mikefarah/yq)" >&2; exit 1; }
 
 dupes=$(yq '.[].files[]' "$deps" | sort | uniq -d)
 [[ -z $dupes ]] ||

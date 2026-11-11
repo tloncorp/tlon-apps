@@ -124,7 +124,7 @@ jobs:
       - name: Install tools
         # socat carries click's threads to the ship; tmux holds the running
         # ships; rsync installs desks. fetch-deps.sh, here and
-        # %mcp's own, needs mikefarah/yq v4, which apt doesn't ship.
+        # %mcp's own, needs yq v4, which apt doesn't ship.
         run: |
           sudo apt-get update
           sudo apt-get install -y socat tmux rsync jq
@@ -213,7 +213,7 @@ jobs:
       - name: Install tools
         # socat carries click's threads to the ship; tmux holds the running
         # ships; rsync installs desks. fetch-deps.sh, here and
-        # %mcp's own, needs mikefarah/yq v4, which apt doesn't ship.
+        # %mcp's own, needs yq v4, which apt doesn't ship.
         run: |
           sudo apt-get update
           sudo apt-get install -y socat tmux rsync jq

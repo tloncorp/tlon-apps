@@ -151,7 +151,7 @@ jobs:
           just-version: 1.59.0
 
       - name: Install yq
-        # fetch-deps.sh reads desk-deps.yaml with mikefarah/yq v4, which apt
+        # fetch-deps.sh reads desk-deps.yaml with yq v4, which apt
         # doesn't ship.
         run: |
           mkdir -p "$RUNNER_TEMP/bin"
