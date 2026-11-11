@@ -266,7 +266,7 @@ needs a real `%storage` and a decision on issue 3.
   `get-peek` and `got-peek` call `+on-peek` outside the mocked scry, so a peek that
   itself scries reaches the real ship and crashed the test thread (**Reproduced**). The
   copy runs peeks under the scry gate. Once the fix is merged in tlon-apps, delete the
-  copy and list `lib/test-agent.hoon` in `tlon-files.txt`.
+  copy and list `lib/test-agent.hoon` in `desk-deps.yaml`.
 
 ## Small cleanups
 

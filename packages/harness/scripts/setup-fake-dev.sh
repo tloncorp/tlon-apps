@@ -1,7 +1,7 @@
 #!/bin/bash
 # Boot a fake ship from the pinned pill, install %mcp and %harness, and set
 # Harness up with OWNER as its owner. The ship keeps running in tmux. Boot, click
-# and desk updates follow tlon-apps' backend/run-tests.sh.
+# and desk updates follow tlon-apps' scripts/backend/run-tests.sh.
 #
 #   scripts/setup-fake-dev.sh [SHIP] [DIR] [OWNER]
 #
@@ -74,7 +74,7 @@ then
   exit 1
 fi
 
-(cd "$root/scripts" && bash get-pill.sh)
+(cd "$root/scripts" && bash get-pill.sh) || exit 1
 pill=`echo "$root"/scripts/groups-*.pill`
 
 function find_vere()
@@ -89,7 +89,10 @@ if [ ! -x $vere ]
 then
   echo "Downloading urbit runtime"
   mkdir -p "$root/.deps-cache"
-  curl -L $urbit_bin_url -o $vere
+  # Give up on a stalled transfer instead of hanging, and keep a partial
+  # binary out of the cache.
+  curl -L -f --connect-timeout 20 --speed-limit 1024 --speed-time 30 --retry 3 $urbit_bin_url -o $vere.part &&
+    mv $vere.part $vere
   chmod +x $vere
 fi
 

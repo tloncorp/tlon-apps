@@ -24,8 +24,8 @@ desk; JavaScript and artifact tests also run without a ship.
 
 | Recipe | What it does |
 | --- | --- |
-| `just fetch` | Runs `peru sync`, which vendors `desk-deps/` and `mcp/` |
-| `just build` | Runs `peru sync`, then lays `desk-deps/`, the Tlon files and `desk/` into `desk-out/` |
+| `just fetch` | Copies the files listed in `desk-deps.yaml` into `desk-deps/`, and checks `%mcp` out into `mcp/` |
+| `just build` | Runs `fetch`, then lays `desk-deps/` and `desk/` into `desk-out/` |
 | `just install DESK` | Runs `build`, then copies `desk-out/` into a mounted desk |
 | `just commit DESK` | Runs `install`, then asks the running ship to commit that desk |
 | `just fake-dev [SHIP] [DIR] [OWNER]` | Boots a fake ship in tmux, installs `%mcp` and `%harness` and runs `setup` |
@@ -35,14 +35,14 @@ desk; JavaScript and artifact tests also run without a ship.
 | `just setup PIER OWNER` | Sets the owner, enables the Tlon hand and turns on Context Lens sync |
 | `just provider PIER NAME [MODEL]` | Connects a model provider and makes it the default |
 | `just clean` | Removes `desk-out/` |
-| `just distclean` | Also removes `desk-deps/` and the runtime downloaded into `.deps-cache/` |
+| `just distclean` | Also removes `desk-deps/`, `mcp/` and the runtime downloaded into `.deps-cache/` |
 
-This desk imports files it does not own. The tlon-apps `peru.yaml` pins the
-standard libraries and marks from `urbit/urbit` (the `harness-base` module) and
-the `%mcp` repository (`harness-mcp`), which its `scripts/sync-deps.sh` vendors
-with [peru](https://github.com/buildinspace/peru). `tlon-files.txt` lists the
-Tlon protocol types that its `scripts/assemble-desk.sh` copies from its `desk/`,
-so they always match the Groups desk in the same checkout.
+This desk imports files it does not own, listed in `desk-deps.yaml` and
+fetched by the tlon-apps `scripts/backend/fetch-deps.sh`. The standard libraries and
+marks come from `urbit/urbit` at a pinned commit. The Tlon protocol types are
+copied from the tlon-apps `desk/`, so they always match the Groups desk in the
+same checkout. `just fetch` also checks the whole `%mcp` repository out into
+`mcp/`, at the commit the tlon-apps `desk-deps.yaml` pins for `mcp`.
 
 `just install` uses `rsync` without `--delete`, so development files in the mount
 survive, and so do files this desk no longer contains. Remove those by hand.

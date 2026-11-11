@@ -9,20 +9,22 @@ and tests).
 
 ## Build and test
 
-Run these from `packages/harness`. They need `just`, `peru`, `rsync` and, for
-fake ships, `tmux`, `socat`, `jq`, `curl` and mikefarah `yq` (for `mcp/`'s own
-build).
+Run these from `packages/harness`. They need `just`, mikefarah `yq`, `git`,
+`rsync` and, for fake ships, `tmux`, `socat`, `jq` and `curl`.
 
-- `just fetch`: `peru sync` from the root `peru.yaml`, which vendors the %base
-  files into `desk-deps/` and the %mcp repository into `mcp/`.
-- `just build`: assemble `desk-out/` with `../../scripts/assemble-desk.sh
-  <dir> harness`. `just heavy=true build` keeps `tests-integration/`.
+- `just fetch`: the repository justfile's `fetch` copies the files listed in
+  `desk-deps.yaml` into `desk-deps/`, and git checks the %mcp repository out
+  into `mcp/` at the commit the root `desk-deps.yaml` pins.
+- `just build`: fetch, then the repository justfile's `assemble` lays
+  `desk-deps/` and `desk/` into `desk-out/`. `just heavy=true build` keeps
+  `tests-integration/`.
 - `node --test tests-js/distribution.test.mjs`: artifact checks on `desk-out/`.
 - `just test-hoon` and `just test-js`: the native and JavaScript suites on fake
   ships, as `.github/workflows/harness-ci.yml` runs them.
 
 ## Dependencies
 
-The Tlon `sur/` and `lib/` files the desk compiles against are not vendored.
-`tlon-files.txt` lists them, and assembly copies them from the root `desk/`, so
-a change to one of those files there changes what Harness compiles against.
+The Tlon `sur/` and `lib/` files the desk compiles against are not pinned.
+The `tlon` entry of `desk-deps.yaml` lists them, and `just fetch` copies them
+from the root `desk/`, so a change to one of those files there changes what
+Harness compiles against.

@@ -4,17 +4,17 @@ out := "desk-out"
 # Set heavy=true to keep tests-integration in the assembled desk.
 heavy := "false"
 
-# Tlon's click, copied from tlon-apps/backend. Override to add options, such
+# Tlon's click, copied from tlon-apps/scripts/backend. Override to add options, such
 # as `-b /path/to/vere` for a pier without a docked runtime.
 click := "scripts/click"
 
-# Assemble the desk with the repository's scripts/assemble-desk.sh, which runs
-# `peru sync` and lays in the vendored %base files, the Tlon files listed in
-# tlon-files.txt, then this desk on top.
-build:
-    rm -rf {{ quote(out) }}
-    mkdir -p {{ quote(out) }}
-    ../../scripts/assemble-desk.sh "$(cd {{ quote(out) }} && pwd)" harness
+# The repository justfile, whose fetch and assemble recipes this one runs on
+# its own directory.
+root := just_executable() + " --justfile " + quote(justfile_directory() / "../../justfile")
+
+# Assemble the desk: the files fetched from desk-deps.yaml, then this desk on top.
+build: fetch
+    {{ root }} assemble {{ quote(justfile_directory()) }} {{ quote(absolute_path(out)) }}
     {{ if heavy == "true" { "" } else { "rm -rf " + quote(out / "tests-integration") } }}
 
 # Copy the assembled desk into a mounted desk. Files already there are kept.
@@ -79,16 +79,26 @@ test-hoon pattern="":
 test-js pattern="":
     scripts/test-js.sh {{ quote(pattern) }}
 
-# Vendor the %base files into desk-deps/ and %mcp into mcp/, as pinned in the
-# repository's peru.yaml.
+# The test ships build and install %mcp from its whole repository, at the commit
+# the %groups desk pins for the %mcp types it imports.
+# Fetch the files listed in desk-deps.yaml into desk-deps/, and %mcp into mcp/.
 fetch:
-    ../../scripts/sync-deps.sh
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ root }} fetch {{ quote(justfile_directory() / "desk-deps.yaml") }}
+    rev=$(yq .mcp.rev ../../desk-deps.yaml)
+    # peru used to vendor mcp/ as plain files, which git will not check out over.
+    [ -d mcp/.git ] || rm -rf mcp
+    git init --quiet mcp
+    git -C mcp cat-file -e "$rev^{commit}" 2>/dev/null ||
+      git -C mcp fetch --quiet --depth 1 https://github.com/tloncorp/mcp.git "$rev"
+    git -C mcp checkout --quiet --detach "$rev"
 
 # Remove the assembled desk.
 clean:
     rm -rf {{ quote(out) }}
 
-# Remove everything generated: the assembled desk, the %base files peru vendors
+# Remove everything generated: the assembled desk, the fetched files, %mcp
 # and the runtime that setup-fake-dev.sh downloads.
 distclean: clean
-    rm -rf desk-deps .deps-cache
+    rm -rf desk-deps .deps-cache mcp

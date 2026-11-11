@@ -313,8 +313,9 @@ test('prompt cords escape newlines, not literal backslashes', async () => {
   assert.match(start, /system\.config\n\s+'\\0a\\0aThis session is a Tlon conversation with '/)
 })
 test('Harness CI triggers on exactly the Tlon files the desk compiles against', async () => {
-  const listed = (await readFile(new URL('../tlon-files.txt', import.meta.url), 'utf8')).split('\n')
-    .filter((line) => /^[^#\s]/.test(line)).map((file) => `desk/${file}`).sort()
+  const deps = await readFile(new URL('../desk-deps.yaml', import.meta.url), 'utf8')
+  const listed = [...deps.split(/^tlon:\n/m)[1].split(/^\S/m)[0].matchAll(/^    - (\S+)$/gm)]
+    .map((match) => `desk/${match[1]}`).sort()
   const workflow = await readFile(new URL('../../../.github/workflows/harness-ci.yml', import.meta.url), 'utf8')
   const lists = [...workflow.matchAll(/^ +paths:\n((?: +- .*\n)+)/gm)]
     .map((match) => [...match[1].matchAll(/- "(desk\/[^"]*)"/g)].map((entry) => entry[1]).sort())

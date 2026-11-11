@@ -22,7 +22,12 @@ find_download() {
     if [[ ! -e "$file" ]]
     then
         echo "Downloading $file"
-        curl -# -f $url -o $file
+        # curl has no timeout of its own, so a stalled transfer would hang
+        # forever: give up when under 1 kB/s for 30 seconds, and retry. The
+        # partial file gets another name, or the next run would take it for
+        # the pill.
+        curl -# -f --connect-timeout 20 --speed-limit 1024 --speed-time 30 --retry 3 "$url" -o "$file.part" &&
+            mv "$file.part" "$file"
         return $?
     fi
 

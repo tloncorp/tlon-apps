@@ -12,7 +12,8 @@ suite=hoon
 tools="tmux just"
 source "$(dirname "$0")/test-lib.sh" "$1"
 
-# Run a directory of native tests on a ship, as run-tests.sh does.
+# Run a directory of native tests on a ship, as the repository's
+# scripts/backend/run-tests.sh does.
 # click joins the thread's lines into one, so they must end in a two-space gap.
 function native
 {
