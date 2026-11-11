@@ -2,11 +2,12 @@
 # scripts/backend/fetch-deps.sh [manifest]
 # Fetch the files a desk imports but does not own, listed in a manifest
 # (default: desk-deps.yaml, the %groups desk's), into desk-deps/ beside it.
-# A source whose url is file://<dir> is a directory, relative to the manifest,
-# whose files are copied as they are. Any other url is a git remote, fetched at
-# its pinned commit.
+# A source whose url is file:///<dir> is a directory of this repository, given
+# from its root, whose files are copied as they are. Any other url is a git
+# remote, fetched at its pinned commit.
 set -euo pipefail
-manifest=${1:-$(dirname "$0")/../../desk-deps.yaml}
+root=$(cd "$(dirname "$0")/../.." && pwd)
+manifest=${1:-$root/desk-deps.yaml}
 cd "$(dirname "$manifest")"
 
 deps=$(basename "$manifest") out=desk-deps cache=.deps-cache
@@ -26,15 +27,17 @@ fetch_one() {
   export_dir=$(name=$name yq '.[strenv(name)].export' "$deps")
   while IFS= read -r file; do files+=("$file"); done \
     < <(name=$name yq '.[strenv(name)].files[]' "$deps")
-  [[ $url != null && $export_dir != null && ${#files[@]} -gt 0 ]] ||
-    { echo "$deps: $name needs url, export and files" >&2; exit 1; }
+  [[ $url != null && ${#files[@]} -gt 0 ]] ||
+    { echo "$deps: $name needs url and files" >&2; exit 1; }
 
-  if [[ $url == file://* ]]; then
-    tar -c -C "${url#file://}/$export_dir" "${files[@]}" | tar -x -C "$out"
-    echo "$name: ${#files[@]} files from ${url#file://}/$export_dir"
+  if [[ $url == file:///* ]]; then
+    tar -c -C "$root/${url#file:///}" "${files[@]}" | tar -x -C "$out"
+    echo "$name: ${#files[@]} files from ${url#file:///}/"
     return
   fi
 
+  [[ $export_dir != null ]] ||
+    { echo "$deps: $name needs export" >&2; exit 1; }
   [[ $rev =~ ^[0-9a-f]{40}$ ]] ||
     { echo "$deps: $name: rev must be a full commit hash" >&2; exit 1; }
   # Shallow clone at commit and only fetch listed files
