@@ -86,7 +86,6 @@ const HARNESS_SKIPS = {
   sse: 'Harness runs on the bot ship and holds no SSE connection to it.',
   nudge: 'Harness sends no nudge or re-engagement messages.',
 };
-const HARNESS_NOT_ENABLED = 'Not enabled for the harness driver yet.';
 
 export const commonScenarios: readonly SharedScenario[] = [
   testScenario('connectivity', {}, async ({ ctx, driver, actors }) => {
@@ -230,7 +229,12 @@ export const commonScenarios: readonly SharedScenario[] = [
 
   testScenario(
     'allowlisted-third-party-dm-reply',
-    { driverSkips: { harness: HARNESS_NOT_ENABLED } },
+    {
+      driverSkips: {
+        harness:
+          "TLON-7109: needs a driver grant through Harness's Tlon policy, and Harness to accept a DM invite sent before the grant.",
+      },
+    },
     async ({ ctx, driver, actors }) => {
       await allowDmFrom(actors, actors.thirdParty.ship);
       const key = scenarioKey('allowlisted-third-party');
@@ -249,7 +253,7 @@ export const commonScenarios: readonly SharedScenario[] = [
 
   testScenario(
     'owner-dm-works-when-owner-listen-off',
-    { driverSkips: { harness: HARNESS_NOT_ENABLED } },
+    { driverSkips: { harness: HARNESS_SKIPS.ownerListenOff } },
     async ({ ctx, driver, actors }) => {
       await withSettingsEntry(actors, 'ownerListenEnabled', false);
       const key = scenarioKey('owner-dm-owner-listen-off');
@@ -406,7 +410,7 @@ export const commonScenarios: readonly SharedScenario[] = [
 
   testScenario(
     'owner-listen-channel-mention-overrides-muted-channel',
-    { driverSkips: { harness: HARNESS_NOT_ENABLED } },
+    { driverSkips: { harness: HARNESS_SKIPS.ownerListenMute } },
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
       await withSettingsEntry(actors, 'ownerListenDisabledChannels', [
@@ -1242,7 +1246,10 @@ export const commonScenarios: readonly SharedScenario[] = [
     'cron-model-driven-turn-delivers-to-origin',
     {
       capabilities: ['cron'],
-      driverSkips: { harness: HARNESS_NOT_ENABLED },
+      driverSkips: {
+        harness:
+          'TLON-7110: the harness driver cannot find or cancel scheduled jobs yet.',
+      },
       timeoutMs: cronModelDrivenScenarioTimeoutMs,
     },
     async ({ ctx, driver, actors }) => {
