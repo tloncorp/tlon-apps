@@ -8,6 +8,7 @@ import Animated, {
   useReducedMotion,
   useSharedValue,
   withSequence,
+  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import Svg, { Rect } from 'react-native-svg';
@@ -24,20 +25,22 @@ import { GlyphMark, LINE, useLineColors } from './lineKit';
 const TILE = 72;
 const TILE_RADIUS = 12;
 const GLYPH = 45;
-/** The canvas's pick: a 0.2 s crossfade on CSS `ease`. */
-const PICK_FADE_MS = 200;
-const CSS_EASE = Easing.bezier(0.25, 0.1, 0.25, 1);
+/**
+ * The canvas's pick: a 0.12 s crossfade on CSS `ease-out`, so the tile is
+ * solid by the bottom of the press.
+ */
+const PICK_FADE_MS = 120;
 const CSS_EASE_OUT = Easing.bezier(0, 0, 0.58, 1);
 /**
- * The canvas's pick bounce, 0.3 s from the tile's center: one small dip and
- * overshoot. Each step's scale and length, from its keyframes at 35, 70 and
- * 100%.
+ * The pick's bounce, from the tile's center: a press to 95% in 80 ms, then a
+ * spring back from rest (damping ratio 0.5) that overshoots once, to about
+ * 100.8%, and settles in about 0.3 s.
  */
-const PICK_BOUNCE: [number, number][] = [
-  [0.96, 105],
-  [1.02, 105],
-  [1, 90],
-];
+const PICK_PRESS = {
+  duration: 80,
+  easing: Easing.bezier(0.2, 0.6, 0.4, 1),
+};
+const PICK_RELEASE = { mass: 1, stiffness: 711, damping: 26.7 };
 
 /** The glyph picked on Profile, for drawing the Tlonbot. Sam until one is. */
 export function useOnboardingGlyph(): AvatarGlyphId {
@@ -70,15 +73,11 @@ export function AvatarGlyphTile({
       return;
     }
     picked.set(
-      withTiming(target, { duration: PICK_FADE_MS, easing: CSS_EASE })
+      withTiming(target, { duration: PICK_FADE_MS, easing: CSS_EASE_OUT })
     );
     if (justPicked) {
       scale.set(
-        withSequence(
-          ...PICK_BOUNCE.map(([to, duration]) =>
-            withTiming(to, { duration, easing: CSS_EASE_OUT })
-          )
-        )
+        withSequence(withTiming(0.95, PICK_PRESS), withSpring(1, PICK_RELEASE))
       );
     }
   }, [picked, reduceMotion, scale, selected]);
