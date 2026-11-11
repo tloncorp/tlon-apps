@@ -16,13 +16,17 @@ RUN apt-get update && apt-get install -y \
     lsof \
     procps \
     rsync \
-    python3 \
-    python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
-# Install peru — rube runs `peru sync` at runtime to vendor desk dependencies
-# (base-dev + landscape picks) into desk/ before assembling ship desks.
-RUN pip3 install --no-cache-dir --break-system-packages peru
+# Install just and mikefarah/yq — rube assembles ship desks at runtime with the
+# repository justfile (needs quote() and the `/` operator, just >= 1.5), whose
+# fetch reads desk-deps.yaml with yq to vendor the desk dependencies (base-dev +
+# landscape picks) into desk-deps/.
+RUN curl -fsSL "https://github.com/casey/just/releases/download/1.59.0/just-1.59.0-$(uname -m)-unknown-linux-musl.tar.gz" \
+    | tar xz -C /usr/local/bin just && \
+    curl -fsSL "https://github.com/mikefarah/yq/releases/download/v4.54.1/yq_linux_$(dpkg --print-architecture)" \
+    -o /usr/local/bin/yq && \
+    chmod +x /usr/local/bin/yq
 
 # Install pnpm
 RUN npm install -g pnpm@11.9.0
@@ -90,9 +94,11 @@ RUN mkdir -p /opt/ships && cd /opt/ships && \
 COPY ../../../packages/ /workspace/packages/
 COPY ../../../apps/tlon-web/ /workspace/apps/tlon-web/
 COPY ../../../desk/ /workspace/desk/
-# peru.yaml + scripts are needed for the runtime `peru sync` (into desk-deps/)
-# and assemble-desk.sh (desk-deps/ + desk/ -> ship groups desk)
-COPY ../../../peru.yaml /workspace/peru.yaml
+# The justfile, desk-deps.yaml and scripts are needed for the runtime
+# `just build` (fetch into desk-deps/, then desk-deps/ + desk/ -> ship groups
+# desk)
+COPY ../../../desk-deps.yaml /workspace/desk-deps.yaml
+COPY ../../../justfile /workspace/justfile
 COPY ../../../scripts/ /workspace/scripts/
 
 # Build packages if needed

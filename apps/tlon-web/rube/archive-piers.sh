@@ -285,10 +285,10 @@ is_routine_generation() {
         [ "${SHIPS_TO_ARCHIVE[*]}" = "zod ten mug" ]
 }
 
-# Everything assemble-desk.sh reads when rube builds the %groups desk. The
+# Everything `just build` reads when rube builds the %groups desk. The
 # sidecar records these at the source commit, so a later run can tell whether
 # a refresh would change anything.
-DESK_INPUTS=(desk peru.yaml scripts/assemble-desk.sh scripts/sync-deps.sh)
+DESK_INPUTS=(desk desk-deps.yaml justfile scripts/backend/fetch-deps.sh)
 
 # Blob hash of a file's committed content at a commit.
 git_blob_at() {
@@ -307,26 +307,26 @@ urbit_version() {
 write_sidecar() {
     local generation=$1
     local out=$2
-    local desk_tree_no_glob peru_blob assemble_blob sync_deps_blob vere produced_at
+    local desk_tree_no_glob desk_deps_blob justfile_blob fetch_deps_blob vere produced_at
     desk_tree_no_glob=$("$PROJECT_ROOT/scripts/desk-identity.sh" tree "$SOURCE_SHA") ||
         return 1
-    peru_blob=$(git_blob_at "$SOURCE_SHA" peru.yaml) || return 1
-    assemble_blob=$(git_blob_at "$SOURCE_SHA" scripts/assemble-desk.sh) || return 1
-    sync_deps_blob=$(git_blob_at "$SOURCE_SHA" scripts/sync-deps.sh) || return 1
+    desk_deps_blob=$(git_blob_at "$SOURCE_SHA" desk-deps.yaml) || return 1
+    justfile_blob=$(git_blob_at "$SOURCE_SHA" justfile) || return 1
+    fetch_deps_blob=$(git_blob_at "$SOURCE_SHA" scripts/backend/fetch-deps.sh) || return 1
     vere=$(urbit_version)
     produced_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
     jq -n \
         --argjson generation "$generation" \
         --arg sourceSha "$SOURCE_SHA" \
         --arg deskTreeNoGlob "$desk_tree_no_glob" \
-        --arg peruBlob "$peru_blob" \
-        --arg assembleBlob "$assemble_blob" \
-        --arg syncDepsBlob "$sync_deps_blob" \
+        --arg deskDepsBlob "$desk_deps_blob" \
+        --arg justfileBlob "$justfile_blob" \
+        --arg fetchDepsBlob "$fetch_deps_blob" \
         --arg vere "$vere" \
         --arg producedAt "$produced_at" \
         '{generation: $generation, sourceSha: $sourceSha,
-          deskTreeNoGlob: $deskTreeNoGlob, peruBlob: $peruBlob,
-          assembleBlob: $assembleBlob, syncDepsBlob: $syncDepsBlob,
+          deskTreeNoGlob: $deskTreeNoGlob, deskDepsBlob: $deskDepsBlob,
+          justfileBlob: $justfileBlob, fetchDepsBlob: $fetchDepsBlob,
           vere: $vere, producedAt: $producedAt}' \
         > "$out"
 }
@@ -573,9 +573,9 @@ check_prerequisites() {
         fi
     done
 
-    # Only the prep pass assembles the desk (peru sync, then rsync).
+    # Only the prep pass assembles the desk (just build: fetch, then rsync).
     if [ "$SKIP_PREPARE" != "true" ]; then
-        for tool in rsync peru; do
+        for tool in rsync just yq; do
             if ! command -v "$tool" &> /dev/null; then
                 missing_tools+=("$tool")
             fi
