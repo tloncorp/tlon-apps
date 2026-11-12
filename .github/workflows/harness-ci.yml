@@ -187,12 +187,19 @@ jobs:
           retention-days: 7
 
   # Offline Node tests, then live scripts against ~zod, ~lux and ~nec with
-  # local stand-in model providers. Needs no secrets.
+  # local stand-in model providers. Needs no secrets. Each shard runs a part of
+  # the full run (scripts/test-js.sh says how they are dealt), so the job takes
+  # as long as the slowest part rather than all of them.
   e2e-test:
     # Two ships run at once, plus Node and the local providers.
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    name: Harness E2E Tests
+    name: Harness E2E Tests (${{ matrix.shard }}/${{ strategy.job-total }})
     timeout-minutes: 120
+    strategy:
+      # One shard's failure says nothing about the others' tests.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -255,19 +262,21 @@ jobs:
           key: pill-${{ hashFiles('packages/harness/scripts/get-pill.sh') }}
 
       - name: Run E2E Tests
+        env:
+          TEST_SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
         run: just test-js
 
       - name: Summarize results
         if: always()
         run: |
           [ -f .test-run/js/results.txt ] || exit 0
-          { echo '### E2E Tests'; echo '```'; cat .test-run/js/results.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          { echo '### E2E Tests (${{ matrix.shard }}/${{ strategy.job-total }})'; echo '```'; cat .test-run/js/results.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload Test Results
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
-          name: harness-e2e-test-results
+          name: harness-e2e-test-results-${{ matrix.shard }}
           path: |
             packages/harness/.test-run/js/results.txt
             packages/harness/.test-run/js/logs/
