@@ -219,7 +219,7 @@
 ++  boot
   ^+  cor
   ?.  enabled.policy  cor
-  =.  cor  accept-owner-invitations
+  =.  cor  accept-granted-invitations
   =.  cor  boot-lens
   =.  cor  watch-head
   ::  Gall owns the subscription. An acknowledged watch survives even when
@@ -249,16 +249,25 @@
     (emit [%pass /publications %agent [our.bowl %channels] %leave ~])
   (emit [%pass /publications %agent [our.bowl %channels] %watch /v3])
 ::
-++  accept-owner-invitations
+++  accept-granted-invitations
   ^+  cor
   ?.  enabled.policy  cor
-  ::  Native pending requests survive Activity cursors and owner changes.
+  ::  Chat passes on no activity for later messages in a pending invitation,
+  ::  so a ship granted access after its first DM is accepted here.
   ::  Acceptance does not replay input from before the authority cutoff.
-  =/  effects  (mole |.((owner-invitations:messenger actor-owner)))
-  ?~  effects  cor(error 'Could not inspect pending owner DM requests.')
-  %+  roll  u.effects
-  |=  [effect=card engine=_cor]
-  (emit:engine effect)
+  =/  pending
+    %-  mole
+    |.((granted-invitations:messenger |=(who=@p ?=(^ (actor-grants who ~)))))
+  ?~  pending  cor(error 'Could not inspect pending DM requests.')
+  %+  roll  u.pending
+  |=  [who=@p engine=_cor]
+  (accept-invitation:engine who)
+::
+++  accept-invitation
+  |=  who=@p
+  ^+  cor
+  =.  cor  (note 'dm-invite' who (scot %p who) '')
+  (emit (accept-invitation:messenger who))
 ::
 ++  publications-connected
   ^-  ?
@@ -1287,7 +1296,7 @@
   =.  epoch  +(epoch)
   =.  error  ''
   =.  cor  (sync-presence hands)
-  ?:  =(enabled.before enabled.updated-policy)  schedule:accept-owner-invitations
+  ?:  =(enabled.before enabled.updated-policy)  schedule:accept-granted-invitations
   ?:  enabled.updated-policy  boot
   =?  cor  (~(has by wex.bowl) /activity our.bowl %activity)
     (emit [%pass /activity %agent [our.bowl %activity] %leave ~])
@@ -1850,11 +1859,7 @@
   ?:  ?=(%dm-invite -.event)
     ?.  ?=(%ship -.whom.event)  cor
     ?~  (actor-grants p.whom.event ~)  cor
-    =.  cor  (note 'dm-invite' p.whom.event (scot %p p.whom.event) '')
-    %-  emit
-    :*  %pass  /invite/dm/(scot %p p.whom.event)  %agent  [our.bowl %chat]  %poke  %chat-dm-rsvp
-        !>([p.whom.event &])
-    ==
+    (accept-invitation p.whom.event)
   (admit-message event)
 ::
 ++  admit-message

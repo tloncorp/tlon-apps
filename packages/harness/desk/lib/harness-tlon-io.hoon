@@ -10,17 +10,18 @@
 +*  read-path  ~(. paths [our now]:bowl)
 +$  card  card:agent:gall
 ::
-++  owner-invitations
-  |=  owner-test=$-(@p ?)
-  ^-  (list card)
+++  granted-invitations
+  |=  granted=$-(@p ?)
+  ^-  (list @p)
   ?.  .^(? %gu /(scot %p our.bowl)/chat/(scot %da now.bowl)/$)  ~
   =/  invited=(set @p)
     .^((set @p) %gx /(scot %p our.bowl)/chat/(scot %da now.bowl)/dm/invited/ships)
-  %+  murn  ~(tap in invited)
+  (skim ~(tap in invited) granted)
+::
+++  accept-invitation
   |=  who=@p
-  ^-  (unit card)
-  ?.  (owner-test who)  ~
-  `[%pass /invite/dm/(scot %p who) %agent [our.bowl %chat] %poke %chat-dm-rsvp !>([who &])]
+  ^-  card
+  [%pass /invite/dm/(scot %p who) %agent [our.bowl %chat] %poke %chat-dm-rsvp !>([who &])]
 ::
 ++  publish
   |=  [wire=wire to=destination:t text=@t sent=@da blob=(unit @t)]
