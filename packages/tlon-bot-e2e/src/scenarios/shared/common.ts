@@ -56,6 +56,7 @@ const MIGRATION_RESULT_WAIT_MS = 120_000;
 const LOOP_TIMEOUT_MARGIN_MS = 60_000;
 const CRON_CREATE_PROMPT_WAIT_MS = 120_000;
 const CRON_FIRED_WAIT_MS: Partial<Record<DriverName, number>> = {
+  harness: 120_000,
   hermes: 150_000,
   openclaw: 240_000,
 };
@@ -1247,10 +1248,6 @@ export const commonScenarios: readonly SharedScenario[] = [
     'cron-model-driven-turn-delivers-to-origin',
     {
       capabilities: ['cron'],
-      driverSkips: {
-        harness:
-          'TLON-7110: the harness driver cannot find or cancel scheduled jobs yet.',
-      },
       timeoutMs: cronModelDrivenScenarioTimeoutMs,
     },
     async ({ ctx, driver, actors }) => {
