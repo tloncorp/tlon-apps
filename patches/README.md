@@ -438,6 +438,46 @@ Reassess each part independently when upgrading keyboard-controller:
 Remove the whole patch only after both conditions hold. Closing a related
 upstream issue alone is not sufficient.
 
+## @legendapp/list@3.3.3
+
+Local patch:
+`patches/@legendapp__list@3.3.3.patch`
+
+The patch carries two fixes to how a programmatic scroll is completed.
+
+### 1. Animated end-aligned scrolls keep their animation through retries
+
+`checkFinishedScrollFallback` re-issues an end-aligned scroll that settled
+short of its target. On iOS the retry now keeps the original scroll's
+`animated` flag, and an animation still in flight is given extra checks before
+the list releases scroll ownership, so a scroll to the newest message does not
+snap at the end.
+
+### 2. A scroll that moves nothing completes on the next frame
+
+Why:
+LegendList completes a programmatic scroll when a scroll event shows the
+offset at its target. A scroll to where the list already is, or to a target
+clamped to the start or end, produces no scroll event, so it only completed
+through the fallback checks: 100 ms and then up to five more 100 ms checks.
+The conversation list awaits its exact opening position before it is shown,
+so a conversation opening on its first loaded post (target clamped to the
+top) stayed hidden for about 600 ms longer than one opening further down.
+
+Fix:
+`scrollTo` notes when the requested offset is within 1 pt of the current one
+and, after dispatching, schedules the usual frame check, which completes the
+scroll at once since the pending offset already equals the target. Scrolls
+that move are unchanged.
+
+Validate:
+Open the `ConversationScroll` Cosmos fixture's `openUnreadShortPageThenOlder`
+preset with `ENABLED_LOGGERS=scroller`: "list first shown" should be about as
+soon as for `unreadsOverAScreen` (a few hundred ms), not about a second.
+
+Remove when upstream completes no-move scrolls without waiting on the
+fallback.
+
 ## react-native-reanimated@4.7.1
 
 Why:
