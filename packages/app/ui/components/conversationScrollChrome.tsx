@@ -1,4 +1,7 @@
-import { HeaderHeightContext } from '@react-navigation/elements';
+import {
+  HeaderHeightContext,
+  getDefaultHeaderHeight,
+} from '@react-navigation/elements';
 import { FloatingActionButton, Icon, LoadingSpinner } from '@tloncorp/ui';
 import {
   type ReactNode,
@@ -16,9 +19,12 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  useSafeAreaFrame,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 
-import { useFloatingHeaderHeight } from '../../navigation/useFloatingHeaderHeight';
+import { supportsNativeScrollEdgeChrome } from '../../navigation/nativeHeaderOptions';
 import { GlassSurface, supportsLiquidGlass } from './GlassSurface';
 import {
   floatingChromeMetrics,
@@ -46,6 +52,39 @@ export {
  */
 export { useFloatingHeaderHeight } from '../../navigation/useFloatingHeaderHeight';
 
+// The last height a native header reported, for screens whose own header has
+// not reported yet.
+let lastReportedHeaderHeight = 0;
+
+/**
+ * The header's height, or until this screen's header reports one, the height
+ * the last one reported. A conversation used to open with no top inset and
+ * gain it a moment later, and the list's correction for that, made while it
+ * sat at its top where the offset cannot move, came back as a jump once
+ * older posts arrived above.
+ */
+function useSettledHeaderHeight(topInset: number) {
+  const reported = useContext(HeaderHeightContext) ?? 0;
+  const frame = useSafeAreaFrame();
+  useEffect(() => {
+    if (reported > 0) {
+      lastReportedHeaderHeight = reported;
+    }
+  }, [reported]);
+  // Before any header has reported, the navigator's default height for this
+  // screen is the best guess.
+  const settled =
+    reported > 0
+      ? reported
+      : lastReportedHeaderHeight ||
+        getDefaultHeaderHeight(
+          { width: frame.width, height: frame.height },
+          false,
+          topInset
+        );
+  return { reported, settled };
+}
+
 /** Owns all measured geometry reserved around a conversation list. */
 export function useConversationInsets({
   hasFloatingComposer,
@@ -58,9 +97,21 @@ export function useConversationInsets({
   hasTransparentHeader: boolean;
   hasFloatingPinnedPostBanner?: boolean;
 }) {
-  const headerHeight = useContext(HeaderHeightContext) ?? 0;
-  const { bottom: bottomSafeArea } = useSafeAreaInsets();
-  const floatingHeaderHeight = useFloatingHeaderHeight(hasTransparentHeader);
+  const { bottom: bottomSafeArea, top: topSafeArea } = useSafeAreaInsets();
+  // Only the content inset uses the settled height. A screen that hides its
+  // header (a bot conversation draws its own) reports 0 for good, and lays out
+  // its other chrome from that.
+  const { reported: navigationHeaderHeight, settled: headerHeight } =
+    useSettledHeaderHeight(topSafeArea);
+  const floatingHeaderHeight =
+    hasTransparentHeader &&
+    supportsNativeScrollEdgeChrome(
+      Platform.OS,
+      Platform.Version,
+      supportsLiquidGlass()
+    )
+      ? headerHeight
+      : 0;
   // getConversationContentInsets reduces this to `hasTransparentHeader ?
   // headerHeight : 0`, which is the floating height, so the two agree by
   // construction rather than by two copies of the same condition.
@@ -96,7 +147,7 @@ export function useConversationInsets({
 
   return {
     contentInsets,
-    navigationHeaderHeight: headerHeight,
+    navigationHeaderHeight,
     floatingHeaderHeight,
     onFloatingHeightChange:
       Platform.OS !== 'web' && hasFloatingComposer
