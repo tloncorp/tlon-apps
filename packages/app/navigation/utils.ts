@@ -28,12 +28,21 @@ import {
 } from './routeHelpers';
 import { getTopLevelTabRoute } from './topLevelTabs';
 import {
-  BrowserCredentialHandoffParams,
   CombinedParamList,
   DesktopBasePathStackParamList,
   MobileBasePathStackParamList,
   RootStackParamList,
 } from './types';
+
+/**
+ * Whether navigation goes through the root stack: always on native, which
+ * mounts only that stack at any width, and on narrow web. Wide web uses the
+ * desktop drawers instead.
+ */
+export function useUsesRootStack() {
+  const isWindowNarrow = useIsWindowNarrow();
+  return Platform.OS !== 'web' || isWindowNarrow;
+}
 
 export { screenNameFromChannelId } from './routeHelpers';
 export { getTopLevelTabRoute } from './topLevelTabs';
@@ -84,7 +93,7 @@ function useResetToChannel() {
   const navigation = useNavigation();
   const navigationRef = logic.useMutableRef(navigation);
   const reset = useTypedReset();
-  const isWindowNarrow = useIsWindowNarrow();
+  const usesRootStack = useUsesRootStack();
   const { lastOpenTab } = useGlobalSearch();
 
   return useCallback(
@@ -100,7 +109,7 @@ function useResetToChannel() {
     ) {
       const screenName = screenNameFromChannelId(channelId);
 
-      if (isWindowNarrow) {
+      if (usesRootStack) {
         const { backToGroupIndex, ...channelOptions } = options ?? {};
         reset([
           getTopLevelTabRoute('ChatList'),
@@ -132,7 +141,7 @@ function useResetToChannel() {
         reset([channelRoute]);
       }
     },
-    [isWindowNarrow, lastOpenTab, navigationRef, reset]
+    [usesRootStack, lastOpenTab, navigationRef, reset]
   );
 }
 
@@ -140,12 +149,12 @@ function useResetToPost() {
   const navigation = useNavigation();
   const navigationRef = logic.useMutableRef(navigation);
   const reset = useTypedReset();
-  const isWindowNarrow = useIsWindowNarrow();
+  const usesRootStack = useUsesRootStack();
   const { lastOpenTab } = useGlobalSearch();
 
   return useCallback(
     function resetToPost(postParams: RootStackParamList['Post']) {
-      if (isWindowNarrow) {
+      if (usesRootStack) {
         const screenName = screenNameFromChannelId(postParams.channelId);
         reset([
           getTopLevelTabRoute('ChatList'),
@@ -163,7 +172,7 @@ function useResetToPost() {
         reset([getDesktopPostRoute(tab, postParams)]);
       }
     },
-    [isWindowNarrow, lastOpenTab, navigationRef, reset]
+    [usesRootStack, lastOpenTab, navigationRef, reset]
   );
 }
 
@@ -184,10 +193,10 @@ function useResetToDm() {
 
 function useResetToGroup() {
   const reset = useTypedReset();
-  const isWindowNarrow = useIsWindowNarrow();
+  const usesRootStack = useUsesRootStack();
 
   return async function resetToGroup(groupId: string) {
-    if (isWindowNarrow) {
+    if (usesRootStack) {
       reset([
         getTopLevelTabRoute('ChatList'),
         await getMainGroupRoute(groupId, true),
@@ -210,10 +219,10 @@ function useResetToGroup() {
 
 function useResetToGroupInvite() {
   const reset = useTypedReset();
-  const isWindowNarrow = useIsWindowNarrow();
+  const usesRootStack = useUsesRootStack();
 
   return async function resetToGroupInvite(groupId: string) {
-    if (isWindowNarrow) {
+    if (usesRootStack) {
       // matches the mobile push-notification tap: chat list with the invited
       // group's preview sheet open (see groupInvitePreviewRouteStack)
       reset([
@@ -229,13 +238,13 @@ function useResetToGroupInvite() {
 }
 
 function useNavigateToChannel() {
-  const isWindowNarrow = useIsWindowNarrow();
+  const usesRootStack = useUsesRootStack();
   const navigation = useNavigation();
   const { lastOpenTab } = useGlobalSearch();
 
   return useCallback(
     (channel: db.Channel, selectedPostId?: string) => {
-      if (isWindowNarrow) {
+      if (usesRootStack) {
         const screenName = screenNameFromChannelId(channel.id);
         navigation.navigate(
           screenName,
@@ -264,12 +273,12 @@ function useNavigateToChannel() {
         navigation.navigate(channelRoute);
       }
     },
-    [isWindowNarrow, navigation, lastOpenTab]
+    [usesRootStack, navigation, lastOpenTab]
   );
 }
 
 export function useNavigateToPost() {
-  const isWindowNarrow = useIsWindowNarrow();
+  const usesRootStack = useUsesRootStack();
   const navigation = useNavigation();
   const { lastOpenTab } = useGlobalSearch();
 
@@ -289,7 +298,7 @@ export function useNavigateToPost() {
       const currentScreenIsActivity =
         getActiveTopLevelDrawerRouteName(navigation) === 'Activity';
 
-      if (!isWindowNarrow && currentScreenIsActivity) {
+      if (!usesRootStack && currentScreenIsActivity) {
         const tab = getTab(navigation, lastOpenTab);
         logger.log('navigateToPost', tab, postParams);
 
@@ -299,12 +308,12 @@ export function useNavigateToPost() {
 
       navigation.navigate('Post', postParams, { pop: true });
     },
-    [isWindowNarrow, navigation, lastOpenTab]
+    [usesRootStack, navigation, lastOpenTab]
   );
 }
 
 export function useNavigateBackFromPost() {
-  const isWindowNarrow = useIsWindowNarrow();
+  const usesRootStack = useUsesRootStack();
   const navigation = useNavigation();
 
   return useCallback(
@@ -343,7 +352,7 @@ export function useNavigateBackFromPost() {
         );
         return;
       }
-      if (isWindowNarrow) {
+      if (usesRootStack) {
         const screenName = screenNameFromChannelId(channel.id);
         const params = {
           channelId: channel.id,
@@ -374,7 +383,7 @@ export function useNavigateBackFromPost() {
         );
       }
     },
-    [navigation, isWindowNarrow]
+    [navigation, usesRootStack]
   );
 }
 
@@ -416,25 +425,27 @@ function getTab(
 }
 
 export function useRootNavigation() {
-  const isWindowNarrow = useIsWindowNarrow();
+  const usesRootStack = useUsesRootStack();
   const navigation = useNavigation();
   const navigationRef = logic.useMutableRef(navigation);
   const navigateToGroup = useCallback(
     async (groupId: string) => {
       navigationRef.current.navigate(
-        await getMainGroupRoute(groupId, isWindowNarrow)
+        await getMainGroupRoute(groupId, usesRootStack)
       );
     },
-    [navigationRef, isWindowNarrow]
+    [navigationRef, usesRootStack]
   );
 
   const useNavigateToChatDetails = () => {
-    const isWindowNarrow = useIsWindowNarrow();
+    const usesRootStack = useUsesRootStack();
     const { lastOpenTab } = useGlobalSearch();
 
     return useCallback(
       (chat: { type: 'group' | 'channel'; id: string; groupId?: string }) => {
-        if (isWindowNarrow) {
+        // Native always mounts the root stack, whatever the width; only wide
+        // web has the drawer's tabs.
+        if (usesRootStack) {
           navigationRef.current.navigate(
             'ChatDetails',
             {
@@ -460,17 +471,17 @@ export function useRootNavigation() {
           );
         }
       },
-      [isWindowNarrow]
+      [usesRootStack]
     );
   };
 
   const useNavigateToChatVolume = () => {
-    const isWindowNarrow = useIsWindowNarrow();
+    const usesRootStack = useUsesRootStack();
     const { lastOpenTab } = useGlobalSearch();
 
     return useCallback(
       (chat: { type: 'group' | 'channel'; id: string; groupId?: string }) => {
-        if (isWindowNarrow) {
+        if (usesRootStack) {
           navigationRef.current.navigate(
             'ChatVolume',
             {
@@ -496,7 +507,7 @@ export function useRootNavigation() {
           );
         }
       },
-      [isWindowNarrow]
+      [usesRootStack]
     );
   };
 
@@ -505,7 +516,9 @@ export function useRootNavigation() {
   }, [navigationRef]);
 
   const navigateToBotSettings = useCallback(() => {
-    if (isWindowNarrow) {
+    // Native always mounts the root stack, even on a wide tablet; only wide
+    // web has the nested settings navigator.
+    if (usesRootStack) {
       navigationRef.current.navigate('BotSettings');
       return;
     }
@@ -517,7 +530,24 @@ export function useRootNavigation() {
     navigateToNestedSettings('Settings', {
       screen: 'BotSettings',
     });
-  }, [isWindowNarrow, navigationRef]);
+  }, [usesRootStack, navigationRef]);
+
+  const navigateToBotIdentitySettings = useCallback(() => {
+    // Native always mounts the root stack, even on a wide tablet; only wide
+    // web has the nested settings navigator.
+    if (usesRootStack) {
+      navigationRef.current.navigate('BotIdentitySettings');
+      return;
+    }
+
+    const navigateToNestedSettings = navigationRef.current.navigate as (
+      screen: 'Settings',
+      params: { screen: 'BotIdentitySettings' }
+    ) => void;
+    navigateToNestedSettings('Settings', {
+      screen: 'BotIdentitySettings',
+    });
+  }, [usesRootStack, navigationRef]);
 
   const navigateToBotMcpSettings = useCallback(
     (providerId?: string) => {
@@ -527,19 +557,6 @@ export function useRootNavigation() {
       }
       const params = providerId ? { providerId } : undefined;
       navigationRef.current.navigate('BotMcpSettings', params);
-    },
-    [navigationRef]
-  );
-
-  const navigateToBrowserCredentialHandoff = useCallback(
-    (
-      handoffId: string,
-      loginApproval?: BrowserCredentialHandoffParams['loginApproval']
-    ) => {
-      navigationRef.current.navigate('BrowserCredentialHandoff', {
-        handoffId,
-        ...(loginApproval ? { loginApproval } : {}),
-      });
     },
     [navigationRef]
   );
@@ -571,8 +588,8 @@ export function useRootNavigation() {
       resetToPost,
       navigateBack,
       navigateToBotSettings,
+      navigateToBotIdentitySettings,
       navigateToBotMcpSettings,
-      navigateToBrowserCredentialHandoff,
     }),
     [
       navigation,
@@ -581,8 +598,8 @@ export function useRootNavigation() {
       navigateToChatDetails,
       navigateToChatVolume,
       navigateToBotSettings,
+      navigateToBotIdentitySettings,
       navigateToBotMcpSettings,
-      navigateToBrowserCredentialHandoff,
       navigateBackFromPost,
       navigateToGroup,
       navigateToPost,
@@ -597,17 +614,17 @@ export function useRootNavigation() {
 
 export async function getMainGroupRoute(
   groupId: string,
-  isWindowNarrow: boolean
+  usesRootStack: boolean
 ) {
   // This route decision already needs the full group. Populate the same query
   // cache used by GroupChannels so its first render does not repeat the DB read
   // during the native push animation.
   const [group, lastVisitedChannelId] = await Promise.all([
     store.fetchGroup(groupId),
-    isWindowNarrow ? null : db.lastVisitedChannelId(groupId).getValue(),
+    usesRootStack ? null : db.lastVisitedChannelId(groupId).getValue(),
   ]);
 
-  if (!isWindowNarrow) {
+  if (!usesRootStack) {
     return getDesktopGroupEntryRoute(
       groupId,
       group?.channels?.map((channel) => channel.id) ?? [],

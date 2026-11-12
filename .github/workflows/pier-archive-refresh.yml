@@ -29,7 +29,7 @@ jobs:
   #   2. No open pier-refresh PR. One refresh PR at a time; a human merges or
   #      closes it before the next one is cut (no branch reuse).
   #   3. Desk inputs changed. The four hashes in the sidecar identify
-  #      everything assemble-desk.sh reads, so equal hashes mean the archived
+  #      everything `just build` reads, so equal hashes mean the archived
   #      desk already matches and a refresh would change nothing. The desk
   #      hash (scripts/desk-identity.sh) ignores the docket's glob-http line:
   #      the glob bot rewrites it several times a day, and a pier whose
@@ -46,7 +46,7 @@ jobs:
       # A manual dispatch tests the branch it was dispatched from; the
       # schedule always cuts from develop.
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || 'develop' }}
 
@@ -92,11 +92,11 @@ jobs:
             blob() { git show "HEAD:$1" | git hash-object --stdin; }
             if [ -f "$sidecar" ] && jq -e \
               --arg desk "$(scripts/desk-identity.sh tree HEAD)" \
-              --arg peru "$(blob peru.yaml)" \
-              --arg assemble "$(blob scripts/assemble-desk.sh)" \
-              --arg sync "$(blob scripts/sync-deps.sh)" \
-              '.deskTreeNoGlob == $desk and .peruBlob == $peru and
-               .assembleBlob == $assemble and .syncDepsBlob == $sync' \
+              --arg deps "$(blob desk-deps.yaml)" \
+              --arg justfile "$(blob justfile)" \
+              --arg fetch "$(blob scripts/backend/fetch-deps.sh)" \
+              '.deskTreeNoGlob == $desk and .deskDepsBlob == $deps and
+               .justfileBlob == $justfile and .fetchDepsBlob == $fetch' \
               "$sidecar" > /dev/null; then
               skip="desk inputs unchanged since generation $(jq -r .generation "$sidecar")"
             fi
@@ -127,29 +127,37 @@ jobs:
       # persisted GITHUB_TOKEN: its auth header would override the App token
       # used for the push.
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ needs.preflight.outputs.sha }}
           persist-credentials: false
 
       - name: Setup Node.js environment
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .nvmrc
 
       - name: Setup PNPM
-        uses: pnpm/action-setup@v3
+        uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d # v3
         with:
           run_install: |
             - recursive: true
               args: [--frozen-lockfile]
 
-      # rube runs `peru sync` itself on every prep, so there is no desk-deps
-      # cache step here: it would not save the sync.
-      - name: Install peru
+      - name: Setup just
+        # rube assembles ship desks with the repository justfile.
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+        with:
+          just-version: 1.59.0
+
+      - name: Install yq
+        # fetch-deps.sh reads desk-deps.yaml with yq v4, which apt
+        # doesn't ship.
         run: |
-          pipx install --force peru
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL https://github.com/mikefarah/yq/releases/download/v4.54.1/yq_linux_amd64 -o "$RUNNER_TEMP/bin/yq"
+          chmod +x "$RUNNER_TEMP/bin/yq"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
       - name: Install archive tools
         run: |
@@ -164,13 +172,13 @@ jobs:
 
       - name: Authenticate to Google Cloud
         if: env.DRY_RUN_INPUT != 'true'
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
         with:
           credentials_json: ${{ secrets.PIER_ARCHIVE_GCS_KEY }}
 
       - name: Set up Cloud SDK
         if: env.DRY_RUN_INPUT != 'true'
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2
 
       # archive-piers.sh requires an active `gcloud auth list` account, which
       # the auth action's credential-file override does not provide.
@@ -283,7 +291,7 @@ jobs:
 
       - name: Upload archive logs
         if: failure() || cancelled()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           # run_attempt: v4 artifact names are immutable across attempts.
           name: pier-archive-logs-${{ github.run_attempt }}

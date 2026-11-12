@@ -245,6 +245,53 @@ test('full group payload reconciles stale duplicate nav-section memberships', as
   });
 });
 
+// Rows land in the table in the order this device learned of them, such as
+// a section made here after the rest, which needn't be their saved order.
+test('getGroup returns nav sections in their saved order', async () => {
+  const groupId = '~bus/section-order-test';
+  const section = (sectionId: string, sectionIndex: number) => ({
+    id: `${groupId}-${sectionId}`,
+    sectionId,
+    groupId,
+    sectionIndex,
+    channels: [],
+  });
+  await queries.insertGroups({
+    groups: [
+      {
+        id: groupId,
+        currentUserIsMember: true,
+        currentUserIsHost: false,
+        hostUserId: '~bus',
+        channels: [],
+        navSections: [
+          section('default', 2),
+          section('outdoors', 1),
+          section('indoors', 0),
+        ],
+      } as unknown as Parameters<
+        typeof queries.insertGroups
+      >[0]['groups'][number],
+    ],
+  });
+
+  // Added since the last full sync, so it has no saved index yet.
+  await queries.addNavSectionToGroup({
+    id: `${groupId}-new`,
+    sectionId: 'new',
+    groupId,
+    meta: { title: 'New' },
+  });
+
+  const group = await queries.getGroup({ id: groupId });
+  expect(group?.navSections.map((s) => s.sectionId)).toEqual([
+    'new',
+    'indoors',
+    'outdoors',
+    'default',
+  ]);
+});
+
 test('updateNavSectionOrder skips a missing section list', async () => {
   await expect(
     queries.updateNavSectionOrder({
@@ -2057,6 +2104,51 @@ test('getJoinedGroupSeats: returns joined group seats for the given contacts', a
   expect(await queries.getJoinedGroupSeats({ contactIds: [] })).toEqual([]);
 });
 
+test('getSharedGroups: joined groups the contact also sits in, by title', async () => {
+  const them = '~bus';
+  const client = getClient();
+  if (!client) throw new Error('test db client not initialized');
+  const group = (id: string, title: string, currentUserIsMember = true) => ({
+    id,
+    title,
+    currentUserIsMember,
+    currentUserIsHost: false,
+    hostUserId: '~zod',
+  });
+  await client
+    .insert(schema.groups)
+    .values([
+      group('~zod/zeta', 'Zeta'),
+      group('~zod/alpha', 'Alpha'),
+      group('~zod/invited', 'Invited'),
+      group('~zod/left', 'Left', false),
+      group('~zod/without', 'Without'),
+    ]);
+  for (const chatId of ['~zod/zeta', '~zod/alpha', '~zod/left']) {
+    await queries.addChatMembers({
+      chatId,
+      contactIds: [them],
+      type: 'group',
+      joinStatus: 'joined',
+    });
+  }
+  await queries.addChatMembers({
+    chatId: '~zod/invited',
+    contactIds: [them],
+    type: 'group',
+    joinStatus: 'invited',
+  });
+  await queries.addChatMembers({
+    chatId: '~zod/without',
+    contactIds: ['~ten'],
+    type: 'group',
+    joinStatus: 'joined',
+  });
+
+  const shared = await queries.getSharedGroups({ contactId: them });
+  expect(shared.map((g) => g.id)).toEqual(['~zod/alpha', '~zod/zeta']);
+});
+
 test('deleteAbsentGroupMembers: drops only candidate seats the roster omits', async () => {
   const user = '~zod';
   const moon = '~doznec-dozzod-zod';
@@ -3177,6 +3269,55 @@ test('insertChannelUnreads updates nested thread unread conflicts', async () => 
   });
 });
 
+test('insertChanges writes unreads inside its existing transaction', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  await queries.insertChanges({
+    posts: [],
+    groups: [],
+    contacts: [],
+    deletedChannelIds: [],
+    unreads: {
+      groupUnreads: [makeGroupUnread()],
+      channelUnreads: [makeChannelUnread()],
+      threadActivity: [makeThreadUnread()],
+    },
+  });
+
+  expect(await client.$count(schema.groupUnreads)).toBe(1);
+  expect(await client.$count(schema.channelUnreads)).toBe(1);
+  expect(await client.$count(schema.threadUnreads)).toBe(1);
+});
+
+test('unread inserts take more rows than one statement can bind', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  // Enough rows to pass SQLite's 32,766 bound parameters in all three tables.
+  const rowCount = 7000;
+  const ids = Array.from({ length: rowCount }, (_, i) => `${i}`);
+
+  await queries.insertGroupUnreads(
+    ids.map((id) => makeGroupUnread({ groupId: `~zod/bulk-${id}` }))
+  );
+  await queries.insertChannelUnreads(
+    ids.map((id) =>
+      makeChannelUnread({
+        channelId: `chat/~zod/bulk/${id}`,
+        threadUnreads: [makeThreadUnread({ threadId: `nested-${id}` })],
+      })
+    )
+  );
+  await queries.insertThreadUnreads(
+    ids.map((id) => makeThreadUnread({ threadId: `direct-${id}` }))
+  );
+
+  expect(await client.$count(schema.groupUnreads)).toBe(rowCount);
+  expect(await client.$count(schema.channelUnreads)).toBe(rowCount);
+  expect(await client.$count(schema.threadUnreads)).toBe(rowCount * 2);
+});
+
 test('thread unread queries treat notification-only activity as unread until cleared', async () => {
   const client = getClient();
   if (!client) throw new Error('test db not initialized');
@@ -3774,6 +3915,66 @@ describe('recomputeChannelLastPost', () => {
     expect(group!.lastPostId).toBe('valid-sibling-head');
     expect(group!.lastPostAt).toBe(2000);
   });
+});
+
+// TLON-6252: channels deliver a delete as a tombstone on the add-post path,
+// so the head must fall back to the previous post rather than stay on the
+// emptied row.
+test('a tombstone for the channel head repoints channel and group to the previous post', async () => {
+  const groupId = '~zod/tombstone-head';
+  const channelId = 'chat/~zod/tombstone-head';
+  await queries.insertGroups({
+    groups: [
+      {
+        id: groupId,
+        currentUserIsMember: true,
+        currentUserIsHost: false,
+        hostUserId: '~zod',
+      } as unknown as Parameters<
+        typeof queries.insertGroups
+      >[0]['groups'][number],
+    ],
+  });
+  await queries.insertChannels([{ id: channelId, type: 'chat', groupId }]);
+  const post = (id: string, at: number) =>
+    ({
+      id,
+      type: 'chat',
+      channelId,
+      authorId: '~zod',
+      sentAt: at,
+      receivedAt: at,
+      sequenceNum: at,
+      content: JSON.stringify([{ inline: [id] }]),
+      syncedAt: at,
+    }) as unknown as Post;
+  await queries.insertChannelPosts({ posts: [post('previous', 1000)] });
+  await queries.insertChannelPosts({ posts: [post('head', 2000)] });
+
+  // The shape `toPostData` builds from a tombstone: no content.
+  await queries.insertChannelPosts({
+    posts: [
+      {
+        id: 'head',
+        type: 'chat',
+        channelId,
+        authorId: '~zod',
+        sentAt: 2000,
+        receivedAt: 2000,
+        sequenceNum: 2000,
+        isDeleted: true,
+        deletedAt: 3000,
+      } as Post,
+    ],
+  });
+
+  const channel = await queries.getChannel({ id: channelId });
+  expect(channel!.lastPostId).toBe('previous');
+  expect(channel!.lastPostAt).toBe(1000);
+  expect(channel!.lastPostSequenceNum).toBe(2000);
+  const group = await queries.getGroup({ id: groupId });
+  expect(group!.lastPostId).toBe('previous');
+  expect(group!.lastPostAt).toBe(1000);
 });
 
 describe('last post repair after channel metadata insert', () => {

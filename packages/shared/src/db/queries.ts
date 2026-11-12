@@ -365,6 +365,33 @@ export const getGroupsWithMemberThreshold = createReadQuery(
   ['groups']
 );
 
+/**
+ * The joined groups someone else is also a member of, by title. A big group's
+ * stored roster is partial, so a group can be missing until its full roster
+ * has been fetched.
+ */
+export const getSharedGroups = createReadQuery(
+  'getSharedGroups',
+  async ({ contactId }: { contactId: string }, ctx: QueryCtx) => {
+    const rows = await ctx.db
+      .select(getTableColumns($groups))
+      .from($chatMembers)
+      .innerJoin($groups, eq($groups.id, $chatMembers.chatId))
+      .where(
+        and(
+          eq($chatMembers.membershipType, 'group'),
+          eq($chatMembers.contactId, contactId),
+          // status is only set for invite flows; anything but 'invited' is a
+          // joined seat (see getJoinedGroupSeats).
+          or(isNull($chatMembers.status), ne($chatMembers.status, 'invited')),
+          eq($groups.currentUserIsMember, true)
+        )
+      );
+    return rows.sort((a, b) => (a.title ?? '').localeCompare(b.title ?? ''));
+  },
+  ['chatMembers', 'groups']
+);
+
 export const getGroups = createReadQuery(
   'getGroups',
   async (
@@ -1021,13 +1048,12 @@ export const insertSystemContacts = createWriteQuery(
     const { systemContacts } = params;
     if (!systemContacts.length) return;
 
-    // Process in batches of 200
-    const batchSize = 200;
-    for (let i = 0; i < systemContacts.length; i += batchSize) {
-      const batch = systemContacts.slice(i, i + batchSize);
-      if (!batch.length) continue;
-      try {
-        await ctx.db
+    await withTransactionCtx(ctx, async (txCtx) => {
+      // Keep the import atomic if a later batch fails.
+      const batchSize = 200;
+      for (let i = 0; i < systemContacts.length; i += batchSize) {
+        const batch = systemContacts.slice(i, i + batchSize);
+        await txCtx.db
           .insert($systemContacts)
           .values(batch)
           .onConflictDoUpdate({
@@ -1039,14 +1065,8 @@ export const insertSystemContacts = createWriteQuery(
           count: batch.length,
           startIndex: i,
         });
-      } catch (e) {
-        logger.trackEvent(domain.AnalyticsEvent.ErrorSystemContacts, {
-          context: 'failed to insert system contacts',
-          count: batch.length,
-          totalNumContacts: systemContacts.length,
-        });
       }
-    }
+    });
   },
   ['systemContacts', 'systemContactSentInvites', 'contacts']
 );
@@ -1185,50 +1205,6 @@ export const getSystemContactsBatchByContactId = createReadQuery(
     }
   },
   ['systemContacts', 'systemContactSentInvites']
-);
-
-// Returns the system contacts linked to the given contactIds whose
-// linked contact has no customNickname yet. Used by contact-discovery
-// to apply the address-book name as a default — we only fill in names
-// the user hasn't set themselves.
-export const getUnnamedSystemContactsByContactId = createReadQuery(
-  'getUnnamedSystemContactsByContactId',
-  async (
-    contactIds: string[],
-    ctx: QueryCtx
-  ): Promise<
-    Array<{
-      contactId: string;
-      firstName: string | null;
-      lastName: string | null;
-    }>
-  > => {
-    if (!contactIds.length) return [];
-    const rows = await ctx.db
-      .select({
-        contactId: $systemContacts.contactId,
-        firstName: $systemContacts.firstName,
-        lastName: $systemContacts.lastName,
-      })
-      .from($systemContacts)
-      .leftJoin($contacts, eq($systemContacts.contactId, $contacts.id))
-      .where(
-        and(
-          inArray($systemContacts.contactId, contactIds),
-          or(isNull($contacts.customNickname), eq($contacts.customNickname, ''))
-        )
-      );
-    return rows.filter(
-      (
-        r
-      ): r is {
-        contactId: string;
-        firstName: string | null;
-        lastName: string | null;
-      } => r.contactId !== null
-    );
-  },
-  ['systemContacts', 'contacts']
 );
 
 export const getUninvitedSystemContactsShortlist = createReadQuery(
@@ -5064,22 +5040,22 @@ export const insertChanges = createWriteQuery(
             );
             await perfTime(
               'insertChanges.groupUnreads',
-              () => insertGroupUnreads(input.unreads.groupUnreads, ctx),
+              () => insertGroupUnreads(input.unreads.groupUnreads, txCtx),
               { count: input.unreads.groupUnreads.length }
             );
             await perfTime(
               'insertChanges.channelUnreads',
-              () => insertChannelUnreads(input.unreads.channelUnreads, ctx),
+              () => insertChannelUnreads(input.unreads.channelUnreads, txCtx),
               { count: input.unreads.channelUnreads.length }
             );
             await perfTime(
               'insertChanges.threadUnreads',
-              () => insertThreadUnreads(input.unreads.threadActivity, ctx),
+              () => insertThreadUnreads(input.unreads.threadActivity, txCtx),
               { count: input.unreads.threadActivity.length }
             );
             if (input.unreads.baseUnread) {
               await perfTime('insertChanges.baseUnread', () =>
-                insertBaseUnread(input.unreads.baseUnread!, ctx)
+                insertBaseUnread(input.unreads.baseUnread!, txCtx)
               );
             }
           }),
@@ -5455,14 +5431,20 @@ async function setLastPosts(
   // Single-channel fast path — the common receive case.
   // Monotonic UPDATE driven by the incoming batch avoids correlated subqueries
   // and only advances lastPost* forward.
-  if (newPosts?.length && channelIds?.length === 1) {
+  if (
+    newPosts?.length &&
+    channelIds?.length === 1 &&
+    !(await tombstonesChannelHead(newPosts, channelIds[0], ctx))
+  ) {
     await setLastPostsMonotonic(newPosts, ctx);
     return;
   }
 
-  // Multi-channel batches and metadata-only calls (e.g. channels inserted after
-  // heads posts) recompute from local rows. This keeps the result idempotent no
-  // matter whether posts or channel/group metadata were written first.
+  // Multi-channel batches, metadata-only calls (e.g. channels inserted after
+  // heads posts) and batches that tombstone a channel's head recompute from
+  // local rows. This keeps the result idempotent no matter whether posts or
+  // channel/group metadata were written first, and lets a deleted head fall
+  // back to the previous post.
   if (channelIds && channelIds.length === 0) {
     return;
   }
@@ -5612,6 +5594,28 @@ async function setLastPosts(
         .limit(1)}`,
     })
     .where(groupIdFilter);
+}
+
+async function tombstonesChannelHead(
+  newPosts: Post[],
+  channelId: string,
+  ctx: QueryCtx
+) {
+  const deletedIds = newPosts
+    .filter((p) => p.isDeleted && p.type !== 'reply')
+    .map((p) => p.id);
+  if (!deletedIds.length) return false;
+  const [head] = await ctx.db
+    .select({ id: $channels.id })
+    .from($channels)
+    .where(
+      and(
+        eq($channels.id, channelId),
+        inArray($channels.lastPostId, deletedIds)
+      )
+    )
+    .limit(1);
+  return !!head;
 }
 
 async function setLastPostsMonotonic(newPosts: Post[], ctx: QueryCtx) {
@@ -6216,7 +6220,7 @@ export const undoOptimisticReplyBump = createWriteQuery(
 /**
  * Repoint `channels.lastPostId` / `lastPostAt` to the newest remaining
  * previewable (non-reply, non-deleted) top-level post, or null them if no
- * such post exists. Used after a hard-delete to keep chat-list / channel
+ * such post exists. Used after a delete to keep chat-list / channel
  * preview state in sync without waiting for a sync repair.
  */
 export const recomputeChannelLastPost = createWriteQuery(
@@ -6495,7 +6499,12 @@ export const getGroup = createReadQuery(
           },
           joinRequests: true,
           bannedMembers: true,
+          // In their saved order: rows land in the table in whatever order
+          // this device learned of them, such as a new section after the rest.
+          // A section added since the last full sync has no index yet and
+          // sorts first, which is where the backend puts a new section.
           navSections: {
+            orderBy: [asc($groupNavSections.sectionIndex)],
             with: {
               channels: true,
             },
@@ -6987,13 +6996,17 @@ export const insertGroupUnreads = createWriteQuery(
   'insertGroupUnreads',
   async (unreads: GroupUnread[], ctx: QueryCtx) => {
     if (!unreads.length) return;
-    return ctx.db
-      .insert($groupUnreads)
-      .values(unreads)
-      .onConflictDoUpdate({
-        target: [$groupUnreads.groupId],
-        set: conflictUpdateSetAll($groupUnreads),
-      });
+    return withTransactionCtx(ctx, (txCtx) =>
+      batchAction(unreads, async (batch) => {
+        await txCtx.db
+          .insert($groupUnreads)
+          .values(batch)
+          .onConflictDoUpdate({
+            target: [$groupUnreads.groupId],
+            set: conflictUpdateSetAll($groupUnreads),
+          });
+      })
+    );
   },
   (unreads) => (unreads.length ? ['groupUnreads'] : [])
 );
@@ -7071,25 +7084,29 @@ export const insertChannelUnreads = createWriteQuery(
 
     logger.log('insertChannelUnreads', unreads.length);
     return withTransactionCtx(ctx, async (txCtx) => {
-      await txCtx.db
-        .insert($channelUnreads)
-        .values(unreads)
-        .onConflictDoUpdate({
-          target: [$channelUnreads.channelId],
-          set: conflictUpdateSetAll($channelUnreads),
-        });
+      // Every DM and channel on the ship arrives here at once on init, and one
+      // statement for all of them outgrows SQLite's bound-parameter limit.
+      await batchAction(unreads, async (batch) => {
+        await txCtx.db
+          .insert($channelUnreads)
+          .values(batch)
+          .onConflictDoUpdate({
+            target: [$channelUnreads.channelId],
+            set: conflictUpdateSetAll($channelUnreads),
+          });
+      });
       const threadUnreads = unreads.flatMap((u) => {
         return u.threadUnreads ?? [];
       });
-      if (threadUnreads.length) {
+      await batchAction(threadUnreads, async (batch) => {
         await txCtx.db
           .insert($threadUnreads)
-          .values(threadUnreads)
+          .values(batch)
           .onConflictDoUpdate({
             target: [$threadUnreads.threadId, $threadUnreads.channelId],
             set: conflictUpdateSetAll($threadUnreads),
           });
-      }
+      });
     });
   },
   (unreads) => {
@@ -7159,13 +7176,17 @@ export const insertThreadUnreads = createWriteQuery(
   'insertThreadUnreads',
   async (unreads: ThreadUnreadState[], ctx: QueryCtx) => {
     if (!unreads.length) return;
-    return ctx.db
-      .insert($threadUnreads)
-      .values(unreads)
-      .onConflictDoUpdate({
-        target: [$threadUnreads.threadId, $threadUnreads.channelId],
-        set: conflictUpdateSetAll($threadUnreads),
-      });
+    return withTransactionCtx(ctx, (txCtx) =>
+      batchAction(unreads, async (batch) => {
+        await txCtx.db
+          .insert($threadUnreads)
+          .values(batch)
+          .onConflictDoUpdate({
+            target: [$threadUnreads.threadId, $threadUnreads.channelId],
+            set: conflictUpdateSetAll($threadUnreads),
+          });
+      })
+    );
   },
   (unreads) => (unreads.length ? ['threadUnreads', 'channelUnreads'] : [])
 );

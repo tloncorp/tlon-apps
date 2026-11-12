@@ -1,0 +1,92 @@
+name: Harness Bot E2E
+# Separate from harness-ci.yml so a change to the shared E2E framework runs
+# this job without also running Harness's own Hoon and E2E suites.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "packages/harness/**"
+      - "packages/tlon-bot-e2e/**"
+      - "desk/**"
+      - "desk-deps.yaml"
+      - "justfile"
+      - "scripts/backend/fetch-deps.sh"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/harness-bot-e2e.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  integration-test:
+    name: Bot E2E (harness)
+    runs-on: blacksmith-8vcpu-ubuntu-2204
+    # Above cold setup, the step cap and the failure capture, so a step that
+    # runs to its cap fails the step and the capture steps still run.
+    timeout-minutes: 75
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup just
+        # branch-desk.ts assembles the %groups and %harness desks with `just build`.
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+        with:
+          just-version: 1.59.0
+
+      - name: Install rsync and yq
+        # The desk builds copy with rsync, and fetch-deps.sh reads
+        # desk-deps.yaml with yq v4, which apt doesn't ship.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rsync
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL https://github.com/mikefarah/yq/releases/download/v4.54.1/yq_linux_amd64 -o "$RUNNER_TEMP/bin/yq"
+          chmod +x "$RUNNER_TEMP/bin/yq"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d # v3
+        with:
+          run_install: |
+            - recursive: true
+              args: [--frozen-lockfile]
+
+      - name: Cache fake ship archives
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .cache/tlon-bot-e2e/fake-ships
+          # Keyed on the compose file so a pier-generation bump rolls the cache.
+          key: tlon-bot-e2e-fake-ships-${{
+            hashFiles('packages/tlon-bot-e2e/docker/docker-compose.base.yml') }}
+
+      - name: Prepare fake ship cache
+        run: mkdir -p .cache/tlon-bot-e2e/fake-ships
+
+      - name: Run Harness shared E2E
+        timeout-minutes: 45
+        env:
+          FAKE_SHIP_CACHE_DIR: ${{ github.workspace }}/.cache/tlon-bot-e2e/fake-ships
+          # Compact: run.ts appends the stack key and truncates at 32 chars.
+          TLON_BOT_E2E_RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}-h
+        run: pnpm --filter '@tloncorp/tlon-bot-e2e' test:e2e:harness
+
+      - name: Capture leftover docker state
+        if: failure() || cancelled()
+        timeout-minutes: 5
+        run: bash ./packages/tlon-bot-e2e/scripts/capture-docker-state.sh
+          packages/tlon-bot-e2e/diagnostics/docker-state
+
+      - name: Upload E2E diagnostics
+        if: failure() || cancelled()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: tlon-bot-e2e-diagnostics-harness-${{ github.run_attempt }}
+          path: packages/tlon-bot-e2e/diagnostics/
+          if-no-files-found: warn
+          retention-days: 7

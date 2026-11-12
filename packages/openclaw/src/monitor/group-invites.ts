@@ -7,7 +7,10 @@ import type { Foreigns } from '../urbit/foreigns.js';
 import { resolveGroupInviteAction } from './utils.js';
 
 export type GroupInviteDeps = {
-  /** Accept-success + decision-blocked only; the queue path never marks. */
+  /**
+   * Accept-success (keyed by flag) + decision-blocked (keyed by
+   * blockedInviteMark) only; the queue path never marks.
+   */
   processedGroupInvites: Set<string>;
   ownerShip: string | null;
   allowlist: () => string[];
@@ -37,6 +40,24 @@ export function parseForeignsSnapshot(raw: unknown): Foreigns {
   throw new Error('Malformed foreigns snapshot: expected a flag→foreign map');
 }
 
+/** A confirmed-blocked mark suppresses that inviter only, not the group. */
+export function blockedInviteMark(groupFlag: string, inviterShip: string) {
+  return `${groupFlag}#blocked:${inviterShip}`;
+}
+
+function retireGroupMarks(
+  processedGroupInvites: Set<string>,
+  groupFlag: string
+) {
+  processedGroupInvites.delete(groupFlag);
+  const blockedPrefix = blockedInviteMark(groupFlag, '');
+  for (const key of processedGroupInvites) {
+    if (key.startsWith(blockedPrefix)) {
+      processedGroupInvites.delete(key);
+    }
+  }
+}
+
 /**
  * Un-suppress joins that errored after their accept acked, so the next
  * processor run reconsiders them.
@@ -56,7 +77,7 @@ export function clearErroredMarkers(
   }
   for (const [groupFlag, foreign] of Object.entries(foreigns)) {
     if (foreign.progress === 'error') {
-      processedGroupInvites.delete(groupFlag);
+      retireGroupMarks(processedGroupInvites, groupFlag);
     }
   }
 }
@@ -79,6 +100,14 @@ export async function processPendingForeigns(
     (blockedShipsOnce ??= deps.fetchBlockedShips());
 
   for (const [groupFlag, foreign] of Object.entries(foreigns)) {
+    const anyValid = foreign.invites?.some((inv) => inv.valid) ?? false;
+    // Foreigns facts are per-group deltas. A completed join (%groups then
+    // deletes the foreign, so any later invite is fresh) or a group with no
+    // valid invite left retires this group's marks, so a re-invite after a
+    // kick, leave, or revoke is decided again.
+    if (foreign.progress === 'done' || !anyValid) {
+      retireGroupMarks(deps.processedGroupInvites, groupFlag);
+    }
     if (deps.processedGroupInvites.has(groupFlag)) {
       continue;
     }
@@ -101,11 +130,24 @@ export async function processPendingForeigns(
       continue;
     }
 
-    const validInvite = foreign.invites.find((inv) => inv.valid);
-    if (!validInvite) {
+    if (!anyValid) {
       deps.log?.(
         `[tlon] Group ${groupFlag} has ${foreign.invites.length} invite(s) but none valid; skipping`
       );
+      continue;
+    }
+
+    // The foreign carries every invite, newest first, so skip inviters
+    // already confirmed blocked: otherwise a blocked newest inviter would
+    // shadow older valid ones for as long as its invite stays valid. When
+    // only blocked-marked inviters remain, stay silent and keep their marks,
+    // so the block-list is not re-scried on every fact.
+    const validInvite = foreign.invites.find(
+      (inv) =>
+        inv.valid &&
+        !deps.processedGroupInvites.has(blockedInviteMark(groupFlag, inv.from))
+    );
+    if (!validInvite) {
       continue;
     }
 
@@ -167,7 +209,7 @@ export async function processPendingForeigns(
       deps.log?.(
         `[tlon] Ignoring group invite from blocked ship ${inviterShip}: ${groupFlag}`
       );
-      deps.processedGroupInvites.add(groupFlag);
+      deps.processedGroupInvites.add(blockedInviteMark(groupFlag, inviterShip));
       continue;
     }
 

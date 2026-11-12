@@ -41,6 +41,24 @@ const choiceIconSchema = z.enum([
   'Link',
 ]);
 const choiceAccentSchema = z.enum(['blue', 'green', 'indigo', 'neutral']);
+/**
+ * Rendering hints. They are optional fields on existing components, so older
+ * apps strip them and draw the component as before. Each one parses
+ * leniently: a value this app doesn't know drops the hint, never the card,
+ * so a later bot can add values without breaking this release.
+ */
+const kickerIconSchema = z.enum([
+  'AddPerson',
+  'Channel',
+  'ChannelMultiDM',
+  'ChannelNotebooks',
+  'Clock',
+  'Link',
+  'Lock',
+  'Mail',
+]);
+const textRoleSchema = z.enum(['kicker', 'status']);
+const buttonToneSchema = z.enum(['destructive']);
 const containerJustifySchema = z.enum([
   'start',
   'center',
@@ -235,11 +253,23 @@ const smallChoiceActionSchema = z.union([
   z.object({ event: smallChoiceProvisionAgentEventSchema }),
 ]);
 
+const textEntitySchema = z.object({
+  type: z.enum(['ship', 'group']),
+  id: nonEmptyString(LIMITS.maxNavigationTargetIdLength),
+  /** The sender's display name, used when the app has no better one. */
+  name: nonEmptyString(LIMITS.maxPillLabelLength).optional(),
+});
 const textSchema = z.object({
   ...componentBaseShape,
   component: z.literal('Text'),
   text: z.string().max(LIMITS.maxTextNodeLength),
   variant: textVariantSchema.optional(),
+  /** Kicker: the card's kind at its top. Status: the card's state beside it. */
+  role: textRoleSchema.optional().catch(undefined),
+  /** Drawn before a kicker. */
+  icon: kickerIconSchema.optional().catch(undefined),
+  /** Draw as a person or group row; `text` remains the fallback. */
+  entity: textEntitySchema.optional().catch(undefined),
 });
 const containerSchema = z.object({
   ...componentBaseShape,
@@ -270,6 +300,15 @@ const buttonSchema = z.object({
   /** Local completion copy; the original post does not need a remote edit. */
   consumedLabel: nonEmptyString(LIMITS.maxTextNodeLength).optional(),
   variant: buttonVariantSchema.optional(),
+  tone: buttonToneSchema.optional().catch(undefined),
+  /** Once used: replaces the card's button row with this line. */
+  resultLabel: nonEmptyString(LIMITS.maxTextNodeLength)
+    .optional()
+    .catch(undefined),
+  /** Once used: shown as the card's status beside its kicker. */
+  statusLabel: nonEmptyString(LIMITS.maxPillLabelLength)
+    .optional()
+    .catch(undefined),
   action: buttonActionSchema,
 });
 const choiceOptionSchema = z.object({
@@ -414,6 +453,8 @@ export namespace A2UI {
   export type Button = z.infer<typeof buttonSchema>;
   /** Allowlisted assets a Choice option may render. */
   export type ChoiceIcon = z.infer<typeof choiceIconSchema>;
+  export type KickerIcon = z.infer<typeof kickerIconSchema>;
+  export type TextEntity = z.infer<typeof textEntitySchema>;
   export type ChoiceAccent = z.infer<typeof choiceAccentSchema>;
   export type ChoiceOption = z.infer<typeof choiceOptionSchema>;
   /** A group of full-row option cards where the whole card is tappable. */
@@ -546,8 +587,11 @@ function indexComponents(
       if (component.action.event.name === ACTION_SEND_MESSAGE) {
         totalTextLength += component.action.event.context.text.length;
       }
+      totalTextLength += component.resultLabel?.length ?? 0;
+      totalTextLength += component.statusLabel?.length ?? 0;
     } else if (component.component === 'Text') {
       totalTextLength += component.text.length;
+      totalTextLength += component.entity?.name?.length ?? 0;
     } else if (component.component === 'Choice') {
       // Choice carries its own copy — count it, or it bypasses the budget.
       for (const option of component.options) {
@@ -626,6 +670,39 @@ function validateReachableTree(
   }
 
   return visit(root, 1);
+}
+
+function parseHint<T>(schema: z.ZodType<T>, value: unknown): T | undefined {
+  const result = schema.safeParse(value);
+  return result.success ? result.data : undefined;
+}
+
+/**
+ * A Text's rendering hints. The renderer reads components from the raw
+ * message, where a hint that failed lenient parsing is still present, so it
+ * must read hints only through this.
+ */
+export function getTextHints(component: A2UI.Text) {
+  return {
+    role: parseHint(textRoleSchema, component.role),
+    icon: parseHint(kickerIconSchema, component.icon),
+    entity: parseHint(textEntitySchema, component.entity),
+  };
+}
+
+/** A Button's rendering hints; see getTextHints. */
+export function getButtonHints(component: A2UI.Button) {
+  return {
+    tone: parseHint(buttonToneSchema, component.tone),
+    resultLabel: parseHint(
+      nonEmptyString(LIMITS.maxTextNodeLength),
+      component.resultLabel
+    ),
+    statusLabel: parseHint(
+      nonEmptyString(LIMITS.maxPillLabelLength),
+      component.statusLabel
+    ),
+  };
 }
 
 export function getUpdateMessage(
@@ -753,7 +830,9 @@ export const A2UI = {
     provisionAgent: ACTION_PROVISION_AGENT,
     configureAgentProviders: ACTION_CONFIGURE_AGENT_PROVIDERS,
   },
+  getButtonHints,
   getCreateMessage,
+  getTextHints,
   getUpdateMessage,
   getRootComponentId,
   validateBlobEntry,

@@ -9,7 +9,6 @@ flows:
   - notebook-title-edges.yaml
   - gallery.yaml
   - gallery-link.yaml
-  - join-group-navigation.yaml
   - group-invite-navigation.yaml
   - message-actions.yaml
   - search.yaml

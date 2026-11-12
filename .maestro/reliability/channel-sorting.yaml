@@ -11,7 +11,7 @@ env:
 # Give recency sorting a decisive order that differs from the arranged default.
 - tapOn: '^Edit channels$'
 - assertVisible: '^Channels$'
-- tapOn: '^New$'
+- tapOn: '^New( channel or section)?$'
 - tapOn: '^New channel$'
 - assertVisible: '^Create a new channel$'
 - tapOn:

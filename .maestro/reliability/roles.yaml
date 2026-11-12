@@ -18,8 +18,7 @@ env:
     text: '^Admin$'
 - tapOn: '^Back$'
 - assertVisible: '^Workspace roles$'
-- tapOn:
-    id: GroupRolesNewButton
+- tapOn: '^New role$'
 - assertVisible: '^Add role$'
 - tapOn:
     id: RoleTitleInput

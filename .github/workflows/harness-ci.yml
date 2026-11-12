@@ -1,0 +1,264 @@
+name: Harness CI (Hoon and E2E Tests)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    # Harness, and what its desk is assembled from: the Tlon files listed in
+    # packages/harness/desk-deps.yaml (tests-js/modules.test.mjs keeps both
+    # lists below in step with it), the root justfile and fetch script its
+    # build runs, and the root desk-deps.yaml, which pins %mcp.
+    paths:
+      - "packages/harness/**"
+      - "desk/sur/activity-ver.hoon"
+      - "desk/sur/buckets.hoon"
+      - "desk/sur/channels-ver.hoon"
+      - "desk/sur/channels.hoon"
+      - "desk/sur/chat-ver.hoon"
+      - "desk/sur/contacts.hoon"
+      - "desk/sur/groups-ver.hoon"
+      - "desk/sur/groups.hoon"
+      - "desk/sur/hooks.hoon"
+      - "desk/sur/notes.hoon"
+      - "desk/sur/presence.hoon"
+      - "desk/sur/reel.hoon"
+      - "desk/sur/steward.hoon"
+      - "desk/sur/steward/gateway.hoon"
+      - "desk/sur/steward/lens.hoon"
+      - "desk/sur/story.hoon"
+      - "desk/lib/channel-json.hoon"
+      - "desk/lib/groups-json.hoon"
+      - "desk/lib/logs.hoon"
+      - "desk/lib/story-json.hoon"
+      - "desk/lib/cite-json.hoon"
+      - "desk/lib/mop-extensions.hoon"
+      - "desk/sur/activity.hoon"
+      - "desk/sur/chat-2.hoon"
+      - "desk/sur/chat-3.hoon"
+      - "desk/sur/chat-4.hoon"
+      - "desk/sur/chat-5.hoon"
+      - "desk/sur/chat-6.hoon"
+      - "desk/sur/chat-7.hoon"
+      - "desk/sur/chat.hoon"
+      - "desk/sur/cite.hoon"
+      - "desk/sur/epic.hoon"
+      - "desk/sur/logs.hoon"
+      - "desk/sur/meta.hoon"
+      - "desk/sur/ui.hoon"
+      - "desk-deps.yaml"
+      - "justfile"
+      - "scripts/backend/fetch-deps.sh"
+      - ".github/workflows/harness-ci.yml"
+  push:
+    branches: [develop]
+    paths:
+      - "packages/harness/**"
+      - "desk/sur/activity-ver.hoon"
+      - "desk/sur/buckets.hoon"
+      - "desk/sur/channels-ver.hoon"
+      - "desk/sur/channels.hoon"
+      - "desk/sur/chat-ver.hoon"
+      - "desk/sur/contacts.hoon"
+      - "desk/sur/groups-ver.hoon"
+      - "desk/sur/groups.hoon"
+      - "desk/sur/hooks.hoon"
+      - "desk/sur/notes.hoon"
+      - "desk/sur/presence.hoon"
+      - "desk/sur/reel.hoon"
+      - "desk/sur/steward.hoon"
+      - "desk/sur/steward/gateway.hoon"
+      - "desk/sur/steward/lens.hoon"
+      - "desk/sur/story.hoon"
+      - "desk/lib/channel-json.hoon"
+      - "desk/lib/groups-json.hoon"
+      - "desk/lib/logs.hoon"
+      - "desk/lib/story-json.hoon"
+      - "desk/lib/cite-json.hoon"
+      - "desk/lib/mop-extensions.hoon"
+      - "desk/sur/activity.hoon"
+      - "desk/sur/chat-2.hoon"
+      - "desk/sur/chat-3.hoon"
+      - "desk/sur/chat-4.hoon"
+      - "desk/sur/chat-5.hoon"
+      - "desk/sur/chat-6.hoon"
+      - "desk/sur/chat-7.hoon"
+      - "desk/sur/chat.hoon"
+      - "desk/sur/cite.hoon"
+      - "desk/sur/epic.hoon"
+      - "desk/sur/logs.hoon"
+      - "desk/sur/meta.hoon"
+      - "desk/sur/ui.hoon"
+      - "desk-deps.yaml"
+      - "justfile"
+      - "scripts/backend/fetch-deps.sh"
+      - ".github/workflows/harness-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to a PR supersedes its running tests; runs on develop always finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    working-directory: packages/harness
+
+jobs:
+  # Native Hoon tests on one fake ship: Harness and %mcp unit tests, then the
+  # integration tests after a heavy commit.
+  hoon-test:
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    name: Harness Hoon Tests
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup just
+        # The justfiles need quote() and the `/` operator (just >= 1.5).
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+        with:
+          just-version: 1.59.0
+
+      - name: Install tools
+        # socat carries click's threads to the ship; tmux holds the running
+        # ships; rsync installs desks. fetch-deps.sh, here and
+        # %mcp's own, needs yq v4, which apt doesn't ship.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y socat tmux rsync jq
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL https://github.com/mikefarah/yq/releases/download/v4.54.1/yq_linux_amd64 -o "$RUNNER_TEMP/bin/yq"
+          chmod +x "$RUNNER_TEMP/bin/yq"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Cache vere and fetched deps
+        # setup-fake-dev.sh pins the vere version; desk-deps.yaml pins commits.
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: packages/harness/.deps-cache
+          key: deps-${{ runner.os }}-${{ hashFiles('packages/harness/desk-deps.yaml', 'packages/harness/scripts/setup-fake-dev.sh') }}
+          restore-keys: deps-${{ runner.os }}-
+
+      - name: Vendor desk deps
+        # setup-fake-dev.sh needs mcp/ before anything builds.
+        run: just fetch
+
+      - name: Cache mcp desk deps
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: packages/harness/mcp/.deps-cache
+          key: mcp-deps-${{ runner.os }}-${{ hashFiles('packages/harness/mcp/deps.yaml') }}
+          restore-keys: mcp-deps-${{ runner.os }}-
+
+      - name: Cache boot pill
+        # get-pill.sh pins the pill version and skips the download if present.
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: packages/harness/scripts/groups-*.pill
+          key: pill-${{ hashFiles('packages/harness/scripts/get-pill.sh') }}
+
+      - name: Run Hoon Tests
+        run: just test-hoon
+
+      - name: Summarize results
+        if: always()
+        run: |
+          [ -f .test-run/hoon/results.txt ] || exit 0
+          { echo '### Hoon Tests'; echo '```'; cat .test-run/hoon/results.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: harness-hoon-test-results
+          path: |
+            packages/harness/.test-run/hoon/results.txt
+            packages/harness/.test-run/hoon/logs/
+          # .test-run is a dot directory, which upload-artifact skips by default.
+          include-hidden-files: true
+          retention-days: 7
+
+  # Offline Node tests, then live scripts against ~zod, ~lux and ~nec with
+  # local stand-in model providers. Needs no secrets.
+  e2e-test:
+    # Two ships run at once, plus Node and the local providers.
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    name: Harness E2E Tests
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup Node.js environment
+        # acp-subscription-conformance needs navigator.locks (Node >= 24.5);
+        # pinned to the version the suite is run with locally.
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 26.3.0
+
+      - name: Setup just
+        # The justfiles need quote() and the `/` operator (just >= 1.5).
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+        with:
+          just-version: 1.59.0
+
+      - name: Install tools
+        # socat carries click's threads to the ship; tmux holds the running
+        # ships; rsync installs desks. fetch-deps.sh, here and
+        # %mcp's own, needs yq v4, which apt doesn't ship.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y socat tmux rsync jq
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL https://github.com/mikefarah/yq/releases/download/v4.54.1/yq_linux_amd64 -o "$RUNNER_TEMP/bin/yq"
+          chmod +x "$RUNNER_TEMP/bin/yq"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Cache vere and fetched deps
+        # setup-fake-dev.sh pins the vere version; desk-deps.yaml pins commits.
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: packages/harness/.deps-cache
+          key: deps-${{ runner.os }}-${{ hashFiles('packages/harness/desk-deps.yaml', 'packages/harness/scripts/setup-fake-dev.sh') }}
+          restore-keys: deps-${{ runner.os }}-
+
+      - name: Vendor desk deps
+        # setup-fake-dev.sh needs mcp/ before anything builds.
+        run: just fetch
+
+      - name: Cache mcp desk deps
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: packages/harness/mcp/.deps-cache
+          key: mcp-deps-${{ runner.os }}-${{ hashFiles('packages/harness/mcp/deps.yaml') }}
+          restore-keys: mcp-deps-${{ runner.os }}-
+
+      - name: Cache boot pill
+        # get-pill.sh pins the pill version and skips the download if present.
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: packages/harness/scripts/groups-*.pill
+          key: pill-${{ hashFiles('packages/harness/scripts/get-pill.sh') }}
+
+      - name: Run E2E Tests
+        run: just test-js
+
+      - name: Summarize results
+        if: always()
+        run: |
+          [ -f .test-run/js/results.txt ] || exit 0
+          { echo '### E2E Tests'; echo '```'; cat .test-run/js/results.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: harness-e2e-test-results
+          path: |
+            packages/harness/.test-run/js/results.txt
+            packages/harness/.test-run/js/logs/
+          # .test-run is a dot directory, which upload-artifact skips by default.
+          include-hidden-files: true
+          retention-days: 7

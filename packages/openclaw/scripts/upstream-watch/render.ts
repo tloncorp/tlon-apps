@@ -61,8 +61,14 @@ export interface Post {
 
 // Harness Alerts, where tlonbot's nightly also posts.
 export const HARNESS_ALERTS_CHANNEL = 'chat/~litseb-sarfel/v2bv8do';
+// Nobody watches the alert channel; a mention in the header is what reaches a
+// human's activity feed.
+export const WATCH_MENTION_SHIP = '~finned-palmer';
 
-type Inline = string | { link: { href: string; content: string } };
+type Inline =
+  | string
+  | { ship: string }
+  | { link: { href: string; content: string } };
 
 export interface AlertPayload {
   channel: string;
@@ -70,8 +76,8 @@ export interface AlertPayload {
 }
 
 export function alertPayload(post: Post): AlertPayload {
-  const content: AlertPayload['content'] = post.lines.map((line) => ({
-    inline: [line],
+  const content: AlertPayload['content'] = post.lines.map((line, i) => ({
+    inline: i === 0 ? [{ ship: WATCH_MENTION_SHIP }, ' ', line] : [line],
   }));
   if (post.link) {
     content.push({
@@ -740,7 +746,10 @@ export function writePost(out: string, post: Post) {
     path.join(out, 'post.json'),
     JSON.stringify(alertPayload(post))
   );
-  writeFileSync(path.join(out, 'post.txt'), post.lines.join('\n') + '\n');
+  writeFileSync(
+    path.join(out, 'post.txt'),
+    `${WATCH_MENTION_SHIP} ${post.lines.join('\n')}\n`
+  );
 }
 
 if (import.meta.main) {

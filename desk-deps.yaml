@@ -1,0 +1,71 @@
+# Files the %groups desk imports but does not own, pinned by commit.
+#
+# `just fetch` copies each listed file into desk-deps/, with `export` stripped
+# from its path. desk-deps/ is an entirely-gitignored vendored tree kept
+# SEPARATE from our own source in desk/. The desk is assembled by copying
+# desk-deps/ in first and then our desk/ on top — see `build` in the justfile.
+# `rev` must be a full commit hash: a single commit is fetched shallowly, and
+# the hash is also the integrity check.
+#
+# IMPORTANT: do NOT list anything this repo patches or owns. Notably
+# desk/lib/verb.hoon is a locally-patched 3-arg variant and stays committed;
+# lib/{strand,strandio,test} and the thread marks are app-local too.
+
+# %base (urbit/urbit) dev dependencies. Pinned to the commit of the 408k-rc2
+# tag, matching desk/sys.kelvin ([%zuse 408]).
+base:
+  url: https://github.com/urbit/urbit.git
+  rev: 192187b2975c6a06840c9630fae9394aac09a8e8
+  export: pkg/base-dev
+  files:
+    # libraries the desk imports (transitive closure):
+    #   default-agent -> skeleton; azimuth -> ethereum; ethereum/dbug standalone
+    # azimuth is only reached via the aqua test framework (lib/aqua-azimuth ->
+    # lib/ph/io), so it isn't built by a normal %groups commit, but the aqua
+    # tests need it.
+    - lib/azimuth.hoon
+    - lib/dbug.hoon
+    - lib/default-agent.hoon
+    - lib/ethereum.hoon
+    - lib/mip.hoon
+    - lib/server.hoon
+    - lib/skeleton.hoon
+    # thread types (spider sur; its /+ strand resolves to our local strand)
+    - sur/spider.hoon
+    # %hood actions, used by the raze thread (ted/raze.hoon)
+    - sur/hood.hoon
+    # standard marks clay needs to build/serve the desk
+    - mar/bill.hoon
+    - mar/hoon.hoon
+    - mar/kelvin.hoon
+    - mar/mime.hoon
+    - mar/noun.hoon
+    - mar/txt.hoon
+    - mar/css.hoon
+    - mar/json.hoon
+    - mar/htm.hoon
+    - mar/html.hoon
+    - mar/tang.hoon
+
+# %landscape (tloncorp/landscape) docket + settings types. No 408 tag exists
+# yet; pinned to the 408 branch commit. Bump to a tag's commit when landscape
+# releases.
+landscape:
+  url: https://github.com/tloncorp/landscape.git
+  rev: 5193635c45a346b3030280e76ee32d6fa290bc98
+  export: desk
+  files:
+    - lib/docket.hoon
+    - mar/docket-0.hoon
+    - sur/docket.hoon
+    - sur/settings.hoon
+
+# %mcp (tloncorp/mcp) types for %notes' self-registration with a local
+# Harness checks the whole repository out at this commit too (packages/harness/justfile).
+mcp:
+  url: https://github.com/tloncorp/mcp.git
+  rev: 9600a823d2d6e49d47f436f98ecde0e832b732ee
+  export: desk
+  files:
+    - mar/mcp-proxy-action.hoon
+    - sur/mcp-proxy.hoon

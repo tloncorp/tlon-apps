@@ -30,18 +30,18 @@ import { useIsWindowNarrow, useToast } from '@tloncorp/ui';
 import * as Clipboard from 'expo-clipboard';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Linking, Platform } from 'react-native';
-import { YStack } from 'tamagui';
+import { XStack, YStack } from 'tamagui';
 
 import { useShip } from '../../../contexts/ship';
 import type { RootStackParamList } from '../../../navigation/types';
-import { useNotebookSidebarRegistration } from '../../contexts/notebookSidebar';
 import { useSheetDismissalAction } from '../../hooks/useSheetDismissalAction';
 import { ActionSheet } from '../ActionSheet';
 import {
   useRegisterChannelHeaderItem,
   useRegisterChannelHeaderLoadingSubtitle,
 } from '../Channel/ChannelHeader';
-import type { ScreenHeaderAction } from '../ScreenHeader';
+import { ChannelNestedSidebar } from '../ChannelNestedSidebar';
+import { ScreenHeader } from '../ScreenHeader';
 import { useFloatingHeaderHeight } from '../conversationScrollChrome';
 import { NotesActionGroupList } from './NotesActions';
 import {
@@ -61,7 +61,6 @@ import {
   errorMessage,
 } from './NotesFeedback';
 import {
-  NotesHeaderActions,
   createNotesHeaderActions,
   createNotesNewFolderAction,
   createNotesNewNoteAction,
@@ -165,7 +164,6 @@ export function NotesNativeChannel({
   const isWindowNarrow = useIsWindowNarrow();
   const showToast = useToast();
   const useDesktopSplit = Platform.OS === 'web' && !isWindowNarrow;
-  const notebookSidebarSourceId = `${channelId}/${folderId ?? 'root'}`;
   const [desktopFolderId, setDesktopFolderId] = useState<number | null>(
     folderId ?? null
   );
@@ -1179,21 +1177,6 @@ export function NotesNativeChannel({
     [gate, notebookFlag, headerActionOptions]
   );
 
-  const sidebarHeaderActions = useMemo<ScreenHeaderAction[]>(() => {
-    if (!notebookFlag || notebookGateBlocksAccess(gate) || !canEdit) {
-      return [];
-    }
-    return [
-      {
-        id: 'NotesRootNewHeaderAction',
-        icon: 'Add',
-        label: 'New',
-        onPress: () => setNewActionSheetOpen(true),
-        testID: 'NotesRootNewHeaderAction',
-      },
-    ];
-  }, [canEdit, gate, notebookFlag]);
-
   useRegisterChannelHeaderItem(useDesktopSplit ? null : headerActions);
   useRegisterChannelHeaderLoadingSubtitle(
     Platform.OS !== 'web' && isFocused && gate === 'loading'
@@ -1230,25 +1213,6 @@ export function NotesNativeChannel({
     />
   );
 
-  useNotebookSidebarRegistration(
-    useDesktopSplit && isFocused && !gate
-      ? {
-          channelId,
-          actions: headerActions ? (
-            <NotesHeaderActions {...headerActionOptions} />
-          ) : null,
-          backAction: sidebarIsNested ? handleSidebarBack : undefined,
-          content: notesTreePane,
-          groupId,
-          headerActions: sidebarHeaderActions,
-          title: sidebarIsNested
-            ? getFolderLabel(activeSidebarFolder)
-            : (channelTitle ?? 'Notebook'),
-        }
-      : null,
-    notebookSidebarSourceId
-  );
-
   // NotesTreePane only mounts the scroll view that installs the transparent
   // header once it has rows; its empty state leaves the header opaque, and
   // padding the banner then would open a second header-height gap. The desktop
@@ -1265,8 +1229,19 @@ export function NotesNativeChannel({
     );
   }
 
+  const banners =
+    error || importNotice ? (
+      // These sit outside the tree pane's scroll view, so nothing insets
+      // them below a transparent header; the group clears it once.
+      <YStack paddingTop={floatingHeaderHeight}>
+        {error ? <NotesBanner message={error} tone="negative" /> : null}
+        {importNotice ? <NotesBanner message={importNotice} /> : null}
+      </YStack>
+    ) : null;
+
   const noteDetailPane = (
     <YStack flex={1} minWidth={0} backgroundColor="$background">
+      {banners}
       {selectedNoteId === null ? (
         <NotesEmptyDetailPane
           canEdit={canEdit}
@@ -1298,16 +1273,30 @@ export function NotesNativeChannel({
       position="relative"
       {...dropImportProps}
     >
-      {error || importNotice ? (
-        // These sit outside the tree pane's scroll view, so nothing insets
-        // them below a transparent header; the group clears it once.
-        <YStack paddingTop={floatingHeaderHeight}>
-          {error ? <NotesBanner message={error} tone="negative" /> : null}
-          {importNotice ? <NotesBanner message={importNotice} /> : null}
-        </YStack>
-      ) : null}
-
-      {useDesktopSplit ? noteDetailPane : notesTreePane}
+      {useDesktopSplit ? (
+        <XStack flex={1} minHeight={0}>
+          <ChannelNestedSidebar>
+            <ScreenHeader
+              borderBottom
+              testID="NotesSidebarHeader"
+              title={
+                sidebarIsNested
+                  ? getFolderLabel(activeSidebarFolder)
+                  : (channelTitle ?? 'Notebook')
+              }
+              backAction={sidebarIsNested ? handleSidebarBack : undefined}
+              rightActions={headerActions ?? undefined}
+            />
+            {notesTreePane}
+          </ChannelNestedSidebar>
+          {noteDetailPane}
+        </XStack>
+      ) : (
+        <>
+          {banners}
+          {notesTreePane}
+        </>
+      )}
       {isDragImportActive ? (
         <YStack
           pointerEvents="none"

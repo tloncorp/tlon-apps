@@ -19,6 +19,7 @@ changing code there:
 | Web app and E2E tests | `apps/tlon-web/AGENTS.md` |
 | OpenClaw plugin | `packages/openclaw/AGENTS.md` |
 | Hermes adapter | `packages/hermes-tlon-adapter/AGENTS.md` |
+| Harness agent runtime | `packages/harness/AGENTS.md` |
 
 ## System map
 
@@ -106,7 +107,8 @@ Don't re-propose these without new information.
   subscriptions. New startup data rides in the versioned init payload.
 - Strict marks never become relaxed again; a new shape is a new mark version.
 - Spider threads are versioned by copying with a version tag (`create-1`).
-- Desk dependencies are vendored by peru into `desk-deps/`, not copied in.
+- Desk dependencies are vendored into `desk-deps/` at the commits pinned in
+  `desk-deps.yaml`, not copied in.
 - A review finding may be declined when it needs an uncommon concurrent
   failure and the worst outcome is not data loss, corruption or a permission
   leak. Those three are always fixed.
@@ -126,9 +128,10 @@ Don't re-propose these without new information.
 - Format before every commit: `pnpm format` (oxfmt) at the root, or
   `pnpm lint:format` in a package. Passing tsc and lint does not mean the
   formatter is satisfied, and CI checks it.
-- Desk: `./scripts/sync-deps.sh` (peru) after cloning or editing `peru.yaml`;
-  `./scripts/assemble-desk.sh <target>` builds a full desk. See
-  `desk/AGENTS.md`.
+- Desk (needs `just`, `yq` and `python3`): `just build` fetches the
+  dependencies in `desk-deps.yaml` and assembles the full desk into
+  `desk-out/`; `just install <pier>/groups` replaces a mounted desk with it.
+  See `desk/AGENTS.md`.
 
 Shell scripts must run on macOS and Linux: `#!/bin/bash`, no `declare -A`,
 portable flags (`grep -E`), and care with BSD vs GNU `sed`/`tar`. On Windows,
@@ -264,7 +267,7 @@ Do not flag:
 - Electron-only behavior: `apps/tlon-desktop` is not currently released.
   Supported clients are iOS, Android and web.
 - Rare failure branches, cleanup or timing in maintainer-run scripts
-  (`scripts/`, `backend/`, `apps/tlon-web/rube/`, `.agents/`) and fixtures.
+  (`scripts/`, `apps/tlon-web/rube/`, `.agents/`) and fixtures.
   Flag only a tool that reports success while doing the wrong thing.
 - Sub-second visual transients, or telemetry imprecision unless telemetry is
   the PR's goal.

@@ -2,7 +2,6 @@ import { describe, expect, test } from 'vitest';
 
 import {
   NavigationChainNode,
-  getActiveNestedGroupId,
   getActiveTopLevelDrawerRouteName,
   getActivityBackTargetName,
   getDesktopGroupEntryRoute,
@@ -59,44 +58,6 @@ describe('getDesktopGroupEntryRoute', () => {
         params: { channelId: chatId, groupId },
       },
     });
-  });
-});
-
-describe('getActiveNestedGroupId', () => {
-  test('finds the group on the active nested desktop channel route', () => {
-    expect(
-      getActiveNestedGroupId({
-        index: 0,
-        routes: [
-          {
-            name: 'Home',
-            state: {
-              index: 1,
-              routes: [
-                { name: 'ChatList' },
-                { name: 'Channel', params: { groupId: '~zod/agent' } },
-              ],
-            },
-          },
-          {
-            name: 'Messages',
-            params: { groupId: '~zod/inactive' },
-          },
-        ],
-      })
-    ).toBe('~zod/agent');
-  });
-
-  test('ignores inactive routes and missing group ids', () => {
-    expect(
-      getActiveNestedGroupId({
-        index: 0,
-        routes: [
-          { name: 'Home' },
-          { name: 'Messages', params: { groupId: '~zod/inactive' } },
-        ],
-      })
-    ).toBeUndefined();
   });
 });
 
@@ -265,16 +226,6 @@ describe('getDesktopPostRoute', () => {
       channelId: '0v4.aaaaa.bbbbb',
     });
     expect(route.params.screen).toBe('GroupDM');
-  });
-
-  test('notes channel -> Home even when the last open tab is Messages', () => {
-    const route = getDesktopPostRoute('Messages', {
-      ...base,
-      channelId: 'notes/~zod/blog',
-      groupId: '~zod/tlon',
-    });
-    expect(route.name).toBe('Home');
-    expect(route.params.screen).toBe('Channel');
   });
 
   test('selectedPostId is threaded onto both wrapper and nested Post params', () => {

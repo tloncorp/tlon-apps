@@ -2792,6 +2792,7 @@ class AdapterAttentionTests(unittest.TestCase):
     def test_adapter_enforces_own_access_policy_for_core(self):
         adapter = self.make_adapter({"owner_ship": "~mug"})
         self.assertIs(adapter.enforces_own_access_policy, True)
+        self.assertIs(adapter.authorization_is_upstream, True)
         self.assertEqual(adapter._dm_policy, "allowlist")
         self.assertEqual(adapter._group_policy, "allowlist")
 
@@ -2950,6 +2951,47 @@ class AdapterAttentionTests(unittest.TestCase):
         self.assertEqual(block["action"], "block")
         self.assertIn("managed Tlon prompt", block["message"])
 
+    def test_tlon_session_blocks_cron_timestamp_without_offset(self):
+        with patch.dict(os.environ, {"HERMES_SESSION_PLATFORM": "tlon"}, clear=True):
+            naive = adapter_mod.block_naive_cron_timestamp(
+                "cronjob", {"action": "create", "schedule": "2035-03-13T09:00:00"}
+            )
+            offset = adapter_mod.block_naive_cron_timestamp(
+                "cronjob", {"action": "create", "schedule": "2035-03-13T09:00:00+09:00"}
+            )
+            utc = adapter_mod.block_naive_cron_timestamp(
+                "cronjob", {"action": "create", "schedule": "2035-03-13T00:00:00Z"}
+            )
+            cron = adapter_mod.block_naive_cron_timestamp(
+                "cronjob", {"action": "create", "schedule": "0 9 * * *"}
+            )
+            interval = adapter_mod.block_naive_cron_timestamp(
+                "cronjob", {"action": "create", "schedule": "every 2h"}
+            )
+
+        self.assertEqual(naive["action"], "block")
+        self.assertIn("no UTC offset", naive["message"])
+        self.assertIsNone(offset)
+        self.assertIsNone(utc)
+        self.assertIsNone(cron)
+        self.assertIsNone(interval)
+
+    def test_tlon_session_blocks_cron_timestamp_under_hermes_022_tool_name(self):
+        with patch.dict(os.environ, {"HERMES_SESSION_PLATFORM": "tlon"}, clear=True):
+            block = adapter_mod.block_naive_cron_timestamp(
+                "cronjob_manage", {"action": "create", "schedule": "2035-03-13T09:00:00"}
+            )
+
+        self.assertEqual(block["action"], "block")
+
+    def test_non_tlon_session_allows_cron_timestamp_without_offset(self):
+        with patch.dict(os.environ, {"HERMES_SESSION_PLATFORM": "cli"}, clear=True):
+            block = adapter_mod.block_naive_cron_timestamp(
+                "cronjob", {"action": "create", "schedule": "2035-03-13T09:00:00"}
+            )
+
+        self.assertIsNone(block)
+
     def test_non_tlon_session_allows_skill_management_hook(self):
         with patch.dict(os.environ, {"HERMES_SESSION_PLATFORM": "cli"}, clear=True):
             block = adapter_mod.block_tlon_session_tool(
@@ -2963,11 +3005,13 @@ class AdapterAttentionTests(unittest.TestCase):
         owner_only_tools = (
             "tlon",
             "cronjob",
+            "cronjob_manage",
             "read",
             "read_file",
             "write_file",
             "patch",
             "search_files",
+            "set_timezone",
             "mcp_tlon_mcp_search",
         )
         with patch.dict(
@@ -2990,11 +3034,13 @@ class AdapterAttentionTests(unittest.TestCase):
         owner_only_tools = (
             "tlon",
             "cronjob",
+            "cronjob_manage",
             "read",
             "read_file",
             "write_file",
             "patch",
             "search_files",
+            "set_timezone",
             "mcp_tlon_mcp_search",
         )
         with patch.dict(
@@ -3043,6 +3089,31 @@ class AdapterAttentionTests(unittest.TestCase):
                 clear=True,
             ):
                 block = adapter_mod.block_tlon_session_tool("linear_create_issue", {})
+
+        self.assertIsNotNone(block)
+        self.assertEqual(block["action"], "block")
+        self.assertIn("owner-only", block["message"])
+
+    def test_tlon_session_blocks_registry_cronjob_toolset_for_non_owner(self):
+        # A future core may rename the cron tool again; the toolset fallback
+        # keeps it owner-only without a new OWNER_ONLY_TLON_TOOLS entry.
+        self.assertNotIn("cronjob_schedule", adapter_mod.OWNER_ONLY_TLON_TOOLS)
+        fake_model_tools = types.ModuleType("model_tools")
+        fake_model_tools.get_toolset_for_tool = (
+            lambda tool_name: "cronjob" if tool_name == "cronjob_schedule" else None
+        )
+
+        with patch.dict(sys.modules, {"model_tools": fake_model_tools}):
+            with patch.dict(
+                os.environ,
+                {
+                    "HERMES_SESSION_PLATFORM": "tlon",
+                    "HERMES_SESSION_USER_ID": "~mug",
+                    "TLON_OWNER_SHIP": "~pen",
+                },
+                clear=True,
+            ):
+                block = adapter_mod.block_tlon_session_tool("cronjob_schedule", {})
 
         self.assertIsNotNone(block)
         self.assertEqual(block["action"], "block")

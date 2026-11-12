@@ -17,6 +17,7 @@ import { updateSession } from '../session';
 import { setUploadState } from '../storage';
 import * as sync from '../sync';
 import { mergePendingPosts } from '../useMergePendingPosts';
+import { setPostClientMetadata } from './clientMetadata';
 import {
   deleteFailedPost,
   deletePost,
@@ -33,6 +34,15 @@ import { verifyPostDelivery } from './verifyPostDelivery';
 const TEST_CHANNEL = '~zod';
 const LOCAL_URI = 'LOCAL_URI';
 const REMOTE_URI = 'REMOTE_URI';
+const CLIENT_METADATA = {
+  version: 1,
+  rendererRevision: 1,
+} as const;
+const CLIENT_BLOB = JSON.stringify([
+  { type: 'metadata', version: 1, data: { 'tlon.client': CLIENT_METADATA } },
+]);
+
+afterEach(() => setPostClientMetadata(undefined));
 
 function buildTestDraft(
   overrides: Partial<Omit<PostDataDraft, 'isEdit'>> = {}
@@ -67,6 +77,7 @@ describe('sendPost', () => {
   });
 
   test('queue post when session is inactive', async () => {
+    setPostClientMetadata(CLIENT_METADATA);
     vi.useFakeTimers();
 
     // explicitly clear session so we'll enqueue the post
@@ -77,6 +88,7 @@ describe('sendPost', () => {
     // post starts as enqueued (since we don't have an active session)
     expect(await fetchLatestPostFromDb()).toMatchObject({
       deliveryStatus: 'enqueued',
+      blob: CLIENT_BLOB,
     });
 
     updateSession({
@@ -98,7 +110,11 @@ describe('sendPost', () => {
     await sendPostPromise;
     expect(await fetchLatestPostFromDb()).toMatchObject({
       deliveryStatus: 'pending',
+      blob: CLIENT_BLOB,
     });
+    expect(JSON.stringify(vi.mocked(poke).mock.calls[0][0].json)).toContain(
+      JSON.stringify(CLIENT_BLOB)
+    );
 
     // directly after the message succeeds sending, sendPosts fetches the
     // channel posts to verify post was received - check for that scry
@@ -390,6 +406,7 @@ describe('finalizeAndSendPost', () => {
   });
 
   test('tracks completion when a failed send succeeds on retry', async () => {
+    setPostClientMetadata(CLIENT_METADATA);
     const capture = vi.fn();
     useDebugStore.getState().initializeErrorLogger({ capture });
     vi.useFakeTimers();
@@ -413,6 +430,11 @@ describe('finalizeAndSendPost', () => {
     await vi.runOnlyPendingTimersAsync();
     await retry;
 
+    expect((await fetchLatestPostFromDb())?.blob).toBe(CLIENT_BLOB);
+    expect(
+      JSON.stringify(vi.mocked(poke).mock.calls.at(-1)![0].json)
+    ).toContain(JSON.stringify(CLIENT_BLOB));
+
     expect(
       capture.mock.calls.filter(
         ([event]) => event === AnalyticsEvent.ContentSendCompleted
@@ -421,6 +443,7 @@ describe('finalizeAndSendPost', () => {
   });
 
   test('tracks completion when a post is forwarded', async () => {
+    setPostClientMetadata(CLIENT_METADATA);
     const capture = vi.fn();
     useDebugStore.getState().initializeErrorLogger({ capture });
     vi.useFakeTimers();
@@ -439,6 +462,11 @@ describe('finalizeAndSendPost', () => {
     });
     await vi.runOnlyPendingTimersAsync();
     await forward;
+
+    expect((await fetchLatestPostFromDb())?.blob).toBe(CLIENT_BLOB);
+    expect(
+      JSON.stringify(vi.mocked(poke).mock.calls.at(-1)![0].json)
+    ).toContain(JSON.stringify(CLIENT_BLOB));
 
     expect(
       capture.mock.calls.filter(
@@ -743,6 +771,7 @@ describe('finalizeAndSendPost', () => {
   });
 
   test('sendReply', async () => {
+    setPostClientMetadata(CLIENT_METADATA);
     await db.insertChannels([
       db.buildChannel({ id: 'zod/group/channel', type: 'chat' }),
     ]);
@@ -806,7 +835,7 @@ describe('finalizeAndSendPost', () => {
                       content: toPostData({ ...draft, attachments: [] }).story,
                       author: api.getCurrentUserId(),
                       sent: expect.any(Number),
-                      blob: null,
+                      blob: CLIENT_BLOB,
                     },
                   },
                 },
@@ -1760,6 +1789,104 @@ describe('deleting a pinned post', () => {
   });
 });
 
+// TLON-6252: deleting the newest post must move the chat-list preview back to
+// the previous post, for the channel and for its group.
+describe('deleting the newest post', () => {
+  const GROUP_CHANNEL = 'chat/~zod/preview';
+  const GROUP_ID = '~zod/preview-group';
+
+  beforeEach(async () => {
+    await getClient()!
+      .insert(db.schema.groups)
+      .values({
+        id: GROUP_ID,
+        currentUserIsMember: true,
+        currentUserIsHost: false,
+        hostUserId: '~zod',
+      })
+      .onConflictDoNothing();
+    await db.insertChannels([
+      db.buildChannel({
+        id: GROUP_CHANNEL,
+        type: 'chat',
+        groupId: GROUP_ID,
+      }),
+    ]);
+    vi.mocked(poke).mockResolvedValue(0);
+    updateSession({ startTime: Date.now(), channelStatus: 'active' });
+  });
+
+  afterEach(() => {
+    vi.mocked(poke).mockReset();
+    updateSession(null);
+  });
+
+  async function seedPosts() {
+    const channel = (await db.getChannel({ id: GROUP_CHANNEL }))!;
+    const [previous, head] = ['previous', 'head'].map((text, i) =>
+      db.buildPost({
+        authorId: '~zod',
+        author: null,
+        channel,
+        sequenceNum: i + 1,
+        content: [{ inline: [text] }],
+        deliveryStatus: 'sent',
+      })
+    );
+    await db.insertChannelPosts({ posts: [previous] });
+    await db.insertChannelPosts({ posts: [head] });
+    return { previous, head };
+  }
+
+  async function expectPreview(post: db.Post) {
+    const channel = await db.getChannel({ id: GROUP_CHANNEL });
+    expect(channel!.lastPostId).toBe(post.id);
+    expect(channel!.lastPostAt).toBe(post.receivedAt);
+    const group = await db.getGroup({ id: GROUP_ID });
+    expect(group!.lastPostId).toBe(post.id);
+    expect(group!.lastPostAt).toBe(post.receivedAt);
+  }
+
+  test('deletePost falls back to the previous post', async () => {
+    const { previous, head } = await seedPosts();
+
+    await deletePost({ post: head });
+
+    await expectPreview(previous);
+  });
+
+  test('a failed deletePost restores the deleted post as the preview', async () => {
+    const { head } = await seedPosts();
+    vi.mocked(poke).mockRejectedValue(new Error('delete failed'));
+
+    await deletePost({ post: head });
+
+    expect((await fetchPost(head.id))!.deleteStatus).toBe('failed');
+    await expectPreview(head);
+  });
+
+  test('deleting a reply leaves the preview alone', async () => {
+    const { head } = await seedPosts();
+    const reply = {
+      ...db.buildPost({
+        authorId: '~zod',
+        author: null,
+        channel: (await db.getChannel({ id: GROUP_CHANNEL }))!,
+        sequenceNum: null,
+        content: [{ inline: ['reply'] }],
+        deliveryStatus: 'sent',
+        parentId: head.id,
+      }),
+      type: 'reply' as const,
+    };
+    await sync.handleAddPost(reply);
+
+    await deletePost({ post: reply });
+
+    await expectPreview(head);
+  });
+});
+
 // The %edit arm stores the submitted essay wholesale, so an edit that drops the
 // author object rewrites a bot-authored post to a bare ship and strips its
 // "Bot" tag.
@@ -1844,11 +1971,17 @@ describe('editing preserves authorship shape', () => {
   });
 
   test('a human-authored post keeps its bare ship author through an edit', async () => {
-    const post = await seedPost(false);
+    const post = { ...(await seedPost(false)), blob: CLIENT_BLOB };
+    await db.updatePost({ id: post.id, blob: post.blob });
+    setPostClientMetadata({ ...CLIENT_METADATA, rendererRevision: 2 });
 
     await editPost({ post, content: [{ inline: ['edited'] }] });
 
     expect(editedEssayAuthor()).toBe(BOT_SHIP);
+    expect((await fetchPost(post.id))?.blob).toBe(CLIENT_BLOB);
+    expect(JSON.stringify(vi.mocked(poke).mock.calls[0][0].json)).toContain(
+      JSON.stringify(CLIENT_BLOB)
+    );
   });
 
   // The call-site assertion below proves every edit path shares one call; it

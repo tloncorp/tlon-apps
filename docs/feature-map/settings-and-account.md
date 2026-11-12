@@ -175,7 +175,7 @@ Phone: on the code screen, tap `Request a new code` under the boxes. Type the si
 Notes: `Confirmation code is incorrect or expired.` means ask for a new one. `Must wait before requesting another code.` means you asked too recently; wait a little and try again. The line above the boxes says whether to check your phone or your email. To switch between the two, go back one screen.
 
 ## What sign-up asks after the code
-<!-- src: apps/tlon-mobile/src/screens/Onboarding/SetNicknameScreen.tsx, apps/tlon-mobile/src/screens/Onboarding/SetNotificationsScreen.tsx, apps/tlon-mobile/src/screens/Onboarding/AllowNotificationsScreen.tsx, apps/tlon-mobile/src/screens/Onboarding/ReserveShipScreen.tsx -->
+<!-- src: apps/tlon-mobile/src/screens/Onboarding/SetNicknameScreen.tsx, apps/tlon-mobile/src/screens/Onboarding/SetNotificationsScreen.tsx, apps/tlon-mobile/src/screens/Onboarding/AllowNotificationsScreen.tsx, apps/tlon-mobile/src/screens/Onboarding/ReserveShipScreen.tsx, packages/app/ui/components/Onboarding/SettingUpScreen.tsx -->
 
 Phone: three short steps. `Nickname`: type the name people will see (30 characters at most) and tap `Next`. `Notifications`: pick how much you want to be notified and tap `Next`, then tap `Next` once more and choose Allow when the phone asks. Then a `Setting up` screen works through `Preparing your Tlon computer`, `Connecting to the network` and `Setting up your Tlonbot`.
 Notes: you can't go back during these steps. The notifications screen says you can change that choice any time; it lives under `Notifications` in Settings afterwards.

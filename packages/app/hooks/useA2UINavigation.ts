@@ -5,7 +5,7 @@ import { A2UI } from '@tloncorp/shared/logic';
 import { useToast } from '@tloncorp/ui';
 import { useCallback } from 'react';
 
-import { useOptionalBrowserCredentialHandoff } from '../features/browser/BrowserCredentialHandoffProvider';
+import { useOptionalBrowserCredentialHandoff } from '../features/browser/BrowserCredentialHandoffContext';
 import { useRootNavigation } from '../navigation/utils';
 
 const logger = createDevLogger('a2ui-navigation', false);
@@ -124,7 +124,7 @@ export function useA2UINavigation() {
         allowBotMcpSettings?: boolean;
         allowBrowserCredentialHandoff?: boolean;
         allowBrowserSession?: boolean;
-        allowBrowserWallet?: boolean;
+        browserWalletBot?: string;
       }
     ) => {
       switch (target.type) {
@@ -179,9 +179,10 @@ export function useA2UINavigation() {
               rootNavigation.navigateToBotMcpSettings(target.providerId);
               return;
             case 'browserWallet':
-              if (!options?.allowBrowserWallet) return;
+              if (!options?.browserWalletBot) return;
               rootNavigation.navigation.navigate('BrowserWallet', {
                 requestId: target.requestId,
+                botMoon: options.browserWalletBot,
               });
               return;
             case 'browserSession':
@@ -194,8 +195,7 @@ export function useA2UINavigation() {
                     ));
               } catch (error) {
                 showToast({
-                  message:
-                    "Couldn't open the browser. Please try again and allow pop-ups if prompted.",
+                  message: "Couldn't open the browser. Please try again.",
                 });
                 throw error;
               }
@@ -210,13 +210,7 @@ export function useA2UINavigation() {
                   'Browser credential handoff provider is unavailable.'
                 );
               }
-              const handoffId = browserHandoff.register({
-                viewerUrl: target.viewerUrl,
-              });
-              rootNavigation.navigateToBrowserCredentialHandoff(
-                handoffId,
-                target.loginApproval
-              );
+              browserHandoff.openForm(target.viewerUrl, target.loginApproval);
               return;
           }
       }

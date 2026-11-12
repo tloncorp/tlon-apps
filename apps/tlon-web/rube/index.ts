@@ -703,29 +703,19 @@ const bootShip = (
 
 const REPO_ROOT = path.resolve(__dirname, '../../../../');
 
-// Vendor the desk's base-dev/landscape dependencies into desk-deps/ via peru
-// (see peru.yaml). desk-deps/ is gitignored, so a fresh checkout/build context
-// lacks it until synced. Idempotent and cached, so cheap to run every time.
-const syncDeskDeps = () => {
-  console.log('Vendoring desk dependencies with peru (peru sync)...');
-  childProcess.execSync('peru sync', { cwd: REPO_ROOT, stdio: 'inherit' });
-};
-
 const copyDesks = async (): Promise<string[]> => {
   const shipsNeedingUpdates: string[] = [];
 
-  // Populate desk-deps/ once; the staging assembly below layers it into the
-  // assembled desk.
-  syncDeskDeps();
-
-  // Assemble the canonical desk once into a staging dir. assemble-desk.sh
-  // stamps staging's commit.txt with the current HEAD when git metadata is
-  // available; the rsync below copies it onto each ship, so provenance on the
-  // ship matches what a deploy would produce. We synced once above, so skip
-  // the script's own sync.
+  // Assemble the canonical desk once into a staging dir. `just build` fetches
+  // the desk's dependencies into desk-deps/ (see desk-deps.yaml), which is
+  // gitignored, so a fresh checkout or build context lacks it until fetched;
+  // the fetch is idempotent and cached, so cheap to run every time.
+  // The build stamps staging's commit.txt with the current HEAD when git
+  // metadata is available; the rsync below copies it onto each ship, so
+  // provenance on the ship matches what a deploy would produce.
   childProcess.execSync(
-    `bash "${REPO_ROOT}/scripts/assemble-desk.sh" "${DESK_STAGING_DIR}"`,
-    { env: { ...process.env, SKIP_SYNC: 'true' }, stdio: 'inherit' }
+    `just --justfile "${REPO_ROOT}/justfile" out="${DESK_STAGING_DIR}" build`,
+    { stdio: 'inherit' }
   );
 
   // A ship whose desk we failed to update would silently run the archived

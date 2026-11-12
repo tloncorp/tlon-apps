@@ -6,6 +6,11 @@ import { refractor } from 'refractor/lib/common.js';
 
 refractor.register(hoon);
 
+function highlight(code: string, lang?: string) {
+  const trustedLang = lang && refractor.registered(lang) ? lang : 'plaintext';
+  return refractor.highlight(code, trustedLang) as TreeNode;
+}
+
 export function HighlightedCode({
   code,
   lang,
@@ -13,11 +18,43 @@ export function HighlightedCode({
   code: string;
   lang?: string;
 }) {
-  return useMemo(() => {
-    const trustedLang = lang && refractor.registered(lang) ? lang : 'plaintext';
-    const tree = refractor.highlight(code, trustedLang) as TreeNode;
-    return hastToReactNative(tree);
-  }, [code, lang]);
+  return useMemo(() => hastToReactNative(highlight(code, lang)), [code, lang]);
+}
+
+export type HighlightedCodeRun = {
+  text: string;
+  color?: string;
+  bold?: boolean;
+  italic?: boolean;
+};
+
+// The same highlighting as flat text runs, for renderers that take styled runs
+// instead of React elements.
+export function highlightCodeRuns(
+  code: string,
+  lang?: string
+): HighlightedCodeRun[] {
+  const runs: HighlightedCodeRun[] = [];
+  const walk = (
+    node: TreeNode,
+    inherited: Omit<HighlightedCodeRun, 'text'>
+  ) => {
+    if (node.type === 'text') {
+      if (node.value) runs.push({ text: node.value, ...inherited });
+      return;
+    }
+    const style =
+      node.type === 'element' ? getStyles(node.properties.className) : null;
+    const next = {
+      ...inherited,
+      ...(typeof style?.color === 'string' ? { color: style.color } : {}),
+      ...(style?.fontWeight === 'bold' ? { bold: true } : {}),
+      ...(style?.fontStyle === 'italic' ? { italic: true } : {}),
+    };
+    node.children?.forEach((child) => walk(child, next));
+  };
+  walk(highlight(code, lang), {});
+  return runs;
 }
 
 function getStyles(className: string[] | undefined) {

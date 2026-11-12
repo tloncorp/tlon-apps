@@ -36,6 +36,7 @@ import {
   lineLimit,
   listRowBackground,
   listRowInsets,
+  listRowSeparator,
   listRowSeparatorTint,
   listSectionMargins,
   listSectionSpacing,
@@ -96,12 +97,13 @@ export function SettingsList({
   scrollMark,
   editing,
   compactSections,
+  surface,
 }: SettingsListProps) {
-  const colors = useSettingsListColors();
+  const colors = useSettingsListColors(surface);
   const scrollMarkModifier = useScrollMark(scrollMark);
-  // Keeps the transparent header the tab's other scroll views install on iOS
-  // 26; the form scrolls beneath it, and iOS gives it the soft edge on its own.
-  useScreenScrollProps();
+  // A sheet shares the parent route's navigation context. Its list must not
+  // install or reset that screen's header appearance when it mounts or closes.
+  useScreenScrollProps({ enabled: surface !== 'sheet' });
 
   return (
     <Host style={{ flex: 1 }} colorScheme={colors.colorScheme}>
@@ -122,8 +124,10 @@ export function SettingsList({
         {sections.map((section, index) => (
           <Section
             key={section.key}
+            // A section whose rows can be dragged goes without the top margin:
+            // SwiftUI won't reorder rows in a section that sets one.
             modifiers={
-              index !== 0
+              index !== 0 || section.onMove
                 ? undefined
                 : section.element
                   ? flushFirstSectionModifiers
@@ -169,12 +173,13 @@ export function SettingsList({
           >
             {section.onMove ? (
               <List.ForEach onMove={section.onMove}>
-                {section.rows.map((row) => (
+                {section.rows.map((row, rowIndex) => (
                   <SettingsRow
                     key={row.key}
                     row={row}
                     colors={colors}
                     reorderable
+                    beforeHeading={Boolean(section.rows[rowIndex + 1]?.heading)}
                   />
                 ))}
               </List.ForEach>
@@ -274,14 +279,24 @@ function SettingsRow({
   row,
   colors,
   reorderable = false,
+  beforeHeading = false,
 }: {
   row: SettingsRowModel;
   colors: SettingsListColors;
   /** In a section whose rows can be dragged, which can't be deleted. */
   reorderable?: boolean;
+  /** Ends a group of rows, so no separator runs under it to the heading. */
+  beforeHeading?: boolean;
 }) {
   const rowModifiers = [
-    ...(reorderable ? [deleteDisabled(true)] : []),
+    // Always the same modifiers, set either way, so a row that a move takes
+    // to or from the end of its group isn't rebuilt, dropping its icon.
+    ...(reorderable
+      ? [
+          deleteDisabled(true),
+          listRowSeparator(beforeHeading ? 'hidden' : 'automatic', 'bottom'),
+        ]
+      : []),
     listRowBackground(colors.row),
     listRowSeparatorTint(colors.separator),
     disabled(Boolean(row.disabled)),
@@ -291,6 +306,28 @@ function SettingsRow({
     opacity(row.disabled ? 0.5 : 1),
     ...(row.testID ? [accessibilityIdentifier(row.testID)] : []),
   ];
+
+  if (row.heading) {
+    // Reads as the title of the rows below it: on the page, not the card.
+    return (
+      <Text
+        modifiers={[
+          // Draggable like the rows: SwiftUI won't drop a row just above
+          // one that can't move, which would rule out an empty group or the
+          // end of one.
+          ...(reorderable ? [deleteDisabled(true)] : []),
+          listRowBackground(colors.page),
+          listRowSeparator('hidden'),
+          listRowInsets({ top: 20, leading: 16, bottom: 6, trailing: 16 }),
+          foregroundStyle(colors.secondaryText),
+          accessibilityAddTraits(['isHeader']),
+          ...(row.testID ? [accessibilityIdentifier(row.testID)] : []),
+        ]}
+      >
+        {row.title}
+      </Text>
+    );
+  }
 
   if (row.textField) {
     return <TextFieldRow row={row} modifiers={rowModifiers} />;

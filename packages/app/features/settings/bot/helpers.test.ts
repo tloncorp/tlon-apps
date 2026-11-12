@@ -401,7 +401,6 @@ describe('tlonbot config', () => {
       dmAllowlist: '',
       defaultAuthorizedShips: '~zod, ~bus',
       groupInviteAllowlist: '',
-      autoAcceptDmInvites: false,
       autoDiscoverChannels: false,
       channelRuleDrafts: {
         // each allowlist channel carries its own explicit list — there is no
@@ -434,7 +433,6 @@ describe('tlonbot config', () => {
       dmAllowlist: 'zod, nec',
       defaultAuthorizedShips: '~zod',
       groupInviteAllowlist: '',
-      autoAcceptDmInvites: true,
       autoDiscoverChannels: false,
       channelRuleDrafts: {
         'zod/general': { mode: 'allowlist', allowedShips: 'nec bus' },

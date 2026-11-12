@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import inspect
 import json
 import logging
 import math
@@ -109,6 +110,7 @@ from .mention import (
     extract_profile_nickname,
 )
 from .migration import MigrationCommandController, is_migrate_command
+from .model_note import configured_model_note
 from .owner_listen import (
     SETTINGS_DESK,
     SETTINGS_KEY_GROUP_CHANNELS,
@@ -153,6 +155,14 @@ from .image_search import (
     IMAGE_SEARCH_TOOL_SCHEMA,
     check_image_search_requirements,
     handle_image_search_tool,
+)
+from .owner_timezone import (
+    SET_TIMEZONE_TOOL_DESCRIPTION,
+    SET_TIMEZONE_TOOL_SCHEMA,
+    SETTINGS_KEY_OWNER_TIMEZONE,
+    apply_owner_timezone,
+    handle_set_timezone_tool,
+    settings_timezone,
 )
 from .telemetry import (
     TlonTelemetry,
@@ -261,18 +271,22 @@ REQUIRED_ENV = [
     "TLON_ACCESS_CODE",
     "TLON_OWNER_SHIP",
 ]
+# Hermes 0.22 renamed cronjob to cronjob_manage, and pre_tool_call hooks see
+# the new name even when the model uses the old one.
+CRONJOB_TOOL_NAMES = frozenset({"cronjob", "cronjob_manage"})
 OWNER_ONLY_TLON_TOOLS = frozenset(
     {
         "tlon",
-        "cronjob",
+        *CRONJOB_TOOL_NAMES,
         "read",
         "read_file",
         "write_file",
         "patch",
         "search_files",
+        "set_timezone",
     }
 )
-OWNER_ONLY_TLON_TOOLSETS = frozenset({"file"})
+OWNER_ONLY_TLON_TOOLSETS = frozenset({"file", "cronjob"})
 OPTIONAL_ENV = [
     "TLON_CHANNELS",
     "TLON_AUTO_DISCOVER",
@@ -902,6 +916,13 @@ class TlonAdapter(BasePlatformAdapter):
     # it sees no env allowlist for the platform. Newer Hermes cores also look
     # for these allowlist policy hints before trusting an own-policy adapter.
     enforces_own_access_policy = True
+    # Hermes >= 0.22 re-checks authorization at durable session admission
+    # (session_envelope._validate_native) with adapter delegation limited to
+    # relay provenance or this flag; enforces_own_access_policy is not
+    # consulted there, so without it every inbound Tlon message is refused as
+    # user_not_authorized. Sender identity is authenticated by the Urbit
+    # network and the adapter has already applied the full policy above.
+    authorization_is_upstream = True
     _dm_policy = "allowlist"
     _group_policy = "allowlist"
 
@@ -1053,6 +1074,9 @@ class TlonAdapter(BasePlatformAdapter):
         self._settings_default_authorized_ships: set[str] = set()
         self._auto_accept_dm_invites: bool = False
         self._auto_discover: bool = self.tlon_config.auto_discover
+        # ownerTimezone, the owner's set_timezone choice; None means the
+        # zone config.yaml gave the gateway at boot.
+        self._owner_timezone: Optional[str] = None
 
     def _open_lens_store(self) -> Optional[LensRunStore]:
         """Durable lens-run store backing owner retries across restarts.
@@ -1294,8 +1318,19 @@ class TlonAdapter(BasePlatformAdapter):
             start=self.tlon_config.nudge_active_hours_start,
             end=self.tlon_config.nudge_active_hours_end,
             timezone=self.tlon_config.nudge_active_hours_timezone,
-            user_timezone=self.tlon_config.user_timezone,
+            # OpenClaw's `user` zone is userTimezone, which the owner's
+            # set_timezone choice replaces.
+            user_timezone=self._owner_timezone or self.tlon_config.user_timezone,
         )
+
+    def _apply_owner_timezone(self, value: Any) -> None:
+        timezone = settings_timezone(value)
+        if timezone != self._owner_timezone:
+            logger.info(
+                "[tlon] owner timezone: %s", timezone or "unset, using the configured zone"
+            )
+        self._owner_timezone = timezone
+        apply_owner_timezone(timezone)
 
     def _set_nudge_owner_activity(
         self, activity: Optional[tuple[int, str]]
@@ -1409,6 +1444,7 @@ class TlonAdapter(BasePlatformAdapter):
                 bucket.get(SETTINGS_KEY_AUTO_DISCOVER_CHANNELS),
                 self.tlon_config.auto_discover,
             )
+            self._apply_owner_timezone(bucket.get(SETTINGS_KEY_OWNER_TIMEZONE))
             self._apply_nudge_settings_bucket(bucket)
             self._settings_loaded = True
         logger.info(
@@ -1570,6 +1606,9 @@ class TlonAdapter(BasePlatformAdapter):
             self._auto_discover = settings_bool(
                 event.value, self.tlon_config.auto_discover
             )
+            return
+        if event.key == SETTINGS_KEY_OWNER_TIMEZONE:
+            self._apply_owner_timezone(event.value)
             return
         if event.key == SETTINGS_KEY_GROUP_CHANNELS:
             new_channels = (
@@ -5416,6 +5455,28 @@ def _non_owner_reaction_carveout(args: Optional[dict], config: TlonConfig) -> Op
     return None
 
 
+def block_naive_cron_timestamp(tool_name: str, args: Optional[dict] = None, **_kwargs: Any) -> Optional[dict]:
+    """Hermes reads a cronjob timestamp without a UTC offset in its own zone
+    (the server's before 0.22, its configured one from 0.22), not the zone of
+    a place the user names, so 09:00 meant for Tokyo fires hours off. Make
+    the model state the offset."""
+    if tool_name not in CRONJOB_TOOL_NAMES or _session_env("HERMES_SESSION_PLATFORM", "").lower() != "tlon":
+        return None
+    schedule = str((args or {}).get("schedule") or "").strip()
+    try:
+        parsed = datetime.fromisoformat(schedule.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is not None:
+        return None
+    return _tool_access_block(
+        f"Blocked: the schedule {schedule} has no UTC offset, and Hermes would "
+        "read it in its own zone rather than the user's. Add the offset "
+        "of the zone the user means, e.g. 2035-03-13T09:00:00+09:00 for 9:00 "
+        "in Tokyo."
+    )
+
+
 def block_tlon_session_tool(tool_name: str, args: Optional[dict] = None, **_kwargs: Any) -> Optional[dict]:
     if _session_env("HERMES_SESSION_PLATFORM", "").lower() != "tlon":
         return None
@@ -5540,10 +5601,19 @@ def _reaction_platform_hint(level: str) -> str:
     )
 
 
+def hermes_serves_plugin_skill_files() -> bool:
+    try:
+        from tools.skills_tool_plugin import _serve_plugin_skill  # type: ignore
+    except ImportError:
+        return False
+    return "file_path" in inspect.signature(_serve_plugin_skill).parameters
+
+
 def register(ctx) -> None:
     ctx.register_hook("pre_tool_call", handle_pre_tool_call)
     ctx.register_hook("pre_tool_call", handle_pre_tool_call_lens)
     ctx.register_hook("pre_tool_call", block_tlon_session_tool)
+    ctx.register_hook("pre_tool_call", block_naive_cron_timestamp)
     ctx.register_hook("post_api_request", handle_post_api_request)
     ctx.register_hook("post_api_request", handle_post_api_request_telemetry)
     ctx.register_hook("post_api_request", handle_post_api_request_lens)
@@ -5569,6 +5639,16 @@ def register(ctx) -> None:
         is_async=True,
         description=IMAGE_SEARCH_TOOL_DESCRIPTION,
         emoji="I",
+    )
+    ctx.register_tool(
+        name="set_timezone",
+        toolset="tlon",
+        schema=SET_TIMEZONE_TOOL_SCHEMA,
+        handler=handle_set_timezone_tool,
+        check_fn=check_tlon_tool_requirements,
+        is_async=True,
+        description=SET_TIMEZONE_TOOL_DESCRIPTION,
+        emoji="Z",
     )
 
     skill_path = resolve_tlon_skill_path()
@@ -5608,6 +5688,27 @@ def register(ctx) -> None:
         else ""
     )
 
+    # Before 0.22, Hermes serves only a plugin skill's SKILL.md and ignores
+    # skill_view's file_path, so the references and product pages both skills
+    # link to are reachable only from disk. From 0.22 skill_view serves them,
+    # and read_file, which is owner-only here, would only shut other users out.
+    skill_dirs = [
+        f"{name} in {path.parent}"
+        for name, path in (
+            ("tlon-platform:tlon", skill_path),
+            ("tlon-platform:tlon-product-guide", product_guide_path),
+        )
+        if path is not None
+    ]
+    skill_files_hint = (
+        "skill_view on a tlon-platform skill returns only its SKILL.md and "
+        "ignores file_path. To read a file a skill links to (references/..., "
+        "product/...), use read_file on the skill's directory joined with the "
+        "link: " + "; ".join(skill_dirs) + ". "
+        if skill_dirs and not hermes_serves_plugin_skill_files()
+        else ""
+    )
+
     ctx.register_platform(
         name="tlon",
         label="Tlon",
@@ -5644,7 +5745,12 @@ def register(ctx) -> None:
             "For Tlon reads and administration, use the tlon tool; if unsure, "
             "load skill_view(\"tlon-platform:tlon\") or run a tlon subcommand "
             "with --help. "
+            "A user's shared files or shared folder are a group's Buckets "
+            "(tlon buckets); the file tools reach only the machine you run on, "
+            "never the user's files. "
             + product_guide_hint
+            + skill_files_hint
+            + configured_model_note(product_guide=product_guide_path is not None)
             + "When a user asks you to create a Tlon group for them, use "
             "groups create-owned with --owner set to that user's ship so they "
             "are invited and made admin. "

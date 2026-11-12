@@ -21,6 +21,7 @@ import {
   createTlonToolExecutor,
   formatTlonToolDescription,
   formatTlonToolHelp,
+  isHeartbeatOwnerRead,
   isMutatingTlonCommand,
   normalizeTlonCommandArgs,
   redactTlonCommand,
@@ -563,6 +564,22 @@ describe('owner-by-default identity selection', () => {
         '--self',
       ]);
     });
+
+    it.each([
+      ['activity mentions --self --limit 20', true],
+      ['activity unread --self', true],
+      ['activity replies --limit 20', false],
+    ])(
+      'reads an activity read with `%s` as the bot: %s',
+      async (command, asBot) => {
+        const { execute, runCommand } = makeExecutor();
+        await execute('activity-read', { command });
+        const args = shellSplitCommand(command);
+        expect(ranWith(runCommand)).toEqual(
+          asBot ? args : ['--ship', '~owner', ...args]
+        );
+      }
+    );
 
     it('accepts a leading tlon token for owner commands', async () => {
       const { execute, runCommand } = makeExecutor();
@@ -1911,6 +1928,9 @@ describe('model-facing identity guidance', () => {
         'use groups commands and groups create-owned'
       );
       for (const marker of [
+        "owner's own words in the current message",
+        'with one exception: the heartbeat reads activity mentions|replies|unreads|all',
+        'message, cron, delegation, shell and Tlon writes are blocked for the rest of that run',
         'groups create-owned "Name" --admin <your ship>',
         '--self groups create-owned "Name" --admin <owner>',
       ]) {
@@ -1919,7 +1939,11 @@ describe('model-facing identity guidance', () => {
       }
       expect(description).toContain('mark-read');
       expect(help).toContain('mark-read');
-      for (const marker of ['Owner or bot:', 'Put --self before the command']) {
+      for (const marker of [
+        'Owner or bot:',
+        'Put --self before the command',
+        '--self messages dm <owner> is your own conversation with the owner',
+      ]) {
         if (ownerDefault) expect(help).toContain(marker);
         else expect(help).not.toContain(marker);
       }
@@ -1961,6 +1985,50 @@ describe('model-facing identity guidance', () => {
         expect(entry.toolGuidance, name).not.toMatch(identityClaim);
       }
     }
+  });
+});
+
+describe('heartbeat owner reads', () => {
+  it.each([
+    'activity mentions',
+    'activity replies --limit 5',
+    'activity unreads',
+    'activity unread',
+    'activity all',
+    'messages dm ~bus',
+    'messages channel chat/~h/general',
+    'messages history chat/~h/general',
+    'messages context chat/~h/general 170.1',
+    'channels dms',
+    'channels group-dms',
+    'channels groups',
+    'channels all',
+    'tlon activity mentions',
+  ])('allows %s as the owner', (command) => {
+    expect(isHeartbeatOwnerRead(command)).toBe(true);
+  });
+
+  it.each([
+    ['--self activity mentions', 'a --self prefix'],
+    ['tlon --self activity mentions', 'a --self after the executable'],
+    ['activity mentions --self', "the activity read's own --self"],
+    ['activity mentions --limit 5 --self', 'a --self after a value option'],
+    ['--config /x.json activity mentions', 'a credential flag'],
+    ['--ship ~nec activity mentions', 'a credential flag'],
+    ['help activity', 'help'],
+    ['activity mentions --help', 'a help token'],
+    ['channels list', 'an invalid operation'],
+    ['nonsense mentions', 'an unknown family'],
+    ['messages search hello', 'a read outside the allowlist'],
+    ['channels info chat/~h/general', 'a read outside the allowlist'],
+    ['contacts self', 'a read outside the allowlist'],
+    ['groups list', 'a read outside the allowlist'],
+    ['activity volume chat/~h/general', 'an activity setting'],
+    ['activity mark-read', 'a write'],
+    ['posts send ~bus hi', 'a write'],
+    ['dms send ~bus hi', 'a write'],
+  ])('refuses %s (%s)', (command) => {
+    expect(isHeartbeatOwnerRead(command)).toBe(false);
   });
 });
 
@@ -2907,6 +2975,82 @@ describe("owner-hosted channels in the owner's groups", () => {
   );
 });
 
+describe("deleting the owner's groups", () => {
+  const OWNER_CONFIG = '/srv/tlon-skill/ships/owner.json';
+
+  function makeExecutor(
+    overrides: { botShip?: string; fileExists?: (path: string) => boolean } = {}
+  ) {
+    const runCommand = vi.fn(async () => 'Deleted group ~owner/team');
+    const execute = createTlonToolExecutor({
+      runCommand,
+      notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+      ownerShip: '~owner',
+      botShip: '~pinser-botter-owner',
+      env: { TLON_SKILL_DIR: '/srv/tlon-skill' } as NodeJS.ProcessEnv,
+      fileExists: (path: string) => path === OWNER_CONFIG,
+      ...overrides,
+    });
+    return { execute, runCommand };
+  }
+
+  it('deletes a group the owner hosts as the owner', async () => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('delete', { command: 'groups delete ~owner/team' });
+
+    expect(runCommand).toHaveBeenCalledWith([
+      '--ship',
+      '~owner',
+      'groups',
+      'delete',
+      '~owner/team',
+    ]);
+  });
+
+  it.each([
+    ["the bot's own group", 'groups delete ~pinser-botter-owner/team'],
+    ['another host', 'groups delete ~someone/team'],
+    ['--help', 'groups delete ~owner/team --help'],
+    ['separate-value --ship', '--ship ~bot groups delete ~owner/team'],
+  ])('leaves the command untouched for %s', async (_label, command) => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('skip', { command });
+
+    const [args] = runCommand.mock.calls[0] as unknown as [string[]];
+    expect(args).toEqual(command.split(' '));
+  });
+
+  it.each([
+    ['before the command', '--self groups delete ~owner/team'],
+    ['after the group', 'groups delete ~owner/team --self'],
+  ])('runs as the bot when asked with --self %s', async (_label, command) => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('self', { command });
+
+    const [args] = runCommand.mock.calls[0] as unknown as [string[]];
+    expect(args).not.toContain('~owner');
+    expect(args).toContain('~owner/team');
+  });
+
+  it.each([
+    ['without owner credentials', { fileExists: () => false }],
+    ['when the bot is its own owner', { botShip: '~owner' }],
+  ])('runs as written %s', async (_label, overrides) => {
+    const { execute, runCommand } = makeExecutor(overrides);
+
+    await execute('as-written', { command: 'groups delete ~owner/team' });
+
+    expect(runCommand).toHaveBeenCalledWith([
+      'groups',
+      'delete',
+      '~owner/team',
+    ]);
+  });
+});
+
 describe('owner-hosted workspaces and channels with ownerDefault', () => {
   const SKILL_DIR = '/srv/tlon-skill';
   const OWNER_CONFIG = '/srv/tlon-skill/ships/owner.json';
@@ -3013,6 +3157,9 @@ describe('owner-hosted workspaces and channels with ownerDefault', () => {
       ['notes note-publish notes/~h/b --self 12', true],
       ['groups invite-link ~h/g --self', true],
       ['activity mark-read --self --all', true],
+      // Activity reads: options only, and --limit takes a value.
+      ['activity mentions --limit 5 --self', true],
+      ['activity replies --limit --self', false],
       // groups join: the optional group flag, and --invite's value.
       ['groups join --invite "--self"', false],
       ['groups join ~zod/team', false],
@@ -4098,6 +4245,10 @@ describe('tlon tool telemetry summarizer', () => {
     }
     expect(summarizeTlonCommand('activity unreads')).toMatchObject({
       summaryKey: 'activity.unreads',
+      intent: 'read',
+    });
+    expect(summarizeTlonCommand('activity unread')).toMatchObject({
+      summaryKey: 'activity.unread',
       intent: 'read',
     });
     expect(summarizeTlonCommand('activity volume base')).toMatchObject({

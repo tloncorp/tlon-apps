@@ -11,6 +11,7 @@ import {
 } from '../index';
 
 vi.mock('../client/urbit', () => ({
+  onClientSessionChange: vi.fn(),
   poke: vi.fn().mockResolvedValue(undefined),
 }));
 

@@ -3,6 +3,7 @@ import {
   isTrustedBrowserViewerHost,
   isBrowserViewerDevelopmentOrigin,
   MAX_BROWSER_VIEWER_URL_LENGTH,
+  BrowserCardPresentationSchema,
 } from '@tloncorp/api';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 import { z } from 'zod';
@@ -15,7 +16,7 @@ import { ssrfPolicyFromAllowPrivateNetwork } from './urbit/context.js';
 import { urbitFetch } from './urbit/fetch.js';
 import type { BrowserHandoffRequest } from './browser-handoff-results.js';
 
-export const BROWSER_SESSION_HANDOFF_HELP = String.raw`Usage: browser handoff <session_id> --fields <JSON array> or browser approve-login <session_id> --fields <JSON array> [--record <JSON object>] or browser share <session_id> (the session ID from browser_session_create). Both secure-entry commands require --fields. The card fills only those controls; the agent inspects the page and chooses the next action. Prefer current snapshot refs: browser handoff <session_id> --fields '["@e12","@e13"]'. Exact {"name":"..."}/{"label":"..."} selectors must match uniquely. For labels containing apostrophes, encode the apostrophe as \u0027 inside the single-quoted JSON: browser handoff <session_id> --fields '[{"label":"Owner\u0027s email address"}]'. Do not supply a viewer URL or field values.`;
+export const BROWSER_SESSION_HANDOFF_HELP = String.raw`Usage: browser handoff <session_id> --fields <JSON array> or browser approve-login <session_id> --fields <JSON array> [--record <JSON object>] or browser share <session_id> (the session ID from browser_session_create). Use --form-id for a prepared Kernel saved-login approval; otherwise secure-entry commands require --fields. The card fills only those controls; the agent inspects the page and chooses the next action. Prefer current snapshot refs: browser handoff <session_id> --fields '["@e12","@e13"]'. Exact {"name":"..."}/{"label":"..."} selectors must match uniquely. For labels containing apostrophes, encode the apostrophe as \u0027 inside the single-quoted JSON: browser handoff <session_id> --fields '[{"label":"Owner\u0027s email address"}]'. Do not supply a viewer URL or field values.`;
 
 export const formFieldsSchema = z
   .array(
@@ -183,8 +184,12 @@ async function resolveViewerUrl(
   config: OpenClawConfig,
   allowPrivateNetwork: boolean | null,
   prepareForm: boolean,
-  fields?: FormFields
-): Promise<string> {
+  fields?: FormFields,
+  formId?: string
+): Promise<{
+  viewerUrl: string;
+  presentation?: { purpose: 'login' | 'otp' | 'details'; site: string };
+}> {
   try {
     const server = record(record(record(record(config).mcp).servers).mcp);
     if (
@@ -247,7 +252,14 @@ async function resolveViewerUrl(
                 arguments: {
                   session_id: handle,
                   ...(prepareForm
-                    ? { action: 'prepare_form', ...(fields ? { fields } : {}) }
+                    ? {
+                        action: 'prepare_form',
+                        ...(formId
+                          ? { form_id: formId }
+                          : fields
+                            ? { fields }
+                            : {}),
+                      }
                     : {}),
                 },
               },
@@ -263,7 +275,7 @@ async function resolveViewerUrl(
         try {
           if (
             [408, 500, 502, 503, 504].includes(request.response.status) ||
-            (fields && request.response.status === 429)
+            (prepareForm && request.response.status === 429)
           ) {
             await request.response.body?.cancel();
             throw new TransientBrowserLookupError(
@@ -281,14 +293,14 @@ async function resolveViewerUrl(
             const code = upstreamError.code;
             const status = record(upstreamError.details).status;
             if (
-              fields &&
+              prepareForm &&
               typeof code === 'string' &&
               ['stale_ref', 'ref_not_found', 'invalid_argument'].includes(code)
             ) {
               throw new BrowserSelectionRejectedError();
             }
             if (
-              fields &&
+              prepareForm &&
               ((typeof code === 'string' &&
                 [
                   'timeout',
@@ -307,7 +319,15 @@ async function resolveViewerUrl(
           if (metadata.session_id !== handle) {
             throw new Error('Browser session lookup refused.');
           }
-          return validateViewerUrl(metadata.viewer_url, prepareForm);
+          const presentation = BrowserCardPresentationSchema.safeParse(
+            metadata.card
+          );
+          return {
+            viewerUrl: validateViewerUrl(metadata.viewer_url, prepareForm),
+            ...(presentation.success
+              ? { presentation: presentation.data }
+              : {}),
+          };
         } finally {
           await request.release();
         }
@@ -325,7 +345,7 @@ async function resolveViewerUrl(
     throw new Error('Browser lookup attempts exhausted.');
   } catch (error) {
     // Transport and upstream errors can contain bearer URLs or tenant headers.
-    if (!fields)
+    if (!prepareForm)
       throw new Error('Could not resolve a live browser session for handoff.');
     if (error instanceof BrowserSelectionRejectedError) {
       throw new Error(
@@ -366,6 +386,7 @@ export async function runBrowserSessionHandoff(
   )
     throw new Error(BROWSER_SESSION_HANDOFF_HELP);
   let fields: FormFields | undefined;
+  let formId: string | undefined;
   let loginRecord: { id: string; revision: number } | undefined;
   try {
     for (let i = 3; i < args.length; i += 2) {
@@ -373,29 +394,43 @@ export async function runBrowserSessionHandoff(
       if (args[i] === '--fields' && args[1] !== 'share' && !fields)
         fields = formFieldsSchema.parse(JSON.parse(args[i + 1]));
       else if (
+        args[i] === '--form-id' &&
+        args[1] === 'approve-login' &&
+        !formId
+      )
+        formId = z
+          .string()
+          .uuid()
+          .parse(args[i + 1]);
+      else if (
         args[i] === '--record' &&
         args[1] === 'approve-login' &&
         !loginRecord
       )
         loginRecord = z
-          .object({ id: z.uuid(), revision: z.number().int().positive() })
+          .object({
+            id: z.string().min(1).max(128),
+            revision: z.number().int().positive(),
+          })
           .strict()
           .parse(JSON.parse(args[i + 1]));
       else throw new Error('Invalid option.');
     }
-    if (args[1] !== 'share' && !fields) throw new Error('Select fields first.');
+    if ((args[1] !== 'share' && !fields && !formId) || (fields && formId))
+      throw new Error('Select fields first.');
   } catch {
     throw new Error(BROWSER_SESSION_HANDOFF_HELP);
   }
   const account = resolveBrowserHandoffAccount(config);
   if (args[1] !== 'share' && !watchHandoff)
     throw new Error('Secure entry requires result delivery to the agent.');
-  const viewerUrl = await resolveViewerUrl(
+  const { viewerUrl, presentation } = await resolveViewerUrl(
     args[2],
     config,
     account.allowPrivateNetwork,
     args[1] !== 'share',
-    fields
+    fields,
+    formId
   );
   const cancelWatch =
     args[1] !== 'share'
@@ -409,6 +444,9 @@ export async function runBrowserSessionHandoff(
         args[1],
         viewerUrl,
         ...(loginRecord ? ['--record', JSON.stringify(loginRecord)] : []),
+        ...(presentation
+          ? ['--presentation', JSON.stringify(presentation)]
+          : []),
         ...(args[1] !== 'share' ? ['--service-result'] : []),
       ],
       config

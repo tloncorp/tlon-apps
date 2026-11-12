@@ -1,9 +1,9 @@
 import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
 import { useState } from 'react';
 import type { KeyDownEvent } from 'react-native';
-import { View, XStack, YStack, isWeb } from 'tamagui';
+import { XStack, YStack, isWeb } from 'tamagui';
 
-import { TextInput } from '../../ui/components/Form/inputs';
+import { BrowserSecureTextInput } from './BrowserSecureTextInput';
 import type { BrowserSecureField } from './browserCredentialHandoff';
 import { BrowserSecureSelect } from './BrowserSecureSelect';
 import {
@@ -30,20 +30,10 @@ function SecureField({
     options?.length === 2 &&
     options.every((option) => /^(yes|no)$/i.test(option.label.trim()));
   const password = field.inputType === 'password';
-  const autocomplete =
-    field.purpose === 'one-time-code'
-      ? 'one-time-code'
-      : isWeb
-        ? 'off'
-        : field.purpose === 'username'
-          ? 'username'
-          : field.purpose === 'current-password'
-            ? 'current-password'
-            : 'off';
   return (
     <YStack gap="$m" flex={1} minWidth={0} $gtSm={{ flexBasis: 0 }}>
       <XStack gap="$s" alignItems="baseline" flexWrap="wrap">
-        <Text size="$label/l" color="$primaryText">
+        <Text size="$label/m" color="$secondaryText">
           {browserFieldLabel(field)}
         </Text>
         {!field.required ? (
@@ -99,74 +89,41 @@ function SecureField({
           onChange={onChange}
         />
       ) : (
-        <XStack alignItems="center" gap="$m">
-          <View flex={1}>
-            <TextInput
-              accessibilityLabel={browserFieldLabel(field)}
-              value={value}
-              secureTextEntry={password && !visible}
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete={autocomplete}
-              importantForAutofill={autocomplete === 'off' ? 'no' : 'yes'}
-              textContentType={
-                autocomplete === 'one-time-code'
-                  ? 'oneTimeCode'
-                  : autocomplete === 'username'
-                    ? 'username'
-                    : autocomplete === 'current-password'
-                      ? 'password'
-                      : 'none'
-              }
-              keyboardType={
-                field.inputType === 'numeric' || field.purpose === 'cc-csc'
-                  ? 'number-pad'
-                  : field.inputType === 'email'
-                    ? 'email-address'
-                    : field.inputType === 'tel'
-                      ? 'phone-pad'
-                      : 'default'
-              }
-              multiline={field.inputType === 'textarea'}
-              maxLength={field.exactLength ?? field.maxLength}
-              placeholder={
-                field.exactLength
-                  ? `${field.exactLength} characters`
-                  : undefined
-              }
-              editable={!disabled}
-              onChangeText={onChange}
-              onSubmitEditing={
-                field.inputType === 'textarea' ? undefined : onSubmit
-              }
-            />
-          </View>
-          {password ? (
-            <Pressable
-              render={isWeb ? 'button' : undefined}
-              aria-label={`${visible ? 'Hide' : 'Show'} ${field.label.toLowerCase()}`}
-              accessibilityLabel={`${visible ? 'Hide' : 'Show'} ${field.label.toLowerCase()}`}
-              accessibilityRole="button"
-              width={44}
-              height={44}
-              padding={0}
-              borderWidth={0}
-              backgroundColor="transparent"
-              borderRadius="$m"
-              hoverStyle={{ backgroundColor: '$secondaryBackground' }}
-              alignItems="center"
-              justifyContent="center"
-              disabled={disabled}
-              onPress={() => setVisible((shown) => !shown)}
-            >
-              <Icon
-                type={visible ? 'EyeClosed' : 'EyeOpen'}
-                size="$m"
-                color="$secondaryText"
-              />
-            </Pressable>
-          ) : null}
-        </XStack>
+        <BrowserSecureTextInput
+          field={field}
+          value={value}
+          disabled={disabled}
+          concealed={password && !visible}
+          onChange={onChange}
+          onSubmit={onSubmit}
+          rightControls={
+            password ? (
+              <Pressable
+                render={isWeb ? 'button' : undefined}
+                aria-label={`${visible ? 'Hide' : 'Show'} ${field.label.toLowerCase()}`}
+                accessibilityLabel={`${visible ? 'Hide' : 'Show'} ${field.label.toLowerCase()}`}
+                accessibilityRole="button"
+                width={44}
+                height={44}
+                padding={0}
+                borderWidth={0}
+                backgroundColor="transparent"
+                borderRadius="$m"
+                hoverStyle={{ backgroundColor: '$secondaryBackground' }}
+                alignItems="center"
+                justifyContent="center"
+                disabled={disabled}
+                onPress={() => setVisible((shown) => !shown)}
+              >
+                <Icon
+                  type={visible ? 'EyeClosed' : 'EyeOpen'}
+                  size="$m"
+                  color="$secondaryText"
+                />
+              </Pressable>
+            ) : null
+          }
+        />
       )}
     </YStack>
   );

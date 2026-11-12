@@ -19,13 +19,15 @@ import { isNonOwnerMediaAllowed } from './non-owner-media.js';
 import type { SenderRole } from './session-roles.js';
 
 /**
- * OpenClaw core tools that hand work to another run: a spawned session or the
+ * Tools that hand work to another run: a spawned session, the Codex native
+ * subagent (`spawn_agent`; the native relay normalizes `agent` to it), or the
  * system agent (`openclaw`) has no stored role and would pass this gate, and a
  * sent message drives another session's run.
  */
 export const DELEGATION_TOOL_NAMES = [
   'sessions_spawn',
   'sessions_send',
+  'spawn_agent',
   'openclaw',
 ] as const;
 
@@ -46,6 +48,33 @@ export const OWNER_ONLY_TOOLS: ReadonlySet<string> = new Set([
   // to non-owners.
   ...CRON_TOOL_NAMES,
   'read',
+  // Listing the workspace reveals the same files `read` protects.
+  'ls',
+  // Workspace writers: the workspace holds the bot's skills, memory, and
+  // prompts. Codex native file edits reach this gate as `apply_patch`.
+  'write',
+  'edit',
+  'apply_patch',
+  // Creates, patches, and applies workspace skills.
+  'skill_workshop',
+  // Shell and process control: a shell can read and write every file the
+  // gates above protect. Core normalizes `bash` to `exec` and the Codex native
+  // relay normalizes `exec_command` to `exec`, so both arrive as `exec`; native
+  // `shell`/`shell_command` arrive unchanged. The Codex harness's
+  // sandbox_exec/sandbox_process/node_exec/gateway_exec/gateway_process are
+  // projections over the hook-wrapped exec/process tools. The sandbox and node
+  // projections are spreads that keep the wrapper marker, so they are not
+  // re-wrapped and reach this gate once, as exec/process; they are not listed.
+  // The gateway pair stays listed in case its projection reaches the gate
+  // under its own name.
+  'exec',
+  'process',
+  'shell',
+  'shell_command',
+  'gateway_exec',
+  'gateway_process',
+  // Input to the owner's open Control UI terminals.
+  'terminal',
   'tlon_agent_choice',
   'tlon_agent_task_plan',
   'tlon_agent_service_setup',
@@ -63,12 +92,10 @@ export const OWNER_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'secrets', // lists, requests, and deletes stored credentials
   'nodes', // approves device pairing and controls paired devices
   'personal_instructions', // rewrites the agent's USER.md
-  'skill_workshop', // stages and revises agent skills
   'sessions', // archives, restores, and stops sessions
   'github_publish', // publishes with the agent's GitHub credentials
   // These expose or act on the owner's devices and private data.
   'presence', // people's devices, IP addresses, and locations
-  'terminal', // the owner's open terminals
   'mobile_ui', // the owner's paired phone
   'transcripts', // the owner's meeting captures and notes
   // Local-path readers would hand a non-owner the owner's files.
@@ -105,6 +132,89 @@ export const NON_OWNER_ALLOWED_TOOLS: ReadonlySet<string> = new Set([
   // payloads are exempt from the local-file rule (REMOTE_PAYLOAD_TOOLS).
   ...MCP_CATALOG_TOOL_NAMES,
 ]);
+
+/**
+ * The only tools a sealed heartbeat run (TLON-7008: the gate let it read the
+ * owner's data) may call for the rest of the run, by policy name. An
+ * allowlist, so a tool core adds later is closed by default. `tlon` is
+ * limited further to reads (isSealedHeartbeatTlonCall), `browser_*` tools are
+ * allowed by prefix, and heartbeat_respond is blocked when it carries a field
+ * core always persists (sealedHeartbeatRespondBlockReason). Web, browser,
+ * MCP, workspace writes and heartbeat_respond's summary and notification text
+ * stay open by product decision; SECURITY.md lists them as accepted exits.
+ */
+export const SEALED_HEARTBEAT_ALLOWED_TOOLS: ReadonlySet<string> = new Set([
+  'tlon',
+  // Workspace files: the heartbeat's notes, memory and ledger.
+  'read',
+  'ls',
+  'write',
+  'edit',
+  'apply_patch',
+  // Research.
+  'web_search',
+  'web_fetch',
+  'browser',
+  'memory_search',
+  'memory_get',
+  // The owner's own MCP connections (list, search, describe, call).
+  ...MCP_CATALOG_TOOL_NAMES,
+  // Tool Search controls (NON_OWNER_DISPATCH_CONTROLS): core runs this gate
+  // again on a tool_call target under the target's own name, so the seal
+  // still applies to whatever they invoke.
+  'tool_search',
+  'tool_describe',
+  'tool_call',
+  'heartbeat_respond',
+]);
+
+export const SEALED_HEARTBEAT_BLOCK_REASON =
+  "Blocked by policy: this heartbeat run read the owner's data, so only Tlon reads, files, memory, web, browser, MCP and heartbeat_respond remain; reply with your final text (or heartbeat_respond) to reach the owner.";
+
+/** Whether a sealed heartbeat run may call this tool (by name alone). */
+export function isSealedHeartbeatAllowedTool(toolName: string): boolean {
+  const name = normalizePolicyToolName(toolName);
+  return (
+    SEALED_HEARTBEAT_ALLOWED_TOOLS.has(name) || name.startsWith('browser_')
+  );
+}
+
+/**
+ * heartbeat_respond fields core persists whether or not the notification is
+ * delivered: the monitor scratch for the next heartbeat, and the silent
+ * outcome's reason and next check, which core appends to the next user turn.
+ * `next_check` is core's alias for `nextCheck`; a model may send it.
+ */
+const SEALED_HEARTBEAT_RESPOND_PERSISTED_KEYS = [
+  'scratch',
+  'reason',
+  'nextCheck',
+  'next_check',
+];
+
+export const SEALED_HEARTBEAT_RESPOND_BLOCK_REASON =
+  "Blocked by policy: this heartbeat run read the owner's data; call heartbeat_respond again without scratch, reason or nextCheck.";
+
+/**
+ * Why a sealed run's heartbeat_respond call is blocked: it carries a field
+ * core persists for a later turn. Blocked rather than rewritten: the Codex
+ * native relay refuses any hook change to the params (and its schema check
+ * rejects undeclared keys), so a rewrite would refuse every heartbeat_respond
+ * on a Codex-harness bot. `summary` and `notificationText` pass: core
+ * requires a non-empty summary and persists it as the silent outcome when
+ * `notify` is false and the outcome is not `no_change`, and keeps the
+ * notification text when delivery fails or, after delivery, as target-session
+ * awareness. Both are accepted alongside workspace writes (SECURITY.md).
+ */
+export function sealedHeartbeatRespondBlockReason(
+  params: Record<string, unknown>
+): string | undefined {
+  return SEALED_HEARTBEAT_RESPOND_PERSISTED_KEYS.some(
+    (key) => params[key] !== undefined
+  )
+    ? SEALED_HEARTBEAT_RESPOND_BLOCK_REASON
+    : undefined;
+}
 
 /**
  * Tool Search controls that only find or invoke catalog tools. Core wraps every

@@ -25,7 +25,7 @@ tmux kill-session -t proof-rube
 mkdir -p .proof-snapshot
 mv "$dist/zod" "$dist/ten" .proof-snapshot/
 cp -a "$dist/urbit_extracted/urbit" .proof-snapshot/urbit
-mv .peru/cache .proof-snapshot/peru-cache
+mv .deps-cache .proof-snapshot/deps-cache
 # A UI failure must not discard an already validated backend. The next restore
 # uses only this fixture's group ID to prove that nuke/revive cleared its state.
 receipt="$PROOF_OUTPUT/peer-result.json"

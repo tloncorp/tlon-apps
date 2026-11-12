@@ -13,8 +13,8 @@ test('should allow viewing and syncing profiles across ships', async ({
   // First, ~zod sets up their profile with custom data
   await zodPage.getByTestId('AvatarNavIcon').click();
   await expect(zodPage.getByText('Contacts')).toBeVisible();
-  await zodPage.getByText('You').click();
-  await expect(zodPage.getByText('Profile')).toBeVisible();
+  await zodPage.getByText('You', { exact: true }).click();
+  await expect(zodPage.getByTestId('UserProfileScreen')).toBeVisible();
   await zodPage.getByTestId('ContactEditButton').click();
   await expect(zodPage.getByText('Edit Profile')).toBeVisible();
 
@@ -58,7 +58,7 @@ test('should allow viewing and syncing profiles across ships', async ({
   // Click on ~zod in the contacts list - should show with their nickname once synced
   // The contact will appear with "Zod Testing nickname" after sync
   await tenPage.getByText('Zod Testing nickname').first().click();
-  await expect(tenPage.getByText('Profile')).toBeVisible();
+  await expect(tenPage.getByTestId('UserProfileScreen')).toBeVisible();
 
   // Verify ~ten can see all of ~zod's custom profile data
   await expect(tenPage.getByText('Zod Testing nickname').first()).toBeVisible();
@@ -68,7 +68,7 @@ test('should allow viewing and syncing profiles across ships', async ({
   // Now test the reverse - ~zod adds ~ten and views their profile
   // First, ~ten sets up their profile
   await tenPage.getByTestId('AvatarNavIcon').click();
-  await tenPage.getByText('You').click();
+  await tenPage.getByText('You', { exact: true }).click();
   await tenPage.getByTestId('ContactEditButton').click();
   await expect(tenPage.getByText('Edit Profile')).toBeVisible();
 
@@ -101,7 +101,7 @@ test('should allow viewing and syncing profiles across ships', async ({
 
   // ~ten should appear with their nickname
   await zodPage.getByText('Ten Own Nickname').first().click();
-  await expect(zodPage.getByText('Profile')).toBeVisible();
+  await expect(zodPage.getByTestId('UserProfileScreen')).toBeVisible();
 
   // Verify ~zod can see all of ~ten's custom profile data
   await expect(zodPage.getByText('Ten Own Nickname').first()).toBeVisible();

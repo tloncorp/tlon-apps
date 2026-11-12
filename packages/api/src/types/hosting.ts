@@ -82,6 +82,31 @@ export interface TlawnBrowserServiceInfo {
   supported: boolean;
 }
 
+export interface TlawnTokenUsageTotals {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  totalTokens: number;
+}
+
+/**
+ * The bot's token usage for the current UTC month, as OpenClaw recorded it.
+ * It counts every credential the bot ran on, Tlon's and the user's own alike,
+ * so it is not usage against a Tlon allowance.
+ */
+export interface TlawnTokenUsage {
+  updatedAt: number;
+  /** Inclusive UTC dates, YYYY-MM-DD. */
+  startDate: string;
+  endDate: string;
+  keyAttribution: 'unavailable';
+  totals: TlawnTokenUsageTotals;
+  byProvider: Array<TlawnTokenUsageTotals & { provider?: string }>;
+  /** Anything but `fresh`: some sessions' latest usage is not counted yet. */
+  cacheStatus?: { status: 'fresh' | 'partial' | 'stale' | 'refreshing' };
+}
+
 export interface TlawnProviderConfigInfo {
   keys: Record<string, string>;
   models: TlawnModelEntry[];

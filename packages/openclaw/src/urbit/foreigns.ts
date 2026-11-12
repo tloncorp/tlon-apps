@@ -41,9 +41,3 @@ export interface Foreign {
 export interface Foreigns {
   [flag: string]: Foreign;
 }
-
-// DM invite structure from chat /v4 firehose
-export interface DmInvite {
-  ship: string;
-  // Additional fields may be present
-}

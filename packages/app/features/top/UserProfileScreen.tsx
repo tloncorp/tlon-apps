@@ -21,10 +21,14 @@ import {
   UserProfileScreenView,
   useIsWindowNarrow,
 } from '../../ui';
+import ProfileStatusSheet from '../../ui/components/ProfileStatusSheet';
+import type { ScreenHeaderMenuActionItem } from '../../ui/components/ScreenHeader/actions';
+import { useIsOwnedBot } from '../../ui/components/BotSystemPrompts';
 import {
   openExternalBotSettings,
   useHasExpectedBotDm,
 } from '../../utils/botSettings';
+import { useProfileActions } from './useProfileActions';
 import { useShipConnectionStatus } from './useShipConnectionStatus';
 import {
   useOpenScheduledTasks,
@@ -55,15 +59,21 @@ export function UserProfileScreen({ route, navigation }: Props) {
   const connectionStatus = useShipConnectionStatus(userId);
   const { data: calmSettings } = store.useCalmSettings();
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
-  const { navigateToBotSettings, resetToDm } = useRootNavigation();
+  const [statusSheetOpen, setStatusSheetOpen] = useState(false);
+  const { navigateToBotSettings, navigateToBotIdentitySettings, resetToDm } =
+    useRootNavigation();
 
   useEffect(() => {
     trackEvent(AnalyticsEvent.ProfileOpened);
   }, [userId]);
 
   useEffect(() => {
-    if (userId && userId !== currentUserId) {
-      api.syncUserProfiles([userId]);
+    // A bot's profile links to its owner, whom we may never have met.
+    const profileIds = [userId, api.getBotOwnerId(userId)].filter(
+      (id): id is string => !!id && id !== currentUserId
+    );
+    if (profileIds.length) {
+      api.syncUserProfiles(profileIds);
     }
   }, [userId, currentUserId]);
 
@@ -89,6 +99,20 @@ export function UserProfileScreen({ route, navigation }: Props) {
 
     navigation.navigate('EditProfile', { userId });
   }, [isWindowNarrow, navigation, userId]);
+
+  const handlePressUserProfile = useCallback(
+    (profileUserId: string) => {
+      // By navigator, not window: a wide tablet still has the phone's stack,
+      // and only the desktop drawers show one profile at a time.
+      if (navigation.getState().type === 'stack') {
+        navigation.push('UserProfile', { userId: profileUserId });
+        return;
+      }
+
+      navigation.navigate('UserProfile', { userId: profileUserId });
+    },
+    [navigation]
+  );
 
   const canUpload = store.useCanUpload();
 
@@ -141,12 +165,94 @@ export function UserProfileScreen({ route, navigation }: Props) {
     navigateToBotSettings();
   }, [navigateToBotSettings]);
 
-  const canEdit = useMemo(() => {
-    return (
-      currentUserId === userId ||
-      contacts?.find((c) => c.id === userId)?.isContact
-    );
-  }, [currentUserId, userId, contacts]);
+  const isOwnProfile = currentUserId === userId;
+  const actions = useProfileActions({
+    userId,
+    isOwnProfile,
+    onMessage: resetToDm,
+  });
+  // Blocking your own bot makes no sense. Unblock stays reachable so an
+  // already-blocked bot can't get stranded.
+  const { isOwnedBot, isPending: isOwnedBotPending } = useIsOwnedBot(userId);
+  const canBlock =
+    actions.isBlocked ||
+    (!isOwnBotProfile && !isOwnedBot && !isOwnedBotPending);
+
+  // The Edit pill is for what you can change: your profile and your bot.
+  // Someone else's nickname, which only you see, is edited from the ⋯ menu.
+  const handlePressEditBot = useCallback(() => {
+    if (isWeb) {
+      openExternalBotSettings();
+      return;
+    }
+    navigateToBotIdentitySettings();
+  }, [navigateToBotIdentitySettings]);
+  const editAction = isOwnProfile
+    ? handlePressEdit
+    : isOwnBotProfile && shouldShowBotSettingsProfileAction
+      ? handlePressEditBot
+      : undefined;
+
+  const menuItems = useMemo(() => {
+    const items: (ScreenHeaderMenuActionItem | false)[] = isOwnProfile
+      ? [
+          // Shown once your invite link has been made, so the tap does
+          // something.
+          actions.canShare && {
+            id: 'share',
+            label: 'Share',
+            onPress: actions.onShare,
+          },
+          { id: 'copy-id', label: 'Copy ID', onPress: actions.onCopyId },
+        ]
+      : isOwnBotProfile
+        ? [
+            actions.canMute && {
+              id: 'mute',
+              label: actions.isMuted ? 'Unmute' : 'Mute',
+              onPress: actions.onToggleMute,
+            },
+            { id: 'copy-id', label: 'Copy ID', onPress: actions.onCopyId },
+            actions.isContact && {
+              id: 'remove-contact',
+              label: 'Remove contact',
+              destructive: true,
+              onPress: actions.onToggleContact,
+            },
+          ]
+        : [
+            actions.isContact && {
+              id: 'edit-profile',
+              label: 'Edit profile',
+              onPress: handlePressEdit,
+            },
+            { id: 'copy-id', label: 'Copy ID', onPress: actions.onCopyId },
+            actions.isContactSuggestion && {
+              id: 'clear-suggestion',
+              label: 'Clear suggestion',
+              onPress: actions.onClearSuggestion,
+            },
+            actions.isContact && {
+              id: 'remove-contact',
+              label: 'Remove contact',
+              destructive: true,
+              onPress: actions.onToggleContact,
+            },
+            canBlock && {
+              id: 'block',
+              label: actions.isBlocked ? 'Unblock' : 'Block',
+              destructive: !actions.isBlocked,
+              onPress: actions.onToggleBlock,
+            },
+          ];
+    return items.filter((item): item is ScreenHeaderMenuActionItem => !!item);
+  }, [actions, canBlock, handlePressEdit, isOwnBotProfile, isOwnProfile]);
+
+  const handleUpdateStatus = useCallback((status: string) => {
+    store.updateCurrentUserProfile({ status });
+    setStatusSheetOpen(false);
+  }, []);
+  const handleOpenStatusSheet = useCallback(() => setStatusSheetOpen(true), []);
 
   const shouldShowBackButton = useMemo(() => {
     const isWebDesktop = isWeb && !isWindowNarrow;
@@ -170,7 +276,6 @@ export function UserProfileScreen({ route, navigation }: Props) {
         >
           <View flex={1} backgroundColor={theme.secondaryBackground.val}>
             <ScreenHeader
-              title="Profile"
               backgroundColor={theme.secondaryBackground.val}
               useHorizontalTitleLayout={!isWindowNarrow && shouldShowBackButton}
               backAction={
@@ -179,11 +284,18 @@ export function UserProfileScreen({ route, navigation }: Props) {
               rightActions={[
                 {
                   id: 'edit-profile',
-                  icon: 'EditList',
-                  label: 'Edit profile',
+                  text: 'Edit',
                   testID: 'ContactEditButton',
-                  onPress: handlePressEdit,
-                  visible: Boolean(canEdit),
+                  onPress: editAction,
+                  visible: !!editAction,
+                },
+                {
+                  id: 'profile-more',
+                  icon: 'Overflow',
+                  label: 'More',
+                  testID: 'ProfileMoreButton',
+                  items: menuItems,
+                  visible: menuItems.length > 0,
                 },
               ]}
               placement="navigation"
@@ -191,6 +303,9 @@ export function UserProfileScreen({ route, navigation }: Props) {
             <UserProfileScreenView
               userId={userId}
               connectionStatus={connectionStatus}
+              actions={isOwnProfile ? undefined : actions}
+              onPressStatus={isOwnProfile ? handleOpenStatusSheet : undefined}
+              onPressBio={isOwnProfile ? handlePressEdit : undefined}
               onPressBotSettings={
                 shouldShowBotSettingsProfileAction
                   ? handlePressBotSettings
@@ -202,6 +317,7 @@ export function UserProfileScreen({ route, navigation }: Props) {
               scheduledTaskCount={scheduledTasks.count}
               onPressPromptFiles={handlePressPromptFiles}
               onPressGroup={handlePressGroup}
+              onPressUserProfile={handlePressUserProfile}
             />
           </View>
           <GroupPreviewSheet
@@ -210,6 +326,13 @@ export function UserProfileScreen({ route, navigation }: Props) {
             group={selectedGroup ?? undefined}
             onActionComplete={handleGroupAction}
           />
+          {statusSheetOpen ? (
+            <ProfileStatusSheet
+              open={statusSheetOpen}
+              onOpenChange={setStatusSheetOpen}
+              onUpdateStatus={handleUpdateStatus}
+            />
+          ) : null}
         </AttachmentProvider>
       </NavigationProvider>
     </AppDataContextProvider>

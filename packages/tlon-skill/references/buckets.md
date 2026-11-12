@@ -12,7 +12,7 @@ A Bucket is a group filesystem. Use `buckets upload` for a file that belongs in 
 
 Discover the Bucket nest and file/folder IDs first. Relative local paths use the active agent workspace. Read the returned file back where supported; `buckets read` only returns text-like files up to 2 MiB. Use `help buckets upload` for destination-folder and retry options.
 
-Use `help buckets` for search, mkdir, rename, move, delete, create, and writer roles. During the preview, deletion supports empty folders; file deletion is disabled until host and broker can coordinate it atomically.
+Use `help buckets` for search, mkdir, rename, move, delete, create, and writer roles. During the preview, deletion supports empty folders; file deletion is disabled until host and broker can coordinate it atomically. Asked to delete a file, tell the user that deleting files isn't available yet during the preview, also when you can't find the file, and offer what the preview allows instead, such as moving it into another folder.
 
 ## Access and creation
 

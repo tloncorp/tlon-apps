@@ -15,6 +15,7 @@ import {
   isNotesNest,
   mapWithConcurrency,
   parseNest,
+  postIdLengthProblem,
   undottedPostId,
 } from '../cli-utils';
 import { assertPostableMediaUrl } from '../image-attach';
@@ -144,9 +145,9 @@ Channel format: chat/~host/channel-name, heap/~host/name
 Use 'tlon messages channel <nest> --limit N' to see post IDs.`;
 
 export const POSTS_COMMAND_HELP: Record<string, string> = {
-  send: 'Usage: tlon posts send <channel> [message] [--image <url>]... [--file <url>]... [--video <url>]... [--link <url>] [--blob <json>] [--title <text>] [--quote <channel> <post-id> [--quote-parent <post-id>]] [--sent-at <ms>] [--bot] (message optional with an attachment or --quote; a gallery post takes one attachment)',
+  send: 'Usage: tlon posts send <channel> [message] [--image <url>]... [--file <url>]... [--video <url>]... [--link <url>] [--blob <json>] [--title <text>] [--quote <channel> <post-id> [--quote-parent <post-id>]] [--sent-at <ms>] [--bot] (message optional with an attachment or --quote; a gallery post takes one attachment)\n~ship in the message mentions that person and notifies them; @role-id mentions a group role, @all every member.',
   reply:
-    'Usage: tlon posts reply <channel> <post-id> [message] [--author ~ship] [--blob <json>] [--quote <channel> <post-id> [--quote-parent <post-id>]] [--sent-at <ms>] [--bot] (message optional with --quote)',
+    'Usage: tlon posts reply <channel> <post-id> [message] [--author ~ship] [--blob <json>] [--quote <channel> <post-id> [--quote-parent <post-id>]] [--sent-at <ms>] [--bot] (message optional with --quote)\n~ship in the message mentions that person and notifies them; @role-id mentions a group role, @all every member.',
   forward:
     'Usage: tlon posts forward <src-channel> <src-id> <target> [--parent <src-parent-id>] [--sent-at <ms>]',
   react:
@@ -226,6 +227,7 @@ export interface PostReactionInput {
   our: string;
   postAuthor: string;
   parentId?: string;
+  parentAuthorId?: string;
 }
 
 export interface PostReactionRemoveInput {
@@ -234,6 +236,7 @@ export interface PostReactionRemoveInput {
   our: string;
   postAuthor: string;
   parentId?: string;
+  parentAuthorId?: string;
 }
 
 export interface PostDeleteInput {
@@ -1245,6 +1248,44 @@ function parseArgs(args: string[]): ParsedPostsArgs {
   throw usageError(POSTS_HELP);
 }
 
+// The host stores a reaction under whatever id it is given, so a mistyped id
+// (one group dropped from a 13-group post id, say) prints success while the
+// post the user meant stays unreacted. Read the target first, as delete does.
+// A DM or group DM post is keyed by its author and id, so a reaction there
+// needs the authors the read found; given ours instead, it is acked and lands
+// on no post. A channel post is keyed by id alone.
+async function requireReactionTarget(
+  parsed: { channelId: string; postId: string; parentId?: string },
+  verb: 'added' | 'removed',
+  deps: PostsDeps
+): Promise<{ postAuthor?: string; parentAuthorId?: string }> {
+  const nest = parsed.channelId;
+  const id = formatPostId(parsed.postId);
+  const dm = isDmTarget(nest);
+  if (parsed.parentId) {
+    const pid = formatPostId(parsed.parentId);
+    const found = await fetchExistingReply(nest, pid, id, deps);
+    if (!found) {
+      throw commandError(
+        `Could not read reply ${id} under ${pid} in ${nest}; no reaction was ${verb}. Read the thread (\`messages post ${nest} ${pid}\`) and use its ID line.`
+      );
+    }
+    return dm
+      ? {
+          postAuthor: found.reply.authorId,
+          parentAuthorId: found.thread.authorId,
+        }
+      : {};
+  }
+  const existing = await fetchExistingPost(nest, id, deps);
+  if (!existing) {
+    throw commandError(
+      `Could not read ${id} in ${nest}; no reaction was ${verb}. The id may not be the post's: read the channel (\`messages channel ${nest}\`) and use its ID line.`
+    );
+  }
+  return dm ? { postAuthor: existing.authorId } : {};
+}
+
 async function reactToPost(
   parsed: {
     channelId: string;
@@ -1254,13 +1295,17 @@ async function reactToPost(
   },
   deps: PostsDeps
 ): Promise<void> {
+  const authors = await requireReactionTarget(parsed, 'added', deps);
   const our = deps.getCurrentUserId();
   await deps.postsApi.addReaction({
     channelId: parsed.channelId,
     postId: formatPostId(parsed.postId),
     emoji: parsed.emoji,
     our,
-    postAuthor: our,
+    postAuthor: authors.postAuthor ?? our,
+    ...(authors.parentAuthorId
+      ? { parentAuthorId: authors.parentAuthorId }
+      : {}),
     ...(parsed.parentId ? { parentId: formatPostId(parsed.parentId) } : {}),
   });
 }
@@ -1269,23 +1314,38 @@ async function unreactToPost(
   parsed: { channelId: string; postId: string; parentId?: string },
   deps: PostsDeps
 ): Promise<void> {
+  const authors = await requireReactionTarget(parsed, 'removed', deps);
   const our = deps.getCurrentUserId();
   await deps.postsApi.removeReaction({
     channelId: parsed.channelId,
     postId: formatPostId(parsed.postId),
     our,
-    postAuthor: our,
+    postAuthor: authors.postAuthor ?? our,
+    ...(authors.parentAuthorId
+      ? { parentAuthorId: authors.parentAuthorId }
+      : {}),
     ...(parsed.parentId ? { parentId: formatPostId(parsed.parentId) } : {}),
   });
 }
 
+// The host acks a %del for an id it has never seen, so without this read a
+// wrong id (a sent-time id in place of the host's, say) prints success while
+// the post stays up.
 async function deletePost(
   parsed: { channelId: string; postId: string },
   deps: PostsDeps
 ): Promise<void> {
+  const nest = parsed.channelId;
+  const id = formatPostId(parsed.postId);
+  const existing = await fetchExistingPost(nest, id, deps);
+  if (!existing) {
+    throw commandError(
+      `Could not read ${id} in ${nest}; nothing was deleted. The id may not be the post's: read the channel (\`messages channel ${nest}\`) and use its ID line.`
+    );
+  }
   await deps.postsApi.deletePost({
-    channelId: parsed.channelId,
-    postId: formatPostId(parsed.postId),
+    channelId: nest,
+    postId: id,
     authorId: deps.getCurrentUserId(),
   });
 }
@@ -1445,16 +1505,28 @@ async function sendReply(
     parsed.parentAuthor
   );
   const sentAt = parsed.sentAt ?? deps.now();
-  await deps.postsApi.sendReply({
-    channelId: parsed.channelId,
-    parentId,
-    parentAuthor,
-    content,
-    sentAt,
-    authorId,
-    blob: parsed.blob,
-    ...(parsed.botProfile ? { botProfile: parsed.botProfile } : {}),
-  });
+  try {
+    await deps.postsApi.sendReply({
+      channelId: parsed.channelId,
+      parentId,
+      parentAuthor,
+      content,
+      sentAt,
+      authorId,
+      blob: parsed.blob,
+      ...(parsed.botProfile ? { botProfile: parsed.botProfile } : {}),
+    });
+  } catch (error) {
+    // A reply to a parent that doesn't exist fails in the host with a bare
+    // Hoon trace, which says nothing about the id.
+    const problem = postIdLengthProblem(parsed.postId);
+    if (problem) {
+      throw commandError(
+        `${problem}. Copy it again from \`messages channel ${parsed.channelId}\`; nothing was sent.`
+      );
+    }
+    throw error;
+  }
   return { sentAt, parentAuthor };
 }
 
@@ -1571,8 +1643,11 @@ async function editPost(
     // and cover — is replaced by whatever is sent now. Editing blind is a
     // silent, durable rewrite; failing is visible and retryable once the post
     // is readable.
+    const problem = postIdLengthProblem(parsed.postId);
     throw commandError(
-      `Could not read ${formatPostId(parsed.postId)} in ${parsed.channelId} to preserve its authorship and metadata; the post may not be readable yet. Retry the edit.`
+      problem
+        ? `${problem}. Copy it again from \`messages channel ${parsed.channelId}\`; nothing was changed.`
+        : `Could not read ${formatPostId(parsed.postId)} in ${parsed.channelId} to preserve its authorship and metadata; the post may not be readable yet. Retry the edit.`
     );
   }
 
