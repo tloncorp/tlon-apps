@@ -86,6 +86,10 @@ fetch:
     set -euo pipefail
     {{ root }} fetch {{ quote(justfile_directory() / "desk-deps.yaml") }}
     rev=$(yq .mcp.rev ../../desk-deps.yaml)
+    # Parallel runs take turns in the checkout. The lock is on the descriptor,
+    # which the kernel closes when this exits.
+    exec 9>>.deps-cache/mcp.lock
+    python3 -c 'import fcntl; fcntl.flock(9, fcntl.LOCK_EX)'
     # peru used to vendor mcp/ as plain files, which git will not check out over.
     [ -d mcp/.git ] || rm -rf mcp
     git init --quiet mcp
