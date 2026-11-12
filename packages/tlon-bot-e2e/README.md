@@ -132,7 +132,7 @@ pnpm test:integration:shared
 
 Harness runs on the bot ship `~zod`. Once the branch `%groups` desk is applied, the driver builds `packages/harness` with `just --justfile packages/harness/justfile out=<dir> build`, creates and mounts a `%harness` desk on `~zod`, commits and installs it, and waits for `%harness-tlon` to answer its status scry. `%mcp` is not installed. It then configures Harness over ACP through Eyre, using `packages/harness/acp/harness-acp.mjs`: `~ten` becomes the owner, the Tlon hand is enabled with `response: mentions` and no allowed or trusted ships, and the default model endpoint is the fake model's `/v1/chat/completions` as seen from the ships container.
 
-Harness publishes a turn's final assistant text to the originating chat, so text replies are scripted as plain text steps. Its `tlon` tool takes structured actions; the adapter translates only the tlon commands that enabled scenarios send, and adapter methods no enabled scenario uses throw. Harness has only the common suite. Scenarios it cannot run, or that are not enabled for it yet, are skipped with their reasons.
+Harness publishes a turn's final assistant text to the originating chat, so text replies are scripted as plain text steps. They expect `tlon_read_history` among the advertised tools, since every Tlon conversation is offered it; only the owner's conversations are also offered the `tlon` tool. Its `tlon` tool takes structured actions; the adapter translates only the tlon commands that enabled scenarios send, and adapter methods no enabled scenario uses throw. Harness has only the common suite. Scenarios it cannot run, or that are not enabled for it yet, are skipped with their reasons.
 
 ## Hermes Runtime Details
 

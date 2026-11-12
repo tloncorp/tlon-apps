@@ -231,12 +231,7 @@ export const commonScenarios: readonly SharedScenario[] = [
 
   testScenario(
     'allowlisted-third-party-dm-reply',
-    {
-      driverSkips: {
-        harness:
-          'TLON-7109: Harness does not accept a DM invite that a ship sent before it was given access.',
-      },
-    },
+    {},
     async ({ ctx, driver, actors }) => {
       await allowDmFrom({ ctx, driver, actors }, actors.thirdParty.ship);
       const key = scenarioKey('allowlisted-third-party');

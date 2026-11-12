@@ -55,7 +55,7 @@ describe('Harness driver runtime spec', () => {
     expect(harnessDriver.model.replyText('hello')).toMatchObject({
       steps: [{ kind: 'text', content: 'hello' }],
       expectations: {
-        advertisedTools: { include: ['tlon'] },
+        advertisedTools: { include: ['tlon_read_history'] },
         expectedCallCount: 1,
       },
     });
