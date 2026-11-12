@@ -628,6 +628,23 @@ export async function readPreviewText(
   return decodeBytes(bytes, encoding);
 }
 
+export function isBucketHeicImage({
+  mimeType,
+  name,
+}: Pick<BucketFileViewerItem, 'mimeType' | 'name'>): boolean {
+  const type = mimeType?.split(';')[0].trim().toLowerCase() ?? '';
+  return (
+    [
+      'image/heic',
+      'image/heif',
+      'image/heic-sequence',
+      'image/heif-sequence',
+    ].includes(type) ||
+    ((!type || type === 'application/octet-stream') &&
+      /\.(heic|heif)$/i.test(name))
+  );
+}
+
 export function getBucketPreviewKind({
   mimeType,
   name,
@@ -636,7 +653,10 @@ export function getBucketPreviewKind({
   const normalizedMimeType = mimeType?.split(';')[0].trim().toLowerCase() ?? '';
   const extension = name.split('.').pop()?.toLowerCase();
 
-  if (normalizedMimeType.startsWith('image/')) {
+  if (
+    normalizedMimeType.startsWith('image/') ||
+    isBucketHeicImage({ mimeType, name })
+  ) {
     return 'image';
   }
   if (normalizedMimeType.startsWith('video/')) {

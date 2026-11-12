@@ -10,6 +10,7 @@ import { BucketPreviewControls } from './BucketPreviewControls';
 import { BucketPreviewActions } from './BucketPreviewActions';
 import { BucketPreviewContent } from './BucketPreviewContent';
 import { BucketPreviewImage } from './BucketPreviewImage';
+import { BucketHeicPreview } from './BucketHeicPreview';
 import { BucketFileViewerScriptsBanner } from './BucketFileViewerScriptsBanner';
 import {
   BucketFileViewerItem,
@@ -17,6 +18,7 @@ import {
   type HtmlPreviewScripts,
   bucketFileViewerHeading,
   getBucketPreviewKind,
+  isBucketHeicImage,
   htmlPreviewDocument,
   htmlPreviewHasScripts,
   htmlPreviewKey,
@@ -131,6 +133,8 @@ export function BucketFileViewer({
         retainActivePage={
           !loading &&
           !error &&
+          // HEIC workers must stop when paging away, not decode in hidden pages.
+          !isBucketHeicImage(item) &&
           (previewKind === 'image' ||
             previewKind === 'pdf' ||
             previewKind === 'text')
@@ -147,6 +151,15 @@ export function BucketFileViewer({
             <FailedPreview onRetry={onRetry} />
           ) : !item.uri ? (
             <FailedPreview onRetry={onRetry} />
+          ) : previewKind === 'image' && isBucketHeicImage(item) ? (
+            <BucketHeicPreview
+              key={item.uri}
+              uri={item.uri}
+              name={item.name}
+              onLoad={onImageLoad}
+              onError={onPreviewError}
+              onRetry={onRetry}
+            />
           ) : previewKind === 'image' ? (
             <BucketPreviewImage
               uri={item.uri}
