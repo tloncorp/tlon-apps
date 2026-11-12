@@ -145,12 +145,6 @@ jobs:
         # setup-fake-dev.sh needs mcp/ before anything builds.
         run: just fetch
 
-      - name: Configure tmux
-        # test-hoon.sh reads results from the ship's pane with `capture-pane -S
-        # -200000` and line offsets. tmux keeps only 2000 lines by default,
-        # which drops test output and breaks those offsets.
-        run: echo 'set-option -g history-limit 500000' > ~/.tmux.conf
-
       - name: Cache mcp desk deps
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
@@ -233,12 +227,6 @@ jobs:
       - name: Vendor desk deps
         # setup-fake-dev.sh needs mcp/ before anything builds.
         run: just fetch
-
-      - name: Configure tmux
-        # test-js.sh reads the login code and test output from the ships' panes
-        # with `capture-pane -S -200000` and line offsets. tmux keeps only 2000
-        # lines by default, which drops output and breaks those offsets.
-        run: echo 'set-option -g history-limit 500000' > ~/.tmux.conf
 
       - name: Cache mcp desk deps
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
