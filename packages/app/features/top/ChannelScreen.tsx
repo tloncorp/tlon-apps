@@ -43,6 +43,16 @@ import {
 import { isAgentGroupSetupActive } from '../../ui/components/Channel/postVisibility';
 import { postCursorFor } from './channelCursor';
 import { shouldAutoLoadOlderPosts } from './channelPagination';
+import {
+  ENOUGH_POSTS_BEFORE_ANCHOR,
+  ENOUGH_POSTS_TO_FILL_SCREEN,
+  countPostsBeforeAnchor,
+  useInitialPostFill,
+} from './useInitialPostFill';
+import {
+  type ChannelUnreadSnapshot,
+  nextChannelUnreadSnapshot,
+} from './channelUnreadSnapshot';
 import { useAgentOnboardingChannel } from './useAgentOnboardingChannel';
 import { useAgentOnboardingFirstEntry } from './useAgentOnboardingFirstEntry';
 import { useRecoverCursorJump } from './useRecoverCursorJump';
@@ -188,13 +198,11 @@ export default function ChannelScreen(props: Props) {
     notesActivityCapabilitiesEpoch,
   ]);
 
-  // Snapshot unread state once per focused entry so the divider does not move
-  // as the channel is marked read.
+  // Snapshot unread state when the channel is entered so the divider does not
+  // move as the channel is marked read; see nextChannelUnreadSnapshot for when
+  // a return to the channel takes a new one.
   const [initialChannelUnreadSnapshot, setInitialChannelUnreadSnapshot] =
-    React.useState<{
-      channelId: string;
-      unread: db.ChannelUnread | null;
-    } | null>(null);
+    React.useState<ChannelUnreadSnapshot | null>(null);
   const [unreadSnapshotIsFresh, setUnreadSnapshotIsFresh] =
     React.useState(false);
   const [clearedCursor, setClearedCursor] = React.useState(false);
@@ -213,10 +221,12 @@ export default function ChannelScreen(props: Props) {
         }
 
         if (isCurrent) {
-          setInitialChannelUnreadSnapshot({
-            channelId: currentChannelId,
-            unread: unread ?? null,
-          });
+          setInitialChannelUnreadSnapshot((previous) =>
+            nextChannelUnreadSnapshot(previous, {
+              channelId: currentChannelId,
+              unread: unread ?? null,
+            })
+          );
           setUnreadSnapshotIsFresh(true);
         }
       }
@@ -234,13 +244,12 @@ export default function ChannelScreen(props: Props) {
     isFocused &&
     unreadSnapshotIsFresh &&
     initialChannelUnreadSnapshot?.channelId === currentChannelId;
+  // A new snapshot brings a new cursor scope. A kept one keeps the reader's
+  // choice to jump to the newest posts, which would otherwise be undone on
+  // every return to the channel.
   useEffect(() => {
-    if (unreadDidInitialize) {
-      // Keep the retained visit's query mode stable while its replacement
-      // unread snapshot loads, then allow the fresh cursor to take over.
-      setClearedCursor(false);
-    }
-  }, [unreadDidInitialize]);
+    setClearedCursor(false);
+  }, [initialChannelUnreadSnapshot]);
   // Retain the prior focused entry's snapshot while its replacement loads.
   // This preserves Channel-local draft state without enabling unread work
   // until the new snapshot is ready.
@@ -404,12 +413,18 @@ export default function ChannelScreen(props: Props) {
     unreadCursor,
   ]);
 
+  const usesCursor = Boolean(cursor && !clearedCursor);
+  const postsBeforeAnchor = useMemo(
+    () => countPostsBeforeAnchor(posts, usesCursor ? cursor : null),
+    [cursor, posts, usesCursor]
+  );
+
   useEffect(() => {
-    // Make sure the initial page can fill the screen; otherwise the visual
-    // start boundary may never move far enough to request another older page.
-    // Likewise, keep going when a page contains only hidden delete markers,
-    // since adding no visible rows will not retrigger the boundary callback.
-    const ENOUGH_POSTS_TO_FILL_SCREEN = 20;
+    // Make sure the initial page can fill the screen, above the post it opens
+    // on too; otherwise the visual start boundary may never move far enough to
+    // request another older page. Likewise, keep going when a page contains
+    // only hidden delete markers, since adding no visible rows will not
+    // retrigger the boundary callback.
     if (
       shouldAutoLoadOlderPosts({
         isFetching: postsQuery.isFetching,
@@ -418,6 +433,8 @@ export default function ChannelScreen(props: Props) {
         unreadDidInitialize,
         postCount: posts?.length,
         minimumPostCount: ENOUGH_POSTS_TO_FILL_SCREEN,
+        postsBeforeAnchor,
+        minimumPostsBeforeAnchor: ENOUGH_POSTS_BEFORE_ANCHOR,
         oldestPageHasOnlyDeletedPosts,
       })
     ) {
@@ -427,9 +444,22 @@ export default function ChannelScreen(props: Props) {
     loadOlder,
     oldestPageHasOnlyDeletedPosts,
     posts,
+    postsBeforeAnchor,
     postsQuery,
     unreadDidInitialize,
   ]);
+
+  // Hold the posts back until that first screenful is in, so the list
+  // positions itself once rather than on pages landing after it is shown.
+  const isInitialFillPending = useInitialPostFill({
+    scopeKey: `${currentChannelId}:${usesCursor ? cursor : 'newest'}`,
+    // Before the first read returns there are no posts to count, as distinct
+    // from a conversation that has none.
+    postCount: postsQuery.data ? (posts?.length ?? null) : null,
+    postsBeforeAnchor,
+    hasOlderPosts: postsQuery.hasNextPage,
+    hasError: postsQuery.isError,
+  });
 
   const filteredPosts = useMemo(
     () => (includeDeletedPosts ? posts : posts?.filter((p) => !p.isDeleted)),
@@ -656,13 +686,13 @@ export default function ChannelScreen(props: Props) {
               ? undefined
               : initialChannelUnread
           }
-          isLoadingPosts={isLoadingPosts}
+          isLoadingPosts={isLoadingPosts || isInitialFillPending}
           loadPostsError={postsQuery.error}
           hasNewerPosts={postsQuery.hasPreviousPage}
           hasOlderPosts={postsQuery.hasNextPage}
           group={group}
           groupIsLoading={groupIsLoading}
-          posts={filteredPosts ?? null}
+          posts={isInitialFillPending ? null : (filteredPosts ?? null)}
           selectedPostId={
             clearedCursor || cursorPostIsHidden ? undefined : selectedPostId
           }
