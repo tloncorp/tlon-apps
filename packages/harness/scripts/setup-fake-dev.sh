@@ -114,7 +114,7 @@ then
 fi
 
 echo "Booting ship"
-tmux new-session -d -s "$session" -x 180 -y 50 "exec $vere --loom 33 --http-port $http_port $ames_args $pier"
+new_ship_session "$session" "exec $vere --loom 33 --http-port $http_port $ames_args $pier" || exit 1
 
 function await_ship
 {
