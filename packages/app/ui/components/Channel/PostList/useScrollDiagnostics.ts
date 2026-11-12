@@ -240,6 +240,12 @@ export function useLegendListScrollDiagnostics({
   scrollHandler: ScrollHandler;
 }) {
   const [enabled] = React.useState(isScrollDiagnosticsEnabled);
+  // Read through a ref: the cover changes as the composer docks or floats, and
+  // a changing callback would re-run the mount effect and read as a rebuild.
+  const getBottomCoverRef = React.useRef(getBottomCover);
+  React.useLayoutEffect(() => {
+    getBottomCoverRef.current = getBottomCover;
+  }, [getBottomCover]);
   const [label] = React.useState(() => nextInstanceLabel(channelId));
   const keys = React.useMemo(
     () => (enabled ? getKeys() : NO_KEYS),
@@ -315,7 +321,7 @@ export function useLegendListScrollDiagnostics({
     ) {
       return null;
     }
-    const cover = getBottomCover();
+    const cover = getBottomCoverRef.current();
     return {
       cover,
       // Where the list itself puts its end, relative to where it is now. Its
@@ -329,7 +335,7 @@ export function useLegendListScrollDiagnostics({
         st.nativeInsetBottom -
         st.nativeOffset,
     };
-  }, [getBottomCover, getState, listRef, rowScreenTop]);
+  }, [getState, listRef, rowScreenTop]);
 
   const takeSample = React.useCallback(
     (countBlank: boolean): FrameSample | null => {
