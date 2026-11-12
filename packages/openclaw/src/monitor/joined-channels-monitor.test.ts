@@ -14,6 +14,7 @@ import {
   createJoinedChannels,
 } from './joined-channels.js';
 import { hasAttachmentBlob } from './media.js';
+import { prepareInboundText } from './utils.js';
 
 const source = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
 
@@ -48,7 +49,6 @@ type Deps = {
   fetchInitData: ReturnType<typeof vi.fn>;
   runtime: { log: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
   groupContextRuntime?: GroupContextRuntime;
-  rawText?: string;
 };
 type Monitor = {
   handleChannelsFirehose(event: unknown): Promise<void>;
@@ -63,6 +63,7 @@ let makeMonitor: (
     isDmNest: typeof isDmNest;
     normalizeShip: typeof normalizeShip;
     hasAttachmentBlob: typeof hasAttachmentBlob;
+    prepareInboundText: typeof prepareInboundText;
   }
 ) => Monitor;
 
@@ -76,13 +77,17 @@ beforeAll(async () => {
         watchedChannels, joinedChannels, clearAgentOnboardingRetry,
         onboardingCatchUp, processedTracker, scanAgentOnboardingChannel,
         fetchInitData, runtime, isDmNest, normalizeShip, hasAttachmentBlob,
+        prepareInboundText,
       } = deps;
       const opts = {};
       const account = { accountId: 'test' };
       const api = {};
       const botShipName = '~bot';
       const effectiveOwnerShip = '~owner';
-      const channelToGroup = new Map([['chat/~zod/general', '~zod/test']]);
+      const channelToGroup = new Map([
+        ['chat/~zod/general', '~zod/test'],
+        ['heap/~zod/gallery', '~zod/test'],
+      ]);
       const computingPresence = {};
       const getBotProfile = () => undefined;
       const trackOnboardingStep = () => () => {};
@@ -100,9 +105,6 @@ beforeAll(async () => {
       const extractAuthorShip = (author) =>
         typeof author === 'string' ? author : (author?.ship ?? '');
       const botNickname = null;
-      const prepareInboundText = () => ({
-        rawText: deps.rawText ?? 'in the thread',
-      });
       const cacheMessage = () => {};
       const sharedOwnerToolPostLedger = () => ({ match: () => undefined });
       const channelInboundPost = () => ({});
@@ -145,7 +147,6 @@ function setup(options: {
   joined?: string[] | null;
   now?: () => number;
   groupContextRuntime?: GroupContextRuntime;
-  rawText?: string;
 }) {
   const joinedChannels = createJoinedChannels({ now: options.now });
   if (options.joined !== null) {
@@ -168,7 +169,6 @@ function setup(options: {
     fetchInitData: vi.fn(async () => ({ joinedChannels: null })),
     runtime: { log: vi.fn(), error: vi.fn() },
     groupContextRuntime: options.groupContextRuntime,
-    rawText: options.rawText,
   };
   return {
     deps,
@@ -177,6 +177,7 @@ function setup(options: {
       isDmNest,
       normalizeShip,
       hasAttachmentBlob,
+      prepareInboundText,
     }),
   };
 }
@@ -479,7 +480,7 @@ describe('channel firehose and group context', () => {
                 set: {
                   'reply-essay': {
                     author: '~nec',
-                    content: [],
+                    content: [{ inline: ['in the thread'] }],
                     sent: Date.now(),
                   },
                 },
@@ -505,43 +506,43 @@ describe('channel firehose and group context', () => {
   it.each([
     [
       'drops an empty post whose blob is only client metadata',
+      [],
       [{ type: 'metadata', version: 1, data: {} }],
       false,
     ],
     [
       'keeps an empty post whose blob carries an attachment',
+      [],
       [
         { type: 'metadata', version: 1, data: {} },
         { type: 'file', version: 1 },
       ],
       true,
     ],
-  ])('%s', async (_label, blob, recorded) => {
-    const groupContextRuntime = createGroupContextRuntime();
-    groupContextRuntime.applySnapshot(
-      new Map([
-        [
-          '~zod/test',
-          {
-            title: 'Test',
-            channels: parseGroupChannels({
-              [general]: { meta: { title: 'General' }, readers: [] },
-              'chat/~zod/random': { meta: { title: 'Random' }, readers: [] },
-            }),
+    [
+      'keeps a gallery link card whose blob is only client metadata',
+      [
+        {
+          block: {
+            link: { url: 'https://example.com', meta: { title: 'Example' } },
           },
-        ],
-      ]),
-      groupContextRuntime.beginSnapshot()
-    );
+        },
+      ],
+      [{ type: 'metadata', version: 1, data: {} }],
+      true,
+    ],
+  ])('%s', async (_label, content, blob, recorded) => {
+    const gallery = 'heap/~zod/gallery';
+    const groupContextRuntime = createGroupContextRuntime();
+    const recordMessage = vi.spyOn(groupContextRuntime, 'recordMessage');
     const { deps, monitor } = setup({
-      joined: [general],
+      joined: [gallery],
       groupContextRuntime,
-      rawText: '',
     });
     deps.processedTracker.mark.mockReturnValue(true);
 
     await monitor.handleChannelsFirehose({
-      nest: general,
+      nest: gallery,
       response: {
         post: {
           id: '170141184507000000000000000000000000',
@@ -549,7 +550,7 @@ describe('channel firehose and group context', () => {
             set: {
               essay: {
                 author: '~nec',
-                content: [],
+                content,
                 sent: Date.now(),
                 blob: JSON.stringify(blob),
               },
@@ -559,9 +560,6 @@ describe('channel firehose and group context', () => {
       },
     });
 
-    const context = groupContextRuntime.handleBeforePromptBuild({
-      sessionKey: 'agent:main:tlon:group:chat/~zod/random',
-    })?.prependContext;
-    expect(String(context).includes('1 message from 1 ship')).toBe(recorded);
+    expect(recordMessage).toHaveBeenCalledTimes(recorded ? 1 : 0);
   });
 });
