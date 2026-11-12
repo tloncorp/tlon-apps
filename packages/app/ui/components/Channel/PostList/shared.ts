@@ -88,6 +88,22 @@ export type PostListComponent = ReturnType<
   typeof React.forwardRef<PostListMethods, PostListComponentProps>
 >;
 
+/**
+ * Whether `after` only adds older posts above `before`: the newest post is the
+ * same and the oldest is not. Posts are in visual order, oldest first.
+ */
+export function addsOlderPostsOnly(
+  before: readonly PostWithNeighbors[],
+  after: readonly PostWithNeighbors[]
+) {
+  return (
+    before.length > 0 &&
+    after.length > before.length &&
+    after[after.length - 1]?.post.id === before[before.length - 1]?.post.id &&
+    after[0]?.post.id !== before[0]?.post.id
+  );
+}
+
 export function usesConversationPostList({
   collectionLayoutType,
 }: Pick<PostListComponentProps, 'collectionLayoutType'>) {

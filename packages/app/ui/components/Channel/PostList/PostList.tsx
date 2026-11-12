@@ -49,6 +49,7 @@ import {
   PostListComponentProps,
   PostListMethods,
   PostWithNeighbors,
+  addsOlderPostsOnly,
   getPostListKey,
   usePostListBottomCallbacks,
   usesConversationPostList,
@@ -130,6 +131,36 @@ function useLegendListIsNearEnd(
   );
 
   return React.useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
+/**
+ * Whether this render adds older posts above the ones already shown while the
+ * newest post stays the same. Posts are in visual order, oldest first.
+ */
+function useIsPrependingHistory(posts: PostWithNeighbors[]) {
+  const [previous, setPrevious] = React.useState(() => ({
+    posts,
+    prepending: false,
+  }));
+  let isPrepending = previous.prepending;
+  if (previous.posts !== posts) {
+    isPrepending = addsOlderPostsOnly(previous.posts, posts);
+    setPrevious({ posts, prepending: isPrepending });
+  }
+  // The list anchors on the data change it is handed in the same render, so
+  // anchoring is only needed for that change; following the end resumes after.
+  React.useEffect(() => {
+    if (!isPrepending) {
+      return;
+    }
+    const frame = requestAnimationFrame(() =>
+      setPrevious((current) =>
+        current.prepending ? { ...current, prepending: false } : current
+      )
+    );
+    return () => cancelAnimationFrame(frame);
+  }, [isPrepending]);
+  return isPrepending;
 }
 
 function runImperativeScroll(
@@ -913,16 +944,20 @@ const ConversationPostListAttempt = React.forwardRef<
     // `undefined` still enables size anchoring: native MVCP can jump to the
     // new end before the animated scroll runs, particularly on Android.
     // History keeps its visible post anchored; empty lists have no post to
-    // preserve as the header and composer settle.
+    // preserve as the header and composer settle. A page of older posts
+    // landing at the end is anchored too, and the iOS viewport stops following
+    // the end for it: following would animate through the new rows' height.
+    const isPrependingHistory = useIsPrependingHistory(postsWithNeighbors);
     const maintainVisibleContentPosition =
       postsWithNeighbors.length === 0
         ? false
         : collectionLayout.shouldMaintainVisibleContentPosition &&
-            !(
-              anchorToEnd &&
-              !hasNewerPosts &&
-              ((!floating && isNearEnd) || composerSendActive)
-            )
+            (isPrependingHistory ||
+              !(
+                anchorToEnd &&
+                !hasNewerPosts &&
+                ((!floating && isNearEnd) || composerSendActive)
+              ))
           ? true
           : false;
     usePostListBottomCallbacks(isAtBottom, {
@@ -1111,7 +1146,8 @@ const ConversationPostListAttempt = React.forwardRef<
           anchorToEnd &&
           !floating &&
           !hasNewerPosts &&
-          !composerSendActive
+          !composerSendActive &&
+          !isPrependingHistory
         }
       >
         {list}
