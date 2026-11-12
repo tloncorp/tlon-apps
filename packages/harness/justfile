@@ -36,10 +36,8 @@ commit desk: (install desk)
     [[ $name =~ ^[a-z][a-z0-9-]*$ ]] ||
       { echo "desk mount name '$name' is not a valid desk name" >&2; exit 1; }
 
-    # Unix limits socket paths to 108 bytes; socat would truncate a longer one.
-    socket=$pier/.urb/conn.sock
-    (( ${#socket} < 108 )) ||
-      { echo "pier path is too long for the ship's socket: $socket" >&2; exit 1; }
+    source {{ quote(justfile_directory() / "scripts/ship-lib.sh") }}
+    check_socket "$pier"
 
     # click exits zero even when the thread fails, so require its receipt.
     # It joins these lines into one, so each must end in a two-space gap.
