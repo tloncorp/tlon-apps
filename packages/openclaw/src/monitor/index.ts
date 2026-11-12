@@ -316,6 +316,7 @@ import {
   downloadMessageImages,
   formatInboundMediaBody,
   formatBlobAnnotations,
+  hasAttachmentBlob,
   parseBlobData,
 } from './media.js';
 import { createNudgeRunner, shouldStartNudgeRunner } from './nudge-runner.js';
@@ -4817,7 +4818,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           botShipName,
           botNickname ?? undefined
         );
-        const hasBlob = Boolean(content.blob);
+        const hasBlob = hasAttachmentBlob(content.blob);
         if (!rawText.trim() && !hasBlob) {
           return;
         }
@@ -5534,7 +5535,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           );
         }
 
-        const hasBlob = Boolean(dmContent.blob);
+        const hasBlob = hasAttachmentBlob(dmContent.blob);
         if (!rawText.trim() && !hasBlob) {
           return;
         }
