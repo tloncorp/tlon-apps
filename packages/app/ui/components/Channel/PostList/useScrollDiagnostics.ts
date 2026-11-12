@@ -97,6 +97,8 @@ const HIDDEN_TOO_LONG_MS = [2000, 5000];
 // When, after the list is shown, to check that it is still where it opened.
 const LANDING_CHECKS_MS = [400, 1600];
 const LANDING_TOLERANCE = 8;
+// How soon to look again when a correction is still on its way.
+const LANDING_RECHECK_MS = 50;
 // A rebuild swaps the list within one or two commits; anything slower is the
 // user leaving and coming back.
 const LIST_REBUILD_WINDOW_MS = 250;
@@ -1216,6 +1218,15 @@ export function useLegendListScrollDiagnostics({
       const listState = listRef.current?.getState();
       // Once the user scrolls, where the list sits is theirs to decide.
       if (!landing || !listState || st.hidden || st.userScrolled) {
+        return;
+      }
+      // Rows have moved but the scroll view has not reported the correction
+      // for it yet: judged now, the post would be placed by the new layout
+      // and the old offset, which is never on screen together.
+      if (st.adjusts.hasPending()) {
+        st.timers.push(
+          setTimeout(() => checkLanding(afterMs), LANDING_RECHECK_MS)
+        );
         return;
       }
       if (landing.target === 'end') {
