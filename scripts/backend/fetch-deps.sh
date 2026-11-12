@@ -20,6 +20,14 @@ dupes=$(yq '.[].files[]' "$deps" | sort | uniq -d)
 [[ -z $dupes ]] ||
   { echo "$deps: listed by more than one entry:" $dupes >&2; exit 1; }
 
+# Runs for one manifest take turns, and so does the build that reads $out,
+# which takes this lock too: git cannot share a cache repository, and $out is
+# emptied below. The lock is on the descriptor, which the kernel closes when
+# this exits.
+mkdir -p "$cache"
+exec 9>>"$cache/lock"
+python3 -c 'import fcntl; fcntl.flock(9, fcntl.LOCK_EX)'
+
 fetch_one() {
   local name=$1 url rev export_dir file repo files=()
   url=$(name=$name yq '.[strenv(name)].url' "$deps")
