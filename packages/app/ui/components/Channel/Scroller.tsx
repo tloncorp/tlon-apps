@@ -332,7 +332,7 @@ const Scroller = forwardRef(
 
     const listRenderItem = useCallback(
       ({
-        item: { post, previous, next, ...rest },
+        item: { post, previous, next: _next, ...rest },
         index,
       }: {
         item: PostWithNeighbors;
@@ -342,12 +342,14 @@ const Scroller = forwardRef(
           post.receivedAt ?? 0,
           previous?.receivedAt ?? 0
         );
-        const isLastPostOfBlock =
-          post.type !== 'notice' &&
-          (post.type === 'chat' || post.type === 'reply') &&
-          next != null &&
-          (next.authorId !== post.authorId ||
-            !isSameDay(post.receivedAt ?? 0, next.receivedAt ?? 0));
+        // The gap between one person's messages and the next person's belongs
+        // to the later message. Hung below the earlier one, it only appeared
+        // once the next message arrived, which resized a row already on
+        // screen and nudged the conversation a frame after each append.
+        const isFirstPostOfBlock =
+          previous != null &&
+          (previous.type === 'chat' || previous.type === 'reply') &&
+          (previous.authorId !== post.authorId || isFirstPostOfDay);
         const isFirstUnread = post.id === firstUnreadId;
         // The post a conversation opens on always names its author. It can be
         // the oldest one loaded, with the post before it still to arrive, and
@@ -377,7 +379,7 @@ const Scroller = forwardRef(
             showUnreadDivider={showDividers && isFirstUnread}
             showDayDivider={showDividers && isFirstPostOfDay}
             showAuthor={showAuthor}
-            isLastPostOfBlock={isLastPostOfBlock}
+            isFirstPostOfBlock={isFirstPostOfBlock}
             displayDebugMode={debugMessageJson}
             Component={renderItem}
             unreadCount={unreadCount}
@@ -902,7 +904,7 @@ const BaseScrollerItem = ({
   messageRef,
   isSelected,
   displayDebugMode,
-  isLastPostOfBlock,
+  isFirstPostOfBlock,
   dividersEnabled,
   itemAspectRatio,
   itemWidth,
@@ -933,7 +935,7 @@ const BaseScrollerItem = ({
   messageRef: RefObject<ViewInstance | null>;
   isSelected: boolean;
   displayDebugMode?: boolean;
-  isLastPostOfBlock: boolean;
+  isFirstPostOfBlock: boolean;
   dividersEnabled: boolean;
   itemAspectRatio?: number;
   itemWidth?: number;
@@ -1022,6 +1024,7 @@ const BaseScrollerItem = ({
       width={columnCount === 1 ? '100%' : itemWidth}
       aspectRatio={itemAspectRatio}
     >
+      {isFirstPostOfBlock && <PostBlockSeparator />}
       {divider}
       <PressableMessage
         ref={messageRef}
@@ -1047,7 +1050,6 @@ const BaseScrollerItem = ({
           onPressEdit={onPressEdit}
         />
       </PressableMessage>
-      {isLastPostOfBlock && <PostBlockSeparator />}
     </View>
   );
 };
@@ -1068,7 +1070,7 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
     prev.showDayDivider === next.showDayDivider &&
     prev.showUnreadDivider === next.showUnreadDivider &&
     prev.unreadCount === next.unreadCount &&
-    prev.isLastPostOfBlock === next.isLastPostOfBlock &&
+    prev.isFirstPostOfBlock === next.isFirstPostOfBlock &&
     prev.a2uiActionCompletion?.sentMessageText ===
       next.a2uiActionCompletion?.sentMessageText &&
     prev.previousPost?.id === next.previousPost?.id &&
@@ -1081,7 +1083,7 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
     prev.activeMessage === next.activeMessage &&
     prev.itemWidth === next.itemWidth &&
     prev.displayDebugMode === next.displayDebugMode &&
-    prev.isLastPostOfBlock === next.isLastPostOfBlock;
+    prev.isFirstPostOfBlock === next.isFirstPostOfBlock;
 
   return isItemEqual && areOtherPropsEqual && isIndexEqual;
 });
