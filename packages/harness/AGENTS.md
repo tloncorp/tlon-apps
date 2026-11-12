@@ -31,9 +31,11 @@ GNU coreutils.
 
 Desk work runs on native fake ships, on a Mac or a Linux machine:
 
-- `just fake-dev` boots `~zod` in tmux session `fake-zod`, installs `%mcp` and
-  `%harness` and sets Harness up. After an edit, `just commit zod/harness`
-  rebuilds the desk and commits it to the running ship.
+- `just fake-dev SHIP` boots SHIP, `~zod` by default, with its pier at `zod/`
+  and tmux session `fake-zod` (`<ship>/` and `fake-<ship>` for another ship),
+  installs `%mcp` and `%harness` and sets Harness up. After an edit,
+  `just commit zod/harness` rebuilds the desk and commits it to the running
+  ship.
 - `just test-hoon PATTERN` and `just test-js PATTERN` run the matching tests on
   ships they keep in `.test-run/piers/`, in sessions `fake-zod`, `fake-lux` and
   `fake-nec`. Either refuses to start while one of those sessions runs, unless
