@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import {
   KeyboardChatScrollView,
+  KeyboardController,
   type KeyboardChatScrollViewProps,
   useReanimatedKeyboardAnimation,
 } from 'react-native-keyboard-controller';
@@ -52,6 +53,10 @@ import {
   usePostListBottomCallbacks,
   usesConversationPostList,
 } from './shared';
+import {
+  type ScrollDiagnosticsTimeline,
+  useLegendListScrollDiagnostics,
+} from './useScrollDiagnostics';
 
 const ANCHOR_RESOLUTION_TIMEOUT_MS = 2_000;
 const ESTIMATED_ITEM_SIZE = 120;
@@ -306,6 +311,7 @@ function useConversationAnchorTarget({
   anchorToEnd,
   contentInsets,
   didTimeoutWaitingForAnchor,
+  diagnosticsRef,
   listRef,
 }: Pick<
   ConversationPostListAttemptProps,
@@ -315,6 +321,7 @@ function useConversationAnchorTarget({
   | 'contentInsets'
   | 'didTimeoutWaitingForAnchor'
 > & {
+  diagnosticsRef: React.RefObject<ScrollDiagnosticsTimeline | null>;
   listRef: React.RefObject<LegendListRef | null>;
 }) {
   const initialScrollIndex = React.useMemo<IndexedAnchorPosition | undefined>(
@@ -346,9 +353,13 @@ function useConversationAnchorTarget({
   // Once it has measured the initial rows, this applies the exact position.
   const applyAnchorPosition = React.useCallback(async () => {
     const target = latestAnchorPositionRef.current;
+    const diagnostics = diagnosticsRef.current;
     if (target === 'end') {
+      diagnostics?.note('position', 'applying exact position: end');
+      diagnostics?.expect('anchor positioning');
       await listRef.current?.scrollToEnd({ animated: false });
       appliedAnchorPositionRef.current = target;
+      diagnostics?.expectLanding(target);
       return true;
     }
 
@@ -356,10 +367,16 @@ function useConversationAnchorTarget({
       return false;
     }
 
+    diagnostics?.note(
+      'position',
+      `applying exact position: index ${target.index}, viewPosition ${target.viewPosition}, viewOffset ${target.viewOffset}`
+    );
+    diagnostics?.expect('anchor positioning');
     await listRef.current?.scrollToIndex({ ...target, animated: false });
     appliedAnchorPositionRef.current = target;
+    diagnostics?.expectLanding(target);
     return true;
-  }, [listRef]);
+  }, [diagnosticsRef, listRef]);
 
   return {
     anchorPosition,
@@ -522,6 +539,7 @@ const ConversationPostListAttempt = React.forwardRef<
       anchorIndex,
       didTimeoutWaitingForAnchor,
       isInitialAnchorReady,
+      mountKey,
     },
     forwardedRef
   ) => {
@@ -650,12 +668,16 @@ const ConversationPostListAttempt = React.forwardRef<
       registerConversationComposerHeight,
       reportConversationComposerHeight,
     ]);
+    // The diagnostics need the scroll handler, which is built after the anchor
+    // target, so the anchor target reaches them through a ref.
+    const diagnosticsRef = React.useRef<ScrollDiagnosticsTimeline | null>(null);
     const anchorTarget = useConversationAnchorTarget({
       anchor,
       anchorIndex,
       anchorToEnd,
       contentInsets,
       didTimeoutWaitingForAnchor,
+      diagnosticsRef,
       listRef,
     });
     const {
@@ -726,6 +748,43 @@ const ConversationPostListAttempt = React.forwardRef<
     // change. React Native onScroll can retain an intermediate value while the
     // initial anchor settles, briefly showing the scroll-to-bottom control.
     const isNearEnd = useLegendListIsNearEnd(listRef);
+    const getRowKeys = React.useCallback(
+      () => postsWithNeighbors.map(getPostListKey),
+      [postsWithNeighbors]
+    );
+    // A docked list's frame already ends above the composer and keyboard; only
+    // a floating composer covers it. Otherwise the list sits behind both.
+    const getBottomCover = React.useCallback(() => {
+      if (docked) {
+        return overlayHeight;
+      }
+      const keyboard =
+        Platform.OS === 'ios' && KeyboardController.isVisible()
+          ? Math.max(0, (KeyboardController.state()?.height ?? 0) - bottomInset)
+          : 0;
+      return listComposerInset.get() + keyboard;
+    }, [bottomInset, docked, listComposerInset, overlayHeight]);
+    const {
+      timeline: diagnostics,
+      observe: observeDiagnostics,
+      onMomentumScrollBegin: noteMomentumScrollBegin,
+      onMomentumScrollEnd: noteMomentumScrollEnd,
+      onScrollBeginDrag: noteScrollBeginDrag,
+      onScrollEndDrag: noteScrollEndDrag,
+      ...scrollDiagnostics
+    } = useLegendListScrollDiagnostics({
+      channelId: channel.id,
+      getBottomCover,
+      getKeys: getRowKeys,
+      initialTopPadding:
+        (flattenViewStyle(contentContainerStyle)?.paddingTop as number) ?? 0,
+      listRef,
+      mountInfo: mountKey,
+      scrollHandler: handleScroll,
+    });
+    React.useLayoutEffect(() => {
+      diagnosticsRef.current = diagnostics;
+    }, [diagnostics]);
     const renderAnimatedItem = usePostArrivalAnimation({
       posts: postsWithNeighbors,
       renderItem,
@@ -870,32 +929,69 @@ const ConversationPostListAttempt = React.forwardRef<
       onScrolledToBottom,
       onScrolledAwayFromBottom,
     });
+    const isListHidden = !(
+      isInitialAnchorReady &&
+      (didFinishInitialScroll || (isLoading && postsWithNeighbors.length === 0))
+    );
+    React.useLayoutEffect(() => {
+      if (!scrollDiagnostics.enabled) {
+        return;
+      }
+      observeDiagnostics(isListHidden, {
+        anchorIndex,
+        composerSendActive,
+        didFinishInitialScroll,
+        docked,
+        floating,
+        hasNewerPosts,
+        hasUserScrolled,
+        insetBottom: contentInsets.bottom,
+        insetTop: contentInsets.top,
+        isAtBottom,
+        isInitialAnchorReady,
+        isLoading,
+        isNearEnd,
+        maintainScrollAtEnd: maintainScrollAtEnd !== false,
+        maintainVisibleContentPosition,
+        nativeFollowsEnd,
+        scrollEnabled,
+      });
+    });
+    const runNotedScroll = React.useCallback(
+      (
+        description: string,
+        animated: boolean | undefined,
+        scroll: () => Promise<void> | undefined
+      ) => {
+        diagnostics.note('scroll', `imperative ${description}`);
+        diagnostics.expect('imperative scroll', animated ? 800 : 300);
+        runImperativeScroll(scroll, finishUserNavigation);
+      },
+      [diagnostics, finishUserNavigation]
+    );
 
     React.useImperativeHandle(
       forwardedRef,
       (): PostListMethods => ({
         scrollToStart: (opts) => {
           markUserScrolled();
-          runImperativeScroll(
-            () =>
-              listRef.current?.scrollToOffset({
-                offset: 0,
-                animated: opts.animated,
-              }),
-            finishUserNavigation
+          runNotedScroll('scroll to start', opts.animated, () =>
+            listRef.current?.scrollToOffset({
+              offset: 0,
+              animated: opts.animated,
+            })
           );
         },
         scrollToEnd: (opts) => {
           markUserScrolled();
           historyNavigationRequested.current = false;
-          runImperativeScroll(
-            () => listRef.current?.scrollToEnd({ animated: opts.animated }),
-            finishUserNavigation
+          runNotedScroll('scroll to end', opts.animated, () =>
+            listRef.current?.scrollToEnd({ animated: opts.animated })
           );
         },
         scrollToPost: ({ postId, animated, viewPosition }) => {
           markUserScrolled();
-          runImperativeScroll(() => {
+          runNotedScroll(`scroll to post ${postId}`, animated, () => {
             const index = postsWithNeighborsRef.current.findIndex(
               ({ post }) => post.id === postId
             );
@@ -907,10 +1003,10 @@ const ConversationPostListAttempt = React.forwardRef<
               animated,
               viewPosition,
             });
-          }, finishUserNavigation);
+          });
         },
       }),
-      [finishUserNavigation, markUserScrolled]
+      [markUserScrolled, runNotedScroll]
     );
 
     const list = (
@@ -975,15 +1071,7 @@ const ConversationPostListAttempt = React.forwardRef<
         }}
         automaticallyAdjustsScrollIndicatorInsets={false}
         scrollEnabled={scrollEnabled}
-        style={[
-          { flex: 1 },
-          style,
-          isInitialAnchorReady &&
-          (didFinishInitialScroll ||
-            (isLoading && postsWithNeighbors.length === 0))
-            ? undefined
-            : { opacity: 0 },
-        ]}
+        style={[{ flex: 1 }, style, isListHidden ? { opacity: 0 } : undefined]}
         // The iOS v1 bridge discovers this underlying UIScrollView through the
         // React Native testID/accessibilityIdentifier mapping, then validates
         // the attachment at low frequency in case Screens replaces the view.
@@ -991,13 +1079,24 @@ const ConversationPostListAttempt = React.forwardRef<
         onLoad={scheduleInitialScroll}
         onLayout={handleLayout}
         onContentSizeChange={settleEmptyConversationAtEnd}
-        onScroll={handleScroll}
-        onScrollBeginDrag={markUserScrolled}
-        onScrollEndDrag={finishUserNavigation}
+        {...scrollDiagnostics.listProps}
+        onScroll={scrollDiagnostics.onScroll}
+        onScrollBeginDrag={() => {
+          noteScrollBeginDrag();
+          markUserScrolled();
+        }}
+        onScrollEndDrag={() => {
+          noteScrollEndDrag();
+          finishUserNavigation();
+        }}
         onMomentumScrollBegin={() => {
+          noteMomentumScrollBegin();
           userNavigationActive.current = true;
         }}
-        onMomentumScrollEnd={finishUserNavigation}
+        onMomentumScrollEnd={() => {
+          noteMomentumScrollEnd();
+          finishUserNavigation();
+        }}
         onStartReached={onStartReached}
         onStartReachedThreshold={onStartReachedThreshold}
         onEndReached={onEndReached}

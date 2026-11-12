@@ -82,6 +82,27 @@ vi.mock('../ConversationViewport', () => ({
   ConversationViewport: 'ConversationViewport',
 }));
 vi.mock('./PostListFlatList', () => ({ PostList: () => null }));
+vi.mock('./useScrollDiagnostics', () => {
+  const noop = () => {};
+  const timeline = { expect: noop, expectLanding: noop, note: noop };
+  return {
+    useLegendListScrollDiagnostics: ({
+      scrollHandler,
+    }: {
+      scrollHandler: unknown;
+    }) => ({
+      enabled: false,
+      listProps: {},
+      observe: noop,
+      onMomentumScrollBegin: noop,
+      onMomentumScrollEnd: noop,
+      onScroll: scrollHandler,
+      onScrollBeginDrag: noop,
+      onScrollEndDrag: noop,
+      timeline,
+    }),
+  };
+});
 vi.mock('./usePostArrivalAnimation', () => ({
   usePostArrivalAnimation: ({ renderItem }: { renderItem: unknown }) =>
     renderItem,

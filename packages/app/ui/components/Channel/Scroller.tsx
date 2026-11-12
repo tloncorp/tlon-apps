@@ -70,7 +70,13 @@ import {
   PostListMethods,
   PostWithNeighbors,
 } from './PostList';
+import { ScrollDiagnosticsTimecode } from './PostList/ScrollDiagnosticsTimecode';
 import { getPostListScopeKey } from './PostList/postListInitialization';
+import { isScrollDiagnosticsTimecodeEnabled } from './PostList/scrollDiagnostics';
+import {
+  useScrollDiagnosticsRow,
+  useScrollDiagnosticsScope,
+} from './PostList/useScrollDiagnosticsScope';
 import { isVisibleChannelPost } from './postVisibility';
 import type { ScrollAnchor } from './scrollerTypes';
 
@@ -532,6 +538,36 @@ const Scroller = forwardRef(
       null
     );
     const readyToDisplayPosts = completedAnchorKey === anchorKey;
+    const scrollDiagnostics = useScrollDiagnosticsScope(channel.id);
+    const [showsDiagnosticsTimecode] = useState(
+      () => Platform.OS !== 'web' && isScrollDiagnosticsTimecodeEnabled()
+    );
+    const showsLoadingOverlay =
+      (postsWithNeighbors?.length ?? 0) > 0 && !readyToDisplayPosts;
+    const wasDisplayedRef = useRef<string | null>(null);
+    useEffect(() => {
+      if (!scrollDiagnostics.enabled) {
+        return;
+      }
+      if (readyToDisplayPosts) {
+        wasDisplayedRef.current = anchorKey;
+      } else if (showsLoadingOverlay && wasDisplayedRef.current !== null) {
+        // The spinner covers a list the user was already looking at.
+        scrollDiagnostics.note(
+          'visibility',
+          wasDisplayedRef.current === anchorKey
+            ? 'loading overlay shown over a list that was already displayed'
+            : `loading overlay shown while moving to a new anchor (${anchorKey})`,
+          { flag: wasDisplayedRef.current === anchorKey ? 'flicker' : 'warn' }
+        );
+        wasDisplayedRef.current = null;
+      }
+      scrollDiagnostics.watch('scroller', {
+        anchorKey,
+        readyToDisplayPosts,
+        rowCount: postsWithNeighbors?.length ?? 0,
+      });
+    });
 
     useLayoutEffect(() => {
       pendingEvents.current.onEndReached = false;
@@ -726,6 +762,7 @@ const Scroller = forwardRef(
             </Animated.View>
           </View>
         )}
+        {showsDiagnosticsTimecode ? <ScrollDiagnosticsTimecode /> : null}
         {activeMessage !== null && !emojiPickerOpen && (
           <Modal
             visible={activeMessage !== null && !emojiPickerOpen}
@@ -878,6 +915,7 @@ const BaseScrollerItem = ({
   a2uiActionCompletion?: A2UIActionCompletion;
 }) => {
   const post = useLivePost(item);
+  useScrollDiagnosticsRow(item.channelId, `${item.authorId}:${item.sentAt}`);
 
   // Checking if the previous post exists
   const hasPreviousPost = Boolean(previousPost);
