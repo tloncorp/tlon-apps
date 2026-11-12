@@ -14,12 +14,16 @@ root := just_executable() + " --justfile " + quote(justfile_directory() / "../..
 
 # Assemble the desk: the files fetched from desk-deps.yaml, then this desk on top.
 build: fetch
-    {{ root }} assemble {{ quote(justfile_directory()) }} {{ quote(absolute_path(out)) }}
-    {{ if heavy == "true" { "" } else { "rm -rf " + quote(out / "tests-integration") } }}
+    {{ root }} assemble {{ quote(justfile_directory()) }} {{ quote(absolute_path(out)) }} "" {{ if heavy == "true" { "" } else { "--exclude=/tests-integration" } }}
 
 # Copy the assembled desk into a mounted desk. Files already there are kept.
 install desk: build
+    #!/usr/bin/env bash
+    set -euo pipefail
     test -d {{ quote(desk) }} || { echo "desk mount '{{ desk }}' does not exist" >&2; exit 1; }
+    # Under the build lock, so that no other build changes the desk mid-copy.
+    exec 9>>.deps-cache/lock
+    python3 -c 'import fcntl; fcntl.flock(9, fcntl.LOCK_EX)'
     rsync --recursive --checksum {{ quote(out) }}/ {{ quote(desk) }}/
 
 # Install into a mounted desk, then ask the running ship to commit it.
@@ -87,6 +91,10 @@ fetch:
     set -euo pipefail
     {{ root }} fetch {{ quote(justfile_directory() / "desk-deps.yaml") }}
     rev=$(yq .mcp.rev ../../desk-deps.yaml)
+    # Parallel runs take turns in the checkout. The lock is on the descriptor,
+    # which the kernel closes when this exits.
+    exec 9>>.deps-cache/mcp.lock
+    python3 -c 'import fcntl; fcntl.flock(9, fcntl.LOCK_EX)'
     # peru used to vendor mcp/ as plain files, which git will not check out over.
     [ -d mcp/.git ] || rm -rf mcp
     git init --quiet mcp
