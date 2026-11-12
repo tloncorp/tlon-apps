@@ -26,6 +26,7 @@ import * as fixture16 from './../../packages/app/fixtures/Button.fixture';
 import * as fixture17 from './../../packages/app/fixtures/ButtonV2.fixture';
 import * as fixture18 from './../../packages/app/fixtures/Carousel.fixture';
 import * as fixture19 from './../../packages/app/fixtures/Channel.fixture';
+import * as fixtureScroll from './../../packages/app/fixtures/ConversationScroll.fixture';
 import * as fixture21 from './../../packages/app/fixtures/ChannelDivider.fixture';
 import * as fixture22 from './../../packages/app/fixtures/ChannelHeader.fixture';
 import * as fixture23 from './../../packages/app/fixtures/ChannelListItem.fixture';
@@ -147,6 +148,9 @@ const fixtures = {
   '../../packages/app/fixtures/ButtonV2.fixture.tsx': { module: fixture17 },
   '../../packages/app/fixtures/Carousel.fixture.tsx': { module: fixture18 },
   '../../packages/app/fixtures/Channel.fixture.tsx': { module: fixture19 },
+  '../../packages/app/fixtures/ConversationScroll.fixture.tsx': {
+    module: fixtureScroll,
+  },
   '../../packages/app/fixtures/ChannelDivider.fixture.tsx': {
     module: fixture21,
   },
