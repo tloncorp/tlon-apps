@@ -233,7 +233,7 @@ export const commonScenarios: readonly SharedScenario[] = [
     {
       driverSkips: {
         harness:
-          "TLON-7109: needs a driver grant through Harness's Tlon policy, and Harness to accept a DM invite sent before the grant.",
+          'TLON-7109: Harness does not accept a DM invite that a ship sent before it was given access.',
       },
     },
     async ({ ctx, driver, actors }) => {
