@@ -24,6 +24,7 @@ import type { ScenarioActor, ScenarioActors } from './actors.js';
 import {
   type CronCleanupTarget,
   cleanupCronJobAndArtifacts,
+  cronJobListingName,
   settleCronJobCreation,
   waitForCronJobCreated,
   waitForCronJobRemoved,
@@ -236,7 +237,7 @@ export const commonScenarios: readonly SharedScenario[] = [
       },
     },
     async ({ ctx, driver, actors }) => {
-      await allowDmFrom(actors, actors.thirdParty.ship);
+      await allowDmFrom({ ctx, driver, actors }, actors.thirdParty.ship);
       const key = scenarioKey('allowlisted-third-party');
       const reply = `Allowlisted third-party reply ${key}`;
       const script = driver.model.replyText(reply);
@@ -1167,7 +1168,7 @@ export const commonScenarios: readonly SharedScenario[] = [
     { drivers: ['hermes'] },
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
-      await allowDmFrom(actors, actors.thirdParty.ship);
+      await allowDmFrom({ ctx, driver, actors }, actors.thirdParty.ship);
       const routeKey = scenarioKey('cron-route');
       const routeReply = `Third-party route seed ${routeKey}`;
       const routeScript = driver.model.replyText(routeReply);
@@ -1254,7 +1255,7 @@ export const commonScenarios: readonly SharedScenario[] = [
     },
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
-      await allowDmFrom(actors, actors.thirdParty.ship);
+      await allowDmFrom({ ctx, driver, actors }, actors.thirdParty.ship);
       const routeKey = scenarioKey('cron-mdl-route');
       const routeReply = `Third-party route seed ${routeKey}`;
       const routeScript = driver.model.looseReplyText(routeReply);
@@ -1295,9 +1296,17 @@ export const commonScenarios: readonly SharedScenario[] = [
         firedScript
       );
 
+      const createKey = scenarioKey('cron-mdl-create');
+      const confirmText = `Cron job scheduled ${createKey}`;
       const jobName = `shared-cron-${scenarioKey('job')}`;
-      const cleanupTarget: CronCleanupTarget = {
+      const cronJob = {
         name: jobName,
+        firedPrompt: `${firedTag} Reply with the scripted cron marker text.`,
+        finalText: confirmText,
+      };
+      const listingName = cronJobListingName(driver.name, cronJob);
+      const cleanupTarget: CronCleanupTarget = {
+        name: listingName,
         creationSettled: Promise.resolve(),
       };
       actors.bot.teardown(
@@ -1307,13 +1316,7 @@ export const commonScenarios: readonly SharedScenario[] = [
         { label: `remove cron job artifacts ${jobName}` }
       );
 
-      const createKey = scenarioKey('cron-mdl-create');
-      const confirmText = `Cron job scheduled ${createKey}`;
-      const createScript = driver.model.createCronJob({
-        name: jobName,
-        firedPrompt: `${firedTag} Reply with the scripted cron marker text.`,
-        finalText: confirmText,
-      });
+      const createScript = driver.model.createCronJob(cronJob);
       const createTag = await registerModelScript(
         ctx.fakeModel,
         createKey,
@@ -1327,7 +1330,7 @@ export const commonScenarios: readonly SharedScenario[] = [
       const createdJobPromise = waitForCronJobCreated(
         ctx,
         driver.name,
-        jobName,
+        listingName,
         CRON_CREATE_PROMPT_WAIT_MS
       ).then((job) => {
         cleanupTarget.id = job.id;

@@ -15,7 +15,11 @@ const docker = vi.hoisted(() => ({
   resolveComposeContainer: vi.fn(),
 }));
 
-vi.mock('../runtime/docker-direct.js', () => docker);
+// The driver modules cron.ts resolves import the rest of docker-direct.
+vi.mock('../runtime/docker-direct.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../runtime/docker-direct.js')>()),
+  ...docker,
+}));
 
 const context = {
   packageDir: '/repo/packages/tlon-bot-e2e',
