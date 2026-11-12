@@ -68,12 +68,7 @@ describe('group context', () => {
       `Workspace "Book Club" (${flag}), channel "General" (${general}).`
     );
     // Stable across activity and threads, so the provider's cache holds.
-    runtime.recordMessage({
-      id: 'm1',
-      nest: general,
-      sender: '~nec',
-      text: 'hi',
-    });
+    runtime.recordMessage({ nest: general, sender: '~nec' });
     const later = result(`${sessionKey}:thread:170.141`)!;
     expect(later.appendSystemContext).toBe(first.appendSystemContext);
     expect(later.prependContext).not.toBe(first.prependContext);
@@ -113,91 +108,53 @@ describe('group context', () => {
 
   it('digests open siblings and never names a restricted one', () => {
     const { runtime, context } = setup();
-    runtime.recordMessage({
-      id: 'm2',
-      nest: general,
-      sender: '~nec',
-      text: 'hi',
-    });
-    runtime.recordMessage({
-      id: 'm3',
-      nest: 'chat/~host/Random',
-      sender: '~bud',
-      text: 'meeting  moved\nto friday',
-    });
-    runtime.recordMessage({
-      id: 'm4',
-      nest: 'chat/~host/mods',
-      sender: '~nec',
-      text: 'ban ~bud?',
-    });
+    runtime.recordMessage({ nest: general, sender: '~nec' });
+    runtime.recordMessage({ nest: 'chat/~host/Random', sender: '~bud' });
+    runtime.recordMessage({ nest: 'chat/~host/mods', sender: '~nec' });
     const text = context()!;
     expect(text).toContain(
       `- "General" (${general}) — this channel: 1 message from 1 ship`
     );
     expect(text).toContain(
-      '- "Random" (chat/~host/Random): 1 message from 1 ship; latest: "meeting moved to friday"'
+      '- "Random" (chat/~host/Random): 1 message from 1 ship'
     );
     expect(text).toContain(
       'Other channels in this workspace: "Reading" (notes/~host/reading)'
     );
     expect(text).not.toContain('mods');
-    expect(text).not.toContain('ban ~bud');
+  });
+
+  it('shows only activity counts from an open sibling in a restricted channel', () => {
+    const { runtime } = setup();
+    const post = {
+      nest: 'chat/~host/Random',
+      id: 'public-post',
+      sender: '~bud',
+      text: 'Public post from outside the restricted channel',
+    };
+    runtime.recordMessage(post);
+
+    const result = runtime.handleBeforePromptBuild({
+      sessionKey: 'agent:main:tlon:group:chat/~host/mods',
+    })!;
+    expect(result.prependContext).toContain(
+      '"Random" (chat/~host/Random): 1 message from 1 ship'
+    );
+    expect(result.prependContext).not.toContain(post.text);
+    expect(result.appendSystemContext).not.toContain(post.text);
   });
 
   it('keeps no activity for channels outside known groups', () => {
     const { runtime, context } = setup();
-    runtime.recordMessage({
-      id: 'm5',
-      nest: 'chat/~other/lobby',
-      sender: '~nec',
-    });
-    runtime.recordMessage({ id: 'm6', nest: '~nec', sender: '~nec' });
+    runtime.recordMessage({ nest: 'chat/~other/lobby', sender: '~nec' });
+    runtime.recordMessage({ nest: '~nec', sender: '~nec' });
     expect(context('agent:main:tlon:group:chat/~other/lobby')).toBeUndefined();
     expect(context()).not.toContain('Activity you have seen');
   });
 
-  it('drops a snippet when its message is edited or deleted', () => {
-    const { runtime, context } = setup();
-    const random = 'chat/~host/Random';
-    runtime.recordMessage({
-      nest: random,
-      id: 'a',
-      sender: '~bud',
-      text: 'oops',
-    });
-    runtime.forgetMessage({ nest: random, id: 'other' });
-    expect(context()).toContain('latest: "oops"');
-    runtime.forgetMessage({ nest: random, id: 'a' });
-    const text = context()!;
-    expect(text).not.toContain('oops');
-    expect(text).toContain(`"Random" (${random}): 1 message from 1 ship\n`);
-  });
-
-  it('never shows a snippet older than the window', () => {
-    const { runtime, context, advance } = setup();
-    const random = 'chat/~host/Random';
-    runtime.recordMessage({
-      nest: random,
-      id: 'a',
-      sender: '~bud',
-      text: 'old news',
-    });
-    advance(23 * HOUR);
-    runtime.recordMessage({ nest: random, id: 'b', sender: '~bud' });
-    advance(2 * HOUR);
-    const text = context()!;
-    expect(text).toContain(`"Random" (${random}): 1 message`);
-    expect(text).not.toContain('old news');
-  });
-
   it('describes a restricted channel to itself', () => {
     const { runtime, context } = setup();
-    runtime.recordMessage({
-      id: 'm7',
-      nest: 'chat/~host/mods',
-      sender: '~nec',
-    });
+    runtime.recordMessage({ nest: 'chat/~host/mods', sender: '~nec' });
     expect(context('agent:main:tlon:group:chat/~host/mods')).toContain(
       '"Mods" (chat/~host/mods) — this channel: 1 message'
     );
@@ -329,18 +286,13 @@ describe('group context', () => {
 
   it('counts only the last 24h and says when it started seeing', () => {
     const { runtime, context, advance } = setup();
-    runtime.recordMessage({
-      id: 'm8',
-      nest: 'chat/~host/Random',
-      sender: '~bud',
-      text: 'old',
-    });
+    runtime.recordMessage({ nest: 'chat/~host/Random', sender: '~bud' });
     expect(context()).toMatch(/Activity you have seen since \d{4}-/);
     advance(25 * HOUR);
     const text = context()!;
     expect(text).not.toContain('Activity you have seen');
     expect(text).toContain('"Random" (chat/~host/Random)');
-    runtime.recordMessage({ id: 'm9', nest: general, sender: '~nec' });
+    runtime.recordMessage({ nest: general, sender: '~nec' });
     expect(context()).toContain('Activity you have seen in the last 24h');
   });
 });
