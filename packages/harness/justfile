@@ -14,8 +14,7 @@ root := just_executable() + " --justfile " + quote(justfile_directory() / "../..
 
 # Assemble the desk: the files fetched from desk-deps.yaml, then this desk on top.
 build: fetch
-    {{ root }} assemble {{ quote(justfile_directory()) }} {{ quote(absolute_path(out)) }}
-    {{ if heavy == "true" { "" } else { "rm -rf " + quote(out / "tests-integration") } }}
+    {{ root }} assemble {{ quote(justfile_directory()) }} {{ quote(absolute_path(out)) }} "" {{ if heavy == "true" { "" } else { "--exclude=/tests-integration" } }}
 
 # Copy the assembled desk into a mounted desk. Files already there are kept.
 install desk: build

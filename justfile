@@ -1,17 +1,13 @@
 # Where the %groups desk is assembled.
 out := "desk-out"
 
+# The build commit. Empty in a checkout without git metadata (a Docker build
+# context that .dockerignore strips .git from), which keeps desk/commit.txt.
+commit := `git rev-parse --short HEAD 2>/dev/null || true`
+
 # Assemble the %groups desk: the files fetched from desk-deps.yaml, then desk/ on top.
-build: fetch (assemble "." out)
-    #!/usr/bin/env bash
-    set -euo pipefail
-    # Stamp the build commit. A checkout without git metadata (a Docker build
-    # context that .dockerignore strips .git from) keeps desk/commit.txt.
-    commit=$(git rev-parse --short HEAD 2>/dev/null || true)
-    if [ -n "$commit" ]; then
-      printf '%s\n' "$commit" > {{ quote(out / "commit.txt") }}
-    fi
-    echo "Assembled the groups desk into {{ out }}"
+build: fetch (assemble "." out commit)
+    @echo "Assembled the groups desk into {{ out }}"
 
 # Replace a mounted desk with the assembled one, deleting everything else there.
 install desk: build
@@ -28,13 +24,29 @@ install desk: build
 
 # A file with no Clay mark fails the desk commit outright, so Finder's
 # .DS_Store must stay out. The desk's own files go second and win on any overlap.
-# Lay SRC/desk-deps, then SRC/desk, into a fresh OUT. Harness's justfile uses it too.
+# Lay SRC/desk-deps, then SRC/desk, into OUT, stamping commit.txt with STAMP
+# if it is given. RSYNC_ARGS go to both copies. Harness's justfile uses it too.
 [private]
-assemble src out:
-    rm -rf {{ quote(out) }}
+assemble src out stamp="" *rsync_args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Builds of one SRC take turns, under the lock that fetch-deps.sh takes to
+    # write SRC/desk-deps. The lock is on the descriptor, which the kernel
+    # closes when this exits.
+    mkdir -p {{ quote(src / ".deps-cache") }}
+    exec 9>>{{ quote(src / ".deps-cache/lock") }}
+    python3 -c 'import fcntl; fcntl.flock(9, fcntl.LOCK_EX)'
+    # Whoever ran an earlier build may still be reading OUT, which is not under
+    # the lock, so the desk is built aside and OUT updated in place: rsync
+    # leaves files that have not changed untouched.
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+    mkdir "$tmp/desk"
+    rsync -aL --exclude=.DS_Store {{ rsync_args }} {{ quote(src / "desk-deps") }}/ "$tmp/desk/"
+    rsync -aL --exclude=.DS_Store {{ rsync_args }} {{ quote(src / "desk") }}/ "$tmp/desk/"
+    {{ if stamp == "" { "" } else { "echo " + quote(stamp) + ' > "$tmp/desk/commit.txt"' } }}
     mkdir -p {{ quote(out) }}
-    rsync -aL --exclude=.DS_Store {{ quote(src / "desk-deps") }}/ {{ quote(out) }}/
-    rsync -aL --exclude=.DS_Store {{ quote(src / "desk") }}/ {{ quote(out) }}/
+    rsync -a --delete --checksum "$tmp/desk/" {{ quote(out) }}/
 
 # Fetch the files listed in MANIFEST, at their pinned commits, into desk-deps/ beside it.
 fetch manifest="desk-deps.yaml":
