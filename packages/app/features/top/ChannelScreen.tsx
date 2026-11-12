@@ -240,10 +240,43 @@ export default function ChannelScreen(props: Props) {
     }, [currentChannelId])
   );
 
-  const unreadDidInitialize =
-    isFocused &&
-    unreadSnapshotIsFresh &&
+  // A channel restored beneath another screen (a relaunch that comes back
+  // into a thread) mounts without focus, so the focus effect above takes no
+  // snapshot and nothing loads until the reader goes back to it, who then
+  // waits on a spinner. It takes one at mount instead and loads its posts
+  // while hidden; marking read still waits for focus.
+  useEffect(() => {
+    if (isFocused) {
+      return;
+    }
+    let isCurrent = true;
+    db.getChannelUnread({ channelId: currentChannelId })
+      .catch((error) => {
+        logger.trackError('failed to initialize channel unread', error);
+        return null;
+      })
+      .then((unread) => {
+        if (isCurrent) {
+          setInitialChannelUnreadSnapshot((previous) =>
+            previous?.channelId === currentChannelId
+              ? previous
+              : { channelId: currentChannelId, unread: unread ?? null }
+          );
+        }
+      });
+    return () => {
+      isCurrent = false;
+    };
+  }, [currentChannelId, isFocused]);
+
+  const hasUnreadSnapshot =
     initialChannelUnreadSnapshot?.channelId === currentChannelId;
+  // On screen, posts wait for this entry's snapshot; behind another screen,
+  // the snapshot it already has is enough.
+  const canLoadPosts =
+    hasUnreadSnapshot && (unreadSnapshotIsFresh || !isFocused);
+  const unreadDidInitialize =
+    isFocused && unreadSnapshotIsFresh && hasUnreadSnapshot;
   // A new snapshot brings a new cursor scope. A kept one keeps the reader's
   // choice to jump to the newest posts, which would otherwise be undone on
   // every return to the channel.
@@ -351,7 +384,7 @@ export default function ChannelScreen(props: Props) {
     isLoading: isLoadingPosts,
   } = store.useChannelPosts({
     enabled:
-      unreadDidInitialize &&
+      canLoadPosts &&
       !!channel &&
       !channel.isPendingChannel &&
       channelTracksUnreads,
@@ -430,7 +463,7 @@ export default function ChannelScreen(props: Props) {
         isFetching: postsQuery.isFetching,
         isError: postsQuery.isError,
         hasNextPage: postsQuery.hasNextPage,
-        unreadDidInitialize,
+        unreadDidInitialize: canLoadPosts,
         postCount: posts?.length,
         minimumPostCount: ENOUGH_POSTS_TO_FILL_SCREEN,
         postsBeforeAnchor,
@@ -446,7 +479,7 @@ export default function ChannelScreen(props: Props) {
     posts,
     postsBeforeAnchor,
     postsQuery,
-    unreadDidInitialize,
+    canLoadPosts,
   ]);
 
   // Hold the posts back until that first screenful is in, so the list
