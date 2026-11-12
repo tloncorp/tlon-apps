@@ -34,21 +34,26 @@ const TEXT_LENGTH_STEPS = [60, 180, 400, 900];
  * message the reader was looking at. Grouping by what most changes a row's
  * height (media, references, text length) keeps that first guess close.
  */
-export function getPostRowType({ post }: PostWithNeighbors) {
-  // The list asks for types on every layout pass.
-  let type = rowTypes.get(post);
+export function getPostRowType(row: PostWithNeighbors) {
+  // A row keeps the type it was first given. One whose type changed (the post
+  // above it arriving, or the post itself updating after it was first shown)
+  // would be moved to another container and remounted on screen. Keyed like
+  // the list's rows, so a post confirmed or edited in place keeps its type.
+  const key = getPostListKey(row);
+  let type = rowTypes.get(key);
   if (type === undefined) {
-    type = computePostRowType(post);
-    rowTypes.set(post, type);
+    type = computePostRowType(row.post);
+    if (rowTypes.size >= MAX_ROW_TYPES) {
+      rowTypes.clear();
+    }
+    rowTypes.set(key, type);
   }
   return type;
 }
 
-const rowTypes = new WeakMap<db.Post, string>();
+const MAX_ROW_TYPES = 5000;
+const rowTypes = new Map<string, string>();
 
-// Only the post itself decides its type, never its neighbours: a row whose
-// type changed when the post above it arrived would be moved to another
-// container and remounted on screen.
 function computePostRowType(post: db.Post) {
   if (post.isDeleted) {
     return `${post.type}:deleted`;

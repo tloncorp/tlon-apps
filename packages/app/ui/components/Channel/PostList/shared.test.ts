@@ -44,9 +44,17 @@ describe('describeWindowChange', () => {
 });
 
 describe('getPostRowType', () => {
+  let next = 0;
   function row(post: Partial<db.Post>): PostWithNeighbors {
+    next += 1;
     return {
-      post: { id: 'x', type: 'chat', ...post } as db.Post,
+      post: {
+        id: `x${next}`,
+        type: 'chat',
+        authorId: '~zod',
+        sentAt: next,
+        ...post,
+      } as db.Post,
       previous: null,
       next: null,
     };
@@ -64,8 +72,23 @@ describe('getPostRowType', () => {
     );
   });
 
+  test('a row keeps its first type when its post is updated', () => {
+    const first = row({ textContent: 'ok' });
+    const updated = {
+      ...first,
+      post: { ...first.post, textContent: 'x'.repeat(500), hasImage: true },
+    };
+    expect(getPostRowType(updated)).toBe(getPostRowType(first));
+  });
+
   test('ignores the neighbours, so a row keeps its type as posts arrive', () => {
-    const post = { id: 'x', type: 'chat', textContent: 'ok' } as db.Post;
+    const post = {
+      id: 'y',
+      type: 'chat',
+      authorId: '~ten',
+      sentAt: 999,
+      textContent: 'ok',
+    } as db.Post;
     const other = { id: 'y', type: 'chat', authorId: '~zod' } as db.Post;
     expect(getPostRowType({ post, previous: null, next: null })).toBe(
       getPostRowType({ post, previous: other, next: null })
