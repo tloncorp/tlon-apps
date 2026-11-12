@@ -89,7 +89,6 @@ beforeAll(async () => {
       const groupContextRuntime = deps.groupContextRuntime ?? {
         applySnapshot: () => {},
         beginSnapshot: () => 0,
-        forgetMessage: () => {},
         recordMessage: () => {},
       };
       // Enough of the message path to reach the group-context record.
@@ -425,7 +424,7 @@ describe('joined set wiring', () => {
 });
 
 describe('channel firehose and group context', () => {
-  it("drops a reply's snippet when its thread is deleted", async () => {
+  it('counts a sibling reply without adding its text to a restricted prompt', async () => {
     const groupContextRuntime = createGroupContextRuntime();
     groupContextRuntime.applySnapshot(
       new Map([
@@ -435,7 +434,10 @@ describe('channel firehose and group context', () => {
             title: 'Test',
             channels: parseGroupChannels({
               [general]: { meta: { title: 'General' }, readers: [] },
-              'chat/~zod/random': { meta: { title: 'Random' }, readers: [] },
+              'chat/~zod/random': {
+                meta: { title: 'Random' },
+                readers: ['admin'],
+              },
             }),
           },
         ],
@@ -472,12 +474,16 @@ describe('channel firehose and group context', () => {
         },
       },
     });
-    expect(context()).toContain('in the thread');
+    const afterReply = context();
+    expect(afterReply).toContain(
+      `"General" (${general}): 1 message from 1 ship`
+    );
+    expect(afterReply).not.toContain('in the thread');
 
     await monitor.handleChannelsFirehose({
       nest: general,
       response: { post: { id: root, 'r-post': { set: null } } },
     });
-    expect(context()).not.toContain('in the thread');
+    expect(context()).toBe(afterReply);
   });
 });
