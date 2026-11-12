@@ -20,6 +20,9 @@ install desk: build
     # a directory in a pier, named as a desk (which rules out the pier's .urb).
     [[ $(basename "$mount") =~ ^[a-z][a-z0-9-]*$ && -d $mount/../.urb ]] ||
       { echo "'{{ desk }}' is not a desk mounted in a pier" >&2; exit 1; }
+    # Under the build lock, so that no other build changes the desk mid-copy.
+    exec 9>>.deps-cache/lock
+    python3 -c 'import fcntl; fcntl.flock(9, fcntl.LOCK_EX)'
     rsync -a --delete --checksum {{ quote(out) }}/ "$mount/"
 
 # A file with no Clay mark fails the desk commit outright, so Finder's
