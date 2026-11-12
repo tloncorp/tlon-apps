@@ -134,27 +134,49 @@ function useLegendListIsNearEnd(
   return React.useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
+// How long a list resting at its end is held there after older posts land
+// above it, while those rows are measured.
+const HISTORY_RESHAPE_HOLD_END_MS = 500;
+
 /**
  * Whether this render changes the top of the loaded window (older posts
  * arriving above, or posts dropped from the top as a cached page is replaced
- * by a fresh one), and whether it also brought a new newest post to a list
- * that was resting at its end. Posts are in visual order, oldest first.
+ * by a fresh one), and whether the list was resting at its end when it did:
+ * with a new newest post as well (`followsEnd`), or with only the top
+ * changing (`holdsEnd`).
+ * Posts are in visual order, oldest first.
  */
 function useHistoryReshape(posts: PostWithNeighbors[], isNearEnd: boolean) {
   const [previous, setPrevious] = React.useState(() => ({
     posts,
     changesTop: false,
     followsEnd: false,
+    holdsEnd: false,
   }));
-  let { changesTop, followsEnd } = previous;
+  let { changesTop, followsEnd, holdsEnd } = previous;
   if (previous.posts !== posts) {
     const change = describeWindowChange(previous.posts, posts);
     changesTop = change.changesTop;
     followsEnd = change.changesTop && change.changesEnd && isNearEnd;
-    setPrevious({ posts, changesTop, followsEnd });
+    holdsEnd = change.changesTop && !change.changesEnd && isNearEnd;
+    setPrevious({ posts, changesTop, followsEnd, holdsEnd });
   }
+  const release = React.useCallback(
+    () =>
+      setPrevious((current) =>
+        current.changesTop || current.holdsEnd
+          ? {
+              ...current,
+              changesTop: false,
+              followsEnd: false,
+              holdsEnd: false,
+            }
+          : current
+      ),
+    []
+  );
   // The list anchors on the data change it is handed in the same render, so
-  // anchoring is only needed for that change; following the end resumes after.
+  // anchoring is only needed for that change.
   React.useEffect(() => {
     if (!changesTop) {
       return;
@@ -168,7 +190,15 @@ function useHistoryReshape(posts: PostWithNeighbors[], isNearEnd: boolean) {
     );
     return () => cancelAnimationFrame(frame);
   }, [changesTop]);
-  return { changesTop, followsEnd };
+  // The rows that landed go on being measured for a few frames after that.
+  React.useEffect(() => {
+    if (!holdsEnd) {
+      return;
+    }
+    const timeout = setTimeout(release, HISTORY_RESHAPE_HOLD_END_MS);
+    return () => clearTimeout(timeout);
+  }, [holdsEnd, release]);
+  return { changesTop, followsEnd, holdsEnd, release };
 }
 
 function runImperativeScroll(
@@ -804,7 +834,16 @@ const ConversationPostListAttempt = React.forwardRef<
     // reaction can run before the scroll view has reported its size. Rest the
     // empty content at its end (offset 0, or the keyboard height while one is
     // open) whenever its frame or content size settles.
-    const settleEmptyConversationAtEnd = React.useCallback(() => {
+    const holdsEndRef = React.useRef(false);
+    // Keeps an empty conversation, or one held at its end while older rows are
+    // measured above it, at its end as its content changes height.
+    const settleConversationAtEnd = React.useCallback(() => {
+      if (holdsEndRef.current && postsWithNeighborsRef.current.length > 0) {
+        // Reported from the list's own layout, before the native content has
+        // grown, so the list's scroll, which targets its own size, is used.
+        void listRef.current?.scrollToEnd({ animated: false });
+        return;
+      }
       if (postsWithNeighborsRef.current.length > 0) {
         return;
       }
@@ -833,6 +872,40 @@ const ConversationPostListAttempt = React.forwardRef<
     // change. React Native onScroll can retain an intermediate value while the
     // initial anchor settles, briefly showing the scroll-to-bottom control.
     const isNearEnd = useLegendListIsNearEnd(listRef);
+    const historyReshape = useHistoryReshape(postsWithNeighbors, isNearEnd);
+    const isReshapingTop = historyReshape.changesTop;
+    const releaseHistoryReshape = historyReshape.release;
+    // A fresh page that also brought newer posts to a list resting at its end
+    // goes straight to the new end, rather than having the viewport animate
+    // through rows that have not been drawn.
+    const reshapeFollowsEnd =
+      historyReshape.followsEnd && anchorToEnd && !hasNewerPosts;
+    // A list resting at its end is held there while the rows that landed
+    // above it are measured. Left to anchoring alone, the end was lost when a
+    // row above measured shorter than its estimate: the scroll view clamped
+    // its offset to the shorter content, the list's next correction never
+    // landed, and the newest message dropped below the composer until the
+    // viewport sprang back to it. A list still hidden is placed by its opening
+    // scroll instead, which a scroll of its own would cut short.
+    const holdsEnd =
+      historyReshape.holdsEnd &&
+      didFinishInitialScroll &&
+      anchorToEnd &&
+      !hasNewerPosts &&
+      !floating;
+    // Past the anchoring frame, the viewport stops following the end so it
+    // does not animate through what the rows above gain or lose.
+    const reshapeHoldsEnd = holdsEnd && !isReshapingTop;
+    React.useLayoutEffect(() => {
+      holdsEndRef.current = holdsEnd;
+    }, [holdsEnd]);
+    React.useLayoutEffect(() => {
+      // Rows measured while the anchoring frame was still running are taken
+      // back as it ends.
+      if (reshapeHoldsEnd) {
+        void listRef.current?.scrollToEnd({ animated: false });
+      }
+    }, [reshapeHoldsEnd]);
     const getRowKeys = React.useCallback(
       () => postsWithNeighbors.map(getPostListKey),
       [postsWithNeighbors]
@@ -886,7 +959,7 @@ const ConversationPostListAttempt = React.forwardRef<
         const previousHeight = previousViewportHeight.current;
         const height = event.nativeEvent.layout.height;
         previousViewportHeight.current = height;
-        settleEmptyConversationAtEnd();
+        settleConversationAtEnd();
         if (
           !docked ||
           Platform.OS === 'ios' ||
@@ -923,7 +996,7 @@ const ConversationPostListAttempt = React.forwardRef<
         floating,
         hasNewerPosts,
         isComposerSendActive,
-        settleEmptyConversationAtEnd,
+        settleConversationAtEnd,
       ]
     );
     const maintainScrollAtEnd = React.useMemo(
@@ -998,16 +1071,10 @@ const ConversationPostListAttempt = React.forwardRef<
     // new end before the animated scroll runs, particularly on Android.
     // History keeps its visible post anchored; empty lists have no post to
     // preserve as the header and composer settle. A change at the top of the
-    // window (older posts landing, or a cached page trimmed) is anchored even
-    // at the end, and the iOS viewport stops following for it: following
-    // would animate through the height the rows above gained or lost.
-    const historyReshape = useHistoryReshape(postsWithNeighbors, isNearEnd);
-    const isReshapingTop = historyReshape.changesTop;
-    // A fresh page that also brought newer posts to a list resting at its end
-    // goes straight to the new end, rather than having the viewport animate
-    // through rows that have not been drawn.
-    const reshapeFollowsEnd =
-      historyReshape.followsEnd && anchorToEnd && !hasNewerPosts;
+    // window (older posts landing, or a cached page trimmed) away from the end
+    // is anchored, and the iOS viewport stops following for any such change:
+    // following would animate through the height the rows above gained or
+    // lost.
     // Sent with the commit that brings the new rows, so no frame shows them
     // laid out around the old offset.
     React.useLayoutEffect(() => {
@@ -1189,12 +1256,13 @@ const ConversationPostListAttempt = React.forwardRef<
         testID={scrollViewNativeID}
         onLoad={scheduleInitialScroll}
         onLayout={handleLayout}
-        onContentSizeChange={settleEmptyConversationAtEnd}
+        onContentSizeChange={settleConversationAtEnd}
         {...scrollDiagnostics.listProps}
         onScroll={scrollDiagnostics.onScroll}
         onScrollBeginDrag={() => {
           noteScrollBeginDrag();
           markUserScrolled();
+          releaseHistoryReshape();
         }}
         onScrollEndDrag={() => {
           noteScrollEndDrag();
@@ -1223,7 +1291,8 @@ const ConversationPostListAttempt = React.forwardRef<
           !floating &&
           !hasNewerPosts &&
           !composerSendActive &&
-          !isReshapingTop
+          !isReshapingTop &&
+          !reshapeHoldsEnd
         }
       >
         {list}
