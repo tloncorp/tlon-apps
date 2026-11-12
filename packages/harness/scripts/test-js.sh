@@ -11,7 +11,7 @@
 #   scripts/test-js.sh --stop       stop the ships left running and remove them
 
 suite=js
-tools="node tmux just"
+tools="node timeout tmux just socat curl jq yq rsync python3"
 source "$(dirname "$0")/test-lib.sh" "$1"
 
 # Live scripts this run can't do, and why.
