@@ -74,27 +74,42 @@ then
   exit 1
 fi
 
-(cd "$root/scripts" && bash get-pill.sh) || exit 1
-pill=`echo "$root"/scripts/groups-*.pill`
-
 function find_vere()
 {
   vere="$root/.deps-cache/${vere_ver}-${platform}-${arch}"
   echo "our vere: $vere"
 }
 
-find_vere
+# Ships set up at once take turns at what they share and no build lock covers: the
+# pill and runtime downloads, and %mcp's build in mcp/. The lock is on a descriptor
+# only the subshell has, so nothing it leaves running, such as a tmux server, holds it.
+function in_turn
+{
+  (
+    exec 8>>"$root/.deps-cache/setup.lock"
+    python3 -c 'import fcntl; fcntl.flock(8, fcntl.LOCK_EX)' || exit 1
+    "$@"
+  )
+}
 
-if [ ! -x $vere ]
-then
-  echo "Downloading urbit runtime"
-  mkdir -p "$root/.deps-cache"
-  # Give up on a stalled transfer instead of hanging, and keep a partial
-  # binary out of the cache.
-  curl -L -f --connect-timeout 20 --speed-limit 1024 --speed-time 30 --retry 3 $urbit_bin_url -o $vere.part &&
-    mv $vere.part $vere
-  chmod +x $vere
-fi
+function download
+{
+  (cd "$root/scripts" && bash get-pill.sh) || return 1
+  if [ ! -x $vere ]
+  then
+    echo "Downloading urbit runtime"
+    # Give up on a stalled transfer instead of hanging, and keep a partial
+    # binary out of the cache.
+    curl -L -f --connect-timeout 20 --speed-limit 1024 --speed-time 30 --retry 3 $urbit_bin_url -o $vere.part &&
+      mv $vere.part $vere
+    chmod +x $vere
+  fi
+}
+
+mkdir -p "$root/.deps-cache"
+find_vere
+in_turn download || exit 1
+pill=`echo "$root"/scripts/groups-*.pill`
 
 find_vere
 
@@ -234,7 +249,10 @@ function setup_desk
   fi
 
   echo "Updating $desk desk"
-  just --justfile "$justfile" click="scripts/click -b $vere" commit "$pier/$desk"
+  # Harness's build takes its own locks; %mcp's does not.
+  turn=
+  [ "$desk" == "mcp" ] && turn=in_turn
+  $turn just --justfile "$justfile" click="scripts/click -b $vere" commit "$pier/$desk"
 
   if [ "$?" -ne 0 ]
   then

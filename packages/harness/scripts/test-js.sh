@@ -70,6 +70,26 @@ function use_peer
   export TEST_PEER_PANE=fake-$1:
 }
 
+# Boot the ships, given as SHIP PORT pairs, that aren't running yet, all at once: each
+# boot takes minutes. Each ship owns itself: with each as the other's owner, their bots
+# could keep answering each other's DMs.
+function boot_ships
+{
+  pids=
+  while [ $# -gt 0 ]
+  do
+    needs_ship $1 $2 $1 &
+    pids="$pids $!"
+    shift 2
+  done
+  booted=0
+  for pid in $pids
+  do
+    wait $pid || booted=1
+  done
+  return $booted
+}
+
 # Stop a running ship and start it again from its pier.
 function restart_ship
 {
@@ -149,10 +169,7 @@ fi
 
 if [ -n "$ship_tests" ]
 then
-  # Each ship owns itself: with each as the other's owner, their bots could keep
-  # answering each other's DMs.
-  needs_ship zod 9190 zod || exit 1
-  needs_ship lux 9191 lux || exit 1
+  boot_ships zod 9190 lux 9191 || exit 1
   [ -z "$pattern" ] || deploy zod lux
 
   echo "Live tests on ~zod"
