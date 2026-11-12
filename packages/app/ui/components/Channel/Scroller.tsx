@@ -72,6 +72,7 @@ import {
 } from './PostList';
 import { ScrollDiagnosticsTimecode } from './PostList/ScrollDiagnosticsTimecode';
 import { getPostListScopeKey } from './PostList/postListInitialization';
+import { usesConversationPostList } from './PostList/shared';
 import { isScrollDiagnosticsTimecodeEnabled } from './PostList/scrollDiagnostics';
 import {
   useScrollDiagnosticsRow,
@@ -114,6 +115,7 @@ const Scroller = forwardRef(
       onPressRetry,
       onPressDelete,
       hasNewerPosts,
+      hasOlderPosts,
       activeMessage,
       setActiveMessage,
       isLoading,
@@ -282,25 +284,44 @@ const Scroller = forwardRef(
       [channel.id, currentUserId, group?.hostUserId, posts]
     );
 
+    // A message's date line, author heading and spacing depend on the message
+    // before it. The oldest loaded one has nothing to compare with, so it
+    // shows all of them, then drops what it does not need once the page
+    // before it arrives: a row on screen changing height. So while a native
+    // conversation has older history to load, its oldest loaded message is
+    // kept back as the one the next message is compared with, and is shown
+    // when its own page arrives.
+    const oldestLoadedPost = visiblePosts?.[0];
+    const heldBackPost =
+      Platform.OS !== 'web' &&
+      usesConversationPostList({ collectionLayoutType }) &&
+      hasOlderPosts &&
+      oldestLoadedPost &&
+      visiblePosts.length > 1 &&
+      oldestLoadedPost.id !== anchor?.postId &&
+      oldestLoadedPost.id !== firstUnreadId
+        ? oldestLoadedPost
+        : null;
+    const shownPosts = useMemo(
+      () => (heldBackPost ? visiblePosts?.slice(1) : visiblePosts),
+      [heldBackPost, visiblePosts]
+    );
+
     const postsWithNeighbors: PostWithNeighbors[] | undefined = useMemo(
       () =>
-        visiblePosts?.map((post, postIndex, posts) => {
+        shownPosts?.map((post, postIndex, posts) => {
           return {
             post,
-            previous: postIndex > 0 ? posts[postIndex - 1] : null,
+            previous: postIndex > 0 ? posts[postIndex - 1] : heldBackPost,
             next: postIndex + 1 < posts.length ? posts[postIndex + 1] : null,
           };
         }),
-      [visiblePosts]
+      [heldBackPost, shownPosts]
     );
     const a2uiActionCompletions = useMemo(
       () =>
-        getA2UIActionCompletions(
-          visiblePosts ?? [],
-          currentUserId,
-          !anchorToEnd
-        ),
-      [anchorToEnd, currentUserId, visiblePosts]
+        getA2UIActionCompletions(shownPosts ?? [], currentUserId, !anchorToEnd),
+      [anchorToEnd, currentUserId, shownPosts]
     );
 
     const style = useMemo(() => {
@@ -327,6 +348,12 @@ const Scroller = forwardRef(
           next != null &&
           (next.authorId !== post.authorId ||
             !isSameDay(post.receivedAt ?? 0, next.receivedAt ?? 0));
+        const isFirstUnread = post.id === firstUnreadId;
+        // The post a conversation opens on always names its author. It can be
+        // the oldest one loaded, with the post before it still to arrive, and
+        // a heading that came and went with that post would resize the row
+        // the reader was just taken to.
+        const isOpeningPost = isFirstUnread || post.id === anchor?.postId;
         const showAuthor =
           post.type === 'note' ||
           post.type === 'block' ||
@@ -334,8 +361,8 @@ const Scroller = forwardRef(
           previous?.authorId !== post.authorId ||
           previous?.type === 'notice' ||
           previous?.isDeleted === true ||
-          isFirstPostOfDay;
-        const isFirstUnread = post.id === firstUnreadId;
+          isFirstPostOfDay ||
+          isOpeningPost;
         const isSelected =
           (anchor?.type === 'selected' && anchor.postId === post.id) ||
           highlightPostId === post.id ||
