@@ -18,7 +18,6 @@ import {
   getTopLevelTabRoute,
   screenNameFromChannelId,
 } from '@tloncorp/app/navigation/utils';
-import { useIsWindowNarrow } from '@tloncorp/app/ui';
 import {
   AnalyticsEvent,
   SyncPriority,
@@ -277,8 +276,6 @@ export default function useNotificationListener() {
     }
   }, [notificationResponse]);
 
-  const isDesktop = useIsWindowNarrow();
-
   // If notification tapped, navigate
   useEffect(() => {
     async function goToGroupMembers(groupId: string) {
@@ -330,10 +327,8 @@ export default function useNotificationListener() {
 
       const routeStack: RouteStack = [getTopLevelTabRoute('ChatList')];
       if (channel.groupId) {
-        const mainGroupRoute = await getMainGroupRoute(
-          channel.groupId,
-          isDesktop
-        );
+        // Native mounts only the root stack, at any width.
+        const mainGroupRoute = await getMainGroupRoute(channel.groupId, true);
         // @ts-expect-error - we know we're on mobile and we can't get a "Home" route
         routeStack.push(mainGroupRoute);
       }
@@ -503,5 +498,5 @@ export default function useNotificationListener() {
         }
       })();
     }
-  }, [deskOk, notifToProcess, navigation, isTlonEmployee, isDesktop]);
+  }, [deskOk, notifToProcess, navigation, isTlonEmployee]);
 }

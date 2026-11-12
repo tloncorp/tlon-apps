@@ -59,6 +59,8 @@ vi.mock('@tloncorp/shared/db', () => ({
   },
 }));
 
+vi.mock('@tloncorp/shared/store', () => ({ useCanUpload: () => true }));
+
 vi.mock('@tloncorp/ui', () => ({ Text: 'Text' }));
 
 vi.mock('react-native', () => ({
@@ -66,6 +68,9 @@ vi.mock('react-native', () => ({
     addEventListener: vi.fn(() => ({ remove: vi.fn() })),
   },
 }));
+
+vi.mock('./NoteBodyTextArea', () => ({ NoteBodyTextArea: 'TextArea' }));
+vi.mock('./NotePreview', () => ({ NotePreview: () => null }));
 
 vi.mock('tamagui', () => ({
   Input: 'Input',
@@ -112,6 +117,12 @@ vi.mock('./NotesFeedback', () => ({
     error instanceof Error ? error.message : fallback,
 }));
 vi.mock('./notesTelemetry', () => ({ trackNotesActionError: vi.fn() }));
+// The upload path pulls in expo modules vitest cannot load.
+vi.mock('../AttachmentSheet', () => ({ default: () => null }));
+vi.mock('./useNoteImageUpload', () => ({
+  useNoteImagePasteAndDrop: vi.fn(),
+  useNoteImageUpload: () => ({ insertImages: vi.fn(), isUploading: false }),
+}));
 vi.mock('./notesTree', () => ({
   formatNoteDate: () => 'Today',
   getFolderPath: () => null,
@@ -295,8 +306,8 @@ describe('NotesNoteDetail note switching', () => {
       testID: 'NotesPreviewToggle',
     });
     expect(
-      renderer.root.findAllByProps({ testID: 'NotesBodyInput' })
-    ).toHaveLength(1);
+      renderer.root.findByProps({ testID: 'NotesBodyInput' }).props.menuItems
+    ).toEqual([{ id: 'add-image', title: 'Add image' }]);
 
     await act(async () => {
       const action = registeredActions()[0];

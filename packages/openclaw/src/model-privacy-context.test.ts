@@ -20,7 +20,7 @@ describe('modelPrivacyNote', () => {
         'openrouter',
         'openai/gpt-6-luna'
       )
-    ).toContain('zero data retention is on');
+    ).toContain('Zero data retention is on');
   });
 
   it('says it is off for a routed model without the flag', () => {
@@ -30,9 +30,24 @@ describe('modelPrivacyNote', () => {
         'openrouter',
         'openai/gpt-6-luna'
       )
-    ).toContain('zero data retention is off');
+    ).toContain('Zero data retention is off');
     expect(modelPrivacyNote({}, 'openrouter', 'openai/gpt-6-luna')).toContain(
       'is off'
+    );
+  });
+
+  it('names the model and how it is reached, not OpenClaw', () => {
+    const routed = modelPrivacyNote(
+      withZdr('openrouter/openai/gpt-6-luna'),
+      'openrouter',
+      'openai/gpt-6-luna'
+    );
+    expect(routed).toContain(
+      "you're running openai/gpt-6-luna, routed through OpenRouter"
+    );
+    expect(routed).toContain('not a model service');
+    expect(modelPrivacyNote({}, 'anthropic', 'claude-sonnet-5')).toContain(
+      "you're running claude-sonnet-5, with requests sent to anthropic"
     );
   });
 

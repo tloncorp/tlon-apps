@@ -3,14 +3,14 @@ set -euo pipefail
 
 # Assemble the %groups desk inside an extracted rube pier.
 #
-# Delegates to scripts/assemble-desk.sh, which layers the peru-vendored deps
-# (desk-deps/, see ../../../../peru.yaml) in with --delete, then our own source
-# (desk/) on top. We `peru sync` once up front, then assemble each pier with
-# SKIP_SYNC=true.
+# Delegates to the repository justfile's `install`, which fetches the vendored
+# deps (desk-deps/, see ../../../desk-deps.yaml), assembles them with our own
+# source (desk/) on top and replaces the pier's desk with the result.
 #
 # This replaces the old approach of rsyncing ALL of pkg/base-dev (~119 files,
 # many unused and some that don't compile on the target kelvin) on top of the
-# pier's committed desk. peru picks only the transitively-required subset.
+# pier's committed desk. desk-deps.yaml picks only the transitively-required
+# subset.
 #
 # It only constructs files on disk. ORDER MATTERS: 'mount %groups' writes clay's
 # current desk OUT to the dir on first mount (clobbering disk), and the files
@@ -42,13 +42,12 @@ usage() {
 Usage: $0 [SHIP ...]
 
 Assemble the %$DESK desk inside extracted rube pier(s) under $DIST_DIR:
-peru sync's the vendored deps once, then assembles each pier's %$DESK from
-desk-deps/ (--delete) + desk/. Defaults to: ${DEFAULT_SHIPS[*]}
+for each pier, fetches the vendored deps (cached after the first) and replaces
+its %$DESK with desk-deps/ + desk/. Defaults to: ${DEFAULT_SHIPS[*]}
 
 Options:
   --pier PATH      Construct directly into this pier dir (the one containing
                    .urb), bypassing the DIST_DIR/<ship> lookup. Single pier.
-  --skip-sync      Don't run peru sync; assume desk-deps/ is already populated.
 
 Optional environment variables:
   DIST_DIR         Where extracted piers live (default: $RUBE_DIR/dist)
@@ -68,7 +67,6 @@ EOF
 
 # Optional explicit pier path (overrides DIST_DIR/<ship> resolution)
 PIER_OVERRIDE=""
-SKIP_SYNC=false
 POSITIONAL=()
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -77,7 +75,6 @@ while [ "$#" -gt 0 ]; do
             if [ "$#" -lt 2 ]; then print_error "--pier requires a path"; exit 1; fi
             PIER_OVERRIDE="$2"; shift 2 ;;
         --pier=*) PIER_OVERRIDE="${1#*=}"; shift ;;
-        --skip-sync) SKIP_SYNC=true; shift ;;
         *) POSITIONAL+=("$1"); shift ;;
     esac
 done
@@ -99,20 +96,11 @@ if ! command -v rsync >/dev/null 2>&1; then
     exit 1
 fi
 
-ASSEMBLE="$PROJECT_ROOT/scripts/assemble-desk.sh"
-if [ ! -x "$ASSEMBLE" ]; then
-    print_error "assemble-desk.sh not found at $ASSEMBLE"
+if ! command -v just >/dev/null 2>&1; then
+    print_error "just is required but not installed"
     exit 1
 fi
-
-# Vendor desk dependencies into desk-deps/ via peru once, up front. Each pier is
-# then assembled with SKIP_SYNC=true so we don't re-sync per ship.
-if [ "$SKIP_SYNC" = "false" ]; then
-    print_info "Syncing desk dependencies (peru sync)..."
-    "$PROJECT_ROOT/scripts/sync-deps.sh"
-else
-    print_info "Skipping peru sync (--skip-sync); using desk-deps/ as-is"
-fi
+JUSTFILE="$PROJECT_ROOT/justfile"
 
 # Find the pier dir (the one containing .urb) for a ship. Honors --pier, then
 # tries rube's double-nested layout, then a directly-extracted single dir.
@@ -153,9 +141,9 @@ construct_one() {
 
     print_info "Assembling %$DESK for ~$ship at $groups"
 
-    # assemble-desk.sh layers desk-deps/ (--delete) then desk/ on top, and
-    # stamps commit.txt. We synced once above, so skip the per-pier sync.
-    SKIP_SYNC=true "$ASSEMBLE" "$groups"
+    # `install` assembles desk-deps/ then desk/ on top, stamps commit.txt and
+    # replaces the mount.
+    just --justfile "$JUSTFILE" install "$groups"
 
     print_status "Assembled %$DESK for ~$ship"
 }

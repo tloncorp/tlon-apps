@@ -10,7 +10,7 @@ jobs:
     name: Add issue to Linear
     runs-on: ubuntu-latest
     steps:
-      - uses: jamesacklin/linear-app-create-issue-action@v2
+      - uses: jamesacklin/linear-app-create-issue-action@7020d2eca4d2f9dcac520be2020ade65eef57c60 # v2
         with:
           issueTitle: ${{ github.event.issue.title }}
           issueContent: ${{ github.event.issue.body }}

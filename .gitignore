@@ -17,19 +17,24 @@ bin
 !packages/tlon-skill/bin/tlon.js
 packages/tlon-skill/bin/tlon
 
-# Vendored desk dependencies — fetched into desk-deps/ by scripts/sync-deps.sh
-# (see peru.yaml). Kept out of git so upstream stays pinned but out of history;
-# assembled into a desk by scripts/assemble-desk.sh (deps first, then desk/).
+# Vendored desk dependencies — fetched into desk-deps/ by `just fetch`
+# (see desk-deps.yaml). Kept out of git so upstream stays pinned but out of
+# history; assembled into desk-out/ by `just build` (deps first, then desk/).
 /desk-deps/
+/desk-out/
+/.deps-cache/
+/packages/harness/desk-deps/
+/packages/harness/mcp/
 
-# peru state
+# peru state, from assembling a tag older than desk-deps.yaml
+# (apps/tlon-web/rube/build-n1-pier.sh)
 /.peru/
 /peru.lock
 *.tgz
 *.xst
 zod*
 bud
-/backend/.cookie-*
+/scripts/backend/.cookie-*
 vere-*
 *.pill
 /rube/zod/

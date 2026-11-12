@@ -1,41 +1,73 @@
 import type { ConnectionStatus } from '@tloncorp/api';
 import * as ub from '@tloncorp/api/urbit';
 import type * as db from '@tloncorp/shared/db';
+import * as domain from '@tloncorp/shared/domain';
 import {
   ConfirmDialog,
+  Icon,
+  type IconType,
+  LoadingSpinner,
+  Pressable,
   Text,
   pluralize,
+  triggerHaptic,
   useIsWindowNarrow,
 } from '@tloncorp/ui';
 import { capitalize } from 'lodash';
-import { type ReactNode, useMemo, useState } from 'react';
+import { type ReactNode, useCallback, useState } from 'react';
 import { Platform } from 'react-native';
-import { ScrollView, XStack, YStack } from 'tamagui';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  ScrollView,
+  View,
+  XStack,
+  YStack,
+  getTokenValue,
+  useTheme,
+} from 'tamagui';
 
-import { useCalm, useContactIndex } from '../contexts/appDataContext';
+import { useContact } from '../contexts/appDataContext';
 import {
   channelSupportsNotifications,
   getChannelActionCapabilities,
   getChannelHost,
+  getChannelTypeIcon,
   getGroupMemberCount,
   useChatTitle,
   useGroupTitle,
+  useIsAdmin,
 } from '../utils';
+import { ContactAvatar } from './Avatar';
+import { ContactName } from './ContactNameV2';
+import {
+  ActionCircle,
+  ActionCircleRow,
+  BotTag,
+  ConnectionMark,
+  type ConnectionState,
+  DestructiveCard,
+  INFO_HEADER_AVATAR_RADIUS,
+  INFO_HEADER_AVATAR_SIZE,
+  INFO_HEADER_BADGE,
+  InfoHeader,
+  InfoHeaderBadge,
+  InfoHeaderIconTile,
+  InfoTile,
+  ListCardDivider,
+  SHARE_ICON_SIZE,
+  SettingsCard,
+  type SettingsCardRow,
+  TextCard,
+  connectionStateText,
+  scheduledTasksRow,
+} from './InfoCards';
 import { ListItem } from './ListItem';
 import {
   getLevelShortTitle,
   getNotificationLevelContext,
 } from './NotificationLevelSelector';
-import {
-  SETTINGS_LIST_COLUMN_WIDTH,
-  type SettingsContextAction,
-  type SettingsRowModel,
-  type SettingsSectionModel,
-  SettingsListScreenView,
-  contactSettingsRow,
-  useSettingsListSurfaces,
-} from './SettingsList';
-import { ProfileButton } from './UserProfileScreenView';
+import { ScreenHeader } from './ScreenHeader';
+import type { ScreenHeaderMenuActionItem } from './ScreenHeader/actions';
 
 const maxMembersToDisplay = 5;
 
@@ -52,7 +84,8 @@ export interface ChatDetailsScreenViewProps {
   /** The bot's tasks that post here. Left out, the row is not shown. */
   scheduledTaskCount?: number;
   onGoBack: () => void;
-  onPressEdit: () => void;
+  /** Edits the name and avatar. Left out, there is no Edit button. */
+  onPressEdit?: () => void;
   onPressInvite?: () => void;
   onMarkRead: () => void;
   onTogglePinned: () => void;
@@ -66,18 +99,22 @@ export interface ChatDetailsScreenViewProps {
   onCopyText: (text: string) => void;
   onPressPrivacy: () => void;
   onPressRoles: () => void;
-  onPressChannels: () => void;
+  /**
+   * Opens the workspace's channel manager, from the workspace or from one of
+   * its channels. Left out, a channel has no row for it.
+   */
+  onPressChannels?: () => void;
   /** Whether the workspace has Tlonbot instructions. Left out, no row. */
   instructions?: 'On' | 'Off';
   onPressInstructions?: () => void;
   onPressNotifications: () => void;
   onPressScheduledTasks: () => void;
   onPressChannelPermissions: () => void;
+  /** Opens the info of the workspace a channel is in. */
+  onPressWorkspace?: (group: db.Group) => void;
   /** Opens someone's profile. */
   onPressProfile: (contactId: string) => void;
-  /** Opens a direct message with someone. */
-  onMessageContact: (contactId: string) => void;
-  /** Opens a group member. Left out, member rows are not pressable. */
+  /** Opens a group member. Left out, member rows open the profile. */
   onPressMember?: (contactId: string) => void;
   onPressAllMembers: () => void;
   /** Leaves, after whatever confirmation the caller wants. */
@@ -89,8 +126,9 @@ export interface ChatDetailsScreenViewProps {
 }
 
 /**
- * The info screen for a group or a channel: who it is, what you can do with
- * it, its settings, its members, and leaving it.
+ * The info screen for a workspace, a channel or a group chat, laid out like a
+ * profile: who it is and what you can do with it, your settings, the admins'
+ * settings, its members, its host, and leaving it.
  */
 export function ChatDetailsScreenView({
   chatType,
@@ -119,25 +157,25 @@ export function ChatDetailsScreenView({
   onPressNotifications,
   onPressScheduledTasks,
   onPressChannelPermissions,
+  onPressWorkspace,
   onPressProfile,
-  onMessageContact,
   onPressMember,
   onPressAllMembers,
   onLeave,
   onDelete,
   children,
 }: ChatDetailsScreenViewProps) {
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const isWindowNarrow = useIsWindowNarrow();
-  const contactIndex = useContactIndex();
-  const { disableNicknames } = useCalm();
   const groupTitle = useGroupTitle(group) ?? 'workspace';
   const chatTitle = useChatTitle(channel, group);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 
-  // A channel outside a group is a DM, which has members and nothing else.
+  // A channel outside a group is a group chat or a DM.
   const isGroup = chatType === 'group' && !!group;
   const isGroupChannel = chatType === 'channel' && !!channel?.groupId;
+  const isGroupDm = chatType === 'channel' && channel?.type === 'groupDm';
   const hasSettings = isGroup || isGroupChannel;
 
   const actionsEnabled =
@@ -145,6 +183,10 @@ export function ChatDetailsScreenView({
   const canInvite =
     (currentUserIsAdmin && actionsEnabled) || group?.privacy === 'public';
   const canEdit = currentUserIsAdmin && actionsEnabled;
+  // Any member can rename a group chat; a workspace or channel needs an
+  // admin with the host reachable.
+  const showsEdit = !!onPressEdit && (isGroupDm || currentUserIsAdmin);
+  const editEnabled = isGroupDm || canEdit;
 
   const isHost =
     chatType === 'group'
@@ -152,9 +194,10 @@ export function ChatDetailsScreenView({
       : !!channel?.currentUserIsHost;
   const channelCapabilities = getChannelActionCapabilities(channel);
   const canLeave =
-    hasSettings &&
-    !isHost &&
-    (chatType !== 'channel' || channelCapabilities.canLeave);
+    isGroupDm ||
+    (hasSettings &&
+      !isHost &&
+      (chatType !== 'channel' || channelCapabilities.canLeave));
   const canDelete =
     hasSettings &&
     (chatType !== 'channel' || channelCapabilities.canDelete) &&
@@ -162,199 +205,94 @@ export function ChatDetailsScreenView({
 
   const title =
     chatType === 'group' ? groupTitle : (chatTitle ?? channel?.title ?? '');
+  const idPrefix = chatType === 'group' ? 'Group' : 'Channel';
+  const isPinned = chatType === 'group' ? group?.pin : channel?.pin;
+  const description =
+    (chatType === 'group' ? group?.description : channel?.description) ?? '';
 
-  const sections = useMemo(() => {
-    const idPrefix = chatType === 'group' ? 'Group' : 'Channel';
+  const members =
+    (chatType === 'group' ? group?.members : channel?.members) ?? [];
+  const joinedMembers = members.filter((m) => m.status === 'joined');
+  const memberCount =
+    chatType === 'group' && group
+      ? getGroupMemberCount(group)
+      : joinedMembers.length;
 
-    const quickActions: QuickAction[] = [];
-    if (hasSettings) {
-      const isPinned = chatType === 'group' ? group?.pin : channel?.pin;
-      if (canInvite) {
-        // Every action is drawn alike, so the name stays the screen's heaviest
-        // element.
-        quickActions.push({ title: 'Invite', onPress: onPressInvite });
-      }
-      if (chatType === 'group' && group?.unread?.count !== 0) {
-        quickActions.push({ title: 'Mark read', onPress: onMarkRead });
-      }
-      quickActions.push({
-        title: isPinned ? 'Unpin' : 'Pin',
-        onPress: onTogglePinned,
-      });
-      if (chatType === 'group') {
-        quickActions.push(
-          // Short enough that the row ends on a whole pill on a phone.
-          { title: 'Forward', id: 'Forward reference', onPress: onForward },
-          { title: 'Copy ID', id: 'Copy group ID', onPress: onCopyGroupId }
-        );
-      } else if (onForwardChannel && onCopyChannelLink) {
-        quickActions.push(
+  const hostId = isGroup
+    ? (group?.hostUserId ?? null)
+    : isGroupChannel && channel
+      ? findChannelHost(channel, currentUserId)
+      : null;
+  const hostState: ConnectionState = !hostStatus.complete
+    ? 'pending'
+    : hostStatus.status === 'yes'
+      ? 'online'
+      : 'offline';
+
+  const notificationRows: SettingsCardRow[] =
+    chatType === 'group' || channelSupportsNotifications(channel)
+      ? [
           {
-            title: 'Forward',
-            id: 'Forward reference',
-            onPress: onForwardChannel,
+            key: 'notifications',
+            title: 'Notifications',
+            value: getNotificationValue(
+              chatType === 'group'
+                ? group?.volumeSettings
+                : channel?.volumeSettings,
+              getNotificationLevelContext(chatType === 'group' ? null : channel)
+            ),
+            onPress: onPressNotifications,
+            testID: `${idPrefix}Notifications`,
+          },
+        ]
+      : [];
+  const scheduledTaskRows: SettingsCardRow[] =
+    scheduledTaskCount === undefined
+      ? []
+      : [
+          scheduledTasksRow({
+            count: scheduledTaskCount,
+            onPress: onPressScheduledTasks,
+            testID: `${idPrefix}ScheduledTasks`,
+          }),
+        ];
+  const yourRows = [...notificationRows, ...scheduledTaskRows];
+
+  const adminRows: SettingsCardRow[] = !currentUserIsAdmin
+    ? []
+    : isGroup
+      ? [
+          {
+            key: 'roles',
+            title: 'Roles',
+            value: `${roleCount}`,
+            disabled: !actionsEnabled,
+            onPress: onPressRoles,
+            testID: 'GroupRoles',
           },
           {
-            title: 'Copy link',
-            id: 'Copy link to channel',
-            onPress: onCopyChannelLink,
-          }
-        );
-      }
-    }
-
-    const description =
-      chatType === 'group' ? group?.description : channel?.description;
-    const hero: SettingsSectionModel = {
-      key: 'hero',
-      rows: [],
-      element: (
-        <ChatDetailsHero
-          renderAvatar={(size, radius) =>
-            group && channel?.type !== 'buckets' ? (
-              <ListItem.GroupIcon
-                testID="GroupIcon"
-                model={group}
-                size="custom"
-                width={size}
-                height={size}
-                borderRadius={radius}
-                membersBackgroundColor="$background"
-              />
-            ) : channel ? (
-              <ListItem.ChannelIcon
-                model={channel}
-                size="custom"
-                width={size}
-                height={size}
-                borderRadius={radius}
-              />
-            ) : null
-          }
-          title={title}
-          subtitle={
-            chatType === 'group'
-              ? getGroupSubtitle(group)
-              : channel
-                ? getChannelSubtitle(channel, group, groupTitle)
-                : undefined
-          }
-          quickActions={quickActions}
-          testIDPrefix={`${idPrefix}QuickAction`}
-        />
-      ),
-    };
-    const descriptionSection: SettingsSectionModel | null =
-      !description && !canEdit
-        ? null
-        : {
-            key: 'description',
-            title: 'Description',
-            rows: [
-              description
-                ? {
-                    key: 'description',
-                    title: description,
-                    // Only a description that may be cut off offers More.
-                    expanded: mayBeCutOff(description)
-                      ? descriptionExpanded
-                      : undefined,
-                    accessory: 'none',
-                    onPress: mayBeCutOff(description)
-                      ? () => setDescriptionExpanded((expanded) => !expanded)
-                      : undefined,
-                    contextActions: [
-                      {
-                        key: 'copy',
-                        title: 'Copy',
-                        systemImage: 'doc.on.doc',
-                        onPress: () => onCopyText(description),
-                      },
-                    ],
-                    testID: `${idPrefix}Description`,
-                  }
-                : {
-                    key: 'description',
-                    title: 'Add a description',
-                    action: true,
-                    onPress: onPressEdit,
-                  },
-            ],
-          };
-
-    const notificationRows: SettingsRowModel[] =
-      chatType === 'group' || channelSupportsNotifications(channel)
+            key: 'channels',
+            title: 'Channels',
+            value: `${group?.channels?.length ?? 0}`,
+            disabled: !actionsEnabled,
+            onPress: onPressChannels,
+            testID: 'GroupChannels',
+          },
+          ...(instructions && onPressInstructions
+            ? [
+                {
+                  key: 'instructions',
+                  title: 'Tlonbot instructions',
+                  value: instructions,
+                  disabled: !actionsEnabled,
+                  onPress: onPressInstructions,
+                  testID: 'GroupInstructions',
+                },
+              ]
+            : []),
+        ]
+      : isGroupChannel
         ? [
-            {
-              key: 'notifications',
-              title: 'Notifications',
-              value: getNotificationValue(
-                chatType === 'group'
-                  ? group?.volumeSettings
-                  : channel?.volumeSettings,
-                getNotificationLevelContext(
-                  chatType === 'group' ? null : channel
-                )
-              ),
-              onPress: onPressNotifications,
-              testID: `${idPrefix}Notifications`,
-            },
-          ]
-        : [];
-    const scheduledTaskRows: SettingsRowModel[] =
-      scheduledTaskCount === undefined
-        ? []
-        : [
-            {
-              key: 'scheduled-tasks',
-              title: 'Scheduled tasks',
-              value: `${scheduledTaskCount}`,
-              onPress: onPressScheduledTasks,
-              testID: `${idPrefix}ScheduledTasks`,
-            },
-          ];
-    const adminRows: SettingsRowModel[] = !currentUserIsAdmin
-      ? []
-      : chatType === 'group'
-        ? [
-            {
-              key: 'privacy',
-              title: 'Privacy',
-              value: capitalize(group?.privacy ?? ''),
-              disabled: !actionsEnabled,
-              onPress: onPressPrivacy,
-              testID: 'GroupPrivacy',
-            },
-            {
-              key: 'roles',
-              title: 'Roles',
-              value: `${roleCount}`,
-              disabled: !actionsEnabled,
-              onPress: onPressRoles,
-              testID: 'GroupRoles',
-            },
-            {
-              key: 'channels',
-              title: 'Channels',
-              value: `${group?.channels?.length ?? 0}`,
-              disabled: !actionsEnabled,
-              onPress: onPressChannels,
-              testID: 'GroupChannels',
-            },
-            ...(instructions && onPressInstructions
-              ? [
-                  {
-                    key: 'instructions',
-                    title: 'Tlonbot instructions',
-                    value: instructions,
-                    disabled: !actionsEnabled,
-                    onPress: onPressInstructions,
-                    testID: 'GroupInstructions',
-                  },
-                ]
-              : []),
-          ]
-        : [
             {
               key: 'permissions',
               title: 'Permissions',
@@ -369,224 +307,295 @@ export function ChatDetailsScreenView({
               onPress: onPressChannelPermissions,
               testID: 'ChannelPrivacy',
             },
-          ];
-
-    // What a long press on someone's row offers. The first is what Android
-    // and web run directly.
-    const contactActions = (contactId: string): SettingsContextAction[] => [
-      {
-        key: 'profile',
-        title: 'View profile',
-        systemImage: 'person.crop.circle',
-        onPress: () => onPressProfile(contactId),
-      },
-      ...(contactId === currentUserId
-        ? []
-        : [
-            {
-              key: 'message',
-              title: 'Message',
-              systemImage: 'message',
-              onPress: () => onMessageContact(contactId),
-            },
-          ]),
-      {
-        key: 'copy-id',
-        title: 'Copy ID',
-        systemImage: 'doc.on.doc',
-        onPress: () => onCopyText(contactId),
-      },
-    ];
-
-    const hostId =
-      isGroupChannel && channel
-        ? findChannelHost(channel, currentUserId)
-        : null;
-    const hostSection: SettingsSectionModel | null = hostId
-      ? {
-          key: 'host',
-          title: 'Host',
-          rows: [
-            {
-              ...contactSettingsRow(
-                hostId,
-                contactIndex?.[hostId],
-                disableNicknames
-              ),
-              // Opens their profile, like a member row; nothing to edit here.
-              accessory: 'none',
-              onPress: () => onPressProfile(hostId),
-              contextActions: contactActions(hostId),
-              testID: 'ChannelHost',
-            },
-          ],
-        }
-      : null;
-
-    const members =
-      (chatType === 'group' ? group?.members : channel?.members) ?? [];
-    const joinedMembers = members.filter((m) => m.status === 'joined');
-    const memberCount =
-      chatType === 'group' && group
-        ? getGroupMemberCount(group)
-        : joinedMembers.length;
-    const hiddenMemberCount = memberCount - maxMembersToDisplay;
-    const opensMember = chatType === 'group' && !!group && !!onPressMember;
-    const memberRows: SettingsRowModel[] = joinedMembers
-      .slice(0, maxMembersToDisplay)
-      .map((member) => ({
-        ...contactSettingsRow(
-          member.contactId,
-          contactIndex?.[member.contactId],
-          disableNicknames
-        ),
-        accessory: 'none',
-        onPress: opensMember
-          ? () => onPressMember(member.contactId)
-          : undefined,
-        contextActions: contactActions(member.contactId),
-      }));
-    if (hiddenMemberCount > 0 || canInvite) {
-      memberRows.push({
-        key: 'all-members',
-        title:
-          (canEdit ? 'Manage members' : 'See all') +
-          (hiddenMemberCount > 0 ? ` (${hiddenMemberCount} more)` : ''),
-        onPress: onPressAllMembers,
-        testID: 'GroupMembers',
-      });
-    }
-
-    const noun = chatType === 'group' ? 'workspace' : 'channel';
-    const leaveRows: SettingsRowModel[] = [
-      ...(canLeave
-        ? [
-            {
-              key: 'leave',
-              title: `Leave ${noun}`,
-              destructive: true,
-              onPress: onLeave,
-              testID: `${idPrefix}LeaveAction-Leave ${noun}`,
-            },
+            ...(onPressChannels
+              ? [
+                  {
+                    key: 'channels',
+                    title: 'Workspace channels',
+                    value: `${group?.channels?.length ?? 0}`,
+                    disabled: !actionsEnabled,
+                    onPress: onPressChannels,
+                    testID: 'ChannelWorkspaceChannels',
+                  },
+                ]
+              : []),
           ]
-        : []),
-      ...(canDelete
-        ? [
-            {
-              key: 'delete',
-              title: `Delete ${noun}`,
-              destructive: true,
-              onPress: () => setShowDeleteDialog(true),
-              testID: `${idPrefix}LeaveAction-Delete ${noun}`,
-            },
-          ]
-        : []),
-    ];
+        : [];
 
-    const all: (SettingsSectionModel | null)[] = [
-      hero,
-      descriptionSection,
-      hasSettings
-        ? {
-            key: 'settings',
-            // The only time the host's connection comes up: when it is why
-            // an admin's rows are switched off.
-            footer:
-              currentUserIsAdmin && !actionsEnabled
-                ? hostStatus.complete
-                  ? 'The workspace’s host is offline, so these settings can’t be changed right now.'
-                  : 'Checking the connection to the workspace’s host…'
-                : undefined,
-            rows: [...adminRows, ...notificationRows, ...scheduledTaskRows],
-          }
-        : null,
-      hostSection,
-      members.length > 0
-        ? {
-            key: 'members',
-            title: `${memberCount} ${pluralize(memberCount, 'member')}`,
-            rows: memberRows,
-          }
-        : null,
-      { key: 'leave', rows: leaveRows },
-    ];
-    return all.filter(
-      (section): section is SettingsSectionModel =>
-        section !== null && (section.rows.length > 0 || !!section.element)
-    );
-  }, [
-    actionsEnabled,
-    canDelete,
-    canEdit,
-    canInvite,
-    canLeave,
-    channel,
-    chatType,
-    contactIndex,
-    currentUserId,
-    currentUserIsAdmin,
-    descriptionExpanded,
-    disableNicknames,
-    group,
-    groupTitle,
-    hasSettings,
-    hostStatus,
-    instructions,
-    isGroupChannel,
-    onCopyChannelLink,
-    onCopyGroupId,
-    onCopyText,
-    onForward,
-    onForwardChannel,
-    onLeave,
-    onMarkRead,
-    onMessageContact,
-    onPressAllMembers,
-    onPressChannelPermissions,
-    onPressChannels,
-    onPressEdit,
-    onPressInstructions,
-    onPressInvite,
-    onPressMember,
-    onPressNotifications,
-    onPressPrivacy,
-    onPressProfile,
-    onPressRoles,
-    onPressScheduledTasks,
-    onTogglePinned,
-    roleCount,
-    scheduledTaskCount,
-    title,
-  ]);
+  const noun =
+    chatType === 'group' ? 'workspace' : isGroupDm ? 'chat' : 'channel';
+  const endActions = [
+    ...(canLeave
+      ? [
+          {
+            key: 'leave',
+            title: `Leave ${noun}`,
+            onPress: onLeave,
+            testID: `${idPrefix}LeaveAction-Leave ${noun}`,
+          },
+        ]
+      : []),
+    ...(canDelete
+      ? [
+          {
+            key: 'delete',
+            title: `Delete ${noun}`,
+            onPress: () => setShowDeleteDialog(true),
+            testID: `${idPrefix}LeaveAction-Delete ${noun}`,
+          },
+        ]
+      : []),
+  ];
+
+  const menuItems: ScreenHeaderMenuActionItem[] = [
+    ...(isGroup
+      ? [{ id: 'copy-group-id', label: 'Copy ID', onPress: onCopyGroupId }]
+      : []),
+    // Mark read is a circle for workspaces and chats; a channel keeps the
+    // circles to sharing it.
+    // Buckets have no unreads to clear.
+    ...(isGroupChannel && channelSupportsNotifications(channel)
+      ? [{ id: 'mark-read', label: 'Mark read', onPress: onMarkRead }]
+      : []),
+  ];
 
   const screenTitle =
     chatType === 'group' ? 'Workspace info & settings' : 'Channel info';
+  const loading = chatType === 'group' ? !group : !channel;
 
   return (
-    <SettingsListScreenView
-      // The name leads the screen itself on a phone, or a phone-sized window,
-      // so the bar stays clear.
-      title={Platform.OS === 'web' && !isWindowNarrow ? screenTitle : ''}
-      scrolledTitle={{ title, offset: chatHeroNameHeight }}
-      headerTestID="ChatDetailsHeader"
-      sections={sections}
-      loading={chatType === 'group' ? !group : !channel}
-      onBackPressed={onGoBack}
-      showsBackOnWideWindows
-      useHorizontalTitleLayout={!isWindowNarrow}
-      maxWidth={SETTINGS_LIST_COLUMN_WIDTH}
-      rightActions={[
-        {
-          id: 'DetailsEditButton',
-          text: 'Edit',
-          onPress: onPressEdit,
-          disabled: !actionsEnabled,
-          tint: '$primaryText',
-          testID: 'DetailsEditButton',
-          visible: currentUserIsAdmin,
-        },
-      ]}
-    >
+    <View flex={1} backgroundColor={theme.secondaryBackground.val}>
+      <ScreenHeader
+        // A phone, or a phone-sized window, leads with the name under the
+        // avatar, so the bar stays clear.
+        title={Platform.OS === 'web' && !isWindowNarrow ? screenTitle : ''}
+        backgroundColor={theme.secondaryBackground.val}
+        backAction={onGoBack}
+        useHorizontalTitleLayout={!isWindowNarrow}
+        testID="ChatDetailsHeader"
+        placement="navigation"
+        rightActions={[
+          {
+            id: 'DetailsEditButton',
+            text: 'Edit',
+            onPress: onPressEdit,
+            disabled: !editEnabled,
+            testID: 'DetailsEditButton',
+            visible: showsEdit,
+          },
+          {
+            id: 'details-more',
+            icon: 'Overflow',
+            label: 'More',
+            testID: 'DetailsMoreButton',
+            items: menuItems,
+            visible: menuItems.length > 0,
+          },
+        ]}
+      />
+      {loading ? (
+        <View flex={1} alignItems="center" justifyContent="center">
+          <LoadingSpinner />
+        </View>
+      ) : (
+        <ScrollView
+          flex={1}
+          contentContainerStyle={{
+            width: '100%',
+            maxWidth: 600,
+            marginHorizontal: 'auto',
+            paddingBottom: insets.bottom + getTokenValue('$3xl'),
+          }}
+        >
+          <InfoHeader
+            avatar={
+              <ChatDetailsAvatar
+                chatType={chatType}
+                group={group}
+                channel={channel}
+              />
+            }
+            badge={
+              isGroupChannel && group ? (
+                <InfoHeaderBadge testID="ChannelWorkspaceBadge">
+                  <ListItem.GroupIcon
+                    model={group}
+                    size="custom"
+                    width={INFO_HEADER_BADGE.size}
+                    height={INFO_HEADER_BADGE.size}
+                    borderRadius={INFO_HEADER_BADGE.radius}
+                  />
+                </InfoHeaderBadge>
+              ) : undefined
+            }
+            title={title}
+            subtitle={
+              chatType === 'group'
+                ? memberCount
+                  ? `${memberCount} ${pluralize(memberCount, 'member')}`
+                  : undefined
+                : channel
+                  ? getChannelSubtitle(channel, groupTitle, memberCount)
+                  : undefined
+            }
+          />
+
+          <View marginTop="$2xl" paddingHorizontal="$xl">
+            <ActionCircleRow>
+              {isGroup && canInvite ? (
+                <ActionCircle
+                  icon="AddPerson"
+                  label="Invite"
+                  onPress={onPressInvite}
+                  testID="GroupQuickAction-Invite"
+                />
+              ) : null}
+              {(isGroup && group?.unread?.count !== 0) ||
+              (!hasSettings && channel?.unread?.count !== 0) ? (
+                <ActionCircle
+                  icon="Checkmark"
+                  label="Mark read"
+                  onPress={onMarkRead}
+                  testID={`${idPrefix}QuickAction-Mark read`}
+                />
+              ) : null}
+              <ActionCircle
+                icon="Pin"
+                label={isPinned ? 'Unpin' : 'Pin'}
+                onPress={onTogglePinned}
+                testID={`${idPrefix}QuickAction-${isPinned ? 'Unpin' : 'Pin'}`}
+              />
+              {isGroup ? (
+                <ActionCircle
+                  icon="ArrowRef"
+                  iconSize={SHARE_ICON_SIZE}
+                  label="Share"
+                  onPress={onForward}
+                  testID="GroupQuickAction-Forward reference"
+                />
+              ) : null}
+              {onForwardChannel ? (
+                <ActionCircle
+                  icon="ArrowRef"
+                  iconSize={SHARE_ICON_SIZE}
+                  label="Share"
+                  onPress={onForwardChannel}
+                  testID="ChannelQuickAction-Forward reference"
+                />
+              ) : null}
+              {onCopyChannelLink ? (
+                <ActionCircle
+                  icon="Link"
+                  label="Copy link"
+                  onPress={onCopyChannelLink}
+                  testID="ChannelQuickAction-Copy link to channel"
+                />
+              ) : null}
+            </ActionCircleRow>
+          </View>
+
+          <YStack marginTop="$2xl" gap="$l" paddingHorizontal="$xl">
+            {isGroupChannel && group ? (
+              <WorkspaceCard group={group} onPress={onPressWorkspace} />
+            ) : null}
+
+            {hasSettings && (description || canEdit) ? (
+              <TextCard
+                title="Description"
+                text={description}
+                placeholder="Add a description"
+                onPress={description ? undefined : onPressEdit}
+                onLongPress={
+                  description ? () => onCopyText(description) : undefined
+                }
+                testID={`${idPrefix}Description`}
+              />
+            ) : null}
+
+            {yourRows.length ? (
+              <SettingsCard
+                title="Your settings"
+                rows={yourRows}
+                testID={`${idPrefix}YourSettings`}
+              />
+            ) : null}
+
+            {adminRows.length ? (
+              <YStack gap="$m">
+                <SettingsCard
+                  title={isGroup ? 'Workspace settings' : 'Channel settings'}
+                  scope="Admins only"
+                  rows={adminRows}
+                  testID={`${idPrefix}AdminSettings`}
+                />
+                {!actionsEnabled ? (
+                  // The only time the host's connection comes up in the
+                  // settings: when it is why an admin's rows are off.
+                  <View paddingHorizontal="$2xl">
+                    <Text size="$label/s" color="$secondaryText">
+                      {hostStatus.complete
+                        ? 'The workspace’s host is offline, so these settings can’t be changed right now.'
+                        : 'Checking the connection to the workspace’s host…'}
+                    </Text>
+                  </View>
+                ) : null}
+              </YStack>
+            ) : null}
+
+            {joinedMembers.length > 0 ? (
+              <MembersCard
+                chatType={chatType}
+                groupId={isGroup ? group?.id : undefined}
+                members={joinedMembers}
+                memberCount={memberCount}
+                currentUserId={currentUserId}
+                showsAll={memberCount > maxMembersToDisplay || canInvite}
+                onPressAll={onPressAllMembers}
+                onPressMember={
+                  isGroup && onPressMember ? onPressMember : onPressProfile
+                }
+              />
+            ) : null}
+
+            {hostId ? (
+              <XStack gap="$l" width="100%">
+                <InfoTile
+                  label="Host"
+                  value={connectionStateText(hostState)}
+                  mark={<ConnectionMark status={hostState} />}
+                  caption={hostId}
+                  onPress={() => onPressProfile(hostId)}
+                  // Opens their profile, like a member row; nothing to edit.
+                  chevron={false}
+                  testID={isGroup ? 'GroupHost' : 'ChannelHost'}
+                />
+                {isGroup && group?.privacy ? (
+                  <InfoTile
+                    label="Privacy"
+                    value={capitalize(group.privacy)}
+                    mark={
+                      <Icon
+                        type={privacyIcon[group.privacy]}
+                        size="$l"
+                        color="$primaryText"
+                      />
+                    }
+                    caption={privacyCaption[group.privacy]}
+                    onPress={
+                      currentUserIsAdmin && actionsEnabled
+                        ? onPressPrivacy
+                        : undefined
+                    }
+                    testID="GroupPrivacy"
+                  />
+                ) : null}
+              </XStack>
+            ) : null}
+
+            <DestructiveCard actions={endActions} />
+          </YStack>
+        </ScrollView>
+      )}
       <ConfirmDialog
         open={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
@@ -604,128 +613,233 @@ export function ChatDetailsScreenView({
         destructive
       />
       {children}
-    </SettingsListScreenView>
+    </View>
   );
 }
 
-interface QuickAction {
-  title: string;
-  /** Names the action's test ID when its title is shortened or changes. */
-  id?: string;
-  onPress?: () => void;
-}
+type GroupPrivacy = NonNullable<db.Group['privacy']>;
+
+const privacyIcon: Record<GroupPrivacy, IconType> = {
+  public: 'Discover',
+  private: 'Lock',
+  secret: 'EyeClosed',
+};
+
+const privacyCaption: Record<GroupPrivacy, string> = {
+  public: 'Anyone can join',
+  private: 'Join by request',
+  secret: 'Invite only',
+};
 
 /**
- * The top of the info screen: the avatar with the name and what kind of chat
- * it is beside it, over the row of quick actions.
+ * The header avatar: a workspace's own, a channel's or chat's image, or a
+ * white tile with the kind of channel it is.
  */
-function ChatDetailsHero({
-  renderAvatar,
-  title,
-  subtitle,
-  quickActions,
-  testIDPrefix,
+function ChatDetailsAvatar({
+  chatType,
+  group,
+  channel,
 }: {
-  renderAvatar: (size: number, radius: number) => ReactNode;
-  title: string;
-  subtitle?: string;
-  quickActions: QuickAction[];
-  testIDPrefix: string;
+  chatType: 'group' | 'channel';
+  group?: db.Group | null;
+  channel?: db.Channel | null;
 }) {
-  const titleSize = title.length > longTitleLength ? 'compact' : 'full';
-  // The actions are drawn like the list's cards: in the card color, which
-  // stands off the page on native, and outlined on the web, where cards
-  // share the page's color.
-  const { card } = useSettingsListSurfaces();
-  const pillBorder = Platform.OS === 'web' ? '$border' : card;
+  const custom = {
+    size: 'custom',
+    width: INFO_HEADER_AVATAR_SIZE,
+    height: INFO_HEADER_AVATAR_SIZE,
+    borderRadius: INFO_HEADER_AVATAR_RADIUS,
+  } as const;
+  if (chatType === 'group' && group) {
+    return (
+      <ListItem.GroupIcon
+        testID="GroupIcon"
+        model={group}
+        membersBackgroundColor="$background"
+        {...custom}
+      />
+    );
+  }
+  if (!channel) {
+    return null;
+  }
+  if (channel.type === 'dm' || channel.iconImage) {
+    return <ListItem.ChannelIcon model={channel} {...custom} />;
+  }
+  return <InfoHeaderIconTile icon={getChannelTypeIcon(channel.type)} />;
+}
+
+/** The workspace a channel is in, leading to its info. */
+function WorkspaceCard({
+  group,
+  onPress,
+}: {
+  group: db.Group;
+  onPress?: (group: db.Group) => void;
+}) {
+  const title = useGroupTitle(group);
+  const memberCount = getGroupMemberCount(group);
+  const handlePress = useCallback(() => {
+    onPress?.(group);
+    triggerHaptic('baseButtonClick');
+  }, [group, onPress]);
   return (
-    <YStack paddingTop="$l">
+    <Pressable
+      borderRadius="$2xl"
+      onPress={onPress ? handlePress : undefined}
+      testID="ChannelWorkspace"
+    >
       <XStack
         alignItems="center"
-        gap="$xl"
-        paddingHorizontal={chatHeroLeadingInset}
+        gap="$l"
+        padding="$l"
+        paddingRight="$2xl"
+        borderRadius="$2xl"
+        backgroundColor="$background"
       >
-        {renderAvatar(chatHeroAvatar.size, chatHeroAvatar.radius)}
-        <YStack flex={1}>
-          <Text
-            size="$title/l"
-            trimmed={false}
-            numberOfLines={2}
-            {...(titleSize === 'compact' ? compactTitleStyle : null)}
-          >
+        <ListItem.GroupIcon
+          model={group}
+          size="custom"
+          width={44}
+          height={44}
+          borderRadius={12}
+        />
+        <YStack flex={1} minWidth={0}>
+          <Text size="$label/l" numberOfLines={1}>
             {title}
           </Text>
-          {subtitle ? (
-            <Text
-              size="$label/m"
-              trimmed={false}
-              color="$secondaryText"
-              marginTop={subtitleOffset[titleSize]}
-            >
-              {subtitle}
-            </Text>
-          ) : null}
+          <Text size="$label/m" color="$secondaryText" marginTop="$xs">
+            {memberCount
+              ? `Workspace · ${memberCount} ${pluralize(memberCount, 'member')}`
+              : 'Workspace'}
+          </Text>
         </YStack>
+        {onPress ? (
+          <Icon type="ChevronRight" size="$s" color="$tertiaryText" />
+        ) : null}
       </XStack>
-      {quickActions.length > 0 ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          alignSelf="stretch"
-          marginTop="$2xl"
-          contentContainerStyle={{ paddingHorizontal: heroSideInset }}
-        >
-          {quickActions.map((action) => (
-            <ProfileButton
-              key={action.id ?? action.title}
-              title={action.title}
-              onPress={action.onPress}
-              testID={`${testIDPrefix}-${action.id ?? action.title}`}
-              backgroundColor={card}
-              borderColor={pillBorder}
-            />
-          ))}
-        </ScrollView>
-      ) : null}
+    </Pressable>
+  );
+}
+
+/** The first few members, with See all leading to everyone. */
+function MembersCard({
+  chatType,
+  groupId,
+  members,
+  memberCount,
+  currentUserId,
+  showsAll,
+  onPressAll,
+  onPressMember,
+}: {
+  chatType: 'group' | 'channel';
+  /** Set for a workspace, whose admins are named. */
+  groupId?: string;
+  members: db.ChatMember[];
+  memberCount: number;
+  currentUserId: string;
+  showsAll: boolean;
+  onPressAll: () => void;
+  onPressMember: (contactId: string) => void;
+}) {
+  const handlePressAll = useCallback(() => {
+    onPressAll();
+    triggerHaptic('baseButtonClick');
+  }, [onPressAll]);
+  return (
+    <YStack
+      borderRadius="$2xl"
+      backgroundColor="$background"
+      paddingTop="$2xl"
+      paddingBottom="$s"
+      testID={`${chatType === 'group' ? 'Group' : 'Channel'}MembersCard`}
+    >
+      <XStack
+        alignItems="center"
+        justifyContent="space-between"
+        paddingHorizontal="$2xl"
+        paddingBottom="$s"
+      >
+        <Text size="$body" color="$tertiaryText">
+          {`${memberCount} ${pluralize(memberCount, 'member')}`}
+        </Text>
+        {showsAll ? (
+          <Pressable onPress={handlePressAll} testID="GroupMembers">
+            <XStack alignItems="center" gap="$xs">
+              <Text size="$label/m" color="$secondaryText">
+                See all
+              </Text>
+              <Icon type="ChevronRight" size="$s" color="$tertiaryText" />
+            </XStack>
+          </Pressable>
+        ) : null}
+      </XStack>
+      {members.slice(0, maxMembersToDisplay).map((member, i) => (
+        <MemberRow
+          key={member.contactId}
+          contactId={member.contactId}
+          groupId={groupId}
+          isYou={member.contactId === currentUserId}
+          first={i === 0}
+          onPress={onPressMember}
+        />
+      ))}
     </YStack>
   );
 }
 
-// Names up to this long fit beside the avatar in two lines at the full title
-// size; a longer one steps down a size instead of being cut off.
-const longTitleLength = 14;
-const compactTitleStyle = { fontSize: 26, lineHeight: 30 } as const;
+const MEMBER_AVATAR = { size: 40, radius: 11 } as const;
 
-// Puts the line under the name as far below it as a second line of the name
-// sits below the first, so a wrapped name and its caption are evenly spaced.
-// The two name sizes leave different room under their last line.
-const subtitleOffset = { full: -2, compact: 0 } as const;
-
-/**
- * Whether a description runs past the three lines its collapsed row shows,
- * so the row offers More. A phone line holds a little over forty characters;
- * counting each paragraph's lines from forty guesses slightly early, which
- * only offers More on text that already fits.
- */
-function mayBeCutOff(description: string) {
-  const lines = description
-    .split('\n')
-    .reduce(
-      (sum, paragraph) => sum + Math.max(1, Math.ceil(paragraph.length / 40)),
-      0
-    );
-  return lines > 3;
+function MemberRow({
+  contactId,
+  groupId,
+  isYou,
+  first,
+  onPress,
+}: {
+  contactId: string;
+  groupId?: string;
+  isYou: boolean;
+  first: boolean;
+  onPress: (contactId: string) => void;
+}) {
+  const contact = useContact(contactId);
+  const isAdmin = useIsAdmin(groupId ?? '', contactId);
+  const isBot = domain.isBotContact({
+    id: contactId,
+    botInfo: contact?.botInfo,
+  });
+  const handlePress = useCallback(() => {
+    onPress(contactId);
+    triggerHaptic('baseButtonClick');
+  }, [contactId, onPress]);
+  return (
+    <Pressable onPress={handlePress} testID={`MemberRow-${contactId}`}>
+      {first ? null : <ListCardDivider avatarSize={MEMBER_AVATAR.size} />}
+      <XStack alignItems="center" gap="$l" height={60} paddingHorizontal="$2xl">
+        <ContactAvatar
+          contactId={contactId}
+          size="custom"
+          width={MEMBER_AVATAR.size}
+          height={MEMBER_AVATAR.size}
+          borderRadius={MEMBER_AVATAR.radius}
+        />
+        <XStack flex={1} minWidth={0} alignItems="center" gap="$s">
+          <Text size="$label/l" numberOfLines={1} flexShrink={1}>
+            {isYou ? 'You' : <ContactName contactId={contactId} />}
+          </Text>
+          {isBot ? <BotTag onCard /> : null}
+        </XStack>
+        {groupId && isAdmin ? (
+          <Text size="$label/m" color="$tertiaryText">
+            Admin
+          </Text>
+        ) : null}
+      </XStack>
+    </Pressable>
+  );
 }
-
-/** Where left-aligned header content starts: the cards' own 16pt margin. */
-const chatHeroLeadingInset = 16;
-const chatHeroAvatar = { size: 76, radius: 18 } as const;
-
-/** How far the screen scrolls before the name in its header is out of view. */
-const chatHeroNameHeight = 60;
-
-/** The space the quick actions keep from the screen's edges. */
-const heroSideInset = 12;
 
 /** The ship hosting a channel, or nothing when its ID names none. */
 function findChannelHost(channel: db.Channel, currentUserId: string) {
@@ -736,43 +850,20 @@ function findChannelHost(channel: db.Channel, currentUserId: string) {
   }
 }
 
-function getGroupSubtitle(group: db.Group | null | undefined) {
-  if (!group) {
-    return undefined;
-  }
-  const memberCount = getGroupMemberCount(group);
-  return [
-    group.privacy ? `${capitalize(group.privacy)} workspace` : 'Workspace',
-    memberCount
-      ? `with ${memberCount} ${pluralize(memberCount, 'member')}`
-      : null,
-  ]
-    .filter((n) => !!n)
-    .join(' ');
-}
-
 function getChannelSubtitle(
   channel: db.Channel,
-  group: db.Group | null | undefined,
-  groupTitle: string
+  groupTitle: string,
+  memberCount: number
 ) {
   switch (channel.type) {
     case 'dm':
-      return `Chat with ${channel.contactId}`;
+      return 'Direct message';
     case 'groupDm':
-      return channel.members && channel.members.length > 2
-        ? `Chat with ${channel.members[0].contactId} and ${channel.members.length - 1} others`
-        : 'Group chat';
+      return `Group chat with ${memberCount} ${pluralize(memberCount, 'member')}`;
+    case 'buckets':
+      return `Bucket in ${groupTitle}`;
     default:
-      if (!group) {
-        return undefined;
-      }
-      if (group.channels?.length === 1) {
-        return `Workspace with ${getGroupMemberCount(group)} members`;
-      }
-      return channel.type === 'buckets'
-        ? `Bucket in ${groupTitle}`
-        : `Channel in ${groupTitle}`;
+      return channel.groupId ? `Channel in ${groupTitle}` : undefined;
   }
 }
 

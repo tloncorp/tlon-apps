@@ -28,12 +28,13 @@ correcting. Where the two differ, this file wins:
 ## Layout and ownership
 
 - `desk/` holds only our sources. Base-dev, landscape and mcp files (`dbug`,
-  `default-agent`, `server`, `docket`, `mip`, `json`, …) are vendored by peru
-  into the gitignored `desk-deps/` (revs pinned in `peru.yaml`; to build
-  against a different kernel, change the rev there on your branch). A fresh
+  `default-agent`, `server`, `docket`, `mip`, `json`, …) are fetched by
+  `just fetch` into the gitignored `desk-deps/` (revs pinned in
+  `desk-deps.yaml`; to build against a different kernel, change the rev there
+  on your branch). A fresh
   checkout is *meant* to lack them; never commit them. `desk/lib/verb.hoon` is
   a deliberate local patch and stays committed; do not add patched or
-  repo-owned files to the peru pick lists.
+  repo-owned files to the lists in `desk-deps.yaml`.
 - `%groups` is both group server (`+se-core`) and client (`+go-core`, and
   `+fi-core` for groups not yet joined) in one agent. `%channels-server` hosts
   channels; `%channels` is the subscriber side. `%chat` owns DMs and clubs,
@@ -189,24 +190,25 @@ that lands gets copied. Fix small style deviations rather than accepting them.
 
 Never claim a desk change compiles without building it.
 
-1. `./scripts/sync-deps.sh` once per checkout, then
-   `./scripts/assemble-desk.sh <pier>/groups`. Never hand-copy or hand-edit
-   files in a mounted desk; fix stale clay files with `|rm`, or `|unmount` and
-   `|mount`, then re-assemble.
+1. `just install <pier>/groups`. Never hand-copy or hand-edit files in a
+   mounted desk; fix stale clay files with `|rm`, or `|unmount` and `|mount`,
+   then re-install.
 2. `|commit %groups`; wait for any `sync` spinner; confirm no build errors.
 3. `-build-file` every changed Hoon file a live app or mark might not reach,
    e.g. `=aut -build-file /=groups=/sur/steward/automation/hoon`. A Dojo
    expression is not a substitute for building the repository file.
 4. Run the affected tests: `-test /=groups=/tests/app/<agent>`;
-   `backend/run-tests.sh` runs everything, including aqua.
+   `scripts/backend/run-tests.sh` runs everything, including aqua.
 
 Report the `|commit`, `-build-file` and test results when claiming
 validation. If the urbit and vere sources are checked out locally (often
 `~/Projects/urbit`, `~/Projects/vere`), read kernel code at the rev pinned in
-`peru.yaml` (`git -C ~/Projects/urbit show <rev>:pkg/arvo/sys/lull.hoon`), not
-whatever branch is checked out. `desk-deps/` holds the vendored copies.
+`desk-deps.yaml`
+(`git -C ~/Projects/urbit show <rev>:pkg/arvo/sys/lull.hoon`), not whatever
+branch is checked out. `desk-deps/` holds the vendored copies.
 
-Developer tools (aqua patching, pill and moon scripts) live in `backend/`.
+Developer tools (aqua patching, pill and moon scripts) live in
+`scripts/backend/`.
 
 When told to drive a ship through tmux, use `tmux send-keys` and
 `capture-pane` against its session without switching to it; `%` confirms the
@@ -253,8 +255,9 @@ Flag:
 
 Do not flag:
 
-- Files "missing" from `desk/lib`, `desk/sur` or `desk/mar` that peru
-  provides (`dbug`, `default-agent`, `server`, `docket`, `json`, …).
+- Files "missing" from `desk/lib`, `desk/sur` or `desk/mar` that
+  `desk-deps.yaml` provides (`dbug`, `default-agent`, `server`, `docket`,
+  `json`, …).
 - Type errors, nest-fails or unresolved faces in agents, marks or anything
   they import; CI builds those. Don't claim a file fails to build unless you
   can name the failing expression and the types involved. Do flag a new `sur`

@@ -63,7 +63,7 @@ Evaluated in this order per unprocessed valid invite:
 | 2   | Not on `groupInviteAllowlist`, owner configured    | Queue approval card                       | no                  |
 | 3   | Not on allowlist, no owner configured              | Log + ignore                              | no                  |
 | 4   | On allowlist, **confirmed not blocked**            | ✅ Auto-accept                            | yes                 |
-| 5   | On allowlist, **confirmed blocked**                | Silent ignore (no card), mark processed   | yes                 |
+| 5   | On allowlist, **confirmed blocked**                | Silent ignore (no card), mark inviter     | yes                 |
 | 6   | On allowlist, lookup failed/timed out (_unknown_)  | Fall through to row 2/3 (card, or ignore) | yes (attempted)     |
 
 The `autoAcceptGroupInvites` flag no longer governs invite authorization or
@@ -86,7 +86,9 @@ falls through to the approval path.
 ```
 
 Suppression invariants: queued invites are never marked in the in-process
-dedup set (it records only auto-accept success and confirmed-blocked); the
+dedup set (it records only auto-accept success per group and confirmed-blocked
+per group and inviter, so a blocked inviter never suppresses another inviter
+to the same group); the
 persisted approval record suppresses re-notification once delivered, gates
 retries of failed sends behind a 10-minute cooldown, and its 48h TTL is the
 reminder cadence. New approval records are capped at 100
@@ -97,6 +99,10 @@ clear the dedup marker for a join whose `progress` reached `error`, so a join
 that acked locally but failed on the backend becomes actionable again at a
 bounded cadence — live error facts leave the marker, because a persistently
 failing join would otherwise retry at %groups' own error-emission rate.
+A completed join (`progress` `done`, after which `%groups` deletes the foreign)
+or a fact with no valid invite left retires that group's markers, so a
+re-invite after the bot is kicked, leaves, or has an invite revoked is decided
+again.
 Catch-up rescries foreigns at connect and on the 2-minute poll. Rejecting a group request
 declines the invite on the ship (`%groups` `invite-decline`), and banning the
 inviter blocks the ship, revokes its DM grant, and then declines the same way —
@@ -434,6 +440,24 @@ The `before_tool_call` hook provides defense-in-depth by blocking restricted too
 The hook decides *who may invoke* the tool from the sender of the triggering message. It does not decide *what the run was told*. An owner-triggered run in a group channel is prompted with recent channel posts, including posts by senders who could not trigger the bot themselves, so a planted instruction can reach the model. With `ownerDefault` off, such a run acts as the bot (and as the owner only for the six legacy owner operations). With `ownerDefault` on, every `tlon` call in that run acts with the owner's credentials, so the same injection can read or change owner data. No per-call check can tell a planted instruction from the owner's. `ownerDefault` is off by default; TLON-6907 (owner-default only in the owner↔bot 1:1 DM) must land before it is enabled for a bot that watches group channels.
 
 The prompt frames prepended channel and thread history as context written by other people, not instructions, and marks the current message as the only instruction in the turn. Quoted posts attached to a message are framed the same way, as context written by the people named, and are kept out of the current-message block; with `ownerDefault` on, the `tlon` tool guidance adds that an owner-credentialed command must come from the owner's own words in the current message. This framing lowers the odds that a planted post steers the run, but it is a mitigation, not the enforcement boundary: the model can still be persuaded, so the controls above remain what decides access.
+
+**Heartbeat owner reads (`ownerDefault`, TLON-7008):**
+
+With `ownerDefault` on, every run that is not answering the owner acts as the bot, with one exception: a heartbeat run may read an allowlist of the owner's data as the owner, so the heartbeat can check the owner's inbox.
+
+- *Allowlist.* `activity mentions|replies|unreads|unread|all`, `messages dm|channel|history|context` and `channels dms|group-dms|groups|all`, without `--self` (before the command, or after an activity read) and without a help token. Every other command on the run, including `messages search`, `groups`, `contacts`, `channels info` and the activity settings, is rewritten to `--self`. Credential flags stay rejected.
+- *Recognition, fail closed.* A run is a heartbeat run only when `agent_turn_prepare` reports `trigger: 'heartbeat'` and `inputProvenance.sourceTool: 'heartbeat'`. Missing provenance, cron runs on the main session (`sourceTool: 'cron'`), exec completions and restart recovery are not heartbeat runs, and there are no session-key heuristics. Core also gives this provenance to manual and source-unspecified wakes and queued system-event processing, so the grant covers heartbeat-runner runs, not only periodic heartbeats; the grant is read-only and the run is sealed on first use.
+- *Binding and revocation.* The grant is bound to the owner configured when the run was recognised and is checked against the live owner on every call and again just before the CLI runs. An owner change, a non-owner message dispatched on the run's session and a `sessions_send` into it revoke the grant for the rest of the run; a revoked run is never granted again.
+- *Seal.* When the gate approves the first owner read (whether or not it then executes), the run is sealed for the rest of its life, revoked or not. A sealed run may call only `tlon` reads (the allowlisted owner reads, and reads or help as the bot), `read`, `ls`, `write`, `edit`, `apply_patch`, `web_search`, `web_fetch`, `browser` and every `browser_*` tool, `memory_search`, `memory_get`, the MCP catalog tools (`mcp__list_upstreams`, `mcp__search`, `mcp__describe`, `mcp__call`), the Tool Search controls (`tool_search`, `tool_describe`, `tool_call`; core runs this gate again on a `tool_call` target under the target's own name, so the seal applies to it) and `heartbeat_respond`. A `heartbeat_respond` call that carries `scratch`, `reason` or `nextCheck` (or core's `next_check` alias), the fields core persists for a later turn whether or not the notification is delivered, is blocked with a reason telling the model to call again without them; one without them passes unchanged. The gate blocks rather than rewrites because the Codex native relay refuses any hook change to a tool's params, so a rewrite would refuse every `heartbeat_respond` on a Codex-harness bot. Every other tool, including `message`, `conversations_send`, `sessions_*`, `spawn_agent`, `subagents`, `cron`, the shell family, goals, media generation, `ask_user` and any tool a later core adds, is blocked. The run delivers its findings through its final text or `heartbeat_respond`.
+
+The seal is a within-run mitigation against a planted instruction that reads the owner's inbox and sends the result somewhere in the same run. It is not a disclosure boundary, and it does not guarantee that no model text reaches a later turn. These exits stay open by decision:
+
+- Web fetch, web search, the hosted browser and MCP calls. The heartbeat's job includes research, and a per-run seal is all-or-nothing. The exposure is a widening of what a URL or MCP exfiltration could carry (the owner's inbox content), not a new channel: internal runs already hold the owner's affairs in memory and the ledger and already read third-party content through the bot's own inbox.
+- The notification text and summary (`heartbeat_respond`'s `notificationText` and `summary`, or the run's final text). The notification text is the message to the owner, which is the heartbeat's delivery. Core retains it when delivery fails (alerts disabled, channel unavailable, send error) as the silent outcome appended to the next user turn, and after a successful delivery as target-session awareness. Core requires a non-empty `summary` and persists it as the silent outcome when `notify` is false and the outcome is not `no_change`; the plugin cannot replace it without the Codex relay refusing the call. Both are accepted alongside workspace writes.
+- Workspace writes (memory, ledger). Writing them is the heartbeat's purpose. Data written there reaches later runs, which are not sealed; that cross-run path exists today for anything the bot reads.
+- The hour-idle tombstone. A run idle for an hour loses its record, so it is no longer sealed; it is also no longer a heartbeat run, and is vetoed from every owner-only tool and rewritten to `--self`.
+
+Hosting sets the delivery target (`heartbeat.target = "tlon"`, `heartbeat.to` the owner) and denies `bash`, `exec` and `process` to every hosted bot; the seal blocks the shell family anyway, for the harness names hosting does not list. Cron jobs and subagents act as the bot.
 
 ---
 

@@ -6,7 +6,7 @@ import type {
   Step,
 } from '../fake-model/index.js';
 
-export type DriverName = 'hermes' | 'openclaw';
+export type DriverName = 'harness' | 'hermes' | 'openclaw';
 
 export type RuntimeCapability =
   | 'cron'
@@ -53,10 +53,13 @@ export interface RuntimeSeed {
   runId: string;
   endpoints: RuntimeEndpoints;
   capabilityPartition?: RuntimeCapabilityPartition;
+  /** Driver-defined stack flavour, e.g. a dedicated stack for one scenario. */
+  variant?: string;
 }
 
 export interface DriverServices {
-  bot: string;
+  /** Absent when the bot runs on the bot ship rather than in a container. */
+  bot?: string;
   ships: string;
   fakeModel: string;
   logServices: string[];
@@ -135,6 +138,14 @@ export interface BotDriver {
     compose: ComposeHandle
   ): Promise<string>;
   afterComposeDown?(ctx: RuntimeContext): Promise<void>;
+  /**
+   * Extra env for scenario processes that is only knowable once the stack is
+   * ready (e.g. facts read from the built image). Merged over testEnv.
+   */
+  resolveTestEnv?(
+    ctx: RuntimeContext,
+    compose: ComposeHandle
+  ): Promise<Record<string, string>>;
   /**
    * True for background model calls the bot makes on its own schedule (e.g.
    * OpenClaw heartbeat polls) that negative "no model call" assertions should

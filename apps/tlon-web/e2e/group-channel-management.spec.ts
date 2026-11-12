@@ -322,3 +322,39 @@ test('should handle channel management operations', async ({ zodPage }) => {
     page.getByTestId('ChannelListItem-Testing channel renaming')
   ).not.toBeVisible();
 });
+
+test('opens a new channel from the channel manager, and the manager from channel info', async ({
+  zodPage,
+}) => {
+  const page = zodPage;
+
+  await expect(page.getByText('Home')).toBeVisible();
+  await helpers.createGroup(page);
+
+  await helpers.openGroupSettings(page);
+  await page.getByTestId('GroupChannels').getByText('Channels').click();
+  await helpers.createChannel(page, 'Second chat channel');
+
+  // The row opens the channel; its menu button opens the channel's info.
+  await page
+    .getByTestId('ChannelItem-Second chat channel-0')
+    .getByTestId('OpenChannelButton')
+    .click();
+  await expect(
+    page.getByTestId('ChannelHeaderTitle').getByText('Second chat channel')
+  ).toBeVisible({ timeout: 10000 });
+
+  await page
+    .getByTestId('ChannelHeaderTitle')
+    .getByTestId('ScreenHeaderTitle')
+    .click();
+  await expect(page.getByText('Channel info')).toBeVisible({ timeout: 5000 });
+
+  await page.getByTestId('ChannelWorkspaceChannels').click();
+  await expect(page.getByText('New', { exact: true })).toBeVisible({
+    timeout: 5000,
+  });
+  await expect(
+    page.getByTestId('ChannelItem-Second chat channel-0')
+  ).toBeVisible({ timeout: 5000 });
+});

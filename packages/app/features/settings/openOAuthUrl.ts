@@ -4,24 +4,25 @@ import { Linking, Platform } from 'react-native';
 export type OAuthUrlOpenResult =
   | { type: 'canceled' }
   | { type: 'completed'; url: string }
-  | { type: 'opened' };
+  | { type: 'opened' }
+  | { type: 'returned' };
 
 export async function openOAuthUrl(
   authUrl: string,
   redirectUrl: string
 ): Promise<OAuthUrlOpenResult> {
-  try {
+  if (Platform.OS === 'web') {
     await Linking.openURL(authUrl);
     return { type: 'opened' };
-  } catch (linkingError) {
-    if (Platform.OS !== 'ios') {
-      throw linkingError;
-    }
   }
 
   const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
   if (result.type === 'success') {
     return { type: 'completed', url: result.url };
+  }
+  // Android can dismiss on foregrounding while authorization is still open.
+  if (Platform.OS === 'android' && result.type === 'dismiss') {
+    return { type: 'returned' };
   }
   if (result.type === 'cancel' || result.type === 'dismiss') {
     return { type: 'canceled' };

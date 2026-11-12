@@ -10,6 +10,7 @@ author: tloncorp
 provides_tools:
   - tlon
   - image_search
+  - set_timezone
 provides_hooks:
   - pre_tool_call
   - post_tool_call

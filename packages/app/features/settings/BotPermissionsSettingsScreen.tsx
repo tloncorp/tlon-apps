@@ -48,21 +48,6 @@ export function BotPermissionsSettingsScreen(props: Props) {
               navigate('BotShipListSettings', { list: 'dmAllowlist' }),
           },
           {
-            key: 'auto-accept-dm-invites',
-            title: 'Auto-accept DM invites',
-            subtitle: 'From users on the allowlist',
-            pending: pending.autoAcceptDmInvites,
-            disabled: controlsReadOnly,
-            toggle: {
-              value: draft.chat.autoAcceptDmInvites,
-              onValueChange: (value) =>
-                commitDraft((current) => ({
-                  ...current,
-                  chat: { ...current.chat, autoAcceptDmInvites: value },
-                })),
-            },
-          },
-          {
             key: 'auto-discover-channels',
             title: 'Auto-discover workspace channels',
             subtitle: 'Index new channels you join',

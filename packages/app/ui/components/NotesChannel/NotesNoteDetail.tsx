@@ -1,6 +1,7 @@
 import * as api from '@tloncorp/api';
 import {
   AnalyticsEvent,
+  type Attachment,
   NotesNoteConflictError,
   adoptNotebookNoteRemote,
   convertContent,
@@ -12,6 +13,7 @@ import {
   withRetry,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { useCanUpload } from '@tloncorp/shared/store';
 import { Text } from '@tloncorp/ui';
 import {
   type ElementRef,
@@ -31,11 +33,9 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
   type ScrollViewInstance,
-  type TextInputInstance,
 } from 'react-native';
 import {
   ScrollView as TamaguiScrollView,
-  TextArea as TamaguiTextArea,
   XStack,
   YStack,
   getTokenValue,
@@ -43,12 +43,13 @@ import {
 } from 'tamagui';
 
 import { matchAgentOnboardingFirstEntryNote } from '../../../features/top/agentOnboardingFirstEntry';
+import AttachmentSheet from '../AttachmentSheet';
+import type { PastedFile } from '../BareChatInput/pastedImage';
 import {
   useRegisterChannelHeaderItem,
   useRegisterChannelHeaderLoadingSubtitle,
 } from '../Channel/ChannelHeader';
 import { TextInput, type TextInputRef } from '../Form';
-import { NotebookContentRenderer } from '../NotebookPost/NotebookPost';
 import type { ScreenHeaderAction } from '../ScreenHeader';
 import { ScreenHeaderItemElements } from '../ScreenHeader/primitives';
 import { useFloatingHeaderHeight } from '../conversationScrollChrome';
@@ -58,19 +59,23 @@ import {
   NotesMessage,
   useNotebookData,
 } from './NotesData';
+import { NoteBodyTextArea } from './NoteBodyTextArea';
+import { NotePreview } from './NotePreview';
+import type { NoteBodyCaretRequest } from './NoteBodyTextArea.shared';
 import { NotesBanner, errorMessage } from './NotesFeedback';
+import type { NoteBodySelection } from './noteImageMarkdown';
 import { trackNotesActionError } from './notesTelemetry';
 import { formatNoteDate, getFolderPath } from './notesTree';
+import {
+  UNREADABLE_IMAGE_MESSAGE,
+  useNoteImagePasteAndDrop,
+  useNoteImageUpload,
+} from './useNoteImageUpload';
 
 // Tamagui still declares native refs as RN component types instead of instances.
 const ScrollView = TamaguiScrollView as ForwardRefExoticComponent<
   ComponentPropsWithoutRef<typeof TamaguiScrollView> &
     RefAttributes<ScrollViewInstance>
->;
-// Tamagui types this native ref as the View component instead of the input instance.
-const TextArea = TamaguiTextArea as ForwardRefExoticComponent<
-  ComponentPropsWithoutRef<typeof TamaguiTextArea> &
-    RefAttributes<Pick<TextInputInstance, 'focus'>>
 >;
 
 type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
@@ -94,6 +99,8 @@ type NotesNoteSaveChain = {
 // covered by the flush paths and the draft stash either way.
 const AUTOSAVE_DEBOUNCE_MS = 10_000;
 export const MIN_BODY_INPUT_HEIGHT = 360;
+// The native body input's long-press menu; web keeps the browser's own.
+const ADD_IMAGE_MENU_ITEM = { id: 'add-image', title: 'Add image' };
 const NOTE_COLUMN_MAX_WIDTH = 760;
 const BODY_FONT_SIZE = 14;
 export const BODY_LINE_HEIGHT = 22;
@@ -542,13 +549,17 @@ export function NotesNoteDetail({
       : null;
   const selectedNoteKeyRef = useRef(selectedNoteKey);
   const draftOwnerRef = useRef<NotesNoteDraftOwner>({});
+  // The body's last caret, where an inserted image goes; null until the
+  // selected note's body has reported one.
+  const bodySelectionRef = useRef<NoteBodySelection | null>(null);
   useLayoutEffect(() => {
     if (selectedNoteKeyRef.current === selectedNoteKey) return;
     selectedNoteKeyRef.current = selectedNoteKey;
+    bodySelectionRef.current = null;
   }, [selectedNoteKey]);
   const titleInputRef = useRef<TextInputRef>(null);
   const autoFocusedTitleNoteIdRef = useRef<string | null>(null);
-  const bodyInputRef = useRef<ElementRef<typeof TextArea>>(null);
+  const bodyInputRef = useRef<ElementRef<typeof NoteBodyTextArea>>(null);
   const scrollViewRef = useRef<ElementRef<typeof ScrollView>>(null);
   const scrolledNoteIdRef = useRef<number | null>(null);
   // Offsets are raw UIScrollView contentOffset values. Under a transparent
@@ -1668,10 +1679,126 @@ export function NotesNoteDetail({
   const handleBodySelectionChange = useCallback(
     (event: { nativeEvent: { selection: { start: number; end: number } } }) => {
       const { start, end } = event.nativeEvent.selection;
+      bodySelectionRef.current = { start, end };
       caretAtBodyEndRef.current =
         start === end && end === bodyDraftRef.current.length;
     },
     []
+  );
+
+  const canUpload = useCanUpload();
+  const canInsertImage = canEdit && canUpload && !isPreviewing;
+  const getBodyInputElement = useCallback(
+    () => bodyInputRef.current as unknown as HTMLTextAreaElement | null,
+    []
+  );
+  // Where the caret goes after an insertion re-renders the body. A controlled
+  // web textarea moves it to the end when its value is replaced; the native
+  // input takes it together with the new text.
+  const [bodyCaretRequest, setBodyCaretRequest] =
+    useState<NoteBodyCaretRequest | null>(null);
+  // On web onSelectionChange misses caret moves that don't edit (a click, an
+  // arrow key), so read the textarea itself while it has focus, and when it
+  // loses focus to the Add image button.
+  const storeWebBodySelection = useCallback((element: HTMLTextAreaElement) => {
+    bodySelectionRef.current = {
+      start: element.selectionStart,
+      end: element.selectionEnd,
+    };
+  }, []);
+  const handleBodyInputBlur = useCallback(() => {
+    const element = isWeb ? getBodyInputElement() : null;
+    if (element) {
+      storeWebBodySelection(element);
+    }
+  }, [getBodyInputElement, storeWebBodySelection]);
+  useLayoutEffect(() => {
+    const element = isWeb ? getBodyInputElement() : null;
+    if (!bodyCaretRequest || !element || document.activeElement !== element) {
+      return;
+    }
+    element.setSelectionRange(bodyCaretRequest.caret, bodyCaretRequest.caret);
+  }, [bodyCaretRequest, getBodyInputElement]);
+  const { insertImages, isUploading: isUploadingImage } = useNoteImageUpload({
+    noteKey: selectedNoteKey,
+    getBody: () => bodyDraftRef.current,
+    getSelection: () => {
+      const element = isWeb ? getBodyInputElement() : null;
+      if (element && document.activeElement === element) {
+        storeWebBodySelection(element);
+      }
+      const length = bodyDraftRef.current.length;
+      return bodySelectionRef.current ?? { start: length, end: length };
+    },
+    applyBody: (body, caret) => {
+      handleBodyDraftChange(body);
+      bodySelectionRef.current = { start: caret, end: caret };
+      setBodyCaretRequest((previous) => ({
+        caret,
+        id: (previous?.id ?? 0) + 1,
+      }));
+    },
+    onError: setError,
+  });
+  // Also waits on the note: the body input isn't mounted until it loads.
+  useNoteImagePasteAndDrop(
+    getBodyInputElement,
+    canInsertImage && selectedNoteRowId !== null && !gate,
+    insertImages
+  );
+
+  const [imageSheetOpen, setImageSheetOpen] = useState(false);
+  const [hasOpenedImageSheet, setHasOpenedImageSheet] = useState(false);
+  // The pickers decode what they return before handing it over, so the
+  // destination is the note open when Add image was pressed.
+  const imageSheetNoteKeyRef = useRef<string | null>(null);
+  // The native body input's Add image menu item opens the photo sheet; web
+  // has paste and drop instead.
+  const handleAddImage = useCallback(() => {
+    imageSheetNoteKeyRef.current = selectedNoteKeyRef.current;
+    setHasOpenedImageSheet(true);
+    setImageSheetOpen(true);
+  }, []);
+  const handleImageSheetAttach = useCallback(
+    (intents: Attachment.UploadIntent[]) => {
+      void insertImages(intents, 'picker', imageSheetNoteKeyRef.current);
+    },
+    [insertImages]
+  );
+
+  const handleBodyPasteFiles = useCallback(
+    (files: PastedFile[]) => {
+      const images = files.filter((file) => file.type.startsWith('image/'));
+      if (images.length === 0) return;
+      void insertImages(
+        images.map((file) => ({
+          type: 'fileUri',
+          name: file.fileName,
+          localUri: file.uri,
+          size: file.fileSize,
+          mimeType: file.type,
+        })),
+        'paste'
+      );
+    },
+    [insertImages]
+  );
+
+  const handleBodyPasteFailed = useCallback(() => {
+    setError(UNREADABLE_IMAGE_MESSAGE);
+  }, []);
+
+  const bodyMenuItems = useMemo(
+    () => (canInsertImage ? [ADD_IMAGE_MENU_ITEM] : undefined),
+    [canInsertImage]
+  );
+  const handleBodyMenuItemPress = useCallback(
+    (id: string) => {
+      if (id === ADD_IMAGE_MENU_ITEM.id) {
+        handleAddImage();
+      }
+    },
+    [handleAddImage]
   );
 
   const handleBodyInputFocus = useCallback(() => {
@@ -1713,7 +1840,9 @@ export function NotesNoteDetail({
     [isPreviewing, selectedNote, togglePreview]
   );
   const headerSaveLabel = getHeaderSaveLabel(saveState);
-  const saveStatusLabel = getSaveStatusLabel(saveState);
+  const saveStatusLabel = isUploadingImage
+    ? 'Uploading…'
+    : getSaveStatusLabel(saveState);
   useRegisterChannelHeaderItem(
     headerActionsPlacement === 'channel-header' ? headerActions : null
   );
@@ -1895,9 +2024,8 @@ export function NotesNoteDetail({
                     subtitle={previewState.error}
                   />
                 ) : previewState.content.length > 0 ? (
-                  <NotebookContentRenderer
+                  <NotePreview
                     content={previewState.content}
-                    marginHorizontal="$-l"
                     testID="NotesPreviewContent"
                   />
                 ) : (
@@ -1915,7 +2043,7 @@ export function NotesNoteDetail({
                 paddingBottom={useWebEditorPane ? 0 : '$xl'}
                 testID="NotesBodyScrollView"
               >
-                <TextArea
+                <NoteBodyTextArea
                   ref={bodyInputRef}
                   width="100%"
                   flex={useWebEditorPane ? 1 : undefined}
@@ -1924,7 +2052,15 @@ export function NotesNoteDetail({
                   value={bodyDraft}
                   onChangeText={handleBodyDraftChange}
                   onFocus={handleBodyInputFocus}
+                  onBlur={handleBodyInputBlur}
                   onSelectionChange={handleBodySelectionChange}
+                  onPasteFiles={
+                    canInsertImage ? handleBodyPasteFiles : undefined
+                  }
+                  onPasteFailed={handleBodyPasteFailed}
+                  menuItems={bodyMenuItems}
+                  onMenuItemPress={handleBodyMenuItemPress}
+                  caretRequest={bodyCaretRequest}
                   onLayout={handleBodyInputLayout}
                   placeholder="Note body"
                   placeholderTextColor="$tertiaryText"
@@ -1954,6 +2090,17 @@ export function NotesNoteDetail({
           </YStack>
         </YStack>
       </ScrollView>
+      {/* Mount lazily, then retain through native dismissal and picker handoff. */}
+      {hasOpenedImageSheet ? (
+        <AttachmentSheet
+          isOpen={imageSheetOpen}
+          onOpenChange={setImageSheetOpen}
+          onAttach={handleImageSheetAttach}
+          attachToContext={false}
+          mediaType="image"
+          allowMultipleSelection
+        />
+      ) : null}
     </YStack>
   );
 }

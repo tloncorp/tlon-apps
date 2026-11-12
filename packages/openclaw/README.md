@@ -170,6 +170,11 @@ channels:
         # config on every tool call, so a channels.tlon reload (a rollback to
         # false, or a new owner) applies to the next call with no gateway
         # restart; a run the previous owner directed loses owner identity.
+        # A heartbeat run may read the owner's activity, messages and
+        # conversation lists as the owner; after that read it keeps only
+        # reads, workspace files, memory, web, browser, MCP, Tool Search and
+        # heartbeat_respond without scratch, reason or nextCheck (see
+        # SECURITY.md).
         ownerDefault: false
 
         # Ships allowed to DM the bot directly
@@ -178,7 +183,7 @@ channels:
             - '~another-ship'
 
         # Auto-accept settings
-        autoAcceptDmInvites: true # Accept DMs from ships in dmAllowlist
+        autoAcceptDmInvites: true # Accepted for compatibility but has no effect: DMs are accepted when the bot first replies.
         autoAcceptGroupInvites: false # Legacy: no longer governs group-invite authorization or channel persistence; it has no remaining runtime effect and is only parsed, migrated, and logged. Retained for config back-compat pending retirement.
 
         # Ships allowed to invite the bot to groups (auto-accepted unless blocked)

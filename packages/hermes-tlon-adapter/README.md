@@ -25,11 +25,13 @@ When this package can find `@tloncorp/tlon-skill/SKILL.md`, it registers that fi
 
 A second skill registers the same way: when `skills/tlon-product-guide/SKILL.md` is findable in the OpenClaw plugin tree, it becomes `tlon-platform:tlon-product-guide` and the platform hint points at it for questions about what Tlon Messenger is and how its features work — as opposed to requests to *do* something, which stay on the `tlon` tool. Set `TLON_PRODUCT_GUIDE_PATH` for an explicit file, or `TLON_PLUGIN_DIR` when you know the plugin root but not its internal layout. A deployment without the plugin tree simply doesn't register it.
 
+Before 0.22, Hermes serves a plugin skill's `SKILL.md` and nothing else: `skill_view` ignores `file_path` for plugin skills. Both skills link to further files (`references/…`, `product/…`), so on those releases the platform hint names each registered skill's directory and has the model `read_file` them there. From 0.22 `skill_view` serves them, and the adapter leaves that sentence out, since `read_file` is owner-only in Tlon chats.
+
 If you explicitly want the skill to appear in Hermes' normal skill index as bare `tlon`, add the directory containing the skill to `skills.external_dirs` in the Hermes profile config. That is optional install-time configuration, not required for the plugin-owned default path.
 
 ## Tests
 
-Hermes is not tested in CI. Run the Python unit tests by hand with `./dev/test.sh` (or `pnpm --filter @tloncorp/hermes-tlon-adapter test:py`).
+Run the Python unit tests with `./dev/test.sh` (or `pnpm --filter @tloncorp/hermes-tlon-adapter test:py`). The script runs them under `uv run --python 3.14`, the only Python hermes-agent v0.22.6 supports, so it needs [uv](https://docs.astral.sh/uv/). CI runs the same script in `bot-checks` and in the path-triggered Hermes workflow (`.github/workflows/hermes-ci.yml`), which also runs the shared E2E suites.
 
 ## Docker Dev Loop
 
@@ -61,6 +63,8 @@ By default the image builds Hermes from `NousResearch/hermes-agent` at the pinne
 HERMES_AGENT_REPO=https://github.com/NousResearch/hermes-agent.git
 HERMES_AGENT_REF=v2026.6.19
 ```
+
+The shared E2E image (`dev/Dockerfile.e2e`) can also install an LCM context-engine plugin for the opt-in LCM lane (`TLON_E2E_HERMES_LCM=1`). It defaults to lcm-x (`https://github.com/electricsheephq/lcm-x.git` at the Hermes plugin-catalog pin `1a13744482a2448c38d6f9f0b98803f07aac6e81`, subdir `plugin`, plugin `hermes-lcm-x`, engine `lcm-x`, `LCM_EMBEDDINGS_ENABLED=false`). hermes-lcm stays selectable with `HERMES_LCM_REPO=https://github.com/stephenschoettler/hermes-lcm.git HERMES_LCM_REF=main HERMES_LCM_SUBDIR= TLON_E2E_HERMES_LCM_PLUGIN=hermes-lcm TLON_E2E_HERMES_LCM_ENGINE=lcm`, but hermes-lcm at `main` currently faults on hermes-agent v0.22.6 (per-turn ingest fails with "file is not a database", Hermes falls back to its built-in compressor, and the `lcm_*` tools disappear). See `packages/tlon-bot-e2e/README.md` for the lane's details.
 
 ## Managed Prompt Profile
 
@@ -130,7 +134,7 @@ TLON_NUDGE_ACTIVE_HOURS_TIMEZONE=America/New_York
 TLON_TIMEZONE=America/Chicago # used when the active-hours timezone is user
 ```
 
-`TLON_OWNER_SHIP` is required: it defines the owner identity for approvals, owner-only tools such as `tlon`/`cronjob`/MCP/file tools, owner-listen, telemetry identity, and home-channel defaults. Without it, Tlon chat-session tool calls fail closed.
+`TLON_OWNER_SHIP` is required: it defines the owner identity for approvals, owner-only tools such as `tlon`/`cronjob`/`set_timezone`/MCP/file tools, owner-listen, telemetry identity, and home-channel defaults. Without it, Tlon chat-session tool calls fail closed.
 
 ## Context Lens
 
@@ -334,7 +338,23 @@ Nothing is generated or checked in; identity is resolved at runtime. The same su
 
 At connect (and on reconnect catch-up) the adapter publishes the bot's identity — harness, adapter version, Hermes version — in the bot's own contact profile under `bot-info`, compare-then-poke (`bot_info.py`). Tlon clients use the claimed harness to pick which of _their_ static slash-command lists to suggest; this adapter publishes no command list of its own. Wire contract and clear-to-null rollback procedure: [docs/bot-info.md](../../docs/bot-info.md).
 
-The registry in `commands.py` is the single source of truth for command detection, and holds shared usage constants for `/owner-listen`, `/channel-access`, and `/migrate`; the remaining commands carry their usage text in their handlers. `fixtures/commands.json` is its committed token list — a frozen snapshot, not a wire payload: the client's drift contract (`packages/shared/src/domain/runtimeCommandContract.test.ts`, run by the `bot-checks` job) asserts it names exactly the runtime-owned portion of the client's Hermes list. Only `test_command_registry.py` ties the fixture to this registry, and it does not run in CI, so when adding or removing a command here, run the tests by hand and update the fixture and the client list together; the six host-core entries that list also suggests are audit-pinned constants outside that relation. `/tlon-version` is handled but deliberately absent from the fixture (legacy alias of `/tlon version`). **Removals are two-phase**: hosted bots redeploy on restart while the app releases slowly, so keep a removed command's handler alive until an app release stops suggesting it.
+The registry in `commands.py` is the single source of truth for command detection, and holds shared usage constants for `/owner-listen`, `/channel-access`, and `/migrate`; the remaining commands carry their usage text in their handlers. `fixtures/commands.json` is its committed token list — a CI artifact, not a wire payload: the client's drift contract (`packages/shared/src/domain/runtimeCommandContract.test.ts`, run by the `bot-checks` job) asserts it names exactly the runtime-owned portion of the client's Hermes list, so adding or removing a command here fails until the client list changes too; the six host-core entries that list also suggests are audit-pinned constants outside that relation. `/tlon-version` is handled but deliberately absent from the fixture (legacy alias of `/tlon version`). **Removals are two-phase**: hosted bots redeploy on restart while the app releases slowly, so keep a removed command's handler alive until an app release stops suggesting it.
+
+## Model note
+
+As the OpenClaw plugin does (`packages/openclaw/src/model-privacy-context.ts`), the platform hint carries a note naming the configured model, how requests reach it (through OpenRouter or the provider directly) and whether zero data retention is on, and pointing at the product guide for Tlon's side (`model_note.py`). It isn't a `pre_llm_call` hook: from 0.22 Hermes stores hook context in each turn's message, so a per-turn note would pile up in the history. Hosted Hermes restarts the gateway when the model changes, which rebuilds the hint. Hermes can't send OpenRouter's `zdr` preference (`provider_routing` has no such key), so for an OpenRouter model the note says zero data retention is off.
+
+## Owner timezone
+
+`set_timezone` lets the owner tell the bot where they are, as the OpenClaw plugin's tool of the same name does (`packages/openclaw/src/owner-timezone-tool.ts`, TLON-6882). It takes an IANA zone name (`Asia/Tokyo`, `UTC`) and rejects abbreviations and offsets (`PST`, `+09:00`), which don't follow daylight saving or name a place. It is owner-only in Tlon chats and registers wherever the `tlon` tool does. Its reply gives the new zone and the current time there, so the bot can schedule in that zone in the same turn.
+
+Hermes reads its zone from `HERMES_TIMEZONE`, which the gateway sets at startup from config.yaml's `timezone` (hosted bots get that from hosting's `TLON_TIMEZONE`), and caches it in `hermes_time`. The tool saves the choice as `ownerTimezone` in the `%settings` `moltbot`/`tlon` bucket, then sets `HERMES_TIMEZONE` and resets that cache. Cron expressions, message timestamps and new sessions' dates follow at once, with no restart. The adapter applies the key on every settings load and live update, so the choice survives restarts and redeploys; an invalid or deleted entry reverts to the zone the gateway booted with. Nudges' `user` active-hours zone follows it too, as OpenClaw's follows `userTimezone`.
+
+OpenClaw's tool instead writes a file that tlonbot's wrapper reads into `userTimezone` before restarting the gateway. Hermes can change zone in-process and the ship already holds this adapter's runtime state, so nothing outside this package is involved. Limits:
+
+-   A recurring cron job keeps the next run it had already computed and follows the new zone from the run after it.
+-   At startup the gateway runs on the config.yaml zone until the adapter has loaded settings from the ship.
+-   Hermes 0.22 ignores `HERMES_TIMEZONE` under a multiplexed gateway, which hosted bots don't run.
 
 ## Telemetry
 

@@ -1,3 +1,23 @@
+diff --git a/android/src/main/java/com/mattermost/pasteinputtext/PasteInputActionCallback.kt b/android/src/main/java/com/mattermost/pasteinputtext/PasteInputActionCallback.kt
+index 9e60bd985391ce7a2540264b4c9db293ae4f9fea..9203a7cef2f2c0065f01ca0ec032bc091c46c7a1 100644
+--- a/android/src/main/java/com/mattermost/pasteinputtext/PasteInputActionCallback.kt
++++ b/android/src/main/java/com/mattermost/pasteinputtext/PasteInputActionCallback.kt
+@@ -61,12 +61,8 @@ class PasteInputActionCallback(editText: PasteInputEditText, disabled: Boolean,
+     val clipboardManager = mEditText.context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+     val clipData = clipboardManager.primaryClip ?: return null
+     val item = clipData.getItemAt(0) ?: return null
+-    val chars = item.text ?: return null
+-
+-    val text = chars.toString()
+-    return if (text.isNotEmpty()) {
+-      null
+-    } else item.uri
+-
++    // An image copied from a browser or gallery is a URI-only item with no
++    // text, so a missing text must not hide the URI.
++    return if (item.text.isNullOrEmpty()) item.uri else null
+   }
+ }
 diff --git a/ios/PasteInputModule.mm b/ios/PasteInputModule.mm
 index 59ff531dea109fb0d37d3e5382ca8276ae1a0b7a..cd6e230f18c0030b6d4ff30f9fe4da58603a5f8c 100644
 --- a/ios/PasteInputModule.mm

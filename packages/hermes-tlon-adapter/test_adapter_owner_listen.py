@@ -131,6 +131,7 @@ load_module("version")
 load_module("presence")
 load_module("tlon_tool")
 adapter_mod = load_module("adapter")
+owner_timezone_mod = sys.modules[f"{PACKAGE_NAME}.owner_timezone"]
 
 
 def channel_event(
@@ -884,6 +885,91 @@ class AdapterOwnerListenTests(unittest.TestCase):
 
         self.assertFalse(adapter._auto_accept_dm_invites)
         self.assertEqual(adapter._settings_default_authorized_ships, set())
+
+    # ── ownerTimezone: the owner's set_timezone choice ───────────────────
+
+    def isolate_owner_timezone(self):
+        """Boot zone America/Chicago; a stand-in hermes_time counts resets."""
+        hermes_time = types.ModuleType("hermes_time")
+        hermes_time.resets = 0
+
+        def reset_cache():
+            hermes_time.resets += 1
+
+        hermes_time.reset_cache = reset_cache
+        for patcher in (
+            patch.dict(sys.modules, {"hermes_time": hermes_time}),
+            patch.dict(os.environ, {"HERMES_TIMEZONE": "America/Chicago"}),
+            patch.object(owner_timezone_mod, "_baseline", owner_timezone_mod._UNSET),
+        ):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        return hermes_time
+
+    def owner_timezone_event(self, value=None):
+        if value is None:
+            return {
+                "del-entry": {
+                    "desk": "moltbot",
+                    "bucket-key": "tlon",
+                    "entry-key": "ownerTimezone",
+                }
+            }
+        return {
+            "put-entry": {
+                "desk": "moltbot",
+                "bucket-key": "tlon",
+                "entry-key": "ownerTimezone",
+                "value": value,
+            }
+        }
+
+    def test_settings_load_applies_the_owner_timezone(self):
+        hermes_time = self.isolate_owner_timezone()
+        adapter = self.make_adapter({"user_timezone": "America/Chicago"})
+        adapter._sse = FakeSSE(
+            payloads={
+                "/settings/all": {
+                    "all": {"moltbot": {"tlon": {"ownerTimezone": "Asia/Tokyo"}}}
+                }
+            }
+        )
+
+        asyncio.run(adapter._load_settings_state())
+
+        self.assertEqual(os.environ["HERMES_TIMEZONE"], "Asia/Tokyo")
+        self.assertEqual(hermes_time.resets, 1)
+        # Nudges' `user` zone follows the owner's choice, as OpenClaw's does.
+        self.assertEqual(
+            adapter._nudge_active_hours_baseline().user_timezone, "Asia/Tokyo"
+        )
+
+    def test_settings_load_ignores_an_invalid_owner_timezone(self):
+        hermes_time = self.isolate_owner_timezone()
+        adapter = self.make_adapter({})
+        adapter._sse = FakeSSE(
+            payloads={
+                "/settings/all": {"all": {"moltbot": {"tlon": {"ownerTimezone": "PST"}}}}
+            }
+        )
+
+        asyncio.run(adapter._load_settings_state())
+
+        self.assertEqual(os.environ["HERMES_TIMEZONE"], "America/Chicago")
+        self.assertEqual(hermes_time.resets, 0)
+
+    def test_owner_timezone_updates_live_and_a_delete_reverts_to_the_boot_zone(self):
+        self.isolate_owner_timezone()
+        adapter = self.make_adapter({"user_timezone": "America/Chicago"})
+
+        self.apply_settings_event(adapter, self.owner_timezone_event("Europe/Berlin"))
+        self.assertEqual(os.environ["HERMES_TIMEZONE"], "Europe/Berlin")
+
+        self.apply_settings_event(adapter, self.owner_timezone_event())
+        self.assertEqual(os.environ["HERMES_TIMEZONE"], "America/Chicago")
+        self.assertEqual(
+            adapter._nudge_active_hours_baseline().user_timezone, "America/Chicago"
+        )
 
     def test_group_invite_allowlist_reverts_to_env_default_when_key_is_absent(self):
         adapter = self.make_adapter({"group_invite_allowlist": "~zod"})

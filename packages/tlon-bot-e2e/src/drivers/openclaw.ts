@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { runCommand } from '../runtime/compose.js';
+import { botService } from '../runtime/context.js';
 import {
   attemptSignal,
   waitFor,
@@ -588,7 +589,7 @@ async function waitForOpenClawSse(
 ): Promise<void> {
   await waitFor(
     async () => {
-      const logs = await compose.logs([ctx.services.bot], { tail: 200 });
+      const logs = await compose.logs([botService(ctx)], { tail: 200 });
       return logs.includes('[tlon] Connected! Firehose subscriptions active');
     },
     {
@@ -603,7 +604,7 @@ async function assertOpenClawConfig(
   ctx: RuntimeContext,
   compose: ComposeHandle
 ): Promise<void> {
-  const result = await compose.exec(ctx.services.bot, [
+  const result = await compose.exec(botService(ctx), [
     'cat',
     '/root/.openclaw/openclaw.json',
   ]);
@@ -695,7 +696,7 @@ async function assertOpenClawContainerEnv(
   ctx: RuntimeContext,
   compose: ComposeHandle
 ): Promise<void> {
-  const result = await compose.exec(ctx.services.bot, [
+  const result = await compose.exec(botService(ctx), [
     'node',
     '-e',
     `const keys = ${JSON.stringify(FORBIDDEN_CONTAINER_ENV)};
@@ -766,7 +767,7 @@ console.log(JSON.stringify({
   overridesInWorkspaceYaml: workspaceYaml.includes('@aws-sdk/client-s3'),
 }));`;
 
-  const result = await compose.exec(ctx.services.bot, [
+  const result = await compose.exec(botService(ctx), [
     'node',
     '-e',
     probeScript,

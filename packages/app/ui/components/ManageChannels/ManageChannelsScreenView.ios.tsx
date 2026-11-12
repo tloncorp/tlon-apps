@@ -48,6 +48,7 @@ export function ManageChannelsScreenView({
   group,
   groupNavSectionsWithChannels,
   onGoBack,
+  goToChannel,
   goToChannelDetails,
   createNavSection,
   deleteNavSection,
@@ -255,7 +256,7 @@ export function ManageChannelsScreenView({
                 title: channel.title ?? '',
                 subtitle: getChannelTypeLabel(channel.type),
                 leading: channelIcon(channel),
-                onPress: () => goToChannelDetails(channel.id),
+                onPress: () => goToChannel(channel.id),
                 contextActions: [
                   {
                     key: 'settings',
@@ -332,6 +333,7 @@ export function ManageChannelsScreenView({
       };
     });
   }, [
+    goToChannel,
     goToChannelDetails,
     groupNavSectionsWithChannels,
     isEditMode,

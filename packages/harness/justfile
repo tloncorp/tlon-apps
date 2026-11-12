@@ -1,0 +1,110 @@
+# Where the desk is assembled.
+out := "desk-out"
+
+# Set heavy=true to keep tests-integration in the assembled desk.
+heavy := "false"
+
+# Tlon's click, copied from tlon-apps/scripts/backend. Override to add options, such
+# as `-b /path/to/vere` for a pier without a docked runtime.
+click := "scripts/click"
+
+# The repository justfile, whose fetch and assemble recipes this one runs on
+# its own directory.
+root := just_executable() + " --justfile " + quote(justfile_directory() / "../../justfile")
+
+# Assemble the desk: the files fetched from desk-deps.yaml, then this desk on top.
+build: fetch
+    {{ root }} assemble {{ quote(justfile_directory()) }} {{ quote(absolute_path(out)) }} "" {{ if heavy == "true" { "" } else { "--exclude=/tests-integration" } }}
+
+# Copy the assembled desk into a mounted desk. Files already there are kept.
+install desk: build
+    #!/usr/bin/env bash
+    set -euo pipefail
+    test -d {{ quote(desk) }} || { echo "desk mount '{{ desk }}' does not exist" >&2; exit 1; }
+    # Under the build lock, so that no other build changes the desk mid-copy.
+    exec 9>>.deps-cache/lock
+    python3 -c 'import fcntl; fcntl.flock(9, fcntl.LOCK_EX)'
+    rsync --recursive --checksum {{ quote(out) }}/ {{ quote(desk) }}/
+
+# Install into a mounted desk, then ask the running ship to commit it.
+commit desk: (install desk)
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mount=$(cd {{ quote(desk) }} && pwd)
+    name=$(basename "$mount") pier=$(dirname "$mount")
+    # The mount name becomes a Hoon term in the thread below.
+    [[ $name =~ ^[a-z][a-z0-9-]*$ ]] ||
+      { echo "desk mount name '$name' is not a valid desk name" >&2; exit 1; }
+
+    source {{ quote(justfile_directory() / "scripts/ship-lib.sh") }}
+    check_socket "$pier"
+
+    # click exits zero even when the thread fails, so require its receipt.
+    # It joins these lines into one, so each must end in a two-space gap.
+    # The receipt is a long term because short atoms come back as numbers.
+    result=$({{ click }} -t 120 -i - -kp "$pier" <<EOF
+    =/  m  (strand ,vase)  
+    ;<  our=ship  bind:m  get-our  
+    ;<  ~  bind:m  (poke [our %hood] kiln-commit+!>([%$name |]))  
+    (pure:m !>(%harness-commit-sent))  
+    EOF
+    )
+    echo "$result"
+    [[ $result == *"[0 %avow 0 %noun %harness-commit-sent]"* ]] ||
+      { echo "Clay commit failed for %$name" >&2; exit 1; }
+    echo "Clay commit requested for %$name"
+
+# Boot a fake ship and install and set up everything on it.
+fake-dev ship="~zod" dir="." owner="":
+    scripts/setup-fake-dev.sh {{ quote(ship) }} {{ quote(dir) }} {{ if owner == "" { quote(ship) } else { quote(owner) } }}
+
+# Make an installed Harness reachable from Tlon, with OWNER as its owner.
+setup pier owner:
+    CLICK={{ quote(click) }} scripts/harness/setup.sh {{ quote(pier) }} {{ quote(owner) }}
+
+# Connect a model provider: chatgpt, openai, openrouter, anthropic or xai.
+provider pier name model="":
+    CLICK={{ quote(click) }} scripts/harness/provider.sh {{ quote(pier) }} {{ quote(name) }} {{ model }}
+
+# Tests that need no credentials run on fake ships: all of them on fresh ships, or
+# those matching PATTERN on kept ones. `just test --stop` stops the kept ships. The
+# JavaScript tests run even if the Hoon tests fail; then this fails if either did.
+# Run test-hoon, then test-js.
+test pattern="":
+    scripts/test-hoon.sh {{ quote(pattern) }}; hoon=$?; scripts/test-js.sh {{ quote(pattern) }}; js=$?; exit $((hoon | js))
+
+# Run the native Hoon tests, as `test` does.
+test-hoon pattern="":
+    scripts/test-hoon.sh {{ quote(pattern) }}
+
+# Run the JavaScript tests, offline and live, as `test` does.
+test-js pattern="":
+    scripts/test-js.sh {{ quote(pattern) }}
+
+# The test ships build and install %mcp from its whole repository, at the commit
+# the %groups desk pins for the %mcp types it imports.
+# Fetch the files listed in desk-deps.yaml into desk-deps/, and %mcp into mcp/.
+fetch:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ root }} fetch {{ quote(justfile_directory() / "desk-deps.yaml") }}
+    rev=$(yq .mcp.rev ../../desk-deps.yaml)
+    # Parallel runs take turns in the checkout. The lock is on the descriptor,
+    # which the kernel closes when this exits.
+    exec 9>>.deps-cache/mcp.lock
+    python3 -c 'import fcntl; fcntl.flock(9, fcntl.LOCK_EX)'
+    # peru used to vendor mcp/ as plain files, which git will not check out over.
+    [ -d mcp/.git ] || rm -rf mcp
+    git init --quiet mcp
+    git -C mcp cat-file -e "$rev^{commit}" 2>/dev/null ||
+      git -C mcp fetch --quiet --depth 1 https://github.com/tloncorp/mcp.git "$rev"
+    git -C mcp checkout --quiet --detach "$rev"
+
+# Remove the assembled desk.
+clean:
+    rm -rf {{ quote(out) }}
+
+# Remove everything generated: the assembled desk, the fetched files, %mcp
+# and the runtime that setup-fake-dev.sh downloads.
+distclean: clean
+    rm -rf desk-deps .deps-cache mcp

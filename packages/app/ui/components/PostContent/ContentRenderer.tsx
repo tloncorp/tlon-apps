@@ -66,6 +66,7 @@ function ContentRenderer({
   getImageViewerId,
   onLongPress,
   canUseBrowserCards,
+  browserCardBot,
   onA2UIAction,
   isA2UIActionAvailable,
   isA2UIActionConsumed,
@@ -94,6 +95,7 @@ function ContentRenderer({
       getImageViewerId={getImageViewerId}
       onLongPress={onLongPress}
       canUseBrowserCards={canUseBrowserCards}
+      browserCardBot={browserCardBot}
       onA2UIAction={onA2UIAction}
       isA2UIActionAvailable={isA2UIActionAvailable}
       isA2UIActionConsumed={isA2UIActionConsumed}

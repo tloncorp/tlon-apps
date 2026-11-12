@@ -2104,6 +2104,51 @@ test('getJoinedGroupSeats: returns joined group seats for the given contacts', a
   expect(await queries.getJoinedGroupSeats({ contactIds: [] })).toEqual([]);
 });
 
+test('getSharedGroups: joined groups the contact also sits in, by title', async () => {
+  const them = '~bus';
+  const client = getClient();
+  if (!client) throw new Error('test db client not initialized');
+  const group = (id: string, title: string, currentUserIsMember = true) => ({
+    id,
+    title,
+    currentUserIsMember,
+    currentUserIsHost: false,
+    hostUserId: '~zod',
+  });
+  await client
+    .insert(schema.groups)
+    .values([
+      group('~zod/zeta', 'Zeta'),
+      group('~zod/alpha', 'Alpha'),
+      group('~zod/invited', 'Invited'),
+      group('~zod/left', 'Left', false),
+      group('~zod/without', 'Without'),
+    ]);
+  for (const chatId of ['~zod/zeta', '~zod/alpha', '~zod/left']) {
+    await queries.addChatMembers({
+      chatId,
+      contactIds: [them],
+      type: 'group',
+      joinStatus: 'joined',
+    });
+  }
+  await queries.addChatMembers({
+    chatId: '~zod/invited',
+    contactIds: [them],
+    type: 'group',
+    joinStatus: 'invited',
+  });
+  await queries.addChatMembers({
+    chatId: '~zod/without',
+    contactIds: ['~ten'],
+    type: 'group',
+    joinStatus: 'joined',
+  });
+
+  const shared = await queries.getSharedGroups({ contactId: them });
+  expect(shared.map((g) => g.id)).toEqual(['~zod/alpha', '~zod/zeta']);
+});
+
 test('deleteAbsentGroupMembers: drops only candidate seats the roster omits', async () => {
   const user = '~zod';
   const moon = '~doznec-dozzod-zod';
@@ -3222,6 +3267,55 @@ test('insertChannelUnreads updates nested thread unread conflicts', async () => 
     notify: false,
     updatedAt: 200,
   });
+});
+
+test('insertChanges writes unreads inside its existing transaction', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  await queries.insertChanges({
+    posts: [],
+    groups: [],
+    contacts: [],
+    deletedChannelIds: [],
+    unreads: {
+      groupUnreads: [makeGroupUnread()],
+      channelUnreads: [makeChannelUnread()],
+      threadActivity: [makeThreadUnread()],
+    },
+  });
+
+  expect(await client.$count(schema.groupUnreads)).toBe(1);
+  expect(await client.$count(schema.channelUnreads)).toBe(1);
+  expect(await client.$count(schema.threadUnreads)).toBe(1);
+});
+
+test('unread inserts take more rows than one statement can bind', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  // Enough rows to pass SQLite's 32,766 bound parameters in all three tables.
+  const rowCount = 7000;
+  const ids = Array.from({ length: rowCount }, (_, i) => `${i}`);
+
+  await queries.insertGroupUnreads(
+    ids.map((id) => makeGroupUnread({ groupId: `~zod/bulk-${id}` }))
+  );
+  await queries.insertChannelUnreads(
+    ids.map((id) =>
+      makeChannelUnread({
+        channelId: `chat/~zod/bulk/${id}`,
+        threadUnreads: [makeThreadUnread({ threadId: `nested-${id}` })],
+      })
+    )
+  );
+  await queries.insertThreadUnreads(
+    ids.map((id) => makeThreadUnread({ threadId: `direct-${id}` }))
+  );
+
+  expect(await client.$count(schema.groupUnreads)).toBe(rowCount);
+  expect(await client.$count(schema.channelUnreads)).toBe(rowCount);
+  expect(await client.$count(schema.threadUnreads)).toBe(rowCount * 2);
 });
 
 test('thread unread queries treat notification-only activity as unread until cleared', async () => {

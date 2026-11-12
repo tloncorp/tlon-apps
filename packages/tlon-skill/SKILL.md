@@ -32,7 +32,7 @@ Resolve these links relative to this skill's discovered directory. Use the locat
 | Read activity, mark chats read, search history (shows image, link and file URLs and gallery titles), manage reactions, pins, notification levels, or existing posts | [Reading](references/reading.md) |
 | Workspaces (groups), membership, permissions, channels, channel sections, public exposure | [Groups and channels](references/groups-channels.md) |
 | Find notebooks, create/edit Markdown notes, and publish them | [Notes](references/notes.md) |
-| Shared group files and folders | [Buckets](references/buckets.md) |
+| Shared group files and folders, what users call "shared files" (deleting a file is off during the preview) | [Buckets](references/buckets.md) |
 | Upload media for messages or profiles; post an image, file, video or link to a Gallery (`heap/` channel) | [Media](references/media.md) |
 | Contacts, profile changes, bot settings | [Contacts and settings](references/contacts-settings.md) |
 | Browser card command arguments, delivery, and errors; browser workflow lives in `hosted-browser` | [Browser card commands](references/browser-handoff.md) |

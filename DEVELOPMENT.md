@@ -24,12 +24,14 @@ To get started, make sure your %groups desk is mounted:
 |mount %groups
 ```
 
-Sync the latest %groups files. `assemble-desk.sh` vendors the base-dev/landscape
-dependencies into `desk-deps/` (gitignored — see `peru.yaml`) and layers them
-with our `desk/` into the ship's mounted groups desk:
+Sync the latest %groups files. `just install` (needs
+[just](https://just.systems) and [yq](https://github.com/mikefarah/yq)) fetches
+the base-dev/landscape dependencies into `desk-deps/` (gitignored — see
+`desk-deps.yaml`), layers them with our `desk/` into `desk-out/`, and replaces
+the ship's mounted groups desk with the result:
 
 ```
-./scripts/assemble-desk.sh ~/urbit/zod/groups
+just install ~/urbit/zod/groups
 ```
 
 And commit:
@@ -47,13 +49,13 @@ Since %groups has already been released and is now in the pill. It is very unlik
     2. `|mount %landscape`
     3. `|new-desk %groups`
     4. `|mount %groups`
-4. Assemble the `%landscape` desk (it is built from upstream, not via peru):
+4. Assemble the `%landscape` desk (it is built from upstream, not by this repo's justfile):
     1. From `urbit/urbit`: `rsync -avL --delete pkg/base-dev/* ~/urbit/zod/landscape/`
     2. From `tloncorp/landscape`: `rsync -avL desk/* ~/urbit/zod/landscape/`
-5. Assemble the `%groups` desk from this repo. `assemble-desk.sh` vendors its
-   base-dev and landscape dependencies into `desk-deps/` via peru, then layers
-   `desk-deps/` + `desk/` into the mounted desk:
-    1. `./scripts/assemble-desk.sh ~/urbit/zod/groups`
+5. Assemble the `%groups` desk from this repo. `just install` fetches its
+   base-dev and landscape dependencies into `desk-deps/`, then layers
+   `desk-deps/` + `desk/` and replaces the mounted desk with the result:
+    1. `just install ~/urbit/zod/groups`
 6. Commit and install landscape on local `~zod`:
     1. `|commit %landscape`
     2. `|install our %landscape`

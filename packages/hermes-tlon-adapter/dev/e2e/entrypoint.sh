@@ -27,6 +27,30 @@ mkdir -p "$HERMES_HOME/plugins/platforms" "$HERMES_HOME/logs" "$HERMES_HOME/memo
 rm -f "$HERMES_HOME/config.yaml" "$HERMES_HOME/SOUL.md" "$HERMES_HOME/.hermes.md" "$HERMES_HOME/memories/USER.md"
 ln -sfn "$TLON_ADAPTER_DIR" "$HERMES_HOME/plugins/platforms/tlon"
 
+# TLON_E2E_HERMES_LCM_PLUGIN names the manifest (hermes-lcm-x or hermes-lcm);
+# Hermes matches plugins.enabled against it, so the link carries the same name.
+HERMES_LCM_PLUGIN="${TLON_E2E_HERMES_LCM_PLUGIN:-hermes-lcm-x}"
+rm -f "$HERMES_HOME/plugins/hermes-lcm" "$HERMES_HOME/plugins/hermes-lcm-x"
+case "${TLON_E2E_HERMES_LCM:-0}" in
+  1|true|TRUE|yes|YES|on|ON)
+    HERMES_LCM_DIR="${HERMES_LCM_DIR:-/usr/local/share/hermes-lcm}"
+    if [ ! -f "$HERMES_LCM_DIR/plugin.yaml" ]; then
+      echo "ERROR: TLON_E2E_HERMES_LCM is set but no LCM plugin is installed at $HERMES_LCM_DIR (build with HERMES_LCM_REF)"
+      exit 1
+    fi
+    if ! grep -Eq "^name:[[:space:]]*['\"]?${HERMES_LCM_PLUGIN}['\"]?[[:space:]]*$" "$HERMES_LCM_DIR/plugin.yaml"; then
+      echo "ERROR: $HERMES_LCM_DIR/plugin.yaml does not declare name: $HERMES_LCM_PLUGIN (set TLON_E2E_HERMES_LCM_PLUGIN to match the installed plugin)"
+      exit 1
+    fi
+    ln -sfn "$HERMES_LCM_DIR" "$HERMES_HOME/plugins/$HERMES_LCM_PLUGIN"
+    for lcm_var in $(compgen -e | grep '^LCM_' || true); do
+      [ -n "${!lcm_var}" ] || unset "$lcm_var"
+    done
+    export LCM_DATABASE_PATH="${LCM_DATABASE_PATH:-$HERMES_HOME/lcm.db}"
+    echo "==> Linked $HERMES_LCM_PLUGIN $(cat "$HERMES_LCM_DIR/.tested-sha" 2>/dev/null || echo unknown) at $HERMES_HOME/plugins/$HERMES_LCM_PLUGIN"
+    ;;
+esac
+
 echo "==> Installing managed Tlon Hermes prompts in $HERMES_HOME"
 "$HERMES_VENV/bin/python" - <<'PY'
 import os

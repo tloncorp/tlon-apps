@@ -1,3 +1,4 @@
+import { resumeBrowserContinuation } from './browser-continuation.js';
 import { createHash } from 'node:crypto';
 import {
   isTrustedBrowserViewerHost,
@@ -327,7 +328,7 @@ export function registerBrowserHandoffResults(api: OpenClawPluginApi) {
         maxEntries: 64,
       }),
       readResult: readBrowserHandoffResult,
-      resume: (request) => api.runtime.subagent.run(request),
+      resume: (request) => resumeBrowserContinuation(api.runtime, request),
       sessionIdFor: (sessionKey) =>
         api.runtime.agent.session.getSessionEntry({ sessionKey })?.sessionId,
       warn: () =>

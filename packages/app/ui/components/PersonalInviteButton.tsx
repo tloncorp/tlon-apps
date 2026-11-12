@@ -1,60 +1,24 @@
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/db';
-import { Button, Icon, Text, useCopy } from '@tloncorp/ui';
+import { Button, Icon, Text } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
-import { Share } from 'react-native';
-import { YStack, isWeb } from 'tamagui';
+import { YStack } from 'tamagui';
 
-const logger = createDevLogger('PersonalInviteButton', true);
+import { useShareInviteLink } from '../hooks/useShareInviteLink';
 
 export function PersonalInviteButton() {
-  const inviteLink = db.personalInviteLink.useValue();
+  const { inviteLink, didCopy, copy, share } = useShareInviteLink();
   const isLoading = !inviteLink;
-  const { doCopy, didCopy } = useCopy(inviteLink ?? '');
   const displayUrl = useMemo(
     () => inviteLink?.replace(/^https?:\/\//, '') ?? '',
     [inviteLink]
   );
 
-  const trackInviteShared = useCallback(() => {
-    if (!inviteLink) return;
+  const handleCopyInviteLink = useCallback(() => {
+    copy();
+  }, [copy]);
 
-    logger.trackEvent(AnalyticsEvent.InviteShared, {
-      inviteId: inviteLink.split('/').pop() ?? null,
-      inviteType: 'user',
-    });
-  }, [inviteLink]);
-
-  const handleCopyInviteLink = useCallback(async () => {
-    if (isLoading || !inviteLink) return;
-
-    await doCopy();
-    trackInviteShared();
-  }, [doCopy, inviteLink, isLoading, trackInviteShared]);
-
-  const handleShareInviteLink = useCallback(async () => {
-    if (isLoading || !inviteLink) return;
-
-    try {
-      if (isWeb) {
-        if (typeof navigator.share === 'function') {
-          await navigator.share({ url: inviteLink });
-        } else {
-          await doCopy();
-        }
-      } else {
-        const result = await Share.share({
-          message: inviteLink,
-        });
-
-        if (result.action !== Share.sharedAction) return;
-      }
-
-      trackInviteShared();
-    } catch (error) {
-      console.error('Error sharing:', error);
-    }
-  }, [doCopy, inviteLink, isLoading, trackInviteShared]);
+  const handleShareInviteLink = useCallback(() => {
+    share();
+  }, [share]);
 
   return (
     <YStack width="100%" gap="$l">
