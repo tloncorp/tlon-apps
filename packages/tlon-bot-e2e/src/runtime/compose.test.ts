@@ -66,6 +66,26 @@ describe('runCommand', () => {
     expect(result.exitCode).toBe(143);
   });
 
+  test('reports a timeout as a kill when the child traps SIGTERM and exits 0', async () => {
+    const result = await runCommand(
+      process.execPath,
+      [
+        '-e',
+        "process.on('SIGTERM', () => process.stdout.write('trapped', () => process.exit(0))); setInterval(() => {}, 1000)",
+      ],
+      {
+        cwd: process.cwd(),
+        env: stringEnv(process.env),
+        stream: false,
+        timeoutMs: 1_000,
+      }
+    );
+
+    expect(result.stdout).toBe('trapped');
+    expect(result.exitCode).toBe(143);
+    expect(result.stderr).toContain('timed out after 1000ms');
+  });
+
   test('preserves ordinary nonzero exit codes', async () => {
     const result = await runCommand(
       process.execPath,
