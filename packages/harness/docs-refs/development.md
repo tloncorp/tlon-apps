@@ -51,7 +51,8 @@ survive, and so do files this desk no longer contains. Remove those by hand.
 so credentials stay out of process arguments. It needs a running pier and `socat`.
 The receipt confirms that Hood accepted the commit request; Gall recompilation and
 native tests remain separate checks. The socket path `PIER/.urb/conn.sock` must be
-under 108 bytes, so reach deep piers through a short symlink.
+under 108 bytes on Linux and 104 on macOS, so reach deep piers through a short
+symlink. `just commit` and `just fake-dev` check only the Linux limit.
 
 `just test-hoon` runs `scripts/test-hoon.sh`, which needs `tmux` but not `node`: the
 native tests and integration tests on `~zod` alone. `just test-js` runs
@@ -59,11 +60,24 @@ native tests and integration tests on `~zod` alone. `just test-js` runs
 and `~nec`. They are the two CI jobs. Without a pattern, each boots fresh ships and
 removes them, so the full `just test` boots `~zod` twice. Each keeps its results and
 logs in `.test-run/hoon/` or `.test-run/js/`.
+Both read the ships' tmux panes, capturing up to 200,000 lines, and `test-hoon`
+finds each run's output by line offset, so tmux must keep a long history: put
+`set-option -g history-limit 500000` in `~/.tmux.conf` before the ships start, as
+`harness-ci.yml` does. A tmux server that is already running reads the file only on
+`tmux source-file ~/.tmux.conf`. tmux's default of 2000 lines drops test output and
+breaks the offsets.
 
 With a PATTERN, the ships stay running in `.test-run/piers/`, shared by both scripts, and
 each run deploys the working tree. `test-js` wipes Harness's agent state with `|nuke`
 before each live script, which sets up what it needs; state in other desks stays.
 `just test --stop` removes the ships. Use the full `just test` before pushing.
+
+The test piers are inside the package, so on macOS a repository path longer than
+about 50 bytes is too deep for their sockets. Link a short path to the repository
+root, `cd` to its `packages/harness` and name the justfile through the link, as in
+`just --justfile /tmp/r/packages/harness/justfile test-hoon PATTERN`. Without
+`--justfile`, `just` finds the justfile by its real path. A link to the package
+itself does not work: `just` resolves the root justfile's `../..` against the link.
 
 `scripts/test-js.sh` gives live scripts their variables: the opt-ins, `CONTROLLED_MODEL=1`,
 the ships' tmux panes and a `TEST_NEST` channel that `~lux` hosts and `~zod` has joined,
@@ -72,7 +86,8 @@ it can't run and why.
 
 `just fake-dev` runs `scripts/setup-fake-dev.sh`, which needs `tmux` and `mcp/`
 from `just fetch`, and refuses a pier or tmux session that already exists. It uses
-HTTP port 9090 unless `HTTP_PORT` is set.
+HTTP port 9090 unless `HTTP_PORT` is set. Stop the ship with `|exit` in its Dojo
+(`tmux attach -t fake-zod` for `~zod`), and delete the pier before booting it again.
 
 Scripts in `scripts/harness/` talk to the ship through `acp-call.sh`, which sends
 one ACP request through `click`. For a fresh ship, use the
