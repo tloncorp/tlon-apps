@@ -837,17 +837,16 @@ const ConversationPostListAttempt = React.forwardRef<
       () => postsWithNeighbors.map(getPostListKey),
       [postsWithNeighbors]
     );
-    // A docked list's frame already ends above the composer and keyboard; only
-    // a floating composer covers it. Otherwise the list sits behind both.
+    // A docked list's frame ends above the composer, but keeps its height while
+    // the keyboard rises over it (the scroll view takes the keyboard as an
+    // inset), so the keyboard and a floating composer cover it. Otherwise the
+    // list sits behind both the composer and the keyboard.
     const getBottomCover = React.useCallback(() => {
-      if (docked) {
-        return overlayHeight;
-      }
       const keyboard =
         Platform.OS === 'ios' && KeyboardController.isVisible()
           ? Math.max(0, (KeyboardController.state()?.height ?? 0) - bottomInset)
           : 0;
-      return listComposerInset.get() + keyboard;
+      return (docked ? overlayHeight : listComposerInset.get()) + keyboard;
     }, [bottomInset, docked, listComposerInset, overlayHeight]);
     const {
       timeline: diagnostics,
