@@ -22,7 +22,7 @@ dupes=$(yq '.[].files[]' "$deps" | sort | uniq -d)
 
 # Runs for one manifest take turns, and so does the build that reads $out,
 # which takes this lock too: git cannot share a cache repository, and $out is
-# emptied below. The lock is on the descriptor, which the kernel closes when
+# replaced below. The lock is on the descriptor, which the kernel closes when
 # this exits.
 mkdir -p "$cache"
 exec 9>>"$cache/lock"
@@ -39,7 +39,7 @@ fetch_one() {
     { echo "$deps: $name needs url and files" >&2; exit 1; }
 
   if [[ $url == file:///* ]]; then
-    tar -c -C "$root/${url#file:///}" "${files[@]}" | tar -x -C "$out"
+    tar -c -C "$root/${url#file:///}" "${files[@]}" | tar -x -C "$stage"
     echo "$name: ${#files[@]} files from ${url#file:///}/"
     return
   fi
@@ -53,11 +53,14 @@ fetch_one() {
   git init --quiet "$repo"
   git -C "$repo" cat-file -e "$rev^{commit}" 2>/dev/null ||
     git -C "$repo" fetch --quiet --depth 1 --filter=blob:none "$url" "$rev"
-  git -C "$repo" archive "$rev:$export_dir" "${files[@]}" | tar -x -C "$out"
+  git -C "$repo" archive "$rev:$export_dir" "${files[@]}" | tar -x -C "$stage"
   echo "$name: ${#files[@]} files at ${rev:0:12}"
 }
 
-rm -rf "$out" && mkdir -p "$out"
+# A build waiting on the lock reads $out next, so a run that fails must leave
+# the last complete one: fetch aside, and replace $out only at the end.
+stage=$cache/stage
+rm -rf "$stage" && mkdir "$stage"
 # Each remote costs two round trips, so fetch all the sources at once.
 pids=()
 for name in $(yq 'keys | .[]' "$deps"); do
@@ -66,4 +69,5 @@ for name in $(yq 'keys | .[]' "$deps"); do
 done
 failed=0
 for pid in "${pids[@]}"; do wait "$pid" || failed=1; done
-exit "$failed"
+[[ $failed -eq 0 ]] || exit 1
+rm -rf "$out" && mv "$stage" "$out"
