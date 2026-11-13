@@ -7,7 +7,6 @@ export default {
       <DeskOutdatedScreen
         currentVersion="12.1.0"
         minimumVersion="12.2.0"
-        shipName="~palfun-foslup"
         onRetry={() => {}}
         onLogout={async () => undefined}
       />
@@ -18,7 +17,6 @@ export default {
       <DeskOutdatedScreen
         currentVersion="12.1.0"
         minimumVersion="12.2.0"
-        shipName="~palfun-foslup"
         isHosted
         onRetry={() => {}}
         onLogout={async () => undefined}
