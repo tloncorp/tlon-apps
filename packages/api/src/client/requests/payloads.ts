@@ -59,6 +59,7 @@ export interface PokePayloads {
   'ui-action': { pins: Pins };
   'ui-add-contact-suggestions': string[];
   'ui-hide-contact': string;
+  'ui-discover-contacts': { ship: string; nickname: string | null }[];
   'ui-vita-toggle': boolean;
 }
 
