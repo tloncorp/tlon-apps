@@ -36,7 +36,7 @@ export function ShipPickerSheet({
           searchable
           appearance={isWindowNarrow ? 'plain' : 'block'}
           autoFocus={!isWindowNarrow}
-          searchPlaceholder="Filter by nickname or @p"
+          searchPlaceholder="Filter by nickname or ID"
           onSelect={onSelect}
           onScrollChange={setScrolling}
           disabledIds={disabledIds}

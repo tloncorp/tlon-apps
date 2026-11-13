@@ -215,7 +215,7 @@ export function PrivacySettingsScreen(props: Props) {
         'Hide nicknames',
         state.disableNicknames,
         toggleDisableNicknames,
-        'If enabled, real ship names will be displayed instead of nicknames.'
+        'Show ID numbers in place of nicknames.'
       ),
       toggleSection(
         'avatars',
