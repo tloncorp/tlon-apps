@@ -24,13 +24,14 @@ function harnessUnsupported(method: string): never {
 
 // Harness publishes the final assistant text to the originating chat itself,
 // so a reply is a plain text step; the tlon tool takes structured actions.
-// The owner's conversations get the whole live tool catalog, so only `tlon`
-// is pinned.
+// Every Tlon conversation is offered `tlon_read_history`. The `tlon` tool is
+// offered only where granted: the owner's conversations and a trusted ship
+// given it. The ships the scenarios allow have no `tlon` grant.
 function textScript(texts: string[]): ModelScript {
   return {
     steps: texts.map((content) => ({ kind: 'text' as const, content })),
     expectations: {
-      advertisedTools: { include: ['tlon'] },
+      advertisedTools: { include: ['tlon_read_history'] },
       expectedCallCount: texts.length,
     },
   };
