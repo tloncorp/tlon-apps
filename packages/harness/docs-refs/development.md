@@ -58,13 +58,21 @@ the platform they run on.
 `just test-hoon` runs `scripts/test-hoon.sh`, which needs `tmux` but not `node`: the
 native tests and integration tests on `~zod` alone. `just test-js` runs
 `scripts/test-js.sh`: the `node --test` files and the live scripts on `~zod`, `~lux`
-and `~nec`. They are the two CI jobs. Without a pattern, each boots fresh ships and
-removes them, so the full `just test` boots `~zod` twice. Each keeps its results and
-logs in `.test-run/hoon/` or `.test-run/js/`.
+and `~nec`, booting `~zod` and `~lux` at the same time. They are the two CI jobs.
+Without a pattern, each boots fresh ships and removes them, so the full `just test`
+boots `~zod` twice. Each keeps its results and logs in `.test-run/hoon/` or
+`.test-run/js/`.
 Both read the ships' tmux panes, capturing up to 200,000 lines, and `test-hoon`
 finds each run's output by line offset, so the scripts give the tmux sessions they
 create a history of 500,000 lines, and stop if tmux did not apply it. tmux's default
 of 2000 lines drops test output and breaks the offsets.
+
+CI splits `test-js` across runners. `TEST_SHARD=I/N just test-js` runs the Ith of N
+parts of the full run, on fresh ships. With more than one part, the last takes the
+`node --test` files and the scripts restricted to `~lux` and `~nec`, and boots no
+`~zod`; the others deal out the `~zod` scripts in turn. A shard takes no PATTERN.
+`just test-js --list` prints what a run would take, as `GROUP NAME` lines, without
+ships; with `TEST_SHARD`, what that shard would take.
 
 With a PATTERN, the ships stay running in `.test-run/piers/`, shared by both scripts, and
 each run deploys the working tree. `test-js` wipes Harness's agent state with `|nuke`

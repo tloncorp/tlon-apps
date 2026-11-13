@@ -9,6 +9,91 @@
 #                                   tlon-groups. Ships stay running between runs, and
 #                                   get the working tree each time.
 #   scripts/test-js.sh --stop       stop the ships left running and remove them
+#   scripts/test-js.sh --list       print the tests a run would take, without ships
+#
+# TEST_SHARD=I/N, without a PATTERN, runs or lists the Ith of N parts of the full run,
+# as CI does.
+
+# Scripts that check they run on ~lux.
+lux_tests="tlon-notes-conformance tlon-completion-conformance tlon-hooks-publishing-conformance"
+
+# A group's test files, in the order the full run takes them: the offline tests, the
+# live scripts on ~zod, with ~lux as their peer, and those on ~lux and on ~nec.
+function tests
+{
+  case $1 in
+    offline) printf '%s\n' tests-js/*.test.mjs acp/*.test.mjs ;;
+    zod)
+      for file in tests-js/*-conformance.mjs tests-js/conformance.mjs tests-js/reliability-soak.mjs
+      do
+        name=${file#tests-js/}
+        case " $lux_tests tlon-permissions-conformance " in
+          *" ${name%.mjs} "*) ;;
+          *) echo "$file" ;;
+        esac
+      done ;;
+    lux) for name in $lux_tests; do echo "tests-js/$name.mjs"; done ;;
+    nec) echo tests-js/tlon-permissions-conformance.mjs ;;
+  esac
+}
+
+shard=$TEST_SHARD
+if [ -n "$shard" ]
+then
+  if ! [[ $shard =~ ^([1-9][0-9]*)/([1-9][0-9]*)$ ]] || [ "${BASH_REMATCH[1]}" -gt "${BASH_REMATCH[2]}" ]
+  then
+    echo "TEST_SHARD must be I/N, with I from 1 to N, not $shard"
+    exit 1
+  fi
+  shard_index=${BASH_REMATCH[1]} shard_count=${BASH_REMATCH[2]}
+  if [ -n "$1" ] && [ "$1" != "--stop" ] && [ "$1" != "--list" ]
+  then
+    echo "TEST_SHARD runs part of the full run on fresh ships; it takes no PATTERN"
+    exit 1
+  fi
+fi
+
+# Is the test file of this group in this shard? The last shard takes the offline tests
+# and the ~lux and ~nec scripts, so it boots no ~zod. The others deal out the ~zod
+# scripts in turn, sorted bytewise so that every machine deals them alike; that also
+# spreads the slow tlon- scripts, which sort together.
+function in_shard
+{
+  if [ -z "$shard" ] || [ "$shard_count" -eq 1 ]
+  then
+    return 0
+  elif [ "$1" != "zod" ]
+  then
+    [ "$shard_index" -eq "$shard_count" ]
+  else
+    [ -n "$zod_order" ] || zod_order=$(tests zod | LC_ALL=C sort)
+    position=$(grep -nxF "$2" <<<"$zod_order" | cut -d: -f1)
+    [ $(( (position - 1) % (shard_count - 1) + 1 )) -eq "$shard_index" ]
+  fi
+}
+
+function shard_has
+{
+  for file in $(tests "$1")
+  do
+    in_shard "$1" "$file" && return 0
+  done
+  return 1
+}
+
+if [ "$1" == "--list" ]
+then
+  cd "$(dirname "$0")/.." || exit 1
+  for group in offline zod lux nec
+  do
+    for file in $(tests $group)
+    do
+      name=$(basename "$file" .mjs)
+      in_shard $group "$file" && echo "$group ${name%.test}"
+    done
+  done
+  exit 0
+fi
 
 suite=js
 tools="node timeout tmux just socat curl jq yq rsync python3"
@@ -70,6 +155,26 @@ function use_peer
   export TEST_PEER_PANE=fake-$1:
 }
 
+# Boot the ships, given as SHIP PORT pairs, that aren't running yet, all at once: each
+# boot takes minutes. Each ship owns itself: with each as the other's owner, their bots
+# could keep answering each other's DMs.
+function boot_ships
+{
+  pids=
+  while [ $# -gt 0 ]
+  do
+    needs_ship $1 $2 $1 &
+    pids="$pids $!"
+    shift 2
+  done
+  booted=0
+  for pid in $pids
+  do
+    wait $pid || booted=1
+  done
+  return $booted
+}
+
 # Stop a running ship and start it again from its pier.
 function restart_ship
 {
@@ -91,6 +196,9 @@ function run_script
     # It seeds durable evidence, then checks that the evidence outlives a restart.
     export LIFECYCLE_ID=hosting-life-$(date +%s)
     timeout 120 node "$2" seed && restart_ship $current_ship $current_port && timeout 120 node "$2" check
+  elif [ "$1" == "reliability-soak" ]
+  then
+    HARNESS_HEAVY_TESTS=1 timeout 300 node "$2"
   else
     timeout 300 node "$2"
   fi
@@ -100,7 +208,7 @@ function live
 {
   name=$1
   file=$2
-  matches "$name" || return
+  matches "$name" && in_shard $current_ship "$file" || return
   reason=$(skip_reason "$name")
   if [ -n "$reason" ]
   then
@@ -126,10 +234,10 @@ function live
 }
 
 echo "Offline tests"
-for file in tests-js/*.test.mjs acp/*.test.mjs
+for file in $(tests offline)
 do
   name=$(basename "$file" .test.mjs)
-  matches "$name" || continue
+  matches "$name" && in_shard offline "$file" || continue
   [ "$name" == "distribution" ] && just build > "$logs/build.log" 2>&1
   timeout 300 node --test "$file" > "$logs/$name.log" 2>&1
   if [ "$?" -eq 0 ]
@@ -149,44 +257,43 @@ fi
 
 if [ -n "$ship_tests" ]
 then
-  # Each ship owns itself: with each as the other's owner, their bots could keep
-  # answering each other's DMs.
-  needs_ship zod 9190 zod || exit 1
-  needs_ship lux 9191 lux || exit 1
-  [ -z "$pattern" ] || deploy zod lux
+  if shard_has zod
+  then
+    boot_ships zod 9190 lux 9191 || exit 1
+    [ -z "$pattern" ] || deploy zod lux
 
-  echo "Live tests on ~zod"
-  use_ship zod 9190
-  use_peer lux 9191
-  # A channel on ~lux that ~zod has joined. It lives outside %harness, so resets keep it.
-  TEST_NEST=$(node tests-js/lib/test-channel.mjs 2> "$logs/test-channel.log") ||
-    result test-channel "FAILED (see $logs/test-channel.log)"
-  export TEST_NEST
-  for file in tests-js/*-conformance.mjs tests-js/conformance.mjs
-  do
-    name=$(basename "$file" .mjs)
-    case $name in
-      tlon-notes-conformance|tlon-completion-conformance|tlon-hooks-publishing-conformance|tlon-permissions-conformance)
-        continue ;;
-    esac
-    live "$name" "$file"
-  done
-  HARNESS_HEAVY_TESTS=1 live reliability-soak tests-js/reliability-soak.mjs
+    echo "Live tests on ~zod"
+    use_ship zod 9190
+    use_peer lux 9191
+    # A channel on ~lux that ~zod has joined. It lives outside %harness, so resets keep it.
+    TEST_NEST=$(node tests-js/lib/test-channel.mjs 2> "$logs/test-channel.log") ||
+      result test-channel "FAILED (see $logs/test-channel.log)"
+    export TEST_NEST
+    for file in $(tests zod)
+    do
+      live "$(basename "$file" .mjs)" "$file"
+    done
+  fi
 
-  echo "Live tests restricted to ~lux"
-  use_ship lux 9191
-  use_peer zod 9190
-  for name in tlon-notes-conformance tlon-completion-conformance tlon-hooks-publishing-conformance
-  do
-    live "$name" "tests-js/$name.mjs"
-  done
+  if shard_has lux
+  then
+    # Already running, unless this shard runs no ~zod scripts.
+    boot_ships lux 9191 || exit 1
+    echo "Live tests restricted to ~lux"
+    use_ship lux 9191
+    use_peer zod 9190
+    for file in $(tests lux)
+    do
+      live "$(basename "$file" .mjs)" "$file"
+    done
+  fi
 
   if [ -z "$pattern" ]
   then
     stop_ship lux
   fi
 
-  if matches tlon-permissions-conformance
+  if matches tlon-permissions-conformance && shard_has nec
   then
     echo "Live tests restricted to ~nec"
     if needs_ship nec 9192 nec
