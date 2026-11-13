@@ -262,7 +262,7 @@ export const ListItemPostPreview = ({
   const previewContent = getPreviewContent();
 
   return (
-    <ListItemSubtitle>
+    <ListItemSubtitle testID="ListItemPostPreview">
       {showAuthor && !isAuthorBlocked && !post.hidden ? (
         <>
           <ContactName contactId={post.authorId} color="$tertiaryText" />
