@@ -3,6 +3,27 @@ import { expect } from '@playwright/test';
 import * as helpers from './helpers';
 import { test } from './test-fixtures';
 
+test('opens a channel after creating it with custom permissions', async ({
+  zodPage: page,
+}) => {
+  await helpers.createGroup(page);
+  await helpers.openGroupSettings(page);
+  await page.getByTestId('GroupChannels').getByText('Channels').click();
+  await page.getByText('New', { exact: true }).click();
+  await page.getByText('New channel', { exact: true }).click();
+  await helpers.fillFormField(page, 'ChannelTitleInput', 'Private chat');
+  await page.getByTestId('PrivateChannelToggle').click();
+  await page.getByText('Next', { exact: true }).click();
+  await expect(page.getByText('Channel permissions')).toBeVisible();
+  await page.getByTestId('CreateChannelButton').click();
+
+  await expect(
+    page.getByTestId('ChannelHeaderTitle').getByText('Private chat')
+  ).toBeVisible({ timeout: 10000 });
+  await expect(page.getByTestId('ChannelListItem-Private chat')).toBeVisible();
+  await expect(page.getByText('Channel permissions')).not.toBeVisible();
+});
+
 test('Everyone can see and post by default on channel permissions', async ({
   zodPage,
 }) => {

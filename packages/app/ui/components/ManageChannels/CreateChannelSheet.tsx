@@ -14,6 +14,7 @@ import { YStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
 import { GroupSettingsStackParamList } from '../../../navigation/types';
+import { useRootNavigation } from '../../../navigation/utils';
 import { useIsAdmin } from '../../utils/channelUtils';
 import { ActionSheet } from '../ActionSheet';
 import * as Form from '../Form';
@@ -90,6 +91,7 @@ export function CreateChannelSheet({
   });
 
   const { control, handleSubmit, watch, setValue } = form;
+  const { resetToChannel } = useRootNavigation();
 
   const currentUserId = useCurrentUserId();
   const toast = useToast();
@@ -142,7 +144,7 @@ export function CreateChannelSheet({
     async (data: CreateChannelFormSchema) => {
       try {
         setIsCreating(true);
-        await createChannel({
+        const channel = await createChannel({
           groupId: group.id,
           title: data.title,
           channelType: data.channelType,
@@ -150,6 +152,10 @@ export function CreateChannelSheet({
           writers: [],
         });
         onOpenChange(false);
+        resetToChannel(channel.id, {
+          groupId: group.id,
+          backToGroupIndex: true,
+        });
       } catch (cause) {
         toast({
           message:
@@ -161,7 +167,7 @@ export function CreateChannelSheet({
         setIsCreating(false);
       }
     },
-    [group.id, onOpenChange, toast]
+    [group.id, onOpenChange, resetToChannel, toast]
   );
 
   return (
