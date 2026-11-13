@@ -731,7 +731,7 @@
   ;<  ~  bind:m
     %+  ex-equal
       !>((cron-result out))
-    !>(`(unit (each json @t))``[%| 'Source hand authority is unavailable'])
+    !>(`(unit (each json @t))``[%| 'This conversation is not permitted to schedule'])
   =/  payload
     %-  en:json:html
     %-  pairs:enjs:format
@@ -742,9 +742,31 @@
             ['kind' %s 'prompt']  ['args' args]
         ==
     ==
-  ;<  *            bind:m  (do-frame payload)
-  ;<  acp=state-0  bind:m  get-state
-  (ex-equal !>((~(has by schedules.acp) 0v6)) !>(|))
+  ;<  sent=(list card)  bind:m  (do-frame payload)
+  ;<  acp=state-0       bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>((~(has by schedules.acp) 0v6)) !>(|))
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>(?=(^ (find "This conversation is not permitted to schedule" (acp-sent sent))))
+    !>(&)
+  ::  A hand that does not answer is an outage, not a refusal.
+  ;<  ~                    bind:m  (tlon-setup (tlon-fixture ~bus bus-dm 'calculate' '{}' ~) ~)
+  ;<  down=(list card)     bind:m  (do-poke %harness-cron !>(`request:c`['native' act]))
+  %+  ex-equal
+    !>((cron-result down))
+  !>(`(unit (each json @t))``[%| 'Source hand authority is unavailable'])
+++  acp-sent
+  |=  cards=(list card)
+  ^-  tape
+  %-  zing
+  %+  murn  cards
+  |=  =card
+  ^-  (unit tape)
+  ?.  ?=([%pass [%acp %send ~] %agent * %poke %acp-action-1 *] card)  ~
+  =/  [pass=* wire=* agent=* target=* poke=* mark=* data=vase]  card
+  =/  action  !<(action:v1:ac data)
+  ?.  ?=(%send -.action)  ~
+  `(trip payload.action)
 ::  A second hand's binding cannot schedule on a Tlon session whose hand
 ::  ceiling forbids it; a session bound only through another hand still can.
 ::
@@ -792,6 +814,7 @@
   =/  nec
     =/  j  (tlon-job ~nec owner-dm)
     j(binding 'nec-binding', sid 'nec-source', run-sid 'schedule-0v2')
+  =/  gone  bus(binding 'gone-binding', run-sid 'schedule-0v3')
   =.  sessions.s
     %-  my
     :~  ['bus-source' [~[[%config-replaced defaults.s]] 1]]
@@ -806,7 +829,7 @@
         ['schedule-0v1' ['tlon' bus-dm 'schedule-0v1' ~['~bus'] &]]
         ['schedule-0v2' ['tlon' owner-dm 'schedule-0v2' ~['~nec'] &]]
     ==
-  =.  schedules.s  (my ~[[0v1 bus] [0v2 nec]])
+  =.  schedules.s  (my ~[[0v1 bus] [0v2 nec] [0v3 gone]])
   =/  lanes
     %-  my
     :~  ['bus-source' (tlon-lane ~bus bus-dm `trusted-ceiling)]
@@ -825,6 +848,10 @@
   ;<  ~  bind:m
     %+  ex-equal
       !>(reason:(~(got by schedules.next) 0v1))
+    !>('The source conversation is not permitted to schedule; cancel this schedule to clear it')
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>(reason:(~(got by schedules.next) 0v3))
     !>('Source hand or conversation authority changed; explicit rescheduling is required')
   ;<  ~  bind:m  (ex-equal !>(remaining:(~(got by schedules.next) 0v1)) !>(remaining.bus))
   (ex-equal !>((ran 'schedule-0v1')) !>(|))

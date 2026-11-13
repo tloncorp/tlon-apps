@@ -761,9 +761,10 @@ ledger; there is no arbitrary cross-chat send or group-management grant here.
 Tlon uses the [shared scheduler](scheduling.md) for one-time follow-ups, recurring
 work, and reminders, for the owner only, in DMs and channel mentions. Results return
 to the same DM/channel/thread through normal delivery. To post elsewhere, a run uses
-the ship-wide `tlon` tool, which it has when the creating conversation had it: an
-owner DM does, and a channel conversation does when `tlon` is in **Settings →
-Defaults**. Open **Settings → Schedules** to inspect jobs.
+the ship-wide `tlon` tool, which it has when the creating conversation's grants
+include `tlon`. An owner DM has it; other conversations take their grants from
+**Settings → Defaults** when they are created. Open **Settings → Schedules** to
+inspect jobs.
 
 ## Testing
 

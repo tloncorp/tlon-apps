@@ -60,8 +60,8 @@ claimed or uncertain publication blocks another run of that schedule.
 
 A run's final message goes to the conversation that created the job. To post
 elsewhere, the run uses the ship-wide `tlon` tool, which it has when the creating
-conversation had it: an owner DM does, and a channel conversation does when `tlon`
-is in Settings → Defaults.
+conversation's grants include `tlon`. An owner DM has it; other conversations take
+their grants from Settings → Defaults when they are created.
 
 Results enter the hand's outbox. Check delivery separately from execution;
 uncertain sends are not retried automatically. See [hand receipts](hands.md#claims-and-receipts).

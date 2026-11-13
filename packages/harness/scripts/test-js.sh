@@ -199,6 +199,10 @@ function run_script
   elif [ "$1" == "reliability-soak" ]
   then
     HARNESS_HEAVY_TESTS=1 timeout 300 node "$2"
+  elif [ "$1" == "tlon-tools-conformance" ]
+  then
+    # It waits on three once-a-minute schedules in turn.
+    timeout 480 node "$2"
   else
     timeout 300 node "$2"
   fi
