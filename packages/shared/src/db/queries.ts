@@ -20,7 +20,7 @@ import {
   interleaveActivityEvents,
   toSourceActivityEvents,
 } from '@tloncorp/api/client/activity';
-import { preSig } from '@tloncorp/api/lib/urbit';
+import { displayIdToShip, preSig } from '@tloncorp/api/lib/urbit';
 import { Rank } from '@tloncorp/api/urbit';
 import {
   AnyColumn,
@@ -1358,6 +1358,9 @@ export const getMentionCandidates = createReadQuery(
 
     const idSearchTerm = `~${query.toLowerCase()}%`;
     const searchTerm = `%${query.toLowerCase()}%`;
+    // People without a nickname are shown by pet name; a whole pet name typed
+    // after the @ finds its ship.
+    const petNameMatch = displayIdToShip(query);
 
     const $candidates = ctx.db
       .select({
@@ -1399,7 +1402,13 @@ export const getMentionCandidates = createReadQuery(
           or(
             sql`${$chatMembers.contactId} LIKE ${idSearchTerm}`,
             sql`${$contacts.id} LIKE ${idSearchTerm}`,
-            sql`COALESCE(${$contacts.nickname}, '') LIKE ${searchTerm}`
+            sql`COALESCE(${$contacts.nickname}, '') LIKE ${searchTerm}`,
+            ...(petNameMatch
+              ? [
+                  eq($chatMembers.contactId, petNameMatch),
+                  eq($contacts.id, petNameMatch),
+                ]
+              : [])
           ),
           or(isNull($contacts.isBlocked), eq($contacts.isBlocked, false))
         )
