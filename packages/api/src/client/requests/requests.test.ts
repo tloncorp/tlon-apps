@@ -3,6 +3,8 @@ import { type Mock, beforeEach, expect, test, vi } from 'vitest';
 import {
   DeskUnsupportedError,
   getDeskSupportsBuckets,
+  getDeskSupportsContactRemoval,
+  getDeskSupportsContactRemovalState,
   internalConfigureClient,
   internalRemoveClient,
   poke,
@@ -11,6 +13,7 @@ import {
   scry,
   scryNoun,
   setDeskSupportsBuckets,
+  setDeskSupportsContactRemoval,
   setDeskSupportsStewardBots,
   subscribe,
   thread,
@@ -19,6 +22,7 @@ import {
   base,
   buckets,
   channels,
+  contacts,
   groups,
   httpRequest,
   lanyard,
@@ -53,6 +57,7 @@ const calls = (fn: unknown) => (fn as Mock).mock.calls;
 beforeEach(() => {
   vi.clearAllMocks();
   setDeskSupportsBuckets(null);
+  setDeskSupportsContactRemoval(null);
 });
 
 test('caller options cannot change the declared request', async () => {
@@ -330,3 +335,46 @@ export function typeProbes(flag: boolean) {
   // @ts-expect-error
   httpRequest(notes.noteGet)(nb);
 }
+
+test('contact removal requests stay unsent on older desks', async () => {
+  setDeskSupportsContactRemoval(false);
+  expect(() => scryRequest(contacts.init2)({})).toThrow(DeskUnsupportedError);
+  expect(() => pokeRequest(contacts.discover)('~zod')).toThrow(
+    DeskUnsupportedError
+  );
+  expect(() =>
+    pokeRequest(contacts.remove)({ kip: '~zod', suggest: true })
+  ).toThrow(DeskUnsupportedError);
+  expect(calls(scry)).toEqual([]);
+  expect(calls(poke)).toEqual([]);
+  setDeskSupportsContactRemoval(true);
+  await scryRequest(contacts.init2)({});
+  await pokeRequest(contacts.discover)('~zod');
+  await pokeRequest(contacts.remove)({ kip: '~zod', suggest: true });
+  expect(calls(scry)).toEqual([[{ app: 'contacts', path: '/v2/init' }]]);
+  expect(calls(poke)).toEqual([
+    [{ app: 'contacts', mark: 'contact-discover', json: '~zod' }],
+    [
+      {
+        app: 'contacts',
+        mark: 'contact-remove',
+        json: { kip: '~zod', suggest: true },
+      },
+    ],
+  ]);
+});
+
+test('contact removal capability resets when the client session ends', () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response(null))
+  );
+
+  expect(getDeskSupportsContactRemoval()).toBe(false);
+  setDeskSupportsContactRemoval(true);
+  expect(getDeskSupportsContactRemoval()).toBe(true);
+  internalRemoveClient();
+  vi.unstubAllGlobals();
+  expect(getDeskSupportsContactRemovalState()).toBe(null);
+  expect(getDeskSupportsContactRemoval()).toBe(false);
+});

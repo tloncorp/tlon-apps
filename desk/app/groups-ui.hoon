@@ -433,6 +433,15 @@
     %ui-vita  (emit (active:vita-client bowl))
     %ui-import-pals  import-pals
   ::
+      %ui-suggest-contact
+    ?>  =(our src):bowl
+    =+  !<(=ship vase)
+    =.  hidden-contact-suggestions
+      (~(del in hidden-contact-suggestions) ship)
+    =.  manual-contact-suggestions
+      (~(put in manual-contact-suggestions) ship)
+    cor
+  ::
       %ui-show-contact
     =+  !<(=ship vase)
     =.  hidden-contact-suggestions

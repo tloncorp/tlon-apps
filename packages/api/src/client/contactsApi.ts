@@ -13,42 +13,60 @@ import {
   scryRequest,
   subscribeRequest,
 } from './requests';
-import { getCurrentUserId } from './urbit';
+import { getCurrentUserId, getDeskSupportsContactRemovalState } from './urbit';
 import { normalizeUrbitColor } from './utils';
 
 const logger = createDevLogger('contactsApi', false);
 
-export const getContacts = async () => {
-  // this is all peers and ship contacts we know about, with unmerged
-  // profile data
-  const directoryResponse = await scryRequest(
-    contacts.directory
-  )<ub.ContactsDirectoryScryResult1>({});
+export type ContactState = {
+  contacts: db.Contact[];
+  removedContactIds: string[];
+};
 
-  // this is all of your contacts, with unmerged profile data + user overrides
-  const contactsResponse = await scryRequest(
-    contacts.book
-  )<ub.ContactBookScryResult1>({});
-
+export const getContactState = async (): Promise<ContactState> => {
+  const init =
+    getDeskSupportsContactRemovalState() === true
+      ? await scryRequest(contacts.init2)<{
+          directory: ub.ContactsDirectoryScryResult1;
+          book: ub.ContactBookScryResult1;
+          removed: string[];
+        }>({})
+      : null;
+  const directoryResponse =
+    init?.directory ??
+    (await scryRequest(contacts.directory)<ub.ContactsDirectoryScryResult1>(
+      {}
+    ));
+  const contactsResponse =
+    init?.book ??
+    (await scryRequest(contacts.book)<ub.ContactBookScryResult1>({}));
   const suggestionsResponse = await scryRequest(groupsUi.suggestedContacts)<
     string[]
   >({});
 
-  return toContactsData({
-    directoryResponse: directoryResponse,
-    contactsResponse: contactsResponse,
-    suggestionsResponse: suggestionsResponse,
-  });
+  return {
+    contacts: toContactsData({
+      directoryResponse,
+      contactsResponse,
+      suggestionsResponse,
+      removedContactIds: init?.removed,
+    }),
+    removedContactIds: init?.removed ?? [],
+  };
 };
+
+export const getContacts = async () => (await getContactState()).contacts;
 
 export const toContactsData = ({
   directoryResponse,
   contactsResponse,
   suggestionsResponse,
+  removedContactIds,
 }: {
   directoryResponse: ub.ContactsDirectoryScryResult1;
   contactsResponse: ub.ContactBookScryResult1;
   suggestionsResponse: string[];
+  removedContactIds?: string[];
 }) => {
   const skipContacts = new Set(Object.keys(contactsResponse));
   const contactSuggestions = new Set(suggestionsResponse);
@@ -61,7 +79,23 @@ export const toContactsData = ({
     contactSuggestions,
   });
 
-  return [...peerProfiles, ...contactProfiles];
+  const profiles = [...peerProfiles, ...contactProfiles];
+  const byId = new Map(profiles.map((c) => [c.id, c]));
+  for (const id of new Set([
+    ...suggestionsResponse,
+    ...(removedContactIds ?? []),
+  ])) {
+    if (!byId.has(id)) {
+      const contact: db.Contact = {
+        id,
+        isContact: false,
+        isContactSuggestion: contactSuggestions.has(id),
+      };
+      profiles.push(contact);
+      byId.set(id, contact);
+    }
+  }
+  return profiles;
 };
 
 export const directoryToClientProfiles = (
@@ -139,7 +173,11 @@ export const updateContactMetadata = async (
 };
 
 export const addContact = async (contactId: string) => {
-  removeContactSuggestion(contactId);
+  if (getDeskSupportsContactRemovalState() !== true) {
+    void removeContactSuggestion(contactId).catch((error) =>
+      logger.trackError('Error hiding added contact suggestion', error)
+    );
+  }
   return pokeRequest(contacts.action1)({
     page: { kip: contactId, contact: {} },
   });
@@ -153,8 +191,29 @@ export const addUserContacts = async (contactIds: string[]) => {
   return Promise.all(promises);
 };
 
-export const removeContact = async (contactId: string) => {
-  return pokeRequest(contacts.action1)({ wipe: [contactId] });
+export const discoverContact = async (contactId: string) => {
+  if (getDeskSupportsContactRemovalState() === true) {
+    return pokeRequest(contacts.discover)(contactId);
+  }
+  return addContact(contactId);
+};
+
+export const removeContact = async (contactId: string, suggest = false) => {
+  if (getDeskSupportsContactRemovalState() === true) {
+    return pokeRequest(contacts.remove)({ kip: contactId, suggest });
+  }
+  await pokeRequest(contacts.action1)({ wipe: [contactId] });
+  if (suggest) {
+    try {
+      await pokeRequest(groupsUi.showContact)(contactId);
+      await addContactSuggestions([contactId]);
+    } catch (error) {
+      logger.trackError(
+        'Error suggesting removed contact on older desk',
+        error
+      );
+    }
+  }
 };
 
 export interface ProfileUpdate {

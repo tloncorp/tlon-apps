@@ -58,6 +58,12 @@ export const groupsUi = {
     mark: 'ui-add-contact-suggestions',
     since: '12.2.0',
   },
+  showContact: {
+    kind: 'poke',
+    agent: 'groups-ui',
+    mark: 'ui-show-contact',
+    since: '12.2.0',
+  },
   hideContact: {
     kind: 'poke',
     agent: 'groups-ui',

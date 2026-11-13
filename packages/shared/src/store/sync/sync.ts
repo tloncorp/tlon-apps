@@ -21,6 +21,7 @@ import {
   deskVersionCountsAllSeats,
   deskVersionServesRosterPages,
   deskVersionSupportsBuckets,
+  deskVersionSupportsContactRemoval,
   deskVersionSupportsStewardPrompts,
   deskVersionSupportsTaskRuns,
   deskVersionSupportsStewardBots,
@@ -65,6 +66,7 @@ import {
 } from '../session';
 import { migrateLegacyContextLensFlag } from '../settingsActions';
 import { SyncCtx, SyncPriority, syncQueue } from '../syncQueue';
+import { captureContactIntent, observeContactRemoval } from '../contactIntent';
 import { getSystemContacts } from '../systemContactsApi';
 import {
   recordThreadPostsReceived,
@@ -73,7 +75,7 @@ import {
 import { clearChannelPostsQueries } from '../useChannelPosts/queries';
 import { addToChannelPosts } from '../useChannelPosts/subscriptions';
 import { logger } from './logger';
-import { syncContacts } from './syncContacts';
+import { syncContacts, syncContactSuggestions } from './syncContacts';
 import { syncGroup } from './syncGroup';
 import { updateLastActivityTime } from './updateLastActivityTime';
 
@@ -670,6 +672,9 @@ export const syncAppInfo = async (
   api.setActivitySupportsNotes(
     activityVersionSupportsNotes(appInfo?.groupsVersion)
   );
+  api.setDeskSupportsContactRemoval(
+    deskVersionSupportsContactRemoval(appInfo?.groupsVersion)
+  );
   api.setDeskSupportsBuckets(
     deskVersionSupportsBuckets(appInfo?.groupsVersion)
   );
@@ -724,6 +729,9 @@ export const syncReactionSupport = async () => {
     activityVersionSupportsReactions(groupsVersion)
   );
   api.setActivitySupportsNotes(activityVersionSupportsNotes(groupsVersion));
+  api.setDeskSupportsContactRemoval(
+    deskVersionSupportsContactRemoval(groupsVersion)
+  );
   api.setDeskSupportsBuckets(deskVersionSupportsBuckets(groupsVersion));
   api.setDeskSupportsAutomations(deskVersionSupportsAutomations(groupsVersion));
   api.setDeskCountsAllSeats(deskVersionCountsAllSeats(groupsVersion));
@@ -881,10 +889,21 @@ const syncContactDiscoveryOnce = async (
     didDiscover = true;
     logger.log('syncContactDiscovery: got contact discovery matches', matches);
 
-    const { newMatches } = await partitionDiscoveryMatches(matches, {
+    const {
+      newMatches,
+      removedMatches = [],
+      contactState,
+    } = await partitionDiscoveryMatches(matches, {
       isMocked,
     });
     const newMatchIds = newMatches.map(([, id]) => id);
+    const intents = new Map(
+      matches.map(([, id]) => [
+        id,
+        captureContactIntent(id, { includeObservedRemovals: true }),
+      ])
+    );
+    const isCurrent = (id: string) => intents.get(id)?.() ?? false;
     let addedMatches: [string, string][] = [];
     const failedNewIds = new Set<string>();
 
@@ -901,20 +920,29 @@ const syncContactDiscoveryOnce = async (
       matches
     );
 
-    if (newMatchIds.length > 0) {
-      const { addedContactIds, failedContactIds } =
-        await addContacts(newMatchIds);
+    const discoveredIds = [
+      ...newMatchIds,
+      ...removedMatches.map(([, id]) => id),
+    ];
+    if (discoveredIds.length > 0) {
+      const { addedContactIds, failedContactIds } = await addContacts(
+        discoveredIds,
+        { source: 'discovery', ...(contactState ? { contactState } : {}) }
+      );
       if (failedContactIds.length > 0) {
         didSucceed = false;
-        for (const id of failedContactIds) failedNewIds.add(id);
+        const newIds = new Set(newMatchIds);
+        for (const id of failedContactIds) {
+          if (newIds.has(id)) failedNewIds.add(id);
+        }
       }
-      const addedIds = new Set(addedContactIds);
+      const addedIds = new Set(addedContactIds.filter(isCurrent));
       addedMatches = newMatches.filter(([, id]) => addedIds.has(id));
       logger.log('syncContactDiscovery: added contacts', addedContactIds);
 
       await db
         .markContactsAsMatched({
-          contactIds: addedContactIds,
+          contactIds: addedContactIds.filter(isCurrent),
           matchedAt: Date.now(),
         })
         .catch((e) => {
@@ -946,10 +974,13 @@ const syncContactDiscoveryOnce = async (
       Array.from(namesByContactId, async ([contactId, nickname]) => {
         const contact = await db.getContact({ id: contactId });
         // Existing names may be user-chosen; discovery only fills empty names.
-        if (!contact || contact.customNickname) return true;
+        if (!isCurrent(contactId) || !contact || contact.customNickname)
+          return true;
         // Only saved contacts have a ship address-book entry to edit.
         if (contact.isContact) {
-          return updateContactMetadata(contact.id, { nickname });
+          return updateContactMetadata(contact.id, { nickname }, () =>
+            isCurrent(contactId)
+          );
         }
         await db.updateContact({ id: contact.id, customNickname: nickname });
         return true;
@@ -967,6 +998,7 @@ const syncContactDiscoveryOnce = async (
       didSucceed = false;
     }
 
+    addedMatches = addedMatches.filter(([, id]) => isCurrent(id));
     if (invokeHandler && addedMatches.length > 0) {
       await invokeContactsMatchedHandler(addedMatches.map(([, id]) => id));
     }
@@ -1820,15 +1852,18 @@ export const handleContactUpdate = async (
       break;
 
     case 'removeContact':
+      observeContactRemoval(update.contactId);
       await db.updateContact(
         {
           id: update.contactId,
           isContact: false,
+          isContactSuggestion: false,
           customNickname: null,
           customAvatarImage: null,
         },
         ctx
       );
+      await syncContactSuggestions([update.contactId], ctx);
       break;
   }
 };

@@ -57,7 +57,7 @@ export function ContactsScreenView(props: Props) {
 
     if (props.suggestions.length > 0) {
       result.push({
-        title: 'Suggested from %pals and DMs',
+        title: 'Suggested contacts',
         data: props.suggestions,
       });
     }
