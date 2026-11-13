@@ -32,7 +32,7 @@ import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ReactionsDisplay } from '../ChatMessage/ReactionsDisplay';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
-import ContactName from '../ContactName';
+import { ContactName } from '../ContactNameV2';
 import { Reference } from '../ContentReference/Reference';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import { usePostContent } from '../PostContent/contentUtils';
@@ -267,12 +267,9 @@ GalleryPostRow.Text = styled(Text, {
 export function GalleryPostHeader({ post }: { post: db.Post }) {
   return (
     <GalleryPostRow>
-      <ContactName
-        userId={post.authorId}
-        showNickname
-        size="$label/m"
-        color="$tertiaryText"
-      />
+      <GalleryPostRow.Text>
+        <ContactName contactId={post.authorId} />
+      </GalleryPostRow.Text>
       <GalleryPostRow.Text>
         {differenceInDays(new Date(), new Date(post.receivedAt)) > 30
           ? makePrettyShortDate(new Date(post.receivedAt))

@@ -3,7 +3,7 @@ import * as db from '@tloncorp/shared/db';
 import React, { ComponentProps } from 'react';
 
 import { AppDataContextProvider } from '../../contexts/appDataContext';
-import { getDisplayName } from '../../utils';
+import { resolveContactNameProps } from '../ContactNameV2';
 import { ListItem } from '../ListItem';
 
 interface GroupShim {
@@ -61,6 +61,16 @@ export const OnboardingInviteBlock = React.memo(function OnboardingInviteBlock({
   return <GroupInvite groupShim={groupShim} inviter={inviter} {...rest} />;
 });
 
+// The inviter comes from invite metadata and the user has no Calm settings
+// yet, so this resolves the name directly instead of through the db.
+function inviterName(inviter: db.Contact) {
+  return resolveContactNameProps({
+    contact: inviter,
+    contactId: inviter.id,
+    calmDisableNicknames: false,
+  }).children;
+}
+
 function UserInvite({
   inviter,
   ...rest
@@ -80,7 +90,7 @@ function UserInvite({
           contactOverride={inviter}
         />
         <ListItem.MainContent>
-          <ListItem.Title>{getDisplayName(inviter)}</ListItem.Title>
+          <ListItem.Title>{inviterName(inviter)}</ListItem.Title>
           <ListItem.Subtitle>Sent you a personal invite</ListItem.Subtitle>
         </ListItem.MainContent>
       </ListItem>
@@ -114,7 +124,7 @@ function GroupInvite({
             {groupShim.title ? `Join ${groupShim.title}` : `Join a workspace`}
           </ListItem.Title>
           <ListItem.Subtitle>
-            Invited by {getDisplayName(inviter)}
+            Invited by {inviterName(inviter)}
           </ListItem.Subtitle>
         </ListItem.MainContent>
       </ListItem>

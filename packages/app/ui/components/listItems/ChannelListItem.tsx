@@ -202,18 +202,13 @@ export function ChannelListItem({
             ) : (model.type === 'dm' || model.type === 'groupDm') &&
               utils.hasNickname(model.members?.[0]?.contact) ? (
               <ListItem.SubtitleWithIcon icon={subtitleIcon}>
-                <ContactName
-                  contactId={firstMemberId}
-                  mode="contactId"
-                  expandLongIds
-                />
+                <ContactName contactId={firstMemberId} mode="contactId" />
                 {memberCount === 3 && (
                   <>
                     {' and '}
                     <ContactName
                       contactId={model.members?.[1]?.contactId ?? ''}
                       mode="contactId"
-                      expandLongIds
                     />
                   </>
                 )}

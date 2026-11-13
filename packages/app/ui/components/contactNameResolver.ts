@@ -7,7 +7,6 @@ export type ContactNameMode = 'contactId' | 'nickname' | 'both' | 'auto';
 export type ContactNameResolveInput = {
   contact: db.Contact | null | undefined;
   contactId: string;
-  expandLongIds?: boolean;
   mode?: ContactNameMode;
   calmDisableNicknames: boolean;
 };
@@ -22,7 +21,6 @@ export type ContactNameResolveResult = {
 export function resolveContactNameProps({
   contact,
   contactId,
-  expandLongIds = false,
   mode = 'auto',
   calmDisableNicknames,
 }: ContactNameResolveInput): ContactNameResolveResult {
@@ -35,9 +33,7 @@ export function resolveContactNameProps({
     mode === 'both' ||
     mode === 'contactId';
 
-  const formattedId = showContactId
-    ? formatUserId(contactId, expandLongIds)
-    : null;
+  const formattedId = showContactId ? formatUserId(contactId) : null;
 
   const children = [
     showContactId ? formattedId?.display : null,

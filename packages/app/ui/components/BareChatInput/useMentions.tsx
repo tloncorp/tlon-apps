@@ -158,7 +158,7 @@ export const useMentions = ({
       (mentionCandidateRows ?? []).map((candidate) => ({
         id: candidate.id,
         title: candidate.nickname || candidate.id,
-        subtitle: formatUserId(candidate.id, true)?.display,
+        subtitle: formatUserId(candidate.id)?.display,
         type: 'contact' as const,
         priority: candidate.priority,
         contact: {

@@ -25,9 +25,9 @@ import {
   ContactsScreenView,
   DESKTOP_SIDEBAR_WIDTH,
   ScreenHeader,
-  getDisplayName,
   isWeb,
 } from '../../ui';
+import { resolveContactNameProps } from '../../ui/components/ContactNameV2';
 import { ProfileDrawerParamList } from '../types';
 
 const ProfileDrawer = createDrawerNavigator<ProfileDrawerParamList>();
@@ -39,6 +39,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
 
   const { data: userContacts } = store.useUserContacts();
   const { data: suggestions } = store.useSuggestedContacts();
+  const { data: calmSettings } = store.useCalmSettings();
 
   useMarkMatchesSeen();
 
@@ -54,30 +55,43 @@ function DrawerContent(props: DrawerContentComponentProps) {
     store.addContact(contact.id);
   }, []);
 
-  const onContactLongPress = useCallback((contact: db.Contact) => {
-    if (!isWeb && contact.isContactSuggestion) {
-      Alert.alert(`Add ${getDisplayName(contact)}?`, '', [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Add Contact',
-          style: 'default',
-          onPress: () => {
-            store.addContact(contact.id);
-          },
-        },
-        {
-          text: 'Decline Suggestion',
-          style: 'destructive',
-          onPress: () => {
-            store.removeContactSuggestion(contact.id);
-          },
-        },
-      ]);
-    }
-  }, []);
+  const onContactLongPress = useCallback(
+    (contact: db.Contact) => {
+      if (!isWeb && contact.isContactSuggestion) {
+        Alert.alert(
+          `Add ${
+            resolveContactNameProps({
+              contact,
+              contactId: contact.id,
+              calmDisableNicknames: calmSettings?.disableNicknames ?? false,
+            }).children
+          }?`,
+          '',
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel',
+            },
+            {
+              text: 'Add Contact',
+              style: 'default',
+              onPress: () => {
+                store.addContact(contact.id);
+              },
+            },
+            {
+              text: 'Decline Suggestion',
+              style: 'destructive',
+              onPress: () => {
+                store.removeContactSuggestion(contact.id);
+              },
+            },
+          ]
+        );
+      }
+    },
+    [calmSettings?.disableNicknames]
+  );
 
   return (
     <View height="100%">

@@ -144,7 +144,7 @@ describe('getBrowserNotificationContactName', () => {
         contactId: contact.id,
         disableNicknames: true,
       })
-    ).toBe('~ravmel-ropdyl');
+    ).toBe('@blithely.outgoing.onyx.nilgai');
   });
 });
 

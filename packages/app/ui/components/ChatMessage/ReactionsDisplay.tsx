@@ -25,7 +25,7 @@ function ReactionTooltipName({
   contactId: string;
   trailingComma: boolean;
 }) {
-  const name = useContactName({ contactId, expandLongIds: true });
+  const name = useContactName(contactId);
   return (
     <XStack alignItems="baseline" maxWidth={TOOLTIP_NAME_FRAGMENT_MAX_WIDTH_PX}>
       <Text size="$label/m" whiteSpace="nowrap" numberOfLines={1} minWidth={0}>
