@@ -76,6 +76,11 @@ public final class ConversationViewport: ExpoView {
     private var displayLink: CADisplayLink?
     private var velocity: CGFloat = 0
     private var lastTimestamp: CFTimeInterval = 0
+    /// Where the spring last put the scroll view.
+    private var lastFollowOffset: CGFloat?
+    /// A move of the scroll view by more than this, away from the end, between
+    /// two frames of the spring is someone else's scroll.
+    private static let externalScrollThreshold: CGFloat = 40
 
     override public func layoutSubviews() {
         super.layoutSubviews()
@@ -204,6 +209,7 @@ public final class ConversationViewport: ExpoView {
         }
         velocity = 0
         lastTimestamp = 0
+        lastFollowOffset = nil
         let link = CADisplayLink(target: DisplayLinkTarget(self), selector: #selector(DisplayLinkTarget.step(_:)))
         link.add(to: .main, forMode: .common)
         displayLink = link
@@ -227,6 +233,15 @@ public final class ConversationViewport: ExpoView {
         // row measurements and external offset changes retarget it smoothly.
         let target = endOffset(of: scrollView)
         let current = scrollView.contentOffset.y
+        // A list opening on an unread run starts at its end and scrolls up to
+        // the run while its rows are still being measured. Chasing the end
+        // past that scroll pulls the list back down to its end, every frame.
+        if let last = lastFollowOffset,
+           abs(current - last) > Self.externalScrollThreshold,
+           abs(target - current) > abs(target - last) {
+            stopFollowing()
+            return
+        }
         let omega: CGFloat = 22
         velocity += (-2 * omega * velocity - omega * omega * (current - target)) * dt
         var next = current + velocity * dt
@@ -235,6 +250,7 @@ public final class ConversationViewport: ExpoView {
             stopFollowing()
         }
         scrollView.contentOffset = CGPoint(x: scrollView.contentOffset.x, y: next)
+        lastFollowOffset = next
     }
 
     private func findScrollView(in view: UIView) -> UIScrollView? {
