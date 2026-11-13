@@ -7,6 +7,7 @@ import {
   parsePostBlob,
 } from '../client/content-helpers';
 import { assertNever } from '../lib/assertNever';
+import { shipToDisplayId } from '../lib/urbit';
 import { VIDEO_REGEX, containsOnlyEmoji } from '../lib/utils';
 import type { ContentReference } from '../types/references';
 import * as ub from '../urbit';
@@ -227,6 +228,11 @@ export interface PlaintextPreviewConfig {
   includeLinebreaks: boolean;
   includeRefTag: boolean;
   indentDepth?: number;
+  /**
+   * The text for a mentioned person. Display call sites that can see contacts
+   * pass one that resolves nicknames; without it a mention is its ship number.
+   */
+  mentionText?: (contactId: string) => string;
 }
 
 export namespace PlaintextPreviewConfig {
@@ -397,7 +403,10 @@ export function plaintextPreviewOfInline(
     case 'text':
       return inline.text;
     case 'mention':
-      return inline.contactId;
+      return (
+        config.mentionText?.(inline.contactId) ??
+        `@${shipToDisplayId(inline.contactId) ?? inline.contactId}`
+      );
     case 'groupMention':
       return `@${inline.group}`;
     case 'lineBreak':

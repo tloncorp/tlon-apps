@@ -14,67 +14,67 @@ import {
 import type { FinalizedAttachment } from '../types';
 
 describe('contentToTextAndMentions / textAndMentionsToContent round-trip', () => {
+  const nicknames: Record<string, string> = { '~malmur-halmex': 'Mal' };
+  const mentionText = (id: string) => `@${nicknames[id] ?? id}`;
+
   test('mention + link text survives round-trip without corruption', () => {
-    const originalText = '~malmur-halmex check this https://example.com cool';
+    const originalText = '@Mal check this https://example.com cool';
     const originalMentions = [
-      {
-        id: '~malmur-halmex',
-        display: '~malmur-halmex',
-        start: 0,
-        end: 14,
-      },
+      { id: '~malmur-halmex', display: '@Mal', start: 0, end: 4 },
     ];
 
     const content = textAndMentionsToContent(originalText, originalMentions);
-    const firstPass = contentToTextAndMentions(content);
+    const firstPass = contentToTextAndMentions(content, mentionText);
 
-    expect(firstPass.mentions).toHaveLength(1);
-    expect(firstPass.mentions[0].display).toBe('~malmur-halmex');
-    expect(firstPass.mentions[0].id).toBe('~malmur-halmex');
-    expect(firstPass.mentions[0].start).toBe(0);
-    expect(firstPass.mentions[0].end).toBe(14);
-    expect(firstPass.text).not.toContain('~~');
-    expect(firstPass.text.slice(0, 14)).toBe('~malmur-halmex');
+    expect(firstPass.mentions).toEqual(originalMentions);
+    expect(firstPass.text.slice(0, 4)).toBe('@Mal');
 
     const content2 = textAndMentionsToContent(
       firstPass.text,
       firstPass.mentions
     );
-    const secondPass = contentToTextAndMentions(content2);
+    const secondPass = contentToTextAndMentions(content2, mentionText);
 
     expect(secondPass.text).toBe(firstPass.text);
     expect(secondPass.mentions).toEqual(firstPass.mentions);
   });
 
-  test('mention id without tilde prefix is handled correctly', () => {
-    const text = '~zod hello';
-    const mentions = [{ id: 'zod', display: '~zod', start: 0, end: 4 }];
+  test('mention ranges follow the display text, not the id', () => {
+    const content = textAndMentionsToContent('~malmur-halmex and ~zod hi', [
+      { id: '~malmur-halmex', display: '~malmur-halmex', start: 0, end: 14 },
+      { id: 'zod', display: '~zod', start: 19, end: 23 },
+    ]);
+    const result = contentToTextAndMentions(content, mentionText);
 
-    const content = textAndMentionsToContent(text, mentions);
-    const result = contentToTextAndMentions(content);
-
-    expect(result.mentions[0].display).toBe('~zod');
-    expect(result.text.startsWith('~zod')).toBe(true);
-    expect(result.text).not.toContain('~~');
+    expect(result.mentions.map((m) => [m.id, m.display])).toEqual([
+      ['~malmur-halmex', '@Mal'],
+      ['zod', '@zod'],
+    ]);
+    for (const mention of result.mentions) {
+      expect(result.text.slice(mention.start, mention.end)).toBe(
+        mention.display
+      );
+    }
   });
 
-  test('multiple mentions have correct positions', () => {
+  test('shows the ship number, never the ship name, by default', () => {
     const text = '~zod and ~bus hello';
     const mentions = [
-      { id: '~zod', display: '~zod', start: 0, end: 4 },
+      { id: 'zod', display: '~zod', start: 0, end: 4 },
       { id: '~bus', display: '~bus', start: 9, end: 13 },
     ];
 
     const content = textAndMentionsToContent(text, mentions);
     const result = contentToTextAndMentions(content);
 
-    expect(result.mentions).toHaveLength(2);
+    expect(result.text).not.toContain('~');
+    expect(result.mentions.map((m) => m.id)).toEqual(['zod', '~bus']);
     expect(
       result.text.slice(result.mentions[0].start, result.mentions[0].end)
-    ).toBe('~zod');
+    ).toBe('@0');
     expect(
       result.text.slice(result.mentions[1].start, result.mentions[1].end)
-    ).toBe('~bus');
+    ).toBe('@182');
   });
 });
 
@@ -194,7 +194,7 @@ describe('contentToTextAndMentions block separators', () => {
     expect(result.mentions).toHaveLength(1);
     expect(
       result.text.slice(result.mentions[0].start, result.mentions[0].end)
-    ).toBe('~zod');
+    ).toBe('@0');
   });
 });
 

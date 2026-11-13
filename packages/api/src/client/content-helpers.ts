@@ -2,6 +2,7 @@ import isURL from 'validator/lib/isURL.js';
 import { z } from 'zod';
 
 import { createDevLogger } from '../lib/logger';
+import { shipToDisplayId } from '../lib/urbit';
 import {
   FinalizedAttachment,
   LinkAttachment,
@@ -489,7 +490,14 @@ export function textAndMentionsToContent(
   };
 }
 
-export function contentToTextAndMentions(jsonContent: JSONContent): {
+// Mention text a person can read: callers that can see contacts and roles pass
+// a lookup, since the mention id is a ship name or a role id.
+const defaultMentionText = (id: string) => `@${shipToDisplayId(id) ?? id}`;
+
+export function contentToTextAndMentions(
+  jsonContent: JSONContent,
+  mentionText: (id: string) => string = defaultMentionText
+): {
   text: string;
   mentions: Mention[];
 } {
@@ -577,16 +585,16 @@ export function contentToTextAndMentions(jsonContent: JSONContent): {
           }
 
           const id = child.attrs.id;
-          const mentionText = id.startsWith('~') ? id : `~${id}`;
+          const display = mentionText(id);
           const mentionStartIndex = text.join('').length;
 
-          text.push(mentionText);
+          text.push(display);
 
           mentions.push({
             id,
-            display: mentionText,
+            display,
             start: mentionStartIndex,
-            end: mentionStartIndex + mentionText.length,
+            end: mentionStartIndex + display.length,
           });
         }
       });
