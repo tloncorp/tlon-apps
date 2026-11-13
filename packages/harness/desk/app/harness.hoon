@@ -909,7 +909,24 @@
 ++  schedule-source-live
   |=  job=schedule:cr
   ^-  ?
-  (hand-source-live binding.job sid.job hand.job destination.job actor.job)
+  ?&  (hand-source-live binding.job sid.job hand.job destination.job actor.job)
+      (schedule-permitted (execution-authority sid.job (session-tlon sid.job)))
+  ==
+++  session-tlon
+  |=  sid=session-id:h
+  ^-  ?
+  %+  lien  ~(val by bindings.hands)
+  |=  binding=binding:hh
+  &(=(sid sid.binding) =('tlon' hand.binding))
+::  A hand's ceiling limits scheduling like any other family.
+++  schedule-permitted
+  |=  authority=hand-authority:adapter
+  ^-  ?
+  ?&  live.authority
+      ?|  ?=(~ ceiling.authority)
+          (lien u.ceiling.authority |=(g=tool-grant:h =(%cron g)))
+      ==
+  ==
 ++  hand-source-live
   |=  [binding=@t sid=session-id:h hand=@t destination=@t actor=@t]
   ^-  ?
@@ -5666,10 +5683,7 @@
     ?&  !=(grant %subagents)
         (lien ceiling |=(allowed=tool-grant:h =(grant allowed)))
     ==
-  =/  tlon
-    %+  lien  ~(val by bindings.hands)
-    |=  binding=binding:hh
-    &(=(sid sid.binding) =('tlon' hand.binding))
+  =/  tlon  (session-tlon sid)
   ::  Tlon authority requires a live hand binding.
   =.  granted  ?:(tlon (with-tlon:ht granted) (without-tlon:ht granted))
   =/  authority=hand-authority:adapter  (execution-authority sid tlon)
@@ -5684,6 +5698,7 @@
   =?  granted
     ?&  ?=(~ parent)
         ?=(~ peer)
+        (schedule-permitted authority)
         %+  lien  ~(val by bindings.hands)
         |=  binding=binding:hh
         &(=(sid sid.binding) enabled.binding)
