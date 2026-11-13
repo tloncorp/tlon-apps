@@ -44,7 +44,7 @@
       ;div.content
         ;a.chat/"/expose{link}"
           ;*  %.  content
-              =<(story(anchors |) en-manx:u)
+              =<(story(anchors |) (en-manx:r bowl))
         ==
       ==
       ;div.author-row
@@ -80,7 +80,7 @@
       ;div.content
         ;a.heap/"/expose{link}"
           ;*  %.  content
-              =<(story(anchors |) en-manx:u)
+              =<(story(anchors |) (en-manx:r bowl))
         ==
       ==
       ;div.author-row

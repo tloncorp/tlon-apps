@@ -1,7 +1,7 @@
 ::  profile: construct stock widgets
 ::
 /-  co=contacts
-/+  sigil
+/+  sigil, pn=pet-name
 ::
 |=  =bowl:gall
 =+  .^  =contact:co
@@ -170,11 +170,10 @@
         ==
         ::
         ;div.profile-headline-title
-          ;*  =*  name  (cite:title our.bowl)
-            =*  plain  ;h1.profile-headline-nickname(title "{(scow %p our.bowl)}"):"{name}"
-            ?~  nickname  [plain]~
+          ;*  =*  pet  (name:pn our.bowl)
+            ?~  nickname  [;h1.profile-headline-nickname:"{pet}"]~
             :+  ;h1.profile-headline-nickname:"{(trip u.nickname)}"
-              ;p.profile-headline-username(title "{(scow %p our.bowl)}"):"{name}"
+              ;p.profile-headline-username:"{pet}"
             ?~  phone  ~
             :_  ~
             =/  since=@da  (sub u.phone (mod u.phone ~d1))

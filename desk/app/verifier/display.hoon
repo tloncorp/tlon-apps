@@ -1,7 +1,7 @@
 ::  verifier: display: render clearweb attestation page
 ::
 /-  verifier
-/+  hu=http-utils
+/+  hu=http-utils, pn=pet-name
 =,  (verifier)
 ::
 |=  [invite=(unit @t) full=? tat=attestation]
@@ -26,7 +26,7 @@
   "{(snag (dec m.date) mon:yu)} {(a-co:co d.t.date)}, {(a-co:co y.date)}"
 ::
 ++  owner
-  (scow %p for.dat.half.tat)
+  (name:pn for.dat.half.tat)
 ::
 ++  registration-kind
   (trip kind.dat.half.tat)
@@ -44,7 +44,7 @@
   =*  id  id.dat.full.tat
   ?-  -.id.dat.full.tat
     %dummy    (rap 3 '"' +.id '"' ~)
-    %urbit    (scot %p +.id)
+    %urbit    (crip (name:pn +.id))
     %phone    +.id  ::NOTE  no formatting...
     %twitter  (cat 3 '@' +.id)
     %website  (en-turf:html +.id)
@@ -63,7 +63,7 @@
   =*  id  id.dat.full.tat
   ?-  -.id.dat.full.tat
     %dummy    (cat 3 'dummy id ' +.id)
-    %urbit    (cat 3 'control over ' (scot %p +.id))
+    %urbit    (cat 3 'control over ' (crip (name:pn +.id)))
     %phone    (cat 3 'phone nr ' +.id)
     %twitter  (cat 3 'x.com account @' +.id)
     %website  (cat 3 'control over ' (en-turf:html +.id))
@@ -249,7 +249,7 @@
           ==
           ;dl
             ;dt(title "The ship that performed this verification"):"Verified by"
-            ;dd:"{(scow %p who.half.tat)}"
+            ;dd:"{(name:pn who.half.tat)}"
           ==
           ;dl
             ;dt(title "When the verification was completed"):"Timestamp"

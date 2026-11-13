@@ -1,7 +1,7 @@
 ::  expose render: rendering utilities for pages & the widget
 ::
 /-  c=channels, co=contacts-0
-/+  u=channel-utils, sigil
+/+  u=channel-utils, sigil, pn=pet-name
 ::
 |%
 ::  +author-contact: turn a post author into a contact profile
@@ -25,6 +25,23 @@
     nickname  (fall nickname.author nickname.u.aco)
     avatar    (hunt |=(* &) avatar.author avatar.u.aco)
   ==
+::  +ship-name: a ship's nickname, or its pet name when it has none
+::
+++  ship-name
+  |=  =bowl:gall
+  |=  =ship
+  ^-  tape
+  =/  aco=(unit contact-0:co)  (get-contact:co bowl ship)
+  ?:  |(?=(~ aco) =('' nickname.u.aco))
+    (name:pn ship)
+  (trip nickname.u.aco)
+::
+::  +en-manx: content renderer showing mentions by +ship-name
+::
+++  en-manx
+  |=  =bowl:gall
+  =/  em  en-manx:u
+  em(name (ship-name bowl))
 ::
 ++  author
   =/  link=(unit @t)  ~
@@ -63,10 +80,10 @@
     ==
   ::
   ++  name
-    =*  nom  ;span:"{(scow %p author)}"
-    ?~  aco  nom
-    ?:  =('' nickname.u.aco)  nom
-    ;span(title "{(scow %p author)}"):"{(trip nickname.u.aco)}"
+    =*  pet  (name:pn author)
+    ?:  |(?=(~ aco) =('' nickname.u.aco))
+      ;span:"{pet}"
+    ;span(title pet):"{(trip nickname.u.aco)}"
   --
 ::
 ++  datetime  ::TODO  date-only mode

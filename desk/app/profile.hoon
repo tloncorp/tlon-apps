@@ -6,7 +6,7 @@
 ::    can choose which widgets to display on their public page.
 ::
 /-  co=contacts-0
-/+  dbug, verb, sigil, hutils=http-utils
+/+  dbug, verb, sigil, hutils=http-utils, pn=pet-name
 /=  stock-widgets  /app/profile/widgets
 ::
 /*  style-shared  %css  /app/profile/style/shared/css
@@ -183,11 +183,11 @@
       ==
   ::
   ++  head
-    =/  ship=tape  (scow %p our.bowl)
+    =/  pet=tape  (name:pn our.bowl)
     =/  name=tape
-      ?~  ours  ship
-      ?:  =('' nickname.u.ours)  ship
-      "{(trip nickname.u.ours)} ({ship})"
+      ?~  ours  pet
+      ?:  =('' nickname.u.ours)  pet
+      "{(trip nickname.u.ours)} ({pet})"
     ;head
       ;title:"{name}"
       ;link(rel "stylesheet", href "/profile/style/shared.css");
@@ -200,7 +200,7 @@
       ;meta(property "og:site_name", content "Urbit");
       ;meta(property "og:type", content "article");
       ;meta(property "twitter:card", content "summary_large_image");
-      ;meta(property "og:article:author:username", content "{ship}");
+      ;meta(property "og:article:author:username", content "{pet}");
     ::
       ;meta(property "apple-itunes-app", content "app-id=6451392109");
     ::
