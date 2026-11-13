@@ -17,6 +17,7 @@ import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedCo
 import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useRenderCount } from '@tloncorp/app/hooks/useRenderCount';
+import { formatUserId } from '@tloncorp/app/ui/utils/user';
 import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
 import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
 import {
@@ -252,7 +253,7 @@ function AppRoutes() {
           channelData?.title ||
           channelData?.contact?.peerNickname ||
           channelData?.contact?.customNickname ||
-          channelData?.contactId ||
+          formatUserId(channelData?.contactId ?? '')?.display ||
           'Chat';
         return `${title}`;
       }
@@ -293,7 +294,7 @@ function AppRoutes() {
           channelData?.title ||
           channelData?.contact?.peerNickname ||
           channelData?.contact?.customNickname ||
-          channelData?.contactId ||
+          formatUserId(channelData?.contactId ?? '')?.display ||
           'Chat';
         return title;
       }
