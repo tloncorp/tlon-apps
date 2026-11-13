@@ -236,11 +236,20 @@ public final class ConversationViewport: ExpoView {
         // A list opening on an unread run starts at its end and scrolls up to
         // the run while its rows are still being measured. Chasing the end
         // past that scroll pulls the list back down to its end, every frame.
-        if let last = lastFollowOffset,
-           abs(current - last) > Self.externalScrollThreshold,
-           abs(target - current) > abs(target - last) {
-            stopFollowing()
-            return
+        if let last = lastFollowOffset {
+            if abs(current - last) > Self.externalScrollThreshold,
+               abs(target - current) > abs(target - last) {
+                stopFollowing()
+                return
+            }
+            // The scroll view can hold the offset a point short of the end
+            // the insets give (it clamps what it is handed). A spring chasing
+            // that point never settles, and growth while it runs is eased
+            // instead of held.
+            if abs(current - last) > 0.5, abs(target - current) < 2 {
+                stopFollowing()
+                return
+            }
         }
         let omega: CGFloat = 22
         velocity += (-2 * omega * velocity - omega * omega * (current - target)) * dt
