@@ -39,6 +39,7 @@ import {
   getChannelHeaderLoadingSubtitle,
   isHostedChannelType,
 } from './ChannelHeader.helpers';
+import { usePostPreviewText } from '../../hooks/useMentionText';
 
 type ChannelHeaderItem = ReactElement | ScreenHeaderAction[];
 
@@ -239,6 +240,8 @@ export function ChannelHeader({
     return preferProvidedTitle ? title : (chatTitle ?? title);
   }, [chatTitle, preferProvidedTitle, title]);
 
+  const postText = usePostPreviewText(post);
+
   const subtitleText = useMemo(() => {
     if (channelConnectionStatusText) {
       return channelConnectionStatusText;
@@ -247,8 +250,8 @@ export function ChannelHeader({
     // Viewing a post (PostScreenView with a single post/thread)
     if (post) {
       const channelName = channel.title ?? chatTitle ?? 'channel';
-      const preview = post.textContent?.slice(0, 50) ?? '';
-      const ellipsis = (post.textContent?.length ?? 0) > 50 ? '…' : '';
+      const preview = postText?.slice(0, 50) ?? '';
+      const ellipsis = (postText?.length ?? 0) > 50 ? '…' : '';
       return `Post in ${channelName}${preview ? `: ${preview}${ellipsis}` : ''}`;
     }
 
@@ -333,6 +336,7 @@ export function ChannelHeader({
     dmContactId,
     dmContact?.status,
     post,
+    postText,
   ]);
 
   const displayTitle = useDebouncedValue(titleText, 300);
