@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 
 import { GroupSettingsStackParamList } from '../../navigation/types';
+import { useRootNavigation } from '../../navigation/utils';
 import {
   type ChannelAccess,
   channelAccessSections,
@@ -31,6 +32,7 @@ export function CreateChannelPermissionsScreen() {
     >();
   const isWindowNarrow = useIsWindowNarrow();
   const toast = useToast();
+  const { resetToChannel } = useRootNavigation();
   const [isCreating, setIsCreating] = useState(false);
 
   const { groupId, channelTitle, channelType, createdRoleId } = route.params;
@@ -93,7 +95,7 @@ export function CreateChannelPermissionsScreen() {
 
     try {
       setIsCreating(true);
-      await createChannel({
+      const channel = await createChannel({
         groupId,
         title: channelTitle,
         channelType,
@@ -101,7 +103,7 @@ export function CreateChannelPermissionsScreen() {
         writers: finalWriters,
       });
 
-      navigation.navigate('ManageChannels', { groupId }, { pop: true });
+      resetToChannel(channel.id, { groupId, backToGroupIndex: true });
     } catch (cause) {
       toast({
         message:
@@ -112,7 +114,7 @@ export function CreateChannelPermissionsScreen() {
     } finally {
       setIsCreating(false);
     }
-  }, [navigation, groupId, form, channelTitle, channelType, toast]);
+  }, [resetToChannel, groupId, form, channelTitle, channelType, toast]);
 
   return (
     <SettingsListScreenView

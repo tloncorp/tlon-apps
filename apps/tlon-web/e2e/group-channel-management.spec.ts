@@ -3,6 +3,27 @@ import { expect } from '@playwright/test';
 import * as helpers from './helpers';
 import { test } from './test-fixtures';
 
+test('Back from a newly created channel opens the workspace channel list on narrow screens', async ({
+  zodPage: page,
+}) => {
+  await helpers.createGroup(page);
+  await helpers.openGroupSettings(page);
+  await page.getByTestId('GroupChannels').getByText('Channels').click();
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  await helpers.createChannel(page, 'New channel landing');
+  await expect(
+    page.getByTestId('ChannelHeaderTitle').getByText('New channel landing')
+  ).toBeVisible({ timeout: 10000 });
+
+  await helpers.navigateBack(page);
+  await expect(page.getByTestId('GroupChannelsHeaderTrigger')).toBeVisible();
+  await expect(
+    page.getByTestId('ChannelListItem-New channel landing')
+  ).toBeVisible();
+  await expect(page.getByText('New', { exact: true })).not.toBeVisible();
+});
+
 test('should handle channel management operations', async ({ zodPage }) => {
   const page = zodPage;
 
@@ -43,7 +64,13 @@ test('should handle channel management operations', async ({ zodPage }) => {
   // Create new channel
   await helpers.createChannel(page, 'Second chat channel');
 
-  // Verify we're still on the Channels screen after channel creation
+  await expect(
+    page.getByTestId('ChannelHeaderTitle').getByText('Second chat channel')
+  ).toBeVisible({ timeout: 10000 });
+
+  // Return to the organizer for the remaining management operations.
+  await helpers.openGroupSettings(page);
+  await page.getByTestId('GroupChannels').getByText('Channels').click();
   await expect(page.getByText('Sort', { exact: true })).toBeVisible({
     timeout: 5000,
   });
@@ -323,7 +350,7 @@ test('should handle channel management operations', async ({ zodPage }) => {
   ).not.toBeVisible();
 });
 
-test('opens a new channel from the channel manager, and the manager from channel info', async ({
+test('opens the created channel, and the manager from channel info', async ({
   zodPage,
 }) => {
   const page = zodPage;
@@ -335,11 +362,7 @@ test('opens a new channel from the channel manager, and the manager from channel
   await page.getByTestId('GroupChannels').getByText('Channels').click();
   await helpers.createChannel(page, 'Second chat channel');
 
-  // The row opens the channel; its menu button opens the channel's info.
-  await page
-    .getByTestId('ChannelItem-Second chat channel-0')
-    .getByTestId('OpenChannelButton')
-    .click();
+  // Creation opens the channel without another tap in the organizer.
   await expect(
     page.getByTestId('ChannelHeaderTitle').getByText('Second chat channel')
   ).toBeVisible({ timeout: 10000 });
@@ -357,4 +380,12 @@ test('opens a new channel from the channel manager, and the manager from channel
   await expect(
     page.getByTestId('ChannelItem-Second chat channel-0')
   ).toBeVisible({ timeout: 5000 });
+
+  await page
+    .getByTestId('ChannelItem-Second chat channel-0')
+    .getByTestId('OpenChannelButton')
+    .click();
+  await expect(
+    page.getByTestId('ChannelHeaderTitle').getByText('Second chat channel')
+  ).toBeVisible({ timeout: 10000 });
 });
