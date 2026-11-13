@@ -443,7 +443,8 @@ upstream issue alone is not sufficient.
 Local patch:
 `patches/@legendapp__list@3.3.3.patch`
 
-The patch carries two fixes to how a programmatic scroll is completed.
+The patch carries two fixes to how a programmatic scroll is completed, and
+one to how the content size reaches the screen.
 
 ### 1. Animated end-aligned scrolls keep their animation through retries
 
@@ -477,6 +478,31 @@ soon as for `unreadsOverAScreen` (a few hundred ms), not about a second.
 
 Remove when upstream completes no-move scrolls without waiting on the
 fallback.
+
+### 3. The content size commits with the row positions
+
+Why:
+On the new architecture each container's position is React state
+(`PositionViewState`), but `ContainersLayer` took the content size from an
+`Animated` value set directly. The size reached the screen a frame before the
+positions it was computed from. A conversation held at its end (the native
+`ConversationViewport` follows the content size in the same layout pass) showed
+every row that changed height on screen, a reply count, a reaction, an image
+that sized late, as a one-frame jump: the rows below it moved before they had
+been laid out again.
+
+Fix:
+`ContainersLayer` reads the size with `useArr$` on the new architecture, so it
+commits with the positions. The old architecture keeps the `Animated` value,
+which matches its `Animated` positions.
+
+Validate:
+With `ENABLED_LOGGERS=scroller` and the frame checker, add a reply to the
+newest message of a conversation resting at its end: the rows above should move
+up in the frame the reply line appears, with no frame where the rows below it
+sit 28 pt off.
+
+Remove when upstream commits the content size with container positions.
 
 ## react-native-reanimated@4.7.1
 
