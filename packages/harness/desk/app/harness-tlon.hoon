@@ -1171,6 +1171,8 @@
     :-  ~
     ?:  =(%reminder kind.u.job)  ~
     (scheduled-tools:ht (with-tlon:ht tools.u.lane))
+  ::  The head schedules only within this ceiling: the owner has none, and
+  ::  +with-tlon keeps %cron out of every other actor's.
   [& ?:(!owner `(with-tlon:ht tools.u.lane) ~)]
 ::
 ++  thread-context

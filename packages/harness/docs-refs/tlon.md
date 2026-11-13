@@ -511,6 +511,9 @@ messaging the sender.
   MCP entries grant individual registered server IDs, for example
   `{"mcp":"calendar"}` in the `tools` array. Registering another server never
   adds it to trusted actors' grants. A granted server permits all of its tools.
+- Only the owner schedules work. Trusted and allowed ships are not offered the
+  scheduling tools, whatever their grants, and a job whose actor is not the
+  owner is paused.
 - Other ships and the bot's own messages do not enter inference.
 - Group invitations are accepted only when sent by the owner. DM invitations
   from the owner, a trusted ship or an allowed ship are accepted. An invitation
@@ -756,8 +759,12 @@ are not automatically retried. Ordinary final replies still use the publication
 ledger; there is no arbitrary cross-chat send or group-management grant here.
 
 Tlon uses the [shared scheduler](scheduling.md) for one-time follow-ups, recurring
-work, and reminders. Results return to the same DM/channel/thread through normal
-delivery. Open **Settings → Schedules** to inspect jobs.
+work, and reminders, for the owner only, in DMs and channel mentions. Results return
+to the same DM/channel/thread through normal delivery. To post elsewhere, a run uses
+the ship-wide `tlon` tool, which it has when the creating conversation's grants
+include `tlon`. An owner DM has it; other conversations take their grants from
+**Settings → Defaults** when they are created. Open **Settings → Schedules** to
+inspect jobs.
 
 ## Testing
 
@@ -822,7 +829,9 @@ been published to peers. The React tests cover external refresh and draft safety
 
 `tests-js/tlon-tools-conformance.mjs` uses a local provider and the same two-ship
 variables plus an existing `TEST_NEST`. It checks unbound-call denial, bounded
-history, real DM/channel reaction state, cron delivery, transcript isolation,
-recursive-schedule denial and mid-flight source revocation. It restores defaults
+history, real DM/channel reaction state, owner scheduling from a DM and a channel
+mention with delivery to that conversation, transcript isolation,
+recursive-schedule denial, mid-flight source revocation, and that trusted and
+allowed ships are not offered scheduling and have forged calls refused. It restores defaults
 and policy and cancels fixture schedules; messages and their receipts remain.
 `desk/tests/harness-cron.hoon` covers the pure UTC calendar and strict parser.
