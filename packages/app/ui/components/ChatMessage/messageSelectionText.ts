@@ -6,15 +6,17 @@ import {
 } from '@tloncorp/api/client/postContent';
 import type * as db from '@tloncorp/shared/db';
 
-const config = {
-  ...PlaintextPreviewConfig.defaultConfig,
-  includeRefTag: false,
-};
-
 export function messageSelectionText(
-  post: Pick<db.Post, 'content' | 'blob' | 'textContent' | 'isDeleted'>
+  post: Pick<db.Post, 'content' | 'blob' | 'textContent' | 'isDeleted'>,
+  mentionText?: (contactId: string) => string
 ): string {
   if (post.isDeleted) return '';
+
+  const config = {
+    ...PlaintextPreviewConfig.defaultConfig,
+    includeRefTag: false,
+    mentionText,
+  };
 
   try {
     return convertContent(post.content, post.blob)

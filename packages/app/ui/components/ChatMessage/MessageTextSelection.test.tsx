@@ -81,6 +81,8 @@ vi.mock('@tloncorp/shared/store', () => ({
 vi.mock('expo-clipboard', () => ({}));
 vi.mock('../../contexts/appDataContext', () => ({
   useCurrentUserId: () => '~zod',
+  useContactIndex: () => null,
+  useCalm: () => ({ disableNicknames: false }),
 }));
 vi.mock('../../contexts/attachment', () => ({
   useAttachmentContext: () => ({}),

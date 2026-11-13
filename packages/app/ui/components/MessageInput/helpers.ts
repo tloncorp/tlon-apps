@@ -19,6 +19,28 @@ import { Attachment } from '@tloncorp/shared/domain';
 
 const logger = createDevLogger('processReference', true);
 
+// The rich editor runs in a webview without contacts, so its mention chips
+// show the label set here rather than the mention id (a ship name).
+export function labelMentions(
+  content: JSONContent,
+  mentionText: (id: string) => string
+): JSONContent {
+  if (content.type === 'mention' && content.attrs?.id) {
+    return {
+      ...content,
+      attrs: { ...content.attrs, label: mentionText(content.attrs.id) },
+    };
+  }
+  return content.content
+    ? {
+        ...content,
+        content: content.content.map((child) =>
+          labelMentions(child, mentionText)
+        ),
+      }
+    : content;
+}
+
 type EditPostHydrationMode = 'references-only' | 'references-media';
 
 export function hydrateEditPost(

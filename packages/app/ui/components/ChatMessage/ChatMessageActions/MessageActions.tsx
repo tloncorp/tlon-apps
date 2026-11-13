@@ -1,5 +1,5 @@
-import { JSONContent } from '@tloncorp/api/urbit';
-import { ChannelAction } from '@tloncorp/shared';
+import { JSONContent, Story } from '@tloncorp/api/urbit';
+import { ChannelAction, extractContentTypesFromPost } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Attachment } from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
@@ -15,6 +15,7 @@ import { useAttachmentContext } from '../../../contexts/attachment';
 import { useChannelContext } from '../../../contexts/channel';
 import { triggerHaptic, useIsAdmin } from '../../../utils';
 import ActionList from '../../ActionList';
+import { useMentionText } from '../../../hooks/useMentionText';
 import { getOwnContextLensStamp } from '../../Channel/ContextLens/lensPost';
 import { useContextLensAvailable } from '../../Channel/ContextLens/useContextLensStore';
 import { useForwardPostSheet } from '../../ForwardPostSheet';
@@ -149,9 +150,10 @@ export function useMessageActionModel({
   runAfterDismiss: RunAfterDismiss;
 }) {
   const selectText = useMessageTextSelection();
+  const mentionText = useMentionText();
   const selectableText = useMemo(
-    () => (selectText ? messageSelectionText(post) : ''),
-    [selectText, post]
+    () => (selectText ? messageSelectionText(post, mentionText) : ''),
+    [selectText, post, mentionText]
   );
   const currentUserId = useCurrentUserId();
   const connectionStatus = store.useConnectionStatus();
@@ -303,6 +305,7 @@ export function useMessageActionModel({
         onForward: forwardPost,
         onViewReactions,
         addAttachment,
+        mentionText,
         draftTextTarget: draftInputContext
           ? {
               getDraft: draftInputContext.getDraft,
@@ -329,6 +332,7 @@ export function useMessageActionModel({
       dismiss,
       draftInputContext,
       forwardPost,
+      mentionText,
       onEdit,
       onReply,
       onViewBotRun,
@@ -392,6 +396,7 @@ export async function handleAction({
   onViewReactions,
   onForward,
   addAttachment,
+  mentionText,
   draftTextTarget,
   runAfterDismiss,
 }: {
@@ -407,6 +412,7 @@ export async function handleAction({
   onForward?: (post: db.Post) => void;
   onViewReactions?: (post: db.Post) => void;
   addAttachment: (attachment: Attachment) => void;
+  mentionText: (id: string) => string;
   draftTextTarget?: DraftTextTarget | null;
   runAfterDismiss: RunAfterDismiss;
 }) {
@@ -433,7 +439,7 @@ export async function handleAction({
         (channel.type === 'dm' || channel.type === 'groupDm') &&
         post.textContent
       ) {
-        await prependTextToDraft(draftTextTarget, `> ${post.textContent}\n`);
+        await prependQuoteToDraft(draftTextTarget, post, mentionText);
       } else {
         // For other channel types, use reference attachment
         addAttachment({ type: 'reference', reference, path });
@@ -459,6 +465,7 @@ export async function handleAction({
           {
             ...logic.PlaintextPreviewConfig.defaultConfig,
             includeRefTag: false,
+            mentionText,
           }
         );
       } catch (e) {
@@ -494,9 +501,12 @@ export async function handleAction({
   dismiss();
 }
 
-async function prependTextToDraft(
+// Quotes the post's text, keeping its mentions as mentions rather than
+// flattening them to names.
+async function prependQuoteToDraft(
   ctx: DraftTextTarget | null | undefined,
-  text: string
+  post: db.Post,
+  mentionText: (id: string) => string
 ) {
   // DM quote actions should be rendered with the active draft text target.
   // Missing target means the provider wiring is wrong, not that we should fall back to refs.
@@ -504,18 +514,41 @@ async function prependTextToDraft(
     throw new Error('Cannot quote DM text without a draft input context');
   }
 
+  const { story } = extractContentTypesFromPost(post);
+  const quoted = logic.contentToTextAndMentions(
+    logic.diaryMixedToJSON(
+      (story ?? []).filter(
+        (c) => !('type' in c) && !('block' in c && 'image' in c.block)
+      ) as Story
+    ),
+    mentionText
+  );
+  // The quote is one blockquote line, as the stored one-line text was. A
+  // newline and a space are the same length, so mention offsets still hold.
+  const quotedText = quoted.text.replace(/\n/g, ' ');
+  const prefix = '> ';
+  const suffix = '\n';
+
   const draft = await ctx.getDraft();
-  const { text: existing, mentions } = draft
-    ? logic.contentToTextAndMentions(draft)
+  const existing = draft
+    ? logic.contentToTextAndMentions(draft, mentionText)
     : { text: '', mentions: [] };
+  const offset = prefix.length + quotedText.length + suffix.length;
   await ctx.storeDraft(
     logic.textAndMentionsToContent(
-      text + existing,
-      mentions.map((m) => ({
-        ...m,
-        start: m.start + text.length,
-        end: m.end + text.length,
-      }))
+      prefix + quotedText + suffix + existing.text,
+      [
+        ...quoted.mentions.map((m) => ({
+          ...m,
+          start: m.start + prefix.length,
+          end: m.end + prefix.length,
+        })),
+        ...existing.mentions.map((m) => ({
+          ...m,
+          start: m.start + offset,
+          end: m.end + offset,
+        })),
+      ]
     )
   );
   ctx.startDraft?.();

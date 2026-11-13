@@ -175,6 +175,14 @@ vi.mock('../../contexts/scroll', () => ({
     isSendCoordinated: () => false,
   }),
 }));
+vi.mock('../../hooks/useMentionText', () => {
+  const names: Record<string, string> = {
+    '~sampel-palnet': '@James M',
+    '~zod': '@Zod',
+  };
+  const mentionText = (id: string) => names[id] ?? `@${id}`;
+  return { useMentionText: () => mentionText };
+});
 vi.mock('../../hooks/useKeyboardHeight', () => ({
   useKeyboardHeight: () => 0,
 }));

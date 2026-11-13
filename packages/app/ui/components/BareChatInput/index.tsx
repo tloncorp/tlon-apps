@@ -416,6 +416,7 @@ function BareChatInput(
 
   const {
     mentions,
+    mentionText,
     validOptions,
     mentionSearchText,
     isMentionModeActive,
@@ -1158,7 +1159,10 @@ function BareChatInput(
       restoreText: boolean,
       referenceVersion: number
     ) => {
-      const { text, mentions } = contentToTextAndMentions(draft ?? {});
+      const { text, mentions } = contentToTextAndMentions(
+        draft ?? {},
+        mentionText
+      );
       if (restoreText) {
         setControlledText(text);
         setMentions(mentions);
@@ -1182,7 +1186,7 @@ function BareChatInput(
       markInitialContentReady();
       setNeedsHeightAdjustmentAfterLoad(true);
     },
-    [setMentions, addAttachment, markInitialContentReady]
+    [setMentions, addAttachment, markInitialContentReady, mentionText]
   );
 
   const reloadDraft = useCallback(async () => {
@@ -1262,7 +1266,10 @@ function BareChatInput(
             );
 
             bareChatInputLogger.log('jsonContent', jsonContent);
-            const { text, mentions } = contentToTextAndMentions(jsonContent);
+            const { text, mentions } = contentToTextAndMentions(
+              jsonContent,
+              mentionText
+            );
             bareChatInputLogger.log('setting initial content', text, mentions);
             setControlledText(text);
             setMentions(mentions);
@@ -1298,6 +1305,7 @@ function BareChatInput(
     addAttachment,
     setInputFromDraft,
     setMentions,
+    mentionText,
     markInitialContentReady,
   ]);
 
