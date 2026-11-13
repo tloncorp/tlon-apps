@@ -7,7 +7,7 @@ The following tools are available to aid development on Urbit:
 - `scripts/backend/gen-moon.sh` — generate a moon.
 - `just build` — assemble a complete `%groups` desk into `desk-out/` by layering `desk-deps/` and `desk/`.
 - `just install <pier>/groups` — build, then replace a mounted `%groups` desk with the result.
-- `just install-dev <pier>/groups` — build, then copy the result into a mounted `%groups` desk, keeping the files already there.
+- `just install-dev <pier>/groups` — build, then copy the result into a mounted `%groups` desk, keeping the files there that the build did not produce.
 
 ## Validating repository Hoon on a running ship
 
@@ -15,13 +15,15 @@ Use the complete assembled desk whenever repository changes are tested on a
 running ship. If the ship's pier is at `<pier>`, synchronize the Unix mount with:
 
 ```sh
-just install <pier>/groups
+just install-dev <pier>/groups
 ```
 
 The recipe fetches the pinned dependencies, layers repository sources over
-them, stamps `commit.txt`, and replaces the mount with the result, deleting
-every file there that the build did not produce. Point it only at the intended
-`%groups` Unix mount.
+them, stamps `commit.txt`, and copies the result into the mount. Files there
+that the build did not produce are kept, including ones the repository has
+since removed. `just install <pier>/groups` deletes those instead, replacing
+the mount with the result; run it only when that cleanup is intended. Point
+either only at the intended `%groups` Unix mount.
 
 Without switching to the ship's tmux session, send:
 
