@@ -238,7 +238,6 @@ function useSettingsSections(
         key: 'storage',
         title: 'Tlon Storage',
         value: props.storageLabel,
-        leading: { kind: 'icon', icon: 'Folder' },
         testID: 'SettingsStorageRow',
       });
     }
