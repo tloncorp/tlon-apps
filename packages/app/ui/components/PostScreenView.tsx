@@ -679,17 +679,34 @@ function SinglePostView({
   });
   const replyDraftInputRef = useRef<DraftInputHandle>(null);
 
-  // for the unread thread divider, we care about the unread state when you enter but don't want it to update over
-  // time
-  const [initialThreadUnread, setInitialThreadUnread] =
-    useState<db.ThreadUnreadState | null>(null);
+  // The unread state when the thread was entered: it places the unread
+  // divider and the reply the thread opens on, neither of which should move
+  // as the thread is marked read.
+  const [threadUnreadSnapshot, setThreadUnreadSnapshot] = useState<{
+    parentId: string;
+    unread: db.ThreadUnreadState | null;
+  } | null>(null);
   useEffect(() => {
-    async function initializeChannelUnread() {
-      const unread = await db.getThreadUnreadState({ parentId: parentPost.id });
-      setInitialThreadUnread(unread ?? null);
-    }
-    initializeChannelUnread();
+    let isCurrent = true;
+    db.getThreadUnreadState({ parentId: parentPost.id })
+      .catch(() => null)
+      .then((unread) => {
+        if (isCurrent) {
+          setThreadUnreadSnapshot({
+            parentId: parentPost.id,
+            unread: unread ?? null,
+          });
+        }
+      });
+    return () => {
+      isCurrent = false;
+    };
   }, [parentPost.id]);
+  const hasThreadUnreadSnapshot =
+    threadUnreadSnapshot?.parentId === parentPost.id;
+  const initialThreadUnread = hasThreadUnreadSnapshot
+    ? threadUnreadSnapshot.unread
+    : null;
 
   const { data: liveThreadUnread } = store.useLiveThreadUnreadByParentId(
     parentPost.id
@@ -822,12 +839,28 @@ function SinglePostView({
   // Compute a ScrollAnchor from selectedPostId for chat threads.
   // This wires into Scroller's anchor initialization, giving us retry/recovery
   // for unmeasured items instead of a one-shot imperative scroll.
+  // Without a selected reply, a chat thread opens on its first unread reply,
+  // as a chat opens on its first unread post. A reply that has not loaded yet
+  // is waited for like any anchor, so the anchor never changes under a thread
+  // already on screen.
+  const firstUnreadReplyId =
+    (initialThreadUnread?.count ?? 0) > 0
+      ? (initialThreadUnread?.firstUnreadPostId ?? null)
+      : null;
   const threadAnchor: ScrollAnchor | null = useMemo(() => {
     if (isChatChannel && selectedPostId && !selectedReplyIsHidden) {
       return { type: 'selected', postId: selectedPostId };
     }
+    if (isChatChannel && firstUnreadReplyId) {
+      return { type: 'unread', postId: firstUnreadReplyId };
+    }
     return null;
-  }, [isChatChannel, selectedPostId, selectedReplyIsHidden]);
+  }, [
+    firstUnreadReplyId,
+    isChatChannel,
+    selectedPostId,
+    selectedReplyIsHidden,
+  ]);
 
   // Trigger the 5s temporary highlight when selectedPostId changes.
   // Scrolling is handled by the anchor via useAnchorScrollLock.
@@ -976,7 +1009,9 @@ function SinglePostView({
             setEditingPost={setEditingPost}
             onPressRetry={onPressRetry}
             onPressDelete={onPressDelete}
-            posts={postsWithoutParent}
+            // Replies wait for the unread snapshot, so the thread is first
+            // laid out on the reply it opens on instead of rebuilt there.
+            posts={hasThreadUnreadSnapshot ? postsWithoutParent : undefined}
             goBack={goBack}
             activeMessage={activeMessage}
             setActiveMessage={setActiveMessage}
