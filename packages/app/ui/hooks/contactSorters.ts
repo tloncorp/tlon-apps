@@ -1,4 +1,8 @@
-import { preSig } from '@tloncorp/api/lib/urbit';
+import {
+  displayIdStartsWith,
+  displayIdToShip,
+  preSig,
+} from '@tloncorp/api/lib/urbit';
 import { createDevLogger, logSyncDuration } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { valid } from '@urbit/aura';
@@ -103,7 +107,8 @@ export function useSortedContacts({
   const finalContacts = useMemo(() => {
     if (isValidQuery(query)) {
       const filtered = filterContactsOnQuery(sortedContacts, query);
-      const exactMatchCheck = preSig(query.trim().toLocaleLowerCase());
+      const exactMatchCheck =
+        displayIdToShip(query) ?? preSig(query.trim().toLocaleLowerCase());
       if (valid('p', exactMatchCheck)) {
         const exactMatch = db.getFallbackContact(exactMatchCheck);
         if (filtered.find((c) => c.id === exactMatchCheck)) {
@@ -200,7 +205,10 @@ function filterContactsOnQuery(contacts: db.Contact[], query: string) {
       const nickname = contact.nickname?.toLowerCase() ?? '';
       const id = contact.id.replace(/[~-]/g, '');
       return (
-        nickname.startsWith(processedQuery) || id.startsWith(processedQuery)
+        nickname.startsWith(processedQuery) ||
+        id.startsWith(processedQuery) ||
+        // People without a nickname are shown by pet name.
+        displayIdStartsWith(contact.id, query)
       );
     });
   });
