@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
+import { harnessDriver } from '../drivers/harness.js';
 import type { RuntimeContext } from '../drivers/types.js';
 import {
   type CronCleanupTarget,
@@ -15,7 +16,11 @@ const docker = vi.hoisted(() => ({
   resolveComposeContainer: vi.fn(),
 }));
 
-vi.mock('../runtime/docker-direct.js', () => docker);
+// The driver modules cron.ts resolves import the rest of docker-direct.
+vi.mock('../runtime/docker-direct.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../runtime/docker-direct.js')>()),
+  ...docker,
+}));
 
 const context = {
   packageDir: '/repo/packages/tlon-bot-e2e',
@@ -32,6 +37,7 @@ describe('cron scenario lifecycle helpers', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   test('lists all OpenClaw jobs with the deadline-derived CLI timeout', async () => {
@@ -178,6 +184,51 @@ describe('cron scenario lifecycle helpers', () => {
         Promise.reject(new Error('job was not listed'))
       )
     ).rejects.toThrow('cron job lookup failed: job was not listed');
+  });
+
+  test('treats a finished job as removed for a driver with its own store', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const list = vi
+      .spyOn(harnessDriver.cronJobs!, 'list')
+      .mockResolvedValueOnce([
+        { id: 'job-id', name: 'prompt', finished: false },
+      ])
+      .mockResolvedValueOnce([
+        { id: 'job-id', name: 'prompt', finished: true },
+      ]);
+
+    const wait = waitForCronJobRemoved(context, 'harness', 'job-id', 2_000);
+    await vi.advanceTimersByTimeAsync(500);
+    await expect(wait).resolves.toBeUndefined();
+    expect(list).toHaveBeenCalledTimes(2);
+    expect(docker.resolveComposeContainer).not.toHaveBeenCalled();
+  });
+
+  test('cleans up through the driver store and proves the job is gone', async () => {
+    const list = vi
+      .spyOn(harnessDriver.cronJobs!, 'list')
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { id: 'job-id', name: 'prompt', finished: true },
+      ]);
+    const remove = vi
+      .spyOn(harnessDriver.cronJobs!, 'remove')
+      .mockResolvedValue(undefined);
+    const target: CronCleanupTarget = {
+      name: 'prompt',
+      id: 'job-id',
+      creationSettled: Promise.resolve(),
+    };
+
+    await cleanupCronJobAndArtifacts(context, 'harness', target);
+    expect(remove).toHaveBeenCalledWith(context, 'job-id', expect.any(Number));
+    await expect(
+      cleanupCronJobAndArtifacts(context, 'harness', target)
+    ).rejects.toThrow('Cron cleanup left job job-id in the harness store.');
+    expect(list).toHaveBeenCalledTimes(2);
+    expect(docker.resolveComposeContainer).not.toHaveBeenCalled();
+    expect(docker.execInContainer).not.toHaveBeenCalled();
   });
 
   test('lists a present OpenClaw job before disabling, removing, and verifying its artifact', async () => {

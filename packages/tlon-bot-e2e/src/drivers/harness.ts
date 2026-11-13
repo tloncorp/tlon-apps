@@ -3,8 +3,10 @@ import path from 'node:path';
 import { createInterface } from 'node:readline';
 
 import { applyDesk } from '../runtime/branch-desk.js';
+import { sleep } from '../runtime/waiters.js';
 import type {
   BotDriver,
+  CronJobSnapshot,
   DriverRuntimeSpec,
   ModelScript,
   RuntimeContext,
@@ -12,6 +14,9 @@ import type {
 
 const ACP_CALL_TIMEOUT_MS = 90_000;
 const HARNESS_MODEL = 'tlon-test-scripted';
+// Far enough ahead that the creating turn finishes before the job fires.
+const SCHEDULE_AT_OFFSET_MS = 60_000;
+const SCHEDULE_POLL_INTERVAL_MS = 500;
 
 function harnessUnsupported(method: string): never {
   throw new Error(`${method} is not supported by the harness driver.`);
@@ -187,11 +192,165 @@ export const harnessDriver: BotDriver = {
       return harnessUnsupported('imageSearch');
     },
 
-    createCronJob() {
-      return harnessUnsupported('createCronJob');
+    createCronJob({ firedPrompt, finalText }) {
+      return {
+        steps: [
+          {
+            kind: 'tool_call',
+            name: 'schedule_once',
+            args: {
+              at: new Date(Date.now() + SCHEDULE_AT_OFFSET_MS).toISOString(),
+              prompt: firedPrompt,
+            },
+          },
+          { kind: 'text', content: finalText },
+        ],
+        expectations: {
+          advertisedTools: { include: ['schedule_once', 'tlon'] },
+          expectedCallCount: 2,
+          expectedCallSequence: [
+            { kind: 'model_request' },
+            { kind: 'tool_call', toolName: 'schedule_once' },
+            { kind: 'model_request' },
+            { kind: 'final_model_text' },
+          ],
+          toolLoopResult: true,
+          streamedToolLoop: true,
+        },
+      };
+    },
+  },
+
+  async allowDmSender(ctx, ship) {
+    let undo: DmGrant['undo'];
+    await updateAllowedShips(ctx, (allowed) => {
+      const grant = dmGrant(allowed, ship);
+      undo = grant.undo;
+      return grant.allowed;
+    });
+    const revoke = undo;
+    return async () => {
+      if (revoke) {
+        await updateAllowedShips(ctx, revoke);
+      }
+    };
+  },
+
+  cronJobs: {
+    async list(ctx, timeoutMs) {
+      const schedules = await withHarnessAcp(
+        ctx,
+        (call) => call('harness/cron') as Promise<HarnessSchedule[]>,
+        timeoutMs
+      );
+      return schedules.map(harnessScheduleSnapshot);
+    },
+
+    // Harness schedules have no name; the scenario's prompt is unique to it.
+    listingName({ firedPrompt }) {
+      return firedPrompt;
+    },
+
+    remove(ctx, id, deadlineAtMs) {
+      return removeHarnessSchedule(
+        (method, params) =>
+          withHarnessAcp(
+            ctx,
+            (call) => call(method, params),
+            deadlineAtMs - Date.now()
+          ),
+        id,
+        deadlineAtMs
+      );
     },
   },
 };
+
+export interface HarnessSchedule {
+  id: string;
+  prompt: string;
+  state: 'active' | 'paused' | 'cancelled' | 'complete';
+  /** Completed or cancelled, with no execution or delivery still in flight. */
+  clearable: boolean;
+}
+
+// A completed one-shot stays listed until it is cleared. Once its run and
+// delivery have settled it can never run or publish again.
+export function harnessScheduleSnapshot(
+  schedule: HarnessSchedule
+): CronJobSnapshot {
+  return {
+    id: schedule.id,
+    name: schedule.prompt,
+    finished: schedule.state === 'complete' && schedule.clearable,
+  };
+}
+
+// Harness clears only settled schedules, and cancelling does not retract a run
+// already dispatched, so a cancelled job is polled until its work settles.
+export async function removeHarnessSchedule(
+  call: (method: string, params?: unknown) => Promise<unknown>,
+  id: string,
+  deadlineAtMs: number
+): Promise<void> {
+  for (;;) {
+    const schedules = (await call('harness/cron')) as HarnessSchedule[];
+    const schedule = schedules.find((entry) => entry.id === id);
+    if (!schedule) {
+      return;
+    }
+    if (schedule.clearable) {
+      await call('harness/cron/clear', { id });
+      return;
+    }
+    if (schedule.state !== 'cancelled') {
+      await call('harness/cron/cancel', { id });
+      continue;
+    }
+    const remaining = deadlineAtMs - Date.now();
+    if (remaining <= 0) {
+      throw new Error(
+        `Harness schedule ${id} still has work in flight; it was cancelled but cannot be cleared.`
+      );
+    }
+    await sleep(Math.min(SCHEDULE_POLL_INTERVAL_MS, remaining));
+  }
+}
+
+export interface DmGrant {
+  allowed: string[];
+  /** Absent when the ship was already allowed, so revoking leaves it. */
+  undo?: (allowed: string[]) => string[];
+}
+
+// Undo removes only this ship from the policy as it reads at revoke time,
+// keeping any other change made in between.
+export function dmGrant(allowed: string[], ship: string): DmGrant {
+  if (allowed.includes(ship)) {
+    return { allowed };
+  }
+  return {
+    allowed: [...allowed, ship],
+    undo: (current) => current.filter((entry) => entry !== ship),
+  };
+}
+
+async function updateAllowedShips(
+  ctx: RuntimeContext,
+  update: (allowed: string[]) => string[]
+): Promise<void> {
+  await withHarnessAcp(ctx, async (call) => {
+    const { policy, revision } = (await call(
+      'harness/tlon'
+    )) as HarnessTlonStatus;
+    await call('harness/tlon/configure', {
+      ...policy,
+      allowed: update(policy.allowed),
+      expectedOwner: policy.owner,
+      expectedRevision: revision,
+    });
+  });
+}
 
 interface HarnessPolicy {
   enabled: boolean;
@@ -266,8 +425,11 @@ type AcpCall = (method: string, params?: unknown) => Promise<unknown>;
 // JSON-RPC replies.
 async function withHarnessAcp<T>(
   ctx: RuntimeContext,
-  fn: (call: AcpCall) => Promise<T>
+  fn: (call: AcpCall) => Promise<T>,
+  timeoutMs?: number
 ): Promise<T> {
+  const deadlineAtMs =
+    timeoutMs === undefined ? Infinity : Date.now() + timeoutMs;
   const endpoint = ctx.endpoints.ships.zod;
   const child = spawn(
     process.execPath,
@@ -328,10 +490,15 @@ async function withHarnessAcp<T>(
     }
     const id = ++nextId;
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        pending.delete(id);
-        reject(new Error(`Harness ACP ${method} timed out`));
-      }, ACP_CALL_TIMEOUT_MS);
+      const timer = setTimeout(
+        () => {
+          pending.delete(id);
+          // The bridge may be stuck mid-request; don't wait for it to exit.
+          child.kill();
+          reject(new Error(`Harness ACP ${method} timed out`));
+        },
+        Math.max(0, Math.min(ACP_CALL_TIMEOUT_MS, deadlineAtMs - Date.now()))
+      );
       pending.set(id, {
         resolve(value) {
           clearTimeout(timer);
