@@ -436,7 +436,6 @@ export function BotChannelRulesScreen(props: Props) {
         groupRows.push({
           key: channel.key,
           title: channel.label,
-          subtitle: channel.key,
           value: !rule
             ? 'Off'
             : isDeparted
@@ -458,13 +457,12 @@ export function BotChannelRulesScreen(props: Props) {
         });
       });
 
-      const path = `${formatChannelHost(group.host)}/${group.group}`;
       return {
         key: groupKey,
         title: groupLabel,
         footer: isGroupMember
-          ? `${path} · ${enabledCount}/${group.channels.length} enabled`
-          : path,
+          ? `${enabledCount}/${group.channels.length} enabled`
+          : undefined,
         rows: groupRows,
       };
     });

@@ -256,10 +256,6 @@ export function GroupMembersScreenView({
       )}
       {selectedContact !== null && selectedIsRequest && (
         <GroupJoinRequestSheet
-          contact={
-            members.find((m) => m.contactId === selectedContact)?.contact ??
-            undefined
-          }
           contactId={selectedContact}
           currentUserIsAdmin={currentUserIsAdmin}
           open={true}

@@ -4,6 +4,7 @@ import { Text } from '@tloncorp/ui';
 import { XStack, YStack, getTokenValue } from 'tamagui';
 
 import { useCalm, useContact } from '../../contexts/appDataContext';
+import { formatUserId } from '../../utils/user';
 import { ContactAvatar } from '../Avatar';
 import { GroupAvatar } from '../GroupAvatar';
 import { A2UI_TYPE } from './a2uiCardParts';
@@ -67,6 +68,7 @@ function ShipRow({
   const contact = useContact(entity.id);
   const { disableNicknames } = useCalm();
   const nickname = disableNicknames ? undefined : contact?.nickname;
+  const displayId = formatUserId(entity.id)?.display ?? '';
   return (
     <EntityLayout
       avatar={
@@ -74,8 +76,8 @@ function ShipRow({
       }
       compact={compact}
       detail={detail}
-      name={nickname || entity.name || entity.id}
-      handle={entity.id}
+      name={nickname || entity.name || displayId}
+      handle={displayId}
       label={fallbackText}
       marginTop={marginTop}
     />
@@ -90,7 +92,7 @@ function GroupRow({
   marginTop,
 }: RowProps) {
   const { data: group } = useGroupPreview(entity.id);
-  const title = group?.title || entity.name || entity.id;
+  const title = group?.title || entity.name || 'Unknown workspace';
   return (
     <EntityLayout
       avatar={
@@ -102,7 +104,6 @@ function GroupRow({
       compact={compact}
       detail={detail}
       name={title}
-      handle={entity.id}
       label={fallbackText}
       marginTop={marginTop}
     />
@@ -121,7 +122,8 @@ function EntityLayout({
   avatar: React.ReactNode;
   compact: boolean;
   detail?: string;
-  handle: string;
+  /** A group's handle is its id, which is not shown. */
+  handle?: string;
   label: string;
   marginTop?: number;
   name: string;
@@ -145,15 +147,17 @@ function EntityLayout({
         >
           {name}
         </Text>
-        <Text
-          size="$label/m"
-          {...A2UI_TYPE.note}
-          color="$secondaryText"
-          trimmed={false}
-          numberOfLines={detail ? 2 : 1}
-        >
-          {detail ? `${handle} ${detail}` : handle}
-        </Text>
+        {handle || detail ? (
+          <Text
+            size="$label/m"
+            {...A2UI_TYPE.note}
+            color="$secondaryText"
+            trimmed={false}
+            numberOfLines={detail ? 2 : 1}
+          >
+            {[handle, detail].filter(Boolean).join(' ')}
+          </Text>
+        ) : null}
       </YStack>
     </XStack>
   );

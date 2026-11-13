@@ -33,6 +33,7 @@ import {
   getChannelHost,
   getChannelTypeIcon,
   getGroupMemberCount,
+  formatUserId,
   useChatTitle,
   useGroupTitle,
   useIsAdmin,
@@ -563,7 +564,7 @@ export function ChatDetailsScreenView({
                   label="Host"
                   value={connectionStateText(hostState)}
                   mark={<ConnectionMark status={hostState} />}
-                  caption={hostId}
+                  caption={formatUserId(hostId)?.display}
                   onPress={() => onPressProfile(hostId)}
                   // Opens their profile, like a member row; nothing to edit.
                   chevron={false}

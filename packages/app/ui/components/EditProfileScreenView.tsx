@@ -23,6 +23,7 @@ import { avatarColorPresets, useImageInput } from './Form';
 import { GroupSelectorSheet } from './GroupSelectorSheet';
 import { IconEditor, editorAvatar, imageMenuItems } from './IconEditor';
 import { ListItem } from './ListItem';
+import { formatUserId } from '../utils/user';
 import {
   SETTINGS_LIST_COLUMN_WIDTH,
   type SettingsRowModel,
@@ -65,6 +66,7 @@ function EditProfileForm({
   const isWindowNarrow = useIsWindowNarrow();
   const currentUserId = useCurrentUserId();
   const isCurrUser = userId === currentUserId;
+  const displayId = formatUserId(userId)?.display ?? '';
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
 
   // Someone else's nickname and avatar here are the ones you give them.
@@ -205,8 +207,8 @@ function EditProfileForm({
       footer:
         nicknameError ??
         (isCurrUser
-          ? `Shown in place of ${userId}.`
-          : `Only you see this. Shown in place of ${userContact?.peerNickname || userId}.`),
+          ? `Shown in place of ${displayId}.`
+          : `Only you see this. Shown in place of ${userContact?.peerNickname || displayId}.`),
       rows: [
         {
           key: 'nickname',
@@ -215,8 +217,8 @@ function EditProfileForm({
             value: nickname,
             onChangeText: setNickname,
             placeholder: isCurrUser
-              ? userId
-              : (userContact?.peerNickname ?? userId),
+              ? displayId
+              : userContact?.peerNickname || displayId,
             maxLength: maxNicknameLength,
             capitalization: 'words',
           },

@@ -420,7 +420,7 @@ export function ChannelLinkReference({
   const channelTitle = useChannelTitle(channel ?? null);
   const groupTitle = useGroupTitle(parentGroup);
   const icon = getChannelTypeIcon(getChannelType(channelId));
-  const title = channelTitle || channelId.split('/')[2] || channelId;
+  const title = channelTitle || channelId.split('/')[2] || 'Unknown channel';
   const { testID, ...skeletonProps } = props;
 
   return (

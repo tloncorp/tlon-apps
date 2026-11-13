@@ -6,7 +6,6 @@ export default {
   contact: (
     <AppDataContextProvider contacts={[brianContact]}>
       <GroupJoinRequestSheet
-        contact={brianContact}
         contactId={brianContact.id}
         currentUserIsAdmin={true}
         open={true}

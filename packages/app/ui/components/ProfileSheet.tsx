@@ -8,6 +8,7 @@ import { useCurrentUserId } from '../contexts/appDataContext';
 import { useIsNativeSheet } from '../hooks/useIsNativeSheet';
 import { useSheetDismissalAction } from '../hooks/useSheetDismissalAction';
 import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
+import { useContactName } from './ContactNameV2';
 import { ProfileBlock } from './ProfileBlock';
 
 function RoleAssignmentSheet({
@@ -195,8 +196,8 @@ export function ProfileSheet({
     onOpenChange(false);
   }, [contact, contactId, onOpenChange]);
 
+  const displayName = useContactName(contactId);
   const handleKickUser = useCallback(() => {
-    const displayName = contact?.nickname || contactId;
     const message = `This user will be removed from the workspace.\n\nWarning: Kicking this user will invalidate all the invitations they've sent.`;
 
     if (isWeb) {
@@ -218,7 +219,7 @@ export function ProfileSheet({
       ]);
     }
     onOpenChange(false);
-  }, [contact, contactId, onOpenChange, onPressKick]);
+  }, [displayName, onOpenChange, onPressKick]);
 
   const isAdminnable = currentUserIsAdmin;
 
