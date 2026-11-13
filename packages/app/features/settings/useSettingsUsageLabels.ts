@@ -54,6 +54,9 @@ export function useSettingsUsageLabels() {
 
   return {
     storageLabel: isHostedUser ? getStorageLabel(storageInfoQuery) : undefined,
+    storageProgress: isHostedUser
+      ? getStorageProgress(storageInfoQuery)
+      : undefined,
     tokenUsageLabel: showsTokenUsage
       ? getTokenUsageLabel(tokenUsageQuery)
       : undefined,
@@ -78,6 +81,16 @@ export function getStorageLabel(query: {
     return 'None';
   }
   return `${formatStorageSize(query.data.usedBytes)} of ${formatStorageSize(query.data.totalBytes)}`;
+}
+
+export function getStorageProgress(query: {
+  data?: StorageInfo | null;
+  isError: boolean;
+}): number | undefined {
+  if (query.isError || !query.data || query.data.totalBytes === 0) {
+    return undefined;
+  }
+  return Math.min(1, Math.max(0, query.data.usedBytes / query.data.totalBytes));
 }
 
 // formatMemorySize picks the unit ("40mb"); this row writes it as "40 MB".

@@ -67,7 +67,8 @@ export default function SettingsScreen() {
   const navigationRef = useMutableRef(useNavigation());
   const [statusSheetOpen, setStatusSheetOpen] = useState(false);
   const { themeLabel, notificationsLabel } = useSettingsRowLabels();
-  const { storageLabel, tokenUsageLabel } = useSettingsUsageLabels();
+  const { storageLabel, storageProgress, tokenUsageLabel } =
+    useSettingsUsageLabels();
 
   const onAppInfoPressed = useCallback(() => {
     navigationRef.current.navigate('AppInfo');
@@ -163,6 +164,7 @@ export default function SettingsScreen() {
     themeLabel,
     notificationsLabel,
     storageLabel,
+    storageProgress,
     tokenUsageLabel,
   };
 
