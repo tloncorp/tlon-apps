@@ -408,6 +408,9 @@ if (timeline) {
         to: t + 900,
         why: 'scroll the app asked for',
       });
+    } else if (type === 'auto-scroll') {
+      // The list following new messages at the end, or holding its place.
+      intervals.push({ from: t - 30, to: t + 400, why: 'following new rows' });
     } else if (type === 'keyboard') {
       intervals.push({ from: t - 50, to: t + 700, why: 'keyboard' });
     } else if (type === 'position') {
@@ -423,7 +426,9 @@ if (timeline) {
       // A screen sliding in or out, or the app returning.
       intervals.push({ from: t - 600, to: t + 600, why: 'screen transition' });
     } else if (type === 'visibility') {
-      intervals.push({ from: t - 50, to: t + 60, why: 'list shown' });
+      // The first frame with the list on it can follow JS's note by a few
+      // frames, while the native side commits the change.
+      intervals.push({ from: t - 50, to: t + 150, why: 'list shown' });
       if (message.startsWith('list first shown')) {
         shownLists.add(list);
         for (const interval of hiddenPositioning.get(list) ?? []) {
