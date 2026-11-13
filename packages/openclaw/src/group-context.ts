@@ -18,15 +18,15 @@
  *
  * The location is fixed for a session (one session per channel), so it goes
  * in system context where the provider caches it; it holds identifiers
- * only. Titles and the digest are member-authored and change every turn, so
- * they go in `prependContext`, which rides on the active prompt only and is
- * not written to the transcript.
+ * only. Titles and activity counts go in `prependContext`, which rides on
+ * the active prompt only and is not written to the transcript.
  *
  * Group structure is seeded from the groups-ui init snapshot and kept
  * current by `/groups/ui` facts. Activity is recorded from the channel
  * firehose for every message other ships post, whether or not the bot
- * replies; it is in-memory and starts empty after a restart. The latest
- * message's snippet is dropped when that message is edited or deleted.
+ * replies; it is in-memory and starts empty after a restart. The digest
+ * counts messages without collecting their text, so a sibling post cannot
+ * influence an owner-triggered turn in another channel through this digest.
  *
  * The monitor creates one runtime per account and publishes it through a
  * shared slot; the `before_prompt_build` hook (registered from the plugin
@@ -62,21 +62,11 @@ export type GroupContextGroup = {
 
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 const MAX_EVENTS_PER_CHANNEL = 200;
-const SNIPPET_MAX_CHARS = 80;
 const TITLE_MAX_CHARS = 60;
 const MAX_ACTIVE_ROWS = 24;
 const MAX_QUIET_LISTED = 40;
 
-type ChannelActivity = {
-  events: Array<{ timestamp: number; sender: string }>;
-  /** parentId: a reply's root post, whose deletion takes the reply with it. */
-  latestSnippet?: {
-    id: string;
-    parentId?: string;
-    text: string;
-    timestamp: number;
-  };
-};
+type ChannelActivity = Array<{ timestamp: number; sender: string }>;
 
 export type GroupContextRuntime = {
   handleBeforePromptBuild(
@@ -99,15 +89,9 @@ export type GroupContextRuntime = {
   /** Record a message seen in a channel; ignored outside known groups. */
   recordMessage(params: {
     nest: string;
-    id: string;
-    /** For a reply, its thread's root post id. */
-    parentId?: string;
     sender: string;
-    text?: string;
     timestamp?: number;
   }): void;
-  /** A post or reply changed (edited, deleted): drop a snippet taken from it. */
-  forgetMessage(params: { nest: string; id: string }): void;
 };
 
 function oneLine(text: string, max: number): string {
@@ -162,13 +146,13 @@ export function createGroupContextRuntime(
     return found.length === 1 ? found[0] : null;
   };
 
-  const prune = (state: ChannelActivity, at: number) => {
+  const prune = (events: ChannelActivity, at: number) => {
     const cutoff = at - WINDOW_MS;
-    while (state.events.length > 0 && state.events[0].timestamp < cutoff) {
-      state.events.shift();
+    while (events.length > 0 && events[0].timestamp < cutoff) {
+      events.shift();
     }
-    if (state.events.length > MAX_EVENTS_PER_CHANNEL) {
-      state.events.splice(0, state.events.length - MAX_EVENTS_PER_CHANNEL);
+    if (events.length > MAX_EVENTS_PER_CHANNEL) {
+      events.splice(0, events.length - MAX_EVENTS_PER_CHANNEL);
     }
   };
 
@@ -205,22 +189,17 @@ export function createGroupContextRuntime(
     for (const channel of group.channels) {
       const isCurrent = channel === current;
       if (!isCurrent && channel.readers.length > 0) continue;
-      const state = activity.get(channel.nest);
-      if (state) prune(state, at);
-      const count = state?.events.length ?? 0;
-      if (count === 0) {
+      const events = activity.get(channel.nest);
+      if (events) prune(events, at);
+      if (!events?.length) {
         if (!isCurrent) quiet.push(label(channel));
         continue;
       }
       if (active.length >= MAX_ACTIVE_ROWS && !isCurrent) continue;
-      const senders = new Set(state!.events.map((event) => event.sender)).size;
-      const latest = state!.latestSnippet;
-      const snippet =
-        latest && !isCurrent && latest.timestamp >= at - WINDOW_MS
-          ? `; latest: "${latest.text}"`
-          : '';
+      const count = events.length;
+      const senders = new Set(events.map((event) => event.sender)).size;
       active.push(
-        `- ${label(channel)}${isCurrent ? ' — this channel' : ''}: ${count} message${count === 1 ? '' : 's'} from ${senders} ship${senders === 1 ? '' : 's'}${snippet}`
+        `- ${label(channel)}${isCurrent ? ' — this channel' : ''}: ${count} message${count === 1 ? '' : 's'} from ${senders} ship${senders === 1 ? '' : 's'}`
       );
     }
 
@@ -356,31 +335,10 @@ export function createGroupContextRuntime(
         params.timestamp > 0
           ? Math.min(params.timestamp, at)
           : at;
-      const state = activity.get(nest) ?? { events: [] };
-      state.events.push({ timestamp, sender });
-      const text = params.text ? oneLine(params.text, SNIPPET_MAX_CHARS) : '';
-      if (text) {
-        state.latestSnippet = {
-          id: params.id,
-          parentId: params.parentId,
-          text,
-          timestamp,
-        };
-      }
-      prune(state, at);
-      activity.set(nest, state);
-    },
-
-    forgetMessage(params) {
-      const nest = locate(params.nest)?.channel.nest;
-      const state = nest ? activity.get(nest) : undefined;
-      const snippet = state?.latestSnippet;
-      if (
-        state &&
-        (snippet?.id === params.id || snippet?.parentId === params.id)
-      ) {
-        delete state.latestSnippet;
-      }
+      const events = activity.get(nest) ?? [];
+      events.push({ timestamp, sender });
+      prune(events, at);
+      activity.set(nest, events);
     },
   };
 }

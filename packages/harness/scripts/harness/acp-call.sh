@@ -11,10 +11,9 @@ set -euo pipefail
 pier=$1 method=$2
 read -ra click <<<"${CLICK:-$(dirname "$0")/../click}"
 
-# Unix limits socket paths to 108 bytes; socat would truncate a longer one.
+source "$(dirname "$0")/../ship-lib.sh"
+check_socket "$pier"
 socket=$pier/.urb/conn.sock
-(( ${#socket} < 108 )) ||
-  { echo "pier path is too long for the ship's socket: $socket" >&2; exit 1; }
 [[ -S $socket ]] || { echo "no running ship at $pier" >&2; exit 1; }
 
 # Hex keeps arbitrary JSON from being parsed as Hoon, or closing click's cord.

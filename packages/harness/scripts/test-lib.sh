@@ -6,8 +6,9 @@
 pattern=$1
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$root" || exit 1
+source scripts/ship-lib.sh
 run=$root/.test-run
-# Keep pier paths short: Unix limits socket paths to 108 bytes.
+# The ships' sockets are under here, so check_socket limits how deep it can be.
 piers=$run/piers
 out=$run/$suite
 logs=$out/logs
@@ -18,6 +19,8 @@ for tool in $tools; do
 done
 if [ "$pattern" != "--stop" ]
 then
+  # Every ship's name is three letters, so ~zod's socket stands for all of them.
+  check_socket "$piers/zod" || exit 1
   for ship in zod lux nec; do
     # A session with a pier here is ours, and a PATTERN run reuses it.
     if tmux has-session -t "=fake-$ship" 2>/dev/null

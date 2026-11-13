@@ -52,7 +52,8 @@ so credentials stay out of process arguments. It needs a running pier and `socat
 The receipt confirms that Hood accepted the commit request; Gall recompilation and
 native tests remain separate checks. The socket path `PIER/.urb/conn.sock` must be
 under 108 bytes on Linux and 104 on macOS, so reach deep piers through a short
-symlink. `just commit` and `just fake-dev` check only the Linux limit.
+symlink. `just commit`, `just fake-dev` and the test recipes check the limit for
+the platform they run on.
 
 `just test-hoon` runs `scripts/test-hoon.sh`, which needs `tmux` but not `node`: the
 native tests and integration tests on `~zod` alone. `just test-js` runs
@@ -62,11 +63,9 @@ Without a pattern, each boots fresh ships and removes them, so the full `just te
 boots `~zod` twice. Each keeps its results and logs in `.test-run/hoon/` or
 `.test-run/js/`.
 Both read the ships' tmux panes, capturing up to 200,000 lines, and `test-hoon`
-finds each run's output by line offset, so tmux must keep a long history: put
-`set-option -g history-limit 500000` in `~/.tmux.conf` before the ships start, as
-`harness-ci.yml` does. A tmux server that is already running reads the file only on
-`tmux source-file ~/.tmux.conf`. tmux's default of 2000 lines drops test output and
-breaks the offsets.
+finds each run's output by line offset, so the scripts give the tmux sessions they
+create a history of 500,000 lines, and stop if tmux did not apply it. tmux's default
+of 2000 lines drops test output and breaks the offsets.
 
 CI splits `test-js` across runners. `TEST_SHARD=I/N just test-js` runs the Ith of N
 parts of the full run, on fresh ships. With more than one part, the last takes the

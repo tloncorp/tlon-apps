@@ -16,6 +16,7 @@ pier_dir=${ship#\~}
 pier=$PWD/$pier_dir
 session=fake-$pier_dir
 click=$root/scripts/click
+source "$root/scripts/ship-lib.sh"
 
 urbit_bin_url="https://bootstrap.urbit.org/vere/live/v4.5"
 vere_ver="vere-v4.5"
@@ -54,13 +55,8 @@ then
   exit 1
 fi
 
-# Unix limits socket paths to 108 bytes; find out now, not after the long boot.
-socket=$pier/.urb/conn.sock
-if [ ${#socket} -ge 108 ]
-then
-  echo "This directory is too deep for the ship's socket: $socket"
-  exit 1
-fi
+# Find out now, not after the long boot.
+check_socket "$pier" || exit 1
 
 if [ ! -f "$root/mcp/justfile" ]
 then
@@ -133,7 +129,7 @@ then
 fi
 
 echo "Booting ship"
-tmux new-session -d -s "$session" -x 180 -y 50 "exec $vere --loom 33 --http-port $http_port $ames_args $pier"
+new_ship_session "$session" "exec $vere --loom 33 --http-port $http_port $ames_args $pier" || exit 1
 
 function await_ship
 {

@@ -96,7 +96,7 @@ then
 fi
 
 suite=js
-tools="node tmux just"
+tools="node timeout tmux just socat curl jq yq rsync python3"
 source "$(dirname "$0")/test-lib.sh" "$1"
 
 # Live scripts this run can't do, and why.
@@ -180,7 +180,7 @@ function restart_ship
 {
   stop_ship $1
   vere=$(echo "$root"/.deps-cache/vere-v*)
-  tmux new-session -d -s "fake-$1" -x 180 -y 50 "exec $vere --loom 33 --http-port $2 $piers/$1"
+  new_ship_session "fake-$1" "exec $vere --loom 33 --http-port $2 $piers/$1" || return 1
   for attempt in $(seq 1 120)
   do
     curl -s -o /dev/null "http://127.0.0.1:$2/~/login" && return 0

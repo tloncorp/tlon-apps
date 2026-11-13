@@ -316,6 +316,7 @@ import {
   downloadMessageImages,
   formatInboundMediaBody,
   formatBlobAnnotations,
+  hasAttachmentBlob,
   parseBlobData,
 } from './media.js';
 import { createNudgeRunner, shouldStartNudgeRunner } from './nudge-runner.js';
@@ -4769,15 +4770,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           return;
         }
 
-        // Any event about an existing post (an edit, a delete) supersedes a
-        // digest snippet taken from it; a new post's id matches none.
+        // A deleted post or reply; see ChannelResponse.
         const rPost = response?.post?.['r-post'];
         const reply = rPost?.reply;
-        const postId = reply ? reply.id : response?.post?.id;
-        if (postId) {
-          groupContextRuntime.forgetMessage({ nest, id: postId });
-        }
-        // A deleted post or reply; see ChannelResponse.
         const deleted = reply ? reply['r-reply']?.set : rPost?.set;
         if (deleted === null || deleted?.type === 'tombstone') {
           return;
@@ -4823,7 +4818,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           botShipName,
           botNickname ?? undefined
         );
-        const hasBlob = Boolean(content.blob);
+        const hasBlob = hasAttachmentBlob(content.blob);
         if (!rawText.trim() && !hasBlob) {
           return;
         }
@@ -4872,10 +4867,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         if (messageId) {
           groupContextRuntime.recordMessage({
             nest,
-            id: messageId,
-            parentId: threadRootId,
             sender: senderShip,
-            text: rawText,
             timestamp: content.sent,
           });
         }
@@ -5543,7 +5535,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           );
         }
 
-        const hasBlob = Boolean(dmContent.blob);
+        const hasBlob = hasAttachmentBlob(dmContent.blob);
         if (!rawText.trim() && !hasBlob) {
           return;
         }

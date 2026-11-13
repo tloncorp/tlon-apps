@@ -135,6 +135,32 @@ describe('extractCites', () => {
 });
 
 describe('prepareInboundText', () => {
+  it('uses a gallery link card as the body without treating its URL as a wake', () => {
+    const url = 'https://example.com/~bot-ship/tldr';
+    const content = [{ block: { link: { url, meta: { title: 'Example' } } } }];
+
+    const prepared = prepareInboundText(content, '~bot-ship');
+
+    expect(prepared).toEqual({
+      rawText: `[link: ${url}]`,
+      engagementText: '',
+      mentioned: false,
+    });
+    expect(
+      stripBotMentionOutsidePlaceholders(prepared.rawText, '~bot-ship')
+    ).toBe(prepared.rawText);
+    expect(
+      prepareInboundText(
+        [...content, { inline: ['~bot-ship /status'] }],
+        '~bot-ship'
+      )
+    ).toEqual({
+      rawText: '~bot-ship /status',
+      engagementText: '~bot-ship /status',
+      mentioned: true,
+    });
+  });
+
   it('uses generic cite placeholders and excludes cite metadata from mention checks', () => {
     const content = [channelCite('~bot-ship Helper ', '/msg/~bot-ship/123')];
 

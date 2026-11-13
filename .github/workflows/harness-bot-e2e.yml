@@ -19,11 +19,20 @@ permissions:
 
 jobs:
   integration-test:
-    name: Bot E2E (harness)
+    name: Bot E2E (harness ${{ matrix.shard }})
     runs-on: blacksmith-8vcpu-ubuntu-2204
     # Above cold setup, the step cap and the failure capture, so a step that
     # runs to its cap fails the step and the capture steps still run.
     timeout-minutes: 75
+    # One stack per scenario partition, run in parallel.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: baseline
+            id: b
+          - shard: cron
+            id: c
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -73,7 +82,9 @@ jobs:
         env:
           FAKE_SHIP_CACHE_DIR: ${{ github.workspace }}/.cache/tlon-bot-e2e/fake-ships
           # Compact: run.ts appends the stack key and truncates at 32 chars.
-          TLON_BOT_E2E_RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}-h
+          TLON_BOT_E2E_RUN_ID:
+            ${{ github.run_id }}-${{ github.run_attempt }}-h${{ matrix.id }}
+          TLON_BOT_E2E_SCENARIO_PARTITIONS: ${{ matrix.shard }}
         run: pnpm --filter '@tloncorp/tlon-bot-e2e' test:e2e:harness
 
       - name: Capture leftover docker state
@@ -86,7 +97,7 @@ jobs:
         if: failure() || cancelled()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: tlon-bot-e2e-diagnostics-harness-${{ github.run_attempt }}
+          name: tlon-bot-e2e-diagnostics-harness-${{ matrix.shard }}-${{ github.run_attempt }}
           path: packages/tlon-bot-e2e/diagnostics/
           if-no-files-found: warn
           retention-days: 7
