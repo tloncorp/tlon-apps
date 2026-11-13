@@ -31,6 +31,7 @@ import {
   desktopFlyoutContentProps,
   desktopFlyoutPopoverProps,
 } from './ActionSheet';
+import { useContactName } from './ContactNameV2';
 import { ListItem } from './ListItem';
 import { ExpoUIActionContent, ExpoUIPaneStack } from './ExpoUISheet';
 
@@ -876,16 +877,20 @@ export function ChannelOptionsSheetContent({
     ]
   );
 
+  const dmContactName = useContactName(channel?.contactId ?? '');
+  const firstMemberName = useContactName(
+    channel?.members?.[0]?.contactId ?? ''
+  );
   const subtitle = useMemo(() => {
     if (!channel) {
       return '';
     }
     switch (channel.type) {
       case 'dm':
-        return `Chat with ${channel.contactId}`;
+        return `Chat with ${dmContactName}`;
       case 'groupDm':
         return channel.members && channel.members?.length > 2
-          ? `Chat with ${channel.members[0].contactId} and ${channel.members?.length - 1} others`
+          ? `Chat with ${firstMemberName} and ${channel.members?.length - 1} others`
           : 'Group chat';
       default:
         return group
@@ -894,7 +899,14 @@ export function ChannelOptionsSheetContent({
             : `Channel in ${groupTitle}`
           : '';
     }
-  }, [channel, group, groupTitle, isSingleChannelGroup]);
+  }, [
+    channel,
+    group,
+    groupTitle,
+    isSingleChannelGroup,
+    dmContactName,
+    firstMemberName,
+  ]);
 
   return (
     <ChatOptionsSheetContent

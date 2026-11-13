@@ -39,6 +39,7 @@ vi.mock('../contexts/appDataContext', () => ({
 vi.mock('../utils', () => ({ useChatTitle: () => 'Chat' }));
 vi.mock('../utils/channelUtils', () => ({ channelHasPosts: () => true }));
 vi.mock('./ProfileBlock', () => ({ ProfileBlock: () => null }));
+vi.mock('./ContactNameV2', () => ({ useContactName: (id: string) => id }));
 vi.mock('./ForwardChannelSelector', () => ({
   ForwardChannelSelector: () => null,
 }));
