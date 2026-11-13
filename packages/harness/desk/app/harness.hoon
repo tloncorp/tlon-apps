@@ -47,6 +47,7 @@
 /+  routing=harness-model-routing
 /+  model-context=harness-model-context
 /+  mcp=harness-mcp
+/+  browser-image=harness-browser-image
 /+  tool-catalog=harness-tool-catalog, wire-json=harness-provider-wire
 /+  observe=harness-observe
 /+  run-report=harness-run-report
@@ -54,6 +55,10 @@
 /+  memory-browser=harness-memory-browser
 |%
 +$  card  card:agent:gall
++$  browser-screen
+  [input-id=input-id:h call-id=@t server=@uvH mime=@t data=@t]
++$  runtime-state
+  $_  [%0 browser-images=*(map session-id:h browser-screen) =>(*state-0 +)]
 +$  acp-request
   $:  connection=connection-id:v1:ac
       request-id=json
@@ -73,7 +78,7 @@
   ==
 --
 %-  agent:dbug
-=|  state-0
+=|  runtime-state
 =*  state  -
 ^-  agent:gall
 =<
@@ -90,7 +95,7 @@
         |=  result=(quip card _this)
         ^-  (quip card _this)
         =*  updated  +.result
-        =/  saved  !<(state-0 on-save:updated)
+        =/  saved=runtime-state  state:updated
         =/  before-writes  writes.workspace
         =/  before-workspace  workspace
         =/  before-notes  workspace-notes
@@ -169,12 +174,12 @@
         acp-watch-card:wire-codec
     ==
   ::
-  ++  on-save  !>(state)
+  ++  on-save  !>(`state-0`[%0 +>.state])
   ::
   ++  on-load
     |=  old-vase=vase
     =/  new=state-0  (load:storage old-vase)
-    =.  state  new(corpus-wake ~, schedule-wake ~)
+    =.  state  [%0 ~ +.new(corpus-wake ~, schedule-wake ~)]
     =.  wake.knowledge  ~
     =.  runners
       runners(wake ~, registry (~(run by registry.runners) |=(r=runner:runner-types r(stream ~))))
@@ -1514,7 +1519,7 @@
         ==
         state
     ==
-  =/  saved=state-0  state
+  =/  saved=runtime-state  state
   =/  next  saved(workspace-notes workspace-notes.saved(pending ~))
   =.  workspace.next
     %:  record:workspace-lib
@@ -1541,7 +1546,7 @@
   ^-  (quip card _state)
   ?~  pending.workspace-notes  `state
   =/  pending  u.pending.workspace-notes
-  =/  saved=state-0  state
+  =/  saved=runtime-state  state
   =/  next
     saved(workspace-notes workspace-notes.saved(pending ?:(uncertain `pending(uncertain &) ~)))
   [~[(notes-reply reply.pending [%| message])] next]
@@ -1693,7 +1698,7 @@
     %+  notes-failed
       'Notes confirmed a result, but its current document could not be read. Do not repeat the operation.'
     &
-  =/  saved=state-0  state
+  =/  saved=runtime-state  state
   =/  next  saved(workspace db.p.resolved, workspace-notes native.p.resolved)
   =/  artifact  (~(got by artifacts.workspace.next) artifact.pending)
   =/  result
@@ -2883,7 +2888,8 @@
         ==
       $(request request(action 'settings', args u.parsed))
     ?:  =('clear-credentials' action.request)
-      =.  state  (clear:hosted-cleanup state)
+      =/  cleared  (clear:hosted-cleanup [%0 +>.state])
+      =.  state  [%0 ~ +.cleared]
       [~[(reply (envelope:hosted-auth 200 (pairs:enjs:format ~[['cleared' %b &]])))] state]
     ?:  =('provision' action.request)  provision
     ?:  =('settings' action.request)
@@ -3230,7 +3236,8 @@
   |=  rpc=acp-request
   ^-  (quip card _state)
   =+  rpc
-  =^  sid  state  (ensure:onboarding state)
+  =/  [sid=(unit session-id:h) saved=state-0]  (ensure:onboarding [%0 +>.state])
+  =.  state  [%0 browser-images +.saved]
   =/  listed  (list-json:index sessions modified)
   ?>  ?=(%o -.listed)
   =/  result=json
@@ -3987,6 +3994,7 @@
   ^-  (quip card _state)
   ?>  ?=(%input-received -.event)
   ?>  ?=(%user -.item.input.event)
+  =.  browser-images  (~(del by browser-images) sid)
   =/  parsed-command  (parse:command body.item.input.event)
   ?:  ?&  ?=(^ parsed-command)
           ?=(?(%memory %remember %forget) name.u.parsed-command)
@@ -4253,6 +4261,7 @@
   =/  session  (need-session sid.action)
   =/  view  (play:hl log.session)
   =.  search-requests  (forget-requests:search search-requests sid.action)
+  =.  browser-images  (~(del by browser-images) sid.action)
   ::  Withdraw local HTTP waits as well as fencing their results. This
   ::  cannot undo an operation the external service has already accepted.
   =/  withdrawn=(list card)
@@ -4337,6 +4346,7 @@
       compactions.maintenance  (~(del by compactions.maintenance.knowledge) sid)
     ==
   =.  search-requests  (forget-requests:search search-requests sid)
+  =.  browser-images  (~(del by browser-images) sid)
   =/  cards=(list card)  stopped
   =^  extra  state  (withdraw-auxiliary sid)
   =.  cards  (weld cards extra)
@@ -5254,6 +5264,8 @@
       ?.  &(?=(^ capture) =(%compaction kind) =(req id.u.capture))  ~
       `(request-data:memory-capture knowledge u.capture)
     (payload-with-capture:hp view kind (skills-visible sid skills) evidence)
+  =?  payload  =(%turn kind)
+    (attach-browser-image sid config.view payload)
   =/  body=@t  (en:json:html payload)
   =/  runner  (route:runner-lib url.config.view)
   ?^  runner
@@ -5278,6 +5290,24 @@
   :*  %pass  `wire`[%llm `@ta`sid (scot %ud req) kind ~]
       %arvo  %i  %request  request  *outbound-config:iris
   ==
+::
+++  attach-browser-image
+  |=  [sid=session-id:h config=config:h payload=json]
+  ^-  json
+  =/  image  (~(get by browser-images) sid)
+  ?~  image  payload
+  =/  input  (work-origin sid)
+  ?.  &(?=(^ input) =(id.u.input input-id.u.image))  payload
+  ?.  (mcp-granted:ht 'kernel-browser' (execution-tools sid tools.config))  payload
+  =/  server  (~(get by mcp-servers) 'kernel-browser')
+  ?.  &(?=(^ server) enabled.u.server =(server.u.image (sham u.server)))  payload
+  =/  supported
+    ?&  =('deepseek/deepseek-v4.1-flash-1017' model.config)
+        !(responses-route:hp url.config)
+        !(anthropic-route:hp url.config)
+        ?=(~ (route:runner-lib url.config))
+    ==
+  (attach:browser-image payload call-id.u.image mime.u.image data.u.image supported)
 ::  A response belongs to one pending request. Progress updates the transient
 ::  stream; terminal responses record events and resume the session loop.
 ::
@@ -5828,6 +5858,8 @@
     'rejected: hand tool is no longer authorized'
   =?  body  &(=('workspace' name.u.call) ?=(~ (workspace-authority sid)))
     'rejected: workspace source authority is no longer available'
+  =?  browser-images  (browser-entry-tool:ht name.u.call)
+    (~(del by browser-images) sid)
   =/  limit  ?:(=('workspace' name.u.call) 120.000 24.000)
   =^  recorded  session
     (record-all sid session ~[[%tool-completed call-id name.u.call (clip:ht body limit)]])
@@ -5922,8 +5954,17 @@
   ?.  =(%http-response-data p.cage.sign)  `state
   =/  data  !<((unit octs) q.cage.sign)
   ?~  data  `state
-  ?:  (gth (add (met 3 body.u.pending) p.u.data) 262.144)
-    (finish-local-mcp sid generation call-id 'error: local MCP response exceeds 256 KiB')
+  =/  size  (add (met 3 body.u.pending) p.u.data)
+  =/  computer
+    ?.  &((gth size 262.144) =('kernel-browser' server.u.pending))  |
+    =/  session  (~(get by sessions) sid)
+    ?~  session  |
+    =/  call  (requested-call u.session call-id)
+    ?~(call | (computer:browser-image (tool:browser-image u.call)))
+  ?:  (gth size ?:(computer limit:browser-image 262.144))
+    =/  error
+      ?:(computer 'error: Browser screenshot exceeds 2 MiB.' 'error: local MCP response exceeds 256 KiB')
+    (finish-local-mcp sid generation call-id error)
   =/  updated  u.pending(body (cat 3 body.u.pending q.u.data))
   `state(local-mcp (~(put by local-mcp) [sid call-id] updated))
 ::
@@ -5963,6 +6004,7 @@
     'rejected: local MCP access or server configuration changed'
   =?  body  =('list_mcp_tools' name.u.call)
     (receipt:mcp args.u.call body)
+  =^  body  browser-images  (project-browser-image sid u.call body)
   =^  recorded  u.found
     (record-all sid u.found ~[[%tool-completed call-id name.u.call body]])
   =^  driven  state  (drive-put sid u.found)
@@ -6020,9 +6062,34 @@
         !(authorized-call sid call-id tool-name)
     ==
     'rejected: tool request is no longer authorized'
+  =/  call  (requested-call session call-id)
+  =^  body  browser-images
+    ?~  call  [body browser-images]
+    (project-browser-image sid u.call body)
   =^  recorded  session  (record-all sid session ~[[%tool-completed call-id tool-name body]])
   =^  driven  state  (drive-put sid session)
   [(weld recorded driven) state]
+::
+++  project-browser-image
+  |=  [sid=session-id:h call=tool-call:h body=@t]
+  ^-  [@t _browser-images]
+  =/  name  (tool:browser-image call)
+  ?~  name  [body browser-images]
+  ::  A new browser operation supersedes the preceding view. Discovery and
+  ::  other Harness tools may still run between the capture and the action.
+  =.  browser-images  (~(del by browser-images) sid)
+  ?:  |(=('browser_session_create' u.name) =('browser_session_release' u.name))
+    [(browser-session:mcp body =('browser_session_release' u.name)) browser-images]
+  ?.  (computer:browser-image name)  [body browser-images]
+  =/  result  (receipt:browser-image body)
+  ?~  image.result  [body.result browser-images]
+  =/  input  (work-origin sid)
+  =/  server  (~(get by mcp-servers) 'kernel-browser')
+  ?.  &(?=(^ input) ?=(^ server))  [body.result browser-images]
+  ?:  (gte ~(wyt by browser-images) 16)
+    ['error: Browser screenshot capacity reached.' browser-images]
+  :-  body.result
+  (~(put by browser-images) sid [id.u.input id.call (sham u.server) u.image.result])
 ::  +drive-put: drive a session, store it, then settle subagent links
 ::
 ++  drive-put
@@ -6034,6 +6101,10 @@
   =.  search-requests  search-requests.result
   =.  knowledge  knowledge.result
   =.  sessions  (~(put by sessions) sid session.result)
+  =?  browser-images  (~(has by browser-images) sid)
+    =/  view  (play:hl log.session.result)
+    ?:  |(?=(^ pending.view) !=(~ wait.view))  browser-images
+    (~(del by browser-images) sid)
   =^  settled  state  (settle sid)
   [(weld cards.result settled) state]
 ::  Deliver terminal results to the session's callers. Each settlement commits

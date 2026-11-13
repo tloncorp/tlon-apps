@@ -48,7 +48,7 @@
     %^  do-agent  /publish/0v1/(scot %ud attempt)  gill
     [%poke-ack ?:(rejected `~ ~)]
   ;<  =vase  bind:m  get-save
-  (pure:m deliveries:!<(state-2:t vase) (receipts caz))
+  (pure:m deliveries:!<(state-3:t vase) (receipts caz))
 ::
 ++  test-channel-ack-waits-for-host-confirmation
   %-  eval-mare
