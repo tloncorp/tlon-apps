@@ -88,10 +88,7 @@ const promptFileRouteNames = new Set(['BotPromptFiles', 'BotPromptFile']);
 export function SettingsScreenView(props: Props) {
   const isWindowNarrow = useIsWindowNarrow();
   const headerColor = useSettingsListHeaderColor();
-  const profileName = useContactName({
-    contactId: props.currentUserId,
-    expandLongIds: true,
-  });
+  const profileName = useContactName(props.currentUserId);
   const sections = useSettingsSections(props, profileName);
 
   return (

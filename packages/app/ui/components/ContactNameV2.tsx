@@ -5,7 +5,6 @@
  * - Automatic Calm mode support (respects disableNicknames setting)
  * - Flexible display modes (nickname, contactId, both, or auto)
  * - Proper aria labels for accessibility
- * - Full or shortened userId display
  *
  * Usage:
  * ```tsx
@@ -18,12 +17,14 @@
  * // Show both nickname and userId
  * <ContactName contactId={userId} mode="both" />
  *
+ * // Highlight a search match within the nickname
+ * <ContactName contactId={userId} matchText={query} />
+ *
  * // Use as a hook for text-only contexts
  * const name = useContactName(userId);
  * ```
- *
- * Note: For search highlighting, use the legacy ContactName component instead.
  */
+import { escapeRegExp } from '@tloncorp/api/lib/utils';
 import { RawText } from '@tloncorp/ui';
 import React, { useMemo } from 'react';
 
@@ -43,13 +44,11 @@ export {
 
 type ContactNameOptions = {
   contactId: string;
-  expandLongIds?: boolean;
   mode?: ContactNameMode;
 };
 
 export const useContactNameProps = ({
   contactId,
-  expandLongIds = false,
   mode = 'auto',
 }: ContactNameOptions) => {
   const calm = useCalm();
@@ -59,7 +58,6 @@ export const useContactNameProps = ({
     const resolved = resolveContactNameProps({
       contact,
       contactId,
-      expandLongIds,
       mode,
       calmDisableNicknames: calm.disableNicknames,
     });
@@ -67,7 +65,7 @@ export const useContactNameProps = ({
       children: resolved.children,
       ['aria-label']: resolved['aria-label'],
     };
-  }, [contact, contactId, expandLongIds, mode, calm.disableNicknames]);
+  }, [contact, contactId, mode, calm.disableNicknames]);
 };
 
 export const useContactName = (options: string | ContactNameOptions) => {
@@ -77,12 +75,32 @@ export const useContactName = (options: string | ContactNameOptions) => {
   return useContactNameProps(resolvedOptions).children;
 };
 
+// Bolds the first match of a search query in a nickname. An ID number is
+// shown as is.
+function highlightMatch(text: string, matchText: string | undefined) {
+  const match = matchText
+    ? text.match(new RegExp(escapeRegExp(matchText), 'i'))
+    : null;
+  if (!match || match.index === undefined) {
+    return text;
+  }
+  const end = match.index + match[0].length;
+  return (
+    <>
+      {text.slice(0, match.index)}
+      <RawText fontWeight="bold">{text.slice(match.index, end)}</RawText>
+      {text.slice(end)}
+    </>
+  );
+}
+
 const BaseContactName = RawText.styleable<{
   contactId: string;
-  expandLongIds?: boolean;
   mode?: ContactNameMode;
+  /** Search query to highlight within a displayed nickname. */
+  matchText?: string;
 }>(
-  ({ contactId, mode = 'auto', expandLongIds, ...props }, ref) => {
+  ({ contactId, mode = 'auto', matchText, ...props }, ref) => {
     const calm = useCalm();
     const contact = useContact(contactId);
     const resolved = useMemo(
@@ -90,11 +108,10 @@ const BaseContactName = RawText.styleable<{
         resolveContactNameProps({
           contact,
           contactId,
-          expandLongIds,
           mode,
           calmDisableNicknames: calm.disableNicknames,
         }),
-      [contact, contactId, expandLongIds, mode, calm.disableNicknames]
+      [contact, contactId, mode, calm.disableNicknames]
     );
 
     if (resolved.showContactId && !resolved.formattedId) {
@@ -108,7 +125,9 @@ const BaseContactName = RawText.styleable<{
         {...props}
         style={props.style ?? { whiteSpace: 'nowrap' }}
       >
-        {resolved.children}
+        {resolved.showContactId
+          ? resolved.children
+          : highlightMatch(resolved.children, matchText)}
       </RawText>
     );
   },

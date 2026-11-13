@@ -15,10 +15,10 @@ import {
   ContactsScreenView,
   ScreenHeader,
   View,
-  getDisplayName,
   isWeb,
   useInviteSystemContacts,
 } from '../../ui';
+import { resolveContactNameProps } from '../../ui/components/ContactNameV2';
 import type { ContactSection } from '../../ui/components/ContactsScreenView';
 import SystemNotices from '../../ui/components/SystemNotices';
 
@@ -62,30 +62,43 @@ export default function ContactsScreen() {
     store.addContact(contact.id);
   }, []);
 
-  const onContactLongPress = useCallback((contact: db.Contact) => {
-    if (!isWeb && contact.isContactSuggestion) {
-      Alert.alert(`Add ${getDisplayName(contact)}?`, '', [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Add Contact',
-          style: 'default',
-          onPress: () => {
-            store.addContact(contact.id);
-          },
-        },
-        {
-          text: 'Decline Suggestion',
-          style: 'destructive',
-          onPress: () => {
-            store.removeContactSuggestion(contact.id);
-          },
-        },
-      ]);
-    }
-  }, []);
+  const onContactLongPress = useCallback(
+    (contact: db.Contact) => {
+      if (!isWeb && contact.isContactSuggestion) {
+        Alert.alert(
+          `Add ${
+            resolveContactNameProps({
+              contact,
+              contactId: contact.id,
+              calmDisableNicknames: calmSettings?.disableNicknames ?? false,
+            }).children
+          }?`,
+          '',
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel',
+            },
+            {
+              text: 'Add Contact',
+              style: 'default',
+              onPress: () => {
+                store.addContact(contact.id);
+              },
+            },
+            {
+              text: 'Decline Suggestion',
+              style: 'destructive',
+              onPress: () => {
+                store.removeContactSuggestion(contact.id);
+              },
+            },
+          ]
+        );
+      }
+    },
+    [calmSettings?.disableNicknames]
+  );
 
   return (
     <AppDataContextProvider

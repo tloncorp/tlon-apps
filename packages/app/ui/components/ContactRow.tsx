@@ -66,11 +66,7 @@ function ContactRowItemRaw({
           ) : (
             contact?.nickname && (
               <ListItem.Subtitle>
-                <ContactName
-                  contactId={contact.id}
-                  mode="contactId"
-                  expandLongIds
-                />
+                <ContactName contactId={contact.id} mode="contactId" />
               </ListItem.Subtitle>
             )
           )}

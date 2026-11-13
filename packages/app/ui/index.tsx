@@ -21,7 +21,7 @@ export * from './components/ChatMessage/ChatMessageActions/Component';
 export * from './components/ChatOptionsSheet';
 export * from './components/ContactBook';
 export * from './components/ContactList';
-export { default as ContactName } from './components/ContactName';
+export { ContactName } from './components/ContactNameV2';
 export { useContactName } from './components/ContactNameV2';
 export * from './components/ContactRow';
 export * from './components/ContactsScreenView';

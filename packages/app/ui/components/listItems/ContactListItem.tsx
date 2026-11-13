@@ -4,8 +4,7 @@ import { XStack, isWeb } from 'tamagui';
 
 import { AvatarProps } from '../Avatar';
 import { BotBadge } from '../BotBadge';
-import ContactName from '../ContactName';
-import { ContactName as ContactNameV2 } from '../ContactNameV2';
+import { ContactName } from '../ContactNameV2';
 import { ListItem } from '../ListItem';
 import { useBoundHandler } from './listItemUtils';
 
@@ -15,7 +14,6 @@ export const ContactListItem = ({
   onLongPress,
   showNickname = false,
   showUserId = false,
-  full = true,
   showIcon = true,
   showEndContent = false,
   endContent,
@@ -30,7 +28,6 @@ export const ContactListItem = ({
   onLongPress?: (contactId: string) => void;
   showNickname?: boolean;
   showUserId?: boolean;
-  full?: boolean;
   showIcon?: boolean;
   showEndContent?: boolean;
   endContent?: React.ReactNode;
@@ -53,33 +50,17 @@ export const ContactListItem = ({
         <ListItem.MainContent minWidth={0}>
           <XStack alignItems="center" gap="$s">
             <ListItem.Title flex={1} minWidth={0}>
-              {matchText ? (
-                // Use old ContactName for search highlighting
-                <ContactName
-                  matchText={matchText}
-                  showNickname={showNickname}
-                  showUserId={!showNickname && showUserId}
-                  full={full}
-                  userId={contactId}
-                />
-              ) : (
-                // Use ContactNameV2 for monospace styling
-                <ContactNameV2
-                  contactId={contactId}
-                  mode={showNickname ? 'auto' : 'contactId'}
-                  expandLongIds={full}
-                />
-              )}
+              <ContactName
+                contactId={contactId}
+                mode={showNickname ? 'auto' : 'contactId'}
+                matchText={matchText}
+              />
             </ListItem.Title>
             <BotBadge contactId={contactId} />
           </XStack>
           {showUserId && showNickname ? (
             <ListItem.Subtitle>
-              <ContactNameV2
-                contactId={contactId}
-                mode="contactId"
-                expandLongIds
-              />
+              <ContactName contactId={contactId} mode="contactId" />
             </ListItem.Subtitle>
           ) : null}
           {subtitle && <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>}
