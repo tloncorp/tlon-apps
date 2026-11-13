@@ -269,6 +269,35 @@ export default function ChannelScreen(props: Props) {
     };
   }, [currentChannelId, isFocused]);
 
+  // Until its first screen is on display, a channel opened with nothing
+  // unread takes a new snapshot when unreads appear. A relaunch that restores
+  // into a chat takes its snapshot before sync has brought in what arrived
+  // while the app was closed, and opened at the end, past all of it.
+  const [shownChannelId, setShownChannelId] = React.useState<string | null>(
+    null
+  );
+  const firstScreenShown = shownChannelId === currentChannelId;
+  const handleFirstScreenShown = useCallback(() => {
+    setShownChannelId(currentChannelId);
+  }, [currentChannelId]);
+  const storedChannelUnread = store.useChannelUnread(
+    firstScreenShown ? null : currentChannelId
+  );
+  if (
+    !firstScreenShown &&
+    isFocused &&
+    unreadSnapshotIsFresh &&
+    storedChannelUnread
+  ) {
+    const retaken = nextChannelUnreadSnapshot(initialChannelUnreadSnapshot, {
+      channelId: currentChannelId,
+      unread: storedChannelUnread,
+    });
+    if (retaken !== initialChannelUnreadSnapshot) {
+      setInitialChannelUnreadSnapshot(retaken);
+    }
+  }
+
   const hasUnreadSnapshot =
     initialChannelUnreadSnapshot?.channelId === currentChannelId;
   // On screen, posts wait for this entry's snapshot; behind another screen,
@@ -719,6 +748,7 @@ export default function ChannelScreen(props: Props) {
               ? undefined
               : initialChannelUnread
           }
+          onFirstScreenShown={handleFirstScreenShown}
           isLoadingPosts={isLoadingPosts || isInitialFillPending}
           loadPostsError={postsQuery.error}
           hasNewerPosts={postsQuery.hasPreviousPage}

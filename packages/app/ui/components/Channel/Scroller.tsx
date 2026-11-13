@@ -127,6 +127,7 @@ const Scroller = forwardRef(
       onOpenContextLens,
       contextLensSelectedPostId,
       contentInsets = { top: 0, bottom: 0 },
+      onReadyToDisplay,
     }: {
       anchor?: ScrollAnchor | null;
       showDividers?: boolean;
@@ -169,6 +170,8 @@ const Scroller = forwardRef(
       onOpenContextLens?: (post: db.Post) => void;
       contextLensSelectedPostId?: string | null;
       contentInsets?: ConversationContentInsets;
+      /** Called each time the list has positioned its posts and shows them. */
+      onReadyToDisplay?: () => void;
     },
     ref
   ) => {
@@ -567,6 +570,11 @@ const Scroller = forwardRef(
       null
     );
     const readyToDisplayPosts = completedAnchorKey === anchorKey;
+    useEffect(() => {
+      if (readyToDisplayPosts) {
+        onReadyToDisplay?.();
+      }
+    }, [onReadyToDisplay, readyToDisplayPosts]);
     const scrollDiagnostics = useScrollDiagnosticsScope(channel.id);
     const [showsDiagnosticsTimecode] = useState(
       () => Platform.OS !== 'web' && isScrollDiagnosticsTimecodeEnabled()
