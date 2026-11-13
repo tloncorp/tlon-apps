@@ -14,8 +14,6 @@ export type DeskOutdatedScreenProps = {
   /** Version the ship reports, or null when we couldn't read one. */
   currentVersion: string | null;
   minimumVersion: string;
-  /** How to name the ship in the copy; defaults to a generic phrase. */
-  shipName?: string;
   /** A re-probe is in flight, so the retry action is unavailable. */
   isProbing?: boolean;
   /**
@@ -31,7 +29,6 @@ export type DeskOutdatedScreenProps = {
 export function DeskOutdatedScreen({
   currentVersion,
   minimumVersion,
-  shipName,
   isProbing = false,
   isHosted = false,
   onRetry,
@@ -73,9 +70,7 @@ export function DeskOutdatedScreen({
             >
               {minimumVersion}
             </TlonText.RawText>
-            {' or newer. '}
-            {shipName ?? 'Your ship'}
-            {' reports '}
+            {' or newer. Your ship reports '}
             <TlonText.RawText
               testID="desk-outdated-current"
               color="$primaryText"
