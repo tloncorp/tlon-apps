@@ -279,6 +279,8 @@ function usePrefillDraftFromShareIntent({
 interface ChannelProps {
   channel: db.Channel;
   initialChannelUnread?: db.ChannelUnread | null;
+  /** Called once the list's first screen of posts is on display. */
+  onFirstScreenShown?: () => void;
   selectedPostId?: string | null;
   posts: db.Post[] | null;
   group: db.Group | null;
@@ -330,6 +332,7 @@ interface ChannelProps {
 export function Channel({
   channel,
   initialChannelUnread,
+  onFirstScreenShown,
   posts,
   selectedPostId,
   group,
@@ -1194,6 +1197,7 @@ export function Channel({
                                         hasNewerPosts,
                                         hasOlderPosts,
                                         initialChannelUnread,
+                                        onFirstScreenShown,
                                         isLoadingPosts: shouldShowPostLoading,
                                         loadPostsError,
                                         onPressDelete,

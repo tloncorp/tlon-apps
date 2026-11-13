@@ -678,11 +678,23 @@ export function ImageBlock({
   maxWindowHeightFraction?: number;
 } & ComponentProps<typeof View>) {
   const { getImageViewerId, onPressImage, onLongPress } = useContentContext();
-  const [dimensions, setDimensions] = useState({
-    width: block.width || null,
-    height: block.height || null,
-    aspect: block.width && block.height ? block.width / block.height : null,
+  const [dimensions, setDimensions] = useState(() => {
+    const known =
+      block.width && block.height
+        ? { width: block.width, height: block.height }
+        : loadedImageSizes.get(block.src);
+    return {
+      width: known?.width || null,
+      height: known?.height || null,
+      aspect: known ? known.width / known.height : null,
+    };
   });
+
+  // Until the picture arrives, its box is filled so it reads as an image
+  // loading rather than as a gap in the conversation.
+  const [isLoaded, setIsLoaded] = useState(() =>
+    loadedImageSizes.has(block.src)
+  );
 
   const isInsideReference = useContext(IsInsideReferenceContext);
 
@@ -690,14 +702,19 @@ export function ImageBlock({
     onPressImage?.(block.src);
   }, [block.src, onPressImage]);
 
-  const handleImageLoaded = useCallback((e: ImageLoadEventData) => {
-    const aspect = e.source.width / e.source.height;
-    setDimensions({
-      width: e.source.width,
-      height: e.source.height,
-      aspect,
-    });
-  }, []);
+  const handleImageLoaded = useCallback(
+    (e: ImageLoadEventData) => {
+      rememberLoadedImageSize(block.src, e.source.width, e.source.height);
+      const aspect = e.source.width / e.source.height;
+      setDimensions({
+        width: e.source.width,
+        height: e.source.height,
+        aspect,
+      });
+      setIsLoaded(true);
+    },
+    [block.src]
+  );
 
   const shouldUseAspectRatio = imageProps?.aspectRatio !== 'unset';
   const viewerId = getImageViewerId?.(block.src);
@@ -762,6 +779,9 @@ export function ImageBlock({
       onPress={handlePress}
       onLongPress={onLongPress}
       {...props}
+      {...(isLoaded
+        ? {}
+        : { backgroundColor: '$secondaryBackground', borderRadius: '$s' })}
       {...(constrainedSize
         ? {
             alignSelf: 'flex-start' as const,
@@ -783,7 +803,7 @@ export function ImageBlock({
         }}
         {...(constrainedSize ? { width: '100%', height: '100%' } : {})}
         {...(shouldUseAspectRatio && !constrainedSize
-          ? { aspectRatio: dimensions.aspect || 1 }
+          ? { aspectRatio: dimensions.aspect || UNKNOWN_IMAGE_ASPECT_RATIO }
           : {})}
         {...(isInsideReference
           ? {
@@ -819,6 +839,33 @@ export function ImageBlock({
       {triggered}
     </RNView>
   );
+}
+
+// The box an image with no stored size holds until it loads. A square the
+// width of the column left a screenful of nothing when the reader followed new
+// posts to the end; this is closer to most photos and screenshots, so the row
+// changes less once the real size is known.
+const UNKNOWN_IMAGE_ASPECT_RATIO = 4 / 3;
+
+// The sizes of images that have loaded in this session, for images with no
+// stored size. Without it, every render of such an image (a row recycled, a
+// conversation opened again) started from the placeholder's shape and changed
+// height once the cached picture loaded a frame later.
+const loadedImageSizes = new Map<string, { width: number; height: number }>();
+const MAX_REMEMBERED_IMAGE_SIZES = 500;
+
+function rememberLoadedImageSize(src: string, width: number, height: number) {
+  if (!(width > 0 && height > 0)) {
+    return;
+  }
+  loadedImageSizes.delete(src);
+  loadedImageSizes.set(src, { width, height });
+  if (loadedImageSizes.size > MAX_REMEMBERED_IMAGE_SIZES) {
+    const oldest = loadedImageSizes.keys().next().value;
+    if (oldest !== undefined) {
+      loadedImageSizes.delete(oldest);
+    }
+  }
 }
 
 const numericStyle = (value: unknown) =>

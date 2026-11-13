@@ -21,6 +21,58 @@ export function getPostListKey({ post }: PostWithNeighbors) {
   return `${post.authorId}:${post.sentAt}`;
 }
 
+const TEXT_LENGTH_STEPS = [60, 180, 400, 900];
+
+/**
+ * A row's item type for the list, grouping rows of about the same height.
+ *
+ * The list sizes a row it has not measured from the average of measured rows
+ * of the same type. With one type for every message, a page of short replies
+ * arriving under a few long messages was laid out at the long messages'
+ * height, then shrank by thousands of points as it was measured, and the
+ * corrections for that reached the scroll view late enough to drop the
+ * message the reader was looking at. Grouping by what most changes a row's
+ * height (media, references, text length) keeps that first guess close.
+ */
+export function getPostRowType(row: PostWithNeighbors) {
+  // A row keeps the type it was first given. One whose type changed (the post
+  // above it arriving, or the post itself updating after it was first shown)
+  // would be moved to another container and remounted on screen. Keyed like
+  // the list's rows, so a post confirmed or edited in place keeps its type.
+  const key = getPostListKey(row);
+  let type = rowTypes.get(key);
+  if (type === undefined) {
+    type = computePostRowType(row.post);
+    if (rowTypes.size >= MAX_ROW_TYPES) {
+      rowTypes.clear();
+    }
+    rowTypes.set(key, type);
+  }
+  return type;
+}
+
+const MAX_ROW_TYPES = 5000;
+const rowTypes = new Map<string, string>();
+
+function computePostRowType(post: db.Post) {
+  if (post.isDeleted) {
+    return `${post.type}:deleted`;
+  }
+  const length = post.textContent?.length ?? 0;
+  const lengthStep = TEXT_LENGTH_STEPS.findIndex((step) => length <= step);
+  return [
+    post.type,
+    lengthStep === -1 ? TEXT_LENGTH_STEPS.length : lengthStep,
+    post.hasImage ? 'image' : '',
+    post.hasAppReference || post.hasChannelReference || post.hasGroupReference
+      ? 'ref'
+      : '',
+    post.hasLink ? 'link' : '',
+    post.blob ? 'blob' : '',
+    (post.replyCount ?? 0) > 0 ? 'replies' : '',
+  ].join(':');
+}
+
 export interface PostListMethods {
   scrollToStart: (opts: { animated?: boolean }) => void;
   scrollToEnd: (opts: { animated?: boolean }) => void;
@@ -87,6 +139,29 @@ export type PostListComponentProps = {
 export type PostListComponent = ReturnType<
   typeof React.forwardRef<PostListMethods, PostListComponentProps>
 >;
+
+/**
+ * How a data change reshapes the window of loaded posts. Posts are in visual
+ * order, oldest first.
+ *
+ * - `changesTop`: the oldest post is different, because older posts arrived
+ *   above or posts were dropped from the top (a cached page replaced by a
+ *   fresh one).
+ * - `changesEnd`: the newest post is different.
+ */
+export function describeWindowChange(
+  before: readonly PostWithNeighbors[],
+  after: readonly PostWithNeighbors[]
+) {
+  if (before.length === 0 || after.length === 0) {
+    return { changesTop: false, changesEnd: false };
+  }
+  return {
+    changesTop: after[0]?.post.id !== before[0]?.post.id,
+    changesEnd:
+      after[after.length - 1]?.post.id !== before[before.length - 1]?.post.id,
+  };
+}
 
 export function usesConversationPostList({
   collectionLayoutType,

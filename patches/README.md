@@ -438,6 +438,72 @@ Reassess each part independently when upgrading keyboard-controller:
 Remove the whole patch only after both conditions hold. Closing a related
 upstream issue alone is not sufficient.
 
+## @legendapp/list@3.3.3
+
+Local patch:
+`patches/@legendapp__list@3.3.3.patch`
+
+The patch carries two fixes to how a programmatic scroll is completed, and
+one to how the content size reaches the screen.
+
+### 1. Animated end-aligned scrolls keep their animation through retries
+
+`checkFinishedScrollFallback` re-issues an end-aligned scroll that settled
+short of its target. On iOS the retry now keeps the original scroll's
+`animated` flag, and an animation still in flight is given extra checks before
+the list releases scroll ownership, so a scroll to the newest message does not
+snap at the end.
+
+### 2. A scroll that moves nothing completes on the next frame
+
+Why:
+LegendList completes a programmatic scroll when a scroll event shows the
+offset at its target. A scroll to where the list already is, or to a target
+clamped to the start or end, produces no scroll event, so it only completed
+through the fallback checks: 100 ms and then up to five more 100 ms checks.
+The conversation list awaits its exact opening position before it is shown,
+so a conversation opening on its first loaded post (target clamped to the
+top) stayed hidden for about 600 ms longer than one opening further down.
+
+Fix:
+`scrollTo` notes when the requested offset is within 1 pt of the current one
+and, after dispatching, schedules the usual frame check, which completes the
+scroll at once since the pending offset already equals the target. Scrolls
+that move are unchanged.
+
+Validate:
+Open the `ConversationScroll` Cosmos fixture's `openUnreadShortPageThenOlder`
+preset with `ENABLED_LOGGERS=scroller`: "list first shown" should be about as
+soon as for `unreadsOverAScreen` (a few hundred ms), not about a second.
+
+Remove when upstream completes no-move scrolls without waiting on the
+fallback.
+
+### 3. The content size commits with the row positions
+
+Why:
+On the new architecture each container's position is React state
+(`PositionViewState`), but `ContainersLayer` took the content size from an
+`Animated` value set directly. The size reached the screen a frame before the
+positions it was computed from. A conversation held at its end (the native
+`ConversationViewport` follows the content size in the same layout pass) showed
+every row that changed height on screen, a reply count, a reaction, an image
+that sized late, as a one-frame jump: the rows below it moved before they had
+been laid out again.
+
+Fix:
+`ContainersLayer` reads the size with `useArr$` on the new architecture, so it
+commits with the positions. The old architecture keeps the `Animated` value,
+which matches its `Animated` positions.
+
+Validate:
+With `ENABLED_LOGGERS=scroller` and the frame checker, add a reply to the
+newest message of a conversation resting at its end: the rows above should move
+up in the frame the reply line appears, with no frame where the rows below it
+sit 28 pt off.
+
+Remove when upstream commits the content size with container positions.
+
 ## react-native-reanimated@4.7.1
 
 Why:

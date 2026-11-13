@@ -3,17 +3,19 @@ import { PropsWithChildren } from 'react';
 import { StyleSheet, ViewProps } from 'react-native';
 
 const NativeConversationViewport = requireNativeViewManager<
-  ViewProps & { anchorToEnd: boolean }
+  ViewProps & { anchorToEnd: boolean; newestRowKey: string | null }
 >('TlonScrollEdgeEffect', 'ConversationViewport');
 
 export function ConversationViewport({
   children,
   anchorToEnd,
-}: PropsWithChildren<{ anchorToEnd: boolean }>) {
+  newestRowKey,
+}: PropsWithChildren<{ anchorToEnd: boolean; newestRowKey: string | null }>) {
   return (
     <NativeConversationViewport
       style={styles.viewport}
       anchorToEnd={anchorToEnd}
+      newestRowKey={newestRowKey}
     >
       {children}
     </NativeConversationViewport>

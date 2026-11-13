@@ -354,6 +354,18 @@ export function useNavigateBackFromPost() {
       }
       if (usesRootStack) {
         const screenName = screenNameFromChannelId(channel.id);
+        if (
+          previousRoute?.name === screenName &&
+          previousRouteParams?.channelId === channel.id
+        ) {
+          // The thread's own channel is right underneath, still showing what
+          // the reader left. Returning with the thread's post selected
+          // reopened it around that post: a new read and a new list, blank
+          // for a second and a half and then moving, to show a post already
+          // on screen.
+          navigation.goBack();
+          return;
+        }
         const params = {
           channelId: channel.id,
           // we don't want to highlight the selected post we're returning from

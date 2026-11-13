@@ -70,7 +70,14 @@ import {
   PostListMethods,
   PostWithNeighbors,
 } from './PostList';
+import { ScrollDiagnosticsTimecode } from './PostList/ScrollDiagnosticsTimecode';
 import { getPostListScopeKey } from './PostList/postListInitialization';
+import { usesConversationPostList } from './PostList/shared';
+import { isScrollDiagnosticsTimecodeEnabled } from './PostList/scrollDiagnostics';
+import {
+  useScrollDiagnosticsRow,
+  useScrollDiagnosticsScope,
+} from './PostList/useScrollDiagnosticsScope';
 import { isVisibleChannelPost } from './postVisibility';
 import type { ScrollAnchor } from './scrollerTypes';
 
@@ -108,6 +115,7 @@ const Scroller = forwardRef(
       onPressRetry,
       onPressDelete,
       hasNewerPosts,
+      hasOlderPosts,
       activeMessage,
       setActiveMessage,
       isLoading,
@@ -119,6 +127,7 @@ const Scroller = forwardRef(
       onOpenContextLens,
       contextLensSelectedPostId,
       contentInsets = { top: 0, bottom: 0 },
+      onReadyToDisplay,
     }: {
       anchor?: ScrollAnchor | null;
       showDividers?: boolean;
@@ -161,6 +170,8 @@ const Scroller = forwardRef(
       onOpenContextLens?: (post: db.Post) => void;
       contextLensSelectedPostId?: string | null;
       contentInsets?: ConversationContentInsets;
+      /** Called each time the list has positioned its posts and shows them. */
+      onReadyToDisplay?: () => void;
     },
     ref
   ) => {
@@ -276,25 +287,44 @@ const Scroller = forwardRef(
       [channel.id, currentUserId, group?.hostUserId, posts]
     );
 
+    // A message's date line, author heading and spacing depend on the message
+    // before it. The oldest loaded one has nothing to compare with, so it
+    // shows all of them, then drops what it does not need once the page
+    // before it arrives: a row on screen changing height. So while a native
+    // conversation has older history to load, its oldest loaded message is
+    // kept back as the one the next message is compared with, and is shown
+    // when its own page arrives.
+    const oldestLoadedPost = visiblePosts?.[0];
+    const heldBackPost =
+      Platform.OS !== 'web' &&
+      usesConversationPostList({ collectionLayoutType }) &&
+      hasOlderPosts &&
+      oldestLoadedPost &&
+      visiblePosts.length > 1 &&
+      oldestLoadedPost.id !== anchor?.postId &&
+      oldestLoadedPost.id !== firstUnreadId
+        ? oldestLoadedPost
+        : null;
+    const shownPosts = useMemo(
+      () => (heldBackPost ? visiblePosts?.slice(1) : visiblePosts),
+      [heldBackPost, visiblePosts]
+    );
+
     const postsWithNeighbors: PostWithNeighbors[] | undefined = useMemo(
       () =>
-        visiblePosts?.map((post, postIndex, posts) => {
+        shownPosts?.map((post, postIndex, posts) => {
           return {
             post,
-            previous: postIndex > 0 ? posts[postIndex - 1] : null,
+            previous: postIndex > 0 ? posts[postIndex - 1] : heldBackPost,
             next: postIndex + 1 < posts.length ? posts[postIndex + 1] : null,
           };
         }),
-      [visiblePosts]
+      [heldBackPost, shownPosts]
     );
     const a2uiActionCompletions = useMemo(
       () =>
-        getA2UIActionCompletions(
-          visiblePosts ?? [],
-          currentUserId,
-          !anchorToEnd
-        ),
-      [anchorToEnd, currentUserId, visiblePosts]
+        getA2UIActionCompletions(shownPosts ?? [], currentUserId, !anchorToEnd),
+      [anchorToEnd, currentUserId, shownPosts]
     );
 
     const style = useMemo(() => {
@@ -305,7 +335,7 @@ const Scroller = forwardRef(
 
     const listRenderItem = useCallback(
       ({
-        item: { post, previous, next, ...rest },
+        item: { post, previous, next: _next, ...rest },
         index,
       }: {
         item: PostWithNeighbors;
@@ -315,12 +345,20 @@ const Scroller = forwardRef(
           post.receivedAt ?? 0,
           previous?.receivedAt ?? 0
         );
-        const isLastPostOfBlock =
-          post.type !== 'notice' &&
-          (post.type === 'chat' || post.type === 'reply') &&
-          next != null &&
-          (next.authorId !== post.authorId ||
-            !isSameDay(post.receivedAt ?? 0, next.receivedAt ?? 0));
+        // The gap between one person's messages and the next person's belongs
+        // to the later message. Hung below the earlier one, it only appeared
+        // once the next message arrived, which resized a row already on
+        // screen and nudged the conversation a frame after each append.
+        const isFirstPostOfBlock =
+          previous != null &&
+          (previous.type === 'chat' || previous.type === 'reply') &&
+          (previous.authorId !== post.authorId || isFirstPostOfDay);
+        const isFirstUnread = post.id === firstUnreadId;
+        // The post a conversation opens on always names its author. It can be
+        // the oldest one loaded, with the post before it still to arrive, and
+        // a heading that came and went with that post would resize the row
+        // the reader was just taken to.
+        const isOpeningPost = isFirstUnread || post.id === anchor?.postId;
         const showAuthor =
           post.type === 'note' ||
           post.type === 'block' ||
@@ -328,8 +366,8 @@ const Scroller = forwardRef(
           previous?.authorId !== post.authorId ||
           previous?.type === 'notice' ||
           previous?.isDeleted === true ||
-          isFirstPostOfDay;
-        const isFirstUnread = post.id === firstUnreadId;
+          isFirstPostOfDay ||
+          isOpeningPost;
         const isSelected =
           (anchor?.type === 'selected' && anchor.postId === post.id) ||
           highlightPostId === post.id ||
@@ -344,7 +382,7 @@ const Scroller = forwardRef(
             showUnreadDivider={showDividers && isFirstUnread}
             showDayDivider={showDividers && isFirstPostOfDay}
             showAuthor={showAuthor}
-            isLastPostOfBlock={isLastPostOfBlock}
+            isFirstPostOfBlock={isFirstPostOfBlock}
             displayDebugMode={debugMessageJson}
             Component={renderItem}
             unreadCount={unreadCount}
@@ -532,6 +570,41 @@ const Scroller = forwardRef(
       null
     );
     const readyToDisplayPosts = completedAnchorKey === anchorKey;
+    useEffect(() => {
+      if (readyToDisplayPosts) {
+        onReadyToDisplay?.();
+      }
+    }, [onReadyToDisplay, readyToDisplayPosts]);
+    const scrollDiagnostics = useScrollDiagnosticsScope(channel.id);
+    const [showsDiagnosticsTimecode] = useState(
+      () => Platform.OS !== 'web' && isScrollDiagnosticsTimecodeEnabled()
+    );
+    const showsLoadingOverlay =
+      (postsWithNeighbors?.length ?? 0) > 0 && !readyToDisplayPosts;
+    const wasDisplayedRef = useRef<string | null>(null);
+    useEffect(() => {
+      if (!scrollDiagnostics.enabled) {
+        return;
+      }
+      if (readyToDisplayPosts) {
+        wasDisplayedRef.current = anchorKey;
+      } else if (showsLoadingOverlay && wasDisplayedRef.current !== null) {
+        // The spinner covers a list the user was already looking at.
+        scrollDiagnostics.note(
+          'visibility',
+          wasDisplayedRef.current === anchorKey
+            ? 'loading overlay shown over a list that was already displayed'
+            : `loading overlay shown while moving to a new anchor (${anchorKey})`,
+          { flag: wasDisplayedRef.current === anchorKey ? 'flicker' : 'warn' }
+        );
+        wasDisplayedRef.current = null;
+      }
+      scrollDiagnostics.watch('scroller', {
+        anchorKey,
+        readyToDisplayPosts,
+        rowCount: postsWithNeighbors?.length ?? 0,
+      });
+    });
 
     useLayoutEffect(() => {
       pendingEvents.current.onEndReached = false;
@@ -726,6 +799,7 @@ const Scroller = forwardRef(
             </Animated.View>
           </View>
         )}
+        {showsDiagnosticsTimecode ? <ScrollDiagnosticsTimecode /> : null}
         {activeMessage !== null && !emojiPickerOpen && (
           <Modal
             visible={activeMessage !== null && !emojiPickerOpen}
@@ -838,7 +912,7 @@ const BaseScrollerItem = ({
   messageRef,
   isSelected,
   displayDebugMode,
-  isLastPostOfBlock,
+  isFirstPostOfBlock,
   dividersEnabled,
   itemAspectRatio,
   itemWidth,
@@ -869,7 +943,7 @@ const BaseScrollerItem = ({
   messageRef: RefObject<ViewInstance | null>;
   isSelected: boolean;
   displayDebugMode?: boolean;
-  isLastPostOfBlock: boolean;
+  isFirstPostOfBlock: boolean;
   dividersEnabled: boolean;
   itemAspectRatio?: number;
   itemWidth?: number;
@@ -878,6 +952,7 @@ const BaseScrollerItem = ({
   a2uiActionCompletion?: A2UIActionCompletion;
 }) => {
   const post = useLivePost(item);
+  useScrollDiagnosticsRow(item.channelId, `${item.authorId}:${item.sentAt}`);
 
   // Checking if the previous post exists
   const hasPreviousPost = Boolean(previousPost);
@@ -957,6 +1032,7 @@ const BaseScrollerItem = ({
       width={columnCount === 1 ? '100%' : itemWidth}
       aspectRatio={itemAspectRatio}
     >
+      {isFirstPostOfBlock && <PostBlockSeparator />}
       {divider}
       <PressableMessage
         ref={messageRef}
@@ -982,7 +1058,6 @@ const BaseScrollerItem = ({
           onPressEdit={onPressEdit}
         />
       </PressableMessage>
-      {isLastPostOfBlock && <PostBlockSeparator />}
     </View>
   );
 };
@@ -1003,7 +1078,7 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
     prev.showDayDivider === next.showDayDivider &&
     prev.showUnreadDivider === next.showUnreadDivider &&
     prev.unreadCount === next.unreadCount &&
-    prev.isLastPostOfBlock === next.isLastPostOfBlock &&
+    prev.isFirstPostOfBlock === next.isFirstPostOfBlock &&
     prev.a2uiActionCompletion?.sentMessageText ===
       next.a2uiActionCompletion?.sentMessageText &&
     prev.previousPost?.id === next.previousPost?.id &&
@@ -1016,7 +1091,7 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
     prev.activeMessage === next.activeMessage &&
     prev.itemWidth === next.itemWidth &&
     prev.displayDebugMode === next.displayDebugMode &&
-    prev.isLastPostOfBlock === next.isLastPostOfBlock;
+    prev.isFirstPostOfBlock === next.isFirstPostOfBlock;
 
   return isItemEqual && areOtherPropsEqual && isIndexEqual;
 });
