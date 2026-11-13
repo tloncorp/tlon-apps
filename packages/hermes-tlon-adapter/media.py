@@ -219,6 +219,36 @@ def parse_blob_data(blob: str | None) -> list[BlobEntry]:
     return entries
 
 
+def has_attachment_blob(blob: str | None) -> bool:
+    """Whether a post's blob field counts as an attachment.
+
+    The app stamps a non-rendering ``metadata`` entry on every post, so a blob
+    holding only ``metadata`` entries (any version) is treated as no blob.
+    Anything not provably metadata-only, including unparseable blobs, still
+    counts.
+    """
+    if not blob:
+        return False
+    try:
+        parsed = json.loads(
+            blob,
+            parse_constant=_reject_json_constant,
+            parse_float=_normalize_json_float,
+            parse_int=_bounded_parse_int,
+        )
+    except (TypeError, ValueError, RecursionError):
+        return True
+    metadata_only = (
+        isinstance(parsed, list)
+        and len(parsed) > 0
+        and all(
+            isinstance(entry, dict) and entry.get("type") == "metadata"
+            for entry in parsed
+        )
+    )
+    return not metadata_only
+
+
 def extract_story_images(content: Any) -> list[StoryImage]:
     if not isinstance(content, list):
         return []
