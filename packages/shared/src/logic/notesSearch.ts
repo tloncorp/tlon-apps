@@ -80,9 +80,10 @@ function toSegments(
  */
 export function buildNoteSnippet(
   bodyMd: string | null | undefined,
-  query: string
+  query: string,
+  mentionText?: (ship: string) => string
 ): NoteSnippet {
-  const body = stripNoteMarkdown(bodyMd);
+  const body = stripNoteMarkdown(bodyMd, mentionText);
   const needle = query.trim();
   const matches = findMatches(body, needle);
 

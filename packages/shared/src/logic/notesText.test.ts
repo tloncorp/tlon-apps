@@ -4,8 +4,29 @@ import {
   formatNotesActivityLabel,
   formatNotesChannelSubtitle,
   getNoteBodyPreview,
+  shipNamesIn,
   stripNoteMarkdown,
 } from './notesText';
+
+describe('ship names in note previews', () => {
+  const body = '**~zod** asked ~sampel-palnet about ~/path and ~notaship';
+
+  test('show the pet name by default', () => {
+    expect(stripNoteMarkdown(body)).toBe(
+      '@aurora asked @brightly.tireless.butter.dhole about /path and notaship'
+    );
+  });
+
+  test('show a resolved name when given a lookup', () => {
+    expect(
+      stripNoteMarkdown(body, (ship) => (ship === '~zod' ? '@Zod' : '@?'))
+    ).toBe('@Zod asked @? about /path and notaship');
+  });
+
+  test('shipNamesIn finds only valid ships', () => {
+    expect(shipNamesIn(body)).toEqual(['~zod', '~sampel-palnet']);
+  });
+});
 
 describe('stripNoteMarkdown', () => {
   test('drops code fences and keeps inline code text', () => {
