@@ -7,6 +7,7 @@ import * as store from '@tloncorp/shared/store';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { AGENT_SHIP_OVERRIDE } from '../../../../lib/envVars';
+import { saveOnboardingAvatar } from '../../../../lib/onboardingAvatar';
 import { LiveFirstRunSequence } from '../FirstRun/LiveFirstRunSequence';
 import type { FirstRunSetupStatus } from '../FirstRun/types';
 import { getDefaultBotName } from '../botName';
@@ -100,10 +101,14 @@ export function AgentOnboardingSequence(props: {
   const completedRef = useRef(false);
   // Set once the chat is ready behind the cover; the user's tap on
   // "Start chatting" runs it to reveal the chat.
-  const revealRef = useRef<(() => void) | null>(null);
+  const revealRef = useRef<((options?: { invite?: boolean }) => void) | null>(
+    null
+  );
 
   useEffect(() => {
     let cancelled = false;
+    // The glyph picked on Profile becomes your avatar now that storage is up.
+    void saveOnboardingAvatar();
 
     void (async () => {
       let botEnabled: boolean;
@@ -253,11 +258,15 @@ export function AgentOnboardingSequence(props: {
           completedRef.current = true;
           const groupId = activeGroupId;
           const channelId = activeChannelId;
-          revealRef.current = () => {
+          revealRef.current = (options) => {
             logger.trackEvent(AnalyticsEvent.AgentOnboardingChatOpened, {
               groupId,
               channelId,
+              invite: !!options?.invite,
             });
+            if (options?.invite && groupId) {
+              void db.agentOnboardingInviteRequest.setValue({ groupId });
+            }
             finishOnboarding();
           };
           if (!cancelled) setReady(true);
@@ -288,12 +297,16 @@ export function AgentOnboardingSequence(props: {
         completedRef.current = true;
         const groupId = activeGroupId;
         const channelId = activeChannelId;
-        revealRef.current = () => {
+        revealRef.current = (options) => {
           logger.trackEvent(AnalyticsEvent.AgentOnboardingChatOpened, {
             groupId,
             channelId,
             setupFinished: false,
+            invite: !!options?.invite,
           });
+          if (options?.invite && groupId) {
+            void db.agentOnboardingInviteRequest.setValue({ groupId });
+          }
           finishOnboarding();
         };
         setLate(true);
@@ -307,10 +320,10 @@ export function AgentOnboardingSequence(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleStartChatting = useCallback(() => {
+  const handleStartChatting = useCallback((options?: { invite?: boolean }) => {
     const reveal = revealRef.current;
     revealRef.current = null;
-    reveal?.();
+    reveal?.(options);
   }, []);
 
   if (useFallback) return <>{props.fallback}</>;

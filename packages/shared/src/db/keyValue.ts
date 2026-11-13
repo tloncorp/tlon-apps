@@ -552,6 +552,33 @@ export const splashNickname = createStorageItem<string>({
   defaultValue: '',
 });
 
+export type OnboardingAvatar = {
+  /** One of the four avatar glyphs Profile offers. */
+  glyph: string;
+  /** Whether it's been saved as your avatar and your Tlonbot's yet. */
+  saved: boolean;
+};
+
+/**
+ * The avatar glyph picked on Profile. Onboarding draws your Tlonbot in it, and
+ * saves it as your avatar and the Tlonbot's once your computer is ready.
+ */
+export const onboardingAvatar = createStorageItem<OnboardingAvatar | null>({
+  key: 'onboardingAvatar',
+  defaultValue: null,
+});
+
+/**
+ * Set by Invite friends at the end of the first run: the group whose invite
+ * screen opens once the chat has.
+ */
+export const agentOnboardingInviteRequest = createStorageItem<{
+  groupId: string;
+} | null>({
+  key: 'agentOnboardingInviteRequest',
+  defaultValue: null,
+});
+
 export type AgentOnboardingLanding = {
   groupId: string;
   channelId: string;

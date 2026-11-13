@@ -47,6 +47,7 @@ export function McpProviderLogo({
   providerId,
   compact = false,
   size,
+  borderWidth = 1,
 }: {
   compact?: boolean;
   displayName: string;
@@ -59,6 +60,8 @@ export function McpProviderLogo({
    * it, so only use this for services checked to fit).
    */
   size?: number;
+  /** 0 when the caller draws its own outline. */
+  borderWidth?: number;
 }) {
   const logoSize = size ? Math.round(size * 0.6) : compact ? 20 : LOGO_SIZE;
   const hostingLogoSize = size ?? (compact ? 32 : HOSTING_LOGO_SIZE);
@@ -87,7 +90,7 @@ export function McpProviderLogo({
       backgroundColor="$secondaryBackground"
       borderColor="$border"
       borderRadius="$s"
-      borderWidth={1}
+      borderWidth={borderWidth}
       height={containerSize}
       justifyContent="center"
       overflow="hidden"

@@ -177,3 +177,50 @@ export const API_KEY_PROVIDERS = [
   { id: 'xai', label: 'xAI' },
   { id: 'openrouter', label: 'OpenRouter' },
 ] as const;
+
+/** The model screen's one row for every subscription, picked in its sheet. */
+export const SUBSCRIPTIONS_ROW_ID = 'subscriptions';
+
+/**
+ * A row on the model screen: the included model, one row for signing in with
+ * any subscription, and one for your own key. A subscription row carries its
+ * plans, picked in the sheet that follows.
+ */
+export type FirstRunModelChoiceRow = {
+  id: string;
+  name: string;
+  meta: string;
+  primaryLabel: string;
+  row?: FirstRunModelRow;
+  plans?: FirstRunModelRow[];
+};
+
+export function buildModelChoiceRows(
+  sections: FirstRunModelSection[]
+): FirstRunModelChoiceRow[] {
+  const copy = firstRunCopy.model;
+  return sections.flatMap((section): FirstRunModelChoiceRow[] =>
+    section.key === 'subscription'
+      ? [
+          {
+            id: SUBSCRIPTIONS_ROW_ID,
+            name: copy.subscriptionsName,
+            meta: copy.subscriptionsMeta(section.rows.map((row) => row.name)),
+            primaryLabel: copy.primarySubscriptions,
+            plans: section.rows,
+          },
+        ]
+      : section.rows.map((row) => ({
+          id: row.id,
+          name: row.name,
+          meta: row.meta,
+          primaryLabel: row.primaryLabel,
+          row,
+        }))
+  );
+}
+
+/** The model screen row a picked or applied model id belongs to. */
+export function modelChoiceRowId(modelId: string) {
+  return modelId.startsWith('subscription:') ? SUBSCRIPTIONS_ROW_ID : modelId;
+}
