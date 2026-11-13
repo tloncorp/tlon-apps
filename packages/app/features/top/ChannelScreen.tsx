@@ -198,6 +198,20 @@ export default function ChannelScreen(props: Props) {
     notesActivityCapabilitiesEpoch,
   ]);
 
+  // Whether this channel's list has been on screen; a channel that has been
+  // shown keeps its snapshot when it is returned to.
+  const [shownChannelId, setShownChannelId] = React.useState<string | null>(
+    null
+  );
+  const firstScreenShown = shownChannelId === currentChannelId;
+  // The focus effect reads this without restarting when it changes.
+  const firstScreenShownRef = React.useRef(firstScreenShown);
+  useEffect(() => {
+    firstScreenShownRef.current = firstScreenShown;
+  }, [firstScreenShown]);
+  const handleFirstScreenShown = useCallback(() => {
+    setShownChannelId(currentChannelId);
+  }, [currentChannelId]);
   // Snapshot unread state when the channel is entered so the divider does not
   // move as the channel is marked read; see nextChannelUnreadSnapshot for when
   // a return to the channel takes a new one.
@@ -222,10 +236,11 @@ export default function ChannelScreen(props: Props) {
 
         if (isCurrent) {
           setInitialChannelUnreadSnapshot((previous) =>
-            nextChannelUnreadSnapshot(previous, {
-              channelId: currentChannelId,
-              unread: unread ?? null,
-            })
+            nextChannelUnreadSnapshot(
+              previous,
+              { channelId: currentChannelId, unread: unread ?? null },
+              { listShown: firstScreenShownRef.current }
+            )
           );
           setUnreadSnapshotIsFresh(true);
         }
@@ -273,13 +288,6 @@ export default function ChannelScreen(props: Props) {
   // unread takes a new snapshot when unreads appear. A relaunch that restores
   // into a chat takes its snapshot before sync has brought in what arrived
   // while the app was closed, and opened at the end, past all of it.
-  const [shownChannelId, setShownChannelId] = React.useState<string | null>(
-    null
-  );
-  const firstScreenShown = shownChannelId === currentChannelId;
-  const handleFirstScreenShown = useCallback(() => {
-    setShownChannelId(currentChannelId);
-  }, [currentChannelId]);
   const storedChannelUnread = store.useChannelUnread(
     firstScreenShown ? null : currentChannelId
   );
@@ -289,10 +297,11 @@ export default function ChannelScreen(props: Props) {
     unreadSnapshotIsFresh &&
     storedChannelUnread
   ) {
-    const retaken = nextChannelUnreadSnapshot(initialChannelUnreadSnapshot, {
-      channelId: currentChannelId,
-      unread: storedChannelUnread,
-    });
+    const retaken = nextChannelUnreadSnapshot(
+      initialChannelUnreadSnapshot,
+      { channelId: currentChannelId, unread: storedChannelUnread },
+      { listShown: false }
+    );
     if (retaken !== initialChannelUnreadSnapshot) {
       setInitialChannelUnreadSnapshot(retaken);
     }
