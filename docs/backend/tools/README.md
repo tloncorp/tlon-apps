@@ -7,6 +7,7 @@ The following tools are available to aid development on Urbit:
 - `scripts/backend/gen-moon.sh` — generate a moon.
 - `just build` — assemble a complete `%groups` desk into `desk-out/` by layering `desk-deps/` and `desk/`.
 - `just install <pier>/groups` — build, then replace a mounted `%groups` desk with the result.
+- `just install-dev <pier>/groups` — build, then copy the result into a mounted `%groups` desk, keeping the files already there.
 
 ## Validating repository Hoon on a running ship
 

@@ -130,8 +130,10 @@ Don't re-propose these without new information.
   formatter is satisfied, and CI checks it.
 - Desk (needs `just`, `yq` and `python3`): `just build` fetches the
   dependencies in `desk-deps.yaml` and assembles the full desk into
-  `desk-out/`; `just install <pier>/groups` replaces a mounted desk with it.
-  See `desk/AGENTS.md`.
+  `desk-out/`; `just install-dev <pier>/groups` copies it into a mounted desk,
+  keeping the files already there, and `just install <pier>/groups` replaces
+  the mounted desk with it. During development use `install-dev`; run
+  `install` only when explicitly instructed. See `desk/AGENTS.md`.
 
 Shell scripts must run on macOS and Linux: `#!/bin/bash`, no `declare -A`,
 portable flags (`grep -E`), and care with BSD vs GNU `sed`/`tar`. On Windows,

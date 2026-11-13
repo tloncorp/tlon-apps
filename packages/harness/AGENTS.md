@@ -36,6 +36,10 @@ Desk work runs on native fake ships, on a Mac or a Linux machine:
   installs `%mcp` and `%harness` and sets Harness up. After an edit,
   `just commit zod/harness` rebuilds the desk and commits it to the running
   ship.
+- During development, copy into a mount with `just install-dev DESK`, or
+  `just commit DESK`, which runs it first; both keep the files already in the
+  mount. The repository justfile's `install` deletes them, so run that only
+  when explicitly instructed.
 - `just test-hoon PATTERN` and `just test-js PATTERN` run the matching tests on
   ships they keep in `.test-run/piers/`, in sessions `fake-zod`, `fake-lux` and
   `fake-nec`. Either refuses to start while one of those sessions runs, unless
