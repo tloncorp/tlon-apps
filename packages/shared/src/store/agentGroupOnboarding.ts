@@ -801,8 +801,10 @@ async function ownerNaming() {
 
 /**
  * Hosting provisions the home group as "<owner>'s Group" — the ship, or the
- * nickname when one was set — and older flows used a few bare defaults. Only a
- * title still in that family is a placeholder onboarding may replace.
+ * nickname when one was set — and older flows used a few bare defaults. The
+ * client renames a personal group to "Your Group" when its nickname is
+ * cleared. Only a title still in that family is a placeholder onboarding may
+ * replace.
  */
 function isProvisionedAgentGroupTitle(
   title: string | null,
@@ -810,7 +812,11 @@ function isProvisionedAgentGroupTitle(
 ) {
   const trimmed = title?.trim() ?? '';
   if (!trimmed || trimmed === DEFAULT_AGENT_GROUP_TITLE) return true;
-  if (['Group', 'Home', 'Home Group', 'My agent group'].includes(trimmed)) {
+  if (
+    ['Group', 'Home', 'Home Group', 'My agent group', 'Your Group'].includes(
+      trimmed
+    )
+  ) {
     return true;
   }
   const possessive = /['\u2019]s Group$/;

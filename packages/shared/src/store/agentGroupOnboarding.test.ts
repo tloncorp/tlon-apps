@@ -503,6 +503,7 @@ describe('isProvisionedAgentGroupTitle', () => {
       "Dan's Group",
       'Dan’s Group',
       'Home Group',
+      'Your Group',
     ]) {
       expect(
         agentGroupOnboardingTesting.isProvisionedAgentGroupTitle(title, owner)
