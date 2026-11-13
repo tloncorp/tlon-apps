@@ -1,3 +1,5 @@
+import { render, tryParse, valid } from '@urbit/aura';
+
 export type TlonTarget =
   | { kind: 'dm'; ship: string }
   | { kind: 'channel'; nest: string; hostShip: string; channelName: string }
@@ -22,6 +24,35 @@ export function normalizeShip(raw: string): string {
     return trimmed;
   }
   return trimmed.startsWith('~') ? trimmed : `~${trimmed}`;
+}
+
+/**
+ * A ship as people read it: its number in dotted `@ud` form
+ * (~sampel-palnet -> 1.624.961.343). Ship names are wire identifiers and
+ * never appear in text the bot shows. Mirrors `shipToDisplayId` in
+ * `@tloncorp/api`, which this plugin can't import until a published release
+ * has it.
+ */
+export function shipDisplayId(ship: string): string {
+  const n = tryParse('p', normalizeShip(ship));
+  return n === null ? ship : render('ud', n);
+}
+
+const DISPLAY_ID_RE = /^(\d{1,3}(\.\d{3})+|\d+)$/;
+const MAX_SHIP = 2n ** 128n;
+
+/**
+ * A ship the owner typed: a `~ship` (sig optional) or its number, dotted or
+ * not. Null when it is neither.
+ */
+export function parseShipInput(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (DISPLAY_ID_RE.test(trimmed)) {
+    const n = BigInt(trimmed.replace(/\./g, ''));
+    return n < MAX_SHIP ? render('p', n) : null;
+  }
+  const ship = normalizeShip(trimmed);
+  return valid('p', ship) ? ship : null;
 }
 
 /**
