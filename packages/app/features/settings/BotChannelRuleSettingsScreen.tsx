@@ -561,7 +561,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
       <ShipPickerSheet
         open={ready && pickerOpen}
         onOpenChange={setPickerOpen}
-        subtitle="Select a contact or enter any @p to allow in this channel."
+        subtitle="Select a contact or enter an ID to allow in this channel."
         disabledIds={allowedShips}
         onSelect={addShip}
       />

@@ -1421,7 +1421,7 @@ export const toGroupsUpdate = (
   if ('meta' in event) {
     return {
       type: 'editGroup',
-      meta: toClientMeta(event.meta),
+      meta: toClientGroupMeta(event.meta),
       groupId,
     };
   }
@@ -1976,7 +1976,7 @@ export function toClientGroupFromPreview(
     currentUserIsMember: false,
     currentUserIsHost: hostUserId === currentUserId, // should always be false
     privacy: extractGroupPrivacy(preview),
-    ...toClientMeta(preview.meta),
+    ...toClientGroupMeta(preview.meta),
   };
 }
 

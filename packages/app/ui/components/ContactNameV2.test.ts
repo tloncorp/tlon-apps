@@ -42,43 +42,68 @@ describe('resolveContactNameProps', () => {
       mode: 'auto',
       calmDisableNicknames: true,
     });
-    expect(result.children).toBe('~ravmel-ropdyl');
+    expect(result.children).toBe('4.391.936');
     expect(result.showContactId).toBe(true);
   });
 
-  test('no contact + planet ID + expandLongIds=true returns full ID', () => {
+  test('no contact + planet shows the ship number', () => {
     const result = resolveContactNameProps({
       contact: null,
       contactId: '~ravmel-ropdyl',
-      expandLongIds: true,
       mode: 'auto',
       calmDisableNicknames: false,
     });
-    expect(result.children).toBe('~ravmel-ropdyl');
+    expect(result.children).toBe('4.391.936');
     expect(result.showContactId).toBe(true);
   });
 
-  test('no contact + comet + expandLongIds=false shortens via citeShip', () => {
+  test('no contact + comet shows the full ship number', () => {
     const comet = '~siclec-ramsub-tichul-riptud--dibnet-datryg-fiddep-binzod';
     const result = resolveContactNameProps({
       contact: null,
       contactId: comet,
-      expandLongIds: false,
       mode: 'auto',
       calmDisableNicknames: false,
     });
-    expect(result.children).toBe('~siclec_binzod');
+    expect(result.children).toBe(
+      '99.417.968.036.447.043.801.257.469.898.296.590.848'
+    );
   });
 
-  test('no contact + comet + expandLongIds=true keeps full comet ID', () => {
-    const comet = '~siclec-ramsub-tichul-riptud--dibnet-datryg-fiddep-binzod';
-    const result = resolveContactNameProps({
-      contact: null,
-      contactId: comet,
-      expandLongIds: true,
-      mode: 'auto',
-      calmDisableNicknames: false,
-    });
-    expect(result.children).toBe(comet);
+  // Ship names are wire identifiers and must never reach the screen.
+  describe('never shows a ship name', () => {
+    const ids = [
+      '~zod',
+      '~ravmel-ropdyl',
+      '~livnex-tarlup-pondus-watbel',
+      '~siclec-ramsub-tichul-riptud--dibnet-datryg-fiddep-binzod',
+    ];
+    const modes = ['auto', 'nickname', 'contactId', 'both'] as const;
+    const cases = ids.flatMap((contactId) =>
+      modes.flatMap((mode) =>
+        [false, true].flatMap((calmDisableNicknames) =>
+          [null, 'galen'].map((nickname) => ({
+            contactId,
+            mode,
+            calmDisableNicknames,
+            nickname,
+          }))
+        )
+      )
+    );
+
+    test.each(cases)(
+      '%o',
+      ({ contactId, mode, calmDisableNicknames, nickname }) => {
+        const result = resolveContactNameProps({
+          contact: { ...baseContact, id: contactId, nickname },
+          contactId,
+          mode,
+          calmDisableNicknames,
+        });
+        expect(result.children).not.toContain('~');
+        expect(result['aria-label'] ?? '').not.toContain('~');
+      }
+    );
   });
 });

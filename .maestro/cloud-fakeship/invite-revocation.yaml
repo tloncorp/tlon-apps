@@ -16,13 +16,13 @@ env:
     id: ScreenHeaderTitle
     text: '^Members$'
 - assertVisible: '^Invited$'
-- tapOn: '^(~ten|ten)$'
+- tapOn: '^(160|ten)$'
 - assertVisible: '^Revoke Invite$'
 - tapOn: '^Revoke Invite$'
 - extendedWaitUntil:
     notVisible: '^Invited$'
     timeout: 30000
-- assertNotVisible: '^(~ten|ten)$'
+- assertNotVisible: '^(160|ten)$'
 - tapOn:
     id: HeaderBackButton
 - tapOn: '^Back$'

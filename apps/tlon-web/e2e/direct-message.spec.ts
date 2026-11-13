@@ -17,14 +17,14 @@ test('should test comprehensive direct message functionality between ~zod and ~t
   await helpers.createDirectMessage(zodPage, '~ten');
 
   // ~zod sends the first message
-  await helpers.sendMessage(zodPage, 'Hello, ~ten!');
+  await helpers.sendMessage(zodPage, 'Hello from Zod!');
 
   if (await helpers.isMobileViewport(zodPage)) {
     await helpers.navigateBack(zodPage);
   }
 
   // Verify message preview is visible on ~zod's side
-  await helpers.verifyMessagePreview(zodPage, 'Hello, ~ten!', true, '~ten');
+  await helpers.verifyMessagePreview(zodPage, 'Hello from Zod!', true, '~ten');
 
   // ~ten receives the DM and accepts it
   await tenPage.reload();
@@ -34,7 +34,7 @@ test('should test comprehensive direct message functionality between ~zod and ~t
   await tenPage.waitForTimeout(1000);
 
   // Verify ~ten can see the message from ~zod
-  await expect(tenPage.getByText('Hello, ~ten!').first()).toBeVisible();
+  await expect(tenPage.getByText('Hello from Zod!').first()).toBeVisible();
 
   // Verify the accept/deny/block options are present
   await expect(tenPage.getByText('Accept')).toBeVisible();
@@ -51,11 +51,11 @@ test('should test comprehensive direct message functionality between ~zod and ~t
   await expect(tenPage.getByText('Deny')).not.toBeVisible();
 
   // ~ten sends a reply
-  await helpers.sendMessage(tenPage, 'Hello, ~zod!');
-  await expect(tenPage.getByText('Hello, ~zod!').first()).toBeVisible();
+  await helpers.sendMessage(tenPage, 'Hello from Ten!');
+  await expect(tenPage.getByText('Hello from Ten!').first()).toBeVisible();
 
   // Start a thread from the original message
-  await helpers.startThread(zodPage, 'Hello, ~ten!');
+  await helpers.startThread(zodPage, 'Hello from Zod!');
 
   // Send a reply in the thread
   await helpers.sendThreadReply(zodPage, 'Thread reply');
@@ -66,13 +66,13 @@ test('should test comprehensive direct message functionality between ~zod and ~t
   await expect(zodPage.getByText('1 reply')).toBeVisible({ timeout: 20000 });
 
   // React to the original message with thumb emoji
-  await helpers.reactToMessage(zodPage, 'Hello, ~ten!', 'thumb');
+  await helpers.reactToMessage(zodPage, 'Hello from Zod!', 'thumb');
 
   // Remove the reaction
   await helpers.removeReaction(zodPage, '👍');
 
   // Quote reply to the message
-  await helpers.quoteReply(zodPage, 'Hello, ~ten!', 'Quote reply', true);
+  await helpers.quoteReply(zodPage, 'Hello from Zod!', 'Quote reply', true);
 
   // Send a message and hide it
   await helpers.sendMessage(tenPage, 'Hide this message');

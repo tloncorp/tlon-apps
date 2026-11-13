@@ -1,12 +1,11 @@
-import * as db from '@tloncorp/shared/db';
 import { useMemo } from 'react';
 
 import { ActionSheet, createActionGroups } from './ActionSheet';
 import { useContactName } from './ContactNameV2';
 import { ListItem } from './ListItem';
+import { formatUserId } from '../utils/user';
 
 export function GroupJoinRequestSheet({
-  contact,
   contactId,
   currentUserIsAdmin,
   onOpenChange,
@@ -15,7 +14,6 @@ export function GroupJoinRequestSheet({
   onPressReject,
   onPressGoToProfile,
 }: {
-  contact?: db.Contact;
   contactId: string;
   currentUserIsAdmin?: boolean;
   open: boolean;
@@ -78,12 +76,11 @@ export function GroupJoinRequestSheet({
     [profileActionGroup, adminActionGroups]
   );
 
-  const subtitle = useMemo(() => {
-    if (contact?.nickname) {
-      return `From ${contact.nickname} (${contactId})`;
-    }
-    return `From ${contactId}`;
-  }, [contact?.nickname, contactId]);
+  const displayId = formatUserId(contactId)?.display;
+  const subtitle =
+    displayId && contactName !== displayId
+      ? `From ${contactName} (${displayId})`
+      : `From ${contactName}`;
 
   return (
     <ActionSheet open={open} onOpenChange={onOpenChange}>

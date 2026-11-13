@@ -13,26 +13,26 @@ describe('contactSettingsRow', () => {
     ).toEqual({
       key: '~zod',
       title: 'Zod',
-      subtitle: '~zod',
+      subtitle: '0',
       leading: { kind: 'contact', contactId: '~zod' },
     });
   });
 
   it('shows the ID alone for someone without a nickname', () => {
     const row = contactSettingsRow('~zod', contact({ nickname: '' }), false);
-    expect(row.title).toBe('~zod');
+    expect(row.title).toBe('0');
     expect(row.subtitle).toBeUndefined();
   });
 
   it('shows the ID alone for someone not in contacts', () => {
     const row = contactSettingsRow('~zod', undefined, false);
-    expect(row.title).toBe('~zod');
+    expect(row.title).toBe('0');
     expect(row.subtitle).toBeUndefined();
   });
 
   it('shows the ID alone when nicknames are turned off', () => {
     const row = contactSettingsRow('~zod', contact({ nickname: 'Zod' }), true);
-    expect(row.title).toBe('~zod');
+    expect(row.title).toBe('0');
     expect(row.subtitle).toBeUndefined();
   });
 });

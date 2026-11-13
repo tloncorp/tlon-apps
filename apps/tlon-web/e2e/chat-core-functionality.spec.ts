@@ -18,7 +18,7 @@ test('should test comprehensive chat functionality', async ({
 
   // Create a new group
   await helpers.createGroup(zodPage);
-  const groupName = '~ten, ~zod';
+  const groupName = helpers.memberListTitle('~ten', '~zod');
 
   await helpers.inviteMembersToGroup(zodPage, ['ten']);
 
@@ -105,7 +105,7 @@ test('should test comprehensive chat functionality', async ({
     suggestionTestId: '~ten-contact',
     selectedMentionTestId: 'SelectedMention-~ten',
     expectedInputText: /^mentioning [@~]ten$/,
-    expectedPostText: /mentioning\s+~ten/i,
+    expectedPostText: new RegExp(`mentioning\\s+${helpers.displayId('~ten')}`),
     expectedMentionInline: { ship: '~ten' },
     postMentionTestId: 'PostMention-~ten',
   });
@@ -203,7 +203,7 @@ test('should allow admin to delete another user message with confirmation', asyn
 
   // Create a new group
   await helpers.createGroup(zodPage);
-  const groupName = '~ten, ~zod';
+  const groupName = helpers.memberListTitle('~ten', '~zod');
 
   await helpers.inviteMembersToGroup(zodPage, ['ten']);
 

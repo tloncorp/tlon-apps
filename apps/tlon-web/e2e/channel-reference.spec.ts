@@ -61,7 +61,7 @@ test.describe('Channel Reference', () => {
       timeout: 5000,
     });
     await zodPage.getByTestId('ChannelListItem-~ten').click();
-    await zodPage.getByText('Forward to ~ten').click();
+    await zodPage.getByText(`Forward to ${helpers.displayId('~ten')}`).click();
     await expect(zodPage.getByText('Forwarded')).toBeVisible({ timeout: 5000 });
 
     // Step 5: ~ten (not a group member) sees the loaded channel card, not the

@@ -1,6 +1,7 @@
 import { QueryObserver } from '@tanstack/react-query';
 import { directoryToClientProfiles } from '@tloncorp/api';
 import { scry, toClientGroups } from '@tloncorp/api';
+import { shipToDisplayId } from '@tloncorp/api/lib/urbit';
 import type { ContactsDirectoryScryResult1 } from '@tloncorp/api/urbit/contact';
 import type * as ub from '@tloncorp/api/urbit/groups';
 import * as $ from 'drizzle-orm';
@@ -2405,6 +2406,19 @@ test('getMentionCandidates: returns candidates in priority order', async () => {
     expect(candidate.priority).toBeGreaterThanOrEqual(lastPriority);
     lastPriority = candidate.priority;
   }
+
+  // A ship's number finds it, as that is what people without a nickname show
+  await queries.addChatMembers({
+    chatId,
+    contactIds: ['~sampel-palnet'],
+    joinStatus: 'joined',
+    type: 'group',
+  });
+  const byNumber = await queries.getMentionCandidates({
+    chatId,
+    query: shipToDisplayId('~sampel-palnet')!,
+  });
+  expect(byNumber.map((c) => c.id)).toEqual(['~sampel-palnet']);
 
   // Test empty query returns empty array
   const emptyResults = await queries.getMentionCandidates({

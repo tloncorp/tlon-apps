@@ -17,6 +17,7 @@ import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedCo
 import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useRenderCount } from '@tloncorp/app/hooks/useRenderCount';
+import { formatUserId } from '@tloncorp/app/ui/utils/user';
 import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
 import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
 import {
@@ -252,7 +253,7 @@ function AppRoutes() {
           channelData?.title ||
           channelData?.contact?.peerNickname ||
           channelData?.contact?.customNickname ||
-          channelData?.contactId ||
+          formatUserId(channelData?.contactId ?? '')?.display ||
           'Chat';
         return `${title}`;
       }
@@ -293,7 +294,7 @@ function AppRoutes() {
           channelData?.title ||
           channelData?.contact?.peerNickname ||
           channelData?.contact?.customNickname ||
-          channelData?.contactId ||
+          formatUserId(channelData?.contactId ?? '')?.display ||
           'Chat';
         return title;
       }
@@ -409,11 +410,9 @@ function AppRoutes() {
 // session.startTime, so the splash screen would otherwise wait forever.
 function DeskOutdatedNotice({
   deskCompat,
-  shipName,
   onLogout,
 }: {
   deskCompat: store.DeskGate;
-  shipName?: string;
   onLogout?: () => void | Promise<void>;
 }) {
   const handleRetry = useCallback(() => {
@@ -430,7 +429,6 @@ function DeskOutdatedNotice({
     <DeskOutdatedScreen
       currentVersion={deskCompat.current}
       minimumVersion={deskCompat.minimum}
-      shipName={shipName}
       isProbing={deskCompat.status === 'probing'}
       onRetry={handleRetry}
       onLogout={onLogout}
@@ -495,11 +493,7 @@ function ConnectedDesktopApp({
   // useLinkProps unconditionally) landing first; this branch rebases onto it.
   if (store.shouldShowDeskNotice(deskCompat)) {
     return (
-      <DeskOutdatedNotice
-        deskCompat={deskCompat}
-        shipName={ship}
-        onLogout={handleLogout}
-      />
+      <DeskOutdatedNotice deskCompat={deskCompat} onLogout={handleLogout} />
     );
   }
 
@@ -645,9 +639,7 @@ function ConnectedWebApp() {
   // hidden when isWeb, ui/components/SettingsScreenView.tsx), and there the
   // handler would only clear local state and reload into the same cookie.
   if (store.shouldShowDeskNotice(deskCompat)) {
-    return (
-      <DeskOutdatedNotice deskCompat={deskCompat} shipName={currentUserId} />
-    );
+    return <DeskOutdatedNotice deskCompat={deskCompat} />;
   }
 
   if (!hideSplashScreen) {

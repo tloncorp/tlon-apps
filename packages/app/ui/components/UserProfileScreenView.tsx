@@ -335,7 +335,7 @@ function OwnerRow({
             <Text size="$label/l">This is your bot</Text>
           ) : (
             <Text size="$label/l" numberOfLines={1}>
-              <ContactName contactId={ownerId} expandLongIds />
+              <ContactName contactId={ownerId} />
             </Text>
           )}
           <Text size="$label/m" color="$secondaryText">
@@ -796,11 +796,7 @@ function ProfileHeader(props: {
         </XStack>
         {props.hasNickname ? (
           <Text size="$label/l" color="$secondaryText" marginTop="$xs">
-            <ContactName
-              contactId={props.userId}
-              mode="contactId"
-              expandLongIds
-            />
+            <ContactName contactId={props.userId} mode="contactId" />
           </Text>
         ) : null}
       </Pressable>

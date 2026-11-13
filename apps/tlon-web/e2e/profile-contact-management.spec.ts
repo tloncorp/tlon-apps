@@ -20,11 +20,14 @@ test('should manage contacts and edit contact nicknames', async ({
   await expect(zodPage.getByText('Add Contacts')).toBeVisible();
 
   // Search for ~ten
-  await zodPage.getByPlaceholder('Filter by nickname, @p').fill('~ten');
+  await zodPage.getByPlaceholder('Filter by nickname or ID').fill('~ten');
   await zodPage.waitForTimeout(1000);
 
   // Select ~ten from the search results
-  await zodPage.getByTestId('ContactRow').getByText('~ten').click();
+  await zodPage
+    .getByTestId('ContactRow')
+    .getByText(helpers.displayId('~ten'), { exact: true })
+    .click();
 
   // Add ~ten as a contact
   await zodPage.getByText('Add 1 contact').click();
@@ -37,7 +40,10 @@ test('should manage contacts and edit contact nicknames', async ({
   await expect(zodPage.getByText('Contacts')).toBeVisible();
 
   // Click on ~ten in the contacts list
-  await zodPage.getByText('~ten').click();
+  await zodPage
+    .getByText(helpers.displayId('~ten'), { exact: true })
+    .first()
+    .click();
   await expect(zodPage.getByTestId('UserProfileScreen')).toBeVisible();
 
   // Edit ~ten's profile (setting a custom nickname)
@@ -88,11 +94,14 @@ test('should manage contacts and edit contact nicknames', async ({
   await expect(tenPage.getByText('Add Contacts')).toBeVisible();
 
   // Search for ~zod
-  await tenPage.getByPlaceholder('Filter by nickname, @p').fill('~zod');
+  await tenPage.getByPlaceholder('Filter by nickname or ID').fill('~zod');
   await tenPage.waitForTimeout(1000);
 
   // Select ~zod from the search results
-  await tenPage.getByTestId('ContactRow').getByText('~zod').click();
+  await tenPage
+    .getByTestId('ContactRow')
+    .getByText(helpers.displayId('~zod'), { exact: true })
+    .click();
 
   // Add ~zod as a contact
   await tenPage.getByText('Add 1 contact').click();

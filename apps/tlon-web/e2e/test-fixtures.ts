@@ -1,4 +1,13 @@
-import { Browser, BrowserContext, Page, test as base } from '@playwright/test';
+import {
+  Browser,
+  BrowserContext,
+  Page,
+  TestInfo,
+  test as base,
+  expect as baseExpect,
+} from '@playwright/test';
+import { PATP_REGEX } from '@tloncorp/api/client/utils';
+import { valid } from '@urbit/aura';
 
 import * as helpers from './helpers';
 import { RuntimeErrorDetector } from './runtime-error-detector';
@@ -48,15 +57,24 @@ async function performCleanup(page: Page, shipName: string) {
         await helpers.leaveDM(page, '~bud');
       }
       await helpers.cleanupExistingGroup(page, 'My Group');
-      await helpers.cleanupExistingGroup(page, '~ten, ~zod');
-      await helpers.cleanupExistingGroup(page, '~bus, ~zod');
+      await helpers.cleanupExistingGroup(
+        page,
+        helpers.memberListTitle('~ten', '~zod')
+      );
+      await helpers.cleanupExistingGroup(
+        page,
+        helpers.memberListTitle('~bus', '~zod')
+      );
       // ~zod hosts the group in the N-1 desk spec, so ~zod is the one that can
       // delete it; ~bud only leaves. That spec renames the group partway
       // through, so both names have to be swept — a run that fails before the
       // rename leaves the first, a run that fails after leaves the second.
       // Deleting the group takes its channels and roles with it, so the
       // notebook, gallery and renamed channels need no separate cleanup.
-      await helpers.cleanupExistingGroup(page, '~bud, ~zod');
+      await helpers.cleanupExistingGroup(
+        page,
+        helpers.memberListTitle('~bud', '~zod')
+      );
       await helpers.cleanupExistingGroup(page, 'N-1 Interop Group');
       await helpers.cleanupExistingGroup(page);
       await helpers.cleanupExistingGroup(page, 'Invite Test');
@@ -68,19 +86,19 @@ async function performCleanup(page: Page, shipName: string) {
         await helpers.leaveDM(page, '~zod');
       }
       await helpers.rejectGroupInvite(page);
-      await helpers.leaveGroup(page, '~ten, ~zod');
+      await helpers.leaveGroup(page, helpers.memberListTitle('~ten', '~zod'));
     } else if (shipName === 'bus') {
       if (await page.getByTestId('ChannelListItem-~zod').isVisible()) {
         await helpers.leaveDM(page, '~zod');
       }
       await helpers.rejectGroupInvite(page);
-      await helpers.leaveGroup(page, '~bus, ~zod');
+      await helpers.leaveGroup(page, helpers.memberListTitle('~bus', '~zod'));
     } else if (shipName === 'bud') {
       if (await page.getByTestId('ChannelListItem-~zod').isVisible()) {
         await helpers.leaveDM(page, '~zod');
       }
       await helpers.rejectGroupInvite(page);
-      await helpers.leaveGroup(page, '~bud, ~zod');
+      await helpers.leaveGroup(page, helpers.memberListTitle('~bud', '~zod'));
       await helpers.leaveGroup(page, 'N-1 Interop Group');
     }
   } catch (error) {
@@ -89,6 +107,59 @@ async function performCleanup(page: Page, shipName: string) {
       error.message
     );
   }
+}
+
+/**
+ * Text that may still show a ship name until a later phase of the no-bare-@p
+ * work (TLON-6689) lands. Each selector's subtree is left out of the check.
+ */
+const SHIP_NAME_ALLOWED_SELECTORS = [
+  // Phase 2: the composer shows a mention as its ~ship while it is edited.
+  '[contenteditable="true"]',
+  // Phase 2: post previews are flattened text, where a mention is its ~ship.
+  '[data-testid="ListItemPostPreview"]',
+];
+
+/**
+ * Fails the test when the page shows a ship name as text. People without a
+ * nickname are shown by number; ~ship is a wire identifier only.
+ * A test opts out with a `ship-names` annotation saying why.
+ */
+async function expectNoShipNames(page: Page, testInfo: TestInfo) {
+  if (
+    testInfo.status !== testInfo.expectedStatus ||
+    testInfo.annotations.some((a) => a.type === 'ship-names') ||
+    page.isClosed()
+  ) {
+    return;
+  }
+  const text = await page.evaluate((allowed) => {
+    let visible = document.body.innerText;
+    for (const el of document.querySelectorAll<HTMLElement>(
+      allowed.join(',')
+    )) {
+      const excluded = el.innerText;
+      if (excluded) {
+        visible = visible.split(excluded).join('');
+      }
+    }
+    return visible;
+  }, SHIP_NAME_ALLOWED_SELECTORS);
+  // Each ship name with the text around it, so a failure says where it is.
+  const shipNames = [...text.matchAll(new RegExp(PATP_REGEX.source, 'gi'))]
+    .filter((match) => valid('p', match[0].toLowerCase()))
+    .map((match) =>
+      text
+        .slice(
+          Math.max(0, match.index - 40),
+          match.index + match[0].length + 40
+        )
+        .replace(/\s+/g, ' ')
+    );
+  baseExpect(
+    shipNames,
+    `${page.url()} shows ship names as text; show a nickname or the ship's number`
+  ).toEqual([]);
 }
 
 /**
@@ -103,7 +174,8 @@ const shipFixture =
   ) =>
   async (
     { browser }: { browser: Browser },
-    use: (setup: ShipSetup) => Promise<void>
+    use: (setup: ShipSetup) => Promise<void>,
+    testInfo: TestInfo
   ) => {
     const ship = shipManifest[manifestKey];
     const context = await browser.newContext({
@@ -132,6 +204,13 @@ const shipFixture =
 
     await use({ context, page });
 
+    // Checked before cleanup, which navigates away, but thrown after it so a
+    // failure doesn't leave state behind for the next test.
+    const shipNameCheck = await expectNoShipNames(page, testInfo).then(
+      () => null,
+      (error: Error) => error
+    );
+
     await performCleanup(page, ship.ship);
 
     // Check for errors after test
@@ -143,6 +222,10 @@ const shipFixture =
     }
 
     await context.close();
+
+    if (shipNameCheck) {
+      throw shipNameCheck;
+    }
   };
 
 export const testWithOptions = (options?: { installClock?: boolean }) =>

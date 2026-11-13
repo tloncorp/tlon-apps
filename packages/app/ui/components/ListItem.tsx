@@ -13,7 +13,7 @@ import {
   ImageAvatar,
   SystemIconAvatar,
 } from './Avatar';
-import ContactName from './ContactName';
+import { ContactName } from './ContactNameV2';
 import { GroupAvatar } from './GroupAvatar';
 
 export interface BaseListItemProps<T> {
@@ -262,15 +262,10 @@ export const ListItemPostPreview = ({
   const previewContent = getPreviewContent();
 
   return (
-    <ListItemSubtitle>
+    <ListItemSubtitle testID="ListItemPostPreview">
       {showAuthor && !isAuthorBlocked && !post.hidden ? (
         <>
-          <ContactName
-            userId={post.authorId}
-            showNickname
-            color="$tertiaryText"
-            size="$label/m"
-          />
+          <ContactName contactId={post.authorId} color="$tertiaryText" />
           {': '}
         </>
       ) : null}

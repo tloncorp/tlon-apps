@@ -160,7 +160,7 @@ function AuthenticatedApp({
   const deskCompat = store.useDeskCompatibility();
   // Same field refreshHostingAuth keys off, and the same reading of it: only an
   // explicit 'hosted' login is one Tlon updates on the user's behalf.
-  const { contactId, authType } = useShip();
+  const { authType } = useShip();
   const checkNodeStopped = useCheckNodeStopped();
   const { maybeShowPrompt, promptSheet } =
     useTlonbotRevivalPrompt(requireHostingAuth);
@@ -311,7 +311,6 @@ function AuthenticatedApp({
         <DeskOutdatedScreen
           currentVersion={deskCompat.current}
           minimumVersion={deskCompat.minimum}
-          shipName={contactId ?? undefined}
           isProbing={deskCompat.status === 'probing'}
           isHosted={authType === 'hosted'}
           onRetry={handleRetryDeskCompatibility}

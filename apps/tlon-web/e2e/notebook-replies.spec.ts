@@ -15,7 +15,7 @@ test('should add and verify replies to a notebook post', async ({
 
   // Create a new group
   await helpers.createGroup(zodPage);
-  const groupName = '~ten, ~zod';
+  const groupName = helpers.memberListTitle('~ten', '~zod');
 
   // Invite ~ten to the group
   await helpers.inviteMembersToGroup(zodPage, ['ten']);
@@ -126,11 +126,11 @@ test('should add and verify replies to a notebook post', async ({
   });
 
   // Add a reply to the post
-  await helpers.sendMessage(zodPage, 'This is a reply from ~zod');
+  await helpers.sendMessage(zodPage, 'This is a reply from Zod');
 
   // Verify the reply was posted
   await zodPage.waitForTimeout(1000);
-  await expect(zodPage.getByText('This is a reply from ~zod')).toBeVisible({
+  await expect(zodPage.getByText('This is a reply from Zod')).toBeVisible({
     timeout: 5000,
   });
 
@@ -150,24 +150,24 @@ test('should add and verify replies to a notebook post', async ({
   await tenPage.getByText(postText).first().click({ force: true });
 
   // Verify ~ten can see the reply
-  await expect(tenPage.getByText('This is a reply from ~zod')).toBeVisible({
+  await expect(tenPage.getByText('This is a reply from Zod')).toBeVisible({
     timeout: 10000,
   });
 
   // Add a reply from ~ten
-  await helpers.sendMessage(tenPage, 'This is a reply from ~ten');
+  await helpers.sendMessage(tenPage, 'This is a reply from Ten');
 
   // Verify both replies are visible
   await tenPage.waitForTimeout(1000);
-  await expect(tenPage.getByText('This is a reply from ~ten')).toBeVisible({
+  await expect(tenPage.getByText('This is a reply from Ten')).toBeVisible({
     timeout: 5000,
   });
-  await expect(tenPage.getByText('This is a reply from ~zod')).toBeVisible({
+  await expect(tenPage.getByText('This is a reply from Zod')).toBeVisible({
     timeout: 5000,
   });
 
   // Verify ~zod can see ~ten's reply
-  await expect(zodPage.getByText('This is a reply from ~ten')).toBeVisible({
+  await expect(zodPage.getByText('This is a reply from Ten')).toBeVisible({
     timeout: 10000,
   });
 

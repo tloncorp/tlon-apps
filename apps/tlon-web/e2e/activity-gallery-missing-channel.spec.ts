@@ -15,7 +15,7 @@ test.skip('should handle gallery posts in activity without crashing', async ({
 
   // Create a group as ~zod
   await helpers.createGroup(zodPage);
-  const groupName = '~ten, ~zod';
+  const groupName = helpers.memberListTitle('~ten', '~zod');
 
   // Invite ~ten to the group immediately
   await helpers.inviteMembersToGroup(zodPage, ['ten']);

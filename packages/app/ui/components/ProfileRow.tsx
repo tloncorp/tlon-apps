@@ -66,11 +66,7 @@ export default function ProfileRow({
               <BotBadge contactId={contactId} />
             </XStack>
             <Text color={color} opacity={dark ? 0.5 : 0.7} size="$label/xl">
-              <ContactName
-                contactId={contactId}
-                mode="contactId"
-                expandLongIds
-              />
+              <ContactName contactId={contactId} mode="contactId" />
             </Text>
           </>
         ) : (
@@ -82,11 +78,7 @@ export default function ProfileRow({
               flex={1}
               minWidth={0}
             >
-              <ContactName
-                contactId={contactId}
-                mode="contactId"
-                expandLongIds
-              />
+              <ContactName contactId={contactId} mode="contactId" />
             </Text>
             <BotBadge contactId={contactId} />
           </XStack>

@@ -36,16 +36,22 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   await expect(zodPage.getByText('Contacts')).toBeVisible();
   await zodPage.getByTestId('ContactsAddButton').click();
   await expect(zodPage.getByText('Add Contacts')).toBeVisible();
-  await zodPage.getByPlaceholder('Filter by nickname, @p').fill('~ten');
+  await zodPage.getByPlaceholder('Filter by nickname or ID').fill('~ten');
   await zodPage.waitForTimeout(1000);
-  await zodPage.getByTestId('ContactRow').getByText('~ten').click();
+  await zodPage
+    .getByTestId('ContactRow')
+    .getByText(helpers.displayId('~ten'), { exact: true })
+    .click();
   await zodPage.getByText('Add 1 contact').click();
   await zodPage.waitForTimeout(3000);
 
   // Navigate to ~ten's profile and edit it
   await zodPage.getByTestId('AvatarNavIcon').click();
   await expect(zodPage.getByText('Contacts')).toBeVisible();
-  await zodPage.getByText('~ten').click();
+  await zodPage
+    .getByText(helpers.displayId('~ten'), { exact: true })
+    .first()
+    .click();
   await expect(zodPage.getByTestId('UserProfileScreen')).toBeVisible();
   await zodPage.getByTestId('ProfileMoreButton').click();
   await zodPage.getByText('Edit profile', { exact: true }).click();
@@ -108,9 +114,12 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   await expect(tenPage.getByText('Contacts')).toBeVisible();
   await tenPage.getByTestId('ContactsAddButton').click();
   await expect(tenPage.getByText('Add Contacts')).toBeVisible();
-  await tenPage.getByPlaceholder('Filter by nickname, @p').fill('~zod');
+  await tenPage.getByPlaceholder('Filter by nickname or ID').fill('~zod');
   await tenPage.waitForTimeout(1000);
-  await tenPage.getByTestId('ContactRow').getByText('~zod').click();
+  await tenPage
+    .getByTestId('ContactRow')
+    .getByText(helpers.displayId('~zod'), { exact: true })
+    .click();
   await tenPage.getByText('Add 1 contact').click();
   await tenPage.waitForTimeout(3000);
 

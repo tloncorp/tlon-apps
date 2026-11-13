@@ -1,4 +1,8 @@
-import { preSig } from '@tloncorp/api/lib/urbit';
+import {
+  displayIdToShip,
+  preSig,
+  shipToDisplayId,
+} from '@tloncorp/api/lib/urbit';
 import { createDevLogger, logSyncDuration } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { valid } from '@urbit/aura';
@@ -103,7 +107,8 @@ export function useSortedContacts({
   const finalContacts = useMemo(() => {
     if (isValidQuery(query)) {
       const filtered = filterContactsOnQuery(sortedContacts, query);
-      const exactMatchCheck = preSig(query.trim().toLocaleLowerCase());
+      const exactMatchCheck =
+        displayIdToShip(query) ?? preSig(query.trim().toLocaleLowerCase());
       if (valid('p', exactMatchCheck)) {
         const exactMatch = db.getFallbackContact(exactMatchCheck);
         if (filtered.find((c) => c.id === exactMatchCheck)) {
@@ -195,12 +200,21 @@ function alphabeticalSorter(a: db.Contact, b: db.Contact): number {
 function filterContactsOnQuery(contacts: db.Contact[], query: string) {
   if (!isValidQuery(query)) return [];
   const processedQuery = query.trim().toLowerCase().replace(/[~-]/g, '');
+  // People without a nickname are shown by number, so a number matches too.
+  const numberQuery = /^[\d.]+$/.test(processedQuery)
+    ? processedQuery.replace(/\./g, '')
+    : null;
   return logSyncDuration('filterContactsOnQuery', logger, () => {
     return contacts.filter((contact) => {
       const nickname = contact.nickname?.toLowerCase() ?? '';
       const id = contact.id.replace(/[~-]/g, '');
       return (
-        nickname.startsWith(processedQuery) || id.startsWith(processedQuery)
+        nickname.startsWith(processedQuery) ||
+        id.startsWith(processedQuery) ||
+        (numberQuery !== null &&
+          !!shipToDisplayId(contact.id)
+            ?.replace(/\./g, '')
+            .startsWith(numberQuery))
       );
     });
   });

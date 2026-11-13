@@ -5,6 +5,7 @@ import { Pressable, StyleSheet } from 'react-native';
 import { XStack } from 'tamagui';
 
 import { useConversationScrollViewNativeID } from '../../contexts/scroll';
+import { ContactName } from '../ContactNameV2';
 import { GlassSurface } from '../GlassSurface';
 import { ScrollEdgeElementContainer } from '../ScrollEdgeElementContainer';
 import {
@@ -45,9 +46,12 @@ export function PinnedPostBanner({
             ellipsizeMode="tail"
             flex={1}
           >
-            {author
-              ? `${author.customNickname || author.peerNickname || author.id}: `
-              : ''}
+            {author ? (
+              <>
+                <ContactName contactId={author.id} />
+                {': '}
+              </>
+            ) : null}
             {previewText}
           </Text>
         </XStack>

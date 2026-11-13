@@ -12,7 +12,7 @@ import { XStack } from 'tamagui';
 import { MentionOption } from './BareChatInput/useMentions';
 import { BotBadge } from './BotBadge';
 import { ContactList } from './ContactList';
-import ContactName from './ContactName';
+import { ContactName } from './ContactNameV2';
 import { ListItem } from './ListItem';
 import { useBoundHandler } from './listItems/listItemUtils';
 
@@ -57,11 +57,7 @@ function MentionOptionItem({
           <XStack alignItems="center" gap="$s">
             <ListItem.Title flex={1} minWidth={0}>
               {isContact ? (
-                <ContactName
-                  matchText={matchText}
-                  showNickname
-                  userId={option.id}
-                />
+                <ContactName matchText={matchText} contactId={option.id} />
               ) : (
                 option.title || option.id
               )}

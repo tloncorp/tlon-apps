@@ -7,6 +7,7 @@ import {
   runKindLabel,
   sourceKindLabel,
 } from './format';
+import { formatUserId } from '../../../utils/user';
 import type { ContextLens, ContextLensToolRun } from './types';
 
 export type LensMessageTarget = {
@@ -58,7 +59,12 @@ export function triggerFacts(lens: ContextLens): RunFact[] {
           }
         : {}),
     },
-    { label: 'Author', value: lens.triggerDetails?.authorShip ?? 'unknown' },
+    {
+      label: 'Author',
+      value:
+        formatUserId(lens.triggerDetails?.authorShip ?? '')?.display ??
+        'unknown',
+    },
     {
       label: 'Conversation',
       value: lens.triggerDetails?.conversationId ?? lens.chatType,

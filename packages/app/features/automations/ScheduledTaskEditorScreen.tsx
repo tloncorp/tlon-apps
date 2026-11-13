@@ -33,7 +33,7 @@ import {
 } from '../../ui/components/automationTaskDraft';
 import { formatAutomationSchedule } from '../../ui/components/formatAutomationSchedule';
 import { runHistorySubtitle } from '../../ui/components/taskRuns';
-import { useContact } from '../../ui/contexts/appDataContext';
+import { useContactName } from '../../ui/components/ContactNameV2';
 import { useBotDelivery } from './useBotDelivery';
 import { useNowOnFocus, useStartTestRun, useTaskRuns } from './useTaskRuns';
 import {
@@ -63,7 +63,9 @@ function useDestinationLabel(
   const channel = store.useChannel({
     id: destination.kind === 'channel' ? destination.nest : undefined,
   }).data;
-  const contact = useContact(destination.kind === 'dm' ? destination.ship : '');
+  const dmName = useContactName(
+    destination.kind === 'dm' ? destination.ship : ''
+  );
   switch (destination.kind) {
     case 'none':
       return 'Nowhere';
@@ -72,11 +74,11 @@ function useDestinationLabel(
     case 'dm':
       return destination.ship === currentUserId
         ? 'Direct message to you'
-        : `Direct message to ${contact?.nickname || destination.ship}`;
+        : `Direct message to ${dmName}`;
     case 'channel':
       return (
         [channel?.group?.title, channel?.title].filter(Boolean).join(' · ') ||
-        destination.nest
+        'Unknown channel'
       );
   }
 }
