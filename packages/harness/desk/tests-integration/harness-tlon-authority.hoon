@@ -39,7 +39,7 @@
     ?:  (lien path |=(part=@ta =(%cron-session part)))  `!>(job)
     ?:  (lien path |=(part=@ta =(%cron-authority part)))  `!>(allowed)
     ?:  =(%$ (rear path))  `!>(&)
-    ::  Native Chat is installed and has no pending owner invitations.
+    ::  Native Chat is installed and has no pending invitations.
     ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)
     ~
   ;<  *  bind:m  (do-load adapter `!>(saved))

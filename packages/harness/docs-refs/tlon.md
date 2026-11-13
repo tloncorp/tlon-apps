@@ -513,7 +513,10 @@ messaging the sender.
   adds it to trusted actors' grants. A granted server permits all of its tools.
 - Other ships and the bot's own messages do not enter inference.
 - Group invitations are accepted only when sent by the owner. DM invitations
-  from the owner or a trusted ship are accepted.
+  from the owner, a trusted ship or an allowed ship are accepted. An invitation
+  still pending when its sender gains access is accepted at that point, or when
+  the adapter next loads; messages the sender sent before it gained access are
+  not answered.
 - Joining a group subscribes to its readable channels. When the bot's own group
   roles change, the hand rechecks native read permissions and joins accessible
   channels that are not already joined. Role notifications do not grant chat
@@ -562,10 +565,13 @@ ship mentions, code, lists and image descriptions. Replies translate Markdown
 paragraphs, emphasis, headings, quotes, links, standalone images and fenced code into Story. This is
 a small codec, not a complete CommonMark renderer; unsupported syntax remains text.
 
-The first DM is an invitation rather than a post notification. After accepting,
-the adapter admits up to 64 recent posts newer than the policy's activation time.
-It preserves original message keys so overlap with live notifications deduplicates
-in the head. This bounded invitation catch-up is not general offline replay.
+The first DM is an invitation rather than a post notification, and Chat sends no
+notifications for later messages in a DM until the invitation is accepted. After
+accepting, the adapter admits up to 64 recent posts newer than both the policy's
+activation time and the sender's own admission cutoff, which a change to its
+access resets. It preserves original message keys so overlap with live
+notifications deduplicates in the head. This bounded invitation catch-up is not
+general offline replay.
 
 ## ACP configuration and activity
 
@@ -764,7 +770,10 @@ removes its fixture group. Pure membership tests live in
 
 `tests-js/tlon-actions-conformance.mjs` exercises the broad
 tool with automatic replies disabled; `tests-js/tlon-denial-conformance.mjs`
-checks real two-ship silent rejection, local audit rate limiting and zero model calls.
+checks real two-ship silent rejection, local audit rate limiting and zero model calls
+over an accepted DM. It then leaves that DM so the peer's next message is a pending
+invitation, and checks that granting the peer access accepts it and answers only
+what the peer sends afterward.
 `tests-js/tlon-completion-conformance.mjs` checks permissions, moderation, full
 message reads, activity, clubs, Notes and granted Clay uploads on disposable test ships, restoring policy and storage settings afterward.
 The upload cases need a running `%storage` agent; without one it runs the rest, reports them as not run and exits non-zero.

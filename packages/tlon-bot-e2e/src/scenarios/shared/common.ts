@@ -231,13 +231,16 @@ export const commonScenarios: readonly SharedScenario[] = [
 
   testScenario(
     'allowlisted-third-party-dm-reply',
-    {
-      driverSkips: {
-        harness:
-          'TLON-7109: Harness does not accept a DM invite that a ship sent before it was given access.',
-      },
-    },
+    {},
     async ({ ctx, driver, actors }) => {
+      // DM before the grant, so the grant must also open a DM that arrived
+      // while the sender was not allowed, without relying on an earlier
+      // scenario having left one behind.
+      const preGrantKey = scenarioKey('pre-grant');
+      await actors.thirdParty.sendDm(
+        `[tlon-test:${preGrantKey}] Sent before this sender is allowed.`
+      );
+      await waitForBotDmWith(actors, actors.thirdParty.ship);
       await allowDmFrom({ ctx, driver, actors }, actors.thirdParty.ship);
       const key = scenarioKey('allowlisted-third-party');
       const reply = `Allowlisted third-party reply ${key}`;
@@ -2144,6 +2147,28 @@ function scenarioKey(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random()
     .toString(36)
     .slice(2, 8)}`;
+}
+
+// The bot holds the DM either as a pending invitation or as an accepted DM,
+// depending on whether the driver accepts DMs from unallowed senders.
+async function waitForBotDmWith(
+  actors: ScenarioActors,
+  ship: string
+): Promise<void> {
+  await waitFor(
+    async () => {
+      const [invited, accepted] = await Promise.all([
+        actors.bot.state.scry<string[]>('chat', '/dm/invited'),
+        actors.bot.state.scry<string[]>('chat', '/dm'),
+      ]);
+      return invited.includes(ship) || accepted.includes(ship);
+    },
+    {
+      timeoutMs: 30_000,
+      intervalMs: 500,
+      description: `a DM from ${ship} on the bot ship`,
+    }
+  );
 }
 
 function expectPromptSuccess(result: PromptResult, expectedText: string): void {
