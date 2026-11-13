@@ -5,11 +5,13 @@ import { urbitPlugin } from '@urbit/vite-plugin-urbit';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import react from '@vitejs/plugin-react';
 import fs from 'fs';
+import dns from 'node:dns';
 import analyze from 'rollup-plugin-analyzer';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { fileURLToPath } from 'url';
 import {
   BuildOptions,
+  ConfigEnv,
   Plugin,
   PluginOption,
   ProxyOptions,
@@ -24,8 +26,10 @@ import packageJson from './package.json';
 import reactNativeWeb from './reactNativeWebPlugin';
 import manifest from './src/manifest';
 
+dns.setDefaultResultOrder('verbatim');
+
 // https://vitejs.dev/config/
-export default ({ mode }: { mode: string }) => {
+export default async ({ command, mode }: ConfigEnv) => {
   process.env.VITE_STORAGE_VERSION =
     mode === 'dev' ? Date.now().toString() : packageJson.version;
 
@@ -44,10 +48,225 @@ export default ({ mode }: { mode: string }) => {
   // `localhost` to both ::1 and 127.0.0.1 and races them with a 250ms
   // per-address connect timer, which can fire while the dev server's event
   // loop is busy transforming modules (seen as `AggregateError [ETIMEDOUT]`).
-  const targetShipUrl = (mode === 'dev2' ? SHIP_URL2 : SHIP_URL).replace(
+  const shipUrl = mode === 'dev2' ? SHIP_URL2 : SHIP_URL;
+  const shipOrigin = new URL(shipUrl);
+  const targetShipUrl = shipUrl.replace(
     /^(https?:\/\/)localhost(?=[:/]|$)/,
     '$1127.0.0.1'
   );
+
+  // translate localhost hostname into corresponding (sub)domain of shipUrl
+  const upstreamForLocalHost = (host: string | undefined) => {
+    const hostname = host?.toLowerCase().replace(/:\d+$/, '');
+
+    if (!hostname) {
+      return null;
+    }
+
+    if (hostname === 'localhost') {
+      return shipOrigin;
+    }
+
+    const localSuffix = '.localhost';
+    if (!hostname.endsWith(localSuffix)) {
+      return null;
+    }
+
+    const desk = hostname.slice(0, -localSuffix.length);
+    if (!desk || desk.includes('.')) {
+      return null;
+    }
+
+    const upstream = new URL(shipOrigin);
+    upstream.hostname = `${desk}.${shipOrigin.hostname}`;
+    return upstream;
+  };
+
+  // translate root and desk hostnames back into localhost hosts
+  const localHostForUpstream = (upstream: URL) => {
+    if (
+      upstream.protocol !== shipOrigin.protocol ||
+      upstream.port !== shipOrigin.port
+    ) {
+      return null;
+    }
+
+    if (upstream.hostname === shipOrigin.hostname) {
+      return 'localhost';
+    }
+
+    const shipSuffix = `.${shipOrigin.hostname}`;
+    if (!upstream.hostname.endsWith(shipSuffix)) {
+      return null;
+    }
+
+    const desk = upstream.hostname.slice(0, -shipSuffix.length);
+    if (!desk || desk.includes('.')) {
+      return null;
+    }
+
+    return `${desk}.localhost`;
+  };
+
+  // ask eyre for /apps/groups/ canonical location.
+  // old eyres will attempt to serve, new eyre will redirect to a subdomain
+  const discoverHostname = async () => {
+    const appUrl = new URL('/apps/groups/', shipOrigin);
+    let response: Response;
+
+    try {
+      response = await fetch(appUrl, {
+        redirect: 'manual',
+        signal: AbortSignal.timeout(10_000),
+      });
+    } catch (error) {
+      console.error(`failed to discover hostname from ${appUrl.href}: ${error instanceof Error ? error.message : String(error)}`);
+      return 'localhost'; // fail safe
+    }
+
+    // non-redirect means root is canonical
+    const location = response.headers.get('location');
+    await response.body?.cancel();
+    if (!location) {
+      return 'localhost';
+    }
+
+    // attempt to parse canonical domain from redirect target
+    const appHostname = localHostForUpstream(new URL(location, shipOrigin));
+    if (!appHostname) {
+      console.error(`cannot derive local host for ${location} under ${shipOrigin.origin}`);
+      return 'localhost'; // fail safe
+    }
+
+    return appHostname;
+  };
+
+  // Builds, tests, mock mode, and Electron should not acquire a network
+  // dependency merely from loading the Vite configuration.
+  const shouldDiscoverHostname =
+    command === 'serve' &&
+    !['mock', 'staging', 'electron', 'test'].includes(mode);
+
+  const devHostname = shouldDiscoverHostname
+    ? await discoverHostname()
+    : 'groups.localhost';
+
+  if (shouldDiscoverHostname) {
+    console.log(`Serving groups development files on ${devHostname}`);
+  }
+
+  const translateLocalUrl = (value: string) => {
+    try {
+      const translated = new URL(value);
+      const upstream = upstreamForLocalHost(translated.host);
+
+      if (!upstream) {
+        return null;
+      }
+
+      translated.protocol = upstream.protocol;
+      translated.hostname = upstream.hostname;
+      translated.port = upstream.port;
+      return translated;
+    } catch {
+      return null;
+    }
+  };
+
+  type ProxyServer = Parameters<
+    NonNullable<ProxyOptions['configure']>
+  >[0];
+
+  const configureEyreProxy = (proxy: ProxyServer) => {
+    // rewrite host, origin, referer and sec-fetch-site headers
+    // to reflect the ship's hostname
+    proxy.on('proxyReq', (proxyReq, req) => {
+      const upstream = upstreamForLocalHost(req.headers.host);
+
+      if (!upstream) {
+        return;
+      }
+
+      proxyReq.setHeader('host', upstream.host);
+
+      const origin = req.headers.origin;
+      const translatedOrigin =
+        typeof origin === 'string' ? translateLocalUrl(origin) : null;
+
+      if (translatedOrigin) {
+        proxyReq.setHeader('origin', translatedOrigin.origin);
+      }
+
+      const referer = req.headers.referer;
+      const translatedReferer =
+        typeof referer === 'string' ? translateLocalUrl(referer) : null;
+
+      if (translatedReferer) {
+        proxyReq.setHeader('referer', translatedReferer.href);
+      }
+
+      // foo.localhost <-> bar.localhost is considered cross-site,
+      // but the real-world foo.examp.le <-> bar.examp.le is usually same-site.
+      // recalculate the sec-fetch-site header to accurately simulate non-
+      // dev server behavior.
+      // if no origin was provided, use referer for this instead.
+      const provenance =
+        typeof origin === 'string'
+          ? translatedOrigin
+          : translatedReferer;
+
+      const fetchSite = req.headers['sec-fetch-site'];
+
+      if (fetchSite === 'same-origin') {
+        // one-to-one hostname translation always preserves same-origin
+        proxyReq.setHeader('sec-fetch-site', 'same-origin');
+      } else if (provenance && typeof fetchSite === 'string') {
+        // different localhost origins become different origins under ship site
+        proxyReq.setHeader(
+          'sec-fetch-site',
+          provenance.origin === upstream.origin
+            ? 'same-origin'
+            : 'same-site'
+        );
+      }
+    });
+
+    // rewrite location headers
+    // to reflect the local dev server hostname
+    proxy.on('proxyRes', (proxyRes, req) => {
+      const location = proxyRes.headers.location;
+
+      // relative redirects already return through vite
+      if (
+        typeof location !== 'string' ||
+        !/^(?:https?:)?\/\//.test(location)
+      ) {
+        return;
+      }
+
+      const upstream = new URL(location, shipOrigin);
+      const localHostname = localHostForUpstream(upstream);
+
+      if (!localHostname) {
+        return;
+      }
+
+      const localPort = req.headers.host?.match(/:(\d+)$/)?.[1];
+      const localAuthority =
+        localHostname + (localPort ? `:${localPort}` : '');
+
+      proxyRes.headers.location =
+        `//${localAuthority}` +
+        `${upstream.pathname}${upstream.search}${upstream.hash}`;
+    });
+  };
+
+  const eyreProxy = {
+    target: targetShipUrl,
+    changeOrigin: true,
+    secure: false,
+    configure: configureEyreProxy,
+  } satisfies ProxyOptions;
   const shouldUploadSourcemaps =
     process.env.CI === 'true' && Boolean(process.env.SENTRY_AUTH_TOKEN);
 
@@ -119,9 +338,7 @@ export default ({ mode }: { mode: string }) => {
       expo52PatchPlugin(), // Fix Expo 52 static name assignments
       urbitPlugin({
         base: 'groups',
-        target: targetShipUrl,
-        changeOrigin: true,
-        secure: false,
+        ...eyreProxy,
       }) as PluginOption[],
       react({
         babel: {
@@ -208,11 +425,14 @@ export default ({ mode }: { mode: string }) => {
         ? parseInt(process.env.VITE_PORT)
         : 3000;
   const urbitProxy: Record<string, ProxyOptions> = {
+    '^/~/': {
+      ...eyreProxy,
+    },
     '/apps/groups/~/metagrab/': {
-      target: targetShipUrl,
-      changeOrigin: true,
-      secure: false,
+      ...eyreProxy,
       configure: (proxy) => {
+        configureEyreProxy(proxy);
+
         proxy.on('proxyReq', (proxyReq) => {
           // Log the path for debugging
           console.log('Proxying request to:', proxyReq.path);
@@ -230,26 +450,44 @@ export default ({ mode }: { mode: string }) => {
         });
       },
     },
+
     '^/apps/groups/desk.js': {
-      target: targetShipUrl,
-      changeOrigin: true,
-      secure: false,
+      ...eyreProxy,
     },
+
     '^.*//.*': {
-      target: targetShipUrl,
-      changeOrigin: true,
-      secure: false,
+      ...eyreProxy,
       rewrite: (path) => path.replaceAll('//', '/@@@/'),
       configure: (proxy) => {
+        configureEyreProxy(proxy);
+
         proxy.on('proxyReq', (proxyReq) => {
           proxyReq.path = proxyReq.path.replaceAll('/@@@/', '//');
         });
       },
     },
+
+    // serve dev files only on the discovered hostname,
+    // eyre will redirect matching paths on other hosts to it
+    '^/apps/groups(?:/|$)': {
+      ...eyreProxy,
+
+      bypass: (req) => {
+        const host = req.headers.host?.toLowerCase();
+        const hostname = host?.replace(/:\d+$/, '');
+
+        if (hostname === devHostname) {
+          // resumes vite's normal local file handling
+          return req.url;
+        }
+
+        // proxy to eyre
+        return undefined;
+      },
+    },
+
     '^((?!/apps/groups/).)*$': {
-      target: targetShipUrl,
-      changeOrigin: true,
-      secure: false,
+      ...eyreProxy,
     },
   };
 
