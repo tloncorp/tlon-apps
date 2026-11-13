@@ -64,7 +64,7 @@ landscape:
 # Harness checks the whole repository out at this commit too (packages/harness/justfile).
 mcp:
   url: https://github.com/tloncorp/mcp.git
-  rev: 9600a823d2d6e49d47f436f98ecde0e832b732ee
+  rev: a9d9956c4fc3a3ea12f87aa416b4f392fcb9f679
   export: desk
   files:
     - mar/mcp-proxy-action.hoon

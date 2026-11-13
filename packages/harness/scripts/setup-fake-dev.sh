@@ -77,8 +77,8 @@ function find_vere()
 }
 
 # Ships set up at once take turns at what they share and no build lock covers: the
-# pill and runtime downloads, and %mcp's build in mcp/. The lock is on a descriptor
-# only the subshell has, so nothing it leaves running, such as a tmux server, holds it.
+# pill and runtime downloads. The lock is on a descriptor only the subshell has, so
+# nothing it leaves running, such as a tmux server, holds it.
 function in_turn
 {
   (
@@ -245,10 +245,7 @@ function setup_desk
   fi
 
   echo "Updating $desk desk"
-  # Harness's build takes its own locks; %mcp's does not.
-  turn=
-  [ "$desk" == "mcp" ] && turn=in_turn
-  $turn just --justfile "$justfile" click="scripts/click -b $vere" commit "$pier/$desk"
+  just --justfile "$justfile" click="scripts/click -b $vere" commit "$pier/$desk"
 
   if [ "$?" -ne 0 ]
   then
