@@ -113,12 +113,7 @@ async function performCleanup(page: Page, shipName: string) {
  * Text that may still show a ship name until a later phase of the no-bare-@p
  * work (TLON-6689) lands. Each selector's subtree is left out of the check.
  */
-const SHIP_NAME_ALLOWED_SELECTORS = [
-  // Phase 2: the composer shows a mention as its ~ship while it is edited.
-  '[contenteditable="true"]',
-  // Phase 2: post previews are flattened text, where a mention is its ~ship.
-  '[data-testid="ListItemPostPreview"]',
-];
+const SHIP_NAME_ALLOWED_SELECTORS: string[] = [];
 
 /**
  * Fails the test when the page shows a ship name as text. People without a
@@ -135,9 +130,10 @@ async function expectNoShipNames(page: Page, testInfo: TestInfo) {
   }
   const text = await page.evaluate((allowed) => {
     let visible = document.body.innerText;
-    for (const el of document.querySelectorAll<HTMLElement>(
-      allowed.join(',')
-    )) {
+    const excludedElements = allowed.length
+      ? document.querySelectorAll<HTMLElement>(allowed.join(','))
+      : [];
+    for (const el of excludedElements) {
       const excluded = el.innerText;
       if (excluded) {
         visible = visible.split(excluded).join('');
