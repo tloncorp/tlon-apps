@@ -192,8 +192,9 @@ Never claim a desk change compiles without building it.
 
 1. `just install-dev <pier>/groups`. It keeps the files already in the mount;
    `just install` deletes them, so run that only when explicitly instructed.
-   Never hand-copy or hand-edit files in a mounted desk; fix stale clay files
-   with `|rm`, or `|unmount` and `|mount`, then re-install.
+   Never hand-copy or hand-edit files in a mounted desk. `install-dev` leaves
+   files the change deleted or renamed in the mount, where they can hide a
+   build error: `|rm` them, or ask before running `just install`.
 2. `|commit %groups`; wait for any `sync` spinner; confirm no build errors.
 3. `-build-file` every changed Hoon file a live app or mark might not reach,
    e.g. `=aut -build-file /=groups=/sur/steward/automation/hoon`. A Dojo
