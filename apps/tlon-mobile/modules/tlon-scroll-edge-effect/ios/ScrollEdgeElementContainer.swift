@@ -9,6 +9,10 @@ public final class TlonScrollEdgeEffectModule: Module {
             Prop("anchorToEnd") { (view: ConversationViewport, enabled: Bool) in
                 view.anchorToEnd = enabled
             }
+
+            Prop("newestRowKey") { (view: ConversationViewport, key: String?) in
+                view.newestRowKey = key
+            }
         }
 
         View(ScrollEdgeElementContainer.self) {
@@ -31,7 +35,25 @@ public final class TlonScrollEdgeEffectModule: Module {
 /// new row from its estimate and corrects it once measured; each JS
 /// scrollToEnd restarts UIKit's fixed-duration animation toward a stale end.
 /// A spring retargeted every frame absorbs those corrections in one motion.
+///
+/// Growth with no new row behind it (a reply count, a reaction, an image that
+/// measured late) holds the end in the same pass instead. A spring would first
+/// show every row below the one that grew pushed down behind the composer, then
+/// slide them back.
 public final class ConversationViewport: ExpoView {
+    /// The newest row's key. A change means a row arrived at the end.
+    var newestRowKey: String? {
+        didSet {
+            if newestRowKey != oldValue {
+                rowArrivedAt = CACurrentMediaTime()
+            }
+        }
+    }
+    private var rowArrivedAt: CFTimeInterval = 0
+    /// How long after a row arrives its size corrections still count as the
+    /// arrival. JS can take a few hundred ms to measure a row it just rendered.
+    private static let arrivalWindow: CFTimeInterval = 1.0
+
     var anchorToEnd = false {
         didSet {
             guard anchorToEnd, !oldValue, let scrollView else {
@@ -127,6 +149,14 @@ public final class ConversationViewport: ExpoView {
             // Keep following through consecutive corrections, but never pull
             // a reader who is away from the end.
             guard self.displayLink != nil || abs(oldEnd - scrollView.contentOffset.y) <= 2 else {
+                return
+            }
+            if self.displayLink == nil,
+               CACurrentMediaTime() - self.rowArrivedAt > Self.arrivalWindow {
+                scrollView.setContentOffset(
+                    CGPoint(x: scrollView.contentOffset.x, y: self.endOffset(of: scrollView)),
+                    animated: false
+                )
                 return
             }
             self.followEnd()

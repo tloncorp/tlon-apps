@@ -910,6 +910,9 @@ const ConversationPostListAttempt = React.forwardRef<
       () => postsWithNeighbors.map(getPostListKey),
       [postsWithNeighbors]
     );
+    // Rows run oldest to newest, so a new last key is a row arriving at the end.
+    const newestRow = postsWithNeighbors[postsWithNeighbors.length - 1];
+    const newestRowKey = newestRow ? getPostListKey(newestRow) : null;
     // A docked list's frame ends above the composer, but keeps its height while
     // the keyboard rises over it (the scroll view takes the keyboard as an
     // inset), so the keyboard and a floating composer cover it. Otherwise the
@@ -1294,6 +1297,7 @@ const ConversationPostListAttempt = React.forwardRef<
           !isReshapingTop &&
           !reshapeHoldsEnd
         }
+        newestRowKey={newestRowKey}
       >
         {list}
       </ConversationViewport>
