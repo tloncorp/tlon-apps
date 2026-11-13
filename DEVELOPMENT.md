@@ -24,14 +24,15 @@ To get started, make sure your %groups desk is mounted:
 |mount %groups
 ```
 
-Sync the latest %groups files. `just install` (needs
+Sync the latest %groups files. `just install-dev` (needs
 [just](https://just.systems) and [yq](https://github.com/mikefarah/yq)) fetches
 the base-dev/landscape dependencies into `desk-deps/` (gitignored — see
-`desk-deps.yaml`), layers them with our `desk/` into `desk-out/`, and replaces
-the ship's mounted groups desk with the result:
+`desk-deps.yaml`), layers them with our `desk/` into `desk-out/`, and copies
+the result into the ship's mounted groups desk, keeping the files there that
+the build did not produce:
 
 ```
-just install ~/urbit/zod/groups
+just install-dev ~/urbit/zod/groups
 ```
 
 And commit:

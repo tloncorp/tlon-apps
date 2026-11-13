@@ -123,7 +123,7 @@ Full-agent reload, endpoint fixtures and the 32K-document benchmark live in
 them, build with:
 
 ```sh
-just heavy=true install /path/to/test-pier/harness
+just heavy=true install-dev /path/to/test-pier/harness
 ```
 
 Commit the mounted desk, then run a test, for example:
