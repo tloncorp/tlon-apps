@@ -10,6 +10,8 @@ export const MentionsBridge = new BridgeExtension<
     HTMLAttributes: {
       class: 'mention',
     },
-    renderLabel: (props) => `~${props.node.attrs.id}`,
+    // The id is a ship name, which is never shown. The app sets the label to a
+    // nickname or ship number when it loads content into the editor.
+    renderLabel: (props) => props.node.attrs.label ?? '@',
   }),
 });
