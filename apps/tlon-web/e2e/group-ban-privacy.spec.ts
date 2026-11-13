@@ -20,9 +20,13 @@ test.describe('Group Ban Privacy-Specific Behaviors', () => {
     // Invite ~ten
     await helpers.openGroupSettings(zodPage);
     await helpers.openInvitePeople(zodPage);
-    await zodPage.getByPlaceholder('Filter by nickname, @p').fill('~ten');
+    await zodPage.getByPlaceholder('Filter by nickname or ID').fill('~ten');
     await zodPage.waitForTimeout(1000);
-    await zodPage.getByTestId('ContactRow').getByText('~ten').first().click();
+    await zodPage
+      .getByTestId('ContactRow')
+      .getByText(helpers.displayId('~ten'), { exact: true })
+      .first()
+      .click();
     await zodPage.getByText('Invite 1 and continue').click();
     await zodPage.waitForTimeout(1000);
 
@@ -39,7 +43,10 @@ test.describe('Group Ban Privacy-Specific Behaviors', () => {
     await zodPage.waitForTimeout(2000);
 
     // Click on ~ten to open profile sheet
-    await zodPage.getByTestId('MemberRow').filter({ hasText: '~ten' }).click();
+    await zodPage
+      .getByTestId('MemberRow')
+      .filter({ hasText: helpers.displayId('~ten') })
+      .click();
 
     // Verify ban option is available in private group
     await expect(zodPage.getByText('Ban User')).toBeVisible();
@@ -81,9 +88,13 @@ test.describe('Group Ban Privacy-Specific Behaviors', () => {
     // Invite ~ten to the secret group
     await helpers.openGroupSettings(zodPage);
     await helpers.openInvitePeople(zodPage);
-    await zodPage.getByPlaceholder('Filter by nickname, @p').fill('~ten');
+    await zodPage.getByPlaceholder('Filter by nickname or ID').fill('~ten');
     await zodPage.waitForTimeout(1000);
-    await zodPage.getByTestId('ContactRow').getByText('~ten').first().click();
+    await zodPage
+      .getByTestId('ContactRow')
+      .getByText(helpers.displayId('~ten'), { exact: true })
+      .first()
+      .click();
     await zodPage.getByText('Invite 1 and continue').click();
     await zodPage.waitForTimeout(1000);
 
@@ -96,7 +107,10 @@ test.describe('Group Ban Privacy-Specific Behaviors', () => {
     await zodPage.waitForTimeout(2000);
 
     // Click on ~ten to open profile sheet
-    await zodPage.getByTestId('MemberRow').filter({ hasText: '~ten' }).click();
+    await zodPage
+      .getByTestId('MemberRow')
+      .filter({ hasText: helpers.displayId('~ten') })
+      .click();
 
     // Verify ban option is available in secret group
     await expect(zodPage.getByText('Ban User')).toBeVisible();

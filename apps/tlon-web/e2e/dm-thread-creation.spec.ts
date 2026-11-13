@@ -17,7 +17,7 @@ test('should test DM thread creation and initial interactions', async ({
   await helpers.createDirectMessage(zodPage, '~ten');
 
   // ~zod sends the initial message
-  await helpers.sendMessage(zodPage, "Hello ~ten! Let's test threads in DMs.");
+  await helpers.sendMessage(zodPage, 'Zod opens a DM thread test.');
 
   if (await helpers.isMobileViewport(zodPage)) {
     await helpers.navigateBack(zodPage);
@@ -32,12 +32,12 @@ test('should test DM thread creation and initial interactions', async ({
 
   // Wait for DM to fully load
   await expect(
-    tenPage.getByText("Hello ~ten! Let's test threads in DMs.").first()
+    tenPage.getByText('Zod opens a DM thread test.').first()
   ).toBeVisible({ timeout: 10000 });
 
   // Verify ~ten can see the message from ~zod
   await expect(
-    tenPage.getByText("Hello ~ten! Let's test threads in DMs.").first()
+    tenPage.getByText('Zod opens a DM thread test.').first()
   ).toBeVisible();
 
   // ~ten accepts the DM
@@ -60,7 +60,7 @@ test('should test DM thread creation and initial interactions', async ({
   await expect(
     zodPage.getByText('Ten responds: Ready for DM thread testing!').first()
   ).toBeVisible({ timeout: 20000 });
-  await helpers.startThread(zodPage, "Hello ~ten! Let's test threads in DMs.");
+  await helpers.startThread(zodPage, 'Zod opens a DM thread test.');
 
   // ZOD: Send a reply in the thread
   await helpers.sendThreadReply(
@@ -73,7 +73,9 @@ test('should test DM thread creation and initial interactions', async ({
   // Wait for thread count to update
   await expect(zodPage.getByText('1 reply')).toBeVisible({ timeout: 10000 });
   // Ensure we're still in the DM, not back at Home
-  await expect(zodPage.getByText('~ten').first()).toBeVisible({
+  await expect(
+    zodPage.getByText(helpers.displayId('~ten'), { exact: true }).first()
+  ).toBeVisible({
     timeout: 5000,
   });
   await expect(zodPage.getByText('1 reply')).toBeVisible({ timeout: 5000 });

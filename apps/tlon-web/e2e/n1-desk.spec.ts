@@ -83,7 +83,7 @@ test.skip(
 // servers) costs minutes, so the steps share one rather than each paying it.
 test.setTimeout(1_500_000);
 
-const groupName = `~${n1Ship.ship}, ~${currentShip.ship}`;
+const groupName = helpers.memberListTitle(n1Ship.ship, currentShip.ship);
 
 // The names that outlive the test are spelled the same way in the cleanup in
 // test-fixtures.ts. Renaming the group here means updating that file too.
@@ -203,7 +203,9 @@ async function memberRowIndex(page: Page, shipName: string) {
   const rows = page.getByTestId('MemberRow');
   await expect(rows.first()).toBeVisible({ timeout: 15000 });
   const texts = await rows.allTextContents();
-  const index = texts.findIndex((text) => text.includes(`~${shipName}`));
+  const index = texts.findIndex((text) =>
+    text.includes(helpers.displayId(shipName))
+  );
   expect(
     index,
     `no member row for ~${shipName} in ${texts.join(' | ')}`
@@ -404,7 +406,9 @@ test('current client interoperates with a ship on the N-1 desk', async ({
       suggestionTestId: `~${n1Ship.ship}-contact`,
       selectedMentionTestId: `SelectedMention-~${n1Ship.ship}`,
       expectedInputText: new RegExp(`^${zodMention} [@~]${n1Ship.ship}$`),
-      expectedPostText: new RegExp(`${zodMention}\\s+~${n1Ship.ship}`, 'i'),
+      expectedPostText: new RegExp(
+        `${zodMention}\\s+${helpers.displayId(n1Ship.ship)}`
+      ),
       expectedMentionInline: { ship: `~${n1Ship.ship}` },
       postMentionTestId: `PostMention-~${n1Ship.ship}`,
     });
@@ -418,8 +422,7 @@ test('current client interoperates with a ship on the N-1 desk', async ({
       selectedMentionTestId: `SelectedMention-~${currentShip.ship}`,
       expectedInputText: new RegExp(`^${budMention} [@~]${currentShip.ship}$`),
       expectedPostText: new RegExp(
-        `${budMention}\\s+~${currentShip.ship}`,
-        'i'
+        `${budMention}\\s+${helpers.displayId(currentShip.ship)}`
       ),
       expectedMentionInline: { ship: `~${currentShip.ship}` },
       postMentionTestId: `PostMention-~${currentShip.ship}`,

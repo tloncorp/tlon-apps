@@ -16,7 +16,7 @@ test('should test cross-ship thread functionality', async ({
 
   // Create a new group as ~zod
   await helpers.createGroup(zodPage);
-  const groupName = '~ten, ~zod';
+  const groupName = helpers.memberListTitle('~ten', '~zod');
 
   // Invite ~ten to the group
   await helpers.inviteMembersToGroup(zodPage, ['ten']);

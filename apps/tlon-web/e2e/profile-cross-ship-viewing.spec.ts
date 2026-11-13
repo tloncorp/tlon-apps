@@ -41,11 +41,14 @@ test('should allow viewing and syncing profiles across ships', async ({
   await expect(tenPage.getByText('Add Contacts')).toBeVisible();
 
   // Search for ~zod
-  await tenPage.getByPlaceholder('Filter by nickname, @p').fill('~zod');
+  await tenPage.getByPlaceholder('Filter by nickname or ID').fill('~zod');
   await tenPage.waitForTimeout(1000);
 
   // Select ~zod from the search results
-  await tenPage.getByTestId('ContactRow').getByText('~zod').click();
+  await tenPage
+    .getByTestId('ContactRow')
+    .getByText(helpers.displayId('~zod'), { exact: true })
+    .click();
 
   // Add ~zod as a contact
   await tenPage.getByText('Add 1 contact').click();
@@ -89,9 +92,12 @@ test('should allow viewing and syncing profiles across ships', async ({
   await expect(zodPage.getByText('Contacts')).toBeVisible();
   await zodPage.getByTestId('ContactsAddButton').click();
   await expect(zodPage.getByText('Add Contacts')).toBeVisible();
-  await zodPage.getByPlaceholder('Filter by nickname, @p').fill('~ten');
+  await zodPage.getByPlaceholder('Filter by nickname or ID').fill('~ten');
   await zodPage.waitForTimeout(1000);
-  await zodPage.getByTestId('ContactRow').getByText('~ten').click();
+  await zodPage
+    .getByTestId('ContactRow')
+    .getByText(helpers.displayId('~ten'), { exact: true })
+    .click();
   await zodPage.getByText('Add 1 contact').click();
   await zodPage.waitForTimeout(3000);
 

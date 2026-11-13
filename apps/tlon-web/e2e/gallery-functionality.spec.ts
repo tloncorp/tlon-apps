@@ -12,7 +12,7 @@ test('should test gallery functionality', async ({ zodSetup, tenSetup }) => {
 
   // Create a new group
   await helpers.createGroup(zodPage);
-  // Note: Group name will update to '~ten, ~zod' after ~ten accepts the invitation (line 144)
+  // Note: Group name will update to helpers.memberListTitle('~ten', '~zod') after ~ten accepts the invitation (line 144)
   // For now, it remains 'Untitled workspace'
   let groupName = 'Untitled workspace';
 
@@ -21,7 +21,7 @@ test('should test gallery functionality', async ({ zodSetup, tenSetup }) => {
 
   // Navigate back to Home and navigate to group using stable testID
   await helpers.navigateBack(zodPage);
-  groupName = '~ten, ~zod';
+  groupName = helpers.memberListTitle('~ten', '~zod');
   await helpers.navigateToGroupByTestId(zodPage, {
     expectedDisplayName: groupName,
   });

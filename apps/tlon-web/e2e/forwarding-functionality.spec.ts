@@ -22,7 +22,7 @@ test('Forward chat message from group channel to DM - verify toast and reference
   });
 
   // Send a message to ~ten
-  await helpers.sendMessage(zodPage, 'This is a test message to ~ten');
+  await helpers.sendMessage(zodPage, 'This is a test message to Ten');
 
   // Navigate to Home
   await zodPage.getByTestId('HomeNavIcon').click();
@@ -42,7 +42,7 @@ test('Forward chat message from group channel to DM - verify toast and reference
 
   // Create a test group
   await helpers.createGroup(zodPage);
-  const groupName = '~ten, ~zod'; // Group name updates after inviting members
+  const groupName = helpers.memberListTitle('~ten', '~zod'); // Group name updates after inviting members
 
   // Invite ~ten to the group
   await helpers.inviteMembersToGroup(zodPage, ['ten']);
@@ -70,7 +70,9 @@ test('Forward chat message from group channel to DM - verify toast and reference
 
   // Step 3: Verify toast appears on ~zod's screen
   await expect(zodPage.getByTestId('ToastMessage')).toBeVisible();
-  await expect(zodPage.getByText('Forwarded post to ~ten')).toBeVisible();
+  await expect(
+    zodPage.getByText(`Forwarded post to ${helpers.displayId('~ten')}`)
+  ).toBeVisible();
 
   // Wait for the forward operation to complete and sync
   await zodPage.waitForTimeout(3000);

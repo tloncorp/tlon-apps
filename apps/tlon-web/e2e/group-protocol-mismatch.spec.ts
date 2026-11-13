@@ -25,7 +25,7 @@ test.skip('should invite ~bus to a group and test protocol mismatch', async ({
   // Invite ~ten to the group
   await helpers.openInvitePeople(zodPage);
   await expect(zodPage.getByText('Select people to invite')).toBeVisible();
-  await zodPage.getByPlaceholder('Filter by nickname, @p').fill('~bus');
+  await zodPage.getByPlaceholder('Filter by nickname or ID').fill('~bus');
   await zodPage.waitForTimeout(2000);
   await zodPage.getByTestId('ContactRow').first().click();
   await zodPage.getByText('Invite 1 and continue').click();
@@ -36,7 +36,10 @@ test.skip('should invite ~bus to a group and test protocol mismatch', async ({
 
   // Step 2: ~bus accepts the invite
   await busPage.waitForTimeout(5000);
-  await helpers.acceptGroupInvite(busPage, '~bus, ~zod');
+  await helpers.acceptGroupInvite(
+    busPage,
+    helpers.memberListTitle('~bus', '~zod')
+  );
 
   // Navigate to the General channel
   await busPage.getByTestId('ChannelListItem-General').click();

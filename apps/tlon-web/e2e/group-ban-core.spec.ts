@@ -20,8 +20,12 @@ test('should allow banning and unbanning users in public groups', async ({
 
   // Invite ~ten
   await helpers.openInvitePeople(zodPage);
-  await zodPage.getByPlaceholder('Filter by nickname, @p').fill('~ten');
-  await zodPage.getByTestId('ContactRow').getByText('~ten').first().click();
+  await zodPage.getByPlaceholder('Filter by nickname or ID').fill('~ten');
+  await zodPage
+    .getByTestId('ContactRow')
+    .getByText(helpers.displayId('~ten'), { exact: true })
+    .first()
+    .click();
   await zodPage.getByText('Invite 1 and continue').click();
 
   // ~ten accepts invite
@@ -31,11 +35,16 @@ test('should allow banning and unbanning users in public groups', async ({
   await helpers.openGroupSettings(zodPage);
   await zodPage.getByTestId('GroupMembers').click();
   await expect(
-    zodPage.getByTestId('MemberRow').filter({ hasText: '~ten' })
+    zodPage
+      .getByTestId('MemberRow')
+      .filter({ hasText: helpers.displayId('~ten') })
   ).toBeVisible({ timeout: 15000 });
 
   // Click on ~ten to open profile sheet
-  await zodPage.getByTestId('MemberRow').filter({ hasText: '~ten' }).click();
+  await zodPage
+    .getByTestId('MemberRow')
+    .filter({ hasText: helpers.displayId('~ten') })
+    .click();
 
   // Verify ban option is available and click it
   await expect(zodPage.getByText('Ban User')).toBeVisible();
@@ -50,7 +59,7 @@ test('should allow banning and unbanning users in public groups', async ({
 
   // Click on ~ten in the banned section
   const memberRows = zodPage.getByTestId('MemberRow');
-  const tenRow = memberRows.filter({ hasText: '~ten' });
+  const tenRow = memberRows.filter({ hasText: helpers.displayId('~ten') });
   await tenRow.click();
   await expect(zodPage.getByText('Unban User')).toBeVisible();
 
@@ -81,8 +90,12 @@ test('should allow banning and unbanning users in public groups', async ({
 
   // Re-invite ~ten to the group (now that they've been unbanned)
   await helpers.openInvitePeople(zodPage);
-  await zodPage.getByPlaceholder('Filter by nickname, @p').fill('~ten');
-  await zodPage.getByTestId('ContactRow').getByText('~ten').first().click();
+  await zodPage.getByPlaceholder('Filter by nickname or ID').fill('~ten');
+  await zodPage
+    .getByTestId('ContactRow')
+    .getByText(helpers.displayId('~ten'), { exact: true })
+    .first()
+    .click();
   await zodPage.getByText('Invite 1 and continue').click();
   await zodPage.waitForTimeout(1000);
 

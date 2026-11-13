@@ -44,7 +44,7 @@ test.describe('Secret Workspace Reference Display', () => {
     await zodPage.getByPlaceholder('Search channels').fill('~ten');
     await zodPage.waitForTimeout(2000);
     await zodPage.getByTestId('ChannelListItem-~ten').click();
-    await zodPage.getByText('Forward to ~ten').click();
+    await zodPage.getByText(`Forward to ${helpers.displayId('~ten')}`).click();
     await expect(zodPage.getByText('Forwarded')).toBeVisible({ timeout: 5000 });
 
     // Allow cross-ship sync

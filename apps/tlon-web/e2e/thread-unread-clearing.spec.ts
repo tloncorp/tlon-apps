@@ -18,7 +18,7 @@ test('should clear thread unreads while user is viewing the thread', async ({
 
   // Create a new group as ~zod
   await helpers.createGroup(zodPage);
-  const groupName = '~ten, ~zod';
+  const groupName = helpers.memberListTitle('~ten', '~zod');
 
   // Invite ~ten to the group
   await helpers.inviteMembersToGroup(zodPage, ['ten']);

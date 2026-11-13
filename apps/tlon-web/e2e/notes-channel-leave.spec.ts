@@ -72,7 +72,7 @@ test('a member who does not host a notebook can leave it', async ({
 }) => {
   const zodPage = zodSetup.page;
   const tenPage = tenSetup.page;
-  const groupName = '~ten, ~zod';
+  const groupName = helpers.memberListTitle('~ten', '~zod');
 
   await expect(zodPage.getByText('Home')).toBeVisible();
 
