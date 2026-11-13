@@ -1,9 +1,9 @@
 import { ALL_MENTION_ID as allID } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { valid } from '@urbit/aura';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { useMentionText } from '../../hooks/useMentionText';
 import { formatUserId } from '../../utils';
 
 export const ALL_MENTION_ID = allID;
@@ -121,6 +121,7 @@ export const useMentions = ({
   groupId?: string | null;
   roleOptions: MentionOption[];
 }) => {
+  const mentionText = useMentionText(roleOptions);
   const [isMentionModeActive, setIsMentionModeActive] = useState(false);
   const [mentionStartIndex, setMentionStartIndex] = useState<number | null>(
     null
@@ -314,8 +315,10 @@ export const useMentions = ({
   const handleSelectMention = (option: MentionOption, text: string) => {
     if (mentionStartIndex === null) return;
 
-    const display = option.title || option.id;
-    const mentionDisplay = valid('p', display) ? display : `@${display}`;
+    const mentionDisplay =
+      option.type === 'contact'
+        ? mentionText(option.id)
+        : `@${option.title || option.id}`;
     const beforeMention = text.slice(0, mentionStartIndex);
     const afterMention = text.slice(
       mentionStartIndex + (mentionSearchText?.length || 0) + 1
@@ -411,6 +414,7 @@ export const useMentions = ({
 
   return {
     mentions,
+    mentionText,
     validOptions,
     setMentions,
     mentionSearchText,

@@ -48,8 +48,13 @@ import {
 import { useBranchDomain, useBranchKey } from '../../contexts/appDataContext';
 import { useAttachmentContext } from '../../contexts/attachment';
 import { AttachmentPreviewList } from './AttachmentPreviewList';
+import { useMentionText } from '../../hooks/useMentionText';
 import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
-import { hydrateEditPost, processReferenceAndUpdateEditor } from './helpers';
+import {
+  hydrateEditPost,
+  labelMentions,
+  processReferenceAndUpdateEditor,
+} from './helpers';
 
 export const DEFAULT_MESSAGE_INPUT_HEIGHT = Platform.OS === 'web' ? 38 : 44;
 
@@ -139,6 +144,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     },
     ref
   ) => {
+    const mentionText = useMentionText();
     const branchDomain = useBranchDomain();
     const branchKey = useBranchKey();
     const [sendError, setSendError] = useState(false);
@@ -259,7 +265,9 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 'Not editing and we have draft content',
                 draft
               );
-              editorWithJsonContent.setContent(draft);
+              editorWithJsonContent.setContent(
+                labelMentions(draft, mentionText)
+              );
               setEditorIsEmpty(false);
               messageInputLogger.log(
                 'set has set initial content, not editing'
@@ -293,7 +301,9 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 'Setting content with edit post content',
                 tiptapContent
               );
-              editorWithJsonContent.setContent(tiptapContent);
+              editorWithJsonContent.setContent(
+                tiptapContent && labelMentions(tiptapContent, mentionText)
+              );
               setEditorIsEmpty(false);
               messageInputLogger.log('set has set initial content, editing');
               setHasSetInitialContent(true);
@@ -323,6 +333,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       editingPost,
       resetAttachments,
       addAttachment,
+      mentionText,
     ]);
 
     useEffect(() => {

@@ -15,6 +15,10 @@ vi.mock('@tloncorp/shared/store', () => ({
   useMentionCandidates: mocks.useMentionCandidates,
   syncRosterForMentions: mocks.syncRosterForMentions,
 }));
+vi.mock('../../hooks/useMentionText', () => ({
+  useMentionText: () => (id: string) =>
+    id === '~sampel-palnet' ? '@1.624.961.343' : `@${id}`,
+}));
 vi.mock('../../utils', () => ({
   formatUserId: (id: string) => ({ display: `formatted ${id}` }),
 }));
@@ -152,7 +156,7 @@ test('an edit before the active trigger moves it with the text', () => {
   act(() => {
     selection = result.handleSelectMention(option, ' ~samp');
   });
-  expect(selection!).toMatchObject({ text: ' ~sampel-palnet ' });
+  expect(selection!).toMatchObject({ text: ' @1.624.961.343 ' });
 });
 
 test('an edit that removes the active trigger closes the mention', () => {
