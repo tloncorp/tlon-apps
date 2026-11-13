@@ -51,7 +51,7 @@ export function AddContactsView(props: {
         <ContactBook
           multiSelect
           searchable
-          searchPlaceholder="Filter by nickname, @p"
+          searchPlaceholder="Filter by nickname or ID"
           onSelectedChange={setNewContacts}
           immutableIds={existingIds}
         />

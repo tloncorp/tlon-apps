@@ -63,7 +63,7 @@ export function InviteUsersScreen() {
             <ContactBook
               multiSelect
               searchable
-              searchPlaceholder="Filter by nickname, @p"
+              searchPlaceholder="Filter by nickname or ID"
               onSelectedChange={setInvitees}
               disabledIds={disabledIds}
               disabledReason="App version mismatch"

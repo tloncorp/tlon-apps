@@ -287,7 +287,7 @@ const CreateChatFormContent = ({
           searchable
           multiSelect={chatType === 'group'}
           appearance={isWindowNarrow ? 'plain' : 'block'}
-          searchPlaceholder="Filter by nickname or id"
+          searchPlaceholder="Filter by nickname or ID"
           autoFocus={!isWindowNarrow}
           onSelect={onSelectDmContact}
           onSelectedChange={onSelectedChange}

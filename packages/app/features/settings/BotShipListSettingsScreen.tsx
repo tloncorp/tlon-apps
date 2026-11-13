@@ -34,19 +34,19 @@ const shipListMeta: Record<
     title: 'DM allowlist',
     listTitle: 'Allowed users',
     description: 'Users on the allowlist can DM Tlonbot directly.',
-    addSubtitle: 'Select a contact or enter any @p to allow DMs.',
+    addSubtitle: 'Select a contact or enter an ID to allow DMs.',
   },
   defaultAuthorizedShips: {
     title: 'Authorized users',
     listTitle: 'Authorized users',
     description: 'Authorized users can always interact with Tlonbot.',
-    addSubtitle: 'Select a contact or enter any @p to authorize.',
+    addSubtitle: 'Select a contact or enter an ID to authorize.',
   },
   groupInviteAllowlist: {
     title: 'Can invite to workspaces',
     listTitle: 'Invite allowlist',
     description: 'These users can invite Tlonbot to workspaces.',
-    addSubtitle: 'Select a contact or enter any @p to allow workspace invites.',
+    addSubtitle: 'Select a contact or enter an ID to allow workspace invites.',
   },
 };
 
