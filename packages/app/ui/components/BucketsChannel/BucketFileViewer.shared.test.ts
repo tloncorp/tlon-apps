@@ -8,6 +8,7 @@ import {
   bucketFileViewerHeading,
   canPreviewFromText,
   getBucketPreviewKind,
+  isBucketHeicImage,
   htmlPreviewDocument,
   htmlPreviewHasScripts,
   htmlPreviewHeldPolicy,
@@ -53,6 +54,12 @@ function directivesOf(policy: string) {
 describe('getBucketPreviewKind', () => {
   it.each([
     ['photo.jpg', 'image/jpeg', 'image'],
+    ['photo', 'IMAGE/HEIC; codecs=hevc', 'image'],
+    ['photo', 'image/heif', 'image'],
+    ['photo.HEIC', undefined, 'image'],
+    ['photo.heif', 'application/octet-stream', 'image'],
+    ['report.heic', 'application/pdf', 'pdf'],
+    ['archive.heif', 'application/zip', 'unsupported'],
     ['demo.mp4', 'video/mp4', 'video'],
     ['recording.mp3', 'audio/mpeg', 'audio'],
     ['recording.M4A', undefined, 'audio'],
@@ -79,6 +86,23 @@ describe('getBucketPreviewKind', () => {
   ] as const)('classifies %s (%s) as %s', (name, mimeType, expected) => {
     expect(getBucketPreviewKind({ name, mimeType })).toBe(expected);
   });
+});
+
+describe('isBucketHeicImage', () => {
+  it.each([
+    ['photo', 'IMAGE/HEIC; codecs=hevc', true],
+    ['photo', 'image/heif-sequence', true],
+    ['photo.HEIC', undefined, true],
+    ['photo.heif', 'application/octet-stream', true],
+    ['renamed.heic', 'image/jpeg', false],
+    ['renamed.heic', 'application/pdf', false],
+    ['photo.jpg', 'image/jpeg', false],
+  ] as const)(
+    'selects the HEIC decoder for %s (%s): %s',
+    (name, mimeType, expected) => {
+      expect(isBucketHeicImage({ name, mimeType })).toBe(expected);
+    }
+  );
 });
 
 // A preview reads the whole object into memory, and the backend accepts up to

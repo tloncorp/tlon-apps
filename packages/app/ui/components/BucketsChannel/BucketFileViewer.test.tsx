@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ScreenHeader } from '../ScreenHeader';
 import { BucketFileViewer } from './BucketFileViewer';
+import { BucketHeicPreview } from './BucketHeicPreview';
+import { BucketPreviewImage } from './BucketPreviewImage';
 import {
   type BucketFileViewerItem,
   HTML_PREVIEW_POLICY,
@@ -47,6 +49,7 @@ vi.mock('./BucketPreviewContent', () => ({
     children,
 }));
 vi.mock('./BucketPreviewImage', () => ({ BucketPreviewImage: () => null }));
+vi.mock('./BucketHeicPreview', () => ({ BucketHeicPreview: () => null }));
 vi.mock('./BucketAudioPreview', () => ({ BucketAudioPreview: () => null }));
 vi.mock('./BucketPreviewActions', () => ({
   BucketPreviewActions: () => null,
@@ -108,6 +111,76 @@ function enableScriptsButton(renderer: ReactTestRenderer) {
 
 afterEach(() => {
   mocks.isElectron = false;
+});
+
+describe('BucketFileViewer HEIC preview (web)', () => {
+  it.each(['image/heic', 'application/octet-stream', undefined])(
+    'routes a .HEIC file with type %s through the decoder',
+    (mimeType) => {
+      const renderer = render({
+        name: 'Photo.HEIC',
+        mimeType,
+        uri: 'https://storage.example/signed-read-url',
+      });
+      expect(renderer.root.findByType(BucketHeicPreview).props.uri).toBe(
+        'https://storage.example/signed-read-url'
+      );
+      expect(renderer.root.findAllByType(BucketPreviewImage)).toHaveLength(0);
+      act(() => renderer.unmount());
+    }
+  );
+
+  it('keeps a renamed JPEG on the ordinary image path', () => {
+    const renderer = render({
+      name: 'Renamed.heic',
+      mimeType: 'image/jpeg',
+      uri: 'https://storage.example/signed-read-url',
+    });
+    expect(renderer.root.findAllByType(BucketHeicPreview)).toHaveLength(0);
+    expect(renderer.root.findByType(BucketPreviewImage).props.uri).toBe(
+      'https://storage.example/signed-read-url'
+    );
+    act(() => renderer.unmount());
+  });
+
+  it('unmounts the HEIC decoder when paging away instead of retaining it hidden', () => {
+    const items: BucketFileViewerItem[] = [
+      { id: 'first', name: 'first.heic', uri: 'https://storage.example/first' },
+      {
+        id: 'second',
+        name: 'second.heic',
+        uri: 'https://storage.example/second',
+      },
+      {
+        id: 'jpeg',
+        name: 'photo.jpg',
+        mimeType: 'image/jpeg',
+        uri: 'https://storage.example/jpeg',
+      },
+    ];
+    const page = (index: number) => (
+      <BucketFileViewer
+        item={items[index]}
+        navigation={{ items, index, onSelect: () => {} }}
+        onClose={() => {}}
+      />
+    );
+    let renderer!: ReactTestRenderer;
+    act(() => {
+      renderer = create(page(0));
+    });
+    expect(renderer.root.findByType(BucketHeicPreview).props.uri).toBe(
+      items[0].uri
+    );
+    act(() => renderer.update(page(1)));
+    expect(renderer.root.findAllByType(BucketHeicPreview)).toHaveLength(1);
+    expect(renderer.root.findByType(BucketHeicPreview).props.uri).toBe(
+      items[1].uri
+    );
+    act(() => renderer.update(page(2)));
+    expect(renderer.root.findAllByType(BucketHeicPreview)).toHaveLength(0);
+    act(() => renderer.unmount());
+  });
 });
 
 describe('BucketFileViewer html preview (web)', () => {

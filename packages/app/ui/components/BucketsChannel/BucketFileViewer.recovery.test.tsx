@@ -75,6 +75,7 @@ vi.mock('./BucketPreviewActions', () => ({
   BucketPreviewActions: () => null,
 }));
 vi.mock('./BucketPreviewImage', () => ({ BucketPreviewImage: () => null }));
+vi.mock('./BucketHeicPreview', () => ({ BucketHeicPreview: () => null }));
 vi.mock('./BucketAudioPreview', () => ({ BucketAudioPreview: () => null }));
 vi.mock('./BucketPreviewContent', () => ({
   BucketPreviewContent: ({ children }: { children: React.ReactNode }) =>
