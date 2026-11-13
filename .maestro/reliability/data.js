@@ -48,15 +48,9 @@ output.reliability = {
   sibling: MAESTRO_RUN_TAG + ' sibling',
   title: MAESTRO_RUN_TAG + ' note',
   body: MAESTRO_RUN_TAG + ' body',
-  unreadChannelPreviewPattern: exact(
-    '~ten: ' + MAESTRO_RUN_TAG + ' unread channel'
-  ),
-  unreadTopicPreviewPattern: exact(
-    '~ten: ' + MAESTRO_RUN_TAG + ' unread topic'
-  ),
-  groupSwipePreviewPattern: exact(
-    '~ten: ' + MAESTRO_RUN_TAG + ' group swipe unread'
-  ),
+  unreadChannelPreviewPattern: exact(MAESTRO_RUN_TAG + ' unread channel'),
+  unreadTopicPreviewPattern: exact(MAESTRO_RUN_TAG + ' unread topic'),
+  groupSwipePreviewPattern: exact(MAESTRO_RUN_TAG + ' group swipe unread'),
   groupSwipeTitlePattern: exact('SwipeGroup-' + MAESTRO_RUN_TAG),
   homeUnreadGroupTitlePattern: exact('HomeUnread-' + MAESTRO_RUN_TAG),
   addressBookFirstName: addressBookFirstName,
@@ -64,16 +58,12 @@ output.reliability = {
   addressBookContactPattern: exact(
     addressBookFirstName + ' ' + addressBookLastName
   ),
-  homeUnreadGroupPreviewPattern: exact(
-    '~ten: ' + MAESTRO_RUN_TAG + ' home group unread'
-  ),
+  homeUnreadGroupPreviewPattern: exact(MAESTRO_RUN_TAG + ' home group unread'),
   homeUnreadDmPreviewPattern: exact(MAESTRO_RUN_TAG + ' home dm unread'),
   dmSwipePreviewPattern: exact(MAESTRO_RUN_TAG + ' dm swipe unread'),
   activityMentionPattern:
     '^.*' + exact(MAESTRO_RUN_TAG + ' activity mention').slice(1, -1) + '.*$',
-  activityReadGatePattern: exact(
-    '~ten: ' + MAESTRO_RUN_TAG + ' targeted reads verified'
-  ),
+  activityReadGatePattern: exact(MAESTRO_RUN_TAG + ' targeted reads verified'),
   activityMentionContextPattern: exact(
     '~zod ' + MAESTRO_RUN_TAG + ' activity mention'
   ),
