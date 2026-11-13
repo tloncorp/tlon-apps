@@ -15,7 +15,7 @@ env:
 - assertVisible:
     id: ScreenHeaderTitle
     text: '^Members$'
-- tapOn: '^(~ten|ten)$'
+- tapOn: '^(160|ten)$'
 - assertVisible:
     id: 'ActionSheetAction-Ban User'
 - tapOn:
@@ -24,7 +24,7 @@ env:
 - extendedWaitUntil:
     visible: '^Banned Users$'
     timeout: 60000
-- assertVisible: '^(~ten|ten)$'
+- assertVisible: '^(160|ten)$'
 - tapOn:
     id: HeaderBackButton
 - tapOn: '^Back$'

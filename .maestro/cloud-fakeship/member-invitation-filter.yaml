@@ -22,7 +22,7 @@ env:
     env:
       INPUT_TEXT: ~ten
 - extendedWaitUntil:
-    visible: '^(~ten|ten)$'
+    visible: '^(160|ten)$'
     timeout: 10000
 - assertVisible: '^Contacts matching ‘~ten’$'
 - tapOn:

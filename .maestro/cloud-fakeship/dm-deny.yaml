@@ -6,9 +6,9 @@ env:
 - runScript: ../reliability/data.js
 - runFlow: begin.yaml
 - extendedWaitUntil:
-    visible: '^~ten$'
+    visible: '^160$'
     timeout: 15000
-- tapOn: '^~ten$'
+- tapOn: '^160$'
 - assertVisible: ${MAESTRO_RUN_TAG + ' deny request'}
 - assertVisible: '^Deny$'
 - tapOn: '^Deny$'
@@ -16,4 +16,4 @@ env:
     id: ScreenHeaderTitle
     text: '^Workspaces$'
 - assertNotVisible: ${MAESTRO_RUN_TAG + ' deny request'}
-- assertNotVisible: '^~ten$'
+- assertNotVisible: '^160$'

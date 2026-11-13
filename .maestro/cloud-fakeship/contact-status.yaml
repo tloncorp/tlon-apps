@@ -27,7 +27,7 @@ env:
 - runFlow: ../reliability/subflows/contacts-screen.yaml
 - assertVisible: ${'Busy-' + MAESTRO_RUN_TAG}
 - assertNotVisible: ${'Available-' + MAESTRO_RUN_TAG}
-- tapOn: '^~ten$'
+- tapOn: '^160$'
 - assertVisible: ${'Busy-' + MAESTRO_RUN_TAG}
 - tapOn: '^Back$'
 - runFlow: ../reliability/subflows/workspaces-tab.yaml

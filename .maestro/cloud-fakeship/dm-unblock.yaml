@@ -11,9 +11,9 @@ env:
     env:
       ROW: '^Blocked users$'
 - assertVisible: '^Blocked users$'
-- assertVisible: '^(~ten|ten)$'
+- assertVisible: '^(160|ten)$'
 - assertVisible: '^Unblock$'
-- tapOn: '^(~ten|ten)$'
+- tapOn: '^(160|ten)$'
 - assertVisible: '^Are you sure you want to unblock this user\?$'
 - tapOn:
     text: '^Unblock$'

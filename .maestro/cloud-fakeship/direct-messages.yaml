@@ -6,10 +6,10 @@ env:
 - runScript: ../reliability/data.js
 - runFlow: begin.yaml
 - scrollUntilVisible:
-    element: '^~ten$'
+    element: '^160$'
     direction: DOWN
     timeout: 5000
-- tapOn: '^~ten$'
+- tapOn: '^160$'
 - assertVisible: ${MAESTRO_RUN_TAG + ' DM request'}
 - assertVisible: '^Accept$'
 - assertVisible: '^Deny$'

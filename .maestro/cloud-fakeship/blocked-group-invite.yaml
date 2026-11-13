@@ -11,7 +11,7 @@ env:
     env:
       ROW: '^Blocked users$'
 - assertVisible: '^Blocked users$'
-- assertVisible: '^(~ten|ten)$'
+- assertVisible: '^(160|ten)$'
 - runFlow: ../reliability/subflows/workspaces-tab.yaml
 - scrollUntilVisible:
     element: ${'InviteControl-' + MAESTRO_RUN_TAG}
