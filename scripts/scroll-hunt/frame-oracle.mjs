@@ -375,6 +375,8 @@ if (timeline) {
   // Positioning a list is only out of sight until that list is shown.
   const shownLists = new Set();
   const hiddenPositioning = new Map();
+  // When each list last took rows while following its end.
+  const followedRowsAt = new Map();
   for (const event of timeline) {
     const { t, type, message, list } = event;
     if (type === 'gesture') {
@@ -408,9 +410,20 @@ if (timeline) {
         to: t + 900,
         why: 'scroll the app asked for',
       });
+    } else if (type === 'data' && message.includes('following the end')) {
+      followedRowsAt.set(list, t);
     } else if (type === 'auto-scroll') {
-      // The list following new messages at the end, or holding its place.
-      intervals.push({ from: t - 30, to: t + 400, why: 'following new rows' });
+      // The list following new messages at the end, or holding its place. The
+      // follow starts natively when the rows land; JS can note it a few
+      // hundred ms later when it was busy rendering them, and the time code
+      // stands still meanwhile, so the frames carry the earlier stamp.
+      const rowsAt = followedRowsAt.get(list);
+      const from = rowsAt !== undefined && t - rowsAt < 700 ? rowsAt : t;
+      intervals.push({
+        from: from - 30,
+        to: t + 400,
+        why: 'following new rows',
+      });
     } else if (type === 'keyboard') {
       intervals.push({ from: t - 50, to: t + 700, why: 'keyboard' });
     } else if (type === 'position') {
