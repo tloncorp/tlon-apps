@@ -44,6 +44,7 @@ export function NotesActionMenu({
       modal
       snapPointsMode="fit"
       trigger={trigger}
+      compact={!header && !bottomContent}
     >
       {header && isWindowNarrow ? (
         <ActionSheet.Header leadingIcon>

@@ -49,6 +49,7 @@ export const BottomSheetWrapper = forwardRef<
       snapPointsMode = 'fit',
       snapPoints,
       showHandle = true,
+      showCloseButton,
       enablePanDownToClose = true,
       enableContentPanningGesture = true,
       footerComponent,
@@ -208,6 +209,7 @@ export const BottomSheetWrapper = forwardRef<
         snapPoints={transformedSnapPoints}
         enableDynamicSizing={enableDynamicSizing}
         enablePanDownToClose={enablePanDownToClose}
+        showCloseButton={showCloseButton}
         enableContentPanningGesture={enableContentPanningGesture}
         handleComponent={resolvedShowHandle ? BottomSheetHandle : null}
         backgroundStyle={{ backgroundColor: theme.background.val }}
@@ -224,6 +226,19 @@ export const BottomSheetWrapper = forwardRef<
               if (open) onDidOpen?.();
             }}
           >
+            {Platform.OS === 'ios' &&
+            showCloseButton === false &&
+            resolvedShowHandle ? (
+              <View
+                accessible={false}
+                alignSelf="center"
+                width={36}
+                height={4}
+                borderRadius={2}
+                marginBottom={8}
+                backgroundColor="$tertiaryText"
+              />
+            ) : null}
             {footerElement && !hostsFooter ? (
               <>
                 <View style={bodyStyle} accessible={false}>

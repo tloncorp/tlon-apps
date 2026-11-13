@@ -1,5 +1,7 @@
-import { ListItem } from '../../ui';
+import { useState } from 'react';
+import { Button, ListItem, Text } from '../../ui';
 import { ActionGroup, ActionSheet } from '../../ui/components/ActionSheet';
+import { NotesActionMenu } from '../../ui/components/NotesChannel/NotesActions';
 import { FixtureWrapper } from '../FixtureWrapper';
 
 const ActionSheetFixture = () => {
@@ -86,6 +88,48 @@ const ActionSheetFixture = () => {
   );
 };
 
+const CompactActionMenuFixture = ({
+  compact = true,
+}: {
+  compact?: boolean;
+}) => {
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState('No action selected');
+  const actions = [
+    {
+      title: 'Open in browser',
+      startIcon: 'ExternalLink' as const,
+      action: () => setSelected('Open selected'),
+    },
+    {
+      title: 'Delete file',
+      startIcon: 'Trash' as const,
+      accent: 'negative' as const,
+      action: () => setSelected('Delete selected'),
+    },
+  ];
+  return (
+    <FixtureWrapper fillWidth>
+      <Text>{selected}</Text>
+      <NotesActionMenu
+        groups={[{ accent: 'neutral', actions }]}
+        open={open}
+        onOpenChange={setOpen}
+        header={
+          compact ? undefined : { title: 'File actions', icon: 'Attachment' }
+        }
+        onAction={(action) => {
+          setOpen(false);
+          action?.();
+        }}
+        trigger={<Button onPress={() => setOpen(true)} label="Show actions" />}
+      />
+    </FixtureWrapper>
+  );
+};
+
 export default {
   default: <ActionSheetFixture />,
+  'Compact actions': <CompactActionMenuFixture />,
+  'Actions with header': <CompactActionMenuFixture compact={false} />,
 };

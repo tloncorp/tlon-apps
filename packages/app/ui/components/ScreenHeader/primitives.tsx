@@ -216,6 +216,7 @@ function HeaderItemMenu({ action }: { action: ScreenHeaderMenuAction }) {
   return (
     <ActionSheet
       mode={isWindowNarrow ? 'sheet' : 'popover'}
+      compact
       modal
       open={open}
       onOpenChange={setOpen}

@@ -128,6 +128,8 @@ type ActionSheetProps = {
    */
   dialogScrollEnabled?: boolean;
   closeButton?: boolean;
+  /** Compact spacing for headerless action menus, not forms. */
+  compact?: boolean;
   footerComponent?: React.FC<any>;
   /** Render this sheet's content with Expo UI's native platform components. */
   nativeExpoUI?: boolean;
@@ -181,6 +183,7 @@ export const desktopFlyoutContentProps = {
 const CloseButtonRowContext = createContext(false);
 // True inside an Android sheet that shows the native drag handle.
 const HandleStripContext = createContext(false);
+const CompactContext = createContext(false);
 const closeButtonClearance = 52;
 const closeButtonRowTop = 34;
 const closeButtonRowTrailingInset = 44;
@@ -198,6 +201,7 @@ const ActionSheetComponent = ({
   dialogContentProps,
   dialogScrollEnabled = true,
   closeButton,
+  compact = false,
   footerComponent,
   nativeExpoUI = false,
   onNativeDismissed,
@@ -384,13 +388,16 @@ const ActionSheetComponent = ({
       snapPoints={props.snapPoints}
       snapPointsMode={props.snapPointsMode as any}
       showHandle={true}
+      showCloseButton={compact ? false : undefined}
       enablePanDownToClose={true}
       enableContentPanningGesture={props.enableContentPanningGesture}
       footerComponent={footerComponent}
       unmountOnClose={unmountOnClose}
     >
       <ActionSheetContext.Provider value={actionSheetContextValue}>
-        <CloseButtonRowContext.Provider value={Platform.OS === 'ios'}>
+        <CloseButtonRowContext.Provider
+          value={Platform.OS === 'ios' && !compact}
+        >
           <HandleStripContext.Provider
             value={
               Platform.OS === 'android' &&
@@ -564,10 +571,13 @@ ActionSheetScrollableContent.displayName = 'ActionSheetScrollableContent';
 const useContentStyle = () => {
   const sheetBottomInset = useSheetBottomInset();
   const isWindowNarrow = useIsWindowNarrow();
+  const compact = useContext(CompactContext);
   return {
-    paddingBottom: isWindowNarrow
-      ? sheetBottomInset + getTokenValue('$2xl', 'size')
-      : getTokenValue('$xl', 'size'),
+    paddingBottom: compact
+      ? sheetBottomInset + getTokenValue('$l', 'space')
+      : isWindowNarrow
+        ? sheetBottomInset + getTokenValue('$2xl', 'size')
+        : getTokenValue('$xl', 'size'),
   };
 };
 
@@ -639,9 +649,26 @@ const ActionSheetActionGroup = ActionSheetActionGroupFrame.styleable<{
   contentProps?: ComponentProps<typeof ActionSheetActionGroupContent>;
 }>(({ contentProps, ...props }, ref) => {
   const actions = Children.toArray(props.children);
+  const compact = useContext(CompactContext);
   return (
-    <ActionSheetActionGroupFrame {...props} ref={ref} accessible={false}>
-      <ActionSheetActionGroupContent {...contentProps} accessible={false}>
+    <ActionSheetActionGroupFrame
+      {...(compact
+        ? {
+            paddingHorizontal: '$l',
+            paddingTop: '$m',
+            paddingBottom: 0,
+            $gtSm: { paddingHorizontal: '$l' },
+          }
+        : null)}
+      {...props}
+      ref={ref}
+      accessible={false}
+    >
+      <ActionSheetActionGroupContent
+        {...(compact ? { backgroundColor: '$background' } : null)}
+        {...contentProps}
+        accessible={false}
+      >
         {actions.map((c, index) => (
           <Fragment key={index}>
             {c}
@@ -918,7 +945,12 @@ export const SimpleActionSheet = ({
   onOpenChange: (open: boolean) => void;
 }) => {
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange} modal={modal}>
+    <ActionSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      modal={modal}
+      compact={!title && !subtitle}
+    >
       {title || subtitle ? (
         <SimpleActionSheetHeader
           title={title}
@@ -985,7 +1017,17 @@ function ActionSheetCopyAction({
   return <ActionSheetAction {...props} action={resolvedAction} />;
 }
 
-export const ActionSheet = withStaticProperties(ActionSheetComponent, {
+function ContextualActionSheet(
+  props: ComponentProps<typeof ActionSheetComponent>
+) {
+  return (
+    <CompactContext.Provider value={props.compact ?? false}>
+      <ActionSheetComponent {...props} />
+    </CompactContext.Provider>
+  );
+}
+
+export const ActionSheet = withStaticProperties(ContextualActionSheet, {
   // Building blocks
   Header: ActionSheetHeader,
   Content: ActionSheetContent,
