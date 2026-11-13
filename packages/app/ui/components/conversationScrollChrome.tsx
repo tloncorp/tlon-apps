@@ -30,6 +30,7 @@ import {
   floatingChromeMetrics,
   getConversationContentInsets,
 } from './conversationInsets';
+import { useSettledHeaderHeight } from './settledHeaderHeight';
 
 export {
   floatingChromeMetrics,
@@ -52,27 +53,7 @@ export {
  */
 export { useFloatingHeaderHeight } from '../../navigation/useFloatingHeaderHeight';
 
-// The last height a native header reported, for screens whose own header has
-// not reported yet.
-let lastReportedHeaderHeight = 0;
-
-// How long a screen's header may take to report its real height. Past this, a
-// header still at the navigator's guess is taken to be that height.
-const HEADER_REPORT_WAIT_MS = 500;
-
-/**
- * The header's height, or until this screen's header reports one, the height
- * the last one reported. A conversation used to open with no top inset and
- * gain it a moment later, and the list's correction for that, made while it
- * sat at its top where the offset cannot move, came back as a jump once
- * older posts arrived above.
- *
- * Until the native header reports, the navigator gives each screen its own
- * guess at the height, which on iOS 26 is 15 points short. Taking that guess
- * moved every conversation's top inset twice while it opened, each time
- * laying out and measuring its rows again before it could be shown.
- */
-function useSettledHeaderHeight(topInset: number) {
+function useConversationHeaderHeight(topInset: number) {
   const reported = useContext(HeaderHeightContext) ?? 0;
   const frame = useSafeAreaFrame();
   const guess = getDefaultHeaderHeight(
@@ -80,26 +61,7 @@ function useSettledHeaderHeight(topInset: number) {
     false,
     topInset
   );
-  const isGuess = reported > 0 && Math.abs(reported - guess) < 0.5;
-  const [guessIsFinal, setGuessIsFinal] = useState(false);
-  useEffect(() => {
-    if (reported > 0 && !isGuess) {
-      lastReportedHeaderHeight = reported;
-    }
-    if (!isGuess) {
-      return;
-    }
-    const timeout = setTimeout(
-      () => setGuessIsFinal(true),
-      HEADER_REPORT_WAIT_MS
-    );
-    return () => clearTimeout(timeout);
-  }, [isGuess, reported]);
-  const settled =
-    reported === 0 || (isGuess && !guessIsFinal)
-      ? lastReportedHeaderHeight || reported || guess
-      : reported;
-  return { reported, settled };
+  return { reported, settled: useSettledHeaderHeight(reported, guess) };
 }
 
 /** Owns all measured geometry reserved around a conversation list. */
@@ -119,7 +81,7 @@ export function useConversationInsets({
   // header (a bot conversation draws its own) reports 0 for good, and lays out
   // its other chrome from that.
   const { reported: navigationHeaderHeight, settled: headerHeight } =
-    useSettledHeaderHeight(topSafeArea);
+    useConversationHeaderHeight(topSafeArea);
   const floatingHeaderHeight =
     hasTransparentHeader &&
     supportsNativeScrollEdgeChrome(
