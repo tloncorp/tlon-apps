@@ -5,6 +5,7 @@ import {
   displayIdToShip,
   shipToDisplayId,
   shipToFullDisplayId,
+  shipToMentionText,
 } from '../lib/urbit';
 
 describe('shipToDisplayId', () => {
@@ -94,5 +95,24 @@ describe('displayIdToShip', () => {
     '@?anchor.anchor.anchor.compass',
   ])('returns null for %j', (text) => {
     expect(displayIdToShip(text)).toBeNull();
+  });
+});
+
+describe('shipToMentionText', () => {
+  test('puts an @ before a nickname', () => {
+    expect(shipToMentionText('~sampel-palnet', 'Sam')).toBe('@Sam');
+  });
+
+  test('uses the pet name, which carries its own @', () => {
+    expect(shipToMentionText('sampel-palnet')).toBe(
+      '@brightly.tireless.butter.dhole'
+    );
+    expect(shipToMentionText('~sampel-palnet', null)).toBe(
+      '@brightly.tireless.butter.dhole'
+    );
+  });
+
+  test('puts an @ before an id that is not a ship', () => {
+    expect(shipToMentionText('all')).toBe('@all');
   });
 });

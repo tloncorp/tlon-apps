@@ -53,6 +53,15 @@ export function displayIdStartsWith(ship: string, text: string): boolean {
   );
 }
 
+// How a mention of a ship reads as text: @ and the person's nickname, or their
+// pet name, which already starts with @. An id that isn't a ship follows an @.
+export function shipToMentionText(
+  ship: string,
+  nickname?: string | null
+): string {
+  return nickname ? `@${nickname}` : (shipToDisplayId(ship) ?? `@${ship}`);
+}
+
 // Inverse of shipToDisplayId for search input, with or without the leading @
 // and in any case. Moon tags and short comet names are lossy and match no
 // ship.
