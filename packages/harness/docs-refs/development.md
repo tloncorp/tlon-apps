@@ -26,8 +26,9 @@ desk; JavaScript and artifact tests also run without a ship.
 | --- | --- |
 | `just fetch` | Copies the files listed in `desk-deps.yaml` into `desk-deps/`, and checks `%mcp` out into `mcp/` |
 | `just build` | Runs `fetch`, then lays `desk-deps/` and `desk/` into `desk-out/` |
-| `just install DESK` | Runs `build`, then copies `desk-out/` into a mounted desk |
-| `just commit DESK` | Runs `install`, then asks the running ship to commit that desk |
+| `just install-dev DESK` | Runs `build`, then copies `desk-out/` into a mounted desk |
+| `just install DESK` | Runs `build`, then replaces a mounted desk with `desk-out/`, deleting everything else there |
+| `just commit DESK` | Runs `install-dev`, then asks the running ship to commit that desk |
 | `just fake-dev [SHIP] [DIR] [OWNER]` | Boots a fake ship in tmux, installs `%mcp` and `%harness` and runs `setup` |
 | `just test [PATTERN]` | Runs `test-hoon`, then `test-js`, and fails if either fails |
 | `just test-hoon [PATTERN]` | Runs the native Hoon tests on fake `~zod`: all of them on a fresh ship, or those matching the regex on a kept one |
@@ -44,8 +45,10 @@ copied from the tlon-apps `desk/`, so they always match the Groups desk in the
 same checkout. `just fetch` also checks the whole `%mcp` repository out into
 `mcp/`, at the commit the tlon-apps `desk-deps.yaml` pins for `mcp`.
 
-`just install` uses `rsync` without `--delete`, so development files in the mount
-survive, and so do files this desk no longer contains. Remove those by hand.
+`just install-dev` uses `rsync` without `--delete`, so development files in the
+mount survive, and so do files this desk no longer contains. `just install` removes
+those: it deletes every file in the mount that the build did not produce,
+`tests-integration/` included unless `heavy=true` is set.
 
 `just commit` uses `scripts/click`, Tlon's `click` with the command passed on stdin
 so credentials stay out of process arguments. It needs a running pier and `socat`.
@@ -130,7 +133,7 @@ Full-agent reload, endpoint fixtures and the 32K-document benchmark live in
 them, build with:
 
 ```sh
-just heavy=true install /path/to/test-pier/harness
+just heavy=true install-dev /path/to/test-pier/harness
 ```
 
 Commit the mounted desk, then run a test, for example:

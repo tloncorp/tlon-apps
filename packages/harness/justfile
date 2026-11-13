@@ -16,18 +16,40 @@ root := just_executable() + " --justfile " + quote(justfile_directory() / "../..
 build: fetch
     {{ root }} assemble {{ quote(justfile_directory()) }} {{ quote(absolute_path(out)) }} "" {{ if heavy == "true" { "" } else { "--exclude=/tests-integration" } }}
 
-# Copy the assembled desk into a mounted desk. Files already there are kept.
-install desk: build
+# Copy the assembled desk into a mounted desk. Files it does not contain are kept.
+install-dev desk: build
     #!/usr/bin/env bash
     set -euo pipefail
-    test -d {{ quote(desk) }} || { echo "desk mount '{{ desk }}' does not exist" >&2; exit 1; }
+    desk={{ quote(desk) }}
+    mount=$(cd "$desk" 2>/dev/null && pwd) ||
+      { echo "desk mount '$desk' does not exist" >&2; exit 1; }
+    # Files there with the desk's names are overwritten, so it has to be a desk
+    # mount: a directory in a pier, named as a desk.
+    [[ $(basename "$mount") =~ ^[a-z][a-z0-9-]*$ && -d $mount/../.urb ]] ||
+      { echo "'$desk' is not a desk mounted in a pier" >&2; exit 1; }
     # Under the build lock, so that no other build changes the desk mid-copy.
     exec 9>>.deps-cache/lock
     python3 -c 'import fcntl; fcntl.flock(9, fcntl.LOCK_EX)'
-    rsync --recursive --checksum {{ quote(out) }}/ {{ quote(desk) }}/
+    rsync --recursive --checksum {{ quote(out) }}/ "$mount/"
 
-# Install into a mounted desk, then ask the running ship to commit it.
-commit desk: (install desk)
+# Replace a mounted desk with the assembled one, deleting everything else there.
+install desk: build
+    #!/usr/bin/env bash
+    set -euo pipefail
+    desk={{ quote(desk) }}
+    mount=$(cd "$desk" 2>/dev/null && pwd) ||
+      { echo "desk mount '$desk' does not exist" >&2; exit 1; }
+    # Everything else in the target is deleted, so it has to be a desk mount:
+    # a directory in a pier, named as a desk (which rules out the pier's .urb).
+    [[ $(basename "$mount") =~ ^[a-z][a-z0-9-]*$ && -d $mount/../.urb ]] ||
+      { echo "'$desk' is not a desk mounted in a pier" >&2; exit 1; }
+    # Under the build lock, so that no other build changes the desk mid-copy.
+    exec 9>>.deps-cache/lock
+    python3 -c 'import fcntl; fcntl.flock(9, fcntl.LOCK_EX)'
+    rsync -a --delete --checksum {{ quote(out) }}/ "$mount/"
+
+# Run install-dev, then ask the running ship to commit the desk.
+commit desk: (install-dev desk)
     #!/usr/bin/env bash
     set -euo pipefail
     mount=$(cd {{ quote(desk) }} && pwd)

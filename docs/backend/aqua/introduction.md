@@ -96,7 +96,7 @@ all snapshots upon receiving this poke.
 ## Updating the desk
 
 When changes have been made in the repository and are ready to be tested
-on a running ship, use `rsync` or equivalent command to copy the `desk/` in the repository
+on a running ship, use `just install-dev <pier>/groups` to copy the assembled desk
 to an appropriate pier. This will put the files into the ship's desk unix mount point directory.
 To make the changes visible on the ship, you must also issue `|commit` command, which
 will detect any changes in the unix mount point directory. `|commit` can display `sync` spinner,

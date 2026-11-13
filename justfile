@@ -25,6 +25,23 @@ install desk: build
     python3 -c 'import fcntl; fcntl.flock(9, fcntl.LOCK_EX)'
     rsync -a --delete --checksum {{ quote(out) }}/ "$mount/"
 
+# Copy the assembled desk into a mounted desk. Files it does not contain are kept.
+install-dev desk: build
+    #!/usr/bin/env bash
+    set -euo pipefail
+    desk={{ quote(desk) }}
+    # just runs recipes from this directory; the path is relative to the caller's.
+    mount=$(cd {{ quote(invocation_directory()) }} && cd "$desk" 2>/dev/null && pwd) ||
+      { echo "desk mount '$desk' does not exist" >&2; exit 1; }
+    # Files there with the desk's names are overwritten, so it has to be a desk
+    # mount: a directory in a pier, named as a desk.
+    [[ $(basename "$mount") =~ ^[a-z][a-z0-9-]*$ && -d $mount/../.urb ]] ||
+      { echo "'$desk' is not a desk mounted in a pier" >&2; exit 1; }
+    # Under the build lock, so that no other build changes the desk mid-copy.
+    exec 9>>.deps-cache/lock
+    python3 -c 'import fcntl; fcntl.flock(9, fcntl.LOCK_EX)'
+    rsync -a --checksum {{ quote(out) }}/ "$mount/"
+
 # A file with no Clay mark fails the desk commit outright, so Finder's
 # .DS_Store must stay out. The desk's own files go second and win on any overlap.
 # Lay SRC/desk-deps, then SRC/desk, into OUT, stamping commit.txt with STAMP
