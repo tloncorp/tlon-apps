@@ -1,3 +1,4 @@
+import { shipToDisplayId } from '../lib/urbit';
 import { markdownToStory } from './markdown';
 import {
   type BlockData,
@@ -64,12 +65,15 @@ export function publishedNoteTitle(title: string) {
 export function renderPublishedNoteHtml({
   title,
   body,
+  mentionText,
 }: {
   title: string;
   body: string;
+  /** A mentioned person's name; without it, their ship number. */
+  mentionText?: (contactId: string) => string;
 }) {
   const safeTitle = publishedNoteTitle(title);
-  const bodyHtml = renderMarkdownBodyHtml(body);
+  const bodyHtml = renderMarkdownBodyHtml(body, mentionText);
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -88,9 +92,15 @@ ${bodyHtml || '<p></p>'}
 </html>`;
 }
 
-function renderMarkdownBodyHtml(body: string) {
+type MentionText = (contactId: string) => string;
+
+function renderMarkdownBodyHtml(body: string, mentionText?: MentionText) {
   try {
-    return renderBlocksToHtml(convertContent(markdownToStory(body), null));
+    return renderBlocksToHtml(
+      convertContent(markdownToStory(body), null),
+      mentionText ??
+        ((contactId) => `@${shipToDisplayId(contactId) ?? contactId}`)
+    );
   } catch {
     return renderPlainTextHtml(body);
   }
@@ -107,21 +117,24 @@ function renderPlainTextHtml(text: string) {
     .join('\n');
 }
 
-function renderBlocksToHtml(blocks: PostContent) {
-  return blocks.map(renderBlockToHtml).filter(Boolean).join('\n');
+function renderBlocksToHtml(blocks: PostContent, mentionText: MentionText) {
+  return blocks
+    .map((block) => renderBlockToHtml(block, mentionText))
+    .filter(Boolean)
+    .join('\n');
 }
 
-function renderBlockToHtml(block: BlockData): string {
+function renderBlockToHtml(block: BlockData, mentionText: MentionText): string {
   switch (block.type) {
     case 'paragraph':
-      return `<p>${renderInlinesToHtml(block.content)}</p>`;
+      return `<p>${renderInlinesToHtml(block.content, mentionText)}</p>`;
     case 'blockquote':
-      return `<blockquote>${renderInlinesToHtml(block.content)}</blockquote>`;
+      return `<blockquote>${renderInlinesToHtml(block.content, mentionText)}</blockquote>`;
     case 'bigEmoji':
       return `<p>${escapeHtml(block.emoji)}</p>`;
     case 'header': {
       const level = block.level.replace('h', '');
-      return `<h${level}>${renderInlinesToHtml(block.children)}</h${level}>`;
+      return `<h${level}>${renderInlinesToHtml(block.children, mentionText)}</h${level}>`;
     }
     case 'code':
       return `<pre><code>${escapeHtml(block.content)}</code></pre>`;
@@ -134,9 +147,9 @@ function renderBlockToHtml(block: BlockData): string {
     case 'rule':
       return '<hr>';
     case 'list':
-      return renderListToHtml(block.list);
+      return renderListToHtml(block.list, mentionText);
     case 'table':
-      return renderTableToHtml(block);
+      return renderTableToHtml(block, mentionText);
     case 'reference':
       return `<p>${escapeHtml(referenceLabel(block))}</p>`;
     case 'file':
@@ -147,16 +160,21 @@ function renderBlockToHtml(block: BlockData): string {
   }
 }
 
-function renderInlinesToHtml(inlines: InlineData[]) {
-  return inlines.map(renderInlineToHtml).join('');
+function renderInlinesToHtml(inlines: InlineData[], mentionText: MentionText) {
+  return inlines
+    .map((inline) => renderInlineToHtml(inline, mentionText))
+    .join('');
 }
 
-function renderInlineToHtml(inline: InlineData): string {
+function renderInlineToHtml(
+  inline: InlineData,
+  mentionText: MentionText
+): string {
   switch (inline.type) {
     case 'text':
       return escapeHtml(inline.text);
     case 'mention':
-      return escapeHtml(inline.contactId);
+      return escapeHtml(mentionText(inline.contactId));
     case 'groupMention':
       return escapeHtml(`@${inline.group}`);
     case 'lineBreak':
@@ -164,31 +182,38 @@ function renderInlineToHtml(inline: InlineData): string {
     case 'link':
       return `<a href="${safeUrlAttr(inline.href)}">${escapeHtml(inline.text || inline.href)}</a>`;
     case 'task':
-      return `${inline.checked ? '[x]' : '[ ]'} ${renderInlinesToHtml(inline.children)}`;
+      return `${inline.checked ? '[x]' : '[ ]'} ${renderInlinesToHtml(inline.children, mentionText)}`;
     case 'style': {
-      const children = renderInlinesToHtml(inline.children);
+      const children = renderInlinesToHtml(inline.children, mentionText);
       const tag = inlineStyleTags[inline.style];
       return `<${tag}>${children}</${tag}>`;
     }
     case 'blockquote':
-      return `<span class="tlon-inline-quote">${renderInlinesToHtml(inline.children)}</span>`;
+      return `<span class="tlon-inline-quote">${renderInlinesToHtml(inline.children, mentionText)}</span>`;
   }
 }
 
-function renderListToHtml(list: ListData) {
+function renderListToHtml(list: ListData, mentionText: MentionText) {
   const tag = listTag(list);
   const items = [
     ...(list.content.length > 0
-      ? [`<li>${renderInlinesToHtml(list.content)}</li>`]
+      ? [`<li>${renderInlinesToHtml(list.content, mentionText)}</li>`]
       : []),
-    ...(list.children?.map(renderListItemToHtml) ?? []),
+    ...(list.children?.map((item) => renderListItemToHtml(item, mentionText)) ??
+      []),
   ];
   return `<${tag}>${items.join('')}</${tag}>`;
 }
 
-function renderListItemToHtml(item: ListData): string {
-  const children = item.children?.map(renderListItemToHtml).join('') ?? '';
-  return `<li>${renderInlinesToHtml(item.content)}${
+function renderListItemToHtml(
+  item: ListData,
+  mentionText: MentionText
+): string {
+  const children =
+    item.children
+      ?.map((child) => renderListItemToHtml(child, mentionText))
+      .join('') ?? '';
+  return `<li>${renderInlinesToHtml(item.content, mentionText)}${
     children ? `<${listTag(item)}>${children}</${listTag(item)}>` : ''
   }</li>`;
 }
@@ -197,10 +222,18 @@ function listTag(list: ListData) {
   return list.type === 'ordered' ? 'ol' : 'ul';
 }
 
-function renderTableToHtml(block: Extract<BlockData, { type: 'table' }>) {
-  const header = renderTableRowToHtml(block.header, block.align, 'th');
+function renderTableToHtml(
+  block: Extract<BlockData, { type: 'table' }>,
+  mentionText: MentionText
+) {
+  const header = renderTableRowToHtml(
+    block.header,
+    block.align,
+    'th',
+    mentionText
+  );
   const rows = block.rows
-    .map((row) => renderTableRowToHtml(row, block.align, 'td'))
+    .map((row) => renderTableRowToHtml(row, block.align, 'td', mentionText))
     .join('');
   return `<div class="tlon-table-scroll"><table><thead>${header}</thead><tbody>${rows}</tbody></table></div>`;
 }
@@ -208,31 +241,32 @@ function renderTableToHtml(block: Extract<BlockData, { type: 'table' }>) {
 function renderTableRowToHtml(
   row: TableRowData,
   align: Extract<BlockData, { type: 'table' }>['align'],
-  cellTag: 'td' | 'th'
+  cellTag: 'td' | 'th',
+  mentionText: MentionText
 ) {
   const cells = row.cells
     .map((cell, index) => {
       const textAlign = align[index]
         ? ` style="text-align:${align[index]}"`
         : '';
-      return `<${cellTag} class="tlon-table-data-cell"${textAlign}><div class="tlon-table-cell-content">${renderInlinesToHtml(cell.content)}</div></${cellTag}>`;
+      return `<${cellTag} class="tlon-table-data-cell"${textAlign}><div class="tlon-table-cell-content">${renderInlinesToHtml(cell.content, mentionText)}</div></${cellTag}>`;
     })
     .join('');
   return `<tr>${cells}<${cellTag} class="tlon-table-spacer" aria-hidden="true"></${cellTag}></tr>`;
 }
 
+// A published page can't resolve a reference, and its ids hold ship names, so
+// it only says what kind of thing was linked.
 function referenceLabel(block: Extract<BlockData, { type: 'reference' }>) {
   switch (block.referenceType) {
     case 'channel':
-      return block.replyId
-        ? `Reply in ${block.channelId}`
-        : `Post in ${block.channelId}`;
+      return block.replyId ? 'Linked reply' : 'Linked post';
     case 'channelLink':
-      return `Channel ${block.channelId}`;
+      return 'Linked channel';
     case 'group':
-      return `Workspace ${block.groupId}`;
+      return 'Linked workspace';
     case 'app':
-      return `${block.userId}/${block.appId}`;
+      return 'Linked app';
   }
 }
 
