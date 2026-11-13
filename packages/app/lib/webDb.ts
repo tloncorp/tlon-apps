@@ -1,3 +1,4 @@
+import { getDurableClient } from '@tloncorp/api/client/durable';
 import { AnalyticsEvent, AnalyticsSeverity } from '@tloncorp/shared';
 import type { Schema } from '@tloncorp/shared/db';
 import { schema, setClient, sqliteContent } from '@tloncorp/shared/db';
@@ -494,7 +495,7 @@ export class WebDb extends BaseDb {
 }
 
 // Create singleton instance
-const webDb = new WebDb();
+const webDb = new WebDb({ enableStoragePersistence: !getDurableClient() });
 export const setupDb = () => webDb.setupDb();
 export const checkDb = () => webDb.checkDb();
 export const purgeDb = () => webDb.purgeDb();

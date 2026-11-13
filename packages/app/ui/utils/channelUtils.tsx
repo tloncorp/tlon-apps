@@ -1,4 +1,5 @@
 import { isDmChannelId, isGroupDmChannelId } from '@tloncorp/api/client';
+import { getDurableClient } from '@tloncorp/api/client/durable';
 import {
   configurationFromChannel,
   formatBucketContents,
@@ -132,14 +133,18 @@ export function getChannelActionCapabilities(channel?: db.Channel | null): {
   canLeave: boolean;
   deleteDescription: string;
 } {
+  // Slab deletes a bucket's files with its channel, in one server write.
+  const durable = Boolean(getDurableClient());
   return {
-    canDelete: !!channel && channel.type !== 'buckets',
+    canDelete: !!channel && (channel.type !== 'buckets' || durable),
     canLeave: !!channel && channel.type !== 'buckets',
     deleteDescription:
       channel?.type === 'notes'
         ? 'This action cannot be undone. The notebook and its notes will be permanently deleted.'
         : channel?.type === 'buckets'
-          ? 'Bucket deletion will be available once stored objects can be removed atomically.'
+          ? durable
+            ? 'This action cannot be undone. The bucket and its files will be permanently deleted.'
+            : 'Bucket deletion will be available once stored objects can be removed atomically.'
           : 'This action cannot be undone. All messages in this channel will be permanently deleted.',
   };
 }

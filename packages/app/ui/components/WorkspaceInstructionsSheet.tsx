@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import * as api from '@tloncorp/api';
+import { durableErrorText } from '@tloncorp/api/client/durable';
 import type * as db from '@tloncorp/shared/db';
 import { convertContent, markdownToStory } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -11,7 +12,7 @@ import { ScrollView, XStack, YStack } from 'tamagui';
 
 import { ActionSheet } from './ActionSheet';
 import { BotPromptHeader } from './BotPromptHeader';
-import { ControlledTextareaField } from './Form';
+import { ControlledTextField, ControlledTextareaField } from './Form';
 import { NotebookContentRenderer } from './NotebookPost/NotebookPost';
 
 // Generous for free text, far below the host's 256 KB blob limit.
@@ -22,38 +23,65 @@ export function hasWorkspaceInstructions(group: db.Group) {
   return Boolean(api.readWorkspaceConfig(group.blob)?.instructions);
 }
 
-/**
- * Editor for a group's workspace instructions: free text the group's bot
- * loads on every turn in the group's channels. Saving names the bot the
- * workspace is for when the config has none: the owner's first trusted bot.
- */
-export function WorkspaceInstructionsSheet({
-  group,
-  onClose,
-}: {
-  group: db.Group;
+/** What an instructions editor shows and how it saves. */
+export type InstructionsSheetProps = {
+  /** The sheet's title. */
+  title: string;
+  /** What the instructions are for, and whose they are. */
+  heading: string;
+  meta?: string;
+  description: string;
+  storedText: string;
+  /** False when the text can't be edited, with `blocked` saying why. */
+  writable: boolean;
+  /** False while saving waits on something else, such as a bot to name. */
+  ready?: boolean;
+  blocked?: string;
+  /** The status line with nothing to save. */
+  idleStatus: string;
+  placeholder: string;
+  accessibilityLabel: string;
+  /** Asks for a nickname too, starting from this one. */
+  nickname?: string;
+  /** Above the fields, such as the agent's avatar. */
+  header?: React.ReactNode;
+  /** Something outside the form changed, such as a picked avatar. */
+  changed?: boolean;
+  saveLabel?: string;
+  onSave: (values: { text: string; nickname?: string }) => Promise<void>;
   onClose: () => void;
-}) {
+  /** More settings, under the editor. */
+  children?: React.ReactNode;
+  testID?: string;
+};
+
+/**
+ * Editor for instructions an agent loads on every turn: a Markdown text
+ * with a preview, and optionally the agent's nickname.
+ */
+export function InstructionsSheet({
+  title,
+  heading,
+  meta,
+  description,
+  storedText,
+  writable,
+  ready = true,
+  blocked,
+  idleStatus,
+  placeholder,
+  accessibilityLabel,
+  nickname,
+  header,
+  changed = false,
+  saveLabel = 'Save changes',
+  onSave,
+  onClose,
+  children,
+  testID = 'WorkspaceInstructions',
+}: InstructionsSheetProps) {
   const showToast = useToast();
   const isWindowNarrow = useIsWindowNarrow();
-
-  const parsed = useMemo(
-    () => api.parseWorkspaceConfigBlob(group.blob),
-    [group.blob]
-  );
-  const config = parsed.kind === 'config' ? parsed.config : null;
-  const writable = parsed.kind === 'empty' || parsed.kind === 'config';
-  const storedText = config?.instructions ?? '';
-
-  const botsQuery = useQuery({
-    queryKey: ['stewardBots'],
-    queryFn: () => api.getStewardBots(),
-    // Trust changes on the ship push nothing to the client; refetch per open.
-    staleTime: 0,
-    retry: false,
-  });
-  const bot = config?.bot ?? botsQuery.data?.[0] ?? null;
-
   const [saving, setSaving] = useState(false);
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [previewState, setPreviewState] = useState<{
@@ -68,17 +96,17 @@ export function WorkspaceInstructionsSheet({
     formState: { isDirty, isValid },
   } = useForm({
     mode: 'onChange',
-    defaultValues: { text: storedText },
+    defaultValues: { text: storedText, nickname: nickname ?? '' },
   });
 
-  // Take a new blob into the form unless a save is in flight or the user
-  // has a draft of their own.
+  // Take new stored text into the form unless a save is in flight or the
+  // user has a draft of their own.
   useEffect(() => {
     if (saving || isDirty) {
       return;
     }
-    reset({ text: storedText });
-  }, [isDirty, reset, saving, storedText]);
+    reset({ text: storedText, nickname: nickname ?? '' });
+  }, [isDirty, nickname, reset, saving, storedText]);
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
@@ -112,27 +140,28 @@ export function WorkspaceInstructionsSheet({
     setIsPreviewing(true);
   }, [getValues, isPreviewing]);
 
-  const canSave = writable && Boolean(bot) && isDirty && isValid && !saving;
+  const canSave =
+    writable && ready && !blocked && (isDirty || changed) && isValid && !saving;
 
   const handleSave = useCallback(() => {
-    if (!canSave || !bot) {
+    if (!canSave) {
       return;
     }
-    handleSubmit(async ({ text }) => {
+    handleSubmit(async (values) => {
       setSaving(true);
       try {
-        await store.updateWorkspaceConfig(
-          group.id,
-          (current) => ({
-            ...current,
-            bot: current.bot ?? bot,
-            instructions: text.trim(),
-          }),
-          { shouldThrow: true }
-        );
-      } catch {
+        await onSave({
+          text: values.text.trim(),
+          ...(nickname !== undefined
+            ? { nickname: values.nickname.trim() }
+            : {}),
+        });
+      } catch (error) {
         setSaving(false);
-        showToast({ message: 'Failed to save instructions.', duration: 3000 });
+        showToast({
+          message: durableErrorText(error) ?? 'Failed to save instructions.',
+          duration: 3000,
+        });
         return;
       }
       showToast({ message: 'Changes saved.', duration: 3000 });
@@ -142,31 +171,25 @@ export function WorkspaceInstructionsSheet({
       Keyboard.dismiss();
       onClose();
     })();
-  }, [bot, canSave, group.id, handleSubmit, onClose, showToast]);
+  }, [canSave, handleSubmit, nickname, onClose, onSave, showToast]);
 
   const editorHeight = isWindowNarrow ? 200 : 280;
   const statusMessage = saving
     ? 'Saving…'
-    : !writable
-      ? "This group's bot settings were saved by a newer version of the app. Update to edit them."
-      : botsQuery.isSuccess && !bot
-        ? 'You need a Tlonbot to set instructions for this group.'
-        : isDirty
-          ? 'Unsaved changes'
-          : 'Anyone in this group can read these.';
+    : (blocked ?? (isDirty ? 'Unsaved changes' : idleStatus));
 
   const saveButton = (
     <Button
       preset="primary"
       size={isWindowNarrow ? 'medium' : 'small'}
-      label="Save changes"
+      label={saveLabel}
       loading={saving}
       disabled={!canSave}
       onPress={handleSave}
       centered
       width={isWindowNarrow ? '100%' : 'auto'}
       minWidth={isWindowNarrow ? undefined : 128}
-      testID="WorkspaceInstructionsSave"
+      testID={`${testID}Save`}
     />
   );
 
@@ -174,7 +197,7 @@ export function WorkspaceInstructionsSheet({
     <ActionSheet
       open
       onOpenChange={handleOpenChange}
-      title="Tlonbot instructions"
+      title={title}
       modal
       closeButton
       dialogContentProps={{ width: 576, minWidth: 520, maxWidth: 576 }}
@@ -190,12 +213,33 @@ export function WorkspaceInstructionsSheet({
         >
           <YStack gap={isWindowNarrow ? '$xl' : '$2xl'}>
             <BotPromptHeader
-              title="Instructions"
-              meta={bot ?? undefined}
-              description={`How your Tlonbot behaves in every channel of ${group.title || 'this group'}.`}
+              title={heading}
+              meta={meta}
+              description={description}
               paddingLeft="$xl"
               paddingRight={isWindowNarrow ? '$xl' : '$4xl'}
             />
+
+            {header}
+
+            {nickname !== undefined ? (
+              <ControlledTextField
+                name="nickname"
+                control={control}
+                label="Nickname"
+                inputProps={{
+                  accessibilityLabel: 'Nickname',
+                  placeholder: 'Scout',
+                  editable: !saving,
+                  testID: `${testID}Nickname`,
+                }}
+                rules={{
+                  validate: (value: string) =>
+                    (value.trim().length >= 1 && value.trim().length <= 64) ||
+                    'A nickname of 1 to 64 characters is required',
+                }}
+              />
+            ) : null}
 
             <YStack>
               <XStack
@@ -220,7 +264,7 @@ export function WorkspaceInstructionsSheet({
                       ? 'Edit instructions'
                       : 'Preview rendered Markdown instructions'
                   }
-                  testID="WorkspaceInstructionsPreviewToggle"
+                  testID={`${testID}PreviewToggle`}
                 />
               </XStack>
 
@@ -234,7 +278,7 @@ export function WorkspaceInstructionsSheet({
                   backgroundColor="$background"
                   nestedScrollEnabled
                   showsVerticalScrollIndicator
-                  testID="WorkspaceInstructionsPreview"
+                  testID={`${testID}Preview`}
                 >
                   <YStack
                     minHeight="100%"
@@ -271,14 +315,14 @@ export function WorkspaceInstructionsSheet({
                   name="text"
                   control={control}
                   inputProps={{
-                    accessibilityLabel: 'Tlonbot instructions',
-                    placeholder: 'How should your Tlonbot behave here?',
+                    accessibilityLabel,
+                    placeholder,
                     multiline: true,
                     minHeight: editorHeight,
                     textAlignVertical: 'top',
-                    autoFocus: true,
+                    autoFocus: nickname === undefined,
                     editable: writable && !saving,
-                    testID: 'WorkspaceInstructionsEditor',
+                    testID: `${testID}Editor`,
                   }}
                   rules={{
                     maxLength: {
@@ -289,6 +333,8 @@ export function WorkspaceInstructionsSheet({
                 />
               )}
             </YStack>
+
+            {children}
 
             {isWindowNarrow ? (
               <YStack gap="$m">
@@ -330,5 +376,76 @@ export function WorkspaceInstructionsSheet({
         </ActionSheet.FormBlock>
       </ActionSheet.ScrollableContent>
     </ActionSheet>
+  );
+}
+
+/**
+ * Editor for a group's workspace instructions: free text the group's bot
+ * loads on every turn in the group's channels. Saving names the bot the
+ * workspace is for when the config has none: the owner's first trusted bot.
+ */
+export function WorkspaceInstructionsSheet({
+  group,
+  onClose,
+}: {
+  group: db.Group;
+  onClose: () => void;
+}) {
+  const parsed = useMemo(
+    () => api.parseWorkspaceConfigBlob(group.blob),
+    [group.blob]
+  );
+  const config = parsed.kind === 'config' ? parsed.config : null;
+  const writable = parsed.kind === 'empty' || parsed.kind === 'config';
+
+  const botsQuery = useQuery({
+    queryKey: ['stewardBots'],
+    queryFn: () => api.getStewardBots(),
+    // Trust changes on the ship push nothing to the client; refetch per open.
+    staleTime: 0,
+    retry: false,
+  });
+  const bot = config?.bot ?? botsQuery.data?.[0] ?? null;
+
+  const handleSave = useCallback(
+    async ({ text }: { text: string }) => {
+      if (!bot) {
+        throw new Error('No Tlonbot');
+      }
+      await store.updateWorkspaceConfig(
+        group.id,
+        (current) => ({
+          ...current,
+          bot: current.bot ?? bot,
+          instructions: text,
+        }),
+        { shouldThrow: true }
+      );
+    },
+    [bot, group.id]
+  );
+
+  return (
+    <InstructionsSheet
+      title="Tlonbot instructions"
+      heading="Instructions"
+      meta={bot ?? undefined}
+      description={`How your Tlonbot behaves in every channel of ${group.title || 'this group'}.`}
+      storedText={config?.instructions ?? ''}
+      writable={writable}
+      ready={Boolean(bot)}
+      blocked={
+        !writable
+          ? "This group's bot settings were saved by a newer version of the app. Update to edit them."
+          : botsQuery.isSuccess && !bot
+            ? 'You need a Tlonbot to set instructions for this group.'
+            : undefined
+      }
+      idleStatus="Anyone in this group can read these."
+      placeholder="How should your Tlonbot behave here?"
+      accessibilityLabel="Tlonbot instructions"
+      onSave={handleSave}
+      onClose={onClose}
+    />
   );
 }

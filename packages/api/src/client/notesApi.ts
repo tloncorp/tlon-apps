@@ -4,6 +4,13 @@ import { z } from 'zod';
 import { createDevLogger } from '../lib/logger';
 import type * as models from '../types/models';
 import { formatUd } from './apiUtils';
+import { getDurableClient } from './durable';
+import {
+  changeDurableNotebook,
+  durableNotesRequest,
+  subscribeDurableNotebook,
+  unsubscribeDurableNotebook,
+} from './durableNotes';
 import {
   httpRequest,
   notes as notesRequests,
@@ -183,6 +190,7 @@ function notebookAction(target: NotesTarget, action: NotesNotebookAction) {
 
 export async function joinNotesNotebook(target: NotesTarget) {
   const flag = normalizeNotesTarget(target);
+  if (getDurableClient()) return changeDurableNotebook(flag, 'joinChannel');
   return notesAction({
     type: 'join',
     ship: flag.host,
@@ -205,6 +213,7 @@ export const leaveNotesChannel = async (channelId: string) => {
   if (!flag) {
     return;
   }
+  if (getDurableClient()) return changeDurableNotebook(flag, 'leaveChannel');
   await notesAction({
     type: 'leave',
     ship: flag.host,
@@ -217,6 +226,10 @@ export async function subscribeToNotesNotebook(
   handler: (event: NotesStreamEvent) => void
 ) {
   const flag = normalizeNotesTarget(target);
+  if (getDurableClient())
+    return subscribeDurableNotebook(flag, () =>
+      handler({ type: 'update', host: flag.host, flagName: flag.name })
+    );
   return subscribeRequest(notesRequests.stream)<NotesStreamEvent>(
     { host: flag.host, name: flag.name },
     handler
@@ -224,10 +237,12 @@ export async function subscribeToNotesNotebook(
 }
 
 export async function unsubscribeFromNotesNotebook(subscriptionId: number) {
+  if (getDurableClient()) return unsubscribeDurableNotebook(subscriptionId);
   return unsubscribe(subscriptionId);
 }
 
 function deleteNotesNotebook(flag: NotesFlag) {
+  if (getDurableClient()) return changeDurableNotebook(flag, 'deleteChannel');
   return notebookAction(flag, { type: 'delete' });
 }
 
@@ -469,6 +484,12 @@ export class NotesV1PendingWriteError extends Error {
 }
 
 const NOTES_AUTH_FAILURE_STATUSES = [401, 403] as const;
+
+// The local backend answers the same v1 requests from its notebook routes.
+const notesHttp = ((entry) =>
+  getDurableClient()
+    ? durableNotesRequest(entry)
+    : httpRequest(entry)) as typeof httpRequest;
 
 // --- response normalization ------------------------------------------------
 
@@ -855,7 +876,7 @@ function assertWriteOk(
   }
 }
 async function getRequestV1(requestId: string): Promise<NotesV1RequestStatus> {
-  const res = await httpRequest(notesRequests.request)<unknown>({
+  const res = await notesHttp(notesRequests.request)<unknown>({
     requestId: encodeURIComponent(requestId),
   });
   return normalizeRequestStatusV1(res);
@@ -864,7 +885,7 @@ async function getRequestV1(requestId: string): Promise<NotesV1RequestStatus> {
 // --- notebook helpers ------------------------------------------------------
 
 async function listNotebooksV1(): Promise<NotesV1NotebookSummary[]> {
-  const res = await httpRequest(notesRequests.notebooksGet)<unknown>({});
+  const res = await notesHttp(notesRequests.notebooksGet)<unknown>({});
   return parseNotesResponseList(notesV1NotebookSummarySchema, res);
 }
 
@@ -872,7 +893,7 @@ async function getNotebookV1(
   target: NotesTarget
 ): Promise<NotesV1NotebookDetailSummary> {
   const flag = normalizeNotesTarget(target);
-  const res = await httpRequest(notesRequests.notebookGet)<unknown>(flag);
+  const res = await notesHttp(notesRequests.notebookGet)<unknown>(flag);
   return normalizeNotebookDetailSummaryV1(res);
 }
 
@@ -881,7 +902,7 @@ async function createNotebookV1({
 }: {
   title: string;
 }): Promise<NotesV1NotebookSummary> {
-  const res = await httpRequest(notesRequests.notebooksPost)<unknown>(
+  const res = await notesHttp(notesRequests.notebooksPost)<unknown>(
     {},
     { body: { title } }
   );
@@ -897,7 +918,7 @@ async function createGroupNotebookV1({
   group: NotesV1GroupRef;
   readers?: string[];
 }): Promise<NotesV1NotebookSummary> {
-  const res = await httpRequest(notesRequests.notebooksPost)<unknown>(
+  const res = await notesHttp(notesRequests.notebooksPost)<unknown>(
     {},
     {
       body: {
@@ -917,7 +938,7 @@ async function listNotesV1(
   options?: RequestJsonOptions
 ): Promise<NotesV1Note[]> {
   const flag = normalizeNotesTarget(target);
-  const res = await httpRequest(notesRequests.notesGet)<unknown>(flag, {
+  const res = await notesHttp(notesRequests.notesGet)<unknown>(flag, {
     body: undefined,
     options,
   });
@@ -939,7 +960,7 @@ async function searchNotesV1({
   // Search params ride in the query string rather than the path: the URL
   // parser splits a trailing dot-group off the last path segment as a file
   // extension, which would search a truncated needle.
-  const res = await httpRequest(notesRequests.search)<unknown>(normalized, {
+  const res = await notesHttp(notesRequests.search)<unknown>(normalized, {
     query: { needle, from, tries },
   });
   return normalizeSearchPageV1(res);
@@ -957,7 +978,7 @@ async function getNoteV1({
   noteId: number;
 }): Promise<NotesV1Note> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await httpRequest(notesRequests.noteGet)<unknown>({
+  const res = await notesHttp(notesRequests.noteGet)<unknown>({
     ...normalized,
     id: noteId,
   });
@@ -976,7 +997,7 @@ async function createNoteV1({
   body: string;
 }): Promise<NotesV1Note | null> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await httpRequest(notesRequests.notesPost)<unknown>(normalized, {
+  const res = await notesHttp(notesRequests.notesPost)<unknown>(normalized, {
     body: {
       folder,
       title,
@@ -1048,7 +1069,7 @@ async function updateNoteBodyV1({
   if (expectedRevision !== undefined) {
     payload.expectedRevision = expectedRevision;
   }
-  const res = await httpRequest(notesRequests.notePut)<unknown>(
+  const res = await notesHttp(notesRequests.notePut)<unknown>(
     { ...normalized, id: noteId },
     { body: payload }
   );
@@ -1072,7 +1093,7 @@ async function renameNoteV1({
   title: string;
 }): Promise<NotesV1Note | null> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await httpRequest(notesRequests.notePut)<unknown>(
+  const res = await notesHttp(notesRequests.notePut)<unknown>(
     { ...normalized, id: noteId },
     {
       body: {
@@ -1097,7 +1118,7 @@ async function moveNoteV1({
   folder: number;
 }): Promise<void> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await httpRequest(notesRequests.notePut)<unknown>(
+  const res = await notesHttp(notesRequests.notePut)<unknown>(
     { ...normalized, id: noteId },
     { body: { folder } }
   );
@@ -1112,7 +1133,7 @@ async function deleteNoteV1({
   noteId: number;
 }): Promise<void> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await httpRequest(notesRequests.noteDelete)<unknown>({
+  const res = await notesHttp(notesRequests.noteDelete)<unknown>({
     ...normalized,
     id: noteId,
   });
@@ -1127,7 +1148,7 @@ async function listNoteHistoryV1({
   noteId: number;
 }): Promise<NotesV1NoteRevision[]> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await httpRequest(notesRequests.noteHistory)<unknown>({
+  const res = await notesHttp(notesRequests.noteHistory)<unknown>({
     ...normalized,
     id: noteId,
   });
@@ -1141,7 +1162,7 @@ async function listFoldersV1(
   options?: RequestJsonOptions
 ): Promise<NotesV1Folder[]> {
   const flag = normalizeNotesTarget(target);
-  const res = await httpRequest(notesRequests.foldersGet)<unknown>(flag, {
+  const res = await notesHttp(notesRequests.foldersGet)<unknown>(flag, {
     body: undefined,
     options,
   });
@@ -1156,7 +1177,7 @@ async function getFolderV1({
   folderId: number;
 }): Promise<NotesV1Folder> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await httpRequest(notesRequests.folderGet)<unknown>({
+  const res = await notesHttp(notesRequests.folderGet)<unknown>({
     ...normalized,
     folderId,
   });
@@ -1177,10 +1198,9 @@ async function createFolderV1({
   if (parent !== undefined) {
     payload.parent = parent;
   }
-  const res = await httpRequest(notesRequests.foldersPost)<unknown>(
-    normalized,
-    { body: payload }
-  );
+  const res = await notesHttp(notesRequests.foldersPost)<unknown>(normalized, {
+    body: payload,
+  });
   assertWriteOk(res, folderCreateChecks(notesChannelId(normalized)));
 }
 
@@ -1194,7 +1214,7 @@ async function renameFolderV1({
   name: string;
 }): Promise<void> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await httpRequest(notesRequests.folderPut)<unknown>(
+  const res = await notesHttp(notesRequests.folderPut)<unknown>(
     { ...normalized, folderId },
     { body: { folderName: name } }
   );
@@ -1211,7 +1231,7 @@ async function moveFolderV1({
   parent: number;
 }): Promise<void> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await httpRequest(notesRequests.folderPut)<unknown>(
+  const res = await notesHttp(notesRequests.folderPut)<unknown>(
     { ...normalized, folderId },
     { body: { parent } }
   );
@@ -1228,7 +1248,7 @@ async function deleteFolderV1({
   recursive: boolean;
 }): Promise<void> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await httpRequest(notesRequests.folderDelete)<unknown>(
+  const res = await notesHttp(notesRequests.folderDelete)<unknown>(
     { ...normalized, folderId },
     { query: { recursive: recursive ? 'true' : 'false' } }
   );
@@ -1241,7 +1261,7 @@ async function listMembersV1(
   target: NotesTarget
 ): Promise<NotesV1MemberRecord[]> {
   const flag = normalizeNotesTarget(target);
-  const res = await httpRequest(notesRequests.members)<unknown>(flag);
+  const res = await notesHttp(notesRequests.members)<unknown>(flag);
   return parseNotesResponseList(notesV1MemberSchema, res, 'member');
 }
 
@@ -1410,7 +1430,7 @@ export async function batchImportNotesV1({
     },
   };
 
-  const res = await httpRequest(notesRequests.root)<unknown>(
+  const res = await notesHttp(notesRequests.root)<unknown>(
     {},
     {
       body,
@@ -1433,6 +1453,8 @@ export async function batchImportNotesV1({
 }
 
 async function listPublished(): Promise<NotesPublishedRecord[]> {
+  // The local backend does not publish notes.
+  if (getDurableClient()) return [];
   const rawPublished = await scryRequest(notesRequests.published)({});
   return parseNotesResponseList(
     notesPublishedRecordSchema,

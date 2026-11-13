@@ -1,5 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import {
+  backendPublishesNotes,
   getNoteBodyPreview,
   getNoteReferencePath,
   noteTimestampMs,
@@ -269,7 +270,9 @@ export function NoteRow({
     bottomContent: (
       <>
         {referenceSection}
-        {canEdit || (isPublished && publishedUrl) ? publishSection : null}
+        {backendPublishesNotes() && (canEdit || (isPublished && publishedUrl))
+          ? publishSection
+          : null}
       </>
     ),
   });

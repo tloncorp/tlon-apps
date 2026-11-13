@@ -1,3 +1,4 @@
+import { getDurableClient } from './durable';
 import { render } from '@urbit/aura';
 import { z } from 'zod';
 
@@ -146,6 +147,11 @@ export interface StewardAutomationEditResult {
 async function editAutomation(
   request: ub.StewardAutomationEditRequest
 ): Promise<StewardAutomationEditResult> {
+  if (getDurableClient())
+    return getDurableClient()!.editAutomation(
+      request.action,
+      request.requestId
+    );
   const raw = await httpRequest(steward.automationEdit)<unknown>(
     {},
     { body: request, options: REQUEST_OPTIONS }
@@ -317,6 +323,7 @@ export async function awaitAutomationRequest(
 
 /** The mirror: every ship's tasks keyed by `~ship`, over HTTP. */
 export async function getAutomations(): Promise<ub.StewardAutomationShipTasks> {
+  if (getDurableClient()) return getDurableClient()!.automations();
   return httpRequest(
     steward.automationTasksHttp
   )<ub.StewardAutomationShipTasks>({}, { options: REQUEST_OPTIONS });
@@ -324,6 +331,7 @@ export async function getAutomations(): Promise<ub.StewardAutomationShipTasks> {
 
 /** The mirror via scry, for callers already on a channel. */
 export async function scryAutomations(): Promise<ub.StewardAutomationShipTasks> {
+  if (getDurableClient()) return getDurableClient()!.automations();
   return scryRequest(steward.automationTasks)<ub.StewardAutomationShipTasks>(
     {}
   );
@@ -341,6 +349,17 @@ export function subscribeToAutomations(
   handler: (update: ub.StewardAutomationUpdate, id?: number) => void,
   ...rest: [onRejected?: (error: unknown) => void]
 ): Promise<number> {
+  const local = getDurableClient();
+  if (local) {
+    const refresh = () =>
+      void local
+        .automations()
+        .then((tasks) => handler({ tasks }))
+        .catch((error) => rest[0]?.(error));
+    const id = local.subscribe(refresh, rest[0]);
+    refresh();
+    return Promise.resolve(id);
+  }
   return subscribeRequest(
     steward.automationTasksFeed
   )<ub.StewardAutomationUpdate>({}, handler, ...rest);

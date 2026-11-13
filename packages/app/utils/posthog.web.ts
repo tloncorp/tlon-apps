@@ -29,16 +29,19 @@ export const EVENT_PRIVACY_MASK: Properties = {
 
 // Configure PostHog with all auto-capturing settings disabled,
 // as we will only be tracking specific interactions.
-posthog.init(POST_HOG_API_KEY, {
-  api_host: 'https://data-bridge-v1.vercel.app/ingest',
-  ui_host: 'https://eu.posthog.com',
-  autocapture: false,
-  capture_pageview: false,
-  capture_pageleave: false,
-  disable_session_recording: true,
-  mask_all_text: true,
-  mask_all_element_attributes: true,
-});
+if (
+  !(globalThis as typeof globalThis & { tlonLocalOnly?: boolean }).tlonLocalOnly
+)
+  posthog.init(POST_HOG_API_KEY, {
+    api_host: 'https://data-bridge-v1.vercel.app/ingest',
+    ui_host: 'https://eu.posthog.com',
+    autocapture: false,
+    capture_pageview: false,
+    capture_pageleave: false,
+    disable_session_recording: true,
+    mask_all_text: true,
+    mask_all_element_attributes: true,
+  });
 
 export const analyticsClient = posthog;
 

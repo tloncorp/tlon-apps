@@ -1,3 +1,5 @@
+import { searchMessages } from './messageSearch';
+import { getDurableClient } from './durable';
 import { da, render } from '@urbit/aura';
 
 import type { Poke } from '../http-api';
@@ -94,6 +96,21 @@ export const createChannel = async ({
   id,
   ...channelPayload
 }: ub.Create & { id: string }) => {
+  if (getDurableClient()) {
+    if (!['chat', 'heap', 'buckets'].includes(channelPayload.kind))
+      throw new Error(
+        'Choose a chat, gallery or buckets channel on the local backend'
+      );
+    return getDurableClient()!.directory({
+      type: 'createChannel',
+      groupId: channelPayload.group,
+      id,
+      title: channelPayload.title,
+      description: channelPayload.description,
+      readers: channelPayload.readers,
+      writers: channelPayload.writers,
+    });
+  }
   return trackedPokeRequest(
     channels.action,
     channels.updates
@@ -413,6 +430,17 @@ export const searchChannel = async (params: {
   query: string;
   cursor?: string;
 }) => {
+  if (getDurableClient()) {
+    const page = await searchMessages({
+      query: params.query,
+      channelId: params.channelId,
+      cursor: params.cursor,
+    });
+    return {
+      posts: page.hits.map((hit) => hit.post),
+      cursor: page.nextCursor,
+    };
+  }
   const SINGLE_PAGE_SEARCH_DEPTH = 500;
   const isGroupChannel = isGroupChannelId(params.channelId);
   const encodedQuery = encodeString(params.query);
@@ -484,6 +512,16 @@ export const setOrder = async (
 };
 
 export const leaveChannel = async (channelId: string) => {
+  if (getDurableClient()) {
+    const client = getDurableClient()!;
+    const room = client.room(channelId);
+    return client.directory({
+      type: 'leaveChannel',
+      channelId,
+      groupId: room.groupId,
+    });
+  }
+
   return trackedPokeRequest(
     channels.action,
     channels.updates
@@ -505,6 +543,16 @@ export const leaveChannel = async (channelId: string) => {
 };
 
 export const joinChannel = async (channelId: string, groupId: string) => {
+  if (getDurableClient()) {
+    const client = getDurableClient()!;
+    const room = client.room(channelId);
+    return client.directory({
+      type: 'joinChannel',
+      channelId,
+      groupId: room.groupId,
+    });
+  }
+
   return trackedPokeRequest(
     channels.action,
     channels.updates
@@ -539,6 +587,14 @@ export async function addChannelWriters({
   channelId: string;
   writers: string[];
 }) {
+  if (getDurableClient()) {
+    const client = getDurableClient()!;
+    const room = client.room(channelId);
+    return client.channelChange(channelId, {
+      writers: [...new Set([...(room.writers ?? []), ...writers])],
+    });
+  }
+
   return pokeRequest(channels.action)(
     ub.channelAction(channelId, { 'add-writers': writers }).json
   );
@@ -551,6 +607,14 @@ export async function removeChannelWriters({
   channelId: string;
   writers: string[];
 }) {
+  if (getDurableClient()) {
+    const client = getDurableClient()!;
+    const room = client.room(channelId);
+    return client.channelChange(channelId, {
+      writers: (room.writers ?? []).filter((role) => !writers.includes(role)),
+    });
+  }
+
   return pokeRequest(channels.action)(
     ub.channelAction(channelId, { 'del-writers': writers }).json
   );

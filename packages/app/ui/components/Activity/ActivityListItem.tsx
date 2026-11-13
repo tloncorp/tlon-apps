@@ -76,7 +76,10 @@ export function ActivityListItemContent({
           } as db.ThreadUnreadState)
         : null;
     }
-    if (summary.type === 'post') {
+    if (
+      summary.type === 'post' ||
+      (summary.type === 'react' && !newestPost.parentId)
+    ) {
       return newestPost.channel?.unread ?? null;
     }
     if (summary.type === 'group-ask') {

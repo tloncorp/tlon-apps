@@ -1,3 +1,4 @@
+import * as domain from '@tloncorp/shared/domain';
 import * as db from '@tloncorp/shared/db';
 import { BlockSectionList, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -40,7 +41,10 @@ export function ContactBook({
   width,
   minHeight,
   maxHeight,
+  excludeBots = false,
 }: {
+  /** Leaves bots out, as when inviting people to a workspace. */
+  excludeBots?: boolean;
   autoFocus?: boolean;
   immutableIds?: string[];
   disabledIds?: string[];
@@ -64,7 +68,12 @@ export function ContactBook({
   minHeight?: number;
   maxHeight?: number;
 }) {
-  const contacts = useContacts();
+  const allContacts = useContacts();
+  const contacts = useMemo(
+    () =>
+      excludeBots ? allContacts?.filter(domain.isNotBotContact) : allContacts,
+    [allContacts, excludeBots]
+  );
   const contactsForBook = useMemo(
     () => contacts?.filter((contact) => contact.isContact) ?? [],
     [contacts]

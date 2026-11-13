@@ -5,6 +5,7 @@ import type {
   StewardPromptResponse,
   StewardPromptUpdate,
 } from '../urbit/stewardPrompts';
+import { getDurableClient } from './durable';
 import { httpRequest, steward, subscribeRequest } from './requests';
 
 // Steward answers an expired session with 401, where requestJson only
@@ -180,6 +181,9 @@ export class PromptsUnsupportedError extends Error {
 }
 
 export async function getStewardPromptFiles(): Promise<StewardPromptFiles> {
+  // Slab's assistants keep no %steward prompts. Saying so settles bot
+  // ownership checks, which otherwise wait forever and hide Block.
+  if (getDurableClient()) throw new PromptsUnsupportedError();
   try {
     return await httpRequest(steward.promptFiles)({}, { options: OPTIONS });
   } catch (error) {

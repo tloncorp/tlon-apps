@@ -1,3 +1,4 @@
+import { getDurableClient } from '../client/durable';
 import type * as db from './models';
 
 export type Id =
@@ -104,6 +105,10 @@ export function channelActionIdsFor({
       }
       break;
   }
+
+  // Slab has no moderation service to report to; hiding is still offered.
+  if (getDurableClient())
+    actions = actions.filter((action) => action !== 'report');
 
   // Filter out write-dependent actions if user cannot write
   if (canWrite === false) {

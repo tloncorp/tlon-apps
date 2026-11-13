@@ -1,4 +1,5 @@
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { getDurableClient } from '@tloncorp/api/client/durable';
 import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared';
 import { Button, LoadingSpinner } from '@tloncorp/ui';
@@ -55,13 +56,17 @@ export function InviteUsersScreen() {
         <ScreenHeader title="Invite People" backAction={handleGoBack} />
 
         <YStack flex={1} paddingHorizontal={getTokenValue('$l')}>
-          <PaddedBlock>
-            <InviteFriendsToTlonButton group={group} />
-          </PaddedBlock>
+          {/* A durable server has no invite links. */}
+          {getDurableClient() ? null : (
+            <PaddedBlock>
+              <InviteFriendsToTlonButton group={group} />
+            </PaddedBlock>
+          )}
 
           <YStack flex={1}>
             <ContactBook
               multiSelect
+              excludeBots
               searchable
               searchPlaceholder="Filter by nickname, @p"
               onSelectedChange={setInvitees}

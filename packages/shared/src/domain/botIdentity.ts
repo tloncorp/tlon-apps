@@ -12,3 +12,11 @@ export function isBotContact(args: {
 }): boolean {
   return isBotUserId(args.id) || parseBotInfo(args.botInfo) !== null;
 }
+
+/** For pickers that leave bots out, such as workspace invitations. */
+export function isNotBotContact(contact: {
+  id?: string | null;
+  botInfo?: string | null;
+}): boolean {
+  return !isBotContact(contact);
+}

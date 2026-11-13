@@ -7,7 +7,6 @@ import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import { ForwardingProps } from '@tloncorp/ui';
-import { ImagePickerAsset } from 'expo-image-picker';
 import {
   Dispatch,
   SetStateAction,
@@ -116,26 +115,19 @@ export function GalleryInput({
           }
         }
 
-        // Set up image for editing by creating a mock attachment from the existing image
         const imageBlock = blocks[0].image;
-        const mockAttachment = {
-          type: 'image' as const,
+        addAttachment({
+          type: 'image',
           file: {
             uri: imageBlock.src,
-            width: imageBlock.width,
-            height: imageBlock.height,
-          } as ImagePickerAsset,
+            width: imageBlock.width ?? 0,
+            height: imageBlock.height ?? 0,
+          },
           uploadState: {
-            status: 'complete' as const,
+            status: 'success',
             remoteUri: imageBlock.src,
           },
-        };
-
-        attachAssets([
-          domain.Attachment.UploadIntent.fromImagePickerAsset(
-            mockAttachment.file
-          ),
-        ]);
+        });
       } else if (blocks.length > 0 && 'link' in blocks[0]) {
         // This is a link gallery post
         const linkBlock = blocks[0].link as { url: string };
@@ -155,7 +147,7 @@ export function GalleryInput({
       // Default to text input if we can't determine the type
       setRoute('text');
     }
-  }, [editingPost, storeDraft, attachAssets, addAttachment]);
+  }, [editingPost, storeDraft, addAttachment]);
 
   // Reset all gallery-related state
   const resetGalleryState = useCallback(() => {

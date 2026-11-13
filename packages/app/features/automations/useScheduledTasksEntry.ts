@@ -1,3 +1,4 @@
+import { getDurableClient } from '@tloncorp/api/client/durable';
 import { StackActions, useFocusEffect } from '@react-navigation/native';
 import * as api from '@tloncorp/api';
 import type { StewardAutomationTask } from '@tloncorp/api/urbit';
@@ -45,7 +46,8 @@ export function useScheduledTasksEntry({
   // The node's desk decides whether there are task screens to enter. Until
   // its version is known the entries stay hidden, so they do not show and
   // then go on a node too old for them.
-  const deskSupportsTasks = store.useDeskSupportsAutomations() === true;
+  const deskSupportsTasks =
+    store.useDeskSupportsAutomations() === true || Boolean(getDurableClient());
   const currentUserId = useCurrentUserId();
   const botShip = api.getBotUserIdForUser(currentUserId);
   const on =

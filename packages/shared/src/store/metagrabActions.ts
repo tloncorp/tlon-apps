@@ -4,6 +4,8 @@ import {
   getLinkMetadata,
 } from '@tloncorp/api/client/metagrabApi';
 
+import { getDurableClient } from '@tloncorp/api/client/durable';
+
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import {
@@ -28,6 +30,9 @@ const logger = createDevLogger('metagrabActions', false);
 
 export async function getLinkMetaWithFallback(url: string) {
   logger.trackEvent('Attempting metagrab link preview');
+  // The account's server proxies the fallback service, and YouTube's oEmbed
+  // is another origin, so durable mode stops at the first answer.
+  if (getDurableClient()) return getLinkMetadata(url);
   let response = await getLinkMetadata(url);
 
   const failedToGetMeta =

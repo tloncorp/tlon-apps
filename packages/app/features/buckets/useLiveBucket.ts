@@ -21,7 +21,11 @@ import {
   isBucketObjectAlreadyDeleted,
 } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
-import { useBucket, useBucketUploads } from '@tloncorp/shared/store';
+import {
+  useBucket,
+  useBucketUploads,
+  useDurableConversation,
+} from '@tloncorp/shared/store';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { BucketItem, BucketUploadCandidate } from '../../ui';
@@ -131,6 +135,9 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
     [requestedFlag.host, requestedFlag.name]
   );
   const channelId = useMemo(() => formatBucketsChannelId(flag), [flag]);
+  // On Slab nothing is subscribed app-wide; a Bucket on screen follows its
+  // own room. Elsewhere this does nothing.
+  useDurableConversation(channelId, true);
   // Read, not held. The app-wide %buckets subscription reduces every response
   // into the database, so a pane reads what has been reduced -- rather than
   // opening its own subscription and reducing into private state, which meant

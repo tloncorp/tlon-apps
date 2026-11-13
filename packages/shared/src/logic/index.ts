@@ -18,6 +18,7 @@ export * from './notesPublish';
 export * from './notesPermissionsCompat';
 export * from './notesSearch';
 export * from './notesSearchSupport';
+export * from './notesPublishSupport';
 export * from './notesText';
 export * from './notesTime';
 export * from '@tloncorp/api/lib/types';

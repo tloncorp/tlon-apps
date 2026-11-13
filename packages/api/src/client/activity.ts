@@ -91,7 +91,10 @@ export function toSourceActivityEvents(
   const eventMap = new Map<string, SourceActivityEvents>();
   const eventsList: SourceActivityEvents[] = [];
 
+  const seen = new Set<string>();
   events.forEach((event) => {
+    if (seen.has(event.id)) return;
+    seen.add(event.id);
     const key =
       event.type === 'contact'
         ? `/contact/${event.contactUserId}/${event.id}` // contact events should never be rolled up

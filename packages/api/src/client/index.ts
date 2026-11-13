@@ -141,3 +141,5 @@ export * from './stewardGatewayApi';
 export * from './stewardAutomationApi';
 export * from './lensApi';
 export * from './stewardPromptsApi';
+
+export * from './messageSearch';

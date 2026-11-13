@@ -5,6 +5,8 @@ import {
   useChannel,
   useChannelSearch,
   useGroup,
+  prepareMessageSearchResult,
+  useMessageSearchSupported,
 } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
@@ -13,6 +15,7 @@ import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
   ChannelProvider,
+  Text,
   ScreenHeader,
   SearchBar,
   SearchResults,
@@ -27,6 +30,7 @@ import {
 type Props = NativeStackScreenProps<RootStackParamList, 'ChannelSearch'>;
 
 export default function ChannelSearchScreen(props: Props) {
+  const supportsMessageSearch = useMessageSearchSupported();
   const channelId = props.route.params.channelId;
   const groupId = props.route.params.groupId;
   const channelQuery = useChannel({
@@ -41,6 +45,7 @@ export default function ChannelSearchScreen(props: Props) {
   const title = isSingleChannelGroup ? groupTitle : channelTitle;
 
   const [query, setQuery] = useState('');
+  const [openError, setOpenError] = useState('');
   const { posts, loading, errored, hasMore, loadMore, searchedThroughDate } =
     useChannelSearch(channelId, query);
 
@@ -48,9 +53,31 @@ export default function ChannelSearchScreen(props: Props) {
     trackEvent(AnalyticsEvent.ChannelSearchOpened);
   }, [channelId]);
 
-  const { resetToChannel } = useRootNavigation();
+  const { resetToChannel, navigateToPost: openThread } = useRootNavigation();
   const navigateToPost = useCallback(
-    (post: db.Post) => {
+    async (post: db.Post) => {
+      if (supportsMessageSearch) {
+        setOpenError('');
+        try {
+          const result = await prepareMessageSearchResult({
+            post,
+            conversationTitle: '',
+            authorName: post.authorId,
+          });
+          if (result.parent)
+            openThread(result.parent, {
+              selectedPostId: result.selectedPostId,
+            });
+          else
+            resetToChannel(result.channel.id, {
+              selectedPostId: result.selectedPostId,
+              groupId: result.channel.groupId ?? undefined,
+            });
+        } catch {
+          setOpenError('Couldn’t open that message. Try again.');
+        }
+        return;
+      }
       trackEvent(AnalyticsEvent.ChannelSearchResultSelected, {
         type: post.parentId ? 'reply' : 'post',
       });
@@ -67,7 +94,13 @@ export default function ChannelSearchScreen(props: Props) {
         });
       }
     },
-    [props.navigation, resetToChannel, groupId]
+    [
+      props.navigation,
+      resetToChannel,
+      groupId,
+      openThread,
+      supportsMessageSearch,
+    ]
   );
 
   const isWindowNarrow = useIsWindowNarrow();
@@ -90,6 +123,9 @@ export default function ChannelSearchScreen(props: Props) {
           />
         </XStack>
 
+        {openError ? (
+          <Text color="$negativeActionText">{openError}</Text>
+        ) : null}
         {channelQuery.data != null && (
           <ChannelProvider value={{ channel: channelQuery.data }}>
             <SearchResults

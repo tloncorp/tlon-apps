@@ -3,9 +3,11 @@ import {
   createDrawerNavigator,
 } from '@react-navigation/drawer';
 import { DrawerNavigationState } from '@react-navigation/native';
+import { getDurableClient } from '@tloncorp/api/client/durable';
 import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
+import { ConfirmDialog, useToast } from '@tloncorp/ui';
 import { useCallback, useRef, useState } from 'react';
 import { getVariableValue, useTheme } from 'tamagui';
 
@@ -23,7 +25,8 @@ import {
 } from '../../ui';
 import { PersonalInviteSheet } from '../../ui/components/PersonalInviteSheet';
 import { RootDrawerParamList } from '../types';
-import { useRootNavigation } from '../utils';
+import { getMainGroupRoute } from '../utils';
+import { getDesktopChannelRoute, getDesktopPostRoute } from '../routeHelpers';
 import { ActivityNavigator } from './ActivityNavigator';
 import { HomeNavigator } from './HomeNavigator';
 import { MessagesNavigator } from './MessagesNavigator';
@@ -91,6 +94,29 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
     db.hasViewedPersonalInvite.setValue(true);
     setPersonalInviteOpen(true);
   }, []);
+
+  const durable = getDurableClient();
+  const toast = useToast();
+  const [exportOpen, setExportOpen] = useState(false);
+  const exportAccount = useCallback(async () => {
+    if (!durable) return;
+    const owned = durable.bootstrap.groups
+      .filter(
+        (group) =>
+          group.groupId &&
+          group.hosted !== false &&
+          !group.unavailable &&
+          !group.lobby &&
+          group.owner === durable.user
+      )
+      .map((group) => group.groupId!);
+    try {
+      await durable.exportBundle(owned);
+      window.location.assign('/apps/groups/?identities=1');
+    } catch (error) {
+      toast({ message: String(error), duration: 5000 });
+    }
+  }, [durable, toast]);
 
   return (
     <YStack flex={1} paddingVertical="$l">
@@ -161,13 +187,25 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
         )}
       </YStack>
       <YStack gap="$xl" marginTop="auto" alignItems="center">
-        <NavIcon
-          type="AddPerson"
-          isActive={false}
-          shouldShowUnreads={false}
-          onPress={handlePersonalInvitePress}
-          testID="PersonalInviteNavIcon"
-        />
+        {durable && (
+          <NavIcon
+            type="LogOut"
+            isActive={exportOpen}
+            shouldShowUnreads={false}
+            onPress={() => setExportOpen(true)}
+            testID="ExportAccountNavIcon"
+          />
+        )}
+        {/* A durable server has no invite links. */}
+        {durable ? null : (
+          <NavIcon
+            type="AddPerson"
+            isActive={false}
+            shouldShowUnreads={false}
+            onPress={handlePersonalInvitePress}
+            testID="PersonalInviteNavIcon"
+          />
+        )}
         <NavIcon
           type="Settings"
           testID="SettingsNavIcon"
@@ -189,10 +227,21 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           onPress={() => setIsOpen(!isOpen)}
         />
       </YStack>
-      <PersonalInviteSheet
-        open={personalInviteOpen}
-        onOpenChange={() => setPersonalInviteOpen(false)}
-        onPressInviteFriends={handlePersonalInvitePress}
+      {durable ? null : (
+        <PersonalInviteSheet
+          open={personalInviteOpen}
+          onOpenChange={() => setPersonalInviteOpen(false)}
+          onPressInviteFriends={handlePersonalInvitePress}
+        />
+      )}
+      <ConfirmDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        title="Export your account?"
+        description="This downloads your account and the groups you own as a bundle. They go offline here until you import the bundle on another server. Anyone with the file can take your account, so keep it private."
+        confirmText="Export"
+        destructive
+        onConfirm={() => void exportAccount()}
       />
     </YStack>
   );
@@ -202,16 +251,51 @@ const TopLevelDrawerInner = () => {
   // This must stay below GlobalSearchProvider so notification navigation uses
   // the user's actual last-open desktop tab instead of the context default.
   useBrowserNotifications();
-  const { navigateToGroup, navigateToChannel } = useRootNavigation();
+  const { lastOpenTab } = useGlobalSearch();
+  const drawerNavigation = useRef<
+    DrawerContentComponentProps['navigation'] | null
+  >(null);
+  const navigateToGroup = useCallback(async (id: string) => {
+    drawerNavigation.current!.navigate(await getMainGroupRoute(id, false));
+  }, []);
+  const navigateToChannel = useCallback(
+    (channel: db.Channel, selectedPostId?: string) => {
+      drawerNavigation.current!.navigate(
+        getDesktopChannelRoute(
+          lastOpenTab,
+          channel.id,
+          channel.groupId ?? undefined,
+          selectedPostId
+        )
+      );
+    },
+    [lastOpenTab]
+  );
+  const navigateToPost = useCallback(
+    (post: db.Post, selectedPostId?: string) => {
+      drawerNavigation.current!.navigate(
+        getDesktopPostRoute(lastOpenTab, {
+          postId: post.id,
+          authorId: post.authorId,
+          channelId: post.channelId,
+          groupId: post.groupId ?? undefined,
+          selectedPostId,
+        })
+      );
+    },
+    [lastOpenTab]
+  );
 
   return (
     <>
       <GlobalSearch
         navigateToGroup={navigateToGroup}
         navigateToChannel={navigateToChannel}
+        navigateToPost={navigateToPost}
       />
       <Drawer.Navigator
         drawerContent={(props: DrawerContentComponentProps) => {
+          drawerNavigation.current = props.navigation;
           return <DrawerContent {...props} />;
         }}
         initialRouteName="Home"

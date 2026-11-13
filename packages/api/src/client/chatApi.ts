@@ -21,6 +21,8 @@ import {
   trackedPokeRequest,
 } from './requests';
 import { getCurrentUserId } from './urbit';
+import { getDurableClient } from './durable';
+import { durableBlockedContacts, setDurableBlocked } from './durableMessages';
 
 const logger = createDevLogger('chatApi', false);
 
@@ -262,15 +264,21 @@ export function subscribeToChatUpdates(
   );
 }
 
-export function getBlockedUsers() {
+export async function getBlockedUsers() {
+  const durable = getDurableClient();
+  if (durable) return durableBlockedContacts(durable);
   return scryRequest(chat.blocked)<ub.BlockedShips>({});
 }
 
-export function blockUser(userId: string) {
+export async function blockUser(userId: string) {
+  const durable = getDurableClient();
+  if (durable) return setDurableBlocked(durable, userId, true);
   return pokeRequest(chat.blockShip)({ ship: userId });
 }
 
-export function unblockUser(userId: string) {
+export async function unblockUser(userId: string) {
+  const durable = getDurableClient();
+  if (durable) return setDurableBlocked(durable, userId, false);
   return pokeRequest(chat.unblockShip)({ ship: userId });
 }
 

@@ -13,7 +13,7 @@ import {
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
-import { Carousel, ForwardingProps } from '@tloncorp/ui';
+import { Carousel, ForwardingProps, Pressable } from '@tloncorp/ui';
 import {
   Dispatch,
   SetStateAction,
@@ -193,11 +193,12 @@ export function PostScreenView(
   props: Parameters<typeof PostScreenViewContent>[0]
 ) {
   const { canUpload } = useAttachmentContext();
+  const uploadAsset = store.useConversationUpload(props.channel.id);
   return (
     <AttachmentDraftsProvider
       key={props.channel.id}
       canUpload={canUpload}
-      uploadAsset={store.uploadAsset}
+      uploadAsset={uploadAsset}
     >
       <PostScreenViewContent {...props} />
     </AttachmentDraftsProvider>
@@ -696,10 +697,12 @@ function SinglePostView({
   );
   const hasThreadUnreadActivity = hasUnreadActivity(liveThreadUnread);
 
+  const screenIsFocused = useIsFocused();
   const threadQuery = store.useThreadPosts({
     postId: parentPost.id,
     authorId: parentPost.authorId,
     channelId: channel.id,
+    enabled: screenIsFocused && isFocusedPost,
   });
   const { data: threadPosts, isLoading: isLoadingThreadPosts } = threadQuery;
 
@@ -723,7 +726,6 @@ function SinglePostView({
     return parentPost ? [...(visibleThreadPosts ?? []), parentPost] : null;
   }, [parentPost, visibleThreadPosts]);
 
-  const screenIsFocused = useIsFocused();
   const appStatus = useAppStatus();
   const threadTelemetryView = useMemo(
     () => ({
@@ -965,6 +967,22 @@ function SinglePostView({
     >
       {/* Thread composer context sends new drafts as replies; edits preserve their original target. */}
       <DraftInputContextProvider value={threadComposerContext}>
+        {threadQuery.hasOlder && (
+          <Pressable
+            onPress={threadQuery.loadOlder}
+            disabled={threadQuery.loadingOlder}
+            padding="$m"
+            alignItems="center"
+          >
+            <Text color="$secondaryText">
+              {threadQuery.loadingOlder
+                ? 'Loading replies…'
+                : threadQuery.olderError
+                  ? 'Retry loading earlier replies'
+                  : 'Load earlier replies'}
+            </Text>
+          </Pressable>
+        )}
         {parentPost ? (
           <DetailView
             post={parentPost}

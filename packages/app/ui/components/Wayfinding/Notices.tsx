@@ -1,4 +1,5 @@
 import { getCurrentUserIsHosted } from '@tloncorp/api';
+import { getDurableClient } from '@tloncorp/api/client/durable';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Icon, Pressable, Text } from '@tloncorp/ui';
@@ -138,7 +139,10 @@ function GroupChannels(props: { group: db.Group }) {
           Welcome to your workspace! We’ve created three basic channels to get
           you started. Tap into each to explore how Tlon Messenger works.
         </NoticeText>
-        <InviteFriendsToTlonButton group={props.group} />
+        {/* A durable server has no invite links. */}
+        {getDurableClient() ? null : (
+          <InviteFriendsToTlonButton group={props.group} />
+        )}
       </NoticeContainer>
     </View>
   );

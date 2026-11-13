@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { getDurableClient } from '@tloncorp/api/client/durable';
+import { durableMessageToPost } from '@tloncorp/api/client/postsApi';
 
 import * as db from '../db';
 import { syncThreadPosts } from './sync';
@@ -13,30 +15,69 @@ export const useThreadPosts = ({
   postId,
   channelId,
   authorId,
+  enabled = true,
 }: {
   postId: string;
   authorId: string;
   channelId: string;
+  enabled?: boolean;
 }) => {
+  const client = getDurableClient();
+  const [hasOlder, setHasOlder] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [olderError, setOlderError] = useState(false);
+  const loading = useRef(false);
   useEffect(() => {
-    // TODO: Check if necessary, based on unreads or reply count
+    if (client && !enabled) return;
+    let mounted = true;
+    setHasOlder(false);
     syncThreadPosts({
       postId,
       authorId,
       channelId,
       trigger: 'thread_open',
-    }).catch(() => {
-      // syncThreadPosts records the failure; don't leave an unhandled rejection.
-    });
-  }, [authorId, channelId, postId]);
+    })
+      .then(() => {
+        if (mounted)
+          setHasOlder(client?.hasOlderReplies(channelId, postId) ?? false);
+      })
+      .catch(() => {
+        // syncThreadPosts records the failure.
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [authorId, channelId, postId, client, enabled]);
 
-  return useQuery({
+  const loadOlder = useCallback(async () => {
+    if (!client || loading.current) return;
+    loading.current = true;
+    setLoadingOlder(true);
+    setOlderError(false);
+    try {
+      const messages = await client.olderReplies(channelId, postId);
+      await db.insertChannelPosts({
+        posts: messages.map((message) =>
+          durableMessageToPost(channelId, message)
+        ),
+      });
+      setHasOlder(client.hasOlderReplies(channelId, postId));
+    } catch {
+      setOlderError(true);
+    } finally {
+      loading.current = false;
+      setLoadingOlder(false);
+    }
+  }, [client, channelId, postId]);
+
+  const query = useQuery({
     queryKey: [
       ['thread', postId, authorId],
       useKeyFromQueryDeps(db.getThreadPosts),
     ],
     queryFn: () => db.getThreadPosts({ parentId: postId }),
   });
+  return { ...query, hasOlder, loadingOlder, olderError, loadOlder };
 };
 
 /** Reports the committed query and list inputs without modifying either cache. */

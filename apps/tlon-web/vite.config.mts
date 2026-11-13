@@ -49,7 +49,9 @@ export default ({ mode }: { mode: string }) => {
     '$1127.0.0.1'
   );
   const shouldUploadSourcemaps =
-    process.env.CI === 'true' && Boolean(process.env.SENTRY_AUTH_TOKEN);
+    mode !== 'durable' &&
+    process.env.CI === 'true' &&
+    Boolean(process.env.SENTRY_AUTH_TOKEN);
 
   // why-did-you-render's jsx runtime wraps every createElement call and pulls
   // the library into the bundle, so only opt in when WDYR is actually enabled
@@ -88,7 +90,7 @@ export default ({ mode }: { mode: string }) => {
       ];
     }
 
-    if (mode === 'electron') {
+    if (mode === 'electron' || mode === 'durable') {
       return [
         exportingRawText(/\.sql$/),
         expo52PatchPlugin(), // Fix Expo 52 static name assignments
@@ -109,6 +111,7 @@ export default ({ mode }: { mode: string }) => {
         tamaguiPlugin({
           config: './tamagui.config.ts',
           platform: 'web',
+          disableExtraction: mode === 'durable',
         }) as Plugin,
       ];
     }
@@ -290,10 +293,29 @@ export default ({ mode }: { mode: string }) => {
       //      as a workaround for this, we rewrite the path going into the
       //      proxy to "hide" the empty path segments, and then rewrite the
       //      path coming "out" of the proxy to obtain the original path.
-      proxy: urbitProxy,
+      proxy:
+        mode === 'durable'
+          ? {
+              '/v1': {
+                target:
+                  process.env.DURABLE_BACKEND_URL ?? 'http://127.0.0.1:3001',
+                ws: true,
+              },
+            }
+          : urbitProxy,
     },
     preview: {
-      proxy: urbitProxy,
+      host: '127.0.0.1',
+      proxy:
+        mode === 'durable'
+          ? {
+              '/v1': {
+                target:
+                  process.env.DURABLE_BACKEND_URL ?? 'http://127.0.0.1:3001',
+                ws: true,
+              },
+            }
+          : urbitProxy,
     },
     build:
       mode !== 'profile'
@@ -339,7 +361,7 @@ export default ({ mode }: { mode: string }) => {
             import.meta.url
           )
         ),
-        ...(mode === 'electron'
+        ...(mode === 'electron' || mode === 'durable'
           ? {
               'virtual:pwa-register/react': fileURLToPath(
                 new URL('./src/logic/useAppUpdatesStub.ts', import.meta.url)
@@ -357,7 +379,9 @@ export default ({ mode }: { mode: string }) => {
     optimizeDeps: {
       exclude: [
         'sqlocal',
-        ...(mode === 'electron' ? ['virtual:pwa-register/react'] : []),
+        ...(mode === 'electron' || mode === 'durable'
+          ? ['virtual:pwa-register/react']
+          : []),
       ],
     },
     test: {

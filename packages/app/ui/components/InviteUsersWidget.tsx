@@ -1,3 +1,4 @@
+import { getDurableClient } from '@tloncorp/api/client/durable';
 import * as store from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Button } from '@tloncorp/ui';
@@ -23,12 +24,16 @@ const InviteUsersWidgetComponent = ({
 
   return (
     <>
-      <ActionSheet.ContentBlock>
-        <InviteFriendsToTlonButton group={group} />
-      </ActionSheet.ContentBlock>
+      {/* A durable server has no invite links. */}
+      {getDurableClient() ? null : (
+        <ActionSheet.ContentBlock>
+          <InviteFriendsToTlonButton group={group} />
+        </ActionSheet.ContentBlock>
+      )}
       <ActionSheet.ContentBlock flex={1}>
         <ContactBook
           multiSelect
+          excludeBots
           searchable
           searchPlaceholder="Filter by nickname, @p"
           onSelectedChange={setInvitees}

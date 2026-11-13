@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { isBotContact } from './botIdentity';
+import { isBotContact, isNotBotContact } from './botIdentity';
 
 const validClaim = JSON.stringify({
   v: 1,
@@ -54,5 +54,17 @@ describe('isBotContact', () => {
   // predicate on a truthy id would pass every other case here.
   test('valid claim with no id is still a bot', () => {
     expect(isBotContact({ botInfo: validClaim })).toBe(true);
+  });
+});
+
+describe('isNotBotContact', () => {
+  test('leaves out hosted bots and contacts with a bot claim, as Slab agents carry', () => {
+    const claim = JSON.stringify({ v: 1, harness: 'slab', version: '1' });
+    const kept = [
+      { id: '~sampel-palnet' },
+      { id: '~pinser-botter-sampel-palnet' },
+      { id: '~scout', botInfo: claim },
+    ].filter(isNotBotContact);
+    expect(kept.map((contact) => contact.id)).toEqual(['~sampel-palnet']);
   });
 });

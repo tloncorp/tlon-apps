@@ -1,4 +1,5 @@
 import * as api from '@tloncorp/api';
+import { getDurableClient } from '@tloncorp/api/client/durable';
 import {
   ChannelContentConfiguration,
   StructuredChannelDescriptionPayload,
@@ -72,6 +73,8 @@ export function canShipHostBuckets(ship: string) {
  * so the ship class is all we have and the host's own sync is the real check.
  */
 export function canGroupHostBuckets(hostUserId: string) {
+  // A Slab group keeps its Buckets on its own server.
+  if (getDurableClient()) return true;
   if (!canShipHostBuckets(hostUserId)) return false;
   let hostIsUs = false;
   try {
@@ -125,7 +128,8 @@ export async function createChannel({
     });
   }
 
-  if (channelType === 'buckets') {
+  // On Slab a Bucket is created like any other channel, through the group.
+  if (channelType === 'buckets' && !getDurableClient()) {
     return createBucketsChannel({
       customSlug,
       groupId,
@@ -640,7 +644,9 @@ export async function updateChannel({
       groupId,
       channelId: channel.id,
       channel: groupChannel,
+      writers: getDurableClient() ? writers : undefined,
     });
+    if (getDurableClient()) return;
     const bucketFlag = api.parseBucketsChannelId(channel.id);
     if (bucketFlag) {
       await api.sendBucketsAction({
@@ -1109,6 +1115,17 @@ export async function upsertDmChannel({
 }: {
   participants: string[];
 }): Promise<db.Channel> {
+  const local = getDurableClient();
+  if (local) {
+    if (participants.length !== 1)
+      throw new Error('The local backend currently supports one-to-one DMs');
+    await local.ensureRoom(participants[0]);
+    const channel = local
+      .channels()
+      .find((channel) => channel.id === participants[0])!;
+    await db.insertChannels([channel]);
+    return channel;
+  }
   logger.log(`upserting dm channel`, participants);
   const currentUserId = api.getCurrentUserId();
   // if it's a group dm

@@ -45,7 +45,8 @@
     "e2e:parallel:debug": "./rube/debug-parallel.sh",
     "e2e:parallel:cleanup": "./rube/cleanup-containers.sh",
     "e2e:shard": "pnpm rube:compile && node ./rube/dist/index.js",
-    "e2e:merge-reports": "node ./rube/merge-reports.js"
+    "e2e:merge-reports": "node ./rube/merge-reports.js",
+    "dev:durable": "vite --mode durable --host 127.0.0.1 --port 5173 --strictPort"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [

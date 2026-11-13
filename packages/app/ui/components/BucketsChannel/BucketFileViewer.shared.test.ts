@@ -1,4 +1,8 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  DurableClient,
+  configureDurableClient,
+} from '@tloncorp/api/client/durable';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   HTML_PREVIEW_LINK_MESSAGE,
@@ -71,6 +75,28 @@ describe('getBucketPreviewKind', () => {
   ] as const)('classifies %s (%s) as %s', (name, mimeType, expected) => {
     expect(getBucketPreviewKind({ name, mimeType })).toBe(expected);
   });
+});
+
+describe('getBucketPreviewKind on Slab', () => {
+  beforeEach(() => configureDurableClient(new DurableClient('token')));
+  afterEach(() =>
+    configureDurableClient(undefined as unknown as DurableClient)
+  );
+
+  it.each([
+    ['photo.jpg', 'image/jpeg', 'image'],
+    ['demo.mp4', 'video/mp4', 'video'],
+    ['index.html', 'text/html', 'html'],
+    ['notes.md', undefined, 'text'],
+    ['logo.svg', 'image/svg+xml', 'unsupported'],
+    ['photo.heic', 'image/heic', 'unsupported'],
+    ['report.pdf', 'application/pdf', 'unsupported'],
+  ] as const)(
+    'offers only what the server shows inline: %s',
+    (name, mimeType, expected) => {
+      expect(getBucketPreviewKind({ name, mimeType })).toBe(expected);
+    }
+  );
 });
 
 // A preview reads the whole object into memory, and the backend accepts up to

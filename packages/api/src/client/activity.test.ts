@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { getVolumeMap } from '../urbit/activity';
-import { extractClientVolumes } from './activity';
+import { extractClientVolumes, toSourceActivityEvents } from './activity';
+import type { ActivityEvent } from '../types/models';
 
 const hush = getVolumeMap('hush', true);
 const medium = getVolumeMap('medium', true);
@@ -55,4 +56,21 @@ describe('extractClientVolumes', () => {
   it('skips null entries', () => {
     expect(extractClientVolumes({ 'ship/~zod': null })).toEqual([]);
   });
+});
+
+it('merging the All feed with Mentions counts each event once', () => {
+  const mention = {
+    id: '1',
+    sourceId: 'room/mention/1',
+    type: 'post',
+    timestamp: 1000,
+    postId: 'post',
+    isMention: true,
+  } as ActivityEvent;
+  const sources = toSourceActivityEvents([
+    mention,
+    { ...mention, bucketId: 'mentions' },
+  ]);
+  expect(sources).toHaveLength(1);
+  expect(sources[0].all).toHaveLength(1);
 });

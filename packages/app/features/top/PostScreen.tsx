@@ -1,3 +1,4 @@
+import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   AnalyticsEvent,
@@ -24,8 +25,10 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Post'>;
 
 export default function PostScreen(props: Props) {
   const { postId, channelId, authorId, selectedPostId } = props.route.params;
+  store.useDurableConversation(channelId, useIsFocused());
   const chatOptionsNavProps = useChatSettingsNavigation();
   const canUpload = store.useCanUpload();
+  const uploadAsset = store.useConversationUpload(channelId);
   const { data: post, isLoading } = store.usePostWithThreadUnreads({
     id: postId,
   });
@@ -54,7 +57,7 @@ export default function PostScreen(props: Props) {
       <AttachmentProvider
         key={postId}
         canUpload={canUpload}
-        uploadAsset={store.uploadAsset}
+        uploadAsset={uploadAsset}
       >
         {post && (
           <PostScreenContent
@@ -174,25 +177,27 @@ function PostScreenContent({
   }, [channel, postId, navigation, navigateBackFromPost]);
 
   return currentUserId && channel && post && !shouldHideDeletedPost ? (
-    <PostScreenView
-      handleGoToUserProfile={handleGoToUserProfile}
-      parentPost={post}
-      channel={channel}
-      goBack={handleGoBack}
-      group={group}
-      handleGoToImage={navigateToImage}
-      onPressDelete={handleDeletePost}
-      onPressRetry={handleRetrySend}
-      onGroupAction={performGroupAction}
-      goToDm={handleGoToDm}
-      goToContextLensRuns={navigateToContextLensRuns}
-      goToContextLensRun={navigateToContextLensRun}
-      negotiationMatch={negotiationStatus.matchedOrPending}
-      selectedPostId={selectedPostId}
-      // NB: If we're showing posts in a carousel, all carousel items share the
-      // same editingPost.
-      editingPost={editingPost}
-      setEditingPost={setEditingPost}
-    />
+    <>
+      <PostScreenView
+        handleGoToUserProfile={handleGoToUserProfile}
+        parentPost={post}
+        channel={channel}
+        goBack={handleGoBack}
+        group={group}
+        handleGoToImage={navigateToImage}
+        onPressDelete={handleDeletePost}
+        onPressRetry={handleRetrySend}
+        onGroupAction={performGroupAction}
+        goToDm={handleGoToDm}
+        goToContextLensRuns={navigateToContextLensRuns}
+        goToContextLensRun={navigateToContextLensRun}
+        negotiationMatch={negotiationStatus.matchedOrPending}
+        selectedPostId={selectedPostId}
+        // NB: If we're showing posts in a carousel, all carousel items share the
+        // same editingPost.
+        editingPost={editingPost}
+        setEditingPost={setEditingPost}
+      />
+    </>
   ) : null;
 }

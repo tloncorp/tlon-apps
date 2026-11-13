@@ -1,3 +1,10 @@
+import type { MessageSearchHit } from '@tloncorp/api/client/messageSearch';
+import * as store from '@tloncorp/shared/store';
+import {
+  MessageSearchResults,
+  type MessageSearchResultsRef,
+} from './MessageSearchResults';
+import { Pressable, Text } from '@tloncorp/ui';
 import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -16,15 +23,50 @@ import { FilteredChatList, FilteredChatListRef } from './FilteredChatList';
 
 export interface GlobalSearchProps {
   navigateToGroup: (id: string) => void;
-  navigateToChannel: (channel: db.Channel) => void;
+  navigateToPost: (post: db.Post, selectedPostId?: string) => void;
+  navigateToChannel: (channel: db.Channel, selectedPostId?: string) => void;
 }
 
 export function GlobalSearch({
   navigateToGroup,
   navigateToChannel,
+  navigateToPost,
 }: GlobalSearchProps) {
   const { isOpen, setIsOpen } = useGlobalSearch();
+  const supportsMessageSearch = store.useMessageSearchSupported();
   const [searchQuery, setSearchQuery] = useState('');
+  const [mode, setMode] = useState<'chats' | 'messages'>(
+    supportsMessageSearch ? 'messages' : 'chats'
+  );
+  const [openingError, setOpeningError] = useState('');
+  const opening = useRef(false);
+  const generation = useRef(0);
+  useEffect(() => {
+    generation.current++;
+    opening.current = false;
+  }, [isOpen]);
+  const messageRef = useRef<MessageSearchResultsRef>(null);
+  const onSelectMessage = useCallback(
+    async (hit: MessageSearchHit) => {
+      if (opening.current || !isOpen) return;
+      opening.current = true;
+      const current = generation.current;
+      setOpeningError('');
+      try {
+        const result = await store.prepareMessageSearchResult(hit);
+        if (current !== generation.current) return;
+        setIsOpen(false);
+        if (result.parent) navigateToPost(result.parent, result.selectedPostId);
+        else navigateToChannel(result.channel, result.selectedPostId);
+      } catch {
+        if (current === generation.current) {
+          opening.current = false;
+          setOpeningError('Couldn’t open that message. Try again.');
+        }
+      }
+    },
+    [setIsOpen, navigateToPost, navigateToChannel, isOpen]
+  );
   const inputRef = useRef<TextInputRef>(null);
   const listRef = useRef<FilteredChatListRef>(null);
 
@@ -47,20 +89,23 @@ export function GlobalSearch({
     (key: string) => {
       switch (key) {
         case 'ArrowDown':
-          listRef.current?.selectNext();
+          if (mode === 'messages') messageRef.current?.selectNext();
+          else listRef.current?.selectNext();
           break;
         case 'ArrowUp':
-          listRef.current?.selectPrevious();
+          if (mode === 'messages') messageRef.current?.selectPrevious();
+          else listRef.current?.selectPrevious();
           break;
         case 'Escape':
           setIsOpen(false);
           break;
         case 'Enter':
-          listRef.current?.pressSelected();
+          if (mode === 'messages') messageRef.current?.pressSelected();
+          else listRef.current?.pressSelected();
           break;
       }
     },
-    [setIsOpen]
+    [setIsOpen, mode]
   );
 
   const handleKeyPress = useCallback(
@@ -93,7 +138,10 @@ export function GlobalSearch({
       } else if (event.key === 'Escape') {
         event.preventDefault();
         setIsOpen(false);
-      } else if (isOpen) {
+      } else if (
+        isOpen &&
+        (event.target as HTMLElement | null)?.tagName !== 'SELECT'
+      ) {
         // Handle navigation keys
         switch (event.key) {
           case 'ArrowDown':
@@ -115,6 +163,7 @@ export function GlobalSearch({
       trackEvent(AnalyticsEvent.GlobalSearchOpened);
       inputRef.current?.focus();
       setSearchQuery('');
+      setOpeningError('');
     }
   }, [isOpen]);
 
@@ -155,7 +204,7 @@ export function GlobalSearch({
       >
         <TextInput
           ref={inputRef}
-          placeholder={`Navigate to workspaces, DMs, or channels (${
+          placeholder={`${supportsMessageSearch ? 'Search your messages or chats' : 'Navigate to workspaces, DMs, or channels'} (${
             navigator.platform.includes('Mac') ? '⌘K' : 'Ctrl+K'
           })`}
           icon="Search"
@@ -172,8 +221,43 @@ export function GlobalSearch({
           autoCorrect={false}
           autoCapitalize="none"
         />
+        {supportsMessageSearch ? (
+          <XStack gap="$l">
+            <Pressable
+              accessibilityRole="tab"
+              accessibilityState={{ selected: mode === 'messages' }}
+              onPress={() => setMode('messages')}
+            >
+              <Text
+                color={mode === 'messages' ? '$primaryText' : '$secondaryText'}
+              >
+                Messages
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="tab"
+              accessibilityState={{ selected: mode === 'chats' }}
+              onPress={() => setMode('chats')}
+            >
+              <Text
+                color={mode === 'chats' ? '$primaryText' : '$secondaryText'}
+              >
+                Chats
+              </Text>
+            </Pressable>
+          </XStack>
+        ) : null}
         <YStack gap="$m" style={{ maxHeight: 400, overflowY: 'scroll' }}>
-          {isOpen && (
+          {isOpen && mode === 'messages' ? (
+            <MessageSearchResults
+              ref={messageRef}
+              query={searchQuery}
+              enabled={isOpen}
+              onSelect={onSelectMessage}
+              error={openingError}
+            />
+          ) : null}
+          {isOpen && mode === 'chats' && (
             <FilteredChatList
               searchQuery={searchQuery}
               ref={listRef}

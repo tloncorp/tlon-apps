@@ -3574,7 +3574,10 @@ export const setVolumes = createWriteQuery(
     }: { volumes: VolumeSettings[]; deleteOthers?: boolean },
     ctx: QueryCtx
   ) => {
-    if (!volumes.length) return;
+    if (!volumes.length) {
+      if (deleteOthers) await ctx.db.delete($volumeSettings);
+      return;
+    }
     await ctx.db
       .insert($volumeSettings)
       .values(volumes)
@@ -5755,6 +5758,31 @@ export const deletePostReaction = createWriteQuery(
   ['posts', 'postReactions']
 );
 
+export const pruneDurableRoom = createWriteQuery(
+  'pruneDurableRoom',
+  async (
+    { channelId, preview }: { channelId: string; preview?: Post },
+    ctx: QueryCtx
+  ) =>
+    withTransactionCtx(ctx, async (tx) => {
+      await tx.db
+        .delete($posts)
+        .where(
+          and(
+            eq($posts.channelId, channelId),
+            isNull($posts.deliveryStatus),
+            preview ? not(eq($posts.id, preview.id)) : undefined
+          )
+        );
+      if (preview)
+        await insertChannelPosts(
+          { posts: [{ ...preview, sequenceNum: null }] },
+          tx
+        );
+    }),
+  ['posts', 'postReactions', 'channels']
+);
+
 export const deletePosts = createWriteQuery(
   'deletePosts',
   async ({ ids }: { ids: string[] }, ctx: QueryCtx) => {
@@ -7240,7 +7268,10 @@ export const insertActivityEvents = createWriteQuery(
 export const clearActivityEvents = createWriteQuery(
   'clearActivityEvents',
   async (ctx: QueryCtx) => {
-    return ctx.db.delete($activityEvents);
+    return withTransactionCtx(ctx, async (tx) => {
+      await tx.db.delete($activityEventContactGroups);
+      await tx.db.delete($activityEvents);
+    });
   },
   ['activityEvents']
 );
@@ -7292,6 +7323,7 @@ export const getUnreadUnseenActivityEvents = createReadQuery(
       .where(
         and(
           gt($activityEvents.timestamp, seenMarker),
+          or(isNull($activityEvents.isRead), eq($activityEvents.isRead, false)),
           or(
             eq($activityEvents.type, 'contact'),
             and(

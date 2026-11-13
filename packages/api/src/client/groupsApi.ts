@@ -1,3 +1,4 @@
+import { getDurableClient } from './durable';
 import { ThreadResponseBodyError } from '../http-api';
 import { createDevLogger } from '../lib/logger';
 import { AnalyticsEvent, AnalyticsSeverity } from '../types/analytics';
@@ -78,6 +79,13 @@ export function acceptGroupJoin({
   groupId: string;
   contactIds: string[];
 }) {
+  if (getDurableClient())
+    return getDurableClient()!.directory({
+      type: 'approve',
+      groupId,
+      contacts: contactIds,
+    });
+
   return pokeRequest(groups.action)(
     groupAction({
       group: {
@@ -102,6 +110,13 @@ export function rejectGroupJoin({
   groupId: string;
   contactIds: string[];
 }) {
+  if (getDurableClient())
+    return getDurableClient()!.directory({
+      type: 'deny',
+      groupId,
+      contacts: contactIds,
+    });
+
   return pokeRequest(groups.action)(
     groupAction({
       group: {
@@ -120,6 +135,9 @@ export function rejectGroupJoin({
 }
 
 export function cancelGroupJoin(groupId: string) {
+  if (getDurableClient())
+    return getDurableClient()!.directory({ type: 'decline', groupId });
+
   return pokeRequest(groups.cancel)(groupId);
 }
 
@@ -130,6 +148,12 @@ export function inviteGroupMembers({
   groupId: string;
   contactIds: string[];
 }) {
+  if (getDurableClient())
+    return getDurableClient()!.directory({
+      type: 'invite',
+      groupId,
+      contacts: contactIds,
+    });
   return pokeRequest(groups.action)(
     groupAction({
       invite: {
@@ -151,6 +175,12 @@ export function revokeGroupMemberInvites({
   groupId: string;
   contactIds: string[];
 }) {
+  if (getDurableClient())
+    return getDurableClient()!.directory({
+      type: 'revoke',
+      groupId,
+      contacts: contactIds,
+    });
   return pokeRequest(groups.action)(
     groupAction({
       group: {
@@ -182,6 +212,12 @@ export async function kickUsersFromGroup({
   groupId: string;
   contactIds: string[];
 }) {
+  if (getDurableClient())
+    return getDurableClient()!.directory({
+      type: 'remove',
+      groupId,
+      contacts: contactIds,
+    });
   return pokeRequest(groups.action)(
     groupAction({
       group: {
@@ -206,6 +242,13 @@ export async function banUsersFromGroup({
   groupId: string;
   contactIds: string[];
 }) {
+  if (getDurableClient())
+    return getDurableClient()!.directory({
+      type: 'ban',
+      groupId,
+      contacts: contactIds,
+    });
+
   return pokeRequest(groups.action)(
     groupAction({
       group: {
@@ -229,6 +272,13 @@ export async function unbanUsersFromGroup({
   groupId: string;
   contactIds: string[];
 }) {
+  if (getDurableClient())
+    return getDurableClient()!.directory({
+      type: 'unban',
+      groupId,
+      contacts: contactIds,
+    });
+
   return pokeRequest(groups.action)(
     groupAction({
       group: {
@@ -246,10 +296,15 @@ export async function unbanUsersFromGroup({
 }
 
 export async function leaveGroup(groupId: string) {
+  if (getDurableClient())
+    return getDurableClient()!.directory({ type: 'leave', groupId });
   return pokeRequest(groups.leave)(groupId);
 }
 
 export function requestGroupInvitation(groupId: string) {
+  if (getDurableClient())
+    return getDurableClient()!.directory({ type: 'requestJoin', groupId });
+
   logger.log('api knocking', groupId);
   return pokeRequest(groups.knock)(groupId);
 }
@@ -259,6 +314,13 @@ export async function updateGroupPrivacy(params: {
   oldPrivacy: GroupPrivacy;
   newPrivacy: GroupPrivacy;
 }) {
+  if (getDurableClient())
+    return getDurableClient()!.directory({
+      type: 'updateGroup',
+      groupId: params.groupId,
+      privacy: params.newPrivacy,
+    });
+
   // In v8/v9, privacy is a single unified setting that includes secret/private/public
   return pokeRequest(groups.action)(
     groupAction({
@@ -289,6 +351,8 @@ export const getPinnedItemType = (rawItem: string) => {
 };
 
 export const unpinItem = async (itemId: string) => {
+  if (getDurableClient())
+    return void (await getDurableClient()!.pin(itemId, false));
   return await pokeRequest(groupsUi.action)({
     pins: {
       del: itemId,
@@ -297,6 +361,8 @@ export const unpinItem = async (itemId: string) => {
 };
 
 export const pinItem = async (itemId: string) => {
+  if (getDurableClient())
+    return void (await getDurableClient()!.pin(itemId, true));
   return await pokeRequest(groupsUi.action)({
     pins: {
       add: itemId,
@@ -305,6 +371,11 @@ export const pinItem = async (itemId: string) => {
 };
 
 export const setPinnedItemOrder = async (itemIds: string[]) => {
+  if (getDurableClient())
+    return void (await getDurableClient()!.updateState({
+      type: 'pins',
+      pins: itemIds,
+    }));
   return await pokeRequest(groupsUi.action)({
     pins: {
       'set-order': itemIds,
@@ -334,6 +405,7 @@ export const getChannelPreview = async (
 };
 
 export const getGroupPreview = async (groupId: string) => {
+  if (getDurableClient()) return getDurableClient()!.previewGroup(groupId);
   const result = await subscribeOnceRequest(
     groups.gangPreview
   )<ub.GroupPreview>({ groupId }, undefined, undefined, {
@@ -367,6 +439,12 @@ export const createGroup = async ({
   memberIds?: string[];
   placeHolderTitle?: string;
 }): Promise<db.Group> => {
+  if (getDurableClient())
+    return getDurableClient()!.createGroup(
+      group,
+      memberIds ?? [],
+      placeHolderTitle
+    );
   const payload: ub.GroupCreateThreadInput = {
     groupId: group.id,
     meta: {
@@ -438,6 +516,7 @@ export const createGroup = async ({
 };
 
 export const getGroup = async (groupId: string) => {
+  if (getDurableClient()) return getDurableClient()!.group(groupId);
   const groupData = await scryRequest(groups.uiGroup)<ub.GroupV11>({
     groupId,
   });
@@ -447,6 +526,7 @@ export const getGroup = async (groupId: string) => {
 // The group with init's light roster (ours plus 14 others) and a count of
 // every seat: syncs a big group without pulling its whole roster.
 export const getGroupLight = async (groupId: string) => {
+  if (getDurableClient()) return getDurableClient()!.group(groupId);
   const groupData = await scryRequest(groups.uiGroupLight)<ub.GroupV11>({
     groupId,
   });
@@ -474,6 +554,17 @@ export const getGroupMembersPage = async ({
   after?: string | null;
   roleId?: string;
 }): Promise<GroupMembersPage> => {
+  if (getDurableClient()) {
+    const members = (getDurableClient()!.group(groupId).members ?? []).filter(
+      (member) =>
+        member.status === 'joined' &&
+        (!roleId ||
+          member.roles?.some(
+            (role: { roleId: string }) => role.roleId === roleId
+          ))
+    );
+    return { total: members.length, members, next: null };
+  }
   const page = await (roleId
     ? after
       ? scryRequest(groups.roleSeatsPageAfter)<ub.GroupSeatsPage>({
@@ -509,6 +600,7 @@ export const getGroupMembersPage = async ({
 };
 
 export const getGroups = async () => {
+  if (getDurableClient()) return getDurableClient()!.groups();
   const groupData = await scryRequest(groups.groups)<ub.GroupsV11>({});
   return toClientGroups(groupData, true);
 };
@@ -520,6 +612,13 @@ export const updateGroupMeta = async ({
   groupId: string;
   meta: ub.GroupMeta;
 }) => {
+  if (getDurableClient())
+    return getDurableClient()!.directory({
+      type: 'updateGroup',
+      groupId,
+      meta,
+    });
+
   return await trackedPokeRequest(
     groups.action,
     groups.updates
@@ -552,6 +651,13 @@ export const updateGroupBlob = async ({
   groupId: string;
   blob: string | null;
 }) => {
+  if (getDurableClient())
+    return getDurableClient()!.directory({
+      type: 'updateGroup',
+      groupId,
+      blob,
+    });
+
   return await trackedPokeRequest(
     groups.action,
     groups.updates
@@ -578,6 +684,9 @@ export const updateGroupBlob = async ({
 };
 
 export const deleteGroup = async (groupId: string) => {
+  if (getDurableClient())
+    return getDurableClient()!.directory({ type: 'deleteGroup', groupId });
+
   return await trackedPokeRequest(
     groups.action,
     groups.updates
@@ -609,6 +718,13 @@ export const addNavSection = async ({
   groupId: string;
   navSection: db.GroupNavSection;
 }) => {
+  if (getDurableClient())
+    return getDurableClient()!.editSection(
+      groupId,
+      navSection.sectionId,
+      navSection
+    );
+
   return await trackedPokeRequest(
     groups.action,
     groups.updates
@@ -652,6 +768,9 @@ export const deleteNavSection = async ({
   sectionId: string;
   groupId: string;
 }) => {
+  if (getDurableClient())
+    return getDurableClient()!.editSection(groupId, sectionId);
+
   return await pokeRequest(groups.action)(
     groupAction({
       group: {
@@ -676,6 +795,13 @@ export const updateNavSection = async ({
   groupId: string;
   navSection: db.GroupNavSection;
 }) => {
+  if (getDurableClient())
+    return getDurableClient()!.editSection(
+      groupId,
+      navSection.sectionId,
+      navSection
+    );
+
   return await pokeRequest(groups.action)(
     groupAction({
       group: {
@@ -708,6 +834,11 @@ export const addChannelToNavSection = async ({
   navSectionId: string;
   channelId: string;
 }) => {
+  if (getDurableClient())
+    return getDurableClient()!.channelChange(channelId, {
+      section: navSectionId,
+    });
+
   logger.log('addChannelToNavSection', { groupId, navSectionId, channelId });
   return await trackedPokeRequest(
     groups.action,
@@ -793,6 +924,9 @@ export const addChannelToGroup = async ({
   groupId: string;
   sectionId: string;
 }) => {
+  if (getDurableClient())
+    return getDurableClient()!.channelChange(channelId, { section: sectionId });
+
   return await trackedPokeRequest(
     groups.action,
     groups.updates
@@ -831,11 +965,22 @@ export const updateChannel = async ({
   groupId,
   channelId,
   channel,
+  writers,
 }: {
   groupId: string;
   channelId: string;
   channel: GroupChannelV7;
+  writers?: string[];
 }) => {
+  if (getDurableClient())
+    return getDurableClient()!.channelChange(channelId, {
+      meta: channel.meta,
+      readers: channel.readers,
+      autoJoin: channel.join,
+      section: channel.section,
+      ...(writers !== undefined ? { writers } : {}),
+    });
+
   return await pokeRequest(groups.action)(
     groupAction({
       group: {
@@ -860,6 +1005,13 @@ export const deleteChannel = async ({
   groupId: string;
   channelId: string;
 }) => {
+  if (getDurableClient())
+    return getDurableClient()!.directory({
+      type: 'deleteChannel',
+      groupId,
+      channelId,
+    });
+
   return await pokeRequest(groups.action)(
     groupAction({
       group: {
@@ -884,6 +1036,22 @@ export const updateGroupNavigation = async ({
   groupId: string;
   navSections: db.GroupNavSection[];
 }) => {
+  if (getDurableClient())
+    return getDurableClient()!.directory({
+      type: 'navigation',
+      groupId,
+      sections: [...navSections]
+        .sort((a, b) => (a.sectionIndex ?? 0) - (b.sectionIndex ?? 0))
+        .map((section) => ({
+          id: section.sectionId,
+          title: section.title ?? '',
+          description: section.description ?? '',
+          channels: [...(section.channels ?? [])]
+            .sort((a, b) => (a.channelIndex ?? 0) - (b.channelIndex ?? 0))
+            .map((channel) => channel.channelId),
+        })),
+    });
+
   const sections: Record<string, ub.GroupNavigationSectionData> = {};
 
   for (const section of navSections) {
@@ -922,6 +1090,14 @@ export const addGroupRole = async ({
   roleId: string;
   meta: db.ClientMeta;
 }) => {
+  if (getDurableClient())
+    return getDurableClient()!.directory({
+      type: 'updateRole',
+      groupId,
+      roleId,
+      meta: { title: meta.title, description: meta.description },
+    });
+
   return await pokeRequest(groups.action)(
     groupAction({
       group: {
@@ -951,6 +1127,13 @@ export const deleteGroupRole = async ({
   groupId: string;
   roleId: string;
 }) => {
+  if (getDurableClient())
+    return getDurableClient()!.directory({
+      type: 'deleteRole',
+      groupId,
+      roleId,
+    });
+
   return await pokeRequest(groups.action)(
     groupAction({
       group: {
@@ -977,6 +1160,14 @@ export const updateGroupRole = async ({
   roleId: string;
   meta: db.ClientMeta;
 }) => {
+  if (getDurableClient())
+    return getDurableClient()!.directory({
+      type: 'updateRole',
+      groupId,
+      roleId,
+      meta: { title: meta.title, description: meta.description },
+    });
+
   return await pokeRequest(groups.action)(
     groupAction({
       group: {
@@ -1008,6 +1199,15 @@ export const addMembersToRole = async ({
   roleId: string;
   ships: string[];
 }) => {
+  if (getDurableClient())
+    return getDurableClient()!.directory({
+      type: 'assignRoles',
+      groupId,
+      roles: [roleId],
+      contacts: ships,
+      remove: false,
+    });
+
   return await pokeRequest(groups.action)(
     groupAction({
       group: {
@@ -1034,6 +1234,15 @@ export const removeMembersFromRole = async ({
   roleId: string;
   ships: string[];
 }) => {
+  if (getDurableClient())
+    return getDurableClient()!.directory({
+      type: 'assignRoles',
+      groupId,
+      roles: [roleId],
+      contacts: ships,
+      remove: true,
+    });
+
   return await pokeRequest(groups.action)(
     groupAction({
       group: {
@@ -1060,6 +1269,15 @@ export const removeAllRolesFromMembers = async ({
   contactIds: string[];
   roleIds: string[];
 }) => {
+  if (getDurableClient())
+    return getDurableClient()!.directory({
+      type: 'assignRoles',
+      groupId,
+      roles: roleIds,
+      contacts: contactIds,
+      remove: true,
+    });
+
   return await pokeRequest(groups.action)(
     groupAction({
       group: {
@@ -2201,13 +2419,17 @@ function omitEmpty(val: string) {
 }
 
 export const joinGroup = async (id: string) =>
-  pokeRequest(groups.join)({
-    flag: id,
-    'join-all': true,
-  });
+  getDurableClient()
+    ? getDurableClient()!.directory({ type: 'join', groupId: id })
+    : pokeRequest(groups.join)({
+        flag: id,
+        'join-all': true,
+      });
 
 export const rejectGroupInvitation = async (id: string) =>
-  pokeRequest(groups.inviteDecline)(id);
+  getDurableClient()
+    ? getDurableClient()!.directory({ type: 'decline', groupId: id })
+    : pokeRequest(groups.inviteDecline)(id);
 
 export type GroupsUpdate =
   | { type: 'unknown' }

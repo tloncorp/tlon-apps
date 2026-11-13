@@ -1,13 +1,11 @@
-import { PLACEHOLDER_ASSET_URI, createDevLogger } from '@tloncorp/shared';
+import { PLACEHOLDER_ASSET_URI } from '@tloncorp/shared';
 import { Image as BaseImage, ImageErrorEventData } from 'expo-image';
 import { ReactElement, useCallback, useMemo, useState } from 'react';
 import { SizableText, View, styled } from 'tamagui';
-import { isDataURI, isURL } from 'validator';
 
 import { ErrorBoundary } from './ErrorBoundary';
 import { Icon } from './Icon';
-
-const logger = createDevLogger('Image', false);
+import { isValidImageSource } from './imageSource';
 
 const DefaultImageFallback = View.styleable((props, ref) => {
   return (
@@ -73,45 +71,6 @@ export const Image = StyledBaseImage.styleable<{
     },
   }
 );
-
-function isValidImageSource(source: any) {
-  try {
-    if (!source) return false;
-    const uri: string = typeof source === 'object' ? source.uri : source;
-    if (!uri) {
-      return false;
-    }
-
-    if (typeof uri === 'number') {
-      // this is the case for imports of bundled files (require() returns a numeric metro module ID)
-      return true;
-    }
-
-    if (
-      typeof uri === 'string' &&
-      (uri.startsWith('file:') || uri.startsWith('blob:'))
-    ) {
-      // permit file URIs
-      return true;
-    }
-
-    if (
-      typeof uri === 'string' &&
-      (uri.startsWith('./') || uri.startsWith('/'))
-    ) {
-      // permit relative paths (for web public assets)
-      return true;
-    }
-
-    return isURL(uri) || isDataURI(uri);
-  } catch (e) {
-    logger.trackError('Failed to validate image source', {
-      source,
-      error: e,
-    });
-  }
-  return false;
-}
 
 function isPlaceholderAsset(source: any) {
   return (

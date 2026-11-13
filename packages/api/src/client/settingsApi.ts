@@ -1,3 +1,4 @@
+import { getDurableClient } from './durable';
 import type * as db from '../types/models';
 import * as ub from '../urbit';
 import { base, pokeRequest, scryRequest, subscribeRequest } from './requests';
@@ -156,6 +157,12 @@ function getBucket(key: string): string {
 }
 
 export const setSetting = async (key: string, val: any) => {
+  if (getDurableClient())
+    return void (await getDurableClient()!.updateState({
+      type: 'setting',
+      key,
+      value: val,
+    }));
   return pokeRequest(base.settingsEvent)({
     'put-entry': {
       desk: 'groups',

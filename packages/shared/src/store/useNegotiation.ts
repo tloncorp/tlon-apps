@@ -1,3 +1,4 @@
+import { getDurableClient } from '@tloncorp/api/client/durable';
 import { useQuery } from '@tanstack/react-query';
 import * as api from '@tloncorp/api';
 import {
@@ -103,7 +104,7 @@ export function useNegotiation(
   );
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || getDurableClient()) return;
     watchNegotiation(app, (event: MatchingEvent) =>
       negotiationUpdater(event, queryKey, invalidate)
     );
@@ -113,7 +114,16 @@ export function useNegotiation(
     queryKey,
     enabled,
     staleTime: 5000,
-    queryFn: () => scryNegotiation(app),
+    queryFn: () => {
+      const local = getDurableClient();
+      return local
+        ? Object.fromEntries(
+            local
+              .contacts()
+              .map((contact) => [`${contact.id}/${agent}`, 'match' as const])
+          )
+        : scryNegotiation(app);
+    },
   });
 }
 

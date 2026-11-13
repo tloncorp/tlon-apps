@@ -113,6 +113,7 @@ vi.mock('@tloncorp/shared/store', () => ({
     return mocks.uploadStates;
   },
   uploadAsset: vi.fn(async () => {}),
+  useConversationUpload: () => React.useCallback(async () => {}, []),
   waitForUploads: async () => ({}),
   finalizeAndSendPost: mocks.finalizeAndSendPost,
 }));

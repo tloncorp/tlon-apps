@@ -148,6 +148,7 @@ export interface ActivityEvent extends WithId {
   channelId?: string | null;
   group?: Group | null;
   groupId?: string | null;
+  isRead?: boolean | null;
   isMention?: boolean | null;
   shouldNotify?: boolean | null;
   content?: unknown;

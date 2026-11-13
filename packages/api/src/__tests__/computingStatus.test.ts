@@ -94,4 +94,18 @@ describe('computingStatus', () => {
       )
     ).toBe('Using tools...');
   });
+
+  test('names the Slab assistant tools in plain words', () => {
+    expect(
+      getComputingStatusText(
+        createComputingStatus({
+          thinking: true,
+          toolCalls: [{ toolName: 'web_search' }],
+        })
+      )
+    ).toBe('Searching the web');
+    expect(formatComputingToolCallLabel('task_create')).toBe(
+      'Scheduling a task'
+    );
+  });
 });

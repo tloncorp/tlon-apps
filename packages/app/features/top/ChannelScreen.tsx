@@ -199,6 +199,10 @@ export default function ChannelScreen(props: Props) {
     React.useState(false);
   const [clearedCursor, setClearedCursor] = React.useState(false);
   const isFocused = useIsFocused();
+  const shouldLoadPosts = store.useDurableConversation(
+    currentChannelId,
+    isFocused
+  );
   useFocusEffect(
     useCallback(() => {
       let isCurrent = true;
@@ -342,6 +346,7 @@ export default function ChannelScreen(props: Props) {
     isLoading: isLoadingPosts,
   } = store.useChannelPosts({
     enabled:
+      shouldLoadPosts &&
       unreadDidInitialize &&
       !!channel &&
       !channel.isPendingChannel &&
@@ -585,6 +590,7 @@ export default function ChannelScreen(props: Props) {
   );
 
   const canUpload = useCanUpload();
+  const uploadAsset = store.useConversationUpload(currentChannelId);
 
   const chatOptionsNavProps = useChatSettingsNavigation();
 
@@ -646,7 +652,7 @@ export default function ChannelScreen(props: Props) {
       <AttachmentProvider
         key={currentChannelId}
         canUpload={canUpload}
-        uploadAsset={store.uploadAsset}
+        uploadAsset={uploadAsset}
       >
         <Channel
           key={currentChannelId}

@@ -36,6 +36,7 @@ export function currentHosting() {
  * Should be called early in the app bootstrap, before React renders.
  */
 export function initSentry() {
+  if (import.meta.env.MODE === 'durable') return;
   Sentry.init({
     // Only enable Sentry in production builds
     dsn: isDev ? undefined : SENTRY_DSN,

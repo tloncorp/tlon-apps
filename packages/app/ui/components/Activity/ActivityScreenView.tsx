@@ -1,3 +1,4 @@
+import { getDurableClient } from '@tloncorp/api/client/durable';
 import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
@@ -43,7 +44,7 @@ export function ActivityScreenView({
 }: {
   isFocused: boolean;
   goToChannel: (channel: db.Channel, selectedPostId?: string) => void;
-  goToThread: (post: db.Post) => void;
+  goToThread: (post: db.Post, selectedPostId?: string) => void;
   goToGroup: (group: db.Group) => void;
   goToUserProfile: (userId: string) => void;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
@@ -68,25 +69,23 @@ export function ActivityScreenView({
     );
   }, [activitySeenMarker, bucketFetchers.all.activity]);
 
-  const moveSeenMarker = useCallback(() => {
-    setTimeout(() => {
-      store.advanceActivitySeenMarker(newestTimestamp);
-    }, 1000);
-  }, [newestTimestamp]);
-
   useEffect(() => {
     if (
-      isFocused &&
-      activitySeenMarker !== null &&
-      activitySeenMarker !== undefined &&
-      newestTimestamp > activitySeenMarker
-    ) {
-      moveSeenMarker();
-    }
-  }, [moveSeenMarker, newestTimestamp, isFocused, activitySeenMarker]);
+      !isFocused ||
+      activitySeenMarker == null ||
+      newestTimestamp <= activitySeenMarker
+    )
+      return;
+    const timer = setTimeout(() => {
+      void store.advanceActivitySeenMarker(newestTimestamp);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [newestTimestamp, isFocused, activitySeenMarker]);
 
   const handlePressEvent = useCallback(
     async (event: db.ActivityEvent) => {
+      const parent = await store.prepareActivityThread(event);
+      if (parent) event = { ...event, parent };
       switch (event.type) {
         case 'flag-post':
         case 'post':
@@ -119,10 +118,10 @@ export function ActivityScreenView({
             type: 'channelThread',
           });
           if (event.parent) {
-            goToThread(event.parent);
+            goToThread(event.parent, event.postId ?? undefined);
           } else if (event.parentId) {
             const parentPost = db.assembleParentPostFromActivityEvent(event);
-            goToThread(parentPost);
+            goToThread(parentPost, event.postId ?? undefined);
           } else {
             console.warn('No parent found for reply', event);
           }
@@ -134,12 +133,15 @@ export function ActivityScreenView({
             logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {
               type: 'reaction',
             });
-            goToThread(event.parent);
+            goToThread(event.parent, event.postId ?? undefined);
           } else if (event.parentId) {
             logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {
               type: 'reaction',
             });
-            goToThread(db.assembleParentPostFromActivityEvent(event));
+            goToThread(
+              db.assembleParentPostFromActivityEvent(event),
+              event.postId ?? undefined
+            );
           } else if (event.channel) {
             logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {
               ...logic.getModelAnalytics({ channel: event.channel }),
@@ -412,7 +414,10 @@ export function ActivityScreenContent({
         />
         {allTabsAreEmpty ? (
           <ActivityEmptyState
-            onInviteFriends={() => setPersonalInviteOpen(true)}
+            // A durable server has no invite links.
+            onInviteFriends={
+              getDurableClient() ? undefined : () => setPersonalInviteOpen(true)
+            }
             onNavigateToContacts={onNavigateToContacts}
           />
         ) : (
@@ -451,11 +456,13 @@ export function ActivityScreenContent({
           group={selectedGroup ?? undefined}
           onActionComplete={handleGroupAction}
         />
-        <PersonalInviteSheet
-          open={personalInviteOpen}
-          onOpenChange={setPersonalInviteOpen}
-          onPressInviteFriends={handleInviteFriends}
-        />
+        {getDurableClient() ? null : (
+          <PersonalInviteSheet
+            open={personalInviteOpen}
+            onOpenChange={setPersonalInviteOpen}
+            onPressInviteFriends={handleInviteFriends}
+          />
+        )}
         <ConfirmDialog
           open={markAllReadConfirmationOpen}
           onOpenChange={setMarkAllReadConfirmationOpen}
@@ -473,7 +480,7 @@ export function ActivityEmptyState({
   onInviteFriends,
   onNavigateToContacts,
 }: {
-  onInviteFriends: () => void;
+  onInviteFriends?: () => void;
   onNavigateToContacts?: () => void;
 }) {
   const isDark = useIsDarkMode();
@@ -506,12 +513,18 @@ export function ActivityEmptyState({
         maxWidth={350}
         paddingBottom={'$m'}
       >
-        There is no activity... yet.{'\n'}Invite some of your contacts to
-        {'\n'}
-        Tlon Messenger to get started.
+        There is no activity... yet.
+        {onInviteFriends ? (
+          <>
+            {'\n'}Invite some of your contacts to{'\n'}
+            Tlon Messenger to get started.
+          </>
+        ) : null}
       </Text>
       <View gap="$s" width="100%" maxWidth={300}>
-        <Button label="Invite Friends" onPress={onInviteFriends} />
+        {onInviteFriends && (
+          <Button label="Invite Friends" onPress={onInviteFriends} />
+        )}
         {onNavigateToContacts && (
           <Button label="View Contacts" onPress={onNavigateToContacts} />
         )}

@@ -1,3 +1,5 @@
+import { getDurableClient } from '@tloncorp/api/client/durable';
+import { durableMessageToPost } from '@tloncorp/api/client/postsApi';
 import * as api from '@tloncorp/api';
 import { isGroupChannelId } from '@tloncorp/api/client';
 import * as ub from '@tloncorp/api/urbit';
@@ -378,3 +380,31 @@ export const persistUnreads = async ({
   await db.insertChannelUnreads(channelUnreads, ctx);
   await db.insertThreadUnreads(threadActivity, ctx);
 };
+
+export async function prepareActivityThread(event: db.ActivityEvent) {
+  const client = getDurableClient();
+  if (!client || !event.parentId || !event.channelId || !event.postId) return;
+  const parent = await client.message(event.channelId, event.parentId);
+  const target = await client.message(event.channelId, event.postId);
+  if (target.parentId !== parent.id)
+    throw new Error('Activity reply no longer belongs to this thread');
+  const page = await client.window(event.channelId, {
+    parentId: event.parentId,
+    mode: 'around',
+    anchor: target.seq,
+    count: 100,
+  });
+  const post = {
+    ...durableMessageToPost(event.channelId, parent),
+    groupId: client.room(event.channelId).groupId,
+  };
+  await db.insertChannelPosts({
+    posts: [
+      post,
+      ...page.messages.map((message) =>
+        durableMessageToPost(event.channelId!, message)
+      ),
+    ],
+  });
+  return post;
+}

@@ -1,3 +1,4 @@
+import { getDurableClient } from './durable';
 import { Noun } from '@urbit/nockjs';
 import _ from 'lodash';
 import { deriveBrowserOwnerToken } from '../lib/browserOwnerToken';
@@ -1025,6 +1026,7 @@ export async function subscribeOnce<T>(
 }
 
 export async function unsubscribe(id: number) {
+  if (getDurableClient() && id < 0) return getDurableClient()!.unsubscribe(id);
   if (!config.client) {
     throw new Error('Client not initialized');
   }

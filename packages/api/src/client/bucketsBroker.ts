@@ -1,3 +1,6 @@
+import { getDurableClient } from './durable';
+import { durableBucketReadUrl } from './durableBuckets';
+
 const DEFAULT_MEMEX_BASE_URL = 'https://memex.tlon.network';
 
 /**
@@ -116,12 +119,21 @@ async function brokerRequest<T>(path: string, init: RequestInit): Promise<T> {
  * what the broker falls back to. It is sanitized there before it reaches
  * Content-Disposition, and only affects our own download.
  */
-export function grantBucketRead(
+export async function grantBucketRead(
   capability: string,
   host: string,
   objectId: string,
   displayFilename?: string
 ): Promise<BucketReadGrant> {
+  const durable = getDurableClient();
+  if (durable) {
+    return {
+      objectId,
+      readUrl: await durableBucketReadUrl(durable, objectId),
+      expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+      acceptRanges: true,
+    };
+  }
   return brokerRequest(`/objects/${encodeURIComponent(objectId)}/read-grant`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${capability}` },
@@ -129,11 +141,15 @@ export function grantBucketRead(
   });
 }
 
-export function deleteBucketObject(
+export async function deleteBucketObject(
   capability: string,
   host: string,
   objectId: string
 ) {
+  // On Slab a file's bytes are deleted with its entry, by delete-entry.
+  if (getDurableClient()) {
+    return { objectId, deletedAt: new Date().toISOString() };
+  }
   return brokerRequest<{ objectId: string; deletedAt: string }>(
     `/objects/${encodeURIComponent(objectId)}`,
     {

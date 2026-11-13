@@ -450,6 +450,12 @@ export namespace Attachment {
     | ({ needsUpload: true } & UploadIntent) {
     switch (attachment.type) {
       case 'image':
+        if (attachment.uploadState?.status === 'success') {
+          return {
+            needsUpload: false,
+            finalized: { ...attachment, uploadState: attachment.uploadState },
+          };
+        }
         return {
           needsUpload: true,
           type: 'image',

@@ -180,6 +180,9 @@ export async function createGroup(params: {
       memberIds: params.memberIds,
     });
 
+    if (resultGroup.id !== params.group.id)
+      await db.deleteGroup(params.group.id);
+
     // insert the real one
     await db.insertGroups({ groups: [resultGroup] });
 

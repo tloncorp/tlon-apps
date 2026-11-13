@@ -1,5 +1,9 @@
 import * as api from '@tloncorp/api';
 import { poke } from '@tloncorp/api';
+import {
+  DurableClient,
+  configureDurableClient,
+} from '@tloncorp/api/client/durable';
 import * as $ from 'drizzle-orm';
 import { afterEach, expect, test, vi } from 'vitest';
 
@@ -429,6 +433,40 @@ test('createChannel creates a Bucket with independent reader and writer roles', 
     readerRoles: [{ channelId: channel.id, roleId: 'member' }],
     writerRoles: [{ channelId: channel.id, roleId: 'editor' }],
   });
+});
+
+test('createChannel creates a Slab Bucket through the group directory', async () => {
+  await insertGroup(bucketGroupId);
+  vi.spyOn(api, 'getCurrentUserId').mockReturnValue('~sampel-palnet');
+  const sendBucketsAction = vi.spyOn(api, 'sendBucketsAction');
+  const createRemote = vi
+    .spyOn(api, 'createChannel')
+    .mockResolvedValue(undefined as never);
+  configureDurableClient(new DurableClient('token'));
+  try {
+    expect(canGroupHostBuckets('~moon-sampel-palnet')).toBe(true);
+    const channel = await createChannel({
+      customSlug: 'files',
+      groupId: bucketGroupId,
+      title: 'Files',
+      channelType: 'buckets',
+      writers: ['admin'],
+    });
+    expect(channel).toMatchObject({
+      id: 'buckets/~sampel-palnet/files',
+      type: 'buckets',
+    });
+    expect(createRemote).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'buckets/~sampel-palnet/files',
+        kind: 'buckets',
+        writers: ['admin'],
+      })
+    );
+    expect(sendBucketsAction).not.toHaveBeenCalled();
+  } finally {
+    configureDurableClient(undefined as unknown as DurableClient);
+  }
 });
 
 test('createChannel lets a non-host admin create a group-hosted Bucket', async () => {

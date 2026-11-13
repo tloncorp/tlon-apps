@@ -1,3 +1,5 @@
+import { DurableActivity } from './durableActivity';
+import { getDurableClient } from './durable';
 import { da } from '@urbit/aura';
 import { backOff } from 'exponential-backoff';
 
@@ -28,6 +30,11 @@ import { normalizeUrbitColor } from './utils';
 const logger = createDevLogger('activityApi', false);
 
 export async function getGroupAndChannelUnreads() {
+  const durable = getDurableClient();
+  if (durable) {
+    const inbox = await durable.inbox();
+    return new DurableActivity(durable).unreads(inbox.activity);
+  }
   // v6 is the v10-native summary (carries notebook/note sources); v4
   // down-converts and drops them. Old backends don't serve v6.
   const activity = getActivitySupportsNotes()
@@ -40,6 +47,7 @@ export async function getGroupAndChannelUnreads() {
 export async function getThreadUnreadsByChannel(
   channel: db.Channel
 ): Promise<db.ThreadUnreadState[] | null> {
+  if (getDurableClient()) return getDurableClient()!.threadUnreads(channel.id);
   // Buckets are group channels for navigation and permissions, but they do
   // not contain posts or threads. Keep them out of the chat-shaped activity
   // scries even if a caller reaches this API without the screen-level guard.
@@ -82,6 +90,8 @@ export async function getThreadUnreadsByChannel(
   return deserialized.threadActivity;
 }
 export async function getVolumeSettings(): Promise<ub.VolumeSettings> {
+  if (getDurableClient())
+    return (await new DurableActivity(getDurableClient()!).initial()).volumes;
   // the bare path serves v4-converted settings, which drop %notebook
   // sources — request the v10-native path when the backend has it
   const settings = getActivitySupportsNotes()
@@ -135,6 +145,8 @@ function scryFeedPage(bucket: db.ActivityBucket, cursor: string) {
 }
 
 export async function getInitialActivity() {
+  if (getDurableClient())
+    return new DurableActivity(getDurableClient()!).initial();
   const response = await scryInitFeed();
 
   const events = fromInitFeedToBucketedActivityEvents(response);
@@ -168,6 +180,8 @@ export async function getPagedActivityByBucket({
   nextCursor: number | null;
   relevantUnreads: db.ActivityInit;
 }> {
+  if (getDurableClient())
+    return new DurableActivity(getDurableClient()!).page(bucket, cursor);
   logger.log(
     `fetching next activity page for bucket ${bucket} with cursor`,
     cursor
@@ -891,6 +905,8 @@ function activityPoke(payload: ub.ActivityAction) {
 }
 
 export const readAll = async () => {
+  if (getDurableClient())
+    return new DurableActivity(getDurableClient()!).read({ kind: 'base' });
   const { action, send } = activityPoke({
     read: {
       source: { base: null },
@@ -907,6 +923,11 @@ export const readAll = async () => {
 };
 
 export const readGroup = async (group: db.Group, deep: boolean = false) => {
+  if (getDurableClient())
+    return new DurableActivity(getDurableClient()!).read(
+      { kind: 'group', groupId: group.id },
+      deep
+    );
   const source: ub.Source = { group: group.id };
   const { action, send } = activityPoke({
     read: { source, action: { all: { time: null, deep } } },
@@ -931,6 +952,13 @@ export const readChannel = async ({
   groupId?: string | null;
   deep?: boolean;
 }) => {
+  if (getDurableClient())
+    return void (await (deep
+      ? new DurableActivity(getDurableClient()!).read({
+          kind: 'room',
+          roomId: getDurableClient()!.room(channelId).id,
+        })
+      : getDurableClient()!.markRead(channelId)));
   let source: ub.Source;
   if (channelType === 'dm') {
     source = { dm: { ship: channelId } };
@@ -963,6 +991,8 @@ export const readThread = async ({
   parentPost: db.Post;
   channel: db.Channel;
 }) => {
+  if (getDurableClient())
+    return void (await getDurableClient()!.markRead(channel.id, parentPost.id));
   logger.log(
     'reading thread',
     channel.id,
@@ -1329,6 +1359,8 @@ export async function adjustVolumeSetting(
   source: ub.Source,
   volume: ub.VolumeMap | null
 ) {
+  if (getDurableClient())
+    return new DurableActivity(getDurableClient()!).adjust(source, volume);
   return activityPoke({ adjust: { source, volume } }).send();
 }
 

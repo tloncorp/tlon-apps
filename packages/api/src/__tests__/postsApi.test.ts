@@ -3,6 +3,7 @@ import { beforeEach, expect, test, vi } from 'vitest';
 import { browserSessionCard } from '../client/browserSession';
 import { A2UI } from '../client/a2ui';
 import {
+  durableMessageToPost,
   editPost,
   getChannelPosts,
   getLatestPosts,
@@ -851,4 +852,30 @@ test('session sharing is a separate, valid card and cannot be posted to shared d
   expect(pokeMock).not.toHaveBeenCalled();
   await sendPost({ ...browserHandoffPost, channelId: '~nec', blob });
   expect(pokeMock).toHaveBeenCalledOnce();
+});
+
+test('durable bot entries with the same local ID stay distinct across conversations', () => {
+  const message = {
+    id: 'bot-11-0',
+    seq: 1,
+    authorId: '~ten',
+    sentAt: 1000,
+    content: [{ inline: ['Private reply'] }],
+    text: 'Private reply',
+  };
+  const privatePost = durableMessageToPost('~ten', message);
+  expect(privatePost.deliveryStatus).toBeNull();
+  expect(() => BigInt(privatePost.id)).not.toThrow();
+  const sharedPost = durableMessageToPost('chat/~sampel-palnet/general', {
+    ...message,
+    content: [{ inline: ['Shared reply'] }],
+    text: 'Shared reply',
+  });
+  const cache = new Map(
+    [privatePost, sharedPost].map((post) => [post.id, post])
+  );
+  expect(cache.size).toBe(2);
+  expect(cache.get(privatePost.id)?.textContent).toBe('Private reply');
+  expect(cache.get(sharedPost.id)?.textContent).toBe('Shared reply');
+  expect(durableMessageToPost('~ten', message).id).toBe(privatePost.id);
 });

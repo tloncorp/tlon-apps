@@ -1,3 +1,4 @@
+import { getDurableClient } from '@tloncorp/api/client/durable';
 import * as api from '@tloncorp/api';
 import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -425,7 +426,7 @@ export default function useBrowserNotifications() {
   );
 
   useEffect(() => {
-    if (isElectron || !canUseBrowserNotifications()) {
+    if (getDurableClient() || isElectron || !canUseBrowserNotifications()) {
       return;
     }
 

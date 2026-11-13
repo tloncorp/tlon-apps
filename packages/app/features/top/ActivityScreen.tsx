@@ -65,9 +65,8 @@ export function ActivityScreen() {
   // TODO: if diary or gallery, figure out a way to pop open the comment
   // sheet
   const handleGoToThread = useCallback(
-    (post: db.Post) => {
-      // TODO: we have no way to route to specific thread message rn
-      navigateToPost(post);
+    (post: db.Post, selectedPostId?: string) => {
+      navigateToPost(post, { selectedPostId });
     },
     [navigateToPost]
   );

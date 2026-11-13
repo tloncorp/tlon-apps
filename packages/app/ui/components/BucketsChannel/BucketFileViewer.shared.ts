@@ -1,3 +1,4 @@
+import { getDurableClient } from '@tloncorp/api/client/durable';
 import {
   type DefaultTreeAdapterMap,
   Parser,
@@ -10,6 +11,15 @@ import {
 } from 'parse5';
 
 const { NS, TAG_ID } = htmlSpec;
+
+// The image types Slab serves inline. It sends every other type as a download,
+// which an <img> or a PDF frame cannot show.
+const DURABLE_INLINE_IMAGES = [
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+];
 
 export type BucketPreviewKind =
   | 'image'
@@ -627,7 +637,10 @@ export function getBucketPreviewKind({
   const extension = name.split('.').pop()?.toLowerCase();
 
   if (normalizedMimeType.startsWith('image/')) {
-    return 'image';
+    return getDurableClient() &&
+      !DURABLE_INLINE_IMAGES.includes(normalizedMimeType)
+      ? 'unsupported'
+      : 'image';
   }
   if (normalizedMimeType.startsWith('video/')) {
     return 'video';
@@ -653,7 +666,7 @@ export function getBucketPreviewKind({
     return 'text';
   }
   if (normalizedMimeType === 'application/pdf' || extension === 'pdf') {
-    return 'pdf';
+    return getDurableClient() ? 'unsupported' : 'pdf';
   }
 
   return 'unsupported';

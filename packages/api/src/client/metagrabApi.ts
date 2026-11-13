@@ -5,6 +5,8 @@ import { createDevLogger } from '../lib/logger';
 import * as domain from '../types';
 import { getConstants } from '../types';
 import * as ub from '../urbit';
+import { getDurableClient } from './durable';
+import { durableLinkPreview } from './durableMessages';
 import { base, rawRequest } from './requests';
 
 const logger = createDevLogger('metagrabApi', false);
@@ -13,6 +15,8 @@ export async function getLinkMetadata(
   url: string
 ): Promise<domain.LinkMetadata | domain.LinkMetadataError> {
   try {
+    const durable = getDurableClient();
+    if (durable) return await durableLinkPreview(durable, url);
     const encodedUrl = render('uw', Atom.fromCord(url).number);
     logger.log('encoded', { url, encodedUrl });
     const response = await rawRequest(base.metagrab)<ub.LinkMetadataResponse>(

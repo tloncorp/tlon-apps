@@ -5,6 +5,7 @@
 // runs before any transitive expo-modules-core consumer.
 // See expo-polyfill.ts for details on why this is needed.
 import './expo-polyfill';
+import './durable/localOnly';
 // Sentry and the composite logger must be installed before the app module
 // graph evaluates so that module-initialisation failures are reported.
 import './sentry-init';
@@ -29,55 +30,72 @@ import { QueryClientProvider, queryClient } from '@tloncorp/shared';
 import { PostHogProvider } from 'posthog-js/react';
 import { createRoot } from 'react-dom/client';
 
-import App from './app';
 import { isElectron } from './electron-bridge';
 import './styles/index.css';
 
 const logger = createDevLogger('main.tsx', false);
 
-// Conditionally import the appropriate database implementation
-const { setupDb } = isElectron()
-  ? await import('@tloncorp/app/lib/electronDb')
-  : await import('@tloncorp/app/lib/webDb');
-
-loadConstants();
-addCustomEnabledLoggers(ENABLED_LOGGERS);
-
-window.regeneratorRuntime = regeneratorRuntime;
-
-setupDb().then(() => {
-  const oldUpdateState = EditorView.prototype.updateState;
-
-  EditorView.prototype.updateState = function updateState(state) {
-    if (!(this as any).docView) {
-      //return; // This prevents the matchesNode error on hot reloads
-    }
-    // (this as any).updateStateInner(state, this.state.plugins != state.plugins); //eslint-disable-line
-    oldUpdateState.call(this, state);
-  };
-
-  const IS_MOCK =
-    import.meta.env.MODE === 'mock' || import.meta.env.MODE === 'staging';
-
-  if (IS_MOCK) {
-    window.ship = 'finned-palmer';
-    window.our = '~finned-palmer';
+async function start() {
+  if (import.meta.env.MODE === 'durable') {
+    const { bootstrapDurable } = await import('./durable/bootstrap');
+    await bootstrapDurable();
   }
 
-  window.our = `~${window.ship}`;
+  // Conditionally import the appropriate database implementation
+  const { setupDb } = isElectron()
+    ? await import('@tloncorp/app/lib/electronDb')
+    : await import('@tloncorp/app/lib/webDb');
 
-  const container = document.getElementById('app') as HTMLElement;
-  const root = createRoot(container);
-  root.render(
-    // Strict mode disabled as it breaks react-navigation on web
-    // <React.StrictMode>
-    <RootErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <PostHogProvider client={analyticsClient}>
-          <App />
-        </PostHogProvider>
-      </QueryClientProvider>
-    </RootErrorBoundary>
-    // </React.StrictMode>
-  );
+  loadConstants();
+  addCustomEnabledLoggers(ENABLED_LOGGERS);
+
+  window.regeneratorRuntime = regeneratorRuntime;
+
+  const { default: App } =
+    import.meta.env.MODE === 'durable'
+      ? await import('./durable/App')
+      : await import('./app');
+
+  await setupDb().then(() => {
+    const oldUpdateState = EditorView.prototype.updateState;
+
+    EditorView.prototype.updateState = function updateState(state) {
+      if (!(this as any).docView) {
+        //return; // This prevents the matchesNode error on hot reloads
+      }
+      // (this as any).updateStateInner(state, this.state.plugins != state.plugins); //eslint-disable-line
+      oldUpdateState.call(this, state);
+    };
+
+    const IS_MOCK =
+      import.meta.env.MODE === 'mock' || import.meta.env.MODE === 'staging';
+
+    if (IS_MOCK) {
+      window.ship = 'finned-palmer';
+      window.our = '~finned-palmer';
+    }
+
+    window.our = `~${window.ship}`;
+
+    const container = document.getElementById('app') as HTMLElement;
+    const root = createRoot(container);
+    root.render(
+      // Strict mode disabled as it breaks react-navigation on web
+      // <React.StrictMode>
+      <RootErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <PostHogProvider client={analyticsClient}>
+            <App />
+          </PostHogProvider>
+        </QueryClientProvider>
+      </RootErrorBoundary>
+      // </React.StrictMode>
+    );
+  });
+}
+
+void start().catch((error) => {
+  logger.trackError('Web startup failed', error);
+  const root = document.getElementById('app');
+  if (root) root.textContent = 'Unable to start Tlon. Reload to try again.';
 });

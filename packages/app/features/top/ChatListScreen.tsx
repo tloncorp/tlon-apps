@@ -1,6 +1,7 @@
 import { RouteProp, useIsFocused, useRoute } from '@react-navigation/native';
 import { FlashListRef } from '@shopify/flash-list';
 import { markInvitesRead, reportBackgroundFailure } from '@tloncorp/api';
+import { getDurableClient } from '@tloncorp/api/client/durable';
 import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
@@ -437,7 +438,8 @@ export function ChatListScreenView({
                   icon: 'AddPerson',
                   label: 'Invite people',
                   onPress: handlePersonalInvitePress,
-                  visible: !!personalInvite,
+                  // A durable server has no invite links.
+                  visible: !!personalInvite && !getDurableClient(),
                 },
               ]}
               rightActions={[
@@ -507,11 +509,13 @@ export function ChatListScreenView({
       </ChatOptionsProvider>
 
       <CreateChatSheet ref={createChatSheetRef} />
-      <PersonalInviteSheet
-        open={personalInviteOpen}
-        onOpenChange={() => setPersonalInviteOpen(false)}
-        onPressInviteFriends={handleInviteFriends}
-      />
+      {getDurableClient() ? null : (
+        <PersonalInviteSheet
+          open={personalInviteOpen}
+          onOpenChange={() => setPersonalInviteOpen(false)}
+          onPressInviteFriends={handleInviteFriends}
+        />
+      )}
     </>
   );
 }

@@ -167,7 +167,7 @@ function MobileBrowserNotifications() {
   return null;
 }
 
-function AppRoutes() {
+export function AppRoutes() {
   useFindSuggestedContacts();
   const contactsQuery = store.useContacts();
   const { needsUpdate, triggerUpdate } = useAppUpdates();

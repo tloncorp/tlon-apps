@@ -27,6 +27,7 @@
     "./logic/*": "./src/logic/*.ts",
     "./perfLog": "./src/perfLog.ts",
     "./store": "./src/store/index.ts",
+    "./store/durableSync": "./src/store/durableSync.ts",
     "./urbit": "./src/urbit/index.ts",
     "./urbit/activity": "./src/urbit/activity.ts",
     "./urbit/channel": "./src/urbit/channel.ts",

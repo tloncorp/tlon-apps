@@ -17,6 +17,8 @@ import {
   scryRequest,
   subscribeRequest,
 } from './requests';
+import { getDurableClient } from './durable';
+import { durableBucketState, durableBucketsAction } from './durableBuckets';
 import { BadResponseError } from './urbit';
 
 // The agent answers an unauthenticated request with 401, as %notes does, but
@@ -82,6 +84,14 @@ export async function getBucketsFull() {
 export async function getBucket(
   flag: BucketsFlag
 ): Promise<BucketsSnapshot | null> {
+  const durable = getDurableClient();
+  if (durable) {
+    const state = await durableBucketState(
+      durable,
+      formatBucketsChannelId(flag)
+    );
+    return state && state !== 'unchanged' ? { flag, state } : null;
+  }
   try {
     const response = await scryRequest(buckets.bucket)<BucketsResponse>(flag);
     return response.type === 'snapshot'
@@ -155,14 +165,24 @@ export async function sendBucketsAction(
   action: BucketsAction,
   requestId: string = mintRequestId()
 ): Promise<BucketsResponseBody> {
-  const res = await httpRequest(buckets.action)<BucketsRequestResponse>(
-    {},
-    {
-      body: { action, requestId },
-      options: { reauthStatuses: BUCKETS_AUTH_FAILURE_STATUSES },
-    }
-  );
-  const body = res?.body;
+  const durable = getDurableClient();
+  const body =
+    durable && action.type !== 'create'
+      ? await durableBucketsAction(
+          durable,
+          formatBucketsChannelId(action.flag),
+          action,
+          requestId
+        )
+      : (
+          await httpRequest(buckets.action)<BucketsRequestResponse>(
+            {},
+            {
+              body: { action, requestId },
+              options: { reauthStatuses: BUCKETS_AUTH_FAILURE_STATUSES },
+            }
+          )
+        )?.body;
   if (!body) {
     throw new Error('%buckets response missing body');
   }

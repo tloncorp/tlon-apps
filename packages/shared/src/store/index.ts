@@ -34,3 +34,8 @@ export * from './metagrabActions';
 export * from './lensActions';
 export * from './botReplyFeedback';
 export { useChannelContext } from './useChannelContext';
+
+export { useDurableConversation } from './useDurableConversation';
+
+export * from './useMessageSearch';
+export * from './messageSearchActions';

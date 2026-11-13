@@ -1,3 +1,5 @@
+import { getDurableClient } from '@tloncorp/api/client/durable';
+
 import type { BucketUploadCandidate } from '../../ui';
 
 /**
@@ -7,6 +9,9 @@ import type { BucketUploadCandidate } from '../../ui';
  * and spending a grant to find out.
  */
 export const MAX_UPLOAD_BYTES = 5_368_709_120;
+
+/** Slab's attachment limit, which a Bucket's files share. */
+export const MAX_DURABLE_UPLOAD_BYTES = 25 * 1024 * 1024;
 
 /**
  * Why the host would refuse this file, or null if it would not on size.
@@ -25,6 +30,9 @@ export function uploadCandidateProblem(
   }
   if (candidate.size === 0) {
     return 'Empty files cannot be uploaded';
+  }
+  if (getDurableClient() && candidate.size > MAX_DURABLE_UPLOAD_BYTES) {
+    return 'Files larger than 25 MB cannot be uploaded';
   }
   if (candidate.size > MAX_UPLOAD_BYTES) {
     return 'Files larger than 5 GB cannot be uploaded';

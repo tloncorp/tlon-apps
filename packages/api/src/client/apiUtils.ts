@@ -1,3 +1,4 @@
+import { getDurableClient } from './durable';
 import { da, parse, render, tryParse } from '@urbit/aura';
 import bigInt from 'big-integer';
 
@@ -13,47 +14,10 @@ export function formatScryPath(
   return '/' + segments.filter((s) => !!s).join('/');
 }
 
-export function isColor(value: string) {
-  return value[0] === '#';
-}
+export { isColor, toClientMeta, fromClientMeta } from './clientMeta';
 
-// Limit max image string size since this isn't currently limited serverside +
-// it's possible for these to be massive and cause issues.
-const maxImageStringSize = 2048;
 export const BOT_USER_ID_PREFIX = '~pinser-botter-';
 const DESIGGED_BOT_USER_ID_PREFIX = desig(BOT_USER_ID_PREFIX);
-
-export function toClientMeta(meta: ub.GroupMeta): db.ClientMeta {
-  const iconImage = meta.image.length > maxImageStringSize ? '' : meta.image;
-  const iconImageData = iconImage
-    ? isColor(iconImage)
-      ? { iconImageColor: iconImage }
-      : { iconImage: iconImage }
-    : {};
-  const coverImage = meta.cover.length > maxImageStringSize ? '' : meta.cover;
-  const coverImageData = coverImage
-    ? isColor(coverImage)
-      ? { coverImageColor: coverImage }
-      : { coverImage: coverImage }
-    : {};
-  return {
-    title: meta.title,
-    iconImage: iconImageData.iconImage ?? null,
-    iconImageColor: iconImageData.iconImageColor ?? null,
-    coverImage: coverImageData.coverImage ?? null,
-    coverImageColor: coverImageData.coverImageColor ?? null,
-    description: meta.description,
-  };
-}
-
-export function fromClientMeta(meta: db.ClientMeta): ub.GroupMeta {
-  return {
-    title: meta.title ?? '',
-    image: meta.iconImage ?? meta.iconImageColor ?? '',
-    cover: meta.coverImage ?? meta.coverImageColor ?? '',
-    description: meta.description ?? '',
-  };
-}
 
 export function formatUd(ud: string | number) {
   return render('ud', BigInt(String(ud).replace(/\./g, '')));
@@ -76,6 +40,8 @@ export function isBotUserId(userId: string | null | undefined) {
 }
 
 export function getBotUserIdForUser(userId: string | null | undefined) {
+  if (getDurableClient())
+    return getDurableClient()!.bootstrap.bot?.contactId ?? '';
   const normalizedUserId = normalizeUserId(userId);
   return normalizedUserId ? `${BOT_USER_ID_PREFIX}${normalizedUserId}` : '';
 }
@@ -84,6 +50,10 @@ export function isBotUserIdForUser(
   botUserId: string | null | undefined,
   userId: string | null | undefined
 ) {
+  if (getDurableClient())
+    return (
+      !!botUserId && botUserId === getDurableClient()!.bootstrap.bot?.contactId
+    );
   const normalizedUserId = normalizeUserId(userId);
   return (
     normalizedUserId.length > 0 &&

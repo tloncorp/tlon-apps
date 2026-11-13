@@ -51,6 +51,9 @@ export interface ChatDetailsScreenViewProps {
   roleCount: number;
   /** The bot's tasks that post here. Left out, the row is not shown. */
   scheduledTaskCount?: number;
+  /** How many agents the workspace has. Left out, no row. */
+  agentCount?: number;
+  onPressAgents?: () => void;
   onGoBack: () => void;
   onPressEdit: () => void;
   onPressInvite?: () => void;
@@ -67,6 +70,7 @@ export interface ChatDetailsScreenViewProps {
   onPressPrivacy: () => void;
   onPressRoles: () => void;
   onPressChannels: () => void;
+  onPressExport?: () => void;
   /** Whether the workspace has Tlonbot instructions. Left out, no row. */
   instructions?: 'On' | 'Off';
   onPressInstructions?: () => void;
@@ -101,6 +105,8 @@ export function ChatDetailsScreenView({
   hostStatus,
   roleCount,
   scheduledTaskCount,
+  agentCount,
+  onPressAgents,
   onGoBack,
   onPressEdit,
   onPressInvite,
@@ -114,6 +120,7 @@ export function ChatDetailsScreenView({
   onPressPrivacy,
   onPressRoles,
   onPressChannels,
+  onPressExport,
   instructions,
   onPressInstructions,
   onPressNotifications,
@@ -313,6 +320,21 @@ export function ChatDetailsScreenView({
               testID: `${idPrefix}ScheduledTasks`,
             },
           ];
+    const agentRows: SettingsRowModel[] =
+      agentCount === undefined || !onPressAgents
+        ? []
+        : [
+            {
+              key: 'agents',
+              title: 'Agents',
+              value: `${agentCount}`,
+              // Every member manages a workspace's agents, not only admins.
+              // Only Slab servers have agents, and they report no host
+              // connection status, so a failed change shows its own error.
+              onPress: onPressAgents,
+              testID: 'GroupAgents',
+            },
+          ];
     const adminRows: SettingsRowModel[] = !currentUserIsAdmin
       ? []
       : chatType === 'group'
@@ -341,6 +363,16 @@ export function ChatDetailsScreenView({
               onPress: onPressChannels,
               testID: 'GroupChannels',
             },
+            ...(onPressExport
+              ? [
+                  {
+                    key: 'export-group',
+                    title: 'Export group',
+                    onPress: onPressExport,
+                    testID: 'ExportGroup',
+                  },
+                ]
+              : []),
             ...(instructions && onPressInstructions
               ? [
                   {
@@ -497,7 +529,12 @@ export function ChatDetailsScreenView({
                   ? 'The workspace’s host is offline, so these settings can’t be changed right now.'
                   : 'Checking the connection to the workspace’s host…'
                 : undefined,
-            rows: [...adminRows, ...notificationRows, ...scheduledTaskRows],
+            rows: [
+              ...adminRows,
+              ...agentRows,
+              ...notificationRows,
+              ...scheduledTaskRows,
+            ],
           }
         : null,
       hostSection,
@@ -544,6 +581,7 @@ export function ChatDetailsScreenView({
     onPressAllMembers,
     onPressChannelPermissions,
     onPressChannels,
+    onPressExport,
     onPressEdit,
     onPressInstructions,
     onPressInvite,
@@ -556,6 +594,8 @@ export function ChatDetailsScreenView({
     onTogglePinned,
     roleCount,
     scheduledTaskCount,
+    agentCount,
+    onPressAgents,
     title,
   ]);
 

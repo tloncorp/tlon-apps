@@ -1,3 +1,4 @@
+import { getDurableClient } from '@tloncorp/api/client/durable';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { searchChannel } from '@tloncorp/api';
 import { da } from '@urbit/aura';
@@ -27,18 +28,19 @@ export function useChannelSearch(channelId: string, query: string) {
     if (
       results.length < MIN_RESULT_LOAD_THRESHOLD &&
       hasNextPage &&
-      !apiLoading
+      !apiLoading &&
+      !apiError
     ) {
       fetchNextPage();
     }
-  }, [results, hasNextPage, apiLoading, fetchNextPage]);
+  }, [results, hasNextPage, apiLoading, apiError, fetchNextPage]);
 
   return {
     posts,
     searchedThroughDate,
     loading: apiLoading,
     errored: apiError,
-    hasMore: hasNextPage,
+    hasMore: hasNextPage && !apiError,
     loadMore: fetchNextPage,
   };
 }
@@ -78,6 +80,7 @@ export function useInfiniteChannelSearch(channelId: string, query: string) {
     const lastValidCursor = params.findLast(
       (page) => page.cursor !== null
     )?.cursor;
+    if (getDurableClient()) return null;
     return lastValidCursor
       ? new Date(da.toUnix(BigInt(lastValidCursor)))
       : null;

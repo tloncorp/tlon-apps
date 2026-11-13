@@ -1,4 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
+import { getDurableClient } from '@tloncorp/api/client/durable';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   canGroupHostBuckets,
@@ -102,7 +103,11 @@ export function CreateChannelSheet({
   // Buckets are still behind a flag. This gates the offer, not the channel
   // type: a bucket someone already made keeps working and the host keeps
   // serving it -- only the route to making a new one is closed.
-  const bucketsOffered = bucketsEnabled && bucketsDeskAvailable && isGroupAdmin;
+  // Slab serves Buckets itself, so the flag gating them on Tlon does not apply.
+  const bucketsOffered =
+    (bucketsEnabled || Boolean(getDurableClient())) &&
+    bucketsDeskAvailable &&
+    isGroupAdmin;
   const bucketsAvailable = bucketsOffered && bucketsHostSupported;
   const channelTypes = useMemo(
     () =>

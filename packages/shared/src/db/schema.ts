@@ -404,6 +404,7 @@ export const activityEvents = sqliteTable(
     parentAuthorId: text('parent_author_id'),
     channelId: text('channel_id'),
     groupId: text('group_id'),
+    isRead: boolean('is_read'),
     isMention: boolean('is_mention'),
     shouldNotify: boolean('should_notify'),
     content: text('content', { mode: 'json' }),
@@ -425,9 +426,8 @@ export const activityEvents = sqliteTable(
 export const activityEventContactGroups = sqliteTable(
   'activity_event_contact_group_pins',
   {
-    activityEventId: text('activity_event_id')
-      .references(() => activityEvents.id, { onDelete: 'cascade' })
-      .notNull(),
+    // Pins span buckets, while activity_events is keyed by both ID and bucket.
+    activityEventId: text('activity_event_id').notNull(),
     groupId: text('group_id')
       .references(() => groups.id, { onDelete: 'cascade' })
       .notNull(),

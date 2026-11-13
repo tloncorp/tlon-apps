@@ -1,3 +1,4 @@
+import { getDurableClient } from '../durable';
 import type { Noun } from '@urbit/nockjs';
 
 import {
@@ -124,6 +125,8 @@ export function assertGuard(entry: {
   path?: string;
   guardedBy?: GuardName;
 }) {
+  if (getDurableClient())
+    throw new Error('This action is not yet supported by the local backend');
   const guard = entry.guardedBy;
   if (guard && GUARD_FNS[guard]() === false) {
     throw new DeskUnsupportedError(nameOf(entry), GUARDS[guard].since, guard);

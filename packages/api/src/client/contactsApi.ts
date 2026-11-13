@@ -1,3 +1,4 @@
+import { getDurableClient } from './durable';
 import { render } from '@urbit/aura';
 
 import { createDevLogger } from '../lib/logger';
@@ -19,6 +20,7 @@ import { normalizeUrbitColor } from './utils';
 const logger = createDevLogger('contactsApi', false);
 
 export const getContacts = async () => {
+  if (getDurableClient()) return getDurableClient()!.contacts();
   // this is all peers and ship contacts we know about, with unmerged
   // profile data
   const directoryResponse = await scryRequest(
@@ -165,6 +167,16 @@ export interface ProfileUpdate {
   coverImage?: string;
 }
 export const updateCurrentUserProfile = async (update: ProfileUpdate) => {
+  const local = getDurableClient();
+  if (local) {
+    return local.updateProfile({
+      ...(update.nickname !== undefined ? { nickname: update.nickname ?? '' } : {}),
+      ...(update.bio !== undefined ? { bio: update.bio } : {}),
+      ...(update.status !== undefined ? { status: update.status } : {}),
+      ...(update.avatarImage !== undefined ? { avatar: update.avatarImage ?? '' } : {}),
+      ...(update.coverImage !== undefined ? { cover: update.coverImage } : {}),
+    });
+  }
   const editedFields: ub.ContactEditField[] = [];
   if (update.nickname !== undefined) {
     editedFields.push({ nickname: update.nickname ?? '' });

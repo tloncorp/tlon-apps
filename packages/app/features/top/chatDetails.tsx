@@ -1,5 +1,6 @@
 // Wires the group and channel info screen to the app: its data, where its
 // rows lead, and what its actions do. `ChatDetailsScreenView` draws it.
+import { getDurableClient } from '@tloncorp/api/client/durable';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as Clipboard from 'expo-clipboard';
@@ -21,6 +22,7 @@ import {
   useToast,
 } from '../../ui';
 import { ChatDetailsScreenView } from '../../ui/components/ChatDetailsScreenView';
+import { WorkspaceAgentsSheet } from '../../ui/components/WorkspaceAgentsSheet';
 import { useCopyChannelLink } from '../../ui/hooks/useCopyChannelLink';
 import {
   WorkspaceInstructionsSheet,
@@ -85,6 +87,22 @@ export function ChatDetailsView({
   const { groupRoles, deleteGroup } = useGroupContext({
     groupId: group?.id ?? '',
   });
+  const durable = isWeb ? getDurableClient() : undefined;
+  const portableGroup = durable?.bootstrap.groups.find(
+    (item) => item.id === group?.id
+  );
+  const exportId =
+    portableGroup?.hosted !== false && !portableGroup?.lobby
+      ? portableGroup?.groupId
+      : undefined;
+  const exportGroup = useCallback(async () => {
+    if (!durable || !exportId) return;
+    try {
+      await durable.exportBundle([exportId], true);
+    } catch (error) {
+      toast({ message: String(error), duration: 5000 });
+    }
+  }, [durable, exportId, toast]);
   const groupTitle = useGroupTitle(group) ?? 'workspace';
   const scheduledTasks = useScheduledTasksHere({ chatType, channel, group });
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
@@ -94,6 +112,14 @@ export function ChatDetailsView({
     store.useDeskSupportsStewardBots() === true &&
     group?.hostUserId === currentUserId;
   const [instructionsOpen, setInstructionsOpen] = useState(false);
+  // Every member manages a workspace's agents, which its host runs.
+  const [agentsOpen, setAgentsOpen] = useState(false);
+  // The count reads the client's bootstrap, which agent changes refresh.
+  const [, setAgentsChanged] = useState(0);
+  const agentCount =
+    durable && chatType === 'group' && group && portableGroup
+      ? durable.workspaceAgents(group.id).length
+      : undefined;
 
   const handlePressProfile = useCallback(
     (contactId: string) => {
@@ -210,6 +236,8 @@ export function ChatDetailsView({
       hostStatus={hostStatus}
       roleCount={(groupRoles?.length ?? 0) + 1}
       scheduledTaskCount={scheduledTasks.count}
+      agentCount={agentCount}
+      onPressAgents={() => setAgentsOpen(true)}
       onGoBack={onGoBack}
       onPressEdit={onPressEdit}
       onPressInvite={onPressInvite}
@@ -223,6 +251,7 @@ export function ChatDetailsView({
       onPressPrivacy={() => group && onPressGroupPrivacy(group.id, true)}
       onPressRoles={() => group && onPressRoles(group.id, true)}
       onPressChannels={() => group && onPressManageChannels(group.id, true)}
+      onPressExport={exportId ? exportGroup : undefined}
       instructions={
         supportsInstructions && group
           ? hasWorkspaceInstructions(group)
@@ -251,6 +280,14 @@ export function ChatDetailsView({
           onDismiss={() => setSelectedContact(null)}
           groupId={group.id}
           onPressGoToProfile={handlePressProfile}
+        />
+      ) : null}
+      {agentsOpen && group ? (
+        <WorkspaceAgentsSheet
+          groupId={group.id}
+          groupTitle={groupTitle}
+          onClose={() => setAgentsOpen(false)}
+          onChange={() => setAgentsChanged((count) => count + 1)}
         />
       ) : null}
       {instructionsOpen && group ? (

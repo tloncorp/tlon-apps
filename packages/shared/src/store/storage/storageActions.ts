@@ -1,3 +1,6 @@
+import { useCallback } from 'react';
+import { getDurableClient } from '@tloncorp/api/client/durable';
+import { isLinkedImage } from '@tloncorp/api/client/durableMessages';
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { RNFile, getCurrentUserId } from '@tloncorp/api';
@@ -93,9 +96,62 @@ function getSaveFormatMimeType(format: SaveFormat): string {
   }
 }
 
-export async function uploadAsset(
+export function useConversationUpload(channelId: string) {
+  return useCallback(
+    (intent: Attachment.UploadIntent, isWeb?: boolean) =>
+      uploadAsset(intent, isWeb, channelId),
+    [channelId]
+  );
+}
+
+/**
+ * Uploads an image picked as an avatar: your own, or a workspace agent's.
+ * On a Slab server an avatar isn't a conversation's attachment: its bytes
+ * go with the save that sets it (to the account's own avatar store, as when
+ * the account was created, or in the agent's settings). So the image is
+ * made a 512px JPEG and kept in this tab until then, as a `blob:` URL.
+ * Elsewhere it uploads like any image.
+ */
+export async function uploadAvatarAsset(
   intent: Attachment.UploadIntent,
   isWeb = false
+) {
+  if (!getDurableClient() || intent.type !== 'image') {
+    return uploadAsset(intent, isWeb);
+  }
+  await uploadAssetWithLifecycle(
+    intent,
+    isWeb,
+    {
+      async prepareAsset() {
+        const asset = intent.asset;
+        const resized = await manipulateAsync(
+          asset.uri,
+          [
+            {
+              resize:
+                asset.width > asset.height
+                  ? { width: AVATAR_SIZE }
+                  : { height: AVATAR_SIZE },
+            },
+          ],
+          { compress: 0.85, format: SaveFormat.JPEG }
+        );
+        return { ...resized, mimeType: 'image/jpeg' };
+      },
+    },
+    undefined,
+    true
+  );
+}
+
+/** An avatar's longest side, as the create-account screen makes it. */
+const AVATAR_SIZE = 512;
+
+export async function uploadAsset(
+  intent: Attachment.UploadIntent,
+  isWeb = false,
+  channelId?: string
 ) {
   switch (intent.type) {
     case 'image': {
@@ -104,30 +160,40 @@ export async function uploadAsset(
         logger.log('placeholder image, skipping upload');
         return;
       }
-      await uploadImageAsset(intent, isWeb);
+      await uploadImageAsset(intent, isWeb, channelId);
       break;
     }
 
     case 'file': {
-      await uploadAssetWithLifecycle(intent, isWeb, {
-        async prepareAsset() {
-          return intent.file;
+      await uploadAssetWithLifecycle(
+        intent,
+        isWeb,
+        {
+          async prepareAsset() {
+            return intent.file;
+          },
         },
-      });
+        channelId
+      );
       break;
     }
 
     case 'fileUri': {
-      await uploadAssetWithLifecycle(intent, isWeb, {
-        async prepareAsset() {
-          return {
-            uri: intent.localUri,
-            size: intent.size,
-            mimeType: intent.mimeType,
-            name: intent.name,
-          };
+      await uploadAssetWithLifecycle(
+        intent,
+        isWeb,
+        {
+          async prepareAsset() {
+            return {
+              uri: intent.localUri,
+              size: intent.size,
+              mimeType: intent.mimeType,
+              name: intent.name,
+            };
+          },
         },
-      });
+        channelId
+      );
       break;
     }
   }
@@ -141,7 +207,9 @@ async function uploadAssetWithLifecycle(
     prepareAsset: () => Promise<
       (Pick<RNFile, 'uri' | 'height' | 'width'> & { mimeType?: string }) | File
     >;
-  }
+  },
+  channelId?: string,
+  avatar = false
 ) {
   const uploadKey = Attachment.UploadIntent.extractKey(uploadIntent);
   const { isVideo, posterUri: localPosterUri } =
@@ -161,7 +229,9 @@ async function uploadAssetWithLifecycle(
   try {
     const remoteUri = await performUpload(
       await callbacks.prepareAsset(),
-      isWeb
+      isWeb,
+      channelId,
+      avatar
     );
     const posterUri = isVideo
       ? await uploadVideoPoster(localPosterUri, isWeb)
@@ -200,58 +270,68 @@ async function uploadAssetWithLifecycle(
 
 async function uploadImageAsset(
   uploadIntent: Extract<Attachment.UploadIntent, { type: 'image' }>,
-  isWeb = false
+  isWeb = false,
+  channelId?: string
 ) {
-  await uploadAssetWithLifecycle(uploadIntent, isWeb, {
-    willUpload() {
-      const asset = uploadIntent.asset;
-      logger.crumb(
-        'uploading asset',
-        asset.mimeType,
-        asset.fileSize,
-        'isWeb',
-        isWeb
-      );
-      logger.log('full asset', asset);
-    },
-    async prepareAsset() {
-      const asset = uploadIntent.asset;
-      logger.log('resizing asset', asset.uri);
-      let resizedAsset = asset;
-      // manipulateAsync re-encodes to `format`, so the upload mime must track
-      // the output (e.g. HEIC is saved as JPEG), not the original asset mime.
-      let uploadMimeType = asset.mimeType;
-      // Only resize when we know it's a non-gif image. If mimeType is missing
-      // or non-image, upload the original bytes — re-encoding through the
-      // canvas-backed manipulator would clobber the format (e.g. animated
-      // gifs flattened to a single PNG/JPEG frame).
-      const canResize =
-        !!asset.mimeType &&
-        asset.mimeType.startsWith('image/') &&
-        !asset.mimeType.includes('gif');
-      if (canResize) {
-        const format = getSaveFormat(asset.mimeType);
-        resizedAsset = await manipulateAsync(
-          asset.uri,
-          [
-            {
-              resize:
-                asset.width > asset.height ? { width: 1200 } : { height: 1200 },
-            },
-          ],
-          {
-            compress: 0.75,
-            format,
-          }
+  await uploadAssetWithLifecycle(
+    uploadIntent,
+    isWeb,
+    {
+      willUpload() {
+        const asset = uploadIntent.asset;
+        logger.crumb(
+          'uploading asset',
+          asset.mimeType,
+          asset.fileSize,
+          'isWeb',
+          isWeb
         );
-        uploadMimeType = getSaveFormatMimeType(format);
-      }
-      return {
-        ...resizedAsset,
-        mimeType: uploadMimeType,
-      };
+        logger.log('full asset', asset);
+      },
+      async prepareAsset() {
+        const asset = uploadIntent.asset;
+        const durable = getDurableClient();
+        if (durable && isLinkedImage(asset.uri, durable.origin)) return asset;
+        logger.log('resizing asset', asset.uri);
+        let resizedAsset = asset;
+        // manipulateAsync re-encodes to `format`, so the upload mime must track
+        // the output (e.g. HEIC is saved as JPEG), not the original asset mime.
+        let uploadMimeType = asset.mimeType;
+        // Only resize when we know it's a non-gif image. If mimeType is missing
+        // or non-image, upload the original bytes — re-encoding through the
+        // canvas-backed manipulator would clobber the format (e.g. animated
+        // gifs flattened to a single PNG/JPEG frame).
+        const canResize =
+          !!asset.mimeType &&
+          asset.mimeType.startsWith('image/') &&
+          !asset.mimeType.includes('gif');
+        if (canResize) {
+          const format = getSaveFormat(asset.mimeType);
+          resizedAsset = await manipulateAsync(
+            asset.uri,
+            [
+              {
+                resize:
+                  asset.width > asset.height
+                    ? { width: 1200 }
+                    : { height: 1200 },
+              },
+            ],
+            {
+              compress: 0.75,
+              format,
+            }
+          );
+          uploadMimeType = getSaveFormatMimeType(format);
+        }
+        return {
+          ...resizedAsset,
+          mimeType: uploadMimeType,
+        };
+      },
     },
-  });
+    channelId
+  );
 }
 
 // On web these live in localStorage, which every tab on the origin shares, so a
@@ -286,16 +366,22 @@ export const performUpload = async (
         name?: string;
       })
     | File,
-  isWeb = false
+  isWeb = false,
+  channelId?: string,
+  avatar = false
 ) => {
   if (!(params instanceof File)) {
     logger.log('performing upload', params.uri, 'isWeb', isWeb);
   }
-  const { config, credentials } = await getUploadSettings();
-
-  if (!credentials || !config) {
-    throw new Error('unable to upload: missing storage configuration');
-  }
+  const durable = getDurableClient();
+  // A linked image is stored by the group's host when the message is posted,
+  // so this browser never fetches it.
+  if (
+    durable &&
+    !(params instanceof File) &&
+    isLinkedImage(params.uri, durable.origin)
+  )
+    return params.uri;
 
   const { size, fileName, contentType, sourceUri } = await (async () => {
     if (params instanceof File) {
@@ -303,7 +389,7 @@ export const performUpload = async (
         size: params.size,
         fileName: params.name,
         contentType: params.type,
-        sourceUri: URL.createObjectURL(params),
+        sourceUri: durable ? '' : URL.createObjectURL(params),
       };
     } else {
       // fileUri intents use -1 when the source didn't report a size.
@@ -328,6 +414,24 @@ export const performUpload = async (
     }
   })();
 
+  if (durable) {
+    const file =
+      params instanceof File ? params : await (await fetch(sourceUri)).blob();
+    if (avatar) return URL.createObjectURL(file);
+    if (!channelId) throw new Error('Choose a conversation before uploading');
+    return durable.uploadAttachment(
+      channelId,
+      file,
+      fileName,
+      contentType || 'application/octet-stream',
+      params instanceof File
+        ? undefined
+        : { width: params.width, height: params.height }
+    );
+  }
+  const { config, credentials } = await getUploadSettings();
+  if (!credentials || !config)
+    throw new Error('unable to upload: missing storage configuration');
   logger.log('fetched file', fileName, contentType, size);
 
   const fileKey = `${desig(getCurrentUserId())}/${desig(

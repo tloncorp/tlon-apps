@@ -27,18 +27,7 @@ export const INFINITE_ACTIVITY_QUERY_KEY = 'useInfiniteBucketedActivity';
 
 export function resetActivityFetchers() {
   logger.log('resetting activity fetchers');
-  const fetchers = ['all', 'mentions', 'replies'];
-  for (const fetcher in fetchers) {
-    queryClient.setQueryData([INFINITE_ACTIVITY_QUERY_KEY, fetcher], () => {
-      return {
-        pages: [],
-        pageParams: [],
-      };
-    });
-  }
-  queryClient.invalidateQueries({
-    queryKey: [INFINITE_ACTIVITY_QUERY_KEY],
-  });
+  void queryClient.resetQueries({ queryKey: [INFINITE_ACTIVITY_QUERY_KEY] });
 }
 
 interface PageParam {
@@ -101,7 +90,7 @@ export function useInfiniteBucketedActivity(
     },
     initialPageParam: { existingSourceIds: [], cursor: null } as PageParam,
     getNextPageParam: (lastPage, allPages) => {
-      if (lastPage === null || lastPage.length === 0) {
+      if (!lastPage || lastPage.length === 0) {
         return null;
       }
 

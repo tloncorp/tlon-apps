@@ -24,7 +24,10 @@ export function EditProfileScreen({ route, navigation }: Props) {
 
   return (
     <GroupsProvider groups={groups ?? []}>
-      <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
+      <AttachmentProvider
+        canUpload={canUpload}
+        uploadAsset={store.uploadAvatarAsset}
+      >
         <EditProfileScreenView
           userId={route.params.userId}
           onGoBack={navigation.goBack}

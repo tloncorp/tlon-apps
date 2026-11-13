@@ -2,7 +2,6 @@ CREATE TABLE `activity_event_contact_group_pins` (
 	`activity_event_id` text NOT NULL,
 	`group_id` text NOT NULL,
 	PRIMARY KEY(`activity_event_id`, `group_id`),
-	FOREIGN KEY (`activity_event_id`) REFERENCES `activity_events`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
@@ -20,6 +19,7 @@ CREATE TABLE `activity_events` (
 	`parent_author_id` text,
 	`channel_id` text,
 	`group_id` text,
+	`is_read` integer,
 	`is_mention` integer,
 	`should_notify` integer,
 	`content` text,

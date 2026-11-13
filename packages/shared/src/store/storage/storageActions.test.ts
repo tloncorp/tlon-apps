@@ -1,3 +1,4 @@
+import { getDurableClient } from '@tloncorp/api/client/durable';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -6,6 +7,8 @@ import * as db from '../../db';
 import { syncStorageSettings } from '../sync/sync';
 import { performUpload } from './storageActions';
 import { hasCustomS3Creds, hasHostingUploadCreds } from './storageUtils';
+
+vi.mock('@tloncorp/api/client/durable', () => ({ getDurableClient: vi.fn() }));
 
 vi.mock('@aws-sdk/client-s3', () => ({
   S3Client: vi.fn(),
@@ -92,6 +95,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.mocked(getDurableClient).mockReset();
   vi.unstubAllGlobals();
   vi.mocked(syncStorageSettings).mockReset();
   uploadResponses.length = 0;
@@ -192,4 +196,40 @@ describe('performUpload custom-S3 ACL retry (browser path)', () => {
       'x-amz-acl': 'public-read',
     });
   });
+});
+
+test('durable uploads use conversation authorization without ship storage credentials', async () => {
+  const uploadAttachment = vi.fn().mockResolvedValue('http://local/file');
+  vi.mocked(getDurableClient).mockReturnValue({ uploadAttachment } as never);
+  configGetValue.mockClear();
+  credsGetValue.mockClear();
+  const file = makeFile();
+  expect(await performUpload(file, true, 'chat/~zod/general')).toBe(
+    'http://local/file'
+  );
+  expect(uploadAttachment).toHaveBeenCalledWith(
+    'chat/~zod/general',
+    file,
+    'x.png',
+    'image/png',
+    undefined
+  );
+  expect(configGetValue).not.toHaveBeenCalled();
+  expect(credsGetValue).not.toHaveBeenCalled();
+});
+
+test('a durable avatar stays in this tab until the save that sets it', async () => {
+  const uploadAttachment = vi.fn();
+  vi.mocked(getDurableClient).mockReturnValue({ uploadAttachment } as never);
+  const createObjectURL = vi
+    .spyOn(URL, 'createObjectURL')
+    .mockReturnValue('blob:avatar');
+  const file = makeFile();
+  expect(await performUpload(file, true, undefined, true)).toBe('blob:avatar');
+  expect(createObjectURL).toHaveBeenCalledWith(file);
+  expect(uploadAttachment).not.toHaveBeenCalled();
+  await expect(performUpload(file, true)).rejects.toThrow(
+    'Choose a conversation'
+  );
+  createObjectURL.mockRestore();
 });

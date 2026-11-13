@@ -1,3 +1,16 @@
+import {
+  getDurableClient,
+  durablePostId,
+  type DurableMessage,
+} from './durable';
+import {
+  durableReferencedMessage,
+  isDurableHidden,
+  isRemoteUrl,
+  setDurablePostHidden,
+  withoutRemoteBlobMedia,
+  withoutRemoteImages,
+} from './durableMessages';
 import { da, render } from '@urbit/aura';
 
 import type { Poke } from '../http-api';
@@ -124,6 +137,17 @@ export async function getPostReference({
   postId: string;
   replyId?: string;
 }) {
+  const durable = getDurableClient();
+  if (durable) {
+    const message = await durableReferencedMessage(
+      durable,
+      channelId,
+      replyId ?? postId
+    );
+    const post = durableMessageToPost(channelId, message);
+    post.id = referenceLookupId({ postId, replyId });
+    return post;
+  }
   // The v5 said watch path requires an `ask` ship before the nest:
   // /v5/said/<ask>/<kind>/<host>/<name>/post/<id>[/<reply>]. `ask` is the ship
   // the channels agent forwards the subscription to, so it must be the channel
@@ -200,6 +224,19 @@ export const sendPost = async ({
   metadata?: db.PostMetadata;
   botProfile?: AuthorProfile;
 }) => {
+  const durable = getDurableClient();
+  if (durable) {
+    await durable.send(
+      channelId,
+      sentAt,
+      content,
+      getTextContent(content),
+      undefined,
+      blob,
+      metadata
+    );
+    return;
+  }
   assertBrowserHandoffDestination(channelId, blob);
   logger.log('sending post', { channelId, authorId, sentAt, content });
   const channelType = getChannelType(channelId);
@@ -278,6 +315,13 @@ export const editPost = async ({
   // Bot tag. Callers pass the existing post's authorship shape back in.
   botProfile?: AuthorProfile;
 }) => {
+  if (getDurableClient())
+    return void (await getDurableClient()!.mutate(channelId, postId, {
+      type: 'edit',
+      content,
+      text: getTextContent(content),
+      metadata,
+    }));
   assertBrowserHandoffDestination(channelId, blob);
   logger.log('editing post', { channelId, postId, authorId, sentAt, content });
   const channelType = getChannelType(channelId);
@@ -365,6 +409,15 @@ export const sendReply = async ({
   sentAt: number;
   botProfile?: AuthorProfile;
 }) => {
+  if (getDurableClient())
+    return void (await getDurableClient()!.send(
+      channelId,
+      sentAt,
+      content,
+      getTextContent(content),
+      parentId,
+      blob
+    ));
   assertBrowserHandoffDestination(channelId, blob);
   const author = toAuthor(authorId, botProfile);
 
@@ -418,6 +471,19 @@ export interface GetSequencedPostsOptions {
 export const getSequencedChannelPosts = async (
   options: GetSequencedPostsOptions
 ) => {
+  if (getDurableClient()) {
+    const page = await getDurableClient()!.window(options.channelId, {
+      mode: 'newer',
+      anchor: Math.max(0, options.start - 1),
+      count: Math.min(200, options.end - options.start + 1),
+    });
+    return {
+      posts: page.messages
+        .filter((message) => (message.channelSeq ?? message.seq) <= options.end)
+        .map((message) => durableMessageToPost(options.channelId, message)),
+      newestSequenceNum: page.newestSequenceNum,
+    };
+  }
   const encodedStart = formatUd(options.start.toString());
   const encodedEnd = formatUd(options.end.toString());
 
@@ -586,6 +652,7 @@ export const getInitialPosts = async (config: {
   channelCount: number;
   postCount: number;
 }) => {
+  if (getDurableClient()) return [];
   const response = await scryRequest(groupsUi.initPosts)<ub.PostsInit>({
     channels: config.channelCount,
     context: config.postCount,
@@ -610,6 +677,8 @@ export const getChannelPosts = async ({
   sequenceBoundary = null,
   skipGapFill = false,
 }: GetChannelPostsOptions) => {
+  if (getDurableClient())
+    return durablePosts(channelId, { cursor, mode, count, sequenceBoundary });
   // third-party channels (e.g. notes) are served by their backing agent, not
   // %channels. Rendering is delegated to that agent's WebView, so skip post
   // fetching here.
@@ -774,6 +843,12 @@ export const getChangedPosts = async ({
   endCursor,
   afterTime,
 }: GetChangedPostsOptions): Promise<GetChangedPostsResponse> => {
+  if (getDurableClient())
+    return durablePosts(channelId, {
+      mode: 'around',
+      cursor: endCursor,
+      count: 100,
+    });
   // %chat exposes DM and club updates through its global changes-since feed,
   // not a per-conversation, cursor-bounded changed-posts endpoint.
   if (!isGroupChannelId(channelId)) {
@@ -808,6 +883,11 @@ export async function addReaction({
   parentAuthorId?: string;
   parentId?: string;
 }) {
+  if (getDurableClient())
+    return void (await getDurableClient()!.mutate(channelId, postId, {
+      type: 'reaction',
+      emoji,
+    }));
   // Log if we're sending a shortcode to the server
   if (/^:[a-zA-Z0-9_+-]+:?$/.test(emoji)) {
     logger.trackError('Sending shortcode reaction to server', {
@@ -942,6 +1022,11 @@ export async function removeReaction({
   parentId?: string;
   parentAuthorId?: string;
 }) {
+  if (getDurableClient())
+    return void (await getDurableClient()!.mutate(channelId, postId, {
+      type: 'reaction',
+      emoji: null,
+    }));
   const isDmOrGroupDm =
     isDmChannelId(channelId) || isGroupDmChannelId(channelId);
 
@@ -1035,6 +1120,8 @@ export async function removeReaction({
 }
 
 export async function showPost(post: db.Post) {
+  const durable = getDurableClient();
+  if (durable) return setDurablePostHidden(durable, post, false);
   if (isGroupChannelId(post.channelId)) {
     return pokeRequest(channels.action)({
       'toggle-post': {
@@ -1051,6 +1138,8 @@ export async function showPost(post: db.Post) {
 }
 
 export async function hidePost(post: db.Post) {
+  const durable = getDurableClient();
+  if (durable) return setDurablePostHidden(durable, post, true);
   if (isGroupChannelId(post.channelId)) {
     return pokeRequest(channels.action)({
       'toggle-post': {
@@ -1113,6 +1202,10 @@ export async function deletePost(
   postId: string,
   authorId: string
 ) {
+  if (getDurableClient())
+    return void (await getDurableClient()!.mutate(channelId, postId, {
+      type: 'delete',
+    }));
   // todo: we need to use a tracked poke here (or settle on a different pattern
   // for expressing request response semantics)
   return await (isDmChannelId(channelId)
@@ -1144,6 +1237,12 @@ export async function deleteReply(params: {
   postId: string;
   authorId: string;
 }) {
+  if (getDurableClient())
+    return void (await getDurableClient()!.mutate(
+      params.channelId,
+      params.postId,
+      { type: 'delete' }
+    ));
   if (isDmChannelId(params.channelId)) {
     return await pokeChatAction(
       params.channelId,
@@ -1200,6 +1299,17 @@ export const getPostWithReplies = async ({
   /** Called after transport succeeds, before decoding the post. */
   onResponse?: () => void;
 }) => {
+  const durable = getDurableClient();
+  if (durable) {
+    const { parent, replies } = await durable.thread(channelId, postId);
+    onResponse?.();
+    return {
+      ...durableMessageToPost(channelId, parent),
+      replies: replies.map((message) =>
+        durableMessageToPost(channelId, message)
+      ),
+    };
+  }
   logger.log('fetching post with replies', { postId, channelId, authorId });
   if (
     !authorId &&
@@ -1747,4 +1857,109 @@ function formatCursor(cursor: Cursor) {
   } else {
     return formatDateParam(cursor);
   }
+}
+
+export function durableMessageToPost(
+  channelId: string,
+  message: DurableMessage
+): db.Post {
+  const client = getDurableClient();
+  const resolved = client
+    ? client.attachmentContent(
+        withoutRemoteImages(message.content, client.origin)
+      )
+    : message.content;
+  const blob =
+    message.blob && client
+      ? JSON.stringify(
+          client.attachmentContent(
+            withoutRemoteBlobMedia(JSON.parse(message.blob), client.origin)
+          )
+        )
+      : message.blob;
+  const metadataImage = (value?: string | null) =>
+    !value || (client && isRemoteUrl(value, client.origin))
+      ? ''
+      : (client?.attachmentUrl(value) ?? value);
+  const [content, flags] = toPostContent(resolved as Story);
+  const images = getContentImages(
+    durablePostId(channelId, message.id),
+    resolved as Story
+  );
+  return {
+    id: durablePostId(channelId, message.id),
+    channelId,
+    authorId: message.authorId,
+    sentAt: message.sentAt,
+    receivedAt: message.sentAt,
+    sequenceNum: message.parentId
+      ? message.seq
+      : (message.channelSeq ?? message.seq),
+    type: message.parentId
+      ? 'reply'
+      : channelId.startsWith('heap/')
+        ? 'block'
+        : 'chat',
+    title: message.metadata?.title ?? '',
+    description: message.metadata?.description ?? '',
+    image: metadataImage(message.metadata?.image),
+    cover: metadataImage(message.metadata?.cover),
+    images,
+    parentId: message.parentId
+      ? durablePostId(channelId, message.parentId)
+      : null,
+    replyCount: message.replyCount,
+    replyTime: message.replyTime,
+    replyContactIds: message.replyContactIds,
+    isDeleted: Boolean(message.deleted),
+    isEdited: Boolean(message.editedAt),
+    reactions: Object.entries(message.reactions ?? {}).map(
+      ([contactId, value]) => ({
+        postId: durablePostId(channelId, message.id),
+        contactId,
+        value,
+      })
+    ),
+    content,
+    textContent: message.text,
+    hidden: client ? isDurableHidden(client, channelId, message.id) : false,
+    blob: blob ?? null,
+    deliveryStatus: null,
+    editStatus: null,
+    deleteStatus: null,
+    ...flags,
+    hasImage: images.length > 0,
+  };
+}
+async function durablePosts(
+  channelId: string,
+  options: Partial<GetChannelPostsOptions> = {}
+) {
+  const client = getDurableClient()!;
+  let anchor: number | undefined;
+  if (typeof options.cursor === 'string') {
+    if (options.cursor.startsWith('durable:'))
+      anchor = Number(options.cursor.slice(8));
+    else {
+      const message = await client.message(channelId, options.cursor);
+      anchor = message.channelSeq ?? message.seq;
+    }
+  }
+  const page = await client.window(channelId, {
+    mode: options.mode ?? 'newest',
+    anchor,
+    count: options.count ?? 50,
+  });
+  return {
+    posts: page.messages.map((message) =>
+      durableMessageToPost(channelId, message)
+    ),
+    newer: page.newer === null ? null : `durable:${page.newer}`,
+    older: page.older === null ? null : `durable:${page.older}`,
+    totalPosts: page.newestSequenceNum,
+    deletedPosts: [],
+    numStubs: 0,
+    numDeletes: 0,
+    newestSequenceNum: page.newestSequenceNum,
+  };
 }
