@@ -52,6 +52,10 @@ vi.mock('react-native', () => ({
     },
   },
 }));
+vi.mock('@react-navigation/native', async () => {
+  const React = await import('react');
+  return { NavigationContext: React.createContext(undefined) };
+});
 vi.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ bottom: 34 }),
 }));

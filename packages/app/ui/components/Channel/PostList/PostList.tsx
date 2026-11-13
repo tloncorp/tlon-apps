@@ -1,6 +1,7 @@
 import { KeyboardAwareLegendList } from '@legendapp/list/keyboard';
 import { type LegendListRef } from '@legendapp/list/react-native';
 import { AnimatedLegendList } from '@legendapp/list/reanimated';
+import { NavigationContext } from '@react-navigation/native';
 import { layoutForType } from '@tloncorp/shared';
 import * as React from 'react';
 import {
@@ -115,6 +116,31 @@ function useConversationKeyboardListProps(
       keyboardDismissMode: 'on-drag' as const,
     };
   }, [composerContentInset]);
+}
+
+// Whether this list's screen is the one in front. Without a navigator (a
+// fixture), it always is.
+function useIsScreenFocused() {
+  const navigation = React.useContext(NavigationContext);
+  const subscribe = React.useCallback(
+    (onStoreChange: () => void) => {
+      if (!navigation) {
+        return () => {};
+      }
+      const offFocus = navigation.addListener('focus', onStoreChange);
+      const offBlur = navigation.addListener('blur', onStoreChange);
+      return () => {
+        offFocus();
+        offBlur();
+      };
+    },
+    [navigation]
+  );
+  const getSnapshot = React.useCallback(
+    () => navigation?.isFocused() ?? true,
+    [navigation]
+  );
+  return React.useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
 function useLegendListIsNearEnd(
@@ -661,8 +687,14 @@ const ConversationPostListAttempt = React.forwardRef<
     const listRef = React.useRef<LegendListRef>(null);
     const docked = useIsConversationDocked();
     // ConversationViewport follows content growth natively on iOS; a second
-    // JS scrollToEnd would restart the motion toward a stale end.
-    const nativeFollowsEnd = docked && Platform.OS === 'ios';
+    // JS scrollToEnd would restart the motion toward a stale end. Behind
+    // another screen it is out of the window and follows nothing, so the list
+    // keeps its own end there: rows still change (a reply count on the post a
+    // thread was opened from, posts arriving), and going back would otherwise
+    // show the newest ones under the composer, or a jump to an end not yet
+    // laid out.
+    const screenIsFocused = useIsScreenFocused();
+    const nativeFollowsEnd = docked && Platform.OS === 'ios' && screenIsFocused;
     const composerLayout = useConversationComposerLayout();
     const floating = docked && composerLayout.floating;
     const historyNavigationRequested = React.useRef(false);
@@ -1010,7 +1042,8 @@ const ConversationPostListAttempt = React.forwardRef<
         !hasNewerPosts &&
         !composerSendActive
           ? {
-              animated: didFinishInitialScroll && !reduceMotion,
+              animated:
+                didFinishInitialScroll && !reduceMotion && screenIsFocused,
               // The keyboard and composer already animate the viewport. Follow
               // each resize immediately instead of starting another animation.
               on: docked
@@ -1032,6 +1065,7 @@ const ConversationPostListAttempt = React.forwardRef<
         didFinishInitialScroll,
         hasNewerPosts,
         reduceMotion,
+        screenIsFocused,
       ]
     );
     const conversationScrollEndAnchor = useConversationScrollEndAnchor();
