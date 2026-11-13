@@ -106,7 +106,7 @@
   =/  third  (next-message-stamp:p ~2026.9.4 second)
   (expect !>(&((lth first second) (lth second third) =(second (slav %da (scot %da second))))))
 ++  test-message-routing-and-stale-wakes-never-create-a-timer
-  =/  state=state-2:t  *state-2:t
+  =/  state=state-3:t  *state-3:t
   =.  policy.state  [& `~bud ~ %mentions ~ ~]
   =.  watching.state  &
   =.  wake.state  `~2026.9.4
@@ -114,20 +114,20 @@
   =.  deliveries.state  (~(put by deliveries.state) 0v1 `delivery:t`[1 %send %uncertain 'external'])
   (expect-eq !>(`(unit @da)`~) !>((deadline:clock ~2026.9.5 state)))
 ++  test-maintenance-renews-the-presence-lease-at-its-deadline
-  =/  state=state-2:t  *state-2:t
+  =/  state=state-3:t  *state-3:t
   =.  policy.state  [& `~bud ~ %mentions ~ ~]
   =.  watching.state  &
   =.  computing.state  (my ~[[/dm/~bud [~2026.9.5 ~]]])
   (expect-eq !>(`(unit @da)`[~ (add ~2026.9.5 ~s10)]) !>((deadline:clock ~2026.9.5 state)))
 ++  test-maintenance-tool-timeout-is-not-a-message-poll
-  =/  state=state-2:t  *state-2:t
+  =/  state=state-3:t  *state-3:t
   =.  policy.state  [& `~bud ~ %mentions ~ ~]
   =.  watching.state  &
   =.  tool-receipts.state
     (my ~[[0v1 [['s' 1 ['call' 'tlon_react' '{}']] %sending '' ~2026.9.5]]])
   (expect-eq !>(`(unit @da)`[~ (add ~2026.9.5 ~m1)]) !>((deadline:clock ~2026.9.5 state)))
 ++  test-disabled-hand-has-no-maintenance-wake
-  =/  state=state-2:t  *state-2:t
+  =/  state=state-3:t  *state-3:t
   =.  enabled.policy.state  |
   =.  computing.state  (my ~[[/dm/~bud [~2026.9.5 ~]]])
   (expect-eq !>(`(unit @da)`~) !>((deadline:clock ~2026.9.5 state)))

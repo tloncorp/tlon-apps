@@ -60,13 +60,16 @@
   ==
 ++  load
   |=  old=vase
-  ^-  state-2
+  ^-  state-3
   ?>  ?=(^ q.old)
-  ?:  =(%2 -.q.old)  !<(state-2 old)
+  ?:  =(%3 -.q.old)  (need ((soft state-3) q.old))
+  ?:  =(%2 -.q.old)
+    =/  saved  !<(state-2 old)
+    [%3 ~ +.saved]
   =/  saved
     ?:  =(%0 -.q.old)  (zero-to-one !<(state-0 old))
     !<(state-1 old)
-  [%2 *lens-sync +.saved]
+  [%3 ~ *lens-sync +.saved]
 ::
 ++  zero-to-one
   |=  saved=state-0

@@ -117,6 +117,48 @@ and test isolation.
 An artifact check does not replace a cold installation and real Gall
 compilation.
 
+## Local browser use
+
+On a disposable Harness ship with a model and the Tlon hand configured, run
+`scripts/harness/browser.sh PIER < kernel-mcp.json` from this directory. The
+input is a JSON object with the Kernel MCP `url` and optional `headers` array
+of `{ "name": "...", "value": "..." }` entries for the test bot's endpoint
+credentials. The script installs the Kernel browser skill and its secure-entry
+and payment references as skills available through `read_skill`. It registers
+`kernel-browser` as a separate MCP server. Keep its server grant off trusted
+non-owner and peer tool lists.
+
+From the configured owner's DM, ask the bot to open a JavaScript-rendered
+test page, click a control, report the changed text, and close the session.
+The skill uses the session handle across the browser calls and reads page
+state through Playwright.
+
+For a canvas or another control that requires coordinates, use
+`kernel_computer_screenshot` and the computer action tools. Harness sends the
+latest PNG or JPEG as part of its tool response to DeepSeek Flash 1017 on the
+Chat Completions route. Conversation history keeps the text receipt. The
+ship's Arvo event log retains the raw screenshot response.
+
+For a synthetic login, ask the bot to mark the login inputs and use
+`browser_secure_entry` from the owner's DM. Messenger opens the returned
+secure form. The browser service performs the fill and Harness resumes the
+waiting turn with the status. For the local web app, set
+`TLON_BROWSER_VIEWER_DEV_ORIGIN` to the browser service's viewer origin.
+`VITE_AGENT_SHIP_OVERRIDE` can select the fake bot for a local web test when
+its ship is independent of the fake owner. Use `browser_approve_login` to
+review a Vault login, `browser_connect_wallet` to connect Stripe Link, and
+`browser_request_payment` to review a checkout. Link connection and purchase
+approval each use their own card and result.
+The payment card uses the app's browser service endpoint, set by
+`VITE_BROWSER_SERVICE_ENDPOINT` on web.
+
+Run `just test-js kernel-browser-conformance` from a checkout with a short
+pier path. The test exercises browser navigation, secure entry, Stripe Link
+connection, and permission checks with a loopback MCP fixture and a scripted
+model. On two already-running disposable ships with fresh Harness state, set
+`SHIP_URL`, `SHIP_COOKIE`, `PEER_URL`, and `PEER_COOKIE` and run
+`node tests-js/kernel-browser-conformance.mjs`.
+
 ## Native tests
 
 In Dojo on a development desk:

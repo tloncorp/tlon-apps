@@ -2,7 +2,7 @@
 /+  *test, c=harness-tlon-continuity
 |%
 ++  test-detached-route-keeps-receipts-and-starts-a-fresh-conversation
-  =/  saved=state-2:t  *state-2:t
+  =/  saved=state-3:t  *state-3:t
   =.  saved
     %=  saved  epoch  7  lanes  (my ~[['s' dm] ['other' dm]])  routes
         (my ~[['s' ['binding' %ready]] ['other' ['other-binding' %ready]]])  identities

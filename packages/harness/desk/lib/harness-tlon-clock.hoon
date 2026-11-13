@@ -4,7 +4,7 @@
 |%
 ::
 ++  deadline
-  |=  [now=@da state=state-2:t]
+  |=  [now=@da state=state-3:t]
   ^-  (unit @da)
   =/  presence-deadlines=(list @da)
     ?.  enabled.policy.state  ~
@@ -12,11 +12,12 @@
     |=  lease=presence-lease:t
     (add at.lease ~s10)
   =/  tool-deadlines=(list @da)
-    %+  murn  ~(val by tool-receipts.state)
-    |=  receipt=tool-receipt:t
-    ?.  =(%sending stage.receipt)  ~
+    %+  murn  ~(tap by tool-receipts.state)
+    |=  [id=@uv receipt=tool-receipt:t]
+    ?.  &(=(%sending stage.receipt) !(~(has by browser-entries.state) id))  ~
     `(add at.receipt ~m1)
   =/  times  (weld presence-deadlines tool-deadlines)
+  =.  times  (weld times (turn ~(val by browser-entries.state) |=(entry=browser-entry:t next.entry)))
   =?  times  &(enabled.policy.state enabled.lens.state)
     %+  weld  times
     %+  murn  ~(val by records.lens.state)

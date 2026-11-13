@@ -4,7 +4,7 @@
 /+  *test-agent, policy=harness-tlon-policy
 /=  adapter  /app/harness-tlon
 |%
-+$  outcome  [cards=(list card) replies=(list json) saved=state-2:t]
++$  outcome  [cards=(list card) replies=(list json) saved=state-3:t]
 ++  fixture
   ^-  state-2:t
   =/  s=state-2:t  *state-2:t
@@ -66,7 +66,7 @@
       !>(`request:ad`['fixture' [%n '1'] 'harness/tlon/configure' `params])
     ==
   ;<  =vase  bind:m  get-save
-  (pure:m (activity-cards caz) (replies caz) !<(state-2:t vase))
+  (pure:m (activity-cards caz) (replies caz) !<(state-3:t vase))
 ++  replies
   |=  cards=(list card)
   ^-  (list json)
