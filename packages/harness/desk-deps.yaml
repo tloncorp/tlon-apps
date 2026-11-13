@@ -73,6 +73,8 @@ tlon:
     - lib/groups-json.hoon
     - lib/logs.hoon
     - lib/story-json.hoon
+    # how a ship is named to people, as the app names it
+    - lib/pet-name.hoon
     # what the files above import
     - lib/cite-json.hoon
     - lib/mop-extensions.hoon

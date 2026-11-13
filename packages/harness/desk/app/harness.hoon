@@ -38,6 +38,7 @@
 /+  tlon-work=harness-tlon-work-card
 /+  work-help=harness-work-help
 /+  work-view=harness-work-view
+/+  pet-name
 /+  work-copy=harness-work-copy
 /+  hosted-auth=harness-hosted-auth
 /+  hosted-settings=harness-hosted-settings
@@ -1287,7 +1288,7 @@
   =/  access  (~(get by names.corpus) sid)
   ?~  access  ~
   =/  peer  (peer-source:admin log.u.session)
-  =?  label  ?=(^ peer)  (cat 3 'Agent on ' (scot %p u.peer))
+  =?  label  ?=(^ peer)  (cat 3 'Agent on ' (crip (name:pet-name u.peer)))
   `[| [u.worker label] u.access]
 ::
 ++  workspace-request
