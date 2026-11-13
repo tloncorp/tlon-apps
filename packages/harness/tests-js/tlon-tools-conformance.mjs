@@ -15,7 +15,8 @@ const row = (await readFile(process.env.PEER_COOKIE, 'utf8')).split('\n').find((
 const peerCookie = `${row[5]}=${row[6]}`, peer = row[5].slice('urbauth-'.length)
 const ship = cookie.split('=')[0].slice('urbauth-'.length), client = new Client()
 const marker = `hand-tools-${randomUUID()}`, channel = marker, failures = [], receipts = [], schedules = []
-let event = 0, defaults, policy, mode = 'unbound', sourceSid, scheduledSid, targetId, held, scheduledRequests = 0, unbound, broadened = false
+let event = 0, defaults, policy, mode = 'unbound', sourceSid, scheduledSid, targetId, held, scheduledRequests = 0, unbound, broadened = false, managed
+const cronTools = ['schedule_once', 'reminder_add', 'cron_add', 'cron_list', 'cron_update', 'cron_remove', 'cron_delete', 'cron_retry'], denials = {}, extra = []
 const call = (id, name, args) => ({ id, type: 'function', function: { name, arguments: JSON.stringify(args) } })
 const answer = (res, content, calls = []) => res.end(JSON.stringify({ choices: [{ finish_reason: calls.length ? 'tool_calls' : 'stop', message: {
   role: 'assistant', content, ...(calls.length ? { tool_calls: calls } : {}),
@@ -39,6 +40,7 @@ const server = createServer(async (req, res) => {
       assert.ok(!body.messages.some((m) => m.content?.includes('PRIVATE_SCHEDULING_CONTEXT')))
       assert.ok(!body.tools.some((t) => ['cron_add', 'run_subagent'].includes(t.function.name)))
       if (mode === 'cron-revoke') { held = res; return }
+      if (mode === 'cron-channel') return answer(res, `${marker}-channel-scheduled-ok`)
       if (!current.length) {
         if (!broadened) {
           const cfg = await client.call('harness/session/config', { sessionId: scheduledSid })
@@ -50,9 +52,30 @@ const server = createServer(async (req, res) => {
       for (const result of current) assert.match(result.content, /not granted/)
       return answer(res, `${marker}-scheduled-ok`)
     }
+    if (mode.startsWith('manage')) {
+      const steps = ['cron_add', 'cron_list', 'cron_update', 'cron_remove'], last = current.length && JSON.parse(current.at(-1).content)
+      if (current.length === 1) { assert.equal(last.state, 'active'); extra.push(last.id); managed = last }
+      if (current.length === 2) assert.ok(last.some((j) => j.id === managed.id))
+      if (current.length === 3) { assert.equal(last.prompt, `${marker}-${mode}-changed`); managed = last }
+      if (current.length === 4) { assert.equal(last.state, 'cancelled'); return answer(res, `${marker}-${mode}-ok`) }
+      const timing = { schedule: '0 9 1 1 *', timezone: 'UTC' }
+      const args = [{ ...timing, prompt: `${marker}-${mode}`, runs: '3' }, {},
+        { id: managed?.id, revision: managed?.revision, args: { ...timing, prompt: `${marker}-${mode}-changed`, runs: '2' } }, { id: managed?.id }][current.length]
+      return answer(res, '', [call(`${steps[current.length]}-${mode}`, steps[current.length], args)])
+    }
+    if (mode.startsWith('deny')) {
+      if (!current.length) {
+        denials[mode] = { offered: body.tools.map((t) => t.function.name).filter((name) => cronTools.includes(name)) }
+        return answer(res, '', [call(`forged-${mode}`, 'cron_add', { schedule: '0 9 1 1 *', timezone: 'UTC', prompt: `${marker}-${mode}`, runs: '1' })])
+      }
+      denials[mode].result = current[0].content
+      const job = /^\{/.test(current[0].content) && JSON.parse(current[0].content)
+      if (job?.id) extra.push(job.id)
+      return answer(res, `${marker}-${mode}-ok`)
+    }
     if (mode.startsWith('cron')) {
       if (!current.length) return answer(res, '', [call(`add-${mode}`, 'cron_add', {
-        schedule: '* * * * *', timezone: 'UTC', prompt: `${marker}-scheduled`, runs: mode === 'cron' ? '1' : '2',
+        schedule: '* * * * *', timezone: 'UTC', prompt: `${marker}-scheduled`, runs: mode === 'cron-revoke' ? '2' : '1',
       })])
       const job = JSON.parse(current[0].content)
       assert.equal(job.state, 'active'); assert.equal(job.timezone, 'UTC')
@@ -118,13 +141,17 @@ try {
       return target && (mode.endsWith('unreact') ? !target.seal.reacts?.[ship] : !!target.seal.reacts?.[ship])
     })
   }
-  // A trusted actor with zero resource grants has the same in-conversation
-  // Tlon abilities as the owner, including scheduled work.
-  await client.call('harness/tlon/configure', { enabled: true, owner: '~bud', response: 'mentions', allowed: [], channels: [], trusted: [{ ship: peer, tools: [] }] })
+  // Only the bot's owner schedules work: it creates, lists, changes and
+  // cancels in a DM and a channel mention, and its jobs run and deliver.
+  for (const next of ['manage-dm', 'manage-channel']) {
+    mode = next; managed = undefined; const inChannel = next.endsWith('channel')
+    await send(`${marker}-${mode}`, inChannel)
+    await until(`${mode} owner created, listed, changed and cancelled a schedule`, async () => JSON.stringify(await page(inChannel, true)).includes(`${marker}-${mode}-ok`))
+  }
   // The job fires at the next minute. Too close to it, and it runs before the fixture
   // knows its conversation, and has finished by the time the test tries to clear it.
-  const second = (Date.now() % 60000) / 1000
-  if (second > 45) await sleep((61 - second) * 1000)
+  const nextMinute = async () => { const second = (Date.now() % 60000) / 1000; if (second > 45) await sleep((61 - second) * 1000) }
+  await nextMinute()
   mode = 'cron'; await send(`${marker}-cron PRIVATE_SCHEDULING_CONTEXT`)
   await until('schedule creation acknowledged', () => schedules.length === 1)
   const first = (await client.call('harness/cron')).find((j) => j.id === schedules[0]); sourceSid = first.sessionId; scheduledSid = first.runSessionId
@@ -150,19 +177,42 @@ try {
   await client.call('session/prompt', { sessionId: first.runSessionId, prompt: [{ type: 'text', text: 'Check that clearing the schedule did not broaden its tool authority.' }] })
   assert.ok(!(await client.call('harness/cron')).some((j) => j.runSessionId === first.runSessionId))
   console.log('PASS clearing finished schedule preserves transcript and delivery evidence, and disables its binding')
+  // The owner schedules from a channel mention; the run posts in that channel.
+  await nextMinute(); mode = 'cron-channel'; await send(`${marker}-cron-channel`, true)
+  await until('channel schedule acknowledged', () => schedules.length === 2)
+  await until('channel schedule ran and posted in the channel', async () => JSON.stringify(await page(true, true)).includes(`${marker}-channel-scheduled-ok`), 95000)
+  const revoking = schedules.length
   mode = 'cron-revoke'; await send(`${marker}-cron-revoke PRIVATE_SCHEDULING_CONTEXT`)
-  await until('second schedule acknowledged', () => schedules.length === 2)
+  await until('second schedule acknowledged', () => schedules.length === revoking + 1)
   await until('scheduled inference is in flight', () => held, 95000)
   await client.call('harness/tlon/configure', { enabled: true, owner: '~bud', response: 'mentions', allowed: [], channels: [], trusted: [] })
   answer(held, `${marker}-MUST_NOT_PUBLISH`); held = null
-  await until('source revocation pauses schedule', async () => (await client.call('harness/cron')).find((j) => j.id === schedules[1])?.state === 'paused')
+  await until('source revocation pauses schedule', async () => (await client.call('harness/cron')).find((j) => j.id === schedules[revoking])?.state === 'paused')
   await sleep(2500)
   assert.ok(!JSON.stringify(await page(false, true)).includes(`${marker}-MUST_NOT_PUBLISH`))
+  // A trusted ship granted tlon, cron and admin schedules exactly as an allowed
+  // ship does: it is not offered the tools, and a forged call is refused.
+  for (const [tier, trust] of [['trusted', { allowed: [], trusted: [{ ship: peer, tools: ['tlon', 'cron', 'admin'] }] }], ['allowed', { allowed: [peer], trusted: [] }]]) {
+    await client.call('harness/tlon/configure', { enabled: true, owner: '~bud', response: 'mentions', channels: [], ...trust })
+    for (const surface of ['dm', 'channel']) {
+      mode = `deny-${tier}-${surface}`; const inChannel = surface === 'channel'
+      await send(`${marker}-${mode}`, inChannel)
+      await until(`${mode} reply delivered`, async () => JSON.stringify(await page(inChannel, true)).includes(`${marker}-${mode}-ok`))
+    }
+  }
+  const jobs = await client.call('harness/cron')
+  for (const [name, seen] of Object.entries(denials)) console.log(`${name}: offered [${seen.offered.join(', ')}]; forged cron_add returned ${seen.result}`)
+  for (const [name, seen] of Object.entries(denials)) {
+    assert.deepEqual(seen.offered, [], `${name}: scheduling tools offered to a non-owner`)
+    assert.match(seen.result, /not granted/, `${name}: the refusal must say the tool is not granted`)
+    assert.ok(!jobs.some((j) => j.prompt === `${marker}-${name}`), `${name}: a non-owner created a schedule`)
+  }
+  console.log('PASS non-owners are not offered scheduling and their forged calls are refused')
   assert.deepEqual(failures, [])
-  console.log(JSON.stringify({ ok: true, dmAndChannelReactions: true, boundedHistory: true, forgedDestinationsIgnored: true, cronPublished: true, noPrivateTranscriptInheritance: true, editedScheduleCeiling: broadened, recursiveSchedulingDenied: true, sourceRevocationFenced: true, scheduledRequests }))
+  console.log(JSON.stringify({ ok: true, ownerOnlyScheduling: true, dmAndChannelReactions: true, boundedHistory: true, forgedDestinationsIgnored: true, cronPublished: true, noPrivateTranscriptInheritance: true, editedScheduleCeiling: broadened, recursiveSchedulingDenied: true, sourceRevocationFenced: true, scheduledRequests }))
 } finally {
   if (held) answer(held, 'cancelled fixture')
-  for (const id of schedules) await client.call('harness/cron/cancel', { id }).catch(() => {})
+  for (const id of [...schedules, ...extra]) await client.call('harness/cron/cancel', { id }).catch(() => {})
   if (unbound) await client.call('session/delete', { sessionId: unbound }).catch(() => {})
   if (defaults) await client.call('harness/defaults/configure', { config: { ...defaults, key: '' } })
   if (policy) await client.call('harness/tlon/configure', policy)
