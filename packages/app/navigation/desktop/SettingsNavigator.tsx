@@ -69,7 +69,8 @@ function DrawerContent(props: DrawerContentComponentProps) {
       : isHostedUser && hostingBotEnabled;
   const focusedRoute = props.state.routes[props.state.index];
   const { themeLabel, notificationsLabel } = useSettingsRowLabels();
-  const { storageLabel, tokenUsageLabel } = useSettingsUsageLabels();
+  const { storageLabel, storageProgress, tokenUsageLabel } =
+    useSettingsUsageLabels();
   const scheduledTasks = useScheduledTasksEntry({
     enabled: botEnabled,
     whileLoading: true,
@@ -146,6 +147,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
       themeLabel={themeLabel}
       notificationsLabel={notificationsLabel}
       storageLabel={storageLabel}
+      storageProgress={storageProgress}
       tokenUsageLabel={tokenUsageLabel}
     />
   );
