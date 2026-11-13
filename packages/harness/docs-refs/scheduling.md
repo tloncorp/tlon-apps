@@ -7,6 +7,12 @@ destination. Open **Settings → Schedules** to inspect or cancel jobs.
 Active bound conversations receive `schedule_once`, `cron_add`, `cron_list`,
 `cron_remove`, and `reminder_add`. Unbound browser conversations, delegated
 agents, and scheduled runs cannot enable these through a configuration flag.
+On the Tlon hand only the bot's owner schedules: a turn answering anyone else,
+trusted ships included, is not offered these tools, and a call from such a turn
+is refused. This holds in DMs and channels, for creating, listing, changing and
+cancelling. The hand decides: a conversation's hand tool ceiling also limits
+scheduling, and the Tlon hand gives the owner no ceiling and keeps scheduling
+out of everyone else's.
 
 ## Tasks and literal reminders
 
@@ -39,10 +45,11 @@ checks source permissions before admitting work and dispatching tools, including
 Tlon's actor and conversation checks.
 
 Disabling or replacing a source binding, or changing its effective grants,
-pauses affected jobs. Re-enabling the source does not resume them; reschedule
-explicitly. Stopping the Tlon adapter pauses nothing: its jobs wait, and a job that
-came due meanwhile runs once when it's back. Hand workers authenticate actors and
-deliver results.
+pauses affected jobs. A Tlon job whose actor is not the bot's owner is paused,
+including after an ownership change. Re-enabling the source does not resume them;
+reschedule explicitly. Stopping the Tlon adapter pauses nothing: its jobs wait,
+and a job that came due meanwhile runs once when it's back. Hand workers
+authenticate actors and deliver results.
 
 ## Timing, delivery and retention
 
@@ -50,6 +57,11 @@ One head-owned Behn wake follows the earliest outstanding schedule deadline.
 Downtime coalesces to one run, never a missed-run backlog. The run budget advances
 in the same Gall transaction as ledger admission. Pending execution or pending,
 claimed or uncertain publication blocks another run of that schedule.
+
+A run's final message goes to the conversation that created the job. To post
+elsewhere, the run uses the ship-wide `tlon` tool, which it has when the creating
+conversation had it: an owner DM does, and a channel conversation does when `tlon`
+is in Settings → Defaults.
 
 Results enter the hand's outbox. Check delivery separately from execution;
 uncertain sends are not retried automatically. See [hand receipts](hands.md#claims-and-receipts).
@@ -74,7 +86,8 @@ Owner-authenticated ACP clients use:
 `id` is a canonical native `@uv` string, such as `0v1`; use a fresh id for new
 work. Repeating a create with the same id and payload returns the existing job;
 a conflicting payload is rejected. `kind` is `prompt` or `reminder`, and `args`
-contains that tool's fields. The source binding supplies the hand, destination
+contains that tool's fields. On a Tlon binding, an `actor` who is not the bot's
+owner is rejected. The source binding supplies the hand, destination
 and source session; callers cannot replace these through the job arguments.
 
 Native applications watch `/crons/[request-id]` on `%harness`, then poke mark
@@ -94,7 +107,8 @@ The JavaScript `HandClient` wraps these as `schedule(binding, options)`,
 `desk/tests/harness-schedule.hoon` tests shared validation, isolation, evidence
 gates and bounded advancement. The opt-in
 `desk/tests-integration/harness-schedule.hoon` exercises full-agent reload,
-single-timer replacement and durable schedule ownership. Run
+single-timer replacement, durable schedule ownership and scheduling within a
+hand's ceiling. Run
 `tests-js/cron-conformance.mjs` with `SHIP_URL` and `SHIP_COOKIE` on a development
 ship to exercise a non-Tlon hand, native/ACP parity, model-created schedules,
 literal delivery, recursive-call denial and source revocation. It uses a local
