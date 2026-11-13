@@ -53,9 +53,13 @@ test('should show group info, channel, and role changes to invited user', async 
   // Step 2: Invite ~ten to the group
   await helpers.openInvitePeople(zodPage);
   await expect(zodPage.getByText('Select people to invite')).toBeVisible();
-  await zodPage.getByPlaceholder('Filter by nickname, @p').fill('~ten');
+  await zodPage.getByPlaceholder('Filter by nickname or ID').fill('~ten');
   await zodPage.waitForTimeout(1000);
-  await zodPage.getByTestId('ContactRow').getByText('~ten').first().click();
+  await zodPage
+    .getByTestId('ContactRow')
+    .getByText(helpers.displayId('~ten'), { exact: true })
+    .first()
+    .click();
   await zodPage.getByText('Invite 1 and continue').click();
   await zodPage.waitForTimeout(1000);
 
@@ -63,7 +67,10 @@ test('should show group info, channel, and role changes to invited user', async 
   // await helpers.navigateBack(zodPage);
 
   // Step 3: ~ten accepts the invite
-  await helpers.acceptGroupInvite(tenPage, '~ten, ~zod');
+  await helpers.acceptGroupInvite(
+    tenPage,
+    helpers.memberListTitle('~ten', '~zod')
+  );
 
   // Step 4: ~zod makes ~ten an admin
   await helpers.openGroupSettings(zodPage);

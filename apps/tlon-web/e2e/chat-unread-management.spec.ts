@@ -15,7 +15,7 @@ test('should show and clear unread message counts', async ({
 
   // Create a new group
   await helpers.createGroup(zodPage);
-  const groupName = '~ten, ~zod';
+  const groupName = helpers.memberListTitle('~ten', '~zod');
 
   await helpers.inviteMembersToGroup(zodPage, ['ten']);
 

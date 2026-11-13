@@ -3,7 +3,7 @@ import { Page, expect } from '@playwright/test';
 import * as helpers from './helpers';
 import { test } from './test-fixtures';
 
-const GROUP_NAME = '~ten, ~zod';
+const GROUP_NAME = helpers.memberListTitle('~ten', '~zod');
 const MESSAGE_TEXT = 'Shortcode refresh duplicate reaction repro';
 
 test('should never show duplicate thumb reaction chips after stale refresh', async ({

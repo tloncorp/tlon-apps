@@ -16,7 +16,7 @@ test('should test direct message protocol mismatch', async ({ zodPage }) => {
   await helpers.createDirectMessage(page, '~bus');
 
   if (await zodPage.getByTestId('MessageInput').isVisible()) {
-    await helpers.sendMessage(page, 'Hello, ~bus!');
+    await helpers.sendMessage(page, 'Hello from Zod to Bus!');
     // navigate to home
     await page.getByTestId('HomeNavIcon').click();
     // give some time for the mismatch to register

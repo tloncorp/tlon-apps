@@ -1,7 +1,25 @@
 import { Page, expect } from '@playwright/test';
+import { shipToDisplayId } from '@tloncorp/api/lib/urbit';
 import * as path from 'path';
 
 import shipManifest from './shipManifest.json';
+
+/** How the app shows a ship whose owner has no nickname: '~ten' → '160'. */
+export function displayId(ship: string): string {
+  const id = shipToDisplayId(ship);
+  if (id === null) {
+    throw new Error(`not a ship: ${ship}`);
+  }
+  return id;
+}
+
+/** The title the app gives an untitled group: its members' names, sorted. */
+export function memberListTitle(...ships: string[]): string {
+  return ships
+    .map(displayId)
+    .sort((a, b) => a.localeCompare(b))
+    .join(', ');
+}
 
 /**
  * Which ship a page is showing, derived from its web port via the manifest.
@@ -308,13 +326,15 @@ export async function inviteMembersToGroup(page: Page, memberIds: string[]) {
 
     // Wait for contact to appear in search results
     await expect(
-      page.getByTestId('ContactRow').getByText(`~${memberId}`, { exact: true })
+      page
+        .getByTestId('ContactRow')
+        .getByText(displayId(memberId), { exact: true })
     ).toBeVisible({
       timeout: 10000,
     });
     await page
       .getByTestId('ContactRow')
-      .getByText(`~${memberId}`, { exact: true })
+      .getByText(displayId(memberId), { exact: true })
       .click();
   }
 
@@ -854,15 +874,21 @@ export async function forwardMessageToDM(
       await contactRow.click();
     } else {
       // Fallback to text-based selection with force click to handle overlays
-      await page.getByText(contactId).first().click({ force: true });
+      await page
+        .getByText(displayId(contactId), { exact: true })
+        .first()
+        .click({ force: true });
     }
   } catch (error) {
     // Final fallback: try clicking with force
-    await page.getByText(contactId).first().click({ force: true });
+    await page
+      .getByText(displayId(contactId), { exact: true })
+      .first()
+      .click({ force: true });
   }
 
   // Confirm forward
-  await page.getByText(`Forward to ${contactId}`).click();
+  await page.getByText(`Forward to ${displayId(contactId)}`).click();
 }
 
 /**
@@ -2293,13 +2319,15 @@ export async function createDirectMessage(page: Page, contactId: string) {
   await page.getByText('New Message', { exact: true }).click();
 
   await expect(page.getByText('Select a contact to chat with')).toBeVisible();
-  await page.getByPlaceholder('Filter by nickname or id').click();
-  await page.getByPlaceholder('Filter by nickname or id').fill(contactId);
+  await page.getByPlaceholder('Filter by nickname or ID').click();
+  await page.getByPlaceholder('Filter by nickname or ID').fill(contactId);
   await page.waitForTimeout(2000);
   await page.getByTestId('ContactRow').first().click();
 
   // Wait for DM to open
-  await expect(page.getByText(contactId).first()).toBeVisible();
+  await expect(
+    page.getByText(displayId(contactId), { exact: true }).first()
+  ).toBeVisible();
   if (await isMobileViewport(page)) {
     console.log('header back button');
     await expect(page.getByTestId('HeaderBackButton')).toBeVisible();

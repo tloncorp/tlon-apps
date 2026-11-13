@@ -12,7 +12,7 @@ test('should edit a notebook post', async ({ zodSetup, tenSetup }) => {
 
   // Create a new group
   await helpers.createGroup(zodPage);
-  const groupName = '~ten, ~zod';
+  const groupName = helpers.memberListTitle('~ten', '~zod');
 
   // Invite ~ten to the group
   await helpers.inviteMembersToGroup(zodPage, ['ten']);

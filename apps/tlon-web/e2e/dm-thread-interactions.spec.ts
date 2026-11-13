@@ -15,7 +15,7 @@ test('should test DM thread interactions and message operations', async ({
 
   // Setup: Create DM and establish thread
   await helpers.createDirectMessage(zodPage, '~ten');
-  await helpers.sendMessage(zodPage, "Hello ~ten! Let's test threads in DMs.");
+  await helpers.sendMessage(zodPage, 'Zod opens a DM thread test.');
 
   if (await helpers.isMobileViewport(zodPage)) {
     await helpers.navigateBack(zodPage);
@@ -28,7 +28,7 @@ test('should test DM thread interactions and message operations', async ({
   });
   await tenPage.getByTestId('ChannelListItem-~zod').click();
   await expect(
-    tenPage.getByText("Hello ~ten! Let's test threads in DMs.").first()
+    tenPage.getByText('Zod opens a DM thread test.').first()
   ).toBeVisible({ timeout: 10000 });
   await expect(tenPage.getByText('Accept')).toBeVisible({ timeout: 5000 });
   await tenPage.getByText('Accept').click();
@@ -46,7 +46,7 @@ test('should test DM thread interactions and message operations', async ({
   await expect(
     zodPage.getByText('Ten responds: Ready for DM thread testing!').first()
   ).toBeVisible({ timeout: 20000 });
-  await helpers.startThread(zodPage, "Hello ~ten! Let's test threads in DMs.");
+  await helpers.startThread(zodPage, 'Zod opens a DM thread test.');
   await helpers.sendThreadReply(
     zodPage,
     'This is my first thread reply in a DM!'
@@ -55,7 +55,9 @@ test('should test DM thread interactions and message operations', async ({
   // Navigate back to see thread indicator
   await helpers.navigateBack(zodPage);
   await expect(zodPage.getByText('1 reply')).toBeVisible({ timeout: 10000 });
-  await expect(zodPage.getByText('~ten').first()).toBeVisible({
+  await expect(
+    zodPage.getByText(helpers.displayId('~ten'), { exact: true }).first()
+  ).toBeVisible({
     timeout: 5000,
   });
 
@@ -89,7 +91,9 @@ test('should test DM thread interactions and message operations', async ({
   // Navigate to DM and wait for thread indicator - cross-ship sync
   await zodPage.getByTestId('ChannelListItem-~ten').click();
   // Verify we're in the correct DM context before looking for thread indicators
-  await expect(zodPage.getByText('~ten').first()).toBeVisible({
+  await expect(
+    zodPage.getByText(helpers.displayId('~ten'), { exact: true }).first()
+  ).toBeVisible({
     timeout: 5000,
   });
   await expect(zodPage.getByText(/\d+ repl(y|ies)/)).toBeVisible({
@@ -130,7 +134,9 @@ test('should test DM thread interactions and message operations', async ({
 
   // TEN: Navigate back to main DM view to see thread indicators
   await helpers.navigateBack(tenPage);
-  await expect(tenPage.getByText('~zod').first()).toBeVisible({
+  await expect(
+    tenPage.getByText(helpers.displayId('~zod'), { exact: true }).first()
+  ).toBeVisible({
     timeout: 5000,
   });
 

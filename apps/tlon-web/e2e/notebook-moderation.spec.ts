@@ -15,7 +15,7 @@ test('should test notebook post moderation features', async ({
 
   // Create a new group
   await helpers.createGroup(zodPage);
-  const groupName = '~ten, ~zod';
+  const groupName = helpers.memberListTitle('~ten', '~zod');
 
   // Invite ~ten to the group
   await helpers.inviteMembersToGroup(zodPage, ['ten']);

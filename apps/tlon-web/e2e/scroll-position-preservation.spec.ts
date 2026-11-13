@@ -51,7 +51,10 @@ test.describe('Scroll position preservation', () => {
     const firstVisiblePost = page
       .getByTestId('Post')
       .filter({ hasText: 'ProfileScrollMsg-00' });
-    await firstVisiblePost.locator('text=~zod').first().click();
+    await firstVisiblePost
+      .getByText(helpers.displayId('~zod'), { exact: true })
+      .first()
+      .click();
     await page.waitForTimeout(2000);
 
     // Navigate back
