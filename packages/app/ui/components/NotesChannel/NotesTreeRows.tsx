@@ -18,6 +18,7 @@ import { ListItem } from '../ListItem';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { UnreadDot } from '../UnreadDot';
 import { NotesActionMenu } from './NotesActions';
+import { useMentionText } from '../../hooks/useMentionText';
 
 export function FolderTreeRow({
   canEdit,
@@ -162,7 +163,8 @@ export function NoteRow({
   onViewPublished?: () => void;
 }) {
   const updatedAt = noteTimestampMs(note.updatedAt ?? note.createdAt);
-  const bodyPreview = getNoteBodyPreview(note.bodyMd);
+  const mentionText = useMentionText();
+  const bodyPreview = getNoteBodyPreview(note.bodyMd, mentionText);
 
   const actionGroups = createActionGroups(
     canEdit && [

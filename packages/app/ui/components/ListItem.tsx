@@ -14,6 +14,7 @@ import {
   SystemIconAvatar,
 } from './Avatar';
 import { GroupAvatar } from './GroupAvatar';
+import { usePostPreviewText } from '../hooks/useMentionText';
 
 export interface BaseListItemProps<T> {
   model: T;
@@ -242,9 +243,10 @@ ListItemCount.displayName = 'ListItemCount';
 export const ListItemPostPreview = ({
   post,
 }: {
-  post: Pick<db.Post, 'authorId' | 'textContent' | 'hidden'>;
+  post: Pick<db.Post, 'authorId' | 'content' | 'textContent' | 'hidden'>;
 }) => {
   const { isAuthorBlocked } = useBlockedAuthor(post as db.Post);
+  const text = usePostPreviewText(post);
 
   const getPreviewContent = () => {
     if (isAuthorBlocked) {
@@ -253,7 +255,7 @@ export const ListItemPostPreview = ({
     if (post.hidden) {
       return '(This post has been hidden)';
     }
-    return post.textContent ?? '';
+    return text ?? '';
   };
 
   const previewContent = getPreviewContent();

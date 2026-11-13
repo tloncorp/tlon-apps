@@ -3,6 +3,7 @@ import { useNavigation as useReactNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getChannelType } from '@tloncorp/api/urbit';
 import * as db from '@tloncorp/shared/db';
+import { replaceShipNames } from '@tloncorp/shared/logic';
 import { ContentReference } from '@tloncorp/shared/domain';
 import {
   useChannelPreview,
@@ -42,6 +43,7 @@ import {
   useReferenceContext,
 } from './Reference';
 import { ContentReferenceLoaderComponent } from './types';
+import { useMentionText, usePostPreviewText } from '../../hooks/useMentionText';
 
 export { IsInsideReferenceContext };
 export const useIsInsideReference = () => useContext(IsInsideReferenceContext);
@@ -175,6 +177,7 @@ function BlockReferenceContent({ post }: { post: db.Post }) {
 
 function NoteReferenceContent({ post }: { post: db.Post }) {
   const { contentSize } = useReferenceContext();
+  const text = usePostPreviewText(post);
   return (
     <Reference.Body>
       <NoteBookReferenceContent>
@@ -184,7 +187,7 @@ function NoteReferenceContent({ post }: { post: db.Post }) {
         <PostReferenceAuthor contactId={post.authorId} />
         {contentSize !== '$s' && (
           <Text size="$body" numberOfLines={6}>
-            {post.textContent}
+            {text}
           </Text>
         )}
       </NoteBookReferenceContent>
@@ -224,6 +227,7 @@ const NoteReferenceTitleText = styled(Text, {
 
 function ChatReferenceContent({ post }: { post: db.Post }) {
   const { contentSize } = useReferenceContext();
+  const text = usePostPreviewText(post);
   return (
     <Reference.Body>
       <PostReferenceAuthor
@@ -233,7 +237,7 @@ function ChatReferenceContent({ post }: { post: db.Post }) {
       />
       {contentSize === '$s' ? (
         <Text padding="$l" size="$label/s">
-          {post.textContent}
+          {text}
         </Text>
       ) : (
         <PostContentRenderer post={post} />
@@ -533,6 +537,7 @@ function NotesSaidReferenceContent({
   snippet: string;
 }) {
   const { contentSize } = useReferenceContext();
+  const mentionText = useMentionText();
   return (
     <Reference.Body>
       <NoteBookReferenceContent>
@@ -542,7 +547,7 @@ function NotesSaidReferenceContent({
         <PostReferenceAuthor contactId={author} />
         {contentSize !== '$s' && (
           <Text size="$body" numberOfLines={6}>
-            {snippet}
+            {replaceShipNames(snippet, mentionText)}
           </Text>
         )}
       </NoteBookReferenceContent>

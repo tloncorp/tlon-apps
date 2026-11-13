@@ -12,6 +12,7 @@ import {
   floatingPinnedPostBannerGap,
   floatingPinnedPostBannerHeight,
 } from '../conversationScrollChrome';
+import { usePostPreviewText } from '../../hooks/useMentionText';
 
 interface PinnedPostBannerProps {
   post: db.Post;
@@ -29,7 +30,7 @@ export function PinnedPostBanner({
   onDismiss,
 }: PinnedPostBannerProps) {
   const author = post.author || null;
-  const previewText = post.textContent?.trim() || 'Pinned post';
+  const previewText = usePostPreviewText(post)?.trim() || 'Pinned post';
 
   return (
     <PinnedPostBannerChrome
