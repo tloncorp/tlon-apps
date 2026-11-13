@@ -354,3 +354,31 @@ describe('group member counts', () => {
     });
   });
 });
+
+// A group created without a title stores one made of ship names, marked with
+// a trailing word joiner; the client shows its members instead.
+describe('generated group titles', () => {
+  const generatedMeta = {
+    title: '~zod⁠',
+    description: '',
+    image: '',
+    cover: '',
+  };
+
+  test('are dropped from a group preview', () => {
+    const preview = {
+      flag,
+      meta: generatedMeta,
+      cordon: { open: { ships: [], ranks: [] } },
+      time: 1700000000000,
+      secret: false,
+    } satisfies ub.GroupPreview;
+    expect(toClientGroupFromPreview(flag, preview).title).toBe('');
+  });
+
+  test('are dropped from a metadata edit', () => {
+    expect(
+      toGroupsUpdate({ flag, 'r-group': { meta: generatedMeta } })
+    ).toMatchObject({ type: 'editGroup', meta: { title: '' } });
+  });
+});
