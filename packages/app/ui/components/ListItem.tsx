@@ -258,7 +258,11 @@ export const ListItemPostPreview = ({
 
   const previewContent = getPreviewContent();
 
-  return <ListItemSubtitle>{previewContent}</ListItemSubtitle>;
+  return (
+    <ListItemSubtitle testID="ListItemPostPreview">
+      {previewContent}
+    </ListItemSubtitle>
+  );
 };
 
 ListItemPostPreview.displayName = 'ListItemPostPreview';
