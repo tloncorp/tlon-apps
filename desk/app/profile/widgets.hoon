@@ -170,11 +170,10 @@
         ==
         ::
         ;div.profile-headline-title
-          ;*  =*  name  (cite:title our.bowl)
-            =*  plain  ;h1.profile-headline-nickname(title "{(scow %p our.bowl)}"):"{name}"
-            ?~  nickname  [plain]~
+          ;*  =*  num  (scow %ud our.bowl)
+            ?~  nickname  [;h1.profile-headline-nickname:"{num}"]~
             :+  ;h1.profile-headline-nickname:"{(trip u.nickname)}"
-              ;p.profile-headline-username(title "{(scow %p our.bowl)}"):"{name}"
+              ;p.profile-headline-username:"{num}"
             ?~  phone  ~
             :_  ~
             =/  since=@da  (sub u.phone (mod u.phone ~d1))

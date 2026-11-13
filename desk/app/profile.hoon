@@ -183,11 +183,11 @@
       ==
   ::
   ++  head
-    =/  ship=tape  (scow %p our.bowl)
+    =/  num=tape  (scow %ud our.bowl)
     =/  name=tape
-      ?~  ours  ship
-      ?:  =('' nickname.u.ours)  ship
-      "{(trip nickname.u.ours)} ({ship})"
+      ?~  ours  num
+      ?:  =('' nickname.u.ours)  num
+      "{(trip nickname.u.ours)} ({num})"
     ;head
       ;title:"{name}"
       ;link(rel "stylesheet", href "/profile/style/shared.css");
@@ -200,7 +200,7 @@
       ;meta(property "og:site_name", content "Urbit");
       ;meta(property "og:type", content "article");
       ;meta(property "twitter:card", content "summary_large_image");
-      ;meta(property "og:article:author:username", content "{ship}");
+      ;meta(property "og:article:author:username", content "{num}");
     ::
       ;meta(property "apple-itunes-app", content "app-id=6451392109");
     ::

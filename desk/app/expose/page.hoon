@@ -19,12 +19,14 @@
   |^  ?+  kind.msg  ~
           [%chat *]
         =/  title=tape
-          (trip (rap 3 (turn (first-inline:u content.msg) flatten-inline:u)))
+          =/  flat  flatten-inline:u
+          =.  name.flat  (ship-name:r bowl)
+          (trip (rap 3 (turn (first-inline:u content.msg) flat)))
         %-  some
         %:  build  "chat"
           (heads title ~)
           (prelude ~)
-          (story:en-manx:u content.msg)
+          (story:(en-manx:r bowl) content.msg)
         ==
       ::
           [%diary *]
@@ -40,7 +42,7 @@
           :-  ;img.cover@"{(trip image)}"(alt "Cover image");
           (prelude `title)
         ::
-          (story:en-manx:u content.msg)
+          (story:(en-manx:r bowl) content.msg)
         ==
       ::
           [%heap *]
@@ -54,7 +56,7 @@
         %:  build  "chat"
           (heads ?:(=("" title) "Gallery item" title) ~)
           (prelude `title)
-          (story:en-manx:u content.msg)
+          (story:(en-manx:r bowl) content.msg)
         ==
       ==
   ::
@@ -96,7 +98,7 @@
       ;meta(property "twitter:title", content title);
       ;meta(property "og:site_name", content "Tlon");
       ;meta(property "og:type", content "article");
-      ;meta(property "og:article:author:username", content (scow %p author));
+      ;meta(property "og:article:author:username", content (scow %ud author));
     ::
       ;*  ?~  img
           :_  ~
