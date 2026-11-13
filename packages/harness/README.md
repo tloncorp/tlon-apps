@@ -84,7 +84,8 @@ just provider /path/to/pier chatgpt
 and `xai` ask for an API key. Then DM the ship from the owner in Tlon.
 Unpermissioned senders are silently ignored.
 
-`just install-dev` keeps files already in the mount, so remove anything stale by hand.
+`just commit` and `just install-dev` keep files already in the mount; `just install`
+replaces the mount with the assembled desk, deleting anything stale.
 See [development and verification](docs-refs/development.md).
 
 ## Using a conversation
