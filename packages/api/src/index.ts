@@ -110,7 +110,11 @@ export {
   type PostBlobDataEntryAgentPostMarker,
   type PostBlobDataEntryA2UISelection,
 } from './client/content-helpers';
-export { getTextContent } from './client/postContent';
+export {
+  getShipMentionTextContent,
+  getTextContent,
+  shipMentionText,
+} from './client/postContent';
 export {
   displayIdToShip,
   preSig,
