@@ -25,13 +25,15 @@ test.describe('Scroll position preservation', () => {
     }
 
     await expect(
-      page.getByText('ProfileScrollMsg-24', { exact: true })
+      page.getByTestId('Post').getByText('ProfileScrollMsg-24', { exact: true })
     ).toBeVisible();
 
     // Scroll up to show older messages
-    const messageElement = page.getByText('ProfileScrollMsg-24', {
-      exact: true,
-    });
+    const messageElement = page
+      .getByTestId('Post')
+      .getByText('ProfileScrollMsg-24', {
+        exact: true,
+      });
     await messageElement.hover();
     for (let i = 0; i < 30; i++) {
       await page.mouse.wheel(0, -500);
@@ -41,10 +43,10 @@ test.describe('Scroll position preservation', () => {
 
     // Verify we scrolled to older messages
     await expect(
-      page.getByText('ProfileScrollMsg-00', { exact: true })
+      page.getByTestId('Post').getByText('ProfileScrollMsg-00', { exact: true })
     ).toBeInViewport();
     await expect(
-      page.getByText('ProfileScrollMsg-05', { exact: true })
+      page.getByTestId('Post').getByText('ProfileScrollMsg-05', { exact: true })
     ).toBeInViewport();
 
     // Click on an author to open their profile
@@ -64,12 +66,16 @@ test.describe('Scroll position preservation', () => {
 
     // Scroll position should be preserved
     await expect(
-      page.getByText('ProfileScrollMsg-05', { exact: true }),
+      page
+        .getByTestId('Post')
+        .getByText('ProfileScrollMsg-05', { exact: true }),
       'Scroll position should be preserved after viewing profile'
     ).toBeInViewport();
 
     await expect(
-      page.getByText('ProfileScrollMsg-24', { exact: true }),
+      page
+        .getByTestId('Post')
+        .getByText('ProfileScrollMsg-24', { exact: true }),
       'Should not have scrolled to bottom'
     ).not.toBeInViewport();
   });
@@ -103,13 +109,15 @@ test.describe('Scroll position preservation', () => {
     }
 
     await expect(
-      page.getByText('ThreadScrollMsg-24', { exact: true })
+      page.getByTestId('Post').getByText('ThreadScrollMsg-24', { exact: true })
     ).toBeVisible();
 
     // Scroll up to show the message with thread
-    const messageElement = page.getByText('ThreadScrollMsg-24', {
-      exact: true,
-    });
+    const messageElement = page
+      .getByTestId('Post')
+      .getByText('ThreadScrollMsg-24', {
+        exact: true,
+      });
     await messageElement.hover();
     for (let i = 0; i < 30; i++) {
       await page.mouse.wheel(0, -500);
@@ -119,10 +127,10 @@ test.describe('Scroll position preservation', () => {
 
     // Verify we scrolled to older messages
     await expect(
-      page.getByText('ThreadScrollMsg-02', { exact: true })
+      page.getByTestId('Post').getByText('ThreadScrollMsg-02', { exact: true })
     ).toBeInViewport();
     await expect(
-      page.getByText('ThreadScrollMsg-05', { exact: true })
+      page.getByTestId('Post').getByText('ThreadScrollMsg-05', { exact: true })
     ).toBeInViewport();
 
     // Open the thread
@@ -136,7 +144,9 @@ test.describe('Scroll position preservation', () => {
     await helpers.channelIsLoaded(page);
     await page.waitForTimeout(5000);
 
-    const newestMessage = page.getByText('ThreadScrollMsg-24', { exact: true });
+    const newestMessage = page
+      .getByTestId('Post')
+      .getByText('ThreadScrollMsg-24', { exact: true });
 
     // Scroll position should be preserved
     await expect(
@@ -145,7 +155,7 @@ test.describe('Scroll position preservation', () => {
     ).not.toBeInViewport({ timeout: 3000 });
 
     await expect(
-      page.getByText('ThreadScrollMsg-05', { exact: true }),
+      page.getByTestId('Post').getByText('ThreadScrollMsg-05', { exact: true }),
       'Scroll position should be preserved after viewing thread'
     ).toBeInViewport({ timeout: 3000 });
 
