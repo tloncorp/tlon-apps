@@ -57,6 +57,35 @@ describe('contentToTextAndMentions / textAndMentionsToContent round-trip', () =>
     }
   });
 
+  test('keeps a mention inside a quoted line', () => {
+    const content = textAndMentionsToContent('> hi @Mal there', [
+      { id: '~malmur-halmex', display: '@Mal', start: 5, end: 9 },
+    ]);
+    const quote = content.content?.[0];
+    expect(quote?.type).toBe('blockquote');
+    const inlines = quote?.content?.[0].content ?? [];
+    expect(inlines.map((node) => node.type)).toEqual([
+      'text',
+      'mention',
+      'text',
+    ]);
+    expect(inlines[1].attrs).toEqual({ id: '~malmur-halmex' });
+    expect(inlines.map((node) => node.text ?? '').join('')).not.toContain('@');
+  });
+
+  test('reads a mention back out of a quoted line', () => {
+    const result = contentToTextAndMentions(
+      textAndMentionsToContent('> hi @Mal there', [
+        { id: '~malmur-halmex', display: '@Mal', start: 5, end: 9 },
+      ]),
+      mentionText
+    );
+    const [mention] = result.mentions;
+    expect(mention.id).toBe('~malmur-halmex');
+    expect(result.text.slice(mention.start, mention.end)).toBe('@Mal');
+    expect(result.text.startsWith('> hi')).toBe(true);
+  });
+
   test('shows the ship number, never the ship name, by default', () => {
     const text = '~zod and ~bus hello';
     const mentions = [
