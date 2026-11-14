@@ -21,14 +21,10 @@ describe.each([['generatePersonalGroupTitle', generatePersonalGroupTitle]])(
       );
     });
 
-    it('falls back to the id when the nickname is missing or blank', () => {
-      expect(generateTitle({ id: '~zod' })).toBe("~zod's Group");
-      expect(generateTitle({ id: '~zod', nickname: '   ' })).toBe(
-        "~zod's Group"
-      );
-      expect(generateTitle({ id: '~zod', nickname: null })).toBe(
-        "~zod's Group"
-      );
+    it('uses the default title when the nickname is missing or blank', () => {
+      expect(generateTitle({ id: '~zod' })).toBe('Your Group');
+      expect(generateTitle({ id: '~zod', nickname: '   ' })).toBe('Your Group');
+      expect(generateTitle({ id: '~zod', nickname: null })).toBe('Your Group');
     });
   }
 );

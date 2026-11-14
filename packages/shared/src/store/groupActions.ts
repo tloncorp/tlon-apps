@@ -4,6 +4,7 @@ import {
   TemplateChannel,
   groupTemplatesById,
 } from '@tloncorp/api/types/groupTemplates';
+import { shipToDisplayId } from '@tloncorp/api/lib/urbit';
 import { createSectionId, getChannelKindFromType } from '@tloncorp/api/urbit';
 import isEqual from 'lodash/isEqual';
 
@@ -216,8 +217,11 @@ async function getPlaceholderTitle({ memberIds, title }: CreateGroupParams) {
   );
   // Use peerNickname (what people call themselves) instead of nickname (which
   // includes customNickname/pet names) to avoid leaking pet names to other
-  // group members via the global group title stored on backend
-  return memberContacts.map((c) => c?.peerNickname ?? c?.id).join(', ');
+  // group members via the global group title stored on backend. Other readers
+  // show the stored title as is, so a member without one is their ship number.
+  return memberContacts
+    .map((c) => c.peerNickname ?? shipToDisplayId(c.id) ?? c.id)
+    .join(', ');
 }
 
 export async function acceptGroupInvitation(group: db.Group) {

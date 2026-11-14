@@ -109,6 +109,6 @@ export function generatePersonalGroupTitle(contact: {
   id: string;
   nickname?: string | null;
 }) {
-  const displayName = contact.nickname?.trim() || contact.id;
-  return `${displayName}'s Group`;
+  const nickname = contact.nickname?.trim();
+  return nickname ? `${nickname}'s Group` : PersonalGroupNames.groupTitle;
 }
