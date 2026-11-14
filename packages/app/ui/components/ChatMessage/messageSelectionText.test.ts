@@ -23,7 +23,7 @@ describe('messageSelectionText', () => {
           },
         ])
       )
-    ).toBe('Hello Vince 🙏\nSee Tlon and ~zod');
+    ).toBe('Hello Vince 🙏\nSee Tlon and @0');
   });
 
   test('preserves the full message instead of using the inline stored preview', () => {

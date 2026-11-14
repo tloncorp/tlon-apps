@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import * as api from '@tloncorp/api';
+import { preSig, shipToDisplayId } from '@tloncorp/api/lib/urbit';
 import { debounce } from 'lodash';
 import { useEffect, useMemo } from 'react';
 
@@ -12,6 +13,7 @@ import { AnalyticsEvent } from '../domain';
 import {
   publishedNotePath,
   renderPublishedNoteHtml,
+  shipNamesIn,
   withRetry,
 } from '../logic';
 import { collectDescendantFolderIds } from '../logic/notesTree';
@@ -1029,10 +1031,25 @@ export async function publishNotebookNote({
   title: string;
   body: string;
 }) {
+  // The page is public, so mentions show the nickname people chose to share,
+  // whatever this viewer's Calm settings.
+  const nicknames = new Map(
+    (await db.getContactsBatch({ contactIds: shipNamesIn(body) })).flatMap(
+      (contact) =>
+        contact.nickname ? [[contact.id, contact.nickname] as const] : []
+    )
+  );
   await api.notes.publishNote({
     flag: notebookFlag,
     noteId,
-    html: renderPublishedNoteHtml({ title, body }),
+    html: renderPublishedNoteHtml({
+      title,
+      body,
+      mentionText: (contactId) => {
+        const nickname = nicknames.get(preSig(contactId));
+        return `@${nickname ?? shipToDisplayId(contactId) ?? contactId}`;
+      },
+    }),
   });
   await waitForPublishedNoteState(notebookFlag, noteId, true);
   trackEvent(AnalyticsEvent.NotePublished);

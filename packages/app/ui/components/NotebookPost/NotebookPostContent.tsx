@@ -4,6 +4,7 @@ import type { MinimalRenderItemProps } from '../../contexts/componentsKits/compo
 import { ChatMessageReplySummary } from '../ChatMessage/ChatMessageReplySummary';
 import { ReactionsDisplay } from '../ChatMessage/ReactionsDisplay';
 import { NotebookPostHeader } from './shared';
+import { usePostPreviewText } from '../../hooks/useMentionText';
 
 export function NotebookPostContent({
   post,
@@ -16,6 +17,7 @@ export function NotebookPostContent({
   viewMode?: 'activity';
 }) {
   const hasReplies = post.replyCount && post.replyTime && post.replyContactIds;
+  const summary = usePostPreviewText(post);
   return (
     <>
       <NotebookPostHeader
@@ -33,7 +35,7 @@ export function NotebookPostContent({
           paddingBottom={showReplies && hasReplies ? 0 : '$m'}
           testID="NotebookPostContentSummary"
         >
-          {post.textContent}
+          {summary}
         </Text>
       )}
 

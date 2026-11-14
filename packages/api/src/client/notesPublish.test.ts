@@ -50,3 +50,18 @@ test('renderPublishedNoteHtml renders markdown tables', () => {
   expect(html).toContain('class="tlon-table-data-cell"');
   expect(html).toContain('tr{border-bottom:1px solid var(--border)}');
 });
+
+test('renderPublishedNoteHtml shows mentions by name or number, never ship name', () => {
+  const body = 'Thanks ~zod and ~sampel-palnet';
+
+  expect(renderPublishedNoteHtml({ title: 'Note', body })).toContain(
+    'Thanks @0 and @1.624.961.343'
+  );
+  expect(
+    renderPublishedNoteHtml({
+      title: 'Note',
+      body,
+      mentionText: (contactId) => (contactId === '~zod' ? '@Zod' : '@?'),
+    })
+  ).toContain('Thanks @Zod and @?');
+});

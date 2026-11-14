@@ -7,6 +7,7 @@ import {
   parsePostBlob,
 } from '../client/content-helpers';
 import { assertNever } from '../lib/assertNever';
+import { shipToDisplayId } from '../lib/urbit';
 import { VIDEO_REGEX, containsOnlyEmoji } from '../lib/utils';
 import type { ContentReference } from '../types/references';
 import * as ub from '../urbit';
@@ -227,6 +228,11 @@ export interface PlaintextPreviewConfig {
   includeLinebreaks: boolean;
   includeRefTag: boolean;
   indentDepth?: number;
+  /**
+   * The text for a mentioned person. Display call sites that can see contacts
+   * pass one that resolves nicknames; without it a mention is its ship number.
+   */
+  mentionText?: (contactId: string) => string;
 }
 
 export namespace PlaintextPreviewConfig {
@@ -241,6 +247,29 @@ export namespace PlaintextPreviewConfig {
     includeLinebreaks: false,
     includeRefTag: false,
   });
+}
+
+/**
+ * A `mentionText` that leaves a mention as its `~ship`, for text read by
+ * agents and tests, which act on what was sent rather than what people see.
+ */
+export const shipMentionText = (contactId: string) => contactId;
+
+/**
+ * A post's flattened text with mentions as ships. Takes the post's content as
+ * the api returns it (a JSON string) or as a story.
+ */
+export function getShipMentionTextContent(
+  content: unknown,
+  config: PlaintextPreviewConfig = PlaintextPreviewConfig.inlineConfig
+): string {
+  const story = typeof content === 'string' ? JSON.parse(content) : content;
+  return story == null
+    ? ''
+    : plaintextPreviewOf(convertContentSafe(story as ub.Story), {
+        ...config,
+        mentionText: shipMentionText,
+      });
 }
 
 export function plaintextPreviewOf(
@@ -397,7 +426,10 @@ export function plaintextPreviewOfInline(
     case 'text':
       return inline.text;
     case 'mention':
-      return inline.contactId;
+      return (
+        config.mentionText?.(inline.contactId) ??
+        `@${shipToDisplayId(inline.contactId) ?? inline.contactId}`
+      );
     case 'groupMention':
       return `@${inline.group}`;
     case 'lineBreak':

@@ -292,10 +292,10 @@ test('plaintext preview of content without blockquotes is unchanged', () => {
   const content = convertContent(story, null);
 
   expect(plaintextPreviewOf(content)).toBe(
-    'Hello bold & italic\nSee example ~zod\n[x] done'
+    'Hello bold & italic\nSee example @0\n[x] done'
   );
   expect(plaintextPreviewOf(content, PlaintextPreviewConfig.inlineConfig)).toBe(
-    'Hello bold & italic\nSee example ~zod [x] done'
+    'Hello bold & italic\nSee example @0 [x] done'
   );
 });
 

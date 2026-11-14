@@ -2,6 +2,7 @@ import isURL from 'validator/lib/isURL.js';
 import { z } from 'zod';
 
 import { createDevLogger } from '../lib/logger';
+import { shipToDisplayId } from '../lib/urbit';
 import {
   FinalizedAttachment,
   LinkAttachment,
@@ -195,7 +196,14 @@ const processLine = (line: Line): JSONContent => {
   let isEndOfFormatting = false;
 
   if (text.startsWith('> ')) {
-    const quotedContent = processLine({ text: text.slice(2), mentions });
+    const quotedContent = processLine({
+      text: text.slice(2),
+      mentions: mentions.map((mention) => ({
+        ...mention,
+        start: mention.start - 2,
+        end: mention.end - 2,
+      })),
+    });
     return {
       type: 'blockquote',
       content: [quotedContent],
@@ -489,13 +497,31 @@ export function textAndMentionsToContent(
   };
 }
 
-export function contentToTextAndMentions(jsonContent: JSONContent): {
+// Mention text a person can read: callers that can see contacts and roles pass
+// a lookup, since the mention id is a ship name or a role id.
+const defaultMentionText = (id: string) => `@${shipToDisplayId(id) ?? id}`;
+
+export function contentToTextAndMentions(
+  jsonContent: JSONContent,
+  mentionText: (id: string) => string = defaultMentionText
+): {
   text: string;
   mentions: Mention[];
 } {
   const text: string[] = [];
   const mentions: Mention[] = [];
   const content = jsonContent.content;
+
+  const pushMention = (node: JSONContent) => {
+    const id = node.attrs?.id;
+    if (!id) {
+      return;
+    }
+    const display = mentionText(id);
+    const start = text.join('').length;
+    text.push(display);
+    mentions.push({ id, display, start, end: start + display.length });
+  };
 
   if (!content) {
     return {
@@ -572,22 +598,7 @@ export function contentToTextAndMentions(jsonContent: JSONContent): {
             text.push(child.text);
           }
         } else if (child.type === 'mention') {
-          if (!child.attrs || !child.attrs.id) {
-            return;
-          }
-
-          const id = child.attrs.id;
-          const mentionText = id.startsWith('~') ? id : `~${id}`;
-          const mentionStartIndex = text.join('').length;
-
-          text.push(mentionText);
-
-          mentions.push({
-            id,
-            display: mentionText,
-            start: mentionStartIndex,
-            end: mentionStartIndex + mentionText.length,
-          });
+          pushMention(child);
         }
       });
     } else if (node.type === 'codeBlock') {
@@ -609,6 +620,8 @@ export function contentToTextAndMentions(jsonContent: JSONContent): {
           child.content.forEach((content) => {
             if (content.type === 'text' && content.text) {
               text.push(content.text);
+            } else if (content.type === 'mention') {
+              pushMention(content);
             }
           });
           if (index < node.content!.length - 1) {

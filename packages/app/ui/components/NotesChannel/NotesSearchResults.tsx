@@ -13,6 +13,7 @@ import { SizableText, View, XStack, YStack } from 'tamagui';
 
 import { ListItem } from '../ListItem';
 import { HighlightedText } from '../PostContent/InlineRenderer';
+import { useMentionText } from '../../hooks/useMentionText';
 
 /**
  * A search hit as the endpoint returns it, not a synced SQLite row: detail
@@ -83,9 +84,10 @@ function NotesSearchResultRowComponent({
     () => buildNoteTitleSegments(note.title || 'Untitled', query),
     [note.title, query]
   );
+  const mentionText = useMentionText();
   const snippet = useMemo(
-    () => buildNoteSnippet(note.bodyMd, query),
-    [note.bodyMd, query]
+    () => buildNoteSnippet(note.bodyMd, query, mentionText),
+    [note.bodyMd, query, mentionText]
   );
   const updatedAt = noteTimestampMs(note.updatedAt ?? note.createdAt);
 

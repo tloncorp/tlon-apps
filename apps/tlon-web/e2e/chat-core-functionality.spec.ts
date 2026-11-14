@@ -104,7 +104,9 @@ test('should test comprehensive chat functionality', async ({
     inputText: 'mentioning @ten',
     suggestionTestId: '~ten-contact',
     selectedMentionTestId: 'SelectedMention-~ten',
-    expectedInputText: /^mentioning [@~]ten$/,
+    expectedInputText: new RegExp(
+      `^mentioning @${helpers.displayId('~ten').replace(/\./g, '\\.')}$`
+    ),
     expectedPostText: new RegExp(`mentioning\\s+${helpers.displayId('~ten')}`),
     expectedMentionInline: { ship: '~ten' },
     postMentionTestId: 'PostMention-~ten',

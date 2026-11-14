@@ -15,6 +15,7 @@ import {
   useForwardToChannelSheet,
   useLastForwarded,
 } from './useForwardToChannelSheet';
+import { usePostPreviewText } from '../hooks/useMentionText';
 
 const ForwardPostSheetContext = createContext<{
   open: (post: db.Post) => void;
@@ -60,6 +61,7 @@ export const ForwardPostSheetProvider = ({ children }: PropsWithChildren) => {
   });
 
   const shownPost = useLastForwarded(post);
+  const shownPostText = usePostPreviewText(shownPost);
 
   const contextValue = useMemo(() => ({ open: handleOpen }), [handleOpen]);
   return (
@@ -72,7 +74,7 @@ export const ForwardPostSheetProvider = ({ children }: PropsWithChildren) => {
         onNativeDismissed={onNativeDismissed}
         keepMounted={keepMounted}
         title="Forward to channel"
-        subtitle={shownPost?.textContent?.trim() || undefined}
+        subtitle={shownPostText?.trim() || undefined}
         icon={
           shownPost ? (
             <ListItem.ContactIcon contactId={shownPost.authorId} />

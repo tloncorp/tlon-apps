@@ -1,4 +1,34 @@
+import { PATP_REGEX } from '@tloncorp/api/client/utils';
+import { shipToDisplayId } from '@tloncorp/api/lib/urbit';
+
 import { formatChannelContentsSummary } from './channelContentsText';
+
+const SHIP_NAMES = new RegExp(PATP_REGEX.source, 'gi');
+
+/** The ship names in markdown, e.g. the people a note mentions. */
+export function shipNamesIn(text: string): string[] {
+  return [...text.matchAll(SHIP_NAMES)]
+    .map((match) => match[0])
+    .filter((ship) => shipToDisplayId(ship) !== null);
+}
+
+/**
+ * Replace each ship name in markdown or a snippet of it with a mention's text:
+ * a nickname when `mentionText` can resolve one, else the ship number.
+ * Markdown keeps `~ship` on the wire; it's only shown this way.
+ */
+export function replaceShipNames(
+  text: string,
+  mentionText?: (ship: string) => string
+): string {
+  return text.replace(SHIP_NAMES, (ship) => {
+    const displayId = shipToDisplayId(ship);
+    if (!displayId) {
+      return ship;
+    }
+    return mentionText?.(ship) ?? `@${displayId}`;
+  });
+}
 
 /**
  * Flatten a note's markdown body into one line of readable prose: drop code
@@ -6,8 +36,11 @@ import { formatChannelContentsSummary } from './channelContentsText';
  * emphasis markers. Used for note previews and search snippets, so both read
  * the same way.
  */
-export function stripNoteMarkdown(bodyMd: string | null | undefined): string {
-  return (bodyMd ?? '')
+export function stripNoteMarkdown(
+  bodyMd: string | null | undefined,
+  mentionText?: (ship: string) => string
+): string {
+  return replaceShipNames(bodyMd ?? '', mentionText)
     .replace(/```[\s\S]*?```/g, ' ')
     .replace(/`([^`]+)`/g, '$1')
     .replace(/!\[[^\]]*\]\([^)]+\)/g, ' ')
@@ -23,9 +56,10 @@ export function stripNoteMarkdown(bodyMd: string | null | undefined): string {
 
 /** The flattened body for a note row, or null when there's nothing to show. */
 export function getNoteBodyPreview(
-  bodyMd: string | null | undefined
+  bodyMd: string | null | undefined,
+  mentionText?: (ship: string) => string
 ): string | null {
-  return stripNoteMarkdown(bodyMd) || null;
+  return stripNoteMarkdown(bodyMd, mentionText) || null;
 }
 
 /**
