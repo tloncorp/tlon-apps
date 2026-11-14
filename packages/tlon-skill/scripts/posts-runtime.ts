@@ -17,6 +17,7 @@ import {
 import { ensureClient } from './api-client';
 import { getChannelState } from './channel-state-runtime';
 import type { BotAuthorProfile } from './bot-profile-flags';
+import { AGENT_TEXT_CONFIG } from './agent-text';
 import { commandError, errorMessage } from './commands/command';
 import type {
   ExistingReply,
@@ -102,7 +103,9 @@ function quoteTextOf(content: unknown): string {
       typeof verse === 'object' &&
       Array.isArray((verse as { inline?: unknown }).inline)
   );
-  return paragraph ? getTextContent([paragraph] as Story) : '';
+  return paragraph
+    ? getTextContent([paragraph] as Story, AGENT_TEXT_CONFIG)
+    : '';
 }
 
 interface ReplyRecord {

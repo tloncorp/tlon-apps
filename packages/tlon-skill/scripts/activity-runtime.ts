@@ -36,12 +36,13 @@ import type {
   RootPost,
   VolumeHelpers,
 } from './commands/activity';
+import { AGENT_TEXT_CONFIG } from './agent-text';
 import { commandError, errorMessage } from './commands/command';
 import { createProcessCommandDeps } from './runtime-deps';
 
 function extractText(content: unknown): string {
   if (!content) return '';
-  const text = getTextContent(content as PostContent);
+  const text = getTextContent(content as PostContent, AGENT_TEXT_CONFIG);
   return text || '';
 }
 
