@@ -15,6 +15,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Linking, Platform } from 'react-native';
 
 import { AppStatus, useAppStatusChange } from '../hooks/useAppStatusChange';
+import { resolveContactNameProps } from '../ui/components/contactNameResolver';
 import { connectNotifyProvider } from './notificationsApi';
 
 const logger = createDevLogger('notifications', true);
@@ -397,18 +398,33 @@ export async function notifyAboutMatchedContacts(contactIds: string[]) {
     return;
   }
 
-  if (contactIds.length === 1) {
-    const [contactId] = contactIds;
-    const systemContacts =
-      await db.getSystemContactsBatchByContactId(contactIds);
-    const sc = systemContacts.find((c) => c.contactId === contactId);
-    const name =
-      [sc?.firstName, sc?.lastName].filter(Boolean).join(' ').trim() ||
-      contactId;
-    await presentContactMatchNotification({ contactId, name });
-  } else {
+  await presentMatchedContactsNotification(contactIds);
+}
+
+// Shared by the foreground handler (useNotificationListener) and the
+// background path above. A match is named by the phone-book entry, else by
+// how the app names that contact.
+export async function presentMatchedContactsNotification(contactIds: string[]) {
+  if (contactIds.length !== 1) {
     await presentContactsMatchedNotification({ count: contactIds.length });
+    return;
   }
+  const [contactId] = contactIds;
+  const [systemContacts, contact, settings] = await Promise.all([
+    db.getSystemContactsBatchByContactId(contactIds),
+    db.getContact({ id: contactId }),
+    db.getSettings(),
+  ]);
+  const sc = systemContacts.find((c) => c.contactId === contactId);
+  const name =
+    [sc?.firstName, sc?.lastName].filter(Boolean).join(' ').trim() ||
+    resolveContactNameProps({
+      contact,
+      contactId,
+      calmDisableNicknames: settings?.disableNicknames ?? false,
+    }).children ||
+    'Someone';
+  await presentContactMatchNotification({ contactId, name });
 }
 
 // Bg-task entry point: run lanyard discovery with the registered-handler

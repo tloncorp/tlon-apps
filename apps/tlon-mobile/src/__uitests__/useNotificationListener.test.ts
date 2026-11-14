@@ -41,8 +41,7 @@ jest.mock('@tloncorp/app/contexts/ship', () => ({
 
 jest.mock('@tloncorp/app/lib/notifications', () => ({
   connectNotifications: jest.fn(),
-  presentContactMatchNotification: jest.fn(),
-  presentContactsMatchedNotification: jest.fn(),
+  presentMatchedContactsNotification: jest.fn(),
 }));
 
 jest.mock('@tloncorp/app/lib/pushNotifTapTelemetry', () => ({

@@ -7,8 +7,7 @@ import {
 import { getCurrentUserId } from '@tloncorp/api/client/urbit';
 import {
   connectNotifications,
-  presentContactMatchNotification,
-  presentContactsMatchedNotification,
+  presentMatchedContactsNotification,
 } from '@tloncorp/app/lib/notifications';
 import { startPushNotifTapMeasurement } from '@tloncorp/app/lib/pushNotifTapTelemetry';
 import { RootStackParamList } from '@tloncorp/app/navigation/types';
@@ -177,20 +176,7 @@ export default function useNotificationListener() {
   // Start notifications prompt
   useEffect(() => {
     connectNotifications();
-    setContactsMatchedHandler(async (contactIds) => {
-      if (contactIds.length === 1) {
-        const [contactId] = contactIds;
-        const systemContacts =
-          await db.getSystemContactsBatchByContactId(contactIds);
-        const sc = systemContacts.find((c) => c.contactId === contactId);
-        const name =
-          [sc?.firstName, sc?.lastName].filter(Boolean).join(' ').trim() ||
-          contactId;
-        await presentContactMatchNotification({ contactId, name });
-      } else {
-        await presentContactsMatchedNotification({ count: contactIds.length });
-      }
-    });
+    setContactsMatchedHandler(presentMatchedContactsNotification);
     return () => setContactsMatchedHandler(null);
   }, []);
 

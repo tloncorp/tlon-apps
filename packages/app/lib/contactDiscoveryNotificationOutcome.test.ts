@@ -15,6 +15,8 @@ vi.mock('@tloncorp/shared', () => ({
 vi.mock('@tloncorp/shared/db', () => ({
   userHasCompletedFirstSync: { getValue: mocks.firstSyncComplete },
   getSystemContactsBatchByContactId: mocks.getSystemContacts,
+  getContact: vi.fn().mockResolvedValue(null),
+  getSettings: vi.fn().mockResolvedValue(null),
 }));
 vi.mock('@tloncorp/shared/store', () => ({}));
 vi.mock('@tloncorp/shared/domain', () => ({}));
