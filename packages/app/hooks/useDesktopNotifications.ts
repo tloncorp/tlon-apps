@@ -12,6 +12,7 @@ import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 
 import { reactDisplayValue } from '../ui/components/Activity/ActivitySummaryMessage';
 import { getNotificationCopy, isReactActivityType } from './notificationCopy';
+import { getBrowserNotificationContactName } from './useBrowserNotifications.helpers';
 import { useIsElectron } from './useIsElectron';
 
 const logger = createDevLogger('useDesktopNotifications', false);
@@ -61,15 +62,18 @@ export default function useDesktopNotifications(isClientReady: boolean) {
         });
 
         const contactId = activityEvent.authorId;
-        const contact = contactId
-          ? await db.getContact({ id: contactId })
-          : null;
+        const [contact, settings] = await Promise.all([
+          contactId ? db.getContact({ id: contactId }) : null,
+          db.getSettings(),
+        ]);
 
         if (!channel) return;
 
-        // Use nickname if available, otherwise use contactId
-        // This matches the logic in ContactNameV2
-        const contactName = contact?.nickname ?? contactId ?? 'Unknown';
+        const contactName = getBrowserNotificationContactName({
+          contact,
+          contactId,
+          disableNicknames: settings?.disableNicknames ?? false,
+        });
 
         const group = activityEvent.groupId
           ? await db.getGroup({ id: activityEvent.groupId })

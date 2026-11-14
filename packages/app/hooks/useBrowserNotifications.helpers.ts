@@ -93,7 +93,7 @@ export function getBrowserNotificationContactName({
       contact,
       contactId,
       calmDisableNicknames: disableNicknames,
-    }).children || contactId
+    }).children || 'Unknown'
   );
 }
 
