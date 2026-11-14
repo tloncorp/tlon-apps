@@ -17,6 +17,7 @@ import { da, scot } from '@urbit/aura';
 
 import { type Story, markdownToStory } from '../../src/urbit/story.js';
 import { type LiveToolTraceHandle, startLiveToolTrace } from './docker-logs.js';
+import { extractPostText } from './post-baseline.js';
 import { type StateClient, createStateClient } from './state.js';
 
 function liveToolTraceEnabled(): boolean {
@@ -250,12 +251,13 @@ export function createTlonClient(config: TlonClientConfig): TestClient {
                   sentAt?: number;
                   sequenceNum?: number | null;
                   textContent?: string | null;
+                  content?: unknown;
                 };
                 return {
                   authorId: p.authorId,
                   sentAt: p.sentAt,
                   sequenceNum: p.sequenceNum,
-                  text: (p.textContent ?? '').trim(),
+                  text: extractPostText(p),
                 };
               })
               .filter((post) => post.authorId === botShipNorm)

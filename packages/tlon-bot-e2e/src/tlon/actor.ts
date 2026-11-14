@@ -22,6 +22,10 @@ import {
 } from '@tloncorp/api';
 import type { NotesV1Note, NotesV1NotebookSummary, Story } from '@tloncorp/api';
 import { markdownToStory } from '@tloncorp/api/client/markdown';
+import {
+  PlaintextPreviewConfig,
+  getShipMentionTextContent,
+} from '@tloncorp/api/client/postContent';
 
 import { randomId, requireEnv } from '../runtime/util.js';
 import { sleep } from '../runtime/waiters.js';
@@ -760,8 +764,15 @@ function postFromApi(post: unknown): ChannelPost {
     sentAt: raw.sentAt,
     sequenceNum: raw.sequenceNum,
     parentId: raw.parentId,
-    text: (
-      raw.textContent ?? storyInputText((raw.content ?? []) as Story)
+    // Read mentions as the ships the actors sent, not the numbers people see.
+    text: (raw.content != null
+      ? getShipMentionTextContent(
+          raw.content,
+          raw.parentId
+            ? PlaintextPreviewConfig.defaultConfig
+            : PlaintextPreviewConfig.inlineConfig
+        )
+      : (raw.textContent ?? '')
     ).trim(),
     content: raw.content,
   };

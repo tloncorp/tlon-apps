@@ -1,4 +1,4 @@
-import { getTextContent } from '@tloncorp/api';
+import { getShipMentionTextContent } from '@tloncorp/api';
 
 export interface SequencePostView {
   authorId?: string;
@@ -16,7 +16,12 @@ export interface SequenceAwareStateClient {
 }
 
 export function extractPostText(post: SequencePostView): string {
-  return (post.textContent ?? getTextContent(post.content) ?? '').trim();
+  // Mentions read as the ships the bot sent, not the numbers people see.
+  return (
+    post.content != null
+      ? getShipMentionTextContent(post.content)
+      : (post.textContent ?? '')
+  ).trim();
 }
 
 export function getPostSequence(post: SequencePostView): number {

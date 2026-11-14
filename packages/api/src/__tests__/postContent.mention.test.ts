@@ -3,6 +3,7 @@ import { expect, test } from 'vitest';
 import {
   PlaintextPreviewConfig,
   convertContent,
+  getShipMentionTextContent,
   plaintextPreviewOf,
 } from '../client/postContent';
 
@@ -23,4 +24,10 @@ test('plaintextPreviewOf resolves mentions with a lookup', () => {
         contactId === '~zod' ? '@Zod' : `@?${contactId.length}`,
     })
   ).toBe('hi @?14 and @Zod');
+});
+
+test('getShipMentionTextContent keeps mentions as ships for agents and tests', () => {
+  const story = [{ inline: ['hi ', { ship: '~zod' }] }];
+  expect(getShipMentionTextContent(JSON.stringify(story))).toBe('hi ~zod');
+  expect(getShipMentionTextContent(story)).toBe('hi ~zod');
 });

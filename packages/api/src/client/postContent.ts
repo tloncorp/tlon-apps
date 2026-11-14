@@ -249,6 +249,29 @@ export namespace PlaintextPreviewConfig {
   });
 }
 
+/**
+ * A `mentionText` that leaves a mention as its `~ship`, for text read by
+ * agents and tests, which act on what was sent rather than what people see.
+ */
+export const shipMentionText = (contactId: string) => contactId;
+
+/**
+ * A post's flattened text with mentions as ships. Takes the post's content as
+ * the api returns it (a JSON string) or as a story.
+ */
+export function getShipMentionTextContent(
+  content: unknown,
+  config: PlaintextPreviewConfig = PlaintextPreviewConfig.inlineConfig
+): string {
+  const story = typeof content === 'string' ? JSON.parse(content) : content;
+  return story == null
+    ? ''
+    : plaintextPreviewOf(convertContentSafe(story as ub.Story), {
+        ...config,
+        mentionText: shipMentionText,
+      });
+}
+
 export function plaintextPreviewOf(
   content: PostContent,
   config: PlaintextPreviewConfig = PlaintextPreviewConfig.defaultConfig
