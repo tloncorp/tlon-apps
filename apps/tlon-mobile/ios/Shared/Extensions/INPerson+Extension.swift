@@ -22,7 +22,9 @@ extension INPerson {
         )
     }
 
-    static func from(shipName: String, withImage: Bool = false) async -> Self {
+    /// `fallbackName` is shown when the contact has no nickname (or nicknames
+    /// are hidden); the ship name is only the handle.
+    static func from(shipName: String, fallbackName: String, withImage: Bool = false) async -> Self {
         var contact: Contact?
         do {
             contact = try await ContactStore.sharedInstance.getOrFetchItem(shipName)
@@ -30,7 +32,7 @@ extension INPerson {
             error.logWithDomain(TlonError.NotificationsFetchContacts)
         }
 
-        let displayName = contact?.displayName ?? shipName
+        let displayName = contact?.displayName ?? fallbackName
         var image: INImage?
 
         if withImage {

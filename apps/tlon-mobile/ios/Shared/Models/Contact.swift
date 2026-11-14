@@ -16,25 +16,14 @@ class Contact: Codable {
     let coverURLString: String?
     let color: String?
 
-    var displayName: String {
-        // Is user showing nicknames and does contact have a valid nickname?
+    /// The nickname, if the user shows nicknames and the contact has one.
+    /// Otherwise callers show the ship's number, which the notification
+    /// script computes; the ship name itself is never shown.
+    var displayName: String? {
         if !SettingsStore.disableNicknames, let nickname, !nickname.isEmpty {
             return nickname
         }
-
-        let name = id.starts(with: "~") ? String(id.dropFirst()) : id
-
-        // Shorten comets
-        if name.count == 56 {
-            return "~\(name.prefix(6))_\(name.suffix(6))"
-        }
-
-        // Shorten moons
-        if name.count == 27 {
-            return "~\(name[14 ..< 20])^\(name[21 ..< 27])"
-        }
-
-        return "~\(name)"
+        return nil
     }
 
     var ship: Sigil.Ship? {
@@ -76,8 +65,8 @@ class Contact: Codable {
 
 extension Contact: Comparable {
     static func < (lhs: Contact, rhs: Contact) -> Bool {
-        lhs.displayName.replacingOccurrences(of: "~", with: "").compare(
-            rhs.displayName.replacingOccurrences(of: "~", with: ""),
+        (lhs.displayName ?? lhs.id).replacingOccurrences(of: "~", with: "").compare(
+            (rhs.displayName ?? rhs.id).replacingOccurrences(of: "~", with: ""),
             options: [.caseInsensitive, .diacriticInsensitive]
         ) == .orderedAscending
     }

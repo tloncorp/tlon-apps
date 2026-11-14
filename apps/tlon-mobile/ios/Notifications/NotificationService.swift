@@ -58,7 +58,7 @@ class NotificationService: UNNotificationServiceExtension {
             return notification
         }
 
-        let sender = await INPerson.from(shipName: message.senderId, withImage: true)
+        let sender = await INPerson.from(shipName: message.senderId, fallbackName: message.senderFallbackName, withImage: true)
         var speakableGroupName: INSpeakableString? = nil
         if let conversationTitle = message.conversationTitle {
             speakableGroupName = INSpeakableString(spokenPhrase: await renderer.render(conversationTitle))
