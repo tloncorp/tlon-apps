@@ -49,6 +49,33 @@ export namespace PostNotificationTextConfig {
 
 const VIDEO_REGEX = /(\.mov|\.mp4|\.ogv|\.webm)(?:\?.*)?$/i;
 
+// Mentions are marked in the flattened text with private-use characters so
+// the caller can turn each one into a name node after the text is joined and
+// trimmed. Marked text a sender types themselves only yields what a real
+// mention of that ship would.
+const MENTION_START = '\uE000';
+const MENTION_END = '\uE001';
+const MENTION_REGEX = /\uE000([^\uE000\uE001]*)\uE001/g;
+
+/** Splits text from `getPostNotificationText` into text and mentions. */
+export function splitPostNotificationMentions(
+  text: string
+): (string | { ship: string })[] {
+  const parts: (string | { ship: string })[] = [];
+  let last = 0;
+  for (const match of text.matchAll(MENTION_REGEX)) {
+    if (match.index > last) {
+      parts.push(text.slice(last, match.index));
+    }
+    parts.push({ ship: match[1] });
+    last = match.index + match[0].length;
+  }
+  if (last < text.length) {
+    parts.push(text.slice(last));
+  }
+  return parts;
+}
+
 function previewInlineString(
   inlines: Inline[],
   config: PostNotificationTextConfig
@@ -89,7 +116,7 @@ function previewInline(
     return index === total - 1 ? '' : '\n';
   }
   if (isShip(inline)) {
-    return inline.ship;
+    return `${MENTION_START}${inline.ship}${MENTION_END}`;
   }
   if (isSect(inline)) {
     return `@${inline.sect ?? 'all'}`;
