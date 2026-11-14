@@ -60,7 +60,7 @@ suspend fun renderPreview(context: Context, activityEventJson: String): Activity
                 else -> launch {
                     val renderer = PreviewContentNodeRenderer(TalkApi(context))
                     val parsed = PreviewContentPayload.parseFromJson(JSONObject(result))
-                    val contact = parsed.message?.let { m -> TalkApi(context).fetchContact(m.senderId) }
+                    val contact = parsed.message?.let { m -> renderer.fetchContact(m.senderId, m.senderFallbackName) }
                     val preview = ActivityEventPreview(
                         title = parsed.notification.title?.let { x -> renderer.render(x) },
                         body = renderer.render(parsed.notification.body),
@@ -106,6 +106,7 @@ data class PreviewContentPayload(
         val isGroupConversation: Boolean,
         val timestamp: Number,
         val senderId: String,
+        val senderFallbackName: String,
         val conversationTitle: PreviewContentNode?,
         val messageText: PreviewContentNode,
     )
@@ -129,6 +130,7 @@ data class PreviewContentPayload(
                         isGroupConversation = source.getString("type") == "group",
                         timestamp = source.getDouble("timestamp"),
                         senderId = source.getString("senderId"),
+                        senderFallbackName = source.getString("senderFallbackName"),
                         conversationTitle = maybeParseNodeAtKey(source, "conversationTitle"),
                         messageText = parseNodeAtKey(source, "messageText"),
                     )
@@ -145,7 +147,8 @@ sealed class PreviewContentNode {
     data class ChannelTitle(val channelId: String) : PreviewContentNode()
     data class ForeignGroupTitle(val groupId: String) : PreviewContentNode()
     data class GroupTitle(val groupId: String) : PreviewContentNode()
-    data class UserNickname(val ship: String) : PreviewContentNode()
+    /** `fallback` is the ship's number, shown when there is no nickname. */
+    data class UserNickname(val ship: String, val fallback: String) : PreviewContentNode()
     data class PostSource(val groupId: String, val channelId: String) : PreviewContentNode()
     data class RoleTitle(val groupId: String, val roleId: String) : PreviewContentNode()
 
@@ -160,7 +163,7 @@ sealed class PreviewContentNode {
                 "channelTitle" -> ChannelTitle(source.getString("channelId"))
                 "foreignGroupTitle" -> ForeignGroupTitle(source.getString("groupId"))
                 "groupTitle" -> GroupTitle(source.getString("groupId"))
-                "userNickname" -> UserNickname(source.getString("ship"))
+                "userNickname" -> UserNickname(source.getString("ship"), source.getString("fallback"))
                 "postSource" -> PostSource(source.getString("groupId"), source.getString("channelId"))
                 "roleTitle" -> RoleTitle(source.getString("groupId"), source.getString("roleId"))
                 else -> throw Error("Unrecognized PreviewContentNode from JS")
@@ -169,14 +172,24 @@ sealed class PreviewContentNode {
 }
 
 class PreviewContentNodeRenderer(private val api: TalkApi) {
+    private var hideNicknames: Boolean? = null
+
+    // Calm's "hide nicknames", read once per notification. iOS reads the same
+    // setting; a ship that has never saved settings has no value for it.
+    private suspend fun hideNicknames(): Boolean =
+        hideNicknames ?: api.fetchHideNicknames().also { hideNicknames = it }
+
+    suspend fun fetchContact(ship: String, fallbackName: String): Contact =
+        api.fetchContact(ship, fallbackName, hideNicknames())
+
     suspend fun render(node: PreviewContentNode): String =
         when (node) {
             is StringLiteral -> node.content
             is ConcatenateStrings -> render(node.first) + render(node.second)
-            is PreviewContentNode.UserNickname -> api.fetchContact(node.ship).let { x -> x.nickname?.takeIf { it.isNotBlank() } ?: x.displayName ?: x.id }
-            is PreviewContentNode.GroupTitle -> api.fetchGroupTitle(node.groupId) ?: node.groupId
-            is PreviewContentNode.ForeignGroupTitle -> api.fetchForeignGroupTitle(node.groupId) ?: node.groupId
-            is ChannelTitle -> api.fetchChannelTitle(node.channelId) ?: node.channelId
+            is PreviewContentNode.UserNickname -> fetchContact(node.ship, node.fallback).displayName
+            is PreviewContentNode.GroupTitle -> shownTitle(api.fetchGroupTitle(node.groupId)) ?: "Untitled workspace"
+            is PreviewContentNode.ForeignGroupTitle -> shownTitle(api.fetchForeignGroupTitle(node.groupId)) ?: "Untitled workspace"
+            is ChannelTitle -> shownTitle(api.fetchChannelTitle(node.channelId)) ?: "Unknown channel"
             is PreviewContentNode.PostSource -> {
                 val c = api.fetchGroupChannelCount(node.groupId)
                 val isSingleChannelGroup = c == 1
@@ -212,9 +225,26 @@ private suspend fun TalkApi.fetchChannelTitle(channelId: String): String? {
     val response = suspendTalkObjectCallback { cb -> fetchGroupChannel(channelId, cb) }
     return response?.getJSONObject("meta")?.getString("title")
 }
-private suspend fun TalkApi.fetchContact(contactId: String): Contact {
+/**
+ * A title as the app would show it: null when empty, or when it is the
+ * placeholder of ship names the client writes for an untitled group (marked by
+ * a trailing word joiner; see GENERATED_GROUP_TITLE_END_CHAR in
+ * packages/api/src/client/groupsApi.ts).
+ */
+private fun shownTitle(title: String?): String? =
+    title?.takeIf { it.isNotEmpty() && !it.endsWith('\u2060') }
+
+private suspend fun TalkApi.fetchContact(contactId: String, fallbackName: String, hideNicknames: Boolean): Contact {
     val response = suspendTalkObjectCallback { cb -> fetchContact(contactId, cb) }
-    return Contact(contactId, response)
+    return Contact(contactId, response, fallbackName, hideNicknames)
+}
+private suspend fun TalkApi.fetchHideNicknames(): Boolean {
+    val response = suspendTalkObjectCallback { cb -> fetchSettings(cb) }
+    return response
+        ?.optJSONObject("desk")
+        ?.optJSONObject("calmEngine")
+        ?.optBoolean("disableNicknames", false)
+        ?: false
 }
 private suspend fun TalkApi.fetchGroupTitle(groupId: String): String? {
     val response = suspendTalkObjectCallback { cb -> fetchGroups(cb) }

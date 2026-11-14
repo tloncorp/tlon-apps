@@ -108,3 +108,89 @@ describe('renderActivityEventPreview readSource', () => {
     ).toBeUndefined();
   });
 });
+
+describe('renderActivityEventPreview names', () => {
+  const nickname = (ship: string, fallback: string) => ({
+    type: 'userNickname',
+    ship,
+    fallback,
+  });
+
+  it('gives a DM sender their ship number to fall back on', () => {
+    const preview = renderActivityEventPreview({
+      event: {
+        notified: true,
+        'dm-post': {
+          key: {
+            id: '~sampel-palnet/170.141.184.500',
+            time: '170.141.184.500',
+          },
+          whom: { ship: '~sampel-palnet' },
+          content,
+          mention: false,
+        },
+      },
+    });
+    expect(preview?.message?.senderFallbackName).toBe('1.624.961.343');
+    expect(preview?.message?.conversationTitle).toEqual(
+      nickname('~sampel-palnet', '1.624.961.343')
+    );
+  });
+
+  it('turns mentions in a post body into name nodes', () => {
+    const preview = renderActivityEventPreview({
+      event: {
+        notified: true,
+        post: {
+          key,
+          group: '~zod/test-group',
+          channel: 'chat/~zod/test-channel',
+          content: [{ inline: ['hi ', { ship: '~ten' }, '!'] }],
+          mention: true,
+        },
+      },
+    });
+    const body = {
+      type: 'concatenateStrings',
+      first: {
+        type: 'concatenateStrings',
+        first: { type: 'stringLiteral', content: 'hi ' },
+        second: nickname('~ten', '160'),
+      },
+      second: { type: 'stringLiteral', content: '!' },
+    };
+    expect(preview?.notification.body).toEqual(body);
+    expect(preview?.message?.messageText).toEqual(body);
+  });
+
+  it('keeps typed mention markers around a non-ship as text', () => {
+    const preview = renderActivityEventPreview({
+      event: {
+        notified: true,
+        post: {
+          key,
+          group: '~zod/test-group',
+          channel: 'chat/~zod/test-channel',
+          content: [{ inline: ['hello'] }],
+          mention: false,
+        },
+      },
+    });
+    expect(preview?.notification.body).toEqual({
+      type: 'stringLiteral',
+      content: 'hello',
+    });
+  });
+
+  it('gives event actors their ship number to fall back on', () => {
+    const preview = renderActivityEventPreview({
+      event: {
+        notified: true,
+        'group-join': { group: '~zod/test-group', ship: '~bus' },
+      },
+    });
+    expect(preview?.notification.body).toMatchObject({
+      first: { first: nickname('~bus', '182') },
+    });
+  });
+});

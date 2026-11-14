@@ -13,7 +13,12 @@ public class Contact {
     public String color;
     public Person person;
 
-    public Contact(String id, JSONObject contactObject) {
+    /**
+     * @param fallbackName shown when the contact has no nickname or nicknames
+     *                     are hidden: the ship's number, computed by the
+     *                     notification script. The ship name is never shown.
+     */
+    public Contact(String id, JSONObject contactObject, String fallbackName, boolean hideNicknames) {
         this.id = id;
         try {
             nickname = contactObject.getString("nickname");
@@ -25,18 +30,9 @@ public class Contact {
             color = contactObject.getString("color");
         } catch (Exception ignored) {}
 
-        if (nickname != null && !nickname.isBlank()) {
-            displayName = nickname;
-        } else {
-            String deSigId = id.startsWith("~") ? id.replaceFirst("~", "") : id;
-            if (deSigId.length() == 56) { // Comet
-                displayName = "~" + deSigId.substring(0, 6) + "_" + deSigId.substring(51);
-            } else if (deSigId.length() == 27) { // Moon
-                displayName = "~" + deSigId.substring(14).replaceFirst("-", "^");
-            } else {
-                displayName = "~" + deSigId;
-            }
-        }
+        displayName = !hideNicknames && nickname != null && !nickname.isBlank()
+                ? nickname
+                : fallbackName;
 
         person = new Person.Builder().setName(displayName).build();
     }

@@ -8,9 +8,13 @@ import {
   getSourceForEvent,
   sourceToString,
 } from '@tloncorp/api/urbit/activity';
+import { shipToDisplayId } from '@tloncorp/api/lib/urbit';
 import { da, render } from '@urbit/aura';
 
-import { getPostNotificationText } from './postNotificationText';
+import {
+  getPostNotificationText,
+  splitPostNotificationMentions,
+} from './postNotificationText';
 
 type PreviewContentNode =
   | { type: 'channelTitle'; channelId: string }
@@ -26,7 +30,17 @@ type PreviewContentNode =
       groupId: string;
     }
   | { type: 'foreignGroupTitle'; groupId: string }
-  | { type: 'userNickname'; ship: string }
+  | {
+      type: 'userNickname';
+      ship: string;
+      /**
+       * Shown when the contact has no nickname, or nicknames are hidden: the
+       * ship's number. Native renderers cannot derive it from the ship name
+       * themselves (planets need the `ob` scrambler), and must never show the
+       * ship name.
+       */
+      fallback: string;
+    }
   | { type: 'stringLiteral'; content: string }
   | {
       type: 'concatenateStrings';
@@ -66,7 +80,18 @@ namespace PreviewContentNode {
     return { type: 'postSource', ...opts };
   }
   export function userNickname(ship: string): PreviewContentNode {
-    return { type: 'userNickname', ship };
+    return { type: 'userNickname', ship, fallback: displayIdFor(ship) };
+  }
+  /** Post text, with each mention as a node the native side resolves. */
+  export function postText(text: string): PreviewContentNode {
+    const nodes = splitPostNotificationMentions(text).map((part) =>
+      typeof part === 'string'
+        ? stringLiteral(part)
+        : shipToDisplayId(part.ship) === null
+          ? stringLiteral(part.ship)
+          : userNickname(part.ship)
+    );
+    return nodes.length === 0 ? stringLiteral('') : concatenateAll(nodes);
   }
   export function groupTitle(groupId: string): PreviewContentNode {
     return { type: 'groupTitle', groupId };
@@ -92,6 +117,8 @@ interface PreviewContentPayload {
     type: 'group' | 'dm';
     timestamp: number;
     senderId: string;
+    /** What to call the sender when they have no nickname; see `userNickname`. */
+    senderFallbackName: string;
     conversationTitle?: PreviewContentNode;
     messageText: PreviewContentNode;
   };
@@ -101,6 +128,12 @@ interface PreviewContentPayload {
    * clear every unread on the ship, so those notifications get no action.
    */
   readSource?: ub.Source;
+}
+
+// Ships in activity events come from the backend and always parse; the
+// fallback only keeps the type total.
+function displayIdFor(ship: string): string {
+  return shipToDisplayId(ship) ?? 'Someone';
 }
 
 export function renderActivityEventPreview(args: {
@@ -127,6 +160,7 @@ function buildActivityEventPreview({
     userNickname,
     concatenateAll: concat,
     postSource,
+    postText,
     roleTitle,
   } = PreviewContentNode;
   const source = getSourceForEvent(ev);
@@ -135,16 +169,17 @@ function buildActivityEventPreview({
     info: Pick<ub.PostEvent['post'], 'key' | 'content'>
   ) {
     const { sent, author } = getIdParts(info.key.id);
-    const contentSummary = getPostNotificationText(info.content);
+    const contentSummary = postText(getPostNotificationText(info.content));
     return {
       notification: {
-        body: lit(contentSummary),
+        body: contentSummary,
         groupingKey: lit(sourceToString(source)),
       },
       message: {
         timestamp: sent,
         senderId: author,
-        messageText: lit(contentSummary),
+        senderFallbackName: displayIdFor(author),
+        messageText: contentSummary,
       },
     };
   }

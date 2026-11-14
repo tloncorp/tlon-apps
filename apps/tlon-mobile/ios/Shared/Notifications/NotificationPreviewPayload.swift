@@ -5,7 +5,7 @@ public struct NotificationPreviewPayload: Decodable {
         case channelTitle(channelId: String)
         case foreignGroupTitle(groupId: String)
         case groupTitle(groupId: String)
-        case userNickname(ship: String)
+        case userNickname(ship: String, fallback: String)
         case stringLiteral(content: String)
         case concatenateStrings(first: ContentNode, second: ContentNode)
         case postSource(channelId: String, groupId: String)
@@ -20,6 +20,7 @@ public struct NotificationPreviewPayload: Decodable {
             case first
             case second
             case ship
+            case fallback
         }
 
         enum NodeType: String, Decodable {
@@ -61,7 +62,8 @@ public struct NotificationPreviewPayload: Decodable {
                 
             case .userNickname:
                 let ship = try container.decode(String.self, forKey: .ship)
-                self = .userNickname(ship: ship)
+                let fallback = try container.decode(String.self, forKey: .fallback)
+                self = .userNickname(ship: ship, fallback: fallback)
 
             case .postSource:
                 let channelId = try container.decode(String.self, forKey: .channelId)
@@ -91,6 +93,7 @@ public struct NotificationPreviewPayload: Decodable {
         let type: MessageType
         let timestamp: Int
         let senderId: String
+        let senderFallbackName: String
         let conversationTitle: NotificationPreviewPayload.ContentNode?
     }
     
@@ -106,15 +109,15 @@ public struct NotificationPreviewContentNodeRenderer {
         case let .stringLiteral(content):
             return content
         case let .channelTitle(channelId):
-            return (try? await GroupChannelStore.sharedInstance.getOrFetchItem(channelId)?.meta.title) ?? channelId
+            return shownTitle(try? await GroupChannelStore.sharedInstance.getOrFetchItem(channelId)?.meta.title) ?? "Unknown channel"
         case let .groupTitle(groupId):
-            return (try? await GroupStore.sharedInstance.getOrFetchItem(groupId)?.meta.title) ?? groupId
+            return shownTitle(try? await GroupStore.sharedInstance.getOrFetchItem(groupId)?.meta.title) ?? "Untitled workspace"
         case let .foreignGroupTitle(groupId):
-            return (try? await ForeignGroupStore.sharedInstance.getOrFetchItem(groupId)?.preview?.meta.title) ?? groupId
+            return shownTitle(try? await ForeignGroupStore.sharedInstance.getOrFetchItem(groupId)?.preview?.meta.title) ?? "Untitled workspace"
         case let .concatenateStrings(first, second):
             return [await render(first), await render(second)].joined()
-        case let .userNickname(ship):
-            return (try? await ContactStore.sharedInstance.getOrFetchItem(ship)?.displayName) ?? ship
+        case let .userNickname(ship, fallback):
+            return (try? await ContactStore.sharedInstance.getOrFetchItem(ship)?.displayName) ?? fallback
         case let .postSource(channelId, groupId):
             // If the post source is a single-channel group, we want to omit the channel title.
             if let isSingleChannelGroup = try? await GroupStore.sharedInstance.getOrFetchItem(groupId)?.channels.count == 1 {
@@ -141,6 +144,17 @@ public struct NotificationPreviewContentNodeRenderer {
             }
             return roleId
         }
+    }
+
+    /// A title as the app would show it: nil when empty, or when it is the
+    /// placeholder of ship names the client writes for an untitled group
+    /// (marked by a trailing word joiner; see GENERATED_GROUP_TITLE_END_CHAR
+    /// in packages/api/src/client/groupsApi.ts).
+    private func shownTitle(_ title: String?) -> String? {
+        guard let title, !title.isEmpty, title.unicodeScalars.last != "\u{2060}" else {
+            return nil
+        }
+        return title
     }
 }
 
