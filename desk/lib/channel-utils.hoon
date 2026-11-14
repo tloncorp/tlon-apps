@@ -1328,18 +1328,21 @@
   --
 ::
 ++  flatten-inline
+  ::  name: how a mention reads; callers with contacts swap in nicknames
+  ::
+  =/  name=$-(ship tape)  |=(=ship (scow %ud ship))
   |=  i=inline:s
   ~>  %spin.['libcu-flatten-inline']
   ^-  cord
   ?@  i  i
   ?-  -.i
-    ?(%italics %bold %strike %blockquote)  (rap 3 (turn p.i flatten-inline))
+    ?(%italics %bold %strike %blockquote)  (rap 3 (turn p.i ..$))
     ?(%inline-code %code %tag)  p.i
-    %ship   (scot %p p.i)
+    %ship   (crip (name p.i))
     %sect   ?~(p.i '@all' (cat 3 '@' p.i))
     %block  q.i
     %link   q.i
-    %task   (rap 3 (turn q.i flatten-inline))
+    %task   (rap 3 (turn q.i ..$))
     %break  '\0a'
   ==
 ::
@@ -1371,7 +1374,10 @@
   ::  anchors: whether to render <a> tags around images and links.
   ::           you may not want this when nesting the content inside of another
   ::           <a>, browsers consider this illegal and will mangle the document.
+  ::  name: how a mention reads; callers with contacts swap in nicknames
+  ::
   =/  anchors=?  &
+  =/  name=$-(ship tape)  |=(=ship (scow %ud ship))
   |%
   ++  content  story
   ++  story
@@ -1532,7 +1538,7 @@
       ==
     ::
         %ship
-      ;span.ship:"{(scow %p p.inline)}"
+      ;span.ship:"{(name p.inline)}"
     ::
         %sect
       ?~  p.inline  ;span.sect:"@all"

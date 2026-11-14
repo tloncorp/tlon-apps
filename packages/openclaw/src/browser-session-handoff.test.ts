@@ -79,7 +79,7 @@ function reply(structuredContent: unknown, extra = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   runBrowserHandoffCommand.mockResolvedValue(
-    '✓ Secure browser form sent to ~nec'
+    '✓ Secure browser form sent to your owner'
   );
 });
 
@@ -724,7 +724,7 @@ describe('browser session handoff', () => {
       config
     );
     expect(release).toHaveBeenCalledOnce();
-    expect(result).toContain('sent to ~nec');
+    expect(result).toContain('sent to your owner');
     expect(result).not.toContain(url);
   });
 
@@ -866,7 +866,7 @@ describe('browser session sharing', () => {
       ['browser', 'share', url],
       config
     );
-    expect(result).toBe('✓ Browser session sent to ~nec');
+    expect(result).toBe('✓ Browser session sent to your owner');
     expect(result).not.toContain(url);
   });
   it('rejects model-supplied URLs before any lookup or send', async () => {

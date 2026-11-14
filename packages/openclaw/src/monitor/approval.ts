@@ -15,6 +15,7 @@ import {
   type PendingApproval,
   TLON_PENDING_APPROVAL_LIMIT,
 } from '../settings.js';
+import { shipDisplayId } from '../targets.js';
 import { type TlonA2UIBlob, makeA2UIBlob } from '../urbit/blob.js';
 import { extractDmPartnerShip } from './utils.js';
 
@@ -55,14 +56,14 @@ export function formatApprovalRequestNotification(
   >,
   ctx?: DisplayContext
 ): string {
-  const ship = displayShipWithId(approval.requestingShip, ctx);
+  const ship = formatShipLabel(approval.requestingShip, ctx);
   if (approval.type === 'dm') {
     return `DM request from ${ship}`;
   }
   if (approval.type === 'channel') {
     return `Channel mention request from ${ship}`;
   }
-  const groupLabel = formatGroupLabel(approval.groupTitle, approval.groupFlag);
+  const groupLabel = formatGroupLabel(approval.groupTitle);
   return groupLabel
     ? `Group invite request from ${ship} for ${groupLabel}`
     : `Group invite request from ${ship}`;
@@ -87,7 +88,7 @@ export function formatChannelApprovalAck(
   ctx?: DisplayContext,
   options: { ownerNotified?: boolean } = {}
 ): string {
-  const owner = displayShipWithId(ownerShip, ctx);
+  const owner = formatShipLabel(ownerShip, ctx);
   const lead = `${requestingShip}: I need approval from my owner, ${owner}, before I can respond in this channel`;
   if (options.ownerNotified === false) {
     return `${lead}. I couldn't reach them just now — please mention me again later.`;
@@ -122,46 +123,42 @@ export type ApprovalA2UIOptions = {
 };
 
 function displayShipName(ship: string, ctx?: DisplayContext): string {
-  return ctx?.contactNames?.get(ship) || ship;
+  return ctx?.contactNames?.get(ship) || shipDisplayId(ship);
 }
 
-function displayShipWithId(ship: string, ctx?: DisplayContext): string {
+/**
+ * "Nickname (number)", or the number alone. Plain text rather than a mention,
+ * so the owner sees the number that /unban accepts.
+ */
+export function formatShipLabel(ship: string, ctx?: DisplayContext): string {
   const name = ctx?.contactNames?.get(ship);
-  return name ? `${name} (${ship})` : ship;
+  const id = shipDisplayId(ship);
+  return name ? `${name} (${id})` : id;
 }
 
-function displayChannel(nest: string, ctx?: DisplayContext): string {
+/** A channel's title, never its nest: a nest's host reads as a ship name. */
+export function formatChannelLabel(nest: string, ctx?: DisplayContext): string {
   const name = ctx?.channelNames?.get(nest);
   const groupFlag = ctx?.channelGroups?.get(nest);
   const groupName = groupFlag ? ctx?.groupNames?.get(groupFlag) : undefined;
   if (name && groupName) {
-    return `${name} in ${groupName} (${nest})`;
+    return `${name} in ${groupName}`;
   }
   if (name) {
-    return `${name} (${nest})`;
+    return name;
   }
   if (groupName) {
-    return `${groupName} (${nest})`;
+    return `a channel in ${groupName}`;
   }
-  return nest;
+  return 'an unknown channel';
 }
 
-// Title and flag are bounded separately so an oversized title can neither
-// push the host flag out of a label nor blow the a2ui per-node text cap.
+// Bounded so an oversized title can't blow the a2ui per-node text cap.
 const MAX_GROUP_TITLE_CHARS = 80;
-const MAX_GROUP_FLAG_CHARS = 80;
 
-/** Bounded "title (flag)" label; whichever parts exist, nothing when neither does. */
-export function formatGroupLabel(
-  title: string | undefined,
-  flag: string | undefined
-): string {
-  const boundedTitle = title ? truncate(title, MAX_GROUP_TITLE_CHARS) : '';
-  const boundedFlag = flag ? truncate(flag, MAX_GROUP_FLAG_CHARS) : '';
-  if (boundedTitle && boundedFlag && boundedTitle !== boundedFlag) {
-    return `${boundedTitle} (${boundedFlag})`;
-  }
-  return boundedTitle || boundedFlag;
+/** Bounded group title; nothing without one, since a flag is a ship name. */
+export function formatGroupLabel(title: string | undefined): string {
+  return title ? truncate(title, MAX_GROUP_TITLE_CHARS) : '';
 }
 
 function displayGroup(
@@ -170,7 +167,7 @@ function displayGroup(
   titleOverride?: string
 ): string {
   const name = titleOverride || ctx?.groupNames?.get(flag);
-  return formatGroupLabel(name, flag || undefined);
+  return formatGroupLabel(name) || 'an unknown group';
 }
 
 // ============================================================================
@@ -692,11 +689,11 @@ type ApprovalA2UIParams = {
 };
 
 function approvalRequesterName(params: ApprovalA2UIParams): string {
-  return params.requestingShipName ?? params.requestingShip;
+  return params.requestingShipName ?? shipDisplayId(params.requestingShip);
 }
 
 function approvalRequesterLabel(params: ApprovalA2UIParams): string {
-  return params.requestingShipLabel ?? params.requestingShip;
+  return params.requestingShipLabel ?? shipDisplayId(params.requestingShip);
 }
 
 function approvalTarget(params: ApprovalA2UIParams): string | undefined {
@@ -735,7 +732,7 @@ function approvalEyebrow(params: ApprovalA2UIParams): string {
 }
 
 function approvalChannelLabel(params: ApprovalA2UIParams): string {
-  return params.channelName ?? params.channelNest ?? 'this channel';
+  return params.channelName ?? 'this channel';
 }
 
 function approvalContextLines(params: ApprovalA2UIParams): string[] {
@@ -749,10 +746,7 @@ function approvalContextLines(params: ApprovalA2UIParams): string[] {
         ...(params.channelContext ? [`Group: ${params.channelContext}`] : []),
       ];
     case 'group': {
-      const groupLabel = formatGroupLabel(
-        approvalTarget(params),
-        params.groupFlag
-      );
+      const groupLabel = formatGroupLabel(approvalTarget(params));
       return [
         `Inviter: ${approvalRequesterLabel(params)}`,
         ...(groupLabel ? [`Group: ${groupLabel}`] : []),
@@ -939,18 +933,8 @@ function displayChannelContextForApproval(
   nest: string | undefined,
   ctx?: DisplayContext
 ): string | undefined {
-  if (!nest) {
-    return undefined;
-  }
-  const groupFlag = ctx?.channelGroups?.get(nest);
-  const groupName = groupFlag ? ctx?.groupNames?.get(groupFlag) : undefined;
-  if (groupName) {
-    return groupName;
-  }
-  if (groupFlag) {
-    return groupFlag;
-  }
-  return undefined;
+  const groupFlag = nest ? ctx?.channelGroups?.get(nest) : undefined;
+  return groupFlag ? ctx?.groupNames?.get(groupFlag) : undefined;
 }
 
 function displayGroupForApproval(
@@ -958,13 +942,7 @@ function displayGroupForApproval(
   titleOverride: string | undefined,
   ctx?: DisplayContext
 ): string | undefined {
-  if (!flag && !titleOverride) {
-    return undefined;
-  }
-  if (!flag) {
-    return titleOverride;
-  }
-  return titleOverride || ctx?.groupNames?.get(flag) || flag;
+  return titleOverride || (flag ? ctx?.groupNames?.get(flag) : undefined);
 }
 
 function approvalSourceTarget(
@@ -1023,7 +1001,7 @@ export function buildApprovalA2UIBlob(
     requestId: approval.id,
     requestingShip: approval.requestingShip,
     requestingShipName: displayShipName(approval.requestingShip, ctx),
-    requestingShipLabel: displayShipWithId(approval.requestingShip, ctx),
+    requestingShipLabel: formatShipLabel(approval.requestingShip, ctx),
     messagePreview: approval.messagePreview,
     channelNest: approval.channelNest,
     channelName: displayChannelForApproval(approval.channelNest, ctx),
@@ -1058,7 +1036,7 @@ function pendingItemFields(
   ctx?: DisplayContext
 ): { title: string; context: string; preview?: string } {
   const name = displayShipName(approval.requestingShip, ctx);
-  const ship = displayShipWithId(approval.requestingShip, ctx);
+  const ship = formatShipLabel(approval.requestingShip, ctx);
   const preview = approval.messagePreview
     ? `Message: "${truncate(approval.messagePreview, 100)}"`
     : undefined;
@@ -1069,7 +1047,7 @@ function pendingItemFields(
     case 'channel':
       return {
         title: `Channel access for ${name}`,
-        context: `Channel: ${displayChannel(approval.channelNest ?? '', ctx)}`,
+        context: `Channel: ${formatChannelLabel(approval.channelNest ?? '', ctx)}`,
         preview,
       };
     case 'group':
@@ -1291,7 +1269,7 @@ export function formatApprovalConfirmation(
   action: 'approve' | 'deny' | 'block',
   ctx?: DisplayContext
 ): string {
-  const ship = displayShipWithId(approval.requestingShip, ctx);
+  const ship = formatShipLabel(approval.requestingShip, ctx);
 
   if (action === 'block') {
     return `Blocked ${ship}. They will no longer be able to contact the bot.`;
@@ -1305,7 +1283,7 @@ export function formatApprovalConfirmation(
       return `Denied DM request from ${ship}.`;
 
     case 'channel': {
-      const channel = displayChannel(approval.channelNest ?? '', ctx);
+      const channel = formatChannelLabel(approval.channelNest ?? '', ctx);
       if (action === 'approve') {
         return `Approved ${ship} for ${channel}. They will be able to interact in this channel.`;
       }
@@ -1334,16 +1312,19 @@ export function formatApprovalConfirmation(
 /**
  * Format the list of blocked users for display to owner.
  */
-export function formatBlockedList(ships: string[]): string {
+export function formatBlockedList(
+  ships: string[],
+  ctx?: DisplayContext
+): string {
   if (ships.length === 0) {
     return 'No users are currently blocked.';
   }
-  const lines = ships.map((s) => `  ${s}`);
+  const lines = ships.map((s) => `  ${formatShipLabel(s, ctx)}`);
   return [
     `Blocked users (${ships.length}):`,
     ...lines,
     '',
-    'To unban: `/unban ~sampel-palnet`',
+    'To unban, send /unban and their ID, like `/unban 1.624.961.343`',
   ].join('\n');
 }
 
@@ -1360,7 +1341,7 @@ export function formatPendingList(
   }
 
   const entries = active.map((a) => {
-    const ship = displayShipWithId(a.requestingShip, ctx);
+    const ship = formatShipLabel(a.requestingShip, ctx);
     const preview = a.messagePreview
       ? `\n    "${truncate(a.messagePreview, 80)}"`
       : '';
@@ -1369,7 +1350,7 @@ export function formatPendingList(
       case 'dm':
         return `  #${a.id} - DM from ${ship}${preview}`;
       case 'channel':
-        return `  #${a.id} - Mention in ${displayChannel(a.channelNest ?? '', ctx)} by ${ship}${preview}`;
+        return `  #${a.id} - Mention in ${formatChannelLabel(a.channelNest ?? '', ctx)} by ${ship}${preview}`;
       case 'group':
         return `  #${a.id} - Group invite from ${ship} to ${displayGroup(a.groupFlag ?? '', ctx, a.groupTitle)}`;
     }

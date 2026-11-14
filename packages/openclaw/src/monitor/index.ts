@@ -148,6 +148,7 @@ import {
   canonicalizeNest,
   normalizeShip,
   parseChannelNest,
+  parseShipInput,
 } from '../targets.js';
 import {
   type TlonDeliverySkipReason,
@@ -248,6 +249,8 @@ import {
   formatApprovalRequestNotification,
   formatBlockedList,
   formatChannelApprovalAck,
+  formatChannelLabel,
+  formatShipLabel,
   isDirectDmApproval,
   isExpired,
   isNotificationDelivered,
@@ -2636,19 +2639,24 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
       async getBlockedList() {
         const blockedShips = await getBlockedShips();
-        return formatBlockedList(blockedShips);
+        return formatBlockedList(blockedShips, buildDisplayContext());
       },
 
-      async handleUnblock(ship) {
+      async handleUnblock(input) {
+        const ship = parseShipInput(input);
+        if (!ship) {
+          return `${input} isn't an ID. Send /banned to see the IDs of blocked users.`;
+        }
         runtime.log?.(
           `[tlon] handleUnblock: checking if ${ship} is blocked...`
         );
+        const label = formatShipLabel(ship, buildDisplayContext());
         const blocked = await isShipBlocked(ship);
         if (!blocked) {
-          return `${ship} is not blocked.`;
+          return `${label} is not blocked.`;
         }
         const success = await unblockShip(ship);
-        return success ? `Unblocked ${ship}.` : `Failed to unblock ${ship}.`;
+        return success ? `Unblocked ${label}.` : `Failed to unblock ${label}.`;
       },
 
       // ── Owner-listen controls ────────────────────────────────────────────
@@ -4234,6 +4242,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         const noticeConversation = isGroup
           ? (channelNest ?? _channelName ?? 'a group channel')
           : `our DM with ${senderShip}`;
+        const noticeDisplayContext = buildDisplayContext();
+        const noticeRequester = formatShipLabel(
+          senderShip,
+          noticeDisplayContext
+        );
         const billingFailure =
           heldBillingReply !== undefined && hostedBudgetPaths
             ? describeBillingFailure(
@@ -4244,8 +4257,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         const notice = resolveSilentFailureNotice({
           summary: turnSummary,
           deliveredCount: effectiveDeliveredCount,
-          requester: senderShip,
-          conversation: noticeConversation,
+          requester: noticeRequester,
+          conversation: isGroup
+            ? channelNest
+              ? formatChannelLabel(channelNest, noticeDisplayContext)
+              : 'a group channel'
+            : `our DM with ${noticeRequester}`,
           billingFailure,
         });
         if (notice) {

@@ -252,8 +252,8 @@
   =/  second  (~(got by tasks.workspace.b) 'task')
   ;<  ~  bind:m  (ex-equal !>(status.first) !>(%claimed))
   ;<  ~  bind:m  (ex-equal !>(status.second) !>(%claimed))
-  ;<  ~  bind:m  (ex-equal !>(label:(need claimant.first)) !>('Agent on ~nec'))
-  ;<  ~  bind:m  (ex-equal !>(label:(need claimant.second)) !>('Agent on ~zod'))
+  ;<  ~  bind:m  (ex-equal !>(label:(need claimant.first)) !>('Agent on 1'))
+  ;<  ~  bind:m  (ex-equal !>(label:(need claimant.second)) !>('Agent on 0'))
   ;<  ~  bind:m  (ex-equal !>(status:(~(got by tasks.workspace.done) 'task')) !>(%done))
   ;<  ~  bind:m
     %+  ex-equal

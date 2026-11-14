@@ -1287,7 +1287,7 @@
   =/  access  (~(get by names.corpus) sid)
   ?~  access  ~
   =/  peer  (peer-source:admin log.u.session)
-  =?  label  ?=(^ peer)  (cat 3 'Agent on ' (scot %p u.peer))
+  =?  label  ?=(^ peer)  (cat 3 'Agent on ' (scot %ud u.peer))
   `[| [u.worker label] u.access]
 ::
 ++  workspace-request

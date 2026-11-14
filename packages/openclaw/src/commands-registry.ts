@@ -143,7 +143,7 @@ export const TLON_COMMAND_REGISTRY: TlonCommandRegistryEntry[] = [
   },
   {
     name: 'unban',
-    description: 'Unban a ship (e.g. /unban ~sampel-palnet)',
+    description: 'Unban a ship by its ID (e.g. /unban 1.624.961.343)',
     acceptsArgs: true,
     handler: async (ctx) => {
       const result = resolveBridgeForCommand(ctx);
@@ -152,7 +152,7 @@ export const TLON_COMMAND_REGISTRY: TlonCommandRegistryEntry[] = [
       }
       const ship = ctx.args?.trim();
       if (!ship) {
-        return { text: 'Usage: /unban ~ship-name' };
+        return { text: 'Usage: /unban <ID>' };
       }
       return { text: await result.bridge.handleUnblock(ship) };
     },

@@ -367,7 +367,7 @@ describe('buildApprovalA2UIBlob', () => {
         },
         ctx
       )
-    ).toBe('DM request from Sam Palnet (~sampel-palnet)');
+    ).toBe('DM request from Sam Palnet (1.624.961.343)');
     expect(
       formatApprovalRequestNotification(
         {
@@ -376,7 +376,7 @@ describe('buildApprovalA2UIBlob', () => {
         },
         ctx
       )
-    ).toBe('Channel mention request from Littel Wolfur (~littel-wolfur)');
+    ).toBe('Channel mention request from Littel Wolfur (2.335.456.947)');
     expect(
       formatApprovalRequestNotification(
         {
@@ -432,7 +432,7 @@ describe('buildApprovalA2UIBlob', () => {
     });
 
     expect(A2UI.validateBlobEntry(approval)).toBe(true);
-    expect(JSON.stringify(approval)).toContain('Sender: ~sampel-palnet');
+    expect(JSON.stringify(approval)).toContain('Sender: 1.624.961.343');
   });
 
   it('uses display context for channel and group labels', () => {
@@ -450,7 +450,7 @@ describe('buildApprovalA2UIBlob', () => {
     expect(A2UI.validateBlobEntry(approval)).toBe(true);
     const text = JSON.stringify(approval);
     expect(text).toContain('Let the bot reply to Zod in General?');
-    expect(text).toContain('Sender: Zod (~zod)');
+    expect(text).toContain('Sender: Zod (0)');
     expect(text).toContain('Channel: General');
     expect(text).toContain('Group: Garden Club');
     expect(text).not.toContain('General in Garden Club (chat/~host/general)');
@@ -472,7 +472,7 @@ describe('buildApprovalA2UIBlob', () => {
     expect(A2UI.validateBlobEntry(approval)).toBe(true);
     const text = JSON.stringify(approval);
     expect(text).toContain('Let the bot reply to Zod in General?');
-    expect(text).toContain('Sender: Zod (~zod)');
+    expect(text).toContain('Sender: Zod (0)');
     expect(text).toContain('Channel: General');
     expect(text).not.toContain('general (chat/~host/general)');
   });
@@ -497,7 +497,7 @@ describe('buildApprovalA2UIBlob', () => {
     expect(text).toContain('Group: Garden Club');
   });
 
-  it('keeps the group flag visible when no group title is available', () => {
+  it('names no ship when no group title is available', () => {
     const approval = buildApprovalA2UIBlob({
       id: 'g5f6e',
       type: 'group',
@@ -508,9 +508,8 @@ describe('buildApprovalA2UIBlob', () => {
 
     expect(A2UI.validateBlobEntry(approval)).toBe(true);
     const text = JSON.stringify(approval);
-    expect(text).toContain('Let the bot join ~robin-dasler/private-garden?');
-    expect(text).toContain('Group: ~robin-dasler/private-garden');
-    expect(text).not.toContain('this group');
+    expect(text).toContain('Let the bot join this group?');
+    expect(text).not.toContain('private-garden');
   });
 });
 
@@ -541,12 +540,10 @@ describe('buildPendingApprovalsA2UIBlob', () => {
     const text = JSON.stringify(blob);
     expect(text).toContain('2 approval requests');
     expect(text).toContain('DM from Zod');
-    expect(text).toContain('Sender: Zod (~zod)');
+    expect(text).toContain('Sender: Zod (0)');
     expect(text).toContain('Message: ');
     expect(text).toContain('Channel access for Sam Palnet');
-    expect(text).toContain(
-      'Channel: General in Garden Club (chat/~host/general)'
-    );
+    expect(text).toContain('Channel: General in Garden Club"');
     expect(text).toContain('/allow da1b2');
     expect(text).toContain('/reject cc3d4');
     expect(text).toContain('/ban cc3d4');
@@ -698,7 +695,7 @@ describe('buildPendingApprovalsResponse', () => {
       mode: 'ui',
       blob: 'serialized-card',
     });
-    expect(response.text).toContain('Zod (~zod)');
+    expect(response.text).toContain('Zod (0)');
     expect(response.text).toContain('/allow');
   });
 
@@ -710,7 +707,7 @@ describe('buildPendingApprovalsResponse', () => {
     );
 
     expect(response.mode).toBe('text');
-    expect(response.text).toContain('Zod (~zod)');
+    expect(response.text).toContain('Zod (0)');
   });
 
   it('falls back to text when display values make the card invalid', () => {
@@ -746,13 +743,13 @@ describe('formatApprovalConfirmation', () => {
       timestamp: 1,
     };
     expect(formatApprovalConfirmation(approval, 'approve', ctx)).toContain(
-      'Sam Palnet (~sampel-palnet)'
+      'Sam Palnet (1.624.961.343)'
     );
     expect(formatApprovalConfirmation(approval, 'deny', ctx)).toContain(
-      'Sam Palnet (~sampel-palnet)'
+      'Sam Palnet (1.624.961.343)'
     );
     expect(formatApprovalConfirmation(approval, 'block', ctx)).toContain(
-      'Sam Palnet (~sampel-palnet)'
+      'Sam Palnet (1.624.961.343)'
     );
   });
 
@@ -765,7 +762,7 @@ describe('formatApprovalConfirmation', () => {
       timestamp: 1,
     };
     expect(formatApprovalConfirmation(approval, 'approve', ctx)).toContain(
-      'General in Garden Club (chat/~host/general)'
+      'General in Garden Club.'
     );
   });
 
@@ -778,7 +775,7 @@ describe('formatApprovalConfirmation', () => {
       timestamp: 1,
     };
     expect(formatApprovalConfirmation(approval, 'approve', ctx)).toContain(
-      'Garden Club (~host/cool-group)'
+      'to Garden Club.'
     );
   });
 
@@ -790,7 +787,7 @@ describe('formatApprovalConfirmation', () => {
       timestamp: 1,
     };
     const text = formatApprovalConfirmation(approval, 'approve');
-    expect(text).toContain('~zod');
+    expect(text).toContain('for 0.');
   });
 });
 
@@ -810,7 +807,7 @@ describe('formatChannelApprovalAck', () => {
     // Bare ship prefix, not the nickname — the story parser only turns a
     // bare ~ship token into a mention.
     expect(text.startsWith('~sampel-palnet: ')).toBe(true);
-    expect(text).toContain('nocsyx (~nocsyx)');
+    expect(text).toContain('nocsyx (64.017)');
     expect(text).toContain("I've sent them the request");
     // Only the newest pending mention is replayed after approval, so the
     // status must not promise a reply to this specific message.
@@ -819,8 +816,8 @@ describe('formatChannelApprovalAck', () => {
 
   it('falls back to the bare owner ship without context', () => {
     const text = formatChannelApprovalAck('~sampel-palnet', '~nocsyx');
-    expect(text).toContain('~nocsyx');
-    expect(text).not.toContain('(~nocsyx)');
+    expect(text).toContain('my owner, 64.017,');
+    expect(text).not.toContain('~nocsyx');
   });
 
   it('does not claim the request was sent when the owner DM failed', () => {
@@ -882,11 +879,14 @@ describe('formatBlockedList', () => {
   });
 
   it('shows ships', () => {
-    const text = formatBlockedList(['~sampel-palnet', '~zod']);
-    expect(text).toContain('~sampel-palnet');
-    expect(text).toContain('~zod');
+    const text = formatBlockedList(['~sampel-palnet', '~zod'], {
+      contactNames: new Map([['~zod', 'Zod']]),
+    });
+    expect(text).toContain('  1.624.961.343\n');
+    expect(text).toContain('  Zod (0)\n');
     expect(text).toContain('Blocked users (2):');
-    expect(text).toContain('`/unban ~sampel-palnet`');
+    expect(text).toContain('`/unban 1.624.961.343`');
+    expect(text).not.toContain('~');
   });
 });
 
@@ -961,7 +961,7 @@ describe('formatPendingList', () => {
       },
     ];
     const text = formatPendingList(approvals, ctx);
-    expect(text).toContain('Zod (~zod)');
+    expect(text).toContain('Zod (0)');
   });
 
   it('shows channel names for channel approvals', () => {
@@ -975,7 +975,7 @@ describe('formatPendingList', () => {
       },
     ];
     const text = formatPendingList(approvals, ctx);
-    expect(text).toContain('General in Garden Club (chat/~host/general)');
+    expect(text).toContain('Mention in General in Garden Club by');
   });
 
   it('shows group names for group approvals', () => {
@@ -989,7 +989,7 @@ describe('formatPendingList', () => {
       },
     ];
     const text = formatPendingList(approvals, ctx);
-    expect(text).toContain('Garden Club (~host/cool-group)');
+    expect(text).toContain('to Garden Club');
   });
 
   it('includes slash command usage hint', () => {
@@ -1648,9 +1648,7 @@ describe('group surfaces show host flag alongside title', () => {
     });
 
     expect(A2UI.validateBlobEntry(approval)).toBe(true);
-    expect(JSON.stringify(approval)).toContain(
-      'Group: Garden Club (~robin-dasler/garden-club)'
-    );
+    expect(JSON.stringify(approval)).toContain('Group: Garden Club"');
   });
 
   it('includes the group label in the plain-text notification', () => {
@@ -1661,9 +1659,7 @@ describe('group surfaces show host flag alongside title', () => {
         groupFlag: '~robin-dasler/garden-club',
         groupTitle: 'Garden Club',
       })
-    ).toBe(
-      'Group invite request from ~robin-dasler for Garden Club (~robin-dasler/garden-club)'
-    );
+    ).toBe('Group invite request from ~robin-dasler for Garden Club');
   });
 
   it('bounds oversized titles and flags on the /pending card and text fallback', () => {
@@ -1683,10 +1679,10 @@ describe('group surfaces show host flag alongside title', () => {
     expect(A2UI.validateBlobEntry(blob)).toBe(true);
     const cardText = JSON.stringify(blob);
     expect(cardText).toContain('Group: ');
-    expect(cardText).toContain('~robin-dasler/');
+    expect(cardText).not.toContain('~robin-dasler/');
 
     const text = formatPendingList([oversized]);
-    expect(text).toContain('~robin-dasler/');
+    expect(text).not.toContain('~robin-dasler/');
     expect(text.length).toBeLessThan(1_000);
   });
 });

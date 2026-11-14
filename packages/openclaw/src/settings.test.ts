@@ -377,7 +377,7 @@ describe('Settings: parseSettingsResponse', () => {
         undefined,
         () => undefined
       );
-      expect(response.text).toContain('~host/group');
+      expect(response.text).toContain('Group invite from');
     });
   });
 });

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { canonicalizeNest, parseTlonTarget } from './targets.js';
+import {
+  canonicalizeNest,
+  parseShipInput,
+  parseTlonTarget,
+  shipDisplayId,
+} from './targets.js';
 
 describe('canonicalizeNest', () => {
   it('returns canonical form unchanged', () => {
@@ -73,5 +78,37 @@ describe('parseTlonTarget', () => {
       hostShip: '~zod',
       channelName: 'general',
     });
+  });
+});
+
+describe('shipDisplayId', () => {
+  it('shows a ship as its dotted number', () => {
+    expect(shipDisplayId('~zod')).toBe('0');
+    expect(shipDisplayId('~sampel-palnet')).toBe('1.624.961.343');
+    expect(shipDisplayId('sampel-palnet')).toBe('1.624.961.343');
+  });
+
+  it('returns input that is not a ship unchanged', () => {
+    expect(shipDisplayId('~robin-dasler')).toBe('~robin-dasler');
+  });
+});
+
+describe('parseShipInput', () => {
+  it('accepts a ship with or without its sig', () => {
+    expect(parseShipInput('~sampel-palnet')).toBe('~sampel-palnet');
+    expect(parseShipInput(' Sampel-Palnet ')).toBe('~sampel-palnet');
+  });
+
+  it('accepts the number, dotted or not', () => {
+    expect(parseShipInput('1.624.961.343')).toBe('~sampel-palnet');
+    expect(parseShipInput('1624961343')).toBe('~sampel-palnet');
+    expect(parseShipInput('0')).toBe('~zod');
+  });
+
+  it('rejects anything else', () => {
+    expect(parseShipInput('~robin-dasler')).toBeNull();
+    expect(parseShipInput('1.62.4')).toBeNull();
+    expect(parseShipInput(String(2n ** 128n))).toBeNull();
+    expect(parseShipInput('')).toBeNull();
   });
 });

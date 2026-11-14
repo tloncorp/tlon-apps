@@ -452,7 +452,7 @@ export async function runBrowserSessionHandoff(
       config
     );
     return (
-      `✓ ${args[1] === 'share' ? 'Browser session' : args[1] === 'approve-login' ? 'Saved login approval' : 'Secure browser form'} sent to ${account.ownerShip}` +
+      `✓ ${args[1] === 'share' ? 'Browser session' : args[1] === 'approve-login' ? 'Saved login approval' : 'Secure browser form'} sent to your owner` +
       (args[1] === 'share'
         ? ''
         : '. Wait for the secure-entry result before using this browser again. The service resumes this conversation after entry.')
