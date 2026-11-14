@@ -187,7 +187,7 @@ private fun showRichNotification(context: Context, uid: String, preview: Activit
 
     Log.d(NOTIFICATION_MANAGER, "sendNotification: $id $title $text $isGroupConversation")
 
-    val user = Person.Builder().setName(SecureStorage.getString(SecureStorage.SHIP_NAME_KEY)).build()
+    val user = Person.Builder().setName(context.getString(R.string.landscape_notification_self_name)).build()
 
     if (person != null) {
         val notifStyle = NotificationCompat.MessagingStyle(user)

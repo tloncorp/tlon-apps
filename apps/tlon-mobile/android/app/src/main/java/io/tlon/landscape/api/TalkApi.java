@@ -183,6 +183,10 @@ public class TalkApi {
         });
     }
 
+    public void fetchSettings(TalkObjectCallback callback) {
+        fetchObject("/~/scry/settings/desk/groups", callback);
+    }
+
     public void fetchContacts(TalkObjectCallback callback) {
         fetchObject("/~/scry/contacts/all", callback);
     }
