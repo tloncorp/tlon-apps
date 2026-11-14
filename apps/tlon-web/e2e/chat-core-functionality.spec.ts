@@ -189,7 +189,9 @@ test('should require confirmation before deleting a message (cancel prevents del
 
   // Message should still be present
   await expect(
-    zodPage.getByText('Cancel delete test message', { exact: true })
+    zodPage
+      .getByTestId('Post')
+      .getByText('Cancel delete test message', { exact: true })
   ).toBeVisible();
 });
 
@@ -223,7 +225,9 @@ test('should allow admin to delete another user message with confirmation', asyn
 
   // Wait for message to sync to ~zod
   await expect(
-    zodPage.getByText('Admin delete target message', { exact: true })
+    zodPage
+      .getByTestId('Post')
+      .getByText('Admin delete target message', { exact: true })
   ).toBeVisible({ timeout: 15000 });
 
   // ~zod (admin) opens action menu on ~ten's message
@@ -238,6 +242,8 @@ test('should allow admin to delete another user message with confirmation', asyn
 
   // Message should be deleted
   await expect(
-    zodPage.getByText('Admin delete target message', { exact: true })
+    zodPage
+      .getByTestId('Post')
+      .getByText('Admin delete target message', { exact: true })
   ).not.toBeVisible();
 });

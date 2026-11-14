@@ -2032,7 +2032,7 @@ export async function hideMessage(
   await page.getByText('Hide message', { exact: true }).click();
   if (!isDM) {
     await expect(
-      page.getByText(messageText, { exact: true })
+      page.getByTestId('Post').getByText(messageText, { exact: true })
     ).not.toBeVisible();
   } else {
     await expect(
@@ -2050,7 +2050,9 @@ export async function reportMessage(page: Page, messageText: string) {
 
   await longPressMessage(page, messageText);
   await page.getByText('Report message').click();
-  await expect(page.getByText(messageText, { exact: true })).not.toBeVisible();
+  await expect(
+    page.getByTestId('Post').getByText(messageText, { exact: true })
+  ).not.toBeVisible();
 }
 
 export function acceptDeleteConfirmation(
@@ -2102,7 +2104,9 @@ export async function deletePost(page: Page, postText: string) {
   await longPressMessage(page, postText);
   acceptDeleteConfirmation(page, 'post');
   await page.getByText('Delete post').click();
-  await expect(page.getByText(postText, { exact: true })).not.toBeVisible();
+  await expect(
+    page.getByTestId('Post').getByText(postText, { exact: true })
+  ).not.toBeVisible();
 }
 
 /**
@@ -2195,7 +2199,9 @@ export async function editMessage(
   await sendButton.click();
 
   // Wait for the edited message to appear
-  await expect(page.getByText(newText, { exact: true })).toBeVisible({
+  await expect(
+    page.getByTestId('Post').getByText(newText, { exact: true })
+  ).toBeVisible({
     timeout: 15000, // Increased timeout for CI environment
   });
 }

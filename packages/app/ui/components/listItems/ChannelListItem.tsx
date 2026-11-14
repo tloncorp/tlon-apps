@@ -216,10 +216,7 @@ export function ChannelListItem({
               </ListItem.SubtitleWithIcon>
             ) : null}
             {showActivity && model.lastPost && !model.isDmInvite && (
-              <ListItem.PostPreview
-                post={model.lastPost}
-                showAuthor={model.type !== 'dm'}
-              />
+              <ListItem.PostPreview post={model.lastPost} />
             )}
           </ListItem.MainContent>
 
