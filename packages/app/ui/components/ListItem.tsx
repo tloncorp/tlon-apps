@@ -13,7 +13,6 @@ import {
   ImageAvatar,
   SystemIconAvatar,
 } from './Avatar';
-import { ContactName } from './ContactNameV2';
 import { GroupAvatar } from './GroupAvatar';
 import { usePostPreviewText } from '../hooks/useMentionText';
 
@@ -243,10 +242,8 @@ ListItemCount.displayName = 'ListItemCount';
 
 export const ListItemPostPreview = ({
   post,
-  showAuthor = true,
 }: {
   post: Pick<db.Post, 'authorId' | 'content' | 'textContent' | 'hidden'>;
-  showAuthor?: boolean;
 }) => {
   const { isAuthorBlocked } = useBlockedAuthor(post as db.Post);
   const text = usePostPreviewText(post);
@@ -265,12 +262,6 @@ export const ListItemPostPreview = ({
 
   return (
     <ListItemSubtitle testID="ListItemPostPreview">
-      {showAuthor && !isAuthorBlocked && !post.hidden ? (
-        <>
-          <ContactName contactId={post.authorId} color="$tertiaryText" />
-          {': '}
-        </>
-      ) : null}
       {previewContent}
     </ListItemSubtitle>
   );
