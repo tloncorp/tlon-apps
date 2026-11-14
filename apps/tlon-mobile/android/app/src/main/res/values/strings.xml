@@ -5,4 +5,5 @@
   <string name="landscape_notification_channel_name">Tlon Notifications</string>
   <string name="landscape_notification_channel_description">Channel for receiving push notifications from your Tlon app.</string>
   <string name="landscape_notification_mark_as_read">Mark as read</string>
+  <string name="landscape_notification_self_name">You</string>
 </resources>
