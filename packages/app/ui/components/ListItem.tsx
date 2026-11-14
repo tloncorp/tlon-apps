@@ -13,7 +13,6 @@ import {
   ImageAvatar,
   SystemIconAvatar,
 } from './Avatar';
-import ContactName from './ContactName';
 import { GroupAvatar } from './GroupAvatar';
 
 export interface BaseListItemProps<T> {
@@ -242,10 +241,8 @@ ListItemCount.displayName = 'ListItemCount';
 
 export const ListItemPostPreview = ({
   post,
-  showAuthor = true,
 }: {
   post: Pick<db.Post, 'authorId' | 'textContent' | 'hidden'>;
-  showAuthor?: boolean;
 }) => {
   const { isAuthorBlocked } = useBlockedAuthor(post as db.Post);
 
@@ -261,22 +258,7 @@ export const ListItemPostPreview = ({
 
   const previewContent = getPreviewContent();
 
-  return (
-    <ListItemSubtitle>
-      {showAuthor && !isAuthorBlocked && !post.hidden ? (
-        <>
-          <ContactName
-            userId={post.authorId}
-            showNickname
-            color="$tertiaryText"
-            size="$label/m"
-          />
-          {': '}
-        </>
-      ) : null}
-      {previewContent}
-    </ListItemSubtitle>
-  );
+  return <ListItemSubtitle>{previewContent}</ListItemSubtitle>;
 };
 
 ListItemPostPreview.displayName = 'ListItemPostPreview';
