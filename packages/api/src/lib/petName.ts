@@ -1,6 +1,7 @@
 // Pet names: a reversible word rendering of a ship (~sampel-palnet ->
-// @brightly.tireless.butter.dhole). Prototype only; nothing displays these
-// yet. The leading @ marks the name as an address, the way ~ marks an @p.
+// @brightly.tireless.butter.dhole). The leading @ marks the name as an
+// address, the way ~ marks an @p. The word lists are frozen: every index is
+// part of someone's name, so they are never edited, reordered or translated.
 //
 // A pet name is a re-skin of the @p: it encodes the same bytes the @p
 // syllables do, i.e. the value after aura's `fein` scramble. aura doesn't
@@ -19,7 +20,6 @@
 // star under a galaxy shares its animal word.
 import { p, render, tryParse } from '@urbit/aura';
 
-import { preSig } from './urbit';
 import words from './petNameWords.json';
 
 export const PET_NAME_WORDS_VERSION = words.version;
@@ -76,8 +76,7 @@ function nameUpTo32(x: number): string {
   return (x < 0x10000 ? starWords(x) : planetWords(x)).join(WORD_SEPARATOR);
 }
 
-function parseShip(ship: string): { n: bigint; x: bigint } | null {
-  const patp = preSig(ship);
+function parseShip(patp: string): { n: bigint; x: bigint } | null {
   const n = tryParse('p', patp);
   if (n === null) {
     return null;
@@ -86,6 +85,7 @@ function parseShip(ship: string): { n: bigint; x: bigint } | null {
   return { n, x: tryParse('q', `.~${syllables}`)! };
 }
 
+// `ship` is a canonical @p, with its ~.
 export function shipToPetName(
   ship: string,
   options: PetNameOptions = {}

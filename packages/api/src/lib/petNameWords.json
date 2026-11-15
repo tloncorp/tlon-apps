@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "status": "draft",
+  "status": "frozen",
   "description": "Word lists for ship pet names (packages/api/src/lib/petName.ts). Once a version ships, a list is never reordered, edited or translated: every index is part of a name. A change is a new version.",
   "galaxies": [
     "aurora",

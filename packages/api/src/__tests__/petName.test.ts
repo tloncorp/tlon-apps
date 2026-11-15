@@ -54,9 +54,6 @@ describe('shipToPetName / petNameToShip', () => {
     expect(shipToPetName('~sampel-palnet')).toBe(
       '@brightly.tireless.butter.dhole'
     );
-    expect(shipToPetName('sampel-palnet')).toBe(
-      '@brightly.tireless.butter.dhole'
-    );
     expect(shipToPetName('~doznec-dozzod-sampel-palnet')).toBe(
       '@gently.calm.red.otter · brightly.tireless.butter.dhole'
     );
@@ -192,5 +189,7 @@ describe('shipToPetName / petNameToShip', () => {
     }
     expect(shipToPetName('')).toBeNull();
     expect(shipToPetName('~notaship')).toBeNull();
+    // Callers pass a canonical @p; adding the ~ is shipToDisplayId's job.
+    expect(shipToPetName('sampel-palnet')).toBeNull();
   });
 });
