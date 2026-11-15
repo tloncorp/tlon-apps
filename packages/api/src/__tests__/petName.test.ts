@@ -4,6 +4,7 @@ import { describe, expect, test } from 'vitest';
 import {
   COMET_UNVERIFIED_MARKER,
   MOON_SEPARATOR,
+  PET_NAME_SIGIL,
   petNameToShip,
   shipToPetName,
 } from '../lib/petName';
@@ -28,6 +29,9 @@ const randBits = (bits: number) => {
 };
 
 const shipOf = (n: bigint) => render('p', n);
+// The words of a name; moon names need splitting at MOON_SEPARATOR first.
+const wordsOf = (name: string) =>
+  name.slice(PET_NAME_SIGIL.length).split(/[.-]/);
 
 function expectRoundTrip(ships: bigint[]) {
   const names = new Set<string>();
@@ -45,21 +49,21 @@ const range = (from: number, to: number) =>
 
 describe('shipToPetName / petNameToShip', () => {
   test('known ships', () => {
-    expect(shipToPetName('~zod')).toBe('aurora');
-    expect(shipToPetName('~marzod')).toBe('bright-otter');
+    expect(shipToPetName('~zod')).toBe('@aurora');
+    expect(shipToPetName('~marzod')).toBe('@bright.otter');
     expect(shipToPetName('~sampel-palnet')).toBe(
-      'brightly-tireless-butter-dhole'
+      '@brightly.tireless.butter.dhole'
     );
     expect(shipToPetName('sampel-palnet')).toBe(
-      'brightly-tireless-butter-dhole'
+      '@brightly.tireless.butter.dhole'
     );
     expect(shipToPetName('~doznec-dozzod-sampel-palnet')).toBe(
-      'gently-calm-red-otter · brightly-tireless-butter-dhole'
+      '@gently.calm.red.otter · brightly.tireless.butter.dhole'
     );
     expect(shipToPetName('~doznec-dozzod-sampel-palnet', { moon: 'tag' })).toBe(
-      'brave-otter · brightly-tireless-butter-dhole'
+      '@brave.otter · brightly.tireless.butter.dhole'
     );
-    expect(petNameToShip('brightly-tireless-butter-dhole')).toBe(
+    expect(petNameToShip('@brightly.tireless.butter.dhole')).toBe(
       '~sampel-palnet'
     );
   });
@@ -68,8 +72,9 @@ describe('shipToPetName / petNameToShip', () => {
     // ~sampel-palnet is 0x60daf13f; its syllables spell fein(n) = 0x046f7f4f.
     const x = tryParse('q', '.~sampel-palnet')!;
     expect(x).toBe(0x046f7f4fn);
-    const [adverb, adjective, color, animal] =
-      shipToPetName('~sampel-palnet')!.split('-');
+    const [adverb, adjective, color, animal] = wordsOf(
+      shipToPetName('~sampel-palnet')!
+    );
     expect(
       words.adverbs.indexOf(adverb) * 2 ** 24 +
         words.adjectives.indexOf(adjective) * 2 ** 15 +
@@ -82,7 +87,9 @@ describe('shipToPetName / petNameToShip', () => {
     const galaxies = range(0, 0x100);
     expectRoundTrip(galaxies);
     for (const n of galaxies) {
-      expect(shipToPetName(shipOf(n))).toBe(words.galaxies[Number(n)]);
+      expect(shipToPetName(shipOf(n))).toBe(
+        PET_NAME_SIGIL + words.galaxies[Number(n)]
+      );
     }
   });
 
@@ -91,7 +98,7 @@ describe('shipToPetName / petNameToShip', () => {
   });
 
   test("a star's animal is its galaxy's byte, like the @p suffix", () => {
-    const animal = (ship: string) => shipToPetName(ship)!.split('-')[1];
+    const animal = (ship: string) => wordsOf(shipToPetName(ship)!)[1];
     expect(animal('~marzod')).toBe(animal('~binzod'));
     expect(animal('~marzod')).not.toBe(animal('~marnec'));
   });
@@ -111,14 +118,14 @@ describe('shipToPetName / petNameToShip', () => {
     }
     expectRoundTrip(sample);
     for (const n of sample) {
-      expect(shipToPetName(shipOf(n))!.split('-')).toHaveLength(4);
+      expect(wordsOf(shipToPetName(shipOf(n))!)).toHaveLength(4);
     }
   });
 
   test('sequential planets under one star get unrelated names', () => {
     const star = 0x0100n; // ~marzod
     const names = [1n, 2n, 3n].map((i) =>
-      shipToPetName(shipOf((i << 16n) | star))!.split('-')
+      wordsOf(shipToPetName(shipOf((i << 16n) | star))!)
     );
     for (let slot = 0; slot < 4; slot++) {
       expect(new Set(names.map((w) => w[slot])).size).toBeGreaterThan(1);
@@ -138,7 +145,7 @@ describe('shipToPetName / petNameToShip', () => {
   test('moon tags are lossy and do not parse', () => {
     const moon = shipOf((7n << 32n) | 0x60daf13fn);
     const tag = shipToPetName(moon, { moon: 'tag' })!;
-    expect(tag.split(MOON_SEPARATOR)[0].split('-')).toHaveLength(2);
+    expect(wordsOf(tag.split(MOON_SEPARATOR)[0])).toHaveLength(2);
     expect(petNameToShip(tag)).toBeNull();
   });
 
@@ -148,35 +155,38 @@ describe('shipToPetName / petNameToShip', () => {
       sample.push(2n ** 64n + (randBits(128) % (2n ** 128n - 2n ** 64n)));
     }
     expectRoundTrip(sample);
-    expect(shipToPetName(shipOf(2n ** 128n - 1n))!.split(/--?/)).toHaveLength(
-      16
-    );
+    expect(wordsOf(shipToPetName(shipOf(2n ** 128n - 1n))!)).toHaveLength(16);
   });
 
   test('short comets are marked, are the full form’s tail, and do not parse', () => {
     const comet = shipOf(2n ** 100n + 12345n);
     const short = shipToPetName(comet, { comet: 'short' })!;
     const full = shipToPetName(comet)!;
-    expect(short.startsWith(COMET_UNVERIFIED_MARKER)).toBe(true);
-    expect(full.endsWith(short.slice(COMET_UNVERIFIED_MARKER.length))).toBe(
-      true
-    );
+    const marker = PET_NAME_SIGIL + COMET_UNVERIFIED_MARKER;
+    expect(short.startsWith(marker)).toBe(true);
+    expect(full.endsWith(short.slice(marker.length))).toBe(true);
     expect(petNameToShip(short)).toBeNull();
-    expect(petNameToShip(short.slice(1))).toBeNull();
+    expect(
+      petNameToShip(PET_NAME_SIGIL + short.slice(marker.length))
+    ).toBeNull();
   });
 
   test('rejects invalid and non-canonical input', () => {
     for (const bad of [
       '',
-      'nope',
-      'Aurora',
-      'bright--otter',
-      'otter-bright',
-      'brightly-tireless-butter',
+      '@nope',
+      '@Aurora',
+      // Missing sigil, or the @p's separator.
+      'aurora',
+      'brightly.tireless.butter.dhole',
+      '@brightly-tireless-butter-dhole',
+      '@bright..otter',
+      '@otter.bright',
+      '@brightly.tireless.butter',
       // A planet-shaped name for a value below the planet range.
-      `${words.adverbs[0]}-${words.adjectives[0]}-${words.colors[0]}-${words.animals[0]}`,
+      `@${words.adverbs[0]}.${words.adjectives[0]}.${words.colors[0]}.${words.animals[0]}`,
       // A moon whose moon part is zero is its parent planet.
-      `${words.adverbs[0]}-${words.adjectives[0]}-${words.colors[0]}-${words.animals[0]}${MOON_SEPARATOR}aurora`,
+      `@${words.adverbs[0]}.${words.adjectives[0]}.${words.colors[0]}.${words.animals[0]}${MOON_SEPARATOR}aurora`,
     ]) {
       expect(petNameToShip(bad)).toBeNull();
     }

@@ -1,5 +1,6 @@
 // Pet names: a reversible word rendering of a ship (~sampel-palnet ->
-// a 4-word name). Prototype only; nothing displays these yet.
+// @brightly.tireless.butter.dhole). Prototype only; nothing displays these
+// yet. The leading @ marks the name as an address, the way ~ marks an @p.
 //
 // A pet name is a re-skin of the @p: it encodes the same bytes the @p
 // syllables do, i.e. the value after aura's `fein` scramble. aura doesn't
@@ -8,12 +9,12 @@
 // value, and parsing rebuilt syllables as `@p` unscrambles it.
 //
 // Word count encodes the class, so names of different classes can't collide:
-//   galaxy  8 bits    galaxy                          (256)
-//   star    16 bits   adjective-animal                (256 x 256)
-//   planet  32 bits   adverb-adjective-color-animal   (256 x 512 x 64 x 512)
-//   moon    64 bits   <planet-shaped high 32 bits> · <parent's name>
-//   comet   128 bits  16 comet words; display form is the last 4, marked
-//                     unverified
+//   galaxy  8 bits    @galaxy                         (256)
+//   star    16 bits   @adjective.animal               (256 x 256)
+//   planet  32 bits   @adverb.adjective.color.animal  (256 x 512 x 64 x 512)
+//   moon    64 bits   @<planet-shaped high 32 bits> · <parent's name>
+//   comet   128 bits  16 comet words in groups of 4; display form is the
+//                     last 4, marked unverified
 // A star's low byte is its galaxy, as in @p (~marzod under ~zod), so every
 // star under a galaxy shares its animal word.
 import { p, render, tryParse } from '@urbit/aura';
@@ -23,6 +24,9 @@ import words from './petNameWords.json';
 
 export const PET_NAME_WORDS_VERSION = words.version;
 
+export const PET_NAME_SIGIL = '@';
+const WORD_SEPARATOR = '.';
+const COMET_GROUP_SEPARATOR = '-';
 export const MOON_SEPARATOR = ' · ';
 export const COMET_UNVERIFIED_MARKER = '?';
 
@@ -69,7 +73,7 @@ function nameUpTo32(x: number): string {
   if (x < 0x100) {
     return words.galaxies[x];
   }
-  return (x < 0x10000 ? starWords(x) : planetWords(x)).join('-');
+  return (x < 0x10000 ? starWords(x) : planetWords(x)).join(WORD_SEPARATOR);
 }
 
 function parseShip(ship: string): { n: bigint; x: bigint } | null {
@@ -95,21 +99,26 @@ export function shipToPetName(
     case 'galaxy':
     case 'star':
     case 'planet':
-      return nameUpTo32(Number(x));
+      return PET_NAME_SIGIL + nameUpTo32(Number(x));
     case 'moon': {
       const high = Number(x >> 32n);
       const parent = nameUpTo32(Number(x & 0xffffffffn));
       const moonPart =
-        options.moon === 'tag'
-          ? starWords(high & 0xffff).join('-')
-          : planetWords(high).join('-');
-      return moonPart + MOON_SEPARATOR + parent;
+        options.moon === 'tag' ? starWords(high & 0xffff) : planetWords(high);
+      return (
+        PET_NAME_SIGIL + moonPart.join(WORD_SEPARATOR) + MOON_SEPARATOR + parent
+      );
     }
     case 'comet': {
       const comet = cometWords(x);
       return options.comet === 'short'
-        ? COMET_UNVERIFIED_MARKER + comet.slice(12).join('-')
-        : [0, 4, 8, 12].map((i) => comet.slice(i, i + 4).join('-')).join('--');
+        ? PET_NAME_SIGIL +
+            COMET_UNVERIFIED_MARKER +
+            comet.slice(12).join(WORD_SEPARATOR)
+        : PET_NAME_SIGIL +
+            [0, 4, 8, 12]
+              .map((i) => comet.slice(i, i + 4).join(WORD_SEPARATOR))
+              .join(COMET_GROUP_SEPARATOR);
     }
   }
 }
@@ -147,7 +156,7 @@ function wordIndex(list: keyof typeof lookup, word: string): number {
 }
 
 function parseUpTo32(name: string): number {
-  const w = name.split('-');
+  const w = name.split(WORD_SEPARATOR);
   switch (w.length) {
     case 1:
       return wordIndex('galaxies', w[0]);
@@ -162,7 +171,7 @@ function parseUpTo32(name: string): number {
 
 function parsePlanetShape(w: string[]): number {
   if (w.length !== 4) {
-    throw new RangeError(w.join('-'));
+    throw new RangeError(w.join(WORD_SEPARATOR));
   }
   return (
     wordIndex('adverbs', w[0]) * 16777216 +
@@ -173,20 +182,24 @@ function parsePlanetShape(w: string[]): number {
 }
 
 function parseScrambled(name: string): bigint {
-  const [moonPart, parent, ...rest] = name.split(MOON_SEPARATOR);
+  if (!name.startsWith(PET_NAME_SIGIL)) {
+    throw new RangeError(name);
+  }
+  const body = name.slice(PET_NAME_SIGIL.length);
+  const [moonPart, parent, ...rest] = body.split(MOON_SEPARATOR);
   if (rest.length > 0) {
     throw new RangeError(name);
   }
   if (parent !== undefined) {
-    const high = BigInt(parsePlanetShape(moonPart.split('-')));
+    const high = BigInt(parsePlanetShape(moonPart.split(WORD_SEPARATOR)));
     return (high << 32n) | BigInt(parseUpTo32(parent));
   }
-  if (name.includes('--')) {
-    return name
-      .split(/--?/)
+  if (body.includes(COMET_GROUP_SEPARATOR)) {
+    return body
+      .split(/[.-]/)
       .reduce((acc, w) => (acc << 8n) | BigInt(wordIndex('comets', w)), 0n);
   }
-  return BigInt(parseUpTo32(name));
+  return BigInt(parseUpTo32(body));
 }
 
 // Inverse of shipToPetName's reversible forms. Lossy forms (moon tags, short
