@@ -323,14 +323,26 @@ export function ActivitySummaryAuthorList({
     return null;
   } else if (contactIds.length === 1) {
     return (
-      <ContactName color="$positiveActionText" contactId={contactIds[0]} />
+      <ContactName
+        color="$positiveActionText"
+        contactId={contactIds[0]}
+        size="$label/m"
+      />
     );
   } else if (contactIds.length === 2) {
     return (
       <>
-        <ContactName color="$positiveActionText" contactId={contactIds[0]} />
+        <ContactName
+          color="$positiveActionText"
+          contactId={contactIds[0]}
+          size="$label/m"
+        />
         {' and '}
-        <ContactName color="$positiveActionText" contactId={contactIds[1]} />
+        <ContactName
+          color="$positiveActionText"
+          contactId={contactIds[1]}
+          size="$label/m"
+        />
       </>
     );
   } else {
@@ -344,6 +356,7 @@ export function ActivitySummaryAuthorList({
               color="$positiveActionText"
               key={contactId}
               contactId={contactId}
+              size="$label/m"
             />
             {i === visibleAuthors.length - 1 && !overflowCount ? '' : ', '}
             {i === visibleAuthors.length - 2 && !overflowCount ? 'and ' : ''}

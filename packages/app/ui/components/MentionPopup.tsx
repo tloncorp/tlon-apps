@@ -57,14 +57,26 @@ function MentionOptionItem({
           <XStack alignItems="center" gap="$s">
             <ListItem.Title flex={1} minWidth={0}>
               {isContact ? (
-                <ContactName matchText={matchText} contactId={option.id} />
+                <ContactName
+                  matchText={matchText}
+                  contactId={option.id}
+                  size="$label/l"
+                />
               ) : (
                 option.title || option.id
               )}
             </ListItem.Title>
             {isContact && <BotBadge contactId={option.id} />}
           </XStack>
-          {option.subtitle ? (
+          {isContact && option.subtitle ? (
+            <ListItem.Subtitle>
+              <ContactName
+                contactId={option.id}
+                mode="contactId"
+                size="$label/m"
+              />
+            </ListItem.Subtitle>
+          ) : option.subtitle ? (
             <ListItem.Subtitle>{option.subtitle}</ListItem.Subtitle>
           ) : null}
         </ListItem.MainContent>

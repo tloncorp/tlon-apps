@@ -54,13 +54,18 @@ export const ContactListItem = ({
                 contactId={contactId}
                 mode={showNickname ? 'auto' : 'contactId'}
                 matchText={matchText}
+                size="$label/l"
               />
             </ListItem.Title>
             <BotBadge contactId={contactId} />
           </XStack>
           {showUserId && showNickname ? (
             <ListItem.Subtitle>
-              <ContactName contactId={contactId} mode="contactId" />
+              <ContactName
+                contactId={contactId}
+                mode="contactId"
+                size="$label/m"
+              />
             </ListItem.Subtitle>
           ) : null}
           {subtitle && <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>}

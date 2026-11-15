@@ -20,12 +20,15 @@
  * // Highlight a search match within the nickname
  * <ContactName contactId={userId} matchText={query} />
  *
+ * // Set a pet name in the monospace paired with the surrounding text size
+ * <Text size="$label/m"><ContactName contactId={userId} size="$label/m" /></Text>
+ *
  * // Use as a hook for text-only contexts
  * const name = useContactName(userId);
  * ```
  */
 import { escapeRegExp } from '@tloncorp/api/lib/utils';
-import { RawText } from '@tloncorp/ui';
+import { RawText, type TextSize, monoPairStyle } from '@tloncorp/ui';
 import React, { useMemo } from 'react';
 
 import { useCalm } from '../contexts/appDataContext';
@@ -75,6 +78,15 @@ export const useContactName = (options: string | ContactNameOptions) => {
   return useContactNameProps(resolvedOptions).children;
 };
 
+function petNameStyle(size: TextSize | undefined, fontSize: unknown) {
+  if (size) {
+    return monoPairStyle(size);
+  }
+  return typeof fontSize === 'number'
+    ? monoPairStyle(fontSize)
+    : ({ fontFamily: '$mono', letterSpacing: 0 } as const);
+}
+
 // Bolds the first match of a search query in a nickname. A pet name is shown
 // as is.
 function highlightMatch(text: string, matchText: string | undefined) {
@@ -99,8 +111,14 @@ const BaseContactName = RawText.styleable<{
   mode?: ContactNameMode;
   /** Search query to highlight within a displayed nickname. */
   matchText?: string;
+  /**
+   * The size of the text this name sits in. A pet name is set in monospace a
+   * point smaller (`monoPairStyle`); without a size, or a `fontSize`, it keeps
+   * the surrounding size.
+   */
+  size?: TextSize;
 }>(
-  ({ contactId, mode = 'auto', matchText, ...props }, ref) => {
+  ({ contactId, mode = 'auto', matchText, size, ...props }, ref) => {
     const calm = useCalm();
     const contact = useContact(contactId);
     const resolved = useMemo(
@@ -125,9 +143,17 @@ const BaseContactName = RawText.styleable<{
         {...props}
         style={props.style ?? { whiteSpace: 'nowrap' }}
       >
-        {resolved.showContactId
-          ? resolved.children
-          : highlightMatch(resolved.children, matchText)}
+        {resolved.formattedId ? (
+          // Monospace marks a pet name as an address, set apart from any
+          // nickname, which stays in the surrounding font.
+          <RawText {...petNameStyle(size, props.fontSize)}>
+            {resolved.formattedId.display}
+          </RawText>
+        ) : null}
+        {resolved.formattedId && resolved.nickname ? ' ' : null}
+        {resolved.nickname
+          ? highlightMatch(resolved.nickname, matchText)
+          : null}
       </RawText>
     );
   },

@@ -64,7 +64,7 @@ export function ContextLensRunSheet({
           <ListItem.Title>Bot run</ListItem.Title>
           {botShip ? (
             <ListItem.Subtitle>
-              <ContactName contactId={botShip} />
+              <ContactName contactId={botShip} size="$label/m" />
             </ListItem.Subtitle>
           ) : null}
         </ActionSheet.ActionContent>

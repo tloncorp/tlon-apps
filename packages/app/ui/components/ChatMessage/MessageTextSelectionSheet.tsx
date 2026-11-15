@@ -153,7 +153,7 @@ export function MessageTextSelectionSheet({
             <YStack flex={1} gap="$s">
               <XStack gap="$m" alignItems="center" flexWrap="wrap">
                 <Text size="$label/2xl" flexShrink={1}>
-                  <ContactName contactId={post.authorId} />
+                  <ContactName contactId={post.authorId} size="$label/2xl" />
                 </Text>
                 <SentTimeText sentAt={post.sentAt} showFullDate />
               </XStack>

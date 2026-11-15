@@ -16,6 +16,8 @@ export type ContactNameResolveResult = {
   ['aria-label']: string | undefined;
   showContactId: boolean;
   formattedId: ReturnType<typeof formatUserId>;
+  /** The nickname shown, if any. */
+  nickname: string | null;
 };
 
 export function resolveContactNameProps({
@@ -47,5 +49,6 @@ export function resolveContactNameProps({
     ['aria-label']: formattedId?.ariaLabel,
     showContactId,
     formattedId,
+    nickname: showNickname ? (contact?.nickname ?? null) : null,
   };
 }

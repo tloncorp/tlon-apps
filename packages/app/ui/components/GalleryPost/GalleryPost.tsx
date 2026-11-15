@@ -268,7 +268,7 @@ export function GalleryPostHeader({ post }: { post: db.Post }) {
   return (
     <GalleryPostRow>
       <GalleryPostRow.Text>
-        <ContactName contactId={post.authorId} />
+        <ContactName contactId={post.authorId} size="$label/m" />
       </GalleryPostRow.Text>
       <GalleryPostRow.Text>
         {differenceInDays(new Date(), new Date(post.receivedAt)) > 30

@@ -1,10 +1,14 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as api from '@tloncorp/api';
+import {
+  COMET_UNVERIFIED_MARKER,
+  PET_NAME_SIGIL,
+} from '@tloncorp/api/lib/petName';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
-import { useCopy, useToast } from '@tloncorp/ui';
+import { RawText, monoPairStyle, useCopy, useToast } from '@tloncorp/ui';
 import { triggerHaptic } from '@tloncorp/ui';
 import { Icon, type IconType } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
@@ -335,7 +339,7 @@ function OwnerRow({
             <Text size="$label/l">This is your bot</Text>
           ) : (
             <Text size="$label/l" numberOfLines={1}>
-              <ContactName contactId={ownerId} />
+              <ContactName contactId={ownerId} size="$label/l" />
             </Text>
           )}
           <Text size="$label/m" color="$secondaryText">
@@ -500,7 +504,7 @@ function BotsCard({
           <YStack flex={1} minWidth={0} gap="$m">
             <XStack alignItems="center" gap="$s">
               <Text size="$label/l" numberOfLines={1} flexShrink={1}>
-                <ContactName contactId={botId} />
+                <ContactName contactId={botId} size="$label/l" />
               </Text>
               <BotTag onCard />
             </XStack>
@@ -741,6 +745,10 @@ function ProfileHeader(props: {
     }
   }, [navigation, contact?.avatarImage]);
 
+  const cometFullId = isComet(props.userId)
+    ? api.shipToFullDisplayId(props.userId)
+    : null;
+
   const primaryNameProps = props.hasNickname
     ? { mode: 'nickname' as const, color: '$primaryText' }
     : { mode: 'contactId' as const };
@@ -798,12 +806,35 @@ function ProfileHeader(props: {
         </XStack>
         {props.hasNickname ? (
           <Text size="$label/l" color="$secondaryText" marginTop="$xs">
-            <ContactName contactId={props.userId} mode="contactId" />
+            <ContactName
+              contactId={props.userId}
+              mode="contactId"
+              size="$label/l"
+            />
+          </Text>
+        ) : null}
+        {cometFullId ? (
+          // A comet's short name can be matched by generating keys, so its
+          // profile shows the whole name.
+          <Text
+            size="$label/m"
+            color="$secondaryText"
+            marginTop="$xs"
+            textAlign="center"
+            testID="ProfileCometFullId"
+          >
+            <RawText {...monoPairStyle('$label/m')}>{cometFullId}</RawText>
           </Text>
         ) : null}
       </Pressable>
     </YStack>
   );
+}
+
+function isComet(userId: string) {
+  return !!api
+    .shipToDisplayId(userId)
+    ?.startsWith(PET_NAME_SIGIL + COMET_UNVERIFIED_MARKER);
 }
 
 /**
@@ -869,7 +900,7 @@ function BlockedNote({ userId }: { userId: string }) {
   return (
     <PaddedBlock gap="$l" testID="ProfileBlockedNote">
       <Text size="$label/l">
-        You blocked <ContactName contactId={userId} />
+        You blocked <ContactName contactId={userId} size="$label/l" />
       </Text>
       <Text size="$label/m" color="$secondaryText">
         They can’t send you direct messages. Unblock to message each other

@@ -55,7 +55,7 @@ function ContactRowItemRaw({
         <ListItem.MainContent minWidth={0}>
           <XStack alignItems="center" gap="$s">
             <ListItem.Title flex={1} minWidth={0}>
-              <ContactName contactId={contact.id} mode="auto" />
+              <ContactName contactId={contact.id} mode="auto" size="$label/l" />
             </ListItem.Title>
             <BotBadge contactId={contact.id} />
           </XStack>
@@ -66,7 +66,11 @@ function ContactRowItemRaw({
           ) : (
             contact?.nickname && (
               <ListItem.Subtitle>
-                <ContactName contactId={contact.id} mode="contactId" />
+                <ContactName
+                  contactId={contact.id}
+                  mode="contactId"
+                  size="$label/m"
+                />
               </ListItem.Subtitle>
             )
           )}

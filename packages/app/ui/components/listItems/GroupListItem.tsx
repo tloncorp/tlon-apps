@@ -188,7 +188,11 @@ export const GroupListItem = ({
                 </ListItem.SubtitleWithIcon>
                 <ListItem.Subtitle>
                   Hosted by{' '}
-                  <ContactName contactId={model.hostUserId} numberOfLines={1} />
+                  <ContactName
+                    contactId={model.hostUserId}
+                    numberOfLines={1}
+                    size="$label/m"
+                  />
                 </ListItem.Subtitle>
               </>
             ) : null}

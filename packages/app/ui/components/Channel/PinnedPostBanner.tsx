@@ -49,7 +49,7 @@ export function PinnedPostBanner({
           >
             {author ? (
               <>
-                <ContactName contactId={author.id} />
+                <ContactName contactId={author.id} size="$label/s" />
                 {': '}
               </>
             ) : null}

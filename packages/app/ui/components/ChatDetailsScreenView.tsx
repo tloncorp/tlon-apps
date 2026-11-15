@@ -828,7 +828,11 @@ function MemberRow({
         />
         <XStack flex={1} minWidth={0} alignItems="center" gap="$s">
           <Text size="$label/l" numberOfLines={1} flexShrink={1}>
-            {isYou ? 'You' : <ContactName contactId={contactId} />}
+            {isYou ? (
+              'You'
+            ) : (
+              <ContactName contactId={contactId} size="$label/l" />
+            )}
           </Text>
           {isBot ? <BotTag onCard /> : null}
         </XStack>

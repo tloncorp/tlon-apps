@@ -114,7 +114,7 @@ export function DetailViewAuthorRow({
         cursor="pointer"
         onPress={deliveryFailed ? undefined : openProfile}
       >
-        <ContactName contactId={authorId} />
+        <ContactName contactId={authorId} size="$label/l" />
       </Text>
       {showSentAt && <SentTimeText sentAt={sent} showFullDate />}
       {isBot && <BotBadge contactId={authorId} assumeBot />}
@@ -166,7 +166,7 @@ export function ChatAuthorRow({
           onPress={deliveryFailed ? undefined : openProfile}
           cursor="pointer"
         >
-          <ContactName contactId={authorId} />
+          <ContactName contactId={authorId} size="$label/2xl" />
         </Text>
         {showSentAt && <SentTimeText sentAt={sent} paddingTop="$xs" />}
         {isBot && <BotBadge contactId={authorId} assumeBot />}

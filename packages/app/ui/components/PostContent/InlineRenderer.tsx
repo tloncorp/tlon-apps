@@ -23,7 +23,7 @@ import { ColorTokens, styled } from 'tamagui';
 
 import { useNavigation } from '../../contexts/navigation';
 import { ALL_MENTION_ID } from '../BareChatInput/useMentions';
-import { useContactName } from '../ContactNameV2';
+import { ContactName } from '../ContactNameV2';
 import { useContentContext } from './contentUtils';
 
 export const CodeText = styled(Text, {
@@ -68,7 +68,6 @@ export function InlineMention({
 }: PropsWithChildren<{
   inline: MentionInlineData;
 }>) {
-  const contactName = useContactName(inline.contactId);
   const { onGoToUserProfile } = useNavigation();
   const handlePress = useCallback(() => {
     onGoToUserProfile?.(inline.contactId);
@@ -79,7 +78,7 @@ export function InlineMention({
       onPress={handlePress}
       color={'$positiveActionText'}
     >
-      {contactName}
+      <ContactName contactId={inline.contactId} size="$body" />
     </MentionText>
   );
 }
