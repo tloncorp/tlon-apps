@@ -2421,6 +2421,13 @@ test('getMentionCandidates: returns candidates in priority order', async () => {
   });
   expect(byPetName.map((c) => c.id)).toEqual(['~sampel-palnet']);
 
+  // So does the start of one, among the chat's members
+  const byPetNameStart = await queries.getMentionCandidates({
+    chatId,
+    query: 'brightly.tire',
+  });
+  expect(byPetNameStart.map((c) => c.id)).toEqual(['~sampel-palnet']);
+
   // Test empty query returns empty array
   const emptyResults = await queries.getMentionCandidates({
     chatId,

@@ -20,7 +20,11 @@ import {
   interleaveActivityEvents,
   toSourceActivityEvents,
 } from '@tloncorp/api/client/activity';
-import { displayIdToShip, preSig } from '@tloncorp/api/lib/urbit';
+import {
+  displayIdStartsWith,
+  displayIdToShip,
+  preSig,
+} from '@tloncorp/api/lib/urbit';
 import { Rank } from '@tloncorp/api/urbit';
 import {
   AnyColumn,
@@ -1358,9 +1362,28 @@ export const getMentionCandidates = createReadQuery(
 
     const idSearchTerm = `~${query.toLowerCase()}%`;
     const searchTerm = `%${query.toLowerCase()}%`;
-    // People without a nickname are shown by pet name; a whole pet name typed
-    // after the @ finds its ship.
-    const petNameMatch = displayIdToShip(query);
+    // People without a nickname are shown by pet name. SQL can't derive pet
+    // names, so their start is matched here, at ~10µs a ship, among the people
+    // a mention usually reaches: this chat's members and contacts. A whole pet
+    // name finds any ship.
+    const reachable = await ctx.db
+      .select({ id: $chatMembers.contactId })
+      .from($chatMembers)
+      .where(eq($chatMembers.chatId, chatId))
+      .union(
+        ctx.db
+          .select({ id: $contacts.id })
+          .from($contacts)
+          .where(eq($contacts.isContact, true))
+      );
+    const exactPetNameMatch = displayIdToShip(query);
+    const petNameMatches = [
+      ...(exactPetNameMatch ? [exactPetNameMatch] : []),
+      ...reachable
+        .map(({ id }) => id)
+        .filter((id) => displayIdStartsWith(id, query))
+        .slice(0, limit),
+    ];
 
     const $candidates = ctx.db
       .select({
@@ -1403,10 +1426,10 @@ export const getMentionCandidates = createReadQuery(
             sql`${$chatMembers.contactId} LIKE ${idSearchTerm}`,
             sql`${$contacts.id} LIKE ${idSearchTerm}`,
             sql`COALESCE(${$contacts.nickname}, '') LIKE ${searchTerm}`,
-            ...(petNameMatch
+            ...(petNameMatches.length > 0
               ? [
-                  eq($chatMembers.contactId, petNameMatch),
-                  eq($contacts.id, petNameMatch),
+                  inArray($chatMembers.contactId, petNameMatches),
+                  inArray($contacts.id, petNameMatches),
                 ]
               : [])
           ),
