@@ -4,6 +4,7 @@ import {
   displayIdStartsWith,
   displayIdToShip,
   shipToDisplayId,
+  shipToFullDisplayId,
 } from '../lib/urbit';
 
 describe('shipToDisplayId', () => {
@@ -31,6 +32,23 @@ describe('shipToDisplayId', () => {
     '~dozzod-dozzod-dozzod-dozzod-dozzod-dozzod-dozzod-dozzod',
   ])('returns null for %j', (input) => {
     expect(shipToDisplayId(input)).toBeNull();
+  });
+});
+
+describe('shipToFullDisplayId', () => {
+  test.each([
+    '~sampel-palnet',
+    '~doznec-dozzod-dozzod',
+    '~doznec--dozzod-dozzod-dozzod-dozper',
+  ])('names %s in a form search finds again', (ship) => {
+    const name = shipToFullDisplayId(ship)!;
+    expect(displayIdToShip(name)).toBe(ship);
+  });
+
+  test('is the display form for a planet', () => {
+    expect(shipToFullDisplayId('sampel-palnet')).toBe(
+      shipToDisplayId('~sampel-palnet')
+    );
   });
 });
 

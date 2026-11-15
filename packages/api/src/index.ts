@@ -111,5 +111,10 @@ export {
   type PostBlobDataEntryA2UISelection,
 } from './client/content-helpers';
 export { getTextContent } from './client/postContent';
-export { displayIdToShip, preSig, shipToDisplayId } from './lib/urbit';
+export {
+  displayIdToShip,
+  preSig,
+  shipToDisplayId,
+  shipToFullDisplayId,
+} from './lib/urbit';
 export * from './client';

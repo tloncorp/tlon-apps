@@ -33,6 +33,13 @@ export function shipToDisplayId(ship: string): string | null {
     : null;
 }
 
+// A ship's pet name in its reversible form, with a moon's and a comet's names
+// in full: what to copy or share, so that pasting it into search finds the
+// ship again, and what a profile shows for a comet.
+export function shipToFullDisplayId(ship: string): string | null {
+  return ship ? shipToPetName(preSig(ship)) : null;
+}
+
 const DISPLAY_ID_PREFIX = /^@\??/;
 
 // Whether a ship's pet name starts with typed search text, with or without the

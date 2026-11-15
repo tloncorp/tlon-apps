@@ -1,4 +1,5 @@
 import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
+import { shipToFullDisplayId } from '@tloncorp/api/lib/urbit';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { triggerHaptic, useCopy, useToast } from '@tloncorp/ui';
@@ -11,7 +12,7 @@ import { useShareInviteLink } from '../../ui/hooks/useShareInviteLink';
 
 /**
  * What a profile's action circles and ⋯ menu can do. Your own profile shares
- * your invite link; nobody else has a link, so theirs shares the @p.
+ * your invite link; nobody else has a link, so theirs shares their pet name.
  */
 export function useProfileActions({
   userId,
@@ -33,7 +34,9 @@ export function useProfileActions({
   const { data: volume } = store.useChannelVolumeLevel(userId);
   const baseVolume = store.useBaseVolumeLevel();
   const invite = useShareInviteLink();
-  const { doCopy } = useCopy(userId);
+  // The full pet name, which finds them again when pasted into search.
+  const shareableId = shipToFullDisplayId(userId) ?? userId;
+  const { doCopy } = useCopy(shareableId);
   const showToast = useToast();
 
   const isBlocked = contact?.isBlocked ?? false;
@@ -91,7 +94,7 @@ export function useProfileActions({
   }, [doCopy, showToast]);
 
   // Your own profile shares your invite link, counted as an invite shared.
-  // Nobody else has a link, so theirs shares the @p.
+  // Nobody else has a link, so theirs shares their pet name.
   const { share: shareInvite } = invite;
   const handleShare = useCallback(async () => {
     if (isOwnProfile) {
@@ -104,7 +107,7 @@ export function useProfileActions({
     try {
       if (isWeb) {
         if (typeof navigator.share === 'function') {
-          await navigator.share({ text: userId });
+          await navigator.share({ text: shareableId });
         } else {
           doCopy();
           triggerHaptic('success');
@@ -112,11 +115,11 @@ export function useProfileActions({
         }
         return;
       }
-      await Share.share({ message: userId });
+      await Share.share({ message: shareableId });
     } catch (error) {
       console.error('Error sharing profile:', error);
     }
-  }, [doCopy, isOwnProfile, shareInvite, showToast, userId]);
+  }, [doCopy, isOwnProfile, shareInvite, shareableId, showToast]);
 
   const handleClearSuggestion = useCallback(() => {
     store.removeContactSuggestion(userId);

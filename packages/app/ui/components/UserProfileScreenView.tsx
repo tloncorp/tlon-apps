@@ -717,7 +717,9 @@ function ProfileHeader(props: {
   isBot: boolean;
   hasNickname: boolean;
 }) {
-  const { doCopy } = useCopy(props.userId);
+  const { doCopy } = useCopy(
+    api.shipToFullDisplayId(props.userId) ?? props.userId
+  );
   const showToast = useToast();
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
