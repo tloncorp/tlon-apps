@@ -35,7 +35,12 @@ export * from './components/TamaguiProvider';
 export * as TlonText from './components/TextV2';
 export { Text, RawText } from './components/TextV2';
 export type { FontStyle } from './components/TextV2';
-export { mobileTypeStyles, desktopTypeStyles } from './components/TextV2/Text';
+export {
+  mobileTypeStyles,
+  desktopTypeStyles,
+  monoPairStyle,
+} from './components/TextV2/Text';
+export type { TextSize } from './components/TextV2/Text';
 export { default as UrbitSigil, makeSigil } from './components/UrbitSigil';
 export * from './components/View';
 export * from './contexts/ActionSheetContext';

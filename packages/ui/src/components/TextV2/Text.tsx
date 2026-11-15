@@ -184,6 +184,26 @@ export const desktopTypeStyles = {
   },
 } as const satisfies Record<string, TextStyle>;
 
+// The monospace that sits inside text of a given size, for identifiers such as
+// pet names: a point smaller than the surrounding sans, since monospace glyphs
+// run wider and taller at the same size, and untracked. Line height comes from
+// the surrounding text.
+export function monoPairStyle(size: TextSize | number) {
+  if (typeof size === 'number') {
+    return {
+      fontFamily: '$mono',
+      fontSize: size - 1,
+      letterSpacing: 0,
+    } as const;
+  }
+  return {
+    fontFamily: '$mono',
+    fontSize: mobileTypeStyles[size].fontSize - 1,
+    letterSpacing: 0,
+    $gtSm: { fontSize: desktopTypeStyles[size].fontSize - 1 },
+  } as const;
+}
+
 export type FontStyle = keyof typeof trimAndroid;
 export type TextSize = keyof typeof mobileTypeStyles;
 export type TextProps = ComponentProps<typeof Text>;
