@@ -1,9 +1,8 @@
 // Prints example pet names as markdown. From packages/api:
 //   ../../node_modules/.bin/tsx scripts/petNameExamples.ts > scripts/petNameExamples.md
-import { render } from '@urbit/aura';
+import { render, tryParse } from '@urbit/aura';
 
 import { shipToPetName } from '../src/lib/petName';
-import { shipToDisplayId } from '../src/lib/urbit';
 import words from '../src/lib/petNameWords.json';
 
 const out: string[] = [];
@@ -15,8 +14,9 @@ const table = (title: string, note: string, header: string[]) => {
 };
 const code = (s: string | null) => '`' + s + '`';
 const ship = (n: bigint) => render('p', n);
+const num = (s: string) => render('ud', tryParse('p', s)!);
 const basic = (n: bigint) =>
-  row(code(ship(n)), shipToDisplayId(ship(n))!, code(shipToPetName(ship(n))));
+  row(code(ship(n)), num(ship(n)), code(shipToPetName(ship(n))));
 
 out.push(
   '# Pet name examples',
@@ -57,7 +57,7 @@ for (const high of [1n, 2n, 3n, 0x1234n, 0xdeadbeefn]) {
   const s = ship((high << 32n) | 0x60daf13fn);
   row(
     code(s),
-    shipToDisplayId(s)!,
+    num(s),
     code(shipToPetName(s)),
     code(shipToPetName(s, { moon: 'tag' }))
   );
@@ -66,7 +66,7 @@ for (const high of [1n, 2n, 3n, 0x1234n, 0xdeadbeefn]) {
   const s = ship((1n << 32n) | 0x100n);
   row(
     code(s) + ' (moon of a star)',
-    shipToDisplayId(s)!,
+    num(s),
     code(shipToPetName(s)),
     code(shipToPetName(s, { moon: 'tag' }))
   );
