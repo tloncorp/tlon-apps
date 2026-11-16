@@ -13,12 +13,22 @@ export const useThreadPosts = ({
   postId,
   channelId,
   authorId,
+  syncEnabled = true,
 }: {
   postId: string;
   authorId: string;
   channelId: string;
+  /**
+   * Fetching a thread rewrites every reply it returns, which keeps JS busy
+   * for hundreds of milliseconds on a long thread. A screen that can show
+   * the thread from the cache holds the fetch until it has.
+   */
+  syncEnabled?: boolean;
 }) => {
   useEffect(() => {
+    if (!syncEnabled) {
+      return;
+    }
     // TODO: Check if necessary, based on unreads or reply count
     syncThreadPosts({
       postId,
@@ -28,7 +38,7 @@ export const useThreadPosts = ({
     }).catch(() => {
       // syncThreadPosts records the failure; don't leave an unhandled rejection.
     });
-  }, [authorId, channelId, postId]);
+  }, [authorId, channelId, postId, syncEnabled]);
 
   return useQuery({
     queryKey: [

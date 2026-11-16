@@ -713,10 +713,18 @@ function SinglePostView({
   );
   const hasThreadUnreadActivity = hasUnreadActivity(liveThreadUnread);
 
+  // A thread the cache can show is shown before it is fetched or marked
+  // read; both write enough to the database to hold up its first layout. See
+  // `handleThreadShown` below.
+  const [threadSyncReleasedFor, setThreadSyncReleasedFor] = useState<
+    string | null
+  >(null);
+  const [shownThreadId, setShownThreadId] = useState<string | null>(null);
   const threadQuery = store.useThreadPosts({
     postId: parentPost.id,
     authorId: parentPost.authorId,
     channelId: channel.id,
+    syncEnabled: threadSyncReleasedFor === parentPost.id,
   });
   const { data: threadPosts, isLoading: isLoadingThreadPosts } = threadQuery;
 
@@ -862,6 +870,25 @@ function SinglePostView({
     selectedReplyIsHidden,
   ]);
 
+  const handleThreadShown = useCallback(() => {
+    setShownThreadId(parentPost.id);
+    setThreadSyncReleasedFor(parentPost.id);
+  }, [parentPost.id]);
+  // The fetch waits for the list to show only when the cache can show it:
+  // the cached replies include the one the thread opens on. Otherwise the
+  // list is waiting on the fetch, so it starts now.
+  const openingReplyId = threadAnchor?.postId;
+  const cacheCannotShowThread =
+    threadQuery.status === 'error' ||
+    (threadQuery.status === 'success' &&
+      hasThreadUnreadSnapshot &&
+      (!threadPosts?.length ||
+        (!!openingReplyId &&
+          !threadPosts.some((post) => post.id === openingReplyId))));
+  if (cacheCannotShowThread && threadSyncReleasedFor !== parentPost.id) {
+    setThreadSyncReleasedFor(parentPost.id);
+  }
+
   // Trigger the 5s temporary highlight when selectedPostId changes.
   // Scrolling is handled by the anchor via useAnchorScrollLock.
   useEffect(() => {
@@ -896,7 +923,11 @@ function SinglePostView({
           channel,
           mostRecentlyReceivedReply: threadPosts[0],
           parent: parentPost,
-          shouldMarkRead: isFocusedPost && hasLoadedReplies && isUserActive,
+          shouldMarkRead:
+            isFocusedPost &&
+            hasLoadedReplies &&
+            isUserActive &&
+            shownThreadId === parentPost.id,
           hasThreadUnreadActivity,
         }
   );
@@ -1022,6 +1053,7 @@ function SinglePostView({
             onGoToBotRun={onGoToBotRun}
             contentInsets={contentInsets}
             isLoading={isLoadingThreadPosts}
+            onReadyToDisplay={handleThreadShown}
           />
         ) : null}
 
