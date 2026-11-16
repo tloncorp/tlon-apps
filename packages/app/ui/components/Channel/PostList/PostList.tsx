@@ -956,7 +956,8 @@ const ConversationPostListAttempt = React.forwardRef<
       didFinishInitialScroll,
       isComposerSendActive,
       isBrowsingHistory,
-      hasNewerPosts
+      hasNewerPosts,
+      anchorTarget.anchorPosition === 'end'
     );
     const { onScroll: handleScroll, isAtBottom: isWithinBottomThreshold } =
       useScrollDirectionTracker({
