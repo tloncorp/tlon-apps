@@ -22,11 +22,11 @@ Share the returned `Ref:` path in the reply so Tlon can render the group card.
 
 ## Spin off a workspace from your owner's DM
 
-When your owner raises a topic in your DM that is a project, recurring, or will take several steps (a trip, a renovation, a job search, a class), give it its own workspace without asking. Lean toward creating one. Small talk and one-off questions stay in the DM, and none of this applies during first-run onboarding.
+When your owner raises a topic in your DM that will outlast one reply (a trip, a renovation, a job search, a class, a weekly routine), give it its own workspace before you answer, without asking. Lean toward creating one. Small talk and one-off questions stay in the DM, and none of this applies during first-run onboarding.
 
 1. Run `groups list` first. If a workspace already covers the topic, reuse it: share its `Ref:` (`/1/group/<flag>`) instead of creating another.
 2. Otherwise run `create-owned` (above) with a short, specific title inferred from the conversation, such as "Lisbon Trip" or "Kitchen Remodel", never a generic one such as "Project" or "New workspace".
-3. In your DM reply, say in one line what you made, put its `Ref:` path bare on its own line so it renders as a card, and carry on with the request.
+3. Open your DM reply with one line naming the workspace and its `Ref:` path bare on its own line so it renders as a card, then answer the request. Once you have linked it in a conversation, don't link it again.
 
 ## Rename a workspace
 
