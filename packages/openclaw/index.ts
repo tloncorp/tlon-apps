@@ -173,6 +173,15 @@ import {
 } from './src/tlon-call-approvals.js';
 import { buildTlonToolDiagnosticRecord } from './src/tlon-tool-diagnostics.js';
 import {
+  createWorkspaceCreateToolExecutor,
+  setWorkspaceProposalStore,
+  workspaceCreateToolMetadata,
+  workspaceCreateToolParameters,
+} from './src/workspace-plan-tool.js';
+
+/** The approval key for a workspace create's tlon commands. */
+const WORKSPACE_CREATE_APPROVAL = 'tlon_workspace_create';
+import {
   getRecordedRunRole,
   getRunAccountId,
   isHeartbeatOwnerReadRun,
@@ -1477,6 +1486,13 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
     } else {
       api.logger.debug?.(allowedLog);
     }
+    if (event.toolName === workspaceCreateToolMetadata.name && toolCallId) {
+      const run = { runId: ctx.runId, sessionKey: ctx.sessionKey };
+      recordTlonCallApproval(toolCallId, WORKSPACE_CREATE_APPROVAL, {
+        ...live,
+        ...(isOwnerRun(run, live.ownerShip) ? { ownerRun: run } : {}),
+      });
+    }
     if (event.toolName === 'tlon' && typeof event.params.command === 'string') {
       // Only owner-default commands need the rewrite; with the flag off the
       // bot is already the default.
@@ -1897,6 +1913,20 @@ export default defineBundledChannelEntry({
     }
 
     try {
+      setWorkspaceProposalStore(
+        api.runtime.state.openKeyedStore({
+          namespace: 'workspace-proposals',
+          maxEntries: 200,
+        })
+      );
+    } catch (error) {
+      setWorkspaceProposalStore(null);
+      api.logger.warn(
+        `[tlon] durable workspace proposal state unavailable: ${String(error)}`
+      );
+    }
+
+    try {
       setCampaignStore(
         campaignStoreForDirectory(api.runtime.state.resolveStateDir())
       );
@@ -2033,44 +2063,47 @@ export default defineBundledChannelEntry({
     liveAccount();
     const isOwnerRun = createOwnerRunCheck(account.accountId);
 
+    const tlonExecutorDeps = (
+      ctx: Parameters<typeof runBrowserCommand>[1] & { workspaceDir?: string },
+      { ownerDefault, ownerShip }: ReturnType<typeof liveAccount>
+    ): TlonToolExecutorDeps => ({
+      runCommand: (args) =>
+        args[findTlonSubcommandIndex(args)]?.toLowerCase() === 'browser'
+          ? runBrowserCommand(args, ctx)
+          : runTlonCommand(tlonBinary, args, credentials, {
+              timeoutMs: toolTimeoutMs,
+              cwd: ctx.workspaceDir,
+              ownerShip,
+            }),
+      notifyDiaryMigrationDiscovery: (nest) =>
+        notifyDiaryMigrationDiscovery(nest, api.config),
+      logError: (message) => api.logger.warn(`[tlon] ${message}`),
+      // With `ownerDefault`, commands act as this owner (`--ship <owner>`)
+      // and the before_tool_call gate rewrites calls on turns the owner
+      // did not direct to `--self`. Without it, only the legacy owner
+      // operations do, and a workspace made for the owner (or a channel in
+      // a group the owner hosts) is hosted on the owner's ship.
+      ownerShip,
+      ownerDefault,
+      // The ship the runner's own credentials act as, for the owner
+      // self-DM guard, the `Ran as` line and the admin of a workspace
+      // hosted on the owner's ship.
+      botShip: resolveExecutionBotShip(credentials, process.env),
+      env: process.env,
+      fileExists: (path) => existsSync(path),
+      // Owner sends are recorded under the account whose credentials
+      // the tool runs with.
+      accountId: account.accountId,
+    });
+
     // Tool factories receive the active agent workspace, including cron runs.
     // Core calls the factory each time it resolves tools, and its descriptor
     // cache is keyed on the runtime config, so the description follows a
     // reload; execution reads the live account again on every call.
     api.registerTool(
       (ctx) => {
-        const executorDeps = ({
-          ownerDefault,
-          ownerShip,
-        }: ReturnType<typeof liveAccount>): TlonToolExecutorDeps => ({
-          runCommand: (args) =>
-            args[findTlonSubcommandIndex(args)]?.toLowerCase() === 'browser'
-              ? runBrowserCommand(args, ctx)
-              : runTlonCommand(tlonBinary, args, credentials, {
-                  timeoutMs: toolTimeoutMs,
-                  cwd: ctx.workspaceDir,
-                  ownerShip,
-                }),
-          notifyDiaryMigrationDiscovery: (nest) =>
-            notifyDiaryMigrationDiscovery(nest, api.config),
-          logError: (message) => api.logger.warn(`[tlon] ${message}`),
-          // With `ownerDefault`, commands act as this owner (`--ship <owner>`)
-          // and the before_tool_call gate rewrites calls on turns the owner
-          // did not direct to `--self`. Without it, only the legacy owner
-          // operations do, and a workspace made for the owner (or a channel in
-          // a group the owner hosts) is hosted on the owner's ship.
-          ownerShip,
-          ownerDefault,
-          // The ship the runner's own credentials act as, for the owner
-          // self-DM guard, the `Ran as` line and the admin of a workspace
-          // hosted on the owner's ship.
-          botShip: resolveExecutionBotShip(credentials, process.env),
-          env: process.env,
-          fileExists: (path) => existsSync(path),
-          // Owner sends are recorded under the account whose credentials
-          // the tool runs with.
-          accountId: account.accountId,
-        });
+        const executorDeps = (live: ReturnType<typeof liveAccount>) =>
+          tlonExecutorDeps(ctx, live);
         const executeTlonTool = async (
           id: string,
           params: { command: string }
@@ -2145,6 +2178,52 @@ export default defineBundledChannelEntry({
         };
       },
       { name: 'tlon' }
+    );
+
+    // Creates a workspace from a card the owner tapped Create on, through the
+    // same owner routing as the tlon tool: an owner-directed run hosts it on
+    // the owner's ship.
+    api.registerTool(
+      (ctx) => {
+        const executeCreate = createWorkspaceCreateToolExecutor({
+          getCron: getTlonCronService,
+          runTlon: async (id, command) => {
+            const approved = takeTlonCallApproval(
+              id,
+              WORKSPACE_CREATE_APPROVAL
+            );
+            // Each command takes the approval once; keep it for the next.
+            if (approved) {
+              recordTlonCallApproval(id, WORKSPACE_CREATE_APPROVAL, approved);
+            }
+            if (
+              !approved?.ownerRun ||
+              !isOwnerRun(approved.ownerRun, liveAccount().ownerShip)
+            ) {
+              return {
+                ok: false,
+                text: 'only an owner-directed turn can create a workspace',
+              };
+            }
+            const result = await createTlonToolExecutor({
+              ...tlonExecutorDeps(ctx, approved),
+              ownerIdentityLost: () =>
+                !isOwnerRun(approved.ownerRun!, liveAccount().ownerShip),
+            })(id, { command });
+            const details = result.details as { status?: string } | undefined;
+            return {
+              ok: !details?.status || details.status === 'ok',
+              text: result.content.map((part) => part.text).join('\n'),
+            };
+          },
+        });
+        return {
+          ...workspaceCreateToolMetadata,
+          parameters: workspaceCreateToolParameters,
+          execute: (id: string, params: unknown) => executeCreate(id, params),
+        };
+      },
+      { name: workspaceCreateToolMetadata.name }
     );
 
     const logToolTraceContents = liveToolTraceContentsEnabled();

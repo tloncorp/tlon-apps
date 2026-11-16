@@ -3576,10 +3576,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       if (
         !isGroup &&
         !params.onboardingDmTarget &&
+        currentSettings.bootstrapComplete !== false &&
         effectiveOwnerShip &&
         isOwner(senderShip)
       ) {
-        bodyWithAttachments += ownerDmWorkspaceNote(effectiveOwnerShip);
+        bodyWithAttachments += await ownerDmWorkspaceNote(params.blobField);
       }
 
       const body = core.channel.reply.formatAgentEnvelope({

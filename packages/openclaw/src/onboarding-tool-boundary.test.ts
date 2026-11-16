@@ -602,3 +602,30 @@ describe('onboarding tool boundary', () => {
     );
   });
 });
+
+describe('workspace card tools', () => {
+  const ownerDm = {
+    kind: 'direct' as const,
+    senderRole: 'owner' as const,
+    bootstrapComplete: true,
+    timestamp: 0,
+  };
+
+  it.each(['tlon_workspace_plan', 'tlon_workspace_create'])(
+    '%s runs only in the owner DM after onboarding',
+    (tool) => {
+      expect(onboardingToolBlockReason(tool, {}, ownerDm)).toBeUndefined();
+      for (const surface of [
+        undefined,
+        { ...ownerDm, kind: 'group' as const, channelNest: 'chat/~ten/x' },
+        { ...ownerDm, senderRole: 'user' as const },
+        { ...ownerDm, bootstrapComplete: false },
+        { ...ownerDm, requestedOnboardingGroupId: '~ten/home' },
+      ]) {
+        expect(onboardingToolBlockReason(tool, {}, surface)).toContain(
+          "only for your owner's DM"
+        );
+      }
+    }
+  );
+});

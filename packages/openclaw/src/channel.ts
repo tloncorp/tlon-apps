@@ -79,6 +79,11 @@ import {
   observeActiveTlonTurnDelivery,
 } from './turn-recorder.js';
 import { listTlonAccountIds, resolveTlonAccount } from './types.js';
+import {
+  createWorkspacePlanToolExecutor,
+  workspacePlanToolMetadata,
+  workspacePlanToolParameters,
+} from './workspace-plan-tool.js';
 
 const TLON_CHANNEL_ID = 'tlon' as const;
 const require = createRequire(import.meta.url);
@@ -291,7 +296,26 @@ export const tlonPlugin = createChatChannelPlugin({
           postSurface(target, fallbackSummary, blob),
       });
 
+      const executeWorkspacePlan = createWorkspacePlanToolExecutor({
+        ownerShip: () =>
+          resolveTlonAccount(
+            cfg ?? {},
+            getActiveTlonTurnAccountId() ?? undefined
+          ).ownerShip ?? undefined,
+        postText: (target, text) =>
+          observeActiveTlonTurnDelivery(() =>
+            runForActiveAccount(['posts', 'send', target, text])
+          ),
+        postCard: ({ target, fallbackText, blob }) =>
+          postSurface(target, fallbackText, blob),
+      });
+
       return [
+        {
+          ...workspacePlanToolMetadata,
+          parameters: workspacePlanToolParameters,
+          execute: (id, params) => executeWorkspacePlan(id, params),
+        },
         {
           ...agentChoiceToolMetadata,
           parameters: agentChoiceToolParameters,

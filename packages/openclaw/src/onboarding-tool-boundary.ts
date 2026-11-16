@@ -445,6 +445,20 @@ export function onboardingToolBlockReason(
   }
 
   if (
+    toolName === 'tlon_workspace_plan' ||
+    toolName === 'tlon_workspace_create'
+  ) {
+    if (
+      surface?.kind !== 'direct' ||
+      surface.senderRole !== 'owner' ||
+      surface.requestedOnboardingGroupId ||
+      surface.bootstrapComplete === false
+    ) {
+      return "Workspace cards are only for your owner's DM, after first-run onboarding. Do not propose or create a workspace here.";
+    }
+  }
+
+  if (
     isCronToolName(toolName) &&
     surface?.bootstrapComplete === false &&
     !cronOpenDuringOnboarding(params, managedCronJob)

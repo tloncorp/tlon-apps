@@ -12,18 +12,34 @@ const monitorSource = fs.readFileSync(
 );
 
 describe('owner DM workspace note', () => {
-  it('makes the owner the admin of a workspace it spins off', () => {
-    expect(ownerDmWorkspaceNote('~ten')).toContain(
-      'groups create-owned "<title>" --admin ~ten'
+  it('proposes a workspace card rather than creating one', async () => {
+    const note = await ownerDmWorkspaceNote(null);
+    expect(note).toContain('propose one with tlon_workspace_plan');
+    expect(note).toContain('Do not create it yourself');
+    expect(note).not.toContain('create-owned');
+  });
+
+  it('turns a tap on an unknown card into no create', async () => {
+    const blob = JSON.stringify([
+      {
+        type: 'tlon-a2ui-selection',
+        version: 1,
+        surfaceId: 'workspace-plan-unknown',
+        componentId: 'create',
+        values: ['Create the "X" workspace'],
+      },
+    ]);
+    expect(await ownerDmWorkspaceNote(blob)).toContain(
+      'nothing will be created'
     );
   });
 
   // monitorTlonProvider is not unit-testable, so the gate is pinned at the
   // source level: the note must never reach a group channel, a non-owner, or
-  // a first-run onboarding DM, whose skill forbids creating groups.
+  // first-run onboarding, whose skill forbids creating groups.
   it('is appended only to owner DMs outside first-run onboarding', () => {
     expect(monitorSource).toMatch(
-      /if \(\s*!isGroup &&\s*!params\.onboardingDmTarget &&\s*effectiveOwnerShip &&\s*isOwner\(senderShip\)\s*\) \{\s*bodyWithAttachments \+= ownerDmWorkspaceNote\(effectiveOwnerShip\);\s*\}/
+      /if \(\s*!isGroup &&\s*!params\.onboardingDmTarget &&\s*currentSettings\.bootstrapComplete !== false &&\s*effectiveOwnerShip &&\s*isOwner\(senderShip\)\s*\) \{\s*bodyWithAttachments \+= await ownerDmWorkspaceNote\(params\.blobField\);\s*\}/
     );
   });
 });
