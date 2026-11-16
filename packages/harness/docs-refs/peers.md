@@ -51,7 +51,9 @@ Its grant selects tools, model, token budget, and shared skills:
 
 Unlisted non-owners are refused. Explicit grants and live Tlon trust determine
 access. New requests use current grants; running requests can lose access but
-cannot gain newly added tools.
+cannot gain newly added tools. `tlon` and `code` are owner-only: a grant that
+lists either for another ship is accepted and has no effect, so that ship is not
+offered `tlon` or `run_js`, and its calls to either are refused.
 
 ## Full-admin ownership
 

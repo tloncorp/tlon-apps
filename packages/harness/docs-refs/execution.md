@@ -12,9 +12,10 @@ module.exports = () => JSON.stringify({ answer: 6 * 7 });
 The host APIs include `fetch_sync`, `console.*` and
 `require('urbit_thread')` for file I/O, sleep and ship integrations.
 This is broad authority: other tool grants do not restrict those host APIs.
-Tlon conversations can use an explicit `%code` grant. The configured owner's
-conversation settings apply directly; other senders also need the grant in
-their Tlon permissions. Scheduled work and rehearsals cannot use `%code`.
+`%code` is owner-only. The owner's Tlon conversations can use an explicit
+`%code` grant; the configured owner's conversation settings apply directly.
+Saving `code` for another ship, in its Tlon permissions or its peer grant, is
+accepted and has no effect. Scheduled work and rehearsals cannot use `%code`.
 Owner-session subagents can inherit it within their parent's current grants.
 **Known bug:** `%code` doesn't limit owner conversations, which can run `run_js` and
 pass it to subagents without the grant. See [known bugs](../ISSUES.md#known-bugs).
