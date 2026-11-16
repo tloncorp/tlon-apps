@@ -149,6 +149,7 @@ import { resolveTlonBinary } from './src/tlon-binary.js';
 import { registerWalletHandoffs } from './src/wallet-handoffs.js';
 import { runBrowserSessionHandoff } from './src/browser-session-handoff.js';
 import { createBrowserLoginApprovalHandler } from './src/browser-login-approval.js';
+import { resumeBrowserContinuation } from './src/browser-continuation.js';
 import {
   registerBrowserHandoffResults,
   browserToolSessionId,
@@ -1529,11 +1530,28 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
         ?.browserLoginApprovals.handle(event, ctx);
     } catch {
       api.logger.warn('[tlon] Could not send the saved login approval card.');
-      if (ctx.sessionKey)
-        api.runtime.system.enqueueSystemEvent(
-          'The saved login approval card could not be sent. No new approval prompt was delivered. Tell the owner that delivery failed; do not retry login or claim that approval is pending. Use the Tlon browser approve-login command if the owner asks to try again.',
-          { sessionKey: ctx.sessionKey }
+      if (ctx.sessionKey) {
+        const sessionKey = ctx.sessionKey;
+        const browserSessionId = browserToolSessionId(
+          event.toolName,
+          event.params
         );
+        const message =
+          `Saved-login approval delivery failed for browser session ${browserSessionId}. ` +
+          'This attempt ended. Tell the owner the approval card could not be sent and close the browser if the task is finished. A new login attempt requires the owner to ask again.';
+        try {
+          await resumeBrowserContinuation(api.runtime, {
+            sessionKey,
+            message,
+            deliver: true,
+          });
+        } catch {
+          api.logger.warn(
+            '[tlon] Saved login approval failure could not resume the conversation.'
+          );
+          api.runtime.system.enqueueSystemEvent(message, { sessionKey });
+        }
+      }
     }
     const { contextLensEnabled, logToolTraceContents } =
       resolveAgentTurnHookDeps();
@@ -1990,7 +2008,8 @@ export default defineBundledChannelEntry({
     const walletHandoffs = registerWalletHandoffs(api, tlonBinary);
     const runBrowserCommand = async (
       args: string[],
-      ctx: { sessionKey?: string; sessionId?: string }
+      ctx: { sessionKey?: string; sessionId?: string },
+      internalLoginApproval = false
     ) => {
       if (
         ['handoff', 'approve-login'].includes(args[1]) &&
@@ -2000,8 +2019,12 @@ export default defineBundledChannelEntry({
         throw new Error(
           'This browser is waiting for secure entry. Wait for its result.'
         );
-      return runBrowserSessionHandoff(tlonBinary, args, api.config, (request) =>
-        browserHandoffs.watch(request, ctx)
+      return runBrowserSessionHandoff(
+        tlonBinary,
+        args,
+        api.config,
+        (request) => browserHandoffs.watch(request, ctx),
+        internalLoginApproval
       );
     };
 
@@ -2017,7 +2040,8 @@ export default defineBundledChannelEntry({
               : ['--fields', JSON.stringify(fields)]),
             ...(record ? ['--record', JSON.stringify(record)] : []),
           ],
-          ctx
+          ctx,
+          true
         )
     );
 

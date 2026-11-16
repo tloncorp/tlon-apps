@@ -3,7 +3,6 @@ import {
   type FormFields,
 } from './browser-session-handoff.js';
 
-/** Deliver one saved-login approval card per browser session in each agent run. */
 export type BrowserLoginToolResult = {
   toolName: string;
   params: Record<string, unknown>;
@@ -18,6 +17,7 @@ function record(value: unknown): Record<string, unknown> {
 }
 
 type RunContext = { sessionKey?: string; sessionId?: string; runId?: string };
+const PREPARED_FORM_LIFETIME_MS = 5 * 60_000;
 
 export function createBrowserLoginApprovalHandler(
   sendHandoff: (
@@ -30,7 +30,8 @@ export function createBrowserLoginApprovalHandler(
 ) {
   const runKey = (ctx: RunContext) =>
     JSON.stringify([ctx.sessionKey, ctx.runId]);
-  const deliveries = new Map<string, Map<string, Promise<unknown>>>();
+  const preparedForms = new Map<string, number>();
+  const legacyDeliveries = new Map<string, Set<string>>();
   const handle = async (
     event: BrowserLoginToolResult,
     ctx: RunContext = {}
@@ -75,15 +76,22 @@ export function createBrowserLoginApprovalHandler(
     )
       return;
 
-    const key = runKey(ctx);
-    const delivered =
-      deliveries.get(key) ?? new Map<string, Promise<unknown>>();
-    deliveries.set(key, delivered);
-    const deliveryKey = formId ? `${sessionId}:${formId}` : sessionId;
-    const existing = delivered.get(deliveryKey);
-    if (existing) {
-      await existing;
-      return;
+    const legacyKey = runKey(ctx);
+    if (formId) {
+      const now = Date.now();
+      for (const [form, deadline] of preparedForms) {
+        if (deadline <= now) preparedForms.delete(form);
+      }
+      const key = `${sessionId}:${formId}`;
+      if (preparedForms.has(key)) return;
+      // A prepared form is single-use even if the card is cancelled or fails
+      // to send. Keep the claim for the form's lifetime, across agent turns.
+      preparedForms.set(key, now + PREPARED_FORM_LIFETIME_MS);
+    } else {
+      const delivered = legacyDeliveries.get(legacyKey) ?? new Set<string>();
+      if (delivered.has(sessionId)) return;
+      delivered.add(sessionId);
+      legacyDeliveries.set(legacyKey, delivered);
     }
     const requested = record(args.record);
     const choice =
@@ -93,28 +101,25 @@ export function createBrowserLoginApprovalHandler(
       requested.revision > 0
         ? { id: requested.id, revision: requested.revision }
         : undefined;
-    const promise = Promise.resolve().then(() =>
-      formId
-        ? sendHandoff(sessionId, choice, ctx, undefined, formId)
-        : sendHandoff(
-            sessionId,
-            choice,
-            ctx,
-            fields.success ? fields.data : undefined
-          )
-    );
-    delivered.set(deliveryKey, promise);
-    try {
-      await promise;
-    } catch (error) {
-      delivered.delete(deliveryKey);
-      throw error;
+    if (formId) await sendHandoff(sessionId, choice, ctx, undefined, formId);
+    else {
+      try {
+        await sendHandoff(
+          sessionId,
+          choice,
+          ctx,
+          fields.success ? fields.data : undefined
+        );
+      } catch (error) {
+        legacyDeliveries.get(legacyKey)?.delete(sessionId);
+        throw error;
+      }
     }
   };
   return {
     handle,
     endRun: (ctx: RunContext) => {
-      deliveries.delete(runKey(ctx));
+      legacyDeliveries.delete(runKey(ctx));
     },
   };
 }

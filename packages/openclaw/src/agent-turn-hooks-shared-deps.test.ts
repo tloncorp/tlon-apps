@@ -205,7 +205,8 @@ describe('browser hooks across plugin registration modes', () => {
           JSON.stringify(['@e12']),
         ],
         {},
-        expect.any(Function)
+        expect.any(Function),
+        true
       );
       await turn.hooks.get('agent_end')!(
         { messages: [], success: true, durationMs: 1 },

@@ -15,11 +15,10 @@ import {
 export const BROWSER_HANDOFF_HELP = String.raw`Usage: tlon browser --help
 
 Tlon tool: browser handoff <session_id> --fields <JSON array>
-Tlon tool: browser approve-login <session_id> --fields <JSON array> [--record <JSON object>]
 Tlon tool: browser share <session_id>
 
 Use the session ID from browser_session_create in the tool's command argument.
-Both secure-entry commands require --fields. Prefer current
+Secure entry requires --fields. Prefer current
 snapshot refs: browser handoff <session_id> --fields '["@e12","@e13"]'.
 Exact {"name":"..."} or {"label":"..."} selectors must match uniquely.
 Encode apostrophes in selector text as \u0027 inside the single-quoted JSON:
@@ -34,7 +33,7 @@ export const BROWSER_HELP = `${BROWSER_HANDOFF_HELP}
 Use browser share to send a browser card that opens the live session.
 Never send raw or labeled browser-session links in ordinary messages.
 
-Use browser approve-login to ask for permission to use a saved login. The owner reviews the site and account, then approves or cancels without entering credentials.
+Use browser_login for saved logins. The plugin sends the approval card when owner approval is required.
 
 Use browser handoff to send a native secure-entry card for login identifiers,
 passwords, verification codes, card fields, and private personal details.

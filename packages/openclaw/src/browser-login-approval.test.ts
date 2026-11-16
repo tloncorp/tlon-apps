@@ -23,6 +23,23 @@ function event() {
   };
 }
 
+function preparedEvent(formId = '123e4567-e89b-42d3-a456-426614174000') {
+  const base = event();
+  return {
+    ...base,
+    params: {
+      ...base.params,
+      arguments: {
+        session_id: 'fresh-ivory-finch',
+        action: 'use',
+        form_id: formId,
+        record: { id: 'provider-item', revision: 1 },
+        bindings: [{ sourceField: 'email', targetField: 'f0' }],
+      },
+    },
+  };
+}
+
 describe('saved login approval delivery', () => {
   it('sends a secure card for the requested session without passing credentials or record metadata', async () => {
     const send = vi.fn().mockResolvedValue(undefined);
@@ -42,15 +59,7 @@ describe('saved login approval delivery', () => {
       '123e4567-e89b-42d3-a456-426614174000',
       '223e4567-e89b-42d3-a456-426614174000',
     ]) {
-      const base = event();
-      const args = {
-        session_id: 'fresh-ivory-finch',
-        action: 'use',
-        form_id: formId,
-        record: { id: 'provider-item', revision: 1 },
-        bindings: [{ sourceField: 'email', targetField: 'f0' }],
-      };
-      const request = { ...base, params: { ...base.params, arguments: args } };
+      const request = preparedEvent(formId);
       await handler.handle(request);
       await handler.handle(request);
       expect(send).toHaveBeenLastCalledWith(
@@ -61,6 +70,30 @@ describe('saved login approval delivery', () => {
         formId
       );
     }
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
+  it('only sends a prepared form once, including after a later owner turn', async () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    const { handle, endRun } = createBrowserLoginApprovalHandler(send);
+    const first = { sessionKey: 'owner', runId: 'first-turn' };
+    const second = { sessionKey: 'owner', runId: 'after-cancel' };
+    await handle(preparedEvent(), first);
+    endRun(first);
+    await handle(preparedEvent(), second);
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not resend a failed prepared form and accepts a freshly prepared one', async () => {
+    const send = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('delivery failed'))
+      .mockResolvedValueOnce(undefined);
+    const { handle } = createBrowserLoginApprovalHandler(send);
+    await expect(handle(preparedEvent())).rejects.toThrow('delivery failed');
+    await handle(preparedEvent());
+    expect(send).toHaveBeenCalledTimes(1);
+    await handle(preparedEvent('223e4567-e89b-42d3-a456-426614174000'));
     expect(send).toHaveBeenCalledTimes(2);
   });
 

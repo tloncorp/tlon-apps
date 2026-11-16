@@ -14,9 +14,12 @@ import {
 } from './tlon-command-runner.js';
 import { ssrfPolicyFromAllowPrivateNetwork } from './urbit/context.js';
 import { urbitFetch } from './urbit/fetch.js';
-import type { BrowserHandoffRequest } from './browser-handoff-results.js';
+import {
+  cancelBrowserHandoff,
+  type BrowserHandoffRequest,
+} from './browser-handoff-results.js';
 
-export const BROWSER_SESSION_HANDOFF_HELP = String.raw`Usage: browser handoff <session_id> --fields <JSON array> or browser approve-login <session_id> --fields <JSON array> [--record <JSON object>] or browser share <session_id> (the session ID from browser_session_create). Use --form-id for a prepared Kernel saved-login approval; otherwise secure-entry commands require --fields. The card fills only those controls; the agent inspects the page and chooses the next action. Prefer current snapshot refs: browser handoff <session_id> --fields '["@e12","@e13"]'. Exact {"name":"..."}/{"label":"..."} selectors must match uniquely. For labels containing apostrophes, encode the apostrophe as \u0027 inside the single-quoted JSON: browser handoff <session_id> --fields '[{"label":"Owner\u0027s email address"}]'. Do not supply a viewer URL or field values.`;
+export const BROWSER_SESSION_HANDOFF_HELP = String.raw`Usage: browser handoff <session_id> --fields <JSON array> or browser share <session_id> (the session ID from browser_session_create). For a saved login, use browser_login; the plugin delivers its approval card. For manual entry, the card fills only the selected controls; the agent inspects the page and chooses the next action. Prefer current snapshot refs: browser handoff <session_id> --fields '["@e12","@e13"]'. Exact {"name":"..."}/{"label":"..."} selectors must match uniquely. For labels containing apostrophes, encode the apostrophe as \u0027 inside the single-quoted JSON: browser handoff <session_id> --fields '[{"label":"Owner\u0027s email address"}]'. Do not supply a viewer URL or field values.`;
 
 export const formFieldsSchema = z
   .array(
@@ -370,7 +373,8 @@ export async function runBrowserSessionHandoff(
   config: OpenClawConfig,
   watchHandoff?: (
     request: BrowserHandoffRequest
-  ) => Promise<() => Promise<void>>
+  ) => Promise<() => Promise<void>>,
+  internalLoginApproval = false
 ): Promise<string> {
   if (
     args[0] === 'browser' &&
@@ -382,6 +386,7 @@ export async function runBrowserSessionHandoff(
     ![3, 5, 7].includes(args.length) ||
     args[0] !== 'browser' ||
     !['handoff', 'share', 'approve-login'].includes(args[1]) ||
+    (args[1] === 'approve-login' && !internalLoginApproval) ||
     !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(args[2])
   )
     throw new Error(BROWSER_SESSION_HANDOFF_HELP);
@@ -432,11 +437,13 @@ export async function runBrowserSessionHandoff(
     fields,
     formId
   );
-  const cancelWatch =
-    args[1] !== 'share'
-      ? await watchHandoff!({ browserSessionId: args[2], viewerUrl })
-      : undefined;
+  let cancelWatch: (() => Promise<void>) | undefined;
   try {
+    if (args[1] !== 'share')
+      cancelWatch = await watchHandoff!({
+        browserSessionId: args[2],
+        viewerUrl,
+      });
     await runBrowserHandoffCommand(
       binary,
       [
@@ -457,8 +464,13 @@ export async function runBrowserSessionHandoff(
         ? ''
         : '. Wait for the secure-entry result before using this browser again. The service resumes this conversation after entry.')
     );
-  } catch {
-    await cancelWatch?.();
+  } catch (error) {
+    if (!formId && !cancelWatch && args[1] !== 'share') throw error;
+    try {
+      await cancelWatch?.();
+    } finally {
+      if (formId) await cancelBrowserHandoff(viewerUrl);
+    }
     throw new Error(
       args[1] === 'share'
         ? 'Could not send the browser session card.'

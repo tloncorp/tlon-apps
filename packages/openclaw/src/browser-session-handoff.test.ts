@@ -90,10 +90,12 @@ describe('browser session handoff', () => {
     const formId = '123e4567-e89b-42d3-a456-426614174000';
     const url = viewerUrl('session-viewer', Date.now() + 300000, formId);
     reply({ session_id: handle, viewer_url: url });
-    await runBrowserSessionHandoff(
+    await runHandoff(
       'tlon',
       ['browser', 'approve-login', handle, '--form-id', formId],
-      config
+      config,
+      watchHandoff,
+      true
     );
     expect(
       JSON.parse(urbitFetch.mock.calls[0][0].init.body).params.arguments
@@ -102,6 +104,53 @@ describe('browser session handoff', () => {
       'tlon',
       ['browser', 'approve-login', url, '--service-result'],
       config
+    );
+  });
+
+  it.each([
+    ['--form-id', sessionId],
+    ['--fields', '["@e12"]'],
+  ])(
+    'does not accept a model-facing approval command with %s',
+    async (flag, value) => {
+      await expect(
+        runBrowserSessionHandoff(
+          'tlon',
+          ['browser', 'approve-login', handle, flag, value],
+          config
+        )
+      ).rejects.toThrow(BROWSER_SESSION_HANDOFF_HELP);
+      expect(urbitFetch).not.toHaveBeenCalled();
+    }
+  );
+
+  it('closes the prepared approval and its watcher when sending the card fails', async () => {
+    const url = viewerUrl();
+    reply({ session_id: handle, viewer_url: url });
+    const prepare = urbitFetch.getMockImplementation()!;
+    urbitFetch.mockImplementation((request) =>
+      request.init.method === 'DELETE'
+        ? Promise.resolve({ response: new Response(), release: vi.fn() })
+        : prepare(request)
+    );
+    runBrowserHandoffCommand.mockRejectedValueOnce(new Error('Cannot send'));
+
+    await expect(
+      runHandoff(
+        'tlon',
+        ['browser', 'approve-login', handle, '--form-id', sessionId],
+        config,
+        watchHandoff,
+        true
+      )
+    ).rejects.toThrow('Could not send the secure browser form.');
+    expect(cancelWatch).toHaveBeenCalledOnce();
+    expect(urbitFetch).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        baseUrl: new URL(url).origin,
+        path: new URL(url).pathname.replace('/s/', '/credentials/'),
+        init: expect.objectContaining({ method: 'DELETE' }),
+      })
     );
   });
 
@@ -168,7 +217,7 @@ describe('browser session handoff', () => {
     const url = viewerUrl();
     reply({ session_id: handle, viewer_url: url });
     const choice = { id: '8e40b5f5-fd41-4851-8922-b9545e470d6e', revision: 3 };
-    await runBrowserSessionHandoff(
+    await runHandoff(
       'tlon',
       [
         'browser',
@@ -179,7 +228,9 @@ describe('browser session handoff', () => {
         '--record',
         JSON.stringify(choice),
       ],
-      config
+      config,
+      watchHandoff,
+      true
     );
     expect(
       JSON.parse(urbitFetch.mock.calls[0][0].init.body).params.arguments
