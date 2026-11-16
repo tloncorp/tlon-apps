@@ -504,6 +504,29 @@ sit 28 pt off.
 
 Remove when upstream commits the content size with container positions.
 
+### 4. Rows that change size don't move the rows in view
+
+Why:
+When a row's size changes, `maintainVisibleContentPosition` keeps the first
+row whose top is on screen in place and corrects the offset for everything
+above it. During a fast scroll toward older posts, that row is often one that
+has only just entered the window and is being measured for the first time. Its
+own growth was never corrected, so everything below it, the rows the reader was
+looking at, moved by that much mid-fling (108 to 312 pt with post references and
+images that size late).
+
+Fix:
+`applyItemSize` records which rows changed size since the last layout pass, and
+`prepareMVCP` holds the first row in view whose size did not change. If every
+row in view changed, it holds the first one as before.
+
+Validate:
+With `ENABLED_LOGGERS=scroller`, fling quickly toward older posts through
+references and images with no stored size: the timeline should show no
+`shift` entries ("rows moved ... with no offset correction") during momentum.
+
+Remove when upstream anchors size corrections on a row that did not resize.
+
 ## react-native-reanimated@4.7.1
 
 Why:
