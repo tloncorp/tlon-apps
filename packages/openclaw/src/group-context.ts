@@ -21,6 +21,10 @@
  * only. Titles and activity counts go in `prependContext`, which rides on
  * the active prompt only and is not written to the transcript.
  *
+ * A workspace still carrying a placeholder title (the app's blank "New
+ * Workspace", hosting's home group) also gets a system note asking the agent
+ * to name it once its purpose is clear; the note drops once it is renamed.
+ *
  * Group structure is seeded from the groups-ui init snapshot and kept
  * current by `/groups/ui` facts. Activity is recorded from the channel
  * firehose for every message other ships post, whether or not the bot
@@ -67,6 +71,29 @@ const MAX_ACTIVE_ROWS = 24;
 const MAX_QUIET_LISTED = 40;
 
 type ChannelActivity = Array<{ timestamp: number; sender: string }>;
+
+// Titles the app and hosting give a workspace nobody has named yet. Mirrors
+// isProvisionedAgentGroupTitle in packages/shared, which this package cannot
+// import (it builds against published npm packages, and shared is not one).
+// The nickname form of "<owner>'s Group" is not matched: the nickname is
+// not known here.
+const PLACEHOLDER_GROUP_TITLES = new Set([
+  'My agent workspace',
+  'My agent group',
+  'Group',
+  'Home',
+  'Home Group',
+]);
+const SHIP_GROUP_TITLE = /^~?[a-z]{3,6}(-[a-z]{6})*['\u2019]s Group$/;
+
+export function isPlaceholderGroupTitle(title: string | undefined): boolean {
+  const trimmed = title?.trim() ?? '';
+  return (
+    !trimmed ||
+    PLACEHOLDER_GROUP_TITLES.has(trimmed) ||
+    SHIP_GROUP_TITLE.test(trimmed)
+  );
+}
 
 export type GroupContextRuntime = {
   handleBeforePromptBuild(
@@ -235,12 +262,18 @@ export function createGroupContextRuntime(
       const nest = nestFromSessionKey(ctx.sessionKey);
       const located = nest ? locate(nest) : null;
       if (!located) return undefined;
-      const { flag, channel } = located;
+      const { flag, group, channel } = located;
+      const lines = [
+        `This conversation is the channel ${channel.nest} in the Tlon workspace (group) ${flag}.`,
+        `"This workspace", "this group" and "here" mean ${flag} unless the user names another one.`,
+      ];
+      if (isPlaceholderGroupTitle(group.title)) {
+        lines.push(
+          `Nobody has named ${flag} yet; its title is a placeholder. Once the user's purpose here is clear, rename it to a short, specific title with \`groups update ${flag} --title "..."\` and say so in one line. Never rename a workspace a person has named.`
+        );
+      }
       return {
-        appendSystemContext: [
-          `This conversation is the channel ${channel.nest} in the Tlon workspace (group) ${flag}.`,
-          `"This workspace", "this group" and "here" mean ${flag} unless the user names another one.`,
-        ].join('\n'),
+        appendSystemContext: lines.join('\n'),
         prependContext: render(located),
       };
     },
