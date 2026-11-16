@@ -170,6 +170,15 @@ export interface BotDriver {
     ship: string
   ): Promise<() => Promise<void>>;
   /**
+   * Lets every member of the channel's group address the bot there with a
+   * mention until the returned function runs. Without it, the scenarios open
+   * the channel through the channelRules entry in the bot's %settings.
+   */
+  openChannelToMembers?(
+    ctx: RuntimeContext,
+    channelId: string
+  ): Promise<() => Promise<void>>;
+  /**
    * Scheduled-job bookkeeping for a runtime without a bot container. Without
    * it, the cron scenarios run the runtime's commands in the bot container.
    */
@@ -231,6 +240,13 @@ export interface ModelScriptExpectations {
     toolName?: string;
   }>;
   toolLoopResult?: boolean;
+  /** Text the toolLoopResult tool-result message must contain. */
+  toolResultIncludes?: string;
+  /**
+   * How the runtime echoes the emitted tool-call id in its follow-up request.
+   * Defaults to 'exact'; see ToolCallIdEcho.
+   */
+  toolCallIdEcho?: ToolCallIdEcho;
   streamedToolLoop?: boolean;
   /**
    * The driver has observable tool side effects, but the fake-model received
@@ -240,6 +256,31 @@ export interface ModelScriptExpectations {
   allowUnclassifiedExtraCallsForDriverQuirk?: {
     reason: string;
   };
+}
+
+/**
+ * 'alphanumeric': the runtime keeps only [A-Za-z0-9] of the id, as OpenClaw
+ * core's strict tool-call id sanitizer does (src/agents/tool-call-id.ts).
+ */
+export type ToolCallIdEcho = 'exact' | 'alphanumeric';
+
+/**
+ * A member other than the owner asks the bot to schedule a job: the model
+ * calls the runtime's scheduling tool, then replies with finalText.
+ */
+export interface NonOwnerScheduleAttempt {
+  steps: Step[];
+  options?: ScriptOptions;
+  toolName: string;
+  /**
+   * 'hidden': the tool is not offered to the member, and the call is answered
+   * as an unknown or ungranted tool. 'refused': the tool is offered, and the
+   * call is answered with an owner-only refusal.
+   */
+  refusal: 'hidden' | 'refused';
+  /** Text the refused call's tool result contains. */
+  refusalText: string;
+  toolCallIdEcho?: ToolCallIdEcho;
 }
 
 export type { ModelAuxiliaryCallKind };
@@ -258,6 +299,11 @@ export interface ModelScriptAdapter {
   imageSearch(query: string): ModelScript;
   /** Owner-initiated cron job creation via the runtime's cron tool. */
   createCronJob(args: CreateCronJobArgs): ModelScript;
+  /**
+   * The createCronJob call made by a member other than the owner, scheduled
+   * an hour ahead so a job created by mistake is still listed afterward.
+   */
+  nonOwnerScheduleAttempt(args: CreateCronJobArgs): NonOwnerScheduleAttempt;
   /**
    * Text reply without baseline advertised-tools expectations. Used when the
    * runtime's advertised tool set differs from the baseline partition.

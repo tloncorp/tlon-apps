@@ -25,6 +25,8 @@ import {
   type CronCleanupTarget,
   cleanupCronJobAndArtifacts,
   cronJobListingName,
+  cronJobsListedAs,
+  removeCronJobsListedAs,
   settleCronJobCreation,
   waitForCronJobCreated,
   waitForCronJobRemoved,
@@ -33,6 +35,8 @@ import { type SharedScenario, testScenario } from './dsl.js';
 import {
   allowDmFrom,
   monitorGroupChannels,
+  openChannelAccess,
+  openChannelFor,
   settingsBucket,
   waitForSettingsEntries,
   waitForSettingsKeysAbsent,
@@ -45,6 +49,7 @@ import {
   benignModelCallPredicate,
   expectModelExpectations,
   expectNoModelCalls,
+  nonOwnerScheduleScript,
   primaryModelCalls,
   registerModelScript,
 } from './model.js';
@@ -1387,6 +1392,98 @@ export const commonScenarios: readonly SharedScenario[] = [
   ),
 
   testScenario(
+    'channel-two-speakers-non-owner-cannot-schedule',
+    { capabilities: ['cron'] },
+    async ({ ctx, driver, actors }) => {
+      const fixture = await createOwnerHostedChannelFixture(actors);
+      await openChannelFor({ ctx, driver, actors }, fixture.channelId);
+
+      const memberKey = scenarioKey('two-speakers-member');
+      const memberReply = `Member channel reply ${memberKey}`;
+      const job = {
+        name: `shared-non-owner-${scenarioKey('job')}`,
+        firedPrompt: `[tlon-test:${scenarioKey('two-speakers-fired')}] Reply with the scheduled marker.`,
+        finalText: memberReply,
+      };
+      const attempt = driver.model.nonOwnerScheduleAttempt(job);
+
+      const ownerKey = scenarioKey('two-speakers-owner');
+      const ownerReply = `Owner channel reply ${ownerKey}`;
+      const looseOwnerScript = driver.model.looseReplyText(ownerReply);
+      const ownerScript = {
+        ...looseOwnerScript,
+        expectations: {
+          ...looseOwnerScript.expectations,
+          advertisedTools: { include: [attempt.toolName] },
+        },
+      };
+      const ownerTag = await registerModelScript(
+        ctx.fakeModel,
+        ownerKey,
+        ownerScript
+      );
+      const ownerBaseline = await botChannelBaseline(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship
+      );
+      await actors.owner.sendChannelPost({
+        channelId: fixture.channelId,
+        content: storyWithMention(
+          actors.bot.ship,
+          `${ownerTag} Owner mention.`
+        ),
+      });
+      await waitForModelCalls(ctx.fakeModel, ownerKey);
+      await waitForBotChannelReply(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship,
+        ownerReply,
+        ownerBaseline
+      );
+      await expectModelExpectations(ctx.fakeModel, ownerKey, ownerScript);
+
+      const listingName = cronJobListingName(driver.name, job);
+      actors.bot.teardown(
+        async () => {
+          await removeCronJobsListedAs(ctx, driver.name, listingName);
+        },
+        { label: `remove cron jobs listed as ${job.name}` }
+      );
+      const memberScript = nonOwnerScheduleScript(attempt);
+      const memberTag = await registerModelScript(
+        ctx.fakeModel,
+        memberKey,
+        memberScript
+      );
+      const memberBaseline = await botChannelBaseline(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship
+      );
+      await actors.thirdParty.sendChannelPost({
+        channelId: fixture.channelId,
+        content: storyWithMention(
+          actors.bot.ship,
+          `${memberTag} Member mention asking for a scheduled job.`
+        ),
+      });
+      await waitForModelCalls(ctx.fakeModel, memberKey);
+      await waitForBotChannelReply(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship,
+        memberReply,
+        memberBaseline
+      );
+      await expectModelExpectations(ctx.fakeModel, memberKey, memberScript);
+
+      expect(await cronJobsListedAs(ctx, driver.name, listingName)).toEqual([]);
+    }
+  ),
+
+  testScenario(
     'restart-no-double-reply',
     {
       orderDependent: true,
@@ -2695,16 +2792,6 @@ async function ensureGroupMember(
       description: `${member.ship} group membership in ${groupId}`,
     }
   );
-}
-
-async function openChannelAccess(
-  actors: ScenarioActors,
-  channelId: string
-): Promise<void> {
-  const rules = JSON.stringify({
-    [channelId]: { mode: 'open' },
-  });
-  await withSettingsEntry(actors, 'channelRules', rules);
 }
 
 function driverEntry<T>(

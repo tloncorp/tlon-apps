@@ -1,4 +1,9 @@
-import type { BotDriver, ModelScript } from '../../drivers/types.js';
+import type {
+  BotDriver,
+  ModelScript,
+  NonOwnerScheduleAttempt,
+  ToolCallIdEcho,
+} from '../../drivers/types.js';
 import type { FakeModelClient, ReceivedCall } from '../../fake-model/index.js';
 import { sleep } from '../../runtime/waiters.js';
 
@@ -17,6 +22,34 @@ export async function registerModelScript(
 ): Promise<string> {
   await fakeModel.script(key, script.steps, script.options ?? {});
   return `[tlon-test:${key}]`;
+}
+
+/**
+ * The member's scheduling turn: the call is made, the runtime answers it as
+ * the attempt's refusal contract says, and the model replies.
+ */
+export function nonOwnerScheduleScript(
+  attempt: NonOwnerScheduleAttempt
+): ModelScript {
+  const tool = [attempt.toolName];
+  return {
+    steps: attempt.steps,
+    options: attempt.options,
+    expectations: {
+      advertisedTools:
+        attempt.refusal === 'hidden' ? { exclude: tool } : { include: tool },
+      expectedCallCount: 2,
+      expectedCallSequence: [
+        { kind: 'model_request' },
+        { kind: 'tool_call', toolName: attempt.toolName },
+        { kind: 'model_request' },
+        { kind: 'final_model_text' },
+      ],
+      toolLoopResult: true,
+      toolResultIncludes: attempt.refusalText,
+      toolCallIdEcho: attempt.toolCallIdEcho,
+    },
+  };
 }
 
 export async function expectModelExpectations(
@@ -343,12 +376,16 @@ function assertToolLoopResult(
     );
   }
 
+  const echoedId = echoedToolCallId(
+    emittedToolCall.id,
+    script.expectations?.toolCallIdEcho ?? 'exact'
+  );
   const followupMessages = calls[1].messages ?? [];
   const assistantEcho = followupMessages
     .flatMap((message) =>
       message.role === 'assistant' ? (message.tool_calls ?? []) : []
     )
-    .find((toolCall) => toolCall.id === emittedToolCall.id);
+    .find((toolCall) => toolCall.id === echoedId);
   if (assistantEcho && assistantEcho.function.name !== expectedTool.name) {
     throw new Error(
       `Expected assistant tool call ${emittedToolCall.id} for ${key} to be ` +
@@ -359,12 +396,12 @@ function assertToolLoopResult(
   const toolResult = followupMessages.find(
     (message) =>
       (message.role === 'tool' || message.role === 'function') &&
-      message.tool_call_id === emittedToolCall.id
+      message.tool_call_id === echoedId
   );
   if (!toolResult) {
     throw new Error(
       `Expected second model request for ${key} to include a tool-result message ` +
-        `with tool_call_id ${emittedToolCall.id}.`
+        `with tool_call_id ${echoedId}.`
     );
   }
   if (!toolResult.content) {
@@ -373,6 +410,21 @@ function assertToolLoopResult(
         `sanitized content summary.`
     );
   }
+  const expectedText = script.expectations?.toolResultIncludes;
+  if (
+    expectedText !== undefined &&
+    !(toolResult.content.text ?? '').includes(expectedText)
+  ) {
+    throw new Error(
+      `Expected tool-result message ${emittedToolCall.id} for ${key} to contain ` +
+        `${JSON.stringify(expectedText)}, got ` +
+        `${JSON.stringify(toolResult.content.text ?? '')}.`
+    );
+  }
+}
+
+function echoedToolCallId(id: string, echo: ToolCallIdEcho): string {
+  return echo === 'alphanumeric' ? id.replace(/[^A-Za-z0-9]/g, '') : id;
 }
 
 function assertCallSequence(

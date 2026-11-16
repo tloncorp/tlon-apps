@@ -3,6 +3,7 @@ import { chmod, copyFile, mkdir, mkdtemp, readdir, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
+import type { Step } from '../fake-model/index.js';
 import { runCommand } from '../runtime/compose.js';
 import { botService } from '../runtime/context.js';
 import {
@@ -14,6 +15,7 @@ import {
 import type {
   BotDriver,
   ComposeHandle,
+  CreateCronJobArgs,
   DriverRuntimeSpec,
   RuntimeCapability,
   RuntimeContext,
@@ -51,6 +53,7 @@ const LEGACY_OPENCLAW_TOOLS = [
 ] as const;
 const BASELINE_OPENCLAW_TOOLS = ['tlon', 'message'] as const;
 const OPENCLAW_CRON_AT_OFFSET_MS = 180_000;
+const NON_OWNER_SCHEDULE_AT_OFFSET_MS = 3_600_000;
 // Must match dev/Dockerfile.test's ARG OPENCLAW_CORE_VERSION default and the
 // compose build-arg fallback.
 const DEFAULT_OPENCLAW_CORE_VERSION = '2026.9.33';
@@ -499,35 +502,26 @@ export const openclawDriver: BotDriver = {
       };
     },
 
-    createCronJob({ name, firedPrompt, finalText }) {
+    createCronJob(args) {
       return {
-        steps: [
-          {
-            kind: 'tool_call',
-            name: 'automations',
-            args: {
-              action: 'add',
-              job: {
-                name,
-                schedule: {
-                  kind: 'at',
-                  at: new Date(
-                    Date.now() + OPENCLAW_CRON_AT_OFFSET_MS
-                  ).toISOString(),
-                },
-                payload: { kind: 'agentTurn', message: firedPrompt },
-                sessionTarget: 'isolated',
-                deleteAfterRun: true,
-              },
-            },
-          },
-          { kind: 'text', content: finalText },
-        ],
+        steps: automationsAddSteps(args, OPENCLAW_CRON_AT_OFFSET_MS),
         expectations: {
           advertisedTools: { exact: ['message', 'tlon', 'automations'] },
           expectedCallCount: 2,
           toolEffectOnly: true,
         },
+      };
+    },
+
+    nonOwnerScheduleAttempt(args) {
+      return {
+        steps: automationsAddSteps(args, NON_OWNER_SCHEDULE_AT_OFFSET_MS),
+        toolName: 'automations',
+        // Core leaves automations out of a non-owner's tools, so its agent
+        // loop answers the call as an unknown tool.
+        refusal: 'hidden',
+        refusalText: 'Tool automations not found',
+        toolCallIdEcho: 'alphanumeric',
       };
     },
 
@@ -539,6 +533,32 @@ export const openclawDriver: BotDriver = {
     },
   },
 };
+
+function automationsAddSteps(
+  { name, firedPrompt, finalText }: CreateCronJobArgs,
+  atOffsetMs: number
+): Step[] {
+  return [
+    {
+      kind: 'tool_call',
+      name: 'automations',
+      args: {
+        action: 'add',
+        job: {
+          name,
+          schedule: {
+            kind: 'at',
+            at: new Date(Date.now() + atOffsetMs).toISOString(),
+          },
+          payload: { kind: 'agentTurn', message: firedPrompt },
+          sessionTarget: 'isolated',
+          deleteAfterRun: true,
+        },
+      },
+    },
+    { kind: 'text', content: finalText },
+  ];
+}
 
 function requiredGateway(
   seed: RuntimeSeed

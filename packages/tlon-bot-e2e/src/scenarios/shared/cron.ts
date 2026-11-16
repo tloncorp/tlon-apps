@@ -18,6 +18,7 @@ export const CRON_TEARDOWN_TIMEOUT_MS = 35_000;
 export const CRON_TEARDOWN_CREATION_SETTLE_WAIT_MS = 10_000;
 export const CRON_TEARDOWN_LATE_CAPTURE_WAIT_MS = 10_000;
 export const CRON_TEARDOWN_COMMAND_TIMEOUT_MS = 10_000;
+const CRON_LISTED_AS_TIMEOUT_MS = 20_000;
 
 export type { CronJobSnapshot };
 
@@ -192,6 +193,41 @@ export async function waitForCronJobRemoved(
       `cron job ${jobId} removal`,
       timeoutMs
     );
+  }
+}
+
+/** The jobs listed under listingName (see cronJobListingName), from one listing. */
+export async function cronJobsListedAs(
+  ctx: RuntimeContext,
+  driverName: DriverName,
+  listingName: string,
+  timeoutMs = CRON_LISTED_AS_TIMEOUT_MS
+): Promise<CronJobSnapshot[]> {
+  const scope = await createCronCommandScope(
+    ctx,
+    driverName,
+    Date.now() + timeoutMs,
+    timeoutMs
+  );
+  const jobs = await listCronJobs(ctx, driverName, scope);
+  return jobs.filter((job) => job.name === listingName);
+}
+
+/**
+ * Removes every job listed under listingName by its id, so the cleanup never
+ * has to find a job it has no id for.
+ */
+export async function removeCronJobsListedAs(
+  ctx: RuntimeContext,
+  driverName: DriverName,
+  listingName: string
+): Promise<void> {
+  for (const job of await cronJobsListedAs(ctx, driverName, listingName)) {
+    await cleanupCronJobAndArtifacts(ctx, driverName, {
+      name: listingName,
+      id: job.id,
+      creationSettled: Promise.resolve(),
+    });
   }
 }
 

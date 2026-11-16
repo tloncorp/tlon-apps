@@ -2,10 +2,12 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { createInterface } from 'node:readline';
 
+import type { Step } from '../fake-model/index.js';
 import { applyDesk } from '../runtime/branch-desk.js';
 import { sleep } from '../runtime/waiters.js';
 import type {
   BotDriver,
+  CreateCronJobArgs,
   CronJobSnapshot,
   DriverRuntimeSpec,
   ModelScript,
@@ -16,6 +18,7 @@ const ACP_CALL_TIMEOUT_MS = 90_000;
 const HARNESS_MODEL = 'tlon-test-scripted';
 // Far enough ahead that the creating turn finishes before the job fires.
 const SCHEDULE_AT_OFFSET_MS = 60_000;
+const NON_OWNER_SCHEDULE_AT_OFFSET_MS = 3_600_000;
 const SCHEDULE_POLL_INTERVAL_MS = 500;
 
 function harnessUnsupported(method: string): never {
@@ -193,19 +196,9 @@ export const harnessDriver: BotDriver = {
       return harnessUnsupported('imageSearch');
     },
 
-    createCronJob({ firedPrompt, finalText }) {
+    createCronJob(args) {
       return {
-        steps: [
-          {
-            kind: 'tool_call',
-            name: 'schedule_once',
-            args: {
-              at: new Date(Date.now() + SCHEDULE_AT_OFFSET_MS).toISOString(),
-              prompt: firedPrompt,
-            },
-          },
-          { kind: 'text', content: finalText },
-        ],
+        steps: scheduleOnceSteps(args, SCHEDULE_AT_OFFSET_MS),
         expectations: {
           advertisedTools: { include: ['schedule_once', 'tlon'] },
           expectedCallCount: 2,
@@ -220,6 +213,29 @@ export const harnessDriver: BotDriver = {
         },
       };
     },
+
+    nonOwnerScheduleAttempt(args) {
+      return {
+        steps: scheduleOnceSteps(args, NON_OWNER_SCHEDULE_AT_OFFSET_MS),
+        toolName: 'schedule_once',
+        // The Tlon hand's ceiling for a non-owner never grants scheduling, so
+        // the head neither offers the tool nor runs a forged call.
+        refusal: 'hidden',
+        refusalText: 'rejected: tool is not granted for this session',
+      };
+    },
+  },
+
+  async openChannelToMembers(ctx, channelId) {
+    await updateChannelRules(ctx, (channels) => [
+      ...channels,
+      { channel: channelId, response: 'mentions', everyone: true },
+    ]);
+    return async () => {
+      await updateChannelRules(ctx, (channels) =>
+        channels.filter((rule) => rule.channel !== channelId)
+      );
+    };
   },
 
   async allowDmSender(ctx, ship) {
@@ -336,6 +352,40 @@ export function dmGrant(allowed: string[], ship: string): DmGrant {
   };
 }
 
+function scheduleOnceSteps(
+  { firedPrompt, finalText }: CreateCronJobArgs,
+  atOffsetMs: number
+): Step[] {
+  return [
+    {
+      kind: 'tool_call',
+      name: 'schedule_once',
+      args: {
+        at: new Date(Date.now() + atOffsetMs).toISOString(),
+        prompt: firedPrompt,
+      },
+    },
+    { kind: 'text', content: finalText },
+  ];
+}
+
+async function updateChannelRules(
+  ctx: RuntimeContext,
+  update: (channels: HarnessChannelRule[]) => HarnessChannelRule[]
+): Promise<void> {
+  await withHarnessAcp(ctx, async (call) => {
+    const { policy, revision } = (await call(
+      'harness/tlon'
+    )) as HarnessTlonStatus;
+    await call('harness/tlon/configure', {
+      ...policy,
+      channels: update(policy.channels),
+      expectedOwner: policy.owner,
+      expectedRevision: revision,
+    });
+  });
+}
+
 async function updateAllowedShips(
   ctx: RuntimeContext,
   update: (allowed: string[]) => string[]
@@ -358,8 +408,15 @@ interface HarnessPolicy {
   owner: string | null;
   response: 'off' | 'mentions' | 'all';
   allowed: string[];
-  channels: unknown[];
+  channels: HarnessChannelRule[];
   trusted: unknown[];
+}
+
+// desk/lib/harness-tlon-policy.hoon (json-channels): channel is a nest.
+interface HarnessChannelRule {
+  channel: string;
+  response: 'off' | 'mentions' | 'all';
+  everyone: boolean;
 }
 
 interface HarnessTlonStatus {

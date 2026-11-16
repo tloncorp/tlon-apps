@@ -1,10 +1,12 @@
 import path from 'node:path';
 
+import type { Step } from '../fake-model/index.js';
 import { botService } from '../runtime/context.js';
 import { waitFor } from '../runtime/waiters.js';
 import type {
   BotDriver,
   ComposeHandle,
+  CreateCronJobArgs,
   DriverRuntimeSpec,
   RuntimeCapability,
   RuntimeContext,
@@ -351,24 +353,9 @@ export const hermesDriver: BotDriver = {
       };
     },
 
-    createCronJob({ name, firedPrompt, finalText }) {
+    createCronJob(args) {
       return {
-        steps: [
-          {
-            kind: 'tool_call',
-            name: 'cronjob_manage',
-            args: {
-              action: 'create',
-              name,
-              // Hermes >= 0.22 reads a bare duration as a recurring interval;
-              // 'in <duration>' is the one-shot form.
-              schedule: 'in 1m',
-              prompt: firedPrompt,
-              deliver: 'origin',
-            },
-          },
-          { kind: 'text', content: finalText },
-        ],
+        steps: cronjobCreateSteps(args, 'in 1m'),
         options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
         expectations: {
           advertisedTools: { include: ['cronjob_manage', 'tlon'] },
@@ -385,6 +372,18 @@ export const hermesDriver: BotDriver = {
       };
     },
 
+    nonOwnerScheduleAttempt(args) {
+      return {
+        steps: cronjobCreateSteps(args, 'in 1h'),
+        options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
+        toolName: 'cronjob_manage',
+        // The cronjob toolset is offered to every Tlon session; the adapter's
+        // pre_tool_call hook refuses a non-owner's call.
+        refusal: 'refused',
+        refusalText: 'Blocked: cronjob_manage is owner-only in Tlon chats.',
+      };
+    },
+
     looseReplyText(text) {
       return {
         steps: [{ kind: 'text', content: text }],
@@ -394,6 +393,28 @@ export const hermesDriver: BotDriver = {
     },
   },
 };
+
+function cronjobCreateSteps(
+  { name, firedPrompt, finalText }: CreateCronJobArgs,
+  schedule: string
+): Step[] {
+  return [
+    {
+      kind: 'tool_call',
+      name: 'cronjob_manage',
+      args: {
+        action: 'create',
+        name,
+        // Hermes >= 0.22 reads a bare duration as a recurring interval;
+        // 'in <duration>' is the one-shot form.
+        schedule,
+        prompt: firedPrompt,
+        deliver: 'origin',
+      },
+    },
+    { kind: 'text', content: finalText },
+  ];
+}
 
 async function waitForHermesLog(
   ctx: RuntimeContext,
