@@ -290,6 +290,24 @@ export const workspaceCreateToolParameters = {
 } as const;
 
 export type TlonCommandResult = { ok: boolean; text: string };
+export type WorkspaceTlonRunner = (
+  toolCallId: string,
+  command: string
+) => Promise<TlonCommandResult>;
+
+// Set by the plugin entry, which holds the tlon tool's owner routing; the
+// create tool is a channel tool and has no access to it otherwise.
+const tlonRunnerSlot = sharedSlot<WorkspaceTlonRunner>(
+  'workspacePlan.tlonRunner'
+);
+
+export function setWorkspaceTlonRunner(runner: WorkspaceTlonRunner | null) {
+  tlonRunnerSlot.set(runner);
+}
+
+export function getWorkspaceTlonRunner(): WorkspaceTlonRunner | undefined {
+  return tlonRunnerSlot.get() ?? undefined;
+}
 
 /** Quotes one argument for the tlon tool's shell-style splitter. */
 export function quoteTlonArg(value: string): string {

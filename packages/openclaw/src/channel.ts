@@ -78,9 +78,14 @@ import {
   getActiveTlonTurnAccountId,
   observeActiveTlonTurnDelivery,
 } from './turn-recorder.js';
+import { getTlonCronService } from './cron-telemetry.js';
 import { listTlonAccountIds, resolveTlonAccount } from './types.js';
 import {
+  createWorkspaceCreateToolExecutor,
   createWorkspacePlanToolExecutor,
+  getWorkspaceTlonRunner,
+  workspaceCreateToolMetadata,
+  workspaceCreateToolParameters,
   workspacePlanToolMetadata,
   workspacePlanToolParameters,
 } from './workspace-plan-tool.js';
@@ -310,11 +315,26 @@ export const tlonPlugin = createChatChannelPlugin({
           postSurface(target, fallbackText, blob),
       });
 
+      const executeWorkspaceCreate = createWorkspaceCreateToolExecutor({
+        getCron: getTlonCronService,
+        runTlon: async (id, command) => {
+          const runner = getWorkspaceTlonRunner();
+          return runner
+            ? runner(id, command)
+            : { ok: false, text: 'the tlon tool is not ready yet' };
+        },
+      });
+
       return [
         {
           ...workspacePlanToolMetadata,
           parameters: workspacePlanToolParameters,
           execute: (id, params) => executeWorkspacePlan(id, params),
+        },
+        {
+          ...workspaceCreateToolMetadata,
+          parameters: workspaceCreateToolParameters,
+          execute: (id, params) => executeWorkspaceCreate(id, params),
         },
         {
           ...agentChoiceToolMetadata,

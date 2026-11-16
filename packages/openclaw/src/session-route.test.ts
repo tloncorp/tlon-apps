@@ -142,6 +142,7 @@ describe('tlonPlugin agent tools', () => {
     vi.stubEnv('TLON_OWNER_TIMEZONE_FILE', '');
     expect(toolNames()).toEqual([
       'tlon_workspace_plan',
+      'tlon_workspace_create',
       'tlon_agent_choice',
       'tlon_agent_task_plan',
       'tlon_agent_service_setup',

@@ -173,10 +173,9 @@ import {
 } from './src/tlon-call-approvals.js';
 import { buildTlonToolDiagnosticRecord } from './src/tlon-tool-diagnostics.js';
 import {
-  createWorkspaceCreateToolExecutor,
   setWorkspaceProposalStore,
+  setWorkspaceTlonRunner,
   workspaceCreateToolMetadata,
-  workspaceCreateToolParameters,
 } from './src/workspace-plan-tool.js';
 
 /** The approval key for a workspace create's tlon commands. */
@@ -2180,51 +2179,35 @@ export default defineBundledChannelEntry({
       { name: 'tlon' }
     );
 
-    // Creates a workspace from a card the owner tapped Create on, through the
-    // same owner routing as the tlon tool: an owner-directed run hosts it on
-    // the owner's ship.
-    api.registerTool(
-      (ctx) => {
-        const executeCreate = createWorkspaceCreateToolExecutor({
-          getCron: getTlonCronService,
-          runTlon: async (id, command) => {
-            const approved = takeTlonCallApproval(
-              id,
-              WORKSPACE_CREATE_APPROVAL
-            );
-            // Each command takes the approval once; keep it for the next.
-            if (approved) {
-              recordTlonCallApproval(id, WORKSPACE_CREATE_APPROVAL, approved);
-            }
-            if (
-              !approved?.ownerRun ||
-              !isOwnerRun(approved.ownerRun, liveAccount().ownerShip)
-            ) {
-              return {
-                ok: false,
-                text: 'only an owner-directed turn can create a workspace',
-              };
-            }
-            const result = await createTlonToolExecutor({
-              ...tlonExecutorDeps(ctx, approved),
-              ownerIdentityLost: () =>
-                !isOwnerRun(approved.ownerRun!, liveAccount().ownerShip),
-            })(id, { command });
-            const details = result.details as { status?: string } | undefined;
-            return {
-              ok: !details?.status || details.status === 'ok',
-              text: result.content.map((part) => part.text).join('\n'),
-            };
-          },
-        });
+    // The workspace create tool (a channel tool) runs its tlon commands
+    // through the same owner routing as the tlon tool, so an owner-directed
+    // run hosts the workspace on the owner's ship.
+    setWorkspaceTlonRunner(async (id, command) => {
+      const approved = takeTlonCallApproval(id, WORKSPACE_CREATE_APPROVAL);
+      // Each command takes the approval once; keep it for the next.
+      if (approved) {
+        recordTlonCallApproval(id, WORKSPACE_CREATE_APPROVAL, approved);
+      }
+      if (
+        !approved?.ownerRun ||
+        !isOwnerRun(approved.ownerRun, liveAccount().ownerShip)
+      ) {
         return {
-          ...workspaceCreateToolMetadata,
-          parameters: workspaceCreateToolParameters,
-          execute: (id: string, params: unknown) => executeCreate(id, params),
+          ok: false,
+          text: 'only an owner-directed turn can create a workspace',
         };
-      },
-      { name: workspaceCreateToolMetadata.name }
-    );
+      }
+      const result = await createTlonToolExecutor({
+        ...tlonExecutorDeps({}, approved),
+        ownerIdentityLost: () =>
+          !isOwnerRun(approved.ownerRun!, liveAccount().ownerShip),
+      })(id, { command });
+      const details = result.details as { status?: string } | undefined;
+      return {
+        ok: !details?.status || details.status === 'ok',
+        text: result.content.map((part) => part.text).join('\n'),
+      };
+    });
 
     const logToolTraceContents = liveToolTraceContentsEnabled();
     // ── Cron observability ──────────────────────────────────────────────
