@@ -18,6 +18,7 @@ export const CRON_TEARDOWN_TIMEOUT_MS = 35_000;
 export const CRON_TEARDOWN_CREATION_SETTLE_WAIT_MS = 10_000;
 export const CRON_TEARDOWN_LATE_CAPTURE_WAIT_MS = 10_000;
 export const CRON_TEARDOWN_COMMAND_TIMEOUT_MS = 10_000;
+export const CRON_LISTED_AS_TIMEOUT_MS = 20_000;
 
 export type { CronJobSnapshot };
 
@@ -195,6 +196,24 @@ export async function waitForCronJobRemoved(
   }
 }
 
+/** The job's listed entries (see cronJobListingName), from one listing. */
+export async function cronJobsListedAs(
+  ctx: RuntimeContext,
+  driverName: DriverName,
+  job: CreateCronJobArgs,
+  timeoutMs = CRON_LISTED_AS_TIMEOUT_MS
+): Promise<CronJobSnapshot[]> {
+  const listingName = cronJobListingName(driverName, job);
+  const scope = await createCronCommandScope(
+    ctx,
+    driverName,
+    Date.now() + timeoutMs,
+    timeoutMs
+  );
+  const jobs = await listCronJobs(ctx, driverName, scope);
+  return jobs.filter((entry) => entry.name === listingName);
+}
+
 export async function cleanupCronJobAndArtifacts(
   ctx: RuntimeContext,
   driverName: DriverName,
@@ -298,16 +317,14 @@ async function captureCronJobIdForCleanup(
   if (target.id) {
     return target.id;
   }
-  const captureDeadlineAtMs = Math.min(
-    scope.deadlineAtMs,
-    Date.now() + lateCaptureWaitMs
-  );
-  const captureScope = { ...scope, deadlineAtMs: captureDeadlineAtMs };
+  // The capture deadline only decides whether to poll again; each listing
+  // runs under the teardown scope, so at least one gets its full timeout.
+  const captureDeadlineAtMs = Date.now() + lateCaptureWaitMs;
   for (;;) {
     if (target.id) {
       return target.id;
     }
-    const jobs = await listCronJobs(ctx, driverName, captureScope);
+    const jobs = await listCronJobs(ctx, driverName, scope);
     if (target.id) {
       return target.id;
     }

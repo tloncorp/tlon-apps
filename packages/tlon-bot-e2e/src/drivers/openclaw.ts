@@ -3,6 +3,7 @@ import { chmod, copyFile, mkdir, mkdtemp, readdir, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
+import type { Step } from '../fake-model/index.js';
 import { runCommand } from '../runtime/compose.js';
 import { botService } from '../runtime/context.js';
 import {
@@ -11,13 +12,15 @@ import {
   waitForHttpOk,
   waitForShipLogin,
 } from '../runtime/waiters.js';
-import type {
-  BotDriver,
-  ComposeHandle,
-  DriverRuntimeSpec,
-  RuntimeCapability,
-  RuntimeContext,
-  RuntimeSeed,
+import {
+  type BotDriver,
+  type ComposeHandle,
+  type CreateCronJobArgs,
+  type DriverRuntimeSpec,
+  NON_OWNER_SCHEDULE_AT_OFFSET_MS,
+  type RuntimeCapability,
+  type RuntimeContext,
+  type RuntimeSeed,
 } from './types.js';
 
 const OPTIONAL_COMPOSE_ENV_KEYS = ['BRAVE_API_KEY', 'TLONBOT_TOKEN'] as const;
@@ -459,12 +462,8 @@ export const openclawDriver: BotDriver = {
         expectations: {
           advertisedTools: { exact: ['message', 'tlon'] },
           expectedCallCount: 2,
-          // Observed against openclaw@2026.5.7: the fake model receives the
-          // initial tool-call request and a follow-up request, but that
-          // follow-up does not contain an OpenAI role:tool/function message
-          // carrying the emitted tool_call_id. Shared scenarios therefore
-          // assert the visible reply plus Tlon side effect instead of claiming
-          // Hermes-style tool-result transcript coverage.
+          // No shared scenario runs this script, so its tool-result transcript
+          // is unobserved; readOrAdmin's and createCronJob's are asserted.
           toolEffectOnly: true,
         },
       };
@@ -481,10 +480,7 @@ export const openclawDriver: BotDriver = {
         expectations: {
           advertisedTools: { exact: ['message', 'tlon'] },
           expectedCallCount: 2,
-          // See sendMessage: the current OpenClaw transcript is observable as
-          // a second model request but not as an OpenAI-format tool-result
-          // message with the emitted tool_call_id.
-          toolEffectOnly: true,
+          toolLoopResult: true,
         },
       };
     },
@@ -499,35 +495,25 @@ export const openclawDriver: BotDriver = {
       };
     },
 
-    createCronJob({ name, firedPrompt, finalText }) {
+    createCronJob(args) {
       return {
-        steps: [
-          {
-            kind: 'tool_call',
-            name: 'automations',
-            args: {
-              action: 'add',
-              job: {
-                name,
-                schedule: {
-                  kind: 'at',
-                  at: new Date(
-                    Date.now() + OPENCLAW_CRON_AT_OFFSET_MS
-                  ).toISOString(),
-                },
-                payload: { kind: 'agentTurn', message: firedPrompt },
-                sessionTarget: 'isolated',
-                deleteAfterRun: true,
-              },
-            },
-          },
-          { kind: 'text', content: finalText },
-        ],
+        steps: automationsAddSteps(args, OPENCLAW_CRON_AT_OFFSET_MS),
         expectations: {
           advertisedTools: { exact: ['message', 'tlon', 'automations'] },
           expectedCallCount: 2,
-          toolEffectOnly: true,
+          toolLoopResult: true,
         },
+      };
+    },
+
+    nonOwnerScheduleAttempt(args) {
+      return {
+        steps: automationsAddSteps(args, NON_OWNER_SCHEDULE_AT_OFFSET_MS),
+        toolName: 'automations',
+        // Core leaves automations out of a non-owner's tools, so its agent
+        // loop answers the call as an unknown tool.
+        refusal: 'hidden',
+        refusalText: 'Tool automations not found',
       };
     },
 
@@ -539,6 +525,32 @@ export const openclawDriver: BotDriver = {
     },
   },
 };
+
+function automationsAddSteps(
+  { name, firedPrompt, finalText }: CreateCronJobArgs,
+  atOffsetMs: number
+): Step[] {
+  return [
+    {
+      kind: 'tool_call',
+      name: 'automations',
+      args: {
+        action: 'add',
+        job: {
+          name,
+          schedule: {
+            kind: 'at',
+            at: new Date(Date.now() + atOffsetMs).toISOString(),
+          },
+          payload: { kind: 'agentTurn', message: firedPrompt },
+          sessionTarget: 'isolated',
+          deleteAfterRun: true,
+        },
+      },
+    },
+    { kind: 'text', content: finalText },
+  ];
+}
 
 function requiredGateway(
   seed: RuntimeSeed
