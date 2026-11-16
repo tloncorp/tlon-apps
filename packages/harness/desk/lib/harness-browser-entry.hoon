@@ -219,6 +219,26 @@
   ?>  &((levy (scag dot token) token-char) =(43 (lent signature)) (levy signature token-char))
   (rap 3 origin '/credential-result/' (crip token) ~)
 ::
+++  revoke-request
+  |=  result-url=@t
+  ^-  request:http
+  ::  The stored result URL was already checked against the viewer origin.
+  =/  path  "/credential-result/"
+  =/  url  (trip result-url)
+  =/  split  (need (find path url))
+  =/  endpoint
+    (rap 3 (crip (scag split url)) '/credentials/' (crip (slag (add split (lent path)) url)) ~)
+  [%'DELETE' endpoint ~ ~]
+::
+++  revocation-outcome
+  |=  status=(unit @ud)
+  ^-  @t
+  ::  Kernel also returns 200 for an already finished form.
+  ?:  =(`200 status)  'Secure entry is closed. A prior fill may have applied.'
+  ?:  =(`409 status)
+    'uncertain: secure entry was already being filled. A fill may have applied.'
+  'uncertain: secure entry revocation was not confirmed. A fill may have applied.'
+::
 ++  trusted-origin
   |=  origin=@t
   ^-  ?

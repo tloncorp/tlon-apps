@@ -5,6 +5,7 @@ import { createServer } from 'node:http'
 import { text as readText } from 'node:stream/consumers'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { Client, base, readCookie } from './lib/ship-client.mjs'
+import { HandClient } from '../acp/hand-client.mjs'
 
 const peerUrl = process.env.PEER_URL
 for (const url of [base, peerUrl]) {
@@ -27,6 +28,7 @@ const privateResult = 'PRIVATE_RESULT_VALUE'
 const calls = [], failures = []
 let origin, sessionId, state = 'idle', previous, completed = false, polls = 0, resumed = 0
 let walletConnected = false, walletPolls = 0, walletResumed = 0
+let secondHandChecked = false, revocation
 
 const tool = (id, name, args = {}) => ({ id, type: 'function', function: { name, arguments: JSON.stringify(args) } })
 const list = (id, name) => tool(id, 'list_mcp_tools', { server: browser, ...(name && { name }) })
@@ -94,22 +96,49 @@ function model(body) {
     walletResumed++
     return []
   }
-  if (body.messages[user]?.content.includes(`${marker}-trusted-wallet`)) {
-    if (!receipts.size) return [tool('connect', connectWallet)]
-    assert.match(receipts.get('connect'), /only in the owner DM/)
+  if (body.messages[user]?.content.includes(`${marker}-open`)) {
+    if (!receipts.size) return [invoke('open', create)]
+    assert.equal(result(receipts.get('open')).structuredContent.session_id, sessionId)
     return []
   }
-  if (body.messages[user]?.content.includes(`${marker}-trusted-browser`)) {
+  if (body.messages[user]?.content.includes(`${marker}-revoke-`)) {
+    assert.equal(receipts.size, 0, 'The former owner turn must not resume')
+    return [tool('revoke-form', secureEntry, { session_id: sessionId, markers: ['login-password'] })]
+  }
+  const secondHand = body.messages[user]?.content.includes(`${marker}-second-hand`)
+  if (secondHand || body.messages[user]?.content.includes(`${marker}-trusted-browser`)) {
+    const names = (body.tools ?? []).map(({ function: fn }) => fn.name)
+    for (const name of [secureEntry, approveLogin, requestPayment, connectWallet]) {
+      assert.ok(!names.includes(name), `${name} is hidden from the model`)
+    }
     if (!receipts.size) {
       return [
+        tool('discover', 'list_mcp_servers'),
+        list('browser-list'),
+        invoke('new-session', create),
+        invoke('use-known-session', execute, { session_id: sessionId, code: 'return await page.title();' }),
+        invoke('screenshot-known-session', 'kernel_computer_screenshot', { session_id: sessionId }),
         tool('browser-entry', secureEntry, { session_id: sessionId, markers: ['login-password'] }),
-        tool('saved-login', approveLogin, { session_id: sessionId }),
-        tool('payment', requestPayment, { arguments: JSON.stringify({ session_id: sessionId }) }),
+        tool('saved-login', approveLogin, { session_id: sessionId, form_id: walletId,
+          record: { id: 'fake-record', revision: 1 }, bindings: [{ sourceField: 'password', targetField: 'f0' }] }),
+        tool('payment', requestPayment, { arguments: JSON.stringify({ session_id: sessionId, request_key: 'second-hand-test', amount_cents: 100, currency: 'USD' }) }),
+        tool('connect-wallet', connectWallet),
+        // A successful local call lets the model inspect the denials before the loop guard halts it.
+        tool('clock', 'current_time'),
       ]
     }
-    for (const id of ['browser-entry', 'saved-login', 'payment']) {
-      assert.match(receipts.get(id), /only in the owner DM/)
+    const discovery = receipts.get('discover')
+    if (!secondHand) assert.ok(discovery.startsWith('['), 'The scoped MCP catalog is still callable')
+    if (discovery.startsWith('[')) {
+      assert.ok(!JSON.parse(discovery).some(({ id }) => id === browser))
+    } else {
+      assert.match(discovery, /not granted/)
     }
+    for (const id of ['browser-list', 'new-session', 'use-known-session', 'screenshot-known-session',
+      'browser-entry', 'saved-login', 'payment', 'connect-wallet']) {
+      assert.match(receipts.get(id), /not granted/)
+    }
+    if (secondHand) secondHandChecked = true
     return []
   }
   assert.ok(body.messages[user]?.content.includes(`${marker}-trusted`))
@@ -148,18 +177,18 @@ function kernel(request) {
     })
   }
   if (name === create) {
-    assert.equal(state, 'idle')
-    state = 'open'
+    assert.ok(['idle', 'released'].includes(state))
+    state = state === 'idle' ? 'open' : 'open-for-permission-tests'
     return reply('Session started', { session_id: fixtureHandle })
   }
   assert.equal(args.session_id, fixtureHandle)
   if (name === prepare) {
-    assert.equal(state, 'ready')
+    assert.equal(state, revocation ? 'open-for-permission-tests' : 'ready')
     assert.deepEqual(args, {
       session_id: fixtureHandle, action: 'prepare_form', fields: [{ name: 'tlon-mark:login-password' }],
     })
     return reply('Prepared private form', {
-      session_id: fixtureHandle, viewer_url: `${origin}/s/${viewerToken}?clipboardBridge=true`,
+      session_id: fixtureHandle, viewer_url: `${origin}/s/${revocation?.token ?? viewerToken}?clipboardBridge=true`,
       card: { purpose: 'login', site: 'example.test' },
     })
   }
@@ -189,6 +218,23 @@ const server = createServer(async (req, res) => {
       polls++
       return res.end(JSON.stringify(completed ? { status: 'filled', submitted: false, privateResult } : { status: 'pending' }))
     }
+    if (revocation && req.url === `/credential-result/${revocation.token}`) {
+      assert.equal(req.method, 'GET')
+      revocation.polls++
+      return res.end(JSON.stringify({ status: revocation.status }))
+    }
+    if (revocation && req.url === `/credentials/${revocation.token}`) {
+      assert.equal(req.method, 'DELETE')
+      assert.equal(req.headers['x-api-key'], undefined)
+      assert.equal(++revocation.deletes, 1, 'Cancel the specific pending form once')
+      assert.equal(revocation.status, revocation.busy ? 'filling' : 'pending')
+      if (revocation.busy) {
+        res.statusCode = 409
+        return res.end(JSON.stringify({ code: 'session_busy' }))
+      }
+      revocation.status = 'cancelled'
+      return res.end(JSON.stringify({ ok: true }))
+    }
     const raw = await readText(req)
     const body = JSON.parse(raw)
     if (req.url === '/kernel/mcp') {
@@ -203,6 +249,7 @@ const server = createServer(async (req, res) => {
     assert.equal(req.url, '/completions')
     assert.ok(!raw.includes(fixtureKey), 'The model request does not contain the MCP key')
     assert.ok(!raw.includes(viewerToken), 'The model request does not contain the viewer capability')
+    assert.ok(!revocation || !raw.includes(revocation.token), 'The model request does not contain the revoked capability')
     assert.ok(!raw.includes(privateResult), 'The model request does not contain private result fields')
     const tool_calls = model(body)
     const content = tool_calls.length ? '' : `${marker}-done-${state}`
@@ -216,7 +263,7 @@ const server = createServer(async (req, res) => {
 })
 
 const configure = (servers) => bot.call('harness/mcp/configure', { servers })
-async function dmAndWait(actor, receipt) {
+async function dmAndWait(actor, isDone) {
   const sent = Date.now(), author = `~${peer.ship}`, ship = `~${bot.ship}`
   const da = (((BigInt(sent) * (1n << 64n)) / 1000n) + 170141184475152167957503069145530368000n)
     .toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
@@ -251,7 +298,10 @@ async function dmAndWait(actor, receipt) {
       assert.equal(walletResumed, 0)
       walletConnected = true
     }
-    if (replies.some(({ essay }) => JSON.stringify(essay.content).includes(receipt))) return
+    const done = typeof isDone === 'function'
+      ? isDone(replies)
+      : replies.some(({ essay }) => JSON.stringify(essay.content).includes(isDone))
+    if (done) return
     await sleep(200)
   }
   throw new Error(`Timed out waiting for ${actor} DM result`)
@@ -282,21 +332,64 @@ try {
   assert.equal(walletPolls, 3)
   expectedCalls.push(walletConnect, walletStatus, walletStatus, walletStatus)
 
-  state = 'denied'
+  await dmAndWait('open', `${marker}-done-open-for-permission-tests`)
+  expectedCalls.push(create)
+
+  const [conversationId] = (await bot.call('harness/tlon')).sessions
+  assert.ok(conversationId.startsWith(`${peer.ship}-dm-`))
+  const config = await bot.call('harness/session/config', { sessionId: conversationId })
+  await bot.call('harness/session/configure', {
+    sessionId: conversationId, config: { ...config, key: '', tools: [{ mcp: browser }] },
+  })
+  const hand = new HandClient(bot, { hand: marker, worker: 'fixture' })
+  await hand.bind(marker, { sessionId: conversationId, address: 'other-hand', actors: ['another-sender'] })
+  try {
+    const { inputId } = await hand.observe(marker, { event: 'second-hand', actor: 'another-sender', text: `${marker}-second-hand` })
+    const deadline = Date.now() + 45_000
+    let publication
+    while (!publication && Date.now() < deadline) {
+      if (failures.length) throw new AggregateError(failures)
+      publication = (await hand.outbox()).find((entry) => entry.inputId === inputId)
+      if (!publication) await sleep(200)
+    }
+    if (failures.length) throw new AggregateError(failures)
+    assert.ok(publication, 'The second hand completes its turn on the owner DM session')
+    assert.equal(publication.text, `${marker}-done-open-for-permission-tests`)
+    assert.ok(secondHandChecked, 'The model received and checked the second hand tool receipts')
+    assert.deepEqual(calls, expectedCalls, 'The second hand never reaches Kernel')
+  } finally {
+    await hand.enable(marker, false)
+  }
+
+  for (const busy of [false, true]) {
+    await bot.call('harness/tlon/configure', policy)
+    revocation = { token: `${randomUUID()}.${'B'.repeat(43)}`, busy, status: 'pending', polls: 0, deletes: 0 }
+    await dmAndWait(`revoke-${busy}`, (replies) => revocation.polls && replies.some(({ essay }) =>
+      JSON.parse(essay.blob ?? '[]').some(({ type, viewerUrl }) =>
+        type === 'browser-secure-entry' && viewerUrl.includes(revocation.token))))
+    if (busy) revocation.status = 'filling'
+    await bot.call('harness/tlon/configure', { ...policy, owner: `~${bot.ship}` })
+    const deadline = Date.now() + 10_000
+    while (!revocation.deletes && Date.now() < deadline) {
+      if (failures.length) throw new AggregateError(failures)
+      await sleep(100)
+    }
+    assert.equal(revocation.deletes, 1, 'Changing owners revokes the active form at Kernel')
+    assert.equal(revocation.status, busy ? 'filling' : 'cancelled')
+    expectedCalls.push(prepare)
+  }
+
   await bot.call('harness/tlon/configure', {
     ...policy, owner: `~${bot.ship}`, trusted: [{ ship: `~${peer.ship}`, tools: [{ mcp: other }] }],
   })
-  await dmAndWait('trusted', `${marker}-done-denied`)
-  state = 'denied-with-browser-grant'
+  await dmAndWait('trusted', `${marker}-done-open-for-permission-tests`)
   await bot.call('harness/tlon/configure', {
-    ...policy, owner: `~${bot.ship}`, trusted: [{ ship: `~${peer.ship}`, tools: [{ mcp: browser }] }],
+    ...policy, owner: `~${bot.ship}`, trusted: [{ ship: `~${peer.ship}`, tools: [{ mcp: browser }, { mcp: other }] }],
   })
-  await dmAndWait('trusted-browser', `${marker}-done-denied-with-browser-grant`)
-  state = 'wallet-denied'
-  await dmAndWait('trusted-wallet', `${marker}-done-wallet-denied`)
+  await dmAndWait('trusted-browser', `${marker}-done-open-for-permission-tests`)
   assert.deepEqual(calls, expectedCalls, 'The non-owner does not reach the browser endpoint')
   assert.deepEqual(failures, [])
-  console.log('PASS owner DM browser lifecycle, private secure entry, Link connection, and trusted non-owner denial')
+  console.log('PASS owner browser lifecycle, private secure entry, Link connection, second-hand and non-owner denial, and form revocation')
 } finally {
   try {
     if (previous) {

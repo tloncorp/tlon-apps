@@ -1,6 +1,8 @@
 ::  Persisted Tlon state conversion. Runtime policy uses only the current shape.
 /-  *harness-tlon, h=harness, ad=harness-adapter, c=channels
+/+  ht=harness-tools
 |%
++$  saved-browser-entry  [%browser-entry entry=browser-entry]
 +$  state-1
   $:  %1
       owner-initialized=@ud
@@ -60,16 +62,43 @@
   ==
 ++  load
   |=  old=vase
-  ^-  state-3
+  ^-  runtime-state
+  =/  saved  (load-state old)
+  =/  live=runtime-state  [~ saved]
+  %+  roll  ~(tap by tool-receipts.saved)
+  |=  [[id=@uv receipt=tool-receipt] live=_live]
+  ?.  &(=(%sending stage.receipt) (browser-entry-tool:ht name.call.request.receipt))  live
+  =/  packed
+    %-  mole
+    |.((need ((soft saved-browser-entry) (cue body.receipt))))
+  ?~  packed  live
+  %=  live
+    browser-entries  (~(put by browser-entries.live) id entry.u.packed)
+    tool-receipts  (~(put by tool-receipts.live) id receipt(body ''))
+  ==
+::
+++  save
+  |=  live=runtime-state
+  ^-  state-2
+  =/  saved=state-2  +.live
+  ::  A sending receipt already owns the durable request. Its body is
+  ::  private until completion replaces it with the tool's public result.
+  =.  tool-receipts.saved
+    %+  roll  ~(tap by browser-entries.live)
+    |=  [[id=@uv entry=browser-entry] receipts=_tool-receipts.saved]
+    =/  receipt  (~(got by receipts) id)
+    (~(put by receipts) id receipt(body (jam [%browser-entry entry])))
+  saved
+::
+++  load-state
+  |=  old=vase
+  ^-  state-2
   ?>  ?=(^ q.old)
-  ?:  =(%3 -.q.old)  (need ((soft state-3) q.old))
-  ?:  =(%2 -.q.old)
-    =/  saved  !<(state-2 old)
-    [%3 ~ +.saved]
+  ?:  =(%2 -.q.old)  !<(state-2 old)
   =/  saved
     ?:  =(%0 -.q.old)  (zero-to-one !<(state-0 old))
     !<(state-1 old)
-  [%3 ~ *lens-sync +.saved]
+  [%2 *lens-sync +.saved]
 ::
 ++  zero-to-one
   |=  saved=state-0

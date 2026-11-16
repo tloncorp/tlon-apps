@@ -33,6 +33,7 @@
 +$  browser-phase
   $%  [%authorize ~]  [%prepare local=?]  [%payment ~]
       [%post result=browser-result]  [%wait result=browser-result]  [%check result=browser-result]
+      [%revoke ~]
   ==
 +$  browser-entry  [next=@da phase=browser-phase]
 +$  upload
@@ -82,35 +83,5 @@
       wake=(unit @da)
       error=@t
   ==
-+$  state-3
-  $:  %3
-      browser-entries=(map @uv browser-entry)
-      lens=lens-sync
-      owner-initialized=@ud
-      sibling-moon-owners=$~(| ?)
-      sibling-owner-after=@da
-      activity-through=@da
-      catching-up=$~(| ?)
-      identities=(map [actor=@p to=destination] @t)
-      routes=(map @t route)
-      cuts=(map @p @da)
-      channel-after=@da
-      channel-cuts=(map nest:c @da)
-      uploads=(map @uv upload)
-      last-sent=@da
-      tool-receipts=(map @uv tool-receipt)
-      computing=(map path presence-lease)
-      policy=policy
-      epoch=@ud
-      after=@da
-      lanes=(map @t lane)
-      jobs=(map @uv job)
-      deliveries=(map @uv delivery)
-      notices=(list notice)
-      next-notice=@ud
-      listeners=(set @t)
-      watching=?
-      wake=(unit @da)
-      error=@t
-  ==
++$  runtime-state  [browser-entries=(map @uv browser-entry) state-2]
 --

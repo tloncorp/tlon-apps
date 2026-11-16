@@ -42,11 +42,11 @@
       (expect-eq !>(policy.saved) !>(policy.current))
       (expect-eq !>(deliveries.saved) !>(deliveries.current))
       (expect !>(!enabled.lens.current))
-      (expect-eq !>(current) !>((load:migration !>(current))))
+      (expect-eq !>(current) !>((load:migration !>((save:migration current)))))
   ==
 ::
 ++  test-sync-recovery-has-a-bounded-maintenance-deadline
-  =/  state  *state-3:t
+  =/  state  *runtime-state:t
   =.  policy.state  [& `~bud ~ %mentions ~ ~]
   =.  watching.state  &
   =.  lens.state  [& `~bud ~2026.10.1 ~ '']

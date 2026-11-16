@@ -5,6 +5,7 @@
 /+  ht=harness-tools, failure=harness-failure,
     context=harness-context, memory=harness-memory, capture=harness-memory-capture,
     w=harness-provider-wire, anthropic=harness-anthropic, text=harness-text
+/+  runner=harness-runner
 |%
 +$  model-info  [id=@t context=(unit @ud)]
 ::  Reported prompt usage anchors the active context. Unmeasured items reserve
@@ -857,4 +858,12 @@
 ::
 ++  anthropic-route
   |=(url=@t =('https://api.anthropic.com/v1/messages' url))
+++  images-in-tool-results
+  |=  config=config:h
+  ^-  ?
+  ?&  =('deepseek/deepseek-v4.1-flash-1017' model.config)
+      !(responses-route url.config)
+      !(anthropic-route url.config)
+      ?=(~ (route:runner url.config))
+  ==
 --

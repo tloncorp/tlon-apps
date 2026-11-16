@@ -146,7 +146,7 @@
 ++  scheduled-tools
   |=  tools=(list tool-grant:h)
   ^-  (list tool-grant:h)
-  %+  skip  tools
+  %+  skip  (without-browser tools)
   |=  tool=tool-grant:h
   |(=(%cron tool) =(%subagents tool) =(%code tool) =(%admin tool))
 ::  Rehearsals may inspect inherited source material, never dispatch effects
@@ -214,6 +214,9 @@
   |=  [server=@t tools=(list tool-grant:h)]
   ^-  ?
   (lien tools |=(tool=tool-grant:h =(tool [%mcp server])))
+++  without-browser
+  |=  tools=(list tool-grant:h)
+  (skip tools |=(tool=tool-grant:h =(tool [%mcp 'kernel-browser'])))
 ::  Collapse server grants to one schema family, retaining catalog order and
 ::  avoiding duplicate MCP function definitions when several servers are granted.
 ++  tool-families

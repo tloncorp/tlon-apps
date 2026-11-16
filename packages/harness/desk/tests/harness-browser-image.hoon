@@ -10,6 +10,12 @@
       !>(expected)
     !>((receipt:image (rap 3 'HTTP 200\0a\0aevent: message\0adata: ' packet '\0a\0a' ~)))
   ==
+++  test-receipt-preserves-completed-action-when-the-screenshot-is-omitted
+  =/  packet
+    '{"id":1,"result":{"content":[{"type":"text","text":"Click done. Screenshot unavailable within the 2 MiB response limit."}]}}'
+  %+  expect-eq
+    !>(['Click done. Screenshot unavailable within the 2 MiB response limit.' ~])
+  !>((receipt:image (cat 3 'HTTP 200\0a\0a' packet)))
 ++  test-attach-only-matches-the-latest-correlated-tool-message
   =/  payload
     %-  need

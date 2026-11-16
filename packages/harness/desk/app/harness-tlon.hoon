@@ -35,7 +35,7 @@
 +$  storage-source  $%([%credentials creds=credentials:s3] [%hosted token=@t config=json])
 --
 %-  agent:dbug
-=|  state-3:t
+=|  runtime-state:t
 =*  state  -
 ^-  agent:gall
 =<
@@ -50,7 +50,7 @@
     =.  state  initialize-owner:cor
     =^  cards  state  abet:boot:refresh-peers:cor
     [cards this]
-  ++  on-save  !>(state)
+  ++  on-save  !>((save:migration state))
   ++  on-load
     |=  old=vase
     =.  state  (load:migration old)
@@ -95,7 +95,7 @@
     |=  =path
     ?>  =(our.bowl src.bowl)
     ?+  path  (on-peek:def path)
-      [%x %state ~]  ``noun+!>(state)
+      [%x %state ~]  ``noun+!>(+.state)
       [%x %status ~]  ``json+!>(status:cor)
       ::  Trust consumers must not render cron jobs or read head ledgers.
       [%x %peer-trust ~]  ``noun+!>([policy sibling-moon-owners])
@@ -103,6 +103,8 @@
       ``noun+!>((lane-authority:cor i.t.t.path))
         [%x %admin @ ~]
       ``noun+!>((owner-lane:cor i.t.t.path))
+        [%x %browser-owner @ ~]
+      ``noun+!>((browser-owner:cor i.t.t.path))
         [%x %context @ @ ~]
       ``noun+!>((thread-context:cor i.t.t.path i.t.t.t.path))
     ==
@@ -548,7 +550,7 @@
         =/  hands=state:hh
           ?.  connected  *state:hh
           ledger
-        (page:work state hands before)
+        (page:work +.state hands before)
       ?~  found  (emit (fail '-32602' 'Invalid work-page cursor'))
       ?>  ?=(%o -.u.found)
       (emit (reply [%o (~(put by p.u.found) 'headConnected' [%b connected])]))
@@ -699,13 +701,28 @@
     (tool-native request id)
   (tool-conversation request id)
 ::
+++  browser-owner-lane
+  |=  sid=@t
+  ^-  (unit lane:t)
+  ?.  &(enabled.policy (route-ready-for sid ~))  ~
+  =/  lane  (~(get by lanes) sid)
+  ?.  &(?=(^ lane) ?=(%dm -.to.u.lane))  ~
+  ?.  &(=(owner.policy `actor.u.lane) =(actor.u.lane who.to.u.lane))  ~
+  lane
+::
+++  browser-owner
+  |=  sid=@t
+  ^-  (unit [binding=@t address=@t actor=@t])
+  =/  lane  (browser-owner-lane sid)
+  ?~  lane  ~
+  =/  route  (~(got by routes) sid)
+  `[binding.route (address:p to.u.lane) (scot %p actor.u.lane)]
+::
 ++  browser-lane
   |=  request=tool-request:ad
   ^-  (unit lane:t)
-  ?.  (owner-lane sid.request)  ~
-  =/  lane  (delivery-lane sid.request)
-  ?.  &(?=(^ lane) ?=(%dm -.to.u.lane))  ~
-  ?.  &(=(owner.policy `actor.u.lane) =(actor.u.lane who.to.u.lane))  ~
+  =/  lane  (browser-owner-lane sid.request)
+  ?~  lane  ~
   =/  authority  (tool-authority request)
   ?.  &(?=(^ authority) =(call.request call.u.authority))  ~
   lane
@@ -772,20 +789,33 @@
   =.  browser-entries  (~(del by browser-entries) id)
   (finish-tool id body)
 ::
+++  revoke-browser-entry
+  |=  [id=@uv phase=browser-phase:t]
+  ^+  cor
+  ?.  ?&  ?=(?(%post %wait %check) -.phase)
+          ?=(%form -.result.phase)
+      ==
+    (close-browser-entry id 'rejected: secure-entry authority changed')
+  (send-browser-request id [%revoke ~] (revoke-request:browser url.result.phase))
+::
 ++  browser-response
   |=  [id=@uv deadline=@t response=client-response:iris]
   ^+  cor
   =/  entry  (~(get by browser-entries) id)
   ?~  entry  cor
   ?.  =(deadline (scot %da next.u.entry))  cor
-  ?.  ?=(?(%authorize %prepare %payment %check) -.phase.u.entry)  cor
+  ?.  ?=(?(%authorize %prepare %payment %check %revoke) -.phase.u.entry)  cor
   ?:  ?=(%progress -.response)
     ?.  (gth bytes-read.response 32.768)  cor
     =.  cor  (emit [%pass (browser-wire id next.u.entry) %arvo %i %cancel-request ~])
+    ?:  ?=(%revoke -.phase.u.entry)  (close-browser-entry id (revocation-outcome:browser ~))
     (close-browser-entry id 'error: secure-entry service returned an oversized reply')
+  ?:  ?=(%revoke -.phase.u.entry)
+    =/  status  ?:  ?=(%finished -.response)  `status-code.response-header.response  ~
+    (close-browser-entry id (revocation-outcome:browser status))
   =/  receipt  (~(got by tool-receipts) id)
   =/  lane  (browser-lane request.receipt)
-  ?~  lane  (close-browser-entry id 'rejected: secure-entry authority changed')
+  ?~  lane  (revoke-browser-entry id phase.u.entry)
   =/  body=(unit @t)
     ?.  ?=(%finished -.response)  ~
     ?.  &(=(200 status-code.response-header.response) ?=(^ full-file.response))  ~
@@ -883,12 +913,17 @@
 ++  poll-browser-entry
   |=  [id=@uv entry=browser-entry:t]
   ^+  cor
-  ?:  (lth now.bowl next.entry)  cor
+  =/  due  (gte now.bowl next.entry)
+  ?:  ?=(%revoke -.phase.entry)
+    ?.  due  cor
+    =.  cor  (emit [%pass (browser-wire id next.entry) %arvo %i %cancel-request ~])
+    (close-browser-entry id (revocation-outcome:browser ~))
   =/  receipt  (~(got by tool-receipts) id)
+  =/  authorized  ?=(^ (browser-lane request.receipt))
+  ?:  &(!due authorized)  cor
   =?  cor  ?=(?(%authorize %prepare %payment %check) -.phase.entry)
     (emit [%pass (browser-wire id next.entry) %arvo %i %cancel-request ~])
-  ?.  ?=(^ (browser-lane request.receipt))
-    (close-browser-entry id 'rejected: secure-entry authority changed')
+  ?.  authorized  (revoke-browser-entry id phase.entry)
   ?:  ?=(?(%authorize %prepare) -.phase.entry)
     (close-browser-entry id 'uncertain: secure form preparation timed out; inspect the browser before trying again')
   ?:  ?=(%payment -.phase.entry)
@@ -1513,6 +1548,7 @@
     (stop-upload:engine id)
   =.  policy  updated-policy
   =.  sibling-moon-owners  siblings
+  =.  cor  poll-browser-entries
   =?  sibling-owner-after  sibling-change  now.bowl
   ::  The head rereads live trust and advertises only each recipient's grant.
   =.  cor  (head /peer-access/refresh [%peer-refresh ~])
@@ -2381,7 +2417,7 @@
   =.  cor  poll-tools
   =/  hands  ledger
   =.  cor  (sync-lenses hands)
-  =.  state  (detach-routes:continuity state hands)
+  =.  +.state  (detach-routes:continuity +.state hands)
   =.  cor  (sync-presence hands)
   =.  cor  schedule
   ::  Honor explicit reconciliation and retirement in the shared ledger.

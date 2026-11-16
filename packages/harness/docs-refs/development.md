@@ -125,8 +125,8 @@ input is a JSON object with the Kernel MCP `url` and optional `headers` array
 of `{ "name": "...", "value": "..." }` entries for the test bot's endpoint
 credentials. The script installs the Kernel browser skill and its secure-entry
 and payment references as skills available through `read_skill`. It registers
-`kernel-browser` as a separate MCP server. Keep its server grant off trusted
-non-owner and peer tool lists.
+`kernel-browser` as a separate MCP server. Only turns from the configured
+owner's Messenger DM can discover or call it.
 
 From the configured owner's DM, ask the bot to open a JavaScript-rendered
 test page, click a control, report the changed text, and close the session.
@@ -154,9 +154,9 @@ The payment card uses the app's browser service endpoint, set by
 
 Run `just test-js kernel-browser-conformance` from a checkout with a short
 pier path. The test exercises browser navigation, secure entry, Stripe Link
-connection, and permission checks with a loopback MCP fixture and a scripted
-model. On two already-running disposable ships with fresh Harness state, set
-`SHIP_URL`, `SHIP_COOKIE`, `PEER_URL`, and `PEER_COOKIE` and run
+connection, authorization, and form revocation with a loopback MCP fixture and
+a scripted model. On two already-running disposable ships with fresh Harness
+state, set `SHIP_URL`, `SHIP_COOKIE`, `PEER_URL`, and `PEER_COOKIE` and run
 `node tests-js/kernel-browser-conformance.mjs`.
 
 ## Native tests

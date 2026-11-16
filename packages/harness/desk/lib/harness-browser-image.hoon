@@ -42,6 +42,7 @@
   ?:  =(`[%b %.y] (get:w u.result 'isError'))  [text ~]
   =/  images
     (skim p.u.content |=(part=json =('image' (str:w part 'type'))))
+  ?:  &(?=(~ images) !=('' text))  [text ~]
   ?.  ?=([* ~] images)  ['error: Browser reply did not contain a screenshot.' ~]
   =/  mime  (str:w i.images 'mimeType')
   =/  data  (str:w i.images 'data')

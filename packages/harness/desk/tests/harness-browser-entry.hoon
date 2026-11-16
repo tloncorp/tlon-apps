@@ -1,5 +1,21 @@
 /+  *test, browser=harness-browser-entry
 |%
+++  test-revocation-preserves-form-capability-and-reports-busy-as-uncertain
+  =/  result-url
+    'http://127.0.0.1:8080/credential-result/fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+  =/  cancel-url
+    'http://127.0.0.1:8080/credentials/fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+  ;:  weld
+    (expect-eq !>([%'DELETE' cancel-url ~ ~]) !>((revoke-request:browser result-url)))
+    %+  expect-eq
+      !>('Secure entry is closed. A prior fill may have applied.')
+    !>((revocation-outcome:browser `200))
+    %+  expect-eq
+      !>('uncertain: secure entry was already being filled. A fill may have applied.')
+    !>((revocation-outcome:browser `409))
+    (expect-eq !>((revocation-outcome:browser `503)) !>((revocation-outcome:browser ~)))
+  ==
+::
 ++  viewer-path
   '/s/fixture.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA?clipboardBridge=true'
 ::

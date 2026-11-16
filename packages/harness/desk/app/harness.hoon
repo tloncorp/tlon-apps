@@ -1719,13 +1719,39 @@
   ^-  (unit admitted-input:h)
   =/  session  (~(get by sessions) sid)
   ?~  session  ~
-  =/  log  log.u.session
-  |-
-  ^-  (unit admitted-input:h)
-  ?~  log  ~
-  ?:  ?=(%input-received -.i.log)  `input.i.log
-  ?:  ?=(%input-admitted -.i.log)  ~
-  $(log t.log)
+  (current-input:admin log.u.session)
+::
+++  live-hand-input
+  |=  [sid=session-id:h source=input-source:h]
+  ^-  ?
+  ?.  ?=(%hand -.source)  |
+  =/  binding  (~(get by bindings.hands) binding.source)
+  ?&  ?=(^ binding)
+      enabled.u.binding
+      =(sid sid.u.binding)
+      =(hand.source hand.u.binding)
+      =(address.source address.u.binding)
+      (lien actors.u.binding |=(actor=@t =(actor actor.source)))
+  ==
+::
+++  browser-authorized
+  |=  sid=session-id:h
+  ^-  ?
+  ::  A session can have several bindings. Use the one that admitted this turn.
+  =/  input  (work-origin sid)
+  ?.  ?=(^ input)  |
+  =/  source  source.u.input
+  ?.  ?&  ?=(%hand -.source)
+          =('tlon' hand.source)
+          (live-hand-input sid source)
+          .^(? %gu /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/$)
+      ==
+    |
+  =/  owner
+    .^  (unit [binding=@t address=@t actor=@t])  %gx
+      /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/browser-owner/[sid]/noun
+    ==
+  =(`[binding.source address.source actor.source] owner)
 ::
 ++  work-authority
   |=  [sid=session-id:h input=admitted-input:h]
@@ -1741,17 +1767,7 @@
   ?.  ?=(?(%acp %poke %hand) -.source)  ~
   ::  Validate the hand's current identity and actor before deriving either
   ::  owner authority or the conversation's scoped workspace authority.
-  =/  source-live=?
-    ?.  ?=(%hand -.source)  &
-    =/  binding  (~(get by bindings.hands) binding.source)
-    ?&  ?=(^ binding)
-        enabled.u.binding
-        =(sid sid.u.binding)
-        =(hand.source hand.u.binding)
-        =(address.source address.u.binding)
-        (lien actors.u.binding |=(actor=@t =(actor actor.source)))
-    ==
-  ?.  source-live  ~
+  ?:  &(?=(%hand -.source) !(live-hand-input sid source))  ~
   =/  owner=?
     ?-  -.source
       %acp  &(?=(~ (decode:admin client.source)) =(actor.input `our.bowl) (session-admin sid))
@@ -5301,12 +5317,7 @@
   ?.  (mcp-granted:ht 'kernel-browser' (execution-tools sid tools.config))  payload
   =/  server  (~(get by mcp-servers) 'kernel-browser')
   ?.  &(?=(^ server) enabled.u.server =(server.u.image (sham u.server)))  payload
-  =/  supported
-    ?&  =('deepseek/deepseek-v4.1-flash-1017' model.config)
-        !(responses-route:hp url.config)
-        !(anthropic-route:hp url.config)
-        ?=(~ (route:runner-lib url.config))
-    ==
+  =/  supported  (images-in-tool-results:hp config)
   (attach:browser-image payload call-id.u.image mime.u.image data.u.image supported)
 ::  A response belongs to one pending request. Progress updates the transient
 ::  stream; terminal responses record events and resume the session loop.
@@ -5708,6 +5719,8 @@
     %+  skim  granted
     |=  grant=tool-grant:h
     (lien u.ceiling.authority |=(allowed=tool-grant:h =(grant allowed)))
+  =?  granted  &((mcp-granted:ht 'kernel-browser' granted) !(browser-authorized sid))
+    (without-browser:ht granted)
   ::  Administrative and scheduling tools require these live source checks,
   ::  regardless of the families named in the saved configuration.
   =?  granted  administrator  (snoc granted %admin)
@@ -6221,6 +6234,7 @@
 ++  rpc-tools
   |=  [who=@p tools=(list tool-grant:h)]
   ^+  tools
+  =.  tools  (without-browser:ht tools)
   =.  tools  (skip (without-tlon:ht tools) |=(grant=tool-grant:h =(%admin grant)))
   ?:  (is-owner who)  (snoc tools %admin)
   (conversation-tools:ht tools)
