@@ -251,9 +251,15 @@ public final class ConversationViewport: ExpoView {
                 return
             }
         }
+        // Steps the spring by its exact solution rather than an Euler step,
+        // which overshoots the start: when a tall row arrives and the frame
+        // takes 1/30 s, an Euler step covers half the distance at once.
         let omega: CGFloat = 22
-        velocity += (-2 * omega * velocity - omega * omega * (current - target)) * dt
-        var next = current + velocity * dt
+        let offset = current - target
+        let decay = exp(-omega * dt)
+        let remaining = (offset + (velocity + omega * offset) * dt) * decay
+        velocity = (velocity - omega * (velocity + omega * offset) * dt) * decay
+        var next = target + remaining
         if abs(next - target) < 0.5 && abs(velocity) < 20 {
             next = target
             stopFollowing()
