@@ -21,15 +21,32 @@
   (str:w i.p.messages 'content')
 ::
 ++  test-turn-instructions-lead-with-the-operating-ship
-  =/  text  system.config:(identify:hp base %turn planet ~)
+  =/  named=view:h  base
+  =.  model.config.named  'openai/gpt-5.6-luna'
+  =/  text  system.config:(identify:hp named %turn planet ~)
   =/  other  system.config:(identify:hp base %turn ~zod ~)
   ;:  weld
       %-  expect
       !>((starts 'Your Urbit ship is ~sampel-palnet. References to ~sampel-palnet ' text))
       (expect !>((find-sub:ht 'cannot change it.\0a\0aThis turn runs on the model ' text)))
-      (expect !>((find-sub:ht 'keeps follows its own policy.\0a\0aConfigured instructions.' text)))
+      %-  expect
+      !>  %+  find-sub:ht
+            %+  rap  3
+            :~  'keeps follows its own policy. When asked what model or company '
+                'you run on, or told someone wants no connection to OpenAI or '
+                'another AI company, answer from this line: name the model, the '
+                'route and whether zero data retention is on.'
+            ==
+          text
+      (expect !>((find-sub:ht 'whether zero data retention is on.\0a\0aConfigured instructions.' text)))
       (expect !>(!(find-sub:ht 'a moon of' text)))
       (expect !>((starts 'Your Urbit ship is ~zod. References to ~zod ' other)))
+  ==
+++  test-an-empty-model-gets-no-model-instruction
+  =/  text  system.config:(identify:hp base %turn planet ~)
+  ;:  weld
+      (expect !>((find-sub:ht 'keeps follows its own policy.\0a\0aConfigured instructions.' text)))
+      (expect !>(!(find-sub:ht 'When asked what model' text)))
   ==
 ++  test-a-moon-names-itself-and-its-parent
   =/  text  system.config:(identify:hp base %turn moon `planet)

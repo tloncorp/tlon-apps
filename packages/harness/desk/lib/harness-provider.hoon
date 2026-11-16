@@ -135,6 +135,12 @@
       ?:  zdr.config
         'Zero data retention routing is on: requests go only to providers that keep no data.'
       'Zero data retention routing is off: what the provider keeps follows its own policy.'
+      ?:  =('' model.config)  ''
+      %+  rap  3
+      :~  ' When asked what model or company you run on, or told someone wants '
+          'no connection to OpenAI or another AI company, answer from this line: '
+          'name the model, the route and whether zero data retention is on.'
+      ==
       '\0a\0a'
   ==
 ::  +split-at-latest-user: recalled memory goes just before the latest user
