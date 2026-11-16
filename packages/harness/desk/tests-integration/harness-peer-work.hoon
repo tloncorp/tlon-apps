@@ -474,10 +474,11 @@
   ;<  *  bind:m  (do-poke %harness-a2a-0 !>(`a2a:h`[%ask 0v1 %text 'Do the work.']))
   ;<  next=state-0  bind:m  saved
   (pure:m tools.config:(play:hl log:(~(got by sessions.next) (cat 3 'peer--' (scot %p src)))))
-++  outstanding
-  |=  [src=@p owner=@p name=@t]
-  =/  m  (mare ,(unit tool-authority:adapter))
-  ^-  form:m
+::  A peer conversation saved with the grant's full tool list and one
+::  outstanding call.
+++  peer-call
+  |=  [src=@p name=@t]
+  ^-  state-0
   =/  s  guest-fixture
   =/  sid  (cat 3 'peer--' (scot %p src))
   =/  call=tool-call:h  ['call' name '{}']
@@ -489,7 +490,13 @@
         [%input-received [0v1 [%peer src 0v1] `src `[%peer src 0v1] t0 [%user 'Do the work.']]]
         [%config-replaced defaults.s(tools guest-grants)]
     ==
-  ;<  ~  bind:m  (trust-boot s src owner)
+  s
+++  outstanding
+  |=  [src=@p owner=@p name=@t]
+  =/  m  (mare ,(unit tool-authority:adapter))
+  ^-  form:m
+  =/  sid  (cat 3 'peer--' (scot %p src))
+  ;<  ~  bind:m  (trust-boot (peer-call src name) src owner)
   ;<  ~  bind:m  (set-src ~zod)
   ;<  =cage  bind:m  (got-peek `path`~[%x %tool-call sid '1' %call])
   (pure:m ;;((unit tool-authority:adapter) q.q.cage))
@@ -630,4 +637,34 @@
   ;<  [sent=(map @p (unit peer-grant:h)) *]  bind:m  (announced s ~lux)
   ;<  ~  bind:m  (ex-announced sent ~bus |)
   (ex-announced sent ~nec |)
+::  A run_js script that was running when its grant stopped counting still
+::  completes when its watchdog fires, so the conversation keeps answering.
+::
+++  finished-js
+  |=  [src=@p owner=@p]
+  =/  m  (mare ,[body=(list @t) waiting=?])
+  ^-  form:m
+  =/  sid  (cat 3 'peer--' (scot %p src))
+  =/  s  (peer-call src 'run_js')
+  =.  jobs.s  (my ~[[%harness-js-fixture [sid 'call' (add t0 ~s30)]]])
+  ;<  ~  bind:m  (trust-boot s ~zod owner)
+  ;<  *  bind:m  (do-arvo /jsdog/harness-js-fixture [%behn %wake ~])
+  ;<  next=state-0  bind:m  saved
+  =/  log  log:(~(got by sessions.next) sid)
+  =/  body
+    %+  murn  log
+    |=(e=event:h ?:(&(?=(%tool-completed -.e) =('call' call-id.e)) `body.e ~))
+  (pure:m [body (~(has in wait:(play:hl log)) 'call')])
+++  test-a-guests-run-js-that-lost-its-grant-completes-and-does-not-wedge
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [body=(list @t) waiting=?]  bind:m  (finished-js ~bus ~lux)
+  (ex-equal !>([body waiting]) !>([~['rejected: run_js is no longer authorized'] |]))
+++  test-the-owners-run-js-completes-with-its-result
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [body=(list @t) waiting=?]  bind:m  (finished-js ~nec ~nec)
+  (ex-equal !>([body waiting]) !>([~['error: js thread exceeded its time limit'] |]))
 --

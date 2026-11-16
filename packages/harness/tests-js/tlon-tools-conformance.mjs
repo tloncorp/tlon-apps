@@ -75,13 +75,17 @@ const server = createServer(async (req, res) => {
         return answer(res, '', [
           call(`forged-${mode}`, 'cron_add', { schedule: '0 9 1 1 *', timezone: 'UTC', prompt: `${marker}-${mode}`, runs: '1' }),
           call(`forged-tlon-${mode}`, 'tlon', { action: 'send_dm', ship: '~bud', text: `${marker}-${mode}-MUST_NOT_SEND` }),
-          call(`child-${mode}`, 'run_subagent', { prompt: 'Report.' }),
+          call(`forged-js-${mode}`, 'run_js', { code: 'module.exports = () => 1' }),
+          // Only the trusted tier may start a subagent. A fourth refused call
+          // in a row would trip the loop guard and stop the allowed tier's turn.
+          ...(mode.startsWith('deny-trusted') ? [call(`child-${mode}`, 'run_subagent', { prompt: 'Report.' })] : []),
         ])
       }
       const result = (id) => current.find((m) => m.tool_call_id === id).content
       denials[mode].result = result(`forged-${mode}`)
       denials[mode].tlon = result(`forged-tlon-${mode}`)
-      const job = /^\{/.test(current[0].content) && JSON.parse(current[0].content)
+      denials[mode].js = result(`forged-js-${mode}`)
+      const job = /^\{/.test(denials[mode].result) && JSON.parse(denials[mode].result)
       if (job?.id) extra.push(job.id)
       return answer(res, `${marker}-${mode}-ok`)
     }
@@ -214,13 +218,14 @@ try {
     }
   }
   const jobs = await client.call('harness/cron')
-  for (const [name, seen] of Object.entries(denials)) console.log(`${name}: offered [${[...seen.offered, ...seen.ownerOnly].join(', ')}]; forged cron_add returned ${seen.result}; forged tlon returned ${seen.tlon}; subagent offered [${seen.child ?? 'no subagent'}]`)
+  for (const [name, seen] of Object.entries(denials)) console.log(`${name}: offered [${[...seen.offered, ...seen.ownerOnly].join(', ')}]; forged cron_add returned ${seen.result}; forged tlon returned ${seen.tlon}; forged run_js returned ${seen.js}; subagent offered [${seen.child ?? 'no subagent'}]`)
   for (const [name, seen] of Object.entries(denials)) {
     assert.deepEqual(seen.offered, [], `${name}: scheduling tools offered to a non-owner`)
     assert.match(seen.result, /not granted/, `${name}: the refusal must say the tool is not granted`)
     assert.ok(!jobs.some((j) => j.prompt === `${marker}-${name}`), `${name}: a non-owner created a schedule`)
     assert.deepEqual(seen.ownerOnly, [], `${name}: tlon or run_js offered to a non-owner`)
     assert.match(seen.tlon, /tool is not granted for this session/, `${name}: a non-owner's tlon call must be refused`)
+    assert.match(seen.js, /tool is not granted for this session/, `${name}: a non-owner's run_js call must be refused`)
     if (name.startsWith('deny-trusted')) assert.deepEqual(seen.child, [], `${name}: tlon or run_js offered to a non-owner's subagent`)
   }
   console.log('PASS non-owners are not offered scheduling, tlon or run_js, and their forged calls are refused')

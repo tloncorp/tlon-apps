@@ -46,15 +46,21 @@
   =/  policy  policy
   =/  next  policy(trusted (my ~[[~bud ~[%skills]]]))
   (expect !>((affected:c policy next dm)))
-::  Only the owner can use %tlon and %code, so saving them for a trusted ship
-::  is not a permission change; any other grant still is.
-++  test-adding-or-removing-tlon-or-code-is-not-a-permission-change
+::  Only the owner can use %tlon and %code, so adding them for a trusted ship
+::  is not a permission change. Removing one is, and so is any other grant.
+++  test-adding-tlon-or-code-is-not-a-permission-change
   =/  policy  policy
   =/  next  policy(trusted (my ~[[~bud ~[%web %tlon %code]]]))
+  (expect !>(&(!(actor-changed:c policy next ~bud) !(affected:c policy next dm))))
+++  test-removing-tlon-or-code-is-a-permission-change
+  =/  policy  policy
+  =/  tlon  policy(trusted (my ~[[~bud ~[%web %tlon]]]))
+  =/  code  policy(trusted (my ~[[~bud ~[%web %code]]]))
+  =/  both  policy(trusted (my ~[[~bud ~[%web %tlon %code]]]))
   ;:  weld
-      (expect !>(!(actor-changed:c policy next ~bud)))
-      (expect !>(!(actor-changed:c next policy ~bud)))
-      (expect !>(!(affected:c policy next dm)))
+      (expect !>((actor-changed:c tlon policy ~bud)))
+      (expect !>((actor-changed:c code policy ~bud)))
+      (expect !>((affected:c both policy dm)))
   ==
 ++  test-adding-another-grant-is-still-a-permission-change
   =/  policy  policy
