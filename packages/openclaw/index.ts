@@ -2021,7 +2021,7 @@ export default defineBundledChannelEntry({
 
     const executeBrowserLogin = createBrowserLoginApprovalExecutor({
       isPending: browserHandoffs.isPending,
-      useLogin: (args, signal) =>
+      requestLogin: (args, signal) =>
         callBrowserMcpTool(
           api.config,
           resolveBrowserHandoffAccount(api.config).allowPrivateNetwork,

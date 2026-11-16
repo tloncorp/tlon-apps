@@ -268,7 +268,7 @@ describe('OpenClaw driver runtime spec', () => {
         { kind: 'text', content: 'Done' },
       ],
       expectations: {
-        advertisedTools: { exact: ['message', 'tlon'] },
+        advertisedTools: { exact: ['message', 'tlon', 'tlon_browser_login'] },
         expectedCallCount: 2,
         toolEffectOnly: true,
       },
@@ -283,7 +283,7 @@ describe('OpenClaw driver runtime spec', () => {
         { kind: 'text', content: 'done' },
       ],
       expectations: {
-        advertisedTools: { exact: ['message', 'tlon'] },
+        advertisedTools: { exact: ['message', 'tlon', 'tlon_browser_login'] },
         expectedCallCount: 2,
         toolEffectOnly: true,
       },
@@ -335,7 +335,9 @@ describe('OpenClaw driver runtime spec', () => {
         { kind: 'text', content: 'Scheduled.' },
       ],
       expectations: {
-        advertisedTools: { exact: ['message', 'tlon', 'automations'] },
+        advertisedTools: {
+          exact: ['message', 'tlon', 'tlon_browser_login', 'automations'],
+        },
         expectedCallCount: 2,
         toolEffectOnly: true,
       },

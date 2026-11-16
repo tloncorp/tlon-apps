@@ -140,7 +140,7 @@ describe('browser session handoff', () => {
     runBrowserHandoffCommand.mockReturnValueOnce(send.promise);
     const execute = createBrowserLoginApprovalExecutor({
       isPending: async () => false,
-      useLogin: async () => ({
+      requestLogin: async () => ({
         metadata: {
           session_id: handle,
           login: { status: 'approval_required' },

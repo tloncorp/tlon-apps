@@ -12,7 +12,7 @@ const ctx = { sessionKey: 'agent:main:tlon:direct:~ten' };
 function setup() {
   const deps = {
     isPending: vi.fn(async () => false),
-    useLogin: vi.fn(async () => ({
+    requestLogin: vi.fn(async () => ({
       metadata: {
         session_id: input.session_id,
         login: { status: 'approval_required' },
@@ -59,7 +59,7 @@ describe('saved login approval', () => {
     ).resolves.toMatchObject({
       details: { status: 'login_already_requested' },
     });
-    expect(deps.useLogin).toHaveBeenCalledOnce();
+    expect(deps.requestLogin).toHaveBeenCalledOnce();
     const fresh = { ...input, form_id: '223e4567-e89b-42d3-a456-426614174000' };
     await expect(execute(fresh, ctx)).resolves.toMatchObject({
       details: { status: 'approval_pending' },
@@ -72,7 +72,7 @@ describe('saved login approval', () => {
     await expect(execute(input, ctx)).resolves.toMatchObject({
       details: { status: 'secure_entry_pending' },
     });
-    expect(deps.useLogin).not.toHaveBeenCalled();
+    expect(deps.requestLogin).not.toHaveBeenCalled();
     expect(deps.sendHandoff).not.toHaveBeenCalled();
   });
 
@@ -96,7 +96,7 @@ describe('saved login approval', () => {
 
   it('rejects a mismatched browser response before sending a card', async () => {
     const { deps, execute } = setup();
-    deps.useLogin.mockResolvedValueOnce({
+    deps.requestLogin.mockResolvedValueOnce({
       metadata: {
         session_id: 'another-browser',
         login: { status: 'approval_required' },

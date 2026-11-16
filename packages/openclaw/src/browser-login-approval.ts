@@ -81,12 +81,12 @@ export const browserLoginToolDefinition = {
 
 export function createBrowserLoginApprovalExecutor({
   isPending,
-  useLogin,
+  requestLogin,
   sendHandoff,
   warn,
 }: {
   isPending: (sessionId: string) => Promise<boolean>;
-  useLogin: (args: LoginInput, signal?: AbortSignal) => Promise<McpResult>;
+  requestLogin: (args: LoginInput, signal?: AbortSignal) => Promise<McpResult>;
   sendHandoff: (args: LoginInput, ctx: Conversation) => Promise<unknown>;
   warn: (message: string) => void;
 }) {
@@ -132,7 +132,7 @@ export function createBrowserLoginApprovalExecutor({
 
     let response: McpResult;
     try {
-      response = await useLogin(args, signal);
+      response = await requestLogin(args, signal);
     } catch {
       warn('Could not request saved login from the browser service.');
       return result(

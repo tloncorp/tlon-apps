@@ -425,7 +425,7 @@ export const openclawDriver: BotDriver = {
       return {
         steps: [{ kind: 'text', content: text }],
         expectations: {
-          advertisedTools: { exact: ['message', 'tlon'] },
+          advertisedTools: { exact: ['message', 'tlon', 'tlon_browser_login'] },
           expectedCallCount: 1,
         },
       };
@@ -435,7 +435,7 @@ export const openclawDriver: BotDriver = {
       return {
         steps: texts.map((content) => ({ kind: 'text' as const, content })),
         expectations: {
-          advertisedTools: { exact: ['message', 'tlon'] },
+          advertisedTools: { exact: ['message', 'tlon', 'tlon_browser_login'] },
           expectedCallCount: texts.length,
         },
       };
@@ -456,7 +456,7 @@ export const openclawDriver: BotDriver = {
           { kind: 'text', content: 'Done' },
         ],
         expectations: {
-          advertisedTools: { exact: ['message', 'tlon'] },
+          advertisedTools: { exact: ['message', 'tlon', 'tlon_browser_login'] },
           expectedCallCount: 2,
           // Observed against openclaw@2026.5.7: the fake model receives the
           // initial tool-call request and a follow-up request, but that
@@ -478,7 +478,7 @@ export const openclawDriver: BotDriver = {
           { kind: 'text', content: finalText },
         ],
         expectations: {
-          advertisedTools: { exact: ['message', 'tlon'] },
+          advertisedTools: { exact: ['message', 'tlon', 'tlon_browser_login'] },
           expectedCallCount: 2,
           // See sendMessage: the current OpenClaw transcript is observable as
           // a second model request but not as an OpenAI-format tool-result
@@ -523,7 +523,9 @@ export const openclawDriver: BotDriver = {
           { kind: 'text', content: finalText },
         ],
         expectations: {
-          advertisedTools: { exact: ['message', 'tlon', 'automations'] },
+          advertisedTools: {
+            exact: ['message', 'tlon', 'tlon_browser_login', 'automations'],
+          },
           expectedCallCount: 2,
           toolEffectOnly: true,
         },
