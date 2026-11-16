@@ -3,14 +3,15 @@ import path from 'node:path';
 import type { Step } from '../fake-model/index.js';
 import { botService } from '../runtime/context.js';
 import { waitFor } from '../runtime/waiters.js';
-import type {
-  BotDriver,
-  ComposeHandle,
-  CreateCronJobArgs,
-  DriverRuntimeSpec,
-  RuntimeCapability,
-  RuntimeContext,
-  RuntimeSeed,
+import {
+  type BotDriver,
+  type ComposeHandle,
+  type CreateCronJobArgs,
+  type DriverRuntimeSpec,
+  NON_OWNER_SCHEDULE_AT_OFFSET_MS,
+  type RuntimeCapability,
+  type RuntimeContext,
+  type RuntimeSeed,
 } from './types.js';
 
 // Not HERMES_AGENT_REF: the adapter's Docker dev loop reads that name (pinned
@@ -374,7 +375,10 @@ export const hermesDriver: BotDriver = {
 
     nonOwnerScheduleAttempt(args) {
       return {
-        steps: cronjobCreateSteps(args, 'in 1h'),
+        steps: cronjobCreateSteps(
+          args,
+          `in ${NON_OWNER_SCHEDULE_AT_OFFSET_MS / 3_600_000}h`
+        ),
         options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
         toolName: 'cronjob_manage',
         // The cronjob toolset is offered to every Tlon session; the adapter's

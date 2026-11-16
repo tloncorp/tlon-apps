@@ -285,11 +285,10 @@ describe('OpenClaw driver runtime spec', () => {
       expectations: {
         advertisedTools: { exact: ['message', 'tlon'] },
         expectedCallCount: 2,
-        toolEffectOnly: true,
+        toolLoopResult: true,
       },
     });
-    expect(readOrAdmin.expectations).not.toHaveProperty('toolLoopResult');
-    expect(readOrAdmin.expectations).not.toHaveProperty('streamedToolLoop');
+    expect(readOrAdmin.expectations).not.toHaveProperty('toolEffectOnly');
 
     expect(openclawDriver.model.imageSearch('cats')).toMatchObject({
       expectations: {
@@ -337,7 +336,7 @@ describe('OpenClaw driver runtime spec', () => {
       expectations: {
         advertisedTools: { exact: ['message', 'tlon', 'automations'] },
         expectedCallCount: 2,
-        toolEffectOnly: true,
+        toolLoopResult: true,
       },
     });
     const toolCall = createCronJob.steps[0];

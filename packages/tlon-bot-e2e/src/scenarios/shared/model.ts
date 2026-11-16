@@ -2,7 +2,6 @@ import type {
   BotDriver,
   ModelScript,
   NonOwnerScheduleAttempt,
-  ToolCallIdEcho,
 } from '../../drivers/types.js';
 import type { FakeModelClient, ReceivedCall } from '../../fake-model/index.js';
 import { sleep } from '../../runtime/waiters.js';
@@ -31,13 +30,14 @@ export async function registerModelScript(
 export function nonOwnerScheduleScript(
   attempt: NonOwnerScheduleAttempt
 ): ModelScript {
-  const tool = [attempt.toolName];
   return {
     steps: attempt.steps,
     options: attempt.options,
     expectations: {
       advertisedTools:
-        attempt.refusal === 'hidden' ? { exclude: tool } : { include: tool },
+        attempt.refusal === 'hidden'
+          ? { exclude: [attempt.toolName] }
+          : undefined,
       expectedCallCount: 2,
       expectedCallSequence: [
         { kind: 'model_request' },
@@ -47,7 +47,6 @@ export function nonOwnerScheduleScript(
       ],
       toolLoopResult: true,
       toolResultIncludes: attempt.refusalText,
-      toolCallIdEcho: attempt.toolCallIdEcho,
     },
   };
 }
@@ -59,6 +58,7 @@ export async function expectModelExpectations(
   options: ExpectModelExpectationsOptions = {}
 ): Promise<ReceivedCall[]> {
   assertExtraCallAllowanceIsClassified(script, key);
+  assertToolResultIncludesIsChecked(script, key);
   const received = await receivedCallsAfterSettle(
     fakeModel,
     key,
@@ -157,6 +157,24 @@ function assertExtraCallAllowanceIsClassified(
   throw new Error(
     `Model script ${key} allows ${allowExtraCalls} extra call(s) without ` +
       `allowUnclassifiedExtraCallsForDriverQuirk.`
+  );
+}
+
+function assertToolResultIncludesIsChecked(
+  script: ModelScript,
+  key: string
+): void {
+  const expectations = script.expectations;
+  if (
+    expectations?.toolResultIncludes === undefined ||
+    expectations.toolLoopResult ||
+    expectations.streamedToolLoop
+  ) {
+    return;
+  }
+  throw new Error(
+    `Model script ${key} sets toolResultIncludes without toolLoopResult or ` +
+      `streamedToolLoop, so it would never be checked.`
   );
 }
 
@@ -376,16 +394,17 @@ function assertToolLoopResult(
     );
   }
 
-  const echoedId = echoedToolCallId(
-    emittedToolCall.id,
-    script.expectations?.toolCallIdEcho ?? 'exact'
-  );
+  const emittedId = normalizedToolCallId(emittedToolCall.id);
   const followupMessages = calls[1].messages ?? [];
   const assistantEcho = followupMessages
     .flatMap((message) =>
       message.role === 'assistant' ? (message.tool_calls ?? []) : []
     )
-    .find((toolCall) => toolCall.id === echoedId);
+    .find(
+      (toolCall) =>
+        toolCall.id !== undefined &&
+        normalizedToolCallId(toolCall.id) === emittedId
+    );
   if (assistantEcho && assistantEcho.function.name !== expectedTool.name) {
     throw new Error(
       `Expected assistant tool call ${emittedToolCall.id} for ${key} to be ` +
@@ -396,12 +415,13 @@ function assertToolLoopResult(
   const toolResult = followupMessages.find(
     (message) =>
       (message.role === 'tool' || message.role === 'function') &&
-      message.tool_call_id === echoedId
+      message.tool_call_id !== undefined &&
+      normalizedToolCallId(message.tool_call_id) === emittedId
   );
   if (!toolResult) {
     throw new Error(
       `Expected second model request for ${key} to include a tool-result message ` +
-        `with tool_call_id ${echoedId}.`
+        `with tool_call_id ${emittedToolCall.id}.`
     );
   }
   if (!toolResult.content) {
@@ -423,8 +443,10 @@ function assertToolLoopResult(
   }
 }
 
-function echoedToolCallId(id: string, echo: ToolCallIdEcho): string {
-  return echo === 'alphanumeric' ? id.replace(/[^A-Za-z0-9]/g, '') : id;
+// Runtimes may sanitize the id they echo back; OpenClaw core keeps only
+// [A-Za-z0-9] (src/agents/tool-call-id.ts).
+function normalizedToolCallId(id: string): string {
+  return id.replace(/[^A-Za-z0-9]/g, '');
 }
 
 function assertCallSequence(

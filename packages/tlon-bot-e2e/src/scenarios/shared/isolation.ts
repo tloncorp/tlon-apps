@@ -247,7 +247,7 @@ export async function allowDmFrom(
   await sleep(750);
 }
 
-export async function openChannelAccess(
+async function openChannelAccess(
   actors: ScenarioActors,
   channelId: string
 ): Promise<void> {

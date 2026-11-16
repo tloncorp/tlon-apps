@@ -12,14 +12,15 @@ import {
   waitForHttpOk,
   waitForShipLogin,
 } from '../runtime/waiters.js';
-import type {
-  BotDriver,
-  ComposeHandle,
-  CreateCronJobArgs,
-  DriverRuntimeSpec,
-  RuntimeCapability,
-  RuntimeContext,
-  RuntimeSeed,
+import {
+  type BotDriver,
+  type ComposeHandle,
+  type CreateCronJobArgs,
+  type DriverRuntimeSpec,
+  NON_OWNER_SCHEDULE_AT_OFFSET_MS,
+  type RuntimeCapability,
+  type RuntimeContext,
+  type RuntimeSeed,
 } from './types.js';
 
 const OPTIONAL_COMPOSE_ENV_KEYS = ['BRAVE_API_KEY', 'TLONBOT_TOKEN'] as const;
@@ -53,7 +54,6 @@ const LEGACY_OPENCLAW_TOOLS = [
 ] as const;
 const BASELINE_OPENCLAW_TOOLS = ['tlon', 'message'] as const;
 const OPENCLAW_CRON_AT_OFFSET_MS = 180_000;
-const NON_OWNER_SCHEDULE_AT_OFFSET_MS = 3_600_000;
 // Must match dev/Dockerfile.test's ARG OPENCLAW_CORE_VERSION default and the
 // compose build-arg fallback.
 const DEFAULT_OPENCLAW_CORE_VERSION = '2026.9.33';
@@ -462,12 +462,8 @@ export const openclawDriver: BotDriver = {
         expectations: {
           advertisedTools: { exact: ['message', 'tlon'] },
           expectedCallCount: 2,
-          // Observed against openclaw@2026.5.7: the fake model receives the
-          // initial tool-call request and a follow-up request, but that
-          // follow-up does not contain an OpenAI role:tool/function message
-          // carrying the emitted tool_call_id. Shared scenarios therefore
-          // assert the visible reply plus Tlon side effect instead of claiming
-          // Hermes-style tool-result transcript coverage.
+          // No shared scenario runs this script, so its tool-result transcript
+          // is unobserved; readOrAdmin's and createCronJob's are asserted.
           toolEffectOnly: true,
         },
       };
@@ -484,10 +480,7 @@ export const openclawDriver: BotDriver = {
         expectations: {
           advertisedTools: { exact: ['message', 'tlon'] },
           expectedCallCount: 2,
-          // See sendMessage: the current OpenClaw transcript is observable as
-          // a second model request but not as an OpenAI-format tool-result
-          // message with the emitted tool_call_id.
-          toolEffectOnly: true,
+          toolLoopResult: true,
         },
       };
     },
@@ -508,7 +501,7 @@ export const openclawDriver: BotDriver = {
         expectations: {
           advertisedTools: { exact: ['message', 'tlon', 'automations'] },
           expectedCallCount: 2,
-          toolEffectOnly: true,
+          toolLoopResult: true,
         },
       };
     },
@@ -521,7 +514,6 @@ export const openclawDriver: BotDriver = {
         // loop answers the call as an unknown tool.
         refusal: 'hidden',
         refusalText: 'Tool automations not found',
-        toolCallIdEcho: 'alphanumeric',
       };
     },
 

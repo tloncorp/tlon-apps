@@ -596,14 +596,20 @@ describe('shared model script helpers', () => {
       });
     }
 
-    const alphanumeric = (id: string) => id.replace(/[^A-Za-z0-9]/g, '');
+    test('matches an unchanged id', async () => {
+      const script = toolLoopScript({ toolResultIncludes: 'not found' });
+      await answerToolCall('echo-exact', script, (id) => id);
 
-    test('alphanumeric matches an id with its other characters dropped', async () => {
-      const script = toolLoopScript({
-        toolCallIdEcho: 'alphanumeric',
-        toolResultIncludes: 'not found',
-      });
-      await answerToolCall('echo-alnum', script, alphanumeric);
+      await expect(
+        expectModelExpectations(fakeModel, 'echo-exact', script, noSettle)
+      ).resolves.toHaveLength(2);
+    });
+
+    test('matches an id with its punctuation dropped', async () => {
+      const script = toolLoopScript({ toolResultIncludes: 'not found' });
+      await answerToolCall('echo-alnum', script, (id) =>
+        id.replace(/[^A-Za-z0-9]/g, '')
+      );
       const [first] = await fakeModel.received('echo-alnum');
       expect(first?.responseToolCalls[0]?.id).toMatch(/_/);
 
@@ -612,21 +618,12 @@ describe('shared model script helpers', () => {
       ).resolves.toHaveLength(2);
     });
 
-    test('alphanumeric still rejects a different id', async () => {
-      const script = toolLoopScript({ toolCallIdEcho: 'alphanumeric' });
-      await answerToolCall('echo-alnum-wrong', script, () => 'callwrong');
-
-      await expect(
-        expectModelExpectations(fakeModel, 'echo-alnum-wrong', script, noSettle)
-      ).rejects.toThrow(/tool-result message with tool_call_id/);
-    });
-
-    test('the default requires the exact id', async () => {
+    test('rejects a different id', async () => {
       const script = toolLoopScript({});
-      await answerToolCall('echo-default', script, alphanumeric);
+      await answerToolCall('echo-wrong', script, () => 'callwrong');
 
       await expect(
-        expectModelExpectations(fakeModel, 'echo-default', script, noSettle)
+        expectModelExpectations(fakeModel, 'echo-wrong', script, noSettle)
       ).rejects.toThrow(/tool-result message with tool_call_id call_/);
     });
 
@@ -637,6 +634,22 @@ describe('shared model script helpers', () => {
       await expect(
         expectModelExpectations(fakeModel, 'result-text', script, noSettle)
       ).rejects.toThrow(/to contain "owner-only"/);
+    });
+
+    test('rejects toolResultIncludes when no tool-loop assertion runs', async () => {
+      const script = toolLoopScript({
+        toolLoopResult: false,
+        toolResultIncludes: 'owner-only',
+      });
+
+      await expect(
+        expectModelExpectations(
+          fakeModel,
+          'result-text-unchecked',
+          script,
+          noSettle
+        )
+      ).rejects.toThrow(/toolResultIncludes without toolLoopResult/);
     });
   });
 

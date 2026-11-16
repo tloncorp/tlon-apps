@@ -22,11 +22,11 @@ import type {
 import { normalizeShip } from '../../tlon/index.js';
 import type { ScenarioActor, ScenarioActors } from './actors.js';
 import {
+  CRON_LISTED_AS_TIMEOUT_MS,
   type CronCleanupTarget,
   cleanupCronJobAndArtifacts,
   cronJobListingName,
   cronJobsListedAs,
-  removeCronJobsListedAs,
   settleCronJobCreation,
   waitForCronJobCreated,
   waitForCronJobRemoved,
@@ -35,7 +35,6 @@ import { type SharedScenario, testScenario } from './dsl.js';
 import {
   allowDmFrom,
   monitorGroupChannels,
-  openChannelAccess,
   openChannelFor,
   settingsBucket,
   waitForSettingsEntries,
@@ -1393,7 +1392,10 @@ export const commonScenarios: readonly SharedScenario[] = [
 
   testScenario(
     'channel-two-speakers-non-owner-cannot-schedule',
-    { capabilities: ['cron'] },
+    {
+      capabilities: ['cron'],
+      timeoutMs: channelTwoSpeakersScenarioTimeoutMs,
+    },
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
       await openChannelFor({ ctx, driver, actors }, fixture.channelId);
@@ -1444,12 +1446,23 @@ export const commonScenarios: readonly SharedScenario[] = [
       );
       await expectModelExpectations(ctx.fakeModel, ownerKey, ownerScript);
 
-      const listingName = cronJobListingName(driver.name, job);
+      let noJobListed = false;
       actors.bot.teardown(
         async () => {
-          await removeCronJobsListedAs(ctx, driver.name, listingName);
+          if (noJobListed) {
+            return;
+          }
+          await cleanupCronJobAndArtifacts(
+            ctx,
+            driver.name,
+            {
+              name: cronJobListingName(driver.name, job),
+              creationSettled: Promise.resolve(),
+            },
+            { lateCaptureWaitMs: 0 }
+          );
         },
-        { label: `remove cron jobs listed as ${job.name}` }
+        { label: `remove cron job ${job.name}` }
       );
       const memberScript = nonOwnerScheduleScript(attempt);
       const memberTag = await registerModelScript(
@@ -1477,9 +1490,9 @@ export const commonScenarios: readonly SharedScenario[] = [
         memberReply,
         memberBaseline
       );
+      expect(await cronJobsListedAs(ctx, driver.name, job)).toEqual([]);
+      noJobListed = true;
       await expectModelExpectations(ctx.fakeModel, memberKey, memberScript);
-
-      expect(await cronJobsListedAs(ctx, driver.name, listingName)).toEqual([]);
     }
   ),
 
@@ -1556,7 +1569,7 @@ export const commonScenarios: readonly SharedScenario[] = [
     },
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
-      await openChannelAccess(actors, fixture.channelId);
+      await openChannelFor({ ctx, driver, actors }, fixture.channelId);
 
       const loopLimit = knownBotLoopLimit(ctx);
       const allowedTurns = Array.from({ length: loopLimit }, (_, index) => {
@@ -1708,7 +1721,7 @@ export const commonScenarios: readonly SharedScenario[] = [
     },
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
-      await openChannelAccess(actors, fixture.channelId);
+      await openChannelFor({ ctx, driver, actors }, fixture.channelId);
 
       const key = scenarioKey('sse-resume');
       const reply = `SSE resume reply ${key}`;
@@ -2838,6 +2851,17 @@ function knownBotLoopScenarioTimeoutMs(ctx: RuntimeContext): number {
     (allowedBotTurns + 2) * (MODEL_CALL_WAIT_MS + BOT_REPLY_WAIT_MS);
   const settleBudget = NEGATIVE_SETTLE_MS * 3;
   return dispatchWaitBudget + settleBudget + LOOP_TIMEOUT_MARGIN_MS;
+}
+
+function channelTwoSpeakersScenarioTimeoutMs(): number {
+  const turnBudget = 2 * (MODEL_CALL_WAIT_MS + BOT_REPLY_WAIT_MS);
+  const modelExpectationBudget = MODEL_EXPECTATION_SETTLE_MS * 2 * 2;
+  return (
+    turnBudget +
+    CRON_LISTED_AS_TIMEOUT_MS +
+    modelExpectationBudget +
+    CRON_SCENARIO_SETUP_MARGIN_MS
+  );
 }
 
 function cronModelDrivenScenarioTimeoutMs(): number {

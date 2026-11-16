@@ -242,11 +242,6 @@ export interface ModelScriptExpectations {
   toolLoopResult?: boolean;
   /** Text the toolLoopResult tool-result message must contain. */
   toolResultIncludes?: string;
-  /**
-   * How the runtime echoes the emitted tool-call id in its follow-up request.
-   * Defaults to 'exact'; see ToolCallIdEcho.
-   */
-  toolCallIdEcho?: ToolCallIdEcho;
   streamedToolLoop?: boolean;
   /**
    * The driver has observable tool side effects, but the fake-model received
@@ -259,12 +254,6 @@ export interface ModelScriptExpectations {
 }
 
 /**
- * 'alphanumeric': the runtime keeps only [A-Za-z0-9] of the id, as OpenClaw
- * core's strict tool-call id sanitizer does (src/agents/tool-call-id.ts).
- */
-export type ToolCallIdEcho = 'exact' | 'alphanumeric';
-
-/**
  * A member other than the owner asks the bot to schedule a job: the model
  * calls the runtime's scheduling tool, then replies with finalText.
  */
@@ -274,14 +263,16 @@ export interface NonOwnerScheduleAttempt {
   toolName: string;
   /**
    * 'hidden': the tool is not offered to the member, and the call is answered
-   * as an unknown or ungranted tool. 'refused': the tool is offered, and the
-   * call is answered with an owner-only refusal.
+   * as an unknown or ungranted tool. 'refused': the call is answered with an
+   * owner-only refusal; whether the tool is offered is not checked.
    */
   refusal: 'hidden' | 'refused';
   /** Text the refused call's tool result contains. */
   refusalText: string;
-  toolCallIdEcho?: ToolCallIdEcho;
 }
+
+/** How far ahead nonOwnerScheduleAttempt schedules its job. */
+export const NON_OWNER_SCHEDULE_AT_OFFSET_MS = 3_600_000;
 
 export type { ModelAuxiliaryCallKind };
 
@@ -301,7 +292,8 @@ export interface ModelScriptAdapter {
   createCronJob(args: CreateCronJobArgs): ModelScript;
   /**
    * The createCronJob call made by a member other than the owner, scheduled
-   * an hour ahead so a job created by mistake is still listed afterward.
+   * NON_OWNER_SCHEDULE_AT_OFFSET_MS ahead so a job created by mistake is
+   * still listed afterward.
    */
   nonOwnerScheduleAttempt(args: CreateCronJobArgs): NonOwnerScheduleAttempt;
   /**

@@ -5,20 +5,20 @@ import { createInterface } from 'node:readline';
 import type { Step } from '../fake-model/index.js';
 import { applyDesk } from '../runtime/branch-desk.js';
 import { sleep } from '../runtime/waiters.js';
-import type {
-  BotDriver,
-  CreateCronJobArgs,
-  CronJobSnapshot,
-  DriverRuntimeSpec,
-  ModelScript,
-  RuntimeContext,
+import {
+  type BotDriver,
+  type CreateCronJobArgs,
+  type CronJobSnapshot,
+  type DriverRuntimeSpec,
+  type ModelScript,
+  NON_OWNER_SCHEDULE_AT_OFFSET_MS,
+  type RuntimeContext,
 } from './types.js';
 
 const ACP_CALL_TIMEOUT_MS = 90_000;
 const HARNESS_MODEL = 'tlon-test-scripted';
 // Far enough ahead that the creating turn finishes before the job fires.
 const SCHEDULE_AT_OFFSET_MS = 60_000;
-const NON_OWNER_SCHEDULE_AT_OFFSET_MS = 3_600_000;
 const SCHEDULE_POLL_INTERVAL_MS = 500;
 
 function harnessUnsupported(method: string): never {
@@ -227,28 +227,42 @@ export const harnessDriver: BotDriver = {
   },
 
   async openChannelToMembers(ctx, channelId) {
-    await updateChannelRules(ctx, (channels) => [
-      ...channels,
-      { channel: channelId, response: 'mentions', everyone: true },
-    ]);
+    const otherChannels = (channels: HarnessChannelRule[]) =>
+      channels.filter((rule) => rule.channel !== channelId);
+    let previous: HarnessChannelRule | undefined;
+    await updateTlonPolicy(ctx, ({ channels }) => {
+      previous = channels.find((rule) => rule.channel === channelId);
+      return {
+        channels: [
+          ...otherChannels(channels),
+          { channel: channelId, response: 'mentions', everyone: true },
+        ],
+      };
+    });
+    const restore = previous;
+    // Rereads the policy so only this channel's rule changes back.
     return async () => {
-      await updateChannelRules(ctx, (channels) =>
-        channels.filter((rule) => rule.channel !== channelId)
-      );
+      await updateTlonPolicy(ctx, ({ channels }) => ({
+        channels: restore
+          ? [...otherChannels(channels), restore]
+          : otherChannels(channels),
+      }));
     };
   },
 
   async allowDmSender(ctx, ship) {
     let undo: DmGrant['undo'];
-    await updateAllowedShips(ctx, (allowed) => {
+    await updateTlonPolicy(ctx, ({ allowed }) => {
       const grant = dmGrant(allowed, ship);
       undo = grant.undo;
-      return grant.allowed;
+      return { allowed: grant.allowed };
     });
     const revoke = undo;
     return async () => {
       if (revoke) {
-        await updateAllowedShips(ctx, revoke);
+        await updateTlonPolicy(ctx, ({ allowed }) => ({
+          allowed: revoke(allowed),
+        }));
       }
     };
   },
@@ -369,9 +383,9 @@ function scheduleOnceSteps(
   ];
 }
 
-async function updateChannelRules(
+async function updateTlonPolicy(
   ctx: RuntimeContext,
-  update: (channels: HarnessChannelRule[]) => HarnessChannelRule[]
+  update: (policy: HarnessPolicy) => Partial<HarnessPolicy>
 ): Promise<void> {
   await withHarnessAcp(ctx, async (call) => {
     const { policy, revision } = (await call(
@@ -379,24 +393,7 @@ async function updateChannelRules(
     )) as HarnessTlonStatus;
     await call('harness/tlon/configure', {
       ...policy,
-      channels: update(policy.channels),
-      expectedOwner: policy.owner,
-      expectedRevision: revision,
-    });
-  });
-}
-
-async function updateAllowedShips(
-  ctx: RuntimeContext,
-  update: (allowed: string[]) => string[]
-): Promise<void> {
-  await withHarnessAcp(ctx, async (call) => {
-    const { policy, revision } = (await call(
-      'harness/tlon'
-    )) as HarnessTlonStatus;
-    await call('harness/tlon/configure', {
-      ...policy,
-      allowed: update(policy.allowed),
+      ...update(policy),
       expectedOwner: policy.owner,
       expectedRevision: revision,
     });
