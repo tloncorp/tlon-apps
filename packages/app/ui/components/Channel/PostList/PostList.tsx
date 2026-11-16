@@ -63,6 +63,10 @@ import {
 
 const ANCHOR_RESOLUTION_TIMEOUT_MS = 2_000;
 const ESTIMATED_ITEM_SIZE = 120;
+const MAX_ANCHOR_SETTLE_ATTEMPTS = 2;
+const ANCHOR_SETTLE_TOLERANCE = 2;
+const nextFrame = () =>
+  new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
 // Keep the native anchor attached across end-following and history modes.
 // Toggling it during an iOS gesture can reuse a stale native anchor frame and
@@ -480,6 +484,58 @@ function useConversationAnchorTarget({
     return true;
   }, [diagnosticsRef, listRef]);
 
+  /**
+   * How far the post the list opened on sits from where it was asked to be,
+   * in points (positive: lower on screen). Zero when the list cannot move it
+   * closer: at its end with the post lower, or at its start with it higher.
+   */
+  const anchorDrift = React.useCallback(() => {
+    const target = latestAnchorPositionRef.current;
+    const state = listRef.current?.getState();
+    if (typeof target !== 'object' || !state) {
+      return 0;
+    }
+    const size = state.sizeAtIndex(target.index);
+    // Row positions start below the content's top padding, the header's
+    // height; the requested offset is measured from the top of the screen.
+    const top =
+      state.positionAtIndex(target.index) -
+      state.scroll +
+      (contentInsets?.top ?? 0);
+    const wanted =
+      (target.viewPosition ?? 0) * (state.scrollLength - size) +
+      (target.viewOffset ?? 0);
+    const drift = top - wanted;
+    if ((drift > 0 && state.isAtEnd) || (drift < 0 && state.scroll <= 0)) {
+      return 0;
+    }
+    return drift;
+  }, [contentInsets?.top, listRef]);
+
+  // Rows that come into view with the exact position are measured a frame
+  // later, and one far off its estimate can move the post the list opened on
+  // before it is shown; near the end nothing else corrects that. Check once
+  // the new rows have laid out, and apply the position again if it moved.
+  const settleAnchorPosition = React.useCallback(async () => {
+    // The end is held by end-following, not by this position.
+    if (typeof latestAnchorPositionRef.current !== 'object') {
+      return;
+    }
+    for (let attempt = 0; attempt < MAX_ANCHOR_SETTLE_ATTEMPTS; attempt++) {
+      await nextFrame();
+      await nextFrame();
+      const drift = anchorDrift();
+      if (Math.abs(drift) <= ANCHOR_SETTLE_TOLERANCE) {
+        return;
+      }
+      diagnosticsRef.current?.note(
+        'position',
+        `the post it opened on moved ${Math.round(drift)} after layout; applying the position again`
+      );
+      await applyAnchorPosition();
+    }
+  }, [anchorDrift, applyAnchorPosition, diagnosticsRef]);
+
   /** Whether the post the list opened on is anywhere in the viewport. */
   const isAnchorOnScreen = React.useCallback(() => {
     const target = latestAnchorPositionRef.current;
@@ -499,6 +555,7 @@ function useConversationAnchorTarget({
     applyAnchorPosition,
     initialScrollIndex,
     isAnchorOnScreen,
+    settleAnchorPosition,
   };
 }
 
@@ -527,6 +584,7 @@ function useInitialConversationScroll({
     appliedAnchorPositionRef,
     applyAnchorPosition,
     isAnchorOnScreen,
+    settleAnchorPosition,
   } = anchorTarget;
 
   const finishInitialScroll = React.useCallback(() => {
@@ -539,6 +597,7 @@ function useInitialConversationScroll({
     }
     didStartInitialScrollRef.current = true;
     void applyAnchorPosition()
+      .then(() => (attemptIsActiveRef.current ? settleAnchorPosition() : null))
       .then(() => {
         if (attemptIsActiveRef.current) {
           finishInitialScroll();
@@ -551,7 +610,12 @@ function useInitialConversationScroll({
           finishInitialScroll();
         }
       });
-  }, [applyAnchorPosition, finishInitialScroll, isInitialAnchorReady]);
+  }, [
+    applyAnchorPosition,
+    finishInitialScroll,
+    isInitialAnchorReady,
+    settleAnchorPosition,
+  ]);
 
   // LegendList has no settled-layout callback: onLoad fires before its
   // next-frame buffer expansion, so wait through two layout opportunities
