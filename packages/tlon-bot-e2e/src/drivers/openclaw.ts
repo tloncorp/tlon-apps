@@ -429,7 +429,7 @@ export const openclawDriver: BotDriver = {
       return {
         steps: [{ kind: 'text', content: text }],
         expectations: {
-          advertisedTools: { exact: ['message', 'tlon'] },
+          advertisedTools: { exact: ['message', 'tlon', 'tlon_browser_login'] },
           expectedCallCount: 1,
         },
       };
@@ -439,7 +439,7 @@ export const openclawDriver: BotDriver = {
       return {
         steps: texts.map((content) => ({ kind: 'text' as const, content })),
         expectations: {
-          advertisedTools: { exact: ['message', 'tlon'] },
+          advertisedTools: { exact: ['message', 'tlon', 'tlon_browser_login'] },
           expectedCallCount: texts.length,
         },
       };
@@ -460,7 +460,7 @@ export const openclawDriver: BotDriver = {
           { kind: 'text', content: 'Done' },
         ],
         expectations: {
-          advertisedTools: { exact: ['message', 'tlon'] },
+          advertisedTools: { exact: ['message', 'tlon', 'tlon_browser_login'] },
           expectedCallCount: 2,
           // No shared scenario runs this script, so its tool-result transcript
           // is unobserved; readOrAdmin's and createCronJob's are asserted.
@@ -478,7 +478,7 @@ export const openclawDriver: BotDriver = {
           { kind: 'text', content: finalText },
         ],
         expectations: {
-          advertisedTools: { exact: ['message', 'tlon'] },
+          advertisedTools: { exact: ['message', 'tlon', 'tlon_browser_login'] },
           expectedCallCount: 2,
           toolLoopResult: true,
         },
@@ -499,7 +499,9 @@ export const openclawDriver: BotDriver = {
       return {
         steps: automationsAddSteps(args, OPENCLAW_CRON_AT_OFFSET_MS),
         expectations: {
-          advertisedTools: { exact: ['message', 'tlon', 'automations'] },
+          advertisedTools: {
+            exact: ['message', 'tlon', 'tlon_browser_login', 'automations'],
+          },
           expectedCallCount: 2,
           toolLoopResult: true,
         },
