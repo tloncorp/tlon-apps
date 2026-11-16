@@ -424,9 +424,9 @@ export function createWorkspaceCreateToolExecutor(deps: {
 
     // New channels go to the top of the list; put them in the card's order.
     if (!proposal.ordered) {
-      for (const nest of nests.slice(1)) {
+      for (const [index, nest] of nests.entries()) {
         await run(
-          `groups move-channel ${groupId} ${nest} --section default`,
+          `groups move-channel ${groupId} ${nest} --section default --index ${index}`,
           'ordering the channels'
         );
       }
