@@ -94,6 +94,7 @@ import {
   onboardingClientDateTimeNote,
   onboardingDmContextNote,
 } from '../onboarding-turn-context.js';
+import { ownerDmWorkspaceNote } from '../workspace-spinoff.js';
 import {
   type PendingNudge,
   clearPendingNudge,
@@ -3571,6 +3572,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         if (clientDateTime) {
           bodyWithAttachments += onboardingClientDateTimeNote(clientDateTime);
         }
+      }
+      if (
+        !isGroup &&
+        !params.onboardingDmTarget &&
+        effectiveOwnerShip &&
+        isOwner(senderShip)
+      ) {
+        bodyWithAttachments += ownerDmWorkspaceNote(effectiveOwnerShip);
       }
 
       const body = core.channel.reply.formatAgentEnvelope({
