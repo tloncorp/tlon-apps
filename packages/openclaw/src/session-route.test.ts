@@ -138,9 +138,10 @@ describe('tlonPlugin agent tools', () => {
     vi.unstubAllEnvs();
   });
 
-  it('exposes the onboarding tools through the channel', () => {
+  it('exposes the onboarding and workspace card tools through the channel', () => {
     vi.stubEnv('TLON_OWNER_TIMEZONE_FILE', '');
     expect(toolNames()).toEqual([
+      'tlon_workspace_plan',
       'tlon_agent_choice',
       'tlon_agent_task_plan',
       'tlon_agent_service_setup',

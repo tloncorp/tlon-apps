@@ -5,7 +5,8 @@
   ],
   "contracts": {
     "tools": [
-      "tlon"
+      "tlon",
+      "tlon_workspace_create"
     ]
   },
   "skills": [
