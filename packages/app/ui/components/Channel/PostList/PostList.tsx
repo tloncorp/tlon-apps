@@ -980,7 +980,11 @@ const ConversationPostListAttempt = React.forwardRef<
     const renderAnimatedItem = usePostArrivalAnimation({
       posts: postsWithNeighbors,
       renderItem,
+      // Posts that arrive while another screen covers this one were never
+      // seen arriving; they should be in place, not fading in, on the way
+      // back.
       enabled:
+        screenIsFocused &&
         anchorToEnd &&
         didFinishInitialScroll &&
         isNearEnd &&
