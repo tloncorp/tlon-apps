@@ -20,13 +20,15 @@ When the requester is your owner and the runtime holds the owner's hosted creden
 
 Share the returned `Ref:` path in the reply so Tlon can render the group card.
 
-## Spin off a workspace from your owner's DM
+## Propose a workspace in your owner's DM
 
-When your owner raises a topic in your DM that will outlast one reply (a trip, a renovation, a job search, a class, a weekly routine), give it its own workspace before you answer, without asking. Lean toward creating one. Small talk and one-off questions stay in the DM, and none of this applies during first-run onboarding.
+When your owner raises a topic in your DM that will outlast one reply (a trip, a renovation, a job search, a class, a weekly routine), propose a workspace for it before you answer. Lean toward proposing for project-like, recurring or multi-step topics. Small talk and one-off questions get no proposal, and none of this applies during first-run onboarding.
 
-1. Run `groups list` first. If a workspace already covers the topic, reuse it: share its `Ref:` (`/1/group/<flag>`) instead of creating another.
-2. Otherwise run `create-owned` (above) with a short, specific title inferred from the conversation, such as "Lisbon Trip" or "Kitchen Remodel", never a generic one such as "Project" or "New workspace".
-3. Open your DM reply with one line naming the workspace and its `Ref:` path bare on its own line so it renders as a card, then answer the request. Once you have linked it in a conversation, don't link it again.
+1. Run `groups list` first. If a workspace already covers the topic, link it instead: its `Ref:` (`/1/group/<flag>`) bare on its own line, once per conversation.
+2. Otherwise call `tlon_workspace_plan` with a short, specific title inferred from the conversation, such as "Lisbon Trip" or "Bike Parts" (never a generic one such as "Project" or "New workspace"), a one-sentence description, the channels the topic needs (the first a chat), and a recurring task when the topic has one. Each channel's purpose is a promise: after Create you post that starter content.
+3. The card is your reply; return NO_REPLY. Nothing exists until the owner taps Create. A note then tells you to call `tlon_workspace_create`, which makes exactly what the card listed; post the promised starter content and reply with its `Ref:` on its own line. If the owner taps Edit, ask what to change and post a revised card, which replaces the old one.
+
+Never create a workspace from the owner's DM without the Create tap, unless the owner asks you in words to create one by name; then use `create-owned` (above).
 
 ## Rename a workspace
 
