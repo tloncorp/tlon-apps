@@ -1,8 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import entry from '../index.js';
-import { resumeBrowserContinuation } from './browser-continuation.js';
-import { runBrowserSessionHandoff } from './browser-session-handoff.js';
 
 import { publishContextLensEvent } from './context-lens-events.js';
 import {
@@ -29,16 +27,6 @@ import {
 } from './owner-only-tools.js';
 import { _testing, setSessionRole } from './session-roles.js';
 import { TLON_APP_BROWSER_BLOCK_REASON } from './tlon-app-browser-gate.js';
-
-vi.mock('./browser-session-handoff.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./browser-session-handoff.js')>()),
-  runBrowserSessionHandoff: vi.fn().mockResolvedValue('Card sent'),
-}));
-
-vi.mock('./browser-continuation.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./browser-continuation.js')>()),
-  resumeBrowserContinuation: vi.fn(async () => ({ runId: 'resumed-turn' })),
-}));
 
 vi.mock('./context-lens.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./context-lens.js')>();
@@ -494,90 +482,6 @@ describe('before_tool_call cron args guard', () => {
       handler(DIRTY_ADD, { sessionKey: OWNER_SESSION })
     ).resolves.toBeUndefined();
     expect(cronArgsBlockedLogs(logs)).toHaveLength(0);
-  });
-});
-
-describe('saved login approval hook', () => {
-  it('clears legacy field-based delivery state at agent end', async () => {
-    vi.mocked(runBrowserSessionHandoff).mockClear();
-    const { hooks } = registerEntry();
-    type Context = { sessionKey: string; runId?: string };
-    const after = hooks.get('after_tool_call') as (
-      event: unknown,
-      ctx: Context
-    ) => Promise<void>;
-    const end = hooks.get('agent_end') as (
-      event: unknown,
-      ctx: Context
-    ) => void;
-    const event = {
-      toolName: 'mcp__call',
-      params: {
-        name: 'browser_browser_login',
-        arguments: {
-          session_id: 'same-browser',
-          action: 'use',
-          fields: ['@e12'],
-        },
-      },
-      result: {
-        details: {
-          structuredContent: {
-            session_id: 'same-browser',
-            login: { status: 'approval_required' },
-          },
-        },
-      },
-    };
-    const first = { sessionKey: OWNER_SESSION, runId: 'first' };
-    const second = { sessionKey: OWNER_SESSION, runId: 'second' };
-    await after(event, first);
-    await after(event, first);
-    expect(runBrowserSessionHandoff).toHaveBeenCalledTimes(1);
-    await after(event, second);
-    expect(runBrowserSessionHandoff).toHaveBeenCalledTimes(2);
-    end({ messages: [], success: true, durationMs: 1 }, second);
-    await after(event, second);
-    expect(runBrowserSessionHandoff).toHaveBeenCalledTimes(3);
-  });
-
-  it('sends the owner a secure card when the browser requires approval', async () => {
-    vi.mocked(runBrowserSessionHandoff).mockClear();
-    const config = {};
-    const { hooks } = registerEntry(config);
-    const handler = hooks.get('after_tool_call') as (
-      event: unknown,
-      ctx: { sessionKey: string }
-    ) => Promise<void>;
-    await handler(
-      {
-        toolName: 'mcp__call',
-        params: {
-          name: 'browser_browser_login',
-          arguments: {
-            session_id: 'fresh-ivory-finch',
-            action: 'use',
-            fields: ['@e12'],
-          },
-        },
-        result: {
-          details: {
-            structuredContent: {
-              session_id: 'fresh-ivory-finch',
-              login: { status: 'approval_required' },
-            },
-          },
-        },
-      },
-      { sessionKey: OWNER_SESSION }
-    );
-    expect(runBrowserSessionHandoff).toHaveBeenCalledExactlyOnceWith(
-      expect.any(String),
-      ['browser', 'approve-login', 'fresh-ivory-finch', '--fields', '["@e12"]'],
-      config,
-      expect.any(Function),
-      true
-    );
   });
 });
 
@@ -1449,32 +1353,15 @@ it('lets owner and role-less sessions call MCP tools', async () => {
   ).resolves.toBeUndefined();
 });
 
-it('blocks browser use and fresh approval cards until a stored result is delivered', async () => {
+it('blocks browser use until a stored result is delivered', async () => {
   setSessionRole(OWNER_SESSION, 'owner');
-  vi.mocked(runBrowserSessionHandoff).mockClear();
-  const { handler, hooks } = registerEntry();
-  const after = hooks.get('after_tool_call') as (
-    event: unknown,
-    ctx: { sessionKey: string }
-  ) => Promise<void>;
+  const { handler } = registerEntry();
   const ctx = { sessionKey: OWNER_SESSION };
   const event = {
     toolName: 'mcp__call',
     params: {
-      name: 'browser_browser_login',
-      arguments: {
-        session_id: 'blocked-browser',
-        action: 'use',
-        fields: ['@e12'],
-      },
-    },
-    result: {
-      details: {
-        structuredContent: {
-          session_id: 'blocked-browser',
-          login: { status: 'approval_required' },
-        },
-      },
+      name: 'browser_browser_act',
+      arguments: { session_id: 'blocked-browser' },
     },
   };
   handoffRecords.set('blocked-browser', {
@@ -1484,65 +1371,44 @@ it('blocks browser use and fresh approval cards until a stored result is deliver
     block: true,
     blockReason: expect.stringContaining('waiting for secure entry'),
   });
-  await after(event, ctx);
-  expect(runBrowserSessionHandoff).not.toHaveBeenCalled();
   handoffRecords.delete('blocked-browser');
   await expect(handler(event, ctx)).resolves.toBeUndefined();
-  await after(event, ctx);
-  expect(runBrowserSessionHandoff).toHaveBeenCalledOnce();
 });
 
-it.each([false, true])(
-  'reports approval delivery failure without leaking upstream errors (queue fallback: %s)',
-  async (fallback) => {
-    vi.mocked(runBrowserSessionHandoff).mockRejectedValueOnce(
-      new Error('private-token')
-    );
-    const resume = vi.mocked(resumeBrowserContinuation);
-    resume.mockClear();
-    if (fallback)
-      resume.mockRejectedValueOnce(new Error('private-resume-token'));
-    const { hooks, logs } = registerEntry();
-    const handler = hooks.get('after_tool_call') as (
-      event: unknown,
-      ctx: { sessionKey: string }
-    ) => Promise<void>;
-    await handler(
-      {
-        toolName: 'mcp__call',
-        params: {
-          name: 'browser_browser_login',
-          arguments: {
-            session_id: 'delivery-failure',
-            action: 'use',
-            fields: ['@e12'],
-          },
-        },
-        result: {
-          details: {
-            structuredContent: {
-              session_id: 'delivery-failure',
-              login: { status: 'approval_required' },
-            },
-          },
-        },
-      },
-      { sessionKey: OWNER_SESSION }
-    );
-    expect(resume).toHaveBeenCalledExactlyOnceWith(expect.any(Function), {
-      sessionKey: OWNER_SESSION,
-      deliver: true,
-      message: expect.stringContaining(
-        'Saved-login approval delivery failed for browser session delivery-failure.'
-      ),
+it.each(['mcp__call', 'mcp__mcp__call'])(
+  'routes saved-login use to the awaited tool from %s',
+  async (toolName) => {
+    setSessionRole(OWNER_SESSION, 'owner');
+    const { handler } = registerEntry();
+    const ctx = { sessionKey: OWNER_SESSION };
+    const makeCall = (args: Record<string, unknown> | string) => ({
+      toolName,
+      params: { name: 'browser_browser_login', arguments: args },
     });
-    const message = resume.mock.calls[0][1].message;
-    expect(logs.includes(`system:${OWNER_SESSION}:${message}`)).toBe(fallback);
-    expect(`${message}\n${logs.join('\n')}`).not.toMatch(
-      /private-(resume-)?token/
-    );
+    for (const action of ['list', 'prepare']) {
+      await expect(handler(makeCall({ action }), ctx)).resolves.toBeUndefined();
+    }
+    for (const args of [{}, { action: 'use' }, '{"action":"use"}']) {
+      await expect(handler(makeCall(args), ctx)).resolves.toMatchObject({
+        block: true,
+        blockReason: expect.stringContaining('tlon_browser_login'),
+      });
+    }
   }
 );
+
+it('keeps the awaited browser login tool owner-only', async () => {
+  setSessionRole(OWNER_SESSION, 'owner');
+  setSessionRole(USER_SESSION, 'user');
+  const { handler } = registerEntry();
+  const event = { toolName: 'tlon_browser_login', params: {} };
+  await expect(
+    handler(event, { sessionKey: OWNER_SESSION })
+  ).resolves.toBeUndefined();
+  await expect(
+    handler(event, { sessionKey: USER_SESSION })
+  ).resolves.toMatchObject({ block: true });
+});
 
 describe('before_tool_call cron during first-run setup', () => {
   const ctx = { sessionKey: OWNER_SESSION };

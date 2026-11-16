@@ -71,8 +71,9 @@ or changed control requires a fresh snapshot and a new handoff. Do not remove
 `--fields` to recover from a selection failure: that broadens the request.
 
 `browser handoff` requires `--fields`. For a saved login, follow the
-`hosted-browser` skill and call `browser_login` with `action: "use"`. The
-plugin sends the approval card and resumes the conversation with the result.
+`hosted-browser` skill to list saved logins and prepare the form. Call
+`tlon_browser_login` to send the approval card. If it confirms delivery, wait
+for the plugin to resume the conversation with the owner’s decision.
 If the owner cancels or delivery fails, end the attempt. Start fresh only if
 the owner asks again.
 The secure-entry sheet saves supported logins with ask-before-use permission;

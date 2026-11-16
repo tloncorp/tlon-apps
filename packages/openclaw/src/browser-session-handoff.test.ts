@@ -16,6 +16,7 @@ import {
   runBrowserSessionHandoff as runHandoff,
 } from './browser-session-handoff.js';
 import { shellSplitCommand } from './tlon-tool-command.js';
+import { createBrowserLoginApprovalExecutor } from './browser-login-approval.js';
 
 const cancelWatch = vi.fn().mockResolvedValue(undefined);
 const watchHandoff = vi.fn().mockResolvedValue(cancelWatch);
@@ -124,34 +125,74 @@ describe('browser session handoff', () => {
     }
   );
 
-  it('closes the prepared approval and its watcher when sending the card fails', async () => {
+  it('holds the saved-login tool result until a rejected send closes the handoff and its watcher', async () => {
     const url = viewerUrl();
     reply({ session_id: handle, viewer_url: url });
     const prepare = urbitFetch.getMockImplementation()!;
+    const send = Promise.withResolvers<string>();
+    const cancel = Promise.withResolvers<{
+      response: Response;
+      release: () => void;
+    }>();
     urbitFetch.mockImplementation((request) =>
-      request.init.method === 'DELETE'
-        ? Promise.resolve({ response: new Response(), release: vi.fn() })
-        : prepare(request)
+      request.init.method === 'DELETE' ? cancel.promise : prepare(request)
     );
-    runBrowserHandoffCommand.mockRejectedValueOnce(new Error('Cannot send'));
+    runBrowserHandoffCommand.mockReturnValueOnce(send.promise);
+    const execute = createBrowserLoginApprovalExecutor({
+      isPending: async () => false,
+      useLogin: async () => ({
+        metadata: {
+          session_id: handle,
+          login: { status: 'approval_required' },
+        },
+        isError: false,
+      }),
+      sendHandoff: () =>
+        runHandoff(
+          'tlon',
+          ['browser', 'approve-login', handle, '--form-id', sessionId],
+          config,
+          watchHandoff,
+          true
+        ),
+      warn: vi.fn(),
+    });
 
-    await expect(
-      runHandoff(
-        'tlon',
-        ['browser', 'approve-login', handle, '--form-id', sessionId],
-        config,
-        watchHandoff,
-        true
-      )
-    ).rejects.toThrow('Could not send the secure browser form.');
-    expect(cancelWatch).toHaveBeenCalledOnce();
-    expect(urbitFetch).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        baseUrl: new URL(url).origin,
-        path: new URL(url).pathname.replace('/s/', '/credentials/'),
-        init: expect.objectContaining({ method: 'DELETE' }),
-      })
+    const finished = vi.fn();
+    const invocation = execute(
+      {
+        session_id: handle,
+        form_id: sessionId,
+        record: { id: 'saved-account', revision: 1 },
+        bindings: [{ sourceField: 'email', targetField: 'f0' }],
+      },
+      { sessionKey: 'owner-conversation' }
+    ).then((outcome) => {
+      finished(outcome);
+      return outcome;
+    });
+    await vi.waitFor(() =>
+      expect(runBrowserHandoffCommand).toHaveBeenCalledOnce()
     );
+    expect(watchHandoff).toHaveBeenCalledOnce();
+    expect(finished).not.toHaveBeenCalled();
+
+    send.reject(new Error('Cannot send'));
+    await vi.waitFor(() =>
+      expect(urbitFetch).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          baseUrl: new URL(url).origin,
+          path: new URL(url).pathname.replace('/s/', '/credentials/'),
+          init: expect.objectContaining({ method: 'DELETE' }),
+        })
+      )
+    );
+    expect(cancelWatch).toHaveBeenCalledOnce();
+    expect(finished).not.toHaveBeenCalled();
+    cancel.resolve({ response: new Response(), release: vi.fn() });
+    await expect(invocation).resolves.toMatchObject({
+      details: { status: 'delivery_failed', session_id: handle },
+    });
   });
 
   it('passes service-provided presentation to the private delivery command', async () => {

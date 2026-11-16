@@ -155,6 +155,7 @@ export const SEALED_HEARTBEAT_ALLOWED_TOOLS: ReadonlySet<string> = new Set([
   'web_search',
   'web_fetch',
   'browser',
+  'tlon_browser_login',
   'memory_search',
   'memory_get',
   // The owner's own MCP connections (list, search, describe, call).
@@ -658,9 +659,10 @@ function toolRuleReason(
   // The hosted browser shares the owner's sessions and saved accounts.
   // Protect all browser operations, including reading an authenticated page.
   if (
-    toolName === 'mcp__call' &&
-    typeof params?.name === 'string' &&
-    params.name.startsWith('browser_')
+    toolName === 'tlon_browser_login' ||
+    (toolName === 'mcp__call' &&
+      typeof params?.name === 'string' &&
+      params.name.startsWith('browser_'))
   ) {
     return formatOwnerOnlyToolBlockReason('browser');
   }

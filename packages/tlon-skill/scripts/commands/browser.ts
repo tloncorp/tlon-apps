@@ -33,7 +33,7 @@ export const BROWSER_HELP = `${BROWSER_HANDOFF_HELP}
 Use browser share to send a browser card that opens the live session.
 Never send raw or labeled browser-session links in ordinary messages.
 
-Use browser_login for saved logins. The plugin sends the approval card when owner approval is required.
+Use the tlon_browser_login tool to request approval for a prepared saved login.
 
 Use browser handoff to send a native secure-entry card for login identifiers,
 passwords, verification codes, card fields, and private personal details.

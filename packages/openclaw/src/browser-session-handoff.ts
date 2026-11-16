@@ -19,7 +19,7 @@ import {
   type BrowserHandoffRequest,
 } from './browser-handoff-results.js';
 
-export const BROWSER_SESSION_HANDOFF_HELP = String.raw`Usage: browser handoff <session_id> --fields <JSON array> or browser share <session_id> (the session ID from browser_session_create). For a saved login, use browser_login; the plugin delivers its approval card. For manual entry, the card fills only the selected controls; the agent inspects the page and chooses the next action. Prefer current snapshot refs: browser handoff <session_id> --fields '["@e12","@e13"]'. Exact {"name":"..."}/{"label":"..."} selectors must match uniquely. For labels containing apostrophes, encode the apostrophe as \u0027 inside the single-quoted JSON: browser handoff <session_id> --fields '[{"label":"Owner\u0027s email address"}]'. Do not supply a viewer URL or field values.`;
+export const BROWSER_SESSION_HANDOFF_HELP = String.raw`Usage: browser handoff <session_id> --fields <JSON array> or browser share <session_id> (the session ID from browser_session_create). For a prepared saved login, call tlon_browser_login to request approval. For manual entry, the card fills only the selected controls; the agent inspects the page and chooses the next action. Prefer current snapshot refs: browser handoff <session_id> --fields '["@e12","@e13"]'. Exact {"name":"..."}/{"label":"..."} selectors must match uniquely. For labels containing apostrophes, encode the apostrophe as \u0027 inside the single-quoted JSON: browser handoff <session_id> --fields '[{"label":"Owner\u0027s email address"}]'. Do not supply a viewer URL or field values.`;
 
 export const formFieldsSchema = z
   .array(
@@ -54,6 +54,7 @@ const TRANSIENT_NETWORK_CODES = new Set([
 
 class TransientBrowserLookupError extends Error {}
 class BrowserSelectionRejectedError extends Error {}
+export class BrowserHandoffCleanupError extends Error {}
 
 function isTransientLookupError(error: unknown): boolean {
   for (let depth = 0; error && depth < 5; depth++) {
@@ -182,6 +183,92 @@ function validateViewerUrl(value: unknown, selected = false): string {
 }
 
 /** The ship's stateless aggregate proxy owns upstream MCP sessions and headers. */
+export async function callBrowserMcpTool(
+  config: OpenClawConfig,
+  allowPrivateNetwork: boolean | null,
+  name: string,
+  args: Record<string, unknown>,
+  timeoutMs: number,
+  signal?: AbortSignal,
+  rateLimitIsTransient = false
+): Promise<{ metadata: Record<string, unknown>; isError: boolean }> {
+  const server = record(record(record(record(config).mcp).servers).mcp);
+  if (
+    server.transport !== 'streamable-http' ||
+    server.enabled === false ||
+    typeof server.url !== 'string'
+  ) {
+    throw new Error('Missing configured MCP proxy.');
+  }
+  const url = new URL(server.url);
+  if (
+    !['https:', 'http:'].includes(url.protocol) ||
+    url.username ||
+    url.password ||
+    url.pathname !== '/apps/mcp/mcp' ||
+    url.search ||
+    url.hash
+  ) {
+    throw new Error('Invalid configured MCP proxy.');
+  }
+  const headers = record(server.headers);
+  if (
+    !Object.values(headers).every((value) => typeof value === 'string') ||
+    !Object.entries(headers).some(
+      ([name, value]) =>
+        name.toLowerCase() === 'x-api-key' &&
+        typeof value === 'string' &&
+        value.trim()
+    )
+  ) {
+    throw new Error('Missing configured MCP proxy credential.');
+  }
+  const id = randomUUID();
+  const request = await urbitFetch({
+    baseUrl: url.origin,
+    path: url.pathname,
+    init: {
+      method: 'POST',
+      headers: {
+        ...(headers as Record<string, string>),
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id,
+        method: 'tools/call',
+        params: { name, arguments: args },
+      }),
+    },
+    ssrfPolicy: ssrfPolicyFromAllowPrivateNetwork(allowPrivateNetwork),
+    timeoutMs,
+    signal,
+    maxRedirects: 0,
+    auditContext: 'tlon-browser-handoff',
+  });
+  try {
+    if (
+      [408, 500, 502, 503, 504].includes(request.response.status) ||
+      (rateLimitIsTransient && request.response.status === 429)
+    ) {
+      await request.response.body?.cancel();
+      throw new TransientBrowserLookupError('Browser lookup unavailable.');
+    }
+    const reply = record(await readMcpReply(request.response, id));
+    if (reply.jsonrpc !== '2.0' || reply.id !== id || reply.error) {
+      throw new Error('Browser request refused.');
+    }
+    const result = record(reply.result);
+    return {
+      metadata: record(result.structuredContent),
+      isError: result.isError === true,
+    };
+  } finally {
+    await request.release();
+  }
+}
+
 async function resolveViewerUrl(
   handle: string,
   config: OpenClawConfig,
@@ -194,37 +281,6 @@ async function resolveViewerUrl(
   presentation?: { purpose: 'login' | 'otp' | 'details'; site: string };
 }> {
   try {
-    const server = record(record(record(record(config).mcp).servers).mcp);
-    if (
-      server.transport !== 'streamable-http' ||
-      server.enabled === false ||
-      typeof server.url !== 'string'
-    ) {
-      throw new Error('Missing configured MCP proxy.');
-    }
-    const url = new URL(server.url);
-    if (
-      !['https:', 'http:'].includes(url.protocol) ||
-      url.username ||
-      url.password ||
-      url.pathname !== '/apps/mcp/mcp' ||
-      url.search ||
-      url.hash
-    ) {
-      throw new Error('Invalid configured MCP proxy.');
-    }
-    const headers = record(server.headers);
-    if (
-      !Object.values(headers).every((value) => typeof value === 'string') ||
-      !Object.entries(headers).some(
-        ([name, value]) =>
-          name.toLowerCase() === 'x-api-key' &&
-          typeof value === 'string' &&
-          value.trim()
-      )
-    ) {
-      throw new Error('Missing configured MCP proxy credential.');
-    }
     // Preparation mints a capability. A timed-out request may still complete
     // upstream, so give it one longer attempt rather than create duplicate forms.
     const maxAttempts = prepareForm ? 1 : LOOKUP_MAX_ATTEMPTS;
@@ -235,105 +291,63 @@ async function resolveViewerUrl(
         const remainingMs = deadline - Date.now();
         if (remainingMs <= 0)
           throw new Error('Browser lookup deadline reached.');
-        const id = randomUUID();
-        const request = await urbitFetch({
-          baseUrl: url.origin,
-          path: url.pathname,
-          init: {
-            method: 'POST',
-            headers: {
-              ...(headers as Record<string, string>),
-              'Content-Type': 'application/json',
-              Accept: 'application/json, text/event-stream',
-            },
-            body: JSON.stringify({
-              jsonrpc: '2.0',
-              id,
-              method: 'tools/call',
-              params: {
-                name: 'browser_browser_session_live_view',
-                arguments: {
-                  session_id: handle,
-                  ...(prepareForm
-                    ? {
-                        action: 'prepare_form',
-                        ...(formId
-                          ? { form_id: formId }
-                          : fields
-                            ? { fields }
-                            : {}),
-                      }
-                    : {}),
-                },
-              },
-            }),
+        const { metadata, isError } = await callBrowserMcpTool(
+          config,
+          allowPrivateNetwork,
+          'browser_browser_session_live_view',
+          {
+            session_id: handle,
+            ...(prepareForm
+              ? {
+                  action: 'prepare_form',
+                  ...(formId ? { form_id: formId } : { fields }),
+                }
+              : {}),
           },
-          ssrfPolicy: ssrfPolicyFromAllowPrivateNetwork(allowPrivateNetwork),
-          timeoutMs: prepareForm
+          prepareForm
             ? remainingMs
             : Math.min(LOOKUP_ATTEMPT_TIMEOUT_MS, remainingMs),
-          maxRedirects: 0,
-          auditContext: 'tlon-browser-handoff',
-        });
-        try {
+          undefined,
+          prepareForm
+        );
+        if (isError) {
+          const upstreamError = record(metadata.error);
+          const code = upstreamError.code;
+          const status = record(upstreamError.details).status;
           if (
-            [408, 500, 502, 503, 504].includes(request.response.status) ||
-            (prepareForm && request.response.status === 429)
+            prepareForm &&
+            typeof code === 'string' &&
+            ['stale_ref', 'ref_not_found', 'invalid_argument'].includes(code)
           ) {
-            await request.response.body?.cancel();
-            throw new TransientBrowserLookupError(
-              'Browser lookup unavailable.'
-            );
+            throw new BrowserSelectionRejectedError();
           }
-          const reply = record(await readMcpReply(request.response, id));
-          const result = record(reply.result);
-          const metadata = record(result.structuredContent);
-          if (reply.jsonrpc !== '2.0' || reply.id !== id || reply.error) {
-            throw new Error('Browser session lookup refused.');
+          if (
+            prepareForm &&
+            ((typeof code === 'string' &&
+              [
+                'timeout',
+                'rate_limited',
+                'session_busy',
+                'session_releasing',
+              ].includes(code)) ||
+              (code === 'steel_error' &&
+                typeof status === 'number' &&
+                [408, 429, 500, 502, 503, 504].includes(status)))
+          ) {
+            throw new TransientBrowserLookupError();
           }
-          if (result.isError) {
-            const upstreamError = record(metadata.error);
-            const code = upstreamError.code;
-            const status = record(upstreamError.details).status;
-            if (
-              prepareForm &&
-              typeof code === 'string' &&
-              ['stale_ref', 'ref_not_found', 'invalid_argument'].includes(code)
-            ) {
-              throw new BrowserSelectionRejectedError();
-            }
-            if (
-              prepareForm &&
-              ((typeof code === 'string' &&
-                [
-                  'timeout',
-                  'rate_limited',
-                  'session_busy',
-                  'session_releasing',
-                ].includes(code)) ||
-                (code === 'steel_error' &&
-                  typeof status === 'number' &&
-                  [408, 429, 500, 502, 503, 504].includes(status)))
-            ) {
-              throw new TransientBrowserLookupError();
-            }
-            throw new Error('Browser session lookup refused.');
-          }
-          if (metadata.session_id !== handle) {
-            throw new Error('Browser session lookup refused.');
-          }
-          const presentation = BrowserCardPresentationSchema.safeParse(
-            metadata.card
-          );
-          return {
-            viewerUrl: validateViewerUrl(metadata.viewer_url, prepareForm),
-            ...(presentation.success
-              ? { presentation: presentation.data }
-              : {}),
-          };
-        } finally {
-          await request.release();
+          throw new Error('Browser session lookup refused.');
         }
+        if (metadata.session_id !== handle) {
+          throw new Error('Browser session lookup refused.');
+        }
+        const presentation = BrowserCardPresentationSchema.safeParse(
+          metadata.card
+        );
+        return {
+          viewerUrl: validateViewerUrl(metadata.viewer_url, prepareForm),
+          ...(presentation.success ? { presentation: presentation.data } : {}),
+        };
       } catch (error) {
         const delayMs = 500 * 2 ** attempt;
         if (
@@ -465,11 +479,16 @@ export async function runBrowserSessionHandoff(
         : '. Wait for the secure-entry result before using this browser again. The service resumes this conversation after entry.')
     );
   } catch (error) {
-    if (!formId && !cancelWatch && args[1] !== 'share') throw error;
+    if (!internalLoginApproval && !cancelWatch && args[1] !== 'share')
+      throw error;
     try {
-      await cancelWatch?.();
-    } finally {
-      if (formId) await cancelBrowserHandoff(viewerUrl);
+      try {
+        await cancelWatch?.();
+      } finally {
+        if (internalLoginApproval) await cancelBrowserHandoff(viewerUrl);
+      }
+    } catch {
+      throw new BrowserHandoffCleanupError('Could not close secure entry.');
     }
     throw new Error(
       args[1] === 'share'

@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { runBrowserSessionHandoff } from './browser-session-handoff.js';
 import { runBrowserHandoffCommand } from './tlon-command-runner.js';
 import { mcpReadOnlyPolicyTesting } from './mcp-readonly-policy.js';
 
@@ -19,14 +18,6 @@ vi.mock('./monitor/agent-onboarding.js', async (importOriginal) => {
   return { ...actual, isAgentOnboardingCronJob: vi.fn(async () => false) };
 });
 
-vi.mock('./browser-session-handoff.js', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('./browser-session-handoff.js')>();
-  return {
-    ...actual,
-    runBrowserSessionHandoff: vi.fn().mockResolvedValue('Card sent'),
-  };
-});
 vi.mock('./tlon-command-runner.js', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('./tlon-command-runner.js')>();
@@ -100,7 +91,6 @@ afterEach(() => {
   handoffRecords.clear();
   walletRecords.clear();
   vi.mocked(runBrowserHandoffCommand).mockClear();
-  vi.mocked(runBrowserSessionHandoff).mockClear();
 });
 
 describe('agent-turn hook deps across plugin module instances', () => {
@@ -141,7 +131,6 @@ describe('browser hooks across plugin registration modes', () => {
     'keeps the gateway lock and approval lifecycle in %s turns',
     async (mode) => {
       handoffRecords.clear();
-      vi.mocked(runBrowserSessionHandoff).mockClear();
       const gatewayModule = await import('../index.js');
       const gateway = createApi('full');
       gatewayModule.default.register(gateway.api as never);
@@ -176,44 +165,6 @@ describe('browser hooks across plugin registration modes', () => {
         blockReason: expect.stringContaining('waiting for secure entry'),
       });
       handoffRecords.clear();
-      const event = {
-        toolName: 'mcp__call',
-        params: {
-          name: 'browser_browser_login',
-          arguments: { session_id: 'test-browser', fields: ['@e12'] },
-        },
-        result: {
-          details: {
-            structuredContent: {
-              session_id: 'test-browser',
-              login: { status: 'approval_required' },
-            },
-          },
-        },
-      };
-      await turn.hooks.get('after_tool_call')!(event, ctx);
-      // A second registry must not send the same approval twice.
-      await gateway.hooks.get('after_tool_call')!(event, ctx);
-      expect(runBrowserSessionHandoff).toHaveBeenCalledTimes(1);
-      expect(runBrowserSessionHandoff).toHaveBeenCalledWith(
-        expect.any(String),
-        [
-          'browser',
-          'approve-login',
-          'test-browser',
-          '--fields',
-          JSON.stringify(['@e12']),
-        ],
-        {},
-        expect.any(Function),
-        true
-      );
-      await turn.hooks.get('agent_end')!(
-        { messages: [], success: true, durationMs: 1 },
-        ctx
-      );
-      await turn.hooks.get('after_tool_call')!(event, ctx);
-      expect(runBrowserSessionHandoff).toHaveBeenCalledTimes(2);
       const requestId = '11111111-1111-4111-8111-111111111111';
       const walletEvent = {
         toolName: 'mcp__call',

@@ -147,14 +147,23 @@ import {
 } from './src/telemetry.js';
 import { resolveTlonBinary } from './src/tlon-binary.js';
 import { registerWalletHandoffs } from './src/wallet-handoffs.js';
-import { runBrowserSessionHandoff } from './src/browser-session-handoff.js';
-import { createBrowserLoginApprovalHandler } from './src/browser-login-approval.js';
-import { resumeBrowserContinuation } from './src/browser-continuation.js';
+import {
+  callBrowserMcpTool,
+  runBrowserSessionHandoff,
+} from './src/browser-session-handoff.js';
+import {
+  BROWSER_LOGIN_MCP_USE_REASON,
+  BROWSER_LOGIN_TOOL,
+  browserLoginToolDefinition,
+  createBrowserLoginApprovalExecutor,
+  isDirectBrowserLoginUse,
+} from './src/browser-login-approval.js';
 import {
   registerBrowserHandoffResults,
   browserToolSessionId,
 } from './src/browser-handoff-results.js';
 import {
+  resolveBrowserHandoffAccount,
   resolveExecutionBotShip,
   runTlonCommand,
 } from './src/tlon-command-runner.js';
@@ -995,7 +1004,6 @@ type AgentTurnHookDeps = {
   isOwnerRun: OwnerRunCheck;
   browserHandoffs: ReturnType<typeof registerBrowserHandoffResults>;
   walletHandoffs: ReturnType<typeof registerWalletHandoffs>;
-  browserLoginApprovals: ReturnType<typeof createBrowserLoginApprovalHandler>;
 };
 
 const agentTurnHookDepsSlot = sharedSlot<AgentTurnHookDeps>(
@@ -1236,9 +1244,16 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
     const isMcpDescribe = isMcpDescribeToolName(policyToolName);
     const isMcpCall = isMcpCallToolName(policyToolName);
     const isMcpTool = isMcpDescribe || isMcpCall;
-    const cronJobId = isMcpTool ? cronJobForSession(ctx.sessionKey) : undefined;
+    const isBrowserLogin = policyToolName === BROWSER_LOGIN_TOOL;
+    const blocksDirectBrowserLogin =
+      isMcpCall && isDirectBrowserLoginUse(event.params);
+    const cronJobId =
+      isMcpTool || isBrowserLogin
+        ? cronJobForSession(ctx.sessionKey)
+        : undefined;
     const isOnboardingCron =
-      isMcpTool && (await isAgentOnboardingCronJob(cronJobId));
+      (isMcpTool || isBrowserLogin) &&
+      (await isAgentOnboardingCronJob(cronJobId));
     const onboardingChannelNest = isOnboardingCron
       ? await agentOnboardingCronChannelNest(cronJobId)
       : undefined;
@@ -1247,12 +1262,13 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       : [];
     const blocksOnboardingMcp =
       isOnboardingCron &&
-      ((isMcpDescribe &&
-        !mayDescribeMcpTool(
-          ctx.sessionKey,
-          event.params,
-          allowedProviderIds
-        )) ||
+      (isBrowserLogin ||
+        (isMcpDescribe &&
+          !mayDescribeMcpTool(
+            ctx.sessionKey,
+            event.params,
+            allowedProviderIds
+          )) ||
         (isMcpCall &&
           !mayCallDescribedReadOnlyMcpTool(
             ctx.sessionKey,
@@ -1333,6 +1349,7 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       blocksOnboardingMcp ||
       blocksOnboardingBoundary ||
       blocksBrowserHandoff ||
+      blocksDirectBrowserLogin ||
       tlonAppBrowser.blocked ||
       testRunBlock !== null;
     // Decided here, with the other block decisions, so the trace and the
@@ -1366,7 +1383,9 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
             ownerOnlyDecision.reason ??
             (blocksBrowserHandoff
               ? 'This browser is waiting for secure entry. Stop browser tool calls and wait for the service result; it resumes this conversation.'
-              : tlonAppBrowser.reason));
+              : blocksDirectBrowserLogin
+                ? BROWSER_LOGIN_MCP_USE_REASON
+                : tlonAppBrowser.reason));
     if (contextLensEnabled) {
       // Capture tool activity even when no conversation run owns this
       // session (cron wakes — including jobs that reuse the main session
@@ -1449,7 +1468,9 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
                 ? 'outside the onboarding tool boundary'
                 : blocksNonOwner
                   ? 'for non-owner'
-                  : 'targeting the Tlon app in the hosted browser';
+                  : blocksDirectBrowserLogin
+                    ? 'using the saved-login MCP tool directly'
+                    : 'targeting the Tlon app in the hosted browser';
         api.logger.warn(
           `[tlon] Blocked ${event.toolName} tool ${blockCause}. Session: ${ctx.sessionKey}, Role: ${role}, Reason: ${blockReason}`
         );
@@ -1523,35 +1544,6 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
           'The wallet card could not be delivered. Tell the owner; do not claim approval or retry payment.',
           { sessionKey: ctx.sessionKey }
         );
-    }
-    try {
-      await agentTurnHookDepsSlot
-        .get()
-        ?.browserLoginApprovals.handle(event, ctx);
-    } catch {
-      api.logger.warn('[tlon] Could not send the saved login approval card.');
-      if (ctx.sessionKey) {
-        const sessionKey = ctx.sessionKey;
-        const browserSessionId = browserToolSessionId(
-          event.toolName,
-          event.params
-        );
-        const message =
-          `Saved-login approval delivery failed for browser session ${browserSessionId}. ` +
-          'This attempt ended. Tell the owner the approval card could not be sent and close the browser if the task is finished. A new login attempt requires the owner to ask again.';
-        try {
-          await resumeBrowserContinuation(api.runtime, {
-            sessionKey,
-            message,
-            deliver: true,
-          });
-        } catch {
-          api.logger.warn(
-            '[tlon] Saved login approval failure could not resume the conversation.'
-          );
-          api.runtime.system.enqueueSystemEvent(message, { sessionKey });
-        }
-      }
     }
     const { contextLensEnabled, logToolTraceContents } =
       resolveAgentTurnHookDeps();
@@ -1695,7 +1687,6 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
   // tool call) still finalize, while leaving time for the gateway to
   // deliver the reply (stamped + recorded via the outbound send path).
   api.on('agent_end', (event, ctx) => {
-    agentTurnHookDepsSlot.get()?.browserLoginApprovals.endRun(ctx);
     recordCronSilenceOutput(event, ctx);
     recordTlonTurnSilenceOutput(event, ctx);
     clearCronJobForSession(ctx.sessionKey, ctx.jobId);
@@ -2028,21 +2019,40 @@ export default defineBundledChannelEntry({
       );
     };
 
-    const browserLoginApprovals = createBrowserLoginApprovalHandler(
-      (sessionId, record, ctx, fields, formId) =>
+    const executeBrowserLogin = createBrowserLoginApprovalExecutor({
+      isPending: browserHandoffs.isPending,
+      useLogin: (args, signal) =>
+        callBrowserMcpTool(
+          api.config,
+          resolveBrowserHandoffAccount(api.config).allowPrivateNetwork,
+          'browser_browser_login',
+          { ...args, action: 'use' },
+          30_000,
+          signal
+        ),
+      sendHandoff: (args, ctx) =>
         runBrowserCommand(
           [
             'browser',
             'approve-login',
-            sessionId,
-            ...(formId
-              ? ['--form-id', formId]
-              : ['--fields', JSON.stringify(fields)]),
-            ...(record ? ['--record', JSON.stringify(record)] : []),
+            args.session_id,
+            ...(args.form_id
+              ? ['--form-id', args.form_id]
+              : ['--fields', JSON.stringify(args.fields)]),
+            ...(args.record ? ['--record', JSON.stringify(args.record)] : []),
           ],
           ctx,
           true
-        )
+        ),
+      warn: (message) => api.logger.warn(`[tlon] ${message}`),
+    });
+    api.registerTool(
+      (ctx) => ({
+        ...browserLoginToolDefinition,
+        execute: (_id, params, signal) =>
+          executeBrowserLogin(params, ctx, signal),
+      }),
+      { name: BROWSER_LOGIN_TOOL }
     );
 
     if (credentials) {
@@ -2392,7 +2402,6 @@ export default defineBundledChannelEntry({
         isOwnerRun,
         browserHandoffs,
         walletHandoffs,
-        browserLoginApprovals,
       });
     }
   },
