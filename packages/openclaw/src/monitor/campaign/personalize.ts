@@ -121,7 +121,7 @@ export async function personalizeTip(
       agentAccountId: accountId,
       agentDir: runtime.agent.resolveAgentDir(config, route.agentId),
       workspaceDir: directory,
-      sessionFile: path.join(directory, 'draft.jsonl'),
+      sessionPersistence: 'detached',
       sessionId: runId,
       sessionKey: `agent:${route.agentId}:tlon-campaign:${runId}`,
       runId,
