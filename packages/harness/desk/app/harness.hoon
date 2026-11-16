@@ -6400,7 +6400,12 @@
 ::
 ++  sync-peer-access
   ^-  (quip card _state)
-  =/  current  effective-peers
+  ::  Announce what is enforced: only the owner holds %tlon and %code.
+  =/  current
+    %-  ~(urn by effective-peers)
+    |=  [who=@p grant=peer-grant:h]
+    ?:  (is-owner who)  grant
+    grant(tools (guest-tools:ht tools.grant))
   =/  changes  (changes:peer-access announced-access current)
   :_  state(announced-access current)
   %+  murn  changes
@@ -6604,7 +6609,8 @@
   |=  who=@p
   ^-  (unit peer-grant:h)
   ?:  (is-owner who)  `owner-grant
-  (~(get by (effective:peer-policy peers trusted-peers peer-limits)) who)
+  %+  bind  (~(get by (effective:peer-policy peers trusted-peers peer-limits)) who)
+  |=(grant=peer-grant:h grant(tools (guest-tools:ht tools.grant)))
 ::
 ++  effective-peers
   ^-  (map @p peer-grant:h)

@@ -2,7 +2,7 @@
 ::  Each step boots the agent from saved state on the ship it plays, with a
 ::  fresh bowl, so ~zod's and ~nec's heads share nothing but what a test
 ::  hands between them. Optional live bindings are absent: scries answer %.n.
-/-  h=harness, w=harness-workspace, adapter=harness-adapter, *harness-store
+/-  h=harness, w=harness-workspace, adapter=harness-adapter, t=harness-tlon, *harness-store
 /+  *test, *test-agent, rpc=harness-peer-rpc, defaults=harness-defaults, work=harness-workspace,
     hl=harness, effects=harness-effects
 /=  head  /app/harness
@@ -433,4 +433,201 @@
   ;<  ~  bind:m  (ex-equal !>((has i.replies "may still be running")) !>(&))
   ;<  ~  bind:m  (ex-equal !>((has i.replies "Do not resend or reassign")) !>(&))
   (ex-equal !>((has i.replies "Read the home task")) !>(&))
+::  Only the owner holds %tlon and %code. The Tlon hand reports ~bus as a
+::  trusted ship and ~nec holds an explicit grant; both grants list %tlon and
+::  %code, as grants saved before that rule do. ~lux owns the bot unless a
+::  test names another owner.
+::
+++  guest-grants  `(list tool-grant:h)`~[%tlon %code %workspace %peers]
+++  guest-fixture
+  ^-  state-0
+  =/  s  (fixture ~nec)
+  s(peers (my ~[[~nec [guest-grants ~ 0 ~]]]))
+++  trust-boot
+  |=  [saved=state-0 src=@p owner=@p]
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  =peer-trust:t  [[& `owner (my ~[[~bus guest-grants]]) %mentions ~ ~] |]
+  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src src, dap %harness, now t0))
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ^-  (unit vase)
+    ?:  ?=([%gu @ %harness-tlon @ %$ ~] path)  `!>(&)
+    ?:  ?=([%gx @ %harness-tlon @ %peer-trust %noun ~] path)  `!>(peer-trust)
+    `!>(|)
+  ;<  *  bind:m  (do-load head `!>(saved))
+  (pure:m ~)
+++  holds
+  |=  [tools=(list tool-grant:h) grant=tool-grant:h]
+  ^-  ?
+  (lien tools |=(held=tool-grant:h =(held grant)))
+::  Model-backed peer work: the tools a fresh ask's conversation is given,
+::  and what the head authorizes for an outstanding call in a conversation
+::  saved with the grant's full tool list.
+::
+++  asked-tools
+  |=  [src=@p owner=@p]
+  =/  m  (mare ,(list tool-grant:h))
+  ^-  form:m
+  ;<  ~  bind:m  (trust-boot guest-fixture src owner)
+  ;<  *  bind:m  (do-poke %harness-a2a-0 !>(`a2a:h`[%ask 0v1 %text 'Do the work.']))
+  ;<  next=state-0  bind:m  saved
+  (pure:m tools.config:(play:hl log:(~(got by sessions.next) (cat 3 'peer--' (scot %p src)))))
+++  outstanding
+  |=  [src=@p owner=@p name=@t]
+  =/  m  (mare ,(unit tool-authority:adapter))
+  ^-  form:m
+  =/  s  guest-fixture
+  =/  sid  (cat 3 'peer--' (scot %p src))
+  =/  call=tool-call:h  ['call' name '{}']
+  =.  sessions.s
+    %+  ~(put by sessions.s)  sid
+    :_  1
+    :~  [%tool-requested-2 1 'call' name]
+        [%llm-completed 0 %tool-calls [1 1] [%assistant '' ~[call]]]
+        [%input-received [0v1 [%peer src 0v1] `src `[%peer src 0v1] t0 [%user 'Do the work.']]]
+        [%config-replaced defaults.s(tools guest-grants)]
+    ==
+  ;<  ~  bind:m  (trust-boot s src owner)
+  ;<  ~  bind:m  (set-src ~zod)
+  ;<  =cage  bind:m  (got-peek `path`~[%x %tool-call sid '1' %call])
+  (pure:m ;;((unit tool-authority:adapter) q.q.cage))
+++  ex-peer-work
+  |=  [src=@p owner=@p held=?]
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  fresh=(list tool-grant:h)  bind:m  (asked-tools src owner)
+  ;<  work=(unit tool-authority:adapter)  bind:m  (outstanding src owner 'workspace')
+  ;<  tlon=(unit tool-authority:adapter)  bind:m  (outstanding src owner 'tlon')
+  =/  granted  ?~(work ~ tools.u.work)
+  ;<  ~  bind:m  (ex-equal !>([src (holds fresh %tlon) (holds fresh %code)]) !>([src held held]))
+  ;<  ~  bind:m  (ex-equal !>([src (holds fresh %workspace)]) !>([src &]))
+  ;<  ~  bind:m  (ex-equal !>([src (holds granted %tlon) (holds granted %code)]) !>([src held held]))
+  ;<  ~  bind:m  (ex-equal !>([src (holds granted %workspace)]) !>([src &]))
+  (ex-equal !>([src ?=(^ tlon)]) !>([src held]))
+++  test-peers-other-than-the-owner-are-not-offered-tlon-or-code-for-peer-work
+  %-  eval-mare
+  ;<  ~  bind:(mare ,~)  (ex-peer-work ~bus ~lux |)
+  (ex-peer-work ~nec ~lux |)
+++  test-owner-keeps-tlon-and-code-for-peer-work
+  %-  eval-mare
+  (ex-peer-work ~nec ~nec &)
+::  Peer RPC: discovery, a fresh invocation, and the repeat of an invocation
+::  whose receipt completed before this rule.
+::
+++  rpc-result
+  |=  cards=(list card)
+  ^-  (unit (each @t @t))
+  ?~  cards  ~
+  ?.  ?=([%pass * %agent * %poke %harness-rpc-0 *] i.cards)  $(cards t.cards)
+  =/  msg  !<(peer-rpc:h +.+.+.+.+.+.i.cards)
+  ?.  ?=(%result -.msg)  $(cards t.cards)
+  `result.msg
+++  rpc-poke
+  |=  [saved=state-0 src=@p owner=@p message=peer-rpc:h]
+  =/  m  (mare ,[(unit (each @t @t)) state-0])
+  ^-  form:m
+  ;<  ~  bind:m  (trust-boot saved src owner)
+  ;<  caz=(list card)  bind:m  (do-poke %harness-rpc-0 !>(message))
+  ;<  next=state-0  bind:m  ^saved
+  (pure:m [(rpc-result caz) next])
+++  discovered
+  |=  [src=@p owner=@p name=@t]
+  =/  m  (mare ,?)
+  ^-  form:m
+  =/  query  (en:json:html (pairs:enjs:format ~[['name' %s name]]))
+  ;<  [result=(unit (each @t @t)) *]  bind:m  (rpc-poke guest-fixture src owner [%tools 0v1 query])
+  ?>  ?=([~ %& *] result)
+  (pure:m (has p.u.result :(weld "\"name\":\"" (trip name) "\"")))
+++  completed
+  |=  src=@p
+  ^-  state-0
+  =/  s  guest-fixture
+  =/  sid  (cat 3 'peer-tool--' (scot %p src))
+  =/  receipts=(list [[@p ask-id:h] peer-receipt:h])
+    :~  [[src 0v9] [t0 'tlon' '{}' sid `[%& 'done']]]
+        [[src 0v8] [t0 'run_js' '{}' sid `[%& 'ran']]]
+    ==
+  s(peer-receipts (malt receipts))
+++  ex-rpc
+  |=  [src=@p owner=@p held=?]
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  refused  `(unit (each @t @t))``[%| 'tool or resource is not granted to your ship']
+  ;<  tlon=?  bind:m  (discovered src owner 'tlon')
+  ;<  code=?  bind:m  (discovered src owner 'run_js')
+  ;<  work=?  bind:m  (discovered src owner 'workspace')
+  ;<  ~  bind:m  (ex-equal !>([src tlon code work]) !>([src held held &]))
+  ;<  [fresh=(unit (each @t @t)) a=state-0]  bind:m
+    (rpc-poke guest-fixture src owner [%invoke 0v1 t0 'tlon' '{}'])
+  ;<  [script=(unit (each @t @t)) b=state-0]  bind:m
+    (rpc-poke guest-fixture src owner [%invoke 0v2 t0 'run_js' '{}'])
+  ;<  [repeat=(unit (each @t @t)) *]  bind:m
+    (rpc-poke (completed src) src owner [%invoke 0v9 t0 'tlon' '{}'])
+  ;<  [rerun=(unit (each @t @t)) *]  bind:m
+    (rpc-poke (completed src) src owner [%invoke 0v8 t0 'run_js' '{}'])
+  ;<  ~  bind:m  (ex-equal !>([src =(refused fresh) =(refused script)]) !>([src !held !held]))
+  ;<  ~  bind:m  (ex-equal !>([src (~(has by peer-receipts.a) [src 0v1])]) !>([src held]))
+  ;<  ~  bind:m  (ex-equal !>([src (~(has by peer-receipts.b) [src 0v2])]) !>([src held]))
+  =/  replayed  `(unit (each @t @t))``[%& 'done']
+  =/  reran  `(unit (each @t @t))``[%& 'ran']
+  ;<  ~  bind:m  (ex-equal !>([src repeat]) !>([src ?:(held replayed refused)]))
+  (ex-equal !>([src rerun]) !>([src ?:(held reran refused)]))
+++  test-peers-other-than-the-owner-cannot-discover-invoke-or-replay-tlon-or-code
+  %-  eval-mare
+  ;<  ~  bind:(mare ,~)  (ex-rpc ~bus ~lux |)
+  (ex-rpc ~nec ~lux |)
+++  test-owner-discovers-is-admitted-for-and-replays-tlon-and-code-over-rpc
+  %-  eval-mare
+  (ex-rpc ~nec ~nec &)
+::  Announcements match what is enforced. A grant announced before this rule
+::  still listed %tlon and %code; the next sync corrects it.
+::
+++  announced
+  |=  [saved=state-0 owner=@p]
+  =/  m  (mare ,[sent=(map @p (unit peer-grant:h)) next=state-0])
+  ^-  form:m
+  ;<  ~  bind:m  (trust-boot saved ~zod owner)
+  ;<  caz=(list card)  bind:m  (do-poke %harness-action !>(`action:h`[%peer-refresh ~]))
+  ;<  next=state-0  bind:m  ^saved
+  =/  sent
+    %-  malt
+    %+  murn  caz
+    |=  =card
+    ^-  (unit [@p (unit peer-grant:h)])
+    ?.  ?=([%pass [%peer-access %status ~] %agent * %poke %harness-access-0 *] card)  ~
+    =/  msg  !<(peer-access-message:h +.+.+.+.+.+.card)
+    ?.  ?=(%status -.msg)  ~
+    `[;;(@p -.-.+.+.+.card) grant.msg]
+  (pure:m [sent next])
+++  ex-announced
+  |=  [sent=(map @p (unit peer-grant:h)) who=@p held=?]
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  grant  (~(get by sent) who)
+  ?>  ?=([~ ~ *] grant)
+  =/  tools  tools.u.u.grant
+  %+  ex-equal
+    !>([who (holds tools %tlon) (holds tools %code)])
+  !>([who held held])
+++  test-peers-other-than-the-owner-are-announced-grants-without-tlon-or-code
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [sent=(map @p (unit peer-grant:h)) next=state-0]  bind:m  (announced guest-fixture ~lux)
+  ;<  ~  bind:m  (ex-announced sent ~bus |)
+  ;<  ~  bind:m  (ex-announced sent ~nec |)
+  ;<  ~  bind:m  (ex-announced sent ~lux &)
+  =/  saved  (~(got by announced-access.next) ~bus)
+  (ex-equal !>([(holds tools.saved %tlon) (holds tools.saved %workspace)]) !>([| &]))
+++  test-a-grant-announced-before-the-rule-is-corrected-on-the-next-sync
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  guest-fixture
+  =.  announced-access.s  (my ~[[~bus [guest-grants ~ 0 ~]] [~nec [guest-grants ~ 0 ~]]])
+  ;<  [sent=(map @p (unit peer-grant:h)) *]  bind:m  (announced s ~lux)
+  ;<  ~  bind:m  (ex-announced sent ~bus |)
+  (ex-announced sent ~nec |)
 --

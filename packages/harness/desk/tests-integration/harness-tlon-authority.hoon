@@ -130,7 +130,31 @@
   =/  grants  `(list tool-grant:h)`~[%cron %admin %tlon]
   =/  s  (with-lanes fixture ~bus grants)
   =.  trusted.policy.s  (my ~[[~bus grants]])
-  (ex-ceilings s `~[%admin %tlon %tlon-read %tlon-write])
+  (ex-ceilings s `~[%admin %tlon-read %tlon-write])
+::  %tlon and %code are the owner's alone. Saved grants that list them, as
+::  state saved before this rule did, leave every other grant in place.
+::
+++  test-trusted-ship-ceiling-never-carries-tlon-or-code-whatever-its-grants
+  %-  eval-mare
+  =/  grants  `(list tool-grant:h)`~[%tlon %code %web %workspace]
+  =/  s  (with-lanes fixture ~bus grants)
+  =.  trusted.policy.s  (my ~[[~bus grants]])
+  (ex-ceilings s `~[%web %workspace %tlon-read %tlon-write])
+++  test-replaced-owner-loses-tlon-and-code-on-the-next-check
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  grants  `(list tool-grant:h)`~[%tlon %code %web]
+  =/  s  (with-lanes fixture ~bus grants)
+  ;<  ~  bind:m  (ex-ceilings s(owner.policy `~bus) ~)
+  (ex-ceilings s(trusted.policy (my ~[[~bus grants]])) `~[%web %tlon-read %tlon-write])
+++  test-owner-scheduled-run-keeps-tlon
+  %-  eval-mare
+  =/  s  fixture
+  =.  lanes.s  (my ~[['source' [~nec [%dm ~nec ~] 1 ~[%web %tlon %code]]]])
+  %+  equal
+    !>(`hand-authority:ad`[& `~[%web %tlon %tlon-read %tlon-write]])
+  (read s 'run' `job & |)
 ++  test-allowed-ship-ceiling-never-carries-cron
   %-  eval-mare
   =/  s  (with-lanes fixture ~bus ~[%web])

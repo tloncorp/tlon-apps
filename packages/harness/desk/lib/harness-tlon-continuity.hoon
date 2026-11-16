@@ -1,7 +1,7 @@
 ::  Authorization changes rotate routes without discarding conversation
 ::  history. Detaching a conversation gives subsequent input a fresh identity.
 /-  t=harness-tlon, h=harness, a=activity-ver, c=channels, hh=harness-hand
-/+  p=harness-tlon-policy
+/+  p=harness-tlon-policy, ht=harness-tools
 |%
 ::
 ++  detach-routes
@@ -69,7 +69,8 @@
   ?:  =(`actor owner.policy)  [%owner ~]
   =/  tools  (~(get by trusted.policy) actor)
   ?~  tools  ?:((~(has in allowed.policy) actor) [%trusted (silt ~[%web])] [%denied ~])
-  [%trusted (silt u.tools)]
+  ::  Adding or removing a grant only the owner can use changes nothing.
+  [%trusted (silt (guest-tools:ht u.tools))]
 ::
 ++  actor-changed
   |=  [before=policy:t after=policy:t actor=@p]
