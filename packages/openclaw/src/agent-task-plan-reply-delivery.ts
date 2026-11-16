@@ -113,6 +113,20 @@ export function recordSuccessfulAgentOnboardingSurface(
   }
 }
 
+// When every final reply of a run is canceled, the host posts this notice in
+// their place (dispatch-from-config's NO_VISIBLE_REPLY_FALLBACK_TEXT). After
+// a surface owned the reply, there was a reply: the surface.
+const NO_VISIBLE_REPLY_NOTICE = "OpenClaw couldn't produce or deliver a reply.";
+const SUPPRESSED_RUN_TTL_MS = 60 * 1000;
+const suppressedRuns = new Map<string, number>();
+
+function suppressedKeys(runId?: string, sessionKey?: string) {
+  return [
+    runId ? `run:${runId}` : undefined,
+    sessionKey ? `session:${sessionKey}` : undefined,
+  ].filter((key): key is string => Boolean(key));
+}
+
 export function suppressReplyAfterSuccessfulAgentOnboardingSurface(
   event: PluginHookReplyPayloadSendingEvent,
   ctx: PluginHookReplyPayloadSendingContext
@@ -122,6 +136,21 @@ export function suppressReplyAfterSuccessfulAgentOnboardingSurface(
   }
   pruneCompletedPlanRuns();
   const sessionKey = event.sessionKey ?? ctx.sessionKey;
+  const now = Date.now();
+  for (const [key, at] of suppressedRuns) {
+    if (now - at > SUPPRESSED_RUN_TTL_MS) suppressedRuns.delete(key);
+  }
+  const keys = suppressedKeys(event.runId, sessionKey);
+  if (
+    event.payload.text?.includes(NO_VISIBLE_REPLY_NOTICE) &&
+    keys.some((key) => suppressedRuns.has(key))
+  ) {
+    keys.forEach((key) => suppressedRuns.delete(key));
+    return {
+      cancel: true,
+      reason: TLON_ONBOARDING_SURFACE_REPLY_SUPPRESSION_REASON,
+    };
+  }
   const marker = event.runId
     ? completedPlanRuns.get(`run:${event.runId}`)
     : sessionKey
@@ -131,6 +160,7 @@ export function suppressReplyAfterSuccessfulAgentOnboardingSurface(
     return undefined;
   }
   consumeMarker(marker);
+  for (const key of keys) suppressedRuns.set(key, now);
   return {
     cancel: true,
     reason: TLON_ONBOARDING_SURFACE_REPLY_SUPPRESSION_REASON,
@@ -140,4 +170,5 @@ export function suppressReplyAfterSuccessfulAgentOnboardingSurface(
 export function resetAgentOnboardingSurfaceReplyDeliveryForTests(): void {
   completedPlanRuns.clear();
   completedPlanSessions.clear();
+  suppressedRuns.clear();
 }
