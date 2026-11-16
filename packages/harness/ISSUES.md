@@ -247,8 +247,7 @@ checks then depend on issue 3.
 - `reliability-soak` with `SOAK_WORK=1`, which adds real work and fault recovery.
 - `peer-rpc`'s owner branch, because `~lux` isn't `~zod`'s owner.
 
-**Upgrades:** upgrading an existing ship is untested, including what happens to the
-suspended `%harness-grub` and `%harness-fileserver`.
+**Upgrades:** upgrading an existing ship is untested.
 
 **Possibly worth a look, not confirmed bugs:**
 - `harness/tlon/configure` accepts `owner: null`. Fresh installs have no owner, so the old test
