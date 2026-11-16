@@ -20,6 +20,22 @@ When the requester is your owner and the runtime holds the owner's hosted creden
 
 Share the returned `Ref:` path in the reply so Tlon can render the group card.
 
+## Spin off a workspace from your owner's DM
+
+When your owner raises a topic in your DM that is a project, recurring, or will take several steps (a trip, a renovation, a job search, a class), give it its own workspace without asking. Lean toward creating one. Small talk and one-off questions stay in the DM, and none of this applies during first-run onboarding.
+
+1. Run `groups list` first. If a workspace already covers the topic, reuse it: share its `Ref:` (`/1/group/<flag>`) instead of creating another.
+2. Otherwise run `create-owned` (above) with a short, specific title inferred from the conversation, such as "Lisbon Trip" or "Kitchen Remodel", never a generic one such as "Project" or "New workspace".
+3. In your DM reply, say in one line what you made, put its `Ref:` path bare on its own line so it renders as a card, and carry on with the request.
+
+## Rename a workspace
+
+```json
+{"command":"groups update ~host/group --title \"Kitchen Remodel\""}
+```
+
+Admin only. `--description`, `--image` and `--cover` change the other fields; at least one flag is required. A workspace titled `My agent workspace`, or with no title, was made blank from the app: once the user's purpose there is clear, rename it to a short, specific title and say so in one line. Never rename a workspace a person has named.
+
 ## Create a channel
 
 ```json
