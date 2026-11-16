@@ -19,7 +19,7 @@ Yes, but not without first fixing Harness itself. The runtime core is already at
 
 ## What stands in the way
 
-Parity is mostly ordinary build and verification work: the shared channel session, approvals, Steward adapters, onboarding, and running all of it against a real owner Steward for the first time. The width of the estimate ranges comes from scope and sequencing choices rather than technical unknowns: full or pragmatic scheduler delivery, owner-grant policy A or C, how long the soak runs, and whether every decision the audits list is taken in week one. Migration of existing bots used to be the biggest lever; without a review bottleneck it changes effort and risk but barely changes the date. Owner identity is already decided in the plan (a sidecar), shared sessions are already a decided redesign, and the dashboard's settings keys are moot because hosting pushes permissions through Harness's own endpoints. The row audits list the smaller decisions that block each track; they are in `estimates/`.
+Parity is mostly ordinary build and verification work: the shared channel session, approvals, Steward adapters, onboarding, and running all of it against a real owner Steward for the first time. The width of the estimate ranges comes from scope and sequencing choices rather than technical unknowns: full or pragmatic scheduler delivery, owner-grant policy A or C, how long the soak runs, and whether every decision the audits list is taken in week one. Migration of existing bots used to be the biggest lever; without a review bottleneck it changes effort and risk but barely changes the date. Owner identity is already decided in the plan (a sidecar), shared sessions are already a decided redesign, and the dashboard's settings keys are moot because hosting pushes permissions through Harness's own endpoints. The row audits list the smaller decisions that block each track.
 
 Independent of parity, Harness has defects a hosted bot cannot ship with. Owner DM conversations ignore tool grants. The hand ledger stops accepting messages at 256 per conversation and 2,048 per ship, and only a manual export-and-retire frees it. Conversation identities cap at 128 and are never freed. History is never pruned, and the turn, transport and native benchmarks that exist have never been run and recorded, so no measured figures exist. There is no bot-loop guard, no spend cap, and a provider size rejection wedges a conversation. The suite went green on Nov 6, against a fake model only.
 
@@ -64,7 +64,7 @@ Production parity: eight and a half to nine and a half weeks after the trial beg
 
 ## Risks
 
-- Nobody reads the code, so acceptance is tests, the workbench, the trial and an agent review against named invariants. The failure mode is a silent pass: a defect in trust or cutoff logic survives if no test names it. The property lists in the four re-costings in `estimates/review-model/` are the minimum test set, and the cross-row test of an approved stranger entering a shared session under their own ceiling is the seam no single row covers.
+- Nobody reads the code, so acceptance is tests, the workbench, the trial and an agent review against named invariants. The failure mode is a silent pass: a defect in trust or cutoff logic survives if no test names it. The property lists in the four re-costings are the minimum test set, and the cross-row test of an approved stranger entering a shared session under their own ceiling is the seam no single row covers.
 - Nobody can debug the Hoon in production either. `docs-refs` has to be treated as the spec and every incident fixed by agents against it. This is a standing cost of the replacement, not a one-off.
 - Human reading of docs and tests still caps throughput at roughly six to seven agent-days a day. If PRs shrink to one agent-day to stay readable, the old review bottleneck returns.
 - Decision latency is now exposed. Review backlog used to hide it, because work queued behind reviewers anyway. A decision not taken before its consumer starts adds its full slip to the path.
@@ -81,9 +81,9 @@ Proceed with the employee trial on the plan's four tracks, with the Harness defe
 
 ## Appendix: how the final time frames were reached
 
-Eight audits, one per estimate row, each itemised the work at file level in both repos, counted agent-days (best, likely, worst) including tests, and converted to wall-clock given verification cycles and human review at two to three hours a day. Where an audit contradicted an earlier report, the claim was checked by hand. The audits are in `estimates/`.
+Eight audits, one per estimate row, each itemised the work at file level in both repos, counted agent-days (best, likely, worst) including tests, and converted to wall-clock given verification cycles and human review at two to three hours a day. Where an audit contradicted an earlier report, the claim was checked by hand.
 
-The audits were then re-costed under the assumption that no human reads the code. Agent-days did not change; only the conversion to wall-clock did. Four re-costings, one per group of rows, are in `estimates/review-model/`. Each gives the share of the old figure that was human diff review, the new critical path, what sets the cadence now, and the properties no human will verify with the test or agent-review check that stands in for each.
+The audits were then re-costed under the assumption that no human reads the code. Agent-days did not change; only the conversion to wall-clock did. There are four re-costings, one per group of rows. Each gives the share of the old figure that was human diff review, the new critical path, what sets the cadence now, and the properties no human will verify with the test or agent-review check that stands in for each.
 
 ### What replaced code review
 
