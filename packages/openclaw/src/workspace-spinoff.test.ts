@@ -19,6 +19,12 @@ describe('owner DM workspace note', () => {
     expect(note).not.toContain('create-owned');
   });
 
+  it('links an existing workspace by its listed Ref and skips self-introductions', async () => {
+    const note = await ownerDmWorkspaceNote(null);
+    expect(note).toContain('its `Ref:` path');
+    expect(note).toContain('the owner introducing themselves');
+  });
+
   it('turns a tap on an unknown card into no create', async () => {
     const blob = JSON.stringify([
       {
