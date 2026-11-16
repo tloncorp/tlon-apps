@@ -321,6 +321,8 @@ describe('tlon_workspace_create', () => {
       'channels update chat/~ten/general --title "Build chat" --description "Decisions and questions, starting with a brief"',
       'channels create ~ten/bike-parts "Parts gallery" --kind heap --description "Three sourced references to start from"',
       'channels create ~ten/bike-parts "Notes" --kind notes',
+      'groups move-channel ~ten/bike-parts heap/~ten/heap-1 --section default',
+      'groups move-channel ~ten/bike-parts notes/~ten/notes-1 --section default',
     ]);
     expect(jobs).toEqual([
       { id: 'job-0', description: 'tlon-workspace:workspace-plan-abc' },
@@ -369,6 +371,8 @@ describe('tlon_workspace_create', () => {
     expect(resumed.details).toBeUndefined();
     expect(commands).toEqual([
       'channels create ~ten/bike-parts "Notes" --kind notes',
+      'groups move-channel ~ten/bike-parts heap/~ten/heap-1 --section default',
+      'groups move-channel ~ten/bike-parts notes/~ten/notes-1 --section default',
     ]);
   });
 

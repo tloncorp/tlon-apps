@@ -28,6 +28,8 @@ export type WorkspaceProposal = {
   secret?: boolean;
   /** Nest of each planned channel, by index, once it exists. */
   channelNests?: (string | null)[];
+  /** The channels are in the card's order. */
+  ordered?: boolean;
   taskJobId?: string;
 };
 
@@ -418,6 +420,17 @@ export function createWorkspaceCreateToolExecutor(deps: {
       }
       nests[index] = nest;
       await save({ channelNests: nests });
+    }
+
+    // New channels go to the top of the list; put them in the card's order.
+    if (!proposal.ordered) {
+      for (const nest of nests.slice(1)) {
+        await run(
+          `groups move-channel ${groupId} ${nest} --section default`,
+          'ordering the channels'
+        );
+      }
+      await save({ ordered: true });
     }
 
     if (plan.task && !proposal.taskJobId) {
