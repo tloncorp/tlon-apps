@@ -103,7 +103,7 @@ export function createBrowserLoginApprovalExecutor({
     if (
       !ctx.sessionKey ||
       (args.form_id
-        ? !args.record || !args.bindings || !!args.fields
+        ? !args.record || !args.bindings
         : !args.fields || !!args.bindings)
     )
       return result(

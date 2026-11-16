@@ -85,6 +85,15 @@ describe('saved login approval', () => {
     expect(deps.sendHandoff).toHaveBeenCalledExactlyOnceWith(legacy, ctx);
   });
 
+  it('accepts a prepared form even when the request also repeats its selected fields', async () => {
+    const { deps, execute } = setup();
+    const request = { ...input, fields: [{ name: 'tlon-mark:email' }] };
+    await expect(execute(request, ctx)).resolves.toMatchObject({
+      details: { status: 'approval_pending' },
+    });
+    expect(deps.sendHandoff).toHaveBeenCalledExactlyOnceWith(request, ctx);
+  });
+
   it('rejects a mismatched browser response before sending a card', async () => {
     const { deps, execute } = setup();
     deps.useLogin.mockResolvedValueOnce({
