@@ -50,6 +50,13 @@
   =/  json  [%a ~[(grant-json:peers ~nec grant)]]
   =/  decoded  (json-grants:peers json)
   (expect-eq !>(`grant) !>((~(get by decoded) ~nec)))
+::  The peer grant parser keeps %tlon and %code as sent; only the owner can
+::  use either.
+++  test-peer-parser-accepts-and-keeps-tlon-and-code-grants
+  =/  decoded
+    %-  json-grants:peers
+    (need (de:json:html '[{"ship":"~nec","tools":["tlon","code"],"model":null,"budget":0,"inflows":[]}]'))
+  (expect-eq !>(`(list tool-grant:h)`~[%tlon %code]) !>(tools:(need (~(get by decoded) ~nec))))
 ++  test-zero-limit-is-unlimited
   =/  decoded
     %-  json-grants:peers

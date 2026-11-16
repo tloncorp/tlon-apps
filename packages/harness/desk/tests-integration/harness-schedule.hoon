@@ -855,4 +855,68 @@
     !>('Source hand or conversation authority changed; explicit rescheduling is required')
   ;<  ~  bind:m  (ex-equal !>(remaining:(~(got by schedules.next) 0v1)) !>(remaining.bus))
   (ex-equal !>((ran 'schedule-0v1')) !>(|))
+::  A conversation, and a subagent started from it, stay inside the hand's
+::  ceiling. The hand's ceiling for another actor carries neither %tlon nor
+::  %code (harness-tlon-authority); here the head is given one, and the
+::  owner's conversation none.
+::
+++  delegated-tools
+  |=  [actor=@p address=@t ceiling=(unit (list tool-grant:h))]
+  =/  m  (mare ,[parent=(list tool-grant:h) child=(list tool-grant:h)])
+  ^-  form:m
+  =/  granted  `(list tool-grant:h)`~[%subagents %tlon %code %workspace]
+  =/  lanes  (my ~[['source' (tlon-lane actor address ceiling)]])
+  =/  with-grants
+    |=  [s=state-0 sid=@t]
+    ^-  state-0
+    =/  found  (~(got by sessions.s) sid)
+    =.  log.found  (snoc (snip log.found) [%config-replaced defaults.s(tools granted)])
+    s(sessions (~(put by sessions.s) sid found))
+  ::  The parent's own outstanding hand call shows its grants.
+  ;<  ~  bind:m
+    (tlon-setup (with-grants (tlon-fixture actor address 'workspace' '{}' ~) 'source') lanes)
+  ;<  own=cage  bind:m  (got-peek /x/tool-call/source/4/control)
+  ::  A child of an outstanding run_subagent call, with its own hand call.
+  =/  s  (tlon-fixture actor address 'run_subagent' '{}' ~)
+  =/  child  (delegated-id:hl 'source' 'control' | `4)
+  =/  call=tool-call:h  ['call' 'workspace' '{}']
+  =.  sessions.s
+    %+  ~(put by sessions.s)  child
+    :_  1
+    :~  [%tool-requested-2 1 'call' 'workspace']
+        [%llm-completed 0 %tool-calls [1 1] [%assistant '' ~[call]]]
+        [%input-received [0v1 [%subagent 'source' 'control'] ~ ~ t0 [%user 'Child work']]]
+        [%config-replaced defaults.s]
+    ==
+  ;<  ~  bind:m  (tlon-setup (with-grants (with-grants s 'source') child) lanes)
+  ;<  sub=cage  bind:m  (got-peek `path`~[%x %tool-call child '1' %call])
+  =/  tools-of
+    |=  =cage
+    ^-  (list tool-grant:h)
+    =/  authority  ;;((unit tool-authority:adapter) q.q.cage)
+    ?~(authority ~ tools.u.authority)
+  (pure:m [(tools-of own) (tools-of sub)])
+++  ex-delegated
+  |=  [held=? actor=@p address=@t ceiling=(unit (list tool-grant:h))]
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [parent=(list tool-grant:h) child=(list tool-grant:h)]  bind:m
+    (delegated-tools actor address ceiling)
+  =/  holds
+    |=  [tools=(list tool-grant:h) grant=tool-grant:h]
+    (lien tools |=(g=tool-grant:h =(g grant)))
+  %+  ex-equal
+    !>  :~  [(holds parent %tlon) (holds parent %code) (holds parent %workspace)]
+            [(holds child %tlon) (holds child %code) (holds child %workspace)]
+        ==
+  !>(~[[held held &] [held held &]])
+++  guest-ceiling  `(list tool-grant:h)`~[%subagents %workspace %tlon-read %tlon-write]
+++  test-subagent-stays-within-its-parent-conversations-ceiling
+  %-  eval-mare
+  ;<  ~  bind:(mare ,~)  (ex-delegated | ~bus bus-dm `guest-ceiling)
+  (ex-delegated | ~bus room `guest-ceiling)
+++  test-owner-and-owner-subagents-keep-tlon-and-code
+  %-  eval-mare
+  ;<  ~  bind:(mare ,~)  (ex-delegated & ~nec owner-dm ~)
+  (ex-delegated & ~nec room ~)
 --

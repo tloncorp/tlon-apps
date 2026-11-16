@@ -81,7 +81,9 @@ contacts, groups, channels, roles, Notes, uploads, hooks, and publishing.
 Call `{"action":"help"}` for arguments.
 
 This grants access beyond the current chat, subject to native Tlon permissions.
-Trusted ships need an explicit grant; current-chat tools do not imply it.
+Only the owner can use it; current-chat tools do not imply it. A ship other
+than the owner, in a Tlon conversation or as a peer, is never offered it, and
+granting it `tlon` has no effect.
 
 Final answers return to the originating chat automatically. Use `send_dm` or
 `send_channel` for separate messages elsewhere; optional `parent` selects a thread.
@@ -514,6 +516,11 @@ messaging the sender.
 - Only the owner schedules work. Trusted and allowed ships are not offered the
   scheduling tools, whatever their grants, and a job whose actor is not the
   owner is paused.
+- A ship other than the owner, in a Tlon conversation or as a peer, is never
+  offered `tlon` or `run_js`, and a call to either is refused, whatever its
+  grants say. Granting either to it has no effect. A session bound to another
+  hand gets the tools its adapter configures (see
+  [hands](hands.md#binding-and-authority)).
 - Other ships and the bot's own messages do not enter inference.
 - Group invitations are accepted only when sent by the owner. DM invitations
   from the owner, a trusted ship or an allowed ship are accepted. An invitation
