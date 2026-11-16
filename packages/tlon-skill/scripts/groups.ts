@@ -429,6 +429,7 @@ async function listGroups() {
 
     console.log(`📁 ${group.title || group.id}`);
     console.log(`   ID: ${group.id}`);
+    console.log(`   Ref: /1/group/${group.id}`);
     console.log(`   Privacy: ${privacy}`);
     console.log(`   Members: ${memberCount}, Channels: ${channelCount}`);
     if (group.description) {
