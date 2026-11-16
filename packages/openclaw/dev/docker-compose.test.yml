@@ -90,12 +90,12 @@ services:
         # crashed serf replay (stale snapshot -> downgrade runtime to replay ->
         # serf unexpectedly shut down) cannot silently return when `latest`
         # advances past the snapshot kelvin. rube-*-group-blob is the archive
-        # generation the tlon-web e2e suite runs; vere-v4.5 is the matching
+        # generation the tlon-web e2e suite runs; vere-v4.6 is the matching
         # runtime. Keep this in lockstep with
         # packages/tlon-bot-e2e/docker/docker-compose.base.yml: both harnesses
         # run test/cases/, and case 08 scries %steward, which only exists on
         # piers built from a post-steward-refactor desk.
-        echo "==> vere pin: vere-v4.5  pier gen: group-blob"
+        echo "==> vere pin: vere-v4.6  pier gen: group-blob"
 
         echo "==> Downloading zod..."
         download https://bootstrap.urbit.org/rube-zod-group-blob.tgz rube-zod-group-blob.tgz md5 54eddbbd4ba4aea4dfddf32572696e4a 339451899 || { echo "Failed to download zod"; exit 1; }
@@ -116,7 +116,7 @@ services:
         tar xzf rube-mug-group-blob.tgz || { echo "Failed to extract mug"; exit 1; }
 
         echo "==> Downloading vere..."
-        download https://github.com/urbit/vere/releases/download/vere-v4.5/linux-x86_64.tgz vere.tgz sha256 bf7a30aad0a820bf217f3f81239b1029d16f11ba5274d45067d811489f817eed 9728849 || { echo "Failed to download vere"; exit 1; }
+        download https://github.com/urbit/vere/releases/download/vere-v4.6/linux-x86_64.tgz vere.tgz sha256 f332e96d66cb767f847fbf15e04b4f953fd078e610b449fbbc26629ea312a3ae 9729797 || { echo "Failed to download vere"; exit 1; }
         tar xzf vere.tgz || { echo "Failed to extract vere"; exit 1; }
         VERE=$$(ls -1 vere-*-linux-x86_64 | head -1)
         chmod +x $$VERE

@@ -18,8 +18,8 @@ session=fake-$pier_dir
 click=$root/scripts/click
 source "$root/scripts/ship-lib.sh"
 
-urbit_bin_url="https://bootstrap.urbit.org/vere/live/v4.5"
-vere_ver="vere-v4.5"
+urbit_bin_url="https://bootstrap.urbit.org/vere/live/v4.6"
+vere_ver="vere-v4.6"
 arch=`uname -m`
 
 case $OSTYPE in
