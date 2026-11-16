@@ -73,6 +73,15 @@ describe('agent task plan reply delivery', () => {
     });
   });
 
+  it('suppresses final model prose after a workspace card post', () => {
+    recordSuccess('tlon_workspace_plan');
+
+    expect(suppress()).toEqual({
+      cancel: true,
+      reason: 'tlon_onboarding_surface_owns_reply',
+    });
+  });
+
   it('consumes the marker once', () => {
     recordSuccess();
     expect(suppress()).toBeDefined();

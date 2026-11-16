@@ -16,9 +16,12 @@ type ToolContext = {
   sessionKey?: string;
 };
 
+// Tools whose posted card is the turn's reply, so the model's own reply
+// text after them is dropped.
 const ONBOARDING_SURFACE_TOOL_NAMES = new Set([
   'tlon_agent_choice',
   'tlon_agent_task_plan',
+  'tlon_workspace_plan',
 ]);
 const COMPLETED_PLAN_TTL_MS = 5 * 60 * 1000;
 
