@@ -1,5 +1,6 @@
 import { sleep, waitFor } from '../../runtime/waiters.js';
 import type { ScenarioActors } from './actors.js';
+import type { ScenarioRunContext } from './dsl.js';
 
 export const SETTINGS_DESK = 'moltbot';
 export const SETTINGS_BUCKET = 'tlon';
@@ -214,9 +215,14 @@ export async function withNudgeSettingsIsolation(
 }
 
 export async function allowDmFrom(
-  actors: ScenarioActors,
+  { ctx, driver, actors }: ScenarioRunContext,
   ship: string
 ): Promise<void> {
+  if (driver.allowDmSender) {
+    const revoke = await driver.allowDmSender(ctx, ship);
+    actors.bot.teardown(revoke, { label: `revoke DM access for ${ship}` });
+    return;
+  }
   const bucket = await settingsBucket(actors);
   const current = Array.isArray(bucket.dmAllowlist)
     ? bucket.dmAllowlist.map(String)

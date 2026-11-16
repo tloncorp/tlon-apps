@@ -22,7 +22,9 @@ macOS comes from GNU coreutils.
   `tests-integration/`.
 - `node --test tests-js/distribution.test.mjs`: artifact checks on `desk-out/`.
 - `just test-hoon` and `just test-js`: the native and JavaScript suites on fake
-  ships, as `.github/workflows/harness-ci.yml` runs them.
+  ships, as `.github/workflows/harness-ci.yml` runs them. CI runs `test-js` as
+  four shards, `TEST_SHARD=I/4`; `just test-js --list` prints what a run or a
+  shard would take.
 - `pnpm --filter @tloncorp/tlon-bot-e2e test:e2e:harness`: the shared bot
   E2E scenarios against Harness on Docker fake ships, as
   `.github/workflows/harness-bot-e2e.yml` runs them.

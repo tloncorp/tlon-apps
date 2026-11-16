@@ -32,19 +32,29 @@ function check_socket
 # runs without a shell, and it never exits by itself.
 function new_ship_session
 {
-  local limit=500000 ids pane found
+  local limit=500000 ids pane state found
   ids=$(tmux new-session -d -P -F '#{session_id} #{window_id}' -s "$1" -x 180 -y 50 \
     tail -f /dev/null) &&
     tmux set-option -t "${ids% *}" history-limit "$limit" &&
     pane=$(tmux new-window -P -F '#{pane_id}' -t "${ids% *}:" "$2") || return 1
   # Window IDs are never reused, so this cannot remove the ship's window.
   tmux kill-window -t "${ids#* }" 2>/dev/null
+  # Ask the session, not the pane: a query naming a pane that is gone succeeds
+  # with an empty reply. One query both finds the live pane and reads its limit.
+  state=$(tmux list-panes -s -t "${ids% *}" -F '#{pane_id} #{pane_dead} #{history_limit}' \
+    2>/dev/null | grep "^$pane 0 ")
+  if [ -z "$state" ]
+  then
+    echo "The ship's command exited at once in tmux session $1: $2" >&2
+    tmux kill-session -t "${ids% *}" 2>/dev/null
+    return 1
+  fi
   # A short history would drop test output without failing the tests.
-  found=$(tmux display-message -p -t "$pane" '#{history_limit}')
+  found=${state##* }
   if ! [[ $found =~ ^[0-9]+$ ]] || (( found < limit ))
   then
     echo "tmux session $1 has a history limit of '$found' lines, not $limit; stopping it" >&2
-    tmux kill-session -t "${ids% *}"
+    tmux kill-session -t "${ids% *}" 2>/dev/null
     return 1
   fi
 }

@@ -160,7 +160,40 @@ export interface BotDriver {
    * The wait resolves when any marker appears in the bot logs.
    */
   streamFaultLogMarkers: readonly string[];
+  /**
+   * Lets `ship` DM the bot until the returned function runs. Without it, the
+   * scenarios grant access through the dmAllowlist entry in the bot's
+   * %settings.
+   */
+  allowDmSender?(
+    ctx: RuntimeContext,
+    ship: string
+  ): Promise<() => Promise<void>>;
+  /**
+   * Scheduled-job bookkeeping for a runtime without a bot container. Without
+   * it, the cron scenarios run the runtime's commands in the bot container.
+   */
+  cronJobs?: CronJobStore;
   model: ModelScriptAdapter;
+}
+
+export interface CronJobSnapshot {
+  id: string;
+  /** What the job is listed under; see CronJobStore.listingName. */
+  name: string;
+  /**
+   * The job has run for the last time and its work has settled, but the
+   * runtime keeps it listed until it is cleared.
+   */
+  finished?: boolean;
+}
+
+export interface CronJobStore {
+  list(ctx: RuntimeContext, timeoutMs: number): Promise<CronJobSnapshot[]>;
+  /** The name createCronJob's job is listed under. */
+  listingName(args: CreateCronJobArgs): string;
+  /** Stops future runs, waits for in-flight work to settle, and removes it. */
+  remove(ctx: RuntimeContext, id: string, deadlineAtMs: number): Promise<void>;
 }
 
 export interface SendMessageArgs {
@@ -169,7 +202,10 @@ export interface SendMessageArgs {
 }
 
 export interface CreateCronJobArgs {
-  /** Unique per scenario; used for ID lookup and pre-ID teardown fallback. */
+  /**
+   * Unique per scenario; used for ID lookup and pre-ID teardown fallback
+   * unless the driver's CronJobStore lists jobs under something else.
+   */
   name: string;
   /** Must embed the fired-turn [tlon-test:KEY] tag. */
   firedPrompt: string;

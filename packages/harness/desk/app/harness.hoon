@@ -909,7 +909,33 @@
 ++  schedule-source-live
   |=  job=schedule:cr
   ^-  ?
-  (hand-source-live binding.job sid.job hand.job destination.job actor.job)
+  ?&  (hand-source-live binding.job sid.job hand.job destination.job actor.job)
+      (schedule-permitted (execution-authority sid.job (session-tlon sid.job)))
+  ==
+++  session-tlon
+  |=  sid=session-id:h
+  ^-  ?
+  %+  lien  ~(val by bindings.hands)
+  |=  binding=binding:hh
+  &(=(sid sid.binding) =('tlon' hand.binding))
+::  The general rule for any hand: no ceiling, or one that grants %cron. The
+::  Tlon hand never puts %cron in a ceiling, so on Tlon only a conversation
+::  with no ceiling, the owner's, may schedule.
+++  schedule-permitted
+  |=  authority=hand-authority:adapter
+  ^-  ?
+  ?&  live.authority
+      ?|  ?=(~ ceiling.authority)
+          (lien u.ceiling.authority |=(g=tool-grant:h =(%cron g)))
+      ==
+  ==
+::  The source is live, but its hand's ceiling leaves out scheduling.
+++  schedule-forbidden
+  |=  job=schedule:cr
+  ^-  ?
+  ?.  (hand-source-live binding.job sid.job hand.job destination.job actor.job)  |
+  =/  authority  (execution-authority sid.job (session-tlon sid.job))
+  &(live.authority !(schedule-permitted authority))
 ++  hand-source-live
   |=  [binding=@t sid=session-id:h hand=@t destination=@t actor=@t]
   ^-  ?
@@ -1039,6 +1065,8 @@
         ~  state
     ==
   =/  job=schedule:cr  p.parsed
+  ?:  (schedule-forbidden job)
+    [[%| 'This conversation is not permitted to schedule'] ~ state]
   ?.  (schedule-source-live job)
     [[%| 'Source hand authority is unavailable'] ~ state]
   ?:  (~(has by sessions) run-sid.job)
@@ -2576,6 +2604,8 @@
         id
         job
         %paused
+        ?:  (schedule-forbidden job)
+          'The source conversation is not permitted to schedule; cancel this schedule to clear it'
         'Source hand or conversation authority changed; explicit rescheduling is required'
       ==
     $(pending t.pending, cards (weld cards stopped))
@@ -5666,10 +5696,7 @@
     ?&  !=(grant %subagents)
         (lien ceiling |=(allowed=tool-grant:h =(grant allowed)))
     ==
-  =/  tlon
-    %+  lien  ~(val by bindings.hands)
-    |=  binding=binding:hh
-    &(=(sid sid.binding) =('tlon' hand.binding))
+  =/  tlon  (session-tlon sid)
   ::  Tlon authority requires a live hand binding.
   =.  granted  ?:(tlon (with-tlon:ht granted) (without-tlon:ht granted))
   =/  authority=hand-authority:adapter  (execution-authority sid tlon)
@@ -5684,6 +5711,7 @@
   =?  granted
     ?&  ?=(~ parent)
         ?=(~ peer)
+        (schedule-permitted authority)
         %+  lien  ~(val by bindings.hands)
         |=  binding=binding:hh
         &(=(sid sid.binding) enabled.binding)

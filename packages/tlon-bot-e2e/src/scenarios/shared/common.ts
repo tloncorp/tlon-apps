@@ -24,6 +24,7 @@ import type { ScenarioActor, ScenarioActors } from './actors.js';
 import {
   type CronCleanupTarget,
   cleanupCronJobAndArtifacts,
+  cronJobListingName,
   settleCronJobCreation,
   waitForCronJobCreated,
   waitForCronJobRemoved,
@@ -55,6 +56,7 @@ const MIGRATION_RESULT_WAIT_MS = 120_000;
 const LOOP_TIMEOUT_MARGIN_MS = 60_000;
 const CRON_CREATE_PROMPT_WAIT_MS = 120_000;
 const CRON_FIRED_WAIT_MS: Partial<Record<DriverName, number>> = {
+  harness: 120_000,
   hermes: 150_000,
   openclaw: 240_000,
 };
@@ -229,14 +231,17 @@ export const commonScenarios: readonly SharedScenario[] = [
 
   testScenario(
     'allowlisted-third-party-dm-reply',
-    {
-      driverSkips: {
-        harness:
-          "TLON-7109: needs a driver grant through Harness's Tlon policy, and Harness to accept a DM invite sent before the grant.",
-      },
-    },
+    {},
     async ({ ctx, driver, actors }) => {
-      await allowDmFrom(actors, actors.thirdParty.ship);
+      // DM before the grant, so the grant must also open a DM that arrived
+      // while the sender was not allowed, without relying on an earlier
+      // scenario having left one behind.
+      const preGrantKey = scenarioKey('pre-grant');
+      await actors.thirdParty.sendDm(
+        `[tlon-test:${preGrantKey}] Sent before this sender is allowed.`
+      );
+      await waitForBotDmWith(actors, actors.thirdParty.ship);
+      await allowDmFrom({ ctx, driver, actors }, actors.thirdParty.ship);
       const key = scenarioKey('allowlisted-third-party');
       const reply = `Allowlisted third-party reply ${key}`;
       const script = driver.model.replyText(reply);
@@ -1167,7 +1172,7 @@ export const commonScenarios: readonly SharedScenario[] = [
     { drivers: ['hermes'] },
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
-      await allowDmFrom(actors, actors.thirdParty.ship);
+      await allowDmFrom({ ctx, driver, actors }, actors.thirdParty.ship);
       const routeKey = scenarioKey('cron-route');
       const routeReply = `Third-party route seed ${routeKey}`;
       const routeScript = driver.model.replyText(routeReply);
@@ -1246,15 +1251,11 @@ export const commonScenarios: readonly SharedScenario[] = [
     'cron-model-driven-turn-delivers-to-origin',
     {
       capabilities: ['cron'],
-      driverSkips: {
-        harness:
-          'TLON-7110: the harness driver cannot find or cancel scheduled jobs yet.',
-      },
       timeoutMs: cronModelDrivenScenarioTimeoutMs,
     },
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
-      await allowDmFrom(actors, actors.thirdParty.ship);
+      await allowDmFrom({ ctx, driver, actors }, actors.thirdParty.ship);
       const routeKey = scenarioKey('cron-mdl-route');
       const routeReply = `Third-party route seed ${routeKey}`;
       const routeScript = driver.model.looseReplyText(routeReply);
@@ -1295,9 +1296,17 @@ export const commonScenarios: readonly SharedScenario[] = [
         firedScript
       );
 
+      const createKey = scenarioKey('cron-mdl-create');
+      const confirmText = `Cron job scheduled ${createKey}`;
       const jobName = `shared-cron-${scenarioKey('job')}`;
-      const cleanupTarget: CronCleanupTarget = {
+      const cronJob = {
         name: jobName,
+        firedPrompt: `${firedTag} Reply with the scripted cron marker text.`,
+        finalText: confirmText,
+      };
+      const listingName = cronJobListingName(driver.name, cronJob);
+      const cleanupTarget: CronCleanupTarget = {
+        name: listingName,
         creationSettled: Promise.resolve(),
       };
       actors.bot.teardown(
@@ -1307,13 +1316,7 @@ export const commonScenarios: readonly SharedScenario[] = [
         { label: `remove cron job artifacts ${jobName}` }
       );
 
-      const createKey = scenarioKey('cron-mdl-create');
-      const confirmText = `Cron job scheduled ${createKey}`;
-      const createScript = driver.model.createCronJob({
-        name: jobName,
-        firedPrompt: `${firedTag} Reply with the scripted cron marker text.`,
-        finalText: confirmText,
-      });
+      const createScript = driver.model.createCronJob(cronJob);
       const createTag = await registerModelScript(
         ctx.fakeModel,
         createKey,
@@ -1327,7 +1330,7 @@ export const commonScenarios: readonly SharedScenario[] = [
       const createdJobPromise = waitForCronJobCreated(
         ctx,
         driver.name,
-        jobName,
+        listingName,
         CRON_CREATE_PROMPT_WAIT_MS
       ).then((job) => {
         cleanupTarget.id = job.id;
@@ -2144,6 +2147,28 @@ function scenarioKey(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random()
     .toString(36)
     .slice(2, 8)}`;
+}
+
+// The bot holds the DM either as a pending invitation or as an accepted DM,
+// depending on whether the driver accepts DMs from unallowed senders.
+async function waitForBotDmWith(
+  actors: ScenarioActors,
+  ship: string
+): Promise<void> {
+  await waitFor(
+    async () => {
+      const [invited, accepted] = await Promise.all([
+        actors.bot.state.scry<string[]>('chat', '/dm/invited'),
+        actors.bot.state.scry<string[]>('chat', '/dm'),
+      ]);
+      return invited.includes(ship) || accepted.includes(ship);
+    },
+    {
+      timeoutMs: 30_000,
+      intervalMs: 500,
+      description: `a DM from ${ship} on the bot ship`,
+    }
+  );
 }
 
 function expectPromptSuccess(result: PromptResult, expectedText: string): void {

@@ -164,7 +164,7 @@ They are stripped at execution. An owner's child also lists `tlon` with no hand 
 **Read.** `on-load` runs `abet:boot:refresh-peers:retire-uploads:reset-wake`
 (`desk/app/harness-tlon.hoon:53`). `refresh-peers` checks that the head agent is
 running before poking it (`desk/app/harness-tlon.hoon:214`). `boot` calls
-`accept-owner-invitations`, which checks `%chat` and reads its pending DM invites
+`accept-granted-invitations`, which checks `%chat` and reads its pending DM invites
 (`desk/lib/harness-tlon-io.hoon:16`) and checks `%contacts`
 (`desk/lib/harness-tlon-io.hoon:248`). Each read sits behind a `%gu` check and the
 invitation step is inside `mole`, so a missing agent does not crash the load.
@@ -178,7 +178,7 @@ be mid-upgrade themselves, and a crash that gets past the guards fails the load.
 `/app/harness` load. Which path makes it was not traced.
 
 **Recommendation:** have `on-load` and `on-init` emit a self-poke or a zero-delay timer,
-and run `refresh-peers` and `accept-owner-invitations` when it arrives. The adapter's
+and run `refresh-peers` and `accept-granted-invitations` when it arrives. The adapter's
 load tests in `desk/tests-integration/harness-tlon-*.hoon` pin the cards a load emits
 and would need updating.
 

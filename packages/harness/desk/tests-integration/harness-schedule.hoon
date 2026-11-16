@@ -1,7 +1,7 @@
 ::  Full-agent persistence and timer checks; emitted cards are never executed.
 ::  -test /=harness=/tests-integration/harness-schedule
 /-  c=harness-cron, hh=harness-hand, h=harness, ac=acp, renew=harness-oauth,
-    adapter=harness-adapter, *harness-store
+    adapter=harness-adapter, t=harness-tlon, *harness-store
 /+  *test-agent, schedule=harness-schedule, defaults=harness-defaults, hl=harness,
     tools=harness-tools, auth=harness-auth
 /=  head  /app/harness
@@ -459,4 +459,400 @@
   ;<  ~  bind:m  (ex-equal !>((~(has by schedules.next) 0v1)) !>(|))
   ;<  ~  bind:m  (ex-equal !>((~(has by schedules.next) 0v2)) !>(&))
   (ex-equal !>((~(has by schedules.next) 0v3)) !>(&))
+::  Tlon conversations, with ~nec as the bot's owner. The scry gate answers
+::  for the Tlon hand: the owner's lane has no ceiling, anyone else's lane is
+::  limited to its conversation tools, and only the owner's DM administers.
+::
++$  lane  [actor=@p dm=? ceiling=(unit (list tool-grant:h))]
+++  owner-dm  'dm/~nec'
+++  bus-dm  'dm/~bus'
+++  room  'chat/~lux/test'
+++  room-thread  (rap 3 room '/' (scot %da t0) ~)
+++  trusted-ceiling  `(list tool-grant:h)`~[%tlon-read %tlon-write]
+++  allowed-ceiling  `(list tool-grant:h)`~[%web %tlon-read %tlon-write]
+++  tlon-scry
+  |=  lanes=(map @t lane)
+  |=  =path
+  ^-  (unit vase)
+  ?:  ?=([%gu @ %harness-tlon @ %$ ~] path)  `!>(&)
+  ?:  ?=([%gx @ %harness-tlon @ %peer-trust %noun ~] path)
+    `!>(`peer-trust:t`[[& `~nec ~ %mentions ~ ~] |])
+  ?:  ?=([%gx @ %harness-tlon @ %authority @ %noun ~] path)
+    =/  found  (~(get by lanes) (snag 5 `(list @ta)`path))
+    `!>(`hand-authority:adapter`?~(found [| ~] [& ceiling.u.found]))
+  ?:  ?=([%gx @ %harness-tlon @ %admin @ %noun ~] path)
+    =/  found  (~(get by lanes) (snag 5 `(list @ta)`path))
+    `!>(?~(found | &(=(~nec actor.u.found) dm.u.found)))
+  ?:  ?=([%gx @ %harness-tlon @ %context @ @ %noun ~] path)  `!>(`(unit @t)`~)
+  `!>(|)
+++  tlon-lane
+  |=  [actor=@p address=@t ceiling=(unit (list tool-grant:h))]
+  ^-  lane
+  [actor =('dm/' (end [3 3] address)) ceiling]
+++  tlon-job
+  |=  [actor=@p address=@t]
+  ^-  schedule:c
+  =/  who  (scot %p actor)
+  =/  act=action:c
+    :*  %add  0v1  'source-binding'  who  %prompt
+        %-  pairs:enjs:format
+        :~  ['schedule' %s '* * * * *']  ['timezone' %s 'UTC']  ['prompt' %s 'Check status']
+            ['runs' %s '2']
+        ==
+    ==
+  (create:schedule act ['tlon' address 'source' ~[who] &] ~ t0)
+::  A human's Tlon message with one outstanding model call. .jobs are the
+::  caller's own schedules in this conversation.
+::
+++  tlon-fixture
+  |=  [actor=@p address=@t name=@t args=@t jobs=(map @uv schedule:c)]
+  ^-  state-0
+  =/  s  fixture
+  =/  who  (scot %p actor)
+  =/  call=tool-call:h  ['control' name args]
+  =/  input=admitted-input:h
+    :*  0v8  [%hand 'source-binding' 'tlon' address 'human-request' who]  ~
+        `[%hand 'source-binding']  t0  [%user 'Manage my schedule']
+    ==
+  =/  log=(list event:h)
+    :~  [%tool-requested-2 4 'control' name]
+        [%llm-completed 3 %tool-calls [0 0] [%assistant '' ~[call]]]  [%llm-requested 3 %turn]
+        [%input-received input]  [%config-replaced defaults.s]
+    ==
+  =.  sessions.s  (~(put by sessions.s) 'source' [log 4])
+  =.  bindings.hands.s
+    %-  my
+    :~  ['source-binding' ['tlon' address 'source' ~[who] &]]
+        ['schedule-0v1' ['tlon' address 'schedule-0v1' ~[who] &]]
+    ==
+  =.  observations.hands.s
+    (my ~[[0v8 ['source-binding' 'human-request' who 'Manage my schedule' t0 %running]]])
+  =.  active.hands.s  (my ~[['source' 0v8]])
+  =.  schedules.s  jobs
+  s
+++  tlon-setup
+  |=  [s=state-0 lanes=(map @t lane)]
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now t0)))
+  ;<  ~  bind:m  (set-scry-gate (tlon-scry lanes))
+  ;<  *  bind:m  (do-load head `!>(s))
+  (pure:m ~)
+::  The scheduling result the head returns to the model for this call.
+::
+++  tool-body
+  |=  cards=(list card)
+  ^-  (unit @t)
+  ?~  cards  ~
+  ?.  ?=([%give %fact *] i.cards)  $(cards t.cards)
+  ?.  ?=([[%tools @ ~] ~] paths.p.i.cards)  $(cards t.cards)
+  `!<(@t q.cage.p.i.cards)
+::  Grants the head resolves for this turn are the catalog the model sees.
+::
+++  ex-offered
+  |=  [expected=? actor=@p address=@t ceiling=(unit (list tool-grant:h))]
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  (tlon-fixture actor address 'tlon_read_history' '{}' ~)
+  ;<  ~  bind:m  (tlon-setup s (my ~[['source' (tlon-lane actor address ceiling)]]))
+  ;<  =cage  bind:m  (got-peek /x/tool-call/source/4/control)
+  =/  authority  ;;((unit tool-authority:adapter) q.q.cage)
+  ;<  ~  bind:m  (ex-equal !>(?=(^ authority)) !>(&))
+  =/  granted  ?~(authority ~ tools.u.authority)
+  ;<  ~  bind:m  (ex-equal !>((tool-granted:tools 'cron_add' granted)) !>(expected))
+  (ex-equal !>((lien granted |=(g=tool-grant:h =(%cron g)))) !>(expected))
+++  test-owner-is-offered-scheduling-in-dm-and-channel
+  %-  eval-mare
+  ;<  ~  bind:(mare ,~)  (ex-offered & ~nec owner-dm ~)
+  (ex-offered & ~nec room ~)
+++  test-trusted-ship-is-not-offered-scheduling-in-dm
+  %-  eval-mare
+  (ex-offered | ~bus bus-dm `trusted-ceiling)
+++  test-trusted-ship-is-not-offered-scheduling-in-channel
+  %-  eval-mare
+  (ex-offered | ~bus room `trusted-ceiling)
+++  test-allowed-ship-is-not-offered-scheduling-in-dm
+  %-  eval-mare
+  (ex-offered | ~bus bus-dm `allowed-ceiling)
+++  test-allowed-ship-is-not-offered-scheduling-in-channel
+  %-  eval-mare
+  (ex-offered | ~bus room `allowed-ceiling)
+::  The head asks only the hand's ceiling, whoever the actor is.
+::
+++  test-no-ceiling-or-a-ceiling-with-cron-is-offered-scheduling
+  %-  eval-mare
+  ;<  ~  bind:(mare ,~)  (ex-offered & ~bus room ~)
+  (ex-offered & ~bus room `~[%cron %tlon-read %tlon-write])
+++  test-a-ceiling-without-cron-is-not-offered-scheduling-and-calls-are-refused
+  %-  eval-mare
+  =/  ceiling  `(list tool-grant:h)`~[%admin %tlon %web %code %tlon-read %tlon-write]
+  ;<  ~  bind:(mare ,~)  (ex-offered | ~nec room `ceiling)
+  (ex-refused room `ceiling refused-calls)
+++  test-trusted-ship-is-not-offered-scheduling-in-channel-thread
+  %-  eval-mare
+  (ex-offered | ~bus room-thread `trusted-ceiling)
+::  A call the catalog did not offer reaches the scheduler only if forged;
+::  it must still change nothing and tell the model why.
+::
+++  refused-calls
+  ^-  (list [name=@t args=@t])
+  :~  ['cron_add' '{"schedule":"* * * * *","timezone":"UTC","prompt":"Forged","runs":"1"}']
+      ['cron_list' '{}']
+      ['cron_remove' '{"id":"0v1"}']
+  ==
+++  ex-refused
+  |=  [address=@t ceiling=(unit (list tool-grant:h)) cases=(list [name=@t args=@t])]
+  =/  m  (mare ,~)
+  ^-  form:m
+  ?~  cases  (pure:m ~)
+  =/  s
+    (tlon-fixture ~bus address name.i.cases args.i.cases (my ~[[0v1 (tlon-job ~bus address)]]))
+  ;<  ~                bind:m  (tlon-setup s (my ~[['source' (tlon-lane ~bus address ceiling)]]))
+  ;<  before=state-0   bind:m  get-state
+  ;<  out=(list card)  bind:m  (do-tool name.i.cases args.i.cases)
+  ;<  next=state-0     bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>([name.i.cases schedules.next]) !>([name.i.cases schedules.before]))
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>([name.i.cases (tool-body out)])
+    !>([name.i.cases `'error: No authorized outstanding schedule request in this hand conversation'])
+  (ex-refused address ceiling t.cases)
+++  test-trusted-ship-scheduling-calls-are-refused-in-dm
+  %-  eval-mare
+  (ex-refused bus-dm `trusted-ceiling refused-calls)
+++  test-trusted-ship-scheduling-calls-are-refused-in-channel
+  %-  eval-mare
+  (ex-refused room `trusted-ceiling refused-calls)
+++  test-allowed-ship-scheduling-calls-are-refused-in-dm
+  %-  eval-mare
+  (ex-refused bus-dm `allowed-ceiling refused-calls)
+++  test-allowed-ship-scheduling-calls-are-refused-in-channel
+  %-  eval-mare
+  (ex-refused room `allowed-ceiling refused-calls)
+++  test-trusted-ship-scheduling-calls-are-refused-in-channel-thread
+  %-  eval-mare
+  (ex-refused room-thread `trusted-ceiling refused-calls)
+::  The owner creates, lists, changes and cancels through the model tools.
+::
+++  owner-manages
+  |=  address=@t
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  lanes  (my ~[['source' (tlon-lane ~nec address ~)]])
+  =/  add  '{"schedule":"0 9 * * *","timezone":"UTC","prompt":"Owner work","runs":"3"}'
+  ;<  ~              bind:m  (tlon-setup (tlon-fixture ~nec address 'cron_add' add ~) lanes)
+  ;<  *              bind:m  (do-tool 'cron_add' add)
+  ;<  added=state-0  bind:m  get-state
+  =/  created  ~(val by schedules.added)
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>(?~(created ~ `[actor state prompt]:i.created))
+    !>(`['~nec' %active 'Owner work'])
+  =/  job  (tlon-job ~nec address)
+  ;<  ~  bind:m  (tlon-setup (tlon-fixture ~nec address 'cron_list' '{}' (my ~[[0v1 job]])) lanes)
+  ;<  listed=(list card)  bind:m  (do-tool 'cron_list' '{}')
+  ;<  ~  bind:m
+    (ex-equal !>(?=(^ (find "Check status" (trip (fall (tool-body listed) ''))))) !>(&))
+  =/  update
+    %-  en:json:html
+    %-  pairs:enjs:format
+    :~  ['id' %s '0v1']  ['revision' %s (scot %uv (sham job))]
+        :-  'args'
+        %-  pairs:enjs:format
+        :~  ['schedule' %s '0 9 * * *']  ['timezone' %s 'UTC']  ['prompt' %s 'Changed work']
+            ['runs' %s '2']
+        ==
+    ==
+  ;<  ~  bind:m
+    (tlon-setup (tlon-fixture ~nec address 'cron_update' update (my ~[[0v1 job]])) lanes)
+  ;<  *                bind:m  (do-tool 'cron_update' update)
+  ;<  updated=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>(prompt:(~(got by schedules.updated) 0v1)) !>('Changed work'))
+  =/  remove  '{"id":"0v1"}'
+  ;<  ~  bind:m
+    (tlon-setup (tlon-fixture ~nec address 'cron_remove' remove (my ~[[0v1 job]])) lanes)
+  ;<  *                bind:m  (do-tool 'cron_remove' remove)
+  ;<  removed=state-0  bind:m  get-state
+  (ex-equal !>(state:(~(got by schedules.removed) 0v1)) !>(%cancelled))
+++  test-owner-manages-schedules-in-dm
+  %-  eval-mare
+  (owner-manages owner-dm)
+++  test-owner-manages-schedules-in-channel
+  %-  eval-mare
+  (owner-manages room)
+::  The owner's native and ACP schedule methods still create jobs for the
+::  owner's own Tlon conversation.
+::
+++  test-owner-native-and-acp-schedule-paths-still-create
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  lanes  (my ~[['source' (tlon-lane ~nec room ~)]])
+  =/  args
+    %-  pairs:enjs:format
+    :~  ['schedule' %s '0 9 * * *']  ['timezone' %s 'UTC']  ['prompt' %s 'Native work']
+        ['runs' %s '1']
+    ==
+  =/  act=action:c  [%add 0v5 'source-binding' '~nec' %prompt args]
+  ;<  ~               bind:m  (tlon-setup (tlon-fixture ~nec room 'calculate' '{}' ~) lanes)
+  ;<  *               bind:m  (do-poke %harness-cron !>(`request:c`['native' act]))
+  ;<  native=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>(state:(~(got by schedules.native) 0v5)) !>(%active))
+  =/  payload
+    %-  en:json:html
+    %-  pairs:enjs:format
+    :~  ['jsonrpc' %s '2.0']  ['id' %n '7']  ['method' %s 'harness/cron/add']
+        :-  'params'
+        %-  pairs:enjs:format
+        :~  ['id' %s '0v6']  ['binding' %s 'source-binding']  ['actor' %s '~nec']
+            ['kind' %s 'prompt']  ['args' args]
+        ==
+    ==
+  ;<  *            bind:m  (do-frame payload)
+  ;<  acp=state-0  bind:m  get-state
+  (ex-equal !>(state:(~(got by schedules.acp) 0v6)) !>(%active))
+::  The owner's own methods cannot create a Tlon job for another actor.
+::
+++  test-owner-methods-reject-a-tlon-job-for-a-non-owner-actor
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  lanes  (my ~[['source' (tlon-lane ~bus bus-dm `trusted-ceiling)]])
+  =/  args
+    %-  pairs:enjs:format
+    :~  ['schedule' %s '0 9 * * *']  ['timezone' %s 'UTC']  ['prompt' %s 'For bus']
+        ['runs' %s '1']
+    ==
+  =/  act=action:c  [%add 0v5 'source-binding' '~bus' %prompt args]
+  ;<  ~                bind:m  (tlon-setup (tlon-fixture ~bus bus-dm 'calculate' '{}' ~) lanes)
+  ;<  out=(list card)  bind:m  (do-poke %harness-cron !>(`request:c`['native' act]))
+  ;<  next=state-0     bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>((~(has by schedules.next) 0v5)) !>(|))
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>((cron-result out))
+    !>(`(unit (each json @t))``[%| 'This conversation is not permitted to schedule'])
+  =/  payload
+    %-  en:json:html
+    %-  pairs:enjs:format
+    :~  ['jsonrpc' %s '2.0']  ['id' %n '7']  ['method' %s 'harness/cron/add']
+        :-  'params'
+        %-  pairs:enjs:format
+        :~  ['id' %s '0v6']  ['binding' %s 'source-binding']  ['actor' %s '~bus']
+            ['kind' %s 'prompt']  ['args' args]
+        ==
+    ==
+  ;<  sent=(list card)  bind:m  (do-frame payload)
+  ;<  acp=state-0       bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>((~(has by schedules.acp) 0v6)) !>(|))
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>(?=(^ (find "This conversation is not permitted to schedule" (acp-sent sent))))
+    !>(&)
+  ::  A hand that does not answer is an outage, not a refusal.
+  ;<  ~                    bind:m  (tlon-setup (tlon-fixture ~bus bus-dm 'calculate' '{}' ~) ~)
+  ;<  down=(list card)     bind:m  (do-poke %harness-cron !>(`request:c`['native' act]))
+  %+  ex-equal
+    !>((cron-result down))
+  !>(`(unit (each json @t))``[%| 'Source hand authority is unavailable'])
+++  acp-sent
+  |=  cards=(list card)
+  ^-  tape
+  %-  zing
+  %+  murn  cards
+  |=  =card
+  ^-  (unit tape)
+  ?.  ?=([%pass [%acp %send ~] %agent * %poke %acp-action-1 *] card)  ~
+  =/  [pass=* wire=* agent=* target=* poke=* mark=* data=vase]  card
+  =/  action  !<(action:v1:ac data)
+  ?.  ?=(%send -.action)  ~
+  `(trip payload.action)
+::  A second hand's binding cannot schedule on a Tlon session whose hand
+::  ceiling forbids it; a session bound only through another hand still can.
+::
+++  test-another-hands-binding-cannot-schedule-on-a-forbidden-tlon-session
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  lanes  (my ~[['source' (tlon-lane ~bus bus-dm `trusted-ceiling)]])
+  =/  args
+    %-  pairs:enjs:format
+    :~  ['schedule' %s '0 9 * * *']  ['timezone' %s 'UTC']  ['prompt' %s 'Through bridge']
+        ['runs' %s '1']
+    ==
+  =/  act=action:c  [%add 0v5 'bridge-binding' '~bus' %prompt args]
+  =/  bridge=binding:hh  ['bridge' bus-dm 'source' ~['~bus'] &]
+  =/  s  (tlon-fixture ~bus bus-dm 'calculate' '{}' ~)
+  =.  bindings.hands.s  (~(put by bindings.hands.s) 'bridge-binding' bridge)
+  ;<  ~               bind:m  (tlon-setup s lanes)
+  ;<  *               bind:m  (do-poke %harness-cron !>(`request:c`['native' act]))
+  ;<  shared=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>((~(has by schedules.shared) 0v5)) !>(|))
+  =.  bindings.hands.s  (my ~[['bridge-binding' bridge]])
+  ;<  ~             bind:m  (tlon-setup s lanes)
+  ;<  *             bind:m  (do-poke %harness-cron !>(`request:c`['native' act]))
+  ;<  only=state-0  bind:m  get-state
+  (ex-equal !>(state:(~(got by schedules.only) 0v5)) !>(%active))
+++  cron-result
+  |=  cards=(list card)
+  ^-  (unit (each json @t))
+  ?~  cards  ~
+  ?.  ?=([%give %fact *] i.cards)  $(cards t.cards)
+  ?.  ?=([[%crons @ ~] ~] paths.p.i.cards)  $(cards t.cards)
+  `!<((each json @t) q.cage.p.i.cards)
+::  A Tlon job whose actor is not the owner must not run, and shows as paused
+::  rather than cancelled or removed.
+::
+++  test-existing-non-owner-schedule-pauses-and-does-not-run
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  fixture
+  =/  bus
+    =/  j  (tlon-job ~bus bus-dm)
+    j(binding 'bus-binding', sid 'bus-source', run-sid 'schedule-0v1')
+  =/  nec
+    =/  j  (tlon-job ~nec owner-dm)
+    j(binding 'nec-binding', sid 'nec-source', run-sid 'schedule-0v2')
+  =/  gone  bus(binding 'gone-binding', run-sid 'schedule-0v3')
+  =.  sessions.s
+    %-  my
+    :~  ['bus-source' [~[[%config-replaced defaults.s]] 1]]
+        ['nec-source' [~[[%config-replaced defaults.s]] 1]]
+        ['schedule-0v1' [~[[%config-replaced defaults.s]] 1]]
+        ['schedule-0v2' [~[[%config-replaced defaults.s]] 1]]
+    ==
+  =.  bindings.hands.s
+    %-  my
+    :~  ['bus-binding' ['tlon' bus-dm 'bus-source' ~['~bus'] &]]
+        ['nec-binding' ['tlon' owner-dm 'nec-source' ~['~nec'] &]]
+        ['schedule-0v1' ['tlon' bus-dm 'schedule-0v1' ~['~bus'] &]]
+        ['schedule-0v2' ['tlon' owner-dm 'schedule-0v2' ~['~nec'] &]]
+    ==
+  =.  schedules.s  (my ~[[0v1 bus] [0v2 nec] [0v3 gone]])
+  =/  lanes
+    %-  my
+    :~  ['bus-source' (tlon-lane ~bus bus-dm `trusted-ceiling)]
+        ['nec-source' (tlon-lane ~nec owner-dm ~)]
+    ==
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now t0)))
+  ;<  ~  bind:m  (set-scry-gate (tlon-scry lanes))
+  ;<  ~  bind:m  (wait ~d1)
+  ;<  *  bind:m  (do-load head `!>(s))
+  ;<  next=state-0  bind:m  get-state
+  =/  ran
+    |=  run=@t
+    (lien ~(val by observations.hands.next) |=(o=observation:hh =(run binding.o)))
+  ;<  ~  bind:m  (ex-equal !>((ran 'schedule-0v2')) !>(&))
+  ;<  ~  bind:m  (ex-equal !>(state:(~(got by schedules.next) 0v1)) !>(%paused))
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>(reason:(~(got by schedules.next) 0v1))
+    !>('The source conversation is not permitted to schedule; cancel this schedule to clear it')
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>(reason:(~(got by schedules.next) 0v3))
+    !>('Source hand or conversation authority changed; explicit rescheduling is required')
+  ;<  ~  bind:m  (ex-equal !>(remaining:(~(got by schedules.next) 0v1)) !>(remaining.bus))
+  (ex-equal !>((ran 'schedule-0v1')) !>(|))
 --
