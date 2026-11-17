@@ -866,7 +866,7 @@ const workspaceProposalA2UI: A2UI.BlobEntry = (() => {
         component: 'Button',
         child: 'create-label',
         variant: 'primary',
-        resultLabel: 'You created Bike Parts.',
+        resultLabel: 'You asked to create Bike Parts.',
         action: sendMessage('Create the "Bike Parts" workspace'),
       },
       { id: 'create-label', component: 'Text', text: 'Create' },

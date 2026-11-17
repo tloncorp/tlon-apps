@@ -309,7 +309,7 @@ export function buildWorkspacePlanBlob(
               component: 'Button',
               child: 'create-label',
               variant: 'primary',
-              resultLabel: `You created ${plan.title}.`,
+              resultLabel: `You asked to create ${plan.title}.`,
               action: {
                 event: {
                   name: A2UI.action.sendMessage,
