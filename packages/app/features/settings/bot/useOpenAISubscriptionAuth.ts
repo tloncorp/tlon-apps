@@ -1,14 +1,18 @@
 import { useQueryClient } from '@tanstack/react-query';
 import * as api from '@tloncorp/api';
+import { createDevLogger } from '@tloncorp/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Linking } from 'react-native';
 
+import { openOAuthUrl } from '../openOAuthUrl';
 import {
   OpenAIAuthState,
   getLLMAuthVerificationUrl,
 } from './openAiSubscription';
 import { OpenAIAuthController } from './openAiSubscriptionController';
 import { trackTlonbotSettingUpdated } from './botSettingsTelemetry';
+
+const logger = createDevLogger('LLMSubscriptionAuth', false);
 
 function flowFromState(state: OpenAIAuthState) {
   return 'flow' in state ? state.flow : undefined;
@@ -27,6 +31,7 @@ export function useOpenAISubscriptionAuth({
   const [state, setState] = useState<OpenAIAuthState>({ phase: 'idle' });
   const [browserError, setBrowserError] = useState<string | null>(null);
   const controllerRef = useRef<OpenAIAuthController | null>(null);
+  const browserOpenRef = useRef(false);
   const onCompleteRef = useRef(onComplete);
 
   useEffect(() => {
@@ -56,7 +61,12 @@ export function useOpenAISubscriptionAuth({
       },
     });
     controllerRef.current = controller;
-    const unsubscribe = controller.subscribe(setState);
+    const unsubscribe = controller.subscribe((nextState) => {
+      setState(nextState);
+      if (nextState.phase === 'error') {
+        logger.trackError('Subscription sign-in failed', { provider });
+      }
+    });
     setState(controller.getState());
 
     const appStateSubscription = AppState.addEventListener(
@@ -81,6 +91,8 @@ export function useOpenAISubscriptionAuth({
   }, [provider, queryClient, ship]);
 
   const openVerificationUrl = useCallback(async () => {
+    if (browserOpenRef.current) return;
+    const controller = controllerRef.current;
     const url = getLLMAuthVerificationUrl(
       flowFromState(state)?.verificationUrl
     );
@@ -88,24 +100,37 @@ export function useOpenAISubscriptionAuth({
       setBrowserError('The bot did not return a valid sign-in link.');
       return;
     }
+    browserOpenRef.current = true;
     try {
-      await Linking.openURL(url);
       setBrowserError(null);
+      if (provider === 'openai') {
+        const result = await openOAuthUrl(url, null);
+        if (controllerRef.current !== controller) return;
+        logger.trackEvent('ChatGPT sign-in browser', { action: result.type });
+        await controller?.resume();
+      } else {
+        await Linking.openURL(url);
+      }
     } catch {
+      logger.trackError('Could not open subscription sign-in', { provider });
       setBrowserError(
         'Could not open the sign-in page. Use the button below to try again.'
       );
+    } finally {
+      browserOpenRef.current = false;
     }
-  }, [state]);
+  }, [provider, state]);
 
   const start = useCallback(async () => {
     setBrowserError(null);
     const controller = controllerRef.current;
     if (!controller) return;
+    logger.trackEvent('Subscription sign-in started', { provider });
     await controller.start();
-  }, []);
+  }, [provider]);
 
   const restart = useCallback(async () => {
+    setBrowserError(null);
     await controllerRef.current?.retry();
   }, []);
 

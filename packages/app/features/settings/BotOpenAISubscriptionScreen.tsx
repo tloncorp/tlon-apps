@@ -1,7 +1,7 @@
 import { usePreventRemove } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button, ConfirmDialog, LoadingSpinner, Text } from '@tloncorp/ui';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
@@ -61,7 +61,9 @@ export function BotOpenAISubscriptionScreen(props: Props) {
       await deleteProviderKey.mutateAsync({ provider: providerId });
     }
     await queries.llmAuthStatusQuery.refetch();
-    props.navigation.navigate('BotModelSettings', { mode: 'default' });
+    if (providerId !== 'openai') {
+      props.navigation.navigate('BotModelSettings', { mode: 'default' });
+    }
   }, [
     deleteProviderKey,
     hasApiKey,
@@ -89,6 +91,33 @@ export function BotOpenAISubscriptionScreen(props: Props) {
     }
     void auth.start();
   }, [auth, connected, hasApiKey]);
+
+  const startedRef = useRef(false);
+  const { start } = auth;
+  useEffect(() => {
+    if (
+      providerId !== 'openai' ||
+      startedRef.current ||
+      !queries.ship ||
+      !queries.botReady ||
+      !queries.providerConfigQuery.isSuccess ||
+      subscriptionStatus !== 'known'
+    )
+      return;
+    startedRef.current = true;
+    if (!connected && !hasApiKey) {
+      void start();
+    }
+  }, [
+    start,
+    connected,
+    hasApiKey,
+    providerId,
+    queries.botReady,
+    queries.providerConfigQuery.isSuccess,
+    queries.ship,
+    subscriptionStatus,
+  ]);
 
   const handleSwitch = useCallback(async () => {
     try {
@@ -206,7 +235,10 @@ export function BotOpenAISubscriptionScreen(props: Props) {
             state={auth.state}
             browserError={auth.browserError ?? mutationError}
             onStart={beginConnection}
-            onOpenBrowser={() => void auth.openVerificationUrl()}
+            onOpenBrowser={auth.openVerificationUrl}
+            onContinue={() =>
+              props.navigation.navigate('BotModelSettings', { mode: 'default' })
+            }
             onSubmitToken={auth.completeToken}
             onRetry={() => void auth.restart()}
             showBackButton={false}

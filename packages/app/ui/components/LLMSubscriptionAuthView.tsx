@@ -1,4 +1,5 @@
 import type { TlawnLLMAuthProvider } from '@tloncorp/api';
+import { createDevLogger } from '@tloncorp/shared';
 import {
   Button,
   Icon,
@@ -8,7 +9,8 @@ import {
   useCopy,
   useToast,
 } from '@tloncorp/ui';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { View, YStack } from 'tamagui';
 
@@ -20,6 +22,8 @@ import {
 import { TextInput } from './Form';
 import { ScreenHeader } from './ScreenHeader';
 
+const logger = createDevLogger('LLMSubscriptionAuthView', false);
+
 function flowFromState(state: OpenAIAuthState) {
   return 'flow' in state ? state.flow : undefined;
 }
@@ -29,6 +33,7 @@ export function LLMSubscriptionAuthView({
   browserError,
   onStart,
   onOpenBrowser,
+  onContinue,
   onSubmitToken,
   onRetry,
   onCancel,
@@ -40,7 +45,8 @@ export function LLMSubscriptionAuthView({
   state: OpenAIAuthState;
   browserError?: string | null;
   onStart: () => void;
-  onOpenBrowser: () => void;
+  onOpenBrowser: () => Promise<void>;
+  onContinue: () => void;
   onSubmitToken: (token: string) => Promise<boolean>;
   onRetry: () => void;
   onCancel: () => void;
@@ -50,23 +56,51 @@ export function LLMSubscriptionAuthView({
   provider?: TlawnLLMAuthProvider;
 }) {
   const flow = flowFromState(state);
+  const userCode = flow?.userCode;
+  const [copyError, setCopyError] = useState<string | null>(null);
+  const [openingBrowser, setOpeningBrowser] = useState(false);
+  const openingBrowserRef = useRef(false);
   const error =
     state.phase === 'error'
       ? state.message
       : state.phase === 'active' && state.error
         ? state.error
-        : browserError;
+        : (copyError ?? browserError);
   const canGoBack = canDismissOpenAIAuth(state.phase);
   const isSetupToken = provider === 'anthropic';
+  const isChatGPT = provider === 'openai';
+  const connected = state.phase === 'connected';
   const [setupToken, setSetupToken] = useState('');
   const [submittingToken, setSubmittingToken] = useState(false);
   const { doCopy, didCopy } = useCopy(flow?.userCode ?? '');
   const showToast = useToast();
   const handleCopyCode = useCallback(async () => {
-    await copyOpenAIUserCode(flow?.userCode, doCopy, () => {
-      showToast({ message: 'Copied', duration: 1500 });
-    });
-  }, [doCopy, flow?.userCode, showToast]);
+    setCopyError(null);
+    try {
+      const copied = await copyOpenAIUserCode(userCode, doCopy, () => {
+        showToast({ message: 'Copied', duration: 1500 });
+      });
+      if (copied) return true;
+    } catch {
+      // A rejected write and a refused write have the same recovery action.
+    }
+    logger.trackError('Could not copy subscription sign-in code', { provider });
+    setCopyError('Could not copy the code. Please try again.');
+    return false;
+  }, [doCopy, userCode, provider, showToast]);
+  const handleCopyAndContinue = useCallback(async () => {
+    if (openingBrowserRef.current) return;
+    openingBrowserRef.current = true;
+    setOpeningBrowser(true);
+    try {
+      if (await handleCopyCode()) {
+        await onOpenBrowser();
+      }
+    } finally {
+      openingBrowserRef.current = false;
+      setOpeningBrowser(false);
+    }
+  }, [handleCopyCode, onOpenBrowser]);
   const handleSubmitToken = useCallback(async () => {
     const token = setupToken.trim();
     if (!token || submittingToken) return;
@@ -79,6 +113,10 @@ export function LLMSubscriptionAuthView({
       setSubmittingToken(false);
     }
   }, [onSubmitToken, setupToken, submittingToken]);
+
+  useEffect(() => {
+    setCopyError(null);
+  }, [flow?.id]);
 
   useEffect(() => {
     if (state.phase === 'idle') {
@@ -103,20 +141,31 @@ export function LLMSubscriptionAuthView({
       >
         <YStack gap="$3xl" padding="$xl" flexGrow={1} justifyContent="center">
           <YStack gap="$xl" alignItems="center">
+            {connected ? (
+              <Icon type="Checkmark" color="$positiveActionText" size="$xl" />
+            ) : null}
             <Text size="$label/2xl" fontWeight="600" textAlign="center">
-              Connect your {subscriptionLabel}
+              {connected
+                ? 'ChatGPT connected'
+                : isChatGPT
+                  ? 'Connect ChatGPT'
+                  : `Connect your ${subscriptionLabel}`}
             </Text>
             <Text size="$body" color="$secondaryText" textAlign="center">
-              {isSetupToken
-                ? 'Generate a Claude setup token on a computer with Claude Code, then paste it here.'
-                : `${providerLabel} will ask you to enter a one-time code. Once confirmed, your subscription will be linked.`}
+              {connected
+                ? 'Your ChatGPT subscription is connected. Continue to choose a model for Tlonbot.'
+                : isChatGPT
+                  ? 'Copy the code, then paste it on the ChatGPT sign-in page to connect your subscription.'
+                  : isSetupToken
+                    ? 'Generate a Claude setup token on a computer with Claude Code, then paste it here.'
+                    : `${providerLabel} will ask you to enter a one-time code. Once confirmed, your subscription will be linked.`}
             </Text>
           </YStack>
 
           {state.phase === 'idle' ? (
             <Button
               preset="primary"
-              label={`Connect ${providerLabel}`}
+              label={`Connect ${isChatGPT ? 'ChatGPT' : providerLabel}`}
               onPress={onStart}
             />
           ) : null}
@@ -213,10 +262,25 @@ export function LLMSubscriptionAuthView({
               )}
               <Button
                 preset="primary"
-                label={`Open ${providerLabel} sign-in`}
-                disabled={!flow?.verificationUrl}
-                onPress={onOpenBrowser}
+                label={
+                  isChatGPT
+                    ? 'Copy and continue'
+                    : `Open ${providerLabel} sign-in`
+                }
+                loading={openingBrowser}
+                disabled={
+                  !flow?.verificationUrl ||
+                  (isChatGPT && (!flow.userCode || openingBrowser))
+                }
+                onPress={isChatGPT ? handleCopyAndContinue : onOpenBrowser}
               />
+              {isChatGPT ? (
+                <Text size="$label/s" color="$secondaryText" textAlign="center">
+                  {Platform.OS === 'web'
+                    ? 'After approving, return to Tlon to finish connecting.'
+                    : 'After approving, close the sign-in window to return to Tlon.'}
+                </Text>
+              ) : null}
             </YStack>
           ) : null}
 
@@ -227,6 +291,10 @@ export function LLMSubscriptionAuthView({
                 Connected. Loading your models…
               </Text>
             </YStack>
+          ) : null}
+
+          {connected ? (
+            <Button preset="primary" label="Continue" onPress={onContinue} />
           ) : null}
 
           {error ? (

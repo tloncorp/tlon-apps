@@ -9,7 +9,7 @@ export type OAuthUrlOpenResult =
 
 export async function openOAuthUrl(
   authUrl: string,
-  redirectUrl: string
+  redirectUrl: string | null
 ): Promise<OAuthUrlOpenResult> {
   if (Platform.OS === 'web') {
     await Linking.openURL(authUrl);
@@ -19,6 +19,14 @@ export async function openOAuthUrl(
   const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
   if (result.type === 'success') {
     return { type: 'completed', url: result.url };
+  }
+  // Device-code sign-in has no redirect. Closing the browser only means the
+  // user returned; the caller must check the server for the login outcome.
+  if (
+    redirectUrl === null &&
+    (result.type === 'cancel' || result.type === 'dismiss')
+  ) {
+    return { type: 'returned' };
   }
   // Android can dismiss on foregrounding while authorization is still open.
   if (Platform.OS === 'android' && result.type === 'dismiss') {
