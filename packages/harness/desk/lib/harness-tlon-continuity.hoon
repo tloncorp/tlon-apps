@@ -1,7 +1,7 @@
 ::  Authorization changes rotate routes without discarding conversation
 ::  history. Detaching a conversation gives subsequent input a fresh identity.
 /-  t=harness-tlon, h=harness, a=activity-ver, c=channels, hh=harness-hand
-/+  p=harness-tlon-policy
+/+  p=harness-tlon-policy, ht=harness-tools
 |%
 ::
 ++  detach-routes
@@ -69,12 +69,27 @@
   ?:  =(`actor owner.policy)  [%owner ~]
   =/  tools  (~(get by trusted.policy) actor)
   ?~  tools  ?:((~(has in allowed.policy) actor) [%trusted (silt ~[%web])] [%denied ~])
-  [%trusted (silt u.tools)]
+  ::  Grants only the owner can use don't count here; +actor-changed
+  ::  counts their removal.
+  [%trusted (silt (guest-tools:ht u.tools))]
 ::
 ++  actor-changed
   |=  [before=policy:t after=policy:t actor=@p]
   ^-  ?
-  |(!=(enabled.before enabled.after) !=((authority-for before actor) (authority-for after actor)))
+  ?|  !=(enabled.before enabled.after)
+      !=((authority-for before actor) (authority-for after actor))
+      (owner-only-revoked before after actor)
+  ==
+::  Adding %tlon or %code for another ship changes nothing it can do, but
+::  removing one is a change, so the owner can stop work that holds it.
+++  owner-only-revoked
+  |=  [before=policy:t after=policy:t actor=@p]
+  ^-  ?
+  ?:  =(`actor owner.before)  |
+  =/  kept  (fall (~(get by trusted.after) actor) ~)
+  %+  lien  (fall (~(get by trusted.before) actor) ~)
+  |=  grant=tool-grant:h
+  &(?=(?(%tlon %code) grant) !(lien kept |=(held=tool-grant:h =(held grant))))
 ::
 ++  cutoffs
   |=  $:  before=policy:t

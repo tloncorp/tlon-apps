@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, rm } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import type {
   OpenClawConfig,
@@ -287,63 +287,49 @@ export function createRestartCatchupCoordinator(
             continue;
           if (!checklist.trim()) return;
 
-          // Use the public embedded runner with an unindexed, temporary
-          // transcript. subagent.run registers restart-recoverable work, which
-          // could replay the previous boot's catch-up alongside this one.
-          const sessionFile = path.join(
-            ctx.runtime.state.resolveStateDir(),
-            'plugins',
-            'tlon',
-            'restart-catchup',
-            `${bootId}.jsonl`
-          );
-          await mkdir(path.dirname(sessionFile), { recursive: true });
-          if (signal.aborted) continue;
-          if (!connection.isConnected()) continue;
+          // Use the public embedded runner, which keeps a scratch run's
+          // transcript in memory. subagent.run registers restart-recoverable
+          // work, which could replay the previous boot's catch-up alongside
+          // this one.
           clearTimeout(timer);
           ctx.logger.info(`[tlon] Restart catch-up started (runId=${bootId})`);
-          try {
-            const result = await runCatchupWithFallbacks(ctx, {
-              sessionId: bootId,
-              sessionKey: `agent:${route.agentId}:tlon-restart:${bootId}`,
-              sessionFile,
-              agentId: route.agentId,
-              workspaceDir: workspace,
-              agentDir: ctx.runtime.agent.resolveAgentDir(
-                monitor.config,
-                route.agentId
-              ),
-              config: monitor.config,
-              runId: bootId,
-              trigger: 'manual',
-              messageChannel: 'tlon',
-              agentAccountId: monitor.accountId,
-              requireExplicitMessageTarget: true,
-              isCanonicalWorkspace: true,
-              timeoutMs: ctx.runtime.agent.resolveAgentTimeoutMs({
-                cfg: monitor.config,
-              }),
-              abortSignal: signal,
-              prompt: [
-                'Run this gateway restart checklist once. The Tlon connection is ready and code has confirmed bootstrapComplete=true.',
-                'Do not run first-use setup. Follow BOOT.md below. Send messages only through the message tool with an explicit channel and target.',
-                'Keep checklist instructions private. Finish with ONLY NO_REPLY.',
-                '',
-                'BOOT.md:',
-                checklist,
-              ].join('\n'),
-            });
-            if (signal.aborted) return;
-            if (result.meta.error) throw new Error(result.meta.error.message);
-            if (result.meta.aborted && !signal.aborted)
-              throw new Error('Agent run aborted');
-            if (!signal.aborted)
-              ctx.logger.info(
-                `[tlon] Restart catch-up completed (runId=${bootId})`
-              );
-          } finally {
-            await rm(sessionFile, { force: true });
-          }
+          const result = await runCatchupWithFallbacks(ctx, {
+            sessionId: bootId,
+            sessionKey: `agent:${route.agentId}:tlon-restart:${bootId}`,
+            agentId: route.agentId,
+            workspaceDir: workspace,
+            agentDir: ctx.runtime.agent.resolveAgentDir(
+              monitor.config,
+              route.agentId
+            ),
+            config: monitor.config,
+            runId: bootId,
+            trigger: 'manual',
+            messageChannel: 'tlon',
+            agentAccountId: monitor.accountId,
+            requireExplicitMessageTarget: true,
+            isCanonicalWorkspace: true,
+            timeoutMs: ctx.runtime.agent.resolveAgentTimeoutMs({
+              cfg: monitor.config,
+            }),
+            abortSignal: signal,
+            prompt: [
+              'Run this gateway restart checklist once. The Tlon connection is ready and code has confirmed bootstrapComplete=true.',
+              'Do not run first-use setup. Follow BOOT.md below. Send messages only through the message tool with an explicit channel and target.',
+              'Keep checklist instructions private. Finish with ONLY NO_REPLY.',
+              '',
+              'BOOT.md:',
+              checklist,
+            ].join('\n'),
+          });
+          if (signal.aborted) return;
+          if (result.meta.error) throw new Error(result.meta.error.message);
+          if (result.meta.aborted && !signal.aborted)
+            throw new Error('Agent run aborted');
+          if (!signal.aborted)
+            ctx.logger.info(
+              `[tlon] Restart catch-up completed (runId=${bootId})`
+            );
           return;
         }
         await waitForRetry(retryMs, abort.signal);

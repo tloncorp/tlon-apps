@@ -30,6 +30,12 @@ update can then try to add the retained child again and crash with `The
 specified child already has a parent` in `ScreenStackHeaderConfig.onUpdate`.
 
 What it does:
+- The community adapter exposes `showCloseButton` separately from
+  `enablePanDownToClose`. Compact action menus hide the close control and its
+  52pt clearance while retaining the dismissal gesture. The app draws the
+  compact grabber because the existing native close-control modifier hides
+  the platform indicator. The default is unchanged for other callers. This only extends the
+  JavaScript adapter; the existing native prop is reused.
 Records every parent-child transition pair when removal starts and finishes
 those pairs in reverse order, including children no longer present in the
 current view tree. Descendant transitions finish before the fragment root is

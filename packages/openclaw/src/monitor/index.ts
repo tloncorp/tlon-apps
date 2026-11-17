@@ -6191,7 +6191,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                     defaultAgentId: () => defaultCronAgentId(cron, config),
                     config,
                     runtime: core.agent,
-                    stateDir: () => core.state.resolveStateDir(),
                     publish: (phase, lens) =>
                       publishContextLensEvent(phase, lens),
                     logger: { warn: (message) => runtime.error?.(message) },
