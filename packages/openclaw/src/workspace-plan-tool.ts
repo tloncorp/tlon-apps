@@ -231,19 +231,6 @@ export function createWorkspacePlanToolExecutor(deps: {
       const proposalId = newWorkspaceProposalId();
       const blob = buildWorkspacePlanBlob(proposalId, plan);
       const store = (deps.store ?? getWorkspaceProposalStore)();
-      // One open card at a time: a revision or a new topic replaces the last.
-      for (const { value } of await store.entries()) {
-        if (
-          value.ownerShip === ownerShip &&
-          (value.status === 'open' ||
-            (value.status === 'approved' && !value.groupId))
-        ) {
-          await store.register(value.proposalId, {
-            ...value,
-            status: 'superseded',
-          });
-        }
-      }
       await store.register(proposalId, {
         proposalId,
         ownerShip,
@@ -257,6 +244,21 @@ export function createWorkspacePlanToolExecutor(deps: {
         fallbackText: workspacePlanFallbackText(plan),
         blob: JSON.stringify(blob),
       });
+      // One open card at a time: a revision or a new topic replaces the last,
+      // once the owner has the new card to tap instead.
+      for (const { value } of await store.entries()) {
+        if (
+          value.proposalId !== proposalId &&
+          value.ownerShip === ownerShip &&
+          (value.status === 'open' ||
+            (value.status === 'approved' && !value.groupId))
+        ) {
+          await store.register(value.proposalId, {
+            ...value,
+            status: 'superseded',
+          });
+        }
+      }
       return textResult(
         `Posted the ${JSON.stringify(plan.title)} workspace card (proposal ${proposalId}). Nothing exists yet: it is created only when the owner taps Create. Return NO_REPLY now; the intro and card are your reply.`
       );
@@ -378,15 +380,17 @@ export function createWorkspaceCreateToolExecutor(deps: {
         quoteTlonArg(plan.description),
       ].join(' ');
       const result = await deps.runTlon(id, command);
-      // A failed admin grant still made the group: remember it, so a retry
-      // does not make a second one.
+      // A failed admin grant still made the group and its chat: remember
+      // both, so a retry neither makes a second group nor adds a second chat.
       const groupId = result.ok
         ? matchLine(result.text, 'ID', GROUP_ID)
         : result.text.match(/Created (~[a-z-]+\/[\w-]+)/)?.[1];
       if (groupId) {
         await save({
           groupId,
-          defaultChannelNest: matchLine(result.text, 'Channel'),
+          defaultChannelNest: result.ok
+            ? matchLine(result.text, 'Channel')
+            : result.text.match(/with its chat (chat\/~[a-z-]+\/[\w-]+)/)?.[1],
         });
       }
       if (!result.ok) {

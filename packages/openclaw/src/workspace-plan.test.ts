@@ -192,6 +192,27 @@ describe('tlon_workspace_plan', () => {
     expect(statuses).toEqual(['Bike Parts:superseded', 'Gravel Bike:open']);
   });
 
+  it('keeps the open card when its replacement fails to post', async () => {
+    const store = memoryStore();
+    let failCard = false;
+    const execute = createWorkspacePlanToolExecutor({
+      ownerShip: () => '~ten',
+      postText: async () => undefined,
+      postCard: async () => {
+        if (failCard) throw new Error('poke failed');
+      },
+      store: () => store,
+    });
+    await execute('1', bikeParts);
+    failCard = true;
+    const result = await execute('2', { ...bikeParts, title: 'Gravel Bike' });
+    expect(result.details).toEqual({ error: true });
+    const bikePartsRecord = [...store.records.values()].find(
+      (record) => record.plan.title === 'Bike Parts'
+    );
+    expect(bikePartsRecord?.status).toBe('open');
+  });
+
   it('reports an invalid plan without posting', async () => {
     const postCard = vi.fn();
     const execute = createWorkspacePlanToolExecutor({
@@ -386,14 +407,15 @@ describe('tlon_workspace_create', () => {
         commands.push(command);
         return {
           ok: false,
-          text: 'Error: Created ~ten/bike-parts (Ref: /1/group/~ten/bike-parts), but making ~zod its admin failed',
+          text: 'Error: Created ~ten/bike-parts (Ref: /1/group/~ten/bike-parts) with its chat chat/~ten/general, but making ~zod its admin failed',
         };
       },
     });
     await execute('call-1', { proposalId: 'workspace-plan-abc' });
-    expect(store.records.get('workspace-plan-abc')?.groupId).toBe(
-      '~ten/bike-parts'
-    );
+    expect(store.records.get('workspace-plan-abc')).toMatchObject({
+      groupId: '~ten/bike-parts',
+      defaultChannelNest: 'chat/~ten/general',
+    });
   });
 
   it('refuses a card the owner has not tapped Create on', async () => {
