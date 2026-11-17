@@ -288,32 +288,34 @@ describe('tlon_workspace_create', () => {
     },
   };
 
+  async function runTlon(_id: string, command: string) {
+    commands.push(command);
+    if (failOn && command.startsWith(failOn)) {
+      return { ok: false, text: 'Error: poke failed' };
+    }
+    if (command.startsWith('groups create-owned')) {
+      return {
+        ok: true,
+        text: [
+          '✅ Owned group created successfully!',
+          '   ID: ~ten/bike-parts',
+          '   Channel: chat/~ten/general',
+          '   Ref: /1/group/~ten/bike-parts',
+        ].join('\n'),
+      };
+    }
+    if (command.startsWith('channels create')) {
+      const kind = command.match(/--kind (\w+)/)![1];
+      return { ok: true, text: `Nest: ${kind}/~ten/${kind}-1` };
+    }
+    return { ok: true, text: 'ok' };
+  }
+
   function executor() {
     return createWorkspaceCreateToolExecutor({
       store: () => store,
       getCron: () => cron as never,
-      runTlon: async (_id, command) => {
-        commands.push(command);
-        if (failOn && command.startsWith(failOn)) {
-          return { ok: false, text: 'Error: poke failed' };
-        }
-        if (command.startsWith('groups create-owned')) {
-          return {
-            ok: true,
-            text: [
-              '✅ Owned group created successfully!',
-              '   ID: ~ten/bike-parts',
-              '   Channel: chat/~ten/general',
-              '   Ref: /1/group/~ten/bike-parts',
-            ].join('\n'),
-          };
-        }
-        if (command.startsWith('channels create')) {
-          const kind = command.match(/--kind (\w+)/)![1];
-          return { ok: true, text: `Nest: ${kind}/~ten/${kind}-1` };
-        }
-        return { ok: true, text: 'ok' };
-      },
+      runTlon,
     });
   }
 
@@ -397,6 +399,29 @@ describe('tlon_workspace_create', () => {
       'groups move-channel ~ten/bike-parts heap/~ten/heap-1 --section default --index 1',
       'groups move-channel ~ten/bike-parts notes/~ten/notes-1 --section default --index 2',
     ]);
+  });
+
+  it('keeps a notebook whose verification failed', async () => {
+    const failed = await createWorkspaceCreateToolExecutor({
+      store: () => store,
+      getCron: () => cron as never,
+      runTlon: async (id, command) =>
+        command.startsWith('channels create ~ten/bike-parts "Notes"')
+          ? {
+              ok: false,
+              text: 'Error: %notes created notes/~ten/notes-1, but its readers could not be verified: timeout.',
+            }
+          : runTlon(id, command),
+    })('call-1', { proposalId: 'workspace-plan-abc' });
+    expect(failed.details).toEqual({ error: true });
+    commands = [];
+    const resumed = await executor()('call-2', {
+      proposalId: 'workspace-plan-abc',
+    });
+    expect(resumed.details).toBeUndefined();
+    expect(
+      commands.filter((command) => command.startsWith('channels create'))
+    ).toEqual([]);
   });
 
   it('remembers a group whose admin grant failed', async () => {

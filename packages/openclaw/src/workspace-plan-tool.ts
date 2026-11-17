@@ -429,10 +429,23 @@ export function createWorkspaceCreateToolExecutor(deps: {
           `naming ${channel.title}`
         );
       } else {
-        const text = await run(
-          `channels create ${groupId} ${quoteTlonArg(channel.title)} --kind ${kind}${description}`,
-          `creating ${channel.title}`
+        const result = await deps.runTlon(
+          id,
+          `channels create ${groupId} ${quoteTlonArg(channel.title)} --kind ${kind}${description}`
         );
+        if (!result.ok) {
+          // A notebook whose verification failed is left in place: remember
+          // it, so a retry does not make a second one.
+          const made = result.text.match(
+            /%notes created (notes\/~[a-z-]+\/[\w-]+)/
+          )?.[1];
+          if (made) {
+            nests[index] = made;
+            await save({ channelNests: nests });
+          }
+          throw new Error(`creating ${channel.title} failed: ${result.text}`);
+        }
+        const text = result.text;
         nest = matchLine(text, 'Nest');
         if (!nest) {
           throw new Error(
