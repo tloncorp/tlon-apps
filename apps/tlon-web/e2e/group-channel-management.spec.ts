@@ -6,10 +6,13 @@ import { test } from './test-fixtures';
 test('Back from a newly created channel opens the workspace channel list on narrow screens', async ({
   zodPage: page,
 }) => {
+  // Narrow before navigating: crossing the breakpoint swaps the desktop
+  // navigator for the root stack, which starts over at the chat list.
+  await page.setViewportSize({ width: 390, height: 844 });
+
   await helpers.createGroup(page);
   await helpers.openGroupSettings(page);
   await page.getByTestId('GroupChannels').getByText('Channels').click();
-  await page.setViewportSize({ width: 390, height: 844 });
 
   await helpers.createChannel(page, 'New channel landing');
   await expect(
