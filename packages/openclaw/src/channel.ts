@@ -79,7 +79,10 @@ import {
   observeActiveTlonTurnDelivery,
 } from './turn-recorder.js';
 import { getTlonCronService } from './cron-telemetry.js';
-import { getStewardAutomationReconciler } from './steward-automation-reconciliation.js';
+import {
+  getStewardAutomationReconciler,
+  reportStewardProjectionFailure,
+} from './steward-automation-reconciliation.js';
 import { listTlonAccountIds, resolveTlonAccount } from './types.js';
 import {
   createWorkspaceCreateToolExecutor,
@@ -350,8 +353,12 @@ export const tlonPlugin = createChatChannelPlugin({
 
       const executeWorkspaceCreate = createWorkspaceCreateToolExecutor({
         getCron: getTlonCronService,
+        // Creation still succeeds when the mirror fails; the failure is
+        // reported here once the reconciler's retries are spent.
         syncTasks: async () =>
-          getStewardAutomationReconciler()?.trigger(() => getTlonCronService()),
+          getStewardAutomationReconciler()
+            ?.trigger(() => getTlonCronService())
+            .catch((error) => reportStewardProjectionFailure(error)),
         // The reply path, not `posts send`: it turns the path into a card.
         postText: async (target, text) =>
           (await loadTlonChannelRuntime()).tlonRuntimeOutbound.sendText!({

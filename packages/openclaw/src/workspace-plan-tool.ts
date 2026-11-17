@@ -530,7 +530,7 @@ export function createWorkspaceCreateToolExecutor(deps: {
       if (!job) throw new Error('scheduling the recurring task failed');
       await save({ taskJobId: job.id });
       // Best effort: the task runs either way, and the next cron change or
-      // gateway start mirrors it.
+      // gateway start mirrors it. syncTasks reports its own failure.
       await deps.syncTasks?.().catch(() => undefined);
     }
 
