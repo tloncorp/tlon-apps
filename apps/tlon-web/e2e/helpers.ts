@@ -56,6 +56,14 @@ export async function createGroup(page: Page) {
   });
   await page.getByText('Create workspace').click();
 
+  if (await isMobileViewport(page)) {
+    // The root stack opens the new workspace's only channel, not its list.
+    await expect(
+      page.getByTestId('ChannelHeaderTitle').getByText('Untitled workspace')
+    ).toBeVisible({ timeout: 10000 });
+    return;
+  }
+
   try {
     // Wait briefly to see if we're automatically navigated to the group
     await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({

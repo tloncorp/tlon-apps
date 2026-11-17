@@ -11,7 +11,11 @@ test('Back from a newly created channel opens the workspace channel list on narr
   await page.setViewportSize({ width: 390, height: 844 });
 
   await helpers.createGroup(page);
-  await helpers.openGroupSettings(page);
+  // A single-channel workspace's channel title opens the workspace settings.
+  await page
+    .getByTestId('ChannelHeaderTitle')
+    .getByText('Untitled workspace')
+    .click();
   await page.getByTestId('GroupChannels').getByText('Channels').click();
 
   await helpers.createChannel(page, 'New channel landing');
