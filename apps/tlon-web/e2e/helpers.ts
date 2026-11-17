@@ -934,7 +934,9 @@ export async function createChannel(
   });
   await page.getByText('New channel').first().click();
 
-  await expect(page.getByText('Create a new channel')).toBeVisible();
+  await expect(
+    page.getByText('Create a new channel', { exact: true })
+  ).toBeVisible();
 
   await fillFormField(page, 'ChannelTitleInput', title);
 
@@ -947,7 +949,9 @@ export async function createChannel(
   await page.getByText('Create channel').click();
 
   // Wait for the sheet to close
-  await expect(page.getByText('Create a new channel')).not.toBeVisible({
+  await expect(
+    page.getByText('Create a new channel', { exact: true })
+  ).not.toBeVisible({
     timeout: 5000,
   });
 
