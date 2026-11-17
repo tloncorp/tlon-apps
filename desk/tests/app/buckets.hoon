@@ -4,6 +4,9 @@
 /+  *test-agent
 /=  buckets-agent  /app/buckets
 /=  buckets-json  /lib/buckets/json
+::  Imported only so CI builds it: no agent imports a thread, and a broken
+::  one would leave the broker's sweep reading every bucket as unknown.
+/=  bucket-status-thread  /ted/pioneer/buckets/bucket-status
 |%
 ++  dap  %buckets
 ::
@@ -2193,10 +2196,10 @@
   ;<  ~  b
     %+  ex-equal
       !>([wire.purge method.request.purge url.request.purge header-list.request.purge])
-    !>  :*  /buckets/purge/1
+    !>  :*  /buckets/purge
             %'DELETE'
             'https://memex.tlon.network/v2/buckets/spaces/sampel-palnet/1'
-            ~[['x-landscape-token' '0wsecret']]
+            ~[['content-type' 'application/json'] ['x-landscape-token' '0wsecret']]
         ==
   ::  a refusal is only logged: the broker's own liveness check is what
   ::  finishes a purge that did not land
@@ -2292,7 +2295,7 @@
   ;<  gone=(unit @t)  b  (liveness '1')
   %+  ex-equal
     !>([wire.purge (~(has by spaces.st) flag) gone (give-order caz)])
-  !>([/buckets/purge/1 | `(unit @t)`[~ 'gone'] `(list ?(%fact %kick))`~[%fact %kick]])
+  !>([/buckets/purge | `(unit @t)`[~ 'gone'] `(list ?(%fact %kick))`~[%fact %kick]])
 ::
 ::  A host leaving its own group gets the same %delete fact, but %groups
 ::  keeps the group, and the buckets and their objects stay.
@@ -2336,7 +2339,7 @@
   =/  st=state-0:bu  !<(state-0:bu sv)
   %+  ex-equal
     !>([wire.purge (~(has by spaces.st) flag) (give-order caz)])
-  !>([/buckets/purge/1 | `(list ?(%fact %kick))`~[%fact %kick]])
+  !>([/buckets/purge | `(list ?(%fact %kick))`~[%fact %kick]])
 ::
 ::  Gall retries reuse the caller-selected random name. An identical retry
 ::  must not allocate a second Bucket.

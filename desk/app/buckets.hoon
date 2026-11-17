@@ -768,7 +768,7 @@
   =.  cor  (give [%kick ~[(updates-path flag)] ~])
   =.  cor  (drop-bucket-sessions flag)
   =.  cor  (drop-read-token flag)
-  =.  cor  (purge-bucket id.bucket.st)
+  =.  cor  (purge-bucket flag id.bucket.st)
   =.  spaces  (~(del by spaces) flag)
   cor
 ::
@@ -781,16 +781,14 @@
 ::  delays the release, and nothing has to be remembered here to finish it.
 ::
 ++  purge-bucket
-  |=  id=@ud
+  |=  [=flag:b id=@ud]
   ^+  cor
-  =/  secret=(unit @t)  genuine-secret
-  ?~  secret
-    (note %warn ~[leaf+"buckets: no genuine secret, purge left to the broker"] ~)
-  =/  url=@t
-    (rap 3 broker-base '/spaces/' (ship-text:util our.bowl) '/' (scot %ud id) ~)
-  =/  =request:http
-    [%'DELETE' url ~[['x-landscape-token' u.secret]] ~]
-  (emit [%pass /buckets/purge/(scot %ud id) %arvo %i %request request *outbound-config:iris])
+  =/  path=@t  (rap 3 '/spaces/' (ship-text:util our.bowl) '/' (scot %ud id) ~)
+  ?~  card=(broker-request %'DELETE' /buckets/purge path ~)
+    %^  note  %warn
+      ~[leaf+"buckets: no genuine secret, purge left to the broker"]
+    (log-bucket flag)
+  (emit u.card)
 ::
 ::  +bucket-liveness: answer the broker about one of our bucket ids.
 ::
@@ -822,10 +820,9 @@
     %-  ~(rep by spaces)
     |=  [[=flag:b sp=space:b] acc=(unit [flag:b bucket-state:b])]
     ?^  acc  acc
-    ?.  =(%pub net.sp)  ~
-    ?~  state.sp  ~
-    ?.  =(id id.bucket.u.state.sp)  ~
-    `[flag u.state.sp]
+    ?~  st=(hosted-state sp)  ~
+    ?.  =(id id.bucket.u.st)  ~
+    `[flag u.st]
   ?~  held
     `(pairs:enjs:format ~[['result' s+'gone']])
   =/  keys=(set @t)
@@ -1098,15 +1095,15 @@
   ^-  wire
   /buckets/upload/(scot %uv sid)/[kind]
 ::
-::  +broker-post: a POST to the broker, authenticated as this ship.
+::  +broker-request: a request to the broker, authenticated as this ship.
 ::
 ::  The credential is the %genuine secret, the same one the read-token sync
 ::  presents. Absent means this ship cannot reach storage at all, which is a
 ::  real state on a fresh boot rather than a bug, so the caller decides what
 ::  to tell whoever is waiting.
 ::
-++  broker-post
-  |=  [=wire path=@t body=(unit json)]
+++  broker-request
+  |=  [=method:http =wire path=@t body=(unit json)]
   ^-  (unit card)
   =/  secret=(unit @t)  genuine-secret
   ?~  secret  ~
@@ -1116,7 +1113,7 @@
     =/  txt=@t  (en:json:html u.body)
     `[(met 3 txt) txt]
   =/  =request:http
-    :*  %'POST'  url
+    :*  method  url
         :~  ['content-type' 'application/json']
             ['x-landscape-token' u.secret]
         ==
@@ -1242,7 +1239,8 @@
     ^+  up-core
     =/  st=bucket-state:b  (need-state flag.ses)
     =/  card=(unit card)
-      %^    broker-post
+      %-  broker-request
+      :^    %'POST'
           (upload-wire id.ses %grant)
         '/uploads/grant'
       `(up-authority st)
@@ -1260,7 +1258,7 @@
     =/  path=@t
       (rap 3 '/uploads/' u.reservation.ses '/' (scot %tas kind) ~)
     =/  card=(unit card)
-      (broker-post (upload-wire id.ses kind) path body)
+      (broker-request %'POST' (upload-wire id.ses kind) path body)
     ?~  card  up-unreachable
     (emit u.card)
   ::  +up-unreachable: give up on a broker call we cannot make.
@@ -1365,7 +1363,7 @@
     ?:  ?=(%cancel -.res)
       (up-fail 'the storage request was cancelled')
     =/  code=@ud  status-code.response-header.res
-    ?.  &((gte code 200) (lth code 300))
+    ?.  (broker-ok:util code)
       (up-fail (broker-message:util res))
     ?-  kind
         %grant   (up-took-grant res)
@@ -2990,18 +2988,17 @@
     ?:  ?=(%progress -.res)  cor
     (take-upload (slav %uv sid.pole) kind.pole res)
   ::
-      [%buckets %purge id=@ ~]
+      [%buckets %purge ~]
     ?.  ?=([%iris %http-response *] sign-arvo)  cor
     =*  res  client-response.sign-arvo
     ?:  ?=(%progress -.res)  cor
-    =/  fields=(list (pair @t json))  ~[['bucket-id' s+id.pole]]
     ?:  ?=(%cancel -.res)
-      (note %warn ~[leaf+"buckets: bucket purge was cancelled"] fields)
+      (note %warn ~[leaf+"buckets: bucket purge was cancelled"] ~)
     =/  code=@ud  status-code.response-header.res
-    ?:  &((gte code 200) (lth code 300))  cor
+    ?:  (broker-ok:util code)  cor
     %^  note  %warn
       ~[leaf+"buckets: broker refused a bucket purge"]
-    (snoc fields ['status' (numb:enjs:format code)])
+    ~[['status' (numb:enjs:format code)]]
   ::
       [%buckets %reader host=@ name=@ who=@ rev=@ ~]
     ?.  ?=([%iris %http-response *] sign-arvo)  cor
@@ -3021,7 +3018,7 @@
     =/  theirs=(unit @ud)  (broker-revision:util res)
     ::  A stale write is not a failure -- it answers 200 with the revision it
     ::  kept, and adopting that is how we catch up.
-    ?:  &((gte code 200) (lth code 300))
+    ?:  (broker-ok:util code)
       (confirm-reader key sent theirs (broker-applied:util res))
     ::  Only a success may confirm. An error body carries no revision under
     ::  the broker's contract, and adopting one from a rejection would install
@@ -3162,9 +3159,16 @@
   |=  [group=flag:b =flag:b]
   ^-  ?
   ?~  sp=(~(get by spaces) flag)  |
-  ?.  =(%pub net.u.sp)  |
-  ?~  state.u.sp  |
-  =(group group.u.state.u.sp)
+  ?~  st=(hosted-state u.sp)  |
+  =(group group.u.st)
+::
+::  +hosted-state: a space's bucket state, when it is a bucket we host.
+::
+++  hosted-state
+  |=  sp=space:b
+  ^-  (unit bucket-state:b)
+  ?.  =(%pub net.sp)  ~
+  state.sp
 ::
 ::  +held-writers: every role id our buckets in this group grant writes to.
 ::
