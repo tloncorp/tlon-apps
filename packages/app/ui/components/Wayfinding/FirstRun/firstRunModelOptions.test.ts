@@ -51,7 +51,7 @@ describe('first-run model choices', () => {
     const included = findModelRow(sections, INCLUDED_ROW_ID);
     expect(included?.name).toBe('GPT-7 Luna');
     expect(included?.primaryLabel).toBe('Use GPT-7 Luna');
-    expect(included?.meta).toBe('Included · Zero data retention');
+    expect(included?.meta).toBe('Free · $5 of credit every month');
     expect(
       sections
         .flatMap((section) => section.rows)
@@ -104,7 +104,9 @@ describe('the model screen rows', () => {
     ]);
     const subscriptions = rows[1];
     expect(subscriptions.name).toBe('Your subscription');
-    expect(subscriptions.meta).toBe('Sign in with ChatGPT, Claude or Grok');
+    expect(subscriptions.meta).toBe(
+      'A ChatGPT, Claude or Grok plan you pay for'
+    );
     expect(subscriptions.primaryLabel).toBe('Sign in to your subscription');
     expect(subscriptions.plans?.map((plan) => plan.id)).toEqual([
       'subscription:openai',

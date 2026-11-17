@@ -17,6 +17,7 @@ import { resolveInitialProviderModel } from '../providerModelDefaults';
 import { ChooseModelScreen, ModelSwitchSheet } from './ChooseModelScreen';
 import { ConnectServicesScreen } from './ConnectServicesScreen';
 import { FirstRunApiKeyScreen } from './FirstRunApiKeyScreen';
+import { FirstRunDataScreen } from './FirstRunDataScreen';
 import { FirstRunIntroScreen } from './FirstRunIntroScreen';
 import { FirstRunSetupScreen } from './FirstRunSetupScreen';
 import { StartWorkspaceScreen } from './StartWorkspaceScreen';
@@ -38,6 +39,7 @@ const logger = createDevLogger('FirstRunSequence', false);
 /** Where Back goes from each screen. */
 const PREVIOUS_PANE: Partial<Record<FirstRunPane, FirstRunPane>> = {
   private: 'meet',
+  dataKept: 'private',
   connect: 'private',
   allServices: 'connect',
   model: 'connect',
@@ -51,6 +53,7 @@ const PREVIOUS_PANE: Partial<Record<FirstRunPane, FirstRunPane>> = {
 export type FirstRunPane =
   | 'meet'
   | 'private'
+  | 'dataKept'
   | 'connect'
   | 'allServices'
   | 'model'
@@ -388,7 +391,10 @@ export function FirstRunSequence({
           slide={2}
           onNext={() => setPane('connect')}
           onBack={goBack}
+          onDataKept={() => setPane('dataKept')}
         />
+      ) : pane === 'dataKept' ? (
+        <FirstRunDataScreen onBack={goBack} />
       ) : pane === 'connect' ? (
         <ConnectServicesScreen
           unavailable={services.unavailable}

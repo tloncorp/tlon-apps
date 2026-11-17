@@ -7,7 +7,7 @@ import { View, XStack, YStack } from 'tamagui';
 
 import { useIsDarkMode } from '../../../../hooks/useDarkMode';
 import { ScreenHeader } from '../../ScreenHeader';
-import { LineOutline } from './lineKit';
+import { LINE, LineOutline, LineRule } from './lineKit';
 
 /** Profile, Setting up, then the five first-run screens. */
 export const ONBOARDING_STEP_COUNT = 9;
@@ -133,7 +133,8 @@ export function LineStepFrame({
   keyboardBottomOffset,
   testID,
 }: {
-  step: number;
+  /** The step in onboarding's progress; a side screen has none. */
+  step?: number;
   onBack?: () => void;
   title: string;
   subtitle?: ReactNode;
@@ -182,7 +183,7 @@ export function LineStepFrame({
             <ScreenHeader.BackButton onPress={onBack} />
           </View>
         ) : null}
-        <OnboardingStepDots step={step} />
+        {step === undefined ? null : <OnboardingStepDots step={step} />}
       </XStack>
 
       <Scroll
@@ -231,6 +232,51 @@ export function LineStepFrame({
         ) : null)}
       {overlay}
     </View>
+  );
+}
+
+/** The underline sits this far under the top of a link's line. */
+const LINK_UNDERLINE_TOP = 20;
+
+/** A centered text link with a thin underline, in a 44 pt tap area. */
+export function LineTextLink({
+  label,
+  onPress,
+  testID,
+}: {
+  label: string;
+  onPress: () => void;
+  testID?: string;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="link"
+      accessibilityLabel={label}
+      testID={testID}
+    >
+      <View height={44} alignItems="center" justifyContent="center">
+        <View>
+          <Text
+            fontSize={15}
+            lineHeight={21}
+            letterSpacing={-0.1}
+            color="$primaryText"
+          >
+            {label}
+          </Text>
+          <View
+            position="absolute"
+            left={0}
+            right={0}
+            top={LINK_UNDERLINE_TOP}
+            height={LINE}
+          >
+            <LineRule />
+          </View>
+        </View>
+      </View>
+    </Pressable>
   );
 }
 

@@ -5,6 +5,7 @@ import {
   ART_TO_CONTENT_GAP,
   LineBulletList,
   LineStepFrame,
+  LineTextLink,
 } from '../../Onboarding/line/LineStepFrame';
 import { LineIcon } from '../../Onboarding/line/lineIcons';
 import { MeetArt, PrivateArt } from '../../Onboarding/line/onboardingArt';
@@ -25,15 +26,23 @@ export function FeaturePointList({ points }: { points: FeaturePoint[] }) {
   );
 }
 
-/** Meet your Tlonbot and Yours to keep, the first run's opening pair. */
+/** The data link sits this far under Yours to keep's last point. */
+const LIST_TO_DATA_LINK_GAP = 38;
+
+/**
+ * Meet your Tlonbot and Yours to keep, the first run's opening pair. Yours
+ * to keep links to How your data is kept.
+ */
 export function FirstRunIntroScreen({
   slide,
   onNext,
   onBack,
+  onDataKept,
 }: {
   slide: 1 | 2;
   onNext: () => void;
   onBack?: () => void;
+  onDataKept?: () => void;
 }) {
   const glyph = useOnboardingGlyph();
   const copy = slide === 1 ? firstRunCopy.meet : firstRunCopy.private;
@@ -54,6 +63,15 @@ export function FirstRunIntroScreen({
       <View marginTop={ART_TO_CONTENT_GAP}>
         <FeaturePointList points={copy.points} />
       </View>
+      {slide === 2 && onDataKept ? (
+        <View marginTop={LIST_TO_DATA_LINK_GAP}>
+          <LineTextLink
+            label={firstRunCopy.private.dataLink}
+            onPress={onDataKept}
+            testID="first-run-data-link"
+          />
+        </View>
+      ) : null}
     </LineStepFrame>
   );
 }

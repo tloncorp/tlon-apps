@@ -48,7 +48,7 @@ export const FIRST_RUN_FEATURED_SERVICES: [string, ServiceAccessCopy][] = [
     'google-calendar',
     {
       scopes: 'openid email profile https://www.googleapis.com/auth/calendar',
-      summary: 'Your events and invites',
+      summary: 'Helps plan your week',
       intro:
         'Your Tlonbot will be able to check your schedule and add events for you.',
       accessMode: 'read and write',
@@ -62,7 +62,7 @@ export const FIRST_RUN_FEATURED_SERVICES: [string, ServiceAccessCopy][] = [
     'google-gmail',
     {
       scopes: 'openid email profile https://www.googleapis.com/auth/gmail.send',
-      summary: 'Sends email as you',
+      summary: 'Sends email for you',
       intro:
         'Your Tlonbot will be able to send email from your Gmail address when you ask.',
       accessMode: 'send only',
@@ -76,7 +76,7 @@ export const FIRST_RUN_FEATURED_SERVICES: [string, ServiceAccessCopy][] = [
     'notion',
     {
       scopes: '',
-      summary: 'Your pages and notes',
+      summary: 'Finds and edits notes',
       intro:
         'Your Tlonbot will be able to search your Notion pages and make changes for you.',
       accessMode: 'read and write',
@@ -93,29 +93,64 @@ export const firstRunCopy = {
 
   meet: {
     title: 'Meet your Tlonbot',
-    subtitle: 'It works for you, and only you.',
+    subtitle:
+      'Unlike ChatGPT, it works in your chats and keeps what it learns when you switch models.',
     points: [
-      { icon: 'chats', label: 'Bring it into your chats' },
-      { icon: 'search', label: 'Ask it anything' },
-      { icon: 'plug', label: 'Connect the apps you use' },
+      { icon: 'chats', label: 'Catches you up on a busy chat' },
+      { icon: 'search', label: 'Looks things up and plans ahead' },
+      { icon: 'plug', label: 'Works with your calendar and email' },
     ] satisfies FeaturePoint[],
     primary: 'Next',
   },
 
   private: {
     title: 'Yours to keep',
-    subtitle: 'Private by design.',
+    subtitle:
+      'Private by design, and you can take it with you whenever you want.',
     points: [
-      { icon: 'computer', label: 'Lives on a computer you own' },
-      { icon: 'lock', label: 'Zero data retention by default' },
-      { icon: 'sliders', label: 'You choose what it sees' },
+      { icon: 'computer', label: 'Runs on its own computer in the cloud' },
+      { icon: 'lock', label: 'Its default model keeps nothing' },
+      { icon: 'sliders', label: 'Sees only what you share' },
     ] satisfies FeaturePoint[],
+    dataLink: 'How your data is kept',
     primary: 'Next',
+  },
+
+  // Opened from Yours to keep. The facts match tlon.io/faqs.
+  dataKept: {
+    title: 'How your data is kept',
+    subtitle: 'Where it runs, and who can see what.',
+    items: [
+      {
+        label: 'Where it runs',
+        text: 'On its own computer in the cloud. Tlon runs it for you, and it belongs to you.',
+      },
+      {
+        label: 'Who can see it',
+        text: 'Your chats and its memory stay there. Tlon only looks if you ask for help and say yes.',
+      },
+      {
+        label: 'The AI model',
+        text: 'Your Tlonbot sends the model only what it needs to answer. The included model keeps none of it.',
+      },
+      {
+        label: 'Open source',
+        text: 'The code that runs your Tlonbot is open, so anyone can check how it works.',
+      },
+      {
+        label: 'Leaving',
+        text: 'Export everything, or move it to a computer you run yourself, anytime.',
+      },
+    ],
+    faqLink: 'Read the full answers at tlon.io/faqs',
+    faqUrl: 'https://tlon.io/faqs',
+    primary: 'Done',
   },
 
   connect: {
     title: 'Connect your services',
-    subtitle: 'Make your Tlonbot useful with the apps you already use.',
+    subtitle:
+      'Pick what you’d like help with. You can skip this and connect later.',
     none: 'No services are available to connect right now. You can connect one later from your Tlonbot’s settings.',
     allServices: 'All services',
     connectButton: 'Connect',
@@ -149,22 +184,22 @@ export const firstRunCopy = {
     title: 'You choose the model',
     subtitle:
       'Pick the model, and switch whenever you want. Your Tlonbot keeps its history.',
-    sectionIncluded: 'Included with Tlon',
+    sectionIncluded: 'Free with Tlon',
     sectionSubscription: 'Use your subscription',
     sectionApiKey: 'Use your own API key',
     recommended: 'Recommended',
-    includedMeta: 'Included · Zero data retention',
+    includedMeta: 'Free · $5 of credit every month',
     subscriptionMeta: (company: string) =>
       `Sign in with your plan · ${company}’s data policy`,
     apiKeyName: 'Your own API key',
-    apiKeyMeta: 'OpenAI, Anthropic, xAI or OpenRouter',
+    apiKeyMeta: 'For developers · you pay the provider',
     subscriptionsName: 'Your subscription',
     subscriptionsMeta: (plans: string[]) =>
-      `Sign in with ${
+      `A ${
         plans.length > 1
           ? `${plans.slice(0, -1).join(', ')} or ${plans[plans.length - 1]}`
           : plans[0]
-      }`,
+      } plan you pay for`,
     primarySubscriptions: 'Sign in to your subscription',
     primaryIncluded: (model: string) => `Use ${model}`,
     primarySubscription: (plan: string) => `Sign in to ${plan}`,

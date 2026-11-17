@@ -20,6 +20,7 @@ import {
 } from '../ui/components/Wayfinding/FirstRun/ChooseModelScreen';
 import { ConnectServicesScreen } from '../ui/components/Wayfinding/FirstRun/ConnectServicesScreen';
 import { FirstRunApiKeyScreen } from '../ui/components/Wayfinding/FirstRun/FirstRunApiKeyScreen';
+import { FirstRunDataScreen } from '../ui/components/Wayfinding/FirstRun/FirstRunDataScreen';
 import { FirstRunIntroScreen } from '../ui/components/Wayfinding/FirstRun/FirstRunIntroScreen';
 import {
   type FirstRunModelsAdapter,
@@ -128,7 +129,20 @@ function MeetFixture() {
 function PrivateFixture() {
   return (
     <Frame>
-      <FirstRunIntroScreen slide={2} onNext={noop} onBack={noop} />
+      <FirstRunIntroScreen
+        slide={2}
+        onNext={noop}
+        onBack={noop}
+        onDataKept={noop}
+      />
+    </Frame>
+  );
+}
+
+function DataKeptFixture() {
+  return (
+    <Frame>
+      <FirstRunDataScreen onBack={noop} />
     </Frame>
   );
 }
@@ -493,6 +507,7 @@ export default {
   'Flow, model switch fails': <FlowFixture readyAfter={3} switchFails />,
   '3 Meet your Tlonbot': <MeetFixture />,
   '4 Yours to keep': <PrivateFixture />,
+  '4 How your data is kept': <DataKeptFixture />,
   '5 Connect': <ConnectFixture />,
   '5 Connect, access sheet': <ConnectFixture sheet />,
   '5 Connect, connected': <ConnectFixture connected />,
