@@ -49,9 +49,24 @@
 ++  res
   |=  body=@t
   ^-  client-response:iris
+  (res-at 200 body)
+::  +res-at: a finished broker answer under .code carrying .body as JSON
+::
+++  res-at
+  |=  [code=@ud body=@t]
+  ^-  client-response:iris
   :+  %finished
-    [200 ~]
+    [code ~]
   `['application/json' [(met 3 body) body]]
+::  +html-at: an answer from something in front of the broker -- a proxy's
+::  own error page under .code, carrying no JSON at all
+::
+++  html-at
+  |=  [code=@ud body=@t]
+  ^-  client-response:iris
+  :+  %finished
+    [code ~]
+  `['text/html' [(met 3 body) body]]
 ::
 ::  manifest helpers
 ::
@@ -188,25 +203,166 @@
   ::
     %+  expect-eq  !>(`(unit @ud)`~)
     !>((broker-revision:util (res '{"currentRevision":"4"}')))
-  ==
-::
-::  A transport failure carries no body at all, and those are exactly the
-::  attempts worth making again -- so absent means retryable.
-::
-++  test-broker-retryable-defaults-to-true
-  ;:  weld
-    (expect-eq !>(&) !>((broker-retryable:util (res '{}'))))
-    (expect-eq !>(|) !>((broker-retryable:util (res '{"retryable":false}'))))
-    (expect-eq !>(&) !>((broker-retryable:util [%cancel ~])))
-  ==
-::
-++  test-broker-message-falls-back-when-unreadable
-  ;:  weld
-    %+  expect-eq  !>('nope')
-    !>((broker-message:util (res '{"message":"nope"}')))
   ::
-    %+  expect-eq  !>('storage refused the upload')
-    !>((broker-message:util (res 'not json at all')))
+    %+  expect-eq  !>(`(unit @ud)`~)
+    !>((broker-revision:util (res '{"currentRevision":-1}')))
+  ::
+    %+  expect-eq  !>(`(unit @ud)`~)
+    !>((broker-revision:util (res '{"currentRevision":1.5}')))
+  ==
+::
+::  The body decides when it speaks, whatever the status. When it does not
+::  -- an empty object, a proxy's error page or no body at all -- the status
+::  decides: a 429 or a 5xx is worth repeating, any other status is final.
+::  A cancelled request has no status and is worth asking about again.
+::
+++  test-broker-retryable-status
+  ;:  weld
+    (expect-eq !>(&) !>((broker-retryable:util [%cancel ~])))
+    (expect-eq !>(&) !>((broker-retryable:util (res-at 503 '{}'))))
+    (expect-eq !>(&) !>((broker-retryable:util (res-at 429 '{}'))))
+  ::
+    %+  expect-eq  !>(&)
+    !>((broker-retryable:util (html-at 502 '<html>bad gateway</html>')))
+  ::
+    (expect-eq !>(&) !>((broker-retryable:util [%finished [502 ~] ~])))
+    (expect-eq !>(|) !>((broker-retryable:util (res-at 400 '{}'))))
+  ::
+    %+  expect-eq  !>(|)
+    !>((broker-retryable:util (res-at 503 '{"retryable":false}')))
+  ::
+    %+  expect-eq  !>(&)
+    !>((broker-retryable:util (res-at 400 '{"retryable":true}')))
+  ==
+::
+::  A refusal is parsed into what the uploader can act on. A cancelled
+::  request is an unknown outcome worth asking about again; a body we cannot
+::  read, or one with no code, is a refusal we know nothing more about, and
+::  the status says whether to repeat it, the same way +broker-retryable
+::  does -- a proxy's bodyless 502 is retryable, an empty 400 is final.
+::
+++  test-broker-error-reads-the-broker-fields
+  =/  refusal=[message=@t =broker-error:b]
+    %+  broker-error:util
+      %-  res
+      '{"code":"rate_limited","message":"slow down","retryable":true,"retryAfterMs":5000,"scope":"host"}'
+    3.600.000
+  =/  expected=[message=@t =broker-error:b]
+    ['slow down' ['rate_limited' & `5.000 `'host']]
+  ;:  weld
+    (expect-eq !>(expected) !>(refusal))
+  ::
+    %+  expect-eq
+      !>  ^-  [message=@t =broker-error:b]
+      ['storage refused the upload' ['unknown' & ~ ~]]
+    !>((broker-error:util (html-at 502 '<html>bad gateway</html>') 3.600.000))
+  ::
+    %+  expect-eq
+      !>  ^-  [message=@t =broker-error:b]
+      ['storage refused the upload' ['unknown' | ~ ~]]
+    !>((broker-error:util (res-at 400 '{}') 3.600.000))
+  ==
+::
+++  test-broker-error-clamps-retry-after-and-drops-nonsense
+  =/  parse
+    |=  [body=@t ceiling=@ud]
+    ^-  broker-error:b
+    broker-error:(broker-error:util (res body) ceiling)
+  =/  after
+    |=  [num=@t ceiling=@ud]
+    ^-  (unit @ud)
+    =/  body=@t
+      (rap 3 '{"code":"rate_limited","retryAfterMs":' num '}' ~)
+    retry-after:(parse body ceiling)
+  ;:  weld
+    (expect-eq !>(`(unit @ud)``60.000) !>((after '120000' 60.000)))
+    (expect-eq !>(`(unit @ud)`~) !>((after '0' 3.600.000)))
+    (expect-eq !>(`(unit @ud)`~) !>((after '"5000"' 3.600.000)))
+    (expect-eq !>(`(unit @ud)`~) !>((after '-5000' 3.600.000)))
+    (expect-eq !>(`(unit @ud)``3.600.000) !>((after '7200000' 3.600.000)))
+    (expect-eq !>(`(unit @ud)`~) !>((after '5000' 0)))
+    (expect-eq !>(`(unit @ud)``5.001) !>((after '5000.4' 3.600.000)))
+    (expect-eq !>(`(unit @ud)``5.000) !>((after '5000.0' 3.600.000)))
+    (expect-eq !>(`(unit @ud)``1.500) !>((after '1.5e3' 3.600.000)))
+    (expect-eq !>(`(unit @ud)``1) !>((after '0.3' 3.600.000)))
+    (expect-eq !>(`(unit @ud)``1) !>((after '1e00' 3.600.000)))
+    (expect-eq !>(`(unit @ud)``1) !>((after '1E+00' 3.600.000)))
+    (expect-eq !>(`(unit @ud)``5) !>((after '5.0e-000' 3.600.000)))
+    (expect-eq !>(`(unit @ud)``3.600.000) !>((after '1e309' 3.600.000)))
+    (expect-eq !>(`(unit @ud)`~) !>((after '-1e309' 3.600.000)))
+    ::  An exponent too large to compute is settled by its sign alone.
+    (expect-eq !>(`(unit @ud)``3.600.000) !>((after '1e9999999999' 3.600.000)))
+    ::  Past a year the exponent alone settles it; under it the value is computed.
+    (expect-eq !>(`(unit @ud)``3.600.000) !>((after '1e11' 3.600.000)))
+    (expect-eq !>(`(unit @ud)``3.600.000) !>((after '1e10' 3.600.000)))
+    (expect-eq !>(`(unit @ud)``3.000) !>((after '3e3' 3.600.000)))
+    (expect-eq !>(`(unit @ud)``3.600.000) !>((after '1E+0009999' 3.600.000)))
+    (expect-eq !>(`(unit @ud)``1) !>((after '1e-9999999999' 3.600.000)))
+    (expect-eq !>(`(unit @ud)`~) !>((after '0.0e-9999999999' 3.600.000)))
+    (expect-eq !>(`(unit @ud)``1) !>((after '1e-0000' 3.600.000)))
+    ::  Zero is zero however it is spelled, and a long fraction is small.
+    (expect-eq !>(`(unit @ud)`~) !>((after '0e1000' 3.600.000)))
+    (expect-eq !>(`(unit @ud)`~) !>((after '0.000000000000000000000000000' 3.600.000)))
+    (expect-eq !>(`(unit @ud)``1) !>((after '0.0000000000000000000000001' 3.600.000)))
+    (expect-eq !>(`(unit @ud)``2) !>((after '1.0000000000000000000000001' 3.600.000)))
+    (expect-eq !>(`(unit @ud)``10) !>((after '0.0000000000000000000000001e26' 3.600.000)))
+  ::
+    %+  expect-eq  !>(`(unit @ud)``3.600.000)
+    !>((after '100000000000000000000000000000' 3.600.000))
+  ::
+    %+  expect-eq  !>(|)
+    !>  retryable:(parse '{"code":"quota_exceeded","retryable":"yes"}' 3.600.000)
+  ::
+    %+  expect-eq  !>(`(unit @t)`~)
+    !>  scope:(parse '{"code":"quota_exceeded","scope":3}' 3.600.000)
+  ==
+::
+::  Under a 200 nothing about the status says to repeat, so every unreadable
+::  body here is final; the one with no body at all is a bodyless 503, which
+::  the status alone makes retryable.
+::
+++  test-broker-error-falls-back-when-unreadable
+  ;:  weld
+    %+  expect-eq
+      !>  ^-  [message=@t =broker-error:b]
+      ['nope' ['unknown' | ~ ~]]
+    !>((broker-error:util (res '{"message":"nope"}') 3.600.000))
+  ::
+    %+  expect-eq
+      !>  ^-  [message=@t =broker-error:b]
+      ['storage refused the upload' ['unknown' | ~ ~]]
+    !>((broker-error:util (res 'not json at all') 3.600.000))
+  ::
+    %+  expect-eq
+      !>  ^-  [message=@t =broker-error:b]
+      ['storage refused the upload' ['unknown' & ~ ~]]
+    !>((broker-error:util [%finished [503 ~] ~] 3.600.000))
+  ::
+    %+  expect-eq
+      !>  ^-  [message=@t =broker-error:b]
+      ['storage refused the upload' ['unknown' | ~ ~]]
+    !>((broker-error:util (res '{"code":7,"message":7}') 3.600.000))
+  ::
+    %+  expect-eq
+      !>  ^-  [message=@t =broker-error:b]
+      ['the storage request was cancelled' ['outcome_unknown' & ~ ~]]
+    !>((broker-error:util [%cancel ~] 3.600.000))
+  ==
+::
+::  A v1 answer lifts to v2 with no broker detail; every other arm is
+::  untouched.
+::
+++  test-response-body-lifts
+  ;:  weld
+    %+  expect-eq
+      !>  ^-  response-body:v2:b
+      [%error %unknown 'nope' ~]
+    !>((response-body-1-to-2:util [%error %unknown 'nope']))
+  ::
+    %+  expect-eq
+      !>  ^-  response-body:v2:b
+      [%pending ~]
+    !>((response-body-1-to-2:util [%pending ~]))
   ==
 ::
 ++  test-broker-headers-keeps-only-well-formed-pairs

@@ -177,15 +177,15 @@
   =.  cor  (emit [%pass /eyre %arvo %e %connect [~ /buckets] %buckets])
   watch-groups
 ::
-::  +load: %buckets has never run on a live ship, so there is nothing to
-::  migrate from yet. When that changes, add a +state-N-to-N+1 arm per
-::  version and chain them with =? — never migrate straight to current.
+::  +load: lift whatever shape was persisted to the current one, one version
+::  at a time -- never straight to current.
 ::
 ++  load
   |=  old=vase
   ^+  cor
   =/  loaded=versioned-state:b  !<(versioned-state:b old)
-  ?>  ?=(%0 -.loaded)
+  =?  loaded  ?=(%0 -.loaded)  (state-0-to-1 loaded)
+  ?>  ?=(%1 -.loaded)
   =.  state  loaded
   =?  cor  !(~(has by wex.bowl) [/groups our.bowl %groups])
     watch-groups
@@ -201,6 +201,38 @@
   =.  cor  (emit [%pass /groups/sweep %arvo %b %wait now.bowl])
   ::  binding an already-bound route is refused harmlessly; +arvo logs it.
   (emit [%pass /eyre %arvo %e %connect [~ /buckets] %buckets])
+::
+::  +state-0-to-1: the stored answers gain the broker's account of a
+::  refusal, which none of them had to give.
+::
+++  state-0-to-1
+  |=  old=state-0:b
+  ^-  state-1:b
+  :*  %1
+      broker-base.old
+      spaces.old
+      next-id.old
+      sessions.old
+      object-capabilities.old
+      read-tokens.old
+      readers.old
+      reservations.old
+      pending.old
+      (requests-0-to-1 requests.old)
+  ==
+::  +requests-0-to-1: each stored answer lifted to the current shape.
+::
+++  requests-0-to-1
+  |=  old=requests:v1:b
+  ^-  requests:b
+  %-  ~(run by old)
+  |=  req=incoming-request:v1:b
+  ^-  incoming-request:b
+  :*  request-id.req
+      http-id.req
+      (bind result.req response-body-1-to-2:util)
+      final-at.req
+  ==
 ::
 ++  poke
   |=  [=mark =vase]
@@ -496,9 +528,18 @@
     ?.  ?=(%issue-bucket-read -.a-bucket.act)  ~
     `flag.act
   =.  pending  (~(put by pending) rid [host until token-for])
-  ::  Watch first, then poke. Cards are delivered in order, so a host that
-  ::  answers in the same event it is poked would publish the terminal fact
-  ::  before we are listening, and the request would sit until its timeout.
+  ::  Watch first, then poke. Within one event on one ship cards are
+  ::  delivered in order, so a host that answers in the same event it is
+  ::  poked would otherwise publish the terminal fact before we are
+  ::  listening, and the request would sit until its timeout.
+  ::
+  ::  FIXME: that order is not guaranteed across ames. Gall prefixes every
+  ::  %watch with a subscription nonce, so the watch and the poke travel on
+  ::  different ducts and therefore different ames flows, which are ordered
+  ::  only within themselves. A watch delayed past the poke means the host
+  ::  answers to nobody and the request sits until its timeout. The fix is
+  ::  to hold the action in `pending` and poke from the %watch-ack handler,
+  ::  at the cost of one round trip per remote request.
   =.  cor
     %-  emit
     :*  %pass  (req-watch-wire host rid)  %agent  [host %buckets]
@@ -524,9 +565,9 @@
   (respond rid paths body)
 ::
 ++  deny
-  |=  [rid=request-id:b paths=(list path) type=action-error:b msg=@t]
+  |=  [rid=request-id:b paths=(list path) err=action-error:b msg=@t]
   ^+  cor
-  (respond rid paths [%error type msg])
+  (respond rid paths [%error err msg ~])
 ::
 ::  +respond: emit an answer on the subscription paths, and complete a held
 ::  HTTP request if this one came in over Eyre.
@@ -538,7 +579,7 @@
   |=  [rid=request-id:b paths=(list path) body=response-body:b]
   ^+  cor
   =/  res=req-response:b  [rid body]
-  =.  cor  (give [%fact paths buckets-req-response-1+!>(res)])
+  =.  cor  (give [%fact paths buckets-req-response-2+!>(res)])
   ?:  ?=(%pending -.body)  cor
   ?~  req=(~(get by requests) rid)  cor
   =.  requests
@@ -666,7 +707,7 @@
   ::  create, and demanding the original creator only turned a retry into a
   ::  crash.
   ?:  (~(has by spaces) flag)
-    =/  taken=_cor  (answer [%error %invalid-input 'that bucket name is taken'])
+    =/  taken=_cor  (answer [%error %invalid-input 'that bucket name is taken' ~])
     =/  sp=space:b  (~(got by spaces) flag)
     ?.  =(%pub net.sp)  taken
     ?~  state.sp  taken
@@ -828,7 +869,7 @@
     |=  [parent=(unit @ud) name=@t actor=ship]
     ^-  [(unit response-body:b) _se-core]
     ?.  (valid-parent:util st parent)
-      [`[%error %not-found 'no such parent folder'] se-core]
+      [`[%error %not-found 'no such parent folder' ~] se-core]
     =/  id=@ud  +(next-id)
     =.  next-id  id
     =/  ent=entry:b
@@ -841,7 +882,7 @@
     |=  [id=@ud name=@t actor=ship]
     ^-  [(unit response-body:b) _se-core]
     ?~  got=(~(get by entries.st) id)
-      [`[%error %not-found 'no such entry'] se-core]
+      [`[%error %not-found 'no such entry' ~] se-core]
     =/  ent=entry:b  u.got
     =.  ent  ent(name name, updated-by actor, updated-at now.bowl)
     =.  entries.st  (~(put by entries.st) id ent)
@@ -859,17 +900,17 @@
     |=  [id=@ud parent=(unit @ud) actor=ship]
     ^-  [(unit response-body:b) _se-core]
     ?.  (valid-parent:util st parent)
-      [`[%error %not-found 'no such parent folder'] se-core]
+      [`[%error %not-found 'no such parent folder' ~] se-core]
     ?~  got=(~(get by entries.st) id)
-      [`[%error %not-found 'no such entry'] se-core]
+      [`[%error %not-found 'no such entry' ~] se-core]
     =/  ent=entry:b  u.got
     ?:  ?&(?=(^ parent) =(u.parent id))
-      [`[%error %invalid-input 'an entry cannot contain itself'] se-core]
+      [`[%error %invalid-input 'an entry cannot contain itself' ~] se-core]
     ?:  ?&  ?=(%folder -.kind.ent)
             ?=(^ parent)
             (descendant:util st id u.parent)
         ==
-      [`[%error %invalid-input 'a folder cannot move inside itself'] se-core]
+      [`[%error %invalid-input 'a folder cannot move inside itself' ~] se-core]
     =.  ent  ent(parent parent, updated-by actor, updated-at now.bowl)
     =.  entries.st  (~(put by entries.st) id ent)
     [~ (se-update [%entry id [%update ent]] actor)]
@@ -879,10 +920,10 @@
     |=  [id=@ud recursive=? actor=ship]
     ^-  [(unit response-body:b) _se-core]
     ?.  (~(has by entries.st) id)
-      [`[%error %not-found 'no such entry'] se-core]
+      [`[%error %not-found 'no such entry' ~] se-core]
     =/  ids=(set @ud)  (descendants:util st id)
     ?.  ?|(recursive =(1 ~(wyt in ids)))
-      [`[%error %invalid-input 'folder is not empty'] se-core]
+      [`[%error %invalid-input 'folder is not empty' ~] se-core]
     =.  entries.st
       %-  ~(rep in ids)
       |=  [key=@ud acc=_entries.st]
@@ -977,13 +1018,13 @@
   ^+  cor
   =/  st=bucket-state:b  (need-state flag)
   ?.  (valid-parent:util st parent)
-    (answer [%error %not-found 'no such parent folder'])
+    (answer [%error %not-found 'no such parent folder' ~])
   ?:  =(0 size)
-    (answer [%error %invalid-input 'file size must be greater than zero'])
+    (answer [%error %invalid-input 'file size must be greater than zero' ~])
   ?:  (gth size max-object-size)
-    (answer [%error %invalid-input 'file exceeds the maximum object size'])
+    (answer [%error %invalid-input 'file exceeds the maximum object size' ~])
   ?.  (valid-mime:util mime)
-    (answer [%error %invalid-input 'missing or malformed content type'])
+    (answer [%error %invalid-input 'missing or malformed content type' ~])
   =.  cor  prune-broker-authority
   =/  id=@ud  +(next-id)
   =.  next-id  id
@@ -1035,20 +1076,15 @@
 ::
 ::  +up-core: one in-flight upload session.
 ::
-::  Two things were conventions spread across arms that each had to remember
-::  them, and they did not.
+::  .awaiting holds at most one waiter: the grant's request, written with the
+::  session in +begin-upload, or the request +up-claim holds for every later
+::  call. A waiter +up-claim displaces is answered, not dropped. Once a
+::  session is cancelled only the cancel's own answer reaches the waiter, and
+::  any other broker answer that still arrives goes to +up-late.
 ::
-::  .awaiting holds at most one waiter. The three session verbs each wrote it
-::  unconditionally, so a cancel arriving while a completion was in flight
-::  overwrote the finish's waiter -- the receipt then answered the cancel with
-::  %ok while the finish hung for good. +up-claim is the only way it is
-::  written now, and it answers whoever it displaces.
-::
-::  And every abandonment leaves through +up-give-up. The lapsed prune
-::  broker-cancelled and answered its waiter; +drop-bucket-sessions and
-::  +delete-entry dropped sessions where they stood, so the broker kept a
-::  reservation and its quota until it lapsed and the waiting request was
-::  never answered at all.
+::  A session abandoned because its bucket or folder is gone leaves through
+::  +up-give-up, which releases the reservation at the broker and answers the
+::  waiter. A lapsed one is released by +prune-broker-authority.
 ::
 ++  up-core
   |_  [ses=upload-session:b gone=_|]
@@ -1082,7 +1118,7 @@
     ^+  up-core
     =?  up-core  &(?=(^ awaiting.ses) !=(awaiting.ses rid))
       %-  up-answer
-      [%error %unknown 'superseded by another request on this upload']
+      [%error %unknown 'superseded by another request on this upload' ~]
     up-core(ses ses(awaiting rid))
   ::  +up-answer: give the held request its one terminal answer.
   ::
@@ -1097,21 +1133,13 @@
     =.  up-core  up-core(ses ses(awaiting ~))
     =.  cor  (respond u.held (answer-paths requested-by.ses u.held) body)
     up-core
-  ::  +up-give-up: the one way a session ends without completing.
-  ::
-  ::  Tells the broker, so the reservation and its quota are released rather
-  ::  than held until they lapse, and answers whoever was waiting.
+  ::  +up-give-up: a session ends because what it was for is gone -- its
+  ::  folder or its bucket -- so it is failed and then dropped.
   ::
   ++  up-give-up
     |=  why=@t
     ^+  up-core
-    =.  ses  ses(status %cancelled, error `why)
-    ::  Answered before the broker is told, not after. +up-unreachable answers
-    ::  the waiter itself, and it would report "storage is unreachable" where
-    ::  the reason this was given up for is the one that matters. Once the
-    ::  waiter is answered that call has nothing left to say to it.
-    =.  up-core  (up-answer [%error %unknown why])
-    =?  up-core  ?=(^ reservation.ses)  (up-reservation-call %cancel ~)
+    =.  up-core  (up-fail why ~)
     up-core(gone &)
   ::  +up-authority: what we tell the broker about this upload.
   ::
@@ -1185,18 +1213,86 @@
       %^  note  %warn
         ~[leaf+"buckets: cannot reach storage, upload cancelled"]
       (log-bucket flag.ses)
-    (up-answer [%error %unknown 'this ship cannot reach storage yet'])
-  ::  +up-fail: the broker refused this call, or never made it.
+    (up-answer [%error %unknown 'this ship cannot reach storage yet' ~])
+  ::  +up-fail: the session is over without completing.
+  ::
+  ::  Tells the broker, so the reservation and its quota are released rather
+  ::  than held until they lapse, and answers whoever was waiting. .broker
+  ::  is the broker's own account when it is the broker that refused; a
+  ::  failure this agent found for itself carries none.
   ::
   ++  up-fail
-    |=  why=@t
+    |=  [why=@t broker=(unit broker-error:b)]
     ^+  up-core
     =.  ses  ses(status %cancelled, error `why)
+    ::  Answered before the broker is told, not after. +up-unreachable answers
+    ::  the waiter itself, and it would report "storage is unreachable" where
+    ::  the reason this was given up for is the one that matters. Once the
+    ::  waiter is answered that call has nothing left to say to it.
+    =.  up-core  (up-answer [%error %unknown why broker])
+    =?  up-core  ?=(^ reservation.ses)  (up-reservation-call %cancel ~)
+    up-core
+  ::  +up-keep: the broker refused this call but says another attempt could
+  ::  work, so the session stays pending with its reservation for the
+  ::  uploader to try again. The refusal is recorded on the session, which
+  ::  is the only place a stuck session says why.
+  ::
+  ++  up-keep
+    |=  [why=@t err=broker-error:b]
+    ^+  up-core
+    =.  ses  ses(error `why)
+    (up-answer [%error %unknown why `err])
+  ::  +up-refused: the broker refused this call, or its answer never came.
+  ::
+  ::  What becomes of the session depends on the call, because each leaves
+  ::  the reservation somewhere different. A grant bound nothing, so there is
+  ::  no id to release by and the session can only be cancelled. A retry or
+  ::  a completion the broker says to repeat keeps the session; the bytes may
+  ::  already be in storage, and cancelling would orphan a charged object. A
+  ::  final refusal of either ends the session and releases the reservation.
+  ::  A cancel's own refusal does not cancel again by itself: the session was
+  ::  marked cancelled before the call, and the broker answers a settled
+  ::  reservation with a refusal of its own. A retryable one is passed on,
+  ::  so the uploader can send %cancel-upload again, which re-sends the call.
+  ::  Unless the completion that was out alongside it has since landed and
+  ::  +up-late published the entry: the session is %complete, there is
+  ::  nothing left to cancel, and whatever the broker said is answered ok.
+  ::
+  ::  A wait the broker asks for is capped at the time this session has
+  ::  left, not at the whole window: past its expiry the session is swept,
+  ::  and a client told to wait longer comes back to find it gone. The cap is
+  ::  in whole milliseconds, the fraction dropped: a bound is one the client
+  ::  stays inside, so it rounds down. A finish is accepted past expiry, so
+  ::  there may be no time left at all.
+  ::
+  ++  up-refused
+    |=  [kind=?(%grant %retry %cancel %complete) res=client-response:iris]
+    ^+  up-core
+    =/  left=@ud
+      ?:  (lte expires-at.ses now.bowl)  0
+      (div (mul (sub expires-at.ses now.bowl) 1.000) ~s1)
+    =/  [why=@t err=broker-error:b]  (broker-error:util res left)
+    =/  kept=?  &(?=(?(%retry %complete) kind) retryable.err)
     =.  cor
       %^  note  %warn
-        ~[leaf+"buckets: upload failed at the broker"]
-      (snoc (log-bucket flag.ses) ['reason' s+why])
-    (up-answer [%error %unknown why])
+        ~[leaf+"buckets: storage refused an upload call"]
+      %+  weld  (log-bucket flag.ses)
+      ^-  (list (pair @t json))
+      ~[['call' s+(scot %tas kind)] ['code' s+code.err] ['kept' b+kept]]
+    ?-  kind
+        %grant
+      =.  ses  ses(status %cancelled, error `why)
+      (up-answer [%error %unknown why `err])
+    ::
+        ?(%retry %complete)
+      ?:  kept  (up-keep why err)
+      (up-fail why `err)
+    ::
+        %cancel
+      ?:  =(%complete status.ses)  (up-answer [%ok ~])
+      ?:  retryable.err  (up-answer [%error %unknown why `err])
+      (up-answer [%ok ~])
+    ==
   ::  +up-publish: move this session's entry into the manifest and broadcast
   ::  it. The session is retained as %complete so a repeated completion is a
   ::  no-op rather than a second entry.
@@ -1208,7 +1304,7 @@
     =/  fil=file:b  (entry-file:util ent)
     =.  fil  fil(status %ready)
     =.  ent  ent(updated-by actor, updated-at now.bowl, kind [%file fil])
-    =.  ses  ses(status %complete, entry ent)
+    =.  ses  ses(status %complete, entry ent, error ~)
     =.  cor  se-abet:(se-create-entry:(se-abed:se-core flag.ses) ent actor)
     up-core
   ::  +up-finish: the bytes are up, so settle the reservation and publish.
@@ -1241,13 +1337,17 @@
   ::
   ::  Cancelling at the broker is the point: quota is reserved before the
   ::  first byte moves, so an abandoned upload holds it until the reservation
-  ::  lapses. That release used to be the client's to make, from a tab that
-  ::  was in the middle of closing, and it was made with the error swallowed.
+  ::  lapses. The host makes that release rather than the client, which may
+  ::  be a tab in the middle of closing.
   ::
   ::  Withdrawing is all the uploader can report. Whether the bytes reached
   ::  storage is the broker's to say, so this does not settle the upload, it
   ::  only stops a new upload URL being issued against the session. A
-  ::  completion that arrives afterwards is still honoured.
+  ::  completion still in flight is published if it lands, by +up-late, but
+  ::  no client request is answered with it. With a reservation bound, the
+  ::  only request held open from here on is this cancel's, and the /cancel
+  ::  answer completes it; with none there is nothing to release, and the
+  ::  cancel is answered at once.
   ::
   ++  up-cancel
     |=  reason=@t
@@ -1256,91 +1356,187 @@
     ::  URLs whether or not the broker is reachable to hear about it.
     =/  had=(unit @t)  reservation.ses
     =.  ses  ses(status %cancelled, error `reason)
+    ::  Answered through +settle, which delivers to this same request in
+    ::  this same event, and the slot cleared with it. Through +up-answer the
+    ::  request would be paid here and +settle would then send a second %ok.
     ?~  had
       =.  cor  (answer [%ok ~])
-      up-core
+      up-core(ses ses(awaiting ~))
     =.  up-core  (up-reservation-call %cancel ~)
     =.  cor  (answer [%pending ~])
     up-core
-  ::  +up-took: one broker answer about this session.
+  ::  +up-take: one broker answer about this session.
   ::
-  ::  Every one of these has a client waiting on it, so there is no retry here
-  ::  and no silent failure: the session either advances or the uploader is
-  ::  told why it did not.
+  ::  On a live session a client is waiting on each of these, so nothing is
+  ::  retried here and nothing fails silently: the session advances, or the
+  ::  uploader is told what the broker said and whether it is worth asking
+  ::  again. A /cancel this agent sent on its own, from +up-fail, +up-late or
+  ::  the prune, has no waiter and its answer only settles the session. On a
+  ::  session that is no longer pending any answer but the cancel's own goes
+  ::  to +up-late instead: on a cancelled one the waiter belongs to the
+  ::  cancel, on a completed one nothing is owed.
   ::
-  ++  up-took
+  ++  up-take
     |=  [kind=?(%grant %retry %cancel %complete) res=client-response:iris]
     ^+  up-core
-    ?:  ?=(%cancel -.res)
-      (up-fail 'the storage request was cancelled')
+    ?:  &(!=(%pending status.ses) ?=(?(%grant %retry %complete) kind))
+      (up-late kind res)
+    ?:  ?=(%cancel -.res)  (up-refused kind res)
     =/  code=@ud  status-code.response-header.res
-    ?.  &((gte code 200) (lth code 300))
-      (up-fail (broker-message:util res))
+    ?.  &((gte code 200) (lth code 300))  (up-refused kind res)
     ?-  kind
-        %grant   (up-took-grant res)
-        %retry   (up-took-grant res)
+        %grant   (up-take-grant res)
+        %retry   (up-take-grant res)
         %cancel  (up-answer [%ok ~])
     ::
         ::  The receipt is this call's answer, so publishing it here is the
         ::  whole of completion -- there is no second delivery to wait for.
         %complete
       ?.  (verify-receipt ses res)
-        (up-fail 'the storage receipt did not match the upload')
+        (up-fail 'the storage receipt did not match the upload' ~)
       =.  up-core  (up-publish requested-by.ses)
       (up-answer [%ok ~])
     ==
-  ::  +up-took-grant: a signed PUT, from either a first grant or a retry.
+  ::  +up-take-grant: a signed PUT, from either a first grant or a retry.
   ::
-  ++  up-took-grant
+  ++  up-take-grant
     |=  res=client-response:iris
     ^+  up-core
-    ?~  body=(broker-body:util res)
-      (up-fail 'storage returned an unreadable grant')
+    =/  body=(unit (map @t json))  (broker-body:util res)
+    ::  Bound before the answer is judged. A reservation the broker issued
+    ::  holds quota whatever else it got wrong, and only a bound one can be
+    ::  released when the grant is failed below.
+    =/  reservation=(unit @t)  (granted-reservation body)
+    =?  up-core  ?=(^ reservation)  (up-bind u.reservation)
+    ?~  body
+      (up-fail 'storage returned an unreadable grant' ~)
     ?~  url=(~(get by u.body) 'uploadUrl')
-      (up-fail 'storage returned no upload URL')
+      (up-fail 'storage returned no upload URL' ~)
     ?.  ?=([%s *] u.url)
-      (up-fail 'storage returned no upload URL')
-    =/  reservation=(unit @t)
-      ?~  got=(~(get by u.body) 'reservationId')  ~
-      ?.(?=([%s *] u.got) ~ `p.u.got)
-    =/  expiry=@da
-      ?~  got=(~(get by u.body) 'uploadExpiresAtMillis')  expires-at.ses
-      ?.  ?=([%n *] u.got)  expires-at.ses
-      (from-unix-ms:util (rash p.u.got dem))
-    =/  headers=(list [@t @t])  (broker-headers:util u.body)
+      (up-fail 'storage returned no upload URL' ~)
     ::  A grant with no reservation behind it is not one we can act on: finish
     ::  and cancel both call storage against the reservation, so handing this
     ::  URL out would take the bytes and then have no way to settle or release
     ::  them -- the entry never publishes and the quota sits until it lapses.
     ::  Checked on the bound session rather than on the answer, so a retry
     ::  against the reservation we already hold need not repeat it.
-    =?  ses  ?=(^ reservation)  ses(reservation reservation)
     ?~  reservation.ses
-      (up-fail 'storage granted no reservation to settle against')
-    =?  reservations  ?=(^ reservation)
-      (~(put by reservations) u.reservation id.ses)
+      (up-fail 'storage granted no reservation to settle against' ~)
+    =/  expiry=@da
+      ?~  got=(~(get by u.body) 'uploadExpiresAtMillis')  expires-at.ses
+      ?.  ?=([%n *] u.got)  expires-at.ses
+      (from-unix-ms:util (rash p.u.got dem))
+    =/  headers=(list [@t @t])  (broker-headers:util u.body)
+    ::  A refusal this session survived is over once a URL is in hand.
+    =.  ses  ses(error ~)
     %-  up-answer
     [%upload [id.ses id.entry.ses p.u.url headers expiry]]
+  ::  +up-late: a grant, retry or completion answered after the session has
+  ::  settled, by the uploader's cancel or by an earlier receipt.
+  ::
+  ::  No client request is answered here. On a cancelled session the request
+  ::  still held open is the cancel's, and only the /cancel answer may
+  ::  complete it: the earlier call's answer would tell the canceller the
+  ::  outcome of a finish or grant it did not ask about, and the /cancel
+  ::  answer would then find no request left to complete. On a completed
+  ::  session nothing is owed and nothing is left to do: the reservation is
+  ::  settled and the entry published, so a second answer is only logged.
+  ::
+  ::  On a cancelled session the broker's answer can still force a change. A
+  ::  reservation the broker issued holds quota, so it is bound and released.
+  ::  A receipt means the bytes are stored and charged for whatever the
+  ::  uploader said, so the entry is published. Anything else is logged and
+  ::  left: the cancel is what settles this session.
+  ::
+  ++  up-late
+    |=  [kind=?(%grant %retry %complete) res=client-response:iris]
+    ^+  up-core
+    =/  code=(unit @ud)
+      ?:  ?=(%cancel -.res)  ~
+      `status-code.response-header.res
+    =.  cor
+      %^  note  %warn
+        ~[leaf+"buckets: storage answered an upload call after it settled"]
+      %+  weld  (log-bucket flag.ses)
+      ^-  (list (pair @t json))
+      :~  ['call' s+(scot %tas kind)]
+          ['session' s+(scot %tas status.ses)]
+          ['status' ?~(code ~ (numb:enjs:format u.code))]
+      ==
+    ?:  =(%complete status.ses)  up-core
+    ?~  code  up-core
+    ?.  &((gte u.code 200) (lth u.code 300))  up-core
+    ?-  kind
+        ?(%grant %retry)
+      ::  Bound to a leg before the test, as in +up-answer.
+      =/  had=(unit @t)  reservation.ses
+      ?^  had  up-core
+      ?~  got=(granted-reservation (broker-body:util res))  up-core
+      (up-reservation-call:(up-bind u.got) %cancel ~)
+    ::
+        %complete
+      ?.  (verify-receipt ses res)  up-core
+      (up-publish requested-by.ses)
+    ==
+  ::  +up-bind: hold reservation .rsv on this session, so finish and cancel
+  ::  can call storage against it.
+  ::
+  ++  up-bind
+    |=  rsv=@t
+    ^+  up-core
+    %_  up-core
+      ses           ses(reservation `rsv)
+      reservations  (~(put by reservations) rsv id.ses)
+    ==
+  ::  +granted-reservation: the reservation id a grant's body carries.
+  ::
+  ++  granted-reservation
+    |=  body=(unit (map @t json))
+    ^-  (unit @t)
+    ?~  body  ~
+    ?~  got=(~(get by u.body) 'reservationId')  ~
+    ?.(?=([%s *] u.got) ~ `p.u.got)
   --
 ::
-::  +uploader-session: the pending session this actor may act on.
+::  +uploader-session: the session this actor may act on.
 ::
 ::  The three session verbs differ only in what they then ask the broker, so
-::  the checks they share live here rather than three times over.
+::  the checks they share live here rather than three times over. A pending
+::  session is open to all of them, except that while a call of ours is out
+::  on it only a cancel is admitted: a second finish or retry would put two
+::  calls in flight whose answers cannot be told apart from their wires, and
+::  the one that lands first would be paid to the other's request. The
+::  refusal is marked retryable, under a code of this agent's own, because
+::  the condition clears when the call answers: a client that sent a second
+::  finish after its own timeout should wait and ask again, not give the
+::  upload up and send the bytes a second time. A cancel is the uploader's
+::  last word and supersedes whatever is out. A settled session admits a
+::  single verb: a finish may name a session that is already complete -- an
+::  uploader whose receipt was lost, asking for the outcome again -- and a
+::  cancel may name one that is already cancelled, because the broker may
+::  not have heard the first cancel. Hearing it twice is harmless: Memex
+::  answers a repeated cancel 200.
 ::
 ++  uploader-session
-  |=  [=flag:b sid=@uv actor=ship]
+  |=  [=flag:b sid=@uv actor=ship verb=?(%finish %retry %cancel)]
   ^-  (each upload-session:b response-body:b)
   ?~  got=(~(get by sessions) sid)
-    [%| %error %not-found 'no such upload session']
+    [%| %error %not-found 'no such upload session' ~]
   =/  ses=upload-session:b  u.got
   ?.  =(flag flag.ses)
-    [%| %error %not-found 'no such upload session']
+    [%| %error %not-found 'no such upload session' ~]
   ?.  =(requested-by.ses actor)
-    [%| %error %not-authorized 'not the uploader']
-  ?.  =(%pending status.ses)
-    [%| %error %invalid-input 'upload session is not pending']
-  [%& ses]
+    [%| %error %not-authorized 'not the uploader' ~]
+  ?:  =(%pending status.ses)
+    ?:  &(?=(?(%finish %retry) verb) ?=(^ awaiting.ses))
+      :-  %|
+      :^    %error  %unknown
+          'a storage call is already in flight on this upload'
+      `['in_flight' & ~ ~]
+    [%& ses]
+  ?:  &(?=(%finish verb) =(%complete status.ses))  [%& ses]
+  ?:  &(?=(%cancel verb) =(%cancelled status.ses))  [%& ses]
+  [%| %error %invalid-input 'upload session is not pending' ~]
 ::
 ::  +finish-upload: the bytes are up, so settle the reservation and publish.
 ::
@@ -1351,13 +1547,12 @@
 ++  finish-upload
   |=  [=flag:b sid=@uv actor=ship rid=(unit request-id:b)]
   ^+  cor
-  =/  found  (uploader-session flag sid actor)
+  =/  found  (uploader-session flag sid actor %finish)
   ?:  ?=(%| -.found)  (answer p.found)
   =/  ses=upload-session:b  p.found
-  ::  Through +up-claim, which answers a waiter it displaces rather than
-  ::  dropping it: a cancel arriving while this call is in flight used to
-  ::  overwrite the waiter here, and the receipt then answered the cancel
-  ::  while this request hung for good.
+  ::  Already published: the uploader lost the receipt, not the upload. The
+  ::  entry is in the manifest, so there is nothing left to ask the broker.
+  ?:  =(%complete status.ses)  (answer [%ok ~])
   up-abet:up-finish:(up-claim:(up-abed:up-core sid) rid)
 ::
 ::  +retry-upload: another PUT URL for the same reservation.
@@ -1370,7 +1565,7 @@
 ++  retry-upload
   |=  [=flag:b sid=@uv actor=ship rid=(unit request-id:b)]
   ^+  cor
-  =/  found  (uploader-session flag sid actor)
+  =/  found  (uploader-session flag sid actor %retry)
   ?:  ?=(%| -.found)  (answer p.found)
   =/  ses=upload-session:b  p.found
   up-abet:up-retry:(up-claim:(up-abed:up-core sid) rid)
@@ -1379,13 +1574,13 @@
 ::
 ::  Cancelling at the broker is the point: quota is reserved before the first
 ::  byte moves, so an abandoned upload holds it until the reservation lapses.
-::  That release used to be the client's to make, from a tab that was in the
-::  middle of closing, and it was made with the error swallowed.
+::  The host makes that release rather than the client, which may be a tab in
+::  the middle of closing.
 ::
 ++  cancel-upload
   |=  [=flag:b sid=@uv reason=@t actor=ship rid=(unit request-id:b)]
   ^+  cor
-  =/  found  (uploader-session flag sid actor)
+  =/  found  (uploader-session flag sid actor %cancel)
   ?:  ?=(%| -.found)  (answer p.found)
   =/  ses=upload-session:b  p.found
   up-abet:(up-cancel:(up-claim:(up-abed:up-core sid) rid) reason)
@@ -1406,7 +1601,7 @@
     %^  note  %warn
       ~[leaf+"buckets: broker answered about an upload we no longer hold"]
     ~[['session' s+(scot %uv sid)] ['call' s+(scot %tas kind)]]
-  up-abet:(up-took:(up-abed:up-core sid) kind res)
+  up-abet:(up-take:(up-abed:up-core sid) kind res)
 ::
 ::  +verify-receipt: does what landed match what we asked for.
 ::
@@ -1530,7 +1725,7 @@
       ~[leaf+"buckets: no %genuine secret, reader sync deferred"]
     (log-bucket flag)
   ?~  rid  cor
-  (answer [%error %unknown 'this ship cannot reach storage yet'])
+  (answer [%error %unknown 'this ship cannot reach storage yet' ~])
 ::
 ::  +issue-delete-capability: mint a short-lived delete grant for one ready
 ::  file. Deletes stay per-object — they are destructive and unrecoverable.
@@ -1541,13 +1736,13 @@
   =.  cor  prune-broker-authority
   =/  st=bucket-state:b  (need-state flag)
   ?~  got=(~(get by entries.st) id)
-    (answer [%error %not-found 'no such entry'])
+    (answer [%error %not-found 'no such entry' ~])
   =/  ent=entry:b  u.got
   ?.  ?=(%file -.kind.ent)
-    (answer [%error %invalid-input 'entry is a folder'])
+    (answer [%error %invalid-input 'entry is a folder' ~])
   =/  fil=file:b  +.kind.ent
   ?.  =(%ready status.fil)
-    (answer [%error %invalid-input 'file is not ready'])
+    (answer [%error %invalid-input 'file is not ready' ~])
   =/  token=@t  (scot %uv `@uv`eny.bowl)
   =/  expiry=@da  (add now.bowl object-window)
   =.  object-capabilities
@@ -1815,8 +2010,8 @@
     =?  rd-core  !=(waiter awaiting.sync)
       %-  rd-answer
       ?:  ?=(%revoked -.want)
-        [%error %not-authorized 'access changed while the token was being issued']
-      [%error %unknown 'another request for this token overtook it']
+        [%error %not-authorized 'access changed while the token was being issued' ~]
+      [%error %unknown 'another request for this token overtook it' ~]
     =.  sync  [+(revision.sync) bid want till synced.sync | waiter]
     =.  rd-core  (emil (sync-cards ~[[key revision.sync bid want]]))
     ::  Unconditionally: one timer walks the whole owed set, and
@@ -1846,7 +2041,7 @@
       %^  note  %error
         ~[leaf+"buckets: broker refused a revoke, reader still has access"]
       (log-reader key)
-    (rd-answer [%error %unknown why])
+    (rd-answer [%error %unknown why ~])
   --
 ::
 ::  +answer-waiter: give a reader record's held request its one terminal
@@ -1999,7 +2194,7 @@
     ?.  ?=(%lapsed (reader-status:util sync now.bowl))  acc
     ?:  =(reader.key our.bowl)  (recover-local-reader:acc flag.key)
     %+  answer-waiter:acc  key
-    [%error %unknown 'storage did not take this grant before it lapsed']
+    [%error %unknown 'storage did not take this grant before it lapsed' ~]
   =/  wants  owed
   ?~  wants  cor
   =.  cor  (emil (sync-cards wants))
@@ -2190,13 +2385,32 @@
     %+  roll  lapsed
     |=  [ses=upload-session:b acc=_cor]
     up-abet:(up-reservation-call:(up-abed:up-core:acc id.ses) %cancel ~)
+  ::  A pending session past its window stays while a call of ours is out on
+  ::  it, for the same reason the sweep above leaves it alone: the answer
+  ::  still has to find the session, and the waiter still has to be paid. It
+  ::  gets the same grace a settled session does. A call that has not
+  ::  answered by then never will, so the session leaves through +up-give-up
+  ::  like any other abandonment: the waiter is answered and the reservation
+  ::  released, rather than both being dropped with the record.
+  =/  hung=(list @uv)
+    %+  murn  ~(tap by sessions)
+    |=  [sid=@uv ses=upload-session:b]
+    ^-  (unit @uv)
+    ?.  &(=(%pending status.ses) ?=(^ awaiting.ses))  ~
+    ?:  (gth (add expires-at.ses request-grace) now.bowl)  ~
+    `sid
+  =.  cor
+    %+  roll  hung
+    |=  [sid=@uv acc=_cor]
+    up-abet:(up-give-up:(up-abed:up-core:acc sid) 'the storage call never answered')
   =.  sessions
     %-  malt
     %+  skim  ~(tap by sessions)
     |=  [sid=@uv ses=upload-session:b]
-    ?:  =(%pending status.ses)
-      (gth expires-at.ses now.bowl)
-    (gth (add expires-at.ses request-grace) now.bowl)
+    =/  graced=?  (gth (add expires-at.ses request-grace) now.bowl)
+    ?.  =(%pending status.ses)  graced
+    ?:  (gth expires-at.ses now.bowl)  &
+    &(?=(^ awaiting.ses) graced)
   =.  reservations
     %-  malt
     %+  skim  ~(tap by reservations)
@@ -2785,9 +2999,19 @@
     =/  rid=request-id:b  (slav %uv rid.pole)
     ?+  -.sign  cor
         %fact
-      ?.  =(%buckets-req-response-1 p.cage.sign)  cor
+      ::  A host that predates the broker detail still answers -1, and that
+      ::  is lifted; anything but the two is not an answer.
+      =/  got=(unit req-response:b)
+        ?+  p.cage.sign  ~
+            %buckets-req-response-2
+          `!<(req-response:b q.cage.sign)
+        ::
+            %buckets-req-response-1
+          `(req-response-1-to-2:util !<(req-response:v1:b q.cage.sign))
+        ==
+      ?~  got  cor
       ?.  (request-live rid)  cor
-      =/  res=req-response:b  !<(req-response:b q.cage.sign)
+      =/  res=req-response:b  u.got
       ::  %pending is the host saying it is still working -- minting a read
       ::  token, say, while its push to the broker is in flight. Closing here
       ::  would drop the request and cancel its timeout, and the real answer
@@ -2808,7 +3032,7 @@
       ::  way. Come back to it, unless the answer was that we may not read
       ::  this bucket at all, in which case stop serving what we hold.
       =?  cor  &(?=(%error -.body.res) ?=(^ token-for))
-        ?:  =(%not-authorized type.body.res)
+        ?:  =(%not-authorized action-error.body.res)
           (drop-read-token u.token-for)
         (retry-read-token u.token-for)
       (respond rid ~[/v1/requests] body.res)
