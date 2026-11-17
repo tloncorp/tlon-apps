@@ -802,8 +802,11 @@
 ::  that failed is re-sent by a repeated create -- and our own rank can be
 ::  banned in a group we host, which reads as no channel. A channel or group
 ::  that really was deleted reaches us as a fact instead, in +take-groups.
-::  An id we never issued gets no answer at all rather than gone: it means
-::  this state is not the one that issued it, and that is not ours to decide.
+::  An id above .next-id gets no answer at all rather than gone: this state
+::  never reached it, so it is not the one that issued the id, and that is
+::  not ours to decide. Ids below it that never named a bucket answer gone,
+::  which is safe: .next-id is shared with entries and never goes back, so
+::  none of them can become a bucket's id later.
 ::
 ::  A live answer also lists every object key the bucket still references,
 ::  and the broker deletes the bucket's other objects -- a file whose entry
@@ -2763,6 +2766,15 @@
     ?~  verdict=(bucket-liveness u.id)  [~ ~]
     ``json+!>(u.verdict)
   ::
+  ::  Whether the path above will answer, asked first by the status thread.
+  ::  A missing %x result reached through .^ in a thread crashes Spider and
+  ::  every strand it runs, so the thread fails its own strand on this
+  ::  instead.
+  ::
+      [%u %v1 %broker %bucket id=@ ~]
+    =/  id=(unit @ud)  (slaw %ud id.pole)
+    ``loob+!>(&(?=(^ id) (lte u.id next-id)))
+  ::
   ::  So an operator can confirm which broker a live host is pointed at
   ::  without reading its state.
   ::
@@ -3087,6 +3099,11 @@
   |=  =r-groups:v9:gv
   ^+  cor
   =*  r-group  r-group.r-groups
+  ::  Deletions first. +forget-bucket gives subscribers the bucket's delete
+  ::  fact and then kicks them; run after the recheck, the recheck's own kick
+  ::  for the lost channel would arrive first and void the fact. The recheck
+  ::  still runs for whatever this fact leaves standing.
+  =.  cor  (take-groups-deletion r-groups)
   =.  cor  (recheck-host-subs flag.r-groups)
   ?+    r-group  cor
       ::  A role that no longer exists must stop granting writes. Role ids are
@@ -3103,10 +3120,17 @@
     %+  strip-writers  flag.r-groups
     %-  ~(dif in (held-writers flag.r-groups))
     ~(key by roles.group.r-group)
-  ::
-      ::  A bucket's channel, or its whole group, deleted in %groups rather
-      ::  than through us. The bucket is unreachable from then on, so it goes
-      ::  the way a deleted one does, objects included.
+  ==
+::
+::  +take-groups-deletion: a bucket's channel, or its whole group, deleted in
+::  %groups rather than through us. The bucket is unreachable from then on,
+::  so it goes the way a deleted one does, objects included.
+::
+++  take-groups-deletion
+  |=  =r-groups:v9:gv
+  ^+  cor
+  =*  r-group  r-group.r-groups
+  ?+    r-group  cor
       [%channel [%buckets *] %del ~]
     =/  =flag:b  [p q]:q.nest.r-group
     ?.  (hosted-in flag.r-groups flag)  cor

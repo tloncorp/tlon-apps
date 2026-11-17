@@ -339,6 +339,31 @@
   ?:  (group-exists-path pax)  `!>(|)
   (genuine-scries pax)
 ::
+::  +give-order: the bucket facts and kicks among some cards, in order.
+::
+++  give-order
+  |=  caz=(list card)
+  ^-  (list ?(%fact %kick))
+  %+  murn  caz
+  |=  =card
+  ^-  (unit ?(%fact %kick))
+  ?:  ?=([%give %fact * %buckets-response-1 *] card)  `%fact
+  ?:  ?=([%give %kick *] card)  `%kick
+  ~
+::
+::  +watched-by-bus: ~bus subscribed to the bucket's updates.
+::
+++  watched-by-bus
+  %-  jab-bowl
+  |=  bol=bowl
+  %=    bol
+      sup
+    %-  malt
+    :~  :-  ~[/reader]
+        [~bus /v1/buckets/~sampel-palnet/project-files/updates]
+    ==
+  ==
+::
 ::  +held-objects: the object keys a live answer says the bucket references.
 ::
 ++  held-objects
@@ -2151,6 +2176,15 @@
   ;<  unissued=(unit @t)  b  (liveness '2')
   ;<  garbled=(unit @t)  b  (liveness 'one')
   ;<  ~  b  (ex-equal !>([live unissued garbled]) !>([`'live' ~ ~]))
+  ::  the thread asks first whether there will be an answer, since a missing
+  ::  one read through .^ takes Spider down with it
+  ;<  answers=cage  b  (got-peek /u/v1/broker/bucket/1)
+  ;<  above=cage  b  (got-peek /u/v1/broker/bucket/2)
+  ;<  junk=cage  b  (got-peek /u/v1/broker/bucket/one)
+  ;<  ~  b
+    %+  ex-equal
+      !>([!<(? q.answers) !<(? q.above) !<(? q.junk)])
+    !>([& | |])
   ;<  caz=(list card)  b  (ask 0v1 [%bucket flag [%delete ~]])
   ;<  gone=(unit @t)  b  (liveness '1')
   ;<  ~  b  (ex-equal !>(gone) !>(`(unit @t)`[~ 'gone']))
@@ -2243,7 +2277,10 @@
   ^-  form:m
   ;<  ~  b  setup
   ;<  ~  b  create
-  ;<  ~  b  (set-scry-gate reader-scries)
+  ;<  ~  b  watched-by-bus
+  ::  with the channel gone the reader can no longer read, so the permission
+  ::  recheck would kick it -- after the delete fact, not before
+  ;<  ~  b  (set-scry-gate revoked-scries)
   ;<  caz=(list card)  b
     %^    do-agent
         /groups
@@ -2254,8 +2291,8 @@
   =/  st=state-0:bu  !<(state-0:bu sv)
   ;<  gone=(unit @t)  b  (liveness '1')
   %+  ex-equal
-    !>([wire.purge (~(has by spaces.st) flag) gone])
-  !>([/buckets/purge/1 | `(unit @t)`[~ 'gone']])
+    !>([wire.purge (~(has by spaces.st) flag) gone (give-order caz)])
+  !>([/buckets/purge/1 | `(unit @t)`[~ 'gone'] `(list ?(%fact %kick))`~[%fact %kick]])
 ::
 ::  A host leaving its own group gets the same %delete fact, but %groups
 ::  keeps the group, and the buckets and their objects stay.
@@ -2287,6 +2324,7 @@
   ^-  form:m
   ;<  ~  b  setup
   ;<  ~  b  create
+  ;<  ~  b  watched-by-bus
   ;<  ~  b  (set-scry-gate missing-group-scries)
   ;<  caz=(list card)  b
     %^    do-agent
@@ -2297,8 +2335,8 @@
   ;<  sv=vase  b  get-save
   =/  st=state-0:bu  !<(state-0:bu sv)
   %+  ex-equal
-    !>([wire.purge (~(has by spaces.st) flag)])
-  !>([/buckets/purge/1 |])
+    !>([wire.purge (~(has by spaces.st) flag) (give-order caz)])
+  !>([/buckets/purge/1 | `(list ?(%fact %kick))`~[%fact %kick]])
 ::
 ::  Gall retries reuse the caller-selected random name. An identical retry
 ::  must not allocate a second Bucket.
