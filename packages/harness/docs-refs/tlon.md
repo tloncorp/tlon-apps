@@ -539,6 +539,15 @@ messaging the sender.
   Channel answers are still public to that channel's members: granting file,
   web, skills, peer, or MCP access can expose whatever those tools can read.
 
+Authority is decided per speaker. For each turn the head asks the adapter about
+the actor of the conversation's running input, and for scheduled work about the
+schedule's actor. The adapter answers from that speaker's own access to the
+conversation's destination: the owner has no ceiling, any other ship's ceiling
+comes from its own grants and, in a channel, its native read permission, and a
+ship with no access there gets no authority. A speaker never receives another
+speaker's tools. When no hand input is running, as for an ACP prompt or a
+timer, the adapter answers for the conversation's actor.
+
 Permission changes retire only affected authorization routes. Adding an unrelated
 trusted actor leaves existing conversations, in-flight work, notes, saved model
 settings and schedules alone. Changing the mention requirement affects channels,

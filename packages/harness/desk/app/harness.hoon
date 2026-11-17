@@ -910,7 +910,7 @@
   |=  job=schedule:cr
   ^-  ?
   ?&  (hand-source-live binding.job sid.job hand.job destination.job actor.job)
-      (schedule-permitted (execution-authority sid.job (session-tlon sid.job)))
+      (schedule-permitted (execution-authority sid.job (session-tlon sid.job) `actor.job))
   ==
 ++  session-tlon
   |=  sid=session-id:h
@@ -934,7 +934,7 @@
   |=  job=schedule:cr
   ^-  ?
   ?.  (hand-source-live binding.job sid.job hand.job destination.job actor.job)  |
-  =/  authority  (execution-authority sid.job (session-tlon sid.job))
+  =/  authority  (execution-authority sid.job (session-tlon sid.job) `actor.job)
   &(live.authority !(schedule-permitted authority))
 ++  hand-source-live
   |=  [binding=@t sid=session-id:h hand=@t destination=@t actor=@t]
@@ -953,7 +953,7 @@
   ?.  .^(? %gu /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/$)  |
   =<  live
   .^  hand-authority:adapter  %gx
-    /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/authority/[sid]/noun
+    /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/authority/[sid]/[actor]/noun
   ==
 ++  schedule-adapter-down
   |=  job=schedule:cr
@@ -969,7 +969,7 @@
   =/  source  (~(get by sessions) sid.job)
   ?~  source  |
   =/  cfg  config:(play:hl log.u.source)
-  =/  live  (execution-tools sid.job tools.cfg)
+  =/  live  (execution-tools-as sid.job tools.cfg `actor.job)
   ::  Saved grants must remain available. Newly available tools do not widen
   ::  a schedule's durable ceiling or pause work that is still authorized.
   =/  actual  (skip live |=(g=tool-grant:h =(%cron g)))
@@ -1056,7 +1056,7 @@
       ==
     [[%| 'Scheduled and delegated work cannot create schedules'] ~ state]
   =/  config  config:(play:hl log.session)
-  =/  grants  (execution-tools sid.u.source tools.config)
+  =/  grants  (execution-tools-as sid.u.source tools.config `actor.action)
   =/  parsed  (mule |.((create:schedule-lib action u.source grants now.bowl)))
   ?.  ?=(%& -.parsed)
     :*  :*  %|
@@ -5653,6 +5653,12 @@
 ++  execution-tools
   |=  [sid=session-id:h granted=(list tool-grant:h)]
   ^-  (list tool-grant:h)
+  (execution-tools-as sid granted (session-speaker sid))
+::  .speaker is whose turn the hand's authority answers for.
+::
+++  execution-tools-as
+  |=  [sid=session-id:h granted=(list tool-grant:h) speaker=(unit @t)]
+  ^-  (list tool-grant:h)
   =/  depth=@ud  0
   |-
   ^-  (list tool-grant:h)
@@ -5693,7 +5699,13 @@
     ?.  =(sid (delegated-id:hl parent.u.parent call-id.u.parent rehearsal.u.parent generation))  ~
     ?.  (request-current:hl u.parent-session generation call-id.u.parent)  ~
     =/  parent-view  (play:hl log.u.parent-session)
-    =/  ceiling  $(sid parent.u.parent, granted tools.config.parent-view, depth +(depth))
+    =/  ceiling
+      %=  $
+        sid  parent.u.parent
+        granted  tools.config.parent-view
+        depth  +(depth)
+        speaker  (session-speaker parent.u.parent)
+      ==
     =/  name  ?:(rehearsal.u.parent 'rehearse_skill' 'run_subagent')
     ?.  (tool-granted:ht name ceiling)  ~
     %+  skim  granted
@@ -5704,7 +5716,7 @@
   =/  tlon  (session-tlon sid)
   ::  Tlon authority requires a live hand binding.
   =.  granted  ?:(tlon (with-tlon:ht granted) (without-tlon:ht granted))
-  =/  authority=hand-authority:adapter  (execution-authority sid tlon)
+  =/  authority=hand-authority:adapter  (execution-authority sid tlon speaker)
   ?.  live.authority  ~
   =?  granted  ?=(^ ceiling.authority)
     %+  skim  granted
@@ -5726,8 +5738,20 @@
   ?.  (~(has by rehearsals) sid)  granted
   (rehearsal-tools:ht granted)
 ::
+::  The actor of a hand conversation's running input, if one is running.
+::
+++  session-speaker
+  |=  sid=session-id:h
+  ^-  (unit @t)
+  =/  current  (~(get by active.hands) sid)
+  ?~  current  ~
+  =/  obs  (~(get by observations.hands) u.current)
+  ?~  obs  ~
+  `actor.u.obs
+::  Without a speaker the hand answers for its conversation's sole actor.
+::
 ++  execution-authority
-  |=  [sid=session-id:h tlon=?]
+  |=  [sid=session-id:h tlon=? speaker=(unit @t)]
   ^-  hand-authority:adapter
   ?.  tlon  [& ~]
   ::  An unavailable hand grants no effects, but must not prevent the head
@@ -5738,8 +5762,12 @@
   =/  found
     %-  mole
     |.
+    ?~  speaker
+      .^  hand-authority:adapter  %gx
+        /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/authority/[sid]/noun
+      ==
     .^  hand-authority:adapter  %gx
-      /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/authority/[sid]/noun
+      /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/authority/[sid]/[u.speaker]/noun
     ==
   (fall found [| ~])
 ::
