@@ -15,6 +15,7 @@ type RunState = {
   toolNames: string[];
   commentary: string | null;
   commentarySeq: number;
+  background: boolean;
 };
 
 type PublishParams = {
@@ -22,6 +23,9 @@ type PublishParams = {
   thinking: boolean;
   toolNames: string[];
   commentary: string | null;
+  // Set only when every shown run is a background run, so the published
+  // state of a conversation with no background run is unchanged.
+  background?: true;
 };
 
 type PublishedState = Omit<PublishParams, 'conversationId'>;
@@ -43,6 +47,7 @@ const STOPPED_RUN_MEMORY = 8;
 // Released app builds render the row at a fixed 52pt with no line clamp; 80
 // characters keeps commentary to two lines on a 320pt-wide phone.
 export const COMMENTARY_MAX_CHARS = 80;
+export const BACKGROUND_STATUS_TEXT = 'Working in the background…';
 const COMMENTARY_WORD_BREAK_WINDOW = 20;
 const ELLIPSIS = '…';
 const DELIVERY_DIRECTIVE_PATTERN = /\[\[[^\]]*\]\]|\bNO_REPLY\b/g;
@@ -94,7 +99,13 @@ export function createComputingPresenceReporter(): ComputingPresenceReporter {
   // Continuation timers and agent events run outside the monitor's API scope.
   const runInMonitorScope = captureTlonApiScope();
   const reporter: ComputingPresenceReporter = {
-    publish: async ({ conversationId, thinking, toolNames, commentary }) => {
+    publish: async ({
+      conversationId,
+      thinking,
+      toolNames,
+      commentary,
+      background,
+    }) => {
       if (!thinking) {
         await clearConversationPresence({
           conversationId,
@@ -112,7 +123,11 @@ export function createComputingPresenceReporter(): ComputingPresenceReporter {
         disclose: [],
         timeout: ACTIVE_PRESENCE_TIMEOUT,
         display: {
-          text: commentary ?? getComputingStatusText(status),
+          text:
+            commentary ??
+            (background
+              ? BACKGROUND_STATUS_TEXT
+              : getComputingStatusText(status)),
           blob: serializeComputingStatus({ thinking, toolCalls }),
         },
       });
@@ -189,6 +204,7 @@ export function createComputingPresenceTracker(trackerOpts?: {
     thinking: state.thinking,
     toolNames: [...state.toolNames],
     commentary: state.commentary,
+    ...(state.background ? { background: true } : {}),
   });
 
   const statesEqual = (left?: PublishedState, right?: PublishedState) => {
@@ -198,7 +214,8 @@ export function createComputingPresenceTracker(trackerOpts?: {
 
     if (
       left.thinking !== right.thinking ||
-      left.commentary !== right.commentary
+      left.commentary !== right.commentary ||
+      left.background !== right.background
     ) {
       return false;
     }
@@ -349,8 +366,13 @@ export function createComputingPresenceTracker(trackerOpts?: {
     const toolNames: string[] = [];
     let commentary: string | null = null;
     let commentarySeq = -1;
+    // The main agent's own state outranks work it left running in the
+    // background, whichever updated last.
+    const foregroundRuns = [...runs.values()].filter((run) => !run.background);
+    const shownRuns =
+      foregroundRuns.length > 0 ? foregroundRuns : [...runs.values()];
 
-    for (const run of runs.values()) {
+    for (const run of shownRuns) {
       if (run.commentary !== null && run.commentarySeq > commentarySeq) {
         commentary = run.commentary;
         commentarySeq = run.commentarySeq;
@@ -370,6 +392,7 @@ export function createComputingPresenceTracker(trackerOpts?: {
       thinking: true,
       toolNames,
       commentary,
+      ...(foregroundRuns.length === 0 ? { background: true } : {}),
     };
 
     enqueueState(conversationId, currentState);
@@ -378,7 +401,11 @@ export function createComputingPresenceTracker(trackerOpts?: {
   const getRun = (conversationId: string, runId: string) =>
     conversations.get(conversationId)?.get(runId);
 
-  const ensureRun = (conversationId: string, runId: string) => {
+  const ensureRun = (
+    conversationId: string,
+    runId: string,
+    background = false
+  ) => {
     let runs = conversations.get(conversationId);
     if (!runs) {
       runs = new Map();
@@ -391,6 +418,7 @@ export function createComputingPresenceTracker(trackerOpts?: {
         toolNames: [],
         commentary: null,
         commentarySeq: 0,
+        background,
       };
       runs.set(runId, run);
     }
@@ -399,12 +427,17 @@ export function createComputingPresenceTracker(trackerOpts?: {
   };
 
   return {
-    refreshRun: (params: { conversationId: string; runId: string }) => {
+    refreshRun: (params: {
+      conversationId: string;
+      runId: string;
+      // Only read when this call creates the run.
+      background?: boolean;
+    }) => {
       if (isRunStopped(params.conversationId, params.runId)) {
         return;
       }
 
-      ensureRun(params.conversationId, params.runId);
+      ensureRun(params.conversationId, params.runId, params.background);
       syncConversation(params.conversationId);
     },
 
