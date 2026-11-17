@@ -192,6 +192,27 @@ describe('tlon_workspace_plan', () => {
     expect(statuses).toEqual(['Bike Parts:superseded', 'Gravel Bike:open']);
   });
 
+  it('keeps the open card when its replacement fails to post', async () => {
+    const store = memoryStore();
+    let failCard = false;
+    const execute = createWorkspacePlanToolExecutor({
+      ownerShip: () => '~ten',
+      postText: async () => undefined,
+      postCard: async () => {
+        if (failCard) throw new Error('poke failed');
+      },
+      store: () => store,
+    });
+    await execute('1', bikeParts);
+    failCard = true;
+    const result = await execute('2', { ...bikeParts, title: 'Gravel Bike' });
+    expect(result.details).toEqual({ error: true });
+    const bikePartsRecord = [...store.records.values()].find(
+      (record) => record.plan.title === 'Bike Parts'
+    );
+    expect(bikePartsRecord?.status).toBe('open');
+  });
+
   it('reports an invalid plan without posting', async () => {
     const postCard = vi.fn();
     const execute = createWorkspacePlanToolExecutor({
@@ -269,6 +290,29 @@ describe('tlon_workspace_create', () => {
     },
   };
 
+  async function runTlon(_id: string, command: string) {
+    commands.push(command);
+    if (failOn && command.startsWith(failOn)) {
+      return { ok: false, text: 'Error: poke failed' };
+    }
+    if (command.startsWith('groups create-owned')) {
+      return {
+        ok: true,
+        text: [
+          '✅ Owned group created successfully!',
+          '   ID: ~ten/bike-parts',
+          '   Channel: chat/~ten/general',
+          '   Ref: /1/group/~ten/bike-parts',
+        ].join('\n'),
+      };
+    }
+    if (command.startsWith('channels create')) {
+      const kind = command.match(/--kind (\w+)/)![1];
+      return { ok: true, text: `Nest: ${kind}/~ten/${kind}-1` };
+    }
+    return { ok: true, text: 'ok' };
+  }
+
   function executor(
     postText?: (target: string, text: string) => Promise<unknown>
   ) {
@@ -281,28 +325,7 @@ describe('tlon_workspace_create', () => {
         syncs.push(jobs.length);
         if (syncFails) throw new Error('steward unreachable');
       },
-      runTlon: async (_id, command) => {
-        commands.push(command);
-        if (failOn && command.startsWith(failOn)) {
-          return { ok: false, text: 'Error: poke failed' };
-        }
-        if (command.startsWith('groups create-owned')) {
-          return {
-            ok: true,
-            text: [
-              '✅ Owned group created successfully!',
-              '   ID: ~ten/bike-parts',
-              '   Channel: chat/~ten/general',
-              '   Ref: /1/group/~ten/bike-parts',
-            ].join('\n'),
-          };
-        }
-        if (command.startsWith('channels create')) {
-          const kind = command.match(/--kind (\w+)/)![1];
-          return { ok: true, text: `Nest: ${kind}/~ten/${kind}-1` };
-        }
-        return { ok: true, text: 'ok' };
-      },
+      runTlon,
     });
   }
 
@@ -432,6 +455,29 @@ describe('tlon_workspace_create', () => {
     ]);
   });
 
+  it('keeps a notebook whose verification failed', async () => {
+    const failed = await createWorkspaceCreateToolExecutor({
+      store: () => store,
+      getCron: () => cron as never,
+      runTlon: async (id, command) =>
+        command.startsWith('channels create ~ten/bike-parts "Notes"')
+          ? {
+              ok: false,
+              text: 'Error: %notes created notes/~ten/notes-1, but its readers could not be verified: timeout.',
+            }
+          : runTlon(id, command),
+    })('call-1', { proposalId: 'workspace-plan-abc' });
+    expect(failed.details).toEqual({ error: true });
+    commands = [];
+    const resumed = await executor()('call-2', {
+      proposalId: 'workspace-plan-abc',
+    });
+    expect(resumed.details).toBeUndefined();
+    expect(
+      commands.filter((command) => command.startsWith('channels create'))
+    ).toEqual([]);
+  });
+
   it('remembers a group whose admin grant failed', async () => {
     const execute = createWorkspaceCreateToolExecutor({
       store: () => store,
@@ -440,14 +486,15 @@ describe('tlon_workspace_create', () => {
         commands.push(command);
         return {
           ok: false,
-          text: 'Error: Created ~ten/bike-parts (Ref: /1/group/~ten/bike-parts), but making ~zod its admin failed',
+          text: 'Error: Created ~ten/bike-parts (Ref: /1/group/~ten/bike-parts) with its chat chat/~ten/general, but making ~zod its admin failed',
         };
       },
     });
     await execute('call-1', { proposalId: 'workspace-plan-abc' });
-    expect(store.records.get('workspace-plan-abc')?.groupId).toBe(
-      '~ten/bike-parts'
-    );
+    expect(store.records.get('workspace-plan-abc')).toMatchObject({
+      groupId: '~ten/bike-parts',
+      defaultChannelNest: 'chat/~ten/general',
+    });
   });
 
   it('refuses a card the owner has not tapped Create on', async () => {
