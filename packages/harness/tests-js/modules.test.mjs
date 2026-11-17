@@ -201,7 +201,7 @@ test('scheduler maintenance is change-driven without caching effect authority', 
   }
   assert.doesNotMatch(inputs, /\.\^\(|acp-through|model-requests|streams/)
   assert.match(arm('poll-schedules'), /\(schedule-live job\)/)
-  assert.match(arm('execution-tools'), /\(schedule-live u\.scheduled\)/)
+  assert.match(arm('execution-tools-as'), /\(schedule-live u\.scheduled\)/)
   assert.match(head, /\[%x %cron-authority @ ~\][\s\S]*?\(schedule-live:hc u\.job\)/)
 })
 test('channel reconciliation uses self-role events and native live read authority', async () => {
