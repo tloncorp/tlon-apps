@@ -1,5 +1,6 @@
 import type { PluginRuntime } from 'openclaw/plugin-sdk/core';
 
+import { trimOldest } from './context-lens.js';
 import {
   type createComputingPresenceTracker,
   formatCommentaryForPresence,
@@ -30,11 +31,7 @@ const RUN_MEMORY = 256;
 function rememberRecent<V>(map: Map<string, V>, key: string, value: V) {
   map.delete(key);
   map.set(key, value);
-  while (map.size > RUN_MEMORY) {
-    const oldest = map.keys().next().value;
-    if (oldest === undefined) break;
-    map.delete(oldest);
-  }
+  trimOldest(map, RUN_MEMORY);
 }
 
 /**
@@ -128,17 +125,18 @@ export function createSubagentPresence({
   const showRow = (runId: string, conversationId: string) => {
     try {
       const presenceRunId = `subagent:${runId}`;
+      const progress = buildProgressReplyOptions({
+        enabled: showCommentary,
+        presenceConversationId: conversationId,
+        presenceRunId,
+        computingPresence: backgroundPresence,
+      });
       const heartbeat = setInterval(() => tick(runId), HEARTBEAT_MS);
       heartbeat.unref();
       runs.set(runId, {
         conversationId,
         presenceRunId,
-        progress: buildProgressReplyOptions({
-          enabled: showCommentary,
-          presenceConversationId: conversationId,
-          presenceRunId,
-          computingPresence: backgroundPresence,
-        }),
+        progress,
         heartbeat,
         lastEventAt: Date.now(),
       });
@@ -182,6 +180,11 @@ export function createSubagentPresence({
         event.data.kind === 'preamble' &&
         !event.data.hideFromChannelProgress
       ) {
+        // Only this run's own work reaches here. A message sent to the
+        // child's session cannot join it: core's sessions_send steers into an
+        // active run only for run-scoped session keys (a `run:<id>` segment),
+        // which subagent keys lack, so the message queues a new run, and a
+        // new run gets no row.
         run.progress.onItemEvent?.({
           kind: 'preamble',
           progressText:
