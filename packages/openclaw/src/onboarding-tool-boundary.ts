@@ -446,7 +446,8 @@ export function onboardingToolBlockReason(
 
   if (
     toolName === 'tlon_workspace_plan' ||
-    toolName === 'tlon_workspace_create'
+    toolName === 'tlon_workspace_create' ||
+    toolName === 'tlon_workspace_link'
   ) {
     if (
       surface?.kind !== 'direct' ||

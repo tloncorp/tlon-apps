@@ -19,9 +19,9 @@ describe('owner DM workspace note', () => {
     expect(note).not.toContain('create-owned');
   });
 
-  it('links an existing workspace by its listed Ref and skips self-introductions', async () => {
+  it('links an existing workspace with its tool and skips self-introductions', async () => {
     const note = await ownerDmWorkspaceNote(null);
-    expect(note).toContain('its `Ref:` path');
+    expect(note).toContain('link it instead with tlon_workspace_link');
     expect(note).toContain('the owner introducing themselves');
   });
 

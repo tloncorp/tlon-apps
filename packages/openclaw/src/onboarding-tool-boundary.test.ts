@@ -611,7 +611,11 @@ describe('workspace card tools', () => {
     timestamp: 0,
   };
 
-  it.each(['tlon_workspace_plan', 'tlon_workspace_create'])(
+  it.each([
+    'tlon_workspace_plan',
+    'tlon_workspace_create',
+    'tlon_workspace_link',
+  ])(
     '%s runs only in the owner DM after onboarding',
     (tool) => {
       expect(onboardingToolBlockReason(tool, {}, ownerDm)).toBeUndefined();

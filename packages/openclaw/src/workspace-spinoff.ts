@@ -8,9 +8,8 @@ import { readWorkspacePlanTap } from './workspace-plan.js';
 const PROPOSE_NOTE =
   '\n[Workspace rule: if this message starts a topic that will outlast this reply ' +
   '(a project, trip, course, renovation or routine), run `groups list` first. If a ' +
-  'workspace already covers it, link it instead: one line naming it, then its `Ref:` path ' +
-  'from `groups list` (such as `/1/group/~sampel-palnet/lisbon-trip`) alone on its own line, ' +
-  'never a URL, so it renders as a card. Do that once per conversation. ' +
+  'workspace already covers it, link it instead with tlon_workspace_link and its ID from ' +
+  '`groups list`, once per conversation, then answer as usual. ' +
   'Otherwise propose one with tlon_workspace_plan: a ' +
   'short, specific title from the conversation, never a generic one, and the channels ' +
   'and recurring task the topic needs. Do not create it yourself; the owner taps Create. ' +

@@ -46,6 +46,7 @@ const EXPECTED_OWNER_ONLY_TOOLS = [
   'tlon_agent_service_setup',
   'tlon_workspace_plan',
   'tlon_workspace_create',
+  'tlon_workspace_link',
   'set_timezone',
   'mcp__resources_list',
   'mcp__resources_read',

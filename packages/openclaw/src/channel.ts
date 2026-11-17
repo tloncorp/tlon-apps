@@ -89,6 +89,11 @@ import {
   workspacePlanToolMetadata,
   workspacePlanToolParameters,
 } from './workspace-plan-tool.js';
+import {
+  createWorkspaceLinkToolExecutor,
+  workspaceLinkToolMetadata,
+  workspaceLinkToolParameters,
+} from './workspace-link-tool.js';
 
 const TLON_CHANNEL_ID = 'tlon' as const;
 const require = createRequire(import.meta.url);
@@ -315,6 +320,33 @@ export const tlonPlugin = createChatChannelPlugin({
           postSurface(target, fallbackText, blob),
       });
 
+      const activeAccountId = () => getActiveTlonTurnAccountId() ?? undefined;
+      const executeWorkspaceLink = createWorkspaceLinkToolExecutor({
+        ownerShip: () =>
+          resolveTlonAccount(cfg ?? {}, activeAccountId()).ownerShip ??
+          undefined,
+        groupIds: async () => {
+          const groups: unknown = JSON.parse(
+            await runForActiveAccount(['channels', 'groups'])
+          );
+          return Array.isArray(groups)
+            ? groups.flatMap((g) =>
+                g && typeof (g as { id?: unknown }).id === 'string'
+                  ? [(g as { id: string }).id]
+                  : []
+              )
+            : [];
+        },
+        // The reply path, not `posts send`: it turns the path into a card.
+        postText: async (target, text) =>
+          (await loadTlonChannelRuntime()).tlonRuntimeOutbound.sendText!({
+            cfg: cfg ?? {},
+            to: target,
+            text,
+            accountId: activeAccountId(),
+          }),
+      });
+
       const executeWorkspaceCreate = createWorkspaceCreateToolExecutor({
         getCron: getTlonCronService,
         runTlon: async (id, command) => {
@@ -335,6 +367,11 @@ export const tlonPlugin = createChatChannelPlugin({
           ...workspaceCreateToolMetadata,
           parameters: workspaceCreateToolParameters,
           execute: (id, params) => executeWorkspaceCreate(id, params),
+        },
+        {
+          ...workspaceLinkToolMetadata,
+          parameters: workspaceLinkToolParameters,
+          execute: (id, params) => executeWorkspaceLink(id, params),
         },
         {
           ...agentChoiceToolMetadata,

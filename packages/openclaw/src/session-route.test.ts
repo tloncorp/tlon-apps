@@ -143,6 +143,7 @@ describe('tlonPlugin agent tools', () => {
     expect(toolNames()).toEqual([
       'tlon_workspace_plan',
       'tlon_workspace_create',
+      'tlon_workspace_link',
       'tlon_agent_choice',
       'tlon_agent_task_plan',
       'tlon_agent_service_setup',
