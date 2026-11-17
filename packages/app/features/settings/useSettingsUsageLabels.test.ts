@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RETRY_INTERVAL_MS } from './bot/constants';
 import {
   getStorageLabel,
+  getStorageProgress,
   getTokenUsageLabel,
   pollUnfinishedTokenUsage,
 } from './useSettingsUsageLabels';
@@ -172,5 +173,27 @@ describe('getStorageLabel', () => {
     [{ data: undefined, isError: true }, 'Unavailable'],
   ])('%o reads %s', (query, label) => {
     expect(getStorageLabel(query)).toBe(label);
+  });
+});
+
+describe('getStorageProgress', () => {
+  it.each([
+    [0, 40, 0],
+    [7.5, 40, 0.1875],
+    [40, 40, 1],
+    [50, 40, 1],
+  ])('shows %s used of %s as %s', (usedBytes, totalBytes, progress) => {
+    expect(
+      getStorageProgress({ data: { usedBytes, totalBytes }, isError: false })
+    ).toBe(progress);
+  });
+
+  it.each([
+    { data: undefined, isError: false },
+    { data: null, isError: false },
+    { data: { usedBytes: 0, totalBytes: 0 }, isError: false },
+    { data: { usedBytes: 7.5, totalBytes: 40 }, isError: true },
+  ])('omits a bar when quota is unavailable: %o', (query) => {
+    expect(getStorageProgress(query)).toBeUndefined();
   });
 });

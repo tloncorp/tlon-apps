@@ -58,6 +58,7 @@ interface Props {
   notificationsLabel?: string;
   /** Hosted storage in use; absent for storage Tlon doesn't host. */
   storageLabel?: string;
+  storageProgress?: number;
   /** The bot's tokens this month; absent where hosting can't report them. */
   tokenUsageLabel?: string;
 }
@@ -238,6 +239,7 @@ function useSettingsSections(
         key: 'storage',
         title: 'Tlon Storage',
         value: props.storageLabel,
+        progress: props.storageProgress,
         testID: 'SettingsStorageRow',
       });
     }
@@ -377,6 +379,7 @@ function useSettingsSections(
     props.onThemePressed,
     props.onWebAppPressed,
     props.storageLabel,
+    props.storageProgress,
     props.themeLabel,
     props.tokenUsageLabel,
   ]);

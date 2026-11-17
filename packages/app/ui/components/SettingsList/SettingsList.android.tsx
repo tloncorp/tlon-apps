@@ -8,6 +8,7 @@ import {
   Host,
   HorizontalDivider,
   LazyColumn,
+  LinearProgressIndicator,
   RNHostView,
   RadioButton,
   Row,
@@ -206,11 +207,12 @@ function PlainRow({
     (option) => option.value === picker.value
   )?.title;
   const value = row.value ?? pickedTitle;
-  const supporting = valueTrails ? row.subtitle : (row.subtitle ?? value);
-  const trailingValue = valueTrails ? value : undefined;
+  const trails = valueTrails || row.progress !== undefined;
+  const supporting = trails ? row.subtitle : (row.subtitle ?? value);
+  const trailingValue = trails ? value : undefined;
   const isChoice = row.selected !== undefined;
 
-  const content = (
+  const rowContent = (
     <Row
       verticalAlignment="center"
       horizontalArrangement={{ spacedBy: 16 }}
@@ -351,6 +353,34 @@ function PlainRow({
       ) : null}
     </Row>
   );
+
+  const content =
+    row.progress === undefined ? (
+      rowContent
+    ) : (
+      <Column modifiers={[fillMaxWidth()]}>
+        {rowContent}
+        <Column
+          verticalArrangement={{ spacedBy: 6 }}
+          modifiers={[fillMaxWidth(), padding(16, 0, 16, 16)]}
+        >
+          <LinearProgressIndicator
+            progress={row.progress}
+            color={colors.accent}
+            trackColor={colors.separator}
+            gapSize={0}
+            drawStopIndicator={{ stopSize: 0 }}
+            modifiers={[
+              fillMaxWidth(),
+              semantics({ contentDescription: `${row.title} usage` }),
+            ]}
+          />
+          <Text color={colors.secondaryText} style={{ fontSize: 12 }}>
+            {`${Math.round(row.progress * 100)}% used`}
+          </Text>
+        </Column>
+      </Column>
+    );
 
   // Both menus keep Material's own surface and shadow, as Google's apps draw
   // them, in the app's light or dark theme from the list's Host.
