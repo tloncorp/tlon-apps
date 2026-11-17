@@ -130,7 +130,15 @@ const shipFixture =
 
     await performCleanup(page, ship.ship);
 
+    const viewport = page.viewportSize();
     await use({ context, page });
+
+    // Cleanup drives the desktop navigation; a test that narrowed the window
+    // left the root stack mounted instead.
+    if (viewport && page.viewportSize()?.width !== viewport.width) {
+      await page.setViewportSize(viewport);
+      await page.waitForSelector('text=Home', { state: 'visible' });
+    }
 
     await performCleanup(page, ship.ship);
 

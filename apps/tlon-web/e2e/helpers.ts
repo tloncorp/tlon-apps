@@ -56,6 +56,14 @@ export async function createGroup(page: Page) {
   });
   await page.getByText('Create workspace').click();
 
+  if (await isMobileViewport(page)) {
+    // The root stack opens the new workspace's only channel, not its list.
+    await expect(
+      page.getByTestId('ChannelHeaderTitle').getByText('Untitled workspace')
+    ).toBeVisible({ timeout: 10000 });
+    return;
+  }
+
   try {
     // Wait briefly to see if we're automatically navigated to the group
     await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({
@@ -926,7 +934,9 @@ export async function createChannel(
   });
   await page.getByText('New channel').first().click();
 
-  await expect(page.getByText('Create a new channel')).toBeVisible();
+  await expect(
+    page.getByText('Create a new channel', { exact: true })
+  ).toBeVisible();
 
   await fillFormField(page, 'ChannelTitleInput', title);
 
@@ -939,7 +949,9 @@ export async function createChannel(
   await page.getByText('Create channel').click();
 
   // Wait for the sheet to close
-  await expect(page.getByText('Create a new channel')).not.toBeVisible({
+  await expect(
+    page.getByText('Create a new channel', { exact: true })
+  ).not.toBeVisible({
     timeout: 5000,
   });
 
