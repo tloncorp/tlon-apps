@@ -997,7 +997,7 @@ async function createOwnedGroup(
     // caller. Only the host can finish it: the admin may be the one asking.
     const reason = err instanceof Error ? err.message : String(err);
     throw new Error(
-      `Created ${groupId} (Ref: /1/group/${groupId}), but making ${adminShip} its admin failed: ${reason} The group exists, so do not create it again. Its host, ${host}, can finish the grant with: groups promote ${groupId} ${adminShip}`
+      `Created ${groupId} (Ref: /1/group/${groupId}) with its chat ${channelId}, but making ${adminShip} its admin failed: ${reason} The group exists, so do not create it again. Its host, ${host}, can finish the grant with: groups promote ${groupId} ${adminShip}`
     );
   }
 
