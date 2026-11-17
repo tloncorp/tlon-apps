@@ -745,6 +745,17 @@
         %agent  [our.bowl %groups]
         %poke  group-action-4+!>(del)
     ==
+  (forget-bucket flag)
+::
+::  +forget-bucket: drop a bucket we host, everything hanging off it, and
+::  have the broker purge what it stored. What +delete-bucket does once the
+::  channel is on its way out, and what a channel or group deleted in %groups
+::  directly gets too.
+::
+++  forget-bucket
+  |=  =flag:b
+  ^+  cor
+  =/  st=bucket-state:b  (need-state flag)
   =/  res=response:b
     [%update flag +(revision.st) [%delete ~]]
   =.  cor  (give [%fact ~[/v1 (updates-path flag)] buckets-response-1+!>(res)])
@@ -757,8 +768,55 @@
   =.  cor  (give [%kick ~[(updates-path flag)] ~])
   =.  cor  (drop-bucket-sessions flag)
   =.  cor  (drop-read-token flag)
+  =.  cor  (purge-bucket id.bucket.st)
   =.  spaces  (~(del by spaces) flag)
   cor
+::
+::  +purge-bucket: tell the broker a bucket we hosted is gone, so its objects
+::  stop counting against our quota now.
+::
+::  Sent once and not retried. The broker also asks us, on its own schedule,
+::  whether each bucket it stores objects for still exists, and purges on
+::  +bucket-liveness answering gone -- so a purge that never lands only
+::  delays the release, and nothing has to be remembered here to finish it.
+::
+++  purge-bucket
+  |=  id=@ud
+  ^+  cor
+  =/  secret=(unit @t)  genuine-secret
+  ?~  secret
+    (note %warn ~[leaf+"buckets: no genuine secret, purge left to the broker"] ~)
+  =/  url=@t
+    (rap 3 broker-base '/spaces/' (ship-text:util our.bowl) '/' (scot %ud id) ~)
+  =/  =request:http
+    [%'DELETE' url ~[['x-landscape-token' u.secret]] ~]
+  (emit [%pass /buckets/purge/(scot %ud id) %arvo %i %request request *outbound-config:iris])
+::
+::  +bucket-liveness: answer the broker about one of our bucket ids.
+::
+::  The broker purges every object stored under the id when this says gone,
+::  so gone means only that no bucket we host has the id. Ids come from
+::  .next-id and never repeat, and a bucket leaves .spaces only through
+::  +forget-bucket, so one answered gone cannot come back. %groups is not
+::  asked: a channel can be missing and still come back -- a registration
+::  that failed is re-sent by a repeated create -- and our own rank can be
+::  banned in a group we host, which reads as no channel. A channel or group
+::  that really was deleted reaches us as a fact instead, in +take-groups.
+::  An id we never issued gets no answer at all rather than gone: it means
+::  this state is not the one that issued it, and that is not ours to decide.
+::
+++  bucket-liveness
+  |=  id=@ud
+  ^-  (unit json)
+  ?:  (gth id next-id)  ~
+  =/  held=?
+    %-  ~(any by spaces)
+    |=  sp=space:b
+    ?&  =(%pub net.sp)
+        ?=(^ state.sp)
+        =(id id.bucket.u.state.sp)
+    ==
+  `(pairs:enjs:format ~[['result' s+?:(held 'live' 'gone')]])
 ::
 ::  +se-core: one bucket we host.
 ::
@@ -2670,6 +2728,11 @@
       [%x %v1 %broker %delete cap=@ object=@ ~]
     ``json+!>((broker-object-verdict %delete cap.pole object.pole))
   ::
+      [%x %v1 %broker %bucket id=@ ~]
+    ?~  id=(slaw %ud id.pole)  [~ ~]
+    ?~  verdict=(bucket-liveness u.id)  [~ ~]
+    ``json+!>(u.verdict)
+  ::
   ::  So an operator can confirm which broker a live host is pointed at
   ::  without reading its state.
   ::
@@ -2885,6 +2948,19 @@
     ?:  ?=(%progress -.res)  cor
     (take-upload (slav %uv sid.pole) kind.pole res)
   ::
+      [%buckets %purge id=@ ~]
+    ?.  ?=([%iris %http-response *] sign-arvo)  cor
+    =*  res  client-response.sign-arvo
+    ?:  ?=(%progress -.res)  cor
+    =/  fields=(list (pair @t json))  ~[['bucket-id' s+id.pole]]
+    ?:  ?=(%cancel -.res)
+      (note %warn ~[leaf+"buckets: bucket purge was cancelled"] fields)
+    =/  code=@ud  status-code.response-header.res
+    ?:  &((gte code 200) (lth code 300))  cor
+    %^  note  %warn
+      ~[leaf+"buckets: broker refused a bucket purge"]
+    (snoc fields ['status' (numb:enjs:format code)])
+  ::
       [%buckets %reader host=@ name=@ who=@ rev=@ ~]
     ?.  ?=([%iris %http-response *] sign-arvo)  cor
     =*  res  client-response.sign-arvo
@@ -2997,7 +3073,39 @@
     %+  strip-writers  flag.r-groups
     %-  ~(dif in (held-writers flag.r-groups))
     ~(key by roles.group.r-group)
+  ::
+      ::  A bucket's channel, or its whole group, deleted in %groups rather
+      ::  than through us. The bucket is unreachable from then on, so it goes
+      ::  the way a deleted one does, objects included.
+      [%channel [%buckets *] %del ~]
+    =/  =flag:b  [p q]:q.nest.r-group
+    ?.  (hosted-in flag.r-groups flag)  cor
+    =.  cor
+      %^  note  %info
+        ~[leaf+"buckets: channel deleted in %groups, dropping its bucket"]
+      (log-bucket flag)
+    (forget-bucket flag)
+  ::
+      [%delete ~]
+    %+  roll  ~(tap by spaces)
+    |=  [[=flag:b *] acc=_cor]
+    ?.  (hosted-in:acc flag.r-groups flag)  acc
+    =.  acc
+      %^  note:acc  %info
+        ~[leaf+"buckets: group deleted, dropping its bucket"]
+      (log-bucket:acc flag)
+    (forget-bucket:acc flag)
   ==
+::
+::  +hosted-in: is this a bucket we host, in that group?
+::
+++  hosted-in
+  |=  [group=flag:b =flag:b]
+  ^-  ?
+  ?~  sp=(~(get by spaces) flag)  |
+  ?.  =(%pub net.u.sp)  |
+  ?~  state.u.sp  |
+  =(group group.u.state.u.sp)
 ::
 ::  +held-writers: every role id our buckets in this group grant writes to.
 ::

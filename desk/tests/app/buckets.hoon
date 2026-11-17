@@ -278,6 +278,18 @@
   ^-  r-groups:v9:gv
   [group [%role roles [%del ~]]]
 ::
+::  +channel-deleted: %groups saying the bucket's channel is gone.
+::
+++  channel-deleted
+  ^-  r-groups:v9:gv
+  [group [%channel [%buckets flag] [%del ~]]]
+::
+::  +group-deleted: %groups saying the whole group is gone.
+::
+++  group-deleted
+  ^-  r-groups:v9:gv
+  [group [%delete ~]]
+::
 ::  +answers: the terminal responses in a card list. Not every fact is one --
 ::  /lib/verb emits its own -- so this matches on the mark rather than on
 ::  %give %fact, which quietly counted logging as an answer.
@@ -326,6 +338,17 @@
   ^-  (unit vase)
   ?:  (group-exists-path pax)  `!>(|)
   (genuine-scries pax)
+::
+::  +liveness: the broker's question about one bucket id, as the thread asks
+::  it -- the result, or ~ for no answer.
+::
+++  liveness
+  |=  id=@t
+  =/  m  (mare ,(unit @t))
+  ^-  form:m
+  ;<  res=(unit (unit cage))  bind:m  (get-peek /x/v1/broker/bucket/[id])
+  ?.  ?=([~ ~ *] res)  (pure:m ~)
+  (pure:m `(so:dejs:format (get:dejs:buckets-json 'result' !<(json q.u.u.res))))
 ::
 ++  deny-group-scries
   |=  pax=path
@@ -2100,6 +2123,103 @@
         %buckets-response-1
       !>(`response:bu`[%update flag 0 [%delete ~]])
   ==
+::
+::  The broker purges every object stored under a bucket id once the host
+::  answers gone, so gone has to mean the bucket really went. An id this state
+::  never issued is not ours to call gone, so it gets no answer and the broker
+::  counts it as unknown.
+::
+++  test-liveness-is-live-until-the-bucket-is-deleted
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate genuine-scries)
+  ;<  live=(unit @t)  b  (liveness '1')
+  ;<  unissued=(unit @t)  b  (liveness '2')
+  ;<  garbled=(unit @t)  b  (liveness 'one')
+  ;<  ~  b  (ex-equal !>([live unissued garbled]) !>([`'live' ~ ~]))
+  ;<  caz=(list card)  b  (ask 0v1 [%bucket flag [%delete ~]])
+  ;<  gone=(unit @t)  b  (liveness '1')
+  ;<  ~  b  (ex-equal !>(gone) !>(`(unit @t)`[~ 'gone']))
+  ::  and the broker is told at once, as this host, for that id
+  =/  purge=[=wire =request:http]  (only-iris caz)
+  ;<  ~  b
+    %+  ex-equal
+      !>([wire.purge method.request.purge url.request.purge header-list.request.purge])
+    !>  :*  /buckets/purge/1
+            %'DELETE'
+            'https://memex.tlon.network/v2/buckets/spaces/sampel-palnet/1'
+            ~[['x-landscape-token' '0wsecret']]
+        ==
+  ::  a refusal is only logged: the broker's own liveness check is what
+  ::  finishes a purge that did not land
+  ;<  refused=(list card)  b  (do-arvo wire.purge (iris-status 503))
+  %+  ex-equal
+    !>  :-  (lent (skim refused |=(=card ?=([%pass [%logs *] *] card))))
+        (lent (skim refused |=(=card ?=([%pass * %arvo %i *] card))))
+  !>([1 0])
+::
+::  Liveness does not ask %groups. A missing channel can come back -- a
+::  failed registration is re-sent by a repeated create -- and a host whose
+::  own rank its group bans reads its channels as missing; neither may purge.
+::
+++  test-liveness-does-not-depend-on-groups
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate missing-group-scries)
+  ;<  live=(unit @t)  b  (liveness '1')
+  (ex-equal !>(live) !>(`(unit @t)`[~ 'live']))
+::
+::  A channel or group deleted in %groups directly leaves the bucket
+::  unreachable, so it is dropped as a deleted one is, and its objects purged.
+::
+++  test-a-channel-deleted-in-groups-drops-its-bucket
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate reader-scries)
+  ;<  caz=(list card)  b
+    %^    do-agent
+        /groups
+      [~sampel-palnet %groups]
+    [%fact %group-response-1 !>(channel-deleted)]
+  =/  purge=[=wire =request:http]  (only-iris caz)
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  ;<  gone=(unit @t)  b  (liveness '1')
+  %+  ex-equal
+    !>([wire.purge (~(has by spaces.st) flag) gone])
+  !>([/buckets/purge/1 | `(unit @t)`[~ 'gone']])
+::
+++  test-a-group-deleted-in-groups-drops-its-buckets
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate missing-group-scries)
+  ;<  caz=(list card)  b
+    %^    do-agent
+        /groups
+      [~sampel-palnet %groups]
+    [%fact %group-response-1 !>(group-deleted)]
+  =/  purge=[=wire =request:http]  (only-iris caz)
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  %+  ex-equal
+    !>([wire.purge (~(has by spaces.st) flag)])
+  !>([/buckets/purge/1 |])
 ::
 ::  Gall retries reuse the caller-selected random name. An identical retry
 ::  must not allocate a second Bucket.
