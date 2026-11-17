@@ -108,7 +108,7 @@ export const firstRunCopy = {
     subtitle:
       'Private by design, and you can take it with you whenever you want.',
     points: [
-      { icon: 'computer', label: 'Runs on its own computer in the cloud' },
+      { icon: 'computer', label: 'Runs on its own cloud computer' },
       { icon: 'lock', label: 'Its default model keeps nothing' },
       { icon: 'sliders', label: 'Sees only what you share' },
     ] satisfies FeaturePoint[],
