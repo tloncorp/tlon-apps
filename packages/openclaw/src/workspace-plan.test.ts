@@ -269,10 +269,13 @@ describe('tlon_workspace_create', () => {
     },
   };
 
-  function executor() {
+  function executor(
+    postText?: (target: string, text: string) => Promise<unknown>
+  ) {
     return createWorkspaceCreateToolExecutor({
       store: () => store,
       getCron: () => cron as never,
+      postText,
       // Records how many jobs existed when the mirror was asked to sync.
       syncTasks: async () => {
         syncs.push(jobs.length);
@@ -348,6 +351,36 @@ describe('tlon_workspace_create', () => {
       ],
       taskJobId: 'job-0',
     });
+  });
+
+  it("posts the workspace's card to the owner itself", async () => {
+    const posts: Array<[string, string]> = [];
+    const execute = executor(async (target, text) => {
+      posts.push([target, text]);
+    });
+    const created = await execute('call-1', {
+      proposalId: 'workspace-plan-abc',
+    });
+    expect(posts).toEqual([['~ten', '/1/group/~ten/bike-parts']]);
+    expect(created.content[0].text).toContain("don't write its link");
+    expect(created.content[0].text).not.toContain('/1/group/');
+    // A second tap posts it again and still makes nothing.
+    const again = await execute('call-2', { proposalId: 'workspace-plan-abc' });
+    expect(again.content[0].text).toContain('Already created');
+    expect(posts).toHaveLength(2);
+    expect(
+      commands.filter((command) => command.startsWith('groups create-owned'))
+    ).toHaveLength(1);
+  });
+
+  it('hands the model the link when posting the card fails', async () => {
+    const created = await executor(async () => {
+      throw new Error('ship unreachable');
+    })('call-1', { proposalId: 'workspace-plan-abc' });
+    expect(created.details).toBeUndefined();
+    expect(created.content[0].text).toMatch(
+      /\n\/1\/group\/~ten\/bike-parts$/
+    );
   });
 
   it("mirrors the task into the owner's task list once it is added", async () => {

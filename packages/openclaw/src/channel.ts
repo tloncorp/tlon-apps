@@ -352,6 +352,14 @@ export const tlonPlugin = createChatChannelPlugin({
         getCron: getTlonCronService,
         syncTasks: async () =>
           getStewardAutomationReconciler()?.trigger(() => getTlonCronService()),
+        // The reply path, not `posts send`: it turns the path into a card.
+        postText: async (target, text) =>
+          (await loadTlonChannelRuntime()).tlonRuntimeOutbound.sendText!({
+            cfg: cfg ?? {},
+            to: target,
+            text,
+            accountId: activeAccountId(),
+          }),
         runTlon: async (id, command) => {
           const runner = getWorkspaceTlonRunner();
           return runner

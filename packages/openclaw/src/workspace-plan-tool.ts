@@ -342,8 +342,34 @@ export function createWorkspaceCreateToolExecutor(deps: {
    * workspace task never shows in the owner's app and can't be managed there.
    */
   syncTasks?: () => Promise<void>;
+  /**
+   * Posts text to the owner the way replies are posted, so a `/1/group/` path
+   * becomes a group card. The tool posts the card itself: asked to end its
+   * reply with the path, the model once wrote the owner's ship with the
+   * fixture group's slug instead of the new workspace's.
+   */
+  postText?: (target: string, text: string) => Promise<unknown>;
   store?: () => WorkspaceProposalStore;
 }) {
+  /**
+   * Post the workspace's card to the owner. Returns what the model should do
+   * about the link: nothing when the card posted, or include it if it didn't.
+   */
+  async function postGroupCard(
+    ownerShip: string,
+    ref: string
+  ): Promise<string> {
+    if (deps.postText) {
+      try {
+        await deps.postText(ownerShip, ref);
+        return "The workspace's card is already posted in the DM, so don't write its link, path or ID.";
+      } catch {
+        // Fall through: the model carries the link instead.
+      }
+    }
+    return `Put this on its own line in that reply, exactly:\n${ref}`;
+  }
+
   async function createOnce(id: string, proposalId: string): Promise<string> {
     const store = (deps.store ?? getWorkspaceProposalStore)();
     let proposal = await store.lookup(proposalId);
@@ -361,7 +387,8 @@ export function createWorkspaceCreateToolExecutor(deps: {
     };
 
     if (proposal.status === 'created') {
-      return `Already created: ${JSON.stringify(plan.title)} exists and nothing new was made. Reply with one line and this on its own line:\n${ref()}`;
+      const link = await postGroupCard(proposal.ownerShip, ref());
+      return `Already created: ${JSON.stringify(plan.title)} exists and nothing new was made. Say so in one line. ${link}`;
     }
     if (proposal.status === 'superseded') {
       throw new Error(
@@ -503,8 +530,8 @@ export function createWorkspaceCreateToolExecutor(deps: {
             `Recurring task "${plan.task.title}" scheduled (${plan.task.schedule}), posting to ${nests[0]}.`,
           ]
         : []),
-      'Now post that starter content in each channel (gallery items one per post, notebook content as a note). Then reply here in one line, with this on its own line:',
-      ref(),
+      'Now post that starter content in each channel (gallery items one per post, notebook content as a note). Then reply here in one line.',
+      await postGroupCard(proposal.ownerShip, ref()),
     ];
     return lines.join('\n');
   }
