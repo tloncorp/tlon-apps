@@ -63,6 +63,12 @@ import {
 
 const ANCHOR_RESOLUTION_TIMEOUT_MS = 2_000;
 const ESTIMATED_ITEM_SIZE = 120;
+// How far ahead rows are rendered once the reader has scrolled the list. A
+// fast fling outruns LegendList's default 250 pt and shows blank space. Until
+// the first drag the list keeps the default: rendering more while a chat opens
+// slows the open and moves the post it lands on. Switching once, as the first
+// drag starts, avoids re-rendering the list mid-fling.
+const SCROLLED_DRAW_DISTANCE = 750;
 const MAX_ANCHOR_SETTLE_ATTEMPTS = 2;
 const ANCHOR_SETTLE_TOLERANCE = 2;
 const nextFrame = () =>
@@ -1308,6 +1314,9 @@ const ConversationPostListAttempt = React.forwardRef<
         renderItem={renderAnimatedItem}
         getItemType={getPostRowType}
         estimatedItemSize={ESTIMATED_ITEM_SIZE}
+        drawDistance={
+          anchorToEnd && hasUserScrolled ? SCROLLED_DRAW_DISTANCE : undefined
+        }
         // Chat rows are stateful and highly variable-height; recycling them can
         // briefly reuse stale row state and measurements for another post.
         recycleItems={!anchorToEnd}
