@@ -91,7 +91,7 @@ export function createWorkspaceLinkToolExecutor(deps: {
     } catch (error) {
       return textResult(
         `Error: ${error instanceof Error ? error.message : String(error)}`,
-        true,
+        true
       );
     }
   };

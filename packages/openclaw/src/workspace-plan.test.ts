@@ -378,9 +378,7 @@ describe('tlon_workspace_create', () => {
       throw new Error('ship unreachable');
     })('call-1', { proposalId: 'workspace-plan-abc' });
     expect(created.details).toBeUndefined();
-    expect(created.content[0].text).toMatch(
-      /\n\/1\/group\/~ten\/bike-parts$/
-    );
+    expect(created.content[0].text).toMatch(/\n\/1\/group\/~ten\/bike-parts$/);
   });
 
   it("mirrors the task into the owner's task list once it is added", async () => {
