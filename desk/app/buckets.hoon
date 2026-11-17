@@ -805,18 +805,48 @@
 ::  An id we never issued gets no answer at all rather than gone: it means
 ::  this state is not the one that issued it, and that is not ours to decide.
 ::
+::  A live answer also lists every object key the bucket still references,
+::  and the broker deletes the bucket's other objects -- a file whose entry
+::  was removed without its object, by whatever path. So the list has to be
+::  complete: the files in the manifest, and the uploads still in a session,
+::  whose entry is not in the manifest until the object has landed.
+::
 ++  bucket-liveness
   |=  id=@ud
   ^-  (unit json)
   ?:  (gth id next-id)  ~
-  =/  held=?
-    %-  ~(any by spaces)
-    |=  sp=space:b
-    ?&  =(%pub net.sp)
-        ?=(^ state.sp)
-        =(id id.bucket.u.state.sp)
-    ==
-  `(pairs:enjs:format ~[['result' s+?:(held 'live' 'gone')]])
+  =/  held=(unit [=flag:b st=bucket-state:b])
+    %-  ~(rep by spaces)
+    |=  [[=flag:b sp=space:b] acc=(unit [flag:b bucket-state:b])]
+    ?^  acc  acc
+    ?.  =(%pub net.sp)  ~
+    ?~  state.sp  ~
+    ?.  =(id id.bucket.u.state.sp)  ~
+    `[flag u.state.sp]
+  ?~  held
+    `(pairs:enjs:format ~[['result' s+'gone']])
+  =/  keys=(set @t)
+    %-  ~(uni in (entry-keys ~(val by entries.st.u.held)))
+    %-  entry-keys
+    %+  murn  ~(val by sessions)
+    |=  ses=upload-session:b
+    ?.(=(flag.u.held flag.ses) ~ `entry.ses)
+  %-  some
+  %-  pairs:enjs:format
+  :~  ['result' s+'live']
+      ['objects' a+(turn ~(tap in keys) |=(key=@t s+key))]
+  ==
+::
+::  +entry-keys: the object keys of the files among some entries.
+::
+++  entry-keys
+  |=  ents=(list entry:b)
+  ^-  (set @t)
+  %-  silt
+  %+  murn  ents
+  |=  ent=entry:b
+  ?.  ?=(%file -.kind.ent)  ~
+  `object-key.file.kind.ent
 ::
 ::  +se-core: one bucket we host.
 ::
@@ -3086,7 +3116,12 @@
       (log-bucket flag)
     (forget-bucket flag)
   ::
+      ::  Not every %delete is a deletion: a host leaving its own group gets
+      ::  the same fact while %groups keeps the group. A deleted group is
+      ::  already gone from %groups when the fact arrives, so that is what
+      ::  decides it.
       [%delete ~]
+    ?:  (group-exists flag.r-groups)  cor
     %+  roll  ~(tap by spaces)
     |=  [[=flag:b *] acc=_cor]
     ?.  (hosted-in:acc flag.r-groups flag)  acc

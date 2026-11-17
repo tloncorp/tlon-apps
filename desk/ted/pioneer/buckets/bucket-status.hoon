@@ -1,8 +1,10 @@
-::  Answer whether this ship still hosts a bucket id, for the broker's sweep.
+::  Answer whether this ship still hosts a bucket id, and if it does, which
+::  object keys the bucket still references, for the broker's sweep.
 ::
-::  The broker purges the bucket's stored objects on gone, so this answers
-::  only what +bucket-liveness says. An id it will not answer for fails the
-::  scry, and with it the thread, which the broker counts as unknown.
+::  The broker purges the bucket's stored objects on gone, and the objects a
+::  live answer does not list, so this answers only what +bucket-liveness
+::  says. An id it will not answer for fails the scry, and with it the
+::  thread, which the broker counts as unknown.
 ::
 /-  spider
 /+  *strandio

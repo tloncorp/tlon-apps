@@ -339,6 +339,16 @@
   ?:  (group-exists-path pax)  `!>(|)
   (genuine-scries pax)
 ::
+::  +held-objects: the object keys a live answer says the bucket references.
+::
+++  held-objects
+  |=  id=@t
+  =/  m  (mare ,(set @t))
+  ^-  form:m
+  ;<  =cage  bind:m  (got-peek /x/v1/broker/bucket/[id])
+  =/  jon=json  !<(json q.cage)
+  (pure:m (silt ((ar so):dejs:format (get:dejs:buckets-json 'objects' jon))))
+::
 ::  +liveness: the broker's question about one bucket id, as the thread asks
 ::  it -- the result, or ~ for no answer.
 ::
@@ -2162,6 +2172,52 @@
         (lent (skim refused |=(=card ?=([%pass * %arvo %i *] card))))
   !>([1 0])
 ::
+::  The broker deletes a live bucket's objects that the answer does not list,
+::  so the list has to hold every object the bucket still references: ready
+::  files, and uploads still in a session, whose entry is not in the manifest
+::  yet. A file whose entry is deleted drops out, whoever deleted it and
+::  whether or not they deleted its object too.
+::
+++  test-liveness-lists-every-object-the-bucket-references
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'landed.pdf' 42)
+  ;<  sv=vase  b  get-save
+  =/  landed=upload-session:bu  (only-session !<(state-0:bu sv))
+  =/  landed-key=@t  object-key:(file-of entry.landed)
+  ;<  fin=(list card)  b  (ask 0v2 [%bucket flag [%finish-upload id.landed]])
+  =/  done=[=wire =request:http]  (only-iris fin)
+  ;<  *  b  (do-arvo wire.done (iris-object landed-key 42 'application/pdf'))
+  ::  a second upload, still in flight
+  ;<  ~  b  (jab-bowl |=(bol=bowl bol(eny 0v5678)))
+  ;<  *  b  (begun 0v3 'pending.pdf' 7)
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  pending-keys=(list @t)
+    %+  murn  ~(val by sessions.st)
+    |=  ses=upload-session:bu
+    ^-  (unit @t)
+    =/  key=@t  object-key:(file-of entry.ses)
+    ?:(=(landed-key key) ~ `key)
+  =/  pending-key=@t  (snag 0 pending-keys)
+  ;<  both=(set @t)  b  (held-objects '1')
+  ;<  ~  b  (ex-equal !>(both) !>((silt ~[landed-key pending-key])))
+  ::  the landed file's entry deleted outright, as a bare delete-entry does
+  =/  landed-ids=(list @ud)
+    %+  murn  ~(tap by entries:(state-for st flag))
+    |=  [id=@ud ent=entry:bu]
+    ^-  (unit @ud)
+    ?.  ?=(%file -.kind.ent)  ~
+    ?.(=(landed-key object-key.file.kind.ent) ~ `id)
+  =/  landed-id=@ud  (snag 0 landed-ids)
+  ;<  *  b  (ask 0v4 [%bucket flag [%entry landed-id [%delete |]]])
+  ;<  left=(set @t)  b  (held-objects '1')
+  (ex-equal !>(left) !>((silt ~[pending-key])))
+::
 ::  Liveness does not ask %groups. A missing channel can come back -- a
 ::  failed registration is re-sent by a repeated create -- and a host whose
 ::  own rank its group bans reads its channels as missing; neither may purge.
@@ -2200,6 +2256,29 @@
   %+  ex-equal
     !>([wire.purge (~(has by spaces.st) flag) gone])
   !>([/buckets/purge/1 | `(unit @t)`[~ 'gone']])
+::
+::  A host leaving its own group gets the same %delete fact, but %groups
+::  keeps the group, and the buckets and their objects stay.
+::
+++  test-a-host-leaving-its-group-keeps-its-buckets
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate reader-scries)
+  ;<  caz=(list card)  b
+    %^    do-agent
+        /groups
+      [~sampel-palnet %groups]
+    [%fact %group-response-1 !>(group-deleted)]
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  %+  ex-equal
+    !>  :-  (~(has by spaces.st) flag)
+        (lent (skim caz |=(=card ?=([%pass * %arvo %i *] card))))
+  !>([& 0])
 ::
 ++  test-a-group-deleted-in-groups-drops-its-buckets
   %-  eval-mare
