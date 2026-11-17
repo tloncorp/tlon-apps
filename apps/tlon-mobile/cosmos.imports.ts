@@ -4,6 +4,7 @@
 import type { RendererConfig, UserModuleWrappers } from 'react-cosmos-core';
 
 import * as browserPaymentFixture from '../../packages/app/fixtures/BrowserPayment.fixture';
+import * as chatGPTConnectionFixture from '../../packages/app/fixtures/ChatGPTConnection.fixture';
 
 import * as secureVaultFixture from '../../packages/app/fixtures/SecureVault.fixture';
 
@@ -96,6 +97,9 @@ export const rendererConfig: RendererConfig = {
 };
 
 const fixtures = {
+  '../../packages/app/fixtures/ChatGPTConnection.fixture.tsx': {
+    module: chatGPTConnectionFixture,
+  },
   '../../packages/app/fixtures/BrowserPayment.fixture.tsx': {
     module: browserPaymentFixture,
   },
