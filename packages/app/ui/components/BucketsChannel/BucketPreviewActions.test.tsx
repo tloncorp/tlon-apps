@@ -1,9 +1,12 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ActionGroup } from '../ActionSheet';
 import { NotesActionMenu } from '../NotesChannel/NotesActions';
 import { BucketPreviewActions } from './BucketPreviewActions';
+
+const environment = vi.hoisted(() => ({ platform: { OS: 'web' } }));
+vi.mock('react-native', () => ({ Platform: environment.platform }));
 
 vi.mock('../../hooks/useIsNativeSheet', () => ({
   useIsNativeSheet: () => false,
@@ -18,7 +21,9 @@ vi.mock('../ActionSheet', () => ({
 vi.mock('../NotesChannel/NotesActions', () => ({
   NotesActionMenu: () => null,
 }));
+vi.mock('../IconMenu', () => ({ IconMenu: 'IconMenu' }));
 vi.mock('../OverflowMenuButton', () => ({
+  OverflowMenuLabel: () => null,
   OverflowTriggerButton: () => null,
 }));
 
@@ -31,6 +36,10 @@ function render(props: Parameters<typeof BucketPreviewActions>[0]) {
 }
 
 describe('BucketPreviewActions', () => {
+  beforeEach(() => {
+    environment.platform.OS = 'web';
+  });
+
   it('puts open and delete in the same menu and runs the selected action', () => {
     const onOpen = vi.fn();
     const onDelete = vi.fn();
@@ -70,4 +79,23 @@ describe('BucketPreviewActions', () => {
     expect(groups[0].actions[1].title).toBe('Delete file');
     act(() => renderer.unmount());
   });
+
+  it.each(['ios', 'android'])(
+    'opens a native menu on %s, leaving out open until the file is ready',
+    (platform) => {
+      environment.platform.OS = platform;
+      const onDelete = vi.fn();
+      const renderer = render({ onDelete });
+      const items: {
+        title: string;
+        destructive?: boolean;
+        onPress: () => void;
+      }[] = renderer.root.findByType('IconMenu' as never).props.items;
+      expect(items.map((item) => item.title)).toEqual(['Delete file']);
+      expect(items[0].destructive).toBe(true);
+      act(() => items[0].onPress());
+      expect(onDelete).toHaveBeenCalledOnce();
+      act(() => renderer.unmount());
+    }
+  );
 });

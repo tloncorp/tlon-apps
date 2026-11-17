@@ -66,7 +66,8 @@ function ManageChannelsContent({
   goToChannelDetails: (channelId: string) => void;
   updateGroupNavigation: ManageChannelsScreenViewProps['updateGroupNavigation'];
 }) {
-  const { setSectionMenuSection, isEditMode } = useManageChannelsContext();
+  const { setEditSection, handleDeleteSection, isEditMode } =
+    useManageChannelsContext();
   const scrollableRef = useManageChannelsScrollRef();
   const onDuplicatesDetected = useDuplicateMembershipRepair(groupId);
 
@@ -90,12 +91,21 @@ function ManageChannelsContent({
                 <Icon color="$tertiaryText" type="Sorter" size="$m" />
               </Sortable.Handle>
             }
-            onOpenMenu={() =>
-              setSectionMenuSection({
-                section: item.section,
-                isEmpty: item.isEmpty,
-              })
-            }
+            // Like every overflow button on a phone, this opens a native
+            // menu, with the same commands as iOS's section menu.
+            menuItems={[
+              {
+                key: 'rename',
+                title: 'Rename',
+                onPress: () => setEditSection(item.section),
+              },
+              {
+                key: 'delete',
+                title: 'Delete section',
+                destructive: true,
+                onPress: () => handleDeleteSection(item.section.id),
+              },
+            ]}
           />
         );
       }
@@ -119,7 +129,13 @@ function ManageChannelsContent({
 
       return null;
     },
-    [setSectionMenuSection, goToChannel, goToChannelDetails, isEditMode]
+    [
+      setEditSection,
+      handleDeleteSection,
+      goToChannel,
+      goToChannelDetails,
+      isEditMode,
+    ]
   );
 
   return (

@@ -3,8 +3,13 @@ import { Platform } from 'react-native';
 
 import { useSheetDismissalAction } from '../../hooks/useSheetDismissalAction';
 import { createActionGroups } from '../ActionSheet';
+import { IconMenu } from '../IconMenu';
 import { NotesActionMenu } from '../NotesChannel/NotesActions';
-import { OverflowTriggerButton } from '../OverflowMenuButton';
+import {
+  OverflowMenuLabel,
+  OverflowTriggerButton,
+} from '../OverflowMenuButton';
+import { actionGroupsToMenuItems } from '../actionMenuItems';
 
 export function BucketPreviewActions({
   onOpen,
@@ -20,25 +25,39 @@ export function BucketPreviewActions({
       onOpenChange: setOpen,
       waitForDismissal: Platform.OS !== 'web',
     });
+  const groups = createActionGroups([
+    'neutral',
+    {
+      title: 'Open in browser',
+      startIcon: 'ExternalLink',
+      action: onOpen,
+      disabled: !onOpen,
+    },
+    onDelete && {
+      title: 'Delete file',
+      startIcon: 'Trash',
+      action: onDelete,
+      accent: 'negative',
+    },
+  ]);
+
+  // Like every overflow button on a phone, this opens a native menu.
+  if (Platform.OS !== 'web') {
+    return (
+      <IconMenu
+        items={actionGroupsToMenuItems(groups)}
+        accessibilityLabel="File actions"
+        testID="BucketPreviewActions"
+      >
+        <OverflowMenuLabel />
+      </IconMenu>
+    );
+  }
 
   return (
     <NotesActionMenu
       key={presentationKey}
-      groups={createActionGroups([
-        'neutral',
-        {
-          title: 'Open in browser',
-          startIcon: 'ExternalLink',
-          action: onOpen,
-          disabled: !onOpen,
-        },
-        onDelete && {
-          title: 'Delete file',
-          startIcon: 'Trash',
-          action: onDelete,
-          accent: 'negative',
-        },
-      ])}
+      groups={groups}
       open={open}
       onOpenChange={setOpen}
       onAction={(action) => dismissThenRun(() => action?.())}

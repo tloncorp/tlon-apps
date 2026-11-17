@@ -19,9 +19,14 @@ import { ActionSheet, createActionGroups } from '../ActionSheet';
 import { Badge } from '../Badge';
 import { useContactName } from '../ContactNameV2';
 import { TextInput } from '../Form';
+import { IconMenu } from '../IconMenu';
 import { ListItem } from '../ListItem';
 import { NotesActionMenu } from '../NotesChannel/NotesActions';
-import { OverflowTriggerButton } from '../OverflowMenuButton';
+import {
+  OverflowMenuLabel,
+  OverflowTriggerButton,
+} from '../OverflowMenuButton';
+import { actionGroupsToMenuItems } from '../actionMenuItems';
 import { ScreenHeader } from '../ScreenHeader';
 import { SearchBar } from '../SearchBar';
 import { BucketsDropTarget } from './BucketsDropTarget';
@@ -458,22 +463,33 @@ function BucketRow({
         },
       ]
   );
-  const trigger = showOverflow ? (
-    <OverflowTriggerButton
-      aria-label={`Actions for ${item.name}`}
-      onFocus={() => setIsFocused(true)}
-      onBlur={() => setIsFocused(false)}
-      onPress={(event) => {
-        event.stopPropagation();
-        if (isWindowNarrow) {
-          setOpen((currentOpen) => !currentOpen);
-        }
-      }}
-      paddingHorizontal="$xs"
-      paddingVertical="$xs"
-      testID={`BucketsItemActions-${item.id}`}
-    />
-  ) : null;
+  // Like every overflow button on a phone, the row's opens a native menu. A
+  // long press on the row still opens the sheet below, header and all.
+  const trigger =
+    Platform.OS !== 'web' ? (
+      <IconMenu
+        items={actionGroupsToMenuItems(groups)}
+        accessibilityLabel={`Actions for ${item.name}`}
+        testID={`BucketsItemActions-${item.id}`}
+      >
+        <OverflowMenuLabel paddingHorizontal="$xs" paddingVertical="$xs" />
+      </IconMenu>
+    ) : showOverflow ? (
+      <OverflowTriggerButton
+        aria-label={`Actions for ${item.name}`}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        onPress={(event) => {
+          event.stopPropagation();
+          if (isWindowNarrow) {
+            setOpen((currentOpen) => !currentOpen);
+          }
+        }}
+        paddingHorizontal="$xs"
+        paddingVertical="$xs"
+        testID={`BucketsItemActions-${item.id}`}
+      />
+    ) : null;
 
   return (
     <Pressable
