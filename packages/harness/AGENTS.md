@@ -10,9 +10,10 @@ and tests).
 ## Build and test
 
 Run these from `packages/harness`. They need `just`, `yq`, `git`,
-`rsync`, `python3` and, for fake ships, `tmux`, `socat`, `jq` and `curl`.
-`just test-js`, and so `just test`, also needs `node` and `timeout`, which on
-macOS comes from GNU coreutils.
+`rsync`, `python3` and, for fake ships, `jq` and podman or docker (podman when
+both are installed; `CONTAINER_RUNTIME` picks one). `just provider` also needs
+`curl`. `just test-js` runs Node and its ships in a container, so it needs no
+`node` on the host.
 
 - `just fetch`: the repository justfile's `fetch` copies the files listed in
   `desk-deps.yaml` into `desk-deps/`, and git checks the %mcp repository out
@@ -31,28 +32,32 @@ macOS comes from GNU coreutils.
 
 ## Development loops
 
-Desk work runs on native fake ships, on a Mac or a Linux machine:
+Desk work runs on fake ships in containers, from the image that
+`scripts/backend/container/` builds. This is verified on Linux with podman;
+macOS is untested.
 
-- `just fake-dev SHIP` boots SHIP, `~zod` by default, with its pier at `zod/`
-  and tmux session `fake-zod` (`<ship>/` and `fake-<ship>` for another ship),
-  installs `%mcp` and `%harness` and sets Harness up. After an edit,
-  `just commit zod/harness` rebuilds the desk and commits it to the running
-  ship.
-- During development, copy into a mount with `just install-dev DESK`, or
-  `just commit DESK`, which runs it first; both keep the files already in the
-  mount. `just install DESK` deletes them, replacing the mount with the
-  assembled desk, so run that only when explicitly instructed.
+- `just fake-dev SHIP` boots SHIP, `~zod` by default, in container
+  `fake-dev-<N>-zod`, where the number N stands for the checkout, with its pier
+  in volume `fake-dev-<N>-piers`, installs `%mcp` and `%harness`, sets Harness up and prints
+  the ship's URL, login code and commands. After an edit, `just push zod`
+  rebuilds the desk and commits it to the running ship. `just fake-remove`
+  removes the network's ships, its holder container and its volume.
+- For a desk mounted in a pier on this machine, copy into the mount with
+  `just install-dev DESK`, or `just commit DESK`, which runs it first; both
+  keep the files already in the mount. `just install DESK` deletes them,
+  replacing the mount with the assembled desk, so run that only when
+  explicitly instructed.
 - `just test-hoon PATTERN` and `just test-js PATTERN` run the matching tests on
-  ships they keep in `.test-run/piers/`, in sessions `fake-zod`, `fake-lux` and
-  `fake-nec`. Either refuses to start while one of those sessions runs, unless
-  it is given a PATTERN and the session's pier is its own, so stop a
-  `just fake-dev` ship named `~zod`, `~lux` or `~nec` first, or boot
-  `fake-dev` as another ship.
-- On macOS, a deep checkout is too long for the test ships' sockets.
+  ships they keep running: `test-hoon` in container `fake-test-<N>-zod`, `test-js`
+  in container `fake-test-js-<N>`, where the number N stands for the checkout.
+  Neither shares its ships with the other, with the development ships or with
+  another checkout, so worktrees can run their ships and tests at the same time. A run
+  without a PATTERN refuses to start while its containers run; `just test --stop`
+  removes them.
 
 [`docs-refs/development.md`](docs-refs/development.md) has the recipes'
-arguments, how to stop a ship and the socket workaround. Bot-level checks run
-in Docker, as below.
+arguments and how to reach, stop and remove a ship. Bot-level checks run in
+Docker, as below.
 
 ## Test layers
 
@@ -60,7 +65,7 @@ in Docker, as below.
   `just test-hoon`): no model, one fake ship. They check the desk's own
   semantics.
 - Harness conformance scripts (`tests-js/*-conformance.mjs`, `just test-js`):
-  local stand-in model providers, native fake `~zod`, `~lux` and `~nec`. They
+  local stand-in model providers, fake `~zod`, `~lux` and `~nec`. They
   check Harness's protocols and hands end to end.
 - Shared bot E2E (`packages/tlon-bot-e2e`, Harness driver): a scripted fake
   model and Docker fake ships. It runs the shared scenarios Harness supports,

@@ -9,7 +9,7 @@
 #   scripts/test-hoon.sh --stop     stop the ships left running and remove them
 
 suite=hoon
-tools="tmux just socat curl jq yq rsync python3"
+tools="just jq yq rsync python3"
 source "$(dirname "$0")/test-lib.sh" "$1"
 
 # Run a directory of native tests on a ship, as the repository's
@@ -22,9 +22,9 @@ function native
   tests=$3
   label=$4
   log=$logs/$label.log
-  before=$(pane $ship | wc -l)
+  before=$(ship_log $ship | wc -l)
 
-  result_line=$( scripts/click -t 1800 -i - -kp "$piers/$ship" <<EOF
+  result_line=$( scripts/ship-click -t 1800 -i - -kp "$ship" <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 =/  tests=path  
@@ -42,7 +42,7 @@ EOF
 
   # Give the ship a moment to finish printing.
   sleep 2
-  pane $ship | tail -n +$((before+1)) > "$log"
+  ship_log $ship | tail -n +$((before+1)) > "$log"
   ok=$(grep -c '^OK ' "$log")
   failed=$(grep -c '^FAILED ' "$log")
   crashed=$(grep -c '^CRASHED ' "$log")
@@ -93,7 +93,7 @@ then
   then
     echo "Integration tests"
     # Without the commit the ship has no integration tests, or stale ones.
-    if just heavy=true commit "$piers/zod/harness" > "$logs/heavy-commit.log" 2>&1
+    if just heavy=true push zod > "$logs/heavy-commit.log" 2>&1
     then
       sleep 30
       native zod harness %tests-integration native-integration

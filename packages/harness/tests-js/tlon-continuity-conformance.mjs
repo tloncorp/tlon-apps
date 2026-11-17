@@ -5,18 +5,17 @@ import { text as readText } from 'node:stream/consumers'
 import { createServer } from 'node:http'
 import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { Client, base, cookie } from './lib/ship-client.mjs'
+import { rein } from './lib/ship-thread.mjs'
 
 assert.equal(process.env.CONTINUITY_TEST_MESSAGES, '1')
-const peerUrl = process.env.PEER_URL, nest = process.env.TEST_NEST, pane = process.env.TEST_PANE
-assert.ok(peerUrl && nest && process.env.PEER_COOKIE && pane)
+const peerUrl = process.env.PEER_URL, nest = process.env.TEST_NEST, pier = process.env.SHIP_PIER
+assert.ok(peerUrl && nest && process.env.PEER_COOKIE && pier)
 const row = (await readFile(process.env.PEER_COOKIE, 'utf8')).split('\n').find((r) => /\turbauth-~/.test(r)).split('\t')
 const peerCookie = `${row[5]}=${row[6]}`, peer = row[5].slice('urbauth-'.length)
 const ship = cookie.split('=')[0].slice('urbauth-'.length), extra = '~bud'
-const marker = `continuity-${randomUUID()}`, client = new Client(), run = promisify(execFile)
+const marker = `continuity-${randomUUID()}`, client = new Client()
 const contexts = [{ kind: 'dm' }, { kind: 'channel' }], held = [], failures = [], children = []
 const responses = new Map(), requests = [], note = `c${randomUUID().slice(0, 8)}`
 let event = 0, stamp = 0, originals, policy, url, stopped = false, headStopped = false, cron
@@ -116,17 +115,14 @@ async function timer(sid) {
 }
 async function reload() {
   stopped = true
-  await run('tmux', ['send-keys', '-t', pane, '-l', '--', '|rein %harness [%.n %harness-tlon]'])
-  await run('tmux', ['send-keys', '-t', pane, 'Enter']); await sleep(800)
-  await run('tmux', ['send-keys', '-t', pane, '-l', '--', '|rein %harness [%.y %harness-tlon]'])
-  await run('tmux', ['send-keys', '-t', pane, 'Enter']); await sleep(800)
+  await rein(pier, 'harness', 'harness-tlon', false); await sleep(800)
+  await rein(pier, 'harness', 'harness-tlon', true); await sleep(800)
   await until('adapter reconnects', async () => (await status()).headConnected)
   stopped = false
 }
 async function head(enabled) {
   headStopped = !enabled
-  await run('tmux', ['send-keys', '-t', pane, '-l', '--', `|rein %harness [%.${enabled ? 'y' : 'n'} %harness]`])
-  await run('tmux', ['send-keys', '-t', pane, 'Enter']); await sleep(1000)
+  await rein(pier, 'harness', 'harness', enabled); await sleep(1000)
 }
 try {
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve)); url = `http://127.0.0.1:${server.address().port}`
@@ -269,8 +265,7 @@ try {
 } finally {
   if (headStopped) await head(true)
   if (stopped) {
-    await run('tmux', ['send-keys', '-t', pane, '-l', '--', '|rein %harness [%.y %harness-tlon]'])
-    await run('tmux', ['send-keys', '-t', pane, 'Enter']); await sleep(1000)
+    await rein(pier, 'harness', 'harness-tlon', true); await sleep(1000)
   }
   for (const ctx of contexts.filter((ctx) => ctx.sid)) {
     await client.call('session/cancel', { sessionId: ctx.sid })
