@@ -79,6 +79,7 @@ import {
   observeActiveTlonTurnDelivery,
 } from './turn-recorder.js';
 import { getTlonCronService } from './cron-telemetry.js';
+import { getStewardAutomationReconciler } from './steward-automation-reconciliation.js';
 import { listTlonAccountIds, resolveTlonAccount } from './types.js';
 import {
   createWorkspaceCreateToolExecutor,
@@ -349,6 +350,8 @@ export const tlonPlugin = createChatChannelPlugin({
 
       const executeWorkspaceCreate = createWorkspaceCreateToolExecutor({
         getCron: getTlonCronService,
+        syncTasks: async () =>
+          getStewardAutomationReconciler()?.trigger(() => getTlonCronService()),
         runTlon: async (id, command) => {
           const runner = getWorkspaceTlonRunner();
           return runner

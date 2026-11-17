@@ -259,6 +259,8 @@ describe('tlon_workspace_create', () => {
   let commands: string[];
   let jobs: Array<{ id: string; description?: string }>;
   let failOn: string | undefined;
+  let syncs: number[];
+  let syncFails: boolean;
 
   const cron = {
     list: async () => jobs,
@@ -271,6 +273,11 @@ describe('tlon_workspace_create', () => {
     return createWorkspaceCreateToolExecutor({
       store: () => store,
       getCron: () => cron as never,
+      // Records how many jobs existed when the mirror was asked to sync.
+      syncTasks: async () => {
+        syncs.push(jobs.length);
+        if (syncFails) throw new Error('steward unreachable');
+      },
       runTlon: async (_id, command) => {
         commands.push(command);
         if (failOn && command.startsWith(failOn)) {
@@ -301,6 +308,8 @@ describe('tlon_workspace_create', () => {
     commands = [];
     jobs = [];
     failOn = undefined;
+    syncs = [];
+    syncFails = false;
     await store.register('workspace-plan-abc', {
       proposalId: 'workspace-plan-abc',
       ownerShip: '~ten',
@@ -339,6 +348,20 @@ describe('tlon_workspace_create', () => {
       ],
       taskJobId: 'job-0',
     });
+  });
+
+  it("mirrors the task into the owner's task list once it is added", async () => {
+    await executor()('call-1', { proposalId: 'workspace-plan-abc' });
+    expect(syncs).toEqual([1]);
+  });
+
+  it('still creates the workspace when the task mirror fails', async () => {
+    syncFails = true;
+    const result = await executor()('call-1', {
+      proposalId: 'workspace-plan-abc',
+    });
+    expect(result.details).toBeUndefined();
+    expect(store.records.get('workspace-plan-abc')?.status).toBe('created');
   });
 
   it('makes one workspace from a double tap', async () => {

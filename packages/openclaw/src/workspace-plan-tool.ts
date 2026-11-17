@@ -336,6 +336,12 @@ const createFlights = sharedMap<string, Promise<string>>(
 export function createWorkspaceCreateToolExecutor(deps: {
   runTlon: (toolCallId: string, command: string) => Promise<TlonCommandResult>;
   getCron: () => TlonCronService | undefined;
+  /**
+   * Mirror the bot's jobs into the owner's %steward task list. A job added
+   * through the cron service fires no cron_changed, so without this the
+   * workspace task never shows in the owner's app and can't be managed there.
+   */
+  syncTasks?: () => Promise<void>;
   store?: () => WorkspaceProposalStore;
 }) {
   async function createOnce(id: string, proposalId: string): Promise<string> {
@@ -479,6 +485,9 @@ export function createWorkspaceCreateToolExecutor(deps: {
       }
       if (!job) throw new Error('scheduling the recurring task failed');
       await save({ taskJobId: job.id });
+      // Best effort: the task runs either way, and the next cron change or
+      // gateway start mirrors it.
+      await deps.syncTasks?.().catch(() => undefined);
     }
 
     await save({ status: 'created' });
