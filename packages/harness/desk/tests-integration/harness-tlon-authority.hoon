@@ -27,6 +27,11 @@
 ::
 ++  read
   |=  [saved=state-2:t sid=@t job=(unit schedule:c) allowed=? admin=?]
+  (read-as saved sid job allowed admin ~)
+::  With .speaker, ask for that speaker's authority rather than the lane's.
+::
+++  read-as
+  |=  [saved=state-2:t sid=@t job=(unit schedule:c) allowed=? admin=? speaker=(unit @p)]
   =/  m  (mare ,vase)
   ^-  form:m
   ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now ~2026.9.10))
@@ -36,8 +41,9 @@
     |=  =path
     ^-  (unit vase)
     ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
-    ::  ~bus has joined the group of chat/~lux/test and may read it.
-    ?:  (lien path |=(part=@ta =(%can-read part)))  `!>(|=([@p *] &))
+    ::  ~bus has joined the group of chat/~lux/test and may read it; ~dev
+    ::  may not.
+    ?:  (lien path |=(part=@ta =(%can-read part)))  `!>(|=([who=@p *] !=(~dev who)))
     ?:  (lien path |=(part=@ta =(%groups part)))  `!>((my ~[[[~lux %test] room-group]]))
     ?:  (lien path |=(part=@ta =(%cron-session part)))  `!>(job)
     ?:  (lien path |=(part=@ta =(%cron-authority part)))  `!>(allowed)
@@ -47,7 +53,11 @@
     ~
   ;<  *  bind:m  (do-load adapter `!>(saved))
   ;<  ~  bind:m  head-connected
-  ;<  =cage  bind:m  (got-peek ?:(admin /x/admin/[sid] /x/authority/[sid]))
+  =/  peek
+    ?:  admin  /x/admin/[sid]
+    ?~  speaker  /x/authority/[sid]
+    /x/authority/[sid]/(scot %p u.speaker)
+  ;<  =cage  bind:m  (got-peek peek)
   (pure:m q.cage)
 ::  Compare nouns only, as before: the peeked vase carries the agent's type.
 ::
@@ -169,4 +179,41 @@
   =/  expected  `hand-authority:ad`[& `~[%web %tlon-read %tlon-write]]
   ;<  ~  bind:m  (equal !>(expected) (read s 'room' ~ & |))
   (equal !>(expected) (read s 'thread' ~ & |))
+::  One channel lane whose actor is the owner, with the owner's tools. Any
+::  member may speak there.
+::
+++  shared-room
+  ^-  state-2:t
+  =/  s  fixture
+  =.  channels.policy.s  (my ~[[[%chat ~lux %test] [%mentions &]]])
+  =.  lanes.s
+    (my ~[['source' [~nec [%channel [%chat ~lux %test] ~] 1 ~[%web %tlon %code]]]])
+  s
+++  test-second-speaker-never-gets-the-owners-tools
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  shared-room
+  =/  guest  `hand-authority:ad`[& `~[%web %tlon-read %tlon-write]]
+  ;<  ~  bind:m  (equal !>(`hand-authority:ad`[& ~]) (read-as s 'source' ~ & | `~nec))
+  ;<  ~  bind:m  (equal !>(guest) (read-as s 'source' ~ & | `~bus))
+  ;<  ~  bind:m  (equal !>(`hand-authority:ad`[| ~]) (read-as s 'source' ~ & | `~dev))
+  ::  Asking without a speaker still answers for the lane's actor.
+  (equal !>(`hand-authority:ad`[& ~]) (read s 'source' ~ & |))
+++  test-scheduled-run-ceiling-follows-the-asked-speaker
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  shared-room
+  =/  j  job
+  ;<  ~  bind:m
+    %+  equal
+      !>(`hand-authority:ad`[& `~[%web %tlon %tlon-read %tlon-write]])
+    (read-as s 'run' `j & | `~nec)
+  ;<  ~  bind:m
+    %+  equal
+      !>(`hand-authority:ad`[& `~[%web %tlon-read %tlon-write]])
+    (read-as s 'run' `j & | `~bus)
+  ;<  ~  bind:m  (equal !>(`hand-authority:ad`[| ~]) (read-as s 'run' `j & | `~dev))
+  (equal !>(`hand-authority:ad`[& `~]) (read-as s 'run' `j(kind %reminder) & | `~bus))
 --

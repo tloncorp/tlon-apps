@@ -100,6 +100,10 @@
       [%x %peer-trust ~]  ``noun+!>([policy sibling-moon-owners])
         [%x %authority @ ~]
       ``noun+!>((lane-authority:cor i.t.t.path))
+        [%x %authority @ @ ~]
+      =/  speaker  (slaw %p i.t.t.t.path)
+      :^  ~  ~  %noun
+      !>(`hand-authority:ad`?~(speaker [| ~] (speaker-authority:cor i.t.t.path `u.speaker)))
         [%x %admin @ ~]
       ``noun+!>((owner-lane:cor i.t.t.path))
         [%x %context @ @ ~]
@@ -1158,23 +1162,35 @@
 ++  lane-authority
   |=  sid=@t
   ^-  hand-authority:ad
+  (speaker-authority sid ~)
+::  Authority for one speaker in a lane's destination. Without a speaker it
+::  answers for the lane's actor from the lane's saved tools.
+::
+++  speaker-authority
+  |=  [sid=@t speaker=(unit @p)]
+  ^-  hand-authority:ad
   ::  Reuse only within this calculation; the next check reads fresh authority.
   =/  job  (scheduled sid)
   =/  lane  (~(get by lanes) ?~(job sid sid.u.job))
   ?.  &(?=(^ lane) (route-ready-for sid job))
     [| ~]
-  =/  owner  (actor-owner actor.u.lane)
-  ?.  &(?=(^ (lane-grants u.lane ~)) (cron-lane-live-for sid job))
+  =/  who  (fall speaker actor.u.lane)
+  =/  owner  (actor-owner who)
+  ::  The owner's grants are the lane's saved tools; anyone else's come from
+  ::  policy alone, never from another speaker's lane.
+  =/  grants  (lane-grants u.lane(actor who) tools.u.lane)
+  ?.  &(?=(^ grants) (cron-lane-live-for sid job))
     [| ~]
+  =/  tools  ?~(speaker tools.u.lane u.grants)
   ?^  job
     :-  &
     :-  ~
     ?:  =(%reminder kind.u.job)  ~
-    (scheduled-tools:ht (with-tlon:ht tools.u.lane))
+    (scheduled-tools:ht (with-tlon:ht tools))
   ::  The head schedules only within this ceiling: the owner has none, and
   ::  +with-tlon keeps %cron out of every other actor's. +guest-tools keeps
   ::  %tlon and %code out of it too, so only the owner holds them.
-  [& ?:(!owner `(guest-tools:ht (with-tlon:ht tools.u.lane)) ~)]
+  [& ?:(!owner `(guest-tools:ht (with-tlon:ht tools)) ~)]
 ::
 ++  thread-context
   |=  [sid=@t binding=@t]
