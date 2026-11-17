@@ -19,6 +19,12 @@ describe('owner DM workspace note', () => {
     expect(note).not.toContain('create-owned');
   });
 
+  it('keeps a requested schedule on cron rather than in the proposal', async () => {
+    const note = await ownerDmWorkspaceNote(null);
+    expect(note).toContain('A proposal never replaces a requested action');
+    expect(note).toContain('with the cron tool in this turn, before proposing');
+  });
+
   it('links an existing workspace with its tool and skips self-introductions', async () => {
     const note = await ownerDmWorkspaceNote(null);
     expect(note).toContain('link it instead with tlon_workspace_link');
