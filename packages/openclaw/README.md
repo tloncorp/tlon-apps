@@ -223,6 +223,8 @@ channels:
         # written any commentary in that turn. Default: true.
         # `false` restores the previous behaviour: no commentary, and tool
         # labels appear only while `/verbose on` is set.
+        # Background subagent work shows its commentary as "In the background: …";
+        # `false` shows only "Working in the background…".
         showCommentary: true
 
         # Optional PostHog telemetry. Disabled unless explicitly enabled.
