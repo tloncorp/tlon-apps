@@ -271,19 +271,26 @@ describe('tlon_workspace_plan', () => {
       ownerShip: () => '~ten',
       postText: async () => undefined,
       postCard,
-      recentSchedules: async () => ['0 9 * * 0'],
+      recentSchedules: async () => [
+        { expr: '0 9 * * 0', tz: 'America/Chicago' },
+      ],
       store: () => memoryStore(),
     });
     const result = await execute('1', bikeParts);
     expect(result.details).toEqual({ error: true });
     expect(result.content[0].text).toContain('leave the task out of the card');
     expect(postCard).not.toHaveBeenCalled();
-    // Another schedule, or no task, is fine.
+    // Another schedule, or the same time in another zone, is fine.
     const other = await execute('2', {
       ...bikeParts,
       task: { ...bikeParts.task, schedule: '0 18 * * 5' },
     });
     expect(other.details).toBeUndefined();
+    const otherZone = await execute('3', {
+      ...bikeParts,
+      task: { ...bikeParts.task, timezone: 'Europe/Lisbon' },
+    });
+    expect(otherZone.details).toBeUndefined();
   });
 
   it('posts a reminder confirmation after the answer', async () => {

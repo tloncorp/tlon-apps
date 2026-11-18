@@ -342,13 +342,18 @@ export const tlonPlugin = createChatChannelPlugin({
               const j = job as {
                 description?: string;
                 createdAtMs?: number;
-                schedule?: { kind?: string; expr?: string };
+                schedule?: { kind?: string; expr?: string; tz?: string };
               };
               return j.schedule?.kind === 'cron' &&
                 j.schedule.expr &&
                 (j.createdAtMs ?? 0) >= since &&
                 !j.description?.startsWith(WORKSPACE_TASK_DESCRIPTION_PREFIX)
-                ? [j.schedule.expr]
+                ? [
+                    {
+                      expr: j.schedule.expr,
+                      ...(j.schedule.tz ? { tz: j.schedule.tz } : {}),
+                    },
+                  ]
                 : [];
             }
           );

@@ -257,11 +257,11 @@ export function createWorkspacePlanToolExecutor(deps: {
   ownerShip: () => string | undefined;
   postText: (target: string, text: string) => Promise<unknown>;
   /**
-   * Cron expressions of the jobs set up recently with the cron tool (not
+   * The schedules of cron jobs set up with the cron tool in this turn (not
    * workspace tasks), so a card can't schedule the same thing again on
    * Create.
    */
-  recentSchedules?: () => Promise<string[]>;
+  recentSchedules?: () => Promise<Array<{ expr: string; tz?: string }>>;
   /**
    * Posts the answer the way replies are posted, as tlon_workspace_create
    * posts it in the workspace chat, so the two read the same. Defaults to
@@ -284,8 +284,13 @@ export function createWorkspacePlanToolExecutor(deps: {
       const { intro, ...plan } = parsed;
       const store = (deps.store ?? getWorkspaceProposalStore)();
       if (plan.task && deps.recentSchedules) {
+        // The same schedule, set up moments ago: the reminder the owner asked
+        // for in this message. A different zone is a different schedule.
+        const task = plan.task;
         const same = (await deps.recentSchedules()).some(
-          (expr) => expr.trim() === plan.task!.schedule
+          (job) =>
+            job.expr.trim() === task.schedule &&
+            (!job.tz || !task.timezone || job.tz === task.timezone)
         );
         if (same) {
           throw new Error(
@@ -457,8 +462,11 @@ function matchLine(text: string, label: string, pattern = /(\S+)/) {
 
 export const WORKSPACE_TASK_DESCRIPTION_PREFIX = 'tlon-workspace:';
 
-/** How recent a cron job counts as set up in this conversation. */
-export const WORKSPACE_RECENT_SCHEDULE_MS = 30 * 60 * 1000;
+/**
+ * How recent a cron job counts as set up in this turn: a reminder set up just
+ * before the card is proposed, not one from an earlier topic.
+ */
+export const WORKSPACE_RECENT_SCHEDULE_MS = 3 * 60 * 1000;
 
 const createFlights = sharedMap<string, Promise<string>>(
   'workspacePlan.createFlights'
