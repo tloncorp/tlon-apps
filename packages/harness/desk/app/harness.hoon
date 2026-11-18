@@ -5787,7 +5787,8 @@
   =/  obs  (~(get by observations.hands) u.current)
   ?~  obs  ~
   `actor.u.obs
-::  Without a speaker the hand answers for its conversation's own actor.
+::  Without a speaker the hand answers for the conversation alone: a DM for
+::  its partner, a shared channel with only the Tlon floor.
 ::
 ++  execution-authority
   |=  [sid=session-id:h tlon=? speaker=(unit @t)]

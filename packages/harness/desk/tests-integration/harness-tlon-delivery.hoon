@@ -20,7 +20,7 @@
   |=  [address=@t attempt=@ud rejected=?]
   =/  m  (mare ,[deliveries=(map @uv delivery:t) receipts=(list action:hh)])
   ^-  form:m
-  =/  saved=state-2:t  *state-2:t
+  =/  saved=state-3:t  *state-3:t
   =.  saved
     %=  saved  owner-initialized  1  enabled.policy  |  deliveries
         (my ~[[0v1 [7 %send %uncertain 'external']]])
@@ -48,7 +48,7 @@
     %^  do-agent  /publish/0v1/(scot %ud attempt)  gill
     [%poke-ack ?:(rejected `~ ~)]
   ;<  =vase  bind:m  get-save
-  (pure:m deliveries:!<(state-2:t vase) (receipts caz))
+  (pure:m deliveries:!<(state-3:t vase) (receipts caz))
 ::
 ++  test-channel-ack-waits-for-host-confirmation
   %-  eval-mare
@@ -102,13 +102,13 @@
   =/  m  (mare ,[sent=? receipts=(list action:hh)])
   ^-  form:m
   =/  to=destination:t  [%channel [%chat ~lux %test] ~]
-  =/  saved=state-2:t  *state-2:t
+  =/  saved=state-3:t  *state-3:t
   =.  saved
     %=  saved
       owner-initialized  1
       policy  policy
       cuts  cuts
-      lanes  (my ~[['room' [~nec to 1 ~[%web]]]])
+      lanes  (my ~[['room' [to 1 ~[%web]]]])
       routes  (my ~[['room' ['binding' %ready]]])
       deliveries  (my ~[[0v1 [0 %claim %uncertain '']]])
     ==

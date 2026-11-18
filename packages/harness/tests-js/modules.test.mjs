@@ -266,7 +266,7 @@ test('history pagination is bounded, read-only and follows current lane authorit
   assert.ok(tool.indexOf('(tool-authority request)') < tool.indexOf('(tool-conversation request id)'))
   assert.match(conversation, /\(lane-live sid.request \(scheduled sid.request\)\)/)
   assert.ok(conversation.indexOf('(lane-live sid.request (scheduled sid.request))') < conversation.indexOf("=('tlon_history_page'"))
-  assert.match(conversation, /sham \[sid.request epoch.u.lane actor.u.lane to.u.lane name.call.request needle\]/)
+  assert.match(conversation, /sham \[sid.request epoch.u.lane to.u.lane name.call.request needle\]/)
   assert.match(conversation, /load:~\(\. history-read bowl\) to.u.lane before/)
 })
 
@@ -310,7 +310,7 @@ test('prompt cords escape newlines, not literal backslashes', async () => {
   }
   const adapter = await readFile(new URL('../desk/app/harness-tlon.hoon', import.meta.url), 'utf8')
   const start = adapter.split('++  start-route\n')[1].split('\n++  ')[0]
-  assert.match(start, /system\.config\n\s+'\\0a\\0aThis session is a Tlon conversation with '/)
+  assert.match(start, /system\.config\n\s+'\\0a\\0aThis session is a Tlon conversation '/)
 })
 test('Harness CI triggers on exactly the Tlon files the desk compiles against', async () => {
   const deps = await readFile(new URL('../desk-deps.yaml', import.meta.url), 'utf8')

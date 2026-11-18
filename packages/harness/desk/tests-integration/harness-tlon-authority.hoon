@@ -6,11 +6,11 @@
 /=  adapter  /app/harness-tlon
 |%
 ++  fixture
-  ^-  state-2:t
-  =/  s=state-2:t  *state-2:t
+  ^-  state-3:t
+  =/  s=state-3:t  *state-3:t
   =.  owner-initialized.s  1
   =.  policy.s  [& `~nec ~ %mentions ~ ~]
-  =.  lanes.s  (my ~[['source' [~nec [%dm ~nec ~] 1 ~[%web]]]])
+  =.  lanes.s  (my ~[['source' [[%dm ~nec ~] 1 ~[%web]]]])
   s(routes (my ~[['source' ['binding' %ready]]]))
 ++  job
   ^-  schedule:c
@@ -27,12 +27,12 @@
 ::  Each read starts from a fresh bowl and a fresh load of .saved.
 ::
 ++  read
-  |=  [saved=state-2:t sid=@t job=(unit schedule:c) allowed=? admin=?]
+  |=  [saved=state-3:t sid=@t job=(unit schedule:c) allowed=? admin=?]
   (read-as saved sid job allowed admin ~)
 ::  With .speaker, ask for that speaker's authority rather than the lane's.
 ::
 ++  read-as
-  |=  [saved=state-2:t sid=@t job=(unit schedule:c) allowed=? admin=? speaker=(unit @p)]
+  |=  [saved=state-3:t sid=@t job=(unit schedule:c) allowed=? admin=? speaker=(unit @p)]
   =/  m  (mare ,vase)
   ^-  form:m
   ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now ~2026.9.10))
@@ -116,12 +116,12 @@
   =.  seats.group  (my ~[[~bus `seat:v9:g`[~ ~2026.9.9]]])
   group(channels (my ~[[[%chat ~lux %test] *channel:v9:g]]))
 ++  with-lanes
-  |=  [s=state-2:t actor=@p tools=(list tool-grant:h)]
-  ^-  state-2:t
+  |=  [s=state-3:t actor=@p tools=(list tool-grant:h)]
+  ^-  state-3:t
   =/  lanes=(list [@t lane:t])
-    :~  ['dm' [actor [%dm actor ~] 1 tools]]
-        ['room' [actor [%channel [%chat ~lux %test] ~] 1 tools]]
-        ['thread' [actor [%channel [%chat ~lux %test] `~2026.9.9] 1 tools]]
+    :~  ['dm' [[%dm actor ~] 1 tools]]
+        ['room' [[%channel [%chat ~lux %test] ~] 1 tools]]
+        ['thread' [[%channel [%chat ~lux %test] `~2026.9.9] 1 tools]]
     ==
   %=  s
     lanes   (~(gas by lanes.s) lanes)
@@ -130,7 +130,7 @@
 ::  Each lane is read as its own actor, the speaker a turn would carry.
 ::
 ++  ex-ceilings
-  |=  [s=state-2:t actor=@p ceiling=(unit (list tool-grant:h))]
+  |=  [s=state-3:t actor=@p ceiling=(unit (list tool-grant:h))]
   =/  m  (mare ,~)
   ^-  form:m
   =/  expected  `hand-authority:ad`[& ceiling]
@@ -166,7 +166,7 @@
 ++  test-owner-scheduled-run-keeps-tlon
   %-  eval-mare
   =/  s  fixture
-  =.  lanes.s  (my ~[['source' [~nec [%dm ~nec ~] 1 ~[%web %tlon %code]]]])
+  =.  lanes.s  (my ~[['source' [[%dm ~nec ~] 1 ~[%web %tlon %code]]]])
   %+  equal
     !>(`hand-authority:ad`[& `~[%web %tlon %tlon-read %tlon-write]])
   (read s 'run' `job & |)
@@ -184,15 +184,14 @@
   =/  expected  `hand-authority:ad`[& `~[%web %tlon-read %tlon-write]]
   ;<  ~  bind:m  (equal !>(expected) (read-as s 'room' ~ & | `~bus))
   (equal !>(expected) (read-as s 'thread' ~ & | `~bus))
-::  One channel lane whose actor is the owner, with the owner's tools. Any
-::  member may speak there.
+::  One channel lane saved with the owner's tools. Any member may speak there.
 ::
 ++  shared-room
-  ^-  state-2:t
+  ^-  state-3:t
   =/  s  fixture
   =.  channels.policy.s  (my ~[[[%chat ~lux %test] [%mentions &]]])
   =.  lanes.s
-    (my ~[['source' [~nec [%channel [%chat ~lux %test] ~] 1 ~[%web %tlon %code]]]])
+    (my ~[['source' [[%channel [%chat ~lux %test] ~] 1 ~[%web %tlon %code]]]])
   s
 ++  test-second-speaker-never-gets-the-owners-tools
   %-  eval-mare
@@ -298,15 +297,15 @@
   ;<  ~  bind:m  (equal !>(`hand-authority:ad`[| ~]) (read s 'run' `j(actor '~dev') & |))
   (equal !>(`hand-authority:ad`[| ~]) (read s 'run' `j(actor 'nobody') & |))
 ::  One mention in chat/~lux/test from .who, after the room's route is ready.
-::  Both speakers' identities already lead to the shared room.
+::  The room's one identity leads to its shared session.
 ::
 ++  admit
   |=  who=@p
-  =/  m  (mare ,state-2:t)
+  =/  m  (mare ,state-3:t)
   ^-  form:m
   =/  s  shared-room
   =/  to=destination:t  [%channel [%chat ~lux %test] ~]
-  =.  identities.s  (my ~[[[~bus to] 'source'] [[~dev to] 'source']])
+  =.  identities.s  (my ~[[to 'source']])
   =.  activity-through.s  ~2026.9.9
   =/  posted  ~2026.9.9..12.00.00
   =/  event=incoming-event:v8:a
@@ -331,18 +330,32 @@
   ;<  ~  bind:m  head-connected
   ;<  *  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
   ;<  =vase  bind:m  get-save
-  (pure:m !<(state-2:t vase))
+  (pure:m !<(state-3:t vase))
 ++  test-speaker-who-cannot-read-the-channel-is-not-admitted-to-a-ready-route
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  member=state-2:t  bind:m  (admit ~bus)
-  ;<  outsider=state-2:t  bind:m  (admit ~dev)
+  ;<  member=state-3:t  bind:m  (admit ~bus)
+  ;<  outsider=state-3:t  bind:m  (admit ~dev)
   =/  messages
-    |=  saved=state-2:t
+    |=  saved=state-3:t
     (skim notices.saved |=(n=notice:t =('message' kind.n)))
   ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.member)) !>(1))
   ;<  ~  bind:m  (ex-equal !>((lent (messages member))) !>(1))
   ;<  ~  bind:m  (ex-equal !>(jobs.outsider) !>(*(map @uv job:t)))
   (ex-equal !>((messages outsider)) !>(*(list notice:t)))
+::  The room's session is saved with the owner's Defaults, %tlon and %code
+::  among them. A guest speaking there is offered only its own grants.
+::
+++  test-guest-turn-in-a-session-saved-with-owner-tools-is-offered-only-guest-tools
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  shared-room
+  =.  lanes.s
+    (my ~[['source' [[%channel [%chat ~lux %test] ~] 1 ~[%web %workspace %tlon %code]]]])
+  =.  trusted.policy.s  (my ~[[~bus ~[%web]]])
+  ;<  ~  bind:m
+    (equal !>(`hand-authority:ad`[& `~[%web %tlon-read %tlon-write]]) (read-as s 'source' ~ & | `~bus))
+  (equal !>(`hand-authority:ad`[& ~]) (read-as s 'source' ~ & | `~nec))
 --
