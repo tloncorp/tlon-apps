@@ -3,6 +3,15 @@
 /-  t=harness-tlon, dv=channels-ver
 |%
 ::
+::  +bot-author: author of every message the bot writes
+::
+::    the profile form marks it as a bot's; apps take the name and avatar
+::    from contacts.
+++  bot-author
+  |=  our=@p
+  ^-  author:v9:dv
+  [our ~ ~]
+::
 ++  proof
   |=  [our=@p to=destination:t author=author:v9:dv sent=@da id=@da]
   ^-  (unit publication-proof:t)

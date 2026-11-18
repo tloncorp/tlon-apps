@@ -1,5 +1,5 @@
 /-  t=harness-tlon, h=harness, a=activity-ver, ct=contacts, ad=harness-adapter,
-    dv=channels-ver, cr=harness-cron, hh=harness-hand, d=story
+    dv=channels-ver, cv=chat-ver, cr=harness-cron, hh=harness-hand, d=story
 /+  *test, p=harness-tlon-policy, story=harness-tlon-story, ht=harness-tools,
     profile=harness-tlon-profile, presence=harness-tlon-presence, clock=harness-tlon-clock,
     io=harness-tlon-io, publication=harness-tlon-publication
@@ -65,6 +65,50 @@
   %+  expect-eq
     !>(~[`publication-proof:t`[[%channel [%chat ~nec %fixture] `~2026.9.4] ~2026.9.5 ~2026.9.6]])
   !>((channel:publication ~lux response))
+++  test-channel-confirmation-matches-a-bot-profile-author
+  =/  =post:v9:dv  *post:v9:dv
+  =.  +.+.post  +.+.post(author [~lux ~ ~], sent ~2026.9.5)
+  =/  response=r-channels:v9:dv  [[%chat ~nec %fixture] %post ~2026.9.6 %set %& post]
+  =/  other=post:v9:dv  post
+  =.  +.+.other  +.+.other(author [~bud ~ ~])
+  =/  foreign=r-channels:v9:dv  [[%chat ~nec %fixture] %post ~2026.9.6 %set %& other]
+  ;:  weld
+      %+  expect-eq
+        !>(~[`publication-proof:t`[[%channel [%chat ~nec %fixture] ~] ~2026.9.5 ~2026.9.6]])
+      !>((channel:publication ~lux response))
+      (expect-eq !>(`(list publication-proof:t)`~) !>((channel:publication ~lux foreign)))
+  ==
+++  poked
+  |=  =card:agent:gall
+  ^-  vase
+  ?>  ?=([%pass * %agent * %poke *] card)
+  =/  [pass=* wire=* agent=* who=* poke=* mark=* data=vase]  card
+  data
+++  test-every-message-the-bot-publishes-has-the-bot-author
+  =/  =bowl:gall  *bowl:gall
+  =.  our.bowl  ~lux
+  =/  publish  publish:~(. io bowl)
+  =/  =memo:v9:dv  [(text-to-story:story 'hello') [~lux ~ ~] ~2026.9.5]
+  =/  nest=nest:dv  [%chat ~nec %fixture]
+  =/  dm  (publish /test [%dm ~nec ~] 'hello' ~2026.9.5 ~)
+  =/  dm-reply  (publish /test [%dm ~nec `[~nec ~2026.9.4]] 'hello' ~2026.9.5 ~)
+  =/  post  (publish /test [%channel nest ~] 'hello' ~2026.9.5 ~)
+  =/  reply  (publish /test [%channel nest `~2026.9.4] 'hello' ~2026.9.5 ~)
+  ;:  weld
+      %+  expect-eq
+        !>(`action:dm:v7:cv`[~nec [~lux ~2026.9.5] %add [memo chat+/ ~ ~] `~2026.9.5])
+      !>(!<(action:dm:v7:cv (poked dm)))
+      %+  expect-eq
+        !>  ^-  action:dm:v7:cv
+            [~nec [~nec ~2026.9.4] %reply [~lux ~2026.9.5] ~ %add [memo ~] `~2026.9.5]
+      !>(!<(action:dm:v7:cv (poked dm-reply)))
+      %+  expect-eq
+        !>(`a-channels:v10:dv`[%channel nest %post %add [memo [%chat ~] ~ ~]])
+      !>(!<(a-channels:v10:dv (poked post)))
+      %+  expect-eq
+        !>(`a-channels:v10:dv`[%channel nest %post %reply ~2026.9.4 %add [memo ~]])
+      !>(!<(a-channels:v10:dv (poked reply)))
+  ==
 ++  test-channel-publication-keeps-the-versioned-groups-client-route
   =/  =bowl:gall  *bowl:gall
   =.  our.bowl  ~lux

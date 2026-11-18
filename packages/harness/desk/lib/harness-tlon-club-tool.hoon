@@ -3,7 +3,7 @@
 /+  spec=harness-tlon-tool,
     hp=harness-tlon-history-page,
     hist=harness-tlon-history,
-    story=harness-tlon-story,
+    story=harness-tlon-story, publication=harness-tlon-publication,
     message=harness-tlon-message-tool, paths=harness-tlon-paths
 |_  bowl=bowl:gall
 +*  read-path  ~(. paths [our now]:bowl)
@@ -100,7 +100,8 @@
   ?:  =('leave_club' action)  [%team our.bowl |]
   ?:  =('invite_to_club' action)  [%hive our.bowl (ship:spec (required:spec args 'ship' 128)) &]
   ?>  =('send_club' action)
-  =/  =memo:v9:dv  [(text-to-story:story (required:spec args 'text' 16.384)) our.bowl sent]
+  =/  =memo:v9:dv
+    [(text-to-story:story (required:spec args 'text' 16.384)) (bot-author:publication our.bowl) sent]
   :-  %writ
   ?.  (has:spec args 'parent')  [[our.bowl sent] %add [memo chat+/ ~ ~] `sent]
   [(dm-id:spec (required:spec args 'parent' 256)) %reply [our.bowl sent] ~ %add [memo ~] `sent]

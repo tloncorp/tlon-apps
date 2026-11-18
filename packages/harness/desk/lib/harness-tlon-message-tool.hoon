@@ -195,11 +195,15 @@
     =/  command=a-channels:v10:dv
       ?~  parent.to
         ?:  delete  [%channel nest.to %post %del id]
-        ?>  =(our.bowl author:+.+.post)
+        ::  The bot's messages carry a bare ship or the bot profile. An edit
+        ::  replaces only the content, so each keeps the author it had.
+        =/  author  author:+.+.post
+        ?>  =(our.bowl ?@(author author ship.author))
         [%channel nest.to %post %edit id +.+.post(content content)]
       =/  reply  (channel-reply nest.to u.parent.to id)
       ?:  delete  [%channel nest.to %post %reply u.parent.to %del id]
-      ?>  =(our.bowl author:+.+.reply)
+      =/  author  author:+.+.reply
+      ?>  =(our.bowl ?@(author author ship.author))
       [%channel nest.to %post %reply u.parent.to %edit id +.+.reply(content content)]
     [%pass wire %agent [our.bowl %channels] %poke %channel-action-2 !>(command)]
   ==

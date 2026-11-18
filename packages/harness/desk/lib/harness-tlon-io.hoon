@@ -35,7 +35,7 @@
           meta=(unit data:mt)  blob=(unit @t)
       ==
   ^-  card
-  =/  =memo:v9:dv  [content our.bowl sent]
+  =/  =memo:v9:dv  [content (bot-author:publication our.bowl) sent]
   ?-  -.to
       %dm
     =/  =diff:dm:v7:cv
