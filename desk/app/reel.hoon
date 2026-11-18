@@ -142,8 +142,8 @@
     group-title
   %-  crip
   ?:  |(?=(~ nickname) =('' u.nickname))
-    "Tlon Messenger: You're Invited to {(trip title)}"
-  "Tlon Messenger: {(trip u.nickname)} invited you to {(trip title)}"
+    "Sato: You're Invited to {(trip title)}"
+  "Sato: {(trip u.nickname)} invited you to {(trip title)}"
 --
 |_  =bowl:gall
 +*  this  .
@@ -507,8 +507,8 @@
           =/  title=@t
             %-  crip
             ?:  |(?=(~ nickname) =('' u.nickname))
-              "Tlon Messenger: You've Been Invited"
-            "Tlon Messenger: {(trip u.nickname)} Sent You an Invite"
+              "Sato: You've Been Invited"
+            "Sato: {(trip u.nickname)} Sent You an Invite"
           =.  fields.update
             (~(put by fields.update) %'$og_title' title)
           =.  fields.update
