@@ -2862,8 +2862,9 @@
   ?.  ?=([~ %o *] params)  'error: recall arguments must be a JSON object'
   =/  scope  (~(get by names.corpus) sid)
   =/  allowed=(set @uv)
-    ::  Cross-conversation recall is an explicit owner-conversation grant,
-    ::  never ambient authority inherited by a social or delegated input.
+    ::  Cross-conversation recall needs %corpus among this turn's tools, which
+    ::  an administrative owner turn always has. Social and delegated inputs
+    ::  recall only their own conversation, whatever they are granted.
     ?:  ?&  (lien tools |=(grant=tool-grant:h =(grant %corpus)))
             !(social-context:hl log.session)
             ?=(~ (delegation:hl log.session))

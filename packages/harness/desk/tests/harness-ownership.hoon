@@ -47,9 +47,20 @@
   ==
 ++  origin
   |=  source=input-source:h
+  (origin-as source `~nec)
+++  origin-as
+  |=  [source=input-source:h actor=(unit @p)]
   ^-  (unit term)
-  =/  =event:h  [%input-received [0v1 source `~nec ~ ~2026.9.8 [%user 'request']]]
+  =/  =event:h  [%input-received [0v1 source actor ~ ~2026.9.8 [%user 'request']]]
   (origin:admin ~[event] ~zod `~nec)
+++  test-owner-dm-acp-and-local-poke-administer-but-channels-and-other-dms-do-not
+  ;:  weld
+      (expect-eq !>(`%tlon) !>((origin [%hand 'b' 'tlon' 'dm/~nec' 'e' '~nec'])))
+      (expect-eq !>(`%local) !>((origin-as [%acp 'client'] `~zod)))
+      (expect-eq !>(`%local) !>((origin-as [%poke ~zod] `~zod)))
+      (expect-eq !>(~) !>((origin [%hand 'b' 'tlon' 'chat/~lux/test' 'e' '~nec'])))
+      (expect-eq !>(~) !>((origin-as [%hand 'b' 'tlon' 'dm/~bus' 'e' '~bus'] `~bus)))
+  ==
 ++  test-only-owner-direct-input-has-administrative-provenance
   ;:  weld
       (expect-eq !>(`%peer) !>((origin [%peer ~nec 0v1])))
