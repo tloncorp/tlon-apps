@@ -154,7 +154,7 @@ onFlowComplete:
     timeout: 30000
 
 # assert the expected signup chat titles are present
-- assertVisible: E2E Tester's Tlonbot 🌱
+- assertVisible: E2E Tester's Sato 🌱
 - assertVisible: Open hardware Digest
 - assertVisible: Getting Started
 
