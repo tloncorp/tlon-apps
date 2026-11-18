@@ -42,7 +42,7 @@
     ^-  (unit vase)
     ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
     ?:  =(%$ (rear path))  `!>(&)
-    ::  Native Chat is installed and has no pending owner invitations.
+    ::  Native Chat is installed and has no pending invitations.
     ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)
     ?:  (lien path |=(part=@ta =(%hand-state part)))  `!>(*state:hh)
     ::  The current Activity feed is empty; its cursor remains untouched.

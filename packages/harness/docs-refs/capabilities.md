@@ -72,8 +72,11 @@ The ship's Contacts profile supplies its name and avatar.
 
 The ship-wide `tlon` tool supports messages, search, reactions, profiles, groups,
 channels, roles, moderation, group DMs, Notes, uploads, channel hooks, and publishing.
-Conversation tools cover history, reactions, images, and scheduling in that chat;
-ship-wide access is separate. Final answers return to the chat automatically.
+Conversation tools cover history, reactions, images, and, for the owner,
+scheduling in that chat; ship-wide access is separate. A ship other than the
+owner, in a Tlon conversation or as a peer, is never offered `tlon` or `run_js`;
+granting either to it has no effect. Final answers return to the chat
+automatically.
 
 See the [Tlon reference](tlon.md), its [tool catalog](tlon.md#ship-wide-tlon-tool),
 and [permissions](tlon.md#authority-and-conversation-scope).

@@ -818,6 +818,36 @@ class AdapterAttentionTests(unittest.TestCase):
 
         self.assertEqual(len(events), 1)
 
+    def test_owner_metadata_only_blob_is_not_an_attachment(self):
+        # Third-party-hosted channel: only a real attachment wakes the bot.
+        adapter = self.make_adapter(
+            {"owner_ship": "~mug", "channels": ["chat/~dev/random"]}
+        )
+        metadata = {
+            "type": "metadata",
+            "version": 1,
+            "data": {"tlon.client": {"version": 1, "rendererRevision": 1}},
+        }
+        file_entry = {"type": "file", "version": 1}
+
+        async def fake_prepare(content, raw_blob):
+            return adapter_mod.PreparedMedia()
+
+        def run(blob):
+            return asyncio.run(
+                self.dispatches(
+                    adapter,
+                    channel_event("hello", blob=blob, nest="chat/~dev/random"),
+                )
+            )
+
+        with patch.object(adapter_mod, "prepare_inbound_media", fake_prepare):
+            metadata_only = run(json.dumps([metadata]))
+            with_file = run(json.dumps([metadata, file_entry]))
+
+        self.assertEqual(metadata_only, [])
+        self.assertEqual(len(with_file), 1)
+
     def test_owner_core_command_dispatches_without_owner_listen(self):
         # Third-party-hosted channel (host is neither owner nor bot), global
         # owner-listen off: a bare owner core command must still reach the

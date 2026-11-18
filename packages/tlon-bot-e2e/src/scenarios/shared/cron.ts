@@ -1,4 +1,7 @@
+import { driverForName } from '../../drivers/index.js';
 import type {
+  CreateCronJobArgs,
+  CronJobSnapshot,
   DriverName,
   ExecResult,
   RuntimeContext,
@@ -15,11 +18,9 @@ export const CRON_TEARDOWN_TIMEOUT_MS = 35_000;
 export const CRON_TEARDOWN_CREATION_SETTLE_WAIT_MS = 10_000;
 export const CRON_TEARDOWN_LATE_CAPTURE_WAIT_MS = 10_000;
 export const CRON_TEARDOWN_COMMAND_TIMEOUT_MS = 10_000;
+export const CRON_LISTED_AS_TIMEOUT_MS = 20_000;
 
-export interface CronJobSnapshot {
-  id: string;
-  name: string;
-}
+export type { CronJobSnapshot };
 
 export interface CronCleanupTarget {
   name: string;
@@ -35,7 +36,8 @@ export interface CronCleanupOptions {
 }
 
 export interface CronCommandScope {
-  containerId: string;
+  /** Absent when the driver has its own CronJobStore. */
+  containerId?: string;
   deadlineAtMs: number;
   commandTimeoutMs: number;
 }
@@ -74,11 +76,28 @@ export async function settleCronJobCreation<T>(
   return [promptOutcome.value, jobOutcome.value];
 }
 
+export function cronJobListingName(
+  driverName: DriverName,
+  args: CreateCronJobArgs
+): string {
+  return driverForName(driverName).cronJobs?.listingName(args) ?? args.name;
+}
+
 export async function listCronJobs(
   ctx: RuntimeContext,
   driverName: DriverName,
   scope: CronCommandScope
 ): Promise<CronJobSnapshot[]> {
+  const store = driverForName(driverName).cronJobs;
+  if (store) {
+    return store.list(
+      ctx,
+      Math.min(
+        scope.commandTimeoutMs,
+        remainingMs(scope.deadlineAtMs, `list ${driverName} cron jobs`)
+      )
+    );
+  }
   if (driverName === 'openclaw') {
     const result = await execScoped(
       ctx,
@@ -136,7 +155,7 @@ export async function waitForCronJobCreated(
   timeoutMs: number
 ): Promise<CronJobSnapshot> {
   const deadlineAtMs = Date.now() + timeoutMs;
-  const scope = await createCronCommandScope(ctx, deadlineAtMs);
+  const scope = await createCronCommandScope(ctx, driverName, deadlineAtMs);
   for (;;) {
     const jobs = await listCronJobs(ctx, driverName, scope);
     const matches = jobs.filter((job) => job.name === jobName);
@@ -163,10 +182,10 @@ export async function waitForCronJobRemoved(
   timeoutMs = 15_000
 ): Promise<void> {
   const deadlineAtMs = Date.now() + timeoutMs;
-  const scope = await createCronCommandScope(ctx, deadlineAtMs);
+  const scope = await createCronCommandScope(ctx, driverName, deadlineAtMs);
   for (;;) {
     const jobs = await listCronJobs(ctx, driverName, scope);
-    if (!jobs.some((job) => job.id === jobId)) {
+    if (!jobs.some((job) => job.id === jobId && !job.finished)) {
       return;
     }
     await sleepUntilNextPoll(
@@ -175,6 +194,24 @@ export async function waitForCronJobRemoved(
       timeoutMs
     );
   }
+}
+
+/** The job's listed entries (see cronJobListingName), from one listing. */
+export async function cronJobsListedAs(
+  ctx: RuntimeContext,
+  driverName: DriverName,
+  job: CreateCronJobArgs,
+  timeoutMs = CRON_LISTED_AS_TIMEOUT_MS
+): Promise<CronJobSnapshot[]> {
+  const listingName = cronJobListingName(driverName, job);
+  const scope = await createCronCommandScope(
+    ctx,
+    driverName,
+    Date.now() + timeoutMs,
+    timeoutMs
+  );
+  const jobs = await listCronJobs(ctx, driverName, scope);
+  return jobs.filter((entry) => entry.name === listingName);
 }
 
 export async function cleanupCronJobAndArtifacts(
@@ -201,6 +238,7 @@ export async function cleanupCronJobAndArtifacts(
   );
   const scope = await createCronCommandScope(
     ctx,
+    driverName,
     deadlineAtMs,
     commandTimeoutMs
   );
@@ -224,6 +262,12 @@ export async function cleanupCronJobAndArtifacts(
     return;
   }
 
+  const store = driverForName(driverName).cronJobs;
+  if (store) {
+    await store.remove(ctx, jobId, deadlineAtMs);
+    await assertCronJobAbsent(ctx, driverName, jobId, scope);
+    return;
+  }
   if (driverName === 'openclaw') {
     const jobs = await listCronJobs(ctx, driverName, scope);
     if (jobs.some((job) => job.id === jobId)) {
@@ -244,9 +288,13 @@ export async function cleanupCronJobAndArtifacts(
 
 async function createCronCommandScope(
   ctx: RuntimeContext,
+  driverName: DriverName,
   deadlineAtMs: number,
   commandTimeoutMs = CRON_TEARDOWN_COMMAND_TIMEOUT_MS
 ): Promise<CronCommandScope> {
+  if (driverForName(driverName).cronJobs) {
+    return { deadlineAtMs, commandTimeoutMs };
+  }
   const containerId = await resolveComposeContainer(
     ctx,
     botService(ctx),
@@ -269,16 +317,14 @@ async function captureCronJobIdForCleanup(
   if (target.id) {
     return target.id;
   }
-  const captureDeadlineAtMs = Math.min(
-    scope.deadlineAtMs,
-    Date.now() + lateCaptureWaitMs
-  );
-  const captureScope = { ...scope, deadlineAtMs: captureDeadlineAtMs };
+  // The capture deadline only decides whether to poll again; each listing
+  // runs under the teardown scope, so at least one gets its full timeout.
+  const captureDeadlineAtMs = Date.now() + lateCaptureWaitMs;
   for (;;) {
     if (target.id) {
       return target.id;
     }
-    const jobs = await listCronJobs(ctx, driverName, captureScope);
+    const jobs = await listCronJobs(ctx, driverName, scope);
     if (target.id) {
       return target.id;
     }
@@ -453,7 +499,7 @@ except FileNotFoundError:
   requireSuccess(result, `remove ${driverName} cron artifact ${jobId}`);
 }
 
-async function assertCronCleanupPostcondition(
+async function assertCronJobAbsent(
   ctx: RuntimeContext,
   driverName: DriverName,
   jobId: string,
@@ -465,6 +511,15 @@ async function assertCronCleanupPostcondition(
       `Cron cleanup left job ${jobId} in the ${driverName} store.`
     );
   }
+}
+
+async function assertCronCleanupPostcondition(
+  ctx: RuntimeContext,
+  driverName: DriverName,
+  jobId: string,
+  scope: CronCommandScope
+): Promise<void> {
+  await assertCronJobAbsent(ctx, driverName, jobId, scope);
 
   const argv =
     driverName === 'openclaw'
@@ -528,6 +583,9 @@ async function execScoped(
     scope.commandTimeoutMs,
     remainingMs(scope.deadlineAtMs, label)
   );
+  if (!scope.containerId) {
+    throw new Error(`${label} needs the bot container.`);
+  }
   return execInContainer(ctx, scope.containerId, argv(timeoutMs), {
     timeoutMs,
   });

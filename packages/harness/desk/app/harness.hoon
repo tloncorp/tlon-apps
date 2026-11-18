@@ -909,7 +909,33 @@
 ++  schedule-source-live
   |=  job=schedule:cr
   ^-  ?
-  (hand-source-live binding.job sid.job hand.job destination.job actor.job)
+  ?&  (hand-source-live binding.job sid.job hand.job destination.job actor.job)
+      (schedule-permitted (execution-authority sid.job (session-tlon sid.job)))
+  ==
+++  session-tlon
+  |=  sid=session-id:h
+  ^-  ?
+  %+  lien  ~(val by bindings.hands)
+  |=  binding=binding:hh
+  &(=(sid sid.binding) =('tlon' hand.binding))
+::  The general rule for any hand: no ceiling, or one that grants %cron. The
+::  Tlon hand never puts %cron in a ceiling, so on Tlon only a conversation
+::  with no ceiling, the owner's, may schedule.
+++  schedule-permitted
+  |=  authority=hand-authority:adapter
+  ^-  ?
+  ?&  live.authority
+      ?|  ?=(~ ceiling.authority)
+          (lien u.ceiling.authority |=(g=tool-grant:h =(%cron g)))
+      ==
+  ==
+::  The source is live, but its hand's ceiling leaves out scheduling.
+++  schedule-forbidden
+  |=  job=schedule:cr
+  ^-  ?
+  ?.  (hand-source-live binding.job sid.job hand.job destination.job actor.job)  |
+  =/  authority  (execution-authority sid.job (session-tlon sid.job))
+  &(live.authority !(schedule-permitted authority))
 ++  hand-source-live
   |=  [binding=@t sid=session-id:h hand=@t destination=@t actor=@t]
   ^-  ?
@@ -1039,6 +1065,8 @@
         ~  state
     ==
   =/  job=schedule:cr  p.parsed
+  ?:  (schedule-forbidden job)
+    [[%| 'This conversation is not permitted to schedule'] ~ state]
   ?.  (schedule-source-live job)
     [[%| 'Source hand authority is unavailable'] ~ state]
   ?:  (~(has by sessions) run-sid.job)
@@ -2576,6 +2604,8 @@
         id
         job
         %paused
+        ?:  (schedule-forbidden job)
+          'The source conversation is not permitted to schedule; cancel this schedule to clear it'
         'Source hand or conversation authority changed; explicit rescheduling is required'
       ==
     $(pending t.pending, cards (weld cards stopped))
@@ -4735,7 +4765,12 @@
   =/  cancel-watchdog=card  [%pass `wire`[%jsdog tid ~] %arvo %b %rest deadline.u.job]
   =/  session  (~(get by sessions) sid.u.job)
   ?~  session  [~[cancel-watchdog] state]
-  ?.  (authorized-call sid.u.job call-id.u.job 'run_js')  [~[cancel-watchdog] state]
+  ?.  (~(has in wait:(play:hl log.u.session)) call-id.u.job)  [~[cancel-watchdog] state]
+  ?.  =(`'run_js' (requested-tool u.session call-id.u.job))  [~[cancel-watchdog] state]
+  ::  A call that lost its grant still completes, or its conversation waits
+  ::  on it forever.
+  =?  body  !(authorized-call sid.u.job call-id.u.job 'run_js')
+    'rejected: run_js is no longer authorized'
   =^  recorded  u.session
     %^  record-all  sid.u.job  u.session
     ~[[%tool-completed call-id.u.job 'run_js' body]]
@@ -5666,10 +5701,7 @@
     ?&  !=(grant %subagents)
         (lien ceiling |=(allowed=tool-grant:h =(grant allowed)))
     ==
-  =/  tlon
-    %+  lien  ~(val by bindings.hands)
-    |=  binding=binding:hh
-    &(=(sid sid.binding) =('tlon' hand.binding))
+  =/  tlon  (session-tlon sid)
   ::  Tlon authority requires a live hand binding.
   =.  granted  ?:(tlon (with-tlon:ht granted) (without-tlon:ht granted))
   =/  authority=hand-authority:adapter  (execution-authority sid tlon)
@@ -5684,6 +5716,7 @@
   =?  granted
     ?&  ?=(~ parent)
         ?=(~ peer)
+        (schedule-permitted authority)
         %+  lien  ~(val by bindings.hands)
         |=  binding=binding:hh
         &(=(sid sid.binding) enabled.binding)
@@ -6372,7 +6405,13 @@
 ::
 ++  sync-peer-access
   ^-  (quip card _state)
-  =/  current  effective-peers
+  ::  Announce what is enforced: only the owner holds %tlon and %code.
+  =/  trust  snapshot:~(. peer-trust bowl)
+  =/  current
+    %-  ~(urn by (effective-from trust (trusted-from trust)))
+    |=  [who=@p grant=peer-grant:h]
+    ?:  (owner:~(. ownership bowl) owner.policy.trust siblings.trust who)  grant
+    (guest-grant grant)
   =/  changes  (changes:peer-access announced-access current)
   :_  state(announced-access current)
   %+  murn  changes
@@ -6576,7 +6615,12 @@
   |=  who=@p
   ^-  (unit peer-grant:h)
   ?:  (is-owner who)  `owner-grant
-  (~(get by (effective:peer-policy peers trusted-peers peer-limits)) who)
+  (bind (~(get by (effective:peer-policy peers trusted-peers peer-limits)) who) guest-grant)
+::  A grant to a ship other than the owner, which never holds %tlon or %code.
+++  guest-grant
+  |=  grant=peer-grant:h
+  ^-  peer-grant:h
+  grant(tools (guest-tools:ht tools.grant))
 ::
 ++  effective-peers
   ^-  (map @p peer-grant:h)

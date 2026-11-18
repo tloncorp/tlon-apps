@@ -1,6 +1,6 @@
 ::  Full adapter, synthetic scries only; no emitted cards are executed.
 ::  -test /=harness=/tests-integration/harness-tlon-authority
-/-  t=harness-tlon, c=harness-cron, ad=harness-adapter
+/-  t=harness-tlon, c=harness-cron, ad=harness-adapter, h=harness, g=groups-ver
 /+  *test-agent
 /=  adapter  /app/harness-tlon
 |%
@@ -36,10 +36,13 @@
     |=  =path
     ^-  (unit vase)
     ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
+    ::  ~bus has joined the group of chat/~lux/test and may read it.
+    ?:  (lien path |=(part=@ta =(%can-read part)))  `!>(|=([@p *] &))
+    ?:  (lien path |=(part=@ta =(%groups part)))  `!>((my ~[[[~lux %test] room-group]]))
     ?:  (lien path |=(part=@ta =(%cron-session part)))  `!>(job)
     ?:  (lien path |=(part=@ta =(%cron-authority part)))  `!>(allowed)
     ?:  =(%$ (rear path))  `!>(&)
-    ::  Native Chat is installed and has no pending owner invitations.
+    ::  Native Chat is installed and has no pending invitations.
     ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)
     ~
   ;<  *  bind:m  (do-load adapter `!>(saved))
@@ -92,4 +95,78 @@
     (equal !>(`hand-authority:ad`[& `~[%web %tlon-read %tlon-write]]) (read s 'source' ~ & |))
   ;<  ~  bind:m  (equal !>(|) (read s 'source' ~ & &))
   (equal !>(`hand-authority:ad`[| ~]) (read s(trusted.policy ~) 'source' ~ & |))
+::  Scheduling follows the ceiling: the owner's conversations have none, and
+::  no other actor's ceiling carries %cron, whatever its policy grants.
+::
+++  room-group
+  ^-  group:v9:g
+  =/  group  *group:v9:g
+  =.  seats.group  (my ~[[~bus `seat:v9:g`[~ ~2026.9.9]]])
+  group(channels (my ~[[[%chat ~lux %test] *channel:v9:g]]))
+++  with-lanes
+  |=  [s=state-2:t actor=@p tools=(list tool-grant:h)]
+  ^-  state-2:t
+  =/  lanes=(list [@t lane:t])
+    :~  ['dm' [actor [%dm actor ~] 1 tools]]
+        ['room' [actor [%channel [%chat ~lux %test] ~] 1 tools]]
+        ['thread' [actor [%channel [%chat ~lux %test] `~2026.9.9] 1 tools]]
+    ==
+  %=  s
+    lanes   (~(gas by lanes.s) lanes)
+    routes  (~(gas by routes.s) (turn lanes |=([sid=@t *] [sid ['binding' %ready]])))
+  ==
+++  ex-ceilings
+  |=  [s=state-2:t ceiling=(unit (list tool-grant:h))]
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (equal !>(`hand-authority:ad`[& ceiling]) (read s 'dm' ~ & |))
+  ;<  ~  bind:m  (equal !>(`hand-authority:ad`[& ceiling]) (read s 'room' ~ & |))
+  (equal !>(`hand-authority:ad`[& ceiling]) (read s 'thread' ~ & |))
+++  test-owner-conversations-have-no-ceiling
+  %-  eval-mare
+  (ex-ceilings (with-lanes fixture ~nec ~[%web]) ~)
+++  test-trusted-ship-ceiling-never-carries-cron-whatever-its-grants
+  %-  eval-mare
+  =/  grants  `(list tool-grant:h)`~[%cron %admin %tlon]
+  =/  s  (with-lanes fixture ~bus grants)
+  =.  trusted.policy.s  (my ~[[~bus grants]])
+  (ex-ceilings s `~[%admin %tlon-read %tlon-write])
+::  %tlon and %code are the owner's alone. Saved grants that list them, as
+::  state saved before this rule did, leave every other grant in place.
+::
+++  test-trusted-ship-ceiling-never-carries-tlon-or-code-whatever-its-grants
+  %-  eval-mare
+  =/  grants  `(list tool-grant:h)`~[%tlon %code %web %workspace]
+  =/  s  (with-lanes fixture ~bus grants)
+  =.  trusted.policy.s  (my ~[[~bus grants]])
+  (ex-ceilings s `~[%web %workspace %tlon-read %tlon-write])
+++  test-replaced-owner-loses-tlon-and-code-on-the-next-check
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  grants  `(list tool-grant:h)`~[%tlon %code %web]
+  =/  s  (with-lanes fixture ~bus grants)
+  ;<  ~  bind:m  (ex-ceilings s(owner.policy `~bus) ~)
+  (ex-ceilings s(trusted.policy (my ~[[~bus grants]])) `~[%web %tlon-read %tlon-write])
+++  test-owner-scheduled-run-keeps-tlon
+  %-  eval-mare
+  =/  s  fixture
+  =.  lanes.s  (my ~[['source' [~nec [%dm ~nec ~] 1 ~[%web %tlon %code]]]])
+  %+  equal
+    !>(`hand-authority:ad`[& `~[%web %tlon %tlon-read %tlon-write]])
+  (read s 'run' `job & |)
+++  test-allowed-ship-ceiling-never-carries-cron
+  %-  eval-mare
+  =/  s  (with-lanes fixture ~bus ~[%web])
+  =.  allowed.policy.s  (silt ~[~bus])
+  (ex-ceilings s `~[%web %tlon-read %tlon-write])
+++  test-channel-open-to-everyone-gives-a-ceiling-without-cron
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  (with-lanes fixture ~bus ~[%web])
+  =.  channels.policy.s  (my ~[[[%chat ~lux %test] [%mentions &]]])
+  =/  expected  `hand-authority:ad`[& `~[%web %tlon-read %tlon-write]]
+  ;<  ~  bind:m  (equal !>(expected) (read s 'room' ~ & |))
+  (equal !>(expected) (read s 'thread' ~ & |))
 --

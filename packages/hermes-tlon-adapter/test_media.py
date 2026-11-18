@@ -116,6 +116,60 @@ class MediaParsingTests(unittest.TestCase):
         )
 
 
+class AttachmentBlobTests(unittest.TestCase):
+    METADATA = {
+        "type": "metadata",
+        "version": 1,
+        "data": {"tlon.client": {"version": 1, "rendererRevision": 1}},
+    }
+
+    def test_metadata_only_blob_is_not_an_attachment(self):
+        self.assertFalse(media.has_attachment_blob(json.dumps([self.METADATA])))
+        self.assertFalse(
+            media.has_attachment_blob(json.dumps([self.METADATA, self.METADATA]))
+        )
+
+    def test_metadata_of_any_version_is_metadata(self):
+        self.assertFalse(
+            media.has_attachment_blob(json.dumps([{**self.METADATA, "version": 2}]))
+        )
+        self.assertFalse(media.has_attachment_blob(json.dumps([{"type": "metadata"}])))
+
+    def test_metadata_mixed_with_an_attachment_counts(self):
+        self.assertTrue(
+            media.has_attachment_blob(json.dumps([self.METADATA, blob_entry()]))
+        )
+
+    def test_non_metadata_entries_count(self):
+        self.assertTrue(media.has_attachment_blob(json.dumps([blob_entry()])))
+        self.assertTrue(
+            media.has_attachment_blob(json.dumps([{"type": "some-future-type"}]))
+        )
+        self.assertTrue(
+            media.has_attachment_blob(json.dumps([self.METADATA, "metadata"]))
+        )
+
+    def test_missing_or_empty_blob_is_not_an_attachment(self):
+        self.assertFalse(media.has_attachment_blob(None))
+        self.assertFalse(media.has_attachment_blob(""))
+
+    def test_unprovable_blobs_still_count(self):
+        self.assertTrue(media.has_attachment_blob("[]"))
+        self.assertTrue(media.has_attachment_blob("not json"))
+        self.assertTrue(media.has_attachment_blob(json.dumps(self.METADATA)))
+        self.assertTrue(media.has_attachment_blob('"metadata"'))
+
+    def test_parses_like_json_parse(self):
+        def metadata_with(literal):
+            return '[{"type":"metadata","version":1,"data":{"x":%s}}]' % literal
+
+        for constant in ("NaN", "Infinity", "-Infinity"):
+            with self.subTest(constant=constant):
+                self.assertTrue(media.has_attachment_blob(metadata_with(constant)))
+        self.assertFalse(media.has_attachment_blob(metadata_with("9" * 5000)))
+        self.assertFalse(media.has_attachment_blob(metadata_with("1e5000")))
+
+
 class BlobCompositionTests(unittest.TestCase):
     def test_merges_arrays_in_order_and_skips_bad_fields(self):
         merged = media.combine_blob_fields(

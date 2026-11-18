@@ -26,8 +26,9 @@ desk; JavaScript and artifact tests also run without a ship.
 | --- | --- |
 | `just fetch` | Copies the files listed in `desk-deps.yaml` into `desk-deps/`, and checks `%mcp` out into `mcp/` |
 | `just build` | Runs `fetch`, then lays `desk-deps/` and `desk/` into `desk-out/` |
-| `just install DESK` | Runs `build`, then copies `desk-out/` into a mounted desk |
-| `just commit DESK` | Runs `install`, then asks the running ship to commit that desk |
+| `just install-dev DESK` | Runs `build`, then copies `desk-out/` into a mounted desk |
+| `just install DESK` | Runs `build`, then replaces a mounted desk with `desk-out/`, deleting everything else there |
+| `just commit DESK` | Runs `install-dev`, then asks the running ship to commit that desk |
 | `just fake-dev [SHIP] [DIR] [OWNER]` | Boots a fake ship in tmux, installs `%mcp` and `%harness` and runs `setup` |
 | `just test [PATTERN]` | Runs `test-hoon`, then `test-js`, and fails if either fails |
 | `just test-hoon [PATTERN]` | Runs the native Hoon tests on fake `~zod`: all of them on a fresh ship, or those matching the regex on a kept one |
@@ -44,26 +45,49 @@ copied from the tlon-apps `desk/`, so they always match the Groups desk in the
 same checkout. `just fetch` also checks the whole `%mcp` repository out into
 `mcp/`, at the commit the tlon-apps `desk-deps.yaml` pins for `mcp`.
 
-`just install` uses `rsync` without `--delete`, so development files in the mount
-survive, and so do files this desk no longer contains. Remove those by hand.
+`just install-dev` uses `rsync` without `--delete`, so development files in the
+mount survive, and so do files this desk no longer contains. `just install` removes
+those: it deletes every file in the mount that the build did not produce,
+`tests-integration/` included unless `heavy=true` is set.
 
 `just commit` uses `scripts/click`, Tlon's `click` with the command passed on stdin
 so credentials stay out of process arguments. It needs a running pier and `socat`.
 The receipt confirms that Hood accepted the commit request; Gall recompilation and
 native tests remain separate checks. The socket path `PIER/.urb/conn.sock` must be
-under 108 bytes, so reach deep piers through a short symlink.
+under 108 bytes on Linux and 104 on macOS, so reach deep piers through a short
+symlink. `just commit`, `just fake-dev` and the test recipes check the limit for
+the platform they run on.
 
 `just test-hoon` runs `scripts/test-hoon.sh`, which needs `tmux` but not `node`: the
 native tests and integration tests on `~zod` alone. `just test-js` runs
 `scripts/test-js.sh`: the `node --test` files and the live scripts on `~zod`, `~lux`
-and `~nec`. They are the two CI jobs. Without a pattern, each boots fresh ships and
-removes them, so the full `just test` boots `~zod` twice. Each keeps its results and
-logs in `.test-run/hoon/` or `.test-run/js/`.
+and `~nec`, booting `~zod` and `~lux` at the same time. They are the two CI jobs.
+Without a pattern, each boots fresh ships and removes them, so the full `just test`
+boots `~zod` twice. Each keeps its results and logs in `.test-run/hoon/` or
+`.test-run/js/`.
+Both read the ships' tmux panes, capturing up to 200,000 lines, and `test-hoon`
+finds each run's output by line offset, so the scripts give the tmux sessions they
+create a history of 500,000 lines, and stop if tmux did not apply it. tmux's default
+of 2000 lines drops test output and breaks the offsets.
+
+CI splits `test-js` across runners. `TEST_SHARD=I/N just test-js` runs the Ith of N
+parts of the full run, on fresh ships. With more than one part, the last takes the
+`node --test` files and the scripts restricted to `~lux` and `~nec`, and boots no
+`~zod`; the others deal out the `~zod` scripts in turn. A shard takes no PATTERN.
+`just test-js --list` prints what a run would take, as `GROUP NAME` lines, without
+ships; with `TEST_SHARD`, what that shard would take.
 
 With a PATTERN, the ships stay running in `.test-run/piers/`, shared by both scripts, and
 each run deploys the working tree. `test-js` wipes Harness's agent state with `|nuke`
 before each live script, which sets up what it needs; state in other desks stays.
 `just test --stop` removes the ships. Use the full `just test` before pushing.
+
+The test piers are inside the package, so on macOS a repository path longer than
+about 50 bytes is too deep for their sockets. Link a short path to the repository
+root, `cd` to its `packages/harness` and name the justfile through the link, as in
+`just --justfile /tmp/r/packages/harness/justfile test-hoon PATTERN`. Without
+`--justfile`, `just` finds the justfile by its real path. A link to the package
+itself does not work: `just` resolves the root justfile's `../..` against the link.
 
 `scripts/test-js.sh` gives live scripts their variables: the opt-ins, `CONTROLLED_MODEL=1`,
 the ships' tmux panes and a `TEST_NEST` channel that `~lux` hosts and `~zod` has joined,
@@ -72,7 +96,8 @@ it can't run and why.
 
 `just fake-dev` runs `scripts/setup-fake-dev.sh`, which needs `tmux` and `mcp/`
 from `just fetch`, and refuses a pier or tmux session that already exists. It uses
-HTTP port 9090 unless `HTTP_PORT` is set.
+HTTP port 9090 unless `HTTP_PORT` is set. Stop the ship with `|exit` in its Dojo
+(`tmux attach -t fake-zod` for `~zod`), and delete the pier before booting it again.
 
 Scripts in `scripts/harness/` talk to the ship through `acp-call.sh`, which sends
 one ACP request through `click`. For a fresh ship, use the
@@ -108,7 +133,7 @@ Full-agent reload, endpoint fixtures and the 32K-document benchmark live in
 them, build with:
 
 ```sh
-just heavy=true install /path/to/test-pier/harness
+just heavy=true install-dev /path/to/test-pier/harness
 ```
 
 Commit the mounted desk, then run a test, for example:

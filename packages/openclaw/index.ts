@@ -147,13 +147,23 @@ import {
 } from './src/telemetry.js';
 import { resolveTlonBinary } from './src/tlon-binary.js';
 import { registerWalletHandoffs } from './src/wallet-handoffs.js';
-import { runBrowserSessionHandoff } from './src/browser-session-handoff.js';
-import { createBrowserLoginApprovalHandler } from './src/browser-login-approval.js';
+import {
+  callBrowserMcpTool,
+  runBrowserSessionHandoff,
+} from './src/browser-session-handoff.js';
+import {
+  BROWSER_LOGIN_MCP_USE_REASON,
+  BROWSER_LOGIN_TOOL,
+  browserLoginToolDefinition,
+  createBrowserLoginApprovalExecutor,
+  isDirectBrowserLoginUse,
+} from './src/browser-login-approval.js';
 import {
   registerBrowserHandoffResults,
   browserToolSessionId,
 } from './src/browser-handoff-results.js';
 import {
+  resolveBrowserHandoffAccount,
   resolveExecutionBotShip,
   runTlonCommand,
 } from './src/tlon-command-runner.js';
@@ -172,6 +182,14 @@ import {
   takeTlonCallApproval,
 } from './src/tlon-call-approvals.js';
 import { buildTlonToolDiagnosticRecord } from './src/tlon-tool-diagnostics.js';
+import {
+  setWorkspaceProposalStore,
+  setWorkspaceTlonRunner,
+  workspaceCreateToolMetadata,
+} from './src/workspace-plan-tool.js';
+
+/** The approval key for a workspace create's tlon commands. */
+const WORKSPACE_CREATE_APPROVAL = 'tlon_workspace_create';
 import {
   getRecordedRunRole,
   getRunAccountId,
@@ -994,7 +1012,6 @@ type AgentTurnHookDeps = {
   isOwnerRun: OwnerRunCheck;
   browserHandoffs: ReturnType<typeof registerBrowserHandoffResults>;
   walletHandoffs: ReturnType<typeof registerWalletHandoffs>;
-  browserLoginApprovals: ReturnType<typeof createBrowserLoginApprovalHandler>;
 };
 
 const agentTurnHookDepsSlot = sharedSlot<AgentTurnHookDeps>(
@@ -1235,9 +1252,16 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
     const isMcpDescribe = isMcpDescribeToolName(policyToolName);
     const isMcpCall = isMcpCallToolName(policyToolName);
     const isMcpTool = isMcpDescribe || isMcpCall;
-    const cronJobId = isMcpTool ? cronJobForSession(ctx.sessionKey) : undefined;
+    const isBrowserLogin = policyToolName === BROWSER_LOGIN_TOOL;
+    const blocksDirectBrowserLogin =
+      isMcpCall && isDirectBrowserLoginUse(event.params);
+    const cronJobId =
+      isMcpTool || isBrowserLogin
+        ? cronJobForSession(ctx.sessionKey)
+        : undefined;
     const isOnboardingCron =
-      isMcpTool && (await isAgentOnboardingCronJob(cronJobId));
+      (isMcpTool || isBrowserLogin) &&
+      (await isAgentOnboardingCronJob(cronJobId));
     const onboardingChannelNest = isOnboardingCron
       ? await agentOnboardingCronChannelNest(cronJobId)
       : undefined;
@@ -1246,12 +1270,13 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       : [];
     const blocksOnboardingMcp =
       isOnboardingCron &&
-      ((isMcpDescribe &&
-        !mayDescribeMcpTool(
-          ctx.sessionKey,
-          event.params,
-          allowedProviderIds
-        )) ||
+      (isBrowserLogin ||
+        (isMcpDescribe &&
+          !mayDescribeMcpTool(
+            ctx.sessionKey,
+            event.params,
+            allowedProviderIds
+          )) ||
         (isMcpCall &&
           !mayCallDescribedReadOnlyMcpTool(
             ctx.sessionKey,
@@ -1332,6 +1357,7 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       blocksOnboardingMcp ||
       blocksOnboardingBoundary ||
       blocksBrowserHandoff ||
+      blocksDirectBrowserLogin ||
       tlonAppBrowser.blocked ||
       testRunBlock !== null;
     // Decided here, with the other block decisions, so the trace and the
@@ -1365,7 +1391,9 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
             ownerOnlyDecision.reason ??
             (blocksBrowserHandoff
               ? 'This browser is waiting for secure entry. Stop browser tool calls and wait for the service result; it resumes this conversation.'
-              : tlonAppBrowser.reason));
+              : blocksDirectBrowserLogin
+                ? BROWSER_LOGIN_MCP_USE_REASON
+                : tlonAppBrowser.reason));
     if (contextLensEnabled) {
       // Capture tool activity even when no conversation run owns this
       // session (cron wakes — including jobs that reuse the main session
@@ -1448,7 +1476,9 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
                 ? 'outside the onboarding tool boundary'
                 : blocksNonOwner
                   ? 'for non-owner'
-                  : 'targeting the Tlon app in the hosted browser';
+                  : blocksDirectBrowserLogin
+                    ? 'using the saved-login MCP tool directly'
+                    : 'targeting the Tlon app in the hosted browser';
         api.logger.warn(
           `[tlon] Blocked ${event.toolName} tool ${blockCause}. Session: ${ctx.sessionKey}, Role: ${role}, Reason: ${blockReason}`
         );
@@ -1476,6 +1506,13 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       api.logger.info(allowedLog);
     } else {
       api.logger.debug?.(allowedLog);
+    }
+    if (event.toolName === workspaceCreateToolMetadata.name && toolCallId) {
+      const run = { runId: ctx.runId, sessionKey: ctx.sessionKey };
+      recordTlonCallApproval(toolCallId, WORKSPACE_CREATE_APPROVAL, {
+        ...live,
+        ...(isOwnerRun(run, live.ownerShip) ? { ownerRun: run } : {}),
+      });
     }
     if (event.toolName === 'tlon' && typeof event.params.command === 'string') {
       // Only owner-default commands need the rewrite; with the flag off the
@@ -1520,18 +1557,6 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       if (ctx.sessionKey)
         api.runtime.system.enqueueSystemEvent(
           'The wallet card could not be delivered. Tell the owner; do not claim approval or retry payment.',
-          { sessionKey: ctx.sessionKey }
-        );
-    }
-    try {
-      await agentTurnHookDepsSlot
-        .get()
-        ?.browserLoginApprovals.handle(event, ctx);
-    } catch {
-      api.logger.warn('[tlon] Could not send the saved login approval card.');
-      if (ctx.sessionKey)
-        api.runtime.system.enqueueSystemEvent(
-          'The saved login approval card could not be sent. No new approval prompt was delivered. Tell the owner that delivery failed; do not retry login or claim that approval is pending. Use the Tlon browser approve-login command if the owner asks to try again.',
           { sessionKey: ctx.sessionKey }
         );
     }
@@ -1677,7 +1702,6 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
   // tool call) still finalize, while leaving time for the gateway to
   // deliver the reply (stamped + recorded via the outbound send path).
   api.on('agent_end', (event, ctx) => {
-    agentTurnHookDepsSlot.get()?.browserLoginApprovals.endRun(ctx);
     recordCronSilenceOutput(event, ctx);
     recordTlonTurnSilenceOutput(event, ctx);
     clearCronJobForSession(ctx.sessionKey, ctx.jobId);
@@ -1897,6 +1921,20 @@ export default defineBundledChannelEntry({
     }
 
     try {
+      setWorkspaceProposalStore(
+        api.runtime.state.openKeyedStore({
+          namespace: 'workspace-proposals',
+          maxEntries: 200,
+        })
+      );
+    } catch (error) {
+      setWorkspaceProposalStore(null);
+      api.logger.warn(
+        `[tlon] durable workspace proposal state unavailable: ${String(error)}`
+      );
+    }
+
+    try {
       setCampaignStore(
         campaignStoreForDirectory(api.runtime.state.resolveStateDir())
       );
@@ -1990,7 +2028,8 @@ export default defineBundledChannelEntry({
     const walletHandoffs = registerWalletHandoffs(api, tlonBinary);
     const runBrowserCommand = async (
       args: string[],
-      ctx: { sessionKey?: string; sessionId?: string }
+      ctx: { sessionKey?: string; sessionId?: string },
+      internalLoginApproval = false
     ) => {
       if (
         ['handoff', 'approve-login'].includes(args[1]) &&
@@ -2000,25 +2039,49 @@ export default defineBundledChannelEntry({
         throw new Error(
           'This browser is waiting for secure entry. Wait for its result.'
         );
-      return runBrowserSessionHandoff(tlonBinary, args, api.config, (request) =>
-        browserHandoffs.watch(request, ctx)
+      return runBrowserSessionHandoff(
+        tlonBinary,
+        args,
+        api.config,
+        (request) => browserHandoffs.watch(request, ctx),
+        internalLoginApproval
       );
     };
 
-    const browserLoginApprovals = createBrowserLoginApprovalHandler(
-      (sessionId, record, ctx, fields, formId) =>
+    const executeBrowserLogin = createBrowserLoginApprovalExecutor({
+      isPending: browserHandoffs.isPending,
+      requestLogin: (args, signal) =>
+        callBrowserMcpTool(
+          api.config,
+          resolveBrowserHandoffAccount(api.config).allowPrivateNetwork,
+          'browser_browser_login',
+          { ...args, action: 'use' },
+          30_000,
+          signal
+        ),
+      sendHandoff: (args, ctx) =>
         runBrowserCommand(
           [
             'browser',
             'approve-login',
-            sessionId,
-            ...(formId
-              ? ['--form-id', formId]
-              : ['--fields', JSON.stringify(fields)]),
-            ...(record ? ['--record', JSON.stringify(record)] : []),
+            args.session_id,
+            ...(args.form_id
+              ? ['--form-id', args.form_id]
+              : ['--fields', JSON.stringify(args.fields)]),
+            ...(args.record ? ['--record', JSON.stringify(args.record)] : []),
           ],
-          ctx
-        )
+          ctx,
+          true
+        ),
+      warn: (message) => api.logger.warn(`[tlon] ${message}`),
+    });
+    api.registerTool(
+      (ctx) => ({
+        ...browserLoginToolDefinition,
+        execute: (_id, params, signal) =>
+          executeBrowserLogin(params, ctx, signal),
+      }),
+      { name: BROWSER_LOGIN_TOOL }
     );
 
     if (credentials) {
@@ -2033,44 +2096,47 @@ export default defineBundledChannelEntry({
     liveAccount();
     const isOwnerRun = createOwnerRunCheck(account.accountId);
 
+    const tlonExecutorDeps = (
+      ctx: Parameters<typeof runBrowserCommand>[1] & { workspaceDir?: string },
+      { ownerDefault, ownerShip }: ReturnType<typeof liveAccount>
+    ): TlonToolExecutorDeps => ({
+      runCommand: (args) =>
+        args[findTlonSubcommandIndex(args)]?.toLowerCase() === 'browser'
+          ? runBrowserCommand(args, ctx)
+          : runTlonCommand(tlonBinary, args, credentials, {
+              timeoutMs: toolTimeoutMs,
+              cwd: ctx.workspaceDir,
+              ownerShip,
+            }),
+      notifyDiaryMigrationDiscovery: (nest) =>
+        notifyDiaryMigrationDiscovery(nest, api.config),
+      logError: (message) => api.logger.warn(`[tlon] ${message}`),
+      // With `ownerDefault`, commands act as this owner (`--ship <owner>`)
+      // and the before_tool_call gate rewrites calls on turns the owner
+      // did not direct to `--self`. Without it, only the legacy owner
+      // operations do, and a workspace made for the owner (or a channel in
+      // a group the owner hosts) is hosted on the owner's ship.
+      ownerShip,
+      ownerDefault,
+      // The ship the runner's own credentials act as, for the owner
+      // self-DM guard, the `Ran as` line and the admin of a workspace
+      // hosted on the owner's ship.
+      botShip: resolveExecutionBotShip(credentials, process.env),
+      env: process.env,
+      fileExists: (path) => existsSync(path),
+      // Owner sends are recorded under the account whose credentials
+      // the tool runs with.
+      accountId: account.accountId,
+    });
+
     // Tool factories receive the active agent workspace, including cron runs.
     // Core calls the factory each time it resolves tools, and its descriptor
     // cache is keyed on the runtime config, so the description follows a
     // reload; execution reads the live account again on every call.
     api.registerTool(
       (ctx) => {
-        const executorDeps = ({
-          ownerDefault,
-          ownerShip,
-        }: ReturnType<typeof liveAccount>): TlonToolExecutorDeps => ({
-          runCommand: (args) =>
-            args[findTlonSubcommandIndex(args)]?.toLowerCase() === 'browser'
-              ? runBrowserCommand(args, ctx)
-              : runTlonCommand(tlonBinary, args, credentials, {
-                  timeoutMs: toolTimeoutMs,
-                  cwd: ctx.workspaceDir,
-                  ownerShip,
-                }),
-          notifyDiaryMigrationDiscovery: (nest) =>
-            notifyDiaryMigrationDiscovery(nest, api.config),
-          logError: (message) => api.logger.warn(`[tlon] ${message}`),
-          // With `ownerDefault`, commands act as this owner (`--ship <owner>`)
-          // and the before_tool_call gate rewrites calls on turns the owner
-          // did not direct to `--self`. Without it, only the legacy owner
-          // operations do, and a workspace made for the owner (or a channel in
-          // a group the owner hosts) is hosted on the owner's ship.
-          ownerShip,
-          ownerDefault,
-          // The ship the runner's own credentials act as, for the owner
-          // self-DM guard, the `Ran as` line and the admin of a workspace
-          // hosted on the owner's ship.
-          botShip: resolveExecutionBotShip(credentials, process.env),
-          env: process.env,
-          fileExists: (path) => existsSync(path),
-          // Owner sends are recorded under the account whose credentials
-          // the tool runs with.
-          accountId: account.accountId,
-        });
+        const executorDeps = (live: ReturnType<typeof liveAccount>) =>
+          tlonExecutorDeps(ctx, live);
         const executeTlonTool = async (
           id: string,
           params: { command: string }
@@ -2146,6 +2212,36 @@ export default defineBundledChannelEntry({
       },
       { name: 'tlon' }
     );
+
+    // The workspace create tool (a channel tool) runs its tlon commands
+    // through the same owner routing as the tlon tool, so an owner-directed
+    // run hosts the workspace on the owner's ship.
+    setWorkspaceTlonRunner(async (id, command) => {
+      const approved = takeTlonCallApproval(id, WORKSPACE_CREATE_APPROVAL);
+      // Each command takes the approval once; keep it for the next.
+      if (approved) {
+        recordTlonCallApproval(id, WORKSPACE_CREATE_APPROVAL, approved);
+      }
+      if (
+        !approved?.ownerRun ||
+        !isOwnerRun(approved.ownerRun, liveAccount().ownerShip)
+      ) {
+        return {
+          ok: false,
+          text: 'only an owner-directed turn can create a workspace',
+        };
+      }
+      const result = await createTlonToolExecutor({
+        ...tlonExecutorDeps({}, approved),
+        ownerIdentityLost: () =>
+          !isOwnerRun(approved.ownerRun!, liveAccount().ownerShip),
+      })(id, { command });
+      const details = result.details as { status?: string } | undefined;
+      return {
+        ok: !details?.status || details.status === 'ok',
+        text: result.content.map((part) => part.text).join('\n'),
+      };
+    });
 
     const logToolTraceContents = liveToolTraceContentsEnabled();
     // ── Cron observability ──────────────────────────────────────────────
@@ -2368,7 +2464,6 @@ export default defineBundledChannelEntry({
         isOwnerRun,
         browserHandoffs,
         walletHandoffs,
-        browserLoginApprovals,
       });
     }
   },

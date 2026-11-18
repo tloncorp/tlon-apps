@@ -8,6 +8,7 @@ import {
   List,
   Menu,
   Picker,
+  ProgressView,
   RNHostView,
   SecureField,
   Section,
@@ -44,6 +45,7 @@ import {
   opacity,
   padding,
   pickerStyle,
+  progressViewStyle,
   scrollContentBackground,
   shapes,
   submitLabel,
@@ -439,7 +441,7 @@ function SettingsRow({
       // button of its own keeps their labels apart, or VoiceOver would read
       // the button by the row's title.
       modifiers={
-        row.onPress
+        row.onPress || row.progress !== undefined
           ? undefined
           : row.trailingAction
             ? rowModifiers
@@ -508,12 +510,46 @@ function SettingsRow({
     </HStack>
   );
 
+  const rowContent =
+    row.progress === undefined ? (
+      content
+    ) : (
+      <VStack
+        alignment="leading"
+        spacing={12}
+        modifiers={[
+          ...(!row.onPress ? labelledRowModifiers : []),
+          padding({ vertical: 8 }),
+        ]}
+      >
+        {content}
+        <VStack alignment="leading" spacing={6}>
+          <ProgressView
+            value={row.progress}
+            modifiers={[
+              progressViewStyle('linear'),
+              tint(colors.accent),
+              frame({ maxWidth: Infinity }),
+            ]}
+          />
+          <Text
+            modifiers={[
+              font({ size: 12 }),
+              foregroundStyle(colors.secondaryText),
+            ]}
+          >
+            {`${Math.round(row.progress * 100)}% used`}
+          </Text>
+        </VStack>
+      </VStack>
+    );
+
   const body = row.onPress ? (
     <Button onPress={row.onPress} modifiers={labelledRowModifiers}>
-      {content}
+      {rowContent}
     </Button>
   ) : (
-    content
+    rowContent
   );
 
   if (!row.contextActions?.length) {

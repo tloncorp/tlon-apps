@@ -126,7 +126,7 @@ test('runner refuses the wrong local ship before any writes and keeps credential
   try {
     const result = await promisify(execFile)(process.execPath, ['tests-js/reliability-soak.mjs'], {
       cwd: new URL('../', import.meta.url), timeout: 10_000,
-      env: { PATH: process.env.PATH, HARNESS_HEAVY_TESTS: '1', SHIP_URL: `http://127.0.0.1:${server.address().port}`, SHIP_COOKIE: cookiePath, SOAK_EXPECT_SHIP: '~zod', SOAK_WORK: '1' },
+      env: { PATH: process.env.PATH, TMPDIR: tmpdir(), HARNESS_HEAVY_TESTS: '1', SHIP_URL: `http://127.0.0.1:${server.address().port}`, SHIP_COOKIE: cookiePath, SOAK_EXPECT_SHIP: '~zod', SOAK_WORK: '1' },
     }).then(() => assert.fail('Wrong-ship guard must fail'), (error) => error)
     assert.equal(result.code, 1)
     assert.deepEqual(requests, [['GET', '/~/host']])

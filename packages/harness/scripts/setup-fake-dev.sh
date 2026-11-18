@@ -16,6 +16,7 @@ pier_dir=${ship#\~}
 pier=$PWD/$pier_dir
 session=fake-$pier_dir
 click=$root/scripts/click
+source "$root/scripts/ship-lib.sh"
 
 urbit_bin_url="https://bootstrap.urbit.org/vere/live/v4.5"
 vere_ver="vere-v4.5"
@@ -54,13 +55,8 @@ then
   exit 1
 fi
 
-# Unix limits socket paths to 108 bytes; find out now, not after the long boot.
-socket=$pier/.urb/conn.sock
-if [ ${#socket} -ge 108 ]
-then
-  echo "This directory is too deep for the ship's socket: $socket"
-  exit 1
-fi
+# Find out now, not after the long boot.
+check_socket "$pier" || exit 1
 
 if [ ! -f "$root/mcp/justfile" ]
 then
@@ -74,27 +70,42 @@ then
   exit 1
 fi
 
-(cd "$root/scripts" && bash get-pill.sh) || exit 1
-pill=`echo "$root"/scripts/groups-*.pill`
-
 function find_vere()
 {
   vere="$root/.deps-cache/${vere_ver}-${platform}-${arch}"
   echo "our vere: $vere"
 }
 
-find_vere
+# Ships set up at once take turns at what they share and no build lock covers: the
+# pill and runtime downloads. The lock is on a descriptor only the subshell has, so
+# nothing it leaves running, such as a tmux server, holds it.
+function in_turn
+{
+  (
+    exec 8>>"$root/.deps-cache/setup.lock"
+    python3 -c 'import fcntl; fcntl.flock(8, fcntl.LOCK_EX)' || exit 1
+    "$@"
+  )
+}
 
-if [ ! -x $vere ]
-then
-  echo "Downloading urbit runtime"
-  mkdir -p "$root/.deps-cache"
-  # Give up on a stalled transfer instead of hanging, and keep a partial
-  # binary out of the cache.
-  curl -L -f --connect-timeout 20 --speed-limit 1024 --speed-time 30 --retry 3 $urbit_bin_url -o $vere.part &&
-    mv $vere.part $vere
-  chmod +x $vere
-fi
+function download
+{
+  (cd "$root/scripts" && bash get-pill.sh) || return 1
+  if [ ! -x $vere ]
+  then
+    echo "Downloading urbit runtime"
+    # Give up on a stalled transfer instead of hanging, and keep a partial
+    # binary out of the cache.
+    curl -L -f --connect-timeout 20 --speed-limit 1024 --speed-time 30 --retry 3 $urbit_bin_url -o $vere.part &&
+      mv $vere.part $vere
+    chmod +x $vere
+  fi
+}
+
+mkdir -p "$root/.deps-cache"
+find_vere
+in_turn download || exit 1
+pill=`echo "$root"/scripts/groups-*.pill`
 
 find_vere
 
@@ -118,12 +129,19 @@ then
 fi
 
 echo "Booting ship"
-tmux new-session -d -s "$session" -x 180 -y 50 "exec $vere --loom 33 --http-port $http_port $ames_args $pier"
+run_ship="$vere --loom 33 --http-port $http_port $ames_args $pier"
+new_ship_session "$session" "exec $run_ship" || exit 1
 
+# The session closes with the ship, taking the runtime's output with it.
 function await_ship
 {
     while ! curl -s "http://localhost:$http_port/~/login" > /dev/null
     do
+        if ! tmux has-session -t "=$session" 2>/dev/null
+        then
+            echo "The ship exited; run it by hand to see why: $run_ship"
+            exit 1
+        fi
         sleep 1
     done
 }

@@ -41,7 +41,7 @@ beforeEach(() => {
     ],
   });
 });
-it('uses configured inference without tools or delivery and removes its scratch transcript', async () => {
+it('uses configured inference without tools or delivery and removes its scratch workspace', async () => {
   const text = await personalizeTip(draft, {} as OpenClawConfig, 'default');
   expect(text).toContain('Friday client meetings');
   const params = run.mock.calls[0][0];
@@ -53,7 +53,9 @@ it('uses configured inference without tools or delivery and removes its scratch 
     timeoutMs: 15000,
     agentId: 'main',
     agentAccountId: 'default',
+    sessionPersistence: 'detached',
   });
+  expect(params).not.toHaveProperty('sessionFile');
   expect(params.prompt).toContain('client meetings');
   expect(params.prompt).toContain('untrusted background');
   await expect(access(params.workspaceDir)).rejects.toThrow();

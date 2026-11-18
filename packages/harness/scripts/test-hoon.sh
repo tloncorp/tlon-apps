@@ -9,7 +9,7 @@
 #   scripts/test-hoon.sh --stop     stop the ships left running and remove them
 
 suite=hoon
-tools="tmux just"
+tools="tmux just socat curl jq yq rsync python3"
 source "$(dirname "$0")/test-lib.sh" "$1"
 
 # Run a directory of native tests on a ship, as the repository's
@@ -92,9 +92,14 @@ then
   if [ -z "$pattern" ]
   then
     echo "Integration tests"
-    just heavy=true commit "$piers/zod/harness" > "$logs/heavy-commit.log" 2>&1
-    sleep 30
-    native zod harness %tests-integration native-integration
+    # Without the commit the ship has no integration tests, or stale ones.
+    if just heavy=true commit "$piers/zod/harness" > "$logs/heavy-commit.log" 2>&1
+    then
+      sleep 30
+      native zod harness %tests-integration native-integration
+    else
+      result native-integration "FAILED (could not deploy; see $logs/heavy-commit.log)"
+    fi
   fi
 fi
 

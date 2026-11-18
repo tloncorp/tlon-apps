@@ -43,7 +43,7 @@ test('should show group info, channel, and role changes to invited user', async 
   // Create additional channels
   await zodPage.getByTestId('GroupChannels').getByText('Channels').click();
   await helpers.createChannel(zodPage, 'Test Channel');
-  await helpers.navigateBack(zodPage);
+  await helpers.openGroupSettings(zodPage);
 
   // Create a channel section
   await zodPage.getByTestId('GroupChannels').click();
@@ -120,8 +120,9 @@ test('should show group info, channel, and role changes to invited user', async 
   // Make additional changes on zod's side while ten is in the group
   await zodPage.getByTestId('GroupChannels').click();
   await helpers.createChannel(zodPage, 'Real-time Channel');
-  await helpers.navigateBack(zodPage);
-  await helpers.navigateBack(zodPage);
+  await helpers.navigateToGroupByTestId(zodPage, {
+    expectedDisplayName: '~ten, ~zod',
+  });
 
   // Verify ten can see the new channel
   await tenPage.waitForTimeout(2000); // Allow time for sync

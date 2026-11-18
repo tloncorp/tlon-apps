@@ -51,7 +51,9 @@ Its grant selects tools, model, token budget, and shared skills:
 
 Unlisted non-owners are refused. Explicit grants and live Tlon trust determine
 access. New requests use current grants; running requests can lose access but
-cannot gain newly added tools.
+cannot gain newly added tools. A peer other than the owner is never offered
+`tlon` or `run_js`, and its calls to either are refused; a grant that lists
+`tlon` or `code` for it is accepted and has no effect.
 
 ## Full-admin ownership
 

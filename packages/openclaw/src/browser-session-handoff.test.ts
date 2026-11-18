@@ -16,6 +16,7 @@ import {
   runBrowserSessionHandoff as runHandoff,
 } from './browser-session-handoff.js';
 import { shellSplitCommand } from './tlon-tool-command.js';
+import { createBrowserLoginApprovalExecutor } from './browser-login-approval.js';
 
 const cancelWatch = vi.fn().mockResolvedValue(undefined);
 const watchHandoff = vi.fn().mockResolvedValue(cancelWatch);
@@ -90,10 +91,12 @@ describe('browser session handoff', () => {
     const formId = '123e4567-e89b-42d3-a456-426614174000';
     const url = viewerUrl('session-viewer', Date.now() + 300000, formId);
     reply({ session_id: handle, viewer_url: url });
-    await runBrowserSessionHandoff(
+    await runHandoff(
       'tlon',
       ['browser', 'approve-login', handle, '--form-id', formId],
-      config
+      config,
+      watchHandoff,
+      true
     );
     expect(
       JSON.parse(urbitFetch.mock.calls[0][0].init.body).params.arguments
@@ -103,6 +106,93 @@ describe('browser session handoff', () => {
       ['browser', 'approve-login', url, '--service-result'],
       config
     );
+  });
+
+  it.each([
+    ['--form-id', sessionId],
+    ['--fields', '["@e12"]'],
+  ])(
+    'does not accept a model-facing approval command with %s',
+    async (flag, value) => {
+      await expect(
+        runBrowserSessionHandoff(
+          'tlon',
+          ['browser', 'approve-login', handle, flag, value],
+          config
+        )
+      ).rejects.toThrow(BROWSER_SESSION_HANDOFF_HELP);
+      expect(urbitFetch).not.toHaveBeenCalled();
+    }
+  );
+
+  it('holds the saved-login tool result until a rejected send closes the handoff and its watcher', async () => {
+    const url = viewerUrl();
+    reply({ session_id: handle, viewer_url: url });
+    const prepare = urbitFetch.getMockImplementation()!;
+    const send = Promise.withResolvers<string>();
+    const cancel = Promise.withResolvers<{
+      response: Response;
+      release: () => void;
+    }>();
+    urbitFetch.mockImplementation((request) =>
+      request.init.method === 'DELETE' ? cancel.promise : prepare(request)
+    );
+    runBrowserHandoffCommand.mockReturnValueOnce(send.promise);
+    const execute = createBrowserLoginApprovalExecutor({
+      isPending: async () => false,
+      requestLogin: async () => ({
+        metadata: {
+          session_id: handle,
+          login: { status: 'approval_required' },
+        },
+        isError: false,
+      }),
+      sendHandoff: () =>
+        runHandoff(
+          'tlon',
+          ['browser', 'approve-login', handle, '--form-id', sessionId],
+          config,
+          watchHandoff,
+          true
+        ),
+      warn: vi.fn(),
+    });
+
+    const finished = vi.fn();
+    const invocation = execute(
+      {
+        session_id: handle,
+        form_id: sessionId,
+        record: { id: 'saved-account', revision: 1 },
+        bindings: [{ sourceField: 'email', targetField: 'f0' }],
+      },
+      { sessionKey: 'owner-conversation' }
+    ).then((outcome) => {
+      finished(outcome);
+      return outcome;
+    });
+    await vi.waitFor(() =>
+      expect(runBrowserHandoffCommand).toHaveBeenCalledOnce()
+    );
+    expect(watchHandoff).toHaveBeenCalledOnce();
+    expect(finished).not.toHaveBeenCalled();
+
+    send.reject(new Error('Cannot send'));
+    await vi.waitFor(() =>
+      expect(urbitFetch).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          baseUrl: new URL(url).origin,
+          path: new URL(url).pathname.replace('/s/', '/credentials/'),
+          init: expect.objectContaining({ method: 'DELETE' }),
+        })
+      )
+    );
+    expect(cancelWatch).toHaveBeenCalledOnce();
+    expect(finished).not.toHaveBeenCalled();
+    cancel.resolve({ response: new Response(), release: vi.fn() });
+    await expect(invocation).resolves.toMatchObject({
+      details: { status: 'delivery_failed', session_id: handle },
+    });
   });
 
   it('passes service-provided presentation to the private delivery command', async () => {
@@ -168,7 +258,7 @@ describe('browser session handoff', () => {
     const url = viewerUrl();
     reply({ session_id: handle, viewer_url: url });
     const choice = { id: '8e40b5f5-fd41-4851-8922-b9545e470d6e', revision: 3 };
-    await runBrowserSessionHandoff(
+    await runHandoff(
       'tlon',
       [
         'browser',
@@ -179,7 +269,9 @@ describe('browser session handoff', () => {
         '--record',
         JSON.stringify(choice),
       ],
-      config
+      config,
+      watchHandoff,
+      true
     );
     expect(
       JSON.parse(urbitFetch.mock.calls[0][0].init.body).params.arguments

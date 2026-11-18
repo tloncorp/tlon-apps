@@ -79,15 +79,17 @@ Current common scenarios are:
 -   DM thread anchoring, including a check that the follow-up does not appear in the main DM
 -   stop/start replay coverage is selected and visibly skipped pending [TLON-6098](https://linear.app/tlon/issue/TLON-6098): neither runtime replays messages received while the bot is down; the intact scenario remains the regression gate when reconnect replay lands
 -   Hermes-only no-agent cron delivery to `TLON_HOME_CHANNEL`, with a future one-shot fired through `run_one_job(..., adapters=None, loop=None)` so the test uses the standalone sender path without racing the gateway ticker
--   model-driven cron creation, scheduler firing, and origin delivery on both drivers in the `cron` capability partition
+-   model-driven cron creation, scheduler firing, and origin delivery on all three drivers in the `cron` capability partition
+-   two speakers in one channel, in the `cron` capability partition on all three drivers: the bot replies to the owner's mention and to another member's, the owner's turn is offered the scheduling tool, and the other member's scheduling call is refused (not offered on OpenClaw and Harness, an owner-only refusal on Hermes) and leaves no job
 
 The reaction scenarios cover dispatch and acknowledgement anchoring only. `packages/openclaw/src/monitor/history.test.ts` is the deterministic gate for pre-echo ID normalization and exact-reply cache-miss fetching.
 
-Run the model-driven cron scenario alone with:
+Run the `cron` partition's scenarios alone with:
 
 ```bash
 TLON_BOT_E2E_SCENARIO_PARTITIONS=cron pnpm --filter @tloncorp/tlon-bot-e2e test:e2e:hermes
 TLON_BOT_E2E_SCENARIO_PARTITIONS=cron pnpm --filter @tloncorp/tlon-bot-e2e test:e2e:openclaw
+TLON_BOT_E2E_SCENARIO_PARTITIONS=cron pnpm --filter @tloncorp/tlon-bot-e2e test:e2e:harness
 ```
 
 The no-agent cron scenario deliberately covers Hermes only. OpenClaw's existing package-level heartbeat coverage verifies its proactive target today; the symmetric shared proactive scenario is tracked by TLON-5931.
@@ -129,9 +131,9 @@ pnpm test:integration:shared
 
 ## Harness Runtime Details
 
-Harness runs on the bot ship `~zod`. Once the branch `%groups` desk is applied, the driver builds `packages/harness` with `just --justfile packages/harness/justfile out=<dir> build`, creates and mounts a `%harness` desk on `~zod`, commits and installs it, and waits for `%harness-tlon` to answer its status scry. `%mcp` is not installed. It then configures Harness over ACP through Eyre, using `packages/harness/acp/harness-acp.mjs`: `~ten` becomes the owner, the Tlon hand is enabled with `response: mentions` and no allowed or trusted ships, and the default model endpoint is the fake model's `/v1/chat/completions` as seen from the ships container.
+Harness runs on the bot ship `~zod`. Once the branch `%groups` desk is applied, the driver builds `packages/harness` with `just --justfile packages/harness/justfile out=<dir> build`, creates and mounts a `%harness` desk on `~zod`, commits and installs it, and waits for `%harness-tlon` to answer its status scry. `%mcp` is not installed. It then configures Harness over ACP through Eyre, using `packages/harness/acp/harness-acp.mjs`: `~ten` becomes the owner, the Tlon hand is enabled with `response: mentions` and no allowed or trusted ships, and the default model endpoint is the fake model's `/v1/chat/completions` as seen from the ships container. A scenario that opens a channel to its group's members does it through the driver's `openChannelToMembers` hook, which sets the channel rule `{channel, response: 'mentions', everyone: true}` in the Tlon policy, replacing any rule for that channel, and afterward restores only that channel's previous rule, or removes the rule if there was none; OpenClaw and Hermes have no such hook and read the `channelRules` settings entry instead.
 
-Harness publishes a turn's final assistant text to the originating chat, so text replies are scripted as plain text steps. Its `tlon` tool takes structured actions; the adapter translates only the tlon commands that enabled scenarios send, and adapter methods no enabled scenario uses throw. Harness has only the common suite. Scenarios it cannot run, or that are not enabled for it yet, are skipped with their reasons.
+Harness publishes a turn's final assistant text to the originating chat, so text replies are scripted as plain text steps. They expect `tlon_read_history` among the advertised tools, since every Tlon conversation is offered it. The `tlon` tool is offered only where it is granted: the owner's conversations and a trusted ship given it. The ships the scenarios allow have no `tlon` grant. Its `tlon` tool takes structured actions; the adapter translates only the tlon commands that enabled scenarios send, and adapter methods no enabled scenario uses throw. Harness has only the common suite. Scenarios it cannot run, or that are not enabled for it yet, are skipped with their reasons.
 
 ## Hermes Runtime Details
 

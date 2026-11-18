@@ -2,16 +2,24 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { createInterface } from 'node:readline';
 
+import type { Step } from '../fake-model/index.js';
 import { applyDesk } from '../runtime/branch-desk.js';
-import type {
-  BotDriver,
-  DriverRuntimeSpec,
-  ModelScript,
-  RuntimeContext,
+import { sleep } from '../runtime/waiters.js';
+import {
+  type BotDriver,
+  type CreateCronJobArgs,
+  type CronJobSnapshot,
+  type DriverRuntimeSpec,
+  type ModelScript,
+  NON_OWNER_SCHEDULE_AT_OFFSET_MS,
+  type RuntimeContext,
 } from './types.js';
 
 const ACP_CALL_TIMEOUT_MS = 90_000;
 const HARNESS_MODEL = 'tlon-test-scripted';
+// Far enough ahead that the creating turn finishes before the job fires.
+const SCHEDULE_AT_OFFSET_MS = 60_000;
+const SCHEDULE_POLL_INTERVAL_MS = 500;
 
 function harnessUnsupported(method: string): never {
   throw new Error(`${method} is not supported by the harness driver.`);
@@ -19,13 +27,14 @@ function harnessUnsupported(method: string): never {
 
 // Harness publishes the final assistant text to the originating chat itself,
 // so a reply is a plain text step; the tlon tool takes structured actions.
-// The owner's conversations get the whole live tool catalog, so only `tlon`
-// is pinned.
+// Every Tlon conversation is offered `tlon_read_history`. The `tlon` tool is
+// offered only in the owner's conversations, so the ships the scenarios allow
+// are never offered it.
 function textScript(texts: string[]): ModelScript {
   return {
     steps: texts.map((content) => ({ kind: 'text' as const, content })),
     expectations: {
-      advertisedTools: { include: ['tlon'] },
+      advertisedTools: { include: ['tlon_read_history'] },
       expectedCallCount: texts.length,
     },
   };
@@ -187,19 +196,224 @@ export const harnessDriver: BotDriver = {
       return harnessUnsupported('imageSearch');
     },
 
-    createCronJob() {
-      return harnessUnsupported('createCronJob');
+    createCronJob(args) {
+      return {
+        steps: scheduleOnceSteps(args, SCHEDULE_AT_OFFSET_MS),
+        expectations: {
+          advertisedTools: { include: ['schedule_once', 'tlon'] },
+          expectedCallCount: 2,
+          expectedCallSequence: [
+            { kind: 'model_request' },
+            { kind: 'tool_call', toolName: 'schedule_once' },
+            { kind: 'model_request' },
+            { kind: 'final_model_text' },
+          ],
+          toolLoopResult: true,
+          streamedToolLoop: true,
+        },
+      };
+    },
+
+    nonOwnerScheduleAttempt(args) {
+      return {
+        steps: scheduleOnceSteps(args, NON_OWNER_SCHEDULE_AT_OFFSET_MS),
+        toolName: 'schedule_once',
+        // The Tlon hand's ceiling for a non-owner never grants scheduling, so
+        // the head neither offers the tool nor runs a forged call.
+        refusal: 'hidden',
+        refusalText: 'rejected: tool is not granted for this session',
+      };
+    },
+  },
+
+  async openChannelToMembers(ctx, channelId) {
+    const otherChannels = (channels: HarnessChannelRule[]) =>
+      channels.filter((rule) => rule.channel !== channelId);
+    let previous: HarnessChannelRule | undefined;
+    await updateTlonPolicy(ctx, ({ channels }) => {
+      previous = channels.find((rule) => rule.channel === channelId);
+      return {
+        channels: [
+          ...otherChannels(channels),
+          { channel: channelId, response: 'mentions', everyone: true },
+        ],
+      };
+    });
+    const restore = previous;
+    // Rereads the policy so only this channel's rule changes back.
+    return async () => {
+      await updateTlonPolicy(ctx, ({ channels }) => ({
+        channels: restore
+          ? [...otherChannels(channels), restore]
+          : otherChannels(channels),
+      }));
+    };
+  },
+
+  async allowDmSender(ctx, ship) {
+    let undo: DmGrant['undo'];
+    await updateTlonPolicy(ctx, ({ allowed }) => {
+      const grant = dmGrant(allowed, ship);
+      undo = grant.undo;
+      return { allowed: grant.allowed };
+    });
+    const revoke = undo;
+    return async () => {
+      if (revoke) {
+        await updateTlonPolicy(ctx, ({ allowed }) => ({
+          allowed: revoke(allowed),
+        }));
+      }
+    };
+  },
+
+  cronJobs: {
+    async list(ctx, timeoutMs) {
+      const schedules = await withHarnessAcp(
+        ctx,
+        (call) => call('harness/cron') as Promise<HarnessSchedule[]>,
+        timeoutMs
+      );
+      return schedules.map(harnessScheduleSnapshot);
+    },
+
+    // Harness schedules have no name; the scenario's prompt is unique to it.
+    listingName({ firedPrompt }) {
+      return firedPrompt;
+    },
+
+    remove(ctx, id, deadlineAtMs) {
+      return removeHarnessSchedule(
+        (method, params) =>
+          withHarnessAcp(
+            ctx,
+            (call) => call(method, params),
+            deadlineAtMs - Date.now()
+          ),
+        id,
+        deadlineAtMs
+      );
     },
   },
 };
+
+export interface HarnessSchedule {
+  id: string;
+  prompt: string;
+  state: 'active' | 'paused' | 'cancelled' | 'complete';
+  /** Completed or cancelled, with no execution or delivery still in flight. */
+  clearable: boolean;
+}
+
+// A completed one-shot stays listed until it is cleared. Once its run and
+// delivery have settled it can never run or publish again.
+export function harnessScheduleSnapshot(
+  schedule: HarnessSchedule
+): CronJobSnapshot {
+  return {
+    id: schedule.id,
+    name: schedule.prompt,
+    finished: schedule.state === 'complete' && schedule.clearable,
+  };
+}
+
+// Harness clears only settled schedules, and cancelling does not retract a run
+// already dispatched, so a cancelled job is polled until its work settles.
+export async function removeHarnessSchedule(
+  call: (method: string, params?: unknown) => Promise<unknown>,
+  id: string,
+  deadlineAtMs: number
+): Promise<void> {
+  for (;;) {
+    const schedules = (await call('harness/cron')) as HarnessSchedule[];
+    const schedule = schedules.find((entry) => entry.id === id);
+    if (!schedule) {
+      return;
+    }
+    if (schedule.clearable) {
+      await call('harness/cron/clear', { id });
+      return;
+    }
+    if (schedule.state !== 'cancelled') {
+      await call('harness/cron/cancel', { id });
+      continue;
+    }
+    const remaining = deadlineAtMs - Date.now();
+    if (remaining <= 0) {
+      throw new Error(
+        `Harness schedule ${id} still has work in flight; it was cancelled but cannot be cleared.`
+      );
+    }
+    await sleep(Math.min(SCHEDULE_POLL_INTERVAL_MS, remaining));
+  }
+}
+
+export interface DmGrant {
+  allowed: string[];
+  /** Absent when the ship was already allowed, so revoking leaves it. */
+  undo?: (allowed: string[]) => string[];
+}
+
+// Undo removes only this ship from the policy as it reads at revoke time,
+// keeping any other change made in between.
+export function dmGrant(allowed: string[], ship: string): DmGrant {
+  if (allowed.includes(ship)) {
+    return { allowed };
+  }
+  return {
+    allowed: [...allowed, ship],
+    undo: (current) => current.filter((entry) => entry !== ship),
+  };
+}
+
+function scheduleOnceSteps(
+  { firedPrompt, finalText }: CreateCronJobArgs,
+  atOffsetMs: number
+): Step[] {
+  return [
+    {
+      kind: 'tool_call',
+      name: 'schedule_once',
+      args: {
+        at: new Date(Date.now() + atOffsetMs).toISOString(),
+        prompt: firedPrompt,
+      },
+    },
+    { kind: 'text', content: finalText },
+  ];
+}
+
+async function updateTlonPolicy(
+  ctx: RuntimeContext,
+  update: (policy: HarnessPolicy) => Partial<HarnessPolicy>
+): Promise<void> {
+  await withHarnessAcp(ctx, async (call) => {
+    const { policy, revision } = (await call(
+      'harness/tlon'
+    )) as HarnessTlonStatus;
+    await call('harness/tlon/configure', {
+      ...policy,
+      ...update(policy),
+      expectedOwner: policy.owner,
+      expectedRevision: revision,
+    });
+  });
+}
 
 interface HarnessPolicy {
   enabled: boolean;
   owner: string | null;
   response: 'off' | 'mentions' | 'all';
   allowed: string[];
-  channels: unknown[];
+  channels: HarnessChannelRule[];
   trusted: unknown[];
+}
+
+// desk/lib/harness-tlon-policy.hoon (json-channels): channel is a nest.
+interface HarnessChannelRule {
+  channel: string;
+  response: 'off' | 'mentions' | 'all';
+  everyone: boolean;
 }
 
 interface HarnessTlonStatus {
@@ -266,8 +480,11 @@ type AcpCall = (method: string, params?: unknown) => Promise<unknown>;
 // JSON-RPC replies.
 async function withHarnessAcp<T>(
   ctx: RuntimeContext,
-  fn: (call: AcpCall) => Promise<T>
+  fn: (call: AcpCall) => Promise<T>,
+  timeoutMs?: number
 ): Promise<T> {
+  const deadlineAtMs =
+    timeoutMs === undefined ? Infinity : Date.now() + timeoutMs;
   const endpoint = ctx.endpoints.ships.zod;
   const child = spawn(
     process.execPath,
@@ -328,10 +545,15 @@ async function withHarnessAcp<T>(
     }
     const id = ++nextId;
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        pending.delete(id);
-        reject(new Error(`Harness ACP ${method} timed out`));
-      }, ACP_CALL_TIMEOUT_MS);
+      const timer = setTimeout(
+        () => {
+          pending.delete(id);
+          // The bridge may be stuck mid-request; don't wait for it to exit.
+          child.kill();
+          reject(new Error(`Harness ACP ${method} timed out`));
+        },
+        Math.max(0, Math.min(ACP_CALL_TIMEOUT_MS, deadlineAtMs - Date.now()))
+      );
       pending.set(id, {
         resolve(value) {
           clearTimeout(timer);

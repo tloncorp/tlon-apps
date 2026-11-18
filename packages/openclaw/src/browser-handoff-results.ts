@@ -64,7 +64,10 @@ type PendingHandoff = BrowserHandoffRequest & {
   deliveryRetry?: { attempts: number; nextAttemptAt: number };
 };
 
-function resultEndpoint(viewerUrl: string) {
+function handoffEndpoint(
+  viewerUrl: string,
+  path: 'credential-result' | 'credentials' = 'credential-result'
+) {
   const url = new URL(viewerUrl);
   const match = /^\/s\/([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/.exec(url.pathname);
   if (
@@ -81,14 +84,38 @@ function resultEndpoint(viewerUrl: string) {
     !match
   )
     throw new Error('Invalid secure-entry result endpoint.');
-  return new URL(`/credential-result/${match[1]}`, url.origin);
+  return new URL(`/${path}/${match[1]}`, url.origin);
+}
+
+export async function cancelBrowserHandoff(viewerUrl: string): Promise<void> {
+  const url = handoffEndpoint(viewerUrl, 'credentials');
+  const { response, release } = await urbitFetch({
+    baseUrl: url.origin,
+    path: url.pathname,
+    init: { method: 'DELETE', redirect: 'error', credentials: 'omit' },
+    ssrfPolicy: {
+      allowPrivateNetwork: isBrowserViewerDevelopmentOrigin(
+        url,
+        process.env.TLON_BROWSER_VIEWER_DEV_ORIGIN
+      ),
+    },
+    pinDns: true,
+    maxRedirects: 0,
+    timeoutMs: 5_000,
+  });
+  try {
+    await response.body?.cancel();
+    if (!response.ok) throw new Error('Secure entry could not be cancelled.');
+  } finally {
+    await release();
+  }
 }
 
 export async function readBrowserHandoffResult(
   viewerUrl: string,
   signal: AbortSignal
 ): Promise<BrowserResult> {
-  const url = resultEndpoint(viewerUrl);
+  const url = handoffEndpoint(viewerUrl);
   // Only the explicitly configured development viewer may sit on a private
   // address; every other result origin keeps the deny-private-network policy.
   const development = isBrowserViewerDevelopmentOrigin(
@@ -263,7 +290,7 @@ export function createBrowserHandoffResults({
         (ctx.sessionId && ctx.sessionId !== sessionId)
       )
         throw new Error('Secure entry requires an active agent conversation.');
-      const endpoint = resultEndpoint(request.viewerUrl);
+      const endpoint = handoffEndpoint(request.viewerUrl);
       const token = endpoint.pathname.split('/').at(-1)!;
       const payload = JSON.parse(
         Buffer.from(token.split('.')[0], 'base64url').toString('utf8')

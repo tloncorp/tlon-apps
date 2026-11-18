@@ -100,6 +100,7 @@ from .history import (
 from .media import (
     PreparedMedia,
     combine_blob_fields,
+    has_attachment_blob,
     prepare_inbound_media,
     render_content_with_blob,
 )
@@ -1830,7 +1831,7 @@ class TlonAdapter(BasePlatformAdapter):
         if not self.tlon_config.owner_ship:
             logger.info("[tlon] ignoring unauthorized ship %s", message.user_id)
             return
-        if not clean_text.strip() and not message.blob:
+        if not clean_text.strip() and not has_attachment_blob(message.blob):
             logger.info(
                 "[tlon] ignoring empty request after sanitization from unauthorized ship"
             )
@@ -1853,7 +1854,7 @@ class TlonAdapter(BasePlatformAdapter):
         if not self.tlon_config.owner_ship:
             logger.info("[tlon] ignoring unauthorized ship %s", message.user_id)
             return
-        if not clean_text.strip() and not message.blob:
+        if not clean_text.strip() and not has_attachment_blob(message.blob):
             logger.info(
                 "[tlon] ignoring empty request after sanitization from unauthorized ship"
             )
@@ -3814,14 +3815,15 @@ class TlonAdapter(BasePlatformAdapter):
             owner_ship=self.tlon_config.owner_ship,
             bot_ship=self.tlon_config.ship_name,
         )
-        is_owner_blob = bool(message.blob) and self._is_owner(message.user_id)
+        has_blob = has_attachment_blob(message.blob)
+        is_owner_blob = has_blob and self._is_owner(message.user_id)
         is_participated_thread = self._is_participated_thread(message)
         is_free_response = self.tlon_config.group_free_response_enabled(message.chat_id)
         decision = resolve_attention(
             AttentionFacts(
                 is_dm=False,
                 is_authorized=is_authorized,
-                has_text=bool(clean_text or message.blob),
+                has_text=bool(clean_text) or has_blob,
                 is_mentioned=is_mentioned,
                 is_owner_command=is_owner_command,
                 is_owner_listen=is_owner_listen,

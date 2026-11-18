@@ -81,7 +81,9 @@ contacts, groups, channels, roles, Notes, uploads, hooks, and publishing.
 Call `{"action":"help"}` for arguments.
 
 This grants access beyond the current chat, subject to native Tlon permissions.
-Trusted ships need an explicit grant; current-chat tools do not imply it.
+Only the owner can use it; current-chat tools do not imply it. A ship other
+than the owner, in a Tlon conversation or as a peer, is never offered it, and
+granting it `tlon` has no effect.
 
 Final answers return to the originating chat automatically. Use `send_dm` or
 `send_channel` for separate messages elsewhere; optional `parent` selects a thread.
@@ -511,9 +513,20 @@ messaging the sender.
   MCP entries grant individual registered server IDs, for example
   `{"mcp":"calendar"}` in the `tools` array. Registering another server never
   adds it to trusted actors' grants. A granted server permits all of its tools.
+- Only the owner schedules work. Trusted and allowed ships are not offered the
+  scheduling tools, whatever their grants, and a job whose actor is not the
+  owner is paused.
+- A ship other than the owner, in a Tlon conversation or as a peer, is never
+  offered `tlon` or `run_js`, and a call to either is refused, whatever its
+  grants say. Granting either to it has no effect. A session bound to another
+  hand gets the tools its adapter configures (see
+  [hands](hands.md#binding-and-authority)).
 - Other ships and the bot's own messages do not enter inference.
 - Group invitations are accepted only when sent by the owner. DM invitations
-  from the owner or a trusted ship are accepted.
+  from the owner, a trusted ship or an allowed ship are accepted. An invitation
+  still pending when its sender gains access is accepted at that point, or when
+  the adapter next loads; messages the sender sent before it gained access are
+  not answered.
 - Joining a group subscribes to its readable channels. When the bot's own group
   roles change, the hand rechecks native read permissions and joins accessible
   channels that are not already joined. Role notifications do not grant chat
@@ -562,10 +575,13 @@ ship mentions, code, lists and image descriptions. Replies translate Markdown
 paragraphs, emphasis, headings, quotes, links, standalone images and fenced code into Story. This is
 a small codec, not a complete CommonMark renderer; unsupported syntax remains text.
 
-The first DM is an invitation rather than a post notification. After accepting,
-the adapter admits up to 64 recent posts newer than the policy's activation time.
-It preserves original message keys so overlap with live notifications deduplicates
-in the head. This bounded invitation catch-up is not general offline replay.
+The first DM is an invitation rather than a post notification, and Chat sends no
+notifications for later messages in a DM until the invitation is accepted. After
+accepting, the adapter admits up to 64 recent posts newer than both the policy's
+activation time and the sender's own admission cutoff, which a change to its
+access resets. It preserves original message keys so overlap with live
+notifications deduplicates in the head. This bounded invitation catch-up is not
+general offline replay.
 
 ## ACP configuration and activity
 
@@ -750,8 +766,12 @@ are not automatically retried. Ordinary final replies still use the publication
 ledger; there is no arbitrary cross-chat send or group-management grant here.
 
 Tlon uses the [shared scheduler](scheduling.md) for one-time follow-ups, recurring
-work, and reminders. Results return to the same DM/channel/thread through normal
-delivery. Open **Settings → Schedules** to inspect jobs.
+work, and reminders, for the owner only, in DMs and channel mentions. Results return
+to the same DM/channel/thread through normal delivery. To post elsewhere, a run uses
+the ship-wide `tlon` tool, which it has when the creating conversation's grants
+include `tlon`. An owner DM has it; other conversations take their grants from
+**Settings → Defaults** when they are created. Open **Settings → Schedules** to
+inspect jobs.
 
 ## Testing
 
@@ -764,7 +784,10 @@ removes its fixture group. Pure membership tests live in
 
 `tests-js/tlon-actions-conformance.mjs` exercises the broad
 tool with automatic replies disabled; `tests-js/tlon-denial-conformance.mjs`
-checks real two-ship silent rejection, local audit rate limiting and zero model calls.
+checks real two-ship silent rejection, local audit rate limiting and zero model calls
+over an accepted DM. It then leaves that DM so the peer's next message is a pending
+invitation, and checks that granting the peer access accepts it and answers only
+what the peer sends afterward.
 `tests-js/tlon-completion-conformance.mjs` checks permissions, moderation, full
 message reads, activity, clubs, Notes and granted Clay uploads on disposable test ships, restoring policy and storage settings afterward.
 The upload cases need a running `%storage` agent; without one it runs the rest, reports them as not run and exits non-zero.
@@ -813,7 +836,9 @@ been published to peers. The React tests cover external refresh and draft safety
 
 `tests-js/tlon-tools-conformance.mjs` uses a local provider and the same two-ship
 variables plus an existing `TEST_NEST`. It checks unbound-call denial, bounded
-history, real DM/channel reaction state, cron delivery, transcript isolation,
-recursive-schedule denial and mid-flight source revocation. It restores defaults
+history, real DM/channel reaction state, owner scheduling from a DM and a channel
+mention with delivery to that conversation, transcript isolation,
+recursive-schedule denial, mid-flight source revocation, and that trusted and
+allowed ships are not offered scheduling and have forged calls refused. It restores defaults
 and policy and cancels fixture schedules; messages and their receipts remain.
 `desk/tests/harness-cron.hoon` covers the pure UTC calendar and strict parser.

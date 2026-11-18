@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -156,7 +156,7 @@ test('text JSON response, fixed cwd, minimal capabilities, and private journal',
   assert.equal(body.choices[0].finish_reason, 'stop')
   const frames = await f.frames()
   assert.deepEqual(frames.find(frame => frame.method === 'initialize').params.clientCapabilities, {})
-  assert.deepEqual(frames.find(frame => frame.method === 'session/new').params, { cwd: f.root, mcpServers: [] })
+  assert.deepEqual(frames.find(frame => frame.method === 'session/new').params, { cwd: await realpath(f.root), mcpServers: [] })
   assert.equal((await stat(f.state)).mode & 0o777, 0o600)
   assert.equal(JSON.parse(await readFile(f.state)).pending, null)
 })
