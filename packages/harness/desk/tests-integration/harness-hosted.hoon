@@ -209,16 +209,19 @@
   ?~  body.request.sent  ~
   `q.u.body.request.sent
 ::
-++  test-owner-first-turn-advertises-live-tools-despite-empty-session-grants
-  %-  eval-mare
-  =/  m  (mare ,~)
+::  Tool names advertised on the owner's first local turn, given the
+::  conversation's saved grants.
+::
+++  owner-turn-tools
+  |=  granted=(list tool-grant:h)
+  =/  m  (mare ,(list @t))
   ^-  form:m
   =/  saved=state-0  *state-0
   =.  local-mcp-seen.saved  1
   =.  mcp-servers.saved  (my ~[['local' ['Local' 'urbit://~zod/mcp-proxy' ~ &]]])
   ;<  ~  bind:m  (setup ~2026.9.17 saved)
   =/  cfg  builtin-config:defaults
-  =.  cfg  cfg(tools ~, url 'https://openrouter.ai/api/v1/chat/completions', key 'fixture-key')
+  =.  cfg  cfg(tools granted, url 'https://openrouter.ai/api/v1/chat/completions', key 'fixture-key')
   ;<  *  bind:m  (do-poke %harness-action !>(`action:h`[%new 'owner' cfg ~s30]))
   ;<  caz=(list card)  bind:m
     (do-poke %harness-action !>(`action:h`[%send 'owner' 'What tools can you use?']))
@@ -227,10 +230,24 @@
   =/  payload  (need (de:json:html (snag 0 requests)))
   =/  tools  (need (get:j payload 'tools'))
   ?>  ?=(%a -.tools)
-  =/  names
-    (turn p.tools |=(entry=json (string:j (need (get:j entry 'function')) 'name')))
-  ;<  ~  bind:m  (ex-equal !>((lien names |=(n=@t =('run_js' n)))) !>(&))
+  %-  pure:m
+  (turn p.tools |=(entry=json (string:j (need (get:j entry 'function')) 'name')))
+::
+++  test-owner-turn-advertises-live-tools-but-not-run-js-despite-empty-session-grants
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  names=(list @t)  bind:m  (owner-turn-tools ~)
+  ;<  ~  bind:m  (ex-equal !>((lien names |=(n=@t =('run_js' n)))) !>(|))
   ;<  ~  bind:m  (ex-equal !>((lien names |=(n=@t =('list_mcp_tools' n)))) !>(&))
+  (ex-equal !>((lien names |=(n=@t =('harness_admin' n)))) !>(&))
+::
+++  test-owner-turn-advertises-run-js-only-when-session-grants-code
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  names=(list @t)  bind:m  (owner-turn-tools ~[%code])
+  ;<  ~  bind:m  (ex-equal !>((lien names |=(n=@t =('run_js' n)))) !>(&))
   (ex-equal !>((lien names |=(n=@t =('harness_admin' n)))) !>(&))
 ::
 ++  reply

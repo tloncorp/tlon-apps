@@ -5670,7 +5670,11 @@
   ::  Resolve the conversation's grants before adding privileged families.
   ::  Peer and social origins still impose their own limits.
   =/  administrator  (session-admin sid)
-  =?  granted  administrator  (owner-tools:ht mcp-servers)
+  ::  Run JS stays opt-in for the owner: only the conversation's grant offers it.
+  =/  code  (lien granted |=(grant=tool-grant:h =(%code grant)))
+  =?  granted  administrator
+    %+  skip  (owner-tools:ht mcp-servers)
+    |=(grant=tool-grant:h &(!code =(%code grant)))
   =.  granted
     (skip granted |=(grant=tool-grant:h |(=(%admin grant) =(%cron grant))))
   =/  session  (~(get by sessions) sid)
