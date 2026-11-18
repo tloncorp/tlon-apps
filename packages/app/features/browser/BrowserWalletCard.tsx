@@ -36,7 +36,7 @@ export function BrowserWalletCard({
           onOpen={() => setOpen(true)}
         />
       ) : (
-        <BrowserCardFrame icon="Lock" kicker="Tlon wallet">
+        <BrowserCardFrame icon="Lock" kicker="Sato wallet">
           <BrowserCardText
             type="title"
             color="$primaryText"

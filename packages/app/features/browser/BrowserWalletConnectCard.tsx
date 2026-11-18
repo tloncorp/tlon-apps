@@ -54,7 +54,7 @@ export function BrowserWalletConnectContent({
 }) {
   const ended = walletFinished.has(view.status);
   return (
-    <BrowserCardFrame icon="Lock" kicker="Tlon wallet">
+    <BrowserCardFrame icon="Lock" kicker="Sato wallet">
       <BrowserCardText
         type="title"
         color="$primaryText"
