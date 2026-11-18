@@ -16,7 +16,8 @@ const PROPOSE_NOTE =
   'The card never replaces your answer: pass your full answer to their message as `answer`; ' +
   'the tool posts it after the card, and it opens the workspace chat on Create. Nor does the ' +
   'card replace a requested action: set up a requested reminder, digest or schedule change with ' +
-  'the cron tool in this turn, before proposing, and pass its confirmation as `confirmation`. ' +
+  "the cron tool in this turn, before proposing, leave it out of the card's task, and pass its " +
+  'confirmation (day, time, zone and UTC offset) as `confirmation`. ' +
   'Your own reply after the card is not delivered, so return NO_REPLY. ' +
   'Small talk and one-off questions get no card, and neither does the owner introducing ' +
   'themselves or listing the kinds of help they want: that is not a topic yet.]';

@@ -23,7 +23,10 @@ describe('owner DM workspace note', () => {
     const note = await ownerDmWorkspaceNote(null);
     expect(note).toContain('Nor does the card replace a requested action');
     expect(note).toContain('with the cron tool in this turn, before proposing');
-    expect(note).toContain('pass its confirmation as `confirmation`');
+    expect(note).toContain("leave it out of the card's task");
+    expect(note).toContain(
+      '(day, time, zone and UTC offset) as `confirmation`'
+    );
   });
 
   it('hands the answer to the plan, which posts it, and replies with nothing more', async () => {

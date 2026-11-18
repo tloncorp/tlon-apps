@@ -265,6 +265,27 @@ describe('tlon_workspace_plan', () => {
     ]);
   });
 
+  it('refuses a card task that repeats a schedule set up with cron', async () => {
+    const postCard = vi.fn();
+    const execute = createWorkspacePlanToolExecutor({
+      ownerShip: () => '~ten',
+      postText: async () => undefined,
+      postCard,
+      recentSchedules: async () => ['0 9 * * 0'],
+      store: () => memoryStore(),
+    });
+    const result = await execute('1', bikeParts);
+    expect(result.details).toEqual({ error: true });
+    expect(result.content[0].text).toContain('leave the task out of the card');
+    expect(postCard).not.toHaveBeenCalled();
+    // Another schedule, or no task, is fine.
+    const other = await execute('2', {
+      ...bikeParts,
+      task: { ...bikeParts.task, schedule: '0 18 * * 5' },
+    });
+    expect(other.details).toBeUndefined();
+  });
+
   it('posts a reminder confirmation after the answer', async () => {
     const posted: string[] = [];
     const execute = createWorkspacePlanToolExecutor({

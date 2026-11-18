@@ -159,7 +159,7 @@ export const workspacePlanToolParameters = {
       type: 'string',
       maxLength: 300,
       description:
-        'One sentence posted above the card, such as "I can keep all of that in one place. Here\'s a private workspace to start from."',
+        'One sentence posted above the card, such as "I can keep all of that in one place. Here\'s a private workspace to start from." Not a reminder confirmation: that goes in `confirmation`.',
     },
     title: {
       type: 'string',
@@ -190,7 +190,7 @@ export const workspacePlanToolParameters = {
       type: 'string',
       maxLength: WORKSPACE_CONFIRMATION_MAX_LENGTH,
       description:
-        'The confirmation of a reminder, digest or schedule change you set up with cron this turn, such as "Done: every Monday at 9:00 AM Pacific (UTC-8)". The tool posts it after the answer. Leave it out when you set up nothing.',
+        'The confirmation of a reminder, digest or schedule change you set up with cron this turn: the day, the time, the zone and its UTC offset, such as "Done: every Monday at 9:00 AM America/Los_Angeles (UTC-08:00)". The tool posts it after the answer. Leave it out when you set up nothing.',
     },
     task: {
       type: 'object',
@@ -257,6 +257,12 @@ export function createWorkspacePlanToolExecutor(deps: {
   ownerShip: () => string | undefined;
   postText: (target: string, text: string) => Promise<unknown>;
   /**
+   * Cron expressions of the jobs set up recently with the cron tool (not
+   * workspace tasks), so a card can't schedule the same thing again on
+   * Create.
+   */
+  recentSchedules?: () => Promise<string[]>;
+  /**
    * Posts the answer the way replies are posted, as tlon_workspace_create
    * posts it in the workspace chat, so the two read the same. Defaults to
    * postText.
@@ -277,6 +283,16 @@ export function createWorkspacePlanToolExecutor(deps: {
       const parsed = parseWorkspacePlan(params);
       const { intro, ...plan } = parsed;
       const store = (deps.store ?? getWorkspaceProposalStore)();
+      if (plan.task && deps.recentSchedules) {
+        const same = (await deps.recentSchedules()).some(
+          (expr) => expr.trim() === plan.task!.schedule
+        );
+        if (same) {
+          throw new Error(
+            `you already scheduled "${plan.task.schedule}" with the cron tool; leave the task out of the card so Create doesn't schedule it twice`
+          );
+        }
+      }
       // A revision after Edit keeps the edited card's answer unless it brings
       // its own; an inherited answer is already in the DM.
       const input = (params ?? {}) as {
@@ -440,6 +456,9 @@ function matchLine(text: string, label: string, pattern = /(\S+)/) {
 }
 
 export const WORKSPACE_TASK_DESCRIPTION_PREFIX = 'tlon-workspace:';
+
+/** How recent a cron job counts as set up in this conversation. */
+export const WORKSPACE_RECENT_SCHEDULE_MS = 30 * 60 * 1000;
 
 const createFlights = sharedMap<string, Promise<string>>(
   'workspacePlan.createFlights'

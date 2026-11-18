@@ -85,6 +85,8 @@ import {
 } from './steward-automation-reconciliation.js';
 import { listTlonAccountIds, resolveTlonAccount } from './types.js';
 import {
+  WORKSPACE_RECENT_SCHEDULE_MS,
+  WORKSPACE_TASK_DESCRIPTION_PREFIX,
   createWorkspaceCreateToolExecutor,
   createWorkspacePlanToolExecutor,
   getWorkspaceTlonRunner,
@@ -331,6 +333,26 @@ export const tlonPlugin = createChatChannelPlugin({
           }),
         postCard: ({ target, fallbackText, blob }) =>
           postSurface(target, fallbackText, blob),
+        recentSchedules: async () => {
+          const cron = getTlonCronService();
+          if (!cron) return [];
+          const since = Date.now() - WORKSPACE_RECENT_SCHEDULE_MS;
+          return (await cron.list({ includeDisabled: false })).flatMap(
+            (job) => {
+              const j = job as {
+                description?: string;
+                createdAtMs?: number;
+                schedule?: { kind?: string; expr?: string };
+              };
+              return j.schedule?.kind === 'cron' &&
+                j.schedule.expr &&
+                (j.createdAtMs ?? 0) >= since &&
+                !j.description?.startsWith(WORKSPACE_TASK_DESCRIPTION_PREFIX)
+                ? [j.schedule.expr]
+                : [];
+            }
+          );
+        },
       });
 
       const activeAccountId = () => getActiveTlonTurnAccountId() ?? undefined;
