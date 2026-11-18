@@ -243,7 +243,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
-        title={mode === 'login' ? 'Tlon Login' : 'Confirm Code'}
+        title={mode === 'login' ? 'Sato Login' : 'Confirm Code'}
         loadingSubtitle={isSubmitting ? 'Loading…' : null}
         backgroundColor="$secondaryBackground"
         backAction={() => navigation.goBack()}

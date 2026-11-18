@@ -183,7 +183,7 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
-        title="Tlon Login"
+        title="Sato Login"
         loadingSubtitle={isSubmitting ? 'Loading…' : null}
         backgroundColor="$secondaryBackground"
         backAction={goBack}
@@ -193,7 +193,7 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
           <OnboardingTextBlock>
             <TlonText.Text size="$body" color="$primaryText">
               Enter the {otpMethod === 'phone' ? 'phone number' : 'email'}{' '}
-              associated with your Tlon account.
+              associated with your Sato account.
             </TlonText.Text>
             <TlonText.Text size="$body" color="$negativeActionText">
               {remoteError}
