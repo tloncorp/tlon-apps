@@ -10,6 +10,12 @@
   |=  id=@t
   =('hand--' (end [3 6] id))
 ::
+::  ~['*'] admits any actor. The adapter that binds it gates its speakers.
+++  actor-allowed
+  |=  [actors=(list @t) actor=@t]
+  ^-  ?
+  |(=(~['*'] actors) (lien actors |=(allowed=@t =(allowed actor))))
+::
 ++  get-control
   |=  [db=state:hh id=input-id:h]
   ^-  control:hh
@@ -231,7 +237,7 @@
   =/  config  (~(get by bindings.db) binding.action)
   ?~  config  [%| 'Unknown binding']
   ?.  enabled.u.config  [%| 'Binding is disabled']
-  ?.  (lien actors.u.config |=(actor=@t =(actor actor.action)))
+  ?.  (actor-allowed actors.u.config actor.action)
     [%| 'Actor is not allowed by this binding']
   ?.  ?&  !=('' event.action)
           !=('' text.action)
@@ -659,8 +665,9 @@
     outbox  (~(put by outbox.db) u.id publication)
   ==
 ::
+::  With .who, only that actor's waiting inputs.
 ++  cancel-queued
-  |=  [db=state:hh sid=session-id:h]
+  |=  [db=state:hh sid=session-id:h who=(unit @t)]
   ^-  state:hh
   =/  waiting  queue.db
   |-
@@ -669,6 +676,7 @@
   =/  observation  (need (~(get by observations.db) id))
   =/  config  (need (~(get by bindings.db) binding.observation))
   ?.  =(sid sid.config)  $(waiting t.waiting)
+  ?.  |(?=(~ who) =(u.who actor.observation))  $(waiting t.waiting)
   =.  observations.db  (~(put by observations.db) id observation(phase %cancelled))
   =.  queue.db  (skip queue.db |=(i=input-id:h =(i id)))
   $(waiting t.waiting)
@@ -679,7 +687,7 @@
   ::  The caller fences execution first. Keep delivery evidence, including
   ::  claimed or uncertain sends; only undispatched output can be abandoned.
   ?>  !(~(has by active.db) sid)
-  =.  db  (cancel-queued db sid)
+  =.  db  (cancel-queued db sid ~)
   =.  bindings.db
     %+  roll  ~(tap by bindings.db)
     |=  [[id=@t config=binding:hh] bindings=(map @t binding:hh)]

@@ -971,4 +971,44 @@
   ;<  ~  bind:m  (speaker-setup s '~nec')
   ;<  other=cage  bind:m  (got-peek peek)
   (ex-equal !>([;;(? q.q.own) ;;(? q.q.other)]) !>([& |]))
+::  The hand grants only ~zod, our ship. A local ACP or poke prompt is the
+::  operator's; a timer, peer or idle hand input, even one naming ~zod, is not.
+::
+++  test-only-a-local-prompt-is-answered-as-the-operator
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  base  (tlon-fixture ~bus room 'tlon_read_history' '{}' ~)
+  =/  as-input
+    |=  [source=input-source:h actor=(unit @p)]
+    ^-  state-0
+    =/  log  log:(~(got by sessions.base) 'source')
+    =/  edited=(list event:h)
+      %+  turn  log
+      |=  =event:h
+      ?.  ?=(%input-received -.event)  event
+      event(source.input source, actor.input actor)
+    %=  base
+      sessions  (~(put by sessions.base) 'source' [edited 4])
+      active.hands  ~
+    ==
+  =/  granted
+    |=  s=state-0
+    =/  m  (mare ,?)
+    ^-  form:m
+    ;<  ~  bind:m  (speaker-setup s '~zod')
+    ;<  =cage  bind:m  (got-peek /x/tool-call/source/4/control)
+    (pure:m ?=(^ ;;((unit tool-authority:adapter) q.q.cage)))
+  ;<  poke=?  bind:m  (granted (as-input [%poke ~zod] `~zod))
+  ;<  acp=?  bind:m  (granted (as-input [%acp 'client'] `~zod))
+  ;<  timer=?  bind:m  (granted (as-input [%timer %check] ~))
+  ;<  peer=?  bind:m  (granted (as-input [%peer ~zod 0v1] `~zod))
+  ;<  idle-hand=?  bind:m
+    (granted (as-input [%hand 'source-binding' 'tlon' room 'e' '~zod'] `~zod))
+  ::  A running hand input is its actor's, whatever the log says.
+  =/  running  (as-input [%poke ~zod] `~zod)
+  ;<  hand=?  bind:m  (granted running(active.hands active.hands.base))
+  %+  ex-equal
+    !>([poke acp timer peer idle-hand hand])
+  !>([& & | | | |])
 --
