@@ -477,7 +477,6 @@ function BucketRow({
       onDeleteItem,
     ]
   );
-  // Built once per row, not on every render of a long list.
   const menuItems = useMemo(() => actionGroupsToMenuItems(groups), [groups]);
   // On a phone the row's overflow button opens a native menu. A long press on
   // the row still opens the sheet below, header and all.
