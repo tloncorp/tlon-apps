@@ -237,7 +237,7 @@ function useSettingsSections(
     if (props.storageLabel) {
       usageRows.push({
         key: 'storage',
-        title: 'Tlon Storage',
+        title: 'Sato Storage',
         value: props.storageLabel,
         progress: props.storageProgress,
         testID: 'SettingsStorageRow',
