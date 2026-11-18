@@ -4422,7 +4422,8 @@
   ^-  (quip card _state)
   ?>  ?=(%spawn -.action)
   ::  The drive loop delegates with the parent's current grants. Removing
-  ::  %subagents keeps the child from creating another delegation level.
+  ::  %subagents keeps the child from creating another delegation level; the
+  ::  rest are never resolved for a child, so its saved config leaves them out.
   ?>  =(our.bowl src.bowl)
   ?.  (authorized-call parent.action call-id.action 'run_subagent')  `state
   =/  parent-session  (~(get by sessions) parent.action)
@@ -4441,7 +4442,7 @@
   =/  child-config=config:h
     %=  config.parent-view
       tools  %+  skip  (execution-tools parent.action tools.config.parent-view)
-             |=(grant=tool-grant:h =(%subagents grant))
+             |=(grant=tool-grant:h ?=(?(%subagents %admin %cron %tlon-read %tlon-write) grant))
       system  %+  fall  system.action
               %^  cat  3  system.config.parent-view
               ' You are a subagent: complete the task and reply with only your final answer.'
