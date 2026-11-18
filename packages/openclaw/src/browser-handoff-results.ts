@@ -6,6 +6,7 @@ import {
   handoffTooOld,
   handoffFailureReason,
   nextHandoffRetry,
+  workerReportDeadline,
   type HandoffRetry,
 } from './browser-handoff-retry.js';
 import { createHash } from 'node:crypto';
@@ -72,6 +73,7 @@ type PendingHandoff = BrowserHandoffRequest & {
   result?: CompletedResult;
   deliveryRetry?: HandoffRetry;
   workerRunId?: string;
+  workerReportDeadline?: number;
 };
 
 function handoffEndpoint(
@@ -203,7 +205,7 @@ export function createBrowserHandoffResults({
       await store.delete(key);
       return;
     }
-    if (handoffTooOld(handoff.expiresAt)) {
+    if (handoffTooOld(handoff)) {
       await store.delete(key);
       warn(
         `[tlon] Retired secure-entry handoff ${handoff.id} after its delivery window.`
@@ -217,12 +219,28 @@ export function createBrowserHandoffResults({
       return;
     let result = handoff.result;
     if (!result) {
-      if (handoff.expiresAt <= Date.now()) result = { status: 'failed' };
-      else {
-        const observed = await readResult(handoff.viewerUrl, signal);
-        if (observed.status === 'pending') return;
-        result = observed;
+      const expired = handoff.expiresAt <= Date.now();
+      const observed = await readResult(handoff.viewerUrl, signal).catch(
+        (error) => {
+          if (!expired || signal.aborted) throw error;
+          warn(
+            `[tlon] Secure-entry ${handoff.id} final status read failed (${handoffFailureReason(error)}).`
+          );
+          return { status: 'failed' } as const;
+        }
+      );
+      const recovered = handoff.deliveryRetry?.stage === 'status read';
+      if (recovered) handoff = { ...handoff, deliveryRetry: undefined };
+      if (observed.status === 'pending' && !expired) {
+        if (
+          recovered &&
+          !signal.aborted &&
+          (await store.lookup(key))?.id === handoff.id
+        )
+          await store.register(key, handoff);
+        return;
       }
+      result = observed.status === 'pending' ? { status: 'failed' } : observed;
     }
     if (signal.aborted || (await store.lookup(key))?.id !== handoff.id) return;
     // Only the active form uses the browser key. A completed form can retry
@@ -251,12 +269,14 @@ export function createBrowserHandoffResults({
         handoff.workerRunId
       );
       if (workerRunId) {
-        if (workerRunId !== handoff.workerRunId)
+        if (workerRunId !== handoff.workerRunId || handoff.deliveryRetry)
           await store.register(key, {
             ...handoff,
             result,
             workerRunId,
             deliveryRetry: undefined,
+            workerReportDeadline:
+              handoff.workerReportDeadline ?? workerReportDeadline(),
           });
         return;
       }
@@ -264,9 +284,9 @@ export function createBrowserHandoffResults({
       await store.register(key, {
         ...handoff,
         result,
-        deliveryRetry: nextHandoffRetry(handoff.deliveryRetry),
+        deliveryRetry: nextHandoffRetry('agent resume', handoff.deliveryRetry),
       });
-      if (!handoff.deliveryRetry)
+      if (handoff.deliveryRetry?.stage !== 'agent resume')
         warn(
           `[tlon] Secure-entry ${handoff.id} agent resume failed (${handoffFailureReason(error)}); retrying.`
         );
@@ -301,16 +321,16 @@ export function createBrowserHandoffResults({
             } catch (error) {
               if (
                 !signal.aborted &&
+                value.deliveryRetry?.stage !== 'status read' &&
                 (await store.lookup(key))?.id === value.id
               ) {
                 await store.register(key, {
                   ...value,
-                  deliveryRetry: nextHandoffRetry(value.deliveryRetry),
+                  deliveryRetry: nextHandoffRetry('status read'),
                 });
-                if (!value.deliveryRetry)
-                  warn(
-                    `[tlon] Secure-entry ${value.id} status poll failed (${handoffFailureReason(error)}); retrying.`
-                  );
+                warn(
+                  `[tlon] Secure-entry ${value.id} status poll failed (${handoffFailureReason(error)}); retrying.`
+                );
               }
             }
           })
@@ -405,7 +425,9 @@ export function registerBrowserHandoffResults(api: OpenClawPluginApi) {
       }),
       readResult: readBrowserHandoffResult,
       resume: (request, runId) =>
-        resumeBrowserContinuation(api.runtime, request, runId),
+        resumeBrowserContinuation(api.runtime, request, runId, (message) =>
+          api.logger.warn(message)
+        ),
       sessionIdFor: (sessionKey) =>
         api.runtime.agent.session.getSessionEntry({ sessionKey })?.sessionId,
       warn: (message) => api.logger.warn(message),

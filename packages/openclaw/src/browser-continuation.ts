@@ -170,7 +170,8 @@ export function publishBrowserContinuationRunner(
 export async function resumeBrowserContinuation(
   runtime: PluginRuntime,
   request: ResumeRequest,
-  workerRunId?: string
+  workerRunId?: string,
+  warn?: (message: string) => void
 ): Promise<string | undefined> {
   const lookup = (sessionKey: string) =>
     runtime.agent.session.getSessionEntry({ sessionKey });
@@ -179,7 +180,14 @@ export async function resumeBrowserContinuation(
   if (!entry) return;
   if (entry.spawnDepth && entry.parentSessionKey && entry.parentSessionId) {
     const parentKey = entry.parentSessionKey;
-    if (lookup(parentKey)?.sessionId !== entry.parentSessionId) return;
+    const parentIsCurrent = () => {
+      if (lookup(parentKey)?.sessionId === entry.parentSessionId) return true;
+      warn?.(
+        `[tlon] Retired browser continuation ${request.idempotencyKey}: originating session changed.`
+      );
+      return false;
+    };
+    if (!parentIsCurrent()) return;
     if (!workerRunId) {
       const accepted = await runtime.subagent.run({
         ...request,
@@ -198,7 +206,7 @@ export async function resumeBrowserContinuation(
       (completion.status === 'timeout' && !completion.endedAt)
     )
       return workerRunId;
-    if (lookup(parentKey)?.sessionId !== entry.parentSessionId) return;
+    if (!parentIsCurrent()) return;
     const report =
       completion.terminalReply?.disposition === 'visible'
         ? completion.terminalReply.text

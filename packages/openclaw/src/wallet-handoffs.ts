@@ -6,6 +6,7 @@ import {
   handoffTooOld,
   handoffFailureReason,
   nextHandoffRetry,
+  workerReportDeadline,
   type HandoffRetry,
 } from './browser-handoff-retry.js';
 import { randomUUID } from 'node:crypto';
@@ -35,6 +36,7 @@ type Pending = {
   result?: string;
   deliveryRetry?: HandoffRetry;
   workerRunId?: string;
+  workerReportDeadline?: number;
   sent?: boolean;
 };
 const terminal = new Set([
@@ -143,13 +145,14 @@ export function createWalletHandoffs(deps: {
     if (polling || !controller || controller.signal.aborted) return polling;
     const signal = controller.signal;
     polling = (async () => {
-      for (const { key, value: row } of await deps.store.entries()) {
+      for (const { key, value } of await deps.store.entries()) {
+        let row = value;
         if (signal.aborted) return;
         if (deps.sessionIdFor(row.sessionKey) !== row.sessionId) {
           await deps.store.delete(key);
           continue;
         }
-        if (handoffTooOld(row.expiresAt)) {
+        if (handoffTooOld(row)) {
           await deps.store.delete(key);
           deps.warn(
             `[tlon] Retired wallet handoff ${key} after its delivery window.`
@@ -158,27 +161,38 @@ export function createWalletHandoffs(deps: {
         }
         if (row.deliveryRetry && Date.now() < row.deliveryRetry.nextAttemptAt)
           continue;
-        let stage = 'status read';
+        let stage: NonNullable<HandoffRetry['stage']> = 'status read';
         try {
           let status = row.result;
           if (!status || (status === 'ready' && !row.workerRunId)) {
-            if (!status && row.expiresAt <= Date.now()) status = 'expired';
-            else {
-              const result = await deps.read(row.requestId, signal);
-              if (!terminal.has(String(result.status))) {
-                stage = 'card delivery';
-                if (!row.sent) await send(row);
-                continue;
-              }
-              status =
-                result.status === 'ready' && row.expiresAt <= Date.now()
-                  ? 'expired'
-                  : String(result.status);
-            }
+            const expired = row.expiresAt <= Date.now();
+            const result = await deps.read(row.requestId, signal);
+            if (signal.aborted) return;
             // The card sender also updates this row. Let it finish before persisting the result.
             if (deliveries.has(key)) continue;
-            if (status !== row.result)
-              await deps.store.register(key, { ...row, result: status });
+            const observed = String(result.status);
+            status = terminal.has(observed)
+              ? observed
+              : expired
+                ? 'expired'
+                : undefined;
+            if (status === 'ready' && row.expiresAt <= Date.now())
+              status = 'expired';
+            const deliveryRetry =
+              row.deliveryRetry?.stage === 'status read'
+                ? undefined
+                : row.deliveryRetry;
+            if (status !== row.result || deliveryRetry !== row.deliveryRetry) {
+              const current = await deps.store.lookup(key);
+              if (!current || deliveries.has(key)) continue;
+              row = { ...current, result: status, deliveryRetry };
+              await deps.store.register(key, row);
+            }
+            if (!status) {
+              stage = 'card delivery';
+              if (!row.sent && row.expiresAt > Date.now()) await send(row);
+              continue;
+            }
           }
           stage = 'agent resume';
           if (
@@ -203,23 +217,27 @@ export function createWalletHandoffs(deps: {
             row.workerRunId
           );
           if (!workerRunId) await deps.store.delete(key);
-          else if (workerRunId !== row.workerRunId) {
+          else if (workerRunId !== row.workerRunId || row.deliveryRetry) {
             await deps.store.register(key, {
               ...row,
               result: status,
               deliveryRetry: undefined,
               workerRunId,
+              workerReportDeadline:
+                row.workerReportDeadline ?? workerReportDeadline(),
             });
           }
         } catch (error) {
           if (signal.aborted) return;
           const current = await deps.store.lookup(key);
           if (current) {
+            const sameStage = current.deliveryRetry?.stage === stage;
+            if (sameStage && stage === 'status read') continue;
             await deps.store.register(key, {
               ...current,
-              deliveryRetry: nextHandoffRetry(current.deliveryRetry),
+              deliveryRetry: nextHandoffRetry(stage, current.deliveryRetry),
             });
-            if (!current.deliveryRetry)
+            if (!sameStage)
               deps.warn(
                 `[tlon] Wallet handoff ${key} ${stage} failed (${handoffFailureReason(error)}); retrying.`
               );
@@ -322,7 +340,9 @@ export function registerWalletHandoffs(api: OpenClawPluginApi, binary: string) {
       sessionIdFor: (sessionKey) =>
         api.runtime.agent.session.getSessionEntry({ sessionKey })?.sessionId,
       resume: (request, runId) =>
-        resumeBrowserContinuation(api.runtime, request, runId),
+        resumeBrowserContinuation(api.runtime, request, runId, (message) =>
+          api.logger.warn(message)
+        ),
       warn: (message) => api.logger.warn(message),
     });
     slot.set(service);

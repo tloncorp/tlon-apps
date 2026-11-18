@@ -182,6 +182,43 @@ it('expiry produces a terminal notification and malformed or failed calls produc
   );
 });
 
+it('polls through intermittent status failures and reads the final wallet result after expiry', async () => {
+  const f = fixture();
+  await f.service.handle(f.event, f.ctx);
+  const expiresAt = f.records.get(f.id)!.expiresAt;
+  vi.setSystemTime(expiresAt - 8_000);
+  f.read.mockRejectedValueOnce(new Error('proxy unavailable'));
+  f.service.start();
+  await f.service.poll();
+  vi.setSystemTime(expiresAt - 4_000);
+  await f.service.poll();
+  expect(f.records.get(f.id)?.deliveryRetry).toBeUndefined();
+
+  f.read.mockRejectedValueOnce(new Error('proxy unavailable again'));
+  await f.service.poll();
+  f.read.mockResolvedValue({ status: 'connected' });
+  vi.setSystemTime(expiresAt + 1);
+  await f.service.poll();
+  expect(f.read).toHaveBeenCalledTimes(4);
+  expect(f.resume.mock.calls[0][0].message).toContain(': connected.');
+});
+
+it('warns about a resume failure even after a status-read failure', async () => {
+  const f = fixture();
+  await f.service.handle(f.event, f.ctx);
+  f.read.mockRejectedValueOnce(new Error('proxy unavailable'));
+  f.service.start();
+  await f.service.poll();
+  f.read.mockResolvedValue({ status: 'connected' });
+  f.resume.mockRejectedValueOnce(new Error('Missing Tlon target'));
+  vi.setSystemTime(Date.now() + 4_000);
+  await f.service.poll();
+  expect(f.warn.mock.calls.map(([message]) => message)).toEqual([
+    expect.stringContaining('status read failed'),
+    expect.stringContaining('agent resume failed (missing delivery route)'),
+  ]);
+});
+
 it('resumes uncertain payments with inspection instead of an unconditional owner wait', async () => {
   const f = fixture();
   f.event.params.name = 'browser_payment_request';
@@ -248,15 +285,33 @@ it('rechecks an actionable status before retrying a rejected dispatch', async ()
   expect(f.records.size).toBe(0);
 });
 
+it('does not resume a cached payment authorization after the payment expires', async () => {
+  const f = fixture();
+  f.event.params.name = 'browser_payment_request';
+  await f.service.handle(f.event, f.ctx);
+  vi.setSystemTime(f.records.get(f.id)!.expiresAt - 1_000);
+  f.read.mockResolvedValue({ status: 'ready' });
+  f.resume.mockRejectedValueOnce(new Error('gateway offline'));
+  f.service.start();
+  await f.service.poll();
+  vi.setSystemTime(Date.now() + 5_000);
+  await f.service.poll();
+  expect(f.read).toHaveBeenCalledTimes(2);
+  expect(f.resume.mock.calls[1][0].message).toContain(': expired.');
+});
+
 it('recovers an accepted worker after restart and only retries its outstanding report', async () => {
   const f = fixture();
   await f.service.handle(f.event, f.ctx);
+  const expiresAt = f.records.get(f.id)!.expiresAt;
+  vi.setSystemTime(expiresAt - 1_000);
   f.read.mockResolvedValue({ status: 'ready' });
   f.resume.mockResolvedValueOnce('accepted-run');
   f.service.start();
   await f.service.poll();
   expect(f.records.get(f.id)?.workerRunId).toBe('accepted-run');
   await f.service.stop();
+  vi.setSystemTime(expiresAt + 10 * 60_000);
   f.resume.mockRejectedValueOnce(new Error('report delivery failed'));
   const restarted = createWalletHandoffs(f);
   services.push(restarted);

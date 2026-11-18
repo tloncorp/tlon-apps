@@ -271,9 +271,52 @@ describe('secure-entry result delivery', () => {
     expect(f.resume).not.toHaveBeenCalled();
     vi.setSystemTime(Date.now() + 300_001);
     await f.service.poll();
+    expect(f.readResult).toHaveBeenCalledTimes(3);
     expect(f.resume.mock.calls[0][0].message).toContain(
       'Filling is not confirmed'
     );
+  });
+
+  it('recovers a fill near expiry on the next status poll and releases the browser', async () => {
+    const f = fixture();
+    await f.service.watch(f.request, f.ctx);
+    const expiresAt = f.records.get('browser-1')!.expiresAt;
+    vi.setSystemTime(expiresAt - 6_000);
+    f.readResult.mockRejectedValueOnce(new Error('viewer unavailable'));
+    f.service.start();
+    await f.service.poll();
+    vi.setSystemTime(expiresAt - 4_000);
+    await f.service.poll();
+    expect(f.records.get('browser-1')?.deliveryRetry).toBeUndefined();
+    f.readResult.mockRejectedValueOnce(new Error('viewer unavailable again'));
+    await f.service.poll();
+    f.readResult.mockResolvedValue({ status: 'filled', submitted: true });
+    vi.setSystemTime(expiresAt - 2_000);
+    await f.service.poll();
+    expect(await f.service.isPending('browser-1')).toBe(false);
+    expect(f.resume.mock.calls[0][0].message).toContain(
+      'filled; submission attempted'
+    );
+  });
+
+  it('keeps an accepted worker past the entry window and retires it at its reporting deadline', async () => {
+    const f = fixture();
+    await f.service.watch(f.request, f.ctx);
+    const expiresAt = f.records.get('browser-1')!.expiresAt;
+    vi.setSystemTime(expiresAt - 1_000);
+    f.readResult.mockResolvedValue({ status: 'filled', submitted: true });
+    f.resume.mockResolvedValue('worker-run');
+    f.service.start();
+    await f.service.poll();
+
+    vi.setSystemTime(expiresAt + 10 * 60_000);
+    await f.service.poll();
+    expect(f.resume.mock.calls[1][1]).toBe('worker-run');
+    const [{ workerReportDeadline }] = [...f.records.values()];
+    vi.setSystemTime(workerReportDeadline!);
+    await f.service.poll();
+    expect(f.resume).toHaveBeenCalledTimes(2);
+    expect(f.records.size).toBe(0);
   });
 
   it('requires a pending service result and an exact active conversation before accepting a handoff', async () => {

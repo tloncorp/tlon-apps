@@ -310,13 +310,19 @@ it('resumes only the delegated worker, then gives its verified result to the ori
   });
 });
 
-it('drops a worker callback if the originating group session was reset', async () => {
-  const f = delegatedCheckout();
-  f.entries.set(groupKey, { sessionId: 'replacement' });
-  await resumeBrowserContinuation(f.runtime, f.request);
-  await resumeBrowserContinuation(f.runtime, f.request, 'previously-started');
-  expect(f.run).not.toHaveBeenCalled();
-});
+it.each([undefined, 'previously-started'])(
+  'logs and drops a worker callback if the originating group session was reset (run %s)',
+  async (workerRunId) => {
+    const f = delegatedCheckout();
+    const warn = vi.fn();
+    f.entries.set(groupKey, { sessionId: 'replacement' });
+    await resumeBrowserContinuation(f.runtime, f.request, workerRunId, warn);
+    expect(warn).toHaveBeenCalledExactlyOnceWith(
+      expect.stringContaining('originating session changed')
+    );
+    expect(f.run).not.toHaveBeenCalled();
+  }
+);
 
 it('keeps a standalone dashboard continuation in its session and enables delivery for a direct Tlon request', async () => {
   const f = delegatedCheckout();
