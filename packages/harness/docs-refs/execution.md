@@ -20,8 +20,9 @@ bound to another hand gets the tools its adapter configures (see
 [hands](hands.md#binding-and-authority)). Scheduled work and rehearsals cannot
 use `%code`.
 Owner-session subagents can inherit it within their parent's current grants.
-**Known bug:** `%code` doesn't limit owner conversations, which can run `run_js` and
-pass it to subagents without the grant. See [known bugs](../ISSUES.md#known-bugs).
+Unlike the other tools, `%code` stays opt-in when the owner drives a turn
+directly: without the saved grant, the turn and its subagents are not offered
+`run_js`.
 Do not enable it for untrusted work. Beyond the static loop check and the
 yielding watchdog, a per-conversation CPU-time limit (a `%jinx` hint around the
 WASM engine steps) bails runaway pure computation; it is not a security sandbox.

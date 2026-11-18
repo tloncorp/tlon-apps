@@ -218,9 +218,11 @@ skills, subagents, peers, corpus, and ship-wide Tlon access; MCP needs named
 server grants. Destination-scoped Tlon tools come from live hands. New owner
 conversations inherit defaults; saved conversations keep their settings.
 
-**Known bug:** these grants don't limit owner conversations. An owner turn gets the
-live tool catalog whatever its saved grants say, and its subagents inherit that. Other
-conversations obey their grants. See [known bugs](../ISSUES.md#known-bugs).
+A turn the owner drives directly (their own DM with the bot, ACP, a local poke,
+or as a peer) gets the live tool catalog whatever its saved grants say, except
+`%code`, which it has only when the conversation saves it. Saved grants limit
+channels, scheduled work, other ships and subagents, which are also capped by
+what their parent turn could use.
 
 Remote, scheduled, delegated, and rehearsal sessions have additional restrictions.
 Dispatch rechecks each function's grant, and internal self-pokes must match a
