@@ -110,8 +110,10 @@ try {
   const kinds = async (address) => (await client.call('harness/tlon')).events.filter((e) => address(e.address)).map((e) => e.kind)
   const top = (address) => address === nest
   const thread = (address) => address.startsWith(`${nest}/`)
-  assert.ok((await kinds(top)).includes('message') && !(await kinds(top)).includes('bot-message'), 'a bare-ship mention is a message')
-  assert.ok((await kinds(thread)).includes('message') && !(await kinds(thread)).includes('bot-message'), 'a bare-ship thread reply is a message')
+  const topKinds = await kinds(top)
+  assert.ok(topKinds.includes('message') && !topKinds.includes('bot-message'), 'a bare-ship mention is a message')
+  const threadKinds = await kinds(thread)
+  assert.ok(threadKinds.includes('message') && !threadKinds.includes('bot-message'), 'a bare-ship thread reply is a message')
   await poke('channels', 'channel-action-1', { channel: { nest, action: { post: { add: { ...essay(prompt('bot-channel', true)), author: botProfile } } } } })
   await until('bot-profile mention answered', async () => Object.values((await channelPosts()).posts).some((p) => author(p?.essay?.author) === ship && has(p.essay.content, 'bot-channel')))
   assert.equal((await kinds(top)).filter((kind) => kind === 'bot-message').length, 1, 'a bot-profile mention is a bot message')
