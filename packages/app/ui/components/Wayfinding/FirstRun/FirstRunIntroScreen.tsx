@@ -7,7 +7,7 @@ import { FirstRunFrame } from './FirstRunFrame';
 import { firstRunCopy } from './firstRunCopy';
 import type { FirstRunSetupStatus } from './types';
 
-/** Screens 1 and 2: the shipped Meet your Tlonbot slides, as steps of five. */
+/** Screens 1 and 2: the shipped Meet Sato slides, as steps of five. */
 export function FirstRunIntroScreen({
   slide,
   status,

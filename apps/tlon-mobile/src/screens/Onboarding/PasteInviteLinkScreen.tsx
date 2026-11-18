@@ -150,8 +150,7 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
                 Have an invite?
               </TlonText.Text>
               <TlonText.Text size="$body" color="$secondaryText">
-                If someone invited you to Tlon Messenger, enter it now to stay
-                connected.
+                If someone invited you to Sato, enter it now to stay connected.
               </TlonText.Text>
             </OnboardingTextBlock>
             <YStack marginTop="$2xl" flex={1}>

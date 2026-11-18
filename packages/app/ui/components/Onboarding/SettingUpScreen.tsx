@@ -34,7 +34,7 @@ const SETUP_STEPS: {
   },
   {
     key: 'bot',
-    label: 'Setting up your Tlonbot',
+    label: 'Setting up Sato',
     lastPhase: NodeBootPhase.ACCEPTING_INVITES,
   },
 ];
