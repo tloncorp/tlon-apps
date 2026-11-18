@@ -98,8 +98,8 @@ export function BotPromptFilesScreen(props: Props) {
         key: 'prompt-files',
         title: 'Prompt files',
         footer: botKept
-          ? 'Tlon keeps these files up to date so your bot keeps working. Your bot keeps its own memory. You can add to some of them.'
-          : 'Tlon keeps these files up to date so your bot keeps working. You can add to some of them.',
+          ? 'Sato keeps these files up to date so it keeps working. Sato keeps its own memory. You can add to some of them.'
+          : 'Sato keeps these files up to date so it keeps working. You can add to some of them.',
         rows: sortPromptFiles(prompts).map((prompt) => {
           const access = promptFileAccess(prompt.name, prompt.text);
           return {

@@ -148,7 +148,7 @@ describe('BotPromptFileScreen', () => {
     expect(byTestID(tree, 'BotPromptFileContents')).toHaveLength(1);
     expect(byTestID(tree, 'BotPromptFileEdit')).toHaveLength(0);
     expect(byTestID(tree, 'BotPromptFileReset')).toHaveLength(0);
-    expect(headerDescription(tree)).toContain('Tlon keeps this file');
+    expect(headerDescription(tree)).toContain('Sato keeps this file');
   });
 
   it("shows the bot's memory, kept by the bot, without any way to edit it", async () => {

@@ -461,7 +461,7 @@ export function BotSystemPromptEditorSheet({
             <BotPromptHeader
               title={title}
               meta={prompt.name}
-              description="Added to Tlon's defaults and kept when Tlon updates them."
+              description="Added to Sato's defaults and kept when Sato updates them."
               paddingLeft="$xl"
               paddingRight={isWindowNarrow ? '$xl' : '$4xl'}
             />
