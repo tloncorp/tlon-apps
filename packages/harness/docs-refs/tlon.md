@@ -888,3 +888,12 @@ recursive-schedule denial, mid-flight source revocation, and that trusted and
 allowed ships are not offered scheduling and have forged calls refused. It restores defaults
 and policy and cancels fixture schedules; messages and their receipts remain.
 `desk/tests/harness-cron.hoon` covers the pure UTC calendar and strict parser.
+
+`tests-js/tlon-shared-channel-conformance.mjs` runs on three ships: `~zod` is the
+bot, the peer (`PEER_URL`, `PEER_COOKIE`) its owner and a guest (`GUEST_URL`,
+`GUEST_COOKIE`) a trusted ship, both members of `TEST_NEST`. With a local provider
+it checks that the owner and the guest share one channel session while a thread has
+its own, that each turn's input names its speaker, that each turn is offered only
+its speaker's tools in either order and a guest's forged call is refused, and that
+changing or revoking the guest's grants keeps the channel session and its history.
+It restores defaults and policy; messages remain.

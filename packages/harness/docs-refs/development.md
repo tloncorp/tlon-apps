@@ -72,8 +72,9 @@ of 2000 lines drops test output and breaks the offsets.
 
 CI splits `test-js` across runners. `TEST_SHARD=I/N just test-js` runs the Ith of N
 parts of the full run, on fresh ships. With more than one part, the last takes the
-`node --test` files and the scripts restricted to `~lux` and `~nec`, and boots no
-`~zod`; the others deal out the `~zod` scripts in turn. A shard takes no PATTERN.
+`node --test` files and the scripts restricted to `~lux` and `~nec`, and boots
+`~zod` only for `tlon-shared-channel-conformance.mjs`, which needs all three ships;
+the others deal out the `~zod` scripts in turn. A shard takes no PATTERN.
 `just test-js --list` prints what a run would take, as `GROUP NAME` lines, without
 ships; with `TEST_SHARD`, what that shard would take.
 
