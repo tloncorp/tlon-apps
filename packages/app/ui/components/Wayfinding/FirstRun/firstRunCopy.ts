@@ -114,7 +114,7 @@ export const firstRunCopy = {
         icon: 'computer',
         title: 'Lives on a computer you own',
         detail:
-          'It runs on your own Tlon computer, and you can take it with you any time.',
+          'It runs on your own Sato instance, and you can take it with you any time.',
       },
       {
         icon: 'lock',
@@ -211,7 +211,7 @@ export const firstRunCopy = {
   apiKey: {
     title: 'Add your',
     accent: 'API key.',
-    body: 'Pick the provider, then paste your key. It’s stored on your Tlon computer.',
+    body: 'Pick the provider, then paste your key. It’s stored on your Sato instance.',
     providerLabel: 'Provider',
     keyLabel: (provider: string) => `${provider} API key`,
     keyPlaceholder: 'Paste your key here',
