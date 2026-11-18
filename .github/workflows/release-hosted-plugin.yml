@@ -1,8 +1,8 @@
-name: Deploy internal Tlon plugin
+name: Release hosted Tlon plugin
 
 on:
   push:
-    branches: [develop]
+    branches: [develop, master]
     paths:
       - ".github/actions/build-hosted-plugin/**"
       - ".nvmrc"
@@ -40,7 +40,7 @@ jobs:
   dispatch:
     runs-on: ubuntu-latest
     steps:
-      - name: Start tlonbot's internal deployment
+      - name: Dispatch tlonbot workflow
         env:
           GH_TOKEN: ${{ secrets.TLONBOT_DEPLOY_TOKEN }}
         run: |
@@ -48,4 +48,16 @@ jobs:
             echo "::error::Set TLONBOT_DEPLOY_TOKEN with Actions write access to tloncorp/tlonbot"
             exit 1
           fi
-          gh workflow run deploy-internal.yml --repo tloncorp/tlonbot --ref develop
+          case "$GITHUB_REF_NAME" in
+            develop)
+              gh workflow run deploy-internal.yml --repo tloncorp/tlonbot --ref develop
+              ;;
+            master)
+              gh workflow run publish-hosted-plugin.yml --repo tloncorp/tlonbot --ref develop \
+                -f ring=prod -f publish=true
+              ;;
+            *)
+              echo "::error::Unexpected release branch: $GITHUB_REF_NAME"
+              exit 1
+              ;;
+          esac
