@@ -31,6 +31,43 @@
       (expect !>(!(find-sub:ht 'a moon of' text)))
       (expect !>((starts 'Your Urbit ship is ~zod. References to ~zod ' other)))
   ==
+++  routed
+  ^-  view:h
+  =/  =view:h  base
+  =.  model.config.view  'openai/gpt-5.6-luna'
+  =.  url.config.view  'https://openrouter.ai/api/v1/chat/completions'
+  view
+++  no-model-instruction
+  |=  =view:h
+  =/  text  system.config:(identify:hp view %turn planet ~)
+  ;:  weld
+      (expect !>((find-sub:ht 'keeps follows its own policy.\0a\0aConfigured instructions.' text)))
+      (expect !>(!(find-sub:ht 'answer from this line' text)))
+  ==
+++  test-a-named-model-gets-the-model-instruction
+  =/  =view:h  routed
+  =/  on  system.config:(identify:hp view(zdr.config &) %turn planet ~)
+  =/  off  system.config:(identify:hp view %turn planet ~)
+  =/  boundary  'Otherwise leave it out of your reply.\0a\0aConfigured instructions.'
+  ;:  weld
+      (expect !>((find-sub:ht 'keep no data. When asked what model' on)))
+      (expect !>((find-sub:ht 'answer from this line' on)))
+      (expect !>((find-sub:ht boundary on)))
+      (expect !>((find-sub:ht 'follows its own policy. When asked what model' off)))
+      (expect !>((find-sub:ht 'answer from this line' off)))
+      (expect !>((find-sub:ht boundary off)))
+  ==
+++  test-an-empty-model-gets-no-model-instruction
+  =/  =view:h  routed
+  (no-model-instruction view(model.config ''))
+++  test-a-connected-route-gets-no-model-instruction
+  =/  =view:h  routed
+  (no-model-instruction view(url.config 'connected://laptop'))
+++  test-a-custom-route-gets-no-model-instruction
+  =/  =view:h  routed
+  =.  model.config.view  'local-acp'
+  =.  url.config.view  'http://127.0.0.1:8080/v1/chat/completions'
+  (no-model-instruction view)
 ++  test-a-moon-names-itself-and-its-parent
   =/  text  system.config:(identify:hp base %turn moon `planet)
   =/  name  (scot %p moon)
