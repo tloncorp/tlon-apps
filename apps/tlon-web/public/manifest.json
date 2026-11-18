@@ -1,7 +1,7 @@
 {
-  "name": "Tlon",
-  "short_name": "Tlon",
-  "description": "Start, host, and cultivate communities. Own your communications, organize your resources, and share documents. Tlon is a peer-to-peer collaboration tool built on Urbit that provides a few simple basics that communities can shape into something unique to their needs.",
+  "name": "Sato",
+  "short_name": "Sato",
+  "description": "Start, host, and cultivate communities. Own your communications, organize your resources, and share documents. Sato is a peer-to-peer collaboration tool built on Urbit that provides a few simple basics that communities can shape into something unique to their needs.",
   "start_url": "/apps/groups/",
   "scope": "/apps/groups/",
   "id": "/apps/groups/",

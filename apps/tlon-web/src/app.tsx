@@ -230,7 +230,7 @@ function AppRoutes() {
 
   const documentTitleFormatterMobile = useCallback(
     (_options: any, route: Route<string> | undefined) => {
-      if (!route?.name) return 'Tlon';
+      if (!route?.name) return 'Sato';
 
       if (route.name === 'GroupChannels') {
         if (groupData?.title) {
@@ -277,7 +277,7 @@ function AppRoutes() {
 
   const documentTitleFormatterDesktop = useCallback(
     (_options: any, route: Route<string> | undefined) => {
-      if (!route?.name) return 'Tlon';
+      if (!route?.name) return 'Sato';
 
       // For channel routes
       if (
@@ -859,7 +859,7 @@ function RoutedApp() {
   return (
     <>
       <Helmet>
-        <title>Tlon</title>
+        <title>Sato</title>
         <meta name="theme-color" content={userThemeColor} />
       </Helmet>
       <App />
