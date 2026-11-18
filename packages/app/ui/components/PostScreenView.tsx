@@ -71,6 +71,7 @@ import {
   DraftInputHandle,
   type DraftSendOptions,
   GalleryDraftType,
+  scrollOnceEnqueued,
 } from './draftInputs/shared';
 
 const noop = async () => {};
@@ -941,10 +942,12 @@ function SinglePostView({
       }
 
       draft.replyToPostId = parentPost.id;
-      await store.finalizeAndSendPost(draft, options);
-      if (!options?.scrollHandled) {
-        scrollToNewReply();
-      }
+      await store.finalizeAndSendPost(
+        draft,
+        options?.scrollHandled
+          ? options
+          : scrollOnceEnqueued(options, scrollToNewReply)
+      );
     },
     [parentPost, scrollToNewReply, setEditingPost]
   );

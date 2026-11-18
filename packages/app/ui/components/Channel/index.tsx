@@ -64,6 +64,7 @@ import {
   DraftInputContextProvider,
   DraftInputHandle,
   GalleryDraftType,
+  scrollOnceEnqueued,
 } from '../draftInputs/shared';
 import { PostCollectionHandle } from '../postCollectionViews/shared';
 import {
@@ -784,10 +785,12 @@ export function Channel({
       onPresentationModeChange: setDraftInputPresentationMode,
       sendPostFromDraft: async (draft, options) => {
         setEditingPost?.(undefined);
-        await finalizeAndSendPost(draft, options);
-        if (!draft.isEdit && !options?.scrollHandled) {
-          scrollToNewMessage();
-        }
+        await finalizeAndSendPost(
+          draft,
+          draft.isEdit || options?.scrollHandled
+            ? options
+            : scrollOnceEnqueued(options, scrollToNewMessage)
+        );
       },
       setEditingPost,
       setShouldBlur: setInputShouldBlur,
