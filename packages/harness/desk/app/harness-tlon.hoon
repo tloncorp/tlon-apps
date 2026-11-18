@@ -1374,6 +1374,44 @@
     %+  skip  ~(tap by jobs)
     |=  [id=@uv job=job:t]
     (~(has in affected) sid.job)
+  ::  A channel outlives one speaker's change, but that speaker's running
+  ::  and queued work there does not: it was admitted under the old grants.
+  =/  changed=(set @p)
+    =/  running=(list @p)
+      %+  murn  ~(val by observations.hands)
+      |=  observation=observation:hh
+      ?.  ?=(?(%queued %running) phase.observation)  ~
+      (slaw %p actor.observation)
+    =/  candidates=(set @p)
+      %-  silt
+      ;:  weld
+          ~(tap in speakers)
+          running
+          ~(tap in ~(key by trusted.before))
+          ~(tap in ~(key by trusted.updated-policy))
+          ~(tap in allowed.before)
+          ~(tap in allowed.updated-policy)
+          ?~(owner.before ~ ~[u.owner.before])
+          ?~(owner.updated-policy ~ ~[u.owner.updated-policy])
+      ==
+    %-  silt
+    %+  skim  ~(tap in candidates)
+    |=  who=@p
+    ?|  (actor-changed:continuity before updated-policy who)
+        &(sibling-change (sibling:~(. ownership bowl) who))
+    ==
+  =.  cor
+    %+  roll  ~(tap by lanes)
+    |=  [[sid=@t lane=lane:t] engine=_cor]
+    ?.  ?=(%channel -.to.lane)  engine
+    %+  roll  ~(tap in changed)
+    |=  [who=@p engine=_engine]
+    (head:engine /cancel [%fence-actor sid (scot %p who)])
+  =.  jobs
+    %-  my
+    %+  skip  ~(tap by jobs)
+    |=  [id=@uv job=job:t]
+    (~(has in changed) actor.input.job)
   =.  cor
     %+  roll  ~(tap by uploads)
     |=  [[id=@uv pending=upload:t] engine=_cor]
@@ -1815,7 +1853,8 @@
     %^  hand
       %observe
       id
-    [%observe binding.route event.input.u.job (scot %p actor.input.u.job) text.input.u.job]
+    =/  text  (attribute:input actor.input.u.job to.input.u.job text.input.u.job)
+    [%observe binding.route event.input.u.job (scot %p actor.input.u.job) text]
   ?:  =(%observe phase)  cor(jobs (~(del by jobs) id))
   ?:  =(%receipt phase)
     =/  delivery  (~(get by deliveries) id)
@@ -2067,8 +2106,15 @@
   =.  lanes  (~(put by lanes) sid u.lane(tools tools.config))
   =/  place=@t
     ?-  -.to.u.lane
-      %dm  (rap 3 'with ' (scot %p who.to.u.lane) ' at ' (address:p to.u.lane) ~)
-      %channel  (rap 3 'at ' (address:p to.u.lane) ', shared with everyone in that channel' ~)
+        %dm  (rap 3 'with ' (scot %p who.to.u.lane) ' at ' (address:p to.u.lane) ~)
+    ::
+        %channel
+      %+  rap  3
+      :~  'at '
+          (address:p to.u.lane)
+          ', shared with everyone in that channel. Each message there begins'
+          ' with the ship that sent it and a colon'
+      ==
     ==
   =.  system.config
     %+  rap  3

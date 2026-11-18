@@ -1,6 +1,6 @@
 ::  Native addressing syntax, not a second command interpreter. Only the head
 ::  decides which slash words are commands, after normal social admission.
-/-  d=story
+/-  d=story, t=harness-tlon
 /+  story=harness-tlon-story
 |%
 ++  whitespace
@@ -33,4 +33,21 @@
   ?:  (whitespace i.chars)  $(chars t.chars)
   ?.  =(i.chars '/')  original
   (crip chars)
+::  A channel's session is shared, so each message names its speaker. A
+::  slash command stays as written so the head still reads it as a command.
+::
+++  attribute
+  |=  [actor=@p to=destination:t text=@t]
+  ^-  @t
+  ?:  ?=(%dm -.to)  text
+  =/  chars  (trip text)
+  |-
+  ?:  &(?=(^ chars) (whitespace i.chars))  $(chars t.chars)
+  ?:  &(?=(^ chars) =('/' i.chars))  text
+  (rap 3 (scot %p actor) ': ' text ~)
+::  The longest prefix +attribute adds: a comet's name, a colon and a space.
+::
+++  attribution-limit
+  ^-  @ud
+  (add 2 (met 3 (scot %p (dec (bex 128)))))
 --

@@ -534,10 +534,17 @@ messaging the sender.
 - Channels require a mention by default. Replies to the bot's own posts count
   as addressed; DMs do not require mentions. Turn the requirement off to answer
   every message from allowed actors in channels the ship has joined.
-- Sender and exact destination/thread determine the stable conversation. A shared
-  channel does not share the owner's private DM transcript or execution grants.
+- The exact destination determines the stable conversation: a DM, a channel
+  and each thread in either have one conversation each. Every admitted speaker
+  in a channel shares its conversation, and each message there reaches the
+  model prefixed with its speaker's ship and a colon; a slash command stays as
+  written so it is still a command. A channel does not share the owner's
+  private DM transcript, and a speaker never gets another speaker's grants.
   Channel answers are still public to that channel's members: granting file,
   web, skills, peer, or MCP access can expose whatever those tools can read.
+- A channel conversation's saved tools are the owner's Defaults, whoever spoke
+  there first; each turn's speaker ceiling narrows them. A DM's are its
+  partner's grants.
 
 Authority is decided per speaker. For each turn the head asks the adapter about
 the actor of the conversation's running input, and for scheduled work about the
@@ -565,8 +572,10 @@ have replies turned off.
 
 Permission changes retire only affected authorization routes. Adding an unrelated
 trusted actor leaves existing conversations, in-flight work, notes, saved model
-settings and schedules alone. Changing the mention requirement affects channels,
-not DMs; changing an actor's role or effective grants affects that actor's work.
+settings and schedules alone. Changing the mention requirement or a channel's
+rule affects that channel's routes, not DMs. Changing an actor's role or
+effective grants retires that actor's DM route; in a channel it keeps the route
+and binding, and cancels only that actor's running and queued work there.
 Grant order alone is not a revocation. Disabling Tlon affects every route.
 
 Affected queued/running work is cancelled, old bindings are disabled, native
@@ -705,13 +714,23 @@ than answering all historical messages. Retained jobs remain recoverable.
 `activityThrough` and `catchingUp` expose the checkpoint and whether more
 work remains.
 
+### Upgrading to shared channel conversations
+
+Earlier versions kept one conversation per speaker in each channel. On upgrade,
+DM conversations keep their identities and history. Each per-speaker channel
+conversation is dropped from the adapter: its binding is disabled and its
+session fenced, so queued input there gets no reply, and the session stays in
+the head as history. The next message in that channel starts its one shared
+conversation, with a new identity.
+
 ### Retention and capacity
 
 Conversation identities and their notes outlive route authorization. Revocation
 disables the old binding and fences its work; it does not delete its evidence or
 assign its old publications to a new binding. Operational limits are admission
-backpressure, never permission to prune primary history: 128 retained social
-identities and 64 pending admissions; the head separately retains up to 64
+backpressure, never permission to prune primary history: 128 retained
+conversation identities, one per destination (a DM, a channel or a thread), and
+64 pending admissions; the head separately retains up to 64
 schedules across all hands. These complement the
 [shared hand limits and archive protocol](hands.md#fair-admission-and-explicit-retention).
 

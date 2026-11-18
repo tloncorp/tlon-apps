@@ -60,7 +60,7 @@
     [%post [[who at] at] [%chat ~lux %test] [~lux %test] ~[[%inline ~['hello']]] &]
   (put:on-stream:v10:a stream at [event | |])
 ++  scries
-  |=  stream=stream:v10:a
+  |=  [stream=stream:v10:a ledger=state:hh]
   |=  =path
   ^-  (unit vase)
   ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
@@ -70,7 +70,7 @@
   ?:  =(%$ (rear path))  `!>(&)
   ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)
   ?:  ?=([%gx @ %activity @ %v6 %all %noun ~] path)  `!>(stream)
-  ?:  (lien path |=(part=@ta =(%hand-state part)))  `!>(hands)
+  ?:  (lien path |=(part=@ta =(%hand-state part)))  `!>(ledger)
   ?:  ?=([%gx @ %harness @ %sessions %json ~] path)  `!>(`json`[%a ~])
   ?:  ?=([%gx @ %harness @ %defaults %json ~] path)
     `!>((config-json:hj %*(. *config:h tools owner-defaults)))
@@ -83,7 +83,7 @@
   ^-  form:m
   ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now ~2026.9.10))
   ;<  ~  bind:m  head-connected
-  ;<  ~  bind:m  (set-scry-gate (scries (posts speakers)))
+  ;<  ~  bind:m  (set-scry-gate (scries (posts speakers) hands))
   ;<  *  bind:m  (do-load adapter `!>(saved))
   ;<  ~  bind:m  head-connected
   ;<  caz=(list card)  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
@@ -93,11 +93,14 @@
 ::
 ++  configure
   |=  [saved=state-3:t next=policy:t]
+  (configure-with saved next hands)
+++  configure-with
+  |=  [saved=state-3:t next=policy:t ledger=state:hh]
   =/  m  (mare ,[(list card) state-3:t])
   ^-  form:m
   ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now ~2026.9.10))
   ;<  ~  bind:m  head-connected
-  ;<  ~  bind:m  (set-scry-gate (scries *stream:v10:a))
+  ;<  ~  bind:m  (set-scry-gate (scries *stream:v10:a ledger))
   ;<  *  bind:m  (do-load adapter `!>(saved))
   ;<  ~  bind:m  head-connected
   =/  params  (policy-json:policy-lib next)
@@ -161,7 +164,7 @@
     [%fact %noun !>(`(each json @t)`[%& ~])]
   %+  ex-equal
     !>((hand-acts caz))
-  !>(`(list action:hh)`~[[%observe 'binding-room' event.input.job '~nec' 'hello']])
+  !>(`(list action:hh)`~[[%observe 'binding-room' event.input.job '~nec' '~nec: hello']])
 ::  A guest's message opens the room, but the session is saved with the
 ::  owner's Defaults; the guest's own ceiling narrows each of its turns.
 ::
@@ -222,4 +225,33 @@
   ;<  ~  bind:m  (ex-equal !>((disabled caz 'binding-room')) !>(&))
   ;<  ~  bind:m  (ex-equal !>((disabled caz 'binding-dm')) !>(&))
   (ex-equal !>(&((fenced caz room-sid) (fenced caz 'dm'))) !>(&))
+::  ~bus is revoked while its turn runs in the room and another message of
+::  its waits, beside a queued message from the owner. The room keeps its
+::  route; only ~bus's work there stops.
+::
+++  test-revoked-speakers-running-and-queued-work-is-cancelled-and-others-continue
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  start  ready
+  =.  jobs.start
+    %-  my
+    :~  [0v1 [[~bus 'bus-event' room 'again'] room-sid %bind '']]
+        [0v2 [[~nec 'nec-event' room 'hi'] room-sid %bind '']]
+    ==
+  =/  ledger  hands
+  =.  observations.ledger
+    (my ~[[0v3 ['binding-room' 'running' '~bus' '~bus: hello' ~2026.9.9 %running]]])
+  =/  next  policy.start
+  =.  trusted.next  ~
+  ;<  [caz=(list card) s=state-3:t]  bind:m  (configure-with start next ledger)
+  =/  fences
+    %+  murn  (head-acts caz)
+    |=  act=*
+    ?.  ?=([%fence-actor *] act)  ~
+    `;;([%fence-actor @t @t] act)
+  ;<  ~  bind:m  (ex-equal !>(fences) !>(~[[%fence-actor room-sid '~bus']]))
+  ;<  ~  bind:m  (ex-equal !>(~(key by jobs.s)) !>((silt ~[0v2])))
+  ;<  ~  bind:m  (ex-equal !>((~(get by routes.s) room-sid)) !>(`['binding-room' %ready]))
+  (ex-equal !>((disabled caz 'binding-room')) !>(|))
 --

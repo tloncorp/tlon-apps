@@ -160,7 +160,11 @@
     ~
   ::  A DM's partner must be its source author, not an asserted third party.
   ?:  &(?=(%dm -.to.u.item) !=(who.to.u.item actor.u.item))  ~
-  ?:  |(=('' text.u.item) (gth (met 3 text.u.item) 65.536))  ~
+  ::  A channel message is observed with its speaker's prefix, which must
+  ::  still fit the hand's limit.
+  =/  limit
+    ?:(?=(%dm -.to.u.item) 65.536 (sub 65.536 attribution-limit:input))
+  ?:  |(=('' text.u.item) (gth (met 3 text.u.item) limit))  ~
   =/  id=@t  (scot %uv (sham [to.u.item key.u.item]))
   `[actor.u.item id to.u.item text.u.item]
 ::

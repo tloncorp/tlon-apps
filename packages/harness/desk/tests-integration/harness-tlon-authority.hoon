@@ -358,4 +358,46 @@
   ;<  ~  bind:m
     (equal !>(`hand-authority:ad`[& `~[%web %tlon-read %tlon-write]]) (read-as s 'source' ~ & | `~bus))
   (equal !>(`hand-authority:ad`[& ~]) (read-as s 'source' ~ & | `~nec))
+::  Each check reads the owner afresh, so a replaced owner speaking in the
+::  shared room is a guest there on its next turn.
+::
+++  test-ex-owner-loses-owner-tools-in-the-shared-session-on-the-next-check
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ::  ~bus, a member of the room's group, owned the ship and is replaced.
+  =/  s  shared-room
+  =.  owner.policy.s  `~bus
+  =/  guest  `hand-authority:ad`[& `~[%web %tlon-read %tlon-write]]
+  ;<  ~  bind:m  (equal !>(`hand-authority:ad`[& ~]) (read-as s 'source' ~ & | `~bus))
+  =.  owner.policy.s  `~nec
+  ;<  ~  bind:m  (equal !>(guest) (read-as s 'source' ~ & | `~bus))
+  (equal !>(`hand-authority:ad`[& ~]) (read-as s 'source' ~ & | `~nec))
+::  The owner's schedule in the room runs with the owner's ceiling. A guest
+::  who spoke there since, with a message still pending, changes nothing.
+::
+++  test-owner-schedule-in-a-shared-session-runs-with-the-owners-ceiling-not-the-last-speakers
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  shared-room
+  =.  trusted.policy.s  (my ~[[~bus ~[%web]]])
+  =.  jobs.s
+    (my ~[[0v1 [[~bus 'event' [%channel [%chat ~lux %test] ~] 'hi'] 'source' %bind '']]])
+  %+  equal
+    !>(`hand-authority:ad`[& `~[%web %tlon %tlon-read %tlon-write]])
+  (read s 'run' `job & |)
+::  Scheduling follows the speaker's ceiling: the owner has none, and a
+::  guest's never carries %cron, even one its grants list.
+::
+++  test-guest-cannot-schedule-in-a-shared-session-the-owner-schedules-in
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  shared-room
+  =.  trusted.policy.s  (my ~[[~bus ~[%web %cron]]])
+  ;<  ~  bind:m  (equal !>(`hand-authority:ad`[& ~]) (read-as s 'source' ~ & | `~nec))
+  %+  equal
+    !>(`hand-authority:ad`[& `~[%web %tlon-read %tlon-write]])
+  (read-as s 'source' ~ & | `~bus)
 --
