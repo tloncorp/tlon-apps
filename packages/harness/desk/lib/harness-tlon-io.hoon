@@ -5,7 +5,7 @@
 /+  story=harness-tlon-story, profile=harness-tlon-profile,
     ht=harness-tools, publication=harness-tlon-publication,
     hist=harness-tlon-history, onboarding=harness-tlon-onboarding,
-    paths=harness-tlon-paths
+    paths=harness-tlon-paths, authors=harness-tlon-author
 |_  bowl=bowl:gall
 +*  read-path  ~(. paths [our now]:bowl)
 +$  card  card:agent:gall
@@ -35,7 +35,7 @@
           meta=(unit data:mt)  blob=(unit @t)
       ==
   ^-  card
-  =/  =memo:v9:dv  [content (bot-author:publication our.bowl) sent]
+  =/  =memo:v9:dv  [content (bot-author:authors our.bowl) sent]
   ?-  -.to
       %dm
     =/  =diff:dm:v7:cv

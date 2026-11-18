@@ -8,7 +8,7 @@
 /+  cj=channel-json
 /+  gj=groups-json
 /+  sj=story-json
-/+  publication=harness-tlon-publication
+/+  authors=harness-tlon-author
 /*  quick-js-wasm  %wasm  /quick-js-emcc/wasm
 ::
 =*  strand  strand:spider
@@ -1170,7 +1170,7 @@
           ?~  channel=(~(get by channels) nest)  (pure:m ~)
           ;<  bol=bowl:rand  bind:m  get-bowl:sio
           =/  act=action-c
-            [%channel nest %post %add [post (bot-author:publication our.bol) now.bol] /chat ~ ~]
+            [%channel nest %post %add [post (bot-author:authors our.bol) now.bol] /chat ~ ~]
           (poke:sio [our.bol %channels] channel-action-1+!>(act))
         ::
         =/  post-channel-ext
@@ -1217,7 +1217,7 @@
             ;<  bol=bowl:rand  bind:m  get-bowl:sio
             =/  act=action-dm
               :*  p.who  [our now]:bol  %add
-                  [[post (bot-author:publication our.bol) now.bol] chat+/ ~ ~]
+                  [[post (bot-author:authors our.bol) now.bol] chat+/ ~ ~]
                   `now.bol
               ==
             ::
@@ -1242,7 +1242,7 @@
                 %writ
                 [our now]:bol
                 %add
-                [[post (bot-author:publication our.bol) now.bol] chat+/ ~ ~]
+                [[post (bot-author:authors our.bol) now.bol] chat+/ ~ ~]
                 `now.bol
             ==
           ::
@@ -1294,7 +1294,7 @@
           ?~  channel=(~(get by channels) nest)  (pure:m ~)
           ;<  bol=bowl:rand  bind:m  get-bowl:sio
           =/  act=action-c
-            [%channel nest %post %reply key %add post (bot-author:publication our.bol) now.bol]
+            [%channel nest %post %reply key %add post (bot-author:authors our.bol) now.bol]
           ::
           (poke:sio [our.bol %channels] channel-action-1+!>(act))
         ::
