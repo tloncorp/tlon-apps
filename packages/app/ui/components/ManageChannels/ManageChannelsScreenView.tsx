@@ -91,8 +91,9 @@ function ManageChannelsContent({
                 <Icon color="$tertiaryText" type="Sorter" size="$m" />
               </Sortable.Handle>
             }
-            // Like every overflow button on a phone, this opens a native
-            // menu, with the same commands as iOS's section menu.
+            // On Android the section's overflow button opens a native menu.
+            // iOS's section menu also moves sections; here that's done by
+            // dragging in edit mode.
             menuItems={[
               {
                 key: 'rename',

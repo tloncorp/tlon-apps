@@ -98,4 +98,15 @@ describe('BucketPreviewActions', () => {
       act(() => renderer.unmount());
     }
   );
+
+  it.each(['ios', 'android'])(
+    'shows no button on %s when nothing in the menu can run',
+    (platform) => {
+      environment.platform.OS = platform;
+      const renderer = render({});
+      expect(renderer.root.findAllByType('IconMenu' as never)).toHaveLength(0);
+      expect(renderer.toJSON()).toBeNull();
+      act(() => renderer.unmount());
+    }
+  );
 });

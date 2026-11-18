@@ -1,4 +1,4 @@
-import { Divider, Host, Menu, RNHostView } from '@expo/ui/swift-ui';
+import { Host, Menu, RNHostView } from '@expo/ui/swift-ui';
 import {
   accessibilityIdentifier,
   accessibilityLabel as labelModifier,
@@ -6,7 +6,6 @@ import {
   menuIndicator,
   menuStyle,
 } from '@expo/ui/swift-ui/modifiers';
-import { Fragment } from 'react';
 import { View } from 'react-native';
 
 import type { IconMenuProps } from './IconMenu.types';
@@ -41,12 +40,7 @@ export function IconMenu({
             ...(testID ? [accessibilityIdentifier(testID)] : []),
           ]}
         >
-          {items.map((item) => (
-            <Fragment key={item.key}>
-              {item.separatorBefore ? <Divider /> : null}
-              <SwiftUIMenuItems items={[item]} />
-            </Fragment>
-          ))}
+          <SwiftUIMenuItems items={items} />
         </Menu>
       </Host>
     </View>

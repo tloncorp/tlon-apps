@@ -8,7 +8,7 @@ import {
   Text,
   useIsWindowNarrow,
 } from '@tloncorp/ui';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack, YStack, getTokenValue } from 'tamagui';
@@ -405,8 +405,9 @@ function BucketRow({
   const [open, setOpen] = useState(false);
   const isWindowNarrow = useIsWindowNarrow();
   const authorName = useContactName(item.author);
-  // Rename, move and preview each present another sheet, so they wait for
-  // the menu to finish dismissing.
+  // From the long-press sheet, rename, move and preview each present another
+  // sheet, so they wait for it to finish dismissing. The overflow button's
+  // native menu has already closed when it runs a command.
   const { dismissThenRun, onDismissed, presentationKey } =
     useSheetDismissalAction({
       open,
@@ -419,56 +420,71 @@ function BucketRow({
   const showOverflow =
     Platform.OS !== 'web' || isWindowNarrow || isHovered || isFocused || open;
   const uploadState = uploadStateFor(item);
-  const groups = createActionGroups(
+  const groups = useMemo(
+    () =>
+      createActionGroups(
+        [
+          'neutral',
+          {
+            title: item.kind === 'folder' ? 'Open folder' : 'Open',
+            startIcon: item.kind === 'folder' ? 'Folder' : 'EyeOpen',
+            action: () => onOpenItem(item),
+          },
+          item.kind === 'file' && {
+            title: 'Download',
+            startIcon: 'ArrowDown',
+            action: () => onDownloadItem?.(item),
+          },
+          item.kind === 'file' &&
+            onCopyItemLink && {
+              title: 'Copy link',
+              startIcon: 'Link',
+              action: () => onCopyItemLink(item),
+            },
+        ],
+        canEdit &&
+          (onRenameItem || onMoveItem) && [
+            'neutral',
+            onRenameItem && {
+              title: `Rename ${item.kind}`,
+              startIcon: 'EditList',
+              action: () => onRenameItem(item),
+            },
+            onMoveItem && {
+              title: `Move ${item.kind}`,
+              startIcon: 'Folder',
+              action: () => onMoveItem(item),
+            },
+          ],
+        canEdit &&
+          onDeleteItem && [
+            'negative',
+            {
+              title: `Delete ${item.kind}`,
+              startIcon: 'Trash',
+              action: () => onDeleteItem(item),
+            },
+          ]
+      ),
     [
-      'neutral',
-      {
-        title: item.kind === 'folder' ? 'Open folder' : 'Open',
-        startIcon: item.kind === 'folder' ? 'Folder' : 'EyeOpen',
-        action: () => onOpenItem(item),
-      },
-      item.kind === 'file' && {
-        title: 'Download',
-        startIcon: 'ArrowDown',
-        action: () => onDownloadItem?.(item),
-      },
-      item.kind === 'file' &&
-        onCopyItemLink && {
-          title: 'Copy link',
-          startIcon: 'Link',
-          action: () => onCopyItemLink(item),
-        },
-    ],
-    canEdit &&
-      (onRenameItem || onMoveItem) && [
-        'neutral',
-        onRenameItem && {
-          title: `Rename ${item.kind}`,
-          startIcon: 'EditList',
-          action: () => onRenameItem(item),
-        },
-        onMoveItem && {
-          title: `Move ${item.kind}`,
-          startIcon: 'Folder',
-          action: () => onMoveItem(item),
-        },
-      ],
-    canEdit &&
-      onDeleteItem && [
-        'negative',
-        {
-          title: `Delete ${item.kind}`,
-          startIcon: 'Trash',
-          action: () => onDeleteItem(item),
-        },
-      ]
+      item,
+      canEdit,
+      onOpenItem,
+      onDownloadItem,
+      onCopyItemLink,
+      onRenameItem,
+      onMoveItem,
+      onDeleteItem,
+    ]
   );
-  // Like every overflow button on a phone, the row's opens a native menu. A
-  // long press on the row still opens the sheet below, header and all.
+  // Built once per row, not on every render of a long list.
+  const menuItems = useMemo(() => actionGroupsToMenuItems(groups), [groups]);
+  // On a phone the row's overflow button opens a native menu. A long press on
+  // the row still opens the sheet below, header and all.
   const trigger =
     Platform.OS !== 'web' ? (
       <IconMenu
-        items={actionGroupsToMenuItems(groups)}
+        items={menuItems}
         accessibilityLabel={`Actions for ${item.name}`}
         testID={`BucketsItemActions-${item.id}`}
       >
