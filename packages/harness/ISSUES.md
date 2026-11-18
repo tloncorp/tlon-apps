@@ -14,6 +14,11 @@ peer) gets every tool whatever the conversation's saved tools say, except Run JS
 needs `code` saved on the conversation. This was decided in TLON-7154. Entries 1, 3 and 9
 describe what follows from it.
 
+Run JS is not opt-in for the owner's ship working as a peer. Its peer conversations take
+their grants from `owner-grant` (`desk/app/harness.hoon`), which holds `%code` and is
+rewritten on every request, so there is no saved setting to leave it out of. TLON-7154
+did not decide this case.
+
 ### 1. Delegated children follow their parent's tools, not its saved grants
 
 **Reproduced.** A child of an owner conversation granted `subagents, web,

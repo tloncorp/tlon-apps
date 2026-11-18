@@ -220,7 +220,9 @@ conversations inherit defaults; saved conversations keep their settings.
 
 A turn the owner drives directly (their own DM with the bot, ACP, a local poke,
 or as a peer) gets the live tool catalog whatever its saved grants say, except
-`%code`, which it has only when the conversation saves it. Saved grants limit
+`%code`, which it has only when the conversation saves it. The owner's peer
+conversations are the exception: their grants are the owner catalog, `%code`
+included, rewritten on every request. Saved grants limit
 channels, scheduled work, other ships and subagents, which are also capped by
 what their parent turn could use.
 
