@@ -194,7 +194,7 @@ Hints count toward the text budget.
 | field | on | values | drawn as |
 | --- | --- | --- | --- |
 | `role` | `Text` | `'kicker'`, `'status'` | Kicker: the card's kind at its top. Status: the card's state beside it. |
-| `icon` | `Text` with `role: 'kicker'` | `AddPerson`, `Channel`, `ChannelMultiDM`, `ChannelNotebooks`, `Clock`, `Link`, `Lock`, `Mail` | An icon before the kicker. |
+| `icon` | `Text` | `AddPerson`, `Channel`, `ChannelGalleries`, `ChannelMultiDM`, `ChannelNotebooks`, `ChannelTalk`, `Clock`, `Link`, `Lock`, `Mail` | With `role: 'kicker'`, an icon before the kicker. On text with no `role` or `entity`, a list item: an icon tile beside the text, with a caption right after it as the item's subtitle. |
 | `entity` | `Text` | `{ type: 'ship' \| 'group', id, name? }` | A person or group row from the app's own contacts or group preview; `name` is used when the app has nothing better. A caption right after the row joins its handle line; other plain text after it lines up under the name. |
 | `tone` | `Button` | `'destructive'` | A red label. |
 | `resultLabel` | `Button` | string | Once the button is used, replaces its card's button row. |
@@ -221,6 +221,10 @@ How the renderer lays hinted cards out:
   its person row with a smaller avatar.
 - A borderless `Button` that isn't in a row of buttons draws as a small text
   link.
+- Consecutive list items run edge to edge across their card, divided by
+  hairlines. Apps that predate list items show each item and its caption as
+  two lines of text, and drop an icon they don't know (`ChannelGalleries`,
+  `ChannelTalk`).
 - Text in a `Row` takes its horizontal alignment from the row's `justify`; a
   row's `align` is vertical.
 - A card's answer is scoped to the buttons of that card, not of cards inside
@@ -234,7 +238,10 @@ How the renderer lays hinted cards out:
 
 The `ApprovalDM`, `ApprovalChannel`, `ApprovalGroup` and `PendingRequests`
 fixtures in `packages/app/fixtures/A2UI.fixture.tsx` are approval cards built
-from these hints.
+from these hints. `WorkspaceProposal` is the card OpenClaw's
+`tlon_workspace_plan` posts: a kicker and status, a title, list items for the
+planned channels and recurring task, and Edit and Create buttons that send a
+message with a `tlon-a2ui-selection` receipt, which the bot acts on.
 
 `McpConnect` is a client-populated menu rather than bot-authored provider data.
 The blob supplies only bounded presentation labels and three validated actions:

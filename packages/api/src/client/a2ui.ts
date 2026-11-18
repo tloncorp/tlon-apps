@@ -47,11 +47,13 @@ const choiceAccentSchema = z.enum(['blue', 'green', 'indigo', 'neutral']);
  * leniently: a value this app doesn't know drops the hint, never the card,
  * so a later bot can add values without breaking this release.
  */
-const kickerIconSchema = z.enum([
+const textIconSchema = z.enum([
   'AddPerson',
   'Channel',
+  'ChannelGalleries',
   'ChannelMultiDM',
   'ChannelNotebooks',
+  'ChannelTalk',
   'Clock',
   'Link',
   'Lock',
@@ -266,8 +268,11 @@ const textSchema = z.object({
   variant: textVariantSchema.optional(),
   /** Kicker: the card's kind at its top. Status: the card's state beside it. */
   role: textRoleSchema.optional().catch(undefined),
-  /** Drawn before a kicker. */
-  icon: kickerIconSchema.optional().catch(undefined),
+  /**
+   * Drawn before a kicker. On plain text it makes a list item: an icon tile
+   * beside the text, with a caption right after it as the item's subtitle.
+   */
+  icon: textIconSchema.optional().catch(undefined),
   /** Draw as a person or group row; `text` remains the fallback. */
   entity: textEntitySchema.optional().catch(undefined),
 });
@@ -453,7 +458,7 @@ export namespace A2UI {
   export type Button = z.infer<typeof buttonSchema>;
   /** Allowlisted assets a Choice option may render. */
   export type ChoiceIcon = z.infer<typeof choiceIconSchema>;
-  export type KickerIcon = z.infer<typeof kickerIconSchema>;
+  export type TextIcon = z.infer<typeof textIconSchema>;
   export type TextEntity = z.infer<typeof textEntitySchema>;
   export type ChoiceAccent = z.infer<typeof choiceAccentSchema>;
   export type ChoiceOption = z.infer<typeof choiceOptionSchema>;
@@ -685,7 +690,7 @@ function parseHint<T>(schema: z.ZodType<T>, value: unknown): T | undefined {
 export function getTextHints(component: A2UI.Text) {
   return {
     role: parseHint(textRoleSchema, component.role),
-    icon: parseHint(kickerIconSchema, component.icon),
+    icon: parseHint(textIconSchema, component.icon),
     entity: parseHint(textEntitySchema, component.entity),
   };
 }

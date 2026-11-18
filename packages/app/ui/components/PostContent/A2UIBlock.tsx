@@ -77,6 +77,10 @@ type RenderOptions = {
   entityDetail?: string;
   /** The last row of an inner card: a footer line under a hairline. */
   footerLine?: boolean;
+  /** A list item's subtitle, from the caption after it. */
+  listItemDetail?: string;
+  /** The first item of a list, which draws the hairline above the list. */
+  listItemFirst?: boolean;
   /** Space above this component, from its column's rhythm. */
   spacingTop?: number;
   /** A button sharing a row of buttons takes an equal width. */
@@ -768,6 +772,35 @@ function getEntityDetails(
   return { details, joined };
 }
 
+/** Plain text with an icon: one item of a list, such as a planned channel. */
+function isListItem(component: A2UI.Component | undefined) {
+  if (component?.component !== 'Text') return false;
+  const hints = A2UI.getTextHints(component);
+  return Boolean(hints.icon) && !hints.role && !hints.entity;
+}
+
+/** Captions right after a list item are its subtitle. */
+function getListItemDetails(
+  children: string[],
+  components: Map<string, A2UI.Component>
+) {
+  const details = new Map<string, string>();
+  const joined = new Set<string>();
+  children.forEach((id, index) => {
+    const next = components.get(children[index + 1]);
+    if (
+      isListItem(components.get(id)) &&
+      next?.component === 'Text' &&
+      next.variant === 'caption' &&
+      isPlainText(next)
+    ) {
+      details.set(id, next.text);
+      joined.add(next.id);
+    }
+  });
+  return { details, joined };
+}
+
 /** Space above a column child, following the design's rhythm. */
 function getStackSpacing(
   previous: A2UI.Component | undefined,
@@ -776,6 +809,10 @@ function getStackSpacing(
   inInnerCard: boolean
 ) {
   if (!previous || !current) return 0;
+  // A list's rows sit edge to edge, divided by hairlines.
+  if (isListItem(current)) {
+    return isListItem(previous) ? 0 : A2UI_SPACE.beforeList;
+  }
   if (isButtonRow(current, components)) {
     return inInnerCard
       ? A2UI_SPACE.beforeInnerButtons
@@ -1339,6 +1376,52 @@ export function A2UIBlock({
               />
             );
           }
+          if (hints.icon && !hints.role) {
+            // Runs edge to edge across its card, like the card's option rows.
+            const inset =
+              (options.cardDepth ?? 0) >= 2
+                ? A2UI_INNER_CARD.paddingX
+                : A2UI_CARD_PADDING;
+            return (
+              <View
+                key={component.id}
+                marginTop={options.spacingTop}
+                marginHorizontal={options.cardDepth ? -inset : 0}
+                borderTopWidth={options.listItemFirst ? 1 : 0}
+                borderTopColor="$border"
+              >
+                <A2UIMenuRow
+                  accessibilityLabel={[component.text, options.listItemDetail]
+                    .filter(Boolean)
+                    .join(', ')}
+                  accessibilityRole="text"
+                  dividerAfter
+                  label={component.text}
+                  labelCanWrap
+                  leading={
+                    <View
+                      width={36}
+                      height={36}
+                      borderRadius={10}
+                      backgroundColor="$secondaryBackground"
+                      alignItems="center"
+                      justifyContent="center"
+                      flexShrink={0}
+                    >
+                      <Icon
+                        type={hints.icon}
+                        color="$primaryText"
+                        customSize={[18, 18]}
+                      />
+                    </View>
+                  }
+                  paddingHorizontal={options.cardDepth ? inset : 0}
+                  paddingVertical={12}
+                  subtitle={options.listItemDetail}
+                />
+              </View>
+            );
+          }
           if (hints.role === 'kicker') {
             // A card with no status of its own shows its answer's status here.
             const status =
@@ -1507,8 +1590,9 @@ export function A2UIBlock({
             component.children,
             components
           );
+          const items = getListItemDetails(component.children, components);
           const shown = component.children.filter(
-            (child) => !joined.has(child)
+            (child) => !joined.has(child) && !items.joined.has(child)
           );
           const lastChild = components.get(shown[shown.length - 1]);
           const hasFooterLine =
@@ -1540,6 +1624,10 @@ export function A2UIBlock({
                   compactEntity,
                   entityDetail: details.get(child),
                   footerLine: hasFooterLine && index === shown.length - 1,
+                  listItemDetail: items.details.get(child),
+                  listItemFirst:
+                    isListItem(components.get(child)) &&
+                    !isListItem(components.get(shown[index - 1])),
                   parentAlign: component.align,
                   spacingTop: getStackSpacing(
                     index > 0 ? components.get(shown[index - 1]) : undefined,

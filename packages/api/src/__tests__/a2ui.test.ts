@@ -664,6 +664,16 @@ describe('a2ui rendering hints', () => {
     });
   });
 
+  test('reads a list item icon on plain text', () => {
+    const entry = withHints({ icon: 'ChannelTalk' }, {});
+    expect(A2UI.validateBlobEntry(entry)).toBe(true);
+    expect(A2UI.getTextHints(component(entry, 'title', 'Text'))).toEqual({
+      role: undefined,
+      icon: 'ChannelTalk',
+      entity: undefined,
+    });
+  });
+
   test('drops unknown hint values without rejecting the card', () => {
     const entry = withHints(
       { role: 'banner', icon: 'Rocket', entity: { type: 'planet', id: '' } },
