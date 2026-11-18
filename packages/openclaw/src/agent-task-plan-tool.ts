@@ -56,7 +56,7 @@ export const agentTaskPlanToolMetadata = {
   label: 'Tlon Agent Task Plan',
   description:
     'Post one automatically provisioned recurring-task plan during first-run onboarding. ' +
-    "Its runs publish to the Updates notebook in the owner's Tlonbot group. " +
+    "Its runs publish to the Updates notebook in the owner's Sato workspace. " +
     'The tlon-agent-onboarding skill decides when the task is ready. The trusted client and coordinator create it without another confirmation gate. Use this instead of hand-authoring A2UI or creating that notebook task with cron. ' +
     "A reminder for the owner's DM or posts for one of their groups are ordinary cron jobs, not this tool.",
   promptSnippet:

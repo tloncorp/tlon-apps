@@ -84,16 +84,16 @@ describe('onboarding tool boundary', () => {
     };
     expect(
       onboardingToolBlockReason('tlon_agent_choice', {}, surface)
-    ).toContain('only in the active Tlonbot group');
+    ).toContain('only in the active Sato workspace');
     expect(
       onboardingToolBlockReason('tlon_agent_task_plan', {}, surface)
-    ).toContain('only in the active Tlonbot group');
+    ).toContain('only in the active Sato workspace');
     expect(
       onboardingToolBlockReason('tlon_agent_service_setup', {}, surface)
-    ).toContain('only in the active Tlonbot group');
+    ).toContain('only in the active Sato workspace');
     expect(
       onboardingToolBlockReason('tlon_agent_choice', {}, surface)
-    ).toContain('choose +, then New Tlonbot group');
+    ).toContain('choose +, then New Workspace');
   });
 
   it('binds typed first-run tools to the owner DM and its furnished group', () => {
@@ -188,7 +188,7 @@ describe('onboarding tool boundary', () => {
           timestamp: Date.now(),
         }
       )
-    ).toContain('choose +, then New Tlonbot group');
+    ).toContain('choose +, then New Workspace');
     expect(
       onboardingToolBlockReason(
         'cron',

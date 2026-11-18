@@ -246,7 +246,7 @@ const READ_DELAY_CAP_MS = 1_500;
 const JITTER_RATIO = 0.2;
 const LEGACY_GROUP_INTRO_PREFIX = "I'm your Tlonbot.";
 const TLONBOT_DM_WELCOME_MESSAGE =
-  'Welcome! This is your private chat with me, your Tlonbot. Ask me ' +
+  'Welcome! This is your private chat with me, Sato. Ask me ' +
   'anything here anytime.';
 const AGENT_ONBOARDING_INTRO =
   `${TLONBOT_DM_WELCOME_MESSAGE}\n\n` +
