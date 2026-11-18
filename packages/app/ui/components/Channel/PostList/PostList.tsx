@@ -79,23 +79,67 @@ const nextFrame = () =>
 // jump to the start. LegendList still decides when data/size changes adjust it.
 const conversationMaintainVisibleContentPosition = { minIndexForVisible: 0 };
 
+/**
+ * Scrolls a conversation to its end.
+ *
+ * Where native layout bottom-aligns a conversation shorter than its list
+ * (`minHeight: '100%'` on the docked iOS list), LegendList still lays its rows
+ * out from the top, so the end it scrolls to leaves them under the keyboard.
+ * The scroll view's own end accounts for both, so it is used while the rows
+ * fit. A longer conversation has nothing to align, and LegendList, which knows
+ * where rows that have not reached the screen yet will be, is used.
+ */
+function scrollConversationToEnd(
+  listRef: React.RefObject<LegendListRef | null>,
+  {
+    animated,
+    nativeBottomAligned,
+    bottomInset,
+  }: { animated: boolean; nativeBottomAligned: boolean; bottomInset: number }
+): Promise<void> | undefined {
+  const list = listRef.current;
+  if (!list) {
+    return undefined;
+  }
+  if (nativeBottomAligned) {
+    const { contentLength, scrollLength } = list.getState();
+    if (contentLength - bottomInset <= scrollLength + 1) {
+      // LegendList types the native ref as the bare ScrollView component
+      // class; at runtime it is the instance with its scroll methods.
+      const scrollView = list.getNativeScrollRef() as
+        | ScrollViewInstance
+        | undefined;
+      scrollView?.scrollToEnd({ animated });
+      return Promise.resolve();
+    }
+  }
+  return list.scrollToEnd({ animated });
+}
+
 // The docked iOS viewport keeps its frame while the keyboard moves; the scroll
 // view animates its bottom inset and offset alongside the translated composer.
 function useDockedConversationScrollView(
   listRef: React.RefObject<LegendListRef | null>,
   keyboardLiftBehavior: KeyboardChatScrollViewProps['keyboardLiftBehavior'],
-  keyboardOffset: number
+  keyboardOffset: number,
+  bottomInsetRef: React.RefObject<number>,
+  contentHeightRef: React.RefObject<number>
 ) {
   const onContentInsetChange = React.useCallback(
     (inset: { top: number; bottom: number; left: number; right: number }) => {
+      bottomInsetRef.current = inset.bottom;
       listRef.current?.reportContentInset(inset);
     },
-    [listRef]
+    [bottomInsetRef, listRef]
   );
   return React.useCallback(
     (props: React.ComponentProps<typeof KeyboardChatScrollView>) => (
       <KeyboardChatScrollView
         {...props}
+        onContentSizeChange={(width: number, height: number) => {
+          contentHeightRef.current = height;
+          props.onContentSizeChange?.(width, height);
+        }}
         maintainVisibleContentPosition={
           conversationMaintainVisibleContentPosition
         }
@@ -104,7 +148,12 @@ function useDockedConversationScrollView(
         onContentInsetChange={onContentInsetChange}
       />
     ),
-    [keyboardLiftBehavior, keyboardOffset, onContentInsetChange]
+    [
+      contentHeightRef,
+      keyboardLiftBehavior,
+      keyboardOffset,
+      onContentInsetChange,
+    ]
   );
 }
 
@@ -442,6 +491,7 @@ function useConversationAnchorTarget({
   didTimeoutWaitingForAnchor,
   diagnosticsRef,
   listRef,
+  scrollToEnd,
 }: Pick<
   ConversationPostListAttemptProps,
   | 'anchor'
@@ -452,6 +502,7 @@ function useConversationAnchorTarget({
 > & {
   diagnosticsRef: React.RefObject<ScrollDiagnosticsTimeline | null>;
   listRef: React.RefObject<LegendListRef | null>;
+  scrollToEnd: () => Promise<void> | undefined;
 }) {
   const initialScrollIndex = React.useMemo<IndexedAnchorPosition | undefined>(
     () =>
@@ -493,7 +544,7 @@ function useConversationAnchorTarget({
     if (target === 'end') {
       diagnostics?.note('position', 'applying exact position: end');
       diagnostics?.expect('anchor positioning');
-      await listRef.current?.scrollToEnd({ animated: false });
+      await scrollToEnd();
       appliedAnchorPositionRef.current = target;
       diagnostics?.expectLanding(target);
       return true;
@@ -512,7 +563,7 @@ function useConversationAnchorTarget({
     appliedAnchorPositionRef.current = target;
     diagnostics?.expectLanding(target);
     return true;
-  }, [diagnosticsRef, listRef]);
+  }, [diagnosticsRef, listRef, scrollToEnd]);
 
   /**
    * How far the post the list opened on sits from where it was asked to be,
@@ -780,6 +831,20 @@ const ConversationPostListAttempt = React.forwardRef<
   ) => {
     const listRef = React.useRef<LegendListRef>(null);
     const docked = useIsConversationDocked();
+    // The docked scroll view's bottom inset (the keyboard), as last reported.
+    const dockedBottomInsetRef = React.useRef(0);
+    // The docked scroll view's content height, as native layout last sized it.
+    const dockedContentHeightRef = React.useRef(0);
+    const nativeBottomAligned = docked && anchorToEnd && Platform.OS === 'ios';
+    const scrollToConversationEnd = React.useCallback(
+      (animated = false) =>
+        scrollConversationToEnd(listRef, {
+          animated,
+          nativeBottomAligned,
+          bottomInset: dockedBottomInsetRef.current,
+        }),
+      [nativeBottomAligned]
+    );
     // ConversationViewport follows content growth natively on iOS; a second
     // JS scrollToEnd would restart the motion toward a stale end. Behind
     // another screen it is out of the window and follows nothing, so the list
@@ -913,25 +978,37 @@ const ConversationPostListAttempt = React.forwardRef<
     const renderDockedConversationScrollView = useDockedConversationScrollView(
       listRef,
       composerSendActive ? 'never' : 'whenAtEnd',
-      bottomInset
+      bottomInset,
+      dockedBottomInsetRef,
+      dockedContentHeightRef
     );
     // A coordinated send keeps a docked conversation's rows where they are
     // while it waits for its message. The composer gives back its extra lines
     // at once and the list grows; left to follow it, the rows would drop, then
     // rise for the message a few frames later. Held, they rise once, in the
     // render that adds the message (see `sendAlignedHeight`).
+    // On iOS the pin replaces `minHeight: '100%'`, so it takes the height
+    // native layout gave the content. That is not LegendList's scrollLength:
+    // the composer's extra lines are an inset there, not part of the frame
+    // the percentage resolves against, and pinning to it lifts the rows.
     const pinSendAlignment = React.useCallback(() => {
-      const height = listRef.current?.getState().scrollLength;
+      const height = nativeBottomAligned
+        ? dockedContentHeightRef.current
+        : listRef.current?.getState().scrollLength;
       if (!isComposerSendActive() || !docked || !anchorToEnd || !height) {
         return;
       }
       const posts = postsWithNeighborsRef.current;
       const newest = posts[posts.length - 1];
-      setSendAlignment({
-        height,
-        newestKey: newest ? getPostListKey(newest) : null,
-      });
-    }, [anchorToEnd, docked, isComposerSendActive]);
+      const newestKey = newest ? getPostListKey(newest) : null;
+      // A send that begins while one is still pinned keeps its height; the
+      // content has grown by the pin's own slack since.
+      setSendAlignment((pinned) =>
+        pinned && pinned.newestKey === newestKey
+          ? pinned
+          : { height, newestKey }
+      );
+    }, [anchorToEnd, docked, isComposerSendActive, nativeBottomAligned]);
     React.useLayoutEffect(
       () =>
         registerComposerSend({
@@ -978,6 +1055,7 @@ const ConversationPostListAttempt = React.forwardRef<
       didTimeoutWaitingForAnchor,
       diagnosticsRef,
       listRef,
+      scrollToEnd: scrollToConversationEnd,
     });
     const {
       didFinishInitialScroll,
@@ -1024,8 +1102,9 @@ const ConversationPostListAttempt = React.forwardRef<
     const settleConversationAtEnd = React.useCallback(() => {
       if (holdsEndRef.current && postsWithNeighborsRef.current.length > 0) {
         // Reported from the list's own layout, before the native content has
-        // grown, so the list's scroll, which targets its own size, is used.
-        void listRef.current?.scrollToEnd({ animated: false });
+        // grown, so the list's scroll, which targets its own size, is used for
+        // a conversation longer than its list.
+        void scrollToConversationEnd();
         return;
       }
       if (postsWithNeighborsRef.current.length > 0) {
@@ -1037,7 +1116,7 @@ const ConversationPostListAttempt = React.forwardRef<
         | ScrollViewInstance
         | undefined;
       scrollView?.scrollToEnd({ animated: false });
-    }, []);
+    }, [scrollToConversationEnd]);
     const onScrollPositionChange = useFloatingComposer(
       listRef,
       docked,
@@ -1091,9 +1170,9 @@ const ConversationPostListAttempt = React.forwardRef<
       // Rows measured while the anchoring frame was still running are taken
       // back as it ends.
       if (reshapeHoldsEnd) {
-        void listRef.current?.scrollToEnd({ animated: false });
+        void scrollToConversationEnd();
       }
-    }, [reshapeHoldsEnd]);
+    }, [reshapeHoldsEnd, scrollToConversationEnd]);
     const getRowKeys = React.useCallback(
       () => postsWithNeighbors.map(getPostListKey),
       [postsWithNeighbors]
@@ -1250,12 +1329,10 @@ const ConversationPostListAttempt = React.forwardRef<
             return;
           }
           shouldRestoreEndAnchorRef.current = false;
-          runImperativeScroll(() =>
-            listRef.current?.scrollToEnd({ animated: false })
-          );
+          runImperativeScroll(() => scrollToConversationEnd());
         },
       }),
-      []
+      [scrollToConversationEnd]
     );
     React.useLayoutEffect(() => {
       if (!conversationScrollEndAnchor) {
@@ -1291,10 +1368,8 @@ const ConversationPostListAttempt = React.forwardRef<
       ) {
         return;
       }
-      runImperativeScroll(() =>
-        listRef.current?.scrollToEnd({ animated: false })
-      );
-    }, [isComposerSendActive, reshapeFollowsEnd]);
+      runImperativeScroll(() => scrollToConversationEnd());
+    }, [isComposerSendActive, reshapeFollowsEnd, scrollToConversationEnd]);
     const maintainVisibleContentPosition =
       postsWithNeighbors.length === 0
         ? false
@@ -1370,7 +1445,7 @@ const ConversationPostListAttempt = React.forwardRef<
           markUserScrolled();
           historyNavigationRequested.current = false;
           runNotedScroll('scroll to end', opts.animated, () =>
-            listRef.current?.scrollToEnd({ animated: opts.animated })
+            scrollToConversationEnd(opts.animated ?? false)
           );
         },
         scrollToPost: ({ postId, animated, viewPosition }) => {
@@ -1390,7 +1465,7 @@ const ConversationPostListAttempt = React.forwardRef<
           });
         },
       }),
-      [markUserScrolled, runNotedScroll]
+      [markUserScrolled, runNotedScroll, scrollToConversationEnd]
     );
 
     const list = (

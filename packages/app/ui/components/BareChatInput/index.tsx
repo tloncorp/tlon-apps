@@ -932,6 +932,16 @@ function BareChatInput(
       resetSlashCommandMode();
 
       try {
+        // On iOS the list holds its rows while the composer shrinks, so let
+        // the cleared composer lay out and shrink before the message is
+        // added; otherwise both land in one frame, the list follows the
+        // message first and drops back as the composer shrinks after it.
+        // Android's list follows the composer instead, so it sends at once.
+        if (coordinated && Platform.OS === 'ios') {
+          await new Promise<void>((resolve) =>
+            requestAnimationFrame(() => resolve())
+          );
+        }
         bareChatInputLogger.log('sending message');
         const sendOperation = sendPostFromDraft(draft, {
           onEnqueued: coordinated ? undefined : releaseComposerHeight,
