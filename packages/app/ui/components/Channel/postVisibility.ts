@@ -11,13 +11,14 @@ import {
 // ship into its middle, so unlike the home-group welcome it cannot be held
 // here whole. Anchor on the head and tail it never varies in: together they
 // identify this message without swallowing a later one that quotes part of it.
-const TLONBOT_DM_INTRO_HEAD = "Howdy, I'm your Tlonbot";
+// Intros delivered before the bot was renamed keep the first head.
+const TLONBOT_DM_INTRO_HEADS = ["Howdy, I'm your Tlonbot", "Howdy, I'm Sato"];
 const TLONBOT_DM_INTRO_TAIL =
   "Just say the word and I'll be there every day. \u{1F305}";
 
 function isTlonbotDmIntro(text: string): boolean {
   return (
-    text.startsWith(TLONBOT_DM_INTRO_HEAD) &&
+    TLONBOT_DM_INTRO_HEADS.some((head) => text.startsWith(head)) &&
     text.endsWith(TLONBOT_DM_INTRO_TAIL)
   );
 }

@@ -252,6 +252,29 @@ describe('isVisibleChannelPost', () => {
     ).toBe(true);
   });
 
+  it('hides the intro that opens with the bot\u2019s new name', () => {
+    const intro = [
+      "Howdy, I'm Sato \u{1F331} ",
+      "I'm a purpose-built AI agent that can help you get things done.",
+      'I can send you a daily morning brief on any topic (AI, news, sports,' +
+        ' anything), a daily reminder, or your local weather every morning.' +
+        " Just say the word and I'll be there every day. \u{1F305} ",
+    ].join('\n\n');
+
+    expect(
+      isVisibleChannelPost(
+        {
+          authorId: '~pinser-botter-ten',
+          blob: null,
+          isBot: true,
+          textContent: intro,
+        },
+        '~ten',
+        '~pinser-botter-ten'
+      )
+    ).toBe(false);
+  });
+
   it('keeps a later bot message that merely opens the same way visible', () => {
     expect(
       isVisibleChannelPost(
