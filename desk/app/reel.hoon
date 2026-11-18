@@ -132,13 +132,13 @@
     [[cad caz] etc]
   --
 ::  +group-og-title: render the open-graph title for a group invite.
-::  empty group title falls back to "a Groupchat".
+::  empty group title falls back to "a Workspace".
 ::
 ++  group-og-title
   |=  [nickname=(unit @t) group-title=@t]
   ^-  @t
   =/  title=@t
-    ?:  =('' group-title)  'a Groupchat'
+    ?:  =('' group-title)  'a Workspace'
     group-title
   %-  crip
   ?:  |(?=(~ nickname) =('' u.nickname))
