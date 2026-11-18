@@ -1,6 +1,7 @@
 ::  Full adapter, synthetic scries only; no emitted cards are executed.
 ::  -test /=harness=/tests-integration/harness-tlon-authority
-/-  t=harness-tlon, c=harness-cron, ad=harness-adapter, h=harness, g=groups-ver
+/-  t=harness-tlon, c=harness-cron, ad=harness-adapter, h=harness, g=groups-ver,
+    a=activity-ver, hh=harness-hand
 /+  *test-agent
 /=  adapter  /app/harness-tlon
 |%
@@ -14,7 +15,7 @@
 ++  job
   ^-  schedule:c
   =/  j=schedule:c  *schedule:c
-  j(sid 'source', run-sid 'run', binding 'binding', kind %prompt)
+  j(sid 'source', run-sid 'run', binding 'binding', kind %prompt, actor '~nec')
 ::  Gall holds an acknowledged head subscription. Loading leaves and
 ::  re-watches it; the fixture keeps it acknowledged, as Gall would once the
 ::  head answers, so authority reads see a live head.
@@ -101,10 +102,11 @@
   ^-  form:m
   =/  s  fixture
   =.  policy.s  [& ~ (my ~[[~nec ~[%web]]]) %mentions ~ ~]
-  ;<  ~  bind:m
-    (equal !>(`hand-authority:ad`[& `~[%web %tlon-read %tlon-write]]) (read s 'source' ~ & |))
+  =/  ceiling  `hand-authority:ad`[& `~[%web %tlon-read %tlon-write]]
+  ;<  ~  bind:m  (equal !>(ceiling) (read-as s 'source' ~ & | `~nec))
+  ;<  ~  bind:m  (equal !>(ceiling) (read s 'source' ~ & |))
   ;<  ~  bind:m  (equal !>(|) (read s 'source' ~ & &))
-  (equal !>(`hand-authority:ad`[| ~]) (read s(trusted.policy ~) 'source' ~ & |))
+  (equal !>(`hand-authority:ad`[| ~]) (read-as s(trusted.policy ~) 'source' ~ & | `~nec))
 ::  Scheduling follows the ceiling: the owner's conversations have none, and
 ::  no other actor's ceiling carries %cron, whatever its policy grants.
 ::
@@ -125,22 +127,25 @@
     lanes   (~(gas by lanes.s) lanes)
     routes  (~(gas by routes.s) (turn lanes |=([sid=@t *] [sid ['binding' %ready]])))
   ==
+::  Each lane is read as its own actor, the speaker a turn would carry.
+::
 ++  ex-ceilings
-  |=  [s=state-2:t ceiling=(unit (list tool-grant:h))]
+  |=  [s=state-2:t actor=@p ceiling=(unit (list tool-grant:h))]
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  ~  bind:m  (equal !>(`hand-authority:ad`[& ceiling]) (read s 'dm' ~ & |))
-  ;<  ~  bind:m  (equal !>(`hand-authority:ad`[& ceiling]) (read s 'room' ~ & |))
-  (equal !>(`hand-authority:ad`[& ceiling]) (read s 'thread' ~ & |))
+  =/  expected  `hand-authority:ad`[& ceiling]
+  ;<  ~  bind:m  (equal !>(expected) (read-as s 'dm' ~ & | `actor))
+  ;<  ~  bind:m  (equal !>(expected) (read-as s 'room' ~ & | `actor))
+  (equal !>(expected) (read-as s 'thread' ~ & | `actor))
 ++  test-owner-conversations-have-no-ceiling
   %-  eval-mare
-  (ex-ceilings (with-lanes fixture ~nec ~[%web]) ~)
+  (ex-ceilings (with-lanes fixture ~nec ~[%web]) ~nec ~)
 ++  test-trusted-ship-ceiling-never-carries-cron-whatever-its-grants
   %-  eval-mare
   =/  grants  `(list tool-grant:h)`~[%cron %admin %tlon]
   =/  s  (with-lanes fixture ~bus grants)
   =.  trusted.policy.s  (my ~[[~bus grants]])
-  (ex-ceilings s `~[%admin %tlon-read %tlon-write])
+  (ex-ceilings s ~bus `~[%admin %tlon-read %tlon-write])
 ::  %tlon and %code are the owner's alone. Saved grants that list them, as
 ::  state saved before this rule did, leave every other grant in place.
 ::
@@ -149,15 +154,15 @@
   =/  grants  `(list tool-grant:h)`~[%tlon %code %web %workspace]
   =/  s  (with-lanes fixture ~bus grants)
   =.  trusted.policy.s  (my ~[[~bus grants]])
-  (ex-ceilings s `~[%web %workspace %tlon-read %tlon-write])
+  (ex-ceilings s ~bus `~[%web %workspace %tlon-read %tlon-write])
 ++  test-replaced-owner-loses-tlon-and-code-on-the-next-check
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   =/  grants  `(list tool-grant:h)`~[%tlon %code %web]
   =/  s  (with-lanes fixture ~bus grants)
-  ;<  ~  bind:m  (ex-ceilings s(owner.policy `~bus) ~)
-  (ex-ceilings s(trusted.policy (my ~[[~bus grants]])) `~[%web %tlon-read %tlon-write])
+  ;<  ~  bind:m  (ex-ceilings s(owner.policy `~bus) ~bus ~)
+  (ex-ceilings s(trusted.policy (my ~[[~bus grants]])) ~bus `~[%web %tlon-read %tlon-write])
 ++  test-owner-scheduled-run-keeps-tlon
   %-  eval-mare
   =/  s  fixture
@@ -169,7 +174,7 @@
   %-  eval-mare
   =/  s  (with-lanes fixture ~bus ~[%web])
   =.  allowed.policy.s  (silt ~[~bus])
-  (ex-ceilings s `~[%web %tlon-read %tlon-write])
+  (ex-ceilings s ~bus `~[%web %tlon-read %tlon-write])
 ++  test-channel-open-to-everyone-gives-a-ceiling-without-cron
   %-  eval-mare
   =/  m  (mare ,~)
@@ -177,8 +182,8 @@
   =/  s  (with-lanes fixture ~bus ~[%web])
   =.  channels.policy.s  (my ~[[[%chat ~lux %test] [%mentions &]]])
   =/  expected  `hand-authority:ad`[& `~[%web %tlon-read %tlon-write]]
-  ;<  ~  bind:m  (equal !>(expected) (read s 'room' ~ & |))
-  (equal !>(expected) (read s 'thread' ~ & |))
+  ;<  ~  bind:m  (equal !>(expected) (read-as s 'room' ~ & | `~bus))
+  (equal !>(expected) (read-as s 'thread' ~ & | `~bus))
 ::  One channel lane whose actor is the owner, with the owner's tools. Any
 ::  member may speak there.
 ::
@@ -197,9 +202,73 @@
   =/  guest  `hand-authority:ad`[& `~[%web %tlon-read %tlon-write]]
   ;<  ~  bind:m  (equal !>(`hand-authority:ad`[& ~]) (read-as s 'source' ~ & | `~nec))
   ;<  ~  bind:m  (equal !>(guest) (read-as s 'source' ~ & | `~bus))
-  ;<  ~  bind:m  (equal !>(`hand-authority:ad`[| ~]) (read-as s 'source' ~ & | `~dev))
-  ::  Asking without a speaker still answers for the lane's actor.
-  (equal !>(`hand-authority:ad`[& ~]) (read s 'source' ~ & |))
+  (equal !>(`hand-authority:ad`[| ~]) (read-as s 'source' ~ & | `~dev))
+::  The Tlon floor: read and write in this conversation, nothing else.
+::
+++  floor
+  ^-  hand-authority:ad
+  [& `~[%tlon-read %tlon-write]]
+++  test-shared-session-without-a-speaker-never-answers-as-the-owner
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  shared-room
+  ;<  ~  bind:m  (equal !>(floor) (read s 'source' ~ & |))
+  ::  Still the floor once the channel is closed to everyone but the owner.
+  =.  channels.policy.s  (my ~[[[%chat ~lux %test] [%mentions |]]])
+  (equal !>(floor) (read s 'source' ~ & |))
+++  test-operators-local-prompt-in-a-channel-gets-owner-authority
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (equal !>(`hand-authority:ad`[& ~]) (read-as shared-room 'source' ~ & | `~zod))
+  ::  Whoever else spoke there first.
+  =/  s  (with-lanes fixture ~bus ~[%web])
+  =.  trusted.policy.s  (my ~[[~bus ~[%web]]])
+  (equal !>(`hand-authority:ad`[& ~]) (read-as s 'room' ~ & | `~zod))
+++  test-operators-local-prompt-in-a-dm-gets-the-partners-authority
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  (with-lanes fixture ~bus ~[%web])
+  =.  trusted.policy.s  (my ~[[~bus ~[%web]]])
+  =/  partner  `hand-authority:ad`[& `~[%web %tlon-read %tlon-write]]
+  ;<  ~  bind:m  (equal !>(partner) (read-as s 'dm' ~ & | `~zod))
+  ;<  ~  bind:m  (equal !>(partner) (read-as s 'dm' ~ & | `~bus))
+  (equal !>(partner) (read s 'dm' ~ & |))
+++  test-dm-authority-refuses-a-speaker-who-is-not-its-partner
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  (with-lanes fixture ~bus ~[%web])
+  =.  trusted.policy.s  (my ~[[~bus ~[%web]] [~dev ~[%web]]])
+  ;<  ~  bind:m  (equal !>(`hand-authority:ad`[| ~]) (read-as s 'dm' ~ & | `~nec))
+  ;<  ~  bind:m  (equal !>(`hand-authority:ad`[| ~]) (read-as s 'dm' ~ & | `~dev))
+  (equal !>(`hand-authority:ad`[| ~]) (read-as fixture 'source' ~ & | `~bus))
+++  test-shared-channel-never-administers
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  (with-lanes fixture ~nec ~[%web])
+  ;<  ~  bind:m  (equal !>(|) (read shared-room 'source' ~ & &))
+  ;<  ~  bind:m  (equal !>(|) (read s 'room' ~ & &))
+  ;<  ~  bind:m  (equal !>(|) (read s 'thread' ~ & &))
+  (equal !>(&) (read s 'dm' ~ & &))
+::  Context and lens sync ask whether the conversation runs, not whether the
+::  actor that opened it is still granted.
+::
+++  test-lane-stays-live-for-context-and-lens-when-no-speaker-is-known
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ::  ~dev opened the room and has since lost access to it.
+  =/  s  (with-lanes fixture ~dev ~[%web])
+  ;<  ~  bind:m  (equal !>(floor) (read s 'room' ~ & |))
+  ;<  ~  bind:m  (equal !>(`hand-authority:ad`[| ~]) (read-as s 'room' ~ & | `~dev))
+  =/  closed  s(channels.policy (my ~[[[%chat ~lux %test] [%off |]]]))
+  ;<  ~  bind:m  (equal !>(`hand-authority:ad`[| ~]) (read closed 'room' ~ & |))
+  ;<  ~  bind:m  (equal !>(`hand-authority:ad`[| ~]) (read s(enabled.policy |) 'room' ~ & |))
+  (equal !>(`hand-authority:ad`[| ~]) (read s(routes ~) 'room' ~ & |))
 ++  test-scheduled-run-ceiling-follows-the-asked-speaker
   %-  eval-mare
   =/  m  (mare ,~)
@@ -216,4 +285,64 @@
     (read-as s 'run' `j & | `~bus)
   ;<  ~  bind:m  (equal !>(`hand-authority:ad`[| ~]) (read-as s 'run' `j & | `~dev))
   (equal !>(`hand-authority:ad`[& `~]) (read-as s 'run' `j(kind %reminder) & | `~bus))
+++  test-scheduled-run-without-a-speaker-answers-for-its-actor
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  shared-room
+  =/  j  job
+  ;<  ~  bind:m
+    %+  equal
+      !>(`hand-authority:ad`[& `~[%web %tlon-read %tlon-write]])
+    (read s 'run' `j(actor '~bus') & |)
+  ;<  ~  bind:m  (equal !>(`hand-authority:ad`[| ~]) (read s 'run' `j(actor '~dev') & |))
+  (equal !>(`hand-authority:ad`[| ~]) (read s 'run' `j(actor 'nobody') & |))
+::  One mention in chat/~lux/test from .who, after the room's route is ready.
+::  Both speakers' identities already lead to the shared room.
+::
+++  admit
+  |=  who=@p
+  =/  m  (mare ,state-2:t)
+  ^-  form:m
+  =/  s  shared-room
+  =/  to=destination:t  [%channel [%chat ~lux %test] ~]
+  =.  identities.s  (my ~[[[~bus to] 'source'] [[~dev to] 'source']])
+  =.  activity-through.s  ~2026.9.9
+  =/  posted  ~2026.9.9..12.00.00
+  =/  event=incoming-event:v8:a
+    [%post [[who posted] posted] [%chat ~lux %test] [~lux %test] ~[[%inline ~['hello']]] &]
+  =/  stream=stream:v10:a  (put:on-stream:v10:a *stream:v10:a posted [event | |])
+  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now ~2026.9.10))
+  ;<  ~  bind:m  head-connected
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ^-  (unit vase)
+    ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
+    ?:  (lien path |=(part=@ta =(%can-read part)))  `!>(|=([who=@p *] !=(~dev who)))
+    ?:  (lien path |=(part=@ta =(%groups part)))  `!>((my ~[[[~lux %test] room-group]]))
+    ?:  (lien path |=(part=@ta =(%cron-session part)))  `!>(~)
+    ?:  =(%$ (rear path))  `!>(&)
+    ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)
+    ?:  ?=([%gx @ %activity @ %v6 %all %noun ~] path)  `!>(stream)
+    ?:  (lien path |=(part=@ta =(%hand-state part)))  `!>(*state:hh)
+    ~
+  ;<  *  bind:m  (do-load adapter `!>(s))
+  ;<  ~  bind:m  head-connected
+  ;<  *  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
+  ;<  =vase  bind:m  get-save
+  (pure:m !<(state-2:t vase))
+++  test-speaker-who-cannot-read-the-channel-is-not-admitted-to-a-ready-route
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  member=state-2:t  bind:m  (admit ~bus)
+  ;<  outsider=state-2:t  bind:m  (admit ~dev)
+  =/  messages
+    |=  saved=state-2:t
+    (skim notices.saved |=(n=notice:t =('message' kind.n)))
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.member)) !>(1))
+  ;<  ~  bind:m  (ex-equal !>((lent (messages member))) !>(1))
+  ;<  ~  bind:m  (ex-equal !>(jobs.outsider) !>(*(map @uv job:t)))
+  (ex-equal !>((messages outsider)) !>(*(list notice:t)))
 --

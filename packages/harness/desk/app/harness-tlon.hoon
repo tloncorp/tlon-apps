@@ -558,9 +558,8 @@
       ?~  job
         %-  emit
         (fail '-32602' 'Admission has already settled or been revoked; refresh its state')
-      =/  lane  (~(get by lanes) sid.u.job)
-      ?.  ?&  ?=(^ lane)
-              ?=(^ (lane-grants u.lane ~))
+      ?.  ?&  (~(has by lanes) sid.u.job)
+              ?=(^ (speaker-grants actor.input.u.job to.input.u.job ~))
           ==
         (emit (fail '-32602' 'Admission no longer has current authority'))
       =.  cor
@@ -744,8 +743,7 @@
   ^+  cor
   =/  lane  (delivery-lane sid.request)
   ?.  ?&  ?=(^ lane)
-          (route-ready sid.request)
-          ?=(^ (lane-grants u.lane ~))
+          (lane-live sid.request (scheduled sid.request))
       ==
     (finish-tool id 'rejected: no authorized outstanding call in a current Tlon conversation')
   =/  parsed  (de:json:html args.call.request)
@@ -845,8 +843,7 @@
       ?=(^ authority)
       =(call.request call.u.authority)
       ?=(^ lane)
-      (route-ready sid.request)
-      ?=(^ (lane-grants u.lane ~))
+      (lane-live sid.request (scheduled sid.request))
   ==
 ::
 ++  close-upload
@@ -1133,38 +1130,55 @@
   ^-  (unit (list tool-grant:h))
   (grants-owned:p policy actor owner-tools (actor-owner actor))
 ::
-++  lane-grants
-  |=  [lane=lane:t owner-tools=(list tool-grant:h)]
+++  speaker-grants
+  |=  [who=@p to=destination:t owner-tools=(list tool-grant:h)]
   ^-  (unit (list tool-grant:h))
-  =/  owner  (actor-owner actor.lane)
+  =/  owner  (actor-owner who)
   ::  Non-owner channel grants also require current native membership.
-  ?:  &(!owner ?=(%channel -.to.lane))
+  ?:  &(!owner ?=(%channel -.to))
     =/  readable
       %-  mole
       |.
-      (can-read:~(. directory:permissions bowl) actor.lane nest.to.lane)
+      (can-read:~(. directory:permissions bowl) who nest.to)
     ?.  =(`& readable)  ~
-    (destination-grants:p policy actor.lane to.lane owner-tools owner)
-  (destination-grants:p policy actor.lane to.lane owner-tools owner)
+    (destination-grants:p policy who to owner-tools owner)
+  (destination-grants:p policy who to owner-tools owner)
+::  Whether the conversation itself may still run, whoever speaks in it.
+::
+++  lane-live
+  |=  [sid=@t job=(unit schedule:cr)]
+  ^-  ?
+  =/  lane  (~(get by lanes) ?~(job sid sid.u.job))
+  ?~  lane  |
+  ?&  enabled.policy
+      (route-ready-for sid job)
+      (cron-lane-live-for sid job)
+      ?|  ?=(%dm -.to.u.lane)
+          !=(%off response:(channel-rule:p policy nest.to.u.lane))
+      ==
+  ==
 ::
 ++  owner-lane
   |=  sid=@t
   ^-  ?
   =/  lane  (~(get by lanes) sid)
   ?.  ?&  ?=(^ lane)
-          (actor-owner actor.u.lane)
           ?=(%dm -.to.u.lane)
-          live:(lane-authority sid)
+          (actor-owner who.to.u.lane)
+          ?=(~ (scheduled sid))
       ==
     |
-  ?=(~ (scheduled sid))
+  (lane-live sid ~)
 ::
 ++  lane-authority
   |=  sid=@t
   ^-  hand-authority:ad
   (speaker-authority sid ~)
-::  Authority for one speaker in a lane's destination. Without a speaker it
-::  answers for the lane's actor from the lane's saved tools.
+::  Authority for one speaker in a lane's destination. A DM answers for its
+::  partner. In a channel, the operator's own prompt (the head proves it is
+::  local) has the owner's authority, and with no speaker known only the
+::  Tlon floor, never the owner's. A scheduled run with no speaker answers
+::  for its job's actor.
 ::
 ++  speaker-authority
   |=  [sid=@t speaker=(unit @p)]
@@ -1172,25 +1186,34 @@
   ::  Reuse only within this calculation; the next check reads fresh authority.
   =/  job  (scheduled sid)
   =/  lane  (~(get by lanes) ?~(job sid sid.u.job))
-  ?.  &(?=(^ lane) (route-ready-for sid job))
+  ?~  lane  [| ~]
+  ?.  (lane-live sid job)  [| ~]
+  =?  speaker  &(?=(^ job) ?=(~ speaker))  (slaw %p actor.u.job)
+  ?:  &(?=(^ job) ?=(~ speaker))  [| ~]
+  ?:  ?&  ?=(%dm -.to.u.lane)
+          ?=(^ speaker)
+          !=(u.speaker who.to.u.lane)
+          !=(u.speaker our.bowl)
+      ==
     [| ~]
-  =/  who  (fall speaker actor.u.lane)
-  =/  owner  (actor-owner who)
+  =/  who=(unit @p)  ?:(?=(%dm -.to.u.lane) `who.to.u.lane speaker)
+  ?~  who  [& `(guest-tools:ht (with-tlon:ht ~))]
+  =/  operator  &(?=(%channel -.to.u.lane) =(our.bowl u.who))
   ::  The owner's grants are the lane's saved tools; anyone else's come from
   ::  policy alone, never from another speaker's lane.
-  =/  grants  (lane-grants u.lane(actor who) tools.u.lane)
-  ?.  &(?=(^ grants) (cron-lane-live-for sid job))
-    [| ~]
-  =/  tools  ?~(speaker tools.u.lane u.grants)
+  =/  grants=(unit (list tool-grant:h))
+    ?:  operator  `tools.u.lane
+    (speaker-grants u.who to.u.lane tools.u.lane)
+  ?~  grants  [| ~]
   ?^  job
     :-  &
     :-  ~
     ?:  =(%reminder kind.u.job)  ~
-    (scheduled-tools:ht (with-tlon:ht tools))
+    (scheduled-tools:ht (with-tlon:ht u.grants))
   ::  The head schedules only within this ceiling: the owner has none, and
   ::  +with-tlon keeps %cron out of every other actor's. +guest-tools keeps
   ::  %tlon and %code out of it too, so only the owner holds them.
-  [& ?:(!owner `(guest-tools:ht (with-tlon:ht tools)) ~)]
+  [& ?:(|(operator (actor-owner u.who)) ~ `(guest-tools:ht (with-tlon:ht u.grants)))]
 ::
 ++  thread-context
   |=  [sid=@t binding=@t]
@@ -1200,7 +1223,7 @@
   ?.  ?&  ?=(^ lane)
           ?=(^ route)
           =(binding binding.u.route)
-          live:(lane-authority sid)
+          (lane-live sid (scheduled sid))
       ==
     ~
   ?.  &(?=(%channel -.to.u.lane) ?=(^ parent.to.u.lane))  ~
@@ -1250,6 +1273,21 @@
   ?&  ?=(^ route)
       =(%ready phase.u.route)
       =(binding.publication binding.u.route)
+  ==
+::  A reply is published only while its speaker is still granted, and only
+::  if that speaker's input came after the speaker's latest authority change:
+::  a revocation mid-turn or a later re-grant both strand an older reply.
+::
+++  publication-speaker-granted
+  |=  [hands=state:hh publication=publication:hh lane=lane:t]
+  ^-  ?
+  =/  observation  (~(get by observations.hands) input.publication)
+  ?~  observation  |
+  =/  job  (scheduled sid.publication)
+  =/  speaker  (slaw %p ?~(job actor.u.observation actor.u.job))
+  ?~  speaker  |
+  ?&  ?=(^ (speaker-grants u.speaker to.lane ~))
+      (gth at.u.observation (fall (~(get by cuts) u.speaker) `@da`0))
   ==
 ::
 ++  read-profile
@@ -1907,6 +1945,8 @@
       cutoff
     (fall (~(get by channel-cuts) nest.to.u.input) `@da`0)
   ?:  (lte (posted-at:continuity event) cutoff)  cor
+  ::  A ready route does not recheck native read permission on its own.
+  ?~  (speaker-grants actor.u.input to.u.input ~)  cor
   =/  known  (~(get by identities) [actor.u.input to.u.input])
   =/  sid  (fall known (identity:continuity actor.u.input to.u.input))
   ?:  &(?=(~ known) (gte ~(wyt by identities) 128))
@@ -1970,7 +2010,7 @@
   =/  lane  (~(get by lanes) sid)
   =/  route  (~(get by routes) sid)
   ?.  &(?=(^ lane) ?=(^ route))  cor
-  ?.  ?=(^ (lane-grants u.lane ~))  cor
+  ?.  ?=(^ (speaker-grants actor.u.lane to.u.lane ~))  cor
   ?.  .^(? %gu /(scot %p our.bowl)/harness/(scot %da now.bowl)/$)
     (route-error sid 'Head unavailable; authorization setup will resume on reconnect.')
   =.  jobs
@@ -1989,7 +2029,7 @@
     .^(json %gx /(scot %p our.bowl)/harness/(scot %da now.bowl)/defaults/json)
   ?>  ?=(%o -.defaults)
   =/  config  (json-config:hj [%o (~(put by p.defaults) 'key' [%s ''])])
-  =.  tools.config  (need (lane-grants u.lane tools.config))
+  =.  tools.config  (need (speaker-grants actor.u.lane to.u.lane tools.config))
   =.  lanes  (~(put by lanes) sid u.lane(tools tools.config))
   =.  system.config
     %+  rap  3
@@ -2011,7 +2051,7 @@
   =/  saved  (saved-config sid)
   ?~  saved  (route-error sid 'Conversation configuration is unavailable.')
   =/  config  u.saved
-  =.  tools.config  (need (lane-grants lane tools.config))
+  =.  tools.config  (need (speaker-grants actor.lane to.lane tools.config))
   =.  lanes  (~(put by lanes) sid lane(tools tools.config))
   =.  routes  (~(put by routes) sid route(phase %config))
   (head /route/[sid]/(scot %ud epoch.lane)/config [%config sid config ~s30])
@@ -2040,6 +2080,8 @@
   |=  [id=@uv job=job:t]
   ^+  cor
   ?.  (route-ready sid.job)  cor
+  ?~  (speaker-grants actor.input.job to.input.job ~)
+    cor(jobs (~(del by jobs) id))
   =/  route  (~(got by routes) sid.job)
   =.  jobs  (~(put by jobs) id job(stage %bind))
   %^  hand  %bind  id
@@ -2202,7 +2244,7 @@
   ?~  lane  engine
   ?:  &(?=(%channel -.to.u.lane) !publications-connected:engine)  engine
   ?.  (publication-current:engine publication)  engine
-  ?~  (lane-grants:engine u.lane ~)  engine
+  ?.  (publication-speaker-granted:engine hands publication u.lane)  engine
   ?.  (cron-lane-live:engine sid.publication)  engine
   ::  The ledger, not this worker's cache, owns uncertainty. A recovered or
   ::  operator-owned claim also blocks later sends to the same destination.
@@ -2281,7 +2323,7 @@
     =/  binding  (~(got by bindings.hands) binding.observation)
     =/  sid  sid.binding
     =/  lane  (delivery-lane:engine sid)
-    ?.  &(?=(^ lane) live:(lane-authority:engine sid))  engine
+    ?.  &(?=(^ lane) (lane-live:engine sid (scheduled:engine sid)))  engine
     =/  publication  (~(get by outbox.hands) id)
     =/  publication-hash  (sham publication)
     =/  cached  (~(get by records.lens.engine) id)
@@ -2330,7 +2372,7 @@
   |=  [[id=input-id:h record=lens-record:t] engine=_cor]
   ?~  next.record  engine
   ?:  (gth u.next.record now.bowl)  engine
-  ?.  live:(lane-authority:engine sid.record)
+  ?.  (lane-live:engine sid.record (scheduled:engine sid.record))
     engine(lens lens.engine(records (~(del by records.lens.engine) id)))
   ?:  (gte attempts.record 3)
     %=  engine  lens
@@ -2366,7 +2408,11 @@
   =/  observation  (~(get by observations.hands) u.parsed)
   ?.  &(?=(^ observation) ?=(?(%failed %cancelled) phase.u.observation))  cor
   =/  binding  (~(get by bindings.hands) binding.u.observation)
-  ?.  &(?=(^ binding) =('tlon' hand.u.binding) live:(lane-authority sid.u.binding))  cor
+  ?.  ?&  ?=(^ binding)
+          =('tlon' hand.u.binding)
+          (lane-live sid.u.binding (scheduled sid.u.binding))
+      ==
+    cor
   ?:  (~(has by active.hands) sid.u.binding)  cor
   ::  A deterministic fresh event deduplicates repeated retry clicks. The
   ::  normal admission gate obtains current authority and context again.
@@ -2396,7 +2442,7 @@
   ::  Trust may change between claiming and sending. Do not publish then.
   ?.  ?&  ?=(^ lane)
           (publication-current publication)
-          ?=(^ (lane-grants u.lane ~))
+          (publication-speaker-granted hands publication u.lane)
           (cron-lane-live sid.publication)
       ==
     =.  deliveries  (~(put by deliveries) id [attempt %receipt %failed ''])

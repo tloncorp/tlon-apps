@@ -545,8 +545,23 @@ schedule's actor. The adapter answers from that speaker's own access to the
 conversation's destination: the owner has no ceiling, any other ship's ceiling
 comes from its own grants and, in a channel, its native read permission, and a
 ship with no access there gets no authority. A speaker never receives another
-speaker's tools. When no hand input is running, as for an ACP prompt or a
-timer, the adapter answers for the conversation's actor.
+speaker's tools.
+
+- A DM answers for its partner. The partner, the operator's own local or ACP
+  prompt and a question with no speaker all get the partner's authority; any
+  other speaker gets none.
+- In a channel, the operator's own local or ACP prompt, which the head passes
+  as the bot's own ship only after proving it is local, has the owner's
+  authority. With no speaker known, as for a timer, a channel conversation
+  answers live with only Tlon read and write, never the owner's authority.
+- A scheduled run with no speaker answers for its schedule's actor.
+- A channel conversation never has administrative authority.
+
+Admission checks each message's speaker, including its native read permission
+in a channel, even when the conversation's route is already set up. Context,
+history and lens sync ask only whether the conversation itself is live: Tlon is
+enabled, its route is ready, any schedule still holds and the channel does not
+have replies turned off.
 
 Permission changes retire only affected authorization routes. Adding an unrelated
 trusted actor leaves existing conversations, in-flight work, notes, saved model
@@ -562,8 +577,11 @@ and a tools-only configuration update have been acknowledged, using a fresh
 binding. Old publications cannot move to the new binding. Actor-specific admission
 cutoffs reject queued pre-grant messages without dropping unrelated input.
 
-Publication checks the exact current binding and actor again after claiming,
-before sending. Async callbacks and self-dispatched work carry request generations,
+Publication checks the exact current binding again after claiming, before
+sending, and the reply's speaker: it is sent only while that speaker is still
+granted there and if the speaker's input came after the speaker's latest
+permission change, so a reply to a speaker revoked mid-turn, or a stale one
+after a later re-grant, is not published. Async callbacks and self-dispatched work carry request generations,
 so reusing a tool-call ID cannot revive an old request. Previously emitted network
 operations cannot be undone; their receipts and uncertainty remain evidence.
 Saving unchanged policy leaves routes and sessions alone. Conversation heads
