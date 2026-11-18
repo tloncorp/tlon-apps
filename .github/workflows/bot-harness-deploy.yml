@@ -1,40 +1,8 @@
 name: Restart Bot Ships
 
-# Restarts the hosted bot ship pods so they pick up plugin changes.
-# Pushes to develop touching bot plugin source restart the internal ships;
-# tag-based / external restarts are workflow_dispatch-only, a deliberate human
-# action decoupled from the develop -> master release sync cadence.
-
+# Deploy Internal Ring in tlonbot publishes the plugin archive before restarting
+# the internal ring. This workflow handles operator-requested restarts.
 on:
-  push:
-    branches: [develop]
-    # Runtime inputs of the deployed plugins only — docs, tests, and the dev
-    # harness don't warrant a ship restart. (Production pulls the develop
-    # branch ref at restart, so a missed trigger self-heals on the next one.)
-    #
-    # Deliberately NOT watching packages/api: those changes do reach ships,
-    # just not urgently. The hosted entrypoint (tlawn.py in tloncorp/tlonbot)
-    # clones this ref and builds @tloncorp/api from that same checkout, wiring
-    # it in as a file: tarball dep — the registry is only the fallback — so an
-    # api-only merge rides along on the next restart for any other reason,
-    # which is soon enough to not warrant restarting every ship on its own.
-    #
-    # Also NOT watching packages/tlon-skill: it is outside that sparse
-    # checkout, so ships keep resolving @tloncorp/tlon-skill to its published
-    # registry version. A skill change reaches production only via an npm
-    # publish followed by a restart, which a develop merge cannot stand in for.
-    paths:
-      - "packages/openclaw/src/**"
-      - "packages/openclaw/index.ts"
-      - "packages/openclaw/setup-entry.ts"
-      - "packages/openclaw/setup-api.ts"
-      - "packages/openclaw/package.json"
-      - "packages/openclaw/openclaw.plugin.json"
-      - "packages/openclaw/tsconfig.json"
-      - "packages/openclaw/scripts/**"
-      # Skills are content, not code, but they ship to the bot the same way
-      # and a guide correction is worthless until the hosted bots restart.
-      - "packages/openclaw/skills/**"
   workflow_dispatch:
     inputs:
       selector:
@@ -116,56 +84,48 @@ jobs:
         # shell. This step emits only plain data (mode + raw tag); the jq
         # expression is built downstream with --arg so the tag stays data.
         env:
-          EVENT_NAME: ${{ github.event_name }}
           SELECTOR: ${{ inputs.selector }}
           TAG_INPUT: ${{ inputs.tag }}
           FREE_TAG_INPUT: ${{ inputs.free_tag }}
         run: |
-          if [ "$EVENT_NAME" != "workflow_dispatch" ]; then
-            # Push to develop: restart internal ships by tag.
-            MODE="by-tag"
-            TAG="tlon-internal"
-            echo "Restarting ships tagged tlon-internal (push trigger)"
-          else
-            case "$SELECTOR" in
-              prespecified-tag)
-                MODE="by-tag"
-                TAG="$TAG_INPUT"
-                if [ -z "$TAG" ]; then
-                  echo "::error::selector=prespecified-tag requires the 'tag' input"
-                  exit 1
-                fi
-                echo "Restarting ships tagged $TAG"
-                ;;
-              free-tag)
-                MODE="by-tag"
-                TAG="$FREE_TAG_INPUT"
-                if [ -z "$TAG" ]; then
-                  echo "::error::selector=free-tag requires the 'free_tag' input"
-                  exit 1
-                fi
-                # Defense in depth: keep the tag to a sane charset. The jq
-                # --arg downstream already neutralizes it as data; this just
-                # rejects obviously bogus values early.
-                case "$TAG" in
-                  *[!A-Za-z0-9._-]*)
-                    echo "::error::free_tag may only contain A-Z a-z 0-9 . _ -"
-                    exit 1
-                    ;;
-                esac
-                echo "Restarting ships tagged $TAG"
-                ;;
-              external)
-                MODE="external"
-                TAG=""
-                echo "Restarting external ships (internal: false)"
-                ;;
-              *)
-                echo "::error::unknown selector: $SELECTOR"
+          case "$SELECTOR" in
+            prespecified-tag)
+              MODE="by-tag"
+              TAG="$TAG_INPUT"
+              if [ -z "$TAG" ]; then
+                echo "::error::selector=prespecified-tag requires the 'tag' input"
                 exit 1
-                ;;
-            esac
-          fi
+              fi
+              echo "Restarting ships tagged $TAG"
+              ;;
+            free-tag)
+              MODE="by-tag"
+              TAG="$FREE_TAG_INPUT"
+              if [ -z "$TAG" ]; then
+                echo "::error::selector=free-tag requires the 'free_tag' input"
+                exit 1
+              fi
+              # Defense in depth: keep the tag to a sane charset. The jq
+              # --arg downstream already neutralizes it as data; this just
+              # rejects obviously bogus values early.
+              case "$TAG" in
+                *[!A-Za-z0-9._-]*)
+                  echo "::error::free_tag may only contain A-Z a-z 0-9 . _ -"
+                  exit 1
+                  ;;
+              esac
+              echo "Restarting ships tagged $TAG"
+              ;;
+            external)
+              MODE="external"
+              TAG=""
+              echo "Restarting external ships (internal: false)"
+              ;;
+            *)
+              echo "::error::unknown selector: $SELECTOR"
+              exit 1
+              ;;
+          esac
 
           # Emit plain data only — no shell/jq code crosses the step boundary.
           {
