@@ -85,14 +85,31 @@
       '\0aCompaction tokens: '  (scot %ud prompt.compact-usage.view)  ' input, '
       (scot %ud completion.compact-usage.view)  ' output'
   ==
+::  .tools are those a turn here would get, which an owner's administrative
+::  turn takes from its own catalog rather than the saved grants in .view.
+++  status-report
+  |=  [view=view:h tools=(list tool-grant:h) owner=?]
+  ^-  @t
+  %+  rap  3
+  :~  'Model: '  (model-label config.view)
+      '\0aTool grants: '  (scot %ud (lent tools))
+      ?:(owner ' (owner turn: all tools; Run JS only if granted)' '')
+      '\0aRecorded tokens: '  (scot %ud prompt.total.view)  ' input, '
+      (scot %ud completion.total.view)  ' output'
+      ?~(err.view '' (cat 3 '\0aLast failure: ' (public-message:failure u.err.view)))
+  ==
 ::  Command effects are nouns, not agent actions. The head records these and
 ::  the acknowledgement in one admission; all hands get the same semantics.
 ++  evaluate
-  |=  [parsed=command view=view:h defaults=config:h skills=(map @t skill:h) log=(list event:h)]
+  |=  $:  parsed=command  view=view:h  defaults=config:h  skills=(map @t skill:h)
+          log=(list event:h)  tools=(list tool-grant:h)  owner=?
+      ==
   ^-  [events=(list event:h) body=@t]
   |^
     ?:  =('context' name.parsed)
       [~ ?:(=('' arg.parsed) (context-report view skills log) 'Usage: /context')]
+    ?:  =('status' name.parsed)
+      [~ ?:(=('' arg.parsed) (status-report view tools owner) 'Usage: /status')]
     ?:  =('compact' name.parsed)  [~ 'Usage: /compact']
     =/  result  (run parsed view defaults)
     [?~(config.result ~ ~[[%config-replaced u.config.result]]) body.result]
@@ -110,17 +127,6 @@
         ?:  =('' arg.parsed)
           'Stopped. External actions already started may still have taken effect.'
         'Usage: /stop'
-    ==
-  ::
-      %status
-    ?.  =('' arg.parsed)  [~ 'Usage: /status']
-    :-  ~
-    %+  rap  3
-    :~  'Model: '  (model-label config.view)
-        '\0aTool grants: '  (scot %ud (lent tools.config.view))
-        '\0aRecorded tokens: '  (scot %ud prompt.total.view)  ' input, '
-        (scot %ud completion.total.view)  ' output'
-        ?~(err.view '' (cat 3 '\0aLast failure: ' (public-message:failure u.err.view)))
     ==
   ::
       %model

@@ -250,6 +250,25 @@
   ;<  ~  bind:m  (ex-equal !>((lien names |=(n=@t =('run_js' n)))) !>(&))
   (ex-equal !>((lien names |=(n=@t =('harness_admin' n)))) !>(&))
 ::
+::  The command is evaluated before its input is recorded; a new conversation
+::  has no earlier input to take authority from.
+::
+++  test-owner-status-reports-the-tools-of-its-own-turn
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (setup ~2026.9.17 *state-0)
+  =/  cfg  builtin-config:defaults
+  ;<  *  bind:m  (do-poke %harness-action !>(`action:h`[%new 'owner' cfg(tools ~) ~s30]))
+  ;<  *  bind:m  (do-poke %harness-action !>(`action:h`[%send 'owner' '/status']))
+  ;<  after=state-0  bind:m  get-state
+  =/  replies
+    %+  murn  log:(~(got by sessions.after) 'owner')
+    |=  =event:h
+    ?.(?=(%command-completed -.event) ~ `body.event)
+  ;<  ~  bind:m  (ex-equal !>((lent replies)) !>(1))
+  (ex-equal !>((find-sub:ht '(owner turn: ' (snag 0 replies))) !>(&))
+::
 ++  reply
   |=  body=@t
   ^-  client-response:iris

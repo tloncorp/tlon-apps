@@ -4076,6 +4076,11 @@
     [[%context-received id.input.event u.reference] events]
   =?  events  ?=(^ parsed-command)
     =/  view  (memory-view sid (play:hl log.session))
+    ::  Authority follows the latest input, so resolve it with this one in the
+    ::  log, which is recorded only after the command is evaluated.
+    =/  [tools=(list tool-grant:h) owner=?]
+      =.  sessions  (~(put by sessions) sid session(log [event log.session]))
+      [(execution-tools sid tools.config.view) (session-admin sid)]
     =/  result
       %:  evaluate:command
         u.parsed-command
@@ -4083,6 +4088,8 @@
         defaults
         (skills-visible sid skills)
         log.session
+        tools
+        owner
       ==
     %+  snoc
       (weld events events.result)
