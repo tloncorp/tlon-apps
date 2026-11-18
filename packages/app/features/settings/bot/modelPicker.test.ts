@@ -72,7 +72,7 @@ describe('buildDefaultModelSections', () => {
   it('lists Tlon’s own model first, as a choice that picks it', () => {
     const { sections, onSelect } = build();
 
-    expect(sections[0].title).toBe('Included with Tlon');
+    expect(sections[0].title).toBe('Included with Sato');
     expect(sections[0].rows).toHaveLength(1);
     expect(sections[0].rows[0].selected).toBe(true);
     sections[0].rows[0].onPress?.();
@@ -171,13 +171,15 @@ describe('buildDefaultModelSections', () => {
   it('finds Tlon’s model by its name, its id, or the id the bot reports', () => {
     const tlonTitles = (search: string, model = BASIC_DEFAULT_MODEL) =>
       build({ search, selection: { provider: BASIC_PROVIDER_ID, model } })
-        .sections.filter((section) => section.title === 'Included with Tlon')
+        .sections.filter((section) => section.title === 'Included with Sato')
         .flatMap((section) => titles(section.rows));
 
     const label = 'Basic (GPT-5.6 Luna)';
     expect(tlonTitles('luna')).toEqual([label]);
     expect(tlonTitles(BASIC_DEFAULT_MODEL)).toEqual([label]);
     expect(tlonTitles('newer-id', 'openai/some-newer-id')).toEqual([label]);
+    expect(tlonTitles('sato')).toEqual([label]);
+    expect(tlonTitles('tlon')).toEqual([label]);
     expect(tlonTitles('zzz')).toEqual([]);
   });
 
