@@ -732,6 +732,9 @@ owner. If that authority ends while a secure form is pending, Harness asks
 Kernel to revoke it. An in-progress fill or an unconfirmed revocation leaves
 the fill outcome uncertain. Harness saves pending handoffs with their tool
 receipts so a desk reload can continue checking the outcome or revoke the form.
+For a trusted ship, adding a browser grant preserves its running conversation
+and admission cutoff. Removing the grant still stops its work. Peer access
+reports omit browser grants for ships other than the owner.
 
 `tlon_read_history` returns at most 20 messages with durable IDs, authors and
 clipped text. Top-level conversations return recent top-level messages. A bound

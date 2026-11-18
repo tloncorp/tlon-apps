@@ -149,13 +149,15 @@
   %+  skip  (without-browser tools)
   |=  tool=tool-grant:h
   |(=(%cron tool) =(%subagents tool) =(%code tool) =(%admin tool))
-::  Only the owner may hold %tlon and %code, whatever another ship's grants say.
+::  Saved grants do not give another ship the owner's tools.
+++  owner-only-tool
+  |=  tool=tool-grant:h
+  ^-  ?
+  |(=(%tlon tool) =(%code tool) =(tool [%mcp 'kernel-browser']))
 ++  guest-tools
   |=  tools=(list tool-grant:h)
   ^-  (list tool-grant:h)
-  %+  skip  tools
-  |=  tool=tool-grant:h
-  |(=(%tlon tool) =(%code tool))
+  (skip tools owner-only-tool)
 ::  Rehearsals may inspect inherited source material, never dispatch effects
 ::  or publish instructions. An allowlist keeps future families out by default.
 ++  rehearsal-tools
