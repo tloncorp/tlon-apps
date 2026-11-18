@@ -508,7 +508,7 @@ export function ActivityEmptyState({
       >
         There is no activity... yet.{'\n'}Invite some of your contacts to
         {'\n'}
-        Tlon Messenger to get started.
+        Sato to get started.
       </Text>
       <View gap="$s" width="100%" maxWidth={300}>
         <Button label="Invite Friends" onPress={onInviteFriends} />

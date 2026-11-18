@@ -124,7 +124,7 @@ const CHAT_TYPE_CONFIG = {
     title: 'New Workspace',
     subtitle: '',
     actionTitle: 'New Workspace',
-    actionDescription: 'Start a new chat with your Tlonbot',
+    actionDescription: 'Start a new chat with Sato',
   },
   joinGroup: {
     title: 'Join a workspace',
@@ -778,7 +778,7 @@ function useCreateChat() {
                   setCreateChatError(
                     error instanceof Error
                       ? error.message
-                      : 'The Tlonbot workspace could not finish setup.'
+                      : 'The Sato workspace could not finish setup.'
                   );
                   void retryLaterAgentGroupFurnishing({
                     agentShipId: AGENT_SHIP_OVERRIDE || undefined,

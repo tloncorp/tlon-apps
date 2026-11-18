@@ -75,7 +75,7 @@ export function BucketsGate({
         testID="BucketsUnsupportedNotice"
       >
         <Text color="$secondaryText" textAlign="center">
-          Opening Buckets needs a newer version of the Tlon backend on your
+          Opening Buckets needs a newer version of the Sato backend on your
           ship.
         </Text>
       </YStack>

@@ -112,7 +112,7 @@ export function NotesSearchScreen(props: Props) {
       ) : (
         <View paddingHorizontal="$2xl" paddingTop="$3xl">
           <SizableText size="$s" color="$secondaryText" textAlign="center">
-            Searching notebooks needs a newer version of the Tlon backend on
+            Searching notebooks needs a newer version of the Sato backend on
             your ship.
           </SizableText>
         </View>

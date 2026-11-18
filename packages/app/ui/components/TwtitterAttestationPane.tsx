@@ -144,7 +144,7 @@ function ConfirmTwitterPane(props: {
       props.personalInviteLink
         ? `
       
-Not on Tlon Messenger yet? You're invited!
+Not on Sato yet? You're invited!
 ${props.personalInviteLink}`
         : ''
     }
@@ -286,7 +286,7 @@ function InitiateTwitterPane() {
   return (
     <YStack gap="$2xl">
       <Text size="$label/m">
-        You can verify an 𝕏 account and it will be displayed on your Tlon
+        You can verify an 𝕏 account and it will be displayed on your Sato
         profile. Enter your handle to get started.
       </Text>
       <ControlledTextField

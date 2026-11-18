@@ -32,7 +32,7 @@ export const ChatListItem = React.memo(function ChatListItemComponent({
       model.channel.lastPostId === null
     ) {
       // show this subtitle only if the channel has no posts
-      return 'is on Tlon Messenger';
+      return 'is on Sato';
     }
   }, [model]);
 

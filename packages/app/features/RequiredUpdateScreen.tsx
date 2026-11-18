@@ -32,7 +32,7 @@ export function RequiredUpdateScreen() {
             textAlign="center"
             lineHeight="$m"
           >
-            You're running an older version of Tlon that's no longer supported.
+            You're running an older version of Sato that's no longer supported.
             Please update to continue.
           </Text>
           <Button

@@ -282,7 +282,7 @@ export function ChatDetailsScreenView({
             ? [
                 {
                   key: 'instructions',
-                  title: 'Tlonbot instructions',
+                  title: 'Sato instructions',
                   value: instructions,
                   disabled: !actionsEnabled,
                   onPress: onPressInstructions,

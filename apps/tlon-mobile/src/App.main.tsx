@@ -174,7 +174,7 @@ const MainApp = () => {
       <EmailSupportLink
         size="$label/l"
         prompt="Back online and still stuck? Email"
-        subject="Help! I can't connect to Tlon."
+        subject="Help! I can't connect to Sato."
       />
     </YStack>
   );
