@@ -602,7 +602,7 @@ export function BrowserCredentialHandoffContent({
                   </XStack>
                   <Text size="$label/l" color="$secondaryText">
                     {handoff.kind === 'login'
-                      ? "Your login gets sent directly to the browser. It's never visible to your Tlonbot."
+                      ? "Your login gets sent directly to the browser. It's never visible to Sato."
                       : 'Your details go directly to the browser and stay out of chat.'}
                   </Text>
                   {handoff.kind === 'details' ? (
