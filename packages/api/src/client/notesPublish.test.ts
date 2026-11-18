@@ -2,14 +2,14 @@ import { expect, test } from 'vitest';
 
 import { renderPublishedNoteHtml } from './notesPublish';
 
-test('renderPublishedNoteHtml links the published footer to Tlon', () => {
+test('renderPublishedNoteHtml credits Sato in the footer and keeps the tlon.io link', () => {
   const html = renderPublishedNoteHtml({
     title: 'Published note',
     body: 'Hello',
   });
 
   expect(html).toContain(
-    '<div class="tlon-published-footer">Published from <a href="https://tlon.io">Tlon</a></div>'
+    '<div class="tlon-published-footer">Published from <a href="https://tlon.io">Sato</a></div>'
   );
 });
 
