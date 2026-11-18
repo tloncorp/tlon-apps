@@ -129,11 +129,12 @@ export const workspacePlanToolMetadata = {
   promptSnippet:
     "`tlon_workspace_plan`: propose a workspace for a project-like topic in your owner's DM",
   promptGuidelines: [
-    "Pass your full answer to the owner's message as `answer`: the tool posts it after the card. Then return NO_REPLY, unless you set up a reminder this turn; then reply with only its confirmation.",
+    "Pass your full answer to the owner's message as `answer`, and the confirmation of any reminder you set up this turn as `confirmation`: the tool posts both after the card. Your own reply after the card is not delivered, so return NO_REPLY.",
   ],
 };
 
 export const WORKSPACE_ANSWER_MAX_LENGTH = 4000;
+export const WORKSPACE_CONFIRMATION_MAX_LENGTH = 500;
 
 const channelSchema = {
   type: 'object',
@@ -183,7 +184,13 @@ export const workspacePlanToolParameters = {
       type: 'string',
       maxLength: WORKSPACE_ANSWER_MAX_LENGTH,
       description:
-        "Your full answer to the owner's message. The tool posts it in the DM after the card, and it becomes your first message in the workspace chat when the owner taps Create, so don't write it again. Leave out the card and any reminder confirmation.",
+        "Your full answer to the owner's message. The tool posts it in the DM after the card, and it becomes your first message in the workspace chat when the owner taps Create. Your own reply after the card is not delivered, so everything the owner should read goes here or in `confirmation`. Leave out the card and any reminder confirmation.",
+    },
+    confirmation: {
+      type: 'string',
+      maxLength: WORKSPACE_CONFIRMATION_MAX_LENGTH,
+      description:
+        'The confirmation of a reminder, digest or schedule change you set up with cron this turn, such as "Done: every Monday at 9:00 AM Pacific (UTC-8)". The tool posts it after the answer. Leave it out when you set up nothing.',
     },
     task: {
       type: 'object',
@@ -220,17 +227,19 @@ export const workspacePlanToolParameters = {
   additionalProperties: false,
 } as const;
 
-/** The optional answer, trimmed but with its line breaks kept. */
-function parseAnswer(value: unknown): string | undefined {
+/** An optional text field, trimmed but with its line breaks kept. */
+function parseOptionalText(
+  value: unknown,
+  name: string,
+  max: number
+): string | undefined {
   if (value === undefined || value === null) return undefined;
-  if (typeof value !== 'string') throw new Error('answer must be text');
-  const answer = value.trim();
-  if (answer.length > WORKSPACE_ANSWER_MAX_LENGTH) {
-    throw new Error(
-      `answer must be at most ${WORKSPACE_ANSWER_MAX_LENGTH} characters`
-    );
+  if (typeof value !== 'string') throw new Error(`${name} must be text`);
+  const text = value.trim();
+  if (text.length > max) {
+    throw new Error(`${name} must be at most ${max} characters`);
   }
-  return answer || undefined;
+  return text || undefined;
 }
 
 function textResult(text: string, error = false) {
@@ -270,8 +279,19 @@ export function createWorkspacePlanToolExecutor(deps: {
       const store = (deps.store ?? getWorkspaceProposalStore)();
       // A revision after Edit keeps the edited card's answer unless it brings
       // its own; an inherited answer is already in the DM.
-      const givenAnswer = parseAnswer(
-        (params as { answer?: unknown } | null)?.answer
+      const input = (params ?? {}) as {
+        answer?: unknown;
+        confirmation?: unknown;
+      };
+      const givenAnswer = parseOptionalText(
+        input.answer,
+        'answer',
+        WORKSPACE_ANSWER_MAX_LENGTH
+      );
+      const confirmation = parseOptionalText(
+        input.confirmation,
+        'confirmation',
+        WORKSPACE_CONFIRMATION_MAX_LENGTH
       );
       const answer =
         givenAnswer ??
@@ -300,16 +320,20 @@ export function createWorkspacePlanToolExecutor(deps: {
         fallbackText: workspacePlanFallbackText(plan),
         blob: JSON.stringify(blob),
       });
-      // The answer follows the card, posted here so the DM and the workspace
-      // chat carry the same text. Best effort: the card is up, so a failed
-      // post leaves the model to answer instead.
-      let answerPosted = false;
-      if (givenAnswer) {
+      // The answer and any confirmation follow the card, posted here: the
+      // model's own reply after a card is not delivered (the reply hook drops
+      // it), so the DM and the workspace chat carry the same answer. Best
+      // effort: the card is up either way.
+      const failed: string[] = [];
+      for (const [label, text] of [
+        ['answer', givenAnswer],
+        ['confirmation', confirmation],
+      ] as const) {
+        if (!text) continue;
         try {
-          await (deps.postAnswer ?? deps.postText)(ownerShip, givenAnswer);
-          answerPosted = true;
+          await (deps.postAnswer ?? deps.postText)(ownerShip, text);
         } catch {
-          // Fall through: the model answers in its reply.
+          failed.push(label);
         }
       }
       // One open card at a time: a revision or a new topic replaces the last,
@@ -327,13 +351,26 @@ export function createWorkspacePlanToolExecutor(deps: {
           });
         }
       }
+      const posted = `Posted the ${JSON.stringify(plan.title)} workspace card (proposal ${proposalId}). Nothing exists yet: it is created only when the owner taps Create. `;
+      // A failed post leaves the model's reply to carry it: the reply hook
+      // delivers it this once (deliverReply).
+      if (failed.length) {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `${posted}Posting your ${failed.join(' and ')} failed, so reply with ${failed.length > 1 ? 'them' : 'it'} now; this reply is delivered.`,
+            },
+          ],
+          details: { deliverReply: true },
+        };
+      }
       return textResult(
-        `Posted the ${JSON.stringify(plan.title)} workspace card (proposal ${proposalId}). Nothing exists yet: it is created only when the owner taps Create. ` +
-          (answerPosted
-            ? 'Your answer is posted after the card; do not write it again. Return NO_REPLY now, unless you set up a reminder this turn: then reply with only its confirmation.'
-            : givenAnswer
-              ? 'Posting your answer failed, so reply with it now, plus a confirmation of any reminder you set up this turn.'
-              : "Now answer the owner's message, if it asked anything, and confirm any reminder you set up this turn; return NO_REPLY only if there is nothing to say.")
+        posted +
+          (givenAnswer || confirmation
+            ? 'Your answer and any confirmation are posted after the card. '
+            : '') +
+          'Your own reply after the card is not delivered; return NO_REPLY now.'
       );
     } catch (error) {
       return textResult(`Error: ${errorText(error)}`, true);

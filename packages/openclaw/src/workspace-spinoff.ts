@@ -14,10 +14,10 @@ const PROPOSE_NOTE =
   'short, specific title from the conversation, never a generic one, and the channels ' +
   'and recurring task the topic needs. Do not create it yourself; the owner taps Create. ' +
   'The card never replaces your answer: pass your full answer to their message as `answer`; ' +
-  'the tool posts it after the card, and it opens the workspace chat on Create. Then return ' +
-  'NO_REPLY. Nor does the card replace a requested action: set up a requested reminder, digest ' +
-  'or schedule change with the cron tool in this turn, before proposing, and reply with only ' +
-  'its confirmation. ' +
+  'the tool posts it after the card, and it opens the workspace chat on Create. Nor does the ' +
+  'card replace a requested action: set up a requested reminder, digest or schedule change with ' +
+  'the cron tool in this turn, before proposing, and pass its confirmation as `confirmation`. ' +
+  'Your own reply after the card is not delivered, so return NO_REPLY. ' +
   'Small talk and one-off questions get no card, and neither does the owner introducing ' +
   'themselves or listing the kinds of help they want: that is not a topic yet.]';
 

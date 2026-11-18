@@ -23,7 +23,7 @@ describe('owner DM workspace note', () => {
     const note = await ownerDmWorkspaceNote(null);
     expect(note).toContain('Nor does the card replace a requested action');
     expect(note).toContain('with the cron tool in this turn, before proposing');
-    expect(note).toContain('reply with only its confirmation');
+    expect(note).toContain('pass its confirmation as `confirmation`');
   });
 
   it('hands the answer to the plan, which posts it, and replies with nothing more', async () => {
@@ -32,7 +32,7 @@ describe('owner DM workspace note', () => {
       'pass your full answer to their message as `answer`'
     );
     expect(note).toContain('the tool posts it after the card');
-    expect(note).toContain('Then return NO_REPLY');
+    expect(note).toContain('Your own reply after the card is not delivered');
   });
 
   it('links an existing workspace with its tool and skips self-introductions', async () => {

@@ -17,11 +17,12 @@ type ToolContext = {
 };
 
 // Tools whose posted card is the turn's reply, so the model's own reply
-// text after them is dropped. Not the workspace card: the model answers the
-// owner after it.
+// text after them is dropped. The workspace card's tool posts the answer and
+// any reminder confirmation itself, so the model's reply would repeat them.
 const ONBOARDING_SURFACE_TOOL_NAMES = new Set([
   'tlon_agent_choice',
   'tlon_agent_task_plan',
+  'tlon_workspace_plan',
 ]);
 const COMPLETED_PLAN_TTL_MS = 5 * 60 * 1000;
 
@@ -89,7 +90,10 @@ export function recordSuccessfulAgentOnboardingSurface(
 ): void {
   if (
     !ONBOARDING_SURFACE_TOOL_NAMES.has(event.toolName) ||
-    toolResultFailed(event)
+    toolResultFailed(event) ||
+    // The tool couldn't post everything, so the reply carries the rest.
+    (event.result as { details?: { deliverReply?: unknown } } | undefined)
+      ?.details?.deliverReply === true
   ) {
     return;
   }

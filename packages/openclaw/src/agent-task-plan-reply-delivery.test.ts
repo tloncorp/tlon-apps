@@ -73,8 +73,27 @@ describe('agent task plan reply delivery', () => {
     });
   });
 
-  it('keeps the model reply after a workspace card post', () => {
+  it('drops the model reply after a workspace card post', () => {
+    // The plan tool posts the answer and any confirmation itself.
     recordSuccess('tlon_workspace_plan');
+
+    expect(suppress()).toEqual({
+      cancel: true,
+      reason: 'tlon_onboarding_surface_owns_reply',
+    });
+  });
+
+  it('delivers the reply when the workspace card tool asks for it', () => {
+    recordSuccessfulAgentOnboardingSurface(
+      {
+        toolName: 'tlon_workspace_plan',
+        result: {
+          content: [{ type: 'text', text: 'Posting your answer failed' }],
+          details: { deliverReply: true },
+        },
+      },
+      toolContext
+    );
 
     expect(suppress()).toBeUndefined();
   });

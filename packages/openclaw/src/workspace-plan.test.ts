@@ -179,8 +179,7 @@ describe('tlon_workspace_plan', () => {
     });
     await execute('1', bikeParts);
     const result = await execute('2', { ...bikeParts, title: 'Gravel Bike' });
-    expect(result.content[0].text).not.toContain('Return NO_REPLY now');
-    expect(result.content[0].text).toContain("answer the owner's message");
+    expect(result.content[0].text).toContain('return NO_REPLY now');
     expect(posted).toEqual([
       `~ten ${bikeParts.intro}`,
       '~ten card New workspace: Bike Parts',
@@ -255,14 +254,35 @@ describe('tlon_workspace_plan', () => {
       store: () => store,
     });
     const result = await execute('1', { ...bikeParts, answer: kitchenAnswer });
-    expect(result.content[0].text).toContain('do not write it again');
-    expect(result.content[0].text).toContain('Return NO_REPLY now');
+    expect(result.content[0].text).toContain('posted after the card');
+    expect(result.content[0].text).toContain('return NO_REPLY now');
     const [record] = store.records.values();
     expect(record.answer).toBe(kitchenAnswer);
     expect(posted).toEqual([
       `~ten ${bikeParts.intro}`,
       '~ten card',
       `~ten answer ${kitchenAnswer}`,
+    ]);
+  });
+
+  it('posts a reminder confirmation after the answer', async () => {
+    const posted: string[] = [];
+    const execute = createWorkspacePlanToolExecutor({
+      ownerShip: () => '~ten',
+      postText: async () => undefined,
+      postAnswer: async (_target, text) => posted.push(text),
+      postCard: async () => posted.push('card'),
+      store: () => memoryStore(),
+    });
+    await execute('1', {
+      ...bikeParts,
+      answer: kitchenAnswer,
+      confirmation: 'Done: every Monday at 9:00 AM Pacific (UTC-8).',
+    });
+    expect(posted).toEqual([
+      'card',
+      kitchenAnswer,
+      'Done: every Monday at 9:00 AM Pacific (UTC-8).',
     ]);
   });
 
@@ -278,7 +298,8 @@ describe('tlon_workspace_plan', () => {
       store: () => store,
     });
     const result = await execute('1', { ...bikeParts, answer: kitchenAnswer });
-    expect(result.details).toBeUndefined();
+    // Not an error (the card is up), but the reply hook lets this reply out.
+    expect(result.details).toEqual({ deliverReply: true });
     expect(result.content[0].text).toContain('Posting your answer failed');
     expect([...store.records.values()][0].answer).toBe(kitchenAnswer);
   });
