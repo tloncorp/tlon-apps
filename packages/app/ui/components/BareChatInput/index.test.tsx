@@ -131,6 +131,7 @@ vi.mock('../../contexts/scroll', () => ({
     beginSend: mocks.noop,
     finishSend: mocks.noop,
     isSendCoordinated: () => false,
+    registerSentMessageShown: () => mocks.noop,
   }),
 }));
 vi.mock('../../hooks/useKeyboardHeight', () => ({

@@ -100,6 +100,9 @@ const MESSAGE_INPUT_CONTAINER_HEIGHT = 48;
 const MAX_NATIVE_INPUT_LINES = 5;
 
 const AUTOCORRECT_FLUSH_TIMEOUT_MS = 20;
+// How long a coordinated send waits for the list to show its message before
+// ending the send transition anyway.
+const SENT_MESSAGE_WAIT_MS = 1000;
 
 function normalizePreviewUrl(url: string) {
   try {
@@ -372,6 +375,7 @@ function BareChatInput(
     beginSend: beginComposerSend,
     finishSend: finishComposerSend,
     isSendCoordinated,
+    registerSentMessageShown,
   } = useConversationComposerHeight();
   const handleComposerHeightSettled = useCallback(() => {
     if (
@@ -382,6 +386,18 @@ function BareChatInput(
       finishComposerSend();
     }
   }, [finishComposerSend]);
+  // While the list coordinates a send it keeps its rows where they are, so the
+  // composer can shrink at once as it is cleared. The rows then rise once,
+  // when the message lands, by the message less the space the composer gave
+  // back, instead of rising for the message and dropping as the composer
+  // shrinks after it.
+  const [composerSnapsOnSend, setComposerSnapsOnSend] = useState(false);
+  // Ends a coordinated send once the list shows its message.
+  const releaseCoordinatedSend = useRef<(() => void) | null>(null);
+  useEffect(
+    () => registerSentMessageShown(() => releaseCoordinatedSend.current?.()),
+    [registerSentMessageShown]
+  );
   const [inputHeight, setInputHeight] = useState(initialHeight);
   const [sendError, setSendError] = useState(false);
   const [initializedDraft, setInitializedDraft] = useState<{
@@ -873,13 +889,39 @@ function BareChatInput(
         pendingComposerSendsRef.current += 1;
         setPendingComposerSends((count) => count + 1);
       }
+      // A coordinated send ends when the list shows the message, not on
+      // enqueue, so the list keeps its rows still until the message lands.
+      // Only the iOS list holds its rows while a send is coordinated; an
+      // Android list follows its end as the composer shrinks, so there the
+      // composer keeps its space until the enqueue as before.
+      const coordinated =
+        holdingComposerHeight && isSendCoordinated() && Platform.OS === 'ios';
+      setComposerSnapsOnSend(coordinated);
+      let sentMessageWait: ReturnType<typeof setTimeout> | undefined;
       const releaseComposerHeight = () => {
-        if (holdingComposerHeight) {
-          holdingComposerHeight = false;
-          pendingComposerSendsRef.current -= 1;
-          setPendingComposerSends((count) => count - 1);
+        if (!holdingComposerHeight) {
+          return;
+        }
+        holdingComposerHeight = false;
+        pendingComposerSendsRef.current -= 1;
+        setPendingComposerSends((count) => count - 1);
+        if (coordinated) {
+          clearTimeout(sentMessageWait);
+          if (releaseCoordinatedSend.current === releaseComposerHeight) {
+            releaseCoordinatedSend.current = null;
+          }
+          setComposerSnapsOnSend(false);
+          // The composer already settled when it shrank at send.
+          handleComposerHeightSettled();
         }
       };
+      if (coordinated) {
+        releaseCoordinatedSend.current = releaseComposerHeight;
+        sentMessageWait = setTimeout(
+          releaseComposerHeight,
+          SENT_MESSAGE_WAIT_MS
+        );
+      }
 
       const draftClear = clearComposerDraft();
       controlledTextRef.current = '';
@@ -896,7 +938,7 @@ function BareChatInput(
       try {
         bareChatInputLogger.log('sending message');
         const sendOperation = sendPostFromDraft(draft, {
-          onEnqueued: releaseComposerHeight,
+          onEnqueued: coordinated ? undefined : releaseComposerHeight,
           scrollHandled: isSendCoordinated(),
         });
         bareChatInputLogger.log('clearing draft');
@@ -929,6 +971,7 @@ function BareChatInput(
       resetMentionMode,
       resetSlashCommandMode,
       beginComposerSend,
+      handleComposerHeightSettled,
       isSendCoordinated,
       showToast,
     ]
@@ -1538,7 +1581,8 @@ function BareChatInput(
         {showInlineAttachments && <AttachmentPreviewList />}
         <AnimatedInputHeight
           minimumHeight={minimumInputHeight}
-          holdHeight={pendingComposerSends > 0}
+          holdHeight={pendingComposerSends > 0 && !composerSnapsOnSend}
+          snapShrink={composerSnapsOnSend}
           onHeightSettled={handleComposerHeightSettled}
         >
           <PasteableTextInput

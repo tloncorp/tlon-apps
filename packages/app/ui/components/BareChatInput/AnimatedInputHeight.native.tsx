@@ -13,10 +13,13 @@ export function AnimatedInputHeight({
   children,
   minimumHeight,
   holdHeight = false,
+  snapShrink = false,
   onHeightSettled,
 }: PropsWithChildren<{
   minimumHeight: number;
   holdHeight?: boolean;
+  /** Shrink at once instead of animating. */
+  snapShrink?: boolean;
   onHeightSettled?: () => void;
 }>) {
   const height = useSharedValue(minimumHeight);
@@ -54,11 +57,25 @@ export function AnimatedInputHeight({
         minimumHeight,
         event.nativeEvent.layout.height
       );
-      if (!holdHeight || measuredHeight.current > targetHeight.current) {
-        animateToHeight(measuredHeight.current);
+      if (holdHeight && measuredHeight.current <= targetHeight.current) {
+        return;
       }
+      if (snapShrink && measuredHeight.current < targetHeight.current) {
+        targetHeight.current = measuredHeight.current;
+        height.value = measuredHeight.current;
+        onHeightSettled?.();
+        return;
+      }
+      animateToHeight(measuredHeight.current);
     },
-    [animateToHeight, holdHeight, minimumHeight]
+    [
+      animateToHeight,
+      height,
+      holdHeight,
+      minimumHeight,
+      onHeightSettled,
+      snapShrink,
+    ]
   );
   useLayoutEffect(() => {
     if (!holdHeight) {

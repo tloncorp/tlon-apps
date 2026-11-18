@@ -808,6 +808,7 @@ const ConversationPostListAttempt = React.forwardRef<
     const {
       register: registerConversationComposerHeight,
       registerSend: registerComposerSend,
+      sentMessageShown: composerSentMessageShown,
     } = useConversationComposerHeight();
     const postsWithNeighborsRef = React.useRef(postsWithNeighbors);
     const scrollViewNativeID = useConversationScrollViewNativeID();
@@ -1016,6 +1017,18 @@ const ConversationPostListAttempt = React.forwardRef<
     // Rows run oldest to newest, so a new last key is a row arriving at the end.
     const newestRow = postsWithNeighbors[postsWithNeighbors.length - 1];
     const newestRowKey = newestRow ? getPostListKey(newestRow) : null;
+    // A send the list coordinates ends in the commit that shows its message
+    // (see `BareChatInput`).
+    const previousNewestRowKey = React.useRef(newestRowKey);
+    React.useLayoutEffect(() => {
+      if (previousNewestRowKey.current === newestRowKey) {
+        return;
+      }
+      previousNewestRowKey.current = newestRowKey;
+      if (isComposerSendActive()) {
+        composerSentMessageShown();
+      }
+    }, [composerSentMessageShown, isComposerSendActive, newestRowKey]);
     // A docked list's frame ends above the composer, but keeps its height while
     // the keyboard rises over it (the scroll view takes the keyboard as an
     // inset), so the keyboard and a floating composer cover it. Otherwise the
