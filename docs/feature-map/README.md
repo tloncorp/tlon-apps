@@ -52,7 +52,7 @@ Lines an entry can have, in this order. Leave out any that do not apply:
 
 Keep an entry under about 120 words. No file paths, component names or code
 terms in the text. Follow the wording rules at the top of
-`packages/openclaw/skills/tlon-product-guide/SKILL.md`: "Tlon Messenger", "node", and the phone's
+`packages/openclaw/skills/tlon-product-guide/SKILL.md`: "Sato", "node", and the phone's
 tab names (Bot, Workspaces, Activity, Settings).
 
 ### Write for the usual path
