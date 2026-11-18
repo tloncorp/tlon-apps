@@ -44,7 +44,7 @@ export function BotIdentitySettingsScreen(props: Props) {
               textField: {
                 value: nickname.value,
                 onChangeText: nickname.setValue,
-                placeholder: loading ? 'Loading…' : 'tlonbot',
+                placeholder: loading ? 'Loading…' : 'Sato',
                 capitalization: 'words',
                 onFocusChange: nickname.onFocusChange,
                 onSubmit: nickname.commit,

@@ -134,7 +134,7 @@ function useSettingsSections(
 
   return useMemo(() => {
     const handleLogoutPressed = () => {
-      Alert.alert('Log out from Tlon', 'Are you sure you want to log out?', [
+      Alert.alert('Log out from Sato', 'Are you sure you want to log out?', [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Log out now',
@@ -312,7 +312,7 @@ function useSettingsSections(
     if (props.onWebAppPressed) {
       aboutRows.push({
         key: 'web-app',
-        title: 'Tlon Messenger on the Web',
+        title: 'Sato on the Web',
         leading: { kind: 'icon', icon: 'Link' },
         accessory: 'external',
         onPress: props.onWebAppPressed,

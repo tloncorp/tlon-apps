@@ -227,7 +227,7 @@ export function BotChannelRulesScreen(props: Props) {
     async (groupHost: string, groupName: string, sampleChannelKey: string) => {
       setJoinError(null);
       if (!queries.moon) {
-        setJoinError('Tlonbot moon is not ready yet.');
+        setJoinError("Sato's moon is not ready yet.");
         return;
       }
       const groupFull = resolveGroupFull(
@@ -387,7 +387,7 @@ export function BotChannelRulesScreen(props: Props) {
       if (isDeparted) {
         groupRows.push({
           key: 'departed',
-          title: 'Tlonbot is no longer in this workspace',
+          title: 'Sato is no longer in this workspace',
           subtitle: hasDraftRules
             ? 'Its rules here are paused. Join again to resume them.'
             : 'Its rules here will be removed when you apply.',
@@ -510,7 +510,7 @@ export function BotChannelRulesScreen(props: Props) {
           if (!open) setJoinTarget(null);
         }}
         title={`Join ${joinTarget?.label ?? 'workspace'}?`}
-        description="This adds your Tlonbot to the workspace. After it joins, you can choose which channels it can respond in."
+        description="This adds Sato to the workspace. After it joins, you can choose which channels it can respond in."
         confirmText="Join"
         onConfirm={() => {
           if (!joinTarget) return;

@@ -168,7 +168,7 @@ export function BotOpenAISubscriptionScreen(props: Props) {
           <YStack gap="$2xl" paddingBottom="$2xl">
             <BotSettingsSection
               title="Connected"
-              description={`Tlonbot can use models included with your ${subscriptionName}.`}
+              description={`Sato can use models included with your ${subscriptionName}.`}
             >
               <YStack padding="$l" gap="$s">
                 <Text size="$label/m">{subscriptionName}</Text>
@@ -234,7 +234,7 @@ export function BotOpenAISubscriptionScreen(props: Props) {
         onOpenChange={setConfirmDisconnect}
         destructive
         title={`Disconnect ${subscriptionName}?`}
-        description="Tlonbot will no longer be able to use models from this subscription."
+        description="Sato will no longer be able to use models from this subscription."
         confirmText="Disconnect"
         onConfirm={handleDisconnect}
       />

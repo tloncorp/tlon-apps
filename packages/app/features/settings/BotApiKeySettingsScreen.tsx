@@ -280,7 +280,7 @@ export function BotApiKeySettingsScreen(props: Props) {
         onOpenChange={setConfirmRemove}
         destructive
         title={`Remove ${provider.label} API key?`}
-        description="Tlonbot will stop using custom models from this provider."
+        description="Sato will stop using custom models from this provider."
         confirmText="Remove"
         onConfirm={handleRemove}
       />

@@ -360,16 +360,16 @@ export function BotChannelRuleSettingsScreen(props: Props) {
     {
       key: 'enable',
       footer: groupDeparted
-        ? 'Tlonbot is no longer in this workspace, so this channel is paused. Join again from Channel rules to resume it.'
+        ? 'Sato is no longer in this workspace, so this channel is paused. Join again from Channel rules to resume it.'
         : !groupJoined
-          ? 'Join this workspace to enable Tlonbot in this channel.'
+          ? 'Join this workspace to enable Sato in this channel.'
           : undefined,
       rows: [
         {
           key: 'enable',
-          title: 'Enable Tlonbot here',
+          title: 'Enable Sato here',
           subtitle: !rule
-            ? 'Tlonbot will ignore this channel'
+            ? 'Sato will ignore this channel'
             : groupDeparted
               ? 'Paused'
               : 'Listening for prompts',
@@ -395,7 +395,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
           {
             key: 'allowed',
             title: 'Allowed users',
-            footer: 'Only these users can invoke Tlonbot in this channel.',
+            footer: 'Only these users can invoke Sato in this channel.',
             rows: [
               ...allowedShips.map((ship) => ({
                 ...contactSettingsRow(
@@ -547,9 +547,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
     <SettingsListScreenView
       // The channel's name alone doesn't say whose rule this is, and phones
       // don't show a header subtitle.
-      title={
-        channelLabel ? `Tlonbot in ${channelLabel}` : 'Tlonbot channel rule'
-      }
+      title={channelLabel ? `Sato in ${channelLabel}` : 'Sato channel rule'}
       sections={sections}
       // Opened from the channel rules list, so wide windows need the way
       // back too (it also checks a half-set custom model).

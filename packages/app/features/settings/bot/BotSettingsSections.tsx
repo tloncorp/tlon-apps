@@ -277,7 +277,7 @@ export function useBotSettingsSectionModels(
           key: 'bot',
           footer:
             !queries.botReady && settingsReady
-              ? 'Tlonbot is starting. Settings may take a moment to become editable.'
+              ? 'Sato is starting. Settings may take a moment to become editable.'
               : undefined,
           rows: [
             {
@@ -286,7 +286,7 @@ export function useBotSettingsSectionModels(
               title:
                 draft.nickname ||
                 (settingsReady ? undefined : botContact?.nickname) ||
-                'Tlonbot',
+                'Sato',
               subtitle: 'Bot profile',
               leading: { kind: 'element', render: renderBotAvatar },
               prominent: true,
@@ -465,7 +465,7 @@ export function BotSettingsApplyBar({ hub }: { hub: BotSettingsHub }) {
         title="Restart gateway?"
         description={`Applying ${changeCount} ${
           changeCount === 1 ? 'change' : 'changes'
-        } restarts the Tlonbot gateway. Your Tlonbot will be offline for ~20 seconds.`}
+        } restarts Sato's gateway. Sato will be offline for ~20 seconds.`}
         confirmText="Apply & restart"
         onConfirm={() => {
           setConfirmApplyOpen(false);

@@ -319,7 +319,7 @@ export function BotModelSettingsScreen(props: Props) {
         key: 'chain',
         title: 'Fallback chain',
         footer:
-          'If the default model fails, Tlonbot tries each of these in order.',
+          'If the default model fails, Sato tries each of these in order.',
         rows:
           modelValues.fallbacks.length === 0
             ? [noteRow('empty', 'No fallback models set.')]

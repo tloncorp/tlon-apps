@@ -54,7 +54,7 @@ export function SecureVaultView({
         key: 'logins',
         title: 'Saved logins',
         footer:
-          'Your Tlonbot will use your vault logins when using the shared browser. Your approval is required each time it uses one.',
+          'Sato will use your vault logins when using the shared browser. Your approval is required each time it uses one.',
         rows: error
           ? [
               { key: 'error', title: error },
