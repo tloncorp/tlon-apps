@@ -1,5 +1,5 @@
 # Sourced by the scripts that run fake ships in the image built from this
-# directory. Sets runtime to podman when it is installed, otherwise docker;
+# directory. Sets runtime to podman when it is usable, otherwise docker;
 # CONTAINER_RUNTIME overrides the choice. Sets checkout to a number that
 # stands for this checkout's path, and image to the image's tag, which carries
 # it: checkouts with different pills can then run at once. prune_images removes
@@ -8,7 +8,7 @@
 if [ -n "$CONTAINER_RUNTIME" ]
 then
   runtime=$CONTAINER_RUNTIME
-elif command -v podman > /dev/null
+elif podman ps -q > /dev/null 2>&1
 then
   runtime=podman
 else

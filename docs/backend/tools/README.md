@@ -22,7 +22,7 @@ from `bootstrap.urbit.org`. Its entrypoint runs one ship, named as its argument,
 as the container's main process, with its pier at `/piers/<ship>`: it resumes
 an existing pier and otherwise boots the ship from the pill.
 
-The scripts use podman when it is installed and docker otherwise;
+The scripts use podman when it is usable and docker otherwise;
 `CONTAINER_RUNTIME` overrides the choice (`scripts/backend/container/runtime.sh`).
 They are verified on Linux, with podman and, through local `act` runs of the
 CI jobs, with docker; macOS is untested.

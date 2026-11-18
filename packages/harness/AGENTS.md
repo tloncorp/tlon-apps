@@ -11,7 +11,7 @@ and tests).
 
 Run these from `packages/harness`. They need `just`, `yq`, `git`,
 `rsync`, `python3` and, for fake ships, `jq` and podman or docker (podman when
-both are installed; `CONTAINER_RUNTIME` picks one). `just provider` also needs
+both are usable; `CONTAINER_RUNTIME` picks one). `just provider` also needs
 `curl`. `just test-js` runs Node and its ships in a container, so it needs no
 `node` on the host.
 
