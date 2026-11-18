@@ -73,17 +73,14 @@ describe('agent task plan reply delivery', () => {
     });
   });
 
-  it('suppresses final model prose after a workspace card post', () => {
+  it('keeps the model reply after a workspace card post', () => {
     recordSuccess('tlon_workspace_plan');
 
-    expect(suppress()).toEqual({
-      cancel: true,
-      reason: 'tlon_onboarding_surface_owns_reply',
-    });
+    expect(suppress()).toBeUndefined();
   });
 
   it("drops the host's no-visible-reply notice after a surface reply", () => {
-    recordSuccess('tlon_workspace_plan');
+    recordSuccess('tlon_agent_choice');
     expect(suppress()).toMatchObject({ cancel: true });
     const notice = {
       payload: {

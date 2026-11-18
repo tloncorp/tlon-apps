@@ -179,7 +179,8 @@ describe('tlon_workspace_plan', () => {
     });
     await execute('1', bikeParts);
     const result = await execute('2', { ...bikeParts, title: 'Gravel Bike' });
-    expect(result.content[0].text).toContain('Return NO_REPLY');
+    expect(result.content[0].text).not.toContain('Return NO_REPLY now');
+    expect(result.content[0].text).toContain("answer the owner's message");
     expect(posted).toEqual([
       `~ten ${bikeParts.intro}`,
       '~ten card New workspace: Bike Parts',
@@ -224,6 +225,61 @@ describe('tlon_workspace_plan', () => {
     const result = await execute('1', { ...bikeParts, channels: [] });
     expect(result.details).toEqual({ error: true });
     expect(postCard).not.toHaveBeenCalled();
+  });
+
+  const kitchenAnswer =
+    'Start with demolition and rough plumbing,\nthen cabinets, then counters.';
+
+  function planExecutor(store: ReturnType<typeof memoryStore>) {
+    const posted: string[] = [];
+    let now = 0;
+    const execute = createWorkspacePlanToolExecutor({
+      ownerShip: () => '~ten',
+      postText: async (target, text) => posted.push(`${target} ${text}`),
+      postCard: async () => undefined,
+      store: () => store,
+      now: () => (now += 1),
+    });
+    return { execute, posted };
+  }
+
+  it('stores the answer with the proposal, not in the DM', async () => {
+    const store = memoryStore();
+    const { execute, posted } = planExecutor(store);
+    const result = await execute('1', { ...bikeParts, answer: kitchenAnswer });
+    expect(result.content[0].text).toContain('Now reply with your answer');
+    const [record] = store.records.values();
+    expect(record.answer).toBe(kitchenAnswer);
+    // The tool posts only the intro; the model's reply carries the answer.
+    expect(posted).toEqual([`~ten ${bikeParts.intro}`]);
+  });
+
+  it('keeps the answer through Edit when the revision omits it', async () => {
+    const store = memoryStore();
+    const { execute } = planExecutor(store);
+    await execute('1', { ...bikeParts, answer: kitchenAnswer });
+    const [first] = store.records.values();
+    await noteWorkspacePlanTap(
+      { proposalId: first.proposalId, action: 'edit' },
+      store
+    );
+    await execute('2', { ...bikeParts, title: 'Gravel Bike' });
+    const revised = [...store.records.values()].find(
+      (record) => record.plan.title === 'Gravel Bike'
+    );
+    expect(revised?.answer).toBe(kitchenAnswer);
+    expect(store.records.get(first.proposalId)?.status).toBe('superseded');
+  });
+
+  it('does not carry an answer to a new card without an Edit', async () => {
+    const store = memoryStore();
+    const { execute } = planExecutor(store);
+    await execute('1', { ...bikeParts, answer: kitchenAnswer });
+    await execute('2', { ...bikeParts, title: 'Gravel Bike' });
+    const second = [...store.records.values()].find(
+      (record) => record.plan.title === 'Gravel Bike'
+    );
+    expect(second?.answer).toBeUndefined();
   });
 });
 
@@ -402,6 +458,78 @@ describe('tlon_workspace_create', () => {
     })('call-1', { proposalId: 'workspace-plan-abc' });
     expect(created.details).toBeUndefined();
     expect(created.content[0].text).toMatch(/\n\/1\/group\/~ten\/bike-parts$/);
+  });
+
+  describe('with an answer from the DM', () => {
+    const answer = 'Demolition first,\nthen plumbing.';
+    beforeEach(async () => {
+      const record = store.records.get('workspace-plan-abc')!;
+      await store.register('workspace-plan-abc', { ...record, answer });
+    });
+
+    it('posts it first in the workspace chat', async () => {
+      const posts: Array<[string, string]> = [];
+      const created = await executor(async (target, text) => {
+        posts.push([target, text]);
+      })('call-1', { proposalId: 'workspace-plan-abc' });
+      expect(posts).toEqual([
+        ['chat/~ten/general', answer],
+        ['~ten', '/1/group/~ten/bike-parts'],
+      ]);
+      expect(created.content[0].text).toContain(
+        "already opens with your answer from the DM; don't post it again"
+      );
+      expect(store.records.get('workspace-plan-abc')?.answerPosted).toBe(true);
+    });
+
+    it('does not post it twice on a retry', async () => {
+      const posts: string[] = [];
+      const post = async (target: string) => {
+        posts.push(target);
+      };
+      failOn = 'groups move-channel';
+      const failed = await executor(post)('call-1', {
+        proposalId: 'workspace-plan-abc',
+      });
+      expect(failed.details).toEqual({ error: true });
+      expect(posts).toEqual([]);
+      failOn = undefined;
+      await executor(post)('call-2', { proposalId: 'workspace-plan-abc' });
+      await executor(post)('call-3', { proposalId: 'workspace-plan-abc' });
+      expect(posts.filter((target) => target === 'chat/~ten/general')).toEqual([
+        'chat/~ten/general',
+      ]);
+    });
+
+    it('retries the answer when its post failed', async () => {
+      let fail = true;
+      const posts: string[] = [];
+      const post = async (target: string) => {
+        if (fail && target === 'chat/~ten/general') throw new Error('nack');
+        posts.push(target);
+      };
+      const failed = await executor(post)('call-1', {
+        proposalId: 'workspace-plan-abc',
+      });
+      expect(failed.content[0].text).toContain(
+        'posting your answer in chat/~ten/general failed'
+      );
+      fail = false;
+      await executor(post)('call-2', { proposalId: 'workspace-plan-abc' });
+      expect(posts).toEqual(['chat/~ten/general', '~ten']);
+      expect(
+        commands.filter((command) => command.startsWith('groups create-owned'))
+      ).toHaveLength(1);
+    });
+  });
+
+  it('posts nothing extra without an answer', async () => {
+    const posts: Array<[string, string]> = [];
+    const created = await executor(async (target, text) => {
+      posts.push([target, text]);
+    })('call-1', { proposalId: 'workspace-plan-abc' });
+    expect(posts).toEqual([['~ten', '/1/group/~ten/bike-parts']]);
+    expect(created.content[0].text).not.toContain('your answer');
   });
 
   it("mirrors the task into the owner's task list once it is added", async () => {

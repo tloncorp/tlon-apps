@@ -31,6 +31,15 @@ export type WorkspaceProposal = {
   /** The channels are in the card's order. */
   ordered?: boolean;
   taskJobId?: string;
+  /**
+   * The bot's answer to the owner's message in the DM, posted as the bot's
+   * first message in the workspace chat on Create.
+   */
+  answer?: string;
+  /** The owner tapped Edit: the revised card keeps this card's answer. */
+  editing?: boolean;
+  /** The answer is posted in the workspace chat. */
+  answerPosted?: boolean;
 };
 
 export type WorkspaceProposalStore = Pick<
@@ -96,6 +105,9 @@ export async function noteWorkspacePlanTap(
     if (proposal.status === 'created') {
       return `\n[Workspace card: the owner tapped Edit on ${title}, which is already created. Ask what to change and change the workspace itself with the tlon tool.]`;
     }
+    if (!proposal.editing) {
+      await store.register(proposal.proposalId, { ...proposal, editing: true });
+    }
     return `\n[Workspace card: the owner tapped Edit on ${title}. Ask in one short line what to change. Once they answer, post the revised card with tlon_workspace_plan; it replaces this one. Create nothing yet.]`;
   }
   if (proposal.status === 'open') {
@@ -117,9 +129,11 @@ export const workspacePlanToolMetadata = {
   promptSnippet:
     "`tlon_workspace_plan`: propose a workspace for a project-like topic in your owner's DM",
   promptGuidelines: [
-    'After the card posts, return NO_REPLY: the intro and card are your reply.',
+    "Pass your answer to the owner's message as `answer`, then reply with that answer after the card posts.",
   ],
 };
+
+export const WORKSPACE_ANSWER_MAX_LENGTH = 4000;
 
 const channelSchema = {
   type: 'object',
@@ -165,6 +179,12 @@ export const workspacePlanToolParameters = {
       description:
         'The channels to create, first one a chat. Each purpose is a promise: after Create you post that starter content.',
     },
+    answer: {
+      type: 'string',
+      maxLength: WORKSPACE_ANSWER_MAX_LENGTH,
+      description:
+        "Your answer to the owner's message, the same text you reply with after the card. It becomes your first message in the workspace chat when the owner taps Create. Leave out the card and any reminder confirmation.",
+    },
     task: {
       type: 'object',
       description:
@@ -200,6 +220,19 @@ export const workspacePlanToolParameters = {
   additionalProperties: false,
 } as const;
 
+/** The optional answer, trimmed but with its line breaks kept. */
+function parseAnswer(value: unknown): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'string') throw new Error('answer must be text');
+  const answer = value.trim();
+  if (answer.length > WORKSPACE_ANSWER_MAX_LENGTH) {
+    throw new Error(
+      `answer must be at most ${WORKSPACE_ANSWER_MAX_LENGTH} characters`
+    );
+  }
+  return answer || undefined;
+}
+
 function textResult(text: string, error = false) {
   return {
     content: [{ type: 'text' as const, text }],
@@ -228,15 +261,29 @@ export function createWorkspacePlanToolExecutor(deps: {
       if (!ownerShip) throw new Error('no owner is configured for this bot');
       const parsed = parseWorkspacePlan(params);
       const { intro, ...plan } = parsed;
+      const store = (deps.store ?? getWorkspaceProposalStore)();
+      // A revision after Edit keeps the edited card's answer unless it brings
+      // its own.
+      const answer =
+        parseAnswer((params as { answer?: unknown } | null)?.answer) ??
+        (await store.entries())
+          .map(({ value }) => value)
+          .filter(
+            (value) =>
+              value.ownerShip === ownerShip &&
+              value.status === 'open' &&
+              value.editing
+          )
+          .sort((a, b) => b.proposedAt - a.proposedAt)[0]?.answer;
       const proposalId = newWorkspaceProposalId();
       const blob = buildWorkspacePlanBlob(proposalId, plan);
-      const store = (deps.store ?? getWorkspaceProposalStore)();
       await store.register(proposalId, {
         proposalId,
         ownerShip,
         plan,
         status: 'open',
         proposedAt: (deps.now ?? Date.now)(),
+        ...(answer ? { answer } : {}),
       });
       await deps.postText(ownerShip, intro);
       await deps.postCard({
@@ -260,7 +307,10 @@ export function createWorkspacePlanToolExecutor(deps: {
         }
       }
       return textResult(
-        `Posted the ${JSON.stringify(plan.title)} workspace card (proposal ${proposalId}). Nothing exists yet: it is created only when the owner taps Create. Return NO_REPLY now; the intro and card are your reply.`
+        `Posted the ${JSON.stringify(plan.title)} workspace card (proposal ${proposalId}). Nothing exists yet: it is created only when the owner taps Create. ` +
+          (answer
+            ? 'Now reply with your answer, plus a confirmation of any reminder you set up this turn. Do not mention the card again.'
+            : "Now answer the owner's message, if it asked anything, and confirm any reminder you set up this turn; return NO_REPLY only if there is nothing to say.")
       );
     } catch (error) {
       return textResult(`Error: ${errorText(error)}`, true);
@@ -501,6 +551,23 @@ export function createWorkspaceCreateToolExecutor(deps: {
       await save({ ordered: true });
     }
 
+    // The DM answer opens the workspace chat, before the starter content.
+    let answerNote: string | undefined;
+    if (proposal.answer && !proposal.answerPosted) {
+      if (deps.postText) {
+        try {
+          await deps.postText(nests[0]!, proposal.answer);
+        } catch (error) {
+          throw new Error(
+            `posting your answer in ${nests[0]} failed: ${errorText(error)}`
+          );
+        }
+        await save({ answerPosted: true });
+      } else {
+        answerNote = `Before anything else, post this in ${nests[0]}, exactly:\n${proposal.answer}`;
+      }
+    }
+
     if (plan.task && !proposal.taskJobId) {
       const cron = deps.getCron();
       if (!cron) throw new Error('the scheduler is not available yet');
@@ -547,6 +614,13 @@ export function createWorkspaceCreateToolExecutor(deps: {
             `Recurring task "${plan.task.title}" scheduled (${plan.task.schedule}), posting to ${nests[0]}.`,
           ]
         : []),
+      ...(answerNote
+        ? [answerNote]
+        : proposal.answerPosted
+          ? [
+              `${nests[0]} already opens with your answer from the DM; don't post it again.`,
+            ]
+          : []),
       'Now post that starter content in each channel (gallery items one per post, notebook content as a note). Then reply here in one line.',
       await postGroupCard(proposal.ownerShip, ref()),
     ];
