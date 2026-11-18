@@ -4,7 +4,8 @@ Found while fixing the test suite in November 2026. None of these is fixed.
 Each entry says how much was established: **Reproduced** means it was seen on a
 test ship, **Read** means it comes from reading the code or docs, and **Inferred**
 means it follows from those but was not run. Recommendations are proposals, not
-decisions.
+decisions. Line references were last checked against the code at `bcce2d5c32`, by
+reading.
 
 ## Known bugs
 
@@ -26,10 +27,10 @@ and `ask_peer`, and its `curl` POST reached a local test server. The same grant
 through a non-owner hand gave the child 9 tools, and `curl` was rejected.
 
 **Read.** This is not an escalation past the parent. `action-spawn` passes the
-parent's `execution-tools` (`desk/app/harness.hoon:4404`), which become `owner-tools`
-for an administrator (`desk/app/harness.hoon:5622`), so the owner parent already holds
+parent's `execution-tools` (`desk/app/harness.hoon:4443`), which become `owner-tools`
+for an administrator (`desk/app/harness.hoon:5668`), so the owner parent already holds
 those tools itself, and the child loses `harness_admin` and `cron`. It follows from
-issue 2. The comment at `desk/lib/harness-defaults.hoon:7-8`, "delegated work retains
+issue 2. The comment at `desk/lib/harness-defaults.hoon:6-10`, "delegated work retains
 its explicit grants", was wrong and has been corrected.
 
 **Recommendation:** no separate cap. Children follow the parent's effective tools, so
@@ -41,14 +42,14 @@ a saved list that does nothing on owner turns apply only to children, and a chil
 
 **Reproduced.** With `tools: []`, an owner conversation still gets every tool
 family, including `harness_admin`, all of Clay and global corpus recall.
-`desk/app/harness.hoon:5622`, added in `18c56b8`, replaces the grants, and
+`desk/app/harness.hoon:5668`, added in `18c56b8`, replaces the grants, and
 `test-owner-first-turn-advertises-live-tools-despite-empty-session-grants`
-(`desk/tests-integration/harness-hosted.hoon:224`) pins this.
+(`desk/tests-integration/harness-hosted.hoon:212`) pins this.
 
 **Read.** The README and `docs-refs/` pages `architecture`, `execution`,
 `capabilities` and `tlon` describe per-conversation limits and now carry a known-bug
 note. Also out of step:
-- The comment at `desk/app/harness.hoon:2826` calls cross-conversation recall an
+- The comment at `desk/app/harness.hoon:2865` calls cross-conversation recall an
   explicit owner-conversation grant.
 
 | Option | Owner in the Tlon UI | Hosted connected services |
@@ -68,7 +69,8 @@ changes.
 
 **Reproduced against a throwaway `%storage` stub.** An owner session granted only
 `tlon` uploaded `/harness/lib/harness-tlon-tool/hoon`. `upload-authorized`
-(`desk/app/harness-tlon.hoon:779`) passes because of issue 2. The two denial checks
+(`desk/app/harness-tlon.hoon:819`) passes because of issue 2: its `clay-granted` check
+(`:837`) reads the owner's effective tools, which hold all of Clay. The two denial checks
 in `tests-js/tlon-completion-conformance.mjs` will fail on any ship with `%storage`
 until this is settled.
 
@@ -86,7 +88,15 @@ covers both, and fails with the original error when the old route is restored.
 **Inferred.** Two ships set as each other's owner failed with timeouts in `just test`, and
 passed once one owned itself. Each bot answers its owner's DMs, so with failing providers
 each failure message would be answered by the other, spending money with working ones.
-This wasn't observed directly. Check for a guard against replying to another bot.
+This wasn't observed directly.
+
+**Read.** There is no guard against replying to another bot or to a failure message.
+`normalize-owned` (`desk/lib/harness-tlon-policy.hoon:119`) drops only the ship's own
+messages and ungranted authors, and `settle-hands` (`desk/app/harness.hoon:4108`) posts
+a failure back to the conversation, where the other side admits it as an owner DM. The
+queue caps in `activity-room` (`desk/app/harness-tlon.hoon:1804`) limit waiting work,
+not a strict back-and-forth. `scripts/test-js.sh` avoids the case by having each test
+ship own itself.
 
 ### 5. A rejected request isn't compacted and retried
 
@@ -95,6 +105,12 @@ instructions, tools and memory. If those grow right at the limit, a provider can
 the request. The user sees a request-size error (`desk/lib/harness-failure.hoon:48`), and
 because a failed turn adds no new measurement, retrying would probably fail the same way
 until someone runs `/compact`.
+
+`%llm-failed` clears the pending turn and starts no compaction
+(`desk/lib/harness.hoon:107`). The only automatic follow-up is `try-fallback`
+(`desk/app/harness.hoon:5157`), which moves to the next fallback model on any failure
+with no streamed output, so a size rejection is retried only where a fallback model with
+a larger window is configured.
 
 **Recommendation:** on a size rejection, compact once and retry, with a guard so it can't
 loop.
@@ -116,7 +132,12 @@ provider, and dreaming, which has no conversation, uses the ship's default.
 
 **Reproduced.** It reported about 8k tokens while `drive` was over a 24.7k budget.
 
-**Inferred:** `context-report` uses the configured grants rather than `execution-tools`.
+**Read.** `context-report` (`desk/lib/harness-command.hoon:61`) estimates from the saved
+grants: its view (`desk/app/harness.hoon:4077`) is not passed through `execution-tools`,
+as `drive` does (`desk/app/harness.hoon:4838`). The two numbers differ only when no usage
+report matches the view: before the first reported turn, after a model switch, or with a
+provider that reports no prompt tokens. With a report, `est-tokens`
+(`desk/lib/harness-provider.hoon:16-32`) subtracts the catalog on both sides.
 
 ### 9. The full tool catalog is sent with `tools: []` on owner turns
 
@@ -145,13 +166,20 @@ only they can show whether it still behaves.
 
 ### 11. Saved config does not show an owner's real tools
 
-**Read, not tested.** `harness/session/config` returns the raw saved grant, and the
-`/status` tool-grant count does not look reliable for owners either.
+**Read, not tested.** `harness/session/config` returns the raw saved grant
+(`desk/app/harness.hoon:3646`, `desk/lib/harness-json.hoon:70`). The `/status` tool-grant
+count (`desk/lib/harness-command.hoon:120`) is the length of that saved list, so it is
+wrong for owners.
 
-### 12. A child's saved config holds tools it can't use
+### 12. A child's saved config does not match what it can use
 
 **Reproduced.** It holds `admin` and `cron`, copied from the parent's effective tools.
 They are stripped at execution. An owner's child also lists `tlon` with no hand binding.
+
+**Read.** The spawn skips only `subagents` (`desk/app/harness.hoon:4443`). The child can
+use `tlon`, the ship-wide tool, since it is in `owner-tools`. The child of a Tlon-bound
+owner parent also holds `tlon-read` and `tlon-write`, which are stripped at execution
+because the child has no binding.
 
 ## Agent lifecycle
 
@@ -162,25 +190,38 @@ They are stripped at execution. An owner's child also lists `tlon` with no hand 
 `%gx /chat/dm/invited/ships` and `%gu /contacts`. `on-init` takes the same route.
 
 **Read.** `on-load` runs `abet:boot:refresh-peers:retire-uploads:reset-wake`
-(`desk/app/harness-tlon.hoon:53`). `refresh-peers` checks that the head agent is
-running before poking it (`desk/app/harness-tlon.hoon:214`). `boot` calls
-`accept-granted-invitations`, which checks `%chat` and reads its pending DM invites
-(`desk/lib/harness-tlon-io.hoon:16`) and checks `%contacts`
-(`desk/lib/harness-tlon-io.hoon:248`). Each read sits behind a `%gu` check and the
-invitation step is inside `mole`, so a missing agent does not crash the load.
+(`desk/app/harness-tlon.hoon:61`) and `on-init` runs `abet:boot:refresh-peers` (`:50`).
+Neither defers the work.
+
+- `refresh-peers` checks that the head agent is running before poking it
+  (`desk/app/harness-tlon.hoon:214`).
+- `boot` calls `accept-granted-invitations` (`:222`), which checks `%chat` and reads its
+  pending DM invites (`desk/lib/harness-tlon-io.hoon:16`) inside `mole`.
+- `abet` calls `sync-liveness` (`:174`), which checks `%contacts`
+  (`desk/lib/harness-tlon-io.hoon:249`) inside `mole`.
+- `boot` calls `catch-up` (`:230`) when the `/activity` subscription is acked. It checks
+  `%activity` (`:1773`) and then reads `/activity/v6/all` (`:1777`). That read is behind
+  the `%gu` check but not inside `mole`, so a crash in it fails the load.
+- With the lens enabled and the hand online, `steward-lease` checks `%steward` (`:188`)
+  and reads its gateway status (`:194`), both inside `mole`.
 
 Scrying in `on-load` is discouraged: during a desk upgrade the agents being read may
 be mid-upgrade themselves, and a crash that gets past the guards fails the load.
-`/app/harness` already defers its own peer refresh with a self-poke
-(`desk/app/harness.hoon:174`).
+`/app/harness` defers its own peer refresh with a self-poke
+(`desk/app/harness.hoon:186`).
 
-**Not investigated.** A `%gu /harness-tlon` scry also appeared twice during an
-`/app/harness` load. Which path makes it was not traced.
+`/app/harness` scries `%gu /harness-tlon` on load all the same. `on-load` clears the
+schedule wake, so `finish-event` runs `poll-schedules` whenever a schedule is active, and
+each Tlon job reaches `schedule-adapter-down` (`desk/app/harness.hoon:962`). With the
+adapter running, `hand-source-live` then reads `/harness-tlon/authority/[sid]`
+(`:955`) with no `mole`. Which of these printed the two lines seen in the original run
+was not confirmed on a ship.
 
 **Recommendation:** have `on-load` and `on-init` emit a self-poke or a zero-delay timer,
-and run `refresh-peers` and `accept-granted-invitations` when it arrives. The adapter's
-load tests in `desk/tests-integration/harness-tlon-*.hoon` pin the cards a load emits
-and would need updating.
+and run `refresh-peers`, `accept-granted-invitations` and `catch-up` when it arrives. The
+`%load` cases in `desk/tests-integration/harness-tlon-invitations.hoon`,
+`harness-tlon-subscription.hoon` and `harness-tlon-liveness.hoon` pin the cards a load
+emits and would need updating.
 
 ## Test gaps
 
@@ -190,7 +231,7 @@ and would need updating.
 That includes 935 native Harness, 27 native `mcp` and 139 integration tests. The failure was
 a timing flaw in `tlon-tools`, since fixed in the test; a full run with that fix hasn't finished yet.
 `conformance` and `hand` run against a local fake model, so they check protocol and hand
-behaviour, not real models.
+behaviour, not real models. This run predates the four CI shards of `just test-js`.
 
 **Skipped:**
 - `tlon-media`: needs `%storage`, which the pill lacks, and a real download.
@@ -206,16 +247,21 @@ checks then depend on issue 3.
 - `reliability-soak` with `SOAK_WORK=1`, which adds real work and fault recovery.
 - `peer-rpc`'s owner branch, because `~lux` isn't `~zod`'s owner.
 
-**Upgrades:** upgrading an existing ship is untested, including what happens to the
-suspended `%harness-grub` and `%harness-fileserver`.
+**Upgrades:** upgrading an existing ship is untested.
 
 **Possibly worth a look, not confirmed bugs:**
 - `harness/tlon/configure` accepts `owner: null`. Fresh installs have no owner, so the old test
-  was treated as stale, but the error text points owner changes elsewhere.
-- `/forget` on an already forgotten memory says "Memory forgotten" and adds another event.
+  was treated as stale, but the error text points owner changes elsewhere. **Read:** the
+  handler (`desk/app/harness-tlon.hoon:485`) checks `expectedOwner` only when it is
+  supplied, so it can clear the owner or set any ship, and unlike `harness/tlon/owner/set`
+  it does not turn `enabled` off when the owner becomes null.
+- `/forget` on an already forgotten memory says "Memory forgotten" and adds another
+  session event (`%memory-set`). No new memory revision is made.
 - `%channels` prints `%unknown-scry-path` for `/x/v4/v-channels` around adapter restarts.
 - A provider 504 didn't reach the peer as a message within 30 seconds, which could be a silent
-  stall.
+  stall. **Read:** a failure is delivered to hands and peer asks (`settle-hands`,
+  `settle-asks`), but with a fallback model configured `try-fallback` dispatches again
+  first, which may be the silence. Not run.
 
 ### 14. Fixed: `local-mcp` had never run against the real proxy
 
@@ -232,7 +278,7 @@ needs a real `%storage` and a decision on issue 3.
 
 - **Corpus grant:** the new `lcm` isolation check uses a session that is both ungranted
   and social, so removing only the `%corpus` grant clause
-  (`desk/app/harness.hoon:2828`) would not fail it. No non-owner, non-social,
+  (`desk/app/harness.hoon:2867`) would not fail it. No non-owner, non-social,
   non-delegated session was found reachable from a single-ship script (inferred).
 - **Rehearsal:** a scoped parent can't be reached live. Only the native
   `test-rehearsal-keeps-only-inherited-reads` covers it.
@@ -242,7 +288,8 @@ needs a real `%storage` and a decision on issue 3.
   alone exceeds, so the oversized prompt probably isn't what triggers the failure
   (inferred).
 - **Avoided, not fixed:** `task-notes` and `work-control` use a larger window, set to
-  avoid compaction. With the double count gone they may no longer need it.
+  avoid compaction. With the double count gone they may no longer need it. Their
+  comments give the ship's default summary route as the reason, which issue 4 removed.
 
 ### 17. Test tooling
 
@@ -260,8 +307,9 @@ needs a real `%storage` and a decision on issue 3.
 - **Credentials at startup:** `conformance.mjs`, `compaction-provider-smoke.mjs` and
   `hand-conformance.mjs` weren't run, and may not say up front that they need one.
 - **Login:** the `scripts/click` login-code thread returned no code on a fresh `~nec`.
-  Reading `+code` from Dojo works. A failed login still writes an `urbauth` cookie, so it
-  looks successful until requests return 403.
+  The test scripts read `+code` from Dojo instead (`scripts/test-lib.sh:122`). A failed
+  login still writes an `urbauth` cookie, so it looks successful until requests return
+  403.
 - **`desk/lib/test-agent.hoon` is a patched copy** of tlon-apps' library. Upstream,
   `get-peek` and `got-peek` call `+on-peek` outside the mocked scry, so a peek that
   itself scries reaches the real ship and crashed the test thread (**Reproduced**). The
@@ -272,8 +320,6 @@ needs a real `%storage` and a decision on issue 3.
 
 - **`':prefix-index'`** is a sentinel key stored among the search postings. It could be a
   dedicated state field.
-- **`desk/lib/harness-provider.hoon:102-104`** says estimates omit identity lines; this
-  comment was not checked against the estimate.
 - **`.gitignore`** has `urbit-mcp/`, which looks dead.
 - **`just heavy=true` and `HARNESS_HEAVY_TESTS`** have misleading names now that the docs
   no longer call the integration tests heavy. `just heavy=true` could become

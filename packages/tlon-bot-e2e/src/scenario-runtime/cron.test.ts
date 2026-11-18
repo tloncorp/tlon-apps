@@ -413,7 +413,7 @@ describe('cron scenario lifecycle helpers', () => {
     expect(argv[4]).toContain('late-id');
   });
 
-  test('clips a late capture listing started near its deadline to the remaining phase time', async () => {
+  test('runs each late capture listing under the cleanup command timeout', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(0);
     docker.resolveComposeContainer.mockResolvedValue('container-id');
@@ -422,11 +422,11 @@ describe('cron scenario lifecycle helpers', () => {
       async (_ctx, _id, _argv, opts) => {
         invocation += 1;
         if (invocation === 1) {
-          expect(opts.timeoutMs).toBe(1_000);
+          expect(opts.timeoutMs).toBe(10_000);
           return result({ jobs: [] });
         }
         if (invocation === 2) {
-          expect(opts.timeoutMs).toBe(500);
+          expect(opts.timeoutMs).toBe(10_000);
           return result({ jobs: [{ id: 'late-id', name: 'late-job' }] });
         }
         if (invocation === 3) {
@@ -450,6 +450,54 @@ describe('cron scenario lifecycle helpers', () => {
     );
     await vi.advanceTimersByTimeAsync(500);
     await expect(cleanup).resolves.toBeUndefined();
+  });
+
+  test('returns cleanly when no late job appears before the capture deadline', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    docker.resolveComposeContainer.mockResolvedValue('container-id');
+    docker.execInContainer.mockResolvedValue(result({ jobs: [] }));
+
+    const cleanup = cleanupCronJobAndArtifacts(
+      context,
+      'openclaw',
+      { name: 'never-created', creationSettled: Promise.resolve() },
+      { lateCaptureWaitMs: 1_000 }
+    );
+    await vi.advanceTimersByTimeAsync(1_000);
+    await expect(cleanup).resolves.toBeUndefined();
+
+    const calls = docker.execInContainer.mock.calls;
+    // Capture listings at 0, 500 and 1000 ms, then the absence check.
+    expect(calls).toHaveLength(4);
+    for (const call of calls) {
+      expect(call[2]).toEqual(openClawListArgv());
+      expect(call[3]).toEqual({ timeoutMs: 10_000 });
+    }
+  });
+
+  test('lists once with the full command timeout when lateCaptureWaitMs is 0', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    docker.resolveComposeContainer.mockResolvedValue('container-id');
+    docker.execInContainer.mockResolvedValue(result({ jobs: [] }));
+
+    await expect(
+      cleanupCronJobAndArtifacts(
+        context,
+        'openclaw',
+        { name: 'never-created', creationSettled: Promise.resolve() },
+        { lateCaptureWaitMs: 0 }
+      )
+    ).resolves.toBeUndefined();
+
+    const calls = docker.execInContainer.mock.calls;
+    // One capture listing, then the absence check.
+    expect(calls).toHaveLength(2);
+    for (const call of calls) {
+      expect(call[2]).toEqual(openClawListArgv());
+      expect(call[3]).toEqual({ timeoutMs: 10_000 });
+    }
   });
 
   test('waits for a pending creation lifecycle and uses its ID for cleanup', async () => {
@@ -716,6 +764,10 @@ function deferred<T>() {
     reject = rejectPromise;
   });
   return { promise, resolve, reject };
+}
+
+function openClawListArgv() {
+  return ['openclaw', 'cron', 'list', '--all', '--json', '--timeout', '10000'];
 }
 
 function openClawArtifactRemovalArgv(jobId: string) {

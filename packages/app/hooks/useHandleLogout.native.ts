@@ -1,5 +1,5 @@
 import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
-import { queryClient } from '@tloncorp/shared';
+import { resetQueryCache } from '@tloncorp/shared';
 import { clearSessionStorageItems } from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { clearLastNotificationResponseAsync } from 'expo-notifications';
@@ -31,7 +31,7 @@ export function useHandleLogout({ resetDb }: { resetDb: () => void }) {
         error,
       });
     }
-    queryClient.clear();
+    resetQueryCache();
     store.removeClient();
     clearShip();
     clearLure();

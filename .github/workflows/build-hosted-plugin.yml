@@ -1,0 +1,30 @@
+name: Build hosted plugin archive
+on:
+  workflow_dispatch:
+    inputs:
+      ring:
+        description: Skill source to package
+        type: choice
+        options: [internal, prod]
+        required: true
+  pull_request:
+    paths:
+      - ".github/actions/build-hosted-plugin/**"
+      - ".github/workflows/build-hosted-plugin.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        ring: ${{ github.event_name == 'pull_request' && fromJSON('["internal","prod"]') || fromJSON(format('["{0}"]', inputs.ring)) }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/build-hosted-plugin
+        with:
+          ring: ${{ matrix.ring }}

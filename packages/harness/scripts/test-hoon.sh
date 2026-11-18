@@ -92,9 +92,14 @@ then
   if [ -z "$pattern" ]
   then
     echo "Integration tests"
-    just heavy=true commit "$piers/zod/harness" > "$logs/heavy-commit.log" 2>&1
-    sleep 30
-    native zod harness %tests-integration native-integration
+    # Without the commit the ship has no integration tests, or stale ones.
+    if just heavy=true commit "$piers/zod/harness" > "$logs/heavy-commit.log" 2>&1
+    then
+      sleep 30
+      native zod harness %tests-integration native-integration
+    else
+      result native-integration "FAILED (could not deploy; see $logs/heavy-commit.log)"
+    fi
   fi
 fi
 

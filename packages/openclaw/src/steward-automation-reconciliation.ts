@@ -618,36 +618,45 @@ export function reportRejectedJobs(
   }
 }
 
+/**
+ * Report a projection that failed for good (retries exhausted or a hard
+ * failure), once. An expected cancellation is not a failure.
+ */
+export function reportStewardProjectionFailure(
+  error: unknown,
+  warn?: (message: string) => void
+): void {
+  if (isExpectedCancellation(error)) {
+    return;
+  }
+  try {
+    reportTelemetryError({
+      telemetrySource: 'steward_automation_projection',
+      sourceEventName:
+        error instanceof StewardAutomationReconciliationExhaustedError
+          ? 'projection_exhausted'
+          : 'projection_failed',
+      errorKind: 'projection',
+      errorText: String(error),
+    });
+  } catch {
+    // Telemetry failures never affect the projection.
+  }
+  try {
+    warn?.(`[tlon] Steward automation projection failed: ${String(error)}`);
+  } catch {
+    // A host logger failure must not turn this rejection observer into a new
+    // unhandled rejection or interfere with another hook consumer.
+  }
+}
+
 function observeProjectionWork(
   work: Promise<void>,
   logger: RegisterStewardAutomationReconciliationHooksOptions['logger']
 ): void {
-  void work.catch((error) => {
-    if (isExpectedCancellation(error)) {
-      return;
-    }
-    try {
-      reportTelemetryError({
-        telemetrySource: 'steward_automation_projection',
-        sourceEventName:
-          error instanceof StewardAutomationReconciliationExhaustedError
-            ? 'projection_exhausted'
-            : 'projection_failed',
-        errorKind: 'projection',
-        errorText: String(error),
-      });
-    } catch {
-      // Telemetry failures never affect the projection.
-    }
-    try {
-      logger.warn(
-        `[tlon] Steward automation projection failed: ${String(error)}`
-      );
-    } catch {
-      // A host logger failure must not turn this rejection observer into a new
-      // unhandled rejection or interfere with another hook consumer.
-    }
-  });
+  void work.catch((error) =>
+    reportStewardProjectionFailure(error, (message) => logger.warn(message))
+  );
 }
 
 /**

@@ -129,12 +129,19 @@ then
 fi
 
 echo "Booting ship"
-new_ship_session "$session" "exec $vere --loom 33 --http-port $http_port $ames_args $pier" || exit 1
+run_ship="$vere --loom 33 --http-port $http_port $ames_args $pier"
+new_ship_session "$session" "exec $run_ship" || exit 1
 
+# The session closes with the ship, taking the runtime's output with it.
 function await_ship
 {
     while ! curl -s "http://localhost:$http_port/~/login" > /dev/null
     do
+        if ! tmux has-session -t "=$session" 2>/dev/null
+        then
+            echo "The ship exited; run it by hand to see why: $run_ship"
+            exit 1
+        fi
         sleep 1
     done
 }

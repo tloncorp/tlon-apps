@@ -24,7 +24,7 @@ export function PrivateChannelToggle({
       width="100%"
       pointerEvents="auto"
     >
-      <YStack gap="$xl" flex={1} pointerEvents="auto">
+      <YStack gap="$xl" flex={1} flexShrink={1} pointerEvents="auto">
         <Text size="$label/l">Custom Permissions</Text>
         <Text size="$label/s" color="$tertiaryText">
           Only selected roles will be able to view or write to this channel.

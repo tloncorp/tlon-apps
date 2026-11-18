@@ -287,6 +287,12 @@
   (expect-eq !>(`destination:t`[%dm ~zod `[~nec ~2026.9.2]]) !>(to.input))
 ++  test-policy-json-roundtrips
   (expect-eq !>(policy) !>((json-policy:p (policy-json:p policy))))
+::  The policy parser keeps %tlon and %code for another ship as sent; only
+::  the owner can use either.
+++  test-policy-parser-accepts-and-keeps-trusted-tlon-and-code-grants
+  =/  saved  policy
+  =.  trusted.saved  (my ~[[~nec ~[%tlon %code %web]]])
+  (expect-eq !>(saved) !>((json-policy:p (policy-json:p saved))))
 ++  test-story-preserves-ships-and-formatting
   %+  expect-eq
     !>('hello ~zod and bold')

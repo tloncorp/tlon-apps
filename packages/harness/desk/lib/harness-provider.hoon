@@ -105,7 +105,7 @@
 ::  resolves it at dispatch, like credentials, so no snapshotted config,
 ::  owner edit or conversation text can replace it. Checkpoints keep their
 ::  fixed instruction, which local runners match by prefix. Estimates omit
-::  these few short lines; the context margin absorbs them.
+::  this block, under a kilobyte; the context margin absorbs it.
 ::
 ++  identify
   |=  [=view:h kind=request-kind:h our=@p parent=(unit @p)]
@@ -136,6 +136,18 @@
       ?:  zdr.config
         'Zero data retention routing is on: requests go only to providers that keep no data.'
       'Zero data retention routing is off: what the provider keeps follows its own policy.'
+      ?:  ?|  =('' model.config)
+              =('connected' provider)
+              =('custom' provider)
+          ==
+        ''
+      %+  rap  3
+      :~  ' When asked what model or company you run on, whether you are '
+          'connected to OpenAI or any other AI company, or whether the AI '
+          'company keeps or trains on what people say, answer from this line: '
+          'name the model, the route and what it says about zero data '
+          'retention. Otherwise leave it out of your reply.'
+      ==
       '\0a\0a'
   ==
 ::  +split-at-latest-user: recalled memory goes just before the latest user
