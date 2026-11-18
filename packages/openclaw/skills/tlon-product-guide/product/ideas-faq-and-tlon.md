@@ -10,7 +10,7 @@ When someone asks "what should I do with this?", offer ideas like these, matched
 
 - Make a group for your family or closest friends, with a Chat for talking and a Gallery for photos.  
 - Sync contacts and send your personal invite link to the people you message most (hosted accounts — self-hosters have group invite links instead).  
-- Ask your Tlonbot for a morning cron: weather, headlines, and your reminders in one daily DM.  
+- Ask Sato for a morning cron: weather, headlines, and your reminders in one daily DM.  
 - Add your bot to a group chat for instant settle-the-debate web searches and trivia nights.  
 - Ask your bot to catch you up on a channel after a day away.
 
@@ -36,9 +36,9 @@ When someone asks "what should I do with this?", offer ideas like these, matched
 
 ## 10. FAQ
 
-**Who or what is Tlon?** Tlon was created in 2013 to support the vision of a network of personal servers (Urbit) where users own and control their computing. Today it builds Tlon Messenger and provides Urbit hosting.
+**Who or what is Tlon?** Tlon was created in 2013 to support the vision of a network of personal servers (Urbit) where users own and control their computing. Today it builds Sato and provides Urbit hosting.
 
-**What's the difference between Tlon and Urbit?** Urbit is a new kind of operating system for the internet age. Tlon is a company that builds Tlon Messenger. Urbit is the computer; Tlon Messenger is the app.
+**What's the difference between Tlon and Urbit?** Urbit is a new kind of operating system for the internet age. Tlon is a company that builds Sato. Urbit is the computer; Sato is the app.
 
 **What is a personal server?** Like iCloud, except the entire service belongs to you. You control access and where the data lives.
 
@@ -54,11 +54,11 @@ When someone asks "what should I do with this?", offer ideas like these, matched
 
 **Are conversations encrypted?** Yes, in transit — between nodes, and between the app and your node. Stored messages on a node aren't encrypted, so whoever runs the device can read them: Tlon, on a hosted account, bound by its policy not to. Export your node and run it yourself, and no one without access to your device can read them. The app-to-node leg is only encrypted if the node is reached over HTTPS: that's automatic when Tlon hosts it, and a self-hoster on a plain `http://` address needs TLS or a tunnel in front.
 
-**Can I share things I post with people who aren't on Tlon Messenger?** Notebook notes, yes. Publish a note and you get a public link — the app copies it for you, and `Copy link` and `View published note` join the note's press-and-hold menu in the notebook's list afterwards. Other channel types don't have a button for it yet, though individual posts can be published through your Tlonbot, which can reach the same clearweb machinery from a DM.
+**Can I share things I post with people who aren't on Sato?** Notebook notes, yes. Publish a note and you get a public link — the app copies it for you, and `Copy link` and `View published note` join the note's press-and-hold menu in the notebook's list afterwards. Other channel types don't have a button for it yet, though individual posts can be published through Sato, which can reach the same clearweb machinery from a DM.
 
-**What is Tlonbot?** A personal AI agent that lives inside Tlon Messenger. It can search the web, join your group chats, remember your conversations, and schedule tasks. It's powered by OpenClaw and runs on its own node, linked to yours, on the same peer-to-peer network.
+**What is Sato as an assistant?** A personal AI agent that lives inside the Sato app. It can search the web, join your group chats, remember your conversations, and schedule tasks. It's powered by OpenClaw and runs on its own node, linked to yours, on the same peer-to-peer network.
 
-**Does Tlonbot cost anything?** Hosted accounts get one for free, including a free AI model for basic usage. To use other models, connect a ChatGPT, Claude or Grok subscription you already pay for, or bring your own API key. Self-hosters run their own and pay for whatever model they point it at.
+**Does Sato cost anything?** Hosted accounts get one for free, including a free AI model for basic usage. To use other models, connect a ChatGPT, Claude or Grok subscription you already pay for, or bring your own API key. Self-hosters run their own and pay for whatever model they point it at.
 
 **Does Tlon read my bot's conversations?** No. Your bot's state is kept on its node and on yours, and model requests go straight to the provider rather than through a Tlon service that logs them. On a hosted account those nodes are Tlon-run, so this rests on policy the same way your hosted messages do — see "Does Tlon read my conversations?" above.
 
