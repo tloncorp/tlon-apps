@@ -449,8 +449,9 @@ upstream issue alone is not sufficient.
 Local patch:
 `patches/@legendapp__list@3.3.3.patch`
 
-The patch carries two fixes to how a programmatic scroll is completed, and
-one to how the content size reaches the screen.
+The patch carries two fixes to how a programmatic scroll is completed, one to
+how the content size reaches the screen, one to which row anchors size
+corrections, and a prop that holds the end padding.
 
 ### 1. Animated end-aligned scrolls keep their animation through retries
 
@@ -532,6 +533,31 @@ references and images with no stored size: the timeline should show no
 `shift` entries ("rows moved ... with no offset correction") during momentum.
 
 Remove when upstream anchors size corrections on a row that did not resize.
+
+### 5. `holdAlignItemsAtEndPadding` keeps the end padding as it is
+
+Why:
+With `alignItemsAtEnd`, a short list is bottom-aligned by a padding LegendList
+recomputes on every layout, padding and size change. When a multi-line message
+is sent, the composer shrinks as it is cleared and the list grows by the lines
+it gave back, a few frames before the message lands. The padding followed the
+composer down, then the rows rose for the message: they dropped and rose again.
+
+Fix:
+A new prop, `holdAlignItemsAtEndPadding`. While it is true,
+`updateContentMetricsState` leaves the padding as it is. The conversation list
+sets it while a send waits for its message, on Android, where LegendList's
+padding bottom-aligns short conversations (iOS uses native layout). The render
+that shows the message clears it, and the padding change and the new row are
+applied together. Typed in `react-native.d.ts`, `reanimated.d.ts` and
+`animated.d.ts`.
+
+Validate:
+On Android, in a new workspace, send a message long enough to wrap the
+composer onto two or more lines: on a screen recording the rows rise once, by
+the message less the lines the composer gave back.
+
+Remove when upstream can hold its end alignment across a resize.
 
 ## react-native-reanimated@4.7.1
 

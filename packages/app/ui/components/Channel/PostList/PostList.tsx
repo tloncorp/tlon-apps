@@ -154,16 +154,32 @@ function useIsScreenFocused() {
 }
 
 function useLegendListIsNearEnd(
-  listRef: React.RefObject<LegendListRef | null>
+  listRef: React.RefObject<LegendListRef | null>,
+  isEmpty: boolean
 ) {
+  // LegendList reports an empty list as away from its end, and keeps doing
+  // so until it has measured the first row that arrives. A list that was
+  // empty is at its end, so the first row is followed there instead of being
+  // held where the empty list's offset left it.
+  const heldForEmpty = React.useRef(isEmpty);
+  React.useLayoutEffect(() => {
+    if (isEmpty) {
+      heldForEmpty.current = true;
+    }
+  }, [isEmpty]);
   const subscribe = React.useCallback(
     (onStoreChange: () => void) =>
-      listRef.current?.getState().listen('isNearEnd', onStoreChange) ??
-      (() => {}),
+      listRef.current?.getState().listen('isNearEnd', () => {
+        if ((listRef.current?.getState().data.length ?? 0) > 0) {
+          heldForEmpty.current = false;
+        }
+        onStoreChange();
+      }) ?? (() => {}),
     [listRef]
   );
   const getSnapshot = React.useCallback(
-    () => listRef.current?.getState().isNearEnd ?? true,
+    () =>
+      heldForEmpty.current || (listRef.current?.getState().isNearEnd ?? true),
     [listRef]
   );
 
@@ -173,6 +189,14 @@ function useLegendListIsNearEnd(
 // How long a list resting at its end is held there after older posts land
 // above it, while those rows are measured.
 const HISTORY_RESHAPE_HOLD_END_MS = 500;
+
+// Room kept below a conversation's rows while a send waits for its message.
+// The composer shrinks as it is cleared and the list grows by the lines it
+// gave back. A list resting at its end would then end above its new bottom,
+// and the scroll view would pull the offset back, dropping the rows. With this
+// much room below them they stay put. More than the five lines the composer
+// can grow by.
+const SEND_ALIGNMENT_SLACK = 200;
 
 /**
  * Whether this render changes the top of the loaded window (older posts
@@ -769,24 +793,58 @@ const ConversationPostListAttempt = React.forwardRef<
     const floating = docked && composerLayout.floating;
     const historyNavigationRequested = React.useRef(false);
     const overlayHeight = floating ? composerLayout.height : 0;
-    const listContentStyle = React.useMemo(
-      () => [
+    // While a send waits for its message, a short conversation stays aligned
+    // to the height its list had when the send began (see `pinSendAlignment`).
+    const [sendAlignment, setSendAlignment] = React.useState<{
+      height: number;
+      newestKey: string | null;
+    } | null>(null);
+    // Rows run oldest to newest, so a new last key is a row arriving at the end.
+    const newestRow = postsWithNeighbors[postsWithNeighbors.length - 1];
+    const newestRowKey = newestRow ? getPostListKey(newestRow) : null;
+    // A conversation shown while it was still empty has no first screen to
+    // scroll to. LegendList would run its initial scroll to the end when the
+    // first row arrives, and that end leaves out the keyboard: the row would
+    // drop behind it and glide back up. The list follows its end instead.
+    const readyWhileEmpty =
+      isInitialAnchorReady && postsWithNeighbors.length === 0;
+    const [shownEmpty, setShownEmpty] = React.useState(readyWhileEmpty);
+    if (readyWhileEmpty && !shownEmpty) {
+      setShownEmpty(true);
+    }
+    // The render that adds the message aligns to the full height again.
+    const sendAlignedHeight =
+      sendAlignment && sendAlignment.newestKey === newestRowKey
+        ? sendAlignment.height
+        : null;
+    const listContentStyle = React.useMemo(() => {
+      const basePaddingBottom =
+        (flattenViewStyle(contentContainerStyle)?.paddingBottom as number) ?? 0;
+      const extraPaddingBottom =
+        overlayHeight + (sendAlignedHeight === null ? 0 : SEND_ALIGNMENT_SLACK);
+      return [
         contentContainerStyle,
         // Let native layout bottom-align short conversations. LegendList's
         // default top spacer waits for JS onLayout on every keyboard frame.
         docked && anchorToEnd && Platform.OS === 'ios'
-          ? { minHeight: '100%' as const }
-          : undefined,
-        overlayHeight
           ? {
-              paddingBottom:
-                ((flattenViewStyle(contentContainerStyle)
-                  ?.paddingBottom as number) ?? 0) + overlayHeight,
+              minHeight:
+                sendAlignedHeight === null
+                  ? ('100%' as const)
+                  : sendAlignedHeight + SEND_ALIGNMENT_SLACK,
             }
           : undefined,
-      ],
-      [anchorToEnd, contentContainerStyle, docked, overlayHeight]
-    );
+        extraPaddingBottom
+          ? { paddingBottom: basePaddingBottom + extraPaddingBottom }
+          : undefined,
+      ];
+    }, [
+      anchorToEnd,
+      contentContainerStyle,
+      docked,
+      overlayHeight,
+      sendAlignedHeight,
+    ]);
     const ConversationList = docked
       ? AnimatedLegendList
       : KeyboardAwareLegendList;
@@ -857,20 +915,43 @@ const ConversationPostListAttempt = React.forwardRef<
       composerSendActive ? 'never' : 'whenAtEnd',
       bottomInset
     );
+    // A coordinated send keeps a docked conversation's rows where they are
+    // while it waits for its message. The composer gives back its extra lines
+    // at once and the list grows; left to follow it, the rows would drop, then
+    // rise for the message a few frames later. Held, they rise once, in the
+    // render that adds the message (see `sendAlignedHeight`).
+    const pinSendAlignment = React.useCallback(() => {
+      const height = listRef.current?.getState().scrollLength;
+      if (!isComposerSendActive() || !docked || !anchorToEnd || !height) {
+        return;
+      }
+      const posts = postsWithNeighborsRef.current;
+      const newest = posts[posts.length - 1];
+      setSendAlignment({
+        height,
+        newestKey: newest ? getPostListKey(newest) : null,
+      });
+    }, [anchorToEnd, docked, isComposerSendActive]);
     React.useLayoutEffect(
       () =>
         registerComposerSend({
           begin: () => {
             historyNavigationRequested.current = false;
             beginComposerSend();
+            pinSendAlignment();
           },
-          finish: finishComposerSend,
+          finish: () => {
+            // Usually already released by the render that showed the message.
+            setSendAlignment(null);
+            finishComposerSend();
+          },
           isActive: isComposerSendActive,
         }),
       [
         beginComposerSend,
         finishComposerSend,
         isComposerSendActive,
+        pinSendAlignment,
         registerComposerSend,
       ]
     );
@@ -975,7 +1056,10 @@ const ConversationPostListAttempt = React.forwardRef<
     // LegendList recalculates this when scrolling, content, or row measurements
     // change. React Native onScroll can retain an intermediate value while the
     // initial anchor settles, briefly showing the scroll-to-bottom control.
-    const isNearEnd = useLegendListIsNearEnd(listRef);
+    const isNearEnd = useLegendListIsNearEnd(
+      listRef,
+      postsWithNeighbors.length === 0
+    );
     const historyReshape = useHistoryReshape(postsWithNeighbors, isNearEnd);
     const isReshapingTop = historyReshape.changesTop;
     const releaseHistoryReshape = historyReshape.release;
@@ -1014,9 +1098,6 @@ const ConversationPostListAttempt = React.forwardRef<
       () => postsWithNeighbors.map(getPostListKey),
       [postsWithNeighbors]
     );
-    // Rows run oldest to newest, so a new last key is a row arriving at the end.
-    const newestRow = postsWithNeighbors[postsWithNeighbors.length - 1];
-    const newestRowKey = newestRow ? getPostListKey(newestRow) : null;
     // A send the list coordinates ends in the commit that shows its message
     // (see `BareChatInput`).
     const previousNewestRowKey = React.useRef(newestRowKey);
@@ -1334,10 +1415,19 @@ const ConversationPostListAttempt = React.forwardRef<
         // briefly reuse stale row state and measurements for another post.
         recycleItems={!anchorToEnd}
         alignItemsAtEnd={anchorToEnd}
+        // Where LegendList bottom-aligns a short conversation itself (not on
+        // iOS, where native layout does), its padding is held too while a send
+        // waits for its message: it would follow the composer down as the list
+        // grows, then rise for the message.
+        holdAlignItemsAtEndPadding={
+          Platform.OS !== 'ios' && sendAlignedHeight !== null
+        }
         initialScrollAtEnd={
           anchorToEnd &&
           isInitialAnchorReady &&
-          initialScrollIndex === undefined
+          initialScrollIndex === undefined &&
+          !readyWhileEmpty &&
+          !shownEmpty
         }
         initialScrollIndex={initialScrollIndex}
         maintainScrollAtEnd={maintainScrollAtEnd}

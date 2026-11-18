@@ -9,7 +9,12 @@ import {
 
 function rows(...ids: string[]): PostWithNeighbors[] {
   return ids.map((id) => ({
-    post: { id, type: 'chat' } as db.Post,
+    post: {
+      id,
+      authorId: '~zod',
+      sentAt: id.charCodeAt(0),
+      type: 'chat',
+    } as db.Post,
     previous: null,
     next: null,
   }));
@@ -33,6 +38,17 @@ describe('describeWindowChange', () => {
     expect(
       describeWindowChange(rows('a', 'b', 'c'), rows('b', 'c', 'd'))
     ).toEqual({ changesTop: true, changesEnd: true });
+  });
+
+  test('a confirmed optimistic post, under a new id, changes nothing', () => {
+    const optimistic = rows('a');
+    const confirmed = [
+      { ...optimistic[0], post: { ...optimistic[0].post, id: 'confirmed' } },
+    ];
+    expect(describeWindowChange(optimistic, confirmed)).toEqual({
+      changesTop: false,
+      changesEnd: false,
+    });
   });
 
   test('the first rows and unchanged windows change nothing', () => {

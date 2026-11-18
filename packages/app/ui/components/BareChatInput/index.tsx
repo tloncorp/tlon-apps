@@ -891,11 +891,7 @@ function BareChatInput(
       }
       // A coordinated send ends when the list shows the message, not on
       // enqueue, so the list keeps its rows still until the message lands.
-      // Only the iOS list holds its rows while a send is coordinated; an
-      // Android list follows its end as the composer shrinks, so there the
-      // composer keeps its space until the enqueue as before.
-      const coordinated =
-        holdingComposerHeight && isSendCoordinated() && Platform.OS === 'ios';
+      const coordinated = holdingComposerHeight && isSendCoordinated();
       setComposerSnapsOnSend(coordinated);
       let sentMessageWait: ReturnType<typeof setTimeout> | undefined;
       const releaseComposerHeight = () => {

@@ -156,10 +156,14 @@ export function describeWindowChange(
   if (before.length === 0 || after.length === 0) {
     return { changesTop: false, changesEnd: false };
   }
+  // Compared by row key, so the host confirming an optimistic post (a new id
+  // for the same row) is not a change of window: in a one-row conversation it
+  // would read as both ends changing.
   return {
-    changesTop: after[0]?.post.id !== before[0]?.post.id,
+    changesTop: getPostListKey(after[0]) !== getPostListKey(before[0]),
     changesEnd:
-      after[after.length - 1]?.post.id !== before[before.length - 1]?.post.id,
+      getPostListKey(after[after.length - 1]) !==
+      getPostListKey(before[before.length - 1]),
   };
 }
 
