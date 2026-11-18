@@ -1,7 +1,10 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import type { PluginRuntime } from 'openclaw/plugin-sdk/core';
 
-import { createBrowserContinuationRunner } from './browser-continuation.js';
+import {
+  createBrowserContinuationRunner,
+  resumeBrowserContinuation,
+} from './browser-continuation.js';
 import { createComputingPresenceTracker } from './monitor/computing-presence.js';
 
 vi.mock('@tloncorp/api', () => ({}));
@@ -223,6 +226,108 @@ it('never publishes into another channel and does not block delivery', async () 
   h.accepted.resolve({ runId: 'run' });
   await running;
   expect(h.publish).not.toHaveBeenCalled();
-  expect(h.warn).toHaveBeenCalledOnce();
+  expect(h.warn).not.toHaveBeenCalled();
   expect(h.runtime.subagent.run).toHaveBeenCalledWith(request);
+});
+
+const groupKey = 'agent:main:tlon:group:chat/~zod/shopping';
+const workerKey = 'agent:main:dashboard:worker';
+function delegatedCheckout() {
+  const route = {
+    channel: 'tlon',
+    to: 'tlon:chat/~zod/shopping',
+    threadId: 'original-thread',
+  };
+  const entries = new Map<string, object>([
+    [
+      workerKey,
+      {
+        sessionId: 'worker-id',
+        spawnDepth: 1,
+        parentSessionKey: groupKey,
+        parentSessionId: 'original-parent',
+      },
+    ],
+    [
+      groupKey,
+      {
+        sessionId: 'original-parent',
+        delivery: { kind: 'external', context: route },
+      },
+    ],
+  ]);
+  const run = vi.fn().mockResolvedValue({ runId: 'checkout-run' });
+  const waitForRun = vi.fn().mockResolvedValue({
+    status: 'ok',
+    terminalReply: {
+      disposition: 'visible',
+      text: 'The merchant confirmed test order 42.',
+    },
+  });
+  const runtime = {
+    agent: {
+      session: {
+        getSessionEntry: ({ sessionKey }: { sessionKey: string }) =>
+          entries.get(sessionKey),
+      },
+    },
+    subagent: { run, waitForRun },
+  } as unknown as PluginRuntime;
+  return {
+    entries,
+    run,
+    waitForRun,
+    runtime,
+    request: {
+      sessionKey: workerKey,
+      message: 'Approved test checkout',
+      idempotencyKey: 'tlon-wallet:test',
+    },
+  };
+}
+
+it('resumes only the delegated worker, then gives its verified result to the original group for reporting only', async () => {
+  const f = delegatedCheckout();
+  const workerRun = await resumeBrowserContinuation(f.runtime, f.request);
+  expect(workerRun).toBe('checkout-run');
+  expect(f.run).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ ...f.request, deliver: false })
+  );
+  f.waitForRun.mockResolvedValueOnce({ status: 'pending' });
+  expect(await resumeBrowserContinuation(f.runtime, f.request, workerRun)).toBe(
+    workerRun
+  );
+  expect(f.run).toHaveBeenCalledTimes(1);
+  expect(
+    await resumeBrowserContinuation(f.runtime, f.request, workerRun)
+  ).toBeUndefined();
+  expect(f.run.mock.calls[1][0]).toMatchObject({
+    sessionKey: groupKey,
+    disableTools: true,
+    deliver: true,
+    idempotencyKey: 'tlon-wallet:test:report',
+    message: expect.stringContaining('merchant confirmed test order 42'),
+  });
+});
+
+it('drops a worker callback if the originating group session was reset', async () => {
+  const f = delegatedCheckout();
+  f.entries.set(groupKey, { sessionId: 'replacement' });
+  await resumeBrowserContinuation(f.runtime, f.request);
+  await resumeBrowserContinuation(f.runtime, f.request, 'previously-started');
+  expect(f.run).not.toHaveBeenCalled();
+});
+
+it('keeps a standalone dashboard continuation in its session and enables delivery for a direct Tlon request', async () => {
+  const f = delegatedCheckout();
+  f.entries.set(workerKey, { sessionId: 'standalone' });
+  await resumeBrowserContinuation(f.runtime, f.request);
+  await resumeBrowserContinuation(f.runtime, {
+    ...f.request,
+    sessionKey: groupKey,
+  });
+  expect(f.run.mock.calls.map(([r]) => [r.sessionKey, r.deliver])).toEqual([
+    [workerKey, false],
+    [groupKey, true],
+  ]);
 });

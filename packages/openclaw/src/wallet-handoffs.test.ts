@@ -40,7 +40,7 @@ function fixture() {
     store,
     read: vi.fn().mockResolvedValue({ status: 'pending' }),
     send: vi.fn().mockResolvedValue(undefined),
-    resume: vi.fn().mockResolvedValue({}),
+    resume: vi.fn().mockResolvedValue(undefined),
     sessionIdFor: vi.fn().mockReturnValue('conversation-1'),
     warn: vi.fn(),
   };
@@ -79,7 +79,8 @@ it('delivers one native card and resumes the original conversation once after co
       sessionKey: 'owner-dm',
       idempotencyKey: `tlon-wallet:${f.id}`,
       message: expect.stringContaining(': connected.'),
-    })
+    }),
+    undefined
   );
   expect(f.resume.mock.calls[0][0].message).toContain(
     'Connecting Link is not authorization to spend'
@@ -142,6 +143,7 @@ it('durably retries delivery without putting provider URLs in continuation messa
   });
   f.resume.mockRejectedValueOnce(new Error('temporary'));
   await f.service.poll();
+  vi.setSystemTime(Date.now() + 5000);
   await f.service.poll();
   expect(f.resume).toHaveBeenCalledTimes(2);
   expect(f.resume.mock.calls[0][0]).toEqual(f.resume.mock.calls[1][0]);
@@ -175,7 +177,8 @@ it('expiry produces a terminal notification and malformed or failed calls produc
   f.service.start();
   await f.service.poll();
   expect(f.resume).toHaveBeenCalledWith(
-    expect.objectContaining({ message: expect.stringContaining(': expired.') })
+    expect.objectContaining({ message: expect.stringContaining(': expired.') }),
+    undefined
   );
 });
 
@@ -213,3 +216,60 @@ it.each(['cancelled', 'expired', 'failed'])(
     expect(f.records.size).toBe(0);
   }
 );
+
+it('retires a legacy cached approval after a restart without replaying the purchase', async () => {
+  const f = fixture();
+  await f.service.handle(f.event, f.ctx);
+  f.records.get(f.id)!.result = 'ready';
+  vi.setSystemTime(Date.now() + 7 * 86400000);
+  f.service.start();
+  await f.service.poll();
+  await f.service.poll();
+  expect(f.read).not.toHaveBeenCalled();
+  expect(f.resume).not.toHaveBeenCalled();
+  expect(f.warn).toHaveBeenCalledOnce();
+  expect(f.records.size).toBe(0);
+});
+
+it('rechecks an actionable status before retrying a rejected dispatch', async () => {
+  const f = fixture();
+  await f.service.handle(f.event, f.ctx);
+  f.read
+    .mockResolvedValueOnce({ status: 'ready' })
+    .mockResolvedValueOnce({ status: 'unknown' });
+  f.resume.mockRejectedValueOnce(new Error('gateway offline'));
+  f.service.start();
+  await f.service.poll();
+  await f.service.poll();
+  expect(f.read).toHaveBeenCalledTimes(1);
+  vi.setSystemTime(Date.now() + 5000);
+  await f.service.poll();
+  expect(f.resume.mock.calls[1][0].message).toContain(': unknown.');
+  expect(f.records.size).toBe(0);
+});
+
+it('recovers an accepted worker after restart and only retries its outstanding report', async () => {
+  const f = fixture();
+  await f.service.handle(f.event, f.ctx);
+  f.read.mockResolvedValue({ status: 'ready' });
+  f.resume.mockResolvedValueOnce('accepted-run');
+  f.service.start();
+  await f.service.poll();
+  expect(f.records.get(f.id)?.workerRunId).toBe('accepted-run');
+  await f.service.stop();
+  f.resume.mockRejectedValueOnce(new Error('report delivery failed'));
+  const restarted = createWalletHandoffs(f);
+  services.push(restarted);
+  restarted.start();
+  await restarted.poll();
+  vi.setSystemTime(Date.now() + 5000);
+  await restarted.poll();
+  expect(f.resume.mock.calls.map((call) => call[1])).toEqual([
+    undefined,
+    'accepted-run',
+    'accepted-run',
+  ]);
+  expect(f.read).toHaveBeenCalledOnce();
+  expect(f.send).toHaveBeenCalledOnce();
+  expect(f.records.size).toBe(0);
+});
