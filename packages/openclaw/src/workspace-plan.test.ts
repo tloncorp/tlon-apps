@@ -243,31 +243,63 @@ describe('tlon_workspace_plan', () => {
     return { execute, posted };
   }
 
-  it('stores the answer with the proposal, not in the DM', async () => {
+  it('stores the answer and posts it in the DM after the card', async () => {
     const store = memoryStore();
-    const { execute, posted } = planExecutor(store);
+    const posted: string[] = [];
+    const execute = createWorkspacePlanToolExecutor({
+      ownerShip: () => '~ten',
+      postText: async (target, text) => posted.push(`${target} ${text}`),
+      postAnswer: async (target, text) =>
+        posted.push(`${target} answer ${text}`),
+      postCard: async ({ target }) => posted.push(`${target} card`),
+      store: () => store,
+    });
     const result = await execute('1', { ...bikeParts, answer: kitchenAnswer });
-    expect(result.content[0].text).toContain('Now reply with your answer');
+    expect(result.content[0].text).toContain('do not write it again');
+    expect(result.content[0].text).toContain('Return NO_REPLY now');
     const [record] = store.records.values();
     expect(record.answer).toBe(kitchenAnswer);
-    // The tool posts only the intro; the model's reply carries the answer.
-    expect(posted).toEqual([`~ten ${bikeParts.intro}`]);
+    expect(posted).toEqual([
+      `~ten ${bikeParts.intro}`,
+      '~ten card',
+      `~ten answer ${kitchenAnswer}`,
+    ]);
+  });
+
+  it('hands the answer back to the model when posting it fails', async () => {
+    const store = memoryStore();
+    const execute = createWorkspacePlanToolExecutor({
+      ownerShip: () => '~ten',
+      postText: async () => undefined,
+      postAnswer: async () => {
+        throw new Error('nack');
+      },
+      postCard: async () => undefined,
+      store: () => store,
+    });
+    const result = await execute('1', { ...bikeParts, answer: kitchenAnswer });
+    expect(result.details).toBeUndefined();
+    expect(result.content[0].text).toContain('Posting your answer failed');
+    expect([...store.records.values()][0].answer).toBe(kitchenAnswer);
   });
 
   it('keeps the answer through Edit when the revision omits it', async () => {
     const store = memoryStore();
-    const { execute } = planExecutor(store);
+    const { execute, posted } = planExecutor(store);
     await execute('1', { ...bikeParts, answer: kitchenAnswer });
     const [first] = store.records.values();
     await noteWorkspacePlanTap(
       { proposalId: first.proposalId, action: 'edit' },
       store
     );
+    const before = posted.length;
     await execute('2', { ...bikeParts, title: 'Gravel Bike' });
     const revised = [...store.records.values()].find(
       (record) => record.plan.title === 'Gravel Bike'
     );
     expect(revised?.answer).toBe(kitchenAnswer);
+    // The inherited answer is already in the DM: only the intro and card.
+    expect(posted.slice(before)).toEqual([`~ten ${bikeParts.intro}`]);
     expect(store.records.get(first.proposalId)?.status).toBe('superseded');
   });
 

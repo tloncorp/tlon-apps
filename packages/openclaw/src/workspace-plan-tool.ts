@@ -129,7 +129,7 @@ export const workspacePlanToolMetadata = {
   promptSnippet:
     "`tlon_workspace_plan`: propose a workspace for a project-like topic in your owner's DM",
   promptGuidelines: [
-    "Pass your answer to the owner's message as `answer`, then reply with that answer after the card posts.",
+    "Pass your full answer to the owner's message as `answer`: the tool posts it after the card. Then return NO_REPLY, unless you set up a reminder this turn; then reply with only its confirmation.",
   ],
 };
 
@@ -183,7 +183,7 @@ export const workspacePlanToolParameters = {
       type: 'string',
       maxLength: WORKSPACE_ANSWER_MAX_LENGTH,
       description:
-        "Your answer to the owner's message, the same text you reply with after the card. It becomes your first message in the workspace chat when the owner taps Create. Leave out the card and any reminder confirmation.",
+        "Your full answer to the owner's message. The tool posts it in the DM after the card, and it becomes your first message in the workspace chat when the owner taps Create, so don't write it again. Leave out the card and any reminder confirmation.",
     },
     task: {
       type: 'object',
@@ -247,6 +247,12 @@ function errorText(error: unknown) {
 export function createWorkspacePlanToolExecutor(deps: {
   ownerShip: () => string | undefined;
   postText: (target: string, text: string) => Promise<unknown>;
+  /**
+   * Posts the answer the way replies are posted, as tlon_workspace_create
+   * posts it in the workspace chat, so the two read the same. Defaults to
+   * postText.
+   */
+  postAnswer?: (target: string, text: string) => Promise<unknown>;
   postCard: (input: {
     target: string;
     fallbackText: string;
@@ -263,9 +269,12 @@ export function createWorkspacePlanToolExecutor(deps: {
       const { intro, ...plan } = parsed;
       const store = (deps.store ?? getWorkspaceProposalStore)();
       // A revision after Edit keeps the edited card's answer unless it brings
-      // its own.
+      // its own; an inherited answer is already in the DM.
+      const givenAnswer = parseAnswer(
+        (params as { answer?: unknown } | null)?.answer
+      );
       const answer =
-        parseAnswer((params as { answer?: unknown } | null)?.answer) ??
+        givenAnswer ??
         (await store.entries())
           .map(({ value }) => value)
           .filter(
@@ -291,6 +300,18 @@ export function createWorkspacePlanToolExecutor(deps: {
         fallbackText: workspacePlanFallbackText(plan),
         blob: JSON.stringify(blob),
       });
+      // The answer follows the card, posted here so the DM and the workspace
+      // chat carry the same text. Best effort: the card is up, so a failed
+      // post leaves the model to answer instead.
+      let answerPosted = false;
+      if (givenAnswer) {
+        try {
+          await (deps.postAnswer ?? deps.postText)(ownerShip, givenAnswer);
+          answerPosted = true;
+        } catch {
+          // Fall through: the model answers in its reply.
+        }
+      }
       // One open card at a time: a revision or a new topic replaces the last,
       // once the owner has the new card to tap instead.
       for (const { value } of await store.entries()) {
@@ -308,9 +329,11 @@ export function createWorkspacePlanToolExecutor(deps: {
       }
       return textResult(
         `Posted the ${JSON.stringify(plan.title)} workspace card (proposal ${proposalId}). Nothing exists yet: it is created only when the owner taps Create. ` +
-          (answer
-            ? 'Now reply with your answer, plus a confirmation of any reminder you set up this turn. Do not mention the card again.'
-            : "Now answer the owner's message, if it asked anything, and confirm any reminder you set up this turn; return NO_REPLY only if there is nothing to say.")
+          (answerPosted
+            ? 'Your answer is posted after the card; do not write it again. Return NO_REPLY now, unless you set up a reminder this turn: then reply with only its confirmation.'
+            : givenAnswer
+              ? 'Posting your answer failed, so reply with it now, plus a confirmation of any reminder you set up this turn.'
+              : "Now answer the owner's message, if it asked anything, and confirm any reminder you set up this turn; return NO_REPLY only if there is nothing to say.")
       );
     } catch (error) {
       return textResult(`Error: ${errorText(error)}`, true);

@@ -21,16 +21,18 @@ describe('owner DM workspace note', () => {
 
   it('keeps a requested schedule on cron rather than in the proposal', async () => {
     const note = await ownerDmWorkspaceNote(null);
-    expect(note).toContain('Nor does it replace a requested action');
+    expect(note).toContain('Nor does the card replace a requested action');
     expect(note).toContain('with the cron tool in this turn, before proposing');
-    expect(note).toContain('confirm it in your reply');
+    expect(note).toContain('reply with only its confirmation');
   });
 
-  it('answers the owner after the card and hands the answer to the plan', async () => {
+  it('hands the answer to the plan, which posts it, and replies with nothing more', async () => {
     const note = await ownerDmWorkspaceNote(null);
-    expect(note).toContain('pass your answer to their message as `answer`');
-    expect(note).toContain('reply with it after the card');
-    expect(note).not.toContain('NO_REPLY');
+    expect(note).toContain(
+      'pass your full answer to their message as `answer`'
+    );
+    expect(note).toContain('the tool posts it after the card');
+    expect(note).toContain('Then return NO_REPLY');
   });
 
   it('links an existing workspace with its tool and skips self-introductions', async () => {
