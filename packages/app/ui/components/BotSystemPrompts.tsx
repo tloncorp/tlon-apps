@@ -422,7 +422,7 @@ export function BotSystemPromptEditorSheet({
       ? 'This prompt changed elsewhere. Showing the latest version.'
       : isDirty
         ? 'Unsaved changes'
-        : 'Your bot uses these from its next reply.';
+        : 'Sato uses these from its next reply.';
 
   const saveButton = (
     <Button

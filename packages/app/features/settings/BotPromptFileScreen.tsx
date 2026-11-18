@@ -265,7 +265,7 @@ export function BotPromptFileScreen(props: Props) {
       ? "This file is missing Sato's defaults, so you can't edit it here. They come back the next time Sato restarts."
       : access?.kind === 'read-only'
         ? access.keptBy === 'bot'
-          ? 'Read-only. Your bot keeps this file up to date as it learns.'
+          ? 'Read-only. Sato keeps this file up to date as it learns.'
           : 'Read-only. Sato keeps this file up to date so it keeps working.'
         : null;
   const description = promptDescription(name);

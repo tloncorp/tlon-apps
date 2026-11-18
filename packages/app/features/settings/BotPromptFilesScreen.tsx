@@ -64,7 +64,7 @@ export function BotPromptFilesScreen(props: Props) {
           key: 'prompt-files',
           title: 'Prompt files',
           rows: [
-            messageRow("Couldn't load your bot's prompt files."),
+            messageRow("Couldn't load Sato's prompt files."),
             {
               key: 'retry',
               title: 'Try again',
@@ -84,7 +84,7 @@ export function BotPromptFilesScreen(props: Props) {
             messageRow(
               unsupported
                 ? "Prompt files aren't available yet."
-                : "Your bot hasn't shared its prompt files yet."
+                : "Sato hasn't shared its prompt files yet."
             ),
           ],
         },

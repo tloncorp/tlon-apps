@@ -13,19 +13,19 @@ export const PROMPT_LABELS: Record<string, string> = {
 };
 
 export const PROMPT_DESCRIPTIONS: Record<string, string> = {
-  'AGENTS.md': 'Core instructions for how your bot behaves.',
-  'SOUL.md': "Your bot's personality and tone.",
-  'TOOLS.md': 'Guidance for the tools your bot can use.',
-  'IDENTITY.md': 'How your bot identifies itself.',
-  'USER.md': 'What your bot knows about you.',
-  'MEMORY.md': 'What your bot remembers between conversations.',
-  'BOOTSTRAP.md': 'First-run setup instructions for your bot.',
+  'AGENTS.md': 'Core instructions for how Sato behaves.',
+  'SOUL.md': "Sato's personality and tone.",
+  'TOOLS.md': 'Guidance for the tools Sato can use.',
+  'IDENTITY.md': 'How Sato identifies itself.',
+  'USER.md': 'What Sato knows about you.',
+  'MEMORY.md': 'What Sato remembers between conversations.',
+  'BOOTSTRAP.md': 'First-run setup instructions for Sato.',
 };
 
 export const promptLabel = (name: string) => PROMPT_LABELS[name] ?? name;
 
 export const promptDescription = (name: string) =>
-  PROMPT_DESCRIPTIONS[name] ?? 'Additional instructions for your bot.';
+  PROMPT_DESCRIPTIONS[name] ?? 'Additional instructions for Sato.';
 
 const PROMPT_ORDER = [
   'AGENTS.md',
