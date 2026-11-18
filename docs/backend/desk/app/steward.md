@@ -114,9 +114,9 @@ While the gateway is not live, a DM from the configured `owner` triggers a canne
 
 The `reason` on `%gateway-stop` is free text; most stops carry the harness's generic reason (OpenClaw core sends `"gateway stopping"`). A stop whose reason names something the owner did themselves is **owner-initiated** and skips the activity gate — the owner just asked for the restart in the app and would otherwise hear nothing:
 
-| reason         | 🔧 text                                                                      |
-| -------------- | ---------------------------------------------------------------------------- |
-| `model-change` | "Your Tlon bot is restarting to switch models. I should be back shortly. 🔧" |
+| reason         | 🔧 text                                                             |
+| -------------- | ------------------------------------------------------------------- |
+| `model-change` | "Sato is restarting to switch models. I should be back shortly. 🔧" |
 
 An owner-initiated stop also latches `notify-on-start`, so the next `%gateway-start` sends ✅ regardless of activity. The latch is honoured only while the stop is recent (`now - last-stop < ~m15`, evaluated at start — no timer); a restart that takes longer falls back to the activity gate. Start clears the latch either way. There is no dedupe: rapid model cycling sends one 🔧/✅ pair per restart.
 
