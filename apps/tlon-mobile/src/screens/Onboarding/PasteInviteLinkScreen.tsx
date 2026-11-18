@@ -165,7 +165,7 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
                       paddingTop="$l"
                     >
                       <TextInput
-                        placeholder="TLON  or  join.tlon.io/0v4.pca..."
+                        placeholder="SATO  or  join.tlon.io/0v4.pca..."
                         // fontSize="$3xl"
                         onBlur={onBlur}
                         onChangeText={onChange}
