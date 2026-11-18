@@ -139,10 +139,11 @@ export function BotOpenAISubscriptionScreen(props: Props) {
       await disconnectLLMSubscription.mutateAsync(providerId);
       setConfirmDisconnect(false);
       auth.dismiss();
+      navigation.goBack();
     } catch {
       // The mutation error is rendered below.
     }
-  }, [auth, disconnectLLMSubscription, providerId]);
+  }, [auth, disconnectLLMSubscription, navigation, providerId]);
 
   const mutationError = deleteProviderKey.error
     ? (getErrorMessage(deleteProviderKey.error) ??
