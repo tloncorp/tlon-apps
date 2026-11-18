@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { Client, base, cookie } from './lib/ship-client.mjs'
 import { rein } from './lib/ship-thread.mjs'
+import { authorShip, assertBotAuthor } from './lib/author.mjs'
 
 assert.equal(process.env.MEMORY_TEST_MESSAGES, '1')
 const peerUrl = process.env.PEER_URL, nest = process.env.TEST_NEST
@@ -62,7 +63,8 @@ async function command(ctx, text, expected, mutation = false) {
   const oldSessions = new Set((await client.call('harness/tlon')).sessions)
   const before = ctx.sid ? await scry(`harness/events/${ctx.sid}`) : null
   await send(ctx, text)
-  await until(`${label(ctx)} native command acknowledgement`, async () => (await messages(ctx)).find((p) => !ids.has(p.id) && p.author === ship && expected.test(JSON.stringify(p.content))))
+  const ack = await until(`${label(ctx)} native command acknowledgement`, async () => (await messages(ctx)).find((p) => !ids.has(p.id) && authorShip(p.author) === ship && expected.test(JSON.stringify(p.content))))
+  assertBotAuthor(ack.author, ship)
   if (!ctx.sid) ctx.sid = await until('new scoped session', async () => (await client.call('harness/tlon')).sessions.find((sid) => !oldSessions.has(sid)))
   const snap = await snapshot(ctx), after = await scry(`harness/events/${ctx.sid}`)
   if (before) {
@@ -123,7 +125,7 @@ try {
   }
   const ctx = contexts[0], ids = new Set((await messages(ctx)).map((p) => p.id))
   await send(ctx, `${label(ctx)}-model-output-check ${noteName}`)
-  await until('literal model output published', async () => (await messages(ctx)).some((p) => !ids.has(p.id) && p.author === ship && JSON.stringify(p.content).includes('MODEL_OUTPUT_MUST_NOT_WRITE')))
+  await until('literal model output published', async () => (await messages(ctx)).some((p) => !ids.has(p.id) && authorShip(p.author) === ship && JSON.stringify(p.content).includes('MODEL_OUTPUT_MUST_NOT_WRITE')))
   await assertShared(ctx)
   assert.equal((await scry(`harness/events/${ctx.sid}`)).filter((e) => e.type === 'memory-set' && e.name === noteName).length, 2)
   console.log('PASS literal model output cannot edit memory; recall crosses conversation boundaries')

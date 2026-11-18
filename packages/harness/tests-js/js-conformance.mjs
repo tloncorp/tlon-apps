@@ -5,8 +5,9 @@ import { text as readText } from 'node:stream/consumers'
 import { createServer } from 'node:http'
 import { randomUUID } from 'node:crypto'
 import { setTimeout as sleep } from 'node:timers/promises'
-import { Client } from './lib/ship-client.mjs'
+import { Client, cookie, base, readCookie } from './lib/ship-client.mjs'
 import { GrantedTurns } from './lib/granted-turns.mjs'
+import { assertBotAuthor } from './lib/author.mjs'
 
 const client = new Client(), grants = new GrantedTurns(client), failures = [], effects = [], sessions = []
 const prefix = `js-test-${randomUUID().slice(0, 8)}`
@@ -105,6 +106,42 @@ try {
   if (failures.length) throw new AggregateError(failures)
   assert.deepEqual((await client.call('harness/defaults')).tools, defaultTools)
   console.log('PASS JS yielding watchdog and unchanged defaults')
+
+  // The Tlon host APIs write as the bot, as the Tlon hand does.
+  const nest = process.env.TEST_NEST, peer = process.env.PEER_SHIP, peerUrl = process.env.PEER_URL
+  if (nest && peer && peerUrl) {
+    const ship = cookie.split('=')[0].slice('urbauth-'.length), peerCookie = await readCookie(process.env.PEER_COOKIE)
+    const scry = async (at, auth, path) => {
+      const response = await fetch(`${at}/~/scry/${path}.json`, { headers: { cookie: auth }, signal: AbortSignal.timeout(15000) })
+      assert.ok(response.ok, `${path}: HTTP ${response.status}`); return response.json()
+    }
+    const until = async (label, check) => {
+      for (let i = 0; i < 150; i++) { const value = await check(); if (value) return value; await sleep(200) }
+      throw new Error(`Timed out: ${label}`)
+    }
+    const has = (content, suffix) => JSON.stringify(content).includes(`${prefix}-${suffix}`)
+    const club = `0v${BigInt(`0x${randomUUID().replaceAll('-', '').slice(0, 12)}`).toString(32).replace(/\B(?=(.{5})+$)/g, '.')}`
+    await client.pokeAgent('chat', 'chat-club-create', { id: club, hive: [peer] })
+    await until('local group DM', async () => (await scry(base, cookie, 'chat/clubs'))[club])
+    const tlon = "require('urbit_thread').tlon"
+    scripts.publish = `module.exports = () => { const t = ${tlon}; t.post_channel('${nest}', '${prefix}-post'); t.send_dm('${peer}', '${prefix}-dm'); t.send_dm('${club}', '${prefix}-club'); return 'SENT'; };`
+    const writer = await create('publish')
+    await prompt(writer, 'publish')
+    assert.match(results.get('publish') || '', /SENT/)
+    const posts = async () => Object.entries((await scry(peerUrl, peerCookie, `channels/v5/${nest}/posts/newest/50/post`)).posts)
+    const [postId, post] = await until('run_js channel post at the peer', async () => (await posts()).find(([, p]) => has(p?.essay?.content, 'post')))
+    assertBotAuthor(post.essay.author, ship)
+    scripts.reply = `module.exports = () => { ${tlon}.reply_channel('${nest}', '${postId.replaceAll('.', '')}', '${prefix}-reply'); return 'SENT'; };`
+    await prompt(writer, 'reply')
+    assert.match(results.get('reply') || '', /SENT/)
+    const reply = await until('run_js channel reply at the peer', async () => Object.values((await posts()).find(([id]) => id === postId)?.[1]?.seal?.replies || {}).find((r) => has(r['reply-essay'].content, 'reply')))
+    assertBotAuthor(reply['reply-essay'].author, ship)
+    const dm = await until('run_js DM', async () => Object.values((await scry(base, cookie, `chat/v4/dm/${peer}/writs/newest/50/light`)).writs).find((w) => has(w.essay.content, 'dm')))
+    assertBotAuthor(dm.essay.author, ship)
+    const group = await until('run_js group DM', async () => Object.values((await scry(base, cookie, `chat/v4/club/${club}/writs/newest/20/light`)).writs).find((w) => has(w.essay.content, 'club')))
+    assertBotAuthor(group.essay.author, ship)
+    console.log('PASS JS Tlon host APIs write channel posts, replies, DMs and group DMs as the bot')
+  }
 } finally {
   await grants.close().catch(() => {})
   for (const sessionId of sessions) {
