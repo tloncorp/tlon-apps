@@ -32,7 +32,7 @@
   :-  ~
   %+  rap  3
   :~
-    'The owner opens Tlonbot setup. Briefly introduce what you can actually do with your available tools, then ask what they would like help with. '
+    'The owner opens Sato setup. Briefly introduce what you can actually do with your available tools, then ask what they would like help with. '
     'Keep it conversational: one useful question, no setup checklist or internal identifiers. '
     'Do not create a task, schedule or subscription merely because setup opens. '
     'When the owner asks for recurring work, clarify the work, timing and timezone before using the ordinary scheduling tools. '
