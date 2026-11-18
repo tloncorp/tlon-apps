@@ -24,7 +24,7 @@ const SETUP_STEPS: {
 }[] = [
   {
     key: 'computer',
-    label: 'Preparing your Tlon computer',
+    label: 'Preparing your Sato instance',
     lastPhase: NodeBootPhase.BOOTING,
   },
   {
