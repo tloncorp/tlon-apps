@@ -182,7 +182,7 @@ function useSettingsSections(
       accountRows.push({
         key: 'manage-account',
         title: 'Manage Sato account',
-        leading: { kind: 'icon', icon: 'Tlon' },
+        leading: { kind: 'icon', icon: 'Sato' },
         onPress: props.onManageAccountPressed,
         isFocused: focusedRouteName === 'ManageAccount',
       });
