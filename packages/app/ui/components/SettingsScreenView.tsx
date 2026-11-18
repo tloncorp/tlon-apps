@@ -181,7 +181,7 @@ function useSettingsSections(
     if (props.hasHostedAuth) {
       accountRows.push({
         key: 'manage-account',
-        title: 'Manage Tlon account',
+        title: 'Manage Sato account',
         leading: { kind: 'icon', icon: 'Tlon' },
         onPress: props.onManageAccountPressed,
         isFocused: focusedRouteName === 'ManageAccount',
