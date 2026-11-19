@@ -70,9 +70,9 @@ symlink.
 fake ships in containers, from the image `fakeship:<N>` that the repository's
 `scripts/backend/container/` builds, where the number N stands for the checkout, with vere and the boot pill in it (see
 [the fake ship image](../../../docs/backend/tools/README.md#fake-ship-image)). They use
-podman when it is installed and docker otherwise; set `CONTAINER_RUNTIME` to choose.
+podman when it is usable and docker otherwise; set `CONTAINER_RUNTIME` to choose.
 `just fake-dev`, `just setup` and `just provider` also need `jq`, and `just provider`
-`curl`. This is verified on Linux with podman; macOS is untested.
+`curl`.
 
 `just fake-dev` runs `scripts/setup-fake-dev.sh`, which needs `mcp/` from
 `just fetch`. The names below carry a number, written `<N>`, that stands for the

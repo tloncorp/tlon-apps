@@ -73,6 +73,28 @@ describe('agent task plan reply delivery', () => {
     });
   });
 
+  it('suppresses final model prose after a workspace card post', () => {
+    recordSuccess('tlon_workspace_plan');
+
+    expect(suppress()).toEqual({
+      cancel: true,
+      reason: 'tlon_onboarding_surface_owns_reply',
+    });
+  });
+
+  it("drops the host's no-visible-reply notice after a surface reply", () => {
+    recordSuccess('tlon_workspace_plan');
+    expect(suppress()).toMatchObject({ cancel: true });
+    const notice = {
+      payload: {
+        text: "⚠️ OpenClaw couldn't produce or deliver a reply. Please try again.",
+      },
+    };
+    expect(suppress(notice)).toMatchObject({ cancel: true });
+    // Only once, and only after a suppressed surface reply.
+    expect(suppress(notice)).toBeUndefined();
+  });
+
   it('consumes the marker once', () => {
     recordSuccess();
     expect(suppress()).toBeDefined();

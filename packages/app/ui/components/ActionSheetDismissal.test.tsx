@@ -74,6 +74,25 @@ afterEach(() => {
 });
 
 describe('ordinary ActionSheet dismissal forwarding', () => {
+  it.each([false, true])(
+    'keeps swipe dismissal enabled with compact=%s',
+    (compact) => {
+      let tree!: ReturnType<typeof create>;
+      act(() => {
+        tree = create(
+          <ActionSheet open onOpenChange={vi.fn()} compact={compact}>
+            {null}
+          </ActionSheet>
+        );
+      });
+      const native = tree.root.find((node) => node.props.index === 0);
+      expect(native.props.enablePanDownToClose).toBe(true);
+      expect(native.props.showCloseButton).toBe(compact ? false : undefined);
+      expect(native.props.handleComponent).not.toBeNull();
+      act(() => tree.unmount());
+    }
+  );
+
   it('forwards the open callback after content layout, but not when closed', () => {
     const opened = vi.fn();
     let tree: ReturnType<typeof create>;

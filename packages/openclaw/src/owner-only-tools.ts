@@ -78,6 +78,9 @@ export const OWNER_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'tlon_agent_choice',
   'tlon_agent_task_plan',
   'tlon_agent_service_setup',
+  'tlon_workspace_plan',
+  'tlon_workspace_create',
+  'tlon_workspace_link',
   'set_timezone',
   // Core-materialized MCP resource and prompt operations forward to upstreams
   // with the bot's configured auth and are not part of the group tool
