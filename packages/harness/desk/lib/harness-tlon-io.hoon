@@ -153,7 +153,7 @@
     =/  author  author:+.post
     :-  ~
     :*  (rap 3 (scot %p p.id:-.post) '/' (scot %da q.id:-.post) ~)
-        ?@(author author ship.author)
+        (author-ship:authors author)
         sent:+.post
         (clip:ht (story-to-text:story content:+.post) 800)
     ==
@@ -185,7 +185,7 @@
     =/  author  author:+.+.post
     :-  ~
     :*  (scot %da id:-.post)
-        ?@(author author ship.author)
+        (author-ship:authors author)
         sent:+.+.post
         (clip:ht (story-to-text:story content:+.+.post) 800)
     ==

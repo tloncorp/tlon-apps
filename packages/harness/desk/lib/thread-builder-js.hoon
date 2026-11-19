@@ -2160,7 +2160,7 @@
         ^-  json
         %-  pairs
         :~  content/(story:enjs:sj content.m)
-            author/(ship ?@(a=author.m a ship.a))
+            author/(ship (author-ship:authors author.m))
             sent/(time sent.m)
         ==
       --
