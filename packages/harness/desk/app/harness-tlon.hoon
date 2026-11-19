@@ -1891,10 +1891,10 @@
       cutoff
     (fall (~(get by channel-cuts) nest.to.u.input) `@da`0)
   ?:  (lte (posted-at:continuity event) cutoff)  cor
-  =/  known  (~(get by identities) [actor.u.input to.u.input])
-  =/  sid  (fall known (identity:continuity actor.u.input to.u.input))
-  ?:  &(?=(~ known) (gte ~(wyt by identities) 128))
-    cor(error 'Conversation identity capacity reached; existing history and notes are retained.')
+  =/  sid
+    %+  fall
+      (~(get by identities) [actor.u.input to.u.input])
+    (identity:continuity actor.u.input to.u.input)
   =/  existing  (~(get by lanes) sid)
   =/  generation  ?~(existing epoch epoch.u.existing)
   =/  id=@uv  (sham [generation u.input])

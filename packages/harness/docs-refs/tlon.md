@@ -683,10 +683,14 @@ work remains.
 Conversation identities and their notes outlive route authorization. Revocation
 disables the old binding and fences its work; it does not delete its evidence or
 assign its old publications to a new binding. Operational limits are admission
-backpressure, never permission to prune primary history: 128 retained social
-identities and 64 pending admissions; the head separately retains up to 64
-schedules across all hands. These complement the
+backpressure, never permission to prune primary history: 64 pending
+admissions; the head separately retains up to 64 schedules across all hands.
+These complement the
 [shared hand limits and archive protocol](hands.md#fair-admission-and-explicit-retention).
+The number of conversation identities has no limit, and an identity is never
+evicted. Each conversation's route holds a binding in the shared hand ledger,
+and a disabled binding counts there until it is retired, so that ledger's
+limits are the ones a new conversation can reach.
 
 To reclaim a settled binding's operational ledger, stop admission by disabling
 the adapter, resolve its unfinished work, and export/retire the disabled binding
@@ -697,9 +701,8 @@ a new admission period when the adapter is re-enabled; disabling is not the
 same as downtime recovery.
 
 Retiring a ledger binding does not release a social identity or delete a session
-log. At identity capacity, existing conversations remain usable and new ones
-are rejected visibly. Automatic identity eviction and primary-history pruning
-are not implemented. Do not present a ledger archive as an export of the full
+log. Primary-history pruning is not implemented. Do not present a ledger
+archive as an export of the full
 conversation or as proof that external storage is durable.
 
 Only one publication per destination is sent at a time; unrelated conversations
