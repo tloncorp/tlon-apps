@@ -3,7 +3,7 @@
 ::  Native hand requests and ACP use the same ledger gates. Messenger facts
 ::  are accepted only on our subscription to the local activity agent.
 /-  t=harness-tlon, h=harness, hh=harness-hand, ad=harness-adapter,
-    a=activity-ver, dv=channels-ver, ac=acp, cr=harness-cron
+    a=activity-ver, dv=channels-ver, gv=groups-ver, ac=acp, cr=harness-cron
 /-  notes
 /-  hooks
 /-  hosted=harness-hosted
@@ -29,6 +29,8 @@
 /+  story=harness-tlon-story, input=harness-tlon-input
 /+  observe=harness-observe
 /+  lens-codec=harness-tlon-lens
+/+  workspace-plan=harness-tlon-workspace-plan, group-policy=harness-tlon-group-policy,
+    conversation-tool=harness-tlon-conversation-tool
 |%
 +$  card  card:agent:gall
 +$  storage-source  $%([%credentials creds=credentials:s3] [%hosted token=@t config=json])
@@ -685,6 +687,8 @@
     (finish-tool id 'rejected: no authorized outstanding tool call')
   ?:  =('tlon' name.call.request)
     (tool-native request id)
+  ?:  (lien names:workspace-plan |=(name=@t =(name name.call.request)))
+    (tool-workspace request id)
   (tool-conversation request id)
 ::
 ++  tool-native
@@ -797,6 +801,248 @@
       'error: use a recent message ID from this conversation and an emoji up to 32 bytes'
     (emit u.built)
   (finish-tool id 'error: unsupported hand tool')
+::
+::  Workspace cards: proposed, linked and settled only in the owner's own DM.
+::
+++  tool-workspace
+  |=  [request=tool-request:ad id=@uv]
+  ^+  cor
+  =/  lane  (~(get by lanes) sid.request)
+  ?.  &(?=(^ lane) (owner-lane sid.request))
+    %+  finish-tool
+      id
+    'rejected: workspace cards belong to your owner\'s own DM; carry on here without one'
+  =/  parsed  (de:json:html args.call.request)
+  ?.  ?=([~ %o *] parsed)  (finish-tool id 'error: expected tool arguments object')
+  ?:  =('tlon_workspace_plan' name.call.request)
+    (workspace-propose id sid.request actor.u.lane u.parsed)
+  ?:  =('tlon_workspace_link' name.call.request)
+    (workspace-link id actor.u.lane u.parsed)
+  (workspace-create id actor.u.lane u.parsed)
+::
+++  stamp
+  ^-  [@da _cor]
+  =.  last-sent  (next-message-stamp:p now.bowl last-sent)
+  [last-sent cor]
+::  +settle-tool: the acknowledgement of .effect delivers .body
+::
+++  settle-tool
+  |=  [id=@uv body=@t effect=card]
+  ^+  cor
+  =/  receipt  (~(got by tool-receipts) id)
+  =.  tool-receipts  (~(put by tool-receipts) id receipt(body body))
+  (emit effect)
+::
+++  workspace-argument
+  |=  [args=json key=@t]
+  ^-  @t
+  ?>  ?=(%o -.args)
+  =/  value  (~(get by p.args) key)
+  ?.  ?=([~ %s *] value)  ''
+  (tidy:workspace-plan p.u.value)
+::
+++  workspace-propose
+  |=  [id=@uv sid=@t owner=@p args=json]
+  ^+  cor
+  =/  parsed  (parse:workspace-plan args)
+  ?~  parsed  (finish-tool id (invalid:workspace-plan args))
+  =/  plan  plan.u.parsed
+  =/  key=@t  (cat 3 prefix:workspace-plan (crip ((x-co:co 12) (end [3 6] id))))
+  =/  answer  (inherited:workspace-plan proposals owner)
+  =.  proposals
+    %-  prune:workspace-plan
+    %^    supersede:workspace-plan
+        (~(put by proposals) key [owner sid plan %open now.bowl | =('' answer) answer ~])
+      owner
+    key
+  =^  first  cor  stamp
+  =^  second  cor  stamp
+  =/  to=destination:t  [%dm owner ~]
+  =.  cor  (emit (publish:messenger /workspace/(scot %uv id) to intro.u.parsed first ~))
+  %^    settle-tool
+      id
+    %+  rap  3
+    :~  'Posted the "'
+        title.plan
+        '" workspace card (proposal '
+        key
+        '). Nothing exists yet: it is created only when the owner taps Create. '
+        ?:  =('' answer)
+          'Now answer the owner\'s message in full as your reply: it follows the card in the DM and opens the workspace chat on Create. Don\'t describe the card again.'
+        'It keeps the answer you gave with the earlier card. Reply in one short line.'
+    ==
+  %:  publish:messenger
+    /tlon-tool/(scot %uv id)
+    to
+    (fallback:workspace-plan plan)
+    second
+    `(blob:workspace-plan key plan)
+  ==
+::
+++  workspace-link
+  |=  [id=@uv owner=@p args=json]
+  ^+  cor
+  =/  flag  (flag:workspace-plan (workspace-argument args 'group'))
+  =/  line  (workspace-argument args 'line')
+  ?~  flag
+    %+  finish-tool
+      id
+    'error: group must be a workspace ID from list_groups, such as "~sampel-palnet/lisbon-trip"'
+  ?:  |(=('' line) (gth (met 3 line) 200))
+    (finish-tool id 'error: line is required: one line naming the workspace, at most 200 bytes')
+  =/  known  (mole |.(groups:~(. operations bowl)))
+  =/  name  (rap 3 (scot %p -.u.flag) '/' +.u.flag ~)
+  ?.  &(?=(^ known) (~(has by u.known) u.flag))
+    %+  finish-tool
+      id
+    (rap 3 'error: ' name ' is not one of your groups; use an ID from list_groups' ~)
+  =^  sent  cor  stamp
+  %^    settle-tool
+      id
+    %+  rap  3
+    :~  'Posted the link to '
+        name
+        '. Now answer the owner\'s message as usual. Don\'t repeat the link, its path or the workspace name on a line of its own.'
+    ==
+  %:  publish-story:messenger
+    /tlon-tool/(scot %uv id)
+    [%dm owner ~]
+    (snoc (text-to-story:story line) [%block %cite %group u.flag])
+    sent
+    ~
+    ~
+  ==
+::
+++  workspace-create
+  |=  [id=@uv owner=@p args=json]
+  ^+  cor
+  =/  key  (workspace-argument args 'proposal_id')
+  =/  proposal  (~(get by proposals) key)
+  ?.  &(?=(^ proposal) =(owner owner.u.proposal))
+    (finish-tool id 'error: no such workspace card; nothing was created')
+  =/  plan  plan.u.proposal
+  ?:  =(%created status.u.proposal)
+    %+  finish-tool
+      id
+    %+  rap  3
+    :~  'Already created: "'
+        title.plan
+        '" exists and nothing new was made. Say so in one line.'
+    ==
+  ?:  =(%superseded status.u.proposal)
+    %+  finish-tool
+      id
+    'error: a newer card replaced this one; ask the owner to use the latest card'
+  ?.  =(%approved status.u.proposal)
+    %+  finish-tool
+      id
+    'error: the owner has not tapped Create on this card; nothing was created'
+  =/  given  (workspace-argument args 'group')
+  ?:  =('' given)  (finish-tool id (brief:workspace-plan key u.proposal))
+  =/  flag  (flag:workspace-plan given)
+  ?~  flag
+    %+  finish-tool
+      id
+    'error: group must be the new group\'s ID, such as "~sampel-palnet/lisbon-trip"'
+  =/  name  (rap 3 (scot %p -.u.flag) '/' +.u.flag ~)
+  ?:  %+  lien  ~(val by proposals)
+      |=(other=workspace-proposal:t =(`u.flag group.other))
+    (finish-tool id (rap 3 'error: ' name ' was made from another card' ~))
+  =/  known  (mole |.(groups:~(. operations bowl)))
+  =/  group  ?~(known ~ (~(get by u.known) u.flag))
+  ?~  group
+    %+  finish-tool
+      id
+    %+  rap  3
+    :~  'pending: '
+        name
+        ' is not on this ship yet. If you made it, it is still arriving: call tlon_workspace_create again with the same arguments. If you have not made it, do step 1 first.'
+    ==
+  ?.  (admin:group-policy our.bowl -.u.flag u.group)
+    %+  finish-tool
+      id
+    (rap 3 'error: you are not an admin of ' name ', so you cannot finish it' ~)
+  =/  listed
+    %+  turn  ~(tap by channels.u.group)
+    |=  [nest=[@tas @p @tas] channel=channel:v9:gv]
+    [nest title.meta.channel]
+  =/  assigned  (assign:workspace-plan plan listed)
+  =/  missing=(list @t)
+    =/  rows  channels.plan
+    =/  found  assigned
+    |-  ^-  (list @t)
+    ?:  |(?=(~ rows) ?=(~ found))  ~
+    ?^  i.found  $(rows t.rows, found t.found)
+    :-  (rap 3 ' "' title.i.rows '" (kind ' (native-kind:workspace-plan kind.i.rows) ')' ~)
+    $(rows t.rows, found t.found)
+  ?^  missing
+    %+  finish-tool
+      id
+    %+  rap  3
+    :~  'error: '
+        name
+        ' has no channel for:'
+        (rap 3 missing)
+        '. Create each with that exact title, then call tlon_workspace_create again with the same arguments.'
+    ==
+  =/  nests  (murn assigned |=(found=(unit nest:workspace-plan) found))
+  ?>  ?=(^ nests)
+  =/  chat=destination:t  [%channel [%chat ship.i.nests name.i.nests] ~]
+  ?.  =(`& (mole |.((available:~(. conversation-tool bowl) chat))))
+    %+  finish-tool
+      id
+    %+  rap  3
+    :~  'pending: this ship has not joined '
+        (nest-id:workspace-plan i.nests)
+        ' yet. Call tlon_workspace_create again with the same arguments.'
+    ==
+  =.  cor
+    %+  roll  (arrange:workspace-plan plan u.group nests)
+    |=  [command=a-group:v8:gv engine=_cor]
+    %-  emit:engine
+    :*  %pass  /workspace/(scot %uv id)  %agent  [our.bowl %groups]  %poke  %group-action-4
+        !>(`a-groups:v8:gv`[%group u.flag command])
+    ==
+  ::  The DM answer opens the workspace chat, before any starter content.
+  =/  answered  !=('' answer.u.proposal)
+  =^  first  cor  stamp
+  =?  cor  answered
+    (emit (publish:messenger /workspace/(scot %uv id) chat answer.u.proposal first ~))
+  =.  proposals
+    (~(put by proposals) key u.proposal(status %created, group flag, awaiting |))
+  =^  second  cor  stamp
+  %^    settle-tool
+      id
+    (created:workspace-plan u.proposal u.flag nests answered)
+  %:  publish-story:messenger
+    /tlon-tool/(scot %uv id)
+    [%dm owner ~]
+    ~[[%block %cite %group u.flag]]
+    second
+    ~
+    ~
+  ==
+::  +capture-answer: the reply of the turn that proposed a workspace is the
+::  answer its chat opens with
+::
+++  capture-answer
+  |=  publication=publication:hh
+  ^+  cor
+  ?.  =(%reply kind.publication)  cor
+  =.  proposals
+    %-  ~(run by proposals)
+    |=  proposal=workspace-proposal:t
+    ?.  &(awaiting.proposal =(sid.proposal sid.publication))  proposal
+    proposal(awaiting |, answer body.publication)
+  cor
+::
+++  agent-workspace
+  |=  [=wire =sign:agent:gall]
+  ^+  cor
+  ?.  ?=(%poke-ack -.sign)  cor
+  ?~  p.sign  cor
+  %-  (slog 'harness-tlon: workspace card step rejected' u.p.sign)
+  cor(error 'Tlon rejected a workspace card step; inspect the workspace and the ship log.')
 ::
 ++  storage-credentials
   ^-  (unit storage-source)
@@ -1317,6 +1563,7 @@
     [%head ~]  (agent-head wire sign)
     [%reaction @ ~]  (agent-reaction wire sign)
     [%tlon-tool @ ~]  (agent-tlon-tool wire sign)
+    [%workspace @ ~]  (agent-workspace wire sign)
     [%tlon-hooks @ ~]  (agent-tlon-hooks wire sign)
     [%tlon-hook-poke @ ~]  (agent-tlon-hook-poke wire sign)
     [%tlon-notes-migration @ ~]  (agent-tlon-notes-migration wire sign)
@@ -1882,6 +2129,32 @@
   =/  input  (normalize-owned:p our.bowl policy addressed actor-owner)
   ?~  input  cor
   =?  text.u.input  ?=(^ introduction)  u.introduction
+  ::  A tap on a workspace card is the owner's own DM post carrying the app's
+  ::  selection receipt. The model is told what was tapped; text alone is not
+  ::  a tap. Only a message worded as one of their cards' buttons is read.
+  =/  tapped=(unit [id=@t create=?])
+    ?.  ?&  ?=(%dm-post -.event)
+            (actor-owner actor.u.input)
+            (worded:workspace-plan proposals actor.u.input text.u.input)
+        ==
+      ~
+    =/  blob  (mole |.((dm-blob:messenger event)))
+    ?~(blob ~ (tap:workspace-plan u.blob))
+  =/  proposed=(unit workspace-proposal:t)
+    ?~  tapped  ~
+    =/  found  (~(get by proposals) id.u.tapped)
+    ?.  &(?=(^ found) =(actor.u.input owner.u.found))  ~
+    found
+  =?  text.u.input  ?=(^ tapped)
+    (cat 3 text.u.input (note:workspace-plan id.u.tapped create.u.tapped proposed))
+  =?  text.u.input
+      ?&  ?=(%dm-post -.event)
+          ?=(~ tapped)
+          ?=(~ introduction)
+          (actor-owner actor.u.input)
+          (ruled:workspace-plan text.u.input)
+      ==
+    (cat 3 text.u.input rule:workspace-plan)
   ::  All applicable authority cutoffs precede admission and identity updates.
   =/  cutoff  (max after (fall (~(get by cuts) actor.u.input) `@da`0))
   =?  cutoff  (sibling:~(. ownership bowl) actor.u.input)  (max cutoff sibling-owner-after)
@@ -1903,6 +2176,10 @@
   ::  Read only what will be admitted. A diagnostic, kept out of the input
   ::  whose hash is the job id.
   =/  bot=(unit ?)  (bot-author:~(. history-read bowl) to.u.input (posted-at:continuity event))
+  =?  proposals  &(?=(^ tapped) ?=(^ proposed) =(%open status.u.proposed))
+    %+  ~(put by proposals)  id.u.tapped
+    ?:  create.u.tapped  u.proposed(status %approved)
+    u.proposed(editing &)
   =/  =job:t  [u.input sid %create '']
   =.  jobs  (~(put by jobs) id job)
   =.  cor  (note ?:(=(`& bot) 'bot-message' 'message') actor.u.input (address:p to.u.input) event.u.input)
@@ -2378,6 +2655,7 @@
           =(attempt attempt:(get-control:hd hands id))
       ==
     cor
+  =.  cor  (capture-answer publication)
   =/  lane  (delivery-lane sid.publication)
   ?:  &(?=(^ lane) ?=(%channel -.to.u.lane) !publications-connected)  cor
   ::  Trust may change between claiming and sending. Do not publish then.

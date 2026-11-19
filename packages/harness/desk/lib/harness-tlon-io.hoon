@@ -105,6 +105,19 @@
     ~
   `[%dm-post [id:-.post time] [%ship who] content:+.post |]
 ::
+::  +dm-blob: the blob of the exact DM post an activity event names
+::
+++  dm-blob
+  |=  event=incoming-event:v8:a
+  ^-  (unit @t)
+  ?.  &(?=(%dm-post -.event) ?=(%ship -.whom.event))  ~
+  =/  post=(may:v7:cv writ:v7:cv)
+    .^  (may:v7:cv writ:v7:cv)  %gx
+      (dm-post:read-path p.whom.event id.key.event)
+    ==
+  ?:  ?=(%| -.post)  ~
+  blob:+.+.post
+::
 ++  onboarding-request
   |=  event=incoming-event:v8:a
   ^-  (unit @t)
@@ -112,13 +125,7 @@
   ::  conversation-wide search that could attach somebody else's setup data.
   ?+  -.event  ~
       %dm-post
-    ?.  ?=(%ship -.whom.event)  ~
-    =/  post=(may:v7:cv writ:v7:cv)
-      .^  (may:v7:cv writ:v7:cv)  %gx
-        (dm-post:read-path p.whom.event id.key.event)
-      ==
-    ?:  ?=(%| -.post)  ~
-    (request:onboarding p.id.key.event blob:+.+.post)
+    (request:onboarding p.id.key.event (dm-blob event))
       %post
     =/  post=(may:v9:dv post:v9:dv)
       .^  (may:v9:dv post:v9:dv)  %gx
