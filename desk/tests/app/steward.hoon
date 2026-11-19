@@ -1554,10 +1554,10 @@
       !>(action)
   ==
 ::
-++  restart-text  'Your Tlon bot is restarting. I should be back shortly. 🔧'
+++  restart-text  'Sato is restarting. I should be back shortly. 🔧'
 ++  model-text
-  'Your Tlon bot is restarting to switch models. I should be back shortly. 🔧'
-++  online-text  'Your Tlon bot is back online and ready to chat again. ✅'
+  'Sato is restarting to switch models. I should be back shortly. 🔧'
+++  online-text  'Sato is back online and ready to chat again. ✅'
 ::
 ::  ==========================================================
 ::  LENS MODULE TESTS

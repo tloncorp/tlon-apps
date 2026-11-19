@@ -132,18 +132,18 @@
     [[cad caz] etc]
   --
 ::  +group-og-title: render the open-graph title for a group invite.
-::  empty group title falls back to "a Groupchat".
+::  empty group title falls back to "a Workspace".
 ::
 ++  group-og-title
   |=  [nickname=(unit @t) group-title=@t]
   ^-  @t
   =/  title=@t
-    ?:  =('' group-title)  'a Groupchat'
+    ?:  =('' group-title)  'a Workspace'
     group-title
   %-  crip
   ?:  |(?=(~ nickname) =('' u.nickname))
-    "Tlon Messenger: You're Invited to {(trip title)}"
-  "Tlon Messenger: {(trip u.nickname)} invited you to {(trip title)}"
+    "Sato: You're Invited to {(trip title)}"
+  "Sato: {(trip u.nickname)} invited you to {(trip title)}"
 --
 |_  =bowl:gall
 +*  this  .
@@ -507,8 +507,8 @@
           =/  title=@t
             %-  crip
             ?:  |(?=(~ nickname) =('' u.nickname))
-              "Tlon Messenger: You've Been Invited"
-            "Tlon Messenger: {(trip u.nickname)} Sent You an Invite"
+              "Sato: You've Been Invited"
+            "Sato: {(trip u.nickname)} Sent You an Invite"
           =.  fields.update
             (~(put by fields.update) %'$og_title' title)
           =.  fields.update

@@ -226,8 +226,8 @@
     :~  %'invitedGroupTitle'^'Early Sunrise'
         %'invitedGroupDescription'^'Sunrise, sunset.'
         %'invitedGroupIconImageUrl'^'https://sampel-palnet.arvo.network/early-sunrise.jpg'
-        %'$og_title'^'Tlon Messenger: You\'re Invited to Early Sunrise'
-        %'$twitter_title'^'Tlon Messenger: You\'re Invited to Early Sunrise'
+        %'$og_title'^'Sato: You\'re Invited to Early Sunrise'
+        %'$twitter_title'^'Sato: You\'re Invited to Early Sunrise'
     ==
   ;<  ~  bind:m
     %+  ex-cards  caz
@@ -263,8 +263,8 @@
     :~  %'invitedGroupTitle'^'Early Sunrise'
         %'invitedGroupDescription'^'Sunrise, sunset.'
         %'invitedGroupIconImageUrl'^'https://sampel-palnet.arvo.network/early-sunrise.jpg'
-        %'$og_title'^'Tlon Messenger: Sampel Palnet invited you to Early Sunrise'
-        %'$twitter_title'^'Tlon Messenger: Sampel Palnet invited you to Early Sunrise'
+        %'$og_title'^'Sato: Sampel Palnet invited you to Early Sunrise'
+        %'$twitter_title'^'Sato: Sampel Palnet invited you to Early Sunrise'
     ==
   ;<  ~  bind:m
     %+  ex-cards  caz
@@ -340,8 +340,8 @@
     :~  %'inviterNickname'^'Best Sampel'
         %'inviterAvatarImage'^'https://sampel-palnet.arvo.network/best-sampel.jpg'
         %'inviterColor'^'ff.0000'
-        %'$og_title'^'Tlon Messenger: Best Sampel invited you to Sunrise'
-        %'$twitter_title'^'Tlon Messenger: Best Sampel invited you to Sunrise'
+        %'$og_title'^'Sato: Best Sampel invited you to Sunrise'
+        %'$twitter_title'^'Sato: Best Sampel invited you to Sunrise'
     ==
   =/  personal-update=metadata:reel
     :-  %groups-0
@@ -349,8 +349,8 @@
     :~  %'inviterNickname'^'Best Sampel'
         %'inviterAvatarImage'^'https://sampel-palnet.arvo.network/best-sampel.jpg'
         %'inviterColor'^'ff.0000'
-        %'$og_title'^'Tlon Messenger: Best Sampel Sent You an Invite'
-        %'$twitter_title'^'Tlon Messenger: Best Sampel Sent You an Invite'
+        %'$og_title'^'Sato: Best Sampel Sent You an Invite'
+        %'$twitter_title'^'Sato: Best Sampel Sent You an Invite'
     ==
   ;<  ~  bind:m
     %+  ex-cards  caz

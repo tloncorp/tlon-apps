@@ -1212,7 +1212,7 @@
     |=  reason=@t
     ^-  (unit @t)
     ?:  =('model-change' reason)
-      `'Your Tlon bot is restarting to switch models. I should be back shortly. 🔧'
+      `'Sato is restarting to switch models. I should be back shortly. 🔧'
     ~
   ::
   ::  an owner-initiated stop latches .notify-on-start so the next start
@@ -1343,7 +1343,7 @@
         ==
       =/  tgt  ga-notice-target
       ?~  tgt  cor
-      (ga-send-dm u.tgt 'Your Tlon bot is back online and ready to chat again. ✅')
+      (ga-send-dm u.tgt 'Sato is back online and ready to chat again. ✅')
     =.  pending-restart.gateway.state  |
     =.  notify-on-start.gateway.state  |
     =.  cor  (ga-advertise-liveness &)
@@ -1382,7 +1382,7 @@
     =/  notice=(unit @t)
       ?^  owner-notice  owner-notice
       ?.  (ga-is-recently-active now.bowl)  ~
-      `'Your Tlon bot is restarting. I should be back shortly. 🔧'
+      `'Sato is restarting. I should be back shortly. 🔧'
     =?  cor  ?=(^ notice)
       =/  tgt  ga-notice-target
       ?~  tgt  cor
@@ -1443,7 +1443,7 @@
     =?  last-auto-reply-to.gateway.state  should-reply  `u.mkey
     ?.  should-reply  cor
     =.  cor
-      (ga-send-dm sender 'Your Tlon bot is offline right now, so replies are paused. I\'ll let you know when I\'m back. 🛰️')
+      (ga-send-dm sender 'Sato is offline right now, so replies are paused. I\'ll let you know when I\'m back. 🛰️')
     (ga-give-update [%auto-reply sender now.bowl])
   --
 ::  |au-core: automation module
