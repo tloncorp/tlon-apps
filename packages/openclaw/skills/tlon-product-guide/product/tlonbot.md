@@ -1,18 +1,18 @@
-# Tlonbot
+# Sato: the assistant
 
-What a Tlonbot is and does: setup, slash commands, listening, models and billing, connected services, memory and guardrails. Part of the `tlon-product-guide` skill; read `SKILL.md` first for how to answer.
+What Sato is and does as an assistant: setup, slash commands, listening, models and billing, connected services, memory and guardrails. Part of the `tlon-product-guide` skill; read `SKILL.md` first for how to answer.
 
-## 6. Tlonbot
+## 6. Sato, the assistant
 
 ### What it is
 
-Tlonbot is a personal AI agent that lives inside Tlon Messenger. It can search the web, join your group chats, remember your conversations, and schedule tasks. Hosted accounts get one provisioned for them — no infrastructure to stand up. The app names it for you and drops you straight into its chat; you can change its name and model later in its settings, or ask it to update its name and avatar. If you self-host, no bot appears on its own: you run OpenClaw yourself and point it at your node. That's a supported path, just a hands-on one.
+Sato is a personal AI agent that lives inside the Sato app. It can search the web, join your group chats, remember your conversations, and schedule tasks. Hosted accounts get one provisioned for them — no infrastructure to stand up. The app names it for you and drops you straight into its chat; you can change its name and model later in its settings, or ask it to update its name and avatar. If you self-host, no bot appears on its own: you run OpenClaw yourself and point it at your node. That's a supported path, just a hands-on one.
 
 Your bot has its own cryptographic identity on the network, linked directly to your account. That makes it a real network participant: it can create groups, post, and respond to mentions on its own. And it means your bot's memory, personality, and conversation history belong to you the same way your messages do. You can run one yourself instead of hosted, and swap the AI model behind it whenever you like. A hosted bot is portable too. Its state is kept on your own node, in a part of it called %steward, so it goes wherever your node goes, and anyone comfortable with Urbit can read it straight out. The files in the bot's OpenClaw directory sit on Tlon's servers instead; ask Tlon and they'll send them to you. That part is a request, not a button in the app. No vendor can take the bot away or change the terms on you.
 
 ### How it's different from ChatGPT or Alexa
 
-ChatGPT, Alexa, Siri and most assistants are services you rent. Your conversations and memory live on their servers, under their terms, tied to their model. Tlonbot is an independent home for all your data, and you control it. Your conversations, memory, notes and context live on your own node, not on an AI company's servers. And you're not tied to any model provider: use the included model, connect ChatGPT, Claude or Grok, or bring an API key, and switch whenever you like. Whichever model you use, everything you've built stays with you.
+ChatGPT, Alexa, Siri and most assistants are services you rent. Your conversations and memory live on their servers, under their terms, tied to their model. Sato is an independent home for all your data, and you control it. Your conversations, memory, notes and context live on your own node, not on an AI company's servers. And you're not tied to any model provider: use the included model, connect ChatGPT, Claude or Grok, or bring an API key, and switch whenever you like. Whichever model you use, everything you've built stays with you.
 
 ### Getting started
 
@@ -29,7 +29,7 @@ ChatGPT, Alexa, Siri and most assistants are services you rent. Your conversatio
 - **Ask it something.** It can search the web mid-conversation — no app-switching required.  
 - **Add it to a group.** Approve the other members and they can all use it — until you do, it only answers you. Or skip that and keep it as your private confidant.
 
-### What your Tlonbot can do
+### What Sato can do
 
 1. **Connect to your other apps and services,** such as Gmail, Google Calendar, Notion and GitHub.  
 2. **Run tasks with those connected services.**  
@@ -48,7 +48,7 @@ It can also catch you up on busy channels, so you never scroll back through 200 
 
 ### Recurring tasks (crons)
 
-Tlonbots excel at recurring tasks, called crons. Set one once, then forget about it. Ask in plain language, for example:
+Sato excels at recurring tasks, called crons. Set one once, then forget about it. Ask in plain language, for example:
 
 - "Every morning at 8, send me a roundup of headlines organized by industry."  
 - "Remind me every Friday at 4 to submit my timesheet."  
@@ -56,7 +56,7 @@ Tlonbots excel at recurring tasks, called crons. Set one once, then forget about
 
 When changing or cancelling recurring work, the bot should reconcile every cron job that implements the same request, including related or duplicate declarations. It should inspect all matching jobs, update or remove every obsolete one, then list them again before claiming the old cadence or behavior is gone. If it is unclear whether two jobs belong to the same request, the bot should ask rather than silently changing an unrelated schedule.
 
-When the bot sets a task up from chat, reminders arrive in your DM with the bot and notify you like any other message from it, unless you've muted that chat, and other recurring tasks post each run to the Updates notebook in your Tlonbot group. A task made or changed in the app's scheduled task editor posts wherever its `Posts to` says.
+When the bot sets a task up from chat, reminders arrive in your DM with the bot and notify you like any other message from it, unless you've muted that chat, and other recurring tasks post each run to the Updates notebook in your Sato workspace. A task made or changed in the app's scheduled task editor posts wherever its `Posts to` says.
 
 ### Connected services (MCP)
 
@@ -67,7 +67,7 @@ Extend your bot by connecting outside services under `Connections` → `Connecte
 - "Summarize this week's meeting notes from Notion."  
 - "Send this summary to my team from my Gmail."
 
-### Tlonbot in groups
+### Sato in groups
 
 Add your bot to any group. In channels, mention it (@nickname) to trigger a response.
 
@@ -118,7 +118,7 @@ Bot behavior:
 
 ### Models and API keys
 
-Hosted accounts include a model for free, with $5 a month of included credits. Tlon picks that model and changes it from time to time, so take its name from your runtime context, not from this guide. The phone app lists the option as Basic followed by the model's name, such as "Basic (GPT-5.6 Luna)", and the bot settings web page as "Tlon Default". Both mean the included model. To choose another, open `Models` in the bot's settings (on desktop, start from `Settings` → `Bot Settings`):
+Hosted accounts include a model for free, with $5 a month of included credits. Tlon picks that model and changes it from time to time, so take its name from your runtime context, not from this guide. The phone app lists the option as Basic followed by the model's name, such as "Basic (GPT-5.6 Luna)", and the bot settings web page as "Sato default". Both mean the included model. To choose another, open `Models` in the bot's settings (on desktop, start from `Settings` → `Bot Settings`):
 
 - `Default model` is what the bot uses. Pick a provider, then a model. Only providers you've connected are listed.  
 - `Fallback models` are what it switches to if the default fails.
@@ -138,7 +138,7 @@ Self-hosting means no included model, subscription screens, or bot settings in t
 
 ### Guardrails
 
-Hosted Tlonbots ship with guardrails: external integrations are limited to approved connected services, the base system prompt can't be modified (the owner can still add their own instructions to the bot's prompt files from its profile), and the bot has no shell and can only write files inside its own workspace. It can read PDFs, text files, and CSVs you send it; spreadsheets and Office documents have to be exported first. Don't read that as a privacy boundary: reaching into the filesystem is something only you can ask for, but a file posted in a channel the bot watches goes to the model like any other message, whoever sent it. If that matters, it's channel access you want to think about, not this. These limits keep hosted bots safe by default.
+A hosted Sato ships with guardrails: external integrations are limited to approved connected services, the base system prompt can't be modified (the owner can still add their own instructions to the bot's prompt files from its profile), and the bot has no shell and can only write files inside its own workspace. It can read PDFs, text files, and CSVs you send it; spreadsheets and Office documents have to be exported first. Don't read that as a privacy boundary: reaching into the filesystem is something only you can ask for, but a file posted in a channel the bot watches goes to the model like any other message, whoever sent it. If that matters, it's channel access you want to think about, not this. These limits keep hosted bots safe by default.
 
 ### Self-hosting your bot
 

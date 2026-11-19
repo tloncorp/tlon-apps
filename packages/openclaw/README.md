@@ -357,7 +357,7 @@ The skill is automatically available to your agent. For standalone usage, see th
 
 ### `tlon-product-guide` — the product knowledge skill
 
-`skills/tlon-product-guide/SKILL.md` lives in this repo and is the bot's answer sheet for product questions: what Tlon, Urbit, Tlon Messenger, and Tlonbot are, how features work, and how to walk someone through a task. It carries no tools — OpenClaw loads the body when the model decides a question is in scope, and the model narrates the answer.
+`skills/tlon-product-guide/SKILL.md` lives in this repo and is the bot's answer sheet for product questions: what Tlon, Urbit, and Sato are, how features work, and how to walk someone through a task. It carries no tools — OpenClaw loads the body when the model decides a question is in scope, and the model narrates the answer.
 
 Keep it a product reference, not an operating manual: anything that reads or mutates a node belongs in the `tlon` CLI skill. Edit `SKILL.md` directly to update the guide; the `description` frontmatter is what OpenClaw puts in the system prompt, so trigger coverage lives there.
 
