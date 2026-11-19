@@ -42,7 +42,7 @@ import { createUploadDeps } from './upload-runtime';
 import { CLI_VERSION } from './version';
 
 function printHelp() {
-  console.log(`tlon v${CLI_VERSION} - Sato/Urbit CLI
+  console.log(`tlon v${CLI_VERSION} - Sato CLI
 
 Usage:
   tlon [options] <command> <subcommand> [args...]

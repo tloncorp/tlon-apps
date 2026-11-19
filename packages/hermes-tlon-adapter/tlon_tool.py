@@ -91,7 +91,7 @@ POSTS_COMMANDS = frozenset(
 EXPOSE_TARGET_COMMANDS = frozenset({"show", "hide", "check", "url"})
 
 TLON_TOOL_DESCRIPTION = (
-    "Sato/Urbit CLI for reading data and administration: activity, buckets, "
+    "Sato CLI for reading data and administration: activity, buckets, "
     "channels, contacts, groups, messages, notes, posts, settings, upload, "
     "expose, hooks. "
     "Use the notes commands to manage %notes notebooks (Markdown notes at "

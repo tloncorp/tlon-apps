@@ -5732,7 +5732,7 @@ def register(ctx) -> None:
         pii_safe=False,
         allow_update_command=True,
         platform_hint=(
-            "You are communicating through Sato on Urbit. "
+            "You are communicating through Sato. "
             "The tlon tool and its skills still say Tlon where they mean Sato; "
             "call the app Sato and use Tlon only for the company. "
             "Users are identified by ship names such as ~sampel-palnet. "
