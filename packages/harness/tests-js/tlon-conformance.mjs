@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto'
 import { createServer } from 'node:http'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { Client, cookie as harnessCookie, base as harnessUrl } from './lib/ship-client.mjs'
+import { authorShip, assertBotAuthor } from './lib/author.mjs'
 
 const peerUrl = process.env.PEER_URL
 const nest = process.env.TEST_NEST
@@ -48,7 +49,7 @@ const marker = `grove-${Date.now()}`
 const essay = (content) => ({ content, author: peer, sent: Date.now(), kind: '/chat', meta: null, blob: null })
 const prompt = (word, mention = false) => [{ inline: [...(mention ? [{ ship }] : []), ` Reply with exactly ${marker}-${word}. Do not use tools.`] }]
 const has = (value, word) => JSON.stringify(value).includes(`${marker}-${word}`)
-const fromBot = (post, word) => post?.essay?.author === ship && has(post.essay.content, word)
+const fromBot = (post, word) => authorShip(post?.essay?.author) === ship && has(post.essay.content, word)
 const channelPosts = () => scry(`channels/v5/${nest}/posts/newest/32/post`)
 const dmPosts = () => scry(`chat/v4/dm/${ship}/writs/newest/32/light`)
 const post = (content) => poke('channels', 'channel-action-1', { channel: { nest, action: { post: { add: essay(content) } } } })
@@ -74,24 +75,28 @@ try {
   console.log('Testing DM admission and remote delivery')
   await poke('chat', 'chat-dm-action-2', { ship, diff: { id: `${peer}/${da()}`, delta: { add: { essay: essay(prompt('dm')), time: null } } } })
   const dmAnswer = await until('DM model answer delivered to peer', async () => Object.values((await dmPosts()).writs).find((p) => fromBot(p, 'dm')))
+  assertBotAuthor(dmAnswer.essay.author, ship)
   await poke('chat', 'chat-dm-action-2', { ship, diff: { id: dmAnswer.seal.id, delta: { reply: {
     id: `${peer}/${da()}`, meta: null, delta: { add: { 'reply-essay': {
       content: prompt('dm-thread'), author: peer, sent: Date.now(), blob: null,
     }, time: null } },
   } } } })
-  await until('DM thread answer uses its author-qualified parent', async () => {
+  const dmThreadAnswer = await until('DM thread answer uses its author-qualified parent', async () => {
     const page = await scry(`chat/v4/dm/${ship}/writs/newest/32/heavy`)
-    return Object.values(page.writs).some((p) => Object.values(p.seal?.replies || {}).some((r) => r['reply-essay']?.author === ship && has(r, 'dm-thread')))
+    return Object.values(page.writs).flatMap((p) => Object.values(p.seal?.replies || {})).find((r) => authorShip(r['reply-essay']?.author) === ship && has(r, 'dm-thread'))
   })
+  assertBotAuthor(dmThreadAnswer['reply-essay'].author, ship)
   await post(prompt('channel', true))
   const answer = await until('mentioned channel answer delivered to peer', async () => Object.entries((await channelPosts()).posts).find(([, p]) => fromBot(p, 'channel')))
+  assertBotAuthor(answer[1].essay.author, ship)
   await poke('channels', 'channel-action-1', { channel: { nest, action: { post: { reply: { id: answer[0], action: { add: {
     content: prompt('thread'), author: peer, sent: Date.now(),
   } } } } } } })
-  await until('reply to bot is admitted without another mention', async () => {
+  const threadAnswer = await until('reply to bot is admitted without another mention', async () => {
     const posts = (await channelPosts()).posts
-    return Object.values(posts[answer[0]]?.seal?.replies || {}).some((p) => p?.['reply-essay']?.author === ship && has(p, 'thread'))
+    return Object.values(posts[answer[0]]?.seal?.replies || {}).find((p) => authorShip(p?.['reply-essay']?.author) === ship && has(p, 'thread'))
   })
+  assertBotAuthor(threadAnswer['reply-essay'].author, ship)
   const status = await client.call('harness/tlon')
   assert.equal(status.error, '')
   assert.equal((await client.call('harness/tlon/configure', status.policy)).lanes, status.lanes, 'saving unchanged policy preserves routes')

@@ -9,6 +9,7 @@ import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { Client, cookie, base } from './lib/ship-client.mjs'
 import { rein } from './lib/ship-thread.mjs'
+import { authorShip, assertBotAuthor } from './lib/author.mjs'
 
 assert.equal(process.env.MEDIA_TEST_STORAGE, '1', 'Explicitly enable temporary test-ship storage configuration with MEDIA_TEST_STORAGE=1')
 const peerUrl = process.env.PEER_URL, nest = process.env.TEST_NEST
@@ -100,7 +101,7 @@ async function send(surface = 'dm', parent) {
 }
 const dmPage = () => scry(`chat/v4/dm/${ship}/writs/newest/32/heavy`, true)
 const channelPage = () => scry(`channels/v5/${nest}/posts/newest/32/post`, true)
-function imageIn(essay) { return essay?.author === ship && essay.content?.some((verse) => verse.block?.image?.src?.startsWith(origin(storage))) }
+function imageIn(essay) { return authorShip(essay?.author) === ship && essay.content?.some((verse) => verse.block?.image?.src?.startsWith(origin(storage))) }
 async function storageSet(fields) { for (const [name, value] of Object.entries(fields)) await client.pokeAgent('storage', 'storage-action', { [name]: value }) }
 async function reloadAdapter() {
   assert.ok(process.env.SHIP_PIER, 'SHIP_PIER is required for reload tests')
@@ -128,10 +129,12 @@ try {
   await send()
   const dm = await until('real public download, verified binary S3 PUT and native DM image', async () => Object.values((await dmPage()).writs).find((post) => imageIn(post.essay)))
   assert.equal(putCount, 1)
+  assertBotAuthor(dm.essay.author, ship)
   mode = 'dm-thread'; await send('dm-thread', dm.seal.id)
   await until('native DM-thread image', async () => Object.values((await dmPage()).writs).some((post) => Object.values(post.seal?.replies || {}).some((reply) => imageIn(reply['reply-essay']))))
   mode = 'channel'; await send('channel')
   const channelPost = await until('native channel image', async () => Object.entries((await channelPage()).posts).find(([, post]) => imageIn(post.essay)))
+  assertBotAuthor(channelPost[1].essay.author, ship)
   mode = 'channel-thread'; await send('channel-thread', channelPost[0])
   await until('native channel-thread image', async () => Object.values((await channelPage()).posts[channelPost[0]]?.seal?.replies || {}).some((reply) => imageIn(reply['reply-essay'])))
   mode = 'acl'; const beforeAcl = putCount, beforeAclResults = results.length; await send()

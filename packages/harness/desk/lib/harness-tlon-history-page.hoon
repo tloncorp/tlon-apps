@@ -1,6 +1,7 @@
 ::  Stateless bounded history pages. A cursor selects position, never authority.
 /-  cv=chat-ver, dv=channels-ver, s=story
-/+  hist=harness-tlon-history, story=harness-tlon-story
+/+  hist=harness-tlon-history, story=harness-tlon-story,
+    authors=harness-tlon-author
 |%
 +$  message  [id=@t author=@p sent=@da text=@t clipped=?]
 +$  row  [at=@da message=(unit message)]
@@ -94,7 +95,7 @@
   |=  [id=@t author=author:v9:dv sent=@da content=story:s]
   ^-  message
   =/  text  (story-to-text:story content)
-  [id ?@(author author ship.author) sent text |]
+  [id (author-ship:authors author) sent text |]
 ++  dm-post
   |=  post=writ:v7:cv
   ^-  message
