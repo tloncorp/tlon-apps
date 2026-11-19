@@ -1,0 +1,27 @@
+#!/bin/bash
+# click for a fake ship that ship-lib.sh runs in a container: scripts/click's
+# options and arguments, with the ship, as ~zod or zod, in place of its pier.
+# FAKE_NET names the ship's network, this checkout's by default. click runs in the
+# ship's container, from the repository mounted there, with the container's
+# urbit as its runtime, so the host needs neither urbit nor socat. Other path
+# arguments, such as -i FILE, are read inside the container: give the thread on
+# stdin, -i -.
+#
+#   scripts/ship-click [CLICK OPTIONS] SHIP [ARGUMENTS]
+
+source "$(dirname "$0")/ship-lib.sh"
+
+args=("$@")
+# click's own option string, to find the ship among the arguments.
+while getopts ":b:cehi:jko:pxt:" opt; do :; done
+[ -n "${args[OPTIND-1]}" ] || { echo "usage: ship-click [CLICK OPTIONS] SHIP [ARGUMENTS]" >&2; exit 2; }
+if [ -d "${args[OPTIND-1]}/.urb" ]
+then
+  echo "${args[OPTIND-1]} is a pier on this machine; use scripts/click (just click=scripts/click …)" >&2
+  exit 2
+fi
+select_ship "${args[OPTIND-1]}" || exit 2
+running "$container" || { echo "~$ship is not running in container $container" >&2; exit 1; }
+
+args[OPTIND-1]=$pier_dir
+exec $runtime exec -i "$container" /repo/packages/harness/scripts/click -b urbit "${args[@]}"

@@ -103,7 +103,7 @@ archive fails the job with that message rather than inside rube.
 | boot pill | Implicit — whatever `urbit -F` fetches for that vere. At v4.6 that is a %brass pill with %base + %landscape + %groups, building `zuse: 0v1b.4qafq` (kelvin 408), matching `desk/sys.kelvin`. |
 | desk | The git tag named by the ship's `deskVersion`, assembled with that tag's own pinned dependencies. |
 
-The repo's test pill (`scripts/backend/run-tests.sh`, `groups-v11-3-0-408k.pill`) is the
+The repo's test pill (`scripts/backend/container/Dockerfile`, `groups-5a187fe-a93c6c1.pill`) is the
 same kernel but installs no `%docket`/`%settings`/`%storage`/`%landscape`, so the
 web client cannot run on a pier booted from it. That is why this uses `-F` and
 not `-B <pill>`. If a future vere bundles a pill on a different kelvin from

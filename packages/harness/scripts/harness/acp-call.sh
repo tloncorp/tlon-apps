@@ -1,20 +1,18 @@
 #!/usr/bin/env bash
 # Call one Harness ACP method on a running ship and print its JSON result.
 #
-#   scripts/harness/acp-call.sh PIER METHOD < params.json
+#   scripts/harness/acp-call.sh SHIP METHOD < params.json
+#
+# SHIP is the ship as $CLICK takes it: a fake ship, as ~zod, for
+# scripts/ship-click, the default, or a pier for scripts/click.
 #
 # Parameters come from stdin so credentials stay out of this script's arguments.
 # The connection is dropped afterwards, which removes the request from %acp.
 set -euo pipefail
 
-[[ $# -eq 2 ]] || { echo "usage: acp-call.sh PIER METHOD < params.json" >&2; exit 2; }
+[[ $# -eq 2 ]] || { echo "usage: acp-call.sh SHIP METHOD < params.json" >&2; exit 2; }
 pier=$1 method=$2
-read -ra click <<<"${CLICK:-$(dirname "$0")/../click}"
-
-source "$(dirname "$0")/../ship-lib.sh"
-check_socket "$pier"
-socket=$pier/.urb/conn.sock
-[[ -S $socket ]] || { echo "no running ship at $pier" >&2; exit 1; }
+read -ra click <<<"${CLICK:-$(dirname "$0")/../ship-click}"
 
 # Hex keeps arbitrary JSON from being parsed as Hoon, or closing click's cord.
 request=$(jq -c --arg method "$method" \

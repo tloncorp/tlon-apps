@@ -1,17 +1,16 @@
 // Two development ships, native Ames/Gall, no provider calls. Grants the peer access
 // for the run and restores the list. Refuse to touch an existing direct-tool conversation.
-// SHIP_COOKIE=... TEST_PEER_PANE=... PEER_SHIP=~bud node tests-js/peer-rpc-conformance.mjs
+// SHIP_COOKIE=... PEER_PIER=... PEER_SHIP=~bud node tests-js/peer-rpc-conformance.mjs
 import assert from 'node:assert/strict'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
 import { randomBytes } from 'node:crypto'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { Client, cookie } from './lib/ship-client.mjs'
+import { thread } from './lib/ship-thread.mjs'
 
-const pane = process.env.TEST_PEER_PANE, peer = process.env.PEER_SHIP
-assert.ok(pane && /^~[a-z-]+$/.test(peer || ''), 'Set TEST_PEER_PANE and PEER_SHIP for the sending development ship')
+const peerPier = process.env.PEER_PIER, peer = process.env.PEER_SHIP
+assert.ok(peerPier && /^~[a-z-]+$/.test(peer || ''), 'Set PEER_PIER and PEER_SHIP for the sending development ship')
 const ship = cookie.split('=')[0].slice('urbauth-'.length)
-const sessionId = `peer-tool--${peer}`, client = new Client(), run = promisify(execFile)
+const sessionId = `peer-tool--${peer}`, client = new Client()
 const stamp = new Date()
 const seconds = String(stamp.getUTCHours() * 3600 + stamp.getUTCMinutes() * 60 + stamp.getUTCSeconds()).replace(/\B(?=(\d{3})+$)/g, '.')
 const issued = `(add ~${stamp.getUTCFullYear()}.${stamp.getUTCMonth() + 1}.${stamp.getUTCDate()} (mul ~s1 ${seconds}))`
@@ -19,8 +18,11 @@ const nextId = () => `0v${BigInt(`0x${randomBytes(16).toString('hex')}`).toStrin
 let created = false, before
 async function send(id, name, args = {}, date = issued) {
   const literal = JSON.stringify(args).replaceAll('\\', '\\\\').replaceAll("'", "\\'")
-  await run('tmux', ['send-keys', '-t', pane, '--', `:${ship}/harness &harness-rpc-0 [%invoke ${id} ${date} '${name}' '${literal}']`, 'Enter'])
-  await sleep(200)
+  await thread(peerPier, [
+    '=/  m  (strand ,vase)',
+    `;<  ~  bind:m  (poke [${ship} %harness] harness-rpc-0+!>([%invoke ${id} ${date} '${name}' '${literal}']))`,
+    '(pure:m !>(~))',
+  ])
 }
 async function snapshot() { return client.call('harness/session/snapshot', { sessionId }) }
 async function until(count) {

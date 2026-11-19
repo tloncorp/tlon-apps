@@ -23,10 +23,10 @@ set -euo pipefail
 #   2. the boot pill: IMPLICIT, whatever `urbit -F` fetches for that vere. At
 #      v4.6 that is a %brass pill carrying %base + %landscape + %groups, and it
 #      builds `zuse: 0v1b.4qafq` (kelvin 408), matching desk/sys.kelvin. The
-#      repo's own test pill (scripts/backend/run-tests.sh, groups-v11-3-0-408k.pill) is
-#      the same kernel but installs no %docket/%settings/%storage/%landscape, so
-#      the web client cannot run on a pier booted from it — that is why this
-#      uses `-F` and not `-B <pill>`.
+#      repo's own test pill (scripts/backend/container/Dockerfile,
+#      groups-5a187fe-a93c6c1.pill) is the same kernel but installs no
+#      %docket/%settings/%storage/%landscape, so the web client cannot run on a
+#      pier booted from it — that is why this uses `-F` and not `-B <pill>`.
 #   3. the desk: the git tag named by the ship's `deskVersion`, assembled with
 #      that tag's own pinned dependencies.
 #
@@ -54,8 +54,8 @@ MANIFEST_FILE="$RUBE_DIR/../e2e/shipManifest.json"
 SHIP="bud"
 DESK_TAG=""
 HTTP_PORT=""
-# Pinned, not `latest`: see the header. Same host/layout scripts/backend/run-tests.sh
-# uses for its own pinned vere.
+# Pinned, not `latest`: see the header. Same host/layout
+# scripts/backend/container/Dockerfile uses for its own pinned vere.
 VERE_VERSION="${VERE_VERSION:-v4.6}"
 # A fakeship binds ames on a port derived from its @p, so two fake ~buds cannot
 # run at once. This is only the build's port — rube boots the archived pier with
@@ -249,7 +249,8 @@ if ! vere_is_pinned; then
     fi
     print_info "Downloading urbit $VERE_VERSION ($plat-$machine)..."
     mkdir -p "$(dirname "$VERE")"
-    # A bare binary, not a tarball -- the layout scripts/backend/run-tests.sh pins too.
+    # A bare binary, not a tarball -- the layout scripts/backend/container/Dockerfile
+    # pins too.
     # mktemp needs an explicit XXXXXX template to be portable to GNU coreutils.
     tmp_bin="$(mktemp -t urbit-bin.XXXXXX)"
     curl -fsSL \

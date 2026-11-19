@@ -5,10 +5,9 @@ import { text as readText } from 'node:stream/consumers'
 import { createServer } from 'node:http'
 import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { Client, base, cookie } from './lib/ship-client.mjs'
+import { rein } from './lib/ship-thread.mjs'
 
 assert.equal(process.env.MEMORY_TEST_MESSAGES, '1')
 const peerUrl = process.env.PEER_URL, nest = process.env.TEST_NEST
@@ -17,7 +16,7 @@ const row = (await readFile(process.env.PEER_COOKIE, 'utf8')).split('\n').find((
 const peerCookie = `${row[5]}=${row[6]}`, peer = row[5].slice('urbauth-'.length)
 const ship = cookie.split('=')[0].slice('urbauth-'.length), marker = `memory-${randomUUID()}`, client = new Client()
 const contexts = [{ kind: 'dm' }, { kind: 'dm', thread: true }, { kind: 'channel' }, { kind: 'channel', thread: true }]
-const failures = [], responses = new Map(), run = promisify(execFile)
+const failures = [], responses = new Map()
 const noteName = `m${randomUUID().slice(0, 8)}`
 let currentFact
 // Shared memory: every conversation's snapshot holds the latest correction.
@@ -88,8 +87,7 @@ const server = createServer(async (req, res) => {
   } catch (error) { failures.push(error); res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { role: 'assistant', content: 'FIXTURE_ERROR' } }] })) }
 })
 async function enableHead(enabled) {
-  await run('tmux', ['send-keys', '-t', process.env.TEST_PANE, '-l', '--', `|rein %harness [%.${enabled ? 'y' : 'n'} %harness]`])
-  await run('tmux', ['send-keys', '-t', process.env.TEST_PANE, 'Enter'])
+  await rein(process.env.SHIP_PIER, 'harness', 'harness', enabled)
   await sleep(1000)
 }
 try {
@@ -129,7 +127,7 @@ try {
   await assertShared(ctx)
   assert.equal((await scry(`harness/events/${ctx.sid}`)).filter((e) => e.type === 'memory-set' && e.name === noteName).length, 2)
   console.log('PASS literal model output cannot edit memory; recall crosses conversation boundaries')
-  if (process.env.TEST_PANE) {
+  if (process.env.SHIP_PIER) {
     headStopped = true; await enableHead(false); await enableHead(true); headStopped = false
     await until('head reconnected after reload', async () => (await scry('harness-tlon/status')).headConnected)
     // Only a turn selects a recall pack; every surface can still read the shared fact.

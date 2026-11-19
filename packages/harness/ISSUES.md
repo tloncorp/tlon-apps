@@ -306,10 +306,6 @@ needs a real `%storage` and a decision on issue 3.
   uses inference.
 - **Credentials at startup:** `conformance.mjs`, `compaction-provider-smoke.mjs` and
   `hand-conformance.mjs` weren't run, and may not say up front that they need one.
-- **Login:** the `scripts/click` login-code thread returned no code on a fresh `~nec`.
-  The test scripts read `+code` from Dojo instead (`scripts/test-lib.sh:122`). A failed
-  login still writes an `urbauth` cookie, so it looks successful until requests return
-  403.
 - **`desk/lib/test-agent.hoon` is a patched copy** of tlon-apps' library. Upstream,
   `get-peek` and `got-peek` call `+on-peek` outside the mocked scry, so a peek that
   itself scries reaches the real ship and crashed the test thread (**Reproduced**). The

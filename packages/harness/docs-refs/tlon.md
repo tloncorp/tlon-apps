@@ -26,7 +26,7 @@ Owner DMs support [work commands](work-control.md) and optional A2UI buttons.
 Both let you manage work without opening Harness. Channels do not receive
 owner-management controls.
 
-Run `just setup PIER ~owner` to set the owner and enable the hand. Trusted ships
+Run `just setup SHIP ~owner` to set the owner and enable the hand. Trusted ships
 and their tools are set through `harness/tlon/configure`.
 
 **Bot profile** edits the ship's Contacts nickname and avatar. It refreshes
@@ -48,7 +48,7 @@ reconstructed from today's configuration.
 To show these records in the owner's native Tlon Context Lens:
 
 1. Install a Tlon version with Steward Lens support on both ships, and run
-   `just setup PIER ~owner`, which also enables owner sync.
+   `just setup SHIP ~owner`, which also enables owner sync.
 2. On the owner ship, trust the bot: `:steward &steward-action-1 [%trust-bot ~bot]`.
    Replace `~bot` with the bot's ship name. Sponsorship alone does not grant trust.
 3. Owner sync also sets the bot's local Steward owner, so owner-requested run
@@ -492,7 +492,7 @@ An accepted upload does not guarantee public readability or remote message deliv
 
 The live fixture is `tests-js/tlon-media-conformance.mjs`; it requires
 `MEDIA_TEST_STORAGE=1`, the usual two-ship test variables, and optionally
-`TEST_PANE` for adapter suspension/reload checks. It downloads a real public
+`SHIP_PIER` for adapter suspension/reload checks. It downloads a real public
 image through the ship, temporarily configures a local independently verifying
 S3 endpoint, and restores the test ship's storage configuration.
 
@@ -563,7 +563,7 @@ remain distinct from authorization bindings and scheduled-run sessions.
 `tests-js/tlon-continuity-conformance.mjs` exercises native DM/channel threads,
 unrelated and affected permission edits, notes, chosen settings, timers, schedules,
 late HTTP/child results, and reload. It requires `CONTINUITY_TEST_MESSAGES=1`, the
-usual ship/peer/nest variables, and `TEST_PANE` for the test ship's Dojo. It restores
+usual ship/peer/nest variables, and `SHIP_PIER` for the test ship's pier. It restores
 policy, defaults and original native trust; marked test messages and audit records
 remain in the disposable conversations.
 
@@ -812,11 +812,11 @@ restore the previous defaults afterward. Use disposable test ships: messages and
 auditable sessions are retained.
 Neither the test nor the adapter modifies the Groups desk's source code.
 
-`tests-js/tlon-delivery-conformance.mjs` additionally needs `SHIP_DOJO_PANE` for
+`tests-js/tlon-delivery-conformance.mjs` additionally needs `SHIP_PIER` for
 real Gall suspension/revival. It checks offline completion, explicit retry,
 uncertainty, ordered outbox draining, distinct IDs, whole-desk revival and an idle
 hand with no timer. `SURFACE=channel` plus `TEST_NEST` selects channels. Supplying
-`CHANNEL_HOST_DOJO_PANE` also temporarily suspends the channel host to test a lost
+`CHANNEL_HOST_PIER` also temporarily suspends the channel host to test a lost
 confirmation and recovery from native publication evidence. Every suspended
 agent is revived in cleanup; fixture messages and receipts remain.
 
