@@ -2,7 +2,7 @@
 ::  No I/O, credentials or session mutation. Decode into Harness nouns first;
 ::  only the head may accept a result against its outstanding request identity.
 /-  h=harness
-/+  ht=harness-tools, failure=harness-failure,
+/+  hl=harness, ht=harness-tools, failure=harness-failure,
     context=harness-context, memory=harness-memory, capture=harness-memory-capture,
     w=harness-provider-wire, anthropic=harness-anthropic, text=harness-text
 |%
@@ -33,6 +33,8 @@
 ::  Read one successful turn and its matching dispatch boundary. Checkpoint
 ::  usage measures summary work, not the retained conversation. A different
 ::  provider/model has its own tokenizer and cannot lend its count here.
+::  A marked size failure lets the next admission replace measured items, so
+::  like a checkpoint it ends the search until a newer turn is measured.
 ::
 ++  reported-usage
   |=  [log=(list event:h) config=config:h]
@@ -42,6 +44,11 @@
       ?~  log  ~
       =/  event  i.log
       ?:  ?=(?(%checkpoint-completed %compaction-completed) -.event)  ~
+      ?:  ?|  &(?=(%llm-failed -.event) (overflowed:hl err.event))
+              &(?=(%compaction-failed -.event) (overflowed:hl err.event))
+              &(?=(%halted -.event) (overflowed:hl reason.event))
+          ==
+        ~
       ?:  &(?=(%llm-completed -.event) (gth prompt.usage.event 0))
         (request-usage t.log (dec at) req.event usage.event config)
       $(log t.log, at (dec at))
