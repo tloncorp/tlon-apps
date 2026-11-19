@@ -90,8 +90,10 @@ const ActionSheetFixture = () => {
 
 const CompactActionMenuFixture = ({
   compact = true,
+  title = 'File actions',
 }: {
   compact?: boolean;
+  title?: string;
 }) => {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState('No action selected');
@@ -116,7 +118,13 @@ const CompactActionMenuFixture = ({
         open={open}
         onOpenChange={setOpen}
         header={
-          compact ? undefined : { title: 'File actions', icon: 'Attachment' }
+          compact
+            ? undefined
+            : {
+                title,
+                icon: 'Attachment',
+                subtitle: 'bill · 11/17/2026 · 15.1 MB',
+              }
         }
         onAction={(action) => {
           setOpen(false);
@@ -132,4 +140,10 @@ export default {
   default: <ActionSheetFixture />,
   'Compact actions': <CompactActionMenuFixture />,
   'Actions with header': <CompactActionMenuFixture compact={false} />,
+  'Actions with long header': (
+    <CompactActionMenuFixture
+      compact={false}
+      title="Round two pitch check_ current onboarding flow walkthrough with notes from the design review, final cut v3.mp4"
+    />
+  ),
 };
