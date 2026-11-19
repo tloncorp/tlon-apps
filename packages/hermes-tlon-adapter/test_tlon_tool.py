@@ -1032,7 +1032,7 @@ class TlonToolGuardTests(unittest.TestCase):
             owner_ship="~mug",
         )
         self.assertIsNotNone(blocked)
-        self.assertIn("only the configured Tlon owner", blocked)
+        self.assertIn("only the configured owner", blocked)
 
     def test_allows_profile_update_for_owner(self):
         args, error = tlon_tool.split_tlon_command(

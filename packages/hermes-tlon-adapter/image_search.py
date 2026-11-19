@@ -12,10 +12,10 @@ DEFAULT_IMAGE_SEARCH_COUNT = 5
 MAX_IMAGE_SEARCH_COUNT = 10
 
 IMAGE_SEARCH_TOOL_DESCRIPTION = (
-    "Search Brave Images for direct raster image URLs suitable for Tlon uploads. "
-    "Use this when a Tlon user asks for an avatar, cover, image post, meme, "
+    "Search Brave Images for direct raster image URLs suitable for Sato uploads. "
+    "Use this when a Sato user asks for an avatar, cover, image post, meme, "
     "photo, or other visual asset. Pick an Image URL from the results, run "
-    "tlon upload on that URL, then use the uploaded URL for Tlon profile or "
+    "tlon upload on that URL, then use the uploaded URL for Sato profile or "
     "media operations. Do not pass source/page URLs to tlon upload."
 )
 
@@ -211,7 +211,7 @@ async def execute_image_search_tool(
             "usage": (
                 "Use result.image_url (also copied to result.url) with tlon "
                 "upload, then use the uploaded URL returned by tlon upload. "
-                "Do not use result.source_url for Tlon upload or profile fields. "
+                "Do not use result.source_url for tlon upload or profile fields. "
                 "If tlon upload reports that the ship cannot store uploads, "
                 "use the https image_url directly — posts send --image and "
                 "profile fields accept it without an upload. "

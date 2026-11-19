@@ -2979,7 +2979,7 @@ class AdapterAttentionTests(unittest.TestCase):
 
         self.assertIsNotNone(block)
         self.assertEqual(block["action"], "block")
-        self.assertIn("managed Tlon prompt", block["message"])
+        self.assertIn("managed Sato prompt", block["message"])
 
     def test_tlon_session_blocks_cron_timestamp_without_offset(self):
         with patch.dict(os.environ, {"HERMES_SESSION_PLATFORM": "tlon"}, clear=True):
@@ -3100,7 +3100,7 @@ class AdapterAttentionTests(unittest.TestCase):
 
         self.assertIsNotNone(block)
         self.assertEqual(block["action"], "block")
-        self.assertIn("no Tlon sender identity", block["message"])
+        self.assertIn("no Sato sender identity", block["message"])
 
     def test_tlon_session_blocks_registry_mcp_tool_for_non_owner(self):
         fake_model_tools = types.ModuleType("model_tools")
