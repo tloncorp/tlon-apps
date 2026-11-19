@@ -284,26 +284,38 @@ export async function discoverContacts(
   phoneNumbers: string[]
 ): Promise<[string, string][]> {
   const generation = getClientGeneration();
-  let cursorSource: 'cursor' | 'legacy' | 'none' = 'none';
+  let cursorSource: 'ship' | 'cursor' | 'legacy' | 'none' = 'none';
   let lastSalt: string | null = null;
   let lastPhoneNumbers: string | null = null;
   try {
-    const cursor = await db.contactDiscoveryCursor.getValue();
-    lastSalt = cursor?.salt ?? (await db.lastLanyardSalt.getValue());
-    lastPhoneNumbers = cursor
-      ? JSON.stringify(cursor.phoneNumbers)
-      : await db.lastPhoneContactSetRequest.getValue();
-    cursorSource = cursor ? 'cursor' : lastPhoneNumbers ? 'legacy' : 'none';
-    const { matches, nextSalt } = await api.discoverContacts(
-      phoneNumbers,
-      lastSalt,
-      lastPhoneNumbers
-    );
-
-    if (generation !== getClientGeneration()) {
-      throw new Error('Contact discovery session changed');
+    let matches: [string, string][];
+    if (api.getDeskKeepsDiscoveryCursorState()) {
+      cursorSource = 'ship';
+      matches = await api.discoverContactsWithShipCursor(phoneNumbers);
+      if (generation !== getClientGeneration()) {
+        throw new Error('Contact discovery session changed');
+      }
+    } else {
+      const cursor = await db.contactDiscoveryCursor.getValue();
+      lastSalt = cursor?.salt ?? (await db.lastLanyardSalt.getValue());
+      lastPhoneNumbers = cursor
+        ? JSON.stringify(cursor.phoneNumbers)
+        : await db.lastPhoneContactSetRequest.getValue();
+      cursorSource = cursor ? 'cursor' : lastPhoneNumbers ? 'legacy' : 'none';
+      const result = await api.discoverContacts(
+        phoneNumbers,
+        lastSalt,
+        lastPhoneNumbers
+      );
+      if (generation !== getClientGeneration()) {
+        throw new Error('Contact discovery session changed');
+      }
+      await db.contactDiscoveryCursor.setValue({
+        salt: result.nextSalt,
+        phoneNumbers,
+      });
+      matches = result.matches;
     }
-    await db.contactDiscoveryCursor.setValue({ salt: nextSalt, phoneNumbers });
     if ((await db.contactDiscoveryRateLimitedAt.getValue()) !== null) {
       await db.contactDiscoveryRateLimitedAt.setValue(null);
     }
