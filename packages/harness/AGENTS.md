@@ -33,8 +33,7 @@ both are usable; `CONTAINER_RUNTIME` picks one). `just provider` also needs
 ## Development loops
 
 Desk work runs on fake ships in containers, from the image that
-`scripts/backend/container/` builds. This is verified on Linux with podman;
-macOS is untested.
+`scripts/backend/container/` builds.
 
 - `just fake-dev SHIP` boots SHIP, `~zod` by default, in container
   `fake-dev-<N>-zod`, where the number N stands for the checkout, with its pier
