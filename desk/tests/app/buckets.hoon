@@ -4,6 +4,9 @@
 /+  *test-agent
 /=  buckets-agent  /app/buckets
 /=  buckets-json  /lib/buckets/json
+::  Imported only so CI builds it: no agent imports a thread, and a broken
+::  one would leave the broker's sweep reading every bucket as unknown.
+/=  bucket-status-thread  /ted/pioneer/buckets/bucket-status
 |%
 ++  dap  %buckets
 ::
@@ -278,6 +281,18 @@
   ^-  r-groups:v9:gv
   [group [%role roles [%del ~]]]
 ::
+::  +channel-deleted: %groups saying the bucket's channel is gone.
+::
+++  channel-deleted
+  ^-  r-groups:v9:gv
+  [group [%channel [%buckets flag] [%del ~]]]
+::
+::  +group-deleted: %groups saying the whole group is gone.
+::
+++  group-deleted
+  ^-  r-groups:v9:gv
+  [group [%delete ~]]
+::
 ::  +answers: the terminal responses in a card list. Not every fact is one --
 ::  /lib/verb emits its own -- so this matches on the mark rather than on
 ::  %give %fact, which quietly counted logging as an answer.
@@ -326,6 +341,52 @@
   ^-  (unit vase)
   ?:  (group-exists-path pax)  `!>(|)
   (genuine-scries pax)
+::
+::  +give-order: the bucket facts and kicks among some cards, in order.
+::
+++  give-order
+  |=  caz=(list card)
+  ^-  (list ?(%fact %kick))
+  %+  murn  caz
+  |=  =card
+  ^-  (unit ?(%fact %kick))
+  ?:  ?=([%give %fact * %buckets-response-1 *] card)  `%fact
+  ?:  ?=([%give %kick *] card)  `%kick
+  ~
+::
+::  +watched-by-bus: ~bus subscribed to the bucket's updates.
+::
+++  watched-by-bus
+  %-  jab-bowl
+  |=  bol=bowl
+  %=    bol
+      sup
+    %-  malt
+    :~  :-  ~[/reader]
+        [~bus /v1/buckets/~sampel-palnet/project-files/updates]
+    ==
+  ==
+::
+::  +held-objects: the object keys a live answer says the bucket references.
+::
+++  held-objects
+  |=  id=@t
+  =/  m  (mare ,(set @t))
+  ^-  form:m
+  ;<  =cage  bind:m  (got-peek /x/v1/broker/bucket/[id])
+  =/  jon=json  !<(json q.cage)
+  (pure:m (silt ((ar so):dejs:format (get:dejs:buckets-json 'objects' jon))))
+::
+::  +liveness: the broker's question about one bucket id, as the thread asks
+::  it -- the result, or ~ for no answer.
+::
+++  liveness
+  |=  id=@t
+  =/  m  (mare ,(unit @t))
+  ^-  form:m
+  ;<  res=(unit (unit cage))  bind:m  (get-peek /x/v1/broker/bucket/[id])
+  ?.  ?=([~ ~ *] res)  (pure:m ~)
+  (pure:m `(so:dejs:format (get:dejs:buckets-json 'result' !<(json q.u.u.res))))
 ::
 ++  deny-group-scries
   |=  pax=path
@@ -2100,6 +2161,185 @@
         %buckets-response-1
       !>(`response:bu`[%update flag 0 [%delete ~]])
   ==
+::
+::  The broker purges every object stored under a bucket id once the host
+::  answers gone, so gone has to mean the bucket really went. An id this state
+::  never issued is not ours to call gone, so it gets no answer and the broker
+::  counts it as unknown.
+::
+++  test-liveness-is-live-until-the-bucket-is-deleted
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate genuine-scries)
+  ;<  live=(unit @t)  b  (liveness '1')
+  ;<  unissued=(unit @t)  b  (liveness '2')
+  ;<  garbled=(unit @t)  b  (liveness 'one')
+  ;<  ~  b  (ex-equal !>([live unissued garbled]) !>([`'live' ~ ~]))
+  ::  the thread asks first whether there will be an answer, since a missing
+  ::  one read through .^ takes Spider down with it
+  ;<  answers=cage  b  (got-peek /u/v1/broker/bucket/1)
+  ;<  above=cage  b  (got-peek /u/v1/broker/bucket/2)
+  ;<  junk=cage  b  (got-peek /u/v1/broker/bucket/one)
+  ;<  ~  b
+    %+  ex-equal
+      !>([!<(? q.answers) !<(? q.above) !<(? q.junk)])
+    !>([& | |])
+  ;<  caz=(list card)  b  (ask 0v1 [%bucket flag [%delete ~]])
+  ;<  gone=(unit @t)  b  (liveness '1')
+  ;<  ~  b  (ex-equal !>(gone) !>(`(unit @t)`[~ 'gone']))
+  ::  and the broker is told at once, as this host, for that id
+  =/  purge=[=wire =request:http]  (only-iris caz)
+  ;<  ~  b
+    %+  ex-equal
+      !>([wire.purge method.request.purge url.request.purge header-list.request.purge])
+    !>  :*  /buckets/purge
+            %'DELETE'
+            'https://memex.tlon.network/v2/buckets/spaces/sampel-palnet/1'
+            ~[['content-type' 'application/json'] ['x-landscape-token' '0wsecret']]
+        ==
+  ::  a refusal is only logged: the broker's own liveness check is what
+  ::  finishes a purge that did not land
+  ;<  refused=(list card)  b  (do-arvo wire.purge (iris-status 503))
+  %+  ex-equal
+    !>  :-  (lent (skim refused |=(=card ?=([%pass [%logs *] *] card))))
+        (lent (skim refused |=(=card ?=([%pass * %arvo %i *] card))))
+  !>([1 0])
+::
+::  The broker deletes a live bucket's objects that the answer does not list,
+::  so the list has to hold every object the bucket still references: ready
+::  files, and uploads still in a session, whose entry is not in the manifest
+::  yet. A file whose entry is deleted drops out, whoever deleted it and
+::  whether or not they deleted its object too.
+::
+++  test-liveness-lists-every-object-the-bucket-references
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'landed.pdf' 42)
+  ;<  sv=vase  b  get-save
+  =/  landed=upload-session:bu  (only-session !<(state-0:bu sv))
+  =/  landed-key=@t  object-key:(file-of entry.landed)
+  ;<  fin=(list card)  b  (ask 0v2 [%bucket flag [%finish-upload id.landed]])
+  =/  done=[=wire =request:http]  (only-iris fin)
+  ;<  *  b  (do-arvo wire.done (iris-object landed-key 42 'application/pdf'))
+  ::  a second upload, still in flight
+  ;<  ~  b  (jab-bowl |=(bol=bowl bol(eny 0v5678)))
+  ;<  *  b  (begun 0v3 'pending.pdf' 7)
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  pending-keys=(list @t)
+    %+  murn  ~(val by sessions.st)
+    |=  ses=upload-session:bu
+    ^-  (unit @t)
+    =/  key=@t  object-key:(file-of entry.ses)
+    ?:(=(landed-key key) ~ `key)
+  =/  pending-key=@t  (snag 0 pending-keys)
+  ;<  both=(set @t)  b  (held-objects '1')
+  ;<  ~  b  (ex-equal !>(both) !>((silt ~[landed-key pending-key])))
+  ::  the landed file's entry deleted outright, as a bare delete-entry does
+  =/  landed-ids=(list @ud)
+    %+  murn  ~(tap by entries:(state-for st flag))
+    |=  [id=@ud ent=entry:bu]
+    ^-  (unit @ud)
+    ?.  ?=(%file -.kind.ent)  ~
+    ?.(=(landed-key object-key.file.kind.ent) ~ `id)
+  =/  landed-id=@ud  (snag 0 landed-ids)
+  ;<  *  b  (ask 0v4 [%bucket flag [%entry landed-id [%delete |]]])
+  ;<  left=(set @t)  b  (held-objects '1')
+  (ex-equal !>(left) !>((silt ~[pending-key])))
+::
+::  Liveness does not ask %groups. A missing channel can come back -- a
+::  failed registration is re-sent by a repeated create -- and a host whose
+::  own rank its group bans reads its channels as missing; neither may purge.
+::
+++  test-liveness-does-not-depend-on-groups
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate missing-group-scries)
+  ;<  live=(unit @t)  b  (liveness '1')
+  (ex-equal !>(live) !>(`(unit @t)`[~ 'live']))
+::
+::  A channel or group deleted in %groups directly leaves the bucket
+::  unreachable, so it is dropped as a deleted one is, and its objects purged.
+::
+++  test-a-channel-deleted-in-groups-drops-its-bucket
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  watched-by-bus
+  ::  with the channel gone the reader can no longer read, so the permission
+  ::  recheck would kick it -- after the delete fact, not before
+  ;<  ~  b  (set-scry-gate revoked-scries)
+  ;<  caz=(list card)  b
+    %^    do-agent
+        /groups
+      [~sampel-palnet %groups]
+    [%fact %group-response-1 !>(channel-deleted)]
+  =/  purge=[=wire =request:http]  (only-iris caz)
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  ;<  gone=(unit @t)  b  (liveness '1')
+  %+  ex-equal
+    !>([wire.purge (~(has by spaces.st) flag) gone (give-order caz)])
+  !>([/buckets/purge | `(unit @t)`[~ 'gone'] `(list ?(%fact %kick))`~[%fact %kick]])
+::
+::  A host leaving its own group gets the same %delete fact, but %groups
+::  keeps the group, and the buckets and their objects stay.
+::
+++  test-a-host-leaving-its-group-keeps-its-buckets
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate reader-scries)
+  ;<  caz=(list card)  b
+    %^    do-agent
+        /groups
+      [~sampel-palnet %groups]
+    [%fact %group-response-1 !>(group-deleted)]
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  %+  ex-equal
+    !>  :-  (~(has by spaces.st) flag)
+        (lent (skim caz |=(=card ?=([%pass * %arvo %i *] card))))
+  !>([& 0])
+::
+++  test-a-group-deleted-in-groups-drops-its-buckets
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  watched-by-bus
+  ;<  ~  b  (set-scry-gate missing-group-scries)
+  ;<  caz=(list card)  b
+    %^    do-agent
+        /groups
+      [~sampel-palnet %groups]
+    [%fact %group-response-1 !>(group-deleted)]
+  =/  purge=[=wire =request:http]  (only-iris caz)
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  %+  ex-equal
+    !>([wire.purge (~(has by spaces.st) flag) (give-order caz)])
+  !>([/buckets/purge | `(list ?(%fact %kick))`~[%fact %kick]])
 ::
 ::  Gall retries reuse the caller-selected random name. An identical retry
 ::  must not allocate a second Bucket.

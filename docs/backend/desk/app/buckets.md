@@ -64,7 +64,7 @@ Subscriber agents forward actions to the host with the noun-only `%buckets-comma
 
 The group host always creates and hosts the Bucket, but any current group admin may initiate creation. A non-host admin's local `%buckets` agent first checks its group replica, then forwards the request to the group host. The host checks the actor against its authoritative `%groups` state before allocating the Bucket or registering its channel. Consequently the channel nest, object storage, quota, and eventual billing all remain attached to the group host rather than the initiating admin. Repeating an identical create request is idempotent and re-attempts channel registration; a conflicting request for an existing Bucket name is rejected.
 
-The Gall `%delete` action removes the manifest and the `%groups` registration, and `store.deleteChannel` can already send it as `delete-bucket`. The client UI does not yet offer it: `getChannelActionCapabilities` withholds Delete for Bucket channels, because there is no host-authorized bulk cleanup at the broker, and deleting a Bucket now would remove its channel and manifest but leave its stored objects behind. It waits on object deletion, tracked as TLON-6399, with an archive export in TLON-6398.
+The Gall `%delete` action removes the manifest and the `%groups` registration, and `store.deleteChannel` can already send it as `delete-bucket`. It also sends `DELETE /v2/buckets/spaces/<host>/<bucket-id>` to the broker, authenticated with the ship's `%genuine` secret, which logically deletes every object the Bucket stored and releases the owner's quota. That call is made once and only logged if it fails: the broker also asks each host, through `%pioneer-buckets-bucket-status`, whether every Bucket it still stores objects for exists, and purges the ones answered gone. That sweep is what covers Buckets deleted before the purge existed and a purge call that never landed. A Bucket whose channel or whole group is deleted in `%groups` directly, rather than through `%delete`, is dropped the same way when the `%groups` fact arrives, purge included. A group's `%delete` fact counts only once `%groups` no longer holds the group, since a host leaving its own group gets the same fact while the group stays; one deleted while this agent was not subscribed is not. The client UI does not offer deletion yet: `getChannelActionCapabilities` withholds Delete for Bucket channels until the broker side is deployed, tracked as TLON-6724, with an archive export in TLON-6398.
 
 ## HTTP surface
 
@@ -90,6 +90,8 @@ Because the POST is held open across the terminal answer, a client needs no corr
 | `/x/v1/ready`                             | `%json`                   | A constant, answering only that the desk is installed |
 | `/x/v1/broker/base`                       | `%json`                   | Which broker this host is pointed at                  |
 | `/x/v1/broker/<read\|delete>/<cap>/<obj>` | `%json`                   | The verdict on one object capability, for Pioneer     |
+| `/x/v1/broker/bucket/<id>`                | `%json`                   | Whether a Bucket id this ship issued still exists     |
+| `/u/v1/broker/bucket/<id>`                | `%loob`                   | Whether the path above will answer for that id        |
 | `/u/joined/<host>/<name>`                 | `%loob`                   | Whether the local agent has the Bucket                |
 | `/v1`                                     | `%buckets-response-1`     | Initial snapshots and all local replica updates       |
 | `/v1/requests`                            | `%buckets-req-response-1` | Answers to actions submitted by this ship's clients   |
@@ -186,7 +188,7 @@ It reaches the bundle only because `apps/tlon-web/vite.config.mts` substitutes i
 
 **Reads are scoped to what the caller needs.** `/v1/buckets` lists buckets without their entries, `/v1/buckets/full` includes them, and `/v1/buckets/<host>/<name>` reads one — the split `%channels` uses for posts, for the same reason. Entries are the only unbounded field, and everything that lists rather than opens wants the metadata alone. `/v1/ready` answers whether the agent is here at all; asking `/v1/buckets` that question made a yes/no scale with everything stored.
 
-Deletes stay per-object, because they are destructive: `%issue-delete` binds a short-lived token to one ready file, exchanged through `%pioneer-buckets-authorize-delete` before the manifest entry is removed. Recursive client deletion commits each file's manifest removal immediately after Memex confirms its object deletion, and treats already-deleted as idempotent success at both steps -- an object the broker says is gone, and a manifest entry the host says is not there. Two collaborators deleting the same file both get a grant, so one of them loses each race, and losing is the outcome it wanted. A host-authorized server-side bulk delete remains the durable atomic implementation.
+Deletes stay per-object, because they are destructive: `%issue-delete` binds a short-lived token to one ready file, exchanged through `%pioneer-buckets-authorize-delete` before the manifest entry is removed. Recursive client deletion commits each file's manifest removal immediately after Memex confirms its object deletion, and treats already-deleted as idempotent success at both steps -- an object the broker says is gone, and a manifest entry the host says is not there. Two collaborators deleting the same file both get a grant, so one of them loses each race, and losing is the outcome it wanted. A file whose manifest entry is removed without its object being deleted is reclaimed by the broker's next liveness check of that Bucket, which deletes the objects the host no longer lists.
 
 ## Pioneer thread contract
 
@@ -198,8 +200,11 @@ Uploads are deliberately absent. The host calls Memex directly and authenticates
 | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `%pioneer-buckets-authorize-read`   | `{capability, objectId}`            | `{result: "authorized", read: {bucketId, objectId, displayFilename}}`                                                                                    |
 | `%pioneer-buckets-authorize-delete` | `{capability, objectId}`            | `{result: "authorized", delete: {bucketId, objectId}}`                                                                                                   |
+| `%pioneer-buckets-bucket-status`    | `{bucketId}`                        | `{result: "live", objects: [key, …]}` or `{result: "gone"}`                                                                                              |
 
 Authorization failures return `{result: "denied"}` and expired tokens return `{result: "expired"}`. Pioneer parses nothing else and fails on an unrecognized result, so adding a category is a broker protocol change rather than an agent one. `expiresAtMillis` is Unix time in milliseconds.
+
+`%pioneer-buckets-bucket-status` answers gone only when no Bucket this ship hosts has the id. The broker purges on gone, ids come from `next-id` and never repeat, and a Bucket leaves state only by being deleted, so one answered gone cannot come back. A live answer also lists every object key the Bucket still references -- its file entries, and the uploads still in a session, whose entry is not in the manifest until the object lands -- and the broker deletes the Bucket's objects it does not list that were stored before it asked. That is what reclaims a file whose entry was removed without its object: a recursive delete racing an upload into the folder, a removed upload that had already been published, or any caller sending `delete-entry` on its own. It deliberately does not ask `%groups`: a channel whose registration failed is missing but comes back when the create is repeated, and a host whose own rank its group bans reads as unable to see its channels. An id above `next-id`, the high-water mark Bucket and entry ids share, was never reached by this state, so the thread fails its strand rather than answering -- the broker treats that as unknown, the same as an unreachable ship or a desk without the thread. It checks first with the `/u/v1/broker/bucket/<id>` peek, because the `%x` answer would be missing and a missing result read through `.^` crashes Spider and every strand it is running. Ids below the mark that never named a Bucket answer gone, which is safe: the mark never goes back, so none of them can become a Bucket's id.
 
 `%pioneer-buckets-authorize-read` is retained because the broker keeps a Pioneer fallback for hosts that do not push yet — ships update on their own schedule, so there is no moment when every host has started pushing. It fires whenever the broker has no row for a capability. It cannot resurrect a revoked token: revocation deletes the local capability as well, so this answers a refusal too.
 
@@ -238,6 +243,12 @@ Authorization failures return `{result: "denied"}` and expired tokens return `{r
 -   The HTTP surface: authentication, malformed bodies, and an action answered inline
 -   Every session verb surviving the JSON decoder, not just the typed dispatcher
 -   A host's fact about a Bucket it does not host being dropped rather than applied
+-   Liveness answering live, then gone once the Bucket is deleted, and nothing for an id never issued
+-   Deletion telling the broker to purge, as this host, with a refusal only logged
+-   Liveness not consulting `%groups`, so a missing group or channel cannot read as gone
+-   A live answer listing ready files and in-flight uploads, and dropping a file whose entry is deleted
+-   A channel or group deleted in `%groups` directly dropping its Bucket and purging it
+-   A host leaving its own group keeping its Buckets, though `%groups` sends the same `%delete`
 -   The broker base being settable, and only over `https`
 -   Readiness answering a constant, and listing Buckets leaving their entries behind
 -   Rejection of a remote write when the live `%groups` gate denies access, and acceptance with a writer role
