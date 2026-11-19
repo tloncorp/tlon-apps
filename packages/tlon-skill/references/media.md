@@ -1,12 +1,12 @@
 # Standalone media and message attachments
 
-The `message` tool's Tlon `media` argument takes an HTTPS URL, not a local file path. For a local image, upload first:
+The `message` tool's Sato `media` argument takes an HTTPS URL, not a local file path. For a local image, upload first:
 
 ```json
 {"command":"upload generated-chart.png"}
 ```
 
-`message` is a separate OpenClaw tool, not a Tlon subcommand: do not call `help message` through `tlon`. Use the `message` tool schema supplied by the runtime. Pass the returned uploaded URL to that tool as `media`. A public HTTPS source URL can be passed directly to `message` without re-uploading. If a new hosted copy is needed:
+`message` is a separate OpenClaw tool, not a `tlon` subcommand: do not call `help message` through `tlon`. Use the `message` tool schema supplied by the runtime. Pass the returned uploaded URL to that tool as `media`. A public HTTPS source URL can be passed directly to `message` without re-uploading. If a new hosted copy is needed:
 
 ```json
 {"command":"upload https://example.com/image.png"}

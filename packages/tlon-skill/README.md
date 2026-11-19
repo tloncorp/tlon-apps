@@ -1,6 +1,6 @@
-# Tlon Skill
+# Sato Skill
 
-A CLI tool for interacting with Tlon/Urbit APIs.
+A CLI tool, `tlon`, for interacting with Sato/Urbit APIs.
 
 ## Installation and configuration
 

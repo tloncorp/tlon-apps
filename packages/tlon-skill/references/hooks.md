@@ -1,4 +1,4 @@
-# Tlon Channel Hooks
+# Sato Channel Hooks
 
 Hooks are hoon functions that modify events, cause effects, and/or build state for channels.
 

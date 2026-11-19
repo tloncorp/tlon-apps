@@ -1,9 +1,9 @@
 name: tlon-platform
-label: Tlon
+label: Sato
 kind: platform
 version: 0.15.0
 description: >
-  Tlon Messenger platform adapter for Hermes Agent. Reads inbound messages from
+  Sato platform adapter for Hermes Agent. Reads inbound messages from
   an authenticated Eyre SSE channel and sends replies through the
   @tloncorp/tlon-skill CLI.
 author: tloncorp
@@ -18,15 +18,15 @@ provides_hooks:
 requires_env:
   - name: TLON_NODE_URL
     description: 'Node URL, for example https://sampel-palnet.tlon.network'
-    prompt: 'Tlon node URL'
+    prompt: 'Sato node URL'
     password: false
   - name: TLON_NODE_ID
     description: 'Node ID, for example ~sampel-palnet'
-    prompt: 'Tlon node ID'
+    prompt: 'Sato node ID'
     password: false
   - name: TLON_ACCESS_CODE
     description: 'Access code for Eyre authentication'
-    prompt: 'Tlon access code'
+    prompt: 'Sato access code'
     password: true
   - name: TLON_OWNER_SHIP
     description:
@@ -38,7 +38,7 @@ optional_env:
   - name: TLON_CHANNELS
     description:
       'Comma-separated channel nests to monitor, for example chat/~host/general'
-    prompt: 'Tlon channels'
+    prompt: 'Sato channels'
     password: false
   - name: TLON_AUTO_DISCOVER
     description:
@@ -196,20 +196,20 @@ optional_env:
     description:
       'Optional path to @tloncorp/tlon-skill/SKILL.md for explicit plugin-skill
       registration'
-    prompt: 'Tlon skill path'
+    prompt: 'tlon-skill path'
     password: false
   - name: TLON_PRODUCT_GUIDE_PATH
     description:
       'Optional path to the OpenClaw plugin''s
       skills/tlon-product-guide/SKILL.md for explicit product-guide skill
       registration'
-    prompt: 'Tlon product guide path'
+    prompt: 'Product guide skill path'
     password: false
   - name: TLON_PLUGIN_DIR
     description:
       'Optional path to the @tloncorp/openclaw plugin root; used to locate
       bundled skills when TLON_PRODUCT_GUIDE_PATH is unset'
-    prompt: 'Tlon plugin directory'
+    prompt: 'OpenClaw plugin directory'
     password: false
   - name: TLON_GATEWAY_STATUS
     description:

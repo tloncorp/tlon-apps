@@ -4,7 +4,7 @@ Notebooks use `notes/~host/name`; individual notes have a separate numeric ID. N
 
 ## Which workspace
 
-A request made in a group channel is about that channel's workspace (group) unless the user names a different one: "a notebook", "our notes" and "here" all mean that group. Your context names its flag ("…in the Tlon workspace (group) ~host/group"); if it does not, run `channels info <current channel nest>` and use the flag on its `Group:` line (in a legacy `diary/` channel, which `channels info` refuses, find the nest in `channels groups` instead). In a DM, use the workspace the user names; with none named, a personal request may use a standalone notebook, and anything meant for a team or group needs its workspace resolved (ask if unclear).
+A request made in a group channel is about that channel's workspace (group) unless the user names a different one: "a notebook", "our notes" and "here" all mean that group. Your context names its flag ("…in the Sato workspace (group) ~host/group"); if it does not, run `channels info <current channel nest>` and use the flag on its `Group:` line (in a legacy `diary/` channel, which `channels info` refuses, find the nest in `channels groups` instead). In a DM, use the workspace the user names; with none named, a personal request may use a standalone notebook, and anything meant for a team or group needs its workspace resolved (ask if unclear).
 
 ## Find the right notebook
 
@@ -45,13 +45,13 @@ Use `write` to save Markdown to a workspace file, such as `draft.md`. Then:
 {"command":"notes note notes/~host/name 12"}
 ```
 
-`note-create` and `note-update` print the note's `ID:` and `Ref:`; `notes note` shows its revision. Replace `12` and `3` with those values. When the note is not in the conversation you are replying in, share the `Ref:` path in your reply so Tlon renders a note card. If an older host returns no ID, find the note with `notes notes`. `root` resolves to that notebook's root folder. For a different folder, discover its ID with `notes folders`.
+`note-create` and `note-update` print the note's `ID:` and `Ref:`; `notes note` shows its revision. Replace `12` and `3` with those values. When the note is not in the conversation you are replying in, share the `Ref:` path in your reply so Sato renders a note card. If an older host returns no ID, find the note with `notes notes`. `root` resolves to that notebook's root folder. For a different folder, discover its ID with `notes folders`.
 
 `--body` takes a filename, not inline Markdown. `--markdown` is an alias only on `note-create`; use `--body` for updates. Relative paths use the active agent workspace. The tool cannot provide stdin or execute shell redirections.
 
 Verify the saved body and identity before claiming completion. If the command reports a pending write/request ID, use `notes request <request-id>` before repeating the write. On a revision conflict, re-read and reconcile; do not blindly overwrite a newer edit. `--expected-revision` is optional in the CLI, but protects edits from concurrent changes.
 
-Tlon does not render LaTeX. Use plain text/Unicode math or code blocks in notes and messages.
+Sato does not render LaTeX. Use plain text/Unicode math or code blocks in notes and messages.
 
 ## Publish a note to the web
 

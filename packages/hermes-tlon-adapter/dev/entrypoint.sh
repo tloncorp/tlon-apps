@@ -58,7 +58,7 @@ def env_any(names, default):
 values = {
     "TLON_NODE_ID": env_any(["TLON_NODE_ID", "TLON_SHIP", "URBIT_SHIP"], "the configured bot node"),
     "TLON_OWNER_SHIP": env_any(["TLON_OWNER_SHIP"], "the configured owner ship"),
-    "TLON_NODE_URL": env_any(["TLON_NODE_URL", "TLON_SHIP_URL", "TLON_URL", "URBIT_URL"], "the configured Tlon node URL"),
+    "TLON_NODE_URL": env_any(["TLON_NODE_URL", "TLON_SHIP_URL", "TLON_URL", "URBIT_URL"], "the configured Sato node URL"),
 }
 
 
