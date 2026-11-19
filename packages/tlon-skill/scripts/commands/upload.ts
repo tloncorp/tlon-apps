@@ -59,7 +59,7 @@ export const BATCH_ITEM_UNEXPECTED_ERROR =
 export const UPLOAD_HELP = `Usage: tlon upload <url-or-path> [<url-or-path>...] [options]
        tlon upload --stdin [-t mime/type]
 
-Upload files to Tlon storage from URLs, local paths, or stdin.
+Upload files to Sato storage from URLs, local paths, or stdin.
 One input: outputs the uploaded URL on success.
 Several inputs: uploads them one at a time, in order, and prints one line per
 input, identified by its position: "input N: <uploaded-url>" on success or

@@ -1,13 +1,13 @@
 ---
 name: tlon
-description: Read Tlon activity and message history; manage workspaces (Tlon groups), channels, Markdown notes, shared Bucket files, contacts, profiles, settings, and channel hooks; expose content publicly; send hosted-browser sharing and secure-entry cards. Use for operating Tlon, not general product explanations or ordinary outbound messaging.
+description: Read Sato activity and message history; manage workspaces (Sato groups), channels, Markdown notes, shared Bucket files, contacts, profiles, settings, and channel hooks; expose content publicly; send hosted-browser sharing and secure-entry cards. Use for operating Sato, not general product explanations or ordinary outbound messaging.
 ---
 
-# Operate Tlon
+# Operate Sato
 
-Use the `tlon` tool for Tlon data and administration. Read the task reference below before an unfamiliar workflow. For explanations of the app, use `tlon-product-guide` if available.
+Use the `tlon` tool for Sato data and administration; the tool keeps its `tlon` name. Read the task reference below before an unfamiliar workflow. For explanations of the app, use `tlon-product-guide` if available.
 
-In Tlon requests, **workspace** means a group: create, join (including by invite link), rename, invite, and list workspaces using `groups` commands. Explicit requests about the agent’s files or paths refer to its filesystem workspace instead.
+In Sato requests, **workspace** means a group: create, join (including by invite link), rename, invite, and list workspaces using `groups` commands. Explicit requests about the agent’s files or paths refer to its filesystem workspace instead.
 
 ## Invoke and discover
 
@@ -19,7 +19,7 @@ Tool arguments are argument strings, not shell scripts:
 {"command":"help notes note-create"}
 ```
 
-`--help` and `-h` also work. This help covers only commands in the Tlon index; other tools such as `message`, `read`, and `write` have their own tool schemas, not Tlon subcommands. Exact flags live in command help; inspect it instead of guessing a verb or copying flags from a different operation. If CLI usage shows `tlon` at the start, omit it in the tool's command argument.
+`--help` and `-h` also work. This help covers only commands in the `tlon` index; other tools such as `message`, `read`, and `write` have their own tool schemas, not `tlon` subcommands. Exact flags live in command help; inspect it instead of guessing a verb or copying flags from a different operation. If CLI usage shows `tlon` at the start, omit it in the tool's command argument.
 
 There is no shell expansion, pipe, redirection, or stdin transport. Use `write` to create a content file and pass its filename. Relative paths resolve in the active agent workspace, just like `read` and `write`. Do not put `$VARIABLE`, a heredoc, or inline Markdown in a filename argument.
 
@@ -41,7 +41,7 @@ Resolve these links relative to this skill's discovered directory. Use the locat
 ## Identity, delivery, and completion
 
 - Use returned group flags, channel nests, note IDs, and revisions. Display titles are not identifiers. Resolve ambiguous targets before writing.
-- When a write lands outside the conversation you are replying in (a note, a post in another channel, a new group or channel, a cron job that will post to another channel), put a reference to it in your reply so Tlon renders a card. Forms: `/1/group/<host>/<slug>`, `/1/chan/<nest>/msg/<id>`, thread reply `/1/chan/<nest>/msg/<parent>/<id>`, `/1/chan/notes/<host>/<name>/note/<id>`. Prefer the `Ref:` path a command prints. A post's ID is host-assigned: read it back with `messages channel <nest>`, or `messages post <nest> <parent>` for a thread reply; the `message` tool's `messageId` is not it. A channel (including a cron job's target) has no card yet: name it, give its nest, and share its group's `Ref:`.
+- When a write lands outside the conversation you are replying in (a note, a post in another channel, a new group or channel, a cron job that will post to another channel), put a reference to it in your reply so Sato renders a card. Forms: `/1/group/<host>/<slug>`, `/1/chan/<nest>/msg/<id>`, thread reply `/1/chan/<nest>/msg/<parent>/<id>`, `/1/chan/notes/<host>/<name>/note/<id>`. Prefer the `Ref:` path a command prints. A post's ID is host-assigned: read it back with `messages channel <nest>`, or `messages post <nest> <parent>` for a thread reply; the `message` tool's `messageId` is not it. A channel (including a cron job's target) has no card yet: name it, give its nest, and share its group's `Ref:`.
 - Put the path bare on its own line after the sentence introducing it; a link, bold, or malformed path stays literal text. Paths render only in your normal reply; `tlon posts send` posts a typed path as literal text. To quote or forward a post as a card, use `posts send|reply --quote` or `posts forward` (see Reading).
 - Use `browser_login` to list and prepare saved website logins, then call `tlon_browser_login` to request approval. The tool confirms whether the card was sent. Existing signed-in browser sessions may be reused.
 - Credentials are supplied by the runtime. Never collect access codes or print credentials. Your harness's tool description states which identity (your owner or you, the bot) is the default and how to select the other; follow it. Some commands are documented as owner-bound in the references; the tool description governs which identity they run as. Do not switch identities to work around a permission error.
@@ -54,4 +54,4 @@ Resolve these links relative to this skill's discovered directory. Use the locat
 
 ## When discovery fails
 
-If this skill or a linked reference is unavailable, `help` and command help still provide local syntax. Report a missing installation resource rather than inventing a path. A permission failure or unsupported command is not a reason to bypass the tool through a shell, raw API, or the hosted browser. Never tell the user a Tlon command or capability does not exist without first running `help` and `help <command>`: the command index is authoritative and lists options these references omit. If neither `tlon` nor `message` covers the request, tell the user your Tlon tools do not support it yet and, where the Tlon app offers it, that they can do it there.
+If this skill or a linked reference is unavailable, `help` and command help still provide local syntax. Report a missing installation resource rather than inventing a path. A permission failure or unsupported command is not a reason to bypass the tool through a shell, raw API, or the hosted browser. Never tell the user a `tlon` command or capability does not exist without first running `help` and `help <command>`: the command index is authoritative and lists options these references omit. If neither `tlon` nor `message` covers the request, tell the user your Sato tools do not support it yet and, where the Sato app offers it, that they can do it there.
