@@ -73,7 +73,7 @@ describe('ChatGPT subscription sign-in', () => {
     act(() => renderer.unmount());
   });
 
-  it('copies the code before opening sign-in and ignores a second tap during the copy', async () => {
+  it('copies the code and opens sign-in in the same tap and ignores a second tap', async () => {
     let finishCopy: (copied: boolean) => void = () => {};
     mocks.copy.mockReturnValue(
       new Promise<boolean>((resolve) => {
@@ -82,22 +82,26 @@ describe('ChatGPT subscription sign-in', () => {
     );
     await render();
     const button = renderer.root.findByProps({ label: 'Copy and continue' });
-    let pending: Promise<void>;
-    await act(async () => {
+    let pending: Promise<void> = Promise.resolve();
+    act(() => {
       pending = button.props.onPress();
-      await button.props.onPress();
     });
     expect(mocks.copy).toHaveBeenCalledTimes(1);
-    expect(openBrowser).not.toHaveBeenCalled();
+    expect(openBrowser).toHaveBeenCalledTimes(1);
+    expect(mocks.copy.mock.invocationCallOrder[0]).toBeLessThan(
+      openBrowser.mock.invocationCallOrder[0]
+    );
     await act(async () => {
+      await button.props.onPress();
       finishCopy(true);
       await pending;
     });
+    expect(mocks.copy).toHaveBeenCalledTimes(1);
     expect(openBrowser).toHaveBeenCalledTimes(1);
   });
 
   it.each(['refused', 'rejected'])(
-    'keeps the code visible and reports a %s clipboard write',
+    'still opens sign-in and reports a %s clipboard write',
     async (failure) => {
       if (failure === 'refused') mocks.copy.mockResolvedValue(false);
       else mocks.copy.mockRejectedValue(new Error('Clipboard unavailable'));
@@ -107,7 +111,7 @@ describe('ChatGPT subscription sign-in', () => {
           .findByProps({ label: 'Copy and continue' })
           .props.onPress();
       });
-      expect(openBrowser).not.toHaveBeenCalled();
+      expect(openBrowser).toHaveBeenCalledTimes(1);
       expect(JSON.stringify(renderer.toJSON())).toContain(
         'Could not copy the code. Please try again.'
       );

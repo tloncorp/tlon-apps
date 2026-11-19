@@ -93,9 +93,9 @@ export function LLMSubscriptionAuthView({
     openingBrowserRef.current = true;
     setOpeningBrowser(true);
     try {
-      if (await handleCopyCode()) {
-        await onOpenBrowser();
-      }
+      // Safari only allows window.open synchronously inside the tap, so the
+      // browser cannot wait for the clipboard write.
+      await Promise.all([handleCopyCode(), onOpenBrowser()]);
     } finally {
       openingBrowserRef.current = false;
       setOpeningBrowser(false);
