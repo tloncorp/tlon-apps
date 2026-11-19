@@ -522,6 +522,13 @@ messaging the sender.
   hand gets the tools its adapter configures (see
   [hands](hands.md#binding-and-authority)).
 - Other ships and the bot's own messages do not enter inference.
+- A channel post or reply whose author carries a bot profile, as OpenClaw and
+  Hermes bots write theirs, is a bot's message. On admission the hand reads
+  that one message from local `%channels`, a bounded page and an exact-key
+  lookup, and records it in the activity feed as `bot-message`. It is admitted
+  and answered like any other message. A message the hand can no longer read
+  there (the channel left, the message gone, or its thread's parent deleted)
+  is recorded as `message`.
 - Group invitations are accepted only when sent by the owner. DM invitations
   from the owner, a trusted ship or an allowed ship are accepted. An invitation
   still pending when its sender gains access is accepted at that point, or when
@@ -608,7 +615,8 @@ These owner-authenticated extensions work from any initialized ACP client:
 ```
 
 Activity notifications contain `sequence`, `kind`, `actor`, `address`, and `event`.
-The feed retains 128 diagnostic entries. Use session snapshots and the
+An admitted message's `kind` is `message`, or `bot-message` when its author has
+a bot profile. The feed retains 128 diagnostic entries. Use session snapshots and the
 [hand ledger](hands.md) for conversation history and delivery records.
 
 The head forwards the authenticated `harness/tlon` namespace through

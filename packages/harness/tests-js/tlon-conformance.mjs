@@ -103,6 +103,31 @@ try {
   assert.ok(list.some((s) => s.sessionId.startsWith(`${peer.slice(1)}-dm-`)), 'DM visible to any ACP session client')
   assert.ok(list.some((s) => s.sessionId.includes('-thread-')), 'thread has a separate session')
   console.log('PASS ACP activity and global session discovery')
+  // A post or reply whose author carries a bot profile is recorded as a bot's
+  // message; one by a bare ship as a message. Both are answered.
+  const author = (value) => (typeof value === 'string' ? value : value?.ship)
+  const botProfile = { ship: peer, nickname: 'Peer bot', avatar: null }
+  const kinds = async (address) => (await client.call('harness/tlon')).events.filter((e) => address(e.address)).map((e) => e.kind)
+  const top = (address) => address === nest
+  const thread = (address) => address.startsWith(`${nest}/`)
+  const topKinds = await kinds(top)
+  assert.ok(topKinds.includes('message') && !topKinds.includes('bot-message'), 'a bare-ship mention is a message')
+  const threadKinds = await kinds(thread)
+  assert.ok(threadKinds.includes('message') && !threadKinds.includes('bot-message'), 'a bare-ship thread reply is a message')
+  await poke('channels', 'channel-action-1', { channel: { nest, action: { post: { add: { ...essay(prompt('bot-channel', true)), author: botProfile } } } } })
+  await until('bot-profile mention answered', async () => Object.values((await channelPosts()).posts).some((p) => author(p?.essay?.author) === ship && has(p.essay.content, 'bot-channel')))
+  assert.equal((await kinds(top)).filter((kind) => kind === 'bot-message').length, 1, 'a bot-profile mention is a bot message')
+  await poke('channels', 'channel-action-1', { channel: { nest, action: { post: { reply: { id: answer[0], action: { add: {
+    content: prompt('bot-thread'), author: botProfile, sent: Date.now(),
+  } } } } } } })
+  await until('bot-profile thread reply answered', async () => {
+    const posts = (await channelPosts()).posts
+    return Object.values(posts[answer[0]]?.seal?.replies || {}).some((p) => author(p?.['reply-essay']?.author) === ship && has(p, 'bot-thread'))
+  })
+  assert.equal((await kinds(thread)).filter((kind) => kind === 'bot-message').length, 1, 'a bot-profile thread reply is a bot message')
+  const events = (await client.call('harness/tlon')).events.filter((e) => top(e.address) || thread(e.address))
+  console.log(`Channel activity: ${events.map((e) => `${e.kind} ${e.address}`).join('; ')}`)
+  console.log('PASS bot-profile posts and replies are recorded as bot messages')
   await client.call('harness/tlon/configure', { enabled: true, owner: ship, response: 'mentions', allowed: [], channels: [], trusted: [{ ship: peer, tools: [] }] })
   assert.equal((await client.call('harness/tlon')).lanes, 0, 'revoked routes do not consume the next policy epoch')
   await poke('chat', 'chat-dm-action-2', { ship, diff: { id: `${peer}/${da()}`, delta: { add: { essay: essay(prompt('trusted')), time: null } } } })
