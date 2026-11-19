@@ -126,7 +126,7 @@
       tweet=$~(3 @ud)      ::  remaining tweet verification attempts
       fetch=$~(5 @ud)      ::  remaining website challenge fetches
       queries=$~(100 @ud)  ::  remaining queries
-      batch=$~(1.000 @ud)  ::  remaining new %whose-bulk entries
+      batch=$~(5.000 @ud)  ::  remaining new %whose-bulk entries
       last-batch=@ux       ::  previous batch set salted hash
   ==
 ++  rates  ::  re-fill allowance by n per p
