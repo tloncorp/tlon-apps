@@ -1,6 +1,6 @@
 # OpenClaw Sato Plugin
 
-Sato/Urbit channel plugin for [OpenClaw](https://github.com/openclaw/openclaw). Enables your AI agent to communicate via Sato DMs and group channels.
+Sato channel plugin for [OpenClaw](https://github.com/openclaw/openclaw). Enables your AI agent to communicate via Sato DMs and group channels.
 
 ## Features
 

@@ -1891,7 +1891,7 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
 export default defineBundledChannelEntry({
   id: 'tlon',
   name: 'Sato',
-  description: 'Sato/Urbit channel plugin',
+  description: 'Sato channel plugin',
   importMetaUrl: import.meta.url,
   plugin: {
     specifier: './src/channel.js',

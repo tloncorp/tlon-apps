@@ -150,7 +150,7 @@ export const tlonPlugin = createChatChannelPlugin({
     meta: {
       id: TLON_CHANNEL_ID,
       label: 'Sato',
-      selectionLabel: 'Sato (Urbit)',
+      selectionLabel: 'Sato',
       docsPath: '/channels/tlon',
       docsLabel: 'tlon',
       blurb: 'Decentralized messaging on Urbit',
