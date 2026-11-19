@@ -82,6 +82,13 @@ export function AnimatedInputHeight({
       animateToHeight(measuredHeight.current);
     }
   }, [animateToHeight, holdHeight]);
+  // A composer already at its minimum has nothing to shrink, so no layout
+  // will report the shrink: it is settled as soon as it is asked to snap.
+  useLayoutEffect(() => {
+    if (snapShrink && targetHeight.current <= minimumHeight) {
+      onHeightSettled?.();
+    }
+  }, [minimumHeight, onHeightSettled, snapShrink]);
 
   return (
     <Animated.View style={[styles.frame, animatedStyle]}>

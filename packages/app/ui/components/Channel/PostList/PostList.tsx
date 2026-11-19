@@ -246,6 +246,9 @@ const HISTORY_RESHAPE_HOLD_END_MS = 500;
 // much room below them they stay put. More than the five lines the composer
 // can grow by.
 const SEND_ALIGNMENT_SLACK = 200;
+// How long an Android send's end waits for LegendList to take the viewport
+// the shrunk composer left before releasing its held rows anyway.
+const SEND_HOLD_LAYOUT_WAIT_MS = 100;
 
 /**
  * Whether this render changes the top of the loaded window (older posts
@@ -882,11 +885,22 @@ const ConversationPostListAttempt = React.forwardRef<
       sendAlignment && sendAlignment.newestKey === newestRowKey
         ? sendAlignment.height
         : null;
+    // Android holds the send until it ends, once the composer has shrunk (see
+    // `BareChatInput`), not just until the message renders. The message can
+    // render first, and the scroll view's content height takes the new row a
+    // few frames later; were the slack gone when the composer gives its lines
+    // back, the taller viewport would pass the end of that content and
+    // Android would clamp the offset, dropping the rows. The end scroll that
+    // ends the send leaves out the slack, so holding it moves nothing.
+    const sendHeld =
+      Platform.OS === 'ios'
+        ? sendAlignedHeight !== null
+        : sendAlignment !== null;
     const listContentStyle = React.useMemo(() => {
       const basePaddingBottom =
         (flattenViewStyle(contentContainerStyle)?.paddingBottom as number) ?? 0;
       const extraPaddingBottom =
-        overlayHeight + (sendAlignedHeight === null ? 0 : SEND_ALIGNMENT_SLACK);
+        overlayHeight + (sendHeld ? SEND_ALIGNMENT_SLACK : 0);
       return [
         contentContainerStyle,
         // Let native layout bottom-align short conversations. LegendList's
@@ -909,6 +923,7 @@ const ConversationPostListAttempt = React.forwardRef<
       docked,
       overlayHeight,
       sendAlignedHeight,
+      sendHeld,
     ]);
     const ConversationList = docked
       ? AnimatedLegendList
@@ -985,8 +1000,9 @@ const ConversationPostListAttempt = React.forwardRef<
     // A coordinated send keeps a docked conversation's rows where they are
     // while it waits for its message. The composer gives back its extra lines
     // at once and the list grows; left to follow it, the rows would drop, then
-    // rise for the message a few frames later. Held, they rise once, in the
-    // render that adds the message (see `sendAlignedHeight`).
+    // rise for the message a few frames later. Held, they rise once: on iOS in
+    // the render that adds the message, on Android as the send ends (see
+    // `sendHeld`).
     // On iOS the pin replaces `minHeight: '100%'`, so it takes the height
     // native layout gave the content. That is not LegendList's scrollLength:
     // the composer's extra lines are an inset there, not part of the frame
@@ -1009,23 +1025,69 @@ const ConversationPostListAttempt = React.forwardRef<
           : { height, newestKey }
       );
     }, [anchorToEnd, docked, isComposerSendActive, nativeBottomAligned]);
+    // Android releases the held send only once LegendList has the viewport
+    // the shrunk composer left. Its layout event can trail the native resize;
+    // released before it, a short conversation's end padding is worked out
+    // for the old viewport, lifting the rows for a frame before they drop.
+    const sendHoldRelease = React.useRef<{
+      wait?: ReturnType<typeof setTimeout>;
+    } | null>(null);
+    const releaseSendHold = React.useCallback(() => {
+      clearTimeout(sendHoldRelease.current?.wait);
+      sendHoldRelease.current = null;
+      setSendAlignment(null);
+    }, []);
+    const cancelSendHoldRelease = React.useCallback(() => {
+      clearTimeout(sendHoldRelease.current?.wait);
+      sendHoldRelease.current = null;
+    }, []);
+    React.useEffect(() => cancelSendHoldRelease, [cancelSendHoldRelease]);
+    const endSendHold = React.useCallback(() => {
+      if (Platform.OS === 'ios') {
+        setSendAlignment(null);
+        return;
+      }
+      const list = listRef.current;
+      const nativeViewport = (
+        list?.getNativeScrollRef() as
+          | { getBoundingClientRect?: () => { height: number } }
+          | undefined
+      )?.getBoundingClientRect?.().height;
+      const scrollLength = list?.getState().scrollLength;
+      if (
+        nativeViewport === undefined ||
+        scrollLength === undefined ||
+        Math.abs(nativeViewport - scrollLength) < 1
+      ) {
+        releaseSendHold();
+        return;
+      }
+      cancelSendHoldRelease();
+      sendHoldRelease.current = {
+        wait: setTimeout(releaseSendHold, SEND_HOLD_LAYOUT_WAIT_MS),
+      };
+    }, [cancelSendHoldRelease, releaseSendHold]);
     React.useLayoutEffect(
       () =>
         registerComposerSend({
           begin: () => {
             historyNavigationRequested.current = false;
+            cancelSendHoldRelease();
             beginComposerSend();
             pinSendAlignment();
           },
           finish: () => {
-            // Usually already released by the render that showed the message.
-            setSendAlignment(null);
+            // On iOS usually already released by the render that showed the
+            // message.
+            endSendHold();
             finishComposerSend();
           },
           isActive: isComposerSendActive,
         }),
       [
         beginComposerSend,
+        cancelSendHoldRelease,
+        endSendHold,
         finishComposerSend,
         isComposerSendActive,
         pinSendAlignment,
@@ -1242,6 +1304,9 @@ const ConversationPostListAttempt = React.forwardRef<
         const previousHeight = previousViewportHeight.current;
         const height = event.nativeEvent.layout.height;
         previousViewportHeight.current = height;
+        if (sendHoldRelease.current) {
+          releaseSendHold();
+        }
         settleConversationAtEnd();
         if (
           !docked ||
@@ -1279,6 +1344,7 @@ const ConversationPostListAttempt = React.forwardRef<
         floating,
         hasNewerPosts,
         isComposerSendActive,
+        releaseSendHold,
         settleConversationAtEnd,
       ]
     );
@@ -1492,11 +1558,9 @@ const ConversationPostListAttempt = React.forwardRef<
         alignItemsAtEnd={anchorToEnd}
         // Where LegendList bottom-aligns a short conversation itself (not on
         // iOS, where native layout does), its padding is held too while a send
-        // waits for its message: it would follow the composer down as the list
-        // grows, then rise for the message.
-        holdAlignItemsAtEndPadding={
-          Platform.OS !== 'ios' && sendAlignedHeight !== null
-        }
+        // is held: it would follow the composer down as the list grows, then
+        // rise for the message.
+        holdAlignItemsAtEndPadding={Platform.OS !== 'ios' && sendHeld}
         initialScrollAtEnd={
           anchorToEnd &&
           isInitialAnchorReady &&

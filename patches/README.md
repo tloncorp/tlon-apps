@@ -546,9 +546,10 @@ composer down, then the rows rose for the message: they dropped and rose again.
 Fix:
 A new prop, `holdAlignItemsAtEndPadding`. While it is true,
 `updateContentMetricsState` leaves the padding as it is. The conversation list
-sets it while a send waits for its message, on Android, where LegendList's
-padding bottom-aligns short conversations (iOS uses native layout). The render
-that shows the message clears it, and the padding change and the new row are
+sets it while a send is held, on Android, where LegendList's padding
+bottom-aligns short conversations (iOS uses native layout). It clears it once
+the send ends: the message has landed, the composer has shrunk and LegendList
+has taken the taller viewport, so the padding change and the new row are
 applied together. Typed in `react-native.d.ts`, `reanimated.d.ts` and
 `animated.d.ts`.
 

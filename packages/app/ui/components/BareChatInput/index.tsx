@@ -103,6 +103,9 @@ const AUTOCORRECT_FLUSH_TIMEOUT_MS = 20;
 // How long a coordinated send waits for the list to show its message before
 // ending the send transition anyway.
 const SENT_MESSAGE_WAIT_MS = 1000;
+// How long a coordinated Android send whose message has landed waits for the
+// cleared composer to shrink before ending anyway.
+const COMPOSER_SHRINK_WAIT_MS = 300;
 
 function normalizePreviewUrl(url: string) {
   try {
@@ -377,21 +380,32 @@ function BareChatInput(
     isSendCoordinated,
     registerSentMessageShown,
   } = useConversationComposerHeight();
-  const handleComposerHeightSettled = useCallback(() => {
-    if (
-      awaitingComposerSettlement.current &&
-      pendingComposerSendsRef.current === 0
-    ) {
-      awaitingComposerSettlement.current = false;
-      finishComposerSend();
-    }
-  }, [finishComposerSend]);
   // While the list coordinates a send it keeps its rows where they are, so the
   // composer can shrink at once as it is cleared. The rows then rise once,
   // when the message lands, by the message less the space the composer gave
   // back, instead of rising for the message and dropping as the composer
   // shrinks after it.
   const [composerSnapsOnSend, setComposerSnapsOnSend] = useState(false);
+  // Android sends at once, so its message can land before the cleared
+  // composer lays out and shrinks. That send ends once the composer has
+  // shrunk: the list keeps holding its rows until then (see `PostList`).
+  const composerShrinkPending = useRef(false);
+  const composerShrinkWait = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined
+  );
+  useEffect(() => () => clearTimeout(composerShrinkWait.current), []);
+  const handleComposerHeightSettled = useCallback(() => {
+    composerShrinkPending.current = false;
+    clearTimeout(composerShrinkWait.current);
+    if (
+      awaitingComposerSettlement.current &&
+      pendingComposerSendsRef.current === 0
+    ) {
+      awaitingComposerSettlement.current = false;
+      setComposerSnapsOnSend(false);
+      finishComposerSend();
+    }
+  }, [finishComposerSend]);
   // Ends a coordinated send once the list shows its message.
   const releaseCoordinatedSend = useRef<(() => void) | null>(null);
   useEffect(
@@ -893,6 +907,7 @@ function BareChatInput(
       // enqueue, so the list keeps its rows still until the message lands.
       const coordinated = holdingComposerHeight && isSendCoordinated();
       setComposerSnapsOnSend(coordinated);
+      composerShrinkPending.current = coordinated && Platform.OS !== 'ios';
       let sentMessageWait: ReturnType<typeof setTimeout> | undefined;
       const releaseComposerHeight = () => {
         if (!holdingComposerHeight) {
@@ -906,7 +921,14 @@ function BareChatInput(
           if (releaseCoordinatedSend.current === releaseComposerHeight) {
             releaseCoordinatedSend.current = null;
           }
-          setComposerSnapsOnSend(false);
+          if (composerShrinkPending.current) {
+            // The composer ends the send once it has shrunk.
+            composerShrinkWait.current = setTimeout(
+              handleComposerHeightSettled,
+              COMPOSER_SHRINK_WAIT_MS
+            );
+            return;
+          }
           // The composer already settled when it shrank at send.
           handleComposerHeightSettled();
         }
