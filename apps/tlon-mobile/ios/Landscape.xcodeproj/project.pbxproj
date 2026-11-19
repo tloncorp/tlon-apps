@@ -134,6 +134,8 @@
 		7036E3562ACD17600020A9FB /* ClubStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3552ACD17600020A9FB /* ClubStore.swift */; };
 		705D26452B7ECDF200F98AD6 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		705D26482B7ECE5400F98AD6 /* Images-preview.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 705D26472B7ECE5400F98AD6 /* Images-preview.xcassets */; };
+		7A0E43A02CEC000000000001 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 7A0E43A02CEC000000000003 /* AppIcon.icon */; };
+		7A0E43A02CEC000000000002 /* AppIconPreview.icon in Resources */ = {isa = PBXBuildFile; fileRef = 7A0E43A02CEC000000000004 /* AppIconPreview.icon */; };
 		7083A16C2AFB01A30022404A /* TlonError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7083A16B2AFB01A30022404A /* TlonError.swift */; };
 		709FC0ED2AC1E25D00B0644D /* Club.swift in Sources */ = {isa = PBXBuildFile; fileRef = 709FC0EC2AC1E25D00B0644D /* Club.swift */; };
 		70D386482A6098F800AFB46E /* Alamofire in Frameworks */ = {isa = PBXBuildFile; productRef = 70D386472A6098F800AFB46E /* Alamofire */; };
@@ -359,6 +361,8 @@
 		7036E3552ACD17600020A9FB /* ClubStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClubStore.swift; sourceTree = "<group>"; };
 		704095A92BBBBC5600BC61A8 /* Info-preview.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = "Info-preview.plist"; path = "Landscape/Info-preview.plist"; sourceTree = "<group>"; };
 		705D26472B7ECE5400F98AD6 /* Images-preview.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = "Images-preview.xcassets"; path = "Landscape/Images-preview.xcassets"; sourceTree = "<group>"; };
+		7A0E43A02CEC000000000003 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; name = AppIcon.icon; path = Landscape/AppIcon.icon; sourceTree = "<group>"; };
+		7A0E43A02CEC000000000004 /* AppIconPreview.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; name = AppIconPreview.icon; path = Landscape/AppIconPreview.icon; sourceTree = "<group>"; };
 		7083A16B2AFB01A30022404A /* TlonError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TlonError.swift; sourceTree = "<group>"; };
 		709FC0EC2AC1E25D00B0644D /* Club.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Club.swift; sourceTree = "<group>"; };
 		70D386532A609BFC00AFB46E /* PushNotificationManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PushNotificationManager.swift; sourceTree = "<group>"; };
@@ -481,6 +485,8 @@
 				BB2F792B24A3F905000567C9 /* Supporting */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				705D26472B7ECE5400F98AD6 /* Images-preview.xcassets */,
+				7A0E43A02CEC000000000003 /* AppIcon.icon */,
+				7A0E43A02CEC000000000004 /* AppIconPreview.icon */,
 				DDB000012FCB000000000001 /* HeaderIcons.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				704095A92BBBBC5600BC61A8 /* Info-preview.plist */,
@@ -955,6 +961,7 @@
 			files = (
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				705D26452B7ECDF200F98AD6 /* Images.xcassets in Resources */,
+				7A0E43A02CEC000000000001 /* AppIcon.icon in Resources */,
 				DDB000022FCB000000000001 /* HeaderIcons.xcassets in Resources */,
 				C184662C2ABBDFF1008EA8C0 /* GoogleService-Info-io.tlon.groups.plist in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
@@ -995,6 +1002,7 @@
 			files = (
 				70DBC0082B7C60B50021EA96 /* Expo.plist in Resources */,
 				705D26482B7ECE5400F98AD6 /* Images-preview.xcassets in Resources */,
+				7A0E43A02CEC000000000002 /* AppIconPreview.icon in Resources */,
 				DDB000032FCB000000000001 /* HeaderIcons.xcassets in Resources */,
 				70DBC00B2B7C60B50021EA96 /* SplashScreen.storyboard in Resources */,
 				70DBC0182B7C61130021EA96 /* GoogleService-Info-io.tlon.groups.preview.plist in Resources */,
@@ -2060,7 +2068,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = EE042EA448A634B1DCCA2092 /* Pods-Landscape-preview.debug.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIconPreview;
 				CLANG_DEBUG_INFORMATION_LEVEL = "DWARF with dSYM File";
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = "Landscape/Landscape-preview.entitlements";
@@ -2100,7 +2108,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 3B0B210E999A7E0E1A345468 /* Pods-Landscape-preview.release.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIconPreview;
 				CLANG_DEBUG_INFORMATION_LEVEL = "DWARF with dSYM File";
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = "Landscape/Landscape-preview.entitlements";
