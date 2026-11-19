@@ -1,6 +1,6 @@
 /-  *contacts, c0=contacts-0
 /+  *test-negotiate-agent
-/+  c=contacts
+/+  c=contacts, r=rail
 /=  contacts-agent  /app/contacts
 =*  agent  contacts-agent
 ::  XX consider simplifying tests
@@ -11,6 +11,15 @@
 ::
 +$  state-3
   $:  %3
+      rof=profile
+      =book
+      =peers
+      last-updated=(list [=kip =time])
+      retry=(map ship @da)  ::  retry sub at time
+  ==
+::
++$  state-4
+  $:  %4
       rof=profile
       =book
       =peers
@@ -37,6 +46,20 @@
   =/  m  (mare ,~)
   ;<  ~  bind:m  (ex-equal !>(p.actual) !>(p.expected))
   (ex-equal q.actual q.expected)
+::
+++  ex-ui-card
+  |=  [our=ship message=rail:r]
+  (ex-task /removed-suggestion [our %groups-ui] %poke (de-rail:r message))
+::
+++  ex-removed
+  |=  ships=(list ship)
+  =/  m  (mare ,~)
+  ;<  peek=cage  bind:m  (got-peek /x/v2/init)
+  =+  !<(init=json q.peek)
+  ?>  ?=(%o -.init)
+  %+  ex-equal  !>((~(got by p.init) 'removed'))
+  !>(`json`a/(turn ships |=(=ship s+(scot %p ship))))
+::
 ::  +test-poke-0-anon: v0 delete the profile
 ::
 ++  test-poke-0-anon
@@ -455,6 +478,7 @@
         (ex-fact ~[/news] contact-news+!>([~sun ~]))
         (ex-fact ~[/v1/news] contact-response-0+!>([%peer ~sun ~]))
         (ex-fact ~[/v1/news] contact-response-0+!>([%page ~sun `page:c`[~ ~]]))
+        (ex-ui-card our.bowl ui-hide-contact+~sun)
     ==
   ::  ~sun appears in peers
   ::
@@ -536,6 +560,7 @@
   ;<  ~  b
     %+  ex-cards  caz
     :~  (ex-fact ~[/v1/news] contact-response-0+!>([%page ~sun con-sun ~]))
+        (ex-ui-card our.bowl ui-hide-contact+~sun)
     ==
   ::  ~sun contact page is edited
   ::
@@ -630,6 +655,7 @@
   ;<  ~  b
     %+  ex-cards  caz
     :~  (ex-fact ~[/v1/news] contact-response-0+!>([%page ~sun con-sun ~]))
+        (ex-ui-card our.bowl ui-hide-contact+~sun)
     ==
   ::  ~sun contact page is edited
   ::
@@ -1269,5 +1295,83 @@
     %+  ex-equal  !>((~(get cy:c con) %nickname %text))
     !>(`'fake ~nus')
   (pure:m ~)
+::
+++  test-removed-discovery
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  =bowl  bind:m  get-bowl
+  ;<  ~  bind:m  (set-src our.bowl)
+  ;<  *  bind:m  (do-init %contacts contacts-agent)
+  ;<  cards=(list card)  bind:m  (do-poke contact-action-1+!>([%page ~sun ~]))
+  ;<  ~  bind:m
+    %+  ex-cards  (skim cards |=(=card ?=([%pass [%removed-suggestion ~] *] card)))
+    ~[(ex-ui-card our.bowl ui-hide-contact+~sun)]
+  ;<  ~  bind:m  (ex-fail (do-poke contact-action-1+!>([%page ~sun ~])))
+  ;<  cards=(list card)  bind:m  (do-poke contact-remove+!>([~sun &]))
+  ;<  ~  bind:m
+    %+  ex-cards  cards
+    :~  (ex-fact ~[/v1/news] contact-response-0+!>([%wipe ~sun]))
+        (ex-ui-card our.bowl ui-suggest-contact+~sun)
+    ==
+  ;<  cards=(list card)  bind:m  (do-poke contact-remove+!>([~sun &]))
+  ;<  ~  bind:m
+    %+  ex-cards  cards
+    ~[(ex-fact ~[/v1/news] contact-response-0+!>([%wipe ~sun]))]
+  ;<  ~  bind:m  (ex-removed ~[~sun])
+  ;<  saved=vase  bind:m  get-save
+  ;<  *  bind:m  (do-load agent `saved)
+  ;<  ~  bind:m  (ex-removed ~[~sun])
+  ;<  peek=cage  bind:m  (got-peek /u/v1/book/~sun)
+  ;<  ~  bind:m  (ex-equal q.peek !>(|))
+  ;<  cards=(list card)  bind:m  (do-poke contact-discover+!>(~sun))
+  ;<  ~  bind:m  (ex-cards cards ~)
+  ;<  cards=(list card)  bind:m  (do-poke contact-action-1+!>([%page ~sun ~]))
+  ;<  ~  bind:m
+    %+  ex-cards  (skim cards |=(=card ?=([%pass [%removed-suggestion ~] *] card)))
+    ~[(ex-ui-card our.bowl ui-hide-contact+~sun)]
+  ;<  ~  bind:m  (ex-removed ~)
+  ;<  ~  bind:m  (ex-fail (do-poke contact-action-1+!>([%page ~sun ~])))
+  ;<  cards=(list card)  bind:m  (do-poke contact-remove+!>([~sun &]))
+  ;<  ~  bind:m
+    %+  ex-cards  cards
+    :~  (ex-fact ~[/v1/news] contact-response-0+!>([%wipe ~sun]))
+        (ex-ui-card our.bowl ui-suggest-contact+~sun)
+    ==
+  (pure:m ~)
+::
+++  test-removed-late-discovery
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  =bowl  bind:m  get-bowl
+  ;<  ~  bind:m  (set-src our.bowl)
+  ;<  *  bind:m  (do-init %contacts contacts-agent)
+  ;<  *  bind:m  (do-poke contact-remove+!>([~sun |]))
+  ;<  cards=(list card)  bind:m  (do-poke contact-discover+!>(~sun))
+  ;<  ~  bind:m
+    %+  ex-cards  cards
+    :~  (ex-ui-card our.bowl ui-suggest-contact+~sun)
+    ==
+  ;<  cards=(list card)  bind:m  (do-poke contact-discover+!>(~sun))
+  ;<  ~  bind:m  (ex-cards cards ~)
+  ;<  ~  bind:m  (set-src ~nec)
+  ;<  ~  bind:m  (ex-fail (do-poke contact-discover+!>(~sun)))
+  (ex-fail (do-poke contact-remove+!>([~sun &])))
+
+::
+++  test-migration-removed
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =/  =state-4  *state-4
+  =.  book.state-4  (~(put by book.state-4) ~sun [~ ~])
+  =.  peers.state-4  (~(put by peers.state-4) ~sun [~ %want])
+  ;<  *  bind:m  (do-load agent `!>([state-4 ~]))
+  ;<  peek=cage  bind:m  (got-peek /u/v1/book/~sun)
+  ;<  ~  bind:m  (ex-equal q.peek !>(&))
+  ;<  peek=cage  bind:m  (got-peek /x/v2/init)
+  =+  !<(init=json q.peek)
+  ?>  ?=(%o -.init)
+  ;<  ~  bind:m  (ex-equal !>((~(got by p.init) 'removed')) !>(`json`a/~))
+  (pure:m ~)
+
 --
 

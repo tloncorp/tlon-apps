@@ -12,6 +12,7 @@ export * from './memberCountSupport';
 export * from './rosterPagesSupport';
 export * from './stewardPromptsSupport';
 export * from './taskRunsSupport';
+export * from './contactRemovalSupport';
 export * from './stewardBotsSupport';
 export * from './notesActivitySupport';
 export * from './notesPublish';

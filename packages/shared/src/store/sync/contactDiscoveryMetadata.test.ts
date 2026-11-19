@@ -351,3 +351,47 @@ test('an unnamed first native card does not hide a later named card', async () =
   );
   expect(api.updateContactMetadata).toHaveBeenCalledTimes(1);
 });
+
+test('a Remove during the saved-name action read cancels its stale edit', async () => {
+  await db.upsertContact({
+    id: contactId,
+    isContact: true,
+    customNickname: null,
+  });
+  const read = db.getContact;
+  let reads = 0;
+  let release!: () => void;
+  let started!: () => void;
+  const waiting = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const sent = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  vi.spyOn(db, 'getContact').mockImplementation(async (...args) => {
+    const contact = await read(...args);
+    if (++reads === 2) {
+      started();
+      await waiting;
+    }
+    return contact;
+  });
+  const discovery = syncContactDiscovery(undefined, { invokeHandler: false });
+  await sent;
+  const { removeContact } = await import('../contactActions');
+  const { handleContactUpdate } = await import('./sync');
+  vi.spyOn(api, 'removeContact').mockResolvedValue(undefined);
+  await removeContact(contactId);
+  await handleContactUpdate({ type: 'removeContact', contactId });
+  release();
+  expect(await discovery).toEqual({
+    didSucceed: true,
+    didDiscover: true,
+    newMatches: [],
+  });
+  expect(await db.getContact({ id: contactId })).toMatchObject({
+    isContact: false,
+    customNickname: null,
+  });
+  expect(api.updateContactMetadata).not.toHaveBeenCalled();
+});

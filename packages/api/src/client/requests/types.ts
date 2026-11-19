@@ -1,4 +1,5 @@
 import {
+  CONTACT_REMOVAL_MIN_GROUPS_VERSION,
   AUTOMATIONS_MIN_GROUPS_VERSION,
   BUCKETS_MIN_GROUPS_VERSION,
   ROSTER_PAGES_MIN_GROUPS_VERSION,
@@ -20,6 +21,7 @@ export type ExternalDesk = 'base' | 'landscape';
 // registry check), and the request helpers refuse it once the guard is known
 // to be off (not while it is still unresolved).
 export const GUARDS = {
+  deskSupportsContactRemoval: { since: CONTACT_REMOVAL_MIN_GROUPS_VERSION },
   deskSupportsBuckets: { since: BUCKETS_MIN_GROUPS_VERSION },
   deskServesRosterPages: { since: ROSTER_PAGES_MIN_GROUPS_VERSION },
   deskSupportsAutomations: { since: AUTOMATIONS_MIN_GROUPS_VERSION },

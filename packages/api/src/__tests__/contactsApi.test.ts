@@ -4,6 +4,7 @@ import { parseChanges } from '../client/changesApi';
 import {
   type ContactsUpdate,
   contactSelfFieldPoke,
+  toContactsData,
   contactToClientProfile,
   directoryToClientProfiles,
   extractTextClaimValue,
@@ -369,4 +370,26 @@ describe('book entry with a null base contact', () => {
         .sort()
     ).toEqual(['~bot', '~other']);
   });
+});
+
+test('authoritative removed and suggested identities survive missing peer profiles', () => {
+  expect(
+    toContactsData({
+      directoryResponse: {},
+      contactsResponse: {},
+      suggestionsResponse: ['~nec'],
+      removedContactIds: ['~nec', '~bud'],
+    })
+  ).toEqual([
+    {
+      id: '~nec',
+      isContact: false,
+      isContactSuggestion: true,
+    },
+    {
+      id: '~bud',
+      isContact: false,
+      isContactSuggestion: false,
+    },
+  ]);
 });
