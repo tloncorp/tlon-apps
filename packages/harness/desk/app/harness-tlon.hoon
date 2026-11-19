@@ -34,7 +34,7 @@
 +$  storage-source  $%([%credentials creds=credentials:s3] [%hosted token=@t config=json])
 --
 %-  agent:dbug
-=|  state-2:t
+=|  state-3:t
 =*  state  -
 ^-  agent:gall
 =<

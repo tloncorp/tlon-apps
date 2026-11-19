@@ -5,8 +5,8 @@
 /=  adapter  /app/harness-tlon
 |%
 ++  fixture
-  ^-  state-2:t
-  =/  s=state-2:t  *state-2:t
+  ^-  state-3:t
+  =/  s=state-3:t  *state-3:t
   =.  owner-initialized.s  1
   =.  policy.s  [& `~nec ~ %mentions ~ ~]
   =.  lanes.s  (my ~[['source' [~nec [%dm ~nec ~] 1 ~[%web]]]])
@@ -26,7 +26,7 @@
 ::  Each read starts from a fresh bowl and a fresh load of .saved.
 ::
 ++  read
-  |=  [saved=state-2:t sid=@t job=(unit schedule:c) allowed=? admin=?]
+  |=  [saved=state-3:t sid=@t job=(unit schedule:c) allowed=? admin=?]
   =/  m  (mare ,vase)
   ^-  form:m
   ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now ~2026.9.10))
@@ -104,8 +104,8 @@
   =.  seats.group  (my ~[[~bus `seat:v9:g`[~ ~2026.9.9]]])
   group(channels (my ~[[[%chat ~lux %test] *channel:v9:g]]))
 ++  with-lanes
-  |=  [s=state-2:t actor=@p tools=(list tool-grant:h)]
-  ^-  state-2:t
+  |=  [s=state-3:t actor=@p tools=(list tool-grant:h)]
+  ^-  state-3:t
   =/  lanes=(list [@t lane:t])
     :~  ['dm' [actor [%dm actor ~] 1 tools]]
         ['room' [actor [%channel [%chat ~lux %test] ~] 1 tools]]
@@ -116,7 +116,7 @@
     routes  (~(gas by routes.s) (turn lanes |=([sid=@t *] [sid ['binding' %ready]])))
   ==
 ++  ex-ceilings
-  |=  [s=state-2:t ceiling=(unit (list tool-grant:h))]
+  |=  [s=state-3:t ceiling=(unit (list tool-grant:h))]
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  (equal !>(`hand-authority:ad`[& ceiling]) (read s 'dm' ~ & |))
