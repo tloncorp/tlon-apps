@@ -3,28 +3,25 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { triggerHaptic, useCopy, useToast } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
-import { Share } from 'react-native';
-import { isWeb } from 'tamagui';
 
 import type { ProfileActions } from '../../ui';
 import { useShareInviteLink } from '../../ui/hooks/useShareInviteLink';
 
 /**
- * What a profile's action circles and ⋯ menu can do. Your own profile shares
- * your invite link; nobody else has a link, so theirs shares the @p.
+ * What a profile's action circles and ⋯ menu can do. Only your own profile
+ * shares, from its ⋯ menu.
  */
 export function useProfileActions({
   userId,
-  isOwnProfile,
   onMessage,
 }: {
   userId: string;
-  isOwnProfile: boolean;
   onMessage: (userId: string) => void;
 }): ProfileActions & {
   isContactSuggestion: boolean;
-  /** False on your own profile until your invite link has been made. */
+  /** False until your invite link has been made. */
   canShare: boolean;
+  onShare: () => void;
   onCopyId: () => void;
   onClearSuggestion: () => void;
 } {
@@ -91,32 +88,13 @@ export function useProfileActions({
   }, [doCopy, showToast]);
 
   // Your own profile shares your invite link, counted as an invite shared.
-  // Nobody else has a link, so theirs shares the @p.
   const { share: shareInvite } = invite;
   const handleShare = useCallback(async () => {
-    if (isOwnProfile) {
-      if ((await shareInvite()) === 'copied') {
-        triggerHaptic('success');
-        showToast({ message: 'Copied!', duration: 1500 });
-      }
-      return;
+    if ((await shareInvite()) === 'copied') {
+      triggerHaptic('success');
+      showToast({ message: 'Copied!', duration: 1500 });
     }
-    try {
-      if (isWeb) {
-        if (typeof navigator.share === 'function') {
-          await navigator.share({ text: userId });
-        } else {
-          doCopy();
-          triggerHaptic('success');
-          showToast({ message: 'Copied!', duration: 1500 });
-        }
-        return;
-      }
-      await Share.share({ message: userId });
-    } catch (error) {
-      console.error('Error sharing profile:', error);
-    }
-  }, [doCopy, isOwnProfile, shareInvite, showToast, userId]);
+  }, [shareInvite, showToast]);
 
   const handleClearSuggestion = useCallback(() => {
     store.removeContactSuggestion(userId);
@@ -129,7 +107,7 @@ export function useProfileActions({
       isContactSuggestion,
       isMuted,
       canMute: !!dmChannel,
-      canShare: !isOwnProfile || !!invite.inviteLink,
+      canShare: !!invite.inviteLink,
       onMessage: handleMessage,
       onToggleContact: handleToggleContact,
       onToggleMute: handleToggleMute,
@@ -152,7 +130,6 @@ export function useProfileActions({
       isContact,
       isContactSuggestion,
       isMuted,
-      isOwnProfile,
     ]
   );
 }

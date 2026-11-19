@@ -469,7 +469,7 @@ export function ChatDetailsScreenView({
                 <ActionCircle
                   icon="ArrowRef"
                   iconSize={SHARE_ICON_SIZE}
-                  label="Share"
+                  label="Forward"
                   onPress={onForward}
                   testID="GroupQuickAction-Forward reference"
                 />
@@ -478,7 +478,7 @@ export function ChatDetailsScreenView({
                 <ActionCircle
                   icon="ArrowRef"
                   iconSize={SHARE_ICON_SIZE}
-                  label="Share"
+                  label="Forward"
                   onPress={onForwardChannel}
                   testID="ChannelQuickAction-Forward reference"
                 />
