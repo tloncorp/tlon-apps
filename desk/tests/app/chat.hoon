@@ -408,6 +408,59 @@
       =(~[verse] content.reply-essay.delta.d)
       =(~zod author.reply-essay.delta.d)
   ==
+::  our dm thread reply marks the dm read and leaves the thread read,
+::  whether we write it as ourselves or as our bot
+::
+++  test-dm-own-thread-reply-is-read
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  (do-init dap agent)
+  ;<  *  bind:m  (set-scry-gate scries)
+  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~dev, src ~zod)))
+  ;<  bw=bowl  bind:m  get-bowl
+  =/  =verse:ch  [%inline ~['hi']]
+  =/  top=@da  now.bw
+  ;<  *  bind:m  (do-poke %chat-dm-diff-2 !>((dm-message-from ~zod top verse)))
+  ;<  *  bind:m  (set-src ~dev)
+  ;<  *  bind:m  (do-poke %chat-dm-rsvp !>([~zod &]))
+  ::  our reply as ourselves
+  ;<  *  bind:m  (wait ~s1)
+  ;<  bw=bowl  bind:m  get-bowl
+  =/  =action:dm:c
+    [~zod [~zod top] %reply [~dev now.bw] ~ %add [[~[verse] ~dev now.bw] ~] ~]
+  ;<  *  bind:m  (do-poke %chat-dm-action-2 !>(action))
+  ;<  *  bind:m  (ex-dm-remark ~zod (add now.bw (div ~s1 100)) ~)
+  ::  our reply as our bot
+  ;<  *  bind:m  (wait ~s1)
+  ;<  bw=bowl  bind:m  get-bowl
+  =/  =author:c  [~dev `'bot' ~]
+  =/  =action:dm:c
+    [~zod [~zod top] %reply [~dev now.bw] ~ %add [[~[verse] author now.bw] ~] ~]
+  ;<  *  bind:m  (do-poke %chat-dm-action-2 !>(action))
+  =/  read=@da  (add now.bw (div ~s1 100))
+  ;<  *  bind:m  (ex-dm-remark ~zod read ~)
+  ::  ~zod's reply is unread
+  ;<  *  bind:m  (wait ~s1)
+  ;<  bw=bowl  bind:m  get-bowl
+  ;<  *  bind:m  (set-src ~zod)
+  =/  =diff:dm:c
+    [[~zod top] %reply [~zod now.bw] ~ %add [[~[verse] ~zod now.bw] ~] ~]
+  ;<  *  bind:m  (do-poke %chat-dm-diff-2 !>(diff))
+  (ex-dm-remark ~zod read (sy [~zod top] ~))
+::  +ex-dm-remark: our dm with .who was last read at .last-read and has
+::  .unread-threads
+::
+++  ex-dm-remark
+  |=  [who=ship last-read=@da unread-threads=(set id:c)]
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  save=vase  bind:m  get-save
+  ::  past lib discipline and lib negotiate, our state and its dms
+  =+  ;;([[%13 dms=(map ship *) *] *] q:(slot 7 save))
+  =/  =remark:c  ;;(remark:c +<:(~(got by dms) who))
+  %+  ex-equal
+    !>([last-read unread-threads]:remark)
+  !>([last-read unread-threads])
 ::  +ex-response: .caz gives a %writ-response-4 for .id that .ok accepts
 ::
 ++  ex-response
