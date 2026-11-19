@@ -75,7 +75,7 @@ export const RequestPhoneVerifyScreen = ({
       <YStack gap="$m" paddingHorizontal="$2xl">
         <OnboardingTextBlock>
           <TlonText.Text size="$body" color="$primaryText">
-            Tlon is a platform for humans. We want to make sure you&rsquo;re one
+            Sato is a platform for humans. We want to make sure you&rsquo;re one
             too. We&rsquo;ll send you a verification code to the phone number
             you enter below.
           </TlonText.Text>

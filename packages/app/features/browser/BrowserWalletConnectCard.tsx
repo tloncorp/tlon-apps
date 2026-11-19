@@ -62,14 +62,14 @@ export function BrowserWalletConnectContent({
       >
         {view.status === 'connected'
           ? 'Wallet connected'
-          : 'Give Tlonbot a wallet'}
+          : 'Give Sato a wallet'}
       </BrowserCardText>
       <BrowserCardText type="body" marginTop={A2UI_SPACE.line}>
         {view.status === 'connected'
-          ? 'Your Tlonbot can continue. Each payment needs your approval.'
+          ? 'Sato can continue. Each payment needs your approval.'
           : ended
             ? 'This connection request has ended. Ask your bot for a new one.'
-            : 'Add a payment method and Tlonbot can complete checkouts for you.'}
+            : 'Add a payment method and Sato can complete checkouts for you.'}
       </BrowserCardText>
       {!ended ? (
         <YStack marginTop={A2UI_SPACE.block} gap={A2UI_SPACE.line}>
@@ -77,7 +77,7 @@ export function BrowserWalletConnectContent({
             Nothing is charged until you approve a payment request.
           </Reassurance>
           <Reassurance>
-            Your card details stay with Stripe and are never visible in Tlon.
+            Your card details stay with Stripe and are never visible in Sato.
           </Reassurance>
         </YStack>
       ) : null}

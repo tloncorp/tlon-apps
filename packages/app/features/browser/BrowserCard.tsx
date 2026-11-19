@@ -87,7 +87,7 @@ export function BrowserCard({
         ? 'Use your vault to store your site logins securely.'
         : otp
           ? 'Send your verification code directly to the browser. It won’t be saved to your vault.'
-          : 'Your input goes directly to the browser. It’s never visible to your Tlonbot.';
+          : 'Your input goes directly to the browser. It’s never visible to Sato.';
   const label = session
     ? 'Open browser'
     : approval

@@ -49,7 +49,7 @@ test.skip('should invite ~bus to a group and test protocol mismatch', async ({
   // Verify the message about protocol mismatch is displayed
   await expect(
     busPage.getByText(
-      "Your node's version of the Tlon app doesn't match the channel host."
+      "Your node's version of the Sato app doesn't match the channel host."
     )
   ).toBeVisible();
 });

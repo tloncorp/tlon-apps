@@ -32,7 +32,7 @@ export const walletStatusCopy: Record<
   review: {
     title: 'Review payment',
     description:
-      'After you approve, your Tlonbot will complete this purchase for the amount shown.',
+      'After you approve, Sato will complete this purchase for the amount shown.',
   },
   authorizing: {
     title: 'Waiting for Link',
@@ -42,7 +42,7 @@ export const walletStatusCopy: Record<
   ready: {
     title: 'Payment approved',
     description:
-      'Your Tlonbot is continuing with the approved order and will report the result in chat.',
+      'Sato is continuing with the approved order and will report the result in chat.',
   },
   connected: {
     title: 'Link connected',
@@ -57,7 +57,7 @@ export const walletStatusCopy: Record<
   filled: {
     title: 'Checkout filled',
     description:
-      'Your Tlonbot has filled the checkout and will verify the order result. This is not an order confirmation.',
+      'Sato has filled the checkout and will verify the order result. This is not an order confirmation.',
   },
   cancelled: {
     title: 'Request cancelled',
@@ -96,13 +96,13 @@ export function paymentStatusCopy(view: WalletView) {
     return {
       title: 'Authorize payment',
       description:
-        'Authorize your Tlonbot to complete this purchase using the payment method saved on this site. Nothing is submitted until you approve.',
+        'Authorize Sato to complete this purchase using the payment method saved on this site. Nothing is submitted until you approve.',
     };
   if (view.kind === 'payment' && view.status === 'pending')
     return {
       title: 'Pending',
       description:
-        'Approve in Stripe Link. Your Tlonbot will then complete this payment and report the result in chat.',
+        'Approve in Stripe Link. Sato will then complete this payment and report the result in chat.',
     };
   return walletStatusCopy[view.status];
 }

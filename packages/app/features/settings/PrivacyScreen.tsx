@@ -199,7 +199,7 @@ export function PrivacySettingsScreen(props: Props) {
               'Phone number discovery',
               state.phoneDiscoverable,
               togglePhoneDiscoverable,
-              'If enabled, friends who already have your phone number will be able to find you on Tlon.'
+              'If enabled, friends who already have your phone number will be able to find you on Sato.'
             ),
           ]
         : []),

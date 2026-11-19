@@ -4,12 +4,12 @@ import { getDefaultBotName } from './botName';
 
 describe('getDefaultBotName', () => {
   it('derives the initial bot name from the user nickname', () => {
-    expect(getDefaultBotName('Daniel')).toBe("Daniel's Tlonbot 🌱");
+    expect(getDefaultBotName('Daniel')).toBe("Daniel's Sato 🌱");
   });
 
   it('trims the nickname and falls back when it is empty', () => {
-    expect(getDefaultBotName('  Dan  ')).toBe("Dan's Tlonbot 🌱");
-    expect(getDefaultBotName('  ')).toBe('Tlonbot');
-    expect(getDefaultBotName(null)).toBe('Tlonbot');
+    expect(getDefaultBotName('  Dan  ')).toBe("Dan's Sato 🌱");
+    expect(getDefaultBotName('  ')).toBe('Sato');
+    expect(getDefaultBotName(null)).toBe('Sato');
   });
 });

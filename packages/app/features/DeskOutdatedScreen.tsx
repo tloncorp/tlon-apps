@@ -65,7 +65,7 @@ export function DeskOutdatedScreen({
             trimmed={false}
             maxWidth={340}
           >
-            {'Tlon needs the Groups desk '}
+            {'Sato needs the Groups desk '}
             <TlonText.RawText
               testID="desk-outdated-minimum"
               color="$primaryText"

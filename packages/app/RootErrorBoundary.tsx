@@ -98,12 +98,12 @@ export class RootErrorBoundary extends Component<
                   <Text style={styles.buttonLabel}>Try again</Text>
                 </Pressable>
                 <Text style={styles.message}>
-                  If this keeps happening, close and reopen Tlon.
+                  If this keeps happening, close and reopen Sato.
                 </Text>
               </Fragment>
             ) : (
               <Text style={styles.message}>
-                Close and reopen Tlon to continue.
+                Close and reopen Sato to continue.
               </Text>
             )}
           </View>

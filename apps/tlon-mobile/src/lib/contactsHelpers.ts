@@ -74,7 +74,7 @@ ${params.invite.message}`
     }
     const result = await MailComposer.composeAsync({
       recipients: params.recipients,
-      subject: params.invite.subject ?? `You're Invited to Tlon Messenger!`,
+      subject: params.invite.subject ?? `You're Invited to Sato!`,
       body: `${params.invite.message}
 ${params.invite.link}`,
     });

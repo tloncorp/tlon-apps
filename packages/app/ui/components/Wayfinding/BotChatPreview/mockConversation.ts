@@ -40,7 +40,7 @@ export const MOCK_CONVERSATION: MockMessage[] = [
   },
   {
     sender: 'friend',
-    text: 'thanks tlonbot 🙌',
+    text: 'thanks sato 🙌',
   },
 ];
 

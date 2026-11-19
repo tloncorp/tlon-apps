@@ -344,7 +344,7 @@ export async function presentContactMatchNotification({
 
   const notificationId = await Notifications.scheduleNotificationAsync({
     content: {
-      title: `${name} is on Tlon`,
+      title: `${name} is on Sato`,
       body: 'Tap to say hi',
       data: { type: 'contactMatched', contactId },
     },
@@ -368,7 +368,7 @@ export async function presentContactsMatchedNotification({
 
   const notificationId = await Notifications.scheduleNotificationAsync({
     content: {
-      title: `${count} of your contacts are on Tlon`,
+      title: `${count} of your contacts are on Sato`,
       body: 'Tap to see who',
       data: { type: 'contactsMatched' },
     },

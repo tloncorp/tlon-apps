@@ -167,7 +167,7 @@ describe('RootErrorBoundary retryability', () => {
     );
 
     expect(screen.getByText('Try again')).toBeTruthy();
-    expect(screen.queryByText('Close and reopen Tlon to continue.')).toBeNull();
+    expect(screen.queryByText('Close and reopen Sato to continue.')).toBeNull();
   });
 
   it('offers a retry for a timeout that is still worth retrying', () => {
@@ -189,6 +189,6 @@ describe('RootErrorBoundary retryability', () => {
 
     expect(screen.getByText('Something went wrong')).toBeTruthy();
     expect(screen.queryByText('Try again')).toBeNull();
-    expect(screen.getByText('Close and reopen Tlon to continue.')).toBeTruthy();
+    expect(screen.getByText('Close and reopen Sato to continue.')).toBeTruthy();
   });
 });

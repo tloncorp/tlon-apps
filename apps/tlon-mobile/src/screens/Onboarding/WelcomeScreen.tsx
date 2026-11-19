@@ -68,7 +68,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
           height={200}
           source={require('../../../assets/images/welcome-icon.png')}
         />
-        <TlonText.Text size="$label/xl">Tlon Messenger</TlonText.Text>
+        <TlonText.Text size="$title/l">Sato</TlonText.Text>
       </View>
       <View
         paddingBottom={bottom + 16}

@@ -85,7 +85,7 @@ describe('BucketsPostCollection', () => {
         (node) => node.props.testID === 'BucketsUnsupportedNotice'
       )
     ).toHaveLength(1);
-    expect(textOf(renderer)).toContain('newer version of the Tlon backend');
+    expect(textOf(renderer)).toContain('newer version of the Sato backend');
   });
 
   it('renders nothing until the stored desk version has been read', () => {

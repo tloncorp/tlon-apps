@@ -111,7 +111,7 @@ describe('BotPromptFilesScreen', () => {
   it('says the bot keeps its own memory only when memory is shared', async () => {
     const withMemory = await render();
     expect(view(withMemory).sections[0].footer).toContain(
-      'Your bot keeps its own memory.'
+      'Sato keeps its own memory.'
     );
 
     mocks.query = {

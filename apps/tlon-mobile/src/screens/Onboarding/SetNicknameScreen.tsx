@@ -176,7 +176,7 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
         </XStack>
 
         <TlonText.Text size="$body" padding="$xl">
-          Choose the nickname you want to use on the Tlon network.
+          Choose the nickname you want to use on the Sato network.
         </TlonText.Text>
         <Controller
           control={control}

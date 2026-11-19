@@ -62,7 +62,7 @@ test('should generate an invite link and be able to redeem group/personal invite
   // Grab zod's personal invite token
   await zodPage.getByTestId('PersonalInviteNavIcon').click();
   const personalInviteSheet = zodPage.getByRole('dialog', {
-    name: 'Invite Friends to Tlon Messenger',
+    name: 'Invite Friends to Sato',
   });
   await personalInviteSheet
     .getByRole('button', { name: 'Copy invite link' })

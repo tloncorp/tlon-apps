@@ -8,11 +8,11 @@ onFlowComplete:
 
 # enter signup flow
 - tapOn: 'Join with an invite'
-- assertVisible: 'TLON  or  join.tlon.io/0v4.pca...'
+- assertVisible: 'SATO  or  join.tlon.io/0v4.pca...'
 
 # Use the onboarding short code so Hosting assigns a ship with the current
 # OpenClaw plugin and the deterministic setup coordinator.
-- tapOn: 'TLON  or  join.tlon.io/0v4.pca...'
+- tapOn: 'SATO  or  join.tlon.io/0v4.pca...'
 - inputText: TLONBOARD
 
 # select email signup
@@ -154,7 +154,7 @@ onFlowComplete:
     timeout: 30000
 
 # assert the expected signup chat titles are present
-- assertVisible: E2E Tester's Tlonbot 🌱
+- assertVisible: E2E Tester's Sato 🌱
 - assertVisible: Open hardware Digest
 - assertVisible: Getting Started
 

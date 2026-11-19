@@ -67,7 +67,7 @@ export function ManageAccountScreen(props: Props) {
     if (hostingSession?.isExpired) {
       Alert.alert(
         'Logout Required',
-        "To manage your Tlon account, you'll need to log back in again.",
+        "To manage your Sato account, you'll need to log back in again.",
         [
           {
             text: 'Cancel',

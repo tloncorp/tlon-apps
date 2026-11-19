@@ -194,7 +194,7 @@ export function NoteRow({
   const referenceSection = (
     <ActionSheet.ActionGroup accent="neutral">
       <ActionSheet.CopyAction
-        action={{ title: 'Copy Tlon reference', startIcon: 'Copy' }}
+        action={{ title: 'Copy Sato reference', startIcon: 'Copy' }}
         copyText={getNoteReferencePath(
           `notes/${note.notebookFlag}`,
           note.noteId

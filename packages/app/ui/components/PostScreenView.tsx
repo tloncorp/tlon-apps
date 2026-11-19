@@ -1013,7 +1013,7 @@ function SinglePostView({
           padding="$l"
         >
           <Text>
-            Your ship&apos;s version of the Tlon app doesn&apos;t match the
+            Your ship&apos;s version of the Sato app doesn&apos;t match the
             channel host.
           </Text>
         </View>

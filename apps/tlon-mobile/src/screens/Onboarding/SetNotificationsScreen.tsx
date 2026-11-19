@@ -63,7 +63,7 @@ export const SetNotificationsScreen = ({ navigation }: Props) => {
   return (
     <OnboardingStepLayout
       title="Notifications"
-      body="Tlon works best when you’re notified of messages. You can change this any time."
+      body="Sato works best when you’re notified of messages. You can change this any time."
       footer={<Button preset="hero" shadow label="Next" onPress={handleNext} />}
     >
       <NotificationLevelSelector

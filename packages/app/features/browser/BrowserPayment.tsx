@@ -454,7 +454,7 @@ function BrowserPaymentActions({
           ) : null}
           <Text color="$secondaryText">
             Payment details go directly to the browser. They aren’t visible to
-            your Tlonbot.
+            Sato.
           </Text>
           <Button
             fill="solid"

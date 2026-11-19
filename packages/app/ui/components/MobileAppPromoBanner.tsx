@@ -66,7 +66,7 @@ export function MobileAppPromoBanner() {
       >
         <YStack gap="$xl">
           <TlonText.Text size="$label/l" color="$primaryText">
-            Get Tlon for iOS and Android
+            Get Sato for iOS and Android
           </TlonText.Text>
           <XStack gap="$l">
             <Pressable onPress={() => handleLinkPress(TLON_APP_STORE_URL)}>
