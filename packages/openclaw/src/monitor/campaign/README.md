@@ -85,8 +85,8 @@ configured model, with all tools and direct delivery disabled. Context is bounde
 no extra conversation-history fetch is added. Without useful context, keep the
 template. Empty, excessive, failed, or timed-out output also falls back to it.
 
-The run has a 15-second timeout and an isolated temporary transcript that is
-removed afterward. The prompt asks for one concrete workflow application in at
+The run has a 15-second timeout and an in-memory transcript; its temporary
+workspace is removed afterward. The prompt asks for one concrete workflow application in at
 most 80 words, preserves the step's intent, and forbids invented work or results.
 The host appends first-tip opt-out wording. Eligibility, privacy, task state, and
 recent activity are checked again before delivery; changed task facts use the

@@ -4765,7 +4765,12 @@
   =/  cancel-watchdog=card  [%pass `wire`[%jsdog tid ~] %arvo %b %rest deadline.u.job]
   =/  session  (~(get by sessions) sid.u.job)
   ?~  session  [~[cancel-watchdog] state]
-  ?.  (authorized-call sid.u.job call-id.u.job 'run_js')  [~[cancel-watchdog] state]
+  ?.  (~(has in wait:(play:hl log.u.session)) call-id.u.job)  [~[cancel-watchdog] state]
+  ?.  =(`'run_js' (requested-tool u.session call-id.u.job))  [~[cancel-watchdog] state]
+  ::  A call that lost its grant still completes, or its conversation waits
+  ::  on it forever.
+  =?  body  !(authorized-call sid.u.job call-id.u.job 'run_js')
+    'rejected: run_js is no longer authorized'
   =^  recorded  u.session
     %^  record-all  sid.u.job  u.session
     ~[[%tool-completed call-id.u.job 'run_js' body]]
@@ -6400,7 +6405,13 @@
 ::
 ++  sync-peer-access
   ^-  (quip card _state)
-  =/  current  effective-peers
+  ::  Announce what is enforced: only the owner holds %tlon and %code.
+  =/  trust  snapshot:~(. peer-trust bowl)
+  =/  current
+    %-  ~(urn by (effective-from trust (trusted-from trust)))
+    |=  [who=@p grant=peer-grant:h]
+    ?:  (owner:~(. ownership bowl) owner.policy.trust siblings.trust who)  grant
+    (guest-grant grant)
   =/  changes  (changes:peer-access announced-access current)
   :_  state(announced-access current)
   %+  murn  changes
@@ -6604,7 +6615,12 @@
   |=  who=@p
   ^-  (unit peer-grant:h)
   ?:  (is-owner who)  `owner-grant
-  (~(get by (effective:peer-policy peers trusted-peers peer-limits)) who)
+  (bind (~(get by (effective:peer-policy peers trusted-peers peer-limits)) who) guest-grant)
+::  A grant to a ship other than the owner, which never holds %tlon or %code.
+++  guest-grant
+  |=  grant=peer-grant:h
+  ^-  peer-grant:h
+  grant(tools (guest-tools:ht tools.grant))
 ::
 ++  effective-peers
   ^-  (map @p peer-grant:h)

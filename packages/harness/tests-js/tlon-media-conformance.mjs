@@ -6,10 +6,9 @@ import { text as readText } from 'node:stream/consumers'
 import { createServer } from 'node:http'
 import { readFile } from 'node:fs/promises'
 import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { Client, cookie, base } from './lib/ship-client.mjs'
+import { rein } from './lib/ship-thread.mjs'
 
 assert.equal(process.env.MEDIA_TEST_STORAGE, '1', 'Explicitly enable temporary test-ship storage configuration with MEDIA_TEST_STORAGE=1')
 const peerUrl = process.env.PEER_URL, nest = process.env.TEST_NEST
@@ -104,20 +103,15 @@ const channelPage = () => scry(`channels/v5/${nest}/posts/newest/32/post`, true)
 function imageIn(essay) { return essay?.author === ship && essay.content?.some((verse) => verse.block?.image?.src?.startsWith(origin(storage))) }
 async function storageSet(fields) { for (const [name, value] of Object.entries(fields)) await client.pokeAgent('storage', 'storage-action', { [name]: value }) }
 async function reloadAdapter() {
-  assert.ok(process.env.TEST_PANE, 'TEST_PANE is required for reload tests')
-  const run = promisify(execFile)
-  async function dojo(value) {
-    await run('tmux', ['send-keys', '-t', process.env.TEST_PANE, '-l', '--', value])
-    await run('tmux', ['send-keys', '-t', process.env.TEST_PANE, 'Enter'])
-  }
+  assert.ok(process.env.SHIP_PIER, 'SHIP_PIER is required for reload tests')
   async function status() {
     const res = await fetch(`${base}/~/scry/harness-tlon/status.json`, { headers: { cookie }, signal: AbortSignal.timeout(15000) })
     return res.ok ? res.json() : null
   }
   suspended = true
-  await dojo('|rein %harness [%.n %harness-tlon]')
+  await rein(process.env.SHIP_PIER, 'harness', 'harness-tlon', false)
   await until('upload adapter suspended', async () => !await status())
-  await dojo('|rein %harness [%.y %harness-tlon]')
+  await rein(process.env.SHIP_PIER, 'harness', 'harness-tlon', true)
   await until('upload adapter resumed', async () => (await status())?.headConnected)
   suspended = false
 }
@@ -146,7 +140,7 @@ try {
   mode = 'uncertain'; const beforeUncertain = putCount; await send()
   await until('server failure is reported uncertain', () => results.some((r) => r.startsWith('uncertain:')))
   await sleep(2000); assert.equal(putCount, beforeUncertain + 1)
-  if (process.env.TEST_PANE) {
+  if (process.env.SHIP_PIER) {
     mode = 'reload-put'; const beforePut = putCount, resultCountPut = results.length
     await send(); await until('reload fixture holds dispatched PUT', () => heldPut)
     await reloadAdapter()
@@ -189,8 +183,7 @@ try {
   console.log(JSON.stringify({ ok: true, putCount, nativeSurfaces: 4 }))
 } finally {
   if (suspended) {
-    await promisify(execFile)('tmux', ['send-keys', '-t', process.env.TEST_PANE, '-l', '--', '|rein %harness [%.y %harness-tlon]'])
-    await promisify(execFile)('tmux', ['send-keys', '-t', process.env.TEST_PANE, 'Enter'])
+    await rein(process.env.SHIP_PIER, 'harness', 'harness-tlon', true)
     await sleep(1000)
   }
   if (originals) {

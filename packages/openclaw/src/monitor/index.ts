@@ -94,6 +94,7 @@ import {
   onboardingClientDateTimeNote,
   onboardingDmContextNote,
 } from '../onboarding-turn-context.js';
+import { ownerDmWorkspaceNote } from '../workspace-spinoff.js';
 import {
   type PendingNudge,
   clearPendingNudge,
@@ -138,6 +139,7 @@ import {
   getStewardAutomationReconciler,
   isStewardAutomationProjectionEligible,
 } from '../steward-automation-reconciliation.js';
+import { createSubagentPresence } from '../subagent-presence.js';
 import {
   type WorkspaceInstructionsRuntime,
   createWorkspaceInstructionsRuntime,
@@ -996,6 +998,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   // orphaned. This outer finally catches all of those and runs cleanup
   // unconditionally.
   let stopBrowserContinuations: (() => void) | undefined;
+  let stopSubagentPresence: (() => void) | undefined;
   let workspaceInstructions: WorkspaceInstructionsRuntime | null = null;
   let groupContext: GroupContextRuntime | null = null;
   let roleMentionResolver: RoleMentionResolver | null = null;
@@ -1009,6 +1012,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         warn: (message) => runtime.error?.(message),
       })
     );
+    const subagentPresence = createSubagentPresence({
+      events: core.events,
+      presence: computingPresence,
+      showCommentary: account.showCommentary,
+      warn: (message) => runtime.error?.(message),
+    });
+    stopSubagentPresence = subagentPresence.stop;
     const contextLensConfig = account.contextLens;
     const contextLensEnabled = isContextLensEffectivelyEnabled(
       cfg,
@@ -3572,6 +3582,15 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           bodyWithAttachments += onboardingClientDateTimeNote(clientDateTime);
         }
       }
+      if (
+        !isGroup &&
+        !params.onboardingDmTarget &&
+        currentSettings.bootstrapComplete !== false &&
+        effectiveOwnerShip &&
+        isOwner(senderShip)
+      ) {
+        bodyWithAttachments += await ownerDmWorkspaceNote(params.blobField);
+      }
 
       const body = core.channel.reply.formatAgentEnvelope({
         channel: 'Tlon',
@@ -3849,6 +3868,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
       try {
         try {
+          if (presenceConversationId) {
+            subagentPresence.noteTurnStart(runId, presenceConversationId);
+          }
           contextLenses.setStatus(lens.lensId, 'dispatching');
           contextLenses.recordLifecycle(lens.lensId, {
             dispatchStartedAt: Date.now(),
@@ -4138,6 +4160,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               }),
           });
         } finally {
+          subagentPresence.noteTurnEnd(runId);
           compactionTimeoutObserver.stop();
           stopAgentEventObservation();
           // A tool call can revive a run that deliver already stopped; a turn
@@ -6191,7 +6214,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                     defaultAgentId: () => defaultCronAgentId(cron, config),
                     config,
                     runtime: core.agent,
-                    stateDir: () => core.state.resolveStateDir(),
                     publish: (phase, lens) =>
                       publishContextLensEvent(phase, lens),
                     logger: { warn: (message) => runtime.error?.(message) },
@@ -7284,6 +7306,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     }
   } finally {
     stopBrowserContinuations?.();
+    stopSubagentPresence?.();
     // Outer finally — covers throws in the long bootstrap region
     // between slot publication (above) and the inner try (which begins
     // after the helper definitions). Anything that throws before the

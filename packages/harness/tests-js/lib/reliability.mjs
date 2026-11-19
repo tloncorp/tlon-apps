@@ -3,27 +3,27 @@ import { appendFile, mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-export function options(env = process.env) {
-  const integer = (name, fallback, min, max) => {
-    const value = Number(env[name] ?? fallback)
+export function options() {
+  const integer = (name, text, fallback, min, max) => {
+    const value = Number(text ?? fallback)
     if (!Number.isSafeInteger(value) || value < min || value > max) throw new Error(`${name} must be an integer from ${min} to ${max}`)
     return value
   }
-  if (!env.SHIP_URL || !env.SHIP_COOKIE || !env.SOAK_EXPECT_SHIP) throw new Error('Set SHIP_URL, SHIP_COOKIE and SOAK_EXPECT_SHIP (the local test ship identity).')
-  const url = new URL(env.SHIP_URL)
+  if (!process.env.SHIP_URL || !process.env.SHIP_COOKIE || !process.env.SOAK_EXPECT_SHIP) throw new Error('Set SHIP_URL, SHIP_COOKIE and SOAK_EXPECT_SHIP (the local test ship identity).')
+  const url = new URL(process.env.SHIP_URL)
   if (!['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname) || !['http:', 'https:'].includes(url.protocol)
     || url.username || url.password || url.search || url.hash || url.pathname !== '/') throw new Error('SHIP_URL must be a loopback HTTP(S) origin, without credentials or a path')
-  if (!/^~[a-z-]+$/.test(env.SOAK_EXPECT_SHIP)) throw new Error('SOAK_EXPECT_SHIP must be a ~ship identity')
-  if (env.SOAK_WORK && !['0', '1'].includes(env.SOAK_WORK)) throw new Error('SOAK_WORK must be 0 or 1')
+  if (!/^~[a-z-]+$/.test(process.env.SOAK_EXPECT_SHIP)) throw new Error('SOAK_EXPECT_SHIP must be a ~ship identity')
+  if (process.env.SOAK_WORK && !['0', '1'].includes(process.env.SOAK_WORK)) throw new Error('SOAK_WORK must be 0 or 1')
   return {
-    base: url.origin, cookiePath: env.SHIP_COOKIE, expectedShip: env.SOAK_EXPECT_SHIP,
-    work: env.SOAK_WORK === '1', durationMs: integer('SOAK_DURATION_MS', env.SOAK_WORK === '1' ? 120_000 : 60_000, 1000, 86_400_000),
-    intervalMs: integer('SOAK_INTERVAL_MS', 5000, 1000, 60_000),
-    turnIntervalMs: integer('SOAK_TURN_INTERVAL_MS', 10_000, 1000, 3_600_000),
-    workers: integer('SOAK_WORKERS', 2, 1, 4), maxRounds: integer('SOAK_MAX_ROUNDS', 256, 1, 1024),
-    deadlineMs: integer('SOAK_DEADLINE_MS', 30_000, 1000, 120_000),
-    maxReadMs: env.SOAK_MAX_READ_MS ? integer('SOAK_MAX_READ_MS', 0, 1, 120_000) : null,
-    workerPid: env.SOAK_WORKER_PID ? integer('SOAK_WORKER_PID', 0, 1, 2 ** 31 - 1) : null,
+    base: url.origin, cookiePath: process.env.SHIP_COOKIE, expectedShip: process.env.SOAK_EXPECT_SHIP,
+    work: process.env.SOAK_WORK === '1', durationMs: integer('SOAK_DURATION_MS', process.env.SOAK_DURATION_MS, process.env.SOAK_WORK === '1' ? 120_000 : 60_000, 1000, 86_400_000),
+    intervalMs: integer('SOAK_INTERVAL_MS', process.env.SOAK_INTERVAL_MS, 5000, 1000, 60_000),
+    turnIntervalMs: integer('SOAK_TURN_INTERVAL_MS', process.env.SOAK_TURN_INTERVAL_MS, 10_000, 1000, 3_600_000),
+    workers: integer('SOAK_WORKERS', process.env.SOAK_WORKERS, 2, 1, 4), maxRounds: integer('SOAK_MAX_ROUNDS', process.env.SOAK_MAX_ROUNDS, 256, 1, 1024),
+    deadlineMs: integer('SOAK_DEADLINE_MS', process.env.SOAK_DEADLINE_MS, 30_000, 1000, 120_000),
+    maxReadMs: process.env.SOAK_MAX_READ_MS ? integer('SOAK_MAX_READ_MS', process.env.SOAK_MAX_READ_MS, 0, 1, 120_000) : null,
+    workerPid: process.env.SOAK_WORKER_PID ? integer('SOAK_WORKER_PID', process.env.SOAK_WORKER_PID, 0, 1, 2 ** 31 - 1) : null,
   }
 }
 

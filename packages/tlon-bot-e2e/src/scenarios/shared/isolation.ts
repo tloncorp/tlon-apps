@@ -247,6 +247,28 @@ export async function allowDmFrom(
   await sleep(750);
 }
 
+async function openChannelAccess(
+  actors: ScenarioActors,
+  channelId: string
+): Promise<void> {
+  const rules = JSON.stringify({
+    [channelId]: { mode: 'open' },
+  });
+  await withSettingsEntry(actors, 'channelRules', rules);
+}
+
+export async function openChannelFor(
+  { ctx, driver, actors }: ScenarioRunContext,
+  channelId: string
+): Promise<void> {
+  if (driver.openChannelToMembers) {
+    const close = await driver.openChannelToMembers(ctx, channelId);
+    actors.bot.teardown(close, { label: `close channel ${channelId}` });
+    return;
+  }
+  await openChannelAccess(actors, channelId);
+}
+
 export async function monitorGroupChannels(
   actors: ScenarioActors,
   channels: readonly string[]

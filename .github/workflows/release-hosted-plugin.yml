@@ -1,0 +1,63 @@
+name: Release hosted Tlon plugin
+
+on:
+  push:
+    branches: [develop, master]
+    paths:
+      - ".github/actions/build-hosted-plugin/**"
+      - ".nvmrc"
+      - "package.json"
+      - "patches/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "tsconfig.json"
+      - "packages/api/package.json"
+      - "packages/api/src/**"
+      - "packages/api/tsconfig*.json"
+      - "packages/api/tsdown.config.ts"
+      - "packages/openclaw/index.ts"
+      - "packages/openclaw/openclaw.plugin.json"
+      - "packages/openclaw/package.json"
+      - "packages/openclaw/scripts/**"
+      - "packages/openclaw/setup-api.ts"
+      - "packages/openclaw/setup-entry.ts"
+      - "packages/openclaw/skills/**"
+      - "packages/openclaw/src/**"
+      - "packages/openclaw/tsconfig.json"
+      - "packages/tlon-skill/SKILL.md"
+      - "packages/tlon-skill/bin/**"
+      - "packages/tlon-skill/bunfig.toml"
+      - "packages/tlon-skill/operator-guide.md"
+      - "packages/tlon-skill/package.json"
+      - "packages/tlon-skill/references/**"
+      - "packages/tlon-skill/scripts/**"
+      - "packages/tlon-skill/tsconfig.json"
+      - "!**/*.test.*"
+
+permissions: {}
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch tlonbot workflow
+        env:
+          GH_TOKEN: ${{ secrets.TLONBOT_DEPLOY_TOKEN }}
+        run: |
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "::error::Set TLONBOT_DEPLOY_TOKEN with Actions write access to tloncorp/tlonbot"
+            exit 1
+          fi
+          case "$GITHUB_REF_NAME" in
+            develop)
+              gh workflow run deploy-internal.yml --repo tloncorp/tlonbot --ref develop
+              ;;
+            master)
+              gh workflow run publish-hosted-plugin.yml --repo tloncorp/tlonbot --ref develop \
+                -f ring=prod -f publish=true
+              ;;
+            *)
+              echo "::error::Unexpected release branch: $GITHUB_REF_NAME"
+              exit 1
+              ;;
+          esac

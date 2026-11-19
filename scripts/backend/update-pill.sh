@@ -380,6 +380,13 @@ then
     fatal "Failed to patch /sur/aquarium.hoon"
 fi
 
+# %spider runs from %base, which has no mark for the %spider-start pokes the
+# aqua tests send it.
+if ! patch ./urbit-git/pkg/arvo/mar/spider/start.hoon < ./spider-start.patch
+then
+    fatal "Failed to add /mar/spider/start.hoon"
+fi
+
 if ! rsync -q -avL --delete ./urbit-git/pkg/arvo/ $pier/base
 then
     fatal "Failed to sync base desk"

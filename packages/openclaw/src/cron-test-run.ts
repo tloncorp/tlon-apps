@@ -1,6 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, rm } from 'node:fs/promises';
-import path from 'node:path';
 import type {
   OpenClawConfig,
   OpenClawPluginApi,
@@ -16,6 +14,7 @@ import {
 import { BUDGET_HOLD_PREFIX } from './cron-budget-hold.js';
 import { runEmbeddedAgentWithFallbacks } from './embedded-agent-fallbacks.js';
 import {
+  clearCronJobForSession,
   isMcpDescribeToolName,
   isMcpListUpstreamsToolName,
 } from './mcp-readonly-policy.js';
@@ -259,7 +258,6 @@ export interface CronTestRunDeps {
     | 'resolveAgentTimeoutMs'
     | 'normalizeThinkingLevel'
   >;
-  stateDir: () => string;
   publish: (phase: string, lens: ContextLens) => void;
   logger: { warn: (message: string) => void };
   /** The monitor's teardown: a test still running then stops as aborted. */
@@ -402,19 +400,11 @@ export async function startCronTestRun(
     }
   };
 
-  const sessionFile = path.join(
-    deps.stateDir(),
-    'plugins',
-    'tlon',
-    'cron-test',
-    `${runId}.jsonl`
-  );
   const fallbacks = job.payload?.fallbacks;
   const thinkLevel = job.payload?.thinking
     ? deps.runtime.normalizeThinkingLevel(job.payload.thinking)
     : undefined;
   const run = async () => {
-    await mkdir(path.dirname(sessionFile), { recursive: true });
     const result = await runEmbeddedAgentWithFallbacks(
       {
         runEmbeddedAgent: (params) => deps.runtime.runEmbeddedAgent(params),
@@ -423,7 +413,6 @@ export async function startCronTestRun(
       {
         sessionId: runId,
         sessionKey,
-        sessionFile,
         agentId,
         workspaceDir: deps.runtime.resolveAgentWorkspaceDir(
           deps.config,
@@ -484,12 +473,9 @@ export async function startCronTestRun(
       if (runningTests.get(jobId)?.lensId === lensId) {
         runningTests.delete(jobId);
       }
-      // The transcript holds the prompt and the reply; say if it is left.
-      rm(sessionFile, { force: true }).catch((error: unknown) => {
-        deps.logger.warn(
-          `[tlon] Could not remove the test run transcript ${sessionFile}: ${String(error)}`
-        );
-      });
+      // A detached run fires no agent_end, which is where a scheduled run
+      // drops the job its session was running.
+      clearCronJobForSession(sessionKey, job.id);
     });
   return { type: 'started', id: jobId, lensId };
 }

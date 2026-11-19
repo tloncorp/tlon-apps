@@ -7,6 +7,8 @@ import type { SettingsRowModel } from './types';
 
 vi.mock('tamagui', () => ({
   XStack: 'XStack',
+  YStack: 'YStack',
+  View: 'View',
   getConfig: () => ({ fonts: { body: { family: 'Inter' } } }),
   useTheme: () => ({
     background: { val: '#fff' },
@@ -99,6 +101,36 @@ describe('SettingsSectionsView', () => {
         'VersionRow'
       )
     ).toEqual(['ListItem']);
+  });
+
+  it('shows an empty usage bar for known zero usage', () => {
+    const root = render({
+      key: 'storage',
+      title: 'Tlon Storage',
+      value: '0 GB of 40 GB',
+      progress: 0,
+    });
+    const bar = root.findByProps({ role: 'progressbar' });
+    expect(bar.props['aria-valuenow']).toBe(0);
+    expect(
+      root
+        .findAllByType('Text' as never)
+        .some((node) => node.children.includes('0 GB of 40 GB'))
+    ).toBe(true);
+    expect(
+      root
+        .findAllByType('Text' as never)
+        .some((node) => node.children.includes('0% used'))
+    ).toBe(true);
+  });
+
+  it('omits usage progress when only a status is available', () => {
+    const root = render({
+      key: 'storage',
+      title: 'Tlon Storage',
+      value: 'Unavailable',
+    });
+    expect(root.findAllByProps({ role: 'progressbar' })).toHaveLength(0);
   });
 
   it('puts a pressable row’s test ID on its pressable only', () => {

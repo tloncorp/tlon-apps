@@ -9,6 +9,8 @@ import { View, XStack, YStack } from 'tamagui';
 import { SortableSection } from '../../../hooks/useSortableChannelNav';
 import { getChannelTypeLabel } from '../../utils';
 import { SimpleActionSheet } from '../ActionSheet';
+import { IconMenu } from '../IconMenu';
+import type { IconMenuItem } from '../IconMenu.types';
 import { ListItem } from '../ListItem';
 import { ScreenHeader } from '../ScreenHeader';
 import { CreateChannelSheet } from './CreateChannelSheet';
@@ -121,6 +123,7 @@ export function SectionHeader({
   isEditMode,
   dragHandle,
   onOpenMenu,
+  menuItems,
 }: {
   section: SortableSection;
   index: number;
@@ -128,7 +131,14 @@ export function SectionHeader({
   isEditMode?: boolean;
   dragHandle?: React.ReactNode;
   onOpenMenu?: () => void;
+  /** A native menu for the overflow button, in place of `onOpenMenu`. */
+  menuItems?: IconMenuItem[];
 }) {
+  const menuIcon = (
+    <View paddingVertical="$xs">
+      <Icon color="$secondaryText" type="Overflow" size="$m" />
+    </View>
+  );
   return (
     <XStack
       width="100%"
@@ -144,13 +154,19 @@ export function SectionHeader({
         {isDefault ? defaultSectionTitle : section.title}
       </Text>
       <XStack gap="$s" alignItems="center">
-        {!isDefault && !isEditMode && (
+        {!isDefault && !isEditMode && menuItems ? (
+          <IconMenu
+            items={menuItems}
+            accessibilityLabel={`Actions for ${section.title}`}
+            testID="SectionMenuButton"
+          >
+            {menuIcon}
+          </IconMenu>
+        ) : !isDefault && !isEditMode ? (
           <Pressable onPress={onOpenMenu} testID="SectionMenuButton">
-            <View paddingVertical="$xs">
-              <Icon color="$secondaryText" type="Overflow" size="$m" />
-            </View>
+            {menuIcon}
           </Pressable>
-        )}
+        ) : null}
         {isEditMode && dragHandle && (
           <View paddingVertical="$xs">{dragHandle}</View>
         )}

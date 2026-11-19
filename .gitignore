@@ -35,6 +35,9 @@ packages/tlon-skill/bin/tlon
 zod*
 bud
 /scripts/backend/.cookie-*
+# checkouts made by scripts/backend/update-pill.sh
+/scripts/backend/urbit-git/
+/scripts/backend/tlon-apps-git/
 vere-*
 *.pill
 /rube/zod/

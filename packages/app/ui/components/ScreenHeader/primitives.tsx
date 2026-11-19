@@ -6,9 +6,11 @@ import {
   useIsWindowNarrow,
 } from '@tloncorp/ui';
 import { ComponentProps, PropsWithChildren, forwardRef, useState } from 'react';
+import { Platform } from 'react-native';
 import { ColorTokens, TamaguiElement, View, XStack, styled } from 'tamagui';
 
 import { ActionSheet } from '../ActionSheet';
+import { IconMenu } from '../IconMenu';
 import {
   type ScreenHeaderAction,
   type ScreenHeaderIconName,
@@ -210,12 +212,44 @@ export function ScreenHeaderItemElements({
 }
 
 function HeaderItemMenu({ action }: { action: ScreenHeaderMenuAction }) {
+  return Platform.OS === 'web' ? (
+    <WebHeaderItemMenu action={action} />
+  ) : (
+    <NativeHeaderItemMenu action={action} />
+  );
+}
+
+// On a phone the header's menu button opens a native menu. (iOS's native
+// header draws its own; this covers Android and the React header.)
+function NativeHeaderItemMenu({ action }: { action: ScreenHeaderMenuAction }) {
+  return (
+    <IconMenu
+      items={action.items.map((item) => ({
+        key: item.id,
+        title: item.label,
+        destructive: item.destructive,
+        onPress: item.onPress,
+      }))}
+      accessibilityLabel={action.label}
+      testID={action.testID ?? action.id}
+    >
+      <HeaderItemMenuTrigger
+        icon={action.icon}
+        pointerEvents="none"
+        accessibilityElementsHidden
+      />
+    </IconMenu>
+  );
+}
+
+function WebHeaderItemMenu({ action }: { action: ScreenHeaderMenuAction }) {
   const [open, setOpen] = useState(false);
   const isWindowNarrow = useIsWindowNarrow();
 
   return (
     <ActionSheet
       mode={isWindowNarrow ? 'sheet' : 'popover'}
+      compact
       modal
       open={open}
       onOpenChange={setOpen}

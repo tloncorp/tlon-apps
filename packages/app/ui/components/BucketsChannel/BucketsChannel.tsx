@@ -8,7 +8,7 @@ import {
   Text,
   useIsWindowNarrow,
 } from '@tloncorp/ui';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack, YStack, getTokenValue } from 'tamagui';
@@ -19,9 +19,14 @@ import { ActionSheet, createActionGroups } from '../ActionSheet';
 import { Badge } from '../Badge';
 import { useContactName } from '../ContactNameV2';
 import { TextInput } from '../Form';
+import { IconMenu } from '../IconMenu';
 import { ListItem } from '../ListItem';
 import { NotesActionMenu } from '../NotesChannel/NotesActions';
-import { OverflowTriggerButton } from '../OverflowMenuButton';
+import {
+  OverflowMenuLabel,
+  OverflowTriggerButton,
+} from '../OverflowMenuButton';
+import { actionGroupsToMenuItems } from '../actionMenuItems';
 import { ScreenHeader } from '../ScreenHeader';
 import { SearchBar } from '../SearchBar';
 import { BucketsDropTarget } from './BucketsDropTarget';
@@ -400,8 +405,9 @@ function BucketRow({
   const [open, setOpen] = useState(false);
   const isWindowNarrow = useIsWindowNarrow();
   const authorName = useContactName(item.author);
-  // Rename, move and preview each present another sheet, so they wait for
-  // the menu to finish dismissing.
+  // From the long-press sheet, rename, move and preview each present another
+  // sheet, so they wait for it to finish dismissing. The overflow button's
+  // native menu has already closed when it runs a command.
   const { dismissThenRun, onDismissed, presentationKey } =
     useSheetDismissalAction({
       open,
@@ -414,66 +420,91 @@ function BucketRow({
   const showOverflow =
     Platform.OS !== 'web' || isWindowNarrow || isHovered || isFocused || open;
   const uploadState = uploadStateFor(item);
-  const groups = createActionGroups(
+  const groups = useMemo(
+    () =>
+      createActionGroups(
+        [
+          'neutral',
+          {
+            title: item.kind === 'folder' ? 'Open folder' : 'Open',
+            startIcon: item.kind === 'folder' ? 'Folder' : 'EyeOpen',
+            action: () => onOpenItem(item),
+          },
+          item.kind === 'file' && {
+            title: 'Download',
+            startIcon: 'ArrowDown',
+            action: () => onDownloadItem?.(item),
+          },
+          item.kind === 'file' &&
+            onCopyItemLink && {
+              title: 'Copy link',
+              startIcon: 'Link',
+              action: () => onCopyItemLink(item),
+            },
+        ],
+        canEdit &&
+          (onRenameItem || onMoveItem) && [
+            'neutral',
+            onRenameItem && {
+              title: `Rename ${item.kind}`,
+              startIcon: 'EditList',
+              action: () => onRenameItem(item),
+            },
+            onMoveItem && {
+              title: `Move ${item.kind}`,
+              startIcon: 'Folder',
+              action: () => onMoveItem(item),
+            },
+          ],
+        canEdit &&
+          onDeleteItem && [
+            'negative',
+            {
+              title: `Delete ${item.kind}`,
+              startIcon: 'Trash',
+              action: () => onDeleteItem(item),
+            },
+          ]
+      ),
     [
-      'neutral',
-      {
-        title: item.kind === 'folder' ? 'Open folder' : 'Open',
-        startIcon: item.kind === 'folder' ? 'Folder' : 'EyeOpen',
-        action: () => onOpenItem(item),
-      },
-      item.kind === 'file' && {
-        title: 'Download',
-        startIcon: 'ArrowDown',
-        action: () => onDownloadItem?.(item),
-      },
-      item.kind === 'file' &&
-        onCopyItemLink && {
-          title: 'Copy link',
-          startIcon: 'Link',
-          action: () => onCopyItemLink(item),
-        },
-    ],
-    canEdit &&
-      (onRenameItem || onMoveItem) && [
-        'neutral',
-        onRenameItem && {
-          title: `Rename ${item.kind}`,
-          startIcon: 'EditList',
-          action: () => onRenameItem(item),
-        },
-        onMoveItem && {
-          title: `Move ${item.kind}`,
-          startIcon: 'Folder',
-          action: () => onMoveItem(item),
-        },
-      ],
-    canEdit &&
-      onDeleteItem && [
-        'negative',
-        {
-          title: `Delete ${item.kind}`,
-          startIcon: 'Trash',
-          action: () => onDeleteItem(item),
-        },
-      ]
+      item,
+      canEdit,
+      onOpenItem,
+      onDownloadItem,
+      onCopyItemLink,
+      onRenameItem,
+      onMoveItem,
+      onDeleteItem,
+    ]
   );
-  const trigger = showOverflow ? (
-    <OverflowTriggerButton
-      aria-label={`Actions for ${item.name}`}
-      onFocus={() => setIsFocused(true)}
-      onBlur={() => setIsFocused(false)}
-      onPress={(event) => {
-        event.stopPropagation();
-        if (isWindowNarrow) {
-          setOpen((currentOpen) => !currentOpen);
-        }
-      }}
-      paddingHorizontal="$xs"
-      paddingVertical="$xs"
-      testID={`BucketsItemActions-${item.id}`}
-    />
-  ) : null;
+  const menuItems = useMemo(() => actionGroupsToMenuItems(groups), [groups]);
+  // On a phone the row's overflow button opens a native menu. A long press on
+  // the row still opens the sheet below, header and all.
+  const trigger =
+    Platform.OS !== 'web' ? (
+      <IconMenu
+        items={menuItems}
+        accessibilityLabel={`Actions for ${item.name}`}
+        testID={`BucketsItemActions-${item.id}`}
+      >
+        <OverflowMenuLabel paddingHorizontal="$xs" paddingVertical="$xs" />
+      </IconMenu>
+    ) : showOverflow ? (
+      <OverflowTriggerButton
+        aria-label={`Actions for ${item.name}`}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        onPress={(event) => {
+          event.stopPropagation();
+          if (isWindowNarrow) {
+            setOpen((currentOpen) => !currentOpen);
+          }
+        }}
+        paddingHorizontal="$xs"
+        paddingVertical="$xs"
+        testID={`BucketsItemActions-${item.id}`}
+      />
+    ) : null;
 
   return (
     <Pressable
