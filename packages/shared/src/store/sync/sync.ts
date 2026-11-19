@@ -46,6 +46,7 @@ import { verifyUserInviteLink } from '../inviteActions';
 import {
   discoverContacts,
   invokeContactsMatchedHandler,
+  isContactDiscoveryRateLimited,
   partitionDiscoveryMatches,
 } from '../lanyardActions';
 import { useLureState } from '../lure';
@@ -835,6 +836,10 @@ const syncContactDiscoveryOnce = async (
     logger.trackEvent(AnalyticsEvent.DebugSystemContacts, {
       context: 'no phone attestation found, skipping discovery',
     });
+    return empty;
+  }
+  if (!isMocked && (await isContactDiscoveryRateLimited())) {
+    logger.log('syncContactDiscovery: skipping while rate limited');
     return empty;
   }
   let systemContacts: db.SystemContact[];

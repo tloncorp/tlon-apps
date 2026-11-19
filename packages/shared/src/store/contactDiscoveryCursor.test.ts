@@ -106,3 +106,20 @@ test('an answer from a previous login cannot advance the current cursor', async 
   await rejected;
   expect(await db.contactDiscoveryCursor.getValue()).toEqual(previous);
 });
+
+test('a rate limit starts the backoff and the next accepted lookup clears it', async () => {
+  await db.contactDiscoveryCursor.setValue(previous);
+  vi.mocked(api.discoverContacts).mockRejectedValueOnce(
+    new Error('rate limited')
+  );
+  await expect(discoverContacts(phones)).rejects.toThrow('rate limited');
+  expect(await db.contactDiscoveryRateLimitedAt.getValue()).not.toBeNull();
+  await discoverContacts(phones);
+  expect(await db.contactDiscoveryRateLimitedAt.getValue()).toBeNull();
+});
+
+test('other failures do not start the backoff', async () => {
+  vi.mocked(api.discoverContacts).mockRejectedValueOnce(new Error('timeout'));
+  await expect(discoverContacts(phones)).rejects.toThrow('timeout');
+  expect(await db.contactDiscoveryRateLimitedAt.getValue()).toBeNull();
+});
