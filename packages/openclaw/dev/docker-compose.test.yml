@@ -89,11 +89,8 @@ services:
         # Pin both halves of the runtime/snapshot pair so the version skew that
         # crashed serf replay (stale snapshot -> downgrade runtime to replay ->
         # serf unexpectedly shut down) cannot silently return when `latest`
-        # advances past the snapshot kelvin. rube-*-group-blob is the archive
-        # generation the tlon-web e2e suite runs; vere-v4.6 is the matching
-        # runtime. Keep this in lockstep with
-        # packages/tlon-bot-e2e/docker/docker-compose.base.yml: both harnesses
-        # run test/cases/, and case 08 scries %steward, which only exists on
+        # advances past the snapshot kelvin. The archives must not be older
+        # than rube-*-group-blob: case 08 scries %steward, which only exists on
         # piers built from a post-steward-refactor desk.
         echo "==> vere pin: vere-v4.6  pier gen: group-blob"
 
