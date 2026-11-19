@@ -184,7 +184,7 @@ export function workspacePlanFallbackText(plan: WorkspacePlan): string {
     plan.description,
     ...plan.channels.map((channel) => `- ${channel.title}: ${channel.purpose}`),
     ...(plan.task ? [`- ${plan.task.title}: ${plan.task.description}`] : []),
-    'Update Tlon to create it from this card.',
+    'Update Sato to create it from this card.',
   ];
   return lines.join('\n');
 }

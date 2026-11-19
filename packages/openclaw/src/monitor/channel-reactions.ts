@@ -94,7 +94,7 @@ export async function handleChannelReaction({
   const authorInfo = resolvedAuthor
     ? ` (by ${formatShip(resolvedAuthor)})`
     : ' (message content unavailable)';
-  const eventText = `Tlon reaction in ${nest}: ${emoji} by ${formatShip(reactor)} on post ${postId}${authorInfo}${contentSnippet}`;
+  const eventText = `Sato reaction in ${nest}: ${emoji} by ${formatShip(reactor)} on post ${postId}${authorInfo}${contentSnippet}`;
   log(`[tlon] REACTION: ${eventText}`);
 
   if (resolvedAuthor === botShip) {

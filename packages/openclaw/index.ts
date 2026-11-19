@@ -1890,8 +1890,8 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
 
 export default defineBundledChannelEntry({
   id: 'tlon',
-  name: 'Tlon',
-  description: 'Tlon/Urbit channel plugin',
+  name: 'Sato',
+  description: 'Sato/Urbit channel plugin',
   importMetaUrl: import.meta.url,
   plugin: {
     specifier: './src/channel.js',
@@ -2194,7 +2194,7 @@ export default defineBundledChannelEntry({
 
         return {
           name: 'tlon',
-          label: 'Tlon CLI',
+          label: 'Sato CLI',
           description: formatTlonToolDescription(liveAccount().ownerDefault),
           parameters: {
             type: 'object',
@@ -2202,7 +2202,7 @@ export default defineBundledChannelEntry({
               command: {
                 type: 'string',
                 description:
-                  'Tlon command arguments, for example "help", "help notes note-create", "notes list", or "buckets list". See the tlon skill for task guidance.',
+                  'Sato CLI arguments, for example "help", "help notes note-create", "notes list", or "buckets list". See the tlon skill for task guidance.',
               },
             },
             required: ['command'],

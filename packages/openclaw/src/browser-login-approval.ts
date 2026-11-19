@@ -73,9 +73,9 @@ function result(status: string, text: string, sessionId?: string) {
 
 export const browserLoginToolDefinition = {
   name: BROWSER_LOGIN_TOOL,
-  label: 'Tlon Saved Login',
+  label: 'Sato Saved Login',
   description:
-    'Use a saved website login in the current browser session. First list saved logins and prepare the form with browser_login through MCP. Supply the prepared form ID, selected record, and explicit field bindings. This tool waits for card delivery and returns its outcome. The owner approves in Tlon.',
+    'Use a saved website login in the current browser session. First list saved logins and prepare the form with browser_login through MCP. Supply the prepared form ID, selected record, and explicit field bindings. This tool waits for card delivery and returns its outcome. The owner approves in Sato.',
   parameters: z.toJSONSchema(inputSchema),
 };
 

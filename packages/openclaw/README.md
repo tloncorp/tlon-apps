@@ -1,6 +1,6 @@
-# OpenClaw Tlon Plugin
+# OpenClaw Sato Plugin
 
-Tlon/Urbit channel plugin for [OpenClaw](https://github.com/openclaw/openclaw). Enables your AI agent to communicate via Tlon DMs and group channels.
+Sato/Urbit channel plugin for [OpenClaw](https://github.com/openclaw/openclaw). Enables your AI agent to communicate via Sato DMs and group channels.
 
 ## Features
 
@@ -32,7 +32,7 @@ channels:
 ### Hosted restart catch-up
 
 `channels.tlon.restartCatchup.enabled: true` opts into running the owner agent's
-workspace `BOOT.md` after gateway startup and authenticated Tlon connection
+workspace `BOOT.md` after gateway startup and authenticated Sato connection
 readiness. Disable `hooks.internal.entries.boot-md.enabled` at the same time to
 avoid the generic startup hook racing or duplicating the checklist. tlonbot
 configures both settings together; self-hosted installs default to disabled.
@@ -43,7 +43,7 @@ three-minute readiness deadline. The checklist runs once per gateway startup,
 including in-process restarts, with cancellation on shutdown and no replay on
 reconnect, monitor reload, or plugin prewarming. It uses the public embedded agent
 runner with an in-memory transcript rather than a resumable subagent task. The
-initial implementation requires one configured Tlon account with an owner.
+initial implementation requires one configured Sato account with an owner.
 
 ### Hosted cron budget holds
 
@@ -273,7 +273,7 @@ OpenClaw remains authoritative. The mirror includes disabled task definitions, i
 
 ### Owner edits
 
-The owner can create, update, and delete the bot's cron jobs from a Tlon client. The edit travels client → owner ship → bot ship → this plugin, and the plugin is the only party that touches OpenClaw: the bot's `%steward` gives each pending command as a `dispatch` fact on `/v1/automation/harness`, the monitor subscribes to that feed alongside the lens feed, and `src/steward-automation-edit.ts` maps the command onto the gateway `CronService` (`add`, `update`, `remove`, reached through the same `getCron()` accessor the telemetry observer stashes) and answers with a `%finalize` poke under `%steward-automation-action-1`. Commands are applied one at a time in arrival order.
+The owner can create, update, and delete the bot's cron jobs from a Sato client. The edit travels client → owner ship → bot ship → this plugin, and the plugin is the only party that touches OpenClaw: the bot's `%steward` gives each pending command as a `dispatch` fact on `/v1/automation/harness`, the monitor subscribes to that feed alongside the lens feed, and `src/steward-automation-edit.ts` maps the command onto the gateway `CronService` (`add`, `update`, `remove`, reached through the same `getCron()` accessor the telemetry observer stashes) and answers with a `%finalize` poke under `%steward-automation-action-1`. Commands are applied one at a time in arrival order.
 
 A create requests a job id derived from its request id (`steward-<requestId>`) and reports back whatever id OpenClaw actually assigned. Hosts from 2026.7.1 honor the requested id, so a command replayed after the plugin applied it and died before answering is rejected as a duplicate and answered as the create that already landed; 2026.5.28 and earlier ignore the requested id and assign a UUID, so replay is not idempotent there. Every outstanding command is replayed when the plugin (re)subscribes. Outcomes are typed: `created`/`updated`/`deleted` with the job id, or `error` with `invalid` (the dispatch failed validation before reaching the service), `not-found` (no such job), or `harness-error` (the service threw; the message rides along). The subscription is gated like the projection: exactly one runnable Tlon account. A ship whose `%steward` predates the edit loop nacks the subscribe, and owner edits then fail fast on the bot as `harness-offline` while everything else keeps working. Steward never mutates its task map on an edit; the change becomes visible through the next `%project` reconciliation.
 
@@ -304,7 +304,7 @@ Reply "approve", "deny", or "block" (ID: dm-1234567890-abc)
 
 -   **approve**: Allow the interaction and add to allowlist. Original message is processed.
 -   **deny**: Reject silently. Ship can try again later. For a group invite this also declines the invite on the ship.
--   **block**: Permanently block using Tlon's native blocking, and remove the ship from `dmAllowlist`. For a group invite this also declines the invite on the ship; a block, `dmAllowlist` write, or decline the client could not submit keeps the request pending so you can retry.
+-   **block**: Permanently block using Sato's native blocking, and remove the ship from `dmAllowlist`. For a group invite this also declines the invite on the ship; a block, `dmAllowlist` write, or decline the client could not submit keeps the request pending so you can retry.
 
 ### Admin Commands
 
@@ -312,7 +312,7 @@ The owner can send these commands via DM:
 
 | Command        | Description                                |
 | -------------- | ------------------------------------------ |
-| `tlon version` | Show OpenClaw Tlon plugin version identity |
+| `tlon version` | Show OpenClaw Sato plugin version identity |
 | `tlon-version` | Legacy alias for `tlon version`            |
 | `banned`       | List all blocked ships                     |
 | `pending`      | List pending approval requests             |
@@ -331,7 +331,7 @@ Source: no git checkout
 
 ### Bot info
 
-At monitor boot (and on reconnect catch-up) the plugin publishes the bot's identity — harness, plugin version, host version — in the bot's own contact profile under `bot-info`, compare-then-poke. Tlon clients use the claimed harness to pick which of _their_ static slash-command lists to suggest; this plugin publishes no command list of its own. Wire contract and clear-to-null rollback procedure: [docs/bot-info.md](../../docs/bot-info.md).
+At monitor boot (and on reconnect catch-up) the plugin publishes the bot's identity — harness, plugin version, host version — in the bot's own contact profile under `bot-info`, compare-then-poke. Sato clients use the claimed harness to pick which of _their_ static slash-command lists to suggest; this plugin publishes no command list of its own. Wire contract and clear-to-null rollback procedure: [docs/bot-info.md](../../docs/bot-info.md).
 
 The registry in `src/commands-registry.ts` is the single source of truth for registration, and `fixtures/commands.json` is its committed token list. That fixture is a CI artifact, not a wire payload: the client's drift contract (`packages/shared/src/domain/runtimeCommandContract.test.ts`, run by the `bot-checks` job) asserts it names exactly the runtime-owned portion of the client's OpenClaw list, so adding or removing a command here fails until the client list changes too. The host-core entries the list also suggests (`/status`, `/help`, `/new`, `/model`) are audit-pinned constants outside that relation — OpenClaw owns them, not this plugin. **Removals are two-phase**: hosted bots redeploy on restart while the app releases slowly, so keep a removed command's handler alive until an app release stops suggesting it.
 

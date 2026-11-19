@@ -86,7 +86,7 @@ describe('agent task plan tool', () => {
       )
     ).toBe('~zod/home-group');
     expect(() => resolveTaskPlanGroupId('[]', validPlan.target)).toThrow(
-      'exactly one Tlon group'
+      'exactly one Sato group'
     );
     expect(() => resolveTaskPlanGroupId('not json', validPlan.target)).toThrow(
       'could not read'

@@ -1748,7 +1748,7 @@ describe('owner-by-default identity selection', () => {
       const { execute, runCommand } = makeExecutor();
       const result = await execute('blob', { command });
       expect(result.content[0].text).toBe(
-        'Blocked: agent onboarding requests cannot be posted through owner-credentialed tool calls; only the Tlon app sends them.'
+        'Blocked: agent onboarding requests cannot be posted through owner-credentialed tool calls; only the Sato app sends them.'
       );
       expect(result.details).toMatchObject({
         reason: 'reserved_onboarding_request',
@@ -1930,7 +1930,7 @@ describe('model-facing identity guidance', () => {
       for (const marker of [
         "owner's own words in the current message",
         'with one exception: the heartbeat reads activity mentions|replies|unreads|all',
-        'message, cron, delegation, shell and Tlon writes are blocked for the rest of that run',
+        'message, cron, delegation, shell and Sato writes are blocked for the rest of that run',
         'groups create-owned "Name" --admin <your ship>',
         '--self groups create-owned "Name" --admin <owner>',
       ]) {
@@ -2406,7 +2406,9 @@ describe('owner default off (staged rollout)', () => {
     const help = await execute('discovery', {
       command: '--config /owner.json --help',
     });
-    expect(help.content[0].text).toContain('Tlon tool — command discovery');
+    expect(help.content[0].text).toContain(
+      'Sato tool (tlon) — command discovery'
+    );
     expect(runCommand).not.toHaveBeenCalled();
 
     await execute('discovery', { command: '--config /owner.json help notes' });

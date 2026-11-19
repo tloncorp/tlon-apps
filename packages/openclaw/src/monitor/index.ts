@@ -559,7 +559,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     return;
   }
   if (!account.configured || !account.ship || !account.url || !account.code) {
-    throw new Error('Tlon account not configured (ship/url/code required)');
+    throw new Error('Sato account not configured (ship/url/code required)');
   }
 
   clearChannelHistoryCache();
@@ -570,7 +570,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
   const botShipName = normalizeShip(account.ship);
   if (!botShipName) {
-    throw new Error('Tlon account ship is empty after normalization');
+    throw new Error('Sato account ship is empty after normalization');
   }
   const tlonSkillVersion = await resolveTlonSkillVersion();
   const effectiveOwnerShip: string | null = account.ownerShip
@@ -3593,7 +3593,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       }
 
       const body = core.channel.reply.formatAgentEnvelope({
-        channel: 'Tlon',
+        channel: 'Sato',
         from: fromLabel,
         timestamp,
         body: bodyWithAttachments,
@@ -5448,7 +5448,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   ? ` (by ${formatShipWithNickname(cached.author)})`
                   : '';
                 const reactorDisplay = formatShipWithNickname(partnerShip);
-                const eventText = `Tlon DM reaction ${action}: ${reactEmoji} by ${reactorDisplay} on message ${messageId}${authorInfo}${contentSnippet}`;
+                const eventText = `Sato DM reaction ${action}: ${reactEmoji} by ${reactorDisplay} on message ${messageId}${authorInfo}${contentSnippet}`;
                 core.system.enqueueSystemEvent(eventText, {
                   sessionKey: route.sessionKey,
                   contextKey: `tlon:dm-reaction:${messageId}:${reactEmoji}:${partnerShip}:${action}`,

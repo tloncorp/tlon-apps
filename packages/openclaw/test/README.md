@@ -1,6 +1,6 @@
 # Integration Tests
 
-Integration tests for the Tlon plugin. These tests prompt the bot via DM and verify ship state changes directly.
+Integration tests for the Sato plugin. These tests prompt the bot via DM and verify ship state changes directly.
 
 ## Running Tests
 
@@ -64,7 +64,7 @@ Requires `.env` configured with ship credentials (see below).
 
 | Ship | Role | Port | Description |
 |------|------|------|-------------|
-| ~zod | Bot | 8080 | The bot ship running OpenClaw + Tlon plugin |
+| ~zod | Bot | 8080 | The bot ship running OpenClaw + Sato plugin |
 | ~ten | Owner | 8081 | Configured as `ownerShip`, on the DM allowlist |
 | ~mug | Third party | 8082 | Non-owner, not on allowlist (goes through approval flow) |
 

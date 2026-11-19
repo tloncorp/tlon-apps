@@ -46,14 +46,14 @@ export interface TlonCommandRegistryEntry {
 export const TLON_COMMAND_REGISTRY: TlonCommandRegistryEntry[] = [
   {
     name: 'tlon-version',
-    description: 'Show Tlon plugin version.',
+    description: 'Show Sato plugin version.',
     handler: async (_ctx, deps) => {
       return deps.renderTlonVersion();
     },
   },
   {
     name: 'tlon',
-    description: 'Tlon plugin diagnostics. Usage: /tlon version',
+    description: 'Sato plugin diagnostics. Usage: /tlon version',
     acceptsArgs: true,
     handler: async (ctx, deps) => {
       const args = (ctx.args ?? '').trim().toLowerCase();

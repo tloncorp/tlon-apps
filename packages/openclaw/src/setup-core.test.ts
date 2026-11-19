@@ -56,10 +56,10 @@ describe('tlon setup adapter validateInput', () => {
 
   it('treats an explicitly empty --url as missing instead of falling back to config', () => {
     expect(validate({ ...validInput, url: '' }, configured)).toBe(
-      'Tlon requires --url.'
+      'Sato requires --url.'
     );
     expect(validate({ ...validInput, url: '   ' }, configured)).toBe(
-      'Tlon requires --url.'
+      'Sato requires --url.'
     );
   });
 
@@ -123,7 +123,7 @@ describe('tlon setup status account scoping', () => {
           accountId: 'second',
           configured: false,
         })
-      ).toEqual(['Tlon (second): needs setup']);
+      ).toEqual(['Sato (second): needs setup']);
       expect(
         await status.resolveConfigured({
           cfg: onlyWorkConfigured,
@@ -136,7 +136,7 @@ describe('tlon setup status account scoping', () => {
           accountId: 'work',
           configured: true,
         })
-      ).toEqual(['Tlon (work): configured']);
+      ).toEqual(['Sato (work): configured']);
     }
   );
 
@@ -151,7 +151,7 @@ describe('tlon setup status account scoping', () => {
           cfg: onlyWorkConfigured,
           configured: true,
         })
-      ).toEqual(['Tlon: configured']);
+      ).toEqual(['Sato: configured']);
     }
   );
 
@@ -168,12 +168,12 @@ describe('tlon setup status account scoping', () => {
             accountId,
             configured: true,
           })
-        ).toEqual(['Tlon: configured']);
+        ).toEqual(['Sato: configured']);
       }
       expect(await status.resolveConfigured({ cfg: {} })).toBe(false);
       expect(
         await status.resolveStatusLines?.({ cfg: {}, configured: false })
-      ).toEqual(['Tlon: needs setup']);
+      ).toEqual(['Sato: needs setup']);
     }
   );
 });

@@ -21,9 +21,9 @@ type ResolvedAgentChoiceToolParams = AgentChoiceToolParams & {
 
 export const agentChoiceToolMetadata = {
   name: 'tlon_agent_choice',
-  label: 'Tlon Agent Choice',
+  label: 'Sato Agent Choice',
   description:
-    'Post one model-authored onboarding question as a Tlon A2UI choice control with a built-in free-form answer path. The tlon-agent-onboarding skill decides whether and what to ask.',
+    'Post one model-authored onboarding question as a Sato A2UI choice control with a built-in free-form answer path. The tlon-agent-onboarding skill decides whether and what to ask.',
   promptSnippet:
     '`tlon_agent_choice`: ask one concise question with selectable answers and a write-your-own option',
   promptGuidelines: [
@@ -36,7 +36,7 @@ export const agentChoiceToolParameters = {
   properties: {
     target: {
       type: 'string',
-      description: 'Current Tlon chat nest or first-run bot DM target.',
+      description: 'Current Sato chat nest or first-run bot DM target.',
     },
     question: {
       type: 'string',
