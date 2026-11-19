@@ -59,15 +59,15 @@
 		<true/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>Tlon needs camera access to take photos for sharing.</string>
+	<string>Sato needs camera access to take photos for sharing.</string>
 	<key>NSContactsUsageDescription</key>
-	<string>Tlon Messenger uses your contacts to help you find people you know who are already on the network and to invite others via SMS or email. Your contacts are never uploaded — only anonymous, hashed identifiers are sent to our server for matching.</string>
+	<string>Sato uses your contacts to help you find people you know who are already on the network and to invite others via SMS or email. Your contacts are never uploaded — only anonymous, hashed identifiers are sent to our server for matching.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Tlon needs access to your microphone to allow you to share audio.</string>
+	<string>Sato needs access to your microphone to allow you to share audio.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Tlon needs access to your photo library to save images to your library.</string>
+	<string>Sato needs access to your photo library to save images to your library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Tlon needs access to your photo library to upload photos for sharing.</string>
+	<string>Sato needs access to your photo library to upload photos for sharing.</string>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>INSendMessageIntent</string>
