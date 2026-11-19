@@ -31,8 +31,9 @@ Turns the owner drives directly, in their own DM with the bot, through ACP, a
 local poke or as a peer, get every tool whatever the conversation's permissions
 say, except JavaScript execution, which the conversation must opt into. The
 owner's ship working as a peer has no conversation settings, so it always has
-JavaScript execution. Permissions limit channels, scheduled work, subagents and
-other ships.
+JavaScript execution. Permissions limit channels, scheduled work and
+other ships. A subagent gets at most what its parent turn could use, so a
+subagent of a direct owner turn is not limited by them either.
 
 ## Capabilities
 

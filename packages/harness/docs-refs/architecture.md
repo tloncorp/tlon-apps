@@ -223,8 +223,8 @@ or as a peer) gets the live tool catalog whatever its saved grants say, except
 `%code`, which it has only when the conversation saves it. The owner's peer
 conversations are the exception: their grants are the owner catalog, `%code`
 included, rewritten on every request. Saved grants limit
-channels, scheduled work, other ships and subagents, which are also capped by
-what their parent turn could use.
+channels, scheduled work and other ships. A subagent is capped by what its
+parent turn could use, so saved grants limit it only when they limit the parent.
 
 Remote, scheduled, delegated, and rehearsal sessions have additional restrictions.
 Dispatch rechecks each function's grant, and internal self-pokes must match a

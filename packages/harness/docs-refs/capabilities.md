@@ -32,8 +32,9 @@ When the owner drives a turn directly, in their own DM with the bot, through ACP
 a local poke or as a peer, it gets every tool whatever the conversation's tool
 settings say, except Run JavaScript, which needs the `code` grant saved on the
 conversation. The owner's ship working as a peer always has Run JavaScript: a
-peer conversation has no tool settings to opt in with. Tool settings limit channels, scheduled work, subagents and other
-ships; a subagent never gets more than its parent turn could use. The settings
+peer conversation has no tool settings to opt in with. Tool settings limit channels, scheduled work and other
+ships. A subagent never gets more than its parent turn could use, so a subagent
+of a direct owner turn is not limited by the settings either. The settings
 screen and `harness/session/config` show the saved list, not the tools an owner
 turn gets; `/status` reports the tools the turn can use.
 
