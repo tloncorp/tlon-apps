@@ -254,4 +254,27 @@
   ;<  ~  bind:m  (ex-equal !>(~(key by jobs.s)) !>((silt ~[0v2])))
   ;<  ~  bind:m  (ex-equal !>((~(get by routes.s) room-sid)) !>(`['binding-room' %ready]))
   (ex-equal !>((disabled caz 'binding-room')) !>(|))
+::  The head asks whether a speaker may change a conversation's settings.
+::  In the room only the owner and the operator's local prompt may; a DM's
+::  partner may change their own DM.
+::
+++  test-only-the-owner-may-change-a-shared-channel
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now ~2026.9.10))
+  ;<  ~  bind:m  head-connected
+  ;<  ~  bind:m  (set-scry-gate (scries *stream:v10:a hands))
+  ;<  *  bind:m  (do-load adapter `!>(ready))
+  =/  may
+    |=  [sid=@t who=@p]
+    =/  m  (mare ,?)
+    ^-  form:m
+    ;<  =cage  bind:m  (got-peek /x/settings/[sid]/(scot %p who))
+    (pure:m !<(? q.cage))
+  ;<  guest=?  bind:m  (may room-sid ~bus)
+  ;<  owner=?  bind:m  (may room-sid ~nec)
+  ;<  operator=?  bind:m  (may room-sid ~zod)
+  ;<  partner=?  bind:m  (may 'dm' ~bus)
+  (ex-equal !>([guest owner operator partner]) !>([| & & &]))
 --

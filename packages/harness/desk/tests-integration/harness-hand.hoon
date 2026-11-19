@@ -1,7 +1,8 @@
 ::  Hand admission through the full head, driven by test-agent; no card is
 ::  delivered and every scry answers %.n.
 /-  h=harness, hh=harness-hand, t=harness-tlon, adapter=harness-adapter, *harness-store
-/+  *test-agent, policy=harness-defaults, hd=harness-hand, hl=harness
+/+  *test-agent, policy=harness-defaults, hd=harness-hand, hl=harness,
+    command=harness-command
 /=  head  /app/harness
 |%
 ++  t0  ~2026.10.1
@@ -213,4 +214,111 @@
   ;<  ~  bind:m  (ex-equal !>((phase-of after 'bob-waiting')) !>(%running))
   ;<  ~  bind:m  (ex-equal !>(timers.after) !>(timers.saved))
   (ex-equal !>(queue.hands.after) !>(~[(input-id:hd 'other' 'unrelated')]))
+::  An idle shared channel session and an idle DM, both bound to the Tlon
+::  hand. The hand lets only ~nec, the owner, change the channel, and ~bus
+::  change their own DM.
+::
+++  conversations
+  ^-  state-0
+  =/  saved  fixture
+  =/  idle=(list event:h)  ~[[%config-replaced defaults.saved]]
+  =.  sessions.saved  (my ~[['room' [idle 1]] ['dm' [idle 1]]])
+  =.  hands.saved  *state:hh
+  =.  bindings.hands.saved
+    %-  my
+    :~  ['room' ['tlon' 'chat/~lux/test' 'room' ~['*'] &]]
+        ['dm' ['tlon' 'dm/~bus' 'dm' ~['~bus'] &]]
+    ==
+  saved
+++  settings-scry
+  |=  =path
+  ^-  (unit vase)
+  =/  parts=(list @ta)  path
+  ?.  ?=([%gx @ %harness-tlon @ %settings @ @ %noun ~] parts)  (owner-scry path)
+  `!>(|(=('dm' i.t.t.t.t.t.parts) =('~nec' i.t.t.t.t.t.t.parts)))
+::  .who says .text in .sid; the session's log afterwards, newest first.
+::
+++  say
+  |=  [sid=@t who=@t text=@t]
+  =/  m  (mare ,(list event:h))
+  ^-  form:m
+  ;<  ~  bind:m  (load conversations settings-scry)
+  ;<  *  bind:m  (do-poke %harness-hand !>(`request:hh`[text [%observe sid text who text]]))
+  ;<  after=state-0  bind:m  get-state
+  (pure:m log:(~(got by sessions.after) sid))
+++  reply
+  |=  log=(list event:h)
+  ^-  (unit @t)
+  =/  done
+    (skim log |=(=event:h ?=(%command-completed -.event)))
+  ?~  done  ~
+  ?>  ?=(%command-completed -.i.done)
+  `body.i.done
+++  model
+  |=  log=(list event:h)
+  ^-  @t
+  model:config:(play:hl log)
+::  A refused command records only its input and the refusal: the session,
+::  memories, memory switch and work are unchanged and no model is asked.
+::
+++  ex-refused
+  |=  [sid=@t who=@t text=@t]
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  start  conversations
+  =/  before  log:(~(got by sessions.start) sid)
+  ;<  log=(list event:h)  bind:m  (say sid who text)
+  ;<  after=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>((reply log)) !>(`refused:command))
+  ;<  ~  bind:m  (ex-equal !>(?=([[%command-completed *] [%input-received *] *] log)) !>(&))
+  ;<  ~  bind:m  (ex-equal !>((slag 2 log)) !>(before))
+  ;<  ~  bind:m
+    %+  ex-equal  !>([records general disabled cursors]:knowledge.after)
+    !>([records general disabled cursors]:knowledge.start)
+  (ex-equal !>(workspace.after) !>(workspace.start))
+::
+++  test-a-guest-cannot-change-a-shared-channels-model
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (ex-refused 'room' '~bus' '/model other-model')
+  (ex-refused 'room' '~bus' '/model default')
+::
+++  test-a-guest-cannot-compact-or-change-memory-in-a-shared-channel
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (ex-refused 'room' '~bus' '/compact')
+  ;<  ~  bind:m  (ex-refused 'room' '~bus' '/memory off')
+  ;<  ~  bind:m  (ex-refused 'room' '~bus' '/memory on')
+  ;<  ~  bind:m  (ex-refused 'room' '~bus' '/remember note text')
+  ;<  ~  bind:m  (ex-refused 'room' '~bus' '/forget note')
+  (ex-refused 'room' '~bus' '/work projects')
+::
+++  test-the-owner-can-change-a-shared-channels-model
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  log=(list event:h)  bind:m  (say 'room' '~nec' '/model other-model')
+  ;<  ~  bind:m  (ex-equal !>((model log)) !>('other-model'))
+  (ex-equal !>(=((reply log) `refused:command)) !>(|))
+::
+++  test-a-dm-partner-keeps-their-commands
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  log=(list event:h)  bind:m  (say 'dm' '~bus' '/model other-model')
+  ;<  ~  bind:m  (ex-equal !>((model log)) !>('other-model'))
+  ;<  log=(list event:h)  bind:m  (say 'dm' '~bus' '/memory off')
+  (ex-equal !>(=((reply log) `refused:command)) !>(|))
+::
+++  test-a-guest-can-read-status-in-a-shared-channel
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  start  conversations
+  ;<  log=(list event:h)  bind:m  (say 'room' '~bus' '/status')
+  ;<  ~  bind:m  (ex-equal !>(=((reply log) `refused:command)) !>(|))
+  ;<  log=(list event:h)  bind:m  (say 'room' '~bus' '/model')
+  (ex-equal !>((reply log)) !>(`(cat 3 'Model: ' (model-label:command defaults.start))))
 --

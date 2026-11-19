@@ -4026,6 +4026,15 @@
   ?>  ?=(%user -.item.input.event)
   =/  parsed-command  (parse:command body.item.input.event)
   ?:  ?&  ?=(^ parsed-command)
+          (changing:command u.parsed-command)
+          !(speaker-configures sid source.input.event)
+      ==
+    =/  refusal=event:h
+      [%command-completed id.input.event name.u.parsed-command refused:command]
+    =^  recorded  session  (record-all sid session ~[event refusal])
+    =^  driven  state  (drive-put sid session)
+    [(weld recorded driven) state]
+  ?:  ?&  ?=(^ parsed-command)
           ?=(?(%memory %remember %forget) name.u.parsed-command)
       ==
     =/  view  (play:hl log.session)
@@ -4097,6 +4106,22 @@
   =^  recorded  session  (record-all sid session events)
   =^  driven  state  (drive-put sid session)
   [(weld recorded driven) state]
+::  Whether an input's speaker may change its conversation. The Tlon hand
+::  decides for its speakers, since only it knows who owns a shared
+::  conversation; local, peer and scheduled input may.
+::
+++  speaker-configures
+  |=  [sid=session-id:h source=input-source:h]
+  ^-  ?
+  ?.  &(?=(%hand -.source) =('tlon' hand.source))  &
+  ?.  .^(? %gu /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/$)  |
+  =/  found
+    %-  mole
+    |.
+    .^  ?  %gx
+      /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/settings/[sid]/[actor.source]/noun
+    ==
+  =(`& found)
 ::  A stop is out of band, not another queued request. Idle sessions need no
 ::  synthetic cancellation; their command acknowledgement is sufficient.
 ::  With .who, a hand speaker other than the owner stops only their own work.

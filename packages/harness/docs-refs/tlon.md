@@ -373,7 +373,8 @@ Mention rules still apply. `/stop` interrupts work and clears queued inputs;
 other commands wait for the turn to finish.
 
 `/work` manages tasks and documents in chat. Protected owner operations require
-an owner DM; other actors use their Workspace and document permissions.
+an owner DM; other actors use their Workspace and document permissions, except
+in a channel, where only the owner may use it.
 See [work commands](work-control.md).
 
 ### Shared memory
@@ -545,6 +546,14 @@ messaging the sender.
 - A channel conversation's saved tools are the owner's Defaults, whoever spoke
   there first; each turn's speaker ceiling narrows them. A DM's are its
   partner's grants.
+- A channel conversation's settings, thread included, are the owner's. Another
+  speaker there may still use `/help`, `/status`, `/context`, `/model` and
+  `/memory` with no argument or a query, and `/stop` for their own work, but
+  `/model` with an argument, `/compact`, `/memory on` or `off`, `/remember`,
+  `/forget` and `/work` get a reply that only the owner can change the
+  conversation's settings; they reach no model and change nothing. The head
+  asks the adapter whether a speaker may, as it asks for authority. A DM's
+  partner keeps every command, as do the operator's local prompts.
 
 Authority is decided per speaker. For each turn the head asks the adapter about
 the actor of the conversation's running input, and for scheduled work about the

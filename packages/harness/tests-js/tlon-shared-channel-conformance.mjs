@@ -69,6 +69,13 @@ async function speak(who, step) {
   return until(`${step}: ${who.ship} answered in the channel`, async () =>
     Object.entries((await scry(`channels/v5/${nest}/posts/newest/32/post`)).posts).find(([, post]) => reply(post, step))?.[0])
 }
+// A speaker sends a slash command to the bot and waits for its reply.
+async function command(who, text, expected) {
+  await poke(who, { add: { content: [{ inline: [{ ship }, ` ${text}`] }], author: who.ship, sent: Date.now(), kind: '/chat', meta: null, blob: null } })
+  return until(`${who.ship} ${text} answered`, async () => Object.values((await scry(`channels/v5/${nest}/posts/newest/32/post`)).posts)
+    .some((post) => post?.essay?.author === ship && expected.test(JSON.stringify(post.essay.content))))
+}
+const model = async (sessionId) => (await client.call('harness/session/config', { sessionId })).model
 const sessions = async () => (await client.call('harness/tlon')).sessions
 const roomSessions = async () => (await sessions()).filter((sid) => sid.startsWith(room) && !sid.startsWith(thread))
 async function oneRoom(label) {
@@ -109,6 +116,14 @@ try {
   guestTools('guest1', true); ownerTools('owner1')
   assert.ok(turns.owner1.history.includes(`${marker}-guest1`), 'the owner\'s turn sees the guest\'s message in the same transcript')
   console.log('PASS owner and guest share one channel session, each named, each with its own tools (guest first)')
+
+  // Only the owner changes the shared conversation's settings.
+  const before = await model(sid)
+  await command(guest, '/model other-model', /Only the owner can change this conversation/)
+  assert.equal(await model(sid), before, 'a guest\'s /model leaves the channel session\'s model')
+  await command(owner, '/model other-model', /Model set to: .*other-model/)
+  assert.equal(await model(sid), 'other-model', 'the owner\'s /model changes it')
+  console.log('PASS a guest cannot change the shared channel\'s model; the owner can')
 
   // Owner first: the owner's tools do not leak into the guest's turn after it.
   const parent = await speak(owner, 'owner2')

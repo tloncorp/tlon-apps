@@ -105,6 +105,9 @@
       =/  speaker  (slaw %p i.t.t.t.path)
       :^  ~  ~  %noun
       !>(`hand-authority:ad`?~(speaker [| ~] (speaker-authority:cor i.t.t.path `u.speaker)))
+        [%x %settings @ @ ~]
+      =/  speaker  (slaw %p i.t.t.t.path)
+      ``noun+!>(`?`?~(speaker | (speaker-configures:cor i.t.t.path u.speaker)))
         [%x %admin @ ~]
       ``noun+!>((owner-lane:cor i.t.t.path))
         [%x %context @ @ ~]
@@ -1231,6 +1234,19 @@
   ::  +with-tlon keeps %cron out of every other actor's. +guest-tools keeps
   ::  %tlon and %code out of it too, so only the owner holds them.
   [& ?:(|(operator (actor-owner u.who)) ~ `(guest-tools:ht (with-tlon:ht u.grants)))]
+::  Whether a speaker may change a conversation's settings: its model,
+::  history, memory or work. A DM's partner may. A shared channel is the
+::  owner's alone, decided as its tools are: only a speaker without a
+::  ceiling may.
+::
+++  speaker-configures
+  |=  [sid=@t speaker=@p]
+  ^-  ?
+  =/  lane  (~(get by lanes) sid)
+  ?~  lane  |
+  ?:  ?=(%dm -.to.u.lane)  &
+  =/  authority  (speaker-authority sid `speaker)
+  &(live.authority ?=(~ ceiling.authority))
 ::
 ++  thread-context
   |=  [sid=@t binding=@t]
