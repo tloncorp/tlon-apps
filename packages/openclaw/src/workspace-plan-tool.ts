@@ -257,12 +257,6 @@ export function createWorkspacePlanToolExecutor(deps: {
   ownerShip: () => string | undefined;
   postText: (target: string, text: string) => Promise<unknown>;
   /**
-   * The schedules of cron jobs set up with the cron tool in this turn (not
-   * workspace tasks), so a card can't schedule the same thing again on
-   * Create.
-   */
-  recentSchedules?: () => Promise<Array<{ expr: string; tz?: string }>>;
-  /**
    * Posts the answer the way replies are posted, as tlon_workspace_create
    * posts it in the workspace chat, so the two read the same. Defaults to
    * postText.
@@ -283,21 +277,6 @@ export function createWorkspacePlanToolExecutor(deps: {
       const parsed = parseWorkspacePlan(params);
       const { intro, ...plan } = parsed;
       const store = (deps.store ?? getWorkspaceProposalStore)();
-      if (plan.task && deps.recentSchedules) {
-        // The same schedule, set up moments ago: the reminder the owner asked
-        // for in this message. A different zone is a different schedule.
-        const task = plan.task;
-        const same = (await deps.recentSchedules()).some(
-          (job) =>
-            job.expr.trim() === task.schedule &&
-            (!job.tz || !task.timezone || job.tz === task.timezone)
-        );
-        if (same) {
-          throw new Error(
-            `you already scheduled "${plan.task.schedule}" with the cron tool; leave the task out of the card so Create doesn't schedule it twice`
-          );
-        }
-      }
       // A revision after Edit keeps the edited card's answer unless it brings
       // its own; an inherited answer is already in the DM.
       const input = (params ?? {}) as {
@@ -461,12 +440,6 @@ function matchLine(text: string, label: string, pattern = /(\S+)/) {
 }
 
 export const WORKSPACE_TASK_DESCRIPTION_PREFIX = 'tlon-workspace:';
-
-/**
- * How recent a cron job counts as set up in this turn: a reminder set up just
- * before the card is proposed, not one from an earlier topic.
- */
-export const WORKSPACE_RECENT_SCHEDULE_MS = 3 * 60 * 1000;
 
 const createFlights = sharedMap<string, Promise<string>>(
   'workspacePlan.createFlights'
