@@ -3564,7 +3564,7 @@ class TlonAdapter(BasePlatformAdapter):
         )
         kind = "DM " if reaction.chat_type == "dm" else ""
         note = (
-            f"Tlon {kind}reaction {action}: {emoji or '(unknown)'} by {reactor} "
+            f"Sato {kind}reaction {action}: {emoji or '(unknown)'} by {reactor} "
             f"on message {post_id} (by {author})"
         )
         if snippet:
@@ -5420,7 +5420,7 @@ def _non_owner_reaction_carveout(args: Optional[dict], config: TlonConfig) -> Op
     command = str((args or {}).get("command") or "")
     parsed, parse_error = split_tlon_command(command)
     if parse_error or len(parsed) < 3:
-        return "Blocked: non-owner Tlon sessions may only react in the current conversation."
+        return "Blocked: non-owner Sato sessions may only react in the current conversation."
     if any(
         arg in CREDENTIAL_FLAGS_WITH_VALUE
         or any(arg.startswith(f"{flag}=") for flag in CREDENTIAL_FLAGS_WITH_VALUE)
@@ -5435,7 +5435,7 @@ def _non_owner_reaction_carveout(args: Optional[dict], config: TlonConfig) -> Op
     # the right-looking target as another account.
     family, action = parsed[0].lower(), parsed[1].lower()
     if family not in {"posts", "dms"} or action not in {"react", "unreact"}:
-        return "Blocked: non-owner Tlon sessions may only react in the current conversation."
+        return "Blocked: non-owner Sato sessions may only react in the current conversation."
     if config.reaction_level not in {"minimal", "extensive"}:
         return (
             "Blocked: agent reactions are disabled "
@@ -5444,7 +5444,7 @@ def _non_owner_reaction_carveout(args: Optional[dict], config: TlonConfig) -> Op
         )
     chat_id = str(_session_env("HERMES_SESSION_CHAT_ID", "")).strip()
     if not chat_id:
-        return "Blocked: no current Tlon conversation is available for this reaction."
+        return "Blocked: no current Sato conversation is available for this reaction."
     expected_family = "dms" if _is_dm_chat_id(chat_id) else "posts"
     if family != expected_family:
         return (
@@ -5488,15 +5488,15 @@ def block_tlon_session_tool(tool_name: str, args: Optional[dict] = None, **_kwar
     owner = tlon.owner_ship
     if not owner:
         return _tool_access_block(
-            "Blocked: Tlon owner identity is not configured. Set TLON_OWNER_SHIP "
-            "before allowing tool use from Tlon chat sessions."
+            "Blocked: the owner identity is not configured. Set TLON_OWNER_SHIP "
+            "before allowing tool use from Sato chat sessions."
         )
 
     if tool == "skill_manage":
         return _tool_access_block(
-            "Blocked: Tlon chat sessions use the managed Tlon prompt and "
+            "Blocked: Sato chat sessions use the managed Sato prompt and "
             "plugin-owned tlon skill. Do not create or modify Hermes skills "
-            "while handling a Tlon message."
+            "while handling a Sato message."
         )
 
     if not _is_owner_only_tlon_tool(tool):
@@ -5505,7 +5505,7 @@ def block_tlon_session_tool(tool_name: str, args: Optional[dict] = None, **_kwar
     sender = normalize_ship(_session_env("HERMES_SESSION_USER_ID", ""))
     if not sender:
         return _tool_access_block(
-            f"Blocked: {tool} is owner-only in Tlon chats and no Tlon sender "
+            f"Blocked: {tool} is owner-only in Sato chats and no Sato sender "
             "identity is available."
         )
     if sender != owner:
@@ -5524,7 +5524,7 @@ def block_tlon_session_tool(tool_name: str, args: Optional[dict] = None, **_kwar
                 if reaction_block is None:
                     return None
                 return _tool_access_block(reaction_block)
-        return _tool_access_block(f"Blocked: {tool} is owner-only in Tlon chats.")
+        return _tool_access_block(f"Blocked: {tool} is owner-only in Sato chats.")
     return None
 
 
@@ -5594,7 +5594,7 @@ def _reaction_platform_hint(level: str) -> str:
     else:
         return ""
     return (
-        f" Reactions are enabled for Tlon in {level.upper()} mode. {guidance} "
+        f" Reactions are enabled for Sato in {level.upper()} mode. {guidance} "
         "Message ids and thread roots appear in […] markers. For channels use "
         "'posts react <nest> <post-id> \"<emoji>\"'; for one-to-one DMs use "
         "'dms react <ship> <message-id> \"<emoji>\"'. For a thread reply add "
@@ -5658,7 +5658,7 @@ def register(ctx) -> None:
         ctx.register_skill(
             "tlon",
             skill_path,
-            description="Tlon CLI command guide for the Hermes tlon tool.",
+            description="tlon CLI command guide for the Hermes tlon tool.",
         )
 
     # Registered separately from the CLI skill above, not merged into it: this
@@ -5672,8 +5672,8 @@ def register(ctx) -> None:
             "tlon-product-guide",
             product_guide_path,
             description=(
-                "Tlon Messenger product guide: what Tlon, Urbit, Tlon Messenger "
-                "and Tlonbot are, how features work, and how to walk a user "
+                "Sato product guide: what Sato, Tlon and Urbit are, how "
+                "features work, and how to walk a user "
                 "through a task in the app."
             ),
         )
@@ -5683,7 +5683,7 @@ def register(ctx) -> None:
     # skill, and pointing the model at a skill_view that cannot resolve turns
     # every product question into a failed tool call.
     product_guide_hint = (
-        "When the user asks what Tlon Messenger is or how one of its features "
+        "When the user asks what Sato is or how one of its features "
         "works, rather than asking you to do something, load "
         'skill_view("tlon-platform:tlon-product-guide") and answer from it. '
         if product_guide_path is not None
@@ -5713,7 +5713,7 @@ def register(ctx) -> None:
 
     ctx.register_platform(
         name="tlon",
-        label="Tlon",
+        label="Sato",
         adapter_factory=lambda cfg: TlonAdapter(cfg),
         check_fn=check_requirements,
         validate_config=validate_config,
@@ -5732,19 +5732,21 @@ def register(ctx) -> None:
         pii_safe=False,
         allow_update_command=True,
         platform_hint=(
-            "You are communicating through Tlon Messenger on Urbit. "
+            "You are communicating through Sato on Urbit. "
+            "The tlon tool and its skills still say Tlon where they mean Sato; "
+            "call the app Sato and use Tlon only for the company. "
             "Users are identified by ship names such as ~sampel-palnet. "
-            "You are an assistant running on the configured Tlon bot node; "
-            "that node has its own Tlon profile, contacts, groups, channels, "
+            "You are an assistant running on the configured Sato bot node; "
+            "that node has its own Sato profile, contacts, groups, channels, "
             "and settings. When the configured owner asks to change your "
-            "Tlon nickname, avatar, bio, status, or cover image, use the tlon "
+            "Sato nickname, avatar, bio, status, or cover image, use the tlon "
             "tool rather than saying an AI assistant has no profile. For "
             "avatars and covers, first upload a direct raster image URL or "
             "local image with tlon upload, then set the returned uploaded URL "
             "with contacts update-profile. If image_search is available, use "
             "it to find image URLs for user-requested avatars, covers, and "
             "other image media. Do not use SVG profile images. "
-            "For Tlon reads and administration, use the tlon tool; if unsure, "
+            "For Sato reads and administration, use the tlon tool; if unsure, "
             "load skill_view(\"tlon-platform:tlon\") or run a tlon subcommand "
             "with --help. "
             "A user's shared files or shared folder are a group's Buckets "
@@ -5753,7 +5755,7 @@ def register(ctx) -> None:
             + product_guide_hint
             + skill_files_hint
             + configured_model_note(product_guide=product_guide_path is not None)
-            + "When a user asks you to create a Tlon group for them, use "
+            + "When a user asks you to create a Sato group for them, use "
             "groups create-owned with --owner set to that user's ship so they "
             "are invited and made admin. "
             "To reply to the current conversation, just write your reply and "
@@ -5785,8 +5787,8 @@ def register(ctx) -> None:
             "rather than changing configuration yourself. "
             "Use concise plain text and basic markdown. Never use LaTeX math "
             "delimiters ($...$, $$...$$, \\(...\\), \\[...\\]) in note bodies "
-            "or message text — Tlon renders no math; write math as plain "
-            "text/Unicode or in code blocks."
+            "or message text — the Sato app renders no math; write math as "
+            "plain text/Unicode or in code blocks."
             + _reaction_platform_hint(TlonConfig.from_env().reaction_level)
         ),
     )
