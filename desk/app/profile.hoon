@@ -244,7 +244,7 @@
       ;div.tlon-badge
         ;a(href "https://tlon.io")
           ;span
-            ; Powered by Tlon
+            ; Powered by Sato
           ==
         ==
       ==

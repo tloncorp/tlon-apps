@@ -94,7 +94,7 @@
       ::TODO  could get even smarter about description, preview image, etc
       ;meta(property "og:title", content title);
       ;meta(property "twitter:title", content title);
-      ;meta(property "og:site_name", content "Tlon");
+      ;meta(property "og:site_name", content "Sato");
       ;meta(property "og:type", content "article");
       ;meta(property "og:article:author:username", content (scow %p author));
     ::
@@ -117,7 +117,7 @@
     ;div.tlon-badge
       ;a(href "https://tlon.io")
         ;span
-          ; Powered by Tlon
+          ; Powered by Sato
         ==
       ==
     ==
