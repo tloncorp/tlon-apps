@@ -25,7 +25,7 @@ test('should display channel details screen with all expected elements', async (
     timeout: 5000,
   });
 
-  // Quick actions - a channel's circles are Pin, Share and Copy link
+  // Quick actions - a channel's circles are Pin, Forward and Copy link
   await expect(page.getByTestId('ChannelQuickAction-Pin')).toBeVisible({
     timeout: 5000,
   });
