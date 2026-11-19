@@ -12,6 +12,28 @@
     {
       "layers" : [
         {
+          "image-name" : "Asset-3.svg",
+          "name" : "Asset-3",
+          "position" : {
+            "scale" : 1.6,
+            "translation-in-points" : [
+              70,
+              448.1024
+            ]
+          }
+        },
+        {
+          "image-name" : "Asset-3.svg",
+          "name" : "Asset-3",
+          "position" : {
+            "scale" : 1.6,
+            "translation-in-points" : [
+              70,
+              -448.1024
+            ]
+          }
+        },
+        {
           "fill-specializations" : [
             {
               "value" : "system-dark"
