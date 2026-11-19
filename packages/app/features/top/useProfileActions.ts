@@ -13,13 +13,15 @@ import { useShareInviteLink } from '../../ui/hooks/useShareInviteLink';
  */
 export function useProfileActions({
   userId,
+  isOwnProfile,
   onMessage,
 }: {
   userId: string;
+  isOwnProfile: boolean;
   onMessage: (userId: string) => void;
 }): ProfileActions & {
   isContactSuggestion: boolean;
-  /** False until your invite link has been made. */
+  /** False on other profiles, and on yours until your invite link is made. */
   canShare: boolean;
   onShare: () => void;
   onCopyId: () => void;
@@ -107,7 +109,7 @@ export function useProfileActions({
       isContactSuggestion,
       isMuted,
       canMute: !!dmChannel,
-      canShare: !!invite.inviteLink,
+      canShare: isOwnProfile && !!invite.inviteLink,
       onMessage: handleMessage,
       onToggleContact: handleToggleContact,
       onToggleMute: handleToggleMute,
@@ -130,6 +132,7 @@ export function useProfileActions({
       isContact,
       isContactSuggestion,
       isMuted,
+      isOwnProfile,
     ]
   );
 }

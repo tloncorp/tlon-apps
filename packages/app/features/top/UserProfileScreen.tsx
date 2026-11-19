@@ -168,6 +168,7 @@ export function UserProfileScreen({ route, navigation }: Props) {
   const isOwnProfile = currentUserId === userId;
   const actions = useProfileActions({
     userId,
+    isOwnProfile,
     onMessage: resetToDm,
   });
   // Blocking your own bot makes no sense. Unblock stays reachable so an
