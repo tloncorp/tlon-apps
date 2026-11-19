@@ -170,7 +170,7 @@ export const firstRunCopy = {
     title: 'Change models.',
     accent: 'Keep your context.',
     body: 'Switch any time without starting over. Sato keeps its history and what it knows.',
-    sectionIncluded: 'Included with Tlon',
+    sectionIncluded: 'Included with Sato',
     sectionSubscription: 'Use your subscription',
     sectionApiKey: 'Use your own API key',
     recommended: 'Recommended',
