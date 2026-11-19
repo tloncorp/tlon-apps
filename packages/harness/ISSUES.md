@@ -140,8 +140,8 @@ only they can show whether it still behaves.
 
 ### 11. Fixed: `/status` did not show an owner's real tools
 
-`/status` now counts the tools the turn can use and marks an owner turn as one that
-gets all tools, Run JS only if granted. `harness/session/config` still returns the saved list, which the settings
+`/status` now counts the tools the turn can use and marks an owner turn as one the
+saved grants do not limit, except for Run JS. `harness/session/config` still returns the saved list, which the settings
 client edits, so for an owner turn it does not show the tools the turn gets.
 
 ### 12. Fixed: a child's saved config listed tools it could not use

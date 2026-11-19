@@ -49,7 +49,7 @@ try {
   const ad = client.updates.find((u) => u.params?.update?.sessionUpdate === 'available_commands_update')
   assert.deepEqual(ad.params.update.availableCommands.map((c) => c.name), ['help', 'status', 'model', 'context', 'compact', 'memory', 'remember', 'forget', 'work', 'stop'])
   for (const [text, reply] of [
-    ['/help', /\/model default/], ['/status', /Tool grants: [1-9]\d* \(owner turn: all tools; Run JS only if granted\)\nRecorded tokens: 0 input, 0 output/],
+    ['/help', /\/model default/], ['/status', /Tool grants: [1-9]\d* \(owner turn: saved grants do not limit it, except Run JS\)\nRecorded tokens: 0 input, 0 output/],
     ['/model', /fixture-model/], ['/model vendor\/other', /Model set to:.*vendor\/other/],
     ['/context', /Context estimate: [\d.]+ tokens/], ['/compact later', /Usage: \/compact/],
     [`/memory ${tag}-project`, /No matching shared memories/], [`/remember ${tag}-project Keep it small.`, /Memory saved/],

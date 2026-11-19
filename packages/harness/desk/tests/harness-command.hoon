@@ -44,7 +44,7 @@
   =/  granted=(list tool-grant:h)  ~[%clay %web %admin]
   =/  owner  (evaluate:cmd ['status' ''] v cfg ~ ~ granted &)
   =/  other  (evaluate:cmd ['status' ''] v cfg ~ ~ ~ |)
-  =/  line  'Tool grants: 3 (owner turn: all tools; Run JS only if granted)\0a'
+  =/  line  'Tool grants: 3 (owner turn: saved grants do not limit it, except Run JS)\0a'
   ;:  weld
       (expect-eq !>(~) !>(events.owner))
       (expect !>((find-sub:ht line body.owner)))

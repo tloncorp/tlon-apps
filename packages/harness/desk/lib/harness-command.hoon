@@ -93,7 +93,7 @@
   %+  rap  3
   :~  'Model: '  (model-label config.view)
       '\0aTool grants: '  (scot %ud (lent tools))
-      ?:(owner ' (owner turn: all tools; Run JS only if granted)' '')
+      ?:(owner ' (owner turn: saved grants do not limit it, except Run JS)' '')
       '\0aRecorded tokens: '  (scot %ud prompt.total.view)  ' input, '
       (scot %ud completion.total.view)  ' output'
       ?~(err.view '' (cat 3 '\0aLast failure: ' (public-message:failure u.err.view)))
