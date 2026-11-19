@@ -1,12 +1,12 @@
 # Workspaces, channels, and public exposure
 
-The Tlon Messenger app calls groups **workspaces**. Use the `groups` commands for workspace operations and the word the user uses when replying. Explicit requests about the agent’s files or filesystem paths refer to its own workspace directory instead.
+The Sato app calls groups **workspaces**. Use the `groups` commands for workspace operations and the word the user uses when replying. Explicit requests about the agent’s files or filesystem paths refer to its own workspace directory instead.
 
 First discover the target using `groups list`, `groups info <group-flag>`, and `channels groups`. A group flag is `~host/group`; a channel nest is `chat/~host/channel`, `heap/~host/channel`, `notes/~host/channel`, or `buckets/~host/channel`. The app names these channel types differently: a **Chat** is `chat`, a **Notebook** is `notes`, a **Gallery** is `heap`, and a **Bucket** is `buckets`. A gallery post's reference is `/1/chan/heap/~host/channel/msg/<id>`. Use the returned IDs rather than deriving them from titles.
 
 `groups list` shows the groups of the identity the command runs as: the owner's where the owner is the default identity, the bot's with the bot selected (see the tool description). Do not switch identities to look at anyone else's.
 
-On accounts with a hosted Tlonbot, the app’s `New Workspace` action creates a group with the bot in it. Desktop also offers `New group`; self-hosted accounts without a hosted bot use `New group`.
+On accounts with a hosted Sato, the app’s `New Workspace` action creates a group with the bot in it. Desktop also offers `New group`; self-hosted accounts without a hosted bot use `New group`.
 
 ## Create a workspace for a user
 
@@ -18,7 +18,7 @@ On accounts with a hosted Tlonbot, the app’s `New Workspace` action creates a 
 
 When the requester is your owner and the runtime holds the owner's hosted credentials, the tool runs this as the owner with you as the admin: the owner's ship hosts the workspace, and you join automatically. Otherwise your own ship hosts it and the tool result says why. The output's `Host:` line says which; name the host when you reply. A workspace hosted by your owner appears in `groups list` for the identity that joined it (the owner's list by default where the owner is the default identity; the bot's with the bot selected). A group you host yourself, such as one for your own automation, runs as the bot with the owner as admin (the tool description says how to select the bot when it is not the default identity).
 
-Share the returned `Ref:` path in the reply so Tlon can render the group card.
+Share the returned `Ref:` path in the reply so Sato can render the group card.
 
 ## Propose a workspace in your owner's DM
 

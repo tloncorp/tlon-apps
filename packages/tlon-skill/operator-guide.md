@@ -1,6 +1,6 @@
-# Tlon CLI operator guide
+# `tlon` CLI operator guide
 
-For humans installing or configuring the standalone CLI. The OpenClaw tool already receives account credentials from its runtime; agents should use the skill and should not collect secrets in chat.
+For humans installing or configuring the standalone `tlon` CLI for Sato. The OpenClaw tool already receives account credentials from its runtime; agents should use the skill and should not collect secrets in chat.
 
 ## Installation
 
@@ -71,7 +71,7 @@ export URBIT_CODE="sampel-ticlyt-migfun-falmel"
 
 **Skill directory:** When `TLON_SHIP` and `TLON_SKILL_DIR` are set, the CLI loads `ships/<ship>.json` from that skill directory before checking cached credentials.
 
-**OpenClaw:** If configured with a Tlon channel, credentials load automatically from JSON config. The default path is `~/.openclaw/openclaw.json`; `OPENCLAW_CONFIG` can point to an explicit JSON config path and is parsed as JSON regardless of extension.
+**OpenClaw:** If configured with a Sato (`channels.tlon`) channel, credentials load automatically from JSON config. The default path is `~/.openclaw/openclaw.json`; `OPENCLAW_CONFIG` can point to an explicit JSON config path and is parsed as JSON regardless of extension.
 
 **Resolution order:** CLI credential flags → `TLON_CONFIG_FILE` → URL + cookie env → URL + ship + code env → `TLON_SHIP + TLON_SKILL_DIR` → ship-only cache lookup → OpenClaw JSON → single cached ship.
 
