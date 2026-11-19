@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1081 80.872">
+  <defs>
+    <style>
+      .cls-1{fill:#fcee21;stroke:#000000;stroke-miterlimit:10}
+      .cls-2{fill:#000000;stroke:#000000;stroke-miterlimit:10}
+    </style>
+  </defs>
+  <title>Untitled-1</title>
+  <g id="Asset_3" data-name="Asset 3">
+    <g>
+      <path d="M0.5 0.5 L1080.5 0.5 L1080.5 80.372 L0.5 80.372 Z" class="cls-1"/>
+      <g>
+        <path d="M7.766 0.5 L85.563 0.5 L125.563 80.372 L47.766 80.372 Z" class="cls-2"/>
+        <path d="M143.147 0.5 L220.944 0.5 L260.944 80.372 L183.147 80.372 Z" class="cls-2"/>
+        <path d="M278.529 0.5 L356.326 0.5 L396.326 80.372 L318.529 80.372 Z" class="cls-2"/>
+        <path d="M413.911 0.5 L491.708 0.5 L531.708 80.372 L453.911 80.372 Z" class="cls-2"/>
+        <path d="M549.292 0.5 L627.089 0.5 L667.089 80.372 L589.292 80.372 Z" class="cls-2"/>
+        <path d="M684.674 0.5 L762.471 0.5 L802.471 80.372 L724.674 80.372 Z" class="cls-2"/>
+        <path d="M820.056 0.5 L897.853 0.5 L937.853 80.372 L860.056 80.372 Z" class="cls-2"/>
+        <path d="M955.437 0.5 L1033.234 0.5 L1073.234 80.372 L995.437 80.372 Z" class="cls-2"/>
+      </g>
+    </g>
+  </g>
+</svg>
