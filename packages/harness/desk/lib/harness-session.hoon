@@ -23,7 +23,48 @@
   ::  on idle polling. The per-input attempt budget also bounds this work.
   ::
   ?:  &((lth compact-attempts.view 4) !=(~ (group:lcm lcm.view)))  `[%compact ~]
-  next
+  ::  After a compaction that followed a size rejection, send the turn again
+  ::  only if it shrank; the same request would be refused the same way.
+  ::
+  =/  rejected  (rejected-size view skills log)
+  ?~  rejected  next
+  ?:  (lth (estimate:provider view %turn skills) u.rejected)  next
+  `[%halt 'context budget: compaction did not make the request smaller']
+::  Estimate the turn request a provider rejected for size, when compaction
+::  completed after that rejection and the route has not changed since. An
+::  admission or an explicit Retry ends the search, so they always dispatch.
+::
+++  rejected-size
+  |=  [=view:h skills=(map @t skill:h) log=(list event:h)]
+  ^-  (unit @ud)
+  =/  compacted=?  |
+  =|  failed=(unit [req=@ud err=@t])
+  =/  events  log
+  |-  ^-  (unit @ud)
+  ?~  events  ~
+  ?:  ?=(?(%input-received %input-admitted %retried) -.i.events)  ~
+  ?.  &(?=(%llm-requested -.i.events) =(%turn kind.i.events))
+    %=  $
+      events  t.events
+      compacted  |(compacted ?=(%checkpoint-completed -.i.events))
+      failed  ?.(?=(%llm-failed -.i.events) failed `[req.i.events err.i.events])
+    ==
+  =/  req  req.i.events
+  ?.  &(compacted ?=(^ failed) =(req req.u.failed) (oversized:failure err.u.failed))
+    ~
+  =/  dispatched
+    =/  rest  log
+    |-  ^-  (list event:h)
+    ?~  rest  ~
+    ?:  &(?=(%llm-routed -.i.rest) =(req req.i.rest))  rest
+    $(rest t.rest)
+  ?.  ?=([[%llm-routed *] *] dispatched)  ~
+  =*  route  config.i.dispatched
+  ?.  &(=(url.route url.config.view) =(model.route model.config.view))  ~
+  =/  sent  (play:head dispatched)
+  =.  memory.sent  memory.view
+  =.  tools.config.sent  tools.config.view
+  `(estimate:provider sent %turn skills)
 ::
 ++  inspect
   |=  [=session:h skills=(map @t skill:h)]
