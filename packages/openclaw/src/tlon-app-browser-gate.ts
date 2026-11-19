@@ -14,8 +14,8 @@ import {
 } from './types.js';
 
 export const TLON_APP_BROWSER_BLOCK_REASON =
-  'Blocked by policy: the hosted browser must not open or operate the Tlon app. Use the tlon and message tools; ' +
-  'if they cannot do this, tell the user it is not supported yet and suggest the Tlon app.';
+  'Blocked by policy: the hosted browser must not open or operate the Sato app. Use the tlon and message tools; ' +
+  'if they cannot do this, tell the user it is not supported yet and suggest the Sato app.';
 
 const BROWSER_TOOL_PREFIX = 'browser_';
 

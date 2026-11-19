@@ -90,7 +90,7 @@ export function resolveBrowserHandoffAccount(config: OpenClawConfig) {
   const accountIds = listRunnableTlonAccountIds(config);
   if (accountIds.length !== 1) {
     throw new Error(
-      'Browser handoff requires exactly one enabled, configured Tlon account.'
+      'Browser handoff requires exactly one enabled, configured Sato account.'
     );
   }
   const account = resolveTlonAccount(config, accountIds[0]);

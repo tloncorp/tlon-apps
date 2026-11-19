@@ -109,7 +109,7 @@ export async function noteWorkspacePlanTap(
 
 export const workspacePlanToolMetadata = {
   name: 'tlon_workspace_plan',
-  label: 'Tlon Workspace Plan',
+  label: 'Sato Workspace Plan',
   description:
     "Propose a new workspace in your owner's DM: posts your intro sentence and a card listing the workspace, its channels and an optional recurring task, with Edit and Create buttons. " +
     'Nothing is created until the owner taps Create; then you get a note to call tlon_workspace_create. ' +
@@ -270,7 +270,7 @@ export function createWorkspacePlanToolExecutor(deps: {
 
 export const workspaceCreateToolMetadata = {
   name: 'tlon_workspace_create',
-  label: 'Tlon Workspace Create',
+  label: 'Sato Workspace Create',
   description:
     'Create the workspace from a card the owner tapped Create on: a secret workspace with exactly the listed channels and recurring task. ' +
     'Call it only when a workspace-card note tells you to. Safe to call again: it finishes a partial create and never makes a second workspace.',

@@ -23,7 +23,7 @@ import type { TlonCommandDeadlineOutput } from './tlon-command-runner.js';
 export const MIGRATION_APPLY_TIMEOUT_MS = 30 * 60_000;
 export const MIGRATION_CLEANUP_TIMEOUT_MS = 2 * 60_000;
 export const MIGRATION_SINGLE_ACCOUNT_REQUIRED =
-  'Migration requires a single-account configuration. Disable additional Tlon accounts before using /migrate.';
+  'Migration requires a single-account configuration. Disable additional Sato accounts before using /migrate.';
 export const MIGRATION_DROP_WARNING =
   'Before any write: comments, reactions, post references, and link blocks stay on the archived channel and are not copied. ' +
   'Post descriptions, covers, and attachments also stay in the archive and are not copied. ' +

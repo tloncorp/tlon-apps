@@ -223,7 +223,7 @@
                 },
                 "ownerDefault": {
                   "not": {},
-                  "description": "Not allowed per account: set ownerDefault on the root Tlon channel config."
+                  "description": "Not allowed per account: set ownerDefault on the root Sato channel config."
                 },
                 "reactionLevel": {
                   "type": "string",

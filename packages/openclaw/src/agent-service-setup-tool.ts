@@ -23,7 +23,7 @@ type ResolvedAgentServiceSetupToolParams = AgentServiceSetupToolParams & {
 
 export const agentServiceSetupToolMetadata = {
   name: 'tlon_agent_service_setup',
-  label: 'Tlon Agent Service Setup',
+  label: 'Sato Agent Service Setup',
   description:
     'Post an actionable Connected Services recovery card when the owner explicitly chooses to connect a private source required before a first-run task can be created. The client opens its existing service-management flow, preserving hosted OAuth and the native unavailable state.',
   promptSnippet:
@@ -38,7 +38,7 @@ export const agentServiceSetupToolParameters = {
   properties: {
     target: {
       type: 'string',
-      description: 'Current Tlon chat nest or first-run bot DM target.',
+      description: 'Current Sato chat nest or first-run bot DM target.',
     },
     providerId: {
       type: 'string',

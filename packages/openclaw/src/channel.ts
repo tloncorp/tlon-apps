@@ -149,8 +149,8 @@ export const tlonPlugin = createChatChannelPlugin({
     id: TLON_CHANNEL_ID,
     meta: {
       id: TLON_CHANNEL_ID,
-      label: 'Tlon',
-      selectionLabel: 'Tlon (Urbit)',
+      label: 'Sato',
+      selectionLabel: 'Sato (Urbit)',
       docsPath: '/channels/tlon',
       docsLabel: 'tlon',
       blurb: 'Decentralized messaging on Urbit',
@@ -443,7 +443,7 @@ export const tlonPlugin = createChatChannelPlugin({
           '- Update or remove every obsolete declaration so no duplicate or related job keeps the superseded cadence or behavior. If the intended scope is genuinely ambiguous, ask before changing jobs.',
           '- List the jobs again after writing and only claim completion after verifying that no matching job retains the old cadence or behavior.',
           '',
-          'Tlon gallery channels (heap/~host/name) are for collecting images, links, and media.',
+          'Sato gallery channels (heap/~host/name) are for collecting images, links, and media.',
           '- When you were triggered from a gallery post, your normal reply is posted as a comment on that post. Use action=send only when you intend to create a separate NEW top-level gallery item.',
           '- To post to a gallery: use action=send, to=heap/~host/name, message=<text or URL>',
           '- For image posts, include media=<imageUrl> with an optional message=<caption>',
@@ -452,7 +452,7 @@ export const tlonPlugin = createChatChannelPlugin({
           'media= accepts a public https URL. With TLON_HOSTING enabled, local files in the allowed media directories are uploaded automatically; otherwise upload with `tlon upload` first.',
           'Media that cannot be fetched will fail the send — never claim an image was delivered unless the tool call succeeded.',
           '',
-          'On Tlon, action=react and action=delete only work on messages in the current conversation.',
+          'On Sato, action=react and action=delete only work on messages in the current conversation.',
           '- To react, unreact, or delete in any other conversation, use the tlon tool instead: `tlon posts react|unreact|delete <channel> <postId> ...` for channels, `tlon dms react|unreact|delete ~ship <postId> ...` for DMs.',
           '- If your account runs commands as the owner by default, put --self before the command family, e.g. `--self posts react <channel> <postId> ...`, to act as this bot instead.',
           '- If a reaction or delete call returns an error, say it failed; never claim it succeeded.',
@@ -467,7 +467,7 @@ export const tlonPlugin = createChatChannelPlugin({
           if (level === 'extensive') {
             hints.push(
               '',
-              'Reactions are enabled for Tlon in EXTENSIVE mode.',
+              'Reactions are enabled for Sato in EXTENSIVE mode.',
               'Feel free to react liberally:',
               '- Acknowledge messages with appropriate emojis',
               '- Express sentiment and personality through reactions',
@@ -479,7 +479,7 @@ export const tlonPlugin = createChatChannelPlugin({
           } else {
             hints.push(
               '',
-              'Reactions are enabled for Tlon in MINIMAL mode.',
+              'Reactions are enabled for Sato in MINIMAL mode.',
               'React ONLY when truly relevant:',
               '- Acknowledge important user requests or confirmations',
               '- Express genuine sentiment (humor, appreciation) sparingly',
@@ -567,7 +567,7 @@ export const tlonPlugin = createChatChannelPlugin({
       if (!parsed) {
         return {
           ok: false,
-          error: new Error(`Invalid Tlon target. Use ${formatTargetHint()}`),
+          error: new Error(`Invalid Sato target. Use ${formatTargetHint()}`),
         };
       }
       if (parsed.kind === 'dm') {

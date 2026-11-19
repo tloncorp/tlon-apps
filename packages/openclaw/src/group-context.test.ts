@@ -61,7 +61,7 @@ describe('group context', () => {
       runtime.handleBeforePromptBuild({ sessionKey: key });
     const first = result(sessionKey)!;
     expect(first.appendSystemContext).toContain(
-      `the channel ${general} in the Tlon workspace (group) ${flag}`
+      `the channel ${general} in the Sato workspace (group) ${flag}`
     );
     expect(first.appendSystemContext).toContain(`"here" mean ${flag}`);
     expect(first.appendSystemContext).not.toContain('Book Club');

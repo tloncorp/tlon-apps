@@ -736,7 +736,7 @@ export function formatSummarizationHistoryText(
   return history
     .map((msg) =>
       formatAgentEnvelope({
-        channel: 'Tlon',
+        channel: 'Sato',
         from: msg.author,
         timestamp: msg.timestamp,
         body: msg.content,

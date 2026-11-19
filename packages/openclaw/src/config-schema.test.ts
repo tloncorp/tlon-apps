@@ -352,7 +352,7 @@ describe('ownerDefault', () => {
     });
     expect(result.success).toBe(false);
     expect(JSON.stringify(result.error?.issues)).toContain(
-      'ownerDefault is set on the root Tlon channel config, not per account'
+      'ownerDefault is set on the root Sato channel config, not per account'
     );
   });
 });

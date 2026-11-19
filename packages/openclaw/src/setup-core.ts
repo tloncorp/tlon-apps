@@ -69,7 +69,7 @@ export function createTlonSetupWizardBase(
         params.resolveStatusLines?.({ cfg, accountId, configured }) ?? [],
     },
     introNote: {
-      title: 'Tlon setup',
+      title: 'Sato setup',
       lines: [
         'You need your Urbit ship URL and login code.',
         'Example URL: https://your-ship-host',
@@ -162,8 +162,8 @@ export async function resolveTlonSetupStatusLines(
   const configured = await resolveTlonSetupConfigured(cfg, accountId);
   const label =
     accountId && accountId !== DEFAULT_ACCOUNT_ID
-      ? `Tlon (${accountId})`
-      : 'Tlon';
+      ? `Sato (${accountId})`
+      : 'Sato';
   return [`${label}: ${configured ? 'configured' : 'needs setup'}`];
 }
 
@@ -229,17 +229,17 @@ export const tlonSetupAdapter: ChannelSetupAdapter = {
     const url = (setupInput.url ?? resolved.url)?.trim();
     const code = (setupInput.code ?? resolved.code)?.trim();
     if (!ship) {
-      return 'Tlon requires --ship.';
+      return 'Sato requires --ship.';
     }
     if (!url) {
-      return 'Tlon requires --url.';
+      return 'Sato requires --url.';
     }
     const validatedUrl = validateUrbitBaseUrl(url);
     if (!validatedUrl.ok) {
       return `Invalid URL: ${validatedUrl.error}`;
     }
     if (!code) {
-      return 'Tlon requires --code.';
+      return 'Sato requires --code.';
     }
     return null;
   },

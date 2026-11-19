@@ -53,7 +53,7 @@ type AgentTaskPlanEvidence = {
 
 export const agentTaskPlanToolMetadata = {
   name: 'tlon_agent_task_plan',
-  label: 'Tlon Agent Task Plan',
+  label: 'Sato Agent Task Plan',
   description:
     'Post one automatically provisioned recurring-task plan during first-run onboarding. ' +
     "Its runs publish to the Updates notebook in the owner's Sato workspace. " +
@@ -72,7 +72,7 @@ export const agentTaskPlanToolParameters = {
     target: {
       type: 'string',
       description:
-        'Exact active Tlon conversation target from context: the owner target in a DM, or the current group chat nest in a group. Never redirect a group plan to the owner DM.',
+        'Exact active Sato conversation target from context: the owner target in a DM, or the current group chat nest in a group. Never redirect a group plan to the owner DM.',
     },
     summary: {
       type: 'string',
@@ -146,10 +146,10 @@ export function resolveTaskPlanGroupId(
   try {
     groups = JSON.parse(groupsOutput);
   } catch {
-    throw new Error('could not read the current Tlon groups');
+    throw new Error('could not read the current Sato groups');
   }
   if (!Array.isArray(groups)) {
-    throw new Error('could not read the current Tlon groups');
+    throw new Error('could not read the current Sato groups');
   }
 
   const matches = groups.filter((group) => {
@@ -168,7 +168,7 @@ export function resolveTaskPlanGroupId(
   }) as Array<{ id: string }>;
 
   if (matches.length !== 1) {
-    throw new Error('task plan target must belong to exactly one Tlon group');
+    throw new Error('task plan target must belong to exactly one Sato group');
   }
   return matches[0].id;
 }

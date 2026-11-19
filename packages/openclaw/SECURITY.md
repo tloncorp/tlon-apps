@@ -1,4 +1,4 @@
-# Security Model — OpenClaw Tlon Plugin
+# Security Model — OpenClaw Sato Plugin
 
 This document defines the security invariants that the plugin MUST enforce. All tests should verify behavior against these requirements.
 
@@ -145,7 +145,7 @@ Owner-authored registered slash commands (the plugin registry plus the core
 trio `/status`, `/help`, `/new` — `src/commands-registry.ts`) engage without a
 mention in any watched `chat/` channel, including third-party-hosted channels
 and threads, regardless of the owner-listen toggle or per-channel mute list.
-This is the escape hatch that lets the Tlon client's slash-command popup —
+This is the escape hatch that lets the Sato client's slash-command popup —
 which inserts commands bare — work in group channels.
 
 Command escape hatches are the only unmentioned owner-message paths that
@@ -300,7 +300,7 @@ session:
 
 **Plugin Behavior:**
 
-The Tlon plugin detects when multiple users share a DM session and:
+The Sato plugin detects when multiple users share a DM session and:
 
 1. Logs a warning to the console
 2. Sends a one-time DM to `ownerShip` (if configured) alerting them to the issue
@@ -417,7 +417,7 @@ try {
 - Only blocks when role is explicitly `"user"` (a non-owner sender, DM or group)
 - Owner sessions (`"owner"`) and internal sessions (`undefined` role) are allowed
 - Returns `{ block: true, blockReason }`. OpenClaw core (verified on 2026.5.28 through 2026.8.2) hands `blockReason` to the model verbatim as the tool result, so the reason states the owner-only policy and tells the model what to say; the earlier `The X tool is not available.` led bots to invent reloads and outages (TLON-6363)
-- The same hook blocks, for every role, an `mcp__call` that points a hosted-browser tool at a Tlon web-app route (policy in `src/tlon-app-browser-gate.ts`); public ship pages such as `/expose`, `/notes/pub`, `/profile`, and `/lure` stay reachable
+- The same hook blocks, for every role, an `mcp__call` that points a hosted-browser tool at a Sato web-app route (policy in `src/tlon-app-browser-gate.ts`); public ship pages such as `/expose`, `/notes/pub`, `/profile`, and `/lure` stay reachable
 
 **Critical Invariant:**
 
