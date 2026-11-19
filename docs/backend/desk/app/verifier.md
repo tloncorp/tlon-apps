@@ -46,6 +46,8 @@ The rate-limiting also prevents the service from sending large amount of texts m
 
 For bulk requests, which will eventually be used for discovery (where the "bulk" is made up of entries in the user's phone contact book, or their Twitter "following" list, or similar), we use a dedicated rate-limiting scheme. User contact books may contain many entries, and legitimate usage would want to check all of them. Abusive usage would want to repeatedly check a large amount of numbers also (to brute-force a desired `@p`<->phone nr pair). The difference between legitimate and abusive usage is the rate at which the queried set of identifiers changes. We use that property to detect and limit brute-forcing by implementing "differential contact discovery" as described in [Hagen et al. (2022)](https://eprint.iacr.org/2022/875.pdf).
 
+A `%whose-bulk` request is charged only for its additions when it proves, with the salt from the previous accepted response, that it continues from the set the service last accepted for that ship. Otherwise the whole set is charged. The client agent keeps that cursor (salt and set) per service, and updates it from every accepted `%whose-bulk` result, whichever client asked. A client sends the whole set as `%whose-set` in a `%lanyard-query-2` poke, and the client agent turns it into a `%whose-bulk` against its cursor, so every client of the ship continues from the same proof.
+
 ## logging
 
 The service agent logs into Posthog for key points in the registration flow and all unexpected branches, failure or otherwise. In addition to showing us unexpected errors, this lets us keep an eye out for degenerate cases or abuse attempts.

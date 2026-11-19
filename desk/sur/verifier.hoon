@@ -223,9 +223,12 @@
         nonce=(unit @)
         query=question
     ==
+  ::  $question: %whose-set asks about a whole set of identifiers, and lanyard
+  ::  turns it into a %whose-bulk against the last set the service accepted
+  ::
   +$  question
-    $%  [%valid-jam jam=@uw]  ::  jammed $signed
-        query:user-query
+    $%  [%whose-set ids=(set identifier)]
+        question:v1
     ==
   +$  result
     $~  [%fail 'bunt']
@@ -240,5 +243,18 @@
         [%config [host=@p id=identifier] =config]
         [%full all=(map [host=@p id=identifier] [=config why=@t =status])]
     ==
+  ::
+  ++  v1
+    |%
+    +$  query
+      $:  host=(unit @p)
+          nonce=(unit @)
+          query=question
+      ==
+    +$  question
+      $%  [%valid-jam jam=@uw]  ::  jammed $signed
+          query:user-query
+      ==
+    --
   --
 --
