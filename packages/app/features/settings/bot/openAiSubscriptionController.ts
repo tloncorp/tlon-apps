@@ -75,6 +75,7 @@ export class OpenAIAuthController {
   private disposed = false;
   private completionHandled = false;
   private generation = 0;
+  private pollingGeneration: number | null = null;
 
   constructor(private deps: OpenAIAuthControllerDeps) {}
 
@@ -160,6 +161,7 @@ export class OpenAIAuthController {
     if (this.disposed) return;
     this.paused = false;
     if (this.state.phase === 'active') {
+      this.cancelTimer();
       await this.pollNow();
     }
   }
@@ -212,7 +214,11 @@ export class OpenAIAuthController {
       }
       await this.deps.onComplete(models, status);
       if (!this.canPublish(generation)) return;
-      this.reset();
+      if (this.deps.provider === 'openai') {
+        this.transition({ type: 'connected', flow });
+      } else {
+        this.reset();
+      }
     } catch (error) {
       if (!this.canPublish(generation)) return;
       this.transition({
@@ -243,6 +249,8 @@ export class OpenAIAuthController {
       return;
     }
     const generation = this.generation;
+    if (this.pollingGeneration === generation) return;
+    this.pollingGeneration = generation;
     const flow = this.state.flow;
 
     try {
@@ -261,6 +269,10 @@ export class OpenAIAuthController {
         this.transition({ type: 'expired', now: this.deps.now() });
       } else {
         this.schedulePoll();
+      }
+    } finally {
+      if (this.pollingGeneration === generation) {
+        this.pollingGeneration = null;
       }
     }
   }

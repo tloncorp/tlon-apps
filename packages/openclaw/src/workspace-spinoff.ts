@@ -13,8 +13,12 @@ const PROPOSE_NOTE =
   'Otherwise propose one with tlon_workspace_plan: a ' +
   'short, specific title from the conversation, never a generic one, and the channels ' +
   'and recurring task the topic needs. Do not create it yourself; the owner taps Create. ' +
-  'A proposal never replaces a requested action: set up a requested reminder, digest or ' +
-  'schedule change with the cron tool in this turn, before proposing. ' +
+  'The card never replaces your answer: pass your full answer to their message as `answer`; ' +
+  'the tool posts it after the card, and it opens the workspace chat on Create. Nor does the ' +
+  'card replace a requested action: set up a requested reminder, digest or schedule change with ' +
+  "the cron tool in this turn, before proposing, leave it out of the card's task, and pass its " +
+  'confirmation (day, time, zone and UTC offset) as `confirmation`. ' +
+  'Your own reply after the card is not delivered, so return NO_REPLY. ' +
   'Small talk and one-off questions get no card, and neither does the owner introducing ' +
   'themselves or listing the kinds of help they want: that is not a topic yet.]';
 

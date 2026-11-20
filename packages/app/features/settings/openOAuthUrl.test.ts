@@ -88,6 +88,20 @@ describe('openOAuthUrl', () => {
     expect(mocks.openURL).not.toHaveBeenCalled();
   });
 
+  it.each(['ios', 'android'])(
+    'waits for the device-code browser to close on %s without requiring a redirect',
+    async (platform) => {
+      mocks.platform.OS = platform;
+      mocks.openAuthSessionAsync.mockResolvedValue({ type: 'cancel' });
+
+      await expect(openOAuthUrl(AUTH_URL, null)).resolves.toEqual({
+        type: 'returned',
+      });
+      expect(mocks.openAuthSessionAsync).toHaveBeenCalledWith(AUTH_URL, null);
+      expect(mocks.openURL).not.toHaveBeenCalled();
+    }
+  );
+
   it('preserves the existing failure on web', async () => {
     const linkingError = new Error('Unable to open URL');
     mocks.platform.OS = 'web';
