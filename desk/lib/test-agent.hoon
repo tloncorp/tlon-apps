@@ -313,17 +313,6 @@
   =/  m  (mare ,cage)
   ^-  form:m
   |=  s=state
-  =/  peek=(unit (unit cage))
-    (~(on-peek agent.s bowl.s) path)
-  ?.  ?=(^ peek)  |+~['invalid scry path' (spat path)]
-  ?.  ?=(^ u.peek)  |+~['unexpected empty result at scry path' (spat path)]
-  &+[u.u.peek s]
-::
-++  got-peek-mocked  ::  +got-peek for an +on-peek that itself scries
-  |=  =path
-  =/  m  (mare ,cage)
-  ^-  form:m
-  |=  s=state
   =/  res=toon
     (mock [. !=((~(on-peek agent.s bowl.s) path))] (mock-scry s))
   ?-    -.res

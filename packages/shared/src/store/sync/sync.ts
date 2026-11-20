@@ -839,17 +839,15 @@ async function getAddressBookNames(contactIds: string[]) {
 // someone outranks their address-book name.
 async function recordDiscoveredMatches(
   generation: number,
-  matches: [string, string][]
+  matches: [string, string][],
+  bookNames: Map<string, string>
 ): Promise<[string, string][]> {
   const ids = [...new Set(matches.map(([, id]) => id))];
   if (ids.length === 0) return [];
   const known = new Set(await api.getDiscoveryKnownContacts());
   const newMatches = matches.filter(([, id]) => !known.has(id));
   const newIds = ids.filter((id) => !known.has(id));
-  const [bookNames, existing] = await Promise.all([
-    getAddressBookNames(newIds),
-    db.getContactsBatch({ contactIds: newIds }),
-  ]);
+  const existing = await db.getContactsBatch({ contactIds: newIds });
   const customNames = new Map(
     existing.map((contact) => [contact.id, contact.customNickname])
   );
@@ -969,9 +967,15 @@ const syncContactDiscoveryOnce = async (
       'syncContactDiscovery: inserted contact discovery matches',
       matches
     );
+    // Read after linking: cards are looked up by the ship they matched.
+    const bookNames = await getAddressBookNames(matches.map(([, id]) => id));
 
     if (api.getDeskSupportsContactDiscoveryState() === true && !isMocked) {
-      addedMatches = await recordDiscoveredMatches(generation, matches);
+      addedMatches = await recordDiscoveredMatches(
+        generation,
+        matches,
+        bookNames
+      );
     } else {
       const { newMatches } = await partitionDiscoveryMatches(matches, {
         isMocked,
@@ -1007,11 +1011,9 @@ const syncContactDiscoveryOnce = async (
     }
 
     // Failed additions must stay skeletal so rediscovery can retry them.
-    const namesByContactId = await getAddressBookNames(
-      matches.map(([, id]) => id).filter((id) => !failedNewIds.has(id))
-    );
     const metadataResults = await Promise.all(
-      Array.from(namesByContactId, async ([contactId, nickname]) => {
+      Array.from(bookNames, async ([contactId, nickname]) => {
+        if (failedNewIds.has(contactId)) return true;
         const contact = await db.getContact({ id: contactId });
         // Existing names may be user-chosen; discovery only fills empty names.
         if (!contact || contact.customNickname) return true;

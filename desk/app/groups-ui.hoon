@@ -540,13 +540,24 @@
     [%build ~]  cor
   ==
 ++  get-suggested-contacts
+  ^-  (set ship)
+  ::  discovered matches the user has since removed come back as suggestions
+  ::
+  =/  suggestions=(set ship)
+    %-  ~(uni in manual-contact-suggestions)
+    %-  ~(uni in active-ships)
+    (~(dif in discovered-contacts) book-ships)
+  (~(dif in suggestions) hidden-contact-suggestions)
+::  +active-ships: busy dm partners and %pals targets
+::
+++  active-ships
+  ^-  (set ship)
+  =|  ships=(set ship)
   =+  .^(chat-running=? (scry %gu %chat /$))
-  =/  suggestions=(set ship)  manual-contact-suggestions
-  =?  suggestions  chat-running
+  =?  ships  chat-running
     =+  .^  [dms=(map ship dm:c) *]
       (scry %gx %chat /full/noun)
     ==
-    %-  ~(uni in suggestions)
     %-  sy
     %+  murn
       ~(tap by dms)
@@ -557,32 +568,30 @@
     ?.  &((gth count 10) (gth -.u.latest cutoff))  ~
     `ship
   =+  .^(pals-running=? (scry %gu %pals /$))
-  =?  suggestions  pals-running
+  =?  ships  pals-running
     =+  .^(targets=(set ship) (scry %gx %pals /targets/noun))
-    (~(uni in suggestions) targets)
-  ::  discovered matches the user has since removed come back as suggestions
-  ::
-  =.  suggestions
-    (~(uni in suggestions) (~(dif in discovered-contacts) book-ships))
-  (~(dif in suggestions) hidden-contact-suggestions)
+    (~(uni in ships) targets)
+  ships
 ::  +book-ships: ships saved in the address book
 ::
 ++  book-ships
   ^-  (set ship)
   =+  .^(=book:ct (scry %gx %contacts /v1/book/contact-book-0))
   %-  sy
-  %+  murn  ~(tap in ~(key by book))
-  |=(=kip:ct ?@(kip `kip ~))
+  %+  murn  ~(tap by book)
+  |=([=kip:ct *] ?@(kip `kip ~))
 ::  +discovery-known: ships contact discovery leaves alone
 ::
-::    saved, suggested and hidden ships already have a relationship with the
-::    user, and discovered ones have been announced before.
+::    saved ships, busy dm partners and %pals targets already have a
+::    relationship with the user, hidden ones were declined, and discovered
+::    ones have been announced before. suggestions the app picked from group
+::    members are not known: it chose them from cached profiles.
 ::
 ++  discovery-known
   ^-  (set ship)
   %-  ~(uni in discovered-contacts)
   %-  ~(uni in hidden-contact-suggestions)
-  (~(uni in get-suggested-contacts) book-ships)
+  (~(uni in active-ships) book-ships)
 ::  +discover-contacts: record address-book matches and save the new ones
 ::
 ::    known matches are recorded too, so a contact saved before this record

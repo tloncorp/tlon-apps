@@ -318,20 +318,22 @@ export const getActivitySupportsNotes = (): boolean => {
 // Whether the connected backend's init and changes member counts cover every
 // seat. Older desks counted only the 15 seats they keep, so
 // withoutTruncatedMemberCount distrusts a count of exactly 15 until this is set.
-export const setDeskSupportsContactDiscovery = (value: boolean | null) => {
-  config.deskSupportsContactDiscovery = value;
-};
-
-export const getDeskSupportsContactDiscoveryState = (): boolean | null => {
-  return config.deskSupportsContactDiscovery;
-};
-
 export const setDeskCountsAllSeats = (value: boolean) => {
   config.deskCountsAllSeats = value;
 };
 
 export const getDeskCountsAllSeats = (): boolean => {
   return config.deskCountsAllSeats;
+};
+
+// Whether the connected backend's %groups-ui records contact discovery; null
+// until the desk version is known.
+export const setDeskSupportsContactDiscovery = (value: boolean | null) => {
+  config.deskSupportsContactDiscovery = value;
+};
+
+export const getDeskSupportsContactDiscoveryState = (): boolean | null => {
+  return config.deskSupportsContactDiscovery;
 };
 
 const deskServesRosterPagesListeners = new Set<() => void>();

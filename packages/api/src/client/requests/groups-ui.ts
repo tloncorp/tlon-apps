@@ -12,7 +12,7 @@ export const groupsUi = {
     kind: 'scry',
     agent: 'groups-ui',
     path: '/v1/discovery-known',
-    since: '12.5.0',
+    since: '12.6.0',
     guardedBy: 'deskSupportsContactDiscovery',
   },
   init: {
@@ -69,7 +69,7 @@ export const groupsUi = {
     kind: 'poke',
     agent: 'groups-ui',
     mark: 'ui-discover-contacts',
-    since: '12.5.0',
+    since: '12.6.0',
     guardedBy: 'deskSupportsContactDiscovery',
   },
   hideContact: {

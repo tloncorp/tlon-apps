@@ -171,7 +171,7 @@
   |=  =path
   =/  m  (mare ,(set ship))
   ^-  form:m
-  ;<  peek=cage  bind:m  (got-peek-mocked path)
+  ;<  peek=cage  bind:m  (got-peek path)
   (pure:m !<((set ship) q.peek))
 ::  +test-discover-saves-new-match: a new match is saved once, under its
 ::  address-book name, and skipped when it is matched again.
@@ -192,19 +192,20 @@
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  known=(set ship)  bind:m  (get-ships /x/v1/discovery-known)
   (ex-equal !>(known) !>((sy ~[~nec])))
-::  +test-discover-skips-related-ships: saved, hidden and suggested ships are
-::  never saved by discovery.
+::  +test-discover-skips-related-ships: saved and hidden ships are never
+::  saved by discovery, but a suggestion the app picked from group members is.
 ::
 ++  test-discover-skips-related-ships
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  (init-discovery (sy ~[~bus]))
+  ;<  =bowl:gall  bind:m  get-bowl
   ;<  *  bind:m  (do-poke ui-hide-contact+!>(~nec))
   ;<  *  bind:m  (do-poke ui-add-contact-suggestions+!>(~[~wes]))
   ;<  caz=(list card:agent:gall)  bind:m
     (do-discover ~[[~bus ~] [~nec ~] [~wes ~]])
-  (ex-cards caz ~)
+  (ex-cards caz (ex-save our.bowl ~wes ~) ~)
 ::  +test-discover-empty-name: a match with a blank address-book name is
 ::  saved without a nickname.
 ::
