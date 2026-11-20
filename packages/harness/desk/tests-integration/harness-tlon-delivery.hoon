@@ -1,5 +1,5 @@
 ::  Full adapter acknowledgement handling; emitted Messenger cards never run.
-/-  t=harness-tlon, hh=harness-hand
+/-  t=harness-tlon, hh=harness-hand, g=groups-ver
 /+  *test-agent
 /=  adapter  /app/harness-tlon
 |%
@@ -20,7 +20,7 @@
   |=  [address=@t attempt=@ud rejected=?]
   =/  m  (mare ,[deliveries=(map @uv delivery:t) receipts=(list action:hh)])
   ^-  form:m
-  =/  saved=state-2:t  *state-2:t
+  =/  saved=state-3:t  *state-3:t
   =.  saved
     %=  saved  owner-initialized  1  enabled.policy  |  deliveries
         (my ~[[0v1 [7 %send %uncertain 'external']]])
@@ -48,7 +48,7 @@
     %^  do-agent  /publish/0v1/(scot %ud attempt)  gill
     [%poke-ack ?:(rejected `~ ~)]
   ;<  =vase  bind:m  get-save
-  (pure:m deliveries:!<(state-2:t vase) (receipts caz))
+  (pure:m deliveries:!<(state-3:t vase) (receipts caz))
 ::
 ++  test-channel-ack-waits-for-host-confirmation
   %-  eval-mare
@@ -93,4 +93,97 @@
       !>((~(got by deliveries.stale) 0v1))
     !>(`delivery:t`[7 %send %uncertain 'external'])
   (ex-equal !>(receipts.stale) !>(`(list action:hh)`~))
+::  A claimed reply to ~bus in a channel conversation the owner opened.
+::  ~bus asked at .asked under .policy, with authority cutoffs .cuts.
+::  Produces whether the adapter sent it to Messenger, and its receipts.
+::
+++  claim
+  |=  [policy=policy:t cuts=(map @p @da) asked=@da]
+  =/  m  (mare ,[sent=? receipts=(list action:hh)])
+  ^-  form:m
+  =/  to=destination:t  [%channel [%chat ~lux %test] ~]
+  =/  saved=state-3:t  *state-3:t
+  =.  saved
+    %=  saved
+      owner-initialized  1
+      policy  policy
+      cuts  cuts
+      lanes  (my ~[['room' [to 1 ~[%web]]]])
+      routes  (my ~[['room' ['binding' %ready]]])
+      deliveries  (my ~[[0v1 [0 %claim %uncertain '']]])
+    ==
+  =/  ledger=state:hh  *state:hh
+  =.  observations.ledger
+    (my ~[[0v1 ['binding' 'event' '~bus' 'hello' asked %completed]]])
+  =.  outbox.ledger
+    %-  my
+    :~  :*  0v1
+            :*  0v1  'binding'  'tlon'  'chat/~lux/test'  'room'  %reply  'Hi'  %claimed
+                'harness-tlon'  ''  ~
+            ==
+        ==
+    ==
+  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now ~2026.10.1))
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ^-  (unit vase)
+    ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
+    ?:  (lien path |=(part=@ta =(%hand-state part)))  `!>(ledger)
+    ::  ~bus has joined the group of chat/~lux/test and may read it.
+    ?:  (lien path |=(part=@ta =(%can-read part)))  `!>(|=([who=@p *] =(~bus who)))
+    ?:  (lien path |=(part=@ta =(%groups part)))  `!>((my ~[[[~lux %test] room-group]]))
+    ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)
+    ?:  =(%$ (rear path))  `!>(&)
+    ~
+  ;<  *  bind:m  (do-load adapter `!>(saved))
+  ;<  ~  bind:m
+    %-  jab-bowl
+    |=  b=bowl
+    =.  wex.b  (~(put by wex.b) [/publications ~zod %channels] [& /v2])
+    ::  The claim's result arrives on its own watch of the head.
+    b(wex (~(put by wex.b) [/hand/claim/0v1 ~zod %harness] [& /hands/tlon-claim-0v1]))
+  =/  acquired=json
+    (pairs:enjs:format ~[['acquired' %b &] ['attempt' (numb:enjs:format 0)]])
+  ;<  caz=(list card)  bind:m
+    (do-agent /hand/claim/0v1 [~zod %harness] [%fact %noun !>(`(each json @t)`[%& acquired])])
+  =/  sent
+    %+  lien  caz
+    |=(=card ?=([%pass [%publish *] %agent [* %channels] %poke *] card))
+  (pure:m sent (receipts caz))
+::
+++  room-group
+  ^-  group:v9:g
+  =/  group  *group:v9:g
+  =.  seats.group  (my ~[[~bus `seat:v9:g`[~ ~2026.9.9]]])
+  group(channels (my ~[[[%chat ~lux %test] *channel:v9:g]]))
+++  bus-trusted
+  ^-  policy:t
+  [& `~nec (my ~[[~bus ~[%web]]]) %all ~ ~]
+++  failed
+  ^-  (list action:hh)
+  ~[[%receipt-at 'tlon' 0v1 'harness-tlon' 0 %failed '']]
+++  test-reply-to-a-speaker-revoked-mid-turn-is-not-published
+  %-  eval-mare
+  =/  n  (mare ,~)
+  ^-  form:n
+  =/  policy  bus-trusted
+  ;<  granted=[sent=? receipts=(list action:hh)]  bind:n
+    (claim policy ~ ~2026.9.30)
+  ::  The owner removed ~bus after it asked; the room's own actor is unchanged.
+  ;<  revoked=[sent=? receipts=(list action:hh)]  bind:n
+    (claim policy(trusted ~) (my ~[[~bus ~2026.9.30..01.00.00]]) ~2026.9.30)
+  ;<  ~  bind:n  (ex-equal !>(granted) !>([& `(list action:hh)`~]))
+  (ex-equal !>(revoked) !>([| failed]))
+++  test-stale-reply-is-not-published-after-regrant
+  %-  eval-mare
+  =/  n  (mare ,~)
+  ^-  form:n
+  ::  ~bus is granted again, after the turn it asked in.
+  ;<  stale=[sent=? receipts=(list action:hh)]  bind:n
+    (claim bus-trusted (my ~[[~bus ~2026.9.30..01.00.00]]) ~2026.9.30)
+  ;<  fresh=[sent=? receipts=(list action:hh)]  bind:n
+    (claim bus-trusted (my ~[[~bus ~2026.9.30..01.00.00]]) ~2026.9.30..02.00.00)
+  ;<  ~  bind:n  (ex-equal !>(stale) !>([| failed]))
+  (ex-equal !>(fresh) !>([& `(list action:hh)`~]))
 --

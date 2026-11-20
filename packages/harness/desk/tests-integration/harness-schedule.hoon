@@ -477,7 +477,9 @@
   ?:  ?=([%gu @ %harness-tlon @ %$ ~] path)  `!>(&)
   ?:  ?=([%gx @ %harness-tlon @ %peer-trust %noun ~] path)
     `!>(`peer-trust:t`[[& `~nec ~ %mentions ~ ~] |])
-  ?:  ?=([%gx @ %harness-tlon @ %authority @ %noun ~] path)
+  ?:  ?|  ?=([%gx @ %harness-tlon @ %authority @ %noun ~] path)
+          ?=([%gx @ %harness-tlon @ %authority @ @ %noun ~] path)
+      ==
     =/  found  (~(get by lanes) (snag 5 `(list @ta)`path))
     `!>(`hand-authority:adapter`?~(found [| ~] [& ceiling.u.found]))
   ?:  ?=([%gx @ %harness-tlon @ %admin @ %noun ~] path)
@@ -919,4 +921,94 @@
   %-  eval-mare
   ;<  ~  bind:(mare ,~)  (ex-delegated & ~nec owner-dm ~)
   (ex-delegated & ~nec room ~)
+::  The hand grants authority to .speaker alone: a question about anyone
+::  else, or with no speaker, gets none.
+::
+++  speaker-scry
+  |=  speaker=@ta
+  |=  =path
+  ^-  (unit vase)
+  ?:  ?=([%gx @ %harness-tlon @ %authority @ @ %noun ~] path)
+    =/  asked  (snag 6 `(list @ta)`path)
+    `!>(`hand-authority:adapter`?:(=(speaker asked) [& ~] [| ~]))
+  ?:  ?=([%gx @ %harness-tlon @ %authority @ %noun ~] path)
+    `!>(`hand-authority:adapter`[| ~])
+  ((tlon-scry ~) path)
+++  speaker-setup
+  |=  [s=state-0 speaker=@ta]
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now t0)))
+  ;<  ~  bind:m  (set-scry-gate (speaker-scry speaker))
+  ;<  *  bind:m  (do-load head `!>(s))
+  (pure:m ~)
+++  test-turn-authority-is-asked-for-the-running-inputs-speaker
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  (tlon-fixture ~bus room 'tlon_read_history' '{}' ~)
+  =/  granted
+    |=  =cage
+    ?=(^ ;;((unit tool-authority:adapter) q.q.cage))
+  ;<  ~  bind:m  (speaker-setup s '~bus')
+  ;<  own=cage  bind:m  (got-peek /x/tool-call/source/4/control)
+  ;<  ~  bind:m  (speaker-setup s '~nec')
+  ;<  other=cage  bind:m  (got-peek /x/tool-call/source/4/control)
+  (ex-equal !>([(granted own) (granted other)]) !>([& |]))
+++  test-scheduled-run-authority-is-asked-for-the-jobs-actor
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ::  ~nec's input is running in the source conversation; ~bus made the job.
+  =/  job  (tlon-job ~bus room)
+  =/  s  (tlon-fixture ~nec room 'calculate' '{}' (my ~[[0v1 job]]))
+  =.  bindings.hands.s
+    %+  ~(put by bindings.hands.s)  'source-binding'
+    ['tlon' room 'source' ~['~nec' '~bus'] &]
+  =/  peek  /x/cron-authority/[run-sid.job]
+  ;<  ~  bind:m  (speaker-setup s '~bus')
+  ;<  own=cage  bind:m  (got-peek peek)
+  ;<  ~  bind:m  (speaker-setup s '~nec')
+  ;<  other=cage  bind:m  (got-peek peek)
+  (ex-equal !>([;;(? q.q.own) ;;(? q.q.other)]) !>([& |]))
+::  The hand grants only ~zod, our ship. A local ACP or poke prompt is the
+::  operator's; a timer, peer or idle hand input, even one naming ~zod, is not.
+::
+++  test-only-a-local-prompt-is-answered-as-the-operator
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  base  (tlon-fixture ~bus room 'tlon_read_history' '{}' ~)
+  =/  as-input
+    |=  [source=input-source:h actor=(unit @p)]
+    ^-  state-0
+    =/  log  log:(~(got by sessions.base) 'source')
+    =/  edited=(list event:h)
+      %+  turn  log
+      |=  =event:h
+      ?.  ?=(%input-received -.event)  event
+      event(source.input source, actor.input actor)
+    %=  base
+      sessions  (~(put by sessions.base) 'source' [edited 4])
+      active.hands  ~
+    ==
+  =/  granted
+    |=  s=state-0
+    =/  m  (mare ,?)
+    ^-  form:m
+    ;<  ~  bind:m  (speaker-setup s '~zod')
+    ;<  =cage  bind:m  (got-peek /x/tool-call/source/4/control)
+    (pure:m ?=(^ ;;((unit tool-authority:adapter) q.q.cage)))
+  ;<  poke=?  bind:m  (granted (as-input [%poke ~zod] `~zod))
+  ;<  acp=?  bind:m  (granted (as-input [%acp 'client'] `~zod))
+  ;<  timer=?  bind:m  (granted (as-input [%timer %check] ~))
+  ;<  peer=?  bind:m  (granted (as-input [%peer ~zod 0v1] `~zod))
+  ;<  idle-hand=?  bind:m
+    (granted (as-input [%hand 'source-binding' 'tlon' room 'e' '~zod'] `~zod))
+  ::  A running hand input is its actor's, whatever the log says.
+  =/  running  (as-input [%poke ~zod] `~zod)
+  ;<  hand=?  bind:m  (granted running(active.hands active.hands.base))
+  %+  ex-equal
+    !>([poke acp timer peer idle-hand hand])
+  !>([& & | | | |])
 --

@@ -23,9 +23,12 @@
 
 # Scripts that check they run on ~lux.
 lux_tests="tlon-notes-conformance tlon-completion-conformance tlon-hooks-publishing-conformance"
+# Scripts that need ~nec: one on ~nec alone, and one with ~zod as the bot, ~lux as its
+# owner and ~nec as a guest in the same channel.
+nec_tests="tlon-permissions-conformance tlon-shared-channel-conformance"
 
 # A group's test files, in the order the full run takes them: the offline tests, the
-# live scripts on ~zod, with ~lux as their peer, and those on ~lux and on ~nec.
+# live scripts on ~zod, with ~lux as their peer, those on ~lux and those needing ~nec.
 function tests
 {
   case $1 in
@@ -34,13 +37,13 @@ function tests
       for file in tests-js/*-conformance.mjs tests-js/conformance.mjs tests-js/reliability-soak.mjs
       do
         name=${file#tests-js/}
-        case " $lux_tests tlon-permissions-conformance " in
+        case " $lux_tests $nec_tests " in
           *" ${name%.mjs} "*) ;;
           *) echo "$file" ;;
         esac
       done ;;
     lux) for name in $lux_tests; do echo "tests-js/$name.mjs"; done ;;
-    nec) echo tests-js/tlon-permissions-conformance.mjs ;;
+    nec) for name in $nec_tests; do echo "tests-js/$name.mjs"; done ;;
   esac
 }
 
@@ -61,9 +64,9 @@ then
 fi
 
 # Is the test file of this group in this shard? The last shard takes the offline tests
-# and the ~lux and ~nec scripts, so it boots no ~zod. The others deal out the ~zod
-# scripts in turn, sorted bytewise so that every machine deals them alike; that also
-# spreads the slow tlon- scripts, which sort together.
+# and the ~lux and ~nec scripts; it boots ~zod only for the shared channel script. The
+# others deal out the ~zod scripts in turn, sorted bytewise so that every machine deals
+# them alike; that also spreads the slow tlon- scripts, which sort together.
 function in_shard
 {
   if [ -z "$shard" ] || [ "$shard_count" -eq 1 ]
@@ -376,11 +379,12 @@ function run_script
   fi
 }
 
+# NAME FILE [GROUP]: GROUP, by default the current ship, is the group FILE is dealt in.
 function live
 {
   name=$1
   file=$2
-  matches "$name" && in_shard $current_ship "$file" || return
+  matches "$name" && in_shard "${3:-$current_ship}" "$file" || return
   reason=$(skip_reason "$name")
   if [ -n "$reason" ]
   then
@@ -459,20 +463,40 @@ then
     done
   fi
 
-  if [ -z "$pattern" ]
-  then
-    stop_ship lux
-  fi
-
   if matches tlon-permissions-conformance && shard_has nec
   then
     echo "Live tests restricted to ~nec"
     if needs_ship nec 9192 nec
     then
       use_ship nec 9192
-      live tlon-permissions-conformance tests-js/tlon-permissions-conformance.mjs
-      [ -n "$pattern" ] || stop_ship nec
+      live tlon-permissions-conformance tests-js/tlon-permissions-conformance.mjs nec
     fi
+  fi
+
+  if matches tlon-shared-channel-conformance && shard_has nec
+  then
+    echo "Live tests on ~zod with ~lux and ~nec in one channel"
+    if boot_ships zod 9190 lux 9191 nec 9192
+    then
+      use_ship zod 9190
+      use_peer lux 9191
+      export GUEST_URL=http://127.0.0.1:9192 GUEST_COOKIE=$piers/nec.cookie
+      # ~zod joins the channel on ~lux, as for the ~zod scripts, and so does ~nec.
+      if TEST_NEST=$(node tests-js/lib/test-channel.mjs 2> "$logs/test-channel.log") &&
+        SHIP_URL=$GUEST_URL SHIP_COOKIE=$GUEST_COOKIE node tests-js/lib/test-channel.mjs > /dev/null 2>> "$logs/test-channel.log"
+      then
+        export TEST_NEST
+        live tlon-shared-channel-conformance tests-js/tlon-shared-channel-conformance.mjs nec
+      else
+        result test-channel "FAILED (see $logs/test-channel.log)"
+      fi
+    fi
+  fi
+
+  if [ -z "$pattern" ]
+  then
+    stop_ship lux
+    stop_ship nec
   fi
 fi
 

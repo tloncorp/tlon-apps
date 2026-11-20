@@ -262,4 +262,34 @@
     ;<  ~  bind:m  (ex-equal !>(status:(~(got by requests.work-controls.final) id)) !>(%done))
     (ex-equal !>(workspace.final) !>(workspace.ready))
   --
+::  A ~['*'] binding admits speakers nobody named, so the owner cannot make
+::  any of them, or the literal '*', a work owner. A named binding still can.
+::
+++  test-wildcard-binding-cannot-name-a-work-owner
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved=state-0  *state-0
+  =.  welcome-seen.saved  1
+  =.  defaults.saved  builtin-config:policy
+  =.  bindings.hands.saved
+    %-  my
+    :~  ['wild' ['fixture' 'wild-room' 'work-fixture' ~['*'] &]]
+        ['named' ['fixture' 'named-room' 'work-fixture' ~['alice'] &]]
+    ==
+  =/  access
+    |=  [binding=@t actor=@t]
+    %+  rap  3
+    :~  '/work hand-access {"binding":"'  binding  '","actor":"'  actor
+        '","owner":true}'
+    ==
+  ;<  ~  bind:m  (setup saved)
+  ;<  *  bind:m  (do-new 'work-fixture' saved)
+  ;<  *  bind:m  (do-send 'work-fixture' (access 'wild' 'alice'))
+  ;<  *  bind:m  (do-send 'work-fixture' (access 'wild' '*'))
+  ;<  refused=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>(requests.work-controls.refused) !>(~))
+  ;<  *  bind:m  (do-send 'work-fixture' (access 'named' 'alice'))
+  ;<  named=state-0  bind:m  get-state
+  (ex-equal !>(~(wyt by requests.work-controls.named)) !>(1))
 --

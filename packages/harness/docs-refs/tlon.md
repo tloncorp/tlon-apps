@@ -381,7 +381,8 @@ Mention rules still apply. `/stop` interrupts work and clears queued inputs;
 other commands wait for the turn to finish.
 
 `/work` manages tasks and documents in chat. Protected owner operations require
-an owner DM; other actors use their Workspace and document permissions.
+an owner DM; other actors use their Workspace and document permissions, except
+in a channel, where only the owner may use it.
 See [work commands](work-control.md).
 
 ### Shared memory
@@ -550,15 +551,56 @@ messaging the sender.
 - Channels require a mention by default. Replies to the bot's own posts count
   as addressed; DMs do not require mentions. Turn the requirement off to answer
   every message from allowed actors in channels the ship has joined.
-- Sender and exact destination/thread determine the stable conversation. A shared
-  channel does not share the owner's private DM transcript or execution grants.
+- The exact destination determines the stable conversation: a DM, a channel
+  and each thread in either have one conversation each. Every admitted speaker
+  in a channel shares its conversation, and each message there reaches the
+  model prefixed with its speaker's ship and a colon; a slash command stays as
+  written so it is still a command. A channel does not share the owner's
+  private DM transcript, and a speaker never gets another speaker's grants.
   Channel answers are still public to that channel's members: granting file,
   web, skills, peer, or MCP access can expose whatever those tools can read.
+- A channel conversation's saved tools are the owner's Defaults, whoever spoke
+  there first; each turn's speaker ceiling narrows them. A DM's are its
+  partner's grants.
+- A channel conversation's settings, thread included, are the owner's. Another
+  speaker there may still use `/help`, `/status`, `/context`, `/model` and
+  `/memory` with no argument or a query, and `/stop` for their own work, but
+  `/model` with an argument, `/compact`, `/memory on` or `off`, `/remember`,
+  `/forget` and `/work` get a reply that only the owner can change the
+  conversation's settings; they reach no model and change nothing. The head
+  asks the adapter whether a speaker may, as it asks for authority. A DM's
+  partner keeps every command, as do the operator's local prompts.
+
+Authority is decided per speaker. For each turn the head asks the adapter about
+the actor of the conversation's running input, and for scheduled work about the
+schedule's actor. The adapter answers from that speaker's own access to the
+conversation's destination: the owner has no ceiling, any other ship's ceiling
+comes from its own grants and, in a channel, its native read permission, and a
+ship with no access there gets no authority. A speaker never receives another
+speaker's tools.
+
+- A DM answers for its partner. The partner, the operator's own local or ACP
+  prompt and a question with no speaker all get the partner's authority; any
+  other speaker gets none.
+- In a channel, the operator's own local or ACP prompt, which the head passes
+  as the bot's own ship only after proving it is local, has the owner's
+  authority. With no speaker known, as for a timer, a channel conversation
+  answers live with only Tlon read and write, never the owner's authority.
+- A scheduled run with no speaker answers for its schedule's actor.
+- A channel conversation never has administrative authority.
+
+Admission checks each message's speaker, including its native read permission
+in a channel, even when the conversation's route is already set up. Context,
+history and lens sync ask only whether the conversation itself is live: Tlon is
+enabled, its route is ready, any schedule still holds and the channel does not
+have replies turned off.
 
 Permission changes retire only affected authorization routes. Adding an unrelated
 trusted actor leaves existing conversations, in-flight work, notes, saved model
-settings and schedules alone. Changing the mention requirement affects channels,
-not DMs; changing an actor's role or effective grants affects that actor's work.
+settings and schedules alone. Changing the mention requirement or a channel's
+rule affects that channel's routes, not DMs. Changing an actor's role or
+effective grants retires that actor's DM route; in a channel it keeps the route
+and binding, and cancels only that actor's running and queued work there.
 Grant order alone is not a revocation. Disabling Tlon affects every route.
 
 Affected queued/running work is cancelled, old bindings are disabled, native
@@ -569,8 +611,11 @@ and a tools-only configuration update have been acknowledged, using a fresh
 binding. Old publications cannot move to the new binding. Actor-specific admission
 cutoffs reject queued pre-grant messages without dropping unrelated input.
 
-Publication checks the exact current binding and actor again after claiming,
-before sending. Async callbacks and self-dispatched work carry request generations,
+Publication checks the exact current binding again after claiming, before
+sending, and the reply's speaker: it is sent only while that speaker is still
+granted there and if the speaker's input came after the speaker's latest
+permission change, so a reply to a speaker revoked mid-turn, or a stale one
+after a later re-grant, is not published. Async callbacks and self-dispatched work carry request generations,
 so reusing a tool-call ID cannot revive an old request. Previously emitted network
 operations cannot be undone; their receipts and uncertainty remain evidence.
 Saving unchanged policy leaves routes and sessions alone. Conversation heads
@@ -694,6 +739,15 @@ expired native history. Initial activation sets an admission cutoff rather
 than answering all historical messages. Retained jobs remain recoverable.
 `activityThrough` and `catchingUp` expose the checkpoint and whether more
 work remains.
+
+### Upgrading to shared channel conversations
+
+Earlier versions kept one conversation per speaker in each channel. On upgrade,
+DM conversations keep their identities and history. Each per-speaker channel
+conversation is dropped from the adapter: its binding is disabled and its
+session fenced, so queued input there gets no reply, and the session stays in
+the head as history. The next message in that channel starts its one shared
+conversation, with a new identity.
 
 ### Retention and capacity
 
@@ -862,3 +916,12 @@ recursive-schedule denial, mid-flight source revocation, and that trusted and
 allowed ships are not offered scheduling and have forged calls refused. It restores defaults
 and policy and cancels fixture schedules; messages and their receipts remain.
 `desk/tests/harness-cron.hoon` covers the pure UTC calendar and strict parser.
+
+`tests-js/tlon-shared-channel-conformance.mjs` runs on three ships: `~zod` is the
+bot, the peer (`PEER_URL`, `PEER_COOKIE`) its owner and a guest (`GUEST_URL`,
+`GUEST_COOKIE`) a trusted ship, both members of `TEST_NEST`. With a local provider
+it checks that the owner and the guest share one channel session while a thread has
+its own, that each turn's input names its speaker, that each turn is offered only
+its speaker's tools in either order and a guest's forged call is refused, and that
+changing or revoking the guest's grants keeps the channel session and its history.
+It restores defaults and policy; messages remain.
