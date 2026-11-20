@@ -155,6 +155,16 @@
       '{"role":"assistant","content":"Earlier answer."},'
       '{"role":"user","content":"Reply with hello"}]}'
   ==
+++  frozen-tools
+  ^-  (list @t)
+  :~  'calculate'  'current_time'  'memory'  'lcm_search'  'lcm_read'
+      'lcm_expand'  'list_desk_scopes'  'read_desk_file'  'list_desk_files'
+      'web_search'  'http_fetch'  'curl'  'read_skill'  'write_skill'
+      'delete_skill'  'propose_skill'  'rehearse_skill'  'commit_skill'
+      'discard_skill'  'run_subagent'  'list_peer_access'  'check_peer'
+      'list_peer_tools'  'call_peer_tool'  'ask_peer'  'workspace'  'run_js'
+      'tlon'  'harness_admin'
+  ==
 ::  A conversation that never meets a size failure dispatches the same bytes
 ::  as before the size-recovery rule existed. The expected body was captured
 ::  from the code before that change.
@@ -171,10 +181,15 @@
     ==
   ;<  *  bind:m  (setup initial(sessions (my ~[['fixture' [history 1]]])))
   ;<  sent=(list card)  bind:m  (do-send 'Reply with hello')
-  ::  Tool declarations are left out: they change with every tool edit and
-  ::  never depend on the conversation.
+  ::  Only the declared tool names are compared: descriptions and schemas
+  ::  change with every tool edit and never depend on the conversation.
   =/  jon  (body (snag 0 (requests sent)))
   ?>  ?=(%o -.jon)
+  =/  tools  (need (~(get by p.jon) 'tools'))
+  ?>  ?=(%a -.tools)
+  =/  names
+    (turn p.tools |=(tool=json (string:j (need (get:j tool 'function')) 'name')))
+  ;<  ~  bind:m  (ex-equal !>(names) !>(frozen-tools))
   (ex-equal !>((en:json:html [%o (~(del by p.jon) 'tools')])) !>(frozen))
 ++  test-size-rejection-compacts-and-retries-smaller
   %-  eval-mare
@@ -226,8 +241,8 @@
   ;<  ~  bind:m  (ex-equal !>((turn (requests compacting) kind)) !>(~['compaction']))
   ;<  ~  bind:m  (ex-equal !>((turn (requests compacting) model)) !>(~['primary']))
   (ex-equal !>((counted log %llm-requested)) !>(1))
-::  A summary request refused for size fails with its own text; another
-::  model is not asked to summarize the same oversized source.
+::  A summary request refused for size fails, marked; another model is not
+::  asked to summarize the same oversized source.
 ::
 ++  test-summary-size-rejection-does-not-fall-back
   %-  eval-mare
@@ -245,8 +260,8 @@
     ==
   ?>  ?=([[%compaction-failed *] *] log)
   ;<  ~  bind:m  (ex-equal !>((requests done)) !>(~))
-  ;<  ~  bind:m  (ex-equal !>(err.i.log) !>(raw))
-  ;<  ~  bind:m  (ex-equal !>(err:(play:hl log)) !>(`raw))
+  ;<  ~  bind:m  (ex-equal !>(err.i.log) !>((overflow:hl raw)))
+  ;<  ~  bind:m  (ex-equal !>(err:(play:hl log)) !>(`(overflow:hl raw)))
   (ex-equal !>((counted log %llm-requested)) !>(1))
 ::  With no fallback left, a failure that is not about size ends the turn;
 ::  it is never compacted and resent.
@@ -365,7 +380,7 @@
   ;<  ~  bind:m  (ex-equal !>((requests last)) !>(~))
   ;<  ~  bind:m
     %+  ex-equal  !>(reason.i.log)
-    !>('context budget: Compaction attempt limit reached; change the model or reduce the request.')
+    !>((overflow:hl 'Compaction attempt limit reached; change the model or reduce the request.'))
   (ex-equal !>(-.fifth) !>(%&))
 ::  A first exchange of 120 bytes leaves the summary no room: framed as a
 ::  checkpoint, any valid summary makes the request larger.
@@ -385,7 +400,7 @@
   ;<  ~  bind:m  (ex-equal !>((requests done)) !>(~))
   ;<  ~  bind:m  (ex-equal !>((counted log %llm-requested)) !>(1))
   %+  ex-equal  !>(reason.i.log)
-  !>('context budget: compaction did not make the request smaller')
+  !>((overflow:hl 'compaction did not make the request smaller'))
 ++  test-smaller-request-is-sent-even-if-tight
   %-  eval-mare
   =/  m  (mare ,~)
@@ -532,9 +547,9 @@
           `(as-octs:mimes:html (en:json:html body))
       ==
   ==
-::  A size error a runner relays, or one after streamed text, is recorded
-::  with its own text and never compacted: the runner, or the text already
-::  shown, owns that turn.
+::  A size error a runner relays, or one after streamed text, is never
+::  compacted: the runner, or the text already shown, owns that turn. It is
+::  marked, so the next input leaves that turn out.
 ::
 ++  test-runner-and-streamed-size-failures-are-marked-not-recovered
   %-  eval-mare
@@ -549,7 +564,8 @@
     (do-poke %handle-http-request !>([%complete (runner-event job 2 'complete')]))
   ;<  runner-log=(list event:h)  bind:m  get-log
   ?>  ?=([[%llm-failed *] *] runner-log)
-  ;<  ~  bind:m  (ex-equal !>((end [3 16] err.i.runner-log)) !>('provider error: '))
+  ;<  ~  bind:m
+    (ex-equal !>((end [3 34] err.i.runner-log)) !>('context overflow: provider error: '))
   ;<  ~  bind:m  (ex-equal !>((oversized:failure err.i.runner-log)) !>(&))
   ;<  ~  bind:m  (ex-equal !>((counted runner-log %lcm-planned)) !>(0))
   ;<  ~  bind:m
@@ -566,6 +582,7 @@
   ;<  log=(list event:h)  bind:m  get-log
   ?>  ?=([[%llm-failed *] *] log)
   ;<  ~  bind:m  (ex-equal !>((requests done)) !>(~))
+  ;<  ~  bind:m  (ex-equal !>((overflowed:hl err.i.log)) !>(&))
   ;<  ~  bind:m  (ex-equal !>((oversized:failure err.i.log)) !>(&))
   (ex-equal !>((counted log %lcm-planned)) !>(0))
 ::  Harness's own per-request cap shares its text with the queue limits, so
@@ -608,4 +625,236 @@
   ;<  ~  bind:m
     (ex-equal !>((string:j (rear p.messages) 'content')) !>('Reply with hello'))
   (ex-equal !>(compact-attempts:(play:hl log)) !>(1))
+::  A conversation-level compact command is not a turn, so its refusal keeps
+::  the context budget reason and leaves no input out.
+::
+++  test-native-compact-refusal-is-not-marked
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (setup (fixture config))
+  ;<  *  bind:m  (do-poke %harness-action !>(`action:h`[%compact 'fixture']))
+  ;<  log=(list event:h)  bind:m  get-log
+  ?>  ?=([[%halted *] *] log)
+  ;<  ~  bind:m  (ex-equal !>((overflowed:hl reason.i.log)) !>(|))
+  %+  ex-equal  !>(reason.i.log)
+  !>('context budget: No completed exchange or settled tool batch is available for compaction.')
+::  After a marked halt, the next message is sent with the note in place of
+::  the turn that could not be sent; the original input event and its
+::  transcript row are kept exactly as recorded.
+::
+++  test-left-out-input-is-kept-verbatim-in-log-and-transcript
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (setup (history config (rap 3 (reap 6 'Question. ')) (rap 3 (reap 6 'Answer... '))))
+  ;<  sent=(list card)  bind:m  (do-send 'Reply with hello')
+  ;<  before=(list event:h)  bind:m  get-log
+  =/  original
+    %+  skim  before
+    |=(=event:h ?&(?=(%input-received -.event) =(item.input.event [%user 'Reply with hello'])))
+  ;<  compacting=(list card)  bind:m  (respond (snag 0 (requests sent)) too-large)
+  ;<  *  bind:m
+    (respond (snag 0 (requests compacting)) (answer (rap 3 (reap 119 'S'))))
+  ;<  next=(list card)  bind:m  (do-send 'Next question')
+  =/  request  (snag 0 (requests next))
+  ;<  *  bind:m  (respond request (answer 'Answered.'))
+  ;<  log=(list event:h)  bind:m  get-log
+  =/  messages  (need (get:j (body request) 'messages'))
+  ?>  ?=([%a ^] messages)
+  =/  contents  (turn p.messages |=(message=json (string:j message 'content')))
+  =/  kept
+    %+  skim  log
+    |=(=event:h ?&(?=(%input-received -.event) =(item.input.event [%user 'Reply with hello'])))
+  ;<  ~  bind:m  (ex-equal !>((lent original)) !>(1))
+  ;<  ~  bind:m  (ex-equal !>(kept) !>(original))
+  ;<  ~  bind:m
+    %+  ex-equal  !>(&)
+    !>((lien (transcript-items:hl log) |=(=item:h =(item [%user 'Reply with hello']))))
+  ;<  ~  bind:m  (ex-equal !>((lien contents |=(c=@t =(c left-out:hl)))) !>(&))
+  ;<  ~  bind:m  (ex-equal !>((lien contents |=(c=@t =(c 'Reply with hello')))) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((rear contents)) !>('Next question'))
+  (ex-equal !>((last-item log)) !>(`item:h`[%assistant 'Answered.' ~]))
+::  A measured tool round whose batch could not be summarized ends marked.
+::  The next message replaces that exchange with the note, so the reported
+::  usage no longer describes the context and cannot hold it over budget.
+::
+++  test-measured-tool-round-then-short-message-is-answered
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  cfg=config:h  config
+  =.  cfg  cfg(max-context 100.000)
+  =/  log=(list event:h)
+    :~  [%halted (overflow:hl 'A complete exchange or tool batch exceeds the compaction input budget.')]
+        [%tool-completed 'call' 'http_fetch' (rap 3 (reap 100 'A large page. '))]
+        :*  %llm-completed  1  %tool-calls  [85.890 100]
+            [%assistant '' ~[['call' 'http_fetch' '{}']]]
+        ==
+        [%llm-routed 1 cfg]
+        [%llm-requested 1 %turn]
+        [%input-admitted [%user 'Fetch the page']]
+        [%config-replaced cfg]
+    ==
+  =/  initial  (fixture cfg)
+  ;<  *  bind:m  (setup initial(sessions (my ~[['fixture' [log 2]]])))
+  ;<  sent=(list card)  bind:m  (do-send 'Short question')
+  ;<  ~  bind:m  (ex-equal !>((turn (requests sent) kind)) !>(~['turn']))
+  ;<  *  bind:m  (respond (snag 0 (requests sent)) (answer 'Answered.'))
+  ;<  after=(list event:h)  bind:m  get-log
+  (ex-equal !>((last-item after)) !>(`item:h`[%assistant 'Answered.' ~]))
+::  The message contents of a chat request.
+::
+++  contents
+  |=  c=http-card:renew
+  ^-  (list @t)
+  =/  messages  (need (get:j (body c) 'messages'))
+  ?>  ?=([%a *] messages)
+  (turn p.messages |=(message=json (string:j message 'content')))
+::  A recovery summary that does not reduce its source ends the turn marked,
+::  and the next message is sent with the note in its place.
+::
+++  test-invalid-recovery-summary-is-marked
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (setup long-history)
+  ;<  sent=(list card)  bind:m  (do-send 'Reply with hello')
+  ;<  compacting=(list card)  bind:m  (respond (snag 0 (requests sent)) too-large)
+  ;<  failed=(list card)  bind:m
+    (respond (snag 0 (requests compacting)) (answer (rap 3 (reap 4.000 'S'))))
+  ;<  log=(list event:h)  bind:m  get-log
+  ?>  ?=([[%compaction-failed *] *] log)
+  ;<  next=(list card)  bind:m  (do-send 'Next question')
+  =/  sent-next  (contents (snag 0 (requests next)))
+  ;<  ~  bind:m  (ex-equal !>((requests failed)) !>(~))
+  ;<  ~  bind:m  (ex-equal !>((overflowed:hl err.i.log)) !>(&))
+  ;<  ~  bind:m  (ex-equal !>((lien sent-next |=(c=@t =(c left-out:hl)))) !>(&))
+  (ex-equal !>((lien sent-next |=(c=@t =(c 'Reply with hello')))) !>(|))
+::  An automatic compaction with no size rejection whose summary is invalid
+::  is not marked: the next message keeps the original input.
+::
+++  test-invalid-automatic-summary-is-not-marked
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  cfg=config:h  config
+  =.  cfg  cfg(max-context 15.662)
+  =/  big  (rap 3 (reap 400 'Big input. '))
+  ;<  *  bind:m
+    %-  setup
+    %^  history  cfg
+      (rap 3 (reap 200 'Earlier question with project detail. '))
+    (rap 3 (reap 200 'Earlier answer with project detail. '))
+  ;<  sent=(list card)  bind:m  (do-send big)
+  ;<  failed=(list card)  bind:m
+    (respond (snag 0 (requests sent)) (answer (rap 3 (reap 20.000 'S'))))
+  ;<  log=(list event:h)  bind:m  get-log
+  ?>  ?=([[%compaction-failed *] *] log)
+  ;<  next=(list card)  bind:m  (do-send 'Next question')
+  ;<  retried=(list card)  bind:m
+    (respond (snag 0 (requests next)) (answer 'Short checkpoint.'))
+  =/  again  (snag 0 (requests retried))
+  =/  sent-next  (contents again)
+  ;<  ~  bind:m  (ex-equal !>((turn (requests sent) kind)) !>(~['compaction']))
+  ;<  ~  bind:m  (ex-equal !>((requests failed)) !>(~))
+  ;<  ~  bind:m  (ex-equal !>((overflowed:hl err.i.log)) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((turn (requests next) kind)) !>(~['compaction']))
+  ;<  ~  bind:m  (ex-equal !>((kind again)) !>('turn'))
+  ;<  ~  bind:m  (ex-equal !>((lien sent-next |=(c=@t =(c big)))) !>(&))
+  (ex-equal !>((lien sent-next |=(c=@t =(c left-out:hl)))) !>(|))
+::  A native compact's summary refused for size is marked, so an input still
+::  unanswered at that moment is left out at the next message.
+::
+++  test-native-compact-summary-size-rejection-leaves-out-unanswered-input
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  cfg=config:h  config
+  =.  cfg  cfg(fallbacks ~)
+  ;<  *  bind:m
+    %-  setup
+    %^  history  cfg
+      (rap 3 (reap 40 'Earlier question with project detail. '))
+    (rap 3 (reap 40 'Earlier answer with project detail. '))
+  ;<  sent=(list card)  bind:m  (do-send 'Reply with hello')
+  ;<  *  bind:m  (respond (snag 0 (requests sent)) unavailable)
+  ;<  compacting=(list card)  bind:m
+    (do-poke %harness-action !>(`action:h`[%compact 'fixture']))
+  ;<  *  bind:m  (respond (snag 0 (requests compacting)) too-large)
+  ;<  log=(list event:h)  bind:m  get-log
+  ?>  ?=([[%compaction-failed *] *] log)
+  ;<  next=(list card)  bind:m  (do-send 'Next question')
+  =/  request  (snag 0 (requests next))
+  =/  sent-next  (contents request)
+  ;<  *  bind:m  (respond request (answer 'Answered.'))
+  ;<  after=(list event:h)  bind:m  get-log
+  ;<  ~  bind:m  (ex-equal !>((turn (requests compacting) kind)) !>(~['compaction']))
+  ;<  ~  bind:m  (ex-equal !>((overflowed:hl err.i.log)) !>(&))
+  ;<  ~  bind:m  (ex-equal !>((lien sent-next |=(c=@t =(c 'Reply with hello')))) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((lien sent-next |=(c=@t =(c left-out:hl)))) !>(&))
+  (ex-equal !>((last-item after)) !>(`item:h`[%assistant 'Answered.' ~]))
+::  An automatic compaction's summary fails on the primary for another reason,
+::  and its fallback, with a new request id, refuses the request for size. The
+::  plan is still the active one, so the failure is marked and the next short
+::  message is answered with the note in place of the oversized input.
+::
+++  test-fallback-summary-size-rejection-is-marked
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  cfg=config:h  config
+  =.  cfg  cfg(max-context 15.662)
+  =/  big  (rap 3 (reap 1.200 'Big input. '))
+  ;<  *  bind:m
+    %-  setup
+    %^  history  cfg
+      (rap 3 (reap 50 'Earlier question with project detail. '))
+    (rap 3 (reap 50 'Earlier answer with project detail. '))
+  ;<  sent=(list card)  bind:m  (do-send big)
+  =/  primary  (snag 0 (requests sent))
+  ;<  fallen=(list card)  bind:m  (respond primary unavailable)
+  =/  backup  (snag 0 (requests fallen))
+  ;<  *  bind:m  (respond backup too-large)
+  ;<  log=(list event:h)  bind:m  get-log
+  ?>  ?=([[%compaction-failed *] *] log)
+  ;<  next=(list card)  bind:m  (do-send 'Short question')
+  =/  request  (snag 0 (requests next))
+  =/  sent-next  (contents request)
+  ;<  *  bind:m  (respond request (answer 'Answered.'))
+  ;<  after=(list event:h)  bind:m  get-log
+  ;<  ~  bind:m  (ex-equal !>((kind primary)) !>('compaction'))
+  ;<  ~  bind:m  (ex-equal !>((kind backup)) !>('compaction'))
+  ;<  ~  bind:m  (ex-equal !>((model backup)) !>('backup'))
+  ;<  ~  bind:m  (ex-equal !>(!=(wire.primary wire.backup)) !>(&))
+  ;<  ~  bind:m  (ex-equal !>((overflowed:hl err.i.log)) !>(&))
+  ;<  ~  bind:m  (ex-equal !>((kind request)) !>('turn'))
+  ;<  ~  bind:m  (ex-equal !>((lien sent-next |=(c=@t =(c big)))) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((lien sent-next |=(c=@t =(c left-out:hl)))) !>(&))
+  (ex-equal !>((last-item after)) !>(`item:h`[%assistant 'Answered.' ~]))
+::  The same for a typed /compact, whose plan names its command.
+::
+++  test-typed-compact-summary-size-rejection-is-not-marked
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  cfg=config:h  config
+  =.  cfg  cfg(fallbacks ~)
+  ;<  *  bind:m
+    %-  setup
+    %^  history  cfg
+      (rap 3 (reap 40 'Earlier question with project detail. '))
+    (rap 3 (reap 40 'Earlier answer with project detail. '))
+  ;<  sent=(list card)  bind:m  (do-send 'Reply with hello')
+  ;<  *  bind:m  (respond (snag 0 (requests sent)) unavailable)
+  ;<  compacting=(list card)  bind:m  (do-send '/compact')
+  ;<  *  bind:m  (respond (snag 0 (requests compacting)) too-large)
+  ;<  log=(list event:h)  bind:m  get-log
+  ?>  ?=([[%compaction-failed *] *] log)
+  ;<  next=(list card)  bind:m  (do-send 'Next question')
+  =/  sent-next  (contents (snag 0 (requests next)))
+  ;<  ~  bind:m  (ex-equal !>((turn (requests compacting) kind)) !>(~['compaction']))
+  ;<  ~  bind:m  (ex-equal !>((overflowed:hl err.i.log)) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((lien sent-next |=(c=@t =(c 'Reply with hello')))) !>(&))
+  (ex-equal !>((lien sent-next |=(c=@t =(c left-out:hl)))) !>(|))
 --

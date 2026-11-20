@@ -25,6 +25,7 @@ const sessions = [], bindings = [], requests = [], held = []
 let url, savedModels, limit = Infinity, hold = false, toolHits = 0
 // The refusal states no counts, so nothing can read a limit from it.
 const tooLarge = '{"error":{"message":"This request exceeds the model\'s maximum context length.","type":"invalid_request_error","code":"context_length_exceeded"}}'
+const note = '[This message was left out because the request containing it was too large for the model. The original is kept in the conversation log.]'
 const summary = 'Checkpoint: earlier exchanges discussed project notes; the requested page was fetched.'
 const structured = (body) => body.messages[0].content.includes('Return one JSON object with summary')
 const checkpoint = (body) => structured(body) ? JSON.stringify({ summary, memories: [] }) : summary
@@ -82,12 +83,12 @@ async function until(label, check, timeoutMs = 30000) {
   }
   throw Error(`Timed out: ${label}`)
 }
-async function make(name, tools = []) {
+async function make(name, tools = [], maxContext = 400000) {
   console.log(`Checking ${name}`)
   const { sessionId } = await client.call('session/new', { name: `${tag}-${name}` })
   sessions.push(sessionId)
   await client.call('harness/session/configure', { sessionId, config: {
-    url, model: 'fixture', key: '', headers: [], 'max-context': 400000,
+    url, model: 'fixture', key: '', headers: [], 'max-context': maxContext,
     system: 'The fixture owner instructions.', tools,
   } })
   return sessionId
@@ -158,8 +159,8 @@ try {
   bindings.push(handSid)
   await hand.bind(handSid, { address: 'fixture:conversation', sessionId: handSid, actors: ['alice'] })
   const published = async (input) => (await hand.outbox()).filter((p) => p.inputId === input.inputId)
-  const observe = async (event, text) => {
-    const input = await hand.observe(handSid, { event, text, actor: 'alice' })
+  const observe = async (event, text, binding = handSid) => {
+    const input = await hand.observe(binding, { event, text, actor: 'alice' })
     await until(`${event} settles`, async () => held.length || (await published(input)).length)
     return input
   }
@@ -184,11 +185,48 @@ try {
   await sleep(1500)
   assert.equal((await published(next)).length, 1, 'one publication for the next input')
 
+  // A paste too large for the provider even after compaction fails once,
+  // with the left-out wording; the next message is sent with the note in
+  // its place and answered.
+  const pasteSid = await make('paste')
+  bindings.push(pasteSid)
+  await hand.bind(pasteSid, { address: 'fixture:paste', sessionId: pasteSid, actors: ['alice'] })
+  await calibrate(pasteSid, 20000, (text) => observe('paste-calibrate', text, pasteSid))
+  const paste = 'Huge single paste. '.repeat(1500)
+  const pasted = await observe('paste', paste, pasteSid)
+  await sleep(1500)
+  const failures = await published(pasted)
+  assert.equal(failures.length, 1, 'one publication for the paste')
+  assert.match(failures[0].text, /left out/)
+  const afterPaste = await observe('after-paste', 'Short question after the paste?', pasteSid)
+  const pasteReplies = await published(afterPaste)
+  assert.equal(pasteReplies.length, 1, 'one publication after the paste')
+  assert.match(pasteReplies[0].text, /ANSWER:/)
+  const pasteNext = requests.filter((r) => r.kind === 'turn').at(-1).body.messages
+  assert.ok(pasteNext.some((m) => m.content === note), 'the note stands in for the paste')
+  assert.ok(!pasteNext.some((m) => typeof m.content === 'string' && m.content.includes('Huge single paste.')), 'the paste is not sent again')
+
+  // Harness refuses an input locally when even a compacted request is over
+  // budget. A short message fits this window first; after the refusal, the
+  // next short message is answered.
+  limit = Infinity
+  const localSid = await make('local', [], 20276)
+  assert.equal((await prompt(localSid, 'A normal question about the project?')).stopReason, 'end_turn', 'a short message fits')
+  const localCount = requests.filter((r) => r.kind === 'turn').length
+  await assert.rejects(prompt(localSid, 'Huge indivisible ask. '.repeat(3000)), /context overflow/)
+  assert.equal(requests.filter((r) => r.kind === 'turn').length, localCount, 'the huge input is never sent')
+  assert.equal((await prompt(localSid, 'Short follow-up?')).stopReason, 'end_turn')
+  const localNext = requests.at(-1).body.messages
+  assert.ok(localNext.some((m) => m.content === note), 'the note stands in for the refused input')
+  assert.ok(!localNext.some((m) => typeof m.content === 'string' && m.content.includes('Huge indivisible ask.')))
+
   console.log(JSON.stringify({ ok: true, checks: [
     'history past the limit is compacted and answered once',
     'a tool result past the limit is compacted without re-running the tool',
     'a hand gets one reply per input, none while the summary is held',
     'one ACP terminal frame per prompt',
+    'a paste too large even after compaction is left out of the next request',
+    'a locally refused input is left out of the next request',
   ] }, null, 2))
 } finally {
   for (const { res } of held) res.destroy()

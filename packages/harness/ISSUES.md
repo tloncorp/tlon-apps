@@ -98,14 +98,17 @@ queue caps in `activity-room` (`desk/app/harness-tlon.hoon:1804`) limit waiting 
 not a strict back-and-forth. `scripts/test-js.sh` avoids the case by having each test
 ship own itself.
 
-### 5. Partly fixed: a rejected request is compacted and retried
+### 5. Fixed: a rejected request is compacted and retried
 
 A turn the provider refuses as too large now compacts and is sent again, smaller,
-within the same prompt, with no fallback to another model. `size-recovery-conformance`
-and `desk/tests-integration/harness-size-recovery.hoon` cover it. Still open: an input
-too large for the model on its own fails, and so does every later message, because each
-later request carries it. Harness's own 1 MiB request cap for connected runners is not
-recognized as a size refusal.
+within the same prompt, with no fallback to another model. When it still cannot be
+sent, it fails once and the next message replaces it with a note, so the conversation
+continues. `size-recovery-conformance`, `desk/tests-integration/harness-size-recovery.hoon`
+and `desk/tests/harness-context.hoon` cover it. Not covered: retained history or
+summaries too large on their own; Harness's own 1 MiB request cap for connected runners,
+which is not recognized as a size refusal; an invalid automatic summary before any
+refusal, after which one more message fails; and a downgrade, whose replay keeps the
+originals the note replaced.
 
 ### 6. Fixed: a non-JSON summary halted compaction
 
