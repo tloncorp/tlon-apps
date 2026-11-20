@@ -13,10 +13,17 @@ import entry from '../index.js';
 import { setHeartbeatSetupReader } from './heartbeat-evidence.js';
 import { HEARTBEAT_LEDGER_TOOL } from './heartbeat-ledger.js';
 import {
+  getHeartbeatLastRun,
+  HEARTBEAT_SKIP_MAX_MS,
+  setHeartbeatOwnerMessageReader,
+  _testing as skipTesting,
+} from './heartbeat-skip.js';
+import {
   setErrorTelemetryReporter,
   setHeartbeatMessageSentReporter,
   setHeartbeatRunReporter,
   setHeartbeatRunEndedReporter,
+  setHeartbeatRunSkippedReporter,
 } from './telemetry.js';
 import {
   _testing as boundaryTesting,
@@ -39,6 +46,7 @@ import { runTlonCommand } from './tlon-command-runner.js';
 import {
   RUN_ACTIVE_TTL_MS,
   _testing as identityTesting,
+  getHeartbeatLedgerRun,
   isHeartbeatOwnerReadRun,
   isSealedHeartbeatRun,
   noteCrossSessionSend,
@@ -188,6 +196,7 @@ function registerEntry(
       for (const hook of gatewayStarts) await hook(event, ctx);
     },
     heartbeatEvidence: hooks.get('heartbeat_prompt_contribution') as AgentHook,
+    beforeAgentReply: hooks.get('before_agent_reply') as AgentHook,
     afterToolCall: hooks.get('after_tool_call') as AgentHook,
     llmOutput: hooks.get('llm_output') as AgentHook,
     emitAgentEvent: (event: AgentEvent) => agentEventListener?.(event),
@@ -1531,6 +1540,269 @@ describe('before_tool_call turn identity', () => {
         expect(runner).toHaveBeenCalledTimes(
           failure === 'grant revoked' ? 2 : 5
         );
+      });
+    });
+
+    describe('skipping an unchanged heartbeat', () => {
+      const prompt =
+        '# Heartbeat\n<!-- tlon-uses: heartbeat-evidence-v2 -->\n<!-- tlon-uses: heartbeat-skip-v1 -->\nDo the work.';
+      const body = `${prompt}\nCurrent time: Friday (UTC)\nReference UTC: 2026-11-20 15:00 UTC`;
+      const runner = vi.mocked(runTlonCommand);
+      const ended = vi.fn();
+      const skipped = vi.fn();
+      let workspaceDir: string;
+      let ownerMentions: string;
+
+      beforeEach(() => {
+        workspaceDir = mkdtempSync(join(tmpdir(), 'heartbeat-skip-'));
+        ownerMentions = 'No mentions activity found.';
+        runner.mockImplementation(async (_binary, args) =>
+          args.includes('--ship') && args.at(-1) === 'mentions'
+            ? ownerMentions
+            : `none in ${args.at(-1)}`
+        );
+        setHeartbeatOwnerMessageReader(() => 0);
+        setHeartbeatRunEndedReporter(ended);
+        setHeartbeatRunSkippedReporter(skipped);
+      });
+
+      afterEach(() => {
+        vi.restoreAllMocks();
+        runner.mockImplementation(async () => 'ran');
+        setHeartbeatOwnerMessageReader(null);
+        setHeartbeatRunEndedReporter(null);
+        setHeartbeatRunSkippedReporter(null);
+        skipTesting.clearAll();
+        ended.mockReset();
+        skipped.mockReset();
+        rmSync(workspaceDir, { recursive: true, force: true });
+      });
+
+      async function start(heartbeatPrompt = prompt) {
+        const harness = registerEntry({
+          ...OWNER,
+          agents: { defaults: { heartbeat: { prompt: heartbeatPrompt } } },
+        });
+        await harness.gatewayStart({}, {});
+        // Registration probes the CLI's version.
+        runner.mockClear();
+        return harness;
+      }
+
+      /** One scheduled tick: the skip check, then the run if it goes ahead. */
+      async function tick(
+        harness: ReturnType<typeof registerEntry>,
+        runId: string,
+        opts: { body?: string; selected?: number; ledger?: boolean } = {}
+      ) {
+        const ctx = {
+          runId,
+          sessionKey: HB,
+          workspaceDir,
+          ...provenance('heartbeat'),
+        };
+        const cleanedBody = opts.body ?? body;
+        const handled = await harness.beforeAgentReply({ cleanedBody }, ctx);
+        if (handled) return { handled };
+        await harness.prepare({ prompt: cleanedBody }, ctx);
+        const packet = (await harness.heartbeatEvidence({}, ctx)) as
+          | { prependContext: string }
+          | undefined;
+        const ledger = getHeartbeatLedgerRun(runId);
+        if (ledger && opts.ledger !== false) {
+          ledger.receipt = {
+            selected: opts.selected ?? 0,
+            held: 0,
+            silenced: 0,
+            confirmedDeliveries: 0,
+            liveRecords: 1,
+            rotated: false,
+          };
+        }
+        harness.emitAgentEvent({
+          runId,
+          ts: Date.now(),
+          stream: 'lifecycle',
+          data: { phase: 'end' },
+        });
+        // The files key is taken just after the run ends.
+        await new Promise((resolve) => setTimeout(resolve, 25));
+        return { packet: packet?.prependContext };
+      }
+
+      it('skips ticks after a quiet run until a watched file changes', async () => {
+        const harness = await start();
+        const first = await tick(harness, 'hb-1');
+        expect(first.handled).toBeUndefined();
+        // The packet reuses the reads the skip check made.
+        expect(first.packet).toContain('> No mentions activity found.');
+        expect(runner).toHaveBeenCalledTimes(5);
+        expect(ended).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            runId: 'hb-1',
+            skipBlockedBy: 'no_previous_run',
+            skippedTicksBefore: 0,
+          })
+        );
+        expect(getHeartbeatLastRun(workspaceDir)?.filesKey).toBeDefined();
+
+        expect((await tick(harness, 'hb-2')).handled).toEqual({
+          handled: true,
+          reason: 'heartbeat inputs unchanged',
+        });
+        expect((await tick(harness, 'hb-3')).handled).toBeDefined();
+        expect(ended).toHaveBeenCalledOnce();
+        expect(skipped).toHaveBeenCalledTimes(2);
+        expect(skipped).toHaveBeenLastCalledWith({
+          runId: 'hb-3',
+          sinceLastRunMs: expect.any(Number),
+          skippedTicks: 2,
+        });
+
+        writeFileSync(join(workspaceDir, 'MEMORY.md'), 'the owner said more');
+        expect((await tick(harness, 'hb-4')).handled).toBeUndefined();
+        expect(ended).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            runId: 'hb-4',
+            skipBlockedBy: 'files_changed',
+            skippedTicksBefore: 2,
+          })
+        );
+        // The new run is the one later ticks are compared with.
+        expect((await tick(harness, 'hb-5')).handled).toBeDefined();
+      });
+
+      it.each([
+        [
+          'owner_message',
+          () => setHeartbeatOwnerMessageReader(() => Date.now() + 1),
+        ],
+        [
+          'owner_message_unknown',
+          () => setHeartbeatOwnerMessageReader(() => undefined),
+        ],
+        [
+          'activity_changed',
+          () => {
+            ownerMentions = '📝 Post [MENTION] by ~nec\n   Content: you there?';
+          },
+        ],
+        [
+          'activity_unknown',
+          () =>
+            runner.mockImplementation(async () => {
+              throw new Error('tlon command timed out');
+            }),
+        ],
+        [
+          'max_interval',
+          () => {
+            const later = Date.now() + HEARTBEAT_SKIP_MAX_MS;
+            vi.spyOn(Date, 'now').mockReturnValue(later);
+          },
+        ],
+      ] as const)('runs the next tick with %s', async (blockedBy, change) => {
+        const harness = await start();
+        await tick(harness, 'hb-1');
+        change();
+        expect((await tick(harness, 'hb-2')).handled).toBeUndefined();
+        expect(ended).toHaveBeenLastCalledWith(
+          expect.objectContaining({ runId: 'hb-2', skipBlockedBy: blockedBy })
+        );
+        expect(skipped).not.toHaveBeenCalled();
+      });
+
+      it.each([
+        ['selected something', { selected: 1 }],
+        ['recorded no ledger submission', { ledger: false }],
+      ])('runs the next tick when the last run %s', async (_name, opts) => {
+        const harness = await start();
+        await tick(harness, 'hb-1', opts);
+        expect((await tick(harness, 'hb-2')).handled).toBeUndefined();
+        expect(ended).toHaveBeenLastCalledWith(
+          expect.objectContaining({ skipBlockedBy: 'previous_run_not_quiet' })
+        );
+      });
+
+      it('never skips without the opt-in line and makes no reads to decide', async () => {
+        const harness = await start(
+          prompt.replace('<!-- tlon-uses: heartbeat-skip-v1 -->\n', '')
+        );
+        const plain = body.replace(
+          '<!-- tlon-uses: heartbeat-skip-v1 -->\n',
+          ''
+        );
+        const ctx = {
+          runId: 'hb-0',
+          sessionKey: HB,
+          workspaceDir,
+          ...provenance('heartbeat'),
+        };
+        expect(
+          await harness.beforeAgentReply({ cleanedBody: plain }, ctx)
+        ).toBeUndefined();
+        expect(runner).not.toHaveBeenCalled();
+        await tick(harness, 'hb-1', { body: plain });
+        expect(
+          (await tick(harness, 'hb-2', { body: plain })).handled
+        ).toBeUndefined();
+        expect(ended).toHaveBeenLastCalledWith(
+          expect.objectContaining({ skipBlockedBy: 'disabled' })
+        );
+      });
+
+      it('never skips a tick that carries more than the configured prompt', async () => {
+        const harness = await start();
+        await tick(harness, 'hb-1');
+        const withEvent = `System: a command finished\n\n${body}`;
+        expect(
+          (await tick(harness, 'hb-2', { body: withEvent })).handled
+        ).toBeUndefined();
+        expect(ended).toHaveBeenLastCalledWith(
+          expect.objectContaining({ skipBlockedBy: 'not_plain_tick' })
+        );
+      });
+
+      it('ignores runs that are not heartbeats', async () => {
+        const harness = await start();
+        await tick(harness, 'hb-1');
+        runner.mockClear();
+        for (const trigger of ['user', 'cron']) {
+          expect(
+            await harness.beforeAgentReply(
+              { cleanedBody: body },
+              {
+                runId: `other-${trigger}`,
+                sessionKey: HB,
+                workspaceDir,
+                trigger,
+              }
+            )
+          ).toBeUndefined();
+        }
+        expect(runner).not.toHaveBeenCalled();
+      });
+
+      it('does not hand over owner activity read for the check once the grant is gone', async () => {
+        const harness = await start();
+        ownerMentions = 'a private mention';
+        const ctx = {
+          runId: 'hb-1',
+          sessionKey: HB,
+          workspaceDir,
+          ...provenance('heartbeat'),
+        };
+        await harness.beforeAgentReply({ cleanedBody: body }, ctx);
+        await harness.prepare({ prompt: body }, ctx);
+        noteCrossSessionSend({ sessionKey: HB }, 'sender');
+        const packet = (
+          (await harness.heartbeatEvidence({}, ctx)) as {
+            prependContext: string;
+          }
+        ).prependContext;
+        expect(packet).toContain('Owner activity (unavailable)');
+        expect(packet).not.toContain('a private mention');
+        expect(isSealedHeartbeatRun(ctx.runId)).toBe(false);
       });
     });
 

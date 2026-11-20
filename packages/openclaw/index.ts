@@ -147,6 +147,21 @@ import {
   UNAVAILABLE_OWNER_ACTIVITY,
 } from './src/heartbeat-activity.js';
 import { accumulateHeartbeatUsage } from './src/heartbeat-run.js';
+import {
+  decideHeartbeatSkip,
+  getHeartbeatLastRun,
+  getHeartbeatTick,
+  heartbeatFilesKey,
+  type HeartbeatLastRun,
+  type HeartbeatSkipBlock,
+  heartbeatSkipRequested,
+  type HeartbeatTick,
+  isPlainHeartbeatTick,
+  noteHeartbeatTick,
+  readHeartbeatOwnerMessageAt,
+  setHeartbeatLastRun,
+  takeHeartbeatTick,
+} from './src/heartbeat-skip.js';
 import { normalizeShip, parseTlonTarget } from './src/targets.js';
 import {
   configuredTlonShipHosts,
@@ -163,6 +178,7 @@ import {
   reportHeartbeatMessageSent,
   reportHeartbeatRun,
   reportHeartbeatRunEnded,
+  reportHeartbeatRunSkipped,
   reportPluginError,
   reportOutboundRoute,
   reportSessionDiagnostic,
@@ -916,6 +932,13 @@ export function reportHarnessDiagnostic(event: DiagnosticCandidate): void {
       });
       return;
   }
+}
+
+function heartbeatTimezone(cfg: OpenClawConfig): string {
+  return resolveActiveHoursTimezone(
+    cfg,
+    cfg.agents?.defaults?.heartbeat?.activeHours?.timezone
+  );
 }
 
 function safeTelemetryObserver(params: {
@@ -1718,6 +1741,87 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
     }
   });
 
+  const configuredHeartbeatPrompt = (cfg: OpenClawConfig, agentId?: string) =>
+    (agentId ? resolveAgentConfig(cfg, agentId) : undefined)?.heartbeat
+      ?.prompt ??
+    cfg.agents?.defaults?.heartbeat?.prompt ??
+    '';
+  // Ends a scheduled heartbeat before its first model call when the last run
+  // found nothing and nothing it watches has changed since. Every doubt runs
+  // the heartbeat: the decision is made fresh on each tick from memory, so no
+  // stored state can keep it off.
+  api.on('before_agent_reply', async (event, ctx) => {
+    if (ctx.trigger !== 'heartbeat' || !ctx.runId || !ctx.workspaceDir) return;
+    const { runId, workspaceDir } = ctx;
+    const key = ctx.agentId ?? workspaceDir;
+    const runs = (
+      blockedBy: HeartbeatSkipBlock,
+      tick: Partial<HeartbeatTick> = {}
+    ) =>
+      noteHeartbeatTick(runId, {
+        blockedBy,
+        skippedTicksBefore: getHeartbeatLastRun(key)?.skippedTicks ?? 0,
+        ...tick,
+      });
+    try {
+      const cfg = api.runtime.config.current() as OpenClawConfig;
+      const prompt = configuredHeartbeatPrompt(cfg, ctx.agentId);
+      if (!heartbeatSkipRequested(prompt)) return runs('disabled');
+      if (!isPlainHeartbeatTick(event.cleanedBody ?? '', prompt)) {
+        return runs('not_plain_tick');
+      }
+      // Read before the run holds its owner grant. Only a hash is compared
+      // here; the packet hook checks the grant before any handoff.
+      const reader = agentTurnHookDepsSlot.get()?.readHeartbeatActivity;
+      const activity = reader
+        ? readHeartbeatActivity(reader, workspaceDir, liveOwnerShip())
+        : undefined;
+      const [filesKey, read] = await Promise.all([
+        heartbeatFilesKey({
+          workspaceDir,
+          timezone: heartbeatTimezone(cfg),
+        }).catch(() => undefined),
+        activity,
+      ]);
+      const activityKey = read?.changeKey;
+      const lastRun = getHeartbeatLastRun(key);
+      const decision = decideHeartbeatSkip({
+        lastRun,
+        now: Date.now(),
+        ownerMessageAt: readHeartbeatOwnerMessageAt(),
+        filesKey,
+        activityKey,
+      });
+      if (!decision.skip || !lastRun) {
+        return runs(decision.skip ? 'error' : decision.blockedBy, {
+          activity,
+          activityKey,
+        });
+      }
+      lastRun.skippedTicks++;
+      api.logger.info(
+        `[tlon] Skipped an unchanged heartbeat (${lastRun.skippedTicks} since the last run, ${Math.round(decision.sinceLastRunMs / 60_000)}m ago).`
+      );
+      safeTelemetryObserver({
+        logger: api.logger,
+        telemetrySource: 'heartbeat_run_skipped',
+        runId,
+        run: () =>
+          reportHeartbeatRunSkipped({
+            runId,
+            sinceLastRunMs: decision.sinceLastRunMs,
+            skippedTicks: lastRun.skippedTicks,
+          }),
+      });
+      return { handled: true, reason: 'heartbeat inputs unchanged' };
+    } catch (error) {
+      api.logger.warn(
+        `[tlon] Heartbeat skip check failed; running: ${String(error)}`
+      );
+      return runs('error');
+    }
+  });
+
   api.on('agent_turn_prepare', async (event, ctx) => {
     const ownerShip = liveOwnerShip();
     observeRun({ ...ctx, ownerShip });
@@ -1730,17 +1834,14 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       markHeartbeatRun(ctx.runId, ownerShip);
       const heartbeat = getHeartbeatRunObservation(ctx.runId);
       if (heartbeat && heartbeat.requestedEvidenceVersion === undefined) {
-        const cfg = api.runtime.config.current() as OpenClawConfig;
-        const agent = ctx.agentId
-          ? resolveAgentConfig(cfg, ctx.agentId)
-          : undefined;
-        const configuredPrompt =
-          agent?.heartbeat?.prompt ??
-          cfg.agents?.defaults?.heartbeat?.prompt ??
-          '';
+        heartbeat.skipKey = ctx.agentId ?? ctx.workspaceDir;
+        heartbeat.workspaceDir = ctx.workspaceDir;
         heartbeat.requestedEvidenceVersion = heartbeatEvidenceVersion(
           event.prompt ?? '',
-          configuredPrompt
+          configuredHeartbeatPrompt(
+            api.runtime.config.current() as OpenClawConfig,
+            ctx.agentId
+          )
         );
       }
     }
@@ -1767,10 +1868,7 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
     const cfg = api.runtime.config.current() as OpenClawConfig;
     heartbeat.evidence ??= buildHeartbeatEvidence({
       workspaceDir: ctx.workspaceDir,
-      timezone: resolveActiveHoursTimezone(
-        cfg,
-        cfg.agents?.defaults?.heartbeat?.activeHours?.timezone
-      ),
+      timezone: heartbeatTimezone(cfg),
     }).catch(() => {
       api.logger.warn('[tlon] Heartbeat evidence packet unavailable.');
       return undefined;
@@ -1779,6 +1877,9 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       const live = resolveOwnerDeps().liveAccount();
       return isHeartbeatOwnerReadRun(ctx, live.ownerShip) ? live : undefined;
     };
+    // The skip check has already made these reads for this run.
+    if (version === 2)
+      heartbeat.activity ??= getHeartbeatTick(ctx.runId)?.activity;
     if (version === 2 && !heartbeat.activity) {
       const reader = agentTurnHookDepsSlot.get()?.readHeartbeatActivity;
       if (reader) {
@@ -2496,6 +2597,43 @@ export default defineBundledChannelEntry({
           typeof event.data.endedAt === 'number'
             ? event.data.endedAt
             : event.ts;
+        const success = phase === 'end' && event.data.aborted !== true;
+        const tick = takeHeartbeatTick(event.runId);
+        if (heartbeat.skipKey) {
+          // Every real run replaces the record, so a later tick is never
+          // compared with an older run than the last one.
+          const lastRun: HeartbeatLastRun = {
+            startedAt: heartbeat.startedAt,
+            endedAt,
+            quiet:
+              success &&
+              receipt !== undefined &&
+              receipt.selected === 0 &&
+              receipt.held === 0,
+            activityKey: tick?.activityKey,
+            skippedTicks: 0,
+          };
+          setHeartbeatLastRun(heartbeat.skipKey, lastRun);
+          if (
+            lastRun.quiet &&
+            heartbeat.workspaceDir &&
+            tick &&
+            tick.blockedBy !== 'disabled'
+          ) {
+            // Taken now, after the run's own writes to its notes.
+            void heartbeatFilesKey({
+              workspaceDir: heartbeat.workspaceDir,
+              timezone: heartbeatTimezone(
+                api.runtime.config.current() as OpenClawConfig
+              ),
+            }).then(
+              (filesKey) => {
+                lastRun.filesKey = filesKey;
+              },
+              () => undefined
+            );
+          }
+        }
         safeTelemetryObserver({
           logger: api.logger,
           telemetrySource: 'heartbeat_run_ended',
@@ -2510,11 +2648,13 @@ export default defineBundledChannelEntry({
               cacheReadTokens: heartbeat.usage?.cacheRead ?? null,
               cacheWriteTokens: heartbeat.usage?.cacheWrite ?? null,
               durationMs: Math.max(0, endedAt - heartbeat.startedAt),
-              success: phase === 'end' && event.data.aborted !== true,
+              success,
               packetBytes: heartbeat.packetBytes ?? 0,
               packetVersion: heartbeat.packetVersion ?? 0,
               ledgerRecorded: receipt !== undefined,
               selected: receipt?.selected ?? 0,
+              skipBlockedBy: tick?.blockedBy ?? null,
+              skippedTicksBefore: tick?.skippedTicksBefore ?? 0,
             }),
         });
       });

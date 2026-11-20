@@ -48,7 +48,7 @@ function preferencesOutsideManagedBlock(text: string): string {
   return outside.trim();
 }
 
-function memoryDates(now: Date, timeZone: string): [string, string] {
+export function memoryDates(now: Date, timeZone: string): [string, string] {
   const formatter = new Intl.DateTimeFormat('en', {
     year: 'numeric',
     month: '2-digit',

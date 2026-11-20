@@ -1,4 +1,5 @@
 import { setHeartbeatSetupReader } from '../heartbeat-evidence.js';
+import { setHeartbeatOwnerMessageReader } from '../heartbeat-skip.js';
 
 import {
   createBrowserContinuationRunner,
@@ -165,6 +166,7 @@ import {
   setHeartbeatMessageSentReporter,
   setHeartbeatRunReporter,
   setHeartbeatRunEndedReporter,
+  setHeartbeatRunSkippedReporter,
   setMigrationTelemetryReporter,
   setOutboundRouteReporter,
   setReplyOutputReporter,
@@ -1187,6 +1189,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         ? currentSettings.bootstrapComplete === true
         : undefined
     );
+    setHeartbeatOwnerMessageReader(() =>
+      heartbeatSettingsReady && !settingsFeedDown
+        ? (currentSettings.lastOwnerMessageAt ?? 0)
+        : undefined
+    );
     let bootstrapCompleteFlight: Promise<void> | undefined;
     const markBootstrapComplete = () => {
       if (currentSettings.bootstrapComplete === true) return Promise.resolve();
@@ -1315,6 +1322,15 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       const ownerShip = currentTelemetryOwnerShip();
       if (ownerShip)
         telemetry?.captureHeartbeatRunEnded({
+          ...event,
+          ownerShip,
+          botShip: botShipName,
+        });
+    });
+    setHeartbeatRunSkippedReporter((event) => {
+      const ownerShip = currentTelemetryOwnerShip();
+      if (ownerShip)
+        telemetry?.captureHeartbeatRunSkipped({
           ...event,
           ownerShip,
           botShip: botShipName,
@@ -7334,7 +7350,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       setDebugTelemetryReporter(null);
       setHeartbeatRunReporter(null);
       setHeartbeatRunEndedReporter(null);
+      setHeartbeatRunSkippedReporter(null);
       setHeartbeatSetupReader(null);
+      setHeartbeatOwnerMessageReader(null);
       setHeartbeatMessageSentReporter(null);
       setErrorTelemetryReporter(null);
       setCronTelemetryReporter(null);
