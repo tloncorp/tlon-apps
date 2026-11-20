@@ -248,17 +248,23 @@
   ;<  ~  bind:m  (ex-equal !>(err.i.log) !>(raw))
   ;<  ~  bind:m  (ex-equal !>(err:(play:hl log)) !>(`raw))
   (ex-equal !>((counted log %llm-requested)) !>(1))
-++  test-non-size-failure-still-falls-back
+::  With no fallback left, a failure that is not about size ends the turn;
+::  it is never compacted and resent.
+::
+++  test-non-size-failure-falls-back-and-never-compacts
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  *  bind:m  (setup long-history)
   ;<  sent=(list card)  bind:m  (do-send 'Reply with hello')
   ;<  retried=(list card)  bind:m  (respond (snag 0 (requests sent)) unavailable)
+  ;<  done=(list card)  bind:m  (respond (snag 0 (requests retried)) unavailable)
   ;<  log=(list event:h)  bind:m  get-log
   ;<  ~  bind:m  (ex-equal !>((turn (requests retried) kind)) !>(~['turn']))
   ;<  ~  bind:m  (ex-equal !>((turn (requests retried) model)) !>(~['backup']))
-  (ex-equal !>((counted log %lcm-planned)) !>(0))
+  ;<  ~  bind:m  (ex-equal !>((counted log %lcm-planned)) !>(0))
+  ;<  ~  bind:m  (ex-equal !>((requests done)) !>(~))
+  (ex-equal !>((counted log %llm-failed)) !>(1))
 ::  Responses reports a failure inside an HTTP 200 stream.
 ::
 ++  responses-failed
