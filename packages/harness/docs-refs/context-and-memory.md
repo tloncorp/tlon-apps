@@ -103,7 +103,9 @@ in fallback chains. Failover checks each candidate against its own reported
 capacity, skips candidates that cannot fit the request, and uses the 800,000-token
 default only when that candidate has no known capacity. A smaller reported limit
 always takes precedence. Credential changes invalidate cached capacity until
-metadata for the selected credentials arrives.
+metadata for the selected credentials arrives. A provider's refusal of a request
+as too large for its model never fails over; a refused turn compacts instead
+(below).
 
 Before inference, compaction compares the usage-based context budget with
 `window - output-budget - floor(window / 10)`. Requests above this threshold
@@ -138,6 +140,24 @@ the provider reports usage. Missing usage remains zero, not an estimated charge.
 Four attempts per admitted input bound automatic chunking; each summary has a
 three-minute watchdog. Cancellation fences late results. An in-flight summary
 without a source plan cannot be accepted as a checkpoint after reload.
+
+A provider refusing a turn as too large is recognized by its error wording
+(`oversized` in `lib/harness-failure.hoon`), whether it arrives as an HTTP error
+or inside a successful response. The failure is recorded and compaction starts
+in the same event, so the prompt stays open: the checkpoint re-issues the turn on
+the configured route, and the prompt settles once. A turn going back to the
+route that refused it is sent only if Harness's estimate of the whole request is
+strictly smaller than its estimate of the refused request; otherwise it halts
+with `context budget: compaction did not make the request smaller`. An explicit
+Retry always sends. These compactions share the four attempts per admitted
+input, and the planner's refusal ends recovery with its `context budget:`
+reason. A summary request refused for size fails with the provider's text. A
+refusal relayed by a connected runner, or one after text has streamed, is
+recorded without compaction.
+
+An input too large for the model on its own still fails, and so does every later
+message, because each later request carries it. Harness's own 1 MiB request cap
+for connected runners is not recognized as a size refusal.
 
 `/context` and `/compact` share native, ACP and hand ingress. Only `/compact`
 invokes inference. It requires no tools and publishes success only after the

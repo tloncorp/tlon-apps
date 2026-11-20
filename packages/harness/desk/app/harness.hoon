@@ -5359,8 +5359,10 @@
       (~(del by compactions.maintenance.knowledge) sid)
     ::  No failover after user-visible output, explicit cancellation, or a
     ::  semantic completion. Each attempt gets a fresh fenced request ID.
+    ::  A request too large for one model is compacted, not moved to another.
     =/  fallback
       ?.  ?&  ?=(%llm-failed -.event)
+              !(oversized:failure err.event)
               ?=(~ (route:runner-lib url.request-config))
               !?=(%cancel -.response)
               |(?=(~ streamed) =(0 sent.u.streamed))
@@ -5369,14 +5371,28 @@
       (try-fallback sid session req kind)
     ?^  fallback
       [cards.u.fallback state(sessions (~(put by sessions) sid session.u.fallback))]
+    =/  recover=?
+      ?&  =(%turn kind)
+          ?=(%llm-failed -.event)
+          (oversized:failure err.event)
+          ?=(~ (route:runner-lib url.request-config))
+          |(?=(~ streamed) =(0 sent.u.streamed))
+      ==
     =?  event  &(?=(%llm-failed -.event) =(%compaction kind))
       [%compaction-failed req err.event [0 0]]
     =/  events=(list event:h)  ~[event]
     =?  events  &(?=(%llm-completed -.event) ?=(^ reasoning) !=('' u.reasoning))
       [[%llm-reasoning req url.request-config model.request-config u.reasoning] events]
     =^  recorded  session  (record-all sid session events)
+    ::  Start compaction in this event, so the failure is never settled: the
+    ::  checkpoint re-issues the turn, or the planner's refusal halts it.
+    =/  compacted=[cards=(list card) =session:h knowledge=state:memory-types]
+      ?.  recover  [~ session knowledge]
+      (start-compaction sid session ~)
+    =.  session  session.compacted
+    =.  knowledge  knowledge.compacted
     =^  driven  state  (drive-put sid session)
-    [(weld recorded driven) state]
+    [:(weld recorded cards.compacted driven) state]
   ::  Only newly decoded text is sent to the waiting client. Keep the
   ::  complete response bytes until Iris supplies a terminal response.
   ::
