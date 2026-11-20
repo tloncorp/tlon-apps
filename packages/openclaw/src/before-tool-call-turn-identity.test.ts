@@ -1449,16 +1449,30 @@ describe('before_tool_call turn identity', () => {
         );
       });
 
+      it('hands over owner activity without a seal when ownerDefault is off', async () => {
+        const harness = registerEntry({
+          channels: { tlon: { ownerShip: '~zod' } },
+          agents: { defaults: { heartbeat: { prompt } } },
+        });
+        const ctx = await prepare(harness);
+        const packet = (
+          (await harness.heartbeatEvidence({}, ctx)) as {
+            prependContext: string;
+          }
+        ).prependContext;
+        expect(packet).toContain('> owner unreads');
+        expect(packet).toContain('> bot mentions');
+        expect(runner).toHaveBeenCalledTimes(5);
+        expect(isSealedHeartbeatRun(ctx.runId)).toBe(false);
+      });
+
       it.each([
-        'flag off',
         'grant revoked',
         'grant revoked during fetch',
         'owner reads timed out',
       ])('hands over only bot activity when %s', async (failure) => {
         const harness = registerEntry({
-          ...(failure === 'flag off'
-            ? { channels: { tlon: { ownerShip: '~zod' } } }
-            : OWNER),
+          ...OWNER,
           agents: { defaults: { heartbeat: { prompt } } },
         });
         const ctx = await prepare(harness);
@@ -1481,7 +1495,7 @@ describe('before_tool_call turn identity', () => {
         expect(packet).not.toContain('> owner');
         expect(isSealedHeartbeatRun(ctx.runId)).toBe(false);
         expect(runner).toHaveBeenCalledTimes(
-          failure === 'flag off' || failure === 'grant revoked' ? 2 : 5
+          failure === 'grant revoked' ? 2 : 5
         );
       });
     });

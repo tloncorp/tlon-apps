@@ -1777,9 +1777,7 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
     });
     const eligibleOwner = () => {
       const live = resolveOwnerDeps().liveAccount();
-      if (live.ownerDefault && isHeartbeatOwnerReadRun(ctx, live.ownerShip)) {
-        return live.ownerShip;
-      }
+      return isHeartbeatOwnerReadRun(ctx, live.ownerShip) ? live : undefined;
     };
     if (version === 2 && !heartbeat.activity) {
       const reader = agentTurnHookDepsSlot.get()?.readHeartbeatActivity;
@@ -1787,7 +1785,7 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
         heartbeat.activity = readHeartbeatActivity(
           reader,
           ctx.workspaceDir,
-          eligibleOwner()
+          eligibleOwner()?.ownerShip
         );
       }
     }
@@ -1806,8 +1804,11 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
     if (version === 2) {
       // An attempt can be retried after the owner grant has been revoked.
       const owner = activity?.owner;
-      if (owner && owner.ship === eligibleOwner()) {
-        sealHeartbeatRun(ctx.runId);
+      const live = eligibleOwner();
+      if (owner && live && owner.ship === live.ownerShip) {
+        // With ownerDefault off the model already reads this data unsealed
+        // through the owner config, so the packet adds no seal there.
+        if (live.ownerDefault) sealHeartbeatRun(ctx.runId);
         sections.push(owner.section);
       } else {
         sections.push(UNAVAILABLE_OWNER_ACTIVITY);
