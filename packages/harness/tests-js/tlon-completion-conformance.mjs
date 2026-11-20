@@ -189,18 +189,19 @@ try {
   } else {
     originalStorage = { cred: (await scry('storage/credentials'))['storage-update'].credentials, conf: (await scry('storage/configuration'))['storage-update'].configuration }
     await storageSet({ 'set-endpoint': origin(storage), 'set-access-key-id': 'COMPLETIONFIXTURE', 'set-secret-access-key': randomUUID(), 'set-region': 'us-east-1', 'set-current-bucket': slug, 'set-public-url-base': '', 'toggle-service': 'credentials' })
-    await invoke('upload_file', { path }, 'error'); assert.equal(puts.length, 0)
-    await configure(['tlon', { clay: '/harness/lib/harness-tlon-tool/hoon' }])
+    // These are owner turns, which hold all of Clay whatever the saved grant
+    // names, so a path outside it uploads too.
     const upload = await invoke('upload_file', { path }, 'read')
     assert.ok(upload.url.startsWith(origin(storage))); assert.equal(puts.length, 1)
     assert.equal(puts[0].type, 'text/plain'); assert.match(puts[0].data.toString(), /Public Tlon tool contract/)
-    await invoke('upload_file', { path: '/harness/lib/harness-s3/hoon' }, 'error'); assert.equal(puts.length, 1)
-    await invoke('upload_file', { path, url: 'https://example.com/test.txt' }, 'error'); assert.equal(puts.length, 1)
+    await configure(['tlon', { clay: path }])
+    await invoke('upload_file', { path: '/harness/lib/harness-s3/hoon' }, 'read'); assert.equal(puts.length, 2)
+    await invoke('upload_file', { path, url: 'https://example.com/test.txt' }, 'error'); assert.equal(puts.length, 2)
     const source = 'https://www.python.org/static/img/python-logo.png'
     const image = await invoke('upload_image', { url: source }, 'read')
-    assert.equal(image.content_type, 'image/png'); assert.equal(puts.length, 2)
+    assert.equal(image.content_type, 'image/png'); assert.equal(puts.length, 3)
     const downloaded = await invoke('upload_file', { url: 'https://raw.githubusercontent.com/tloncorp/tlon-apps/938f0c44d693f6f7391cca8107c7b3a40b834a01/README.md' }, 'read')
-    assert.equal(downloaded.content_type, 'text/plain'); assert.equal(puts.length, 3)
+    assert.equal(downloaded.content_type, 'text/plain'); assert.equal(puts.length, 4)
   }
   await invoke('delete_channel', { group, channel, confirm: channel })
   await invoke('delete_group', { group, confirm: group }); createdGroup = false

@@ -5,7 +5,8 @@
 ++  acp-id  'harness'
 ++  fallback-context  800.000
 ::  Baseline grants for bounded work. Direct owner turns use the live tool
-::  catalog whatever these grants say. Subagents inherit their parent's
+::  catalog whatever these grants say, except %code, which a turn has only
+::  when its conversation saves it. Subagents inherit their parent's
 ::  effective tools, so an owner turn's subagents get that catalog too, less
 ::  subagents, administration and scheduling. Current-chat tools derive from
 ::  live hands rather than ambient configuration.
