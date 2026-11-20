@@ -72,6 +72,7 @@ type AgentHook = (
     trigger?: string;
     messageProvider?: string;
     jobId?: string;
+    workspaceDir?: string;
     inputProvenance?: { kind: string; sourceTool?: string };
   }
 ) => unknown;
@@ -185,6 +186,7 @@ function registerEntry(
     gatewayStart: async (event: Record<string, unknown>, ctx: Ctx) => {
       for (const hook of gatewayStarts) await hook(event, ctx);
     },
+    heartbeatEvidence: hooks.get('heartbeat_prompt_contribution') as AgentHook,
     afterToolCall: hooks.get('after_tool_call') as AgentHook,
     llmOutput: hooks.get('llm_output') as AgentHook,
     emitAgentEvent: (event: AgentEvent) => agentEventListener?.(event),
@@ -1302,6 +1304,45 @@ describe('before_tool_call turn identity', () => {
         expect(event).toHaveBeenCalledTimes(2);
       } finally {
         setHeartbeatRunEndedReporter(null);
+      }
+    });
+
+    it('builds a packet only on an opted-in heartbeat and reuses it on retry', async () => {
+      const harness = registerEntry(OWNER);
+      const workspaceDir = mkdtempSync(join(tmpdir(), 'heartbeat-packet-'));
+      const prefs = join(workspaceDir, 'PROACTIVE_PREFERENCES.md');
+      const prompt = 'Heartbeat\n<!-- tlon-uses: heartbeat-evidence-v1 -->\n';
+      try {
+        const ctx = {
+          runId: 'evidence',
+          sessionKey: HB,
+          workspaceDir,
+          ...provenance('heartbeat'),
+        };
+        await harness.prepare({}, { ...ctx, runId: 'legacy' });
+        expect(
+          await harness.heartbeatEvidence({}, { ...ctx, runId: 'legacy' })
+        ).toBeUndefined();
+        for (const [runId, sourceTool, trigger] of [
+          ['cron-wake', 'cron', 'heartbeat'],
+          ['user', 'heartbeat', 'user'],
+        ]) {
+          const other = { ...ctx, runId, ...provenance(sourceTool), trigger };
+          await harness.prepare({ prompt }, other);
+          expect(await harness.heartbeatEvidence({}, other)).toBeUndefined();
+        }
+        writeFileSync(prefs, 'initial preferences');
+        await harness.prepare({ prompt }, ctx);
+        const first = await harness.heartbeatEvidence({}, ctx);
+        expect(first).toEqual({
+          prependContext: expect.stringContaining('initial preferences'),
+        });
+        expect(isSealedHeartbeatRun(ctx.runId)).toBe(false);
+        writeFileSync(prefs, 'updated preferences');
+        await harness.prepare({ prompt }, ctx);
+        expect(await harness.heartbeatEvidence({}, ctx)).toEqual(first);
+      } finally {
+        rmSync(workspaceDir, { recursive: true, force: true });
       }
     });
 

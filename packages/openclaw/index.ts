@@ -134,6 +134,10 @@ import {
   heartbeatLedgerToolDefinition,
   recordHeartbeatLedger,
 } from './src/heartbeat-ledger.js';
+import {
+  buildHeartbeatEvidence,
+  promptRequestsHeartbeatEvidence,
+} from './src/heartbeat-evidence.js';
 import { accumulateHeartbeatUsage } from './src/heartbeat-run.js';
 import { normalizeShip, parseTlonTarget } from './src/targets.js';
 import {
@@ -1704,7 +1708,7 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
     }
   });
 
-  api.on('agent_turn_prepare', async (_event, ctx) => {
+  api.on('agent_turn_prepare', async (event, ctx) => {
     const ownerShip = liveOwnerShip();
     observeRun({ ...ctx, ownerShip });
     // Only a heartbeat-runner turn with heartbeat provenance; anything less,
@@ -1714,6 +1718,11 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       ctx.inputProvenance?.sourceTool === 'heartbeat'
     ) {
       markHeartbeatRun(ctx.runId, ownerShip);
+      const heartbeat = getHeartbeatRunObservation(ctx.runId);
+      if (heartbeat)
+        heartbeat.wantsEvidence ??= promptRequestsHeartbeatEvidence(
+          event.prompt ?? ''
+        );
     }
     beginCronSilenceObservation(ctx);
     beginTlonTurnSilenceObservation(ctx);
@@ -1722,6 +1731,33 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       recordTlonAgentRunTrace(ctx.runId, ctx.trace?.traceId);
     }
     await agentTurnHookDepsSlot.get()?.onCronAgentHook(ctx);
+  });
+  api.on('heartbeat_prompt_contribution', async (_event, ctx) => {
+    const heartbeat = getHeartbeatRunObservation(ctx.runId);
+    if (
+      !heartbeat?.wantsEvidence ||
+      heartbeat.ended ||
+      !ctx.workspaceDir ||
+      ctx.trigger !== 'heartbeat' ||
+      ctx.inputProvenance?.sourceTool !== 'heartbeat'
+    )
+      return;
+    const cfg = api.runtime.config.current() as OpenClawConfig;
+    heartbeat.evidence ??= buildHeartbeatEvidence({
+      workspaceDir: ctx.workspaceDir,
+      timezone: resolveActiveHoursTimezone(
+        cfg,
+        cfg.agents?.defaults?.heartbeat?.activeHours?.timezone
+      ),
+    }).catch(() => {
+      api.logger.warn('[tlon] Heartbeat evidence packet unavailable.');
+      return undefined;
+    });
+    const packet = await heartbeat.evidence;
+    if (packet) {
+      heartbeat.packetBytes = Buffer.byteLength(packet);
+      return { prependContext: packet };
+    }
   });
   api.on('llm_output', (event, ctx) => {
     const heartbeat = getHeartbeatRunObservation(ctx.runId);
@@ -2387,6 +2423,7 @@ export default defineBundledChannelEntry({
         const heartbeat = getHeartbeatRunObservation(event.runId);
         if (!heartbeat || heartbeat.ended) return;
         heartbeat.ended = true;
+        heartbeat.evidence = undefined;
         const receipt = getHeartbeatLedgerRun(event.runId)?.receipt;
         const endedAt =
           typeof event.data.endedAt === 'number'
@@ -2407,7 +2444,7 @@ export default defineBundledChannelEntry({
               cacheWriteTokens: heartbeat.usage?.cacheWrite ?? null,
               durationMs: Math.max(0, endedAt - heartbeat.startedAt),
               success: phase === 'end' && event.data.aborted !== true,
-              packetBytes: 0,
+              packetBytes: heartbeat.packetBytes ?? 0,
               ledgerRecorded: receipt !== undefined,
               selected: receipt?.selected ?? 0,
             }),

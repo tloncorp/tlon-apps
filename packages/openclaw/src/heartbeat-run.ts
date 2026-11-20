@@ -26,6 +26,9 @@ export type HeartbeatRunObservation = {
   toolCalls: number;
   usage?: HeartbeatRunUsage;
   ended?: true;
+  wantsEvidence?: boolean;
+  evidence?: Promise<string | undefined>;
+  packetBytes?: number;
 };
 
 export function accumulateHeartbeatUsage(
