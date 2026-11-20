@@ -46,8 +46,32 @@
   ==
 +$  lens-sync
   [enabled=$~(| ?) owner=(unit @p) after=@da records=(map input-id:h lens-record) error=@t]
-+$  state-2
-  $:  %2
+::  A workspace the bot proposed in its owner's DM. The card lists exactly
+::  this plan; only the owner's Create tap moves it past %open.
++$  workspace-channel  [kind=?(%chat %gallery %notebook) title=@t purpose=@t]
++$  workspace-task  [title=@t description=@t schedule=@t prompt=@t]
++$  workspace-plan
+  $:  title=@t
+      description=@t
+      channels=(list workspace-channel)
+      task=(unit workspace-task)
+  ==
++$  workspace-proposal
+  $:  owner=@p
+      sid=@t
+      plan=workspace-plan
+      status=?(%open %approved %superseded %created)
+      at=@da
+      editing=?
+      ::  The reply to .awaiting, the input whose turn proposed the card, is
+      ::  the answer; it opens the workspace chat.
+      awaiting=(unit @uv)
+      answer=@t
+      group=(unit [@p @tas])
+  ==
++$  state-3
+  $:  %3
+      proposals=(map @t workspace-proposal)
       lens=lens-sync
       owner-initialized=@ud
       sibling-moon-owners=$~(| ?)

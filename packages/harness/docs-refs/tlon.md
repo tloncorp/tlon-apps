@@ -12,6 +12,7 @@ There are two independent surfaces:
   operations, including while automatic replies are disabled.
 
 Use [ship-wide tools](#ship-wide-tlon-tool) for messaging and administration,
+[workspace proposals](#workspace-proposals) for proposing a group in the owner's DM,
 [Notes](#group-notes-bulk-imports-and-diary-migration) for notebooks and imports,
 [hooks](#persistent-channel-hooks) for persistent native programs,
 [publishing](#public-web-publishing) for public content,
@@ -223,6 +224,51 @@ The same grant also covers:
   The current-conversation `tlon_upload_image` is separately available.
   URL sources retain HTTPS/no-redirect restrictions; all uploads are capped at
   8 MiB and may be public under the configured storage policy.
+
+### Workspace proposals
+
+In the owner's own DM the same grant offers three more tools, so that a topic
+which will outlast one reply gets a proposed workspace (a group) instead of one
+made unasked. They are refused in channels, for other ships and in scheduled
+runs.
+
+- `tlon_workspace_plan(intro, title, description, channels, task?)` posts the
+  intro and a card listing the workspace, one to six channels (the first a
+  chat) and an optional recurring task, with **Edit** and **Create** buttons.
+  Nothing is created. A new card replaces the owner's earlier open one. The
+  turn's own reply follows the card and is kept as the card's answer.
+- A tap is the owner's DM post carrying the app's `tlon-a2ui-selection`
+  receipt for that card; the same words typed are not a tap. The hand reads
+  the post's blob only when its text is one of their cards' buttons, records
+  it and appends a bracketed note to the message the model reads: **Create**
+  approves the proposal, **Edit** asks what to change, and a revised card
+  keeps the first card's answer.
+- `tlon_workspace_create(proposal_id, group?)` runs only for an approved
+  proposal. Called with the proposal alone it returns the steps: make the
+  group through the MCP server that acts on the owner's account, so the
+  owner's ship hosts it, or with `create_group` and `owner` when no such
+  server is granted, then its remaining channels. Called again with the new
+  `group`, it requires this ship to be an admin there and every listed
+  channel to exist, then renames the group's first chat to the card's, makes
+  the group secret, puts the channels in the card's order, posts the stored
+  answer as the first message of that chat and posts the group's card in the
+  DM. It then reports the task to schedule with `cron_add`, whose prompt
+  posts to the workspace chat. A later call makes nothing more.
+- Every other DM message from the owner, commands excepted, is admitted with
+  a workspace rule as its hand context, the way a channel thread's public
+  reference is: check `list_groups`, link a workspace that covers the topic,
+  otherwise propose one, and no card for small talk or one-off questions. The
+  head records it beside the message, never as part of it, so the message's
+  text, memory recall and the DM itself are unchanged.
+- `tlon_workspace_link(group, line)` posts one line and the card of a group
+  this ship is in, for a topic an existing workspace already covers.
+
+The group and its channels are made by the model's own calls between the two
+`tlon_workspace_create` calls, so a failed step is resumed by calling again,
+and the model is told never to make a second group for a card. The task
+follows the [scheduler](scheduling.md)'s limits: a UTC expression, at most 100
+runs, and a closing line in the DM, the conversation that scheduled it. The
+hand keeps the newest sixteen proposals.
 
 ### Group Notes, bulk imports and diary migration
 
