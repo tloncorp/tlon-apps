@@ -75,6 +75,7 @@ interface Config extends Pick<ClientParams, 'onQuitOrReset'> {
   deskCountsAllSeats: boolean;
   deskServesRosterPages: boolean | null;
   deskSupportsStewardBots: boolean | null;
+  deskSupportsContactDiscovery: boolean | null;
   deskKeepsDiscoveryCursor: boolean | null;
 }
 
@@ -213,6 +214,9 @@ const config: Config = {
   deskServesRosterPages: null,
   // Guarded requests refuse only false.
   deskSupportsStewardBots: null,
+  // Unknown (null) until the app confirms the backend's groups version.
+  // Unknown reads as unsupported for choosing how to run contact discovery.
+  deskSupportsContactDiscovery: null,
   deskKeepsDiscoveryCursor: null,
 };
 
@@ -330,6 +334,16 @@ export const setDeskCountsAllSeats = (value: boolean) => {
 
 export const getDeskCountsAllSeats = (): boolean => {
   return config.deskCountsAllSeats;
+};
+
+// Whether the connected backend's %groups-ui records contact discovery; null
+// until the desk version is known.
+export const setDeskSupportsContactDiscovery = (value: boolean | null) => {
+  config.deskSupportsContactDiscovery = value;
+};
+
+export const getDeskSupportsContactDiscoveryState = (): boolean | null => {
+  return config.deskSupportsContactDiscovery;
 };
 
 const deskServesRosterPagesListeners = new Set<() => void>();
@@ -692,6 +706,7 @@ export function internalRemoveClient() {
   setDeskCountsAllSeats(false);
   setDeskServesRosterPages(null);
   setDeskSupportsStewardBots(null);
+  setDeskSupportsContactDiscovery(null);
   setDeskKeepsDiscoveryCursor(null);
 }
 
