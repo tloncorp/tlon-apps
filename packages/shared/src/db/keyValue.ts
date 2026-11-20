@@ -601,6 +601,12 @@ export const contactDiscoveryCursor = createStorageItem<{
   persistAfterLogout: false,
 });
 
+export const contactDiscoveryRateLimitedAt = createStorageItem<number | null>({
+  key: 'contactDiscoveryRateLimitedAt',
+  defaultValue: null,
+  persistAfterLogout: false,
+});
+
 export const debugMessageJson = createStorageItem<boolean>({
   key: 'debugMessageJson',
   defaultValue: false,

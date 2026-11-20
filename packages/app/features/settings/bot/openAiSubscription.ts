@@ -12,6 +12,7 @@ export type OpenAIAuthState =
   | { phase: 'starting' }
   | { phase: 'active'; flow: TlawnLLMAuthFlow; error?: string }
   | { phase: 'complete'; flow: TlawnLLMAuthFlow }
+  | { phase: 'connected'; flow: TlawnLLMAuthFlow }
   | {
       phase: 'error';
       message: string;
@@ -22,6 +23,7 @@ export type OpenAIAuthState =
 export type OpenAIAuthEvent =
   | { type: 'start' }
   | { type: 'flow'; flow: TlawnLLMAuthFlow; now: number }
+  | { type: 'connected'; flow: TlawnLLMAuthFlow }
   | { type: 'tokenFailure'; message: string }
   | { type: 'failure'; message: string; notFound?: boolean }
   | { type: 'expired'; now: number }
@@ -75,6 +77,8 @@ export function reduceOpenAIAuthState(
       return { phase: 'starting' };
     case 'reset':
       return { phase: 'idle' };
+    case 'connected':
+      return { phase: 'connected', flow: event.flow };
     case 'failure':
       return {
         phase: 'error',

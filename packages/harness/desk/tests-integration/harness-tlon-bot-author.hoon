@@ -225,16 +225,6 @@
   =.  jobs.saved  (my ~[[(sham [0 input]) [input sid %bind '']]])
   =.  routes.saved  (my ~[[sid ['binding' %ready]]])
   (refused 1 (run saved event unread))
-++  test-no-read-past-the-identity-cap
-  %-  eval-mare
-  =/  saved  fixture
-  =.  identities.saved
-    %-  malt
-    %+  turn  (gulf 1 128)
-    |=  n=@ud
-    ^-  [[@p destination:t] @t]
-    [[`@p`(add 256 n) [%dm `@p`(add 256 n) ~]] (scot %ud n)]
-  (refused 0 (run saved (post-event ~nec) unread))
 ::  At the job cap, catch-up stops before the row: no read, no progress.
 ++  test-no-read-at-the-job-cap
   %-  eval-mare

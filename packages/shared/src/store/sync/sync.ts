@@ -24,6 +24,7 @@ import {
   deskVersionSupportsStewardPrompts,
   deskVersionSupportsTaskRuns,
   deskVersionSupportsStewardBots,
+  deskVersionKeepsDiscoveryCursor,
   activityVersionSupportsReactions,
   classifyDeskVersion,
 } from '../../logic';
@@ -46,6 +47,7 @@ import { verifyUserInviteLink } from '../inviteActions';
 import {
   discoverContacts,
   invokeContactsMatchedHandler,
+  isContactDiscoveryRateLimited,
   partitionDiscoveryMatches,
 } from '../lanyardActions';
 import { useLureState } from '../lure';
@@ -689,6 +691,9 @@ export const syncAppInfo = async (
   api.setDeskSupportsStewardBots(
     deskVersionSupportsStewardBots(appInfo?.groupsVersion)
   );
+  api.setDeskKeepsDiscoveryCursor(
+    deskVersionKeepsDiscoveryCursor(appInfo?.groupsVersion)
+  );
   // Awaited so the App Info screen and the notes-search gate see it promptly.
   // The capability flags don't depend on it landing: what protects those is
   // the in-memory version recorded above.
@@ -733,6 +738,9 @@ export const syncReactionSupport = async () => {
   );
   api.setDeskSupportsTaskRuns(deskVersionSupportsTaskRuns(groupsVersion));
   api.setDeskSupportsStewardBots(deskVersionSupportsStewardBots(groupsVersion));
+  api.setDeskKeepsDiscoveryCursor(
+    deskVersionKeepsDiscoveryCursor(groupsVersion)
+  );
 };
 
 export const syncVolumeSettings = async (ctx?: SyncCtx) => {
@@ -835,6 +843,10 @@ const syncContactDiscoveryOnce = async (
     logger.trackEvent(AnalyticsEvent.DebugSystemContacts, {
       context: 'no phone attestation found, skipping discovery',
     });
+    return empty;
+  }
+  if (!isMocked && (await isContactDiscoveryRateLimited())) {
+    logger.log('syncContactDiscovery: skipping while rate limited');
     return empty;
   }
   let systemContacts: db.SystemContact[];

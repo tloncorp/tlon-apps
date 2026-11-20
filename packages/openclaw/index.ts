@@ -623,7 +623,7 @@ function reportHarnessDebugDiagnostic(
   });
 }
 
-function reportHarnessDiagnostic(event: DiagnosticCandidate): void {
+export function reportHarnessDiagnostic(event: DiagnosticCandidate): void {
   const type = stringField(event, 'type');
   if (!type) {
     return;
@@ -832,6 +832,10 @@ function reportHarnessDiagnostic(event: DiagnosticCandidate): void {
       return;
     }
     case 'diagnostic.memory.pressure': {
+      const level = stringField(event, 'level');
+      if (level !== 'critical') {
+        return;
+      }
       const memory = event.memory as Record<string, unknown> | undefined;
       const memoryNumber = (key: string) => {
         const value = memory?.[key];
@@ -842,12 +846,12 @@ function reportHarnessDiagnostic(event: DiagnosticCandidate): void {
       reportHarnessError({
         ...common,
         errorScope: 'runtime',
-        outcome: stringField(event, 'level'),
+        outcome: level,
         errorCategory: 'memory_pressure',
         failureKind: stringField(event, 'reason'),
         durationMs: numberField(event, 'windowMs'),
         errorText: diagnosticSummary([
-          ['level', stringField(event, 'level')],
+          ['level', level],
           ['reason', stringField(event, 'reason')],
           ['rssBytes', memoryNumber('rssBytes')],
           ['heapUsedBytes', memoryNumber('heapUsedBytes')],
