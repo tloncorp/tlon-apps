@@ -15,6 +15,7 @@ import {
   setErrorTelemetryReporter,
   setHeartbeatMessageSentReporter,
   setHeartbeatRunReporter,
+  setHeartbeatRunEndedReporter,
 } from './telemetry.js';
 import {
   _testing as boundaryTesting,
@@ -102,15 +103,32 @@ function registerEntry(
   warn?: (message: string) => void
 ) {
   const hooks = new Map<string, unknown>();
+  const gatewayStarts: AgentHook[] = [];
   const tools: ToolFactory[] = [];
   // The registration snapshot is `api.config`; a reload changes only what
   // `api.runtime.config.current()` returns.
   let liveConfig = config;
+  type AgentEvent = {
+    runId: string;
+    ts: number;
+    stream: string;
+    data: Record<string, unknown>;
+  };
+  let agentEventListener: ((event: AgentEvent) => void) | undefined;
   const runtime: unknown = new Proxy(
     {},
     {
       get(_target, prop) {
         if (prop === 'config') return { current: () => liveConfig };
+        if (prop === 'events')
+          return {
+            onAgentEvent(listener: (event: AgentEvent) => void) {
+              agentEventListener = listener;
+              return () => {
+                agentEventListener = undefined;
+              };
+            },
+          };
         if (prop === 'then' || typeof prop === 'symbol') return undefined;
         return proxy;
       },
@@ -133,7 +151,11 @@ function registerEntry(
         };
       }
       if (prop === 'on') {
-        return (name: string, handler: unknown) => hooks.set(name, handler);
+        return (name: string, handler: unknown) => {
+          if (name === 'gateway_start')
+            gatewayStarts.push(handler as AgentHook);
+          hooks.set(name, handler);
+        };
       }
       if (prop === 'toString' || prop === 'valueOf') return () => '[api]';
       if (prop === 'then' || typeof prop === 'symbol') return undefined;
@@ -160,6 +182,12 @@ function registerEntry(
     prepare: hooks.get('agent_turn_prepare') as AgentHook,
     modelCallStarted: hooks.get('model_call_started') as AgentHook,
     agentEnd: hooks.get('agent_end') as AgentHook,
+    gatewayStart: async (event: Record<string, unknown>, ctx: Ctx) => {
+      for (const hook of gatewayStarts) await hook(event, ctx);
+    },
+    afterToolCall: hooks.get('after_tool_call') as AgentHook,
+    llmOutput: hooks.get('llm_output') as AgentHook,
+    emitAgentEvent: (event: AgentEvent) => agentEventListener?.(event),
     messageSent: hooks.get('message_sent') as (
       event: Record<string, unknown>,
       ctx: Ctx & { channelId?: string }
@@ -1206,6 +1234,74 @@ describe('before_tool_call turn identity', () => {
         setHeartbeatRunReporter(null);
         setErrorTelemetryReporter(null);
         rmSync(workspace, { recursive: true, force: true });
+      }
+    });
+
+    it('counts final calls and usage once after retries, including failed runs without a ledger', async () => {
+      const harness = registerEntry(OWNER);
+      const event = vi.fn();
+      setHeartbeatRunEndedReporter(event);
+      const terminal = (runId: string, phase = 'end') =>
+        harness.emitAgentEvent({
+          runId,
+          ts: Date.now(),
+          stream: 'lifecycle',
+          data: { phase },
+        });
+      try {
+        await harness.gatewayStart({}, {});
+        const ctx = await heartbeat(harness);
+        await harness.modelCallStarted({}, ctx);
+        await harness.llmOutput({ usage: { input: 10, output: 1 } }, ctx);
+        await harness.agentEnd({ success: false }, ctx);
+        expect(event).not.toHaveBeenCalled();
+
+        await heartbeat(harness);
+        await harness.modelCallStarted({}, ctx);
+        await harness.afterToolCall({ toolName: 'read' }, ctx);
+        await harness.modelCallStarted({}, ctx);
+        await harness.llmOutput(
+          { usage: { input: 20, output: 5, cacheRead: 8 } },
+          ctx
+        );
+        await harness.agentEnd({ success: true }, ctx);
+        terminal(ctx.runId);
+        terminal(ctx.runId);
+        expect(event).toHaveBeenCalledOnce();
+        expect(event).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            runId: ctx.runId,
+            modelCalls: 3,
+            toolCalls: 1,
+            inputTokens: 30,
+            outputTokens: 6,
+            cacheReadTokens: 8,
+            cacheWriteTokens: null,
+            success: true,
+            packetBytes: 0,
+            ledgerRecorded: false,
+            selected: 0,
+          })
+        );
+
+        const failure = await heartbeat(harness, 'failed-heartbeat');
+        terminal(failure.runId, 'error');
+        expect(event).toHaveBeenCalledTimes(2);
+        expect(event).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            runId: failure.runId,
+            success: false,
+            ledgerRecorded: false,
+            inputTokens: null,
+          })
+        );
+        await heartbeat(harness, 'cron-wake', 'cron');
+        terminal('cron-wake');
+        await harness.prepare({}, { runId: 'interactive', trigger: 'user' });
+        terminal('interactive');
+        expect(event).toHaveBeenCalledTimes(2);
+      } finally {
+        setHeartbeatRunEndedReporter(null);
       }
     });
 

@@ -162,6 +162,7 @@ import {
   setErrorTelemetryReporter,
   setHeartbeatMessageSentReporter,
   setHeartbeatRunReporter,
+  setHeartbeatRunEndedReporter,
   setMigrationTelemetryReporter,
   setOutboundRouteReporter,
   setReplyOutputReporter,
@@ -1297,6 +1298,15 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       const ownerShip = currentTelemetryOwnerShip();
       if (ownerShip)
         telemetry?.captureHeartbeatRun({
+          ...event,
+          ownerShip,
+          botShip: botShipName,
+        });
+    });
+    setHeartbeatRunEndedReporter((event) => {
+      const ownerShip = currentTelemetryOwnerShip();
+      if (ownerShip)
+        telemetry?.captureHeartbeatRunEnded({
           ...event,
           ownerShip,
           botShip: botShipName,
@@ -7313,6 +7323,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       setSessionTelemetryReporter(null);
       setDebugTelemetryReporter(null);
       setHeartbeatRunReporter(null);
+      setHeartbeatRunEndedReporter(null);
       setHeartbeatMessageSentReporter(null);
       setErrorTelemetryReporter(null);
       setCronTelemetryReporter(null);

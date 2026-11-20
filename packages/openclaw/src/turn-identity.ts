@@ -48,6 +48,7 @@
  * the record's life, revoked or not, and only an allowlist of tools stays
  * available to it (index.ts before_tool_call).
  */
+import type { HeartbeatRunObservation } from './heartbeat-run.js';
 import type { HeartbeatLedgerRun } from './heartbeat-ledger.js';
 
 import {
@@ -66,6 +67,7 @@ export const RUN_TOMBSTONE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 type RunRecord = {
   heartbeatLedger?: HeartbeatLedgerRun;
+  heartbeatObservation?: HeartbeatRunObservation;
   identity: TurnIdentity;
   sessionKey: string;
   /** Sender of the answered message, or the session role at first sight. */
@@ -216,6 +218,11 @@ export function markHeartbeatRun(
     ...record,
     heartbeat: { ownerShip },
     heartbeatLedger: {},
+    heartbeatObservation: {
+      startedAt: Date.now(),
+      modelCalls: 0,
+      toolCalls: 0,
+    },
   });
 }
 
@@ -233,6 +240,12 @@ export function isHeartbeatOwnerReadRun(
   if (!key || tombstones.has(key) || liveOwnerShip === undefined) return false;
   const grant = activeRuns.get(key)?.heartbeat;
   return grant !== undefined && grant.ownerShip === liveOwnerShip;
+}
+
+export function getHeartbeatRunObservation(
+  runId: string | undefined
+): HeartbeatRunObservation | undefined {
+  return runId ? activeRuns.get(runId.trim())?.heartbeatObservation : undefined;
 }
 
 export function getHeartbeatLedgerRun(
