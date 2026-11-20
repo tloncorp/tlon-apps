@@ -230,6 +230,11 @@ export default ({ mode }: { mode: string }) => {
         });
       },
     },
+    '/apps/groups/~/proxy/': {
+      target: targetShipUrl,
+      changeOrigin: true,
+      secure: false,
+    },
     '^/apps/groups/desk.js': {
       target: targetShipUrl,
       changeOrigin: true,
