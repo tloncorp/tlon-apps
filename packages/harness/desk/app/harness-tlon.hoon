@@ -115,12 +115,24 @@
         %-  (slog 'harness-tlon: profile claim update failed' u.error)
         `this
       `this
-    ::  A refused lease retries on the next adapter event, not its nack.
+    ::  Steward's acks build no effects. Gall hands back the owner's ack before
+    ::  it delivers the lease poke behind it, so taking the lease here would
+    ::  poke without end. A refusal retries on the next adapter event.
     ?:  =(/steward/lease wire)
       ?^  error=?:(?=(%poke-ack -.sign) p.sign ~)
         %-  (slog 'harness-tlon: steward lease refused' u.error)
         `this
       `this
+    ?:  =(/steward/configure wire)
+      ?~  error=?:(?=(%poke-ack -.sign) p.sign ~)  `this
+      ::  Lens's Retry sync sends the owner again, so only Lens shows the refusal.
+      ?.  &(enabled.lens =(owner.lens owner.policy))
+        %-  (slog 'harness-tlon: steward owner refused' u.error)
+        `this
+      :-  ~
+      %=  this  lens
+        lens(error 'Steward is unavailable on this ship. Install or update Tlon, then retry sync.')
+      ==
     =^  cards  state  abet:(agent:cor wire sign)
     [cards this]
   ::
@@ -177,17 +189,16 @@
   ?~  u.effect  cor
   (emit u.u.effect)
 ::
-::  Owner sync gives Steward an owner, and without a live gateway lease Steward
-::  tells that owner the bot is offline. The lease expires by itself when this
-::  hand stops renewing it. %gateway-stop would tell the owner it is restarting.
+::  Steward is told the owner whether or not Lens sync is on, and without a
+::  live gateway lease it tells that owner the bot is offline. It refuses a
+::  lease while it has no owner, so an ownerless hand asks for none. The lease
+::  expires by itself when this hand stops renewing it. %gateway-stop would
+::  tell the owner it is restarting.
 ::
 ++  steward-lease
   ^-  (unit @da)
-  ?.  enabled.lens  ~
-  =/  live
-    %-  mole
-    |.(.^(? %gu /(scot %p our.bowl)/steward/(scot %da now.bowl)/$))
-  ?.  =(`& live)  ~
+  ?~  owner.policy  ~
+  ?.  steward-running  ~
   =/  got
     %-  mole
     |.
@@ -198,12 +209,32 @@
   ?.  =(%up status)  `now.bowl
   ?~  until  `now.bowl
   until
+::  Gall queues a poke to an agent that is not running, so a ship without the
+::  Tlon desk would collect one per boot.
+::
+++  steward-running
+  ^-  ?
+  =(`& (mole |.(.^(? %gu /(scot %p our.bowl)/steward/(scot %da now.bowl)/$))))
+::
+::  Steward has no action to clear its owner, so a cleared owner sends nothing.
+::
+++  configure-steward
+  ^+  cor
+  ?~  owner.policy  cor
+  ?.  steward-running  cor
+  %-  emit
+  :*  %pass  /steward/configure  %agent  [our.bowl %steward]  %poke  %steward-action-1
+      !>(`action:v1:steward`[%configure u.owner.policy])
+  ==
 ::
 ++  hold-steward-lease
   ^+  cor
   =/  lease  steward-lease
   ?~  lease  cor
   ?:  (gth u.lease (add now.bowl ~m5))  cor
+  ::  The owner goes with the lease, so a Steward that starts after this hand
+  ::  still learns it.
+  =.  cor  configure-steward
   %-  emit
   :*  %pass  /steward/lease  %agent  [our.bowl %steward]  %poke
       %steward-gateway-action-1
@@ -1300,6 +1331,12 @@
   =.  epoch  +(epoch)
   =.  error  ''
   =.  cor  (sync-presence hands)
+  ::  Enabling the hand boots it, which configures Steward.
+  =?  cor
+      ?&  !=(owner.before owner.updated-policy)
+          !&(!enabled.before enabled.updated-policy)
+      ==
+    configure-steward
   ?:  =(enabled.before enabled.updated-policy)  schedule:accept-granted-invitations
   ?:  enabled.updated-policy  boot
   =?  cor  (~(has by wex.bowl) /activity our.bowl %activity)
@@ -1310,7 +1347,6 @@
   |=  [wire=wire sign=sign:agent:gall]
   ^+  cor
   ?+  wire  cor
-    [%lens %configure ~]  (agent-lens-configure wire sign)
     [%lens %events ~]  (agent-lens-events wire sign)
     [%lens %send @ @ @ ~]  (agent-lens-send wire sign)
     [%channel-join @ @ @ ~]  (agent-channel-join wire sign)
@@ -1330,16 +1366,6 @@
     [%create @ ~]  (agent-create wire sign)
     [%hand @ @ ~]  (agent-hand wire sign)
     [%publish @ @ ~]  (agent-publish wire sign)
-  ==
-::
-++  agent-lens-configure
-  |=  [=wire =sign:agent:gall]
-  ^+  cor
-  ?>  ?=([%lens %configure ~] wire)
-  ?.  ?=(%poke-ack -.sign)  cor
-  ?~  p.sign  cor
-  %=  cor  lens
-      lens(error 'Steward is unavailable on this ship. Install or update Tlon, then retry sync.')
   ==
 ::
 ++  agent-lens-events
@@ -2227,12 +2253,8 @@
   ^+  cor
   ?.  &(enabled.lens =(owner.lens owner.policy))  cor
   ?:  =(~ owner.lens)  cor
-  =/  owner  (need owner.lens)
-  =.  cor
-    %-  emit
-    :*  %pass  /lens/configure  %agent  [our.bowl %steward]  %poke  %steward-action-1
-        !>(`action:v1:steward`[%configure owner])
-    ==
+  ::  A Lens retry sends the owner again, since a refusal shows as its error.
+  =.  cor  configure-steward
   ?:  (~(has by wex.bowl) /lens/events our.bowl %steward)  cor
   (emit [%pass /lens/events %agent [our.bowl %steward] %watch /v1/lens])
 ::

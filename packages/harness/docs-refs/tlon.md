@@ -58,10 +58,12 @@ To show these records in the owner's native Tlon Context Lens:
    `just setup SHIP ~owner`, which also enables owner sync.
 2. On the owner ship, trust the bot: `:steward &steward-action-1 [%trust-bot ~bot]`.
    Replace `~bot` with the bot's ship name. Sponsorship alone does not grant trust.
-3. Owner sync also sets the bot's local Steward owner, so owner-requested run
-   retries reach Harness. While online, the hand holds Steward's gateway lease, so
-   Steward doesn't tell that owner the bot is offline. The lease lapses within 15
-   minutes of the hand stopping.
+3. The hand sets the bot's local Steward owner to its explicit owner whether or
+   not owner sync is on, so owner-requested run retries reach Harness. While
+   online, the hand also holds Steward's gateway lease, with or without owner
+   sync, so Steward doesn't tell that owner the bot is offline. The lease lapses
+   within 15 minutes of the hand stopping. A ship without Steward gets neither,
+   and a hand without an owner holds no lease, since Steward refuses one.
 4. Enable Tlon replies and send a new message. Accepted records make the native
    Lens available; reply attachments point to the run using its Lens ID and bot
    ship, without embedding context. Owner-DM work controls share the same blob.
