@@ -195,7 +195,14 @@ New conversations snapshot the durable agent defaults and may then diverge.
 Each turn's system instructions begin with the operating ship's full @p (and
 parent planet, for a moon), read from the bowl at dispatch rather than stored in
 session configuration. Editing instructions or conversation content cannot
-replace it. Summary requests keep their fixed instruction.
+replace it. After it come the turn's model, its route (the provider, such as
+OpenRouter) and its zero data retention status. When the model is known and
+the route is a named provider (OpenRouter, OpenAI, Anthropic or xAI, not a
+connected runner or a custom endpoint), an instruction follows: answer from
+them when asked what model or company the agent runs on, whether it is
+connected to an AI company, or whether that company keeps or trains on what
+people say, and otherwise leave them out of the reply. Summary requests keep
+their fixed instruction.
 Model catalogs are fetched by Iris and returned through the requesting ACP
 connection. When a provider publishes context-window metadata, selecting that
 model updates the session budget automatically. Catalog failure or absent

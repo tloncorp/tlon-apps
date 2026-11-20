@@ -231,8 +231,8 @@ export function ActionCircle({
   );
 }
 
-/** The Share circle's arrow fills more of its box than the other glyphs. */
-export const SHARE_ICON_SIZE = 18;
+/** The Forward circle's arrow fills more of its box than the other glyphs. */
+export const FORWARD_ICON_SIZE = 18;
 
 export interface SettingsCardRow {
   key: string;

@@ -26,13 +26,20 @@ Owner DMs support [work commands](work-control.md) and optional A2UI buttons.
 Both let you manage work without opening Harness. Channels do not receive
 owner-management controls.
 
-Run `just setup PIER ~owner` to set the owner and enable the hand. Trusted ships
+Run `just setup SHIP ~owner` to set the owner and enable the hand. Trusted ships
 and their tools are set through `harness/tlon/configure`.
 
 **Bot profile** edits the ship's Contacts nickname and avatar. It refreshes
 external changes without overwriting drafts, and waits for Contacts to confirm
 saves. Empty fields clear those attributes; other fields, permissions, and
 conversations stay unchanged.
+
+Every message the hand writes (channel posts and replies, DMs and DM replies,
+group DMs and their replies) carries the bot-profile author form with an empty
+nickname and avatar, so other bots and the app know a bot wrote it. The app
+still shows the name and avatar from the Contacts profile, and adds a bot
+badge. Messages from `run_js`'s Tlon host APIs carry the same form. Older
+messages with a bare-ship author keep it.
 
 ## Context Lens
 
@@ -48,7 +55,7 @@ reconstructed from today's configuration.
 To show these records in the owner's native Tlon Context Lens:
 
 1. Install a Tlon version with Steward Lens support on both ships, and run
-   `just setup PIER ~owner`, which also enables owner sync.
+   `just setup SHIP ~owner`, which also enables owner sync.
 2. On the owner ship, trust the bot: `:steward &steward-action-1 [%trust-bot ~bot]`.
    Replace `~bot` with the bot's ship name. Sponsorship alone does not grant trust.
 3. Owner sync also sets the bot's local Steward owner, so owner-requested run
@@ -160,7 +167,8 @@ The same grant also covers:
   full text, not just the displayed preview. `history_around` reads five nearby
   messages on either side; `resolve_citation` follows native group, channel and
   Notes references without joining anything or executing a desk converter.
-  `edit_message` preserves channel post/reply identity and metadata. Native Tlon
+  `edit_message` preserves channel post/reply identity, author and metadata;
+  it edits the bot's own messages, bare-ship or bot-profile. Native Tlon
   does not support editing DM or group-DM messages. `delete_message`
   requires exact-target confirmation. `accept_dm` and `decline_dm` resolve only
   pending invitations.
@@ -493,7 +501,7 @@ An accepted upload does not guarantee public readability or remote message deliv
 
 The live fixture is `tests-js/tlon-media-conformance.mjs`; it requires
 `MEDIA_TEST_STORAGE=1`, the usual two-ship test variables, and optionally
-`TEST_PANE` for adapter suspension/reload checks. It downloads a real public
+`SHIP_PIER` for adapter suspension/reload checks. It downloads a real public
 image through the ship, temporarily configures a local independently verifying
 S3 endpoint, and restores the test ship's storage configuration.
 
@@ -522,7 +530,15 @@ messaging the sender.
   grants say. Granting either to it has no effect. A session bound to another
   hand gets the tools its adapter configures (see
   [hands](hands.md#binding-and-authority)).
-- Other ships and the bot's own messages do not enter inference.
+- Other ships and the bot's own messages do not enter inference. The bot
+  knows its own messages by the author's ship, whichever author form they carry.
+- A channel post or reply whose author carries a bot profile, as OpenClaw and
+  Hermes bots write theirs, is a bot's message. On admission the hand reads
+  that one message from local `%channels`, a bounded page and an exact-key
+  lookup, and records it in the activity feed as `bot-message`. It is admitted
+  and answered like any other message. A message the hand can no longer read
+  there (the channel left, the message gone, or its thread's parent deleted)
+  is recorded as `message`.
 - Group invitations are accepted only when sent by the owner. DM invitations
   from the owner, a trusted ship or an allowed ship are accepted. An invitation
   still pending when its sender gains access is accepted at that point, or when
@@ -608,7 +624,7 @@ remain distinct from authorization bindings and scheduled-run sessions.
 `tests-js/tlon-continuity-conformance.mjs` exercises native DM/channel threads,
 unrelated and affected permission edits, notes, chosen settings, timers, schedules,
 late HTTP/child results, and reload. It requires `CONTINUITY_TEST_MESSAGES=1`, the
-usual ship/peer/nest variables, and `TEST_PANE` for the test ship's Dojo. It restores
+usual ship/peer/nest variables, and `SHIP_PIER` for the test ship's pier. It restores
 policy, defaults and original native trust; marked test messages and audit records
 remain in the disposable conversations.
 
@@ -653,7 +669,8 @@ These owner-authenticated extensions work from any initialized ACP client:
 ```
 
 Activity notifications contain `sequence`, `kind`, `actor`, `address`, and `event`.
-The feed retains 128 diagnostic entries. Use session snapshots and the
+An admitted message's `kind` is `message`, or `bot-message` when its author has
+a bot profile. The feed retains 128 diagnostic entries. Use session snapshots and the
 [hand ledger](hands.md) for conversation history and delivery records.
 
 The head forwards the authenticated `harness/tlon` namespace through
@@ -737,11 +754,14 @@ conversation, with a new identity.
 Conversation identities and their notes outlive route authorization. Revocation
 disables the old binding and fences its work; it does not delete its evidence or
 assign its old publications to a new binding. Operational limits are admission
-backpressure, never permission to prune primary history: 128 retained
-conversation identities, one per destination (a DM, a channel or a thread), and
-64 pending admissions; the head separately retains up to 64
-schedules across all hands. These complement the
+backpressure, never permission to prune primary history: 64 pending
+admissions; the head separately retains up to 64 schedules across all hands.
+These complement the
 [shared hand limits and archive protocol](hands.md#fair-admission-and-explicit-retention).
+The number of conversation identities has no limit, and an identity is never
+evicted. Each conversation's route holds a binding in the shared hand ledger,
+and a disabled binding counts there until it is retired, so that ledger's
+limits are the ones a new conversation can reach.
 
 To reclaim a settled binding's operational ledger, stop admission by disabling
 the adapter, resolve its unfinished work, and export/retire the disabled binding
@@ -752,9 +772,8 @@ a new admission period when the adapter is re-enabled; disabling is not the
 same as downtime recovery.
 
 Retiring a ledger binding does not release a social identity or delete a session
-log. At identity capacity, existing conversations remain usable and new ones
-are rejected visibly. Automatic identity eviction and primary-history pruning
-are not implemented. Do not present a ledger archive as an export of the full
+log. Primary-history pruning is not implemented. Do not present a ledger
+archive as an export of the full
 conversation or as proof that external storage is durable.
 
 Only one publication per destination is sent at a time; unrelated conversations
@@ -867,11 +886,11 @@ restore the previous defaults afterward. Use disposable test ships: messages and
 auditable sessions are retained.
 Neither the test nor the adapter modifies the Groups desk's source code.
 
-`tests-js/tlon-delivery-conformance.mjs` additionally needs `SHIP_DOJO_PANE` for
+`tests-js/tlon-delivery-conformance.mjs` additionally needs `SHIP_PIER` for
 real Gall suspension/revival. It checks offline completion, explicit retry,
 uncertainty, ordered outbox draining, distinct IDs, whole-desk revival and an idle
 hand with no timer. `SURFACE=channel` plus `TEST_NEST` selects channels. Supplying
-`CHANNEL_HOST_DOJO_PANE` also temporarily suspends the channel host to test a lost
+`CHANNEL_HOST_PIER` also temporarily suspends the channel host to test a lost
 confirmation and recovery from native publication evidence. Every suspended
 agent is revived in cleanup; fixture messages and receipts remain.
 

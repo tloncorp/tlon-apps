@@ -4,6 +4,7 @@ import {
   _testing,
   createGroupContextRuntime,
   handleGroupContextBeforePromptBuild,
+  isPlaceholderGroupTitle,
   parseGroupChannels,
   publishGroupContextRuntime,
   unpublishGroupContextRuntime,
@@ -294,6 +295,58 @@ describe('group context', () => {
     expect(text).toContain('"Random" (chat/~host/Random)');
     runtime.recordMessage({ nest: general, sender: '~nec' });
     expect(context()).toContain('Activity you have seen in the last 24h');
+  });
+});
+
+describe('placeholder workspace titles', () => {
+  it.each([
+    [undefined, true],
+    ['', true],
+    ['  ', true],
+    ['My agent workspace', true],
+    ['Home Group', true],
+    ["~sampel-palnet's Group", true],
+    ['zod\u2019s Group', true],
+    ['Book Club', false],
+    ['My agent workspace notes', false],
+    ["Alice's Group", false],
+  ])('%j is a placeholder: %s', (title, expected) => {
+    expect(isPlaceholderGroupTitle(title)).toBe(expected);
+  });
+
+  it('asks to name a placeholder workspace until it is renamed', () => {
+    const runtime = createGroupContextRuntime();
+    runtime.applySnapshot(
+      new Map([
+        [
+          flag,
+          {
+            title: 'My agent workspace',
+            channels: parseGroupChannels({
+              [general]: { meta: { title: 'General' }, readers: [] },
+            }),
+          },
+        ],
+      ]),
+      runtime.beginSnapshot()
+    );
+    const system = () =>
+      runtime.handleBeforePromptBuild({ sessionKey })?.appendSystemContext;
+    expect(system()).toContain(`groups update ${flag} --title`);
+    expect(system()).toContain('Never rename a workspace a person has named.');
+
+    runtime.handleGroupsUiEvent({
+      flag,
+      update: { time: '2', diff: { meta: { title: 'Lisbon Trip' } } },
+    });
+    expect(system()).not.toContain('placeholder');
+  });
+
+  it('leaves a named workspace alone', () => {
+    const { runtime } = setup();
+    expect(
+      runtime.handleBeforePromptBuild({ sessionKey })?.appendSystemContext
+    ).not.toContain('placeholder');
   });
 });
 

@@ -73,6 +73,44 @@ describe('agent task plan reply delivery', () => {
     });
   });
 
+  it('drops the model reply after a workspace card post', () => {
+    // The plan tool posts the answer and any confirmation itself.
+    recordSuccess('tlon_workspace_plan');
+
+    expect(suppress()).toEqual({
+      cancel: true,
+      reason: 'tlon_onboarding_surface_owns_reply',
+    });
+  });
+
+  it('delivers the reply when the workspace card tool asks for it', () => {
+    recordSuccessfulAgentOnboardingSurface(
+      {
+        toolName: 'tlon_workspace_plan',
+        result: {
+          content: [{ type: 'text', text: 'Posting your answer failed' }],
+          details: { deliverReply: true },
+        },
+      },
+      toolContext
+    );
+
+    expect(suppress()).toBeUndefined();
+  });
+
+  it("drops the host's no-visible-reply notice after a surface reply", () => {
+    recordSuccess('tlon_agent_choice');
+    expect(suppress()).toMatchObject({ cancel: true });
+    const notice = {
+      payload: {
+        text: "⚠️ OpenClaw couldn't produce or deliver a reply. Please try again.",
+      },
+    };
+    expect(suppress(notice)).toMatchObject({ cancel: true });
+    // Only once, and only after a suppressed surface reply.
+    expect(suppress(notice)).toBeUndefined();
+  });
+
   it('consumes the marker once', () => {
     recordSuccess();
     expect(suppress()).toBeDefined();

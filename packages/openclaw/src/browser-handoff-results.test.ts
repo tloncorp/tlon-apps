@@ -56,7 +56,7 @@ function fixture() {
   const readResult = vi
     .fn<Dependencies['readResult']>()
     .mockResolvedValue({ status: 'pending' });
-  const resume = vi.fn().mockResolvedValue({ runId: 'continuation' });
+  const resume = vi.fn().mockResolvedValue(undefined);
   const sessionIdFor = vi.fn().mockReturnValue('conversation-1');
   const warn = vi.fn();
   const deps = { store, readResult, resume, sessionIdFor, warn };
@@ -110,14 +110,16 @@ describe('secure-entry result delivery', () => {
     f.readResult.mockResolvedValue({ status: 'filled', submitted: false });
     await Promise.all([f.service.poll(), f.service.poll()]);
     await f.service.poll();
-    expect(f.resume).toHaveBeenCalledExactlyOnceWith({
-      sessionKey: f.ctx.sessionKey,
-      message: expect.stringContaining('filled; submission not attempted'),
-      idempotencyKey: expect.stringMatching(
-        /^tlon-browser-handoff:[a-f0-9]{64}$/
-      ),
-      deliver: true,
-    });
+    expect(f.resume).toHaveBeenCalledExactlyOnceWith(
+      {
+        sessionKey: f.ctx.sessionKey,
+        message: expect.stringContaining('filled; submission not attempted'),
+        idempotencyKey: expect.stringMatching(
+          /^tlon-browser-handoff:[a-f0-9]{64}$/
+        ),
+      },
+      undefined
+    );
     expect(f.resume.mock.calls[0][0].message).toContain(
       'does not confirm sign-in'
     );
@@ -171,8 +173,8 @@ describe('secure-entry result delivery', () => {
     );
     f.service.start();
     await f.service.poll();
-    expect(f.records.get('browser-1')?.result?.status).toBe('filled');
-    expect(await f.service.isPending('browser-1')).toBe(true);
+    expect([...f.records.values()][0]?.result?.status).toBe('filled');
+    expect(await f.service.isPending('browser-1')).toBe(false);
     await f.service.stop();
     const restarted = createBrowserHandoffResults(f.deps);
     services.push(restarted);
@@ -180,7 +182,7 @@ describe('secure-entry result delivery', () => {
     restarted.start();
     await restarted.poll();
     expect(f.resume).toHaveBeenCalledTimes(1);
-    expect(await restarted.isPending('browser-1')).toBe(true);
+    expect(await restarted.isPending('browser-1')).toBe(false);
     await vi.advanceTimersByTimeAsync(6_000);
     expect(await restarted.isPending('browser-1')).toBe(false);
     expect(f.resume).toHaveBeenCalledTimes(2);
@@ -188,7 +190,7 @@ describe('secure-entry result delivery', () => {
     expect(f.records.size).toBe(0);
   });
 
-  it('backs off result delivery across expiry and caps the delay at five minutes', async () => {
+  it('backs off result delivery and retires an expired receipt even if the gateway recovers', async () => {
     const f = fixture();
     await f.service.watch(f.request, f.ctx);
     f.readResult.mockResolvedValue({ status: 'filled', submitted: false });
@@ -196,10 +198,10 @@ describe('secure-entry result delivery', () => {
     f.service.start();
     await f.service.poll();
     for (const delay of [
-      5_000, 10_000, 20_000, 40_000, 80_000, 160_000, 300_000, 300_000,
+      5_000, 10_000, 20_000, 40_000, 80_000, 160_000, 300_000,
     ]) {
       const attempts = f.resume.mock.calls.length;
-      const retryAt = f.records.get('browser-1')!.deliveryRetry!.nextAttemptAt;
+      const retryAt = [...f.records.values()][0]!.deliveryRetry!.nextAttemptAt;
       expect(retryAt - Date.now()).toBe(delay);
       vi.setSystemTime(retryAt - 1);
       await f.service.poll();
@@ -208,10 +210,12 @@ describe('secure-entry result delivery', () => {
       await f.service.poll();
       expect(f.resume).toHaveBeenCalledTimes(attempts + 1);
     }
-    f.resume.mockResolvedValue({ runId: 'accepted' });
-    vi.setSystemTime(f.records.get('browser-1')!.deliveryRetry!.nextAttemptAt);
+    f.resume.mockResolvedValue(undefined);
+    vi.setSystemTime(Date.now() + 30 * 60_000);
+    const beforeExpiry = f.resume.mock.calls.length;
     await f.service.poll();
     expect(f.records.size).toBe(0);
+    expect(f.resume).toHaveBeenCalledTimes(beforeExpiry);
     expect(
       new Set(f.resume.mock.calls.map(([request]) => request.idempotencyKey))
         .size
@@ -267,9 +271,52 @@ describe('secure-entry result delivery', () => {
     expect(f.resume).not.toHaveBeenCalled();
     vi.setSystemTime(Date.now() + 300_001);
     await f.service.poll();
+    expect(f.readResult).toHaveBeenCalledTimes(3);
     expect(f.resume.mock.calls[0][0].message).toContain(
       'Filling is not confirmed'
     );
+  });
+
+  it('recovers a fill near expiry on the next status poll and releases the browser', async () => {
+    const f = fixture();
+    await f.service.watch(f.request, f.ctx);
+    const expiresAt = f.records.get('browser-1')!.expiresAt;
+    vi.setSystemTime(expiresAt - 6_000);
+    f.readResult.mockRejectedValueOnce(new Error('viewer unavailable'));
+    f.service.start();
+    await f.service.poll();
+    vi.setSystemTime(expiresAt - 4_000);
+    await f.service.poll();
+    expect(f.records.get('browser-1')?.deliveryRetry).toBeUndefined();
+    f.readResult.mockRejectedValueOnce(new Error('viewer unavailable again'));
+    await f.service.poll();
+    f.readResult.mockResolvedValue({ status: 'filled', submitted: true });
+    vi.setSystemTime(expiresAt - 2_000);
+    await f.service.poll();
+    expect(await f.service.isPending('browser-1')).toBe(false);
+    expect(f.resume.mock.calls[0][0].message).toContain(
+      'filled; submission attempted'
+    );
+  });
+
+  it('keeps an accepted worker past the entry window and retires it at its reporting deadline', async () => {
+    const f = fixture();
+    await f.service.watch(f.request, f.ctx);
+    const expiresAt = f.records.get('browser-1')!.expiresAt;
+    vi.setSystemTime(expiresAt - 1_000);
+    f.readResult.mockResolvedValue({ status: 'filled', submitted: true });
+    f.resume.mockResolvedValue('worker-run');
+    f.service.start();
+    await f.service.poll();
+
+    vi.setSystemTime(expiresAt + 10 * 60_000);
+    await f.service.poll();
+    expect(f.resume.mock.calls[1][1]).toBe('worker-run');
+    const [{ workerReportDeadline }] = [...f.records.values()];
+    vi.setSystemTime(workerReportDeadline!);
+    await f.service.poll();
+    expect(f.resume).toHaveBeenCalledTimes(2);
+    expect(f.records.size).toBe(0);
   });
 
   it('requires a pending service result and an exact active conversation before accepting a handoff', async () => {
@@ -465,4 +512,43 @@ describe('configured development result origin', () => {
     ).rejects.toThrow();
     expect(urbitFetch).toHaveBeenCalledTimes(1);
   });
+});
+
+it('can use the browser for a second form while the first notification is retrying', async () => {
+  const f = fixture();
+  await f.service.watch(f.request, f.ctx);
+  f.readResult.mockResolvedValue({ status: 'filled', submitted: false });
+  f.resume.mockRejectedValueOnce(new Error('gateway offline'));
+  f.service.start();
+  await f.service.poll();
+  f.readResult.mockResolvedValue({ status: 'pending' });
+  const cancelSecond = await f.service.watch(
+    {
+      ...f.request,
+      viewerUrl: f.request.viewerUrl.replace(/\.[^.]+$/, '.secondSignature'),
+    },
+    f.ctx
+  );
+  vi.setSystemTime(Date.now() + 5000);
+  await f.service.poll();
+  expect(f.resume).toHaveBeenCalledTimes(2);
+  expect(await f.service.isPending('browser-1')).toBe(true);
+  expect(f.records.size).toBe(1);
+  await cancelSecond();
+});
+
+it('recovers a result copied just before shutdown without consulting or resuming the old form twice', async () => {
+  const f = fixture();
+  await f.service.watch(f.request, f.ctx);
+  const active = f.records.get('browser-1')!;
+  f.records.set(`result:${active.id}`, {
+    ...active,
+    result: { status: 'filled', submitted: false },
+  });
+  f.readResult.mockClear().mockRejectedValue(new Error('discarded browser'));
+  f.service.start();
+  await f.service.poll();
+  expect(f.readResult).not.toHaveBeenCalled();
+  expect(f.resume).toHaveBeenCalledOnce();
+  expect(f.records.size).toBe(0);
 });

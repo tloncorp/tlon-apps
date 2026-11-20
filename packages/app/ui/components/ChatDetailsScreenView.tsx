@@ -54,7 +54,7 @@ import {
   InfoHeaderIconTile,
   InfoTile,
   ListCardDivider,
-  SHARE_ICON_SIZE,
+  FORWARD_ICON_SIZE,
   SettingsCard,
   type SettingsCardRow,
   TextCard,
@@ -468,8 +468,8 @@ export function ChatDetailsScreenView({
               {isGroup ? (
                 <ActionCircle
                   icon="ArrowRef"
-                  iconSize={SHARE_ICON_SIZE}
-                  label="Share"
+                  iconSize={FORWARD_ICON_SIZE}
+                  label="Forward"
                   onPress={onForward}
                   testID="GroupQuickAction-Forward reference"
                 />
@@ -477,8 +477,8 @@ export function ChatDetailsScreenView({
               {onForwardChannel ? (
                 <ActionCircle
                   icon="ArrowRef"
-                  iconSize={SHARE_ICON_SIZE}
-                  label="Share"
+                  iconSize={FORWARD_ICON_SIZE}
+                  label="Forward"
                   onPress={onForwardChannel}
                   testID="ChannelQuickAction-Forward reference"
                 />

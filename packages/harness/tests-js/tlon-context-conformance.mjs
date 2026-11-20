@@ -5,10 +5,10 @@ import { text as readText } from 'node:stream/consumers'
 import { createServer } from 'node:http'
 import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { Client, base, cookie } from './lib/ship-client.mjs'
+import { rein } from './lib/ship-thread.mjs'
+import { authorShip, assertBotAuthor } from './lib/author.mjs'
 
 assert.equal(process.env.CONTEXT_TEST_MESSAGES, '1')
 const peerUrl = process.env.PEER_URL, nest = process.env.TEST_NEST
@@ -18,7 +18,7 @@ const peerCookie = `${row[5]}=${row[6]}`, peer = row[5].slice('urbauth-'.length)
 const ship = cookie.split('=')[0].slice('urbauth-'.length), marker = `context-${randomUUID()}`
 const client = new Client(), contexts = [{ kind: 'dm' }, { kind: 'channel' }], failures = []
 const note = `c${randomUUID().slice(0, 8)}`, secret = `${marker}-private-note`, skillName = `${marker}-forbidden`
-const run = promisify(execFile), reminders = new Map(), reminderSpecs = new Map()
+const reminders = new Map(), reminderSpecs = new Map()
 let event = 0, stamp = 0, originals, requests = 0, completed = false, adapterStopped = false
 async function scry(path, remote = false) {
   const response = await fetch(`${remote ? peerUrl : base}/~/scry/${path}.json`, { headers: { cookie: remote ? peerCookie : cookie }, signal: AbortSignal.timeout(15000) })
@@ -55,7 +55,8 @@ async function send(ctx, text, addressed = true) {
 async function command(ctx, text, expected) {
   const ids = new Set((await replies(ctx)).map((p) => p.id)), before = new Set((await client.call('harness/tlon')).sessions)
   await send(ctx, text)
-  await until('native command receipt', async () => (await replies(ctx)).some((p) => !ids.has(p.id) && p.author === ship && expected.test(JSON.stringify(p.content))))
+  const receipt = await until('native command receipt', async () => (await replies(ctx)).find((p) => !ids.has(p.id) && authorShip(p.author) === ship && expected.test(JSON.stringify(p.content))))
+  assertBotAuthor(receipt.author, ship)
   if (!ctx.sid) ctx.sid = await until('thread head', async () => (await client.call('harness/tlon')).sessions.find((sid) => !before.has(sid)))
 }
 const server = createServer(async (req, res) => {
@@ -130,7 +131,7 @@ try {
   assert.equal(requests, 0, 'commands do not infer')
   assert.ok(!(await scry(`harness/events/${channel.sid}`)).some((e) => e.type === 'context-received'), 'commands do not capture public reference')
   await send(channel, `${marker}-probe`)
-  await until('published result', async () => (await replies(channel)).some((p) => p.author === ship && JSON.stringify(p.content).includes(`${marker}-done`)))
+  await until('published result', async () => (await replies(channel)).some((p) => authorShip(p.author) === ship && JSON.stringify(p.content).includes(`${marker}-done`)))
   const events = await scry(`harness/events/${channel.sid}`), reference = events.find((e) => e.type === 'context-received')
   assert.ok(reference && events.some((e) => e.type === 'input' && e.id === reference.inputId), 'reference is durably linked to original input')
   assert.deepEqual(await scry('harness/skills'), originals.skills)
@@ -138,11 +139,10 @@ try {
   assert.deepEqual((await client.call('harness/session/snapshot', { sessionId: channel.sid })).memory, [])
   await command(dm, `/forget ${note}`, /forgotten|removed|unpinned/i)
   console.log('PASS native public-thread attribution, memory opt-out, inert quoted commands, durable reference and shared-skill write denial')
-  if (process.env.TEST_PANE) {
+  if (process.env.SHIP_PIER) {
     async function restartAdapter(enabled) {
       adapterStopped = !enabled
-      await run('tmux', ['send-keys', '-t', process.env.TEST_PANE, '-l', '--', `|rein %harness [%.${enabled ? 'y' : 'n'} %harness-tlon]`])
-      await run('tmux', ['send-keys', '-t', process.env.TEST_PANE, 'Enter'])
+      await rein(process.env.SHIP_PIER, 'harness', 'harness-tlon', enabled)
       await sleep(800)
     }
     await command(channel, '/memory on', /Shared memory is on/)
@@ -177,7 +177,7 @@ try {
     const at = new Date(due + 330 * 60000).toISOString().replace(/\.\d{3}Z$/, '+05:30')
     reminderSpecs.set(scenario, { at, due, text: `/remember inert ${marker}-literal:${scenario}`, ...patch })
     await send(channel, `${marker}-reminder:${scenario}`)
-    await until('schedule acknowledgement', async () => (await replies(channel)).some((p) => p.author === ship && JSON.stringify(p.content).includes(`${marker}-armed:${scenario}`)))
+    await until('schedule acknowledgement', async () => (await replies(channel)).some((p) => authorShip(p.author) === ship && JSON.stringify(p.content).includes(`${marker}-armed:${scenario}`)))
     return reminders.get(scenario)
   }
   const beforeSchedules = (await client.call('harness/cron')).length
@@ -186,17 +186,16 @@ try {
   assert.equal((await client.call('harness/cron')).length, beforeSchedules)
   const delivered = await schedule('deliver')
   const afterArmed = requests
-  if (process.env.TEST_PANE) {
-    assert.ok(Date.now() < reminderSpecs.get('deliver').due, 'adapter must stop before the reminder is due')
+  if (process.env.SHIP_PIER) {
     adapterStopped = true
-    await run('tmux', ['send-keys', '-t', process.env.TEST_PANE, '-l', '--', '|rein %harness [%.n %harness-tlon]'])
-    await run('tmux', ['send-keys', '-t', process.env.TEST_PANE, 'Enter'])
+    await rein(process.env.SHIP_PIER, 'harness', 'harness-tlon', false)
+    assert.ok(Date.now() < reminderSpecs.get('deliver').due, 'adapter must stop before the reminder is due')
     await sleep(Math.max(1000, reminderSpecs.get('deliver').due - Date.now() + 1000))
-    await run('tmux', ['send-keys', '-t', process.env.TEST_PANE, '-l', '--', '|rein %harness [%.y %harness-tlon]'])
-    await run('tmux', ['send-keys', '-t', process.env.TEST_PANE, 'Enter'])
+    await rein(process.env.SHIP_PIER, 'harness', 'harness-tlon', true)
     adapterStopped = false
   }
-  await until('literal reminder delivery', async () => (await replies(channel)).some((p) => p.author === ship && JSON.stringify(p.content).includes(`${marker}-literal:deliver`)))
+  const literal = await until('literal reminder delivery', async () => (await replies(channel)).find((p) => authorShip(p.author) === ship && JSON.stringify(p.content).includes(`${marker}-literal:deliver`)))
+  assertBotAuthor(literal.author, ship)
   const record = await until('actual reminder receipt', async () => (await client.call('harness/cron')).find((job) => job.id === delivered.id && job.delivery === 'delivered'))
   assert.equal(record.execution, 'completed'); assert.equal(record.remaining, 0)
   assert.equal(requests, afterArmed, 'delivery never requests a model')
@@ -211,14 +210,13 @@ try {
   await client.call('harness/tlon/configure', { enabled: false, owner: peer, trusted: [], response: 'mentions', allowed: [], channels: [] })
   assert.equal((await client.call('harness/cron')).find((job) => job.id === revoked.id).state, 'paused')
   await sleep(Math.max(1000, reminderSpecs.get('revoked').due - Date.now() + 1000))
-  assert.ok(!(await replies(channel)).some((p) => p.author === ship && /literal:(?:cancel|revoked)/.test(JSON.stringify(p.content))))
-  assert.equal((await replies(channel)).filter((p) => p.author === ship && JSON.stringify(p.content).includes(`${marker}-literal:deliver`)).length, 1)
+  assert.ok(!(await replies(channel)).some((p) => authorShip(p.author) === ship && /literal:(?:cancel|revoked)/.test(JSON.stringify(p.content))))
+  assert.equal((await replies(channel)).filter((p) => authorShip(p.author) === ship && JSON.stringify(p.content).includes(`${marker}-literal:deliver`)).length, 1)
   console.log('PASS explicit reminder destination/timezone, no-inference literal publication, downtime recovery, cancellation and revoked authority')
   completed = true
 } finally {
   if (adapterStopped) {
-    await run('tmux', ['send-keys', '-t', process.env.TEST_PANE, '-l', '--', '|rein %harness [%.y %harness-tlon]'])
-    await run('tmux', ['send-keys', '-t', process.env.TEST_PANE, 'Enter']); await sleep(1000)
+    await rein(process.env.SHIP_PIER, 'harness', 'harness-tlon', true); await sleep(1000)
   }
   if (originals) {
     for (const job of reminders.values()) await client.call('harness/cron/cancel', { id: job.id }).catch(() => {})

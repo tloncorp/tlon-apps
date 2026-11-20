@@ -1,4 +1,14 @@
-import { resumeBrowserContinuation } from './browser-continuation.js';
+import {
+  resumeBrowserContinuation,
+  type ResumeBrowserHandoff,
+} from './browser-continuation.js';
+import {
+  handoffTooOld,
+  handoffFailureReason,
+  nextHandoffRetry,
+  workerReportDeadline,
+  type HandoffRetry,
+} from './browser-handoff-retry.js';
 import { createHash } from 'node:crypto';
 import {
   isTrustedBrowserViewerHost,
@@ -61,7 +71,9 @@ type PendingHandoff = BrowserHandoffRequest & {
   sessionId: string;
   expiresAt: number;
   result?: CompletedResult;
-  deliveryRetry?: { attempts: number; nextAttemptAt: number };
+  deliveryRetry?: HandoffRetry;
+  workerRunId?: string;
+  workerReportDeadline?: number;
 };
 
 function handoffEndpoint(
@@ -176,14 +188,9 @@ export function createBrowserHandoffResults({
 }: {
   store: PluginStateKeyedStore<PendingHandoff>;
   readResult: typeof readBrowserHandoffResult;
-  resume: (request: {
-    sessionKey: string;
-    message: string;
-    idempotencyKey: string;
-    deliver: true;
-  }) => Promise<unknown>;
+  resume: ResumeBrowserHandoff;
   sessionIdFor: (sessionKey: string) => string | undefined;
-  warn: () => void;
+  warn: (message: string) => void;
 }) {
   let controller: AbortController | undefined;
   let timer: ReturnType<typeof setInterval> | undefined;
@@ -198,26 +205,11 @@ export function createBrowserHandoffResults({
       await store.delete(key);
       return;
     }
-    let result = handoff.result;
-    if (!result) {
-      if (handoff.expiresAt <= Date.now()) result = { status: 'failed' };
-      else {
-        let observed: BrowserResult;
-        try {
-          observed = await readResult(handoff.viewerUrl, signal);
-        } catch {
-          return;
-        }
-        if (observed.status === 'pending') return;
-        result = observed;
-      }
-      if (signal.aborted || (await store.lookup(key))?.id !== handoff.id)
-        return;
-      await store.register(key, { ...handoff, result });
-    }
-    if (signal.aborted || (await store.lookup(key))?.id !== handoff.id) return;
-    if (sessionIdFor(handoff.sessionKey) !== handoff.sessionId) {
+    if (handoffTooOld(handoff)) {
       await store.delete(key);
+      warn(
+        `[tlon] Retired secure-entry handoff ${handoff.id} after its delivery window.`
+      );
       return;
     }
     if (
@@ -225,30 +217,80 @@ export function createBrowserHandoffResults({
       handoff.deliveryRetry.nextAttemptAt > Date.now()
     )
       return;
-    try {
-      await resume({
-        sessionKey: handoff.sessionKey,
-        message: resultMessage(handoff, result),
-        idempotencyKey: `tlon-browser-handoff:${handoff.id}`,
-        deliver: true,
-      });
-    } catch (error) {
-      if ((await store.lookup(key))?.id === handoff.id) {
-        const attempts = Math.min(
-          (handoff.deliveryRetry?.attempts ?? 0) + 1,
-          7
-        );
-        await store.register(key, {
-          ...handoff,
-          result,
-          deliveryRetry: {
-            attempts,
-            nextAttemptAt:
-              Date.now() + Math.min(5_000 * 2 ** (attempts - 1), 300_000),
-          },
-        });
+    let result = handoff.result;
+    if (!result) {
+      const expired = handoff.expiresAt <= Date.now();
+      const observed = await readResult(handoff.viewerUrl, signal).catch(
+        (error) => {
+          if (!expired || signal.aborted) throw error;
+          warn(
+            `[tlon] Secure-entry ${handoff.id} final status read failed (${handoffFailureReason(error)}).`
+          );
+          return { status: 'failed' } as const;
+        }
+      );
+      const recovered = handoff.deliveryRetry?.stage === 'status read';
+      if (recovered) handoff = { ...handoff, deliveryRetry: undefined };
+      if (observed.status === 'pending' && !expired) {
+        if (
+          recovered &&
+          !signal.aborted &&
+          (await store.lookup(key))?.id === handoff.id
+        )
+          await store.register(key, handoff);
+        return;
       }
-      throw error;
+      result = observed.status === 'pending' ? { status: 'failed' } : observed;
+    }
+    if (signal.aborted || (await store.lookup(key))?.id !== handoff.id) return;
+    // Only the active form uses the browser key. A completed form can retry
+    // independently while the same browser handles a new secure-entry card.
+    if (key === handoff.browserSessionId) {
+      const receiptKey = `result:${handoff.id}`;
+      const inserted = await store.registerIfAbsent(receiptKey, {
+        ...handoff,
+        result,
+      });
+      await store.delete(key);
+      if (!inserted) return;
+      key = receiptKey;
+    }
+    if (sessionIdFor(handoff.sessionKey) !== handoff.sessionId) {
+      await store.delete(key);
+      return;
+    }
+    try {
+      const workerRunId = await resume(
+        {
+          sessionKey: handoff.sessionKey,
+          message: resultMessage(handoff, result),
+          idempotencyKey: `tlon-browser-handoff:${handoff.id}`,
+        },
+        handoff.workerRunId
+      );
+      if (workerRunId) {
+        if (workerRunId !== handoff.workerRunId || handoff.deliveryRetry)
+          await store.register(key, {
+            ...handoff,
+            result,
+            workerRunId,
+            deliveryRetry: undefined,
+            workerReportDeadline:
+              handoff.workerReportDeadline ?? workerReportDeadline(),
+          });
+        return;
+      }
+    } catch (error) {
+      await store.register(key, {
+        ...handoff,
+        result,
+        deliveryRetry: nextHandoffRetry('agent resume', handoff.deliveryRetry),
+      });
+      if (handoff.deliveryRetry?.stage !== 'agent resume')
+        warn(
+          `[tlon] Secure-entry ${handoff.id} agent resume failed (${handoffFailureReason(error)}); retrying.`
+        );
+      return;
     }
     await store.delete(key);
   }
@@ -259,18 +301,41 @@ export function createBrowserHandoffResults({
     const signal = controller.signal;
     polling = store
       .entries()
-      .then((entries) =>
-        Promise.all(
+      .then(async (entries) => {
+        // A restart can split the copy and delete that release the browser.
+        // The result record owns delivery from that point, even if it finishes
+        // in this same poll.
+        const keys = new Set(entries.map(({ key }) => key));
+        await Promise.all(
           entries.map(async ({ key, value }) => {
+            if (
+              key === value.browserSessionId &&
+              keys.has(`result:${value.id}`)
+            ) {
+              if ((await store.lookup(key))?.id === value.id)
+                await store.delete(key);
+              return;
+            }
             try {
               await deliver(key, value, signal);
-            } catch {
-              if (!signal.aborted) warn();
+            } catch (error) {
+              if (
+                !signal.aborted &&
+                value.deliveryRetry?.stage !== 'status read' &&
+                (await store.lookup(key))?.id === value.id
+              ) {
+                await store.register(key, {
+                  ...value,
+                  deliveryRetry: nextHandoffRetry('status read'),
+                });
+                warn(
+                  `[tlon] Secure-entry ${value.id} status poll failed (${handoffFailureReason(error)}); retrying.`
+                );
+              }
             }
           })
-        )
-      )
-      .then(() => undefined)
+        );
+      })
       .finally(() => {
         polling = undefined;
       });
@@ -328,10 +393,14 @@ export function createBrowserHandoffResults({
       if (controller && !controller.signal.aborted) return;
       controller = new AbortController();
       timer = setInterval(() => {
-        void poll().catch(warn);
+        void poll().catch(() =>
+          warn('[tlon] Secure-entry handoff store poll failed.')
+        );
       }, 2_000);
       timer.unref();
-      void poll().catch(warn);
+      void poll().catch(() =>
+        warn('[tlon] Secure-entry handoff store poll failed.')
+      );
     },
     async stop() {
       controller?.abort();
@@ -355,11 +424,13 @@ export function registerBrowserHandoffResults(api: OpenClawPluginApi) {
         maxEntries: 64,
       }),
       readResult: readBrowserHandoffResult,
-      resume: (request) => resumeBrowserContinuation(api.runtime, request),
+      resume: (request, runId) =>
+        resumeBrowserContinuation(api.runtime, request, runId, (message) =>
+          api.logger.warn(message)
+        ),
       sessionIdFor: (sessionKey) =>
         api.runtime.agent.session.getSessionEntry({ sessionKey })?.sessionId,
-      warn: () =>
-        api.logger.warn('[tlon] Secure-entry result delivery will retry.'),
+      warn: (message) => api.logger.warn(message),
     });
     serviceSlot.set(service);
   }

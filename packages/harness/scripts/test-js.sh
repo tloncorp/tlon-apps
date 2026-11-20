@@ -1,18 +1,25 @@
 #!/bin/bash
 # Run the JavaScript tests that need no credentials, the offline ones and then the
 # live scripts on fake ships, and summarize. Exits non-zero if anything fails. Logs
-# are kept in .test-run/js/logs. scripts/test-hoon.sh
-# runs the native tests.
+# are kept in .test-run/js/logs. scripts/test-hoon.sh runs the native tests.
 #
-#   scripts/test-js.sh              every test, on fresh ships that are then removed
+#   scripts/test-js.sh              every test, in a fresh container that is then removed
 #   scripts/test-js.sh PATTERN      tests whose name matches this regex, for example
-#                                   tlon-groups. Ships stay running between runs, and
-#                                   get the working tree each time.
-#   scripts/test-js.sh --stop       stop the ships left running and remove them
+#                                   tlon-groups. The container and its ships stay
+#                                   running between runs, and the ships get the
+#                                   working tree each time.
+#   scripts/test-js.sh --stop       remove the container left running
 #   scripts/test-js.sh --list       print the tests a run would take, without ships
 #
 # TEST_SHARD=I/N, without a PATTERN, runs or lists the Ith of N parts of the full run,
 # as CI does.
+#
+# The tests start local servers that the ships call, so the tests and the ships run
+# in one container, from the image built from scripts/test-js/, with the repository
+# mounted read-only at its own path and .test-run/js writable. On the host this
+# script builds the desks and the image, starts the container and runs itself in it;
+# there it boots the ships, as processes with their piers in the container, and runs
+# the tests.
 
 # Scripts that check they run on ~lux.
 lux_tests="tlon-notes-conformance tlon-completion-conformance tlon-hooks-publishing-conformance"
@@ -84,9 +91,12 @@ function shard_has
   return 1
 }
 
-if [ "$1" == "--list" ]
+pattern=$1
+root=$(cd "$(dirname "$0")/.." && pwd -P)
+cd "$root" || exit 1
+
+if [ "$pattern" == "--list" ]
 then
-  cd "$(dirname "$0")/.." || exit 1
   for group in offline zod lux nec
   do
     for file in $(tests $group)
@@ -98,9 +108,84 @@ then
   exit 0
 fi
 
-suite=js
-tools="node timeout tmux just socat curl jq yq rsync python3"
-source "$(dirname "$0")/test-lib.sh" "$1"
+out=$root/.test-run/js
+logs=$out/logs
+results=$out/results.txt
+
+# On the host: set up the container and run this script in it.
+if [ -z "$TEST_JS_CONTAINER" ]
+then
+  source scripts/ship-lib.sh
+  # This checkout's, so that checkouts can run their tests at once.
+  container=fake-test-js-$checkout
+  test_image=harness-test-js:$checkout
+  for tool in $runtime just yq rsync python3
+  do
+    command -v $tool > /dev/null || { echo "$tool is not installed"; exit 1; }
+  done
+
+  if [ "$pattern" == "--stop" ]
+  then
+    $runtime rm -f "$container" > /dev/null 2>&1
+    echo "Stopped the JavaScript test ships"
+    exit 0
+  fi
+
+  # A PATTERN run reuses the container; a full run starts a fresh one.
+  if running "$container"
+  then
+    if [ -z "$pattern" ]
+    then
+      echo "container $container is running; stop it first (just test --stop)"
+      exit 1
+    fi
+  else
+    $runtime rm -f "$container" > /dev/null 2>&1
+  fi
+
+  if [ -z "$pattern" ]
+  then
+    rm -rf "${out:?}"
+    trap '$runtime rm -f "$container" > /dev/null 2>&1' EXIT
+  fi
+  mkdir -p "$logs"
+
+  # The ships install %harness and %mcp from their build output, and the offline
+  # tests check the first; the container has neither just nor the network.
+  echo "Building the desks..."
+  { just build && just --justfile mcp/justfile build; } > "$logs/build.log" 2>&1 ||
+    { echo "Failed to build the desks; see $logs/build.log"; exit 1; }
+  { build_image &&
+    $runtime build -q -t "$test_image" --build-arg SHIP_IMAGE="$image" scripts/test-js > /dev/null &&
+    prune_images; } ||
+    { echo "Failed to build the test image"; exit 1; }
+
+  if ! running "$container"
+  then
+    # --init adopts the ships, which outlive the script that starts them, and reaps
+    # them when they stop; as process 1, sleep would not.
+    # shellcheck disable=SC2086
+    $runtime run -d --name "$container" --init $user_args \
+      -v "$repo:$repo:ro" -v "$out:$out" --entrypoint sleep "$test_image" infinity > /dev/null ||
+      { echo "Failed to start container $container"; exit 1; }
+  fi
+  # Pass on the variables the tests read, so that a switch set here, such as
+  # COMPACTION_WATCHDOG_TEST=1, reaches them. -e NAME leaves an unset one unset.
+  env_args=$(grep -rhoE 'process\.env\.[A-Z_0-9]+' tests-js | sort -u |
+    sed -e 's/process\.env\./-e /' -e '/^-e PATH$/d')
+  # shellcheck disable=SC2086
+  $runtime exec -w "$root" $env_args -e TEST_JS_CONTAINER="$container" -e TEST_SHARD="$TEST_SHARD" \
+    "$container" scripts/test-js.sh "$pattern"
+  exit
+fi
+
+# In the container: the ships' piers, and their login cookies, on its own filesystem.
+piers=/piers
+container=$TEST_JS_CONTAINER
+click="$root/scripts/click -b urbit"
+source scripts/results-lib.sh
+source scripts/setup-lib.sh
+: > "$results"
 
 # Live scripts this run can't do, and why.
 function skip_reason
@@ -116,12 +201,94 @@ function skip_reason
 export CONTROLLED_MODEL=1 CONTEXT_TEST_MESSAGES=1 CONTINUITY_TEST_MESSAGES=1
 export HISTORY_TEST_MESSAGES=1 MEMORY_TEST_MESSAGES=1 THREAD_TEST_TRUST=1
 
+function running
+{
+  [ -f "$piers/$1.pid" ] && kill -0 "$(cat "$piers/$1.pid")" 2> /dev/null
+}
+
+# Start ~$1 from its pier, which the image's entrypoint boots from the pill if it does
+# not exist, with HTTP on port $2. The subshell exits at once, so the ship is not this
+# script's child: --init adopts it, and reaps it when it stops.
+function start_ship
+{
+  ( HTTP_PORT=$2 URBIT_ARGS="--loom 33" entrypoint.sh "$1" >> "$logs/ship-$1.log" 2>&1 < /dev/null &
+    echo $! > "$piers/$1.pid" )
+}
+
+# Wait for the HTTP server of ~$1 on port $2. Fail if the ship stops first.
+function await_ship
+{
+  until curl -s -o /dev/null "http://127.0.0.1:$2/~/login"
+  do
+    running "$1" || { echo "~$1 exited; see $logs/ship-$1.log" >&2; return 1; }
+    sleep 1
+  done
+}
+
+# Stop ~$1 as a container stop would: SIGTERM, then SIGKILL after a minute.
+function stop_ship
+{
+  running "$1" || return 0
+  kill "$(cat "$piers/$1.pid")"
+  for attempt in $(seq 1 60)
+  do
+    running "$1" || return 0
+    sleep 1
+  done
+  kill -KILL "$(cat "$piers/$1.pid")"
+  while running "$1"; do sleep 1; done
+}
+
+# Boot ~$1 with HTTP on port $2, install everything with ~$3 as Harness's owner and
+# log in. setup-lib.sh exits on a failure, so the boot runs in a subshell.
+function boot
+{
+  echo "Booting ~$1..."
+  if ! (
+    pier=$piers/$1 http_port=$2
+    start_ship "$1" "$2" && await_ship "$1" "$2" &&
+      setup_ship "$root/mcp/desk-out" "$root/desk-out" "~$3"
+  ) > "$logs/boot-$1.log" 2>&1
+  then
+    result "boot ~$1" "FAILED (see $logs/boot-$1.log)"
+    return 1
+  fi
+  # Eyre answers a wrong code with 400, which -f makes a failure.
+  if ! curl -sSf -m 15 -o /dev/null -c "$piers/$1.cookie" \
+    -d "password=$(login_code "$piers/$1")" "http://127.0.0.1:$2/~/login"
+  then
+    result "login ~$1" "FAILED"
+    return 1
+  fi
+}
+
+function needs_ship
+{
+  running "$1" && return 0
+  rm -rf "${piers:?}/${1:?}"
+  boot "$1" "$2" "$3"
+}
+
+# Give the named running ships the working tree, which the host has just built.
+function deploy
+{
+  for ship in "$@"
+  do
+    (
+      pier=$piers/$ship
+      update_desk mcp "$root/mcp/desk-out" && update_desk harness "$root/desk-out"
+    ) > "$logs/deploy-$ship.log" 2>&1 ||
+      { echo "Failed to deploy to ~$ship; see $logs/deploy-$ship.log"; exit 1; }
+  done
+  sleep 5
+}
+
 # Wipe Harness's agent state, as on a fresh install, so the script sets up what it
 # needs. State in other desks, such as DMs and groups, stays. Reviving a live desk does
 # nothing, so a nuked desk has to be suspended first.
 function reset_ship
 {
-  scripts/click -t 60 -i - -kp "$piers/$1" > "$logs/reset-$1.log" 2>&1 <<EOF
+  $click -t 60 -i - -kp "$piers/$1" > "$logs/reset-$1.log" 2>&1 <<EOF
 =/  m  (strand ,vase)  
 ;<  our=ship  bind:m  get-our  
 ;<  ~  bind:m  (poke [our %hood] kiln-nuke+!>([%harness &]))  
@@ -133,7 +300,7 @@ function reset_ship
 EOF
   for attempt in $(seq 1 60)
   do
-    result_line=$( scripts/click -t 30 -i - -kp "$piers/$1" 2>/dev/null <<EOF
+    result_line=$( $click -t 30 -i - -kp "$piers/$1" 2>/dev/null <<EOF
 =/  m  (strand ,vase)  
 ;<  live=?  bind:m  (scry ? /gu/harness-tlon/\$)  
 (pure:m !>(live))  
@@ -148,14 +315,14 @@ function use_ship
 {
   current_ship=$1
   current_port=$2
-  export SHIP_URL=http://127.0.0.1:$2 SHIP_COOKIE=$run/$1.cookie SOAK_EXPECT_SHIP="~$1"
-  export TEST_PANE=fake-$1: SHIP_DOJO_PANE=fake-$1: HOSTED_CONTENT_TEST_SHIP=$1
+  export SHIP_URL=http://127.0.0.1:$2 SHIP_COOKIE=$piers/$1.cookie SOAK_EXPECT_SHIP="~$1"
+  export SHIP_PIER=$piers/$1 HOSTED_CONTENT_TEST_SHIP=$1
 }
 
 function use_peer
 {
-  export PEER_URL=http://127.0.0.1:$2 PEER_COOKIE=$run/$1.cookie PEER_SHIP="~$1" TEST_PEER="~$1"
-  export TEST_PEER_PANE=fake-$1:
+  export PEER_URL=http://127.0.0.1:$2 PEER_COOKIE=$piers/$1.cookie PEER_SHIP="~$1" TEST_PEER="~$1"
+  export PEER_PIER=$piers/$1
 }
 
 # Boot the ships, given as SHIP PORT pairs, that aren't running yet, all at once: each
@@ -182,8 +349,9 @@ function boot_ships
 function restart_ship
 {
   stop_ship $1
-  vere=$(echo "$root"/.deps-cache/vere-v*)
-  new_ship_session "fake-$1" "exec $vere --loom 33 --http-port $2 $piers/$1" || return 1
+  start_ship $1 $2 || return 1
+  # Bounded, unlike a boot: a ship that stays up without serving fails the
+  # script that restarted it, not the run.
   for attempt in $(seq 1 120)
   do
     curl -s -o /dev/null "http://127.0.0.1:$2/~/login" && return 0
@@ -246,7 +414,6 @@ for file in $(tests offline)
 do
   name=$(basename "$file" .test.mjs)
   matches "$name" && in_shard offline "$file" || continue
-  [ "$name" == "distribution" ] && just build > "$logs/build.log" 2>&1
   timeout 300 node --test "$file" > "$logs/$name.log" 2>&1
   if [ "$?" -eq 0 ]
   then
@@ -313,7 +480,7 @@ then
     then
       use_ship zod 9190
       use_peer lux 9191
-      export GUEST_URL=http://127.0.0.1:9192 GUEST_COOKIE=$run/nec.cookie
+      export GUEST_URL=http://127.0.0.1:9192 GUEST_COOKIE=$piers/nec.cookie
       # ~zod joins the channel on ~lux, as for the ~zod scripts, and so does ~nec.
       if TEST_NEST=$(node tests-js/lib/test-channel.mjs 2> "$logs/test-channel.log") &&
         SHIP_URL=$GUEST_URL SHIP_COOKIE=$GUEST_COOKIE node tests-js/lib/test-channel.mjs > /dev/null 2>> "$logs/test-channel.log"

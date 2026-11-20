@@ -1,141 +1,100 @@
-# Shared by test-hoon.sh and test-js.sh, which set `suite` and `tools` and then
-# source this with their argument. Both use the same fake ships, kept in
-# .test-run/piers, so a ship one of them keeps is reused by the other; each keeps
-# its results and logs in .test-run/$suite.
+# Sourced by test-hoon.sh, which sets `suite` and `tools` and then sources this
+# with its argument. Its fake ship runs on a network of this checkout's, as
+# ship-lib.sh describes, and it keeps its results and logs in .test-run/$suite.
+# test-js.sh runs its ships in a container of its own.
 
 pattern=$1
-root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 cd "$root" || exit 1
+source ../../scripts/backend/container/runtime.sh
+# The network is this checkout's and publishes no ports, the tests reaching the
+# ship in its container, so checkouts can run their tests at once.
+export FAKE_NET=fake-test-$checkout FAKE_NET_PORTS=
 source scripts/ship-lib.sh
-run=$root/.test-run
-# The ships' sockets are under here, so check_socket limits how deep it can be.
-piers=$run/piers
-out=$run/$suite
+out=$root/.test-run/$suite
 logs=$out/logs
 results=$out/results.txt
 
-for tool in $tools; do
+for tool in $runtime $tools; do
   command -v $tool > /dev/null || { echo "$tool is not installed"; exit 1; }
 done
-if [ "$pattern" != "--stop" ]
+# A PATTERN run reuses the ship; a full run boots a fresh one.
+if [ -z "$pattern" ] && running "$net-zod"
 then
-  # Every ship's name is three letters, so ~zod's socket stands for all of them.
-  check_socket "$piers/zod" || exit 1
-  for ship in zod lux nec; do
-    # A session with a pier here is ours, and a PATTERN run reuses it.
-    if tmux has-session -t "=fake-$ship" 2>/dev/null
-    then
-      if [ -z "$pattern" ] || [ ! -d "$piers/$ship" ]
-      then
-        echo "tmux session fake-$ship is running; stop it first (just test --stop if it is ours)"
-        exit 1
-      fi
-    fi
-  done
+  echo "container $net-zod is running; stop it first (just test --stop)"
+  exit 1
 fi
-
-if [ -z "$pattern" ]
-then
-  rm -rf "$out" "$piers"
-fi
-mkdir -p "$piers" "$logs"
-: > "$results"
-
-function result
-{
-  printf '%-48s %s\n' "$1" "$2" | tee -a "$results"
-}
-
-function stop_ship
-{
-  tmux has-session -t "=fake-$1" 2>/dev/null || return 0
-  pid=$(tmux display-message -p -t "=fake-$1:" '#{pane_pid}')
-  tmux send-keys -t "=fake-$1:" -- '|exit' Enter
-  for attempt in $(seq 1 60)
-  do
-    kill -0 $pid 2>/dev/null || break
-    sleep 1
-  done
-}
-
-function clean_up
-{
-  stop_ship zod
-  stop_ship lux
-  stop_ship nec
-  rm -rf "$piers"
-}
 
 if [ "$pattern" == "--stop" ]
 then
-  clean_up
+  remove_net
   echo "Stopped the test ships"
   exit 0
 fi
 
 if [ -z "$pattern" ]
 then
+  rm -rf "$out"
+fi
+mkdir -p "$logs"
+: > "$results"
+
+source scripts/results-lib.sh
+
+# The suite lists %mcp's tests and the ship installs %mcp, from mcp/.
+just fetch > "$logs/fetch.log" 2>&1 || { echo "Failed to fetch; see $logs/fetch.log"; exit 1; }
+
+# The ship's log goes with its container, so keep it: it says why a boot failed.
+function clean_up
+{
+  ship_log zod > "$logs/ship-zod.log" 2>&1
+  remove_net
+}
+
+# A full run starts from an empty volume and removes it after.
+if [ -z "$pattern" ]
+then
+  remove_net
   trap clean_up EXIT
 fi
 
-function matches
-{
-  [ -z "$pattern" ] || [[ $1 =~ $pattern ]]
-}
+build_image || { echo "Failed to build the fake ship image"; exit 1; }
+start_net || { echo "Failed to start container $net"; exit 1; }
 
 function needs_ship
 {
-  if tmux has-session -t "=fake-$1" 2>/dev/null
+  if running "$net-$1"
   then
     return 0
   fi
-  rm -rf "$piers/$1"
+  $runtime exec "$net" rm -rf "/piers/$1"
   boot "$1" "$2" "$3"
 }
 
-# Give the named running ships the working tree, with the integration tests.
+# Give the named running ships the working tree, with the integration tests, and
+# %mcp at the commit now pinned, which the fetch checks out.
 function deploy
 {
   for ship in "$@"
   do
-    just heavy=true commit "$piers/$ship/harness" > "$logs/deploy-$ship.log" 2>&1 ||
+    (
+      just fetch && just --justfile mcp/justfile build &&
+        select_ship "$ship" && source scripts/setup-lib.sh &&
+        update_desk mcp /repo/packages/harness/mcp/desk-out &&
+        just heavy=true push "~$ship"
+    ) > "$logs/deploy-$ship.log" 2>&1 ||
       { echo "Failed to deploy to ~$ship; see $logs/deploy-$ship.log"; exit 1; }
   done
   sleep 5
 }
 
-function pane
-{
-  tmux capture-pane -p -t "=fake-$1:" -S -200000 | sed 's/\x1b\[[0-9;]*m//g'
-}
-
-# The Hoon tests don't need the login cookie, but test-js.sh may reuse the ship.
 function boot
 {
   echo "Booting ~$1..."
-  HTTP_PORT=$2 just fake-dev "~$1" "$piers" "~$3" > "$logs/boot-$1.log" 2>&1
+  HTTP_PORT=$2 just fake-dev "~$1" "~$3" > "$logs/boot-$1.log" 2>&1
   if [ "$?" -ne 0 ]
   then
     result "boot ~$1" "FAILED (see $logs/boot-$1.log)"
     return 1
   fi
-  tmux send-keys -t "=fake-$1:" -- '+code' Enter
-  sleep 5
-  code=$(pane $1 | grep -oE '^[a-z]{6}(-[a-z]{6}){3}$' | tail -1)
-  curl -sS -m 15 -o /dev/null -c "$run/$1.cookie" -d "password=$code" "http://127.0.0.1:$2/~/login"
-  chmod 600 "$run/$1.cookie"
-}
-
-# Print the counts and exit non-zero if anything failed.
-function summarize
-{
-  echo
-  echo "Summary:"
-  echo "  passed:     $(grep -c ' pass' "$results")"
-  echo "  skipped:    $(grep -c ' skipped:' "$results")"
-  echo "  incomplete: $(grep -c ' incomplete:' "$results")"
-  echo "  failed:     $(grep -c ' FAILED' "$results")"
-  echo "Logs are in $logs"
-  [ -z "$pattern" ] || echo "The test ships are still running; stop them with: just test --stop"
-  ! grep -q ' FAILED' "$results"
 }

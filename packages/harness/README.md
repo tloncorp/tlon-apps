@@ -76,9 +76,12 @@ Install it in Dojo:
 Set the owner, enable the Tlon hand and connect a model provider:
 
 ```sh
-just setup /path/to/pier ~owner
-just provider /path/to/pier chatgpt
+just click=scripts/click setup /path/to/pier ~owner
+just click=scripts/click provider /path/to/pier chatgpt
 ```
+
+Without `click=scripts/click`, `setup` and `provider` take a fake ship that
+`just fake-dev` runs in a container, as `~zod`.
 
 `chatgpt` signs in with a ChatGPT subscription. `openai`, `openrouter`, `anthropic`
 and `xai` ask for an API key. Then DM the ship from the owner in Tlon.

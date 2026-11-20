@@ -8,6 +8,7 @@ import { createServer } from 'node:http'
 import { randomUUID } from 'node:crypto'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { Client, cookie, base, readCookie } from './lib/ship-client.mjs'
+import { authorShip } from './lib/author.mjs'
 
 const nest = process.env.TEST_NEST, peerUrl = process.env.PEER_URL, guestUrl = process.env.GUEST_URL
 assert.ok(nest && peerUrl && guestUrl && process.env.PEER_COOKIE && process.env.GUEST_COOKIE,
@@ -62,7 +63,7 @@ async function until(label, check, timeout = 45000) {
   }
   throw new Error(`Timed out: ${label}`)
 }
-const reply = (post, step) => post?.essay?.author === ship && JSON.stringify(post.essay.content).includes(`${marker}-${step}-ok`)
+const reply = (post, step) => authorShip(post?.essay?.author) === ship && JSON.stringify(post.essay.content).includes(`${marker}-${step}-ok`)
 // Each speaker mentions the bot in the channel and waits for its answer there.
 async function speak(who, step) {
   await poke(who, { add: { content: [{ inline: [{ ship }, ` ${marker}-${step}`] }], author: who.ship, sent: Date.now(), kind: '/chat', meta: null, blob: null } })
@@ -73,7 +74,7 @@ async function speak(who, step) {
 async function command(who, text, expected) {
   await poke(who, { add: { content: [{ inline: [{ ship }, ` ${text}`] }], author: who.ship, sent: Date.now(), kind: '/chat', meta: null, blob: null } })
   return until(`${who.ship} ${text} answered`, async () => Object.values((await scry(`channels/v5/${nest}/posts/newest/32/post`)).posts)
-    .some((post) => post?.essay?.author === ship && expected.test(JSON.stringify(post.essay.content))))
+    .some((post) => authorShip(post?.essay?.author) === ship && expected.test(JSON.stringify(post.essay.content))))
 }
 const model = async (sessionId) => (await client.call('harness/session/config', { sessionId })).model
 const sessions = async () => (await client.call('harness/tlon')).sessions
@@ -137,7 +138,7 @@ try {
   // A reply in a thread of the channel has its own session.
   await poke(owner, { reply: { id: parent, action: { add: { content: [{ inline: [`${marker}-thread1`] }], author: owner.ship, sent: Date.now() } } } })
   await until('thread reply answered in the thread', async () => Object.values((await scry(`channels/v5/${nest}/posts/newest/32/post`)).posts[parent]?.seal?.replies || {})
-    .some((r) => r?.['reply-essay']?.author === ship && JSON.stringify(r['reply-essay'].content).includes(`${marker}-thread1-ok`)))
+    .some((r) => authorShip(r?.['reply-essay']?.author) === ship && JSON.stringify(r['reply-essay'].content).includes(`${marker}-thread1-ok`)))
   const threads = (await sessions()).filter((sid) => sid.startsWith(thread))
   assert.equal(threads.length, 1, `one thread session: ${threads}`)
   assert.notEqual(threads[0], sid)

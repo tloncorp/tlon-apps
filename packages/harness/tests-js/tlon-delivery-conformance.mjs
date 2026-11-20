@@ -4,22 +4,22 @@ import assert from 'node:assert/strict'
 import { text as readText } from 'node:stream/consumers'
 import { createServer } from 'node:http'
 import { readFile } from 'node:fs/promises'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
 import { randomUUID } from 'node:crypto'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { Client, cookie, base } from './lib/ship-client.mjs'
 import { HandClient } from '../acp/hand-client.mjs'
+import { rein, revive } from './lib/ship-thread.mjs'
+import { authorShip, assertBotAuthor } from './lib/author.mjs'
 
-const peerUrl = process.env.PEER_URL, pane = process.env.SHIP_DOJO_PANE
+const peerUrl = process.env.PEER_URL, pier = process.env.SHIP_PIER
 const inChannel = process.env.SURFACE === 'channel', nest = process.env.TEST_NEST
-const hostPane = process.env.CHANNEL_HOST_DOJO_PANE
-assert.ok(peerUrl && pane && process.env.PEER_COOKIE, 'Set PEER_URL, PEER_COOKIE, SHIP_DOJO_PANE')
+const hostPier = process.env.CHANNEL_HOST_PIER
+assert.ok(peerUrl && pier && process.env.PEER_COOKIE, 'Set PEER_URL, PEER_COOKIE, SHIP_PIER')
 assert.ok(!inChannel || nest, 'Set TEST_NEST for channel delivery')
 const row = (await readFile(process.env.PEER_COOKIE, 'utf8')).split('\n').find((r) => /\turbauth-~/.test(r)).split('\t')
 const peerCookie = `${row[5]}=${row[6]}`, peer = row[5].slice('urbauth-'.length)
 const ship = cookie.split('=')[0].slice('urbauth-'.length)
-const marker = `delivery-${randomUUID()}`, client = new Client(), run = promisify(execFile)
+const marker = `delivery-${randomUUID()}`, client = new Client()
 const hand = new HandClient(client, { hand: 'tlon', worker: marker })
 let event = 0, defaults, policy, suspended = false, hostSuspended = false, sessionId
 const requests = []
@@ -37,22 +37,17 @@ async function until(label, check) {
   }
   throw new Error(`Timed out: ${label}`)
 }
-async function dojo(command, target = pane) {
-  await run('tmux', ['send-keys', '-t', target, '-l', '--', command])
-  await run('tmux', ['send-keys', '-t', target, 'Enter'])
-  await sleep(500)
-}
 async function status() {
   const r = await fetch(`${base}/~/scry/harness-tlon/status.json`, { headers: { cookie }, signal: AbortSignal.timeout(10000) })
   return r.ok ? r.json() : null
 }
 async function suspend() {
   suspended = true
-  await dojo('|rein %harness [%.n %harness-tlon]')
+  await rein(pier, 'harness', 'harness-tlon', false)
   await until('adapter really suspended', async () => !await status())
 }
 async function resume() {
-  await dojo('|rein %harness [%.y %harness-tlon]')
+  await rein(pier, 'harness', 'harness-tlon', true)
   await until('adapter reconnected to head', async () => (await status())?.headConnected)
   suspended = false
 }
@@ -63,7 +58,7 @@ async function posts() {
   const page = await r.json()
   return Object.entries(page.writs || page.posts).map(([key, p]) => ({ ...p, fixtureId: inChannel ? key : p.seal.id.split('/')[1] }))
 }
-const matches = async (suffix) => (await posts()).filter((p) => p.essay?.author === ship && JSON.stringify(p.essay.content).includes(`${marker}-${suffix}`))
+const matches = async (suffix) => (await posts()).filter((p) => authorShip(p.essay?.author) === ship && JSON.stringify(p.essay.content).includes(`${marker}-${suffix}`))
 async function send(suffix) {
   const da = (((BigInt(Date.now()) * (1n << 64n)) / 1000n) + 170141184475152167957503069145530368000n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
   const essay = { content: [{ inline: [...(inChannel ? [{ ship }] : []), `${marker} ${suffix}`] }], author: peer, sent: Date.now(), kind: '/chat', meta: null, blob: null }
@@ -87,6 +82,7 @@ try {
   await send('first'); await until('first DM reaches inference', () => requests.length === 1)
   ;[sessionId] = (await status()).sessions
   finish(0, 'first'); await until('ordinary reply delivered', async () => (await matches('first')).length === 1); await idle()
+  assertBotAuthor((await matches('first'))[0].essay.author, ship)
 
   await send('offline'); await until('second DM reaches inference', () => requests.length === 2)
   await suspend(); finish(1, 'offline')
@@ -121,9 +117,10 @@ try {
   await until('recovered pending replies drain in admission order', async () => (await matches('held')).length === 1 && (await matches('behind')).length === 1)
   await idle()
   const nativeStamp = (p) => BigInt(p.fixtureId.replaceAll('.', ''))
-  const ordered = (await posts()).filter((p) => p.essay?.author === ship && [ 'held', 'behind' ].some((s) => JSON.stringify(p.essay.content).includes(`${marker}-${s}`))).sort((a, b) => nativeStamp(a) < nativeStamp(b) ? -1 : 1)
+  const ordered = (await posts()).filter((p) => authorShip(p.essay?.author) === ship && [ 'held', 'behind' ].some((s) => JSON.stringify(p.essay.content).includes(`${marker}-${s}`))).sort((a, b) => nativeStamp(a) < nativeStamp(b) ? -1 : 1)
   assert.notEqual(ordered[0].fixtureId, ordered[1].fixtureId, 'same-event deliveries have distinct native IDs')
   assert.ok(JSON.stringify(ordered[0].essay.content).includes(`${marker}-held`))
+  for (const recovered of ordered) assertBotAuthor(recovered.essay.author, ship)
 
   await send('retry'); await until('retry fixture reaches inference', () => requests.length === 5)
   await suspend(); finish(4, 'retry')
@@ -139,17 +136,17 @@ try {
   await until('explicit retry wakes the idle adapter without a timer', async () => (await matches('retry')).length === 1)
   await idle()
 
-  await dojo('|revive %harness')
+  await revive(pier, 'harness')
   await until('whole-desk revive reconnects', async () => (await status())?.headConnected)
   await send('revived'); await until('post-revive DM reaches inference', () => requests.length === 6)
   finish(5, 'revived'); await until('post-revive reply delivered', async () => (await matches('revived')).length === 1); await idle()
   for (const suffix of ['first', 'offline', 'held', 'behind', 'retry', 'revived']) assert.equal((await matches(suffix)).length, 1, `no duplicate ${suffix}`)
   assert.equal(requests.length, 6, 'recovery never reruns inference')
   console.log('PASS whole-desk revival, reply order, no duplicate sends or inference')
-  if (inChannel && hostPane) {
+  if (inChannel && hostPier) {
     await send('confirmation'); await until('confirmation fixture reaches inference', () => requests.length === 7)
     hostSuspended = true
-    await dojo('|rein %groups [%.n %channels-server]', hostPane)
+    await rein(hostPier, 'groups', 'channels-server', false)
     finish(6, 'confirmation')
     const publication = await until('local acceptance is not a host receipt', async () => {
       const records = (await hand.outbox()).filter((r) => r.sessionId === sessionId && r.text === `${marker}-confirmation`)
@@ -157,7 +154,7 @@ try {
     })
     assert.equal((await matches('confirmation')).length, 0)
     await suspend()
-    await dojo('|rein %groups [%.y %channels-server]', hostPane)
+    await rein(hostPier, 'groups', 'channels-server', true)
     hostSuspended = false
     await until('host accepts the post while adapter is down', async () => (await matches('confirmation')).length === 1)
     await resume()
@@ -167,7 +164,7 @@ try {
     assert.equal(requests.length, 7)
   }
 } finally {
-  if (hostSuspended) await dojo('|rein %groups [%.y %channels-server]', hostPane)
+  if (hostSuspended) await rein(hostPier, 'groups', 'channels-server', true)
   if (suspended) await resume()
   if (policy) await client.call('harness/tlon/configure', policy)
   if (defaults) await client.call('harness/defaults/configure', { config: { ...defaults, key: '' } })

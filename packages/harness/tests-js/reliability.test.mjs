@@ -10,19 +10,25 @@ import { options, Metric, deadline, until, journal, parseProcess, processMemory 
 import { fixture } from './lib/reliability-fixture.mjs'
 
 const env = { SHIP_URL: 'http://127.0.0.1', SHIP_COOKIE: '/fixture/cookie', SOAK_EXPECT_SHIP: '~nec' }
+// options() reads process.env, so each case runs it on a copy holding only its own values.
+function optionsFor(values) {
+  const saved = process.env
+  process.env = { ...values }
+  try { return options() } finally { process.env = saved }
+}
 test('reliability defaults are read-only, local, paced and bounded', () => {
-  const value = options(env)
+  const value = optionsFor(env)
   assert.equal(value.work, false)
   assert.equal(value.durationMs, 60_000)
   assert.equal(value.workers, 2)
   for (const SHIP_URL of ['https://example.com', 'http://user:secret@localhost', 'http://localhost/path', 'file://localhost/', 'http://localhost/?x=y']) {
-    assert.throws(() => options({ ...env, SHIP_URL }), /loopback/)
+    assert.throws(() => optionsFor({ ...env, SHIP_URL }), /loopback/)
   }
-  for (const field of ['SHIP_URL', 'SHIP_COOKIE', 'SOAK_EXPECT_SHIP']) assert.throws(() => options({ ...env, [field]: '' }))
+  for (const field of ['SHIP_URL', 'SHIP_COOKIE', 'SOAK_EXPECT_SHIP']) assert.throws(() => optionsFor({ ...env, [field]: '' }))
   for (const [key, value] of Object.entries({ SOAK_DURATION_MS: 'Infinity', SOAK_INTERVAL_MS: '0', SOAK_WORKERS: '5', SOAK_MAX_ROUNDS: '100000', SOAK_WORK: 'yes', SOAK_WORKER_PID: '-1' })) {
-    assert.throws(() => options({ ...env, [key]: value }), /must be/)
+    assert.throws(() => optionsFor({ ...env, [key]: value }), /must be/)
   }
-  assert.equal(options({ ...env, SOAK_WORK: '1', SOAK_DURATION_MS: '86400000' }).durationMs, 86_400_000)
+  assert.equal(optionsFor({ ...env, SOAK_WORK: '1', SOAK_DURATION_MS: '86400000' }).durationMs, 86_400_000)
 })
 
 test('latency samples stay bounded; maxima and counts retain early outliers', () => {

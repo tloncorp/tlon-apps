@@ -2035,18 +2035,18 @@
   ?:  (lte (posted-at:continuity event) cutoff)  cor
   ::  A ready route does not recheck native read permission on its own.
   ?~  (speaker-grants actor.u.input to.u.input ~)  cor
-  =/  known  (~(get by identities) to.u.input)
-  =/  sid  (fall known (identity:continuity to.u.input))
-  ?:  &(?=(~ known) (gte ~(wyt by identities) 128))
-    cor(error 'Conversation identity capacity reached; existing history and notes are retained.')
+  =/  sid  (fall (~(get by identities) to.u.input) (identity:continuity to.u.input))
   =/  existing  (~(get by lanes) sid)
   =/  generation  ?~(existing epoch epoch.u.existing)
   =/  id=@uv  (sham [generation u.input])
   ?:  (~(has by jobs) id)  cor
   ?:  (gte ~(wyt by jobs) 64)  cor(error 'Admission queue full; inspect Tlon pending work.')
+  ::  Read only what will be admitted. A diagnostic, kept out of the input
+  ::  whose hash is the job id.
+  =/  bot=(unit ?)  (bot-author:~(. history-read bowl) to.u.input (posted-at:continuity event))
   =/  =job:t  [u.input sid %create '']
   =.  jobs  (~(put by jobs) id job)
-  =.  cor  (note 'message' actor.u.input (address:p to.u.input) event.u.input)
+  =.  cor  (note ?:(=(`& bot) 'bot-message' 'message') actor.u.input (address:p to.u.input) event.u.input)
   =.  identities  (~(put by identities) to.u.input sid)
   ?:  ?=(^ existing)
     ?:  (route-ready sid)  (bind-job id job)

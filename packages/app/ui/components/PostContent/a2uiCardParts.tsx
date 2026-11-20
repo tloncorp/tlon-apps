@@ -45,6 +45,8 @@ export const A2UI_SPACE = {
   line: 4,
   /** Blocks: an inner card, a note, a row. */
   block: 12,
+  /** Before a list of icon rows, such as a plan's channels. */
+  beforeList: 20,
   /** Before a card's row of buttons. */
   beforeButtons: 20,
   /** Before the buttons inside an inner card. */

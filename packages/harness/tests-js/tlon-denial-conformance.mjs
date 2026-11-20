@@ -10,6 +10,7 @@ import { createServer } from 'node:http'
 import { text as readText } from 'node:stream/consumers'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { Client, cookie, base } from './lib/ship-client.mjs'
+import { authorShip, assertBotAuthor } from './lib/author.mjs'
 
 assert.ok(process.env.PEER_COOKIE && process.env.PEER_URL, 'Set PEER_COOKIE and PEER_URL for a local fake peer')
 const row = (await readFile(process.env.PEER_COOKIE, 'utf8')).split('\n').find((line) => /\turbauth-~/.test(line)).split('\t')
@@ -54,7 +55,7 @@ async function dms(path) {
   assert.ok(response.ok); return response.json()
 }
 const denials = (status) => status.events.filter((notice) => notice.kind === 'permission-denied' && notice.actor === peer)
-const outgoing = (page) => Object.values(page.writs || {}).filter((post) => post.essay?.author === ship).map((post) => post.seal.id)
+const outgoing = (page) => Object.values(page.writs || {}).filter((post) => authorShip(post.essay?.author) === ship).map((post) => post.seal.id)
 try {
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   await client.start()
@@ -111,8 +112,9 @@ try {
   assert.equal(prompts.length, 0, 'messages sent before the grant produce no model call')
   await send('granted')
   const answer = await until('message sent after the grant answered', async () => Object.values((await page(true)).writs || {}).find((post) =>
-    post.essay?.author === ship && BigInt(post.seal.id.split('/').at(-1).replaceAll('.', '')) > grantStart && JSON.stringify(post.essay.content).includes(`${marker}-answer`)))
+    authorShip(post.essay?.author) === ship && BigInt(post.seal.id.split('/').at(-1).replaceAll('.', '')) > grantStart && JSON.stringify(post.essay.content).includes(`${marker}-answer`)))
   assert.ok(answer)
+  assertBotAuthor(answer.essay.author, ship)
   assert.ok(prompts.some((prompt) => prompt.includes(`${marker}-granted`)), 'the post-grant message reached the model')
   assert.ok(!prompts.some((prompt) => ['first', 'second', 'pending-1', 'pending-2'].some((label) => prompt.includes(`${marker}-${label}:`))), 'messages sent before the grant never reach the model')
   console.log('PASS late grant accepts the pending invitation, answers only post-grant messages')
