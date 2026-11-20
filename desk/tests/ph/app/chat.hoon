@@ -11,6 +11,57 @@
     [[~[verse] author time] chat+/ ~ ~]
   [[author time] %add essay `time]
 ::
+++  club-id  `id:club:c`0v1
+::  +club-init: the invitation ~zod sends ~bud
+::
+++  club-init
+  ^-  delta:club:c
+  [%init (sy ~zod ~) (sy ~bud ~) met:*crew:club:c]
+::  +ex-club-delta: expect a club action of the kind of .delta
+::
+::    facts with other marks and club actions of other kinds are skipped.
+::
+++  ex-club-delta
+  |=  [=ship =id:club:c =delta:club:c]
+  =/  m  (strand ,~)
+  ^-  form:m
+  |-
+  =*  loop  $
+  ;<  =cage  bind:m
+    (wait-for-app-fact /(scot %p ship)/chat/v4 [ship %chat])
+  ?.  ?=(%chat-club-action-2 p.cage)  loop
+  =+  !<(=action:club:c q.cage)
+  ?.  =(-.delta -.q.q.action)  loop
+  (ex-equal !>([p q.q]:action) !>([id delta]))
+::  +ex-club-writ: expect a club message with the id of .diff
+::
+::    facts with other marks and other messages are skipped.
+::
+++  ex-club-writ
+  |=  [=ship =id:club:c =diff:writs:c]
+  =/  m  (strand ,~)
+  ^-  form:m
+  ?>  ?=(%add -.q.diff)
+  |-
+  =*  loop  $
+  ;<  =cage  bind:m
+    (wait-for-app-fact /(scot %p ship)/chat/v4 [ship %chat])
+  ?.  ?=(%writ-response-4 p.cage)  loop
+  =+  !<([=whom:c res=response:writs:c] q.cage)
+  ?.  =(p.diff id.res)  loop
+  ;<  ~  bind:m  (ex-equal !>(whom) !>(`whom:c`[%club id]))
+  ?>  ?=(%add -.response.res)
+  (ex-equal !>(essay.response.res) !>(essay.q.diff))
+::  +invite-bud: ~zod creates an empty club and adds ~bud to it
+::
+++  invite-bud
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (poke-app [~zod %chat] chat-club-create+[club-id ~])
+  =/  =action:club:c  [club-id 0v0 %hive ~zod ~bud &]
+  ;<  ~  bind:m  (poke-app [~zod %chat] chat-club-action-2+action)
+  (ex-club-delta ~bud club-id club-init)
+::
 --
 |%
 ++  ph-test-dm-init
@@ -98,4 +149,51 @@
     ==
   ;<  ~  bind:m  (ex-equal q.pay !>(writ-response-3))
   (pure:m ~)
+::  +ph-test-club-create: test club invitation on creation
+::
+::  scenario
+::
+::  ~zod creates a club and invites ~bud. ~bud receives the invitation.
+::
+++  ph-test-club-create
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (watch-app /~bud/chat/v4 [~bud %chat] /v4)
+  =/  =create:club:c  [club-id (sy ~bud ~)]
+  ;<  ~  bind:m  (poke-app [~zod %chat] chat-club-create+create)
+  (ex-club-delta ~bud club-id club-init)
+::  +ph-test-club-rsvp: test club invitation response
+::
+::  scenario
+::
+::  ~zod creates a club and then adds ~bud to it. ~bud receives the
+::  invitation and accepts it. ~zod learns that ~bud has joined.
+::
+++  ph-test-club-rsvp
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (watch-app /~bud/chat/v4 [~bud %chat] /v4)
+  ;<  ~  bind:m  invite-bud
+  ;<  ~  bind:m  (watch-app /~zod/chat/v4 [~zod %chat] /v4)
+  =/  =action:club:c  [club-id 0v0 %team ~bud &]
+  ;<  ~  bind:m  (poke-app [~bud %chat] chat-club-action-2+action)
+  (ex-club-delta ~zod club-id [%team ~bud &])
+::  +ph-test-club-writ: test club message delivery
+::
+::  scenario
+::
+::  ~zod creates a club and then adds ~bud to it. ~bud receives the
+::  invitation. ~zod sends a message and ~bud receives it.
+::
+++  ph-test-club-writ
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (watch-app /~bud/chat/v4 [~bud %chat] /v4)
+  ;<  ~  bind:m  invite-bud
+  ;<  =bowl:strand  bind:m  get-bowl
+  =/  msg=diff:writs:c
+    (dm-message ~zod now.bowl [%inline ~['hi ' [%ship ~bud]]])
+  =/  =action:club:c  [club-id 0v0 %writ msg]
+  ;<  ~  bind:m  (poke-app [~zod %chat] chat-club-action-2+action)
+  (ex-club-writ ~bud club-id msg)
 --
