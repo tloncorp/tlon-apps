@@ -9,7 +9,7 @@ Getting around the app's main list: the phone's tab bar and Workspaces tab (desk
 Phone: the tab bar is icons only, no words. From the left: Bot (your bot's avatar) opens your chat with your Tlonbot. Workspaces (a # sign) lists your groups and DMs. Activity (a bell) is your notifications. Settings is the gear.
 Desktop: there is no tab bar. A rail of icons down the left side does this job.
 Who: the Bot tab only exists on a hosted account with Tlonbot turned on. Everyone else has three tabs.
-Notes: the Bot icon is a colour tile if the bot has no avatar, and a flower shape until its profile loads. A dot on Bot means an unread message from your bot; on Activity, something new elsewhere. During your bot's first-run setup the other tabs can't be selected.
+Notes: the Bot icon is a colour tile if the bot has no avatar, and a flower shape until its profile loads. A dot on Bot means an unread message from your bot; on Activity, something new elsewhere.
 
 ## Which screen the app opens on
 <!-- src: packages/app/navigation/TopLevelTabNavigator.native.tsx, apps/tlon-mobile/src/lib/navigationStatePersistence.ts, packages/app/navigation/desktop/TopLevelDrawer.tsx -->
