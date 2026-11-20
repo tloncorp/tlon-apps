@@ -970,10 +970,11 @@
   ?~  source  |
   =/  cfg  config:(play:hl log.u.source)
   =/  live  (execution-tools sid.job tools.cfg)
-  ::  Saved grants must remain available. Newly available tools do not widen
-  ::  a schedule's durable ceiling or pause work that is still authorized.
-  =/  actual  (skip live |=(g=tool-grant:h =(%cron g)))
-  =/  saved  (skip tools.job |=(g=tool-grant:h =(%cron g)))
+  ::  Saved grants must remain available, except %cron and %code, which a
+  ::  scheduled run cannot hold. Newly available tools do not widen a
+  ::  schedule's durable ceiling or pause work that is still authorized.
+  =/  actual  (skip live |=(g=tool-grant:h |(=(%cron g) =(%code g))))
+  =/  saved  (skip tools.job |=(g=tool-grant:h |(=(%cron g) =(%code g))))
   (levy saved |=(g=tool-grant:h (~(has in (silt actual)) g)))
 ++  stop-schedule
   |=  [id=@uv job=schedule:cr mode=?(%paused %cancelled) reason=@t]
