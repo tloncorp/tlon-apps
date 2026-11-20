@@ -166,13 +166,16 @@
       %1  |+~['blocking on scry' >;;(path p.res)<]
       %2  |+p.res
     ==
-  %+  mock  [. !=((call s))]
+  (mock [. !=((call s))] (look scry.s))
+::
+++  look  ::  namespace for +mock, answering from the mocked scry
+  |=  f=scry
   |=  [ref=* pax=*]
   ^-  (unit (unit *))
   ?>  ?=(^ ref)
   ?>  =(hoon-version -.ref)
   =+  ;;(pax=path pax)
-  =/  res=(unit vase)  (scry.s pax)
+  =/  res=(unit vase)  (f pax)
   %.  ?~(res ~ ``q.u.res)
   ::  warn about type mismatches if the tested code expects a result type
   ::  different from what the mocked scry produces.
@@ -298,20 +301,28 @@
   |=  s=state
   &+[~(on-save agent.s bowl.s) s]
 ::
-++  get-peek
+++  get-peek  ::  +on-peek with mocked scry
   |=  =path
   =/  m  (mare ,(unit (unit cage)))
   ^-  form:m
   |=  s=state
-  &+[(~(on-peek agent.s bowl.s) path) s]
+  =/  res=toon
+    (mock [. !=((~(on-peek agent.s bowl.s) path))] (look scry.s))
+  ?-  -.res
+    %0  :-  %&  :_  s
+        ::NOTE  as in +do, we play pretend with vases instead of a slow ;;
+        !<  (unit (unit cage))
+        [-:!>(*(unit (unit cage))) p.res]
+    %1  |+~['blocking on scry' >;;(^path p.res)<]
+    %2  |+p.res
+  ==
 ::
 ++  got-peek
   |=  =path
   =/  m  (mare ,cage)
   ^-  form:m
+  ;<  peek=(unit (unit cage))  bind:m  (get-peek path)
   |=  s=state
-  =/  peek=(unit (unit cage))
-    (~(on-peek agent.s bowl.s) path)
   ?.  ?=(^ peek)  |+~['invalid scry path' (spat path)]
   ?.  ?=(^ u.peek)  |+~['unexpected empty result at scry path' (spat path)]
   &+[u.u.peek s]
