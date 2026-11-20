@@ -435,6 +435,14 @@ reconnection repair the claim. A failed Contacts read or edit retries on the
 next adapter event without blocking chat or creating a nack loop. If the whole
 ship stops, peers retain the last published claim until the ship returns.
 
+The same reconciliation publishes the `bot-info` claim that identifies the
+runtime to the app (`docs/bot-info.md`):
+`{"v":1,"harness":"harness","version":"<version>"}`, whatever the hand's
+readiness. The version is `version` in `desk/lib/harness-defaults.hoon`, which
+the ACP agent info also reports; `package.json` repeats it for the shared bot
+E2E, and `tests-js/distribution.test.mjs` keeps the two equal. Both claims
+share one Contacts read and, when either differs, one `%self` edit.
+
 Chat computing indicators use `%presence-action-1` and the
 `tlon.computing-status.v1` display payload, matching the versioned Groups
 Presence protocol.

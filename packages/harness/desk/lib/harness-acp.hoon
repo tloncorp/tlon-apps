@@ -62,7 +62,7 @@
     %-  pairs:enjs:format
     :~  ['name' %s 'urbit-harness']
         ['title' %s 'Urbit Agent Harness']
-        ['version' %s '0.1.0']
+        ['version' %s version:policy]
     ==
   %-  pairs:enjs:format
   :~  ['protocolVersion' (numb:enjs:format 1)]

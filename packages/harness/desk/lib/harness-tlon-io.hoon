@@ -243,15 +243,15 @@
   %-  encode:profile
   .^(contact:ct %gx /(scot %p our.bowl)/contacts/(scot %da now.bowl)/v1/self/contact-1)
 ::
-++  liveness
+++  claims
   |=  online=?
   ^-  (unit card)
   ?.  .^(? %gu /(scot %p our.bowl)/contacts/(scot %da now.bowl)/$)  ~
   =/  con
     .^(contact:ct %gx /(scot %p our.bowl)/contacts/(scot %da now.bowl)/v1/self/contact-1)
-  =/  patch  (liveness:profile online con)
+  =/  patch  (~(uni by (liveness:profile online con)) (bot-info:profile con))
   ?~  patch  ~
-  `(edit-profile /liveness patch)
+  `(edit-profile /claims patch)
 ::
 ++  edit-profile
   |=  [wire=wire fields=contact:ct]

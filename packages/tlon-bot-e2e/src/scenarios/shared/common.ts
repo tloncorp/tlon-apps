@@ -77,7 +77,6 @@ const REACTION_PROVENANCE_BY_DRIVER: Partial<
 };
 // Scenarios that test behavior Harness does not have.
 const HARNESS_SKIPS = {
-  botInfo: 'Harness does not publish the bot-info contact field.',
   ownerListen:
     'Harness has no owner-listen mode; under response: mentions it admits only addressed channel posts.',
   ownerListenOff: 'Harness has no owner-listen setting to turn off.',
@@ -122,7 +121,7 @@ export const commonScenarios: readonly SharedScenario[] = [
 
   testScenario(
     'bot-info-publishes-and-replicates',
-    { driverSkips: { harness: HARNESS_SKIPS.botInfo } },
+    {},
     async ({ ctx, driver, actors }) => {
       await actors.bot.state.connect();
       await actors.owner.state.connect();
