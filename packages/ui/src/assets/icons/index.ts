@@ -5,6 +5,7 @@ export { default as ArrowRef } from './ArrowRef.svg';
 export { default as ArrowUp } from './ArrowUp.svg';
 export { default as Attachment } from './Attachment.svg';
 export { default as Bang } from './Bang.svg';
+export { default as Block } from './Block.svg';
 export { default as BlockQuote } from './BlockQuote.svg';
 export { default as Bold } from './Bold.svg';
 export { default as Bulletin } from './Bulletin.svg';

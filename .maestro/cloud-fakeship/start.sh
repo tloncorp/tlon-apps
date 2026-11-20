@@ -57,9 +57,9 @@ echo "Tunnel connected after $((SECONDS-start)) seconds."
 if [ -d .proof-snapshot/zod ]; then
   dist=apps/tlon-web/rube/dist
   cp -a .proof-snapshot/zod .proof-snapshot/ten "$dist/"
-  mkdir -p "$dist/urbit_extracted" .peru
+  mkdir -p "$dist/urbit_extracted"
   cp -a .proof-snapshot/urbit "$dist/urbit_extracted/urbit"
-  cp -a .proof-snapshot/peru-cache .peru/cache
+  cp -a .proof-snapshot/deps-cache .deps-cache
   export SKIP_DOWNLOAD=true
   echo 'Restored prepared ships and their runtime; native app unchanged.'
 fi

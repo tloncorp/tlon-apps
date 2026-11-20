@@ -986,7 +986,7 @@ const MAX_PENDING_CRON_JOBS = 256;
 const MAX_PENDING_CRON_RUNS_PER_JOB = 8;
 const MAX_PENDING_CRON_RUN_IDS = 1_024;
 
-function trimOldest<K, V>(map: Map<K, V>, max: number) {
+export function trimOldest<K, V>(map: Map<K, V>, max: number) {
   while (map.size > max) {
     const oldest = map.keys().next().value;
     if (oldest === undefined) {

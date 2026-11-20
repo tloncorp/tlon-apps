@@ -39,4 +39,11 @@ export const lanyard = {
     mark: 'lanyard-query-1',
     since: '12.2.0',
   },
+  queryV2: {
+    kind: 'poke',
+    agent: 'lanyard',
+    mark: 'lanyard-query-2',
+    since: '12.6.0',
+    guardedBy: 'deskKeepsDiscoveryCursor',
+  },
 } as const satisfies Record<string, Entry>;

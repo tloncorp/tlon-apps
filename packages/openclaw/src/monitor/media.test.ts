@@ -6,16 +6,22 @@ import { fileURLToPath } from 'node:url';
 import { fetchWithSsrFGuard } from 'openclaw/plugin-sdk/ssrf-runtime';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { MAX_IMAGE_BYTES } from 'openclaw/plugin-sdk/media-runtime';
+
 import {
   MAX_BLOB_DOWNLOAD_BYTES,
+  MAX_IMAGES_PER_MESSAGE,
+  MEDIA_FETCH_TIMEOUTS,
   downloadBlobAttachments,
   downloadMedia,
   downloadMessageImages,
   formatInboundMediaBody,
   formatBlobAnnotations,
   formatBlobForHistory,
+  hasAttachmentBlob,
   parseBlobData,
 } from './media.js';
+import { shouldEngageInGroup } from './utils.js';
 
 vi.mock('openclaw/plugin-sdk/ssrf-runtime', () => ({
   fetchWithSsrFGuard: vi.fn(),
@@ -605,6 +611,51 @@ describe('downloadMessageImages', () => {
     expect(result.attachments[0].contentType).toBe('image/png');
   });
 
+  it('downloads at most eight images and reports the rest unavailable', async () => {
+    mockedFetchWithSsrFGuard.mockImplementation(
+      async () =>
+        ({
+          response: new Response('png', {
+            status: 200,
+            headers: { 'content-type': 'image/png' },
+          }),
+          release: vi.fn().mockResolvedValue(undefined),
+        }) as Awaited<ReturnType<typeof fetchWithSsrFGuard>>
+    );
+    const content = Array.from({ length: 11 }, (_, i) => ({
+      block: { image: { src: `https://storage.example.com/${i}.png` } },
+    }));
+
+    const result = await downloadMessageImages(content, mediaDir);
+
+    expect(MAX_IMAGES_PER_MESSAGE).toBe(8);
+    expect(mockedFetchWithSsrFGuard).toHaveBeenCalledTimes(8);
+    expect(result.attachments).toHaveLength(8);
+    expect(result.unavailableCount).toBe(3);
+  });
+
+  it('skips an image over the image byte cap and counts it unavailable', async () => {
+    mockedFetchWithSsrFGuard.mockResolvedValueOnce({
+      response: new Response('big', {
+        status: 200,
+        headers: {
+          'content-type': 'image/png',
+          'content-length': String(MAX_IMAGE_BYTES + 1),
+        },
+      }),
+      release: vi.fn().mockResolvedValue(undefined),
+    } as Awaited<ReturnType<typeof fetchWithSsrFGuard>>);
+
+    const result = await downloadMessageImages(
+      [{ block: { image: { src: 'https://storage.example.com/big.png' } } }],
+      mediaDir
+    );
+
+    expect(result.attachments).toEqual([]);
+    expect(result.unavailableCount).toBe(1);
+    expect(await readdir(mediaDir)).toEqual([]);
+  });
+
   it('puts the unavailable-image notice in the agent body', () => {
     const attachment = { path: '/m/ok.png', contentType: 'image/png' };
     expect(formatInboundMediaBody('look', [attachment], 1)).toBe(
@@ -630,5 +681,258 @@ describe('downloadMessageImages', () => {
       /let bodyWithAttachments = formatInboundMediaBody\(\s*messageText,\s*attachments,\s*unavailableImageCount\s*\);/
     );
     expect(monitorSource).toContain('BodyForAgent: bodyWithAttachments,');
+  });
+});
+
+describe('media download deadlines', () => {
+  let mediaDir: string;
+  let errorSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    mediaDir = await mkdtemp(path.join(tmpdir(), 'tlon-media-deadline-'));
+    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  });
+
+  afterEach(async () => {
+    vi.useRealTimers();
+    errorSpy.mockRestore();
+    await rm(mediaDir, { recursive: true, force: true });
+  });
+
+  it('gives up on a server that never sends headers', async () => {
+    let fetchStarted!: () => void;
+    const started = new Promise<void>((resolve) => (fetchStarted = resolve));
+    mockedFetchWithSsrFGuard.mockImplementation(
+      ({ signal }) =>
+        new Promise((_resolve, reject) => {
+          fetchStarted();
+          signal?.addEventListener('abort', () => reject(signal?.reason));
+        })
+    );
+    let settled = false;
+    const pending = downloadMedia(
+      'https://storage.example.com/stall.png',
+      mediaDir
+    ).finally(() => (settled = true));
+    await started;
+
+    await vi.advanceTimersByTimeAsync(
+      MEDIA_FETCH_TIMEOUTS.responseHeaderTimeoutMs - 1
+    );
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await vi.waitFor(() => expect(settled).toBe(true));
+
+    expect(await pending).toBeNull();
+    expect(MEDIA_FETCH_TIMEOUTS.responseHeaderTimeoutMs).toBe(120_000);
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('MediaTimeoutError')
+    );
+  });
+
+  it('gives up on a body that never starts after the headers', async () => {
+    let fetchStarted!: () => void;
+    const started = new Promise<void>((resolve) => (fetchStarted = resolve));
+    mockedFetchWithSsrFGuard.mockImplementation(async ({ signal }) => {
+      fetchStarted();
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          signal?.addEventListener('abort', () =>
+            controller.error(signal?.reason)
+          );
+        },
+      });
+      return {
+        response: new Response(body, {
+          status: 200,
+          headers: { 'content-type': 'image/png' },
+        }),
+        release: vi.fn().mockResolvedValue(undefined),
+      } as Awaited<ReturnType<typeof fetchWithSsrFGuard>>;
+    });
+    let settled = false;
+    const pending = downloadMedia(
+      'https://storage.example.com/silent.png',
+      mediaDir
+    ).finally(() => (settled = true));
+    await started;
+
+    await vi.advanceTimersByTimeAsync(
+      MEDIA_FETCH_TIMEOUTS.readIdleTimeoutMs - 1
+    );
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await vi.waitFor(() => expect(settled).toBe(true));
+
+    expect(await pending).toBeNull();
+  });
+
+  it('gives up on a body that stops arriving, and applies to blob downloads', async () => {
+    let streamController!: ReadableStreamDefaultController<Uint8Array>;
+    let fetchStarted!: () => void;
+    const started = new Promise<void>((resolve) => (fetchStarted = resolve));
+    mockedFetchWithSsrFGuard.mockImplementation(async ({ signal }) => {
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          streamController = controller;
+          signal?.addEventListener('abort', () =>
+            controller.error(signal?.reason)
+          );
+        },
+      });
+      fetchStarted();
+      return {
+        response: new Response(body, {
+          status: 200,
+          headers: { 'content-type': 'application/pdf' },
+        }),
+        release: vi.fn().mockResolvedValue(undefined),
+      } as Awaited<ReturnType<typeof fetchWithSsrFGuard>>;
+    });
+    let settled = false;
+    const pending = downloadBlobAttachments(
+      [
+        {
+          type: 'file',
+          version: 1,
+          fileUri: 'https://storage.example.com/stall.pdf',
+          mimeType: 'application/pdf',
+          name: 'stall.pdf',
+          size: 10,
+        },
+      ],
+      mediaDir
+    ).finally(() => (settled = true));
+    await started;
+
+    // Steady progress keeps the download alive past one idle window.
+    const step = MEDIA_FETCH_TIMEOUTS.readIdleTimeoutMs / 2;
+    for (let i = 0; i < 4; i++) {
+      await vi.advanceTimersByTimeAsync(step);
+      streamController.enqueue(new Uint8Array(4));
+    }
+    await vi.advanceTimersByTimeAsync(step);
+    expect(settled).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(step);
+    await vi.waitFor(() => expect(settled).toBe(true));
+    expect((await pending).attachments).toEqual([]);
+    expect(MEDIA_FETCH_TIMEOUTS.readIdleTimeoutMs).toBe(30_000);
+    expect(await readdir(mediaDir)).toEqual([]);
+  });
+});
+
+describe('hasAttachmentBlob', () => {
+  const metadata = (version: number) => ({
+    type: 'metadata',
+    version,
+    data: { 'tlon.client': { version: 1, rendererRevision: 1 } },
+  });
+  const file = {
+    type: 'file',
+    version: 1,
+    fileUri: 'https://storage.example.com/report.pdf',
+    mimeType: 'application/pdf',
+    name: 'report.pdf',
+    size: 1024,
+  };
+
+  it('treats a metadata-only blob as no attachment', () => {
+    expect(hasAttachmentBlob(JSON.stringify([metadata(1)]))).toBe(false);
+    expect(hasAttachmentBlob(JSON.stringify([metadata(1), metadata(1)]))).toBe(
+      false
+    );
+  });
+
+  it('treats metadata of any version as metadata', () => {
+    expect(hasAttachmentBlob(JSON.stringify([metadata(2)]))).toBe(false);
+    expect(hasAttachmentBlob(JSON.stringify([{ type: 'metadata' }]))).toBe(
+      false
+    );
+  });
+
+  it('counts metadata mixed with an attachment', () => {
+    expect(hasAttachmentBlob(JSON.stringify([metadata(1), file]))).toBe(true);
+  });
+
+  it('counts any non-metadata entry', () => {
+    expect(hasAttachmentBlob(JSON.stringify([file]))).toBe(true);
+    expect(
+      hasAttachmentBlob(JSON.stringify([{ type: 'some-future-type' }]))
+    ).toBe(true);
+    expect(hasAttachmentBlob(JSON.stringify([metadata(1), 'metadata']))).toBe(
+      true
+    );
+  });
+
+  it('is false for a missing or empty blob', () => {
+    expect(hasAttachmentBlob(undefined)).toBe(false);
+    expect(hasAttachmentBlob(null)).toBe(false);
+    expect(hasAttachmentBlob('')).toBe(false);
+  });
+
+  it('keeps counting blobs it cannot prove are metadata-only', () => {
+    expect(hasAttachmentBlob('[]')).toBe(true);
+    expect(hasAttachmentBlob('not json')).toBe(true);
+    expect(hasAttachmentBlob(JSON.stringify(metadata(1)))).toBe(true);
+    expect(hasAttachmentBlob('"metadata"')).toBe(true);
+  });
+
+  // Pinned so the Hermes helper's JSON.parse-parity cases stay in agreement.
+  it('parses numeric literals the way the Hermes helper does', () => {
+    const metadataWith = (literal: string) =>
+      `[{"type":"metadata","version":1,"data":{"x":${literal}}}]`;
+    for (const constant of ['NaN', 'Infinity', '-Infinity']) {
+      expect(hasAttachmentBlob(metadataWith(constant))).toBe(true);
+    }
+    expect(hasAttachmentBlob(metadataWith('9'.repeat(5000)))).toBe(false);
+    expect(hasAttachmentBlob(metadataWith('1e5000'))).toBe(false);
+  });
+
+  it('gates the owner-blob trigger in a third-party-hosted channel', () => {
+    const engage = (blob: string) =>
+      shouldEngageInGroup({
+        mentioned: false,
+        inParticipatedThread: false,
+        isOwnerBlob: hasAttachmentBlob(blob),
+        isOwnerCommand: false,
+        senderShip: '~zod',
+        ownerShip: '~zod',
+        botShipName: '~bus',
+        channelNest: 'chat/~nec/lounge',
+        groupHost: '~nec',
+        ownerListenEnabled: true,
+        ownerListenDisabledChannels: new Set<string>(),
+      });
+    expect(engage(JSON.stringify([metadata(1)]))).toEqual({
+      engage: false,
+      reason: 'skip',
+    });
+    expect(engage(JSON.stringify([metadata(1), file]))).toEqual({
+      engage: true,
+      reason: 'owner-blob',
+    });
+  });
+
+  it('decides channel and DM blob presence with it', () => {
+    // monitorTlonProvider is not unit-testable, so the wiring is pinned.
+    const monitorSource = readFileSync(
+      path.resolve(path.dirname(fileURLToPath(import.meta.url)), './index.ts'),
+      'utf8'
+    );
+    expect(monitorSource).toContain(
+      'const hasBlob = hasAttachmentBlob(content.blob);\n        if (!rawText.trim() && !hasBlob) {'
+    );
+    expect(monitorSource).toContain(
+      'const hasBlob = hasAttachmentBlob(dmContent.blob);\n        if (!rawText.trim() && !hasBlob) {'
+    );
+    expect(monitorSource).toContain(
+      'const isOwnerBlob = hasBlob && isOwner(senderShip);'
+    );
+    expect(monitorSource).not.toMatch(
+      /const hasBlob = Boolean\((content|dmContent)\.blob\)/
+    );
   });
 });

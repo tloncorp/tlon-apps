@@ -13,6 +13,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -32,6 +33,7 @@ import {
   BucketsSearchScreen,
   ChannelHeader,
   ChannelHeaderItemsProvider,
+  ChannelNestedSidebar,
   ScreenHeader,
   XStack,
   YStack,
@@ -49,6 +51,7 @@ import { bucketLinkCopiedMessage, copyPendingText } from './bucketLinkCopy';
 import { imagePickerAssetsToBucketUploadCandidates } from './bucketMediaPicker';
 import { findUploadShadowEntryIds } from './bucketUploadReconciliation';
 import { useBucketPreview } from './useBucketPreview';
+import { getBucketPreviewFiles } from './bucketPreviewFiles';
 import {
   formatBucketTimestamp,
   formatFileSize,
@@ -89,6 +92,10 @@ export function toItem(
     // Files are always fetched through a short-lived read grant, so there is
     // no URL to show until one is issued.
     previewUri: undefined,
+    previewCacheKey: JSON.stringify([
+      entry.file.objectKey,
+      entry.file.checksum,
+    ]),
     size: entry.file.size,
     sizeLabel: formatFileSize(entry.file.size),
     uploadSize: entry.file.status === 'pending' ? entry.file.size : undefined,
@@ -165,10 +172,22 @@ export function BucketsLiveChannel({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchOrigin, setSearchOrigin] = useState<SearchOrigin | null>(null);
   const [query, setQuery] = useState('');
-  const preview = useBucketPreview(live.readGrant);
+  const preview = useBucketPreview(live.readGrant, `${flag.host}/${flag.name}`);
   const previewItem = preview.item;
+  const currentPreviewId = useRef(previewItem?.id);
+  useLayoutEffect(() => {
+    currentPreviewId.current = previewItem?.id;
+    return () => {
+      currentPreviewId.current = undefined;
+    };
+  }, [previewItem?.id]);
+  const previewFiles = previewItem
+    ? getBucketPreviewFiles(live.entries, Number(previewItem.id)).map((entry) =>
+        toItem(entry)
+      )
+    : [];
   const [operationError, setOperationError] = useState<string | null>(null);
-  const [folderPendingDeletion, setFolderPendingDeletion] =
+  const [itemPendingDeletion, setItemPendingDeletion] =
     useState<BucketItem | null>(null);
   const [itemPendingRename, setItemPendingRename] = useState<BucketItem | null>(
     null
@@ -539,7 +558,7 @@ export function BucketsLiveChannel({
     onMoveItem: (item: BucketItem) => setItemPendingMove(item),
     onDeleteItem: (item: BucketItem) => {
       if (item.kind === 'folder') {
-        setFolderPendingDeletion(item);
+        setItemPendingDeletion(item);
         return;
       }
       void reportOperation(live.deleteEntry(Number(item.id), false));
@@ -614,9 +633,29 @@ export function BucketsLiveChannel({
             error={preview.error}
             item={toViewerItem(previewItem)}
             loading={preview.loading}
+            navigation={{
+              items: previewFiles.map((file) =>
+                toViewerItem(preview.getCached(file) ?? file)
+              ),
+              index: previewFiles.findIndex(
+                (file) => file.id === previewItem.id
+              ),
+              onSelect: (index) => {
+                const file = previewFiles[index];
+                if (file) {
+                  setSelectedItemId(file.id);
+                  void preview.load(file);
+                }
+              },
+            }}
             onClose={preview.close}
+            onDelete={
+              canEdit ? () => setItemPendingDeletion(previewItem) : undefined
+            }
+            onImageLoad={() => preview.markImageLoaded(previewItem)}
+            onPreviewError={() => preview.invalidate(previewItem)}
             onOpenExternally={preview.openExternally}
-            onRetry={() => void preview.load(previewItem)}
+            onRetry={() => void preview.load(previewItem, { refresh: true })}
           />
         ) : searchOpen ? (
           <BucketsSearchScreen
@@ -653,13 +692,7 @@ export function BucketsLiveChannel({
           </YStack>
         ) : (
           <XStack flex={1} width="100%" height="100%">
-            <YStack
-              width={325}
-              height="100%"
-              backgroundColor="$background"
-              borderRightColor="$border"
-              borderRightWidth={1}
-            >
+            <ChannelNestedSidebar>
               <ScreenHeader borderBottom title={rootLabel} />
               <BucketsPane
                 canEdit={canEdit}
@@ -674,7 +707,7 @@ export function BucketsLiveChannel({
                 state={live.loading ? 'loading' : 'populated'}
                 onOpenItem={(item) => void openItem(item)}
               />
-            </YStack>
+            </ChannelNestedSidebar>
             <YStack flex={1} minWidth={0} backgroundColor="$background">
               <ScreenHeader
                 borderBottom
@@ -726,20 +759,41 @@ export function BucketsLiveChannel({
         }}
       />
       <ConfirmDialog
-        open={folderPendingDeletion !== null}
+        open={itemPendingDeletion !== null}
         onOpenChange={(open) => {
-          if (!open) setFolderPendingDeletion(null);
+          if (!open) setItemPendingDeletion(null);
         }}
-        title={`Delete ${folderPendingDeletion?.name ?? 'folder'}?`}
-        description="This folder and everything inside it will be permanently deleted for everyone. This cannot be undone."
-        confirmText="Delete folder"
+        title={`Delete ${itemPendingDeletion?.name ?? 'folder'}?`}
+        description={
+          itemPendingDeletion?.kind === 'folder'
+            ? 'This folder and everything inside it will be permanently deleted for everyone. This cannot be undone.'
+            : 'This file will be permanently deleted for everyone. This cannot be undone.'
+        }
+        confirmText={
+          itemPendingDeletion?.kind === 'folder'
+            ? 'Delete folder'
+            : 'Delete file'
+        }
         cancelText="Cancel"
         destructive
         onConfirm={() => {
-          const item = folderPendingDeletion;
-          setFolderPendingDeletion(null);
+          const item = itemPendingDeletion;
+          setItemPendingDeletion(null);
           if (item) {
-            void reportOperation(live.deleteEntry(Number(item.id), true));
+            const deletion = live
+              .deleteEntry(Number(item.id), item.kind === 'folder')
+              .then(() => {
+                if (currentPreviewId.current === item.id) preview.close();
+              });
+            if (item.kind === 'folder') {
+              void reportOperation(deletion);
+            } else {
+              void deletion.catch((cause) => {
+                showToast({
+                  message: `Could not delete ${item.name}: ${cause instanceof Error ? cause.message : String(cause)}`,
+                });
+              });
+            }
           }
         }}
       />
@@ -749,11 +803,15 @@ export function BucketsLiveChannel({
 
 export function toViewerItem(item: BucketItem) {
   return {
+    id: item.id,
+    size: item.size,
     name: item.name,
     mimeType: item.mimeType,
     sizeLabel: item.sizeLabel,
     textContent: item.textContent,
     uri: item.previewUri,
+    cached: item.previewCached,
+    imageLoaded: item.previewImageLoaded,
   };
 }
 

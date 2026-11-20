@@ -175,7 +175,6 @@ function seedFixtureData({
   resetBotSettingsDraft();
   useBotSettingsDraftStore.getState().syncServerValues(fixtureShip, {
     nickname: 'Cosmos Bot',
-    browserService: 'steel',
     model: {
       provider,
       model: selectedModel,
@@ -186,7 +185,6 @@ function seedFixtureData({
       dmAllowlist: '',
       defaultAuthorizedShips: '',
       groupInviteAllowlist: '',
-      autoAcceptDmInvites: false,
       autoDiscoverChannels: false,
       channelRuleDrafts: {},
     },

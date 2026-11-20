@@ -2,55 +2,56 @@ import { Pressable, Text } from '@tloncorp/ui';
 import type { ComponentProps, ReactNode } from 'react';
 import { XStack, YStack } from 'tamagui';
 
+import { A2UI_OPTION_ROW_PADDING, A2UI_TYPE } from './a2uiCardParts';
+
 type A2UIMenuRowProps = {
   accessibilityLabel: string;
   accessibilityRole?: ComponentProps<typeof Pressable>['accessibilityRole'];
   accessibilityState?: ComponentProps<typeof Pressable>['accessibilityState'];
   accessibilityValue?: ComponentProps<typeof Pressable>['accessibilityValue'];
-  bordered?: boolean;
+  backgroundColor?: ComponentProps<typeof XStack>['backgroundColor'];
   dimmed?: boolean;
   disabled?: boolean;
+  /** Draw a full-width hairline below the row. */
   dividerAfter?: boolean;
-  dividerOutside?: boolean;
   label: string;
   labelCanWrap?: boolean;
   labelColor?: ComponentProps<typeof Text>['color'];
+  labelWeight?: ComponentProps<typeof Text>['fontWeight'];
   leading?: ReactNode;
-  marginTop?: ComponentProps<typeof XStack>['marginTop'];
   minHeight?: number;
   onPress?: () => void;
+  paddingHorizontal?: ComponentProps<typeof XStack>['paddingHorizontal'];
   paddingVertical?: ComponentProps<typeof XStack>['paddingVertical'];
-  prominent?: boolean;
   subtitle?: string;
   testID?: string;
   trailing?: ReactNode;
 };
 
-/** Shared scaffold for the compact controls embedded in A2UI chat cards. */
+/** Shared scaffold for the option rows inside A2UI chat cards. */
 export function A2UIMenuRow({
   accessibilityLabel,
   accessibilityRole,
   accessibilityState,
   accessibilityValue,
-  bordered = false,
+  backgroundColor = '$background',
   dimmed = false,
   disabled = false,
   dividerAfter = false,
-  dividerOutside = false,
   label,
   labelCanWrap = false,
-  labelColor,
+  labelColor = '$primaryText',
+  labelWeight,
   leading,
-  marginTop,
   minHeight = 52,
   onPress,
+  paddingHorizontal = A2UI_OPTION_ROW_PADDING,
   paddingVertical,
-  prominent = false,
   subtitle,
   testID,
   trailing,
 }: A2UIMenuRowProps) {
-  const row = (
+  return (
     <Pressable
       testID={testID}
       accessibilityLabel={accessibilityLabel}
@@ -62,40 +63,44 @@ export function A2UIMenuRow({
     >
       <XStack
         minHeight={minHeight}
-        marginTop={marginTop}
         paddingVertical={paddingVertical}
-        paddingHorizontal="$m"
-        backgroundColor={prominent ? '$primaryText' : '$background'}
-        borderWidth={bordered ? 1 : 0}
-        borderColor="$border"
-        borderRadius={bordered ? '$m' : 0}
-        borderBottomWidth={
-          dividerAfter && !dividerOutside ? 1 : bordered ? 1 : 0
-        }
-        borderBottomColor="$border"
+        paddingHorizontal={paddingHorizontal}
+        backgroundColor={backgroundColor}
         alignItems="center"
-        gap="$m"
+        gap={12}
         opacity={dimmed ? 0.5 : 1}
+        // The hairline sits inside the row's height, so rows keep their pitch.
+        borderBottomWidth={dividerAfter ? 1 : 0}
+        borderBottomColor="$border"
       >
         {leading}
         {subtitle ? (
           <YStack flex={1} minWidth={0}>
             <Text
               size="$label/l"
-              color={labelColor ?? (prominent ? '$background' : '$primaryText')}
+              {...A2UI_TYPE.label}
+              color={labelColor}
+              fontWeight={labelWeight}
               trimmed={false}
               numberOfLines={labelCanWrap ? undefined : 1}
             >
               {label}
             </Text>
-            <Text size="$label/s" color="$secondaryText">
+            <Text
+              size="$label/s"
+              {...A2UI_TYPE.note}
+              color="$secondaryText"
+              trimmed={false}
+            >
               {subtitle}
             </Text>
           </YStack>
         ) : (
           <Text
             size="$label/l"
-            color={labelColor ?? (prominent ? '$background' : '$primaryText')}
+            {...A2UI_TYPE.label}
+            color={labelColor}
+            fontWeight={labelWeight}
             trimmed={false}
             flex={1}
             minWidth={0}
@@ -107,14 +112,5 @@ export function A2UIMenuRow({
         {trailing}
       </XStack>
     </Pressable>
-  );
-
-  return dividerAfter && dividerOutside ? (
-    <YStack>
-      {row}
-      <YStack height={1} backgroundColor="$border" />
-    </YStack>
-  ) : (
-    row
   );
 }

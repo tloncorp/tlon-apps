@@ -42,7 +42,7 @@ agent. Missing/false skips catch-up; failed reads retry in code within a
 three-minute readiness deadline. The checklist runs once per gateway startup,
 including in-process restarts, with cancellation on shutdown and no replay on
 reconnect, monitor reload, or plugin prewarming. It uses the public embedded agent
-runner with a temporary transcript rather than a resumable subagent task. The
+runner with an in-memory transcript rather than a resumable subagent task. The
 initial implementation requires one configured Tlon account with an owner.
 
 ### Hosted cron budget holds
@@ -56,11 +56,22 @@ While limited, enabled `cron` and `every` tasks are disabled with a visible
 `[Paused: credit budget]` description prefix. One-shot (`at`) and event-driven
 schedules are excluded. OpenClaw's system-owned monitor jobs (heartbeat, skill
 collection review) are left alone because core rejects client edits to them.
-The owner receives one notice per budget episode:
-“Your token credits are low. Your 3 scheduled tasks have been paused.” It includes
-an A2UI **Request credit increase** button. Failed delivery is retried.
+memory-core's dreaming job stays enabled, since memory-core re-enables it every
+minute; its runs end without dreaming until the budget recovers.
 New or re-enabled recurring tasks are held as well. Already-running work is not
 cancelled; live reconciliation runs on job changes and every five seconds.
+
+The signal's optional `credit` field (`keyOwner`, `remainingUsd`, `limitUsd`)
+describes the bot's OpenRouter key. The owner is told once when it falls below
+20% of its limit, and once when hosting limits the bot: “You've used almost all
+of this month's included credits, so I've switched to a free model and paused
+your 3 scheduled tasks until they reset.” Notices about Tlon's included key
+carry an A2UI **Request credit increase** button. Failed delivery is retried.
+
+When a chat turn or scheduled run fails because an API key is out of credits,
+core's billing reply is held back from the chat and the owner is told whose key
+it was, at most once per six hours per key owner. A provider other than
+OpenRouter is always the owner's own key, and the notice names it.
 
 On confirmed recovery, only unchanged budget-held tasks are re-enabled using
 the live cron API, which computes the next scheduled occurrence without replaying
@@ -159,6 +170,11 @@ channels:
         # config on every tool call, so a channels.tlon reload (a rollback to
         # false, or a new owner) applies to the next call with no gateway
         # restart; a run the previous owner directed loses owner identity.
+        # A heartbeat run may read the owner's activity, messages and
+        # conversation lists as the owner; after that read it keeps only
+        # reads, workspace files, memory, web, browser, MCP, Tool Search and
+        # heartbeat_respond without scratch, reason or nextCheck (see
+        # SECURITY.md).
         ownerDefault: false
 
         # Ships allowed to DM the bot directly
@@ -167,7 +183,7 @@ channels:
             - '~another-ship'
 
         # Auto-accept settings
-        autoAcceptDmInvites: true # Accept DMs from ships in dmAllowlist
+        autoAcceptDmInvites: true # Accepted for compatibility but has no effect: DMs are accepted when the bot first replies.
         autoAcceptGroupInvites: false # Legacy: no longer governs group-invite authorization or channel persistence; it has no remaining runtime effect and is only parsed, migrated, and logged. Retained for config back-compat pending retirement.
 
         # Ships allowed to invite the bot to groups (auto-accepted unless blocked)
@@ -207,6 +223,8 @@ channels:
         # written any commentary in that turn. Default: true.
         # `false` restores the previous behaviour: no commentary, and tool
         # labels appear only while `/verbose on` is set.
+        # Background subagent work shows its commentary as "In the background: …";
+        # `false` shows only "Working in the background…".
         showCommentary: true
 
         # Optional PostHog telemetry. Disabled unless explicitly enabled.
@@ -263,7 +281,7 @@ A create requests a job id derived from its request id (`steward-<requestId>`) a
 
 Every cron run's Context Lens record carries the job it ran (`lens.cron.jobId`), and when the host reports the run `finished` the plugin records its verdict there and finishes the lens, so the owner's ship can page one task's runs (`/x/v1/lens/cron`). A run that never reaches the agent has no record yet, as when it fails in setup or is a system event the host queues for the main session and calls done; its verdict creates one, already finished, so the run still shows in the task's history. A skipped run records nothing. Test runs need Context Lens to reach the owner, and are refused as `invalid` without it.
 
-A `test` command runs a job once without touching it: `src/cron-test-run.ts` reads the job, frames its prompt the way the host frames a cron turn, and runs it through `runtime.agent.runEmbeddedAgent` (with the job's model and fallbacks, failing over the way a scheduled run does, and its `lightContext` and `thinking` settings; a job without its own thinking level runs with the runner's default, which can differ from the default a scheduled run resolves) in a scratch session with the message tool off, so the job's last-run state, next run and delivery are unchanged. The command is answered `started` with the lens id as soon as the run begins; the run's reply is kept on its lens (`lens.cron.output`) rather than posted. For the length of the run the tool hook fails closed: only tools known to just read run (the host's read-only set, `tlon` reads, and an MCP server's catalog), and anything else is refused with a reason that asks the model to say what it would have done. A run that answers with nothing but an error payload is recorded as failed. The run stops as aborted if its monitor is torn down, and as timed out when it reaches its time limit, and its scratch transcript and any MCP runtime it started are removed afterwards. Asking again while a test of the same job is running answers with that run, unless the job has changed since that run started, which gets a run of its own. A job the credit budget has paused is refused as `invalid`, since a test would spend the same credits. Only agent-turn jobs that run in their own session can be tested: a main-session job or a system event runs inside the bot's ongoing conversation, which a scratch session cannot stand in for, so those are refused as `invalid`.
+A `test` command runs a job once without touching it: `src/cron-test-run.ts` reads the job, frames its prompt the way the host frames a cron turn, and runs it through `runtime.agent.runEmbeddedAgent` (with the job's model and fallbacks, failing over the way a scheduled run does, and its `lightContext` and `thinking` settings; a job without its own thinking level runs with the runner's default, which can differ from the default a scheduled run resolves) in a scratch session with the message tool off, so the job's last-run state, next run and delivery are unchanged. The command is answered `started` with the lens id as soon as the run begins; the run's reply is kept on its lens (`lens.cron.output`) rather than posted. For the length of the run the tool hook fails closed: only tools known to just read run (the host's read-only set, `tlon` reads, and an MCP server's catalog), and anything else is refused with a reason that asks the model to say what it would have done. A run that answers with nothing but an error payload is recorded as failed. The run stops as aborted if its monitor is torn down, and as timed out when it reaches its time limit, and its transcript is kept in memory only; any MCP runtime it started is removed afterwards. Asking again while a test of the same job is running answers with that run, unless the job has changed since that run started, which gets a run of its own. A job the credit budget has paused is refused as `invalid`, since a test would spend the same credits. Only agent-turn jobs that run in their own session can be tested: a main-session job or a system event runs inside the bot's ongoing conversation, which a scratch session cannot stand in for, so those are refused as `invalid`.
 
 ## Approval System
 
@@ -345,7 +363,7 @@ Keep it a product reference, not an operating manual: anything that reads or mut
 
 The step-by-step half of the guide is not edited here. `skills/tlon-product-guide/references/`, including the `index.md` that "Step-by-step answers" in `SKILL.md` points to, is written from the feature map in `docs/feature-map/`, one file per area of the app. The map describes the app at one store build and is brought up to date once per build, so it does not follow `develop`. To change a step, edit the map and run `node scripts/feature-map.mjs publish`. See `docs/feature-map/README.md`.
 
-The rest of the guide makes claims about product behavior, so it goes stale the way code comments do — a renamed screen or a changed command turns it into confidently wrong support copy. When you change a slash command, a channel type, or a permissions rule, grep this file. When the guide changes, CI checks that every label it quotes still appears somewhere in the app's source, which catches a removed label but not a moved one. It does not run on app changes, so a label renamed in the app goes unnoticed here until the guide is next touched. `packages/openclaw/skills/**` is on `bot-harness-deploy.yml`'s path filter, so a content-only fix does reach bots on its own — but only the internal fleet. The push trigger hardcodes `TAG="tlon-internal"`; Hermes and external ships restart only via `workflow_dispatch` with the matching selector. A guide correction that needs to reach them is a manual dispatch, plus a package publish for anyone running the npm build.
+The rest of the guide makes claims about product behavior, so it goes stale the way code comments do — a renamed screen or a changed command turns it into confidently wrong support copy. When you change a slash command, a channel type, or a permissions rule, grep this file. When the guide changes, CI checks that every label it quotes still appears somewhere in the app's source, which catches a removed label but not a moved one. It does not run on app changes, so a label renamed in the app goes unnoticed here until the guide is next touched. Changes to hosted plugin inputs on `develop` trigger [Deploy Internal Ring](https://github.com/tloncorp/tlonbot/actions/workflows/deploy-internal.yml) in tlonbot. That workflow publishes the new archive before restarting bots on the internal bundle. The same changes on `master` trigger [Publish hosted plugin archive](https://github.com/tloncorp/tlonbot/actions/workflows/publish-hosted-plugin.yml) for production, where fleet restarts are a separate operation. Both dispatches use the `TLONBOT_DEPLOY_TOKEN` repository secret, which needs Actions write access to tlonbot. Users who install the plugin from npm get the update in the next package release.
 
 ### `tlon-agent-onboarding` — the first-task conversation skill
 

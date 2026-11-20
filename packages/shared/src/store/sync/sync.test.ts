@@ -69,6 +69,7 @@ import {
   ensureDmInviteChannel,
   syncChannelThreadUnreads,
   handleAddPost,
+  handleChatUpdate,
   handleDiscontinuity,
   handleDmStatus,
   retryDeskCompatibility,
@@ -1120,6 +1121,36 @@ test('handleDmStatus keeps the channel row in step with the backend dm set', asy
   expect(await db.getChannel({ id: '~sampel-palnet' })).toBeNull();
   await handleDmStatus('~wicdev-wisryt', 'archive');
   expect(await db.getChannel({ id: '~wicdev-wisryt' })).toBeNull();
+});
+
+// TLON-6252: a dm delete removes the row outright, so the preview has to
+// move back to the previous message instead of pointing at nothing
+test('a dm delete event repoints the preview to the previous message', async () => {
+  await db.insertChannels([dmChannel('~sampel-palnet', false)]);
+  const channel = (await db.getChannel({ id: '~sampel-palnet' }))!;
+  const [previous, head] = ['previous', 'head'].map((text, i) =>
+    db.buildPost({
+      authorId: '~sampel-palnet',
+      author: null,
+      channel,
+      sequenceNum: i + 1,
+      content: [{ inline: [text] }],
+      deliveryStatus: 'sent',
+    })
+  );
+  await db.insertChannelPosts({ posts: [previous] });
+  await db.insertChannelPosts({ posts: [head] });
+
+  await batchEffects('test:dmDelete', (ctx) =>
+    handleChatUpdate(
+      { type: 'deletePost', postId: head.id, channelId: channel.id },
+      ctx
+    )
+  );
+
+  const after = await db.getChannel({ id: channel.id });
+  expect(after?.lastPostId).toBe(previous.id);
+  expect(after?.lastPostAt).toBe(previous.receivedAt);
 });
 
 // the backend's dm list is authoritative: a dm left, declined, or archived

@@ -146,6 +146,6 @@ Notes: nothing is sent until you tap the up arrow. One file comes across per sha
 
 ## Can I schedule a message, send a GIF, or see who is typing?
 <!-- src: packages/app/ui/components/MessageInput/MessageInputBase.tsx, packages/app/ui/components/BareChatInput/index.tsx -->
-<!-- absent: send later, schedule send, typing indicator, giphy, sticker -->
+<!-- absent: send later, schedule send, typing indicator, giphy -->
 
 Notes: no. The message box has no way to send a message later, no GIF or sticker picker, and no emoji button of its own; use your keyboard's emoji. The app does not show when another person is typing.

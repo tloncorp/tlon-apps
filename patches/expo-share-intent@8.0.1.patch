@@ -1,0 +1,82 @@
+diff --git a/ios/ExpoShareIntentModule.swift b/ios/ExpoShareIntentModule.swift
+index e52b6d089f8625d399c371daf14a9fe010d5fede..20953ede53e9e8517762ab92d0ae280e2f5bb446 100644
+--- a/ios/ExpoShareIntentModule.swift
++++ b/ios/ExpoShareIntentModule.swift
+@@ -60,8 +60,9 @@ public class ExpoShareIntentModule: Module {
+             let userDefaults = UserDefaults(suiteName: appGroupIdentifier)
+             if url.fragment == "media" {
+                 if let key = url.host?.components(separatedBy: "=").last {
+-                    if let json = userDefaults?.object(forKey: key) as? Data {
++                    if let json = userDefaults?.object(forKey: key) as? Data,
+                         let sharedArray = decodeMedia(data: json)
++                    {
+                         let sharedMediaFiles: [SharedMediaFile] = sharedArray.compactMap {
+                             if let path = getAbsolutePath(for: $0.path) {
+                                 if $0.type == .video && $0.thumbnail != nil {
+@@ -91,8 +92,9 @@ public class ExpoShareIntentModule: Module {
+                 }
+             } else if url.fragment == "file" {
+                 if let key = url.host?.components(separatedBy: "=").last {
+-                    if let json = userDefaults?.object(forKey: key) as? Data {
++                    if let json = userDefaults?.object(forKey: key) as? Data,
+                         let sharedArray = decodeMedia(data: json)
++                    {
+                         let sharedMediaFiles: [SharedMediaFile] = sharedArray.compactMap {
+                             if let path = getAbsolutePath(for: $0.path) {
+                                 return SharedMediaFile.init(
+@@ -110,8 +112,9 @@ public class ExpoShareIntentModule: Module {
+                 }
+             } else if url.fragment == "weburl" {
+                 if let key = url.host?.components(separatedBy: "=").last {
+-                    if let json = userDefaults?.object(forKey: key) as? Data {
++                    if let json = userDefaults?.object(forKey: key) as? Data,
+                         let sharedArray = decodeWebUrl(data: json)
++                    {
+                         let sharedWebUrls: [WebUrl] = sharedArray.compactMap {
+                             return WebUrl.init(url: $0.url, meta: $0.meta)
+                         }
+@@ -135,12 +138,12 @@ public class ExpoShareIntentModule: Module {
+                         return "empty"
+                     }
+                 }
+-            } else {
++            } else if let fragment = url.fragment {
+                 latestText = url.absoluteString
+                 let optionalString = latestText
+                 // now unwrap it
+                 if let unwrapwebUrl = optionalString {
+-                    return try? ShareIntentText(text: unwrapwebUrl, type: url.fragment!).toJSON()
++                    return try? ShareIntentText(text: unwrapwebUrl, type: fragment).toJSON()
+                 } else {
+                     return "empty"
+                 }
+@@ -148,7 +151,7 @@ public class ExpoShareIntentModule: Module {
+             self.sendEvent(
+                 "onError",
+                 [
+-                    "value": "file type is Invalid \(url.fragment!)"
++                    "value": "file type is Invalid \(url.fragment ?? "none")"
+                 ])
+             return "error"
+         }
+@@ -203,13 +206,14 @@ public class ExpoShareIntentModule: Module {
+         return url
+     }
+ 
+-    private func decodeMedia(data: Data) -> [SharedMediaFile] {
+-        let encodedData = try? JSONDecoder().decode([SharedMediaFile].self, from: data)
+-        return encodedData!
++    // Every share type is stored under the same key, and useShareIntent re-reads
++    // with the last URL it saw whenever the app becomes active. A media URL can
++    // therefore meet a stored web URL payload (or the reverse); treat that as empty.
++    private func decodeMedia(data: Data) -> [SharedMediaFile]? {
++        return try? JSONDecoder().decode([SharedMediaFile].self, from: data)
+     }
+-    private func decodeWebUrl(data: Data) -> [WebUrl] {
+-        let encodedData = try? JSONDecoder().decode([WebUrl].self, from: data)
+-        return encodedData!
++    private func decodeWebUrl(data: Data) -> [WebUrl]? {
++        return try? JSONDecoder().decode([WebUrl].self, from: data)
+     }
+ 
+     private func toJson(data: [SharedMediaFile]?) -> String? {

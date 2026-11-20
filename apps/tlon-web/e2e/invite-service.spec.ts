@@ -83,12 +83,13 @@ test('should generate an invite link and be able to redeem group/personal invite
   // Confirm you open the contact profile after clicking a user invite link
   const tenUserInviteUrl = `${shipManifest['~ten'].webUrl}/apps/groups/Home?inviteToken=${zodPersonalInviteToken}`;
   await tenPage.goto(tenUserInviteUrl);
-  await tenPage.waitForTimeout(6000);
-  await expect(tenPage.getByText('Remove contact')).toBeVisible();
+  const addContactButton = tenPage
+    .getByTestId('UserProfileScreen')
+    .getByTestId('ProfileAddContactButton');
+  await expect(addContactButton).toHaveText('Added', { timeout: 15000 });
 
   // Clean up: Remove ~zod from ~ten's contacts to prevent test pollution
-  await tenPage.getByText('Remove contact').click();
-  await tenPage.waitForTimeout(1000);
-  // Verify the contact was removed
-  await expect(tenPage.getByText('Remove contact')).not.toBeVisible();
+  await tenPage.getByTestId('ProfileMoreButton').click();
+  await tenPage.getByText('Remove contact', { exact: true }).click();
+  await expect(addContactButton).toHaveText('Add');
 });

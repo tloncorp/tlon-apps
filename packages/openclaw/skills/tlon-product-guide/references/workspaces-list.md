@@ -82,7 +82,7 @@ Notes: there is no leave option here. "Leave workspace" is on the `Workspace inf
 Phone: open the group and press and hold a channel in its list. `Channel notifications` opens its notification choices. `Pin` or `Unpin` works on that channel alone. `Mark as read` shows when something is unread. `Copy link to channel` copies a link to it. `Channel info & settings` and `Workspace info & settings` open those screens. `Use channel as template` starts a new channel copied from this one. `Leave channel` asks you to confirm with `Leave`.
 Desktop: hover the channel in the sidebar and open its three-dot menu, or right-click it.
 Who: the channel's host sees `Cannot leave channel` instead.
-Notes: `Copy link to channel` is not offered for a Notebook. `Use channel as template` is on chat and gallery channels only. A group with one channel has no channel list; pressing and holding it on the Workspaces tab gives the group's menu. Channels you haven't joined have no menu.
+Notes: `Use channel as template` is on chat and gallery channels only. A group with one channel has no channel list; pressing and holding it on the Workspaces tab gives the group's menu. Channels you haven't joined have no menu.
 
 ## What a DM's or group DM's press-and-hold menu offers
 

@@ -5,14 +5,18 @@ import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
+import { Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard } from 'react-native';
-import { Text, YStack, isWeb } from 'tamagui';
+import { YStack, getTokenValue } from 'tamagui';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatListSettleTelemetry } from '../../hooks/useChatListSettleTelemetry';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
-import type { ChatListFilter } from '../../hooks/chatListFilters';
+import {
+  CHAT_LIST_FILTER_LABELS,
+  type ChatListFilter,
+} from '../../hooks/chatListFilters';
 import { useChatListFilterSelection } from '../../hooks/useChatListFilterSelection';
 import {
   useFilteredChats,
@@ -29,6 +33,7 @@ import {
   ChatOptionsProvider,
   GroupPreviewAction,
   GroupPreviewSheet,
+  LoadingSpinner,
   NavigationProvider,
   PersonalInviteSheet,
   Pressable,
@@ -38,6 +43,7 @@ import {
   useGlobalSearch,
   useIsWindowNarrow,
 } from '../../ui';
+import { ListEmptyState } from '../../ui/components/ListEmptyState';
 import SystemNotices from '../../ui/components/SystemNotices';
 import { useScreenScrollProps } from '../../ui/components/useScreenScrollProps';
 import WayfindingNotice from '../../ui/components/Wayfinding/Notices';
@@ -195,6 +201,10 @@ export function ChatListScreenView({
 
   const { subtitle: syncSubtitle, loadingSubtitle: syncLoadingSubtitle } =
     useSyncStatus();
+  const hasChats =
+    !!chats?.pinned.length ||
+    !!chats?.unpinned.length ||
+    !!chats?.pending.length;
   const loadingSubtitle = useMemo(() => {
     const haveChats = !!chats?.pinned.length || !!chats?.unpinned.length;
     if (
@@ -418,14 +428,6 @@ export function ChatListScreenView({
       >
         <NavigationProvider focusedChannelId={focusedChannelId}>
           <View userSelect="none" flex={1} paddingTop={headerClearance}>
-            {showHomeAddTooltip && (
-              // Absolute, so the column's padding does not move it: it has
-              // to clear the floating header itself to sit under the + it
-              // points at.
-              <WayfindingNotice.HomeAddTooltip
-                top={isWeb ? 36 : headerClearance + 8}
-              />
-            )}
             <ScreenHeader
               title="Workspaces"
               subtitle={syncSubtitle}
@@ -461,40 +463,66 @@ export function ChatListScreenView({
               ]}
               placement="navigation"
             />
-            {chats &&
-            (chats.unpinned.length ||
-              chats.pending.length ||
-              chats.pinned.length) ? (
-              <>
-                <ChatListFilterTabs
-                  filters={visibleFilters}
-                  activeFilter={listFilter}
-                  onPressFilter={handlePressFilter}
-                />
-                <ChatListSearch
-                  query={searchQuery}
-                  onQueryChange={setSearchQuery}
-                  isOpen={showSearchInput}
-                  onPressClear={handlePressClear}
-                  onPressClose={handlePressClose}
-                />
-                {searchQuery !== '' && !displayData[0]?.data.length ? (
-                  <SearchResultsEmpty
+            {/* Starts below the header on every platform, floating or not, so
+                the tooltip pinned to its top follows the header's height. */}
+            <View flex={1}>
+              {hasChats ? (
+                <>
+                  <ChatListFilterTabs
+                    filters={visibleFilters}
                     activeFilter={listFilter}
+                    onPressFilter={handlePressFilter}
+                  />
+                  <ChatListSearch
+                    query={searchQuery}
+                    onQueryChange={setSearchQuery}
+                    isOpen={showSearchInput}
                     onPressClear={handlePressClear}
-                    onPressTryAll={handlePressTryAll}
+                    onPressClose={handlePressClose}
                   />
-                ) : (
-                  <ChatList
-                    data={displayData}
-                    allPinnedChats={resolvedChats.pinned}
-                    onPressItem={onPressChat}
-                    onLoad={handleChatListLoad}
-                    scrollRef={chatListRef}
-                  />
-                )}
-              </>
-            ) : null}
+                  {searchQuery !== '' && !displayData[0]?.data.length ? (
+                    <SearchResultsEmpty
+                      query={searchQuery}
+                      activeFilter={listFilter}
+                      onPressClear={handlePressClear}
+                      onPressTryAll={handlePressTryAll}
+                    />
+                  ) : (
+                    <ChatList
+                      data={displayData}
+                      allPinnedChats={resolvedChats.pinned}
+                      onPressItem={onPressChat}
+                      onLoad={handleChatListLoad}
+                      scrollRef={chatListRef}
+                    />
+                  )}
+                </>
+              ) : (
+                // Centered so it stays clear of the + tooltip, which is
+                // pinned to the top of this region.
+                <View flex={1} justifyContent="center">
+                  {loadingSubtitle != null || !initSyncSettled ? (
+                    // Spin until the high-priority init has landed chats, and
+                    // while the header reports loading or connecting, so an
+                    // empty local db is not presented as an empty account.
+                    // `isSyncing` alone misses this: only a resume sets it.
+                    <View alignItems="center">
+                      <LoadingSpinner />
+                    </View>
+                  ) : (
+                    <ListEmptyState
+                      title="No workspaces yet"
+                      subtitle="Tap + to start a conversation or create a workspace."
+                    />
+                  )}
+                </View>
+              )}
+              {showHomeAddTooltip && (
+                <WayfindingNotice.HomeAddTooltip
+                  top={getTokenValue('$m', 'space')}
+                />
+              )}
+            </View>
             <GroupPreviewSheet
               open={groupPreviewSheetOpen}
               onOpenChange={handleGroupPreviewSheetOpenChange}
@@ -517,31 +545,36 @@ export function ChatListScreenView({
 }
 
 function SearchResultsEmpty({
+  query,
   activeFilter,
   onPressClear,
   onPressTryAll,
 }: {
+  query: string;
   activeFilter: ChatListFilter;
   onPressClear: () => void;
   onPressTryAll: () => void;
 }) {
+  const subtitle =
+    activeFilter === 'all'
+      ? `Nothing matches “${query.trim()}”.`
+      : `Nothing in ${CHAT_LIST_FILTER_LABELS[activeFilter]} matches “${query.trim()}”.`;
   return (
-    <YStack
-      gap="$l"
-      alignItems="center"
-      justifyContent="center"
-      paddingHorizontal="$l"
-      paddingVertical="$m"
-    >
-      <Text>No results found.</Text>
-      {activeFilter !== 'all' && (
-        <Pressable onPress={onPressTryAll}>
-          <Text textDecorationLine="underline">Try in All?</Text>
+    <ListEmptyState title="No results found" subtitle={subtitle}>
+      <YStack alignItems="center" gap="$l" marginTop="$l">
+        {activeFilter !== 'all' && (
+          <Pressable onPress={onPressTryAll}>
+            <Text size="$label/m" textDecorationLine="underline">
+              Try in All?
+            </Text>
+          </Pressable>
+        )}
+        <Pressable onPress={onPressClear}>
+          <Text size="$label/m" color="$positiveActionText">
+            Clear search
+          </Text>
         </Pressable>
-      )}
-      <Pressable onPress={onPressClear}>
-        <Text color="$positiveActionText">Clear search</Text>
-      </Pressable>
-    </YStack>
+      </YStack>
+    </ListEmptyState>
   );
 }

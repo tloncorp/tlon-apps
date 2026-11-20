@@ -1,192 +1,111 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createBrowserLoginApprovalHandler } from './browser-login-approval.js';
 
-function event() {
-  return {
-    toolName: 'mcp__call',
-    params: {
-      name: 'browser_browser_login',
-      arguments: {
-        session_id: 'fresh-ivory-finch',
-        action: 'use',
-        fields: ['@e12'],
+import { createBrowserLoginApprovalExecutor } from './browser-login-approval.js';
+
+const input = {
+  session_id: 'fresh-ivory-finch',
+  form_id: '123e4567-e89b-42d3-a456-426614174000',
+  record: { id: 'provider-item', revision: 1 },
+  bindings: [{ sourceField: 'email', targetField: 'f0' }],
+};
+const ctx = { sessionKey: 'agent:main:tlon:direct:~ten' };
+function setup() {
+  const deps = {
+    isPending: vi.fn(async () => false),
+    requestLogin: vi.fn(async () => ({
+      metadata: {
+        session_id: input.session_id,
+        login: { status: 'approval_required' },
       },
-    },
-    result: {
-      details: {
-        structuredContent: {
-          session_id: 'fresh-ivory-finch',
-          login: { status: 'approval_required' },
-        },
-      },
-    },
+      isError: false,
+    })),
+    sendHandoff: vi.fn(async () => undefined),
+    warn: vi.fn(),
   };
+  return { deps, execute: createBrowserLoginApprovalExecutor(deps) };
 }
 
-describe('saved login approval delivery', () => {
-  it('sends a secure card for the requested session without passing credentials or record metadata', async () => {
-    const send = vi.fn().mockResolvedValue(undefined);
-    await createBrowserLoginApprovalHandler(send).handle(event());
-    expect(send).toHaveBeenCalledExactlyOnceWith(
-      'fresh-ivory-finch',
-      undefined,
-      {},
-      ['@e12']
+describe('saved login approval', () => {
+  it('returns approval_pending only once the card has been sent', async () => {
+    const { deps, execute } = setup();
+    const send = Promise.withResolvers<undefined>();
+    deps.sendHandoff.mockReturnValueOnce(send.promise);
+    const finished = vi.fn();
+    const invocation = execute(input, ctx).then((outcome) => {
+      finished(outcome);
+      return outcome;
+    });
+    await vi.waitFor(() =>
+      expect(deps.sendHandoff).toHaveBeenCalledExactlyOnceWith(input, ctx)
     );
+    expect(finished).not.toHaveBeenCalled();
+    send.resolve(undefined);
+    await expect(invocation).resolves.toMatchObject({
+      details: { status: 'approval_pending' },
+    });
   });
 
-  it.each([
-    ['browser_browser_login', false],
-    ['browser_browser_login', true],
-    ['browser_login', false],
-    ['browser_login', true],
-  ])(
-    'passes only the requested account identity for %s with JSON arguments %s',
-    async (name, encoded) => {
-      const send = vi.fn().mockResolvedValue(undefined);
-      const request = event();
-      const choice = {
-        id: '8e40b5f5-fd41-4851-8922-b9545e470d6e',
-        revision: 3,
-      };
-      const args = { ...request.params.arguments, record: choice };
-      await createBrowserLoginApprovalHandler(send).handle({
-        ...request,
-        params: {
-          ...request.params,
-          name,
-          arguments: encoded ? JSON.stringify(args) : args,
-        },
-      });
-      expect(send).toHaveBeenCalledExactlyOnceWith(
-        'fresh-ivory-finch',
-        choice,
-        {},
-        ['@e12']
-      );
-    }
-  );
-
-  it.each([
-    { params: { ...event().params, arguments: '{' } },
-    { params: { ...event().params, arguments: 'null' } },
-    { params: { ...event().params, arguments: '[]' } },
-    {
-      params: {
-        ...event().params,
-        arguments: { session_id: 'fresh-ivory-finch', action: 'use' },
-      },
-    },
-    { toolName: 'untrusted_tool' },
-    { params: { ...event().params, name: 'other_browser_login' } },
-    {
-      params: {
-        ...event().params,
-        arguments: { session_id: 'fresh-ivory-finch', action: 'list' },
-      },
-    },
-    {
-      params: {
-        ...event().params,
-        arguments: { session_id: 'different-session' },
-      },
-    },
-    { error: 'failed' },
-    { result: { ...event().result, isError: true } },
-    { result: { details: { ...event().result.details, status: 'error' } } },
-    {
-      result: {
-        details: {
-          structuredContent: {
-            session_id: 'fresh-ivory-finch',
-            login: { status: 'filled' },
-          },
-        },
-      },
-    },
-    {
-      result: {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(event().result.details.structuredContent),
-          },
-        ],
-      },
-    },
-  ])(
-    'ignores unrelated, failed, mismatched, or prose-only results (%j)',
-    async (override) => {
-      const send = vi.fn();
-      await createBrowserLoginApprovalHandler(send).handle({
-        ...event(),
-        ...override,
-      });
-      expect(send).not.toHaveBeenCalled();
-    }
-  );
-
-  it('sends only one card across concurrent requests and retries within a turn', async () => {
-    let finish!: () => void;
-    const send = vi.fn().mockImplementationOnce(
-      () =>
-        new Promise<void>((resolve) => {
-          finish = resolve;
-        })
+  it('refuses another request for a prepared form even after the first send fails', async () => {
+    const { deps, execute } = setup();
+    deps.sendHandoff.mockRejectedValueOnce(new Error('signed-private-token'));
+    const failed = await execute(input, ctx);
+    expect(failed.details.status).toBe('delivery_failed');
+    expect(JSON.stringify(failed)).not.toContain('signed-private-token');
+    expect(deps.warn).toHaveBeenCalledWith(
+      'Could not send the saved-login approval card.'
     );
-    const { handle } = createBrowserLoginApprovalHandler(send);
-    const first = handle(event());
-    const second = handle(event());
-    await Promise.resolve();
-    expect(send).toHaveBeenCalledTimes(1);
-    finish();
-    await Promise.all([first, second]);
-    await handle(event());
-    expect(send).toHaveBeenCalledTimes(1);
+    await expect(
+      execute(input, { sessionKey: 'later-conversation' })
+    ).resolves.toMatchObject({
+      details: { status: 'login_already_requested' },
+    });
+    expect(deps.requestLogin).toHaveBeenCalledOnce();
+    const fresh = { ...input, form_id: '223e4567-e89b-42d3-a456-426614174000' };
+    await expect(execute(fresh, ctx)).resolves.toMatchObject({
+      details: { status: 'approval_pending' },
+    });
   });
 
-  it('sends a fresh card when the owner retries the same browser in a new turn', async () => {
-    const send = vi.fn().mockResolvedValue(undefined);
-    const { handle } = createBrowserLoginApprovalHandler(send);
-    await handle(event(), { sessionKey: 'owner', runId: 'first-turn' });
-    await handle(event(), { sessionKey: 'owner', runId: 'first-turn' });
-    expect(send).toHaveBeenCalledTimes(1);
-    await handle(event(), { sessionKey: 'owner', runId: 'retry-turn' });
-    expect(send).toHaveBeenCalledTimes(2);
+  it('respects the existing secure-entry lock before requesting another login', async () => {
+    const { deps, execute } = setup();
+    deps.isPending.mockResolvedValueOnce(true);
+    await expect(execute(input, ctx)).resolves.toMatchObject({
+      details: { status: 'secure_entry_pending' },
+    });
+    expect(deps.requestLogin).not.toHaveBeenCalled();
+    expect(deps.sendHandoff).not.toHaveBeenCalled();
   });
 
-  it('clears delivery state when a turn ends, including turns without a run id', async () => {
-    const send = vi.fn().mockResolvedValue(undefined);
-    const { handle, endRun } = createBrowserLoginApprovalHandler(send);
-    const ctx = { sessionKey: 'owner' };
-    await handle(event(), ctx);
-    await handle(event(), ctx);
-    expect(send).toHaveBeenCalledTimes(1);
-    endRun(ctx);
-    await handle(event(), ctx);
-    expect(send).toHaveBeenCalledTimes(2);
+  it('preserves legacy fields-based requests', async () => {
+    const { deps, execute } = setup();
+    const legacy = { session_id: input.session_id, fields: ['@e12'] };
+    await expect(execute(legacy, ctx)).resolves.toMatchObject({
+      details: { status: 'approval_pending' },
+    });
+    expect(deps.sendHandoff).toHaveBeenCalledExactlyOnceWith(legacy, ctx);
   });
 
-  it('does not clear another active turn when one turn ends', async () => {
-    const send = vi.fn().mockResolvedValue(undefined);
-    const { handle, endRun } = createBrowserLoginApprovalHandler(send);
-    const first = { sessionKey: 'owner', runId: 'first-turn' };
-    const second = { sessionKey: 'owner', runId: 'second-turn' };
-    await handle(event(), first);
-    await handle(event(), second);
-    endRun(first);
-    await handle(event(), second);
-    expect(send).toHaveBeenCalledTimes(2);
+  it('accepts a prepared form even when the request also repeats its selected fields', async () => {
+    const { deps, execute } = setup();
+    const request = { ...input, fields: [{ name: 'tlon-mark:email' }] };
+    await expect(execute(request, ctx)).resolves.toMatchObject({
+      details: { status: 'approval_pending' },
+    });
+    expect(deps.sendHandoff).toHaveBeenCalledExactlyOnceWith(request, ctx);
   });
 
-  it('reports delivery failure and allows a subsequent attempt', async () => {
-    const send = vi
-      .fn()
-      .mockRejectedValueOnce(new Error('delivery failed'))
-      .mockResolvedValueOnce(undefined);
-    const { handle } = createBrowserLoginApprovalHandler(send);
-    await expect(handle(event())).rejects.toThrow('delivery failed');
-    await handle(event());
-    expect(send).toHaveBeenCalledTimes(2);
+  it('rejects a mismatched browser response before sending a card', async () => {
+    const { deps, execute } = setup();
+    deps.requestLogin.mockResolvedValueOnce({
+      metadata: {
+        session_id: 'another-browser',
+        login: { status: 'approval_required' },
+      },
+      isError: false,
+    });
+    await expect(execute(input, ctx)).resolves.toMatchObject({
+      details: { status: 'login_unavailable' },
+    });
+    expect(deps.sendHandoff).not.toHaveBeenCalled();
   });
 });

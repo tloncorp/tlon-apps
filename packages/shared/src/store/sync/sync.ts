@@ -25,6 +25,7 @@ import {
   deskVersionSupportsTaskRuns,
   deskVersionSupportsStewardBots,
   deskVersionSupportsContactDiscovery,
+  deskVersionKeepsDiscoveryCursor,
   activityVersionSupportsReactions,
   classifyDeskVersion,
 } from '../../logic';
@@ -47,6 +48,7 @@ import { verifyUserInviteLink } from '../inviteActions';
 import {
   discoverContacts,
   invokeContactsMatchedHandler,
+  isContactDiscoveryRateLimited,
   partitionDiscoveryMatches,
 } from '../lanyardActions';
 import { useLureState } from '../lure';
@@ -693,6 +695,9 @@ export const syncAppInfo = async (
   api.setDeskSupportsContactDiscovery(
     deskVersionSupportsContactDiscovery(appInfo?.groupsVersion)
   );
+  api.setDeskKeepsDiscoveryCursor(
+    deskVersionKeepsDiscoveryCursor(appInfo?.groupsVersion)
+  );
   // Awaited so the App Info screen and the notes-search gate see it promptly.
   // The capability flags don't depend on it landing: what protects those is
   // the in-memory version recorded above.
@@ -739,6 +744,9 @@ export const syncReactionSupport = async () => {
   api.setDeskSupportsStewardBots(deskVersionSupportsStewardBots(groupsVersion));
   api.setDeskSupportsContactDiscovery(
     deskVersionSupportsContactDiscovery(groupsVersion)
+  );
+  api.setDeskKeepsDiscoveryCursor(
+    deskVersionKeepsDiscoveryCursor(groupsVersion)
   );
 };
 
@@ -906,6 +914,10 @@ const syncContactDiscoveryOnce = async (
     logger.trackEvent(AnalyticsEvent.DebugSystemContacts, {
       context: 'no phone attestation found, skipping discovery',
     });
+    return empty;
+  }
+  if (!isMocked && (await isContactDiscoveryRateLimited())) {
+    logger.log('syncContactDiscovery: skipping while rate limited');
     return empty;
   }
   let systemContacts: db.SystemContact[];
@@ -2224,6 +2236,7 @@ export const handleChatUpdate = async (
     case 'deletePost':
       recordThreadPostDeleted(update.postId);
       await db.deletePosts({ ids: [update.postId] }, ctx);
+      await db.recomputeChannelLastPost({ channelId: update.channelId }, ctx);
       break;
     case 'addReaction':
       // Check if we're inserting a shortcode reaction from chat/DM

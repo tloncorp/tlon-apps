@@ -1,11 +1,11 @@
 import type * as db from '@tloncorp/shared/db';
 import { Text, mobileTypeStyles } from '@tloncorp/ui';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 import { useWindowDimensions } from 'react-native';
 import { AnimatePresence, Spinner, View, XStack } from 'tamagui';
 
 import { ContactAvatar } from '../Avatar';
-import { useConversationComputingState } from './useConversationComputingState';
+import { useThinkingIndicator } from './useThinkingIndicator';
 
 const MAX_VISIBLE_AVATARS = 3;
 const MIN_ROW_HEIGHT = 52;
@@ -26,14 +26,12 @@ export function ThinkingState({
   latestPostAuthorId?: string;
   forcedLabel?: string;
 }) {
-  const computingState = useConversationComputingState(conversationId);
-  const [holdUntilResponse, setHoldUntilResponse] = useState(false);
-  const [responseObserved, setResponseObserved] = useState(false);
-  const postIdWhenThinkingStarted = useRef<string | undefined>(latestPostId);
-  const latestPostIdWhileIdle = useRef<string | undefined>(latestPostId);
-  const expectedResponders = useRef<Set<string>>(new Set());
-  const wasComputing = useRef(false);
-  const collapseTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { visible, label, computingState } = useThinkingIndicator({
+    conversationId,
+    latestPostId,
+    latestPostAuthorId,
+    forcedLabel,
+  });
   const { fontScale } = useWindowDimensions();
   // The two-line label must fit at accessibility font scales; the height only
   // changes when the font scale does, never with the label.
@@ -45,86 +43,6 @@ export function ThinkingState({
       ),
     [fontScale]
   );
-
-  useEffect(() => {
-    if (computingState) {
-      expectedResponders.current = new Set(
-        computingState.ships.map((state) => state.ship)
-      );
-      if (!wasComputing.current) {
-        postIdWhenThinkingStarted.current = latestPostIdWhileIdle.current;
-        setResponseObserved(
-          latestPostId !== latestPostIdWhileIdle.current &&
-            (expectedResponders.current.size === 0 ||
-              (latestPostAuthorId != null &&
-                expectedResponders.current.has(latestPostAuthorId)))
-        );
-        setHoldUntilResponse(true);
-      } else if (
-        latestPostId !== postIdWhenThinkingStarted.current &&
-        (expectedResponders.current.size === 0 ||
-          (latestPostAuthorId != null &&
-            expectedResponders.current.has(latestPostAuthorId)))
-      ) {
-        setResponseObserved(true);
-      }
-      wasComputing.current = true;
-      if (collapseTimeout.current) {
-        clearTimeout(collapseTimeout.current);
-        collapseTimeout.current = null;
-      }
-      return;
-    }
-    wasComputing.current = false;
-
-    const responseHasArrived =
-      holdUntilResponse &&
-      (responseObserved ||
-        (latestPostId !== postIdWhenThinkingStarted.current &&
-          (expectedResponders.current.size === 0 ||
-            (latestPostAuthorId != null &&
-              expectedResponders.current.has(latestPostAuthorId)))));
-    latestPostIdWhileIdle.current = latestPostId;
-    if (responseHasArrived) {
-      if (collapseTimeout.current) {
-        clearTimeout(collapseTimeout.current);
-        collapseTimeout.current = null;
-      }
-      setHoldUntilResponse(false);
-      return;
-    }
-
-    if (holdUntilResponse && !collapseTimeout.current) {
-      collapseTimeout.current = setTimeout(() => {
-        collapseTimeout.current = null;
-        setHoldUntilResponse(false);
-      }, 2_000);
-    }
-  }, [
-    computingState,
-    holdUntilResponse,
-    latestPostAuthorId,
-    latestPostId,
-    responseObserved,
-  ]);
-
-  useEffect(() => {
-    return () => {
-      if (collapseTimeout.current) clearTimeout(collapseTimeout.current);
-    };
-  }, []);
-
-  const responseHasArrived =
-    holdUntilResponse &&
-    (responseObserved ||
-      (latestPostId !== postIdWhenThinkingStarted.current &&
-        (expectedResponders.current.size === 0 ||
-          (latestPostAuthorId != null &&
-            expectedResponders.current.has(latestPostAuthorId)))));
-  const visible =
-    Boolean(forcedLabel) ||
-    Boolean(computingState) ||
-    (holdUntilResponse && !responseHasArrived);
 
   const showAvatars = Boolean(
     computingState && (channelType !== 'dm' || computingState.ships.length >= 2)
@@ -183,7 +101,7 @@ export function ThinkingState({
             flexShrink={1}
             numberOfLines={2}
           >
-            {forcedLabel ?? computingState?.label ?? 'Thinking...'}
+            {label}
           </Text>
         </XStack>
       ) : null}

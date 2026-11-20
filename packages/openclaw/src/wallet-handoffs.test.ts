@@ -40,7 +40,7 @@ function fixture() {
     store,
     read: vi.fn().mockResolvedValue({ status: 'pending' }),
     send: vi.fn().mockResolvedValue(undefined),
-    resume: vi.fn().mockResolvedValue({}),
+    resume: vi.fn().mockResolvedValue(undefined),
     sessionIdFor: vi.fn().mockReturnValue('conversation-1'),
     warn: vi.fn(),
   };
@@ -79,10 +79,56 @@ it('delivers one native card and resumes the original conversation once after co
       sessionKey: 'owner-dm',
       idempotencyKey: `tlon-wallet:${f.id}`,
       message: expect.stringContaining(': connected.'),
-    })
+    }),
+    undefined
+  );
+  expect(f.resume.mock.calls[0][0].message).toContain(
+    'Connecting Link is not authorization to spend'
+  );
+  expect(f.resume.mock.calls[0][0].message).not.toContain(
+    'report the outcome and wait for the owner'
   );
   expect(f.records.size).toBe(0);
 });
+it.each(['browser_wallet_connect', 'browser_payment_request'])(
+  'does not redeliver %s when a pending status read outlasts the first send',
+  async (name) => {
+    const f = fixture();
+    f.event.params.name = name;
+    const sending = Promise.withResolvers<void>();
+    const sendStarted = Promise.withResolvers<void>();
+    const reading = Promise.withResolvers<{ status: string }>();
+    const readStarted = Promise.withResolvers<void>();
+    f.send.mockImplementationOnce(() => {
+      sendStarted.resolve();
+      return sending.promise;
+    });
+    f.read.mockImplementationOnce(() => {
+      readStarted.resolve();
+      return reading.promise;
+    });
+    f.service.start();
+    await f.service.poll();
+    const handling = f.service.handle(f.event, f.ctx);
+    await sendStarted.promise;
+    const polling = f.service.poll();
+    await readStarted.promise;
+    try {
+      expect(f.records.get(f.id)?.sent).not.toBe(true);
+      sending.resolve();
+      await handling;
+      expect(f.records.get(f.id)?.sent).toBe(true);
+      reading.resolve({ status: 'pending' });
+      await polling;
+      expect(f.send).toHaveBeenCalledExactlyOnceWith(f.id);
+      expect(f.warn).not.toHaveBeenCalled();
+    } finally {
+      sending.resolve();
+      reading.resolve({ status: 'pending' });
+      await Promise.all([handling, polling]);
+    }
+  }
+);
 it('durably retries delivery without putting provider URLs in continuation messages', async () => {
   const f = fixture();
   f.send.mockRejectedValueOnce(new Error('unavailable'));
@@ -97,10 +143,21 @@ it('durably retries delivery without putting provider URLs in continuation messa
   });
   f.resume.mockRejectedValueOnce(new Error('temporary'));
   await f.service.poll();
+  vi.setSystemTime(Date.now() + 5000);
   await f.service.poll();
   expect(f.resume).toHaveBeenCalledTimes(2);
   expect(f.resume.mock.calls[0][0]).toEqual(f.resume.mock.calls[1][0]);
   expect(JSON.stringify(f.resume.mock.calls)).not.toContain('private.example');
+  expect(f.resume.mock.calls[0][0].message).toContain(
+    'submit once and verify the result from the page'
+  );
+  expect(f.resume.mock.calls[0][0].message).toContain(
+    'Respect any original fill-only or no-purchase boundary'
+  );
+  expect(f.resume.mock.calls[0][0].message).toContain('without resubmitting');
+  expect(f.resume.mock.calls[0][0].message).toContain(
+    'For site_saved, skip payment-field inspection and filling'
+  );
 });
 it('drops a pending request when its conversation has been reset', async () => {
   const f = fixture();
@@ -120,6 +177,154 @@ it('expiry produces a terminal notification and malformed or failed calls produc
   f.service.start();
   await f.service.poll();
   expect(f.resume).toHaveBeenCalledWith(
-    expect.objectContaining({ message: expect.stringContaining(': expired.') })
+    expect.objectContaining({ message: expect.stringContaining(': expired.') }),
+    undefined
   );
+});
+
+it('polls through intermittent status failures and reads the final wallet result after expiry', async () => {
+  const f = fixture();
+  await f.service.handle(f.event, f.ctx);
+  const expiresAt = f.records.get(f.id)!.expiresAt;
+  vi.setSystemTime(expiresAt - 8_000);
+  f.read.mockRejectedValueOnce(new Error('proxy unavailable'));
+  f.service.start();
+  await f.service.poll();
+  vi.setSystemTime(expiresAt - 4_000);
+  await f.service.poll();
+  expect(f.records.get(f.id)?.deliveryRetry).toBeUndefined();
+
+  f.read.mockRejectedValueOnce(new Error('proxy unavailable again'));
+  await f.service.poll();
+  f.read.mockResolvedValue({ status: 'connected' });
+  vi.setSystemTime(expiresAt + 1);
+  await f.service.poll();
+  expect(f.read).toHaveBeenCalledTimes(4);
+  expect(f.resume.mock.calls[0][0].message).toContain(': connected.');
+});
+
+it('warns about a resume failure even after a status-read failure', async () => {
+  const f = fixture();
+  await f.service.handle(f.event, f.ctx);
+  f.read.mockRejectedValueOnce(new Error('proxy unavailable'));
+  f.service.start();
+  await f.service.poll();
+  f.read.mockResolvedValue({ status: 'connected' });
+  f.resume.mockRejectedValueOnce(new Error('Missing Tlon target'));
+  vi.setSystemTime(Date.now() + 4_000);
+  await f.service.poll();
+  expect(f.warn.mock.calls.map(([message]) => message)).toEqual([
+    expect.stringContaining('status read failed'),
+    expect.stringContaining('agent resume failed (missing delivery route)'),
+  ]);
+});
+
+it('resumes uncertain payments with inspection instead of an unconditional owner wait', async () => {
+  const f = fixture();
+  f.event.params.name = 'browser_payment_request';
+  await f.service.handle(f.event, f.ctx);
+  f.read.mockResolvedValue({ status: 'unknown' });
+  f.service.start();
+  await f.service.poll();
+  expect(f.resume).toHaveBeenCalledTimes(1);
+  const message = f.resume.mock.calls[0][0].message;
+  expect(message).toContain('Use ordinary browser tools to inspect');
+  expect(message).toContain('original purchase approval and task boundaries');
+  expect(message).toContain(
+    'Do not repeat payment authorization or fill automatically'
+  );
+  expect(message).toContain('without resubmitting');
+  expect(message).not.toContain('report the outcome and wait for the owner');
+  expect(f.records.size).toBe(0);
+});
+it.each(['cancelled', 'expired', 'failed'])(
+  'keeps the owner wait for %s payments',
+  async (status) => {
+    const f = fixture();
+    f.event.params.name = 'browser_payment_request';
+    await f.service.handle(f.event, f.ctx);
+    f.read.mockResolvedValue({ status });
+    f.service.start();
+    await f.service.poll();
+    expect(f.resume).toHaveBeenCalledTimes(1);
+    expect(f.resume.mock.calls[0][0].message).toContain(
+      'report the outcome and wait for the owner'
+    );
+    expect(f.records.size).toBe(0);
+  }
+);
+
+it('retires a legacy cached approval after a restart without replaying the purchase', async () => {
+  const f = fixture();
+  await f.service.handle(f.event, f.ctx);
+  f.records.get(f.id)!.result = 'ready';
+  vi.setSystemTime(Date.now() + 7 * 86400000);
+  f.service.start();
+  await f.service.poll();
+  await f.service.poll();
+  expect(f.read).not.toHaveBeenCalled();
+  expect(f.resume).not.toHaveBeenCalled();
+  expect(f.warn).toHaveBeenCalledOnce();
+  expect(f.records.size).toBe(0);
+});
+
+it('rechecks an actionable status before retrying a rejected dispatch', async () => {
+  const f = fixture();
+  await f.service.handle(f.event, f.ctx);
+  f.read
+    .mockResolvedValueOnce({ status: 'ready' })
+    .mockResolvedValueOnce({ status: 'unknown' });
+  f.resume.mockRejectedValueOnce(new Error('gateway offline'));
+  f.service.start();
+  await f.service.poll();
+  await f.service.poll();
+  expect(f.read).toHaveBeenCalledTimes(1);
+  vi.setSystemTime(Date.now() + 5000);
+  await f.service.poll();
+  expect(f.resume.mock.calls[1][0].message).toContain(': unknown.');
+  expect(f.records.size).toBe(0);
+});
+
+it('does not resume a cached payment authorization after the payment expires', async () => {
+  const f = fixture();
+  f.event.params.name = 'browser_payment_request';
+  await f.service.handle(f.event, f.ctx);
+  vi.setSystemTime(f.records.get(f.id)!.expiresAt - 1_000);
+  f.read.mockResolvedValue({ status: 'ready' });
+  f.resume.mockRejectedValueOnce(new Error('gateway offline'));
+  f.service.start();
+  await f.service.poll();
+  vi.setSystemTime(Date.now() + 5_000);
+  await f.service.poll();
+  expect(f.read).toHaveBeenCalledTimes(2);
+  expect(f.resume.mock.calls[1][0].message).toContain(': expired.');
+});
+
+it('recovers an accepted worker after restart and only retries its outstanding report', async () => {
+  const f = fixture();
+  await f.service.handle(f.event, f.ctx);
+  const expiresAt = f.records.get(f.id)!.expiresAt;
+  vi.setSystemTime(expiresAt - 1_000);
+  f.read.mockResolvedValue({ status: 'ready' });
+  f.resume.mockResolvedValueOnce('accepted-run');
+  f.service.start();
+  await f.service.poll();
+  expect(f.records.get(f.id)?.workerRunId).toBe('accepted-run');
+  await f.service.stop();
+  vi.setSystemTime(expiresAt + 10 * 60_000);
+  f.resume.mockRejectedValueOnce(new Error('report delivery failed'));
+  const restarted = createWalletHandoffs(f);
+  services.push(restarted);
+  restarted.start();
+  await restarted.poll();
+  vi.setSystemTime(Date.now() + 5000);
+  await restarted.poll();
+  expect(f.resume.mock.calls.map((call) => call[1])).toEqual([
+    undefined,
+    'accepted-run',
+    'accepted-run',
+  ]);
+  expect(f.read).toHaveBeenCalledOnce();
+  expect(f.send).toHaveBeenCalledOnce();
+  expect(f.records.size).toBe(0);
 });

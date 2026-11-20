@@ -22,19 +22,22 @@ import { getDefaultSsrFPolicy } from './context.js';
 
 const MAX_MEDIA_BYTES = 10 * 1024 * 1024;
 const FETCH_DEADLINE_MS = 30_000;
-// The storage check and upload after a fetch; neither takes a signal, so the
-// wait is bounded rather than the work cancelled.
+// The storage check and upload after a fetch. The storage check takes no
+// signal, so its wait is bounded rather than the work cancelled; the upload's
+// requests are cancelled too.
 const STORE_DEADLINE_MS = 60_000;
 
 /** Settles with `work`, or rejects once `signal` aborts. */
 function abortable<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
-  signal.throwIfAborted();
   return new Promise<T>((resolve, reject) => {
+    // `work` is observed before any abort rejects, so an abandoned rejection
+    // is never unhandled.
     const onAbort = () => reject(signal.reason);
-    signal.addEventListener('abort', onAbort, { once: true });
     work
       .then(resolve, reject)
       .finally(() => signal.removeEventListener('abort', onAbort));
+    if (signal.aborted) onAbort();
+    else signal.addEventListener('abort', onAbort, { once: true });
   });
 }
 
@@ -220,7 +223,8 @@ function syntheticUploadFileName(mime: string): string {
 
 async function uploadMedia(
   buffer: Buffer,
-  contentType: string
+  contentType: string,
+  signal: AbortSignal
 ): Promise<string> {
   const ab = new ArrayBuffer(buffer.byteLength);
   new Uint8Array(ab).set(buffer);
@@ -231,6 +235,7 @@ async function uploadMedia(
     ...(isTlonHostingForced()
       ? { hostedDetection: 'assume-hosted' as const }
       : {}),
+    signal,
   });
   const url = strictPostableUrl(result.url);
   if (!url) {
@@ -273,12 +278,14 @@ export async function prepareOutboundMedia(
           'Could not read local media from the allowed directories.'
         );
       });
+      const store = storeSignal(options.signal);
       const url = await abortable(
         uploadMedia(
           media.buffer,
-          media.contentType ?? 'application/octet-stream'
+          media.contentType ?? 'application/octet-stream',
+          store
         ),
-        storeSignal(options.signal)
+        store
       );
       options.signal?.throwIfAborted();
       return { url, isImage: media.kind === 'image' };
@@ -377,7 +384,10 @@ export async function prepareOutboundMedia(
   }
 
   try {
-    const url = await abortable(uploadMedia(buffer, effectiveMime), store);
+    const url = await abortable(
+      uploadMedia(buffer, effectiveMime, store),
+      store
+    );
     options.signal?.throwIfAborted();
     return { url, isImage };
   } catch {

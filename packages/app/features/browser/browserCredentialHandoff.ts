@@ -37,6 +37,7 @@ export type BrowserCredentialHandoff = {
     planet: string;
     moon: string;
     saveBeforeFill?: boolean;
+    ownerSessions?: boolean;
   };
 };
 export type BrowserCredentialValues = {
@@ -323,6 +324,9 @@ export async function beginBrowserCredentialHandoff(
             ).toString(),
             planet: body.vault.planet,
             moon: body.vault.moon,
+            ownerSessions:
+              'ownerSessions' in body.vault &&
+              body.vault.ownerSessions === true,
             ...('saveBeforeFill' in body.vault &&
             body.vault.saveBeforeFill === true
               ? { saveBeforeFill: true }
@@ -417,5 +421,9 @@ export async function authorizeBrowserLogins(
 ) {
   if (!handoff.vault)
     throw new Error('Saved logins are unavailable for this form.');
-  return authorizeBrowserLoginHandoff(handoff.vault.authorizeUrl, signal);
+  return authorizeBrowserLoginHandoff(
+    handoff.vault.authorizeUrl,
+    signal,
+    handoff.vault.ownerSessions ? handoff.vault.moon : undefined
+  );
 }

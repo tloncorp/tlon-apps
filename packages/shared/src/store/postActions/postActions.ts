@@ -25,6 +25,7 @@ import {
   deleteFromChannelPosts,
   rollbackDeletedChannelPost,
 } from '../useChannelPosts';
+import { appendPostClientMetadata } from './clientMetadata';
 import { logger } from './logger';
 
 export async function finalizePostDraft(
@@ -270,7 +271,7 @@ async function _sendPost({
       content: optimisticPostData.content,
       metadata: optimisticPostData.metadata,
       deliveryStatus: 'enqueued',
-      blob: optimisticPostData.blob,
+      blob: appendPostClientMetadata(optimisticPostData.blob),
       draft,
       parentId: optimisticPostData.replyToPostId ?? undefined,
     });
@@ -314,7 +315,11 @@ async function _sendPost({
       async () => {
         logger.crumb('finalizing post');
         trackSendDebug('queue_action_started');
-        const finalizedPostData = await finalizedPostDataPromise;
+        const finalized = await finalizedPostDataPromise;
+        const finalizedPostData = {
+          ...finalized,
+          blob: appendPostClientMetadata(finalized.blob),
+        };
 
         logger.crumb('updating post in db with finalized data');
         await db.updatePost({
@@ -740,7 +745,6 @@ async function _editPost({
     lastEditContent: JSON.stringify(contentForDb),
     lastEditTitle: optimisticPostData.metadata?.title,
     lastEditImage: optimisticPostData.metadata?.image,
-    blob: optimisticPostData.blob,
     ...flags,
   });
   logger.log('editPost optimistic update done');
@@ -907,7 +911,9 @@ export async function deletePost({ post }: { post: db.Post }) {
   deleteFromChannelPosts(post);
   await db.markPostAsDeleted(post.id);
   await db.updatePost({ id: post.id, deleteStatus: 'enqueued' });
-  await db.updateChannel({ id: post.channelId, lastPostId: null });
+  if (!post.parentId) {
+    await db.recomputeChannelLastPost({ channelId: post.channelId });
+  }
   if (orderWithPost) {
     await db.updateChannel({
       id: post.channelId,
@@ -966,7 +972,9 @@ export async function deletePost({ post }: { post: db.Post }) {
       id: post.id,
       deleteStatus: 'failed',
     });
-    await db.updateChannel({ id: post.channelId, lastPostId: post.id });
+    if (!post.parentId) {
+      await db.recomputeChannelLastPost({ channelId: post.channelId });
+    }
     if (orderWithPost) {
       await db.updateChannel({ id: post.channelId, order: orderWithPost });
     }
@@ -995,7 +1003,9 @@ export async function deleteFailedPost({ post }: { post: db.Post }) {
   }
 
   await db.markPostAsDeleted(post.id);
-  await db.updateChannel({ id: post.channelId, lastPostId: null });
+  if (!post.parentId) {
+    await db.recomputeChannelLastPost({ channelId: post.channelId });
+  }
 }
 
 export async function reportPost({

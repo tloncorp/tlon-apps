@@ -18,6 +18,7 @@ export function BucketFileScreen(props: Props) {
             entryId={entryId}
             flag={flag}
             onClose={() => props.navigation.goBack()}
+            onSelectEntry={(entryId) => props.navigation.setParams({ entryId })}
           />
         )}
       </BucketsGate>

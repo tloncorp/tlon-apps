@@ -745,6 +745,17 @@
         %agent  [our.bowl %groups]
         %poke  group-action-4+!>(del)
     ==
+  (forget-bucket flag)
+::
+::  +forget-bucket: drop a bucket we host, everything hanging off it, and
+::  have the broker purge what it stored. What +delete-bucket does once the
+::  channel is on its way out, and what a channel or group deleted in %groups
+::  directly gets too.
+::
+++  forget-bucket
+  |=  =flag:b
+  ^+  cor
+  =/  st=bucket-state:b  (need-state flag)
   =/  res=response:b
     [%update flag +(revision.st) [%delete ~]]
   =.  cor  (give [%fact ~[/v1 (updates-path flag)] buckets-response-1+!>(res)])
@@ -757,8 +768,85 @@
   =.  cor  (give [%kick ~[(updates-path flag)] ~])
   =.  cor  (drop-bucket-sessions flag)
   =.  cor  (drop-read-token flag)
+  =.  cor  (purge-bucket flag id.bucket.st)
   =.  spaces  (~(del by spaces) flag)
   cor
+::
+::  +purge-bucket: tell the broker a bucket we hosted is gone, so its objects
+::  stop counting against our quota now.
+::
+::  Sent once and not retried. The broker also asks us, on its own schedule,
+::  whether each bucket it stores objects for still exists, and purges on
+::  +bucket-liveness answering gone -- so a purge that never lands only
+::  delays the release, and nothing has to be remembered here to finish it.
+::
+++  purge-bucket
+  |=  [=flag:b id=@ud]
+  ^+  cor
+  =/  path=@t  (rap 3 '/spaces/' (ship-text:util our.bowl) '/' (scot %ud id) ~)
+  ?~  card=(broker-request %'DELETE' /buckets/purge path ~)
+    %^  note  %warn
+      ~[leaf+"buckets: no genuine secret, purge left to the broker"]
+    (log-bucket flag)
+  (emit u.card)
+::
+::  +bucket-liveness: answer the broker about one of our bucket ids.
+::
+::  The broker purges every object stored under the id when this says gone,
+::  so gone means only that no bucket we host has the id. Ids come from
+::  .next-id and never repeat, and a bucket leaves .spaces only through
+::  +forget-bucket, so one answered gone cannot come back. %groups is not
+::  asked: a channel can be missing and still come back -- a registration
+::  that failed is re-sent by a repeated create -- and our own rank can be
+::  banned in a group we host, which reads as no channel. A channel or group
+::  that really was deleted reaches us as a fact instead, in +take-groups.
+::  An id above .next-id gets no answer at all rather than gone: this state
+::  never reached it, so it is not the one that issued the id, and that is
+::  not ours to decide. Ids below it that never named a bucket answer gone,
+::  which is safe: .next-id is shared with entries and never goes back, so
+::  none of them can become a bucket's id later.
+::
+::  A live answer also lists every object key the bucket still references,
+::  and the broker deletes the bucket's other objects -- a file whose entry
+::  was removed without its object, by whatever path. So the list has to be
+::  complete: the files in the manifest, and the uploads still in a session,
+::  whose entry is not in the manifest until the object has landed.
+::
+++  bucket-liveness
+  |=  id=@ud
+  ^-  (unit json)
+  ?:  (gth id next-id)  ~
+  =/  held=(unit [=flag:b st=bucket-state:b])
+    %-  ~(rep by spaces)
+    |=  [[=flag:b sp=space:b] acc=(unit [flag:b bucket-state:b])]
+    ?^  acc  acc
+    ?~  st=(hosted-state sp)  ~
+    ?.  =(id id.bucket.u.st)  ~
+    `[flag u.st]
+  ?~  held
+    `(pairs:enjs:format ~[['result' s+'gone']])
+  =/  keys=(set @t)
+    %-  ~(uni in (entry-keys ~(val by entries.st.u.held)))
+    %-  entry-keys
+    %+  murn  ~(val by sessions)
+    |=  ses=upload-session:b
+    ?.(=(flag.u.held flag.ses) ~ `entry.ses)
+  %-  some
+  %-  pairs:enjs:format
+  :~  ['result' s+'live']
+      ['objects' a+(turn ~(tap in keys) |=(key=@t s+key))]
+  ==
+::
+::  +entry-keys: the object keys of the files among some entries.
+::
+++  entry-keys
+  |=  ents=(list entry:b)
+  ^-  (set @t)
+  %-  silt
+  %+  murn  ents
+  |=  ent=entry:b
+  ?.  ?=(%file -.kind.ent)  ~
+  `object-key.file.kind.ent
 ::
 ::  +se-core: one bucket we host.
 ::
@@ -1007,15 +1095,15 @@
   ^-  wire
   /buckets/upload/(scot %uv sid)/[kind]
 ::
-::  +broker-post: a POST to the broker, authenticated as this ship.
+::  +broker-request: a request to the broker, authenticated as this ship.
 ::
 ::  The credential is the %genuine secret, the same one the read-token sync
 ::  presents. Absent means this ship cannot reach storage at all, which is a
 ::  real state on a fresh boot rather than a bug, so the caller decides what
 ::  to tell whoever is waiting.
 ::
-++  broker-post
-  |=  [=wire path=@t body=(unit json)]
+++  broker-request
+  |=  [=method:http =wire path=@t body=(unit json)]
   ^-  (unit card)
   =/  secret=(unit @t)  genuine-secret
   ?~  secret  ~
@@ -1025,7 +1113,7 @@
     =/  txt=@t  (en:json:html u.body)
     `[(met 3 txt) txt]
   =/  =request:http
-    :*  %'POST'  url
+    :*  method  url
         :~  ['content-type' 'application/json']
             ['x-landscape-token' u.secret]
         ==
@@ -1151,7 +1239,8 @@
     ^+  up-core
     =/  st=bucket-state:b  (need-state flag.ses)
     =/  card=(unit card)
-      %^    broker-post
+      %-  broker-request
+      :^    %'POST'
           (upload-wire id.ses %grant)
         '/uploads/grant'
       `(up-authority st)
@@ -1169,7 +1258,7 @@
     =/  path=@t
       (rap 3 '/uploads/' u.reservation.ses '/' (scot %tas kind) ~)
     =/  card=(unit card)
-      (broker-post (upload-wire id.ses kind) path body)
+      (broker-request %'POST' (upload-wire id.ses kind) path body)
     ?~  card  up-unreachable
     (emit u.card)
   ::  +up-unreachable: give up on a broker call we cannot make.
@@ -1274,7 +1363,7 @@
     ?:  ?=(%cancel -.res)
       (up-fail 'the storage request was cancelled')
     =/  code=@ud  status-code.response-header.res
-    ?.  &((gte code 200) (lth code 300))
+    ?.  (broker-ok:util code)
       (up-fail (broker-message:util res))
     ?-  kind
         %grant   (up-took-grant res)
@@ -2670,6 +2759,20 @@
       [%x %v1 %broker %delete cap=@ object=@ ~]
     ``json+!>((broker-object-verdict %delete cap.pole object.pole))
   ::
+      [%x %v1 %broker %bucket id=@ ~]
+    ?~  id=(slaw %ud id.pole)  [~ ~]
+    ?~  verdict=(bucket-liveness u.id)  [~ ~]
+    ``json+!>(u.verdict)
+  ::
+  ::  Whether the path above will answer, asked first by the status thread.
+  ::  A missing %x result reached through .^ in a thread crashes Spider and
+  ::  every strand it runs, so the thread fails its own strand on this
+  ::  instead.
+  ::
+      [%u %v1 %broker %bucket id=@ ~]
+    =/  id=(unit @ud)  (slaw %ud id.pole)
+    ``loob+!>(&(?=(^ id) (lte u.id next-id)))
+  ::
   ::  So an operator can confirm which broker a live host is pointed at
   ::  without reading its state.
   ::
@@ -2885,6 +2988,18 @@
     ?:  ?=(%progress -.res)  cor
     (take-upload (slav %uv sid.pole) kind.pole res)
   ::
+      [%buckets %purge ~]
+    ?.  ?=([%iris %http-response *] sign-arvo)  cor
+    =*  res  client-response.sign-arvo
+    ?:  ?=(%progress -.res)  cor
+    ?:  ?=(%cancel -.res)
+      (note %warn ~[leaf+"buckets: bucket purge was cancelled"] ~)
+    =/  code=@ud  status-code.response-header.res
+    ?:  (broker-ok:util code)  cor
+    %^  note  %warn
+      ~[leaf+"buckets: broker refused a bucket purge"]
+    ~[['status' (numb:enjs:format code)]]
+  ::
       [%buckets %reader host=@ name=@ who=@ rev=@ ~]
     ?.  ?=([%iris %http-response *] sign-arvo)  cor
     =*  res  client-response.sign-arvo
@@ -2903,7 +3018,7 @@
     =/  theirs=(unit @ud)  (broker-revision:util res)
     ::  A stale write is not a failure -- it answers 200 with the revision it
     ::  kept, and adopting that is how we catch up.
-    ?:  &((gte code 200) (lth code 300))
+    ?:  (broker-ok:util code)
       (confirm-reader key sent theirs (broker-applied:util res))
     ::  Only a success may confirm. An error body carries no revision under
     ::  the broker's contract, and adopting one from a rejection would install
@@ -2981,6 +3096,11 @@
   |=  =r-groups:v9:gv
   ^+  cor
   =*  r-group  r-group.r-groups
+  ::  Deletions first. +forget-bucket gives subscribers the bucket's delete
+  ::  fact and then kicks them; run after the recheck, the recheck's own kick
+  ::  for the lost channel would arrive first and void the fact. The recheck
+  ::  still runs for whatever this fact leaves standing.
+  =.  cor  (take-groups-deletion r-groups)
   =.  cor  (recheck-host-subs flag.r-groups)
   ?+    r-group  cor
       ::  A role that no longer exists must stop granting writes. Role ids are
@@ -2998,6 +3118,57 @@
     %-  ~(dif in (held-writers flag.r-groups))
     ~(key by roles.group.r-group)
   ==
+::
+::  +take-groups-deletion: a bucket's channel, or its whole group, deleted in
+::  %groups rather than through us. The bucket is unreachable from then on,
+::  so it goes the way a deleted one does, objects included.
+::
+++  take-groups-deletion
+  |=  =r-groups:v9:gv
+  ^+  cor
+  =*  r-group  r-group.r-groups
+  ?+    r-group  cor
+      [%channel [%buckets *] %del ~]
+    =/  =flag:b  [p q]:q.nest.r-group
+    ?.  (hosted-in flag.r-groups flag)  cor
+    =.  cor
+      %^  note  %info
+        ~[leaf+"buckets: channel deleted in %groups, dropping its bucket"]
+      (log-bucket flag)
+    (forget-bucket flag)
+  ::
+      ::  Not every %delete is a deletion: a host leaving its own group gets
+      ::  the same fact while %groups keeps the group. A deleted group is
+      ::  already gone from %groups when the fact arrives, so that is what
+      ::  decides it.
+      [%delete ~]
+    ?:  (group-exists flag.r-groups)  cor
+    %+  roll  ~(tap by spaces)
+    |=  [[=flag:b *] acc=_cor]
+    ?.  (hosted-in:acc flag.r-groups flag)  acc
+    =.  acc
+      %^  note:acc  %info
+        ~[leaf+"buckets: group deleted, dropping its bucket"]
+      (log-bucket:acc flag)
+    (forget-bucket:acc flag)
+  ==
+::
+::  +hosted-in: is this a bucket we host, in that group?
+::
+++  hosted-in
+  |=  [group=flag:b =flag:b]
+  ^-  ?
+  ?~  sp=(~(get by spaces) flag)  |
+  ?~  st=(hosted-state u.sp)  |
+  =(group group.u.st)
+::
+::  +hosted-state: a space's bucket state, when it is a bucket we host.
+::
+++  hosted-state
+  |=  sp=space:b
+  ^-  (unit bucket-state:b)
+  ?.  =(%pub net.sp)  ~
+  state.sp
 ::
 ::  +held-writers: every role id our buckets in this group grant writes to.
 ::

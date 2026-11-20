@@ -406,7 +406,6 @@ function BareChatInput(
       setInitializedDraft({ getDraft, editingPostId: undefined });
     });
   }, [clearDraft, getDraft]);
-  const [editorIsEmpty, setEditorIsEmpty] = useState(attachments.length === 0);
   const [hasAutoFocused, setHasAutoFocused] = useState(false);
   const [needsHeightAdjustmentAfterLoad, setNeedsHeightAdjustmentAfterLoad] =
     useState(false);
@@ -494,7 +493,7 @@ function BareChatInput(
   const [linkMetaLoading, setLinkMetaLoading] = useState(false);
   // Track current input session to cancel stale link previews
   const inputSessionRef = useRef(0);
-  const disableSend = editorIsEmpty;
+  const disableSend = controlledText.trim() === '' && attachments.length === 0;
 
   // Debounced text for URL watching - syncs link attachments with URLs in text
   const debouncedText = useDebouncedValue(controlledText, 500);
@@ -1015,14 +1014,6 @@ function BareChatInput(
     }
   }, [shouldBlur, setShouldBlur]);
 
-  // Check if editor is empty
-  useEffect(() => {
-    setEditorIsEmpty(
-      (controlledText === '' || controlledText.trim() === '') &&
-        attachments.length === 0
-    );
-  }, [controlledText, attachments]);
-
   // Sync link attachments with URLs in text
   // This effect watches for URL changes and updates link previews accordingly
   useEffect(() => {
@@ -1275,7 +1266,6 @@ function BareChatInput(
             bareChatInputLogger.log('setting initial content', text, mentions);
             setControlledText(text);
             setMentions(mentions);
-            setEditorIsEmpty(false);
             markInitialContentReady();
             setNeedsHeightAdjustmentAfterLoad(true);
           }

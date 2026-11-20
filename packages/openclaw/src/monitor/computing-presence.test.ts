@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import {
+  BACKGROUND_STATUS_TEXT,
   COMMENTARY_MAX_CHARS,
   type ComputingPresenceReporter,
   createComputingPresenceReporter,
@@ -34,6 +35,10 @@ vi.mock('@tloncorp/api', () => ({
   getComputingStatusText,
   serializeComputingStatus,
   setConversationPresence,
+}));
+
+vi.mock('../urbit/api-client.js', () => ({
+  captureTlonApiScope: () => undefined,
 }));
 
 async function flushPresenceQueue() {
@@ -885,6 +890,130 @@ describe('computing presence commentary', () => {
     expect(
       publishedFor(reporter, '~bus').map((call) => call.commentary)
     ).toEqual(['Reading mail.']);
+  });
+});
+
+describe('background runs', () => {
+  const conversationId = 'chat/~bus/general';
+  const background = { conversationId, runId: 'subagent:child' };
+  const foreground = { conversationId, runId: 'run-main' };
+
+  function setup() {
+    const reporter = createRecordingReporter();
+    const tracker = createComputingPresenceTracker({
+      reporter,
+      minUpdateIntervalMs: 0,
+    });
+    const last = () => reporter.publish.mock.lastCall?.[0];
+    const expectRowText = async (text: string) => {
+      await createComputingPresenceReporter().publish(last()!);
+      expect(setConversationPresence).toHaveBeenLastCalledWith(
+        expect.objectContaining({ display: expect.objectContaining({ text }) })
+      );
+    };
+    return { reporter, tracker, last, expectRowText };
+  }
+
+  test('a background run alone is published as background, with the fallback text until it has commentary', async () => {
+    const { tracker, last, expectRowText } = setup();
+
+    tracker.refreshRun({ ...background, background: true });
+    await flushPresenceQueue();
+    expect(last()).toEqual({
+      conversationId,
+      thinking: true,
+      toolNames: [],
+      commentary: null,
+      background: true,
+    });
+    await expectRowText(BACKGROUND_STATUS_TEXT);
+
+    tracker.setCommentary({ ...background, text: 'In the background: one' });
+    await flushPresenceQueue();
+    expect(last()).toEqual({
+      conversationId,
+      thinking: true,
+      toolNames: [],
+      commentary: 'In the background: one',
+      background: true,
+    });
+  });
+
+  test('a foreground run outranks background runs until it stops', async () => {
+    const { reporter, tracker, last, expectRowText } = setup();
+
+    tracker.refreshRun({ ...background, background: true });
+    await flushPresenceQueue();
+
+    // Only the background flag changes, and that alone republishes.
+    tracker.refreshRun(foreground);
+    await flushPresenceQueue();
+    expect(reporter.publish).toHaveBeenCalledTimes(2);
+    expect(last()).toEqual({
+      conversationId,
+      thinking: true,
+      toolNames: [],
+      commentary: null,
+    });
+    await expectRowText('Computing');
+
+    tracker.addToolCall({ ...foreground, toolName: 'web_fetch' });
+    tracker.setCommentary({ ...background, text: 'In the background: one' });
+    await flushPresenceQueue();
+    expect(last()).toEqual({
+      conversationId,
+      thinking: true,
+      toolNames: ['web_fetch'],
+      commentary: null,
+    });
+
+    tracker.setCommentary({ ...foreground, text: 'Answering the question.' });
+    tracker.setCommentary({ ...background, text: 'In the background: two' });
+    await flushPresenceQueue();
+    expect(last()?.commentary).toBe('Answering the question.');
+
+    tracker.stopRun(foreground);
+    await flushPresenceQueue();
+    expect(last()).toEqual({
+      conversationId,
+      thinking: true,
+      toolNames: [],
+      commentary: 'In the background: two',
+      background: true,
+    });
+  });
+
+  test('the background flag is read only when a run is created', async () => {
+    const { tracker, last } = setup();
+
+    tracker.refreshRun({ ...background, background: true });
+    tracker.refreshRun(background);
+    tracker.setCommentary({ ...background, text: 'In the background: one' });
+    await flushPresenceQueue();
+    expect(last()?.background).toBe(true);
+
+    // Runs first created by setCommentary or addToolCall are foreground.
+    tracker.setCommentary({
+      conversationId,
+      runId: 'run-commentary',
+      text: 'Main agent text.',
+    });
+    await flushPresenceQueue();
+    expect(last()?.commentary).toBe('Main agent text.');
+
+    tracker.stopRun({ conversationId, runId: 'run-commentary' });
+    tracker.addToolCall({
+      conversationId,
+      runId: 'run-tool',
+      toolName: 'exec',
+    });
+    await flushPresenceQueue();
+    expect(last()).toEqual({
+      conversationId,
+      thinking: true,
+      toolNames: ['exec'],
+      commentary: null,
+    });
   });
 });
 

@@ -70,11 +70,12 @@ original form and document. An ambiguous name, changed document, expired card,
 or changed control requires a fresh snapshot and a new handoff. Do not remove
 `--fields` to recover from a selection failure: that broadens the request.
 
-Both `browser handoff` and `browser approve-login` require `--fields`. Saved
-login approval uses the same selection; an optional `--record` selects the saved
-account. Always request the owner's approval through `browser approve-login`
-before filling a saved login, even if the service reports automatic use is
-allowed. Never treat a previous approval as permission for another sign-in.
+`browser handoff` requires `--fields`. For a saved login, follow the
+`hosted-browser` skill to list saved logins and prepare the form. Call
+`tlon_browser_login` to send the approval card. If it confirms delivery, wait
+for the plugin to resume the conversation with the owner’s decision.
+If the owner cancels or delivery fails, end the attempt. Start fresh only if
+the owner asks again.
 The secure-entry sheet saves supported logins with ask-before-use permission;
 do not ask the owner to enable saving or automatic sign-in. An existing signed-in
 browser session can still be reused without filling credentials again.

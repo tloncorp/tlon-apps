@@ -1,0 +1,25 @@
+name: PR triage review activity
+
+on:
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+  pull_request_review_comment:
+    types: [created, edited, deleted]
+
+# Review events use PR context. Signal activity without checking out code,
+# accessing secrets, or publishing; workflow_run resumes trusted default-branch policy.
+permissions: {}
+
+jobs:
+  signal:
+    name: PR triage review activity
+    if: >-
+      github.repository == 'tloncorp/tlon-apps' &&
+      github.event.sender.login == 'chatgpt-codex-connector[bot]' &&
+      (github.event.review.user.login == 'chatgpt-codex-connector[bot]' ||
+       github.event.comment.user.login == 'chatgpt-codex-connector[bot]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Signal Codex review activity
+        run: ':'

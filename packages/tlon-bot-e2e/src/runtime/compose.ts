@@ -251,6 +251,7 @@ export function runCommand(
     let stdout = '';
     let stderr = '';
     let settled = false;
+    let timedOut = false;
     let timeout: NodeJS.Timeout | undefined;
     let killTimeout: NodeJS.Timeout | undefined;
 
@@ -281,6 +282,7 @@ export function runCommand(
 
     if (opts.timeoutMs !== undefined) {
       timeout = setTimeout(() => {
+        timedOut = true;
         stderr +=
           `\n${command} ${args.join(' ')} timed out after ` +
           `${opts.timeoutMs}ms.`;
@@ -312,7 +314,15 @@ export function runCommand(
     });
     child.on('error', fail);
     child.on('close', (exitCode, signal) => {
-      finish({ stdout, stderr, exitCode: exitCode ?? signalExitCode(signal) });
+      const code = exitCode ?? signalExitCode(signal);
+      // A client that handles our SIGTERM can exit 0 (docker exec does on
+      // some hosts while the command keeps running in the container), so a
+      // timeout is reported as the SIGTERM kill it was.
+      finish({
+        stdout,
+        stderr,
+        exitCode: timedOut && code === 0 ? signalExitCode('SIGTERM') : code,
+      });
     });
   });
 }

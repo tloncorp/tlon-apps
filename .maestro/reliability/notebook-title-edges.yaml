@@ -9,7 +9,7 @@ env:
 - runFlow: subflows/create-group.yaml
 - tapOn: '^Edit channels$'
 - assertVisible: '^Channels$'
-- tapOn: '^New$'
+- tapOn: '^New( channel or section)?$'
 - tapOn: '^New channel$'
 - assertVisible: '^Create a new channel$'
 - tapOn: '^Collaborative markdown notebooks$'
@@ -41,8 +41,7 @@ env:
     timeout: 15000
 
 # A blank note title has a stable fallback without losing body content.
-- tapOn:
-    id: NotesRootNewHeaderAction
+- tapOn: '^New$'
 - tapOn:
     id: NotesNewNoteAction
 - extendedWaitUntil:

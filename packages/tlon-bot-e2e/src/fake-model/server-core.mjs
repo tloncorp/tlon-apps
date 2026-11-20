@@ -4,6 +4,8 @@ import http from 'node:http';
 const TLON_TEST_KEY_RE = /\[tlon-test:([a-zA-Z0-9_.:-]+)\]/g;
 const MAX_REGISTRATION_HISTORY = 500;
 const MAX_SUMMARY_TEXT_LENGTH = 300;
+// Tool results get more room so scenarios can parse structured payloads.
+const MAX_TOOL_RESULT_TEXT_LENGTH = 8000;
 
 export function createFakeModelServer() {
   const state = {
@@ -272,7 +274,7 @@ async function handleChatCompletion(state, req, res) {
   const scripted =
     step.kind === 'tool_call'
       ? toolCallResponse({ name: step.name, args: step.args })
-      : textResponse(step.content);
+      : textResponse(echoedContent(step, messages));
   recordScriptedResponse(callRecord, scripted);
 
   console.log(
@@ -283,6 +285,24 @@ async function handleChatCompletion(state, req, res) {
     await new Promise((resolve) => setTimeout(resolve, holdMs));
   }
   respondScripted(res, body, scripted);
+}
+
+// A text step's `echo` answers with `template` when `pattern` matches the
+// request text, `$1` replaced by the first capture group: for a client whose
+// prompt carries a per-call value it requires back (e.g. a nonce). With no
+// match the step answers with `content`.
+function echoedContent(step, messages) {
+  if (!step.echo) {
+    return step.content;
+  }
+  const requestText = messages
+    .map((message) => extractText(message?.content))
+    .filter(Boolean)
+    .join('\n');
+  const match = new RegExp(step.echo.pattern).exec(requestText);
+  return match
+    ? step.echo.template.split('$1').join(match[1] ?? match[0])
+    : step.content;
 }
 
 function recordScriptedResponse(callRecord, scripted) {
@@ -374,6 +394,13 @@ function validateScript(key, steps, extra, allowedAuxiliaryCalls) {
       if (typeof step.content !== 'string') {
         return `step ${i}: text step requires string 'content'`;
       }
+      if (
+        step.echo !== undefined &&
+        (typeof step.echo?.pattern !== 'string' ||
+          typeof step.echo?.template !== 'string')
+      ) {
+        return `step ${i}: text step 'echo' requires string 'pattern' and 'template'`;
+      }
     } else if (step.kind === 'tool_call') {
       if (typeof step.name !== 'string' || step.name.length === 0) {
         return `step ${i}: tool_call step requires non-empty string 'name'`;
@@ -419,8 +446,14 @@ function isHermesTitleGenerationCall(call) {
   }
   const systemText = call.messages.find((message) => message.role === 'system')
     ?.content?.text;
+  if (typeof systemText !== 'string') {
+    return false;
+  }
+  // Hermes >= 0.22 titles from the opening user message alone.
+  if (systemText.startsWith('You name chat sessions.')) {
+    return true;
+  }
   return (
-    typeof systemText === 'string' &&
     systemText.startsWith('Generate a short, descriptive title') &&
     call.userText.includes('User:') &&
     call.userText.includes('Assistant:')
@@ -517,7 +550,12 @@ function summarizeRequestMessages(messages) {
     const summary = {
       role: typeof message?.role === 'string' ? message.role : '<unknown>',
     };
-    const contentSummary = summarizeContent(message?.content);
+    const contentSummary = summarizeContent(
+      message?.content,
+      message?.role === 'tool'
+        ? MAX_TOOL_RESULT_TEXT_LENGTH
+        : MAX_SUMMARY_TEXT_LENGTH
+    );
     if (contentSummary) {
       summary.content = contentSummary;
     }
@@ -535,27 +573,27 @@ function summarizeRequestMessages(messages) {
   });
 }
 
-function summarizeContent(content) {
+function summarizeContent(content, limit) {
   if (content == null) {
     return { kind: 'empty' };
   }
   if (typeof content === 'string') {
     return {
       kind: 'text',
-      text: sanitizePreview(content),
+      ...previewText(content, limit),
     };
   }
   if (Array.isArray(content)) {
     return {
       kind: 'parts',
       partCount: content.length,
-      text: sanitizePreview(extractText(content)),
+      ...previewText(extractText(content), limit),
     };
   }
   if (typeof content === 'object') {
     return {
       kind: 'object',
-      text: sanitizePreview(extractText(content)),
+      ...previewText(extractText(content), limit),
     };
   }
   return { kind: typeof content };
@@ -584,14 +622,18 @@ function summarizeToolCalls(toolCalls) {
 }
 
 function sanitizePreview(value) {
+  return previewText(value, MAX_SUMMARY_TEXT_LENGTH).text;
+}
+
+function previewText(value, limit) {
   const normalized = String(value).replace(/\s+/g, ' ').trim();
   const redacted = normalized.replace(
     /("(?:api[_-]?key|token|secret|password|credential|code)"\s*:\s*")[^"]+(")/gi,
     '$1<redacted>$2'
   );
-  return redacted.length > MAX_SUMMARY_TEXT_LENGTH
-    ? `${redacted.slice(0, MAX_SUMMARY_TEXT_LENGTH)}...`
-    : redacted;
+  return redacted.length > limit
+    ? { text: `${redacted.slice(0, limit)}...`, truncated: true }
+    : { text: redacted };
 }
 
 function textResponse(content) {

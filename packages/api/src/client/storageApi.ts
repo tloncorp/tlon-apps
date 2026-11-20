@@ -12,6 +12,19 @@ import { getCurrentUserId, getCurrentUserIsHosted } from './urbit';
 
 const logger = createDevLogger('storageApi', false);
 
+/** Deadline for the Memex upload URL lookup, including reading its response. */
+const MEMEX_UPLOAD_URL_TIMEOUT_MS = 30_000;
+/** Deadline for each Memex or custom S3 PUT, including the full upload. */
+const UPLOAD_TIMEOUT_MS = 300_000;
+
+function requestSignal(
+  signal: AbortSignal | undefined,
+  timeoutMs: number
+): AbortSignal {
+  const deadline = AbortSignal.timeout(timeoutMs);
+  return signal ? AbortSignal.any([signal, deadline]) : deadline;
+}
+
 export type StorageUpdateCredentials = ub.StorageUpdateCredentials & {
   type: 'storageCredentialsChanged';
 };
@@ -176,6 +189,11 @@ export interface UploadFileParams {
    *   where the URL heuristic wrongly reads the node as self-hosted.
    */
   hostedDetection?: 'node-url' | 'assume-hosted';
+  /**
+   * Cancels the upload's HTTP requests. Each request is also bounded by its
+   * own deadline whether or not a signal is passed.
+   */
+  signal?: AbortSignal;
 }
 
 export interface UploadResult {
@@ -219,6 +237,7 @@ export async function uploadFile(
       contentLength: params.blob.size,
       contentType,
       fileName: fileKey,
+      signal: params.signal,
     });
 
     await fetch(uploadUrl, {
@@ -228,6 +247,7 @@ export async function uploadFile(
         'Cache-Control': 'public, max-age=3600',
         'Content-Type': contentType,
       },
+      signal: requestSignal(params.signal, UPLOAD_TIMEOUT_MS),
     }).then((res) => {
       if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
     });
@@ -295,6 +315,7 @@ export async function uploadFile(
       method: 'PUT',
       body: params.blob,
       headers,
+      signal: requestSignal(params.signal, UPLOAD_TIMEOUT_MS),
     });
     return { res, signedUrl };
   };
@@ -325,7 +346,9 @@ async function getMemexUploadUrl(params: {
   contentLength: number;
   contentType: string;
   fileName: string;
+  signal?: AbortSignal;
 }): Promise<{ hostedUrl: string; uploadUrl: string }> {
+  const { signal, ...body } = params;
   const currentUser = getCurrentUserId();
   const token = await scryRequest(base.genuineSecret)<string>({});
 
@@ -333,7 +356,8 @@ async function getMemexUploadUrl(params: {
   const response = await fetch(endpoint, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token, ...params }),
+    body: JSON.stringify({ token, ...body }),
+    signal: requestSignal(signal, MEMEX_UPLOAD_URL_TIMEOUT_MS),
   });
 
   if (!response.ok) {

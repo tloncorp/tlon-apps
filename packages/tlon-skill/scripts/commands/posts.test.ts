@@ -33,6 +33,9 @@ import {
   run,
 } from './posts';
 
+// A post id as the backend writes one: an @da, 39 digits in 13 groups.
+const WHOLE_POST_ID = '170.141.184.508.234.811.553.575.128.700.846.866.432';
+
 // The suffix walkers name a stray token by position only (it may be a
 // signed URL or blob JSON).
 const unexpectedAt = (position: number) =>
@@ -840,6 +843,30 @@ describe('posts reply', () => {
     ]);
   });
 
+  it('says a parent id with a group missing was mis-copied when the reply fails', async () => {
+    const context = makeDeps({
+      sendReply: async () => {
+        throw new Error('/sys/lull/hoon:<[287 5].[287 21]>');
+      },
+    });
+
+    const exitCode = await run(
+      [
+        'reply',
+        'chat/~host/channel',
+        // WHOLE_POST_ID with its next-to-last group dropped
+        '170.141.184.508.234.811.553.575.128.700.846.432',
+        'on it',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toContain("isn't a whole post ID");
+    expect(context.stderr()).toContain('nothing was sent');
+    expect(context.stderr()).not.toContain('/sys/lull/hoon');
+  });
+
   it('replies to a gallery post with the exact heap target input', async () => {
     const context = makeDeps({ currentUserId: '~nec', now: 7 });
     const exitCode = await run(
@@ -922,7 +949,7 @@ describe('posts reply', () => {
     });
 
     const exitCode = await run(
-      ['reply', 'chat/~host/channel', '170.141', 'hi'],
+      ['reply', 'chat/~host/channel', WHOLE_POST_ID, 'hi'],
       context.deps
     );
 
@@ -1204,6 +1231,62 @@ describe('posts react', () => {
         emoji: '🔥',
         our: '~nec',
         postAuthor: '~nec',
+        parentId: '170.141',
+      },
+    ]);
+  });
+
+  it('addresses a DM reaction by the author of the post it read', async () => {
+    const dmPost = async (): Promise<PostLookupResult> => ({
+      posts: [{ id: '170.141.184', sentAt: 1111, authorId: '~ten' }],
+    });
+    const react = makeDeps({ currentUserId: '~zod', getChannelPosts: dmPost });
+    const unreact = makeDeps({
+      currentUserId: '~zod',
+      getChannelPosts: dmPost,
+    });
+
+    expect(await run(['react', '~ten', '170141184', '👍'], react.deps)).toBe(0);
+    expect(await run(['unreact', '~ten', '170141184'], unreact.deps)).toBe(0);
+
+    expect(react.calls.addReaction).toEqual([
+      {
+        channelId: '~ten',
+        postId: '170.141.184',
+        emoji: '👍',
+        our: '~zod',
+        postAuthor: '~ten',
+      },
+    ]);
+    expect(unreact.calls.removeReaction).toEqual([
+      {
+        channelId: '~ten',
+        postId: '170.141.184',
+        our: '~zod',
+        postAuthor: '~ten',
+      },
+    ]);
+  });
+
+  it('addresses a DM thread-reply reaction by the reply and parent authors', async () => {
+    const context = makeDeps({
+      currentUserId: '~bus',
+      threads: [topLevel('170.141', { replies: [replyTarget('170.142')] })],
+    });
+    const exitCode = await run(
+      ['react', '~host', '170142', '🔥', '--parent', '170141'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.addReaction).toEqual([
+      {
+        channelId: '~host',
+        postId: '170.142',
+        emoji: '🔥',
+        our: '~bus',
+        postAuthor: '~zod',
+        parentAuthorId: '~host',
         parentId: '170.141',
       },
     ]);
@@ -1785,6 +1868,29 @@ describe('posts edit', () => {
     });
   });
 
+  it('says an id with a group missing was mis-copied, not that the post is unreadable', async () => {
+    const context = makeDeps({
+      getChannelPosts: withExistingPost(null),
+    });
+
+    const exitCode = await run(
+      // WHOLE_POST_ID with its next-to-last group dropped
+      [
+        'edit',
+        'chat/~host/channel',
+        '170.141.184.508.234.811.553.575.128.700.846.432',
+        'Body',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.calls.editPost).toHaveLength(0);
+    expect(context.stderr()).toContain("isn't a whole post ID");
+    expect(context.stderr()).toContain('this one has 36');
+    expect(context.stderr()).not.toContain('may not be readable yet');
+  });
+
   it('refuses to edit a post it cannot read, rather than wiping it', async () => {
     // %edit submits the whole essay, so editing on a failed lookup silently
     // replaces authorship and metadata with nothing. Retried once, then refused.
@@ -1793,7 +1899,7 @@ describe('posts edit', () => {
     });
 
     const exitCode = await run(
-      ['edit', 'chat/~host/channel', '170.141.184', 'Body'],
+      ['edit', 'chat/~host/channel', WHOLE_POST_ID, 'Body'],
       context.deps
     );
 
@@ -1813,7 +1919,7 @@ describe('posts edit', () => {
     });
 
     const exitCode = await run(
-      ['edit', 'chat/~host/channel', '170.141.184', 'Body'],
+      ['edit', 'chat/~host/channel', WHOLE_POST_ID, 'Body'],
       context.deps
     );
 
@@ -5560,7 +5666,7 @@ describe('posts send attachments', () => {
 
   describe('--blob entry validation', () => {
     const KNOWN =
-      'Known types: file, voicememo, video, metadata, tlon-context-lens, tlon-agent-intro-request, tlon-agent-provision, tlon-agent-provider-config, tlon-agent-provision-ack, tlon-agent-post-marker, tlon-a2ui-selection, a2ui, browser-session, browser-secure-entry.';
+      'Known types: file, voicememo, video, metadata, tlon-context-lens, tlon-agent-intro-request, tlon-agent-provision, tlon-agent-provider-config, tlon-agent-provision-ack, tlon-agent-post-marker, tlon-a2ui-selection, a2ui, browser-wallet, browser-session, browser-secure-entry.';
     const cases: Array<[string, string, string]> = [
       [
         'an unknown type',

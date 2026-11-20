@@ -7,7 +7,7 @@ Adding, arranging, renaming, restricting, leaving and deleting the channels insi
 Phone: on the Workspaces tab, press and hold the group, tap `Workspace info & settings`, then `Channels`. Or open the group and tap the list-with-a-pencil icon at the top right of its channel list.
 Desktop: hover the group in the Home sidebar, open its three-dot menu, pick `Workspace info & settings`, then `Channels`. The same icon is at the top of the group's channel list.
 Who: group admins only. Both are greyed out while the app can't reach the group's host.
-Notes: the `Channels` screen lists each channel under its section, with its type under its name. `Sort` and `New` are at the top right; on an iPhone they are `Edit` and a plus icon. A phone opens a one-channel group straight into the channel, so use the first route there.
+Notes: the `Channels` screen lists each channel under its section, with its type under its name. `Sort` and `New` are at the top right; on an iPhone they are a reorder icon (three lines with a pencil) and a plus icon. A phone opens a one-channel group straight into the channel, so use the first route there.
 
 ## Add a channel to a group
 
@@ -45,7 +45,7 @@ Notes: all of these open `Channel info`. In a group with a single channel, the m
 
 ## What the Channel info screen shows
 
-Notes: from the top: the channel's name and the group it belongs to; an `Invite` button if you're allowed to invite people to the group; `Pin` or `Unpin`; `Forward` and `Copy link` for a channel in a group, except a Notebook; `Permissions`, for admins only, reading `Everyone` or `Custom`; `Notifications`, with the current level beside it; `Host`, the node that runs the channel, which you can tap to open its profile; `Scheduled tasks` with a count, when your bot has tasks posting here or could post here; then "Leave channel" and `Delete channel` at the bottom when they apply to you. Admins also get `Edit` at the top right.
+Notes: from the top: the channel's name and the group it belongs to; an `Invite` button if you're allowed to invite people to the group; `Pin` or `Unpin`; `Forward` and `Copy link` for a channel in a group; `Permissions`, for admins only, reading `Everyone` or `Custom`; `Notifications`, with the current level beside it; `Host`, the node that runs the channel, which you can tap to open its profile; `Scheduled tasks` with a count, when your bot has tasks posting here or could post here; then "Leave channel" and `Delete channel` at the bottom when they apply to you. Admins also get `Edit` at the top right.
 
 ## Rename a channel or change its description
 
@@ -55,7 +55,7 @@ Notes: a name can be up to 30 characters and a description up to 300. In a group
 
 ## Reorder channels or move one to another section
 
-Phone: on an iPhone, open the group's `Channels` screen and press and hold a channel. `Move up` and `Move down` shift it within its section, "Move to" and a section's name puts it in that section, and `Move out of section` takes it out. `Edit` lets you drag channels within their section. On Android, tap `Sort` on the same screen, drag a channel by its three-line handle, and drop it below a section's header to move it into that section. Tap `Done`.
+Phone: on an iPhone, open the group's `Channels` screen and press and hold a channel. `Move up` and `Move down` shift it within its section, "Move to" and a section's name puts it in that section, and `Move out of section` takes it out. To drag instead, tap the reorder icon at the top right and pick `Reorder channels` to drag channels, including into another section, or `Reorder sections` to drag whole sections; tap `Done` when you finish. On Android, tap `Sort` on the same screen, drag a channel by its three-line handle, and drop it below a section's header to move it into that section. Tap `Done`.
 Desktop: as on Android, with the mouse.
 Who: group admins.
 Notes: on Android and desktop, a channel belongs to the section header above it, and dragging a header moves only the header, so channels join whichever header ends up above them. On an iPhone, a whole section moves with `Move up` and `Move down` in the menu beside its name.
@@ -70,7 +70,7 @@ Notes: a section with no channels in it doesn't appear in the group's channel li
 
 Phone: on the group's `Channels` screen, tap the three-dot icon on the section's header; on an iPhone it is a circled three-dot icon beside the section's name. `Edit name` (on an iPhone, `Rename`) opens `Change section name`: type the new name and tap `Save`. `Delete section` removes the section.
 Who: group admins.
-Notes: `Delete section` acts at once, with no confirmation. The channels in it are not deleted; they move to the section above. A section at the very top has nothing above it, so the group's host puts its channels in the default section instead. The group's default section has no three-dot icon, so it can't be renamed or deleted. On Android the three-dot icons are hidden while you are in `Sort` mode.
+Notes: `Delete section` acts at once, with no confirmation. The channels in it are not deleted; they move to the section above. A section at the very top moves its channels into the section below it instead. The group's default section has no three-dot icon, so it can't be renamed or deleted. On Android the three-dot icons are hidden while you are in `Sort` mode.
 
 ## The channel order or sections an admin set aren't showing
 
@@ -111,7 +111,7 @@ Notes: this makes an empty channel of the same type and copies over the add-ons 
 ## Share a channel in a chat, or copy its link
 
 Phone: open the channel's info screen and tap `Forward`. In the `Forward channel` sheet, tap the chat you want, then tap the button at the bottom, which reads "Forward to" and the chat's name. To copy a link instead, press and hold the channel in its group's channel list and tap `Copy link to channel`; the info screen's `Copy link` does the same.
-Notes: what arrives is a card for the channel. Someone who is in the channel can tap it to open the channel. Anyone else is taken to the group's preview, including a group member who left the channel or whose roles keep them out of it. A copied link works the same way once you paste it into a message box. Notebooks have neither option.
+Notes: what arrives is a card for the channel. Someone who is in the channel can tap it to open the channel. Anyone else is taken to the group's preview, including a group member who left the channel or whose roles keep them out of it. A copied link works the same way once you paste it into a message box.
 
 ## See who is in a channel
 

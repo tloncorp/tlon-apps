@@ -141,7 +141,7 @@ Notes: the app's own wording on the `Workspace privacy` screen, and what follows
 <!-- covers: route:GroupMembers -->
 
 Phone: open `Workspace info & settings`. The member block lists the first five people. Tap `See all` (admins see `Manage members`) to open `Members`, and type in `Search by name or ID` to find someone. Tap a person to open their card; tap the top of the card for their full profile.
-Notes: people are grouped under each role's name, then `Invited` for invites not yet accepted, then `Members` for everyone without a role. Admins also see `Join Requests` and `Banned Users`. The `See all` row only appears when the group has more than five members or you're allowed to invite; in a smaller group everyone is already listed. Another person's card always has `Block`, or `Unblock` if you've blocked them.
+Notes: people are grouped under each role's name, then `Invited` for invites not yet accepted, then `Members` for everyone without a role. Admins also see `Join Requests` and `Banned Users`. The `See all` row only appears when the group has more than five members or you're allowed to invite; in a smaller group everyone is already listed. In a large group the `Members` list loads a page at a time: tap `Load more members` at the bottom, and search only finds the members loaded so far. Another person's card always has `Block`, or `Unblock` if you've blocked them.
 
 ## Give a member a role, or make them an admin
 <!-- src: packages/app/ui/components/ProfileSheet.tsx, packages/app/ui/components/GroupMemberProfileSheet.tsx, packages/app/features/top/chatDetails.tsx, packages/app/features/top/ChatDetailsScreen.tsx, packages/app/features/groups/RoleFormScreen.tsx, packages/app/ui/components/ChatDetailsScreenView.tsx -->

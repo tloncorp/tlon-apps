@@ -32,6 +32,10 @@ vi.mock('../../contexts/scroll', () => ({
 vi.mock('../ActionSheet', () => ({ ActionSheet: 'ActionSheet' }));
 vi.mock('../Form', () => ({ TextInput: 'TextInput' }));
 vi.mock('./A2UIMenuRow', () => ({ A2UIMenuRow: 'A2UIMenuRow' }));
+vi.mock('./A2UIEntityRow', () => ({
+  A2UIEntityRow: 'A2UIEntityRow',
+  getA2UIEntityIndent: () => 46,
+}));
 vi.mock('./McpConnectControl', () => ({
   McpConnectControl: 'McpConnectControl',
 }));

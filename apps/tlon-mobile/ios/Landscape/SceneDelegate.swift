@@ -6,6 +6,10 @@ import RNBranch
 // scene links on to the app delegate and React Native's Linking. Branch links
 // go to Branch first, and only the links Branch does not claim reach Linking,
 // as they did under the app-delegate life cycle.
+//
+// Info.plist names this class by its Objective-C name. The preview target's
+// product module (Landscape_preview) is not the Swift module it compiles
+// (Landscape), so a module-qualified name fails to load there.
 @objc(SceneDelegate)
 class SceneDelegate: ExpoAppSceneDelegate {
   override func scene(

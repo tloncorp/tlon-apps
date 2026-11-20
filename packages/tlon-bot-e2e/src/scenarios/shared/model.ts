@@ -1,4 +1,8 @@
-import type { BotDriver, ModelScript } from '../../drivers/types.js';
+import type {
+  BotDriver,
+  ModelScript,
+  NonOwnerScheduleAttempt,
+} from '../../drivers/types.js';
 import type { FakeModelClient, ReceivedCall } from '../../fake-model/index.js';
 import { sleep } from '../../runtime/waiters.js';
 
@@ -19,6 +23,34 @@ export async function registerModelScript(
   return `[tlon-test:${key}]`;
 }
 
+/**
+ * The member's scheduling turn: the call is made, the runtime answers it as
+ * the attempt's refusal contract says, and the model replies.
+ */
+export function nonOwnerScheduleScript(
+  attempt: NonOwnerScheduleAttempt
+): ModelScript {
+  return {
+    steps: attempt.steps,
+    options: attempt.options,
+    expectations: {
+      advertisedTools:
+        attempt.refusal === 'hidden'
+          ? { exclude: [attempt.toolName] }
+          : undefined,
+      expectedCallCount: 2,
+      expectedCallSequence: [
+        { kind: 'model_request' },
+        { kind: 'tool_call', toolName: attempt.toolName },
+        { kind: 'model_request' },
+        { kind: 'final_model_text' },
+      ],
+      toolLoopResult: true,
+      toolResultIncludes: attempt.refusalText,
+    },
+  };
+}
+
 export async function expectModelExpectations(
   fakeModel: FakeModelClient,
   key: string,
@@ -26,6 +58,7 @@ export async function expectModelExpectations(
   options: ExpectModelExpectationsOptions = {}
 ): Promise<ReceivedCall[]> {
   assertExtraCallAllowanceIsClassified(script, key);
+  assertToolResultIncludesIsChecked(script, key);
   const received = await receivedCallsAfterSettle(
     fakeModel,
     key,
@@ -124,6 +157,24 @@ function assertExtraCallAllowanceIsClassified(
   throw new Error(
     `Model script ${key} allows ${allowExtraCalls} extra call(s) without ` +
       `allowUnclassifiedExtraCallsForDriverQuirk.`
+  );
+}
+
+function assertToolResultIncludesIsChecked(
+  script: ModelScript,
+  key: string
+): void {
+  const expectations = script.expectations;
+  if (
+    expectations?.toolResultIncludes === undefined ||
+    expectations.toolLoopResult ||
+    expectations.streamedToolLoop
+  ) {
+    return;
+  }
+  throw new Error(
+    `Model script ${key} sets toolResultIncludes without toolLoopResult or ` +
+      `streamedToolLoop, so it would never be checked.`
   );
 }
 
@@ -343,12 +394,17 @@ function assertToolLoopResult(
     );
   }
 
+  const emittedId = normalizedToolCallId(emittedToolCall.id);
   const followupMessages = calls[1].messages ?? [];
   const assistantEcho = followupMessages
     .flatMap((message) =>
       message.role === 'assistant' ? (message.tool_calls ?? []) : []
     )
-    .find((toolCall) => toolCall.id === emittedToolCall.id);
+    .find(
+      (toolCall) =>
+        toolCall.id !== undefined &&
+        normalizedToolCallId(toolCall.id) === emittedId
+    );
   if (assistantEcho && assistantEcho.function.name !== expectedTool.name) {
     throw new Error(
       `Expected assistant tool call ${emittedToolCall.id} for ${key} to be ` +
@@ -359,7 +415,8 @@ function assertToolLoopResult(
   const toolResult = followupMessages.find(
     (message) =>
       (message.role === 'tool' || message.role === 'function') &&
-      message.tool_call_id === emittedToolCall.id
+      message.tool_call_id !== undefined &&
+      normalizedToolCallId(message.tool_call_id) === emittedId
   );
   if (!toolResult) {
     throw new Error(
@@ -373,6 +430,23 @@ function assertToolLoopResult(
         `sanitized content summary.`
     );
   }
+  const expectedText = script.expectations?.toolResultIncludes;
+  if (
+    expectedText !== undefined &&
+    !(toolResult.content.text ?? '').includes(expectedText)
+  ) {
+    throw new Error(
+      `Expected tool-result message ${emittedToolCall.id} for ${key} to contain ` +
+        `${JSON.stringify(expectedText)}, got ` +
+        `${JSON.stringify(toolResult.content.text ?? '')}.`
+    );
+  }
+}
+
+// Runtimes may sanitize the id they echo back; OpenClaw core keeps only
+// [A-Za-z0-9] (src/agents/tool-call-id.ts).
+function normalizedToolCallId(id: string): string {
+  return id.replace(/[^A-Za-z0-9]/g, '');
 }
 
 function assertCallSequence(

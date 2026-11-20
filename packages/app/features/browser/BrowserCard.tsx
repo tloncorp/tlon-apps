@@ -1,12 +1,17 @@
 import type { BrowserCardData } from '@tloncorp/api/client/browserCards';
 import type { BrowserCardBlockData } from '@tloncorp/api/client/postContent';
 import { createDevLogger } from '@tloncorp/shared';
-import { Button, Icon, Text, useToast } from '@tloncorp/ui';
+import { useToast } from '@tloncorp/ui';
 import { useRef, useState } from 'react';
-import { XStack, YStack } from 'tamagui';
+import { XStack } from 'tamagui';
 
 import { ReferenceSkeleton } from '../../ui/components/ContentReference/Reference';
+import {
+  A2UICardButton,
+  A2UI_SPACE,
+} from '../../ui/components/PostContent/a2uiCardParts';
 import { useContentContext } from '../../ui/components/PostContent/contentUtils';
+import { BrowserCardFrame, BrowserCardText } from './BrowserCardFrame';
 import { useOptionalBrowserCredentialHandoff } from './BrowserCredentialHandoffContext';
 import {
   BrowserSessionAction,
@@ -14,14 +19,19 @@ import {
 } from './BrowserSessionPreview';
 import { trustedBrowserViewerUrl } from './browserCredentialHandoff';
 
+import { BrowserWalletCard } from './BrowserWalletCard';
 import { BrowserSecureEntryAction } from './BrowserSecureEntryAction';
 
 const logger = createDevLogger('BrowserCard', false);
 
 export function BrowserCardBlock({ block }: { block: BrowserCardBlockData }) {
-  const { canUseBrowserCards } = useContentContext();
+  const { canUseBrowserCards, browserCardBot } = useContentContext();
   return (
-    <BrowserCard card={block.card} allowed={canUseBrowserCards === true} />
+    <BrowserCard
+      card={block.card}
+      allowed={canUseBrowserCards === true}
+      botMoon={browserCardBot}
+    />
   );
 }
 
@@ -29,9 +39,11 @@ export function BrowserCardBlock({ block }: { block: BrowserCardBlockData }) {
 export function BrowserCard({
   card,
   allowed,
+  botMoon,
 }: {
   card: BrowserCardData;
   allowed: boolean;
+  botMoon?: string;
 }) {
   const handoff = useOptionalBrowserCredentialHandoff();
   const showToast = useToast();
@@ -47,10 +59,17 @@ export function BrowserCard({
       />
     );
   }
+  if (card.type === 'browser-wallet')
+    return <BrowserWalletCard requestId={card.requestId} botMoon={botMoon} />;
   const session = card.type === 'browser-session';
   const approval = !session && card.loginApproval;
   const login = !session && card.presentation?.purpose === 'login';
   const otp = !session && card.presentation?.purpose === 'otp';
+  const kicker = session
+    ? 'Browser'
+    : approval
+      ? 'Saved sign-in'
+      : 'Secure input';
   const title = session
     ? 'Browser Use'
     : approval
@@ -105,45 +124,49 @@ export function BrowserCard({
       setPending(false);
     }
   };
+  // The gap above the button travels with it, so a card whose action is
+  // hidden (an ended session, a finished entry) ends at the card's padding.
   const action = (
-    <Button
-      fill="solid"
-      intent="primary"
-      disabled={!enabled || pending}
-      onPress={open}
-      testID="browser-card-open"
-      label={pending ? 'Opening…' : label}
-    />
+    <XStack paddingTop={A2UI_SPACE.beforeButtons}>
+      <A2UICardButton
+        tone="primary"
+        disabled={!enabled || pending}
+        onPress={open}
+        testID="browser-card-open"
+        label={pending ? 'Opening…' : label}
+      />
+    </XStack>
   );
 
   return (
-    <YStack
-      borderWidth={1}
-      borderColor="$border"
-      borderRadius="$m"
-      backgroundColor="$secondaryBackground"
-      padding="$l"
-      gap="$m"
-      maxWidth={400}
-      width="100%"
+    <BrowserCardFrame
+      icon={session ? 'Discover' : 'Lock'}
+      kicker={kicker}
+      media={
+        session && enabled ? (
+          <BrowserSessionPreview viewerUrl={card.viewerUrl} onOpen={open} />
+        ) : null
+      }
     >
-      {session && enabled ? (
-        <BrowserSessionPreview viewerUrl={card.viewerUrl} onOpen={open} />
+      <BrowserCardText
+        type="title"
+        color="$primaryText"
+        marginTop={A2UI_SPACE.afterKicker}
+      >
+        {title}
+      </BrowserCardText>
+      {!session && card.presentation?.site ? (
+        <BrowserCardText
+          type="note"
+          numberOfLines={1}
+          marginTop={A2UI_SPACE.line}
+        >
+          {card.presentation.site}
+        </BrowserCardText>
       ) : null}
-      <XStack gap="$m" alignItems="center">
-        {!session ? (
-          <Icon type="Lock" customSize={['$xl', '$xl']} color="$primaryText" />
-        ) : null}
-        <YStack gap="$xs" flex={1}>
-          <Text size="$label/l">{title}</Text>
-          {!session && card.presentation?.site ? (
-            <Text size="$label/s" color="$secondaryText">
-              {card.presentation.site}
-            </Text>
-          ) : null}
-        </YStack>
-      </XStack>
-      <Text color="$secondaryText">{description}</Text>
+      <BrowserCardText type="body" marginTop={A2UI_SPACE.line}>
+        {description}
+      </BrowserCardText>
       {session ? (
         <BrowserSessionAction viewerUrl={card.viewerUrl}>
           {action}
@@ -155,6 +178,6 @@ export function BrowserCard({
       ) : (
         action
       )}
-    </YStack>
+    </BrowserCardFrame>
   );
 }

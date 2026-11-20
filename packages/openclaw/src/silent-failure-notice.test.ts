@@ -283,6 +283,62 @@ describe('resolveSilentFailureNotice', () => {
     });
   });
 
+  it("names the owner's empty key for a held-back billing reply, even in a quiet group turn", () => {
+    // A group mention whose only output was the billing reply: completed,
+    // nothing delivered, no tool errors.
+    const input = {
+      ...incidentInput,
+      summary: makeSummary({ toolCallCount: 0, toolErrorCount: 0 }),
+    };
+    expect(
+      resolveSilentFailureNotice({
+        ...input,
+        billingFailure: { keyOwner: 'owner', provider: 'openrouter' },
+      })
+    ).toEqual({
+      kind: 'credit_exhausted',
+      text: "⚠️ I couldn't reply to a request from ~ravmel-ropdyl in chat/~host/lobby: your OpenRouter key is out of credits. Add credits or raise its limit on OpenRouter.",
+    });
+    expect(
+      resolveSilentFailureNotice({
+        ...input,
+        billingFailure: { keyOwner: 'owner', provider: 'anthropic' },
+      })?.text
+    ).toBe(
+      "⚠️ I couldn't reply to a request from ~ravmel-ropdyl in chat/~host/lobby: your anthropic API key is out of credits. Add credits to your anthropic account or switch to a different key."
+    );
+    expect(
+      resolveSilentFailureNotice({
+        ...input,
+        billingFailure: { keyOwner: 'tlon', provider: 'openrouter' },
+      })?.text
+    ).toBe(
+      "⚠️ I couldn't reply to a request from ~ravmel-ropdyl in chat/~host/lobby: this month's included credits are used up."
+    );
+    // Whatever triggered the turn.
+    expect(
+      resolveSilentFailureNotice({
+        ...input,
+        summary: makeSummary({
+          trigger: 'thread',
+          toolCallCount: 0,
+          toolErrorCount: 0,
+        }),
+        billingFailure: { keyOwner: 'owner', provider: null },
+      })?.kind
+    ).toBe('credit_exhausted');
+    // Not the owner's credit: the plain run failure, not a billing claim.
+    expect(
+      resolveSilentFailureNotice({
+        ...input,
+        billingFailure: { keyOwner: null, provider: 'openrouter' },
+      })
+    ).toEqual({
+      kind: 'run_failure',
+      text: '⚠️ a request from ~ravmel-ropdyl in chat/~host/lobby failed before I could reply. You may want to retry.',
+    });
+  });
+
   it('collapses newlines and trims the error text', () => {
     const notice = resolveSilentFailureNotice({
       ...incidentInput,

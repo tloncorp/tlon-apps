@@ -1,10 +1,16 @@
 import type * as db from '@tloncorp/shared/db';
 import type { ComponentProps } from 'react';
-import { Image, Platform } from 'react-native';
 
 import { ChatDetailsScreenView } from '../ui/components/ChatDetailsScreenView';
 import { NativeScreenFixture } from './NativeScreenFixture';
-import { danContact, group, groupWithImage, tlonLocalIntros } from './fakeData';
+import {
+  danContact,
+  galenContact,
+  group,
+  groupWithImage,
+  hostedBotContact,
+  tlonLocalIntros,
+} from './fakeData';
 
 const noop = () => {};
 
@@ -14,13 +20,9 @@ export const gardenClub: db.Group = {
   title: 'Garden Club',
   description: 'Notes, photos and plans for the allotment. We meet on Sundays.',
   privacy: 'private',
-  // Metro resolves the asset; the web renderer has no `require`.
-  iconImage:
-    Platform.OS === 'web'
-      ? groupWithImage.iconImage
-      : Image.resolveAssetSource(
-          require('../ui/assets/raster/welcome_flowers.jpg')
-        )?.uri,
+  // A hosted image: the avatar's image check turns down localhost URLs, so
+  // a bundled asset served by Metro never shows.
+  iconImage: groupWithImage.iconImage,
   members: group.members?.map((member) => ({
     ...member,
     status: 'joined' as const,
@@ -53,8 +55,8 @@ function Details(props: Partial<ComponentProps<typeof ChatDetailsScreenView>>) {
         onPressNotifications={noop}
         onPressScheduledTasks={noop}
         onPressChannelPermissions={noop}
+        onPressWorkspace={noop}
         onPressProfile={noop}
-        onMessageContact={noop}
         onPressMember={noop}
         onPressAllMembers={noop}
         onLeave={noop}
@@ -64,6 +66,33 @@ function Details(props: Partial<ComponentProps<typeof ChatDetailsScreenView>>) {
     </NativeScreenFixture>
   );
 }
+
+const generalChannel: db.Channel = {
+  ...tlonLocalIntros,
+  groupId: gardenClub.id,
+  group: gardenClub,
+  title: 'general',
+  description: 'Day-to-day chat for everyone in the garden club.',
+};
+
+const designCrit: db.Channel = {
+  ...tlonLocalIntros,
+  lastPost: null,
+  lastPostId: null,
+  description: null,
+  id: '0v4.00000.qcas9.qndoa.7loa7.loa7l',
+  type: 'groupDm',
+  title: 'Design crit',
+  groupId: null,
+  currentUserIsMember: true,
+  members: [danContact, galenContact, hostedBotContact].map((contact) => ({
+    chatId: '0v4.00000.qcas9.qndoa.7loa7.loa7l',
+    contactId: contact.id,
+    membershipType: 'channel' as const,
+    status: 'joined' as const,
+    contact,
+  })),
+};
 
 const longNameGroup: db.Group = {
   ...gardenClub,
@@ -102,14 +131,30 @@ export default {
       scheduledTaskCount={2}
     />
   ),
-  '8 · Channel': (
+  '8 · Channel, as an admin': (
     <Details
       chatType="channel"
-      channel={{
-        ...tlonLocalIntros,
-        groupId: gardenClub.id,
-        description: 'Say hello and tell us what you grow.',
-      }}
+      channel={generalChannel}
+      onForwardChannel={noop}
+      onCopyChannelLink={noop}
+    />
+  ),
+  '9 · Channel, as a member': (
+    <Details
+      chatType="channel"
+      channel={generalChannel}
+      currentUserIsAdmin={false}
+      scheduledTaskCount={1}
+      onForwardChannel={noop}
+      onCopyChannelLink={noop}
+    />
+  ),
+  '10 · Group chat': (
+    <Details
+      chatType="channel"
+      group={null}
+      channel={designCrit}
+      currentUserIsAdmin={false}
     />
   ),
 };

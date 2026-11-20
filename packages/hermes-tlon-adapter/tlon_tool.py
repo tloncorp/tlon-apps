@@ -40,6 +40,7 @@ logger = logging.getLogger(__name__)
 ALLOWED_TLON_COMMANDS = frozenset(
     {
         "activity",
+        "buckets",
         "channels",
         "contacts",
         "dms",
@@ -90,8 +91,9 @@ POSTS_COMMANDS = frozenset(
 EXPOSE_TARGET_COMMANDS = frozenset({"show", "hide", "check", "url"})
 
 TLON_TOOL_DESCRIPTION = (
-    "Tlon/Urbit CLI for reading data and administration: activity, channels, "
-    "contacts, groups, messages, notes, posts, settings, upload, expose, hooks. "
+    "Tlon/Urbit CLI for reading data and administration: activity, buckets, "
+    "channels, contacts, groups, messages, notes, posts, settings, upload, "
+    "expose, hooks. "
     "Use the notes commands to manage %notes notebooks (Markdown notes at "
     "notes/~host/name nests). For notes bodies, use --body <file> "
     "(note-create also accepts --markdown <file>); --stdin is blocked because "
@@ -108,8 +110,15 @@ TLON_TOOL_DESCRIPTION = (
     "image URL or local image first with tlon upload, then set the returned "
     "uploaded URL. Use image_search when available to find image URLs for "
     "user-requested avatars/covers. Do not use SVG profile images. "
+    "A leading --self (e.g. --self upload <url>) is accepted and means act "
+    "as this bot rather than as your owner, the same as a --self placed "
+    "after the command. "
     "For exact syntax, load skill_view(\"tlon-platform:tlon\") or run "
     "'<subcommand> --help'. "
+    "activity commands (unreads, mark-read, mute, unmute, volume) act on "
+    "your owner's account by default; --self makes them act on this bot's "
+    "own instead, so leave it off when the owner asks about their own "
+    "notifications or unreads. "
     "For user-requested group creation, use groups create-owned with "
     "--owner set to the requesting ship. "
     "To reply to the CURRENT conversation, just write the reply — do not use "
@@ -206,6 +215,23 @@ def split_tlon_command(command: str) -> tuple[list[str], Optional[str]]:
     except ValueError as exc:
         return [], str(exc)
     return args, None
+
+
+def strip_leading_self(args: Sequence[str]) -> list[str]:
+    """Drop ``--self`` before the command family.
+
+    Shared prompts write bot-identity commands as ``--self <family> ...`` for
+    the OpenClaw plugin, which can also act as the owner. The CLI's global
+    parser does not know ``--self``, so the prefix token is removed from the
+    argv; the caller still treats it as an opt-out of every owner routing. A
+    ``--self`` after the family is an operation argument and stays.
+    """
+    out = [str(arg) for arg in args]
+    while True:
+        idx = find_subcommand_index(out)
+        if idx < 0 or out[idx] != "--self":
+            return out
+        del out[idx]
 
 
 def normalize_global_command_args(args: Sequence[str]) -> list[str]:
@@ -1157,6 +1183,8 @@ CHANNEL_CREATE_COMMANDS = frozenset(
     {("channels", "create"), ("groups", "add-channel")}
 )
 
+GROUP_DELETE_COMMANDS = frozenset({("groups", "delete")})
+
 
 def should_create_channel_on_owner(args: Sequence[str], owner_ship: str) -> bool:
     """The shared owner-channel predicate — the OpenClaw plugin implements the
@@ -1165,6 +1193,37 @@ def should_create_channel_on_owner(args: Sequence[str], owner_ship: str) -> bool
     no ``--self``, and no help token. A channel is hosted by the ship that
     creates it, so run as the bot — a non-host admin there — it would land on
     the bot node."""
+    return _runs_in_owner_hosted_group(args, owner_ship, CHANNEL_CREATE_COMMANDS)
+
+
+def should_delete_group_on_owner(args: Sequence[str], owner_ship: str) -> bool:
+    """The same truth table for ``groups delete`` (the OpenClaw plugin's too):
+    only a group's host can delete it, so the workspace a bot made for its
+    owner, which the owner hosts, is refused when the bot deletes it as
+    itself."""
+    return _runs_in_owner_hosted_group(args, owner_ship, GROUP_DELETE_COMMANDS)
+
+
+def should_run_activity_as_owner(args: Sequence[str], owner_ship: str) -> bool:
+    """`activity` reads and changes the unreads and notifications a person sees
+    in their app, and a hosted bot's owner asks about theirs; the OpenClaw
+    plugin runs these as the owner too. True iff the parsed subcommand is
+    ``activity``, with an owner configured, no credential flag in either form,
+    no ``--self``, and no help token."""
+    if not normalize_ship(owner_ship) or _has_credential_flag(args):
+        return False
+    sub_idx = find_subcommand_index(args)
+    if sub_idx < 0:
+        return False
+    command_args = [str(arg) for arg in args[sub_idx:]]
+    if command_args[0].lower() != "activity":
+        return False
+    return not any(arg == "--self" or _is_help_arg(arg) for arg in command_args)
+
+
+def _runs_in_owner_hosted_group(
+    args: Sequence[str], owner_ship: str, commands: frozenset[tuple[str, str]]
+) -> bool:
     owner = normalize_ship(owner_ship).lower()
     if not owner or _has_credential_flag(args):
         return False
@@ -1176,7 +1235,7 @@ def should_create_channel_on_owner(args: Sequence[str], owner_ship: str) -> bool
     if len(command_args) < 3:
         return False
     operation = (command_args[0].lower(), command_args[1].lower())
-    if operation not in CHANNEL_CREATE_COMMANDS:
+    if operation not in commands:
         return False
     if any(arg == "--self" or _is_help_arg(arg) for arg in command_args):
         return False
@@ -1268,11 +1327,45 @@ def route_channel_to_owner(
     return OwnerRouting(owner_cfg, list(args))
 
 
+def route_group_delete_to_owner(
+    cfg: TlonConfig, args: Sequence[str], env: Mapping[str, str] | None = None
+) -> OwnerRouting:
+    """Deletes the owner's group as the owner. Without the owner triple it
+    runs as the bot, and the CLI's refusal names the host."""
+    bot = normalize_ship(cfg.ship_name)
+    owner = normalize_ship(cfg.owner_ship)
+    if bot and bot.lower() == owner.lower():
+        return OwnerRouting(cfg, list(args))
+    return OwnerRouting(_hosted_owner_config(cfg, env) or cfg, list(args))
+
+
+def route_activity_to_owner(
+    cfg: TlonConfig, args: Sequence[str], env: Mapping[str, str] | None = None
+) -> OwnerRouting:
+    """Runs an activity command on the owner's account. Without the owner
+    triple it runs on the bot's, and the note says so: the command's
+    "for ~ship" line is otherwise the only sign whose account changed."""
+    bot = normalize_ship(cfg.ship_name)
+    owner = normalize_ship(cfg.owner_ship)
+    if bot and bot.lower() == owner.lower():
+        return OwnerRouting(cfg, list(args))
+    owner_cfg = _hosted_owner_config(cfg, env)
+    if owner_cfg is None:
+        return OwnerRouting(
+            cfg,
+            list(args),
+            "Your owner's credentials aren't available here, so this ran on "
+            f"your own account, not {owner}'s.",
+        )
+    return OwnerRouting(owner_cfg, list(args))
+
+
 async def route_create_owned(
     cfg: TlonConfig,
     args: Sequence[str],
     runner: Optional[CommandRunner] = None,
     env: Mapping[str, str] | None = None,
+    self_requested: bool = False,
 ) -> OwnerRouting:
     """Every create-owned goes through here. One for the configured owner runs
     as the owner, rebuilt from what the CLI would read: the title,
@@ -1292,7 +1385,9 @@ async def route_create_owned(
     # refuses.
     if bot and bot.lower() == owner.lower() and _names_own_ship_admin(args, bot):
         return OwnerRouting(cfg, _as_plain_create(args))
-    if not should_create_workspace_on_owner(args, cfg.owner_ship):
+    if self_requested or not should_create_workspace_on_owner(
+        args, cfg.owner_ship
+    ):
         return OwnerRouting(cfg, as_written)
     if not bot:
         return OwnerRouting(cfg, as_written)
@@ -1364,7 +1459,9 @@ async def execute_tlon_tool(
     args, parse_error = split_tlon_command(command_text)
     if parse_error:
         return _json({"error": f"Could not parse tlon command: {parse_error}"})
-    args = normalize_global_command_args(args)
+    stripped = strip_leading_self(args)
+    self_requested = len(stripped) != len(args)
+    args = normalize_global_command_args(stripped)
 
     cfg = config or TlonConfig.from_env()
     blocked = check_tlon_tool_command(
@@ -1394,15 +1491,27 @@ async def execute_tlon_tool(
         )
 
     routing_note: Optional[str] = None
-    if should_inject_owner_credentials(args):
+    if not self_requested and should_inject_owner_credentials(args):
         owner_cfg, owner_error = owner_invite_link_config(cfg)
         if owner_error:
             return _json({"error": owner_error})
         cfg = owner_cfg
     elif _is_create_owned(args):
-        cfg, args, routing_note = await route_create_owned(cfg, args, runner=runner)
-    elif should_create_channel_on_owner(args, cfg.owner_ship):
+        cfg, args, routing_note = await route_create_owned(
+            cfg, args, runner=runner, self_requested=self_requested
+        )
+    elif not self_requested and should_create_channel_on_owner(
+        args, cfg.owner_ship
+    ):
         cfg, args, routing_note = route_channel_to_owner(cfg, args)
+    elif not self_requested and should_delete_group_on_owner(
+        args, cfg.owner_ship
+    ):
+        cfg, args, routing_note = route_group_delete_to_owner(cfg, args)
+    elif not self_requested and should_run_activity_as_owner(
+        args, cfg.owner_ship
+    ):
+        cfg, args, routing_note = route_activity_to_owner(cfg, args)
 
     # Lazy import keeps this module importable standalone (no cycle at load).
     from .telemetry import cli_context, get_active_telemetry

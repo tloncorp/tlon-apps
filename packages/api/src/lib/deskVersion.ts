@@ -95,3 +95,9 @@ export const STEWARD_BOTS_MIN_GROUPS_VERSION = '12.5.0';
 // `since`. Must move in lockstep with desk/desk.docket-0's version if the
 // release number changes.
 export const CONTACT_DISCOVERY_MIN_GROUPS_VERSION = '12.6.0';
+// The first %groups release whose %lanyard keeps the contact discovery cursor
+// and takes a whole address book (%lanyard-query-2's %whose-set). Below it,
+// the client keeps the cursor itself. Guarded registry entries name it as
+// their `since`. Must move in lockstep with desk/desk.docket-0's version if
+// the release number changes.
+export const DISCOVERY_CURSOR_MIN_GROUPS_VERSION = '12.6.0';

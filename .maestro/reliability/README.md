@@ -1,6 +1,6 @@
 # Native reliability tests
 
-Thirty default single-ship journeys, including attachments, Gallery links,
+Twenty-nine default single-ship journeys, including attachments, Gallery links,
 profile details, pins, references, privacy, sections, notification preferences,
 roles, replies and App Info clipboard verification.
 These cover a subset of the QA checklist, not the entire workbook.
@@ -27,7 +27,7 @@ By default every journey clears local app state and logs in. Set
 flow verifies the ship identity before modifying data, through Settings, which
 is where the user's own profile now lives.
 
-Two things about the current app shape are worth knowing before editing a flow:
+A few things about the current app shape are worth knowing before editing a flow:
 
 - **The app restores where it was closed.** `stopApp`/`launchApp` no longer
   returns to the chat list; it comes back to the screen the flow left, for 24
@@ -47,6 +47,13 @@ Two things about the current app shape are worth knowing before editing a flow:
   which adds a fourth button and shifts the rest; see the comments in
   `workspaces-tab.yaml`. Prefer those subflows over a hand-written tap, and
   call `subflows/to-tab-root.yaml` first if a screen may be covering the bar.
+- **iOS header buttons answer to their label, not their id.** The header's
+  actions are native bar items there, and a bar item carries no accessibility
+  identifier, so `GroupRolesNewButton`, `ContactEditButton` and the like match
+  nothing on iOS. Tap a header action by its label -- `^New role$`,
+  `^Edit profile$` -- which Android matches too. Where the two platforms label
+  the same action differently the pattern takes both: Manage channels' add
+  button is `^New( channel or section)?$`.
 - **Android tab labels are content descriptions, and those words also turn up
   in content.** A contact row carries a "Bot" badge, which satisfied the old
   tab-bar guard in `subflows/to-tab-root.yaml`: the unwind was skipped on the
@@ -105,8 +112,11 @@ enforcement on another ship require multiparty tests.
 and rich metadata preview and prefill. It deletes its uniquely named fixture
 group.
 
-`join-group-navigation.yaml` opens the Join a group sheet from Home, verifies its
-code-entry controls, then closes it and returns to Home without mutating a group.
+`join-group-navigation.yaml` opens the Join a workspace sheet from Home, verifies
+its code-entry controls, then closes it and returns to Home without mutating a
+group. Phones hide that entry for an account with an agent, which the hosted
+test account has, so the flow is excluded from the default suite; run it against
+an account without one.
 
 `channel-sorting.yaml` creates a uniquely named text channel, posts there, then
 posts in Chat so recency and arrangement have different observable orders. It

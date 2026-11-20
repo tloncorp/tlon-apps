@@ -36,6 +36,7 @@ export const APP_SCHEME = Array.isArray(configuredScheme)
   ? configuredScheme[0]
   : (configuredScheme ?? 'io.tlon.groups');
 export const API_URL = envVars.apiUrl ?? 'https://tlon.network';
+export const BROWSER_SERVICE_ENDPOINT = envVars.browserServiceEndpoint;
 export const API_AUTH_USERNAME = envVars.apiAuthUsername;
 export const API_AUTH_PASSWORD = envVars.apiAuthPassword;
 export const RECAPTCHA_SITE_KEY = selectRecaptchaSiteKey(
@@ -85,6 +86,7 @@ export const ENV_VARS = {
   APP_VARIANT,
   APP_SCHEME,
   API_URL,
+  BROWSER_SERVICE_ENDPOINT,
   API_AUTH_USERNAME,
   API_AUTH_PASSWORD,
   RECAPTCHA_SITE_KEY,

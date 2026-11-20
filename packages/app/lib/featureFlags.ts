@@ -12,13 +12,6 @@ export const featureMeta = {
     description: 'Use Markdown mode for notebook posts.',
     onlyTlon: true,
   },
-  buckets: {
-    default: false,
-    label: 'Buckets channels',
-    description:
-      'Offer Buckets, shared files for members and agents, as a channel type.',
-    onlyTlon: false,
-  },
 } satisfies Record<
   string,
   {
@@ -81,11 +74,16 @@ async function loadInitialState() {
     Object.entries(state).forEach(([name, enabled]) => {
       if (name in featureMeta) {
         useFeatureFlagStore.getState().setEnabled(name as FeatureName, enabled);
-      } else if (name !== 'contextLens' && name !== 'instrumentationEnabled') {
+      } else if (
+        name !== 'contextLens' &&
+        name !== 'instrumentationEnabled' &&
+        name !== 'buckets'
+      ) {
         // `contextLens` is a legacy flag migrated to the synced %settings store
         // (see migrateLegacyContextLensFlag); it's expected here until stripped.
-        // `instrumentationEnabled` was removed with Firebase Performance and
-        // stays in stored state until the next flag toggle rewrites it.
+        // `instrumentationEnabled` (removed with Firebase Performance) and
+        // `buckets` (now offered to every hosted user) stay in stored state
+        // until the next flag toggle rewrites it.
         console.warn('Unknown feature flag encountered in local storage', name);
       }
     });

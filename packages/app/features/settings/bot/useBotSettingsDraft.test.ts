@@ -7,7 +7,6 @@ import {
 
 const noPending: BotSettingsPendingFields = {
   nickname: false,
-  browserService: false,
   modelProvider: false,
   model: false,
   zdr: false,
@@ -15,7 +14,6 @@ const noPending: BotSettingsPendingFields = {
   dmAllowlist: false,
   defaultAuthorizedShips: false,
   groupInviteAllowlist: false,
-  autoAcceptDmInvites: false,
   autoDiscoverChannels: false,
   channelRules: false,
 };

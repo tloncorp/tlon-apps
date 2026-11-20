@@ -70,7 +70,11 @@ vi.mock('../ListItem', async () => {
 vi.mock('../NotesChannel/NotesActions', () => ({
   NotesActionMenu: () => null,
 }));
-vi.mock('../OverflowMenuButton', () => ({ OverflowTriggerButton: () => null }));
+vi.mock('../IconMenu', () => ({ IconMenu: 'IconMenu' }));
+vi.mock('../OverflowMenuButton', () => ({
+  OverflowMenuLabel: () => null,
+  OverflowTriggerButton: () => null,
+}));
 vi.mock('../ScreenHeader', () => ({ ScreenHeader: () => null }));
 vi.mock('../SearchBar', () => ({ SearchBar: () => null }));
 vi.mock('./BucketsDropTarget', () => ({
@@ -208,6 +212,40 @@ describe('buckets row-menu handoffs', () => {
       act(() => row.menu().props.onNativeDismissed());
       expect(row.rename).toHaveBeenCalledWith(item);
       row.unmount();
+    }
+  );
+
+  it.each(['ios', 'android'])(
+    'gives the %s overflow button a native menu that runs the action itself',
+    (platform) => {
+      environment.platform.OS = platform;
+      let tree: ReturnType<typeof create>;
+      const rename = vi.fn();
+      act(() => {
+        tree = create(
+          <BucketsPane
+            canEdit
+            items={[item]}
+            onOpenItem={vi.fn()}
+            onRenameItem={rename}
+            onDeleteItem={vi.fn()}
+          />
+        );
+      });
+      // The row hands its menu the overflow button to draw.
+      const trigger = tree!.root.findByType(NotesActionMenu).props.trigger;
+      expect(trigger.type).toBe('IconMenu');
+      const items: { title: string; onPress: () => void }[] =
+        trigger.props.items;
+      expect(items.map((menuItem) => menuItem.title)).toEqual([
+        'Open',
+        'Download',
+        'Rename file',
+        'Delete file',
+      ]);
+      act(() => items.find((m) => m.title === 'Rename file')!.onPress());
+      expect(rename).toHaveBeenCalledWith(item);
+      act(() => tree!.unmount());
     }
   );
 

@@ -1,7 +1,6 @@
 appId: ${MAESTRO_APP_ID}
 ---
-- tapOn:
-    id: NotesRootNewHeaderAction
+- tapOn: '^New$'
 - tapOn:
     id: NotesNewNoteAction
 - runFlow:

@@ -23,6 +23,7 @@ export function ManageChannelsScreenView({
   group,
   groupNavSectionsWithChannels,
   onGoBack,
+  goToChannel,
   goToChannelDetails,
   createNavSection,
   deleteNavSection,
@@ -44,6 +45,7 @@ export function ManageChannelsScreenView({
       <ManageChannelsContent
         groupId={group?.id}
         groupNavSectionsWithChannels={groupNavSectionsWithChannels}
+        goToChannel={goToChannel}
         goToChannelDetails={goToChannelDetails}
         updateGroupNavigation={updateGroupNavigation}
       />
@@ -54,15 +56,18 @@ export function ManageChannelsScreenView({
 function ManageChannelsContent({
   groupId,
   groupNavSectionsWithChannels,
+  goToChannel,
   goToChannelDetails,
   updateGroupNavigation,
 }: {
   groupId: string | undefined;
   groupNavSectionsWithChannels: ManageChannelsScreenViewProps['groupNavSectionsWithChannels'];
+  goToChannel: (channelId: string) => void;
   goToChannelDetails: (channelId: string) => void;
   updateGroupNavigation: ManageChannelsScreenViewProps['updateGroupNavigation'];
 }) {
-  const { setSectionMenuSection, isEditMode } = useManageChannelsContext();
+  const { setEditSection, handleDeleteSection, isEditMode } =
+    useManageChannelsContext();
   const scrollableRef = useManageChannelsScrollRef();
   const onDuplicatesDetected = useDuplicateMembershipRepair(groupId);
 
@@ -86,12 +91,22 @@ function ManageChannelsContent({
                 <Icon color="$tertiaryText" type="Sorter" size="$m" />
               </Sortable.Handle>
             }
-            onOpenMenu={() =>
-              setSectionMenuSection({
-                section: item.section,
-                isEmpty: item.isEmpty,
-              })
-            }
+            // On Android the section's overflow button opens a native menu.
+            // iOS's section menu also moves sections; here that's done by
+            // dragging in edit mode.
+            menuItems={[
+              {
+                key: 'rename',
+                title: 'Rename',
+                onPress: () => setEditSection(item.section),
+              },
+              {
+                key: 'delete',
+                title: 'Delete section',
+                destructive: true,
+                onPress: () => handleDeleteSection(item.section.id),
+              },
+            ]}
           />
         );
       }
@@ -101,6 +116,7 @@ function ManageChannelsContent({
           <ChannelItem
             channel={item.channel}
             index={item.channelIndex}
+            onPress={() => goToChannel(item.channel.id)}
             onEdit={() => goToChannelDetails(item.channel.id)}
             isEditMode={isEditMode}
             dragHandle={
@@ -114,7 +130,13 @@ function ManageChannelsContent({
 
       return null;
     },
-    [setSectionMenuSection, goToChannelDetails, isEditMode]
+    [
+      setEditSection,
+      handleDeleteSection,
+      goToChannel,
+      goToChannelDetails,
+      isEditMode,
+    ]
   );
 
   return (

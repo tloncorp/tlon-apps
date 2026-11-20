@@ -1,0 +1,6 @@
+interface:
+  display_name: 'Tlon PR Triage'
+  short_description: 'Assess PR risk and verify automated review findings'
+  default_prompt:
+    'Use $tlon-pr-triage to assess this PR URL, verify its automated review
+    findings, and identify any decisions requiring human review.'

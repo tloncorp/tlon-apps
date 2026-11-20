@@ -4,6 +4,7 @@ import { expect } from 'vitest';
 
 import type { DriverName, RuntimeContext } from '../../drivers/types.js';
 import type { FakeModelClient, ReceivedCall } from '../../fake-model/index.js';
+import { botService } from '../../runtime/context.js';
 import {
   connectComposeNetwork,
   disconnectComposeNetwork,
@@ -21,8 +22,11 @@ import type {
 import { normalizeShip } from '../../tlon/index.js';
 import type { ScenarioActor, ScenarioActors } from './actors.js';
 import {
+  CRON_LISTED_AS_TIMEOUT_MS,
   type CronCleanupTarget,
   cleanupCronJobAndArtifacts,
+  cronJobListingName,
+  cronJobsListedAs,
   settleCronJobCreation,
   waitForCronJobCreated,
   waitForCronJobRemoved,
@@ -31,6 +35,7 @@ import { type SharedScenario, testScenario } from './dsl.js';
 import {
   allowDmFrom,
   monitorGroupChannels,
+  openChannelFor,
   settingsBucket,
   waitForSettingsEntries,
   waitForSettingsKeysAbsent,
@@ -43,6 +48,7 @@ import {
   benignModelCallPredicate,
   expectModelExpectations,
   expectNoModelCalls,
+  nonOwnerScheduleScript,
   primaryModelCalls,
   registerModelScript,
 } from './model.js';
@@ -53,19 +59,39 @@ const BOT_REPLY_WAIT_MS = 90_000;
 const MIGRATION_RESULT_WAIT_MS = 120_000;
 const LOOP_TIMEOUT_MARGIN_MS = 60_000;
 const CRON_CREATE_PROMPT_WAIT_MS = 120_000;
-const CRON_FIRED_WAIT_MS = {
+const CRON_FIRED_WAIT_MS: Partial<Record<DriverName, number>> = {
+  harness: 120_000,
   hermes: 150_000,
   openclaw: 240_000,
-} satisfies Record<DriverName, number>;
+};
 const CRON_JOB_REMOVAL_WAIT_MS = 15_000;
 const CRON_SCENARIO_SETUP_MARGIN_MS = 60_000;
 const NUDGE_DELIVERY_WAIT_MS = 90_000;
 const NUDGE_CLEANUP_WAIT_MS = 45_000;
 const NUDGE_DUPLICATE_WINDOW_MS = 15_000;
-const REACTION_PROVENANCE_BY_DRIVER = {
+const REACTION_PROVENANCE_BY_DRIVER: Partial<
+  Record<DriverName, ReceivedCall['provenance']>
+> = {
   hermes: 'latest-user',
   openclaw: 'latest-user',
-} as const;
+};
+// Scenarios that test behavior Harness does not have.
+const HARNESS_SKIPS = {
+  botInfo: 'Harness does not publish the bot-info contact field.',
+  ownerListen:
+    'Harness has no owner-listen mode; under response: mentions it admits only addressed channel posts.',
+  ownerListenOff: 'Harness has no owner-listen setting to turn off.',
+  ownerListenMute: 'Harness has no per-channel owner-listen mute.',
+  ownerListenCommand: 'Harness has no /owner-listen command.',
+  migrate:
+    'Harness has no /migrate command; diary migration is a tlon tool workflow.',
+  reaction: 'Harness does not start a turn on a reaction.',
+  threadFollow:
+    "Harness admits an unmentioned channel thread reply only in a thread rooted at the bot's post.",
+  botLoop: 'Harness has no consecutive bot-response cap.',
+  sse: 'Harness runs on the bot ship and holds no SSE connection to it.',
+  nudge: 'Harness sends no nudge or re-engagement messages.',
+};
 
 export const commonScenarios: readonly SharedScenario[] = [
   testScenario('connectivity', {}, async ({ ctx, driver, actors }) => {
@@ -96,7 +122,7 @@ export const commonScenarios: readonly SharedScenario[] = [
 
   testScenario(
     'bot-info-publishes-and-replicates',
-    {},
+    { driverSkips: { harness: HARNESS_SKIPS.botInfo } },
     async ({ ctx, driver, actors }) => {
       await actors.bot.state.connect();
       await actors.owner.state.connect();
@@ -211,7 +237,15 @@ export const commonScenarios: readonly SharedScenario[] = [
     'allowlisted-third-party-dm-reply',
     {},
     async ({ ctx, driver, actors }) => {
-      await allowDmFrom(actors, actors.thirdParty.ship);
+      // DM before the grant, so the grant must also open a DM that arrived
+      // while the sender was not allowed, without relying on an earlier
+      // scenario having left one behind.
+      const preGrantKey = scenarioKey('pre-grant');
+      await actors.thirdParty.sendDm(
+        `[tlon-test:${preGrantKey}] Sent before this sender is allowed.`
+      );
+      await waitForBotDmWith(actors, actors.thirdParty.ship);
+      await allowDmFrom({ ctx, driver, actors }, actors.thirdParty.ship);
       const key = scenarioKey('allowlisted-third-party');
       const reply = `Allowlisted third-party reply ${key}`;
       const script = driver.model.replyText(reply);
@@ -228,7 +262,7 @@ export const commonScenarios: readonly SharedScenario[] = [
 
   testScenario(
     'owner-dm-works-when-owner-listen-off',
-    {},
+    { driverSkips: { harness: HARNESS_SKIPS.ownerListenOff } },
     async ({ ctx, driver, actors }) => {
       await withSettingsEntry(actors, 'ownerListenEnabled', false);
       const key = scenarioKey('owner-dm-owner-listen-off');
@@ -247,7 +281,7 @@ export const commonScenarios: readonly SharedScenario[] = [
 
   testScenario(
     'owner-listen-channel-plain-owner-post-engages',
-    {},
+    { driverSkips: { harness: HARNESS_SKIPS.ownerListen } },
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
       const key = scenarioKey('owner-listen-plain-on');
@@ -279,7 +313,7 @@ export const commonScenarios: readonly SharedScenario[] = [
 
   testScenario(
     'owner-listen-channel-plain-owner-post-skipped-when-off',
-    {},
+    { driverSkips: { harness: HARNESS_SKIPS.ownerListenOff } },
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
       await withSettingsEntry(actors, 'ownerListenEnabled', false);
@@ -349,7 +383,7 @@ export const commonScenarios: readonly SharedScenario[] = [
 
   testScenario(
     'owner-listen-channel-plain-owner-post-skipped-when-muted',
-    {},
+    { driverSkips: { harness: HARNESS_SKIPS.ownerListenMute } },
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
       await withSettingsEntry(actors, 'ownerListenDisabledChannels', [
@@ -385,7 +419,7 @@ export const commonScenarios: readonly SharedScenario[] = [
 
   testScenario(
     'owner-listen-channel-mention-overrides-muted-channel',
-    {},
+    { driverSkips: { harness: HARNESS_SKIPS.ownerListenMute } },
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
       await withSettingsEntry(actors, 'ownerListenDisabledChannels', [
@@ -423,7 +457,7 @@ export const commonScenarios: readonly SharedScenario[] = [
 
   testScenario(
     'owner-listen-all-off-command-persists',
-    {},
+    { driverSkips: { harness: HARNESS_SKIPS.ownerListenCommand } },
     async ({ ctx, driver, actors }) => {
       await withSettingsEntry(actors, 'ownerListenEnabled', true);
 
@@ -442,7 +476,7 @@ export const commonScenarios: readonly SharedScenario[] = [
 
   testScenario(
     'owner-listen-all-on-command-persists',
-    {},
+    { driverSkips: { harness: HARNESS_SKIPS.ownerListenCommand } },
     async ({ ctx, driver, actors }) => {
       await withSettingsEntry(actors, 'ownerListenEnabled', false);
 
@@ -462,6 +496,7 @@ export const commonScenarios: readonly SharedScenario[] = [
   testScenario(
     'migrate-happy-path',
     {
+      driverSkips: { harness: HARNESS_SKIPS.migrate },
       timeoutMs: 300_000,
     },
     async ({ ctx, driver, actors }) => {
@@ -576,7 +611,7 @@ export const commonScenarios: readonly SharedScenario[] = [
 
   testScenario(
     'reaction-on-bot-post-dispatches',
-    {},
+    { driverSkips: { harness: HARNESS_SKIPS.reaction } },
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
       await withSettingsEntry(actors, 'ownerListenEnabled', false);
@@ -691,14 +726,14 @@ export const commonScenarios: readonly SharedScenario[] = [
       // _dispatch_message() passes that text through the current MessageEvent.
       // The reaction tag is therefore in the latest user turn for both drivers.
       expect(reactionCall?.provenance).toBe(
-        REACTION_PROVENANCE_BY_DRIVER[driver.name]
+        driverEntry(REACTION_PROVENANCE_BY_DRIVER, driver.name)
       );
     }
   ),
 
   testScenario(
     'dm-reaction-on-bot-reply',
-    {},
+    { driverSkips: { harness: HARNESS_SKIPS.reaction } },
     async ({ ctx, driver, actors }) => {
       const key = scenarioKey('dm-reaction');
       const tag = `[tlon-test:${key}]`;
@@ -791,14 +826,14 @@ export const commonScenarios: readonly SharedScenario[] = [
         expect(reactionCall?.userText).toContain(actors.owner.ship);
       }
       expect(reactionCall?.provenance).toBe(
-        REACTION_PROVENANCE_BY_DRIVER[driver.name]
+        driverEntry(REACTION_PROVENANCE_BY_DRIVER, driver.name)
       );
     }
   ),
 
   testScenario(
     'channel-thread-anchoring-and-follow',
-    {},
+    { driverSkips: { harness: HARNESS_SKIPS.threadFollow } },
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
       await withSettingsEntry(actors, 'ownerListenEnabled', false);
@@ -966,7 +1001,7 @@ export const commonScenarios: readonly SharedScenario[] = [
 
   testScenario(
     'channel-thread-reply-reaction-dispatches',
-    {},
+    { driverSkips: { harness: HARNESS_SKIPS.reaction } },
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
       await withSettingsEntry(actors, 'ownerListenEnabled', false);
@@ -1063,7 +1098,7 @@ export const commonScenarios: readonly SharedScenario[] = [
         expect(reactionCall?.userText).toContain(actors.owner.ship);
       }
       expect(reactionCall?.provenance).toBe(
-        REACTION_PROVENANCE_BY_DRIVER[driver.name]
+        driverEntry(REACTION_PROVENANCE_BY_DRIVER, driver.name)
       );
     }
   ),
@@ -1141,7 +1176,7 @@ export const commonScenarios: readonly SharedScenario[] = [
     { drivers: ['hermes'] },
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
-      await allowDmFrom(actors, actors.thirdParty.ship);
+      await allowDmFrom({ ctx, driver, actors }, actors.thirdParty.ship);
       const routeKey = scenarioKey('cron-route');
       const routeReply = `Third-party route seed ${routeKey}`;
       const routeScript = driver.model.replyText(routeReply);
@@ -1218,10 +1253,13 @@ export const commonScenarios: readonly SharedScenario[] = [
 
   testScenario(
     'cron-model-driven-turn-delivers-to-origin',
-    { capabilities: ['cron'], timeoutMs: cronModelDrivenScenarioTimeoutMs },
+    {
+      capabilities: ['cron'],
+      timeoutMs: cronModelDrivenScenarioTimeoutMs,
+    },
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
-      await allowDmFrom(actors, actors.thirdParty.ship);
+      await allowDmFrom({ ctx, driver, actors }, actors.thirdParty.ship);
       const routeKey = scenarioKey('cron-mdl-route');
       const routeReply = `Third-party route seed ${routeKey}`;
       const routeScript = driver.model.looseReplyText(routeReply);
@@ -1262,9 +1300,17 @@ export const commonScenarios: readonly SharedScenario[] = [
         firedScript
       );
 
+      const createKey = scenarioKey('cron-mdl-create');
+      const confirmText = `Cron job scheduled ${createKey}`;
       const jobName = `shared-cron-${scenarioKey('job')}`;
-      const cleanupTarget: CronCleanupTarget = {
+      const cronJob = {
         name: jobName,
+        firedPrompt: `${firedTag} Reply with the scripted cron marker text.`,
+        finalText: confirmText,
+      };
+      const listingName = cronJobListingName(driver.name, cronJob);
+      const cleanupTarget: CronCleanupTarget = {
+        name: listingName,
         creationSettled: Promise.resolve(),
       };
       actors.bot.teardown(
@@ -1274,13 +1320,7 @@ export const commonScenarios: readonly SharedScenario[] = [
         { label: `remove cron job artifacts ${jobName}` }
       );
 
-      const createKey = scenarioKey('cron-mdl-create');
-      const confirmText = `Cron job scheduled ${createKey}`;
-      const createScript = driver.model.createCronJob({
-        name: jobName,
-        firedPrompt: `${firedTag} Reply with the scripted cron marker text.`,
-        finalText: confirmText,
-      });
+      const createScript = driver.model.createCronJob(cronJob);
       const createTag = await registerModelScript(
         ctx.fakeModel,
         createKey,
@@ -1294,7 +1334,7 @@ export const commonScenarios: readonly SharedScenario[] = [
       const createdJobPromise = waitForCronJobCreated(
         ctx,
         driver.name,
-        jobName,
+        listingName,
         CRON_CREATE_PROMPT_WAIT_MS
       ).then((job) => {
         cleanupTarget.id = job.id;
@@ -1312,7 +1352,7 @@ export const commonScenarios: readonly SharedScenario[] = [
         ctx.fakeModel,
         firedKey,
         1,
-        CRON_FIRED_WAIT_MS[driver.name]
+        driverEntry(CRON_FIRED_WAIT_MS, driver.name)
       );
       expect(firedCalls[0]?.provenance).toBe('latest-user');
 
@@ -1351,6 +1391,112 @@ export const commonScenarios: readonly SharedScenario[] = [
   ),
 
   testScenario(
+    'channel-two-speakers-non-owner-cannot-schedule',
+    {
+      capabilities: ['cron'],
+      timeoutMs: channelTwoSpeakersScenarioTimeoutMs,
+    },
+    async ({ ctx, driver, actors }) => {
+      const fixture = await createOwnerHostedChannelFixture(actors);
+      await openChannelFor({ ctx, driver, actors }, fixture.channelId);
+
+      const memberKey = scenarioKey('two-speakers-member');
+      const memberReply = `Member channel reply ${memberKey}`;
+      const job = {
+        name: `shared-non-owner-${scenarioKey('job')}`,
+        firedPrompt: `[tlon-test:${scenarioKey('two-speakers-fired')}] Reply with the scheduled marker.`,
+        finalText: memberReply,
+      };
+      const attempt = driver.model.nonOwnerScheduleAttempt(job);
+
+      const ownerKey = scenarioKey('two-speakers-owner');
+      const ownerReply = `Owner channel reply ${ownerKey}`;
+      const looseOwnerScript = driver.model.looseReplyText(ownerReply);
+      const ownerScript = {
+        ...looseOwnerScript,
+        expectations: {
+          ...looseOwnerScript.expectations,
+          advertisedTools: { include: [attempt.toolName] },
+        },
+      };
+      const ownerTag = await registerModelScript(
+        ctx.fakeModel,
+        ownerKey,
+        ownerScript
+      );
+      const ownerBaseline = await botChannelBaseline(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship
+      );
+      await actors.owner.sendChannelPost({
+        channelId: fixture.channelId,
+        content: storyWithMention(
+          actors.bot.ship,
+          `${ownerTag} Owner mention.`
+        ),
+      });
+      await waitForModelCalls(ctx.fakeModel, ownerKey);
+      await waitForBotChannelReply(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship,
+        ownerReply,
+        ownerBaseline
+      );
+      await expectModelExpectations(ctx.fakeModel, ownerKey, ownerScript);
+
+      let noJobListed = false;
+      actors.bot.teardown(
+        async () => {
+          if (noJobListed) {
+            return;
+          }
+          await cleanupCronJobAndArtifacts(
+            ctx,
+            driver.name,
+            {
+              name: cronJobListingName(driver.name, job),
+              creationSettled: Promise.resolve(),
+            },
+            { lateCaptureWaitMs: 0 }
+          );
+        },
+        { label: `remove cron job ${job.name}` }
+      );
+      const memberScript = nonOwnerScheduleScript(attempt);
+      const memberTag = await registerModelScript(
+        ctx.fakeModel,
+        memberKey,
+        memberScript
+      );
+      const memberBaseline = await botChannelBaseline(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship
+      );
+      await actors.thirdParty.sendChannelPost({
+        channelId: fixture.channelId,
+        content: storyWithMention(
+          actors.bot.ship,
+          `${memberTag} Member mention asking for a scheduled job.`
+        ),
+      });
+      await waitForModelCalls(ctx.fakeModel, memberKey);
+      await waitForBotChannelReply(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship,
+        memberReply,
+        memberBaseline
+      );
+      expect(await cronJobsListedAs(ctx, driver.name, job)).toEqual([]);
+      noJobListed = true;
+      await expectModelExpectations(ctx.fakeModel, memberKey, memberScript);
+    }
+  ),
+
+  testScenario(
     'restart-no-double-reply',
     {
       orderDependent: true,
@@ -1373,15 +1519,15 @@ export const commonScenarios: readonly SharedScenario[] = [
       expectPromptSuccess(firstResult, firstReply);
       await expectModelExpectations(ctx.fakeModel, firstKey, firstScript);
 
-      await stopComposeService(ctx, ctx.services.bot);
+      await stopComposeService(ctx, botService(ctx));
       let serviceStarted = false;
       actors.bot.teardown(
         async () => {
           if (!serviceStarted) {
-            await startComposeService(ctx, ctx.services.bot);
+            await startComposeService(ctx, botService(ctx));
           }
         },
-        { label: `restore stopped service ${ctx.services.bot}` }
+        { label: `restore stopped service ${botService(ctx)}` }
       );
       const secondKey = scenarioKey('restart-boundary');
       const secondReply = `Restart boundary reply ${secondKey}`;
@@ -1394,7 +1540,7 @@ export const commonScenarios: readonly SharedScenario[] = [
       await actors.owner.sendDm(
         `${secondTag} This message arrives while the bot is stopped.`
       );
-      await startComposeService(ctx, ctx.services.bot);
+      await startComposeService(ctx, botService(ctx));
       serviceStarted = true;
       await waitForModelCalls(ctx.fakeModel, secondKey);
       await waitForDmBotReply(actors.owner, actors.bot.ship, secondReply);
@@ -1417,10 +1563,13 @@ export const commonScenarios: readonly SharedScenario[] = [
 
   testScenario(
     'known-bot-loop-protection-resets-on-human-dispatch',
-    { timeoutMs: knownBotLoopScenarioTimeoutMs },
+    {
+      driverSkips: { harness: HARNESS_SKIPS.botLoop },
+      timeoutMs: knownBotLoopScenarioTimeoutMs,
+    },
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
-      await openChannelAccess(actors, fixture.channelId);
+      await openChannelFor({ ctx, driver, actors }, fixture.channelId);
 
       const loopLimit = knownBotLoopLimit(ctx);
       const allowedTurns = Array.from({ length: loopLimit }, (_, index) => {
@@ -1565,10 +1714,14 @@ export const commonScenarios: readonly SharedScenario[] = [
   ),
   testScenario(
     'sse-resume-replays-events-missed-while-disconnected',
-    { orderDependent: true, timeoutMs: 300_000 },
+    {
+      orderDependent: true,
+      driverSkips: { harness: HARNESS_SKIPS.sse },
+      timeoutMs: 300_000,
+    },
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
-      await openChannelAccess(actors, fixture.channelId);
+      await openChannelFor({ ctx, driver, actors }, fixture.channelId);
 
       const key = scenarioKey('sse-resume');
       const reply = `SSE resume reply ${key}`;
@@ -1583,15 +1736,15 @@ export const commonScenarios: readonly SharedScenario[] = [
 
       const since = new Date().toISOString();
 
-      await disconnectComposeNetwork(ctx, ctx.services.bot);
+      await disconnectComposeNetwork(ctx, botService(ctx));
       let reconnected = false;
       actors.bot.teardown(
         async () => {
           if (!reconnected) {
-            await connectComposeNetwork(ctx, ctx.services.bot);
+            await connectComposeNetwork(ctx, botService(ctx));
           }
         },
-        { label: `reconnect network for ${ctx.services.bot}` }
+        { label: `reconnect network for ${botService(ctx)}` }
       );
 
       await actors.owner.sendChannelPost({
@@ -1613,7 +1766,7 @@ export const commonScenarios: readonly SharedScenario[] = [
       // resolves when any one of them appears.
       await waitFor(
         async () => {
-          const logs = await readComposeServiceLogs(ctx, ctx.services.bot, {
+          const logs = await readComposeServiceLogs(ctx, botService(ctx), {
             since,
           });
           return driver.streamFaultLogMarkers.some((marker) =>
@@ -1630,7 +1783,7 @@ export const commonScenarios: readonly SharedScenario[] = [
         }
       );
 
-      await connectComposeNetwork(ctx, ctx.services.bot);
+      await connectComposeNetwork(ctx, botService(ctx));
       reconnected = true;
 
       await waitForModelCalls(ctx.fakeModel, key);
@@ -1648,6 +1801,7 @@ export const commonScenarios: readonly SharedScenario[] = [
   testScenario(
     'nudge-delivery-and-reengagement',
     {
+      driverSkips: { harness: HARNESS_SKIPS.nudge },
       timeoutMs: () =>
         NUDGE_DELIVERY_WAIT_MS +
         NUDGE_CLEANUP_WAIT_MS * 2 +
@@ -2105,6 +2259,28 @@ function scenarioKey(prefix: string): string {
     .slice(2, 8)}`;
 }
 
+// The bot holds the DM either as a pending invitation or as an accepted DM,
+// depending on whether the driver accepts DMs from unallowed senders.
+async function waitForBotDmWith(
+  actors: ScenarioActors,
+  ship: string
+): Promise<void> {
+  await waitFor(
+    async () => {
+      const [invited, accepted] = await Promise.all([
+        actors.bot.state.scry<string[]>('chat', '/dm/invited'),
+        actors.bot.state.scry<string[]>('chat', '/dm'),
+      ]);
+      return invited.includes(ship) || accepted.includes(ship);
+    },
+    {
+      timeoutMs: 30_000,
+      intervalMs: 500,
+      description: `a DM from ${ship} on the bot ship`,
+    }
+  );
+}
+
 function expectPromptSuccess(result: PromptResult, expectedText: string): void {
   if (!result.success) {
     throw new Error(result.error ?? 'Prompt failed without an error message.');
@@ -2416,7 +2592,7 @@ async function writeHermesCronMarkerScript(
   scriptName: string,
   marker: string
 ): Promise<void> {
-  const result = await execInComposeService(ctx, ctx.services.bot, [
+  const result = await execInComposeService(ctx, botService(ctx), [
     'python3',
     '-c',
     String.raw`
@@ -2438,7 +2614,7 @@ async function createHermesCronJob(
   ctx: RuntimeContext,
   scriptName: string
 ): Promise<string> {
-  const result = await execInComposeService(ctx, ctx.services.bot, [
+  const result = await execInComposeService(ctx, botService(ctx), [
     'python3',
     '-c',
     String.raw`
@@ -2468,7 +2644,7 @@ async function runHermesCronJob(
 ): Promise<void> {
   const result = await execInComposeService(
     ctx,
-    ctx.services.bot,
+    botService(ctx),
     [
       'python3',
       '-c',
@@ -2494,7 +2670,7 @@ async function removeHermesCronMarkerScript(
   ctx: RuntimeContext,
   scriptName: string
 ): Promise<void> {
-  const result = await execInComposeService(ctx, ctx.services.bot, [
+  const result = await execInComposeService(ctx, botService(ctx), [
     'python3',
     '-c',
     String.raw`
@@ -2512,7 +2688,7 @@ async function removeHermesCronJobAndOutput(
   ctx: RuntimeContext,
   jobId: string
 ): Promise<void> {
-  const result = await execInComposeService(ctx, ctx.services.bot, [
+  const result = await execInComposeService(ctx, botService(ctx), [
     'python3',
     '-c',
     String.raw`
@@ -2631,14 +2807,15 @@ async function ensureGroupMember(
   );
 }
 
-async function openChannelAccess(
-  actors: ScenarioActors,
-  channelId: string
-): Promise<void> {
-  const rules = JSON.stringify({
-    [channelId]: { mode: 'open' },
-  });
-  await withSettingsEntry(actors, 'channelRules', rules);
+function driverEntry<T>(
+  entries: Partial<Record<DriverName, T>>,
+  driverName: DriverName
+): T {
+  const entry = entries[driverName];
+  if (entry === undefined) {
+    throw new Error(`This scenario has no ${driverName} value.`);
+  }
+  return entry;
 }
 
 function storyWithMention(ship: string, text: string): StoryInput {
@@ -2674,6 +2851,17 @@ function knownBotLoopScenarioTimeoutMs(ctx: RuntimeContext): number {
     (allowedBotTurns + 2) * (MODEL_CALL_WAIT_MS + BOT_REPLY_WAIT_MS);
   const settleBudget = NEGATIVE_SETTLE_MS * 3;
   return dispatchWaitBudget + settleBudget + LOOP_TIMEOUT_MARGIN_MS;
+}
+
+function channelTwoSpeakersScenarioTimeoutMs(): number {
+  const turnBudget = 2 * (MODEL_CALL_WAIT_MS + BOT_REPLY_WAIT_MS);
+  const modelExpectationBudget = MODEL_EXPECTATION_SETTLE_MS * 2 * 2;
+  return (
+    turnBudget +
+    CRON_LISTED_AS_TIMEOUT_MS +
+    modelExpectationBudget +
+    CRON_SCENARIO_SETUP_MARGIN_MS
+  );
 }
 
 function cronModelDrivenScenarioTimeoutMs(): number {

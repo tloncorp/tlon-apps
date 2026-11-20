@@ -1,6 +1,5 @@
 import type { Action } from '../ActionSheet';
 import type { ScreenHeaderAction } from '../ScreenHeader';
-import { ScreenHeaderItemElements } from '../ScreenHeader/primitives';
 
 type NotesCreateActionOptions = Pick<Action, 'action' | 'disabled' | 'testID'>;
 
@@ -48,8 +47,4 @@ export function createNotesHeaderActions({
       testID: 'NotesRootNewHeaderAction',
     },
   ];
-}
-
-export function NotesHeaderActions(props: NotesHeaderActionOptions) {
-  return <ScreenHeaderItemElements actions={createNotesHeaderActions(props)} />;
 }

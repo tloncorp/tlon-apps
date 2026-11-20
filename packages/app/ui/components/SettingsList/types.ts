@@ -37,6 +37,8 @@ export interface SettingsRowModel {
   subtitle?: string;
   /** The setting's current value, shown the way each platform shows values. */
   value?: string;
+  /** A determinate usage bar below the row, from 0 to 1. */
+  progress?: number;
   /** A short count drawn as a neutral pill, such as how many entries a list holds. */
   badge?: string;
   leading?: SettingsRowLeading;
@@ -156,6 +158,8 @@ export interface SettingsSectionModel {
 }
 
 export interface SettingsListProps {
+  /** Primary sheet background with secondary value rows. */
+  surface?: 'sheet';
   sections: SettingsSectionModel[];
   /**
    * Web only: keeps the rows to a centered column at most this wide, rather

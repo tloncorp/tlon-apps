@@ -13,6 +13,21 @@ export function buildHermesSmokeEnv(
   });
 }
 
+// The LCM scenario reads the bot's SQLite DB through the docker-direct
+// helpers, which need the runtime context.
+export function buildHermesLcmEnv(
+  ctx: RuntimeContext,
+  contextFile: string
+): Record<string, string> {
+  return buildComposeProcessEnv({
+    projectName: ctx.composeProjectName,
+    explicitEnv: {
+      ...ctx.testEnv,
+      TLON_BOT_E2E_RUNTIME_CONTEXT_FILE: contextFile,
+    },
+  });
+}
+
 export function buildCommonScenarioEnv(
   ctx: RuntimeContext,
   contextFile: string,

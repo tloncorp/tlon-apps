@@ -14,18 +14,28 @@ const { NS, TAG_ID } = htmlSpec;
 export type BucketPreviewKind =
   | 'image'
   | 'video'
+  | 'audio'
   | 'text'
   | 'html'
   | 'pdf'
   | 'unsupported';
 
 export type BucketFileViewerItem = {
+  id?: string;
   name: string;
   mimeType?: string;
   size?: number;
   sizeLabel?: string;
   uri?: string;
   textContent?: string;
+  cached?: boolean;
+  imageLoaded?: boolean;
+};
+
+export type BucketFileNavigation = {
+  items: BucketFileViewerItem[];
+  index: number;
+  onSelect: (index: number) => void;
 };
 
 /**
@@ -645,6 +655,24 @@ export function getBucketPreviewKind({
     (typeDefersToName && ['html', 'htm'].includes(extension ?? ''))
   ) {
     return 'html';
+  }
+  if (
+    normalizedMimeType.startsWith('audio/') ||
+    (typeDefersToName &&
+      [
+        'mp3',
+        'm4a',
+        'aac',
+        'wav',
+        'ogg',
+        'oga',
+        'opus',
+        'flac',
+        'aiff',
+        'aif',
+      ].includes(extension ?? ''))
+  ) {
+    return 'audio';
   }
   if (
     normalizedMimeType.startsWith('text/') ||

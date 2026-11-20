@@ -2,7 +2,6 @@ import * as api from '@tloncorp/api';
 import { desig } from '@tloncorp/api/lib/urbit';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Attachment } from '@tloncorp/shared/domain';
 import { withRetry } from '@tloncorp/shared/logic';
 import {
   getSession,
@@ -10,8 +9,7 @@ import {
   syncGroups,
   updateCurrentUserProfile,
   updateGroupMeta,
-  uploadAsset,
-  waitForUploads,
+  uploadAssetForUrl,
 } from '@tloncorp/shared/store';
 
 import { connectNotifyProvider } from './notificationsApi';
@@ -170,17 +168,7 @@ async function resolveDeferredBotAvatarUrl(
   config: db.TlonbotRevivalDeferredConfig
 ) {
   if (config.botAvatarUploadIntent) {
-    const uploadIntent = config.botAvatarUploadIntent;
-    const uploadKey = Attachment.UploadIntent.extractKey(uploadIntent);
-    await uploadAsset(uploadIntent);
-    const uploadStates = await waitForUploads([uploadKey]);
-    const uploadState = uploadStates[uploadKey];
-
-    if (uploadState?.status !== 'success') {
-      throw new Error('Deferred avatar upload did not finish successfully');
-    }
-
-    return uploadState.remoteUri;
+    return uploadAssetForUrl(config.botAvatarUploadIntent);
   }
 
   if (config.botAvatarUrl && isRemoteAvatarUrl(config.botAvatarUrl)) {

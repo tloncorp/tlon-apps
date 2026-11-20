@@ -6,7 +6,7 @@ import type {
   Step,
 } from '../fake-model/index.js';
 
-export type DriverName = 'hermes' | 'openclaw';
+export type DriverName = 'harness' | 'hermes' | 'openclaw';
 
 export type RuntimeCapability =
   | 'cron'
@@ -53,10 +53,13 @@ export interface RuntimeSeed {
   runId: string;
   endpoints: RuntimeEndpoints;
   capabilityPartition?: RuntimeCapabilityPartition;
+  /** Driver-defined stack flavour, e.g. a dedicated stack for one scenario. */
+  variant?: string;
 }
 
 export interface DriverServices {
-  bot: string;
+  /** Absent when the bot runs on the bot ship rather than in a container. */
+  bot?: string;
   ships: string;
   fakeModel: string;
   logServices: string[];
@@ -136,6 +139,14 @@ export interface BotDriver {
   ): Promise<string>;
   afterComposeDown?(ctx: RuntimeContext): Promise<void>;
   /**
+   * Extra env for scenario processes that is only knowable once the stack is
+   * ready (e.g. facts read from the built image). Merged over testEnv.
+   */
+  resolveTestEnv?(
+    ctx: RuntimeContext,
+    compose: ComposeHandle
+  ): Promise<Record<string, string>>;
+  /**
    * True for background model calls the bot makes on its own schedule (e.g.
    * OpenClaw heartbeat polls) that negative "no model call" assertions should
    * ignore. Omitting it means the driver has no benign background calls.
@@ -149,7 +160,49 @@ export interface BotDriver {
    * The wait resolves when any marker appears in the bot logs.
    */
   streamFaultLogMarkers: readonly string[];
+  /**
+   * Lets `ship` DM the bot until the returned function runs. Without it, the
+   * scenarios grant access through the dmAllowlist entry in the bot's
+   * %settings.
+   */
+  allowDmSender?(
+    ctx: RuntimeContext,
+    ship: string
+  ): Promise<() => Promise<void>>;
+  /**
+   * Lets every member of the channel's group address the bot there with a
+   * mention until the returned function runs. Without it, the scenarios open
+   * the channel through the channelRules entry in the bot's %settings.
+   */
+  openChannelToMembers?(
+    ctx: RuntimeContext,
+    channelId: string
+  ): Promise<() => Promise<void>>;
+  /**
+   * Scheduled-job bookkeeping for a runtime without a bot container. Without
+   * it, the cron scenarios run the runtime's commands in the bot container.
+   */
+  cronJobs?: CronJobStore;
   model: ModelScriptAdapter;
+}
+
+export interface CronJobSnapshot {
+  id: string;
+  /** What the job is listed under; see CronJobStore.listingName. */
+  name: string;
+  /**
+   * The job has run for the last time and its work has settled, but the
+   * runtime keeps it listed until it is cleared.
+   */
+  finished?: boolean;
+}
+
+export interface CronJobStore {
+  list(ctx: RuntimeContext, timeoutMs: number): Promise<CronJobSnapshot[]>;
+  /** The name createCronJob's job is listed under. */
+  listingName(args: CreateCronJobArgs): string;
+  /** Stops future runs, waits for in-flight work to settle, and removes it. */
+  remove(ctx: RuntimeContext, id: string, deadlineAtMs: number): Promise<void>;
 }
 
 export interface SendMessageArgs {
@@ -158,7 +211,10 @@ export interface SendMessageArgs {
 }
 
 export interface CreateCronJobArgs {
-  /** Unique per scenario; used for ID lookup and pre-ID teardown fallback. */
+  /**
+   * Unique per scenario; used for ID lookup and pre-ID teardown fallback
+   * unless the driver's CronJobStore lists jobs under something else.
+   */
   name: string;
   /** Must embed the fired-turn [tlon-test:KEY] tag. */
   firedPrompt: string;
@@ -184,6 +240,8 @@ export interface ModelScriptExpectations {
     toolName?: string;
   }>;
   toolLoopResult?: boolean;
+  /** Text the toolLoopResult tool-result message must contain. */
+  toolResultIncludes?: string;
   streamedToolLoop?: boolean;
   /**
    * The driver has observable tool side effects, but the fake-model received
@@ -194,6 +252,27 @@ export interface ModelScriptExpectations {
     reason: string;
   };
 }
+
+/**
+ * A member other than the owner asks the bot to schedule a job: the model
+ * calls the runtime's scheduling tool, then replies with finalText.
+ */
+export interface NonOwnerScheduleAttempt {
+  steps: Step[];
+  options?: ScriptOptions;
+  toolName: string;
+  /**
+   * 'hidden': the tool is not offered to the member, and the call is answered
+   * as an unknown or ungranted tool. 'refused': the call is answered with an
+   * owner-only refusal; whether the tool is offered is not checked.
+   */
+  refusal: 'hidden' | 'refused';
+  /** Text the refused call's tool result contains. */
+  refusalText: string;
+}
+
+/** How far ahead nonOwnerScheduleAttempt schedules its job. */
+export const NON_OWNER_SCHEDULE_AT_OFFSET_MS = 3_600_000;
 
 export type { ModelAuxiliaryCallKind };
 
@@ -211,6 +290,12 @@ export interface ModelScriptAdapter {
   imageSearch(query: string): ModelScript;
   /** Owner-initiated cron job creation via the runtime's cron tool. */
   createCronJob(args: CreateCronJobArgs): ModelScript;
+  /**
+   * The createCronJob call made by a member other than the owner, scheduled
+   * NON_OWNER_SCHEDULE_AT_OFFSET_MS ahead so a job created by mistake is
+   * still listed afterward.
+   */
+  nonOwnerScheduleAttempt(args: CreateCronJobArgs): NonOwnerScheduleAttempt;
   /**
    * Text reply without baseline advertised-tools expectations. Used when the
    * runtime's advertised tool set differs from the baseline partition.

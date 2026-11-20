@@ -373,7 +373,7 @@ describe('cleanCronToolArgs', () => {
         path.dirname(require.resolve('openclaw/plugin-sdk/core'))
       );
       for (const file of fs.readdirSync(dist)) {
-        if (!/^jobs-.*\.mjs$/.test(file)) continue;
+        if (!/^(jobs|list-snapshot-revision)-.*\.mjs$/.test(file)) continue;
         const source = fs.readFileSync(path.join(dist, file), 'utf8');
         const alias = source.match(/\bapplyJobPatch as (\w+)\b/)?.[1];
         if (alias) {

@@ -1,4 +1,3 @@
-import { mkdir, rm } from 'node:fs/promises';
 import type {
   OpenClawConfig,
   OpenClawPluginApi,
@@ -14,8 +13,6 @@ import {
 } from './restart-catchup.js';
 
 vi.mock('node:fs/promises', () => ({
-  mkdir: vi.fn().mockResolvedValue(undefined),
-  rm: vi.fn().mockResolvedValue(undefined),
   readFile: vi.fn(),
 }));
 
@@ -76,7 +73,6 @@ function fixture(cfg = config()) {
         .fn()
         .mockReturnValue('/test/owner-workspace'),
     },
-    state: { resolveStateDir: () => '/test/state' },
   } as unknown as OpenClawPluginApi['runtime'];
   const ctx = { config: cfg, runtime, logger };
   const coordinator = createRestartCatchupCoordinator({
@@ -526,43 +522,6 @@ describe('restart catch-up', () => {
     expect(f.run).toHaveBeenCalledTimes(1);
   });
 
-  it('uses the replacement monitor when reload occurs during directory creation', async () => {
-    const pending = deferred<void>();
-    vi.mocked(mkdir).mockReturnValueOnce(pending.promise);
-    const f = fixture();
-    f.ready();
-    f.coordinator.start(f.ctx);
-    await vi.advanceTimersByTimeAsync(0);
-    expect(f.readSettings).toHaveBeenCalledTimes(1);
-    const replacement = f.coordinator.attachMonitor('default', f.ctx.config);
-    const readSettings = vi.fn().mockResolvedValue(settings());
-    replacement.connected({
-      readSettings,
-      isConnected: () => true,
-      establishActivityReadBaseline: vi.fn().mockResolvedValue(undefined),
-      replayMissedMessages: vi.fn().mockResolvedValue(undefined),
-    });
-    pending.resolve();
-    await vi.advanceTimersByTimeAsync(0);
-    expect(readSettings).toHaveBeenCalledTimes(1);
-    expect(f.run).toHaveBeenCalledTimes(1);
-    expect(f.logger.error).not.toHaveBeenCalled();
-  });
-
-  it('does not launch if shutdown occurs during directory creation', async () => {
-    const pending = deferred<void>();
-    vi.mocked(mkdir).mockReturnValueOnce(pending.promise);
-    const f = fixture();
-    f.ready();
-    f.coordinator.start(f.ctx);
-    await vi.advanceTimersByTimeAsync(0);
-    const stopped = f.coordinator.stop();
-    pending.resolve();
-    await stopped;
-    expect(f.run).not.toHaveBeenCalled();
-    expect(f.logger.error).not.toHaveBeenCalled();
-  });
-
   it('allows one new task after a real in-process gateway restart', async () => {
     const f = fixture();
     f.ready();
@@ -617,7 +576,6 @@ describe('restart catch-up', () => {
     it.each(['model_not_found', 'rate_limit', 'auth', 'billing', 'overloaded'])(
       'tries configured models in order after %s, within one run budget',
       async (reason) => {
-        vi.mocked(rm).mockClear();
         const f = fixture(withFallbacks());
         f.run
           .mockImplementationOnce(async () => {
@@ -636,7 +594,7 @@ describe('restart catch-up', () => {
         ]);
         expect(attempts[1]).toMatchObject({
           sessionId: attempts[0].sessionId,
-          sessionFile: attempts[0].sessionFile,
+          sessionPersistence: 'detached',
           runId: attempts[0].runId,
           timeoutMs: 119_000,
           allowTransientCooldownProbe: true,
@@ -647,9 +605,6 @@ describe('restart catch-up', () => {
         expect(f.logger.info).toHaveBeenCalledWith(
           expect.stringContaining('Restart catch-up completed')
         );
-        // Failed-attempt text is removed before each retry; final cleanup
-        // still uses the original unindexed transcript.
-        expect(rm).toHaveBeenCalledTimes(3);
       }
     );
 
@@ -746,7 +701,7 @@ describe('restart catch-up', () => {
     });
   });
 
-  it('waits for active catch-up and transcript cleanup before completing shutdown', async () => {
+  it('waits for active catch-up before completing shutdown', async () => {
     const f = fixture();
     const pending = deferred<{ meta: { aborted: boolean } }>();
     f.run.mockReturnValue(pending.promise);
@@ -754,9 +709,8 @@ describe('restart catch-up', () => {
     f.coordinator.start(f.ctx);
     await vi.advanceTimersByTimeAsync(0);
     const params = f.run.mock.calls[0][0];
-    expect(params.sessionFile).toMatch(
-      /^\/test\/state\/plugins\/tlon\/restart-catchup\/[^/]+\.jsonl$/
-    );
+    expect(params.sessionFile).toBeUndefined();
+    expect(params.sessionPersistence).toBe('detached');
     expect(params.abortSignal.aborted).toBe(false);
     let stopCompleted = false;
     const stopped = f.coordinator.stop().then(() => {
@@ -767,19 +721,13 @@ describe('restart catch-up', () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(f.run).toHaveBeenCalledTimes(1);
     expect(stopCompleted).toBe(false);
-    const cleanup = deferred<void>();
-    vi.mocked(rm).mockReturnValueOnce(cleanup.promise);
     pending.resolve({ meta: { aborted: true } });
-    await vi.advanceTimersByTimeAsync(0);
-    expect(rm).toHaveBeenCalledWith(params.sessionFile, { force: true });
-    expect(stopCompleted).toBe(false);
-    cleanup.resolve();
     await stopped;
     expect(stopCompleted).toBe(true);
     expect(f.logger.error).not.toHaveBeenCalled();
   });
 
-  it('reports returned agent failures once and cleans up without replaying the checklist', async () => {
+  it('reports returned agent failures once without replaying the checklist', async () => {
     const f = fixture();
     f.run.mockResolvedValue({
       meta: { error: { message: 'model unavailable' } },
@@ -790,9 +738,6 @@ describe('restart catch-up', () => {
     expect(f.logger.error).toHaveBeenCalledWith(
       expect.stringContaining('model unavailable')
     );
-    expect(rm).toHaveBeenCalledWith(f.run.mock.calls[0][0].sessionFile, {
-      force: true,
-    });
     f.coordinator.start(f.ctx);
     await vi.advanceTimersByTimeAsync(60_000);
     expect(f.run).toHaveBeenCalledTimes(1);

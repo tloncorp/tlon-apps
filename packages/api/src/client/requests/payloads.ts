@@ -67,4 +67,5 @@ export type PayloadOf<E extends { mark: string }> =
   E['mark'] extends keyof PokePayloads ? PokePayloads[E['mark']] : unknown;
 
 // Untyped today (json falls to unknown):
-// - lanyard-command-1, lanyard-query-1: sent only as nouns (pokeNounRequest).
+// - lanyard-command-1, lanyard-query-1, lanyard-query-2: sent only as nouns
+//   (pokeNounRequest).

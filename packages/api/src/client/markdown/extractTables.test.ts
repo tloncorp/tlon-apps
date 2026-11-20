@@ -306,6 +306,38 @@ describe('extractTablesFromContent', () => {
     ]);
   });
 
+  it('keeps a pipe inside a plain-text code span within its cell', () => {
+    // A pasted table carries its backticks as text, so the pipe reaches
+    // remark-gfm unescaped and would split the cell.
+    const result = extractTablesFromContent([
+      {
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: '| Command | Notes |' },
+          { type: 'lineBreak' },
+          { type: 'text', text: '|---|---|' },
+          { type: 'lineBreak' },
+          { type: 'text', text: '| `awk -F | print` | filters input |' },
+        ],
+      },
+    ]);
+
+    expect(result).toHaveLength(1);
+    const table = result[0];
+    if (table.type !== 'table') throw new Error('unreachable');
+    expect(table.rows[0].cells).toHaveLength(2);
+    expect(table.rows[0].cells[0].content).toEqual([
+      {
+        type: 'style',
+        style: 'code',
+        children: [{ type: 'text', text: 'awk -F | print' }],
+      },
+    ]);
+    expect(table.rows[0].cells[1].content).toEqual([
+      { type: 'text', text: 'filters input' },
+    ]);
+  });
+
   it('preserves pipes inside structured inlines (inline code, links)', () => {
     // Inline code containing `|` (e.g. shell pipes, urbit ++mark commands)
     // would otherwise be interpreted by remark-gfm as a cell delimiter and

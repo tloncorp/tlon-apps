@@ -33,6 +33,8 @@ class MainApplication : Application(), ReactApplication {
 
   override fun onCreate() {
     super.onCreate()
+    // Crashlytics installed its handler from a content provider, before this.
+    ThreadExhaustionDiagnostics.install()
     DefaultNewArchitectureEntryPoint.releaseLevel = ReleaseLevel.STABLE
     loadReactNative(this)
 

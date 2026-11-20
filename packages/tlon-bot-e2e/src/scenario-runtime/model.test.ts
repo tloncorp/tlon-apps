@@ -119,6 +119,39 @@ describe('shared model script helpers', () => {
     ).resolves.toHaveLength(1);
   });
 
+  test('allows Hermes 0.22 opening-message title-generation calls', async () => {
+    const script: ModelScript = {
+      steps: [{ kind: 'text', content: 'ok' }],
+      options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
+      expectations: {
+        expectedCallCount: 1,
+      },
+    };
+    const tag = await registerModelScript(
+      fakeModel,
+      'hermes-title-v022',
+      script
+    );
+
+    await postChat(server.baseUrl, tag);
+    await postChat(server.baseUrl, tag, {
+      messages: [
+        {
+          role: 'system',
+          content:
+            "You name chat sessions. Given the user's opening message, write a title.",
+        },
+        { role: 'user', content: `${tag} Hello.` },
+      ],
+    });
+
+    await expect(
+      expectModelExpectations(fakeModel, 'hermes-title-v022', script, noSettle)
+    ).resolves.toHaveLength(1);
+    const calls = await fakeModel.received('hermes-title-v022');
+    expect(calls[1]?.auxiliaryKind).toBe('hermes_title_generation');
+  });
+
   test('does not let an early auxiliary call satisfy primary settling', async () => {
     const script: ModelScript = {
       steps: [{ kind: 'text', content: 'ok' }],
@@ -528,6 +561,96 @@ describe('shared model script helpers', () => {
     await expect(
       expectModelExpectations(fakeModel, 'tool-loop-mismatch', script, noSettle)
     ).rejects.toThrow(/tool-result message with tool_call_id/);
+  });
+
+  describe('tool-call id echo', () => {
+    const toolLoopScript = (
+      expectations: ModelScript['expectations']
+    ): ModelScript => ({
+      steps: [
+        { kind: 'tool_call', name: 'tlon', args: { command: 'version' } },
+        { kind: 'text', content: 'done' },
+      ],
+      expectations: {
+        expectedCallCount: 2,
+        toolLoopResult: true,
+        ...expectations,
+      },
+    });
+
+    async function answerToolCall(
+      key: string,
+      script: ModelScript,
+      echoId: (id: string) => string,
+      content = 'Tool tlon not found'
+    ): Promise<void> {
+      const tag = await registerModelScript(fakeModel, key, script);
+      const toolCall = await postChatForToolCall(server.baseUrl, tag);
+      const echoed = { ...toolCall, id: echoId(toolCall.id) };
+      await postChat(server.baseUrl, tag, {
+        messages: [
+          { role: 'user', content: tag },
+          { role: 'assistant', content: null, tool_calls: [echoed] },
+          { role: 'tool', tool_call_id: echoed.id, content },
+        ],
+      });
+    }
+
+    test('matches an unchanged id', async () => {
+      const script = toolLoopScript({ toolResultIncludes: 'not found' });
+      await answerToolCall('echo-exact', script, (id) => id);
+
+      await expect(
+        expectModelExpectations(fakeModel, 'echo-exact', script, noSettle)
+      ).resolves.toHaveLength(2);
+    });
+
+    test('matches an id with its punctuation dropped', async () => {
+      const script = toolLoopScript({ toolResultIncludes: 'not found' });
+      await answerToolCall('echo-alnum', script, (id) =>
+        id.replace(/[^A-Za-z0-9]/g, '')
+      );
+      const [first] = await fakeModel.received('echo-alnum');
+      expect(first?.responseToolCalls[0]?.id).toMatch(/_/);
+
+      await expect(
+        expectModelExpectations(fakeModel, 'echo-alnum', script, noSettle)
+      ).resolves.toHaveLength(2);
+    });
+
+    test('rejects a different id', async () => {
+      const script = toolLoopScript({});
+      await answerToolCall('echo-wrong', script, () => 'callwrong');
+
+      await expect(
+        expectModelExpectations(fakeModel, 'echo-wrong', script, noSettle)
+      ).rejects.toThrow(/tool-result message with tool_call_id call_/);
+    });
+
+    test('rejects a tool result without the expected text', async () => {
+      const script = toolLoopScript({ toolResultIncludes: 'owner-only' });
+      await answerToolCall('result-text', script, (id) => id, '{"ok":true}');
+
+      await expect(
+        expectModelExpectations(fakeModel, 'result-text', script, noSettle)
+      ).rejects.toThrow(/to contain "owner-only"/);
+    });
+
+    test('rejects toolResultIncludes when no tool-loop assertion runs', async () => {
+      const script = toolLoopScript({
+        toolLoopResult: false,
+        toolResultIncludes: 'owner-only',
+      });
+
+      await expect(
+        expectModelExpectations(
+          fakeModel,
+          'result-text-unchecked',
+          script,
+          noSettle
+        )
+      ).rejects.toThrow(/toolResultIncludes without toolLoopResult/);
+    });
   });
 
   test('asserts no model calls for negative scenarios', async () => {

@@ -225,6 +225,24 @@ describe('conversation context', () => {
   });
 });
 
+describe('quoted posts framing', () => {
+  it('keeps cites out of the current-message block on every path', () => {
+    expect(monitorSource).toMatch(
+      /const quotedContext = formatQuotedContext\(citedContent\);\s*(?:\/\/[^\n]*\n\s*)*let currentPart = currentMessageText;/
+    );
+    expect(monitorSource).toMatch(
+      /buildThreadContextMessage\(\s*threadContextHistory,\s*currentPart,\s*\{[^}]*quotedContext,\s*\}/
+    );
+    expect(monitorSource).toMatch(
+      /historyWrappedText = composeInboundMessageText\(\{\s*context: `\$\{contextNote\}\\n\\n\$\{contextMessages\}`,\s*quotedContext,\s*currentLabel:\s*'\[Current message \(mentioned you\)[^']*',\s*currentPart,\s*\}\);/
+    );
+    // DMs and unwrapped group messages: quotes, then the sender's text.
+    expect(monitorSource).toMatch(
+      /let messageText =\s*nudgeContext \+\s*\(historyWrappedText \?\?\s*composeInboundMessageText\(\{ quotedContext, currentPart \}\)\);/
+    );
+  });
+});
+
 describe('onboarding history scans', () => {
   it('select owner requests through the ledger-aware filter', () => {
     expect(onboardingSource.match(/ownerRequestEntries\(/g)).toHaveLength(3);

@@ -1,3 +1,14 @@
+import {
+  resumeBrowserContinuation,
+  type ResumeBrowserHandoff,
+} from './browser-continuation.js';
+import {
+  handoffTooOld,
+  handoffFailureReason,
+  nextHandoffRetry,
+  workerReportDeadline,
+  type HandoffRetry,
+} from './browser-handoff-retry.js';
 import { randomUUID } from 'node:crypto';
 import type {
   OpenClawPluginApi,
@@ -23,6 +34,9 @@ type Pending = {
   sessionId: string;
   expiresAt: number;
   result?: string;
+  deliveryRetry?: HandoffRetry;
+  workerRunId?: string;
+  workerReportDeadline?: number;
   sent?: boolean;
 };
 const terminal = new Set([
@@ -109,13 +123,8 @@ export function createWalletHandoffs(deps: {
   read: (id: string, signal?: AbortSignal) => Promise<Record<string, unknown>>;
   send: (id: string) => Promise<unknown>;
   sessionIdFor: (key: string) => string | undefined;
-  resume: (request: {
-    sessionKey: string;
-    message: string;
-    idempotencyKey: string;
-    deliver: true;
-  }) => Promise<unknown>;
-  warn: () => void;
+  resume: ResumeBrowserHandoff;
+  warn: (message: string) => void;
 }) {
   let timer: ReturnType<typeof setInterval> | undefined;
   let controller: AbortController | undefined;
@@ -124,8 +133,10 @@ export function createWalletHandoffs(deps: {
   const send = (row: Pending) => {
     if (deliveries.has(row.requestId)) return deliveries.get(row.requestId)!;
     const task = (async () => {
+      const current = await deps.store.lookup(row.requestId);
+      if (!current || current.sent) return;
       await deps.send(row.requestId);
-      await deps.store.register(row.requestId, { ...row, sent: true });
+      await deps.store.register(row.requestId, { ...current, sent: true });
     })().finally(() => deliveries.delete(row.requestId));
     deliveries.set(row.requestId, task);
     return task;
@@ -134,40 +145,103 @@ export function createWalletHandoffs(deps: {
     if (polling || !controller || controller.signal.aborted) return polling;
     const signal = controller.signal;
     polling = (async () => {
-      for (const { key, value: row } of await deps.store.entries()) {
+      for (const { key, value } of await deps.store.entries()) {
+        let row = value;
         if (signal.aborted) return;
         if (deps.sessionIdFor(row.sessionKey) !== row.sessionId) {
           await deps.store.delete(key);
           continue;
         }
+        if (handoffTooOld(row)) {
+          await deps.store.delete(key);
+          deps.warn(
+            `[tlon] Retired wallet handoff ${key} after its delivery window.`
+          );
+          continue;
+        }
+        if (row.deliveryRetry && Date.now() < row.deliveryRetry.nextAttemptAt)
+          continue;
+        let stage: NonNullable<HandoffRetry['stage']> = 'status read';
         try {
           let status = row.result;
-          if (!status) {
-            if (row.expiresAt <= Date.now()) status = 'expired';
-            else {
-              const result = await deps.read(row.requestId, signal);
-              if (!terminal.has(String(result.status))) {
-                if (!row.sent) await send(row);
-                continue;
-              }
-              status = String(result.status);
+          if (!status || (status === 'ready' && !row.workerRunId)) {
+            const expired = row.expiresAt <= Date.now();
+            const result = await deps.read(row.requestId, signal);
+            if (signal.aborted) return;
+            // The card sender also updates this row. Let it finish before persisting the result.
+            if (deliveries.has(key)) continue;
+            const observed = String(result.status);
+            status = terminal.has(observed)
+              ? observed
+              : expired
+                ? 'expired'
+                : undefined;
+            if (status === 'ready' && row.expiresAt <= Date.now())
+              status = 'expired';
+            const deliveryRetry =
+              row.deliveryRetry?.stage === 'status read'
+                ? undefined
+                : row.deliveryRetry;
+            if (status !== row.result || deliveryRetry !== row.deliveryRetry) {
+              const current = await deps.store.lookup(key);
+              if (!current || deliveries.has(key)) continue;
+              row = { ...current, result: status, deliveryRetry };
+              await deps.store.register(key, row);
             }
-            await deps.store.register(key, { ...row, result: status });
+            if (!status) {
+              stage = 'card delivery';
+              if (!row.sent && row.expiresAt > Date.now()) await send(row);
+              continue;
+            }
           }
+          stage = 'agent resume';
           if (
             signal.aborted ||
             deps.sessionIdFor(row.sessionKey) !== row.sessionId
           )
             continue;
-          await deps.resume({
-            sessionKey: row.sessionKey,
-            idempotencyKey: `tlon-wallet:${row.requestId}`,
-            deliver: true,
-            message: `Wallet request ${row.requestId}: ${status}. Read payment_status for details. Approval or filling does not mean a purchase succeeded. If cancelled, expired, failed or unknown, do not repeat payment authorization or fill; report the outcome and wait for the owner.`,
-          });
-          await deps.store.delete(key);
-        } catch {
-          if (!signal.aborted) deps.warn();
+          const workerRunId = await deps.resume(
+            {
+              sessionKey: row.sessionKey,
+              idempotencyKey: `tlon-wallet:${row.requestId}`,
+              message: `Wallet request ${row.requestId}: ${status}. Read payment_status for details. ${
+                status === 'connected'
+                  ? 'Link is now connected. Continue the original task, inspect the current checkout and request separate payment approval for the verified purchase. Connecting Link is not authorization to spend.'
+                  : status === 'ready'
+                    ? 'The owner approved the reviewed purchase. Read payment_source from payment_status. For site_saved, skip payment-field inspection and filling: use the selected method already saved on the site. For link, fill the approved checkout. Inspect and verify the merchant, items, total, selected payment method and destination still match, then submit once and verify the result from the page. No second approval is needed for the unchanged order. Respect any original fill-only or no-purchase boundary. If the order changed, obtain fresh approval. If submission is ambiguous, inspect the page or order history without resubmitting. Report completion only after seeing an order confirmation; otherwise report what remains unresolved.'
+                    : status === 'unknown'
+                      ? 'The payment outcome is uncertain. Use ordinary browser tools to inspect the existing checkout or order history; the fill may already have written card fields. Continue only if the page establishes the next step and it remains within the owner’s original purchase approval and task boundaries. Do not repeat payment authorization or fill automatically. If submission may already have happened, verify the outcome without resubmitting. Report unresolved uncertainty and ask the owner when needed.'
+                      : 'Approval or filling does not mean a purchase succeeded. If cancelled, expired or failed, do not repeat payment authorization or fill; report the outcome and wait for the owner.'
+              }`,
+            },
+            row.workerRunId
+          );
+          if (!workerRunId) await deps.store.delete(key);
+          else if (workerRunId !== row.workerRunId || row.deliveryRetry) {
+            await deps.store.register(key, {
+              ...row,
+              result: status,
+              deliveryRetry: undefined,
+              workerRunId,
+              workerReportDeadline:
+                row.workerReportDeadline ?? workerReportDeadline(),
+            });
+          }
+        } catch (error) {
+          if (signal.aborted) return;
+          const current = await deps.store.lookup(key);
+          if (current) {
+            const sameStage = current.deliveryRetry?.stage === stage;
+            if (sameStage && stage === 'status read') continue;
+            await deps.store.register(key, {
+              ...current,
+              deliveryRetry: nextHandoffRetry(stage, current.deliveryRetry),
+            });
+            if (!sameStage)
+              deps.warn(
+                `[tlon] Wallet handoff ${key} ${stage} failed (${handoffFailureReason(error)}); retrying.`
+              );
+          }
         }
       }
     })().finally(() => {
@@ -232,10 +306,14 @@ export function createWalletHandoffs(deps: {
       if (timer) return;
       controller = new AbortController();
       timer = setInterval(() => {
-        void poll().catch(deps.warn);
+        void poll().catch(() =>
+          deps.warn('[tlon] Wallet handoff store poll failed.')
+        );
       }, 4000);
       timer.unref();
-      void poll().catch(deps.warn);
+      void poll().catch(() =>
+        deps.warn('[tlon] Wallet handoff store poll failed.')
+      );
     },
     async stop() {
       controller?.abort();
@@ -261,8 +339,11 @@ export function registerWalletHandoffs(api: OpenClawPluginApi, binary: string) {
         runBrowserHandoffCommand(binary, ['browser', 'wallet', id], api.config),
       sessionIdFor: (sessionKey) =>
         api.runtime.agent.session.getSessionEntry({ sessionKey })?.sessionId,
-      resume: (request) => api.runtime.subagent.run(request),
-      warn: () => api.logger.warn('[tlon] Wallet handoff delivery will retry.'),
+      resume: (request, runId) =>
+        resumeBrowserContinuation(api.runtime, request, runId, (message) =>
+          api.logger.warn(message)
+        ),
+      warn: (message) => api.logger.warn(message),
     });
     slot.set(service);
   }

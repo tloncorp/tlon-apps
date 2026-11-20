@@ -160,6 +160,7 @@ describe('uploadFile default detection (node-url, unchanged)', () => {
           method: 'PUT',
           body: blob,
           headers: expectedHeaders,
+          signal: expect.any(AbortSignal),
         },
       ],
     ]);
@@ -201,6 +202,7 @@ describe('uploadFile default detection (node-url, unchanged)', () => {
           method: 'PUT',
           body: blob,
           headers: expectedHeaders,
+          signal: expect.any(AbortSignal),
         },
       ],
     ]);
@@ -395,5 +397,71 @@ describe('uploadFile custom-S3 ACL retry', () => {
 
     expect(getSignedUrlMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('uploadFile request deadlines', () => {
+  const forced = { hostedDetection: 'assume-hosted' as const };
+
+  test('bounds the Memex lookup and PUT with their own deadlines', async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout');
+    mockShip({ service: 'presigned-url' });
+    mockMemexResponse();
+
+    await uploadFile({ blob, ...forced });
+
+    expect(timeoutSpy.mock.calls.map(([ms]) => ms)).toEqual([30_000, 300_000]);
+    expect(fetchMock.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
+    expect(fetchMock.mock.calls[1][1].signal).toBeInstanceOf(AbortSignal);
+    timeoutSpy.mockRestore();
+  });
+
+  test('bounds each custom S3 PUT attempt', async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout');
+    isHostedMock.mockReturnValue(false);
+    mockShip({ service: 'credentials', credentials: S3_CREDS });
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 400 })
+      .mockResolvedValueOnce({ ok: true, status: 200 });
+
+    await uploadFile({ blob, fileName: 'x.png' });
+
+    expect(timeoutSpy.mock.calls.map(([ms]) => ms)).toEqual([300_000, 300_000]);
+    expect(fetchMock.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
+    timeoutSpy.mockRestore();
+  });
+
+  test("a caller's abort cancels the in-flight request", async () => {
+    mockShip({ service: 'presigned-url' });
+    fetchMock.mockImplementation(
+      (_url: string, init: { signal: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          init.signal.addEventListener('abort', () =>
+            reject(init.signal.reason)
+          );
+        })
+    );
+    const controller = new AbortController();
+
+    const upload = uploadFile({ blob, ...forced, signal: controller.signal });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    controller.abort(new Error('stopped'));
+
+    await expect(upload).rejects.toThrow('stopped');
+  });
+
+  test('does not send the signal in the Memex request body', async () => {
+    mockShip({ service: 'presigned-url' });
+    mockMemexResponse();
+
+    await uploadFile({
+      blob,
+      ...forced,
+      signal: new AbortController().signal,
+    });
+
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).not.toHaveProperty(
+      'signal'
+    );
   });
 });

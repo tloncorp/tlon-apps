@@ -46,6 +46,20 @@ allprojects {
 subprojects {
   configurations.all {
     it.resolutionStrategy.activateDependencyLocking()
+
+    // @sentry/react-native 8.34.0 and older bundle sentry-native <= 0.17.4, whose
+    // crash handler aborts on an uncaught std::bad_alloc while unwinding and
+    // replaces the original native crash with its own SIGABRT (TLON-7013,
+    // getsentry/sentry-native#2235). sentry-java 8.63.0 brings sentry-native
+    // 0.17.6 with the fix. The whole sentry-java set moves together because
+    // sentry-native-ndk 0.17 removed an API that sentry-android-ndk 8.57.0 calls.
+    // Remove once @sentry/react-native bundles sentry-java >= 8.63.0.
+    it.resolutionStrategy.eachDependency { details ->
+      if (details.requested.group == 'io.sentry' && details.requested.name != 'sentry-native-ndk') {
+        details.useVersion('8.63.0')
+        details.because('TLON-7013: sentry-native 0.17.5+ crash handler fix')
+      }
+    }
   }
 }
 

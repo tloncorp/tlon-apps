@@ -1,5 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { getCurrentUserIsHosted } from '@tloncorp/api';
 import {
   canGroupHostBuckets,
   createChannel,
@@ -12,8 +13,8 @@ import { FormProvider, useForm, useWatch } from 'react-hook-form';
 import { YStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
-import { useFeatureFlag } from '../../../lib/featureFlags';
 import { GroupSettingsStackParamList } from '../../../navigation/types';
+import { useRootNavigation } from '../../../navigation/utils';
 import { useIsAdmin } from '../../utils/channelUtils';
 import { ActionSheet } from '../ActionSheet';
 import * as Form from '../Form';
@@ -90,19 +91,20 @@ export function CreateChannelSheet({
   });
 
   const { control, handleSubmit, watch, setValue } = form;
+  const { resetToChannel } = useRootNavigation();
 
   const currentUserId = useCurrentUserId();
   const toast = useToast();
   const [isCreating, setIsCreating] = useState(false);
   const isGroupAdmin = useIsAdmin(group.id, currentUserId);
   const isNonHostAdmin = isGroupAdmin && !group.currentUserIsHost;
-  const [bucketsEnabled] = useFeatureFlag('buckets');
   const bucketsDeskAvailable = useDeskSupportsBuckets() === true;
   const bucketsHostSupported = canGroupHostBuckets(group.hostUserId);
-  // Buckets are still behind a flag. This gates the offer, not the channel
-  // type: a bucket someone already made keeps working and the host keeps
-  // serving it -- only the route to making a new one is closed.
-  const bucketsOffered = bucketsEnabled && bucketsDeskAvailable && isGroupAdmin;
+  // Only hosted users are offered Buckets. This gates the offer, not the
+  // channel type: a bucket someone already made keeps working and the host
+  // keeps serving it -- only the route to making a new one is closed.
+  const bucketsOffered =
+    getCurrentUserIsHosted() && bucketsDeskAvailable && isGroupAdmin;
   const bucketsAvailable = bucketsOffered && bucketsHostSupported;
   const channelTypes = useMemo(
     () =>
@@ -142,7 +144,7 @@ export function CreateChannelSheet({
     async (data: CreateChannelFormSchema) => {
       try {
         setIsCreating(true);
-        await createChannel({
+        const channel = await createChannel({
           groupId: group.id,
           title: data.title,
           channelType: data.channelType,
@@ -150,6 +152,10 @@ export function CreateChannelSheet({
           writers: [],
         });
         onOpenChange(false);
+        resetToChannel(channel.id, {
+          groupId: group.id,
+          backToGroupIndex: true,
+        });
       } catch (cause) {
         toast({
           message:
@@ -161,7 +167,7 @@ export function CreateChannelSheet({
         setIsCreating(false);
       }
     },
-    [group.id, onOpenChange, toast]
+    [group.id, onOpenChange, resetToChannel, toast]
   );
 
   return (

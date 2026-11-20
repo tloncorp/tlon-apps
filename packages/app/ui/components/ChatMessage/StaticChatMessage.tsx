@@ -498,7 +498,7 @@ export function StaticChatMessage({
           allowBotMcpSettings: canUseAgentProviderControls,
           allowBrowserCredentialHandoff: allowBrowserHandoff,
           allowBrowserSession: allowBrowserHandoff,
-          allowBrowserWallet: allowBrowserHandoff,
+          browserWalletBot: allowBrowserHandoff ? post.authorId : undefined,
         });
         return;
       }
@@ -851,6 +851,7 @@ export function StaticChatMessage({
             getImageViewerId={(src) => getPostImageViewerId(post.id, src)}
             onLongPress={handleLongPress}
             canUseBrowserCards={allowBrowserHandoff}
+            browserCardBot={allowBrowserHandoff ? post.authorId : undefined}
             onA2UIAction={canRenderA2UI ? handleA2UIAction : undefined}
             isA2UIActionAvailable={
               canRenderA2UI ? isA2UIActionAvailable : undefined

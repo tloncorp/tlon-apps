@@ -50,6 +50,8 @@ export function createBudgetHoldObserver(
           budgetState,
           episodeId: state.episodeId ?? null,
           budgetPausedCronCount,
+          creditNoticeLevel: state.noticeLevel ?? null,
+          creditNoticeDelivered: state.notified,
         };
         const signature = JSON.stringify(fields);
         const previous = snapshots.get(identityKey);

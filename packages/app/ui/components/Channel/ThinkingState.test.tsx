@@ -43,9 +43,12 @@ vi.mock('tamagui', () => ({
 }));
 
 const computing = (): ConversationComputingState => ({
-  ships: [{ ship: '~bot', label: 'Thinking...', toolCalls: [] }],
+  ships: [
+    { ship: '~bot', label: 'Thinking...', toolCalls: [], activeToolCalls: [] },
+  ],
   label: 'Thinking...',
   toolCalls: [],
+  activeToolCalls: [],
 });
 
 describe('ThinkingState', () => {

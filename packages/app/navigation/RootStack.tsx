@@ -31,6 +31,7 @@ import { BotPermissionsSettingsScreen } from '../features/settings/BotPermission
 import { BotPromptFileScreen } from '../features/settings/BotPromptFileScreen';
 import { BotPromptFilesScreen } from '../features/settings/BotPromptFilesScreen';
 import { BotProviderListSettingsScreen } from '../features/settings/BotProviderListSettingsScreen';
+import { SecureVaultScreen } from '../features/settings/SecureVaultScreen';
 import { BotSettingsScreen } from '../features/settings/BotSettingsScreen';
 import { BotShipListSettingsScreen } from '../features/settings/BotShipListSettingsScreen';
 import { EditProfileScreen } from '../features/settings/EditProfileScreen';
@@ -163,7 +164,12 @@ function RootStackContent() {
       />
       <Root.Screen name="NotesSearch" component={NotesSearchScreen} />
       <Root.Screen name="BucketFolder" component={BucketFolderScreen} />
-      <Root.Screen name="BucketFile" component={BucketFileScreen} />
+      <Root.Screen
+        name="BucketFile"
+        component={BucketFileScreen}
+        // Horizontal swipes page through files; the header still closes the preview.
+        options={{ gestureEnabled: false }}
+      />
       <Root.Screen
         name="GroupChannels"
         component={GroupChannelsScreen}
@@ -188,6 +194,11 @@ function RootStackContent() {
       <Root.Screen
         name="BotSettings"
         component={BotSettingsScreen}
+        options={nativeHeaderScreenOptions}
+      />
+      <Root.Screen
+        name="SecureVault"
+        component={SecureVaultScreen}
         options={nativeHeaderScreenOptions}
       />
       <Root.Screen

@@ -57,15 +57,6 @@ export function useBotSettingsDraft() {
 }
 
 /**
- * The picker shows the route the bot is actually on. The stored selection is
- * only what the next restart applies, so after a startup fallback the two
- * differ; baselining on the active route lets the owner re-select the stored
- * value and apply again, which is the retry.
- */
-const effectiveBrowserService = (info?: api.TlawnBrowserServiceInfo) =>
-  info?.active ?? info?.browserService;
-
-/**
  * Push fresh server values into the draft store once the backing queries have
  * settled. Call from any screen that renders draft-backed values.
  */
@@ -79,7 +70,6 @@ export function useSyncBotSettingsDraft(queries: BotSettingsQueries) {
     configQuery,
     nicknameQuery,
     providerConfigQuery,
-    browserServiceQuery,
   } = queries;
   const ready = Boolean(
     ship &&
@@ -102,8 +92,6 @@ export function useSyncBotSettingsDraft(queries: BotSettingsQueries) {
     if (!ready) return;
     syncServerValues(ship, {
       nickname: nicknameQuery.data ?? '',
-      browserService:
-        effectiveBrowserService(browserServiceQuery.data) ?? 'steel',
       model: getModelFormValues(providerConfig),
       chat: toChatFormValues(configQuery.data, providerConfig),
     });
@@ -114,25 +102,8 @@ export function useSyncBotSettingsDraft(queries: BotSettingsQueries) {
     providerConfig,
     configQuery.data,
     nicknameQuery.data,
-    browserServiceQuery.data,
     hasLocalChanges,
   ]);
-
-  useEffect(() => {
-    const browserService = effectiveBrowserService(browserServiceQuery.data);
-    if (!ready || !browserService) return;
-    const current = useBotSettingsDraftStore.getState();
-    // This independent query may settle after another section is being edited.
-    // Adopt its value only when routing itself is untouched, without replacing
-    // the user's draft in the other sections.
-    if (
-      current.scopeKey === ship &&
-      !getPendingFields(current.baseline, current.draft).browserService &&
-      current.baseline.browserService !== browserService
-    ) {
-      current.commitSection({ browserService });
-    }
-  }, [ready, ship, browserServiceQuery.data]);
 
   return ready;
 }
@@ -162,15 +133,6 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
       !draft.hasChanges ||
       applying
     ) {
-      return;
-    }
-    if (
-      draft.pending.browserService &&
-      !queries.browserServiceQuery.data?.supported
-    ) {
-      setApplyError(
-        'Browser service selection is available for OpenClaw bots.'
-      );
       return;
     }
     const nextValues = draft.draft;
@@ -325,7 +287,6 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
         draft.pending.dmAllowlist ||
         draft.pending.defaultAuthorizedShips ||
         draft.pending.groupInviteAllowlist ||
-        draft.pending.autoAcceptDmInvites ||
         draft.pending.autoDiscoverChannels ||
         draft.pending.channelRules;
       const chatConfigStep = async () => {
@@ -428,7 +389,7 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
           server.groupChannels
         );
 
-        const config: Partial<typeof draftConfig> = {
+        const config: Partial<api.TlawnConfig> = {
           dmAllowlist: draft.pending.dmAllowlist
             ? draftConfig.dmAllowlist
             : server.dmAllowlist,
@@ -438,9 +399,9 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
           groupInviteAllowlist: draft.pending.groupInviteAllowlist
             ? draftConfig.groupInviteAllowlist
             : server.groupInviteAllowlist,
-          autoAcceptDmInvites: draft.pending.autoAcceptDmInvites
-            ? draftConfig.autoAcceptDmInvites
-            : server.autoAcceptDmInvites,
+          // No longer editable in the app; forward the server value so this
+          // replacement-style PUT doesn't reset it.
+          autoAcceptDmInvites: server.autoAcceptDmInvites,
           autoDiscoverChannels: draft.pending.autoDiscoverChannels
             ? draftConfig.autoDiscoverChannels
             : server.autoDiscoverChannels,
@@ -501,13 +462,6 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
             count: normalizeShipList(savedChat.groupInviteAllowlist).length,
           });
         }
-        if (draft.pending.autoAcceptDmInvites) {
-          trackTlonbotSettingUpdated({
-            setting: 'auto_accept_dm_invites',
-            action: 'updated',
-            enabled: savedChat.autoAcceptDmInvites,
-          });
-        }
         if (draft.pending.autoDiscoverChannels) {
           trackTlonbotSettingUpdated({
             setting: 'auto_discover_channels',
@@ -534,39 +488,7 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
           chat: savedChat,
         };
       };
-      if (draft.pending.browserService) {
-        steps.push({
-          run: async () => {
-            // Persist just routing, so concurrent model/key edits survive.
-            // Keep the draft pending if restart fails; retrying the PUT is safe.
-            await api.setTlawnBrowserService(
-              queries.ship,
-              nextValues.browserService
-            );
-            const chatPatch = chatConfigDirty
-              ? await chatConfigStep()
-              : (await api.reloadBot(queries.ship), {});
-            // The PUT describes the old runtime. Read the active route only
-            // after startup, including a possible fallback to Steel.
-            if (!(await api.awaitNodeTlonbotReady(queries.ship))) {
-              throw new Error(
-                'Browser service saved, but the bot is still restarting. Try again when it is ready.'
-              );
-            }
-            const refreshed = await queries.browserServiceQuery.refetch();
-            if (!refreshed.isSuccess || !refreshed.data) {
-              throw new Error(
-                'Browser service saved, but its active route could not be refreshed. Try again.'
-              );
-            }
-            return {
-              ...chatPatch,
-              browserService: effectiveBrowserService(refreshed.data),
-            };
-          },
-          commit: { browserService: nextValues.browserService },
-        });
-      } else if (chatConfigDirty) {
+      if (chatConfigDirty) {
         steps.push({ run: chatConfigStep, commit: { chat: nextValues.chat } });
       }
 

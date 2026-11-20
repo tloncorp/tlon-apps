@@ -42,3 +42,23 @@ describe('browser post blobs', () => {
     expect(parsePostBlob(appendToPostBlob(undefined, entry))).toEqual([entry]);
   });
 });
+
+it('wallet cards carry only a request pointer and use the browser card renderer', () => {
+  const entry = {
+    type: 'browser-wallet' as const,
+    version: 1 as const,
+    requestId: 'a9569797-ccae-4a4d-bd28-0772d351c8a4',
+  };
+  const blob = appendToPostBlob(undefined, entry);
+  expect(convertContent([], blob)).toEqual([
+    { type: 'browser-card', card: entry },
+  ]);
+  for (const patch of [
+    { requestId: 'invalid' },
+    { action: 'https://link.com/private' },
+    { cardNumber: 'secret' },
+  ])
+    expect(parsePostBlob(JSON.stringify([{ ...entry, ...patch }]))).toEqual([
+      { type: 'unknown' },
+    ]);
+});

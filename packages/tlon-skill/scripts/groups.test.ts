@@ -5,6 +5,7 @@ import { runScriptCli } from './script-cli-runner';
 import {
   mockedCreateChannel,
   mockedGetGroup,
+  mockedGetGroups,
   mockedManagementCalls,
   mockedNotesV1,
   mockedScry,
@@ -94,6 +95,28 @@ describe('groups update', () => {
         args: [{ groupId: HOSTED, meta: { ...meta, title: 'New' } }],
       },
     ]);
+  });
+});
+
+describe('groups list', () => {
+  const originalGetGroups = mockedGetGroups.impl;
+  afterEach(() => {
+    mockedGetGroups.impl = originalGetGroups;
+  });
+
+  // The bot links a group by pasting its Ref; built by hand it drops the ~.
+  it('prints each group Ref path', async () => {
+    mockedGetGroups.impl = async () => [
+      { id: HOSTED, title: 'Team', privacy: 'secret', channels: [] },
+    ];
+
+    const { exitCode, stdout } = await runGroups(['list']);
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain(`   Ref: /1/group/${HOSTED}`);
+    expect(stdout.indexOf(`   Ref: /1/group/${HOSTED}`)).toBe(
+      stdout.indexOf(`   ID: ${HOSTED}`) + 1
+    );
   });
 });
 

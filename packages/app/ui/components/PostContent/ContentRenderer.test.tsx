@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PostContentRenderer, createContentRenderer } from './ContentRenderer';
 import { BlockRenderer } from './BlockRenderer';
+import { ContentContext } from './contentUtils';
 
 const { platform } = vi.hoisted(() => ({ platform: { isWeb: false } }));
 vi.mock('@tloncorp/shared/logic', async () => ({
@@ -59,6 +60,23 @@ describe('browser session card rendering scope', () => {
     expect(renderer.root.findByType(BlockRenderer).props.block).toMatchObject(
       link
     );
+    act(() => renderer.unmount());
+  });
+
+  it('preserves the trusted chat bot in the block rendering context', () => {
+    const Renderer = createContentRenderer({});
+    let renderer!: ReturnType<typeof create>;
+    act(() => {
+      renderer = create(
+        <Renderer content={[]} canUseBrowserCards browserCardBot="~zod" />
+      );
+    });
+    expect(
+      renderer.root.findByType(ContentContext.Provider).props
+    ).toMatchObject({
+      canUseBrowserCards: true,
+      browserCardBot: '~zod',
+    });
     act(() => renderer.unmount());
   });
 

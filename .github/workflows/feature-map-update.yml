@@ -69,14 +69,14 @@ jobs:
 
       # Full history and tags: the update reads the app's source at two builds
       # and the changes between them.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         if: steps.secrets.outputs.ready == 'true'
         with:
           ref: develop
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         if: steps.secrets.outputs.ready == 'true'
         with:
           node-version-file: .nvmrc
@@ -148,7 +148,7 @@ jobs:
           printf '%s\n' "$TITLE" > "$RUNNER_TEMP/handoff/title"
           echo "ready=true" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: steps.save.outputs.ready == 'true'
         with:
           name: feature-map-update
@@ -164,12 +164,12 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: develop
           persist-credentials: false
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: feature-map-update
           path: ${{ runner.temp }}/handoff

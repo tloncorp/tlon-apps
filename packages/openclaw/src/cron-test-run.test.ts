@@ -1,10 +1,11 @@
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { ContextLens } from './context-lens.js';
+import {
+  cronJobForSession,
+  rememberCronJobForSession,
+} from './mcp-readonly-policy.js';
 import {
   CRON_TEST_RUN_BLOCK_REASON,
   type CronTestRunDeps,
@@ -61,7 +62,6 @@ function harness(id: string, jobs: unknown[] = [{ ...digest, id }]) {
       normalizeThinkingLevel: (raw?: string | null) =>
         raw === 'on' ? 'low' : (raw ?? undefined),
     } as unknown as CronTestRunDeps['runtime'],
-    stateDir: () => mkdtempSync(path.join(tmpdir(), 'cron-test-run-')),
     publish: (phase, lens) => published.push({ phase, lens }),
     logger: { warn: vi.fn() },
     now: () => Date.UTC(2026, 9, 12, 9, 0),
@@ -100,6 +100,7 @@ describe('startCronTestRun', () => {
       },
     });
     const params = runEmbeddedAgent.mock.calls[0]![0];
+    rememberCronJobForSession(params.sessionKey, 'job-digest');
     expect(params).toMatchObject({
       agentId: 'main',
       trigger: 'cron',
@@ -108,7 +109,10 @@ describe('startCronTestRun', () => {
       toolsAllow: ['tlon', 'web_search'],
       bootstrapContextRunKind: 'cron',
       cleanupBundleMcpOnRunEnd: true,
+      // OpenClaw 2026.9.4 refuses a plugin run that names a transcript file.
+      sessionPersistence: 'detached',
     });
+    expect(params).not.toHaveProperty('sessionFile');
     expect(params).not.toHaveProperty('thinkLevel');
     // The gateway's configured agent timeout, as a scheduled run gets; the
     // runner passes what is left of it.
@@ -141,6 +145,10 @@ describe('startCronTestRun', () => {
         output: 'Three new threads today.',
       },
     });
+    // The run's own cleanup, since a detached run fires no agent_end.
+    await vi.waitFor(() =>
+      expect(cronJobForSession(params.sessionKey)).toBeUndefined()
+    );
   });
 
   it('loads the context and thinking level a job asks for', async () => {

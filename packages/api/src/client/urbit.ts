@@ -76,6 +76,7 @@ interface Config extends Pick<ClientParams, 'onQuitOrReset'> {
   deskServesRosterPages: boolean | null;
   deskSupportsStewardBots: boolean | null;
   deskSupportsContactDiscovery: boolean | null;
+  deskKeepsDiscoveryCursor: boolean | null;
 }
 
 type Predicate = (event: any, mark: string) => boolean;
@@ -216,6 +217,7 @@ const config: Config = {
   // Unknown (null) until the app confirms the backend's groups version.
   // Unknown reads as unsupported for choosing how to run contact discovery.
   deskSupportsContactDiscovery: null,
+  deskKeepsDiscoveryCursor: null,
 };
 
 type ClientResolver = () => Urbit | null | undefined;
@@ -231,7 +233,7 @@ export function setClientResolver(resolver: ClientResolver | null): void {
 }
 
 /** Derive a short-lived owner proof from the authenticated ship session. */
-export async function getBrowserVaultOwnerAuthorization() {
+export async function getBrowserVaultOwnerAuthorization(issuedAt = Date.now()) {
   const session = config.session;
   if (!session || session.loggingOut)
     throw new Error('Owner authentication is unavailable.');
@@ -243,7 +245,7 @@ export async function getBrowserVaultOwnerAuthorization() {
     throw new Error('Owner authentication is unavailable.');
   return {
     planet: session.shipName.replace(/^~/, ''),
-    ownerToken: deriveBrowserOwnerToken(code),
+    ownerToken: deriveBrowserOwnerToken(code, issuedAt),
   };
 }
 
@@ -288,6 +290,14 @@ export const setActivitySupportsReactions = (value: boolean) => {
     bumpActivityCapabilitiesEpoch();
   }
 };
+
+const clientSessionListeners = new Set<() => void>();
+export function onClientSessionChange(listener: () => void): () => void {
+  clientSessionListeners.add(listener);
+  return () => {
+    clientSessionListeners.delete(listener);
+  };
+}
 
 // The generation of the currently configured session. Read this immediately
 // before acting on something a reauth produced -- with no await in between --
@@ -507,6 +517,16 @@ export const onDeskSupportsTaskRunsChange = (
   };
 };
 
+// Whether the connected backend's %lanyard keeps the contact discovery cursor.
+// Discovery reads it when it runs; nothing waits for it to change.
+export const setDeskKeepsDiscoveryCursor = (value: boolean | null) => {
+  config.deskKeepsDiscoveryCursor = value;
+};
+
+export const getDeskKeepsDiscoveryCursorState = (): boolean | null => {
+  return config.deskKeepsDiscoveryCursor;
+};
+
 export const client = new Proxy(
   {},
   {
@@ -591,6 +611,7 @@ export function internalConfigureClient({
       loggingOut: false,
     };
     config.sessionGeneration += 1;
+    clientSessionListeners.forEach((listener) => listener());
   }
   config.onQuitOrReset = onQuitOrReset;
   config.subWatchers = {};
@@ -669,6 +690,7 @@ export function internalRemoveClient() {
   // the configured one and stops; see reauth and performReauth
   config.session = null;
   config.sessionGeneration += 1;
+  clientSessionListeners.forEach((listener) => listener());
   config.subWatchers = {};
   // backend capabilities belong to the ship we were connected to; reset
   // so an account switch to an older backend doesn't request newer
@@ -685,6 +707,7 @@ export function internalRemoveClient() {
   setDeskServesRosterPages(null);
   setDeskSupportsStewardBots(null);
   setDeskSupportsContactDiscovery(null);
+  setDeskKeepsDiscoveryCursor(null);
 }
 
 function printEndpoint(endpoint: UrbitEndpoint) {

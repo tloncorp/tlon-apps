@@ -29,6 +29,7 @@ vi.mock('tamagui', () => ({
 vi.mock('react-native', () => ({
   Platform: { OS: 'ios' },
   Pressable: 'Pressable',
+  KeyboardAvoidingView: 'KeyboardAvoidingView',
   TextInput: 'TextInput',
   Alert: { alert: vi.fn() },
   Keyboard: {

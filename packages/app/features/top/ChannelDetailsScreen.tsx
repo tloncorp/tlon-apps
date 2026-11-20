@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { Platform } from 'react-native';
 
 import { useRootNavigation } from '../../navigation/utils';
 import { useChatOptions, useIsWindowNarrow } from '../../ui';
@@ -10,11 +11,13 @@ export function ChannelDetailsScreenView({
   onEditChannelMeta,
   onEditChannelPrivacy,
   onAfterDeleteChannel,
+  hidesChannelManager,
 }: {
   onGoBack?: () => void;
   onEditChannelMeta: (channelId: string, groupId: string) => void;
   onEditChannelPrivacy: (channelId: string, groupId: string) => void;
   onAfterDeleteChannel?: () => void;
+  hidesChannelManager?: boolean;
 }) {
   const { channel } = useChatOptions();
   const { navigateToChannel, navigateBack } = useRootNavigation();
@@ -31,7 +34,8 @@ export function ChannelDetailsScreenView({
       onGoBack();
       return;
     }
-    if (isWindowNarrow) {
+    // Native always has the root stack to go back through.
+    if (Platform.OS !== 'web' || isWindowNarrow) {
       navigateBack();
     } else if (channel) {
       navigateToChannel(channel);
@@ -47,6 +51,7 @@ export function ChannelDetailsScreenView({
       onPressEdit={handlePressEdit}
       onEditChannelPrivacy={onEditChannelPrivacy}
       onAfterDeleteChannel={onAfterDeleteChannel}
+      hidesChannelManager={hidesChannelManager}
     />
   );
 }

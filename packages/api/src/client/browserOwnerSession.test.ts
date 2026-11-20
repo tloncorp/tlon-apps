@@ -1,0 +1,232 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+const state = vi.hoisted(() => ({
+  generation: 0,
+  authorize: vi.fn(),
+  fetch: vi.fn(),
+  change: undefined as undefined | (() => void),
+  endpoint: undefined as string | undefined,
+}));
+vi.mock('./urbit', () => ({
+  getClientGeneration: () => state.generation,
+  onClientSessionChange: (fn: () => void) => {
+    state.change = fn;
+  },
+  getBrowserVaultOwnerAuthorization: (time: number) => state.authorize(time),
+}));
+vi.mock('../types', () => ({
+  getConstants: () => ({
+    API_URL: 'https://test.tlon.systems',
+    BROWSER_SERVICE_ENDPOINT: state.endpoint,
+  }),
+}));
+import {
+  browserOwnerRequest,
+  browserOwnerServiceOrigin,
+  browserOwnerSessionMoon,
+  clearBrowserOwnerSessions,
+} from './browserOwnerSession';
+const origin = 'https://browser-session.test.tlon.systems';
+const endpoint = `${origin}/owner/credentials`;
+const session = () => ({
+  token: 'owner_v1_test',
+  expiresAt: Date.now() + 3_600_000,
+  idleTimeoutMs: 900_000,
+});
+const response = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status });
+beforeEach(() => {
+  clearBrowserOwnerSessions();
+  vi.clearAllMocks();
+  state.generation = 0;
+  state.endpoint = undefined;
+  state.authorize.mockResolvedValue({
+    planet: 'sampel-palnet',
+    ownerToken: 'private-proof',
+  });
+  state.fetch.mockImplementation(async (url: string) =>
+    response(url.endsWith('/owner/sessions') ? session() : { credentials: [] })
+  );
+  vi.stubGlobal('fetch', state.fetch);
+});
+describe('browser owner sessions', () => {
+  it('uses BROWSER_SERVICE_ENDPOINT for owner operations', () => {
+    state.endpoint = origin;
+    expect(browserOwnerServiceOrigin()).toBe(origin);
+    state.endpoint = `${origin}/mcp`;
+    expect(() => browserOwnerServiceOrigin()).toThrow(
+      'Configure BROWSER_SERVICE_ENDPOINT as an origin, without a path.'
+    );
+    state.endpoint = undefined;
+    expect(() => browserOwnerServiceOrigin()).toThrow(
+      'Browser service is not configured for this environment.'
+    );
+  });
+
+  it('coalesces exchange and sends only bearer headers on later operations', async () => {
+    await Promise.all([
+      browserOwnerRequest(endpoint, 'moon', 'GET'),
+      browserOwnerRequest(endpoint, 'moon', 'GET'),
+    ]);
+    await browserOwnerRequest(`${endpoint}/login-a`, 'moon', 'DELETE');
+    expect(state.authorize).toHaveBeenCalledOnce();
+    expect(
+      state.fetch.mock.calls.filter(([url]) => url.endsWith('/owner/sessions'))
+    ).toHaveLength(1);
+    for (const [url, options] of state.fetch.mock.calls.slice(1)) {
+      expect(url).not.toContain('owner_v1');
+      expect(options).toMatchObject({
+        credentials: 'omit',
+        redirect: 'error',
+        cache: 'no-store',
+        headers: { Authorization: 'Bearer owner_v1_test' },
+      });
+      expect(options.body).toBeUndefined();
+    }
+  });
+  it('keeps tokens and pending exchanges separate for bots on the same service', async () => {
+    state.fetch.mockImplementation(
+      async (url: string, options: RequestInit) => {
+        if (url.endsWith('/owner/sessions')) {
+          const { botMoon } = JSON.parse(options.body as string);
+          return response({ ...session(), token: `owner_${botMoon}` });
+        }
+        return response({ credentials: [] });
+      }
+    );
+    await Promise.all([
+      browserOwnerRequest(endpoint, '~bot-a', 'GET'),
+      browserOwnerRequest(endpoint, 'bot-b', 'GET'),
+    ]);
+    await browserOwnerRequest(endpoint, 'bot-a', 'GET');
+    const calls = state.fetch.mock.calls.filter(([url]) => url === endpoint);
+    expect(calls.map(([, options]) => options.headers.Authorization)).toEqual([
+      'Bearer owner_bot-a',
+      'Bearer owner_bot-b',
+      'Bearer owner_bot-a',
+    ]);
+    expect(state.authorize).toHaveBeenCalledTimes(2);
+  });
+  it('reuses auth only for a bound credential capability, never the shared viewer route', async () => {
+    const credential = `${origin}/credential-vault/${'a'.repeat(43)}`;
+    await browserOwnerRequest(credential, 'bot-a', 'POST', {});
+    await browserOwnerRequest(
+      `${origin}/viewer-authorize`,
+      'bot-b',
+      'POST',
+      {}
+    );
+    expect(browserOwnerSessionMoon(credential)).toBe('bot-a');
+    expect(
+      browserOwnerSessionMoon(`${origin}/viewer-authorize`)
+    ).toBeUndefined();
+  });
+  it('rejects foreign and cross-environment origins before reading proof', async () => {
+    for (const url of [
+      'https://evil.example/owner/credentials',
+      'http://browser-session.test.tlon.systems/owner/credentials',
+      'https://browser-session.tlon.network/owner/credentials',
+      `${endpoint}?token=x`,
+    ]) {
+      await expect(browserOwnerRequest(url, 'moon', 'GET')).rejects.toThrow();
+    }
+    expect(state.authorize).not.toHaveBeenCalled();
+    expect(state.fetch).not.toHaveBeenCalled();
+  });
+  it('renews once after auth rejection but never replays an uncertain deletion', async () => {
+    let rejected = false;
+    state.fetch.mockImplementation(async (url: string) => {
+      if (url.endsWith('/owner/sessions')) return response(session());
+      if (!rejected) {
+        rejected = true;
+        return response({ error: 'unauthorized' }, 401);
+      }
+      return response({ credentials: [] });
+    });
+    await browserOwnerRequest(endpoint, 'moon', 'GET');
+    expect(state.authorize).toHaveBeenCalledTimes(2);
+    expect(state.authorize.mock.calls[1][0]).toBeGreaterThan(
+      state.authorize.mock.calls[0][0]
+    );
+    state.fetch.mockRejectedValue(new Error('connection lost'));
+    await expect(
+      browserOwnerRequest(`${endpoint}/login-a`, 'moon', 'DELETE')
+    ).rejects.toThrow('connection lost');
+    expect(
+      state.fetch.mock.calls.filter(([url]) => url === `${endpoint}/login-a`)
+    ).toHaveLength(1);
+  });
+  it('uses a later proof if another tab already exchanged the current one', async () => {
+    state.fetch.mockResolvedValueOnce(
+      response({ error: 'proof_already_exchanged' }, 409)
+    );
+    await browserOwnerRequest(endpoint, 'moon', 'GET');
+    expect(state.authorize).toHaveBeenCalledTimes(2);
+    expect(state.authorize.mock.calls[1][0]).toBeGreaterThan(
+      state.authorize.mock.calls[0][0]
+    );
+  });
+
+  it('revokes an exchange that completes after switching accounts without using it', async () => {
+    let resolve!: (value: Response) => void;
+    state.fetch.mockReturnValueOnce(
+      new Promise<Response>((done) => {
+        resolve = done;
+      })
+    );
+    const operation = browserOwnerRequest(endpoint, 'moon', 'GET');
+    await vi.waitFor(() => expect(state.fetch).toHaveBeenCalledOnce());
+    state.generation++;
+    state.change?.();
+    resolve(response(session()));
+    await expect(operation).rejects.toThrow('Account changed');
+    await vi.waitFor(() => expect(state.fetch).toHaveBeenCalledTimes(2));
+    expect(state.fetch.mock.calls[1][0]).toBe(
+      `${origin}/owner/sessions/current`
+    );
+    expect(state.fetch.mock.calls.some(([url]) => url === endpoint)).toBe(
+      false
+    );
+  });
+  it('clears and revokes cached sessions on logout', async () => {
+    await browserOwnerRequest(endpoint, 'moon', 'GET');
+    state.generation++;
+    state.change?.();
+    await browserOwnerRequest(endpoint, 'moon', 'GET');
+    expect(state.authorize).toHaveBeenCalledTimes(2);
+    expect(
+      state.fetch.mock.calls.filter(([url]) => url.endsWith('/current'))
+    ).toHaveLength(1);
+  });
+});
+
+it('reuses the owner session for either spelling of the bot moon', async () => {
+  await browserOwnerRequest(endpoint, '~moon', 'GET');
+  await browserOwnerRequest(endpoint, '~moon', 'GET');
+  await browserOwnerRequest(endpoint, 'moon', 'GET');
+  expect(state.authorize).toHaveBeenCalledOnce();
+});
+
+it('exchanges a new owner session when switching bots on the same service', async () => {
+  await browserOwnerRequest(endpoint, 'first-moon', 'GET');
+  await browserOwnerRequest(endpoint, 'second-moon', 'GET');
+  const exchanges = state.fetch.mock.calls.filter(([url]) =>
+    url.endsWith('/owner/sessions')
+  );
+  expect(
+    exchanges.map(([, options]) => JSON.parse(options.body).botMoon)
+  ).toEqual(['first-moon', 'second-moon']);
+});
+it('sends payment approval through owner auth once and never retries a lost response', async () => {
+  const payment = `${origin}/owner/wallet-actions/a9569797-ccae-4a4d-bd28-0772d351c8a4`;
+  await browserOwnerRequest(payment, 'moon', 'GET');
+  state.fetch.mockRejectedValue(new Error('connection lost'));
+  await expect(
+    browserOwnerRequest(payment + '/approve', 'moon', 'POST', {
+      confirmed: true,
+      payment_method_id: 'pm',
+    })
+  ).rejects.toThrow('connection lost');
+  expect(
+    state.fetch.mock.calls.filter(([url]) => url.endsWith('/approve'))
+  ).toHaveLength(1);
+});

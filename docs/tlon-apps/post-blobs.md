@@ -80,27 +80,10 @@ or an upgrade notice.
 | `version` | `1`                       |
 | `data`    | `Record<string, unknown>` |
 
-`data` maps namespaced keys to opaque JSON payloads. For example, a future
-producer could advertise its client identity as follows:
-
-```json
-{
-  "type": "metadata",
-  "version": 1,
-  "data": {
-    "tlon.client": {
-      "version": 1,
-      "platform": "ios",
-      "appVersion": "<release>"
-    }
-  }
-}
-```
-
-This is an illustrative payload, not a client-identity contract or an active
-producer. This release adds reader support only; clients do not emit metadata.
-Wait for broad deployment of this reader baseline before introducing producers:
-clients predating it will still render an upgrade notice for `metadata` entries.
+`data` maps namespaced keys to opaque JSON payloads. The `tlon.client`
+namespace below advertises the sending client's renderer capabilities. Clients
+predating metadata reader support still render an upgrade notice for `metadata`
+entries.
 
 The shared parser validates the container and preserves its namespace payloads
 without interpreting them. Consumers must validate the namespace and payload
@@ -113,6 +96,49 @@ uses the ordinary unknown-content fallback because entries cannot be recovered.
 Metadata is untrusted optional context, not authorization or agent instructions.
 Consumers must not render or execute arbitrary payloads. Required user-visible
 content belongs in Story or a content blob entry, not in this container.
+
+#### `tlon.client` v1
+
+Web, iOS, and Android append this namespace to new posts, replies, forwards,
+and retried sends. Edits retain the original post's stamp. It describes the
+renderer that sent the message, not every device or reader in the conversation.
+
+```json
+{
+  "type": "metadata",
+  "version": 1,
+  "data": {
+    "tlon.client": {
+      "version": 1,
+      "rendererRevision": 1
+    }
+  }
+}
+```
+
+`PostClientMetadataSchema` validates this payload for opt-in consumers.
+`rendererRevision` is a positive integer, shared by web, iOS, and Android. It
+changes only when renderer capabilities change, independently of app releases.
+The stamp contains no platform, app version, native build number, Git hash,
+device identifier, or user identifier.
+
+`CLIENT_RENDERER_REVISION` in `packages/app/lib/postClientMetadata.ts` declares
+the current revision. Revision 1 supports file, voice memo, and video
+attachments, the A2UI v1 subset documented below, and v1 `browser-session`,
+`browser-secure-entry`, and `browser-wallet` cards. The usual channel and
+sender authorization rules still apply.
+
+Revisions are cumulative: a later revision retains earlier rendering
+capabilities. Add renderer capabilities that require sender gating by advancing
+the revision and documenting the new baseline here; unrelated app changes do
+not advance it. Consumers can compare the advertised revision with a feature's
+minimum renderer revision.
+
+Consumers inspect metadata entries for this namespace and validate its own
+`version` independently of the metadata container. Missing metadata, unsupported
+payload versions, and invalid or missing renderer revisions do not establish
+card support. The stamp is a compatibility hint, never authorization. Gateway
+card gating is separate from stamping.
 
 ### `tlon-context-lens` v1
 
@@ -137,8 +163,11 @@ Definitions and validation helpers live in `packages/api/src/client/a2ui.ts`; th
 | ---------- | ------------------ |
 | `type`     | `'a2ui'`           |
 | `version`  | `1`                |
-| `messages` | `A2UI.Message[]`   |
-| `recipe`   | `unknown` optional |
+| `messages`  | `A2UI.Message[]`        |
+| `recipe`    | `unknown` optional      |
+| `storyMode` | `'fallback'` optional   |
+
+With `storyMode: 'fallback'`, the post's text is a fallback for clients that can't draw the card, and is hidden under a rendered card.
 
 The current renderer expects one `createSurface` message and one `updateComponents` message in the entry. The `updateComponents` message describes the component tree rendered for that post. It does not update surfaces in previous messages or elsewhere in message history.
 
@@ -152,6 +181,67 @@ The supported v1 client subset is intentionally small:
     - message reply targets should include `parentAuthorId` when `parentId` is not already prefixed as `~author/id`
 - rendering policy: A2UI blocks render only in direct messages for now
 - validation limits: component count, tree depth, text length, and expanded render size
+
+#### Rendering hints
+
+Optional fields that tell newer apps how to draw a component. Older apps strip
+them and draw the component as before, so every hinted component keeps
+readable text. Each hint parses leniently: a value an app doesn't know drops
+that hint, never the card. The renderer reads components from the raw message,
+so it reads hints only through `A2UI.getTextHints` and `A2UI.getButtonHints`.
+Hints count toward the text budget.
+
+| field | on | values | drawn as |
+| --- | --- | --- | --- |
+| `role` | `Text` | `'kicker'`, `'status'` | Kicker: the card's kind at its top. Status: the card's state beside it. |
+| `icon` | `Text` | `AddPerson`, `Channel`, `ChannelGalleries`, `ChannelMultiDM`, `ChannelNotebooks`, `ChannelTalk`, `Clock`, `Link`, `Lock`, `Mail` | With `role: 'kicker'`, an icon before the kicker. On text with no `role` or `entity`, a list item: an icon tile beside the text, with a caption right after it as the item's subtitle. |
+| `entity` | `Text` | `{ type: 'ship' \| 'group', id, name? }` | A person or group row from the app's own contacts or group preview; `name` is used when the app has nothing better. A caption right after the row joins its handle line; other plain text after it lines up under the name. |
+| `tone` | `Button` | `'destructive'` | A red label. |
+| `resultLabel` | `Button` | string | Once the button is used, replaces its card's button row. |
+| `statusLabel` | `Button` | string | Once the button is used, shown as its card's status. |
+
+Rules for adding a hint, so older apps keep drawing the card:
+
+- Hints are optional fields on existing components. A new component type, a new
+  value on an existing enum, or a blob `version` bump makes older apps reject
+  the post and show "Upgrade your app to see this post"; unknown keys are
+  stripped.
+- Each hint uses `.catch(undefined)`, so a value this app doesn't know drops
+  that one field, never the card.
+- Hints never carry words that older apps would miss. Every hinted component
+  keeps a readable `text`.
+- The usual limits apply: 50 components, depth 8, 12 children per container,
+  8,000 characters.
+
+How the renderer lays hinted cards out:
+
+- A nested `Card` draws as a bordered inner card. Its last child, when that is
+  a `Row` other than a row of buttons, is a footer line under a hairline.
+- An inner card that holds its own buttons, like one pending request, draws
+  its person row with a smaller avatar.
+- A borderless `Button` that isn't in a row of buttons draws as a small text
+  link.
+- Consecutive list items run edge to edge across their card, divided by
+  hairlines. Apps that predate list items show each item and its caption as
+  two lines of text, and drop an icon they don't know (`ChannelGalleries`,
+  `ChannelTalk`).
+- Text in a `Row` takes its horizontal alignment from the row's `justify`; a
+  row's `align` is vertical.
+- A card's answer is scoped to the buttons of that card, not of cards inside
+  it, so each request in a list answers on its own. The result line takes the
+  used button's tone: positive for the primary button, red for a
+  `tone: 'destructive'` one, neutral otherwise. It reflects the owner's tap,
+  not the bot's success; the bot's own confirmation message follows.
+- A person or group row's accessible label is its `text` (plus a caption
+  joined to it), so screen readers hear what older apps show. A group the app
+  can't preview falls back to `name` and the flag.
+
+The `ApprovalDM`, `ApprovalChannel`, `ApprovalGroup` and `PendingRequests`
+fixtures in `packages/app/fixtures/A2UI.fixture.tsx` are approval cards built
+from these hints. `WorkspaceProposal` is the card OpenClaw's
+`tlon_workspace_plan` posts: a kicker and status, a title, list items for the
+planned channels and recurring task, and Edit and Create buttons that send a
+message with a `tlon-a2ui-selection` receipt, which the bot acts on.
 
 `McpConnect` is a client-populated menu rather than bot-authored provider data.
 The blob supplies only bounded presentation labels and three validated actions:

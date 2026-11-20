@@ -78,7 +78,26 @@ import {
   getActiveTlonTurnAccountId,
   observeActiveTlonTurnDelivery,
 } from './turn-recorder.js';
+import { getTlonCronService } from './cron-telemetry.js';
+import {
+  getStewardAutomationReconciler,
+  reportStewardProjectionFailure,
+} from './steward-automation-reconciliation.js';
 import { listTlonAccountIds, resolveTlonAccount } from './types.js';
+import {
+  createWorkspaceCreateToolExecutor,
+  createWorkspacePlanToolExecutor,
+  getWorkspaceTlonRunner,
+  workspaceCreateToolMetadata,
+  workspaceCreateToolParameters,
+  workspacePlanToolMetadata,
+  workspacePlanToolParameters,
+} from './workspace-plan-tool.js';
+import {
+  createWorkspaceLinkToolExecutor,
+  workspaceLinkToolMetadata,
+  workspaceLinkToolParameters,
+} from './workspace-link-tool.js';
 
 const TLON_CHANNEL_ID = 'tlon' as const;
 const require = createRequire(import.meta.url);
@@ -89,15 +108,16 @@ const loadTlonChannelRuntime = createLazyRuntimeModule(
 );
 
 const tlonSetupWizardProxy = createTlonSetupWizardBase({
-  resolveConfigured: async ({ cfg }) =>
+  resolveConfigured: async ({ cfg, accountId }) =>
     await (
       await loadTlonChannelRuntime()
-    ).tlonSetupWizard.status.resolveConfigured({ cfg }),
-  resolveStatusLines: async ({ cfg, configured }) =>
+    ).tlonSetupWizard.status.resolveConfigured({ cfg, accountId }),
+  resolveStatusLines: async ({ cfg, accountId, configured }) =>
     (await (
       await loadTlonChannelRuntime()
     ).tlonSetupWizard.status.resolveStatusLines?.({
       cfg,
+      accountId,
       configured,
     })) ?? [],
   finalize: async (params) =>
@@ -290,7 +310,96 @@ export const tlonPlugin = createChatChannelPlugin({
           postSurface(target, fallbackSummary, blob),
       });
 
+      const executeWorkspacePlan = createWorkspacePlanToolExecutor({
+        ownerShip: () =>
+          resolveTlonAccount(
+            cfg ?? {},
+            getActiveTlonTurnAccountId() ?? undefined
+          ).ownerShip ?? undefined,
+        postText: (target, text) =>
+          observeActiveTlonTurnDelivery(() =>
+            runForActiveAccount(['posts', 'send', target, text])
+          ),
+        // The reply path, as tlon_workspace_create posts the answer in the
+        // workspace chat, so both render the same.
+        postAnswer: async (target, text) =>
+          (await loadTlonChannelRuntime()).tlonRuntimeOutbound.sendText!({
+            cfg: cfg ?? {},
+            to: target,
+            text,
+            accountId: getActiveTlonTurnAccountId() ?? undefined,
+          }),
+        postCard: ({ target, fallbackText, blob }) =>
+          postSurface(target, fallbackText, blob),
+      });
+
+      const activeAccountId = () => getActiveTlonTurnAccountId() ?? undefined;
+      const executeWorkspaceLink = createWorkspaceLinkToolExecutor({
+        ownerShip: () =>
+          resolveTlonAccount(cfg ?? {}, activeAccountId()).ownerShip ??
+          undefined,
+        groupIds: async () => {
+          const groups: unknown = JSON.parse(
+            await runForActiveAccount(['channels', 'groups'])
+          );
+          return Array.isArray(groups)
+            ? groups.flatMap((g) =>
+                g && typeof (g as { id?: unknown }).id === 'string'
+                  ? [(g as { id: string }).id]
+                  : []
+              )
+            : [];
+        },
+        // The reply path, not `posts send`: it turns the path into a card.
+        postText: async (target, text) =>
+          (await loadTlonChannelRuntime()).tlonRuntimeOutbound.sendText!({
+            cfg: cfg ?? {},
+            to: target,
+            text,
+            accountId: activeAccountId(),
+          }),
+      });
+
+      const executeWorkspaceCreate = createWorkspaceCreateToolExecutor({
+        getCron: getTlonCronService,
+        // Creation still succeeds when the mirror fails; the failure is
+        // reported here once the reconciler's retries are spent.
+        syncTasks: async () =>
+          getStewardAutomationReconciler()
+            ?.trigger(() => getTlonCronService())
+            .catch((error) => reportStewardProjectionFailure(error)),
+        // The reply path, not `posts send`: it turns the path into a card.
+        postText: async (target, text) =>
+          (await loadTlonChannelRuntime()).tlonRuntimeOutbound.sendText!({
+            cfg: cfg ?? {},
+            to: target,
+            text,
+            accountId: activeAccountId(),
+          }),
+        runTlon: async (id, command) => {
+          const runner = getWorkspaceTlonRunner();
+          return runner
+            ? runner(id, command)
+            : { ok: false, text: 'the tlon tool is not ready yet' };
+        },
+      });
+
       return [
+        {
+          ...workspacePlanToolMetadata,
+          parameters: workspacePlanToolParameters,
+          execute: (id, params) => executeWorkspacePlan(id, params),
+        },
+        {
+          ...workspaceCreateToolMetadata,
+          parameters: workspaceCreateToolParameters,
+          execute: (id, params) => executeWorkspaceCreate(id, params),
+        },
+        {
+          ...workspaceLinkToolMetadata,
+          parameters: workspaceLinkToolParameters,
+          execute: (id, params) => executeWorkspaceLink(id, params),
+        },
         {
           ...agentChoiceToolMetadata,
           parameters: agentChoiceToolParameters,

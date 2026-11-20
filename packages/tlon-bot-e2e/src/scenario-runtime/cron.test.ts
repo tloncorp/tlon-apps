@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
+import { harnessDriver } from '../drivers/harness.js';
 import type { RuntimeContext } from '../drivers/types.js';
 import {
   type CronCleanupTarget,
@@ -15,7 +16,11 @@ const docker = vi.hoisted(() => ({
   resolveComposeContainer: vi.fn(),
 }));
 
-vi.mock('../runtime/docker-direct.js', () => docker);
+// The driver modules cron.ts resolves import the rest of docker-direct.
+vi.mock('../runtime/docker-direct.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../runtime/docker-direct.js')>()),
+  ...docker,
+}));
 
 const context = {
   packageDir: '/repo/packages/tlon-bot-e2e',
@@ -32,6 +37,7 @@ describe('cron scenario lifecycle helpers', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   test('lists all OpenClaw jobs with the deadline-derived CLI timeout', async () => {
@@ -178,6 +184,51 @@ describe('cron scenario lifecycle helpers', () => {
         Promise.reject(new Error('job was not listed'))
       )
     ).rejects.toThrow('cron job lookup failed: job was not listed');
+  });
+
+  test('treats a finished job as removed for a driver with its own store', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const list = vi
+      .spyOn(harnessDriver.cronJobs!, 'list')
+      .mockResolvedValueOnce([
+        { id: 'job-id', name: 'prompt', finished: false },
+      ])
+      .mockResolvedValueOnce([
+        { id: 'job-id', name: 'prompt', finished: true },
+      ]);
+
+    const wait = waitForCronJobRemoved(context, 'harness', 'job-id', 2_000);
+    await vi.advanceTimersByTimeAsync(500);
+    await expect(wait).resolves.toBeUndefined();
+    expect(list).toHaveBeenCalledTimes(2);
+    expect(docker.resolveComposeContainer).not.toHaveBeenCalled();
+  });
+
+  test('cleans up through the driver store and proves the job is gone', async () => {
+    const list = vi
+      .spyOn(harnessDriver.cronJobs!, 'list')
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { id: 'job-id', name: 'prompt', finished: true },
+      ]);
+    const remove = vi
+      .spyOn(harnessDriver.cronJobs!, 'remove')
+      .mockResolvedValue(undefined);
+    const target: CronCleanupTarget = {
+      name: 'prompt',
+      id: 'job-id',
+      creationSettled: Promise.resolve(),
+    };
+
+    await cleanupCronJobAndArtifacts(context, 'harness', target);
+    expect(remove).toHaveBeenCalledWith(context, 'job-id', expect.any(Number));
+    await expect(
+      cleanupCronJobAndArtifacts(context, 'harness', target)
+    ).rejects.toThrow('Cron cleanup left job job-id in the harness store.');
+    expect(list).toHaveBeenCalledTimes(2);
+    expect(docker.resolveComposeContainer).not.toHaveBeenCalled();
+    expect(docker.execInContainer).not.toHaveBeenCalled();
   });
 
   test('lists a present OpenClaw job before disabling, removing, and verifying its artifact', async () => {
@@ -362,7 +413,7 @@ describe('cron scenario lifecycle helpers', () => {
     expect(argv[4]).toContain('late-id');
   });
 
-  test('clips a late capture listing started near its deadline to the remaining phase time', async () => {
+  test('runs each late capture listing under the cleanup command timeout', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(0);
     docker.resolveComposeContainer.mockResolvedValue('container-id');
@@ -371,11 +422,11 @@ describe('cron scenario lifecycle helpers', () => {
       async (_ctx, _id, _argv, opts) => {
         invocation += 1;
         if (invocation === 1) {
-          expect(opts.timeoutMs).toBe(1_000);
+          expect(opts.timeoutMs).toBe(10_000);
           return result({ jobs: [] });
         }
         if (invocation === 2) {
-          expect(opts.timeoutMs).toBe(500);
+          expect(opts.timeoutMs).toBe(10_000);
           return result({ jobs: [{ id: 'late-id', name: 'late-job' }] });
         }
         if (invocation === 3) {
@@ -399,6 +450,54 @@ describe('cron scenario lifecycle helpers', () => {
     );
     await vi.advanceTimersByTimeAsync(500);
     await expect(cleanup).resolves.toBeUndefined();
+  });
+
+  test('returns cleanly when no late job appears before the capture deadline', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    docker.resolveComposeContainer.mockResolvedValue('container-id');
+    docker.execInContainer.mockResolvedValue(result({ jobs: [] }));
+
+    const cleanup = cleanupCronJobAndArtifacts(
+      context,
+      'openclaw',
+      { name: 'never-created', creationSettled: Promise.resolve() },
+      { lateCaptureWaitMs: 1_000 }
+    );
+    await vi.advanceTimersByTimeAsync(1_000);
+    await expect(cleanup).resolves.toBeUndefined();
+
+    const calls = docker.execInContainer.mock.calls;
+    // Capture listings at 0, 500 and 1000 ms, then the absence check.
+    expect(calls).toHaveLength(4);
+    for (const call of calls) {
+      expect(call[2]).toEqual(openClawListArgv());
+      expect(call[3]).toEqual({ timeoutMs: 10_000 });
+    }
+  });
+
+  test('lists once with the full command timeout when lateCaptureWaitMs is 0', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    docker.resolveComposeContainer.mockResolvedValue('container-id');
+    docker.execInContainer.mockResolvedValue(result({ jobs: [] }));
+
+    await expect(
+      cleanupCronJobAndArtifacts(
+        context,
+        'openclaw',
+        { name: 'never-created', creationSettled: Promise.resolve() },
+        { lateCaptureWaitMs: 0 }
+      )
+    ).resolves.toBeUndefined();
+
+    const calls = docker.execInContainer.mock.calls;
+    // One capture listing, then the absence check.
+    expect(calls).toHaveLength(2);
+    for (const call of calls) {
+      expect(call[2]).toEqual(openClawListArgv());
+      expect(call[3]).toEqual({ timeoutMs: 10_000 });
+    }
   });
 
   test('waits for a pending creation lifecycle and uses its ID for cleanup', async () => {
@@ -665,6 +764,10 @@ function deferred<T>() {
     reject = rejectPromise;
   });
   return { promise, resolve, reject };
+}
+
+function openClawListArgv() {
+  return ['openclaw', 'cron', 'list', '--all', '--json', '--timeout', '10000'];
 }
 
 function openClawArtifactRemovalArgv(jobId: string) {

@@ -65,6 +65,7 @@ export function ChannelInfoScreen(props: Props) {
             onEditChannelMeta={handleEditChannelMeta}
             onEditChannelPrivacy={handleEditChannelPrivacy}
             onAfterDeleteChannel={handleAfterDeleteChannel}
+            hidesChannelManager
           />
         </ChatOptionsProvider>
       </ForwardChannelSheetProvider>

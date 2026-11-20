@@ -148,7 +148,7 @@ function createActivityFormatter(): ActivityFormatter {
       `\n=== ${bucket.toUpperCase()} (${count} events) ===\n`,
     noActivity: (bucket) => `No ${bucket} activity found.`,
     event: (event) => formatEvent(event, Date.now()),
-    unreadsHeader: () => '\n=== UNREADS ===\n',
+    unreadsHeader: (ship) => `\n=== UNREADS for ${ship} ===\n`,
     noUnreads: () => 'No unreads!',
     baseUnread: (summary) => {
       const notify = summary.notify ? '🔔' : '';

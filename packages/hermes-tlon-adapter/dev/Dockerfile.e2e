@@ -1,10 +1,17 @@
+# uv from its pinned image (uv's documented Docker install); keep in step with
+# the setup-uv version in .github/workflows/ci.yml and hermes-ci.yml.
+ARG UV_VERSION=0.12.3
+FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
+
 FROM node:24.22.1-bookworm-slim
 
 ARG HERMES_AGENT_REPO=https://github.com/NousResearch/hermes-agent.git
-ARG HERMES_AGENT_REF=v2026.6.19
+ARG HERMES_AGENT_REF=v0.22.6
+ARG HERMES_PYTHON=3.14
 
 ENV HERMES_AGENT_DIR=/opt/hermes-agent
 ENV HERMES_VENV=/opt/hermes-venv
+ENV UV_PYTHON_INSTALL_DIR=/opt/uv-python
 ENV PATH="/opt/hermes-venv/bin:/root/.bun/bin:${PATH}"
 
 RUN apt-get update \
@@ -31,10 +38,37 @@ RUN git clone --depth 1 --branch "$HERMES_AGENT_REF" "$HERMES_AGENT_REPO" "$HERM
     && cd "$HERMES_AGENT_DIR" \
     && git checkout "$HERMES_AGENT_REF")
 
-RUN python3 -m venv "$HERMES_VENV" \
-  && "$HERMES_VENV/bin/python" -m pip install --upgrade pip setuptools wheel \
-  && "$HERMES_VENV/bin/python" -m pip install -e "$HERMES_AGENT_DIR[all]" \
-  && "$HERMES_VENV/bin/python" -m pip install "aiohttp>=3.9" "posthog>=3"
+# Hermes >= 0.22 gates its core dependencies on Python >= 3.14, and pip cannot
+# resolve its [all] extra (upstream settles a Pillow pin clash with uv
+# override-dependencies), so install from upstream's uv.lock the way upstream
+# does. PyYAML is no longer in Hermes' environment (it moved to ruamel.yaml);
+# dev/e2e/write_config.py needs it to read and write config.yaml.
+COPY --from=uv /uv /uvx /usr/local/bin/
+RUN uv python install "$HERMES_PYTHON" \
+  && cd "$HERMES_AGENT_DIR" \
+  && UV_PROJECT_ENVIRONMENT="$HERMES_VENV" uv sync --frozen --extra all --python "$HERMES_PYTHON" \
+  && uv pip install --python "$HERMES_VENV/bin/python" "aiohttp>=3.9" "posthog>=3" "pyyaml>=6"
+
+# Opt-in LCM context engine (lcm-x by default, whose plugin lives in the repo's
+# plugin/ subdirectory; an empty subdir means the repo root, as for hermes-lcm),
+# installed the way the hosted pioneer image does: fetch only, the plugins
+# declare no required third-party dependencies. HERMES_LCM_REF may be a branch,
+# tag or commit sha (fetched by ref, so detached commits work); empty leaves
+# LCM out. Declared late so the layers above stay shared with the non-LCM image.
+ARG HERMES_LCM_REPO=https://github.com/electricsheephq/lcm-x.git
+ARG HERMES_LCM_REF=
+ARG HERMES_LCM_SUBDIR=plugin
+ENV HERMES_LCM_DIR=/usr/local/share/hermes-lcm
+RUN if [ -n "$HERMES_LCM_REF" ]; then \
+    src="$(mktemp -d)" \
+    && git -C "$src" init -q \
+    && git -C "$src" fetch -q --depth 1 "$HERMES_LCM_REPO" "$HERMES_LCM_REF" \
+    && git -C "$src" checkout -q FETCH_HEAD \
+    && test -f "$src/${HERMES_LCM_SUBDIR:-.}/plugin.yaml" \
+    && cp -a "$src/${HERMES_LCM_SUBDIR:-.}" "$HERMES_LCM_DIR" \
+    && git -C "$src" rev-parse HEAD > "$HERMES_LCM_DIR/.tested-sha" \
+    && rm -rf "$src" "$HERMES_LCM_DIR/.git"; \
+  fi
 
 WORKDIR /workspace
 

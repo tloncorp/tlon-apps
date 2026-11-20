@@ -12,15 +12,15 @@ jobs:
     name: "Build Frontend"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Setup Node.js environment
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .nvmrc
 
       - name: Setup PNPM
-        uses: pnpm/action-setup@v3
+        uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d # v3
         with:
           run_install: |
             - recursive: true
@@ -34,7 +34,7 @@ jobs:
       - working-directory: ./apps/tlon-web
         run: pnpm build
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: "ui-dist"
           path: apps/tlon-web/dist
@@ -44,18 +44,18 @@ jobs:
     name: "Make a glob"
     needs: build-frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: "ui-dist"
           path: apps/tlon-web/dist
       - id: "auth"
-        uses: "google-github-actions/auth@v1"
+        uses: "google-github-actions/auth@3a3c4c57d294ef65efaaee4ff17b22fa88dd3c69" # v1
         with:
           credentials_json: "${{ secrets.GCP_SERVICE_KEY }}"
       - name: "Set up Cloud SDK"
-        uses: "google-github-actions/setup-gcloud@v1"
+        uses: "google-github-actions/setup-gcloud@e30db14379863a8c79331b04a9969f4c1e225e0b" # v1
       - name: "glob"
         uses: ./.github/actions/glob
         with:
@@ -77,13 +77,13 @@ jobs:
     name: "Create Moon"
     needs: glob
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - id: "auth"
-        uses: "google-github-actions/auth@v1"
+        uses: "google-github-actions/auth@3a3c4c57d294ef65efaaee4ff17b22fa88dd3c69" # v1
         with:
           credentials_json: "${{ secrets.GCP_SERVICE_KEY }}"
       - name: "Set up Cloud SDK"
-        uses: "google-github-actions/setup-gcloud@v1"
+        uses: "google-github-actions/setup-gcloud@e30db14379863a8c79331b04a9969f4c1e225e0b" # v1
       - id: create_moon
         name: Create Moon
         run: |
@@ -97,13 +97,13 @@ jobs:
     runs-on: ubuntu-latest
     name: "Release to ~binnec-dozzod-marnus (canary)"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - id: "auth"
-        uses: "google-github-actions/auth@v1"
+        uses: "google-github-actions/auth@3a3c4c57d294ef65efaaee4ff17b22fa88dd3c69" # v1
         with:
           credentials_json: "${{ secrets.GCP_SERVICE_KEY }}"
       - name: "Set up Cloud SDK"
-        uses: "google-github-actions/setup-gcloud@v1"
+        uses: "google-github-actions/setup-gcloud@e30db14379863a8c79331b04a9969f4c1e225e0b" # v1
       - id: deploy
         name: Deploy
         run:

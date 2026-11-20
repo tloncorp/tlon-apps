@@ -50,7 +50,7 @@ export interface ActivityFormatter {
   activityHeader: (bucket: ActivityBucket, count: number) => string;
   noActivity: (bucket: ActivityBucket) => string;
   event: (event: ActivityEvent) => string;
-  unreadsHeader: () => string;
+  unreadsHeader: (ship: string) => string;
   noUnreads: () => string;
   baseUnread: (summary: BaseUnread) => string;
   groupUnread: (summary: GroupUnread) => string;
@@ -608,7 +608,7 @@ async function showActivity(
 async function showUnreads(deps: ActivityDeps): Promise<void> {
   const activity = await deps.activityApi.getGroupAndChannelUnreads();
 
-  writeLine(deps.stdout, deps.format.unreadsHeader());
+  writeLine(deps.stdout, deps.format.unreadsHeader(deps.getCurrentUserId()));
 
   const groupEntries = activity.groupUnreads.filter(hasUnread);
   const channelEntries = activity.channelUnreads.filter(hasUnread);

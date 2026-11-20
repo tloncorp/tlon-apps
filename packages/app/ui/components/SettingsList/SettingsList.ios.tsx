@@ -8,6 +8,7 @@ import {
   List,
   Menu,
   Picker,
+  ProgressView,
   RNHostView,
   SecureField,
   Section,
@@ -44,6 +45,7 @@ import {
   opacity,
   padding,
   pickerStyle,
+  progressViewStyle,
   scrollContentBackground,
   shapes,
   submitLabel,
@@ -97,12 +99,13 @@ export function SettingsList({
   scrollMark,
   editing,
   compactSections,
+  surface,
 }: SettingsListProps) {
-  const colors = useSettingsListColors();
+  const colors = useSettingsListColors(surface);
   const scrollMarkModifier = useScrollMark(scrollMark);
-  // Keeps the transparent header the tab's other scroll views install on iOS
-  // 26; the form scrolls beneath it, and iOS gives it the soft edge on its own.
-  useScreenScrollProps();
+  // A sheet shares the parent route's navigation context. Its list must not
+  // install or reset that screen's header appearance when it mounts or closes.
+  useScreenScrollProps({ enabled: surface !== 'sheet' });
 
   return (
     <Host style={{ flex: 1 }} colorScheme={colors.colorScheme}>
@@ -438,7 +441,7 @@ function SettingsRow({
       // button of its own keeps their labels apart, or VoiceOver would read
       // the button by the row's title.
       modifiers={
-        row.onPress
+        row.onPress || row.progress !== undefined
           ? undefined
           : row.trailingAction
             ? rowModifiers
@@ -507,12 +510,46 @@ function SettingsRow({
     </HStack>
   );
 
+  const rowContent =
+    row.progress === undefined ? (
+      content
+    ) : (
+      <VStack
+        alignment="leading"
+        spacing={12}
+        modifiers={[
+          ...(!row.onPress ? labelledRowModifiers : []),
+          padding({ vertical: 8 }),
+        ]}
+      >
+        {content}
+        <VStack alignment="leading" spacing={6}>
+          <ProgressView
+            value={row.progress}
+            modifiers={[
+              progressViewStyle('linear'),
+              tint(colors.accent),
+              frame({ maxWidth: Infinity }),
+            ]}
+          />
+          <Text
+            modifiers={[
+              font({ size: 12 }),
+              foregroundStyle(colors.secondaryText),
+            ]}
+          >
+            {`${Math.round(row.progress * 100)}% used`}
+          </Text>
+        </VStack>
+      </VStack>
+    );
+
   const body = row.onPress ? (
     <Button onPress={row.onPress} modifiers={labelledRowModifiers}>
-      {content}
+      {rowContent}
     </Button>
   ) : (
-    content
+    rowContent
   );
 
   if (!row.contextActions?.length) {

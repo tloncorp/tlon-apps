@@ -1196,7 +1196,7 @@
   ::  if latest was deleted, try the next-latest message instead
   ::
   ?:  ?=(%| -.val.u.vp)
-    $(slip &, posts +:(pop:on-v-posts:c posts))
+    $(slip &, posts +:(del:on-v-posts:c posts key.u.vp))
   =*  result
     `[nest recency.remark %& (uv-post-without-replies-4 +.val.u.vp)]
   ::  if the request is bounded, check that latest message is "in bounds"

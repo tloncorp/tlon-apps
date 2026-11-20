@@ -2,7 +2,7 @@ import { Picker } from '@react-native-picker/picker';
 import { Icon, Pressable, Text, desktopTypeStyles } from '@tloncorp/ui';
 import { Fragment } from 'react';
 import { Switch, type TextStyle } from 'react-native';
-import { XStack, getConfig, useTheme } from 'tamagui';
+import { View, XStack, YStack, getConfig, useTheme } from 'tamagui';
 
 import { Badge } from '../Badge';
 import { TextInput } from '../Form';
@@ -17,8 +17,10 @@ import type { SettingsRowModel, SettingsSectionModel } from './types';
  */
 export function SettingsSectionsView({
   sections,
+  surface,
 }: {
   sections: SettingsSectionModel[];
+  surface?: 'sheet';
 }) {
   return (
     <>
@@ -30,6 +32,7 @@ export function SettingsSectionsView({
             key={section.key}
             title={section.title}
             description={section.footer}
+            variant={surface === 'sheet' ? 'sheet' : 'bordered'}
           >
             {section.rows.map((row, index) => (
               <Fragment key={row.key}>
@@ -182,8 +185,40 @@ function SettingsRow({ row }: { row: SettingsRowModel }) {
     </ListItem>
   );
 
+  const rowContent =
+    row.progress === undefined ? (
+      content
+    ) : (
+      <YStack>
+        {content}
+        <YStack paddingHorizontal="$l" paddingBottom="$l" gap="$s">
+          <View
+            role="progressbar"
+            aria-label={`${row.title} usage`}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(row.progress * 100)}
+            height={4}
+            borderRadius="$xs"
+            overflow="hidden"
+            backgroundColor="$secondaryBorder"
+          >
+            <View
+              width={`${row.progress * 100}%`}
+              height="100%"
+              backgroundColor="$positiveActionText"
+              borderRadius="$xs"
+            />
+          </View>
+          <Text size="$label/s" color="$secondaryText">
+            {`${Math.round(row.progress * 100)}% used`}
+          </Text>
+        </YStack>
+      </YStack>
+    );
+
   if (!pressable) {
-    return content;
+    return rowContent;
   }
 
   return (
@@ -199,7 +234,7 @@ function SettingsRow({ row }: { row: SettingsRowModel }) {
       pressStyle={{ backgroundColor: '$secondaryBackground' }}
       testID={row.testID}
     >
-      {content}
+      {rowContent}
     </Pressable>
   );
 }

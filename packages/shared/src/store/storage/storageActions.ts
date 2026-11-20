@@ -15,7 +15,7 @@ import { AnalyticsEvent } from '../../domain';
 import { syncStorageSettings } from '../sync/sync';
 import { SyncPriority } from '../syncQueue';
 import { getLocalFileSize } from './getLocalFileSize';
-import { setUploadState } from './storageUploadState';
+import { setUploadState, waitForUploads } from './storageUploadState';
 import {
   getExtensionFromMimeType,
   getMemexUpload,
@@ -131,6 +131,22 @@ export async function uploadAsset(
       break;
     }
   }
+}
+
+/** Uploads an asset and resolves with its remote URL. */
+export async function uploadAssetForUrl(
+  intent: Attachment.UploadIntent,
+  isWeb = false
+): Promise<string> {
+  const key = Attachment.UploadIntent.extractKey(intent);
+  await uploadAsset(intent, isWeb);
+  // Rejects with the upload's error message when it failed.
+  const states = await waitForUploads([key]);
+  const state = states[key];
+  if (state?.status !== 'success') {
+    throw new Error('Upload did not finish successfully');
+  }
+  return state.remoteUri;
 }
 
 async function uploadAssetWithLifecycle(

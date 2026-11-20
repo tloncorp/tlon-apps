@@ -21,14 +21,11 @@ test('returning to a group preserves the last selected channel instead of reopen
   const notebook = page.getByTestId('ChannelListItem-Project Notebook');
   await expect(notebook).toBeVisible({ timeout: 15_000 });
   await notebook.click();
-  await expect(page.getByTestId('NotebookSidebarBackHeader')).toBeVisible({
+  await expect(page.getByTestId('NotesSidebarHeader')).toBeVisible({
     timeout: 10_000,
   });
-
-  await page
-    .getByTestId('NotebookSidebarBackHeader')
-    .getByTestId('HeaderBackButton')
-    .click();
+  // The notebook's tree sits inside the channel pane, so the group's channel
+  // list stays in the app sidebar beside it.
   await expect(page.getByTestId('ChannelListItem-General')).toBeVisible();
 
   await page.getByTestId('ChannelListItem-General').click();
@@ -43,5 +40,5 @@ test('returning to a group preserves the last selected channel instead of reopen
   await expect(page.getByTestId('MessageInput')).toBeVisible({
     timeout: 10_000,
   });
-  await expect(page.getByTestId('NotebookSidebarBackHeader')).not.toBeVisible();
+  await expect(page.getByTestId('NotesSidebarHeader')).not.toBeVisible();
 });

@@ -13,7 +13,7 @@ env:
 - tapOn: '^Nothing$'
 - tapOn: '^Back$'
 - assertVisible:
-    text: '(?s).*No notifications \(custom\).*'
+    text: '(?s).*Nothing.*'
 - tapOn: '^Back$'
 - tapOn: '^Chat$'
 - tapOn: '^Chat$'
@@ -21,28 +21,28 @@ env:
 - tapOn: '^Mentions and replies$'
 - tapOn: '^Back$'
 - assertVisible:
-    text: '(?s).*Mentions and replies \(custom\).*'
+    text: '(?s).*Mentions and replies.*'
 - stopApp
 - launchApp
 - runFlow: subflows/open-fixture-group.yaml
 - tapOn: ${output.reliability.groupPattern}
 - assertVisible:
-    text: '(?s).*No notifications \(custom\).*'
+    text: '(?s).*Nothing.*'
 - tapOn: '^Notifications$'
 - tapOn: '^All (workspace )?activity$'
 - tapOn: '^Back$'
 - assertVisible:
-    text: '(?s).*All posts and replies \(custom\).*'
+    text: '(?s).*All activity.*'
 - tapOn: '^Back$'
 - tapOn: '^Chat$'
 - tapOn: '^Chat$'
 - assertVisible:
-    text: '(?s).*Mentions and replies \(custom\).*'
+    text: '(?s).*Mentions and replies.*'
 - tapOn: '^Notifications$'
 - tapOn: '^Nothing$'
 - tapOn: '^Back$'
 - assertVisible:
-    text: '(?s).*No notifications \(custom\).*'
+    text: '(?s).*Nothing.*'
 - tapOn: '^Back$'
 - tapOn: '^Back$'
 - tapOn: ${output.reliability.groupPattern}

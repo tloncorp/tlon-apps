@@ -189,9 +189,13 @@ function noopProps<T extends object>() {
   });
 }
 
-const ChannelFixtureWrapper = ({
+export const ChannelFixtureWrapper = ({
   children,
-}: PropsWithChildren<{ theme?: 'light' | 'dark' }>) => {
+  contacts = initialContacts,
+}: PropsWithChildren<{
+  theme?: 'light' | 'dark';
+  contacts?: db.Contact[];
+}>) => {
   return (
     <ShipProvider
       initialShipInfo={{
@@ -202,8 +206,8 @@ const ChannelFixtureWrapper = ({
         needsSplashSequence: false,
       }}
     >
-      <AppDataContextProvider currentUserId="~zod" contacts={initialContacts}>
-        <FixtureWrapper fillWidth fillHeight>
+      <AppDataContextProvider currentUserId="~zod" contacts={contacts}>
+        <FixtureWrapper fillWidth fillHeight contacts={contacts}>
           <ChatOptionsProvider {...noopProps()}>{children}</ChatOptionsProvider>
         </FixtureWrapper>
       </AppDataContextProvider>
@@ -211,7 +215,7 @@ const ChannelFixtureWrapper = ({
   );
 };
 
-const baseProps: ComponentProps<typeof Channel> = {
+export const baseProps: ComponentProps<typeof Channel> = {
   posts: posts,
   channel: tlonLocalIntros,
   negotiationMatch: true,
