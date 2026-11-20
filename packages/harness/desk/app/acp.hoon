@@ -1,3 +1,4 @@
+::  probe: this line shifts the file so the built agent changes
 ::  acp: generic ship-side transport for Agent Client Protocol
 ::
 ::    ACP is bidirectional JSON-RPC. This agent deliberately treats every
