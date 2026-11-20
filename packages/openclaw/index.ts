@@ -147,6 +147,7 @@ import {
   recordToolCall,
   reportHarnessDebug,
   reportHarnessError,
+  reportHeartbeatMessageSent,
   reportHeartbeatRun,
   reportPluginError,
   reportOutboundRoute,
@@ -202,6 +203,7 @@ import {
 const WORKSPACE_CREATE_APPROVAL = 'tlon_workspace_create';
 import {
   getHeartbeatLedgerRun,
+  getLatestHeartbeatRunId,
   getRecordedRunRole,
   getRunAccountId,
   isHeartbeatOwnerReadRun,
@@ -1902,6 +1904,21 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       runId: event.runId ?? ctx.runId,
       run: () => {
         if (event.success !== false) {
+          const runId = getLatestHeartbeatRunId(
+            event.sessionKey ?? ctx.sessionKey
+          );
+          const target =
+            ctx.channelId === 'tlon' ? parseTlonTarget(event.to) : null;
+          const ownerShip = liveOwnerShip();
+          if (
+            runId &&
+            event.messageId &&
+            ownerShip &&
+            target?.kind === 'dm' &&
+            target.ship === ownerShip
+          ) {
+            reportHeartbeatMessageSent({ messageId: event.messageId, runId });
+          }
           return;
         }
         reportHarnessError({

@@ -115,6 +115,13 @@ export type TlonHeartbeatRunEvent = HeartbeatLedgerReceipt & {
   botShip: string;
 };
 
+export type HeartbeatMessageSent = { messageId: string; runId: string };
+
+export type TlonHeartbeatMessageSentEvent = HeartbeatMessageSent & {
+  ownerShip: string;
+  botShip: string;
+};
+
 export type TlonHeartbeatNudgeEvent = {
   ownerShip: string;
   botShip: string;
@@ -743,6 +750,7 @@ export interface TlonTelemetryClient {
   captureGatewayConnected(event: TlonGatewayConnectedEvent): void;
   startReply(params: TlonReplyTelemetryStart): TlonReplyTelemetrySession;
   captureHeartbeatRun(event: TlonHeartbeatRunEvent): void;
+  captureHeartbeatMessageSent(event: TlonHeartbeatMessageSentEvent): void;
   captureHeartbeatNudge(event: TlonHeartbeatNudgeEvent): void;
   captureHeartbeatReengagement(event: TlonHeartbeatReengagementEvent): void;
   captureSessionLifecycle(event: TlonSessionLifecycleEvent): void;
@@ -2482,6 +2490,20 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
     });
   }
 
+  captureHeartbeatMessageSent(event: TlonHeartbeatMessageSentEvent): void {
+    if (!this.ensureIdentified(event.ownerShip, event.botShip)) return;
+    this.client.capture({
+      distinctId: event.ownerShip,
+      event: 'TlonBot Heartbeat Message Sent',
+      properties: this.properties({
+        ownerShip: event.ownerShip,
+        botShip: event.botShip,
+        messageId: event.messageId,
+        runId: event.runId,
+      }),
+    });
+  }
+
   captureHeartbeatNudge(event: TlonHeartbeatNudgeEvent): void {
     if (!this.ensureIdentified(event.ownerShip, event.botShip)) {
       return;
@@ -2800,6 +2822,20 @@ export function setHeartbeatRunReporter(
 
 export function reportHeartbeatRun(event: HeartbeatLedgerReceipt): void {
   heartbeatRunReporterSlot.get()?.(event);
+}
+
+const heartbeatMessageSentReporterSlot = sharedSlot<
+  (event: HeartbeatMessageSent) => void
+>('telemetry.heartbeatMessageSentReporter');
+
+export function setHeartbeatMessageSentReporter(
+  reporter: ((event: HeartbeatMessageSent) => void) | null
+): void {
+  heartbeatMessageSentReporterSlot.set(reporter);
+}
+
+export function reportHeartbeatMessageSent(event: HeartbeatMessageSent): void {
+  heartbeatMessageSentReporterSlot.get()?.(event);
 }
 
 const errorTelemetryReporterSlot = sharedSlot<ErrorTelemetryReporter>(

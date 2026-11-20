@@ -13,6 +13,7 @@ import entry from '../index.js';
 import { HEARTBEAT_LEDGER_TOOL } from './heartbeat-ledger.js';
 import {
   setErrorTelemetryReporter,
+  setHeartbeatMessageSentReporter,
   setHeartbeatRunReporter,
 } from './telemetry.js';
 import {
@@ -159,6 +160,10 @@ function registerEntry(
     prepare: hooks.get('agent_turn_prepare') as AgentHook,
     modelCallStarted: hooks.get('model_call_started') as AgentHook,
     agentEnd: hooks.get('agent_end') as AgentHook,
+    messageSent: hooks.get('message_sent') as (
+      event: Record<string, unknown>,
+      ctx: Ctx & { channelId?: string }
+    ) => void,
   };
 }
 
@@ -1313,6 +1318,72 @@ describe('before_tool_call turn identity', () => {
       await expect(gate(harness, 'message', message, ctx)).resolves.toEqual(
         SEAL
       );
+    });
+
+    describe('message_sent labelling', () => {
+      const sent = vi.fn();
+      beforeEach(() => {
+        sent.mockClear();
+        setHeartbeatMessageSentReporter(sent);
+      });
+      afterEach(() => setHeartbeatMessageSentReporter(null));
+
+      const deliver = (
+        harness: ReturnType<typeof registerEntry>,
+        overrides: Record<string, unknown> = {},
+        sessionKey = HB
+      ) =>
+        harness.messageSent(
+          {
+            to: '~zod',
+            content: 'private heartbeat text',
+            success: true,
+            messageId: '~nec/170.141',
+            sessionKey,
+            ...overrides,
+          },
+          { channelId: 'tlon', sessionKey }
+        );
+
+      it("labels a heartbeat run's delivery to the owner", async () => {
+        const harness = registerEntry(OWNER);
+        const ctx = await heartbeat(harness);
+        await harness.agentEnd({}, ctx);
+        deliver(harness, { to: 'dm/~ZOD' });
+        expect(sent).toHaveBeenCalledExactlyOnceWith({
+          messageId: '~nec/170.141',
+          runId: 'hb-1',
+        });
+      });
+
+      it.each([
+        ['a failed send', { success: false }],
+        ['a send to someone else', { to: '~bus' }],
+        ['a send to a channel', { to: 'chat/~zod/general' }],
+        ['a send with no message id', { messageId: undefined }],
+      ])('does not label %s', async (_name, overrides) => {
+        const harness = registerEntry(OWNER);
+        await heartbeat(harness);
+        deliver(harness, overrides);
+        expect(sent).not.toHaveBeenCalled();
+      });
+
+      it('does not label a reply to a user turn', async () => {
+        const harness = registerEntry(OWNER);
+        const dm = 'agent:main:tlon:direct:~zod';
+        inbound('owner', 'run-1', dm);
+        await harness.prepare({}, { sessionKey: dm, runId: 'run-1' });
+        deliver(harness, {}, dm);
+        expect(sent).not.toHaveBeenCalled();
+      });
+
+      it('does not label a cron turn that ran after a heartbeat on its session', async () => {
+        const harness = registerEntry(OWNER);
+        await heartbeat(harness);
+        await heartbeat(harness, 'cron-1', 'cron');
+        deliver(harness);
+        expect(sent).not.toHaveBeenCalled();
+      });
     });
 
     describe('a sealed run', () => {

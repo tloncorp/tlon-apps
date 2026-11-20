@@ -241,6 +241,25 @@ export function getHeartbeatLedgerRun(
   return activeRuns.get(runId.trim())?.heartbeatLedger;
 }
 
+/**
+ * The runId of the most recently seen run on a session when that run is a
+ * recognised heartbeat-runner run (revoked or not). Core's `message_sent`
+ * carries the session key but no runId for heartbeat deliveries, and cron
+ * wakes and exec completions can run on the same session.
+ */
+export function getLatestHeartbeatRunId(
+  sessionKey: string | undefined
+): string | undefined {
+  const key = sessionKey?.trim();
+  if (!key) return undefined;
+  const canonical = canonicalSessionKey(key);
+  let latest: [string, RunRecord] | undefined;
+  for (const entry of activeRuns) {
+    if (canonicalSessionKey(entry[1].sessionKey) === canonical) latest = entry;
+  }
+  return latest?.[1].heartbeatLedger ? latest[0] : undefined;
+}
+
 /** Seal a heartbeat run that the gate let read as the owner. */
 export function sealHeartbeatRun(runId: string | undefined): void {
   const key = runId?.trim();
