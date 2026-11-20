@@ -64,6 +64,7 @@ import {
   DraftInputContextProvider,
   DraftInputHandle,
   GalleryDraftType,
+  scrollOnceEnqueued,
 } from '../draftInputs/shared';
 import { PostCollectionHandle } from '../postCollectionViews/shared';
 import {
@@ -279,6 +280,8 @@ function usePrefillDraftFromShareIntent({
 interface ChannelProps {
   channel: db.Channel;
   initialChannelUnread?: db.ChannelUnread | null;
+  /** Called once the list's first screen of posts is on display. */
+  onFirstScreenShown?: () => void;
   selectedPostId?: string | null;
   posts: db.Post[] | null;
   group: db.Group | null;
@@ -330,6 +333,7 @@ interface ChannelProps {
 export function Channel({
   channel,
   initialChannelUnread,
+  onFirstScreenShown,
   posts,
   selectedPostId,
   group,
@@ -781,10 +785,12 @@ export function Channel({
       onPresentationModeChange: setDraftInputPresentationMode,
       sendPostFromDraft: async (draft, options) => {
         setEditingPost?.(undefined);
-        await finalizeAndSendPost(draft, options);
-        if (!draft.isEdit && !options?.scrollHandled) {
-          scrollToNewMessage();
-        }
+        await finalizeAndSendPost(
+          draft,
+          draft.isEdit || options?.scrollHandled
+            ? options
+            : scrollOnceEnqueued(options, scrollToNewMessage)
+        );
       },
       setEditingPost,
       setShouldBlur: setInputShouldBlur,
@@ -1194,6 +1200,7 @@ export function Channel({
                                         hasNewerPosts,
                                         hasOlderPosts,
                                         initialChannelUnread,
+                                        onFirstScreenShown,
                                         isLoadingPosts: shouldShowPostLoading,
                                         loadPostsError,
                                         onPressDelete,

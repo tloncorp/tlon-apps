@@ -13,10 +13,13 @@ export function AnimatedInputHeight({
   children,
   minimumHeight,
   holdHeight = false,
+  snapShrink = false,
   onHeightSettled,
 }: PropsWithChildren<{
   minimumHeight: number;
   holdHeight?: boolean;
+  /** Shrink at once instead of animating. */
+  snapShrink?: boolean;
   onHeightSettled?: () => void;
 }>) {
   const height = useSharedValue(minimumHeight);
@@ -54,17 +57,38 @@ export function AnimatedInputHeight({
         minimumHeight,
         event.nativeEvent.layout.height
       );
-      if (!holdHeight || measuredHeight.current > targetHeight.current) {
-        animateToHeight(measuredHeight.current);
+      if (holdHeight && measuredHeight.current <= targetHeight.current) {
+        return;
       }
+      if (snapShrink && measuredHeight.current < targetHeight.current) {
+        targetHeight.current = measuredHeight.current;
+        height.value = measuredHeight.current;
+        onHeightSettled?.();
+        return;
+      }
+      animateToHeight(measuredHeight.current);
     },
-    [animateToHeight, holdHeight, minimumHeight]
+    [
+      animateToHeight,
+      height,
+      holdHeight,
+      minimumHeight,
+      onHeightSettled,
+      snapShrink,
+    ]
   );
   useLayoutEffect(() => {
     if (!holdHeight) {
       animateToHeight(measuredHeight.current);
     }
   }, [animateToHeight, holdHeight]);
+  // A composer already at its minimum has nothing to shrink, so no layout
+  // will report the shrink: it is settled as soon as it is asked to snap.
+  useLayoutEffect(() => {
+    if (snapShrink && targetHeight.current <= minimumHeight) {
+      onHeightSettled?.();
+    }
+  }, [minimumHeight, onHeightSettled, snapShrink]);
 
   return (
     <Animated.View style={[styles.frame, animatedStyle]}>

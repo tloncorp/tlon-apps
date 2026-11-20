@@ -4,6 +4,7 @@ import {
   trackEvent,
   useMutableCallback,
 } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 import type * as cn from '@tloncorp/shared/logic';
 import {
   ForwardingProps,
@@ -678,11 +679,23 @@ export function ImageBlock({
   maxWindowHeightFraction?: number;
 } & ComponentProps<typeof View>) {
   const { getImageViewerId, onPressImage, onLongPress } = useContentContext();
-  const [dimensions, setDimensions] = useState({
-    width: block.width || null,
-    height: block.height || null,
-    aspect: block.width && block.height ? block.width / block.height : null,
+  const [dimensions, setDimensions] = useState(() => {
+    const known =
+      block.width && block.height
+        ? { width: block.width, height: block.height }
+        : loadedImageSizes.get(block.src);
+    return {
+      width: known?.width || null,
+      height: known?.height || null,
+      aspect: known ? known.width / known.height : null,
+    };
   });
+
+  // Until the picture arrives, its box is filled so it reads as an image
+  // loading rather than as a gap in the conversation.
+  const [isLoaded, setIsLoaded] = useState(() =>
+    imagesLoadedThisSession.has(block.src)
+  );
 
   const isInsideReference = useContext(IsInsideReferenceContext);
 
@@ -690,14 +703,22 @@ export function ImageBlock({
     onPressImage?.(block.src);
   }, [block.src, onPressImage]);
 
-  const handleImageLoaded = useCallback((e: ImageLoadEventData) => {
-    const aspect = e.source.width / e.source.height;
-    setDimensions({
-      width: e.source.width,
-      height: e.source.height,
-      aspect,
-    });
-  }, []);
+  const handleImageLoaded = useCallback(
+    (e: ImageLoadEventData) => {
+      noteImageLoadedThisSession(block.src);
+      if (!(block.width && block.height)) {
+        rememberLoadedImageSize(block.src, e.source.width, e.source.height);
+      }
+      const aspect = e.source.width / e.source.height;
+      setDimensions({
+        width: e.source.width,
+        height: e.source.height,
+        aspect,
+      });
+      setIsLoaded(true);
+    },
+    [block.height, block.src, block.width]
+  );
 
   const shouldUseAspectRatio = imageProps?.aspectRatio !== 'unset';
   const viewerId = getImageViewerId?.(block.src);
@@ -762,6 +783,9 @@ export function ImageBlock({
       onPress={handlePress}
       onLongPress={onLongPress}
       {...props}
+      {...(isLoaded
+        ? {}
+        : { backgroundColor: '$secondaryBackground', borderRadius: '$s' })}
       {...(constrainedSize
         ? {
             alignSelf: 'flex-start' as const,
@@ -783,7 +807,7 @@ export function ImageBlock({
         }}
         {...(constrainedSize ? { width: '100%', height: '100%' } : {})}
         {...(shouldUseAspectRatio && !constrainedSize
-          ? { aspectRatio: dimensions.aspect || 1 }
+          ? { aspectRatio: dimensions.aspect || UNKNOWN_IMAGE_ASPECT_RATIO }
           : {})}
         {...(isInsideReference
           ? {
@@ -819,6 +843,104 @@ export function ImageBlock({
       {triggered}
     </RNView>
   );
+}
+
+// The box an image with no stored size holds until it loads. A square the
+// width of the column left a screenful of nothing when the reader followed new
+// posts to the end; this is closer to most photos and screenshots, so the row
+// changes less once the real size is known.
+const UNKNOWN_IMAGE_ASPECT_RATIO = 4 / 3;
+
+// The sizes of images with no stored size that have loaded, kept across
+// launches. Without it, every render of such an image (a row recycled, a
+// conversation opened again, the app relaunched) started from the
+// placeholder's shape and changed height once the cached picture loaded.
+const loadedImageSizes = new Map<string, { width: number; height: number }>();
+const MAX_REMEMBERED_IMAGE_SIZES = 500;
+const SAVE_IMAGE_SIZES_DELAY_MS = 2000;
+// Images that loaded in this session are likely still in memory and draw in
+// the first frame, so they skip the loading fill. A size kept from an earlier
+// launch says nothing about that.
+const imagesLoadedThisSession = new Set<string>();
+
+function noteImageLoadedThisSession(src: string) {
+  imagesLoadedThisSession.delete(src);
+  imagesLoadedThisSession.add(src);
+  if (imagesLoadedThisSession.size > MAX_REMEMBERED_IMAGE_SIZES) {
+    const oldest = imagesLoadedThisSession.values().next().value;
+    if (oldest !== undefined) {
+      imagesLoadedThisSession.delete(oldest);
+    }
+  }
+}
+
+function rememberLoadedImageSize(src: string, width: number, height: number) {
+  if (!(width > 0 && height > 0)) {
+    return;
+  }
+  const known = loadedImageSizes.get(src);
+  loadedImageSizes.delete(src);
+  loadedImageSizes.set(src, { width, height });
+  trimLoadedImageSizes();
+  if (known?.width !== width || known?.height !== height) {
+    scheduleSaveLoadedImageSizes();
+  }
+}
+
+function trimLoadedImageSizes() {
+  while (loadedImageSizes.size > MAX_REMEMBERED_IMAGE_SIZES) {
+    const oldest = loadedImageSizes.keys().next().value;
+    if (oldest === undefined) {
+      return;
+    }
+    loadedImageSizes.delete(oldest);
+  }
+}
+
+let saveImageSizesTimeout: ReturnType<typeof setTimeout> | undefined;
+function scheduleSaveLoadedImageSizes() {
+  clearTimeout(saveImageSizesTimeout);
+  saveImageSizesTimeout = setTimeout(() => {
+    db.loadedImageSizes
+      .setValue(
+        [...loadedImageSizes].map(([src, { width, height }]) => [
+          src,
+          width,
+          height,
+        ])
+      )
+      .catch(() => {});
+  }, SAVE_IMAGE_SIZES_DELAY_MS);
+}
+
+// Sizes measured this session are newer than the stored ones, so they stay
+// at the recent end.
+function restoreLoadedImageSizes(stored: [string, number, number][]) {
+  const thisSession = [...loadedImageSizes];
+  loadedImageSizes.clear();
+  for (const [src, width, height] of stored) {
+    if (width > 0 && height > 0) {
+      loadedImageSizes.set(src, { width, height });
+    }
+  }
+  for (const [src, size] of thisSession) {
+    loadedImageSizes.delete(src);
+    loadedImageSizes.set(src, size);
+  }
+  trimLoadedImageSizes();
+}
+
+try {
+  db.loadedImageSizes
+    .getValue()
+    .then((stored) => {
+      if (Array.isArray(stored)) {
+        restoreLoadedImageSizes(stored);
+      }
+    })
+    .catch(() => {});
+} catch {
+  // Storage isn't available, as in some tests; sizes last the session.
 }
 
 const numericStyle = (value: unknown) =>

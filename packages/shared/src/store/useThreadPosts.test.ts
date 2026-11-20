@@ -182,3 +182,32 @@ test('foreground and route focus start fresh checks without adding server fetche
   expect(outcomes('mismatch').at(-1)?.[1]).toMatchObject({ trigger: 'focus' });
   expect(mocks.sync).toHaveBeenCalledTimes(1);
 });
+
+test('holds the thread fetch until the screen enables it, then fetches once', async () => {
+  function Gate({ syncEnabled }: { syncEnabled: boolean }) {
+    useThreadPosts({ ...identity, postId: 'gated', syncEnabled });
+    return null;
+  }
+  const gated = (syncEnabled: boolean) =>
+    React.createElement(
+      QueryClientProvider,
+      { client },
+      React.createElement(Gate, { syncEnabled })
+    );
+  const callsFor = () =>
+    mocks.sync.mock.calls.filter(([args]) => args.postId === 'gated');
+  let gateRenderer: ReactTestRenderer | undefined;
+  await act(async () => {
+    gateRenderer = create(gated(false));
+  });
+  await advance(100);
+  expect(callsFor()).toHaveLength(0);
+  await act(async () => {
+    gateRenderer?.update(gated(true));
+  });
+  await act(async () => {
+    gateRenderer?.update(gated(true));
+  });
+  expect(callsFor()).toHaveLength(1);
+  await act(async () => gateRenderer?.unmount());
+});

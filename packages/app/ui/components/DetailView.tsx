@@ -36,6 +36,7 @@ export interface DetailViewProps {
   } | null>;
   contentInsets?: ConversationContentInsets;
   isLoading?: boolean;
+  onReadyToDisplay?: () => void;
 }
 
 export const DetailView = ({
@@ -58,6 +59,7 @@ export const DetailView = ({
   scrollerRef,
   contentInsets,
   isLoading,
+  onReadyToDisplay,
 }: DetailViewProps) => {
   const channelType = channel.type;
   const isChat = channelType !== 'notebook' && channelType !== 'gallery';
@@ -164,6 +166,7 @@ export const DetailView = ({
         listBottomComponent={listBottomComponent}
         contentInsets={contentInsets}
         isLoading={isLoading}
+        onReadyToDisplay={onReadyToDisplay}
       />
     </View>
   );

@@ -444,6 +444,122 @@ Reassess each part independently when upgrading keyboard-controller:
 Remove the whole patch only after both conditions hold. Closing a related
 upstream issue alone is not sufficient.
 
+## @legendapp/list@3.3.3
+
+Local patch:
+`patches/@legendapp__list@3.3.3.patch`
+
+The patch carries two fixes to how a programmatic scroll is completed, one to
+how the content size reaches the screen, one to which row anchors size
+corrections, and a prop that holds the end padding.
+
+### 1. Animated end-aligned scrolls keep their animation through retries
+
+`checkFinishedScrollFallback` re-issues an end-aligned scroll that settled
+short of its target. On iOS the retry now keeps the original scroll's
+`animated` flag, and an animation still in flight is given extra checks before
+the list releases scroll ownership, so a scroll to the newest message does not
+snap at the end.
+
+### 2. A scroll that moves nothing completes on the next frame
+
+Why:
+LegendList completes a programmatic scroll when a scroll event shows the
+offset at its target. A scroll to where the list already is, or to a target
+clamped to the start or end, produces no scroll event, so it only completed
+through the fallback checks: 100 ms and then up to five more 100 ms checks.
+The conversation list awaits its exact opening position before it is shown,
+so a conversation opening on its first loaded post (target clamped to the
+top) stayed hidden for about 600 ms longer than one opening further down.
+
+Fix:
+`scrollTo` notes when the requested offset is within 1 pt of the current one
+and, after dispatching, schedules the usual frame check, which completes the
+scroll at once since the pending offset already equals the target. Scrolls
+that move are unchanged.
+
+Validate:
+Open the `ConversationScroll` Cosmos fixture's `openUnreadShortPageThenOlder`
+preset with `ENABLED_LOGGERS=scroller`: "list first shown" should be about as
+soon as for `unreadsOverAScreen` (a few hundred ms), not about a second.
+
+Remove when upstream completes no-move scrolls without waiting on the
+fallback.
+
+### 3. The content size commits with the row positions
+
+Why:
+On the new architecture each container's position is React state
+(`PositionViewState`), but `ContainersLayer` took the content size from an
+`Animated` value set directly. The size reached the screen a frame before the
+positions it was computed from. A conversation held at its end (the native
+`ConversationViewport` follows the content size in the same layout pass) showed
+every row that changed height on screen, a reply count, a reaction, an image
+that sized late, as a one-frame jump: the rows below it moved before they had
+been laid out again.
+
+Fix:
+`ContainersLayer` reads the size with `useArr$` on the new architecture, so it
+commits with the positions. The old architecture keeps the `Animated` value,
+which matches its `Animated` positions.
+
+Validate:
+With `ENABLED_LOGGERS=scroller` and the frame checker, add a reply to the
+newest message of a conversation resting at its end: the rows above should move
+up in the frame the reply line appears, with no frame where the rows below it
+sit 28 pt off.
+
+Remove when upstream commits the content size with container positions.
+
+### 4. Rows that change size don't move the rows in view
+
+Why:
+When a row's size changes, `maintainVisibleContentPosition` keeps the first
+row whose top is on screen in place and corrects the offset for everything
+above it. During a fast scroll toward older posts, that row is often one that
+has only just entered the window and is being measured for the first time. Its
+own growth was never corrected, so everything below it, the rows the reader was
+looking at, moved by that much mid-fling (108 to 312 pt with post references and
+images that size late).
+
+Fix:
+`applyItemSize` records which rows changed size since the last layout pass, and
+`prepareMVCP` holds the first row in view whose size did not change. If every
+row in view changed, it holds the first one as before.
+
+Validate:
+With `ENABLED_LOGGERS=scroller`, fling quickly toward older posts through
+references and images with no stored size: the timeline should show no
+`shift` entries ("rows moved ... with no offset correction") during momentum.
+
+Remove when upstream anchors size corrections on a row that did not resize.
+
+### 5. `holdAlignItemsAtEndPadding` keeps the end padding as it is
+
+Why:
+With `alignItemsAtEnd`, a short list is bottom-aligned by a padding LegendList
+recomputes on every layout, padding and size change. When a multi-line message
+is sent, the composer shrinks as it is cleared and the list grows by the lines
+it gave back, a few frames before the message lands. The padding followed the
+composer down, then the rows rose for the message: they dropped and rose again.
+
+Fix:
+A new prop, `holdAlignItemsAtEndPadding`. While it is true,
+`updateContentMetricsState` leaves the padding as it is. The conversation list
+sets it while a send is held, on Android, where LegendList's padding
+bottom-aligns short conversations (iOS uses native layout). It clears it once
+the send ends: the message has landed, the composer has shrunk and LegendList
+has taken the taller viewport, so the padding change and the new row are
+applied together. Typed in `react-native.d.ts`, `reanimated.d.ts` and
+`animated.d.ts`.
+
+Validate:
+On Android, in a new workspace, send a message long enough to wrap the
+composer onto two or more lines: on a screen recording the rows rise once, by
+the message less the lines the composer gave back.
+
+Remove when upstream can hold its end alignment across a resize.
+
 ## react-native-reanimated@4.7.1
 
 Why:

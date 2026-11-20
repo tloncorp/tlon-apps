@@ -37,7 +37,9 @@ export function useComposerSendTransition(
   );
 
   const begin = useCallback(() => {
-    if (!enabled || !listRef.current?.getState().isNearEnd) {
+    // An empty list is at its end, though LegendList reports it as not.
+    const state = listRef.current?.getState();
+    if (!enabled || !state || !(state.isNearEnd || state.data.length === 0)) {
       return;
     }
     cancelFrame();
