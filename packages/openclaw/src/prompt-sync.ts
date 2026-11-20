@@ -6,7 +6,6 @@
  * and then finalize that edit. This makes the ship a projection of what the
  * gateway is actually running rather than a second source of prompt state.
  */
-import { randomUUID } from 'node:crypto';
 import nodeFs, { promises as fs } from 'node:fs';
 import path from 'node:path';
 
@@ -18,6 +17,7 @@ import {
 import { normalizeShip } from './targets.js';
 import { resolveTlonAccount } from './types.js';
 import { UrbitHttpError } from './urbit/errors.js';
+import { replaceWorkspaceFile } from './workspace-file.js';
 
 /**
  * The workspace files %steward mirrors: the six whose contents are Tlon's,
@@ -307,39 +307,7 @@ export async function writeWorkspacePrompt(params: {
   }
   await fs.mkdir(params.workspaceDir, { recursive: true });
   const target = path.join(params.workspaceDir, params.name);
-  const temporary = `${target}.${randomUUID()}.tmp`;
-  // Replacing through a temporary file would otherwise reset the target to
-  // Node's default 0666 filtered by the umask, so an owner edit of a 0600
-  // prompt would publish it to every other local user. lstat, so a symlinked
-  // name reports the link rather than whatever it points at; only a regular
-  // file's mode is worth carrying over. A file we create keeps the process
-  // default, as any other new workspace file would.
-  let mode: number | null = null;
-  try {
-    const existing = await fs.lstat(target);
-    if (existing.isFile()) {
-      mode = existing.mode & 0o777;
-    }
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-      throw error;
-    }
-  }
-  try {
-    await fs.writeFile(temporary, params.text, {
-      encoding: 'utf8',
-      flag: 'wx',
-      ...(mode === null ? {} : { mode }),
-    });
-    // writeFile's mode is still masked by the umask; chmod is not.
-    if (mode !== null) {
-      await fs.chmod(temporary, mode);
-    }
-    await fs.rename(temporary, target);
-  } catch (error) {
-    await fs.unlink(temporary).catch(() => {});
-    throw error;
-  }
+  await replaceWorkspaceFile(target, params.text);
 }
 
 function errorMessage(error: unknown): string {
