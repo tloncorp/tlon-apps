@@ -1433,7 +1433,14 @@
           live:(lane-authority sid)
       ==
     ~
-  ?.  &(?=(%channel -.to.u.lane) ?=(^ parent.to.u.lane))  ~
+  ::  The owner's own DM carries the workspace rule, except beside a tap.
+  ?:  ?=(%dm -.to.u.lane)
+    ?.  &(?=(~ parent.to.u.lane) (actor-owner actor.u.lane))  ~
+    ?:  %+  lien  ~(val by jobs)
+        |=(=job:t &(=(sid sid.job) (noted:workspace-plan text.input.job)))
+      ~
+    `rule:workspace-plan
+  ?~  parent.to.u.lane  ~
   ?.  .^(? %gu /(scot %p our.bowl)/channels/(scot %da now.bowl)/$)  ~
   ::  A removed channel or parent is an ordinary miss, not a failed scry that
   ::  can prevent the original human input from being admitted by the head.
@@ -2147,14 +2154,6 @@
     found
   =?  text.u.input  ?=(^ tapped)
     (cat 3 text.u.input (note:workspace-plan id.u.tapped create.u.tapped proposed))
-  =?  text.u.input
-      ?&  ?=(%dm-post -.event)
-          ?=(~ tapped)
-          ?=(~ introduction)
-          (actor-owner actor.u.input)
-          (ruled:workspace-plan text.u.input)
-      ==
-    (cat 3 text.u.input rule:workspace-plan)
   ::  All applicable authority cutoffs precede admission and identity updates.
   =/  cutoff  (max after (fall (~(get by cuts) actor.u.input) `@da`0))
   =?  cutoff  (sibling:~(. ownership bowl) actor.u.input)  (max cutoff sibling-owner-after)

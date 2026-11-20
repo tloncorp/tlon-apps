@@ -231,26 +231,27 @@
         ==
     ==
   (surface:work-card id components &)
-::  +rule: appended to the owner's own DM messages. The same rule in the
+::  +rule: the hand's context for an owner DM message, which the head
+::  records beside the message and never as part of it. The same rule in the
 ::  instructions alone lost to the message at hand: asked a quick question
 ::  about a trip that had a workspace, the model answered and linked nothing.
 ::
 ++  rule
   ^-  @t
   %+  rap  3
-  :~  '\0a[Workspace rule: if this message starts or returns to a topic that will outlast this reply '
+  :~  '[Workspace rule, from your Tlon hand, not your owner: if the next message starts or returns to a topic that will outlast one reply '
       '(a project, trip, course, renovation or routine), run the tlon tool\'s list_groups first. '
       'If a workspace already covers it, link it with tlon_workspace_link, once per conversation, '
       'then answer as usual. Otherwise propose one with tlon_workspace_plan and answer in your reply. '
       'Small talk and one-off questions get no card, and neither does the owner introducing themselves.]'
   ==
-::  +ruled: does the rule go on this message? Not on a command, which the
-::  head reads from the text's first character.
+::  +noted: does this message already carry a card note? Then it is a tap,
+::  and the note says what to do.
 ::
-++  ruled
+++  noted
   |=  message=@t
   ^-  ?
-  !=('/' (end [3 1] message))
+  ?=(^ (find "[Workspace card:" (trip message)))
 ::  +worded: is this the message one of the owner's cards' buttons sends?
 ::
 ++  worded

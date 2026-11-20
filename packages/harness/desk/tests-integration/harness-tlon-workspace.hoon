@@ -2,7 +2,7 @@
 ::  A workspace card is approved by the owner's tap, never by their words.
 ::  -test /=harness=/tests-integration/harness-tlon-workspace
 /-  t=harness-tlon, hh=harness-hand, a=activity-ver, cv=chat-ver
-/+  *test-agent, plan=harness-tlon-workspace-plan, ht=harness-tools
+/+  *test-agent, ht=harness-tools
 /=  adapter  /app/harness-tlon
 |%
 +$  outcome  [cards=(list card) saved=state-3:t]
@@ -110,17 +110,11 @@
   =/  said  (texts got)
   ?>  ?=([@ ~] said)
   (ex-equal !>((find-sub:ht 'tlon_workspace_create' i.said)) !>(|))
-++  test-an-ordinary-owner-message-gets-the-rule-without-reading-the-post
+++  test-an-ordinary-owner-message-is-admitted-as-typed-without-reading-the-post
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  got=outcome  bind:m  (run fixture (dm ~nec 'Back to our Japan trip') ~)
   ;<  ~  bind:m  (ex-equal !>((status got)) !>(%open))
-  (ex-equal !>((texts got)) !>(~[(cat 3 'Back to our Japan trip' rule:plan)]))
-++  test-a-command-reaches-the-head-as-typed
-  %-  eval-mare
-  =/  m  (mare ,~)
-  ^-  form:m
-  ;<  got=outcome  bind:m  (run fixture (dm ~nec '/work tasks') ~)
-  (ex-equal !>((texts got)) !>(~['/work tasks']))
+  (ex-equal !>((texts got)) !>(~['Back to our Japan trip']))
 --

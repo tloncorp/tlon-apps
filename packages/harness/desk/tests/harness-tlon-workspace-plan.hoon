@@ -111,10 +111,10 @@
               =(~ (tap:plan (receipt 'workspace-plan-ab' 'action-0')))
           ==
   ==
-++  test-workspace-rule-leaves-commands-alone
+++  test-workspace-rule-stands-aside-for-a-tap-note
   %-  expect
-  !>  ?&  (ruled:plan 'Back to our Japan trip')
-          !(ruled:plan '/work tasks')
+  !>  ?&  !(noted:plan 'Back to our Japan trip')
+          (noted:plan (cat 3 'Create it' (note:plan 'workspace-plan-ab' & `(proposal %open))))
           (find-sub:ht 'tlon_workspace_link' rule:plan)
       ==
 ++  test-only-a-cards-own-button-message-is-looked-up

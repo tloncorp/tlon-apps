@@ -254,11 +254,12 @@ runs.
   answer as the first message of that chat and posts the group's card in the
   DM. It then reports the task to schedule with `cron_add`, whose prompt
   posts to the workspace chat. A later call makes nothing more.
-- Every other DM message from the owner, commands excepted, reaches the model
-  with a bracketed workspace rule appended: check `list_groups`, link a
-  workspace that covers the topic, otherwise propose one, and no card for
-  small talk or one-off questions. The rule is in the conversation's journal
-  with the message; the DM itself is unchanged.
+- Every other DM message from the owner, commands excepted, is admitted with
+  a workspace rule as its hand context, the way a channel thread's public
+  reference is: check `list_groups`, link a workspace that covers the topic,
+  otherwise propose one, and no card for small talk or one-off questions. The
+  head records it beside the message, never as part of it, so the message's
+  text, memory recall and the DM itself are unchanged.
 - `tlon_workspace_link(group, line)` posts one line and the card of a group
   this ship is in, for a topic an existing workspace already covers.
 
