@@ -2,7 +2,7 @@
 ::  it and what Create still has to do. Pure; the Tlon hand owns the
 ::  proposals, the authority checks and every effect.
 /-  t=harness-tlon, g=groups-ver
-/+  work-card=harness-tlon-work-card, cron=harness-cron
+/+  work-card=harness-tlon-work-card, cron=harness-cron, spec=harness-tlon-tool
 |%
 +$  nest  [kind=@tas ship=@p name=@tas]
 ++  prefix  'workspace-plan-'
@@ -341,7 +341,18 @@
           ?=(~ group.proposal)
       ==
     proposal
-  proposal(status %superseded, awaiting |)
+  proposal(status %superseded, awaiting ~)
+::  +answered: the cards whose proposing turn is .input settle their answer:
+::  its reply, or none for a failed or cancelled turn
+::
+++  answered
+  |=  [proposals=(map @t workspace-proposal:t) input=@uv reply=? body=@t]
+  ^+  proposals
+  %-  ~(run by proposals)
+  |=  proposal=workspace-proposal:t
+  ?.  =(`input awaiting.proposal)  proposal
+  ?.  reply  proposal(awaiting ~)
+  proposal(awaiting ~, answer body)
 ::  +inherited: the answer a revised card keeps: that of the card the owner
 ::  tapped Edit on
 ::
@@ -519,11 +530,5 @@
   ^-  (unit [@p @tas])
   =/  value  (tidy raw)
   =?  value  =('/1/group/' (end [3 9] value))  (rsh [3 9] value)
-  %-  mole
-  |.
-  =/  parts  (need (rush (cat 3 '/' value) stap))
-  ?>  ?=([@ @ ~] parts)
-  =/  host  (slav %p i.parts)
-  ?>  =(i.parts (scot %p host))
-  [host (need (rush i.t.parts sym))]
+  (mole |.((flag:spec value)))
 --

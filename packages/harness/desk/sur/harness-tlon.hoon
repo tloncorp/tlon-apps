@@ -63,8 +63,9 @@
       status=?(%open %approved %superseded %created)
       at=@da
       editing=?
-      ::  The proposing turn's reply is the answer; it opens the workspace chat.
-      awaiting=?
+      ::  The reply to .awaiting, the input whose turn proposed the card, is
+      ::  the answer; it opens the workspace chat.
+      awaiting=(unit @uv)
       answer=@t
       group=(unit [@p @tas])
   ==

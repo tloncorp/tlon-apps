@@ -849,10 +849,14 @@
   =/  plan  plan.u.parsed
   =/  key=@t  (cat 3 prefix:workspace-plan (crip ((x-co:co 12) (end [3 6] id))))
   =/  answer  (inherited:workspace-plan proposals owner)
+  ::  The input this turn is answering; its reply becomes the answer.
+  =/  turn=(unit @uv)
+    ?.  =('' answer)  ~
+    (~(get by active:ledger) sid)
   =.  proposals
     %-  prune:workspace-plan
     %^    supersede:workspace-plan
-        (~(put by proposals) key [owner sid plan %open now.bowl | =('' answer) answer ~])
+        (~(put by proposals) key [owner sid plan %open now.bowl | turn answer ~])
       owner
     key
   =^  first  cor  stamp
@@ -1009,7 +1013,7 @@
   =?  cor  answered
     (emit (publish:messenger /workspace/(scot %uv id) chat answer.u.proposal first ~))
   =.  proposals
-    (~(put by proposals) key u.proposal(status %created, group flag, awaiting |))
+    (~(put by proposals) key u.proposal(status %created, group flag, awaiting ~))
   =^  second  cor  stamp
   %^    settle-tool
       id
@@ -1023,17 +1027,18 @@
     ~
   ==
 ::  +capture-answer: the reply of the turn that proposed a workspace is the
-::  answer its chat opens with
+::  answer its chat opens with. A failed or cancelled turn leaves none.
 ::
 ++  capture-answer
   |=  publication=publication:hh
   ^+  cor
-  ?.  =(%reply kind.publication)  cor
   =.  proposals
-    %-  ~(run by proposals)
-    |=  proposal=workspace-proposal:t
-    ?.  &(awaiting.proposal =(sid.proposal sid.publication))  proposal
-    proposal(awaiting |, answer body.publication)
+    %:  answered:workspace-plan
+      proposals
+      input.publication
+      =(%reply kind.publication)
+      body.publication
+    ==
   cor
 ::
 ++  agent-workspace

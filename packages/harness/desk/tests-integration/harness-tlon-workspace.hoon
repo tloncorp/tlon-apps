@@ -13,7 +13,7 @@
   ^-  workspace-proposal:t
   :*  ~nec  'sid'
       ['Lisbon Trip' 'Planning the May trip' ~[[%chat 'Planning' 'Day by day']] ~]
-      %open  ~2026.9.30  |  |  'The answer'  ~
+      %open  ~2026.9.30  |  ~  'The answer'  ~
   ==
 ++  fixture
   ^-  state-3:t

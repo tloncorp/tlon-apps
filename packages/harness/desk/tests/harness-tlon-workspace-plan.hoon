@@ -24,7 +24,7 @@
 ++  proposal
   |=  status=?(%open %approved %superseded %created)
   ^-  workspace-proposal:t
-  [~nec 'sid' sample status ~2026.11.19 | | 'The answer' ~]
+  [~nec 'sid' sample status ~2026.11.19 | ~ 'The answer' ~]
 ++  test-plan-needs-a-chat-first-and-distinct-titles
   =/  good  (parse:plan (arguments ~[(channel 'chat' 'Planning') (channel 'gallery' 'Places')]))
   ;:  weld
@@ -153,6 +153,20 @@
     !>(~[%superseded %superseded %approved %created %open %open])
   !>  %+  turn  `(list @t)`~['old' 'tapped' 'started' 'done' 'other' 'new']
       |=(key=@t status:(~(got by after) key))
+++  test-only-the-proposing-turns-reply-is-the-answer
+  =/  waiting  (proposal %open)
+  =.  waiting  waiting(awaiting `0v1, answer '')
+  =/  all=(map @t workspace-proposal:t)  (my ~[['a' waiting]])
+  =/  other  (~(got by (answered:plan all 0v2 & 'Unrelated reply')) 'a')
+  =/  failed  (~(got by (answered:plan all 0v1 | 'Provider failed')) 'a')
+  =/  replied  (~(got by (answered:plan all 0v1 & 'The plan')) 'a')
+  %+  expect-eq
+    !>  :~  [`0v1 '']
+            [~ '']
+            [~ 'The plan']
+        ==
+  !>  %+  turn  ~[other failed replied]
+      |=(p=workspace-proposal:t [awaiting.p answer.p])
 ++  test-revised-card-keeps-the-edited-cards-answer
   =/  edited  (proposal %open)
   =/  all=(map @t workspace-proposal:t)
@@ -238,7 +252,12 @@
       %+  expect-eq
         !>(`(unit [@p @tas])``[~nec %lisbon-trip])
       !>((flag:plan ' /1/group/~nec/lisbon-trip '))
-      (expect !>(&(=(~ (flag:plan 'nec/lisbon-trip')) =(~ (flag:plan '~nec/Lisbon Trip')))))
+      %-  expect
+      !>  ?&  =(~ (flag:plan 'nec/lisbon-trip'))
+              =(~ (flag:plan '~nec/Lisbon Trip'))
+              ::  The tlon tool's own limit on a group name.
+              =(~ (flag:plan (cat 3 '~nec/' (crip (reap 65 'a')))))
+          ==
   ==
 ++  test-workspace-tools-ride-the-owner-only-tlon-grant
   =/  defs  (en:json:html (tool-defs:ht ~[%tlon]))
