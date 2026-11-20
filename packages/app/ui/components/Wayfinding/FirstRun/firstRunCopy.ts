@@ -1,22 +1,25 @@
+import type { LineIconName } from '../../Onboarding/line/lineIcons';
+
 // Every word the first run shows, in one place, so copy can change without
 // touching layout or logic. Names that come from live data (the included
 // model, a service, a subscription) are passed in.
 
-export type FeaturePointIcon =
-  | 'chat'
-  | 'people'
-  | 'plug'
-  | 'computer'
-  | 'lock'
-  | 'sliders';
-
 export type FeaturePoint = {
-  icon: FeaturePointIcon;
-  title: string;
-  detail: string;
+  icon: LineIconName;
+  label: string;
 };
 
-export const FIRST_RUN_STEP_COUNT = 5;
+/**
+ * Where each screen sits in onboarding's nine steps: Profile, the two
+ * notification screens and Setting up come before the first run.
+ */
+export const FIRST_RUN_STEPS = {
+  meet: 5,
+  private: 6,
+  connect: 7,
+  model: 8,
+  workspace: 9,
+} as const;
 
 /**
  * What a featured service lets the Tlonbot do, in plain words. Each entry
@@ -43,7 +46,7 @@ export const FIRST_RUN_FEATURED_SERVICES: [string, ServiceAccessCopy][] = [
     'google-calendar',
     {
       scopes: 'openid email profile https://www.googleapis.com/auth/calendar',
-      summary: 'See your events and add new ones.',
+      summary: 'Your events and invites',
       intro:
         'Your Tlonbot will be able to check your schedule and add events for you.',
       accessMode: 'read and write',
@@ -56,7 +59,7 @@ export const FIRST_RUN_FEATURED_SERVICES: [string, ServiceAccessCopy][] = [
     'google-gmail',
     {
       scopes: 'openid email profile https://www.googleapis.com/auth/gmail.send',
-      summary: 'Send email as you. Can’t read your inbox.',
+      summary: 'Sends email as you',
       intro:
         'Your Tlonbot will be able to send email from your Gmail address when you ask.',
       accessMode: 'send only',
@@ -69,7 +72,7 @@ export const FIRST_RUN_FEATURED_SERVICES: [string, ServiceAccessCopy][] = [
     'notion',
     {
       scopes: '',
-      summary: 'Search and edit pages in your workspace.',
+      summary: 'Your pages and notes',
       intro:
         'Your Tlonbot will be able to search your Notion pages and make changes for you.',
       accessMode: 'read and write',
@@ -82,62 +85,32 @@ export const FIRST_RUN_FEATURED_SERVICES: [string, ServiceAccessCopy][] = [
 
 export const firstRunCopy = {
   back: 'Back',
-  stepLabel: (step: number) => `Step ${step} of ${FIRST_RUN_STEP_COUNT}`,
 
   meet: {
-    title: 'Meet your Tlonbot.',
-    accent: 'It works for you, and only you.',
+    title: 'Meet your Tlonbot',
+    subtitle: 'It works for you, and only you.',
     points: [
-      {
-        icon: 'people',
-        title: 'Bring it into your chats',
-        detail: 'Collaborate with friends in your workspaces.',
-      },
-      {
-        icon: 'chat',
-        title: 'Ask it anything',
-        detail: 'Questions, web searches and reminders.',
-      },
-      {
-        icon: 'plug',
-        title: 'Connect your services',
-        detail: 'Hook up the apps and services you already use.',
-      },
+      { icon: 'chats', label: 'Bring it into your chats' },
+      { icon: 'search', label: 'Ask it anything' },
+      { icon: 'plug', label: 'Connect the apps you use' },
     ] satisfies FeaturePoint[],
     primary: 'Next',
   },
 
   private: {
-    title: 'Yours to keep.',
-    accent: 'Private by design.',
+    title: 'Yours to keep',
+    subtitle: 'Private by design.',
     points: [
-      {
-        icon: 'computer',
-        title: 'Lives on a computer you own',
-        detail:
-          'It runs on your own Tlon computer, and you can take it with you any time.',
-      },
-      {
-        icon: 'lock',
-        title: 'Zero data retention by default',
-        detail:
-          'By default, the AI company behind it keeps none of your messages.',
-      },
-      {
-        icon: 'sliders',
-        title: 'You’re in charge',
-        detail: 'You choose who it talks to and what it sees.',
-      },
+      { icon: 'computer', label: 'Lives on a computer you own' },
+      { icon: 'lock', label: 'Zero data retention by default' },
+      { icon: 'sliders', label: 'You choose what it sees' },
     ] satisfies FeaturePoint[],
     primary: 'Next',
   },
 
   connect: {
-    title: 'Connect your services.',
-    accent: 'Choose one to get started.',
-    body: 'Make your Tlonbot useful with the apps you already use.',
-    footnote:
-      'Your connected content is not automatically shared with other people.',
+    title: 'Connect your services',
+    subtitle: 'Make your Tlonbot useful with the apps you already use.',
     none: 'No services are available to connect right now. You can connect one later from your Tlonbot’s settings.',
     allServices: 'All services',
     connectButton: 'Connect',
@@ -168,21 +141,29 @@ export const firstRunCopy = {
   },
 
   model: {
-    title: 'Change models.',
-    accent: 'Keep your context.',
-    body: 'Switch any time without starting over. Your Tlonbot keeps its history and what it knows.',
+    title: 'You choose the model',
+    subtitle:
+      'Pick the model, and switch whenever you want. Your Tlonbot keeps its history.',
     sectionIncluded: 'Included with Tlon',
     sectionSubscription: 'Use your subscription',
     sectionApiKey: 'Use your own API key',
     recommended: 'Recommended',
-    includedMeta: 'Zero data retention on',
+    includedMeta: 'Included · Zero data retention',
     subscriptionMeta: (company: string) =>
       `Sign in with your plan · ${company}’s data policy`,
-    apiKeyName: 'OpenAI, Anthropic, xAI or OpenRouter',
-    apiKeyMeta: 'Pay the provider directly',
+    apiKeyName: 'Your own API key',
+    apiKeyMeta: 'OpenAI, Anthropic, xAI or OpenRouter',
+    subscriptionsName: 'Your subscription',
+    subscriptionsMeta: (plans: string[]) =>
+      `Sign in with ${
+        plans.length > 1
+          ? `${plans.slice(0, -1).join(', ')} or ${plans[plans.length - 1]}`
+          : plans[0]
+      }`,
+    primarySubscriptions: 'Sign in to your subscription',
     primaryIncluded: (model: string) => `Use ${model}`,
     primarySubscription: (plan: string) => `Sign in to ${plan}`,
-    primaryApiKey: 'Add an API key',
+    primaryApiKey: 'Add your API key',
     a11yGroup: 'How your Tlonbot gets a model',
     switchFailed: (name: string) =>
       `Couldn’t switch your Tlonbot to ${name}. Go back to try again.`,
@@ -206,13 +187,14 @@ export const firstRunCopy = {
     continueSubscription: (plan: string) => `Continue to ${plan}`,
     continueApiKey: 'Add an API key',
     waitingForBot: 'Waiting for your Tlonbot…',
+    planChoice: 'Which subscription',
     keep: (model: string) => `Keep ${model}`,
   },
 
   apiKey: {
-    title: 'Add your',
-    accent: 'API key.',
-    body: 'Pick the provider, then paste your key. It’s stored on your Tlon computer.',
+    title: 'Add your API key',
+    subtitle:
+      'Pick the provider, then paste your key. It’s stored on your Tlon computer.',
     providerLabel: 'Provider',
     keyLabel: (provider: string) => `${provider} API key`,
     keyPlaceholder: 'Paste your key here',
@@ -221,48 +203,23 @@ export const firstRunCopy = {
     checking: 'Checking…',
   },
 
-  space: {
-    title: 'Make space for something.',
-    accent: 'A project. A friendship. An idea you haven’t figured out yet.',
-    body: 'Start with your Tlonbot. Together, find something worth bringing into a private workspace.',
-    primary: 'Let’s get started',
-    artLabel:
-      'Example: two phones showing a private workspace called Bike Parts. One shows Build chat, where Tlonbot has written a starting brief. The other shows the Parts gallery with three references.',
-    // The example space drawn on the two phones.
-    art: {
-      chatTitle: 'Build chat',
-      galleryTitle: 'Parts gallery',
-      galleryAction: 'New',
-      bot: 'Tlonbot',
-      botBadge: 'Bot',
-      friend: 'Sam',
-      today: 'Today',
-      messages: [
-        {
-          from: 'bot',
-          lines: [
-            'Goal: explore a gravel build and compare parts. Nothing has been selected yet.',
-            'What bike or frame are you building around?',
-          ],
-        },
-        { from: 'friend', lines: ['Which should I decide first?'] },
-        {
-          from: 'bot',
-          lines: ['The frame. It sets how wide your tires can go.'],
-        },
-      ] as { from: 'bot' | 'friend'; lines: string[] }[],
-      tiles: ['Drivetrain options', 'Tire clearance', 'Mounting options'],
-    },
-  },
-
-  status: {
-    running: 'Setting up your Tlonbot',
-    ready: 'Your Tlonbot is ready',
+  workspace: {
+    title: 'Start a workspace',
+    subtitle: 'Make a place for your team or friends to talk and share.',
+    // What onboarding's home group holds: its General chat and Updates
+    // notebook.
+    points: [
+      { icon: 'hash', label: 'A chat to work in' },
+      { icon: 'notebook', label: 'A notebook for updates' },
+      { icon: 'people', label: 'Invite people when you’re ready' },
+    ] satisfies FeaturePoint[],
+    primary: 'Invite friends',
+    secondary: 'Skip for now',
   },
 
   setup: {
-    // The screen keeps signup's "Setting up" title, so the canvas's "Getting
-    // your Tlonbot ready…" leads the body instead.
+    // The screen keeps signup's "Setting up" title, so "Getting your Tlonbot
+    // ready…" leads the body instead.
     waitingBody:
       'Getting your Tlonbot ready… Your choices are saved, and your chat opens as soon as it’s ready.',
   },

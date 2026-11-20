@@ -5,16 +5,14 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { Field, TextInput } from '../../Form';
-import { FirstRunFrame } from './FirstRunFrame';
-import { firstRunCopy } from './firstRunCopy';
+import { LineStepFrame } from '../../Onboarding/line/LineStepFrame';
+import { FIRST_RUN_STEPS, firstRunCopy } from './firstRunCopy';
 import { API_KEY_PROVIDERS } from './firstRunModelOptions';
-import type { FirstRunSetupStatus } from './types';
 
 const copy = firstRunCopy.apiKey;
 
-/** Part of screen 4: pick the provider and paste a key, which is then checked. */
+/** Part of the model step: pick the provider and paste a key, which is then checked. */
 export function FirstRunApiKeyScreen({
-  status,
   provider,
   apiKey,
   checking,
@@ -24,7 +22,6 @@ export function FirstRunApiKeyScreen({
   onSubmit,
   onBack,
 }: {
-  status: FirstRunSetupStatus;
   provider: string;
   apiKey: string;
   checking: boolean;
@@ -52,20 +49,22 @@ export function FirstRunApiKeyScreen({
 
   return (
     <KeyboardAvoidingView behavior="height" automaticOffset style={{ flex: 1 }}>
-      <FirstRunFrame
-        step={4}
+      <LineStepFrame
+        step={FIRST_RUN_STEPS.model}
         onBack={checking ? undefined : onBack}
         title={copy.title}
-        accent={copy.accent}
-        body={copy.body}
-        status={status}
-        primaryLabel={checking ? copy.checking : copy.primary}
-        onPrimary={onSubmit}
-        primaryLoading={checking}
-        primaryDisabled={!apiKey}
+        subtitle={copy.subtitle}
+        align="top"
+        primary={{
+          label: checking ? copy.checking : copy.primary,
+          onPress: onSubmit,
+          loading: checking,
+          disabled: !apiKey,
+          testID: 'first-run-primary',
+        }}
         testID="first-run-api-key"
       >
-        <YStack marginTop="$xl" marginHorizontal="$xl" gap="$xl">
+        <YStack marginHorizontal="$2xl" gap="$xl">
           <YStack gap="$s">
             <Text
               paddingHorizontal="$xs"
@@ -159,7 +158,7 @@ export function FirstRunApiKeyScreen({
             />
           </Field>
         </YStack>
-      </FirstRunFrame>
+      </LineStepFrame>
     </KeyboardAvoidingView>
   );
 }
