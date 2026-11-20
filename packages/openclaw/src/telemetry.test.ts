@@ -802,6 +802,39 @@ describe('telemetry tool tracking', () => {
     });
   });
 
+  it('reports heartbeat ledger counts without including ledger text', () => {
+    const telemetry = createEnabledTelemetry()!;
+    const event = {
+      ownerShip: '~zod',
+      botShip: '~nec',
+      selected: 1,
+      held: 0,
+      silenced: 1,
+      confirmedDeliveries: 2,
+      liveRecords: 100,
+      rotated: true,
+      sources: 'private sources',
+      what: 'private item',
+      why: 'private reason',
+    };
+    telemetry.captureHeartbeatRun(event);
+    const captured = postHogMocks.capture.mock.calls.find(
+      ([call]) => call.event === 'TlonBot Heartbeat Run'
+    )?.[0];
+    expect(captured).toMatchObject({
+      distinctId: '~zod',
+      properties: {
+        selected: 1,
+        held: 0,
+        silenced: 1,
+        confirmedDeliveries: 2,
+        liveRecords: 100,
+        rotated: true,
+      },
+    });
+    expect(JSON.stringify(captured)).not.toContain('private');
+  });
+
   describe('captureHeartbeatNudge', () => {
     it('emits correct PostHog event with all properties (success case includes messageId and nudgeSentAtMs)', () => {
       const telemetry = createEnabledTelemetry()!;

@@ -6,7 +6,8 @@
   "contracts": {
     "tools": [
       "tlon",
-      "tlon_browser_login"
+      "tlon_browser_login",
+      "tlon_heartbeat_ledger"
     ]
   },
   "skills": [

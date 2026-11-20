@@ -1,9 +1,20 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import entry from '../index.js';
+import { HEARTBEAT_LEDGER_TOOL } from './heartbeat-ledger.js';
+import {
+  setErrorTelemetryReporter,
+  setHeartbeatRunReporter,
+} from './telemetry.js';
 import {
   _testing as boundaryTesting,
   claimTlonChoiceCall,
@@ -71,7 +82,16 @@ type TlonTool = {
     params: { command: string }
   ) => Promise<{ content: Array<{ text: string }> }>;
 };
-type ToolFactory = (ctx: { workspaceDir: string }) => TlonTool | null;
+type ToolFactory = (ctx: {
+  workspaceDir: string;
+  sessionKey?: string;
+}) => TlonTool | null;
+type LedgerTool = {
+  execute(
+    id: string,
+    params: Record<string, unknown>
+  ): Promise<{ details: unknown }>;
+};
 
 /** Recording stand-in for the plugin api (see before-tool-call-cron.test.ts). */
 function registerEntry(
@@ -129,6 +149,12 @@ function registerEntry(
       tools
         .map((factory) => factory({ workspaceDir: '/tmp' }))
         .find((tool) => tool?.name === 'tlon'),
+    ledgerTool: (workspaceDir: string, sessionKey: string) =>
+      tools
+        .map((factory) => factory({ workspaceDir, sessionKey }))
+        .find(
+          (tool) => tool?.name === HEARTBEAT_LEDGER_TOOL
+        ) as unknown as LedgerTool,
     beforeToolCall: hooks.get('before_tool_call') as BeforeToolCallHandler,
     prepare: hooks.get('agent_turn_prepare') as AgentHook,
     modelCallStarted: hooks.get('model_call_started') as AgentHook,
@@ -1061,6 +1087,122 @@ describe('before_tool_call turn identity', () => {
       ctx: Ctx,
       toolCallId?: string
     ) => gate(harness, 'tlon', { command }, ctx, toolCallId);
+
+    it('records only approved heartbeat calls, including sealed calls and repeats', async () => {
+      const harness = registerEntry(OWNER);
+      const workspace = mkdtempSync(join(tmpdir(), 'heartbeat-tool-'));
+      const file = join(workspace, 'PROACTIVE_LEDGER.md');
+      const tool = harness.ledgerTool(workspace, HB);
+      const submit = { sources: 'private notes', candidates: [] };
+      const onRecorded = vi.fn();
+      const onError = vi.fn();
+      setHeartbeatRunReporter(onRecorded);
+      setErrorTelemetryReporter(onError);
+      try {
+        for (const source of ['cron', null]) {
+          const ctx = await heartbeat(harness, `other-${source}`, source);
+          await expect(
+            gate(harness, HEARTBEAT_LEDGER_TOOL, submit, ctx, 'denied')
+          ).resolves.toMatchObject({ block: true });
+        }
+        await expect(
+          gate(
+            harness,
+            HEARTBEAT_LEDGER_TOOL,
+            submit,
+            {
+              runId: 'interactive',
+              sessionKey: HB,
+            },
+            'denied'
+          )
+        ).resolves.toMatchObject({ block: true });
+        await expect(tool.execute('denied', submit)).rejects.toThrow(
+          'approved heartbeat'
+        );
+        const ctx = await heartbeat(harness);
+        await expect(tool.execute('no-approval', submit)).rejects.toThrow(
+          'approved heartbeat'
+        );
+
+        for (const id of ['first', 'repeat']) {
+          await expect(
+            gate(harness, HEARTBEAT_LEDGER_TOOL, submit, ctx, id)
+          ).resolves.toBeUndefined();
+        }
+        const results = await Promise.all([
+          tool.execute('first', submit),
+          tool.execute('repeat', { ...submit, sources: 'changed' }),
+        ]);
+        expect(results[0].details).toEqual(results[1].details);
+        expect(onRecorded).toHaveBeenCalledOnce();
+        expect(onRecorded).toHaveBeenCalledWith({
+          selected: 0,
+          held: 0,
+          silenced: 0,
+          confirmedDeliveries: 0,
+          liveRecords: 1,
+          rotated: false,
+        });
+
+        const sealed = await heartbeat(harness, 'hb-sealed');
+        await tlonGate(harness, 'activity mentions', sealed, 'owner-read');
+        expect(isSealedHeartbeatRun(sealed.runId)).toBe(true);
+        const confirmed = { ...submit, delivered: ['earlier item'] };
+        await expect(
+          gate(harness, HEARTBEAT_LEDGER_TOOL, confirmed, sealed, 'sealed')
+        ).resolves.toBeUndefined();
+        await tool.execute('sealed', confirmed);
+        expect(readFileSync(file, 'utf8')).toContain(
+          '| delivered | earlier item'
+        );
+        expect(onRecorded).toHaveBeenCalledTimes(2);
+
+        const invalid = await heartbeat(harness, 'hb-invalid');
+        const selected = {
+          outcome: 'selected',
+          what: 'item',
+          source: 'DM',
+          why: 'due',
+        };
+        const badSubmission = { ...submit, candidates: [selected, selected] };
+        const before = readFileSync(file, 'utf8');
+        await gate(
+          harness,
+          HEARTBEAT_LEDGER_TOOL,
+          badSubmission,
+          invalid,
+          'invalid'
+        );
+        await expect(tool.execute('invalid', badSubmission)).rejects.toThrow(
+          'At most one candidate can be selected'
+        );
+        expect(readFileSync(file, 'utf8')).toBe(before);
+        expect(onRecorded).toHaveBeenCalledTimes(2);
+        expect(onError).not.toHaveBeenCalled();
+
+        const failing = await heartbeat(harness, 'hb-fails');
+        rmSync(file);
+        mkdirSync(file);
+        await gate(harness, HEARTBEAT_LEDGER_TOOL, submit, failing, 'failing');
+        await expect(tool.execute('failing', submit)).rejects.toThrow(
+          'regular files'
+        );
+        expect(onRecorded).toHaveBeenCalledTimes(2);
+        expect(onError).toHaveBeenCalledExactlyOnceWith({
+          kind: 'plugin',
+          event: {
+            pluginErrorSource: 'heartbeat_ledger',
+            errorKind: 'Error',
+            errorText: 'Ledger paths must be singly linked regular files.',
+          },
+        });
+      } finally {
+        setHeartbeatRunReporter(null);
+        setErrorTelemetryReporter(null);
+        rmSync(workspace, { recursive: true, force: true });
+      }
+    });
 
     it.each(['activity mentions', 'activity unread'])(
       'runs %s as the owner, with no rewrite',

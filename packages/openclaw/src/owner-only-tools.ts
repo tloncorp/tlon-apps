@@ -8,6 +8,8 @@
  * `event.error`, the owner "silent failure" notice) keep only its first line,
  * capped at 400 / 200 chars — keep it one line and within the cap below.
  */
+import { HEARTBEAT_LEDGER_TOOL } from './heartbeat-ledger.js';
+
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 
 import { CRON_TOOL_NAMES } from './cron-tool-args-guard.js';
@@ -148,6 +150,7 @@ export const NON_OWNER_ALLOWED_TOOLS: ReadonlySet<string> = new Set([
  */
 export const SEALED_HEARTBEAT_ALLOWED_TOOLS: ReadonlySet<string> = new Set([
   'tlon',
+  HEARTBEAT_LEDGER_TOOL,
   // Workspace files: the heartbeat's notes, memory and ledger.
   'read',
   'ls',

@@ -15,6 +15,7 @@
 import { sharedMap } from './shared-state.js';
 
 export type TlonCallApproval = {
+  heartbeatLedgerRun?: { runId: string; sessionKey?: string };
   ownerDefault: boolean;
   ownerShip: string | undefined;
   /**
@@ -80,6 +81,9 @@ export function takeTlonCallApproval(
   approvals.delete(key);
   return {
     ownerDefault: entry.ownerDefault,
+    ...(entry.heartbeatLedgerRun
+      ? { heartbeatLedgerRun: entry.heartbeatLedgerRun }
+      : {}),
     ownerShip: entry.ownerShip,
     ...(entry.ownerRun ? { ownerRun: entry.ownerRun } : {}),
     ...(entry.heartbeatRead ? { heartbeatRead: entry.heartbeatRead } : {}),
