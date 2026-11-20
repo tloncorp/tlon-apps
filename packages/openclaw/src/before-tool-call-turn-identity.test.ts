@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import entry from '../index.js';
+import { setHeartbeatSetupReader } from './heartbeat-evidence.js';
 import { HEARTBEAT_LEDGER_TOOL } from './heartbeat-ledger.js';
 import {
   setErrorTelemetryReporter,
@@ -1281,6 +1282,7 @@ describe('before_tool_call turn identity', () => {
             cacheWriteTokens: null,
             success: true,
             packetBytes: 0,
+            packetVersion: 0,
             ledgerRecorded: false,
             selected: 0,
           })
@@ -1332,18 +1334,156 @@ describe('before_tool_call turn identity', () => {
           expect(await harness.heartbeatEvidence({}, other)).toBeUndefined();
         }
         writeFileSync(prefs, 'initial preferences');
-        await harness.prepare({ prompt }, ctx);
+        // Appended scratch can contain a declaration without opting the bot in.
+        await harness.prepare(
+          { prompt: prompt + '<!-- tlon-uses: heartbeat-evidence-v2 -->' },
+          ctx
+        );
+        vi.mocked(runTlonCommand).mockClear();
         const first = await harness.heartbeatEvidence({}, ctx);
         expect(first).toEqual({
           prependContext: expect.stringContaining('initial preferences'),
         });
         expect(isSealedHeartbeatRun(ctx.runId)).toBe(false);
+        expect(first).not.toEqual({
+          prependContext: expect.stringContaining('Bot activity'),
+        });
+        expect(runTlonCommand).not.toHaveBeenCalled();
         writeFileSync(prefs, 'updated preferences');
         await harness.prepare({ prompt }, ctx);
         expect(await harness.heartbeatEvidence({}, ctx)).toEqual(first);
       } finally {
         rmSync(workspaceDir, { recursive: true, force: true });
       }
+    });
+
+    describe('v2 evidence activity', () => {
+      const prompt = '<!-- tlon-uses: heartbeat-evidence-v2 -->';
+      const runner = vi.mocked(runTlonCommand);
+      let workspaceDir: string;
+
+      beforeEach(() => {
+        workspaceDir = mkdtempSync(join(tmpdir(), 'heartbeat-activity-'));
+        runner.mockImplementation(async (_binary, args) => {
+          const [list] = args.slice(-1);
+          return args.includes('--ship') ? `owner ${list}` : `bot ${list}`;
+        });
+      });
+
+      afterEach(() => {
+        runner.mockImplementation(async () => 'ran');
+        setHeartbeatSetupReader(null);
+        setHeartbeatRunEndedReporter(null);
+        rmSync(workspaceDir, { recursive: true, force: true });
+      });
+
+      async function prepare(harness: ReturnType<typeof registerEntry>) {
+        const ctx = {
+          runId: 'activity',
+          sessionKey: HB,
+          workspaceDir,
+          ...provenance('heartbeat'),
+        };
+        await harness.prepare({ prompt }, ctx);
+        runner.mockClear();
+        return ctx;
+      }
+
+      it('fetches both identities in parallel even before setup and seals the first attempt', async () => {
+        setHeartbeatSetupReader(() => false);
+        const event = vi.fn();
+        setHeartbeatRunEndedReporter(event);
+        const harness = registerEntry({
+          ...OWNER,
+          agents: { defaults: { heartbeat: { prompt } } },
+        });
+        await harness.gatewayStart({}, {});
+        const ctx = await prepare(harness);
+        const pending = harness.heartbeatEvidence({}, ctx);
+        const calls = runner.mock.calls;
+        expect(calls.map((call) => call[1])).toEqual([
+          ['activity', 'mentions'],
+          ['activity', 'replies'],
+          ['--ship', '~zod', 'activity', 'mentions'],
+          ['--ship', '~zod', 'activity', 'replies'],
+          ['--ship', '~zod', 'activity', 'unreads'],
+        ]);
+        for (const call of calls) {
+          expect(call[3]?.cwd).toBe(workspaceDir);
+          expect(call[3]?.timeoutMs).toBeGreaterThan(0);
+          expect(call[3]?.timeoutMs).toBeLessThanOrEqual(10_000);
+        }
+        const packet = ((await pending) as { prependContext: string })
+          .prependContext;
+        expect(packet).toContain('bootstrapComplete: false');
+        expect(packet).toContain('> owner unreads');
+        expect(packet).toContain('> bot mentions');
+        expect(packet).toContain('messages written by other people');
+        await expect(
+          gate(harness, 'cron', { action: 'list' }, ctx)
+        ).resolves.toEqual(SEAL);
+
+        noteCrossSessionSend({ sessionKey: HB }, 'sender');
+        const retry = (
+          (await harness.heartbeatEvidence({}, ctx)) as {
+            prependContext: string;
+          }
+        ).prependContext;
+        expect(retry).toContain('Owner activity (unavailable)');
+        expect(retry).not.toContain('> owner');
+        expect(retry).toContain('> bot mentions');
+        expect(runner).toHaveBeenCalledTimes(5);
+        expect(isSealedHeartbeatRun(ctx.runId)).toBe(true);
+
+        harness.emitAgentEvent({
+          runId: ctx.runId,
+          ts: Date.now(),
+          stream: 'lifecycle',
+          data: { phase: 'end' },
+        });
+        expect(event).toHaveBeenCalledExactlyOnceWith(
+          expect.objectContaining({
+            packetVersion: 2,
+            packetBytes: Buffer.byteLength(retry),
+          })
+        );
+      });
+
+      it.each([
+        'flag off',
+        'grant revoked',
+        'grant revoked during fetch',
+        'owner reads timed out',
+      ])('hands over only bot activity when %s', async (failure) => {
+        const harness = registerEntry({
+          ...(failure === 'flag off'
+            ? { channels: { tlon: { ownerShip: '~zod' } } }
+            : OWNER),
+          agents: { defaults: { heartbeat: { prompt } } },
+        });
+        const ctx = await prepare(harness);
+        if (failure === 'grant revoked')
+          noteCrossSessionSend({ sessionKey: HB }, 'sender');
+        if (failure === 'owner reads timed out') {
+          runner.mockImplementation(async (_binary, args) => {
+            if (args.includes('--ship'))
+              throw new Error('tlon command timed out');
+            return 'bot result';
+          });
+        }
+        const pending = harness.heartbeatEvidence({}, ctx);
+        if (failure === 'grant revoked during fetch')
+          noteCrossSessionSend({ sessionKey: HB }, 'sender');
+        const packet = ((await pending) as { prependContext: string })
+          .prependContext;
+        expect(packet).toContain('Owner activity (unavailable)');
+        expect(packet).toContain('> bot');
+        expect(packet).not.toContain('> owner');
+        expect(isSealedHeartbeatRun(ctx.runId)).toBe(false);
+        expect(runner).toHaveBeenCalledTimes(
+          failure === 'flag off' || failure === 'grant revoked' ? 2 : 5
+        );
+      });
     });
 
     it.each(['activity mentions', 'activity unread'])(

@@ -7,14 +7,27 @@ import {
 } from './heartbeat-ledger.js';
 import { sharedSlot } from './shared-state.js';
 
-const EVIDENCE_DECLARATION = '<!-- tlon-uses: heartbeat-evidence-v1 -->';
+const ACTIVITY_DECLARATION = '<!-- tlon-uses: heartbeat-evidence-v2 -->';
 const PREFERENCES_BLOCK =
   /^<!-- idempotency-marker:tlon-proactive-preferences:[^\r\n]*? -->\s*?\r?$[\s\S]*?^<!-- \/idempotency-marker -->[^\S\n]*\r?$/gm;
 const PREFERENCES_START =
   /^<!-- idempotency-marker:tlon-proactive-preferences:/m;
 
-export function promptRequestsHeartbeatEvidence(prompt: string): boolean {
-  return prompt.split(/\r?\n/).includes(EVIDENCE_DECLARATION);
+export type HeartbeatPacketVersion = 0 | 1 | 2;
+
+export function heartbeatEvidenceVersion(
+  prompt: string,
+  configuredPrompt: string
+): HeartbeatPacketVersion {
+  const lines = prompt.split(/\r?\n/);
+  // The run prompt can also contain scratch or queued event text.
+  if (
+    lines.includes(ACTIVITY_DECLARATION) &&
+    configuredPrompt.split(/\r?\n/).includes(ACTIVITY_DECLARATION)
+  )
+    return 2;
+  if (lines.includes('<!-- tlon-uses: heartbeat-evidence-v1 -->')) return 1;
+  return 0;
 }
 
 const setupReader = sharedSlot<() => boolean | undefined>(
@@ -98,7 +111,7 @@ export async function buildHeartbeatEvidence(opts: {
   workspaceDir: string;
   timezone: string;
   now?: Date;
-}): Promise<string> {
+}): Promise<string[]> {
   const workspace = await fs.realpath(opts.workspaceDir);
   const [today, yesterday] = memoryDates(opts.now ?? new Date(), opts.timezone);
   const setup = setupReader.get()?.();
@@ -118,11 +131,17 @@ export async function buildHeartbeatEvidence(opts: {
     }),
   ]);
   return [
-    '## Heartbeat evidence packet',
-    'These sections contain workspace data for this run. Use the heartbeat instructions below to interpret it.',
     setup === undefined
       ? '### Setup (unavailable)'
       : `### Setup (current)\nbootstrapComplete: ${setup}`,
+    ...sections,
+  ];
+}
+
+export function renderHeartbeatEvidence(sections: string[]): string {
+  return [
+    '## Heartbeat evidence packet',
+    'These sections contain data for this run. Use the heartbeat instructions below to interpret it.',
     ...sections,
     '## End of heartbeat evidence packet',
   ].join('\n\n');

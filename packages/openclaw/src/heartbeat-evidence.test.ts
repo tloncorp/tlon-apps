@@ -6,14 +6,21 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   buildHeartbeatEvidence,
+  renderHeartbeatEvidence,
   setHeartbeatSetupReader,
 } from './heartbeat-evidence.js';
 
 describe('heartbeat evidence packet', () => {
   let workspaceDir: string;
   const now = new Date('2026-12-01T01:00:00Z');
-  const build = () =>
-    buildHeartbeatEvidence({ workspaceDir, now, timezone: 'America/Chicago' });
+  const build = async () =>
+    renderHeartbeatEvidence(
+      await buildHeartbeatEvidence({
+        workspaceDir,
+        now,
+        timezone: 'America/Chicago',
+      })
+    );
 
   beforeEach(async () => {
     workspaceDir = await fs.mkdtemp(path.join(tmpdir(), 'heartbeat-evidence-'));
