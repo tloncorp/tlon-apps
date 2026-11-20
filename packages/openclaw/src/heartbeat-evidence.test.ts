@@ -79,9 +79,14 @@ describe('heartbeat evidence packet', () => {
     await fs.mkdir(path.join(workspaceDir, 'PROACTIVE_LEDGER.md'));
     await fs.writeFile(
       path.join(workspaceDir, 'memory/2026-11-30.md'),
-      'old content\n' + '雪'.repeat(3_000) + '\nnewest content'
+      'old content\n' + '雪'.repeat(3_000) + ' newest content'
+    );
+    await fs.writeFile(
+      path.join(workspaceDir, 'memory/2026-11-29.md'),
+      ['oldest line', 'x'.repeat(8_190), 'whole line', 'last line'].join('\n')
     );
     const packet = await build();
+    expect(packet).toContain('(truncated)\nwhole line\nlast line');
     expect(packet).toContain('Setup (unavailable)');
     expect(packet).toContain('PROACTIVE_LEDGER.md (unavailable)');
     expect(packet).toContain('PROACTIVE_PREFERENCES.md (absent)');

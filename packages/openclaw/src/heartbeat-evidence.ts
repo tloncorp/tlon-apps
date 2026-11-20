@@ -86,7 +86,10 @@ function newestText(text: string, limit: number): string {
   const bytes = Buffer.from(text);
   let start = bytes.length - limit;
   if (start <= 0) return text;
-  while ((bytes[start] & 0xc0) === 0x80) start++;
+  // Start on a whole line when a later one exists, else on a whole character.
+  const nextLine = bytes.indexOf(0x0a, start - 1) + 1;
+  if (nextLine > 0 && nextLine < bytes.length) start = nextLine;
+  else while ((bytes[start] & 0xc0) === 0x80) start++;
   return bytes.subarray(start).toString('utf8');
 }
 
