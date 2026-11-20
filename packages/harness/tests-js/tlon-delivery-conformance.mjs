@@ -9,6 +9,7 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { Client, cookie, base } from './lib/ship-client.mjs'
 import { HandClient } from '../acp/hand-client.mjs'
 import { rein, revive } from './lib/ship-thread.mjs'
+import { authorShip, assertBotAuthor } from './lib/author.mjs'
 
 const peerUrl = process.env.PEER_URL, pier = process.env.SHIP_PIER
 const inChannel = process.env.SURFACE === 'channel', nest = process.env.TEST_NEST
@@ -57,7 +58,7 @@ async function posts() {
   const page = await r.json()
   return Object.entries(page.writs || page.posts).map(([key, p]) => ({ ...p, fixtureId: inChannel ? key : p.seal.id.split('/')[1] }))
 }
-const matches = async (suffix) => (await posts()).filter((p) => p.essay?.author === ship && JSON.stringify(p.essay.content).includes(`${marker}-${suffix}`))
+const matches = async (suffix) => (await posts()).filter((p) => authorShip(p.essay?.author) === ship && JSON.stringify(p.essay.content).includes(`${marker}-${suffix}`))
 async function send(suffix) {
   const da = (((BigInt(Date.now()) * (1n << 64n)) / 1000n) + 170141184475152167957503069145530368000n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
   const essay = { content: [{ inline: [...(inChannel ? [{ ship }] : []), `${marker} ${suffix}`] }], author: peer, sent: Date.now(), kind: '/chat', meta: null, blob: null }
@@ -81,6 +82,7 @@ try {
   await send('first'); await until('first DM reaches inference', () => requests.length === 1)
   ;[sessionId] = (await status()).sessions
   finish(0, 'first'); await until('ordinary reply delivered', async () => (await matches('first')).length === 1); await idle()
+  assertBotAuthor((await matches('first'))[0].essay.author, ship)
 
   await send('offline'); await until('second DM reaches inference', () => requests.length === 2)
   await suspend(); finish(1, 'offline')
@@ -115,9 +117,10 @@ try {
   await until('recovered pending replies drain in admission order', async () => (await matches('held')).length === 1 && (await matches('behind')).length === 1)
   await idle()
   const nativeStamp = (p) => BigInt(p.fixtureId.replaceAll('.', ''))
-  const ordered = (await posts()).filter((p) => p.essay?.author === ship && [ 'held', 'behind' ].some((s) => JSON.stringify(p.essay.content).includes(`${marker}-${s}`))).sort((a, b) => nativeStamp(a) < nativeStamp(b) ? -1 : 1)
+  const ordered = (await posts()).filter((p) => authorShip(p.essay?.author) === ship && [ 'held', 'behind' ].some((s) => JSON.stringify(p.essay.content).includes(`${marker}-${s}`))).sort((a, b) => nativeStamp(a) < nativeStamp(b) ? -1 : 1)
   assert.notEqual(ordered[0].fixtureId, ordered[1].fixtureId, 'same-event deliveries have distinct native IDs')
   assert.ok(JSON.stringify(ordered[0].essay.content).includes(`${marker}-held`))
+  for (const recovered of ordered) assertBotAuthor(recovered.essay.author, ship)
 
   await send('retry'); await until('retry fixture reaches inference', () => requests.length === 5)
   await suspend(); finish(4, 'retry')

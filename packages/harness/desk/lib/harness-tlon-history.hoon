@@ -1,6 +1,7 @@
 ::  Bounded thread presentation, without selecting destinations or authority.
 /-  cv=chat-ver, dv=channels-ver
-/+  mp=mop-extensions, story=harness-tlon-story, ht=harness-tools
+/+  mp=mop-extensions, story=harness-tlon-story, ht=harness-tools,
+    authors=harness-tlon-author
 |%
 +$  item  [id=@t author=@p sent=@da text=@t]
 ++  dm-id
@@ -13,7 +14,7 @@
   ^-  (list item)
   =/  author  author:+.post
   :-  :*  (dm-id id:-.post)
-          ?@(author author ship.author)
+          (author-ship:authors author)
           sent:+.post
           (clip:ht (story-to-text:story content:+.post) 800)
       ==
@@ -25,7 +26,7 @@
   =/  author  author:+.reply
   %-  some
   :*  (dm-id id:-.reply)
-      ?@(author author ship.author)
+      (author-ship:authors author)
       sent:+.reply
       (clip:ht (story-to-text:story content:+.reply) 800)
   ==
@@ -34,7 +35,7 @@
   ^-  (list item)
   =/  author  author:+.+.post
   :-  :*  (scot %da id:-.post)
-          ?@(author author ship.author)
+          (author-ship:authors author)
           sent:+.+.post
           (clip:ht (story-to-text:story content:+.+.post) 800)
       ==
@@ -48,7 +49,7 @@
   =/  author  author:+.+.reply
   %-  some
   :*  (scot %da id:-.reply)
-      ?@(author author ship.author)
+      (author-ship:authors author)
       sent:+.+.reply
       (clip:ht (story-to-text:story content:+.+.reply) 800)
   ==

@@ -292,6 +292,7 @@
 /%  kelvin                      %kelvin
 /%  lanyard-command-1           %lanyard-command-1
 /%  lanyard-query-1             %lanyard-query-1
+/%  lanyard-query-2             %lanyard-query-2
 /%  lanyard-update-1            %lanyard-update-1
 /%  loob                        %loob
 /%  mass                        %mass
@@ -652,6 +653,7 @@
       $:  %kelvin                      $+  kelvin                      p=_*vale:kelvin                      ==
       $:  %lanyard-command-1           $+  lanyard-command-1           p=_*vale:lanyard-command-1           ==
       $:  %lanyard-query-1             $+  lanyard-query-1             p=_*vale:lanyard-query-1             ==
+      $:  %lanyard-query-2             $+  lanyard-query-2             p=_*vale:lanyard-query-2             ==
       $:  %lanyard-update-1            $+  lanyard-update-1            p=_*vale:lanyard-update-1            ==
       $:  %loob                        $+  loob                        p=_*vale:loob                        ==
       $:  %mass                        $+  mass                        p=_*vale:mass                        ==
@@ -1014,6 +1016,7 @@
     %kelvin                      [-.rail !>(+.rail)]
     %lanyard-command-1           [-.rail !>(+.rail)]
     %lanyard-query-1             [-.rail !>(+.rail)]
+    %lanyard-query-2             [-.rail !>(+.rail)]
     %lanyard-update-1            [-.rail !>(+.rail)]
     %loob                        [-.rail !>(+.rail)]
     %mass                        [-.rail !>(+.rail)]
@@ -1374,6 +1377,7 @@
     %kelvin                      [p !<(_*vale:kelvin q)]
     %lanyard-command-1           [p !<(_*vale:lanyard-command-1 q)]
     %lanyard-query-1             [p !<(_*vale:lanyard-query-1 q)]
+    %lanyard-query-2             [p !<(_*vale:lanyard-query-2 q)]
     %lanyard-update-1            [p !<(_*vale:lanyard-update-1 q)]
     %loob                        [p !<(_*vale:loob q)]
     %mass                        [p !<(_*vale:mass q)]
@@ -1734,6 +1738,7 @@
       :-  %kelvin                      -:!>(*vale:kelvin)
       :-  %lanyard-command-1           -:!>(*vale:lanyard-command-1)
       :-  %lanyard-query-1             -:!>(*vale:lanyard-query-1)
+      :-  %lanyard-query-2             -:!>(*vale:lanyard-query-2)
       :-  %lanyard-update-1            -:!>(*vale:lanyard-update-1)
       :-  %loob                        -:!>(*vale:loob)
       :-  %mass                        -:!>(*vale:mass)

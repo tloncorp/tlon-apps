@@ -2,16 +2,20 @@ import {
   DropdownMenu,
   DropdownMenuItem,
   Host,
+  HorizontalDivider,
   RNHostView,
   Text,
 } from '@expo/ui/jetpack-compose';
 import { Pressable } from '@tloncorp/ui';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 
 import type { IconMenuProps } from './IconMenu.types';
 import { useSettingsListColors } from './SettingsList/useSettingsListColors';
 
-/** Opens a Material menu of what can be done to an image, from any content. */
+/**
+ * Opens a Material menu from any content: what can be done to an image, or
+ * what an overflow button offers.
+ */
 export function IconMenu({
   children,
   items,
@@ -38,23 +42,25 @@ export function IconMenu({
         </DropdownMenu.Trigger>
         <DropdownMenu.Items>
           {items.map((item) => (
-            <DropdownMenuItem
-              key={item.key}
-              onClick={() => {
-                setOpen(false);
-                item.onPress();
-              }}
-            >
-              <DropdownMenuItem.Text>
-                <Text
-                  color={
-                    item.destructive ? colors.negative : colors.primaryText
-                  }
-                >
-                  {item.title}
-                </Text>
-              </DropdownMenuItem.Text>
-            </DropdownMenuItem>
+            <Fragment key={item.key}>
+              {item.separatorBefore ? <HorizontalDivider /> : null}
+              <DropdownMenuItem
+                onClick={() => {
+                  setOpen(false);
+                  item.onPress();
+                }}
+              >
+                <DropdownMenuItem.Text>
+                  <Text
+                    color={
+                      item.destructive ? colors.negative : colors.primaryText
+                    }
+                  >
+                    {item.title}
+                  </Text>
+                </DropdownMenuItem.Text>
+              </DropdownMenuItem>
+            </Fragment>
           ))}
         </DropdownMenu.Items>
       </DropdownMenu>

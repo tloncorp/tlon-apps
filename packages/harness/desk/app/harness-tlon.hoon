@@ -1900,9 +1900,12 @@
   =/  id=@uv  (sham [generation u.input])
   ?:  (~(has by jobs) id)  cor
   ?:  (gte ~(wyt by jobs) 64)  cor(error 'Admission queue full; inspect Tlon pending work.')
+  ::  Read only what will be admitted. A diagnostic, kept out of the input
+  ::  whose hash is the job id.
+  =/  bot=(unit ?)  (bot-author:~(. history-read bowl) to.u.input (posted-at:continuity event))
   =/  =job:t  [u.input sid %create '']
   =.  jobs  (~(put by jobs) id job)
-  =.  cor  (note 'message' actor.u.input (address:p to.u.input) event.u.input)
+  =.  cor  (note ?:(=(`& bot) 'bot-message' 'message') actor.u.input (address:p to.u.input) event.u.input)
   =.  identities  (~(put by identities) [actor.u.input to.u.input] sid)
   ?:  ?=(^ existing)
     ?:  (route-ready sid)  (bind-job id job)

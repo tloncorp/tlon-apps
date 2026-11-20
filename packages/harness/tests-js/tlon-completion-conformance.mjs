@@ -6,6 +6,7 @@ import { createServer } from 'node:http'
 import { randomUUID } from 'node:crypto'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { Client, cookie, base } from './lib/ship-client.mjs'
+import { assertBotAuthor } from './lib/author.mjs'
 
 const ship = cookie.split('=')[0].slice('urbauth-'.length)
 assert.equal(ship, '~lux', 'This fixture is restricted to the local fake ~lux')
@@ -121,6 +122,11 @@ try {
     const reply = thread.messages.find((p) => p.text === `${slug} reply`); assert.ok(reply)
     await invoke('edit_message', { ...target, parent: post.message_id, message_id: reply.message_id, text: 'edited reply' }, target.ship ? 'error' : 'accepted')
     if (!target.ship) assert.equal((await invoke('get_message', { ...target, parent: post.message_id, message_id: reply.message_id }, 'read')).text, 'edited reply')
+    if (!target.ship) {
+      const edited = Object.values((await scry(`channels/v5/${channel}/posts/newest/20/post`)).posts).find((p) => JSON.stringify(p.essay?.content).includes(`${slug} edited`))
+      assertBotAuthor(edited.essay.author, ship)
+      assertBotAuthor(Object.values(edited.seal.replies).find((r) => JSON.stringify(r['reply-essay'].content).includes('edited reply'))['reply-essay'].author, ship)
+    }
     await invoke('history_around', { ...target, parent: post.message_id, message_id: reply.message_id }, 'read')
     await invoke('delete_message', { ...target, parent: post.message_id, message_id: reply.message_id, confirm: reply.message_id })
     await invoke('get_message', { ...target, parent: post.message_id, message_id: reply.message_id }, 'error')
@@ -146,6 +152,9 @@ try {
   assert.equal((await invoke('get_club_message', { club, message_id: clubPost.message_id }, 'read')).text, `${slug} group DM`)
   const clubReply = (await invoke('club_history', { club, parent: clubPost.message_id }, 'read')).messages.find((p) => p.text === 'group DM reply')
   assert.equal((await invoke('get_club_message', { club, parent: clubPost.message_id, message_id: clubReply.message_id }, 'read')).text, 'group DM reply')
+  const clubNative = Object.values((await scry(`chat/v4/club/${club}/writs/newest/20/heavy`)).writs).find((p) => JSON.stringify(p.essay?.content).includes(`${slug} group DM`))
+  assertBotAuthor(clubNative.essay.author, ship)
+  assertBotAuthor(Object.values(clubNative.seal.replies).find((r) => JSON.stringify(r['reply-essay'].content).includes('group DM reply'))['reply-essay'].author, ship)
   await invoke('delete_club_message', { club, parent: clubPost.message_id, message_id: clubReply.message_id, confirm: clubReply.message_id })
   await invoke('delete_club_message', { club, message_id: clubPost.message_id, confirm: clubPost.message_id })
   await invoke('get_club_message', { club, message_id: clubPost.message_id }, 'error')

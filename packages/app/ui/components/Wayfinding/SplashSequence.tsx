@@ -421,7 +421,6 @@ function SplashSequenceComponent(props: {
       setProviderModels(initialized.providerModels);
       setBotPrimaryModel(initialized.primaryModel);
       setConfigError(null);
-      setCurrentPane(SplashPane.BotModel);
     },
     [botPrimaryModel, hasOpenAIKey, userShipId]
   );
@@ -715,6 +714,7 @@ function SplashSequenceComponent(props: {
     const selected = selectedCredential;
     if (selected?.credentialMode === 'subscription') {
       setCurrentPane(SplashPane.BotSubscriptionAuth);
+      void handleStartSubscription();
       return;
     }
     if (selected?.requiresKey) {
@@ -722,7 +722,7 @@ function SplashSequenceComponent(props: {
       return;
     }
     handleValidateProvider();
-  }, [handleValidateProvider, selectedCredential]);
+  }, [handleStartSubscription, handleValidateProvider, selectedCredential]);
 
   const handleTlonbotSetupComplete = useCallback(async () => {
     useLureState
@@ -757,14 +757,13 @@ function SplashSequenceComponent(props: {
   const handleModelBackPress = useCallback(() => {
     const selected = selectedCredential;
     if (selected?.credentialMode === 'subscription') {
-      subscriptionAuth.dismiss();
       setCurrentPane(SplashPane.BotSubscriptionAuth);
       return;
     }
     setCurrentPane(
       selected?.requiresKey ? SplashPane.BotApiKey : SplashPane.BotProvider
     );
-  }, [selectedCredential, subscriptionAuth]);
+  }, [selectedCredential]);
 
   // Step 2 (non-basic only): start the restart-causing work in the background.
   const handleSaveModelConfig = useCallback(async () => {
@@ -948,7 +947,8 @@ function SplashSequenceComponent(props: {
               state={subscriptionAuth.state}
               browserError={subscriptionAuth.browserError ?? configError}
               onStart={() => void handleStartSubscription()}
-              onOpenBrowser={() => void subscriptionAuth.openVerificationUrl()}
+              onOpenBrowser={subscriptionAuth.openVerificationUrl}
+              onContinue={() => setCurrentPane(SplashPane.BotModel)}
               onSubmitToken={subscriptionAuth.completeToken}
               onRetry={() => void subscriptionAuth.restart()}
               onCancel={() => {

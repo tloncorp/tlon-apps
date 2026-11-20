@@ -75,6 +75,21 @@ test('no phone attestation skips discovery without failing', async () => {
   expect(mocks.discoverContacts).not.toHaveBeenCalled();
 });
 
+test('skips discovery for a day after the verifier rate limits it', async () => {
+  const limitedAt = vi.spyOn(db.contactDiscoveryRateLimitedAt, 'getValue');
+  limitedAt.mockResolvedValue(Date.now() - 60_000);
+  expect(await syncContactDiscovery()).toEqual({
+    didSucceed: true,
+    didDiscover: false,
+    newMatches: [],
+  });
+  expect(mocks.discoverContacts).not.toHaveBeenCalled();
+
+  limitedAt.mockResolvedValue(Date.now() - 25 * 60 * 60 * 1000);
+  await syncContactDiscovery();
+  expect(mocks.discoverContacts).toHaveBeenCalled();
+});
+
 test('a rejected discovery request is a failure, not an empty success', async () => {
   mocks.discoverContacts.mockRejectedValueOnce(new Error('client unavailable'));
   expect(await syncContactDiscovery()).toEqual({

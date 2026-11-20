@@ -7,6 +7,7 @@ import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { Client, cookie, base } from './lib/ship-client.mjs'
+import { authorShip, assertBotAuthor } from './lib/author.mjs'
 
 assert.equal(process.env.HISTORY_TEST_MESSAGES, '1')
 const peerUrl = process.env.PEER_URL, nest = process.env.TEST_NEST
@@ -156,7 +157,8 @@ try {
     await sleep(500)
     await client.call('harness/tlon/configure', { enabled: true, owner: peer, trusted: [], response: 'mentions', allowed: [], channels: [] })
     await send(`${label()}-trigger`, { mention: true })
-    await until('history conversation completed', async () => (await texts()).some((p) => p?.author === ship && JSON.stringify(p.content).includes(`${label()}-done`)))
+    const done = await until('history conversation completed', async () => (await texts()).find((p) => authorShip(p?.author) === ship && JSON.stringify(p.content).includes(`${label()}-done`)))
+    assertBotAuthor(done.author, ship)
     assert.equal(failures.length, 0)
   }
 } finally {

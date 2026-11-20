@@ -34,6 +34,13 @@ external changes without overwriting drafts, and waits for Contacts to confirm
 saves. Empty fields clear those attributes; other fields, permissions, and
 conversations stay unchanged.
 
+Every message the hand writes (channel posts and replies, DMs and DM replies,
+group DMs and their replies) carries the bot-profile author form with an empty
+nickname and avatar, so other bots and the app know a bot wrote it. The app
+still shows the name and avatar from the Contacts profile, and adds a bot
+badge. Messages from `run_js`'s Tlon host APIs carry the same form. Older
+messages with a bare-ship author keep it.
+
 ## Context Lens
 
 Open **Context Lens** in a Harness conversation to inspect its runs. Each input
@@ -160,7 +167,8 @@ The same grant also covers:
   full text, not just the displayed preview. `history_around` reads five nearby
   messages on either side; `resolve_citation` follows native group, channel and
   Notes references without joining anything or executing a desk converter.
-  `edit_message` preserves channel post/reply identity and metadata. Native Tlon
+  `edit_message` preserves channel post/reply identity, author and metadata;
+  it edits the bot's own messages, bare-ship or bot-profile. Native Tlon
   does not support editing DM or group-DM messages. `delete_message`
   requires exact-target confirmation. `accept_dm` and `decline_dm` resolve only
   pending invitations.
@@ -523,7 +531,15 @@ messaging the sender.
   grants say. Granting either to it has no effect. A session bound to another
   hand gets the tools its adapter configures (see
   [hands](hands.md#binding-and-authority)).
-- Other ships and the bot's own messages do not enter inference.
+- Other ships and the bot's own messages do not enter inference. The bot
+  knows its own messages by the author's ship, whichever author form they carry.
+- A channel post or reply whose author carries a bot profile, as OpenClaw and
+  Hermes bots write theirs, is a bot's message. On admission the hand reads
+  that one message from local `%channels`, a bounded page and an exact-key
+  lookup, and records it in the activity feed as `bot-message`. It is admitted
+  and answered like any other message. A message the hand can no longer read
+  there (the channel left, the message gone, or its thread's parent deleted)
+  is recorded as `message`.
 - Group invitations are accepted only when sent by the owner. DM invitations
   from the owner, a trusted ship or an allowed ship are accepted. An invitation
   still pending when its sender gains access is accepted at that point, or when
@@ -610,7 +626,8 @@ These owner-authenticated extensions work from any initialized ACP client:
 ```
 
 Activity notifications contain `sequence`, `kind`, `actor`, `address`, and `event`.
-The feed retains 128 diagnostic entries. Use session snapshots and the
+An admitted message's `kind` is `message`, or `bot-message` when its author has
+a bot profile. The feed retains 128 diagnostic entries. Use session snapshots and the
 [hand ledger](hands.md) for conversation history and delivery records.
 
 The head forwards the authenticated `harness/tlon` namespace through

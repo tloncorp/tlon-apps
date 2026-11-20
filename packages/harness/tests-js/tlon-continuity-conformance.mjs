@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { Client, base, cookie } from './lib/ship-client.mjs'
 import { rein } from './lib/ship-thread.mjs'
+import { authorShip, assertBotAuthor } from './lib/author.mjs'
 
 assert.equal(process.env.CONTINUITY_TEST_MESSAGES, '1')
 const peerUrl = process.env.PEER_URL, nest = process.env.TEST_NEST, pier = process.env.SHIP_PIER
@@ -68,14 +69,15 @@ async function input(ctx) {
 async function command(ctx, text, expected) {
   const ids = new Set((await messages(ctx)).map((p) => p.id)), before = new Set((await status()).sessions)
   await send(ctx, text)
-  await until('native command acknowledgement', async () => (await messages(ctx)).some((p) => !ids.has(p.id) && p.author === ship && expected.test(JSON.stringify(p.content))))
+  const ack = await until('native command acknowledgement', async () => (await messages(ctx)).find((p) => !ids.has(p.id) && authorShip(p.author) === ship && expected.test(JSON.stringify(p.content))))
+  assertBotAuthor(ack.author, ship)
   if (!ctx.sid) ctx.sid = await until('new exact-thread conversation', async () => (await status()).sessions.find((sid) => !before.has(sid)))
   assert.ok((await status()).sessions.includes(ctx.sid), 'same head remains the current conversation')
   ctx.binding = (await input(ctx)).source.binding
   return snapshot(ctx)
 }
 async function finished(ctx, label) {
-  await until('native final reply', async () => (await messages(ctx)).some((p) => p.author === ship && JSON.stringify(p.content).includes(`done:${label}`)))
+  await until('native final reply', async () => (await messages(ctx)).some((p) => authorShip(p.author) === ship && JSON.stringify(p.content).includes(`done:${label}`)))
 }
 function release(entry, text) {
   entry.result = entry.kind === 'child' ? JSON.stringify({ choices: [{ finish_reason: 'stop', message: { role: 'assistant', content: text } }] }) : text
@@ -245,10 +247,11 @@ try {
   // availability probe while the head is stopped. Native Messenger stays up.
   await until('native input arrives while head is unavailable', async () => (await messages(channel)).some((p) => !beforeRecovery.has(p.id) && p.author === peer && JSON.stringify(p.content).includes('/memory')))
   await sleep(500)
-  assert.ok(!(await messages(channel)).some((p) => !beforeRecovery.has(p.id) && p.author === ship))
+  assert.ok(!(await messages(channel)).some((p) => !beforeRecovery.has(p.id) && authorShip(p.author) === ship))
   await head(true); await reload()
-  await until('pending admission recovers after head reconnects', async () => (await messages(channel)).some((p) => !beforeRecovery.has(p.id) && p.author === ship && JSON.stringify(p.content).includes(tag(channel))))
-  assert.equal((await messages(channel)).filter((p) => !beforeRecovery.has(p.id) && p.author === ship).length, 1)
+  const recovered = await until('pending admission recovers after head reconnects', async () => (await messages(channel)).find((p) => !beforeRecovery.has(p.id) && authorShip(p.author) === ship && JSON.stringify(p.content).includes(tag(channel))))
+  assertBotAuthor(recovered.author, ship)
+  assert.equal((await messages(channel)).filter((p) => !beforeRecovery.has(p.id) && authorShip(p.author) === ship).length, 1)
   assert.deepEqual((await snapshot(channel)).memory, channel.saved.memory)
   channel.binding = (await input(channel)).source.binding
   console.log('PASS interrupted authorization setup retains admission and recovers exactly once after head reconnect')

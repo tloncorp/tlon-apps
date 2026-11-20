@@ -1,4 +1,4 @@
-/-  g=groups-ver, s=story
+/-  g=groups-ver, s=story, dv=channels-ver
 /+  message-tool=harness-tlon-message-tool
 /+  *test, spec=harness-tlon-tool, hp=harness-tlon-history-page, policy=harness-tlon-group-policy,
     media=harness-tlon-media, story=harness-tlon-story
@@ -83,5 +83,78 @@
       (expect-eq !>([%s 'éz']) !>((~(got by p.next) 'text')))
       (expect-eq !>(~) !>((~(got by p.next) 'next_offset')))
       (expect-eq !>(~) !>((mole |.((render:lib invalid message)))))
+  ==
+::
+++  edit-args
+  |=  parent=(unit @da)
+  ^-  json
+  %-  pairs:enjs:format
+  %+  weld
+    :~  ['action' %s 'edit_message']
+        ['channel' %s 'chat/~nec/fixture']
+        ['message_id' %s (scot %da ?~(parent ~2026.9.6 ~2026.9.7))]
+        ['text' %s 'Edited']
+    ==
+  ?~(parent ~ ~[['parent' %s (scot %da u.parent)]])
+++  edit-fixture
+  |=  author=author:v10:dv
+  ^-  [post:v10:dv reply:v10:dv]
+  =/  =post:v10:dv  *post:v10:dv
+  =.  +.+.post  +.+.post(author author, sent ~2026.9.6, content ~[[%inline ~['Post']]])
+  =/  =reply:v10:dv  *reply:v10:dv
+  =.  +.+.reply  +.+.reply(author author, sent ~2026.9.7, content ~[[%inline ~['Reply']]])
+  [post reply]
+::  +edit: channel command for an edit of the fixture, or ~ when refused
+++  edit
+  |=  [args=json author=author:v10:dv]
+  ^-  (unit *)
+  =/  [=post:v10:dv =reply:v10:dv]  (edit-fixture author)
+  =/  attempt
+    |.
+    =/  card  (change:~(. message-tool *bowl:gall) args /fixture)
+    ?>  ?=([%pass * %agent [@ %channels] %poke %channel-action-2 *] card)
+    =/  [pass=* wire=* agent=* who=* poke=* mark=* data=vase]  card
+    !<(a-channels:v10:dv data)
+  =/  checked
+    %+  mink  [attempt %9 2 %0 1]
+    |=  [ref=* raw=*]
+    ^-  (unit (unit noun))
+    =/  path  ;;(path raw)
+    ?:  ?=([%gu *] path)  ``&
+    ?:  =(%channel-posts-5 (rear path))
+      ``[(put:on-posts:v10:dv ~ ~2026.9.6 [%& post]) ~ ~ 1 1]
+    ?:  =(%channel-replies-5 (rear path))
+      ``(put:on-replies:v10:dv ~ ~2026.9.7 [%& reply])
+    ~
+  ?.  ?=(%0 -.checked)  ~
+  `product.checked
+++  edited
+  |=  [parent=(unit @da) author=author:v10:dv]
+  ^-  (unit *)
+  =/  [=post:v10:dv =reply:v10:dv]  (edit-fixture author)
+  =/  edited=story:s  ~[[%inline ~['Edited']]]
+  =/  nest=nest:dv  [%chat ~nec %fixture]
+  :-  ~
+  ^-  a-channels:v10:dv
+  ?~  parent
+    [%channel nest %post %edit ~2026.9.6 +.+.post(content edited)]
+  [%channel nest %post %reply u.parent %edit ~2026.9.7 +.+.reply(content edited)]
+++  test-edits-of-the-bots-own-messages-keep-their-author
+  ;:  weld
+      %+  expect-eq  !>((edited ~ [~zod ~ ~]))
+      !>((edit (edit-args ~) [~zod ~ ~]))
+      %+  expect-eq  !>((edited `~2026.9.6 [~zod ~ ~]))
+      !>((edit (edit-args `~2026.9.6) [~zod ~ ~]))
+      %+  expect-eq  !>((edited ~ ~zod))
+      !>((edit (edit-args ~) ~zod))
+      %+  expect-eq  !>((edited `~2026.9.6 ~zod))
+      !>((edit (edit-args `~2026.9.6) ~zod))
+  ==
+++  test-edits-of-another-authors-message-are-refused
+  ;:  weld
+      (expect-eq !>(`(unit *)`~) !>((edit (edit-args ~) ~nec)))
+      (expect-eq !>(`(unit *)`~) !>((edit (edit-args `~2026.9.6) ~nec)))
+      (expect-eq !>(`(unit *)`~) !>((edit (edit-args ~) [~nec ~ ~])))
+      (expect-eq !>(`(unit *)`~) !>((edit (edit-args `~2026.9.6) [~nec ~ ~])))
   ==
 --

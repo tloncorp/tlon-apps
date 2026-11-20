@@ -20,6 +20,20 @@ export const OverflowTriggerButton: React.FC<
 );
 
 /**
+ * The overflow button drawn as a native menu's label. The menu around it
+ * takes the press.
+ */
+export function OverflowMenuLabel(props: ComponentProps<typeof Button.Frame>) {
+  return (
+    <OverflowTriggerButton
+      pointerEvents="none"
+      accessibilityElementsHidden
+      {...props}
+    />
+  );
+}
+
+/**
  * @deprecated Use OverflowTriggerButton instead and handle positioning in parent
  */
 export function OverflowMenuButton({
