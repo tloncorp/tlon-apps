@@ -95,7 +95,7 @@ The audits were then re-costed under the assumption that no human reads the code
 
 Audit: 1.5 weeks for the trial subset, 2.5 to 3 with archival and benchmarks. Without code review: about 1 week and 1.5 weeks. Agent-days: 13 subset, 25 full, plus 3 to 4.5 of review and fix cycles.
 
-- A cap nobody had listed: the hand ledger holds 256 observations per binding and 2,048 per ship, and only a manual retire frees it (`harness-hand.hoon:253-260`, `hands.md:210`). Verified. A busy bot hits it before the 128-identity cap.
+- A cap nobody had listed: the hand ledger holds 256 observations per binding and 2,048 per ship, and only a manual retire frees it (`harness-hand.hoon:253-260`, `hands.md:210`). Verified.
 - The owner bypass is narrower than ISSUES.md says. `harness-admin.hoon:43-48` grants it only for the owner's own DM, ACP and local pokes, never channels. Keeping the bypass and fixing the docs is one day.
 - Archival should wait for benchmark numbers. The scripts exist; a 10k-event seeder and recorded results do not.
 - Review was never on this row's path; its pole is one serial six-agent-day item. The cadence is now merge serialisation on the hand ledger with A2 and on adapter state with B and C. No live owner Steward is needed.
