@@ -1,3 +1,6 @@
+import type { HeartbeatActivity } from './heartbeat-activity.js';
+import type { HeartbeatPacketVersion } from './heartbeat-evidence.js';
+
 export type HeartbeatRunEnded = {
   runId: string;
   modelCalls: number;
@@ -9,6 +12,7 @@ export type HeartbeatRunEnded = {
   durationMs: number;
   success: boolean;
   packetBytes: number;
+  packetVersion: HeartbeatPacketVersion;
   ledgerRecorded: boolean;
   selected: number;
 };
@@ -26,6 +30,11 @@ export type HeartbeatRunObservation = {
   toolCalls: number;
   usage?: HeartbeatRunUsage;
   ended?: true;
+  requestedEvidenceVersion?: HeartbeatPacketVersion;
+  evidence?: Promise<string[] | undefined>;
+  activity?: Promise<HeartbeatActivity>;
+  packetBytes?: number;
+  packetVersion?: HeartbeatPacketVersion;
 };
 
 export function accumulateHeartbeatUsage(

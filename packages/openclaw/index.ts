@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveAgentConfig } from 'openclaw/plugin-sdk/agent-scope-runtime';
 import { defineBundledChannelEntry } from 'openclaw/plugin-sdk/channel-entry-contract';
 import { type OpenClawPluginApi } from 'openclaw/plugin-sdk/core';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
@@ -134,6 +135,17 @@ import {
   heartbeatLedgerToolDefinition,
   recordHeartbeatLedger,
 } from './src/heartbeat-ledger.js';
+import {
+  buildHeartbeatEvidence,
+  heartbeatEvidenceVersion,
+  renderHeartbeatEvidence,
+} from './src/heartbeat-evidence.js';
+import {
+  readHeartbeatActivity,
+  type ReadHeartbeatActivity,
+  UNAVAILABLE_BOT_ACTIVITY,
+  UNAVAILABLE_OWNER_ACTIVITY,
+} from './src/heartbeat-activity.js';
 import { accumulateHeartbeatUsage } from './src/heartbeat-run.js';
 import { normalizeShip, parseTlonTarget } from './src/targets.js';
 import {
@@ -188,6 +200,7 @@ import {
   isHeartbeatOwnerRead,
   isSealedHeartbeatTlonCall,
   OWNER_CONFIG_CHANGED_MESSAGE,
+  resolveTlonActingIdentity,
   summarizeTlonCommand,
 } from './src/tlon-tool-command.js';
 import {
@@ -1030,6 +1043,7 @@ type AgentTurnHookDeps = {
   // the gate records an approval the executor re-checks before the CLI runs.
   liveAccount: () => LiveTlonOwner;
   isOwnerRun: OwnerRunCheck;
+  readHeartbeatActivity: ReadHeartbeatActivity;
   browserHandoffs: ReturnType<typeof registerBrowserHandoffResults>;
   walletHandoffs: ReturnType<typeof registerWalletHandoffs>;
 };
@@ -1704,7 +1718,7 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
     }
   });
 
-  api.on('agent_turn_prepare', async (_event, ctx) => {
+  api.on('agent_turn_prepare', async (event, ctx) => {
     const ownerShip = liveOwnerShip();
     observeRun({ ...ctx, ownerShip });
     // Only a heartbeat-runner turn with heartbeat provenance; anything less,
@@ -1714,6 +1728,21 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       ctx.inputProvenance?.sourceTool === 'heartbeat'
     ) {
       markHeartbeatRun(ctx.runId, ownerShip);
+      const heartbeat = getHeartbeatRunObservation(ctx.runId);
+      if (heartbeat && heartbeat.requestedEvidenceVersion === undefined) {
+        const cfg = api.runtime.config.current() as OpenClawConfig;
+        const agent = ctx.agentId
+          ? resolveAgentConfig(cfg, ctx.agentId)
+          : undefined;
+        const configuredPrompt =
+          agent?.heartbeat?.prompt ??
+          cfg.agents?.defaults?.heartbeat?.prompt ??
+          '';
+        heartbeat.requestedEvidenceVersion = heartbeatEvidenceVersion(
+          event.prompt ?? '',
+          configuredPrompt
+        );
+      }
     }
     beginCronSilenceObservation(ctx);
     beginTlonTurnSilenceObservation(ctx);
@@ -1722,6 +1751,74 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       recordTlonAgentRunTrace(ctx.runId, ctx.trace?.traceId);
     }
     await agentTurnHookDepsSlot.get()?.onCronAgentHook(ctx);
+  });
+  api.on('heartbeat_prompt_contribution', async (_event, ctx) => {
+    const heartbeat = getHeartbeatRunObservation(ctx.runId);
+    const version = heartbeat?.requestedEvidenceVersion;
+    if (
+      !heartbeat ||
+      !version ||
+      heartbeat.ended ||
+      !ctx.workspaceDir ||
+      ctx.trigger !== 'heartbeat' ||
+      ctx.inputProvenance?.sourceTool !== 'heartbeat'
+    )
+      return;
+    const cfg = api.runtime.config.current() as OpenClawConfig;
+    heartbeat.evidence ??= buildHeartbeatEvidence({
+      workspaceDir: ctx.workspaceDir,
+      timezone: resolveActiveHoursTimezone(
+        cfg,
+        cfg.agents?.defaults?.heartbeat?.activeHours?.timezone
+      ),
+    }).catch(() => {
+      api.logger.warn('[tlon] Heartbeat evidence packet unavailable.');
+      return undefined;
+    });
+    const eligibleOwner = () => {
+      const live = resolveOwnerDeps().liveAccount();
+      return isHeartbeatOwnerReadRun(ctx, live.ownerShip) ? live : undefined;
+    };
+    if (version === 2 && !heartbeat.activity) {
+      const reader = agentTurnHookDepsSlot.get()?.readHeartbeatActivity;
+      if (reader) {
+        heartbeat.activity = readHeartbeatActivity(
+          reader,
+          ctx.workspaceDir,
+          eligibleOwner()?.ownerShip
+        );
+      }
+    }
+    const [files, activity] = await Promise.all([
+      heartbeat.evidence,
+      heartbeat.activity,
+    ]);
+    if (
+      !files ||
+      heartbeat.ended ||
+      getHeartbeatRunObservation(ctx.runId) !== heartbeat
+    )
+      return;
+
+    const sections = [...files];
+    if (version === 2) {
+      // An attempt can be retried after the owner grant has been revoked.
+      const owner = activity?.owner;
+      const live = eligibleOwner();
+      if (owner && live && owner.ship === live.ownerShip) {
+        // With ownerDefault off the model already reads this data unsealed
+        // through the owner config, so the packet adds no seal there.
+        if (live.ownerDefault) sealHeartbeatRun(ctx.runId);
+        sections.push(owner.section);
+      } else {
+        sections.push(UNAVAILABLE_OWNER_ACTIVITY);
+      }
+      sections.push(activity?.bot ?? UNAVAILABLE_BOT_ACTIVITY);
+    }
+    const packet = renderHeartbeatEvidence(sections);
+    heartbeat.packetBytes = Buffer.byteLength(packet);
+    heartbeat.packetVersion = version;
+    return { prependContext: packet };
   });
   api.on('llm_output', (event, ctx) => {
     const heartbeat = getHeartbeatRunObservation(ctx.runId);
@@ -2387,6 +2484,8 @@ export default defineBundledChannelEntry({
         const heartbeat = getHeartbeatRunObservation(event.runId);
         if (!heartbeat || heartbeat.ended) return;
         heartbeat.ended = true;
+        heartbeat.evidence = undefined;
+        heartbeat.activity = undefined;
         const receipt = getHeartbeatLedgerRun(event.runId)?.receipt;
         const endedAt =
           typeof event.data.endedAt === 'number'
@@ -2407,7 +2506,8 @@ export default defineBundledChannelEntry({
               cacheWriteTokens: heartbeat.usage?.cacheWrite ?? null,
               durationMs: Math.max(0, endedAt - heartbeat.startedAt),
               success: phase === 'end' && event.data.aborted !== true,
-              packetBytes: 0,
+              packetBytes: heartbeat.packetBytes ?? 0,
+              packetVersion: heartbeat.packetVersion ?? 0,
               ledgerRecorded: receipt !== undefined,
               selected: receipt?.selected ?? 0,
             }),
@@ -2627,6 +2727,27 @@ export default defineBundledChannelEntry({
         onCronAgentHook,
         liveAccount,
         isOwnerRun,
+        async readHeartbeatActivity(
+          list,
+          { ownerShip, workspaceDir, timeoutMs }
+        ) {
+          const command = ['activity', list];
+          const identity = resolveTlonActingIdentity(command, false, false, {
+            ownerShip,
+            env: process.env,
+            fileExists: existsSync,
+          });
+          if ('error' in identity) throw new Error(identity.error);
+          const args =
+            identity.actAs === 'owner'
+              ? [...identity.prefix, ...command]
+              : command;
+          return runTlonCommand(tlonBinary, args, credentials, {
+            cwd: workspaceDir,
+            ownerShip,
+            timeoutMs,
+          });
+        },
         browserHandoffs,
         walletHandoffs,
       });
