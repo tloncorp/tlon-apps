@@ -2,7 +2,7 @@
 ::  scries only; no emitted cards are executed.
 ::  -test /=harness=/tests-integration/harness-tlon-shared-session
 /-  t=harness-tlon, ad=harness-adapter, h=harness, g=groups-ver,
-    a=activity-ver, hh=harness-hand
+    a=activity-ver, hh=harness-hand, d=story
 /+  *test-agent, continuity=harness-tlon-continuity, policy-lib=harness-tlon-policy,
     hj=harness-json
 /=  adapter  /app/harness-tlon
@@ -81,11 +81,14 @@
 ::
 ++  admit
   |=  [saved=state-3:t speakers=(list [@p @da])]
+  (admit-stream saved (posts speakers))
+++  admit-stream
+  |=  [saved=state-3:t stream=stream:v10:a]
   =/  m  (mare ,[(list card) state-3:t])
   ^-  form:m
   ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now ~2026.9.10))
   ;<  ~  bind:m  head-connected
-  ;<  ~  bind:m  (set-scry-gate (scries (posts speakers) hands))
+  ;<  ~  bind:m  (set-scry-gate (scries stream hands))
   ;<  *  bind:m  (do-load adapter `!>(saved))
   ;<  ~  bind:m  head-connected
   ;<  caz=(list card)  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
@@ -167,6 +170,32 @@
   %+  ex-equal
     !>((hand-acts caz))
   !>(`(list action:hh)`~[[%observe 'binding-room' event.input.job '~nec' '~nec: hello']])
+::  A message the head parses as a command reaches it as written, so it still
+::  runs; one that only starts with a slash, such as a path, is attributed.
+::
+++  test-a-command-is-observed-as-written-and-a-path-with-its-speaker
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  observed
+    |=  content=(list inline:d)
+    =/  m  (mare ,(list @t))
+    ^-  form:m
+    =/  at  ~2026.9.9..12.00.00
+    =/  event=incoming-event:v8:a
+      [%post [[~nec at] at] [%chat ~lux %test] [~lux %test] ~[[%inline content]] &]
+    ;<  [* s=state-3:t]  bind:m
+      (admit-stream ready (put:on-stream:v10:a *stream:v10:a at [event | |]))
+    =/  admitted  ~(tap by jobs.s)
+    ?>  ?=([* ~] admitted)
+    ;<  caz=(list card)  bind:m
+      %^  do-agent  /hand/bind/(scot %uv p.i.admitted)  [~zod %harness]
+      [%fact %noun !>(`(each json @t)`[%& ~])]
+    (pure:m (turn (hand-acts caz) |=(act=action:hh ?>(?=(%observe -.act) text.act))))
+  ;<  command=(list @t)  bind:m  (observed ~[[%ship ~zod] ' /model'])
+  ;<  ~  bind:m  (ex-equal !>(command) !>(`(list @t)`~['/model']))
+  ;<  path=(list @t)  bind:m  (observed ~['/tmp/file is broken'])
+  (ex-equal !>(path) !>(`(list @t)`~['~nec: /tmp/file is broken']))
 ::  A guest's message opens the room, but the session is saved with the
 ::  owner's Defaults; the guest's own ceiling narrows each of its turns.
 ::

@@ -33,17 +33,13 @@
   ?:  (whitespace i.chars)  $(chars t.chars)
   ?.  =(i.chars '/')  original
   (crip chars)
-::  A channel's session is shared, so each message names its speaker. A
-::  slash command stays as written so the head still reads it as a command.
+::  A channel's session is shared, so each message names its speaker. The
+::  caller leaves out a command, which the head must still read as one.
 ::
 ++  attribute
   |=  [actor=@p to=destination:t text=@t]
   ^-  @t
   ?:  ?=(%dm -.to)  text
-  =/  chars  (trip text)
-  |-
-  ?:  &(?=(^ chars) (whitespace i.chars))  $(chars t.chars)
-  ?:  &(?=(^ chars) =('/' i.chars))  text
   (rap 3 (scot %p actor) ': ' text ~)
 ::  The longest prefix +attribute adds: a comet's name, a colon and a space.
 ::

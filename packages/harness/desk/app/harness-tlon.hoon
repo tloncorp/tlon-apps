@@ -22,6 +22,7 @@
 /+  operations=harness-tlon-operations, denial=harness-tlon-denial
 /+  tlon-spec=harness-tlon-tool, notes-tool=harness-tlon-notes-tool
 /+  hook-tool=harness-tlon-hook-tool
+/+  command=harness-command
 /+  notes-migration=harness-tlon-notes-migration
 /+  membership=harness-tlon-membership
 /+  migration=harness-tlon-migrate
@@ -1869,7 +1870,11 @@
     %^  hand
       %observe
       id
-    =/  text  (attribute:input actor.input.u.job to.input.u.job text.input.u.job)
+    ::  Text the head parses as a command stays as written, so it still runs.
+    ::  Anything else, a path included, reaches the model with its speaker.
+    =/  text
+      ?^  (parse:command text.input.u.job)  text.input.u.job
+      (attribute:input actor.input.u.job to.input.u.job text.input.u.job)
     [%observe binding.route event.input.u.job (scot %p actor.input.u.job) text]
   ?:  =(%observe phase)  cor(jobs (~(del by jobs) id))
   ?:  =(%receipt phase)

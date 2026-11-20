@@ -174,7 +174,13 @@
   ++  on-load
     |=  old-vase=vase
     =/  new=state-0  (load:storage old-vase)
-    =.  state  new(corpus-wake ~, schedule-wake ~)
+    ::  Schedule upkeep reads hands' authority, and a hand on this desk may
+    ::  not have reloaded yet: Gall reloads the desk's agents one by one.
+    ::  When upkeep is due, wake one tick later, after every agent has loaded.
+    =/  upkeep=(unit @da)
+      ?.  (maintenance-needed:schedule-lib schedules.new ~ now.bowl |)  ~
+      `+(now.bowl)
+    =.  state  new(corpus-wake ~, schedule-wake upkeep)
     =.  wake.knowledge  ~
     =.  runners
       runners(wake ~, registry (~(run by registry.runners) |=(r=runner:runner-types r(stream ~))))
@@ -195,6 +201,8 @@
       %+  snoc
         base
       [%pass /schedules/(scot %da u.schedule-wake.new) %arvo %b %rest u.schedule-wake.new]
+    =?  base  ?=(^ upkeep)
+      (snoc base [%pass /schedules/(scot %da u.upkeep) %arvo %b %wait u.upkeep])
     =?  base  ?=(^ wake.knowledge.new)
       %+  snoc  base
       [%pass /memory-work/(scot %da u.wake.knowledge.new) %arvo %b %rest u.wake.knowledge.new]
@@ -4288,7 +4296,14 @@
   =.  barrier.knowledge  +(barrier.knowledge)
   ::  Revocation is wider than a user stop: retire descendant work and
   ::  scheduled continuations, retaining the source's transcript/config.
-  =/  source  sid.action
+  =^  cards  state  (fence-session sid.action |)
+  =^  more  state  (fence-descendants sid.action)
+  [(weld cards more) state]
+::  Retire the subagent sessions a session's turns delegated to.
+::
+++  fence-descendants
+  |=  source=session-id:h
+  ^-  (quip card _state)
   =/  descendants
     %+  skim  ~(tap in ~(key by sessions))
     |=  sid=session-id:h
@@ -4304,7 +4319,7 @@
     ?~  parent  |
     ?:  =(parent.u.parent source)  &
     $(sid parent.u.parent, depth +(depth))
-  =^  cards  state  (fence-session source |)
+  =|  cards=(list card)
   |-
   ^-  (quip card _state)
   ?~  descendants  [cards state]
@@ -4317,8 +4332,10 @@
   ?>  ?=(%cancel -.action)
   =.  hands  (cancel-queued:hd hands sid.action ~)
   (cancel-turn sid.action)
-::  One speaker's stop or revocation: their running turn and their waiting
-::  inputs. Other speakers' work, timers and configuration stay.
+::  One speaker's stop or revocation: their running turn, the subagents it
+::  started, and their waiting inputs. Other speakers' work, timers and
+::  configuration stay. Only the running turn's subagents can still be
+::  working, so every live descendant is this speaker's.
 ::
 ++  fence-actor
   |=  [sid=session-id:h actor=@t]
@@ -4326,7 +4343,9 @@
   ?.  (~(has by sessions) sid)  `state
   =.  hands  (cancel-queued:hd hands sid `actor)
   ?.  =(`actor (hand-speaker sid))  `state
-  (cancel-turn sid)
+  =^  cards  state  (cancel-turn sid)
+  =^  more  state  (fence-descendants sid)
+  [(weld cards more) state]
 ::  Waiting inputs are the caller's to cancel first; settling pumps the next.
 ::
 ++  cancel-turn

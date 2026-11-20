@@ -188,8 +188,9 @@
   ;<  ~  bind:m  (ex-equal !>((phase-of after 'running')) !>(%cancelled))
   ;<  ~  bind:m  (ex-equal !>((phase-of after 'waiting')) !>(%cancelled))
   (ex-equal !>((phase-of after 'dev-waiting')) !>(%cancelled))
-::  Revoking alice cancels her turn and her waiting input; bob's input runs
-::  next, and timers and the other conversation's work stay.
+::  Revoking alice cancels her turn, the subagent it started and her waiting
+::  input; bob's input runs next, and timers and the other conversation's
+::  work stay.
 ::
 ++  test-fence-actor-cancels-one-speakers-work-and-others-continue
   %-  eval-mare
@@ -199,6 +200,13 @@
     (shared 'fixture' ~['alice' 'bob'] 'alice' ~[['waiting' 'alice'] ['bob-waiting' 'bob']])
   =.  timers.saved
     (my ~[[['source' %check] *timer:h]])
+  =/  child=session:h
+    :_  1
+    :~  [%input-received [0v1 [%subagent 'source' 'delegate'] ~ ~ t0 [%user 'Child work']]]
+        [%config-replaced defaults.saved(tools ~[%web])]
+    ==
+  =.  sessions.saved  (~(put by sessions.saved) 'child' child)
+  =.  subs.saved  (my ~[['child' ['source' 'delegate']]])
   ;<  ~  bind:m  (load saved |=(path `!>(|)))
   ;<  idle=(list card)  bind:m
     (do-poke %harness-action !>(`action:h`[%fence-actor 'source' 'carol']))
@@ -213,6 +221,11 @@
   ;<  ~  bind:m  (ex-equal !>((phase-of after 'waiting')) !>(%cancelled))
   ;<  ~  bind:m  (ex-equal !>((phase-of after 'bob-waiting')) !>(%running))
   ;<  ~  bind:m  (ex-equal !>(timers.after) !>(timers.saved))
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>(tools.config:(play:hl log:(~(got by sessions.after) 'child')))
+    !>(*(list tool-grant:h))
+  ;<  ~  bind:m  (ex-equal !>(subs.after) !>(~))
   (ex-equal !>(queue.hands.after) !>(~[(input-id:hd 'other' 'unrelated')]))
 ::  An idle shared channel session and an idle DM, both bound to the Tlon
 ::  hand. The hand lets only ~nec, the owner, change the channel, and ~bus

@@ -554,8 +554,9 @@ messaging the sender.
 - The exact destination determines the stable conversation: a DM, a channel
   and each thread in either have one conversation each. Every admitted speaker
   in a channel shares its conversation, and each message there reaches the
-  model prefixed with its speaker's ship and a colon; a slash command stays as
-  written so it is still a command. A channel does not share the owner's
+  model prefixed with its speaker's ship and a colon. Text the head parses as
+  a command, such as `/stop`, stays as written so it is still a command; other
+  text that starts with a slash, such as a path, is prefixed. A channel does not share the owner's
   private DM transcript, and a speaker never gets another speaker's grants.
   Channel answers are still public to that channel's members: granting file,
   web, skills, peer, or MCP access can expose whatever those tools can read.

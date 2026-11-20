@@ -51,6 +51,19 @@
   ;<  ~  bind:m  prepare
   ;<  *  bind:m  (do-load head `!>(s))
   (pure:m ~)
+::  Reload, then fire the schedule wake the load set a tick later, as behn
+::  does once every agent on the desk has loaded.
+::
+++  reload
+  |=  s=state-0
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  ;<  =bowl  bind:m  get-bowl
+  ;<  loaded=(list card)  bind:m  (do-load head `!>(s))
+  ;<  ~  bind:m  (wait ~s1)
+  ;<  woken=(list card)  bind:m
+    (do-arvo /schedules/(scot %da +(now.bowl)) [%behn %wake ~])
+  (pure:m (weld loaded woken))
 ++  get-state
   =/  m  (mare ,state-0)
   ^-  form:m
@@ -98,15 +111,47 @@
   ;<  ~                bind:m  prepare
   ;<  out=(list card)  bind:m  (do-load head `!>(s))
   ;<  next=state-0     bind:m  get-state
-  ::  The saved wake is cancelled and exactly one fresh one is set.
+  ::  The saved wake is cancelled and exactly one fresh one is set, a tick
+  ::  after the load.
   =/  at  next.job
   ;<  ~  bind:m
     %+  ex-cards  (timers out)
     :~  (ex-arvo /schedules/(scot %da at) %b %rest at)
-        (ex-arvo /schedules/(scot %da at) %b %wait at)
+        (ex-arvo /schedules/(scot %da +(t0)) %b %wait +(t0))
     ==
   ;<  ~  bind:m  (ex-equal !>(schedules.next) !>(schedules.s))
-  (ex-equal !>(schedule-wake.next) !>(schedule-wake.s))
+  (ex-equal !>(schedule-wake.next) !>(`+(t0)))
+::  Gall reloads a desk's agents one by one, so the head can load while the
+::  Tlon hand still runs its previous code, which serves no per-speaker
+::  authority. Loading must not read it: any read of that path fails here.
+::
+++  test-reload-reads-no-hand-authority-before-the-hand-reloads
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  fixture
+  =.  bindings.hands.s
+    %-  my
+    :~  ['source-binding' ['tlon' 'room' 'source' ~['alice'] &]]
+        ['schedule-0v1' ['tlon' 'room' 'schedule-0v1' ~['alice'] &]]
+    ==
+  =/  j  job
+  =.  hand.j  'tlon'
+  =.  schedules.s  (my ~[[0v1 j]])
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now t0)))
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ^-  (unit vase)
+    ?:  ?=([%gu @ %harness-tlon @ %$ ~] path)  `!>(&)
+    ?:  ?=([%gx @ %harness-tlon @ %authority @ %noun ~] path)
+      `!>(`hand-authority:adapter`[& ~])
+    ?:  ?=([%gx @ %harness-tlon *] path)  ~
+    `!>(|)
+  ;<  out=(list card)  bind:m  (do-load head `!>(s))
+  ;<  next=state-0     bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>(schedules.next) !>(schedules.s))
+  (ex-equal !>(schedule-wake.next) !>(`+(t0)))
 ++  timers
   |=  cards=(list card)
   (skim cards |=(=card ?=([%pass [%schedules *] %arvo %b *] card)))
@@ -240,7 +285,7 @@
     %+  ~(put by sessions.next)
       'source'
     [~[[%config-replaced cfg(tools ~[%workspace])]] 1]
-  ;<  *                bind:m  (do-load head `!>(next))
+  ;<  *                bind:m  (reload next)
   ;<  revoked=state-0  bind:m  get-state
   ;<  ~  bind:m  (ex-equal !>(state:(~(got by schedules.next) 0v1)) !>(%active))
   ;<  ~  bind:m  (ex-equal !>(tools:(~(got by schedules.next) 0v1)) !>(~[%web]))
@@ -840,7 +885,7 @@
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now t0)))
   ;<  ~  bind:m  (set-scry-gate (tlon-scry lanes))
   ;<  ~  bind:m  (wait ~d1)
-  ;<  *  bind:m  (do-load head `!>(s))
+  ;<  *  bind:m  (reload s)
   ;<  next=state-0  bind:m  get-state
   =/  ran
     |=  run=@t

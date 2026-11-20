@@ -50,19 +50,20 @@
   !>  ?&  =('/memory' text.u.allowed)  =(~ (normalize:p ~lux policy event))
           =(~ (normalize:p ~lux policy(enabled |) event(mention &)))
       ==
-++  test-channel-input-names-its-speaker-and-commands-stay-commands
+::  Every channel message names its speaker, even one that starts with a
+::  slash: the adapter leaves out text the head parses as a command before
+::  attributing, so a path reaches the model attributed.
+::
+++  test-channel-input-names-its-speaker
   =/  room=destination:t  [%channel [%chat ~lux %test] ~]
   =/  thread=destination:t  [%channel [%chat ~lux %test] `~2026.9.1]
   ;:  weld
       (expect-eq !>('~bus: hello') !>((attribute:input ~bus room 'hello')))
       (expect-eq !>('~bus: hello') !>((attribute:input ~bus thread 'hello')))
-      (expect-eq !>('/stop') !>((attribute:input ~bus room '/stop')))
-      (expect !>((stopping:cmd (attribute:input ~bus room ' /stop'))))
       %+  expect-eq
-        !>(`['remember' 'project Keep it small.'])
-      !>((parse:cmd (attribute:input ~bus room '/remember project Keep it small.')))
-      ::  A slash later in the text is not a command.
-      (expect-eq !>('~bus: see /stop') !>((attribute:input ~bus room 'see /stop')))
+        !>('~bus: /tmp/file is broken')
+      !>((attribute:input ~bus room '/tmp/file is broken'))
+      (expect-eq !>(~) !>((parse:cmd '/tmp/file is broken')))
   ==
 ++  test-dm-input-is-not-prefixed
   =/  dm=destination:t  [%dm ~bus ~]

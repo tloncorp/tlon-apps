@@ -149,12 +149,13 @@ No client connection owns the run. `session/cancel` cancels both the active turn
 and queued observations for that session. Queued cancellations appear in status
 without creating a reply; active cancellations produce a cancellation publication.
 
-An observed `/stop` is one speaker's. It cancels the running turn only when that
-turn is the speaker's own, and only the speaker's queued observations; other
+An observed `/stop` is one speaker's. It cancels the running turn, and the
+subagents it started, only when that turn is the speaker's own, and only the
+speaker's queued observations; other
 speakers' work continues. The bot's owner, on the Tlon hand, stops the whole
 session as `session/cancel` does. The local action `[%fence-actor sid actor]`
-revokes one speaker the same way: their running turn and queued observations,
-leaving timers, configuration and other speakers' work alone. `%fence`
+revokes one speaker the same way: their running turn, the subagent sessions it
+delegated to, and their queued observations, leaving timers, configuration and other speakers' work alone. `%fence`
 still fences the whole session and its descendants.
 
 Native hands watch `%harness` at `/hand-events` for `%noun` `%changed` facts.
