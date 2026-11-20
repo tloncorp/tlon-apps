@@ -1,21 +1,21 @@
 import { usePreventRemove } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button, ConfirmDialog, LoadingSpinner, Text } from '@tloncorp/ui';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
 import {
+  SettingsListScreenView,
   useSettingsListHeaderColor,
   useSettingsListSurfaces,
 } from '../../ui/components/SettingsList';
+import { LLMSubscriptionAuthView, ScreenHeader } from '../../ui';
 import {
-  LLMSubscriptionAuthView,
-  ScreenHeader,
-  SettingsContentScrollView,
-} from '../../ui';
-import { BotSettingsSection } from './bot/BotSettingsUI';
-import { providerLabel, subscriptionLabel } from './bot/constants';
+  providerLabel,
+  subscriptionLabel,
+  subscriptionProviderLabel,
+} from './bot/constants';
 import { getErrorMessage, getSubscriptionStatusState } from './bot/helpers';
 import {
   canDismissOpenAIAuth,
@@ -56,17 +56,25 @@ export function BotOpenAISubscriptionScreen(props: Props) {
   );
   const statusUnavailable = subscriptionStatus === 'unavailable';
 
+  const { navigation } = props;
+  const openModelPicker = useCallback(() => {
+    navigation.navigate('BotModels', undefined, { pop: true });
+    navigation.navigate('BotModelSettings', { mode: 'default' });
+  }, [navigation]);
+
   const handleComplete = useCallback(async () => {
     if (hasApiKey) {
       await deleteProviderKey.mutateAsync({ provider: providerId });
     }
     await queries.llmAuthStatusQuery.refetch();
-    props.navigation.navigate('BotModelSettings', { mode: 'default' });
+    if (providerId !== 'openai') {
+      openModelPicker();
+    }
   }, [
     deleteProviderKey,
     hasApiKey,
+    openModelPicker,
     providerId,
-    props.navigation,
     queries.llmAuthStatusQuery,
   ]);
 
@@ -90,6 +98,33 @@ export function BotOpenAISubscriptionScreen(props: Props) {
     void auth.start();
   }, [auth, connected, hasApiKey]);
 
+  const startedRef = useRef(false);
+  const { start } = auth;
+  useEffect(() => {
+    if (
+      providerId !== 'openai' ||
+      startedRef.current ||
+      !queries.ship ||
+      !queries.botReady ||
+      !queries.providerConfigQuery.isSuccess ||
+      subscriptionStatus !== 'known'
+    )
+      return;
+    startedRef.current = true;
+    if (!connected && !hasApiKey) {
+      void start();
+    }
+  }, [
+    start,
+    connected,
+    hasApiKey,
+    providerId,
+    queries.botReady,
+    queries.providerConfigQuery.isSuccess,
+    queries.ship,
+    subscriptionStatus,
+  ]);
+
   const handleSwitch = useCallback(async () => {
     try {
       setConfirmSwitch(false);
@@ -104,10 +139,11 @@ export function BotOpenAISubscriptionScreen(props: Props) {
       await disconnectLLMSubscription.mutateAsync(providerId);
       setConfirmDisconnect(false);
       auth.dismiss();
+      navigation.goBack();
     } catch {
       // The mutation error is rendered below.
     }
-  }, [auth, disconnectLLMSubscription, providerId]);
+  }, [auth, disconnectLLMSubscription, navigation, providerId]);
 
   const mutationError = deleteProviderKey.error
     ? (getErrorMessage(deleteProviderKey.error) ??
@@ -116,6 +152,75 @@ export function BotOpenAISubscriptionScreen(props: Props) {
       ? (getErrorMessage(disconnectLLMSubscription.error) ??
         `Failed to disconnect the ${subscriptionName}.`)
       : null;
+
+  const dialogs = (
+    <>
+      <ConfirmDialog
+        open={confirmSwitch}
+        onOpenChange={setConfirmSwitch}
+        destructive
+        title={`Replace the ${providerName} API key?`}
+        description={`${providerName} API-key access and ${subscriptionName} access are alternatives. The saved API key will be removed after your subscription connects.`}
+        confirmText="Replace and connect"
+        onConfirm={handleSwitch}
+      />
+      <ConfirmDialog
+        open={confirmDisconnect}
+        onOpenChange={setConfirmDisconnect}
+        destructive
+        title={`Disconnect ${subscriptionName}?`}
+        description="Tlonbot will no longer be able to use models from this subscription."
+        confirmText="Disconnect"
+        onConfirm={handleDisconnect}
+      />
+    </>
+  );
+
+  if (
+    subscriptionStatus === 'known' &&
+    connected &&
+    auth.state.phase === 'idle'
+  ) {
+    return (
+      <SettingsListScreenView
+        title={subscriptionName}
+        onBackPressed={() => props.navigation.goBack()}
+        sections={[
+          {
+            key: 'status',
+            footer: `Tlonbot can use models included with your ${subscriptionName}.`,
+            rows: [
+              {
+                key: 'status',
+                title: subscriptionProviderLabel(providerId),
+                leading: { kind: 'icon', icon: 'Link' },
+                value:
+                  providerStatus?.status === 'expiring'
+                    ? 'Expiring soon'
+                    : 'Connected',
+              },
+            ],
+          },
+          {
+            key: 'disconnect',
+            footer: mutationError ?? undefined,
+            rows: [
+              {
+                key: 'disconnect',
+                title: 'Disconnect',
+                action: true,
+                destructive: true,
+                disabled: disconnectLLMSubscription.isPending,
+                onPress: () => setConfirmDisconnect(true),
+              },
+            ],
+          },
+        ]}
+      >
+        {dialogs}
+      </SettingsListScreenView>
+    );
+  }
 
   return (
     <View flex={1} backgroundColor={settingsPage}>
@@ -159,54 +264,14 @@ export function BotOpenAISubscriptionScreen(props: Props) {
             onPress={() => void queries.llmAuthStatusQuery.refetch()}
           />
         </YStack>
-      ) : connected && auth.state.phase === 'idle' ? (
-        <SettingsContentScrollView
-          paddingHorizontal="$l"
-          paddingTop="$l"
-          safeAreaBottomOffset={24}
-        >
-          <YStack gap="$2xl" paddingBottom="$2xl">
-            <BotSettingsSection
-              title="Connected"
-              description={`Tlonbot can use models included with your ${subscriptionName}.`}
-            >
-              <YStack padding="$l" gap="$s">
-                <Text size="$label/m">{subscriptionName}</Text>
-                <Text size="$label/s" color="$secondaryText">
-                  Status: {providerStatus?.status ?? 'connected'}
-                </Text>
-              </YStack>
-            </BotSettingsSection>
-            {mutationError ? (
-              <Text size="$label/s" color="$negativeActionText">
-                {mutationError}
-              </Text>
-            ) : null}
-            <Button
-              preset="primary"
-              label="Choose model"
-              onPress={() =>
-                props.navigation.navigate('BotModelSettings', {
-                  mode: 'default',
-                })
-              }
-            />
-            <Button
-              preset="destructive"
-              label="Disconnect subscription"
-              loading={disconnectLLMSubscription.isPending}
-              disabled={disconnectLLMSubscription.isPending}
-              onPress={() => setConfirmDisconnect(true)}
-            />
-          </YStack>
-        </SettingsContentScrollView>
       ) : (
         <YStack flex={1}>
           <LLMSubscriptionAuthView
             state={auth.state}
             browserError={auth.browserError ?? mutationError}
             onStart={beginConnection}
-            onOpenBrowser={() => void auth.openVerificationUrl()}
+            onOpenBrowser={auth.openVerificationUrl}
+            onContinue={openModelPicker}
             onSubmitToken={auth.completeToken}
             onRetry={() => void auth.restart()}
             showBackButton={false}
@@ -220,24 +285,7 @@ export function BotOpenAISubscriptionScreen(props: Props) {
           />
         </YStack>
       )}
-      <ConfirmDialog
-        open={confirmSwitch}
-        onOpenChange={setConfirmSwitch}
-        destructive
-        title={`Replace the ${providerName} API key?`}
-        description={`${providerName} API-key access and ${subscriptionName} access are alternatives. The saved API key will be removed after your subscription connects.`}
-        confirmText="Replace and connect"
-        onConfirm={handleSwitch}
-      />
-      <ConfirmDialog
-        open={confirmDisconnect}
-        onOpenChange={setConfirmDisconnect}
-        destructive
-        title={`Disconnect ${subscriptionName}?`}
-        description="Tlonbot will no longer be able to use models from this subscription."
-        confirmText="Disconnect"
-        onConfirm={handleDisconnect}
-      />
+      {dialogs}
     </View>
   );
 }

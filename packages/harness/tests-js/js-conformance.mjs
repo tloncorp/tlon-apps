@@ -5,12 +5,14 @@ import { text as readText } from 'node:stream/consumers'
 import { createServer } from 'node:http'
 import { randomUUID } from 'node:crypto'
 import { setTimeout as sleep } from 'node:timers/promises'
-import { Client } from './lib/ship-client.mjs'
+import { Client, cookie, base, readCookie } from './lib/ship-client.mjs'
 import { GrantedTurns } from './lib/granted-turns.mjs'
+import { assertBotAuthor } from './lib/author.mjs'
+import { until } from './lib/reliability.mjs'
 
 const client = new Client(), grants = new GrantedTurns(client), failures = [], effects = [], sessions = []
 const prefix = `js-test-${randomUUID().slice(0, 8)}`
-let url
+let url, club
 const scripts = {
   constant: 'module.exports = () => "WASM_CONSTANT";',
   structured: 'module.exports = () => JSON.stringify({answer: 42, values: [1, 2, 3]});',
@@ -105,7 +107,45 @@ try {
   if (failures.length) throw new AggregateError(failures)
   assert.deepEqual((await client.call('harness/defaults')).tools, defaultTools)
   console.log('PASS JS yielding watchdog and unchanged defaults')
+
+  // The Tlon host APIs write as the bot, as the Tlon hand does.
+  const nest = process.env.TEST_NEST, peer = process.env.PEER_SHIP, peerUrl = process.env.PEER_URL
+  for (const [name, value] of Object.entries({ TEST_NEST: nest, PEER_SHIP: peer, PEER_URL: peerUrl })) {
+    assert.ok(value, `${name} is unset: the Tlon host API checks need the test rig's peer and channel`)
+  }
+  const ship = cookie.split('=')[0].slice('urbauth-'.length), peerCookie = await readCookie(process.env.PEER_COOKIE)
+  const scry = async (at, auth, path) => {
+    const response = await fetch(`${at}/~/scry/${path}.json`, { headers: { cookie: auth }, signal: AbortSignal.timeout(15000) })
+    assert.ok(response.ok, `${path}: HTTP ${response.status}`); return response.json()
+  }
+  const has = (content, suffix) => JSON.stringify(content).includes(`${prefix}-${suffix}`)
+  // No invitees: the group DM stays on this ship, and leaving it deletes it.
+  club = `0v${BigInt(`0x${randomUUID().replaceAll('-', '').slice(0, 12)}`).toString(32).replace(/\B(?=(.{5})+$)/g, '.')}`
+  await client.pokeAgent('chat', 'chat-club-create', { id: club, hive: [] })
+  await until(async () => (await scry(base, cookie, 'chat/clubs'))[club], 30000, 'local group DM')
+  const tlon = "require('urbit_thread').tlon"
+  scripts.publish = `module.exports = () => { const t = ${tlon}; t.post_channel('${nest}', '${prefix}-post'); t.send_dm('${peer}', '${prefix}-dm'); t.send_dm('${club}', '${prefix}-club'); return 'SENT'; };`
+  const writer = await create('publish')
+  await prompt(writer, 'publish')
+  assert.match(results.get('publish') || '', /SENT/)
+  const posts = async () => Object.entries((await scry(peerUrl, peerCookie, `channels/v5/${nest}/posts/newest/50/post`)).posts)
+  const [postId, post] = await until(async () => (await posts()).find(([, p]) => has(p?.essay?.content, 'post')), 30000, 'run_js channel post at the peer')
+  assertBotAuthor(post.essay.author, ship)
+  scripts.reply = `module.exports = () => { ${tlon}.reply_channel('${nest}', '${postId.replaceAll('.', '')}', '${prefix}-reply'); return 'SENT'; };`
+  await prompt(writer, 'reply')
+  assert.match(results.get('reply') || '', /SENT/)
+  const reply = await until(async () => Object.values((await posts()).find(([id]) => id === postId)?.[1]?.seal?.replies || {}).find((r) => has(r['reply-essay'].content, 'reply')), 30000, 'run_js channel reply at the peer')
+  assertBotAuthor(reply['reply-essay'].author, ship)
+  const dm = await until(async () => Object.values((await scry(base, cookie, `chat/v4/dm/${peer}/writs/newest/50/light`)).writs).find((w) => has(w.essay.content, 'dm')), 30000, 'run_js DM')
+  assertBotAuthor(dm.essay.author, ship)
+  const group = await until(async () => Object.values((await scry(base, cookie, `chat/v4/club/${club}/writs/newest/20/light`)).writs).find((w) => has(w.essay.content, 'club')), 30000, 'run_js group DM')
+  assertBotAuthor(group.essay.author, ship)
+  console.log('PASS JS Tlon host APIs write channel posts, replies, DMs and group DMs as the bot')
 } finally {
+  if (club) {
+    const ship = cookie.split('=')[0].slice('urbauth-'.length)
+    await client.pokeAgent('chat', 'chat-club-action-2', { id: club, diff: { uid: '0v1', delta: { team: { ship, ok: false } } } }).catch(() => {})
+  }
   await grants.close().catch(() => {})
   for (const sessionId of sessions) {
     await client.call('session/cancel', { sessionId })
