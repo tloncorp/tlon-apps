@@ -1,7 +1,7 @@
 ::  Opt-in: -test /=harness=/tests-integration/harness-tlon-reload
 ::  Keep full-agent construction out of the default 2 GB loom unit suite.
 /-  t=harness-tlon
-/+  *test-agent
+/+  *test-agent, migrate=harness-tlon-migrate
 /=  adapter  /app/harness-tlon
 |%
 ::  Load saved state with every scry answered %.n, as before.
@@ -36,6 +36,24 @@
   ;<  ~  bind:m
     (ex-equal !>((lien caz |=(c=card ?=([%pass * %arvo %i %request *] c)))) !>(|))
   (pure:m loaded)
+::
+++  test-reload-retains-pending-browser-form-without-publishing-its-url
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  state  *runtime-state:t
+  =.  enabled.policy.state  |
+  =/  deadline  (add ~2026.9.6 ~s10)
+  =/  form=browser-entry:t  [deadline [%wait [%form 'http://127.0.0.1/credential-result/fixture']]]
+  =.  browser-entries.state  (my ~[[0v1 form]])
+  =.  tool-receipts.state
+    (my ~[[0v1 [['s' 1 ['call' 'browser_secure_entry' '{}']] %sending '' ~2026.9.6]]])
+  ;<  [caz=(list card) saved=state-2:t]  bind:m  (load !>((save:migrate state)))
+  ;<  watched=(list card)  bind:m  (do-watch /tools/0v1)
+  ;<  ~  bind:m  (ex-equal !>(watched) !>(~))
+  =/  restored  (load:migrate !>(saved))
+  ;<  ~  bind:m  (ex-equal !>(browser-entries.restored) !>(browser-entries.state))
+  (ex-equal !>(wake.saved) !>(`deadline))
 ::
 ++  test-native-download-reload-is-known-not-uploaded
   %-  eval-mare

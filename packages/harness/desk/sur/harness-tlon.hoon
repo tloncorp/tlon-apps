@@ -29,6 +29,13 @@
 +$  presence-lease  [at=@da tools=(set @t)]
 +$  tool-receipt
   [request=tool-request:ad stage=?(%sending %done %uncertain) body=@t at=@da]
++$  browser-result  $%([%form url=@t] [%payment id=@t])
++$  browser-phase
+  $%  [%authorize ~]  [%prepare local=?]  [%payment ~]
+      [%post result=browser-result]  [%wait result=browser-result]  [%check result=browser-result]
+      [%revoke ~]
+  ==
++$  browser-entry  [next=@da phase=browser-phase]
 +$  upload
   $:  stage=?(%fetch %put %put-no-acl %grant %hosted-put)  storage=@uv  key=@t  mime=@t
       public-url=@t  bytes=octs
@@ -76,4 +83,5 @@
       wake=(unit @da)
       error=@t
   ==
++$  runtime-state  [browser-entries=(map @uv browser-entry) state-2]
 --
