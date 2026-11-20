@@ -48,6 +48,8 @@
  * the record's life, revoked or not, and only an allowlist of tools stays
  * available to it (index.ts before_tool_call).
  */
+import type { HeartbeatLedgerRun } from './heartbeat-ledger.js';
+
 import {
   getTlonSessionRunSurface,
   listTlonSessionRunSurfaces,
@@ -63,6 +65,7 @@ export const RUN_ACTIVE_TTL_MS = 60 * 60 * 1000;
 export const RUN_TOMBSTONE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 type RunRecord = {
+  heartbeatLedger?: HeartbeatLedgerRun;
   identity: TurnIdentity;
   sessionKey: string;
   /** Sender of the answered message, or the session role at first sight. */
@@ -209,7 +212,11 @@ export function markHeartbeatRun(
     return;
   }
   // In place: insertion order is lastSeenAt order, which this leaves alone.
-  activeRuns.set(key, { ...record, heartbeat: { ownerShip } });
+  activeRuns.set(key, {
+    ...record,
+    heartbeat: { ownerShip },
+    heartbeatLedger: {},
+  });
 }
 
 /**
@@ -226,6 +233,12 @@ export function isHeartbeatOwnerReadRun(
   if (!key || tombstones.has(key) || liveOwnerShip === undefined) return false;
   const grant = activeRuns.get(key)?.heartbeat;
   return grant !== undefined && grant.ownerShip === liveOwnerShip;
+}
+
+export function getHeartbeatLedgerRun(
+  runId: string
+): HeartbeatLedgerRun | undefined {
+  return activeRuns.get(runId.trim())?.heartbeatLedger;
 }
 
 /** Seal a heartbeat run that the gate let read as the owner. */

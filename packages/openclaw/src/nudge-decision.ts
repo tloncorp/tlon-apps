@@ -76,7 +76,7 @@ function resolveUserTimezone(cfg: OpenClawConfig | null | undefined): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone?.trim() || 'UTC';
 }
 
-function resolveActiveHoursTimezone(
+export function resolveActiveHoursTimezone(
   cfg: OpenClawConfig | null | undefined,
   raw: unknown
 ): string {
