@@ -134,6 +134,7 @@ import {
   heartbeatLedgerToolDefinition,
   recordHeartbeatLedger,
 } from './src/heartbeat-ledger.js';
+import { accumulateHeartbeatUsage } from './src/heartbeat-run.js';
 import { normalizeShip, parseTlonTarget } from './src/targets.js';
 import {
   configuredTlonShipHosts,
@@ -147,7 +148,9 @@ import {
   recordToolCall,
   reportHarnessDebug,
   reportHarnessError,
+  reportHeartbeatMessageSent,
   reportHeartbeatRun,
+  reportHeartbeatRunEnded,
   reportPluginError,
   reportOutboundRoute,
   reportSessionDiagnostic,
@@ -202,6 +205,8 @@ import {
 const WORKSPACE_CREATE_APPROVAL = 'tlon_workspace_create';
 import {
   getHeartbeatLedgerRun,
+  getHeartbeatRunObservation,
+  getLatestHeartbeatRunId,
   getRecordedRunRole,
   getRunAccountId,
   isHeartbeatOwnerReadRun,
@@ -1578,6 +1583,8 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
   });
 
   api.on('after_tool_call', async (event, ctx) => {
+    const heartbeat = getHeartbeatRunObservation(ctx.runId);
+    if (heartbeat && !heartbeat.ended) heartbeat.toolCalls++;
     recordSuccessfulAgentOnboardingSurface(event, ctx);
     try {
       await agentTurnHookDepsSlot.get()?.walletHandoffs.handle(event, ctx);
@@ -1716,7 +1723,16 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
     }
     await agentTurnHookDepsSlot.get()?.onCronAgentHook(ctx);
   });
+  api.on('llm_output', (event, ctx) => {
+    const heartbeat = getHeartbeatRunObservation(ctx.runId);
+    // The embedded runner reports aggregate usage once per attempt.
+    if (heartbeat && !heartbeat.ended && event.usage) {
+      accumulateHeartbeatUsage(heartbeat, event.usage);
+    }
+  });
   api.on('model_call_started', async (event, ctx) => {
+    const heartbeat = getHeartbeatRunObservation(ctx.runId);
+    if (heartbeat && !heartbeat.ended) heartbeat.modelCalls++;
     observeRun({ ...ctx, ownerShip: liveOwnerShip() });
     beginCronSilenceObservation(ctx);
     beginTlonTurnSilenceObservation(ctx);
@@ -1902,6 +1918,21 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       runId: event.runId ?? ctx.runId,
       run: () => {
         if (event.success !== false) {
+          const runId = getLatestHeartbeatRunId(
+            event.sessionKey ?? ctx.sessionKey
+          );
+          const target =
+            ctx.channelId === 'tlon' ? parseTlonTarget(event.to) : null;
+          const ownerShip = liveOwnerShip();
+          if (
+            runId &&
+            event.messageId &&
+            ownerShip &&
+            target?.kind === 'dm' &&
+            target.ship === ownerShip
+          ) {
+            reportHeartbeatMessageSent({ messageId: event.messageId, runId });
+          }
           return;
         }
         reportHarnessError({
@@ -2346,12 +2377,49 @@ export default defineBundledChannelEntry({
     // by the monitor's cron reporter (setCronTelemetryReporter). The
     // gateway_start handler publishes the cron service accessor so the monitor
     // can emit its boot-time job-count snapshot without a hook context.
+    let stopHeartbeatObservation: (() => void) | undefined;
     api.on('gateway_start', (_event, ctx) => {
+      stopHeartbeatObservation?.();
+      stopHeartbeatObservation = api.runtime.events.onAgentEvent((event) => {
+        if (event.stream !== 'lifecycle') return;
+        const phase = event.data.phase;
+        if (phase !== 'end' && phase !== 'error') return;
+        const heartbeat = getHeartbeatRunObservation(event.runId);
+        if (!heartbeat || heartbeat.ended) return;
+        heartbeat.ended = true;
+        const receipt = getHeartbeatLedgerRun(event.runId)?.receipt;
+        const endedAt =
+          typeof event.data.endedAt === 'number'
+            ? event.data.endedAt
+            : event.ts;
+        safeTelemetryObserver({
+          logger: api.logger,
+          telemetrySource: 'heartbeat_run_ended',
+          runId: event.runId,
+          run: () =>
+            reportHeartbeatRunEnded({
+              runId: event.runId,
+              modelCalls: heartbeat.modelCalls,
+              toolCalls: heartbeat.toolCalls,
+              inputTokens: heartbeat.usage?.input ?? null,
+              outputTokens: heartbeat.usage?.output ?? null,
+              cacheReadTokens: heartbeat.usage?.cacheRead ?? null,
+              cacheWriteTokens: heartbeat.usage?.cacheWrite ?? null,
+              durationMs: Math.max(0, endedAt - heartbeat.startedAt),
+              success: phase === 'end' && event.data.aborted !== true,
+              packetBytes: 0,
+              ledgerRecorded: receipt !== undefined,
+              selected: receipt?.selected ?? 0,
+            }),
+        });
+      });
       if (ctx.getCron) {
         setCronServiceAccessor(ctx.getCron);
       }
     });
     api.on('gateway_stop', () => {
+      stopHeartbeatObservation?.();
+      stopHeartbeatObservation = undefined;
       clearCronServiceAccessor();
       resetTlonCronObservability();
     });

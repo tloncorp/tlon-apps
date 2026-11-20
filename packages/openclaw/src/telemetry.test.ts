@@ -835,6 +835,30 @@ describe('telemetry tool tracking', () => {
     expect(JSON.stringify(captured)).not.toContain('private');
   });
 
+  it('reports a heartbeat message sent by id, without its text', () => {
+    const telemetry = createEnabledTelemetry()!;
+    telemetry.captureHeartbeatMessageSent({
+      ownerShip: '~zod',
+      botShip: '~nec',
+      messageId: '~nec/170.141',
+      runId: 'hb-1',
+      content: 'private heartbeat text',
+    } as Parameters<typeof telemetry.captureHeartbeatMessageSent>[0]);
+    const captured = postHogMocks.capture.mock.calls.find(
+      ([call]) => call.event === 'TlonBot Heartbeat Message Sent'
+    )?.[0];
+    expect(captured).toMatchObject({
+      distinctId: '~zod',
+      properties: {
+        ownerShip: '~zod',
+        botShip: '~nec',
+        messageId: '~nec/170.141',
+        runId: 'hb-1',
+      },
+    });
+    expect(JSON.stringify(captured)).not.toContain('private');
+  });
+
   describe('captureHeartbeatNudge', () => {
     it('emits correct PostHog event with all properties (success case includes messageId and nudgeSentAtMs)', () => {
       const telemetry = createEnabledTelemetry()!;

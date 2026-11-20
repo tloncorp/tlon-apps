@@ -22,6 +22,7 @@ const AGENT_TURN_HOOK_COUNTS: Record<string, number> = {
   after_tool_call: 1,
   agent_turn_prepare: 1,
   model_call_started: 1,
+  llm_output: 1,
   agent_end: 1,
   before_prompt_build: 3,
   session_start: 1,
