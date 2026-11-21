@@ -4,6 +4,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getChannelType } from '@tloncorp/api/urbit';
 import * as db from '@tloncorp/shared/db';
 import { ContentReference } from '@tloncorp/shared/domain';
+import { convertContent, markdownToStory } from '@tloncorp/shared/logic';
 import {
   useChannelPreview,
   useGroupPreview,
@@ -13,7 +14,7 @@ import {
 import { IconType } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import React from 'react';
-import { ComponentProps, useCallback, useContext } from 'react';
+import { ComponentProps, useCallback, useContext, useMemo } from 'react';
 import { View, XStack, styled } from 'tamagui';
 
 import type { RootStackParamList } from '../../../navigation/types';
@@ -32,7 +33,10 @@ import {
   ContentReferenceContext,
   IsInsideReferenceContext,
 } from '../PostContent/BlockRenderer';
-import { PostContentRenderer } from '../PostContent/ContentRenderer';
+import {
+  PostContentRenderer,
+  createContentRenderer,
+} from '../PostContent/ContentRenderer';
 import { useBoundHandler } from '../listItems/listItemUtils';
 import {
   Reference,
@@ -540,13 +544,24 @@ function NotesSaidReferenceContent({
           <NoteReferenceTitleText>{title}</NoteReferenceTitleText>
         ) : null}
         <PostReferenceAuthor contactId={author} />
-        {contentSize !== '$s' && (
-          <Text size="$body" numberOfLines={6}>
-            {snippet}
-          </Text>
-        )}
+        {contentSize !== '$s' && <NoteSnippet markdown={snippet} />}
       </NoteBookReferenceContent>
     </Reference.Body>
+  );
+}
+
+const NoteSnippetRenderer = createContentRenderer({});
+
+// The snippet is the first 400 bytes of the note's markdown, so it can end
+// mid-syntax; the parser treats that as text. The height cap stands in for
+// the line clamp a plain-text snippet had.
+function NoteSnippet({ markdown }: { markdown: string }) {
+  const content = useMemo(
+    () => convertContent(markdownToStory(markdown), null),
+    [markdown]
+  );
+  return (
+    <NoteSnippetRenderer content={content} maxHeight={200} overflow="hidden" />
   );
 }
 
