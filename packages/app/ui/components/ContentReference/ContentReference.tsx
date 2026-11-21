@@ -4,7 +4,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getChannelType } from '@tloncorp/api/urbit';
 import * as db from '@tloncorp/shared/db';
 import { ContentReference } from '@tloncorp/shared/domain';
-import { convertContent, markdownToStory } from '@tloncorp/shared/logic';
+import { noteSnippetContent } from '@tloncorp/shared/logic';
 import {
   useChannelPreview,
   useGroupPreview,
@@ -544,7 +544,9 @@ function NotesSaidReferenceContent({
           <NoteReferenceTitleText>{title}</NoteReferenceTitleText>
         ) : null}
         <PostReferenceAuthor contactId={author} />
-        {contentSize !== '$s' && <NoteSnippet markdown={snippet} />}
+        {contentSize !== '$s' && (
+          <NoteSnippet markdown={snippet} title={title} />
+        )}
       </NoteBookReferenceContent>
     </Reference.Body>
   );
@@ -555,10 +557,10 @@ const NoteSnippetRenderer = createContentRenderer({});
 // The snippet is the first 400 bytes of the note's markdown, so it can end
 // mid-syntax; the parser treats that as text. The height cap stands in for
 // the line clamp a plain-text snippet had.
-function NoteSnippet({ markdown }: { markdown: string }) {
+function NoteSnippet({ markdown, title }: { markdown: string; title: string }) {
   const content = useMemo(
-    () => convertContent(markdownToStory(markdown), null),
-    [markdown]
+    () => noteSnippetContent(markdown, title),
+    [markdown, title]
   );
   return (
     <NoteSnippetRenderer content={content} maxHeight={200} overflow="hidden" />
