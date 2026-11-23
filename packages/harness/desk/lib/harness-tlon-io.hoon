@@ -105,6 +105,28 @@
     ~
   `[%dm-post [id:-.post time] [%ship who] content:+.post |]
 ::
+::  +dm-recent: the newest posts of a DM, oldest first, with their blobs.
+::  Workspace cards and taps are read from here; nothing else records them.
+::
+++  dm-recent
+  |=  who=@p
+  ^-  (list [at=@da author=@p text=@t blob=(unit @t)])
+  =/  page=paged-writs:v7:cv
+    .^  paged-writs:v7:cv  %gx
+      (weld (dm-writs:read-path who) /newest/100/light/chat-paged-writs-4)
+    ==
+  =/  rows
+    %+  murn  (tap:on:writs:v7:cv writs.page)
+    |=  [time=@da item=(may:v7:cv writ:v7:cv)]
+    ^-  (unit [at=@da author=@p text=@t blob=(unit @t)])
+    ?.  ?=(%& -.item)  ~
+    =/  post  +.item
+    :-  ~
+    :^  time  (author-ship:authors author:+.post)
+      (story-to-text:story content:+.post)
+    blob:+.post
+  (sort rows |=([a=[at=@da *] b=[at=@da *]] (lth at.a at.b)))
+::
 ::  +dm-blob: the blob of the exact DM post an activity event names
 ::
 ++  dm-blob

@@ -7,7 +7,7 @@
 /+  *test-agent, policy=harness-tlon-policy, continuity=harness-tlon-continuity
 /=  adapter  /app/harness-tlon
 |%
-+$  outcome  [cards=(list card) saved=state-3:t]
++$  outcome  [cards=(list card) saved=state-2:t]
 +$  post-row  [@da (may:v9:dv post:v9:dv)]
 +$  reply-row  [@da (may:v9:dv reply:v9:dv)]
 ::  What local %channels holds. Any other %channels read blocks the test.
@@ -24,8 +24,8 @@
 ++  nest  [%chat ~nec %general]
 ++  bot  `author:v9:dv`[~nec `'Bot' ~]
 ++  fixture
-  ^-  state-3:t
-  =/  s=state-3:t  *state-3:t
+  ^-  state-2:t
+  =/  s=state-2:t  *state-2:t
   %=  s  owner-initialized  1  policy  [& `~nec ~ %mentions ~ ~]  watching  &
     activity-through  ~2026.10.1
   ==
@@ -88,7 +88,7 @@
       ['max-context' n+'1']  ['tools' a+~]
   ==
 ++  run
-  |=  [saved=state-3:t event=incoming-event:v8:a native=(unit native)]
+  |=  [saved=state-2:t event=incoming-event:v8:a native=(unit native)]
   =/  m  (mare ,outcome)
   ^-  form:m
   =/  =stream:v10:a
@@ -116,7 +116,7 @@
   ::  Loading an acknowledged Activity watch catches up on the stream.
   ;<  caz=(list card)  bind:m  (do-load adapter `!>(saved))
   ;<  =vase  bind:m  get-save
-  (pure:m caz !<(state-3:t vase))
+  (pure:m caz !<(state-2:t vase))
 ++  kinds
   |=  out=outcome
   ^-  (list @t)
@@ -160,7 +160,7 @@
     (run fixture (post-event ~nec) `[& & message-at ~[(post message-at bot)] ~])
   ;<  person=outcome  bind:m
     (run fixture (post-event ~nec) `[& & message-at ~[(post message-at ~nec)] ~])
-  =/  same  |=(s=state-3:t s(notices ~))
+  =/  same  |=(s=state-2:t s(notices ~))
   ;<  ~  bind:m  (ex-equal !>((same saved.bot-out)) !>((same saved.person)))
   (ex-equal !>(cards.bot-out) !>(cards.person))
 ++  test-bot-reply-under-a-person-post-is-a-bot-message

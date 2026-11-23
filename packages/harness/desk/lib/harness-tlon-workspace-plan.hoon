@@ -1,10 +1,29 @@
 ::  Workspace proposals: the plan a card lists, the card, the owner's tap on
-::  it and what Create still has to do. Pure; the Tlon hand owns the
-::  proposals, the authority checks and every effect.
-/-  t=harness-tlon, g=groups-ver
+::  it and what Create still has to do. Nothing is saved: the owner's DM
+::  holds the cards, the taps and the answers, and these arms read them
+::  from its posts. Pure; the Tlon hand owns the authority checks and every
+::  effect.
+/-  g=groups-ver
 /+  work-card=harness-tlon-work-card, cron=harness-cron, spec=harness-tlon-tool
 |%
 +$  nest  [kind=@tas ship=@p name=@tas]
++$  channel  [kind=?(%chat %gallery %notebook) title=@t purpose=@t]
+::  The card shows the task's title and description. Its schedule and
+::  prompt are in the plan call, which the model keeps in its transcript.
++$  task  [title=@t description=@t]
++$  plan  [title=@t description=@t channels=(list channel) task=(unit task)]
+::  A DM post, oldest first, as the hand reads them
++$  post  [at=@da author=@p text=@t blob=(unit @t)]
+::  What the DM says about one card
++$  standing
+  $:  plan=plan
+      at=@da
+      latest=?
+      approved=?
+      edited=?
+      created=(unit [@p @tas])
+      answer=@t
+  ==
 ++  prefix  'workspace-plan-'
 ++  names
   ^-  (list @t)
@@ -69,16 +88,16 @@
 ::
 ++  parse
   |=  args=json
-  ^-  (unit [intro=@t plan=workspace-plan:t])
+  ^-  (unit [intro=@t plan=plan])
   %-  mole
   |.
   ?>  ?=(%o -.args)
   =/  channels  (~(got by p.args) 'channels')
   ?>  ?=(%a -.channels)
   ?>  &((gte (lent p.channels) 1) (lte (lent p.channels) 6))
-  =/  rows  (turn p.channels channel)
+  =/  rows  (turn p.channels row)
   ?>  =(%chat kind:(snag 0 rows))
-  =/  titles  (turn rows |=(row=workspace-channel:t (crip (cass (trip title.row)))))
+  =/  titles  (turn rows |=(row=channel (crip (cass (trip title.row)))))
   ?>  =((lent titles) ~(wyt in (silt titles)))
   =/  task  (~(get by p.args) 'task')
   :*  (text args 'intro' 300)
@@ -89,19 +108,20 @@
       `(job u.task)
   ==
 ::
-++  channel
+++  row
   |=  raw=json
-  ^-  workspace-channel:t
+  ^-  channel
   =/  kind  (text raw 'kind' 16)
   ?>  ?=(?(%chat %gallery %notebook) kind)
   [kind (text raw 'title' 40) (text raw 'purpose' 120)]
 ::
+::  +job: a task, its schedule and prompt checked but not shown on the card
 ++  job
   |=  raw=json
-  ^-  workspace-task:t
-  =/  schedule  (text raw 'schedule' 100)
-  =/  pattern  (parse:cron schedule)
-  [(text raw 'title' 40) (text raw 'description' 120) schedule (text raw 'prompt' 2.000)]
+  ^-  task
+  =/  pattern  (parse:cron (text raw 'schedule' 100))
+  =/  prompt  (text raw 'prompt' 2.000)
+  [(text raw 'title' 40) (text raw 'description' 120)]
 ::
 ++  native-kind
   |=  kind=?(%chat %gallery %notebook)
@@ -114,11 +134,11 @@
 ::  +fallback: the card's text, for apps that cannot draw it
 ::
 ++  fallback
-  |=  plan=workspace-plan:t
+  |=  plan=plan
   ^-  @t
   =/  lines=(list @t)
     %+  turn  channels.plan
-    |=(row=workspace-channel:t (rap 3 '- ' title.row ': ' purpose.row ~))
+    |=(row=channel (rap 3 '- ' title.row ': ' purpose.row ~))
   =?  lines  ?=(^ task.plan)
     (snoc lines (rap 3 '- ' title.u.task.plan ': ' description.u.task.plan ~))
   %+  roll
@@ -130,14 +150,14 @@
   |=([line=@t out=@t] ?:(=('' out) line (rap 3 out '\0a' line ~)))
 ::
 ++  create-message
-  |=(plan=workspace-plan:t (rap 3 'Create the "' title.plan '" workspace' ~))
+  |=(plan=plan (rap 3 'Create the "' title.plan '" workspace' ~))
 ++  edit-message
-  |=(plan=workspace-plan:t (rap 3 'Edit the "' title.plan '" workspace' ~))
+  |=(plan=plan (rap 3 'Edit the "' title.plan '" workspace' ~))
 ::  +blob: the proposal card. Its ids, icons and button texts are the ones
 ::  the app and the OpenClaw plugin's card already use.
 ::
 ++  blob
-  |=  [id=@t plan=workspace-plan:t]
+  |=  [id=@t plan=plan]
   ^-  @t
   =/  words
     |=  [id=@t body=@t extra=(list [@t json])]
@@ -243,7 +263,8 @@
       '(a project, trip, course, renovation or routine), run the tlon tool\'s list_groups first. '
       'If a workspace already covers it, link it with tlon_workspace_link, once per conversation, '
       'then answer as usual. Otherwise propose one with tlon_workspace_plan and answer in your reply. '
-      'Small talk and one-off questions get no card, and neither does the owner introducing themselves.]'
+      'No card for a topic already proposed or declined in this conversation, small talk, '
+      'one-off questions, or the owner introducing themselves.]'
   ==
 ::  +noted: does this message already carry a card note? Then it is a tap,
 ::  and the note says what to do.
@@ -252,16 +273,15 @@
   |=  message=@t
   ^-  ?
   ?=(^ (find "[Workspace card:" (trip message)))
-::  +worded: is this the message one of the owner's cards' buttons sends?
+::  +worded: is this the message a card's Create or Edit button sends?
 ::
 ++  worded
-  |=  [proposals=(map @t workspace-proposal:t) owner=@p message=@t]
+  |=  message=@t
   ^-  ?
-  %+  lien  ~(val by proposals)
-  |=  proposal=workspace-proposal:t
-  ?&  =(owner owner.proposal)
-      |(=(message (create-message plan.proposal)) =(message (edit-message plan.proposal)))
-  ==
+  =/  text  (trip message)
+  =/  ending  "\" workspace"
+  ?.  =(ending (slag (sub (max (lent text) (lent ending)) (lent ending)) text))  |
+  |(=("Create the \"" (scag 12 text)) =("Edit the \"" (scag 10 text)))
 ::  +tap: the owner's Create (&) or Edit (|) on a proposal card, from the
 ::  selection receipt the app puts in the message's blob
 ::
@@ -270,13 +290,16 @@
   ^-  (unit [id=@t create=?])
   ?~  blob  ~
   ?:  (gth (met 3 u.blob) 8.192)  ~
-  %-  mole
-  |.
-  =/  entries  (need (de:json:html u.blob))
-  ?>  ?=(%a -.entries)
-  =/  found  (murn p.entries selection)
-  ?>  ?=([* ~] found)
-  i.found
+  =/  found  (mole |.((murn (entries u.blob) selection)))
+  ?.  ?=([~ [* ~]] found)  ~
+  `i.u.found
+::
+++  entries
+  |=  blob=@t
+  ^-  (list json)
+  =/  parsed  (need (de:json:html blob))
+  ?>  ?=(%a -.parsed)
+  p.parsed
 ::
 ++  selection
   |=  entry=json
@@ -291,16 +314,173 @@
   ?:  =('create' p.u.component)  `[p.u.surface &]
   ?:  =('edit' p.u.component)  `[p.u.surface |]
   ~
+::  +card: the workspace card a bot post carries, read back from its blob
+::
+++  card
+  |=  blob=(unit @t)
+  ^-  (unit [id=@t =plan])
+  ?~  blob  ~
+  %-  mole
+  |.
+  =/  entry
+    %+  skip  (entries u.blob)
+    |=(e=json !=(`[%s 'a2ui'] ?>(?=(%o -.e) (~(get by p.e) 'type'))))
+  ?>  ?=([* ~] entry)
+  ?>  ?=(%o -.i.entry)
+  =/  messages  (~(got by p.i.entry) 'messages')
+  ?>  ?=([%a * * ~] messages)
+  =/  update  i.t.p.messages
+  ?>  ?=(%o -.update)
+  =/  body  (~(got by p.update) 'updateComponents')
+  ?>  ?=(%o -.body)
+  =/  id  (~(got by p.body) 'surfaceId')
+  ?>  ?=(%s -.id)
+  ?>  =(prefix (end [3 (met 3 prefix)] p.id))
+  =/  components  (~(got by p.body) 'components')
+  ?>  ?=(%a -.components)
+  =/  by-id
+    %-  malt
+    %+  turn  p.components
+    |=  c=json
+    ?>  ?=(%o -.c)
+    =/  key  (~(got by p.c) 'id')
+    ?>  ?=(%s -.key)
+    [p.key p.c]
+  =/  field
+    |=  [key=@t name=@t]
+    ^-  @t
+    =/  found  (~(got by by-id) key)
+    =/  value  (~(got by found) name)
+    ?>  ?=(%s -.value)
+    p.value
+  =/  index=@ud  0
+  =/  channels=(list channel)
+    |-  ^-  (list channel)
+    =/  key  (cat 3 'channel-' (crip (a-co:co index)))
+    ?.  (~(has by by-id) key)  ~
+    =/  icon  (field key 'icon')
+    =/  kind=?(%chat %gallery %notebook)
+      ?:  =('ChannelGalleries' icon)  %gallery
+      ?:  =('ChannelNotebooks' icon)  %notebook
+      %chat
+    :-  [kind (field key 'text') (field (cat 3 key '-purpose') 'text')]
+    $(index +(index))
+  ?>  ?=(^ channels)
+  :-  p.id
+  :^  (field 'title' 'text')  (field 'description' 'text')  channels
+  ?.  (~(has by by-id) 'task')  ~
+  `[(field 'task' 'text') (field 'task-description' 'text')]
+::  +marker: the blob that marks a post as one Create made, by key
+::
+++  marker
+  |=  key=@t
+  ^-  @t
+  %-  en:json:html
+  :-  %a
+  :~  %-  pairs:enjs:format
+      :~  ['type' %s 'tlon-agent-post-marker']
+          ['version' %n '1']
+          ['key' %s key]
+      ==
+  ==
+++  created-key
+  |=  [id=@t flag=[@p @tas]]
+  (rap 3 'workspace-created:' id ':' (flag-id:spec flag) ~)
+::  +settled: the card and group a marker key names
+::
+++  settled
+  |=  blob=(unit @t)
+  ^-  (unit [id=@t flag=[@p @tas]])
+  ?~  blob  ~
+  %-  mole
+  |.
+  =/  found
+    %+  murn  (entries u.blob)
+    |=  e=json
+    ?.  ?=(%o -.e)  ~
+    ?.  =(`[%s 'tlon-agent-post-marker'] (~(get by p.e) 'type'))  ~
+    =/  key  (~(get by p.e) 'key')
+    ?.  ?=([~ %s *] key)  ~
+    `p.u.key
+  ?>  ?=([@ ~] found)
+  =/  head  'workspace-created:'
+  ?>  =(head (end [3 (met 3 head)] i.found))
+  =/  rest  (trip (rsh [3 (met 3 head)] i.found))
+  =/  split  (need (find ":" rest))
+  :-  (crip (scag split rest))
+  (need (flag (crip (slag +(split) rest))))
+::  +review: everything the DM says about card .id. Posts are oldest first;
+::  .our wrote the cards and the answers, .owner the taps.
+::
+++  review
+  |=  [posts=(list post) our=@p owner=@p id=@t]
+  ^-  (unit standing)
+  =/  cards=(list [at=@da id=@t =plan])
+    %+  murn  posts
+    |=  =post
+    ?.  =(our author.post)  ~
+    =/  found  (card blob.post)
+    ?~(found ~ `[at.post u.found])
+  =/  index  (find ~[id] (turn cards |=([* id=@t *] id)))
+  ?~  index  ~
+  =/  this  (snag u.index cards)
+  =/  taps=(list [at=@da id=@t create=?])
+    %+  murn  posts
+    |=  =post
+    ?.  =(owner author.post)  ~
+    =/  found  (tap blob.post)
+    ?~(found ~ `[at.post u.found])
+  =/  tapped
+    |=  [card=@t create=?]
+    (lien taps |=([* id=@t c=?] &(=(card id) =(create c))))
+  =/  marks=(list [id=@t flag=[@p @tas]])
+    (murn posts |=(=post ?.(=(our author.post) ~ (settled blob.post))))
+  =/  made  (skim marks |=([card=@t *] =(card id)))
+  :-  ~
+  :*  plan.this
+      at.this
+      =(+(u.index) (lent cards))
+      (tapped id &)
+      (tapped id |)
+      ?~(made ~ `flag.i.made)
+      (answer posts our owner cards u.index tapped)
+  ==
+::  +answer: the bot's reply after a card, up to the owner's next message.
+::  A card revised after Edit keeps the answer of the card it revises.
+::
+++  answer
+  |=  $:  posts=(list post)  our=@p  owner=@p
+          cards=(list [at=@da id=@t =plan])
+          index=@ud
+          tapped=$-([@t ?] ?)
+      ==
+  ^-  @t
+  =/  this  (snag index cards)
+  ?:  ?&  (gth index 0)
+          (tapped id:(snag (dec index) cards) |)
+      ==
+    $(index (dec index))
+  =/  after  (skim posts |=(=post (gth at.post at.this)))
+  =/  until
+    |-  ^-  (list post)
+    ?~  after  ~
+    ?:  =(owner author.i.after)  ~
+    [i.after $(after t.after)]
+  =/  said
+    %+  murn  until
+    |=(=post ?.(&(=(our author.post) ?=(~ blob.post)) ~ `text.post))
+  %+  roll  said
+  |=([line=@t out=@t] ?:(=('' out) line (rap 3 out '\0a\0a' line ~)))
 ::  +note: what the model is told about a tap, appended to the owner's
-::  message. The proposal is as it was before the tap.
+::  message
 ::
 ++  note
-  |=  [id=@t create=? proposal=(unit workspace-proposal:t)]
+  |=  [id=@t create=? card=(unit standing)]
   ^-  @t
-  ?~  proposal
+  ?~  card
     '\0a[Workspace card: this card is no longer known to you, so nothing will be created from it. Say so in one line and offer to propose it again.]'
-  =/  title  (rap 3 '"' title.plan.u.proposal '"' ~)
-  ?:  =(%superseded status.u.proposal)
+  =/  title  (rap 3 '"' title.plan.u.card '"' ~)
+  ?:  &(!latest.u.card ?=(~ created.u.card))
     %+  rap  3
     :~  '\0a[Workspace card: the owner tapped '
         ?:(create 'Create' 'Edit')
@@ -316,7 +496,7 @@
         id
         '" now and follow its result. Create nothing before that call.]'
     ==
-  ?:  =(%created status.u.proposal)
+  ?^  created.u.card
     %+  rap  3
     :~  '\0a[Workspace card: the owner tapped Edit on '
         title
@@ -327,66 +507,31 @@
       title
       '. Ask in one short line what to change. Once they answer, post the revised card with tlon_workspace_plan; it replaces this one. Create nothing yet.]'
   ==
-::  +supersede: one open card per owner. A new card replaces every card of
-::  theirs that has not started creating.
+::  +revising: is a new card a revision? The newest card before it was
+::  tapped Edit, so the new one keeps that card's answer.
 ::
-++  supersede
-  |=  [proposals=(map @t workspace-proposal:t) owner=@p keep=@t]
-  ^+  proposals
-  %-  ~(urn by proposals)
-  |=  [id=@t proposal=workspace-proposal:t]
-  ?.  ?&  !=(id keep)
-          =(owner owner.proposal)
-          ?=(?(%open %approved) status.proposal)
-          ?=(~ group.proposal)
-      ==
-    proposal
-  proposal(status %superseded, awaiting ~)
-::  +answered: the cards whose proposing turn is .input settle their answer:
-::  its reply, or none for a failed or cancelled turn
-::
-++  answered
-  |=  [proposals=(map @t workspace-proposal:t) input=@uv reply=? body=@t]
-  ^+  proposals
-  %-  ~(run by proposals)
-  |=  proposal=workspace-proposal:t
-  ?.  =(`input awaiting.proposal)  proposal
-  ?.  reply  proposal(awaiting ~)
-  proposal(awaiting ~, answer body)
-::  +inherited: the answer a revised card keeps: that of the card the owner
-::  tapped Edit on
-::
-++  inherited
-  |=  [proposals=(map @t workspace-proposal:t) owner=@p]
-  ^-  @t
-  =/  editing
-    %+  sort
-      %+  skim  ~(val by proposals)
-      |=  proposal=workspace-proposal:t
-      &(=(owner owner.proposal) =(%open status.proposal) editing.proposal)
-    |=([a=workspace-proposal:t b=workspace-proposal:t] (gth at.a at.b))
-  ?~(editing '' answer.i.editing)
-::  +prune: settled cards beyond the newest sixteen are forgotten
-::
-++  prune
-  |=  proposals=(map @t workspace-proposal:t)
-  ^+  proposals
-  =/  rows
-    %+  sort  ~(tap by proposals)
-    |=  [a=[@t workspace-proposal:t] b=[@t workspace-proposal:t]]
-    (gth at.a at.b)
-  (malt (scag 16 rows))
+++  revising
+  |=  [posts=(list post) our=@p owner=@p]
+  ^-  ?
+  =/  cards
+    (murn posts |=(=post ?.(=(our author.post) ~ (card blob.post))))
+  ?~  cards  |
+  =/  last  (rear cards)
+  %+  lien  posts
+  |=  =post
+  ?.  =(owner author.post)  |
+  =(`[id.last |] (tap blob.post))
 ::  +assign: the group's channel for each planned one, in the plan's order.
 ::  A title names it; the group's first chat, whatever it is called, is the
 ::  plan's first channel.
 ::
 ++  assign
-  |=  [plan=workspace-plan:t channels=(list [=nest title=@t])]
+  |=  [plan=plan channels=(list [=nest title=@t])]
   ^-  (list (unit nest))
   =/  lower  |=(value=@t (crip (cass (trip value))))
   =/  named=(list (unit nest))
     %+  turn  channels.plan
-    |=  row=workspace-channel:t
+    |=  row=channel
     =/  found
       %+  skim  channels
       |=  [=nest title=@t]
@@ -400,11 +545,21 @@
     |=([=nest title=@t] &(=(%chat kind.nest) !(~(has in taken) nest)))
   ?~  spare  named
   [`nest.i.spare (slag 1 named)]
+::  +owned: is .group the one made for this card? It carries the card's
+::  title, and nobody but the owner and this ship has a seat.
+::
+++  owned
+  |=  [plan=plan owner=@p our=@p group=group:v9:g]
+  ^-  ?
+  ?&  =(title.meta.group title.plan)
+      %-  ~(all in ~(key by seats.group))
+      |=(who=@p |(=(who owner) =(who our)))
+  ==
 ::  +arrange: what makes the group match its card once its channels exist:
 ::  the first chat's name, the privacy and the channel order
 ::
 ++  arrange
-  |=  [plan=workspace-plan:t group=group:v9:g nests=(list nest)]
+  |=  [plan=plan group=group:v9:g nests=(list nest)]
   ^-  (list a-group:v8:g)
   =/  chat  (snag 0 nests)
   =/  named  (snag 0 channels.plan)
@@ -433,20 +588,16 @@
     [[%section %default %move-nest i.nests index] $(nests t.nests, index +(index))]
   :(weld rename privacy moves)
 ::
-++  nest-id
-  |=  =nest
-  ^-  @t
-  (rap 3 kind.nest '/' (scot %p ship.nest) '/' name.nest ~)
+++  nest-id  nest-id:spec
 ::  +brief: what the model does between the tap and the second call
 ::
 ++  brief
-  |=  [id=@t proposal=workspace-proposal:t]
+  |=  [id=@t owner=@p =plan]
   ^-  @t
-  =/  plan  plan.proposal
   ?>  ?=(^ channels.plan)
   =/  rest=(list @t)
     %+  turn  t.channels.plan
-    |=  row=workspace-channel:t
+    |=  row=channel
     ?:  =(%notebook kind.row)
       (rap 3 '\0a   - title "' title.row '", kind notes, and no description' ~)
     %+  rap  3
@@ -463,7 +614,7 @@
           '" and description "'
           description.plan
           '", so the workspace is on their ship. Only when no such server is granted, use the tlon tool\'s create_group with owner '
-          (scot %p owner.proposal)
+          (scot %p owner)
           '.\0a2. Its first channel is the chat "'
           title.i.channels.plan
           '". A group that server made already has one chat; leave it, it is renamed for you. A group the tlon tool made has none, so create that chat first.'
@@ -480,9 +631,8 @@
 ::  +created: the result of the call that settled the workspace
 ::
 ++  created
-  |=  [proposal=workspace-proposal:t flag=[@p @tas] nests=(list nest) answered=?]
+  |=  [=plan flag=[@p @tas] nests=(list nest) answered=?]
   ^-  @t
-  =/  plan  plan.proposal
   ?>  ?=(^ nests)
   =/  chat  (nest-id i.nests)
   =/  rows=(list @t)
@@ -511,11 +661,10 @@
       ?~  task.plan  ~
       :~  '\0aSchedule its recurring task "'
           title.u.task.plan
-          '" now, once, with cron_add: schedule "'
-          schedule.u.task.plan
-          '", timezone "UTC", runs "100", and this prompt: "'
-          prompt.u.task.plan
-          ' Post the result in '
+          '" now, once, with cron_add: the schedule and prompt you gave this task in tlon_workspace_plan, timezone "UTC" and runs "100". '
+          'Start the prompt with "['
+          title.u.task.plan
+          ']" and end it with: "Post the result in '
           chat
           ' with the tlon tool\'s send_channel, then reply with one short line."'
       ==

@@ -4,10 +4,10 @@
 /+  *test-agent, policy=harness-tlon-policy
 /=  adapter  /app/harness-tlon
 |%
-+$  outcome  [cards=(list card) replies=(list json) saved=state-3:t]
++$  outcome  [cards=(list card) replies=(list json) saved=state-2:t]
 ++  fixture
-  ^-  state-3:t
-  =/  s=state-3:t  *state-3:t
+  ^-  state-2:t
+  =/  s=state-2:t  *state-2:t
   %=  s  owner-initialized  1  policy  [& `~zod ~ %mentions ~ ~]  activity-through  ~2026.10.1
     error  'Activity recovery failed'
   ==
@@ -26,7 +26,7 @@
   b(wex (~(put by wex.b) [/activity ~zod %activity] sub))
 ::
 ++  run
-  |=  [saved=state-3:t sub=(unit [acked=? path=path]) event=?(%load %wake %kick %enable %disable)]
+  |=  [saved=state-2:t sub=(unit [acked=? path=path]) event=?(%load %wake %kick %enable %disable)]
   =/  m  (mare ,outcome)
   =/  n  (mare ,(list card))
   ^-  form:m
@@ -66,7 +66,7 @@
       !>(`request:ad`['fixture' [%n '1'] 'harness/tlon/configure' `params])
     ==
   ;<  =vase  bind:m  get-save
-  (pure:m (activity-cards caz) (replies caz) !<(state-3:t vase))
+  (pure:m (activity-cards caz) (replies caz) !<(state-2:t vase))
 ++  replies
   |=  cards=(list card)
   ^-  (list json)

@@ -164,7 +164,8 @@
       'delete_skill'  'propose_skill'  'rehearse_skill'  'commit_skill'
       'discard_skill'  'run_subagent'  'list_peer_access'  'check_peer'
       'list_peer_tools'  'call_peer_tool'  'ask_peer'  'workspace'  'run_js'
-      'tlon'  'harness_admin'
+      'tlon'  'tlon_workspace_plan'  'tlon_workspace_create'  'tlon_workspace_link'
+      'harness_admin'
   ==
 ::  A conversation that never meets a size failure dispatches the same bytes
 ::  as before the size-recovery rule existed. The expected body was captured
