@@ -1,7 +1,7 @@
 import { Pressable, Text } from '@tloncorp/ui';
 import * as db from '@tloncorp/shared/db';
 import { useEffect, useRef } from 'react';
-import { StyleSheet, useWindowDimensions } from 'react-native';
+import { PixelRatio, StyleSheet, useWindowDimensions } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -156,7 +156,13 @@ export function AvatarGlyphPicker({
 }) {
   const { width } = useWindowDimensions();
   const count = AVATAR_GLYPH_IDS.length;
-  const tile = (width - 2 * ROW_MARGIN - (count - 1) * TILE_GAP) / count;
+  // Whole pixels: a tile's canvas at a fractional size cuts off its right
+  // and bottom lines. The row spreads what's left over across its gaps.
+  const scale = PixelRatio.get();
+  const tile =
+    Math.floor(
+      ((width - 2 * ROW_MARGIN - (count - 1) * TILE_GAP) / count) * scale
+    ) / scale;
   return (
     <YStack gap={8}>
       <Text
@@ -171,7 +177,7 @@ export function AvatarGlyphPicker({
       </Text>
       <XStack
         marginHorizontal={ROW_MARGIN}
-        gap={TILE_GAP}
+        justifyContent="space-between"
         accessibilityRole="radiogroup"
         accessibilityLabelledBy="onboarding-avatar-label"
       >

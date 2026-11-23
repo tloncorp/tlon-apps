@@ -28,12 +28,14 @@ export function OnboardingButton({
       shadow={shadow}
       label={label}
       width="100%"
-      backgroundColor={color}
-      borderColor={color}
-      pressStyle={{
-        backgroundColor: color,
-        opacity: 0.9,
-      }}
+      // A disabled button keeps the hero preset's own light gray.
+      {...(props.disabled
+        ? {}
+        : {
+            backgroundColor: color,
+            borderColor: color,
+            pressStyle: { backgroundColor: color, opacity: 0.9 },
+          })}
     />
   );
 }
