@@ -71,9 +71,12 @@
       search-requests=search-requests:h
       knowledge=state:memory-types
   ==
+::  Saved state and the hand index derived from it, which +on-save leaves out.
+::
++$  live-state  [state-0 hand-index=index:hh]
 --
 %-  agent:dbug
-=|  state-0
+=|  live-state
 =*  state  -
 ^-  agent:gall
 =<
@@ -90,7 +93,7 @@
         |=  result=(quip card _this)
         ^-  (quip card _this)
         =*  updated  +.result
-        =/  saved  !<(state-0 on-save:updated)
+        =/  saved=live-state  state.updated
         =/  before-writes  writes.workspace
         =/  before-workspace  workspace
         =/  before-notes  workspace-notes
@@ -169,7 +172,7 @@
         acp-watch-card:wire-codec
     ==
   ::
-  ++  on-save  !>(state)
+  ++  on-save  !>(-.state)
   ::
   ++  on-load
     |=  old-vase=vase
@@ -180,7 +183,8 @@
     =/  upkeep=(unit @da)
       ?.  (maintenance-needed:schedule-lib schedules.new ~ now.bowl |)  ~
       `+(now.bowl)
-    =.  state  new(corpus-wake ~, schedule-wake upkeep)
+    =.  -.state  new(corpus-wake ~, schedule-wake upkeep)
+    =.  hand-index  *index:hh
     =.  wake.knowledge  ~
     =.  runners
       runners(wake ~, registry (~(run by registry.runners) |=(r=runner:runner-types r(stream ~))))
@@ -1551,7 +1555,7 @@
         ==
         state
     ==
-  =/  saved=state-0  state
+  =/  saved=live-state  state
   =/  next  saved(workspace-notes workspace-notes.saved(pending ~))
   =.  workspace.next
     %:  record:workspace-lib
@@ -1578,7 +1582,7 @@
   ^-  (quip card _state)
   ?~  pending.workspace-notes  `state
   =/  pending  u.pending.workspace-notes
-  =/  saved=state-0  state
+  =/  saved=live-state  state
   =/  next
     saved(workspace-notes workspace-notes.saved(pending ?:(uncertain `pending(uncertain &) ~)))
   [~[(notes-reply reply.pending [%| message])] next]
@@ -1730,7 +1734,7 @@
     %+  notes-failed
       'Notes confirmed a result, but its current document could not be read. Do not repeat the operation.'
     &
-  =/  saved=state-0  state
+  =/  saved=live-state  state
   =/  next  saved(workspace db.p.resolved, workspace-notes native.p.resolved)
   =/  artifact  (~(got by artifacts.workspace.next) artifact.pending)
   =/  result
@@ -2925,7 +2929,7 @@
         ==
       $(request request(action 'settings', args u.parsed))
     ?:  =('clear-credentials' action.request)
-      =.  state  (clear:hosted-cleanup state)
+      =.  -.state  (clear:hosted-cleanup -.state)
       [~[(reply (envelope:hosted-auth 200 (pairs:enjs:format ~[['cleared' %b &]])))] state]
     ?:  =('provision' action.request)  provision
     ?:  =('settings' action.request)
@@ -3272,7 +3276,7 @@
   |=  rpc=acp-request
   ^-  (quip card _state)
   =+  rpc
-  =^  sid  state  (ensure:onboarding state)
+  =^  sid  -.state  (ensure:onboarding -.state)
   =/  listed  (list-json:index sessions modified)
   ?>  ?=(%o -.listed)
   =/  result=json
