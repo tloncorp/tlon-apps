@@ -184,7 +184,7 @@
       ?.  (maintenance-needed:schedule-lib schedules.new ~ now.bowl |)  ~
       `+(now.bowl)
     =.  -.state  new(corpus-wake ~, schedule-wake upkeep)
-    =.  hand-index  *index:hh
+    =.  hand-index  (reindex:hd hands)
     =.  wake.knowledge  ~
     =.  runners
       runners(wake ~, registry (~(run by registry.runners) |=(r=runner:runner-types r(stream ~))))
@@ -993,9 +993,11 @@
   ^-  (quip card _state)
   =.  schedules  (~(put by schedules) id job(state mode, reason reason))
   =/  bound  (~(get by bindings.hands) run-sid.job)
-  =?  hands  ?=(^ bound)
-    =/  applied  (apply:hd hands [%enable run-sid.job |] now.bowl)
-    ?:(?=(%& -.applied) db.p.applied hands)
+  =/  disabled=(unit indexed:hh)
+    ?~  bound  ~
+    =/  applied  (apply-indexed:hd [hands hand-index] [%enable run-sid.job |] now.bowl)
+    ?:(?=(%& -.applied) `ledger.p.applied ~)
+  =?  state  ?=(^ disabled)  state(hands db.u.disabled, hand-index index.u.disabled)
   ?.  (~(has by sessions) run-sid.job)  `state
   =/  current  (play:hl log:(need-session run-sid.job))
   ?:  ?&  =(~ tools.config.current)
@@ -1101,13 +1103,15 @@
     ==
   =^  created  state  (handle-action [%new run-sid.job config js-timeout])
   =/  bound
-    %:  apply:hd
-      hands
+    %:  apply-indexed:hd
+      [hands hand-index]
       [%bind run-sid.job [hand.job destination.job run-sid.job ~[actor.job] &]]
       now.bowl
     ==
   ?>  ?=(%& -.bound)
-  =.  hands  db.p.bound
+  =:  hands  db.ledger.p.bound
+      hand-index  index.ledger.p.bound
+    ==
   [[%& (one-json:schedule-lib id.action job hands)] created state]
 ::
 ++  schedule-edit
@@ -1154,13 +1158,16 @@
   =/  input  (input-id:hd run-sid.job event)
   =/  prior  (~(got by observations.hands) input.action)
   =/  admitted
-    %:  apply:hd
-      hands
+    %:  apply-indexed:hd
+      [hands hand-index]
       [%observe run-sid.job event actor.job text.prior]
       now.bowl
     ==
   ?:  ?=(%| -.admitted)  [[%| p.admitted] ~ state]
-  =.  hands  (start:hd db.p.admitted run-sid.job input)
+  =/  started  (start-indexed:hd ledger.p.admitted run-sid.job input)
+  =:  hands  db.started
+      hand-index  index.started
+    ==
   =.  schedules  (~(put by schedules) id.action job(last `input))
   =^  cards  state  (handle-action [%retry run-sid.job])
   [[%& (list-json:schedule-lib schedules hands ~)] cards state]
@@ -3977,7 +3984,7 @@
     ==
   ?:  &(?=(^ config) !(~(has by sessions) sid.u.config))
     [[%| 'Create the session and configure its tool grants before binding it'] ~ state]
-  =/  applied  (apply:hd hands action now.bowl)
+  =/  applied  (apply-indexed:hd [hands hand-index] action now.bowl)
   ?:  ?=(%| -.applied)  [[%| p.applied] ~ state]
   ::  Validate and deduplicate before interrupting. A replayed /stop cannot
   ::  cancel newer work. Cancel against the old ledger, then admit the stop
@@ -3996,9 +4003,11 @@
     (stop-command sid.binding text.action ?:(owner ~ `actor.action))
   ::  Reapply to retain cancellation receipts and the other bindings' queues.
   ::  A speaker's stop can cancel only queued inputs and emit no cards.
-  =/  accepted  ?:(=(before hands) applied (apply:hd hands action now.bowl))
+  =/  accepted  ?:(=(before hands) applied (apply-indexed:hd [hands hand-index] action now.bowl))
   ?>  ?=(%& -.accepted)
-  =.  hands  db.p.accepted
+  =:  hands  db.ledger.p.accepted
+      hand-index  index.ledger.p.accepted
+    ==
   =/  sid=(unit session-id:h)
     ?+  -.action  ~
       %observe  `sid:(need (~(get by bindings.hands) binding.action))
@@ -4020,7 +4029,10 @@
   ?~  id  `state
   =/  observation  (need (~(get by observations.hands) u.id))
   =/  config  (need (~(get by bindings.hands) binding.observation))
-  =.  hands  (start:hd hands sid u.id)
+  =/  started  (start-indexed:hd [hands hand-index] sid u.id)
+  =:  hands  db.started
+      hand-index  index.started
+    ==
   =/  =event:h
     :-  %input-received
     :*  u.id
@@ -4180,7 +4192,10 @@
       message.failure
       %reply  body.u.result
     ==
-  =.  hands  (finish:hd hands sid -.u.result body)
+  =/  finished  (finish-indexed:hd [hands hand-index] sid -.u.result body)
+  =:  hands  db.finished
+      hand-index  index.finished
+    ==
   (hand-pump sid)
 ::
 ::  Native commands converge here, including commands decoded from ACP.
@@ -4343,7 +4358,10 @@
   |=  action=action:h
   ^-  (quip card _state)
   ?>  ?=(%cancel -.action)
-  =.  hands  (cancel-queued:hd hands sid.action ~)
+  =/  cancelled  (cancel-queued-indexed:hd [hands hand-index] sid.action ~)
+  =:  hands  db.cancelled
+      hand-index  index.cancelled
+    ==
   (cancel-turn sid.action)
 ::  One speaker's stop or revocation: their running turn, the subagents it
 ::  started, and their waiting inputs. Other speakers' work, timers and
@@ -4353,7 +4371,10 @@
   |=  [sid=session-id:h actor=@t]
   ^-  (quip card _state)
   ?.  (~(has by sessions) sid)  `state
-  =.  hands  (cancel-queued:hd hands sid `actor)
+  =/  cancelled  (cancel-queued-indexed:hd [hands hand-index] sid `actor)
+  =:  hands  db.cancelled
+      hand-index  index.cancelled
+    ==
   ?.  =(`actor (hand-speaker sid))  `state
   (cancel-turn sid)
 ::  Waiting inputs are the caller's to cancel first; settling pumps the next.
@@ -4421,7 +4442,10 @@
     (handle-action [%cancel sid])
   =^  fenced  state  (handle-action [%fence sid])
   =.  stopped  (weld stopped fenced)
-  =.  hands  (detach-session:hd hands sid now.bowl)
+  =/  detached  (detach-session-indexed:hd [hands hand-index] sid now.bowl)
+  =:  hands  db.detached
+      hand-index  index.detached
+    ==
   =^  scheduled  state
     =/  pending  ~(tap by schedules)
     =|  cards=(list card)
@@ -5716,7 +5740,10 @@
         ==
       `state
     (handle-action [%cancel sid])
-  =.  hands  (cancel-queued:hd hands sid ~)
+  =/  cancelled  (cancel-queued-indexed:hd [hands hand-index] sid ~)
+  =:  hands  db.cancelled
+      hand-index  index.cancelled
+    ==
   =^  cancelled-timers  state  (cancel-session-timers sid)
   =^  auxiliary  state  (withdraw-auxiliary sid)
   =.  cards  :(weld cards cancelled-timers auxiliary)

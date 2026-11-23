@@ -84,4 +84,5 @@
   $:  open=(set input-id:h)
       recent=(map @t (list input-id:h))
   ==
++$  indexed  [db=state =index]
 --

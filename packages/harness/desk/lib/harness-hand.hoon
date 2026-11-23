@@ -684,33 +684,173 @@
 ++  detach-session
   |=  [db=state:hh sid=session-id:h now=@da]
   ^-  state:hh
+  db:(detach-session-indexed [db (reindex db)] sid now)
+::
+::  +reindex: derive the index of a whole ledger
+::
+++  reindex
+  |=  db=state:hh
+  ^-  index:hh
+  =/  open=(set input-id:h)
+    %-  silt
+    %+  weld
+      %+  murn  ~(tap by observations.db)
+      |=  [id=input-id:h observation=observation:hh]
+      ?.(?=(?(%queued %running) phase.observation) ~ `id)
+    %+  murn  ~(tap by outbox.db)
+    |=  [id=input-id:h publication=publication:hh]
+    ?:((terminal status.publication) ~ `id)
+  =/  rows=(map @t (list [at=@da id=input-id:h]))
+    %+  roll  ~(tap by observations.db)
+    |=  $:  [id=input-id:h observation=observation:hh]
+            rows=(map @t (list [at=@da id=input-id:h]))
+        ==
+    =/  config  (~(get by bindings.db) binding.observation)
+    ?~  config  rows
+    (~(put by rows) hand.u.config [[at.observation id] (~(gut by rows) hand.u.config ~)])
+  [open (~(run by rows) window)]
+::
+++  unfinished
+  |=  [db=state:hh id=input-id:h]
+  ^-  ?
+  =/  observation  (~(get by observations.db) id)
+  ?:  &(?=(^ observation) ?=(?(%queued %running) phase.u.observation))  &
+  =/  publication  (~(get by outbox.db) id)
+  &(?=(^ publication) !(terminal status.u.publication))
+::
+::  +window: a hand's newest 64 observations, newest first, ties by id
+::
+++  window
+  |=  rows=(list [at=@da id=input-id:h])
+  ^-  (list input-id:h)
+  %+  turn
+    %+  scag  64
+    %+  sort  rows
+    |=  [a=[at=@da id=input-id:h] b=[at=@da id=input-id:h]]
+    ?:  =(at.a at.b)  (lth id.a id.b)
+    (gth at.a at.b)
+  tail
+::
+::  +reckon: update the index for one record that was added or changed
+::
+::    Observations are only deleted by retirement, which rebuilds its hand,
+::    so a window can only gain members here.
+::
+++  reckon
+  |=  [=index:hh db=state:hh id=input-id:h]
+  ^-  index:hh
+  =.  open.index
+    ?:  (unfinished db id)  (~(put in open.index) id)
+    (~(del in open.index) id)
+  =/  observation  (~(get by observations.db) id)
+  ?~  observation  index
+  =/  config  (~(get by bindings.db) binding.u.observation)
+  ?~  config  index
+  =/  ids  (~(gut by recent.index) hand.u.config ~)
+  ?^  (find ~[id] ids)  index
+  =/  rows  (turn ids |=(i=input-id:h [at:(~(got by observations.db) i) i]))
+  =.  recent.index
+    (~(put by recent.index) hand.u.config (window [[at.u.observation id] rows]))
+  index
+::
+::  +apply-indexed: +apply, bringing the index up to date for the records
+::  the action changed
+::
+++  apply-indexed
+  |=  [ledger=indexed:hh action=action:hh now=@da]
+  ^-  (each [ledger=indexed:hh result=json] @t)
+  =/  applied  (apply db.ledger action now)
+  ?:  ?=(%| -.applied)  applied
+  =*  db  db.p.applied
+  =/  changed=(list input-id:h)
+    ?+  -.action  ~
+      %observe  ~[(input-id binding.action event.action)]
+      %notify  ~[(input-id binding.action event.action)]
+      %claim  ~[effect.action]
+      %receipt  ~[effect.action]
+      %receipt-at  ~[effect.action]
+      %retry  ~[effect.action]
+      %resolve  ~[effect.action]
+      %retire  (binding-ids db.ledger binding.action)
+    ==
+  =/  next=index:hh
+    %+  roll  changed
+    |=([id=input-id:h index=_index.ledger] (reckon index db id))
+  =/  retired=(unit binding:hh)
+    ?.  ?=(%retire -.action)  ~
+    (~(get by bindings.db.ledger) binding.action)
+  =?  recent.next  ?=(^ retired)
+    =/  rows
+      %+  murn  ~(tap by observations.db)
+      |=  [id=input-id:h observation=observation:hh]
+      ^-  (unit [at=@da id=input-id:h])
+      =/  config  (~(get by bindings.db) binding.observation)
+      ?.  &(?=(^ config) =(hand.u.retired hand.u.config))  ~
+      `[at.observation id]
+    ?~  rows  (~(del by recent.next) hand.u.retired)
+    (~(put by recent.next) hand.u.retired (window rows))
+  [%& [db next] result.p.applied]
+::
+++  start-indexed
+  |=  [ledger=indexed:hh sid=session-id:h id=input-id:h]
+  ^-  indexed:hh
+  =/  db  (start db.ledger sid id)
+  [db (reckon index.ledger db id)]
+::
+++  finish-indexed
+  |=  [ledger=indexed:hh sid=session-id:h kind=?(%reply %failure %cancelled) body=@t]
+  ^-  indexed:hh
+  =/  id  (~(get by active.db.ledger) sid)
+  =/  db  (finish db.ledger sid kind body)
+  ?~  id  [db index.ledger]
+  [db (reckon index.ledger db u.id)]
+::
+++  cancel-queued-indexed
+  |=  [ledger=indexed:hh sid=session-id:h who=(unit @t)]
+  ^-  indexed:hh
+  =/  db  (cancel-queued db.ledger sid who)
+  =/  waiting  (silt queue.db)
+  :-  db
+  %+  roll  queue.db.ledger
+  |=  [id=input-id:h index=_index.ledger]
+  ?:  (~(has in waiting) id)  index
+  (reckon index db id)
+::
+++  detach-session-indexed
+  |=  [ledger=indexed:hh sid=session-id:h now=@da]
+  ^-  indexed:hh
   ::  The caller fences execution first. Keep delivery evidence, including
   ::  claimed or uncertain sends; only undispatched output can be abandoned.
-  ?>  !(~(has by active.db) sid)
-  =.  db  (cancel-queued db sid ~)
+  ?>  !(~(has by active.db.ledger) sid)
+  =.  ledger  (cancel-queued-indexed ledger sid ~)
+  =*  db  db.ledger
   =.  bindings.db
     %+  roll  ~(tap by bindings.db)
     |=  [[id=@t config=binding:hh] bindings=(map @t binding:hh)]
     (~(put by bindings) id ?:(=(sid sid.config) config(enabled |) config))
-  %+  roll  ~(tap by outbox.db)
-  |=  [[id=input-id:h publication=publication:hh] ledger=_db]
-  ?.  &(=(sid sid.publication) =(%pending status.publication))  ledger
-  =.  publication
-    %=  publication
+  %+  roll  ~(tap in open.index.ledger)
+  |=  [id=input-id:h next=_ledger]
+  =/  publication  (~(get by outbox.db.next) id)
+  ?~  publication  next
+  ?.  &(=(sid sid.u.publication) =(%pending status.u.publication))  next
+  =.  u.publication
+    %=  u.publication
       status  %abandoned
-      receipts  [[now %abandoned '' ''] receipts.publication]
+      receipts  [[now %abandoned '' ''] receipts.u.publication]
     ==
-  =/  control  (get-control ledger id)
+  =/  control  (get-control db.next id)
   =.  control
     %=  control  resolutions
         :*  [now attempt.control %abandoned 'Conversation deleted before dispatch']
             resolutions.control
         ==
     ==
-  %=  ledger
-    outbox  (~(put by outbox.ledger) id publication)
-    controls  (~(put by controls.ledger) id control)
-  ==
+  =.  db.next
+    %=  db.next
+      outbox  (~(put by outbox.db.next) id u.publication)
+      controls  (~(put by controls.db.next) id control)
+    ==
+  next(index (reckon index.next db.next id))
 ::
 ++  json-action
   |=  value=json
