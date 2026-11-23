@@ -7,7 +7,7 @@ export type LineIconName =
   | 'apps'
   | 'phoneOff'
   | 'clock'
-  | 'server'
+  | 'computer'
   | 'lock'
   | 'chatCheck'
   | 'sparkle'
@@ -39,11 +39,10 @@ const SHAPES: Record<LineIconName, ReactElement> = {
       <Path d="M12 7.5V12l3 2" />
     </>
   ),
-  server: (
+  computer: (
     <>
-      <Rect x={4} y={4} width={16} height={7} rx={1.5} />
-      <Rect x={4} y={13} width={16} height={7} rx={1.5} />
-      <Path d="M7.5 7.5h.01M7.5 16.5h.01" />
+      <Rect x={3} y={4} width={18} height={12} rx={2} />
+      <Path d="M8 20h8M12 16v4" />
     </>
   ),
   lock: (

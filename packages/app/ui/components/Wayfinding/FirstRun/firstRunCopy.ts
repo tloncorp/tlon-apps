@@ -123,7 +123,7 @@ export const firstRunCopy = {
     title: 'Yours to keep',
     subtitle: 'Use it however you like, for as long as you like.',
     points: [
-      { icon: 'server', label: 'Runs on its own server, which we host' },
+      { icon: 'computer', label: 'Runs on a computer we look after' },
       { icon: 'lock', label: 'No training on your data' },
       { icon: 'chatCheck', label: 'Asks before it emails or messages anyone' },
     ] satisfies FeaturePoint[],
@@ -136,9 +136,9 @@ export const firstRunCopy = {
     title: 'How your data is kept',
     items: [
       {
-        icon: 'server',
-        title: 'It runs on its own server',
-        text: 'Your Tlonbot gets a server of its own, with its own memory. We host it for you.',
+        icon: 'computer',
+        title: 'It has its own computer',
+        text: 'Your Tlonbot runs on a computer of its own, not on your phone, with its own memory. We look after it for you.',
       },
       {
         icon: 'sparkle',
