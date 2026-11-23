@@ -173,6 +173,13 @@
   %+  expect-eq
     !>('Start with flights.\0a\0aThen the hotel.')
   !>(answer:(standing posts key))
+++  test-a-reply-with-a-lens-pointer-is-still-the-answer
+  =/  lens  '[{"type":"tlon-context-lens","version":1,"ship":"~zod","run":"0v1"}]'
+  =/  posts=(list post:wp)
+    :~  (card-post 1 key sample)
+        [(at 2) ~zod 'Start with flights.' `lens]
+    ==
+  (expect-eq !>('Start with flights.') !>(answer:(standing posts key)))
 ++  test-a-tap-before-the-reply-lands-does-not-cut-the-answer
   =/  posts=(list post:wp)
     :~  (card-post 1 key sample)

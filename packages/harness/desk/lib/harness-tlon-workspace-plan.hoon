@@ -470,9 +470,14 @@
       ?.  ?=([~ * %&] (tap blob.i.after))  ~
       $(after t.after)
     [i.after $(after t.after)]
+  ::  A reply can carry a blob (a Context Lens pointer, a work card); only
+  ::  the cards and markers this library writes are not answers.
   =/  said
     %+  murn  until
-    |=(=post ?.(&(=(our author.post) ?=(~ blob.post)) ~ `text.post))
+    |=  =post
+    ?.  =(our author.post)  ~
+    ?:  |(?=(^ (card blob.post)) ?=(^ (settled blob.post)))  ~
+    `text.post
   %+  roll  said
   |=([line=@t out=@t] ?:(=('' out) line (rap 3 out '\0a\0a' line ~)))
 ::  +note: what the model is told about a tap, appended to the owner's
