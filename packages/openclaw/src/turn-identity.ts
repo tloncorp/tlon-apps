@@ -48,6 +48,7 @@
  * the record's life, revoked or not, and only an allowlist of tools stays
  * available to it (index.ts before_tool_call).
  */
+import type { HeartbeatRunObservation } from './heartbeat-run.js';
 import type { HeartbeatLedgerRun } from './heartbeat-ledger.js';
 
 import {
@@ -66,6 +67,7 @@ export const RUN_TOMBSTONE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 type RunRecord = {
   heartbeatLedger?: HeartbeatLedgerRun;
+  heartbeatObservation?: HeartbeatRunObservation;
   identity: TurnIdentity;
   sessionKey: string;
   /** Sender of the answered message, or the session role at first sight. */
@@ -216,6 +218,11 @@ export function markHeartbeatRun(
     ...record,
     heartbeat: { ownerShip },
     heartbeatLedger: {},
+    heartbeatObservation: {
+      startedAt: Date.now(),
+      modelCalls: 0,
+      toolCalls: 0,
+    },
   });
 }
 
@@ -235,10 +242,35 @@ export function isHeartbeatOwnerReadRun(
   return grant !== undefined && grant.ownerShip === liveOwnerShip;
 }
 
+export function getHeartbeatRunObservation(
+  runId: string | undefined
+): HeartbeatRunObservation | undefined {
+  return runId ? activeRuns.get(runId.trim())?.heartbeatObservation : undefined;
+}
+
 export function getHeartbeatLedgerRun(
   runId: string
 ): HeartbeatLedgerRun | undefined {
   return activeRuns.get(runId.trim())?.heartbeatLedger;
+}
+
+/**
+ * The runId of the most recently seen run on a session when that run is a
+ * recognised heartbeat-runner run (revoked or not). Core's `message_sent`
+ * carries the session key but no runId for heartbeat deliveries, and cron
+ * wakes and exec completions can run on the same session.
+ */
+export function getLatestHeartbeatRunId(
+  sessionKey: string | undefined
+): string | undefined {
+  const key = sessionKey?.trim();
+  if (!key) return undefined;
+  const canonical = canonicalSessionKey(key);
+  let latest: [string, RunRecord] | undefined;
+  for (const entry of activeRuns) {
+    if (canonicalSessionKey(entry[1].sessionKey) === canonical) latest = entry;
+  }
+  return latest?.[1].heartbeatLedger ? latest[0] : undefined;
 }
 
 /** Seal a heartbeat run that the gate let read as the owner. */

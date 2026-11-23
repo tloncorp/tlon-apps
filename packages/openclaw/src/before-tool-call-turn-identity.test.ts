@@ -13,7 +13,9 @@ import entry from '../index.js';
 import { HEARTBEAT_LEDGER_TOOL } from './heartbeat-ledger.js';
 import {
   setErrorTelemetryReporter,
+  setHeartbeatMessageSentReporter,
   setHeartbeatRunReporter,
+  setHeartbeatRunEndedReporter,
 } from './telemetry.js';
 import {
   _testing as boundaryTesting,
@@ -101,15 +103,32 @@ function registerEntry(
   warn?: (message: string) => void
 ) {
   const hooks = new Map<string, unknown>();
+  const gatewayStarts: AgentHook[] = [];
   const tools: ToolFactory[] = [];
   // The registration snapshot is `api.config`; a reload changes only what
   // `api.runtime.config.current()` returns.
   let liveConfig = config;
+  type AgentEvent = {
+    runId: string;
+    ts: number;
+    stream: string;
+    data: Record<string, unknown>;
+  };
+  let agentEventListener: ((event: AgentEvent) => void) | undefined;
   const runtime: unknown = new Proxy(
     {},
     {
       get(_target, prop) {
         if (prop === 'config') return { current: () => liveConfig };
+        if (prop === 'events')
+          return {
+            onAgentEvent(listener: (event: AgentEvent) => void) {
+              agentEventListener = listener;
+              return () => {
+                agentEventListener = undefined;
+              };
+            },
+          };
         if (prop === 'then' || typeof prop === 'symbol') return undefined;
         return proxy;
       },
@@ -132,7 +151,11 @@ function registerEntry(
         };
       }
       if (prop === 'on') {
-        return (name: string, handler: unknown) => hooks.set(name, handler);
+        return (name: string, handler: unknown) => {
+          if (name === 'gateway_start')
+            gatewayStarts.push(handler as AgentHook);
+          hooks.set(name, handler);
+        };
       }
       if (prop === 'toString' || prop === 'valueOf') return () => '[api]';
       if (prop === 'then' || typeof prop === 'symbol') return undefined;
@@ -159,6 +182,16 @@ function registerEntry(
     prepare: hooks.get('agent_turn_prepare') as AgentHook,
     modelCallStarted: hooks.get('model_call_started') as AgentHook,
     agentEnd: hooks.get('agent_end') as AgentHook,
+    gatewayStart: async (event: Record<string, unknown>, ctx: Ctx) => {
+      for (const hook of gatewayStarts) await hook(event, ctx);
+    },
+    afterToolCall: hooks.get('after_tool_call') as AgentHook,
+    llmOutput: hooks.get('llm_output') as AgentHook,
+    emitAgentEvent: (event: AgentEvent) => agentEventListener?.(event),
+    messageSent: hooks.get('message_sent') as (
+      event: Record<string, unknown>,
+      ctx: Ctx & { channelId?: string }
+    ) => void,
   };
 }
 
@@ -1238,6 +1271,74 @@ describe('before_tool_call turn identity', () => {
       }
     });
 
+    it('counts final calls and usage once after retries, including failed runs without a ledger', async () => {
+      const harness = registerEntry(OWNER);
+      const event = vi.fn();
+      setHeartbeatRunEndedReporter(event);
+      const terminal = (runId: string, phase = 'end') =>
+        harness.emitAgentEvent({
+          runId,
+          ts: Date.now(),
+          stream: 'lifecycle',
+          data: { phase },
+        });
+      try {
+        await harness.gatewayStart({}, {});
+        const ctx = await heartbeat(harness);
+        await harness.modelCallStarted({}, ctx);
+        await harness.llmOutput({ usage: { input: 10, output: 1 } }, ctx);
+        await harness.agentEnd({ success: false }, ctx);
+        expect(event).not.toHaveBeenCalled();
+
+        await heartbeat(harness);
+        await harness.modelCallStarted({}, ctx);
+        await harness.afterToolCall({ toolName: 'read' }, ctx);
+        await harness.modelCallStarted({}, ctx);
+        await harness.llmOutput(
+          { usage: { input: 20, output: 5, cacheRead: 8 } },
+          ctx
+        );
+        await harness.agentEnd({ success: true }, ctx);
+        terminal(ctx.runId);
+        terminal(ctx.runId);
+        expect(event).toHaveBeenCalledOnce();
+        expect(event).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            runId: ctx.runId,
+            modelCalls: 3,
+            toolCalls: 1,
+            inputTokens: 30,
+            outputTokens: 6,
+            cacheReadTokens: 8,
+            cacheWriteTokens: null,
+            success: true,
+            packetBytes: 0,
+            ledgerRecorded: false,
+            selected: 0,
+          })
+        );
+
+        const failure = await heartbeat(harness, 'failed-heartbeat');
+        terminal(failure.runId, 'error');
+        expect(event).toHaveBeenCalledTimes(2);
+        expect(event).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            runId: failure.runId,
+            success: false,
+            ledgerRecorded: false,
+            inputTokens: null,
+          })
+        );
+        await heartbeat(harness, 'cron-wake', 'cron');
+        terminal('cron-wake');
+        await harness.prepare({}, { runId: 'interactive', trigger: 'user' });
+        terminal('interactive');
+        expect(event).toHaveBeenCalledTimes(2);
+      } finally {
+        setHeartbeatRunEndedReporter(null);
+      }
+    });
+
     it.each(['activity mentions', 'activity unread'])(
       'runs %s as the owner, with no rewrite',
       async (command) => {
@@ -1347,6 +1448,72 @@ describe('before_tool_call turn identity', () => {
       await expect(gate(harness, 'message', message, ctx)).resolves.toEqual(
         SEAL
       );
+    });
+
+    describe('message_sent labelling', () => {
+      const sent = vi.fn();
+      beforeEach(() => {
+        sent.mockClear();
+        setHeartbeatMessageSentReporter(sent);
+      });
+      afterEach(() => setHeartbeatMessageSentReporter(null));
+
+      const deliver = (
+        harness: ReturnType<typeof registerEntry>,
+        overrides: Record<string, unknown> = {},
+        sessionKey = HB
+      ) =>
+        harness.messageSent(
+          {
+            to: '~zod',
+            content: 'private heartbeat text',
+            success: true,
+            messageId: '~nec/170.141',
+            sessionKey,
+            ...overrides,
+          },
+          { channelId: 'tlon', sessionKey }
+        );
+
+      it("labels a heartbeat run's delivery to the owner", async () => {
+        const harness = registerEntry(OWNER);
+        const ctx = await heartbeat(harness);
+        await harness.agentEnd({}, ctx);
+        deliver(harness, { to: 'dm/~ZOD' });
+        expect(sent).toHaveBeenCalledExactlyOnceWith({
+          messageId: '~nec/170.141',
+          runId: 'hb-1',
+        });
+      });
+
+      it.each([
+        ['a failed send', { success: false }],
+        ['a send to someone else', { to: '~bus' }],
+        ['a send to a channel', { to: 'chat/~zod/general' }],
+        ['a send with no message id', { messageId: undefined }],
+      ])('does not label %s', async (_name, overrides) => {
+        const harness = registerEntry(OWNER);
+        await heartbeat(harness);
+        deliver(harness, overrides);
+        expect(sent).not.toHaveBeenCalled();
+      });
+
+      it('does not label a reply to a user turn', async () => {
+        const harness = registerEntry(OWNER);
+        const dm = 'agent:main:tlon:direct:~zod';
+        inbound('owner', 'run-1', dm);
+        await harness.prepare({}, { sessionKey: dm, runId: 'run-1' });
+        deliver(harness, {}, dm);
+        expect(sent).not.toHaveBeenCalled();
+      });
+
+      it('does not label a cron turn that ran after a heartbeat on its session', async () => {
+        const harness = registerEntry(OWNER);
+        await heartbeat(harness);
+        await heartbeat(harness, 'cron-1', 'cron');
+        deliver(harness);
+        expect(sent).not.toHaveBeenCalled();
+      });
     });
 
     describe('a sealed run', () => {

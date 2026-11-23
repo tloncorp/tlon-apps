@@ -1,3 +1,4 @@
+import type { HeartbeatRunEnded } from './heartbeat-run.js';
 import type { HeartbeatLedgerReceipt } from './heartbeat-ledger.js';
 
 import type { CampaignEvent } from './monitor/campaign/runner.js';
@@ -111,6 +112,13 @@ export type ToolUsageSummary = {
 };
 
 export type TlonHeartbeatRunEvent = HeartbeatLedgerReceipt & {
+  ownerShip: string;
+  botShip: string;
+};
+
+export type HeartbeatMessageSent = { messageId: string; runId: string };
+
+export type TlonHeartbeatMessageSentEvent = HeartbeatMessageSent & {
   ownerShip: string;
   botShip: string;
 };
@@ -743,6 +751,10 @@ export interface TlonTelemetryClient {
   captureGatewayConnected(event: TlonGatewayConnectedEvent): void;
   startReply(params: TlonReplyTelemetryStart): TlonReplyTelemetrySession;
   captureHeartbeatRun(event: TlonHeartbeatRunEvent): void;
+  captureHeartbeatRunEnded(
+    event: HeartbeatRunEnded & { ownerShip: string; botShip: string }
+  ): void;
+  captureHeartbeatMessageSent(event: TlonHeartbeatMessageSentEvent): void;
   captureHeartbeatNudge(event: TlonHeartbeatNudgeEvent): void;
   captureHeartbeatReengagement(event: TlonHeartbeatReengagementEvent): void;
   captureSessionLifecycle(event: TlonSessionLifecycleEvent): void;
@@ -2482,6 +2494,31 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
     });
   }
 
+  captureHeartbeatRunEnded(
+    event: HeartbeatRunEnded & { ownerShip: string; botShip: string }
+  ): void {
+    if (!this.ensureIdentified(event.ownerShip, event.botShip)) return;
+    this.client.capture({
+      distinctId: event.ownerShip,
+      event: 'TlonBot Heartbeat Run Ended',
+      properties: this.properties(event),
+    });
+  }
+
+  captureHeartbeatMessageSent(event: TlonHeartbeatMessageSentEvent): void {
+    if (!this.ensureIdentified(event.ownerShip, event.botShip)) return;
+    this.client.capture({
+      distinctId: event.ownerShip,
+      event: 'TlonBot Heartbeat Message Sent',
+      properties: this.properties({
+        ownerShip: event.ownerShip,
+        botShip: event.botShip,
+        messageId: event.messageId,
+        runId: event.runId,
+      }),
+    });
+  }
+
   captureHeartbeatNudge(event: TlonHeartbeatNudgeEvent): void {
     if (!this.ensureIdentified(event.ownerShip, event.botShip)) {
       return;
@@ -2800,6 +2837,34 @@ export function setHeartbeatRunReporter(
 
 export function reportHeartbeatRun(event: HeartbeatLedgerReceipt): void {
   heartbeatRunReporterSlot.get()?.(event);
+}
+
+const heartbeatRunEndedReporterSlot = sharedSlot<
+  (event: HeartbeatRunEnded) => void
+>('telemetry.heartbeatRunEndedReporter');
+
+export function setHeartbeatRunEndedReporter(
+  reporter: ((event: HeartbeatRunEnded) => void) | null
+): void {
+  heartbeatRunEndedReporterSlot.set(reporter);
+}
+
+export function reportHeartbeatRunEnded(event: HeartbeatRunEnded): void {
+  heartbeatRunEndedReporterSlot.get()?.(event);
+}
+
+const heartbeatMessageSentReporterSlot = sharedSlot<
+  (event: HeartbeatMessageSent) => void
+>('telemetry.heartbeatMessageSentReporter');
+
+export function setHeartbeatMessageSentReporter(
+  reporter: ((event: HeartbeatMessageSent) => void) | null
+): void {
+  heartbeatMessageSentReporterSlot.set(reporter);
+}
+
+export function reportHeartbeatMessageSent(event: HeartbeatMessageSent): void {
+  heartbeatMessageSentReporterSlot.get()?.(event);
 }
 
 const errorTelemetryReporterSlot = sharedSlot<ErrorTelemetryReporter>(
