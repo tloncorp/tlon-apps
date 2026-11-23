@@ -229,10 +229,18 @@ pointing at the new type then fails its test.
 
 When you add a migration step:
 
-1. Freeze the agent's current saved shape as a named shape: the head's
-   `state-0` in `sur/harness-store.hoon`, or the Tlon hand's `state-2` in
+1. Freeze the shape being replaced under its own name, beside the agent's
+   earlier shapes: `state-m0` and the head's others in
+   `sur/harness-store.hoon`, with `state-before-maintenance` in
+   `lib/harness-store.hoon`; the Tlon hand's `state-0` and `state-1` in
+   `lib/harness-tlon-migrate.hoon`. The current shapes are the head's
+   `state-0` in `sur/harness-store.hoon` and the Tlon hand's `state-2` in
    `sur/harness-tlon.hoon`.
-2. Keep its populated fixture as the new step's input.
+2. Move the populated fixture to the new shape, with a distinct value in
+   every new field. Add a projection of it onto the frozen shape as the new
+   step's input, beside the others in `tests/harness-upgrade.hoon` or
+   `tests/harness-tlon-upgrade.hoon`. Where the step drops or re-keys data,
+   the projection writes the old form by hand.
 3. Write the expected value as that step's transformation of the input.
 4. Delete one field copy from the step and check that its test fails.
 
@@ -241,29 +249,32 @@ When you add a migration step:
 defaults to `HEAD`, so a local run upgrades from the last commit to the
 working tree's build. CI sets the branch a pull request merges into, the
 commit a push to develop replaced, or for a manual run the previous commit.
-The script commits the base build over cleared agents, seeds them with the
-base tree's copy of the script, and commits this build over the seeded state.
-Each commit must raise the desk's revision by one, since Clay keeps the old
-desk when an agent cannot load its state. Each agent must have reloaded
-exactly when its built code changed, and this tree's copy of the script then
-checks every seeded value that Harness reads back, key by key, against the
-manifest the seed wrote; provider keys, which no read returns, are not checked.
-Identical desks record `pass (no desk change)`. A base that differs and lacks
-the script fails: choose a base that contains it. After a failure the script
-puts the ship back on this build, clearing the agents first if the ship ran
-the base, and stops the run only if that fails. Then, and after identical
-desks, the agents are cleared, as for any other script; after a passing
-upgrade they keep the upgraded state. Either way this tree's script then seeds
-afresh and checks its own manifest. The seed enables the Tlon hand with `~lux`
-as its owner, has `~lux` send it a DM command, which calls no model, and adds a
-reminder from that conversation, so a head whose load asks the adapter
-something meets the base's adapter. If that adapter cannot answer, the head
-commit is refused. The check reads the reminder's saved state and forces no
-poll, so `active` after the upgrade does not show that the upgraded adapter
-still authorizes it. The seed's `tlon.dm.*` and `schedules.tlon.*` keys are
-`newer` keys and move to `baseline` once a base seeds them. When saved state
-gains a value that an interface can set, seed it and add its key to the
-script's `newer` keys; it moves to `baseline` once a base seeds it.
+The script commits the base build over cleared, suspended agents, so no agent
+runs until the desk is revived, and `%harness-tlon` starting then shows the
+base build works. It seeds them with the base tree's copy of the script and
+commits this build over the seeded state. Each commit must raise the desk's
+revision by one; for this build's, that also shows the agents loaded the seeded
+state, since Clay keeps the old desk when an agent cannot load its state. Each
+agent must have reloaded exactly when its built code changed, and this tree's
+copy of the script then checks every seeded value that Harness reads back, key
+by key, against the manifest the seed wrote; provider keys, which no read
+returns, are not checked. Identical desks record `pass (no desk change)`. A
+base that differs and lacks the script fails: choose a base that contains it.
+After a failure the script puts the ship back on this build, clearing the
+agents first if the ship ran the base, and stops the run only if that fails.
+Then, and after identical desks, the agents are cleared, as for any other
+script; after a passing upgrade they keep the upgraded state. Either way this
+tree's script then seeds afresh and checks its own manifest. The seed enables
+the Tlon hand with `~lux` as its owner, has `~lux` send it a DM command, which
+calls no model, and adds a reminder from that conversation, so a head whose
+load asks the adapter something meets the base's adapter. If that adapter
+cannot answer, the head commit is refused. The check reads the reminder's saved
+state and forces no poll, so `active` after the upgrade does not show that the
+upgraded adapter still authorizes it. The seed's `tlon.dm.*` and
+`schedules.tlon.*` keys are `newer` keys. When saved state gains a value that
+an interface can set, seed it and add its key to the script's `newer` keys; it
+moves to `baseline` once every long-lived branch (`develop`, `staging` and
+`master`) seeds it.
 
 ## Live conformance
 

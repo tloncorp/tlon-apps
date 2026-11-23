@@ -49,7 +49,7 @@ const baseline = {
   tlon: ['enabled', 'owner', 'trusted', 'response', 'allowed', 'channels'],
 }
 // Keys an older seeder may not emit. Checked when the manifest has them; a key
-// moves to the baseline once the base build's seeder emits it.
+// moves to the baseline once the seeder of every long-lived branch emits it.
 const newer = {
   tlon: ['dm.lane', 'dm.session', 'dm.hand', 'dm.address', 'dm.actors', 'dm.enabled'],
   schedules: ['tlon.binding', 'tlon.actor', 'tlon.kind', 'tlon.state', 'tlon.prompt', 'tlon.schedule', 'tlon.destination'],
@@ -219,8 +219,8 @@ async function seed() {
   // Summary models keep no instructions of their own, so theirs is left empty.
   const summary = (name, size) => ({ url: `${url}/${name}`, model: `${id}-${name}`, headers: headers(name), system: '', 'max-context': size, tools: [] })
   const compaction = summary('compaction', 64001), lcm = summary('lcm', 64002)
-  const grant = { ship: peer, tools: ['web'], inflows: [], budget: 4321, model: null }
-  const server = { id: ids.mcp, name: `${id} server`, url: `http://127.0.0.1:1/${id}/mcp`, headers: [], enabled: false }
+  const grant = { ship: peer, tools: ['web'], inflows: [ids.skill], budget: 4321, model: `${id}-peer-model` }
+  const server = { id: ids.mcp, name: `${id} server`, url: `http://127.0.0.1:1/${id}/mcp`, headers: headers('mcp'), enabled: false }
   const later = new Date(Date.now() + 30 * 86_400_000).toISOString().replace(/\.\d{3}Z$/, 'Z')
   const timer = { sid: ids.session, name: ids.timer, in: 30 * 86_400, every: 7200, prompt: `${id} timer prompt` }
   const policy = {
