@@ -65,6 +65,7 @@ tlon:
     - sur/presence.hoon
     - sur/reel.hoon
     - sur/steward.hoon
+    - sur/steward/automation.hoon
     - sur/steward/gateway.hoon
     - sur/steward/lens.hoon
     - sur/story.hoon

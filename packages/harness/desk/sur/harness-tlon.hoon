@@ -1,5 +1,6 @@
 ::  Tlon-specific state belongs to a hand, never to the semantic head.
-/-  c=channels, a=activity-ver, h=harness, ad=harness-adapter
+/-  c=channels, a=activity-ver, h=harness, ad=harness-adapter, cr=harness-cron
+/-  sa=steward-automation
 |%
 +$  response  ?(%off %mentions %all)
 +$  channel-rule  [response=response everyone=?]
@@ -46,6 +47,17 @@
   ==
 +$  lens-sync
   [enabled=$~(| ?) owner=(unit @p) after=@da records=(map input-id:h lens-record) error=@t]
+::  What a schedule took from a Steward edit: the IANA zone it was created
+::  in, which the head keeps only as an offset, and the name and description
+::  Harness jobs do not have.
++$  task-names  [zone=(unit @t) name=(unit @t) description=(unit @t)]
+::  A Steward edit still applying at the head: the head actions left to
+::  send, in order, the answer once all succeed, and the names to keep then.
++$  task-edit
+  $:  steps=(list action:cr)
+      answer=response-body:v1:sa
+      names=(unit [id=@uv =task-names])
+  ==
 +$  state-2
   $:  %2
       lens=lens-sync
