@@ -20,5 +20,5 @@ export {
   LineStepFrame,
   ONBOARDING_STEP_COUNT,
 } from './line/LineStepFrame';
-export { LINE, LineOutline } from './line/lineKit';
+export { LINE, LINE_TILE_RADIUS, LineOutline } from './line/lineKit';
 export { type LineChoice, LineChoiceList } from './line/LineChoiceList';

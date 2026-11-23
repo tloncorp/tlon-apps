@@ -7,7 +7,8 @@ import { View, XStack, YStack } from 'tamagui';
 
 import { useIsDarkMode } from '../../../../hooks/useDarkMode';
 import { ScreenHeader } from '../../ScreenHeader';
-import { LINE, LineOutline, LineRule } from './lineKit';
+import { OnboardingButton } from '../OnboardingButton';
+import { LINE, LineRule } from './lineKit';
 
 /** Profile, Notifications, Setting up, then the five first-run screens. */
 export const ONBOARDING_STEP_COUNT = 8;
@@ -19,8 +20,20 @@ const DASH_HEIGHT = 2;
 const SUBTITLE_TO_CONTENT_GAP = 32;
 /** A drawing and the list under it sit this far apart. */
 export const ART_TO_CONTENT_GAP = 32;
-/** The buttons at the foot of each screen. */
-export const LINE_BUTTON_HEIGHT = 54;
+/** On the first-run screens, the drawing starts this far under the subtitle. */
+export const ART_TOP_GAP = 54;
+/** There, a bullet list starts this far under the drawing. */
+export const ART_TO_BULLETS_GAP = 34;
+/** And a boxed list, of models or services, this far. */
+export const ART_TO_BOX_GAP = 55;
+/** The main button at the foot of each screen, the welcome screen's. */
+export const LINE_BUTTON_HEIGHT = 72;
+/** A quiet button, its label alone, under the main one. */
+const QUIET_BUTTON_HEIGHT = 44;
+const QUIET_BUTTON_GAP = 4;
+/** Space under the buttons, over the home indicator's inset. */
+const FOOT_GAP = 10;
+const FOOT_GAP_UNDER_QUIET = 2;
 
 /** The progress along the top: one short dash per step, the current one ink. */
 export function OnboardingStepDots({ step }: { step: number }) {
@@ -58,8 +71,8 @@ export type LineButtonProps = {
 };
 
 /**
- * The big button at the foot of each screen: square and outlined, never
- * filled. A quiet one is its label alone.
+ * The big button at the foot of each screen: the welcome screen's solid,
+ * rounded button, without its shadow. A quiet one is its label alone.
  */
 export function LineButton({
   label,
@@ -69,6 +82,18 @@ export function LineButton({
   loading,
   testID,
 }: LineButtonProps) {
+  if (tone === 'primary') {
+    return (
+      <OnboardingButton
+        shadow={false}
+        label={label}
+        onPress={onPress}
+        disabled={disabled}
+        loading={loading}
+        testID={testID}
+      />
+    );
+  }
   const inactive = disabled || loading;
   const foreground = disabled ? '$secondaryText' : '$primaryText';
   return (
@@ -85,12 +110,10 @@ export function LineButton({
       testID={testID}
     >
       <XStack
-        height={LINE_BUTTON_HEIGHT}
-        backgroundColor={tone === 'quiet' ? undefined : '$background'}
+        height={QUIET_BUTTON_HEIGHT}
         alignItems="center"
         justifyContent="center"
         gap="$m"
-        paddingHorizontal="$xl"
       >
         <Text
           fontSize={16}
@@ -102,12 +125,6 @@ export function LineButton({
           {label}
         </Text>
         {loading ? <LoadingSpinner size="small" color={foreground} /> : null}
-        {tone === 'quiet' ? null : (
-          <LineOutline
-            radius={0}
-            color={disabled ? '$tertiaryText' : '$primaryText'}
-          />
-        )}
       </XStack>
     </Pressable>
   );
@@ -139,7 +156,10 @@ export function LineStepFrame({
   title: string;
   subtitle?: ReactNode;
   children?: ReactNode;
-  /** How far under the subtitle the content starts. */
+  /**
+   * How far under the subtitle the content starts; less than zero reaches up
+   * into the subtitle's last line.
+   */
   contentGap?: number;
   primary?: LineButtonProps;
   /** A second button, under the first. */
@@ -162,9 +182,12 @@ export function LineStepFrame({
   return (
     <View
       flex={1}
-      backgroundColor="$background"
+      backgroundColor="$secondaryBackground"
       paddingTop={insets.top + 2}
-      paddingBottom={Math.max(insets.bottom, 14) + 10}
+      paddingBottom={
+        Math.max(insets.bottom, 14) +
+        (secondary && !footer ? FOOT_GAP_UNDER_QUIET : FOOT_GAP)
+      }
       testID={testID}
     >
       <XStack
@@ -220,12 +243,12 @@ export function LineStepFrame({
             {subtitle}
           </Text>
         ) : null}
-        <YStack paddingTop={contentGap}>{children}</YStack>
+        <YStack marginTop={contentGap}>{children}</YStack>
       </Scroll>
 
       {footer ??
         (primary ? (
-          <YStack paddingHorizontal="$2xl" gap={10}>
+          <YStack paddingHorizontal="$2xl" gap={QUIET_BUTTON_GAP}>
             <LineButton {...primary} />
             {secondary ? <LineButton tone="quiet" {...secondary} /> : null}
           </YStack>
@@ -280,23 +303,27 @@ export function LineTextLink({
   );
 }
 
-/** A row of the bullet list under a drawing: an icon, then one line. */
+/** The bullet list under a drawing: per row, an icon, then one line. */
 export function LineBulletList({
   items,
 }: {
   items: { icon: ReactNode; label: string }[];
 }) {
   return (
-    <YStack marginHorizontal={40}>
+    <YStack marginHorizontal="$2xl">
       {items.map((item) => (
-        <XStack key={item.label} minHeight={44} alignItems="center" gap={14}>
-          <View width={26} alignItems="center">
-            {item.icon}
-          </View>
+        <XStack
+          key={item.label}
+          minHeight={56}
+          paddingHorizontal={4}
+          alignItems="center"
+          gap={14}
+        >
+          {item.icon}
           <Text
             flex={1}
-            fontSize={17}
-            lineHeight={24}
+            fontSize={16}
+            lineHeight={22}
             letterSpacing={-0.2}
             color="$primaryText"
           >

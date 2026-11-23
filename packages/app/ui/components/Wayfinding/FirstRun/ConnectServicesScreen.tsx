@@ -4,7 +4,12 @@ import { View, XStack, YStack, useTheme } from 'tamagui';
 
 import { McpProviderLogo } from '../../McpProviderLogo';
 import { useOnboardingGlyph } from '../../Onboarding/line/AvatarGlyphPicker';
-import { LineStepFrame } from '../../Onboarding/line/LineStepFrame';
+import { LINE_LIST_RADIUS } from '../../Onboarding/line/LineChoiceList';
+import {
+  ART_TOP_GAP,
+  ART_TO_BOX_GAP,
+  LineStepFrame,
+} from '../../Onboarding/line/LineStepFrame';
 import { LineIcon } from '../../Onboarding/line/lineIcons';
 import { LineOutline, LineRule } from '../../Onboarding/line/lineKit';
 import { ConnectArt } from '../../Onboarding/line/onboardingArt';
@@ -22,8 +27,6 @@ const copy = firstRunCopy.connect;
 const LOGO_SLOT = 32;
 const LOGO_SIZE = 38;
 const BUTTON_HEIGHT = 32;
-/** Dan set the list lower here than under the other drawings. */
-const ART_TO_LIST_GAP = 58;
 
 /**
  * Connect your services. Connecting happens here: Connect opens a short
@@ -87,6 +90,7 @@ export function ConnectServicesScreen({
       onBack={onBack}
       title={copy.title}
       subtitle={copy.subtitle}
+      contentGap={ART_TOP_GAP}
       primary={{
         label: anyConnected ? copy.primaryConnected : copy.primaryNone,
         onPress: onContinue,
@@ -111,24 +115,30 @@ export function ConnectServicesScreen({
         <View
           marginHorizontal="$2xl"
           padding="$xl"
+          borderRadius={LINE_LIST_RADIUS}
           accessibilityLiveRegion="polite"
           testID="first-run-connect-none"
         >
           <Text fontSize={16} lineHeight={24} color="$primaryText">
             {copy.none}
           </Text>
-          <LineOutline radius={0} />
+          <LineOutline radius={LINE_LIST_RADIUS} />
         </View>
       ) : (
         <>
           <ConnectArt
             glyph={glyph}
             services={featured.map((service, index) => ({
-              label: service.access.drawingLabel,
+              icon: service.access.drawingIcon,
               connected: states[index] === 'connected',
             }))}
           />
-          <YStack marginTop={ART_TO_LIST_GAP} marginHorizontal="$2xl">
+          <YStack
+            marginTop={ART_TO_BOX_GAP}
+            marginHorizontal="$2xl"
+            borderRadius={LINE_LIST_RADIUS}
+            overflow="hidden"
+          >
             {featured.map((service, index) => (
               <ServiceRow
                 key={service.row.id}
@@ -178,7 +188,7 @@ export function ConnectServicesScreen({
                 <AllServicesChevron />
               </XStack>
             </Pressable>
-            <LineOutline radius={0} />
+            <LineOutline radius={LINE_LIST_RADIUS} />
           </YStack>
         </>
       )}
@@ -316,7 +326,7 @@ function ServiceRow({
           <View
             height={BUTTON_HEIGHT}
             paddingHorizontal={14}
-            backgroundColor="$background"
+            borderRadius={BUTTON_HEIGHT / 2}
             justifyContent="center"
             opacity={disabled ? 0.5 : 1}
           >
@@ -328,7 +338,7 @@ function ServiceRow({
             >
               {button.label}
             </Text>
-            <LineOutline radius={0} />
+            <LineOutline radius={BUTTON_HEIGHT / 2} />
           </View>
         </Pressable>
       ) : null}

@@ -1,4 +1,3 @@
-import { Text } from '@tloncorp/ui';
 import {
   type ComponentClass,
   type ReactNode,
@@ -42,6 +41,8 @@ import {
 export const LINE = 0.5;
 /** A glyph fills this much of the tile it sits in. */
 export const GLYPH_IN_TILE = 0.625;
+/** The corners of tiles and text fields. */
+export const LINE_TILE_RADIUS = 12;
 /** A glyph's own lines, at the size its tile is drawn. */
 const GLYPH_LINE = 1.6;
 /** The side margin a drawing keeps on a narrow phone. */
@@ -51,7 +52,9 @@ export function useLineColors() {
   const theme = useTheme();
   return {
     ink: theme.primaryText?.val as string,
-    paper: theme.background?.val as string,
+    // Onboarding sits on the welcome screen's ground, so a box's fill hides
+    // what's under it without showing as a white patch.
+    paper: theme.secondaryBackground?.val as string,
   };
 }
 
@@ -178,11 +181,10 @@ export function useLoop(durationMs: number): SharedValue<number> {
 const ArtContext = createContext({ width: 0, height: 0, scale: 1 });
 
 /**
- * A drawing at its design size, scaled down to fit a narrower phone. Labels
- * are app text placed over the lines, so they use the app's mono face.
+ * A drawing at its design size, scaled down to fit a narrower phone.
  *
- * `scale` draws it smaller than its design size: the geometry shrinks, while
- * its lines, labels and hatching keep their size on screen. `foot` is the
+ * `scale` draws it at another size than its design size: the geometry
+ * changes, while its lines and hatching keep their size on screen. `foot` is the
  * drawing's lowest point when that's a line with room under it for its
  * stroke; the box ends there, so what's under the drawing spaces from it.
  * `head` is the design y of its top line: drawings are traced with a unit of
@@ -261,40 +263,6 @@ function useArtLine() {
   return LINE / useContext(ArtContext).scale;
 }
 
-/** A caption's baseline, down from the top of its line. */
-const LABEL_BASELINE = 10.5;
-
-/**
- * A mono caption in a drawing, placed by the start of its baseline like SVG
- * text.
- */
-export function ArtLabel({
-  x,
-  y,
-  children,
-}: {
-  x: number;
-  y: number;
-  children: string;
-}) {
-  const { scale } = useContext(ArtContext);
-  return (
-    <Text
-      position="absolute"
-      top={y * scale - LABEL_BASELINE}
-      left={x * scale}
-      fontFamily="$mono"
-      fontSize={10.5}
-      lineHeight={13}
-      letterSpacing={0.8}
-      color="$primaryText"
-      numberOfLines={1}
-    >
-      {children}
-    </Text>
-  );
-}
-
 /**
  * A box filled with diagonal hatching, the walls of a drawing. Drawn as real
  * lines clipped to the box: an SVG pattern tiles them as broken dashes once
@@ -305,12 +273,14 @@ export function HatchedBox({
   y,
   width,
   height,
+  radius = 0,
   spacing = 5,
 }: {
   x: number;
   y: number;
   width: number;
   height: number;
+  radius?: number;
   /** The distance between lines on screen, measured across them. */
   spacing?: number;
 }) {
@@ -328,10 +298,17 @@ export function HatchedBox({
     <>
       <Defs>
         <ClipPath id={clipId}>
-          <Rect x={x} y={y} width={width} height={height} />
+          <Rect x={x} y={y} width={width} height={height} rx={radius} />
         </ClipPath>
       </Defs>
-      <Rect x={x} y={y} width={width} height={height} fill={paper} />
+      <Rect
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        rx={radius}
+        fill={paper}
+      />
       <G clipPath={`url(#${clipId})`}>
         <Path d={lines.join('')} stroke={ink} strokeWidth={line} />
       </G>
@@ -340,6 +317,7 @@ export function HatchedBox({
         y={y}
         width={width}
         height={height}
+        rx={radius}
         fill="none"
         stroke={ink}
         strokeWidth={line}
@@ -524,24 +502,28 @@ function circlePath(cx: number, cy: number, r: number) {
   return `M${cx - r} ${cy}A${r} ${r} 0 1 0 ${cx + r} ${cy}A${r} ${r} 0 1 0 ${cx - r} ${cy}Z`;
 }
 
-/** The Tlonbot: your glyph, solid, in a thin square tile. */
+/** The Tlonbot: your glyph, solid, in a thin rounded tile. */
 export function BotTile({
   glyph,
   x,
   y,
   size,
+  radius = LINE_TILE_RADIUS,
+  glyphSize,
   glyphLineWidth,
 }: {
   glyph: AvatarGlyphId;
   x: number;
   y: number;
   size: number;
+  radius?: number;
+  glyphSize?: number;
   glyphLineWidth?: number;
 }) {
   const { ink, paper } = useLineColors();
   const line = useArtLine();
-  const glyphSize = size * GLYPH_IN_TILE;
-  const inset = (size - glyphSize) / 2;
+  const glyphDrawn = glyphSize ?? size * GLYPH_IN_TILE;
+  const inset = (size - glyphDrawn) / 2;
   return (
     <>
       <Rect
@@ -549,6 +531,7 @@ export function BotTile({
         y={y}
         width={size}
         height={size}
+        rx={radius}
         fill={paper}
         stroke={ink}
         strokeWidth={line}
@@ -557,7 +540,7 @@ export function BotTile({
         glyph={glyph}
         x={x + inset}
         y={y + inset}
-        size={glyphSize}
+        size={glyphDrawn}
         variant="solid"
         lineWidth={glyphLineWidth}
       />
@@ -576,13 +559,18 @@ export function ArtBox({
   y,
   width,
   height,
+  radius = 0,
   fill,
+  dash,
 }: {
   x: number;
   y: number;
   width: number;
   height: number;
+  radius?: number;
   fill?: string;
+  /** A still dash, for an empty place. */
+  dash?: [number, number];
 }) {
   const { ink, paper } = useLineColors();
   const line = useArtLine();
@@ -592,6 +580,8 @@ export function ArtBox({
       y={y}
       width={width}
       height={height}
+      rx={radius}
+      strokeDasharray={dash}
       fill={fill ?? paper}
       stroke={ink}
       strokeWidth={line}
@@ -599,20 +589,25 @@ export function ArtBox({
   );
 }
 
-/** A line with a small solid arrowhead at its end. */
+/**
+ * A line with a small solid arrowhead at its end. With `via`, it bends
+ * through those points first, and the head points along the last leg.
+ */
 export function ArtArrow({
   from,
   to,
+  via = [],
   dashed = false,
 }: {
   from: [number, number];
   to: [number, number];
+  via?: [number, number][];
   /** Marching dashes up to the head, for a way not taken yet. */
   dashed?: boolean;
 }) {
   const { ink } = useLineColors();
   const line = useArtLine();
-  const [x1, y1] = from;
+  const [x1, y1] = via.length ? via[via.length - 1] : from;
   const [x2, y2] = to;
   const length = Math.hypot(x2 - x1, y2 - y1);
   const ux = (x2 - x1) / length;
@@ -621,13 +616,15 @@ export function ArtArrow({
   const bx = x2 - ux * 5;
   const by = y2 - uy * 5;
   const head = `M${x2} ${y2}L${bx - uy * 1.9} ${by + ux * 1.9}L${bx + uy * 1.9} ${by - ux * 1.9}Z`;
-  const shaft = `M${x1} ${y1}L${bx} ${by}`;
+  const shaft = `M${from[0]} ${from[1]}${via
+    .map(([x, y]) => `L${x} ${y}`)
+    .join('')}L${bx} ${by}`;
   return (
     <>
       {dashed ? (
         <MarchingPath d={shaft} />
       ) : (
-        <Path d={shaft} stroke={ink} strokeWidth={line} />
+        <Path d={shaft} stroke={ink} strokeWidth={line} fill="none" />
       )}
       <Path d={head} fill={ink} />
     </>
@@ -671,6 +668,7 @@ export function MarchingBox({
   y,
   width,
   height,
+  radius = 0,
   dash = [4, 3],
   durationMs = 1000,
 }: {
@@ -678,6 +676,7 @@ export function MarchingBox({
   y: number;
   width: number;
   height: number;
+  radius?: number;
   dash?: [number, number];
   durationMs?: number;
 }) {
@@ -694,6 +693,7 @@ export function MarchingBox({
       y={y}
       width={width}
       height={height}
+      rx={radius}
       fill={paper}
       stroke={ink}
       strokeWidth={line}
@@ -750,94 +750,6 @@ export function Packet({
       width={4}
       height={4}
       fill={ink}
-      animatedProps={animatedProps}
-    />
-  );
-}
-
-/** A box that fades in and out once a loop, the bot looking for you. */
-export function PulseRing({
-  x,
-  y,
-  size,
-  durationMs = 3600,
-}: {
-  x: number;
-  y: number;
-  size: number;
-  durationMs?: number;
-}) {
-  const { ink } = useLineColors();
-  const line = useArtLine();
-  const reduceMotion = useReducedMotion();
-  const t = useLoop(durationMs);
-  const animatedProps = useAnimatedProps(() => {
-    const p = t.value;
-    const opacity =
-      p < 0.22
-        ? 0
-        : p < 0.26
-          ? (p - 0.22) / 0.04
-          : p < 0.52
-            ? 1
-            : p < 0.64
-              ? 1 - (p - 0.52) / 0.12
-              : 0;
-    return { opacity };
-  });
-  if (reduceMotion) return null;
-  return (
-    <AnimatedRect
-      x={x}
-      y={y}
-      width={size}
-      height={size}
-      fill="none"
-      stroke={ink}
-      strokeWidth={line}
-      animatedProps={animatedProps}
-    />
-  );
-}
-
-/**
- * A line that writes itself in, holds, then fades, like a message being
- * typed. Still and fully drawn with Reduce Motion on.
- */
-export function TypedLine({
-  x1,
-  x2,
-  y,
-  delayMs = 0,
-  durationMs = 4800,
-}: {
-  x1: number;
-  x2: number;
-  y: number;
-  delayMs?: number;
-  durationMs?: number;
-}) {
-  const { ink } = useLineColors();
-  const line = useArtLine();
-  const reduceMotion = useReducedMotion();
-  const t = useLoop(durationMs);
-  const length = x2 - x1;
-  const offset = delayMs / durationMs;
-  const easeOut = Easing.bezierFn(0, 0, 0.58, 1);
-  const animatedProps = useAnimatedProps(() => {
-    if (reduceMotion) return { strokeDashoffset: 0, opacity: 1 };
-    let p = (t.value - offset) % 1;
-    if (p < 0) p += 1;
-    const drawn = p < 0.12 ? easeOut(p / 0.12) : 1;
-    const opacity = p < 0.8 ? 1 : p < 0.9 ? 1 - (p - 0.8) / 0.1 : 0;
-    return { strokeDashoffset: length * (1 - drawn), opacity };
-  });
-  return (
-    <AnimatedPath
-      d={`M${x1} ${y}L${x2} ${y}`}
-      stroke={ink}
-      strokeWidth={line}
-      strokeDasharray={[length, length]}
       animatedProps={animatedProps}
     />
   );

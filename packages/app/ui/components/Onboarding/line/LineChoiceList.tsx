@@ -15,6 +15,8 @@ export type LineChoice = {
 
 const RADIO = 20;
 const RADIO_DOT = 10;
+/** The box's corners, as on the rest of onboarding's larger shapes. */
+export const LINE_LIST_RADIUS = 16;
 /** Row heights by how many lines of text a row has. */
 const ROW_HEIGHT = [56, 68, 88];
 
@@ -40,6 +42,8 @@ export function LineChoiceList({
     <YStack
       marginTop={marginTop}
       marginHorizontal="$2xl"
+      borderRadius={LINE_LIST_RADIUS}
+      overflow="hidden"
       accessibilityRole="radiogroup"
       accessibilityLabel={accessibilityLabel}
     >
@@ -52,7 +56,7 @@ export function LineChoiceList({
           onPress={() => onSelect(choice.id)}
         />
       ))}
-      <LineOutline radius={0} />
+      <LineOutline radius={LINE_LIST_RADIUS} />
     </YStack>
   );
 }

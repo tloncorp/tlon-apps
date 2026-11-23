@@ -4,7 +4,8 @@ import { View, XStack, useTheme } from 'tamagui';
 
 import { useOnboardingGlyph } from '../../Onboarding/line/AvatarGlyphPicker';
 import {
-  ART_TO_CONTENT_GAP,
+  ART_TOP_GAP,
+  ART_TO_BOX_GAP,
   LineStepFrame,
 } from '../../Onboarding/line/LineStepFrame';
 import { LineChoiceList } from '../../Onboarding/line/LineChoiceList';
@@ -60,17 +61,18 @@ export function ChooseModelScreen({
         loading: busy,
         testID: 'first-run-primary',
       }}
+      contentGap={ART_TOP_GAP}
       testID="first-run-model"
     >
       <ModelArt
         glyph={glyph}
         choices={rows.map((row) => ({
-          label: row.drawingLabel,
+          kind: row.drawing,
           picked: row.id === pickedId,
         }))}
       />
       <LineChoiceList
-        marginTop={ART_TO_CONTENT_GAP}
+        marginTop={ART_TO_BOX_GAP}
         accessibilityLabel={copy.a11yGroup}
         choices={rows.map((row) => ({
           id: row.id,

@@ -17,7 +17,7 @@ export type LineIconName =
   | 'people'
   | 'chevronRight';
 
-// Drawn on a 24-unit square at 1.6 pt, like the app's icons.
+// Drawn on a 24-unit square, shown at 20 pt with 1.3 pt lines.
 const SHAPES: Record<LineIconName, ReactElement> = {
   apps: (
     <>
@@ -87,9 +87,9 @@ const SHAPES: Record<LineIconName, ReactElement> = {
 
 export function LineIcon({
   name,
-  size = 22,
+  size = 20,
   color,
-  strokeWidth = 1.6,
+  strokeWidth = 1.3,
 }: {
   name: LineIconName;
   size?: number;

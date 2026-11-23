@@ -1,4 +1,5 @@
 import type { LineIconName } from '../../Onboarding/line/lineIcons';
+import type { ServiceDrawingIcon } from '../../Onboarding/line/onboardingArt';
 
 // Every word the first run shows, in one place, so copy can change without
 // touching layout or logic. Names that come from live data (the included
@@ -39,8 +40,8 @@ export type ServiceAccessCopy = {
   account: string;
   /** Who the app is waiting on while it checks a connection. */
   company: string;
-  /** The service's box in the services drawing. */
-  drawingLabel: string;
+  /** What the service's tile in the services drawing shows. */
+  drawingIcon: ServiceDrawingIcon;
 };
 
 // In the order the services screen shows them, three at most. Send Gmail
@@ -57,7 +58,7 @@ export const FIRST_RUN_FEATURED_SERVICES: [string, ServiceAccessCopy][] = [
       access: 'See, edit, share and delete all the calendars you can access.',
       account: 'The Google account you choose next.',
       company: 'Google',
-      drawingLabel: 'CALENDAR',
+      drawingIcon: 'calendar',
     },
   ],
   [
@@ -71,7 +72,7 @@ export const FIRST_RUN_FEATURED_SERVICES: [string, ServiceAccessCopy][] = [
       access: 'Send email as you. It can’t read, change or delete your email.',
       account: 'The Google account you choose next.',
       company: 'Google',
-      drawingLabel: 'MAIL',
+      drawingIcon: 'mail',
     },
   ],
   [
@@ -86,7 +87,7 @@ export const FIRST_RUN_FEATURED_SERVICES: [string, ServiceAccessCopy][] = [
         'Read and change code, issues and pull requests in every repository you can reach, public and private.',
       account: 'The GitHub account you choose next.',
       company: 'GitHub',
-      drawingLabel: 'GITHUB',
+      drawingIcon: 'branch',
     },
   ],
   [
@@ -100,7 +101,7 @@ export const FIRST_RUN_FEATURED_SERVICES: [string, ServiceAccessCopy][] = [
       access: 'Read, create and edit pages in the Notion workspace you pick.',
       account: 'The Notion workspace you choose next.',
       company: 'Notion',
-      drawingLabel: 'NOTION',
+      drawingIcon: 'page',
     },
   ],
 ];
@@ -110,10 +111,10 @@ export const firstRunCopy = {
 
   meet: {
     title: 'Meet your Tlonbot',
-    subtitle: 'It handles the small stuff in the background.',
+    subtitle: 'It handles the important stuff in the background.',
     points: [
       { icon: 'apps', label: 'Uses your email and calendar, if you let it' },
-      { icon: 'phoneOff', label: 'Keeps going when your phone is off' },
+      { icon: 'phoneOff', label: 'Keeps working when your phone is off' },
       { icon: 'clock', label: 'Takes care of the things you do every week' },
     ] satisfies FeaturePoint[],
     primary: 'Next',
@@ -261,7 +262,7 @@ export const firstRunCopy = {
   },
 
   workspace: {
-    title: 'Bring in your friends',
+    title: 'Bring your friends',
     subtitle:
       'Start a workspace to plan things and get them done together. Your Tlonbots help out.',
     points: [

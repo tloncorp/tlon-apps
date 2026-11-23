@@ -2,7 +2,7 @@ import { NodeBootPhase } from '@tloncorp/shared/domain';
 import { LoadingSpinner, Text } from '@tloncorp/ui';
 import type { ReactNode } from 'react';
 import Svg, { Path, Rect } from 'react-native-svg';
-import { View, XStack, YStack } from 'tamagui';
+import { View, XStack, YStack, useTheme } from 'tamagui';
 
 import { useOnboardingGlyph } from './line/AvatarGlyphPicker';
 import { ART_TO_CONTENT_GAP, LineStepFrame } from './line/LineStepFrame';
@@ -129,7 +129,8 @@ export function SettingUpScreen({
 }
 
 function SetupStepRow({ label, state }: { label: string; state: StepState }) {
-  const { paper } = useLineColors();
+  // The check is cut out of its dot in the page's lightest color.
+  const check = useTheme().background?.val as string;
   return (
     <XStack
       // Grows with larger system text sizes.
@@ -143,7 +144,7 @@ function SetupStepRow({ label, state }: { label: string; state: StepState }) {
         width={MARKER}
         height={MARKER}
         borderRadius={MARKER / 2}
-        backgroundColor="$background"
+        backgroundColor="$secondaryBackground"
         alignItems="center"
         justifyContent="center"
       >
@@ -159,7 +160,7 @@ function SetupStepRow({ label, state }: { label: string; state: StepState }) {
             <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
               <Path
                 d="M19 7L10 17L5 12"
-                stroke={paper}
+                stroke={check}
                 strokeWidth={2.6}
                 strokeLinecap="round"
                 strokeLinejoin="round"

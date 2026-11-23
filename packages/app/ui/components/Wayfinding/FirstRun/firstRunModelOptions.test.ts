@@ -116,7 +116,11 @@ describe('the model screen rows', () => {
     expect(rows[0].name).toBe('Built-in');
     expect(rows[0].meta).toBe('Free · OpenAI GPT-5.6 Luna');
     expect(rows[0].detail).toBe('Includes $5 of use every month');
-    expect(rows[0].drawingLabel).toEqual(['BUILT-IN', 'GPT-5.6 LUNA']);
+    expect(rows.map((row) => row.drawing)).toEqual([
+      'included',
+      'subscription',
+      'apiKey',
+    ]);
     const subscriptions = rows[1];
     expect(subscriptions.name).toBe('Your subscription');
     expect(subscriptions.meta).toBe(

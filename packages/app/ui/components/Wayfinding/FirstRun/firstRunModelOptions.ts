@@ -10,6 +10,7 @@ import {
   subscriptionProviderLabel,
 } from '../../../../features/settings/bot/constants';
 import { getModelFormValues } from '../../../../features/settings/bot/helpers';
+import type { ModelDrawingKind } from '../../Onboarding/line/onboardingArt';
 import { buildBotCredentialOptions } from '../botProviderOptions';
 import { firstRunCopy } from './firstRunCopy';
 
@@ -215,8 +216,8 @@ export type FirstRunModelChoiceRow = {
   name: string;
   meta: string;
   detail?: string;
-  /** The row's box in the drawing, two caption lines. */
-  drawingLabel: [string, string];
+  /** What the row's tile in the drawing shows. */
+  drawing: ModelDrawingKind;
   primaryLabel: string;
   row?: FirstRunModelRow;
   plans?: FirstRunModelRow[];
@@ -233,7 +234,7 @@ export function buildModelChoiceRows(
             id: SUBSCRIPTIONS_ROW_ID,
             name: copy.subscriptionsName,
             meta: copy.subscriptionsMeta(section.rows.map((row) => row.name)),
-            drawingLabel: ['OR YOUR', 'SUBSCRIPTION'],
+            drawing: 'subscription',
             primaryLabel: copy.primarySubscriptions,
             plans: section.rows,
           },
@@ -244,10 +245,7 @@ export function buildModelChoiceRows(
           name: section.key === 'included' ? copy.includedName : row.name,
           meta: row.meta,
           detail: row.detail,
-          drawingLabel:
-            section.key === 'included'
-              ? (['BUILT-IN', row.name.toUpperCase()] as [string, string])
-              : (['OR YOUR', 'KEY'] as [string, string]),
+          drawing: section.key === 'included' ? 'included' : 'apiKey',
           primaryLabel: row.primaryLabel,
           row,
         }))

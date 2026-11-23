@@ -1,11 +1,10 @@
-import { G, Rect } from 'react-native-svg';
+import { G } from 'react-native-svg';
 
 import type { AvatarGlyphId } from './avatarGlyphs';
 import {
   ArtArrow,
   ArtBox,
   ArtCanvas,
-  ArtLabel,
   ArtLine,
   ArtSvg,
   BotTile,
@@ -14,15 +13,13 @@ import {
   MarchingBox,
   MarchingPath,
   Packet,
-  PulseRing,
-  TypedLine,
   useLineColors,
 } from './lineKit';
 
-// Each drawing is traced from its board on the onboarding design canvas, in a
-// box cropped to its ink, so the screens can space it from the list under it.
-// The ones with no card under them are drawn smaller than traced, by `scale`,
-// and each ends on an edge of its own, a box's bottom line.
+// Each drawing is traced from its board on the onboarding implementation
+// canvas, in a box cropped to its ink, so the screens can space it from the
+// list under it. Every box and tile has rounded corners, as on the canvas's
+// rounded row.
 
 /** Setting up: your computer's walls, and the Tlonbot still in dashes. */
 export function SetupArt({ glyph }: { glyph: AvatarGlyphId }) {
@@ -30,96 +27,125 @@ export function SetupArt({ glyph }: { glyph: AvatarGlyphId }) {
     <ArtCanvas
       width={242}
       height={242}
-      scale={0.8}
+      scale={0.6}
       foot={241}
       label="Your Tlon computer, with your Tlonbot inside it, still being set up"
     >
       <ArtSvg>
-        <HatchedBox x={1} y={1} width={240} height={240} />
-        <ArtBox x={19} y={19} width={204} height={204} />
-        <MarchingBox x={69} y={69} width={104} height={104} />
+        <HatchedBox x={1} y={1} width={240} height={240} radius={16} />
+        <ArtBox x={19} y={19} width={204} height={204} radius={16} />
+        <MarchingBox x={69} y={69} width={104} height={104} radius={16} />
         <GlyphMark glyph={glyph} x={88.5} y={88.5} size={65} variant="dashed" />
       </ArtSvg>
     </ArtCanvas>
   );
 }
 
-/** Meet your Tlonbot: it reaches your chats, your friends and your apps. */
+/** The three boxes on Meet your Tlonbot, from the top. */
+const MEET_BOXES = [1, 43, 85];
+
+/**
+ * Meet your Tlonbot: arrows from the Tlonbot to chat lines, three people and
+ * a row of apps.
+ */
 export function MeetArt({ glyph }: { glyph: AvatarGlyphId }) {
-  // The tile and the three boxes share a top and a bottom.
-  const boxes = [
-    { y: 1, label: 'YOUR CHATS' },
-    { y: 43, label: 'YOUR FRIENDS' },
-    { y: 85, label: 'YOUR APPS' },
-  ];
   return (
     <ArtCanvas
-      width={346}
+      width={268}
       height={118}
       foot={117}
-      scale={0.85}
-      label="Your Tlonbot, with straight arrows to your chats, your friends and your apps"
+      scale={1.2414}
+      label="Your Tlonbot, with straight arrows to chat lines, three people and a row of apps"
     >
       <ArtSvg>
-        {boxes.map((box) => (
-          <ArtBox key={box.label} x={195} y={box.y} width={150} height={32} />
+        {MEET_BOXES.map((y) => (
+          <ArtBox key={y} x={195} y={y} width={72} height={32} radius={5} />
         ))}
-        {boxes.map((box) => (
-          <ArtArrow
-            key={box.label}
-            from={[127, box.y + 16]}
-            to={[189, box.y + 16]}
+        <ArtLine d="M205 13L241 13M221 21L257 21" />
+        {[213, 231, 249].map((cx) => (
+          <ArtLine
+            key={cx}
+            d={`${circle(cx, 55, 3)}M${cx - 6} 67A6 6 0 0 1 ${cx + 6} 67`}
           />
         ))}
-        <BotTile glyph={glyph} x={1} y={1} size={116} />
-        {boxes.map((box, index) => (
+        {[207, 220, 233, 246].map((x) => (
+          <ArtBox key={x} x={x} y={96.5} width={9} height={9} fill="none" />
+        ))}
+        {MEET_BOXES.map((y) => (
+          <ArtArrow key={y} from={[127, y + 16]} to={[189, y + 16]} />
+        ))}
+        <BotTile
+          glyph={glyph}
+          x={1}
+          y={1}
+          size={116}
+          radius={16}
+          glyphLineWidth={1.6}
+        />
+        {MEET_BOXES.map((y, index) => (
           <Packet
-            key={box.label}
+            key={y}
             x={125}
-            y={box.y + 14}
+            y={y + 14}
             dx={57}
             dy={0}
             delayMs={900 + 200 * index}
           />
         ))}
       </ArtSvg>
-      {boxes.map((box) => (
-        <ArtLabel key={box.label} x={209} y={box.y + 20}>
-          {box.label}
-        </ArtLabel>
-      ))}
     </ArtCanvas>
   );
 }
 
-/** Yours to keep: the Tlonbot inside your computer's walls. */
+/** The rows of dashed lines on Yours to keep, from the top. */
+const KEEP_ROWS = [37, 73, 109];
+
+/**
+ * Yours to keep: the Tlonbot inside your computer's thick walls, with dashed
+ * lines from outside stopping short of them.
+ */
 export function PrivateArt({ glyph }: { glyph: AvatarGlyphId }) {
   return (
     <ArtCanvas
-      width={236}
-      height={236}
-      foot={235}
-      scale={0.7}
-      label="Your Tlonbot inside your computer's thick walls"
+      width={234}
+      height={146}
+      foot={145}
+      label="Your Tlonbot inside your computer's thick walls, with dashed lines from outside stopping short of them"
     >
       <ArtSvg>
-        <HatchedBox x={1} y={1} width={234} height={234} />
-        <ArtBox x={41} y={41} width={154} height={154} />
-        <BotTile glyph={glyph} x={74} y={74} size={88} />
-        <PulseRing x={69} y={69} size={98} />
+        <HatchedBox x={45} y={1} width={144} height={144} radius={16} />
+        <ArtBox x={69} y={25} width={96} height={96} radius={12} />
+        {KEEP_ROWS.map((y) => (
+          <G key={y}>
+            <MarchingPath d={`M1 ${y}L37 ${y}`} />
+            <ArtLine d={`M39 ${y - 5}L39 ${y + 5}`} />
+            <MarchingPath d={`M233 ${y}L197 ${y}`} />
+            <ArtLine d={`M195 ${y - 5}L195 ${y + 5}`} />
+          </G>
+        ))}
+        <BotTile
+          glyph={glyph}
+          x={91}
+          y={47}
+          size={52}
+          glyphSize={34}
+          glyphLineWidth={1}
+        />
       </ArtSvg>
     </ArtCanvas>
   );
 }
 
-/** Where the Tlonbot's tile is on Connect your services: level with MAIL. */
-const CONNECT_TILE = { x: 1, y: 25, size: 64 };
-const CONNECT_BOX = { x: 193, width: 130, height: 32, step: 40 };
+/** What a service's tile on Connect your services shows. */
+export type ServiceDrawingIcon = 'calendar' | 'mail' | 'branch' | 'page';
+
+const CONNECT_BOX = { x: 159, size: 40, step: 52 };
+const CONNECT_TILE = 64;
 
 /**
- * Connect your services: a labeled box per service with a line to it from
- * the Tlonbot, marching until it's connected, then solid, and the box gets a
- * second outline.
+ * Connect your services: a line from the Tlonbot to a tile per service,
+ * marching until it's connected, then solid, and the tile gets a second
+ * outline.
  */
 export function ConnectArt({
   glyph,
@@ -127,50 +153,51 @@ export function ConnectArt({
 }: {
   glyph: AvatarGlyphId;
   /** One entry per featured service, in list order. */
-  services: { label: string; connected: boolean }[];
+  services: { icon: ServiceDrawingIcon; connected: boolean }[];
 }) {
   const count = services.length;
-  const middle = CONNECT_TILE.y + CONNECT_TILE.size / 2;
-  const lastBoxEnd = 1 + CONNECT_BOX.step * (count - 1) + CONNECT_BOX.height;
-  // The drawing ends at its last box, or the tile's foot.
-  const foot = Math.max(lastBoxEnd, CONNECT_TILE.y + CONNECT_TILE.size);
+  // The tile and the column of boxes share a middle.
+  const boxesSpan = CONNECT_BOX.step * (count - 1) + CONNECT_BOX.size;
+  const span = Math.max(boxesSpan, CONNECT_TILE);
+  const boxesTop = 1 + (span - boxesSpan) / 2;
+  const tileY = 1 + (span - CONNECT_TILE) / 2;
+  const middle = 1 + span / 2;
   return (
     <ArtCanvas
-      width={324}
-      height={Math.max(lastBoxEnd + 1, foot)}
-      foot={foot}
+      width={200}
+      height={span + 2}
+      foot={span + 1}
       label={`Your Tlonbot with a line to each service: dashed until you connect it, then solid. ${
         services.filter((service) => service.connected).length
       } of ${count} connected.`}
     >
       <ArtSvg>
-        <BotTile
-          glyph={glyph}
-          x={CONNECT_TILE.x}
-          y={CONNECT_TILE.y}
-          size={CONNECT_TILE.size}
-        />
+        <BotTile glyph={glyph} x={1} y={tileY} size={CONNECT_TILE} />
         {services.map((service, index) => {
-          const top = 1 + CONNECT_BOX.step * index;
-          const d = `M73 ${middle + 16 * (index - (count - 1) / 2)}L${
-            CONNECT_BOX.x - 6
-          } ${top + CONNECT_BOX.height / 2}`;
+          const y = boxesTop + CONNECT_BOX.step * index;
+          const from = middle + 16 * (index - (count - 1) / 2);
+          const to = y + CONNECT_BOX.size / 2;
+          const d =
+            from === to ? `M73 ${from}L153 ${to}` : `M73 ${from}H113V${to}H153`;
           return (
             <G key={index}>
               <ArtBox
                 x={CONNECT_BOX.x}
-                y={top}
-                width={CONNECT_BOX.width}
-                height={CONNECT_BOX.height}
+                y={y}
+                width={CONNECT_BOX.size}
+                height={CONNECT_BOX.size}
+                radius={12}
               />
+              <ServiceIcon icon={service.icon} y={y} />
               {service.connected ? (
                 <>
                   <ArtLine d={d} />
                   <ArtBox
                     x={CONNECT_BOX.x + 3}
-                    y={top + 3}
-                    width={CONNECT_BOX.width - 6}
-                    height={CONNECT_BOX.height - 6}
+                    y={y + 3}
+                    width={CONNECT_BOX.size - 6}
+                    height={CONNECT_BOX.size - 6}
+                    radius={5}
                     fill="none"
                   />
                 </>
@@ -181,138 +208,230 @@ export function ConnectArt({
           );
         })}
       </ArtSvg>
-      {services.map((service, index) => (
-        <ArtLabel
-          key={index}
-          x={CONNECT_BOX.x + 12}
-          y={21 + CONNECT_BOX.step * index}
-        >
-          {service.label}
-        </ArtLabel>
-      ))}
     </ArtCanvas>
   );
 }
 
-const MODEL_BOX = { y: 99, width: 112, height: 44, gap: 9 };
+/** A service's picture inside its 40-unit tile, whose top is at `y`. */
+function ServiceIcon({ icon, y }: { icon: ServiceDrawingIcon; y: number }) {
+  const { ink } = useLineColors();
+  switch (icon) {
+    case 'calendar':
+      return (
+        <>
+          <ArtBox x={170} y={y + 13} width={18} height={16} radius={5} />
+          <ArtLine
+            d={`M170 ${y + 18}L188 ${y + 18}M174.5 ${y + 10}L174.5 ${y + 15}M183.5 ${y + 10}L183.5 ${y + 15}`}
+          />
+          <ArtBox x={181} y={y + 22} width={4} height={4} fill={ink} />
+        </>
+      );
+    case 'mail':
+      return (
+        <>
+          <ArtBox x={169} y={y + 13} width={20} height={14} radius={5} />
+          <ArtLine d={`M169 ${y + 13}L179 ${y + 21}L189 ${y + 13}`} />
+        </>
+      );
+    case 'branch':
+      return (
+        <>
+          <ArtLine
+            d={`${circle(174, y + 13, 2.2)}${circle(174, y + 27, 2.2)}${circle(184, y + 17, 2.2)}M174 ${y + 15.2}L174 ${y + 24.8}M184 ${y + 19.2}C184 ${y + 23} 174 ${y + 21} 174 ${y + 24}`}
+          />
+        </>
+      );
+    case 'page':
+      return (
+        <>
+          <ArtBox x={171} y={y + 10} width={16} height={20} radius={5} />
+          <ArtLine
+            d={`M175 ${y + 16}L183 ${y + 16}M175 ${y + 20}L183 ${y + 20}M175 ${y + 24}L180 ${y + 24}`}
+          />
+        </>
+      );
+  }
+}
+
+/** What a way to get a model on You choose the model shows. */
+export type ModelDrawingKind = 'included' | 'subscription' | 'apiKey';
+
+const MODEL_TILE = { y: 101, size: 44, step: 121 };
 
 /**
- * You choose the model: a labeled box per way to get one, with an arrow to
- * each from the Tlonbot, solid to your pick, which gets a second outline.
+ * You choose the model: arrows down from the Tlonbot to a tile per way to
+ * get a model, solid to your pick, which gets a second outline.
  */
 export function ModelArt({
   glyph,
   choices,
 }: {
   glyph: AvatarGlyphId;
-  /** One entry per row, in list order: the box's two caption lines. */
-  choices: { label: [string, string]; picked: boolean }[];
+  /** One entry per row, in list order. */
+  choices: { kind: ModelDrawingKind; picked: boolean }[];
 }) {
   const count = choices.length;
-  const span = count * MODEL_BOX.width + (count - 1) * MODEL_BOX.gap;
-  const left = 178 - span / 2;
-  const boxX = (index: number) =>
-    left + index * (MODEL_BOX.width + MODEL_BOX.gap);
+  const left = 144 - MODEL_TILE.size / 2 - (MODEL_TILE.step * (count - 1)) / 2;
   return (
     <ArtCanvas
-      width={356}
-      height={MODEL_BOX.y + MODEL_BOX.height + 1}
-      foot={MODEL_BOX.y + MODEL_BOX.height}
+      width={288}
+      height={MODEL_TILE.y + MODEL_TILE.size + 1}
+      foot={MODEL_TILE.y + MODEL_TILE.size}
       label="Your Tlonbot with an arrow to each way to get a model, solid to the one you pick"
     >
       <ArtSvg>
-        <BotTile glyph={glyph} x={150} y={1} size={56} />
+        <BotTile glyph={glyph} x={116} y={1} size={56} />
         {choices.map((choice, index) => {
-          const x = boxX(index);
+          const x = left + MODEL_TILE.step * index;
+          const center = x + MODEL_TILE.size / 2;
+          const start = 144 + 14 * (index - (count - 1) / 2);
           return (
             <G key={index}>
               <ArtBox
                 x={x}
-                y={MODEL_BOX.y}
-                width={MODEL_BOX.width}
-                height={MODEL_BOX.height}
+                y={MODEL_TILE.y}
+                width={MODEL_TILE.size}
+                height={MODEL_TILE.size}
+                radius={12}
               />
+              <ModelIcon kind={choice.kind} x={x} />
               {choice.picked ? (
                 <ArtBox
                   x={x + 3}
-                  y={MODEL_BOX.y + 3}
-                  width={MODEL_BOX.width - 6}
-                  height={MODEL_BOX.height - 6}
+                  y={MODEL_TILE.y + 3}
+                  width={MODEL_TILE.size - 6}
+                  height={MODEL_TILE.size - 6}
+                  radius={5}
                   fill="none"
                 />
               ) : null}
               <ArtArrow
-                from={[178, 65]}
-                to={[x + MODEL_BOX.width / 2, MODEL_BOX.y - 6]}
+                via={
+                  start === center
+                    ? undefined
+                    : [
+                        [start, 80],
+                        [center, 80],
+                      ]
+                }
+                from={[start, 65]}
+                to={[center, MODEL_TILE.y - 6]}
                 dashed={!choice.picked}
               />
             </G>
           );
         })}
       </ArtSvg>
-      {choices.map((choice, index) =>
-        choice.label.map((line, row) => (
-          <ArtLabel
-            key={`${index}-${row}`}
-            x={boxX(index) + 12}
-            y={MODEL_BOX.y + 19 + 16 * row}
-          >
-            {line}
-          </ArtLabel>
-        ))
-      )}
     </ArtCanvas>
   );
 }
 
+/** A way to get a model, drawn inside its 44-unit tile, whose left is `x`. */
+function ModelIcon({ kind, x }: { kind: ModelDrawingKind; x: number }) {
+  const y = MODEL_TILE.y;
+  switch (kind) {
+    case 'included': {
+      const cx = x + 22;
+      const cy = y + 22;
+      return (
+        <ArtLine
+          d={`M${cx} ${cy - 10}Q${cx} ${cy} ${cx + 10} ${cy}Q${cx} ${cy} ${cx} ${cy + 10}Q${cx} ${cy} ${cx - 10} ${cy}Q${cx} ${cy} ${cx} ${cy - 10}Z`}
+        />
+      );
+    }
+    case 'subscription':
+      return (
+        <>
+          <ArtBox
+            x={x + 11}
+            y={y + 14.5}
+            width={22}
+            height={15}
+            radius={5}
+            fill="none"
+          />
+          <ArtLine
+            d={`M${x + 11} ${y + 19}L${x + 33} ${y + 19}M${x + 15} ${y + 25.5}L${x + 21} ${y + 25.5}`}
+          />
+        </>
+      );
+    case 'apiKey':
+      return (
+        <ArtLine
+          d={`${circle(x + 15, y + 22, 5)}M${x + 20} ${y + 22}L${x + 34} ${y + 22}M${x + 29} ${y + 22}L${x + 29} ${y + 26.5}M${x + 34} ${y + 22}L${x + 34} ${y + 28}`}
+        />
+      );
+  }
+}
+
+const CHAT_BUBBLES = [
+  { x: 21, y: 27 },
+  { x: 45, y: 52.33 },
+  { x: 21, y: 77.67 },
+  { x: 45, y: 103 },
+];
+const SHARED_FILES = [149, 185, 221];
+
 /**
- * Start a workspace: a plan of the home group, its chat and its Updates
- * notebook, with the Tlonbot inside and a door in the top wall.
+ * Bring your friends: a workspace in three panels, a chat, a row of shared
+ * files, and under them the Tlonbot, a friend and an open seat.
  */
 export function WorkspaceArt({ glyph }: { glyph: AvatarGlyphId }) {
-  const { paper } = useLineColors();
-  const notes = [59, 107];
-  // The door is a gap in the top wall, so the double wall is the bottom edge.
   return (
     <ArtCanvas
-      width={356}
-      height={212}
-      foot={211}
-      scale={0.85}
-      label="A plan of your workspace: a chat with your Tlonbot in it, an Updates notebook, and a door in its wall"
+      width={266}
+      height={146}
+      foot={145}
+      label="A workspace in three panels: a chat, a row of shared files, and below them your Tlonbot, a friend and an open seat"
     >
       <ArtSvg>
-        <ArtBox x={1} y={1} width={354} height={210} fill="none" />
-        <ArtBox x={6} y={6} width={344} height={200} fill="none" />
-        <Rect x={223} y={0.5} width={60} height={6} fill={paper} />
-        <ArtLine d="M223 1L223 7" />
-        <ArtLine d="M283 1L283 7" />
-        <ArtLine d="M175 7L175 127" />
-        <ArtLine d="M181 7L181 127" />
-        <ArtLine d="M175 127L181 127" />
-        <TypedLine x1={23} x2={135} y={58} />
-        <TypedLine x1={23} x2={101} y={82} delayMs={600} />
-        <TypedLine x1={63} x2={159} y={106} delayMs={1200} />
-        {notes.map((y) => (
-          <ArtBox key={`card-${y}`} x={201} y={y} width={122} height={38} />
+        <ArtBox x={1} y={1} width={264} height={144} radius={16} />
+        <ArtBox x={9} y={9} width={120} height={128} radius={16} fill="none" />
+        <ArtBox x={137} y={9} width={120} height={60} radius={12} fill="none" />
+        <ArtBox
+          x={137}
+          y={77}
+          width={120}
+          height={60}
+          radius={12}
+          fill="none"
+        />
+        {SHARED_FILES.map((x) => (
+          <HatchedBox key={x} x={x} y={27} width={24} height={24} radius={5} />
         ))}
-        {notes.map((y) => (
-          <ArtLine key={`title-${y}`} d={`M209 ${y + 13}L251 ${y + 13}`} />
+        {CHAT_BUBBLES.map(({ x, y }) => (
+          <G key={y}>
+            <ArtBox x={x} y={y} width={72} height={16} radius={5} />
+            <ArtLine d={`M${x + 6} ${y + 8}L${x + 66} ${y + 8}`} />
+          </G>
         ))}
-        {notes.map((y) => (
-          <ArtLine key={`body-${y}`} d={`M209 ${y + 25}L311 ${y + 25}`} />
-        ))}
-        <BotTile glyph={glyph} x={27} y={133} size={52} />
+        <BotTile
+          glyph={glyph}
+          x={149}
+          y={95}
+          size={24}
+          radius={5}
+          glyphSize={17}
+          glyphLineWidth={0.75}
+        />
+        <ArtBox x={185} y={95} width={24} height={24} radius={5} fill="none" />
+        <ArtLine d={`${circle(197, 102, 3)}M191 114A6 6 0 0 1 203 114`} />
+        <ArtBox
+          x={221}
+          y={95}
+          width={24}
+          height={24}
+          radius={5}
+          fill="none"
+          dash={[3, 2]}
+        />
+        <ArtLine d="M229 107L237 107M233 103L233 111" />
       </ArtSvg>
-      <ArtLabel x={21} y={33}>
-        # CHAT
-      </ArtLabel>
-      <ArtLabel x={199} y={33}>
-        UPDATES
-      </ArtLabel>
-      <ArtLabel x={91} y={165}>
-        TLONBOT
-      </ArtLabel>
     </ArtCanvas>
   );
+}
+
+/** A circle as path data, so it can share a path with other lines. */
+function circle(cx: number, cy: number, r: number) {
+  return `M${cx - r} ${cy}A${r} ${r} 0 1 0 ${cx + r} ${cy}A${r} ${r} 0 1 0 ${cx - r} ${cy}Z`;
 }

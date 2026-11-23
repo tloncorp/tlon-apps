@@ -1,7 +1,7 @@
 import { Pressable, Text } from '@tloncorp/ui';
 import * as db from '@tloncorp/shared/db';
 import { useEffect, useRef } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, useWindowDimensions } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -20,10 +20,17 @@ import {
   PICKED_GLYPH_LINE,
   isAvatarGlyphId,
 } from './avatarGlyphs';
-import { GlyphMark, LINE, useLineColors } from './lineKit';
+import {
+  GLYPH_IN_TILE,
+  GlyphMark,
+  LINE,
+  LINE_TILE_RADIUS,
+  useLineColors,
+} from './lineKit';
 
-const TILE = 72;
-const GLYPH = 45;
+/** The row spans the name field's width, its tiles this far apart. */
+const ROW_MARGIN = 24;
+const TILE_GAP = 12;
 /**
  * The canvas's pick: a 0.12 s crossfade on CSS `ease-out`, so the tile is
  * solid by the bottom of the press.
@@ -55,9 +62,11 @@ export function useOnboardingGlyph(): AvatarGlyphId {
 export function AvatarGlyphTile({
   glyph,
   selected,
+  size,
 }: {
   glyph: AvatarGlyphId;
   selected: boolean;
+  size: number;
 }) {
   const reduceMotion = useReducedMotion();
   const picked = useSharedValue(selected ? 1 : 0);
@@ -86,12 +95,12 @@ export function AvatarGlyphTile({
     transform: [{ scale: scale.value }],
   }));
   return (
-    <Animated.View style={[{ width: TILE, height: TILE }, bounceStyle]}>
+    <Animated.View style={[{ width: size, height: size }, bounceStyle]}>
       <Animated.View style={[StyleSheet.absoluteFill, unpickedStyle]}>
-        <TileFace glyph={glyph} selected={false} />
+        <TileFace glyph={glyph} selected={false} size={size} />
       </Animated.View>
       <Animated.View style={[StyleSheet.absoluteFill, pickedStyle]}>
-        <TileFace glyph={glyph} selected />
+        <TileFace glyph={glyph} selected size={size} />
       </Animated.View>
     </Animated.View>
   );
@@ -100,22 +109,26 @@ export function AvatarGlyphTile({
 function TileFace({
   glyph,
   selected,
+  size,
 }: {
   glyph: AvatarGlyphId;
   selected: boolean;
+  size: number;
 }) {
   const { ink, paper } = useLineColors();
-  const inset = (TILE - GLYPH) / 2;
+  const glyphSize = size * GLYPH_IN_TILE;
+  const inset = (size - glyphSize) / 2;
   return (
-    <Svg width={TILE} height={TILE}>
+    <Svg width={size} height={size}>
       {selected ? (
-        <Rect width={TILE} height={TILE} fill={ink} />
+        <Rect width={size} height={size} rx={LINE_TILE_RADIUS} fill={ink} />
       ) : (
         <Rect
           x={LINE / 2}
           y={LINE / 2}
-          width={TILE - LINE}
-          height={TILE - LINE}
+          width={size - LINE}
+          height={size - LINE}
+          rx={LINE_TILE_RADIUS}
           fill={paper}
           stroke={ink}
           strokeWidth={LINE}
@@ -125,7 +138,7 @@ function TileFace({
         glyph={glyph}
         x={inset}
         y={inset}
-        size={GLYPH}
+        size={glyphSize}
         variant={selected ? 'inverse' : 'line'}
         lineWidth={PICKED_GLYPH_LINE}
       />
@@ -141,6 +154,9 @@ export function AvatarGlyphPicker({
   value: AvatarGlyphId;
   onChange: (glyph: AvatarGlyphId) => void;
 }) {
+  const { width } = useWindowDimensions();
+  const count = AVATAR_GLYPH_IDS.length;
+  const tile = (width - 2 * ROW_MARGIN - (count - 1) * TILE_GAP) / count;
   return (
     <YStack gap={8}>
       <Text
@@ -154,8 +170,8 @@ export function AvatarGlyphPicker({
         Avatar
       </Text>
       <XStack
-        marginHorizontal="$2xl"
-        justifyContent="space-between"
+        marginHorizontal={ROW_MARGIN}
+        gap={TILE_GAP}
         accessibilityRole="radiogroup"
         accessibilityLabelledBy="onboarding-avatar-label"
       >
@@ -170,7 +186,11 @@ export function AvatarGlyphPicker({
             accessibilityState={{ checked: value === glyph }}
             testID={`onboarding-avatar-${glyph}`}
           >
-            <AvatarGlyphTile glyph={glyph} selected={value === glyph} />
+            <AvatarGlyphTile
+              glyph={glyph}
+              selected={value === glyph}
+              size={tile}
+            />
           </Pressable>
         ))}
       </XStack>

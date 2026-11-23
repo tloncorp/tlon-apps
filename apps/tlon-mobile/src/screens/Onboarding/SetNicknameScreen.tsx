@@ -5,6 +5,7 @@ import {
   type AvatarGlyphId,
   AvatarGlyphPicker,
   LINE_BUTTON_HEIGHT,
+  LINE_TILE_RADIUS,
   LineButton,
   LineOutline,
   LineStepFrame,
@@ -276,17 +277,17 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
                 accent={error ? 'negative' : undefined}
                 frameStyle={{
                   borderWidth: 0,
-                  borderRadius: 0,
+                  borderRadius: LINE_TILE_RADIUS,
                   paddingLeft: 16,
                   paddingRight: 12,
                   backgroundColor: error
                     ? '$negativeBackground'
-                    : '$background',
+                    : '$secondaryBackground',
                 }}
                 testID="set-nickname-input"
               />
               <LineOutline
-                radius={0}
+                radius={LINE_TILE_RADIUS}
                 color={error ? '$negativeActionText' : '$primaryText'}
               />
             </View>
