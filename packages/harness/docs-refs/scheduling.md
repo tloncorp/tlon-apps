@@ -113,6 +113,19 @@ the same rows. These are same-ship/owner APIs, like the existing hand boundary.
 Model tools additionally require an exact outstanding request and source input;
 listing and cancellation cannot expose another source binding's schedules.
 
+To follow changes instead of polling, a same-ship agent watches
+`/schedule-events` on `%harness`. It first receives one `%noun` fact holding
+the whole schedule set, `(map @uv schedule:harness-cron)`, empty when there
+are none; that fact goes to the new subscriber only. After any event that
+changes a schedule (create, edit, cancel, delete, clear, retry, a pause after
+an authority change, or a run's admission advancing `next`, `remaining` and
+`last`), every subscriber receives one fact with the new full set. An event
+that leaves every schedule unchanged gives none. The store holds at most 64
+schedules, so each fact is a complete snapshot rather than a delta. The map
+holds stored schedule fields only; the row fields that `/cron/json` derives
+from hand state, such as `execution` and `delivery`, are not part of it.
+Foreign ships cannot watch the path.
+
 The JavaScript `HandClient` wraps these as `schedule(binding, options)`,
 `schedules(binding)`, `cancelSchedule(id)`, and `clearSchedule(id)`.
 
