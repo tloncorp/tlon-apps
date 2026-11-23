@@ -8,11 +8,15 @@ export type LineChoice = {
   title: string;
   /** A second, quieter line under the title. */
   meta?: string;
+  /** A third line, under the meta. */
+  detail?: string;
   testID?: string;
 };
 
 const RADIO = 20;
 const RADIO_DOT = 10;
+/** Row heights by how many lines of text a row has. */
+const ROW_HEIGHT = [56, 68, 88];
 
 /**
  * A box of choices, one picked, with a ring on the right of each row that
@@ -69,13 +73,13 @@ function LineChoiceRow({
       onPress={onPress}
       accessibilityRole="radio"
       accessibilityState={{ checked: selected }}
-      accessibilityLabel={
-        choice.meta ? `${choice.title}, ${choice.meta}` : choice.title
-      }
+      accessibilityLabel={[choice.title, choice.meta, choice.detail]
+        .filter(Boolean)
+        .join(', ')}
       testID={choice.testID}
     >
       <XStack
-        minHeight={choice.meta ? 68 : 56}
+        minHeight={ROW_HEIGHT[(choice.meta ? 1 : 0) + (choice.detail ? 1 : 0)]}
         paddingVertical="$m"
         paddingHorizontal={14}
         alignItems="center"
@@ -100,6 +104,17 @@ function LineChoiceRow({
               numberOfLines={1}
             >
               {choice.meta}
+            </Text>
+          ) : null}
+          {choice.detail ? (
+            <Text
+              fontSize={14}
+              lineHeight={20}
+              letterSpacing={-0.1}
+              color="$secondaryText"
+              numberOfLines={1}
+            >
+              {choice.detail}
             </Text>
           ) : null}
         </YStack>

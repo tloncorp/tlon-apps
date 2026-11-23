@@ -50,8 +50,9 @@ describe('first-run model choices', () => {
     });
     const included = findModelRow(sections, INCLUDED_ROW_ID);
     expect(included?.name).toBe('GPT-7 Luna');
-    expect(included?.primaryLabel).toBe('Use GPT-7 Luna');
-    expect(included?.meta).toBe('Free · $5 of credit every month');
+    expect(included?.primaryLabel).toBe('Use built-in');
+    expect(included?.meta).toBe('Free · OpenAI GPT-7 Luna');
+    expect(included?.detail).toBe('Includes $5 of use every month');
     expect(
       sections
         .flatMap((section) => section.rows)
@@ -84,6 +85,16 @@ describe('first-run model choices', () => {
     expect(findModelRow(sections, INCLUDED_ROW_ID)?.name).toBe('GPT-5.6 Luna');
   });
 
+  it('names a model from an unlisted maker without one', () => {
+    const sections = buildFirstRunModelSections({
+      ...hostedConfig,
+      defaultModels: { primaryModel: 'moonshotai/kimi-k3', fallbackModels: [] },
+    });
+    expect(findModelRow(sections, INCLUDED_ROW_ID)?.meta).toBe(
+      'Free · kimi-k3'
+    );
+  });
+
   it('leaves out the included model when the account has none', () => {
     const sections = buildFirstRunModelSections({
       ...hostedConfig,
@@ -102,6 +113,10 @@ describe('the model screen rows', () => {
       SUBSCRIPTIONS_ROW_ID,
       'api-key',
     ]);
+    expect(rows[0].name).toBe('Built-in');
+    expect(rows[0].meta).toBe('Free · OpenAI GPT-5.6 Luna');
+    expect(rows[0].detail).toBe('Includes $5 of use every month');
+    expect(rows[0].drawingLabel).toEqual(['BUILT-IN', 'GPT-5.6 LUNA']);
     const subscriptions = rows[1];
     expect(subscriptions.name).toBe('Your subscription');
     expect(subscriptions.meta).toBe(
@@ -149,7 +164,7 @@ describe('the model the first run starts from', () => {
   });
 
   it('sees a model saved by an earlier, unfinished first run', () => {
-    // Someone saved their own key, closed the app on Make space, and came
+    // Someone saved their own key, closed the app on a later step, and came
     // back: continuing with the included model has to switch the bot.
     expect(
       botOnIncludedModel({

@@ -45,10 +45,21 @@ const LIVE_CATALOG = [
 const LIVE_ROWS = LIVE_CATALOG.map((entry) => row(entry.id));
 
 describe('featured services', () => {
-  it('features Calendar, Send Gmail and Notion in that order', () => {
+  it('features Calendar, Send Gmail and GitHub in that order', () => {
     expect(
       selectFeaturedServices(LIVE_CATALOG, LIVE_ROWS).map((s) => s.row.id)
-    ).toEqual(['google-calendar', 'google-gmail', 'notion']);
+    ).toEqual(['google-calendar', 'google-gmail', 'github']);
+  });
+
+  it('fills the third row with Notion while Send Gmail is missing', () => {
+    // Production's catalog has no Send Gmail.
+    const catalog = LIVE_CATALOG.filter((entry) => entry.id !== 'google-gmail');
+    const rows = catalog.map((entry) => row(entry.id));
+    expect(selectFeaturedServices(catalog, rows).map((s) => s.row.id)).toEqual([
+      'google-calendar',
+      'github',
+      'notion',
+    ]);
   });
 
   it('reads an empty scope list the same as "default"', () => {
@@ -59,7 +70,10 @@ describe('featured services', () => {
     );
   });
 
-  it('only offers services screen 3 features', () => {
+  it('only offers the services it features', () => {
+    expect(
+      catalogOffersFeatured([provider('linear', 'default')], 'linear')
+    ).toBe(false);
     expect(catalogOffersFeatured([provider('github', 'repo')], 'github')).toBe(
       false
     );
@@ -91,11 +105,13 @@ describe('featured services', () => {
     );
     expect(
       selectFeaturedServices(catalog, LIVE_ROWS).map((s) => s.row.id)
-    ).toEqual(['google-calendar', 'notion']);
+    ).toEqual(['google-calendar', 'github', 'notion']);
   });
 
   it('never invents a service the catalog does not offer', () => {
-    const catalog = LIVE_CATALOG.filter((entry) => entry.id !== 'notion');
+    const catalog = LIVE_CATALOG.filter(
+      (entry) => entry.id !== 'notion' && entry.id !== 'github'
+    );
     const rows = catalog.map((entry) => row(entry.id));
     expect(selectFeaturedServices(catalog, rows).map((s) => s.row.id)).toEqual([
       'google-calendar',
@@ -109,18 +125,18 @@ describe('featured services', () => {
     const rows = LIVE_ROWS.filter((entry) => entry.id !== 'google-gmail');
     expect(
       selectFeaturedServices(LIVE_CATALOG, rows).map((s) => s.row.id)
-    ).toEqual(['google-calendar', 'notion']);
+    ).toEqual(['google-calendar', 'github', 'notion']);
   });
 });
 
 describe('the built-in list', () => {
-  it('features every featured service, so screen 3 is never empty', () => {
+  it('fills the featured rows, so the services screen is never empty', () => {
     const rows = buildProviderRows(FIRST_RUN_FALLBACK_CATALOG, []);
     expect(
       selectFeaturedServices(FIRST_RUN_FALLBACK_CATALOG, rows).map(
         (s) => s.row.id
       )
-    ).toEqual(['google-calendar', 'google-gmail', 'notion']);
+    ).toEqual(['google-calendar', 'google-gmail', 'github']);
   });
 
   it('gives each row a name and a logo to show before the catalog loads', () => {
@@ -179,7 +195,7 @@ describe('a featured row after connecting', () => {
     );
   });
 
-  it('leaves featured services to their rows on screen 3', () => {
+  it('leaves featured services to their rows on the services screen', () => {
     const screen3 = { allServicesOpen: false, featuredIds: ['notion'] };
     expect(
       shouldAnnounceConnectionEvent(
@@ -190,7 +206,8 @@ describe('a featured row after connecting', () => {
     expect(
       shouldAnnounceConnectionEvent({ type: 'load-failed' }, screen3)
     ).toBe(false);
-    // A service screen 3 doesn't show, finishing after the list was closed.
+    // A service the services screen doesn't show, finishing after the list
+    // was closed.
     expect(
       shouldAnnounceConnectionEvent(
         { type: 'canceled', providerId: 'linear' },

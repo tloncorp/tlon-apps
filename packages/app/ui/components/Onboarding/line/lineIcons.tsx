@@ -4,37 +4,49 @@ import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { useLineColors } from './lineKit';
 
 export type LineIconName =
-  | 'chats'
-  | 'search'
-  | 'plug'
+  | 'apps'
+  | 'phoneOff'
+  | 'clock'
+  | 'server'
   | 'computer'
   | 'lock'
-  | 'sliders'
+  | 'chatCheck'
+  | 'sparkle'
+  | 'code'
+  | 'fileDown'
   | 'hash'
-  | 'notebook'
+  | 'file'
   | 'people'
   | 'check'
   | 'chevronRight';
 
 // Drawn on a 24-unit square at 1.6 pt, like the app's icons.
 const SHAPES: Record<LineIconName, ReactElement> = {
-  chats: (
+  apps: (
     <>
-      <Path d="M4 5.5h10a2 2 0 0 1 2 2V12a2 2 0 0 1-2 2H9l-4 3v-3H4a2 2 0 0 1-2-2V7.5a2 2 0 0 1 2-2z" />
-      <Path d="M19 9h1a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-1v2.5L16 18h-3" />
+      <Rect x={4} y={4} width={6.5} height={6.5} rx={1.5} />
+      <Rect x={13.5} y={4} width={6.5} height={6.5} rx={1.5} />
+      <Rect x={4} y={13.5} width={6.5} height={6.5} rx={1.5} />
+      <Rect x={13.5} y={13.5} width={6.5} height={6.5} rx={1.5} />
     </>
   ),
-  search: (
+  phoneOff: (
     <>
-      <Circle cx={10.5} cy={10.5} r={6} />
-      <Path d="M15 15l5 5" />
+      <Rect x={7} y={3} width={10} height={18} rx={2} />
+      <Path d="M4.5 5.5l15 13" />
     </>
   ),
-  plug: (
+  clock: (
     <>
-      <Path d="M9 3v5M15 3v5" />
-      <Path d="M6 8h12v3a6 6 0 0 1-12 0z" />
-      <Path d="M12 17v4" />
+      <Circle cx={12} cy={12} r={8} />
+      <Path d="M12 7.5V12l3 2" />
+    </>
+  ),
+  server: (
+    <>
+      <Rect x={4} y={4} width={16} height={7} rx={1.5} />
+      <Rect x={4} y={13} width={16} height={7} rx={1.5} />
+      <Path d="M7.5 7.5h.01M7.5 16.5h.01" />
     </>
   ),
   computer: (
@@ -49,19 +61,28 @@ const SHAPES: Record<LineIconName, ReactElement> = {
       <Path d="M8 11V8a4 4 0 0 1 8 0v3" />
     </>
   ),
-  sliders: (
+  chatCheck: (
     <>
-      <Path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1" />
-      <Circle cx={15} cy={6} r={2} />
-      <Circle cx={9} cy={12} r={2} />
-      <Circle cx={17} cy={18} r={2} />
+      <Path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8l-4 3v-3H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />
+      <Path d="M9 11l2 2 4-4" />
+    </>
+  ),
+  sparkle: (
+    <Path d="M12 3.5l1.8 5.2 5.2 1.8-5.2 1.8L12 17.5l-1.8-5.2L5 10.5l5.2-1.8z" />
+  ),
+  code: <Path d="M8.5 8L4.5 12l4 4M15.5 8l4 4-4 4M13.5 5.5l-3 13" />,
+  fileDown: (
+    <>
+      <Path d="M6.5 3.5h7l4 4v13h-11z" />
+      <Path d="M13.5 3.5v4h4" />
+      <Path d="M12 11v6M9.5 14.5L12 17l2.5-2.5" />
     </>
   ),
   hash: <Path d="M9.5 4L7.5 20M16.5 4l-2 16M4.5 9h15.5M4 15h15.5" />,
-  notebook: (
+  file: (
     <>
-      <Rect x={5} y={3} width={14} height={18} rx={2} />
-      <Path d="M9 8h6M9 12h6M9 16h3.5" />
+      <Path d="M6.5 3.5h7l4 4v13h-11z" />
+      <Path d="M13.5 3.5v4h4M9 12h6M9 15.5h6" />
     </>
   ),
   people: (

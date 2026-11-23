@@ -40,13 +40,13 @@ const logger = createDevLogger('FirstRunSequence', false);
 const PREVIOUS_PANE: Partial<Record<FirstRunPane, FirstRunPane>> = {
   private: 'meet',
   dataKept: 'private',
-  connect: 'private',
-  allServices: 'connect',
-  model: 'connect',
+  model: 'private',
   subscriptionSignIn: 'model',
   apiKey: 'model',
   apiKeyModel: 'apiKey',
-  workspace: 'model',
+  connect: 'model',
+  allServices: 'connect',
+  workspace: 'connect',
   setup: 'workspace',
 };
 
@@ -54,12 +54,12 @@ export type FirstRunPane =
   | 'meet'
   | 'private'
   | 'dataKept'
-  | 'connect'
-  | 'allServices'
   | 'model'
   | 'subscriptionSignIn'
   | 'apiKey'
   | 'apiKeyModel'
+  | 'connect'
+  | 'allServices'
   | 'workspace'
   | 'setup';
 
@@ -126,7 +126,8 @@ function SubscriptionSignInPane({
 }
 
 /**
- * The five-screen first run after signup, steps 3 to 7 of onboarding. Setup
+ * The five-screen first run after signup, steps 5 to 9 of onboarding: Meet
+ * your Tlonbot, Yours to keep, the model, services, then the workspace. Setup
  * runs in the background the whole time; only the last screen's buttons wait
  * for it. Choices stay in place when someone goes back.
  */
@@ -287,7 +288,7 @@ export function FirstRunSequence({
       const row = choice.row;
       if (!row) return;
       if (row.id === current) {
-        setPane('workspace');
+        setPane('connect');
         return;
       }
       if (row.keepsZdr) {
@@ -298,7 +299,7 @@ export function FirstRunSequence({
           'basic',
           models.includedModelId
         );
-        setPane('workspace');
+        setPane('connect');
         return;
       }
       setSwitchPlans(null);
@@ -312,7 +313,7 @@ export function FirstRunSequence({
     if (!switchRow) return;
     setSwitchOpen(false);
     if (switchRow.id === (applyingModelId ?? appliedModelId)) {
-      setPane('workspace');
+      setPane('connect');
       return;
     }
     setPane(
@@ -356,7 +357,7 @@ export function FirstRunSequence({
       API_KEY_PROVIDERS.find((option) => option.id === keyModels.provider)
         ?.label ?? keyModels.provider;
     applyChoice('api-key', providerName, keyModels.provider, keyModel);
-    setPane('workspace');
+    setPane('connect');
   }, [applyChoice, keyModel, keyModels.provider]);
 
   const subscriptionProvider =
@@ -377,7 +378,7 @@ export function FirstRunSequence({
           provider: subscriptionProvider,
         });
       }
-      setPane('workspace');
+      setPane('connect');
     },
     [applyChoice, subscriptionProvider, switchRow]
   );
@@ -389,7 +390,7 @@ export function FirstRunSequence({
       ) : pane === 'private' ? (
         <FirstRunIntroScreen
           slide={2}
-          onNext={() => setPane('connect')}
+          onNext={() => setPane('model')}
           onBack={goBack}
           onDataKept={() => setPane('dataKept')}
         />
@@ -406,7 +407,7 @@ export function FirstRunSequence({
           onStartConnect={services.startConnect}
           onCheckAgain={services.checkAgain}
           onAllServices={() => setPane('allServices')}
-          onContinue={() => setPane('model')}
+          onContinue={() => setPane('workspace')}
           onBack={goBack}
         />
       ) : pane === 'allServices' ? (

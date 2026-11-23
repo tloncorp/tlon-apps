@@ -76,6 +76,7 @@ export function ChooseModelScreen({
           id: row.id,
           title: row.name,
           meta: row.meta,
+          detail: row.detail,
           testID: `first-run-model-${row.id}`,
         }))}
         selectedId={pickedId}

@@ -1,20 +1,22 @@
 import { Text } from '@tloncorp/ui';
 import { Linking } from 'react-native';
-import { YStack } from 'tamagui';
+import { View, XStack, YStack } from 'tamagui';
 
 import {
   LineButton,
   LineStepFrame,
   LineTextLink,
 } from '../../Onboarding/line/LineStepFrame';
+import { LineIcon } from '../../Onboarding/line/lineIcons';
 import { firstRunCopy } from './firstRunCopy';
 
 const copy = firstRunCopy.dataKept;
-/** The list starts lower under the subtitle than a drawing would. */
-const SUBTITLE_TO_LIST_GAP = 47;
+/** With no subtitle, the list starts this far under the title. */
+const TITLE_TO_LIST_GAP = 33;
 const ITEM_GAP = 22;
+const ICON_SIZE = 20;
 /** The FAQ link sits this far above Done. */
-const LINK_TO_BUTTON_GAP = 24;
+const LINK_TO_BUTTON_GAP = 14;
 
 /**
  * How your data is kept, opened from Yours to keep: where the Tlonbot runs
@@ -26,8 +28,7 @@ export function FirstRunDataScreen({ onBack }: { onBack: () => void }) {
     <LineStepFrame
       onBack={onBack}
       title={copy.title}
-      subtitle={copy.subtitle}
-      contentGap={SUBTITLE_TO_LIST_GAP}
+      contentGap={TITLE_TO_LIST_GAP}
       footer={
         <YStack paddingHorizontal="$2xl">
           <LineTextLink
@@ -50,19 +51,35 @@ export function FirstRunDataScreen({ onBack }: { onBack: () => void }) {
     >
       <YStack marginHorizontal={28} gap={ITEM_GAP}>
         {copy.items.map((item) => (
-          <YStack key={item.label} gap={4} accessible>
-            <Text fontSize={13} lineHeight={18} color="$secondaryText">
-              {item.label}
-            </Text>
-            <Text
-              fontSize={16}
-              lineHeight={22}
-              letterSpacing={-0.2}
-              color="$primaryText"
-            >
-              {item.text}
-            </Text>
-          </YStack>
+          <XStack
+            key={item.title}
+            gap={14}
+            alignItems="flex-start"
+            accessible
+            accessibilityLabel={`${item.title}. ${item.text}`}
+          >
+            <View marginTop={1}>
+              <LineIcon name={item.icon} size={ICON_SIZE} strokeWidth={1.3} />
+            </View>
+            <YStack flex={1} gap={2}>
+              <Text
+                fontSize={16}
+                lineHeight={22}
+                letterSpacing={-0.2}
+                color="$primaryText"
+              >
+                {item.title}
+              </Text>
+              <Text
+                fontSize={14}
+                lineHeight={20}
+                letterSpacing={-0.1}
+                color="$secondaryText"
+              >
+                {item.text}
+              </Text>
+            </YStack>
+          </XStack>
         ))}
       </YStack>
     </LineStepFrame>

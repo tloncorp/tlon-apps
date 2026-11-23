@@ -23,6 +23,8 @@ export type FirstRunModelRow = {
   choice: FirstRunModelChoice;
   name: string;
   meta: string;
+  /** A third line, under the meta. */
+  detail?: string;
   recommended: boolean;
   /** Whether this keeps zero data retention; anything else asks first. */
   keepsZdr: boolean;
@@ -50,9 +52,29 @@ export const subscriptionCompany = (provider: SubscriptionProvider) =>
 export const includedModelName = (config?: TlawnProviderConfigInfo) =>
   getModelName(getIncludedModelId(config));
 
+/** Who makes a model, from its id's prefix ("openai/…"). */
+const MODEL_MAKER: Record<string, string> = {
+  openai: 'OpenAI',
+  anthropic: 'Anthropic',
+  'x-ai': 'xAI',
+  google: 'Google',
+};
+
 /**
- * Screen 4's three ways to get a model, built from the same options as the
- * app's Choose a brain step: the included model (recommended, zero data
+ * The included model with its maker, "OpenAI GPT-5.6 Luna". A model from a
+ * maker not listed here goes by its name alone.
+ */
+export const includedModelLabel = (config?: TlawnProviderConfigInfo) => {
+  const modelId = getIncludedModelId(config);
+  const slash = modelId.indexOf('/');
+  const maker = slash > 0 ? MODEL_MAKER[modelId.slice(0, slash)] : undefined;
+  const name = getModelName(modelId);
+  return maker ? `${maker} ${name}` : name;
+};
+
+/**
+ * The model screen's three ways to get a model, built from the same options as
+ * the app's Choose a brain step: the included model (recommended, zero data
  * retention on), each subscription, and one row for bringing your own key.
  *
  * Subscriptions are listed even while setup is still running. Their sign-in
@@ -75,6 +97,7 @@ export function buildFirstRunModelSections(
   // account has the included model.
   const showIncluded = !providerConfig || !!included;
   const modelName = includedModelName(providerConfig ?? undefined);
+  const modelLabel = includedModelLabel(providerConfig ?? undefined);
 
   const sections: FirstRunModelSection[] = [];
   if (showIncluded) {
@@ -86,10 +109,11 @@ export function buildFirstRunModelSections(
           id: INCLUDED_ROW_ID,
           choice: { kind: 'included' },
           name: modelName,
-          meta: copy.includedMeta,
+          meta: copy.includedMeta(modelLabel),
+          detail: copy.includedDetail,
           recommended: true,
           keepsZdr: true,
-          primaryLabel: copy.primaryIncluded(modelName),
+          primaryLabel: copy.primaryIncluded,
         },
       ],
     });
@@ -190,6 +214,7 @@ export type FirstRunModelChoiceRow = {
   id: string;
   name: string;
   meta: string;
+  detail?: string;
   /** The row's box in the drawing, two caption lines. */
   drawingLabel: [string, string];
   primaryLabel: string;
@@ -215,11 +240,13 @@ export function buildModelChoiceRows(
         ]
       : section.rows.map((row) => ({
           id: row.id,
-          name: row.name,
+          // The included row is headed Built-in, with the model's name under.
+          name: section.key === 'included' ? copy.includedName : row.name,
           meta: row.meta,
+          detail: row.detail,
           drawingLabel:
             section.key === 'included'
-              ? (['INCLUDED', row.name.toUpperCase()] as [string, string])
+              ? (['BUILT-IN', row.name.toUpperCase()] as [string, string])
               : (['OR YOUR', 'KEY'] as [string, string]),
           primaryLabel: row.primaryLabel,
           row,
