@@ -17,7 +17,7 @@
       [%channel nest=nest:c parent=(unit @da)]
   ==
 +$  input  [actor=@p event=@t to=destination text=@t]
-+$  lane  [actor=@p to=destination epoch=@ud tools=(list tool-grant:h)]
++$  lane  [to=destination epoch=@ud tools=(list tool-grant:h)]
 +$  job  [input=input sid=@t stage=?(%create %bind %observe %error) error=@t]
 +$  delivery  $:  attempt=@ud
                   stage=?(%claim %send %receipt)
@@ -53,8 +53,8 @@
   ==
 +$  lens-sync
   [enabled=$~(| ?) owner=(unit @p) after=@da records=(map input-id:h lens-record) error=@t]
-+$  state-3
-  $:  %3
++$  state-4
+  $:  %4
       browser-entries=(map @uv browser-entry)
       lens=lens-sync
       owner-initialized=@ud
@@ -62,7 +62,7 @@
       sibling-owner-after=@da
       activity-through=@da
       catching-up=$~(| ?)
-      identities=(map [actor=@p to=destination] @t)
+      identities=(map destination @t)
       routes=(map @t route)
       cuts=(map @p @da)
       channel-after=@da

@@ -108,6 +108,10 @@ try {
   assert.ok(list.some((s) => s.sessionId.startsWith(`${peer.slice(1)}-dm-`)), 'DM visible to any ACP session client')
   assert.ok(list.some((s) => s.sessionId.includes('-thread-')), 'thread has a separate session')
   console.log('PASS ACP activity and global session discovery')
+  // The owner and trust change retires the peer's DM routes. Channel routes
+  // are shared by every speaker, so one speaker's change keeps them.
+  const channelLanes = status.sessions.filter((sid) => !sid.startsWith(`${peer.slice(1)}-dm-`)).length
+  assert.ok(channelLanes > 0, 'the channel and its thread have routes')
   // A post or reply whose author carries a bot profile is recorded as a bot's
   // message; one by a bare ship as a message. Both are answered.
   const author = (value) => (typeof value === 'string' ? value : value?.ship)
@@ -134,7 +138,7 @@ try {
   console.log(`Channel activity: ${events.map((e) => `${e.kind} ${e.address}`).join('; ')}`)
   console.log('PASS bot-profile posts and replies are recorded as bot messages')
   await client.call('harness/tlon/configure', { enabled: true, owner: ship, response: 'mentions', allowed: [], channels: [], trusted: [{ ship: peer, tools: [] }] })
-  assert.equal((await client.call('harness/tlon')).lanes, 0, 'revoked routes do not consume the next policy epoch')
+  assert.equal((await client.call('harness/tlon')).lanes, channelLanes, 'an owner change retires DM routes and keeps shared channel routes')
   await poke('chat', 'chat-dm-action-2', { ship, diff: { id: `${peer}/${da()}`, delta: { add: { essay: essay(prompt('trusted')), time: null } } } })
   await until('trusted ship with no tools can still chat', async () => Object.values((await dmPosts()).writs).find((p) => fromBot(p, 'trusted')))
   const sessions = (await client.call('session/list')).sessions.filter((s) => s.sessionId.startsWith(`${peer.slice(1)}-dm-`))

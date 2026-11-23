@@ -12,6 +12,7 @@ There are two independent surfaces:
   operations, including while automatic replies are disabled.
 
 Use [ship-wide tools](#ship-wide-tlon-tool) for messaging and administration,
+[workspace proposals](#workspace-proposals) for proposing a group in the owner's DM,
 [Notes](#group-notes-bulk-imports-and-diary-migration) for notebooks and imports,
 [hooks](#persistent-channel-hooks) for persistent native programs,
 [publishing](#public-web-publishing) for public content,
@@ -224,6 +225,69 @@ The same grant also covers:
   URL sources retain HTTPS/no-redirect restrictions; all uploads are capped at
   8 MiB and may be public under the configured storage policy.
 
+### Workspace proposals
+
+In the owner's own DM the same grant offers three more tools, so that a topic
+which will outlast one reply gets a proposed workspace (a group) instead of one
+made unasked. They are refused in channels, in DM threads, for other ships and
+in scheduled runs.
+
+Nothing about a card is saved. The DM holds the cards, the owner's taps and
+the bot's answers, and the hand reads the newest 100 posts of the DM each time
+it needs them. A card older than that is no longer known.
+
+- `tlon_workspace_plan(intro, title, description, channels, task?)` posts the
+  intro and a card listing the workspace, one to six channels (the first a
+  chat) and an optional recurring task, with **Edit** and **Create** buttons.
+  Nothing is created. The newest card in the DM is the live one; a tap on an
+  older one creates nothing. The card shows the task's title and description;
+  its schedule and prompt stay in the plan call the model made.
+- A tap is the owner's DM post carrying the app's `tlon-a2ui-selection`
+  receipt for a card; the same words typed are not a tap. The hand reads the
+  post's blob only when its text is a card button's message, then appends a
+  bracketed note to the message the model reads: **Create** says to call
+  `tlon_workspace_create`, **Edit** says to ask what to change.
+- A card's answer is the bot's reply after the card, up to the owner's next
+  message. A card posted after the owner tapped **Edit** on the one before it
+  keeps that card's answer.
+- `tlon_workspace_create(proposal_id, group?)` runs only for a card the owner
+  tapped **Create** on. Called with the card alone it returns the steps: make
+  the group through the MCP server that acts on the owner's account, so the
+  owner's ship hosts it, or with `create_group` and `owner` when no such
+  server is granted, then its remaining channels. Called again with the new
+  `group`, it requires that group to carry the card's title, to have no
+  member, pending or invited ship or token for anyone but the owner and this
+  ship, to belong to no other card, to make
+  this ship an admin, and to have every listed channel. It then renames the
+  group's first chat to the card's, makes the group secret, puts the channels
+  in the card's order, posts the answer as the first message of that chat and
+  posts the group's card in the DM. That post carries a
+  `tlon-agent-post-marker` naming the card and the group, which is what makes
+  the card created. It then reports the task to schedule with `cron_add`,
+  whose prompt starts with the task's title in brackets and posts to the
+  workspace chat. A later call makes only the group changes still missing, so
+  one Tlon rejected is retried, and otherwise makes nothing. The answer and
+  the marker are not retried that way: if the chat rejects the answer but the
+  marker lands, the card is created without its answer; if the answer lands
+  but the marker does not, the next call posts the answer again.
+- Every other top-level DM message from the owner, commands excepted, is
+  admitted with a workspace rule as its hand context, the way a channel
+  thread's public reference is: check `list_groups`, link a workspace that
+  covers the topic, otherwise propose one, and no card for a topic already
+  proposed or declined, small talk or one-off questions. The head records it
+  beside the message, never as part of it, so the message's text, memory
+  recall and the DM itself are unchanged. Like any context event it stays in
+  the conversation's journal, about 550 bytes per message.
+- `tlon_workspace_link(group, line)` posts one line and the card of a group
+  this ship is in, for a topic an existing workspace already covers.
+
+The group and its channels are made by the model's own calls between the two
+`tlon_workspace_create` calls, so a failed group or channel step is resumed
+by calling again,
+and the model is told never to make a second group for a card. The task
+follows the [scheduler](scheduling.md)'s limits: a UTC expression, at most 100
+runs, and a closing line in the DM, the conversation that scheduled it.
+
 ### Group Notes, bulk imports and diary migration
 
 `create_notebook(title, group?, readers?)` creates either a private standalone
@@ -388,7 +452,8 @@ Mention rules still apply. `/stop` interrupts work and clears queued inputs;
 other commands wait for the turn to finish.
 
 `/work` manages tasks and documents in chat. Protected owner operations require
-an owner DM; other actors use their Workspace and document permissions.
+an owner DM; other actors use their Workspace and document permissions, except
+in a channel, where only the owner may use it.
 See [work commands](work-control.md).
 
 ### Shared memory
@@ -567,15 +632,57 @@ messaging the sender.
 - Channels require a mention by default. Replies to the bot's own posts count
   as addressed; DMs do not require mentions. Turn the requirement off to answer
   every message from allowed actors in channels the ship has joined.
-- Sender and exact destination/thread determine the stable conversation. A shared
-  channel does not share the owner's private DM transcript or execution grants.
+- The exact destination determines the stable conversation: a DM, a channel
+  and each thread in either have one conversation each. Every admitted speaker
+  in a channel shares its conversation, and each message there reaches the
+  model prefixed with its speaker's ship and a colon. Text the head parses as
+  a command, such as `/stop`, stays as written so it is still a command; other
+  text that starts with a slash, such as a path, is prefixed. A channel does not share the owner's
+  private DM transcript, and a speaker never gets another speaker's grants.
   Channel answers are still public to that channel's members: granting file,
   web, skills, peer, or MCP access can expose whatever those tools can read.
+- A channel conversation's saved tools are the owner's Defaults, whoever spoke
+  there first; each turn's speaker ceiling narrows them. A DM's are its
+  partner's grants.
+- A channel conversation's settings, thread included, are the owner's. Another
+  speaker there may still use `/help`, `/status`, `/context`, `/model` and
+  `/memory` with no argument or a query, and `/stop` for their own work, but
+  `/model` with an argument, `/compact`, `/memory on` or `off`, `/remember`,
+  `/forget` and `/work` get a reply that only the owner can change the
+  conversation's settings; they reach no model and change nothing. The head
+  asks the adapter whether a speaker may, as it asks for authority. A DM's
+  partner keeps every command, as do the operator's local prompts.
+
+Authority is decided per speaker. For each turn the head asks the adapter about
+the actor of the conversation's running input, and for scheduled work about the
+schedule's actor. The adapter answers from that speaker's own access to the
+conversation's destination: the owner has no ceiling, any other ship's ceiling
+comes from its own grants and, in a channel, its native read permission, and a
+ship with no access there gets no authority. A speaker never receives another
+speaker's tools.
+
+- A DM answers for its partner. The partner, the operator's own local or ACP
+  prompt and a question with no speaker all get the partner's authority; any
+  other speaker gets none.
+- In a channel, the operator's own local or ACP prompt, which the head passes
+  as the bot's own ship only after proving it is local, has the owner's
+  authority. With no speaker known, as for a timer, a channel conversation
+  answers live with only Tlon read and write, never the owner's authority.
+- A scheduled run with no speaker answers for its schedule's actor.
+- A channel conversation never has administrative authority.
+
+Admission checks each message's speaker, including its native read permission
+in a channel, even when the conversation's route is already set up. Context,
+history and lens sync ask only whether the conversation itself is live: Tlon is
+enabled, its route is ready, any schedule still holds and the channel does not
+have replies turned off.
 
 Permission changes retire only affected authorization routes. Adding an unrelated
 trusted actor leaves existing conversations, in-flight work, notes, saved model
-settings and schedules alone. Changing the mention requirement affects channels,
-not DMs; changing an actor's role or effective grants affects that actor's work.
+settings and schedules alone. Changing the mention requirement or a channel's
+rule affects that channel's routes, not DMs. Changing an actor's role or
+effective grants retires that actor's DM route; in a channel it keeps the route
+and binding, and cancels only that actor's running and queued work there.
 Grant order alone is not a revocation. Disabling Tlon affects every route.
 
 Affected queued/running work is cancelled, old bindings are disabled, native
@@ -586,8 +693,12 @@ and a tools-only configuration update have been acknowledged, using a fresh
 binding. Old publications cannot move to the new binding. Actor-specific admission
 cutoffs reject queued pre-grant messages without dropping unrelated input.
 
-Publication checks the exact current binding and actor again after claiming,
-before sending. Async callbacks and self-dispatched work carry request generations,
+Publication checks the exact current binding again after claiming, before
+sending, and the reply's speaker: it is sent only while that speaker is still
+granted there and if the speaker's input came after the speaker's latest
+permission change, or for a sibling moon's owner the latest change to sibling
+ownership, so a reply to a speaker revoked mid-turn, or a stale one
+after a later re-grant, is not published. Async callbacks and self-dispatched work carry request generations,
 so reusing a tool-call ID cannot revive an old request. Previously emitted network
 operations cannot be undone; their receipts and uncertainty remain evidence.
 Saving unchanged policy leaves routes and sessions alone. Conversation heads
@@ -715,6 +826,15 @@ event, so a conversation the ledger cannot accept does not hold the cursor for
 the others. `activityThrough` and `catchingUp` expose the checkpoint and whether
 more work remains.
 
+### Upgrading to shared channel conversations
+
+Earlier versions kept one conversation per speaker in each channel. On upgrade,
+DM conversations keep their identities and history. Each per-speaker channel
+conversation is dropped from the adapter: its binding is disabled and its
+session fenced, so queued input there gets no reply, and the session stays in
+the head as history. The next message in that channel starts its one shared
+conversation, with a new identity.
+
 ### Retention and capacity
 
 Conversation identities and their notes outlive route authorization. Revocation
@@ -726,8 +846,8 @@ These complement the
 [shared hand limits and archive protocol](hands.md#fair-admission-and-explicit-retention).
 
 A message the hand ledger refuses is not retried. The adapter sets `error` to
-the ledger's reason and writes one activity entry. When the conversation still
-has current grants and the sender has not been told in that conversation within
+the ledger's reason and writes one activity entry. When the sender still
+has grants in that conversation and has not been told in that conversation within
 five minutes, it tells the sender "I can't answer messages here right now." and
 the entry's kind is `refusal-notice`. Otherwise the kind is `refusal` and
 nothing is sent. In a channel the notice mentions the sender, and in a thread it
@@ -905,3 +1025,12 @@ recursive-schedule denial, mid-flight source revocation, and that trusted and
 allowed ships are not offered scheduling and have forged calls refused. It restores defaults
 and policy and cancels fixture schedules; messages and their receipts remain.
 `desk/tests/harness-cron.hoon` covers the pure UTC calendar and strict parser.
+
+`tests-js/tlon-shared-channel-conformance.mjs` runs on three ships: `~zod` is the
+bot, the peer (`PEER_URL`, `PEER_COOKIE`) its owner and a guest (`GUEST_URL`,
+`GUEST_COOKIE`) a trusted ship, both members of `TEST_NEST`. With a local provider
+it checks that the owner and the guest share one channel session while a thread has
+its own, that each turn's input names its speaker, that each turn is offered only
+its speaker's tools in either order and a guest's forged call is refused, and that
+changing or revoking the guest's grants keeps the channel session and its history.
+It restores defaults and policy; messages remain.

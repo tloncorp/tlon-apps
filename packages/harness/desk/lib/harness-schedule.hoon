@@ -1,7 +1,7 @@
 ::  Transport-independent schedule validation and evidence projection.
 ::  No Gall effects or inference. The head commits each run before dispatch.
 /-  c=harness-cron, h=harness, hh=harness-hand
-/+  calendar=harness-cron, reminder=harness-reminder, hl=harness
+/+  calendar=harness-cron, reminder=harness-reminder, hl=harness, hd=harness-hand
 |%
 ::
 ++  maintenance-needed
@@ -44,7 +44,7 @@
   ^-  schedule:c
   ?>  ?=(%add -.action)
   ?>  enabled.source
-  ?>  (lien actors.source |=(actor=@t =(actor actor.action)))
+  ?>  (actor-allowed:hd actors.source actor.action)
   =/  =job:c
     %*  .  *job:c
       kind  kind.action

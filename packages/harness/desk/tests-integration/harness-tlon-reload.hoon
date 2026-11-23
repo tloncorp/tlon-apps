@@ -1,6 +1,6 @@
 ::  Opt-in: -test /=harness=/tests-integration/harness-tlon-reload
 ::  Keep full-agent construction out of the default 2 GB loom unit suite.
-/-  t=harness-tlon
+/-  t=harness-tlon, hh=harness-hand
 /+  *test-agent, migrate=harness-tlon-migrate
 /=  adapter  /app/harness-tlon
 /=  up  /tests/harness-upgrade
@@ -9,19 +9,19 @@
 ::
 ++  load
   |=  saved=vase
-  =/  m  (mare ,[(list card) state-3:t])
+  =/  m  (mare ,[(list card) state-4:t])
   ^-  form:m
   ;<  ~                bind:m  (jab-bowl |=(b=bowl b(now ~2026.9.6)))
   ;<  ~                bind:m  (set-scry-gate |=(path `!>(|)))
   ;<  caz=(list card)  bind:m  (do-load adapter `saved)
   ;<  =vase            bind:m  get-save
-  (pure:m caz !<(state-3:t vase))
+  (pure:m caz !<(state-4:t vase))
 ::
 ++  reload
   |=  phase=?(%fetch %put %grant %hosted-put)
-  =/  m  (mare ,state-3:t)
+  =/  m  (mare ,state-4:t)
   ^-  form:m
-  =/  state=state-3:t  *state-3:t
+  =/  state=state-4:t  *state-4:t
   =.  uploads.state
     %-  my
     :~  :*  0v1
@@ -32,7 +32,7 @@
   =.  tool-receipts.state
     %-  my
     ~[[0v1 `tool-receipt:t`[['s' 1 ['call' 'tlon_upload_image' '{}']] %sending '' ~2026.9.6]]]
-  ;<  [caz=(list card) loaded=state-3:t]  bind:m  (load !>(state))
+  ;<  [caz=(list card) loaded=state-4:t]  bind:m  (load !>(state))
   ::  Reload may cancel the old duct and publish a result, never request HTTP.
   ;<  ~  bind:m
     (ex-equal !>((lien caz |=(c=card ?=([%pass * %arvo %i %request *] c)))) !>(|))
@@ -42,35 +42,35 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  =/  state  *state-3:t
+  =/  state  *state-4:t
   =.  enabled.policy.state  |
   =/  deadline  (add ~2026.9.6 ~s10)
   =/  form=browser-entry:t  [deadline [%wait [%form 'http://127.0.0.1/credential-result/fixture']]]
   =.  browser-entries.state  (my ~[[0v1 form]])
   =.  tool-receipts.state
     (my ~[[0v1 [['s' 1 ['call' 'browser_secure_entry' '{}']] %sending '' ~2026.9.6]]])
-  ;<  [caz=(list card) saved=state-3:t]  bind:m  (load !>(state))
+  ;<  [caz=(list card) saved=state-4:t]  bind:m  (load !>(state))
   ;<  watched=(list card)  bind:m  (do-watch /tools/0v1)
   ;<  ~  bind:m  (ex-equal !>(watched) !>(~))
   ;<  ~  bind:m  (ex-equal !>(browser-entries.saved) !>(browser-entries.state))
   (ex-equal !>(wake.saved) !>(`deadline))
 ::
-++  test-version-two-save-loads-as-version-three
+++  test-version-three-save-loads-as-version-four
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  =/  old  *state-2:migrate
+  =/  old  *state-3:migrate
   =.  enabled.policy.old  |
-  =.  epoch.old  17
-  ;<  [caz=(list card) saved=state-3:t]  bind:m  (load !>(old))
+  =.  next-notice.old  17
+  ;<  [caz=(list card) saved=state-4:t]  bind:m  (load !>(old))
   ;<  ~  bind:m  (ex-equal !>(=(~ browser-entries.saved)) !>(&))
-  (ex-equal !>(epoch.saved) !>(17))
+  (ex-equal !>(next-notice.saved) !>(17))
 ::
 ++  test-native-download-reload-is-known-not-uploaded
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  state=state-3:t  bind:m  (reload %fetch)
+  ;<  state=state-4:t  bind:m  (reload %fetch)
   =/  receipt  (~(got by tool-receipts.state) 0v1)
   %+  ex-equal
     !>  ?&  =(~ uploads.state)  =(%done stage.receipt)
@@ -81,7 +81,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  state=state-3:t  bind:m  (reload %grant)
+  ;<  state=state-4:t  bind:m  (reload %grant)
   =/  receipt  (~(got by tool-receipts.state) 0v1)
   %+  ex-equal
     !>  ?&  =(~ uploads.state)  =(%uncertain stage.receipt)
@@ -92,20 +92,59 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  state=state-3:t  bind:m  (reload %hosted-put)
+  ;<  state=state-4:t  bind:m  (reload %hosted-put)
   %+  ex-equal
     !>(&(=(~ uploads.state) =(%uncertain stage:(~(got by tool-receipts.state) 0v1))))
   !>(&)
+::  Per-speaker channel conversations do not survive the upgrade to shared
+::  sessions. A ready one's binding may still hold queued input, so loading
+::  disables it and fences its session; a kept DM is left alone.
+::
+++  test-load-disables-and-fences-dropped-channel-bindings
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  room=destination:t  [%channel [%chat ~lux %test] ~]
+  =/  dm=destination:t  [%dm ~bus ~]
+  =/  old  *state-2:migrate
+  =.  old
+    %=  old
+      epoch  5
+      identities  (my ~[[[~bus room] 'room'] [[~bus dm] 'dm']])
+      lanes  (my ~[['room' [~bus room 4 ~]] ['dm' [~bus dm 4 ~]]])
+      routes  (my ~[['room' ['binding-room' %ready]] ['dm' ['binding-dm' %ready]]])
+    ==
+  ;<  [caz=(list card) loaded=state-4:t]  bind:m  (load !>(old))
+  =/  pokes=(list [@tas *])
+    %+  murn  caz
+    |=  c=card
+    ?.  ?=([%pass * %agent * %poke *] c)  ~
+    `[p.cage.task.q.c q.q.cage.task.q.c]
+  =/  disable  (rap 3 'tlon-disable-' (scot %uv (sham ['room' 5])) ~)
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>  ?&  (lien pokes |=(p=[@tas *] =(p [%harness-hand disable %enable 'binding-room' |])))
+              (lien pokes |=(p=[@tas *] =(p [%harness-action %fence 'room'])))
+          ==
+    !>(&)
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>  %+  lien  pokes
+          |=  p=[@tas *]
+          |(=(p [%harness-action %fence 'dm']) ?=([%harness-hand * %enable %binding-dm *] p))
+    !>(|)
+  (ex-equal !>(~(key by lanes.loaded)) !>((silt ~['dm'])))
+::
 ::  Each upload is retired into its receipt, and the wake is the unfinished
 ::  send's timeout. The hand is disabled, so no other deadline applies.
 ++  test-reload-keeps-populated-state
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  =/  e  populated-3:up
+  =/  e  populated-4:up
   =/  retire
-    |=  [s=state-3:t id=@uv stage=?(%done %uncertain) body=@t]
-    ^-  state-3:t
+    |=  [s=state-4:t id=@uv stage=?(%done %uncertain) body=@t]
+    ^-  state-4:t
     =/  receipt  (~(got by tool-receipts.s) id)
     s(tool-receipts (~(put by tool-receipts.s) id receipt(stage stage, body body)))
   =.  e
@@ -126,7 +165,7 @@
     ==
   =.  uploads.e  ~
   =.  wake.e  `(add at:(~(got by tool-receipts.e) 0v8e) ~m1)
-  ;<  [* loaded=state-3:t]  bind:m  (load !>(populated-3:up))
+  ;<  [* loaded=state-4:t]  bind:m  (load !>(populated-4:up))
   (ex-same:up !>(loaded) !>(e))
 ::  A moon with no explicit owner takes its parent as owner on the first load
 ::  only, and cuts off the owner's history before then. An owner cleared

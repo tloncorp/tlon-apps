@@ -133,8 +133,9 @@ each ship's output to `.test-run/js/logs/ship-<ship>.log`.
 
 CI splits `test-js` across runners. `TEST_SHARD=I/N just test-js` runs the Ith of N
 parts of the full run, on fresh ships. With more than one part, the last takes the
-`node --test` files and the scripts restricted to `~lux` and `~nec`, and boots no
-`~zod`; the others deal out the `~zod` scripts in turn. A shard takes no PATTERN.
+`node --test` files and the scripts restricted to `~lux` and `~nec`, and boots
+`~zod` only for `tlon-shared-channel-conformance.mjs`, which needs all three ships;
+the others deal out the `~zod` scripts in turn. A shard takes no PATTERN.
 `just test-js --list` prints what a run would take, as `GROUP NAME` lines, without
 ships; with `TEST_SHARD`, what that shard would take.
 
@@ -245,7 +246,7 @@ For runtime performance characteristics and benchmark instructions, see
 ### Saved state across upgrades
 
 `tests/harness-upgrade.hoon` holds populated saved states: `populated` for
-`%harness`, `populated-3` for `%harness-tlon` and `acp-populated` for `%acp`,
+`%harness`, `populated-4` for `%harness-tlon` and `acp-populated` for `%acp`,
 with the unowned hand `unowned` for owner initialization. In a populated
 state every field holds a value that is not its default, and every collection
 has an entry whose fields are set. `test-populated-state-is-populated` checks
@@ -274,9 +275,9 @@ When you add a migration step:
 1. Freeze the shape being replaced under its own name, beside the agent's
    earlier shapes: `state-m0` and the head's others in
    `sur/harness-store.hoon`, with `state-before-maintenance` in
-   `lib/harness-store.hoon`; the Tlon hand's `state-0`, `state-1` and `state-2` in
+   `lib/harness-store.hoon`; the Tlon hand's `state-0` to `state-3` in
    `lib/harness-tlon-migrate.hoon`. The current shapes are the head's
-   `state-0` in `sur/harness-store.hoon` and the Tlon hand's `state-3` in
+   `state-0` in `sur/harness-store.hoon` and the Tlon hand's `state-4` in
    `sur/harness-tlon.hoon`.
 2. Move the populated fixture to the new shape, with a distinct value in
    every new field. Add a projection of it onto the frozen shape as the new
