@@ -256,7 +256,8 @@ it needs them. A card older than that is no longer known.
   owner's ship hosts it, or with `create_group` and `owner` when no such
   server is granted, then its remaining channels. Called again with the new
   `group`, it requires that group to carry the card's title, to have no
-  members but the owner and this ship, to belong to no other card, to make
+  member, pending or invited ship or token for anyone but the owner and this
+  ship, to belong to no other card, to make
   this ship an admin, and to have every listed channel. It then renames the
   group's first chat to the card's, makes the group secret, puts the channels
   in the card's order, posts the answer as the first message of that chat and
@@ -265,7 +266,10 @@ it needs them. A card older than that is no longer known.
   the card created. It then reports the task to schedule with `cron_add`,
   whose prompt starts with the task's title in brackets and posts to the
   workspace chat. A later call makes only the group changes still missing, so
-  one Tlon rejected is retried, and otherwise makes nothing.
+  one Tlon rejected is retried, and otherwise makes nothing. The answer and
+  the marker are not retried that way: if the chat rejects the answer but the
+  marker lands, the card is created without its answer; if the answer lands
+  but the marker does not, the next call posts the answer again.
 - Every other top-level DM message from the owner, commands excepted, is
   admitted with a workspace rule as its hand context, the way a channel
   thread's public reference is: check `list_groups`, link a workspace that
@@ -278,7 +282,8 @@ it needs them. A card older than that is no longer known.
   this ship is in, for a topic an existing workspace already covers.
 
 The group and its channels are made by the model's own calls between the two
-`tlon_workspace_create` calls, so a failed step is resumed by calling again,
+`tlon_workspace_create` calls, so a failed group or channel step is resumed
+by calling again,
 and the model is told never to make a second group for a card. The task
 follows the [scheduler](scheduling.md)'s limits: a UTC expression, at most 100
 runs, and a closing line in the DM, the conversation that scheduled it.
