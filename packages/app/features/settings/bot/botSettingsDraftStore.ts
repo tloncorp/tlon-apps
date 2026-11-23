@@ -94,8 +94,11 @@ interface BotSettingsDraftStore {
   // open), and a second bar that still read applying=false would let the user
   // start a concurrent apply and restart the gateway twice.
   applying: boolean;
+  // The contact's online claim can stay stale while a hosted bot pod restarts.
+  modelRestartShip: string | null;
   applyError: string | null;
   setApplying: (applying: boolean) => void;
+  setModelRestartShip: (ship: string | null) => void;
   setApplyError: (error: string | null) => void;
   syncServerValues: (scopeKey: string, values: BotSettingsDraftValues) => void;
   commitDraft: (
@@ -115,8 +118,10 @@ export const useBotSettingsDraftStore = create<BotSettingsDraftStore>(
     baseline: EMPTY_VALUES,
     draft: EMPTY_VALUES,
     applying: false,
+    modelRestartShip: null,
     applyError: null,
     setApplying: (applying) => set({ applying }),
+    setModelRestartShip: (modelRestartShip) => set({ modelRestartShip }),
     setApplyError: (applyError) => set({ applyError }),
     syncServerValues: (scopeKey, values) => {
       const current = get();
@@ -176,6 +181,7 @@ export function resetBotSettingsDraft() {
     baseline: EMPTY_VALUES,
     draft: EMPTY_VALUES,
     applying: false,
+    modelRestartShip: null,
     applyError: null,
   });
 }

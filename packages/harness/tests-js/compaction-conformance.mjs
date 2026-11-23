@@ -272,7 +272,7 @@ try {
   const cfg = await client.call('harness/session/config', { sessionId: largeSid })
   await client.call('harness/session/configure', { sessionId: largeSid, config: { ...cfg, key: '', 'max-context': 1000 } })
   const count = requests.length
-  await assert.rejects(prompt(largeSid, 'Huge indivisible ask. '.repeat(1000)), /context budget/)
+  await assert.rejects(prompt(largeSid, 'Huge indivisible ask. '.repeat(1000)), /context overflow/)
   assert.equal(requests.length, count)
 
   // Opt in for the actual three-minute Behn deadline. Native compaction avoids

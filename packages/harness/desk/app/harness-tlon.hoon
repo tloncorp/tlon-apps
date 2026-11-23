@@ -1369,6 +1369,7 @@
     [%route @ @ @ ~]  (agent-route wire sign)
     [%create @ ~]  (agent-create wire sign)
     [%hand @ @ ~]  (agent-hand wire sign)
+    [%refusal @ ~]  (agent-refusal wire sign)
     [%publish @ @ ~]  (agent-publish wire sign)
   ==
 ::
@@ -1745,6 +1746,8 @@
   =/  phase=term  i.t.wire
   =/  id=@uv  (slav %uv i.t.t.wire)
   =/  result  !<((each json @t) q.cage.sign)
+  ?:  &(?=(%| -.result) ?=(?(%bind %observe) phase) (~(has by jobs) id))
+    (refused id (~(got by jobs) id) p.result)
   ?:  ?=(%| -.result)  cor(error p.result)
   ?:  =(%disable phase)  cor
   ?:  =(%bind phase)
@@ -1767,6 +1770,40 @@
     reconcile(deliveries (~(del by deliveries) id))
   ?.  =(%claim phase)  cor
   (claimed id p.result)
+::
+::  A kept refused job counts against its conversation's admission room, and
+::  one full conversation holds the single Activity cursor for all of them.
+::  End the admission now. The notice is sent in this same event, outside the
+::  ledger, so a reload cannot repeat it.
+++  refused
+  |=  [id=@uv =job:t reason=@t]
+  ^+  cor
+  =.  error  reason
+  =.  jobs  (~(del by jobs) id)
+  =/  [actor=@p to=destination:t]  [actor to]:input.job
+  =/  address  (address:p to)
+  =/  lane  (~(get by lanes) sid.job)
+  ?.  ?&  ?=(^ lane)
+          ?=(^ (lane-grants u.lane ~))
+          (refusal-allowed:denial now.bowl actor address notices)
+      ==
+    (note 'refusal' actor address event.input.job)
+  =.  cor  (note 'refusal-notice' actor address event.input.job)
+  =.  last-sent  (next-message-stamp:p now.bowl last-sent)
+  =/  text  'I can\'t answer messages here right now.'
+  =/  content=story:v9:dv
+    ?:  ?=(%dm -.to)  ~[[%inline ~[text]]]
+    ~[[%inline ~[[%ship actor] (cat 3 ' ' text)]]]
+  (emit (publish-story:messenger /refusal/(scot %uv id) to content last-sent ~ ~))
+::
+++  agent-refusal
+  |=  [=wire =sign:agent:gall]
+  ^+  cor
+  ?>  ?=([%refusal @ ~] wire)
+  ?.  ?=(%poke-ack -.sign)  cor
+  ?~  p.sign  cor
+  %-  (slog 'harness-tlon: refusal notice rejected' u.p.sign)
+  cor(error 'Messenger rejected a refusal notice; inspect the ship log.')
 ::
 ++  agent-publish
   |=  [=wire =sign:agent:gall]

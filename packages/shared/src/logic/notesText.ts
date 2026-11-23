@@ -1,3 +1,10 @@
+import { markdownToStory } from '@tloncorp/api/client/markdown';
+import {
+  type PostContent,
+  convertContent,
+  plaintextPreviewOf,
+} from '@tloncorp/api/client/postContent';
+
 import { formatChannelContentsSummary } from './channelContentsText';
 
 /**
@@ -26,6 +33,26 @@ export function getNoteBodyPreview(
   bodyMd: string | null | undefined
 ): string | null {
   return stripNoteMarkdown(bodyMd) || null;
+}
+
+/**
+ * Rich content for a note's markdown snippet, shown under the note's title.
+ * Notes usually open with a heading that repeats the title, so a leading
+ * heading whose text equals the title is dropped.
+ */
+export function noteSnippetContent(
+  snippetMd: string,
+  title: string
+): PostContent {
+  const content = convertContent(markdownToStory(snippetMd), null);
+  const [first] = content;
+  if (
+    first?.type === 'header' &&
+    plaintextPreviewOf([first]) === title.trim()
+  ) {
+    return content.slice(1);
+  }
+  return content;
 }
 
 /**
