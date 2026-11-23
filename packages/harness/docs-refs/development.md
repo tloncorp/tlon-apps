@@ -200,6 +200,50 @@ and monitor a dedicated test ship explicitly. Offline Node tests need no opt-in.
 For runtime performance characteristics and benchmark instructions, see
 [performance](performance.md).
 
+### Saved state across upgrades
+
+`tests/harness-upgrade.hoon` holds populated saved states: `populated` for
+`%harness`, `populated-2` for `%harness-tlon` and `acp-populated` for `%acp`,
+with the unowned hand `unowned` for owner initialization. In a populated
+state every field holds a value that is not its default, and every collection
+has an entry whose fields are set. `test-populated-state-is-populated` checks
+only top-level fields and the nested records it can recognize. It does not
+look inside collection entries, units or records that start with a tag, so
+give those entries non-default values by hand. Each historical
+shape is a projection of the populated state. Each test loads its input
+through the real load arm and compares the whole result with an expected
+value: the input with that path's transformations applied.
+`tests/harness-tlon-upgrade.hoon` and the reload tests in `tests-integration`
+import these fixtures; they are not copied.
+
+When you add a field to saved state, give it a distinct value in the fixture,
+and in the collection entry if it sits inside one. A field that can only be
+saved at its default goes in `deliberate-defaults`, with the reason.
+
+When you change a type that saved state embeds, including a root-desk
+structure such as `nest:c`, freeze the old definition, and every type it
+uses, next to each saved shape that refers to it. Build that migration's
+historical test inputs against a frozen copy of the predecessor type that the
+test owns, not against the production declaration. A historical branch left
+pointing at the new type then fails its test.
+
+When you add a migration step:
+
+1. Freeze the shape being replaced under its own name, beside the agent's
+   earlier shapes: `state-m0` and the head's others in
+   `sur/harness-store.hoon`, with `state-before-maintenance` in
+   `lib/harness-store.hoon`; the Tlon hand's `state-0` and `state-1` in
+   `lib/harness-tlon-migrate.hoon`. The current shapes are the head's
+   `state-0` in `sur/harness-store.hoon` and the Tlon hand's `state-2` in
+   `sur/harness-tlon.hoon`.
+2. Move the populated fixture to the new shape, with a distinct value in
+   every new field. Add a projection of it onto the frozen shape as the new
+   step's input, beside the others in `tests/harness-upgrade.hoon` or
+   `tests/harness-tlon-upgrade.hoon`. Where the step drops or re-keys data,
+   the projection writes the old form by hand.
+3. Write the expected value as that step's transformation of the input.
+4. Delete one field copy from the step and check that its test fails.
+
 ## Live conformance
 
 Use disposable test ships. Read a fixture's header and environment options
