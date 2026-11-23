@@ -103,7 +103,9 @@ in fallback chains. Failover checks each candidate against its own reported
 capacity, skips candidates that cannot fit the request, and uses the 800,000-token
 default only when that candidate has no known capacity. A smaller reported limit
 always takes precedence. Credential changes invalidate cached capacity until
-metadata for the selected credentials arrives.
+metadata for the selected credentials arrives. A provider's refusal of a request
+as too large for its model never fails over; a refused turn compacts instead
+(below).
 
 Before inference, compaction compares the usage-based context budget with
 `window - output-budget - floor(window / 10)`. Requests above this threshold
@@ -138,6 +140,61 @@ the provider reports usage. Missing usage remains zero, not an estimated charge.
 Four attempts per admitted input bound automatic chunking; each summary has a
 three-minute watchdog. Cancellation fences late results. An in-flight summary
 without a source plan cannot be accepted as a checkpoint after reload.
+
+A provider refusing a turn as too large is recognized by its error wording
+(`oversized` in `lib/harness-failure.hoon`), whether it arrives as an HTTP error
+or inside a successful response. The failure is recorded and compaction starts
+in the same event, so the prompt stays open: the checkpoint re-issues the turn on
+the configured route, and the prompt settles once. A turn going back to the
+route that refused it is sent only if Harness's estimate of the whole request is
+strictly smaller than its estimate of the refused request. These compactions
+share the four attempts per admitted input. A refusal relayed by a connected
+runner, or one after text has streamed, is not compacted.
+
+When a turn still cannot be sent, it fails once with a reason beginning
+`context overflow: `. That covers: the attempt bound reached, no cut left or a
+tool batch of the unanswered turn too large to summarize, Harness's own refusal
+of the unanswered turn, a
+compaction that did not make the request smaller, a summary request refused for
+size, a recovery summary that is invalid or does not reduce, and a size refusal
+that was not compacted. A typed `/compact` is never marked, and neither is a
+planner refusal of the native compact action (it keeps its `context budget:`
+reason), a missing summary credential or a summary timeout. If the native
+compact action's summary request is refused for size, the failure is marked,
+and a message still unanswered at that moment is left out at the next message.
+Below the attempt bound, two planner refusals on a turn's path are not marked
+either, because leaving the turn out would not remove what was refused: a
+completed exchange before the unanswered turn too large for the summary model,
+and a pending group of summary nodes too large for the LCM model. The turn halts
+with a `context budget:` reason, the reply suggests a larger-context model, and
+the message is kept.
+
+At the next admission (or at a Tlon context reference recorded just before it),
+a marked failure makes the replayed context replace the unanswered turn, every
+item after the last assistant reply without tool calls, with one user note (with
+nothing unanswered, the mark is simply cleared):
+`[This message was left out because the request containing it was too large for
+the model. The original is kept in the conversation log.]` This is a replay rule
+in the reducer; the log, the transcript, ACP history and the corpus records keep
+the original. A marked failure also ends the reported usage that anchors the
+budget estimate, as a checkpoint does, so the estimate uses the encoded request
+until another turn is measured. A model change keeps the mark. An explicit Retry
+clears the failure without an admission, so it sends the original again.
+
+Limits. When retained history or summaries are too large on their own and the
+new message is small, leaving the failed message out does not help, and the
+conversation stays stuck. Harness's own 1 MiB request cap for connected runners
+is not recognized as a size refusal, so that input is not left out. An invalid
+automatic summary before any provider refusal is not marked: the oversized input
+stays, the next message fails too (marked), and the message after it is
+answered. A native compact whose summary is refused for size leaves out a
+message that was still unanswered then, though that message never failed for
+size. A message sent while a recovery is in progress, when that recovery's
+summary then comes back invalid, keeps the first message in for one more round,
+after which it clears as an invalid automatic summary does. Replaying a log
+with substitutions on an older desk keeps the originals, so a later checkpoint
+over them fails its source check; after a downgrade, cancel any session left
+compacting with no request in flight.
 
 `/context` and `/compact` share native, ACP and hand ingress. Only `/compact`
 invokes inference. It requires no tools and publishes success only after the

@@ -2,7 +2,8 @@
 /-  t=harness-tlon, cv=chat-ver, dv=channels-ver
 /+  spec=harness-tlon-tool, hp=harness-tlon-history-page,
     hist=harness-tlon-history, story=harness-tlon-story,
-    conversation=harness-tlon-conversation-tool, paths=harness-tlon-paths
+    conversation=harness-tlon-conversation-tool, paths=harness-tlon-paths,
+    authors=harness-tlon-author
 |_  bowl=bowl:gall
 +*  read-path  ~(. paths [our now]:bowl)
 ::
@@ -195,11 +196,13 @@
     =/  command=a-channels:v10:dv
       ?~  parent.to
         ?:  delete  [%channel nest.to %post %del id]
-        ?>  =(our.bowl author:+.+.post)
+        ::  The bot's messages carry a bare ship or the bot profile. An edit
+        ::  replaces only the content, so each keeps the author it had.
+        ?>  =(our.bowl (author-ship:authors author:+.+.post))
         [%channel nest.to %post %edit id +.+.post(content content)]
       =/  reply  (channel-reply nest.to u.parent.to id)
       ?:  delete  [%channel nest.to %post %reply u.parent.to %del id]
-      ?>  =(our.bowl author:+.+.reply)
+      ?>  =(our.bowl (author-ship:authors author:+.+.reply))
       [%channel nest.to %post %reply u.parent.to %edit id +.+.reply(content content)]
     [%pass wire %agent [our.bowl %channels] %poke %channel-action-2 !>(command)]
   ==

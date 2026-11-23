@@ -2,10 +2,13 @@
 # Make an installed Harness reachable from Tlon: set the owner, turn on the
 # Tlon hand and send Context Lens records to the owner. Safe to run again.
 #
-#   scripts/harness/setup.sh PIER OWNER
+#   scripts/harness/setup.sh SHIP OWNER
+#
+# SHIP is the ship as $CLICK takes it: a fake ship, as ~zod, for
+# scripts/ship-click, the default, or a pier for scripts/click.
 set -euo pipefail
 
-[[ $# -eq 2 ]] || { echo "usage: setup.sh PIER OWNER" >&2; exit 2; }
+[[ $# -eq 2 ]] || { echo "usage: setup.sh SHIP OWNER" >&2; exit 2; }
 pier=$1 owner=$2
 [[ $owner =~ ^~[a-z-]+$ ]] || { echo "owner must be a ship name such as ~zod, got '$owner'" >&2; exit 1; }
 call() { "$(dirname "$0")/acp-call.sh" "$pier" "$1"; }

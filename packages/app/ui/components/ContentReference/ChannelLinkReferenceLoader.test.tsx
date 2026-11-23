@@ -75,6 +75,7 @@ vi.mock('../PostContent/BlockRenderer', () => ({
 }));
 vi.mock('../PostContent/ContentRenderer', () => ({
   PostContentRenderer: () => null,
+  createContentRenderer: () => () => null,
 }));
 vi.mock('../listItems/listItemUtils', () => ({
   useBoundHandler: () => undefined,

@@ -2,7 +2,8 @@
 ::  A fresh plan binds source content, permissions and destination state.
 /-  n=notes, g=groups-ver, d=channels-ver
 /+  spec=harness-tlon-tool, md=harness-tlon-notes-markdown,
-    hp=harness-tlon-history-page, paths=harness-tlon-paths
+    hp=harness-tlon-history-page, paths=harness-tlon-paths,
+    authors=harness-tlon-author
 |_  bowl=bowl:gall
 +*  read-path  ~(. paths [our now]:bowl)
 +$  plan
@@ -82,7 +83,7 @@
     |=  image=@t
     (rap 3 '![](' (url:md image) ')\0a\0a' ~)
   =/  description  ?~(meta.post '' description.u.meta.post)
-  =/  who  ?@(author.post author.post ship.author.post)
+  =/  who  (author-ship:authors author.post)
   =/  decimal  (crip (a-co:co id.post))
   =/  marker  (rap 3 '<!-- harness-notes-migrate: ' channel ' ' decimal ' -->' ~)
   =/  body

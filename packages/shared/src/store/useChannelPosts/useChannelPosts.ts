@@ -29,6 +29,18 @@ import { useDeletedPosts, useNewPostListener } from './subscriptions';
 
 const postsLogger = createDevLogger('useChannelPosts', false);
 
+const MAX_RETRIES = 4;
+
+// When the ship answers the around-cursor fetch without the anchor, it does
+// not have that post, so the wait for it is kept short: one retry still finds
+// an anchor that lands locally just after (a post arriving by subscription).
+function maxRetriesFor(error: Error | null) {
+  return error instanceof CursorNormalizationError &&
+    !error.diagnostics.returned.present
+    ? 1
+    : MAX_RETRIES;
+}
+
 type PostQueryPage = {
   posts: db.Post[];
   /** Completion time for this page, independent of later pagination. */
@@ -110,15 +122,13 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     };
   }, [queryKey]);
 
-  const maxFailureCount = 3;
-
   const query = useInfiniteQuery({
     enabled,
     initialPageParam,
     placeholderData,
     refetchOnMount: false,
     retry(failureCount, error) {
-      const shouldRetry = failureCount <= maxFailureCount;
+      const shouldRetry = failureCount < maxRetriesFor(error);
       if (error instanceof CursorNormalizationError) {
         // A retry burst is one failed load. Preserve its exception and the
         // final attempt's diagnostics without reporting every retry as a bug.
@@ -255,7 +265,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
       query.isPaused ||
       query.isFetchingNextPage ||
       query.isFetchingPreviousPage ||
-      (query.isError && query.failureCount <= maxFailureCount));
+      (query.isError && query.failureCount <= maxRetriesFor(query.error)));
 
   const { loadOlder, loadNewer } = useLoadActionsWithPendingHandlers(query);
 

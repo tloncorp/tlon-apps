@@ -116,9 +116,9 @@
       [cards this]
     ?:  =(/telemetry wire)  `this
     ::  A failed profile edit retries on the next adapter event, not its nack.
-    ?:  =(/liveness wire)
+    ?:  =(/claims wire)
       ?^  error=?:(?=(%poke-ack -.sign) p.sign ~)
-        %-  (slog 'harness-tlon: liveness profile update failed' u.error)
+        %-  (slog 'harness-tlon: profile claim update failed' u.error)
         `this
       `this
     ::  A refused lease retries on the next adapter event, not its nack.
@@ -177,11 +177,12 @@
 ::
 ++  sync-liveness
   ^+  cor
-  ::  The in-ship hand publishes readiness through Contacts; the native
-  ::  subscriptions determine readiness. It also holds Steward's gateway lease.
+  ::  The in-ship hand publishes readiness and its bot-info claim through
+  ::  Contacts; the native subscriptions determine readiness. It also holds
+  ::  Steward's gateway lease.
   =/  online  &(enabled.policy watching head-live)
   =?  cor  online  hold-steward-lease
-  =/  effect  (mole |.((liveness:messenger online)))
+  =/  effect  (mole |.((claims:messenger online)))
   ?~  effect  cor
   ?~  u.effect  cor
   (emit u.u.effect)
@@ -1587,6 +1588,7 @@
     [%route @ @ @ ~]  (agent-route wire sign)
     [%create @ ~]  (agent-create wire sign)
     [%hand @ @ ~]  (agent-hand wire sign)
+    [%refusal @ ~]  (agent-refusal wire sign)
     [%publish @ @ ~]  (agent-publish wire sign)
   ==
 ::
@@ -1973,6 +1975,8 @@
   =/  phase=term  i.t.wire
   =/  id=@uv  (slav %uv i.t.t.wire)
   =/  result  !<((each json @t) q.cage.sign)
+  ?:  &(?=(%| -.result) ?=(?(%bind %observe) phase) (~(has by jobs) id))
+    (refused id (~(got by jobs) id) p.result)
   ?:  ?=(%| -.result)  cor(error p.result)
   ?:  =(%disable phase)  cor
   ?:  =(%bind phase)
@@ -1995,6 +1999,40 @@
     reconcile(deliveries (~(del by deliveries) id))
   ?.  =(%claim phase)  cor
   (claimed id p.result)
+::
+::  A kept refused job counts against its conversation's admission room, and
+::  one full conversation holds the single Activity cursor for all of them.
+::  End the admission now. The notice is sent in this same event, outside the
+::  ledger, so a reload cannot repeat it.
+++  refused
+  |=  [id=@uv =job:t reason=@t]
+  ^+  cor
+  =.  error  reason
+  =.  jobs  (~(del by jobs) id)
+  =/  [actor=@p to=destination:t]  [actor to]:input.job
+  =/  address  (address:p to)
+  =/  lane  (~(get by lanes) sid.job)
+  ?.  ?&  ?=(^ lane)
+          ?=(^ (lane-grants u.lane ~))
+          (refusal-allowed:denial now.bowl actor address notices)
+      ==
+    (note 'refusal' actor address event.input.job)
+  =.  cor  (note 'refusal-notice' actor address event.input.job)
+  =.  last-sent  (next-message-stamp:p now.bowl last-sent)
+  =/  text  'I can\'t answer messages here right now.'
+  =/  content=story:v9:dv
+    ?:  ?=(%dm -.to)  ~[[%inline ~[text]]]
+    ~[[%inline ~[[%ship actor] (cat 3 ' ' text)]]]
+  (emit (publish-story:messenger /refusal/(scot %uv id) to content last-sent ~ ~))
+::
+++  agent-refusal
+  |=  [=wire =sign:agent:gall]
+  ^+  cor
+  ?>  ?=([%refusal @ ~] wire)
+  ?.  ?=(%poke-ack -.sign)  cor
+  ?~  p.sign  cor
+  %-  (slog 'harness-tlon: refusal notice rejected' u.p.sign)
+  cor(error 'Messenger rejected a refusal notice; inspect the ship log.')
 ::
 ++  agent-publish
   |=  [=wire =sign:agent:gall]
@@ -2150,18 +2188,21 @@
       cutoff
     (fall (~(get by channel-cuts) nest.to.u.input) `@da`0)
   ?:  (lte (posted-at:continuity event) cutoff)  cor
-  =/  known  (~(get by identities) [actor.u.input to.u.input])
-  =/  sid  (fall known (identity:continuity actor.u.input to.u.input))
-  ?:  &(?=(~ known) (gte ~(wyt by identities) 128))
-    cor(error 'Conversation identity capacity reached; existing history and notes are retained.')
+  =/  sid
+    %+  fall
+      (~(get by identities) [actor.u.input to.u.input])
+    (identity:continuity actor.u.input to.u.input)
   =/  existing  (~(get by lanes) sid)
   =/  generation  ?~(existing epoch epoch.u.existing)
   =/  id=@uv  (sham [generation u.input])
   ?:  (~(has by jobs) id)  cor
   ?:  (gte ~(wyt by jobs) 64)  cor(error 'Admission queue full; inspect Tlon pending work.')
+  ::  Read only what will be admitted. A diagnostic, kept out of the input
+  ::  whose hash is the job id.
+  =/  bot=(unit ?)  (bot-author:~(. history-read bowl) to.u.input (posted-at:continuity event))
   =/  =job:t  [u.input sid %create '']
   =.  jobs  (~(put by jobs) id job)
-  =.  cor  (note 'message' actor.u.input (address:p to.u.input) event.u.input)
+  =.  cor  (note ?:(=(`& bot) 'bot-message' 'message') actor.u.input (address:p to.u.input) event.u.input)
   =.  identities  (~(put by identities) [actor.u.input to.u.input] sid)
   ?:  ?=(^ existing)
     ?:  (route-ready sid)  (bind-job id job)

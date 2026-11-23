@@ -20,7 +20,13 @@ export function useFloatingComposer(
   ready: boolean,
   isSending: () => boolean,
   isBrowsingHistory: () => boolean,
-  hasNewerPosts: boolean
+  hasNewerPosts: boolean,
+  /**
+   * The list opened at its end. Posts that arrive while it opens are still
+   * being followed when it is shown, so its distance from the end then says
+   * nothing about where the reader is; it starts docked.
+   */
+  opensAtEnd = false
 ) {
   const { floating, setFloating } = useConversationComposerLayout();
   const floatingRef = useRef(floating);
@@ -59,14 +65,15 @@ export function useFloatingComposer(
     if (state) {
       setFloating(
         hasNewerPosts ||
-          getFloatingComposerMode(
-            state.contentLength - state.scrollLength - state.scroll,
-            floatingRef.current
-          )
+          (!opensAtEnd &&
+            getFloatingComposerMode(
+              state.contentLength - state.scrollLength - state.scroll,
+              floatingRef.current
+            ))
       );
     }
     return () => setFloating(false);
-  }, [enabled, ready, hasNewerPosts, listRef, setFloating]);
+  }, [enabled, ready, hasNewerPosts, listRef, opensAtEnd, setFloating]);
 
   return useCallback(
     (position: ScrollPosition) => {

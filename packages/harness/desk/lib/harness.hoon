@@ -58,6 +58,21 @@
   ?.  =(generation (request-generation session call-id))  |
   ?~  generation  &
   =(u.generation next-req.session)
+::  A terminal size failure carries this exact prefix. No earlier code wrote
+::  it, so logs saved before it existed replay unchanged.
+::
+++  overflow
+  |=  reason=@t
+  ^-  @t
+  (cat 3 'context overflow: ' reason)
+++  overflowed
+  |=  err=@t
+  ^-  ?
+  =('context overflow: ' (end [3 18] err))
+::  Stands in for an unanswered turn that could not be sent at any size.
+::
+++  left-out
+  '[This message was left out because the request containing it was too large for the model. The original is kept in the conversation log.]'
 ::  +play: fold the event log (newest first) into a view
 ::
 ++  play
@@ -92,7 +107,7 @@
     %config-replaced  view(config config.event)
     %input-admitted  (admit-item view item.event)
     %input-received  (admit-item view item.input.event)
-    %context-received  (append-item view [%user body.event])
+    %context-received  (append-item (leave-out view) [%user body.event])
     %command-completed  (append-item view [%assistant body.event ~])
     %memory-set  view
     ::  A recorded request is an admitted continuation. Clearing the error
@@ -217,12 +232,37 @@
 ++  admit-item
   |=  [=view:h it=item:h]
   ^-  view:h
+  =.  view  (leave-out view)
   %=  view
     items  [it items.view]
     positions  [revision.view positions.view]
     err  ~
     cancelled  ~
     compact-attempts  0
+  ==
+::  After a marked size failure, the next admission replaces the unanswered
+::  turn with one note, so later requests no longer carry what could not be
+::  sent. The events themselves are kept; only the replayed context changes.
+::  Items are newest-first here, and the note takes the first item's address.
+::
+++  leave-out
+  |=  =view:h
+  ^-  view:h
+  ?.  &(?=(^ err.view) (overflowed u.err.view))  view
+  =/  count
+    =/  items  items.view
+    =|  count=@ud
+    |-  ^-  @ud
+    ?~  items  count
+    ?:  ?=([%assistant * ~] i.items)  count
+    $(items t.items, count +(count))
+  ::  With nothing unanswered, consume the mark so fresh input is kept.
+  ?:  =(0 count)  view(err ~)
+  =/  first  (snag (dec count) positions.view)
+  %=  view
+    items  [[%user left-out] (slag count items.view)]
+    positions  [first (slag count positions.view)]
+    err  ~
   ==
 ::
 ++  add-usage
@@ -446,6 +486,13 @@
 ::  Assistant turns since the last input before halting.
 ::
 ++  max-steps  24
+::  Both guards' halt reasons start with this; +describe recognizes them by it.
+::
+++  loop-guard  'loop guard: '
+++  guarded
+  |=  reason=@t
+  ^-  ?
+  =(loop-guard (end [3 (met 3 loop-guard)] reason))
 ::  +is-error: does a tool result body read as an error, by convention?
 ::
 ++  is-error
@@ -520,7 +567,7 @@
     :-  ~
     :-  %halt
     %+  rap  3
-    :~  'loop guard: '  (scot %ud fails)
+    :~  loop-guard  (scot %ud fails)
         ' tool calls in a row failed. stopping so you can rethink or '
         'ask for help — send a new message to continue.'
     ==
@@ -529,7 +576,7 @@
     :-  ~
     :-  %halt
     %+  rap  3
-    :~  'loop guard: '  (scot %ud since)
+    :~  loop-guard  (scot %ud since)
         ' turns without resolving the request. stopping to avoid a '
         'runaway — send a new message to continue.'
     ==

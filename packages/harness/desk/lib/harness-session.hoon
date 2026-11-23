@@ -23,7 +23,56 @@
   ::  on idle polling. The per-input attempt budget also bounds this work.
   ::
   ?:  &((lth compact-attempts.view 4) !=(~ (group:lcm lcm.view)))  `[%compact ~]
-  next
+  ::  After a compaction that followed a size rejection, send the turn again
+  ::  only if it shrank; the same request would be refused the same way.
+  ::
+  =/  rejected  (rejected-size view skills log)
+  ?~  rejected  next
+  ?:  (lth (estimate:provider view %turn skills) u.rejected)  next
+  `[%halt (overflow:head 'compaction did not make the request smaller')]
+::  The newest turn request since the last admission or explicit Retry, if a
+::  provider rejected it for size, and whether a compaction completed since.
+::
+++  refused
+  |=  log=(list event:h)
+  ^-  (unit [req=@ud compacted=?])
+  =/  compacted=?  |
+  =|  failed=(unit [req=@ud err=@t])
+  |-  ^-  (unit [req=@ud compacted=?])
+  ?~  log  ~
+  ?:  ?=(?(%input-received %input-admitted %retried) -.i.log)  ~
+  ?.  &(?=(%llm-requested -.i.log) =(%turn kind.i.log))
+    %=  $
+      log  t.log
+      compacted  |(compacted ?=(%checkpoint-completed -.i.log))
+      failed  ?.(?=(%llm-failed -.i.log) failed `[req.i.log err.i.log])
+    ==
+  ?.  &(?=(^ failed) =(req.i.log req.u.failed) (oversized:failure err.u.failed))
+    ~
+  `[req.i.log compacted]
+::  Estimate the turn request a provider rejected for size, when compaction
+::  completed after that rejection and the route has not changed since. An
+::  admission or an explicit Retry ends the search, so they always dispatch.
+::
+++  rejected-size
+  |=  [=view:h skills=(map @t skill:h) log=(list event:h)]
+  ^-  (unit @ud)
+  =/  found  (refused log)
+  ?.  &(?=(^ found) compacted.u.found)  ~
+  =/  req  req.u.found
+  =/  dispatched
+    =/  rest  log
+    |-  ^-  (list event:h)
+    ?~  rest  ~
+    ?:  &(?=(%llm-routed -.i.rest) =(req req.i.rest))  rest
+    $(rest t.rest)
+  ?.  ?=([[%llm-routed *] *] dispatched)  ~
+  =*  route  config.i.dispatched
+  ?.  &(=(url.route url.config.view) =(model.route model.config.view))  ~
+  =/  sent  (play:head dispatched)
+  =.  memory.sent  memory.view
+  =.  tools.config.sent  tools.config.view
+  `(estimate:provider sent %turn skills)
 ::
 ++  inspect
   |=  [=session:h skills=(map @t skill:h)]

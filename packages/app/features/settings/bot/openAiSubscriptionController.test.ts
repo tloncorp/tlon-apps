@@ -72,7 +72,7 @@ describe('OpenAIAuthController', () => {
     vi.useRealTimers();
   });
 
-  it('starts, polls, reports subscription models, and resets', async () => {
+  it('keeps the ChatGPT confirmation visible after loading subscription models', async () => {
     const { controller, getCompletedModels } = makeController();
 
     await controller.start();
@@ -83,7 +83,7 @@ describe('OpenAIAuthController', () => {
 
     await vi.advanceTimersByTimeAsync(1_500);
 
-    expect(controller.getState()).toEqual({ phase: 'idle' });
+    expect(controller.getState().phase).toBe('connected');
     expect(getCompletedModels()).toEqual([
       { id: 'gpt-5.6-terra', name: 'GPT-5.6 Terra' },
     ]);
@@ -228,7 +228,7 @@ describe('OpenAIAuthController', () => {
     finishCompletion();
     await start;
 
-    expect(controller.getState().phase).toBe('idle');
+    expect(controller.getState().phase).toBe('connected');
   });
 
   it('pauses scheduled polling and polls immediately on resume', async () => {
@@ -240,7 +240,31 @@ describe('OpenAIAuthController', () => {
     expect(controller.getState().phase).toBe('active');
 
     await controller.resume();
-    expect(controller.getState().phase).toBe('idle');
+    expect(controller.getState().phase).toBe('connected');
+  });
+
+  it('checks only once when foregrounding and closing the browser resume together', async () => {
+    let finishPoll: (response: { flow: TlawnLLMAuthFlow }) => void = () => {};
+    const poll = vi.fn(
+      () =>
+        new Promise<{ flow: TlawnLLMAuthFlow }>((resolve) => {
+          finishPoll = resolve;
+        })
+    );
+    const onComplete = vi.fn();
+    const { controller } = makeController({ poll, onComplete });
+    await controller.start();
+    controller.pause();
+    const foreground = controller.resume();
+    await controller.resume();
+    expect(poll).toHaveBeenCalledTimes(1);
+    finishPoll({ flow: { ...awaitingFlow, status: 'complete' } });
+    await foreground;
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    await controller.resume();
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(controller.getState().phase).toBe('connected');
+    expect(poll).toHaveBeenCalledTimes(1);
   });
 
   it('maps a missing flow to a restartable gateway-loss error', async () => {
@@ -277,7 +301,7 @@ describe('OpenAIAuthController', () => {
     });
 
     await vi.advanceTimersByTimeAsync(1_500);
-    expect(controller.getState()).toEqual({ phase: 'idle' });
+    expect(controller.getState().phase).toBe('connected');
     expect(poll).toHaveBeenCalledTimes(2);
   });
 
@@ -315,7 +339,7 @@ describe('OpenAIAuthController', () => {
 
     await vi.advanceTimersByTimeAsync(100);
 
-    expect(controller.getState()).toEqual({ phase: 'idle' });
+    expect(controller.getState().phase).toBe('connected');
     expect(getCompletedModels()).toEqual([
       { id: 'gpt-5.6-terra', name: 'GPT-5.6 Terra' },
     ]);
@@ -359,7 +383,7 @@ describe('OpenAIAuthController', () => {
 
     await controller.retry();
 
-    expect(controller.getState()).toEqual({ phase: 'idle' });
+    expect(controller.getState().phase).toBe('connected');
     expect(onComplete).toHaveBeenCalledTimes(2);
   });
 
