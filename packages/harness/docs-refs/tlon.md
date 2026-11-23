@@ -377,6 +377,11 @@ When the loop guard stops a turn, after four failed tool calls in a row or 24
 model turns without an answer, the reply says the bot stopped and asks for a
 new message. Open the Harness conversation for details. For a `401`, check that conversation's
 endpoint and credential. Refreshing the page does not retry inference.
+A message whose request is too large for the model and cannot be made to fit
+usually gets one reply saying it was left out; the next message is answered
+without it. When Harness itself refuses to compact because an earlier exchange
+or a pending group of summaries is too large for the summary model, the message
+is kept and the reply suggests a larger-context model.
 
 Send `/help` for the shared [conversation commands](acp.md#conversation-commands).
 Mention rules still apply. `/stop` interrupts work and clears queued inputs;
@@ -436,6 +441,14 @@ preserving the rest of the profile and skipping unchanged claims. Reload and
 reconnection repair the claim. A failed Contacts read or edit retries on the
 next adapter event without blocking chat or creating a nack loop. If the whole
 ship stops, peers retain the last published claim until the ship returns.
+
+The same reconciliation publishes the `bot-info` claim that identifies the
+runtime to the app (`docs/bot-info.md`):
+`{"v":1,"harness":"harness","version":"<version>"}`, whatever the hand's
+readiness. The version is `version` in `desk/lib/harness-defaults.hoon`, which
+the ACP agent info also reports; `package.json` repeats it for the shared bot
+E2E, and `tests-js/distribution.test.mjs` keeps the two equal. Both claims
+share one Contacts read and, when either differs, one `%self` edit.
 
 Chat computing indicators use `%presence-action-1` and the
 `tlon.computing-status.v1` display payload, matching the versioned Groups
@@ -517,8 +530,10 @@ messaging the sender.
 - New owner conversations inherit the tools in **Settings → Defaults**, not the
   entire catalog. Existing conversations keep their configured grants. Ownership
   still permits conversation admission and invitation acceptance without tools.
-  **Known bug:** these saved tools don't limit owner turns with administrative
-  authority, which get the live catalog. See [known bugs](../ISSUES.md#known-bugs).
+  An owner turn in the owner's own DM with the bot has administrative authority
+  and gets the live catalog whatever the saved tools say, except `run_js`, which
+  needs `code` saved on the conversation. In a channel, the saved tools limit the
+  owner too.
 - Trusted ships can chat with no tools; each grant is explicit.
   MCP entries grant individual registered server IDs, for example
   `{"mcp":"calendar"}` in the `tools` array. Registering another server never

@@ -6,6 +6,7 @@ export function AnimatedInputHeight({
 }: PropsWithChildren<{
   minimumHeight: number;
   holdHeight?: boolean;
+  snapShrink?: boolean;
   onHeightSettled?: () => void;
 }>) {
   return <View position="relative">{children}</View>;

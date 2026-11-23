@@ -21,6 +21,67 @@ export function getPostListKey({ post }: PostWithNeighbors) {
   return `${post.authorId}:${post.sentAt}`;
 }
 
+const TEXT_LENGTH_STEPS = [60, 180, 400, 900];
+
+/**
+ * A row's item type for the list, grouping rows of about the same height.
+ *
+ * The list sizes a row it has not measured from the average of measured rows
+ * of the same type. With one type for every message, a page of short replies
+ * arriving under a few long messages was laid out at the long messages'
+ * height, then shrank by thousands of points as it was measured, and the
+ * corrections for that reached the scroll view late enough to drop the
+ * message the reader was looking at. Grouping by what most changes a row's
+ * height (media, references, text length) keeps that first guess close.
+ */
+export function getPostRowType(row: PostWithNeighbors) {
+  // A row keeps the type it was first given. One whose type changed (the post
+  // above it arriving, or the post itself updating after it was first shown)
+  // would be moved to another container and remounted on screen. Keyed like
+  // the list's rows, so a post confirmed or edited in place keeps its type.
+  //
+  // Kept least recently used first, and trimmed from that end: the rows a
+  // list is asking about are the ones it is showing, so they are never the
+  // ones dropped.
+  const key = getPostListKey(row);
+  let type = rowTypes.get(key);
+  if (type === undefined) {
+    type = computePostRowType(row.post);
+  } else {
+    rowTypes.delete(key);
+  }
+  rowTypes.set(key, type);
+  if (rowTypes.size > MAX_ROW_TYPES) {
+    const oldest = rowTypes.keys().next().value;
+    if (oldest !== undefined) {
+      rowTypes.delete(oldest);
+    }
+  }
+  return type;
+}
+
+const MAX_ROW_TYPES = 5000;
+const rowTypes = new Map<string, string>();
+
+function computePostRowType(post: db.Post) {
+  if (post.isDeleted) {
+    return `${post.type}:deleted`;
+  }
+  const length = post.textContent?.length ?? 0;
+  const lengthStep = TEXT_LENGTH_STEPS.findIndex((step) => length <= step);
+  return [
+    post.type,
+    lengthStep === -1 ? TEXT_LENGTH_STEPS.length : lengthStep,
+    post.hasImage ? 'image' : '',
+    post.hasAppReference || post.hasChannelReference || post.hasGroupReference
+      ? 'ref'
+      : '',
+    post.hasLink ? 'link' : '',
+    post.blob ? 'blob' : '',
+    (post.replyCount ?? 0) > 0 ? 'replies' : '',
+  ].join(':');
+}
+
 export interface PostListMethods {
   scrollToStart: (opts: { animated?: boolean }) => void;
   scrollToEnd: (opts: { animated?: boolean }) => void;
@@ -87,6 +148,33 @@ export type PostListComponentProps = {
 export type PostListComponent = ReturnType<
   typeof React.forwardRef<PostListMethods, PostListComponentProps>
 >;
+
+/**
+ * How a data change reshapes the window of loaded posts. Posts are in visual
+ * order, oldest first.
+ *
+ * - `changesTop`: the oldest post is different, because older posts arrived
+ *   above or posts were dropped from the top (a cached page replaced by a
+ *   fresh one).
+ * - `changesEnd`: the newest post is different.
+ */
+export function describeWindowChange(
+  before: readonly PostWithNeighbors[],
+  after: readonly PostWithNeighbors[]
+) {
+  if (before.length === 0 || after.length === 0) {
+    return { changesTop: false, changesEnd: false };
+  }
+  // Compared by row key, so the host confirming an optimistic post (a new id
+  // for the same row) is not a change of window: in a one-row conversation it
+  // would read as both ends changing.
+  return {
+    changesTop: getPostListKey(after[0]) !== getPostListKey(before[0]),
+    changesEnd:
+      getPostListKey(after[after.length - 1]) !==
+      getPostListKey(before[before.length - 1]),
+  };
+}
 
 export function usesConversationPostList({
   collectionLayoutType,

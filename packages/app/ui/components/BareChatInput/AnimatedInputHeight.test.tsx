@@ -94,6 +94,65 @@ describe('composer height during local enqueue', () => {
     expect(timing.mock.calls.map(([height]) => height)).toEqual([90, 44]);
   });
 
+  it('shrinks a cleared draft at once when asked to snap, and still animates growth', () => {
+    measure(120);
+    const settled = vi.fn();
+    act(() => {
+      renderer.update(
+        <AnimatedInputHeight
+          minimumHeight={44}
+          snapShrink
+          onHeightSettled={settled}
+        >
+          <input />
+        </AnimatedInputHeight>
+      );
+    });
+    timing.mockClear();
+    settled.mockClear();
+    measure(44);
+    expect(timing).not.toHaveBeenCalled();
+    expect(settled).toHaveBeenCalledOnce();
+    measure(90);
+    expect(timing).toHaveBeenCalledOnce();
+    expect(timing.mock.calls[0][0]).toBe(90);
+  });
+
+  function renderSnapping(settled: () => void, snapShrink: boolean) {
+    act(() => {
+      renderer.update(
+        <AnimatedInputHeight
+          minimumHeight={44}
+          snapShrink={snapShrink}
+          onHeightSettled={settled}
+        >
+          <input />
+        </AnimatedInputHeight>
+      );
+    });
+  }
+
+  it('settles at once when asked to snap with nothing to shrink', () => {
+    const settled = vi.fn();
+    renderSnapping(settled, false);
+    settled.mockClear();
+    timing.mockClear();
+    renderSnapping(settled, true);
+    expect(settled).toHaveBeenCalledOnce();
+    expect(timing).not.toHaveBeenCalled();
+  });
+
+  it('waits for the cleared layout when asked to snap a taller composer', () => {
+    const settled = vi.fn();
+    renderSnapping(settled, false);
+    measure(120);
+    settled.mockClear();
+    renderSnapping(settled, true);
+    expect(settled).not.toHaveBeenCalled();
+    measure(44);
+    expect(settled).toHaveBeenCalledOnce();
+  });
+
   it('allows a new draft to grow during a slow enqueue', () => {
     hold(true);
     measure(120);

@@ -855,6 +855,43 @@
     !>('Source hand or conversation authority changed; explicit rescheduling is required')
   ;<  ~  bind:m  (ex-equal !>(remaining:(~(got by schedules.next) 0v1)) !>(remaining.bus))
   (ex-equal !>((ran 'schedule-0v1')) !>(|))
+::  The owner's DM schedule and reminder carry %code among their saved grants,
+::  and their source conversation does not grant it. A scheduled run never
+::  holds %code, so both stay active and the schedule still runs.
+::
+++  test-saved-code-does-not-pause
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ::  What the owner's DM turn holds when its conversation grants %code.
+  =/  held=(list tool-grant:h)
+    :~  [%clay ~]  %web  %curl  %skills  %skill-write  %author  %subagents  %peers  %corpus
+        %workspace  %code  %tlon  %tlon-read  %tlon-write  %admin  %cron
+    ==
+  =/  work  (tlon-job ~nec owner-dm)
+  =.  tools.work  held
+  =/  note
+    =/  act=action:c
+      :*  %add  0v2  'source-binding'  '~nec'  %reminder
+          (pairs:enjs:format ~[['at' %s '2026-09-11T00:00:00Z'] ['text' %s 'Stand up']])
+      ==
+    (create:schedule act ['tlon' owner-dm 'source' ~['~nec'] &] held t0)
+  =/  s  (tlon-fixture ~nec owner-dm 'calculate' '{}' (my ~[[0v1 work] [0v2 note]]))
+  =.  sessions.s  (~(put by sessions.s) 'schedule-0v2' [~[[%config-replaced defaults.s]] 1])
+  =.  bindings.hands.s
+    (~(put by bindings.hands.s) 'schedule-0v2' ['tlon' owner-dm 'schedule-0v2' ~['~nec'] &])
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now t0)))
+  ;<  ~  bind:m  (set-scry-gate (tlon-scry (my ~[['source' (tlon-lane ~nec owner-dm ~)]])))
+  ;<  ~  bind:m  (wait ~d1)
+  ;<  *  bind:m  (do-load head `!>(s))
+  ;<  next=state-0  bind:m  get-state
+  =/  kept  |=(id=@uv [state reason]:(~(got by schedules.next) id))
+  ;<  ~  bind:m  (ex-equal !>((kept 0v1)) !>([%active '']))
+  ;<  ~  bind:m  (ex-equal !>((kept 0v2)) !>([%active '']))
+  %+  ex-equal
+    !>  %+  lien  ~(val by observations.hands.next)
+        |=(o=observation:hh =('schedule-0v1' binding.o))
+  !>(&)
 ::  A conversation, and a subagent started from it, stay inside the hand's
 ::  ceiling. The hand's ceiling for another actor carries neither %tlon nor
 ::  %code (harness-tlon-authority); here the head is given one, and the
@@ -993,4 +1030,26 @@
   ;<  ~  bind:m  (ex-equal !>(remaining.ran) !>((dec remaining.job)))
   ;<  ~  bind:m  (ex-equal !>(?=(^ last.ran)) !>(&))
   (ex-equal !>((feed out)) !>(~[schedules.next]))
+::
+::  The owner's administrative DM turn holds all of these; a child is never
+::  given them, so its saved config must not claim them either.
+++  test-child-config-saves-only-tools-a-child-can-hold
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  (tlon-fixture ~nec owner-dm 'run_subagent' '{}' ~)
+  ;<  ~  bind:m  (tlon-setup s (my ~[['source' (tlon-lane ~nec owner-dm ~)]]))
+  ;<  *  bind:m
+    (do-poke %harness-effect !>(`effect:h`[4 [%spawn 'source' 'control' 'Child work' ~]]))
+  ;<  next=state-0  bind:m  get-state
+  =/  child  (~(get by sessions.next) (delegated-id:hl 'source' 'control' | `4))
+  ;<  ~  bind:m  (ex-equal !>(?=(^ child)) !>(&))
+  ?>  ?=(^ child)
+  =/  saved  tools.config:(play:hl log.u.child)
+  =/  holds  |=(grant=tool-grant:h (lien saved |=(g=tool-grant:h =(g grant))))
+  %+  ex-equal
+    !>  :~  (holds %subagents)  (holds %admin)  (holds %cron)  (holds %tlon-read)
+            (holds %tlon-write)  (holds %workspace)
+        ==
+  !>(~[| | | | | &])
 --

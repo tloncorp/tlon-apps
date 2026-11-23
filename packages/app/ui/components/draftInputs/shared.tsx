@@ -18,6 +18,22 @@ export type DraftSendOptions = PostSendOptions & {
   scrollHandled?: boolean;
 };
 
+/** Send options that also run `scroll` once the optimistic post is in the
+ * list. Waiting for delivery instead would leave a send made away from the
+ * end out of view until the ship confirms it. */
+export function scrollOnceEnqueued(
+  options: DraftSendOptions | undefined,
+  scroll: () => void
+): DraftSendOptions {
+  return {
+    ...options,
+    onEnqueued: () => {
+      options?.onEnqueued?.();
+      scroll();
+    },
+  };
+}
+
 export type GalleryRoute =
   | 'gallery'
   | 'add-post'
