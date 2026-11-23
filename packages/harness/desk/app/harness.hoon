@@ -150,6 +150,10 @@
           |(!=(before-hands hands) !=(before-sessions sessions) !=(before-schedules schedules))
         =?  cards  changed
           (snoc cards [%give %fact ~[/hand-events] %noun !>(%changed)])
+        ::  Every schedule write, including maintenance above, lands before
+        ::  this comparison. The 64-schedule cap keeps a full snapshot small.
+        =?  cards  !=(before-schedules schedules)
+          (snoc cards [%give %fact ~[/schedule-events] %noun !>(schedules)])
         =?  cards  !=(before-writes writes.workspace)
           =/  revision=json
             (pairs:enjs:format ~[['revision' (numb:enjs:format writes.workspace)]])
@@ -352,6 +356,7 @@
     ::
       [%workspace @ ~]  `this
       [%hand-events ~]  [~[[%give %fact ~[path] %noun !>(%changed)]] this]
+      [%schedule-events ~]  [~[[%give %fact ~ %noun !>(schedules)]] this]
       [%session @ ~]  `this
       [%hands @ ~]  `this
       [%crons @ ~]  `this

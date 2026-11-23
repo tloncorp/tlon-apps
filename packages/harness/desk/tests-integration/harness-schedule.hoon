@@ -919,4 +919,78 @@
   %-  eval-mare
   ;<  ~  bind:(mare ,~)  (ex-delegated & ~nec owner-dm ~)
   (ex-delegated & ~nec room ~)
+::  Snapshots the head gave its schedule subscribers in one event.
+::
+++  feed
+  |=  cards=(list card)
+  ^-  (list (map @uv schedule:c))
+  %+  murn  cards
+  |=  =card
+  ^-  (unit (map @uv schedule:c))
+  ?.  ?=([%give %fact [[%schedule-events ~] ~] %noun *] card)  ~
+  `!<((map @uv schedule:c) q.cage.p.card)
+++  test-new-schedule-subscriber-alone-gets-the-full-set
+  %-  eval-mare
+  ;<  ~  bind:(mare ,~)  (ex-initial-set ~)
+  (ex-initial-set (my ~[[0v1 job]]))
+++  ex-initial-set
+  |=  jobs=(map @uv schedule:c)
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  fixture
+  =.  schedules.s  jobs
+  ;<  ~                bind:m  (setup s)
+  ;<  out=(list card)  bind:m  (do-watch /schedule-events)
+  ;<  *                bind:m  (do-leave /schedule-events)
+  (ex-cards out ~[(ex-fact ~ %noun !>(jobs))])
+++  test-foreign-ship-cannot-watch-schedules
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (setup fixture)
+  (ex-fail ((do-as ~nec) (do-watch /schedule-events)))
+::  Reads change no schedule, so they must not wake subscribers.
+::
+++  test-each-schedule-change-gives-one-snapshot-and-reads-give-none
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  act=action:c
+    :*  %add  0v2  'source-binding'  'alice'  %prompt
+        %-  pairs:enjs:format
+        ~[['at' %s '2026-09-09T00:01:17Z'] ['prompt' %s 'Finish the task and report the result']]
+    ==
+  =/  poke
+    |=  =action:c
+    (do-poke %harness-cron !>(`request:c`['feed' action]))
+  ;<  ~                    bind:m  (setup fixture)
+  ;<  added=(list card)    bind:m  (poke act)
+  ;<  created=state-0      bind:m  get-state
+  ;<  listed=(list card)   bind:m  (poke [%list ~])
+  ;<  stopped=(list card)  bind:m  (poke [%cancel 0v2])
+  ;<  cancelled=state-0    bind:m  get-state
+  ;<  cleared=(list card)  bind:m  (poke [%clear 0v2])
+  ;<  ~  bind:m  (ex-equal !>(state:(~(got by schedules.created) 0v2)) !>(%active))
+  ;<  ~  bind:m  (ex-equal !>(state:(~(got by schedules.cancelled) 0v2)) !>(%cancelled))
+  ;<  ~  bind:m  (ex-equal !>((feed added)) !>(~[schedules.created]))
+  ;<  ~  bind:m  (ex-equal !>((feed listed)) !>(`(list (map @uv schedule:c))`~))
+  ;<  ~  bind:m  (ex-equal !>((feed stopped)) !>(~[schedules.cancelled]))
+  (ex-equal !>((feed cleared)) !>(`(list (map @uv schedule:c))`~[~]))
+++  test-an-admitted-run-gives-one-snapshot
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  fixture
+  =/  job  job
+  =.  schedules.s  (my ~[[0v1 job]])
+  ;<  ~              bind:m  (setup s)
+  ;<  ready=state-0  bind:m  get-state
+  =/  at  (need schedule-wake.ready)
+  ;<  ~                bind:m  (jab-bowl |=(b=bowl b(now at)))
+  ;<  out=(list card)  bind:m  (do-arvo /schedules/(scot %da at) [%behn %wake ~])
+  ;<  next=state-0     bind:m  get-state
+  =/  ran  (~(got by schedules.next) 0v1)
+  ;<  ~  bind:m  (ex-equal !>(remaining.ran) !>((dec remaining.job)))
+  ;<  ~  bind:m  (ex-equal !>(?=(^ last.ran)) !>(&))
+  (ex-equal !>((feed out)) !>(~[schedules.next]))
 --
