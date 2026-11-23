@@ -119,7 +119,9 @@ function TileFace({
   const glyphSize = size * GLYPH_IN_TILE;
   const inset = (size - glyphSize) / 2;
   return (
-    <Svg width={size} height={size}>
+    // The canvas fills its tile rather than taking `size`, which an Svg can
+    // round down, cutting off the right and bottom lines.
+    <Svg width="100%" height="100%">
       {selected ? (
         <Rect width={size} height={size} rx={LINE_TILE_RADIUS} fill={ink} />
       ) : (
@@ -156,13 +158,17 @@ export function AvatarGlyphPicker({
 }) {
   const { width } = useWindowDimensions();
   const count = AVATAR_GLYPH_IDS.length;
-  // Whole pixels: a tile's canvas at a fractional size cuts off its right
-  // and bottom lines. The row spreads what's left over across its gaps.
+  // Every tile starts and ends on a whole pixel, or its hairline comes out
+  // lighter on one side than the other: whole-pixel tiles and gaps, with the
+  // row centered on a whole pixel too.
   const scale = PixelRatio.get();
-  const tile =
-    Math.floor(
-      ((width - 2 * ROW_MARGIN - (count - 1) * TILE_GAP) / count) * scale
-    ) / scale;
+  const rowPixels = Math.round(width * scale) - 2 * ROW_MARGIN * scale;
+  const gapPixels = Math.round(TILE_GAP * scale);
+  const tilePixels = Math.floor((rowPixels - (count - 1) * gapPixels) / count);
+  const leftPixels = Math.floor(
+    (Math.round(width * scale) - count * tilePixels - (count - 1) * gapPixels) /
+      2
+  );
   return (
     <YStack gap={8}>
       <Text
@@ -176,8 +182,8 @@ export function AvatarGlyphPicker({
         Avatar
       </Text>
       <XStack
-        marginHorizontal={ROW_MARGIN}
-        justifyContent="space-between"
+        marginLeft={leftPixels / scale}
+        gap={gapPixels / scale}
         accessibilityRole="radiogroup"
         accessibilityLabelledBy="onboarding-avatar-label"
       >
@@ -195,7 +201,7 @@ export function AvatarGlyphPicker({
             <AvatarGlyphTile
               glyph={glyph}
               selected={value === glyph}
-              size={tile}
+              size={tilePixels / scale}
             />
           </Pressable>
         ))}

@@ -10,6 +10,7 @@ import {
   BotTile,
   GlyphMark,
   HatchedBox,
+  LINE_TILE_RADIUS,
   MarchingBox,
   MarchingPath,
   Packet,
@@ -136,6 +137,12 @@ export function PrivateArt({ glyph }: { glyph: AvatarGlyphId }) {
   );
 }
 
+/**
+ * A connected service's tile, or the picked model's, gets a second outline
+ * 3 units inside its first, its corners following the tile's.
+ */
+const INNER_OUTLINE_RADIUS = LINE_TILE_RADIUS - 3;
+
 /** What a service's tile on Connect your services shows. */
 export type ServiceDrawingIcon = 'calendar' | 'mail' | 'branch' | 'page';
 
@@ -197,7 +204,7 @@ export function ConnectArt({
                     y={y + 3}
                     width={CONNECT_BOX.size - 6}
                     height={CONNECT_BOX.size - 6}
-                    radius={5}
+                    radius={INNER_OUTLINE_RADIUS}
                     fill="none"
                   />
                 </>
@@ -301,7 +308,7 @@ export function ModelArt({
                   y={MODEL_TILE.y + 3}
                   width={MODEL_TILE.size - 6}
                   height={MODEL_TILE.size - 6}
-                  radius={5}
+                  radius={INNER_OUTLINE_RADIUS}
                   fill="none"
                 />
               ) : null}
