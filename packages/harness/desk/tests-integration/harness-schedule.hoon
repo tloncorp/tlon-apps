@@ -956,28 +956,6 @@
   %-  eval-mare
   ;<  ~  bind:(mare ,~)  (ex-delegated & ~nec owner-dm ~)
   (ex-delegated & ~nec room ~)
-::  The owner's administrative DM turn holds all of these; a child is never
-::  given them, so its saved config must not claim them either.
-++  test-child-config-saves-only-tools-a-child-can-hold
-  %-  eval-mare
-  =/  m  (mare ,~)
-  ^-  form:m
-  =/  s  (tlon-fixture ~nec owner-dm 'run_subagent' '{}' ~)
-  ;<  ~  bind:m  (tlon-setup s (my ~[['source' (tlon-lane ~nec owner-dm ~)]]))
-  ;<  *  bind:m
-    (do-poke %harness-effect !>(`effect:h`[4 [%spawn 'source' 'control' 'Child work' ~]]))
-  ;<  next=state-0  bind:m  get-state
-  =/  child  (~(get by sessions.next) (delegated-id:hl 'source' 'control' | `4))
-  ;<  ~  bind:m  (ex-equal !>(?=(^ child)) !>(&))
-  ?>  ?=(^ child)
-  =/  saved  tools.config:(play:hl log.u.child)
-  =/  holds  |=(grant=tool-grant:h (lien saved |=(g=tool-grant:h =(g grant))))
-  %+  ex-equal
-    !>  :~  (holds %subagents)  (holds %admin)  (holds %cron)  (holds %tlon-read)
-            (holds %tlon-write)  (holds %workspace)
-        ==
-  !>(~[| | | | | &])
-::
 ::  Snapshots the head gave its schedule subscribers in one event.
 ::
 ++  feed
@@ -1052,4 +1030,26 @@
   ;<  ~  bind:m  (ex-equal !>(remaining.ran) !>((dec remaining.job)))
   ;<  ~  bind:m  (ex-equal !>(?=(^ last.ran)) !>(&))
   (ex-equal !>((feed out)) !>(~[schedules.next]))
+::
+::  The owner's administrative DM turn holds all of these; a child is never
+::  given them, so its saved config must not claim them either.
+++  test-child-config-saves-only-tools-a-child-can-hold
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  (tlon-fixture ~nec owner-dm 'run_subagent' '{}' ~)
+  ;<  ~  bind:m  (tlon-setup s (my ~[['source' (tlon-lane ~nec owner-dm ~)]]))
+  ;<  *  bind:m
+    (do-poke %harness-effect !>(`effect:h`[4 [%spawn 'source' 'control' 'Child work' ~]]))
+  ;<  next=state-0  bind:m  get-state
+  =/  child  (~(get by sessions.next) (delegated-id:hl 'source' 'control' | `4))
+  ;<  ~  bind:m  (ex-equal !>(?=(^ child)) !>(&))
+  ?>  ?=(^ child)
+  =/  saved  tools.config:(play:hl log.u.child)
+  =/  holds  |=(grant=tool-grant:h (lien saved |=(g=tool-grant:h =(g grant))))
+  %+  ex-equal
+    !>  :~  (holds %subagents)  (holds %admin)  (holds %cron)  (holds %tlon-read)
+            (holds %tlon-write)  (holds %workspace)
+        ==
+  !>(~[| | | | | &])
 --
