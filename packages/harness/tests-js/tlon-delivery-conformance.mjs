@@ -68,9 +68,9 @@ async function send(suffix, channel = inChannel) {
   assert.ok(r.ok)
 }
 async function idle() {
-  return until('idle hand has no clock wake or pending sends', async () => {
+  return until('idle hand has no clock wake but its Steward lease renewal, and no pending sends', async () => {
     const s = await status()
-    return s?.headConnected && s.deliveryMode === 'events' && !s.pending && !s.delivering && s.maintenanceWake === null
+    return s?.headConnected && s.deliveryMode === 'events' && !s.pending && !s.delivering && (s.maintenanceWake === null || s.maintenanceWake === s.leaseRenewal)
   })
 }
 try {

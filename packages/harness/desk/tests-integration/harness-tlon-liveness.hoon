@@ -53,6 +53,8 @@
     |=  =path
     ^-  (unit vase)
     ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(?=(^ contact))
+    ::  harness-tlon-steward covers the Steward lease.
+    ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(|)
     ?:  =(%$ (rear path))  `!>(&)
     ?:  ?=([%gx @ %contacts @ %v1 %self %contact-1 ~] path)
       ?~(contact ~ `!>(u.contact))
