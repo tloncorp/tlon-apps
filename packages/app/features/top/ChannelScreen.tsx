@@ -209,9 +209,6 @@ export default function ChannelScreen(props: Props) {
   useEffect(() => {
     firstScreenShownRef.current = firstScreenShown;
   }, [firstScreenShown]);
-  const handleFirstScreenShown = useCallback(() => {
-    setShownChannelId(currentChannelId);
-  }, [currentChannelId]);
   // Snapshot unread state when the channel is entered so the divider does not
   // move as the channel is marked read; see nextChannelUnreadSnapshot for when
   // a return to the channel takes a new one.
@@ -221,6 +218,30 @@ export default function ChannelScreen(props: Props) {
     React.useState(false);
   const [clearedCursor, setClearedCursor] = React.useState(false);
   const isFocused = useIsFocused();
+  // The snapshot the list last got ready to display. A channel restored
+  // beneath another screen gets ready while hidden, so this only counts as
+  // shown once the reader is on the channel and this entry's snapshot is
+  // taken: unreads that sync brings in meanwhile still get their own.
+  const [readySnapshot, setReadySnapshot] =
+    React.useState<ChannelUnreadSnapshot | null>(null);
+  const snapshotRef = React.useRef(initialChannelUnreadSnapshot);
+  // A layout effect, so the list's ready callback, a passive effect in a
+  // child, sees the snapshot of the same commit.
+  React.useLayoutEffect(() => {
+    snapshotRef.current = initialChannelUnreadSnapshot;
+  }, [initialChannelUnreadSnapshot]);
+  const handleFirstScreenShown = useCallback(() => {
+    setReadySnapshot(snapshotRef.current);
+  }, []);
+  if (
+    isFocused &&
+    unreadSnapshotIsFresh &&
+    readySnapshot !== null &&
+    readySnapshot === initialChannelUnreadSnapshot &&
+    shownChannelId !== readySnapshot.channelId
+  ) {
+    setShownChannelId(readySnapshot.channelId);
+  }
   useFocusEffect(
     useCallback(() => {
       let isCurrent = true;
