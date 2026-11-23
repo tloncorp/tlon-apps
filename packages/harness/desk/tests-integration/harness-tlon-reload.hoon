@@ -8,19 +8,19 @@
 ::
 ++  load
   |=  saved=vase
-  =/  m  (mare ,[(list card) state-2:t])
+  =/  m  (mare ,[(list card) state-3:t])
   ^-  form:m
   ;<  ~                bind:m  (jab-bowl |=(b=bowl b(now ~2026.9.6)))
   ;<  ~                bind:m  (set-scry-gate |=(path `!>(|)))
   ;<  caz=(list card)  bind:m  (do-load adapter `saved)
   ;<  =vase            bind:m  get-save
-  (pure:m caz !<(state-2:t vase))
+  (pure:m caz !<(state-3:t vase))
 ::
 ++  reload
   |=  phase=?(%fetch %put %grant %hosted-put)
-  =/  m  (mare ,state-2:t)
+  =/  m  (mare ,state-3:t)
   ^-  form:m
-  =/  state=state-2:t  *state-2:t
+  =/  state=state-3:t  *state-3:t
   =.  uploads.state
     %-  my
     :~  :*  0v1
@@ -31,7 +31,7 @@
   =.  tool-receipts.state
     %-  my
     ~[[0v1 `tool-receipt:t`[['s' 1 ['call' 'tlon_upload_image' '{}']] %sending '' ~2026.9.6]]]
-  ;<  [caz=(list card) loaded=state-2:t]  bind:m  (load !>(state))
+  ;<  [caz=(list card) loaded=state-3:t]  bind:m  (load !>(state))
   ::  Reload may cancel the old duct and publish a result, never request HTTP.
   ;<  ~  bind:m
     (ex-equal !>((lien caz |=(c=card ?=([%pass * %arvo %i %request *] c)))) !>(|))
@@ -41,25 +41,35 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  =/  state  *runtime-state:t
+  =/  state  *state-3:t
   =.  enabled.policy.state  |
   =/  deadline  (add ~2026.9.6 ~s10)
   =/  form=browser-entry:t  [deadline [%wait [%form 'http://127.0.0.1/credential-result/fixture']]]
   =.  browser-entries.state  (my ~[[0v1 form]])
   =.  tool-receipts.state
     (my ~[[0v1 [['s' 1 ['call' 'browser_secure_entry' '{}']] %sending '' ~2026.9.6]]])
-  ;<  [caz=(list card) saved=state-2:t]  bind:m  (load !>((save:migrate state)))
+  ;<  [caz=(list card) saved=state-3:t]  bind:m  (load !>(state))
   ;<  watched=(list card)  bind:m  (do-watch /tools/0v1)
   ;<  ~  bind:m  (ex-equal !>(watched) !>(~))
-  =/  restored  (load:migrate !>(saved))
-  ;<  ~  bind:m  (ex-equal !>(browser-entries.restored) !>(browser-entries.state))
+  ;<  ~  bind:m  (ex-equal !>(browser-entries.saved) !>(browser-entries.state))
   (ex-equal !>(wake.saved) !>(`deadline))
+::
+++  test-version-two-save-loads-as-version-three
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  old  *state-2:migrate
+  =.  enabled.policy.old  |
+  =.  epoch.old  17
+  ;<  [caz=(list card) saved=state-3:t]  bind:m  (load !>(old))
+  ;<  ~  bind:m  (ex-equal !>(=(~ browser-entries.saved)) !>(&))
+  (ex-equal !>(epoch.saved) !>(17))
 ::
 ++  test-native-download-reload-is-known-not-uploaded
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  state=state-2:t  bind:m  (reload %fetch)
+  ;<  state=state-3:t  bind:m  (reload %fetch)
   =/  receipt  (~(got by tool-receipts.state) 0v1)
   %+  ex-equal
     !>  ?&  =(~ uploads.state)  =(%done stage.receipt)
@@ -70,7 +80,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  state=state-2:t  bind:m  (reload %grant)
+  ;<  state=state-3:t  bind:m  (reload %grant)
   =/  receipt  (~(got by tool-receipts.state) 0v1)
   %+  ex-equal
     !>  ?&  =(~ uploads.state)  =(%uncertain stage.receipt)
@@ -81,7 +91,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  state=state-2:t  bind:m  (reload %hosted-put)
+  ;<  state=state-3:t  bind:m  (reload %hosted-put)
   %+  ex-equal
     !>(&(=(~ uploads.state) =(%uncertain stage:(~(got by tool-receipts.state) 0v1))))
   !>(&)

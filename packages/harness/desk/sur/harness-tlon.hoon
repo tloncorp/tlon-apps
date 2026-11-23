@@ -53,8 +53,9 @@
   ==
 +$  lens-sync
   [enabled=$~(| ?) owner=(unit @p) after=@da records=(map input-id:h lens-record) error=@t]
-+$  state-2
-  $:  %2
++$  state-3
+  $:  %3
+      browser-entries=(map @uv browser-entry)
       lens=lens-sync
       owner-initialized=@ud
       sibling-moon-owners=$~(| ?)
@@ -83,5 +84,4 @@
       wake=(unit @da)
       error=@t
   ==
-+$  runtime-state  [browser-entries=(map @uv browser-entry) state-2]
 --

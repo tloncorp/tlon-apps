@@ -4,7 +4,7 @@
 |%
 ::
 ++  deadline
-  |=  [now=@da state=runtime-state:t]
+  |=  [now=@da state=state-3:t]
   ^-  (unit @da)
   =/  presence-deadlines=(list @da)
     ?.  enabled.policy.state  ~
