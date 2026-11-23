@@ -1,9 +1,11 @@
 import { useIsFocused } from '@react-navigation/native';
 import {
   ChannelContentConfiguration,
+  getBotUserIdForUser,
   isDmChannelId,
   isGroupDmChannelId,
 } from '@tloncorp/api';
+import { desig } from '@tloncorp/api/lib/urbit';
 import { JSONContent } from '@tloncorp/api/urbit';
 import {
   Attachment,
@@ -33,6 +35,7 @@ import {
   useTheme,
 } from 'tamagui';
 
+import { useBotSettingsDraftStore } from '../../../features/settings/bot/botSettingsDraftStore';
 import { useIsUserActive } from '../../../hooks/useUserActivity';
 import { useTopLevelTabBarClearance } from '../../../navigation/useTopLevelTabBarContentInset';
 import { useRootNavigation } from '../../../navigation/utils';
@@ -508,10 +511,17 @@ export function Channel({
   }, [dmRecipientId, goToUserProfile]);
 
   const dmContact = useContact(dmRecipientId ?? '');
+  const modelRestartShip = useBotSettingsDraftStore(
+    (state) => state.modelRestartShip
+  );
   const isBotDm =
     channel.type === 'dm' &&
     !!dmRecipientId &&
     domain.isBotContact({ id: dmRecipientId, botInfo: dmContact?.botInfo });
+  const botRestarting =
+    isBotDm &&
+    dmRecipientId === getBotUserIdForUser(currentUserId) &&
+    modelRestartShip === desig(currentUserId);
 
   const onPressGroupRef = useCallback((group: db.Group) => {
     setGroupPreview(group);
@@ -1054,6 +1064,7 @@ export function Channel({
                           <BotBaubleHeader
                             channel={channel}
                             botId={dmRecipientId}
+                            restarting={botRestarting}
                             goBack={isTopLevelTab ? undefined : handleGoBack}
                             goToProfile={handleGoToProfile}
                             actions={botBaubleActions}
@@ -1064,6 +1075,7 @@ export function Channel({
                         ) : (
                           <ChannelHeader
                             channel={channel}
+                            botRestarting={botRestarting}
                             group={group}
                             title={title ?? ''}
                             description={''}

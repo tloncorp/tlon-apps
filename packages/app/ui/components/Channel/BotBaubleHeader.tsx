@@ -41,6 +41,7 @@ import { ContactAvatar } from '../Avatar';
 import { useContactName } from '../ContactNameV2';
 import { GlassSurface, supportsLiquidGlass } from '../GlassSurface';
 import { ScrollEdgeElementContainer } from '../ScrollEdgeElementContainer';
+import { BotRestartAvatar } from './BotRestartAvatar';
 import {
   type BotBaubleState,
   getBotBaubleBeat,
@@ -139,6 +140,7 @@ export interface BotBaubleAction {
 export function BotBaubleHeader({
   channel,
   botId,
+  restarting,
   goBack,
   goToProfile,
   actions,
@@ -148,6 +150,7 @@ export function BotBaubleHeader({
 }: {
   channel: db.Channel;
   botId: string;
+  restarting: boolean;
   goBack?: () => void;
   goToProfile: () => void;
   actions: BotBaubleAction[];
@@ -287,11 +290,13 @@ export function BotBaubleHeader({
             shouldRasterizeIOS
             style={[styles.tile, motion.tileStyle]}
           >
-            <ContactAvatar
-              contactId={botId}
-              size="$5xl"
-              borderRadius={AVATAR_RADIUS}
-            />
+            <BotRestartAvatar restarting={restarting}>
+              <ContactAvatar
+                contactId={botId}
+                size="$5xl"
+                borderRadius={AVATAR_RADIUS}
+              />
+            </BotRestartAvatar>
           </Animated.View>
         </Pressable>
         {/* Glass tucked just under the tile, which sits in front of it, as
