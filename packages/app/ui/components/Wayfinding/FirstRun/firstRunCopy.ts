@@ -197,7 +197,7 @@ export const firstRunCopy = {
   model: {
     title: 'You choose the model',
     subtitle:
-      'The model is the AI that writes your Tlonbot’s answers. New one out? Just switch, and it keeps everything it knows.',
+      'The AI behind your Tlonbot. Switch anytime, and it keeps what it knows.',
     sectionIncluded: 'Free with Tlon',
     sectionSubscription: 'Use your subscription',
     sectionApiKey: 'Use your own API key',
