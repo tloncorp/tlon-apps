@@ -288,7 +288,10 @@
         ?~  p.retimed  ~
         ~[[%edit u.key (sham u.job) args.u.p.retimed]]
       ^-  (list action:cr)
-      ?.  &(=(`| enabled.task) =(%active state.u.job))  ~
+      ::  The head's edit makes a finished job active again, so a task that
+      ::  is to stay off is cancelled after it as well as an active one.
+      =/  off  |(=(`| enabled.task) !=(%active state.u.job))
+      ?.  &(off |(?=(^ p.retimed) =(%active state.u.job)))  ~
       ~[[%cancel u.key]]
     :*  %&
         steps

@@ -146,6 +146,14 @@
       (expect !>(?=(%| -.resume)))
   ==
 ::
+++  test-editing-a-finished-task-does-not-turn-it-back-on
+  =/  finished  (~(jab by schedules) 0v1 |=(j=schedule:c j(state %complete)))
+  =/  edit  [%update '0v1' %*(. *task:v1:sa payload `[`'agentTurn' `'New brief' ~])]
+  =/  planned  (plan:automation edit 0v9 ~nec finished ~ binding)
+  ?>  ?=(%& -.planned)
+  ?>  ?=([[%edit *] [%cancel *] ~] steps.p.planned)
+  (expect-eq !>([%cancel 0v1]) !>(i.t.steps.p.planned))
+::
 ++  test-a-new-message-edits-the-job-at-its-stored-schedule
   =/  old  (~(got by schedules) 0v1)
   =/  planned  (plan [%update '0v1' %*(. *task:v1:sa payload `[`'agentTurn' `'New brief' ~])] ~)
