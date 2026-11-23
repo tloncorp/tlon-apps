@@ -183,4 +183,49 @@
     (expect-eq !>(kept) !>((rear window)))
     (expect !>(=(~ (find ~[dropped] window))))
   ==
+::  Finished records do not count against admission: a binding takes its
+::  257th and a ship its 2,049th, as an observation and as a notice.
+::
+++  finished
+  |=  [db=state:hh binding=@t count=@ud]
+  ^-  state:hh
+  =/  n=@ud  0
+  |-
+  ?:  =(n count)  db
+  =/  event  (scot %ud n)
+  =/  id  (input-id:hd binding event)
+  =/  config  (~(got by bindings.db) binding)
+  %=  $
+    n  +(n)
+    observations.db  (~(put by observations.db) id [binding event 'alice' 'text' t0 %completed])
+      outbox.db
+    %+  ~(put by outbox.db)  id
+    [id binding hand.config address.config sid.config %reply 'reply' %delivered 'worker' 'sent' ~]
+  ==
+++  admits
+  |=  [db=state:hh binding=@t]
+  ^-  tang
+  =/  ledger=indexed:hh  [db (reindex:hd db)]
+  =/  observed  (apply-indexed:hd ledger [%observe binding 'new' 'alice' 'text'] t0)
+  =/  notified  (apply-indexed:hd ledger [%notify binding 'notice' 'alice' 'text'] t0)
+  ;:  weld
+    (expect !>(?=(%& -.observed)))
+    (expect !>(?=(%& -.notified)))
+    ?.  ?=(%& -.observed)  ~
+    (check ledger.p.observed)
+  ==
+++  test-a-binding-takes-its-257th-finished-record
+  =/  db  db:(bound ~[['b' 'chat' 's']])
+  (admits (finished db 'b' 256) 'b')
+++  test-a-ship-takes-its-2049th-finished-record
+  =/  ids  (turn (gulf 0 8) |=(n=@ud (cat 3 'b' (scot %ud n))))
+  =/  db  db:(bound (turn ids |=(id=@t [id 'chat' id])))
+  =.  db
+    %+  roll  (scag 8 ids)
+    |=  [id=@t db=_db]
+    (finished db id 256)
+  ;:  weld
+    (expect-eq !>(2.048) !>(~(wyt by observations.db)))
+    (admits db 'b8')
+  ==
 --

@@ -1,8 +1,9 @@
 ::  Hand admission through the full head, driven by test-agent; no card is
 ::  delivered and every scry answers %.n.
-/-  h=harness, hh=harness-hand, t=harness-tlon, adapter=harness-adapter, *harness-store
+/-  h=harness, hh=harness-hand, t=harness-tlon, adapter=harness-adapter, c=harness-cron,
+    *harness-store
 /+  *test-agent, policy=harness-defaults, hd=harness-hand, hl=harness,
-    command=harness-command
+    command=harness-command, schedule=harness-schedule
 /=  head  /app/harness
 |%
 ++  t0  ~2026.10.1
@@ -501,4 +502,93 @@
   %+  ex-equal
     !>(phase:(~(got by observations.hands.deleted) (input-id:hd 'other' 'later')))
   !>(%cancelled)
+::  The head's answer to one hand request.
+::
+++  hand-result
+  |=  [id=@t cards=(list card)]
+  ^-  (list (each json @t))
+  %+  murn  cards
+  |=  =card
+  ^-  (unit (each json @t))
+  ?.  ?=([%give %fact * %noun *] card)  ~
+  ?.  =(~[/hands/[id]] paths.p.card)  ~
+  `;;((each json @t) q.q.cage.p.card)
+::  BINDINGS bindings, each with its own session, the first FULL of them
+::  holding PER waiting inputs. No session exists, so none can start.
+::
+++  waiting
+  |=  [bindings=@ud full=@ud per=@ud]
+  ^-  state-0
+  =/  saved  *state-0
+  =/  b  0
+  |-
+  ?:  =(b bindings)  saved
+  =/  id  (cat 3 'b' (scot %ud b))
+  =.  bindings.hands.saved
+    (~(put by bindings.hands.saved) id ['fixture' id id ~['alice'] &])
+  =/  k  0
+  =.  saved
+    |-
+    ?:  |((gte b full) =(k per))  saved
+    =/  event  (scot %ud k)
+    =/  input  (input-id:hd id event)
+    =.  observations.hands.saved
+      (~(put by observations.hands.saved) input [id event 'alice' 'text' t0 %queued])
+    =.  queue.hands.saved  (snoc queue.hands.saved input)
+    $(k +(k))
+  $(b +(b))
+::  The waiting limits still refuse, with the text they always had.
+::
+++  test-the-ninth-waiting-input-on-a-binding-is-refused
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  ninth=request:hh  ['ninth' [%observe 'b0' 'ninth' 'alice' 'Ninth']]
+  ;<  ~  bind:m  (start-with (waiting 1 1 8))
+  ;<  cards=(list card)  bind:m  (do-poke %harness-hand !>(ninth))
+  %+  ex-equal
+    !>((hand-result 'ninth' cards))
+  !>(`(list (each json @t))`~[[%| 'This binding or session has reached its waiting-work limit']])
+::
+++  test-the-129th-waiting-input-on-the-ship-is-refused
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  next=request:hh  ['next' [%observe 'b16' 'next' 'alice' 'Next']]
+  ;<  ~  bind:m  (start-with (waiting 17 16 8))
+  ;<  saved=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>((lent queue.hands.saved)) !>(128))
+  ;<  cards=(list card)  bind:m  (do-poke %harness-hand !>(next))
+  %+  ex-equal
+    !>((hand-result 'next' cards))
+  !>(`(list (each json @t))`~[[%| 'Admission queue is full; retry the same source event later']])
+::  Loading a saved ledger rebuilds the index before anything reads it: a
+::  pending publication is runnable and a schedule whose run is unfinished
+::  is busy.
+::
+++  test-load-rebuilds-the-index
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  fixture
+  =/  done  (input-id:hd 'other' 'done')
+  =.  observations.hands.saved
+    (~(put by observations.hands.saved) done ['other' 'done' 'alice' 'Done' t0 %completed])
+  =.  outbox.hands.saved
+    %+  ~(put by outbox.hands.saved)  done
+    [done 'other' 'fixture' 'other-room' 'other' %reply 'Reply' %pending '' '' ~]
+  =/  job=job:c
+    :*  %prompt  'UTC'  'source-room'  'source'  'source'  'every hour'  *pattern:c
+        'Prompt'  ~  t0  1  %active  ''  `(input-id:hd 'source' 'running')
+    ==
+  ;<  ~  bind:m  (start-with saved)
+  ;<  ~  bind:m  ex-index
+  ;<  ledger=cage  bind:m  (got-peek /x/hand-state)
+  ;<  index=cage  bind:m  (got-peek /x/hand-index)
+  =/  loaded=indexed:hh  [!<(state:hh q.ledger) !<(index:hh q.index)]
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>((turn (pending-publications:hd loaded 'fixture') |=([id=input-id:h *] id)))
+    !>(`(list input-id:h)`~[done])
+  (ex-equal !>((busy:schedule job loaded)) !>(&))
 --

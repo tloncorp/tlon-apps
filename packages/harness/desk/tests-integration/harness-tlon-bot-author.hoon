@@ -268,7 +268,7 @@
 ++  room  `destination:t`[%channel nest ~]
 ++  thread  `destination:t`[%channel nest `parent-at]
 ++  sentence  'I can\'t answer messages here right now.'
-++  ledger-refusal  'Binding ledger capacity reached; export and rotate its binding'
+++  ledger-refusal  'This binding or session has reached its waiting-work limit'
 ++  allowed-fixture
   ^-  state-3:t
   =/  s  fixture

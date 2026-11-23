@@ -266,15 +266,6 @@
   =/  counts=[binding=@ud session=@ud]  (queued-counts db binding.action sid.u.config)
   ?:  |((gte binding.counts 8) (gte session.counts 16))
     [%| 'This binding or session has reached its waiting-work limit']
-  ?:  (gte ~(wyt by observations.db) 2.048)
-    [%| 'Hand ledger capacity reached; export and retire settled bindings']
-  ?:  %+  gte
-        %-  lent
-        %+  skim
-          ~(val by observations.db)
-        |=(observation=observation:hh =(binding.observation binding.action))
-      256
-    [%| 'Binding ledger capacity reached; export and rotate its binding']
   =/  =observation:hh  [binding.action event.action actor.action text.action now %queued]
   =.  observations.db  (~(put by observations.db) id observation)
   =.  queue.db  (snoc queue.db id)
@@ -489,7 +480,6 @@
       ['queueLimit' (numb:enjs:format 128)]
       ['bindingQueueLimit' (numb:enjs:format 8)]
       ['sessionQueueLimit' (numb:enjs:format 16)]
-      ['ledgerLimit' (numb:enjs:format 2.048)]
   ==
 ::
 ++  binding-ids
