@@ -1,6 +1,7 @@
 ::  Public failure vocabulary. Never forward arbitrary provider bodies to a
 ::  hand: they may echo prompts, credentials, account IDs or private URLs.
 ::  Raw errors stay in the owner's event log; this projection is allowlisted.
+/+  hl=harness
 |%
 ++  contains
   |=  [text=@t part=@t]
@@ -19,6 +20,10 @@
   =/  status=@ud
     ?.  =('http error ' (end 3^11 raw))  0
     (fall (rush (cut 3 [11 3] raw) dem) 0)
+  ?:  (guarded:hl raw)
+    :*  'loop-guard'
+        'I stopped before finishing this. You can ask me to try again in a new message.'
+    ==
   ?:  ?|  =(401 status)  (has 'authentication_error')  (has 'invalid_api_key')
           %-  has
           'invalid api key'
