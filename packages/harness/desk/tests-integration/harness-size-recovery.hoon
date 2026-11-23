@@ -3,7 +3,8 @@
 ::  the same event; these tests assert the emitted requests and settlement.
 /-  h=harness, *harness-store, renew=harness-oauth, ac=acp, r=harness-runner
 /+  *test-agent, policy=harness-defaults, hl=harness, j=harness-workspace-json,
-    failure=harness-failure, context=harness-context, pw=harness-provider-wire
+    failure=harness-failure, context=harness-context, pw=harness-provider-wire,
+    lcm=harness-lcm
 /=  head  /app/harness
 /=  seed  /tests/harness-runner
 |%
@@ -857,4 +858,127 @@
   ;<  ~  bind:m  (ex-equal !>((overflowed:hl err.i.log)) !>(|))
   ;<  ~  bind:m  (ex-equal !>((lien sent-next |=(c=@t =(c 'Reply with hello')))) !>(&))
   (ex-equal !>((lien sent-next |=(c=@t =(c left-out:hl)))) !>(|))
+::  An earlier exchange too large for the summary model is what the planner
+::  refused, so a short message is kept, with the larger-model advice. The
+::  same message is still in the context after the next admission, and a
+::  larger model with an explicit Retry sends both.
+::
+++  test-earlier-exchange-refusal-keeps-a-short-message
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  cfg=config:h  config
+  =.  cfg  cfg(max-context 20.000, fallbacks ~)
+  ;<  *  bind:m
+    %-  setup
+    %^  history  cfg
+      (rap 3 (reap 1.000 'Earlier question with project detail. '))
+    (rap 3 (reap 1.000 'Earlier answer with project detail. '))
+  ;<  sent=(list card)  bind:m  (do-send 'Reply with hello')
+  ;<  halted=(list event:h)  bind:m  get-log
+  ;<  *  bind:m  (do-send 'Next question')
+  ;<  log=(list event:h)  bind:m  get-log
+  =/  items  items:(play:hl log)
+  ;<  configured=(list card)  bind:m
+    %+  do-poke  %harness-action
+    !>(`action:h`[%config 'fixture' cfg(max-context 1.000.000) ~s30])
+  ;<  retried=(list card)  bind:m  (do-poke %harness-action !>(`action:h`[%retry 'fixture']))
+  =/  again  (snag 0 (requests retried))
+  ?>  ?=([[%halted *] *] halted)
+  ;<  ~  bind:m  (ex-equal !>((requests sent)) !>(~))
+  ;<  ~  bind:m  (ex-equal !>((group:lcm lcm:(play:hl halted))) !>(`(list @ud)`~))
+  ;<  ~  bind:m
+    %+  ex-equal  !>(reason.i.halted)
+    !>('context budget: A complete exchange or tool batch exceeds the compaction input budget.')
+  ;<  ~  bind:m
+    %+  ex-equal  !>((public-message:failure reason.i.halted))
+    !>('The conversation cannot fit safely in this model\'s context budget. Try a larger-context model or a shorter request. The source transcript was retained.')
+  ;<  ~  bind:m  (ex-equal !>((lien items |=(=item:h =(item [%user 'Reply with hello'])))) !>(&))
+  ;<  ~  bind:m  (ex-equal !>((lien items |=(=item:h =(item [%user left-out:hl])))) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((requests configured)) !>(~))
+  ;<  ~  bind:m  (ex-equal !>((kind again)) !>('turn'))
+  ;<  ~  bind:m  (ex-equal !>((lien (contents again) |=(c=@t =(c 'Reply with hello')))) !>(&))
+  (ex-equal !>((lien (contents again) |=(c=@t =(c 'Next question')))) !>(&))
+::  The same refusal after a provider's size rejection: the rejection and the
+::  halt are recorded unmarked, and the next message is sent after the kept
+::  input.
+::
+++  test-recovery-refusal-of-an-earlier-exchange-keeps-the-input
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  cfg=config:h  config
+  =.  cfg  cfg(max-context 200.000, fallbacks ~)
+  =/  initial
+    %^  history  cfg
+      (rap 3 (reap 400 'Earlier question with project detail. '))
+    (rap 3 (reap 400 'Earlier answer with project detail. '))
+  =.  summary-models.initial  [`cfg(model 'small', max-context 8.000) ~]
+  ;<  *  bind:m  (setup initial)
+  ;<  sent=(list card)  bind:m  (do-send 'Reply with hello')
+  =/  rejected  (snag 0 (requests sent))
+  ;<  done=(list card)  bind:m  (respond rejected too-large)
+  ;<  log=(list event:h)  bind:m  get-log
+  ;<  next=(list card)  bind:m  (do-send 'Next question')
+  =/  request  (snag 0 (requests next))
+  ?>  ?=([[%halted *] [%llm-failed *] *] log)
+  ;<  ~  bind:m  (ex-equal !>((kind rejected)) !>('turn'))
+  ;<  ~  bind:m  (ex-equal !>((requests done)) !>(~))
+  ;<  ~  bind:m  (ex-equal !>((group:lcm lcm:(play:hl log))) !>(`(list @ud)`~))
+  ;<  ~  bind:m  (ex-equal !>((oversized:failure err.i.t.log)) !>(&))
+  ;<  ~  bind:m  (ex-equal !>((overflowed:hl err.i.t.log)) !>(|))
+  ;<  ~  bind:m
+    %+  ex-equal  !>(reason.i.log)
+    !>('context budget: A complete exchange or tool batch exceeds the compaction input budget.')
+  ;<  ~  bind:m  (ex-equal !>((kind request)) !>('turn'))
+  ;<  ~  bind:m  (ex-equal !>((lien (contents request) |=(c=@t =(c 'Reply with hello')))) !>(&))
+  (ex-equal !>((lien (contents request) |=(c=@t =(c left-out:hl)))) !>(|))
+::  Four checkpoints of the input's own tool batches leave a summary group
+::  and no completed exchange. After the next admission resets the attempts,
+::  an LCM model too small for the group refuses it; the input is kept.
+::
+++  test-uncondensable-group-below-the-limit-keeps-the-input
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  cfg=config:h  config
+  =/  initial  bounded
+  =.  summary-models.initial  [~ `cfg(model 'tiny', max-context 10)]
+  ;<  *  bind:m  (setup initial)
+  ;<  first=http-card:renew  bind:m  (recover-once /llm/fixture/7/turn 'Checkpoint one.')
+  ;<  second=http-card:renew  bind:m  (recover-once wire.first 'Checkpoint two.')
+  ;<  third=http-card:renew  bind:m  (recover-once wire.second 'Checkpoint three.')
+  ;<  fourth=http-card:renew  bind:m  (recover-once wire.third 'Checkpoint four.')
+  ;<  *  bind:m  (respond fourth too-large)
+  ;<  sent=(list card)  bind:m  (do-send 'Short question')
+  ;<  log=(list event:h)  bind:m  get-log
+  =/  view  (play:hl log)
+  ?>  ?=([[%halted *] *] log)
+  ;<  ~  bind:m  (ex-equal !>((requests sent)) !>(~))
+  ;<  ~  bind:m  (ex-equal !>(=(~ (group:lcm lcm.view))) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((boundaries:context items.view)) !>(`(list @ud)`~))
+  ;<  ~  bind:m  (ex-equal !>(compact-attempts.view) !>(0))
+  ;<  ~  bind:m  (ex-equal !>((overflowed:hl reason.i.log)) !>(|))
+  %+  ex-equal  !>(reason.i.log)
+  !>('context budget: Summary nodes exceed the LCM model input budget; choose a larger LCM model.')
+::  A settled tool batch inside the unanswered input that the summary model
+::  cannot take is not older context: the halt is marked.
+::
+++  test-oversized-batch-inside-the-turn-is-marked
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  cfg=config:h  config
+  =/  initial  bounded
+  =.  summary-models.initial  [`cfg(model 'small', max-context 10.000) ~]
+  ;<  *  bind:m  (setup initial)
+  ;<  done=(list card)  bind:m  (do-arvo /llm/fixture/7/turn [%iris %http-response too-large])
+  ;<  log=(list event:h)  bind:m  get-log
+  =/  view  (play:hl log)
+  ?>  ?=([[%halted *] *] log)
+  ;<  ~  bind:m  (ex-equal !>((requests done)) !>(~))
+  ;<  ~  bind:m  (ex-equal !>((group:lcm lcm.view)) !>(`(list @ud)`~))
+  ;<  ~  bind:m  (ex-equal !>((boundaries:context items.view)) !>(`(list @ud)`~))
+  %+  ex-equal  !>(reason.i.log)
+  !>((overflow:hl 'A complete exchange or tool batch exceeds the compaction input budget.'))
 --

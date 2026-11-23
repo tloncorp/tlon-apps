@@ -103,6 +103,7 @@
   %-  expect
   !>  ?&  =('context' kind.info)
           (contains:failure message.info 'this message was left out')
+          (contains:failure message.info 'if short messages are left out too, a model with a larger context window may be needed.')
           !=(message.info message:(describe:failure 'http error 413: too large'))
           =('context' kind:(describe:failure (overflow:hl 'context budget: no cut')))
           (contains:failure message:(describe:failure (overflow:hl 'context budget: no cut')) 'left out')

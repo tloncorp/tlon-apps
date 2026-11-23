@@ -376,7 +376,10 @@ Replies describe provider failures without exposing raw errors publicly.
 Open the Harness conversation for details. For a `401`, check that conversation's
 endpoint and credential. Refreshing the page does not retry inference.
 A message whose request is too large for the model and cannot be made to fit
-gets one reply saying it was left out; the next message is answered without it.
+usually gets one reply saying it was left out; the next message is answered
+without it. When Harness itself refuses to compact because an earlier exchange
+or a pending group of summaries is too large for the summary model, the message
+is kept and the reply suggests a larger-context model.
 
 Send `/help` for the shared [conversation commands](acp.md#conversation-commands).
 Mention rules still apply. `/stop` interrupts work and clears queued inputs;

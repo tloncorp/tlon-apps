@@ -52,7 +52,7 @@
   ::  A marked provider error still has its size wording, so this comes first.
   ?:  (overflowed:hl raw)
     :*  'context'
-        'The request was too large for the model, so this message was left out. Send a new message to continue.'
+        'The request was too large for the model, so this message was left out. Send a new message to continue. If short messages are left out too, a model with a larger context window may be needed.'
     ==
   ?:  ?|  =(401 status)  (has 'authentication_error')  (has 'invalid_api_key')
           %-  has

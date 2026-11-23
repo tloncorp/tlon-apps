@@ -18,7 +18,7 @@
     hp=harness-provider, auth=harness-auth,
     oauth=harness-oauth, search=harness-search, ht=harness-tools,
     hj=harness-json, command=harness-command, context=harness-context,
-    lcm-context=harness-lcm-context, corpus-lib=harness-corpus,
+    lcm-context=harness-lcm-context, lcm=harness-lcm, corpus-lib=harness-corpus,
     corpus-json=harness-corpus-json, peer-policy=harness-peer-policy,
     peer-trust=harness-peer-trust, failure=harness-failure,
     policy=harness-defaults, storage=harness-store,
@@ -5056,7 +5056,14 @@
   ?:  ?=(%| -.planned)
     =/  =event:h
       ?^  input  [%command-completed u.input 'compact' p.planned]
-      ?:  turn  [%halted (overflow:hl p.planned)]
+      ::  Below the attempt limit, a pending group or an earlier exchange is
+      ::  what the planner refused, so leaving the input out would not help.
+      ?:  ?&  turn
+              ?|  (gte compact-attempts.view 4)
+                  &(=(~ (group:lcm lcm.view)) =(~ (boundaries:context items.view)))
+              ==
+          ==
+        [%halted (overflow:hl p.planned)]
       [%halted (cat 3 'context budget: ' p.planned)]
     =^  cards  session  (record-all sid session ~[event])
     [cards session knowledge]

@@ -152,8 +152,9 @@ share the four attempts per admitted input. A refusal relayed by a connected
 runner, or one after text has streamed, is not compacted.
 
 When a turn still cannot be sent, it fails once with a reason beginning
-`context overflow: `. That covers: the attempt bound reached, no cut left or an
-exchange too large to summarize, Harness's own refusal of the unanswered turn, a
+`context overflow: `. That covers: the attempt bound reached, no cut left or a
+tool batch of the unanswered turn too large to summarize, Harness's own refusal
+of the unanswered turn, a
 compaction that did not make the request smaller, a summary request refused for
 size, a recovery summary that is invalid or does not reduce, and a size refusal
 that was not compacted. A typed `/compact` is never marked, and neither is a
@@ -161,6 +162,12 @@ planner refusal of the native compact action (it keeps its `context budget:`
 reason), a missing summary credential or a summary timeout. If the native
 compact action's summary request is refused for size, the failure is marked,
 and a message still unanswered at that moment is left out at the next message.
+Below the attempt bound, two planner refusals on a turn's path are not marked
+either, because leaving the turn out would not remove what was refused: a
+completed exchange before the unanswered turn too large for the summary model,
+and a pending group of summary nodes too large for the LCM model. The turn halts
+with a `context budget:` reason, the reply suggests a larger-context model, and
+the message is kept.
 
 At the next admission (or at a Tlon context reference recorded just before it),
 a marked failure makes the replayed context replace the unanswered turn, every
