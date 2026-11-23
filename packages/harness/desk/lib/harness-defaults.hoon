@@ -3,6 +3,8 @@
 /-  h=harness
 |%
 ++  acp-id  'harness'
+::  The release version; packages/harness/package.json carries the same string.
+++  version  '0.1.0'
 ++  fallback-context  800.000
 ::  Baseline grants for bounded work. Direct owner turns use the live tool
 ::  catalog whatever these grants say. Subagents inherit their parent's
