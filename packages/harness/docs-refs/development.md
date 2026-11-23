@@ -229,10 +229,18 @@ pointing at the new type then fails its test.
 
 When you add a migration step:
 
-1. Freeze the agent's current saved shape as a named shape: the head's
-   `state-0` in `sur/harness-store.hoon`, or the Tlon hand's `state-2` in
+1. Freeze the shape being replaced under its own name, beside the agent's
+   earlier shapes: `state-m0` and the head's others in
+   `sur/harness-store.hoon`, with `state-before-maintenance` in
+   `lib/harness-store.hoon`; the Tlon hand's `state-0` and `state-1` in
+   `lib/harness-tlon-migrate.hoon`. The current shapes are the head's
+   `state-0` in `sur/harness-store.hoon` and the Tlon hand's `state-2` in
    `sur/harness-tlon.hoon`.
-2. Keep its populated fixture as the new step's input.
+2. Move the populated fixture to the new shape, with a distinct value in
+   every new field. Add a projection of it onto the frozen shape as the new
+   step's input, beside the others in `tests/harness-upgrade.hoon` or
+   `tests/harness-tlon-upgrade.hoon`. Where the step drops or re-keys data,
+   the projection writes the old form by hand.
 3. Write the expected value as that step's transformation of the input.
 4. Delete one field copy from the step and check that its test fails.
 
