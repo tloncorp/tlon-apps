@@ -64,6 +64,7 @@ export * from './components/PostContent';
 export * from './components/PostScreenView';
 export * from './components/ProfileSheet';
 export * from './components/GroupMemberProfileSheet';
+export * from './components/SatoWordmark';
 export * from './components/ScreenHeader';
 export * from './components/RecurringTasks';
 export * from './components/ScreenScrollView';
