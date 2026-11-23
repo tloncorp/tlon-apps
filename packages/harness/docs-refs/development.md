@@ -241,22 +241,25 @@ When you add a migration step:
 defaults to `HEAD`, so a local run upgrades from the last commit to the
 working tree's build. CI sets the branch a pull request merges into, the
 commit a push to develop replaced, or for a manual run the previous commit.
-The script commits the base build over cleared agents, seeds them with the
-base tree's copy of the script, and commits this build over the seeded state.
-Each commit must raise the desk's revision by one, since Clay keeps the old
-desk when an agent cannot load its state. Each agent must have reloaded
-exactly when its built code changed, and this tree's copy of the script then
-checks every seeded value that Harness reads back, key by key, against the
-manifest the seed wrote; provider keys, which no read returns, are not checked.
-Identical desks record `pass (no desk change)`. A base that differs and lacks
-the script fails: choose a base that contains it. After a failure the script
-puts the ship back on this build, clearing the agents first if the ship ran
-the base, and stops the run only if that fails. Then, and after identical
-desks, the agents are cleared, as for any other script; after a passing
-upgrade they keep the upgraded state. Either way this tree's script then seeds
-afresh and checks its own manifest. When saved state gains a value that an
-interface can set, seed it and add its key to the script's `newer` keys; it
-moves to `baseline` once a base seeds it.
+The script commits the base build over cleared, suspended agents, so no agent
+runs until the desk is revived, and `%harness-tlon` starting then shows the
+base build works. It seeds them with the base tree's copy of the script and
+commits this build over the seeded state. Each commit must raise the desk's
+revision by one; for this build's, that also shows the agents loaded the seeded
+state, since Clay keeps the old desk when an agent cannot load its state. Each
+agent must have reloaded exactly when its built code changed, and this tree's
+copy of the script then checks every seeded value that Harness reads back, key
+by key, against the manifest the seed wrote; provider keys, which no read
+returns, are not checked. Identical desks record `pass (no desk change)`. A
+base that differs and lacks the script fails: choose a base that contains it.
+After a failure the script puts the ship back on this build, clearing the
+agents first if the ship ran the base, and stops the run only if that fails.
+Then, and after identical desks, the agents are cleared, as for any other
+script; after a passing upgrade they keep the upgraded state. Either way this
+tree's script then seeds afresh and checks its own manifest. When saved state
+gains a value that an interface can set, seed it and add its key to the
+script's `newer` keys; it moves to `baseline` once every long-lived branch
+(`develop`, `staging` and `master`) seeds it.
 
 ## Live conformance
 
