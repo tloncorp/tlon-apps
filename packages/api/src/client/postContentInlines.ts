@@ -89,6 +89,14 @@ export function convertInlineContent(inlines: ub.Inline[]): InlineData[] {
         style: 'code',
         children: [{ type: 'text', text: inline.code.code }],
       });
+    } else if (ub.isImage(inline)) {
+      // An image nested in a list item, heading or quote can't become an
+      // image block there, so it degrades to a link.
+      nodes.push({
+        type: 'link',
+        href: inline.image.src,
+        text: inline.image.alt || inline.image.src,
+      });
     } else {
       console.warn('Unhandled inline type:', { inline });
       nodes.push({

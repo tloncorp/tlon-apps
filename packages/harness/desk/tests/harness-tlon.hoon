@@ -2,7 +2,7 @@
     dv=channels-ver, cv=chat-ver, cr=harness-cron, hh=harness-hand, d=story
 /+  *test, p=harness-tlon-policy, story=harness-tlon-story, ht=harness-tools,
     profile=harness-tlon-profile, presence=harness-tlon-presence, clock=harness-tlon-clock,
-    io=harness-tlon-io, publication=harness-tlon-publication
+    io=harness-tlon-io, publication=harness-tlon-publication, defaults=harness-defaults
 |%
 ++  clear-fixture
   =/  =job:cr  *job:cr
@@ -264,6 +264,20 @@
       (expect-eq !>(`contact:ct`~) !>((liveness:profile | con)))
       (expect-eq !>(`contact:ct`~) !>((liveness:profile & patch)))
       (expect-eq !>(expected) !>((liveness:profile & ~)))
+  ==
+++  test-bot-info-patch-publishes-only-a-differing-claim
+  =/  claim=value:ct
+    [%text (rap 3 ~['{"v":1,"harness":"harness","version":"' version:defaults '"}'])]
+  =/  con=contact:ct
+    %-  my
+    :~  [%nickname [%text 'Bot']]
+        [%bot-info [%text '{"v":1,"harness":"harness","version":"0.0.0"}']]
+    ==
+  =/  expected=contact:ct  (my ~[[%bot-info claim]])
+  ;:  weld
+      (expect-eq !>(expected) !>((bot-info:profile con)))
+      (expect-eq !>(expected) !>((bot-info:profile ~)))
+      (expect-eq !>(`contact:ct`~) !>((bot-info:profile (~(put by con) %bot-info claim))))
   ==
 ++  test-profile-edits-only-nickname-and-avatar
   =/  patch

@@ -10,11 +10,12 @@ let transition: ReturnType<typeof useComposerSendTransition>;
 let frames: Map<number, FrameRequestCallback>;
 let nextFrame: number;
 let nearEnd: boolean;
+let rowCount: number;
 const applyHeight = vi.fn();
 const scrollToEnd = vi.fn(async () => {});
 const listRef = {
   current: {
-    getState: () => ({ isNearEnd: nearEnd }),
+    getState: () => ({ isNearEnd: nearEnd, data: { length: rowCount } }),
     scrollToEnd,
   } as unknown as LegendListRef,
 };
@@ -26,6 +27,7 @@ function Test({ animated = true }: { animated?: boolean }) {
 
 beforeEach(() => {
   nearEnd = true;
+  rowCount = 3;
   frames = new Map();
   nextFrame = 0;
   applyHeight.mockClear();
@@ -82,6 +84,14 @@ describe('composer send scroll coordination', () => {
     expect(applyHeight).toHaveBeenCalledWith(90);
     expect(frames.size).toBe(0);
     expect(scrollToEnd).not.toHaveBeenCalled();
+  });
+
+  it('starts a send transition in an empty conversation', () => {
+    // LegendList reports an empty list as away from its end.
+    nearEnd = false;
+    rowCount = 0;
+    act(() => transition.begin());
+    expect(transition.active).toBe(true);
   });
 
   it('preserves a user scroll made during the transition', () => {
