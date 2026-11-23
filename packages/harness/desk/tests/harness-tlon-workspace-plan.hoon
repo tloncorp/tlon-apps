@@ -203,6 +203,22 @@
       (expect-eq !>(&) !>((revising:wp (scag 5 posts) ~zod ~nec)))
       (expect-eq !>(|) !>((revising:wp (scag 2 posts) ~zod ~nec)))
   ==
+++  test-a-card-after-edit-on-a-created-one-is-not-a-revision
+  =/  other  'workspace-plan-ffffffffffff'
+  =/  posts=(list post:wp)
+    :~  (card-post 1 key sample)
+        (said 2 ~zod 'The first answer')
+        (tapped 3 key 'create')
+        (marked 4 key)
+        (tapped 5 key 'edit')
+        (said 6 ~nec 'Something else entirely')
+        (card-post 7 other sample)
+        (said 8 ~zod 'Its own answer')
+    ==
+  ;:  weld
+      (expect-eq !>('Its own answer') !>(answer:(standing posts other)))
+      (expect-eq !>(|) !>((revising:wp (scag 6 posts) ~zod ~nec)))
+  ==
 ++  test-the-group-card-marker-settles-the-card
   =/  posts=(list post:wp)  ~[(card-post 1 key sample) (tapped 2 key 'create') (marked 3 key)]
   ;:  weld

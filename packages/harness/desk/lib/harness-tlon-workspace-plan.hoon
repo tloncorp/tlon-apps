@@ -448,7 +448,8 @@
 ::  +answer: the bot's reply after a card, up to the owner's next message.
 ::  A Create tap is not a message: the owner can tap it before the reply
 ::  lands. An Edit tap starts the conversation about changing the card.
-::  A card revised after Edit keeps the answer of the card it revises.
+::  A card revised after Edit keeps the answer of the card it revises,
+::  unless that card was already created.
 ::
 ++  answer
   |=  $:  posts=(list post)  our=@p  owner=@p
@@ -459,7 +460,8 @@
   ^-  @t
   =/  this  (snag index cards)
   ?:  ?&  (gth index 0)
-          (tapped id:(snag (dec index) cards) |)
+          =/  before  id:(snag (dec index) cards)
+          &((tapped before |) !(made posts our before))
       ==
     $(index (dec index))
   =/  after  (skim posts |=(=post (gth at.post at.this)))
@@ -517,7 +519,8 @@
       '. Ask in one short line what to change. Once they answer, post the revised card with tlon_workspace_plan; it replaces this one. Create nothing yet.]'
   ==
 ::  +revising: is a new card a revision? The newest card before it was
-::  tapped Edit, so the new one keeps that card's answer.
+::  tapped Edit and not created, so the new one keeps that card's answer.
+::  Edit on a created card changes the workspace, not the card.
 ::
 ++  revising
   |=  [posts=(list post) our=@p owner=@p]
@@ -526,10 +529,22 @@
     (murn posts |=(=post ?.(=(our author.post) ~ (card blob.post))))
   ?~  cards  |
   =/  last  (rear cards)
+  ?:  (made posts our id.last)  |
   %+  lien  posts
   |=  =post
   ?.  =(owner author.post)  |
   =(`[id.last |] (tap blob.post))
+::  +made: does a marker from .our settle card .id?
+::
+++  made
+  |=  [posts=(list post) our=@p id=@t]
+  ^-  ?
+  %+  lien  posts
+  |=  =post
+  ?&  =(our author.post)
+      =/  marked  (settled blob.post)
+      &(?=(^ marked) =(id id.u.marked))
+  ==
 ::  +assign: the group's channel for each planned one, in the plan's order.
 ::  A title names it; the group's first chat, whatever it is called, is the
 ::  plan's first channel.
