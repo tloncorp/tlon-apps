@@ -175,7 +175,7 @@ export function useLoop(durationMs: number): SharedValue<number> {
   return t;
 }
 
-const ArtContext = createContext({ width: 0, height: 0, scale: 1, originX: 0 });
+const ArtContext = createContext({ width: 0, height: 0, scale: 1 });
 
 /**
  * A drawing at its design size, scaled down to fit a narrower phone. Labels
@@ -185,11 +185,9 @@ const ArtContext = createContext({ width: 0, height: 0, scale: 1, originX: 0 });
  * its lines, labels and hatching keep their size on screen. `foot` is the
  * drawing's lowest point when that's a line with room under it for its
  * stroke; the box ends there, so what's under the drawing spaces from it.
- * `originX` is the design x at the box's left edge, for a drawing whose
- * main shape stays centered while a mark hangs off one side. `head` is the
- * design y of its top line: drawings are traced with a unit of room above it
- * for the stroke, and the box starts at the line, so content above spaces
- * from it.
+ * `head` is the design y of its top line: drawings are traced with a unit of
+ * room above it for the stroke, and the box starts at the line, so content
+ * above spaces from it.
  */
 export function ArtCanvas({
   width,
@@ -197,7 +195,6 @@ export function ArtCanvas({
   scale = 1,
   foot = height,
   head = 1,
-  originX = 0,
   label,
   children,
 }: {
@@ -206,7 +203,6 @@ export function ArtCanvas({
   scale?: number;
   foot?: number;
   head?: number;
-  originX?: number;
   label: string;
   children: ReactNode;
 }) {
@@ -238,7 +234,7 @@ export function ArtCanvas({
           ],
         }}
       >
-        <ArtContext.Provider value={{ width, height, scale, originX }}>
+        <ArtContext.Provider value={{ width, height, scale }}>
           {children}
         </ArtContext.Provider>
       </View>
@@ -248,12 +244,12 @@ export function ArtCanvas({
 
 /** A drawing's lines, in its design units, at its ArtCanvas scale. */
 export function ArtSvg({ children }: { children: ReactNode }) {
-  const { width, height, scale, originX } = useContext(ArtContext);
+  const { width, height, scale } = useContext(ArtContext);
   return (
     <Svg
       width={width * scale}
       height={height * scale}
-      viewBox={`${originX} 0 ${width} ${height}`}
+      viewBox={`0 0 ${width} ${height}`}
     >
       {children}
     </Svg>
@@ -265,39 +261,28 @@ function useArtLine() {
   return LINE / useContext(ArtContext).scale;
 }
 
-/** Room either side of a centered caption's middle. */
-const MIDDLE_LABEL_HALF = 120;
 /** A caption's baseline, down from the top of its line. */
 const LABEL_BASELINE = 10.5;
 
-/** A mono caption in a drawing, placed by its baseline like SVG text. */
+/**
+ * A mono caption in a drawing, placed by the start of its baseline like SVG
+ * text.
+ */
 export function ArtLabel({
   x,
   y,
-  anchor = 'start',
   children,
 }: {
   x: number;
   y: number;
-  anchor?: 'start' | 'middle' | 'end';
   children: string;
 }) {
-  const { width, scale, originX } = useContext(ArtContext);
-  const place =
-    anchor === 'start'
-      ? { left: (x - originX) * scale }
-      : anchor === 'end'
-        ? { right: (originX + width - x) * scale }
-        : {
-            left: (x - originX) * scale - MIDDLE_LABEL_HALF,
-            width: 2 * MIDDLE_LABEL_HALF,
-            textAlign: 'center' as const,
-          };
+  const { scale } = useContext(ArtContext);
   return (
     <Text
       position="absolute"
       top={y * scale - LABEL_BASELINE}
-      {...place}
+      left={x * scale}
       fontFamily="$mono"
       fontSize={10.5}
       lineHeight={13}

@@ -505,25 +505,25 @@ export default {
     <FlowFixture connectEnds="checking" checkFinds={false} />
   ),
   'Flow, model switch fails': <FlowFixture readyAfter={3} switchFails />,
-  '5 Meet your Tlonbot': <MeetFixture />,
-  '6 Yours to keep': <PrivateFixture />,
-  '6 How your data is kept': <DataKeptFixture />,
-  '7 Model': <ModelFixture />,
-  '7 Model, subscription sheet': (
+  '4 Meet your Tlonbot': <MeetFixture />,
+  '5 Yours to keep': <PrivateFixture />,
+  '5 How your data is kept': <DataKeptFixture />,
+  '6 Model': <ModelFixture />,
+  '6 Model, subscription sheet': (
     <ModelFixture sheetFor="subscription:openai" />
   ),
-  '7 Model, subscription sheet waiting': (
+  '6 Model, subscription sheet waiting': (
     <ModelFixture sheetFor="subscription:openai" botReady={false} />
   ),
-  '7 Model, API key sheet': <ModelFixture sheetFor="api-key" />,
-  '7 API key': <ApiKeyFixture />,
-  '8 Connect': <ConnectFixture />,
-  '8 Connect, access sheet': <ConnectFixture sheet />,
-  '8 Connect, connected': <ConnectFixture connected />,
-  '8 Connect, cancelled': <ConnectFixture attempt="cancelled" />,
-  '8 Connect, still checking': <ConnectFixture attempt="checking" />,
-  '8 Connect, nothing to connect': <ConnectFixture none />,
-  '8 All services': <AllServicesFixture />,
-  '9 Start a workspace': <WorkspaceFixture />,
+  '6 Model, API key sheet': <ModelFixture sheetFor="api-key" />,
+  '6 API key': <ApiKeyFixture />,
+  '7 Connect': <ConnectFixture />,
+  '7 Connect, access sheet': <ConnectFixture sheet />,
+  '7 Connect, connected': <ConnectFixture connected />,
+  '7 Connect, cancelled': <ConnectFixture attempt="cancelled" />,
+  '7 Connect, still checking': <ConnectFixture attempt="checking" />,
+  '7 Connect, nothing to connect': <ConnectFixture none />,
+  '7 All services': <AllServicesFixture />,
+  '8 Start a workspace': <WorkspaceFixture />,
   'Setup waiting': <SetupFixture />,
 };

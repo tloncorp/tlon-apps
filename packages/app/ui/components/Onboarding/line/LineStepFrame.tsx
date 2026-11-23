@@ -9,8 +9,8 @@ import { useIsDarkMode } from '../../../../hooks/useDarkMode';
 import { ScreenHeader } from '../../ScreenHeader';
 import { LINE, LineOutline, LineRule } from './lineKit';
 
-/** Profile, Setting up, then the five first-run screens. */
-export const ONBOARDING_STEP_COUNT = 9;
+/** Profile, Notifications, Setting up, then the five first-run screens. */
+export const ONBOARDING_STEP_COUNT = 8;
 
 const HEADER_HEIGHT = 44;
 const DASH_WIDTH = 16;

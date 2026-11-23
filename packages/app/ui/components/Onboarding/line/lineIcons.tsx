@@ -8,16 +8,13 @@ export type LineIconName =
   | 'phoneOff'
   | 'clock'
   | 'server'
-  | 'computer'
   | 'lock'
   | 'chatCheck'
   | 'sparkle'
   | 'code'
   | 'fileDown'
-  | 'hash'
   | 'file'
   | 'people'
-  | 'check'
   | 'chevronRight';
 
 // Drawn on a 24-unit square at 1.6 pt, like the app's icons.
@@ -49,12 +46,6 @@ const SHAPES: Record<LineIconName, ReactElement> = {
       <Path d="M7.5 7.5h.01M7.5 16.5h.01" />
     </>
   ),
-  computer: (
-    <>
-      <Rect x={3} y={4} width={18} height={12} rx={2} />
-      <Path d="M8 20h8M12 16v4" />
-    </>
-  ),
   lock: (
     <>
       <Rect x={5} y={11} width={14} height={10} rx={2} />
@@ -78,7 +69,6 @@ const SHAPES: Record<LineIconName, ReactElement> = {
       <Path d="M12 11v6M9.5 14.5L12 17l2.5-2.5" />
     </>
   ),
-  hash: <Path d="M9.5 4L7.5 20M16.5 4l-2 16M4.5 9h15.5M4 15h15.5" />,
   file: (
     <>
       <Path d="M6.5 3.5h7l4 4v13h-11z" />
@@ -93,7 +83,6 @@ const SHAPES: Record<LineIconName, ReactElement> = {
       <Path d="M18 14.3c2.1.7 3.5 2.8 3.5 5.7" />
     </>
   ),
-  check: <Path d="M17 6L11 18L7 13" />,
   chevronRight: <Path d="M9 5L16 12L9 19" />,
 };
 

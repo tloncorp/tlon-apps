@@ -126,7 +126,7 @@ function SubscriptionSignInPane({
 }
 
 /**
- * The five-screen first run after signup, steps 5 to 9 of onboarding: Meet
+ * The five-screen first run after signup, steps 4 to 8 of onboarding: Meet
  * your Tlonbot, Yours to keep, the model, services, then the workspace. Setup
  * runs in the background the whole time; only the last screen's buttons wait
  * for it. Choices stay in place when someone goes back.

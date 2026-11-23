@@ -10,15 +10,15 @@ export type FeaturePoint = {
 };
 
 /**
- * Where each screen sits in onboarding's nine steps: Profile, the two
- * notification screens and Setting up come before the first run.
+ * Where each screen sits in onboarding's eight steps: Profile, Notifications
+ * and Setting up come before the first run.
  */
 export const FIRST_RUN_STEPS = {
-  meet: 5,
-  private: 6,
-  model: 7,
-  connect: 8,
-  workspace: 9,
+  meet: 4,
+  private: 5,
+  model: 6,
+  connect: 7,
+  workspace: 8,
 } as const;
 
 /**
@@ -123,8 +123,7 @@ export const firstRunCopy = {
     title: 'Yours to keep',
     subtitle: 'Use it however you like, for as long as you like.',
     points: [
-      { icon: 'server', label: 'Runs on its own server' },
-      { icon: 'computer', label: 'We run it, you own it' },
+      { icon: 'server', label: 'Runs on its own server, which we host' },
       { icon: 'lock', label: 'No training on your data' },
       { icon: 'chatCheck', label: 'Asks before it emails or messages anyone' },
     ] satisfies FeaturePoint[],
@@ -263,11 +262,12 @@ export const firstRunCopy = {
 
   workspace: {
     title: 'Start a workspace',
-    subtitle: 'Use it with friends and family, and their Tlonbots.',
+    subtitle:
+      'Plan things and get them done with friends. Your Tlonbots help out.',
     points: [
-      { icon: 'hash', label: 'Gives you a chat to work in' },
-      { icon: 'file', label: 'Keeps notes and files together' },
-      { icon: 'people', label: 'Lets friends bring their Tlonbots' },
+      { icon: 'people', label: 'Plan trips and projects together' },
+      { icon: 'file', label: 'Shares notes and files with everyone' },
+      { icon: 'sparkle', label: 'Lets everyone’s Tlonbot pitch in' },
     ] satisfies FeaturePoint[],
     primary: 'Invite friends',
     secondary: 'Skip for now',
