@@ -62,6 +62,18 @@ EOF
 echo $result | sed -n 's/\[0 %avow 0 %noun \(.*\)\]/\1/p'
 }
 
+# The number of the revision the desk $1 is at.
+function desk_revision
+{
+result=$( $run_click $pier <<EOF
+=/  m  (strand ,vase)  
+;<  =cass:clay  bind:m  (scry cass:clay /cw/$1)  
+(pure:m !>(ud.cass))  
+EOF
+)
+echo $result | sed -n 's/\[0 %avow 0 %noun \([0-9]*\)\]/\1/p'
+}
+
 function install_desk
 {
 $run_click $pier <<EOF
@@ -175,6 +187,15 @@ function setup_ship
 function update_desk
 {
   $in_ship cp -R "$2/." "${pier_dir:-$pier}/$1/" && commit_desk "$1"
+}
+
+# Replace the mounted desk $1 with the build output $2, a path where the ship
+# runs, deleting the files it does not contain, as `just install` does, and
+# commit it.
+function replace_desk
+{
+  $in_ship find "${pier_dir:-$pier}/$1" -mindepth 1 -delete &&
+    $in_ship cp -R "$2/." "${pier_dir:-$pier}/$1/" && commit_desk "$1"
 }
 
 # Ask the ship to commit its mounted desk $1. click exits zero even when the
