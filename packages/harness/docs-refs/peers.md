@@ -7,7 +7,8 @@ Ames-authenticated ship identity and require permission from both ships.
 
 `ask_peer(ship, prompt, task?)` sends a request to the peer's `%harness` agent
 and returns its answer or error as a tool result. Requests have durable IDs and
-a Behn deadline; replies must come from the addressed ship.
+a Behn deadline; replies must come from the addressed ship. A serving turn
+stopped by the loop guard is answered "Remote work stopped before finishing."
 
 Both ships check their current grants. Removing local trust stops further
 dispatch and rejects later results, but cannot undo accepted remote work.

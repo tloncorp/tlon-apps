@@ -168,7 +168,9 @@ Publications carry `version`, `effectId`, `inputId`, `binding`, `hand`, `address
 `sessionId`, `capability`, `kind`, `text`, `status`, `worker`, `externalId`, and
 `attempt`, chronological `receipts`, and owner `resolutions`. One terminal publication is created per executed
 observation, with `effectId = inputId`. Kinds are `reply`, `failure`, or
-`cancelled`. Failures expose a generic message, not internal diagnostics.
+`cancelled`. Failures expose a generic message, not internal diagnostics. A turn
+the loop guard halts, after four failing tool results in a row or 24 assistant
+turns since its input, is a `failure` whose message asks for a new message.
 
 The outbox is unordered. For chat delivery, match `inputId` to chronological
 session entries and send one publication at a time per destination. Adapters

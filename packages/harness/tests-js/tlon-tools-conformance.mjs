@@ -16,7 +16,7 @@ const peerCookie = `${row[5]}=${row[6]}`, peer = row[5].slice('urbauth-'.length)
 const ship = cookie.split('=')[0].slice('urbauth-'.length), client = new Client()
 const marker = `hand-tools-${randomUUID()}`, channel = marker, failures = [], receipts = [], schedules = []
 let event = 0, defaults, policy, mode = 'unbound', sourceSid, scheduledSid, targetId, held, scheduledRequests = 0, unbound, broadened = false, managed
-const cronTools = ['schedule_once', 'reminder_add', 'cron_add', 'cron_list', 'cron_update', 'cron_remove', 'cron_delete', 'cron_retry'], denials = {}, extra = []
+const cronTools = ['schedule_once', 'reminder_add', 'cron_add', 'cron_list', 'cron_update', 'cron_remove', 'cron_delete', 'cron_retry'], denials = {}, extra = [], halts = {}
 const call = (id, name, args) => ({ id, type: 'function', function: { name, arguments: JSON.stringify(args) } })
 const answer = (res, content, calls = []) => res.end(JSON.stringify({ choices: [{ finish_reason: calls.length ? 'tool_calls' : 'stop', message: {
   role: 'assistant', content, ...(calls.length ? { tool_calls: calls } : {}),
@@ -100,6 +100,12 @@ const server = createServer(async (req, res) => {
       if (!schedules.includes(job.id)) schedules.push(job.id)
       return answer(res, `${marker}-${mode}-recorded`)
     }
+    if (mode.startsWith('halt')) {
+      halts[mode] = (halts[mode] ?? 0) + 1
+      if (mode === 'halt-fails') return answer(res, '', [1, 2, 3, 4].map((n) => call(`${mode}-${n}`, 'no_such_tool', {})))
+      assert.ok(current.every((m) => !/^(error|rejected)/.test(m.content)), 'current_time must succeed')
+      return answer(res, '', [call(`${mode}-${halts[mode]}`, 'current_time', {})])
+    }
     if (!current.length) return answer(res, '', [call(`history-${mode}`, 'tlon_read_history', { channel: 'chat/~zod/forged', ship: '~zod' })])
     if (current.length === 1) {
       const history = JSON.parse(current[0].content)
@@ -158,6 +164,24 @@ try {
       const result = await page(inChannel), target = Object.values(result.writs || result.posts).find((m) => m.essay?.author === peer && JSON.stringify(m.essay.content).includes(`${marker}-${mode.split('-')[0]}-react`))
       return target && (mode.endsWith('unreact') ? !target.seal.reacts?.[ship] : !!target.seal.reacts?.[ship])
     })
+  }
+  // A turn the loop guard stops, after four refused calls or after 24 steps of
+  // successful calls, has its failure publication posted in the DM. No tool
+  // posts here, so that text is the only bot post after the prompt.
+  const halted = 'I stopped before finishing this. You can ask me to try again in a new message.'
+  for (const [next, requests] of [['halt-fails', 1], ['halt-steps', 24]]) {
+    mode = next; await send(`${marker}-${mode}`)
+    // The bot posts with its profile, so its author is an object.
+    const replies = async () => {
+      const writs = Object.values((await page(false, true)).writs), prompt = writs.find((m) => m.essay.author === peer && JSON.stringify(m.essay.content).includes(`${marker}-${mode}`))
+      return writs.filter((m) => prompt && (m.essay.author.ship ?? m.essay.author) === ship && m.essay.sent > prompt.essay.sent)
+        .map((m) => m.essay.content.flatMap((v) => v.inline ?? []).filter((i) => typeof i === 'string').join(''))
+    }
+    await until(`${mode} halted turn posted a reply`, async () => (await replies()).length, 60000)
+    await sleep(2500)
+    assert.deepEqual(await replies(), [halted], `${mode}: the failure publication's text, posted once`)
+    assert.equal(halts[mode], requests, `${mode}: provider requests before the halt`)
+    console.log(`PASS ${mode} halted after ${requests} requests and posted the failure text`)
   }
   // Only the bot's owner schedules work: it creates, lists, changes and
   // cancels in a DM and a channel mention, and its jobs run and deliver.

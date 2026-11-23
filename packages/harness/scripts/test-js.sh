@@ -14,6 +14,9 @@
 # TEST_SHARD=I/N, without a PATTERN, runs or lists the Ith of N parts of the full run,
 # as CI does.
 #
+# UPGRADE_BASE names the tree-ish whose %harness build upgrade-conformance installs
+# before this one, HEAD by default.
+#
 # The tests start local servers that the ships call, so the tests and the ships run
 # in one container, from the image built from scripts/test-js/, with the repository
 # mounted read-only at its own path and .test-run/js writable. On the host this
@@ -112,6 +115,28 @@ out=$root/.test-run/js
 logs=$out/logs
 results=$out/results.txt
 
+# Build the %harness desk of the tree-ish $1 into $out/base, as that tree builds
+# it, from the files `git archive` gives, and mark it the same as this build's
+# if it is.
+function build_base
+{
+  local tree=$out/base/tree
+  rm -rf "${out:?}/base" && mkdir -p "$tree" || return 1
+  echo "$1 ($(git -C "$repo" rev-parse --short "$1"))" > "$out/base/name"
+  git -C "$repo" archive -o "$out/base/tree.tar" "$1" packages/harness desk desk-deps.yaml justfile scripts/backend &&
+    tar -x -C "$tree" -f "$out/base/tree.tar" || return 1
+  # This build's fetches, so that what the base pins alike needs no network.
+  cp -R .deps-cache "$tree/packages/harness/" && mkdir "$tree/packages/harness/mcp" &&
+    cp -R mcp/.git "$tree/packages/harness/mcp/" || return 1
+  (cd "$tree/packages/harness" && just build) || return 1
+  diff -rq "$tree/packages/harness/desk-out" desk-out
+  case $? in
+    0) touch "$out/base/same" ;;
+    1) ;;
+    *) return 1 ;;
+  esac
+}
+
 # On the host: set up the container and run this script in it.
 if [ -z "$TEST_JS_CONTAINER" ]
 then
@@ -155,6 +180,16 @@ then
   echo "Building the desks..."
   { just build && just --justfile mcp/justfile build; } > "$logs/build.log" 2>&1 ||
     { echo "Failed to build the desks; see $logs/build.log"; exit 1; }
+  # upgrade-conformance installs the %harness build of a base tree-ish on a
+  # ship, seeds it and installs this build over it. UPGRADE_BASE names the base,
+  # HEAD by default. Git and just are here, so the base is built here, and a
+  # failure is left in $out/base/error for the test to report.
+  if [[ -z $pattern || upgrade-conformance =~ $pattern ]] && in_shard zod tests-js/upgrade-conformance.mjs
+  then
+    echo "Building the upgrade base..."
+    build_base "${UPGRADE_BASE:-HEAD}" > "$logs/base-build.log" 2>&1 ||
+      echo "the base did not build; see $logs/base-build.log" > "$out/base/error"
+  fi
   { build_image &&
     $runtime build -q -t "$test_image" --build-arg SHIP_IMAGE="$image" scripts/test-js > /dev/null &&
     prune_images; } ||
@@ -284,9 +319,15 @@ function deploy
 }
 
 # Wipe Harness's agent state, as on a fresh install, so the script sets up what it
-# needs. State in other desks, such as DMs and groups, stays. Reviving a live desk does
-# nothing, so a nuked desk has to be suspended first.
+# needs. State in other desks, such as DMs and groups, stays.
 function reset_ship
+{
+  suspend_harness $1 && revive_harness $1 60
+}
+
+# Clear the state of ~$1's %harness agents and suspend them. Reviving a live desk
+# does nothing, so a nuked desk has to be suspended first.
+function suspend_harness
 {
   $click -t 60 -i - -kp "$piers/$1" > "$logs/reset-$1.log" 2>&1 <<EOF
 =/  m  (strand ,vase)  
@@ -295,10 +336,21 @@ function reset_ship
 ;<  ~  bind:m  (sleep ~s1)  
 ;<  ~  bind:m  (poke [our %hood] kiln-suspend+!>(%harness))  
 ;<  ~  bind:m  (sleep ~s1)  
-;<  ~  bind:m  (poke [our %hood] kiln-revive+!>(%harness))  
-(pure:m !>(%test-reset-sent))  
+(pure:m !>(%test-suspend-sent))  
 EOF
-  for attempt in $(seq 1 60)
+}
+
+# Revive ~$1's %harness agents and wait, $2 times, for %harness-tlon, the last of
+# them to start. Fails if it has not.
+function revive_harness
+{
+  $click -t 60 -i - -kp "$piers/$1" >> "$logs/reset-$1.log" 2>&1 <<EOF
+=/  m  (strand ,vase)  
+;<  our=ship  bind:m  get-our  
+;<  ~  bind:m  (poke [our %hood] kiln-revive+!>(%harness))  
+(pure:m !>(%test-revive-sent))  
+EOF
+  for attempt in $(seq 1 $2)
   do
     result_line=$( $click -t 30 -i - -kp "$piers/$1" 2>/dev/null <<EOF
 =/  m  (strand ,vase)  
@@ -306,9 +358,230 @@ EOF
 (pure:m !>(live))  
 EOF
     )
-    [[ $result_line == *"[0 %avow 0 %noun 0]"* ]] && break
+    [[ $result_line == *"[0 %avow 0 %noun 0]"* ]] && return 0
     sleep 1
   done
+  return 1
+}
+
+# The cord a thread returned, from click's output on stdin.
+function cord
+{
+  sed -n "s/.*\[0 %avow 0 %noun '\(.*\)'\].*/\1/p"
+}
+
+# Each agent of %harness and the date of the beak it was built from, as
+# AGENT=DATE pairs. Gall moves an agent's beak only when it loads new code.
+function agent_beaks
+{
+  $click -t 120 -i - -kp "$pier" <<EOF | cord
+=/  m  (strand ,vase)  
+;<  =bowl  bind:m  get-bowl  
+=/  now  (scot %da now.bowl)  
+=/  dudes  .^((list dude:gall) %cx /(scot %p our.bowl)/harness/[now]/desk/bill)  
+=/  date  
+  |=  =dude:gall  
+  =/  egg  .^(egg-any:gall %gv /(scot %p our.bowl)/[dude]/[now]/\$)  
+  ?>  ?=([%20 %live *] egg)  
+  ?>  ?=(%da -.r.beak.+.egg)  
+  p.r.beak.+.egg  
+(pure:m !>((crip (zing (turn dudes |=(d=dude:gall "{(trip d)}={(scow %da (date d))} "))))))  
+EOF
+}
+
+# Did each agent reload exactly when its code changed from revision $1 to $2?
+# Compares the nouns of the agents Ford builds at the two revisions, which is
+# what Gall compares, and requires the agent's beak to be at or after revision
+# $2 when they differ and unchanged from $3, agent_beaks before the commit, when
+# they don't. Prints a clause for each agent, starting FAIL for one that breaks
+# the rule. The built agents are megabytes, so they are compared here.
+function agent_reloads
+{
+  $click -t 600 -i - -kp "$pier" <<EOF | cord
+=/  m  (strand ,vase)  
+;<  =bowl  bind:m  get-bowl  
+=/  our  (scot %p our.bowl)  
+=/  now  (scot %da now.bowl)  
+=/  base  (scot %ud $1)  
+=/  head  (scot %ud $2)  
+=/  before  (~(gas by *(map dude:gall @da)) ~[$(sed -E -e 's/ +$//' -e 's/([a-z-]+)=(~[^ ]+)/[%\1 \2]/g' <<<"$3")])  
+=/  date  da:.^(cass:clay %cw /[our]/harness/[head])  
+=/  dudes  .^((list dude:gall) %cx /[our]/harness/[head]/desk/bill)  
+=/  check  
+  |=  =dude:gall  
+  ^-  tape  
+  =/  file=path  /app/[dude]/hoon  
+  =/  changed=?  
+    ?.  .^(? %cu (weld /[our]/harness/[base] file))  &  
+    !=(q:.^(vase %ca (weld /[our]/harness/[base] file)) q:.^(vase %ca (weld /[our]/harness/[head] file)))  
+  =/  egg  .^(egg-any:gall %gv /[our]/[dude]/[now]/\$)  
+  ?.  ?=([%20 %live *] egg)  "FAIL %{(trip dude)} is not running; "  
+  ?.  ?=(%da -.r.beak.+.egg)  "FAIL %{(trip dude)} has no beak date; "  
+  =/  after=@da  p.r.beak.+.egg  
+  =/  old=(unit @da)  (~(get by before) dude)  
+  =/  ok=?  ?:(changed (gte after date) =(old \`after))  
+  "{?:(ok "ok" "FAIL")} %{(trip dude)}: built agent {?:(changed "changed" "unchanged")}, beak {?~(old "none" (scow %da u.old))} -> {(scow %da after)}; "  
+(pure:m !>((crip "revision {(trip head)} at {(scow %da date)}: {(zing (turn dudes check))}")))  
+EOF
+}
+
+# Wait up to three minutes for the revision of %harness to move from $1, and
+# print the revision it is at. Clay takes a commit when the mount is read, and
+# its agents built and loaded, some time after the poke.
+function await_revision
+{
+  local revision end=$((SECONDS + 180))
+  while revision=$(desk_revision harness 2> /dev/null) && [ "$revision" == "$1" ] && [ $SECONDS -lt $end ]
+  do
+    sleep 2
+  done
+  echo "$revision"
+}
+
+# Wait for the commit of the $1 build to move the revision of %harness from $2,
+# and require it to have moved by one. Sets revision to the revision it is at.
+function commit_taken
+{
+  revision=$(await_revision "$2")
+  if [ "$revision" == "$2" ]
+  then
+    upgrade_reason="$1 desk commit was refused: revision stayed at $2"
+  elif [ "$revision" != $(($2 + 1)) ]
+  then
+    upgrade_reason="$1 desk commit moved the revision from $2 to $revision"
+  else
+    return 0
+  fi
+  return 1
+}
+
+# Which build the ship runs after a commit that did not move the revision from
+# $1 by one: $2 if it stayed, $3 if it moved by one, unknown otherwise.
+function build_at
+{
+  if [ "$revision" == "$1" ]
+  then
+    echo "$2"
+  elif [ "$revision" == $(($1 + 1)) ]
+  then
+    echo "$3"
+  else
+    echo unknown
+  fi
+}
+
+# upgrade-conformance from the base build to this one, in place of the ordinary
+# reset. Copying files into a mount changes nothing Clay runs; only a commit
+# does, and Clay refuses a commit whose agents fail to load the state they
+# have, keeping the old desk, so each commit is checked by the desk's revision.
+# Sets upgrade_reason on a failure, upgrade_dirty once %harness is no longer as
+# the run left it, upgrade_on to the build the ship runs (head, base or
+# unknown) and upgrade_head_cz to the head desk's hash. Returns 2 for
+# identical desks.
+function upgrade_steps
+{
+  local base=$out/base/tree/packages/harness head_rev base_rev base_cz beaks revision verdict id
+  echo "base: $(cat "$out/base/name" 2> /dev/null)"
+  if [ -f "$out/base/error" ]
+  then
+    upgrade_reason=$(cat "$out/base/error")
+    return 1
+  fi
+  [ ! -f "$out/base/same" ] || return 2
+  if [ ! -f "$base/tests-js/upgrade-conformance.mjs" ]
+  then
+    upgrade_reason="the base has no tests-js/upgrade-conformance.mjs to seed it; choose a base that contains the upgrade check"
+    return 1
+  fi
+  head_rev=$(desk_revision harness 2> /dev/null) upgrade_head_cz=$(desk_hash harness 2> /dev/null)
+  echo "head build: revision $head_rev, $upgrade_head_cz"
+
+  upgrade_dirty=1
+  suspend_harness $current_ship
+  replace_desk harness "$base/desk-out" || { upgrade_reason="the base desk commit failed"; return 1; }
+  commit_taken base "$head_rev" || { upgrade_on=$(build_at "$head_rev" head base); return 1; }
+  upgrade_on=base base_rev=$revision base_cz=$(desk_hash harness 2> /dev/null)
+  echo "base build: revision $base_rev, $base_cz"
+  if [ "$base_cz" == "$upgrade_head_cz" ]
+  then
+    upgrade_reason="the base desk commit left the head's desk"
+    return 1
+  fi
+  revive_harness $current_ship 120 || { upgrade_reason="%harness-tlon did not start on the base build"; return 1; }
+
+  # From the seed to the head commit, nothing may restart or reset the agents.
+  id=upgrade-base-$(date +%s)
+  UPGRADE_ID=$id UPGRADE_MANIFEST=$out/upgrade-manifest.json \
+    timeout 120 node "$base/tests-js/upgrade-conformance.mjs" seed ||
+    { upgrade_reason="the base tree's seed failed"; return 1; }
+  base_rev=$(desk_revision harness 2> /dev/null) base_cz=$(desk_hash harness 2> /dev/null) beaks=$(agent_beaks)
+  echo "seeded base: revision $base_rev, $base_cz, beaks $beaks"
+  replace_desk harness "$root/desk-out" || { upgrade_reason="the head desk commit failed"; return 1; }
+  commit_taken head "$base_rev" || { upgrade_on=$(build_at "$base_rev" base head); return 1; }
+  upgrade_on=head upgrade_head_cz=$(desk_hash harness 2> /dev/null)
+  echo "head build: revision $revision, $upgrade_head_cz"
+  verdict=$(agent_reloads "$base_rev" "$revision" "$beaks")
+  echo "$verdict"
+  if [[ -z $verdict || $verdict == *FAIL* ]]
+  then
+    upgrade_reason="an agent did not reload exactly when its code changed"
+    return 1
+  fi
+
+  UPGRADE_ID=$id UPGRADE_MANIFEST=$out/upgrade-manifest.json UPGRADE_KEYS= \
+    timeout 120 node tests-js/upgrade-conformance.mjs check ||
+    { upgrade_reason="the head tree's check failed"; return 1; }
+}
+
+# After a failed upgrade, put the ship back on this build. Off it, the agents
+# are cleared first, since the state the base left may be what this build
+# could not load. Fails unless the ship then runs this build: the commit moved
+# the revision, or the desk's hash is the head's, and the agents are live.
+function restore_head
+{
+  local revision moved hash
+  revision=$(desk_revision harness 2> /dev/null)
+  echo "restoring the head build over revision $revision, from the $upgrade_on build"
+  [ "$upgrade_on" == head ] || suspend_harness $current_ship
+  replace_desk harness "$root/desk-out" || { echo "the head desk commit failed"; return 1; }
+  if [ "$upgrade_on" == head ]
+  then
+    moved=$(desk_revision harness 2> /dev/null)
+  else
+    moved=$(await_revision "$revision")
+  fi
+  hash=$(desk_hash harness 2> /dev/null)
+  if [ "$moved" == "$revision" ] && [ "$hash" != "$upgrade_head_cz" ]
+  then
+    echo "head desk commit was refused: revision stayed at $revision, $hash"
+    return 1
+  fi
+  revive_harness $current_ship 120 || { echo "%harness-tlon did not start"; return 1; }
+  echo "restored: revision $moved, $hash"
+}
+
+# Run the upgrade and record its result. The head-side seed and check, in
+# run_script, follows whatever this records, from a clean state unless the
+# upgrade passed. If the head build cannot be restored, the ship is no use to
+# the scripts after it, so the run stops.
+function upgrade
+{
+  local name="$1 (base to head)" log=$logs/$1-upgrade.log passed=
+  pier=$piers/$current_ship upgrade_reason= upgrade_dirty= upgrade_on=head upgrade_head_cz=
+  upgrade_steps > "$log" 2>&1
+  case $? in
+    0) result "$name" "pass"; passed=1 ;;
+    2) result "$name" "pass (no desk change)" ;;
+    *)
+      result "$name" "FAILED ($upgrade_reason; see $log)"
+      if [ -n "$upgrade_dirty" ] && ! restore_head >> "$log" 2>&1
+      then
+        result "$1 (restore head)" "FAILED (see $log)"
+        summarize
+        exit 1
+      fi ;;
+  esac
+  [ -n "$passed" ] || reset_ship $current_ship
 }
 
 function use_ship
@@ -367,6 +640,12 @@ function run_script
     # It seeds durable evidence, then checks that the evidence outlives a restart.
     export LIFECYCLE_ID=hosting-life-$(date +%s)
     timeout 120 node "$2" seed && restart_ship $current_ship $current_port && timeout 120 node "$2" check
+  elif [ "$1" == "upgrade-conformance" ]
+  then
+    # The head tree seeds afresh and checks its own manifest, every key required,
+    # so a broken head seeder fails in the same run as the upgrade.
+    export UPGRADE_ID=upgrade-head-$(date +%s) UPGRADE_MANIFEST=$out/upgrade-head-manifest.json
+    timeout 120 node "$2" seed && UPGRADE_KEYS=all timeout 120 node "$2" check
   elif [ "$1" == "reliability-soak" ]
   then
     HARNESS_HEAVY_TESTS=1 timeout 300 node "$2"
@@ -392,7 +671,12 @@ function live
     return
   fi
   # Each script starts clean, so results don't depend on the order they run in.
-  reset_ship $current_ship
+  if [ "$name" == "upgrade-conformance" ]
+  then
+    upgrade "$name"
+  else
+    reset_ship $current_ship
+  fi
   run_script "$name" "$file" > "$logs/$name.log" 2>&1
   code=$?
   if [ "$code" -eq 0 ]
