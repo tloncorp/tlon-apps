@@ -64,9 +64,11 @@ export function setScrollDiagnosticsEnabled(enabled: boolean | null) {
 }
 
 export function isScrollDiagnosticsEnabled() {
-  const { enabled, customLoggers } = useDebugStore.getState();
+  // Only the scroller logger turns them on, not the general debug mode a
+  // support request asks for: the frame watcher, once started, runs for the
+  // rest of the session.
   const isEnabled =
-    enabledOverride ?? (enabled || customLoggers.has(LOGGER_TAG));
+    enabledOverride ?? useDebugStore.getState().customLoggers.has(LOGGER_TAG);
   if (isEnabled) {
     installDebuggerHandle();
   }

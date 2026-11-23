@@ -1,6 +1,7 @@
 import { isValidUrl, makePrettyTimeFromMs } from '@tloncorp/api/lib/utils';
 import {
   AnalyticsEvent,
+  createDevLogger,
   trackEvent,
   useMutableCallback,
 } from '@tloncorp/shared';
@@ -856,6 +857,7 @@ const UNKNOWN_IMAGE_ASPECT_RATIO = 4 / 3;
 // conversation opened again, the app relaunched) started from the
 // placeholder's shape and changed height once the cached picture loaded.
 const loadedImageSizes = new Map<string, { width: number; height: number }>();
+const imageSizesLogger = createDevLogger('loadedImageSizes', false);
 const MAX_REMEMBERED_IMAGE_SIZES = 500;
 const SAVE_IMAGE_SIZES_DELAY_MS = 2000;
 // Images that loaded in this session are likely still in memory and draw in
@@ -909,9 +911,24 @@ function scheduleSaveLoadedImageSizes() {
           height,
         ])
       )
-      .catch(() => {});
+      .catch((error) => {
+        imageSizesLogger.trackError('failed to save loaded image sizes', error);
+      });
   }, SAVE_IMAGE_SIZES_DELAY_MS);
 }
+
+// Storage is reset on logout. The sizes in memory, and a save still waiting,
+// belong to the account that left and must not be written back for the next.
+db.registerStorageItemListener<[string, number, number][]>(
+  db.loadedImageSizes.config.key,
+  async (value) => {
+    if (value.length === 0) {
+      clearTimeout(saveImageSizesTimeout);
+      loadedImageSizes.clear();
+      imagesLoadedThisSession.clear();
+    }
+  }
+);
 
 // Sizes measured this session are newer than the stored ones, so they stay
 // at the recent end.
@@ -938,7 +955,12 @@ try {
         restoreLoadedImageSizes(stored);
       }
     })
-    .catch(() => {});
+    .catch((error) => {
+      imageSizesLogger.trackError(
+        'failed to restore loaded image sizes',
+        error
+      );
+    });
 } catch {
   // Storage isn't available, as in some tests; sizes last the session.
 }

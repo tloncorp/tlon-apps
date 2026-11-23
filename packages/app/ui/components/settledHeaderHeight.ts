@@ -1,8 +1,10 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
-// The last height a native header reported, for screens whose own header has
-// not reported yet.
-let lastReportedHeaderHeight = 0;
+// How far the last native header to report was from the navigator's guess
+// for it, for screens whose own header has not reported yet. The guess is off
+// by the same amount whatever it is, while the height itself depends on the
+// screen's size: a portrait height borrowed in landscape was wrong.
+let lastHeaderGuessError: number | null = null;
 
 // What a native header turned out to be, keyed by the navigator's guess for
 // it. The guess depends on the screen's size and safe area, so a rotation gets
@@ -11,7 +13,7 @@ const reportedHeaderHeightByGuess = new Map<number, number>();
 const headerHeightListeners = new Set<() => void>();
 
 function recordReportedHeaderHeight(guess: number, reported: number) {
-  lastReportedHeaderHeight = reported;
+  lastHeaderGuessError = reported - guess;
   const key = Math.round(guess);
   if (reportedHeaderHeightByGuess.get(key) === reported) {
     return;
@@ -29,7 +31,7 @@ function subscribeToReportedHeaderHeights(listener: () => void) {
 
 /** Forgets every reported height; for tests. */
 export function resetReportedHeaderHeights() {
-  lastReportedHeaderHeight = 0;
+  lastHeaderGuessError = null;
   reportedHeaderHeightByGuess.clear();
 }
 
@@ -39,8 +41,9 @@ export function resetReportedHeaderHeights() {
 export const HEADER_REPORT_WAIT_MS = 500;
 
 /**
- * The header's height, or until this screen's header reports one, the height
- * the last one reported. A conversation used to open with no top inset and
+ * The header's height, or until this screen's header reports one, the
+ * navigator's guess corrected by as much as the last header's was. A
+ * conversation used to open with no top inset and
  * gain it a moment later, and the list's correction for that, made while it
  * sat at its top where the offset cannot move, came back as a jump once
  * older posts arrived above.
@@ -87,5 +90,7 @@ export function useSettledHeaderHeight(reported: number, guess: number) {
   if (isGuess && guessIsFinal) {
     return reported;
   }
-  return lastReportedHeaderHeight || reported || guess;
+  return lastHeaderGuessError === null
+    ? reported || guess
+    : guess + lastHeaderGuessError;
 }

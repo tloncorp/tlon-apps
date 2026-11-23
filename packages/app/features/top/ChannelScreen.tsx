@@ -172,6 +172,10 @@ export default function ChannelScreen(props: Props) {
   // than merely unnecessary. Asked once, since it was three spellings of
   // the same question and one of them was missed on the first pass.
   const channelTracksUnreads = channel?.type !== 'buckets';
+  // A channel not created yet (a new DM) or one that keeps no unread state
+  // never runs the posts query, so there is no first read to wait for.
+  const postsQueryNeverRuns =
+    !!channel && (channel.isPendingChannel || !channelTracksUnreads);
 
   useEffect(() => {
     if (channelIsPending || !channelTracksUnreads) {
@@ -281,8 +285,10 @@ export default function ChannelScreen(props: Props) {
   // snapshot and nothing loads until the reader goes back to it, who then
   // waits on a spinner. It takes one at mount instead and loads its posts
   // while hidden; marking read still waits for focus.
+  const hasUnreadSnapshot =
+    initialChannelUnreadSnapshot?.channelId === currentChannelId;
   useEffect(() => {
-    if (isFocused) {
+    if (isFocused || hasUnreadSnapshot) {
       return;
     }
     let isCurrent = true;
@@ -303,7 +309,7 @@ export default function ChannelScreen(props: Props) {
     return () => {
       isCurrent = false;
     };
-  }, [currentChannelId, isFocused]);
+  }, [currentChannelId, hasUnreadSnapshot, isFocused]);
 
   // Until its first screen is on display, a channel opened with nothing
   // unread takes a new snapshot when unreads appear. A relaunch that restores
@@ -328,8 +334,6 @@ export default function ChannelScreen(props: Props) {
     }
   }
 
-  const hasUnreadSnapshot =
-    initialChannelUnreadSnapshot?.channelId === currentChannelId;
   // On screen, posts wait for this entry's snapshot; behind another screen,
   // the snapshot it already has is enough.
   const canLoadPosts =
@@ -442,11 +446,7 @@ export default function ChannelScreen(props: Props) {
     loadOlder,
     isLoading: isLoadingPosts,
   } = store.useChannelPosts({
-    enabled:
-      canLoadPosts &&
-      !!channel &&
-      !channel.isPendingChannel &&
-      channelTracksUnreads,
+    enabled: canLoadPosts && !!channel && !postsQueryNeverRuns,
     channelId: currentChannelId,
     count: 30,
     filterDeleted: !includeDeletedPosts,
@@ -547,7 +547,11 @@ export default function ChannelScreen(props: Props) {
     scopeKey: `${currentChannelId}:${usesCursor ? cursor : 'newest'}`,
     // Before the first read returns there are no posts to count, as distinct
     // from a conversation that has none.
-    postCount: postsQuery.data ? (posts?.length ?? null) : null,
+    postCount: postsQueryNeverRuns
+      ? 0
+      : postsQuery.data
+        ? (posts?.length ?? null)
+        : null,
     postsBeforeAnchor,
     hasOlderPosts: postsQuery.hasNextPage,
     hasError: postsQuery.isError,
@@ -782,7 +786,8 @@ export default function ChannelScreen(props: Props) {
           isLoadingPosts={isLoadingPosts || isInitialFillPending}
           loadPostsError={postsQuery.error}
           hasNewerPosts={postsQuery.hasPreviousPage}
-          hasOlderPosts={postsQuery.hasNextPage}
+          // An older page that failed may never arrive.
+          hasOlderPosts={postsQuery.hasNextPage && !postsQuery.isError}
           group={group}
           groupIsLoading={groupIsLoading}
           posts={isInitialFillPending ? null : (filteredPosts ?? null)}

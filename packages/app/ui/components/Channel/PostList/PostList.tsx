@@ -270,7 +270,12 @@ function useHistoryReshape(posts: PostWithNeighbors[], isNearEnd: boolean) {
     const change = describeWindowChange(previous.posts, posts);
     changesTop = change.changesTop;
     followsEnd = change.changesTop && change.changesEnd && isNearEnd;
-    holdsEnd = change.changesTop && !change.changesEnd && isNearEnd;
+    // A hold lasts until it is released. A later change that leaves the end
+    // alone (a reaction, a reply count, the fill's next read) must not cut it
+    // short while the rows that landed are still being measured.
+    holdsEnd =
+      !change.changesEnd &&
+      ((change.changesTop && isNearEnd) || previous.holdsEnd);
     setPrevious({ posts, changesTop, followsEnd, holdsEnd });
   }
   const release = React.useCallback(
@@ -1207,8 +1212,13 @@ const ConversationPostListAttempt = React.forwardRef<
     // A fresh page that also brought newer posts to a list resting at its end
     // goes straight to the new end, rather than having the viewport animate
     // through rows that have not been drawn.
+    // A list still hidden is placed by its opening scroll, as with holding
+    // the end below.
     const reshapeFollowsEnd =
-      historyReshape.followsEnd && anchorToEnd && !hasNewerPosts;
+      historyReshape.followsEnd &&
+      didFinishInitialScroll &&
+      anchorToEnd &&
+      !hasNewerPosts;
     // A list resting at its end is held there while the rows that landed
     // above it are measured. Left to anchoring alone, the end was lost when a
     // row above measured shorter than its estimate: the scroll view clamped

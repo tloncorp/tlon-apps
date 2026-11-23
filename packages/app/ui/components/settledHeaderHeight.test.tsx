@@ -98,6 +98,15 @@ describe('useSettledHeaderHeight', () => {
     expect(landscape.height).toBe(68);
   });
 
+  it('starts a screen with another guess from its own guess, corrected', () => {
+    const portrait = renderScreen(GUESS);
+    portrait.report(REAL);
+    // Rotated: the portrait height would be wrong here, and the header would
+    // jump when it reported.
+    const landscape = renderScreen(0, 52.67);
+    expect(landscape.height).toBeCloseTo(52.67 + (REAL - GUESS));
+  });
+
   it('gives a screen without a header the last reported height', () => {
     const first = renderScreen(GUESS);
     first.report(REAL);

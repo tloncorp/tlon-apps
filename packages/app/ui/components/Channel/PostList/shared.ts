@@ -39,14 +39,23 @@ export function getPostRowType(row: PostWithNeighbors) {
   // above it arriving, or the post itself updating after it was first shown)
   // would be moved to another container and remounted on screen. Keyed like
   // the list's rows, so a post confirmed or edited in place keeps its type.
+  //
+  // Kept least recently used first, and trimmed from that end: the rows a
+  // list is asking about are the ones it is showing, so they are never the
+  // ones dropped.
   const key = getPostListKey(row);
   let type = rowTypes.get(key);
   if (type === undefined) {
     type = computePostRowType(row.post);
-    if (rowTypes.size >= MAX_ROW_TYPES) {
-      rowTypes.clear();
+  } else {
+    rowTypes.delete(key);
+  }
+  rowTypes.set(key, type);
+  if (rowTypes.size > MAX_ROW_TYPES) {
+    const oldest = rowTypes.keys().next().value;
+    if (oldest !== undefined) {
+      rowTypes.delete(oldest);
     }
-    rowTypes.set(key, type);
   }
   return type;
 }

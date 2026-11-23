@@ -694,7 +694,10 @@ function ScrollLab({ preset }: { preset: Preset }) {
     const unsubscribe = subscribeToScrollDiagRows(
       tlonLocalIntros.id,
       ({ key, kind }) => {
-        const post = postsRef.current.find(({ id }) => id === key);
+        // Rows are keyed like the list's, by author and time sent.
+        const post = postsRef.current.find(
+          ({ authorId, sentAt }) => `${authorId}:${sentAt}` === key
+        );
         if (!post || !isLateRow(postNumberOf(post))) {
           return;
         }
@@ -702,14 +705,14 @@ function ScrollLab({ preset }: { preset: Preset }) {
         pending.delete(key);
         if (kind === 'unmount') {
           // Dropped from the cache, so the next mount loads it again.
-          queryClient.setQueryData(['post', key], post);
+          queryClient.setQueryData(['post', post.id], post);
           return;
         }
         pending.set(
           key,
           setTimeout(() => {
             pending.delete(key);
-            queryClient.setQueryData(['post', key], {
+            queryClient.setQueryData(['post', post.id], {
               ...post,
               content: loadedLateContent(postNumberOf(post)),
             });

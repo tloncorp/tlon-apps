@@ -8,6 +8,7 @@ import { listItemMarkerType } from './BlockRenderer';
 // without rendering anything.
 vi.mock('@tloncorp/shared', () => ({
   AnalyticsEvent: {},
+  createDevLogger: () => ({ trackError: vi.fn() }),
   trackEvent: vi.fn(),
   useMutableCallback: (cb: unknown) => cb,
   useMutableRef: () => ({ current: null }),

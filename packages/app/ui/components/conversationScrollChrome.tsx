@@ -24,7 +24,7 @@ import {
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
 
-import { supportsNativeScrollEdgeChrome } from '../../navigation/nativeHeaderOptions';
+import { floatingHeaderHeight as getFloatingHeaderHeight } from '../../navigation/useFloatingHeaderHeight';
 import { GlassSurface, supportsLiquidGlass } from './GlassSurface';
 import {
   floatingChromeMetrics,
@@ -77,20 +77,16 @@ export function useConversationInsets({
   hasFloatingPinnedPostBanner?: boolean;
 }) {
   const { bottom: bottomSafeArea, top: topSafeArea } = useSafeAreaInsets();
-  // Only the content inset uses the settled height. A screen that hides its
-  // header (a bot conversation draws its own) reports 0 for good, and lays out
-  // its other chrome from that.
+  // The list's insets and the floating header height use the settled
+  // height. The reported one is passed on for the chrome a screen lays out
+  // itself: a screen that hides its header (a bot conversation draws its own)
+  // reports 0 for good.
   const { reported: navigationHeaderHeight, settled: headerHeight } =
     useConversationHeaderHeight(topSafeArea);
-  const floatingHeaderHeight =
-    hasTransparentHeader &&
-    supportsNativeScrollEdgeChrome(
-      Platform.OS,
-      Platform.Version,
-      supportsLiquidGlass()
-    )
-      ? headerHeight
-      : 0;
+  const floatingHeaderHeight = getFloatingHeaderHeight(
+    headerHeight,
+    hasTransparentHeader
+  );
   // getConversationContentInsets reduces this to `hasTransparentHeader ?
   // headerHeight : 0`, which is the floating height, so the two agree by
   // construction rather than by two copies of the same condition.

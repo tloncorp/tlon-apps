@@ -5,6 +5,7 @@ import { JSONContent } from '@tloncorp/api/urbit';
 import {
   DraftInputId,
   configurationFromChannel,
+  createDevLogger,
   isChatChannel as getIsChatChannel,
   hasUnreadActivity,
   makePrettyDayAndTime,
@@ -75,6 +76,8 @@ import {
   GalleryDraftType,
   scrollOnceEnqueued,
 } from './draftInputs/shared';
+
+const logger = createDevLogger('PostScreenView', false);
 
 const noop = async () => {};
 
@@ -686,7 +689,10 @@ function SinglePostView({
   useEffect(() => {
     let isCurrent = true;
     db.getThreadUnreadState({ parentId: parentPost.id })
-      .catch(() => null)
+      .catch((error) => {
+        logger.trackError('failed to initialize thread unread', error);
+        return null;
+      })
       .then((unread) => {
         if (isCurrent) {
           setThreadUnreadSnapshot({
@@ -851,17 +857,43 @@ function SinglePostView({
     (initialThreadUnread?.count ?? 0) > 0
       ? (initialThreadUnread?.firstUnreadPostId ?? null)
       : null;
+  // A first unread reply that was deleted is not shown, so the thread opens
+  // on the next reply that is. Otherwise it waited for an anchor the list
+  // never draws.
+  const openingUnreadReplyId = useMemo(() => {
+    const firstUnread = firstUnreadReplyId
+      ? threadPosts?.find((post) => post.id === firstUnreadReplyId)
+      : undefined;
+    if (!firstUnread?.isDeleted || includeDeletedPosts) {
+      return firstUnreadReplyId;
+    }
+    let next: db.Post | null = null;
+    for (const post of visibleThreadPosts ?? []) {
+      if (
+        post.sentAt > firstUnread.sentAt &&
+        (!next || post.sentAt < next.sentAt)
+      ) {
+        next = post;
+      }
+    }
+    return next?.id ?? null;
+  }, [
+    firstUnreadReplyId,
+    includeDeletedPosts,
+    threadPosts,
+    visibleThreadPosts,
+  ]);
   const threadAnchor: ScrollAnchor | null = useMemo(() => {
     if (isChatChannel && selectedPostId && !selectedReplyIsHidden) {
       return { type: 'selected', postId: selectedPostId };
     }
-    if (isChatChannel && firstUnreadReplyId) {
-      return { type: 'unread', postId: firstUnreadReplyId };
+    if (isChatChannel && openingUnreadReplyId) {
+      return { type: 'unread', postId: openingUnreadReplyId };
     }
     return null;
   }, [
-    firstUnreadReplyId,
     isChatChannel,
+    openingUnreadReplyId,
     selectedPostId,
     selectedReplyIsHidden,
   ]);
@@ -871,14 +903,17 @@ function SinglePostView({
     setThreadSyncReleasedFor(parentPost.id);
   }, [parentPost.id]);
   // The fetch waits for the list to show only when the cache can show it:
-  // the cached replies include the one the thread opens on. Otherwise the
-  // list is waiting on the fetch, so it starts now.
+  // the cached replies include the one the thread opens on, and are not
+  // fewer than the thread has. Otherwise the list is waiting on the fetch,
+  // or would show a stale thread with the rest landing under it, so it starts
+  // now.
   const openingReplyId = threadAnchor?.postId;
   const cacheCannotShowThread =
     threadQuery.status === 'error' ||
     (threadQuery.status === 'success' &&
       hasThreadUnreadSnapshot &&
       (!threadPosts?.length ||
+        threadPosts.length < (parentPost.replyCount ?? 0) ||
         (!!openingReplyId &&
           !threadPosts.some((post) => post.id === openingReplyId))));
   if (cacheCannotShowThread && threadSyncReleasedFor !== parentPost.id) {

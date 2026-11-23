@@ -453,6 +453,10 @@ The patch carries two fixes to how a programmatic scroll is completed, one to
 how the content size reaches the screen, one to which row anchors size
 corrections, and a prop that holds the end padding.
 
+Upstream: none of these has an upstream issue or PR yet. Each was found and
+measured here, against 3.3.3; each section's "Remove when" says what to check
+on an upgrade.
+
 ### 1. Animated end-aligned scrolls keep their animation through retries
 
 `checkFinishedScrollFallback` re-issues an end-aligned scroll that settled
