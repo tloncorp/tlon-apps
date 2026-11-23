@@ -122,7 +122,7 @@
 ++  test-disable-hides-undelivered-output
   =/  disabled  (apply:hd completed [%enable 'binding' %.n] ~2000.1.1)
   ?>  ?=(%& -.disabled)
-  (expect-eq !>(`json`[%a ~]) !>((outbox-json:hd db.p.disabled 'chat')))
+  (expect-eq !>(`json`[%a ~]) !>((outbox-json:hd [db.p.disabled (reindex:hd db.p.disabled)] 'chat')))
 ++  test-cancel-removes-queued-work
   =/  cancelled  (cancel-queued:hd admitted 'session' ~)
   =/  obs  (need (~(get by observations.cancelled) id))

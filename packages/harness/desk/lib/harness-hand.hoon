@@ -82,28 +82,35 @@
   ==
 ::
 ++  outbox-json
-  |=  [db=state:hh hand=@t]
+  |=  [ledger=indexed:hh hand=@t]
   ^-  json
+  =*  db  db.ledger
   :-  %a
-  %+  murn  ~(tap by outbox.db)
-  |=  [id=input-id:h publication=publication:hh]
+  %+  murn  ~(tap in open.index.ledger)
+  |=  id=input-id:h
   ^-  (unit json)
-  ?.  =(hand hand.publication)  ~
-  ?:  (terminal status.publication)  ~
-  =/  config  (~(get by bindings.db) binding.publication)
+  =/  publication  (~(get by outbox.db) id)
+  ?~  publication  ~
+  ?.  =(hand hand.u.publication)  ~
+  ?:  (terminal status.u.publication)  ~
+  =/  config  (~(get by bindings.db) binding.u.publication)
   ?~  config  ~
   ?.  enabled.u.config  ~
-  `(publication-json db id publication)
+  `(publication-json db id u.publication)
 ::
 ++  pending-publications
-  |=  [db=state:hh hand=@t]
+  |=  [ledger=indexed:hh hand=@t]
   ^-  (list [id=input-id:h pub=publication:hh])
+  =*  db  db.ledger
   ::  Retained receipts are evidence, not the runnable queue. Filter before
   ::  sorting, and resolve admission timestamps once rather than per compare.
   =/  pending
-    %+  murn  ~(tap by outbox.db)
-    |=  [id=input-id:h pub=publication:hh]
+    %+  murn  ~(tap in open.index.ledger)
+    |=  id=input-id:h
     ^-  (unit [at=@da id=input-id:h pub=publication:hh])
+    =/  found  (~(get by outbox.db) id)
+    ?~  found  ~
+    =/  pub  u.found
     ?.  &(=(hand hand.pub) =(%pending status.pub))  ~
     =/  obs  (~(get by observations.db) input.pub)
     ?~  obs  ~
@@ -133,14 +140,17 @@
     ^-  (unit json)
     ?.  =(binding binding.observation)  ~
     `(admission-json id observation)
-  %-  pairs:enjs:format
-  :~  ['binding' %s binding]
-      ['hand' %s hand.u.config]
-      ['address' %s address.u.config]
-      ['sessionId' %s sid.u.config]
-      ['enabled' %b enabled.u.config]
-      ['actors' %a (turn actors.u.config |=(a=@t `json`[%s a]))]
-      ['observations' %a inputs]
+  (pairs:enjs:format (snoc (binding-fields binding u.config) ['observations' %a inputs]))
+::
+++  binding-fields
+  |=  [id=@t config=binding:hh]
+  ^-  (list [@t json])
+  :~  ['binding' %s id]
+      ['hand' %s hand.config]
+      ['address' %s address.config]
+      ['sessionId' %s sid.config]
+      ['enabled' %b enabled.config]
+      ['actors' %a (turn actors.config |=(a=@t `json`[%s a]))]
   ==
 ::
 ++  apply
@@ -168,9 +178,9 @@
     ?.  (~(has by bindings.db) binding.action)  [%| 'Unknown binding']
     [%& db (status-json db binding.action)]
       %outbox
-    [%& db (outbox-json db hand.action)]
+    [%& db (outbox-json [db (reindex db)] hand.action)]
       %publications
-    [%& db (publications-json db hand.action after.action limit.action)]
+    [%& db (publications-json [db (reindex db)] hand.action after.action limit.action)]
       %effect
     =/  publication  (~(get by outbox.db) effect.action)
     ?~  publication  [%| 'Unknown effect']
@@ -390,7 +400,8 @@
   =/  existing  (~(get by bindings.db) id)
   ?^  existing
     ?.  =(u.existing config)  [%| 'Binding identities are immutable; use a new id']
-    [%& db (status-json db id)]
+    ::  Rebinding happens on every message; its rows are read through %status.
+    [%& db (pairs:enjs:format (binding-fields id u.existing))]
   ?:  ?|  (~(has in retired.db) id)
           (lien ~(val by observations.db) |=(observation=observation:hh =(binding.observation id)))
       ==
@@ -492,17 +503,20 @@
   ?:(=(binding binding.observation) `id ~)
 ::
 ++  publications-json
-  |=  [db=state:hh hand=@t after=(unit input-id:h) limit=@ud]
+  |=  [ledger=indexed:hh hand=@t after=(unit input-id:h) limit=@ud]
   ^-  json
+  =*  db  db.ledger
   =/  ids=(list input-id:h)
     %-  sort
     :_  lth
-    %+  murn  ~(tap by outbox.db)
-    |=  [id=input-id:h publication=publication:hh]
+    %+  murn  ~(tap in open.index.ledger)
+    |=  id=input-id:h
     ^-  (unit input-id:h)
-    ?.  &(=(hand hand.publication) !(terminal status.publication))  ~
+    =/  publication  (~(get by outbox.db) id)
+    ?~  publication  ~
+    ?.  &(=(hand hand.u.publication) !(terminal status.u.publication))  ~
     ?:  &(?=(^ after) (lte id u.after))  ~
-    =/  config  (~(get by bindings.db) binding.publication)
+    =/  config  (~(get by bindings.db) binding.u.publication)
     ?~  config  ~
     ?.  enabled.u.config  ~
     `id
@@ -759,6 +773,9 @@
 ++  apply-indexed
   |=  [ledger=indexed:hh action=action:hh now=@da]
   ^-  (each [ledger=indexed:hh result=json] @t)
+  ?:  ?=(%outbox -.action)  [%& ledger (outbox-json ledger hand.action)]
+  ?:  ?=(%publications -.action)
+    [%& ledger (publications-json ledger hand.action after.action limit.action)]
   =/  applied  (apply db.ledger action now)
   ?:  ?=(%| -.applied)  applied
   =*  db  db.p.applied

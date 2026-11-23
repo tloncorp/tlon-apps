@@ -88,11 +88,23 @@
   (pure:m ~)
 ++  setup  (start-with fixture)
 ::
+::  Every read of the saved state also checks the head's index.
+::
 ++  get-state
   =/  m  (mare ,state-0)
   ^-  form:m
+  ;<  ~  bind:m  ex-index
   ;<  =vase  bind:m  get-save
   (pure:m !<(state-0 vase))
+::
+::  The head's index equals the derivation of the ledger it holds.
+::
+++  ex-index
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ledger=cage  bind:m  (got-peek /x/hand-state)
+  ;<  index=cage  bind:m  (got-peek /x/hand-index)
+  (ex-equal q.index !>((reindex:hd !<(state:hh q.ledger))))
 ::
 ++  cancels
   |=  cards=(list card)
@@ -108,14 +120,18 @@
   =/  stop-id  (input-id:hd 'source' 'stop-event')
   =/  unrelated  (input-id:hd 'other' 'unrelated')
   ;<  ~      bind:m  setup
+  ;<  ~      bind:m  ex-index
   ;<  *      bind:m  (do-poke %harness-hand !>(stop))
+  ;<  ~      bind:m  ex-index
   ;<  saved=state-0  bind:m  get-state
   ;<  *      bind:m  (do-poke %harness-action !>(`action:h`[%send 'source' 'New work']))
+  ;<  ~      bind:m  ex-index
   ;<  before=state-0  bind:m  get-state
   ::  The new work is in flight, so a replayed stop has something to cancel.
   =/  current  (play:hl log:(~(got by sessions.before) 'source'))
   ;<  ~  bind:m  (ex-equal !>(?=(^ pending.current)) !>(&))
   ;<  replayed=(list card)  bind:m  (do-poke %harness-hand !>(stop))
+  ;<  ~  bind:m  ex-index
   ;<  after=state-0  bind:m  get-state
   ;<  ~  bind:m
     (ex-equal !>(phase:(~(got by observations.hands.saved) running)) !>(%cancelled))
@@ -409,7 +425,9 @@
   =/  expected=@t
     'I stopped before finishing this. You can ask me to try again in a new message.'
   ;<  ~  bind:m  (start-with halting)
+  ;<  ~  bind:m  ex-index
   ;<  *  bind:m  (do-poke %harness-action !>(`action:h`[%retry 'source']))
+  ;<  ~  bind:m  ex-index
   ;<  halted=state-0  bind:m  get-state
   =/  log  log:(~(got by sessions.halted) 'source')
   ;<  ~  bind:m  (ex-equal !>(?=([[%halted *] *] log)) !>(&))
@@ -423,6 +441,7 @@
   ;<  ~  bind:m  (ex-equal !>((~(has by active.hands.halted) 'source')) !>(|))
   =/  again=request:hh  ['next' [%observe 'source' 'next' 'alice' 'Try again.']]
   ;<  *  bind:m  (do-poke %harness-hand !>(again))
+  ;<  ~  bind:m  ex-index
   ;<  after=state-0  bind:m  get-state
   =/  current  (play:hl log:(~(got by sessions.after) 'source'))
   ;<  ~  bind:m  (ex-equal !>(?=(^ pending.current)) !>(&))
@@ -439,8 +458,10 @@
   ;<  ~  bind:m  (start-with halting)
   ;<  *  bind:m  (do-poke %harness-action !>(`action:h`[%retry 'source']))
   ;<  *  bind:m  (do-poke %harness-hand !>(claim))
+  ;<  ~  bind:m  ex-index
   ;<  claimed=state-0  bind:m  get-state
   ;<  *  bind:m  (do-poke %harness-action !>(`action:h`[%retry 'source']))
+  ;<  ~  bind:m  ex-index
   ;<  after=state-0  bind:m  get-state
   =/  halts
     %+  skim  log:(~(got by sessions.after) 'source')
@@ -448,4 +469,36 @@
   ;<  ~  bind:m  (ex-equal !>((lent halts)) !>(2))
   ;<  ~  bind:m  (ex-equal !>(status:(~(got by outbox.hands.after) running)) !>(%claimed))
   (ex-equal !>(hands.after) !>(hands.claimed))
+::  Each owner route that changes the ledger keeps the head's index equal to
+::  its derivation: hand pokes, cancel, fence and session delete.
+::
+++  test-head-index-follows-every-ledger-route
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  more=request:hh  ['more' [%observe 'source' 'more' 'alice' 'More']]
+  =/  again=request:hh  ['again' [%observe 'source' 'again' 'alice' 'Again']]
+  =/  later=request:hh  ['later' [%observe 'other' 'later' 'alice' 'Later']]
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  ex-index
+  ;<  *  bind:m  (do-poke %harness-hand !>(more))
+  ;<  ~  bind:m  ex-index
+  ;<  *  bind:m  (do-poke %harness-action !>(`action:h`[%cancel 'source']))
+  ;<  ~  bind:m  ex-index
+  ;<  cancelled=state-0  bind:m  get-state
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>(phase:(~(got by observations.hands.cancelled) (input-id:hd 'source' 'more')))
+    !>(%cancelled)
+  ;<  *  bind:m  (do-poke %harness-hand !>(again))
+  ;<  *  bind:m  (do-poke %harness-hand !>(later))
+  ;<  ~  bind:m  ex-index
+  ;<  *  bind:m  (do-poke %harness-action !>(`action:h`[%fence 'source']))
+  ;<  ~  bind:m  ex-index
+  ;<  *  bind:m  (do-poke %harness-action !>(`action:h`[%delete 'other']))
+  ;<  ~  bind:m  ex-index
+  ;<  deleted=state-0  bind:m  get-state
+  %+  ex-equal
+    !>(phase:(~(got by observations.hands.deleted) (input-id:hd 'other' 'later')))
+  !>(%cancelled)
 --

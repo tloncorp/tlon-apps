@@ -160,6 +160,6 @@
     (skim sorted |=([id=@uv pub=publication:hh] &(=('one-hand' hand.pub) =(%pending status.pub))))
   =/  after
     ~>  %bout.[1 'perf-outbox-pending-frontier-2048']
-    (pending-publications:hd db 'one-hand')
+    (pending-publications:hd [db (reindex:hd db)] 'one-hand')
   (expect-eq !>(before) !>(after))
 --
