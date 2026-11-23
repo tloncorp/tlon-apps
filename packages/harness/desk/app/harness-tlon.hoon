@@ -35,7 +35,7 @@
 +$  storage-source  $%([%credentials creds=credentials:s3] [%hosted token=@t config=json])
 --
 %-  agent:dbug
-=|  runtime-state:t
+=|  state-3:t
 =*  state  -
 ^-  agent:gall
 =<
@@ -50,7 +50,7 @@
     =.  state  initialize-owner:cor
     =^  cards  state  abet:boot:refresh-peers:cor
     [cards this]
-  ++  on-save  !>((save:migration state))
+  ++  on-save  !>(state)
   ++  on-load
     |=  old=vase
     =.  state  (load:migration old)
@@ -95,7 +95,7 @@
     |=  =path
     ?>  =(our.bowl src.bowl)
     ?+  path  (on-peek:def path)
-      [%x %state ~]  ``noun+!>(+.state)
+      [%x %state ~]  ``noun+!>(state)
       [%x %status ~]  ``json+!>(status:cor)
       ::  Trust consumers must not render cron jobs or read head ledgers.
       [%x %peer-trust ~]  ``noun+!>([policy sibling-moon-owners])
@@ -550,7 +550,7 @@
         =/  hands=state:hh
           ?.  connected  *state:hh
           ledger
-        (page:work +.state hands before)
+        (page:work state hands before)
       ?~  found  (emit (fail '-32602' 'Invalid work-page cursor'))
       ?>  ?=(%o -.u.found)
       (emit (reply [%o (~(put by p.u.found) 'headConnected' [%b connected])]))
@@ -2420,7 +2420,7 @@
   =.  cor  poll-tools
   =/  hands  ledger
   =.  cor  (sync-lenses hands)
-  =.  +.state  (detach-routes:continuity +.state hands)
+  =.  state  (detach-routes:continuity state hands)
   =.  cor  (sync-presence hands)
   =.  cor  schedule
   ::  Honor explicit reconciliation and retirement in the shared ledger.
