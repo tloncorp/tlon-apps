@@ -653,6 +653,10 @@ function convertTopLevelInline(verse: ub.VerseInline): BlockData[] {
         type: 'code',
         content: inline.code,
       });
+    } else if (ub.isImage(inline)) {
+      // markdownToStory leaves images that share a line with text inline
+      flushCurrentBlock();
+      blocks.push(convertBlock(inline));
     } else {
       currentInlines.push(inline);
     }
