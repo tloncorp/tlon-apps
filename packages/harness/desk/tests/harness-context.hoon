@@ -1,6 +1,7 @@
 /-  h=harness
+/-  c=harness-corpus
 /+  *test, ctx=harness-context, hl=harness, hp=harness-provider, hs=harness-session,
-    policy=harness-defaults
+    policy=harness-defaults, corpus=harness-corpus
 |%
 ++  fixture
   ^-  view:h
@@ -221,4 +222,231 @@
     'data: {"type":"response.completed","response":{"usage":{"input_tokens":12,"output_tokens":3}}}\0a\0a'
   ?>  ?=(%& -.done)
   (expect !>(&(?=(%| -.incomplete) =([12 3] u.p.done) =(%stop stop.p.done))))
+::  A turn that ended with a marked size failure, newest first. Event
+::  addresses count from one: the huge input is event 4.
+::
+++  input
+  |=  [id=@uv body=@t]
+  ^-  admitted-input:h
+  [id [%acp 'test'] `~zod ~ ~2024.1.1 [%user body]]
+++  marked
+  (overflow:hl 'http error 400: {"error":{"code":"context_length_exceeded"}}')
+++  raw-size
+  'http error 400: {"error":{"code":"context_length_exceeded"}}'
+++  refused
+  |=  err=@t
+  ^-  (list event:h)
+  :~  [%llm-failed 1 err]
+      [%llm-routed 1 builtin-config:policy]
+      [%llm-requested 1 %turn]
+      [%input-received (input 0v2 'HUGE paste')]
+      [%llm-completed 0 %stop [0 0] [%assistant 'Earlier answer' ~]]
+      [%input-received (input 0v1 'Earlier question')]
+      [%config-replaced builtin-config:policy]
+  ==
+++  answered
+  ^-  (list item:h)
+  ~[[%user 'Earlier question'] [%assistant 'Earlier answer' ~]]
+++  notes
+  |=  items=(list item:h)
+  (lent (skim items |=(it=item:h =(it [%user left-out:hl]))))
+::  The original input event stays in the log and the transcript; only the
+::  replayed context replaces it.
+::
+++  test-overflowed-turn-is-left-out-at-the-next-input
+  =/  log=(list event:h)  [[%input-received (input 0v3 'Short')] (refused marked)]
+  =/  v  (play:hl log)
+  %-  expect
+  !>  ?&  =(items.v (weld answered `(list item:h)`~[[%user left-out:hl] [%user 'Short']]))
+          =(positions.v ~[2 3 4 8])
+          =(~ err.v)
+          ?=([~ %turn ~] (next:hs v ~ log))
+          (lien log |=(=event:h =(event [%input-received (input 0v2 'HUGE paste')])))
+          %+  lien  (transcript:hl log)
+          |=([@ud input-id=(unit @uv) =item:h] =(item [%user 'HUGE paste']))
+      ==
+::  A Tlon input records its context reference first; the note replaces the
+::  failed turn at the reference, so the reference stays with its input.
+::
+++  test-context-reference-before-input-is-kept
+  =/  log=(list event:h)
+    :*  [%input-received (input 0v3 'Short')]
+        [%context-received 0v3 'Reference material']
+        (refused marked)
+    ==
+  =/  v  (play:hl log)
+  %+  expect-eq
+    !>((weld answered `(list item:h)`~[[%user left-out:hl] [%user 'Reference material'] [%user 'Short']]))
+  !>(items.v)
+++  test-left-out-turn-keeps-tool-exchanges-whole
+  =/  log=(list event:h)
+    :~  [%input-admitted [%user 'Short']]
+        [%halted marked]
+        [%llm-requested 2 %turn]
+        [%tool-completed 'call' 'http_fetch' 'A large page']
+        [%llm-completed 1 %tool-calls [0 0] [%assistant '' ~[['call' 'http_fetch' '{}']]]]
+        [%llm-requested 1 %turn]
+        [%input-admitted [%user 'Fetch the page']]
+        [%llm-completed 0 %stop [0 0] [%assistant 'Earlier answer' ~]]
+        [%input-admitted [%user 'Earlier question']]
+        [%config-replaced builtin-config:policy]
+    ==
+  =/  v  (play:hl log)
+  %-  expect
+  !>  ?&  =(items.v (weld answered `(list item:h)`~[[%user left-out:hl] [%user 'Short']]))
+          =(~ (open-calls:hl items.v))
+      ==
+::  A summary refused for size keeps its marked reason in the view until the
+::  next admission, which leaves the unanswered input out.
+::
+++  test-summary-failure-keeps-the-size-cause
+  =/  log=(list event:h)
+    :*  [%input-admitted [%user 'Short']]
+        [%compaction-failed 0 marked [0 0]]
+        history
+    ==
+  =/  failed  (play:hl (slag 1 log))
+  =/  v  (play:hl log)
+  %-  expect
+  !>  ?&  =(`marked err.failed)
+          =([%user 'Current question'] (rear items.failed))
+          =(1 (notes items.v))
+          !(lien items.v |=(it=item:h =(it [%user 'Current question'])))
+          =([%user 'Short'] (rear items.v))
+      ==
+::  Failures recorded before the marker existed replay as they always did,
+::  including a checkpoint planned over them later.
+::
+++  test-old-size-failures-replay-unchanged
+  =/  base=(list event:h)
+    :*  [%input-admitted [%user 'Third']]
+        [%halted 'context budget: No completed exchange or settled tool batch is available for compaction.']
+        [%input-admitted [%user 'Second']]
+        (refused raw-size)
+    ==
+  =/  before  (play:hl base)
+  =/  plan  (plan:ctx before (lent base) ~ |=(view:h 1))
+  ?>  ?=(%& -.plan)
+  =/  log=(list event:h)  [[%checkpoint-completed 0 'Small' [0 0] ~] [%compaction-planned 0 p.plan] base]
+  =/  v  (play:hl log)
+  %-  expect
+  !>  ?&  =(0 (notes items.before))
+          =(items.before (weld answered `(list item:h)`~[[%user 'HUGE paste'] [%user 'Second'] [%user 'Third']]))
+          =(`'Small' summary.v)
+          =(0 (notes items.v))
+          (lien items.v |=(it=item:h =(it [%user 'HUGE paste'])))
+      ==
+::  Full replay, incremental advance and the corpus fold reach the same
+::  context after a substitution and a checkpoint accepted over it.
+::
+++  test-replay-advance-and-corpus-agree-after-substitution
+  =/  substituted=(list event:h)  [[%input-received (input 0v3 'Short')] (refused marked)]
+  =/  answer=(list event:h)
+    :~  [%llm-completed 2 %stop [0 0] [%assistant 'Short answer' ~]]
+        [%llm-requested 2 %turn]
+    ==
+  =/  middle  (weld answer substituted)
+  =/  plan  (plan:ctx (play:hl middle) (lent middle) ~ |=(view:h 1))
+  ?>  ?=(%& -.plan)
+  =/  later=(list event:h)
+    :~  [%input-received (input 0v4 'Later')]
+        [%checkpoint-completed 3 'Small' [0 0] ~]
+        [%compaction-planned 3 p.plan]
+    ==
+  =/  log=(list event:h)  (weld later middle)
+  =/  played  (play:hl log)
+  =/  advanced  (advance:hl (flop (scag 9 log)) (play:hl (slag 9 log)))
+  =/  db  (capture:corpus *state:c 'agree' log)
+  =/  db
+    =/  fuel=@ud  1.000
+    |-  ^-  state:c
+    ?~  queued.db  db
+    ?>  (gth fuel 0)
+    $(db (work:corpus db 2 1.024), fuel (dec fuel))
+  =/  folded  view:(~(got by scopes.db) (~(got by names.db) 'agree'))
+  ;:  weld
+    (expect-eq !>(`'Small') !>(summary.played))
+    (expect-eq !>(1) !>((notes items.played)))
+    (expect-eq !>(items.played) !>(items.advanced))
+    (expect-eq !>(positions.played) !>(positions.advanced))
+    ::  The corpus keeps the fold's newest-first accumulator.
+    (expect-eq !>(items.played) !>((flop items.folded)))
+    (expect-eq !>(positions.played) !>((flop positions.folded)))
+  ==
+::  Retry clears the failure without an admission, so the original is sent.
+::
+++  test-retry-keeps-the-original
+  =/  v  (play:hl [[%retried ~] [%halted marked] (refused marked)])
+  %-  expect
+  !>  ?&  =(~ err.v)
+          =(0 (notes items.v))
+          =([%user 'HUGE paste'] (rear items.v))
+      ==
+::  Huge input A gets an invalid automatic summary, which is not marked, so
+::  short B joins it; B's turn then ends marked, and C replaces both.
+::
+++  test-invalid-automatic-summary-then-two-messages
+  =/  start=(list event:h)
+    :~  [%input-received (input 0v2 'HUGE A')]
+        [%llm-completed 0 %stop [0 0] [%assistant 'Earlier answer' ~]]
+        [%input-received (input 0v1 'Earlier question')]
+        [%config-replaced builtin-config:policy]
+    ==
+  =/  plan  (plan:ctx (play:hl start) (lent start) ~ |=(view:h 1))
+  ?>  ?=(%& -.plan)
+  =/  invalid=(list event:h)
+    :*  [%compaction-failed 0 'Compaction did not reduce the context; the previous context was retained.' [0 0]]
+        [%compaction-planned 0 p.plan]
+        start
+    ==
+  =/  with-b=(list event:h)  [[%input-received (input 0v3 'Short B')] invalid]
+  =/  log=(list event:h)
+    :*  [%input-received (input 0v4 'Short C')]
+        [%halted (overflow:hl 'No completed exchange or settled tool batch is available for compaction.')]
+        with-b
+    ==
+  =/  b  (play:hl with-b)
+  =/  v  (play:hl log)
+  %-  expect
+  !>  ?&  =(0 (notes items.b))
+          =(items.b (weld answered `(list item:h)`~[[%user 'HUGE A'] [%user 'Short B']]))
+          =(items.v (weld answered `(list item:h)`~[[%user left-out:hl] [%user 'Short C']]))
+      ==
+++  test-model-change-keeps-the-note
+  =/  other  builtin-config:policy
+  =.  other  other(model 'another-model', max-context 2.000.000)
+  =/  log=(list event:h)
+    :*  [%input-received (input 0v3 'Short')]
+        [%config-replaced other]
+        (refused marked)
+    ==
+  =/  v  (play:hl log)
+  %-  expect
+  !>  ?&  =(1 (notes items.v))
+          =('another-model' model.config.v)
+          =([%user 'Short'] (rear items.v))
+      ==
+::  A marked failure with nothing unanswered is consumed at once, so a fresh
+::  Tlon reference recorded before the next input is never left out.
+::
+++  test-marker-with-no-unanswered-turn-keeps-fresh-context
+  =/  start=(list event:h)
+    :~  [%llm-completed 0 %stop [0 0] [%assistant 'Earlier answer' ~]]
+        [%input-received (input 0v1 'Earlier question')]
+        [%config-replaced builtin-config:policy]
+    ==
+  =/  plan  (plan:ctx (play:hl start) (lent start) ~ |=(view:h 1))
+  ?>  ?=(%& -.plan)
+  =/  log=(list event:h)
+    :*  [%input-received (input 0v3 'Short')]
+        [%context-received 0v3 'Reference material']
+        [%compaction-failed 0 marked [0 0]]
+        [%compaction-planned 0 p.plan]
+        start
+    ==
+  =/  v  (play:hl log)
+  %-  expect
+  !>  ?&  =(items.v (weld answered `(list item:h)`~[[%user 'Reference material'] [%user 'Short']]))
+          =(0 (notes items.v))
+      ==
 --

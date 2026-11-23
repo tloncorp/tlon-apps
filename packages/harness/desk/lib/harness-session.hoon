@@ -29,7 +29,27 @@
   =/  rejected  (rejected-size view skills log)
   ?~  rejected  next
   ?:  (lth (estimate:provider view %turn skills) u.rejected)  next
-  `[%halt 'context budget: compaction did not make the request smaller']
+  `[%halt (overflow:head 'compaction did not make the request smaller')]
+::  The newest turn request since the last admission or explicit Retry, if a
+::  provider rejected it for size, and whether a compaction completed since.
+::
+++  refused
+  |=  log=(list event:h)
+  ^-  (unit [req=@ud compacted=?])
+  =/  compacted=?  |
+  =|  failed=(unit [req=@ud err=@t])
+  |-  ^-  (unit [req=@ud compacted=?])
+  ?~  log  ~
+  ?:  ?=(?(%input-received %input-admitted %retried) -.i.log)  ~
+  ?.  &(?=(%llm-requested -.i.log) =(%turn kind.i.log))
+    %=  $
+      log  t.log
+      compacted  |(compacted ?=(%checkpoint-completed -.i.log))
+      failed  ?.(?=(%llm-failed -.i.log) failed `[req.i.log err.i.log])
+    ==
+  ?.  &(?=(^ failed) =(req.i.log req.u.failed) (oversized:failure err.u.failed))
+    ~
+  `[req.i.log compacted]
 ::  Estimate the turn request a provider rejected for size, when compaction
 ::  completed after that rejection and the route has not changed since. An
 ::  admission or an explicit Retry ends the search, so they always dispatch.
@@ -37,21 +57,9 @@
 ++  rejected-size
   |=  [=view:h skills=(map @t skill:h) log=(list event:h)]
   ^-  (unit @ud)
-  =/  compacted=?  |
-  =|  failed=(unit [req=@ud err=@t])
-  =/  events  log
-  |-  ^-  (unit @ud)
-  ?~  events  ~
-  ?:  ?=(?(%input-received %input-admitted %retried) -.i.events)  ~
-  ?.  &(?=(%llm-requested -.i.events) =(%turn kind.i.events))
-    %=  $
-      events  t.events
-      compacted  |(compacted ?=(%checkpoint-completed -.i.events))
-      failed  ?.(?=(%llm-failed -.i.events) failed `[req.i.events err.i.events])
-    ==
-  =/  req  req.i.events
-  ?.  &(compacted ?=(^ failed) =(req req.u.failed) (oversized:failure err.u.failed))
-    ~
+  =/  found  (refused log)
+  ?.  &(?=(^ found) compacted.u.found)  ~
+  =/  req  req.u.found
   =/  dispatched
     =/  rest  log
     |-  ^-  (list event:h)

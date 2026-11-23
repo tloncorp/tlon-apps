@@ -1,4 +1,4 @@
-/+  *test, failure=harness-failure
+/+  *test, failure=harness-failure, hl=harness
 |%
 ++  test-http-errors-have-safe-categories
   %-  expect
@@ -94,4 +94,18 @@
   %-  expect
   !>  %+  levy  all-sizes
       |=(raw=@t =('context' kind:(describe:failure raw)))
+::  A marked provider error still carries its size wording; the marker's
+::  wording wins, because the message was left out.
+::
+++  test-marked-provider-error-gets-left-out-wording
+  =/  raw  (overflow:hl 'http error 400: {"error":{"message":"This model\'s maximum context length is exceeded."}}')
+  =/  info  (describe:failure raw)
+  %-  expect
+  !>  ?&  =('context' kind.info)
+          (contains:failure message.info 'this message was left out')
+          (contains:failure message.info 'if short messages are left out too, a model with a larger context window may be needed.')
+          !=(message.info message:(describe:failure 'http error 413: too large'))
+          =('context' kind:(describe:failure (overflow:hl 'context budget: no cut')))
+          (contains:failure message:(describe:failure (overflow:hl 'context budget: no cut')) 'left out')
+      ==
 --
