@@ -826,10 +826,10 @@
   =/  parsed  (de:json:html args.call.request)
   ?.  ?=([~ %o *] parsed)  (finish-tool id 'error: expected tool arguments object')
   ?:  =('tlon_workspace_plan' name.call.request)
-    (workspace-propose id sid.request actor.u.lane u.parsed)
+    (workspace-propose id sid.request who.to.u.lane u.parsed)
   ?:  =('tlon_workspace_link' name.call.request)
-    (workspace-link id actor.u.lane u.parsed)
-  (workspace-create id actor.u.lane u.parsed)
+    (workspace-link id who.to.u.lane u.parsed)
+  (workspace-create id who.to.u.lane u.parsed)
 ::
 ++  stamp
   ^-  [@da _cor]
@@ -1523,7 +1523,7 @@
     ~
   ::  The owner's own DM carries the workspace rule, except beside a tap.
   ?:  ?=(%dm -.to.u.lane)
-    ?.  &(?=(~ parent.to.u.lane) (actor-owner actor.u.lane))  ~
+    ?.  &(?=(~ parent.to.u.lane) (actor-owner who.to.u.lane))  ~
     ?:  %+  lien  ~(val by jobs)
         |=(=job:t &(=(sid sid.job) (noted:workspace-plan text.input.job)))
       ~
