@@ -14,6 +14,11 @@ import {
 import { cleanCronToolArgs } from './src/cron-tool-args.js';
 import { diagnosticSummary } from './src/diagnostic-summary.js';
 import { TLON_HEARTBEAT_SILENCE_CONTEXT } from './src/heartbeat-prompt.js';
+import {
+  isHeartbeatToolFailureWarning,
+  noteAgentTurnEnd,
+  noteAgentTurnStart,
+} from './src/heartbeat-tool-warning.js';
 import { reportMemorySampleDiagnostic } from './src/memory-sample-telemetry.js';
 import { modelPrivacyNote } from './src/model-privacy-context.js';
 import { registerTlonCommands } from './src/commands-registry.js';
@@ -1678,12 +1683,13 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
     observeRun({ ...ctx, ownerShip });
     // Only a heartbeat-runner turn with heartbeat provenance; anything less,
     // missing provenance included, stays a bot run.
-    if (
+    const isHeartbeat =
       ctx.trigger === 'heartbeat' &&
-      ctx.inputProvenance?.sourceTool === 'heartbeat'
-    ) {
+      ctx.inputProvenance?.sourceTool === 'heartbeat';
+    if (isHeartbeat) {
       markHeartbeatRun(ctx.runId, ownerShip);
     }
+    noteAgentTurnStart(ctx.sessionKey, isHeartbeat);
     beginCronSilenceObservation(ctx);
     beginTlonTurnSilenceObservation(ctx);
     // Cron has no active Tlon turn recorder, so its output trace stays nullable.
@@ -1710,6 +1716,7 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
     recordCronSilenceOutput(event, ctx);
     recordTlonTurnSilenceOutput(event, ctx);
     clearCronJobForSession(ctx.sessionKey, ctx.jobId);
+    noteAgentTurnEnd(ctx.sessionKey);
     // Run snapshots, identity and publication claims outlive the attempt;
     // they expire by TTL (see turn-identity.ts).
     observeRun({ ...ctx, ownerShip: liveOwnerShip() });
@@ -1737,6 +1744,18 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
   api.on('heartbeat_prompt_contribution', () => ({
     appendContext: TLON_HEARTBEAT_SILENCE_CONTEXT,
   }));
+
+  // A heartbeat that stays silent still gets core's tool-failure warning
+  // delivered to the owner (see heartbeat-tool-warning.ts).
+  api.on('message_sending', (event, ctx) => {
+    if (!isHeartbeatToolFailureWarning(ctx.sessionKey, event.content)) {
+      return;
+    }
+    api.logger.warn(
+      `[tlon] Dropped core tool-failure warning from heartbeat. Session: ${ctx.sessionKey}, Text: ${event.content}`
+    );
+    return { cancel: true };
+  });
 
   // ── Group context ──────────────────────────────────────────────────
   // Which workspace a group channel turn belongs to, plus what the bot has

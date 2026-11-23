@@ -15,6 +15,8 @@ import { setSessionRole } from './session-roles.js';
 
 // Hook name -> handlers registered under it. reply_payload_sending carries
 // two: the fallback-notice and the onboarding-surface suppressors.
+// message_sending carries two: the heartbeat tool-warning filter and route
+// telemetry.
 // before_prompt_build carries three: workspace instructions, group context
 // and the model privacy note.
 const AGENT_TURN_HOOK_COUNTS: Record<string, number> = {
@@ -28,7 +30,7 @@ const AGENT_TURN_HOOK_COUNTS: Record<string, number> = {
   session_start: 1,
   session_end: 1,
   reply_payload_sending: 2,
-  message_sending: 1,
+  message_sending: 2,
   message_sent: 1,
 };
 const AGENT_TURN_HOOKS = Object.keys(AGENT_TURN_HOOK_COUNTS);
@@ -86,6 +88,39 @@ describe('registerAgentTurnHooks', () => {
       'delivered to your owner as a Tlon DM'
     );
     expect(result.appendContext).toContain('reply exactly NO_REPLY');
+  });
+
+  it("cancels core's tool-failure warning only on a heartbeat run's session", async () => {
+    const { api, registered } = makeApi();
+    registerAgentTurnHooks(api as never);
+    const prepare = registered.find(
+      (r) => r.name === 'agent_turn_prepare'
+    )!.handler;
+    const sending = registered.filter((r) => r.name === 'message_sending');
+    const send = (sessionKey: string, content: string) =>
+      sending.map((r) => r.handler({ to: '~zod', content }, { sessionKey }));
+    const heartbeat = {
+      runId: 'hb-run',
+      sessionKey: 'agent:main:hb-session',
+      trigger: 'heartbeat',
+      inputProvenance: { sourceTool: 'heartbeat' },
+    };
+
+    await prepare({}, heartbeat);
+    expect(send(heartbeat.sessionKey, '⚠️ Grep blocked')).toContainEqual({
+      cancel: true,
+    });
+    expect(send('agent:main:other', '⚠️ Grep blocked')).not.toContainEqual({
+      cancel: true,
+    });
+
+    await prepare(
+      {},
+      { runId: 'dm-run', sessionKey: heartbeat.sessionKey, trigger: 'user' }
+    );
+    expect(send(heartbeat.sessionKey, '⚠️ Grep blocked')).not.toContainEqual({
+      cancel: true,
+    });
   });
 
   it('blocks owner-only tools for a stored non-owner role even before registerFull ran', async () => {
