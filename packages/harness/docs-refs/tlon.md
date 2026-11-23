@@ -625,7 +625,8 @@ These owner-authenticated extensions work from any initialized ACP client:
 
 Activity notifications contain `sequence`, `kind`, `actor`, `address`, and `event`.
 An admitted message's `kind` is `message`, or `bot-message` when its author has
-a bot profile. The feed retains 128 diagnostic entries. Use session snapshots and the
+a bot profile. A message the hand ledger refused is `refusal-notice` or
+`refusal` (see [Retention and capacity](#retention-and-capacity)). The feed retains 128 diagnostic entries. Use session snapshots and the
 [hand ledger](hands.md) for conversation history and delivery records.
 
 The head forwards the authenticated `harness/tlon` namespace through
@@ -691,9 +692,11 @@ variants do not acquire command authority.
 
 The cursor recovers events still retained by native Activity, not deleted or
 expired native history. Initial activation sets an admission cutoff rather
-than answering all historical messages. Retained jobs remain recoverable.
-`activityThrough` and `catchingUp` expose the checkpoint and whether more
-work remains.
+than answering all historical messages. When the hand ledger refuses a
+message's binding or observation, the adapter ends that admission in the same
+event, so a conversation the ledger cannot accept does not hold the cursor for
+the others. `activityThrough` and `catchingUp` expose the checkpoint and whether
+more work remains.
 
 ### Retention and capacity
 
@@ -704,6 +707,16 @@ backpressure, never permission to prune primary history: 64 pending
 admissions; the head separately retains up to 64 schedules across all hands.
 These complement the
 [shared hand limits and archive protocol](hands.md#fair-admission-and-explicit-retention).
+
+A message the hand ledger refuses is not retried. The adapter sets `error` to
+the ledger's reason and writes one activity entry. When the conversation still
+has current grants and the sender has not been told in that conversation within
+five minutes, it tells the sender "I can't answer messages here right now." and
+the entry's kind is `refusal-notice`. Otherwise the kind is `refusal` and
+nothing is sent. In a channel the notice mentions the sender, and in a thread it
+replies there. The notice is posted outside the ledger, with no receipt or
+retry. The five-minute limit is kept only in the 128-entry feed.
+
 The number of conversation identities has no limit, and an identity is never
 evicted. Each conversation's route holds a binding in the shared hand ledger,
 and a disabled binding counts there until it is retired, so that ledger's
@@ -835,7 +848,9 @@ Neither the test nor the adapter modifies the Groups desk's source code.
 `tests-js/tlon-delivery-conformance.mjs` additionally needs `SHIP_PIER` for
 real Gall suspension/revival. It checks offline completion, explicit retry,
 uncertainty, ordered outbox draining, distinct IDs, whole-desk revival and an idle
-hand with no timer. `SURFACE=channel` plus `TEST_NEST` selects channels. Supplying
+hand with no timer. A DM run then fills the owner's DM binding and checks that
+refused DMs do not stop a channel mention in `TEST_NEST`, which it requires.
+`SURFACE=channel` selects channels. Supplying
 `CHANNEL_HOST_PIER` also temporarily suspends the channel host to test a lost
 confirmation and recovery from native publication evidence. Every suspended
 agent is revived in cleanup; fixture messages and receipts remain.

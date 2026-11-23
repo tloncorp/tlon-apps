@@ -15,7 +15,7 @@ const peerUrl = process.env.PEER_URL, pier = process.env.SHIP_PIER
 const inChannel = process.env.SURFACE === 'channel', nest = process.env.TEST_NEST
 const hostPier = process.env.CHANNEL_HOST_PIER
 assert.ok(peerUrl && pier && process.env.PEER_COOKIE, 'Set PEER_URL, PEER_COOKIE, SHIP_PIER')
-assert.ok(!inChannel || nest, 'Set TEST_NEST for channel delivery')
+assert.ok(nest, 'Set TEST_NEST for channel delivery and the refused-conversation scenario')
 const row = (await readFile(process.env.PEER_COOKIE, 'utf8')).split('\n').find((r) => /\turbauth-~/.test(r)).split('\t')
 const peerCookie = `${row[5]}=${row[6]}`, peer = row[5].slice('urbauth-'.length)
 const ship = cookie.split('=')[0].slice('urbauth-'.length)
@@ -28,8 +28,8 @@ const server = createServer(async (req, res) => {
   requests.push({ body: JSON.parse(raw), res })
 })
 const finish = (index, suffix) => requests[index].res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { role: 'assistant', content: `${marker}-${suffix}` } }] }))
-async function until(label, check) {
-  const end = Date.now() + 45000
+async function until(label, check, ms = 45000) {
+  const end = Date.now() + ms
   while (Date.now() < end) {
     const value = await check()
     if (value) { console.log(`PASS ${label}`); return value }
@@ -51,19 +51,19 @@ async function resume() {
   await until('adapter reconnected to head', async () => (await status())?.headConnected)
   suspended = false
 }
-async function posts() {
-  const path = inChannel ? `channels/v4/${nest}/posts/newest/64/outline` : `chat/v4/dm/${ship}/writs/newest/64/light`
+async function posts(channel = inChannel) {
+  const path = channel ? `channels/v4/${nest}/posts/newest/64/outline` : `chat/v4/dm/${ship}/writs/newest/64/light`
   const r = await fetch(`${peerUrl}/~/scry/${path}.json`, { headers: { cookie: peerCookie } })
   assert.ok(r.ok)
   const page = await r.json()
-  return Object.entries(page.writs || page.posts).map(([key, p]) => ({ ...p, fixtureId: inChannel ? key : p.seal.id.split('/')[1] }))
+  return Object.entries(page.writs || page.posts).map(([key, p]) => ({ ...p, fixtureId: channel ? key : p.seal.id.split('/')[1] }))
 }
-const matches = async (suffix) => (await posts()).filter((p) => authorShip(p.essay?.author) === ship && JSON.stringify(p.essay.content).includes(`${marker}-${suffix}`))
-async function send(suffix) {
+const matches = async (suffix, channel = inChannel) => (await posts(channel)).filter((p) => authorShip(p.essay?.author) === ship && JSON.stringify(p.essay.content).includes(`${marker}-${suffix}`))
+async function send(suffix, channel = inChannel) {
   const da = (((BigInt(Date.now()) * (1n << 64n)) / 1000n) + 170141184475152167957503069145530368000n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-  const essay = { content: [{ inline: [...(inChannel ? [{ ship }] : []), `${marker} ${suffix}`] }], author: peer, sent: Date.now(), kind: '/chat', meta: null, blob: null }
+  const essay = { content: [{ inline: [...(channel ? [{ ship }] : []), `${marker} ${suffix}`] }], author: peer, sent: Date.now(), kind: '/chat', meta: null, blob: null }
   const r = await fetch(`${peerUrl}/~/channel/${marker}`, { method: 'PUT', headers: { cookie: peerCookie, 'content-type': 'application/json' }, body: JSON.stringify([
-    { id: ++event, action: 'poke', ship: peer.slice(1), app: inChannel ? 'channels' : 'chat', mark: inChannel ? 'channel-action-1' : 'chat-dm-action-2', json: inChannel ? { channel: { nest, action: { post: { add: essay } } } } : { ship, diff: { id: `${peer}/${da}`, delta: { add: { time: null, essay } } } } },
+    { id: ++event, action: 'poke', ship: peer.slice(1), app: channel ? 'channels' : 'chat', mark: channel ? 'channel-action-1' : 'chat-dm-action-2', json: channel ? { channel: { nest, action: { post: { add: essay } } } } : { ship, diff: { id: `${peer}/${da}`, delta: { add: { time: null, essay } } } } },
   ]) })
   assert.ok(r.ok)
 }
@@ -162,6 +162,27 @@ try {
     await idle()
     assert.equal((await matches('confirmation')).length, 1)
     assert.equal(requests.length, 7)
+  }
+
+  // Last: it fills the owner's DM binding for good. A DM run only; the
+  // channel surface has no owner DM session to fill.
+  if (!inChannel) {
+    const refusedFrom = Date.now()
+    const binding = (await client.call('harness/tlon/work')).records.find((r) => r.kind === 'input' && r.sessionId === sessionId).binding
+    for (let n = (await hand.status(binding)).observations.length; n < 256; n++) await hand.action('notify', { binding, event: `${marker}-fill-${n}`, actor: peer, text: `fill ${n}` })
+    await until('owner DM binding holds 256 delivered records', async () => (await hand.status(binding)).observations.length === 256 && (await hand.outbox()).length === 0, 600000)
+    const calls = requests.length
+    for (let n = 1; n <= 9; n++) await send(`refused-${n}`, false)
+    await send('mentioned', true)
+    await until('mention after nine refused DMs reaches inference', () => requests.length === calls + 1)
+    finish(calls, 'mentioned'); await until('mention answered', async () => (await matches('mentioned', true)).length === 1); await idle()
+    const sentence = 'I can\'t answer messages here right now.'
+    const notices = (await posts(false)).filter((p) => authorShip(p.essay?.author) === ship && p.essay.sent >= refusedFrom && JSON.stringify(p.essay.content).includes(sentence))
+    assert.deepEqual(notices.map((p) => p.essay.content), [[{ inline: [sentence] }]], 'one notice in the owner DM')
+    const refusals = (await client.call('harness/tlon')).events.filter((e) => e.actor === peer && ['refusal', 'refusal-notice'].includes(e.kind)).map((e) => e.kind)
+    assert.deepEqual(refusals.sort(), [...Array(8).fill('refusal'), 'refusal-notice'], 'one owner entry per refused DM')
+    assert.equal(requests.length, calls + 1, 'refused DMs never reach inference')
+    console.log('PASS a refused conversation does not stop others; its sender is told once')
   }
 } finally {
   if (hostSuspended) await rein(hostPier, 'groups', 'channels-server', true)
