@@ -287,10 +287,22 @@
   =.  title.meta.renamed  'Book Club'
   =/  joined  made
   =.  seats.joined  (~(put by seats.made) ~bud *seat:v9:g)
+  =/  invited  made
+  =.  invited.admissions.invited  (my ~[[~bud [~2026.1.1 ~]]])
+  =/  pending  made
+  =.  pending.admissions.pending  (my ~[[~bud ~]])
+  =/  linked  made
+  =.  tokens.admissions.linked  (my ~[[0v1 [[%forever ~] ~2027.1.1 ~]]])
+  =/  personal  made
+  =.  tokens.admissions.personal  (my ~[[0v1 [[%personal ~zod] ~2027.1.1 ~]]])
   %-  expect
   !>  ?&  (owned:wp sample ~nec ~zod made)
+          (owned:wp sample ~nec ~zod personal)
           !(owned:wp sample ~nec ~zod renamed)
           !(owned:wp sample ~nec ~zod joined)
+          !(owned:wp sample ~nec ~zod invited)
+          !(owned:wp sample ~nec ~zod pending)
+          !(owned:wp sample ~nec ~zod linked)
       ==
 ++  test-arrange-renames-the-chat-hides-the-group-and-orders-channels
   =/  nests=(list nest:wp)  ~[[%chat ~nec %general] [%heap ~nec %places] [%notes ~nec %notes]]

@@ -973,7 +973,7 @@
         name
         ' is not the group made for this card: it must have the title "'
         title.plan
-        '" and no members but your owner and you. Make the group as step 1 says, then call again with its ID.'
+        '" and no members, invites or invite links for anyone but your owner and you. Make the group as step 1 says, then call again with its ID.'
     ==
   =/  listed
     %+  turn  ~(tap by channels.u.group)

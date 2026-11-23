@@ -570,14 +570,21 @@
   ?~  spare  named
   [`nest.i.spare (slag 1 named)]
 ::  +owned: is .group the one made for this card? It carries the card's
-::  title, and nobody but the owner and this ship has a seat.
+::  title, and nobody but the owner and this ship has a seat, is pending or
+::  invited, or holds a token: anyone else could read the copied answer.
 ::
 ++  owned
   |=  [plan=plan owner=@p our=@p group=group:v9:g]
   ^-  ?
+  =/  ours  |=(who=@p |(=(who owner) =(who our)))
+  =*  ad  admissions.group
   ?&  =(title.meta.group title.plan)
-      %-  ~(all in ~(key by seats.group))
-      |=(who=@p |(=(who owner) =(who our)))
+      (~(all in ~(key by seats.group)) ours)
+      (~(all in ~(key by pending.ad)) ours)
+      (~(all in ~(key by invited.ad)) ours)
+      %-  ~(all by tokens.ad)
+      |=  meta=token-meta:v9:g
+      ?&(?=(%personal -.scheme.meta) (ours ship.scheme.meta))
   ==
 ::  +arrange: what makes the group match its card once its channels exist:
 ::  the first chat's name, the privacy and the channel order
