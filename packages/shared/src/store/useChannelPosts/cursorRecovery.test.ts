@@ -113,15 +113,18 @@ test('reports one exhausted missing-anchor load, then can load newest successful
   await act(async () => {
     renderer = create(tree());
   });
-  await advance(2500);
+  // The ship answered without the anchor, so one retry is all it waits for.
+  await advance(400);
+  expect(result.isLoading).toBe(true);
+  await advance(200);
   expect(result.query.isError).toBe(true);
   expect(result.query.error).toBeInstanceOf(CursorNormalizationError);
   expect(result.isLoading).toBe(false);
-  expect(mocks.sync).toHaveBeenCalledTimes(5);
+  expect(mocks.sync).toHaveBeenCalledTimes(2);
   expect(mocks.error).toHaveBeenCalledOnce();
   expect(mocks.error.mock.calls[0][1]).toMatchObject({
     cursorPostId: 'anchor',
-    retryCount: 4,
+    retryCount: 1,
     fetchedPostCount: 0,
   });
   expect(mocks.event).not.toHaveBeenCalledWith(
@@ -148,7 +151,22 @@ test('reports one exhausted missing-anchor load, then can load newest successful
   await advance(2500);
   expect(result.query.error).toBeInstanceOf(CursorNormalizationError);
   expect(mocks.error).toHaveBeenCalledTimes(2);
-  expect(mocks.sync).toHaveBeenCalledTimes(10);
+  expect(mocks.sync).toHaveBeenCalledTimes(4);
+});
+
+test('an anchor the ship returned without a sequence number keeps every retry', async () => {
+  mocks.sync.mockResolvedValue({
+    posts: [{ id: 'anchor', sequenceNum: null }],
+    deletedPosts: [],
+  });
+  await act(async () => {
+    renderer = create(tree());
+  });
+  await advance(2500);
+  expect(result.query.error).toBeInstanceOf(CursorNormalizationError);
+  expect(result.isLoading).toBe(false);
+  expect(mocks.sync).toHaveBeenCalledTimes(5);
+  expect(mocks.error.mock.calls[0][1]).toMatchObject({ retryCount: 4 });
 });
 
 test('a temporarily unavailable anchor can recover during retries without a terminal report', async () => {
