@@ -461,6 +461,8 @@ The seal is a within-run mitigation against a planted instruction that reads the
 
 Hosting sets the delivery target (`heartbeat.target = "tlon"`, `heartbeat.to` the owner) and denies `bash`, `exec` and `process` to every hosted bot; the seal blocks the shell family anyway, for the harness names hosting does not list. Cron jobs and subagents act as the bot.
 
+The plugin advertises `tlon_heartbeat_ledger` in OpenClaw's isolated heartbeat sessions. Hosting enables `agents.defaults.heartbeat.isolatedSession`. Self-hosted bots need the same setting when using a prompt that calls this tool. The execution gate checks the current run's heartbeat provenance and tool-call approval independently.
+
 ---
 
 
