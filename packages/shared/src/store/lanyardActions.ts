@@ -271,31 +271,73 @@ export async function partitionDiscoveryMatches(
   return { newMatches };
 }
 
+// The verifier refills a ship's discovery allowance by 10 numbers a day, so a
+// lookup it refused cannot succeed again within hours.
+const RATE_LIMIT_BACKOFF_MS = 24 * 60 * 60 * 1000;
+
+export async function isContactDiscoveryRateLimited(): Promise<boolean> {
+  const limitedAt = await db.contactDiscoveryRateLimitedAt.getValue();
+  return limitedAt !== null && Date.now() - limitedAt < RATE_LIMIT_BACKOFF_MS;
+}
+
 export async function discoverContacts(
   phoneNumbers: string[]
 ): Promise<[string, string][]> {
   const generation = getClientGeneration();
+  let cursorSource: 'ship' | 'cursor' | 'legacy' | 'none' = 'none';
+  let lastSalt: string | null = null;
+  let lastPhoneNumbers: string | null = null;
   try {
-    const cursor = await db.contactDiscoveryCursor.getValue();
-    const lastSalt = cursor?.salt ?? (await db.lastLanyardSalt.getValue());
-    const lastPhoneNumbers = cursor
-      ? JSON.stringify(cursor.phoneNumbers)
-      : await db.lastPhoneContactSetRequest.getValue();
-    const { matches, nextSalt } = await api.discoverContacts(
-      phoneNumbers,
-      lastSalt,
-      lastPhoneNumbers
-    );
-
-    if (generation !== getClientGeneration()) {
-      throw new Error('Contact discovery session changed');
+    let matches: [string, string][];
+    if (api.getDeskKeepsDiscoveryCursorState()) {
+      cursorSource = 'ship';
+      matches = await api.discoverContactsWithShipCursor(phoneNumbers);
+      if (generation !== getClientGeneration()) {
+        throw new Error('Contact discovery session changed');
+      }
+    } else {
+      const cursor = await db.contactDiscoveryCursor.getValue();
+      lastSalt = cursor?.salt ?? (await db.lastLanyardSalt.getValue());
+      lastPhoneNumbers = cursor
+        ? JSON.stringify(cursor.phoneNumbers)
+        : await db.lastPhoneContactSetRequest.getValue();
+      cursorSource = cursor ? 'cursor' : lastPhoneNumbers ? 'legacy' : 'none';
+      const result = await api.discoverContacts(
+        phoneNumbers,
+        lastSalt,
+        lastPhoneNumbers
+      );
+      if (generation !== getClientGeneration()) {
+        throw new Error('Contact discovery session changed');
+      }
+      await db.contactDiscoveryCursor.setValue({
+        salt: result.nextSalt,
+        phoneNumbers,
+      });
+      matches = result.matches;
     }
-    await db.contactDiscoveryCursor.setValue({ salt: nextSalt, phoneNumbers });
+    if ((await db.contactDiscoveryRateLimitedAt.getValue()) !== null) {
+      await db.contactDiscoveryRateLimitedAt.setValue(null);
+    }
     return matches;
   } catch (e) {
+    const errorMessage = e instanceof Error ? e.message : String(e);
+    if (
+      errorMessage === 'rate limited' &&
+      generation === getClientGeneration()
+    ) {
+      await db.contactDiscoveryRateLimitedAt.setValue(Date.now());
+    }
     logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
       error: e,
+      errorMessage,
       context: 'failed to discover contacts',
+      bookSize: new Set(phoneNumbers).size,
+      previousBookSize: lastPhoneNumbers
+        ? new Set(JSON.parse(lastPhoneNumbers)).size
+        : null,
+      cursorSource,
+      hasSalt: !!lastSalt,
     });
     throw e;
   }

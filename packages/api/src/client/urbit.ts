@@ -75,6 +75,7 @@ interface Config extends Pick<ClientParams, 'onQuitOrReset'> {
   deskCountsAllSeats: boolean;
   deskServesRosterPages: boolean | null;
   deskSupportsStewardBots: boolean | null;
+  deskKeepsDiscoveryCursor: boolean | null;
 }
 
 type Predicate = (event: any, mark: string) => boolean;
@@ -212,6 +213,7 @@ const config: Config = {
   deskServesRosterPages: null,
   // Guarded requests refuse only false.
   deskSupportsStewardBots: null,
+  deskKeepsDiscoveryCursor: null,
 };
 
 type ClientResolver = () => Urbit | null | undefined;
@@ -501,6 +503,16 @@ export const onDeskSupportsTaskRunsChange = (
   };
 };
 
+// Whether the connected backend's %lanyard keeps the contact discovery cursor.
+// Discovery reads it when it runs; nothing waits for it to change.
+export const setDeskKeepsDiscoveryCursor = (value: boolean | null) => {
+  config.deskKeepsDiscoveryCursor = value;
+};
+
+export const getDeskKeepsDiscoveryCursorState = (): boolean | null => {
+  return config.deskKeepsDiscoveryCursor;
+};
+
 export const client = new Proxy(
   {},
   {
@@ -680,6 +692,7 @@ export function internalRemoveClient() {
   setDeskCountsAllSeats(false);
   setDeskServesRosterPages(null);
   setDeskSupportsStewardBots(null);
+  setDeskKeepsDiscoveryCursor(null);
 }
 
 function printEndpoint(endpoint: UrbitEndpoint) {

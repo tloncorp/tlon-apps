@@ -98,22 +98,17 @@ queue caps in `activity-room` (`desk/app/harness-tlon.hoon:1804`) limit waiting 
 not a strict back-and-forth. `scripts/test-js.sh` avoids the case by having each test
 ship own itself.
 
-### 5. A rejected request isn't compacted and retried
+### 5. Fixed: a rejected request is compacted and retried
 
-**Read, not reproduced.** The context estimate now trusts the reported prompt for
-instructions, tools and memory. If those grow right at the limit, a provider can reject
-the request. The user sees a request-size error (`desk/lib/harness-failure.hoon:48`), and
-because a failed turn adds no new measurement, retrying would probably fail the same way
-until someone runs `/compact`.
-
-`%llm-failed` clears the pending turn and starts no compaction
-(`desk/lib/harness.hoon:107`). The only automatic follow-up is `try-fallback`
-(`desk/app/harness.hoon:5157`), which moves to the next fallback model on any failure
-with no streamed output, so a size rejection is retried only where a fallback model with
-a larger window is configured.
-
-**Recommendation:** on a size rejection, compact once and retry, with a guard so it can't
-loop.
+A turn the provider refuses as too large now compacts and is sent again, smaller,
+within the same prompt, with no fallback to another model. When it still cannot be
+sent, it fails once and the next message replaces it with a note, so the conversation
+continues. `size-recovery-conformance`, `desk/tests-integration/harness-size-recovery.hoon`
+and `desk/tests/harness-context.hoon` cover it. Not covered: retained history or
+summaries too large on their own; Harness's own 1 MiB request cap for connected runners,
+which is not recognized as a size refusal; an invalid automatic summary before any
+refusal, after which one more message fails; and a downgrade, whose replay keeps the
+originals the note replaced.
 
 ### 6. Fixed: a non-JSON summary halted compaction
 

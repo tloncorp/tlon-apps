@@ -18,7 +18,7 @@
     hp=harness-provider, auth=harness-auth,
     oauth=harness-oauth, search=harness-search, ht=harness-tools,
     hj=harness-json, command=harness-command, context=harness-context,
-    lcm-context=harness-lcm-context, corpus-lib=harness-corpus,
+    lcm-context=harness-lcm-context, lcm=harness-lcm, corpus-lib=harness-corpus,
     corpus-json=harness-corpus-json, peer-policy=harness-peer-policy,
     peer-trust=harness-peer-trust, failure=harness-failure,
     policy=harness-defaults, storage=harness-store,
@@ -4054,7 +4054,7 @@
     [:(weld recorded cards.handled completed driven) state]
   ?:  =(`['compact' ''] parsed-command)
     =^  recorded  session  (record-all sid session ~[event])
-    =/  compacted  (start-compaction sid session `id.input.event)
+    =/  compacted  (start-compaction sid session `id.input.event |)
     =/  started  cards.compacted
     =.  session  session.compacted
     =.  knowledge  knowledge.compacted
@@ -4239,7 +4239,7 @@
   =/  session  (need-session sid.action)
   =/  view  (play:hl log.session)
   ?:  |(?=(^ pending.view) !=(~ wait.view))  `state
-  =/  compacted  (start-compaction sid.action session ~)
+  =/  compacted  (start-compaction sid.action session ~ |)
   =/  cards  cards.compacted
   =.  session  session.compacted
   =.  knowledge  knowledge.compacted
@@ -4862,7 +4862,7 @@
       [(weld cards requested) session skills staged search-requests knowledge]
     ::
         %compact
-      =/  compacted  (start-compaction sid session ~)
+      =/  compacted  (start-compaction sid session ~ &)
       =/  requested  cards.compacted
       =.  session  session.compacted
       =.  knowledge  knowledge.compacted
@@ -5033,8 +5033,9 @@
 ::  The plan event and request are emitted atomically. Coverage refers to the
 ::  pre-dispatch log and active prefix, not whatever happens to be current when
 ::  Iris finishes. A command is acknowledged only after completion (or refusal).
+::  With turn set, a refusal ends an unanswered turn: a terminal size failure.
 ++  start-compaction
-  |=  [sid=session-id:h =session:h input=(unit input-id:h)]
+  |=  [sid=session-id:h =session:h input=(unit input-id:h) turn=?]
   ^-  [cards=(list card) session=session:h knowledge=state:memory-types]
   =/  view  (play:hl log.session)
   =/  visible  (skills-visible sid skills)
@@ -5054,8 +5055,16 @@
     ==
   ?:  ?=(%| -.planned)
     =/  =event:h
-      ?~  input  [%halted (cat 3 'context budget: ' p.planned)]
-      [%command-completed u.input 'compact' p.planned]
+      ?^  input  [%command-completed u.input 'compact' p.planned]
+      ::  Below the attempt limit, a pending group or an earlier exchange is
+      ::  what the planner refused, so leaving the input out would not help.
+      ?:  ?&  turn
+              ?|  (gte compact-attempts.view 4)
+                  &(=(~ (group:lcm lcm.view)) =(~ (boundaries:context items.view)))
+              ==
+          ==
+        [%halted (overflow:hl p.planned)]
+      [%halted (cat 3 'context budget: ' p.planned)]
     =^  cards  session  (record-all sid session ~[event])
     [cards session knowledge]
   =/  config  ?~(children.p.planned leaf branch)
@@ -5359,8 +5368,10 @@
       (~(del by compactions.maintenance.knowledge) sid)
     ::  No failover after user-visible output, explicit cancellation, or a
     ::  semantic completion. Each attempt gets a fresh fenced request ID.
+    ::  A request too large for one model is compacted, not moved to another.
     =/  fallback
       ?.  ?&  ?=(%llm-failed -.event)
+              !(oversized:failure err.event)
               ?=(~ (route:runner-lib url.request-config))
               !?=(%cancel -.response)
               |(?=(~ streamed) =(0 sent.u.streamed))
@@ -5369,14 +5380,37 @@
       (try-fallback sid session req kind)
     ?^  fallback
       [cards.u.fallback state(sessions (~(put by sessions) sid session.u.fallback))]
+    =/  recover=?
+      ?&  =(%turn kind)
+          ?=(%llm-failed -.event)
+          (oversized:failure err.event)
+          ?=(~ (route:runner-lib url.request-config))
+          |(?=(~ streamed) =(0 sent.u.streamed))
+      ==
+    ::  A size rejection that ends the turn is marked, so the next admission
+    ::  leaves that turn out instead of sending it again.
+    =?  event  &(?=(%llm-failed -.event) =(%turn kind) !recover (oversized:failure err.event))
+      [%llm-failed req (overflow:hl err.event)]
+    ::  A typed /compact has no failed input to leave out; its plan names it.
     =?  event  &(?=(%llm-failed -.event) =(%compaction kind))
-      [%compaction-failed req err.event [0 0]]
+      =/  marked
+        ?&  (oversized:failure err.event)
+            !&(?=(^ compaction.view) ?=(^ command.u.compaction.view))
+        ==
+      [%compaction-failed req ?.(marked err.event (overflow:hl err.event)) [0 0]]
     =/  events=(list event:h)  ~[event]
     =?  events  &(?=(%llm-completed -.event) ?=(^ reasoning) !=('' u.reasoning))
       [[%llm-reasoning req url.request-config model.request-config u.reasoning] events]
     =^  recorded  session  (record-all sid session events)
+    ::  Start compaction in this event, so the failure is never settled: the
+    ::  checkpoint re-issues the turn, or the planner's refusal halts it.
+    =/  compacted=[cards=(list card) =session:h knowledge=state:memory-types]
+      ?.  recover  [~ session knowledge]
+      (start-compaction sid session ~ &)
+    =.  session  session.compacted
+    =.  knowledge  knowledge.compacted
     =^  driven  state  (drive-put sid session)
-    [(weld recorded driven) state]
+    [:(weld recorded cards.compacted driven) state]
   ::  Only newly decoded text is sent to the waiting client. Keep the
   ::  complete response bytes until Iris supplies a terminal response.
   ::
@@ -5441,7 +5475,10 @@
       =/  invalid
         ?~  lcm-plan.view  (validate:context view u.compaction.view stop.p.parsed item)
         (validate:lcm-context view u.lcm-plan.view stop.p.parsed item)
-      ?^  invalid  [%compaction-failed req u.invalid u.p.parsed]
+      ::  A failed summary during size recovery ends that turn too.
+      ?^  invalid
+        =/  err  ?~((refused:hs log.session) u.invalid (overflow:hl u.invalid))
+        [%compaction-failed req err u.p.parsed]
       ?>  ?=([%assistant * ~] item)
       =/  reply=(unit [input-id=input-id:h body=@t])
         ?~  command.u.compaction.view  ~
@@ -6148,7 +6185,9 @@
     ~[[%give %kick ~[`path`[%session `@ta`sid ~]] ~]]
   [:(weld kick recorded driven) state]
 ::  Answer queued peer asks with the terminal outcome. Provider failure details
-::  are private; peers receive the public failure message.
+::  are private; peers receive the public failure message. A loop-guard halt
+::  gets a neutral sentence: the person-facing one invites a retry, which a
+::  peer's model would spend on this owner's provider account.
 ::
 ::
 ++  settle-asks
@@ -6164,7 +6203,9 @@
   =/  result=(each @t @t)
     ?-  -.u.outcome
       %reply  [%& body.u.outcome]
-      %failure  [%| (public-message:failure reason.u.outcome)]
+      %failure
+        ?:  (guarded:hl reason.u.outcome)  [%| 'Remote work stopped before finishing.']
+        [%| (public-message:failure reason.u.outcome)]
       %cancelled  [%| 'Remote work was cancelled.']
     ==
   :_  state(serving (~(del by serving) sid))

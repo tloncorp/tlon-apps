@@ -3,6 +3,7 @@
 /-  t=harness-tlon
 /+  *test-agent
 /=  adapter  /app/harness-tlon
+/=  up  /tests/harness-upgrade
 |%
 ::  Load saved state with every scry answered %.n, as before.
 ::
@@ -67,4 +68,60 @@
   %+  ex-equal
     !>(&(=(~ uploads.state) =(%uncertain stage:(~(got by tool-receipts.state) 0v1))))
   !>(&)
+::  Each upload is retired into its receipt, and the wake is the unfinished
+::  send's timeout. The hand is disabled, so no other deadline applies.
+++  test-reload-keeps-populated-state
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  e  populated-2:up
+  =/  retire
+    |=  [s=state-2:t id=@uv stage=?(%done %uncertain) body=@t]
+    ^-  state-2:t
+    =/  receipt  (~(got by tool-receipts.s) id)
+    s(tool-receipts (~(put by tool-receipts.s) id receipt(stage stage, body body)))
+  =.  e
+    %:  retire  e  0v8a  %done
+      'failed: image download retired before any upload was dispatched'
+    ==
+  =.  e
+    %:  retire  e  0v8b  %uncertain
+      'uncertain: upload was dispatched but its acceptance is not known; do not automatically repeat this action'
+    ==
+  =.  e
+    %:  retire  e  0v8c  %uncertain
+      'uncertain: hosted upload-URL request was retired; no image PUT was sent, but allocation may have occurred; do not automatically repeat this action'
+    ==
+  =.  e
+    %:  retire  e  0v8d  %uncertain
+      'uncertain: upload was dispatched but its acceptance is not known; do not automatically repeat this action'
+    ==
+  =.  uploads.e  ~
+  =.  wake.e  `(add at:(~(got by tool-receipts.e) 0v8e) ~m1)
+  ;<  [* loaded=state-2:t]  bind:m  (load !>(populated-2:up))
+  (ex-same:up !>(loaded) !>(e))
+::  A moon with no explicit owner takes its parent as owner on the first load
+::  only, and cuts off the owner's history before then. An owner cleared
+::  later stays cleared.
+++  test-reload-initializes-owner-once
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  parent=@p  ~sampel-palnet
+  =/  first=@da  ~2026.9.6
+  =/  e  unowned:up
+  =.  e  e(owner-initialized 1, owner.policy `parent, cuts (my ~[[parent first]]))
+  ::  A disabled hand is not watching.
+  =.  watching.e  |
+  ::  Jael names the moon's parent; every other scry answers %.n, as above.
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our (add parent (bex 32)), now first)))
+  ;<  ~  bind:m  (set-scry-gate |=(p=path ?:(?=([%j *] p) `!>(parent) `!>(|))))
+  ;<  *  bind:m  (do-load adapter `!>(unowned:up))
+  ;<  once=vase  bind:m  get-save
+  ;<  ~  bind:m  (ex-same:up once !>(e))
+  =.  e  e(owner.policy ~)
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now (add first ~d1))))
+  ;<  *  bind:m  (do-load adapter `!>(e))
+  ;<  twice=vase  bind:m  get-save
+  (ex-same:up twice !>(e))
 --

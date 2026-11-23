@@ -111,7 +111,10 @@ compaction, cancellation, fork ancestry, retry, and halt. `play` folds the log
 into a derived view; `decide` selects the next step; Gall emits effects and
 records their results. Earlier session events are never removed to manufacture
 a new state: cancellation appends what it abandoned, and a fork appends its
-parent and divergence count.
+parent and divergence count. A turn whose failure is marked as too large for
+the model is left out of later requests by a replay rule: at the next
+admission the view holds a note in its place, while the log keeps the original
+input.
 
 ```mermaid
 flowchart LR
@@ -149,7 +152,9 @@ that understand Harness nouns do not have to pass through ACP or React.
 The semantic transcript remains on ship; model requests use a selected context
 view. Budget checks and compaction reduce request size without deleting source
 events. Estimates are not exact tokenization, and an indivisible oversized
-exchange can fail locally. See [context and memory](context-and-memory.md).
+exchange can fail locally; when that exchange belongs to the unanswered turn,
+the turn is then left out of the view, never out of the log. See
+[context and memory](context-and-memory.md).
 
 `lib/harness-session.hoon` exposes pure `next`, `inspect`, `snapshot`, and `branch`
 gates. `inspect` returns the revision, replayed view, and next decision; it

@@ -93,4 +93,38 @@
       !>((~(got by deliveries.stale) 0v1))
     !>(`delivery:t`[7 %send %uncertain 'external'])
   (ex-equal !>(receipts.stale) !>(`(list action:hh)`~))
+::
+++  test-an-accepted-observe-posts-no-notice
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  to=destination:t  [%dm ~nec ~]
+  =/  saved=state-2:t  *state-2:t
+  =.  saved
+    %=  saved  owner-initialized  1  policy  [& `~nec ~ %mentions ~ ~]
+        lanes  (my ~[['conversation' [~nec to 0 ~]]])
+        routes  (my ~[['conversation' ['binding' %ready]]])
+        jobs  (my ~[[0v1 [[~nec 'event' to 'Hello'] 'conversation' %observe '']]])
+    ==
+  =/  =wire  /hand/observe/0v1
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now ~2026.10.1)))
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ^-  (unit vase)
+    ?:  (lien path |=(part=@ta =(%hand-state part)))  `!>(*state:hh)
+    `!>(|)
+  ;<  *  bind:m  (do-load adapter `!>(saved))
+  ;<  ~  bind:m
+    (jab-bowl |=(b=bowl b(wex (~(put by wex.b) [wire ~zod %harness] [& /hands/x]))))
+  ;<  caz=(list card)  bind:m
+    (do-agent wire [~zod %harness] [%fact %noun !>(`(each json @t)`[%& [%o ~]])])
+  ;<  =vase  bind:m  get-save
+  =/  s  !<(state-2:t vase)
+  ;<  ~  bind:m  (ex-equal !>(jobs.s) !>(`(map @uv job:t)`~))
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>((skim caz |=(=card ?=([%pass * %agent [* ?(%chat %channels)] %poke *] card))))
+    !>(`(list card)`~)
+  (ex-equal !>(notices.s) !>(`(list notice:t)`~))
 --
