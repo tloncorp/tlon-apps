@@ -7,7 +7,7 @@
 /+  *test-agent, policy=harness-tlon-policy, continuity=harness-tlon-continuity
 /=  adapter  /app/harness-tlon
 |%
-+$  outcome  [cards=(list card) saved=state-2:t]
++$  outcome  [cards=(list card) saved=state-3:t]
 +$  post-row  [@da (may:v9:dv post:v9:dv)]
 +$  reply-row  [@da (may:v9:dv reply:v9:dv)]
 ::  What local %channels holds. Any other %channels read blocks the test.
@@ -24,8 +24,8 @@
 ++  nest  [%chat ~nec %general]
 ++  bot  `author:v9:dv`[~nec `'Bot' ~]
 ++  fixture
-  ^-  state-2:t
-  =/  s=state-2:t  *state-2:t
+  ^-  state-3:t
+  =/  s=state-3:t  *state-3:t
   %=  s  owner-initialized  1  policy  [& `~nec ~ %mentions ~ ~]  watching  &
     activity-through  ~2026.10.1
   ==
@@ -88,7 +88,7 @@
       ['max-context' n+'1']  ['tools' a+~]
   ==
 ++  run
-  |=  [saved=state-2:t event=incoming-event:v8:a native=(unit native)]
+  |=  [saved=state-3:t event=incoming-event:v8:a native=(unit native)]
   =/  m  (mare ,outcome)
   ^-  form:m
   =/  =stream:v10:a
@@ -116,7 +116,7 @@
   ::  Loading an acknowledged Activity watch catches up on the stream.
   ;<  caz=(list card)  bind:m  (do-load adapter `!>(saved))
   ;<  =vase  bind:m  get-save
-  (pure:m caz !<(state-2:t vase))
+  (pure:m caz !<(state-3:t vase))
 ++  kinds
   |=  out=outcome
   ^-  (list @t)
@@ -160,7 +160,7 @@
     (run fixture (post-event ~nec) `[& & message-at ~[(post message-at bot)] ~])
   ;<  person=outcome  bind:m
     (run fixture (post-event ~nec) `[& & message-at ~[(post message-at ~nec)] ~])
-  =/  same  |=(s=state-2:t s(notices ~))
+  =/  same  |=(s=state-3:t s(notices ~))
   ;<  ~  bind:m  (ex-equal !>((same saved.bot-out)) !>((same saved.person)))
   (ex-equal !>(cards.bot-out) !>(cards.person))
 ++  test-bot-reply-under-a-person-post-is-a-bot-message
@@ -263,13 +263,13 @@
 ++  sentence  'I can\'t answer messages here right now.'
 ++  ledger-refusal  'Binding ledger capacity reached; export and rotate its binding'
 ++  allowed-fixture
-  ^-  state-2:t
+  ^-  state-3:t
   =/  s  fixture
   s(allowed.policy (silt ~[guest]))
 ::  A ready conversation for .actor at .to.
 ++  with-lane
-  |=  [s=state-2:t actor=@p to=destination:t]
-  ^-  state-2:t
+  |=  [s=state-3:t actor=@p to=destination:t]
+  ^-  state-3:t
   =/  sid  (identity:continuity actor to)
   %=  s
     lanes  (~(put by lanes.s) sid [actor to 0 ~])
@@ -278,15 +278,15 @@
   ==
 ::  .with-lane, holding job .id at .stage.
 ++  with-job
-  |=  [s=state-2:t id=@uv actor=@p to=destination:t stage=?(%bind %observe)]
-  ^-  state-2:t
+  |=  [s=state-3:t id=@uv actor=@p to=destination:t stage=?(%bind %observe)]
+  ^-  state-3:t
   =.  s  (with-lane s actor to)
   =/  sid  (identity:continuity actor to)
   s(jobs (~(put by jobs.s) id [[actor (scot %uv id) to 'earlier'] sid stage '']))
 ::  The owner's DM is ready and holds jobs 1 to .n at .stage.
 ++  stuck
   |=  [n=@ud stage=?(%bind %observe)]
-  ^-  state-2:t
+  ^-  state-3:t
   %+  roll  (gulf 1 n)
   |=  [k=@ud s=_allowed-fixture]
   (with-job s `@uv`k ~nec owner-dm stage)
@@ -314,7 +314,7 @@
 ::  Load .saved over .rows. Gall keeps the acknowledged Activity watch;
 ::  loading renews the head watch, which the head then acknowledges.
 ++  setup
-  |=  [saved=state-2:t rows=(list [@da incoming-event:v8:a])]
+  |=  [saved=state-3:t rows=(list [@da incoming-event:v8:a])]
   =/  m  (mare ,(list card))
   ^-  form:m
   =/  =stream:v10:a
@@ -349,10 +349,10 @@
   ;<  *  bind:m  (refuse phase i.ids)
   (refuse-all phase t.ids)
 ++  saved
-  =/  m  (mare ,state-2:t)
+  =/  m  (mare ,state-3:t)
   ^-  form:m
   ;<  =vase  bind:m  get-save
-  (pure:m !<(state-2:t vase))
+  (pure:m !<(state-3:t vase))
 ::  Hand ledger requests among the emitted cards, in order.
 ++  hand-requests
   |=  caz=(list card)
@@ -399,11 +399,11 @@
         [t2 [%dm-post [[guest t2] t2] [%ship guest] ~[[%inline ~['guest hello']]] |]]
     ==
   ;<  *  bind:m  (setup (with-lane (stuck 8 %observe) guest guest-dm) rows)
-  ;<  held=state-2:t  bind:m  saved
+  ;<  held=state-3:t  bind:m  saved
   ;<  ~  bind:m  (ex-equal !>(activity-through.held) !>(~2026.10.1))
   ;<  ~  bind:m  (refuse-all %observe (turn (gulf 1 8) |=(k=@ud `@uv`k)))
   ;<  caz=(list card)  bind:m  (do-arvo /poll [%behn %wake ~])
-  ;<  s=state-2:t  bind:m  saved
+  ;<  s=state-3:t  bind:m  saved
   ;<  ~  bind:m  (ex-equal !>(activity-through.s) !>(t2))
   ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.s)) !>(2))
   =/  binds
@@ -417,7 +417,7 @@
   =/  before  (with-job allowed-fixture 0v1 ~nec owner-dm %observe)
   ;<  *  bind:m  (setup before(last-sent now) ~)
   ;<  caz=(list card)  bind:m  (refuse %observe 0v1)
-  ;<  s=state-2:t  bind:m  saved
+  ;<  s=state-3:t  bind:m  saved
   ;<  ~  bind:m  (ex-equal !>((gth last-sent.s now)) !>(&))
   ;<  ~  bind:m  (ex-equal !>((messenger-pokes caz)) !>(~[(dm-notice ~nec last-sent.s)]))
   ;<  ~  bind:m  (ex-equal !>(error.s) !>(ledger-refusal))
@@ -430,12 +430,12 @@
   =/  before  (with-job (with-job allowed-fixture 0v1 ~nec room %bind) 0v2 ~nec thread %bind)
   ;<  *  bind:m  (setup before ~)
   ;<  top=(list card)  bind:m  (refuse %bind 0v1)
-  ;<  top-state=state-2:t  bind:m  saved
+  ;<  top-state=state-3:t  bind:m  saved
   ;<  ~  bind:m
     %+  ex-equal  !>((messenger-pokes top))
     !>(~[(channel-notice ~nec ~ last-sent.top-state)])
   ;<  reply=(list card)  bind:m  (refuse %bind 0v2)
-  ;<  s=state-2:t  bind:m  saved
+  ;<  s=state-3:t  bind:m  saved
   ;<  ~  bind:m
     %+  ex-equal  !>((messenger-pokes reply))
     !>(~[(channel-notice ~nec `parent-at last-sent.s)])
@@ -461,7 +461,7 @@
     =/  n  (mare ,~)
     ^-  form:n
     ;<  caz=(list card)  bind:n  (refuse %observe id)
-    ;<  s=state-2:t  bind:n  saved
+    ;<  s=state-3:t  bind:n  saved
     =/  newest  (scag 1 (turn notices.s |=(n=notice:t kind.n)))
     ;<  ~  bind:n  (ex-equal !>([id newest]) !>([id ~[kind]]))
     (ex-equal !>([id (lent (messenger-pokes caz))]) !>([id count]))
@@ -486,7 +486,7 @@
   ^-  form:m
   ;<  *  bind:m  (setup (with-job allowed-fixture 0v1 ~nec owner-dm %observe) ~)
   ;<  *  bind:m  (refuse %observe 0v1)
-  ;<  refused=state-2:t  bind:m  saved
+  ;<  refused=state-3:t  bind:m  saved
   ;<  caz=(list card)  bind:m  (setup refused ~)
   ;<  ~  bind:m  (ex-equal !>((hand-requests caz)) !>(`(list action:hh)`~))
   (ex-equal !>((messenger-pokes caz)) !>(`(list [mark noun])`~))
@@ -497,7 +497,7 @@
   ::  Disabling the adapter already dropped job 0v1.
   ;<  *  bind:m  (setup (with-lane allowed-fixture ~nec owner-dm) ~)
   ;<  caz=(list card)  bind:m  (refuse %observe 0v1)
-  ;<  s=state-2:t  bind:m  saved
+  ;<  s=state-3:t  bind:m  saved
   ;<  ~  bind:m  (ex-equal !>((messenger-pokes caz)) !>(`(list [mark noun])`~))
   ;<  ~  bind:m  (ex-equal !>(error.s) !>(ledger-refusal))
   (ex-equal !>(notices.s) !>(`(list notice:t)`~))
@@ -508,7 +508,7 @@
   =/  t1  ~2026.10.1..00.00.05
   =/  rows  ~[[t1 [%dm-post [[~nec t1] t1] [%ship ~nec] ~[[%inline ~['owner again']]] |]]]
   ;<  *  bind:m  (setup (stuck 8 %observe) rows)
-  ;<  s=state-2:t  bind:m  saved
+  ;<  s=state-3:t  bind:m  saved
   ;<  ~  bind:m  (ex-equal !>(activity-through.s) !>(~2026.10.1))
   ;<  ~  bind:m  (ex-equal !>(catching-up.s) !>(&))
   (ex-equal !>(~(wyt by jobs.s)) !>(8))

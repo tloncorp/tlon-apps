@@ -77,9 +77,10 @@
   ==
 ::  The Tlon hand's current saved shape, populated as above. The hand is
 ::  disabled, so its reload starts no subscriptions.
-++  populated-2
-  ^-  state-2:t
-  :*  %2
+++  populated-3
+  ^-  state-3:t
+  :*  %3
+      (my ~[[0v8g [~2026.11.16 [%wait [%form 'https://browser.example/result']]]]])
       :*  &  `~nec  ~2026.10.2
           %-  my
           :~  :-  0v5a
@@ -111,6 +112,7 @@
           [0v8d (upload-receipt 'hosted')]
           [0v8e [['alpha' 4 ['call-send' 'tlon_send' '{}']] %sending '' ~2026.11.15]]
           [0v8f [['alpha' 5 ['call-read' 'tlon_read' '{}']] %done 'Read 3 messages.' ~2026.11.13]]
+          [0v8g [['alpha' 6 ['call-form' 'browser_secure_entry' '{}']] %sending '' ~2026.11.15]]
       ==
       (my ~[[/tlon/typing [~2026.10.10 (sy ~['tlon_send'])]]])
       :*  |  `~nec  (my ~[[~bus ~[%tlon]]])  %all  (sy ~[~bus])
@@ -130,8 +132,8 @@
   ==
 ::  A disabled hand that has not chosen its owner yet.
 ++  unowned
-  ^-  state-2:t
-  =/  s  *state-2:t
+  ^-  state-3:t
+  =/  s  *state-3:t
   s(enabled.policy |)
 ::  A saved %acp connection with a message queued in each direction.
 +$  acp-state  [%0 connections=(map connection-id:v1:ac connection:v1:ac)]
@@ -239,7 +241,7 @@
 ++  test-populated-state-is-populated
   ;:  weld
       (expect-eq !>(~) !>((unexplained (defaults !>(populated) *state-0))))
-      (expect-eq !>(~) !>((unexplained (defaults !>(populated-2) *state-2:t))))
+      (expect-eq !>(~) !>((unexplained (defaults !>(populated-3) *state-3:t))))
       (expect-eq !>(~) !>((unexplained (defaults !>(acp-populated) *acp-state))))
   ==
 ++  test-state-0-reload-keeps-every-field

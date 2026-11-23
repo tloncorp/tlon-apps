@@ -102,10 +102,10 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  =/  e  populated-2:up
+  =/  e  populated-3:up
   =/  retire
-    |=  [s=state-2:t id=@uv stage=?(%done %uncertain) body=@t]
-    ^-  state-2:t
+    |=  [s=state-3:t id=@uv stage=?(%done %uncertain) body=@t]
+    ^-  state-3:t
     =/  receipt  (~(got by tool-receipts.s) id)
     s(tool-receipts (~(put by tool-receipts.s) id receipt(stage stage, body body)))
   =.  e
@@ -126,7 +126,7 @@
     ==
   =.  uploads.e  ~
   =.  wake.e  `(add at:(~(got by tool-receipts.e) 0v8e) ~m1)
-  ;<  [* loaded=state-2:t]  bind:m  (load !>(populated-2:up))
+  ;<  [* loaded=state-3:t]  bind:m  (load !>(populated-3:up))
   (ex-same:up !>(loaded) !>(e))
 ::  A moon with no explicit owner takes its parent as owner on the first load
 ::  only, and cuts off the owner's history before then. An owner cleared
