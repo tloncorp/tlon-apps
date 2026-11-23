@@ -1320,8 +1320,12 @@
   =/  job  (scheduled sid.publication)
   =/  speaker  (slaw %p ?~(job actor.u.observation actor.u.job))
   ?~  speaker  |
+  ::  The shared route outlives a sibling ownership change, so its cutoff
+  ::  applies here as at admission.
+  =/  cutoff  (fall (~(get by cuts) u.speaker) `@da`0)
+  =?  cutoff  (sibling:~(. ownership bowl) u.speaker)  (max cutoff sibling-owner-after)
   ?&  ?=(^ (speaker-grants u.speaker to.lane ~))
-      (gth at.u.observation (fall (~(get by cuts) u.speaker) `@da`0))
+      (gth at.u.observation cutoff)
   ==
 ::
 ++  read-profile

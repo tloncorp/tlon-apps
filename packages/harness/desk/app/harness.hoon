@@ -4294,7 +4294,7 @@
   ^-  (quip card _state)
   ?>  ?=(%fence -.action)
   =.  barrier.knowledge  +(barrier.knowledge)
-  ::  Revocation is wider than a user stop: retire descendant work and
+  ::  Revocation is wider than a user stop: retire every descendant and the
   ::  scheduled continuations, retaining the source's transcript/config.
   =^  cards  state  (fence-session sid.action |)
   =^  more  state  (fence-descendants sid.action)
@@ -4334,8 +4334,7 @@
   (cancel-turn sid.action)
 ::  One speaker's stop or revocation: their running turn, the subagents it
 ::  started, and their waiting inputs. Other speakers' work, timers and
-::  configuration stay. Only the running turn's subagents can still be
-::  working, so every live descendant is this speaker's.
+::  configuration stay.
 ::
 ++  fence-actor
   |=  [sid=session-id:h actor=@t]
@@ -4343,10 +4342,10 @@
   ?.  (~(has by sessions) sid)  `state
   =.  hands  (cancel-queued:hd hands sid `actor)
   ?.  =(`actor (hand-speaker sid))  `state
-  =^  cards  state  (cancel-turn sid)
-  =^  more  state  (fence-descendants sid)
-  [(weld cards more) state]
+  (cancel-turn sid)
 ::  Waiting inputs are the caller's to cancel first; settling pumps the next.
+::  The turn's subagents end with it, so none is left working for a later
+::  turn, whoever speaks in it.
 ::
 ++  cancel-turn
   |=  sid=session-id:h
@@ -4391,7 +4390,8 @@
   ::  Cancellation owes a terminal result to every kind of waiter, including
   ::  a parent session or peer. Use the same boundary as normal completion.
   =^  settled  state  (settle sid)
-  [:(weld cards withdrawn auxiliary settled) state]
+  =^  descendants  state  (fence-descendants sid)
+  [:(weld cards withdrawn auxiliary settled descendants) state]
 ::
 ++  action-delete
   |=  action=action:h

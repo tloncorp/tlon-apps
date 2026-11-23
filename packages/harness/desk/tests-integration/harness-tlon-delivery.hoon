@@ -99,6 +99,11 @@
 ::
 ++  claim
   |=  [policy=policy:t cuts=(map @p @da) asked=@da]
+  (claim-by ~zod ~bus policy cuts *@da asked)
+::  +claim on ship .our, for speaker .who, with sibling cutoff .siblings.
+::
+++  claim-by
+  |=  [our=@p who=@p policy=policy:t cuts=(map @p @da) siblings=@da asked=@da]
   =/  m  (mare ,[sent=? receipts=(list action:hh)])
   ^-  form:m
   =/  to=destination:t  [%channel [%chat ~lux %test] ~]
@@ -108,13 +113,14 @@
       owner-initialized  1
       policy  policy
       cuts  cuts
+      sibling-owner-after  siblings
       lanes  (my ~[['room' [to 1 ~[%web]]]])
       routes  (my ~[['room' ['binding' %ready]]])
       deliveries  (my ~[[0v1 [0 %claim %uncertain '']]])
     ==
   =/  ledger=state:hh  *state:hh
   =.  observations.ledger
-    (my ~[[0v1 ['binding' 'event' '~bus' 'hello' asked %completed]]])
+    (my ~[[0v1 ['binding' 'event' (scot %p who) 'hello' asked %completed]]])
   =.  outbox.ledger
     %-  my
     :~  :*  0v1
@@ -123,16 +129,18 @@
             ==
         ==
     ==
-  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now ~2026.10.1))
+  ;<  ~  bind:m  (set-bowl %*(. *bowl our our, src our, now ~2026.10.1))
   ;<  ~  bind:m
     %-  set-scry-gate
     |=  =path
     ^-  (unit vase)
     ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
+    ::  Jael names each ship's parent.
+    ?:  ?=([%j @ %sein @ @ ~] path)  `!>(`@p`(end 5 (slav %p i.t.t.t.t.path)))
     ?:  (lien path |=(part=@ta =(%hand-state part)))  `!>(ledger)
-    ::  ~bus has joined the group of chat/~lux/test and may read it.
-    ?:  (lien path |=(part=@ta =(%can-read part)))  `!>(|=([who=@p *] =(~bus who)))
-    ?:  (lien path |=(part=@ta =(%groups part)))  `!>((my ~[[[~lux %test] room-group]]))
+    ::  .who has joined the group of chat/~lux/test and may read it.
+    ?:  (lien path |=(part=@ta =(%can-read part)))  `!>(|=([reader=@p *] =(who reader)))
+    ?:  (lien path |=(part=@ta =(%groups part)))  `!>((my ~[[[~lux %test] (room-group who)]]))
     ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)
     ?:  =(%$ (rear path))  `!>(&)
     ~
@@ -140,22 +148,23 @@
   ;<  ~  bind:m
     %-  jab-bowl
     |=  b=bowl
-    =.  wex.b  (~(put by wex.b) [/publications ~zod %channels] [& /v2])
+    =.  wex.b  (~(put by wex.b) [/publications our %channels] [& /v2])
     ::  The claim's result arrives on its own watch of the head.
-    b(wex (~(put by wex.b) [/hand/claim/0v1 ~zod %harness] [& /hands/tlon-claim-0v1]))
+    b(wex (~(put by wex.b) [/hand/claim/0v1 our %harness] [& /hands/tlon-claim-0v1]))
   =/  acquired=json
     (pairs:enjs:format ~[['acquired' %b &] ['attempt' (numb:enjs:format 0)]])
   ;<  caz=(list card)  bind:m
-    (do-agent /hand/claim/0v1 [~zod %harness] [%fact %noun !>(`(each json @t)`[%& acquired])])
+    (do-agent /hand/claim/0v1 [our %harness] [%fact %noun !>(`(each json @t)`[%& acquired])])
   =/  sent
     %+  lien  caz
     |=(=card ?=([%pass [%publish *] %agent [* %channels] %poke *] card))
   (pure:m sent (receipts caz))
 ::
 ++  room-group
+  |=  who=@p
   ^-  group:v9:g
   =/  group  *group:v9:g
-  =.  seats.group  (my ~[[~bus `seat:v9:g`[~ ~2026.9.9]]])
+  =.  seats.group  (my ~[[who `seat:v9:g`[~ ~2026.9.9]]])
   group(channels (my ~[[[%chat ~lux %test] *channel:v9:g]]))
 ++  bus-trusted
   ^-  policy:t
@@ -184,6 +193,25 @@
     (claim bus-trusted (my ~[[~bus ~2026.9.30..01.00.00]]) ~2026.9.30)
   ;<  fresh=[sent=? receipts=(list action:hh)]  bind:n
     (claim bus-trusted (my ~[[~bus ~2026.9.30..01.00.00]]) ~2026.9.30..02.00.00)
+  ;<  ~  bind:n  (ex-equal !>(stale) !>([| failed]))
+  (ex-equal !>(fresh) !>([& `(list action:hh)`~]))
+::  A sibling moon's owner asked with owner authority; sibling ownership was
+::  then turned off. The sibling is still trusted in the channel, but a reply
+::  from before the change is not sent.
+::
+++  test-sibling-reply-from-before-sibling-ownership-ended-is-not-published
+  %-  eval-mare
+  =/  n  (mare ,~)
+  ^-  form:n
+  =/  parent=@p  ~sampel-palnet
+  =/  our=@p  (add parent (bex 32))
+  =/  sibling=@p  (add parent (bex 33))
+  =/  policy=policy:t  [& `~nec (my ~[[sibling ~[%web]]]) %all ~ ~]
+  =/  ended  ~2026.9.30..01.00.00
+  ;<  stale=[sent=? receipts=(list action:hh)]  bind:n
+    (claim-by our sibling policy ~ ended ~2026.9.30)
+  ;<  fresh=[sent=? receipts=(list action:hh)]  bind:n
+    (claim-by our sibling policy ~ ended ~2026.9.30..02.00.00)
   ;<  ~  bind:n  (ex-equal !>(stale) !>([| failed]))
   (ex-equal !>(fresh) !>([& `(list action:hh)`~]))
 ::

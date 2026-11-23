@@ -617,7 +617,8 @@ cutoffs reject queued pre-grant messages without dropping unrelated input.
 Publication checks the exact current binding again after claiming, before
 sending, and the reply's speaker: it is sent only while that speaker is still
 granted there and if the speaker's input came after the speaker's latest
-permission change, so a reply to a speaker revoked mid-turn, or a stale one
+permission change, or for a sibling moon's owner the latest change to sibling
+ownership, so a reply to a speaker revoked mid-turn, or a stale one
 after a later re-grant, is not published. Async callbacks and self-dispatched work carry request generations,
 so reusing a tool-call ID cannot revive an old request. Previously emitted network
 operations cannot be undone; their receipts and uncertainty remain evidence.

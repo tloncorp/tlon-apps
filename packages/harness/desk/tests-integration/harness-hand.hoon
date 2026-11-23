@@ -266,6 +266,30 @@
     !>(*(list tool-grant:h))
   ;<  ~  bind:m  (ex-equal !>(subs.after) !>(~))
   (ex-equal !>(queue.hands.after) !>(~[(input-id:hd 'other' 'unrelated')]))
+::  The owner's stop of alice's turn ends the subagent it started, so none
+::  is left working once alice's turn no longer runs.
+::
+++  test-a-stopped-turn-leaves-no-subagent-working
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  (shared 'fixture' ~['alice' 'bob'] 'alice' ~)
+  =/  child=session:h
+    :_  1
+    :~  [%input-received [0v1 [%subagent 'source' 'delegate'] ~ ~ t0 [%user 'Child work']]]
+        [%config-replaced defaults.saved(tools ~[%web])]
+    ==
+  =.  sessions.saved  (~(put by sessions.saved) 'child' child)
+  =.  subs.saved  (my ~[['child' ['source' 'delegate']]])
+  ;<  ~  bind:m  (load saved |=(path `!>(|)))
+  ;<  *  bind:m  (do-poke %harness-action !>(`action:h`[%cancel 'source']))
+  ;<  after=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>((phase-of after 'running')) !>(%cancelled))
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>(tools.config:(play:hl log:(~(got by sessions.after) 'child')))
+    !>(*(list tool-grant:h))
+  (ex-equal !>(subs.after) !>(~))
 ::  An idle shared channel session and an idle DM, both bound to the Tlon
 ::  hand. The hand lets only ~nec, the owner, change the channel, and ~bus
 ::  change their own DM.
