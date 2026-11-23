@@ -3,7 +3,6 @@ import { useLureMetadata } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import {
   ActionSheet,
-  Image,
   OnboardingButton,
   OnboardingInviteBlock,
   Pressable,
@@ -21,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useCheckAppInstalled } from '../../hooks/analytics';
 import type { OnboardingStackParamList } from '../../types';
+import { WelcomeIcon } from './WelcomeIcon';
 
 export const Text = TlonText.Text;
 
@@ -63,11 +63,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
   return (
     <View flex={1} backgroundColor={'$secondaryBackground'} paddingTop={top}>
       <View flex={1} justifyContent="center" alignItems="center" gap={'$3.5xl'}>
-        <Image
-          width={200}
-          height={200}
-          source={require('../../../assets/images/welcome-icon.png')}
-        />
+        <WelcomeIcon />
         <TlonText.Text size="$label/xl">Tlon Messenger</TlonText.Text>
       </View>
       <View
