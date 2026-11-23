@@ -24,6 +24,7 @@ const AGENT_TURN_HOOK_COUNTS: Record<string, number> = {
   model_call_started: 1,
   agent_end: 1,
   before_prompt_build: 3,
+  heartbeat_prompt_contribution: 1,
   session_start: 1,
   session_end: 1,
   reply_payload_sending: 2,
@@ -72,6 +73,19 @@ describe('registerAgentTurnHooks', () => {
     for (const name of AGENT_TURN_HOOKS) {
       expect(counts[name], name).toBe(AGENT_TURN_HOOK_COUNTS[name]);
     }
+  });
+
+  it('tells every heartbeat that its final text reaches the owner and silence is NO_REPLY', () => {
+    const { api, registered } = makeApi();
+    registerAgentTurnHooks(api as never);
+    const contribution = registered.find(
+      (r) => r.name === 'heartbeat_prompt_contribution'
+    );
+    const result = contribution?.handler({}, {}) as { appendContext?: string };
+    expect(result.appendContext).toContain(
+      'delivered to your owner as a Tlon DM'
+    );
+    expect(result.appendContext).toContain('reply exactly NO_REPLY');
   });
 
   it('blocks owner-only tools for a stored non-owner role even before registerFull ran', async () => {

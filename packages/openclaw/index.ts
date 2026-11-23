@@ -13,6 +13,7 @@ import {
 
 import { cleanCronToolArgs } from './src/cron-tool-args.js';
 import { diagnosticSummary } from './src/diagnostic-summary.js';
+import { TLON_HEARTBEAT_SILENCE_CONTEXT } from './src/heartbeat-prompt.js';
 import { reportMemorySampleDiagnostic } from './src/memory-sample-telemetry.js';
 import { modelPrivacyNote } from './src/model-privacy-context.js';
 import { registerTlonCommands } from './src/commands-registry.js';
@@ -1731,6 +1732,11 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       return undefined;
     }
   });
+
+  // ── Heartbeat silence ──────────────────────────────────────────────
+  api.on('heartbeat_prompt_contribution', () => ({
+    appendContext: TLON_HEARTBEAT_SILENCE_CONTEXT,
+  }));
 
   // ── Group context ──────────────────────────────────────────────────
   // Which workspace a group channel turn belongs to, plus what the bot has
