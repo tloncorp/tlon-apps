@@ -172,7 +172,7 @@ function registerEntry(
       tools
         .map((factory) => factory({ workspaceDir: '/tmp' }))
         .find((tool) => tool?.name === 'tlon'),
-    ledgerTool: (workspaceDir: string, sessionKey: string) =>
+    ledgerTool: (workspaceDir: string, sessionKey?: string) =>
       tools
         .map((factory) => factory({ workspaceDir, sessionKey }))
         .find(
@@ -1121,11 +1121,25 @@ describe('before_tool_call turn identity', () => {
       toolCallId?: string
     ) => gate(harness, 'tlon', { command }, ctx, toolCallId);
 
+    it('advertises the ledger tool in isolated heartbeat sessions', () => {
+      const harness = registerEntry(OWNER);
+      for (const sessionKey of [
+        undefined,
+        HB,
+        'agent:main:cron:job-1',
+        `${HB}:heartbeat:child`,
+      ]) {
+        expect(harness.ledgerTool('/tmp', sessionKey)).toBeUndefined();
+      }
+      expect(harness.ledgerTool('/tmp', `${HB}:heartbeat`)).toBeDefined();
+    });
+
     it('records only approved heartbeat calls, including sealed calls and repeats', async () => {
       const harness = registerEntry(OWNER);
       const workspace = mkdtempSync(join(tmpdir(), 'heartbeat-tool-'));
       const file = join(workspace, 'PROACTIVE_LEDGER.md');
-      const tool = harness.ledgerTool(workspace, HB);
+      const sessionKey = `${HB}:heartbeat`;
+      const tool = harness.ledgerTool(workspace, sessionKey);
       const submit = { sources: 'private notes', candidates: [] };
       const onRecorded = vi.fn();
       const onError = vi.fn();
@@ -1133,7 +1147,12 @@ describe('before_tool_call turn identity', () => {
       setErrorTelemetryReporter(onError);
       try {
         for (const source of ['cron', null]) {
-          const ctx = await heartbeat(harness, `other-${source}`, source);
+          const ctx = await heartbeat(
+            harness,
+            `other-${source}`,
+            source,
+            sessionKey
+          );
           await expect(
             gate(harness, HEARTBEAT_LEDGER_TOOL, submit, ctx, 'denied')
           ).resolves.toMatchObject({ block: true });
@@ -1145,7 +1164,7 @@ describe('before_tool_call turn identity', () => {
             submit,
             {
               runId: 'interactive',
-              sessionKey: HB,
+              sessionKey,
             },
             'denied'
           )
@@ -1153,7 +1172,7 @@ describe('before_tool_call turn identity', () => {
         await expect(tool.execute('denied', submit)).rejects.toThrow(
           'approved heartbeat'
         );
-        const ctx = await heartbeat(harness);
+        const ctx = await heartbeat(harness, 'hb-1', 'heartbeat', sessionKey);
         await expect(tool.execute('no-approval', submit)).rejects.toThrow(
           'approved heartbeat'
         );
@@ -1178,7 +1197,12 @@ describe('before_tool_call turn identity', () => {
           rotated: false,
         });
 
-        const sealed = await heartbeat(harness, 'hb-sealed');
+        const sealed = await heartbeat(
+          harness,
+          'hb-sealed',
+          'heartbeat',
+          sessionKey
+        );
         await tlonGate(harness, 'activity mentions', sealed, 'owner-read');
         expect(isSealedHeartbeatRun(sealed.runId)).toBe(true);
         const confirmed = { ...submit, delivered: ['earlier item'] };
@@ -1191,7 +1215,12 @@ describe('before_tool_call turn identity', () => {
         );
         expect(onRecorded).toHaveBeenCalledTimes(2);
 
-        const invalid = await heartbeat(harness, 'hb-invalid');
+        const invalid = await heartbeat(
+          harness,
+          'hb-invalid',
+          'heartbeat',
+          sessionKey
+        );
         const selected = {
           outcome: 'selected',
           what: 'item',
@@ -1214,7 +1243,12 @@ describe('before_tool_call turn identity', () => {
         expect(onRecorded).toHaveBeenCalledTimes(2);
         expect(onError).not.toHaveBeenCalled();
 
-        const failing = await heartbeat(harness, 'hb-fails');
+        const failing = await heartbeat(
+          harness,
+          'hb-fails',
+          'heartbeat',
+          sessionKey
+        );
         rmSync(file);
         mkdirSync(file);
         await gate(harness, HEARTBEAT_LEDGER_TOOL, submit, failing, 'failing');
