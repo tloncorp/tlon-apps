@@ -173,6 +173,13 @@
   %+  expect-eq
     !>('Start with flights.\0a\0aThen the hotel.')
   !>(answer:(standing posts key))
+++  test-a-tap-before-the-reply-lands-does-not-cut-the-answer
+  =/  posts=(list post:wp)
+    :~  (card-post 1 key sample)
+        (tapped 2 key 'create')
+        (said 3 ~zod 'Start with flights.')
+    ==
+  (expect-eq !>('Start with flights.') !>(answer:(standing posts key)))
 ++  test-a-revised-card-keeps-the-edited-cards-answer
   =/  revised  'workspace-plan-ffffffffffff'
   =/  posts=(list post:wp)

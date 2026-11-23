@@ -446,6 +446,8 @@
       (answer posts our owner cards u.index tapped)
   ==
 ::  +answer: the bot's reply after a card, up to the owner's next message.
+::  A Create tap is not a message: the owner can tap it before the reply
+::  lands. An Edit tap starts the conversation about changing the card.
 ::  A card revised after Edit keeps the answer of the card it revises.
 ::
 ++  answer
@@ -464,7 +466,9 @@
   =/  until
     |-  ^-  (list post)
     ?~  after  ~
-    ?:  =(owner author.i.after)  ~
+    ?:  =(owner author.i.after)
+      ?.  ?=([~ * %&] (tap blob.i.after))  ~
+      $(after t.after)
     [i.after $(after t.after)]
   =/  said
     %+  murn  until
