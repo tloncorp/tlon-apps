@@ -530,8 +530,10 @@ messaging the sender.
 - New owner conversations inherit the tools in **Settings → Defaults**, not the
   entire catalog. Existing conversations keep their configured grants. Ownership
   still permits conversation admission and invitation acceptance without tools.
-  **Known bug:** these saved tools don't limit owner turns with administrative
-  authority, which get the live catalog. See [known bugs](../ISSUES.md#known-bugs).
+  An owner turn in the owner's own DM with the bot has administrative authority
+  and gets the live catalog whatever the saved tools say, except `run_js`, which
+  needs `code` saved on the conversation. In a channel, the saved tools limit the
+  owner too.
 - Trusted ships can chat with no tools; each grant is explicit.
   MCP entries grant individual registered server IDs, for example
   `{"mcp":"calendar"}` in the `tools` array. Registering another server never
