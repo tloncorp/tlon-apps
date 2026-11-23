@@ -48,6 +48,7 @@ vi.mock('@tloncorp/shared', async () => ({
   configurationFromChannel: () => ({}),
   isChatChannel: () => false,
   hasUnreadActivity: () => false,
+  readAttemptStamp: () => null,
   makePrettyDayAndTime: () => ({ asString: '' }),
   ALL_MENTION_ID: 'all',
   REF_REGEX: /NEVER_A_REFERENCE/,

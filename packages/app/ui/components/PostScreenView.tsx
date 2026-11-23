@@ -8,6 +8,7 @@ import {
   isChatChannel as getIsChatChannel,
   hasUnreadActivity,
   makePrettyDayAndTime,
+  readAttemptStamp,
   useDebouncedValue,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -64,6 +65,7 @@ import { ScrollAnchor } from './Channel/Scroller';
 import { DetailView } from './DetailView';
 import { FileDrop } from './FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
+import { useMarkReadInView } from './Channel/useMarkReadInView';
 import { useConversationInsets } from './conversationScrollChrome';
 import { DraftInputContext } from './draftInputs';
 import {
@@ -578,46 +580,40 @@ function ConnectedHeader({
 function useMarkThreadAsReadEffect(
   opts: {
     shouldMarkRead: boolean;
+    inView: boolean;
     channel: db.Channel;
     parent: db.Post;
     mostRecentlyReceivedReply: db.Post;
-    hasThreadUnreadActivity: boolean;
+    threadUnread: db.ThreadUnreadState | null | undefined;
   } | null
 ) {
-  const shouldMarkRead = opts?.shouldMarkRead ?? false;
-  const latestReplyId = opts?.mostRecentlyReceivedReply?.id ?? null;
-  const hasThreadUnreadActivity = opts?.hasThreadUnreadActivity ?? false;
-
-  // Ref captures the latest opts so the effect can read current values
-  // without depending on the unstable inline object identity.
+  // Ref captures the latest opts so the read sends the current reply without
+  // depending on the unstable inline object identity.
   const optsRef = useRef(opts);
-  optsRef.current = opts;
-
-  // Single effect with two trigger signals:
-  //   - hasThreadUnreadActivity: authoritative signal (SSE pushed unread/notify state).
-  //   - latestReplyId: secondary signal (thread sync delivered a new post,
-  //     allowing immediate mark-read if hasThreadUnreadActivity is already true).
-  //
-  // Guard: only acts when hasThreadUnreadActivity is true.
-  //   - false -> true: guard passes, marks read.
-  //   - true -> false (read state cleared): guard returns early, no poke sent.
-  // This directly mirrors Channel/index.tsx's unread-activity guard.
   useEffect(() => {
-    if (!shouldMarkRead || !hasThreadUnreadActivity) return;
+    optsRef.current = opts;
+  });
+  const markRead = useCallback(() => {
     const current = optsRef.current;
     if (current == null) return;
-    const { channel, parent, mostRecentlyReceivedReply } = current;
-    if (!channel || !parent || !mostRecentlyReceivedReply) return;
+    store.markThreadRead({
+      channel: current.channel,
+      parentPost: current.parent,
+      post: current.mostRecentlyReceivedReply,
+    });
+  }, []);
 
-    const timeoutId = setTimeout(() => {
-      store.markThreadRead({
-        channel,
-        parentPost: parent,
-        post: mostRecentlyReceivedReply,
-      });
-    }, 150);
-    return () => clearTimeout(timeoutId);
-  }, [shouldMarkRead, hasThreadUnreadActivity, latestReplyId]);
+  // Marks read when the thread's unread activity (pushed unread/notify state)
+  // is set, and again when sync delivers a newer reply. A failed read rolls the
+  // unread back unchanged and is not retried until there is new activity.
+  const latestReplyId = opts?.mostRecentlyReceivedReply.id ?? null;
+  const unreadStamp = readAttemptStamp(opts?.threadUnread, null);
+  useMarkReadInView({
+    canMarkRead: !!opts?.shouldMarkRead && hasUnreadActivity(opts.threadUnread),
+    inView: opts?.inView ?? false,
+    stamp: `${latestReplyId}:${unreadStamp}`,
+    markRead,
+  });
 }
 
 function SinglePostView({
@@ -712,7 +708,6 @@ function SinglePostView({
   const { data: liveThreadUnread } = store.useLiveThreadUnreadByParentId(
     parentPost.id
   );
-  const hasThreadUnreadActivity = hasUnreadActivity(liveThreadUnread);
 
   // A thread the cache can show is shown before it is fetched or marked
   // read; both write enough to the database to hold up its first layout. See
@@ -929,7 +924,8 @@ function SinglePostView({
             hasLoadedReplies &&
             isUserActive &&
             shownThreadId === parentPost.id,
-          hasThreadUnreadActivity,
+          inView: isFocusedPost,
+          threadUnread: liveThreadUnread,
         }
   );
 

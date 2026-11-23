@@ -84,6 +84,7 @@ import {
   findAgentOnboardingOrientationCompletePostId,
   isAgentOnboardingFirstGroupRequestPost,
 } from './postVisibility';
+import { useMarkReadInView } from './useMarkReadInView';
 
 const THREAD_UNREAD_OVERLAY_CHANNEL_TYPES: db.ChannelType[] = [
   'chat',
@@ -572,8 +573,6 @@ export function Channel({
     channel?.unread,
     readCoversThreads ? (threadUnreads ?? []) : null
   );
-  // stamp of the unread we last tried to mark read
-  const lastReadAttemptRef = useRef<string | null>(null);
   const shouldShowPostLoading =
     channel.type !== 'notes' && Boolean(isLoadingPosts);
 
@@ -636,32 +635,14 @@ export function Channel({
     };
   }, []);
 
-  useEffect(() => {
+  useMarkReadInView({
     // Only mark as read when user is actively using the app (not idle)
     // This prevents auto-marking on desktop when user is AFK
-    if (hasUnreadActivity && hasLoaded && inView && isUserActive) {
-      // a failed read rolls the unread back unchanged, which re-runs this
-      // effect; only try again once there is new activity
-      if (currentReadAttemptStamp === lastReadAttemptRef.current) {
-        return;
-      }
-      // add slight delay to allow high priority tasks to hit the sync queue first
-      const timeout = setTimeout(() => {
-        // recorded only once the read is sent, so a re-run that cancels this
-        // timer still gets to schedule its own
-        lastReadAttemptRef.current = currentReadAttemptStamp;
-        markRead();
-      }, 150);
-      return () => clearTimeout(timeout);
-    }
-  }, [
-    hasUnreadActivity,
-    hasLoaded,
+    canMarkRead: hasUnreadActivity && hasLoaded && inView && isUserActive,
     inView,
-    isUserActive,
+    stamp: currentReadAttemptStamp,
     markRead,
-    currentReadAttemptStamp,
-  ]);
+  });
 
   const handleRefPress = useCallback(
     (refChannel: db.Channel, post: db.Post) => {
