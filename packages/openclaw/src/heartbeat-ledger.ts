@@ -110,7 +110,9 @@ function formatSubmission(params: unknown, timestamp: string) {
   return { lines, counts };
 }
 
-async function readLedgerFile(file: string): Promise<string> {
+export async function readHeartbeatWorkspaceFile(
+  file: string
+): Promise<string | null> {
   const handle = await fs
     .open(
       file,
@@ -120,7 +122,7 @@ async function readLedgerFile(file: string): Promise<string> {
       if (error.code === 'ENOENT') return undefined;
       throw error;
     });
-  if (!handle) return '';
+  if (!handle) return null;
   try {
     const stat = await handle.stat();
     if (!stat.isFile() || stat.nlink !== 1) {
@@ -161,6 +163,23 @@ function records(text: string): string[] {
   const lines = text.split('\n');
   if (lines.at(-1) === '') lines.pop();
   return lines;
+}
+
+function ledgerRecords(text: string): string[] {
+  return records(text).filter(
+    (line) => line !== END_MARKER && line !== END_MARKER + '\r'
+  );
+}
+
+export async function readRecentHeartbeatLedger(
+  workspace: string
+): Promise<string | null> {
+  const text = await readHeartbeatWorkspaceFile(
+    path.join(workspace, LEDGER_NAME)
+  );
+  return text === null
+    ? null
+    : ledgerRecords(text).slice(-KEEP_RECORDS).join('\n');
 }
 
 function liveText(lines: readonly string[]): string {
@@ -215,7 +234,10 @@ async function planRotation(
   );
   const newest = [...names, ...plannedArchives.keys()].sort().at(-1);
   const readArchive = (name: string) =>
-    plannedArchives.get(name) ?? readLedgerFile(path.join(workspace, name));
+    plannedArchives.get(name) ??
+    readHeartbeatWorkspaceFile(path.join(workspace, name)).then(
+      (text) => text ?? ''
+    );
   const newestText = newest ? await readArchive(newest) : '';
   const copied = archivedPrefix(records(newestText), moving);
   const name = copied && newest ? newest : `PROACTIVE_LEDGER-${month}.md`;
@@ -257,8 +279,8 @@ export async function recordHeartbeatLedger(opts: {
         ? undefined
         : formatSubmission(opts.params, now.toISOString());
       const live = path.join(workspace, LEDGER_NAME);
-      const lines = records(await readLedgerFile(live)).filter(
-        (line) => line !== END_MARKER
+      const lines = ledgerRecords(
+        (await readHeartbeatWorkspaceFile(live)) ?? ''
       );
       const month = localMonth(now, opts.timezone);
       const archives = new Map<string, string>();

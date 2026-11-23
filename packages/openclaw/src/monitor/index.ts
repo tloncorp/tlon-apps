@@ -1,3 +1,5 @@
+import { setHeartbeatSetupReader } from '../heartbeat-evidence.js';
+
 import {
   createBrowserContinuationRunner,
   publishBrowserContinuationRunner,
@@ -1179,6 +1181,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     );
     let pendingApprovals: PendingApproval[] = [];
     let currentSettings: TlonSettingsStore = {};
+    let heartbeatSettingsReady = false;
+    setHeartbeatSetupReader(() =>
+      heartbeatSettingsReady && !settingsFeedDown
+        ? currentSettings.bootstrapComplete === true
+        : undefined
+    );
     let bootstrapCompleteFlight: Promise<void> | undefined;
     const markBootstrapComplete = () => {
       if (currentSettings.bootstrapComplete === true) return Promise.resolve();
@@ -1621,6 +1629,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     try {
       const loadResult = await settingsManager.load();
       currentSettings = loadResult.settings;
+      heartbeatSettingsReady = loadResult.fresh;
 
       // Only seed file config into %settings when the startup snapshot is fresh.
       // On a transient startup scry failure, `load()` preserves the last known
@@ -6589,6 +6598,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                         | undefined,
                     },
             });
+            heartbeatSettingsReady = refreshResult.fresh;
             const superseded =
               groupChannelJournal !== undefined &&
               (groupChannelJournal.observationSeq !== seqBefore ||
@@ -7324,6 +7334,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       setDebugTelemetryReporter(null);
       setHeartbeatRunReporter(null);
       setHeartbeatRunEndedReporter(null);
+      setHeartbeatSetupReader(null);
       setHeartbeatMessageSentReporter(null);
       setErrorTelemetryReporter(null);
       setCronTelemetryReporter(null);
