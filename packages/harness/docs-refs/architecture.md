@@ -197,6 +197,9 @@ are separate; device tokens renew on use on the ship. See
 [authentication](acp.md#provider-authentication).
 
 New conversations snapshot the durable agent defaults and may then diverge.
+Their system instructions are the default instructions' named layers,
+composed in a fixed order; see
+[Soul and shared skills](hosting-contract.md#soul-and-shared-skills).
 Each turn's system instructions begin with the operating ship's full @p (and
 parent planet, for a moon), read from the bowl at dispatch rather than stored in
 session configuration. Editing instructions or conversation content cannot

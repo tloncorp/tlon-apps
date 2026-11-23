@@ -1,6 +1,7 @@
 ::  Hosted authoring uses the owner's default instructions and shared skills.
 /-  h=harness
-/+  hosted=harness-hosted-auth, hj=harness-json, j=harness-workspace-json
+/+  hosted=harness-hosted-auth, hj=harness-json, j=harness-workspace-json,
+    policy=harness-defaults
 |%
 ++  soul-revision
   |=  body=@t
@@ -30,7 +31,7 @@
   ?.  =(expected `[%s (soul-revision system.config)])
     [config (error:hosted 409 'Soul changed. Read it and retry.')]
   =/  body  (string:j args 'body')
-  ?.  (lte (met 3 body) 65.536)
+  ?.  (lte (met 3 body) prompt-limit:policy)
     [config (error:hosted 400 'Soul must be at most 65536 bytes.')]
   [config(system body) (soul-view body)]
 ++  apply-skills

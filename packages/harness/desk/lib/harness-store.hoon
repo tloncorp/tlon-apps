@@ -126,9 +126,21 @@
   ^-  state-0
   =/  current  (mole |.(!<(state-0 saved)))
   ?^  current  (migrate-memory-prefixes u.current)
+  (migrate-memory-prefixes (migrate-prompts (envelope-before-prompts saved)))
+::  The single default instructions text becomes the AGENTS.md layer, as the
+::  load's configuration upgrade leaves it, so it composes to the same text.
+++  migrate-prompts
+  |=  old=state-p0
+  ^-  state-0
+  =/  system  system:(migrate-config defaults.old)
+  [%0 ?:(=('' system) ~ (my ~[[%'AGENTS.md' system]])) +.old]
+++  envelope-before-prompts
+  |=  saved=vase
+  ^-  state-p0
+  =/  current  (mole |.(!<(state-p0 saved)))
+  ?^  current  u.current
   =/  saved-memory  (mole |.(!<(state-before-maintenance saved)))
   ?^  saved-memory
-    %-  migrate-memory-prefixes
     [%0 [maintenance:*state:memory knowledge.u.saved-memory] +>.u.saved-memory]
   (migrate-memory (envelope-before-memory saved))
 ::  The capture scheduler adds bookkeeping without rewriting saved facts,
@@ -149,7 +161,7 @@
 ::  conversations receive distinct identities; forgotten notes stay absent.
 ++  migrate-memory
   |=  old=state-m0
-  ^-  state-0
+  ^-  state-p0
   =/  db=state:memory  *state:memory
   =.  db
     %+  roll  ~(tap by sessions.old)

@@ -89,6 +89,24 @@
       'without hiding decisions from its user.'
   ==
 ::
+::  The byte limit on one default-instructions layer, and on the hosted soul,
+::  which is the AGENTS.md layer.
+++  prompt-limit  65.536
+::  New conversations inherit the layers in this order.
+++  prompt-order
+  ^-  (list prompt-name:h)
+  :~  %'AGENTS.md'  %'SOUL.md'  %'IDENTITY.md'  %'USER.md'
+      %'TOOLS.md'  %'BOOTSTRAP.md'  %'MEMORY.md'
+  ==
+::  The inherited text adds nothing but a blank line between present layers,
+::  so a lone layer composes to itself byte for byte.
+++  compose-prompts
+  |=  layers=prompts:h
+  ^-  @t
+  %+  rap  3
+  %+  join  '\0a\0a'
+  (murn prompt-order |=(name=prompt-name:h (~(get by layers) name)))
+::
 ++  builtin-config
   ^-  config:h
   :*  |

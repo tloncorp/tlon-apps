@@ -24,7 +24,7 @@
   =/  migrated  (envelope:storage !>(old))
   =/  db  knowledge.migrated
   ;:  weld
-      (expect-eq !>(+.old) !>(+>.migrated))
+      (expect-eq !>(+.old) !>(+>+.migrated))
       (expect-eq !>(2) !>(~(wyt by records.db)))
       (expect-eq !>(1) !>((lent (choose:memory db 'provisioning' 'operator'))))
       (expect-eq !>(1) !>((lent (choose:memory db 'delivery' 'operator'))))
@@ -94,11 +94,11 @@
       usage  [123 45]
       status  'Capture in flight'
     ==
-  =/  old=state-before-maintenance:storage  [%0 +.db +>.current]
+  =/  old=state-before-maintenance:storage  [%0 +.db +>+.current]
   =/  restored  (envelope:storage !>(old))
   ;:  weld
       (expect-eq !>(db) !>(knowledge.restored))
-      (expect-eq !>(+>.current) !>(+>.restored))
+      (expect-eq !>(+>+.current) !>(+>+.restored))
       (expect-eq !>(restored) !>((envelope:storage !>(restored))))
   ==
 ++  test-reload-preserves-partial-capture-batches-and-their-log-boundaries

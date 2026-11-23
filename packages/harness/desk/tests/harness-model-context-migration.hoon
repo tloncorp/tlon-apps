@@ -19,7 +19,7 @@
   ::  The memory index marker is added by the load after the upgrade.
   =/  migrated  (migrate-memory-prefixes:storage (envelope:storage !>(old)))
   ;:  weld
-      (expect-eq !>(+.old) !>(+.+>.migrated))
+      (expect-eq !>(+.old) !>(+>+>.migrated))
       (expect-eq !>(~) !>(model-contexts.migrated))
       (expect-eq !>(migrated) !>((envelope:storage !>(migrated))))
   ==

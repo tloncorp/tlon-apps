@@ -22,6 +22,7 @@
 ++  populated
   ^-  state-0
   :*  %0
+      (my ~[[%'AGENTS.md' 'Agents layer.'] [%'SOUL.md' 'Soul layer.']])
       knowledge
       (my ~[['openrouter' [0v1.model (my ~[['fixture-model' 128.000]])]]])
       runners
@@ -148,13 +149,17 @@
 ::
 ::  Historical shapes, each a projection of the populated head state.
 ::
+++  project-p0
+  ^-  state-p0
+  =/  p  populated
+  [%0 +>.p]
 ++  project-before-maintenance
   ^-  state-before-maintenance:storage
-  =/  p  populated
+  =/  p  project-p0
   [%0 +.knowledge.p +>.p]
 ++  project-m0
   ^-  state-m0
-  =/  p  populated
+  =/  p  project-p0
   [%0 +>.p]
 ++  project-c0
   ^-  state-c0
@@ -202,16 +207,21 @@
   =.  summary-models.e
     [(bind compaction.summary-models.e upgrade-config) (bind lcm.summary-models.e upgrade-config)]
   e
+::  The single default instructions text becomes the AGENTS.md layer.
+++  expected-p0
+  ^-  state-0
+  =/  e  expected-current
+  e(prompts (my ~[[%'AGENTS.md' system.defaults.e]]))
 ::  The capture scheduler's bookkeeping starts empty.
 ++  expected-before-maintenance
   ^-  state-0
-  =/  e  expected-current
+  =/  e  expected-p0
   e(maintenance.knowledge maintenance:*state:memory)
 ::  Knowledge is built from the sessions: one cursor per session, and each
 ::  live note imported with the input that set it.
 ++  expected-m0
   ^-  state-0
-  =/  e  expected-current
+  =/  e  expected-p0
   =/  db=state:memory  *state:memory
   =.  cursors.db  (~(run by sessions.e) |=(s=session:h log.s))
   =/  imported
@@ -244,6 +254,38 @@
   ==
 ++  test-state-0-reload-keeps-every-field
   (expect-reload !>(populated) expected-current)
+++  test-state-p0-upgrade-keeps-every-field
+  (expect-reload !>(project-p0) expected-p0)
+::  Every bot inherits the same default instructions after any upgrade: they
+::  compose from the layers to the text it saved, as the load upgrades it.
+++  test-upgrade-keeps-the-composed-default-instructions
+  =/  saved=(list [vase config:h])
+    :~  [!>(project-p0) defaults:project-p0]
+        [!>(project-before-maintenance) defaults:project-p0]
+        [!>(project-m0) defaults:project-m0]
+        [!>(project-c0) defaults:project-c0]
+        [!>(project-r0) defaults:project-r0]
+        [!>(project-le) defaults:project-le]
+        [!>(project-legacy-system) defaults:project-legacy-system]
+    ==
+  %-  zing
+  %+  turn  saved
+  |=  [old=vase =config:h]
+  =/  loaded  (load:storage old)
+  ;:  weld
+      (expect-eq !>(system:(upgrade-config config)) !>((compose-prompts:policy prompts.loaded)))
+      (expect-eq !>(system.defaults.loaded) !>((compose-prompts:policy prompts.loaded)))
+  ==
+::  The built-in text saved before memory migration is upgraded before it
+::  becomes the layer, as it is in the defaults.
+++  project-legacy-system
+  ^-  state-p0
+  =/  p  project-p0
+  p(system.defaults legacy-memory-system)
+++  test-empty-default-instructions-upgrade-to-no-layers
+  =/  p  project-p0
+  =.  system.defaults.p  ''
+  (expect-eq !>(*prompts:h) !>(prompts:(load:storage !>(p))))
 ++  test-state-before-maintenance-upgrade-keeps-every-field
   (expect-reload !>(project-before-maintenance) expected-before-maintenance)
 ++  test-state-m0-upgrade-keeps-every-field

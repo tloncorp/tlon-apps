@@ -101,6 +101,9 @@ development use. A native client can then:
 - scry `/x/snapshot/<session-id>` for the recent transcript window and cursor;
 - scry `/x/head/<session-id>` for a typed noun containing revision, derived
   view, and next decision. Reading this does not execute that decision.
+- scry `/x/prompts`, poke `[%prompt-set name body]` and watch
+  `/prompt-events` for the layers of the default instructions, described in
+  [Soul and shared skills](hosting-contract.md#soul-and-shared-skills).
 
 HTTP projections of those scries are available at:
 

@@ -48,7 +48,35 @@ Eyre session cookie and a JSON object body. Both return the hosted envelope
 The hosted capabilities response advertises `soul: true` and `skills: true`.
 These are owner-authorized configuration operations, not public content APIs.
 
-`hosted-soul` exposes the default system instructions as a text body, not a
+The default system instructions are seven named layers, the files Tlon's System
+Prompts screen edits: `AGENTS.md`, `SOUL.md`, `TOOLS.md`, `IDENTITY.md`,
+`USER.md`, `BOOTSTRAP.md` and `MEMORY.md`. Each is a text; an empty layer is
+not stored. A new conversation inherits the non-empty layers joined in the
+order `AGENTS.md`, `SOUL.md`, `IDENTITY.md`, `USER.md`, `TOOLS.md`,
+`BOOTSTRAP.md`, `MEMORY.md`, with one blank line between layers and nothing
+else added, so a lone layer is inherited byte for byte. Upgrading a ship moves
+its earlier single text into `AGENTS.md`, leaving the other layers empty, so
+its new conversations inherit the same text as before. A layer change, like any
+change to the defaults, reaches new conversations only.
+
+`hosted-soul`, ACP `harness/defaults` and `harness/defaults/configure`
+(`system`) and the Settings editor all read and write the `AGENTS.md` layer.
+`harness/defaults/configure` keeps its earlier behavior of accepting a text of
+any size. The scry `/defaults.json`, which the Tlon hand creates its
+conversations from, returns the composed text in `system` instead.
+
+A same-ship agent reads all seven with the `%noun` scry `/x/prompts`, a
+`(map prompt-name:harness @t)` holding the non-empty layers. It sets one
+with the `%harness-action` poke `[%prompt-set name body]`; empty text clears
+the layer. A name outside the seven or a text over 65,536 bytes is refused
+with a nack, and a set that leaves the layer as it was changes nothing. To
+follow changes, it watches `/prompt-events` on `%harness`: the new subscriber
+alone first receives one `%noun` fact holding the whole layer map, and after
+any event that changes a layer, whichever surface wrote it, every subscriber
+receives one fact with the new map. Foreign ships cannot read, set or watch
+the layers.
+
+`hosted-soul` exposes the `AGENTS.md` layer as a text body, not a
 separate filesystem copy. Send `{}` to read `{body, revision}`; send
 `{body, revision}` to replace it using the revision just read. Empty text is
 allowed. The result includes the saved text and revision. This changes the
