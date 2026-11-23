@@ -254,9 +254,16 @@ puts the ship back on this build, clearing the agents first if the ship ran
 the base, and stops the run only if that fails. Then, and after identical
 desks, the agents are cleared, as for any other script; after a passing
 upgrade they keep the upgraded state. Either way this tree's script then seeds
-afresh and checks its own manifest. When saved state gains a value that an
-interface can set, seed it and add its key to the script's `newer` keys; it
-moves to `baseline` once a base seeds it.
+afresh and checks its own manifest. The seed enables the Tlon hand with `~lux`
+as its owner, has `~lux` send it a DM command, which calls no model, and adds a
+reminder from that conversation, so a head whose load asks the adapter
+something meets the base's adapter. If that adapter cannot answer, the head
+commit is refused. The check reads the reminder's saved state and forces no
+poll, so `active` after the upgrade does not show that the upgraded adapter
+still authorizes it. The seed's `tlon.dm.*` and `schedules.tlon.*` keys are
+`newer` keys and move to `baseline` once a base seeds them. When saved state
+gains a value that an interface can set, seed it and add its key to the
+script's `newer` keys; it moves to `baseline` once a base seeds it.
 
 ## Live conformance
 
