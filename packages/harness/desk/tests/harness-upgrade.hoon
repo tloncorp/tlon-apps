@@ -77,9 +77,19 @@
   ==
 ::  The Tlon hand's current saved shape, populated as above. The hand is
 ::  disabled, so its reload starts no subscriptions.
-++  populated-2
-  ^-  state-2:t
-  :*  %2
+++  populated-3
+  ^-  state-3:t
+  :*  %3
+      :*  (my ~[[0v7a active-schedule]])
+          (my ~[[0v7a [`'America/Chicago' `'Morning brief' `'Weekday summary']]])
+          %-  my
+          :~  :-  0v9e
+              :*  ~[[%cancel 0v7a]]
+                  [%created '0v7a']
+                  `[0v7a `'Asia/Kolkata' `'Standup' `'Daily standup']
+              ==
+          ==
+      ==
       :*  &  `~nec  ~2026.10.2
           %-  my
           :~  :-  0v5a
@@ -130,8 +140,8 @@
   ==
 ::  A disabled hand that has not chosen its owner yet.
 ++  unowned
-  ^-  state-2:t
-  =/  s  *state-2:t
+  ^-  state-3:t
+  =/  s  *state-3:t
   s(enabled.policy |)
 ::  A saved %acp connection with a message queued in each direction.
 +$  acp-state  [%0 connections=(map connection-id:v1:ac connection:v1:ac)]
@@ -239,7 +249,7 @@
 ++  test-populated-state-is-populated
   ;:  weld
       (expect-eq !>(~) !>((unexplained (defaults !>(populated) *state-0))))
-      (expect-eq !>(~) !>((unexplained (defaults !>(populated-2) *state-2:t))))
+      (expect-eq !>(~) !>((unexplained (defaults !>(populated-3) *state-3:t))))
       (expect-eq !>(~) !>((unexplained (defaults !>(acp-populated) *acp-state))))
   ==
 ++  test-state-0-reload-keeps-every-field

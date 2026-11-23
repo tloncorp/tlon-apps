@@ -129,11 +129,30 @@ Foreign ships cannot watch the path.
 The JavaScript `HandClient` wraps these as `schedule(binding, options)`,
 `schedules(binding)`, `cancelSchedule(id)`, and `clearSchedule(id)`.
 
+## Tlon Messenger's Scheduled Tasks
+
+The Tlon hand mirrors the owner's Tlon schedules into Steward for Messenger's
+Scheduled Tasks screen and applies the owner's edits there through the API
+above; [the Tlon hand](tlon.md#scheduled-tasks-in-tlon-messenger) describes
+the mapping and each refusal. An edit cannot do more than the API: pausing
+cancels, a cancelled job cannot be resumed, a job cannot move to another
+conversation, and there are no `every` schedules or test runs. A recurring job
+created there gets 100 runs, the most the scheduler allows.
+
+Messenger names the owner's timezone as an IANA zone, such as
+`America/Chicago`. `desk/lib/harness-zones.hoon` maps every zone and link in the
+tz database to the UTC offset it had on its generation date, 2026-11-23, and
+the job is created at that fixed offset. A zone that observes daylight saving
+therefore runs an hour off for part of the year, until the table is regenerated
+with `python3 scripts/generate-zones.py` from `packages/harness` and the task is
+created again. A zone the table does not know is refused.
+
 ## Verification
 
 `desk/tests/harness-cron.hoon` tests strict calendar parsing;
 `desk/tests/harness-schedule.hoon` tests shared validation, isolation, evidence
-gates and bounded advancement. The opt-in
+gates and bounded advancement; `desk/tests/harness-zones.hoon` pins the zone
+table and checks every offset parses. The opt-in
 `desk/tests-integration/harness-schedule.hoon` exercises full-agent reload,
 single-timer replacement, durable schedule ownership and scheduling within a
 hand's ceiling. Run

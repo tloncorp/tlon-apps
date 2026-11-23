@@ -58,8 +58,17 @@
       answer=response-body:v1:sa
       names=(unit [id=@uv =task-names])
   ==
-+$  state-2
-  $:  %2
+::  The head's last schedule snapshot, so the Steward projection is rebuilt
+::  without reading the head, Steward-given names by schedule, and edits in
+::  flight by Steward request id.
++$  automation
+  $:  schedules=(map @uv schedule:cr)
+      names=(map @uv task-names)
+      edits=(map @uv task-edit)
+  ==
++$  state-3
+  $:  %3
+      automation=automation
       lens=lens-sync
       owner-initialized=@ud
       sibling-moon-owners=$~(| ?)

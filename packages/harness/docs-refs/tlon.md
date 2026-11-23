@@ -827,6 +827,71 @@ include `tlon`. An owner DM has it; other conversations take their grants from
 **Settings → Defaults** when they are created. Open **Settings → Schedules** to
 inspect jobs.
 
+### Scheduled Tasks in Tlon Messenger
+
+Messenger's **Scheduled Tasks** screen lists and edits a bot's tasks through
+Steward's automation module, and the hand plays the harness that module
+expects. It does so while it has an explicit owner and Steward runs on the
+ship; otherwise it neither projects nor takes edits.
+
+The hand watches the head's `/schedule-events` and pokes Steward
+`%steward-automation-action-1` `%project` with the complete task set: when a
+change alters the tasks, when its schedule watch is acknowledged, and when
+Steward holds no gateway lease for it, as a Steward that starts after the hand
+does not. A run advancing a job's bookkeeping changes no task and sends
+nothing. The tasks are the owner's own schedules on the Tlon hand; other hands'
+schedules, other actors' and tool grants never reach Steward. Each maps as:
+
+| Task field | From |
+| --- | --- |
+| id | the schedule's `@uv` id as text |
+| `name`, `description` | the ones a Steward edit gave it; otherwise the prompt's first line, up to 64 characters, and none |
+| `enabled` | true for an active job; false for a paused, cancelled or completed one, which stays listed so the owner can delete it |
+| `schedule` | `cron` with the expression and the IANA zone it was created with, or else the job's `UTC` or offset; `at` with the instant for a one-time job |
+| `payload` | `agentTurn` with the prompt; a literal reminder is a `systemEvent`, OpenClaw's kind for text that runs no agent turn |
+| `delivery` | `announce` on `tlon` to the job's conversation: `~ship` for a DM, `kind/~host/name` for a channel |
+
+Agent, session, wake mode and timestamps are left absent.
+
+The hand also watches Steward's `/v1/automation/harness` and applies each
+dispatched edit through the head's cron API, one `%harness-cron` request at a
+time, then answers with `%finalize`. Steward replays unanswered commands to a
+new subscriber; one already applying is not started again, and a create
+reaches the head under its request id, so a replayed create returns the job it
+already made.
+
+- `create` needs a schedule and a prompt. A `cron` schedule's `tz` is `UTC`
+  when absent, or an IANA name looked up in the
+  [zone table](scheduling.md#tlon-messengers-scheduled-tasks), and the hand
+  keeps the name to show it back. The job gets the scheduler's
+  100 runs. It delivers to the owner's DM when its delivery names that DM, has
+  `mode` `none` or is absent, and to a channel only where the owner has
+  already talked to the bot. It answers `created` with the new job's id.
+- `update` patches: `enabled` false cancels the job; a new schedule or prompt
+  edits it in place, keeping its remaining runs; a name or description only
+  updates what the hand shows. It answers `updated`.
+- `delete` removes the job. It answers `deleted`.
+
+These answer `invalid` with a message: an unknown zone, an `every` schedule, a
+create without a schedule or prompt, a payload kind other than the job's, a
+tool allow-list, webhook delivery, a failure destination, a target that is not
+the owner's DM or a channel the owner has used with the bot, moving a task to
+another conversation, re-enabling a disabled task, and `test`, since the head
+cannot run a job once without delivering it. An id that is not one of the
+owner's Tlon schedules answers `not-found`. A head refusal, such as editing a
+job whose run is still in flight, answers `harness-error` with the head's
+message.
+
+Steward admits an edit only from its configured owner, and the hand sets that
+owner whenever its own changes, so new edits come from the current owner. A
+command Steward admitted before an owner change is still replayed, since the
+automation dispatch names no requester; it can only reach schedules the new
+owner holds and conversations the new owner has with the bot.
+
+Known limits: pausing cancels, and a cancelled job cannot be resumed; recurring
+jobs created here run at most 100 times; `every` schedules and test runs are
+not supported; a zone's offset is fixed when the task is created.
+
 ## Testing
 
 `tests-js/tlon-membership-conformance.mjs` uses two disposable ships to check
@@ -835,6 +900,11 @@ restricted channels and disabled-hand behavior. Supply `SHIP_URL`, `SHIP_COOKIE`
 `PEER_URL` and `PEER_COOKIE`. It makes no model calls, restores Tlon policy and
 removes its fixture group. Pure membership tests live in
 `desk/tests/harness-tlon-membership.hoon`.
+
+`desk/tests/harness-tlon-automation.hoon` tests the Steward task mapping and
+each edit's head actions or refusal;
+`desk/tests-integration/harness-tlon-automation.hoon` runs the projection and
+edit loop through the hand, with Steward and the head answered by the fixture.
 
 `tests-js/tlon-actions-conformance.mjs` exercises the broad
 tool with automatic replies disabled; `tests-js/tlon-denial-conformance.mjs`

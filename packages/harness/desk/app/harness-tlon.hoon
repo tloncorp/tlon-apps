@@ -7,7 +7,7 @@
 /-  notes
 /-  hooks
 /-  hosted=harness-hosted
-/-  steward, steward-gateway, steward-lens
+/-  steward, steward-gateway, steward-lens, sa=steward-automation
 /+  default-agent, dbug, p=harness-tlon-policy,
     continuity=harness-tlon-continuity, io=harness-tlon-io,
     publication=harness-tlon-publication, profile=harness-tlon-profile,
@@ -29,12 +29,13 @@
 /+  story=harness-tlon-story, input=harness-tlon-input
 /+  observe=harness-observe
 /+  lens-codec=harness-tlon-lens
+/+  automation-lib=harness-tlon-automation
 |%
 +$  card  card:agent:gall
 +$  storage-source  $%([%credentials creds=credentials:s3] [%hosted token=@t config=json])
 --
 %-  agent:dbug
-=|  state-2:t
+=|  state-3:t
 =*  state  -
 ^-  agent:gall
 =<
@@ -121,6 +122,18 @@
     ?:  =(/steward/lease wire)
       ?^  error=?:(?=(%poke-ack -.sign) p.sign ~)
         %-  (slog 'harness-tlon: steward lease refused' u.error)
+        `this
+      `this
+    ::  A refused projection waits for the next schedule change or Steward
+    ::  restart; a refused answer leaves the command for Steward's sweep.
+    ?:  =(/steward/project wire)
+      ?^  error=?:(?=(%poke-ack -.sign) p.sign ~)
+        %-  (slog 'harness-tlon: steward projection refused' u.error)
+        `this
+      `this
+    ?:  =(/steward/finalize wire)
+      ?^  error=?:(?=(%poke-ack -.sign) p.sign ~)
+        %-  (slog 'harness-tlon: steward edit answer refused' u.error)
         `this
       `this
     ?:  =(/steward/configure wire)
@@ -244,10 +257,211 @@
   ::  The owner goes with the lease, so a Steward that starts after this hand
   ::  still learns it.
   =.  cor  configure-steward
+  ::  A lease of now is none held: Steward is new to this hand, so it also
+  ::  gets the schedules and the hand starts taking its edits.
+  =?  cor  =(u.lease now.bowl)  project:watch-automation
   %-  emit
   :*  %pass  /steward/lease  %agent  [our.bowl %steward]  %poke
       %steward-gateway-action-1
       !>(`action:v1:steward-gateway`[%gateway-start 'harness-tlon' (add now.bowl ~m15)])
+  ==
+::
+::  The hand plays the harness of Steward's automation module: it mirrors the
+::  owner's Tlon schedules into Steward for Messenger and applies the owner's
+::  edits to them through the head's cron API. Both need an owner and a
+::  running Steward.
+::
+++  watch-automation
+  ^+  cor
+  ?:  =(~ owner.policy)  cor
+  ?.  steward-running  cor
+  =.  cor  (watch-once /steward/schedules %harness /schedule-events)
+  (watch-once /steward/dispatch %steward /v1/automation/harness)
+::
+::  Booting and a new Steward can both ask in one event; Gall refuses a
+::  second watch on one wire.
+::
+++  watch-once
+  |=  [=wire app=term =path]
+  ^+  cor
+  ?:  (~(has by wex.bowl) wire our.bowl app)  cor
+  ?:  %+  lien  cards
+      |=(=card &(?=([%pass * %agent * %watch *] card) =(wire p.card)))
+    cor
+  (emit [%pass wire %agent [our.bowl app] %watch path])
+::
+++  leave-automation
+  ^+  cor
+  =?  cor  (~(has by wex.bowl) /steward/schedules our.bowl %harness)
+    (emit [%pass /steward/schedules %agent [our.bowl %harness] %leave ~])
+  ?.  (~(has by wex.bowl) /steward/dispatch our.bowl %steward)  cor
+  (emit [%pass /steward/dispatch %agent [our.bowl %steward] %leave ~])
+::
+++  projection
+  ^-  (list identified-task:v1:sa)
+  ?~  owner.policy  ~
+  (project:automation-lib schedules.automation names.automation u.owner.policy)
+::
+::  Steward replaces the whole task set with each projection, and ignores
+::  one equal to what it holds.
+::
+++  project
+  ^+  cor
+  ?:  =(~ owner.policy)  cor
+  ?.  steward-running  cor
+  %-  emit
+  :*  %pass  /steward/project  %agent  [our.bowl %steward]  %poke
+      %steward-automation-action-1
+      !>(`action:v1:sa`[%project projection])
+  ==
+::
+++  reproject
+  |=  before=(list identified-task:v1:sa)
+  ^+  cor
+  ?:  =(before projection)  cor
+  project
+::
+++  agent-steward-schedules
+  |=  [=wire =sign:agent:gall]
+  ^+  cor
+  ?+  -.sign  cor
+    %kick  watch-automation
+  ::
+  ::  Projecting on every new watch fills a Steward that has no entry for
+  ::  this bot yet, even with no schedules; the snapshot behind the ack
+  ::  projects again only if it differs.
+  ::
+      %watch-ack
+    ?~  p.sign  project
+    %-  (slog 'harness-tlon: head schedule feed refused' u.p.sign)
+    cor
+  ::
+      %fact
+    ?.  =(%noun p.cage.sign)  cor
+    =/  before  projection
+    =.  schedules.automation  !<((map @uv schedule:cr) q.cage.sign)
+    =.  names.automation
+      %-  my
+      %+  skim  ~(tap by names.automation)
+      |=([id=@uv *] (~(has by schedules.automation) id))
+    (reproject before)
+  ==
+::
+++  agent-steward-dispatch
+  |=  [=wire =sign:agent:gall]
+  ^+  cor
+  ?+  -.sign  cor
+    %kick  watch-automation
+  ::
+      %watch-ack
+    ?~  p.sign  cor
+    %-  (slog 'harness-tlon: steward edit feed refused' u.p.sign)
+    cor
+  ::
+      %fact
+    ?.  =(%steward-automation-dispatch-1 p.cage.sign)  cor
+    (take-dispatch !<(dispatch:v1:sa q.cage.sign))
+  ==
+::
+::  Steward replays every unanswered command to a new subscriber, so one
+::  already applying is not started twice. Steward admits a command only
+::  from its owner, which this hand keeps equal to its own.
+::
+++  take-dispatch
+  |=  =dispatch:v1:sa
+  ^+  cor
+  ?:  (~(has by edits.automation) id.dispatch)  cor
+  =/  owner  owner.policy
+  ?~  owner  cor
+  =/  planned
+    %:  plan:automation-lib
+      edit.dispatch
+      id.dispatch
+      u.owner
+      schedules.automation
+      names.automation
+      owner-binding
+    ==
+  ?:  ?=(%| -.planned)
+    (finalize id.dispatch [%error type.p.planned ~[leaf+(trip message.p.planned)]])
+  (apply-edit id.dispatch p.planned)
+::
+::  The head binding of the owner's conversation at a destination: one the
+::  owner has already had with the bot, whose authorization is set up.
+::
+++  owner-binding
+  |=  to=destination:t
+  ^-  (unit @t)
+  =/  owner  owner.policy
+  ?~  owner  ~
+  =/  sid  (~(get by identities) [u.owner to])
+  ?~  sid  ~
+  =/  route  (~(get by routes) u.sid)
+  ?.  &(?=(^ route) =(%ready phase.u.route))  ~
+  `binding.u.route
+::
+::  Send the edit's next head action, or, with none left, keep its names
+::  and answer. Each action is its own head request, answered on its path.
+::
+++  apply-edit
+  |=  [id=@uv edit=task-edit:t]
+  ^+  cor
+  =/  wire  /steward/edit/(scot %uv id)
+  =?  cor  (~(has by wex.bowl) wire our.bowl %harness)
+    (emit [%pass wire %agent [our.bowl %harness] %leave ~])
+  ?~  steps.edit
+    =/  before  projection
+    =?  names.automation  ?=(^ names.edit)
+      (~(put by names.automation) id.u.names.edit task-names.u.names.edit)
+    =.  edits.automation  (~(del by edits.automation) id)
+    =.  cor  (finalize id answer.edit)
+    (reproject before)
+  =.  edits.automation  (~(put by edits.automation) id edit(steps t.steps.edit))
+  =/  request=@t  (rap 3 'steward-' (scot %uv id) '-' (scot %ud (lent steps.edit)) ~)
+  =.  cor  (emit [%pass wire %agent [our.bowl %harness] %watch /crons/[request]])
+  %-  emit
+  :*  %pass  wire  %agent  [our.bowl %harness]  %poke  %harness-cron
+      !>(`request:cr`[request i.steps.edit])
+  ==
+::
+++  agent-steward-edit
+  |=  [=wire =sign:agent:gall]
+  ^+  cor
+  ?>  ?=([%steward %edit @ ~] wire)
+  =/  id  (slav %uv i.t.t.wire)
+  =/  edit  (~(get by edits.automation) id)
+  ?~  edit  cor
+  ?+  -.sign  cor
+      %poke-ack
+    ?~  p.sign  cor
+    (fail-edit id 'the head refused the change')
+  ::
+      %watch-ack
+    ?~  p.sign  cor
+    (fail-edit id 'the head refused to report the change')
+  ::
+      %fact
+    =/  result  !<((each json @t) q.cage.sign)
+    ?:  ?=(%| -.result)  (fail-edit id p.result)
+    (apply-edit id u.edit)
+  ==
+::
+++  fail-edit
+  |=  [id=@uv message=@t]
+  ^+  cor
+  =.  edits.automation  (~(del by edits.automation) id)
+  =/  wire  /steward/edit/(scot %uv id)
+  =?  cor  (~(has by wex.bowl) wire our.bowl %harness)
+    (emit [%pass wire %agent [our.bowl %harness] %leave ~])
+  (finalize id [%error %harness-error ~[leaf+(trip message)]])
+::
+++  finalize
+  |=  [id=@uv body=response-body:v1:sa]
+  ^+  cor
+  %-  emit
+  :*  %pass  /steward/finalize  %agent  [our.bowl %steward]  %poke
+      %steward-automation-action-1
+      !>(`action:v1:sa`[%finalize id body])
   ==
 ::
 ++  refresh-peers
@@ -262,6 +476,7 @@
   ?.  enabled.policy  cor
   =.  cor  accept-granted-invitations
   =.  cor  boot-lens
+  =.  cor  watch-automation
   =.  cor  watch-head
   ::  Gall owns the subscription. An acknowledged watch survives even when
   ::  processing its acknowledgement crashes before saving our local flag.
@@ -1286,6 +1501,7 @@
   =.  error  ''
   ?:  &(=(updated-policy policy) =(siblings sibling-moon-owners))  cor
   =/  before  policy
+  =/  mirrored  projection
   ::  Changing owners never retargets retained private run contents.
   =?  lens  !=(owner.updated-policy owner.policy)  *lens-sync:t
   =/  sibling-change  !=(siblings sibling-moon-owners)
@@ -1341,6 +1557,10 @@
           !&(!enabled.before enabled.updated-policy)
       ==
     configure-steward
+  ::  Steward's tasks are the owner's own, so a new owner gets a new set.
+  =?  cor  !=(owner.before owner.updated-policy)
+    ?~  owner.updated-policy  leave-automation
+    (reproject:watch-automation mirrored)
   ?:  =(enabled.before enabled.updated-policy)  schedule:accept-granted-invitations
   ?:  enabled.updated-policy  boot
   =?  cor  (~(has by wex.bowl) /activity our.bowl %activity)
@@ -1351,6 +1571,9 @@
   |=  [wire=wire sign=sign:agent:gall]
   ^+  cor
   ?+  wire  cor
+    [%steward %schedules ~]  (agent-steward-schedules wire sign)
+    [%steward %dispatch ~]  (agent-steward-dispatch wire sign)
+    [%steward %edit @ ~]  (agent-steward-edit wire sign)
     [%lens %events ~]  (agent-lens-events wire sign)
     [%lens %send @ @ @ ~]  (agent-lens-send wire sign)
     [%channel-join @ @ @ ~]  (agent-channel-join wire sign)

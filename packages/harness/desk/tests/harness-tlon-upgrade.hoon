@@ -6,14 +6,18 @@
 |%
 ::  Historical shapes, each a projection of the populated hand state.
 ::
+++  project-2
+  ^-  state-2:migrate
+  =/  p  populated-3:up
+  [%2 +>.p]
 ++  project-1
   ^-  state-1:migrate
-  =/  p  populated-2:up
+  =/  p  project-2
   [%1 +>.p]
 ::  The first shape kept one mention flag in place of a response mode.
 ++  project-0
   ^-  state-0:migrate
-  =/  p  populated-2:up
+  =/  p  project-2
   :*  %0
       owner-initialized.p  sibling-moon-owners.p  sibling-owner-after.p  activity-through.p
       catching-up.p  identities.p  routes.p  cuts.p  channel-after.p  uploads.p  last-sent.p
@@ -30,22 +34,27 @@
 ::
 ::  Expected values, one per path: the input with the path's transformations.
 ::
+++  expected-3
+  ^-  state-3:t
+  populated-3:up
+::  Steward names, edits and the schedule snapshot start empty.
 ++  expected-2
-  ^-  state-2:t
-  populated-2:up
+  ^-  state-3:t
+  =/  e  expected-3
+  e(automation *automation:t)
 ::  Lens sync starts unconfigured.
 ++  expected-1
-  ^-  state-2:t
+  ^-  state-3:t
   =/  e  expected-2
   e(lens *lens-sync:t)
 ::  Channel cuts and the allowed and channel policies start empty. The
 ::  fixture's %all response survives conversion through mentions=|.
 ++  expected-0
-  ^-  state-2:t
+  ^-  state-3:t
   =/  e  expected-1
   e(channel-cuts ~, allowed.policy ~, channels.policy ~)
 ++  expected-0-mentions
-  ^-  state-2:t
+  ^-  state-3:t
   =/  e  expected-0
   e(response.policy %mentions)
 ::
@@ -55,11 +64,13 @@
   (expect-reload !>(project-0-mentions) expected-0-mentions)
 ++  test-tlon-state-1-upgrade-keeps-every-field
   (expect-reload !>(project-1) expected-1)
-++  test-tlon-state-2-reload-keeps-every-field
-  (expect-reload !>(populated-2:up) expected-2)
+++  test-tlon-state-2-upgrade-keeps-every-field
+  (expect-reload !>(project-2) expected-2)
+++  test-tlon-state-3-reload-keeps-every-field
+  (expect-reload !>(populated-3:up) expected-3)
 ::
 ++  expect-reload
-  |=  [saved=vase expected=state-2:t]
+  |=  [saved=vase expected=state-3:t]
   ^-  tang
   =/  once  (load:migrate saved)
   %+  weld  (expect-same:up !>(expected) !>(once))

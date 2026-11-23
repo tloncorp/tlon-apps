@@ -9,19 +9,19 @@
 ::
 ++  load
   |=  saved=vase
-  =/  m  (mare ,[(list card) state-2:t])
+  =/  m  (mare ,[(list card) state-3:t])
   ^-  form:m
   ;<  ~                bind:m  (jab-bowl |=(b=bowl b(now ~2026.9.6)))
   ;<  ~                bind:m  (set-scry-gate |=(path `!>(|)))
   ;<  caz=(list card)  bind:m  (do-load adapter `saved)
   ;<  =vase            bind:m  get-save
-  (pure:m caz !<(state-2:t vase))
+  (pure:m caz !<(state-3:t vase))
 ::
 ++  reload
   |=  phase=?(%fetch %put %grant %hosted-put)
-  =/  m  (mare ,state-2:t)
+  =/  m  (mare ,state-3:t)
   ^-  form:m
-  =/  state=state-2:t  *state-2:t
+  =/  state=state-3:t  *state-3:t
   =.  uploads.state
     %-  my
     :~  :*  0v1
@@ -32,7 +32,7 @@
   =.  tool-receipts.state
     %-  my
     ~[[0v1 `tool-receipt:t`[['s' 1 ['call' 'tlon_upload_image' '{}']] %sending '' ~2026.9.6]]]
-  ;<  [caz=(list card) loaded=state-2:t]  bind:m  (load !>(state))
+  ;<  [caz=(list card) loaded=state-3:t]  bind:m  (load !>(state))
   ::  Reload may cancel the old duct and publish a result, never request HTTP.
   ;<  ~  bind:m
     (ex-equal !>((lien caz |=(c=card ?=([%pass * %arvo %i %request *] c)))) !>(|))
@@ -42,7 +42,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  state=state-2:t  bind:m  (reload %fetch)
+  ;<  state=state-3:t  bind:m  (reload %fetch)
   =/  receipt  (~(got by tool-receipts.state) 0v1)
   %+  ex-equal
     !>  ?&  =(~ uploads.state)  =(%done stage.receipt)
@@ -53,7 +53,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  state=state-2:t  bind:m  (reload %grant)
+  ;<  state=state-3:t  bind:m  (reload %grant)
   =/  receipt  (~(got by tool-receipts.state) 0v1)
   %+  ex-equal
     !>  ?&  =(~ uploads.state)  =(%uncertain stage.receipt)
@@ -64,7 +64,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  state=state-2:t  bind:m  (reload %hosted-put)
+  ;<  state=state-3:t  bind:m  (reload %hosted-put)
   %+  ex-equal
     !>(&(=(~ uploads.state) =(%uncertain stage:(~(got by tool-receipts.state) 0v1))))
   !>(&)
@@ -74,10 +74,10 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  =/  e  populated-2:up
+  =/  e  populated-3:up
   =/  retire
-    |=  [s=state-2:t id=@uv stage=?(%done %uncertain) body=@t]
-    ^-  state-2:t
+    |=  [s=state-3:t id=@uv stage=?(%done %uncertain) body=@t]
+    ^-  state-3:t
     =/  receipt  (~(got by tool-receipts.s) id)
     s(tool-receipts (~(put by tool-receipts.s) id receipt(stage stage, body body)))
   =.  e
@@ -98,7 +98,7 @@
     ==
   =.  uploads.e  ~
   =.  wake.e  `(add at:(~(got by tool-receipts.e) 0v8e) ~m1)
-  ;<  [* loaded=state-2:t]  bind:m  (load !>(populated-2:up))
+  ;<  [* loaded=state-3:t]  bind:m  (load !>(populated-3:up))
   (ex-same:up !>(loaded) !>(e))
 ::  A moon with no explicit owner takes its parent as owner on the first load
 ::  only, and cuts off the owner's history before then. An owner cleared
