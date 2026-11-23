@@ -81,7 +81,8 @@
       next  at.time
       remaining  1
     ==
-  ::  Model work either runs once at an exact time or follows a UTC pattern.
+  ::  Model work either runs once at an exact time or follows a pattern at
+  ::  UTC or a fixed offset.
   ?>  ?=(%o -.args)
   ?:  (~(has by p.args) 'at')
     =/  fields=[at=@t prompt=@t]
@@ -106,19 +107,27 @@
         prompt+so:dejs:format
         runs+so:dejs:format
     ==
-  ?>  =('UTC' timezone.fields)
+  =/  offset  (zone timezone.fields)
   ?>  &((gth (met 3 prompt.fields) 0) (lte (met 3 prompt.fields) 4.096))
   =/  runs  (number:calendar runs.fields)
   ?>  &((gth runs 0) (lte runs 100))
   =/  pattern  (parse:calendar schedule.fields)
   %*  .  job
-    timezone  'UTC'
+    timezone  timezone.fields
     expression  schedule.fields
     pattern  pattern
     prompt  prompt.fields
-    next  (need (next:calendar pattern now))
+    next  (need (next-at-offset:calendar pattern offset now))
     remaining  runs
   ==
+::
+++  zone
+  |=  timezone=@t
+  ^-  [east=? delta=@dr]
+  ::  Recurring work keeps one fixed offset forever: UTC, or +HH:MM/-HH:MM
+  ::  as RFC3339 writes it. IANA names would imply daylight-saving rules.
+  ?:  =('UTC' timezone)  [& ~s0]
+  (offset:reminder timezone)
 ::
 ++  busy
   |=  [job=job:c db=state:hh]
@@ -215,7 +224,7 @@
       last  `input
     ==
   ?:  =(0 remaining.job)  job(state %complete)
-  =/  next  (next:calendar pattern.job now)
+  =/  next  (next-at-offset:calendar pattern.job (zone timezone.job) now)
   ?~  next  job(state %complete)
   job(next (need next))
 ::

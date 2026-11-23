@@ -531,9 +531,9 @@
   ^-  (list json)
   :~  %^  fun-json
         'cron_add'
-        'Schedule a bounded recurring prompt through this conversation hand, delivered only to this exact destination. The shared Harness scheduler runs an isolated conversation with the current permission ceiling. UTC only; never guess a local timezone. Each run uses the durable input/publication ledger.'
-      :~  ['schedule' 'Five-field cron expression in UTC']
-          ['timezone' 'Must be UTC']
+        'Schedule a bounded recurring prompt through this conversation hand, delivered only to this exact destination. The shared Harness scheduler runs an isolated conversation with the current permission ceiling. The timezone is UTC or a fixed offset the user gave; a fixed offset does not follow daylight saving, and IANA zone names are rejected. Never guess a local timezone. Each run uses the durable input/publication ledger.'
+      :~  ['schedule' 'Five-field cron expression, evaluated in timezone']
+          ['timezone' 'UTC, or a fixed offset +HH:MM or -HH:MM such as -06:00 or +05:30; never an IANA name, and no daylight saving']
           ['prompt' 'Instruction for each run, at most 4096 bytes']
           ['runs' 'Maximum number of runs, decimal integer from 1 to 100']
       ==
@@ -579,7 +579,7 @@
       ~[['id' 'Schedule ID returned by cron_add or cron_list']]
       %-  fun
       :*  'cron_update'
-          'Edit an authorized schedule after its work settles. Read cron_list first. args replaces future timing and content: recurring {schedule,timezone:"UTC",prompt,runs} (runs is a string, 1..100); one-shot {at,prompt}; reminder {at,destination,text}. at requires an explicit timezone offset. Keeps the destination, model configuration, tool grants and history; does not retry a failed run.'
+          'Edit an authorized schedule after its work settles. Read cron_list first. args replaces future timing and content: recurring {schedule,timezone,prompt,runs} (timezone is UTC or a fixed +HH:MM/-HH:MM offset) (runs is a string, 1..100); one-shot {at,prompt}; reminder {at,destination,text}. at requires an explicit timezone offset. Keeps the destination, model configuration, tool grants and history; does not retry a failed run.'
           :~  ['id' (argument 'string' 'Schedule ID')]
               ['revision' (argument 'string' 'Exact revision from cron_list')]
               :*  'args'
