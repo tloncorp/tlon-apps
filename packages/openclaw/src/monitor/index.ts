@@ -1189,9 +1189,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         ? currentSettings.bootstrapComplete === true
         : undefined
     );
+    // The shadow is set as each owner message is seen; the settings mirror
+    // only catches up after a round trip to the ship.
     setHeartbeatOwnerMessageReader(() =>
       heartbeatSettingsReady && !settingsFeedDown
-        ? (currentSettings.lastOwnerMessageAt ?? 0)
+        ? (getLastOwnerActivity(account.accountId)?.at ?? 0)
         : undefined
     );
     let bootstrapCompleteFlight: Promise<void> | undefined;

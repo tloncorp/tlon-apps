@@ -1754,14 +1754,18 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
     if (ctx.trigger !== 'heartbeat' || !ctx.runId || !ctx.workspaceDir) return;
     const { runId, workspaceDir } = ctx;
     const key = ctx.agentId ?? workspaceDir;
+    // Taken before the reads below, which can take seconds: an owner message
+    // that arrives during them is after this tick's snapshot.
+    const checkedAt = Date.now();
     const runs = (
       blockedBy: HeartbeatSkipBlock,
-      tick: Partial<HeartbeatTick> = {}
+      activity?: HeartbeatTick['activity']
     ) =>
       noteHeartbeatTick(runId, {
         blockedBy,
+        checkedAt,
         skippedTicksBefore: getHeartbeatLastRun(key)?.skippedTicks ?? 0,
-        ...tick,
+        activity,
       });
     try {
       const cfg = api.runtime.config.current() as OpenClawConfig;
@@ -1783,20 +1787,16 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
         }).catch(() => undefined),
         activity,
       ]);
-      const activityKey = read?.changeKey;
       const lastRun = getHeartbeatLastRun(key);
       const decision = decideHeartbeatSkip({
         lastRun,
         now: Date.now(),
         ownerMessageAt: readHeartbeatOwnerMessageAt(),
         filesKey,
-        activityKey,
+        activityKey: read?.changeKey,
       });
       if (!decision.skip || !lastRun) {
-        return runs(decision.skip ? 'error' : decision.blockedBy, {
-          activity,
-          activityKey,
-        });
+        return runs(decision.skip ? 'error' : decision.blockedBy, activity);
       }
       lastRun.skippedTicks++;
       api.logger.info(
@@ -1906,7 +1906,8 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       // An attempt can be retried after the owner grant has been revoked.
       const owner = activity?.owner;
       const live = eligibleOwner();
-      if (owner && live && owner.ship === live.ownerShip) {
+      const handsOwner = owner && live && owner.ship === live.ownerShip;
+      if (handsOwner) {
         // With ownerDefault off the model already reads this data unsealed
         // through the owner config, so the packet adds no seal there.
         if (live.ownerDefault) sealHeartbeatRun(ctx.runId);
@@ -1915,6 +1916,11 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
         sections.push(UNAVAILABLE_OWNER_ACTIVITY);
       }
       sections.push(activity?.bot ?? UNAVAILABLE_BOT_ACTIVITY);
+      // A later tick may be skipped only against activity the model was
+      // given. Owner lists that were read but withheld do not count, and a
+      // retry that withholds them clears an earlier attempt's key.
+      heartbeat.handedActivityKey =
+        handsOwner || !owner ? activity?.changeKey : undefined;
     }
     const packet = renderHeartbeatEvidence(sections);
     heartbeat.packetBytes = Buffer.byteLength(packet);
@@ -2603,14 +2609,14 @@ export default defineBundledChannelEntry({
           // Every real run replaces the record, so a later tick is never
           // compared with an older run than the last one.
           const lastRun: HeartbeatLastRun = {
-            startedAt: heartbeat.startedAt,
+            checkedAt: tick?.checkedAt ?? heartbeat.startedAt,
             endedAt,
             quiet:
               success &&
               receipt !== undefined &&
               receipt.selected === 0 &&
               receipt.held === 0,
-            activityKey: tick?.activityKey,
+            activityKey: heartbeat.handedActivityKey,
             skippedTicks: 0,
           };
           setHeartbeatLastRun(heartbeat.skipKey, lastRun);

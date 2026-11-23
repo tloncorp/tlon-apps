@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 
 import type { HeartbeatActivity } from './heartbeat-activity.js';
-import { memoryDates } from './heartbeat-evidence.js';
+import { memoryDates, readDailyNote } from './heartbeat-evidence.js';
 import { readHeartbeatWorkspaceFile } from './heartbeat-ledger.js';
 import { sharedMap, sharedSlot } from './shared-state.js';
 
@@ -31,13 +31,14 @@ export type HeartbeatSkipBlock =
  * after a restart there is no record, so the next tick runs.
  */
 export type HeartbeatLastRun = {
-  startedAt: number;
+  /** When the run's skip check began, before it read anything. */
+  checkedAt: number;
   endedAt: number;
   /** The run succeeded, recorded its ledger submission, and left nothing open. */
   quiet: boolean;
   /** The watched files when the run ended, after its own writes. */
   filesKey?: string;
-  /** The mentions and replies the run saw when it started. */
+  /** The mentions and replies its packet gave the model, if it gave them. */
   activityKey?: string;
   skippedTicks: number;
 };
@@ -45,9 +46,9 @@ export type HeartbeatLastRun = {
 /** What a tick decided before its run started, for the run's own report. */
 export type HeartbeatTick = {
   blockedBy: HeartbeatSkipBlock;
+  checkedAt: number;
   skippedTicksBefore: number;
   activity?: Promise<HeartbeatActivity>;
-  activityKey?: string;
 };
 
 const TICK_LIMIT = 16;
@@ -116,7 +117,9 @@ const CURRENT_TIME_BLOCK = /^Current time: [^\n]*\nReference UTC: [^\n]*$/;
  * Whether the run's prompt is the configured heartbeat prompt and nothing
  * else. Core builds its own prompt for an exec completion or a cron event,
  * and adds queued events and monitor scratch to this one, so a wake that
- * carries work never matches.
+ * carries work never matches. Nor does a tick in heartbeat_respond mode
+ * (`messages.visibleReplies: "message_tool"`, or the Codex harness), where
+ * core adds its own instructions: those ticks always run.
  */
 export function isPlainHeartbeatTick(
   body: string,
@@ -134,20 +137,20 @@ export async function heartbeatFilesKey(opts: {
   timezone: string;
   now?: Date;
 }): Promise<string> {
-  const names = [
-    'PROACTIVE_PREFERENCES.md',
-    'MEMORY.md',
-    ...memoryDates(opts.now ?? new Date(), opts.timezone).map(
-      (date) => `memory/${date}.md`
-    ),
-  ];
-  const contents = await Promise.all(
-    names.map((name) =>
-      readHeartbeatWorkspaceFile(path.join(opts.workspaceDir, name))
-    )
+  const files = ['PROACTIVE_PREFERENCES.md', 'MEMORY.md'];
+  const notes = memoryDates(opts.now ?? new Date(), opts.timezone).map(
+    (date) => `memory/${date}.md`
   );
+  const contents = await Promise.all([
+    ...files.map((name) =>
+      readHeartbeatWorkspaceFile(path.join(opts.workspaceDir, name))
+    ),
+    ...notes.map((name) => readDailyNote(opts.workspaceDir, name)),
+  ]);
   return createHash('sha256')
-    .update(JSON.stringify(names.map((name, i) => [name, contents[i]])))
+    .update(
+      JSON.stringify([...files, ...notes].map((name, i) => [name, contents[i]]))
+    )
     .digest('hex');
 }
 
@@ -178,8 +181,8 @@ export function decideHeartbeatSkip(opts: {
   if (opts.ownerMessageAt === undefined) {
     return blocked('owner_message_unknown');
   }
-  // A message that arrived while the run was working was not part of it.
-  if (opts.ownerMessageAt > lastRun.startedAt) return blocked('owner_message');
+  // A message that arrived once the run had begun was not part of it.
+  if (opts.ownerMessageAt >= lastRun.checkedAt) return blocked('owner_message');
   if (opts.filesKey === undefined || lastRun.filesKey === undefined) {
     return blocked('files_unknown');
   }

@@ -1593,7 +1593,12 @@ describe('before_tool_call turn identity', () => {
       async function tick(
         harness: ReturnType<typeof registerEntry>,
         runId: string,
-        opts: { body?: string; selected?: number; ledger?: boolean } = {}
+        opts: {
+          body?: string;
+          selected?: number;
+          ledger?: boolean;
+          revokeGrant?: boolean;
+        } = {}
       ) {
         const ctx = {
           runId,
@@ -1605,6 +1610,8 @@ describe('before_tool_call turn identity', () => {
         const handled = await harness.beforeAgentReply({ cleanedBody }, ctx);
         if (handled) return { handled };
         await harness.prepare({ prompt: cleanedBody }, ctx);
+        if (opts.revokeGrant)
+          noteCrossSessionSend({ sessionKey: HB }, 'sender');
         const packet = (await harness.heartbeatEvidence({}, ctx)) as
           | { prependContext: string }
           | undefined;
@@ -1721,6 +1728,49 @@ describe('before_tool_call turn identity', () => {
         expect((await tick(harness, 'hb-2')).handled).toBeUndefined();
         expect(ended).toHaveBeenLastCalledWith(
           expect.objectContaining({ skipBlockedBy: 'previous_run_not_quiet' })
+        );
+      });
+
+      it('does not skip against owner activity the model was not given', async () => {
+        const harness = await start();
+        const first = await tick(harness, 'hb-1', { revokeGrant: true });
+        expect(first.packet).toContain('Owner activity (unavailable)');
+        expect((await tick(harness, 'hb-2')).handled).toBeUndefined();
+        expect(ended).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            runId: 'hb-2',
+            skipBlockedBy: 'activity_unknown',
+          })
+        );
+        // The second run was given the activity, so the third tick can skip.
+        expect((await tick(harness, 'hb-3')).handled).toBeDefined();
+      });
+
+      it('does not skip when the prompt takes no activity packet', async () => {
+        const filesOnly = (text: string) =>
+          text.replace('heartbeat-evidence-v2', 'heartbeat-evidence-v1');
+        const harness = await start(filesOnly(prompt));
+        await tick(harness, 'hb-1', { body: filesOnly(body) });
+        expect(
+          (await tick(harness, 'hb-2', { body: filesOnly(body) })).handled
+        ).toBeUndefined();
+        expect(ended).toHaveBeenLastCalledWith(
+          expect.objectContaining({ skipBlockedBy: 'activity_unknown' })
+        );
+      });
+
+      it('runs the next tick when the owner wrote during the last check', async () => {
+        const harness = await start();
+        // The message lands while the first tick is still reading activity.
+        runner.mockImplementationOnce(async () => {
+          const arrivedAt = Date.now();
+          setHeartbeatOwnerMessageReader(() => arrivedAt);
+          return 'none';
+        });
+        await tick(harness, 'hb-1');
+        expect((await tick(harness, 'hb-2')).handled).toBeUndefined();
+        expect(ended).toHaveBeenLastCalledWith(
+          expect.objectContaining({ skipBlockedBy: 'owner_message' })
         );
       });
 

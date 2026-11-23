@@ -50,6 +50,8 @@ export type HeartbeatRunObservation = {
   activity?: Promise<HeartbeatActivity>;
   packetBytes?: number;
   packetVersion?: HeartbeatPacketVersion;
+  /** The key of the watched activity the last packet gave the model. */
+  handedActivityKey?: string;
 };
 
 export function accumulateHeartbeatUsage(

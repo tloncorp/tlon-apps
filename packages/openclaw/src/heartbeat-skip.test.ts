@@ -18,7 +18,7 @@ import {
 
 const HOUR = 60 * 60 * 1000;
 const quietRun: HeartbeatLastRun = {
-  startedAt: 1_000,
+  checkedAt: 1_000,
   endedAt: 2_000,
   quiet: true,
   filesKey: 'files',
@@ -48,8 +48,9 @@ describe('heartbeat skip decision', () => {
     // A clock that moved backwards proves nothing about elapsed time.
     ['max_interval', { now: quietRun.endedAt - 1 }],
     ['owner_message_unknown', { ownerMessageAt: undefined }],
-    // Sent while the last run was still working.
-    ['owner_message', { ownerMessageAt: quietRun.startedAt + 1 }],
+    // Sent while the last run was reading or working.
+    ['owner_message', { ownerMessageAt: quietRun.checkedAt }],
+    ['owner_message', { ownerMessageAt: quietRun.endedAt + 1 }],
     ['files_changed', { filesKey: 'other' }],
     ['files_unknown', { filesKey: undefined }],
     ['files_unknown', { lastRun: { ...quietRun, filesKey: undefined } }],
@@ -61,6 +62,15 @@ describe('heartbeat skip decision', () => {
       skip: false,
       blockedBy,
     });
+  });
+
+  it('skips when the owner last wrote before the last run began', () => {
+    expect(
+      decideHeartbeatSkip({
+        ...unchanged,
+        ownerMessageAt: quietRun.checkedAt - 1,
+      }).skip
+    ).toBe(true);
   });
 
   it('still skips just under the limit', () => {
@@ -143,6 +153,17 @@ describe('heartbeat files key', () => {
       const next = await key();
       expect(seen.has(next)).toBe(false);
       seen.add(next);
+    }
+  });
+
+  it('fails instead of following a linked memory directory', async () => {
+    const outside = await fs.mkdtemp(path.join(tmpdir(), 'heartbeat-out-'));
+    try {
+      await fs.rm(path.join(workspaceDir, 'memory'), { recursive: true });
+      await fs.symlink(outside, path.join(workspaceDir, 'memory'));
+      await expect(key()).rejects.toThrow();
+    } finally {
+      await fs.rm(outside, { recursive: true, force: true });
     }
   });
 

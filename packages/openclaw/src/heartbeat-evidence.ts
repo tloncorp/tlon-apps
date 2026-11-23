@@ -64,7 +64,7 @@ export function memoryDates(now: Date, timeZone: string): [string, string] {
   return [today, previous.toISOString().slice(0, 10)];
 }
 
-async function readDailyNote(
+export async function readDailyNote(
   workspace: string,
   name: string
 ): Promise<string | null> {
