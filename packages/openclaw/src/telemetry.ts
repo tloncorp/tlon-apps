@@ -1,4 +1,7 @@
-import type { HeartbeatRunEnded } from './heartbeat-run.js';
+import type {
+  HeartbeatRunEnded,
+  HeartbeatRunSkipped,
+} from './heartbeat-run.js';
 import type { HeartbeatLedgerReceipt } from './heartbeat-ledger.js';
 
 import type { CampaignEvent } from './monitor/campaign/runner.js';
@@ -753,6 +756,9 @@ export interface TlonTelemetryClient {
   captureHeartbeatRun(event: TlonHeartbeatRunEvent): void;
   captureHeartbeatRunEnded(
     event: HeartbeatRunEnded & { ownerShip: string; botShip: string }
+  ): void;
+  captureHeartbeatRunSkipped(
+    event: HeartbeatRunSkipped & { ownerShip: string; botShip: string }
   ): void;
   captureHeartbeatMessageSent(event: TlonHeartbeatMessageSentEvent): void;
   captureHeartbeatNudge(event: TlonHeartbeatNudgeEvent): void;
@@ -2505,6 +2511,17 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
     });
   }
 
+  captureHeartbeatRunSkipped(
+    event: HeartbeatRunSkipped & { ownerShip: string; botShip: string }
+  ): void {
+    if (!this.ensureIdentified(event.ownerShip, event.botShip)) return;
+    this.client.capture({
+      distinctId: event.ownerShip,
+      event: 'TlonBot Heartbeat Run Skipped',
+      properties: this.properties(event),
+    });
+  }
+
   captureHeartbeatMessageSent(event: TlonHeartbeatMessageSentEvent): void {
     if (!this.ensureIdentified(event.ownerShip, event.botShip)) return;
     this.client.capture({
@@ -2851,6 +2868,20 @@ export function setHeartbeatRunEndedReporter(
 
 export function reportHeartbeatRunEnded(event: HeartbeatRunEnded): void {
   heartbeatRunEndedReporterSlot.get()?.(event);
+}
+
+const heartbeatRunSkippedReporterSlot = sharedSlot<
+  (event: HeartbeatRunSkipped) => void
+>('telemetry.heartbeatRunSkippedReporter');
+
+export function setHeartbeatRunSkippedReporter(
+  reporter: ((event: HeartbeatRunSkipped) => void) | null
+): void {
+  heartbeatRunSkippedReporterSlot.set(reporter);
+}
+
+export function reportHeartbeatRunSkipped(event: HeartbeatRunSkipped): void {
+  heartbeatRunSkippedReporterSlot.get()?.(event);
 }
 
 const heartbeatMessageSentReporterSlot = sharedSlot<

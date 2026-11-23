@@ -1,5 +1,6 @@
 import type { HeartbeatActivity } from './heartbeat-activity.js';
 import type { HeartbeatPacketVersion } from './heartbeat-evidence.js';
+import type { HeartbeatSkipBlock } from './heartbeat-skip.js';
 
 export type HeartbeatRunEnded = {
   runId: string;
@@ -15,6 +16,17 @@ export type HeartbeatRunEnded = {
   packetVersion: HeartbeatPacketVersion;
   ledgerRecorded: boolean;
   selected: number;
+  /** Why this tick ran instead of being skipped; null when not decided. */
+  skipBlockedBy: HeartbeatSkipBlock | null;
+  /** Ticks skipped between the previous real run and this one. */
+  skippedTicksBefore: number;
+};
+
+export type HeartbeatRunSkipped = {
+  runId: string;
+  sinceLastRunMs: number;
+  /** Ticks skipped since the last real run, this one included. */
+  skippedTicks: number;
 };
 
 export type HeartbeatRunUsage = {
@@ -30,11 +42,16 @@ export type HeartbeatRunObservation = {
   toolCalls: number;
   usage?: HeartbeatRunUsage;
   ended?: true;
+  /** Where the run's last-run record for skipping is kept and read. */
+  skipKey?: string;
+  workspaceDir?: string;
   requestedEvidenceVersion?: HeartbeatPacketVersion;
   evidence?: Promise<string[] | undefined>;
   activity?: Promise<HeartbeatActivity>;
   packetBytes?: number;
   packetVersion?: HeartbeatPacketVersion;
+  /** The key of the watched activity the last packet gave the model. */
+  handedActivityKey?: string;
 };
 
 export function accumulateHeartbeatUsage(

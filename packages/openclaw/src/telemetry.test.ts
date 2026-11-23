@@ -859,6 +859,31 @@ describe('telemetry tool tracking', () => {
     expect(JSON.stringify(captured)).not.toContain('private');
   });
 
+  it('reports a skipped heartbeat tick with how long it has been quiet', () => {
+    const telemetry = createEnabledTelemetry()!;
+    telemetry.captureHeartbeatRunSkipped({
+      ownerShip: '~zod',
+      botShip: '~nec',
+      runId: 'hb-2',
+      sinceLastRunMs: 3_600_000,
+      skippedTicks: 1,
+    });
+    expect(
+      postHogMocks.capture.mock.calls.find(
+        ([call]) => call.event === 'TlonBot Heartbeat Run Skipped'
+      )?.[0]
+    ).toMatchObject({
+      distinctId: '~zod',
+      properties: {
+        ownerShip: '~zod',
+        botShip: '~nec',
+        runId: 'hb-2',
+        sinceLastRunMs: 3_600_000,
+        skippedTicks: 1,
+      },
+    });
+  });
+
   describe('captureHeartbeatNudge', () => {
     it('emits correct PostHog event with all properties (success case includes messageId and nudgeSentAtMs)', () => {
       const telemetry = createEnabledTelemetry()!;

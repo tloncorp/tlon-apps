@@ -20,6 +20,7 @@ import { setSessionRole } from './session-roles.js';
 const AGENT_TURN_HOOK_COUNTS: Record<string, number> = {
   before_tool_call: 1,
   after_tool_call: 1,
+  before_agent_reply: 1,
   agent_turn_prepare: 1,
   heartbeat_prompt_contribution: 1,
   model_call_started: 1,
