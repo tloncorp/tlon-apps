@@ -7,6 +7,7 @@ import {
   OnboardingButton,
   OnboardingInviteBlock,
   Pressable,
+  SatoWordmark,
   SizableText,
   TlonText,
   View,
@@ -68,7 +69,9 @@ export const WelcomeScreen = ({ navigation }: Props) => {
           height={200}
           source={require('../../../assets/images/welcome-icon.png')}
         />
-        <TlonText.Text size="$title/l">Sato</TlonText.Text>
+        <View accessible role="heading" aria-label="Sato">
+          <SatoWordmark width={128} height={57} />
+        </View>
       </View>
       <View
         paddingBottom={bottom + 16}
