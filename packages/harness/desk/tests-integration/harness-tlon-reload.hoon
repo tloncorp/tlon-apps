@@ -101,7 +101,8 @@
   ;<  [* loaded=state-2:t]  bind:m  (load !>(populated-2:up))
   (ex-same:up !>(loaded) !>(e))
 ::  A moon with no explicit owner takes its parent as owner on the first load
-::  only, and cuts off the owner's history before then.
+::  only, and cuts off the owner's history before then. An owner cleared
+::  later stays cleared.
 ++  test-reload-initializes-owner-once
   %-  eval-mare
   =/  m  (mare ,~)
@@ -118,8 +119,9 @@
   ;<  *  bind:m  (do-load adapter `!>(unowned:up))
   ;<  once=vase  bind:m  get-save
   ;<  ~  bind:m  (ex-same:up once !>(e))
+  =.  e  e(owner.policy ~)
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now (add first ~d1))))
-  ;<  *  bind:m  (do-load adapter `once)
+  ;<  *  bind:m  (do-load adapter `!>(e))
   ;<  twice=vase  bind:m  get-save
   (ex-same:up twice !>(e))
 --
