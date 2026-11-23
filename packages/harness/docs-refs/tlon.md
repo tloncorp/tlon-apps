@@ -373,7 +373,9 @@ You can also edit each conversation's settings. Changes affect subsequent
 requests, not active or failed work. Send another message after fixing a failure.
 
 Replies describe provider failures without exposing raw errors publicly.
-Open the Harness conversation for details. For a `401`, check that conversation's
+When the loop guard stops a turn, after four failed tool calls in a row or 24
+model turns without an answer, the reply says the bot stopped and asks for a
+new message. Open the Harness conversation for details. For a `401`, check that conversation's
 endpoint and credential. Refreshing the page does not retry inference.
 A message whose request is too large for the model and cannot be made to fit
 usually gets one reply saying it was left out; the next message is answered

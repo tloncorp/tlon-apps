@@ -486,6 +486,13 @@
 ::  Assistant turns since the last input before halting.
 ::
 ++  max-steps  24
+::  Both guards' halt reasons start with this; +describe recognizes them by it.
+::
+++  loop-guard  'loop guard: '
+++  guarded
+  |=  reason=@t
+  ^-  ?
+  =(loop-guard (end [3 (met 3 loop-guard)] reason))
 ::  +is-error: does a tool result body read as an error, by convention?
 ::
 ++  is-error
@@ -560,7 +567,7 @@
     :-  ~
     :-  %halt
     %+  rap  3
-    :~  'loop guard: '  (scot %ud fails)
+    :~  loop-guard  (scot %ud fails)
         ' tool calls in a row failed. stopping so you can rethink or '
         'ask for help — send a new message to continue.'
     ==
@@ -569,7 +576,7 @@
     :-  ~
     :-  %halt
     %+  rap  3
-    :~  'loop guard: '  (scot %ud since)
+    :~  loop-guard  (scot %ud since)
         ' turns without resolving the request. stopping to avoid a '
         'runaway — send a new message to continue.'
     ==
