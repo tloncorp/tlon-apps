@@ -31,11 +31,13 @@ describe('bot settings apply state', () => {
 
   it('clears apply state on logout, along with the draft', () => {
     useBotSettingsDraftStore.getState().setApplying(true);
+    useBotSettingsDraftStore.getState().setModelRestartShip('zod');
     useBotSettingsDraftStore.getState().setApplyError('Something broke.');
 
     resetBotSettingsDraft();
 
     expect(useBotSettingsDraftStore.getState().applying).toBe(false);
+    expect(useBotSettingsDraftStore.getState().modelRestartShip).toBeNull();
     expect(useBotSettingsDraftStore.getState().applyError).toBeNull();
     expect(useBotSettingsDraftStore.getState().initialized).toBe(false);
   });

@@ -48,6 +48,7 @@ vi.mock('@tloncorp/shared', async () => ({
   configurationFromChannel: () => ({}),
   isChatChannel: () => false,
   hasUnreadActivity: () => false,
+  readAttemptStamp: () => null,
   makePrettyDayAndTime: () => ({ asString: '' }),
   ALL_MENTION_ID: 'all',
   REF_REGEX: /NEVER_A_REFERENCE/,
@@ -173,6 +174,7 @@ vi.mock('../../contexts/scroll', () => ({
     beginSend: mocks.noop,
     finishSend: mocks.noop,
     isSendCoordinated: () => false,
+    registerSentMessageShown: () => mocks.noop,
   }),
 }));
 vi.mock('../../hooks/useKeyboardHeight', () => ({

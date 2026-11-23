@@ -49,8 +49,8 @@ const server = createServer(async (req, res) => {
     res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { role: 'assistant', content: 'FIXTURE_ERROR' } }] }))
   }
 })
-async function create(mode) {
-  const sessionId = `${prefix}-${mode}`
+async function create(mode, label = mode) {
+  const sessionId = `${prefix}-${label}`
   await client.call('session/new', { name: sessionId }); sessions.push(sessionId)
   await client.call('harness/session/configure', { sessionId, config: {
     url: `${url}/model`, model: 'wasm-fixture', key: '', headers: [], system: 'Fixture',
@@ -59,7 +59,7 @@ async function create(mode) {
   return sessionId
 }
 const prompt = (sessionId, text) => client.call('session/prompt', { sessionId, prompt: [{ type: 'text', text }] })
-// Only these two depend on the grant: a local owner turn gets %code regardless.
+// The grant decides Run JS on owner turns too; these two also run on a hand turn.
 const underGrant = new Set(['denied', 'granted'])
 async function waitFor(effect) {
   const deadline = Date.now() + 20000
@@ -89,6 +89,11 @@ try {
     assert.match(results.get(mode) || '', pattern, mode)
     console.log(`PASS JS ${mode}`)
   }
+  results.delete('denied')
+  await prompt(await create('denied', 'owner-denied'), 'denied')
+  if (failures.length) throw new AggregateError(failures)
+  assert.match(results.get('denied') || '', /rejected/, 'owner denied')
+  console.log('PASS JS denied on an owner turn')
   const cancelled = await create('cancel')
   const running = prompt(cancelled, 'cancel')
   running.catch(() => {})

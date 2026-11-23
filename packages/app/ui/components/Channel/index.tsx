@@ -1,9 +1,11 @@
 import { useIsFocused } from '@react-navigation/native';
 import {
   ChannelContentConfiguration,
+  getBotUserIdForUser,
   isDmChannelId,
   isGroupDmChannelId,
 } from '@tloncorp/api';
+import { desig } from '@tloncorp/api/lib/urbit';
 import { JSONContent } from '@tloncorp/api/urbit';
 import {
   Attachment,
@@ -33,6 +35,7 @@ import {
   useTheme,
 } from 'tamagui';
 
+import { useBotSettingsDraftStore } from '../../../features/settings/bot/botSettingsDraftStore';
 import { useIsUserActive } from '../../../hooks/useUserActivity';
 import { useTopLevelTabBarClearance } from '../../../navigation/useTopLevelTabBarContentInset';
 import { useRootNavigation } from '../../../navigation/utils';
@@ -64,6 +67,7 @@ import {
   DraftInputContextProvider,
   DraftInputHandle,
   GalleryDraftType,
+  scrollOnceEnqueued,
 } from '../draftInputs/shared';
 import { PostCollectionHandle } from '../postCollectionViews/shared';
 import {
@@ -83,6 +87,7 @@ import {
   findAgentOnboardingOrientationCompletePostId,
   isAgentOnboardingFirstGroupRequestPost,
 } from './postVisibility';
+import { useMarkReadInView } from './useMarkReadInView';
 
 const THREAD_UNREAD_OVERLAY_CHANNEL_TYPES: db.ChannelType[] = [
   'chat',
@@ -279,6 +284,8 @@ function usePrefillDraftFromShareIntent({
 interface ChannelProps {
   channel: db.Channel;
   initialChannelUnread?: db.ChannelUnread | null;
+  /** Called once the list's first screen of posts is on display. */
+  onFirstScreenShown?: () => void;
   selectedPostId?: string | null;
   posts: db.Post[] | null;
   group: db.Group | null;
@@ -330,6 +337,7 @@ interface ChannelProps {
 export function Channel({
   channel,
   initialChannelUnread,
+  onFirstScreenShown,
   posts,
   selectedPostId,
   group,
@@ -508,10 +516,17 @@ export function Channel({
   }, [dmRecipientId, goToUserProfile]);
 
   const dmContact = useContact(dmRecipientId ?? '');
+  const modelRestartShip = useBotSettingsDraftStore(
+    (state) => state.modelRestartShip
+  );
   const isBotDm =
     channel.type === 'dm' &&
     !!dmRecipientId &&
     domain.isBotContact({ id: dmRecipientId, botInfo: dmContact?.botInfo });
+  const botRestarting =
+    isBotDm &&
+    dmRecipientId === getBotUserIdForUser(currentUserId) &&
+    modelRestartShip === desig(currentUserId);
 
   const onPressGroupRef = useCallback((group: db.Group) => {
     setGroupPreview(group);
@@ -568,8 +583,6 @@ export function Channel({
     channel?.unread,
     readCoversThreads ? (threadUnreads ?? []) : null
   );
-  // stamp of the unread we last tried to mark read
-  const lastReadAttemptRef = useRef<string | null>(null);
   const shouldShowPostLoading =
     channel.type !== 'notes' && Boolean(isLoadingPosts);
 
@@ -632,32 +645,14 @@ export function Channel({
     };
   }, []);
 
-  useEffect(() => {
+  useMarkReadInView({
     // Only mark as read when user is actively using the app (not idle)
     // This prevents auto-marking on desktop when user is AFK
-    if (hasUnreadActivity && hasLoaded && inView && isUserActive) {
-      // a failed read rolls the unread back unchanged, which re-runs this
-      // effect; only try again once there is new activity
-      if (currentReadAttemptStamp === lastReadAttemptRef.current) {
-        return;
-      }
-      // add slight delay to allow high priority tasks to hit the sync queue first
-      const timeout = setTimeout(() => {
-        // recorded only once the read is sent, so a re-run that cancels this
-        // timer still gets to schedule its own
-        lastReadAttemptRef.current = currentReadAttemptStamp;
-        markRead();
-      }, 150);
-      return () => clearTimeout(timeout);
-    }
-  }, [
-    hasUnreadActivity,
-    hasLoaded,
+    canMarkRead: hasUnreadActivity && hasLoaded && inView && isUserActive,
     inView,
-    isUserActive,
+    stamp: currentReadAttemptStamp,
     markRead,
-    currentReadAttemptStamp,
-  ]);
+  });
 
   const handleRefPress = useCallback(
     (refChannel: db.Channel, post: db.Post) => {
@@ -781,10 +776,12 @@ export function Channel({
       onPresentationModeChange: setDraftInputPresentationMode,
       sendPostFromDraft: async (draft, options) => {
         setEditingPost?.(undefined);
-        await finalizeAndSendPost(draft, options);
-        if (!draft.isEdit && !options?.scrollHandled) {
-          scrollToNewMessage();
-        }
+        await finalizeAndSendPost(
+          draft,
+          draft.isEdit || options?.scrollHandled
+            ? options
+            : scrollOnceEnqueued(options, scrollToNewMessage)
+        );
       },
       setEditingPost,
       setShouldBlur: setInputShouldBlur,
@@ -1054,6 +1051,7 @@ export function Channel({
                           <BotBaubleHeader
                             channel={channel}
                             botId={dmRecipientId}
+                            restarting={botRestarting}
                             goBack={isTopLevelTab ? undefined : handleGoBack}
                             goToProfile={handleGoToProfile}
                             actions={botBaubleActions}
@@ -1064,6 +1062,7 @@ export function Channel({
                         ) : (
                           <ChannelHeader
                             channel={channel}
+                            botRestarting={botRestarting}
                             group={group}
                             title={title ?? ''}
                             description={''}
@@ -1194,6 +1193,7 @@ export function Channel({
                                         hasNewerPosts,
                                         hasOlderPosts,
                                         initialChannelUnread,
+                                        onFirstScreenShown,
                                         isLoadingPosts: shouldShowPostLoading,
                                         loadPostsError,
                                         onPressDelete,

@@ -3,8 +3,9 @@
 // server registration change; the original registry is restored in finally.
 //
 // A local owner turn ignores the conversation's saved grants: +execution-tools
-// replaces them with +owner-tools. If that policy changes, this is the test that
-// should be rewritten; the scope tests run under non-owner hand turns regardless.
+// replaces them with +owner-tools, except that Run JS stays opt-in and is offered
+// only when the saved grants hold code. The scope tests run under non-owner hand
+// turns regardless.
 import assert from 'node:assert/strict'
 import { text as readText } from 'node:stream/consumers'
 import { createServer } from 'node:http'
@@ -51,12 +52,13 @@ try {
     id: fixture, name: 'Owner grant fixture', url: `http://127.0.0.1:${server.address().port}/mcp`, headers: [], enabled: true,
   }] })
 
-  // The owner's saved grant is empty, yet every configurable family is available
-  // and Clay and MCP are unscoped. The saved value is left as the owner wrote it.
+  // The owner's saved grant is empty, yet every configurable family but Run JS is
+  // available and Clay and MCP are unscoped. The saved value is left as the owner wrote it.
   turn = {}
   const owner = await conversation('owner', [])
   await client.call('session/prompt', { sessionId: owner, prompt: [{ type: 'text', text: 'Run the fixture.' }] })
-  for (const name of [...families, 'harness_admin']) assert.ok(turn.names.includes(name), `owner turn advertises ${name}`)
+  for (const name of [...families.filter((name) => name !== 'run_js'), 'harness_admin']) assert.ok(turn.names.includes(name), `owner turn advertises ${name}`)
+  assert.ok(!turn.names.includes('run_js'), 'owner turn hides ungranted run_js')
   assert.deepEqual(JSON.parse(receipt(turn.receipts, 'scopes')), ['/'])
   assert.doesNotMatch(receipt(turn.receipts, 'outside'), /not granted/)
   assert.ok(JSON.parse(receipt(turn.receipts, 'servers')).some((entry) => entry.id === fixture))
@@ -70,18 +72,28 @@ try {
   for (const id of ['scopes', 'outside', 'servers']) assert.match(receipt(turn.receipts, id), /not granted/)
 
   // Delegation inherits what the owner turn could use, not its saved grant, so a
-  // child of this empty-grant owner conversation is unscoped too, without admin.
+  // child of this empty-grant owner conversation is unscoped too, without admin
+  // and without the Run JS its parent was not granted.
   turn = {}; delegate = true
   const parent = await conversation('parent', [])
   sessions.push(`${parent}--1--delegate`)
   await client.call('session/prompt', { sessionId: parent, prompt: [{ type: 'text', text: 'Delegate.' }] })
-  assert.ok(turn.child.includes('run_js'), 'child inherits owner tools')
+  assert.ok(turn.child.includes('web_search'), 'child inherits owner tools')
+  assert.ok(!turn.child.includes('run_js'), 'child lacks ungranted run_js')
   assert.ok(!turn.child.includes('run_subagent'))
   assert.ok(!turn.child.includes('harness_admin'))
   assert.deepEqual(JSON.parse(receipt(turn.childReceipts, 'scopes')), ['/'])
 
+  // Saving code opts the owner conversation into Run JS, and its child inherits it.
+  turn = {}
+  const coder = await conversation('coder', ['code'])
+  sessions.push(`${coder}--1--delegate`)
+  await client.call('session/prompt', { sessionId: coder, prompt: [{ type: 'text', text: 'Delegate.' }] })
+  assert.ok(turn.names.includes('run_js'), 'owner turn advertises granted run_js')
+  assert.ok(turn.child.includes('run_js'), 'child inherits granted run_js')
+
   assert.deepEqual(failures, [])
-  console.log(JSON.stringify({ ok: true, ownerIgnoresSavedGrants: true, ownerAdmin: true, handObeysSavedGrants: true, childInheritsOwnerTools: true }))
+  console.log(JSON.stringify({ ok: true, ownerIgnoresSavedGrants: true, ownerAdmin: true, handObeysSavedGrants: true, childInheritsOwnerTools: true, runJsOptIn: true }))
 } finally {
   await grants.close().catch(() => {})
   if (original) await client.call('harness/mcp/configure', { servers: original })

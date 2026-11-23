@@ -13,13 +13,47 @@
   ?:  =(needle (scag n hay))  &
   ?~  hay  |
   $(hay t.hay)
+++  http-status
+  |=  raw=@t
+  ^-  @ud
+  ?.  =('http error ' (end 3^11 raw))  0
+  (fall (rush (cut 3 [11 3] raw) dem) 0)
+::  A provider refused the request as too large for the model. Groq sends
+::  its tokens-per-minute rate limit as a 413, so that wording never counts.
+::
+++  oversized
+  |=  raw=@t
+  ^-  ?
+  =/  has  |=(part=@t (contains raw part))
+  ?:  |((has 'tokens per minute') (has '(tpm)'))  |
+  ?|  =(413 (http-status raw))
+      (has 'request_too_large')
+      (has 'request exceeds the maximum size')
+      (has 'prompt is too long')
+      (has 'exceed context limit')
+      (has 'exceeds model context window')
+      (has 'context_length_exceeded')
+      (has 'context length exceeded')
+      (has 'maximum context length')
+      (has 'exceeds the context window')
+      &((has 'context window') |((has 'ran out of room') (has 'ran out of space')))
+      (has 'maximum prompt length')
+      (has 'maximum allowed input length')
+      &((has 'input token count') (has 'exceeds the maximum'))
+      (has 'exceeded model token limit')
+      (has 'is longer than the model\'s context length')
+      (has 'context_window_exceeded')
+  ==
 ++  describe
   |=  raw=@t
   ^-  [kind=@t message=@t]
   =/  has  |=(part=@t (contains raw part))
-  =/  status=@ud
-    ?.  =('http error ' (end 3^11 raw))  0
-    (fall (rush (cut 3 [11 3] raw) dem) 0)
+  =/  status  (http-status raw)
+  ::  A marked provider error still has its size wording, so this comes first.
+  ?:  (overflowed:hl raw)
+    :*  'context'
+        'The request was too large for the model, so this message was left out. Send a new message to continue. If short messages are left out too, a model with a larger context window may be needed.'
+    ==
   ?:  (guarded:hl raw)
     :*  'loop-guard'
         'I stopped before finishing this. You can ask me to try again in a new message.'
@@ -31,6 +65,10 @@
       ==
     :*  'authentication'
         'I could not authenticate with the model provider. The owner needs to update this provider\'s API key or sign in again in Harness settings, then send a new message.'
+    ==
+  ?:  (oversized raw)
+    :*  'context'
+        'The model provider rejected the request size or context length. Try a shorter message or a model with a larger context window.'
     ==
   ?:  ?|  =(402 status)  (has 'insufficient_quota')  (has 'insufficient credits')
           (has 'credit balance')  (has 'billing')  (has 'spend limit')
@@ -49,10 +87,6 @@
   ?:  |(=(404 status) (has 'model_not_found') (has 'model not found'))
     :*  'model'
         'The selected model or inference endpoint was not found. The owner should check the conversation\'s provider and model in Harness settings.'
-    ==
-  ?:  |(=(413 status) (has 'context_length') (has 'context window') (has 'too many tokens'))
-    :*  'context'
-        'The model provider rejected the request size or context length. Try a shorter message or a model with a larger context window.'
     ==
   ?:  (has 'context budget:')
     :*  'context'

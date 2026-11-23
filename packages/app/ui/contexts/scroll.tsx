@@ -76,6 +76,10 @@ const ConversationComposerHeightContext = createContext<{
   beginSend: () => void;
   finishSend: () => void;
   isSendCoordinated: () => boolean;
+  // The list calls `sentMessageShown` in the commit that puts a coordinated
+  // send's message on screen; the composer listens to end the send there.
+  registerSentMessageShown: (handler: () => void) => () => void;
+  sentMessageShown: () => void;
 }>({
   register: () => () => {},
   report: () => {},
@@ -83,6 +87,8 @@ const ConversationComposerHeightContext = createContext<{
   beginSend: () => {},
   finishSend: () => {},
   isSendCoordinated: () => false,
+  registerSentMessageShown: () => () => {},
+  sentMessageShown: () => {},
 });
 
 export const useScrollContext = () => useContext(ScrollContext);
@@ -207,6 +213,7 @@ export const ScrollContextProvider: React.FC<React.PropsWithChildren> = ({
   const composerSendHandler = useRef<ConversationComposerSendHandler | null>(
     null
   );
+  const sentMessageShownHandler = useRef<(() => void) | null>(null);
   const lastConversationComposerCollapsibleInset = useRef(0);
   const scrollViewNativeID = `${defaultConversationScrollViewNativeID}-${useId()}`;
   const [scrollToBottomControl, setScrollToBottomControl] =
@@ -277,6 +284,15 @@ export const ScrollContextProvider: React.FC<React.PropsWithChildren> = ({
       beginSend: () => composerSendHandler.current?.begin(),
       finishSend: () => composerSendHandler.current?.finish(),
       isSendCoordinated: () => composerSendHandler.current?.isActive() ?? false,
+      registerSentMessageShown: (handler: () => void) => {
+        sentMessageShownHandler.current = handler;
+        return () => {
+          if (sentMessageShownHandler.current === handler) {
+            sentMessageShownHandler.current = null;
+          }
+        };
+      },
+      sentMessageShown: () => sentMessageShownHandler.current?.(),
     }),
     []
   );

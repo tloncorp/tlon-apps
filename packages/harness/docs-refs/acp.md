@@ -34,7 +34,7 @@ hands use the same command interpreter; adapters do not implement command logic.
 | Command | Effect |
 | --- | --- |
 | `/help` | List commands and usage. |
-| `/status` | Show provider/model, tool-grant count, recorded token usage and a safe description of the last failure. |
+| `/status` | Show provider/model, the count of tool grants the turn can use, recorded token usage and a safe description of the last failure. |
 | `/model` | Show the conversation's provider and model. |
 | `/model <id>` | Change the model within the current provider. |
 | `/model default` | Copy the current default provider/model settings into this conversation. |
