@@ -683,10 +683,12 @@ receipt responses are fenced by dispatch stage and attempt. Claimed or uncertain
 ledger records block their destination even if this adapter has no cached entry.
 
 Tlon maintenance timers are reserved for presence-lease renewal, tool
-acknowledgement timeouts, Activity subscription recovery and bounded catch-up.
-Schedule deadlines belong to the head's shared scheduler. An otherwise idle,
-connected Tlon hand has no maintenance wake. Status exposes `deliveryMode: "events"`,
-`headConnected`, `publicationsConnected`, and nullable `maintenanceWake`;
+acknowledgement timeouts, Activity subscription recovery, bounded catch-up and
+renewing Steward's gateway lease. Schedule deadlines belong to the head's shared
+scheduler. An otherwise idle, connected Tlon hand has no maintenance wake but
+that renewal, which comes about every ten minutes while the hand has an owner
+and Steward runs. Status exposes `deliveryMode: "events"`, `headConnected`,
+`publicationsConnected`, and nullable `maintenanceWake` and `leaseRenewal`;
 `connected` continues to describe the Activity subscription.
 
 Activity catch-up uses a durable native ingestion-time cursor. Each turn walks

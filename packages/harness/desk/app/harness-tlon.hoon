@@ -226,6 +226,15 @@
   :*  %pass  /steward/configure  %agent  [our.bowl %steward]  %poke  %steward-action-1
       !>(`action:v1:steward`[%configure u.owner.policy])
   ==
+::  Renew the Steward lease before it expires, while the hand is online.
+::
+++  lease-renewal
+  ^-  (unit @da)
+  =/  lease  ?:(&(enabled.policy watching head-live) steward-lease ~)
+  ?~  lease  ~
+  =/  at  (sub u.lease (min u.lease ~m5))
+  ?.  (gth at now.bowl)  ~
+  `at
 ::
 ++  hold-steward-lease
   ^+  cor
@@ -319,13 +328,7 @@
   =/  deadline
     ?:  &(enabled.policy !head-live)  `(add now.bowl ~s5)
     (deadline:clock now.bowl state)
-  ::  Renew the Steward lease before it expires, while the hand is online.
-  =/  lease  ?:(&(enabled.policy watching head-live) steward-lease ~)
-  =/  renew=(unit @da)
-    ?~  lease  ~
-    =/  at  (sub u.lease (min u.lease ~m5))
-    ?.  (gth at now.bowl)  ~
-    `at
+  =/  renew  lease-renewal
   =?  deadline  ?&(?=(^ renew) |(?=(~ deadline) (lth u.renew (need deadline))))
     renew
   ?:  =(deadline wake)  cor
@@ -381,6 +384,7 @@
       ['deliveryMode' %s 'events']
       ['lens' lens-status]
       ['maintenanceWake' ?~(wake ~ [%s (scot %da u.wake)])]
+      ['leaseRenewal' =/(renew lease-renewal ?~(renew ~ [%s (scot %da u.renew)]))]
       ['error' %s error]
       ['pending' (numb:enjs:format ~(wyt by jobs))]
       ['delivering' (numb:enjs:format ~(wyt by deliveries))]
