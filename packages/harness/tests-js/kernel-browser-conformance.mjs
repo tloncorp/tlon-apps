@@ -17,6 +17,7 @@ assert.notEqual(bot.ship, peer.ship)
 const marker = `kernel-browser-${randomUUID()}`
 const browser = 'kernel-browser', other = 'browser-test-unrelated'
 const create = 'browser_session_create', execute = 'kernel_playwright_execute', release = 'browser_session_release'
+const screenshot = 'kernel_computer_screenshot'
 const prepare = 'browser_session_live_view', secureEntry = 'browser_secure_entry'
 const approveLogin = 'browser_approve_login', requestPayment = 'browser_request_payment'
 const connectWallet = 'browser_connect_wallet', walletConnect = 'wallet_connect', walletStatus = 'payment_status'
@@ -29,6 +30,7 @@ const calls = [], failures = []
 let origin, sessionId, state = 'idle', previous, completed = false, polls = 0, resumed = 0
 let walletConnected = false, walletPolls = 0, walletResumed = 0
 let secondHandChecked = false, revocation
+let screenshots = 0
 
 const tool = (id, name, args = {}) => ({ id, type: 'function', function: { name, arguments: JSON.stringify(args) } })
 const list = (id, name) => tool(id, 'list_mcp_tools', { server: browser, ...(name && { name }) })
@@ -50,7 +52,7 @@ const browse = [
     assert.ok(JSON.parse(value).some(({ id }) => id === browser))
   } },
   { id: 'list', call: list('list'), check: (value) => {
-    assert.deepEqual(result(value).tools.map(({ name }) => name).sort(), [create, release, execute])
+    assert.deepEqual(result(value).tools.map(({ name }) => name).sort(), [create, release, screenshot, execute])
   } },
   { id: 'schema', call: list('schema', execute), check: (value) => {
     const [schema] = result(value).tools
@@ -64,6 +66,10 @@ const browse = [
   { id: 'navigate', call: () => invoke('navigate', execute, {
     session_id: sessionId, code: "await page.goto('https://example.test/'); return await page.locator('h1').innerText();",
   }), check: (value) => assert.match(result(value).content[0].text, /Ready to continue/) },
+  { id: 'screenshot', call: () => invoke('screenshot', screenshot, { session_id: sessionId }),
+    check: (value) => assert.match(value, /Screenshot image input is unavailable on this route/) },
+  { id: 'malformed-screenshot', call: () => invoke('malformed-screenshot', screenshot, { session_id: sessionId }),
+    check: (value) => assert.equal(value, 'error: Invalid browser screenshot reply.') },
   { id: 'secure-entry', call: () => tool('secure-entry', secureEntry, { session_id: sessionId, markers: ['login-password'] }),
     check: (value) => {
       assert.equal(completed, true, 'The model waits for the owner result')
@@ -94,6 +100,11 @@ function model(body) {
     assert.equal(walletConnected, true)
     assert.match(receipts.get('connect'), /^Stripe Link is connected.*separate payment approval/)
     walletResumed++
+    return []
+  }
+  if (body.messages[user]?.content.includes(`${marker}-proxy`)) {
+    if (!receipts.size) return [tool('proxy-entry', secureEntry, { session_id: sessionId, markers: ['login-password'] })]
+    assert.match(receipts.get('proxy-entry'), /direct Kernel HTTP endpoint/)
     return []
   }
   if (body.messages[user]?.content.includes(`${marker}-open`)) {
@@ -157,10 +168,10 @@ function model(body) {
 function kernel(request) {
   calls.push(request.params.name ?? request.method)
   if (request.method === 'tools/list') {
-    return { tools: [create, execute, release].map((name) => ({
+    return { tools: [create, execute, release, screenshot].map((name) => ({
       name, description: name,
       inputSchema: { type: 'object', properties: { session_id: { type: 'string' }, code: { type: 'string' } },
-        required: name === execute ? ['session_id', 'code'] : name === release ? ['session_id'] : [] },
+        required: name === execute ? ['session_id', 'code'] : name === create ? [] : ['session_id'] },
     })) }
   }
   assert.equal(request.method, 'tools/call')
@@ -182,6 +193,11 @@ function kernel(request) {
     return reply('Session started', { session_id: fixtureHandle })
   }
   assert.equal(args.session_id, fixtureHandle)
+  if (name === screenshot) {
+    if (++screenshots === 2) return null
+    return { content: [{ type: 'text', text: 'Screenshot captured.' },
+      { type: 'image', mimeType: 'image/png', data: 'dGVzdA==' }] }
+  }
   if (name === prepare) {
     assert.equal(state, revocation ? 'open-for-permission-tests' : 'ready')
     assert.deepEqual(args, {
@@ -251,6 +267,7 @@ const server = createServer(async (req, res) => {
     assert.ok(!raw.includes(viewerToken), 'The model request does not contain the viewer capability')
     assert.ok(!revocation || !raw.includes(revocation.token), 'The model request does not contain the revoked capability')
     assert.ok(!raw.includes(privateResult), 'The model request does not contain private result fields')
+    assert.ok(!raw.includes('dGVzdA=='), 'The unsupported model route receives no screenshot pixels')
     const tool_calls = model(body)
     const content = tool_calls.length ? '' : `${marker}-done-${state}`
     res.end(JSON.stringify({ choices: [{ finish_reason: tool_calls.length ? 'tool_calls' : 'stop',
@@ -324,13 +341,20 @@ try {
   const policy = { enabled: true, owner: `~${peer.ship}`, trusted: [], response: 'mentions', allowed: [], channels: [] }
   await bot.call('harness/tlon/configure', policy)
   await dmAndWait('owner', `${marker}-done-released`)
-  const expectedCalls = ['tools/list', 'tools/list', create, execute, prepare, execute, release]
+  const expectedCalls = ['tools/list', 'tools/list', create, execute, screenshot, screenshot, prepare, execute, release]
   assert.deepEqual(calls, expectedCalls)
   assert.equal(resumed, 1)
   await dmAndWait('connect', `${marker}-done-released`)
   assert.equal(walletResumed, 1)
   assert.equal(walletPolls, 3)
   expectedCalls.push(walletConnect, walletStatus, walletStatus, walletStatus)
+
+  const directServers = await bot.call('harness/mcp/servers')
+  await configure(directServers.map((server) => server.id === browser
+    ? { ...server, url: `urbit://~${bot.ship}/mcp-proxy` } : server))
+  await dmAndWait('proxy', `${marker}-done-released`)
+  assert.deepEqual(calls, expectedCalls, 'Unsupported proxy handoffs never reach Kernel')
+  await configure(directServers)
 
   await dmAndWait('open', `${marker}-done-open-for-permission-tests`)
   expectedCalls.push(create)

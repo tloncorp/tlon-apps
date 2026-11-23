@@ -739,6 +739,10 @@
     (finish-tool id 'error: this conversation already has a pending secure-entry form')
   =/  configured  browser-server
   ?~  configured  (finish-tool id 'error: the Kernel browser server is unavailable')
+  ?:  =('urbit://' (end 3^8 url.u.configured))
+    %+  finish-tool
+      id
+    'error: browser handoffs require a direct Kernel HTTP endpoint; the ship MCP proxy is unsupported'
   ?:  =('browser_connect_wallet' name.call.request)
     (send-browser-request id [%payment ~] (mcp-request:browser u.configured 'wallet_connect' ~))
   ?:  =('browser_request_payment' name.call.request)
@@ -792,11 +796,38 @@
 ++  revoke-browser-entry
   |=  [id=@uv phase=browser-phase:t]
   ^+  cor
-  ?.  ?&  ?=(?(%post %wait %check) -.phase)
-          ?=(%form -.result.phase)
-      ==
+  ?:  ?=(%revoke -.phase)  cor
+  ?.  ?=(?(%post %wait %check) -.phase)
     (close-browser-entry id 'rejected: secure-entry authority changed')
-  (send-browser-request id [%revoke ~] (revoke-request:browser url.result.phase))
+  ?:  ?=(%form -.result.phase)
+    (send-browser-request id [%revoke ~] (revoke-request:browser url.result.phase))
+  =/  configured  browser-server
+  ?~  configured  (finish-browser-revocation id ~ ~)
+  %:  send-browser-request  id  [%revoke ~]
+    (mcp-request:browser u.configured 'payment_cancel' ~[['request_id' %s id.result.phase]])
+  ==
+::
+++  finish-browser-revocation
+  |=  [id=@uv status=(unit @ud) body=(unit @t)]
+  ^+  cor
+  =/  receipt  (~(got by tool-receipts) id)
+  ?.  ?|  =('browser_connect_wallet' name.call.request.receipt)
+          =('browser_request_payment' name.call.request.receipt)
+      ==
+    (close-browser-entry id (revocation-outcome:browser status))
+  =/  wallet  (mole |.((wallet-reply:browser (wallet-session request.receipt) (need body))))
+  =/  cancelled
+    ?&  =(`200 status)
+        ?=(^ wallet)
+        ?|  =('cancelled' status.u.wallet)
+            =('expired' status.u.wallet)
+            =('failed' status.u.wallet)
+        ==
+    ==
+  %+  close-browser-entry  id
+  ?:  cancelled
+    'Wallet request is closed. Check wallet_status or payment_status before continuing.'
+  (wallet-uncertain request.receipt)
 ::
 ++  browser-response
   |=  [id=@uv deadline=@t response=client-response:iris]
@@ -808,11 +839,15 @@
   ?:  ?=(%progress -.response)
     ?.  (gth bytes-read.response 32.768)  cor
     =.  cor  (emit [%pass (browser-wire id next.u.entry) %arvo %i %cancel-request ~])
-    ?:  ?=(%revoke -.phase.u.entry)  (close-browser-entry id (revocation-outcome:browser ~))
+    ?:  ?=(%revoke -.phase.u.entry)  (finish-browser-revocation id ~ ~)
     (close-browser-entry id 'error: secure-entry service returned an oversized reply')
   ?:  ?=(%revoke -.phase.u.entry)
     =/  status  ?:  ?=(%finished -.response)  `status-code.response-header.response  ~
-    (close-browser-entry id (revocation-outcome:browser status))
+    =/  body=(unit @t)
+      ?.  &(?=(%finished -.response) ?=(^ full-file.response))  ~
+      ?.  (lte p.data.u.full-file.response 32.768)  ~
+      `q.data.u.full-file.response
+    (finish-browser-revocation id status body)
   =/  receipt  (~(got by tool-receipts) id)
   =/  lane  (browser-lane request.receipt)
   ?~  lane  (revoke-browser-entry id phase.u.entry)
@@ -900,7 +935,7 @@
   ^+  cor
   =/  entry  (~(get by browser-entries) id)
   ?.  &(?=(^ entry) ?=(%post -.phase.u.entry))  cor
-  ?.  accepted  (close-browser-entry id 'error: Messenger rejected the secure-entry card')
+  ?.  accepted  (revoke-browser-entry id phase.u.entry)
   cor(browser-entries (~(put by browser-entries) id [(add now.bowl ~s1) [%wait result.phase.u.entry]]))
 ::
 ++  poll-browser-entries
@@ -917,7 +952,7 @@
   ?:  ?=(%revoke -.phase.entry)
     ?.  due  cor
     =.  cor  (emit [%pass (browser-wire id next.entry) %arvo %i %cancel-request ~])
-    (close-browser-entry id (revocation-outcome:browser ~))
+    (finish-browser-revocation id ~ ~)
   =/  receipt  (~(got by tool-receipts) id)
   =/  authorized  ?=(^ (browser-lane request.receipt))
   ?:  &(!due authorized)  cor
@@ -929,11 +964,9 @@
   ?:  ?=(%payment -.phase.entry)
     (close-browser-entry id (wallet-uncertain request.receipt))
   ?:  ?=(%post -.phase.entry)
-    (close-browser-entry id 'uncertain: Messenger did not acknowledge the secure-entry card')
+    (revoke-browser-entry id phase.entry)
   ?:  (gte now.bowl (add at.receipt ~m6))
-    ?:  ?=(%payment -.result.phase.entry)
-      (finish-wallet id id.result.phase.entry (wallet-uncertain request.receipt))
-    (close-browser-entry id 'Secure entry timed out. Inspect the page before taking another action.')
+    (revoke-browser-entry id phase.entry)
   =/  deadline  (add now.bowl ~s12)
   =/  target  result.phase.entry
   =/  fetch=(unit request:http)
@@ -1551,6 +1584,12 @@
     (stop-upload:engine id)
   =.  policy  updated-policy
   =.  sibling-moon-owners  siblings
+  =.  cor
+    %+  roll  ~(tap by browser-entries)
+    |=  [[id=@uv entry=browser-entry:t] engine=_cor]
+    =/  receipt  (~(got by tool-receipts.engine) id)
+    ?.  (~(has in affected) sid.request.receipt)  engine
+    (revoke-browser-entry:engine id phase.entry)
   =.  cor  poll-browser-entries
   =?  sibling-owner-after  sibling-change  now.bowl
   ::  The head rereads live trust and advertises only each recipient's grant.

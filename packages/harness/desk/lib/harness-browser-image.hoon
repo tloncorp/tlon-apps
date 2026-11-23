@@ -4,6 +4,8 @@
 /+  w=harness-provider-wire, mcp=harness-mcp, ht=harness-tools
 |%
 ++  limit  2.097.152
+++  unavailable
+  ' Screenshot image input is unavailable on this route. Use Playwright instead.'
 ++  tool
   |=  call=tool-call:h
   ^-  (unit @t)
@@ -24,14 +26,19 @@
       'kernel_computer_move'  'kernel_computer_drag'
   ==
 ++  receipt
-  |=  body=@t
+  |=  [body=@t supported=?]
   ^-  [body=@t image=(unit [mime=@t data=@t])]
   ?:  (gth (met 3 body) limit)  ['error: Browser screenshot exceeds 2 MiB.' ~]
   ?.  =('HTTP 200\0a\0a' (end 3^10 body))  [(clip:ht body 2.000) ~]
-  =/  parsed  (mole |.((rpc:mcp (rsh 3^10 body))))
+  =/  parsed  (mole |.((project (rpc:mcp (rsh 3^10 body)))))
   ?~  parsed  ['error: Invalid browser screenshot reply.' ~]
-  =/  result  (get:w u.parsed 'result')
-  ?~  result  [(clip:ht (str:w (fall (get:w u.parsed 'error') ~) 'message') 2.000) ~]
+  ?.  &(!supported ?=(^ image.u.parsed))  u.parsed
+  [(cat 3 body.u.parsed unavailable) ~]
+++  project
+  |=  reply=json
+  ^-  [body=@t image=(unit [mime=@t data=@t])]
+  =/  result  (get:w reply 'result')
+  ?~  result  [(clip:ht (str:w (fall (get:w reply 'error') ~) 'message') 2.000) ~]
   =/  content  (get:w u.result 'content')
   ?.  ?=([~ %a *] content)  ['error: Invalid browser screenshot content.' ~]
   =/  text
@@ -66,7 +73,7 @@
     =/  text  (str:w message 'content')
     =/  content=json
       ?.  supported
-        [%s (cat 3 text ' Screenshot image input is unavailable on this route.')]
+        [%s (cat 3 text unavailable)]
       :-  %a
       :~  (pairs:enjs:format ~[['type' %s 'text'] ['text' %s text]])
           %-  pairs:enjs:format

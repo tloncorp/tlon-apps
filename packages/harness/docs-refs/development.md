@@ -129,7 +129,8 @@ of `{ "name": "...", "value": "..." }` entries for the test bot's endpoint
 credentials. The script installs the Kernel browser skill and its secure-entry
 and payment references as skills available through `read_skill`. It registers
 `kernel-browser` as a separate MCP server. Only turns from the configured
-owner's Messenger DM can discover or call it.
+owner's Messenger DM can discover or call it. Use the direct Kernel HTTP
+endpoint; Messenger handoffs do not support the ship's MCP proxy URL.
 
 From the configured owner's DM, ask the bot to open a JavaScript-rendered
 test page, click a control, report the changed text, and close the session.
@@ -141,6 +142,8 @@ For a canvas or another control that requires coordinates, use
 latest PNG or JPEG as part of its tool response to DeepSeek Flash 1017 on the
 Chat Completions route. Conversation history keeps the text receipt. The
 ship's Arvo event log retains the raw screenshot response.
+Other model routes receive a text notice that screenshot image input is
+unavailable and can inspect the page through Playwright.
 
 For a synthetic login, ask the bot to mark the login inputs and use
 `browser_secure_entry` from the owner's DM. Messenger opens the returned
