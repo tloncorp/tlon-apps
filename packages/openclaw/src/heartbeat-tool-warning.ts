@@ -9,11 +9,16 @@
  * recognised by its session and its text.
  */
 
+import { sharedMap } from './shared-state.js';
+
 // Delivery follows agent_end; the session stays marked this long after.
 const HEARTBEAT_DELIVERY_WINDOW_MS = 60_000;
 
 // Session key -> when its mark expires (Infinity while a heartbeat runs).
-const heartbeatSessions = new Map<string, number>();
+// Shared: the turn's plugin instance marks, the gateway's checks delivery.
+const heartbeatSessions = sharedMap<string, number>(
+  'heartbeat-tool-warning-sessions'
+);
 
 // Core's default (non-verbose) shapes: "⚠️ Grep blocked",
 // "⚠️ Exec failed (exit 1)", "⚠️ Process failed (signal …). Use /verbose …",

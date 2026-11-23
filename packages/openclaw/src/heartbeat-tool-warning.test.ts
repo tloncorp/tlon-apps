@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   isHeartbeatToolFailureWarning,
@@ -59,5 +59,16 @@ describe('isHeartbeatToolFailureWarning', () => {
     expect(isHeartbeatToolFailureWarning(SESSION, '⚠️ Grep blocked')).toBe(
       false
     );
+  });
+
+  it('a mark from a separately loaded instance reaches the delivery check', async () => {
+    const turn = await import('./heartbeat-tool-warning.js');
+    vi.resetModules();
+    const gateway = await import('./heartbeat-tool-warning.js');
+    expect(gateway).not.toBe(turn);
+    turn.noteAgentTurnStart(SESSION, true);
+    expect(
+      gateway.isHeartbeatToolFailureWarning(SESSION, '⚠️ Grep blocked')
+    ).toBe(true);
   });
 });
