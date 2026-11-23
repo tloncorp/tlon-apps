@@ -6148,7 +6148,9 @@
     ~[[%give %kick ~[`path`[%session `@ta`sid ~]] ~]]
   [:(weld kick recorded driven) state]
 ::  Answer queued peer asks with the terminal outcome. Provider failure details
-::  are private; peers receive the public failure message.
+::  are private; peers receive the public failure message. A loop-guard halt
+::  gets a neutral sentence: the person-facing one invites a retry, which a
+::  peer's model would spend on this owner's provider account.
 ::
 ::
 ++  settle-asks
@@ -6164,7 +6166,9 @@
   =/  result=(each @t @t)
     ?-  -.u.outcome
       %reply  [%& body.u.outcome]
-      %failure  [%| (public-message:failure reason.u.outcome)]
+      %failure
+        ?:  (guarded:hl reason.u.outcome)  [%| 'Remote work stopped before finishing.']
+        [%| (public-message:failure reason.u.outcome)]
       %cancelled  [%| 'Remote work was cancelled.']
     ==
   :_  state(serving (~(del by serving) sid))
