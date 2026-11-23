@@ -261,9 +261,9 @@ export const firstRunCopy = {
   },
 
   workspace: {
-    title: 'Start a workspace',
+    title: 'Bring in your friends',
     subtitle:
-      'Plan things and get them done with friends. Your Tlonbots help out.',
+      'Start a workspace to plan things and get them done together. Your Tlonbots help out.',
     points: [
       { icon: 'people', label: 'Plan trips and projects together' },
       { icon: 'file', label: 'Shares notes and files with everyone' },
