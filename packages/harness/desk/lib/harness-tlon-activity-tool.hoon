@@ -186,10 +186,6 @@
       ==
   ==
 ::
-++  flag-id
-  |=  flag=[@p @tas]
-  (rap 3 (scot %p -.flag) '/' +.flag ~)
-++  nest-id
-  |=  nest=[@tas @p @tas]
-  (rap 3 -.nest '/' (flag-id +.nest) ~)
+++  flag-id  flag-id:spec
+++  nest-id  nest-id:spec
 --
