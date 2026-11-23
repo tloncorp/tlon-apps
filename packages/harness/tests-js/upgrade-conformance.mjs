@@ -2,16 +2,21 @@
 // is still there after the desk is upgraded under it, on a disposable test ship.
 // scripts/test-js.sh runs `seed` from the tree of the build the ship runs and
 // `check` from the tree of the build it is upgraded to. No model, network or
-// credentials: the conversation's provider URL is never dialed, schedules fire
-// long after the run, and the Tlon hand stays disabled.
+// credentials: the conversation's provider URL is never dialed and schedules fire
+// long after the run. The Tlon hand is enabled with `~lux` as its owner, `~lux`
+// sends it a DM command, which calls no model, and a reminder is made from that
+// conversation, so a head whose load asks the adapter about the reminder meets
+// the base's adapter while the commit is taken.
 //
 //   UPGRADE_ID        the fixture prefix, unique to each seed
 //   UPGRADE_MANIFEST  the file `seed` writes and `check` reads
 //   UPGRADE_KEYS=all  `check` requires the newer keys too, as for a manifest the
 //                     same tree seeded
+//   PEER_URL, PEER_COOKIE  `~lux`, from which `seed` sends the DM
 import assert from 'node:assert/strict'
 import { readFile, writeFile } from 'node:fs/promises'
-import { Client, base, cookie } from './lib/ship-client.mjs'
+import { Client, base, cookie, readCookie } from './lib/ship-client.mjs'
+import { until } from './lib/reliability.mjs'
 import { HandClient } from '../acp/hand-client.mjs'
 
 // Keys every seeder emits. A baseline key missing from a manifest fails the
@@ -45,7 +50,10 @@ const baseline = {
 }
 // Keys an older seeder may not emit. Checked when the manifest has them; a key
 // moves to the baseline once the seeder of every long-lived branch emits it.
-const newer = {}
+const newer = {
+  tlon: ['dm.lane', 'dm.session', 'dm.hand', 'dm.address', 'dm.actors', 'dm.enabled'],
+  schedules: ['tlon.binding', 'tlon.actor', 'tlon.kind', 'tlon.state', 'tlon.prompt', 'tlon.schedule', 'tlon.destination'],
+}
 
 const sections = Object.keys(baseline)
 const id = process.env.UPGRADE_ID
@@ -56,6 +64,8 @@ const mode = process.argv[2]
 assert.ok(['seed', 'check'].includes(mode), 'mode is seed or check')
 
 const peer = '~sampel-palnet'
+// The Tlon hand's owner and DM partner; the grant fixture uses `peer`.
+const dmPeer = '~lux'
 const client = new Client()
 const hand = new HandClient(client, { hand: id, worker: `${id}-worker` })
 
@@ -100,9 +110,14 @@ async function values(ids) {
       receipts: receipts.map((receipt) => ({ status: receipt.status, worker: receipt.worker, externalId: receipt.externalId })),
     }
   }
-  const cron = (await client.call('harness/cron')).find((row) => row.id === ids.cron)
+  const crons = await client.call('harness/cron')
+  const cron = crons.find((row) => row.id === ids.cron)
   const timer = (await scry('harness/timers')).find((row) => row.sid === ids.session && row.name === ids.timer)
-  const tlon = (await client.call('harness/tlon')).policy
+  const adapter = await client.call('harness/tlon')
+  const tlon = adapter.policy
+  // An older seeder made no DM, and its manifest names none.
+  const dm = ids.tlonBinding ? await hand.status(ids.tlonBinding) : undefined
+  const dmCron = crons.find((row) => row.id === ids.tlonCron)
   const sorted = (rows) => [...rows].sort()
   const fields = (prefix, config) => Object.fromEntries(provider.map((key) => [`${prefix}${key}`, config?.[key]]))
   return {
@@ -132,10 +147,62 @@ async function values(ids) {
       'cron.binding': cron?.sourceBinding, 'cron.actor': cron?.actor, 'cron.kind': cron?.kind, 'cron.state': cron?.state,
       'cron.prompt': cron?.prompt, 'cron.schedule': cron?.schedule, 'cron.destination': cron?.destination,
       'timer.prompt': timer?.prompt, 'timer.every': timer?.every, 'timer.at': timer?.at,
+      'tlon.binding': dmCron?.sourceBinding, 'tlon.actor': dmCron?.actor, 'tlon.kind': dmCron?.kind, 'tlon.state': dmCron?.state,
+      'tlon.prompt': dmCron?.prompt, 'tlon.schedule': dmCron?.schedule, 'tlon.destination': dmCron?.destination,
     },
     tlon: {
       enabled: tlon.enabled, owner: tlon.owner, response: tlon.response,
       trusted: tlon.trusted, allowed: sorted(tlon.allowed), channels: tlon.channels,
+      'dm.lane': adapter.sessions.includes(ids.tlonSession),
+      'dm.session': dm?.sessionId, 'dm.hand': dm?.hand, 'dm.address': dm?.address, 'dm.actors': dm?.actors, 'dm.enabled': dm?.enabled,
+    },
+  }
+}
+
+// `~lux` sends a DM through its own %chat whose text, a command, reads without a
+// model and carries the fixture id. The head-side seed DMs into the conversation
+// the base seed made, so only the input with this id identifies this seed's DM.
+// A reminder from that conversation, due at `later`, follows. The seed leaves the
+// owner's effective grants unchanged, so the reminder stays active.
+async function seedTlon(later) {
+  const peerClient = new Client({ url: process.env.PEER_URL, auth: await readCookie(process.env.PEER_COOKIE) })
+  assert.equal(`~${peerClient.ship}`, dmPeer, 'PEER_COOKIE')
+  const text = `/memory ${id}`
+  const da = (((BigInt(Date.now()) * (1n << 64n)) / 1000n) + 170141184475152167957503069145530368000n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  const essay = { content: [{ inline: [text] }], author: dmPeer, sent: Date.now(), kind: '/chat', meta: null, blob: null }
+  try {
+    await peerClient.pokeAgent('chat', 'chat-dm-action-2', { ship: `~${client.ship}`, diff: { id: `${dmPeer}/${da}`, delta: { add: { essay, time: null } } } })
+  } finally {
+    await fetch(`${peerClient.base}/~/channel/${peerClient.channel}`, {
+      method: 'PUT', headers: { cookie: peerClient.cookie, 'content-type': 'application/json' },
+      body: JSON.stringify([{ id: ++peerClient.event, action: 'delete' }]), signal: AbortSignal.timeout(15_000),
+    })
+  }
+  // The poke shows only that `~lux` took it; Harness admits the DM later.
+  const found = await until(async () => {
+    const sids = (await client.call('harness/tlon')).sessions.filter((sid) => sid.startsWith(`${dmPeer.slice(1)}-dm-`))
+    for (const sid of sids) {
+      const input = (await scry(`harness/events/${sid}`))
+        .find((row) => row.type === 'input' && row.source?.kind === 'hand' && JSON.stringify(row.item).includes(text))
+      if (input) return { sid, binding: input.source.binding }
+    }
+  }, 45_000, `Harness admitting the DM "${text}" from ${dmPeer}`)
+  const status = await hand.status(found.binding)
+  assert.deepEqual({ address: status.address, actors: status.actors, enabled: status.enabled },
+    { address: `dm/${dmPeer}`, actors: [dmPeer], enabled: true }, 'the DM binding')
+  const cron = uv(`${id}-tlon-cron`)
+  await client.call('harness/cron/add', {
+    id: cron, binding: found.binding, actor: dmPeer, kind: 'reminder',
+    args: { at: later, destination: `dm/${dmPeer}`, text: `${id} tlon reminder` },
+  })
+  return {
+    ids: { tlonSession: found.sid, tlonBinding: found.binding, tlonCron: cron },
+    tlon: {
+      'dm.lane': true, 'dm.session': found.sid, 'dm.hand': 'tlon', 'dm.address': `dm/${dmPeer}`, 'dm.actors': [dmPeer], 'dm.enabled': true,
+    },
+    schedules: {
+      'tlon.binding': found.binding, 'tlon.actor': dmPeer, 'tlon.kind': 'reminder', 'tlon.state': 'active',
+      'tlon.prompt': `${id} tlon reminder`, 'tlon.schedule': later, 'tlon.destination': `dm/${dmPeer}`,
     },
   }
 }
@@ -157,11 +224,15 @@ async function seed() {
   const later = new Date(Date.now() + 30 * 86_400_000).toISOString().replace(/\.\d{3}Z$/, 'Z')
   const timer = { sid: ids.session, name: ids.timer, in: 30 * 86_400, every: 7200, prompt: `${id} timer prompt` }
   const policy = {
-    enabled: false, owner: '~nec', response: 'all', allowed: ['~bud', '~wes'],
+    enabled: true, owner: dmPeer, response: 'all', allowed: ['~bud', '~wes'],
     channels: [{ channel: `chat/~nec/${id}`, response: 'off', everyone: true }],
     trusted: [{ ship: '~marzod', tools: [{ clay: `/harness/${id}` }] }],
   }
 
+  // Saved before the DM, so that the DM is admitted under this policy.
+  await client.call('harness/tlon/configure', policy)
+  const dm = await seedTlon(later)
+  Object.assign(ids, dm.ids)
   // Configs go with an empty key: provider reads never return credentials.
   assert.equal((await client.call('session/new', { name: id })).sessionId, ids.session)
   await client.call('harness/session/configure', { sessionId: ids.session, config: { ...conversation, key: '' } })
@@ -191,7 +262,6 @@ async function seed() {
   const poked = Date.now()
   await client.pokeAgent('harness', 'harness-action', { 'timer-set': timer })
   const answered = Date.now()
-  await client.call('harness/tlon/configure', policy)
 
   const published = (name, state, attempt, receipts) => Object.fromEntries(Object.entries({
     event: `${id}-${name}`, actor, phase: 'completed', state, attempt, worker: attempt ? worker : '',
@@ -221,8 +291,14 @@ async function seed() {
       'cron.binding': ids.binding, 'cron.actor': actor, 'cron.kind': 'reminder', 'cron.state': 'active',
       'cron.prompt': `${id} reminder`, 'cron.schedule': later, 'cron.destination': address,
       'timer.prompt': timer.prompt, 'timer.every': '~h2', 'timer.at': null,
+      ...dm.schedules,
     },
-    tlon: { ...policy },
+    tlon: { ...policy, ...dm.tlon },
+  }
+  // A key without a value would be left out of the manifest and read as one an
+  // older seeder did not make.
+  for (const [section, keys] of Object.entries(newer)) {
+    for (const key of keys) assert.notEqual(expected[section][key], undefined, `${section}.${key}: no expected value`)
   }
   const seeded = await values(ids)
   // The ship sets the timer's deadline when it takes the poke, so it is recorded

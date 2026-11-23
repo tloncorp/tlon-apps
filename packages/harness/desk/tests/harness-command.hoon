@@ -1,6 +1,6 @@
 /-  h=harness
 /+  *test, cmd=harness-command, hl=harness, hs=harness-session, hj=harness-json,
-    policy=harness-defaults
+    policy=harness-defaults, ht=harness-tools
 |%
 ++  test-command-whitespace-and-model-path
   =/  want=(unit command:cmd)  `['model' 'vendor/model']
@@ -37,6 +37,26 @@
   =/  v=view:h  *view:h
   =/  result  (run:cmd ['model' 'default'] v(config cfg) defaults)
   (expect-eq !>(`defaults) !>(config.result))
+++  test-status-reports-the-turns-tools-not-the-saved-grants
+  =/  cfg=config:h  builtin-config:policy
+  =/  v=view:h  *view:h
+  =.  config.v  cfg(tools ~[%clay])
+  =/  granted=(list tool-grant:h)  ~[%clay %web %admin]
+  =/  owner  (evaluate:cmd ['status' ''] v cfg ~ ~ granted &)
+  =/  other  (evaluate:cmd ['status' ''] v cfg ~ ~ ~ |)
+  =/  line  'Tool grants: 3 (owner turn: saved grants do not limit it, except Run JS)\0a'
+  ;:  weld
+      (expect-eq !>(~) !>(events.owner))
+      (expect !>((find-sub:ht line body.owner)))
+      (expect !>((find-sub:ht 'Tool grants: 0\0a' body.other)))
+  ==
+++  test-model-change-saves-the-saved-grants-not-the-turns-tools
+  =/  cfg=config:h  builtin-config:policy
+  =/  v=view:h  *view:h
+  =.  config.v  cfg(tools ~[%clay])
+  =/  result  (evaluate:cmd ['model' 'vendor/other'] v cfg ~ ~ ~[%clay %web %admin] &)
+  ?>  ?=([[%config-replaced *] ~] events.result)
+  (expect-eq !>(`(list tool-grant:h)`~[%clay]) !>(tools.config.i.events.result))
 ++  test-command-model-validation
   =/  result  (run:cmd ['model' 'two names'] *view:h builtin-config:policy)
   (expect-eq !>(`(unit config:h)`~) !>(config.result))

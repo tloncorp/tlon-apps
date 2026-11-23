@@ -156,6 +156,7 @@
       '{"role":"assistant","content":"Earlier answer."},'
       '{"role":"user","content":"Reply with hello"}]}'
   ==
+::  The owner's tools. Run JS is opt-in, and this conversation grants none.
 ++  frozen-tools
   ^-  (list @t)
   :~  'calculate'  'current_time'  'memory'  'lcm_search'  'lcm_read'
@@ -163,7 +164,7 @@
       'web_search'  'http_fetch'  'curl'  'read_skill'  'write_skill'
       'delete_skill'  'propose_skill'  'rehearse_skill'  'commit_skill'
       'discard_skill'  'run_subagent'  'list_peer_access'  'check_peer'
-      'list_peer_tools'  'call_peer_tool'  'ask_peer'  'workspace'  'run_js'
+      'list_peer_tools'  'call_peer_tool'  'ask_peer'  'workspace'
       'tlon'  'tlon_workspace_plan'  'tlon_workspace_create'  'tlon_workspace_link'
       'harness_admin'
   ==

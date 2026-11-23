@@ -501,6 +501,14 @@ reconnection repair the claim. A failed Contacts read or edit retries on the
 next adapter event without blocking chat or creating a nack loop. If the whole
 ship stops, peers retain the last published claim until the ship returns.
 
+The same reconciliation publishes the `bot-info` claim that identifies the
+runtime to the app (`docs/bot-info.md`):
+`{"v":1,"harness":"harness","version":"<version>"}`, whatever the hand's
+readiness. The version is `version` in `desk/lib/harness-defaults.hoon`, which
+the ACP agent info also reports; `package.json` repeats it for the shared bot
+E2E, and `tests-js/distribution.test.mjs` keeps the two equal. Both claims
+share one Contacts read and, when either differs, one `%self` edit.
+
 Chat computing indicators use `%presence-action-1` and the
 `tlon.computing-status.v1` display payload, matching the versioned Groups
 Presence protocol.
@@ -581,8 +589,10 @@ messaging the sender.
 - New owner conversations inherit the tools in **Settings → Defaults**, not the
   entire catalog. Existing conversations keep their configured grants. Ownership
   still permits conversation admission and invitation acceptance without tools.
-  **Known bug:** these saved tools don't limit owner turns with administrative
-  authority, which get the live catalog. See [known bugs](../ISSUES.md#known-bugs).
+  An owner turn in the owner's own DM with the bot has administrative authority
+  and gets the live catalog whatever the saved tools say, except `run_js`, which
+  needs `code` saved on the conversation. In a channel, the saved tools limit the
+  owner too.
 - Trusted ships can chat with no tools; each grant is explicit.
   MCP entries grant individual registered server IDs, for example
   `{"mcp":"calendar"}` in the `tools` array. Registering another server never

@@ -1,4 +1,7 @@
-import { HeaderHeightContext } from '@react-navigation/elements';
+import {
+  HeaderHeightContext,
+  getDefaultHeaderHeight,
+} from '@react-navigation/elements';
 import { FloatingActionButton, Icon, LoadingSpinner } from '@tloncorp/ui';
 import {
   type ReactNode,
@@ -16,14 +19,18 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  useSafeAreaFrame,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 
-import { useFloatingHeaderHeight } from '../../navigation/useFloatingHeaderHeight';
+import { floatingHeaderHeight as getFloatingHeaderHeight } from '../../navigation/useFloatingHeaderHeight';
 import { GlassSurface, supportsLiquidGlass } from './GlassSurface';
 import {
   floatingChromeMetrics,
   getConversationContentInsets,
 } from './conversationInsets';
+import { useSettledHeaderHeight } from './settledHeaderHeight';
 
 export {
   floatingChromeMetrics,
@@ -46,6 +53,17 @@ export {
  */
 export { useFloatingHeaderHeight } from '../../navigation/useFloatingHeaderHeight';
 
+function useConversationHeaderHeight(topInset: number) {
+  const reported = useContext(HeaderHeightContext) ?? 0;
+  const frame = useSafeAreaFrame();
+  const guess = getDefaultHeaderHeight(
+    { width: frame.width, height: frame.height },
+    false,
+    topInset
+  );
+  return { reported, settled: useSettledHeaderHeight(reported, guess) };
+}
+
 /** Owns all measured geometry reserved around a conversation list. */
 export function useConversationInsets({
   hasFloatingComposer,
@@ -58,9 +76,17 @@ export function useConversationInsets({
   hasTransparentHeader: boolean;
   hasFloatingPinnedPostBanner?: boolean;
 }) {
-  const headerHeight = useContext(HeaderHeightContext) ?? 0;
-  const { bottom: bottomSafeArea } = useSafeAreaInsets();
-  const floatingHeaderHeight = useFloatingHeaderHeight(hasTransparentHeader);
+  const { bottom: bottomSafeArea, top: topSafeArea } = useSafeAreaInsets();
+  // The list's insets and the floating header height use the settled
+  // height. The reported one is passed on for the chrome a screen lays out
+  // itself: a screen that hides its header (a bot conversation draws its own)
+  // reports 0 for good.
+  const { reported: navigationHeaderHeight, settled: headerHeight } =
+    useConversationHeaderHeight(topSafeArea);
+  const floatingHeaderHeight = getFloatingHeaderHeight(
+    headerHeight,
+    hasTransparentHeader
+  );
   // getConversationContentInsets reduces this to `hasTransparentHeader ?
   // headerHeight : 0`, which is the floating height, so the two agree by
   // construction rather than by two copies of the same condition.
@@ -96,7 +122,7 @@ export function useConversationInsets({
 
   return {
     contentInsets,
-    navigationHeaderHeight: headerHeight,
+    navigationHeaderHeight,
     floatingHeaderHeight,
     onFloatingHeightChange:
       Platform.OS !== 'web' && hasFloatingComposer

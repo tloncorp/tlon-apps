@@ -372,6 +372,10 @@ const useChannelUnreadRow = (channelId?: string | null) => {
   return data ?? null;
 };
 
+/** A channel's unread row as it is stored now, for comparing with a snapshot. */
+export const useChannelUnread = (channelId?: string | null) =>
+  useChannelUnreadRow(channelId);
+
 export const useChannelUnreadCount = (channelId?: string | null) =>
   useChannelUnreadRow(channelId)?.count ?? 0;
 

@@ -970,10 +970,11 @@
   ?~  source  |
   =/  cfg  config:(play:hl log.u.source)
   =/  live  (execution-tools sid.job tools.cfg)
-  ::  Saved grants must remain available. Newly available tools do not widen
-  ::  a schedule's durable ceiling or pause work that is still authorized.
-  =/  actual  (skip live |=(g=tool-grant:h =(%cron g)))
-  =/  saved  (skip tools.job |=(g=tool-grant:h =(%cron g)))
+  ::  Saved grants must remain available, except %cron and %code, which a
+  ::  scheduled run cannot hold. Newly available tools do not widen a
+  ::  schedule's durable ceiling or pause work that is still authorized.
+  =/  actual  (skip live |=(g=tool-grant:h |(=(%cron g) =(%code g))))
+  =/  saved  (skip tools.job |=(g=tool-grant:h |(=(%cron g) =(%code g))))
   (levy saved |=(g=tool-grant:h (~(has in (silt actual)) g)))
 ++  stop-schedule
   |=  [id=@uv job=schedule:cr mode=?(%paused %cancelled) reason=@t]
@@ -2862,8 +2863,9 @@
   ?.  ?=([~ %o *] params)  'error: recall arguments must be a JSON object'
   =/  scope  (~(get by names.corpus) sid)
   =/  allowed=(set @uv)
-    ::  Cross-conversation recall is an explicit owner-conversation grant,
-    ::  never ambient authority inherited by a social or delegated input.
+    ::  Cross-conversation recall needs %corpus among this turn's tools, which
+    ::  an administrative owner turn always has. Social and delegated inputs
+    ::  recall only their own conversation, whatever they are granted.
     ?:  ?&  (lien tools |=(grant=tool-grant:h =(grant %corpus)))
             !(social-context:hl log.session)
             ?=(~ (delegation:hl log.session))
@@ -4076,6 +4078,11 @@
     [[%context-received id.input.event u.reference] events]
   =?  events  ?=(^ parsed-command)
     =/  view  (memory-view sid (play:hl log.session))
+    ::  Authority follows the latest input, so resolve it with this one in the
+    ::  log, which is recorded only after the command is evaluated.
+    =/  [tools=(list tool-grant:h) owner=?]
+      =.  sessions  (~(put by sessions) sid session(log [event log.session]))
+      [(execution-tools sid tools.config.view) (session-admin sid)]
     =/  result
       %:  evaluate:command
         u.parsed-command
@@ -4083,6 +4090,8 @@
         defaults
         (skills-visible sid skills)
         log.session
+        tools
+        owner
       ==
     %+  snoc
       (weld events events.result)
@@ -4422,7 +4431,8 @@
   ^-  (quip card _state)
   ?>  ?=(%spawn -.action)
   ::  The drive loop delegates with the parent's current grants. Removing
-  ::  %subagents keeps the child from creating another delegation level.
+  ::  %subagents keeps the child from creating another delegation level; the
+  ::  rest are never resolved for a child, so its saved config leaves them out.
   ?>  =(our.bowl src.bowl)
   ?.  (authorized-call parent.action call-id.action 'run_subagent')  `state
   =/  parent-session  (~(get by sessions) parent.action)
@@ -4441,7 +4451,7 @@
   =/  child-config=config:h
     %=  config.parent-view
       tools  %+  skip  (execution-tools parent.action tools.config.parent-view)
-             |=(grant=tool-grant:h =(%subagents grant))
+             |=(grant=tool-grant:h ?=(?(%subagents %admin %cron %tlon-read %tlon-write) grant))
       system  %+  fall  system.action
               %^  cat  3  system.config.parent-view
               ' You are a subagent: complete the task and reply with only your final answer.'
@@ -5707,7 +5717,11 @@
   ::  Resolve the conversation's grants before adding privileged families.
   ::  Peer and social origins still impose their own limits.
   =/  administrator  (session-admin sid)
-  =?  granted  administrator  (owner-tools:ht mcp-servers)
+  ::  Run JS stays opt-in for the owner: only the conversation's grant offers it.
+  =/  code  (lien granted |=(grant=tool-grant:h =(%code grant)))
+  =?  granted  administrator
+    %+  skip  (owner-tools:ht mcp-servers)
+    |=(grant=tool-grant:h &(!code =(%code grant)))
   =.  granted
     (skip granted |=(grant=tool-grant:h |(=(%admin grant) =(%cron grant))))
   =/  session  (~(get by sessions) sid)

@@ -7,72 +7,42 @@ means it follows from those but was not run. Recommendations are proposals, not
 decisions. Line references were last checked against the code at `bcce2d5c32`, by
 reading.
 
-## Known bugs
-
-### Tool settings do nothing on owner conversations
-
-Turning a tool off for an owner conversation does not take it away: the conversation
-and its subagents can still use it, while the docs and settings UI say it is limited.
-For example, an owner conversation with `curl` turned off can still use `curl`. Subagents
-never get more than the conversation that started them, so the fault is in the owner
-conversation's settings, not in delegation. Details are in issues 1 and 2.
-
 ## Permissions
 
-### 1. Delegated children exceed their parent's saved grants
+A turn the owner drives directly (their own DM with the bot, ACP, a local poke, or as a
+peer) gets every tool whatever the conversation's saved tools say, except Run JS, which
+needs `code` saved on the conversation. This was decided in TLON-7154. Entries 1, 3 and 9
+describe what follows from it.
+
+Run JS is not opt-in for the owner's ship working as a peer. Its peer conversations take
+their grants from `owner-grant` (`desk/app/harness.hoon`), which holds `%code` and is
+rewritten on every request, so there is no saved setting to leave it out of. TLON-7154
+did not decide this case.
+
+### 1. Delegated children follow their parent's tools, not its saved grants
 
 **Reproduced.** A child of an owner conversation granted `subagents, web,
 workspace` received 27 tools, including `curl`, `run_js`, `tlon`, `write_skill`
 and `ask_peer`, and its `curl` POST reached a local test server. The same grant
-through a non-owner hand gave the child 9 tools, and `curl` was rejected.
+through a non-owner hand gave the child 9 tools, and `curl` was rejected. That run
+predates Run JS becoming opt-in on owner turns: without `code` saved, neither the owner
+turn nor its child is now offered `run_js`.
 
 **Read.** This is not an escalation past the parent. `action-spawn` passes the
 parent's `execution-tools` (`desk/app/harness.hoon:4443`), which become `owner-tools`
 for an administrator (`desk/app/harness.hoon:5668`), so the owner parent already holds
-those tools itself, and the child loses `harness_admin` and `cron`. It follows from
-issue 2. The comment at `desk/lib/harness-defaults.hoon:6-10`, "delegated work retains
-its explicit grants", was wrong and has been corrected.
+those tools itself, and the child loses `harness_admin` and `cron`. A child is capped by
+what its parent turn could use, so this is intended. The comment at
+`desk/lib/harness-defaults.hoon:6-10`, "delegated work retains its explicit grants", was
+wrong and has been corrected.
 
-**Recommendation:** no separate cap. Children follow the parent's effective tools, so
-they follow whatever issue 2 decides. Capping children at saved grants alone would make
-a saved list that does nothing on owner turns apply only to children, and a child of a
-`tools: []` conversation would get no tools.
-
-### 2. Owner conversations ignore their saved tool grants
-
-**Reproduced.** With `tools: []`, an owner conversation still gets every tool
-family, including `harness_admin`, all of Clay and global corpus recall.
-`desk/app/harness.hoon:5668`, added in `18c56b8`, replaces the grants, and
-`test-owner-first-turn-advertises-live-tools-despite-empty-session-grants`
-(`desk/tests-integration/harness-hosted.hoon:212`) pins this.
-
-**Read.** The README and `docs-refs/` pages `architecture`, `execution`,
-`capabilities` and `tlon` describe per-conversation limits and now carry a known-bug
-note. Also out of step:
-- The comment at `desk/app/harness.hoon:2865` calls cross-conversation recall an
-  explicit owner-conversation grant.
-
-| Option | Owner in the Tlon UI | Hosted connected services |
-| --- | --- | --- |
-| A. Keep the bypass, correct docs and UI | Tool settings do nothing on owner turns | Reach owner turns immediately |
-| B. Owners obey grants | Settings work; empty or old lists lose tools | Need a grant or migration first |
-| C. Per-conversation "all tools" flag, on by default | As today until narrowed | As A unless narrowed; needs a state migration |
-
-**Recommendation:** A for now, then C if owners need to narrow a conversation.
-Also decide whether Run JS belongs in `owner-tools`.
-
-`tests-js/owner-grants-conformance.mjs` and the owner assertion in
-`tests-js/lcm-conformance.mjs` record today's behaviour and need rewriting if this
-changes.
-
-### 3. Owner uploads ignore Clay path grants
+### 3. Owner uploads are not limited by Clay path grants
 
 **Reproduced against a throwaway `%storage` stub.** An owner session granted only
 `tlon` uploaded `/harness/lib/harness-tlon-tool/hoon`. `upload-authorized`
-(`desk/app/harness-tlon.hoon:819`) passes because of issue 2: its `clay-granted` check
-(`:837`) reads the owner's effective tools, which hold all of Clay. The two denial checks
-in `tests-js/tlon-completion-conformance.mjs` will fail on any ship with `%storage`
-until this is settled.
+(`desk/app/harness-tlon.hoon:819`) passes because its `clay-granted` check (`:837`) reads
+the owner's effective tools, which hold all of Clay. This is intended: an owner turn
+keeps every tool.
 
 ## Context and compaction
 
@@ -134,11 +104,15 @@ report matches the view: before the first reported turn, after a model switch, o
 provider that reports no prompt tokens. With a report, `est-tokens`
 (`desk/lib/harness-provider.hoon:16-32`) subtracts the catalog on both sides.
 
-### 9. The full tool catalog is sent with `tools: []` on owner turns
+### 9. Owner turns carry the full tool catalog
 
 **Reproduced.** A request was 30.5 kB, of which 26.7 kB was the catalog of 29 tools, so
-windows of 8000 or less failed with no way to shrink below it. This follows from
-issue 2.
+windows of 8000 or less failed with no way to shrink below it. That was measured before
+Run JS became opt-in on owner turns.
+
+This is the intended cost of owner turns keeping every tool: turning tools off does not
+shrink an owner turn's request, so owner turns need a model context window well above
+8000 tokens.
 
 ### 18. Fixed: recalled memory sat ahead of the history
 
@@ -159,22 +133,18 @@ only they can show whether it still behaves.
 
 ## Reported state
 
-### 11. Saved config does not show an owner's real tools
+### 11. Fixed: `/status` did not show an owner's real tools
 
-**Read, not tested.** `harness/session/config` returns the raw saved grant
-(`desk/app/harness.hoon:3646`, `desk/lib/harness-json.hoon:70`). The `/status` tool-grant
-count (`desk/lib/harness-command.hoon:120`) is the length of that saved list, so it is
-wrong for owners.
+`/status` now counts the tools the turn can use and marks an owner turn as one the
+saved grants do not limit, except for Run JS. `harness/session/config` still returns the saved list, which the settings
+client edits, so for an owner turn it does not show the tools the turn gets.
 
-### 12. A child's saved config does not match what it can use
+### 12. Fixed: a child's saved config listed tools it could not use
 
-**Reproduced.** It holds `admin` and `cron`, copied from the parent's effective tools.
-They are stripped at execution. An owner's child also lists `tlon` with no hand binding.
-
-**Read.** The spawn skips only `subagents` (`desk/app/harness.hoon:4443`). The child can
-use `tlon`, the ship-wide tool, since it is in `owner-tools`. The child of a Tlon-bound
-owner parent also holds `tlon-read` and `tlon-write`, which are stripped at execution
-because the child has no binding.
+A child's saved config no longer lists `admin`, `cron`, `tlon-read` or `tlon-write`,
+which it copied from the parent's effective tools and lost at execution. What the child
+can use did not change. An owner's child still lists `tlon`, the ship-wide tool, which it
+can use.
 
 ## Agent lifecycle
 
@@ -232,8 +202,7 @@ behaviour, not real models. This run predates the four CI shards of `just test-j
 - `tlon-media`: needs `%storage`, which the pill lacks, and a real download.
 - `openai-auth`: tests a real OpenAI login.
 
-**Incomplete:** `tlon-completion` needs `%storage` for its upload checks, and its two denial
-checks then depend on issue 3.
+**Incomplete:** `tlon-completion` needs `%storage` for its upload checks.
 
 **Not in `just test`:**
 - Real inference: `work-goal-practical`, `compaction-provider-smoke`, the real-provider mode of
@@ -267,7 +236,7 @@ configured, so the upstream catalog check didn't run.
 ### 15. `tlon-completion` can't fully pass on this pill
 
 The pill has no `%storage`, so the script prints INCOMPLETE and exits 1. A full pass
-needs a real `%storage` and a decision on issue 3.
+needs a real `%storage`.
 
 ### 16. Weak or missing checks
 
@@ -333,11 +302,11 @@ Groups rather than Harness.
 
 ## Resolved
 
-**Tally: 7 desk bugs, 4 false comments or docs, and 38 broken tests.** All of these
+**Tally: 9 desk bugs, 5 false comments or docs, and 38 broken tests.** All of these
 predate this cleanup, except where noted under the tests. Add to this list and update
 the tally as issues are fixed.
 
-### Desk bugs (7)
+### Desk bugs (9)
 
 | Bug | Fix |
 | --- | --- |
@@ -348,12 +317,15 @@ the tally as issues are fixed.
 | With Lens sync on, the owner was told "Your Tlon bot is offline" while the bot was working, because Harness never held Steward's gateway lease | The hand holds the lease while online, and it expires if the hand stops |
 | The context estimate counted instructions, tools and memory twice, at one token per byte, overstating every conversation by about 27k tokens; 16k and 32k windows compacted every turn, each an extra paid call | The reported prompt is trusted for these; new items still count at one token per byte |
 | A Tlon schedule was paused for good if a poll ran while the adapter was stopped, even though nothing about its authority had changed | Stopped adapter now means wait; `poll-schedules` checks authority once it's back, and the job runs once if it came due meanwhile |
+| `/status` counted the conversation's saved tools, so an owner turn showed fewer tools than it had | It counts the tools the turn can use |
+| A child's saved config listed `admin`, `cron`, `tlon-read` and `tlon-write`, copied from its parent's effective tools, though it could never use them | The spawn leaves them out of the child's config |
 
-### False comments and docs (4)
+### False comments and docs (5)
 
 | Where | What it wrongly said |
 | --- | --- |
 | `desk/lib/harness-defaults.hoon:7-8` | Delegated work retains its explicit grants |
+| `++corpus-tool` in `desk/app/harness.hoon` | Cross-conversation recall is an explicit owner-conversation grant |
 | `docs-refs/peers.md`, `docs-refs/integrations.md` | The local MCP agent is `%mcp-server`; the code uses `%mcp-proxy` |
 | `docs-refs/development.md` | Integration tests fill the event log and need a dedicated ship, without any measurement behind it |
 | `docs-refs/performance.md` | The same requirement for a dedicated ship and one named test at a time |

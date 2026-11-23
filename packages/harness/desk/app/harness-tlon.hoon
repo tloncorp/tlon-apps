@@ -112,9 +112,9 @@
     |=  [=wire =sign:agent:gall]
     ?:  =(/telemetry wire)  `this
     ::  A failed profile edit retries on the next adapter event, not its nack.
-    ?:  =(/liveness wire)
+    ?:  =(/claims wire)
       ?^  error=?:(?=(%poke-ack -.sign) p.sign ~)
-        %-  (slog 'harness-tlon: liveness profile update failed' u.error)
+        %-  (slog 'harness-tlon: profile claim update failed' u.error)
         `this
       `this
     ::  A refused lease retries on the next adapter event, not its nack.
@@ -169,11 +169,12 @@
 ::
 ++  sync-liveness
   ^+  cor
-  ::  The in-ship hand publishes readiness through Contacts; the native
-  ::  subscriptions determine readiness. It also holds Steward's gateway lease.
+  ::  The in-ship hand publishes readiness and its bot-info claim through
+  ::  Contacts; the native subscriptions determine readiness. It also holds
+  ::  Steward's gateway lease.
   =/  online  &(enabled.policy watching head-live)
   =?  cor  online  hold-steward-lease
-  =/  effect  (mole |.((liveness:messenger online)))
+  =/  effect  (mole |.((claims:messenger online)))
   ?~  effect  cor
   ?~  u.effect  cor
   (emit u.u.effect)
