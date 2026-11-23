@@ -8,7 +8,7 @@ function Avatar({ size }: { size: number }) {
     <View
       width={size}
       height={size}
-      borderRadius={size / 4}
+      borderRadius={size === 64 ? 16 : 4}
       backgroundColor="$secondaryBackground"
       alignItems="center"
       justifyContent="center"
@@ -29,14 +29,14 @@ export default {
           <Text>Running</Text>
         </YStack>
         <YStack gap="$s" alignItems="center">
-          <BotRestartAvatar restarting>
+          <BotRestartAvatar restarting size="large">
             <Avatar size={64} />
           </BotRestartAvatar>
           <Text>Restarting</Text>
         </YStack>
         <YStack gap="$s" alignItems="center">
           <BotRestartAvatar restarting>
-            <Avatar size={32} />
+            <Avatar size={24} />
           </BotRestartAvatar>
           <Text>Header</Text>
         </YStack>

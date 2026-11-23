@@ -290,7 +290,7 @@ export function BotBaubleHeader({
             shouldRasterizeIOS
             style={[styles.tile, motion.tileStyle]}
           >
-            <BotRestartAvatar restarting={restarting}>
+            <BotRestartAvatar restarting={restarting} size="large">
               <ContactAvatar
                 contactId={botId}
                 size="$5xl"
