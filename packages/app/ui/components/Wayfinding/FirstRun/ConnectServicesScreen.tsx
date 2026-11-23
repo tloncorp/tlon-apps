@@ -2,6 +2,7 @@ import { LoadingSpinner, Pressable, Text } from '@tloncorp/ui';
 import { useState } from 'react';
 import { View, XStack, YStack, useTheme } from 'tamagui';
 
+import { useIsDarkMode } from '../../../../hooks/useDarkMode';
 import { McpProviderLogo } from '../../McpProviderLogo';
 import { useOnboardingGlyph } from '../../Onboarding/line/AvatarGlyphPicker';
 import { LINE_LIST_RADIUS } from '../../Onboarding/line/LineChoiceList';
@@ -26,6 +27,12 @@ const copy = firstRunCopy.connect;
 /** A logo's slot in its row; the logo is drawn a little larger, past it. */
 const LOGO_SLOT = 32;
 const LOGO_SIZE = 38;
+/**
+ * Catalog logos are drawn for a light ground: Google's carry their own white
+ * disc, GitHub's is a bare black mark. In dark mode each sits on a light disc
+ * filling its slot.
+ */
+const LOGO_DISC = LOGO_SLOT;
 const BUTTON_HEIGHT = 32;
 
 /**
@@ -224,6 +231,7 @@ function ServiceRow({
   onCheckAgain: () => void;
 }) {
   const { row, access } = service;
+  const isDark = useIsDarkMode();
   const line =
     state === 'connected'
       ? copy.connectedLine
@@ -263,6 +271,15 @@ function ServiceRow({
         justifyContent="center"
         overflow="visible"
       >
+        {isDark ? (
+          <View
+            position="absolute"
+            width={LOGO_DISC}
+            height={LOGO_DISC}
+            borderRadius={LOGO_DISC / 2}
+            backgroundColor="$primaryText"
+          />
+        ) : null}
         <McpProviderLogo
           displayName={row.displayName}
           logoUrl={row.logoUrl}
