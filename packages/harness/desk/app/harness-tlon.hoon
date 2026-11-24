@@ -2708,8 +2708,8 @@
   ?~  heard  cor
   =/  to  to.u.heard
   ?:  (lte (posted-at:continuity event) (admission-cutoff who to))  cor
-  ::  As on OpenClaw, an expired request is gone before the id is looked up,
-  ::  though the wake has not yet removed it.
+  ::  As on OpenClaw, an expired request is gone before the id is looked up;
+  ::  +abet expires what is due only after the event.
   =.  cor  expire-approvals
   =/  found  (pick:ask approvals id.order)
   ?~  found  (answer-order to (unknown:ask id.order))
@@ -2794,6 +2794,7 @@
   ?.  ?=(%poke-ack -.sign)  cor
   ?~  p.sign  cor
   %-  (slog 'harness-tlon: approval command reply rejected' u.p.sign)
+  =.  cor  (emit (crash:observe bowl %approval-reply u.p.sign))
   cor(error 'Messenger rejected an approval command reply; inspect the ship log.')
 ::  +place-label: a request's channel as a reply names it, or ~ for a DM
 ::
