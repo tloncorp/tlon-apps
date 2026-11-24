@@ -1099,6 +1099,13 @@
     !>  ^-  (list [@t @t])
     ~[['dm/~nec' 'Approved DM access for ~dev. They will be able to message the bot.']]
   ;<  ~  bind:m  (ex-equal !>((kinds s 'approval-allowed')) !>(1))
+  ::  %chat stamps the owner's join of the DM [our now] in the same event.
+  =/  stamps=(list @da)
+    %+  murn  caz
+    |=  c=card
+    ?.  ?=([%pass [%approval-reply @ ~] %agent * %poke %chat-dm-action-2 *] c)  ~
+    `q.p.q:!<(action:dm:v7:cv q.cage.task.q.c)
+  ;<  ~  bind:m  (ex-equal !>((levy stamps |=(at=@da (gth at later)))) !>(&))
   ;<  ~  bind:m  (ex-equal !>(wake.s) !>(`(add start (add ~h48 ~m1))))
   ;<  ~  bind:m  (ex-equal !>(jobs.s) !>(`(map @uv job:t)`~))
   (ex-equal !>((turned caz)) !>(|))

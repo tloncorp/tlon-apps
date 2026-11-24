@@ -2781,7 +2781,10 @@
 ++  answer-order
   |=  [to=destination:t text=@t]
   ^+  cor
-  =.  last-sent  (next-message-stamp:p now.bowl last-sent)
+  ::  The owner's first post in the DM the card opened makes %chat add a
+  ::  join message as [our now] in this same event; a reply with that id
+  ::  would be dropped from the bot's own copy of the DM.
+  =.  last-sent  (next-message-stamp:p +(now.bowl) last-sent)
   (emit (publish:messenger /approval-reply/(scot %da last-sent) to text last-sent ~))
 ::
 ++  agent-approval-reply
