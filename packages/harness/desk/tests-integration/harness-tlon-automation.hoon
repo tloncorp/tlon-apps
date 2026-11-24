@@ -25,6 +25,10 @@
 ::
 ++  boot
   |=  [owner=(unit @p) running=? lease=?]
+  (boot-from (saved owner) running lease)
+::
+++  boot-from
+  |=  [saved=state-4:t running=? lease=?]
   =/  m  (mare ,(list card))
   ^-  form:m
   ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now now))
@@ -38,7 +42,7 @@
       ==
     ==
   ;<  ~  bind:m  (set-scry-gate (scries running lease))
-  (do-load adapter `!>((saved owner)))
+  (do-load adapter `!>(saved))
 ::
 ++  scries
   |=  [running=? lease=?]
@@ -251,6 +255,30 @@
   =/  =task:v1:sa  task:(snag 1 i.projected)
   ;<  ~  bind:m  (ex-equal !>(name.task) !>(`'Brief'))
   (ex-equal !>(schedule.task) !>(`[%cron `'0 9 * * *' `'Asia/Kolkata' ~]))
+::
+::  A channel's conversation is shared, whoever opened it. The owner's task
+::  there runs in it as the owner.
+::
+++  test-a-channel-create-runs-in-the-channels-shared-conversation-as-the-owner
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  room=destination:t  [%channel [%chat ~bus %general] ~]
+  =/  s  (saved `~nec)
+  =.  s
+    %=  s
+      identities  (~(put by identities.s) room 'room')
+      routes  (~(put by routes.s) 'room' ['room-binding' %ready])
+      lanes  (~(put by lanes.s) 'room' [room 0 ~])
+    ==
+  ;<  *  bind:m  (boot-from s & &)
+  ;<  *  bind:m  (schedules snapshot)
+  ;<  caz=(list card)  bind:m
+    (dispatch 0v9 (create [%cron `'0 9 * * *' ~ ~] `'Brief the room' `'chat/~bus/general'))
+  =/  sent  (requests caz)
+  ?>  ?=([[%add *] ~] sent)
+  ;<  ~  bind:m  (ex-equal !>(binding.i.sent) !>('room-binding'))
+  (ex-equal !>(actor.i.sent) !>('~nec'))
 ::
 ++  test-an-unsupported-create-finalizes-invalid-and-creates-nothing
   %-  eval-mare

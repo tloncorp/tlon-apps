@@ -995,8 +995,10 @@ already made.
   [zone table](scheduling.md#tlon-messengers-scheduled-tasks), and the hand
   keeps the name to show it back. The job gets the scheduler's
   100 runs. It delivers to the owner's DM when its delivery names that DM, has
-  `mode` `none` or is absent, and to a channel only where the owner has
-  already talked to the bot. It answers `created` with the new job's id.
+  `mode` `none` or is absent, and to a channel only where the bot already has
+  a conversation. The job runs as the owner in that conversation, which in a
+  channel is the one shared by everyone there. It answers `created` with the
+  new job's id.
 - `update` patches: `enabled` false cancels the job; a new schedule or prompt
   edits it in place, keeping its remaining runs; a name or description only
   updates what the hand shows. It answers `updated`.
@@ -1005,7 +1007,7 @@ already made.
 These answer `invalid` with a message: an unknown zone, an `every` schedule, a
 create without a schedule or prompt, a payload kind other than the job's, a
 tool allow-list, webhook delivery, a failure destination, a target that is not
-the owner's DM or a channel the owner has used with the bot, moving a task to
+the owner's DM or a channel where the bot has a conversation, moving a task to
 another conversation, re-enabling a disabled task, and `test`, since the head
 cannot run a job once without delivering it. An id that is not one of the
 owner's Tlon schedules answers `not-found`. A head refusal, such as editing a
@@ -1016,7 +1018,7 @@ Steward admits an edit only from its configured owner, and the hand sets that
 owner whenever its own changes, so new edits come from the current owner. A
 command Steward admitted before an owner change is still replayed, since the
 automation dispatch names no requester; it can only reach schedules the new
-owner holds and conversations the new owner has with the bot.
+owner holds, the new owner's DM and channels where the bot has a conversation.
 
 Known limits: pausing cancels, and a cancelled job cannot be resumed; recurring
 jobs created here run at most 100 times; `every` schedules and test runs are

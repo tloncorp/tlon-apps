@@ -193,7 +193,7 @@
   ?:(=(0 remaining.job) 100 remaining.job)
 ::
 ::  +plan: a Steward edit as the head actions that apply it, or the answer
-::  that refuses it. .binding names the head binding of the owner's
+::  that refuses it. .binding names the head binding of the bot's
 ::  conversation at a destination, if the hand has one.
 ::
 ++  plan
@@ -219,7 +219,7 @@
     =/  source  (binding p.to)
     ?~  source
       %-  invalid
-      (cat 3 'the bot has no conversation with its owner at ' (target (address:p p.to)))
+      (cat 3 'the bot has no conversation at ' (target (address:p p.to)))
     =/  timed  (timing u.schedule.task | u.message.u.payload.task 100)
     ?:  ?=(%| -.timed)  (invalid p.timed)
     =/  add=action:cr  [%add request u.source (scot %p owner) %prompt args.p.timed]
