@@ -1,5 +1,6 @@
 /-  t=harness-tlon, c=harness-cron, hh=harness-hand, sa=steward-automation
-/+  *test, automation=harness-tlon-automation, schedule=harness-schedule
+/+  *test, automation=harness-tlon-automation, schedule=harness-schedule,
+    cron=harness-cron
 |%
 ++  now  ~2026.11.23..12.00.00
 ::  A recurring job of the owner's in the owner DM, on the Tlon hand.
@@ -365,5 +366,68 @@
       !>(schedule:task:(snag 0 (project:automation schedules same ~nec)))
       %+  expect-eq  !>(`(unit cron-schedule:v1:sa)``[%cron `'0 9 * * 1-5' `'-06:00' ~])
       !>(schedule:task:(snag 0 (project:automation schedules moved ~nec)))
+  ==
+::  Every interval the translation accepts gives an expression the head's
+::  parser takes, whose runs from the anchor's minute are one interval apart
+::  for a full cycle.
+::
+++  cadence-holds
+  |=  [interval=@dr anchor=@da span=@dr]
+  ^-  tang
+  =/  made  (every-cron:automation interval anchor)
+  ?.  ?=(%& -.made)  ~[leaf+"{<interval>} from {<anchor>} is refused"]
+  =/  expression  p.made
+  =/  parsed  (mule |.((parse:cron expression)))
+  ?.  ?=(%& -.parsed)  ~[leaf+"{(trip expression)} does not parse"]
+  =/  start  (sub anchor (mod anchor ~m1))
+  ?.  =(`start (next:cron p.parsed (sub start ~s1)))
+    ~[leaf+"{(trip expression)} does not run at {<start>}"]
+  =/  at  start
+  |-  ^-  tang
+  ?:  (gte at (add start span))  ~
+  =/  following  (next:cron p.parsed at)
+  ?.  =(`(add at interval) following)
+    ~[leaf+"{(trip expression)} runs at {<following>} after {<at>}"]
+  $(at (add at interval))
+::
+++  test-each-accepted-every-parses-and-runs-one-interval-apart
+  =/  minutes=(list @dr)
+    %+  turn  `(list @ud)`~[1 2 3 4 5 6 10 12 15 20 30 60]
+    |=(n=@ud (mul n ~m1))
+  =/  hours=(list @dr)
+    %+  turn  `(list @ud)`~[1 2 3 4 6 8 12 24]
+    |=(n=@ud (mul n ~h1))
+  ::  Minute 0 at hour 0, minute 59 at hour 23, and an odd minute with
+  ::  seconds; for a week, each weekday.
+  =/  anchors=(list @da)
+    ~[~2026.11.23..00.00.00 ~2026.11.23..23.59.00 ~2026.11.23..13.37.29]
+  =/  weekdays=(list @da)
+    (turn (gulf 0 6) |=(n=@ud (add ~2026.11.23..09.41.00 (mul n ~d1))))
+  =/  daily=tang
+    %+  roll  (weld minutes hours)
+    |=  [interval=@dr out=tang]
+    %+  roll  anchors
+    |=  [anchor=@da out=_out]
+    (weld out (cadence-holds interval anchor ~d1))
+  %+  roll  weekdays
+  |=  [anchor=@da out=_daily]
+  (weld out (cadence-holds ~d7 anchor ~d21))
+::  A one-minute every is made as *, and the job the head stores from it
+::  still shows as that every.
+::
+++  test-a-one-minute-every-is-a-star-and-projects-back
+  =/  anchor  ~2026.11.23..10.05.00
+  =/  planned  (plan (create [%every `~m1 `anchor] `'Tick' ~) ~)
+  ?>  ?=(%& -.planned)
+  ?>  ?=([[%add *] ~] steps.p.planned)
+  ?>  ?=(^ names.p.planned)
+  =/  source=binding:hh  ['tlon' 'dm/~nec' 'source' ~['~nec'] &]
+  =/  made  (create:schedule i.steps.p.planned source ~ now)
+  =/  names  (my ~[[0v9 task-names.u.names.p.planned]])
+  =/  tasks  (project:automation (my ~[[0v9 made]]) names ~nec)
+  ;:  weld
+      (expect-eq !>('* * * * *') !>(expression.made))
+      %+  expect-eq  !>(`(unit cron-schedule:v1:sa)``[%every `~m1 `anchor])
+      !>(schedule:task:(snag 0 tasks))
   ==
 --

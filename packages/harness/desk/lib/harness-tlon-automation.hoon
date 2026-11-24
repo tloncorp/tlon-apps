@@ -257,11 +257,14 @@
   ==
 ::
 ::  +spread: the places of a cycle that a step from .start reaches, as a
-::  cron list, such as 5,20,35,50 for 15 minutes from :35
+::  cron list, such as 5,20,35,50 for 15 minutes from :35. A step of one
+::  reaches every place, written *: the scheduler refuses an expression
+::  over 128 bytes, which the full minute list is.
 ::
 ++  spread
   |=  [start=@ud step=@ud cycle=@ud]
   ^-  @t
+  ?:  =(1 step)  '*'
   =/  at  (mod start step)
   =|  out=tape
   |-
