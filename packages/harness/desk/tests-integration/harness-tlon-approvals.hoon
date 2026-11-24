@@ -986,4 +986,350 @@
   ;<  ~  bind:m  (ex-equal !>((declined caz)) !>(`(list [@p ?])`~))
   ;<  ~  bind:m  (ex-equal !>(?=(^ (find:ask approvals.u ~dev ~))) !>(&))
   (ex-equal !>((lent (sent caz))) !>(1))
+::
+::  The owner's approval commands
+::
+++  told  ~2026.9.10..00.05.00
+::  ~dev's DM request and its request in .room-nest, and ~wes's in
+::  .room-nest, a minute apart, ~wes's the newest
+::
+++  asked
+  ^-  state-5:t
+  =/  s  fixture
+  =.  approvals.s
+    =/  one  (open:ask approvals.s 'd0001' [~dev ~ start])
+    =/  two  (open:ask one 'c0001' [~dev `room-nest (add start ~m1)])
+    (open:ask two 'c0002' [~wes `room-nest (add start ~m2)])
+  s
+::  A DM post from .who
+::
+++  said
+  |=  [who=@p text=@t at=@da]
+  ^-  incoming-event:v8:a
+  [%dm-post [[who at] at] [%ship who] ~[[%inline ~[text]]] |]
+::  A channel post from .who that mentions the bot ahead of .text
+::
+++  addressed
+  |=  [who=@p nest=nest:dv text=@t at=@da]
+  ^-  incoming-event:v8:a
+  [%post [[who at] at] nest [~lux %test] ~[[%inline ~[[%ship ~zod] ' ' text]]] &]
+::  As +admit, with %chat holding .invited's DM invitations
+::
+++  admit-invited
+  |=  [saved=state-5:t now=@da events=(list [@da incoming-event:v8:a]) invited=(set @p)]
+  =/  m  (mare ,[(list card) state-5:t])
+  ^-  form:m
+  =/  events  (stream events)
+  ;<  ~  bind:m  (boot saved now events)
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(invited)
+    ((scries events) path)
+  ;<  caz=(list card)  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
+  ;<  =vase  bind:m  get-save
+  (pure:m caz !<(state-5:t vase))
+::  Acknowledge the one block in .caz with .ack, to the running adapter
+::
+++  ack-block
+  |=  [caz=(list card) ack=(unit tang)]
+  =/  m  (mare ,[(list card) state-5:t])
+  ^-  form:m
+  =/  wires  (turn (blocks caz) head)
+  ?>  ?=([* ~] wires)
+  ;<  out=(list card)  bind:m  (do-agent i.wires [~zod %chat] [%poke-ack ack])
+  ;<  =vase  bind:m  get-save
+  (pure:m out !<(state-5:t vase))
+::  The replies to approval commands: where they go and their text.
+::
+++  answered
+  |=  caz=(list card)
+  ^-  (list [to=@t text=@t])
+  %+  murn  caz
+  |=  c=card
+  ?.  ?=([%pass [%approval-reply @ ~] %agent * %poke *] c)  ~
+  =/  =cage  cage.task.q.c
+  ?:  =(%chat-dm-action-2 p.cage)
+    =/  act  !<(action:dm:v7:cv q.cage)
+    ?>  ?=(%add -.q.q.act)
+    `[(address:policy-lib [%dm p.act ~]) (story-to-text:story content.essay.q.q.act)]
+  =/  act  ;;([%channel =nest:dv %post %add [=memo:v9:dv *]] q.q.cage)
+  `[(address:policy-lib [%channel nest.act ~]) (story-to-text:story content.memo.act)]
+::  The native blocks asked of %chat: their wires and ships.
+::
+++  blocks
+  |=  caz=(list card)
+  ^-  (list [wire @p])
+  %+  murn  caz
+  |=  c=card
+  ?.  ?=([%pass * %agent [@ %chat] %poke %chat-block-ship *] c)  ~
+  `[p.c !<(@p q.cage.task.q.c)]
+::  The DM invitations accepted.
+::
+++  accepted
+  |=  caz=(list card)
+  ^-  (list [@p ?])
+  %+  murn  caz
+  |=  c=card
+  ?.  ?=([%pass [%invite %dm @ ~] %agent [@ %chat] %poke %chat-dm-rsvp *] c)  ~
+  `!<([@p ?] q.cage.task.q.c)
+::  Whether any card hands the head work for a turn.
+::
+++  turned
+  |=  caz=(list card)
+  ^-  ?
+  (lien caz |=(c=card ?=([%pass * %agent [@ %harness] %poke %harness-hand *] c)))
+++  channel-ships
+  |=  [s=state-5:t nest=nest:dv]
+  ^-  (set @p)
+  (fall (~(get by channel-grants.policy.s) nest) ~)
+::
+++  test-allow-of-a-dm-request-grants-dm-access-only-and-accepts-the-pending-invitation
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-5:t]  bind:m
+    (admit-invited asked later ~[[told (said ~nec '/allow d0001' told)]] (silt ~[~dev]))
+  ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.s) !>((silt ~[~bus ~dev])))
+  ;<  ~  bind:m  (ex-equal !>(channel-grants.policy.s) !>(channel-grants.policy:asked))
+  ;<  ~  bind:m  (ex-equal !>(~(key by by-id.approvals.s)) !>((silt ~['c0001' 'c0002'])))
+  ;<  ~  bind:m  (ex-equal !>((accepted caz)) !>(`(list [@p ?])`~[[~dev &]]))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((answered caz))
+    !>  ^-  (list [@t @t])
+    ~[['dm/~nec' 'Approved DM access for ~dev. They will be able to message the bot.']]
+  ;<  ~  bind:m  (ex-equal !>((kinds s 'approval-allowed')) !>(1))
+  ;<  ~  bind:m  (ex-equal !>(wake.s) !>(`(add start (add ~h48 ~m1))))
+  ;<  ~  bind:m  (ex-equal !>(jobs.s) !>(`(map @uv job:t)`~))
+  (ex-equal !>((turned caz)) !>(|))
+++  test-allow-of-a-channel-request-grants-that-channel-only
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-5:t]  bind:m
+    (admit asked later ~[[told (said ~nec '/allow c0001' told)]])
+  ;<  ~  bind:m  (ex-equal !>((channel-ships s room-nest)) !>((silt ~[~dev])))
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by channel-grants.policy.s)) !>(1))
+  ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.s) !>(dm-grants.policy:asked))
+  ;<  ~  bind:m  (ex-equal !>(~(key by by-id.approvals.s)) !>((silt ~['d0001' 'c0002'])))
+  ;<  ~  bind:m  (ex-equal !>((accepted caz)) !>(`(list [@p ?])`~))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((answered caz))
+    !>  ^-  (list [@t @t])
+    :~  :-  'dm/~nec'
+        'Approved ~dev for Room in Lux group (chat/~lux/test). They will be able to interact in this channel.'
+    ==
+  ;<  ~  bind:m  (ex-equal !>(jobs.s) !>(`(map @uv job:t)`~))
+  (ex-equal !>((turned caz)) !>(|))
+::  The ship can ask again: its next message opens a new request.
+::
+++  test-reject-of-a-dm-request-grants-nothing-and-declines-the-pending-invitation
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-5:t]  bind:m
+    (admit-invited asked later ~[[told (said ~nec '/reject d0001' told)]] (silt ~[~dev]))
+  ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy:asked))
+  ;<  ~  bind:m  (ex-equal !>(~(key by by-id.approvals.s)) !>((silt ~['c0001' 'c0002'])))
+  ;<  ~  bind:m  (ex-equal !>((declined caz)) !>(`(list [@p ?])`~[[~dev |]]))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((answered caz))
+    !>(`(list [@t @t])`~[['dm/~nec' 'Denied DM request from ~dev.']])
+  ;<  ~  bind:m  (ex-equal !>((kinds s 'approval-rejected')) !>(1))
+  ;<  ~  bind:m  (ex-equal !>(wake.s) !>(`(add start (add ~h48 ~m1))))
+  ;<  ~  bind:m  (ex-equal !>((turned caz)) !>(|))
+  =/  again  ~2026.9.10..00.20.00
+  ;<  [caz=(list card) w=state-5:t]  bind:m
+    (admit s (add again ~s1) ~[[again (dm ~dev again)]])
+  ;<  ~  bind:m  (ex-equal !>(?=(^ (find:ask approvals.w ~dev ~))) !>(&))
+  (ex-equal !>((lent (sent caz))) !>(1))
+++  test-reject-of-a-channel-request-grants-nothing-and-declines-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-5:t]  bind:m
+    (admit-invited asked later ~[[told (said ~nec '/reject c0001' told)]] (silt ~[~dev]))
+  ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy:asked))
+  ;<  ~  bind:m  (ex-equal !>(~(key by by-id.approvals.s)) !>((silt ~['d0001' 'c0002'])))
+  ;<  ~  bind:m  (ex-equal !>((declined caz)) !>(`(list [@p ?])`~))
+  %+  ex-equal  !>((answered caz))
+  !>(`(list [@t @t])`~[['dm/~nec' 'Denied ~dev for Room in Lux group (chat/~lux/test).']])
+::  ~dev already holds a DM grant and asks in two channels; ~wes's request
+::  stays. Nothing is done until %chat has the block.
+::
+++  test-ban-blocks-the-ship-natively-closes-all-its-requests-and-removes-its-dm-grant
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  asked
+  =.  dm-grants.policy.saved  (~(put in dm-grants.policy.saved) ~dev)
+  =.  approvals.saved
+    =/  open  (close:ask approvals.saved 'd0001')
+    (open:ask open 'c0003' [~dev `all-nest start])
+  ;<  [caz=(list card) s=state-5:t]  bind:m
+    (admit saved later ~[[told (said ~nec '/ban c0001' told)]])
+  ;<  ~  bind:m  (ex-equal !>((turn (blocks caz) tail)) !>(`(list @p)`~[~dev]))
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals.saved))
+  ;<  ~  bind:m  (ex-equal !>((answered caz)) !>(`(list [@t @t])`~))
+  ;<  [out=(list card) w=state-5:t]  bind:m  (ack-block caz ~)
+  ;<  ~  bind:m  (ex-equal !>(~(key by by-id.approvals.w)) !>((silt ~['c0002'])))
+  ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.w) !>(dm-grants.policy:asked))
+  ;<  ~  bind:m  (ex-equal !>(allowed.policy.w) !>(allowed.policy.saved))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((answered out))
+    !>(`(list [@t @t])`~[['dm/~nec' 'Blocked ~dev. They will no longer be able to contact the bot.']])
+  ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-banned')) !>(1))
+  (ex-equal !>(wake.w) !>(`(add start (add ~h48 ~m2))))
+++  test-ban-of-a-dm-request-declines-the-pending-invitation
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-5:t]  bind:m
+    (admit asked later ~[[told (said ~nec '/ban d0001' told)]])
+  ;<  ~  bind:m  (boot s later *stream:v10:a)
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>((silt ~[~dev]))
+    ((scries *stream:v10:a) path)
+  =/  wires  (turn (blocks caz) head)
+  ?>  ?=([* ~] wires)
+  ;<  out=(list card)  bind:m  (do-agent i.wires [~zod %chat] [%poke-ack ~])
+  ;<  =vase  bind:m  get-save
+  =/  w  !<(state-5:t vase)
+  ;<  ~  bind:m  (ex-equal !>(~(key by by-id.approvals.w)) !>((silt ~['c0002'])))
+  (ex-equal !>((declined out)) !>(`(list [@p ?])`~[[~dev |]]))
+::  A request must not look handled when the ship was never blocked.
+::
+++  test-a-refused-block-leaves-the-request-open-and-tells-the-owner
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-5:t]  bind:m
+    (admit asked later ~[[told (said ~nec '/ban c0001' told)]])
+  ;<  [out=(list card) w=state-5:t]  bind:m  (ack-block caz `~[leaf+"no"])
+  ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(approvals:asked))
+  ;<  ~  bind:m  (ex-equal !>(policy.w) !>(policy:asked))
+  ;<  ~  bind:m  (ex-equal !>((declined out)) !>(`(list [@p ?])`~))
+  ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-ban-failed')) !>(1))
+  %+  ex-equal  !>((answered out))
+  !>  ^-  (list [@t @t])
+  ~[['dm/~nec' 'Could not block ~dev: block failed. Request stays pending, try again.']]
+::  %chat crashes on a block it already has, so none is asked for.
+::
+++  test-ban-of-a-ship-already-blocked-asks-no-block-and-closes-its-requests
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  asked
+  =.  approvals.saved  (open:ask approvals.saved 'c0004' [~bel `room-nest start])
+  ;<  [caz=(list card) s=state-5:t]  bind:m
+    (admit saved later ~[[told (said ~nec '/ban c0004' told)]])
+  ;<  ~  bind:m  (ex-equal !>((blocks caz)) !>(`(list [wire @p])`~))
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals:asked))
+  %+  ex-equal  !>((answered caz))
+  !>(`(list [@t @t])`~[['dm/~nec' 'Blocked ~bel. They will no longer be able to contact the bot.']])
+::  An id no request has, one a request had before it closed, and one whose
+::  request expired before the wake removed it.
+::
+++  test-an-unknown-closed-or-expired-id-changes-nothing-and-gets-the-unknown-id-reply
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-5:t]  bind:m
+    (admit asked later ~[[told (said ~nec '/allow d9999' told)]])
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals:asked))
+  ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy:asked))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((answered caz))
+    !>(`(list [@t @t])`~[['dm/~nec' 'No pending approval found for ID: #d9999']])
+  ;<  ~  bind:m  (ex-equal !>((turned caz)) !>(|))
+  =/  closed  asked
+  =.  approvals.closed  (close:ask approvals.closed 'd0001')
+  ;<  [caz=(list card) s=state-5:t]  bind:m
+    (admit closed later ~[[told (said ~nec '/ban d0001' told)]])
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals.closed))
+  ;<  ~  bind:m  (ex-equal !>((blocks caz)) !>(`(list [wire @p])`~))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((answered caz))
+    !>(`(list [@t @t])`~[['dm/~nec' 'No pending approval found for ID: #d0001']])
+  =/  late  (add start (add ~h48 ~m3))
+  ;<  [caz=(list card) s=state-5:t]  bind:m
+    (admit asked (add late ~s1) ~[[late (said ~nec '/allow c0001' late)]])
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(*approvals:t))
+  ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy:asked))
+  %+  ex-equal  !>((answered caz))
+  !>(`(list [@t @t])`~[['dm/~nec' 'No pending approval found for ID: #c0001']])
+::  ~bus has DM access, ~wes none, ~dev none in the channel. None of their
+::  commands opens a request, records an attempt or starts a turn.
+::
+++  test-a-command-from-a-ship-that-is-not-the-owner-changes-nothing-and-gets-no-reply
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-5:t]  bind:m
+    %^  admit  asked  later
+    :~  [told (said ~bus '/allow c0001' told)]
+        [(add told ~s1) (said ~wes '/ban c0002' (add told ~s1))]
+        [(add told ~s2) (addressed ~dev room-nest '/allow c0001' (add told ~s2))]
+        [(add told ~s3) (said ~bel '/reject d0001' (add told ~s3))]
+    ==
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals:asked))
+  ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy:asked))
+  ;<  ~  bind:m  (ex-equal !>((answered caz)) !>(`(list [@t @t])`~))
+  ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
+  ;<  ~  bind:m  (ex-equal !>((blocks caz)) !>(`(list [wire @p])`~))
+  ;<  ~  bind:m  (ex-equal !>((kinds s 'permission-denied')) !>(0))
+  ;<  ~  bind:m  (ex-equal !>(jobs.s) !>(`(map @uv job:t)`~))
+  (ex-equal !>((turned caz)) !>(|))
+::  The owner mentions the bot in .room-nest; an unaddressed command there
+::  does nothing, as any unaddressed post does.
+::
+++  test-a-command-in-a-channel-is-carried-out-and-answered-in-that-channel
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-5:t]  bind:m
+    %^  admit  asked  later
+    :~  [told [%post [[~nec told] told] room-nest [~lux %test] ~[[%inline ~['/reject c0002']]] |]]
+        [(add told ~s1) (addressed ~nec room-nest '/reject c0001' (add told ~s1))]
+    ==
+  ;<  ~  bind:m  (ex-equal !>(~(key by by-id.approvals.s)) !>((silt ~['d0001' 'c0002'])))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((answered caz))
+    !>(`(list [@t @t])`~[['chat/~lux/test' 'Denied ~dev for Room in Lux group (chat/~lux/test).']])
+  ;<  ~  bind:m  (ex-equal !>(jobs.s) !>(`(map @uv job:t)`~))
+  (ex-equal !>((turned caz)) !>(|))
+::  The card's Allow button sends its text as the owner's DM post; Activity
+::  reports that post as it reports a typed one.
+::
+++  test-a-cards-allow-button-has-the-effect-of-the-typed-command
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-5:t]  bind:m
+    (admit fixture start ~[[~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]])
+  =/  cards  (sent caz)
+  ?>  ?=([* ~] cards)
+  =/  allow  (head (buttons blob.i.cards))
+  ;<  ~  bind:m  (ex-equal !>(label.allow) !>('Allow'))
+  ;<  [caz=(list card) w=state-5:t]  bind:m
+    (admit s later ~[[told (said ~nec text.allow told)]])
+  ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(*approvals:t))
+  ;<  ~  bind:m  (ex-equal !>((channel-ships w room-nest)) !>((silt ~[~dev])))
+  ;<  ~  bind:m  (ex-equal !>((lent (answered caz))) !>(1))
+  (ex-equal !>((turned caz)) !>(|))
+::  With no id, as on OpenClaw, the newest request: ~wes's.
+::
+++  test-a-command-without-an-id-acts-on-the-newest-request
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-5:t]  bind:m
+    (admit asked later ~[[told (said ~nec '/reject' told)]])
+  ;<  ~  bind:m  (ex-equal !>(~(key by by-id.approvals.s)) !>((silt ~['d0001' 'c0001'])))
+  ;<  [caz=(list card) w=state-5:t]  bind:m
+    (admit fixture later ~[[told (said ~nec '/reject' told)]])
+  %+  ex-equal  !>((answered caz))
+  !>(`(list [@t @t])`~[['dm/~nec' 'No pending approval found.']])
 --

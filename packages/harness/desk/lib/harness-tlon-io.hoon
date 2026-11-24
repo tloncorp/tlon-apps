@@ -28,6 +28,15 @@
   %~  has  in
   .^((set @p) %gx /(scot %p our.bowl)/chat/(scot %da now.bowl)/blocked/ships)
 ::
+::  +block: add .who to Tlon's native block list, as the app's Block does
+::
+::    %chat crashes on a ship it already blocks, so check +blocked first.
+::
+++  block
+  |=  [=wire who=@p]
+  ^-  card
+  [%pass wire %agent [our.bowl %chat] %poke %chat-block-ship !>(who)]
+::
 ++  accept-invitation
   |=  who=@p
   ^-  card

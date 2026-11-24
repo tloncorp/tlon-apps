@@ -2,8 +2,12 @@
 ::  The card is the OpenClaw plugin's approval card; its buttons send
 ::  ordinary owner commands and approve nothing themselves.
 /-  t=harness-tlon
-/+  p=harness-tlon-policy, work-card=harness-tlon-work-card
+/+  p=harness-tlon-policy, work-card=harness-tlon-work-card,
+    command=harness-command
 |%
+::  $order: the owner's answer to a request, typed or sent by a card's button
+::
++$  order  [action=?(%allow %reject %ban) id=(unit @t)]
 ::  +find: the id of the request open for a ship in a place
 ::
 ++  find
@@ -33,6 +37,90 @@
   |=  [[id=@t =approval:t] kept=_approvals]
   ?:  (keep approval)  kept
   (close kept id)
+::  +read-order: the approval command .text is, if it is one
+::
+::    As OpenClaw reads it: the id is the rest of the text, trimmed, and
+::    none when nothing follows the command.
+::
+++  read-order
+  |=  text=@t
+  ^-  (unit order)
+  =/  parsed  (parse:command text)
+  ?~  parsed  ~
+  =/  id=(unit @t)  ?:(=('' arg.u.parsed) ~ `arg.u.parsed)
+  ?+  name.u.parsed  ~
+    %allow  `[%allow id]
+    %reject  `[%reject id]
+    %ban  `[%ban id]
+  ==
+::  +pick: the request an order names, as OpenClaw finds it
+::
+::    The exact id, else the one id it begins; with no id, the newest
+::    request.
+::
+++  pick
+  |=  [=approvals:t id=(unit @t)]
+  ^-  (unit [id=@t =approval:t])
+  =/  all  ~(tap by by-id.approvals)
+  ?~  id
+    %+  roll  all
+    |=  [[key=@t =approval:t] newest=(unit [id=@t =approval:t])]
+    ?:  &(?=(^ newest) (lte at.approval at.approval.u.newest))  newest
+    `[key approval]
+  =/  exact  (~(get by by-id.approvals) u.id)
+  ?^  exact  `[u.id u.exact]
+  =/  begun
+    (skim all |=([key=@t *] =(u.id (end [3 (met 3 u.id)] key))))
+  ?.  ?=([* ~] begun)  ~
+  `i.begun
+::  +confirmation: OpenClaw's reply to the owner once an order is carried out
+::
+::    .where names the request's channel, or is ~ for a DM.
+::
+++  confirmation
+  |=  [action=?(%allow %reject %ban) who=@p where=(unit @t)]
+  ^-  @t
+  =/  ship  (scot %p who)
+  ?-  action
+    %ban  (rap 3 'Blocked ' ship '. They will no longer be able to contact the bot.' ~)
+  ::
+      %allow
+    ?~  where
+      (rap 3 'Approved DM access for ' ship '. They will be able to message the bot.' ~)
+    (rap 3 'Approved ' ship ' for ' u.where '. They will be able to interact in this channel.' ~)
+  ::
+      %reject
+    ?~  where  (rap 3 'Denied DM request from ' ship '.' ~)
+    (rap 3 'Denied ' ship ' for ' u.where '.' ~)
+  ==
+::  +unknown: OpenClaw's reply to an order that names no open request
+::
+++  unknown
+  |=  id=(unit @t)
+  ^-  @t
+  ?~  id  'No pending approval found.'
+  (cat 3 'No pending approval found for ID: #' u.id)
+::  +block-failed: OpenClaw's reply when the block a ban needs is refused
+::
+++  block-failed
+  |=  who=@p
+  ^-  @t
+  (rap 3 'Could not block ' (scot %p who) ': block failed. Request stays pending, try again.' ~)
+::  +channel-label: a channel as OpenClaw names it in a reply
+::
+::    .named is the channel's title, or its .name when untitled, and its
+::    group's title, as the adapter's +approval-channel reads them.
+::
+++  channel-label
+  |=  [nest=@t name=@t named=(unit [channel=@t group=(unit @t)])]
+  ^-  @t
+  ?~  named  nest
+  =/  titled  !=(name channel.u.named)
+  ?~  group.u.named
+    ?.  titled  nest
+    (rap 3 channel.u.named ' (' nest ')' ~)
+  ?.  titled  (rap 3 u.group.u.named ' (' nest ')' ~)
+  (rap 3 channel.u.named ' in ' u.group.u.named ' (' nest ')' ~)
 ::  +lifetime: how long a request stays open unanswered, as OpenClaw's
 ::
 ++  lifetime  ~h48

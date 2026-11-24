@@ -99,4 +99,67 @@
       (expect-eq !>((crip (weld (reap 99 'a') "é"))) !>((preview:ask wide)))
       (expect-eq !>('short') !>((preview:ask 'short')))
   ==
+::  As OpenClaw reads them: the argument trimmed, as typed, and none when
+::  absent. Other commands and ordinary text are not orders.
+::
+++  test-the-approval-commands-are-read-with-their-trimmed-id
+  ;:  weld
+      (expect-eq !>(`[%allow `'d1234']) !>((read-order:ask '/allow d1234')))
+      (expect-eq !>(`[%reject `'c5678']) !>((read-order:ask '  /reject   c5678 ')))
+      (expect-eq !>(`[%ban `'D1234']) !>((read-order:ask '/ban D1234')))
+      (expect-eq !>(`[%allow ~]) !>((read-order:ask '/allow')))
+      (expect-eq !>(`[%ban `'d1 d2']) !>((read-order:ask '/ban d1 d2')))
+      (expect-eq !>(~) !>((read-order:ask '/allowed d1234')))
+      (expect-eq !>(~) !>((read-order:ask '/help')))
+      (expect-eq !>(~) !>((read-order:ask 'allow d1234')))
+      (expect-eq !>(~) !>((read-order:ask '/Allow d1234')))
+  ==
+::  Exact first, then the one id the text begins, case as typed; no id is
+::  the newest request.
+::
+++  test-an-order-finds-its-request-as-openclaw-does
+  =/  three  (open:ask staggered 'c5699' [~bus `room ~2026.9.9..00.00.02])
+  ;:  weld
+      (expect-eq !>(`['d1234' [~dev ~ ~2026.9.9]]) !>((pick:ask three `'d1234')))
+      (expect-eq !>(`['d1234' [~dev ~ ~2026.9.9]]) !>((pick:ask three `'d1')))
+      (expect-eq !>(~) !>((pick:ask three `'c56')))
+      (expect-eq !>(~) !>((pick:ask three `'D1234')))
+      (expect-eq !>(~) !>((pick:ask three `'d9999')))
+      (expect-eq !>(`['c5699' [~bus `room ~2026.9.9..00.00.02]]) !>((pick:ask three ~)))
+      (expect-eq !>(~) !>((pick:ask *approvals:t ~)))
+  ==
+++  test-the-replies-to-the-owner-are-openclaws
+  ;:  weld
+      %+  expect-eq
+        !>('Approved DM access for ~dev. They will be able to message the bot.')
+      !>((confirmation:ask %allow ~dev ~))
+      %+  expect-eq
+        !>('Approved ~dev for Room (chat/~lux/test). They will be able to interact in this channel.')
+      !>((confirmation:ask %allow ~dev `'Room (chat/~lux/test)'))
+      (expect-eq !>('Denied DM request from ~dev.') !>((confirmation:ask %reject ~dev ~)))
+      %+  expect-eq
+        !>('Denied ~dev for chat/~lux/test.')
+      !>((confirmation:ask %reject ~dev `'chat/~lux/test'))
+      %+  expect-eq
+        !>('Blocked ~dev. They will no longer be able to contact the bot.')
+      !>((confirmation:ask %ban ~dev `'chat/~lux/test'))
+      (expect-eq !>('No pending approval found for ID: #d1234') !>((unknown:ask `'d1234')))
+      (expect-eq !>('No pending approval found.') !>((unknown:ask ~)))
+      %+  expect-eq
+        !>('Could not block ~dev: block failed. Request stays pending, try again.')
+      !>((block-failed:ask ~dev))
+  ==
+++  test-a-channel-is-named-by-its-titles-and-nest-as-openclaw-names-it
+  =/  nest  'chat/~lux/test'
+  ;:  weld
+      (expect-eq !>(nest) !>((channel-label:ask nest 'test' ~)))
+      (expect-eq !>(nest) !>((channel-label:ask nest 'test' `['test' ~])))
+      (expect-eq !>('Room (chat/~lux/test)') !>((channel-label:ask nest 'test' `['Room' ~])))
+      %+  expect-eq
+        !>('Lux (chat/~lux/test)')
+      !>((channel-label:ask nest 'test' `['test' `'Lux']))
+      %+  expect-eq
+        !>('Room in Lux (chat/~lux/test)')
+      !>((channel-label:ask nest 'test' `['Room' `'Lux']))
+  ==
 --
