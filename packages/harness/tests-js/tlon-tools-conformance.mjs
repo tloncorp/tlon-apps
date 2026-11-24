@@ -71,14 +71,16 @@ const server = createServer(async (req, res) => {
       }
       if (!current.length) {
         const names = body.tools.map((t) => t.function.name)
-        denials[mode] = { offered: names.filter((name) => cronTools.includes(name)), ownerOnly: ownerOnly(body.tools) }
+        denials[mode] = { offered: names.filter((name) => cronTools.includes(name)), ownerOnly: ownerOnly(body.tools), subagent: names.includes('run_subagent') }
         return answer(res, '', [
           call(`forged-${mode}`, 'cron_add', { schedule: '0 9 1 1 *', timezone: 'UTC', prompt: `${marker}-${mode}`, runs: '1' }),
           call(`forged-tlon-${mode}`, 'tlon', { action: 'send_dm', ship: '~bud', text: `${marker}-${mode}-MUST_NOT_SEND` }),
           call(`forged-js-${mode}`, 'run_js', { code: 'module.exports = () => 1' }),
-          // Only the trusted tier may start a subagent. A fourth refused call
-          // in a row would trip the loop guard and stop the allowed tier's turn.
-          ...(mode.startsWith('deny-trusted') ? [call(`child-${mode}`, 'run_subagent', { prompt: 'Report.' })] : []),
+          // Only the trusted tier may start a subagent, and only in its DM: a
+          // channel's shared session holds the owner's Defaults, which here
+          // grant no subagents. A fourth refused call in a row would trip the
+          // loop guard and stop the turn.
+          ...(mode === 'deny-trusted-dm' ? [call(`child-${mode}`, 'run_subagent', { prompt: 'Report.' })] : []),
         ])
       }
       const result = (id) => current.find((m) => m.tool_call_id === id).content
@@ -250,7 +252,8 @@ try {
     assert.deepEqual(seen.ownerOnly, [], `${name}: tlon or run_js offered to a non-owner`)
     assert.match(seen.tlon, /tool is not granted for this session/, `${name}: a non-owner's tlon call must be refused`)
     assert.match(seen.js, /tool is not granted for this session/, `${name}: a non-owner's run_js call must be refused`)
-    if (name.startsWith('deny-trusted')) assert.deepEqual(seen.child, [], `${name}: tlon or run_js offered to a non-owner's subagent`)
+    if (name === 'deny-trusted-dm') assert.deepEqual(seen.child, [], `${name}: tlon or run_js offered to a non-owner's subagent`)
+    if (name === 'deny-trusted-channel') assert.equal(seen.subagent, false, `${name}: a guest's grant reached past the shared channel's owner Defaults`)
   }
   console.log('PASS non-owners are not offered scheduling, tlon or run_js, and their forged calls are refused')
   assert.deepEqual(failures, [])

@@ -1,7 +1,7 @@
 ::  Transport-independent schedule validation and evidence projection.
 ::  No Gall effects or inference. The head commits each run before dispatch.
 /-  c=harness-cron, h=harness, hh=harness-hand
-/+  calendar=harness-cron, reminder=harness-reminder, hl=harness
+/+  calendar=harness-cron, reminder=harness-reminder, hl=harness, hd=harness-hand
 |%
 ::
 ++  maintenance-needed
@@ -44,7 +44,7 @@
   ^-  schedule:c
   ?>  ?=(%add -.action)
   ?>  enabled.source
-  ?>  (lien actors.source |=(actor=@t =(actor actor.action)))
+  ?>  (actor-allowed:hd actors.source actor.action)
   =/  =job:c
     %*  .  *job:c
       kind  kind.action
@@ -121,20 +121,23 @@
   ==
 ::
 ++  busy
-  |=  [job=job:c db=state:hh]
+  |=  [job=job:c ledger=indexed:hh]
   ^-  ?
+  =*  db  db.ledger
   ::  Reservation and admission evidence can arrive separately. Keep a
   ::  reserved input busy until its observation establishes execution state.
   ?:  &(?=(^ last.job) !(~(has by observations.db) u.last.job))  &
-  ?|  %+  lien  ~(val by observations.db)
-      |=  observation=observation:hh
-      ?&  =(run-sid.job binding.observation)
-          ?=(?(%queued %running) phase.observation)
+  %+  lien  ~(tap in open.index.ledger)
+  |=  id=input-id:h
+  =/  observation  (~(get by observations.db) id)
+  =/  publication  (~(get by outbox.db) id)
+  ?|  ?&  ?=(^ observation)
+          =(run-sid.job binding.u.observation)
+          ?=(?(%queued %running) phase.u.observation)
       ==
-      %+  lien  ~(val by outbox.db)
-      |=  publication=publication:hh
-      ?&  =(run-sid.job sid.publication)
-          ?=(?(%pending %claimed %uncertain) status.publication)
+      ?&  ?=(^ publication)
+          =(run-sid.job sid.u.publication)
+          ?=(?(%pending %claimed %uncertain) status.u.publication)
       ==
   ==
 ::
@@ -157,8 +160,9 @@
   ==
 ::
 ++  retryable
-  |=  [job=job:c db=state:hh]
+  |=  [job=job:c ledger=indexed:hh]
   ^-  ?
+  =*  db  db.ledger
   ?.  ?&  =(%prompt kind.job)
           ?=(?(%active %complete) state.job)
           ?=(^ last.job)
@@ -171,7 +175,7 @@
       =(%failed phase.u.observation)
       ?=(^ publication)
       =(%failure kind.u.publication)
-      !(busy job db)
+      !(busy job ledger)
   ==
 ::
 ++  retry-session
@@ -196,10 +200,11 @@
   &(?=(%hand -.source) =(binding binding.source))
 ::
 ++  clearable
-  |=  [job=job:c db=state:hh]
+  |=  [job=job:c ledger=indexed:hh]
   ^-  ?
+  =*  db  db.ledger
   ?.  |(=(%cancelled state.job) &(=(%complete state.job) =(0 remaining.job)))  |
-  ?:  (busy job db)  |
+  ?:  (busy job ledger)  |
   ?~  last.job  =(%cancelled state.job)
   =/  last  (~(get by observations.db) u.last.job)
   ?~  last  |
@@ -226,8 +231,9 @@
   ?~(found ~ `i.found)
 ::
 ++  one-json
-  |=  [id=@uv job=schedule:c db=state:hh]
+  |=  [id=@uv job=schedule:c ledger=indexed:hh]
   ^-  json
+  =*  db  db.ledger
   =/  observation  ?~(last.job ~ (~(get by observations.db) u.last.job))
   =/  publication  ?~(last.job ~ (~(get by outbox.db) u.last.job))
   %-  pairs:enjs:format
@@ -251,19 +257,19 @@
       ['execution' ?~(observation ~ [%s phase.u.observation])]
       ['delivery' ?~(publication ~ [%s status.u.publication])]
       ['evidenceAvailable' %b &]
-      ['clearable' %b (clearable (job-value job) db)]
-      ['retryable' %b (retryable (job-value job) db)]
+      ['clearable' %b (clearable (job-value job) ledger)]
+      ['retryable' %b (retryable (job-value job) ledger)]
   ==
 ::
 ++  list-json
-  |=  [jobs=(map @uv schedule:c) db=state:hh binding=(unit @t)]
+  |=  [jobs=(map @uv schedule:c) ledger=indexed:hh binding=(unit @t)]
   ^-  json
   :-  %a
   %+  murn  ~(tap by jobs)
   |=  [id=@uv job=schedule:c]
   ^-  (unit json)
   ?.  ?~(binding & =(u.binding binding.job))  ~
-  `(one-json id job db)
+  `(one-json id job ledger)
 ::
 ++  json-action
   |=  value=json

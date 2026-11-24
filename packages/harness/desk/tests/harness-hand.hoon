@@ -1,5 +1,5 @@
-/-  h=harness, hh=harness-hand
-/+  *test, hd=harness-hand
+/-  h=harness, hh=harness-hand, ac=acp
+/+  *test, hd=harness-hand, transport=harness-acp
 |%
 ++  seed
   ^-  state:hh
@@ -53,6 +53,31 @@
 ++  test-rejects-ungranted-actors
   =/  res  (apply:hd seed [%observe 'binding' 'message-1' 'mallory' 'Hello'] ~2000.1.1)
   (expect !>(?=(%| -.res)))
+::  An adapter's ~['*'] admits anyone; binding with no actors stays refused.
+++  test-wildcard-binding-admits-any-actor-and-an-empty-list-is-still-refused
+  =/  wild=binding:hh  ['chat' 'opaque/room' 'session' ~['*'] %.y]
+  =/  bound  (apply:hd *state:hh [%bind 'wild' wild] ~2000.1.1)
+  ?>  ?=(%& -.bound)
+  =/  anyone  (apply:hd db.p.bound [%observe 'wild' 'message-1' 'mallory' 'Hello'] ~2000.1.1)
+  =/  empty  (apply:hd *state:hh [%bind 'empty' wild(actors ~)] ~2000.1.1)
+  ;:  weld
+      (expect !>(?=(%& -.anyone)))
+      (expect !>(?=(%| -.empty)))
+      (expect !>((actor-allowed:hd ~['*'] 'anyone')))
+      (expect !>(!(actor-allowed:hd ~ 'anyone')))
+  ==
+::  '*' beside a name is a literal actor, not a wildcard.
+++  test-named-binding-still-refuses-an-unlisted-actor
+  =/  named=binding:hh  ['chat' 'opaque/room' 'session' ~['alice' '*'] %.y]
+  =/  bound  (apply:hd *state:hh [%bind 'named' named] ~2000.1.1)
+  ?>  ?=(%& -.bound)
+  =/  listed  (apply:hd db.p.bound [%observe 'named' 'message-1' 'alice' 'Hello'] ~2000.1.1)
+  =/  unlisted  (apply:hd db.p.bound [%observe 'named' 'message-2' 'mallory' 'Hello'] ~2000.1.1)
+  ;:  weld
+      (expect !>(?=(%& -.listed)))
+      (expect !>(?=(%| -.unlisted)))
+      (expect !>(!(actor-allowed:hd ~['alice' '*'] 'mallory')))
+  ==
 ++  test-one-active-input-per-session
   =/  running  (start:hd admitted 'session' id)
   %-  expect
@@ -97,9 +122,9 @@
 ++  test-disable-hides-undelivered-output
   =/  disabled  (apply:hd completed [%enable 'binding' %.n] ~2000.1.1)
   ?>  ?=(%& -.disabled)
-  (expect-eq !>(`json`[%a ~]) !>((outbox-json:hd db.p.disabled 'chat')))
+  (expect-eq !>(`json`[%a ~]) !>((outbox-json:hd [db.p.disabled (reindex:hd db.p.disabled)] 'chat')))
 ++  test-cancel-removes-queued-work
-  =/  cancelled  (cancel-queued:hd admitted 'session')
+  =/  cancelled  (cancel-queued:hd admitted 'session' ~)
   =/  obs  (need (~(get by observations.cancelled) id))
   (expect !>(&(=(~ queue.cancelled) =(%cancelled phase.obs))))
 ++  test-source-ids-are-namespaced
@@ -250,4 +275,116 @@
   =/  res  (apply:hd claimed [%health 'chat'] ~2030.1.1)
   ?>  ?=(%& -.res)
   (expect-eq !>(claimed) !>(db.p.res))
+::  The status rows a result lists: input id and phase, in order.
+++  status-rows
+  |=  result=json
+  ^-  [count=@ud rows=(list [id=@t phase=@t])]
+  %.  result
+  =,  dejs:format
+  (ot ~[['observationCount' ni] observations+(ar (ot ~[['inputId' so] phase+so]))])
+++  t1  ~2026.10.1
+::  COUNT completed observations of BINDING, one second apart; event N says
+::  what each event is.
+++  history
+  |=  [db=state:hh binding=@t count=@ud event=$-(@ud @t)]
+  ^-  state:hh
+  ?:  =(0 count)  db
+  =/  =observation:hh  [binding (event count) 'alice' 'Hello' (add t1 (mul count ~s1)) %completed]
+  %=  $
+    count  (dec count)
+    observations.db  (~(put by observations.db) (input-id:hd binding (event count)) observation)
+  ==
+++  test-status-lists-the-newest-256-observations-and-counts-all
+  =/  db  seed
+  =.  bindings.db  (~(put by bindings.db) 'other' ['chat' 'elsewhere' 'session' ~['alice'] %.y])
+  =.  db  (history db 'binding' 257 |=(n=@ud (scot %ud n)))
+  =.  db  (history db 'other' 3 |=(n=@ud (cat 3 'other-' (scot %ud n))))
+  ::  The two oldest share a time, as do the two newest.
+  =/  tie  |=(e=@t (input-id:hd 'binding' e))
+  =.  observations.db
+    =/  o  observations.db
+    =.  o  (~(jab by o) (tie '1') |=(x=observation:hh x(at (add t1 ~s2))))
+    (~(jab by o) (tie '257') |=(x=observation:hh x(at (add t1 (mul 256 ~s1)))))
+  =/  res  (apply:hd db [%status 'binding'] ~2000.1.2)
+  ?>  ?=(%& -.res)
+  =/  status  (status-rows result.p.res)
+  =/  ids  (turn rows.status |=([id=@t phase=@t] (slav %uv id)))
+  =/  ats  (turn ids |=(id=input-id:h at:(~(got by observations.db) id)))
+  =/  newest  (sort ~[(tie '256') (tie '257')] lth)
+  =/  oldest  (sort ~[(tie '1') (tie '2')] lth)
+  ;:  weld
+      (expect-eq !>(db) !>(db.p.res))
+      (expect-eq !>(257) !>(count.status))
+      (expect-eq !>(256) !>((lent rows.status)))
+      (expect-eq !>((sort ats gth)) !>(ats))
+      (expect-eq !>(newest) !>((scag 2 ids)))
+      (expect-eq !>(~[(head oldest)]) !>((slag 255 ids)))
+      %-  expect
+      !>((levy ids |=(id=input-id:h =('binding' binding:(~(got by observations.db) id)))))
+  ==
+::  Work still waiting or running is listed however many newer records follow.
+++  test-status-lists-active-work-older-than-the-newest-256
+  =/  started  (apply:hd seed [%observe 'binding' 'running' 'alice' 'Hello'] t1)
+  ?>  ?=(%& -.started)
+  =/  running  (input-id:hd 'binding' 'running')
+  =/  db  (start:hd db.p.started 'session' running)
+  =/  waiting  (apply:hd db [%observe 'binding' 'queued' 'alice' 'Hello'] t1)
+  ?>  ?=(%& -.waiting)
+  =.  db  db.p.waiting
+  =/  n=@ud  0
+  =.  db
+    |-
+    ?:  =(256 n)  db
+    =/  res
+      %^  apply:hd  db
+        [%notify 'binding' (cat 3 'notice-' (scot %ud n)) 'alice' 'Notice']
+      (add t1 (mul +(n) ~s1))
+    ?>  ?=(%& -.res)
+    $(n +(n), db db.p.res)
+  =/  res  (apply:hd db [%status 'binding'] t1)
+  ?>  ?=(%& -.res)
+  =/  status  (status-rows result.p.res)
+  =/  phase  |=(id=input-id:h (skim rows.status |=([i=@t p=@t] =(i (scot %uv id)))))
+  ;:  weld
+      (expect-eq !>(258) !>(count.status))
+      (expect-eq !>(258) !>((lent rows.status)))
+      (expect-eq !>(~[[(scot %uv running) 'running']]) !>((phase running)))
+      %+  expect-eq
+        !>(~[[(scot %uv (input-id:hd 'binding' 'queued')) 'queued']])
+      !>((phase (input-id:hd 'binding' 'queued')))
+  ==
+::  The bytes of a result as the head sends it to %acp.
+++  payload-bytes
+  |=  result=json
+  ^-  @ud
+  =/  =card:agent:gall  (acp-result-card:~(. transport ~zod) 'fixture' [%n '1'] result)
+  ?>  ?=([%pass * %agent * %poke %acp-action-1 *] card)
+  =/  [pass=* wire=* agent=* target=* poke=* mark=* data=vase]  card
+  =/  action  !<(action:v1:ac data)
+  ?>  ?=(%send -.action)
+  (met 3 payload.action)
+::  Source events of 512 control characters, each escaped as \u00XX.
+++  escaped
+  |=  n=@ud
+  ^-  @t
+  (end [3 512] (cat 3 (scot %ud n) (fil 3 512 0x1)))
+::  max-payload-bytes in %acp.
+++  max-payload  1.048.576
+++  test-status-and-archive-results-fit-an-acp-payload-at-any-history
+  =/  db  seed
+  =.  bindings.db  (~(jab by bindings.db) 'binding' |=(b=binding:hh b(enabled %.n)))
+  =.  db  (history db 'binding' 352 escaped)
+  =/  unbounded=json
+    :-  %a
+    %+  turn  ~(tap by observations.db)
+    |=([id=input-id:h o=observation:hh] (admission-json:hd id o))
+  =/  status  (apply:hd db [%status 'binding'] t1)
+  =/  archive  (apply:hd db [%archive 'binding'] t1)
+  ?>  ?=(%& -.status)
+  ?>  ?=(%& -.archive)
+  ;:  weld
+      (expect !>((gth (met 3 (en:json:html unbounded)) max-payload)))
+      (expect !>((lte (payload-bytes result.p.status) max-payload)))
+      (expect !>((lte (payload-bytes result.p.archive) max-payload)))
+  ==
 --
