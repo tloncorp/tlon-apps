@@ -2,7 +2,7 @@
 ::  only; no emitted cards are executed.
 ::  -test /=harness=/tests-integration/harness-tlon-place-grants
 /-  t=harness-tlon, ad=harness-adapter, h=harness, g=groups-ver,
-    a=activity-ver, hh=harness-hand, dv=channels-ver
+    a=activity-ver, hh=harness-hand, dv=channels-ver, cv=chat-ver
 /+  *test-agent, continuity=harness-tlon-continuity, policy-lib=harness-tlon-policy,
     hj=harness-json
 /=  adapter  /app/harness-tlon
@@ -65,6 +65,8 @@
   ?:  ?=([%gu @ %channels @ %v4 *] path)  `!>(|)
   ?:  =(%$ (rear path))  `!>(&)
   ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)
+  ?:  ?=([%gx @ %chat @ %blocked %ships ~] path)  `!>(`(set @p)`~)
+  ?:  ?=([%gx @ %chat @ %v4 %dm @ %writs %newest *] path)  `!>(*paged-writs:v7:cv)
   ?:  ?=([%gx @ %activity @ %v6 %all %noun ~] path)  `!>(events)
   ?:  (lien path |=(part=@ta =(%hand-state part)))  `!>(*state:hh)
   ?:  ?=([%gx @ %harness @ %sessions %json ~] path)  `!>(`json`[%a ~])

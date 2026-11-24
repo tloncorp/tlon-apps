@@ -219,12 +219,15 @@ test('channel reconciliation uses self-role events and native live read authorit
   assert.match(membership, /load\.net\.u\.channel/)
   assert.doesNotMatch(membership, /%behn|%iris|harness-provider|harness-store|%group-join/)
 })
-test('unpermissioned Tlon senders have a local audit, never an outbound denial', async () => {
+test('unpermissioned Tlon senders have a local audit and a card to the owner, never an answer', async () => {
   const adapter = await readFile(new URL('../desk/app/harness-tlon.hoon', import.meta.url), 'utf8')
-  const arm = adapter.split('++  record-denial\n')[1].split('\n++  ')[0]
-  assert.match(arm, /allowed:denial/)
-  assert.match(arm, /note 'permission-denied'/)
-  assert.doesNotMatch(arm, /%pass|publish|messenger|last-sent/)
+  const deny = adapter.split('++  deny-unpermissioned\n')[1].split('\n++  ')[0]
+  assert.match(deny, /allowed:denial/)
+  assert.match(deny, /note 'permission-denied'/)
+  assert.doesNotMatch(deny, /%pass|publish|messenger|last-sent/)
+  const ask = adapter.split('++  ask-owner\n')[1].split('\n++  ')[0]
+  assert.equal(ask.match(/publish/g).length, 1, 'one post per request')
+  assert.match(ask, /publish:messenger\s+\/approval\/[^\n]*\n\s+\[%dm u\.owner ~\]/, 'the post goes to the owner')
   assert.doesNotMatch(code('harness-tlon-denial'), /\+\+  message/)
 })
 test('native hook mutation subscribes before dispatch and waits beyond transport acknowledgement', async () => {

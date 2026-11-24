@@ -56,6 +56,12 @@
   |=  to=destination:t
   ^-  place:t
   ?:(?=(%dm -.to) ~ `nest.to)
+::  +place-to: a ship's destination in a place
+::
+++  place-to
+  |=  [who=@p =place:t]
+  ^-  destination:t
+  ?~(place [%dm who ~] [%channel u.place ~])
 ::  +event-place: the place of a message or DM invitation, if it has one
 ::
 ++  event-place

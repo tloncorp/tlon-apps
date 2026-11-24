@@ -107,6 +107,8 @@
     ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
     ?:  =(%$ (rear path))  `!>(&)
     ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)
+    ?:  ?=([%gx @ %chat @ %blocked %ships ~] path)  `!>(`(set @p)`~)
+    ?:  ?=([%gx @ %groups @ %v2 %groups %noun ~] path)  `!>(`groups:v9:g`~)
     ?:  ?=([%gx @ %activity @ %v6 %all %noun ~] path)  `!>(stream)
     ?:  ?=([%gx @ %harness @ %hand-state %noun ~] path)  `!>(*state:hh)
     ?:  ?=([%gx @ %harness @ %cron-session @ %noun ~] path)  `!>(~)
@@ -248,7 +250,8 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  got=outcome  bind:m  (run fixture (post-event ~bud) unread)
-  ;<  ~  bind:m  (ex-equal !>((kinds got)) !>(`(list @t)`~['permission-denied']))
+  ;<  ~  bind:m
+    (ex-equal !>((kinds got)) !>(`(list @t)`~['approval-request' 'permission-denied']))
   (ex-equal !>(~(wyt by jobs.saved.got)) !>(0))
 ++  test-no-read-for-a-dm
   %-  eval-mare
