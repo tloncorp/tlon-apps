@@ -63,7 +63,7 @@
     =^  cards  state
       ::  A saved timestamp is not evidence of a surviving Behn subscription.
       ::  Maintenance gets fresh actual deadlines.
-      abet:boot:refresh-peers:retire-uploads:reset-wake:engine
+      abet-load:boot:refresh-peers:retire-uploads:reset-wake:engine
     [cards this]
   ++  on-poke
     |=  [=mark =vase]
@@ -173,7 +173,14 @@
   ?~  owner.policy  state
   state(cuts (~(put by cuts) u.owner.policy now.bowl))
 ::
-++  abet
+::  Every event expires what is due, not only the wake: under steady traffic
+::  each event would move an overdue wake a second later.
+::
+++  abet  abet-load:expire-approvals
+::  +abet-load: +abet without expiry, whose DM declines read %chat; the wake
+::  after a load meets what fell due while the adapter was not running
+::
+++  abet-load
   =/  engine  schedule:sync-liveness
   [(flop cards.engine) state.engine]
 ::
@@ -2144,7 +2151,8 @@
   ?.  ?=(%poke-ack -.sign)  cor
   ?~  p.sign  cor
   %-  (slog 'harness-tlon: DM invitation decline rejected' u.p.sign)
-  cor(error 'Could not decline a DM invitation.')
+  =.  cor  (emit (crash:observe bowl %invitation-decline u.p.sign))
+  cor(error 'Messenger rejected a DM invitation decline; inspect the ship log.')
 ::
 ++  agent-client
   |=  [=wire =sign:agent:gall]
@@ -2316,6 +2324,7 @@
   ?.  ?=(%poke-ack -.sign)  cor
   ?~  p.sign  cor
   %-  (slog 'harness-tlon: full approval queue notice rejected' u.p.sign)
+  =.  cor  (emit (crash:observe bowl %approval-full u.p.sign))
   cor(error 'Messenger rejected a full approval queue notice; inspect the ship log.')
 ::
 ++  agent-publish
@@ -2529,7 +2538,11 @@
     cor
   =/  id  (scot %uv (sham event))
   ::  The denial limit also bounds how fast the owner is sent cards.
-  ?.  (allowed:denial now.bowl u.sender id notices)  cor
+  ?.  (allowed:denial now.bowl u.sender id notices)
+    ::  An invitation the limit drops is declined as one a cap drops, when
+    ::  it would otherwise open a request.
+    ?.  &(?=(%dm-invite -.event) (askable u.sender place))  cor
+    (dropped u.sender event)
   =.  cor  (note 'permission-denied' u.sender (scot %p u.sender) id)
   (ask-owner u.sender place event cutoff)
 ::  +admission-cutoff: the latest authority change a speaker's message in .to
@@ -2551,22 +2564,11 @@
   ^+  cor
   =/  owner  owner.policy
   ?~  owner  cor
-  ::  A comet costs nothing to make, so its requests would be unbounded.
-  ?:  ?=(%pawn (clan:title who))  cor
-  ?^  (find:ask approvals who place)  cor
-  ::  A channel that answers nobody would not answer the ship once allowed.
-  ?:  &(?=(^ place) =(%off response:(channel-rule:p policy u.place)))  cor
-  ::  Nor would a channel the ship cannot read.
-  ?:  &(?=(^ place) !(native-read who u.place))  cor
-  ::  Activity outlives a declined invitation and a channel the bot left;
-  ::  there is nothing to approve there, and the card's preview must not read
-  ::  what is gone.
-  ?.  (available:~(. conversation-tool bowl) (place-to:p who place))  cor
-  ?:  (blocked:messenger who)  cor
+  ?.  (askable who place)  cor
   ::  A ship at its own limit is ignored silently, without the owner's notice.
-  ?:  (gte (held:ask approvals who) ship-limit:ask)  cor
+  ?:  (gte (held:ask approvals who) ship-limit:ask)  (dropped who event)
   =/  total  ~(wyt by by-id.approvals)
-  ?:  (gte total limit:ask)  (approvals-full who place total)
+  ?:  (gte total limit:ask)  (dropped:(approvals-full who place total) who event)
   =/  id  (fresh-id:ask approvals place eny.bowl)
   =.  approvals  (open:ask approvals id [who place now.bowl])
   =.  cor  (note 'approval-request' who (address:p (place-to:p who place)) id)
@@ -2581,6 +2583,36 @@
     last-sent
     `blob
   ==
+::  +askable: whether .who's attempt in .place would open a request, were it
+::  not for the limits on how many are open
+::
+++  askable
+  |=  [who=@p =place:t]
+  ^-  ?
+  ?~  owner.policy  |
+  ::  A comet costs nothing to make, so its requests would be unbounded.
+  ?:  ?=(%pawn (clan:title who))  |
+  ?^  (find:ask approvals who place)  |
+  ::  A channel that answers nobody would not answer the ship once allowed.
+  ?:  &(?=(^ place) =(%off response:(channel-rule:p policy u.place)))  |
+  ::  Nor would a channel the ship cannot read.
+  ?:  &(?=(^ place) !(native-read who u.place))  |
+  ::  Activity outlives a declined invitation and a channel the bot left;
+  ::  there is nothing to approve there, and the card's preview must not read
+  ::  what is gone.
+  ?.  (available:~(. conversation-tool bowl) (place-to:p who place))  |
+  !(blocked:messenger who)
+::  +dropped: a limit kept .event from opening a request
+::
+::    %chat reports a pending invitation once, so an invitation left pending
+::    would keep the ship from ever opening a request by DM. Declined, the
+::    ship's next message invites the bot again and has another chance.
+::
+++  dropped
+  |=  [who=@p event=incoming-event:v8:a]
+  ^+  cor
+  ?.  ?=(%dm-invite -.event)  cor
+  (decline-invitation who)
 ::  +approvals-full: tell the owner no more requests open, at most once per
 ::  ten minutes
 ::
@@ -2604,10 +2636,15 @@
 ::
 ::    %chat reports a pending invitation once and no later messages, so a DM
 ::    request's invitation is declined; left pending, it would keep the ship
-::    from reaching the bot by DM.
+::    from reaching the bot by DM. Every event runs this, so it does nothing
+::    until the earliest expiry is due, and nothing while the hand is disabled.
 ::
 ++  expire-approvals
   ^+  cor
+  ?.  enabled.policy  cor
+  =/  next  (next-expiry:ask approvals)
+  ?~  next  cor
+  ?:  (gth u.next now.bowl)  cor
   %+  roll  (expired:ask approvals now.bowl)
   |=  [[id=@t =approval:t] engine=_cor]
   =.  approvals.engine  (close:ask approvals.engine id)
@@ -2815,7 +2852,6 @@
   ^+  cor
   =.  cor  poll-tools
   ?.  enabled.policy  schedule
-  =.  cor  expire-approvals
   ?.  head-live  schedule
   ?.  watching  boot
   =?  cor  catching-up  catch-up

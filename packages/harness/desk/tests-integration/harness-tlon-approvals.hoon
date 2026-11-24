@@ -111,7 +111,7 @@
   ?:  (lien path |=(part=@ta =(%cron-session part)))  `!>(~)
   ?:  ?=([%gu @ %channels @ %v4 *] path)  `!>(|)
   ?:  =(%$ (rear path))  `!>(&)
-  ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)
+  ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>((silt ~[~dev comet]))
   ?:  ?=([%gx @ %chat @ %blocked %ships ~] path)  `!>((silt ~[~bel]))
   ?:  ?=([%gx @ %chat @ %v4 %dm %'~dev' %writs %newest *] path)  `!>(invited)
   ?:  ?=([%gx @ %activity @ %v6 %all %noun ~] path)  `!>(events)
@@ -148,20 +148,26 @@
   ;<  =vase  bind:m  get-save
   (pure:m caz !<(state-5:t vase))
 ::  Load .saved at .now with %chat holding .invited's invitations, or not
-::  running, and fire the maintenance wake.
+::  running, and fire the maintenance wake as the only event after the load:
+::  Activity is already subscribed.
 ::
 ++  wake
   |=  [saved=state-5:t now=@da invited=(unit (set @p))]
   =/  m  (mare ,[(list card) state-5:t])
   ^-  form:m
-  ;<  ~  bind:m  (boot saved now *stream:v10:a)
+  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now now, eny (shax 'approvals')))
+  ;<  ~  bind:m  head-connected
+  ;<  ~  bind:m
+    %-  jab-bowl
+    |=(b=bowl b(wex (~(put by wex.b) [/activity ~zod %activity] [& /v4])))
   ;<  ~  bind:m
     %-  set-scry-gate
     |=  =path
     ?:  &(?=(~ invited) ?=([%gu @ %chat @ %$ ~] path))  `!>(|)
     ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  ?~(invited ~ `!>(u.invited))
     ((scries *stream:v10:a) path)
-  ;<  *  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
+  ;<  *  bind:m  (do-load adapter `!>(saved))
+  ;<  ~  bind:m  head-connected
   ;<  caz=(list card)  bind:m  (do-arvo /poll [%behn %wake ~])
   ;<  =vase  bind:m  get-save
   (pure:m caz !<(state-5:t vase))
@@ -799,7 +805,7 @@
   (ex-equal !>((kinds s 'permission-denied')) !>(1))
 ::  The owner gave it DM access by hand.
 ::
-++  test-a-comet-with-access-is-still-answered
+++  test-a-comet-with-access-is-admitted-to-a-turn
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
@@ -809,9 +815,11 @@
     (admit saved start ~[[~2026.9.9..12.00.00 (dm comet ~2026.9.9..12.00.00)]])
   ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.s)) !>(1))
   (ex-equal !>((kinds s 'permission-denied')) !>(0))
-::  A deadline that passed while the adapter was not running is met promptly.
+::  The reload itself sets the wake; the load does not expire anything, and
+::  the wake it set does. Before the request is due, the wake is its expiry.
+::  Overdue, it is a second after the load, sooner than Activity's resubscribe.
 ::
-++  test-a-reload-keeps-open-requests-and-their-expiry
+++  test-a-reload-keeps-open-requests-and-sets-a-wake-for-their-expiry
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
@@ -821,9 +829,99 @@
   ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(approvals.s))
   ;<  ~  bind:m  (ex-equal !>(wake.w) !>(`(add start ~h48)))
   =/  overdue  (add start ~h49)
-  ;<  [* u=state-5:t]  bind:m  (admit s overdue ~)
+  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now overdue, eny (shax 'approvals')))
+  ;<  ~  bind:m  head-connected
+  ;<  ~  bind:m  (set-scry-gate (scries *stream:v10:a))
+  ;<  caz=(list card)  bind:m  (do-load adapter `!>(s))
+  ;<  loaded=vase  bind:m  get-save
+  =/  u  !<(state-5:t loaded)
   ;<  ~  bind:m  (ex-equal !>(approvals.u) !>(approvals.s))
-  ;<  ~  bind:m  (ex-equal !>(wake.u) !>(`(add overdue ~s1)))
-  ;<  [* v=state-5:t]  bind:m  (wake s (add overdue ~s1) `~)
-  (ex-equal !>((open v)) !>(`(set [@p place:t])`~))
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>((skim caz |=(c=card ?=([%pass [%poll ~] %arvo %b %wait *] c))))
+    !>(`(list card)`~[[%pass /poll %arvo %b %wait (add overdue ~s1)]])
+  ;<  ~  bind:m  head-connected
+  ;<  *  bind:m  (do-arvo /poll [%behn %wake ~])
+  ;<  woken=vase  bind:m  get-save
+  (ex-equal !>((open !<(state-5:t woken))) !>(`(set [@p place:t])`~))
+::  Under steady traffic each event would move an overdue wake later; the
+::  event itself expires the request. Loading alone does not.
+::
+++  test-an-event-after-a-requests-expiry-expires-it-without-the-wake
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  fixture
+  =.  approvals.saved  (open:ask approvals.saved 'c1' [~dev `room-nest start])
+  ;<  ~  bind:m  (boot saved (add start ~h48) *stream:v10:a)
+  ;<  loaded=vase  bind:m  get-save
+  ;<  ~  bind:m  (ex-equal !>((open !<(state-5:t loaded))) !>((places ~[[~dev `room-nest]])))
+  ;<  *  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
+  ;<  after=vase  bind:m  get-save
+  =/  w  !<(state-5:t after)
+  ;<  ~  bind:m  (ex-equal !>((open w)) !>(`(set [@p place:t])`~))
+  (ex-equal !>((kinds w 'approval-expired')) !>(1))
+::  %chat reports a pending invitation once; declined, ~dev's next message
+::  invites the bot again.
+::
+++  test-a-first-dm-dropped-at-the-request-limit-declines-its-invitation
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  crowded  (crowd fixture 100 ~2026.9.9..12.00.00)
+  ;<  [caz=(list card) s=state-5:t]  bind:m
+    (admit crowded start ~[[~2026.9.9..13.00.00 [%dm-invite [%ship ~dev]]]])
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals.crowded))
+  ;<  ~  bind:m  (ex-equal !>((lent (full caz))) !>(1))
+  (ex-equal !>((declined caz)) !>(`(list [@p ?])`~[[~dev |]]))
+++  test-a-first-dm-dropped-at-a-ships-limit-declines-its-invitation
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  busy  fixture
+  =.  approvals.busy
+    %+  roll  (gulf 1 5)
+    |=  [n=@ud =approvals:t]
+    =/  nest=nest:dv  [%chat ~lux `@tas`(crip (weld "other" (a-co:co n)))]
+    (open:ask approvals (cat 3 'c' (crip (a-co:co n))) [~dev `nest ~2026.9.9..12.00.00])
+  ;<  [caz=(list card) s=state-5:t]  bind:m
+    (admit busy start ~[[~2026.9.9..13.00.00 [%dm-invite [%ship ~dev]]]])
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals.busy))
+  ;<  ~  bind:m  (ex-equal !>((full caz)) !>(~))
+  (ex-equal !>((declined caz)) !>(`(list [@p ?])`~[[~dev |]]))
+::  ~dev's channel mention a second earlier uses its turn under the limit.
+::
+++  test-a-first-dm-dropped-by-the-denial-limit-declines-its-invitation
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-5:t]  bind:m
+    %^  admit  fixture  start
+    :~  [~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]
+        [~2026.9.9..12.00.01 [%dm-invite [%ship ~dev]]]
+    ==
+  ;<  ~  bind:m  (ex-equal !>((open s)) !>((places ~[[~dev `room-nest]])))
+  (ex-equal !>((declined caz)) !>(`(list [@p ?])`~[[~dev |]]))
+::  Neither attempt could open a request: a comet's is not a limit's to
+::  decline, and the repeated invitation already has its request.
+::
+++  test-an-invitation-that-could-open-no-request-is-not-declined-at-a-limit
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  crowded  (crowd fixture 100 ~2026.9.9..12.00.00)
+  ;<  [caz=(list card) *]  bind:m
+    %^  admit  crowded  start
+    :~  [~2026.9.9..13.00.00 [%dm-invite [%ship comet]]]
+        [~2026.9.9..13.00.01 (mention comet room-nest ~2026.9.9..13.00.01)]
+        [~2026.9.9..13.00.02 [%dm-invite [%ship comet]]]
+    ==
+  ;<  ~  bind:m  (ex-equal !>((declined caz)) !>(`(list [@p ?])`~))
+  ;<  [caz=(list card) s=state-5:t]  bind:m
+    %^  admit  fixture  start
+    :~  [~2026.9.9..12.00.00 [%dm-invite [%ship ~dev]]]
+        [~2026.9.9..12.00.01 [%dm-invite [%ship ~dev]]]
+    ==
+  ;<  ~  bind:m  (ex-equal !>((open s)) !>((places ~[[~dev ~]])))
+  (ex-equal !>((declined caz)) !>(`(list [@p ?])`~))
 --
