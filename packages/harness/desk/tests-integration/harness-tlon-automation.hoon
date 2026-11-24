@@ -12,8 +12,8 @@
 ::
 ++  saved
   |=  owner=(unit @p)
-  ^-  state-4:t
-  =/  saved=state-4:t  *state-4:t
+  ^-  state-5:t
+  =/  saved=state-5:t  *state-5:t
   %=  saved  owner-initialized  1  policy  [& owner ~ %mentions ~ ~]  watching  &
     activity-through  now
     identities  (my ~[[[%dm ~nec ~] 'nec-dm']])
@@ -28,7 +28,7 @@
   (boot-from (saved owner) running lease)
 ::
 ++  boot-from
-  |=  [saved=state-4:t running=? lease=?]
+  |=  [saved=state-5:t running=? lease=?]
   =/  m  (mare ,(list card))
   ^-  form:m
   ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now now))

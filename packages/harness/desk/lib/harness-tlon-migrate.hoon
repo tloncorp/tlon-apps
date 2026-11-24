@@ -122,12 +122,21 @@
       wake=(unit @da)
       error=@t
   ==
+::  Version %4 belongs to another change that lands first, with a shape
+::  this desk does not know, so a saved %4 is refused rather than decoded
+::  as something else. When that change lands, its step goes between
+::  +three and +four-to-five: a +four takes a %3 through it, and
+::  +four-to-five then starts from its state-4.
+::
 ++  load
   |=  old=vase
-  ^-  state-4
+  ^-  state-5
   ?>  ?=(^ q.old)
-  ?:  =(%4 -.q.old)  !<(state-4 old)
-  (three-to-four (three old))
+  ?:  =(%5 -.q.old)  !<(state-5 old)
+  ?:  =(%4 -.q.old)
+    ~|  %harness-tlon-saved-state-4-is-unknown-to-this-desk
+    !!
+  (four-to-five (three old))
 ::  Ready routes of conversations +two-to-three drops. Their bindings may
 ::  still hold queued input, so the caller disables them and fences their
 ::  sessions.
@@ -136,7 +145,7 @@
   |=  old=vase
   ^-  (list [sid=@t binding=@t])
   ?>  ?=(^ q.old)
-  ?:  |(=(%3 -.q.old) =(%4 -.q.old))  ~
+  ?:  ?=(?(%3 %4 %5) -.q.old)  ~
   =/  saved  (two old)
   %+  murn  ~(tap by lanes.saved)
   |=  [sid=@t lane=lane-2]
@@ -164,10 +173,10 @@
 ::  Steward names, edits and the schedule snapshot start empty; the head's
 ::  first /v1/schedule-events fact fills the snapshot.
 ::
-++  three-to-four
+++  four-to-five
   |=  old=state-3
-  ^-  state-4
-  [%4 *automation +.old]
+  ^-  state-5
+  [%5 *automation +.old]
 ::  A conversation is keyed by its destination alone. A DM's speaker is its
 ::  partner, so its identity already is; a channel's per-speaker
 ::  conversations are dropped and the channel starts one shared afresh.

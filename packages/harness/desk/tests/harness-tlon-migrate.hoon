@@ -44,7 +44,7 @@
   =/  old  every-field
   =/  new  (load:migrate !>(old))
   ;:  weld
-      (expect-eq !>(%4) !>(-.new))
+      (expect-eq !>(%5) !>(-.new))
       (expect-eq !>(lens.old) !>(lens.new))
       (expect-eq !>(owner-initialized.old) !>(owner-initialized.new))
       (expect-eq !>(sibling-moon-owners.old) !>(sibling-moon-owners.new))

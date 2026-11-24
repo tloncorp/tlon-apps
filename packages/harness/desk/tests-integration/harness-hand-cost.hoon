@@ -145,8 +145,8 @@
 ::
 ++  adapter-state
   |=  lensed=?
-  ^-  state-4:t
-  =/  s=state-4:t  *state-4:t
+  ^-  state-5:t
+  =/  s=state-5:t  *state-5:t
   =/  ks  (gulf 0 (dec nb))
   %=  s
     owner-initialized  1

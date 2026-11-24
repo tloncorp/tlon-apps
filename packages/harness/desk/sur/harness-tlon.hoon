@@ -66,8 +66,8 @@
       names=(map @uv task-names)
       edits=(map @uv task-edit)
   ==
-+$  state-4
-  $:  %4
++$  state-5
+  $:  %5
       automation=automation
       lens=lens-sync
       owner-initialized=@ud

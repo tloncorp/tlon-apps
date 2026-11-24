@@ -235,8 +235,10 @@ When you add a migration step:
    `sur/harness-store.hoon`, with `state-before-maintenance` in
    `lib/harness-store.hoon`; the Tlon hand's `state-0` to `state-3` in
    `lib/harness-tlon-migrate.hoon`. The current shapes are the head's
-   `state-0` in `sur/harness-store.hoon` and the Tlon hand's `state-4` in
-   `sur/harness-tlon.hoon`.
+   `state-0` in `sur/harness-store.hoon` and the Tlon hand's `state-5` in
+   `sur/harness-tlon.hoon`. The hand's `%4` belongs to a change that has not
+   landed here; until it does, the loader refuses a saved `%4` and takes a
+   `%3` straight to `%5`.
 2. Move the populated fixture to the new shape, with a distinct value in
    every new field. Add a projection of it onto the frozen shape as the new
    step's input, beside the others in `tests/harness-upgrade.hoon` or

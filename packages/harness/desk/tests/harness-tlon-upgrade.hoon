@@ -30,31 +30,31 @@
 ::
 ::  Expected values, one per path: the input with the path's transformations.
 ::
-++  expected-4
-  ^-  state-4:t
-  populated-4:up
+++  expected-5
+  ^-  state-5:t
+  populated-5:up
 ::  Steward names, edits and the schedule snapshot start empty.
 ++  expected-3
-  ^-  state-4:t
-  =/  e  expected-4
+  ^-  state-5:t
+  =/  e  expected-5
   e(automation *automation:t)
 ::  The channel's per-speaker conversation is dropped; the DM is kept.
 ++  expected-2
-  ^-  state-4:t
+  ^-  state-5:t
   expected-3
 ::  Lens sync starts unconfigured.
 ++  expected-1
-  ^-  state-4:t
+  ^-  state-5:t
   =/  e  expected-2
   e(lens *lens-sync:t)
 ::  Channel cuts and the allowed and channel policies start empty. The
 ::  fixture's %all response survives conversion through mentions=|.
 ++  expected-0
-  ^-  state-4:t
+  ^-  state-5:t
   =/  e  expected-1
   e(channel-cuts ~, allowed.policy ~, channels.policy ~)
 ++  expected-0-mentions
-  ^-  state-4:t
+  ^-  state-5:t
   =/  e  expected-0
   e(response.policy %mentions)
 ::
@@ -68,18 +68,23 @@
   (expect-reload !>(populated-2:up) expected-2)
 ++  test-tlon-state-3-upgrade-keeps-every-field-with-no-automation
   (expect-reload !>(populated-3:up) expected-3)
-++  test-tlon-state-4-reload-keeps-every-field
-  (expect-reload !>(populated-4:up) expected-4)
+++  test-tlon-state-5-reload-keeps-every-field
+  (expect-reload !>(populated-5:up) expected-5)
 ::  Only the upgrade to shared sessions drops conversations, so a saved %3 or
-::  %4 state leaves every route running.
-++  test-tlon-state-3-and-4-upgrades-drop-no-conversation
+::  %5 state leaves every route running.
+++  test-tlon-state-3-and-5-upgrades-drop-no-conversation
   ;:  weld
       (expect-eq !>(`(list [@t @t])`~) !>((dropped:migrate !>(populated-3:up))))
-      (expect-eq !>(`(list [@t @t])`~) !>((dropped:migrate !>(populated-4:up))))
+      (expect-eq !>(`(list [@t @t])`~) !>((dropped:migrate !>(populated-5:up))))
   ==
+::  Version %4 is another change's shape, so this desk refuses to read one.
+++  test-tlon-state-4-is-refused-not-decoded
+  =/  saved  populated-5:up
+  %+  expect-fail-message  'harness-tlon-saved-state-4-is-unknown-to-this-desk'
+  |.((load:migrate !>([%4 +.saved])))
 ::
 ++  expect-reload
-  |=  [saved=vase expected=state-4:t]
+  |=  [saved=vase expected=state-5:t]
   ^-  tang
   =/  once  (load:migrate saved)
   %+  weld  (expect-same:up !>(expected) !>(once))
