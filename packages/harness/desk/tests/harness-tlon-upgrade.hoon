@@ -34,10 +34,15 @@
   ^-  state-5:t
   populated-5:up
 ::  Steward names, edits and the schedule snapshot start empty.
-++  expected-3
+++  expected-4
   ^-  state-5:t
   =/  e  expected-5
   e(automation *automation:t)
+::  No browser handoff is pending.
+++  expected-3
+  ^-  state-5:t
+  =/  e  expected-4
+  e(browser-entries ~)
 ::  The channel's per-speaker conversation is dropped; the DM is kept.
 ++  expected-2
   ^-  state-5:t
@@ -66,22 +71,20 @@
   (expect-reload !>(project-1) expected-1)
 ++  test-tlon-state-2-upgrade-keeps-every-field
   (expect-reload !>(populated-2:up) expected-2)
-++  test-tlon-state-3-upgrade-keeps-every-field-with-no-automation
+++  test-tlon-state-3-upgrade-keeps-every-field-with-no-automation-or-handoff
   (expect-reload !>(populated-3:up) expected-3)
+++  test-tlon-state-4-upgrade-keeps-every-field-with-no-automation
+  (expect-reload !>(populated-4:up) expected-4)
 ++  test-tlon-state-5-reload-keeps-every-field
   (expect-reload !>(populated-5:up) expected-5)
-::  Only the upgrade to shared sessions drops conversations, so a saved %3 or
-::  %5 state leaves every route running.
-++  test-tlon-state-3-and-5-upgrades-drop-no-conversation
+::  Only the upgrade to shared sessions drops conversations, so a saved %3,
+::  %4 or %5 state leaves every route running.
+++  test-tlon-state-3-4-and-5-upgrades-drop-no-conversation
   ;:  weld
       (expect-eq !>(`(list [@t @t])`~) !>((dropped:migrate !>(populated-3:up))))
+      (expect-eq !>(`(list [@t @t])`~) !>((dropped:migrate !>(populated-4:up))))
       (expect-eq !>(`(list [@t @t])`~) !>((dropped:migrate !>(populated-5:up))))
   ==
-::  Version %4 is another change's shape, so this desk refuses to read one.
-++  test-tlon-state-4-is-refused-not-decoded
-  =/  saved  populated-5:up
-  %+  expect-fail-message  'harness-tlon-saved-state-4-is-unknown-to-this-desk'
-  |.((load:migrate !>([%4 +.saved])))
 ::
 ++  expect-reload
   |=  [saved=vase expected=state-5:t]

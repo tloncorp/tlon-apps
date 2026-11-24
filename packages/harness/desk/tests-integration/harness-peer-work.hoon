@@ -493,7 +493,7 @@
 ::  %code, as grants saved before that rule do. ~lux owns the bot unless a
 ::  test names another owner.
 ::
-++  guest-grants  `(list tool-grant:h)`~[%tlon %code %workspace %peers]
+++  guest-grants  `(list tool-grant:h)`~[%tlon %code %workspace %peers [%mcp 'kernel-browser']]
 ++  guest-fixture
   ^-  state-0
   =/  s  (fixture ~nec)
@@ -670,10 +670,13 @@
   =/  grant  (~(get by sent) who)
   ?>  ?=([~ ~ *] grant)
   =/  tools  tools.u.u.grant
+  ;<  ~  bind:m
+    ?:  held  (pure:m ~)
+    (ex-equal !>((holds tools [%mcp 'kernel-browser'])) !>(|))
   %+  ex-equal
     !>([who (holds tools %tlon) (holds tools %code)])
   !>([who held held])
-++  test-peers-other-than-the-owner-are-announced-grants-without-tlon-or-code
+++  test-peers-other-than-the-owner-are-announced-grants-without-owner-only-tools
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m

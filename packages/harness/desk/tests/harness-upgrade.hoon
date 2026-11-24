@@ -82,7 +82,7 @@
 ::  disabled, so its reload starts no subscriptions.
 ++  populated-5
   ^-  state-5:t
-  =/  p  populated-3
+  =/  p  populated-4
   :*  %5
       :*  (my ~[[0v7a active-schedule]])
           %-  my
@@ -103,14 +103,15 @@
           ==
           &
       ==
-      lens.p  owner-initialized.p  sibling-moon-owners.p  sibling-owner-after.p
-      activity-through.p  catching-up.p  identities.p  routes.p  cuts.p
-      channel-after.p  channel-cuts.p  uploads.p  last-sent.p  tool-receipts.p
-      computing.p  policy.p  epoch.p  after.p  lanes.p  jobs.p  deliveries.p
-      notices.p  next-notice.p  listeners.p  watching.p  wake.p  error.p
+      +.p
   ==
-::  The hand's shared-session shape: everything in +populated-5 but the
+::  The hand's browser-handoff shape: everything in +populated-5 but the
 ::  Steward automation projection.
+++  populated-4
+  ^-  state-4:mt
+  =/  p  populated-3
+  [%4 (my ~[[0v8g [~2026.11.16 [%wait [%form 'https://browser.example/result']]]]]) +.p]
+::  The hand's last shape without browser handoffs.
 ++  populated-3
   ^-  state-3:mt
   =/  p  populated-2
@@ -161,6 +162,7 @@
           [0v8d (upload-receipt 'hosted')]
           [0v8e [['alpha' 4 ['call-send' 'tlon_send' '{}']] %sending '' ~2026.11.15]]
           [0v8f [['alpha' 5 ['call-read' 'tlon_read' '{}']] %done 'Read 3 messages.' ~2026.11.13]]
+          [0v8g [['alpha' 6 ['call-form' 'browser_secure_entry' '{}']] %sending '' ~2026.11.15]]
       ==
       (my ~[[/tlon/typing [~2026.10.10 (sy ~['tlon_send'])]]])
       :*  |  `~nec  (my ~[[~bus ~[%tlon]]])  %all  (sy ~[~bus])

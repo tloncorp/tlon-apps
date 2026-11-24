@@ -134,7 +134,7 @@
       (expect-eq !>(dm-sid) !>((identity:c dm-to)))
       (expect-eq !>(`[dm-to 4 ~[%web]]) !>((~(get by lanes.new) dm-sid)))
   ==
-++  test-state-three-loads-unchanged
+++  test-state-five-loads-unchanged
   =/  current  (load:migrate !>(mixed))
   ;:  weld
       (expect-eq !>(current) !>((load:migrate !>(current))))
@@ -163,4 +163,46 @@
       (expect-eq !>(`(map @t lane:t)`(my ~[['retained' [dm-to 2 ~]]])) !>(lanes.from-one))
       (expect-eq !>(~[['room' 'binding-room']]) !>((dropped:migrate !>(one))))
   ==
+::
+++  test-state-three-loads-with-no-pending-browser-handoff-or-automation
+  =/  old=state-3:migrate  (three:migrate !>(every-field))
+  =/  current  (load:migrate !>(old))
+  ;:  weld
+      (expect !>(=(%5 -.current)))
+      (expect-eq !>(*automation:t) !>(automation.current))
+      (expect !>(=(~ browser-entries.current)))
+      (expect !>(=(+.old +>+.current)))
+      (expect-eq !>(~) !>((dropped:migrate !>(old))))
+  ==
+::  A saved %4 with a browser handoff pending.
+::
+++  pending-browser-handoff
+  ^-  state-4:migrate
+  =/  saved  *state-4:migrate
+  =.  policy.saved  [& `~nec ~ %mentions ~ ~]
+  =.  tool-receipts.saved
+    %-  my
+    ~[[0v1 `tool-receipt:t`[['dm' 1 ['call' 'browser_secure_entry' '{}']] %sending '' ~2026.11.1]]]
+  =.  browser-entries.saved
+    %-  my
+    :~  :-  0v1
+        ^-  browser-entry-4:migrate
+        [~2026.11.2 [%wait [%form 'http://127.0.0.1/credential-result/fixture']]]
+    ==
+  saved
+::
+++  test-state-four-keeps-its-pending-browser-handoff
+  =/  old  pending-browser-handoff
+  =/  current  (load:migrate !>(old))
+  ;:  weld
+      (expect !>(=(%5 -.current)))
+      (expect-eq !>(*automation:t) !>(automation.current))
+      (expect !>(=(+.old +>.current)))
+      (expect-eq !>(~) !>((dropped:migrate !>(old))))
+  ==
+::
+++  test-pending-browser-handoff-loads-unchanged
+  =/  current  (load:migrate !>(pending-browser-handoff))
+  =.  projected.automation.current  &
+  (expect-eq !>(current) !>((load:migrate !>(current))))
 --

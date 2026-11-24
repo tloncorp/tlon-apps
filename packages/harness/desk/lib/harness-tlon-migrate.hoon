@@ -5,6 +5,47 @@
 ::  silently change what an older state decodes as.
 +$  lane-2  [actor=@p to=destination epoch=@ud tools=(list tool-grant:h)]
 +$  lane-3  [to=destination epoch=@ud tools=(list tool-grant:h)]
+::  Version 4 added pending browser handoffs ahead of the version 3 fields.
+::  Its lanes are version 3's.
++$  browser-result-4  $%([%form url=@t] [%payment id=@t])
++$  browser-phase-4
+  $%  [%authorize ~]  [%prepare local=?]  [%payment ~]
+      [%post result=browser-result-4]  [%wait result=browser-result-4]
+      [%check result=browser-result-4]
+      [%revoke ~]
+  ==
++$  browser-entry-4  [next=@da phase=browser-phase-4]
++$  state-4
+  $:  %4
+      browser-entries=(map @uv browser-entry-4)
+      lens=lens-sync
+      owner-initialized=@ud
+      sibling-moon-owners=$~(| ?)
+      sibling-owner-after=@da
+      activity-through=@da
+      catching-up=$~(| ?)
+      identities=(map destination @t)
+      routes=(map @t route)
+      cuts=(map @p @da)
+      channel-after=@da
+      channel-cuts=(map nest:c @da)
+      uploads=(map @uv upload)
+      last-sent=@da
+      tool-receipts=(map @uv tool-receipt)
+      computing=(map path presence-lease)
+      policy=policy
+      epoch=@ud
+      after=@da
+      lanes=(map @t lane-3)
+      jobs=(map @uv job)
+      deliveries=(map @uv delivery)
+      notices=(list notice)
+      next-notice=@ud
+      listeners=(set @t)
+      watching=?
+      wake=(unit @da)
+      error=@t
+  ==
 +$  state-3
   $:  %3
       lens=lens-sync
@@ -122,21 +163,16 @@
       wake=(unit @da)
       error=@t
   ==
-::  Version %4 belongs to another change that lands first, with a shape
-::  this desk does not know, so a saved %4 is refused rather than decoded
-::  as something else. When that change lands, its step goes between
-::  +three and +four-to-five: a +four takes a %3 through it, and
-::  +four-to-five then starts from its state-4.
+::  Each saved version steps forward one version at a time: a %3 through
+::  +three-to-four, then every %4 through +four-to-five.
 ::
 ++  load
   |=  old=vase
   ^-  state-5
   ?>  ?=(^ q.old)
   ?:  =(%5 -.q.old)  !<(state-5 old)
-  ?:  =(%4 -.q.old)
-    ~|  %harness-tlon-saved-state-4-is-unknown-to-this-desk
-    !!
-  (four-to-five (three old))
+  ?:  =(%4 -.q.old)  (four-to-five !<(state-4 old))
+  (four-to-five (three-to-four (three old)))
 ::  Ready routes of conversations +two-to-three drops. Their bindings may
 ::  still hold queued input, so the caller disables them and fences their
 ::  sessions.
@@ -160,6 +196,12 @@
   ?>  ?=(^ q.old)
   ?:  =(%3 -.q.old)  !<(state-3 old)
   (two-to-three (two old))
+::  No browser handoff can be pending in a state saved before version 4.
+::
+++  three-to-four
+  |=  old=state-3
+  ^-  state-4
+  [%4 ~ +.old]
 ::
 ++  two
   |=  old=vase
@@ -174,7 +216,7 @@
 ::  first /v1/schedule-events fact fills the snapshot.
 ::
 ++  four-to-five
-  |=  old=state-3
+  |=  old=state-4
   ^-  state-5
   [%5 *automation +.old]
 ::  A conversation is keyed by its destination alone. A DM's speaker is its

@@ -30,6 +30,7 @@
 /+  story=harness-tlon-story, input=harness-tlon-input
 /+  observe=harness-observe
 /+  lens-codec=harness-tlon-lens
+/+  browser=harness-browser-entry
 /+  workspace-plan=harness-tlon-workspace-plan, group-policy=harness-tlon-group-policy,
     conversation-tool=harness-tlon-conversation-tool
 /+  automation-lib=harness-tlon-automation
@@ -114,12 +115,17 @@
       ``noun+!>(`?`?~(speaker | (speaker-configures:cor i.t.t.path u.speaker)))
         [%x %admin @ ~]
       ``noun+!>((owner-lane:cor i.t.t.path))
+        [%x %browser-owner @ ~]
+      ``noun+!>((browser-owner:cor i.t.t.path))
         [%x %context @ @ ~]
       ``noun+!>((thread-context:cor i.t.t.path i.t.t.t.path))
     ==
   ::
   ++  on-agent
     |=  [=wire =sign:agent:gall]
+    ?:  &(?=([%browser-post @ ~] wire) ?=(%poke-ack -.sign))
+      =^  cards  state  abet:(browser-posted:cor (slav %uv i.t.wire) ?=(~ p.sign))
+      [cards this]
     ?:  =(/telemetry wire)  `this
     ::  These pokes' acks send nothing on, and a refusal is only logged. A
     ::  failed profile edit retries on the next adapter event. Steward's acks
@@ -169,6 +175,10 @@
   ::
   ++  on-arvo
     |=  [=wire sign=sign-arvo]
+    ?:  &(?=([%browser-entry @ @ ~] wire) ?=([%iris %http-response *] sign))
+      =^  cards  state
+        abet:(browser-response:cor (slav %uv i.t.wire) i.t.t.wire client-response.sign)
+      [cards this]
     ?:  &(?=([%media @ @ ~] wire) ?=([%iris %http-response *] sign))
       =^  cards  state
         abet:(receive-upload:cor (slav %uv i.t.wire) i.t.t.wire client-response.sign)
@@ -1121,10 +1131,12 @@
 ++  poll-tools
   ^+  cor
   =.  cor  poll-uploads
+  =.  cor  poll-browser-entries
   ::  A timed-out Messenger poke is uncertain, not a safe retry. Keep its
   ::  durable receipt while the head still awaits this invocation.
   %+  roll  ~(tap by tool-receipts)
   |=  [[id=@uv receipt=tool-receipt:t] engine=_cor]
+  ?:  (~(has by browser-entries.engine) id)  engine
   ?:  &(!=(%sending stage.receipt) =(~ (tool-authority:engine request.receipt)))
     engine(tool-receipts (~(del by tool-receipts.engine) id))
   ?.  &(=(%sending stage.receipt) (gte now.bowl (add at.receipt ~m1)))  engine
@@ -1177,11 +1189,292 @@
           =(call.request call.u.authority)
       ==
     (finish-tool id 'rejected: no authorized outstanding tool call')
+  ?:  (browser-entry-tool:ht name.call.request)
+    (start-browser-entry request id)
   ?:  =('tlon' name.call.request)
     (tool-native request id)
   ?:  (lien names:workspace-plan |=(name=@t =(name name.call.request)))
     (tool-workspace request id)
   (tool-conversation request id)
+::
+++  browser-owner-lane
+  |=  sid=@t
+  ^-  (unit lane:t)
+  ?.  &(enabled.policy (route-ready-for sid ~))  ~
+  =/  lane  (~(get by lanes) sid)
+  ?.  &(?=(^ lane) ?=(%dm -.to.u.lane))  ~
+  ::  A DM's speaker is its partner.
+  ?.  =(owner.policy `who.to.u.lane)  ~
+  lane
+::
+++  browser-owner
+  |=  sid=@t
+  ^-  (unit [binding=@t address=@t actor=@t])
+  =/  lane  (browser-owner-lane sid)
+  ?~  lane  ~
+  ?>  ?=(%dm -.to.u.lane)
+  =/  route  (~(got by routes) sid)
+  `[binding.route (address:p to.u.lane) (scot %p who.to.u.lane)]
+::
+++  browser-lane
+  |=  request=tool-request:ad
+  ^-  (unit lane:t)
+  =/  lane  (browser-owner-lane sid.request)
+  ?~  lane  ~
+  =/  authority  (tool-authority request)
+  ?.  &(?=(^ authority) =(call.request call.u.authority))  ~
+  lane
+::
+++  start-browser-entry
+  |=  [request=tool-request:ad id=@uv]
+  ^+  cor
+  ?.  ?=(^ (browser-lane request))
+    (finish-tool id 'rejected: secure entry is available only in the owner DM')
+  ?:  (gte ~(wyt by browser-entries) 8)
+    (finish-tool id 'error: too many pending secure-entry forms')
+  ?:  %+  lien  ~(tap in ~(key by browser-entries))
+      |=(key=@uv =(sid.request sid.request:(~(got by tool-receipts) key)))
+    (finish-tool id 'error: this conversation already has a pending secure-entry form')
+  =/  configured  browser-server
+  ?~  configured  (finish-tool id 'error: the Kernel browser server is unavailable')
+  ?:  =('urbit://' (end 3^8 url.u.configured))
+    %+  finish-tool
+      id
+    'error: browser handoffs require a direct Kernel HTTP endpoint; the ship MCP proxy is unsupported'
+  ?:  =('browser_connect_wallet' name.call.request)
+    (send-browser-request id [%payment ~] (mcp-request:browser u.configured 'wallet_connect' ~))
+  ?:  =('browser_request_payment' name.call.request)
+    =/  args  (mole |.((payment-arguments:browser args.call.request)))
+    ?~  args  (finish-tool id 'error: provide the Kernel payment request arguments')
+    (send-browser-request id [%payment ~] (mcp-request:browser u.configured 'payment_request' args.u.args))
+  =/  input  (mole |.((arguments:browser name.call.request args.call.request)))
+  ?~  input  (finish-tool id 'error: provide a browser session and the required form arguments')
+  ?:  ?=(%saved -.selected.u.input)
+    =/  fetch  (authorize:browser u.configured session.u.input login.selected.u.input)
+    (send-browser-request id [%authorize ~] fetch)
+  (prepare-browser-entry id u.configured u.input)
+::
+++  browser-server
+  ^-  (unit mcp-server:h)
+  %-  mole
+  |.
+  =/  raw  .^(json %gx /(scot %p our.bowl)/harness/(scot %da now.bowl)/mcp/json)
+  =/  servers  (json-mcp-servers:hj raw)
+  =/  matching
+    %+  skim  servers
+    |=  [key=mcp-server-id:h server=mcp-server:h]
+    &(=('kernel-browser' key) enabled.server)
+  ?>  ?=(^ matching)
+  server.i.matching
+::
+++  prepare-browser-entry
+  |=  [id=@uv server=mcp-server:h input=[session=@t selected=selection:browser]]
+  ^+  cor
+  =/  fetch  (request:browser server session.input selected.input)
+  (send-browser-request id [%prepare (loopback:browser url.server)] fetch)
+::
+++  send-browser-request
+  |=  [id=@uv phase=browser-phase:t fetch=request:http]
+  ^+  cor
+  =/  entry=browser-entry:t  [(add now.bowl ~m1) phase]
+  =.  browser-entries  (~(put by browser-entries) id entry)
+  (emit [%pass (browser-wire id next.entry) %arvo %i %request fetch [0 0]])
+::
+++  browser-wire
+  |=  [id=@uv deadline=@da]
+  ^-  wire
+  /browser-entry/(scot %uv id)/(scot %da deadline)
+::
+++  close-browser-entry
+  |=  [id=@uv body=@t]
+  ^+  cor
+  =.  browser-entries  (~(del by browser-entries) id)
+  (finish-tool id body)
+::
+++  revoke-browser-entry
+  |=  [id=@uv phase=browser-phase:t]
+  ^+  cor
+  ?:  ?=(%revoke -.phase)  cor
+  ?.  ?=(?(%post %wait %check) -.phase)
+    (close-browser-entry id 'rejected: secure-entry authority changed')
+  ?:  ?=(%form -.result.phase)
+    (send-browser-request id [%revoke ~] (revoke-request:browser url.result.phase))
+  =/  configured  browser-server
+  ?~  configured  (finish-browser-revocation id ~ ~)
+  %:  send-browser-request  id  [%revoke ~]
+    (mcp-request:browser u.configured 'payment_cancel' ~[['request_id' %s id.result.phase]])
+  ==
+::
+++  finish-browser-revocation
+  |=  [id=@uv status=(unit @ud) body=(unit @t)]
+  ^+  cor
+  =/  receipt  (~(got by tool-receipts) id)
+  ?.  ?|  =('browser_connect_wallet' name.call.request.receipt)
+          =('browser_request_payment' name.call.request.receipt)
+      ==
+    (close-browser-entry id (revocation-outcome:browser status))
+  =/  wallet  (mole |.((wallet-reply:browser (wallet-session request.receipt) (need body))))
+  =/  cancelled
+    ?&  =(`200 status)
+        ?=(^ wallet)
+        ?|  =('cancelled' status.u.wallet)
+            =('expired' status.u.wallet)
+            =('failed' status.u.wallet)
+        ==
+    ==
+  %+  close-browser-entry  id
+  ?:  cancelled
+    'Wallet request is closed. Check wallet_status or payment_status before continuing.'
+  (wallet-uncertain request.receipt)
+::
+++  browser-response
+  |=  [id=@uv deadline=@t response=client-response:iris]
+  ^+  cor
+  =/  entry  (~(get by browser-entries) id)
+  ?~  entry  cor
+  ?.  =(deadline (scot %da next.u.entry))  cor
+  ?.  ?=(?(%authorize %prepare %payment %check %revoke) -.phase.u.entry)  cor
+  ?:  ?=(%progress -.response)
+    ?.  (gth bytes-read.response 32.768)  cor
+    =.  cor  (emit [%pass (browser-wire id next.u.entry) %arvo %i %cancel-request ~])
+    ?:  ?=(%revoke -.phase.u.entry)  (finish-browser-revocation id ~ ~)
+    (close-browser-entry id 'error: secure-entry service returned an oversized reply')
+  ?:  ?=(%revoke -.phase.u.entry)
+    =/  status  ?:  ?=(%finished -.response)  `status-code.response-header.response  ~
+    =/  body=(unit @t)
+      ?.  &(?=(%finished -.response) ?=(^ full-file.response))  ~
+      ?.  (lte p.data.u.full-file.response 32.768)  ~
+      `q.data.u.full-file.response
+    (finish-browser-revocation id status body)
+  =/  receipt  (~(got by tool-receipts) id)
+  =/  lane  (browser-lane request.receipt)
+  ?~  lane  (revoke-browser-entry id phase.u.entry)
+  =/  body=(unit @t)
+    ?.  ?=(%finished -.response)  ~
+    ?.  &(=(200 status-code.response-header.response) ?=(^ full-file.response))  ~
+    ?.  (lte p.data.u.full-file.response 32.768)  ~
+    `q.data.u.full-file.response
+  ?:  ?=(%payment -.phase.u.entry)
+    =/  session  (wallet-session request.receipt)
+    =/  uncertain  (wallet-uncertain request.receipt)
+    ?~  body  (close-browser-entry id uncertain)
+    =/  wallet  (mole |.((wallet-reply:browser session u.body)))
+    ?~  wallet  (close-browser-entry id uncertain)
+    =/  outcome  (wallet-outcome:browser ?=(~ session) status.u.wallet)
+    ?^  outcome  (finish-wallet id id.u.wallet u.outcome)
+    ?.  owner.u.wallet  (close-browser-entry id uncertain)
+    %:  post-browser-entry  id  to.u.lane  [%payment id.u.wallet]
+      ?~(session 'Your bot needs you to connect Stripe Link.' 'Your bot has a payment request for you to review.')
+      (wallet-card:browser id.u.wallet)
+    ==
+  ?:  ?=(%check -.phase.u.entry)
+    =/  target  result.phase.u.entry
+    =/  retry  cor(browser-entries (~(put by browser-entries) id [(add now.bowl ~s2) [%wait target]]))
+    ?:  ?=(%payment -.target)
+      ?~  body  retry
+      =/  session  (wallet-session request.receipt)
+      =/  wallet  (mole |.((wallet-reply:browser session u.body)))
+      ?.  &(?=(^ wallet) =(id.target id.u.wallet))  retry
+      =/  outcome  (wallet-outcome:browser ?=(~ session) status.u.wallet)
+      ?~  outcome  retry
+      (finish-wallet id id.target u.outcome)
+    ?:  ?&  ?=(%finished -.response)
+            (lien `(list @ud)`~[401 404 410] |=(code=@ud =(code status-code.response-header.response)))
+        ==
+      (close-browser-entry id 'Secure entry expired or is no longer available.')
+    =/  outcome  ?~(body ~ (outcome:browser u.body))
+    ?^  outcome  (close-browser-entry id u.outcome)
+    retry
+  =/  input  (arguments:browser name.call.request.receipt args.call.request.receipt)
+  ?:  ?=(%authorize -.phase.u.entry)
+    ?~  body  (close-browser-entry id 'error: saved-login approval request was not confirmed')
+    ?.  =(`& (mole |.((approval-required:browser session.input u.body))))
+      (close-browser-entry id 'error: saved login could not be requested; check the current form, record and field mappings')
+    =/  configured  browser-server
+    ?~  configured  (close-browser-entry id 'error: the Kernel browser server is unavailable')
+    (prepare-browser-entry id u.configured input)
+  ?~  body  (close-browser-entry id 'error: secure form preparation was not confirmed')
+  =/  prepared  (mole |.((prepare-reply:browser session.input local.phase.u.entry selected.input u.body)))
+  ?~  prepared  (close-browser-entry id 'error: could not prepare secure entry; inspect the selected fields')
+  %:  post-browser-entry  id  to.u.lane  [%form result-url.u.prepared]
+    ?:  ?=(%saved -.selected.input)
+      'Your bot needs approval to use a saved login. Review it in Messenger.'
+    'Your bot needs secure input. Open the secure form in Messenger.'
+    blob.u.prepared
+  ==
+::
+++  wallet-session
+  |=  request=tool-request:ad
+  ^-  (unit @t)
+  ?:  =('browser_connect_wallet' name.call.request)  ~
+  `session:(payment-arguments:browser args.call.request)
+::
+++  wallet-uncertain
+  |=  request=tool-request:ad
+  ?:  =('browser_connect_wallet' name.call.request)
+    'Stripe Link connection was not confirmed. Check wallet_status before trying again.'
+  'Payment request was not confirmed. Check payment_status with the original request_key.'
+::
+++  finish-wallet
+  |=  [id=@uv request-id=@t outcome=@t]
+  ^+  cor
+  (close-browser-entry id ?:(=('' request-id) outcome (rap 3 outcome ' Wallet request ID: ' request-id ~)))
+::
+++  post-browser-entry
+  |=  [id=@uv to=destination:t result=browser-result:t message=@t blob=@t]
+  ^+  cor
+  =.  browser-entries
+    (~(put by browser-entries) id [(add now.bowl ~m1) [%post result]])
+  =.  last-sent  (next-message-stamp:p now.bowl last-sent)
+  (emit (publish:messenger /browser-post/(scot %uv id) to message last-sent `blob))
+::
+++  browser-posted
+  |=  [id=@uv accepted=?]
+  ^+  cor
+  =/  entry  (~(get by browser-entries) id)
+  ?.  &(?=(^ entry) ?=(%post -.phase.u.entry))  cor
+  ?.  accepted  (revoke-browser-entry id phase.u.entry)
+  cor(browser-entries (~(put by browser-entries) id [(add now.bowl ~s1) [%wait result.phase.u.entry]]))
+::
+++  poll-browser-entries
+  ^+  cor
+  ?:  &(enabled.policy !head-live)  cor
+  %+  roll  ~(tap by browser-entries)
+  |=  [[id=@uv entry=browser-entry:t] engine=_cor]
+  (poll-browser-entry:engine id entry)
+::
+++  poll-browser-entry
+  |=  [id=@uv entry=browser-entry:t]
+  ^+  cor
+  =/  due  (gte now.bowl next.entry)
+  ?:  ?=(%revoke -.phase.entry)
+    ?.  due  cor
+    =.  cor  (emit [%pass (browser-wire id next.entry) %arvo %i %cancel-request ~])
+    (finish-browser-revocation id ~ ~)
+  =/  receipt  (~(got by tool-receipts) id)
+  =/  authorized  ?=(^ (browser-lane request.receipt))
+  ?:  &(!due authorized)  cor
+  =?  cor  ?=(?(%authorize %prepare %payment %check) -.phase.entry)
+    (emit [%pass (browser-wire id next.entry) %arvo %i %cancel-request ~])
+  ?.  authorized  (revoke-browser-entry id phase.entry)
+  ?:  ?=(?(%authorize %prepare) -.phase.entry)
+    (close-browser-entry id 'uncertain: secure form preparation timed out; inspect the browser before trying again')
+  ?:  ?=(%payment -.phase.entry)
+    (close-browser-entry id (wallet-uncertain request.receipt))
+  ?:  ?=(%post -.phase.entry)
+    (revoke-browser-entry id phase.entry)
+  ?:  (gte now.bowl (add at.receipt ~m6))
+    (revoke-browser-entry id phase.entry)
+  =/  deadline  (add now.bowl ~s12)
+  =/  target  result.phase.entry
+  =/  fetch=(unit request:http)
+    ?:  ?=(%form -.target)  `[%'GET' url.target ~[['Accept' 'application/json']] ~]
+    =/  configured  browser-server
+    ?~  configured  ~
+    `(mcp-request:browser u.configured 'payment_status' ~[['request_id' %s id.target]])
+  ?~  fetch  (close-browser-entry id 'The Kernel browser server is unavailable. Check payment_status before continuing.')
+  =.  browser-entries  (~(put by browser-entries) id [deadline [%check target]])
+  (emit [%pass (browser-wire id deadline) %arvo %i %request u.fetch [0 0]])
 ::
 ++  tool-native
   |=  [request=tool-request:ad id=@uv]
@@ -2196,6 +2489,13 @@
     (stop-upload:engine id)
   =.  policy  updated-policy
   =.  sibling-moon-owners  siblings
+  =.  cor
+    %+  roll  ~(tap by browser-entries)
+    |=  [[id=@uv entry=browser-entry:t] engine=_cor]
+    =/  receipt  (~(got by tool-receipts.engine) id)
+    ?.  (~(has in affected) sid.request.receipt)  engine
+    (revoke-browser-entry:engine id phase.entry)
+  =.  cor  poll-browser-entries
   =?  sibling-owner-after  sibling-change  now.bowl
   ::  The head rereads live trust and advertises only each recipient's grant.
   =.  cor  (head /peer-access/refresh [%peer-refresh ~])

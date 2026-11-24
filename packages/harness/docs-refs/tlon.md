@@ -917,6 +917,21 @@ takes no applications, marks, desk bill or frontend from that desk.
 Current-chat tools require a live Tlon binding and an outstanding head request.
 They are unavailable to unrelated browser sessions or unbound children.
 
+Kernel browser discovery, browser actions, and Messenger handoffs for secure
+input, Vault logins, and payments require a turn from the configured owner's
+DM. Harness checks the turn's input against the live Messenger binding and
+owner. If that authority ends while a secure form is pending, Harness asks
+Kernel to revoke it, including when policy changes while the head is offline.
+Harness also revokes known forms when posting fails or a handoff times out,
+and cancels known wallet requests through `payment_cancel`. An in-progress fill
+or an unconfirmed revocation leaves the outcome uncertain. Pending handoffs
+are saved in adapter state, from version 4 on, so a desk reload can continue
+checking the outcome or revoke the form. Browser handoffs require a direct Kernel HTTP
+endpoint; registration through the ship's MCP proxy is unsupported.
+For a trusted ship, adding a browser grant preserves its running conversation
+and admission cutoff. Removing the grant still stops its work. Peer access
+reports omit browser grants for ships other than the owner.
+
 `tlon_read_history` returns at most 20 messages with durable IDs, authors and
 clipped text. Top-level conversations return recent top-level messages. A bound
 DM/channel thread returns its parent followed by up to 19 recent replies, omitting
