@@ -3,8 +3,9 @@
 ::  and a ledger refusal ends its admission without stopping catch-up.
 ::  -test /=harness=/tests-integration/harness-tlon-bot-author
 /-  t=harness-tlon, hh=harness-hand, a=activity-ver, dv=channels-ver, cv=chat-ver,
-    g=groups-ver
-/+  *test-agent, policy=harness-tlon-policy, continuity=harness-tlon-continuity
+    g=groups-ver, ad=harness-adapter
+/+  *test-agent, policy=harness-tlon-policy, continuity=harness-tlon-continuity,
+    hd=harness-hand
 /=  adapter  /app/harness-tlon
 |%
 +$  outcome  [cards=(list card) saved=state-5:t]
@@ -523,6 +524,124 @@
   ;<  ~  bind:m  (ex-equal !>(activity-through.s) !>(~2026.10.1))
   ;<  ~  bind:m  (ex-equal !>(catching-up.s) !>(&))
   (ex-equal !>(~(wyt by jobs.s)) !>(8))
+::  A ledger past 256 bindings, enabled and disabled, beside the guest DM's
+::  binding. The head's replies come from this ledger, not a stand-in.
+::
+++  crowded
+  ^-  state:hh
+  =/  db  *state:hh
+  =.  bindings.db
+    %-  malt
+    %+  turn  (gulf 1 300)
+    |=  k=@ud
+    ^-  [@t binding:hh]
+    =/  id  (cat 3 'seeded-' (scot %ud k))
+    [id ['tlon' (cat 3 'dm/' id) id ~['*'] =(0 (mod k 2))]]
+  =/  sid  (identity:continuity guest-dm)
+  db(bindings (~(put by bindings.db) 'binding' ['tlon' 'dm/~bus' sid ~['~bus'] &]))
+++  gate-over
+  |=  [=stream:v10:a ledger=state:hh]
+  |=  =path
+  ^-  (unit vase)
+  ?:  ?=([%gx @ %harness @ %hand-state %noun ~] path)  `!>(ledger)
+  ?:  ?=([%gx @ %harness @ %hand-index %noun ~] path)  `!>((reindex:hd ledger))
+  ((gate stream &) path)
+++  setup-over
+  |=  [saved=state-3:t ledger=state:hh]
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  ;<  ~  bind:m  watched
+  ;<  ~  bind:m  (set-scry-gate (gate-over ~ ledger))
+  ;<  loaded=(list card)  bind:m  (do-load adapter `!>(saved))
+  ;<  head=(list card)  bind:m  (do-agent /head [~zod %harness] [%watch-ack ~])
+  (pure:m (weld loaded head))
+::  The head applies each request to .ledger.
+++  apply-all
+  |=  [ledger=state:hh acts=(list action:hh)]
+  ^-  state:hh
+  %+  roll  acts
+  |=  [act=action:hh db=_ledger]
+  =/  res  (apply:hd db act now)
+  ?>(?=(%& -.res) db.p.res)
+::  .who's DM at .at arrives through Activity. The adapter opens its route,
+::  the head accepts it, and .ledger answers the bind; the cards are the
+::  adapter's answer to that result.
+++  converse
+  |=  [ledger=state:hh who=@p at=@da]
+  =/  m  (mare ,[cards=(list card) ledger=state:hh])
+  ^-  form:m
+  =/  event=incoming-event:v8:a
+    [%dm-post [[who at] at] [%ship who] ~[[%inline ~['hello again']]] |]
+  =/  =stream:v10:a
+    (put:on-stream:v10:a ~ at [;;(incoming-event:v10:a event) | |])
+  =/  sid  (identity:continuity [%dm who ~])
+  ;<  ~  bind:m  (set-scry-gate (gate-over stream ledger))
+  ::  The head watch is renewed, as on a reload, and its ack catches up.
+  ;<  ~  bind:m
+    (jab-bowl |=(b=bowl b(wex (~(put by wex.b) [/head ~zod %harness] [| /hand-events]))))
+  ;<  *  bind:m  (do-agent /head [~zod %harness] [%watch-ack ~])
+  ;<  admitted=state-3:t  bind:m  saved
+  =/  lane  (~(got by lanes.admitted) sid)
+  ;<  opened=(list card)  bind:m
+    (do-agent /route/[sid]/(scot %ud epoch.lane)/create [~zod %harness] [%poke-ack ~])
+  =/  binds  (skim (hand-requests opened) |=(act=action:hh ?=(%bind -.act)))
+  ?>  ?=([* ~] binds)
+  =/  waiting  (skim ~(tap by jobs.admitted) |=([* =job:t] =(sid sid.job)))
+  ?>  ?=([* ~] waiting)
+  =/  =wire  /hand/bind/(scot %uv p.i.waiting)
+  =/  res  (apply:hd ledger i.binds now)
+  ;<  ~  bind:m
+    (jab-bowl |=(b=bowl b(wex (~(put by wex.b) [wire ~zod %harness] [& /hands/x]))))
+  ;<  caz=(list card)  bind:m
+    %^  do-agent  wire  [~zod %harness]
+    [%fact %noun !>(`(each json @t)`?:(?=(%& -.res) [%& result.p.res] [%| p.res]))]
+  (pure:m caz ?:(?=(%& -.res) db.p.res ledger))
+::  The bind led to one observation, on a binding other than .old, that the
+::  ledger admits, and to no refusal.
+++  admitted-anew
+  |=  [out=[cards=(list card) ledger=state:hh] old=@t]
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  s=state-3:t  bind:m  saved
+  ;<  ~  bind:m  (ex-equal !>((messenger-pokes cards.out)) !>(`(list [mark noun])`~))
+  ;<  ~  bind:m  (ex-equal !>(error.s) !>(''))
+  ;<  ~  bind:m
+    (ex-equal !>((scag 1 (turn notices.s |=(n=notice:t kind.n)))) !>(`(list @t)`~['message']))
+  =/  acts  (hand-requests cards.out)
+  ?>  ?=([* ~] acts)
+  ?>  ?=(%observe -.i.acts)
+  ;<  ~  bind:m  (ex-equal !>(=(old binding.i.acts)) !>(|))
+  (ex-equal !>(-:(apply:hd ledger.out i.acts now)) !>(%&))
+::  A permission change withdraws ~bus's DM route and the head disables its
+::  binding. ~bus's next message binds a new one, and the owner's first DM
+::  binds its own, both on a ledger past 256 bindings.
+::
+++  test-conversations-bind-and-are-admitted-past-256-bindings
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  start  (with-lane allowed-fixture guest guest-dm)
+  =/  sid  (identity:continuity guest-dm)
+  ;<  *  bind:m  (setup-over start crowded)
+  =/  next  policy.start
+  =.  allowed.next  ~
+  =.  trusted.next  (my ~[[guest ~[%web %workspace]]])
+  ;<  changed=(list card)  bind:m
+    %+  do-poke  %noun
+    !>(`request:ad`['fixture' [%n '1'] 'harness/tlon/configure' `(policy-json:policy next)])
+  ;<  withdrawn=state-3:t  bind:m  saved
+  ;<  ~  bind:m  (ex-equal !>((~(has by routes.withdrawn) sid)) !>(|))
+  =/  disable  (hand-requests changed)
+  ;<  ~  bind:m  (ex-equal !>(disable) !>(`(list action:hh)`~[[%enable 'binding' |]]))
+  =/  ledger  (apply-all crowded disable)
+  ;<  ~  bind:m  (wait ~s10)
+  ;<  again=[cards=(list card) ledger=state:hh]  bind:m
+    (converse ledger guest (add now ~s5))
+  ;<  ~  bind:m  (admitted-anew again 'binding')
+  ;<  ~  bind:m  (wait ~s10)
+  ;<  first=[cards=(list card) ledger=state:hh]  bind:m
+    (converse ledger.again ~nec (add now ~s15))
+  (admitted-anew first 'binding')
 ::  Runs of bot messages. ~nec writes every message; its author form says
 ::  whether a bot wrote it. Both conversations start ready, so each admitted
 ::  message is bound at once.

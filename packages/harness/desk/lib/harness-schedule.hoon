@@ -120,14 +120,17 @@
     next  (need (next-at-offset:calendar pattern offset now))
     remaining  runs
   ==
-::  A runs argument: a decimal string for a positive count, with no upper
-::  bound.
+::  A runs argument: a decimal string for a count from 1 to +max-runs.
 ++  count
   |=  value=json
   ^-  @ud
   =/  runs  (need (rush (so:dejs:format value) dem))
-  ?>  (gth runs 0)
+  ?>  &((gth runs 0) (lte runs max-runs))
   runs
+::  Listings give the count as a JSON number, which is exact only below
+::  2^53. This keeps it there; it is not a limit on recurring work, which
+::  without runs repeats until cancelled. Every minute, it lasts two years.
+++  max-runs  1.000.000
 ::
 ++  zone
   |=  timezone=@t

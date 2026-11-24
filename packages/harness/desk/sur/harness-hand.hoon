@@ -80,9 +80,12 @@
 ::  open: records not finished, by a queued or running observation or a
 ::  publication that is not terminal.
 ::  recent: per hand, its newest 64 observations, newest first, ties by id.
+::  sessions: per session, the ids of the bindings that name it, enabled or
+::  not.
 +$  index
   $:  open=(set input-id:h)
       recent=(map @t (list input-id:h))
+      sessions=(jug session-id:h @t)
   ==
 +$  indexed  [db=state =index]
 --

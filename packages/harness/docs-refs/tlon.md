@@ -878,8 +878,8 @@ retry. The five-minute limit is kept only in the 128-entry feed.
 
 The number of conversation identities has no limit, and an identity is never
 evicted. Each conversation's route holds a binding in the shared hand ledger,
-and a disabled binding counts there until it is retired, so that ledger's
-limits are the ones a new conversation can reach.
+which has no limit on bindings either; a disabled binding stays there until it
+is retired.
 
 To reclaim a settled binding's operational ledger, stop admission by disabling
 the adapter, resolve its unfinished work, and export/retire the disabled binding

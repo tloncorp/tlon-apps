@@ -942,9 +942,7 @@
 ++  session-tlon
   |=  sid=session-id:h
   ^-  ?
-  %+  lien  ~(val by bindings.hands)
-  |=  binding=binding:hh
-  &(=(sid sid.binding) =('tlon' hand.binding))
+  (session-hand:hd [hands hand-index] sid 'tlon')
 ::  The general rule for any hand: no ceiling, or one that grants %cron. The
 ::  Tlon hand never puts %cron in a ceiling, so on Tlon only a conversation
 ::  with no ceiling, the owner's, may schedule.
@@ -1090,7 +1088,7 @@
   =/  parsed  (mule |.((create:schedule-lib action u.source grants now.bowl)))
   ?.  ?=(%& -.parsed)
     :*  :*  %|
-            'Require an authorized actor and prompt 1..4096 bytes with either a future RFC3339 at timestamp (explicit offset or Z) or a five-field schedule with timezone UTC or a fixed +HH:MM/-HH:MM offset and, optionally, runs as a positive whole number. Literal reminders require at and text, and a destination only if it names this conversation.'
+            'Require an authorized actor and prompt 1..4096 bytes with either a future RFC3339 at timestamp (explicit offset or Z) or a five-field schedule with timezone UTC or a fixed +HH:MM/-HH:MM offset and, optionally, runs as a whole number from 1 to 1000000. Literal reminders require at and text, and a destination only if it names this conversation.'
         ==
         ~  state
     ==
@@ -3903,7 +3901,7 @@
     (acp-fail rpc '-32602' 'Expected sessionId and name')
   ?.  (~(has by sessions) u.sid)
     (acp-fail rpc '-32602' 'Unknown session')
-  ?:  (lien ~(val by bindings.hands) |=(b=binding:hh =(sid.b u.sid)))
+  ?:  (session-bound:hd [hands hand-index] u.sid)
     (acp-fail rpc '-32602' 'Remove hand bindings before renaming the session')
   ?:  (~(has by sessions) u.name)
     (acp-fail rpc '-32602' 'Name already in use')
@@ -5899,9 +5897,7 @@
     ?&  ?=(~ parent)
         ?=(~ peer)
         (schedule-permitted authority)
-        %+  lien  ~(val by bindings.hands)
-        |=  binding=binding:hh
-        &(=(sid sid.binding) enabled.binding)
+        (session-enabled:hd [hands hand-index] sid)
     ==
     (snoc granted %cron)
   ::  Rehearsals retain only inherited reads, even after an owner config edit.
@@ -6528,8 +6524,7 @@
   ?>  ?=(%invoke -.message)
   =/  sid=session-id:h  (cat 3 'peer-tool--' (scot %p src))
   ?:  ?|  (~(has by peer-active) sid)
-          %+  lien  ~(val by bindings.hands)
-          |=(binding=binding:hh =(sid sid.binding))
+          (session-bound:hd [hands hand-index] sid)
       ==
     :*  :~  %+  peer-rpc-card
               src
@@ -6685,7 +6680,7 @@
       [~[(answer-card:effects src id.message [%| 'no grant for your ship'])] state]
     =/  base  (fall peer-base defaults)
     =/  sid=session-id:h  (cat 3 'peer--' (scot %p src))
-    ?:  (lien ~(val by bindings.hands) |=(binding=binding:hh =(sid.binding sid)))
+    ?:  (session-bound:hd [hands hand-index] sid)
       [~[(answer-card:effects src id.message [%| 'Session reserved for hand bindings'])] state]
     =/  found  (~(get by sessions) sid)
     ?:  &(!=(0 budget.u.grant) (gte (peer-used src) budget.u.grant))
@@ -7406,11 +7401,7 @@
   =/  sid=session-id:h  i.t.t.site
   =/  found  (~(get by sessions) sid)
   ?~  found  (bad 404 'no such session')
-  =/  bound
-    %+  lien  ~(val by bindings.hands)
-    |=  binding=binding:hh
-    =(sid.binding sid)
-  ?:  bound
+  ?:  (session-bound:hd [hands hand-index] sid)
     (bad 409 'Use the authenticated hand observation queue for this bound session')
   =/  text=(unit @t)
     ?~  body.request.inbound  ~

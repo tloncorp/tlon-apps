@@ -424,6 +424,48 @@
   ;<  cleared=state-0    bind:m  get-state
   ;<  ~  bind:m  (ex-equal !>(state:(~(got by schedules.cancelled) 0v1)) !>(%cancelled))
   (ex-equal !>(schedules.cleared) !>(~))
+::  A schedule's run gets a binding of its own, and a ledger past 256
+::  bindings, enabled and disabled, still binds each new one.
+++  test-schedules-are-added-on-a-ledger-past-256-bindings
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  fixture
+  =.  bindings.hands.s
+    %-  ~(gas by bindings.hands.s)
+    %+  turn  (gulf 1 300)
+    |=  k=@ud
+    ^-  [@t binding:hh]
+    =/  id  (cat 3 'seeded-' (scot %ud k))
+    [id ['fixture-chat' (cat 3 'room/' (scot %ud k)) id ~['alice'] =(0 (mod k 2))]]
+  =/  add
+    |=  id=@uv
+    ^-  request:c
+    :-  'add'
+    :*  %add  id  'source-binding'  'alice'  %prompt
+        %-  pairs:enjs:format
+        :~  ['schedule' %s '0 9 * * *']  ['timezone' %s 'UTC']  ['prompt' %s 'Check status']
+            ['runs' %s '5']
+        ==
+    ==
+  ;<  ~               bind:m  (setup s)
+  ;<  *               bind:m  (do-poke %harness-cron !>((add 0v2)))
+  ;<  added=state-0   bind:m  get-state
+  ;<  *               bind:m  (do-poke %harness-cron !>(`request:c`['cancel' [%cancel 0v2]]))
+  ;<  *               bind:m  (do-poke %harness-cron !>(`request:c`['clear' [%clear 0v2]]))
+  ;<  cleared=state-0  bind:m  get-state
+  ;<  *               bind:m  (do-poke %harness-cron !>((add 0v3)))
+  ;<  again=state-0   bind:m  get-state
+  =/  enabled
+    |=  [next=state-0 id=@t]
+    (bind (~(get by bindings.hands.next) id) |=(b=binding:hh enabled.b))
+  ;<  ~  bind:m  (ex-equal !>(state:(~(got by schedules.added) 0v2)) !>(%active))
+  ;<  ~  bind:m  (ex-equal !>((enabled added 'schedule-0v2')) !>(`&))
+  ;<  ~  bind:m  (ex-equal !>((~(has by schedules.cleared) 0v2)) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((enabled cleared 'schedule-0v2')) !>(`|))
+  ;<  ~  bind:m  (ex-equal !>(state:(~(got by schedules.again) 0v3)) !>(%active))
+  ;<  ~  bind:m  (ex-equal !>((enabled again 'schedule-0v3')) !>(`&))
+  (ex-equal !>(~(wyt by bindings.hands.again)) !>(304))
 ++  requests
   |=  cards=(list card)
   ^-  (list http-card:renew)
