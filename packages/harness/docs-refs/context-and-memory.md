@@ -301,6 +301,57 @@ instruction library. Snapshots expose the selected pack as
 events. The read-only `/memory/<name>` JSON scry returns one fact with its
 revision and provenance, including tombstones. Source authorization still governs admission and live tool access.
 
+## Importing an OpenClaw MEMORY.md
+
+When Harness replaces an OpenClaw bot on the same moon,
+`acp/import-openclaw-memory.mjs` copies the bot's `MEMORY.md` into shared
+memory once. It reads the copy the OpenClaw Tlon plugin keeps in `%steward`
+(`/~/scry/steward/v1/prompts/files.json`), so it needs the moon's URL and a
+login cookie, not its disk. `SHIP_COOKIE` names a Netscape cookie file holding
+the moon's `urbauth-` cookie, as for the conformance scripts. `--dry-run`
+saves nothing; when nothing stops the import, it prints every fact and what
+would happen to it.
+
+```sh
+SHIP_URL=https://moon.example SHIP_COOKIE=/path/to/cookie.txt \
+  node acp/import-openclaw-memory.mjs --dry-run
+SHIP_URL=https://moon.example SHIP_COOKIE=/path/to/cookie.txt \
+  node acp/import-openclaw-memory.mjs
+```
+
+The script removes tlonbot's managed blocks. A block runs from a line holding
+`<!-- idempotency-marker:` through the first line, from that one on, holding
+`<!-- /idempotency-marker -->`; an unclosed block stops the script. It cuts the
+rest into facts of at most 1,024 bytes, section by section. Each fact starts
+with its heading path, such as `Projects > Launch`, on its own line; a list item
+keeps its nested items and continuation lines, and code fences stay literal. A
+unit too long for one fact is cut at whitespace where it can be; no text is
+dropped. Facts are named `imported-<snapshot>-<number>`: the snapshot is the
+first eight hex digits of the SHA-256 of the cleaned file, the number the
+fact's position in it.
+
+It lists every memory before it saves anything, and never changes or forgets
+an existing one. Its saves are explicit, like an owner's edit, so automatic
+capture cannot replace them.
+
+- A rerun on the same file saves only the facts that are missing. A fact
+  changed since the import is left alone, and a forgotten one stays forgotten;
+  both are reported.
+- If Harness holds facts imported from another snapshot, the file has changed
+  since that import, and the script saves nothing: importing it on top would
+  duplicate most of it under new names.
+- If Steward holds no `MEMORY.md`, the script says so and imports nothing. The
+  file may be over 65,536 bytes, the desk or plugin may be older than the
+  copy, or the plugin never published it; Steward does not say which.
+
+It prints what it saved, what was already there and what it left alone, with
+counts at the end, and exits non-zero when it refuses or fails. Steward's copy
+is replaced by whichever runtime next publishes prompts there, so the import
+runs before that. Only `MEMORY.md` is imported, not the dated notes in
+`memory/`. Imported facts are recorded as written by the bot, with no source
+conversation. OpenClaw gave `MEMORY.md` only to private chats; Harness recalls
+shared facts in any conversation that has memory on.
+
 ## Verification
 
 `tests/harness-shared-memory.hoon`, `harness-memory-capture.hoon`,
@@ -315,6 +366,11 @@ search, precise revisions and retained sources. The native integration suite
 read-only access through ACP. `tests-js/memory-benchmark.mjs`
 measures recall and rendering on a disposable Vere ship at 1,024, 8,192 and
 32,768 records; seeding occurs outside the measured events.
+`acp/import-openclaw-memory.test.mjs` covers the import's cleaning, cutting,
+naming and comparing offline. `tests-js/import-openclaw-memory-conformance.mjs`
+publishes a `MEMORY.md` through Steward's projection route on a fake ship, then
+checks a dry run, an import of more than one list page, a rerun that sends no
+save, a changed and a forgotten fact, and a changed file.
 
 
 Native tests exercise production hierarchy, index, corpus, JSON and persistence
