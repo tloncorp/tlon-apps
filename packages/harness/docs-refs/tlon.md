@@ -1109,6 +1109,11 @@ removes its fixture group. Pure membership tests live in
 each edit's head actions or refusal;
 `desk/tests-integration/harness-tlon-automation.hoon` runs the projection and
 edit loop through the hand, with Steward and the head answered by the fixture.
+`tests-js/tlon-automation-conformance.mjs` runs it end to end on two ships: the
+owner trusts the bot through Steward and creates tasks with Messenger's HTTP
+edit into a channel the bot has no conversation in; a one-time task posts
+there, and a recurring task there keeps running after the owner's first
+message in the channel.
 
 `tests-js/tlon-actions-conformance.mjs` exercises the broad
 tool with automatic replies disabled; `tests-js/tlon-denial-conformance.mjs`
