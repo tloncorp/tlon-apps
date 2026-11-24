@@ -64,7 +64,10 @@ To show these records in the owner's native Tlon Context Lens:
    online, the hand also holds Steward's gateway lease, with or without owner
    sync, so Steward doesn't tell that owner the bot is offline. The lease lapses
    within 15 minutes of the hand stopping. A ship without Steward gets neither,
-   and a hand without an owner holds no lease, since Steward refuses one.
+   and a hand without an owner holds no lease, since Steward refuses one. A
+   hand with an owner watches Steward's gateway feed even while Steward is not
+   running; Gall holds that watch until Steward starts, so a Steward that
+   starts after the hand gets the owner and the lease when it starts.
 4. Enable Tlon replies and send a new message. Accepted records make the native
    Lens available; reply attachments point to the run using its Lens ID and bot
    ship, without embedding context. Owner-DM work controls share the same blob.

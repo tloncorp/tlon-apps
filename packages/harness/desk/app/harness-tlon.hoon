@@ -144,6 +144,22 @@
       %=  this  lens
         lens(error 'Steward is unavailable on this ship. Install or update Tlon, then retry sync.')
       ==
+    ::  Only the watch's ack builds effects: it is how a Steward that starts
+    ::  late gets the owner and the lease. Steward gives a fact in answer to
+    ::  the lease poke, so a fact that took the lease would poke without end.
+    ?:  =(/steward/gateway wire)
+      ?+  -.sign  `this
+          %kick
+        :_  this
+        ?.(&(enabled.policy ?=(^ owner.policy)) ~ ~[steward-watch:cor])
+      ::
+          %watch-ack
+        ?^  p.sign
+          %-  (slog 'harness-tlon: steward gateway watch refused' u.p.sign)
+          `this
+        =^  cards  state  abet:cor
+        [cards this]
+      ==
     =^  cards  state  abet:(agent:cor wire sign)
     [cards this]
   ::
@@ -195,6 +211,7 @@
   ::  Steward's gateway lease.
   =/  online  &(enabled.policy watching head-live)
   =?  cor  online  hold-steward-lease
+  =.  cor  watch-steward
   =/  effect  (mole |.((claims:messenger online)))
   ?~  effect  cor
   ?~  u.effect  cor
@@ -260,6 +277,25 @@
       %steward-gateway-action-1
       !>(`action:v1:steward-gateway`[%gateway-start 'harness-tlon' (add now.bowl ~m15)])
   ==
+::  Gall holds a watch on an agent that is not running and replays it when the
+::  agent starts, so the ack of this watch is the event that brings a Steward
+::  started after this hand the owner and the lease. Sent behind the pokes of
+::  the same event, its ack finds a running Steward's lease already held.
+::
+++  watch-steward
+  ^+  cor
+  =/  held  (~(has by wex.bowl) /steward/gateway our.bowl %steward)
+  ?.  &(enabled.policy ?=(^ owner.policy))
+    ?.  held  cor
+    (emit [%pass /steward/gateway %agent [our.bowl %steward] %leave ~])
+  ?:  held  cor
+  ::  Gall crashes on a second watch on one wire.
+  ?:  (lien cards |=(=card =(card steward-watch)))  cor
+  (emit steward-watch)
+::
+++  steward-watch
+  ^-  card
+  [%pass /steward/gateway %agent [our.bowl %steward] %watch /v1/gateway]
 ::
 ++  refresh-peers
   ^+  cor
