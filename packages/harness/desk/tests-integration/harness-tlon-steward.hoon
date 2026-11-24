@@ -34,11 +34,16 @@
 ::
 ++  scries
   |=  running=?
+  (leased running ~)
+::  Steward's gateway status reports a lease until the time given, or down.
+::
+++  leased
+  |=  [running=? until=(unit @da)]
   |=  =path
   ^-  (unit vase)
   ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(running)
   ?:  ?=([%gx @ %steward @ %v1 %gateway %status %noun ~] path)
-    `!>(`[status:v1:steward-gateway (unit @da)]`[%down ~])
+    `!>(`[status:v1:steward-gateway (unit @da)]`[?~(until %down %up) until])
   ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
   ?:  =(%$ (rear path))  `!>(&)
   ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)
@@ -92,6 +97,12 @@
     ==
   %+  do-poke  %noun
   !>(`request:ad`['fixture' [%n '1'] 'harness/tlon/owner/set' `params])
+::
+++  saved-wake
+  =/  m  (mare ,(unit @da))
+  ^-  form:m
+  ;<  =vase  bind:m  get-save
+  (pure:m wake:!<(state-3:t vase))
 ::
 ++  errors
   =/  m  (mare ,[@t @t])
@@ -225,4 +236,41 @@
   ;<  shown=[@t @t]  bind:m  errors
   %+  ex-equal  !>(shown)
   !>(['' 'Steward is unavailable on this ship. Install or update Tlon, then retry sync.'])
+::  Steward applies a lease after the event that sends it, so the renewal
+::  wake is armed when its ack shows the new expiry.
+::
+++  test-the-lease-ack-arms-the-next-renewal
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (boot `~nec | &)
+  ;<  ~  bind:m  (set-scry-gate (leased & `~2026.10.1..00.06.00))
+  ;<  *  bind:m  (do-load adapter `!>((saved `~nec |)))
+  ;<  *  bind:m  (do-agent /head [~zod %harness] [%watch-ack ~])
+  ;<  wake=(unit @da)  bind:m  saved-wake
+  ;<  ~  bind:m  (ex-equal !>(wake) !>(`(unit @da)``~2026.10.1..00.01.00))
+  ;<  ~  bind:m  (wait ~s50)
+  ;<  caz=(list card)  bind:m  (do-arvo /poll [%behn %wake ~])
+  ;<  ~  bind:m  (ex-equal !>((leases caz)) !>(1))
+  ;<  ~  bind:m  (set-scry-gate (leased & `~2026.10.1..00.16.00))
+  ;<  caz=(list card)  bind:m  (do-agent /steward/lease [~zod %steward] [%poke-ack ~])
+  ;<  ~  bind:m
+    (ex-equal !>(caz) !>(`(list card)`~[[%pass /poll %arvo %b %wait ~2026.10.1..00.11.00]]))
+  ;<  wake=(unit @da)  bind:m  saved-wake
+  (ex-equal !>(wake) !>(`(unit @da)``~2026.10.1..00.11.00))
+::
+++  test-the-first-lease-ack-arms-its-renewal
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  caz=(list card)  bind:m  (boot `~nec | &)
+  ;<  ~  bind:m  (ex-equal !>((leases caz)) !>(1))
+  ::  Gall hands back the head's watch ack before Steward takes the lease.
+  ;<  *  bind:m  (do-agent /head [~zod %harness] [%watch-ack ~])
+  ;<  ~  bind:m  (set-scry-gate (leased & `~2026.10.1..00.15.10))
+  ;<  caz=(list card)  bind:m  (do-agent /steward/lease [~zod %steward] [%poke-ack ~])
+  ;<  ~  bind:m
+    (ex-equal !>(caz) !>(`(list card)`~[[%pass /poll %arvo %b %wait ~2026.10.1..00.10.10]]))
+  ;<  wake=(unit @da)  bind:m  saved-wake
+  (ex-equal !>(wake) !>(`(unit @da)``~2026.10.1..00.10.10))
 --

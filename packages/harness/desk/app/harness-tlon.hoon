@@ -126,14 +126,17 @@
         %-  (slog 'harness-tlon: profile claim update failed' u.error)
         `this
       `this
-    ::  Steward's acks build no effects. Gall hands back the owner's ack before
-    ::  it delivers the lease poke behind it, so taking the lease here would
-    ::  poke without end. A refusal retries on the next adapter event.
+    ::  Steward's acks send Steward nothing. Gall hands back the owner's ack
+    ::  before it delivers the lease poke behind it, so taking the lease here
+    ::  would poke without end. A refusal retries on the next adapter event.
+    ::  The event that sends a lease schedules before Steward applies it, so
+    ::  the lease's ack arms the wake that renews it.
     ?:  =(/steward/lease wire)
       ?^  error=?:(?=(%poke-ack -.sign) p.sign ~)
         %-  (slog 'harness-tlon: steward lease refused' u.error)
         `this
-      `this
+      =^  cards  state  rearm:cor
+      [cards this]
     ?:  =(/steward/configure wire)
       ?~  error=?:(?=(%poke-ack -.sign) p.sign ~)  `this
       ::  Lens's Retry sync sends the owner again, so only Lens shows the refusal.
@@ -202,6 +205,11 @@
 ::
 ++  abet
   =/  engine  schedule:sync-liveness
+  [(flop cards.engine) state.engine]
+::  +abet without the liveness sync: only Behn cards, never a Steward poke.
+::
+++  rearm
+  =/  engine  schedule
   [(flop cards.engine) state.engine]
 ::
 ++  sync-liveness
