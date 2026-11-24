@@ -98,6 +98,24 @@
   %+  do-poke  %noun
   !>(`request:ad`['fixture' [%n '1'] 'harness/tlon/owner/set' `params])
 ::
+::  One configure request that enables the hand and names its owner.
+::
+++  enable-owner
+  |=  owner=@p
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  =/  params=json
+    %-  pairs:enjs:format
+    :~  ['enabled' %b &]
+        ['owner' %s (scot %p owner)]
+        ['trusted' %a ~]
+        ['response' %s 'mentions']
+        ['allowed' %a ~]
+        ['channels' %a ~]
+    ==
+  %+  do-poke  %noun
+  !>(`request:ad`['fixture' [%n '1'] 'harness/tlon/configure' `params])
+::
 ++  saved-wake
   =/  m  (mare ,(unit @da))
   ^-  form:m
@@ -273,4 +291,26 @@
     (ex-equal !>(caz) !>(`(list card)`~[[%pass /poll %arvo %b %wait ~2026.10.1..00.10.10]]))
   ;<  wake=(unit @da)  bind:m  saved-wake
   (ex-equal !>(wake) !>(`(unit @da)``~2026.10.1..00.10.10))
+::  Steward keeps authorizing its previous owner until it is told the new one.
+::
+++  test-enabling-the-hand-with-a-new-owner-reconfigures-steward
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (boot `~nec | &)
+  ;<  ~  bind:m  (set-scry-gate (leased & `~2026.10.1..00.15.10))
+  ;<  *  bind:m  (do-load adapter `!>(=/(old (saved `~nec |) old(enabled.policy |, watching |))))
+  ;<  caz=(list card)  bind:m  (enable-owner ~bud)
+  (ex-equal !>((owners caz)) !>(~[~bud]))
+::  The owner goes with a lease, and a change of owner sends it too.
+::
+++  test-an-owner-change-with-a-lease-names-the-owner-once
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (boot `~nec | &)
+  ;<  *  bind:m  (do-agent /head [~zod %harness] [%watch-ack ~])
+  ;<  caz=(list card)  bind:m  (set-owner `~bud `~nec)
+  ;<  ~  bind:m  (ex-equal !>((leases caz)) !>(1))
+  (ex-equal !>((owners caz)) !>(~[~bud]))
 --

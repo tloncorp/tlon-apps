@@ -253,15 +253,18 @@
   =(`& (mole |.(.^(? %gu /(scot %p our.bowl)/steward/(scot %da now.bowl)/$))))
 ::
 ::  Steward has no action to clear its owner, so a cleared owner sends nothing.
+::  An owner change that also renews the lease names the owner once.
 ::
 ++  configure-steward
   ^+  cor
   ?~  owner.policy  cor
   ?.  steward-running  cor
-  %-  emit
-  :*  %pass  /steward/configure  %agent  [our.bowl %steward]  %poke  %steward-action-1
-      !>(`action:v1:steward`[%configure u.owner.policy])
-  ==
+  =/  configure=card
+    :*  %pass  /steward/configure  %agent  [our.bowl %steward]  %poke  %steward-action-1
+        !>(`action:v1:steward`[%configure u.owner.policy])
+    ==
+  ?:  (lien cards |=(=card =(card configure)))  cor
+  (emit configure)
 ::  Renew the Steward lease before it expires, while the hand is online.
 ::
 ++  lease-renewal
@@ -1794,12 +1797,7 @@
   =.  epoch  +(epoch)
   =.  error  ''
   =.  cor  (sync-presence hands)
-  ::  Enabling the hand boots it, which configures Steward.
-  =?  cor
-      ?&  !=(owner.before owner.updated-policy)
-          !&(!enabled.before enabled.updated-policy)
-      ==
-    configure-steward
+  =?  cor  !=(owner.before owner.updated-policy)  configure-steward
   ?:  =(enabled.before enabled.updated-policy)  schedule:accept-granted-invitations
   ?:  enabled.updated-policy  boot
   =?  cor  (~(has by wex.bowl) /activity our.bowl %activity)
