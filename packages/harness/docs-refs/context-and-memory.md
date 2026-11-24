@@ -319,16 +319,21 @@ SHIP_URL=https://moon.example SHIP_COOKIE=/path/to/cookie.txt \
   node acp/import-openclaw-memory.mjs
 ```
 
-The script removes tlonbot's managed blocks. A block runs from a line holding
-`<!-- idempotency-marker:` through the first line, from that one on, holding
-`<!-- /idempotency-marker -->`; an unclosed block stops the script. It cuts the
-rest into facts of at most 1,024 bytes, section by section. Each fact starts
-with its heading path, such as `Projects > Launch`, on its own line; a list item
-keeps its nested items and continuation lines, and code fences stay literal. A
-unit too long for one fact is cut at whitespace where it can be; no text is
-dropped. Facts are named `imported-<snapshot>-<number>`: the snapshot is the
-first eight hex digits of the SHA-256 of the cleaned file, the number the
-fact's position in it.
+The script removes tlonbot's managed blocks. A block runs from
+`<!-- idempotency-marker:` through the next `<!-- /idempotency-marker -->`;
+text before the opening marker and after the closing one on their lines is
+kept, and an unclosed block stops the script. It cuts the rest into facts of at
+most 1,024 bytes, section by section. Each fact starts with its heading path,
+such as `Projects > Launch`, on its own line; a list item keeps its nested items
+and continuation lines. Code fences, of backticks or tildes and indented or
+not, stay literal; an unclosed fence runs to the end of the file. A heading
+with no text and no deeper heading under it becomes a fact of its own title,
+under the path above it. A path over 120 bytes drops its outermost titles
+until it fits, and a deepest title over 120 bytes on its own is cut. That
+shortening is the only place text can be lost: a unit too long for one fact is
+cut at whitespace where it can be and carried on in the next. Facts are named
+`imported-<snapshot>-<number>`: the snapshot is the first eight hex digits of
+the SHA-256 of the cleaned file, the number the fact's position in it.
 
 It lists every memory before it saves anything, and never changes or forgets
 an existing one. Its saves are explicit, like an owner's edit, so automatic

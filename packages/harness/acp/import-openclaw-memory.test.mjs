@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
-import { clean, compare, cut, factsOf, maxFactBytes, maxPathBytes, snapshotId } from './import-openclaw-memory.mjs'
+import { clean, compare, cut, factsOf, maxFactBytes, maxPathBytes, run, snapshotId } from './import-openclaw-memory.mjs'
 
 const bytes = (text) => Buffer.byteLength(text, 'utf8')
 const whole = (text) => Buffer.from(text, 'utf8').toString('utf8') === text && !text.includes('�')
@@ -44,16 +44,32 @@ More seeded text.
 `
 const headless = 'Just one paragraph\nover two lines.\n\nAnd a second one.\n- with an item'
 const oversize = `# Long\n${'word '.repeat(300).trim()}\n\n${'日'.repeat(700)}`
+const indentedFence = '# A\n- item\n  ```sh\n# install\nnpm i\n  ```\nafter\n# B\nlast'
+const bareHeadings = '# Owner likes tea\n## Birthday is March 3\n'
+const fences = '# T\n  ~~~\n# tilde\n~~~\n````md\n```\n# inner\n```\n````\n```x``` is inline\n```\n# longer closer\n`````\n# U\n```\n~~~\n# literal\n``` not a close\n# still literal\n\n## nor this'
+const longFence = `# F\n\`\`\`\n${'x'.repeat(600)}\n- item ${'y'.repeat(600)}\n\`\`\``
+const separators = '```js\u2028\n# literal\npayload\n```\n# T\u2029itle\nbody'
+const headingShapes = '# \n# Parent\n## Child\nbody\n# Empty\n\n## Also empty\n## Sibling\n# Owner likes tea\n## \n# Alone'
 
-// The cleaned text's non-blank lines, without headings outside code fences.
+// The cleaned text's non-blank lines that are not headings, and the title of
+// every heading with neither text nor a deeper heading under it.
 function contentLines(cleaned) {
   const lines = []
-  let fenced = false
+  let fence = null, bare = null
   for (const line of cleaned.split('\n')) {
-    if (!fenced && /^#{1,6} /.test(line)) continue
-    if (line.trim()) lines.push(line)
-    if (line.startsWith('```')) fenced = !fenced
+    const heading = !fence && line.match(/^(#{1,6}) (.*\S.*)$/s)
+    if (heading) {
+      if (bare && heading[1].length <= bare.level) lines.push(bare.title)
+      bare = { level: heading[1].length, title: heading[2].trim() }
+      continue
+    }
+    if (line.trim()) { lines.push(line); bare = null }
+    const run = line.match(/^\s*(`{3,}|~{3,})(.*)$/s)
+    if (fence) {
+      if (run && run[1][0] === fence[0] && run[1].length >= fence.length && !run[2].trim()) fence = null
+    } else if (run && !(run[1][0] === '`' && run[2].includes('`'))) fence = run[1]
   }
+  if (bare) lines.push(bare.title)
   return lines
 }
 
@@ -73,6 +89,14 @@ test('an opening marker with no closing marker stops the import', () => {
   assert.throws(() => factsOf('# Notes\nKept.\n<!-- idempotency-marker:tlon-runtime:v3 -->\nUnclosed.\n'), /no closing marker/)
 })
 
+test('text before an opening marker and after a closing marker on their lines is kept', () => {
+  const [o, c] = ['<!-- idempotency-marker:x -->', '<!-- /idempotency-marker -->']
+  assert.equal(clean(`a\nKEEP ME ${o}\nseed\n${c} TAIL\nb`), 'a\nKEEP ME \n TAIL\nb')
+  assert.equal(clean(`x ${o} seed ${c} y\n  ${o}${c}  `), 'x \n y')
+  assert.equal(clean(`A ${o}seed1${c} B ${o}seed2${c} Z`), 'A \n B \n Z')
+  assert.throws(() => clean(`${o}seed${c} kept ${o}unclosed`), /no closing marker/)
+})
+
 test('CRLF input gives the same facts as LF', () => {
   assert.deepEqual(factsOf(memory.replaceAll('\n', '\r\n')), factsOf(memory))
 })
@@ -81,6 +105,28 @@ test('a heading line, a list line and a blank line inside a code fence stay lite
   const fence = factsOf(memory).facts.find((fact) => fact.text.includes('```'))
   assert.equal(fence.path, 'People > Projects')
   assert.ok(fence.body.includes('```\n# not a heading\n- not an item\n\nstill literal\n```'))
+})
+
+test('a fence indented under a list item keeps its lines literal', () => {
+  assert.deepEqual(cut(indentedFence).map(({ path, body }) => [path, body]), [['A', '- item\n  ```sh\n# install\nnpm i\n  ```\nafter'], ['B', 'last']])
+})
+
+test('tilde, longer and unclosed fences, closers of the same character and at least as long, and inline code', () => {
+  assert.deepEqual(cut(fences).map(({ path, body }) => [path, body]), [
+    ['T', '  ~~~\n# tilde\n~~~\n````md\n```\n# inner\n```\n````\n```x``` is inline\n```\n# longer closer\n`````'],
+    ['U', '```\n~~~\n# literal\n``` not a close\n# still literal\n\n## nor this'],
+  ])
+})
+
+test('a list start inside a fence does not start a unit', () => {
+  assert.deepEqual(cut(longFence).map(({ body, continued }) => [body, continued]), [
+    [`\`\`\`\n${'x'.repeat(600)}\n- item `, false],
+    [`${'y'.repeat(600)}\n\`\`\``, true],
+  ])
+})
+
+test('fence and heading lines holding U+2028 or U+2029 are matched whole', () => {
+  assert.deepEqual(cut(separators).map(({ path, body }) => [path, body]), [['', '```js\u2028\n# literal\npayload\n```'], ['T\u2029itle', 'body']])
 })
 
 test('a level-3 heading under a level-1 and then a level-2 heading takes the right path', () => {
@@ -115,8 +161,14 @@ test('text before the first heading and a file with no headings are kept with an
   assert.deepEqual(facts.map(({ text }) => text), [headless.replace('\n\n', '\n')])
 })
 
-test('a section with no units makes no fact', () => {
-  assert.deepEqual(cut('# Empty\n\n## Also empty\n# Full\nbody').map(({ path }) => path), ['Full'])
+test('a heading with no text and no deeper heading under it is a fact of its own title', () => {
+  assert.deepEqual(factsOf(bareHeadings).facts.map(({ text }) => text), ['Owner likes tea\nBirthday is March 3'])
+})
+
+test('a heading with only deeper headings makes no fact of its own, and # marks without a title are text', () => {
+  assert.deepEqual(cut(headingShapes).map(({ path, body }) => [path, body]), [
+    ['', '# '], ['Parent > Child', 'body'], ['Empty', 'Also empty'], ['Empty', 'Sibling'], ['Owner likes tea', '## '], ['', 'Alone'],
+  ])
 })
 
 test('no fact exceeds 1,024 bytes', () => {
@@ -125,12 +177,15 @@ test('no fact exceeds 1,024 bytes', () => {
   }
 })
 
-test('a path line over 120 bytes is cut on a character boundary', () => {
-  const title = 'é'.repeat(41) + 'ü'.repeat(40)
-  const [fact] = factsOf(`# ${title}\n## more\nbody`).facts
-  assert.ok(bytes(fact.path) <= maxPathBytes && bytes(fact.path) >= maxPathBytes - 1)
-  assert.ok(whole(fact.path))
-  assert.ok(`${title} > more`.startsWith(fact.path))
+test('a path over 120 bytes loses its outermost titles first', () => {
+  const [fact] = cut(`# ${'a'.repeat(60)}\n## ${'b'.repeat(60)}\n### ${'c'.repeat(60)}\n#### deepest\nbody`)
+  assert.equal(fact.path, `${'c'.repeat(60)} > deepest`)
+})
+
+test('a deepest title over 120 bytes is cut on a character boundary', () => {
+  const [fact] = factsOf(`# outer\n## a${'日'.repeat(50)}\nbody`).facts
+  assert.equal(fact.path, `a${'日'.repeat(39)}`)
+  assert.ok(bytes(fact.path) <= maxPathBytes && whole(fact.path))
   assert.equal(fact.text, `${fact.path}\nbody`)
 })
 
@@ -156,8 +211,8 @@ test('an oversize unit is cut at the last whitespace that fits', () => {
   assert.equal(first.body + second.body, unit)
 })
 
-test('joining the bodies gives back every non-blank, non-heading line of the cleaned text, in order', () => {
-  for (const fixture of [memory, headless, oversize, memory.replaceAll('\n', '\r\n')]) {
+test('joining the bodies gives back every non-blank line that is not a heading, and every bare heading title, in order', () => {
+  for (const fixture of [memory, headless, oversize, memory.replaceAll('\n', '\r\n'), indentedFence, bareHeadings, fences, longFence, separators, headingShapes]) {
     const cleaned = clean(fixture)
     assert.deepEqual(rejoin(cut(cleaned)), contentLines(cleaned))
   }
@@ -201,6 +256,22 @@ test('names outside the imported-<snapshot>-<number> pattern do not affect the p
   const plan = compare(facts, snapshot, [row('imported-notes', 'The bot named this itself.'), row('imported-0badf00d-01', 'Not three digits.')])
   assert.deepEqual(plan.save, facts)
   assert.deepEqual(plan.refused, [])
+})
+
+test('a dry run on a rerun says a fact it would save may have been forgotten, and a first dry run does not', async (t) => {
+  const { facts } = factsOf(memory)
+  t.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify({ '~zod': { 'MEMORY.md': memory } })))
+  const summary = async (rows) => {
+    const lines = []
+    const client = { ship: 'zod', call: async () => ({ items: rows, nextCursor: null }) }
+    assert.equal(await run({ client, base: 'http://ship', cookie: '', dryRun: true, print: (line) => lines.push(line) }), 0)
+    return lines.at(-1)
+  }
+  const note = /may have been forgotten.*a real run leaves a forgotten fact alone/
+  assert.doesNotMatch(await summary([]), /forgotten/)
+  assert.match(await summary([row(facts[0].name, facts[0].text)]), note)
+  assert.match(await summary([row(facts[0].name, 'Edited by the owner.')]), note)
+  assert.doesNotMatch(await summary(facts.map(({ name, text }) => row(name, text))), /forgotten/)
 })
 
 test('the script runs when invoked through a symlink', async (t) => {

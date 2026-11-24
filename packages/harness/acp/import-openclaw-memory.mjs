@@ -30,16 +30,33 @@ function prefix(text, max) {
 }
 
 // Removes tlonbot's managed blocks. The bot is told to keep learned entries
-// outside them, so what is inside is seeded runtime text, not memory.
+// outside them, so what is inside is seeded runtime text, not memory. Text
+// beside a marker on its line is outside the block, so it is kept, and a line
+// can hold several blocks.
 export function clean(text) {
   const kept = []
+  const keep = (part) => { if (part.trim()) kept.push(part) }
   let open = false
   for (const line of text.replace(/\r\n?/g, '\n').split('\n')) {
-    if (open) {
-      if (line.includes(closing)) open = false
-    } else if (line.includes(opening)) {
-      open = !line.includes(closing, line.indexOf(opening))
-    } else kept.push(line)
+    if (!open && !line.includes(opening)) {
+      kept.push(line)
+      continue
+    }
+    let rest = line
+    for (;;) {
+      if (!open) {
+        const start = rest.indexOf(opening)
+        if (start < 0) break
+        keep(rest.slice(0, start))
+        rest = rest.slice(start)
+        open = true
+      }
+      const end = rest.indexOf(closing)
+      if (end < 0) break
+      open = false
+      rest = rest.slice(end + closing.length)
+    }
+    if (!open) keep(rest)
   }
   if (open) throw new Error('MEMORY.md has a managed block with no closing marker; nothing was imported.')
   return kept.join('\n')
@@ -58,8 +75,15 @@ function split(text, room) {
   return space < 0 ? head : head.slice(0, space + 1)
 }
 
+// A long path loses its outermost titles first, because the deepest title says
+// most about the fact; only a deepest title too long by itself is cut.
+function pathOf(titles) {
+  while (titles.length > 1 && bytes(titles.join(' > ')) > maxPathBytes) titles = titles.slice(1)
+  return prefix(titles.join(' > '), maxPathBytes)
+}
+
 function pack(path, units, facts) {
-  const header = path ? `${prefix(path, maxPathBytes)}\n` : ''
+  const header = path ? `${path}\n` : ''
   const room = maxFactBytes - bytes(header)
   let body = null, continued = false
   const emit = (text, more) => facts.push({ path: header.slice(0, -1), body: text, continued: more })
@@ -86,24 +110,33 @@ function pack(path, units, facts) {
 // continued marks a fact whose body carries on the previous fact's cut unit.
 export function cut(cleaned) {
   const facts = []
-  let headings = [], units = [], unit = null, fenced = false
-  const section = () => {
-    pack(headings.map(({ title }) => title).join(' > '), units, facts)
+  let headings = [], units = [], unit = null, fence = null
+  // level is the next heading's, 0 at the end. A heading with no text and no
+  // deeper heading under it is a fact in itself, its title under its parents.
+  const section = (level = 0) => {
+    const titles = headings.map(({ title }) => title), last = headings.at(-1)
+    if (!units.length && last && level <= last.level) pack(pathOf(titles.slice(0, -1)), [[last.title]], facts)
+    else pack(pathOf(titles), units, facts)
     units = []; unit = null
   }
   for (const line of cleaned.split('\n')) {
-    const heading = !fenced && line.match(/^(#{1,6}) (.*)$/)
+    const heading = !fence && line.match(/^(#{1,6}) (.*\S.*)$/s)
     if (heading) {
-      section()
       const level = heading[1].length
+      section(level)
       headings = [...headings.filter((entry) => entry.level < level), { level, title: heading[2].trim() }]
       continue
     }
-    if (fenced) unit.push(line)
+    if (fence) unit.push(line)
     else if (!line.trim()) unit = null
     else if (unit === null || /^([-*+] |\d+\. )/.test(line)) units.push(unit = [line])
     else unit.push(line)
-    if (line.startsWith('```')) fenced = !fenced
+    // A fence closes on a line of its opener's character, at least as long,
+    // whatever its indent. A backtick opener with another backtick is inline code.
+    const run = line.match(/^\s*(`{3,}|~{3,})(.*)$/s)
+    if (fence) {
+      if (run && run[1][0] === fence[0] && run[1].length >= fence.length && !run[2].trim()) fence = null
+    } else if (run && !(run[1][0] === '`' && run[2].includes('`'))) fence = run[1]
   }
   section()
   return facts
@@ -184,7 +217,9 @@ export async function run({ client, base, cookie, dryRun = false, print = consol
       ...plan.changed.map((fact) => [fact, 'changed since import, would leave alone']),
     ])
     for (const fact of facts) print(`--- ${fact.name} (${status.get(fact)}, ${bytes(fact.text)} bytes)\n${fact.text}`)
-    print(`Dry run: would save ${plan.save.length}, already imported ${plan.same.length}, changed and left alone ${plan.changed.length}, of ${facts.length} facts from snapshot ${snapshot}.`)
+    // The list leaves forgotten facts out, so a rerun cannot tell them from missing ones.
+    const rerun = plan.save.length && (plan.same.length || plan.changed.length)
+    print(`Dry run: would save ${plan.save.length}, already imported ${plan.same.length}, changed and left alone ${plan.changed.length}, of ${facts.length} facts from snapshot ${snapshot}.${rerun ? ' A fact shown as "would save" may have been forgotten since the earlier import; a real run leaves a forgotten fact alone.' : ''}`)
     return 0
   }
   for (const fact of plan.same) print(`already imported ${fact.name}`)
