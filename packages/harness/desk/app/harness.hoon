@@ -2739,16 +2739,20 @@
 ++  memory-reach
   |=  sid=session-id:h
   ^-  reach:memory
-  =/  bound=(set @t)  (silt (turn ~(val by bindings.hands) |=(=binding:hh sid.binding)))
-  =/  places  (places:memory ~(val by bindings.hands))
+  ::  One session's bindings through the ledger's index, never a walk.
+  =/  lookup
+    |=  sid=session-id:h
+    ^-  (unit (unit place:memory))
+    %-  places:memory
+    (turn (session-bindings:hd [hands hand-index] sid) |=([@t =binding:hh] binding))
   =/  owner-ship  owner:~(. peer-trust bowl)
   =/  owns
-    |=(=source:memory-types (owner-source:memory places bound memory-local owner-ship our.bowl source))
+    |=(=source:memory-types (owner-source:memory lookup memory-local owner-ship our.bowl source))
   =/  owner  (preferred:memory knowledge owns owner-ship our.bowl)
   =/  left=@ud  8
   |-  ^-  reach:memory
   =/  session  (~(get by sessions) sid)
-  =/  narrow=reach:memory  [| sid places owner owns]
+  =/  narrow=reach:memory  [| sid lookup owner owns]
   ?:  |(?=(~ session) =(0 left) (~(has by rehearsals) sid))  narrow
   =/  parent  (delegation:hl log.u.session)
   ?^  parent
@@ -2758,11 +2762,12 @@
   ::  Only an unambiguous Tlon DM asks the adapter; any other binding, or
   ::  bindings that disagree, is never private. An unbound session is private
   ::  only when every input in it is the owner's own.
-  =/  at=(unit place:memory)  (fall (~(get by places) sid) ~)
+  =/  bound  (lookup sid)
+  =/  at=(unit place:memory)  (fall bound ~)
   ?:  ?=([~ %dm *] at)
     ?.  .^(? %gu /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/$)  |
     .^(? %gx /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/admin/[sid]/noun)
-  ?:  (~(has in bound) sid)  |
+  ?:  ?=(^ bound)  |
   (owner-history log.u.session)
 ::  +owner-history: every input was the owner's own on this ship: a local ACP
 ::  or poke prompt, or a timer, which only the ship sets. Hand, peer and

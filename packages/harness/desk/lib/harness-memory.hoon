@@ -10,44 +10,37 @@
 ::  $reach: what one conversation sees, rebuilt for each event, never saved.
 ::
 ::  all: the owner's private conversation. here: the conversation whose
-::  place counts, a subagent's root parent. places: each conversation with a
-::  Tlon binding, ~ where its bindings disagree. owner: the owner's general
-::  preferences that recall gives every conversation, newest first. owns:
-::  whether a source is one an owner's preference may come from.
+::  place counts, a subagent's root parent. lookup: one session's bindings,
+::  classified by +places. owner: the owner's general preferences that
+::  recall gives every conversation, newest first. owns: whether a source
+::  is one an owner's preference may come from.
 ::
 +$  reach
   $:  all=?
       here=@t
-      places=(map @t (unit place))
+      lookup=$-(@t (unit (unit place)))
       owner=(list @t)
       owns=$-(source:m ?)
   ==
 ++  nobody  |=(=source:m |)
-++  everything  `reach`[& '' ~ ~ nobody]
+++  unbound  |=(sid=@t `(unit (unit place))`~)
+++  everything  `reach`[& '' unbound ~ nobody]
 ++  unavailable  'That memory name is not available.'
-::  +places: one pass over the bindings. Only Tlon addresses classify; a
-::  conversation that also has another hand's binding is unknown.
+::  +places: one session's bindings: ~ when it has none, [~ ~] when its
+::  place is unknown (bindings that disagree, or any binding on another
+::  hand), and the place otherwise. Disabled bindings still count.
 ::
 ++  places
   |=  bindings=(list binding:hh)
-  ^-  (map @t (unit place))
-  =/  found
-    %+  roll  bindings
-    |=  [=binding:hh found=(map @t [tlon=? seen=(set (unit place))])]
-    =/  prior=[tlon=? seen=(set (unit place))]
-      (fall (~(get by found) sid.binding) [| ~])
-    =/  tlon  =('tlon' hand.binding)
-    %+  ~(put by found)  sid.binding
-    [|(tlon tlon.prior) (~(put in seen.prior) ?.(tlon ~ (locate address.binding)))]
-  %-  malt
-  %+  murn  ~(tap by found)
-  |=  [sid=@t tlon=? seen=(set (unit place))]
-  ^-  (unit [@t (unit place)])
-  ?.  tlon  ~
-  =/  all  ~(tap in seen)
-  ?~  all  `[sid ~]
-  ?^  t.all  `[sid ~]
-  `[sid i.all]
+  ^-  (unit (unit place))
+  ?~  bindings  ~
+  ?.  (levy `(list binding:hh)`bindings |=(=binding:hh =('tlon' hand.binding)))
+    [~ ~]
+  =/  found=(list (unit place))
+    ~(tap in (silt (turn `(list binding:hh)`bindings |=(=binding:hh (locate address.binding)))))
+  ?~  found  [~ ~]
+  ?^  t.found  [~ ~]
+  `i.found
 ++  locate
   |=  address=@t
   ^-  (unit place)
@@ -64,7 +57,7 @@
 ++  where
   |=  [=reach sid=@t]
   ^-  (unit place)
-  (fall (~(get by places.reach) sid) ~)
+  (fall (lookup.reach sid) ~)
 ::  +same: two sources in the same place: the same DM partner or channel or,
 ::  where neither resolves, the same conversation.
 ::
@@ -101,15 +94,16 @@
 ::  unbound session whose whole history is the owner's own.
 ::
 ++  owner-source
-  |=  $:  places=(map @t (unit place))  bound=(set @t)  local=$-(@t ?)
+  |=  $:  lookup=$-(@t (unit (unit place)))  local=$-(@t ?)
           owner=(unit @p)  bot=@p  =source:m
       ==
   ^-  ?
   ?:  =('' sid.source)  &
-  =/  at=(unit place)  (fall (~(get by places) sid.source) ~)
+  =/  bound  (lookup sid.source)
+  =/  at=(unit place)  (fall bound ~)
   ?:  ?=(^ at)
     &(?=(^ owner) =((scot %p u.owner) actor.source))
-  ?&  !(~(has in bound) sid.source)
+  ?&  ?=(~ bound)
       =((scot %p bot) actor.source)
       (local sid.source)
   ==

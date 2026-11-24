@@ -198,13 +198,16 @@
 ::  (the old binding disabled) and a local conversation with no binding.
 ::
 ++  places
+  |=  sid=@t
   %-  places:memory
-  ^-  (list binding:hh)
-  :~  ['tlon' 'dm/~ten' 'owner-dm' ~['~ten'] &]
-      ['tlon' 'chat/~zod/general' 'chan' ~['~nec'] &]
-      ['tlon' 'dm/~nec' 'nec-old' ~['~nec'] |]
-      ['tlon' 'dm/~nec' 'nec-new' ~['~nec'] &]
-  ==
+  %+  skim
+    ^-  (list binding:hh)
+    :~  ['tlon' 'dm/~ten' 'owner-dm' ~['~ten'] &]
+        ['tlon' 'chat/~zod/general' 'chan' ~['~nec'] &]
+        ['tlon' 'dm/~nec' 'nec-old' ~['~nec'] |]
+        ['tlon' 'dm/~nec' 'nec-new' ~['~nec'] &]
+    ==
+  |=(=binding:hh =(sid sid.binding))
 ::  One fact learned at .from, and capture in .to proposing a new text for
 ::  it from a user event there.
 ::

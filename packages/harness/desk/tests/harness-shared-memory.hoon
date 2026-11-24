@@ -141,10 +141,10 @@
       ['tlon' 'dm/~bus' 'bus-dm' ~['~bus'] &]
       ['tlon' 'dm/~ten' 'schedule-x' ~['~ten'] &]
   ==
-++  owner  `reach:mem`[& 'owner-dm' (places:mem bindings) ~ nobody:mem]
-++  channel  `reach:mem`[| 'chan' (places:mem bindings) ~ nobody:mem]
-++  nec  `reach:mem`[| 'nec-dm' (places:mem bindings) ~ nobody:mem]
-++  bus  `reach:mem`[| 'bus-dm' (places:mem bindings) ~ nobody:mem]
+++  owner  `reach:mem`[& 'owner-dm' (lookup-of bindings) ~ nobody:mem]
+++  channel  `reach:mem`[| 'chan' (lookup-of bindings) ~ nobody:mem]
+++  nec  `reach:mem`[| 'nec-dm' (lookup-of bindings) ~ nobody:mem]
+++  bus  `reach:mem`[| 'bus-dm' (lookup-of bindings) ~ nobody:mem]
 ++  learned
   |=  [sid=@t body=@t]
   ^-  value:m
@@ -171,31 +171,54 @@
     reach  db  ['chan' 0v1 1 ~2026.10.8 '~nec']
     (pairs:enjs:format ~[['operation' %s 'search'] ['query' %s query]])
   ==
-++  test-tlon-addresses-say-where-a-fact-was-learned
-  =/  found  (places:mem bindings)
-  =/  mixed
-    %-  places:mem
-    :~  ['tlon' 'chat/~zod/general' 'both' ~['~nec'] &]
-        ['tlon' 'dm/~nec' 'both' ~['~nec'] &]
-        ['fixture' 'room' 'other-hand' ~['alice'] &]
-        ['fixture' 'room' 'chan' ~['alice'] &]
-        ['tlon' 'chat/~zod/general' 'chan' ~['~nec'] &]
-    ==
-  =/  bound  (apply:hd *state:hh [%bind 'old' ['tlon' 'dm/~nec' 'retired-dm' ~['~nec'] &]] ~2026.10.7)
-  ?>  ?=(%& -.bound)
-  =/  removed  (apply:hd db.p.bound [%remove 'old'] ~2026.10.7)
+::  A session's bindings, as the head reads them through the ledger index.
+::
+++  lookup-of
+  |=  all=(list binding:hh)
+  |=  sid=@t
+  ^-  (unit (unit place:mem))
+  (places:mem (skim all |=(=binding:hh =(sid sid.binding))))
+::  The lookup's three answers, read through the ledger's per-session index:
+::  unbound; bound with its place unknown; and a resolved place.
+::
+++  test-the-lookup-says-unbound-unknown-or-the-place
+  =/  ledger
+    %+  roll
+      ^-  (list [@t binding:hh])
+      :~  ['b-chan' ['tlon' 'chat/~zod/general' 'chan' ~['~nec'] &]]
+          ['b-thread' ['tlon' 'chat/~zod/general/~2026.10.7' 'chan-thread' ~['~nec'] &]]
+          ['b-dm' ['tlon' 'dm/~nec' 'nec-dm' ~['~nec'] &]]
+          ['b-dm-thread' ['tlon' 'dm/~nec/~bus/~2026.10.7' 'nec-thread' ~['~nec'] &]]
+          ['b-dm-off' ['tlon' 'dm/~nec' 'nec-dm' ~['~nec'] |]]
+          ['b-both-1' ['tlon' 'chat/~zod/general' 'both' ~['~nec'] &]]
+          ['b-both-2' ['tlon' 'dm/~nec' 'both' ~['~nec'] &]]
+          ['b-other' ['fixture' 'room' 'other-hand' ~['alice'] &]]
+          ['b-mixed-1' ['fixture' 'room' 'mixed' ~['alice'] &]]
+          ['b-mixed-2' ['tlon' 'chat/~zod/general' 'mixed' ~['~nec'] &]]
+          ['b-old' ['tlon' 'dm/~nec' 'retired-dm' ~['~nec'] &]]
+      ==
+    |=  [[id=@t config=binding:hh] db=state:hh]
+    =/  bound  (apply:hd db [%bind id config] ~2026.10.7)
+    ?>  ?=(%& -.bound)
+    db.p.bound
+  =/  removed  (apply:hd ledger [%remove 'b-old'] ~2026.10.7)
   ?>  ?=(%& -.removed)
+  =/  db  db.p.removed
+  =/  lookup
+    |=  sid=@t
+    %-  places:mem
+    (turn (session-bindings:hd [db (reindex:hd db)] sid) |=([@t =binding:hh] binding))
   ;:  weld
-      (expect-eq !>(``[%channel 'chat' ~zod 'general']) !>((~(get by found) 'chan')))
-      (expect-eq !>(``[%channel 'chat' ~zod 'general']) !>((~(get by found) 'chan-thread')))
-      (expect-eq !>(``[%dm ~nec]) !>((~(get by found) 'nec-dm')))
-      (expect-eq !>(``[%dm ~nec]) !>((~(get by (places:mem ~[['tlon' 'dm/~nec/~bus/~2026.10.7' 't' ~['~nec'] &]])) 't')))
-      (expect-eq !>(~) !>((~(get by found) 'local')))
-      (expect-eq !>(`~) !>((~(get by mixed) 'both')))
-      (expect-eq !>(~) !>((~(get by mixed) 'other-hand')))
-      (expect-eq !>(`~) !>((~(get by mixed) 'chan')))
-      (expect-eq !>(~) !>((places:mem ~(val by bindings.db.p.removed))))
-      (expect-eq !>(~) !>((where:mem [| '' found ~ nobody:mem] '')))
+      (expect-eq !>(``[%channel 'chat' ~zod 'general']) !>((lookup 'chan')))
+      (expect-eq !>(``[%channel 'chat' ~zod 'general']) !>((lookup 'chan-thread')))
+      (expect-eq !>(``[%dm ~nec]) !>((lookup 'nec-dm')))
+      (expect-eq !>(``[%dm ~nec]) !>((lookup 'nec-thread')))
+      (expect-eq !>(~) !>((lookup 'local')))
+      (expect-eq !>(~) !>((lookup 'retired-dm')))
+      (expect-eq !>(`~) !>((lookup 'both')))
+      (expect-eq !>(`~) !>((lookup 'other-hand')))
+      (expect-eq !>(`~) !>((lookup 'mixed')))
+      (expect-eq !>(~) !>((where:mem [| '' lookup ~ nobody:mem] '')))
   ==
 ++  test-a-conversation-sees-private-facts-only-when-it-is-the-owners
   =/  db  places-fixture
@@ -305,7 +328,7 @@
   ==
 ++  test-a-schedule-to-the-owners-dm-sees-that-dm-and-not-imports
   =/  db  places-fixture
-  =/  schedule  `reach:mem`[| 'schedule-x' (places:mem bindings) ~ nobody:mem]
+  =/  schedule  `reach:mem`[| 'schedule-x' (lookup-of bindings) ~ nobody:mem]
   ;:  weld
       (expect !>((seen:mem schedule db 'owner-note')))
       (expect !>(!(seen:mem schedule db 'imported')))
@@ -315,7 +338,7 @@
 ::
 ++  test-a-subagent-of-a-dm-sees-that-dms-facts
   =/  db  places-fixture
-  =/  subagent  `reach:mem`[| 'nec-dm' (places:mem bindings) ~ nobody:mem]
+  =/  subagent  `reach:mem`[| 'nec-dm' (lookup-of bindings) ~ nobody:mem]
   ;:  weld
       (expect !>((seen:mem subagent db 'nec-note')))
       (expect !>(!(seen:mem subagent db 'owner-note')))
@@ -383,8 +406,7 @@
   =/  owns
     |=  =source:m
     %:  owner-source:mem
-      (places:mem all)  (silt (turn all |=(=binding:hh sid.binding)))
-      |=(sid=@t =('local' sid))  owner  ~zod  source
+      (lookup-of all)  |=(sid=@t =('local' sid))  owner  ~zod  source
     ==
   reach(owner (preferred:mem db owns owner ~zod), owns owns)
 ++  preference
@@ -394,8 +416,8 @@
 ++  test-the-owners-preferences-from-each-source-reach-every-conversation
   =/  sources=(list [sid=@t actor=@t])
     ~[['' '~zod'] ['owner-dm' '~ten'] ['local' '~zod']]
-  =/  subagent  `reach:mem`[| 'nec-dm' (places:mem bindings) ~ nobody:mem]
-  =/  schedule  `reach:mem`[| 'schedule-x' (places:mem bindings) ~ nobody:mem]
+  =/  subagent  `reach:mem`[| 'nec-dm' (lookup-of bindings) ~ nobody:mem]
+  =/  schedule  `reach:mem`[| 'schedule-x' (lookup-of bindings) ~ nobody:mem]
   %-  zing
   %+  turn  sources
   |=  [sid=@t actor=@t]

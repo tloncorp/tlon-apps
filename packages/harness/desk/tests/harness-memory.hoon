@@ -96,11 +96,14 @@
 ::  A channel and the owner's DM, both on the Tlon hand.
 ::
 ++  places
+  |=  sid=@t
   %-  places:mem
-  ^-  (list binding:hh)
-  :~  ['tlon' 'chat/~zod/general' 'chan' ~['~nec'] &]
-      ['tlon' 'dm/~ten' 'owner-dm' ~['~ten'] &]
-  ==
+  %+  skim
+    ^-  (list binding:hh)
+    :~  ['tlon' 'chat/~zod/general' 'chan' ~['~nec'] &]
+        ['tlon' 'dm/~ten' 'owner-dm' ~['~ten'] &]
+    ==
+  |=(=binding:hh =(sid sid.binding))
 ++  test-an-owner-save-onto-a-channel-fact-makes-it-private-and-says-so
   =/  channel  `reach:mem`[| 'chan' places ~ nobody:mem]
   =/  owner  `reach:mem`[& 'owner-dm' places ~ nobody:mem]
