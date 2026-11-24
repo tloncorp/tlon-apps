@@ -622,8 +622,10 @@ messaging the sender.
   is recorded as `message`.
 - A per-place grant lets a ship that is on neither ship-wide list (trusted
   or allowed) talk to the bot in one place: its DM with the bot, or one
-  channel, which includes that channel's threads. It gives what an allowed
-  ship gets, an answer with web access only, and never carries named tools.
+  channel, which includes that channel's threads. There it gives the same as
+  an allowed ship: the bot answers it with web access and the current-chat
+  tools (see [Conversation tools](#conversation-tools-and-scheduled-work)),
+  and never with the named tools a trusted ship is granted.
   A ship is answered in a place if it is the owner, is on a ship-wide list,
   or has a grant for that place; a ship with a grant for one channel is
   ignored in other channels and in DMs, and one with a DM grant is ignored in
@@ -713,7 +715,10 @@ alone: it retires the ship's DM route for a DM grant, or cancels the ship's
 running and queued work in that channel for a channel grant, and it moves the
 ship's admission cutoff for that place only. Messages the ship sent in that
 place at or before the change are not answered; its messages in its DM and in
-other places keep their own cutoffs.
+other places keep their own cutoffs. A grant that changes nothing there, because
+the ship already has access as the owner, a sibling moon's owner, through a
+ship-wide list or as a reader of an open channel, and the removal of such a
+grant, does none of this.
 
 Publication checks the exact current binding again after claiming, before
 sending, and the reply's speaker: it is sent only while that speaker is still
@@ -991,7 +996,8 @@ what the peer sends afterward.
 two ships with a local stand-in provider: a peer granted one channel is answered
 there and ignored in another channel and in DMs, a DM grant accepts the pending
 invitation and is ignored in channels, a per-place grant does not make the bot
-accept a group invitation, and leaving a channel removes its grants. It restores
+accept a group invitation, leaving a channel removes its grants, and a grant for
+a reader of an open channel leaves its running turn answered. It restores
 policy and defaults and deletes its fixture group.
 `desk/tests-integration/harness-tlon-place-grants.hoon` covers the same rules on
 the agent, with the per-place cutoffs.
