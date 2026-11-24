@@ -4,8 +4,8 @@
 // mentions the bot and the owner types /allow in its DM with the bot: the guest is then
 // answered in that channel and still not in a DM. With the guest as owner, the peer
 // mentions the bot and the owner types /reject in the channel: the reply comes there,
-// and the peer stays unanswered, with no request open. No command text reaches the
-// model. Runs apart from tlon-approval-commands-dm-conformance: the denial limit lets a
+// and the peer stays unanswered, with no request open. No command text is in a model
+// request in these turns. Runs apart from tlon-approval-commands-dm-conformance: the denial limit lets a
 // ship open one request per five minutes. Restores policy and defaults. Leaves the
 // fixture messages, the cards and the replies.
 import assert from 'node:assert/strict'
@@ -95,7 +95,7 @@ try {
   await t.post(guest, sentText('owner'))
   await until('the owner\'s next mention is answered', async () => answered(await t.channelFromBot(quiet)))
   assert.ok(!t.seen(rejected), 'the owner\'s command reached the model')
-  console.log('PASS the owner\'s command in the channel never reaches the model')
+  console.log('PASS the owner\'s command in the channel starts no turn and is not in the owner\'s next turn')
 } finally {
   await t.stop()
 }
