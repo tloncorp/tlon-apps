@@ -547,7 +547,7 @@
   ?:  ?=([%gx @ %harness @ %hand-index %noun ~] path)  `!>((reindex:hd ledger))
   ((gate stream &) path)
 ++  setup-over
-  |=  [saved=state-3:t ledger=state:hh]
+  |=  [saved=state-5:t ledger=state:hh]
   =/  m  (mare ,(list card))
   ^-  form:m
   ;<  ~  bind:m  watched
@@ -580,7 +580,7 @@
   ;<  ~  bind:m
     (jab-bowl |=(b=bowl b(wex (~(put by wex.b) [/head ~zod %harness] [| /hand-events]))))
   ;<  *  bind:m  (do-agent /head [~zod %harness] [%watch-ack ~])
-  ;<  admitted=state-3:t  bind:m  saved
+  ;<  admitted=state-5:t  bind:m  saved
   =/  lane  (~(got by lanes.admitted) sid)
   ;<  opened=(list card)  bind:m
     (do-agent /route/[sid]/(scot %ud epoch.lane)/create [~zod %harness] [%poke-ack ~])
@@ -602,7 +602,7 @@
   |=  [out=[cards=(list card) ledger=state:hh] old=@t]
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  s=state-3:t  bind:m  saved
+  ;<  s=state-5:t  bind:m  saved
   ;<  ~  bind:m  (ex-equal !>((messenger-pokes cards.out)) !>(`(list [mark noun])`~))
   ;<  ~  bind:m  (ex-equal !>(error.s) !>(''))
   ;<  ~  bind:m
@@ -629,7 +629,7 @@
   ;<  changed=(list card)  bind:m
     %+  do-poke  %noun
     !>(`request:ad`['fixture' [%n '1'] 'harness/tlon/configure' `(policy-json:policy next)])
-  ;<  withdrawn=state-3:t  bind:m  saved
+  ;<  withdrawn=state-5:t  bind:m  saved
   ;<  ~  bind:m  (ex-equal !>((~(has by routes.withdrawn) sid)) !>(|))
   =/  disable  (hand-requests changed)
   ;<  ~  bind:m  (ex-equal !>(disable) !>(`(list action:hh)`~[[%enable 'binding' |]]))
