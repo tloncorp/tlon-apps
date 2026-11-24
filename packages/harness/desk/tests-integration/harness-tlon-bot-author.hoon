@@ -87,18 +87,22 @@
   :~  ['url' s+'']  ['model' s+'']  ['headers' a+~]  ['system' s+'']
       ['max-context' n+'1']  ['tools' a+~]
   ==
+::  Our bowl at .now, with the head and Activity watches acknowledged.
+++  watched
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now now))
+  %-  jab-bowl
+  |=  b=bowl
+  =.  wex.b  (~(put by wex.b) [/head ~zod %harness] [& /hand-events])
+  b(wex (~(put by wex.b) [/activity ~zod %activity] [& /v4]))
 ++  run
   |=  [saved=state-3:t event=incoming-event:v8:a native=(unit native)]
   =/  m  (mare ,outcome)
   ^-  form:m
   =/  =stream:v10:a
     (put:on-stream:v10:a ~ message-at [;;(incoming-event:v10:a event) | |])
-  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now now))
-  ;<  ~  bind:m
-    %-  jab-bowl
-    |=  b=bowl
-    =.  wex.b  (~(put by wex.b) [/head ~zod %harness] [& /hand-events])
-    b(wex (~(put by wex.b) [/activity ~zod %activity] [& /v4]))
+  ;<  ~  bind:m  watched
   ;<  ~  bind:m
     %-  set-scry-gate
     |=  =path
@@ -322,12 +326,7 @@
     %+  turn  rows
     |=  [at=@da e=incoming-event:v8:a]
     [at [;;(incoming-event:v10:a e) | |]]
-  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now now))
-  ;<  ~  bind:m
-    %-  jab-bowl
-    |=  b=bowl
-    =.  wex.b  (~(put by wex.b) [/head ~zod %harness] [& /hand-events])
-    b(wex (~(put by wex.b) [/activity ~zod %activity] [& /v4]))
+  ;<  ~  bind:m  watched
   ;<  ~  bind:m  (set-scry-gate (gate stream &))
   ;<  loaded=(list card)  bind:m  (do-load adapter `!>(saved))
   ;<  head=(list card)  bind:m  (do-agent /head [~zod %harness] [%watch-ack ~])
@@ -557,12 +556,7 @@
     [at [;;(incoming-event:v10:a e) | |]]
   =/  post-pages  (weld base /posts/older)
   =/  reply-pages  (weld base /posts/post/id/(scot %ud parent-at)/replies/older)
-  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now now))
-  ;<  ~  bind:m
-    %-  jab-bowl
-    |=  b=bowl
-    =.  wex.b  (~(put by wex.b) [/head ~zod %harness] [& /hand-events])
-    b(wex (~(put by wex.b) [/activity ~zod %activity] [& /v4]))
+  ;<  ~  bind:m  watched
   ;<  ~  bind:m
     %-  set-scry-gate
     |=  =path

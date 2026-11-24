@@ -2376,7 +2376,9 @@
   ::  Read only what passes the checks above. Kept out of the input whose hash
   ::  is the job id.
   =/  bot=(unit ?)  (bot-author:~(. history-read bowl) to.u.input (posted-at:continuity event))
-  =/  run  (bot-run:denial (address:p to.u.input) notices)
+  =/  run
+    ?.  =(`& bot)  [capped=| reported=|]
+    (bot-run:denial (address:p to.u.input) notices)
   ?:  &(=(`& bot) capped.run)
     ?:  reported.run  cor
     (note 'bot-limit' actor.u.input (address:p to.u.input) event.u.input)
