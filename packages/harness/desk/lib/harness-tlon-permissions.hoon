@@ -1,6 +1,7 @@
 ::  One revision-checked conversation policy for native and hosted settings.
-/-  t=harness-tlon, g=groups-ver, c=channels
-/+  p=harness-tlon-policy, j=harness-workspace-json, paths=harness-tlon-paths
+/-  t=harness-tlon, g=groups-ver, c=channels, d=channels-ver
+/+  p=harness-tlon-policy, j=harness-workspace-json, paths=harness-tlon-paths,
+    group-policy=harness-tlon-group-policy
 |%
 ::
 ++  revision
@@ -185,6 +186,22 @@
 ++  error
   |=  [status=@ud message=@t]
   (envelope status (pairs:enjs:format ~[['error' %s message]]))
+::  +writable: whether .who may post in .nest of .group, hosted at .host,
+::  whose writers are .writers. This is the backend's rule, +can-write in
+::  channel-utils with the groups can-write scry it reads: the channel's
+::  host may; anyone else needs a joined seat, and to be an admin, or the
+::  writers to be empty, or a role among them.
+::
+++  writable
+  |=  [who=@p host=@p nest=nest:g group=group:v9:g writers=(set @tas)]
+  ^-  ?
+  ?:  =(who p.q.nest)  &
+  ?~  seat=(~(get by seats.group) who)  |
+  ?:  =(0 joined.u.seat)  |
+  ?|  (admin:group-policy who host group)
+      =(~ writers)
+      !=(~ (~(int in writers) roles.u.seat))
+  ==
 ::
 ++  directory
   |_  bowl=bowl:gall
@@ -223,5 +240,21 @@
         (group-can-read:~(. paths [our now]:bowl) flag)
       ==
     (native who nest)
+  ::  +can-write: whether our ship may post in .nest. Writers come from our
+  ::  copy of the channel, which exists only once we have joined it.
+  ::
+  ++  can-write
+    |=  nest=nest:g
+    ^-  ?
+    ?:  =(our.bowl p.q.nest)  &
+    ?.  ?=(?(%chat %diary %heap) p.nest)  |
+    %+  lien  ~(tap by groups)
+    |=  [flag=flag:g group=group:v9:g]
+    ?.  (~(has by channels.group) nest)  |
+    =/  perm=(unit perm:v9:d)
+      %-  mole  |.
+      .^(perm:v9:d %gx (channel-permissions:~(. paths [our now]:bowl) nest))
+    ?~  perm  |
+    (writable our.bowl -.flag nest group writers.u.perm)
   --
 --
