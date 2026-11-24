@@ -5,8 +5,8 @@
 |%
 ::
 ++  detach-routes
-  |=  [saved=state-3:t hands=state:hh]
-  ^-  state-3:t
+  |=  [saved=state-4:t hands=state:hh]
+  ^-  state-4:t
   ::  Disabled bindings cannot authorize new input. Keep send receipts, but
   ::  start a fresh conversation so late results cannot enter its new history.
   =/  detached
@@ -19,11 +19,11 @@
   =.  epoch.saved  +(epoch.saved)
   =.  identities.saved
     %+  roll  ~(tap by identities.saved)
-    |=  [[key=[actor=@p to=destination:t] sid=@t] identities=(map [@p destination:t] @t)]
+    |=  [[to=destination:t sid=@t] identities=(map destination:t @t)]
     =/  replacement
       ?.  (~(has in detached) sid)  sid
-      (cat 3 (session-id:p epoch.saved actor.key to.key) '-stable')
-    (~(put by identities) key replacement)
+      (cat 3 (session-id:p epoch.saved to) '-stable')
+    (~(put by identities) to replacement)
   =.  routes.saved
     %-  my
     %+  skip  ~(tap by routes.saved)
@@ -94,18 +94,22 @@
 ++  cutoffs
   |=  $:  before=policy:t
           new=policy:t
-          known=(map [@p destination:t] @t)
+          known=(map destination:t @t)
+          speakers=(set @p)
           prior=(map @p @da)
           now=@da
       ==
   ^-  (map @p @da)
   ::  Keep unchanged cutoffs. Removed actors without conversations need no
   ::  tombstone: granting them again establishes a fresh cutoff. This bounds
-  ::  the map by the identity directory and the two policy snapshots.
+  ::  the map by DM partners, pending speakers and the two policy snapshots.
   =/  actors=(set @p)
     %-  silt
     ;:  weld
-        (turn ~(tap by known) |=([[actor=@p to=destination:t] sid=@t] actor))
+        %+  murn  ~(tap by known)
+        |=  [to=destination:t sid=@t]
+        ?.(?=(%dm -.to) ~ `who.to)
+        ~(tap in speakers)
         ~(tap in ~(key by trusted.before))
         ~(tap in ~(key by trusted.new))
         ~(tap in allowed.before)
@@ -137,19 +141,25 @@
   ?~  cutoff  cutoffs
   (~(put by cutoffs) nest u.cutoff)
 ::
+::  A DM belongs to its partner. A channel is shared, so no one speaker's
+::  change resets it; only the channel's rule or the adapter itself does.
+::
 ++  affected
   |=  [before=policy:t after=policy:t lane=lane:t]
   ^-  ?
-  ?|  (actor-changed before after actor.lane)
-      ?&  ?=(%channel -.to.lane)
-          !=((channel-rule:p before nest.to.lane) (channel-rule:p after nest.to.lane))
-      ==
+  ?-  -.to.lane
+    %dm  (actor-changed before after who.to.lane)
+  ::
+      %channel
+    ?|  !=(enabled.before enabled.after)
+        !=((channel-rule:p before nest.to.lane) (channel-rule:p after nest.to.lane))
+    ==
   ==
 ::
 ++  identity
-  |=  [actor=@p to=destination:t]
+  |=  to=destination:t
   ^-  @t
-  (cat 3 (session-id:p 0 actor to) '-stable')
+  (cat 3 (session-id:p 0 to) '-stable')
 ::
 ++  binding
   |=  [sid=@t generation=@ud]

@@ -187,8 +187,77 @@
   !>  ?&  =(~ (sender:deny ~lux post))  =(`~nec (sender:deny ~lux post(mention &)))
           =(`~nec (sender:deny ~lux reply))
       ==
+::  Notices of .kinds at .address, newest first.
+++  bot-feed
+  |=  [address=@t kinds=(list @t)]
+  ^-  (list notice:t)
+  (turn kinds |=(kind=@t `notice:t`[0 ~2026.9.9 kind ~nec address '']))
+++  here  'chat/~bud/test'
+++  there  'chat/~bud/test/~2026.9.8'
+++  test-bot-run-reads-only-its-own-conversation
+  %+  expect-eq
+    !>(`(list [? ?])`~[[| |] [& |]])
+  !>  ^-  (list [? ?])
+      :~  (bot-run:deny here (bot-feed there ~['bot-message' 'bot-message' 'bot-message']))
+          %+  bot-run:deny  here
+          ;:  weld
+            (bot-feed here ~['bot-message'])
+            (bot-feed there ~['message' 'bot-limit'])
+            (bot-feed here ~['bot-message' 'bot-message'])
+          ==
+      ==
+++  test-bot-run-skips-other-kinds
+  %+  expect-eq
+    !>(`[? ?]`[& |])
+  !>  ^-  [? ?]
+      %+  bot-run:deny  here
+      %+  bot-feed  here
+      :~  'bot-message'  'refusal'  'bot-message'  'refusal-notice'
+          'permission-denied'  'contact'  'bot-message'
+      ==
+++  test-bot-run-caps-at-three-bot-messages
+  %+  expect-eq
+    !>(`(list [? ?])`~[[& |] [| |] [| |]])
+  !>  ^-  (list [? ?])
+      :~  (bot-run:deny here (bot-feed here ~['bot-message' 'bot-message' 'bot-message']))
+          (bot-run:deny here (bot-feed here ~['bot-message' 'bot-message']))
+          (bot-run:deny here ~)
+      ==
+++  test-bot-run-a-person-among-the-newest-three-is-not-capped
+  %+  expect-eq
+    !>(`(list [? ?])`~[[| |] [| |]])
+  !>  ^-  (list [? ?])
+      :~  (bot-run:deny here (bot-feed here ~['bot-message' 'message' 'bot-message' 'bot-message']))
+          %+  bot-run:deny  here
+          %+  bot-feed  here
+          ~['bot-message' 'bot-message' 'message' 'bot-message' 'bot-message' 'bot-message']
+      ==
+++  test-bot-run-is-reported-until-a-person-speaks
+  %+  expect-eq
+    !>(`(list [? ?])`~[[& &] [& &] [& |]])
+  !>  ^-  (list [? ?])
+      :~  ::  A delayed refusal of an earlier admitted message.
+          %+  bot-run:deny  here
+          (bot-feed here ~['refusal' 'bot-limit' 'bot-message' 'bot-message' 'bot-message'])
+          ::  The run rebuilt after the feed evicted its first bot messages.
+          %+  bot-run:deny  here
+          (bot-feed here ~['bot-message' 'bot-message' 'bot-message' 'bot-limit' 'bot-message'])
+          %+  bot-run:deny  here
+          %+  bot-feed  here
+          :~  'bot-message'  'bot-message'  'bot-message'  'message'
+              'bot-limit'  'bot-message'  'bot-message'  'bot-message'
+          ==
+      ==
+++  test-bot-run-ends-when-the-feed-evicts-its-oldest-bot-message
+  =/  full=(list notice:t)
+    (weld (bot-feed there (reap 125 'contact')) (bot-feed here ~['bot-message' 'bot-message' 'bot-message']))
+  =/  next=(list notice:t)  (scag 128 (weld (bot-feed there ~['contact']) full))
+  %+  expect-eq
+    !>(`[@ud [? ?] [? ?]]`[128 [& |] [| |]])
+  !>  ^-  [@ud [? ?] [? ?]]
+      [(lent full) (bot-run:deny here full) (bot-run:deny here next)]
 ++  test-tool-deadline-with-tlon-replies-disabled
-  =/  state=state-3:t  *state-3:t
+  =/  state=state-4:t  *state-4:t
   =.  enabled.policy.state  |
   =.  tool-receipts.state
     %-  my

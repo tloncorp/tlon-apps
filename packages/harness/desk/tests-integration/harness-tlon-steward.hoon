@@ -6,8 +6,8 @@
 |%
 ++  saved
   |=  [owner=(unit @p) lens=?]
-  ^-  state-3:t
-  =/  saved=state-3:t  *state-3:t
+  ^-  state-4:t
+  =/  saved=state-4:t  *state-4:t
   %=  saved  owner-initialized  1  policy  [& owner ~ %mentions ~ ~]  watching  &
     activity-through  ~2026.10.1
     lens  ?.(lens *lens-sync:t [& owner ~2026.10.1 ~ ''])
@@ -43,6 +43,7 @@
   ?:  =(%$ (rear path))  `!>(&)
   ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)
   ?:  (lien path |=(part=@ta =(%hand-state part)))  `!>(*state:hh)
+  ?:  (lien path |=(part=@ta =(%hand-index part)))  `!>(*index:hh)
   ?:  (lien path |=(part=@ta =(%activity part)))  `!>(~)
   ~
 ::  The owners of the core %configure pokes to Steward among the cards.
@@ -87,7 +88,7 @@
   =/  m  (mare ,[@t @t])
   ^-  form:m
   ;<  =vase  bind:m  get-save
-  =/  state  !<(state-3:t vase)
+  =/  state  !<(state-4:t vase)
   (pure:m [error.state error.lens.state])
 ::
 ++  test-steward-gets-the-owner-and-lease-without-lens-sync

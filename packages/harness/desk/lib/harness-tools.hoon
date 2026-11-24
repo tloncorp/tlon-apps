@@ -267,6 +267,9 @@
     %'list_mcp_tools'  `%mcp
     %'list_mcp_servers'  `%mcp
     %'call_mcp_tool'  `%mcp
+    %'tlon_workspace_plan'  `%tlon
+    %'tlon_workspace_create'  `%tlon
+    %'tlon_workspace_link'  `%tlon
     %'tlon_read_history'  `%tlon-read
     %'tlon_history_page'  `%tlon-read
     %'tlon_search_history'  `%tlon-read
@@ -419,7 +422,7 @@
     %curl  ~[schema:curl]
     %workspace  defs-workspace
     %tlon-read  defs-tlon-read
-    %tlon  ~[schema:tlon]
+    %tlon  [schema:tlon defs-tlon-workspace]
     %tlon-write  defs-tlon-write
     %cron  defs-cron
     %skills  defs-skills
@@ -524,6 +527,82 @@
         'Download a public PNG, JPEG, GIF or WebP up to 8 MiB and upload it using the owner-configured Tlon storage (custom S3 or hosted presigned URLs). Returns a URL; it does not send a message. Use ![description](url) on its own line in your final reply for a native image. Never repeat an uncertain upload automatically.'
       :~  :-  'url'
           'Public HTTPS image URL with a DNS hostname; no credentials or custom ports. Use the final URL: redirects are not followed'
+      ==
+  ==
+::
+++  defs-tlon-workspace
+  ^-  (list json)
+  =/  string  |=(description=@t (argument 'string' description))
+  =/  object
+    |=  [description=@t fields=(list [@t json]) required=(list @t)]
+    ^-  json
+    %-  pairs:enjs:format
+    :~  ['type' %s 'object']
+        ['description' %s description]
+        ['properties' %o (malt fields)]
+        ['required' %a (turn required |=(name=@t `json`[%s name]))]
+    ==
+  =/  channel-schema
+    %^  object  'One channel'
+      :~  ['kind' (pairs:enjs:format ~[['type' %s 'string'] ['enum' %a ~[[%s 'chat'] [%s 'gallery'] [%s 'notebook']]]])]
+          ['title' (string 'At most 40 bytes')]
+          :-  'purpose'
+          (string 'One line: what the channel holds and what you will start it with, such as "Three sourced references to start from"')
+      ==
+    ~['kind' 'title' 'purpose']
+  :~  %:  fun
+        'tlon_workspace_plan'
+        %+  rap  3
+        :~  'Propose a new workspace in your owner\'s DM: posts your intro sentence and a card listing the workspace, its channels and an optional recurring task, with Edit and Create buttons. '
+            'Use it when the owner\'s message starts a topic that will outlast this reply (a project, trip, course, renovation or routine). Before calling, run the tlon tool\'s list_groups: when a workspace already covers the topic, call tlon_workspace_link instead and propose nothing. '
+            'Nothing is created until the owner taps Create; then a note tells you to call tlon_workspace_create. A new card replaces any earlier open one. '
+            'The card never replaces your answer: after this call, answer the owner\'s message in full as your reply. That reply follows the card in the DM and opens the workspace chat on Create. '
+            'Nor does it replace a requested action: set up a requested reminder, digest or schedule change with the scheduling tools in this turn and leave it out of the card\'s task. '
+            'Owner DM only. No card for small talk, one-off questions, the owner introducing themselves, or a topic you already proposed or they declined.'
+        ==
+        :~  :-  'intro'
+            (string 'One sentence posted above the card, such as "I can keep all of that in one place. Here\'s a private workspace to start from."')
+            :-  'title'
+            (string 'Short, specific workspace title inferred from the conversation, such as "Bike Parts" or "Lisbon Trip"; never generic. At most 60 bytes')
+            ['description' (string 'One sentence on what the workspace is for')]
+            :-  'channels'
+            %-  pairs:enjs:format
+            :~  ['type' %s 'array']
+                ['description' %s 'The channels to create, 1 to 6, first one a chat. Each purpose is a promise: after Create you post that starter content.']
+                ['items' channel-schema]
+            ==
+            :-  'task'
+            %^  object  'Optional recurring task that posts in the workspace chat, such as a weekly price check. Not a reminder the owner asked for: schedule that yourself this turn.'
+              :~  ['title' (string 'At most 40 bytes')]
+                  ['description' (string 'One line with the time in the owner\'s zone, such as "Every Sunday at 9:00 AM: I look up prices and post changes"')]
+                  ['schedule' (string 'Five-field cron expression in UTC, such as "0 16 * * 0"; convert from the owner\'s timezone')]
+                  ['prompt' (string 'Self-contained instruction for each run')]
+              ==
+            ~['title' 'description' 'schedule' 'prompt']
+        ==
+        ~['intro' 'title' 'description' 'channels']
+      ==
+      %:  fun
+        'tlon_workspace_create'
+        %+  rap  3
+        :~  'Create the workspace from a card the owner tapped Create on. Call it only when a workspace-card note tells you to, first with proposal_id alone: it returns the exact steps. '
+            'After making the group and its channels, call it again with group; that settles the workspace and never repeats what is done. Refused unless the owner tapped Create.'
+        ==
+        :~  ['proposal_id' (string 'The proposal id from the workspace-card note')]
+            ['group' (string 'The group you made for this card, as ~host/name; omit on the first call')]
+        ==
+        ~['proposal_id']
+      ==
+      %:  fun
+        'tlon_workspace_link'
+        %+  rap  3
+        :~  'Point your owner to a workspace they already have, in their DM: posts your one line naming it and the workspace\'s card. '
+            'Use it instead of proposing a new workspace when one already covers the topic, once per conversation. Then answer the owner\'s message as usual; don\'t repeat the link or its path.'
+        ==
+        :~  ['group' (string 'The workspace\'s ID from list_groups, such as "~sampel-palnet/lisbon-trip"')]
+            ['line' (string 'One line naming the workspace, such as "This fits in your Lisbon Trip workspace:". At most 200 bytes')]
+        ==
+        ~['group' 'line']
       ==
   ==
 ::

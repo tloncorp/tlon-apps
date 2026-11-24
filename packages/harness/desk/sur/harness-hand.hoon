@@ -76,4 +76,13 @@
       [%retire binding=@t digest=@uvH location=@t]
   ==
 +$  request  [id=@t act=action]
+::  Derived from a ledger and never saved: the head rebuilds it at load.
+::  open: records not finished, by a queued or running observation or a
+::  publication that is not terminal.
+::  recent: per hand, its newest 64 observations, newest first, ties by id.
++$  index
+  $:  open=(set input-id:h)
+      recent=(map @t (list input-id:h))
+  ==
++$  indexed  [db=state =index]
 --

@@ -12,13 +12,13 @@
 ::
 ++  saved
   |=  owner=(unit @p)
-  ^-  state-3:t
-  =/  saved=state-3:t  *state-3:t
+  ^-  state-4:t
+  =/  saved=state-4:t  *state-4:t
   %=  saved  owner-initialized  1  policy  [& owner ~ %mentions ~ ~]  watching  &
     activity-through  now
-    identities  (my ~[[[~nec [%dm ~nec ~]] 'nec-dm']])
+    identities  (my ~[[[%dm ~nec ~] 'nec-dm']])
     routes  (my ~[['nec-dm' ['owner-dm' %ready]]])
-    lanes  (my ~[['nec-dm' [~nec [%dm ~nec ~] 0 ~]]])
+    lanes  (my ~[['nec-dm' [[%dm ~nec ~] 0 ~]]])
   ==
 ::  Loads the hand online. .lease is whether Steward holds this hand's
 ::  gateway lease; a Steward without it is new to the hand.
@@ -52,6 +52,7 @@
   ?:  =(%$ (rear path))  `!>(&)
   ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)
   ?:  (lien path |=(part=@ta =(%hand-state part)))  `!>(*state:hh)
+  ?:  (lien path |=(part=@ta =(%hand-index part)))  `!>(*index:hh)
   ?:  (lien path |=(part=@ta =(%activity part)))  `!>(~)
   ~
 ::

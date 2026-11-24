@@ -6,7 +6,7 @@
     hosted=harness-hosted, work=harness-workspace, wc=harness-work-control,
     pc=harness-project-client, ws=harness-workspace-search, hn=harness-notes,
     t=harness-tlon, ac=acp
-/+  *test, ta=test-agent, storage=harness-store, policy=harness-defaults,
+/+  *test, ta=test-agent, storage=harness-store, mt=harness-tlon-migrate, policy=harness-defaults,
     mem=harness-memory, index=harness-memory-index, login=harness-oauth
 |%
 ::  Values the populated fixtures hold at their default on purpose, each with
@@ -77,9 +77,10 @@
   ==
 ::  The Tlon hand's current saved shape, populated as above. The hand is
 ::  disabled, so its reload starts no subscriptions.
-++  populated-3
-  ^-  state-3:t
-  :*  %3
+++  populated-4
+  ^-  state-4:t
+  =/  p  populated-3
+  :*  %4
       :*  (my ~[[0v7a active-schedule]])
           (my ~[[0v7a [`'America/Chicago' `'Morning brief' `'Weekday summary']]])
           %-  my
@@ -90,6 +91,30 @@
               ==
           ==
       ==
+      lens.p  owner-initialized.p  sibling-moon-owners.p  sibling-owner-after.p
+      activity-through.p  catching-up.p  identities.p  routes.p  cuts.p
+      channel-after.p  channel-cuts.p  uploads.p  last-sent.p  tool-receipts.p
+      computing.p  policy.p  epoch.p  after.p  lanes.p  jobs.p  deliveries.p
+      notices.p  next-notice.p  listeners.p  watching.p  wake.p  error.p
+  ==
+::  The hand's shared-session shape: everything in +populated-4 but the
+::  Steward automation projection.
+++  populated-3
+  ^-  state-3:mt
+  =/  p  populated-2
+  :*  %3  lens.p  owner-initialized.p  sibling-moon-owners.p  sibling-owner-after.p
+      activity-through.p  catching-up.p
+      (my ~[[[%dm ~nec `[~nec ~2026.10.5]] 'alpha']])
+      routes.p  cuts.p  channel-after.p  channel-cuts.p  uploads.p  last-sent.p
+      tool-receipts.p  computing.p  policy.p  epoch.p  after.p
+      (my ~[['alpha' [[%dm ~nec `[~nec ~2026.10.5]] 1 ~[%tlon]]]])
+      jobs.p  deliveries.p  notices.p  next-notice.p  listeners.p  watching.p  wake.p  error.p
+  ==
+::  The hand's last per-speaker shape: everything in +populated-3, plus a
+::  channel conversation the upgrade to shared sessions drops.
+++  populated-2
+  ^-  state-2:mt
+  :*  %2
       :*  &  `~nec  ~2026.10.2
           %-  my
           :~  :-  0v5a
@@ -102,7 +127,10 @@
       ~2026.10.3
       ~2026.10.4
       &
-      (my ~[[[~nec [%dm ~nec `[~nec ~2026.10.5]]] 'alpha']])
+      %-  my
+      :~  [[~nec [%dm ~nec `[~nec ~2026.10.5]]] 'alpha']
+          [[~nec [%channel [%chat ~bus %general] `~2026.10.12]] 'lane-1']
+      ==
       (my ~[['alpha' ['web-1' %config]]])
       (my ~[[~bus ~2026.10.6]])
       ~2026.10.7
@@ -128,7 +156,10 @@
       ==
       3
       ~2026.10.11
-      (my ~[['lane-1' [~nec [%channel [%chat ~bus %general] `~2026.10.12] 2 ~[%web]]]])
+      %-  my
+      :~  ['alpha' [~nec [%dm ~nec `[~nec ~2026.10.5]] 1 ~[%tlon]]]
+          ['lane-1' [~nec [%channel [%chat ~bus %general] `~2026.10.12] 2 ~[%web]]]
+      ==
       (my ~[[0v6a [[~nec 'event-1' [%dm ~nec ~] 'Hello'] 'alpha' %bind 'Job error']]])
       (my ~[[0v6b [2 %send %uncertain 'ext-1']]])
       ~[[1 ~2026.10.13 'dm-invite' ~bus 'dm/~bus' 'event-2']]
@@ -140,8 +171,8 @@
   ==
 ::  A disabled hand that has not chosen its owner yet.
 ++  unowned
-  ^-  state-3:t
-  =/  s  *state-3:t
+  ^-  state-4:t
+  =/  s  *state-4:t
   s(enabled.policy |)
 ::  A saved %acp connection with a message queued in each direction.
 +$  acp-state  [%0 connections=(map connection-id:v1:ac connection:v1:ac)]
@@ -249,7 +280,7 @@
 ++  test-populated-state-is-populated
   ;:  weld
       (expect-eq !>(~) !>((unexplained (defaults !>(populated) *state-0))))
-      (expect-eq !>(~) !>((unexplained (defaults !>(populated-3) *state-3:t))))
+      (expect-eq !>(~) !>((unexplained (defaults !>(populated-4) *state-4:t))))
       (expect-eq !>(~) !>((unexplained (defaults !>(acp-populated) *acp-state))))
   ==
 ++  test-state-0-reload-keeps-every-field
