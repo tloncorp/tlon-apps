@@ -12,6 +12,7 @@
 ++  off-nest  `nest:dv`[%chat ~lux %quiet]
 ++  open-nest  `nest:dv`[%chat ~lux %open]
 ++  all-nest  `nest:dv`[%chat ~lux %busy]
+++  left-nest  `nest:dv`[%chat ~lux %gone]
 ++  start  ~2026.9.10
 ++  later  ~2026.9.10..00.10.00
 ::  ~nec owns the bot; ~bus holds its DM. ~dev and ~bel have no access, and
@@ -97,6 +98,11 @@
   |=  =path
   ^-  (unit vase)
   ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
+  ?:  ?=([%gu @ %groups @ %$ ~] path)  `!>(&)
+  ::  The bot is in .room-nest, and of the DMs only ~dev's is on the ship.
+  ?:  ?=([%gu @ %channels @ %v4 %chat %'~lux' %test ~] path)  `!>(&)
+  ?:  ?=([%gu @ %chat @ %dm %'~dev' ~] path)  `!>(&)
+  ?:  ?=([%gu @ %chat @ %dm @ ~] path)  `!>(|)
   ?:  (lien path |=(part=@ta =(%can-read part)))  `!>(|=([who=@p *] &))
   ?:  (lien path |=(part=@ta =(%groups part)))  `!>((my ~[[[~lux %test] room-group]]))
   ?:  (lien path |=(part=@ta =(%cron-session part)))  `!>(~)
@@ -366,7 +372,7 @@
           ['Reject' (cat 3 '/reject ' id)]
           ['Block' (cat 3 '/ban ' id)]
       ==
-++  test-nothing-from-a-ship-without-access-reaches-the-model
+++  test-a-message-from-a-ship-without-access-is-never-admitted-as-a-turn
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
@@ -467,6 +473,63 @@
     (admit saved start ~[[~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]])
   ;<  ~  bind:m  (ex-equal !>((open s)) !>(`(set [@p place:t])`~))
   (ex-equal !>((sent caz)) !>(~))
+::  The channel's policy changed at 13:00, once for every channel and once
+::  for .room-nest alone; catch-up meets mentions from before each.
+::
+++  test-catch-up-opens-no-request-for-a-mention-before-a-channel-policy-change
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  events  ~[[~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]]
+  =/  everywhere  fixture
+  =.  channel-after.everywhere  ~2026.9.9..13.00.00
+  ;<  [caz=(list card) s=state-5:t]  bind:m  (admit everywhere start events)
+  ;<  ~  bind:m  (ex-equal !>((open s)) !>(`(set [@p place:t])`~))
+  ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
+  =/  here  fixture
+  =.  channel-cuts.here  (my ~[[room-nest ~2026.9.9..13.00.00]])
+  ;<  [caz=(list card) s=state-5:t]  bind:m  (admit here start events)
+  ;<  ~  bind:m  (ex-equal !>((open s)) !>(`(set [@p place:t])`~))
+  (ex-equal !>((sent caz)) !>(~))
+::  Activity keeps the row after the bot leaves the channel.
+::
+++  test-a-mention-in-a-channel-the-bot-is-not-in-opens-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-5:t]  bind:m
+    (admit fixture start ~[[~2026.9.9..12.00.00 (mention ~dev left-nest ~2026.9.9..12.00.00)]])
+  ;<  ~  bind:m  (ex-equal !>((open s)) !>(`(set [@p place:t])`~))
+  ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
+  (ex-equal !>((kinds s 'approval-request')) !>(0))
+::  ~wes's invitation was declined, so %chat no longer has the DM, though
+::  Activity keeps the invitation; reading its messages would crash the event.
+::
+++  test-an-invitation-whose-dm-is-gone-opens-nothing-and-does-not-crash
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-5:t]  bind:m
+    (admit fixture start ~[[~2026.9.9..12.00.01 [%dm-invite [%ship ~wes]]]])
+  ;<  ~  bind:m  (ex-equal !>((open s)) !>(`(set [@p place:t])`~))
+  ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
+  (ex-equal !>(activity-through.s) !>(~2026.9.9..12.00.01))
+::  ~dev is answered in the open channel; a mention whose text is too long to
+::  admit is still not an attempt from a ship without access.
+::
+++  test-a-ship-with-access-never-opens-a-request
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  long=@t  (crip (reap 70.000 'a'))
+  =/  at  ~2026.9.9..12.00.00
+  =/  event=incoming-event:v8:a
+    [%post [[~dev at] at] open-nest [~lux %test] ~[[%inline ~[long]]] &]
+  ;<  [caz=(list card) s=state-5:t]  bind:m  (admit fixture start ~[[at event]])
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.s)) !>(0))
+  ;<  ~  bind:m  (ex-equal !>((open s)) !>(`(set [@p place:t])`~))
+  ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
+  (ex-equal !>((kinds s 'permission-denied')) !>(0))
 ::  Within the denial limit a ship's attempt in a second place opens nothing;
 ::  its next attempt there may.
 ::

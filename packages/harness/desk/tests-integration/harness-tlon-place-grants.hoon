@@ -58,6 +58,9 @@
   |=  =path
   ^-  (unit vase)
   ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
+  ?:  ?=([%gu @ %groups @ %$ ~] path)  `!>(&)
+  ::  Every DM invitation here is still pending on the ship.
+  ?:  ?=([%gu @ %chat @ %dm @ ~] path)  `!>(&)
   ::  Every ship here may read both channels natively.
   ?:  (lien path |=(part=@ta =(%can-read part)))  `!>(|=([who=@p *] &))
   ?:  (lien path |=(part=@ta =(%groups part)))  `!>((my ~[[[~lux %test] room-group]]))

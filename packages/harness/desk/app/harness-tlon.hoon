@@ -1405,6 +1405,12 @@
   |=  [actor=@p =place:t]
   ^-  (unit (list tool-grant:h))
   (place-grants:p policy actor place ~ (actor-owner actor))
+::  +place-access: whether the policy answers .who in .place
+::
+++  place-access
+  |=  [who=@p =place:t]
+  ^-  ?
+  ?=(^ (destination-grants:p policy who (place-to:p who place) ~ (actor-owner who)))
 ::  +speaker-cut: an actor's admission cutoff in one place
 ::
 ++  speaker-cut
@@ -1758,10 +1764,7 @@
   =?  sibling-owner-after  sibling-change  now.bowl
   ::  A request is moot once its ship has access in its place.
   =.  approvals
-    %+  keep:ask  approvals
-    |=  =approval:t
-    =/  to  (place-to:p [who place]:approval)
-    ?=(~ (destination-grants:p policy who.approval to ~ (actor-owner who.approval)))
+    (keep:ask approvals |=(=approval:t !(place-access [who place]:approval)))
   ::  The head rereads live trust and advertises only each recipient's grant.
   =.  cor  (head /peer-access/refresh [%peer-refresh ~])
   =.  epoch  +(epoch)
@@ -2450,14 +2453,7 @@
       (review:workspace-plan u.posts our.bowl actor.u.input id.u.tapped)
     (cat 3 text.u.input (note:workspace-plan id.u.tapped create.u.tapped card))
   ::  All applicable authority cutoffs precede admission and identity updates.
-  =/  cutoff  (max after (speaker-cut actor.u.input (place:p to.u.input)))
-  =?  cutoff  (sibling:~(. ownership bowl) actor.u.input)  (max cutoff sibling-owner-after)
-  =?  cutoff  ?=(%channel -.to.u.input)  (max cutoff channel-after)
-  =?  cutoff  ?=(%channel -.to.u.input)
-    %+  max
-      cutoff
-    (fall (~(get by channel-cuts) nest.to.u.input) `@da`0)
-  ?:  (lte (posted-at:continuity event) cutoff)  cor
+  ?:  (lte (posted-at:continuity event) (admission-cutoff actor.u.input to.u.input))  cor
   ::  A ready route does not recheck native read permission on its own.
   ?~  (speaker-grants actor.u.input to.u.input ~)  cor
   =/  sid  (fall (~(get by identities) to.u.input) (identity:continuity to.u.input))
@@ -2491,9 +2487,12 @@
   ::  Every event with a sender has a place.
   =/  place  (need (event-place:p event))
   ?^  (place-grants u.sender place)  cor
-  ?:  ?=(^ (normalize-owned:p our.bowl policy event actor-owner))  cor
-  ::  Catch-up must not answer historical posts after a grant is revoked.
-  =/  cutoff  (max after (speaker-cut u.sender place))
+  ::  Access, not whether this message's text was admitted, decides: a ship
+  ::  an open channel answers is never denied there.
+  ?:  (place-access u.sender place)  cor
+  ::  Catch-up must not answer historical posts after a grant is revoked or
+  ::  the channel's policy changed.
+  =/  cutoff  (admission-cutoff u.sender (place-to:p u.sender place))
   ?:  ?&  ?!(?=(%dm-invite -.event))
           (lte (posted-at:continuity event) cutoff)
       ==
@@ -2503,6 +2502,16 @@
   ?.  (allowed:denial now.bowl u.sender id notices)  cor
   =.  cor  (note 'permission-denied' u.sender (scot %p u.sender) id)
   (ask-owner u.sender place event cutoff)
+::  +admission-cutoff: the latest authority change a speaker's message in .to
+::  must postdate
+::
+++  admission-cutoff
+  |=  [who=@p to=destination:t]
+  ^-  @da
+  =/  cutoff  (max after (speaker-cut who (place:p to)))
+  =?  cutoff  (sibling:~(. ownership bowl) who)  (max cutoff sibling-owner-after)
+  ?.  ?=(%channel -.to)  cutoff
+  :(max cutoff channel-after (fall (~(get by channel-cuts) nest.to) `@da`0))
 ::  +ask-owner: open a request for a ship in a place and send its card
 ::
 ::    A later message there joins the open request: nothing is sent again.
@@ -2515,7 +2524,11 @@
   ?^  (find:ask approvals who place)  cor
   ::  A channel that answers nobody would not answer the ship once allowed.
   ?:  &(?=(^ place) =(%off response:(channel-rule:p policy u.place)))  cor
-  ?:  =(`& (mole |.((blocked:messenger who))))  cor
+  ::  Activity outlives a declined invitation and a channel the bot left;
+  ::  there is nothing to approve there, and the card's preview must not read
+  ::  what is gone.
+  ?.  (available:~(. conversation-tool bowl) (place-to:p who place))  cor
+  ?:  (blocked:messenger who)  cor
   =/  id  (fresh-id:ask approvals place eny.bowl)
   =.  approvals  (open:ask approvals id [who place now.bowl])
   =.  cor  (note 'approval-request' who (address:p (place-to:p who place)) id)
@@ -2537,10 +2550,9 @@
   |=  =place:t
   ^-  (unit [channel=@t group=(unit @t)])
   ?~  place  ~
-  =/  groups  (mole |.(groups:~(. directory:permissions bowl)))
   =/  named=(list [channel=@t group=@t])
-    ?~  groups  ~
-    %+  murn  ~(tap by u.groups)
+    ?.  .^(? %gu /(scot %p our.bowl)/groups/(scot %da now.bowl)/$)  ~
+    %+  murn  ~(tap by groups:~(. directory:permissions bowl))
     |=  [* group=group:v9:gv]
     =/  channel  (~(get by channels.group) u.place)
     ?~  channel  ~

@@ -245,11 +245,14 @@
   ;<  ~  bind:m  (ex-equal !>((kinds got)) !>(`(list @t)`~))
   ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.saved.got)) !>(64))
   (ex-equal !>(activity-through.saved.got) !>(~2026.10.1))
+::  The request checks that the bot is in the channel; no post is read.
+::
 ++  test-no-read-for-a-denied-post
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  got=outcome  bind:m  (run fixture (post-event ~bud) unread)
+  =/  present=native  [& & parent-at ~ ~]
+  ;<  got=outcome  bind:m  (run fixture (post-event ~bud) `present)
   ;<  ~  bind:m
     (ex-equal !>((kinds got)) !>(`(list @t)`~['approval-request' 'permission-denied']))
   (ex-equal !>(~(wyt by jobs.saved.got)) !>(0))
