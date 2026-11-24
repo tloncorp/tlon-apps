@@ -281,6 +281,17 @@
   ^+  cor
   =.  cor  (note 'dm-invite' who (scot %p who) '')
   (emit (accept-invitation:messenger who))
+::  +decline-invitation: decline .who's DM invitation if it is still pending
+::
+::    %chat deletes it, so the ship's next message invites the bot again.
+::
+++  decline-invitation
+  |=  who=@p
+  ^+  cor
+  =/  pending
+    (mole |.((granted-invitations:messenger |=(invited=@p =(who invited)))))
+  ?.  ?=([~ ^] pending)  cor
+  (emit (decline-invitation:messenger who))
 ::
 ++  publications-connected
   ^-  ?
@@ -1795,6 +1806,7 @@
     [%tlon-notes @ ~]  (agent-tlon-notes wire sign)
     [%profile @ @ ~]  (agent-profile wire sign)
     [%invite %dm @ ~]  (agent-invite-dm wire sign)
+    [%invite %decline @ ~]  (agent-decline wire sign)
     [%client @ ~]  (agent-client wire sign)
     [%activity ~]  (agent-activity wire sign)
     [%route @ @ @ ~]  (agent-route wire sign)
@@ -1802,6 +1814,7 @@
     [%hand @ @ ~]  (agent-hand wire sign)
     [%refusal @ ~]  (agent-refusal wire sign)
     [%approval @ @ ~]  (agent-approval wire sign)
+    [%approval-full @ ~]  (agent-approval-full wire sign)
     [%publish @ @ ~]  (agent-publish wire sign)
   ==
 ::
@@ -2124,6 +2137,15 @@
   |=  [event=incoming-event:v8:a engine=_cor]
   (activity:engine event)
 ::
+++  agent-decline
+  |=  [=wire =sign:agent:gall]
+  ^+  cor
+  ?>  ?=([%invite %decline @ ~] wire)
+  ?.  ?=(%poke-ack -.sign)  cor
+  ?~  p.sign  cor
+  %-  (slog 'harness-tlon: DM invitation decline rejected' u.p.sign)
+  cor(error 'Could not decline a DM invitation.')
+::
 ++  agent-client
   |=  [=wire =sign:agent:gall]
   ^+  cor
@@ -2286,6 +2308,15 @@
   =.  approvals  (close:ask approvals id)
   =/  to  (place-to:p [who place]:u.found)
   (note 'approval-card-rejected' who.u.found (address:p to) id)
+::
+++  agent-approval-full
+  |=  [=wire =sign:agent:gall]
+  ^+  cor
+  ?>  ?=([%approval-full @ ~] wire)
+  ?.  ?=(%poke-ack -.sign)  cor
+  ?~  p.sign  cor
+  %-  (slog 'harness-tlon: full approval queue notice rejected' u.p.sign)
+  cor(error 'Messenger rejected a full approval queue notice; inspect the ship log.')
 ::
 ++  agent-publish
   |=  [=wire =sign:agent:gall]
@@ -2520,6 +2551,8 @@
   ^+  cor
   =/  owner  owner.policy
   ?~  owner  cor
+  ::  A comet costs nothing to make, so its requests would be unbounded.
+  ?:  ?=(%pawn (clan:title who))  cor
   ?^  (find:ask approvals who place)  cor
   ::  A channel that answers nobody would not answer the ship once allowed.
   ?:  &(?=(^ place) =(%off response:(channel-rule:p policy u.place)))  cor
@@ -2530,6 +2563,10 @@
   ::  what is gone.
   ?.  (available:~(. conversation-tool bowl) (place-to:p who place))  cor
   ?:  (blocked:messenger who)  cor
+  ::  A ship at its own limit is ignored silently, without the owner's notice.
+  ?:  (gte (held:ask approvals who) ship-limit:ask)  cor
+  =/  total  ~(wyt by by-id.approvals)
+  ?:  (gte total limit:ask)  (approvals-full who place total)
   =/  id  (fresh-id:ask approvals place eny.bowl)
   =.  approvals  (open:ask approvals id [who place now.bowl])
   =.  cor  (note 'approval-request' who (address:p (place-to:p who place)) id)
@@ -2544,6 +2581,40 @@
     last-sent
     `blob
   ==
+::  +approvals-full: tell the owner no more requests open, at most once per
+::  ten minutes
+::
+++  approvals-full
+  |=  [who=@p =place:t total=@ud]
+  ^+  cor
+  =/  owner  owner.policy
+  ?~  owner  cor
+  ?.  (full-allowed:ask now.bowl notices)  cor
+  =.  cor  (note 'approval-cap' who (address:p (place-to:p who place)) (crip (a-co:co total)))
+  =.  last-sent  (next-message-stamp:p now.bowl last-sent)
+  %-  emit
+  %:  publish:messenger
+    /approval-full/(scot %da now.bowl)
+    [%dm u.owner ~]
+    (full-text:ask total)
+    last-sent
+    ~
+  ==
+::  +expire-approvals: close every request open for its whole lifetime
+::
+::    %chat reports a pending invitation once and no later messages, so a DM
+::    request's invitation is declined; left pending, it would keep the ship
+::    from reaching the bot by DM.
+::
+++  expire-approvals
+  ^+  cor
+  %+  roll  (expired:ask approvals now.bowl)
+  |=  [[id=@t =approval:t] engine=_cor]
+  =.  approvals.engine  (close:ask approvals.engine id)
+  =.  engine
+    (note:engine 'approval-expired' who.approval (address:p (place-to:p [who place]:approval)) id)
+  ?^  place.approval  engine
+  (decline-invitation:engine who.approval)
 ::  +approval-channel: a channel's title and its group's, as the card names
 ::  them; ~ for a DM
 ::
@@ -2744,6 +2815,7 @@
   ^+  cor
   =.  cor  poll-tools
   ?.  enabled.policy  schedule
+  =.  cor  expire-approvals
   ?.  head-live  schedule
   ?.  watching  boot
   =?  cor  catching-up  catch-up

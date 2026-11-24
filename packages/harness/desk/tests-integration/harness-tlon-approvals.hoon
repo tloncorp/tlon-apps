@@ -5,7 +5,7 @@
 /-  t=harness-tlon, ad=harness-adapter, h=harness, g=groups-ver,
     a=activity-ver, hh=harness-hand, dv=channels-ver, cv=chat-ver
 /+  *test-agent, policy-lib=harness-tlon-policy, hj=harness-json,
-    story=harness-tlon-story, ht=harness-tools
+    story=harness-tlon-story, ht=harness-tools, ask=harness-tlon-approval
 /=  adapter  /app/harness-tlon
 |%
 ++  room-nest  `nest:dv`[%chat ~lux %test]
@@ -14,6 +14,7 @@
 ++  all-nest  `nest:dv`[%chat ~lux %busy]
 ++  left-nest  `nest:dv`[%chat ~lux %gone]
 ++  start  ~2026.9.10
+++  comet  `@p`(bex 100)
 ++  later  ~2026.9.10..00.10.00
 ::  ~nec owns the bot; ~bus holds its DM. ~dev and ~bel have no access, and
 ::  the bot blocks ~bel.
@@ -121,9 +122,12 @@
   ~
 ++  boot
   |=  [saved=state-5:t now=@da events=stream:v10:a]
+  (boot-seeded saved now events (shax 'approvals'))
+++  boot-seeded
+  |=  [saved=state-5:t now=@da events=stream:v10:a eny=@uvJ]
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now now, eny (shax 'approvals')))
+  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now now, eny eny))
   ;<  ~  bind:m  head-connected
   ;<  ~  bind:m  (set-scry-gate (scries events))
   ;<  *  bind:m  (do-load adapter `!>(saved))
@@ -134,8 +138,31 @@
   |=  [saved=state-5:t now=@da events=(list [@da incoming-event:v8:a])]
   =/  m  (mare ,[(list card) state-5:t])
   ^-  form:m
-  ;<  ~  bind:m  (boot saved now (stream events))
+  (admit-seeded saved now events (shax 'approvals'))
+++  admit-seeded
+  |=  [saved=state-5:t now=@da events=(list [@da incoming-event:v8:a]) eny=@uvJ]
+  =/  m  (mare ,[(list card) state-5:t])
+  ^-  form:m
+  ;<  ~  bind:m  (boot-seeded saved now (stream events) eny)
   ;<  caz=(list card)  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
+  ;<  =vase  bind:m  get-save
+  (pure:m caz !<(state-5:t vase))
+::  Load .saved at .now with %chat holding .invited's invitations, or not
+::  running, and fire the maintenance wake.
+::
+++  wake
+  |=  [saved=state-5:t now=@da invited=(unit (set @p))]
+  =/  m  (mare ,[(list card) state-5:t])
+  ^-  form:m
+  ;<  ~  bind:m  (boot saved now *stream:v10:a)
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ?:  &(?=(~ invited) ?=([%gu @ %chat @ %$ ~] path))  `!>(|)
+    ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  ?~(invited ~ `!>(u.invited))
+    ((scries *stream:v10:a) path)
+  ;<  *  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
+  ;<  caz=(list card)  bind:m  (do-arvo /poll [%behn %wake ~])
   ;<  =vase  bind:m  get-save
   (pure:m caz !<(state-5:t vase))
 ::  Load .saved, then save .next through the policy endpoint.
@@ -150,6 +177,20 @@
     !>(`request:ad`['fixture' [%n '1'] 'harness/tlon/configure' `(policy-json:policy-lib next)])
   ;<  =vase  bind:m  get-save
   (pure:m caz !<(state-5:t vase))
+::  As +configure, with Activity connected, so that only requests set the
+::  maintenance wake.
+::
+++  configure-live
+  |=  [saved=state-5:t next=policy:t]
+  =/  m  (mare ,state-5:t)
+  ^-  form:m
+  ;<  ~  bind:m  (boot saved later *stream:v10:a)
+  ;<  *  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
+  ;<  *  bind:m
+    %+  do-poke  %noun
+    !>(`request:ad`['fixture' [%n '1'] 'harness/tlon/configure' `(policy-json:policy-lib next)])
+  ;<  =vase  bind:m  get-save
+  (pure:m !<(state-5:t vase))
 ::  Load .saved, then hear from %channels that the bot left .nest.
 ::
 ++  leave
@@ -173,6 +214,49 @@
   =/  act  !<(action:dm:v7:cv q.cage.task.q.c)
   ?>  ?=(%add -.q.q.act)
   `[p.act (story-to-text:story content.essay.q.q.act) (need blob.essay.q.q.act)]
+::  The notices that the queue is full: to whom and their text.
+::
+++  full
+  |=  caz=(list card)
+  ^-  (list [to=@p text=@t])
+  %+  murn  caz
+  |=  c=card
+  ?.  ?=([%pass [%approval-full @ ~] %agent [@ %chat] %poke *] c)  ~
+  =/  act  !<(action:dm:v7:cv q.cage.task.q.c)
+  ?>  ?=(%add -.q.q.act)
+  `[p.act (story-to-text:story content.essay.q.q.act)]
+::  The DM invitations declined.
+::
+++  declined
+  |=  caz=(list card)
+  ^-  (list [@p ?])
+  %+  murn  caz
+  |=  c=card
+  ?.  ?=([%pass [%invite %decline @ ~] %agent [@ %chat] %poke %chat-dm-rsvp *] c)  ~
+  `!<([@p ?] q.cage.task.q.c)
+::  .saved with .count requests in place of its own, from planets with no
+::  access, each in .room-nest, opened at .at.
+::
+++  crowd
+  |=  [saved=state-5:t count=@ud at=@da]
+  ^-  state-5:t
+  %=    saved
+      approvals
+    %+  roll  (gulf 1 count)
+    |=  [n=@ud =approvals:t]
+    (open:ask approvals (cat 3 'c' (crip (a-co:co n))) [`@p`(add 0x1.0000 n) `room-nest at])
+  ==
+::  ~dev's DM and four other channels: as many requests as a ship may hold.
+::
+++  busy-dev
+  ^-  state-5:t
+  =/  s  fixture
+  =.  approvals.s
+    %+  roll  (gulf 1 4)
+    |=  [n=@ud =approvals:t]
+    =/  nest=nest:dv  [%chat ~lux `@tas`(crip (weld "other" (a-co:co n)))]
+    (open:ask approvals (cat 3 'c' (crip (a-co:co n))) [~dev `nest ~2026.9.9..12.00.00])
+  s(approvals (open:ask approvals.s 'd0' [~dev ~ ~2026.9.9..12.00.00]))
 ::  Open requests by ship and place.
 ::
 ++  open
@@ -580,4 +664,166 @@
   =/  w  !<(state-5:t vase)
   ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(*approvals:t))
   (ex-equal !>((kinds w 'approval-card-rejected')) !>(1))
+::  The second attempt is within ten minutes of the notice.
+::
+++  test-the-101st-request-opens-nothing-and-the-owner-gets-one-notice
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  crowded  (crowd fixture 100 ~2026.9.9..12.00.00)
+  ;<  [caz=(list card) s=state-5:t]  bind:m
+    (admit crowded start ~[[~2026.9.9..13.00.00 (mention ~dev room-nest ~2026.9.9..13.00.00)]])
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals.crowded))
+  ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((full caz))
+    !>  ^-  (list [@p @t])
+    :~  :-  ~nec
+        'Pending approval queue is full (100). New requests are dropped until existing ones are approved, denied, or blocked.'
+    ==
+  ;<  ~  bind:m  (ex-equal !>((kinds s 'approval-cap')) !>(1))
+  ;<  [caz=(list card) w=state-5:t]  bind:m
+    %^  admit  s  ~2026.9.10..00.09.59
+    ~[[~2026.9.10..00.05.00 (mention ~wes room-nest ~2026.9.10..00.05.00)]]
+  ;<  ~  bind:m  (ex-equal !>((kinds w 'permission-denied')) !>(2))
+  ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(approvals.crowded))
+  ;<  ~  bind:m  (ex-equal !>((full caz)) !>(~))
+  (ex-equal !>((kinds w 'approval-cap')) !>(1))
+++  test-a-ships-sixth-place-opens-nothing-silently-until-one-of-its-requests-closes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  busy  busy-dev
+  ;<  [caz=(list card) s=state-5:t]  bind:m
+    (admit busy start ~[[~2026.9.9..13.00.00 (mention ~dev room-nest ~2026.9.9..13.00.00)]])
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals.busy))
+  ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
+  ;<  ~  bind:m  (ex-equal !>((full caz)) !>(~))
+  ;<  ~  bind:m  (ex-equal !>((kinds s 'approval-cap')) !>(0))
+  =/  fewer  s(approvals (close:ask approvals.s 'c1'))
+  ;<  [caz=(list card) w=state-5:t]  bind:m
+    (admit fewer later ~[[~2026.9.10..00.05.00 (mention ~dev room-nest ~2026.9.10..00.05.00)]])
+  ;<  ~  bind:m  (ex-equal !>(?=(^ (find:ask approvals.w ~dev `room-nest))) !>(&))
+  (ex-equal !>((lent (sent caz))) !>(1))
+++  test-a-request-expires-after-48-hours-and-one-a-second-younger-is-kept
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  fixture
+  =.  approvals.saved
+    =/  one  (open:ask approvals.saved 'c1' [~dev `room-nest start])
+    (open:ask one 'c2' [~wes `room-nest (add start ~s1)])
+  ;<  [caz=(list card) w=state-5:t]  bind:m  (wake saved (add start ~h48) `~)
+  ;<  ~  bind:m  (ex-equal !>((open w)) !>((places ~[[~wes `room-nest]])))
+  ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-expired')) !>(1))
+  (ex-equal !>(wake.w) !>(`(add start (add ~h48 ~s1))))
+::  %chat would otherwise keep ~dev's invitation, and report none of its
+::  later messages.
+::
+++  test-a-dm-requests-expiry-declines-its-still-pending-invitation
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  fixture
+  =.  approvals.saved  (open:ask approvals.saved 'd1' [~dev ~ start])
+  ;<  [caz=(list card) w=state-5:t]  bind:m  (wake saved (add start ~h48) `(silt ~[~dev ~wes]))
+  ;<  ~  bind:m  (ex-equal !>((open w)) !>(`(set [@p place:t])`~))
+  (ex-equal !>((declined caz)) !>(`(list [@p ?])`~[[~dev |]]))
+::  No invitation of ~dev's, then a %chat that cannot answer.
+::
+++  test-a-dm-requests-expiry-declines-nothing-and-does-not-crash-when-the-invitation-is-gone
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  fixture
+  =.  approvals.saved  (open:ask approvals.saved 'd1' [~dev ~ start])
+  ;<  [caz=(list card) w=state-5:t]  bind:m  (wake saved (add start ~h48) `(silt ~[~wes]))
+  ;<  ~  bind:m  (ex-equal !>((open w)) !>(`(set [@p place:t])`~))
+  ;<  ~  bind:m  (ex-equal !>((declined caz)) !>(`(list [@p ?])`~))
+  ;<  [caz=(list card) w=state-5:t]  bind:m  (wake saved (add start ~h48) ~)
+  ;<  ~  bind:m  (ex-equal !>((open w)) !>(`(set [@p place:t])`~))
+  ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-expired')) !>(1))
+  (ex-equal !>((declined caz)) !>(`(list [@p ?])`~))
+++  test-a-channel-requests-expiry-declines-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  fixture
+  =.  approvals.saved  (open:ask approvals.saved 'c1' [~dev `room-nest start])
+  ;<  [caz=(list card) w=state-5:t]  bind:m  (wake saved (add start ~h48) `(silt ~[~dev]))
+  ;<  ~  bind:m  (ex-equal !>((open w)) !>(`(set [@p place:t])`~))
+  (ex-equal !>((declined caz)) !>(`(list [@p ?])`~))
+::  The DM request opens first and closes first, when ~dev gains DM access.
+::
+++  test-the-wake-is-the-earliest-expiry-and-moves-when-that-request-closes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [* s=state-5:t]  bind:m
+    (admit fixture start ~[[~2026.9.9..12.00.00 (dm ~dev ~2026.9.9..12.00.00)]])
+  ;<  ~  bind:m  (ex-equal !>(wake.s) !>(`(add start ~h48)))
+  ;<  [* s=state-5:t]  bind:m
+    (admit s later ~[[~2026.9.10..00.05.00 (mention ~dev room-nest ~2026.9.10..00.05.00)]])
+  ;<  ~  bind:m  (ex-equal !>(wake.s) !>(`(add start ~h48)))
+  =/  dm-granted  policy.s
+  =.  dm-grants.dm-granted  (~(put in dm-grants.dm-granted) ~dev)
+  ;<  w=state-5:t  bind:m  (configure-live s dm-granted)
+  ;<  ~  bind:m  (ex-equal !>((open w)) !>((places ~[[~dev `room-nest]])))
+  (ex-equal !>(wake.w) !>(`(add later ~h48)))
+++  test-after-expiry-the-same-ship-in-the-same-place-opens-a-new-request-with-a-new-card
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [* s=state-5:t]  bind:m
+    (admit fixture start ~[[~2026.9.9..12.00.00 (dm ~dev ~2026.9.9..12.00.00)]])
+  =/  first  (requested s ~dev ~)
+  ;<  [* w=state-5:t]  bind:m  (wake s (add start ~h48) `~)
+  ;<  ~  bind:m  (ex-equal !>((open w)) !>(`(set [@p place:t])`~))
+  =/  again  (add start (add ~h48 ~s30))
+  ;<  [caz=(list card) u=state-5:t]  bind:m
+    (admit-seeded w (add again ~s30) ~[[again (dm ~dev again)]] (shax 'again'))
+  ;<  ~  bind:m  (ex-equal !>((open u)) !>((places ~[[~dev ~]])))
+  ;<  ~  bind:m  (ex-equal !>(=(first (requested u ~dev ~))) !>(|))
+  (ex-equal !>((lent (sent caz))) !>(1))
+::  A comet is still recorded as denied.
+::
+++  test-a-comet-opens-no-request
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-5:t]  bind:m
+    (admit fixture start ~[[~2026.9.9..12.00.00 (mention comet room-nest ~2026.9.9..12.00.00)]])
+  ;<  ~  bind:m  (ex-equal !>((open s)) !>(`(set [@p place:t])`~))
+  ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
+  ;<  ~  bind:m  (ex-equal !>((full caz)) !>(~))
+  (ex-equal !>((kinds s 'permission-denied')) !>(1))
+::  The owner gave it DM access by hand.
+::
+++  test-a-comet-with-access-is-still-answered
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  fixture
+  =.  dm-grants.policy.saved  (~(put in dm-grants.policy.saved) comet)
+  ;<  [* s=state-5:t]  bind:m
+    (admit saved start ~[[~2026.9.9..12.00.00 (dm comet ~2026.9.9..12.00.00)]])
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.s)) !>(1))
+  (ex-equal !>((kinds s 'permission-denied')) !>(0))
+::  A deadline that passed while the adapter was not running is met promptly.
+::
+++  test-a-reload-keeps-open-requests-and-their-expiry
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [* s=state-5:t]  bind:m
+    (admit fixture start ~[[~2026.9.9..12.00.00 (dm ~dev ~2026.9.9..12.00.00)]])
+  ;<  [* w=state-5:t]  bind:m  (admit s later ~)
+  ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(approvals.s))
+  ;<  ~  bind:m  (ex-equal !>(wake.w) !>(`(add start ~h48)))
+  =/  overdue  (add start ~h49)
+  ;<  [* u=state-5:t]  bind:m  (admit s overdue ~)
+  ;<  ~  bind:m  (ex-equal !>(approvals.u) !>(approvals.s))
+  ;<  ~  bind:m  (ex-equal !>(wake.u) !>(`(add overdue ~s1)))
+  ;<  [* v=state-5:t]  bind:m  (wake s (add overdue ~s1) `~)
+  (ex-equal !>((open v)) !>(`(set [@p place:t])`~))
 --

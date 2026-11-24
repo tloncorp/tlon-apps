@@ -29,6 +29,50 @@
   %+  expect-eq
     !>(kept)
   !>(`approvals:t`[(my ~[['d1234' [~dev ~ ~2026.9.9]]]) (my ~[[[~dev ~] 'd1234']])])
+::  ~dev's DM request opened a second before its channel request.
+::
+++  staggered
+  ^-  approvals:t
+  =/  one  (open:ask *approvals:t 'd1234' [~dev ~ ~2026.9.9])
+  (open:ask one 'c5678' [~dev `room ~2026.9.9..00.00.01])
+++  test-a-request-expires-48-hours-after-it-opened-and-one-a-second-younger-is-kept
+  ;:  weld
+      %+  expect-eq
+        !>(`(list [@t approval:t])`~[['d1234' [~dev ~ ~2026.9.9]]])
+      !>((expired:ask staggered ~2026.9.11))
+      %+  expect-eq
+        !>(`(list [@t approval:t])`~)
+      !>((expired:ask staggered ~2026.9.10..23.59.59))
+  ==
+++  test-the-next-expiry-is-the-oldest-requests
+  ;:  weld
+      (expect-eq !>(`~2026.9.11) !>((next-expiry:ask staggered)))
+      %+  expect-eq
+        !>(`~2026.9.11..00.00.01)
+      !>((next-expiry:ask (close:ask staggered 'd1234')))
+      (expect-eq !>(~) !>((next-expiry:ask *approvals:t)))
+  ==
+++  test-a-ships-requests-are-counted-across-its-places
+  =/  more  (open:ask staggered 'd9999' [~bus ~ ~2026.9.9])
+  ;:  weld
+      (expect-eq !>(2) !>((held:ask more ~dev)))
+      (expect-eq !>(1) !>((held:ask more ~bus)))
+      (expect-eq !>(0) !>((held:ask more ~bel)))
+  ==
+::  As OpenClaw's: one notice per ten minutes.
+::
+++  test-the-full-queue-notice-is-sent-at-most-once-per-ten-minutes
+  =/  told=(list notice:t)  ~[[0 ~2026.9.9 'approval-cap' ~dev '~dev' '100']]
+  =/  other=(list notice:t)  ~[[0 ~2026.9.9 'permission-denied' ~dev '~dev' 'x']]
+  ;:  weld
+      (expect-eq !>(&) !>((full-allowed:ask ~2026.9.9 ~)))
+      (expect-eq !>(&) !>((full-allowed:ask ~2026.9.9 other)))
+      (expect-eq !>(|) !>((full-allowed:ask ~2026.9.9..00.09.59 told)))
+      (expect-eq !>(&) !>((full-allowed:ask ~2026.9.9..00.10.00 told)))
+      %+  expect-eq
+        !>('Pending approval queue is full (100). New requests are dropped until existing ones are approved, denied, or blocked.')
+      !>((full-text:ask 100))
+  ==
 ::  As OpenClaw's: the place's initial and four hex digits, never an id
 ::  that is already open.
 ::

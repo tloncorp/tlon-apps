@@ -33,6 +33,15 @@
   ^-  card
   [%pass /invite/dm/(scot %p who) %agent [our.bowl %chat] %poke %chat-dm-rsvp !>([who &])]
 ::
+::  +decline-invitation: %chat deletes a pending invitation it is told to
+::  decline, but leaves an accepted DM it is told the same, so only a pending
+::  one may be declined
+::
+++  decline-invitation
+  |=  who=@p
+  ^-  card
+  [%pass /invite/decline/(scot %p who) %agent [our.bowl %chat] %poke %chat-dm-rsvp !>([who |])]
+::
 ++  publish
   |=  [wire=wire to=destination:t text=@t sent=@da blob=(unit @t)]
   ^-  card

@@ -33,6 +33,55 @@
   |=  [[id=@t =approval:t] kept=_approvals]
   ?:  (keep approval)  kept
   (close kept id)
+::  +lifetime: how long a request stays open unanswered, as OpenClaw's
+::
+++  lifetime  ~h48
+::  +limit: the most requests open at once, as OpenClaw's
+::
+++  limit  100
+::  +ship-limit: the most requests one ship has open, across its places
+::
+++  ship-limit  5
+::  +held: how many requests .who has open
+::
+++  held
+  |=  [=approvals:t who=@p]
+  ^-  @ud
+  (lent (skim ~(val by by-id.approvals) |=(=approval:t =(who who.approval))))
+::  +expired: the requests open for .lifetime or longer at .now
+::
+++  expired
+  |=  [=approvals:t now=@da]
+  ^-  (list [id=@t =approval:t])
+  %+  skim  ~(tap by by-id.approvals)
+  |=  [id=@t =approval:t]
+  (lte (add at.approval lifetime) now)
+::  +next-expiry: when the oldest open request expires
+::
+++  next-expiry
+  |=  =approvals:t
+  ^-  (unit @da)
+  %+  roll  ~(val by by-id.approvals)
+  |=  [=approval:t next=(unit @da)]
+  =/  at  (add at.approval lifetime)
+  ?~(next `at `(min at u.next))
+::  +full-text: the owner's notice that no more requests open, as OpenClaw's
+::
+++  full-text
+  |=  open=@ud
+  ^-  @t
+  %+  rap  3
+  :~  'Pending approval queue is full ('
+      (crip (a-co:co open))
+      '). New requests are dropped until existing ones are approved, denied, or blocked.'
+  ==
+::  +full-allowed: one notice of a full queue per ten minutes, as OpenClaw's,
+::  for as long as the feed keeps the earlier one
+::
+++  full-allowed
+  |=  [now=@da notices=(list notice:t)]
+  ^-  ?
+  !(lien notices |=(n=notice:t &(=('approval-cap' kind.n) (gth (add at.n ~m10) now))))
 ::  +fresh-id: a short id unique among open requests
 ::
 ::    As OpenClaw's: the place's initial and four hex digits, or eight after
