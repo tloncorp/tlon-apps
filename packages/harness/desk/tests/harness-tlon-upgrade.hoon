@@ -6,10 +6,15 @@
 |%
 ::  Historical shapes, each a projection of the populated hand state.
 ::
+::  The last shape before approval requests.
+++  project-4
+  ^-  state-4:migrate
+  =/  p  populated-5:up
+  [%4 +>.p]
 ::  The last shape before per-place grants.
 ++  project-3
   ^-  state-3:migrate
-  =/  p  populated-4:up
+  =/  p  populated-5:up
   :*  %3  lens.p  owner-initialized.p  sibling-moon-owners.p  sibling-owner-after.p
       activity-through.p  catching-up.p  identities.p  routes.p  cuts.p  channel-after.p
       channel-cuts.p  uploads.p  last-sent.p  tool-receipts.p  computing.p
@@ -41,32 +46,37 @@
 ::
 ::  Expected values, one per path: the input with the path's transformations.
 ::
+++  expected-5
+  ^-  state-5:t
+  populated-5:up
+::  Approval requests start empty.
 ++  expected-4
-  ^-  state-4:t
-  populated-4:up
+  ^-  state-5:t
+  =/  e  expected-5
+  e(approvals *approvals:t)
 ::  Per-place grants and their cutoffs start empty; the ship-wide lists and
 ::  channel rules are kept.
 ++  expected-3
-  ^-  state-4:t
+  ^-  state-5:t
   =/  e  expected-4
   e(place-cuts ~, dm-grants.policy ~, channel-grants.policy ~)
 ::  The channel's per-speaker conversation is dropped; the DM is kept.
 ++  expected-2
-  ^-  state-4:t
+  ^-  state-5:t
   expected-3
 ::  Lens sync starts unconfigured.
 ++  expected-1
-  ^-  state-4:t
+  ^-  state-5:t
   =/  e  expected-2
   e(lens *lens-sync:t)
 ::  Channel cuts and the allowed and channel policies start empty. The
 ::  fixture's %all response survives conversion through mentions=|.
 ++  expected-0
-  ^-  state-4:t
+  ^-  state-5:t
   =/  e  expected-1
   e(channel-cuts ~, allowed.policy ~, channels.policy ~)
 ++  expected-0-mentions
-  ^-  state-4:t
+  ^-  state-5:t
   =/  e  expected-0
   e(response.policy %mentions)
 ::
@@ -80,11 +90,13 @@
   (expect-reload !>(populated-2:up) expected-2)
 ++  test-tlon-state-3-upgrade-keeps-every-field
   (expect-reload !>(project-3) expected-3)
-++  test-tlon-state-4-reload-keeps-every-field
-  (expect-reload !>(populated-4:up) expected-4)
+++  test-tlon-state-4-upgrade-keeps-every-field-and-opens-no-requests
+  (expect-reload !>(project-4) expected-4)
+++  test-tlon-state-5-reload-keeps-every-field
+  (expect-reload !>(populated-5:up) expected-5)
 ::
 ++  expect-reload
-  |=  [saved=vase expected=state-4:t]
+  |=  [saved=vase expected=state-5:t]
   ^-  tang
   =/  once  (load:migrate saved)
   %+  weld  (expect-same:up !>(expected) !>(once))

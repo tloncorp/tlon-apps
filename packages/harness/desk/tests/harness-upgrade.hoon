@@ -77,10 +77,13 @@
   ==
 ::  The Tlon hand's current saved shape, populated as above. The hand is
 ::  disabled, so its reload starts no subscriptions.
-++  populated-4
-  ^-  state-4:t
+++  populated-5
+  ^-  state-5:t
   =/  p  populated-2
-  :*  %4  lens.p  owner-initialized.p  sibling-moon-owners.p  sibling-owner-after.p
+  :*  %5
+      :-  (my ~[['d1a2b' [~lus ~ ~2026.10.17]] ['c3c4d' [~lus `[%chat ~bus %general] ~2026.10.18]]])
+      (my ~[[[~lus ~] 'd1a2b'] [[~lus `[%chat ~bus %general]] 'c3c4d']])
+      lens.p  owner-initialized.p  sibling-moon-owners.p  sibling-owner-after.p
       activity-through.p  catching-up.p
       (my ~[[[%dm ~nec `[~nec ~2026.10.5]] 'alpha']])
       routes.p  cuts.p
@@ -95,7 +98,7 @@
       (my ~[['alpha' [[%dm ~nec `[~nec ~2026.10.5]] 1 ~[%tlon]]]])
       jobs.p  deliveries.p  notices.p  next-notice.p  listeners.p  watching.p  wake.p  error.p
   ==
-::  The hand's last per-speaker shape: everything in +populated-4 but its per-place grants, plus a
+::  The hand's last per-speaker shape: everything in +populated-5 but its per-place grants, plus a
 ::  channel conversation the upgrade to shared sessions drops.
 ++  populated-2
   ^-  state-2:mt
@@ -156,8 +159,8 @@
   ==
 ::  A disabled hand that has not chosen its owner yet.
 ++  unowned
-  ^-  state-4:t
-  =/  s  *state-4:t
+  ^-  state-5:t
+  =/  s  *state-5:t
   s(enabled.policy |)
 ::  A saved %acp connection with a message queued in each direction.
 +$  acp-state  [%0 connections=(map connection-id:v1:ac connection:v1:ac)]
@@ -265,7 +268,7 @@
 ++  test-populated-state-is-populated
   ;:  weld
       (expect-eq !>(~) !>((unexplained (defaults !>(populated) *state-0))))
-      (expect-eq !>(~) !>((unexplained (defaults !>(populated-4) *state-4:t))))
+      (expect-eq !>(~) !>((unexplained (defaults !>(populated-5) *state-5:t))))
       (expect-eq !>(~) !>((unexplained (defaults !>(acp-populated) *acp-state))))
   ==
 ++  test-state-0-reload-keeps-every-field

@@ -44,7 +44,8 @@
   =/  old  every-field
   =/  new  (load:migrate !>(old))
   ;:  weld
-      (expect-eq !>(%4) !>(-.new))
+      (expect-eq !>(%5) !>(-.new))
+      (expect-eq !>(*approvals:t) !>(approvals.new))
       (expect-eq !>(lens.old) !>(lens.new))
       (expect-eq !>(owner-initialized.old) !>(owner-initialized.new))
       (expect-eq !>(sibling-moon-owners.old) !>(sibling-moon-owners.new))
@@ -174,7 +175,7 @@
   =/  three  (two-to-three:migrate every-field)
   =/  new  (load:migrate !>(three))
   ;:  weld
-      (expect-eq !>(%4) !>(-.new))
+      (expect-eq !>(%5) !>(-.new))
       (expect !>(&(?=(^ trusted.policy.three) ?=(^ allowed.policy.three))))
       (expect !>(?=(^ channels.policy.three)))
       (expect-eq !>(trusted.policy.three) !>(trusted.policy.new))
@@ -184,5 +185,18 @@
       (expect-eq !>(~) !>(channel-grants.policy.new))
       (expect-eq !>(~) !>(place-cuts.new))
       (expect-eq !>(cuts.three) !>(cuts.new))
+  ==
+::  The upgrade that adds approval requests keeps every saved field and
+::  starts with none open.
+::
+++  test-state-four-upgrade-keeps-every-field-and-opens-no-requests
+  =/  four  (three-to-four:migrate (two-to-three:migrate every-field))
+  =.  dm-grants.policy.four  (silt ~[~bus])
+  =.  place-cuts.four  (my ~[[[~bus ~] ~2026.1.13]])
+  =/  new  (load:migrate !>(four))
+  ;:  weld
+      (expect-eq !>(%5) !>(-.new))
+      (expect-eq !>(*approvals:t) !>(approvals.new))
+      (expect-eq !>(+.four) !>(+>.new))
   ==
 --

@@ -16,6 +16,14 @@
 ::  $place: where a per-place grant applies; ~ is the ship's DM with the bot
 ::
 +$  place  (unit nest:c)
+::  $approval: an open request from a ship without access in a place
+::
+::    Nothing of the message that opened it is kept.
+::
++$  approval  [who=@p =place at=@da]
+::  $approvals: open requests by id, and the id open for a ship in a place
+::
++$  approvals  [by-id=(map @t approval) by-place=(map [@p place] @t)]
 +$  peer-trust  [policy=policy siblings=?]
 +$  destination
   $%  [%dm who=@p parent=(unit message-id:a)]
@@ -51,8 +59,9 @@
   ==
 +$  lens-sync
   [enabled=$~(| ?) owner=(unit @p) after=@da records=(map input-id:h lens-record) error=@t]
-+$  state-4
-  $:  %4
++$  state-5
+  $:  %5
+      =approvals
       lens=lens-sync
       owner-initialized=@ud
       sibling-moon-owners=$~(| ?)

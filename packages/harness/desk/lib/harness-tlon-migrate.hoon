@@ -12,6 +12,37 @@
       allowed=(set @p)
       channels=(map nest:c channel-rule)
   ==
++$  state-4
+  $:  %4
+      lens=lens-sync
+      owner-initialized=@ud
+      sibling-moon-owners=$~(| ?)
+      sibling-owner-after=@da
+      activity-through=@da
+      catching-up=$~(| ?)
+      identities=(map destination @t)
+      routes=(map @t route)
+      cuts=(map @p @da)
+      place-cuts=(map [@p place] @da)
+      channel-after=@da
+      channel-cuts=(map nest:c @da)
+      uploads=(map @uv upload)
+      last-sent=@da
+      tool-receipts=(map @uv tool-receipt)
+      computing=(map path presence-lease)
+      policy=policy
+      epoch=@ud
+      after=@da
+      lanes=(map @t lane)  ::  admitted authorization generations; head keeps history
+      jobs=(map @uv job)
+      deliveries=(map @uv delivery)
+      notices=(list notice)
+      next-notice=@ud
+      listeners=(set @t)
+      watching=?
+      wake=(unit @da)
+      error=@t
+  ==
 +$  state-3
   $:  %3
       lens=lens-sync
@@ -131,11 +162,12 @@
   ==
 ++  load
   |=  old=vase
-  ^-  state-4
+  ^-  state-5
   ?>  ?=(^ q.old)
-  ?:  =(%4 -.q.old)  !<(state-4 old)
-  ?:  =(%3 -.q.old)  (three-to-four !<(state-3 old))
-  (three-to-four (two-to-three (two old)))
+  ?:  =(%5 -.q.old)  !<(state-5 old)
+  ?:  =(%4 -.q.old)  (four-to-five !<(state-4 old))
+  ?:  =(%3 -.q.old)  (four-to-five (three-to-four !<(state-3 old)))
+  (four-to-five (three-to-four (two-to-three (two old))))
 ::  Ready routes of conversations +two-to-three drops. Their bindings may
 ::  still hold queued input, so the caller disables them and fences their
 ::  sessions.
@@ -144,7 +176,7 @@
   |=  old=vase
   ^-  (list [sid=@t binding=@t])
   ?>  ?=(^ q.old)
-  ?:  |(=(%3 -.q.old) =(%4 -.q.old))  ~
+  ?:  |(=(%3 -.q.old) =(%4 -.q.old) =(%5 -.q.old))  ~
   =/  saved  (two old)
   %+  murn  ~(tap by lanes.saved)
   |=  [sid=@t lane=lane-2]
@@ -230,6 +262,12 @@
       wake.old
       error.old
   ==
+::  Approval requests start empty; everything else is kept as saved.
+::
+++  four-to-five
+  |=  old=state-4
+  ^-  state-5
+  [%5 *approvals +.old]
 ::
 ++  zero-to-one
   |=  saved=state-0

@@ -188,7 +188,7 @@
           =(`~nec (sender:deny ~lux reply))
       ==
 ++  test-tool-deadline-with-tlon-replies-disabled
-  =/  state=state-4:t  *state-4:t
+  =/  state=state-5:t  *state-5:t
   =.  enabled.policy.state  |
   =.  tool-receipts.state
     %-  my
