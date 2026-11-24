@@ -428,6 +428,17 @@
     [%dm (ship (required args 'ship' 128)) ?:(=('' parent) ~ `(dm-id parent))]
   [%channel (nest (required args 'channel' 256)) ?:(=('' parent) ~ `(timestamp parent))]
 ::
+::  +flag-id and +nest-id: the ID forms list_groups and list_channels print
+::
+++  flag-id
+  |=  flag=[@p @tas]
+  ^-  @t
+  (rap 3 (scot %p -.flag) '/' +.flag ~)
+++  nest-id
+  |=  nest=[@tas @p @tas]
+  ^-  @t
+  (rap 3 -.nest '/' (flag-id +.nest) ~)
+::
 ++  ship
   |=  value=@t
   ^-  @p

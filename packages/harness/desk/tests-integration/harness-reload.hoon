@@ -100,8 +100,9 @@
     !>((lien emitted |=(c=card ?=([%pass * %agent * %poke %notes-action-1 *] c))))
   !>(|)
 ::  The reload clears the saved wakes and runner streams, then re-arms each
-::  wake from the populated work: the active schedule's next run, the parked
-::  runner job, the queued corpus scope and the pending memory capture.
+::  wake from the populated work: the parked runner job, the queued corpus
+::  scope and the pending memory capture. The active schedule is checked a
+::  tick later, once every agent on the desk has loaded.
 ++  test-reload-keeps-populated-state
   %-  eval-mare
   =/  m  (mare ,~)
@@ -111,7 +112,7 @@
   =.  registry.runners.e
     (~(run by registry.runners.e) |=(r=runner:runner r(stream ~)))
   =.  wake.runners.e  `(add now ~s15)
-  =.  schedule-wake.e  `next:(~(got by schedules.e) 0v7a)
+  =.  schedule-wake.e  `+(now)
   =.  corpus-wake.e  `(add now (div ~s1 10))
   =.  wake.knowledge.e  `(add now ~s1)
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now now)))

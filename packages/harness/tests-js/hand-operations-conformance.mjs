@@ -103,8 +103,32 @@ try {
   assert.deepEqual(await client.call('harness/session/snapshot', { sessionId }), snapshot, 'archival retains session memory')
   assert.equal(modelCalls, 1, 'delivery recovery, archival and retired replay never call a model')
 
-  console.log(JSON.stringify({ ok: true, admissionMs, archive: archivePath,
-    checks: ['owner recovery', 'stale receipt fencing', 'no uncertain retry', 'explicit abandonment', 'session unchanged', 'fsynced archive', 'idempotent retirement', 'other bindings retained', 'identity allocator retained', 'retired replay rejection'] }, null, 2))
+  // More records than the removed 256-per-binding limit export and retire through the supplied tool.
+  const { binding: large } = await hand.register({ address: 'test-only:large-export', sessionId, actors: ['alice'] })
+  const notices = []
+  for (let i = 0; i < 257; i += 50) {
+    notices.push(...await Promise.all(Array.from({ length: Math.min(50, 257 - i) }, (_, j) =>
+      hand.action('notify', { binding: large, event: `notice-${i + j}`, actor: 'alice', text: `Test-only notice ${i + j}` }))))
+  }
+  for (let i = 0; i < notices.length; i += 50) {
+    await Promise.all(notices.slice(i, i + 50).map(({ inputId }) =>
+      hand.resolve(inputId, { attempt: 0, status: 'abandoned', reason: 'Test-only notice; intentionally not sent' })))
+  }
+  await hand.enable(large, false)
+  const largeStatus = await hand.status(large)
+  assert.equal(largeStatus.observationCount, 257)
+  assert.equal(largeStatus.observations.length, 256, 'status lists the newest 256 observations')
+  const largePath = join(directory, 'large.jsonl')
+  const exportStart = Date.now()
+  await run(process.execPath, ['tests-js/archive-hand.mjs', large, largePath], { env: process.env, timeout: 180_000 })
+  const exportMs = Date.now() - exportStart
+  const exported = (await readFile(largePath, 'utf8')).trim().split('\n').map(JSON.parse)
+  assert.equal(new Set(exported.slice(1, -1).map((record) => record.inputId)).size, 257)
+  assert.deepEqual(exported.at(-1), { complete: true, digest: exported[0].digest, records: 257 })
+  await assert.rejects(hand.status(large), /Unknown binding/)
+
+  console.log(JSON.stringify({ ok: true, admissionMs, exportMs, archive: archivePath,
+    checks: ['owner recovery', 'stale receipt fencing', 'no uncertain retry', 'explicit abandonment', 'session unchanged', 'fsynced archive', 'idempotent retirement', 'other bindings retained', 'identity allocator retained', 'retired replay rejection', '257-record export'] }, null, 2))
   console.log(stdout.trim())
 } finally {
   if (retired && sessionId) {

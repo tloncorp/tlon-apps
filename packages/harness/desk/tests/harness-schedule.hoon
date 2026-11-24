@@ -1,6 +1,10 @@
 /-  c=harness-cron, hh=harness-hand, h=harness, *harness-store
 /+  *test, schedule=harness-schedule, hd=harness-hand, ht=harness-tools, storage=harness-store
 |%
+++  ix
+  |=  db=state:hh
+  ^-  indexed:hh
+  [db (reindex:hd db)]
 ++  source
   ^-  binding:hh
   ['fixture-chat' 'room/launch' 'source' ~['alice'] &]
@@ -246,17 +250,17 @@
     ==
   =/  done  (job-value:schedule job(state %complete, remaining 0, last `0v1))
   ;:  weld
-      (expect !>((busy:schedule done db)))
-      (expect !>(!(clearable:schedule done db)))
-      (expect !>((clearable:schedule done db(outbox ~))))
+      (expect !>((busy:schedule done (ix db))))
+      (expect !>(!(clearable:schedule done (ix db))))
+      (expect !>((clearable:schedule done (ix db(outbox ~)))))
   ==
 ++  test-clearing-unfired-cancelled-job-keeps-budget-unused
   =/  job  job
-  (expect !>((clearable:schedule (job-value:schedule job(state %cancelled)) *state:hh)))
+  (expect !>((clearable:schedule (job-value:schedule job(state %cancelled)) (ix *state:hh))))
 ++  test-source-binding-scopes-list-results
   =/  job  job
   =/  jobs  (my ~[[0v1 job] [0v2 job(binding 'another-binding')]])
-  =/  result  (list-json:schedule jobs *state:hh `'source-binding')
+  =/  result  (list-json:schedule jobs (ix *state:hh) `'source-binding')
   ?>  ?=(%a -.result)
   (expect-eq !>(1) !>((lent p.result)))
 ++  test-schedules-strip-recursion-delegation-and-administration
@@ -312,15 +316,15 @@
   =.  outbox.db  (my ~[[0v9 pub]])
   =/  value  (job-value:schedule j)
   ;:  weld
-      (expect !>((retryable:schedule value db)))
-      (expect !>((retryable:schedule value(state %complete, remaining 0) db)))
-      (expect !>(!(retryable:schedule value(state %cancelled) db)))
-      (expect !>(!(retryable:schedule value(kind %reminder) db)))
-      (expect !>(!(retryable:schedule value db(outbox ~))))
-      (expect !>(!(retryable:schedule value db(observations (my ~[[0v9 obs(phase %completed)]])))))
-      (expect !>(!(retryable:schedule value db(outbox (my ~[[0v9 pub(kind %reply)]])))))
-      (expect !>(!(retryable:schedule value db(outbox (my ~[[0v9 pub(status %pending)]])))))
-      (expect !>(!(retryable:schedule value db(outbox (my ~[[0v9 pub(status %claimed)]])))))
-      (expect !>(!(retryable:schedule value db(outbox (my ~[[0v9 pub(status %uncertain)]])))))
+      (expect !>((retryable:schedule value (ix db))))
+      (expect !>((retryable:schedule value(state %complete, remaining 0) (ix db))))
+      (expect !>(!(retryable:schedule value(state %cancelled) (ix db))))
+      (expect !>(!(retryable:schedule value(kind %reminder) (ix db))))
+      (expect !>(!(retryable:schedule value (ix db(outbox ~)))))
+      (expect !>(!(retryable:schedule value (ix db(observations (my ~[[0v9 obs(phase %completed)]]))))))
+      (expect !>(!(retryable:schedule value (ix db(outbox (my ~[[0v9 pub(kind %reply)]]))))))
+      (expect !>(!(retryable:schedule value (ix db(outbox (my ~[[0v9 pub(status %pending)]]))))))
+      (expect !>(!(retryable:schedule value (ix db(outbox (my ~[[0v9 pub(status %claimed)]]))))))
+      (expect !>(!(retryable:schedule value (ix db(outbox (my ~[[0v9 pub(status %uncertain)]]))))))
   ==
 --

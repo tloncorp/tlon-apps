@@ -39,6 +39,19 @@
 ++  stopping
   |=  text=@t
   =(`[name='stop' arg=''] (parse text))
+::  Commands that change the conversation rather than read it: its model,
+::  history, memory or work.
+++  changing
+  |=  parsed=command
+  ^-  ?
+  ?+  name.parsed  |
+    ?(%compact %remember %forget %work)  &
+    %model  !=('' arg.parsed)
+    %memory  |(=('on' arg.parsed) =('off' arg.parsed))
+  ==
+++  refused
+  ^-  @t
+  'Only the owner can change this conversation\'s settings in a shared channel.'
 ++  help
   ^-  @t
   %+  rap  3

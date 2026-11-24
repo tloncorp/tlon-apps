@@ -69,7 +69,9 @@ authenticate actors and deliver results.
 ## Timing, delivery and retention
 
 One head-owned Behn wake follows the earliest outstanding schedule deadline.
-Downtime coalesces to one run, never a missed-run backlog. The run budget advances
+A reload checks no schedule itself: with a schedule active, it sets that wake
+a tick later, so the check runs after every agent on the desk has loaded and
+no schedule asks a hand still on its previous code for authority. Downtime coalesces to one run, never a missed-run backlog. The run budget advances
 in the same Gall transaction as ledger admission. Pending execution or pending,
 claimed or uncertain publication blocks another run of that schedule.
 
