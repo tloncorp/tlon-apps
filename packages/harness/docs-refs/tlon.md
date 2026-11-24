@@ -718,7 +718,9 @@ place at or before the change are not answered; its messages in its DM and in
 other places keep their own cutoffs. A grant that changes nothing there, because
 the ship already has access as the owner, a sibling moon's owner, through a
 ship-wide list or as a reader of an open channel, and the removal of such a
-grant, does none of this.
+grant, does none of this. Nor does a ship-wide change in a place where the ship
+holds a grant and is answered as before, such as moving it from the allowed
+list to a DM grant: that place keeps its route, its work and its cutoff.
 
 Publication checks the exact current binding again after claiming, before
 sending, and the reply's speaker: it is sent only while that speaker is still
