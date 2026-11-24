@@ -637,15 +637,20 @@ by every author.
   answered: the ship's own and, in a channel, the last change to the channel's
   replies.
 - A request closes when its ship gains access in its place, by any settings
-  save that gives it, and when the bot leaves or loses the channel. If
+  save that gives it, and when the bot leaves or loses the channel. A DM
+  request closes when the bot accepts the ship's invitation, by the owner's
+  `accept_dm` or because the ship gained DM access, so its expiry cannot
+  decline an accepted DM, which `%chat` would take as leaving it. If
   Messenger rejects the card, the request closes too, so none stays open that
   the owner was not told of; the ship's next attempt opens it again.
-- A request expires 48 hours after it opened, as on OpenClaw. The first event
-  the hand handles after that expires it; when no event comes, the
+- A request expires 48 hours after it opened, as on OpenClaw. The next poke,
+  timer or response from another agent the hand handles after that expires
+  it; a subscription opening or closing, a reload and the acknowledgements of
+  its profile claim, Steward lease and telemetry do not. When none comes, the
   maintenance wake does, since the earliest expiry is one of its deadlines,
   recomputed from saved state after a reload. A disabled hand expires nothing
-  and puts no expiry on its wake; once it is enabled again, its first event
-  or wake expires what is due. Expiry is recorded in the activity feed as
+  and puts no expiry on its wake; once it is enabled again, the next of these
+  or its wake expires what is due. Expiry is recorded in the activity feed as
   `approval-expired`. When a DM request
   expires, the bot also declines the ship's DM invitation if it is still
   pending: `%chat` reports a pending invitation once and none of its later
@@ -668,7 +673,8 @@ by every author.
   keeps a ship's DM invitation from opening a request it would otherwise
   open, the bot declines the invitation, for the reason expiry does: left
   pending, `%chat` would report none of the ship's later messages. The ship's
-  next message invites the bot again and has another chance. An invitation
+  next message invites the bot again and is a new attempt, under the same
+  limits. An invitation
   that would open no request anyway, from a comet, a blocked ship, or while
   the hand has no explicit owner or is disabled, stays pending, and is
   accepted if the ship gains access later.
