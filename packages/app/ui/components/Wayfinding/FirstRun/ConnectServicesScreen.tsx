@@ -1,29 +1,48 @@
-import { Icon, LoadingSpinner, Pressable, Text } from '@tloncorp/ui';
+import { LoadingSpinner, Pressable, Text } from '@tloncorp/ui';
 import { useState } from 'react';
-import { View, XStack, YStack } from 'tamagui';
+import { View, XStack, YStack, useTheme } from 'tamagui';
 
+import { useIsDarkMode } from '../../../../hooks/useDarkMode';
 import { McpProviderLogo } from '../../McpProviderLogo';
-import { FirstRunFrame } from './FirstRunFrame';
+import { useOnboardingGlyph } from '../../Onboarding/line/AvatarGlyphPicker';
+import { LINE_LIST_RADIUS } from '../../Onboarding/line/LineChoiceList';
+import {
+  ART_TOP_GAP,
+  ART_TO_BOX_GAP,
+  LineStepFrame,
+} from '../../Onboarding/line/LineStepFrame';
+import { LineIcon } from '../../Onboarding/line/lineIcons';
+import { LineOutline, LineRule } from '../../Onboarding/line/lineKit';
+import { ConnectArt } from '../../Onboarding/line/onboardingArt';
 import { FirstRunSheet } from './FirstRunSheet';
-import { firstRunCopy } from './firstRunCopy';
+import { FIRST_RUN_STEPS, firstRunCopy } from './firstRunCopy';
 import {
   type FeaturedRowState,
   type FeaturedService,
   type ServiceAttempt,
   featuredRowState,
 } from './firstRunServices';
-import type { FirstRunSetupStatus } from './types';
 
 const copy = firstRunCopy.connect;
-const LOGO_SIZE = 40;
+/** A logo's slot in its row; the logo is drawn a little larger, past it. */
+const LOGO_SLOT = 32;
+const LOGO_SIZE = 38;
+/**
+ * Catalog logos are drawn for a light ground: Google's carry their own white
+ * disc, GitHub's is a bare black mark. In dark mode each sits on a light disc
+ * filling its slot.
+ */
+const LOGO_DISC = LOGO_SLOT;
+const BUTTON_HEIGHT = 32;
 
 /**
- * Screen 3. Connecting happens here: Connect opens a short access sheet, then
- * the provider; afterwards a row shows only what the account's grants
- * confirm. Continue always works.
+ * Connect your services. Connecting happens here: Connect opens a short
+ * access sheet, then the provider; afterwards a row shows only what the
+ * account's grants confirm. The drawing gives each service a box and a line,
+ * solid once it's connected. Continue always works: it says "without
+ * connecting" until something is.
  */
 export function ConnectServicesScreen({
-  status,
   unavailable,
   featured,
   attempts,
@@ -37,7 +56,6 @@ export function ConnectServicesScreen({
   onBack,
   initialSheetProviderId,
 }: {
-  status: FirstRunSetupStatus;
   /** No way to connect for this account, or nothing to offer. */
   unavailable: boolean;
   featured: FeaturedService[];
@@ -63,21 +81,28 @@ export function ConnectServicesScreen({
   const [sheetOpen, setSheetOpen] = useState(!!initialSheetProviderId);
   const signInInFlight = busy || Object.values(attempts).includes('connecting');
 
+  const glyph = useOnboardingGlyph();
+  const states = featured.map((service) =>
+    featuredRowState(service.row, attempts[service.row.id])
+  );
+
   const openSheet = (service: FeaturedService) => {
     setSheetService(service);
     setSheetOpen(true);
   };
 
   return (
-    <FirstRunFrame
-      step={3}
+    <LineStepFrame
+      step={FIRST_RUN_STEPS.connect}
       onBack={onBack}
       title={copy.title}
-      accent={copy.accent}
-      body={copy.body}
-      status={status}
-      primaryLabel={anyConnected ? copy.primaryConnected : copy.primaryNone}
-      onPrimary={onContinue}
+      subtitle={copy.subtitle}
+      contentGap={ART_TOP_GAP}
+      primary={{
+        label: anyConnected ? copy.primaryConnected : copy.primaryNone,
+        onPress: onContinue,
+        testID: 'first-run-primary',
+      }}
       testID="first-run-connect"
       overlay={
         sheetService ? (
@@ -95,31 +120,38 @@ export function ConnectServicesScreen({
     >
       {unavailable ? (
         <View
-          marginTop={20}
-          marginHorizontal="$xl"
+          marginHorizontal="$2xl"
           padding="$xl"
-          borderRadius={16}
-          backgroundColor="$secondaryBackground"
+          borderRadius={LINE_LIST_RADIUS}
           accessibilityLiveRegion="polite"
           testID="first-run-connect-none"
         >
           <Text fontSize={16} lineHeight={24} color="$primaryText">
             {copy.none}
           </Text>
+          <LineOutline radius={LINE_LIST_RADIUS} />
         </View>
       ) : (
-        <YStack marginTop={20} marginHorizontal="$xl">
+        <>
+          <ConnectArt
+            glyph={glyph}
+            services={featured.map((service, index) => ({
+              icon: service.access.drawingIcon,
+              connected: states[index] === 'connected',
+            }))}
+          />
           <YStack
-            borderWidth={1}
-            borderColor="$border"
-            borderRadius={16}
+            marginTop={ART_TO_BOX_GAP}
+            marginHorizontal="$2xl"
+            borderRadius={LINE_LIST_RADIUS}
             overflow="hidden"
           >
-            {featured.map((service) => (
+            {featured.map((service, index) => (
               <ServiceRow
                 key={service.row.id}
                 service={service}
-                state={featuredRowState(service.row, attempts[service.row.id])}
+                state={states[index]}
+                first={index === 0}
                 disabled={signInInFlight}
                 onConnect={() => openSheet(service)}
                 onCheckAgain={() => onCheckAgain(service.row.id)}
@@ -136,61 +168,70 @@ export function ConnectServicesScreen({
               testID="first-run-all-services"
             >
               <XStack
-                height={48}
+                height={52}
                 paddingHorizontal={14}
                 alignItems="center"
                 gap="$m"
               >
+                {featured.length ? <LineRule /> : null}
                 <Text
                   flex={1}
                   fontSize={15}
                   lineHeight={20}
-                  fontWeight="500"
                   color="$primaryText"
                 >
                   {copy.allServices}
                 </Text>
                 {allServicesCount === null ? null : (
-                  <Text fontSize={15} lineHeight={20} color="$secondaryText">
+                  <Text
+                    fontFamily="$mono"
+                    fontSize={13}
+                    lineHeight={20}
+                    color="$secondaryText"
+                  >
                     {allServicesCount}
                   </Text>
                 )}
-                <Icon
-                  type="ChevronRight"
-                  customSize={[16, 16]}
-                  color="$tertiaryText"
-                />
+                <AllServicesChevron />
               </XStack>
             </Pressable>
+            <LineOutline radius={LINE_LIST_RADIUS} />
           </YStack>
-          <Text
-            marginTop="$l"
-            fontSize={14}
-            lineHeight={20}
-            color="$secondaryText"
-          >
-            {copy.footnote}
-          </Text>
-        </YStack>
+        </>
       )}
-    </FirstRunFrame>
+    </LineStepFrame>
+  );
+}
+
+function AllServicesChevron() {
+  const theme = useTheme();
+  return (
+    <LineIcon
+      name="chevronRight"
+      size={16}
+      color={theme.secondaryText?.val as string}
+      strokeWidth={1.5}
+    />
   );
 }
 
 function ServiceRow({
   service,
   state,
+  first,
   disabled,
   onConnect,
   onCheckAgain,
 }: {
   service: FeaturedService;
   state: FeaturedRowState;
+  first: boolean;
   disabled: boolean;
   onConnect: () => void;
   onCheckAgain: () => void;
 }) {
   const { row, access } = service;
+  const isDark = useIsDarkMode();
   const line =
     state === 'connected'
       ? copy.connectedLine
@@ -216,25 +257,42 @@ function ServiceRow({
   return (
     <XStack
       minHeight={64}
-      paddingVertical="$l"
+      paddingVertical="$m"
       paddingHorizontal={14}
       alignItems="center"
-      gap="$l"
-      borderBottomWidth={1}
-      borderColor="$border"
+      gap={12}
       testID={`first-run-service-${row.id}`}
     >
-      <McpProviderLogo
-        displayName={row.displayName}
-        logoUrl={row.logoUrl}
-        providerId={row.id}
-        size={LOGO_SIZE}
-      />
+      {first ? null : <LineRule />}
+      <View
+        width={LOGO_SLOT}
+        height={LOGO_SLOT}
+        alignItems="center"
+        justifyContent="center"
+        overflow="visible"
+      >
+        {isDark ? (
+          <View
+            position="absolute"
+            width={LOGO_DISC}
+            height={LOGO_DISC}
+            borderRadius={LOGO_DISC / 2}
+            backgroundColor="$primaryText"
+          />
+        ) : null}
+        <McpProviderLogo
+          displayName={row.displayName}
+          logoUrl={row.logoUrl}
+          providerId={row.id}
+          size={LOGO_SIZE}
+          plain
+        />
+      </View>
       <YStack flex={1}>
         <Text
           fontSize={16}
           lineHeight={22}
-          fontWeight="500"
+          letterSpacing={-0.2}
           color="$primaryText"
         >
           {row.displayName}
@@ -242,6 +300,7 @@ function ServiceRow({
         <Text
           fontSize={14}
           lineHeight={20}
+          letterSpacing={-0.1}
           color={lineNeedsAttention ? '$primaryText' : '$secondaryText'}
           accessibilityLiveRegion="polite"
         >
@@ -249,17 +308,15 @@ function ServiceRow({
         </Text>
       </YStack>
       {state === 'connected' ? (
-        <XStack alignItems="center" gap="$xs" flexShrink={0}>
-          <Icon type="Checkmark" customSize={[14, 14]} color="$primaryText" />
-          <Text
-            fontSize={14}
-            lineHeight={20}
-            fontWeight="500"
-            color="$primaryText"
-          >
-            {copy.connectedBadge}
-          </Text>
-        </XStack>
+        <Text
+          flexShrink={0}
+          paddingHorizontal={2}
+          fontSize={14}
+          lineHeight={20}
+          color="$secondaryText"
+        >
+          {copy.connectedBadge}
+        </Text>
       ) : null}
       {state === 'checking' || state === 'connecting' ? (
         <View
@@ -284,22 +341,21 @@ function ServiceRow({
           testID={`first-run-service-${row.id}-button`}
         >
           <View
-            height={32}
-            paddingHorizontal="$l"
-            borderRadius={16}
-            backgroundColor="$secondaryBackground"
+            height={BUTTON_HEIGHT}
+            paddingHorizontal={14}
+            borderRadius={BUTTON_HEIGHT / 2}
             justifyContent="center"
             opacity={disabled ? 0.5 : 1}
           >
             <Text
               fontSize={14}
               lineHeight={20}
-              fontWeight="500"
               color="$primaryText"
               numberOfLines={1}
             >
               {button.label}
             </Text>
+            <LineOutline radius={BUTTON_HEIGHT / 2} />
           </View>
         </Pressable>
       ) : null}

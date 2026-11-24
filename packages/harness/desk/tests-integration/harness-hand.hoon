@@ -1,7 +1,9 @@
 ::  Hand admission through the full head, driven by test-agent; no card is
 ::  delivered and every scry answers %.n.
-/-  h=harness, hh=harness-hand, *harness-store
-/+  *test-agent, policy=harness-defaults, hd=harness-hand, hl=harness
+/-  h=harness, hh=harness-hand, t=harness-tlon, adapter=harness-adapter, c=harness-cron,
+    ac=acp, *harness-store
+/+  *test-agent, policy=harness-defaults, hd=harness-hand, hl=harness,
+    command=harness-command, schedule=harness-schedule
 /=  head  /app/harness
 |%
 ++  t0  ~2026.10.1
@@ -87,11 +89,23 @@
   (pure:m ~)
 ++  setup  (start-with fixture)
 ::
+::  Every read of the saved state also checks the head's index.
+::
 ++  get-state
   =/  m  (mare ,state-0)
   ^-  form:m
+  ;<  ~  bind:m  ex-index
   ;<  =vase  bind:m  get-save
   (pure:m !<(state-0 vase))
+::
+::  The head's index equals the derivation of the ledger it holds.
+::
+++  ex-index
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ledger=cage  bind:m  (got-peek /x/hand-state)
+  ;<  index=cage  bind:m  (got-peek /x/hand-index)
+  (ex-equal q.index !>((reindex:hd !<(state:hh q.ledger))))
 ::
 ++  cancels
   |=  cards=(list card)
@@ -107,14 +121,18 @@
   =/  stop-id  (input-id:hd 'source' 'stop-event')
   =/  unrelated  (input-id:hd 'other' 'unrelated')
   ;<  ~      bind:m  setup
+  ;<  ~      bind:m  ex-index
   ;<  *      bind:m  (do-poke %harness-hand !>(stop))
+  ;<  ~      bind:m  ex-index
   ;<  saved=state-0  bind:m  get-state
   ;<  *      bind:m  (do-poke %harness-action !>(`action:h`[%send 'source' 'New work']))
+  ;<  ~      bind:m  ex-index
   ;<  before=state-0  bind:m  get-state
   ::  The new work is in flight, so a replayed stop has something to cancel.
   =/  current  (play:hl log:(~(got by sessions.before) 'source'))
   ;<  ~  bind:m  (ex-equal !>(?=(^ pending.current)) !>(&))
   ;<  replayed=(list card)  bind:m  (do-poke %harness-hand !>(stop))
+  ;<  ~  bind:m  ex-index
   ;<  after=state-0  bind:m  get-state
   ;<  ~  bind:m
     (ex-equal !>(phase:(~(got by observations.hands.saved) running)) !>(%cancelled))
@@ -128,6 +146,274 @@
   ;<  ~  bind:m  (ex-equal !>(hands.after) !>(hands.before))
   ;<  ~  bind:m  (ex-equal !>(sessions.after) !>(sessions.before))
   (ex-equal !>((cancels replayed)) !>(|))
+::  One conversation several speakers share. .running is the actor of the
+::  input in flight; each of .waiting is queued in order after it. Another
+::  conversation has its own queued input.
+::
+++  shared
+  |=  [hand=@t actors=(list @t) running=@t waiting=(list [event=@t actor=@t])]
+  ^-  state-0
+  =/  saved  fixture
+  =.  hands.saved  *state:hh
+  =.  bindings.hands.saved
+    %-  my
+    :~  ['source' [hand 'source-room' 'source' actors &]]
+        ['other' ['fixture' 'other-room' 'other' ~['alice'] &]]
+    ==
+  =/  admit
+    |=  [db=state:hh binding=@t event=@t actor=@t]
+    ^-  state:hh
+    =/  res  (apply:hd db [%observe binding event actor event] t0)
+    ?>  ?=(%& -.res)
+    db.p.res
+  =/  db  (admit hands.saved 'source' 'running' running)
+  =.  db
+    %+  roll  waiting
+    |=  [[event=@t actor=@t] db=_db]
+    (admit db 'source' event actor)
+  =.  db  (admit db 'other' 'unrelated' 'alice')
+  saved(hands (start:hd db 'source' (input-id:hd 'source' 'running')))
+::  ~nec owns the bot; the Tlon hand grants every speaker it is asked about.
+::
+++  owner-scry
+  |=  =path
+  ^-  (unit vase)
+  ?:  ?=([%gu @ %harness-tlon @ %$ ~] path)  `!>(&)
+  ?:  ?=([%gx @ %harness-tlon @ %peer-trust %noun ~] path)
+    `!>(`peer-trust:t`[[& `~nec ~ %mentions ~ ~] |])
+  ?:  ?|  ?=([%gx @ %harness-tlon @ %authority @ %noun ~] path)
+          ?=([%gx @ %harness-tlon @ %authority @ @ %noun ~] path)
+      ==
+    `!>(`hand-authority:adapter`[& ~])
+  ?:  ?=([%gx @ %harness-tlon @ %context @ @ %noun ~] path)  `!>(`(unit @t)`~)
+  `!>(|)
+++  load
+  |=  [saved=state-0 scry=$-(path (unit vase))]
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now t0)))
+  ;<  ~  bind:m  (set-scry-gate scry)
+  ;<  *  bind:m  (do-load head `!>(saved))
+  (pure:m ~)
+++  phase-of
+  |=  [saved=state-0 event=@t]
+  ^-  phase:hh
+  phase:(~(got by observations.hands.saved) (input-id:hd 'source' event))
+++  observe
+  |=  [event=@t actor=@t text=@t]
+  (do-poke %harness-hand !>(`request:hh`[event [%observe 'source' event actor text]]))
+::  bob's stop leaves alice's running turn and waiting input alone. alice's
+::  own stop cancels her turn and her input, and bob's input then runs.
+::
+++  test-guest-stop-cancels-only-the-guests-work
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved
+    (shared 'fixture' ~['alice' 'bob'] 'alice' ~[['waiting' 'alice'] ['bob-waiting' 'bob']])
+  ;<  ~  bind:m  (load saved |=(path `!>(|)))
+  ;<  guest=(list card)  bind:m  (observe 'bob-stop' 'bob' '/stop')
+  ;<  after-guest=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>((cancels guest)) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((phase-of after-guest 'running')) !>(%running))
+  ;<  ~  bind:m  (ex-equal !>((phase-of after-guest 'waiting')) !>(%queued))
+  ;<  ~  bind:m  (ex-equal !>((phase-of after-guest 'bob-waiting')) !>(%cancelled))
+  ;<  ~  bind:m  (ex-equal !>((phase-of after-guest 'bob-stop')) !>(%queued))
+  ;<  ~  bind:m  (load saved |=(path `!>(|)))
+  ;<  own=(list card)  bind:m  (observe 'alice-stop' 'alice' '/stop')
+  ;<  after-own=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>((cancels own)) !>(&))
+  ;<  ~  bind:m  (ex-equal !>((phase-of after-own 'running')) !>(%cancelled))
+  ;<  ~  bind:m  (ex-equal !>((phase-of after-own 'waiting')) !>(%cancelled))
+  ;<  ~  bind:m  (ex-equal !>((phase-of after-own 'bob-waiting')) !>(%running))
+  %+  ex-equal  !>(queue.hands.after-own)
+  !>(~[(input-id:hd 'other' 'unrelated') (input-id:hd 'source' 'alice-stop')])
+::  The owner's stop cancels the turn in flight and every speaker's waiting
+::  input, as a local stop does.
+::
+++  test-owner-stop-cancels-the-running-turn
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved
+    (shared 'tlon' ~['~nec' '~bus' '~dev'] '~bus' ~[['waiting' '~bus'] ['dev-waiting' '~dev']])
+  ;<  ~  bind:m  (load saved owner-scry)
+  ;<  out=(list card)  bind:m  (observe 'owner-stop' '~nec' '/stop')
+  ;<  after=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>((cancels out)) !>(&))
+  ;<  ~  bind:m  (ex-equal !>((phase-of after 'running')) !>(%cancelled))
+  ;<  ~  bind:m  (ex-equal !>((phase-of after 'waiting')) !>(%cancelled))
+  (ex-equal !>((phase-of after 'dev-waiting')) !>(%cancelled))
+::  Revoking alice cancels her turn, the subagent it started and her waiting
+::  input; bob's input runs next, and timers and the other conversation's
+::  work stay.
+::
+++  test-fence-actor-cancels-one-speakers-work-and-others-continue
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved
+    (shared 'fixture' ~['alice' 'bob'] 'alice' ~[['waiting' 'alice'] ['bob-waiting' 'bob']])
+  =.  timers.saved
+    (my ~[[['source' %check] *timer:h]])
+  =/  child=session:h
+    :_  1
+    :~  [%input-received [0v1 [%subagent 'source' 'delegate'] ~ ~ t0 [%user 'Child work']]]
+        [%config-replaced defaults.saved(tools ~[%web])]
+    ==
+  =.  sessions.saved  (~(put by sessions.saved) 'child' child)
+  =.  subs.saved  (my ~[['child' ['source' 'delegate']]])
+  ;<  ~  bind:m  (load saved |=(path `!>(|)))
+  ;<  idle=(list card)  bind:m
+    (do-poke %harness-action !>(`action:h`[%fence-actor 'source' 'carol']))
+  ;<  untouched=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>((cancels idle)) !>(|))
+  ;<  ~  bind:m  (ex-equal !>(hands.untouched) !>(hands.saved))
+  ;<  out=(list card)  bind:m
+    (do-poke %harness-action !>(`action:h`[%fence-actor 'source' 'alice']))
+  ;<  after=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>((cancels out)) !>(&))
+  ;<  ~  bind:m  (ex-equal !>((phase-of after 'running')) !>(%cancelled))
+  ;<  ~  bind:m  (ex-equal !>((phase-of after 'waiting')) !>(%cancelled))
+  ;<  ~  bind:m  (ex-equal !>((phase-of after 'bob-waiting')) !>(%running))
+  ;<  ~  bind:m  (ex-equal !>(timers.after) !>(timers.saved))
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>(tools.config:(play:hl log:(~(got by sessions.after) 'child')))
+    !>(*(list tool-grant:h))
+  ;<  ~  bind:m  (ex-equal !>(subs.after) !>(~))
+  (ex-equal !>(queue.hands.after) !>(~[(input-id:hd 'other' 'unrelated')]))
+::  The owner's stop of alice's turn ends the subagent it started, so none
+::  is left working once alice's turn no longer runs.
+::
+++  test-a-stopped-turn-leaves-no-subagent-working
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  (shared 'fixture' ~['alice' 'bob'] 'alice' ~)
+  =/  child=session:h
+    :_  1
+    :~  [%input-received [0v1 [%subagent 'source' 'delegate'] ~ ~ t0 [%user 'Child work']]]
+        [%config-replaced defaults.saved(tools ~[%web])]
+    ==
+  =.  sessions.saved  (~(put by sessions.saved) 'child' child)
+  =.  subs.saved  (my ~[['child' ['source' 'delegate']]])
+  ;<  ~  bind:m  (load saved |=(path `!>(|)))
+  ;<  *  bind:m  (do-poke %harness-action !>(`action:h`[%cancel 'source']))
+  ;<  after=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>((phase-of after 'running')) !>(%cancelled))
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>(tools.config:(play:hl log:(~(got by sessions.after) 'child')))
+    !>(*(list tool-grant:h))
+  (ex-equal !>(subs.after) !>(~))
+::  An idle shared channel session and an idle DM, both bound to the Tlon
+::  hand. The hand lets only ~nec, the owner, change the channel, and ~bus
+::  change their own DM.
+::
+++  conversations
+  ^-  state-0
+  =/  saved  fixture
+  =/  idle=(list event:h)  ~[[%config-replaced defaults.saved]]
+  =.  sessions.saved  (my ~[['room' [idle 1]] ['dm' [idle 1]]])
+  =.  hands.saved  *state:hh
+  =.  bindings.hands.saved
+    %-  my
+    :~  ['room' ['tlon' 'chat/~lux/test' 'room' ~['*'] &]]
+        ['dm' ['tlon' 'dm/~bus' 'dm' ~['~bus'] &]]
+    ==
+  saved
+++  settings-scry
+  |=  =path
+  ^-  (unit vase)
+  =/  parts=(list @ta)  path
+  ?.  ?=([%gx @ %harness-tlon @ %settings @ @ %noun ~] parts)  (owner-scry path)
+  `!>(|(=('dm' i.t.t.t.t.t.parts) =('~nec' i.t.t.t.t.t.t.parts)))
+::  .who says .text in .sid; the session's log afterwards, newest first.
+::
+++  say
+  |=  [sid=@t who=@t text=@t]
+  =/  m  (mare ,(list event:h))
+  ^-  form:m
+  ;<  ~  bind:m  (load conversations settings-scry)
+  ;<  *  bind:m  (do-poke %harness-hand !>(`request:hh`[text [%observe sid text who text]]))
+  ;<  after=state-0  bind:m  get-state
+  (pure:m log:(~(got by sessions.after) sid))
+++  reply
+  |=  log=(list event:h)
+  ^-  (unit @t)
+  =/  done
+    (skim log |=(=event:h ?=(%command-completed -.event)))
+  ?~  done  ~
+  ?>  ?=(%command-completed -.i.done)
+  `body.i.done
+++  model
+  |=  log=(list event:h)
+  ^-  @t
+  model:config:(play:hl log)
+::  A refused command records only its input and the refusal: the session,
+::  memories, memory switch and work are unchanged and no model is asked.
+::
+++  ex-refused
+  |=  [sid=@t who=@t text=@t]
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  start  conversations
+  =/  before  log:(~(got by sessions.start) sid)
+  ;<  log=(list event:h)  bind:m  (say sid who text)
+  ;<  after=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>((reply log)) !>(`refused:command))
+  ;<  ~  bind:m  (ex-equal !>(?=([[%command-completed *] [%input-received *] *] log)) !>(&))
+  ;<  ~  bind:m  (ex-equal !>((slag 2 log)) !>(before))
+  ;<  ~  bind:m
+    %+  ex-equal  !>([records general disabled cursors]:knowledge.after)
+    !>([records general disabled cursors]:knowledge.start)
+  (ex-equal !>(workspace.after) !>(workspace.start))
+::
+++  test-a-guest-cannot-change-a-shared-channels-model
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (ex-refused 'room' '~bus' '/model other-model')
+  (ex-refused 'room' '~bus' '/model default')
+::
+++  test-a-guest-cannot-compact-or-change-memory-in-a-shared-channel
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (ex-refused 'room' '~bus' '/compact')
+  ;<  ~  bind:m  (ex-refused 'room' '~bus' '/memory off')
+  ;<  ~  bind:m  (ex-refused 'room' '~bus' '/memory on')
+  ;<  ~  bind:m  (ex-refused 'room' '~bus' '/remember note text')
+  ;<  ~  bind:m  (ex-refused 'room' '~bus' '/forget note')
+  (ex-refused 'room' '~bus' '/work projects')
+::
+++  test-the-owner-can-change-a-shared-channels-model
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  log=(list event:h)  bind:m  (say 'room' '~nec' '/model other-model')
+  ;<  ~  bind:m  (ex-equal !>((model log)) !>('other-model'))
+  (ex-equal !>(=((reply log) `refused:command)) !>(|))
+::
+++  test-a-dm-partner-keeps-their-commands
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  log=(list event:h)  bind:m  (say 'dm' '~bus' '/model other-model')
+  ;<  ~  bind:m  (ex-equal !>((model log)) !>('other-model'))
+  ;<  log=(list event:h)  bind:m  (say 'dm' '~bus' '/memory off')
+  (ex-equal !>(=((reply log) `refused:command)) !>(|))
+::
+++  test-a-guest-can-read-status-in-a-shared-channel
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  start  conversations
+  ;<  log=(list event:h)  bind:m  (say 'room' '~bus' '/status')
+  ;<  ~  bind:m  (ex-equal !>(=((reply log) `refused:command)) !>(|))
+  ;<  log=(list event:h)  bind:m  (say 'room' '~bus' '/model')
+  (ex-equal !>((reply log)) !>(`(cat 3 'Model: ' (model-label:command defaults.start))))
 ::  The fourth refused call halts the turn. Its observation gets one
 ::  terminal failure publication, and a fresh message starts a new turn.
 ::
@@ -140,7 +426,9 @@
   =/  expected=@t
     'I stopped before finishing this. You can ask me to try again in a new message.'
   ;<  ~  bind:m  (start-with halting)
+  ;<  ~  bind:m  ex-index
   ;<  *  bind:m  (do-poke %harness-action !>(`action:h`[%retry 'source']))
+  ;<  ~  bind:m  ex-index
   ;<  halted=state-0  bind:m  get-state
   =/  log  log:(~(got by sessions.halted) 'source')
   ;<  ~  bind:m  (ex-equal !>(?=([[%halted *] *] log)) !>(&))
@@ -154,6 +442,7 @@
   ;<  ~  bind:m  (ex-equal !>((~(has by active.hands.halted) 'source')) !>(|))
   =/  again=request:hh  ['next' [%observe 'source' 'next' 'alice' 'Try again.']]
   ;<  *  bind:m  (do-poke %harness-hand !>(again))
+  ;<  ~  bind:m  ex-index
   ;<  after=state-0  bind:m  get-state
   =/  current  (play:hl log:(~(got by sessions.after) 'source'))
   ;<  ~  bind:m  (ex-equal !>(?=(^ pending.current)) !>(&))
@@ -170,8 +459,10 @@
   ;<  ~  bind:m  (start-with halting)
   ;<  *  bind:m  (do-poke %harness-action !>(`action:h`[%retry 'source']))
   ;<  *  bind:m  (do-poke %harness-hand !>(claim))
+  ;<  ~  bind:m  ex-index
   ;<  claimed=state-0  bind:m  get-state
   ;<  *  bind:m  (do-poke %harness-action !>(`action:h`[%retry 'source']))
+  ;<  ~  bind:m  ex-index
   ;<  after=state-0  bind:m  get-state
   =/  halts
     %+  skim  log:(~(got by sessions.after) 'source')
@@ -179,4 +470,175 @@
   ;<  ~  bind:m  (ex-equal !>((lent halts)) !>(2))
   ;<  ~  bind:m  (ex-equal !>(status:(~(got by outbox.hands.after) running)) !>(%claimed))
   (ex-equal !>(hands.after) !>(hands.claimed))
+::  Each owner route that changes the ledger keeps the head's index equal to
+::  its derivation: hand pokes, cancel, fence and session delete.
+::
+++  test-head-index-follows-every-ledger-route
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  more=request:hh  ['more' [%observe 'source' 'more' 'alice' 'More']]
+  =/  again=request:hh  ['again' [%observe 'source' 'again' 'alice' 'Again']]
+  =/  later=request:hh  ['later' [%observe 'other' 'later' 'alice' 'Later']]
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  ex-index
+  ;<  *  bind:m  (do-poke %harness-hand !>(more))
+  ;<  ~  bind:m  ex-index
+  ;<  *  bind:m  (do-poke %harness-action !>(`action:h`[%cancel 'source']))
+  ;<  ~  bind:m  ex-index
+  ;<  cancelled=state-0  bind:m  get-state
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>(phase:(~(got by observations.hands.cancelled) (input-id:hd 'source' 'more')))
+    !>(%cancelled)
+  ;<  *  bind:m  (do-poke %harness-hand !>(again))
+  ;<  *  bind:m  (do-poke %harness-hand !>(later))
+  ;<  ~  bind:m  ex-index
+  ;<  *  bind:m  (do-poke %harness-action !>(`action:h`[%fence 'source']))
+  ;<  ~  bind:m  ex-index
+  ;<  *  bind:m  (do-poke %harness-action !>(`action:h`[%delete 'other']))
+  ;<  ~  bind:m  ex-index
+  ;<  deleted=state-0  bind:m  get-state
+  %+  ex-equal
+    !>(phase:(~(got by observations.hands.deleted) (input-id:hd 'other' 'later')))
+  !>(%cancelled)
+::  The head's answer to one hand request.
+::
+++  hand-result
+  |=  [id=@t cards=(list card)]
+  ^-  (list (each json @t))
+  %+  murn  cards
+  |=  =card
+  ^-  (unit (each json @t))
+  ?.  ?=([%give %fact * %noun *] card)  ~
+  ?.  =(~[/hands/[id]] paths.p.card)  ~
+  `;;((each json @t) q.q.cage.p.card)
+::  BINDINGS bindings, each with its own session, the first FULL of them
+::  holding PER waiting inputs. No session exists, so none can start.
+::
+++  waiting
+  |=  [bindings=@ud full=@ud per=@ud]
+  ^-  state-0
+  =/  saved  *state-0
+  =/  b  0
+  |-
+  ?:  =(b bindings)  saved
+  =/  id  (cat 3 'b' (scot %ud b))
+  =.  bindings.hands.saved
+    (~(put by bindings.hands.saved) id ['fixture' id id ~['alice'] &])
+  =/  k  0
+  =.  saved
+    |-
+    ?:  |((gte b full) =(k per))  saved
+    =/  event  (scot %ud k)
+    =/  input  (input-id:hd id event)
+    =.  observations.hands.saved
+      (~(put by observations.hands.saved) input [id event 'alice' 'text' t0 %queued])
+    =.  queue.hands.saved  (snoc queue.hands.saved input)
+    $(k +(k))
+  $(b +(b))
+::  The waiting limits still refuse, with the text they always had.
+::
+++  test-the-ninth-waiting-input-on-a-binding-is-refused
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  ninth=request:hh  ['ninth' [%observe 'b0' 'ninth' 'alice' 'Ninth']]
+  ;<  ~  bind:m  (start-with (waiting 1 1 8))
+  ;<  cards=(list card)  bind:m  (do-poke %harness-hand !>(ninth))
+  %+  ex-equal
+    !>((hand-result 'ninth' cards))
+  !>(`(list (each json @t))`~[[%| 'This binding or session has reached its waiting-work limit']])
+::
+++  test-the-129th-waiting-input-on-the-ship-is-refused
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  next=request:hh  ['next' [%observe 'b16' 'next' 'alice' 'Next']]
+  ;<  ~  bind:m  (start-with (waiting 17 16 8))
+  ;<  saved=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>((lent queue.hands.saved)) !>(128))
+  ;<  cards=(list card)  bind:m  (do-poke %harness-hand !>(next))
+  %+  ex-equal
+    !>((hand-result 'next' cards))
+  !>(`(list (each json @t))`~[[%| 'Admission queue is full; retry the same source event later']])
+::  Loading a saved ledger rebuilds the index before anything reads it: a
+::  pending publication is runnable and a schedule whose run is unfinished
+::  is busy.
+::
+++  test-load-rebuilds-the-index
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  fixture
+  =/  done  (input-id:hd 'other' 'done')
+  =.  observations.hands.saved
+    (~(put by observations.hands.saved) done ['other' 'done' 'alice' 'Done' t0 %completed])
+  =.  outbox.hands.saved
+    %+  ~(put by outbox.hands.saved)  done
+    [done 'other' 'fixture' 'other-room' 'other' %reply 'Reply' %pending '' '' ~]
+  =/  job=job:c
+    :*  %prompt  'UTC'  'source-room'  'source'  'source'  'every hour'  *pattern:c
+        'Prompt'  ~  t0  1  %active  ''  `(input-id:hd 'source' 'running')
+    ==
+  ;<  ~  bind:m  (start-with saved)
+  ;<  ~  bind:m  ex-index
+  ;<  ledger=cage  bind:m  (got-peek /x/hand-state)
+  ;<  index=cage  bind:m  (got-peek /x/hand-index)
+  =/  loaded=indexed:hh  [!<(state:hh q.ledger) !<(index:hh q.index)]
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>((turn (pending-publications:hd loaded 'fixture') |=([id=input-id:h *] id)))
+    !>(`(list input-id:h)`~[done])
+  (ex-equal !>((busy:schedule job loaded)) !>(&))
+::  352 completed observations of 'big' whose 512-byte source events are
+::  control characters, each escaped as \u00XX; listing them all takes more
+::  than an ACP payload.
+::
+++  escaped-history
+  ^-  state-0
+  =/  saved  fixture
+  =.  bindings.hands.saved
+    (~(put by bindings.hands.saved) 'big' ['fixture' 'big-room' 'other' ~['alice'] |])
+  =/  n=@ud  0
+  |-
+  ?:  =(352 n)  saved
+  =/  event  (end [3 512] (cat 3 (scot %ud n) (fil 3 512 0x1)))
+  =/  =observation:hh  ['big' event 'alice' 'Hello' (add t0 (mul n ~s1)) %completed]
+  %=  $
+    n  +(n)
+    observations.hands.saved
+      (~(put by observations.hands.saved) (input-id:hd 'big' event) observation)
+  ==
+::
+++  test-status-and-enable-replies-fit-an-acp-payload-at-any-history
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  =update:v1:ac
+    :*  %messages  'fixture'  %agent
+        :~  [1 t0 '{"jsonrpc":"2.0","id":1,"method":"harness/hand","params":{"status":{"binding":"big"}}}']
+            [2 t0 '{"jsonrpc":"2.0","id":2,"method":"harness/hand","params":{"enable":{"id":"big","enabled":true}}}']
+        ==
+    ==
+  ;<  ~  bind:m  (start-with escaped-history)
+  ;<  cards=(list card)  bind:m
+    (do-agent /acp/watch [~zod %acp] [%fact %acp-update-1 !>(update)])
+  =/  sent=(list @t)
+    %+  murn  cards
+    |=  =card
+    ^-  (unit @t)
+    ?.  ?=([%pass [%acp %send ~] %agent * %poke %acp-action-1 *] card)  ~
+    =/  [pass=* wire=* agent=* target=* poke=* mark=* data=vase]  card
+    =/  action  !<(action:v1:ac data)
+    ?>  ?=(%send -.action)
+    `payload.action
+  =/  counts
+    %+  turn  sent
+    |=  payload=@t
+    %.  (need (de:json:html payload))
+    (ot:dejs:format ~[result+(ot:dejs:format ~[['observationCount' ni:dejs:format]])])
+  ;<  ~  bind:m  (ex-equal !>(counts) !>(~[352 352]))
+  ::  max-payload-bytes in %acp.
+  (ex-equal !>((levy sent |=(payload=@t (lte (met 3 payload) 1.048.576)))) !>(&))
 --

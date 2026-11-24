@@ -22,13 +22,8 @@
   ?>  .^(? %gu /(scot %p our.bowl)/groups/(scot %da now.bowl)/$)
   .^(groups:v9:g %gx /(scot %p our.bowl)/groups/(scot %da now.bowl)/v2/groups/noun)
 ::
-++  group-id
-  |=  flag=[@p @tas]
-  (rap 3 (scot %p -.flag) '/' +.flag ~)
-::
-++  channel-id
-  |=  nest=[@tas @p @tas]
-  (rap 3 -.nest '/' (group-id +.nest) ~)
+++  group-id  flag-id:spec
+++  channel-id  nest-id:spec
 ::
 ++  metadata
   |=  [args=json old=data:meta]

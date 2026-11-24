@@ -30,22 +30,26 @@
 ::
 ::  Expected values, one per path: the input with the path's transformations.
 ::
+++  expected-3
+  ^-  state-3:t
+  populated-3:up
+::  The channel's per-speaker conversation is dropped; the DM is kept.
 ++  expected-2
-  ^-  state-2:t
-  populated-2:up
+  ^-  state-3:t
+  expected-3
 ::  Lens sync starts unconfigured.
 ++  expected-1
-  ^-  state-2:t
+  ^-  state-3:t
   =/  e  expected-2
   e(lens *lens-sync:t)
 ::  Channel cuts and the allowed and channel policies start empty. The
 ::  fixture's %all response survives conversion through mentions=|.
 ++  expected-0
-  ^-  state-2:t
+  ^-  state-3:t
   =/  e  expected-1
   e(channel-cuts ~, allowed.policy ~, channels.policy ~)
 ++  expected-0-mentions
-  ^-  state-2:t
+  ^-  state-3:t
   =/  e  expected-0
   e(response.policy %mentions)
 ::
@@ -55,11 +59,13 @@
   (expect-reload !>(project-0-mentions) expected-0-mentions)
 ++  test-tlon-state-1-upgrade-keeps-every-field
   (expect-reload !>(project-1) expected-1)
-++  test-tlon-state-2-reload-keeps-every-field
+++  test-tlon-state-2-upgrade-keeps-every-field
   (expect-reload !>(populated-2:up) expected-2)
+++  test-tlon-state-3-reload-keeps-every-field
+  (expect-reload !>(populated-3:up) expected-3)
 ::
 ++  expect-reload
-  |=  [saved=vase expected=state-2:t]
+  |=  [saved=vase expected=state-3:t]
   ^-  tang
   =/  once  (load:migrate saved)
   %+  weld  (expect-same:up !>(expected) !>(once))
