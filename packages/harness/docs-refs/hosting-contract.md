@@ -65,16 +65,21 @@ change to the defaults, reaches new conversations only.
 any size. The scry `/defaults.json`, which the Tlon hand creates its
 conversations from, returns the composed text in `system` instead.
 
-A same-ship agent reads all seven with the `%noun` scry `/x/prompts`, a
-`(map prompt-name:harness @t)` holding the non-empty layers. It sets one
-with the `%harness-action` poke `[%prompt-set name body]`; empty text clears
-the layer. A name outside the seven or a text over 65,536 bytes is refused
-with a nack, and a set that leaves the layer as it was changes nothing. To
-follow changes, it watches `/prompt-events` on `%harness`: the new subscriber
-alone first receives one `%noun` fact holding the whole layer map, and after
-any event that changes a layer, whichever surface wrote it, every subscriber
-receives one fact with the new map. Foreign ships cannot read, set or watch
-the layers.
+A same-ship agent reads all seven with the scry `/x/v1/prompts`, which
+returns mark `%harness-prompts-1` (`mar/harness/prompts-1.hoon`): a
+`prompts:harness`, the `(map prompt-name @t)` holding the non-empty layers.
+Scry it as `/v1/prompts/harness-prompts-1`, or `/v1/prompts/noun` for the same
+noun. It sets one with the `%harness-action` poke `[%prompt-set name body]`;
+empty text clears the layer. A name outside the seven or a text over 65,536
+bytes is refused with a nack, and a set that leaves the layer as it was
+changes nothing. To follow changes, it watches `/v1/prompt-events` on
+`%harness`: the new subscriber alone first receives one `%harness-prompts-1`
+fact holding the whole layer map, and after any event that changes a layer,
+whichever surface wrote it, every subscriber receives one fact with the new
+map. Each fact replaces the subscriber's copy; after a kick it watches again
+and replaces its copy from the fresh map that watch gives. A change to the
+map's shape would come as a new mark on a new path version, leaving these as
+they are. Foreign ships cannot read, set or watch the layers.
 
 `hosted-soul` exposes the `AGENTS.md` layer as a text body, not a
 separate filesystem copy. Send `{}` to read `{body, revision}`; send

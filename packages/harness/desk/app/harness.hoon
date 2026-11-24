@@ -165,7 +165,10 @@
         ::  Every writer of the default instructions, whatever its surface,
         ::  changes these layers.
         =?  cards  !=(before-prompts prompts)
-          (snoc cards [%give %fact ~[/prompt-events] %noun !>(prompts)])
+          %+  snoc  cards
+          :*  %give  %fact  ~[/v1/prompt-events]
+              %harness-prompts-1  !>(`prompts:h`prompts)
+          ==
         =?  cards  !=(before-writes writes.workspace)
           =/  revision=json
             (pairs:enjs:format ~[['revision' (numb:enjs:format writes.workspace)]])
@@ -385,7 +388,9 @@
         [%v1 %schedule-events ~]
       [~[[%give %fact ~ %harness-schedules-1 !>(`schedules:cr`schedules)]] this]
     ::
-      [%prompt-events ~]  [~[[%give %fact ~ %noun !>(prompts)]] this]
+        [%v1 %prompt-events ~]
+      [~[[%give %fact ~ %harness-prompts-1 !>(`prompts:h`prompts)]] this]
+    ::
       [%session @ ~]  `this
       [%hands @ ~]  `this
       [%crons @ ~]  `this
@@ -411,8 +416,8 @@
       ?+  path  session-read
           [%x %workspace ~]
         ``noun+!>(workspace)
-          [%x %prompts ~]
-        ``noun+!>(prompts)
+          [%x %v1 %prompts ~]
+        ``harness-prompts-1+!>(`prompts:h`prompts)
           [%x %cron ~]
         ``json+!>((list-json:schedule-lib schedules [hands hand-index] ~))
           [%x %cron-session @ ~]

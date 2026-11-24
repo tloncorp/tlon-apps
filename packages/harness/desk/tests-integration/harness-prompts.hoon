@@ -44,7 +44,8 @@
   %+  murn  cards
   |=  =card
   ^-  (unit prompts:h)
-  ?.  ?=([%give %fact [[%prompt-events ~] ~] %noun *] card)  ~
+  ?.  ?=([%give %fact [[%v1 %prompt-events ~] ~] %harness-prompts-1 *] card)
+    ~
   `!<(prompts:h q.cage.p.card)
 ::  Send one ACP request and return its result.
 ++  do-acp
@@ -91,20 +92,21 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~                bind:m  setup
-  ;<  out=(list card)  bind:m  (do-watch /prompt-events)
-  (ex-cards out ~[(ex-fact ~ %noun !>(layered))])
+  ;<  out=(list card)  bind:m  (do-watch /v1/prompt-events)
+  (ex-cards out ~[(ex-fact ~ %harness-prompts-1 !>(layered))])
 ++  test-foreign-ship-cannot-watch-prompts
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
-  (ex-fail ((do-as ~nec) (do-watch /prompt-events)))
+  (ex-fail ((do-as ~nec) (do-watch /v1/prompt-events)))
 ++  test-the-prompt-scry-returns-the-typed-layers
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~      bind:m  setup
-  ;<  =cage  bind:m  (got-peek /x/prompts)
+  ;<  =cage  bind:m  (got-peek /x/v1/prompts)
+  ;<  ~      bind:m  (ex-equal !>(p.cage) !>(%harness-prompts-1))
   (ex-equal q.cage !>(layered))
 ::
 ++  test-setting-one-layer-leaves-the-others
