@@ -322,3 +322,11 @@ test('Harness CI triggers on exactly the Tlon files the desk compiles against', 
   assert.equal(lists.length, 2, 'expected pull_request and push path lists')
   for (const paths of lists) assert.deepEqual(paths, listed)
 })
+
+test('the head asks the ledger index which bindings name a session instead of walking them', async () => {
+  const agent = await readFile(new URL('../desk/app/harness.hoon', import.meta.url), 'utf8')
+  assert.doesNotMatch(agent, /~\((?!get |got |has )[a-z]+ by bindings\.hands\)/)
+  for (const question of ['session-hand:hd', 'session-enabled:hd', 'session-bound:hd']) {
+    assert.match(agent, new RegExp(`\\(${question} \\[hands hand-index\\]`))
+  }
+})

@@ -725,7 +725,11 @@
     =/  config  (~(get by bindings.db) binding.observation)
     ?~  config  rows
     (~(put by rows) hand.u.config [[at.observation id] (~(gut by rows) hand.u.config ~)])
-  [open (~(run by rows) window)]
+  =/  sessions=(jug session-id:h @t)
+    %+  roll  ~(tap by bindings.db)
+    |=  [[id=@t config=binding:hh] sessions=(jug session-id:h @t)]
+    (~(put ju sessions) sid.config id)
+  [open (~(run by rows) window) sessions]
 ::
 ++  unfinished
   |=  [db=state:hh id=input-id:h]
@@ -777,6 +781,45 @@
     (~(put by recent.index) hand.u.config (window [[at.u.observation id] rows]))
   index
 ::
+::  +enroll: list or unlist binding .id after an action created or deleted it
+::
+::    A binding's session never changes, so only creation and deletion move
+::    it; disabling one keeps it listed.
+::
+++  enroll
+  |=  [=index:hh before=state:hh after=state:hh id=@t]
+  ^-  index:hh
+  =/  config  (~(get by bindings.after) id)
+  ?^  config  index(sessions (~(put ju sessions.index) sid.u.config id))
+  =/  old  (~(get by bindings.before) id)
+  ?~  old  index
+  index(sessions (~(del ju sessions.index) sid.u.old id))
+::
+::  +session-bindings: the bindings that name .sid, by the index
+::
+++  session-bindings
+  |=  [ledger=indexed:hh sid=session-id:h]
+  ^-  (list [id=@t config=binding:hh])
+  %+  murn  ~(tap in (~(get ju sessions.index.ledger) sid))
+  |=  id=@t
+  =/  config  (~(get by bindings.db.ledger) id)
+  ?~(config ~ `[id u.config])
+::
+++  session-bound
+  |=  [ledger=indexed:hh sid=session-id:h]
+  ^-  ?
+  ?=(^ (session-bindings ledger sid))
+::
+++  session-hand
+  |=  [ledger=indexed:hh sid=session-id:h hand=@t]
+  ^-  ?
+  (lien (session-bindings ledger sid) |=([@t config=binding:hh] =(hand hand.config)))
+::
+++  session-enabled
+  |=  [ledger=indexed:hh sid=session-id:h]
+  ^-  ?
+  (lien (session-bindings ledger sid) |=([@t config=binding:hh] enabled.config))
+::
 ::  +apply-indexed: +apply, bringing the index up to date for the records
 ::  the action changed
 ::
@@ -816,6 +859,14 @@
       `[at.observation id]
     ?~  rows  (~(del by recent.next) hand.u.retired)
     (~(put by recent.next) hand.u.retired (window rows))
+  =/  touched=(unit @t)
+    ?+  -.action  ~
+      %bind  `id.action
+      %register  `(cat 3 'hand--' (scot %ud (dec next-binding.db)))
+      %remove  `id.action
+      %retire  `binding.action
+    ==
+  =?  next  ?=(^ touched)  (enroll next db.ledger db u.touched)
   [%& [db next] result.p.applied]
 ::
 ++  start-indexed
@@ -852,9 +903,9 @@
   =.  ledger  (cancel-queued-indexed ledger sid ~)
   =*  db  db.ledger
   =.  bindings.db
-    %+  roll  ~(tap by bindings.db)
-    |=  [[id=@t config=binding:hh] bindings=(map @t binding:hh)]
-    (~(put by bindings) id ?:(=(sid sid.config) config(enabled |) config))
+    %+  roll  (session-bindings ledger sid)
+    |=  [[id=@t config=binding:hh] bindings=_bindings.db]
+    (~(put by bindings) id config(enabled |))
   %+  roll  ~(tap in open.index.ledger)
   |=  [id=input-id:h next=_ledger]
   =/  publication  (~(get by outbox.db.next) id)
