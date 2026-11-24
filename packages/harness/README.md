@@ -88,7 +88,8 @@ Without `click=scripts/click`, `setup` and `provider` take a fake ship that
 
 `chatgpt` signs in with a ChatGPT subscription. `openai`, `openrouter`, `anthropic`
 and `xai` ask for an API key. Then DM the ship from the owner in Tlon.
-Unpermissioned senders are silently ignored.
+A ship without access is not answered; the owner is sent a card asking about it
+(see [authority](docs-refs/tlon.md#authority-and-conversation-scope)).
 
 `just commit` and `just install-dev` keep files already in the mount; `just install`
 replaces the mount with the assembled desk, deleting anything stale.
