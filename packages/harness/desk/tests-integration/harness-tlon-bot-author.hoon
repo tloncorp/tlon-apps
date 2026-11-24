@@ -89,6 +89,10 @@
   ==
 ++  run
   |=  [saved=state-5:t event=incoming-event:v8:a native=(unit native)]
+  (run-in ~ saved event native)
+::  .run, with Groups holding .groups, whose channels anyone seated may read.
+++  run-in
+  |=  [=groups:v9:g saved=state-5:t event=incoming-event:v8:a native=(unit native)]
   =/  m  (mare ,outcome)
   ^-  form:m
   =/  =stream:v10:a
@@ -108,7 +112,8 @@
     ?:  =(%$ (rear path))  `!>(&)
     ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)
     ?:  ?=([%gx @ %chat @ %blocked %ships ~] path)  `!>(`(set @p)`~)
-    ?:  ?=([%gx @ %groups @ %v2 %groups %noun ~] path)  `!>(`groups:v9:g`~)
+    ?:  ?=([%gx @ %groups @ %v2 %groups %noun ~] path)  `!>(groups)
+    ?:  (lien path |=(part=@ta =(%can-read part)))  `!>(|=([@p *] &))
     ?:  ?=([%gx @ %activity @ %v6 %all %noun ~] path)  `!>(stream)
     ?:  ?=([%gx @ %harness @ %hand-state %noun ~] path)  `!>(*state:hh)
     ?:  ?=([%gx @ %harness @ %cron-session @ %noun ~] path)  `!>(~)
@@ -245,14 +250,16 @@
   ;<  ~  bind:m  (ex-equal !>((kinds got)) !>(`(list @t)`~))
   ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.saved.got)) !>(64))
   (ex-equal !>(activity-through.saved.got) !>(~2026.10.1))
-::  The request checks that the bot is in the channel; no post is read.
+::  ~bud may read the channel, so its post opens a request. The request
+::  checks that the bot is in the channel; no post is read.
 ::
 ++  test-no-read-for-a-denied-post
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   =/  present=native  [& & parent-at ~ ~]
-  ;<  got=outcome  bind:m  (run fixture (post-event ~bud) `present)
+  ;<  got=outcome  bind:m
+    (run-in (my ~[[[~nec %home] (group ~bud)]]) fixture (post-event ~bud) `present)
   ;<  ~  bind:m
     (ex-equal !>((kinds got)) !>(`(list @t)`~['approval-request' 'permission-denied']))
   (ex-equal !>(~(wyt by jobs.saved.got)) !>(0))
@@ -296,10 +303,12 @@
   %+  roll  (gulf 1 n)
   |=  [k=@ud s=_allowed-fixture]
   (with-job s `@uv`k ~nec owner-dm stage)
+::  The group of .nest, with .who seated.
 ++  group
+  |=  who=@p
   ^-  group:v9:g
   =/  joined  *group:v9:g
-  =.  seats.joined  (my ~[[guest `seat:v9:g`[~ ~2026.9.9]]])
+  =.  seats.joined  (my ~[[who `seat:v9:g`[~ ~2026.9.9]]])
   joined(channels (my ~[[nest *channel:v9:g]]))
 ++  gate
   |=  [=stream:v10:a member=?]
@@ -308,7 +317,7 @@
   ?:  ?=([@ @ %channels *] path)  ~
   ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
   ?:  (lien path |=(part=@ta =(%can-read part)))  `!>(|=([@p *] member))
-  ?:  ?=([%gx @ %groups @ %v2 %groups %noun ~] path)  `!>((my ~[[[~nec %home] group]]))
+  ?:  ?=([%gx @ %groups @ %v2 %groups %noun ~] path)  `!>((my ~[[[~nec %home] (group guest)]]))
   ?:  =(%$ (rear path))  `!>(&)
   ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)
   ?:  ?=([%gx @ %activity @ %v6 %all %noun ~] path)  `!>(stream)
