@@ -104,17 +104,23 @@ Model tools additionally require an exact outstanding request and source input;
 listing and cancellation cannot expose another source binding's schedules.
 
 To follow changes instead of polling, a same-ship agent watches
-`/schedule-events` on `%harness`. It first receives one `%noun` fact holding
-the whole schedule set, `(map @uv schedule:harness-cron)`, empty when there
-are none; that fact goes to the new subscriber only. After any event that
-changes a schedule (create, edit, cancel, delete, clear, retry, a pause after
-an authority change, or a run's admission advancing `next`, `remaining` and
-`last`), every subscriber receives one fact with the new full set. An event
-that leaves every schedule unchanged gives none. The store holds at most 64
-schedules, so each fact is a complete snapshot rather than a delta. The map
-holds stored schedule fields only; the row fields that `/cron/json` derives
-from hand state, such as `execution` and `delivery`, are not part of it.
-Foreign ships cannot watch the path.
+`/v1/schedule-events` on `%harness`. Each fact has mark `%harness-schedules-1`
+(`mar/harness/schedules-1.hoon`) and holds the whole schedule set, typed
+`schedules:harness-cron`, a `(map @uv schedule)`. A new subscriber first
+receives one such fact, empty when there are none; that fact goes to it only.
+After any event that changes a schedule (create, edit, cancel, delete, clear,
+retry, a pause after an authority change, or a run's admission advancing
+`next`, `remaining` and `last`), every subscriber receives one fact with the
+new full set. An event that leaves every schedule unchanged gives none. Each
+fact is a complete snapshot rather than a delta, so a subscriber replaces its
+copy with each one; the store holds at most 64 schedules, which bounds how
+many rows a snapshot carries. When the subscription is kicked, the subscriber
+watches the path again and replaces its copy from the fresh snapshot that
+watch gives. The map holds stored schedule fields only; the row fields that
+`/cron/json` derives from hand state, such as `execution` and `delivery`, are
+not part of it. A change to the fact's shape would come as a new mark on a
+new path version, leaving this one as it is. Foreign ships cannot watch the
+path.
 
 The JavaScript `HandClient` wraps these as `schedule(binding, options)`,
 `schedules(binding)`, `cancelSchedule(id)`, and `clearSchedule(id)`.
