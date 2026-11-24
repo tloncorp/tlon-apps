@@ -64,7 +64,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
     <View flex={1} backgroundColor={'$secondaryBackground'} paddingTop={top}>
       <View flex={1} justifyContent="center" alignItems="center" gap={'$3.5xl'}>
         <WelcomeIcon />
-        <TlonText.Text size="$label/xl">Tlon Messenger</TlonText.Text>
+        <TlonText.Text size="$title/l">Sato</TlonText.Text>
       </View>
       <View
         paddingBottom={bottom + 16}

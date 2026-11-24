@@ -126,7 +126,7 @@ export const SetNotificationsScreen = ({ navigation }: Props) => {
     <LineStepFrame
       step={2}
       title="Notifications"
-      subtitle="Tlon works best when you’re notified of messages. You can change this any time."
+      subtitle="Sato works best when you’re notified of messages. You can change this any time."
       primary={{
         label: wantsNotifications ? 'Enable notifications' : 'Next',
         onPress: handleNext,

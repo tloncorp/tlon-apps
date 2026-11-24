@@ -38,7 +38,7 @@ const DATA_LINK_TO_ART_GAP = 21;
 const MEET_ART_TOP_GAP = 33;
 
 /**
- * Meet your Tlonbot and Yours to keep, the first run's opening pair. Yours
+ * Meet Sato and Yours to keep, the first run's opening pair. Yours
  * to keep links to How your data is kept.
  */
 export function FirstRunIntroScreen({
