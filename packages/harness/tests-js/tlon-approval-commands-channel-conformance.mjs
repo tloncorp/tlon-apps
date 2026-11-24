@@ -57,9 +57,14 @@ try {
   assert.ok(!t.seen(sentText(`${guest.ship.slice(1)}-first`)), 'the mention the guest asked with reached the model')
   const direct = t.da(Date.now())
   await t.dm(guest, bot, sentText('direct'))
-  await until('the guest\'s DM reached the bot as an invitation', async () => (await t.scry(bot, 'chat/dm/invited')).includes(guest.ship))
+  await until('the guest sent its DM', async () => Object.values((await t.scry(guest, `chat/v4/dm/${bot.ship}/writs/newest/16/light`))?.writs || {})
+    .some((post) => t.words(post).includes(sentText('direct'))))
   await sleep(3000)
   assert.deepEqual(await t.dmFromBot(guest, direct), [], 'the guest was answered in a DM')
+  assert.ok(!(await t.scry(bot, 'chat/dm')).includes(guest.ship), 'the guest\'s DM invitation was accepted')
+  // The guest asked in the channel minutes ago, so the denial limit drops its first DM
+  // and declines the invitation rather than leave it pending.
+  assert.ok(!(await t.scry(bot, 'chat/dm/invited')).includes(guest.ship), 'the guest\'s DM invitation was left pending')
   assert.ok(!t.seen(sentText('direct')), 'the guest\'s DM reached the model')
   assert.ok(!t.seen(typed), 'the owner\'s command reached the model')
   console.log('PASS the allowed guest is answered in the channel and not in a DM')
