@@ -68,6 +68,15 @@
   %+  skim  cards
   |=  =card
   ?=([%pass [%steward %lease ~] %agent [@ %steward] %poke %steward-gateway-action-1 *] card)
+::  How many times the cards watch, and leave, Steward's gateway feed.
+::
+++  gateway
+  |=  cards=(list card)
+  ^-  [watches=@ud leaves=@ud]
+  =/  watch=card  [%pass /steward/gateway %agent [~zod %steward] %watch /v1/gateway]
+  =/  leave=card  [%pass /steward/gateway %agent [~zod %steward] %leave ~]
+  :-  (lent (skim cards |=(=card =(card watch))))
+  (lent (skim cards |=(=card =(card leave))))
 ::
 ++  set-owner
   |=  [owner=(unit @p) expected=(unit @p)]
@@ -111,12 +120,41 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  *  bind:m  (boot `~nec | |)
-  ;<  ~  bind:m  (set-scry-gate (scries &))
-  ::  Booting watches the head again; its ack is the hand's next event.
+  ;<  caz=(list card)  bind:m  (boot `~nec | |)
+  ;<  ~  bind:m  (ex-equal !>((gateway caz)) !>([1 0]))
+  ;<  ~  bind:m  (ex-equal !>((owners caz)) !>(`(list @p)`~))
+  ;<  ~  bind:m  (ex-equal !>((leases caz)) !>(0))
   ;<  caz=(list card)  bind:m  (do-agent /head [~zod %harness] [%watch-ack ~])
+  ;<  ~  bind:m  (ex-equal !>((owners caz)) !>(`(list @p)`~))
+  ;<  ~  bind:m  (ex-equal !>((leases caz)) !>(0))
+  ;<  ~  bind:m  (set-scry-gate (scries &))
+  ::  Gall replays the held watch when Steward starts; its ack is the next event.
+  ;<  caz=(list card)  bind:m  (do-agent /steward/gateway [~zod %steward] [%watch-ack ~])
   ;<  ~  bind:m  (ex-equal !>((owners caz)) !>(~[~nec]))
-  (ex-equal !>((leases caz)) !>(1))
+  ;<  ~  bind:m  (ex-equal !>((leases caz)) !>(1))
+  (ex-equal !>((gateway caz)) !>([0 0]))
+::
+++  test-the-hand-holds-one-watch-on-the-steward-gateway
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  caz=(list card)  bind:m  (boot `~nec | &)
+  ;<  ~  bind:m  (ex-equal !>((gateway caz)) !>([1 0]))
+  ;<  caz=(list card)  bind:m  (do-load adapter `!>((saved `~nec |)))
+  ;<  ~  bind:m  (ex-equal !>((gateway caz)) !>([0 0]))
+  ;<  caz=(list card)  bind:m  (do-agent /head [~zod %harness] [%watch-ack ~])
+  (ex-equal !>((gateway caz)) !>([0 0]))
+::
+++  test-an-ownerless-hand-does-not-watch-steward-and-a-cleared-owner-leaves
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  caz=(list card)  bind:m  (boot ~ | &)
+  ;<  ~  bind:m  (ex-equal !>((gateway caz)) !>([0 0]))
+  ;<  *  bind:m  (boot `~nec | &)
+  ;<  caz=(list card)  bind:m  (set-owner ~ `~nec)
+  (ex-equal !>((gateway caz)) !>([0 1]))
+::
 ::
 ::  Steward refuses a lease while it has no owner.
 ::
@@ -140,6 +178,28 @@
   ;<  ~  bind:m  (ex-equal !>(caz) !>(`(list card)`~))
   ;<  caz=(list card)  bind:m  (do-agent /steward/lease [~zod %steward] [%poke-ack ~])
   (ex-equal !>(caz) !>(`(list card)`~))
+::  Steward gives a gateway fact in answer to the lease poke, before Gall
+::  delivers what was sent behind it, so a fact that took the lease would poke
+::  Steward without end.
+::
+++  test-a-steward-gateway-fact-sends-steward-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (boot `~nec | &)
+  ;<  *  bind:m  (do-agent /head [~zod %harness] [%watch-ack ~])
+  =/  =update:v1:steward-gateway  [%status %up `~2026.10.1..00.15.10]
+  =/  =cage  [%steward-gateway-update-1 !>(update)]
+  ;<  caz=(list card)  bind:m  (do-agent /steward/gateway [~zod %steward] [%fact cage])
+  (ex-equal !>(caz) !>(`(list card)`~))
+::
+++  test-a-kicked-steward-gateway-watch-is-renewed-once
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (boot `~nec | &)
+  ;<  caz=(list card)  bind:m  (do-agent /steward/gateway [~zod %steward] [%kick ~])
+  (ex-equal !>(caz) !>(`(list card)`~[[%pass /steward/gateway %agent [~zod %steward] %watch /v1/gateway]]))
 ::
 ++  test-an-owner-change-reconfigures-steward-and-a-cleared-owner-sends-nothing
   %-  eval-mare
