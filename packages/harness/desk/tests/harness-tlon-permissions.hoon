@@ -157,6 +157,11 @@
     channel-grants  (my ~[[[%chat ~nec %test] (silt ~[~zod])]])
   ==
 ++  room  `destination:t`[%channel [%chat ~nec %test] ~]
+::  ~nec, the explicit owner, owns the ship before and after.
+::
+++  owned
+  ^-  owners:c
+  [|=(who=@p =(~nec who)) |=(who=@p =(~nec who))]
 ++  test-a-channel-grant-answers-there-and-nowhere-else
   ;:  weld
       (expect !>(?=(^ (destination-grants:p placed ~zod room ~ |))))
@@ -170,16 +175,12 @@
       (expect !>(?=(~ (destination-grants:p placed ~bus room ~ |))))
       (expect !>(?=(~ (destination-grants:p placed ~bus [%channel [%chat ~nec %other] ~] ~ |))))
   ==
-++  test-a-place-grant-gives-web-and-no-other-tool
+++  test-a-place-grant-is-not-ship-wide-or-peer-access
   ;:  weld
-      %+  expect-eq  !>(`(unit (list tool-grant:h))`[~ ~[%web]])
-      !>((destination-grants:p placed ~zod room ~[%tlon %code] |))
-      %+  expect-eq  !>(`(unit (list tool-grant:h))`[~ ~[%web]])
-      !>((destination-grants:p placed ~bus [%dm ~bus ~] ~[%tlon %code] |))
-      ::  A per-place grant is not ship-wide access.
       (expect-eq !>(`(unit (list tool-grant:h))`~) !>((grants:p placed ~zod ~)))
       (expect-eq !>(`(unit (list tool-grant:h))`~) !>((grants:p placed ~bus ~)))
       (expect !>(!(~(has by (peer-grants:p placed)) ~zod)))
+      (expect !>(!(~(has by (peer-grants:p placed)) ~bus)))
   ==
 ++  test-an-off-channel-answers-nobody-and-an-open-one-everybody-despite-grants
   =/  placed  placed
@@ -194,7 +195,7 @@
   =/  next  placed(channel-grants (~(put by channel-grants.placed) [%chat ~nec %other] (silt ~[~bus])))
   =/  prior  (my ~[[[~bus ~] ~2026.9.1]])
   =/  ship-cuts  (my ~[[~bus ~2026.9.1]])
-  =/  place-cuts  (place-cutoffs:c placed next prior ~2026.9.2)
+  =/  place-cuts  (place-cutoffs:c placed next owned prior ~2026.9.2)
   ;:  weld
       (expect-eq !>(`~2026.9.2) !>((~(get by place-cuts) [~bus `[%chat ~nec %other]])))
       (expect-eq !>(`~2026.9.1) !>((~(get by place-cuts) [~bus ~])))
@@ -205,30 +206,62 @@
   =/  placed  placed
   =/  next  placed(dm-grants (~(put in dm-grants.placed) ~zod))
   =/  prior  (my ~[[[~zod `[%chat ~nec %test]] ~2026.9.1]])
-  =/  place-cuts  (place-cutoffs:c placed next prior ~2026.9.2)
+  =/  place-cuts  (place-cutoffs:c placed next owned prior ~2026.9.2)
   ;:  weld
       (expect-eq !>(`~2026.9.2) !>((~(get by place-cuts) [~zod ~])))
       (expect-eq !>(`~2026.9.1) !>((~(get by place-cuts) [~zod `[%chat ~nec %test]])))
       (expect-eq !>(~) !>((cutoffs:c placed next ~ (silt ~[~zod]) ~ ~2026.9.2)))
   ==
-++  test-removing-a-dm-grant-retires-that-dm-only
+++  test-removing-a-dm-grant-changes-that-dm-only
   =/  placed  placed
   =/  next  placed(dm-grants ~)
   ;:  weld
-      (expect !>((affected:c placed next [[%dm ~bus ~] 1 ~[%web]])))
-      (expect !>(!(affected:c placed next [[%dm ~zod ~] 1 ~[%web]])))
-      (expect !>(!(affected:c placed next [room 1 ~[%web]])))
-      (expect !>((place-changed:c placed next ~bus ~)))
-      (expect !>(!(place-changed:c placed next ~zod `[%chat ~nec %test])))
+      (expect !>((place-changed:c placed next owned ~bus ~)))
+      (expect !>(!(place-changed:c placed next owned ~zod `[%chat ~nec %test])))
   ==
-++  test-a-place-grant-beside-ship-wide-access-changes-nothing
+++  test-removing-a-place-grant-beside-ship-wide-access-changes-nothing
   =/  placed  placed
   =/  wide  placed(allowed (silt ~[~zod ~bud]))
   =/  next  wide(channel-grants ~)
   ;:  weld
-      (expect !>(!(place-changed:c wide next ~zod `[%chat ~nec %test])))
-      (expect-eq !>(~) !>((place-cutoffs:c wide next ~ ~2026.9.2)))
+      (expect !>(!(place-changed:c wide next owned ~zod `[%chat ~nec %test])))
+      (expect-eq !>(~) !>((place-cutoffs:c wide next owned ~ ~2026.9.2)))
   ==
+::  An open channel already answers every reader.
+::
+++  test-a-grant-for-an-open-channels-reader-changes-nothing
+  =/  policy  policy
+  =/  open  policy(channels (my ~[[[%chat ~nec %test] [%mentions &]]]))
+  =/  granted  open(channel-grants (my ~[[[%chat ~nec %test] (silt ~[~zod])]]))
+  ;:  weld
+      (expect !>(!(place-changed:c open granted owned ~zod `[%chat ~nec %test])))
+      (expect-eq !>(~) !>((place-cutoffs:c open granted owned ~ ~2026.9.2)))
+      ::  The removal mirror.
+      (expect !>(!(place-changed:c granted open owned ~zod `[%chat ~nec %test])))
+      (expect-eq !>(~) !>((place-cutoffs:c granted open owned ~ ~2026.9.2)))
+  ==
+::  ~bud owns the ship as a sibling moon, not as the explicit owner.
+::
+++  test-a-dm-grant-for-a-sibling-owner-changes-nothing
+  =/  siblings=owners:c
+    [|=(who=@p |(=(~nec who) =(~bud who))) |=(who=@p |(=(~nec who) =(~bud who)))]
+  =/  policy  policy
+  =/  bare  policy(allowed ~)
+  =/  bare-granted  bare(dm-grants (silt ~[~bud]))
+  ;:  weld
+      (expect !>(!(place-changed:c bare bare-granted siblings ~bud ~)))
+      (expect-eq !>(~) !>((place-cutoffs:c bare bare-granted siblings ~ ~2026.9.2)))
+      (expect !>(!(place-changed:c bare-granted bare siblings ~bud ~)))
+      ::  Without sibling ownership the same grant is a change.
+      (expect !>((place-changed:c bare bare-granted owned ~bud ~)))
+  ==
+++  test-a-channel-grant-with-no-ships-is-not-saved
+  =/  policy  policy
+  =/  encoded  (policy-json:p policy)
+  ?>  ?=(%o -.encoded)
+  =/  row  (pairs:enjs:format ~[['channel' %s 'chat/~nec/test'] ['ships' %a ~]])
+  =/  saved  (json-policy:p *policy:t [%o (~(put by p.encoded) 'channelGrants' [%a ~[row]])])
+  (expect-eq !>(~) !>(channel-grants.saved))
 ++  test-place-grants-roundtrip-through-policy-json
   (expect-eq !>(placed) !>((json-policy:p *policy:t (policy-json:p placed))))
 ++  test-configure-json-without-place-grants-keeps-them

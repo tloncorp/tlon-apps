@@ -80,23 +80,23 @@
       !=((authority-for before actor) (authority-for after actor))
       (owner-only-revoked before after actor)
   ==
-::  +place-authority: an actor's authority in one place
+::  $owners: who owns the ship before and after a policy change
 ::
-::    A per-place grant gives what an allowed ship has, and nothing beside a
-::    ship-wide grant.
++$  owners  [before=$-(@p ?) after=$-(@p ?)]
+::  +place-changed: whether admission decides differently for an actor in a place
 ::
-++  place-authority
-  |=  [policy=policy:t actor=@p =place:t]
-  ^-  authority
-  =/  ship-wide  (authority-for policy actor)
-  ?.  ?=(%denied -.ship-wide)  ship-wide
-  ?.  (placed:p policy actor place)  ship-wide
-  [%trusted (silt ~[%web])]
+::    A grant beside access the actor already has there, as the owner, a
+::    sibling moon's owner, a ship-wide grant or an open channel's reader,
+::    changes nothing.
 ::
 ++  place-changed
-  |=  [before=policy:t after=policy:t actor=@p =place:t]
+  |=  [before=policy:t after=policy:t =owners actor=@p =place:t]
   ^-  ?
-  !=((place-authority before actor place) (place-authority after actor place))
+  =/  to=destination:t  ?~(place [%dm actor ~] [%channel u.place ~])
+  =/  was  (before.owners actor)
+  =/  is  (after.owners actor)
+  ?!  .=  [was (destination-grants:p before actor to ~ was)]
+  [is (destination-grants:p after actor to ~ is)]
 ::  +place-keys: every actor and place a policy grants per place
 ::
 ++  place-keys
@@ -163,6 +163,7 @@
 ++  place-cutoffs
   |=  $:  before=policy:t
           new=policy:t
+          =owners
           prior=(map [@p place:t] @da)
           now=@da
       ==
@@ -170,7 +171,7 @@
   %+  roll  ~(tap in (~(uni in (place-keys before)) (place-keys new)))
   |=  [[actor=@p =place:t] cutoffs=(map [@p place:t] @da)]
   =/  cutoff=(unit @da)
-    ?:  (place-changed before new actor place)  `now
+    ?:  (place-changed before new owners actor place)  `now
     (~(get by prior) [actor place])
   ?~  cutoff  cutoffs
   (~(put by cutoffs) [actor place] u.cutoff)
@@ -198,10 +199,7 @@
   |=  [before=policy:t after=policy:t lane=lane:t]
   ^-  ?
   ?-  -.to.lane
-      %dm
-    ?|  (actor-changed before after who.to.lane)
-        (place-changed before after who.to.lane ~)
-    ==
+    %dm  (actor-changed before after who.to.lane)
   ::
       %channel
     ?|  !=(enabled.before enabled.after)

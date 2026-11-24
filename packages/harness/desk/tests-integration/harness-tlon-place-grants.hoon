@@ -31,7 +31,9 @@
   ^-  group:v9:g
   =/  group  *group:v9:g
   =.  seats.group
-    (my ~[[~bus `seat:v9:g`[~ ~2026.9.9]] [~dev `seat:v9:g`[~ ~2026.9.9]]])
+    %-  malt
+    %+  turn  `(list @p)`~[~bus ~dev ~bud ~nus]
+    |=(who=@p [who `seat:v9:g`[~ ~2026.9.9]])
   group(channels (my ~[[room-nest *channel:v9:g] [other-nest *channel:v9:g]]))
 ++  head-connected
   %-  jab-bowl
@@ -223,34 +225,138 @@
         [~2026.9.9..12.00.01 (dm ~dev ~2026.9.9..12.00.01)]
     ==
   (ex-equal !>((admitted s)) !>((silt ~[[~dev room]])))
-::  Removing ~dev's room grant cancels its work in the room, keeps the
-::  room's route and leaves ~bus's DM alone.
+::  ~dev speaks in the room, in the other channel and in its DM, holding a
+::  grant for each. Revoking its room grant fences its work in the room alone
+::  and keeps every route. The head runs the turn; the adapter's part is the
+::  fence it sends and the queued work it drops.
 ::
 ++  test-removing-a-channel-grant-cancels-that-ships-work-there-only
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   =/  saved  fixture
-  =/  bus-dm  `destination:t`[%dm ~bus ~]
+  =/  other  `destination:t`[%channel other-nest ~]
+  =/  other-sid  (identity:continuity other)
+  =/  dev-dm  `destination:t`[%dm ~dev ~]
   =.  saved
     %=  saved
-      identities  (my ~[[room room-sid] [bus-dm 'dm']])
-      lanes  (my ~[[room-sid [room 1 owner-defaults]] ['dm' [bus-dm 1 ~[%web]]]])
-      routes  (my ~[[room-sid ['binding-room' %ready]] ['dm' ['binding-dm' %ready]]])
+      dm-grants.policy  (silt ~[~bus ~dev])
+      channel-grants.policy  (my ~[[room-nest (silt ~[~dev])] [other-nest (silt ~[~dev])]])
+      identities  (my ~[[room room-sid] [other other-sid] [dev-dm 'dm']])
+      lanes
+        %-  my
+        :~  [room-sid [room 1 owner-defaults]]
+            [other-sid [other 1 owner-defaults]]
+            ['dm' [dev-dm 1 ~[%web]]]
+        ==
+      routes
+        %-  my
+        :~  [room-sid ['binding-room' %ready]]
+            [other-sid ['binding-other' %ready]]
+            ['dm' ['binding-dm' %ready]]
+        ==
       jobs
         %-  my
         :~  [0v1 [[~dev 'e1' room 'hi'] room-sid %bind '']]
-            [0v2 [[~bus 'e2' bus-dm 'hi'] 'dm' %bind '']]
+            [0v2 [[~dev 'e2' other 'hi'] other-sid %bind '']]
+            [0v3 [[~dev 'e3' dev-dm 'hi'] 'dm' %bind '']]
         ==
     ==
   =/  next  policy.saved
-  =.  channel-grants.next  ~
+  =.  channel-grants.next  (my ~[[other-nest (silt ~[~dev])]])
   ;<  [caz=(list card) s=state-4:t]  bind:m  (configure saved next)
   =/  acts  (pokes caz %harness-action)
-  ;<  ~  bind:m  (ex-equal !>((lien acts |=(act=* =(act [%fence-actor room-sid '~dev'])))) !>(&))
-  ;<  ~  bind:m  (ex-equal !>((lien acts |=(act=* =(act [%fence 'dm'])))) !>(|))
-  ;<  ~  bind:m  (ex-equal !>(~(key by lanes.s)) !>((silt ~[room-sid 'dm'])))
-  (ex-equal !>(~(key by jobs.s)) !>((silt ~[0v2])))
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>((skim acts |=(act=* ?=([%fence-actor *] act))))
+    !>(`(list *)`~[[%fence-actor room-sid '~dev']])
+  ;<  ~  bind:m  (ex-equal !>((lien acts |=(act=* ?=([%fence *] act)))) !>(|))
+  ;<  ~  bind:m  (ex-equal !>(~(key by lanes.s)) !>((silt ~[room-sid other-sid 'dm'])))
+  ;<  ~  bind:m  (ex-equal !>(~(key by routes.s)) !>((silt ~[room-sid other-sid 'dm'])))
+  (ex-equal !>(~(key by jobs.s)) !>((silt ~[0v2 0v3])))
+::  ~nus is on no list and reads an open room, where it is already answered.
+::  A grant there, and its removal, change nothing: no fence, no dropped
+::  work, no cutoff. ~bud is allowed everywhere; its room grant is the same.
+::
+++  test-a-grant-that-changes-no-access-cancels-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  fixture
+  =.  saved
+    %=  saved
+      channels.policy  (my ~[[room-nest [%mentions &]] [other-nest [%mentions |]]])
+      identities  (my ~[[room room-sid]])
+      lanes  (my ~[[room-sid [room 1 owner-defaults]]])
+      routes  (my ~[[room-sid ['binding-room' %ready]]])
+      jobs
+        %-  my
+        :~  [0v1 [[~nus 'e1' room 'hi'] room-sid %bind '']]
+            [0v2 [[~bud 'e2' room 'hi'] room-sid %bind '']]
+        ==
+    ==
+  =/  granted  policy.saved
+  =.  channel-grants.granted  (my ~[[room-nest (silt ~[~dev ~nus ~bud])]])
+  ;<  [caz=(list card) s=state-4:t]  bind:m  (configure saved granted)
+  =/  fences
+    |=  caz=(list card)
+    (skim (pokes caz %harness-action) |=(act=* ?=([%fence-actor *] act)))
+  ;<  ~  bind:m  (ex-equal !>((fences caz)) !>(`(list *)`~))
+  ;<  ~  bind:m  (ex-equal !>(~(key by jobs.s)) !>((silt ~[0v1 0v2])))
+  ;<  ~  bind:m  (ex-equal !>(place-cuts.s) !>(place-cuts.saved))
+  ::  The removal mirror.
+  ;<  [caz=(list card) t=state-4:t]  bind:m  (configure s policy.saved)
+  ;<  ~  bind:m  (ex-equal !>((fences caz)) !>(`(list *)`~))
+  ;<  ~  bind:m  (ex-equal !>(~(key by jobs.t)) !>((silt ~[0v1 0v2])))
+  (ex-equal !>(place-cuts.t) !>(place-cuts.saved))
+::  Load .saved and read .speaker's authority in session .sid.
+::
+++  authority
+  |=  [saved=state-4:t sid=@t speaker=@p]
+  =/  m  (mare ,*)
+  ^-  form:m
+  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now ~2026.9.10))
+  ;<  ~  bind:m  head-connected
+  ;<  ~  bind:m  (set-scry-gate (scries *stream:v10:a))
+  ;<  *  bind:m  (do-load adapter `!>(saved))
+  ;<  ~  bind:m  head-connected
+  ;<  =cage  bind:m  (got-peek /x/authority/[sid]/(scot %p speaker))
+  (pure:m q.q.cage)
+::  The ceiling a ship's turn is given, Tlon tools included, is the same
+::  for a ship with a per-place grant as for an allowed ship, in a channel
+::  and in a DM, and holds no named tool.
+::
+++  test-a-place-grant-gives-the-same-ceiling-as-an-allowed-ship
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  fixture
+  =/  bus-dm  `destination:t`[%dm ~bus ~]
+  =/  bud-dm  `destination:t`[%dm ~bud ~]
+  =.  saved
+    %=  saved
+      lanes
+        %-  my
+        :~  [room-sid [room 1 owner-defaults]]
+            ['dm-bus' [bus-dm 1 ~[%web]]]
+            ['dm-bud' [bud-dm 1 ~[%web]]]
+        ==
+      routes
+        %-  my
+        :~  [room-sid ['binding-room' %ready]]
+            ['dm-bus' ['binding-bus' %ready]]
+            ['dm-bud' ['binding-bud' %ready]]
+        ==
+    ==
+  =/  allowed  `hand-authority:ad`[& `~[%web %tlon-read %tlon-write]]
+  ;<  placed-room=*  bind:m  (authority saved room-sid ~dev)
+  ;<  allowed-room=*  bind:m  (authority saved room-sid ~bud)
+  ;<  placed-dm=*  bind:m  (authority saved 'dm-bus' ~bus)
+  ;<  allowed-dm=*  bind:m  (authority saved 'dm-bud' ~bud)
+  ;<  ~  bind:m  (ex-equal !>(placed-room) !>(allowed-room))
+  ;<  ~  bind:m  (ex-equal !>(placed-dm) !>(allowed-dm))
+  ;<  ~  bind:m  (ex-equal !>(allowed-room) !>(`*`allowed))
+  (ex-equal !>(allowed-dm) !>(`*`allowed))
 ++  test-leaving-a-channel-removes-its-grants
   %-  eval-mare
   =/  m  (mare ,~)

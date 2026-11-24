@@ -1641,11 +1641,24 @@
   ::  Changing owners never retargets retained private run contents.
   =?  lens  !=(owner.updated-policy owner.policy)  *lens-sync:t
   =/  sibling-change  !=(siblings sibling-moon-owners)
+  =/  =owners:continuity
+    :-  |=(who=@p (owner:~(. ownership bowl) owner.before sibling-moon-owners who))
+    |=(who=@p (owner:~(. ownership bowl) owner.updated-policy siblings who))
+  ::  A per-place change reaches that speaker in that place alone, and only
+  ::  when it changes what admission decides there.
+  =/  replaced=(set [@p place:t])
+    %-  silt
+    %+  skim
+      %~  tap  in
+      (~(uni in (place-keys:continuity before)) (place-keys:continuity updated-policy))
+    |=  [who=@p =place:t]
+    (place-changed:continuity before updated-policy owners who place)
   =/  affected=(set @t)
     %-  silt
     %+  murn  ~(tap by lanes)
     |=  [sid=@t lane=lane:t]
     ?.  ?|  (affected:continuity before updated-policy lane)
+            &(?=(%dm -.to.lane) (~(has in replaced) [who.to.lane ~]))
             ?&  sibling-change
                 ?=(%dm -.to.lane)
                 (sibling:~(. ownership bowl) who.to.lane)
@@ -1658,7 +1671,8 @@
   =/  speakers=(set @p)
     (silt (turn ~(val by jobs) |=(job=job:t actor.input.job)))
   =.  cuts  (cutoffs:continuity before updated-policy identities speakers cuts now.bowl)
-  =.  place-cuts  (place-cutoffs:continuity before updated-policy place-cuts now.bowl)
+  =.  place-cuts
+    (place-cutoffs:continuity before updated-policy owners place-cuts now.bowl)
   =.  channel-cuts  (channel-cutoffs:continuity before updated-policy channel-cuts now.bowl)
   =?  channel-after  !=(response.before response.updated-policy)  now.bowl
   =?  after  !=(enabled.before enabled.updated-policy)  now.bowl
@@ -1705,14 +1719,6 @@
     ?|  (actor-changed:continuity before updated-policy who)
         &(sibling-change (sibling:~(. ownership bowl) who))
     ==
-  ::  A per-place change reaches that speaker's work in that place alone.
-  =/  replaced=(set [@p place:t])
-    %-  silt
-    %+  skim
-      %~  tap  in
-      (~(uni in (place-keys:continuity before)) (place-keys:continuity updated-policy))
-    |=  [who=@p =place:t]
-    (place-changed:continuity before updated-policy who place)
   =.  cor
     %+  roll  ~(tap by lanes)
     |=  [[sid=@t lane=lane:t] engine=_cor]

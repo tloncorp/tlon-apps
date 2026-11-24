@@ -20,10 +20,15 @@ const marker = `place-${randomUUID().slice(0, 8)}`, slug = marker, group = `${pe
 const roomA = `chat/${peer}/${slug}-a`, roomB = `chat/${peer}/${slug}-b`
 const prompts = []
 let event = 0, policy, defaults, created = false
+// A turn whose input carries the hold marker waits for the test to release it.
+let held = Promise.resolve()
 const server = createServer(async (req, res) => {
-  prompts.push(await readText(req))
+  const prompt = await readText(req)
+  prompts.push(prompt)
+  const hold = prompt.includes(`${marker}-hold`)
+  if (hold) await held
   res.setHeader('content-type', 'application/json')
-  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { role: 'assistant', content: `${marker}-answer` } }], usage: { prompt_tokens: 1, completion_tokens: 1 } }))
+  res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { role: 'assistant', content: `${marker}-${hold ? 'held' : 'answer'}` } }], usage: { prompt_tokens: 1, completion_tokens: 1 } }))
 })
 async function scry(path, remote = false) {
   const response = await fetch(`${remote ? process.env.PEER_URL : base}/~/scry/${path}.json`, {
@@ -64,8 +69,8 @@ async function mention(nest, label) {
     content: [{ inline: [{ ship }, ` ${marker}-${label}`] }], author: peer, sent: Date.now(), kind: '/chat', meta: null, blob: null,
   } } } } })
 }
-const answered = async (nest) => Object.values((await scry(`channels/v5/${nest}/posts/newest/32/post`))?.posts || {})
-  .some((post) => authorShip(post?.essay?.author) === ship && JSON.stringify(post.essay.content).includes(`${marker}-answer`))
+const answered = async (nest, reply = 'answer') => Object.values((await scry(`channels/v5/${nest}/posts/newest/32/post`))?.posts || {})
+  .some((post) => authorShip(post?.essay?.author) === ship && JSON.stringify(post.essay.content).includes(`${marker}-${reply}`))
 // The peer writes to the bot in their DM.
 async function dm(label) {
   const da = (((BigInt(Date.now()) * (1n << 64n)) / 1000n) + 170141184475152167957503069145530368000n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
@@ -161,6 +166,17 @@ try {
   await mention(roomB, 'channel-b-rejoined')
   await ignored('a mention in channel B after the bot left and joined it again', posted(roomB, 'channel-b-rejoined'))
   console.log('PASS leaving a channel removes its grants, and joining it again finds none')
+
+  // A grant for a reader of an open channel changes nothing: its running turn is still answered.
+  const open = { dmGrants: [peer], channels: [{ channel: roomA, response: 'mentions', everyone: true }] }
+  await configure(open)
+  let release
+  held = new Promise((resolve) => { release = resolve })
+  await mention(roomA, 'hold')
+  await until('the open channel\'s reader reached the model', async () => seen('hold'))
+  await configure({ ...open, channelGrants: [{ channel: roomA, ships: [peer] }] })
+  release()
+  await until('a grant for an open channel\'s reader keeps its running turn answered', () => answered(roomA, 'held'))
 } finally {
   try {
     if (defaults) await client.call('harness/defaults/configure', { config: { ...defaults, key: '' } })
