@@ -29,7 +29,7 @@
 /+  migration=harness-tlon-migrate
 /+  permissions=harness-tlon-permissions
 /+  story=harness-tlon-story, input=harness-tlon-input
-/+  observe=harness-observe
+/+  observe=harness-observe, logs
 /+  lens-codec=harness-tlon-lens
 /+  workspace-plan=harness-tlon-workspace-plan, group-policy=harness-tlon-group-policy,
     conversation-tool=harness-tlon-conversation-tool
@@ -2274,7 +2274,9 @@
   ?>  ?=([%approval @ @ ~] wire)
   ?.  ?=(%poke-ack -.sign)  cor
   ?~  p.sign  cor
-  %-  (slog 'harness-tlon: approval card rejected' u.p.sign)
+  =.  cor
+    %-  emit
+    (~(fail logs bowl /telemetry) %error ~[leaf+"harness-tlon: approval card rejected"] u.p.sign ~)
   =.  error  'Messenger rejected an approval card; inspect the ship log.'
   =/  id  i.t.wire
   =/  found  (~(get by by-id.approvals) id)

@@ -249,19 +249,29 @@
 ++  button
   |=  [id=@t label=@t command=@t primary=?]
   ^-  (list json)
-  :~  %-  pairs:enjs:format
-      :~  ['id' %s id]
-          ['component' %s 'Button']
-          ['variant' %s ?:(primary 'primary' 'secondary')]
-          ['child' %s (cat 3 id '-label')]
-          ['action' (send-action command)]
-      ==
-      %-  pairs:enjs:format
-      :~  ['id' %s (cat 3 id '-label')]
-          ['component' %s 'Text']
-          ['text' %s label]
-      ==
+  (labelled id (cat 3 id '-label') label command `?:(primary 'primary' 'secondary'))
+::  +labelled: a button whose label is the Text component .child
+::
+++  labelled
+  |=  [id=@t child=@t label=@t command=@t variant=(unit @t)]
+  ^-  (list json)
+  =/  fields=(list [@t json])
+    :~  ['id' %s id]
+        ['component' %s 'Button']
+        ['child' %s child]
+        ['action' (send-action command)]
+    ==
+  :~  (pairs:enjs:format ?~(variant fields [['variant' %s u.variant] fields]))
+      (text child label ~)
   ==
+::  +text: a Text component, with a variant if one is given
+::
+++  text
+  |=  [id=@t body=@t variant=(unit @t)]
+  ^-  json
+  =/  fields=(list [@t json])  ~[['id' %s id] ['component' %s 'Text'] ['text' %s body]]
+  %-  pairs:enjs:format
+  ?~(variant fields [['variant' %s u.variant] fields])
 ++  render
   |=  [id=@uv request=request:wc inspected=? current=? value=json]
   ^-  @t

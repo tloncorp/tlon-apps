@@ -66,12 +66,7 @@
       ==
   ^-  [text=@t blob=@t]
   =/  ship  (scot %p who)
-  =/  words
-    |=  [id=@t body=@t variant=(unit @t)]
-    ^-  json
-    =/  fields=(list [@t json])  ~[['id' %s id] ['component' %s 'Text'] ['text' %s body]]
-    %-  pairs:enjs:format
-    ?~(variant fields [['variant' %s u.variant] fields])
+  =*  words  text:work-card
   =/  lines=(list @t)
     ?~  where  ~[(cat 3 'Sender: ' ship)]
     %+  weld
@@ -84,17 +79,7 @@
     `(rap 3 'Message: "' u.preview '"' ~)
   =/  button
     |=  [id=@t label=@t variant=(unit @t) command=@t]
-    ^-  (list json)
-    =/  label-id  (cat 3 id 'Label')
-    =/  fields=(list [@t json])
-      :~  ['id' %s id]
-          ['component' %s 'Button']
-          ['child' %s label-id]
-          ['action' (send-action:work-card command)]
-      ==
-    :~  (pairs:enjs:format ?~(variant fields [['variant' %s u.variant] fields]))
-        (words label-id label ~)
-    ==
+    (labelled:work-card id (cat 3 id 'Label') label command variant)
   =/  children=(list @t)
     ;:  weld
       `(list @t)`~['eyebrow' 'title' 'titleDivider']
