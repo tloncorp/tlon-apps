@@ -61,10 +61,14 @@
 +$  cadence  [interval=@dr anchor=@da expression=@t]
 ::  A Steward edit still applying at the head: the head actions left to
 ::  send, in order, the answer once all succeed, and the names to keep then.
+::  A create for a destination where the bot has no conversation yet waits
+::  in .open while the hand opens one, under the owner it was planned for.
 +$  task-edit
   $:  steps=(list action:cr)
       answer=response-body:v1:sa
       names=(unit [id=@uv =task-names])
+      open=(unit destination)
+      owner=@p
   ==
 ::  The head's last schedule snapshot, so the Steward projection is rebuilt
 ::  without reading the head, Steward-given names by schedule, edits in

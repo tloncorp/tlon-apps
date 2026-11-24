@@ -1031,6 +1031,38 @@
 ++  test-a-schedule-from-the-owners-dm-with-no-input-runs-and-survives-its-first-message
   %-  eval-mare
   (survives-first-message owner-dm ~nec)
+::  A schedule made in the owner's DM before his first message there, as a
+::  Steward create into a DM the hand has just opened is, saves the tools of
+::  a conversation nobody administers yet: neither %skill-write nor %author.
+::  One made after his message saves both. The narrower set stays within
+::  his live grants once he writes, so his message does not pause the job
+::  (the test above), and it runs without those two tools.
+::
+++  test-a-schedule-made-before-the-owners-first-dm-message-saves-neither-skill-write-nor-author
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  args=json
+    %-  pairs:enjs:format
+    ~[['schedule' %s '0 * * * *'] ['timezone' %s 'UTC'] ['prompt' %s 'Hourly digest']]
+  =/  add=action:c  [%add 0v1 'source-binding' '~nec' %prompt args]
+  =/  lanes  (my ~[['source' (tlon-lane ~nec owner-dm ~)]])
+  =/  saved
+    |=  s=state-0
+    =/  m  (mare ,(list tool-grant:h))
+    ^-  form:m
+    ;<  ~  bind:m  (tlon-setup s lanes)
+    ;<  *  bind:m  (do-poke %harness-cron !>(`request:c`['fresh' add]))
+    ;<  made=state-0  bind:m  get-state
+    (pure:m tools:(~(got by schedules.made) 0v1))
+  ;<  narrow=(list tool-grant:h)  bind:m  (saved (fresh-fixture owner-dm))
+  ;<  wide=(list tool-grant:h)  bind:m
+    (saved (first-message (fresh-fixture owner-dm) owner-dm ~nec t0))
+  =/  has  |=([tools=(list tool-grant:h) tool=tool-grant:h] ?=(^ (find ~[tool] tools)))
+  ;<  ~  bind:m  (ex-equal !>([(has narrow %skill-write) (has narrow %author)]) !>([| |]))
+  ;<  ~  bind:m  (ex-equal !>([(has wide %skill-write) (has wide %author)]) !>([& &]))
+  %+  ex-equal  !>((skip narrow |=(tool=tool-grant:h (has wide tool))))
+  !>(`(list tool-grant:h)`~)
 ::  A Tlon job whose actor is not the owner must not run, and shows as paused
 ::  rather than cancelled or removed.
 ::

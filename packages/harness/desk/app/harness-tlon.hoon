@@ -462,18 +462,20 @@
       u.owner
       schedules.automation
       names.automation
-      owner-binding
+      conversation-binding
     ==
   ?:  ?=(%| -.planned)
     (finalize id.dispatch [%error type.p.planned ~[leaf+(trip message.p.planned)]])
-  (apply-edit id.dispatch p.planned)
+  =/  edit  p.planned
+  =?  open.edit  &(?=(^ open.edit) ?=(^ (ready-binding u.open.edit)))  ~
+  (apply-edit id.dispatch edit)
 ::
 ::  The head binding of the bot's conversation at a destination, one already
 ::  set up. A channel's is shared by everyone who speaks there, so the owner's
 ::  job runs in it as the owner's own message would; +deliver admits no DM
 ::  but the owner's.
 ::
-++  owner-binding
+++  ready-binding
   |=  to=destination:t
   ^-  (unit @t)
   =/  sid  (~(get by identities) to)
@@ -482,12 +484,156 @@
   ?.  &(?=(^ route) =(%ready phase.u.route))  ~
   `binding.u.route
 ::
+::  +conversation-binding: the binding a job at .to runs in: the ready
+::  conversation's, or the one opening it will set up, which a route being
+::  set up already names. Or why the bot cannot have a conversation there.
+::
+++  conversation-binding
+  |=  to=destination:t
+  ^-  (each @t @t)
+  =/  ready  (ready-binding to)
+  ?^  ready  [%& u.ready]
+  =/  reason  (unopenable to)
+  ?^  reason  [%| u.reason]
+  =/  [sid=@t generation=@ud]  (lane-for to)
+  =/  route  (~(get by routes) sid)
+  [%& ?~(route (binding:continuity sid generation) binding.u.route)]
+::
+::  +unopenable: why the hand cannot open a conversation at .to, the checks
+::  +start-route makes and, for a channel, that the bot can post there.
+::  +deliver admits no DM but the owner's.
+::
+++  unopenable
+  |=  to=destination:t
+  ^-  (unit @t)
+  =/  where  (target:automation-lib (address:p to))
+  ?.  enabled.policy  `'the bot is turned off; turn it on in its Tlon settings'
+  ?-  -.to
+      %dm
+    ?^  (speaker-grants who.to to ~)  ~
+    `(cat 3 'the bot cannot reply in the DM with ' where)
+  ::
+      %channel
+    ?:  =(%off response:(channel-rule:p policy nest.to))
+      `(rap 3 'the bot\'s replies are off in ' where '; turn them on in its Tlon settings' ~)
+    ?:  =(`& (mole |.((can-write:~(. directory:permissions bowl) nest.to))))  ~
+    `(rap 3 'the bot cannot post in ' where '; add it to the channel with permission to write' ~)
+  ==
+::
+::  +lane-for: the session of the bot's conversation at .to, and the
+::  authorization generation it has or would open under
+::
+++  lane-for
+  |=  to=destination:t
+  ^-  [sid=@t generation=@ud]
+  =/  sid  (fall (~(get by identities) to) (identity:continuity to))
+  =/  existing  (~(get by lanes) sid)
+  [sid ?~(existing epoch epoch.u.existing)]
+::
+::  +open-lane: record the conversation at .to, if it has no lane yet, with
+::  its route still to be set up by +start-route
+::
+++  open-lane
+  |=  to=destination:t
+  ^+  cor
+  =/  [sid=@t generation=@ud]  (lane-for to)
+  =.  identities  (~(put by identities) to sid)
+  ?:  (~(has by lanes) sid)  cor
+  =.  lanes  (~(put by lanes) sid [to generation ~])
+  =.  routes  (~(put by routes) sid [(binding:continuity sid generation) %fence])
+  cor
+::
+::  +open-conversation: set up the conversation at .to for edit .id waiting
+::  on it. A route a job or another waiting edit is already setting up is
+::  left to finish; one with neither has stalled and starts again. A ready
+::  route needs only the binding.
+::
+++  open-conversation
+  |=  [id=@uv to=destination:t]
+  ^+  cor
+  =/  [sid=@t *]  (lane-for to)
+  ?.  (~(has by lanes) sid)
+    (start-route:(open-lane to) sid)
+  =/  route  (~(got by routes) sid)
+  ?:  =(%ready phase.route)  (bind-route sid)
+  ?:  ?|  (lien ~(val by jobs) |=(=job:t &(=(sid sid.job) =(%create stage.job))))
+          (lien (waiting sid) |=([other=@uv *] !=(id other)))
+      ==
+    cor
+  (start-route sid)
+::
+::  +waiting: the edits waiting for the conversation of session .sid
+::
+++  waiting
+  |=  sid=@t
+  ^-  (list [id=@uv edit=task-edit:t])
+  %+  skim  ~(tap by edits.automation)
+  |=  [id=@uv edit=task-edit:t]
+  ?~  open.edit  |
+  =(`sid (~(get by identities) u.open.edit))
+::
+::  +bind-route: bind a ready conversation for the edits waiting on it.
+::  Messages bind it through their jobs; an opened one has none.
+::
+++  bind-route
+  |=  sid=@t
+  ^+  cor
+  =/  lane  (~(got by lanes) sid)
+  =/  route  (~(got by routes) sid)
+  (hand %open (sham [sid epoch.lane]) [%bind binding.route (route-binding sid to.lane)])
+::
+::  +route-binding: the head binding of a conversation. A channel's admits
+::  any speaker; each turn's authority is decided per speaker. A DM's
+::  admits only its partner.
+::
+++  route-binding
+  |=  [sid=@t to=destination:t]
+  ^-  binding:hh
+  =/  actors=(list @t)
+    ?:(?=(%channel -.to) ~['*'] ~[(scot %p who.to)])
+  ['tlon' (address:p to) sid actors &]
+::
+::  +resume: the edits waiting on the open whose hand request is .id, once
+::  it is answered. .refusal is the head's reason when it refused. A kick
+::  lost the answer; resuming then leaves a missing binding to the head's
+::  refusal of the add. An edit planned for another owner is refused: its
+::  command came from an owner this bot no longer has.
+::
+++  resume
+  |=  [id=@uv refusal=(unit @t)]
+  ^+  cor
+  %+  roll  ~(tap by edits.automation)
+  |=  [[edit-id=@uv edit=task-edit:t] engine=_cor]
+  ?~  open.edit  engine
+  =/  sid  (~(get by identities.engine) u.open.edit)
+  ?~  sid  engine
+  =/  lane  (~(get by lanes.engine) u.sid)
+  ?~  lane  engine
+  ?.  =(id (sham [u.sid epoch.u.lane]))  engine
+  ?^  refusal  (fail-edit:engine edit-id u.refusal)
+  ?.  =(owner.policy.engine `owner.edit)
+    (fail-edit:engine edit-id 'the bot\'s owner changed; send the change again')
+  (apply-edit:engine edit-id edit(open ~))
+::
+::  +fail-waiting: answer the edits waiting on session .sid with an error
+::
+++  fail-waiting
+  |=  [sid=@t reason=@t]
+  ^+  cor
+  %+  roll  (waiting sid)
+  |=  [[id=@uv *] engine=_cor]
+  (fail-edit:engine id reason)
+::
 ::  Send the edit's next head action, or, with none left, keep its names
 ::  and answer. Each action is its own head request, answered on its path.
+::  An edit waiting on a conversation is kept until the hand has opened it.
 ::
 ++  apply-edit
   |=  [id=@uv edit=task-edit:t]
   ^+  cor
+  ?^  open.edit
+    =.  edits.automation  (~(put by edits.automation) id edit)
+    (open-conversation id u.open.edit)
   =/  wire  /steward/edit/(scot %uv id)
   =?  cor  (~(has by wex.bowl) wire our.bowl %harness)
     (emit [%pass wire %agent [our.bowl %harness] %leave ~])
@@ -1995,6 +2141,9 @@
     =?  engine  &(?=(^ route) (~(has by bindings.hands) binding.u.route))
       (hand:engine %disable (sham [sid epoch.engine]) [%enable binding.u.route |])
     =.  engine  (head:engine /cancel [%fence sid])
+    =.  engine
+      %+  fail-waiting:engine  sid
+      'the bot\'s settings for this conversation changed; send the change again'
     engine(lanes (~(del by lanes.engine) sid), routes (~(del by routes.engine) sid))
   =.  jobs
     %-  my
@@ -2462,6 +2611,10 @@
   |=  [=wire =sign:agent:gall]
   ^+  cor
   ?>  ?=([%hand @ @ ~] wire)
+  ::  A kicked open lost its answer, and nothing else would resume the
+  ::  edits waiting on it.
+  ?:  &(=(%open i.t.wire) ?=(%kick -.sign))
+    (resume (slav %uv i.t.t.wire) ~)
   ?.  ?=(%fact -.sign)  cor
   =.  cor  (emit [%pass wire %agent [our.bowl %harness] %leave ~])
   =/  phase=term  i.t.wire
@@ -2471,6 +2624,7 @@
     (refused id (~(got by jobs) id) p.result)
   ::  Disabling a binding that no longer exists is expected, not an error.
   ?:  =(%disable phase)  cor
+  ?:  =(%open phase)  (resume id ?:(?=(%| -.result) `p.result ~))
   ?:  ?=(%| -.result)  cor(error p.result)
   ?:  =(%bind phase)
     =/  job  (~(get by jobs) id)
@@ -2702,9 +2856,8 @@
   ?:  (lte (posted-at:continuity event) cutoff)  cor
   ::  A ready route does not recheck native read permission on its own.
   ?~  (speaker-grants actor.u.input to.u.input ~)  cor
-  =/  sid  (fall (~(get by identities) to.u.input) (identity:continuity to.u.input))
+  =/  [sid=@t generation=@ud]  (lane-for to.u.input)
   =/  existing  (~(get by lanes) sid)
-  =/  generation  ?~(existing epoch epoch.u.existing)
   =/  id=@uv  (sham [generation u.input])
   ?:  (~(has by jobs) id)  cor
   ?:  (gte ~(wyt by jobs) 64)  cor(error 'Admission queue full; inspect Tlon pending work.')
@@ -2720,14 +2873,12 @@
   =/  =job:t  [u.input sid %create '']
   =.  jobs  (~(put by jobs) id job)
   =.  cor  (note ?:(=(`& bot) 'bot-message' 'message') actor.u.input (address:p to.u.input) event.u.input)
-  =.  identities  (~(put by identities) to.u.input sid)
+  =.  cor  (open-lane to.u.input)
   ?:  ?=(^ existing)
     ?:  (route-ready sid)  (bind-job id job)
     ?:  (lien ~(val by jobs) |=(pending=job:t &(=(sid sid.pending) =(%error stage.pending))))
       (start-route sid)
     cor
-  =.  lanes  (~(put by lanes) sid [to.u.input generation ~])
-  =.  routes  (~(put by routes) sid [(binding:continuity sid generation) %fence])
   (start-route sid)
 ::
 ++  deny-unpermissioned
@@ -2836,17 +2987,21 @@
     |=  [[id=@uv job=job:t] jobs=(map @uv job:t)]
     =/  updated  ?:(=(sid sid.job) job(stage %error, error reason) job)
     (~(put by jobs) id updated)
-  cor(error reason)
+  =.  error  reason
+  (fail-waiting sid reason)
 ::
 ++  route-complete
   |=  sid=@t
   ^+  cor
   =/  route  (~(got by routes) sid)
   =.  routes  (~(put by routes) sid route(phase %ready))
-  %+  roll  ~(tap by jobs)
-  |=  [[id=@uv job=job:t] engine=_cor]
-  ?.  &(=(sid sid.job) !=(%error stage.job))  engine
-  (bind-job:engine id job)
+  =.  cor
+    %+  roll  ~(tap by jobs)
+    |=  [[id=@uv job=job:t] engine=_cor]
+    ?.  &(=(sid sid.job) !=(%error stage.job))  engine
+    (bind-job:engine id job)
+  ?~  (waiting sid)  cor
+  (bind-route sid)
 ::
 ++  bind-job
   |=  [id=@uv job=job:t]
@@ -2856,12 +3011,7 @@
     cor(jobs (~(del by jobs) id))
   =/  route  (~(got by routes) sid.job)
   =.  jobs  (~(put by jobs) id job(stage %bind))
-  %^  hand  %bind  id
-  ::  A channel's binding admits any speaker; each turn's authority is
-  ::  decided per speaker. A DM's admits only its partner.
-  =/  actors=(list @t)
-    ?:(?=(%channel -.to.input.job) ~['*'] ~[(scot %p who.to.input.job)])
-  [%bind binding.route ['tlon' (address:p to.input.job) sid.job actors &]]
+  (hand %bind id [%bind binding.route (route-binding sid.job to.input.job)])
 ::
 ++  head-live
   ^-  ?
@@ -2934,8 +3084,10 @@
   =.  cor
     %+  roll  ~(tap by routes)
     |=  [[sid=@t route=route:t] engine=_cor]
-    ?:  =(%ready phase.route)  engine
-    (start-route:engine sid)
+    ?.  =(%ready phase.route)  (start-route:engine sid)
+    ::  An opened conversation's binding may have been lost with the head.
+    ?~  (waiting:engine sid)  engine
+    (bind-route:engine sid)
   ::  Recover the durable dispatch boundary, not just the pending outbox.
   ::  %claim means no Messenger card has been emitted; %send means its
   ::  outcome may be unknown; %receipt means the outcome is already recorded.

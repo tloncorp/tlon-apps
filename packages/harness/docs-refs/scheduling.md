@@ -150,7 +150,9 @@ above; [the Tlon hand](tlon.md#scheduled-tasks-in-tlon-messenger) describes the
 mapping and each refusal. An edit cannot do more than the API: pausing cancels,
 a cancelled job cannot be resumed, a job cannot move to another conversation,
 an `every` schedule runs only as a cron expression, so its interval must divide
-an hour or a day or be a week, and there are no test runs. A recurring job
+an hour or a day or be a week, and there are no test runs. A task can go to
+the owner's DM or any channel the bot can post in; the hand opens the
+conversation if nobody has written there yet. A recurring job
 created there has no run limit and runs until it is cancelled; an edit there
 keeps the limit a job already has. Tasks another runtime left in Steward stay
 on the screen, not replaced, until the hand has a task of its own.

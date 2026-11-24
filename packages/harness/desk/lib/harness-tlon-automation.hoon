@@ -358,7 +358,9 @@
 ::
 ::  +plan: a Steward edit as the head actions that apply it, or the answer
 ::  that refuses it. .binding names the head binding of the bot's
-::  conversation at a destination, if the hand has one.
+::  conversation at a destination, one it has or one it can open, or why
+::  it can have none. A create waits on its destination's conversation;
+::  the hand clears .open when that is already set up.
 ::
 ++  plan
   |=  $:  =edit:v1:sa
@@ -367,7 +369,7 @@
           owner=@p
           schedules=(map @uv schedule:cr)
           names=(map @uv task-names:t)
-          binding=$-(destination:t (unit @t))
+          binding=$-(destination:t (each @t @t))
       ==
   ^-  (each task-edit:t refusal)
   =/  invalid  |=(message=@t `(each task-edit:t refusal)`[%| %invalid message])
@@ -383,16 +385,16 @@
     =/  to  (deliver delivery.task owner)
     ?:  ?=(%| -.to)  (invalid p.to)
     =/  source  (binding p.to)
-    ?~  source
-      %-  invalid
-      (cat 3 'the bot has no conversation at ' (target (address:p p.to)))
+    ?:  ?=(%| -.source)  (invalid p.source)
     =/  timed  (timing u.schedule.task | u.message.u.payload.task ~ now ~)
     ?:  ?=(%| -.timed)  (invalid p.timed)
-    =/  add=action:cr  [%add request u.source (scot %p owner) %prompt args.p.timed]
+    =/  add=action:cr  [%add request p.source (scot %p owner) %prompt args.p.timed]
     :*  %&
         ?:(=(`| enabled.task) ~[add [%cancel request]] ~[add])
         [%created (scot %uv request)]
         `[request zone.p.timed every.p.timed name.task description.task]
+        `p.to
+        owner
     ==
   =/  id=@t
     ?-  -.edit
@@ -405,7 +407,7 @@
   ?.  &(?=(^ key) ?=(^ job) (owned u.job owner))
     [%| %not-found (cat 3 'no task ' id)]
   ?-  -.edit
-    %delete  [%& ~[[%delete u.key]] [%deleted id] ~]
+    %delete  [%& ~[[%delete u.key]] [%deleted id] ~ ~ owner]
     %test    (invalid 'test runs are not supported by this harness yet')
   ::
       %update
@@ -469,6 +471,8 @@
             ?~(p.retimed every.kept every.u.p.retimed)
           ?~(name.task name.kept name.task)
         ?~(description.task description.kept description.task)
+        ~
+        owner
     ==
   ==
 --

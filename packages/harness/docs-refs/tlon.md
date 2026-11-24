@@ -1026,10 +1026,30 @@ already made.
   update from the anchor the task had if its interval is unchanged, and
   otherwise from the update. The hand keeps the interval and anchor to show
   them back. A recurring job has no run limit and runs until it is
-  cancelled. It delivers to the owner's DM when its delivery names that DM, has `mode` `none` or is absent,
-  and to a channel only where the bot already has a conversation. The job
-  runs as the owner in that conversation, which in a channel is the one
-  shared by everyone there. It answers `created` with the new job's id.
+  cancelled. It delivers to the owner's DM when its delivery names that DM,
+  has `mode` `none` or is absent, and otherwise to the channel it names. The
+  job runs as the owner in the bot's conversation there, which in a channel
+  is the one shared by everyone there. It answers `created` with the new
+  job's id.
+
+  A destination nobody has written in yet has no conversation, and the hand
+  opens one before it creates the job, as a first message would: it sets up
+  the head session with the conversation's tools and binds it, and the job
+  is created in that binding. The owner's DM can always be opened while the
+  hand is on. A channel can be opened when the bot's replies there are not
+  off and the bot can post in it: it hosts the channel, or it has joined the
+  channel's group and is an admin there, or the channel has no writer roles,
+  or one of its roles is a writer. Otherwise the create answers `invalid`
+  with the reason: `the bot cannot post in chat/~host/name; add it to the
+  channel with permission to write`, `the bot's replies are off in
+  chat/~host/name; turn them on in its Tlon settings`, or, with the hand off,
+  `the bot is turned off; turn it on in its Tlon settings`, and opens
+  nothing. Creates for one conversation that arrive while it is being opened
+  share the one opening. If the head refuses to set the conversation up or to
+  bind it, the create answers `harness-error`. So does a settings change that
+  withdraws the conversation before it is ready, or a change of owner before
+  the job is created, and the owner sends the change again. Nothing is posted
+  in the conversation until the job's first run.
 - `update` patches: `enabled` false cancels the job; a new schedule or prompt
   edits it in place, keeping its run limit if it has one, such as one the bot
   gave it in conversation, and otherwise none; a name or description only
@@ -1040,7 +1060,7 @@ These answer `invalid` with a message: an unknown zone, an `every` interval
 under a minute, with a seconds remainder or with no cron expression (such as 45
 or 90 minutes, 7 or 36 hours, or 10 days), a create without a schedule or
 prompt, a payload kind other than the job's, a target that is not the owner's
-DM or a channel where the bot has a conversation, moving a task to another
+DM or a channel the hand can open as above, moving a task to another
 conversation, re-enabling a disabled task, and `test`, since the head cannot
 run a job once without delivering it. So does any field the hand cannot honor,
 named in the message, rather than be dropped. Three are accepted at the one
@@ -1060,11 +1080,19 @@ Steward admits an edit only from its configured owner, and the hand sets that
 owner whenever its own changes, so new edits come from the current owner. A
 command Steward admitted before an owner change is still replayed, since the
 automation dispatch names no requester; it can only reach schedules the new
-owner holds, the new owner's DM and channels where the bot has a conversation.
+owner holds, the new owner's DM and channels the hand can open. A create
+still waiting for its conversation when the owner changes is refused.
+
+A job created in the owner's DM before the owner has written there runs
+without `%skill-write` and `%author`, as one made in a channel does: a
+conversation counts as social until its owner's own message makes it
+administrative, and a job keeps the tools it was created with. One created
+after an owner message there has them.
 
 Known limits: pausing cancels, and a cancelled job cannot be resumed; an
 `every` must have a cron expression; test runs are not supported; a zone's
-offset is fixed when the task is created.
+offset is fixed when the task is created; a job created in the owner's DM
+before the owner has written there has the narrower tools above.
 
 ## Testing
 

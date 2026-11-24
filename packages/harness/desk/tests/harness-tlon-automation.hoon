@@ -35,8 +35,8 @@
 ::
 ++  binding
   |=  to=destination:t
-  ^-  (unit @t)
-  ?:(=(to [%dm ~nec ~]) `'owner-dm' ~)
+  ^-  (each @t @t)
+  ?:(=(to [%dm ~nec ~]) [%& 'owner-dm'] [%| 'the bot cannot post there'])
 ::
 ++  plan
   |=  [=edit:v1:sa names=(map @uv task-names:t)]

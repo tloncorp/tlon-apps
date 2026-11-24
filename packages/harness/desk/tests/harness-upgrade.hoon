@@ -97,6 +97,8 @@
               :*  ~[[%cancel 0v7a]]
                   [%created '0v7a']
                   `[0v7a `'Asia/Kolkata' ~ `'Standup' `'Daily standup']
+                  ~
+                  ~nec
               ==
           ==
           &

@@ -3,8 +3,9 @@
 ::  Steward and the head are answered by the fixture's scries and facts;
 ::  their pokes stay in the fixture.
 /-  t=harness-tlon, c=harness-cron, hh=harness-hand, sa=steward-automation,
-    steward-gateway, ad=harness-adapter
-/+  *test-agent, schedule=harness-schedule
+    steward-gateway, ad=harness-adapter, h=harness
+/+  *test-agent, schedule=harness-schedule, continuity=harness-tlon-continuity,
+    hj=harness-json
 /=  adapter  /app/harness-tlon
 |%
 ++  now  ~2026.11.23..12.00.00
@@ -66,6 +67,12 @@
   ?:  (lien path |=(part=@ta =(%hand-state part)))  `!>(*state:hh)
   ?:  (lien path |=(part=@ta =(%hand-index part)))  `!>(*index:hh)
   ?:  (lien path |=(part=@ta =(%activity part)))  `!>(~)
+  ::  The bot is in no group, so it can post only in channels it hosts.
+  ?:  ?=([%gx @ %groups @ %v2 %groups %noun ~] path)  `!>(~)
+  ::  A new conversation has no saved session; the owner's Defaults.
+  ?:  ?=([%gx @ %harness @ %sessions %json ~] path)  `!>(`json`[%a ~])
+  ?:  ?=([%gx @ %harness @ %defaults %json ~] path)
+    `!>((config-json:hj %*(. *config:h tools ~[%web])))
   ~
 ::
 ::  A schedule of .actor's in the owner DM, on .hand.
@@ -736,4 +743,245 @@
   ;<  caz=(list card)  bind:m
     (dispatch 0vc [%update '0v1' %*(. *task:v1:sa enabled `|)])
   (ex-equal !>((requests caz)) !>(`(list action:c)`~[[%cancel 0v1]]))
+::  The owner with no conversation yet, in his DM or anywhere else.
+::
+++  unopened
+  ^-  state-5:t
+  =/  s  (saved `~nec)
+  s(identities ~, routes ~, lanes ~)
+::
+++  owner-dm  `destination:t`[%dm ~nec ~]
+++  hosted  `destination:t`[%channel [%chat ~zod %general] ~]
+++  sid-of  |=(to=destination:t (identity:continuity to))
+++  open-wire  |=(to=destination:t /hand/open/(scot %uv (sham [(sid-of to) 0])))
+::
+++  head-acts
+  |=  caz=(list card)
+  ^-  (list action:h)
+  %+  murn  caz
+  |=  =card
+  ^-  (unit action:h)
+  ?.  ?=([%pass [%route *] %agent [@ %harness] %poke %harness-action *] card)  ~
+  =/  [* * * * * * data=vase]  card
+  `!<(action:h data)
+::
+++  hand-acts
+  |=  caz=(list card)
+  ^-  (list action:hh)
+  %+  murn  caz
+  |=  =card
+  ^-  (unit action:hh)
+  ?.  ?=([%pass * %agent [@ %harness] %poke %harness-hand *] card)  ~
+  =/  [* * * * * * data=vase]  card
+  `act:!<(request:hh data)
+::
+++  brief
+  |=  to=@t
+  (create [%cron `'0 9 * * *' ~ ~] `'Brief me' `to)
+::
+++  brief-add
+  |=  [id=@uv to=destination:t]
+  ^-  action:c
+  =/  args=json
+    %-  pairs:enjs:format
+    :~  ['schedule' %s '0 9 * * *']  ['timezone' %s 'UTC']
+        ['prompt' %s 'Brief me']
+    ==
+  [%add id (binding:continuity (sid-of to) 0) '~nec' %prompt args]
+::  The head sets the conversation up and binds it, as each answer arrives.
+::
+++  route-ack
+  |=  to=destination:t
+  (do-agent /route/(sid-of to)/'0'/create [~zod %harness] [%poke-ack ~])
+::
+++  open-result
+  |=  [to=destination:t result=(each json @t)]
+  (do-agent (open-wire to) [~zod %harness] [%fact %noun !>(result)])
+::
+++  error-answer
+  |=  [id=@uv message=tape]
+  ^-  response:v1:sa
+  [id %error %harness-error ~[leaf+message]]
+::
+++  test-a-create-for-an-unopened-dm-opens-it-then-creates-in-its-binding
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  sid  (sid-of owner-dm)
+  ;<  *  bind:m  (boot-from unopened & &)
+  ;<  *  bind:m  (schedules snapshot)
+  ;<  caz=(list card)  bind:m  (dispatch 0v9 (brief '~nec'))
+  ;<  ~  bind:m  (ex-equal !>((requests caz)) !>(`(list action:c)`~))
+  ;<  ~  bind:m  (ex-equal !>((answers caz)) !>(`(list response:v1:sa)`~))
+  =/  created  (head-acts caz)
+  ?>  ?=([[%new *] ~] created)
+  ;<  ~  bind:m  (ex-equal !>(sid.i.created) !>(sid))
+  ;<  caz=(list card)  bind:m  (route-ack owner-dm)
+  ;<  ~  bind:m  (ex-equal !>((requests caz)) !>(`(list action:c)`~))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((hand-acts caz))
+    !>  ^-  (list action:hh)
+    ~[[%bind (binding:continuity sid 0) ['tlon' 'dm/~nec' sid ~['~nec'] &]]]
+  ;<  caz=(list card)  bind:m  (open-result owner-dm [%& ~])
+  ;<  ~  bind:m
+    (ex-equal !>((requests caz)) !>(`(list action:c)`~[(brief-add 0v9 owner-dm)]))
+  ;<  caz=(list card)  bind:m  (head-result 0v9 [%& ~])
+  (ex-equal !>((answers caz)) !>(`(list response:v1:sa)`~[[0v9 %created '0v9']]))
+::  A channel the bot cannot post in, or where its replies are off, is not
+::  opened; the create says why.
+::
+++  test-a-create-for-a-channel-the-bot-cannot-post-in-is-invalid-and-opens-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  muted  unopened
+  =.  channels.policy.muted  (my ~[[[%chat ~zod %general] [%off |]]])
+  =/  refused
+    |=  [to=@t message=tape]
+    =/  m  (mare ,~)
+    ^-  form:m
+    ;<  caz=(list card)  bind:m  (dispatch 0v9 (brief to))
+    ;<  ~  bind:m  (ex-equal !>((head-acts caz)) !>(`(list action:h)`~))
+    ;<  ~  bind:m  (ex-equal !>((requests caz)) !>(`(list action:c)`~))
+    %+  ex-equal  !>((answers caz))
+    !>(`(list response:v1:sa)`~[[0v9 %error %invalid ~[leaf+message]]])
+  ;<  *  bind:m  (boot-from unopened & &)
+  ;<  ~  bind:m
+    %+  refused  'chat/~bus/general'
+    "the bot cannot post in chat/~bus/general; add it to the channel with permission to write"
+  ;<  =vase  bind:m  get-save
+  ;<  ~  bind:m  (ex-equal !>(identities:!<(state-5:t vase)) !>(~))
+  ;<  *  bind:m  (boot-from muted & &)
+  %+  refused  'chat/~zod/general'
+  "the bot's replies are off in chat/~zod/general; turn them on in its Tlon settings"
+::
+++  test-a-failed-open-answers-the-waiting-create
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (boot-from unopened & &)
+  ;<  *  bind:m  (dispatch 0v9 (brief 'chat/~zod/general'))
+  ;<  *  bind:m  (route-ack hosted)
+  ;<  caz=(list card)  bind:m  (open-result hosted [%| 'Binding capacity reached'])
+  ;<  ~  bind:m  (ex-equal !>((requests caz)) !>(`(list action:c)`~))
+  %+  ex-equal  !>((answers caz))
+  !>(`(list response:v1:sa)`~[(error-answer 0v9 "Binding capacity reached")])
+::  A route the head refuses to set up answers the create too.
+::
+++  test-a-refused-conversation-setup-answers-the-waiting-create
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (boot-from unopened & &)
+  ;<  *  bind:m  (dispatch 0v9 (brief '~nec'))
+  ;<  caz=(list card)  bind:m
+    %^  do-agent  /route/(sid-of owner-dm)/'0'/create  [~zod %harness]
+    [%poke-ack `~[leaf+"refused"]]
+  %+  ex-equal  !>((answers caz))
+  !>  ^-  (list response:v1:sa)
+  ~[(error-answer 0v9 "Conversation authorization setup failed; inspect the ship log.")]
+::
+++  test-two-creates-for-one-new-conversation-open-it-once
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (boot-from unopened & &)
+  ;<  first=(list card)  bind:m  (dispatch 0v9 (brief '~nec'))
+  ;<  second=(list card)  bind:m  (dispatch 0va (brief '~nec'))
+  ;<  ~  bind:m  (ex-equal !>((lent (head-acts first))) !>(1))
+  ;<  ~  bind:m  (ex-equal !>((head-acts second)) !>(`(list action:h)`~))
+  ;<  caz=(list card)  bind:m  (route-ack owner-dm)
+  ;<  ~  bind:m  (ex-equal !>((lent (hand-acts caz))) !>(1))
+  ;<  caz=(list card)  bind:m  (open-result owner-dm [%& ~])
+  %+  ex-equal  !>((silt (requests caz)))
+  !>((silt ~[(brief-add 0v9 owner-dm) (brief-add 0va owner-dm)]))
+::  Steward replays an unanswered command to a new subscriber.
+::
+++  test-a-replayed-create-while-opening-is-not-started-twice
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (boot-from unopened & &)
+  ;<  *  bind:m  (dispatch 0v9 (brief '~nec'))
+  ;<  caz=(list card)  bind:m  (dispatch 0v9 (brief '~nec'))
+  ;<  ~  bind:m  (ex-equal !>(caz) !>(`(list card)`~))
+  ;<  *  bind:m  (route-ack owner-dm)
+  ;<  caz=(list card)  bind:m  (open-result owner-dm [%& ~])
+  (ex-equal !>((requests caz)) !>(`(list action:c)`~[(brief-add 0v9 owner-dm)]))
+::  A kick lost the open's answer. The create goes on, and the head's own
+::  answer to it is the edit's answer.
+::
+++  test-a-kicked-open-still-answers
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (boot-from unopened & &)
+  ;<  *  bind:m  (dispatch 0v9 (brief '~nec'))
+  ;<  *  bind:m  (route-ack owner-dm)
+  ;<  caz=(list card)  bind:m  (do-agent (open-wire owner-dm) [~zod %harness] [%kick ~])
+  ;<  ~  bind:m
+    (ex-equal !>((requests caz)) !>(`(list action:c)`~[(brief-add 0v9 owner-dm)]))
+  ;<  caz=(list card)  bind:m
+    (head-result 0v9 [%| 'An enabled source hand binding is required'])
+  %+  ex-equal  !>((answers caz))
+  !>  ^-  (list response:v1:sa)
+  ~[(error-answer 0v9 "An enabled source hand binding is required")]
+::  The command came from an owner the bot no longer has.
+::
+++  test-an-owner-change-while-opening-refuses-the-create
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (boot-from unopened & &)
+  ;<  *  bind:m  (dispatch 0v9 (brief 'chat/~zod/general'))
+  ;<  caz=(list card)  bind:m  (set-owner ~bus)
+  ;<  ~  bind:m  (ex-equal !>((answers caz)) !>(`(list response:v1:sa)`~))
+  ;<  *  bind:m  (route-ack hosted)
+  ;<  caz=(list card)  bind:m  (open-result hosted [%& ~])
+  ;<  ~  bind:m  (ex-equal !>((requests caz)) !>(`(list action:c)`~))
+  %+  ex-equal  !>((answers caz))
+  !>  ^-  (list response:v1:sa)
+  ~[(error-answer 0v9 "the bot's owner changed; send the change again")]
+::  A change to the bot's settings that withdraws the conversation being
+::  opened answers the create.
+::
+++  test-a-settings-change-that-withdraws-an-opening-conversation-refuses-the-create
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (boot-from unopened & &)
+  ;<  *  bind:m  (dispatch 0v9 (brief '~nec'))
+  ;<  caz=(list card)  bind:m  (set-owner ~bus)
+  %+  ex-equal  !>((answers caz))
+  !>  ^-  (list response:v1:sa)
+  :~  %+  error-answer  0v9
+      "the bot's settings for this conversation changed; send the change again"
+  ==
+::  Messenger offers any channel the bot can write in, conversation or not.
+::
+++  test-a-messenger-create-into-a-channel-with-no-conversation-opens-it
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  =task:v1:sa  (client-create '0 18 * * 5' ~ `'chat/~zod/general')
+  =/  args=json
+    %-  pairs:enjs:format
+    :~  ['schedule' %s '0 18 * * 5']  ['timezone' %s 'UTC']
+        ['prompt' %s 'Summarize the night']
+    ==
+  =/  sid  (sid-of hosted)
+  ;<  *  bind:m  (boot-from unopened & &)
+  ;<  caz=(list card)  bind:m  (dispatch 0v9 [%create task])
+  ;<  ~  bind:m  (ex-equal !>((lent (head-acts caz))) !>(1))
+  ;<  caz=(list card)  bind:m  (route-ack hosted)
+  ;<  ~  bind:m
+    %+  ex-equal  !>((hand-acts caz))
+    !>  ^-  (list action:hh)
+    ~[[%bind (binding:continuity sid 0) ['tlon' 'chat/~zod/general' sid ~['*'] &]]]
+  ;<  caz=(list card)  bind:m  (open-result hosted [%& ~])
+  ;<  ~  bind:m
+    %+  ex-equal  !>((requests caz))
+    !>(`(list action:c)`~[[%add 0v9 (binding:continuity sid 0) '~nec' %prompt args]])
+  ;<  caz=(list card)  bind:m  (head-result 0v9 [%& ~])
+  (ex-equal !>((answers caz)) !>(`(list response:v1:sa)`~[[0v9 %created '0v9']]))
 --
