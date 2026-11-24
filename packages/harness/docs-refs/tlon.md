@@ -627,9 +627,10 @@ messaging the sender.
   tools (see [Conversation tools](#conversation-tools-and-scheduled-work)),
   and never with the named tools a trusted ship is granted.
   A ship is answered in a place if it is the owner, is on a ship-wide list,
-  or has a grant for that place; a ship with a grant for one channel is
-  ignored in other channels and in DMs, and one with a DM grant is ignored in
-  every channel. A channel with replies off still answers nobody, an open
+  or has a grant for that place. Each grant covers only its own place, and a
+  ship can hold several at once, for example a DM grant and grants for two
+  channels; it is ignored in every place it holds no grant for. A channel with
+  replies off still answers nobody, an open
   channel still answers every reader, and in a channel the ship also needs
   native read permission. When the bot leaves a channel or loses it (it
   leaves or is kicked from the group, or the channel or group is deleted),
