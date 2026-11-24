@@ -6290,7 +6290,8 @@
   ?:  |(=('browser_session_create' u.name) =('browser_session_release' u.name))
     [(browser-session:mcp body =('browser_session_release' u.name)) browser-images]
   ?.  (computer:browser-image name)  [body browser-images]
-  =/  result  (receipt:browser-image body)
+  =/  config  config:(play:hl log:(need-session sid))
+  =/  result  (receipt:browser-image body (images-in-tool-results:hp config))
   ?~  image.result  [body.result browser-images]
   =/  input  (work-origin sid)
   =/  server  (~(get by mcp-servers) 'kernel-browser')

@@ -1,7 +1,7 @@
 ::  The Kernel MCP result carries the private viewer capability. Only the
 ::  Messenger card and the service's result request receive that capability.
 /-  h=harness
-/+  w=harness-provider-wire, media=harness-tlon-media
+/+  w=harness-provider-wire, media=harness-tlon-media, mcp=harness-mcp
 |%
 +$  prepared  [blob=@t result-url=@t]
 +$  saved-login  [form=@t record=json bindings=json]
@@ -91,12 +91,7 @@
 ++  mcp-details
   |=  body=@t
   ^-  json
-  =/  parsed  (de:json:html body)
-  =/  reply
-    ?^  parsed  u.parsed
-    =/  replies  (skim (events:w body) |=(item=json =(`[%n '1'] (get:w item 'id'))))
-    ?>  =(1 (lent replies))
-    (snag 0 replies)
+  =/  reply  (rpc:mcp body)
   ?>  &(=(`[%n '1'] (get:w reply 'id')) =('2.0' (str:w reply 'jsonrpc')))
   =/  result  (need (get:w reply 'result'))
   ?>  !=(`[%b &] (get:w result 'isError'))

@@ -5,17 +5,35 @@
 ++  test-receipt-keeps-pixels-separate-from-text
   =/  expected  ['Screenshot captured.' `['image/png' 'dGVzdA==']]
   ;:  weld
-    (expect-eq !>(expected) !>((receipt:image (cat 3 'HTTP 200\0a\0a' packet))))
-    %+  expect-eq
-      !>(expected)
-    !>((receipt:image (rap 3 'HTTP 200\0a\0aevent: message\0adata: ' packet '\0a\0a' ~)))
+      (expect-eq !>(expected) !>((receipt:image (cat 3 'HTTP 200\0a\0a' packet) &)))
+      %+  expect-eq
+        !>(expected)
+      !>((receipt:image (rap 3 'HTTP 200\0a\0aevent: message\0adata: ' packet '\0a\0a' ~) &))
   ==
 ++  test-receipt-preserves-completed-action-when-the-screenshot-is-omitted
   =/  packet
     '{"id":1,"result":{"content":[{"type":"text","text":"Click done. Screenshot unavailable within the 2 MiB response limit."}]}}'
   %+  expect-eq
     !>(['Click done. Screenshot unavailable within the 2 MiB response limit.' ~])
-  !>((receipt:image (cat 3 'HTTP 200\0a\0a' packet)))
+  !>((receipt:image (cat 3 'HTTP 200\0a\0a' packet) &))
+++  test-malformed-screenshot-replies-return-errors-instead-of-crashing
+  =/  replies=(list @t)
+    :~  '{"jsonrpc":"2.0","id":1,"result":null}'
+        '{"jsonrpc":"2.0","id":1}'
+        '{"jsonrpc":"2.0","id":1,"error":null}'
+    ==
+  %-  zing
+  %+  turn  replies
+  |=  reply=@t
+  %+  expect-eq
+    !>(['error: Invalid browser screenshot reply.' ~])
+  !>((receipt:image (cat 3 'HTTP 200\0a\0a' reply) &))
+++  test-unsupported-image-routes-record-a-text-notice-without-pixels
+  =/  result  (receipt:image (cat 3 'HTTP 200\0a\0a' packet) |)
+  ;:  weld
+      (expect !>(=(~ image.result)))
+      (expect !>(?=(^ (find "image input is unavailable" (trip body.result)))))
+  ==
 ++  test-attach-only-matches-the-latest-correlated-tool-message
   =/  payload
     %-  need
@@ -25,8 +43,8 @@
     %-  de:json:html
     '{"messages":[{"role":"tool","tool_call_id":"earlier","content":"Old."},{"role":"user","content":"Proceed."},{"role":"tool","tool_call_id":"now","content":[{"type":"text","text":"Screenshot captured."},{"type":"image_url","image_url":{"url":"data:image/png;base64,dGVzdA=="}}]}]}'
   ;:  weld
-    (expect-eq !>((need expected)) !>((attach:image payload 'now' 'image/png' 'dGVzdA==' &)))
-    (expect-eq !>(payload) !>((attach:image payload 'missing' 'image/png' 'dGVzdA==' &)))
+      (expect-eq !>((need expected)) !>((attach:image payload 'now' 'image/png' 'dGVzdA==' &)))
+      (expect-eq !>(payload) !>((attach:image payload 'missing' 'image/png' 'dGVzdA==' &)))
   ==
 ++  test-session-create-keeps-the-handle-and-removes-the-viewer-capability
   =/  body
