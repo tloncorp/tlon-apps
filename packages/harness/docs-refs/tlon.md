@@ -980,7 +980,7 @@ schedules, other actors' and tool grants never reach Steward. Each maps as:
 | id | the schedule's `@uv` id as text |
 | `name`, `description` | the ones a Steward edit gave it; otherwise the prompt's first line, up to 64 characters, and none |
 | `enabled` | true for an active job; false for a paused, cancelled or completed one, which stays listed so the owner can delete it |
-| `schedule` | `cron` with the expression and the IANA zone it was created with, or else the job's `UTC` or offset; `at` with the instant for a one-time job |
+| `schedule` | `every` with the interval and anchor it was made from, while the job still runs the expression the hand made of them; otherwise `cron` with the expression and the IANA zone it was created with, or else the job's `UTC` or offset; `at` with the instant for a one-time job |
 | `payload` | `agentTurn` with the prompt; a literal reminder is a `systemEvent`, OpenClaw's kind for text that runs no agent turn |
 | `delivery` | `announce` on `tlon` to the job's conversation: `~ship` for a DM, `kind/~host/name` for a channel |
 
@@ -996,31 +996,42 @@ already made.
 - `create` needs a schedule and a prompt. A `cron` schedule's `tz` is `UTC`
   when absent, or an IANA name looked up in the
   [zone table](scheduling.md#tlon-messengers-scheduled-tasks), and the hand
-  keeps the name to show it back. The job gets the scheduler's
-  100 runs. It delivers to the owner's DM when its delivery names that DM, has
-  `mode` `none` or is absent, and to a channel only where the bot already has
-  a conversation. The job runs as the owner in that conversation, which in a
-  channel is the one shared by everyone there. It answers `created` with the
-  new job's id.
+  keeps the name to show it back. An `every` schedule becomes the cron
+  expression on `UTC` that runs at the same instants, which exists for an
+  interval of whole minutes that divides an hour (15 minutes anchored at :05
+  is `5,20,35,50 * * * *`), of whole hours that divides a day (4 hours
+  anchored at 02:15 is `15 2,6,10,14,18,22 * * *`), or of a week
+  (`M H * * D` on the anchor's weekday). Cron runs on whole minutes, so the
+  anchor's seconds are dropped, and the anchor sets only the phase: a job
+  anchored later than now still runs at the next matching minute. Without an
+  anchor, as in OpenClaw, the interval counts from the creation, or for an
+  update from the anchor the task had if its interval is unchanged, and
+  otherwise from the update. The hand keeps the interval and anchor to show
+  them back. The job gets the scheduler's 100 runs. It delivers to the
+  owner's DM when its delivery names that DM, has `mode` `none` or is absent,
+  and to a channel only where the bot already has a conversation. The job
+  runs as the owner in that conversation, which in a channel is the one
+  shared by everyone there. It answers `created` with the new job's id.
 - `update` patches: `enabled` false cancels the job; a new schedule or prompt
   edits it in place, keeping its remaining runs; a name or description only
   updates what the hand shows. It answers `updated`.
 - `delete` removes the job. It answers `deleted`.
 
-These answer `invalid` with a message: an unknown zone, an `every` schedule, a
-create without a schedule or prompt, a payload kind other than the job's, a
-target that is not the owner's DM or a channel where the bot has a
-conversation, moving a task to another conversation, re-enabling a disabled
-task, and `test`, since the head cannot run a job once without delivering it.
-So does any field the hand cannot honor, named in the message, rather than be
-dropped: `agentId`, `sessionTarget`, `wakeMode`, a `staggerMs` other than 0,
-`payload.toolsAllow`, `webhook` delivery, `delivery.failureDestination` and
-`delivery.accountId`. Every other field is applied, except `createdAtMs` and
-`updatedAtMs`, the host's record of the task, which an edit does not set and
-the hand ignores. An id that is not one of the
-owner's Tlon schedules answers `not-found`. A head refusal, such as editing a
-job whose run is still in flight, answers `harness-error` with the head's
-message.
+These answer `invalid` with a message: an unknown zone, an `every` interval
+under a minute, with a seconds remainder or with no cron expression (such as 45
+or 90 minutes, 7 or 36 hours, or 10 days), a create without a schedule or
+prompt, a payload kind other than the job's, a target that is not the owner's
+DM or a channel where the bot has a conversation, moving a task to another
+conversation, re-enabling a disabled task, and `test`, since the head cannot
+run a job once without delivering it. So does any field the hand cannot honor,
+named in the message, rather than be dropped: `agentId`, `sessionTarget`,
+`wakeMode`, a `staggerMs` other than 0, `payload.toolsAllow`, `webhook`
+delivery, `delivery.failureDestination` and `delivery.accountId`. Every other
+field is applied, except `createdAtMs` and `updatedAtMs`, the host's record of
+the task, which an edit does not set and the hand ignores. An id that is not
+one of the owner's Tlon schedules answers `not-found`. A head refusal, such as
+editing a job whose run is still in flight, answers `harness-error` with the
+head's message.
 
 Steward admits an edit only from its configured owner, and the hand sets that
 owner whenever its own changes, so new edits come from the current owner. A
@@ -1029,8 +1040,9 @@ automation dispatch names no requester; it can only reach schedules the new
 owner holds, the new owner's DM and channels where the bot has a conversation.
 
 Known limits: pausing cancels, and a cancelled job cannot be resumed; recurring
-jobs created here run at most 100 times; `every` schedules and test runs are
-not supported; a zone's offset is fixed when the task is created.
+jobs created here run at most 100 times; an `every` must have a cron
+expression; test runs are not supported; a zone's offset is fixed when the task
+is created.
 
 ## Testing
 

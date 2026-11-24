@@ -141,10 +141,11 @@ The JavaScript `HandClient` wraps these as `schedule(binding, options)`,
 
 The Tlon hand mirrors the owner's Tlon schedules into Steward for Messenger's
 Scheduled Tasks screen and applies the owner's edits there through the API
-above; [the Tlon hand](tlon.md#scheduled-tasks-in-tlon-messenger) describes
-the mapping and each refusal. An edit cannot do more than the API: pausing
-cancels, a cancelled job cannot be resumed, a job cannot move to another
-conversation, and there are no `every` schedules or test runs. A recurring job
+above; [the Tlon hand](tlon.md#scheduled-tasks-in-tlon-messenger) describes the
+mapping and each refusal. An edit cannot do more than the API: pausing cancels,
+a cancelled job cannot be resumed, a job cannot move to another conversation,
+an `every` schedule runs only as a cron expression, so its interval must divide
+an hour or a day or be a week, and there are no test runs. A recurring job
 created there gets 100 runs, the most the scheduler allows.
 
 Messenger names the owner's timezone as an IANA zone, such as

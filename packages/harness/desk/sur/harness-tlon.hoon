@@ -48,9 +48,17 @@
 +$  lens-sync
   [enabled=$~(| ?) owner=(unit @p) after=@da records=(map input-id:h lens-record) error=@t]
 ::  What a schedule took from a Steward edit: the IANA zone it was created
-::  in, which the head keeps only as an offset, and the name and description
-::  Harness jobs do not have.
-+$  task-names  [zone=(unit @t) name=(unit @t) description=(unit @t)]
+::  in, which the head keeps only as an offset, the every schedule it was
+::  made from, and the name and description Harness jobs do not have.
++$  task-names
+  $:  zone=(unit @t)
+      every=(unit cadence)
+      name=(unit @t)
+      description=(unit @t)
+  ==
+::  An every schedule as Steward gave it, and the cron expression the hand
+::  made of it. A job whose expression has since changed is shown as cron.
++$  cadence  [interval=@dr anchor=@da expression=@t]
 ::  A Steward edit still applying at the head: the head actions left to
 ::  send, in order, the answer once all succeed, and the names to keep then.
 +$  task-edit

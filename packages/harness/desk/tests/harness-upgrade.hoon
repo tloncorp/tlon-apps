@@ -82,12 +82,18 @@
   =/  p  populated-3
   :*  %5
       :*  (my ~[[0v7a active-schedule]])
-          (my ~[[0v7a [`'America/Chicago' `'Morning brief' `'Weekday summary']]])
+          %-  my
+          :~  :-  0v7a
+              :^    `'America/Chicago'
+                  `[~h4 ~2026.10.1..02.15.30 '15 2,6,10,14,18,22 * * *']
+                `'Morning brief'
+              `'Weekday summary'
+          ==
           %-  my
           :~  :-  0v9e
               :*  ~[[%cancel 0v7a]]
                   [%created '0v7a']
-                  `[0v7a `'Asia/Kolkata' `'Standup' `'Daily standup']
+                  `[0v7a `'Asia/Kolkata' ~ `'Standup' `'Daily standup']
               ==
           ==
       ==

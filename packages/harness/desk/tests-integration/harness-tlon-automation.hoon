@@ -288,7 +288,8 @@
   ;<  *  bind:m  (boot `~nec & &)
   ;<  *  bind:m  (schedules snapshot)
   ;<  ~  bind:m  (refuses (create [%cron `'0 9 * * *' `'Mars/Olympus' ~] `'Brief' ~) %invalid)
-  ;<  ~  bind:m  (refuses (create [%every `~h1 ~] `'Brief' ~) %invalid)
+  ;<  ~  bind:m  (refuses (create [%every `~m45 ~] `'Brief' ~) %invalid)
+  ;<  ~  bind:m  (refuses [%update '0v1' %*(. *task:v1:sa agent-id `'main')] %invalid)
   ;<  ~  bind:m  (refuses (create [%cron `'0 9 * * *' ~ ~] `'Brief' `'chat/~bus/general') %invalid)
   (refuses (create [%cron `'0 9 * * *' ~ ~] ~ ~) %invalid)
 ::

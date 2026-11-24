@@ -6,6 +6,9 @@
     zones=harness-zones
 |%
 +$  refusal  [type=action-error:v1:sa message=@t]
+::  A Steward schedule as head job arguments, with what the hand keeps of
+::  it: the zone name its offset came from, or the every it was made from.
++$  timed  [args=json zone=(unit @t) every=(unit cadence:t)]
 ::  +owned: a schedule Steward mirrors, the owner's own on the Tlon hand.
 ::  Other hands' schedules and other actors' never leave Harness.
 ::
@@ -44,7 +47,7 @@
       name=?^(name.names name.names (title prompt.job))
       description=description.names
       enabled=`=(%active state.job)
-      schedule=`?:((once job) [%at `next.job] [%cron `expression.job `(fall zone.names timezone.job) ~])
+      schedule=`(when job names)
       session-target=~
       wake-mode=~
       ::  A reminder publishes its text without inference. Of OpenClaw's
@@ -54,6 +57,18 @@
       created-at=~
       updated-at=~
   ==
+::
+::  +when: a job's schedule as Steward shows it. A job made from an every
+::  shows that every while it runs the expression the hand made of it.
+::
+++  when
+  |=  [job=schedule:cr names=task-names:t]
+  ^-  cron-schedule:v1:sa
+  ?:  (once job)  [%at `next.job]
+  =/  every  every.names
+  ?:  &(?=(^ every) =(expression.u.every expression.job))
+    [%every `interval.u.every `anchor.u.every]
+  [%cron `expression.job `(fall zone.names timezone.job) ~]
 ::
 ::  +title: a job's first line, for a job that has no name
 ::
@@ -151,22 +166,46 @@
     [%| 'a task delivers only to the owner\'s DM or a channel']
   [%& u.found]
 ::
-::  +timing: a Steward schedule as head job arguments, with the zone name
-::  to keep when the job's offset came from the zone table
+::  +timing: a Steward schedule as head job arguments. .prior is the every
+::  the job was made from, if any.
 ::
 ++  timing
-  |=  [schedule=cron-schedule:v1:sa reminder=? message=@t runs=@ud]
-  ^-  (each [args=json zone=(unit @t)] @t)
+  |=  $:  schedule=cron-schedule:v1:sa
+          reminder=?
+          message=@t
+          runs=@ud
+          now=@da
+          prior=(unit cadence:t)
+      ==
+  ^-  (each timed @t)
   =/  text-key  ?:(reminder 'text' 'prompt')
   ?-  -.schedule
       %every
-    [%| 'every schedules are not supported; use a cron expression or a time']
+    ?:  reminder  [%| 'a reminder runs once; give it a time, not an interval']
+    ?~  every.schedule  [%| 'schedule.everyMs is required']
+    ::  Without an anchor, OpenClaw keeps the one an unchanged interval had,
+    ::  and otherwise counts from the edit.
+    =/  anchor=@da
+      ?^  anchor.schedule  u.anchor.schedule
+      ?:  &(?=(^ prior) =(u.every.schedule interval.u.prior))
+        anchor.u.prior
+      now
+    =/  expression  (every-cron u.every.schedule anchor)
+    ?:  ?=(%| -.expression)  [%| p.expression]
+    :+  %&
+      %-  pairs:enjs:format
+      :~  ['schedule' %s p.expression]
+          ['timezone' %s 'UTC']
+          [text-key %s message]
+          ['runs' %s (crip (a-co:co runs))]
+      ==
+    [~ `[u.every.schedule anchor p.expression]]
   ::
       %at
     ?~  at.schedule  [%| 'schedule.at is required']
     :+  %&
       (pairs:enjs:format ~[['at' %s (stamp u.at.schedule)] [text-key %s message]])
-    ~
+    [~ ~]
   ::
       %cron
     ?:  reminder  [%| 'a reminder runs once; give it a time, not a cron expression']
@@ -180,8 +219,60 @@
           [text-key %s message]
           ['runs' %s (crip (a-co:co runs))]
       ==
-    name.p.zone
+    [name.p.zone ~]
   ==
+::
+::  +every-cron: an interval counted from an anchor as the cron expression
+::  that runs at the same instants on the UTC calendar, where there is one:
+::  for an interval that divides an hour or a day evenly, or is a week.
+::  Cron runs on whole minutes, so the anchor's seconds are dropped.
+::
+++  every-cron
+  |=  [interval=@dr anchor=@da]
+  ^-  (each @t @t)
+  ?:  (lth interval ~m1)
+    [%| 'schedule.everyMs under a minute is not supported; a job runs at most once a minute']
+  ?.  =(0 (mod interval ~m1))
+    [%| 'schedule.everyMs must be a whole number of minutes']
+  =/  minutes  (div interval ~m1)
+  =/  =date  (yore anchor)
+  =/  minute  (crip (a-co:co m.t.date))
+  ?:  =(0 (mod 60 minutes))
+    [%& (rap 3 (spread m.t.date minutes 60) ' * * * *' ~)]
+  ?:  &(=(0 (mod minutes 60)) =(0 (mod 1.440 minutes)))
+    [%& (rap 3 minute ' ' (spread h.t.date (div minutes 60) 24) ' * * *' ~)]
+  ?:  =(10.080 minutes)
+    =/  hour  (crip (a-co:co h.t.date))
+    [%& (rap 3 minute ' ' hour ' * * ' (crip (a-co:co (weekday anchor))) ~)]
+  :-  %|
+  %+  rap  3
+  :~  'schedule.everyMs of '
+      (crip (a-co:co minutes))
+      ' minutes has no cron schedule; use an interval that divides an hour'
+      ' or a day evenly, or a week'
+  ==
+::
+::  +spread: the places of a cycle that a step from .start reaches, as a
+::  cron list, such as 5,20,35,50 for 15 minutes from :35
+::
+++  spread
+  |=  [start=@ud step=@ud cycle=@ud]
+  ^-  @t
+  =/  at  (mod start step)
+  =|  out=tape
+  |-
+  ?:  (gte at cycle)  (crip out)
+  =/  place  (a-co:co at)
+  $(at (add at step), out ?~(out place :(weld out "," place)))
+::
+::  +weekday: cron's day of the week, 0 for Sunday. ~2000.1.1 was a
+::  Saturday; adding six of its day number keeps the count from going below
+::  zero for an earlier instant.
+::
+++  weekday
+  |=  at=@da
+  ^-  @ud
+  (mod :(add 6 (div at ~d1) (mul 6 (div ~2000.1.1 ~d1))) 7)
 ::
 ::  +offset: the scheduler's timezone for a task's tz, and the zone name to
 ::  remember when it came from the table. Absent means UTC; an offset the
@@ -227,6 +318,7 @@
 ++  plan
   |=  $:  =edit:v1:sa
           request=@uv
+          now=@da
           owner=@p
           schedules=(map @uv schedule:cr)
           names=(map @uv task-names:t)
@@ -249,13 +341,13 @@
     ?~  source
       %-  invalid
       (cat 3 'the bot has no conversation at ' (target (address:p p.to)))
-    =/  timed  (timing u.schedule.task | u.message.u.payload.task 100)
+    =/  timed  (timing u.schedule.task | u.message.u.payload.task 100 now ~)
     ?:  ?=(%| -.timed)  (invalid p.timed)
     =/  add=action:cr  [%add request u.source (scot %p owner) %prompt args.p.timed]
     :*  %&
         ?:(=(`| enabled.task) ~[add [%cancel request]] ~[add])
         [%created (scot %uv request)]
-        `[request zone.p.timed name.task description.task]
+        `[request zone.p.timed every.p.timed name.task description.task]
     ==
   =/  id=@t
     ?-  -.edit
@@ -294,23 +386,23 @@
     =/  message  ?~(payload.task ~ message.u.payload.task)
     =/  text  (fall message prompt.u.job)
     =/  text-key  ?:(reminder 'text' 'prompt')
-    =/  retimed=(each (unit [args=json zone=(unit @t)]) @t)
+    =/  retimed=(each (unit timed) @t)
       ?^  schedule.task
-        =/  timed  (timing u.schedule.task reminder text (runs u.job))
+        =/  timed  (timing u.schedule.task reminder text (runs u.job) now every.kept)
         ?:(?=(%| -.timed) [%| p.timed] [%& `p.timed])
       ?~  message  [%& ~]
       ::  A new message alone goes back with the schedule as the head
       ::  stored it.
-      :+  %&  ~
-      :_  zone.kept
-      %-  pairs:enjs:format
-      ?:  (once u.job)
-        ~[['at' %s expression.u.job] [text-key %s text]]
-      :~  ['schedule' %s expression.u.job]
-          ['timezone' %s timezone.u.job]
-          [text-key %s text]
-          ['runs' %s (crip (a-co:co (runs u.job)))]
-      ==
+      =/  args=json
+        %-  pairs:enjs:format
+        ?:  (once u.job)
+          ~[['at' %s expression.u.job] [text-key %s text]]
+        :~  ['schedule' %s expression.u.job]
+            ['timezone' %s timezone.u.job]
+            [text-key %s text]
+            ['runs' %s (crip (a-co:co (runs u.job)))]
+        ==
+      [%& ~ args zone.kept every.kept]
     ?:  ?=(%| -.retimed)  (invalid p.retimed)
     =/  steps=(list action:cr)
       %+  weld
@@ -327,7 +419,8 @@
         steps
         [%updated id]
         :+  ~  u.key
-        :+  ?~(p.retimed zone.kept zone.u.p.retimed)
+        :^    ?~(p.retimed zone.kept zone.u.p.retimed)
+            ?~(p.retimed every.kept every.u.p.retimed)
           ?~(name.task name.kept name.task)
         ?~(description.task description.kept description.task)
     ==

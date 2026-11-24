@@ -435,6 +435,7 @@
     %:  plan:automation-lib
       edit.dispatch
       id.dispatch
+      now.bowl
       u.owner
       schedules.automation
       names.automation
