@@ -44,8 +44,11 @@ Harness. Editing their configuration cannot expand these permissions. The head
 checks source permissions before admitting work and dispatching tools, including
 Tlon's actor and conversation checks.
 
-Disabling or replacing a source binding, or changing its effective grants,
-pauses affected jobs. A Tlon job whose actor is not the bot's owner is paused,
+Disabling or replacing a source binding pauses affected jobs. So does removing
+a tool that the source held when the job was created; giving the source more
+tools does not. Removing JavaScript execution is the exception: a scheduled
+agent never holds it, so the job continues. A Tlon job whose actor is not the
+bot's owner is paused,
 including after an ownership change. Re-enabling the source does not resume them;
 reschedule explicitly. Stopping the Tlon adapter pauses nothing: its jobs wait,
 and a job that came due meanwhile runs once when it's back. Hand workers
@@ -54,7 +57,9 @@ authenticate actors and deliver results.
 ## Timing, delivery and retention
 
 One head-owned Behn wake follows the earliest outstanding schedule deadline.
-Downtime coalesces to one run, never a missed-run backlog. The run budget advances
+A reload checks no schedule itself: with a schedule active, it sets that wake
+a tick later, so the check runs after every agent on the desk has loaded and
+no schedule asks a hand still on its previous code for authority. Downtime coalesces to one run, never a missed-run backlog. The run budget advances
 in the same Gall transaction as ledger admission. Pending execution or pending,
 claimed or uncertain publication blocks another run of that schedule.
 

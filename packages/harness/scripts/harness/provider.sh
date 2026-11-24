@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # Connect a model provider and make it the ship's default for new conversations.
 #
-#   scripts/harness/provider.sh PIER chatgpt [MODEL]
-#   scripts/harness/provider.sh PIER openai|openrouter|anthropic|xai [MODEL]
+#   scripts/harness/provider.sh SHIP chatgpt [MODEL]
+#   scripts/harness/provider.sh SHIP openai|openrouter|anthropic|xai [MODEL]
 #
 # chatgpt signs in with a ChatGPT subscription through OpenAI's device login.
 # The others ask for an API key on the terminal, or read it from stdin.
+# SHIP is the ship as $CLICK takes it: a fake ship, as ~zod, for
+# scripts/ship-click, the default, or a pier for scripts/click.
 set -euo pipefail
 
 [[ $# -ge 2 && $# -le 3 ]] || { sed -n 4,5p "$0" | sed 's/^# *//' >&2; exit 2; }

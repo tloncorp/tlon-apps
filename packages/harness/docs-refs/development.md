@@ -29,14 +29,21 @@ desk; JavaScript and artifact tests also run without a ship.
 | `just install-dev DESK` | Runs `build`, then copies `desk-out/` into a mounted desk |
 | `just install DESK` | Runs `build`, then replaces a mounted desk with `desk-out/`, deleting everything else there |
 | `just commit DESK` | Runs `install-dev`, then asks the running ship to commit that desk |
-| `just fake-dev [SHIP] [DIR] [OWNER]` | Boots a fake ship in tmux, installs `%mcp` and `%harness` and runs `setup` |
+| `just push SHIP [DESK]` | Runs `build`, then copies `desk-out/` into a running fake ship's mounted desk, `harness` by default, and commits it |
+| `just fake-dev [SHIP] [OWNER]` | Boots a fake ship in a container, installs `%mcp` and `%harness` and runs `setup` |
+| `just fake-remove` | Removes the fake ships of a network, its holder container and its volume of piers |
 | `just test [PATTERN]` | Runs `test-hoon`, then `test-js`, and fails if either fails |
 | `just test-hoon [PATTERN]` | Runs the native Hoon tests on fake `~zod`: all of them on a fresh ship, or those matching the regex on a kept one |
 | `just test-js [PATTERN]` | Runs the JavaScript tests that need no credentials: the `node --test` files, then the live scripts on fake ships, fresh or kept as above |
-| `just setup PIER OWNER` | Sets the owner, enables the Tlon hand and turns on Context Lens sync |
-| `just provider PIER NAME [MODEL]` | Connects a model provider and makes it the default |
+| `just setup SHIP OWNER` | Sets the owner, enables the Tlon hand and turns on Context Lens sync |
+| `just provider SHIP NAME [MODEL]` | Connects a model provider and makes it the default |
 | `just clean` | Removes `desk-out/` |
-| `just distclean` | Also removes `desk-deps/`, `mcp/` and the runtime downloaded into `.deps-cache/` |
+| `just distclean` | Also removes `desk-deps/`, `.deps-cache/`, `mcp/`, `.test-run/` and the checkout's fake ship images |
+
+`install-dev`, `install` and `commit` take a desk mounted in a pier on this machine.
+`push`, `setup` and `provider` take a fake ship, as `~zod`, running in a container;
+`just click=scripts/click setup PIER OWNER` gives `setup` or `provider` a pier on this
+machine instead.
 
 This desk imports files it does not own, listed in `desk-deps.yaml` and
 fetched by the tlon-apps `scripts/backend/fetch-deps.sh`. The standard libraries and
@@ -55,53 +62,97 @@ so credentials stay out of process arguments. It needs a running pier and `socat
 The receipt confirms that Hood accepted the commit request; Gall recompilation and
 native tests remain separate checks. The socket path `PIER/.urb/conn.sock` must be
 under 108 bytes on Linux and 104 on macOS, so reach deep piers through a short
-symlink. `just commit`, `just fake-dev` and the test recipes check the limit for
-the platform they run on.
+symlink.
 
-`just test-hoon` runs `scripts/test-hoon.sh`, which needs `tmux` but not `node`: the
-native tests and integration tests on `~zod` alone. `just test-js` runs
-`scripts/test-js.sh`: the `node --test` files and the live scripts on `~zod`, `~lux`
-and `~nec`, booting `~zod` and `~lux` at the same time. They are the two CI jobs.
-Without a pattern, each boots fresh ships and removes them, so the full `just test`
-boots `~zod` twice. Each keeps its results and logs in `.test-run/hoon/` or
-`.test-run/js/`.
-Both read the ships' tmux panes, capturing up to 200,000 lines, and `test-hoon`
-finds each run's output by line offset, so the scripts give the tmux sessions they
-create a history of 500,000 lines, and stop if tmux did not apply it. tmux's default
-of 2000 lines drops test output and breaks the offsets.
+## Fake ships
 
-CI splits `test-js` across runners. `TEST_SHARD=I/N just test-js` runs the Ith of N
-parts of the full run, on fresh ships. With more than one part, the last takes the
-`node --test` files and the scripts restricted to `~lux` and `~nec`, and boots no
-`~zod`; the others deal out the `~zod` scripts in turn. A shard takes no PATTERN.
-`just test-js --list` prints what a run would take, as `GROUP NAME` lines, without
-ships; with `TEST_SHARD`, what that shard would take.
+`just fake-dev`, `just push`, `just setup`, `just provider` and the test recipes run
+fake ships in containers, from the image `fakeship:<N>` that the repository's
+`scripts/backend/container/` builds, where the number N stands for the checkout, with vere and the boot pill in it (see
+[the fake ship image](../../../docs/backend/tools/README.md#fake-ship-image)). They use
+podman when it is usable and docker otherwise; set `CONTAINER_RUNTIME` to choose.
+`just fake-dev`, `just setup` and `just provider` also need `jq`, and `just provider`
+`curl`.
 
-With a PATTERN, the ships stay running in `.test-run/piers/`, shared by both scripts, and
-each run deploys the working tree. `test-js` wipes Harness's agent state with `|nuke`
-before each live script, which sets up what it needs; state in other desks stays.
-`just test --stop` removes the ships. Use the full `just test` before pushing.
+`just fake-dev` runs `scripts/setup-fake-dev.sh`, which needs `mcp/` from
+`just fetch`. The names below carry a number, written `<N>`, that stands for the
+checkout, so each checkout has its own ships. Each ship runs in its own container,
+`fake-dev-<N>-zod` for `~zod`, with its pier in the volume `fake-dev-<N>-piers`, and
+the repository mounted read-only. The ships of a network share the network namespace
+of a holder container, `fake-dev-<N>`, so they reach each other on its loopback. A
+ship serves HTTP on the network's port 9090 unless `HTTP_PORT` is set, so a second
+ship needs another port from 9090 to 9099, as in `HTTP_PORT=9091 just fake-dev '~nec'`.
+The holder publishes each of those ports on a free port of the host's 127.0.0.1,
+which `fake-dev` prints as the ship's web URL and `podman port fake-dev-<N>` lists.
+`FAKE_NET` names another network, with its own holder, containers and volume, and
+`FAKE_NET_PORTS` its range of ports, which applies when its holder is created. A
+ship in a container cannot reach a server on the host's own loopback.
 
-The test piers are inside the package, so on macOS a repository path longer than
-about 50 bytes is too deep for their sockets. Link a short path to the repository
-root, `cd` to its `packages/harness` and name the justfile through the link, as in
-`just --justfile /tmp/r/packages/harness/justfile test-hoon PATTERN`. Without
-`--justfile`, `just` finds the justfile by its real path. A link to the package
-itself does not work: `just` resolves the root justfile's `../..` against the link.
+`fake-dev` refuses a ship whose container is running or which already has a pier in
+the volume. When the ship is up, it prints the ship's web URL, its login code and
+these commands, which run from `packages/harness` and name the ship without its `~`,
+which zsh would expand (with docker in place of podman, if that is the runtime):
 
-`scripts/test-js.sh` gives live scripts their variables: the opt-ins, `CONTROLLED_MODEL=1`,
-the ships' tmux panes and a `TEST_NEST` channel that `~lux` hosts and `~zod` has joined,
-which `tests-js/lib/test-channel.mjs` creates once. Its `skip_reason` function names the scripts
-it can't run and why.
+```sh
+podman logs -f fake-dev-<N>-zod                 # the ship's output
+scripts/ship-click -p zod '(add 2 2)'           # evaluate Hoon, as in Dojo
+scripts/ship-click -i - -kp zod < thread.hoon   # run a thread
+just push zod                                   # build desk/ and commit it as %harness
+just provider zod chatgpt
+podman stop fake-dev-<N>-zod                    # podman start resumes it
+just fake-remove                                # every ship of the network, its holder and volume
+```
 
-`just fake-dev` runs `scripts/setup-fake-dev.sh`, which needs `tmux` and `mcp/`
-from `just fetch`, and refuses a pier or tmux session that already exists. It uses
-HTTP port 9090 unless `HTTP_PORT` is set. Stop the ship with `|exit` in its Dojo
-(`tmux attach -t fake-zod` for `~zod`), and delete the pier before booting it again.
+`scripts/ship-click` takes `scripts/click`'s options and runs it in the ship's
+container, so the host needs neither urbit nor `socat`. A path it is given, such as
+`-i FILE`, is read inside the container, so give a thread on stdin. Set `FAKE_NET`
+for a ship on another network.
 
 Scripts in `scripts/harness/` talk to the ship through `acp-call.sh`, which sends
 one ACP request through `click`. For a fresh ship, use the
 [README instructions](../README.md#build-and-install).
+
+## Test suites
+
+`just test-hoon` runs `scripts/test-hoon.sh`: the native tests and integration tests
+on `~zod` alone. It boots `~zod` with `just fake-dev` on the network `fake-test-<N>`,
+as container `fake-test-<N>-zod`, deploys with `just push`, runs the
+tests through `scripts/ship-click` and reads their output from the container's log.
+`just test-js` runs `scripts/test-js.sh`: the `node --test` files and the live scripts
+on `~zod`, `~lux` and `~nec`, booting `~zod` and `~lux` at the same time. The live
+scripts start local servers on 127.0.0.1 that the ships call, so Node and the three
+ships run in one container, `fake-test-js-<N>`, from the image `harness-test-js:<N>`
+that `scripts/test-js/Dockerfile` builds on `fakeship:<N>`. Neither suite publishes a
+port on the host, and every name carries the checkout's number, so checkouts can run
+their tests at the same time. On the host the script builds the
+desks and the images, starts the container and runs itself in it, so the host needs
+no `node`. They are the two CI jobs. Without a pattern, each boots fresh ships and
+removes them, so the full `just test` boots `~zod` twice. Each keeps its results, in
+`results.txt`, and logs in `.test-run/hoon/` or `.test-run/js/`; `test-js` writes
+each ship's output to `.test-run/js/logs/ship-<ship>.log`.
+
+CI splits `test-js` across runners. `TEST_SHARD=I/N just test-js` runs the Ith of N
+parts of the full run, on fresh ships. With more than one part, the last takes the
+`node --test` files and the scripts restricted to `~lux` and `~nec`, and boots
+`~zod` only for `tlon-shared-channel-conformance.mjs`, which needs all three ships;
+the others deal out the `~zod` scripts in turn. A shard takes no PATTERN.
+`just test-js --list` prints what a run would take, as `GROUP NAME` lines, without
+ships; with `TEST_SHARD`, what that shard would take.
+
+With a PATTERN, the ships stay running and each run deploys the working tree:
+`test-hoon` keeps `fake-test-<N>-zod`, its holder `fake-test-<N>` and the volume
+`fake-test-<N>-piers`, and `test-js` keeps `fake-test-js-<N>`. A ship one suite keeps
+is not shared with the other. Without a PATTERN, each suite refuses to start while
+its containers run. `test-js` wipes Harness's agent
+state with `|nuke` before each live script, which sets up what it needs; state in
+other desks stays. `just test --stop` removes the containers and the volume. Use the
+full `just test` before pushing.
+
+`scripts/test-js.sh` gives live scripts their variables: the opt-ins, `CONTROLLED_MODEL=1`,
+the ships' piers in `SHIP_PIER` and `PEER_PIER`, which `tests-js/lib/ship-thread.mjs`
+runs threads on through `click`, and a `TEST_NEST` channel that `~lux` hosts and `~zod`
+has joined, which `tests-js/lib/test-channel.mjs` creates once. Its `skip_reason`
+function names the scripts it can't run and why.
 
 ## Local checks
 
@@ -181,7 +232,8 @@ them, build with:
 just heavy=true install-dev /path/to/test-pier/harness
 ```
 
-Commit the mounted desk, then run a test, for example:
+Commit the mounted desk, or use `just heavy=true push zod` on a fake ship, which
+commits it, then run a test, for example:
 
 ```text
 -test /=harness=/tests-integration/harness-reload
@@ -193,6 +245,82 @@ and monitor a dedicated test ship explicitly. Offline Node tests need no opt-in.
 
 For runtime performance characteristics and benchmark instructions, see
 [performance](performance.md).
+
+### Saved state across upgrades
+
+`tests/harness-upgrade.hoon` holds populated saved states: `populated` for
+`%harness`, `populated-4` for `%harness-tlon` and `acp-populated` for `%acp`,
+with the unowned hand `unowned` for owner initialization. In a populated
+state every field holds a value that is not its default, and every collection
+has an entry whose fields are set. `test-populated-state-is-populated` checks
+only top-level fields and the nested records it can recognize. It does not
+look inside collection entries, units or records that start with a tag, so
+give those entries non-default values by hand. Each historical
+shape is a projection of the populated state. Each test loads its input
+through the real load arm and compares the whole result with an expected
+value: the input with that path's transformations applied.
+`tests/harness-tlon-upgrade.hoon` and the reload tests in `tests-integration`
+import these fixtures; they are not copied.
+
+When you add a field to saved state, give it a distinct value in the fixture,
+and in the collection entry if it sits inside one. A field that can only be
+saved at its default goes in `deliberate-defaults`, with the reason.
+
+When you change a type that saved state embeds, including a root-desk
+structure such as `nest:c`, freeze the old definition, and every type it
+uses, next to each saved shape that refers to it. Build that migration's
+historical test inputs against a frozen copy of the predecessor type that the
+test owns, not against the production declaration. A historical branch left
+pointing at the new type then fails its test.
+
+When you add a migration step:
+
+1. Freeze the shape being replaced under its own name, beside the agent's
+   earlier shapes: `state-m0` and the head's others in
+   `sur/harness-store.hoon`, with `state-before-maintenance` in
+   `lib/harness-store.hoon`; the Tlon hand's `state-0` to `state-3` in
+   `lib/harness-tlon-migrate.hoon`. The current shapes are the head's
+   `state-0` in `sur/harness-store.hoon` and the Tlon hand's `state-4` in
+   `sur/harness-tlon.hoon`.
+2. Move the populated fixture to the new shape, with a distinct value in
+   every new field. Add a projection of it onto the frozen shape as the new
+   step's input, beside the others in `tests/harness-upgrade.hoon` or
+   `tests/harness-tlon-upgrade.hoon`. Where the step drops or re-keys data,
+   the projection writes the old form by hand.
+3. Write the expected value as that step's transformation of the input.
+4. Delete one field copy from the step and check that its test fails.
+
+`tests-js/upgrade-conformance.mjs` checks one real upgrade on `~zod`. For it,
+`scripts/test-js.sh` builds the desk of a base tree-ish, `UPGRADE_BASE`. It
+defaults to `HEAD`, so a local run upgrades from the last commit to the
+working tree's build. CI sets the branch a pull request merges into, the
+commit a push to develop replaced, or for a manual run the previous commit.
+The script commits the base build over cleared, suspended agents, so no agent
+runs until the desk is revived, and `%harness-tlon` starting then shows the
+base build works. It seeds them with the base tree's copy of the script and
+commits this build over the seeded state. Each commit must raise the desk's
+revision by one; for this build's, that also shows the agents loaded the seeded
+state, since Clay keeps the old desk when an agent cannot load its state. Each
+agent must have reloaded exactly when its built code changed, and this tree's
+copy of the script then checks every seeded value that Harness reads back, key
+by key, against the manifest the seed wrote; provider keys, which no read
+returns, are not checked. Identical desks record `pass (no desk change)`. A
+base that differs and lacks the script fails: choose a base that contains it.
+After a failure the script puts the ship back on this build, clearing the
+agents first if the ship ran the base, and stops the run only if that fails.
+Then, and after identical desks, the agents are cleared, as for any other
+script; after a passing upgrade they keep the upgraded state. Either way this
+tree's script then seeds afresh and checks its own manifest. The seed enables
+the Tlon hand with `~lux` as its owner, has `~lux` send it a DM command, which
+calls no model, and adds a reminder from that conversation, so a head whose
+load asks the adapter something meets the base's adapter. If that adapter
+cannot answer, the head commit is refused. The check reads the reminder's saved
+state and forces no poll, so `active` after the upgrade does not show that the
+upgraded adapter still authorizes it. The seed's `tlon.dm.*` and
+`schedules.tlon.*` keys are `newer` keys. When saved state gains a value that
+an interface can set, seed it and add its key to the script's `newer` keys; it
+moves to `baseline` once every long-lived branch (`develop`, `staging` and
+`master`) seeds it.
 
 ## Live conformance
 

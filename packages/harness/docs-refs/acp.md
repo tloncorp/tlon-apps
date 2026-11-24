@@ -34,7 +34,7 @@ hands use the same command interpreter; adapters do not implement command logic.
 | Command | Effect |
 | --- | --- |
 | `/help` | List commands and usage. |
-| `/status` | Show provider/model, tool-grant count, recorded token usage and a safe description of the last failure. |
+| `/status` | Show provider/model, the count of tool grants the turn can use, recorded token usage and a safe description of the last failure. |
 | `/model` | Show the conversation's provider and model. |
 | `/model <id>` | Change the model within the current provider. |
 | `/model default` | Copy the current default provider/model settings into this conversation. |
@@ -45,7 +45,7 @@ hands use the same command interpreter; adapters do not implement command logic.
 | `/remember <name> <text>` | Save or correct a shared fact. |
 | `/forget <name>` | Forget a shared fact; earlier messages and checkpoints are retained. |
 | `/work` | Inspect and manage work; protected changes need confirmation. See [work commands](work-control.md). |
-| `/stop` | Cancel the current turn and queued hand work; acknowledge locally. |
+| `/stop` | Cancel the current turn, the subagents it started, and queued hand work; acknowledge locally. |
 
 Only `/compact` calls a model. Work management requires current owner or scoped
 workspace authority; the other commands require no tool grant. Model changes retain

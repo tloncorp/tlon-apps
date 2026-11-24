@@ -53,6 +53,31 @@
 ++  test-rejects-ungranted-actors
   =/  res  (apply:hd seed [%observe 'binding' 'message-1' 'mallory' 'Hello'] ~2000.1.1)
   (expect !>(?=(%| -.res)))
+::  An adapter's ~['*'] admits anyone; binding with no actors stays refused.
+++  test-wildcard-binding-admits-any-actor-and-an-empty-list-is-still-refused
+  =/  wild=binding:hh  ['chat' 'opaque/room' 'session' ~['*'] %.y]
+  =/  bound  (apply:hd *state:hh [%bind 'wild' wild] ~2000.1.1)
+  ?>  ?=(%& -.bound)
+  =/  anyone  (apply:hd db.p.bound [%observe 'wild' 'message-1' 'mallory' 'Hello'] ~2000.1.1)
+  =/  empty  (apply:hd *state:hh [%bind 'empty' wild(actors ~)] ~2000.1.1)
+  ;:  weld
+      (expect !>(?=(%& -.anyone)))
+      (expect !>(?=(%| -.empty)))
+      (expect !>((actor-allowed:hd ~['*'] 'anyone')))
+      (expect !>(!(actor-allowed:hd ~ 'anyone')))
+  ==
+::  '*' beside a name is a literal actor, not a wildcard.
+++  test-named-binding-still-refuses-an-unlisted-actor
+  =/  named=binding:hh  ['chat' 'opaque/room' 'session' ~['alice' '*'] %.y]
+  =/  bound  (apply:hd *state:hh [%bind 'named' named] ~2000.1.1)
+  ?>  ?=(%& -.bound)
+  =/  listed  (apply:hd db.p.bound [%observe 'named' 'message-1' 'alice' 'Hello'] ~2000.1.1)
+  =/  unlisted  (apply:hd db.p.bound [%observe 'named' 'message-2' 'mallory' 'Hello'] ~2000.1.1)
+  ;:  weld
+      (expect !>(?=(%& -.listed)))
+      (expect !>(?=(%| -.unlisted)))
+      (expect !>(!(actor-allowed:hd ~['alice' '*'] 'mallory')))
+  ==
 ++  test-one-active-input-per-session
   =/  running  (start:hd admitted 'session' id)
   %-  expect
@@ -99,7 +124,7 @@
   ?>  ?=(%& -.disabled)
   (expect-eq !>(`json`[%a ~]) !>((outbox-json:hd db.p.disabled 'chat')))
 ++  test-cancel-removes-queued-work
-  =/  cancelled  (cancel-queued:hd admitted 'session')
+  =/  cancelled  (cancel-queued:hd admitted 'session' ~)
   =/  obs  (need (~(get by observations.cancelled) id))
   (expect !>(&(=(~ queue.cancelled) =(%cancelled phase.obs))))
 ++  test-source-ids-are-namespaced

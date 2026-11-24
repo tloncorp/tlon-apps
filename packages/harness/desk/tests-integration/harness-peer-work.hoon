@@ -4,7 +4,7 @@
 ::  hands between them. Optional live bindings are absent: scries answer %.n.
 /-  h=harness, w=harness-workspace, adapter=harness-adapter, t=harness-tlon, *harness-store
 /+  *test, *test-agent, rpc=harness-peer-rpc, defaults=harness-defaults, work=harness-workspace,
-    hl=harness, effects=harness-effects
+    hl=harness, effects=harness-effects, failure=harness-failure
 /=  head  /app/harness
 |%
 ++  t0  ~2026.9.14
@@ -129,7 +129,62 @@
   ;<  ~  bind:m  (ex-equal !>(=(~ replies)) !>(|))
   ?>  ?=(^ replies)
   ;<  ~  bind:m  (ex-equal !>((has i.replies "SYNTHETIC_SECRET")) !>(|))
-  (ex-equal !>((has i.replies "temporarily unavailable")) !>(&))
+  ;<  ~  bind:m  (ex-equal !>((has i.replies "temporarily unavailable")) !>(&))
+  %+  ex-equal  !>(i.replies)
+  !>((public-message:failure 'provider error: overloaded_error SYNTHETIC_SECRET'))
+::  The person-facing halt text invites a retry; a peer's model would spend it
+::  on this owner's provider account.
+::
+++  test-a-peer-ask-stopped-by-the-loop-guard-is-not-invited-to-retry
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  start  (fixture ~nec)
+  =/  cfg  defaults.start
+  =/  admission=admitted-input:h
+    :*  0v1  [%peer ~nec 0v1]  `~nec  `[%peer ~nec 0v1]  t0
+        [%user 'Use the tool.']
+    ==
+  ::  Three refused results and a fourth refused call still open.
+  =/  refused  'rejected: tool is not granted for this session'
+  =/  events=(list event:h)
+    %-  flop
+    ^-  (list event:h)
+    :~  [%config-replaced cfg]
+        [%input-received admission]
+        [%llm-requested 0 %turn]
+        [%llm-completed 0 %tool-calls [10 2] [%assistant '' ~[['1' 'no_such_tool' '{}']]]]
+        [%tool-completed '1' 'no_such_tool' refused]
+        [%llm-requested 1 %turn]
+        [%llm-completed 1 %tool-calls [10 2] [%assistant '' ~[['2' 'no_such_tool' '{}']]]]
+        [%tool-completed '2' 'no_such_tool' refused]
+        [%llm-requested 2 %turn]
+        [%llm-completed 2 %tool-calls [10 2] [%assistant '' ~[['3' 'no_such_tool' '{}']]]]
+        [%tool-completed '3' 'no_such_tool' refused]
+        [%llm-requested 3 %turn]
+        [%llm-completed 3 %tool-calls [10 2] [%assistant '' ~[['4' 'no_such_tool' '{}']]]]
+    ==
+  =.  sessions.start  (my ~[['peer--~nec' [events 4]]])
+  =.  serving.start  (my ~[['peer--~nec' ~[[~nec 0v1]]]])
+  ;<  ~  bind:m  (boot start ~zod ~zod t0)
+  ;<  caz=(list card)  bind:m
+    (do-poke %harness-action !>(`action:h`[%retry 'peer--~nec']))
+  ;<  halted=state-0  bind:m  saved
+  =/  log  log:(~(got by sessions.halted) 'peer--~nec')
+  ?>  ?=([[%halted *] *] log)
+  ;<  ~  bind:m  (ex-equal !>((has reason.i.log "4 tool calls in a row failed")) !>(&))
+  ;<  ~  bind:m  (ex-equal !>((guarded:hl reason.i.log)) !>(&))
+  =/  answers
+    %+  murn  caz
+    |=  =card
+    ^-  (unit [ship a2a:h])
+    ?.  ?=([%pass * %agent [@ %harness] %poke %harness-a2a-0 *] card)  ~
+    =/  msg  !<(a2a:h +.+.+.+.+.+.card)
+    ?.  ?=(%answer -.msg)  ~
+    `[-.-.+.+.+.card msg]
+  %+  ex-equal  !>(answers)
+  !>  ^-  (list [ship a2a:h])
+  ~[[~nec [%answer 0v1 [%| 'Remote work stopped before finishing.']]]]
 ::  Pure checks of the effect executor; no agent involved.
 ::
 ++  call

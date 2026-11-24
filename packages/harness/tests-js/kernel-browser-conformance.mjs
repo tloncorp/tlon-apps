@@ -6,6 +6,7 @@ import { text as readText } from 'node:stream/consumers'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { Client, base, readCookie } from './lib/ship-client.mjs'
 import { HandClient } from '../acp/hand-client.mjs'
+import { authorShip } from './lib/author.mjs'
 
 const peerUrl = process.env.PEER_URL
 for (const url of [base, peerUrl]) {
@@ -296,7 +297,7 @@ async function dmAndWait(actor, isDone) {
     })
     assert.ok(response.ok, `DM read HTTP ${response.status}`)
     const { writs } = await response.json()
-    const replies = Object.values(writs).filter(({ essay }) => essay?.author === ship && essay.sent >= sent)
+    const replies = Object.values(writs).filter(({ essay }) => authorShip(essay?.author) === ship && essay.sent >= sent)
     if (actor === 'owner' && !completed && polls > 1) {
       const cards = replies.flatMap(({ essay }) => JSON.parse(essay.blob ?? '[]'))
         .filter((card) => card.type === 'browser-secure-entry')

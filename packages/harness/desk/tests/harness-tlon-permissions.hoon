@@ -26,13 +26,14 @@
       (expect !>(?=(~ (destination-grants:p policy ~bud [%channel [%chat ~nec %test] ~] ~ |))))
       (expect !>(?=(^ (destination-grants:p policy ~bud [%dm ~bud ~] ~ |))))
   ==
-++  test-channel-revocation-fences-only-affected-lanes
+++  test-a-channel-rule-change-resets-that-channel-only
   =/  policy  policy
   =/  next  policy(channels (my ~[[[%chat ~nec %test] [%off |]]]))
   ;:  weld
-      (expect !>((affected:c policy next [~bud [%channel [%chat ~nec %test] ~] 1 ~[%web]])))
-      (expect !>(!(affected:c policy next [~bud [%channel [%chat ~nec %elsewhere] ~] 1 ~[%web]])))
-      (expect !>(!(affected:c policy next [~bud [%dm ~bud ~] 1 ~[%web]])))
+      (expect !>((affected:c policy next [[%channel [%chat ~nec %test] ~] 1 ~[%web]])))
+      (expect !>((affected:c policy next [[%channel [%chat ~nec %test] `~2026.9.1] 1 ~[%web]])))
+      (expect !>(!(affected:c policy next [[%channel [%chat ~nec %elsewhere] ~] 1 ~[%web]])))
+      (expect !>(!(affected:c policy next [[%dm ~bud ~] 1 ~[%web]])))
   ==
 ++  test-policy-roundtrip
   =/  policy  policy

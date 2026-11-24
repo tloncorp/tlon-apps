@@ -7,6 +7,7 @@ import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { Client, cookie } from './lib/ship-client.mjs'
+import { authorShip, assertBotAuthor } from './lib/author.mjs'
 
 const peerUrl = process.env.PEER_URL
 assert.ok(peerUrl && process.env.PEER_COOKIE)
@@ -58,9 +59,10 @@ try {
   const reply = await until('native reply at peer', async () => {
     const response = await fetch(`${peerUrl}/~/scry/chat/v4/dm/${ship}/writs/newest/32/light.json`, { headers: { cookie: peerCookie }, signal: AbortSignal.timeout(15000) })
     assert.ok(response.ok)
-    return Object.values((await response.json()).writs || {}).find((row) => row.essay?.author === ship && JSON.stringify(row.essay.content).includes(`${marker}-accepted`))
+    return Object.values((await response.json()).writs || {}).find((row) => authorShip(row.essay?.author) === ship && JSON.stringify(row.essay.content).includes(`${marker}-accepted`))
   })
   assert.equal(reply.essay.blob, null)
+  assertBotAuthor(reply.essay.author, ship)
   assert.ok(job?.id)
   const cancelled = (await client.call('harness/cron/cancel', { id: job.id })).find((row) => row.id === job.id)
   assert.equal(cancelled.state, 'cancelled'); assert.equal(cancelled.remaining, 1)
@@ -75,11 +77,12 @@ try {
     at: new Date(Date.now() + 8000).toISOString().replace(/\.\d{3}Z$/, 'Z'), destination: `dm/${peer}`, text: `${marker}-literal-shared-reminder`,
   } })
   assert.equal(firedJob.hand, 'tlon')
-  await until('shared head reminder published through Tlon', async () => {
+  const reminder = await until('shared head reminder published through Tlon', async () => {
     const response = await fetch(`${peerUrl}/~/scry/chat/v4/dm/${ship}/writs/newest/32/light.json`, { headers: { cookie: peerCookie }, signal: AbortSignal.timeout(15000) })
     assert.ok(response.ok)
-    return Object.values((await response.json()).writs || {}).find((row) => row.essay?.author === ship && JSON.stringify(row.essay.content).includes(`${marker}-literal-shared-reminder`))
+    return Object.values((await response.json()).writs || {}).find((row) => authorShip(row.essay?.author) === ship && JSON.stringify(row.essay.content).includes(`${marker}-literal-shared-reminder`))
   })
+  assertBotAuthor(reminder.essay.author, ship)
   const delivered = await until('head delivery receipt', async () => (await client.call('harness/cron')).find((row) => row.id === firedJob.id && row.delivery === 'delivered'))
   assert.equal(delivered.execution, 'completed'); assert.equal(delivered.clearable, true)
   assert.equal(modelCalls, beforeCalls, 'literal reminder performs no inference')

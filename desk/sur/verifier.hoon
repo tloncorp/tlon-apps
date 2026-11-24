@@ -126,7 +126,7 @@
       tweet=$~(3 @ud)      ::  remaining tweet verification attempts
       fetch=$~(5 @ud)      ::  remaining website challenge fetches
       queries=$~(100 @ud)  ::  remaining queries
-      batch=$~(1.000 @ud)  ::  remaining new %whose-bulk entries
+      batch=$~(5.000 @ud)  ::  remaining new %whose-bulk entries
       last-batch=@ux       ::  previous batch set salted hash
   ==
 ++  rates  ::  re-fill allowance by n per p
@@ -223,9 +223,12 @@
         nonce=(unit @)
         query=question
     ==
+  ::  $question: %whose-set asks about a whole set of identifiers, and lanyard
+  ::  turns it into a %whose-bulk against the last set the service accepted
+  ::
   +$  question
-    $%  [%valid-jam jam=@uw]  ::  jammed $signed
-        query:user-query
+    $%  [%whose-set ids=(set identifier)]
+        question:v1
     ==
   +$  result
     $~  [%fail 'bunt']
@@ -240,5 +243,18 @@
         [%config [host=@p id=identifier] =config]
         [%full all=(map [host=@p id=identifier] [=config why=@t =status])]
     ==
+  ::
+  ++  v1
+    |%
+    +$  query
+      $:  host=(unit @p)
+          nonce=(unit @)
+          query=question
+      ==
+    +$  question
+      $%  [%valid-jam jam=@uw]  ::  jammed $signed
+          query:user-query
+      ==
+    --
   --
 --

@@ -24,8 +24,8 @@ env:
       - hideKeyboard
 - tapOn: '^Save$'
 - assertVisible: ${MAESTRO_RUN_TAG + ' section'}
-# iOS puts a section's actions in a native menu on its header; Android keeps
-# the menu button and its sheet.
+# iOS puts a section's actions in a native menu on its header; Android opens
+# a native menu from the section's menu button.
 - runFlow:
     when:
       platform: iOS
@@ -39,7 +39,7 @@ env:
       - tapOn:
           id: SectionMenuButton
           rightOf: ${MAESTRO_RUN_TAG + ' section'}
-      - tapOn: '^Edit name$'
+      - tapOn: '^Rename$'
 - assertVisible:
     id: SectionNameInput
     text: ${MAESTRO_RUN_TAG + ' section'}

@@ -39,7 +39,6 @@ import {
   InfoHeaderBadge,
   InfoTile,
   PaddedBlock,
-  SHARE_ICON_SIZE,
   ListCardDivider,
   SettingsCard,
   type SettingsCardRow,
@@ -67,7 +66,6 @@ export interface ProfileActions {
   onToggleContact: () => void;
   onToggleMute: () => void;
   onToggleBlock: () => void;
-  onShare: () => void;
 }
 
 interface Props {
@@ -856,13 +854,6 @@ function ProfileActionCircles({
           testID="ProfileMuteButton"
         />
       ) : null}
-      <ActionCircle
-        icon="ArrowRef"
-        iconSize={SHARE_ICON_SIZE}
-        label="Share"
-        onPress={actions.onShare}
-        testID="ProfileShareButton"
-      />
     </ActionCircleRow>
   );
 }

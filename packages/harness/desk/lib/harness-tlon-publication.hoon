@@ -1,12 +1,13 @@
 ::  Only host-confirmed channel responses prove publication. Pending client
 ::  echoes, reactions, tombstones and other authors are never receipts.
 /-  t=harness-tlon, dv=channels-ver
+/+  authors=harness-tlon-author
 |%
 ::
 ++  proof
   |=  [our=@p to=destination:t author=author:v9:dv sent=@da id=@da]
   ^-  (unit publication-proof:t)
-  ?.  =(our ?@(author author ship.author))  ~
+  ?.  =(our (author-ship:authors author))  ~
   `[to sent id]
 ::
 ++  channel

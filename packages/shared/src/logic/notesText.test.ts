@@ -4,6 +4,7 @@ import {
   formatNotesActivityLabel,
   formatNotesChannelSubtitle,
   getNoteBodyPreview,
+  noteSnippetContent,
   stripNoteMarkdown,
 } from './notesText';
 
@@ -110,5 +111,25 @@ describe('formatNotesActivityLabel', () => {
         isNew: false,
       })
     ).toBe('Note edited');
+  });
+});
+
+describe('noteSnippetContent', () => {
+  test('drops a leading heading that repeats the title', () => {
+    const content = noteSnippetContent(
+      '# Kitchen Renovation\n\nRunning **record**.',
+      'Kitchen Renovation'
+    );
+    expect(content.map((block) => block.type)).toEqual(['paragraph']);
+  });
+
+  test('keeps a leading heading that differs from the title', () => {
+    const content = noteSnippetContent('## Scope\n\nBody', 'Kitchen');
+    expect(content.map((block) => block.type)).toEqual(['header', 'paragraph']);
+  });
+
+  test('keeps a matching heading that is not first', () => {
+    const content = noteSnippetContent('Intro\n\n# Kitchen', 'Kitchen');
+    expect(content.map((block) => block.type)).toEqual(['paragraph', 'header']);
   });
 });

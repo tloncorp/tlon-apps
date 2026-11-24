@@ -1,6 +1,7 @@
 ::  Contacts owns the ship's public identity. Send only the edited fields:
 ::  a full profile replacement could erase a bio, color, or group membership.
 /-  ct=contacts
+/+  defaults=harness-defaults
 |%
 ++  liveness
   |=  [online=? con=contact:ct]
@@ -9,6 +10,14 @@
     [%text ?:(online '{"v":1,"state":"online"}' '{"v":1,"state":"offline"}')]
   ?:  =(`claim (~(get by con) %bot-liveness))  ~
   (my ~[[%bot-liveness claim]])
+::  The stored claim is compared by its bytes, so the key order is fixed.
+++  bot-info
+  |=  con=contact:ct
+  ^-  contact:ct
+  =/  claim=value:ct
+    [%text (rap 3 ~['{"v":1,"harness":"harness","version":"' version:defaults '"}'])]
+  ?:  =(`claim (~(get by con) %bot-info))  ~
+  (my ~[[%bot-info claim]])
 ++  encode
   |=  con=contact:ct
   ^-  json

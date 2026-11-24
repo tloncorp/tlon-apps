@@ -22,7 +22,9 @@ Hands also support [scheduled work](scheduling.md), managed in Settings → Sche
 ## Binding and authority
 
 A binding has an immutable id, hand id, opaque destination address, session id,
-an explicit actor allowlist, and an enabled flag. Create and configure the
+an explicit actor allowlist, and an enabled flag. The allowlist `["*"]` admits
+any actor; an empty allowlist is refused. Outside that exact list `*` is an
+ordinary actor name. Create and configure the
 session first. Its model, instructions, and execution-time tool grants govern
 the work. New sessions inherit global defaults, **including enabled tools**:
 narrow these before accepting input from an external channel.
@@ -33,6 +35,10 @@ their model context: an answer on either can draw on the other's history.
 Adapters have owner authority through same-ship native calls or authenticated ACP.
 Hand and worker IDs are labels, not credentials. The adapter must authenticate
 actors, exclude its own messages, and enforce membership and mention rules.
+An adapter that binds `["*"]` lets several speakers share one session, so it
+must decide itself which speakers to observe: Harness checks nothing about
+them. A wildcard binding cannot name a work owner; `hand-access` requires a
+binding that lists the actor.
 Keep ship login codes private; remote ships use the [peer interface](peers.md).
 
 Binding identity and actor grants are immutable; use a new binding id to change
@@ -143,6 +149,15 @@ No client connection owns the run. `session/cancel` cancels both the active turn
 and queued observations for that session. Queued cancellations appear in status
 without creating a reply; active cancellations produce a cancellation publication.
 
+An observed `/stop` is one speaker's. It cancels the running turn, and the
+subagents it started, only when that turn is the speaker's own, and only the
+speaker's queued observations; other
+speakers' work continues. The bot's owner, on the Tlon hand, stops the whole
+session as `session/cancel` does. The local action `[%fence-actor sid actor]`
+revokes one speaker the same way: their running turn, the subagent sessions it
+delegated to, and their queued observations, leaving timers, configuration and other speakers' work alone. `%fence`
+still fences the whole session and its descendants.
+
 Native hands watch `%harness` at `/hand-events` for `%noun` `%changed` facts.
 Read the ledger on each notification; facts contain no transcript or provider
 data. Subscription sends an initial fact, allowing recovery after disconnection.
@@ -153,7 +168,9 @@ Publications carry `version`, `effectId`, `inputId`, `binding`, `hand`, `address
 `sessionId`, `capability`, `kind`, `text`, `status`, `worker`, `externalId`, and
 `attempt`, chronological `receipts`, and owner `resolutions`. One terminal publication is created per executed
 observation, with `effectId = inputId`. Kinds are `reply`, `failure`, or
-`cancelled`. Failures expose a generic message, not internal diagnostics.
+`cancelled`. Failures expose a generic message, not internal diagnostics. A turn
+the loop guard halts, after four failing tool results in a row or 24 assistant
+turns since its input, is a `failure` whose message asks for a new message.
 
 The outbox is unordered. For chat delivery, match `inputId` to chronological
 session entries and send one publication at a time per destination. Adapters

@@ -5,7 +5,7 @@
 /+  story=harness-tlon-story, profile=harness-tlon-profile,
     ht=harness-tools, publication=harness-tlon-publication,
     hist=harness-tlon-history, onboarding=harness-tlon-onboarding,
-    paths=harness-tlon-paths
+    paths=harness-tlon-paths, authors=harness-tlon-author
 |_  bowl=bowl:gall
 +*  read-path  ~(. paths [our now]:bowl)
 +$  card  card:agent:gall
@@ -35,7 +35,7 @@
           meta=(unit data:mt)  blob=(unit @t)
       ==
   ^-  card
-  =/  =memo:v9:dv  [content our.bowl sent]
+  =/  =memo:v9:dv  [content (bot-author:authors our.bowl) sent]
   ?-  -.to
       %dm
     =/  =diff:dm:v7:cv
@@ -105,6 +105,41 @@
     ~
   `[%dm-post [id:-.post time] [%ship who] content:+.post |]
 ::
+::  +dm-recent: the newest posts of a DM, oldest first, with their blobs.
+::  Workspace cards and taps are read from here; nothing else records them.
+::
+++  dm-recent
+  |=  who=@p
+  ^-  (list [at=@da author=@p text=@t blob=(unit @t)])
+  =/  page=paged-writs:v7:cv
+    .^  paged-writs:v7:cv  %gx
+      (weld (dm-writs:read-path who) /newest/100/light/chat-paged-writs-4)
+    ==
+  =/  rows
+    %+  murn  (tap:on:writs:v7:cv writs.page)
+    |=  [time=@da item=(may:v7:cv writ:v7:cv)]
+    ^-  (unit [at=@da author=@p text=@t blob=(unit @t)])
+    ?.  ?=(%& -.item)  ~
+    =/  post  +.item
+    :-  ~
+    :^  time  (author-ship:authors author:+.post)
+      (story-to-text:story content:+.post)
+    blob:+.post
+  (sort rows |=([a=[at=@da *] b=[at=@da *]] (lth at.a at.b)))
+::
+::  +dm-blob: the blob of the exact DM post an activity event names
+::
+++  dm-blob
+  |=  event=incoming-event:v8:a
+  ^-  (unit @t)
+  ?.  &(?=(%dm-post -.event) ?=(%ship -.whom.event))  ~
+  =/  post=(may:v7:cv writ:v7:cv)
+    .^  (may:v7:cv writ:v7:cv)  %gx
+      (dm-post:read-path p.whom.event id.key.event)
+    ==
+  ?:  ?=(%| -.post)  ~
+  blob:+.+.post
+::
 ++  onboarding-request
   |=  event=incoming-event:v8:a
   ^-  (unit @t)
@@ -112,13 +147,7 @@
   ::  conversation-wide search that could attach somebody else's setup data.
   ?+  -.event  ~
       %dm-post
-    ?.  ?=(%ship -.whom.event)  ~
-    =/  post=(may:v7:cv writ:v7:cv)
-      .^  (may:v7:cv writ:v7:cv)  %gx
-        (dm-post:read-path p.whom.event id.key.event)
-      ==
-    ?:  ?=(%| -.post)  ~
-    (request:onboarding p.id.key.event blob:+.+.post)
+    (request:onboarding p.id.key.event (dm-blob event))
       %post
     =/  post=(may:v9:dv post:v9:dv)
       .^  (may:v9:dv post:v9:dv)  %gx
@@ -153,7 +182,7 @@
     =/  author  author:+.post
     :-  ~
     :*  (rap 3 (scot %p p.id:-.post) '/' (scot %da q.id:-.post) ~)
-        ?@(author author ship.author)
+        (author-ship:authors author)
         sent:+.post
         (clip:ht (story-to-text:story content:+.post) 800)
     ==
@@ -185,7 +214,7 @@
     =/  author  author:+.+.post
     :-  ~
     :*  (scot %da id:-.post)
-        ?@(author author ship.author)
+        (author-ship:authors author)
         sent:+.+.post
         (clip:ht (story-to-text:story content:+.+.post) 800)
     ==
@@ -243,15 +272,15 @@
   %-  encode:profile
   .^(contact:ct %gx /(scot %p our.bowl)/contacts/(scot %da now.bowl)/v1/self/contact-1)
 ::
-++  liveness
+++  claims
   |=  online=?
   ^-  (unit card)
   ?.  .^(? %gu /(scot %p our.bowl)/contacts/(scot %da now.bowl)/$)  ~
   =/  con
     .^(contact:ct %gx /(scot %p our.bowl)/contacts/(scot %da now.bowl)/v1/self/contact-1)
-  =/  patch  (liveness:profile online con)
+  =/  patch  (~(uni by (liveness:profile online con)) (bot-info:profile con))
   ?~  patch  ~
-  `(edit-profile /liveness patch)
+  `(edit-profile /claims patch)
 ::
 ++  edit-profile
   |=  [wire=wire fields=contact:ct]

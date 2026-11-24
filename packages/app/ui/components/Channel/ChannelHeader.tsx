@@ -34,6 +34,7 @@ import { Badge } from '../Badge';
 import { GroupAvatar } from '../GroupAvatar';
 import { ScreenHeader, type ScreenHeaderAction } from '../ScreenHeader';
 import { useScreenScrollProps } from '../useScreenScrollProps';
+import { BotRestartAvatar } from './BotRestartAvatar';
 import {
   getChannelConnectionStatusText,
   getChannelHeaderLoadingSubtitle,
@@ -165,6 +166,7 @@ export function ChannelHeader({
   onToggleContextLens,
   contextLensOpen = false,
   contextLensActive = false,
+  botRestarting = false,
   showSpinner,
   loadingSubtitle = 'Loading messages…',
   hideIdentity = false,
@@ -188,6 +190,7 @@ export function ChannelHeader({
   onToggleContextLens?: () => void;
   contextLensOpen?: boolean;
   contextLensActive?: boolean;
+  botRestarting?: boolean;
   showSpinner?: boolean;
   loadingSubtitle?: string | null;
   hideIdentity?: boolean;
@@ -348,7 +351,11 @@ export function ChannelHeader({
   const avatarElement = useMemo(() => {
     // For DMs, show the other user's avatar
     if (channel.type === 'dm' && dmContactId) {
-      return <ContactAvatar contactId={dmContactId} size="$2xl" />;
+      return (
+        <BotRestartAvatar restarting={botRestarting}>
+          <ContactAvatar contactId={dmContactId} size="$2xl" />
+        </BotRestartAvatar>
+      );
     }
 
     // For group DMs, show group avatar as fallback
@@ -391,7 +398,7 @@ export function ChannelHeader({
     }
 
     return null;
-  }, [channel, group, dmContactId, isWindowNarrow]);
+  }, [channel, group, dmContactId, isWindowNarrow, botRestarting]);
 
   const handleTitlePress = useMemo(() => {
     // For DMs, navigate to profile

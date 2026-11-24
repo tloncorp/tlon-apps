@@ -1,8 +1,8 @@
 /-  t=harness-tlon, h=harness, a=activity-ver, ct=contacts, ad=harness-adapter,
-    dv=channels-ver, cr=harness-cron, hh=harness-hand, d=story
+    dv=channels-ver, cv=chat-ver, cr=harness-cron, hh=harness-hand, d=story
 /+  *test, p=harness-tlon-policy, story=harness-tlon-story, ht=harness-tools,
     profile=harness-tlon-profile, presence=harness-tlon-presence, clock=harness-tlon-clock,
-    io=harness-tlon-io, publication=harness-tlon-publication
+    io=harness-tlon-io, publication=harness-tlon-publication, defaults=harness-defaults
 |%
 ++  clear-fixture
   =/  =job:cr  *job:cr
@@ -65,6 +65,50 @@
   %+  expect-eq
     !>(~[`publication-proof:t`[[%channel [%chat ~nec %fixture] `~2026.9.4] ~2026.9.5 ~2026.9.6]])
   !>((channel:publication ~lux response))
+++  test-channel-confirmation-matches-a-bot-profile-author
+  =/  =post:v9:dv  *post:v9:dv
+  =.  +.+.post  +.+.post(author [~lux ~ ~], sent ~2026.9.5)
+  =/  response=r-channels:v9:dv  [[%chat ~nec %fixture] %post ~2026.9.6 %set %& post]
+  =/  other=post:v9:dv  post
+  =.  +.+.other  +.+.other(author [~bud ~ ~])
+  =/  foreign=r-channels:v9:dv  [[%chat ~nec %fixture] %post ~2026.9.6 %set %& other]
+  ;:  weld
+      %+  expect-eq
+        !>(~[`publication-proof:t`[[%channel [%chat ~nec %fixture] ~] ~2026.9.5 ~2026.9.6]])
+      !>((channel:publication ~lux response))
+      (expect-eq !>(`(list publication-proof:t)`~) !>((channel:publication ~lux foreign)))
+  ==
+++  poked
+  |=  =card:agent:gall
+  ^-  vase
+  ?>  ?=([%pass * %agent * %poke *] card)
+  =/  [pass=* wire=* agent=* who=* poke=* mark=* data=vase]  card
+  data
+++  test-every-message-the-bot-publishes-has-the-bot-author
+  =/  =bowl:gall  *bowl:gall
+  =.  our.bowl  ~lux
+  =/  publish  publish:~(. io bowl)
+  =/  =memo:v9:dv  [(text-to-story:story 'hello') [~lux ~ ~] ~2026.9.5]
+  =/  nest=nest:dv  [%chat ~nec %fixture]
+  =/  dm  (publish /test [%dm ~nec ~] 'hello' ~2026.9.5 ~)
+  =/  dm-reply  (publish /test [%dm ~nec `[~nec ~2026.9.4]] 'hello' ~2026.9.5 ~)
+  =/  post  (publish /test [%channel nest ~] 'hello' ~2026.9.5 ~)
+  =/  reply  (publish /test [%channel nest `~2026.9.4] 'hello' ~2026.9.5 ~)
+  ;:  weld
+      %+  expect-eq
+        !>(`action:dm:v7:cv`[~nec [~lux ~2026.9.5] %add [memo chat+/ ~ ~] `~2026.9.5])
+      !>(!<(action:dm:v7:cv (poked dm)))
+      %+  expect-eq
+        !>  ^-  action:dm:v7:cv
+            [~nec [~nec ~2026.9.4] %reply [~lux ~2026.9.5] ~ %add [memo ~] `~2026.9.5]
+      !>(!<(action:dm:v7:cv (poked dm-reply)))
+      %+  expect-eq
+        !>(`a-channels:v10:dv`[%channel nest %post %add [memo [%chat ~] ~ ~]])
+      !>(!<(a-channels:v10:dv (poked post)))
+      %+  expect-eq
+        !>(`a-channels:v10:dv`[%channel nest %post %reply ~2026.9.4 %add [memo ~]])
+      !>(!<(a-channels:v10:dv (poked reply)))
+  ==
 ++  test-channel-publication-keeps-the-versioned-groups-client-route
   =/  =bowl:gall  *bowl:gall
   =.  our.bowl  ~lux
@@ -106,28 +150,28 @@
   =/  third  (next-message-stamp:p ~2026.9.4 second)
   (expect !>(&((lth first second) (lth second third) =(second (slav %da (scot %da second))))))
 ++  test-message-routing-and-stale-wakes-never-create-a-timer
-  =/  state=state-3:t  *state-3:t
+  =/  state=state-4:t  *state-4:t
   =.  policy.state  [& `~bud ~ %mentions ~ ~]
   =.  watching.state  &
   =.  wake.state  `~2026.9.4
-  =.  lanes.state  (my ~[['s' [~bud [%dm ~bud ~] 0 ~]]])
+  =.  lanes.state  (my ~[['s' [[%dm ~bud ~] 0 ~]]])
   =.  deliveries.state  (~(put by deliveries.state) 0v1 `delivery:t`[1 %send %uncertain 'external'])
   (expect-eq !>(`(unit @da)`~) !>((deadline:clock ~2026.9.5 state)))
 ++  test-maintenance-renews-the-presence-lease-at-its-deadline
-  =/  state=state-3:t  *state-3:t
+  =/  state=state-4:t  *state-4:t
   =.  policy.state  [& `~bud ~ %mentions ~ ~]
   =.  watching.state  &
   =.  computing.state  (my ~[[/dm/~bud [~2026.9.5 ~]]])
   (expect-eq !>(`(unit @da)`[~ (add ~2026.9.5 ~s10)]) !>((deadline:clock ~2026.9.5 state)))
 ++  test-maintenance-tool-timeout-is-not-a-message-poll
-  =/  state=state-3:t  *state-3:t
+  =/  state=state-4:t  *state-4:t
   =.  policy.state  [& `~bud ~ %mentions ~ ~]
   =.  watching.state  &
   =.  tool-receipts.state
     (my ~[[0v1 [['s' 1 ['call' 'tlon_react' '{}']] %sending '' ~2026.9.5]]])
   (expect-eq !>(`(unit @da)`[~ (add ~2026.9.5 ~m1)]) !>((deadline:clock ~2026.9.5 state)))
 ++  test-disabled-hand-has-no-maintenance-wake
-  =/  state=state-3:t  *state-3:t
+  =/  state=state-4:t  *state-4:t
   =.  enabled.policy.state  |
   =.  computing.state  (my ~[[/dm/~bud [~2026.9.5 ~]]])
   (expect-eq !>(`(unit @da)`~) !>((deadline:clock ~2026.9.5 state)))
@@ -221,6 +265,20 @@
       (expect-eq !>(`contact:ct`~) !>((liveness:profile & patch)))
       (expect-eq !>(expected) !>((liveness:profile & ~)))
   ==
+++  test-bot-info-patch-publishes-only-a-differing-claim
+  =/  claim=value:ct
+    [%text (rap 3 ~['{"v":1,"harness":"harness","version":"' version:defaults '"}'])]
+  =/  con=contact:ct
+    %-  my
+    :~  [%nickname [%text 'Bot']]
+        [%bot-info [%text '{"v":1,"harness":"harness","version":"0.0.0"}']]
+    ==
+  =/  expected=contact:ct  (my ~[[%bot-info claim]])
+  ;:  weld
+      (expect-eq !>(expected) !>((bot-info:profile con)))
+      (expect-eq !>(expected) !>((bot-info:profile ~)))
+      (expect-eq !>(`contact:ct`~) !>((bot-info:profile (~(put by con) %bot-info claim))))
+  ==
 ++  test-profile-edits-only-nickname-and-avatar
   =/  patch
     %-  decode:profile
@@ -271,12 +329,20 @@
   =/  evt=$>(%post incoming-event:v8:a)
     [%post [[~zod ~2026.9.4] ~2026.9.4] [%chat ~zod %test] [~zod %test] ~[[%inline ~['hello']]] |]
   (expect !>(&(=(~ (normalize:p ~lux policy evt)) ?=(^ (normalize:p ~lux policy evt(mention &))))))
-++  test-session-identity-separates-actors-and-threads
+::  A channel's session is the destination's, whoever speaks; its threads and
+::  grant epochs still separate. It can never equal an earlier per-speaker id,
+::  which named a speaker in the hash.
+::
+++  test-session-identity-is-the-destinations-and-separates-threads
   =/  to=$>(%channel destination:t)  [%channel [%chat ~zod %test] ~]
-  =/  sid  (session-id:p 1 ~zod to)
+  =/  sid  (session-id:p 1 to)
+  =/  per-speaker
+    (rap 3 'zod-test-' (scot %uv (end 7^1 (sham [1 ~zod to]))) ~)
   %-  expect
-  !>  ?&  !=(sid (session-id:p 1 ~nec to))  !=(sid (session-id:p 2 ~zod to))
-          !=(sid (session-id:p 1 ~zod to(parent `~2026.9.4)))
+  !>  ?&  =(sid (session-id:p 1 to))  !=(sid (session-id:p 2 to))
+          !=(sid (session-id:p 1 to(parent `~2026.9.4)))
+          !=(sid per-speaker)
+          =('zod-test-' (end 3^9 sid))
       ==
 ++  test-dm-thread-keeps-author-id-not-activity-time
   =/  evt=incoming-event:v8:a

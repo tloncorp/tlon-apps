@@ -12,6 +12,7 @@ There are two independent surfaces:
   operations, including while automatic replies are disabled.
 
 Use [ship-wide tools](#ship-wide-tlon-tool) for messaging and administration,
+[workspace proposals](#workspace-proposals) for proposing a group in the owner's DM,
 [Notes](#group-notes-bulk-imports-and-diary-migration) for notebooks and imports,
 [hooks](#persistent-channel-hooks) for persistent native programs,
 [publishing](#public-web-publishing) for public content,
@@ -26,13 +27,20 @@ Owner DMs support [work commands](work-control.md) and optional A2UI buttons.
 Both let you manage work without opening Harness. Channels do not receive
 owner-management controls.
 
-Run `just setup PIER ~owner` to set the owner and enable the hand. Trusted ships
+Run `just setup SHIP ~owner` to set the owner and enable the hand. Trusted ships
 and their tools are set through `harness/tlon/configure`.
 
 **Bot profile** edits the ship's Contacts nickname and avatar. It refreshes
 external changes without overwriting drafts, and waits for Contacts to confirm
 saves. Empty fields clear those attributes; other fields, permissions, and
 conversations stay unchanged.
+
+Every message the hand writes (channel posts and replies, DMs and DM replies,
+group DMs and their replies) carries the bot-profile author form with an empty
+nickname and avatar, so other bots and the app know a bot wrote it. The app
+still shows the name and avatar from the Contacts profile, and adds a bot
+badge. Messages from `run_js`'s Tlon host APIs carry the same form. Older
+messages with a bare-ship author keep it.
 
 ## Context Lens
 
@@ -48,7 +56,7 @@ reconstructed from today's configuration.
 To show these records in the owner's native Tlon Context Lens:
 
 1. Install a Tlon version with Steward Lens support on both ships, and run
-   `just setup PIER ~owner`, which also enables owner sync.
+   `just setup SHIP ~owner`, which also enables owner sync.
 2. On the owner ship, trust the bot: `:steward &steward-action-1 [%trust-bot ~bot]`.
    Replace `~bot` with the bot's ship name. Sponsorship alone does not grant trust.
 3. Owner sync also sets the bot's local Steward owner, so owner-requested run
@@ -160,7 +168,8 @@ The same grant also covers:
   full text, not just the displayed preview. `history_around` reads five nearby
   messages on either side; `resolve_citation` follows native group, channel and
   Notes references without joining anything or executing a desk converter.
-  `edit_message` preserves channel post/reply identity and metadata. Native Tlon
+  `edit_message` preserves channel post/reply identity, author and metadata;
+  it edits the bot's own messages, bare-ship or bot-profile. Native Tlon
   does not support editing DM or group-DM messages. `delete_message`
   requires exact-target confirmation. `accept_dm` and `decline_dm` resolve only
   pending invitations.
@@ -215,6 +224,69 @@ The same grant also covers:
   The current-conversation `tlon_upload_image` is separately available.
   URL sources retain HTTPS/no-redirect restrictions; all uploads are capped at
   8 MiB and may be public under the configured storage policy.
+
+### Workspace proposals
+
+In the owner's own DM the same grant offers three more tools, so that a topic
+which will outlast one reply gets a proposed workspace (a group) instead of one
+made unasked. They are refused in channels, in DM threads, for other ships and
+in scheduled runs.
+
+Nothing about a card is saved. The DM holds the cards, the owner's taps and
+the bot's answers, and the hand reads the newest 100 posts of the DM each time
+it needs them. A card older than that is no longer known.
+
+- `tlon_workspace_plan(intro, title, description, channels, task?)` posts the
+  intro and a card listing the workspace, one to six channels (the first a
+  chat) and an optional recurring task, with **Edit** and **Create** buttons.
+  Nothing is created. The newest card in the DM is the live one; a tap on an
+  older one creates nothing. The card shows the task's title and description;
+  its schedule and prompt stay in the plan call the model made.
+- A tap is the owner's DM post carrying the app's `tlon-a2ui-selection`
+  receipt for a card; the same words typed are not a tap. The hand reads the
+  post's blob only when its text is a card button's message, then appends a
+  bracketed note to the message the model reads: **Create** says to call
+  `tlon_workspace_create`, **Edit** says to ask what to change.
+- A card's answer is the bot's reply after the card, up to the owner's next
+  message. A card posted after the owner tapped **Edit** on the one before it
+  keeps that card's answer.
+- `tlon_workspace_create(proposal_id, group?)` runs only for a card the owner
+  tapped **Create** on. Called with the card alone it returns the steps: make
+  the group through the MCP server that acts on the owner's account, so the
+  owner's ship hosts it, or with `create_group` and `owner` when no such
+  server is granted, then its remaining channels. Called again with the new
+  `group`, it requires that group to carry the card's title, to have no
+  member, pending or invited ship or token for anyone but the owner and this
+  ship, to belong to no other card, to make
+  this ship an admin, and to have every listed channel. It then renames the
+  group's first chat to the card's, makes the group secret, puts the channels
+  in the card's order, posts the answer as the first message of that chat and
+  posts the group's card in the DM. That post carries a
+  `tlon-agent-post-marker` naming the card and the group, which is what makes
+  the card created. It then reports the task to schedule with `cron_add`,
+  whose prompt starts with the task's title in brackets and posts to the
+  workspace chat. A later call makes only the group changes still missing, so
+  one Tlon rejected is retried, and otherwise makes nothing. The answer and
+  the marker are not retried that way: if the chat rejects the answer but the
+  marker lands, the card is created without its answer; if the answer lands
+  but the marker does not, the next call posts the answer again.
+- Every other top-level DM message from the owner, commands excepted, is
+  admitted with a workspace rule as its hand context, the way a channel
+  thread's public reference is: check `list_groups`, link a workspace that
+  covers the topic, otherwise propose one, and no card for a topic already
+  proposed or declined, small talk or one-off questions. The head records it
+  beside the message, never as part of it, so the message's text, memory
+  recall and the DM itself are unchanged. Like any context event it stays in
+  the conversation's journal, about 550 bytes per message.
+- `tlon_workspace_link(group, line)` posts one line and the card of a group
+  this ship is in, for a topic an existing workspace already covers.
+
+The group and its channels are made by the model's own calls between the two
+`tlon_workspace_create` calls, so a failed group or channel step is resumed
+by calling again,
+and the model is told never to make a second group for a card. The task
+follows the [scheduler](scheduling.md)'s limits: a UTC expression, at most 100
+runs, and a closing line in the DM, the conversation that scheduled it.
 
 ### Group Notes, bulk imports and diary migration
 
@@ -365,15 +437,23 @@ You can also edit each conversation's settings. Changes affect subsequent
 requests, not active or failed work. Send another message after fixing a failure.
 
 Replies describe provider failures without exposing raw errors publicly.
-Open the Harness conversation for details. For a `401`, check that conversation's
+When the loop guard stops a turn, after four failed tool calls in a row or 24
+model turns without an answer, the reply says the bot stopped and asks for a
+new message. Open the Harness conversation for details. For a `401`, check that conversation's
 endpoint and credential. Refreshing the page does not retry inference.
+A message whose request is too large for the model and cannot be made to fit
+usually gets one reply saying it was left out; the next message is answered
+without it. When Harness itself refuses to compact because an earlier exchange
+or a pending group of summaries is too large for the summary model, the message
+is kept and the reply suggests a larger-context model.
 
 Send `/help` for the shared [conversation commands](acp.md#conversation-commands).
 Mention rules still apply. `/stop` interrupts work and clears queued inputs;
 other commands wait for the turn to finish.
 
 `/work` manages tasks and documents in chat. Protected owner operations require
-an owner DM; other actors use their Workspace and document permissions.
+an owner DM; other actors use their Workspace and document permissions, except
+in a channel, where only the owner may use it.
 See [work commands](work-control.md).
 
 ### Shared memory
@@ -426,6 +506,14 @@ preserving the rest of the profile and skipping unchanged claims. Reload and
 reconnection repair the claim. A failed Contacts read or edit retries on the
 next adapter event without blocking chat or creating a nack loop. If the whole
 ship stops, peers retain the last published claim until the ship returns.
+
+The same reconciliation publishes the `bot-info` claim that identifies the
+runtime to the app (`docs/bot-info.md`):
+`{"v":1,"harness":"harness","version":"<version>"}`, whatever the hand's
+readiness. The version is `version` in `desk/lib/harness-defaults.hoon`, which
+the ACP agent info also reports; `package.json` repeats it for the shared bot
+E2E, and `tests-js/distribution.test.mjs` keeps the two equal. Both claims
+share one Contacts read and, when either differs, one `%self` edit.
 
 Chat computing indicators use `%presence-action-1` and the
 `tlon.computing-status.v1` display payload, matching the versioned Groups
@@ -492,7 +580,7 @@ An accepted upload does not guarantee public readability or remote message deliv
 
 The live fixture is `tests-js/tlon-media-conformance.mjs`; it requires
 `MEDIA_TEST_STORAGE=1`, the usual two-ship test variables, and optionally
-`TEST_PANE` for adapter suspension/reload checks. It downloads a real public
+`SHIP_PIER` for adapter suspension/reload checks. It downloads a real public
 image through the ship, temporarily configures a local independently verifying
 S3 endpoint, and restores the test ship's storage configuration.
 
@@ -507,8 +595,10 @@ messaging the sender.
 - New owner conversations inherit the tools in **Settings → Defaults**, not the
   entire catalog. Existing conversations keep their configured grants. Ownership
   still permits conversation admission and invitation acceptance without tools.
-  **Known bug:** these saved tools don't limit owner turns with administrative
-  authority, which get the live catalog. See [known bugs](../ISSUES.md#known-bugs).
+  An owner turn in the owner's own DM with the bot has administrative authority
+  and gets the live catalog whatever the saved tools say, except `run_js`, which
+  needs `code` saved on the conversation. In a channel, the saved tools limit the
+  owner too.
 - Trusted ships can chat with no tools; each grant is explicit.
   MCP entries grant individual registered server IDs, for example
   `{"mcp":"calendar"}` in the `tools` array. Registering another server never
@@ -521,7 +611,15 @@ messaging the sender.
   grants say. Granting either to it has no effect. A session bound to another
   hand gets the tools its adapter configures (see
   [hands](hands.md#binding-and-authority)).
-- Other ships and the bot's own messages do not enter inference.
+- Other ships and the bot's own messages do not enter inference. The bot
+  knows its own messages by the author's ship, whichever author form they carry.
+- A channel post or reply whose author carries a bot profile, as OpenClaw and
+  Hermes bots write theirs, is a bot's message. On admission the hand reads
+  that one message from local `%channels`, a bounded page and an exact-key
+  lookup, and records it in the activity feed as `bot-message`. It is admitted
+  and answered like any other message. A message the hand can no longer read
+  there (the channel left, the message gone, or its thread's parent deleted)
+  is recorded as `message`.
 - Group invitations are accepted only when sent by the owner. DM invitations
   from the owner, a trusted ship or an allowed ship are accepted. An invitation
   still pending when its sender gains access is accepted at that point, or when
@@ -534,15 +632,57 @@ messaging the sender.
 - Channels require a mention by default. Replies to the bot's own posts count
   as addressed; DMs do not require mentions. Turn the requirement off to answer
   every message from allowed actors in channels the ship has joined.
-- Sender and exact destination/thread determine the stable conversation. A shared
-  channel does not share the owner's private DM transcript or execution grants.
+- The exact destination determines the stable conversation: a DM, a channel
+  and each thread in either have one conversation each. Every admitted speaker
+  in a channel shares its conversation, and each message there reaches the
+  model prefixed with its speaker's ship and a colon. Text the head parses as
+  a command, such as `/stop`, stays as written so it is still a command; other
+  text that starts with a slash, such as a path, is prefixed. A channel does not share the owner's
+  private DM transcript, and a speaker never gets another speaker's grants.
   Channel answers are still public to that channel's members: granting file,
   web, skills, peer, or MCP access can expose whatever those tools can read.
+- A channel conversation's saved tools are the owner's Defaults, whoever spoke
+  there first; each turn's speaker ceiling narrows them. A DM's are its
+  partner's grants.
+- A channel conversation's settings, thread included, are the owner's. Another
+  speaker there may still use `/help`, `/status`, `/context`, `/model` and
+  `/memory` with no argument or a query, and `/stop` for their own work, but
+  `/model` with an argument, `/compact`, `/memory on` or `off`, `/remember`,
+  `/forget` and `/work` get a reply that only the owner can change the
+  conversation's settings; they reach no model and change nothing. The head
+  asks the adapter whether a speaker may, as it asks for authority. A DM's
+  partner keeps every command, as do the operator's local prompts.
+
+Authority is decided per speaker. For each turn the head asks the adapter about
+the actor of the conversation's running input, and for scheduled work about the
+schedule's actor. The adapter answers from that speaker's own access to the
+conversation's destination: the owner has no ceiling, any other ship's ceiling
+comes from its own grants and, in a channel, its native read permission, and a
+ship with no access there gets no authority. A speaker never receives another
+speaker's tools.
+
+- A DM answers for its partner. The partner, the operator's own local or ACP
+  prompt and a question with no speaker all get the partner's authority; any
+  other speaker gets none.
+- In a channel, the operator's own local or ACP prompt, which the head passes
+  as the bot's own ship only after proving it is local, has the owner's
+  authority. With no speaker known, as for a timer, a channel conversation
+  answers live with only Tlon read and write, never the owner's authority.
+- A scheduled run with no speaker answers for its schedule's actor.
+- A channel conversation never has administrative authority.
+
+Admission checks each message's speaker, including its native read permission
+in a channel, even when the conversation's route is already set up. Context,
+history and lens sync ask only whether the conversation itself is live: Tlon is
+enabled, its route is ready, any schedule still holds and the channel does not
+have replies turned off.
 
 Permission changes retire only affected authorization routes. Adding an unrelated
 trusted actor leaves existing conversations, in-flight work, notes, saved model
-settings and schedules alone. Changing the mention requirement affects channels,
-not DMs; changing an actor's role or effective grants affects that actor's work.
+settings and schedules alone. Changing the mention requirement or a channel's
+rule affects that channel's routes, not DMs. Changing an actor's role or
+effective grants retires that actor's DM route; in a channel it keeps the route
+and binding, and cancels only that actor's running and queued work there.
 Grant order alone is not a revocation. Disabling Tlon affects every route.
 
 Affected queued/running work is cancelled, old bindings are disabled, native
@@ -553,8 +693,12 @@ and a tools-only configuration update have been acknowledged, using a fresh
 binding. Old publications cannot move to the new binding. Actor-specific admission
 cutoffs reject queued pre-grant messages without dropping unrelated input.
 
-Publication checks the exact current binding and actor again after claiming,
-before sending. Async callbacks and self-dispatched work carry request generations,
+Publication checks the exact current binding again after claiming, before
+sending, and the reply's speaker: it is sent only while that speaker is still
+granted there and if the speaker's input came after the speaker's latest
+permission change, or for a sibling moon's owner the latest change to sibling
+ownership, so a reply to a speaker revoked mid-turn, or a stale one
+after a later re-grant, is not published. Async callbacks and self-dispatched work carry request generations,
 so reusing a tool-call ID cannot revive an old request. Previously emitted network
 operations cannot be undone; their receipts and uncertainty remain evidence.
 Saving unchanged policy leaves routes and sessions alone. Conversation heads
@@ -563,7 +707,7 @@ remain distinct from authorization bindings and scheduled-run sessions.
 `tests-js/tlon-continuity-conformance.mjs` exercises native DM/channel threads,
 unrelated and affected permission edits, notes, chosen settings, timers, schedules,
 late HTTP/child results, and reload. It requires `CONTINUITY_TEST_MESSAGES=1`, the
-usual ship/peer/nest variables, and `TEST_PANE` for the test ship's Dojo. It restores
+usual ship/peer/nest variables, and `SHIP_PIER` for the test ship's pier. It restores
 policy, defaults and original native trust; marked test messages and audit records
 remain in the disposable conversations.
 
@@ -608,7 +752,9 @@ These owner-authenticated extensions work from any initialized ACP client:
 ```
 
 Activity notifications contain `sequence`, `kind`, `actor`, `address`, and `event`.
-The feed retains 128 diagnostic entries. Use session snapshots and the
+An admitted message's `kind` is `message`, or `bot-message` when its author has
+a bot profile. A message the hand ledger refused is `refusal-notice` or
+`refusal` (see [Retention and capacity](#retention-and-capacity)). The feed retains 128 diagnostic entries. Use session snapshots and the
 [hand ledger](hands.md) for conversation history and delivery records.
 
 The head forwards the authenticated `harness/tlon` namespace through
@@ -674,19 +820,44 @@ variants do not acquire command authority.
 
 The cursor recovers events still retained by native Activity, not deleted or
 expired native history. Initial activation sets an admission cutoff rather
-than answering all historical messages. Retained jobs remain recoverable.
-`activityThrough` and `catchingUp` expose the checkpoint and whether more
-work remains.
+than answering all historical messages. When the hand ledger refuses a
+message's binding or observation, the adapter ends that admission in the same
+event, so a conversation the ledger cannot accept does not hold the cursor for
+the others. `activityThrough` and `catchingUp` expose the checkpoint and whether
+more work remains.
+
+### Upgrading to shared channel conversations
+
+Earlier versions kept one conversation per speaker in each channel. On upgrade,
+DM conversations keep their identities and history. Each per-speaker channel
+conversation is dropped from the adapter: its binding is disabled and its
+session fenced, so queued input there gets no reply, and the session stays in
+the head as history. The next message in that channel starts its one shared
+conversation, with a new identity.
 
 ### Retention and capacity
 
 Conversation identities and their notes outlive route authorization. Revocation
 disables the old binding and fences its work; it does not delete its evidence or
 assign its old publications to a new binding. Operational limits are admission
-backpressure, never permission to prune primary history: 128 retained social
-identities and 64 pending admissions; the head separately retains up to 64
-schedules across all hands. These complement the
+backpressure, never permission to prune primary history: 64 pending
+admissions; the head separately retains up to 64 schedules across all hands.
+These complement the
 [shared hand limits and archive protocol](hands.md#fair-admission-and-explicit-retention).
+
+A message the hand ledger refuses is not retried. The adapter sets `error` to
+the ledger's reason and writes one activity entry. When the sender still
+has grants in that conversation and has not been told in that conversation within
+five minutes, it tells the sender "I can't answer messages here right now." and
+the entry's kind is `refusal-notice`. Otherwise the kind is `refusal` and
+nothing is sent. In a channel the notice mentions the sender, and in a thread it
+replies there. The notice is posted outside the ledger, with no receipt or
+retry. The five-minute limit is kept only in the 128-entry feed.
+
+The number of conversation identities has no limit, and an identity is never
+evicted. Each conversation's route holds a binding in the shared hand ledger,
+and a disabled binding counts there until it is retired, so that ledger's
+limits are the ones a new conversation can reach.
 
 To reclaim a settled binding's operational ledger, stop admission by disabling
 the adapter, resolve its unfinished work, and export/retire the disabled binding
@@ -697,9 +868,8 @@ a new admission period when the adapter is re-enabled; disabling is not the
 same as downtime recovery.
 
 Retiring a ledger binding does not release a social identity or delete a session
-log. At identity capacity, existing conversations remain usable and new ones
-are rejected visibly. Automatic identity eviction and primary-history pruning
-are not implemented. Do not present a ledger archive as an export of the full
+log. Primary-history pruning is not implemented. Do not present a ledger
+archive as an export of the full
 conversation or as proof that external storage is durable.
 
 Only one publication per destination is sent at a time; unrelated conversations
@@ -733,7 +903,7 @@ Kernel to revoke it, including when policy changes while the head is offline.
 Harness also revokes known forms when posting fails or a handoff times out,
 and cancels known wallet requests through `payment_cancel`. An in-progress fill
 or an unconfirmed revocation leaves the outcome uncertain. Pending handoffs
-are saved in adapter state version 3 so a desk reload can continue checking
+are saved in adapter state version 4 so a desk reload can continue checking
 the outcome or revoke the form. Browser handoffs require a direct Kernel HTTP
 endpoint; registration through the ship's MCP proxy is unsupported.
 For a trusted ship, adding a browser grant preserves its running conversation
@@ -827,11 +997,13 @@ restore the previous defaults afterward. Use disposable test ships: messages and
 auditable sessions are retained.
 Neither the test nor the adapter modifies the Groups desk's source code.
 
-`tests-js/tlon-delivery-conformance.mjs` additionally needs `SHIP_DOJO_PANE` for
+`tests-js/tlon-delivery-conformance.mjs` additionally needs `SHIP_PIER` for
 real Gall suspension/revival. It checks offline completion, explicit retry,
 uncertainty, ordered outbox draining, distinct IDs, whole-desk revival and an idle
-hand with no timer. `SURFACE=channel` plus `TEST_NEST` selects channels. Supplying
-`CHANNEL_HOST_DOJO_PANE` also temporarily suspends the channel host to test a lost
+hand with no timer. A DM run then fills the owner's DM binding and checks that
+refused DMs do not stop a channel mention in `TEST_NEST`, which it requires.
+`SURFACE=channel` selects channels. Supplying
+`CHANNEL_HOST_PIER` also temporarily suspends the channel host to test a lost
 confirmation and recovery from native publication evidence. Every suspended
 agent is revived in cleanup; fixture messages and receipts remain.
 
@@ -857,3 +1029,12 @@ recursive-schedule denial, mid-flight source revocation, and that trusted and
 allowed ships are not offered scheduling and have forged calls refused. It restores defaults
 and policy and cancels fixture schedules; messages and their receipts remain.
 `desk/tests/harness-cron.hoon` covers the pure UTC calendar and strict parser.
+
+`tests-js/tlon-shared-channel-conformance.mjs` runs on three ships: `~zod` is the
+bot, the peer (`PEER_URL`, `PEER_COOKIE`) its owner and a guest (`GUEST_URL`,
+`GUEST_COOKIE`) a trusted ship, both members of `TEST_NEST`. With a local provider
+it checks that the owner and the guest share one channel session while a thread has
+its own, that each turn's input names its speaker, that each turn is offered only
+its speaker's tools in either order and a guest's forged call is refused, and that
+changing or revoking the guest's grants keeps the channel session and its history.
+It restores defaults and policy; messages remain.

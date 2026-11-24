@@ -68,4 +68,36 @@
     ^-  row:hp
     [at ?:(?=(%| -.value) ~ `(channel-post:hp +.value))]
   ==
+::  Whether a channel message's own author has a bot profile. ~ when local
+::  %channels lacks the channel, post, parent or reply: Activity rows outlive
+::  a left channel or a deletion, and the exact-message scries crash on a miss.
+++  bot-author
+  |=  [to=destination:t id=@da]
+  ^-  (unit ?)
+  ?.  ?=(%channel -.to)  ~
+  ?.  .^(? %gu /(scot %p our.bowl)/channels/(scot %da now.bowl)/$)  ~
+  ?.  .^(? %gu (channel:read-path %v4 nest.to))  ~
+  =/  top=@da  (fall parent.to id)
+  =/  page=paged-posts:v9:dv
+    .^  paged-posts:v9:dv  %gx
+      %+  weld  (channel-posts:read-path %v4 nest.to)
+      /older/(scot %ud +(top))/1/outline/channel-posts-4
+    ==
+  ::  The exclusive upper bound selects the post at its exact ID, if present.
+  =/  post  (get:on-posts:v9:dv posts.page top)
+  ?~  post  ~
+  ?~  parent.to
+    =/  =author:v9:dv  ?:(?=(%| -.u.post) author.u.post author:+.+.+.u.post)
+    `?=(^ author)
+  ::  A deleted parent's replies cannot be read without crashing.
+  ?:  ?=(%| -.u.post)  ~
+  =/  =replies:v9:dv
+    .^  replies:v9:dv  %gx
+      %+  weld  (channel-replies:read-path %v4 nest.to u.parent.to)
+      /older/(scot %ud +(id))/1/channel-replies-4
+    ==
+  =/  reply  (get:on-replies:v9:dv replies id)
+  ?~  reply  ~
+  =/  =author:v9:dv  ?:(?=(%| -.u.reply) author.u.reply author:+.+.+.u.reply)
+  `?=(^ author)
 --

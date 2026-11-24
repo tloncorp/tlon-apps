@@ -1,111 +1,41 @@
 #!/bin/bash
 
-click=./scripts/backend/click
+click=/repo/scripts/backend/click
 ship="~zod"
-pier_dir=${ship#\~}
-pier=$pier_dir
+pier=/piers/${ship#\~}
 
-urbit_bin_url="https://bootstrap.urbit.org/vere/live/v4.5"
-vere_ver="vere-v4.5"
-arch=`uname -m`
+# The ship runs in a container built from scripts/backend/container/, with the
+# repository mounted read-only at /repo. click and every pier file operation
+# run inside it, so the host needs only a container runtime and what
+# `just build` uses to assemble the desk.
+container=groups-tests-$$
 
-case $OSTYPE in
-  linux* )
-    platform=linux
-    case $arch in
-      x86_64 )
-        # urbit_bin_url="$urbit_bin_url/linux-x86_64/latest"
-        urbit_bin_url="$urbit_bin_url/$vere_ver-linux-x86_64"
-        arch=x86_64
-        ;;
-      arm64 | aarch64 )
-        # urbit_bin_url="$urbit_bin_url/linux-aarch64/latest"
-        urbit_bin_url="$urbit_bin_url/$vere_ver-linux-aarch64"
-        arch=aarch64
-        ;;
-    esac ;;
-  darwin* )
-    platform=macos
-    case $arch in
-      x86_64 )
-        # urbit_bin_url="$urbit_bin_url/macos-x86_64/latest"
-        urbit_bin_url="$urbit_bin_url/$vere_ver-macos-x86_64"
-        arch=x86_64
-        ;;
-      arm64  )
-        # urbit_bin_url="$urbit_bin_url/macos-aarch64/latest"
-        urbit_bin_url="$urbit_bin_url/$vere_ver-macos-aarch64"
-        arch=aarch64
-        ;;
-    esac ;;
-esac
+source scripts/backend/container/runtime.sh
 
-pill_download_url="https://bootstrap.urbit.org/groups-v11-3-0-408k.pill"
-
-#archive=`basename $download_url`
-pill=`basename $pill_download_url`
-pill_name=`echo $pill | cut -d . -f1`
-echo "pill: $pill_name"
-
-if [ ! -f $pill ]
-then
-  echo "Downloading aqua test pill $pill"
-  # curl has no timeout of its own, so a stalled transfer would hang forever:
-  # give up when under 1 kB/s for 30 seconds, and retry. The partial file gets
-  # another name, or the next run would take it for the pill.
-  curl -s -f --connect-timeout 20 --speed-limit 1024 --speed-time 30 --retry 3 $pill_download_url -o $pill.part &&
-    mv $pill.part $pill || exit 1
-fi
-
-function find_vere()
-{
-  vere="./${vere_ver}-${platform}-${arch}"
-  echo "our vere: $vere"
-}
-
-find_vere
-
-vere_archive=vere-latest.gz
-
-if [ ! -x $vere ]
-then
-  echo "Downloading urbit runtime"
-  curl -L -f --connect-timeout 20 --speed-limit 1024 --speed-time 30 --retry 3 $urbit_bin_url -o $vere.part &&
-    mv $vere.part $vere
-  chmod +x $vere
-fi
-
-find_vere
-
-if [ ! -x $vere ]
-then
-  echo "Failed to find vere binary!"
-  exit 1
-fi
-
-http_port=9090
-ames_port=31999
-if [ ! -d $pier_dir ]
-then
-  echo "Generating test ship $ship"
-  $vere -F $pier_dir -c $pier_dir -B $pill --http-port $http_port -p $ames_port -t -x
-
-  if [ "$?" -ne 0 ]
-  then
-    echo "Failed to generate test ship $ship"
-    exit 1
-  fi
-fi
+$runtime build -t $image scripts/backend/container/ || exit 1
+prune_images
 
 echo "Booting ship"
-($vere --loom 33 --http-port $http_port -p $ames_port -t $pier) &
-vere_pid=$!
-trap 'kill -TERM $vere_pid 2>/dev/null' EXIT
+$runtime run -d --rm --name $container -e URBIT_ARGS="--loom 33" \
+  -v "$PWD":/repo:ro $image $ship > /dev/null || exit 1
+trap '$runtime stop $container > /dev/null 2>&1' EXIT
+$runtime logs -f $container &
+
+function in_ship
+{
+    $runtime exec -i $container "$@"
+}
 
 function await_ship
 {
-    while ! curl -s "http://localhost:$http_port/~/login" > /dev/null
+    while ! in_ship wget -q -O /dev/null "http://127.0.0.1:8080/~/login" 2> /dev/null
     do
+        # The container is removed when the ship exits.
+        if ! $runtime inspect $container > /dev/null 2>&1
+        then
+            echo "Ship exited"
+            exit 1
+        fi
         sleep 1
     done
 }
@@ -115,20 +45,7 @@ await_ship
 # Allow 10m for longest running operations
 TIMEOUT=600
 
-run_click="$click -t $TIMEOUT -b $vere -i - -kp"
-
-# Mount %base
-echo "Mounting base..."
-$run_click $pier <<EOF
-=/  m  (strand ,vase)  
-;<  =bowl  bind:m  get-bowl  
-;<  ~  bind:m  (poke [our.bowl %hood] kiln-unmount+!>(%base))  
-;<  ~  bind:m  (sleep ~s0)  
-=/  =path  
-  [(scot %p our.bowl) %base (scot %da now.bowl) ~]  
-;<  ~  bind:m  (poke [our.bowl %hood] kiln-mount+!>([path %base]))  
-(pure:m !>(%ok))  
-EOF
+run_click="in_ship $click -t $TIMEOUT -b urbit -i - -kp"
 
 # Unmount and mount %groups
 echo "Mounting groups..."
@@ -143,36 +60,25 @@ $run_click $pier <<EOF
 (pure:m !>(%ok))  
 EOF
 
-# Insert the jammed pill
-
-if [ ! -f "${pier}/groups/${pill_name}.jam" ]
-then
-  cp $pill ${pier}/groups/${pill_name}.jam
-fi
-
-echo "Updating base desk..."
-$run_click $pier <<EOF
-=/  m  (strand ,vase)  
-;<  our=ship  bind:m  get-our  
-;<  ~  bind:m  (poke [our %hood] kiln-commit+!>([%base |]))  
-(pure:m !>(%ok))  
-EOF
+# Insert the image's boot pill, which the aqua tests boot their ships from.
+in_ship sh -c "cp \$URBIT_PILL $pier/groups/pill.jam"
 
 # TODO: We should figure out the source ship for this file and delete it
-rm -f $pier/groups/tests/lib/diary-graph.hoon
+in_ship rm -f $pier/groups/tests/lib/diary-graph.hoon
 
 # Update the groups desk. Assemble the full desk (desk-deps/ vendored deps +
 # desk/ source) and overlay it onto the pill's groups desk. The pill provides a
 # bootable base; the assembled tree brings in vendored deps (e.g.
-# sur/mcp-proxy) that live only in desk-deps/. Overlaid without --delete so the
+# sur/mcp-proxy) that live only in desk-deps/. Overlaid without deleting so the
 # pill's own artifacts (the jammed pill used by the aqua tests) are preserved.
 just build || exit 1
-rsync -r desk-out/ $pier/groups
+in_ship cp -r /repo/desk-out/. $pier/groups/
 # The build stamps the git hash into commit.txt; keep the 'development'
 # placeholder the logs test (/tests/app/logs) asserts on instead.
-cp desk/commit.txt $pier/groups/commit.txt
+in_ship cp /repo/desk/commit.txt $pier/groups/commit.txt
 
-rsync -r --delete desk/tests/ $pier/groups/tests
+in_ship rm -rf $pier/groups/tests
+in_ship cp -r /repo/desk/tests $pier/groups/tests
 
 result=$( $run_click $pier <<EOF
 =/  m  (strand ,vase)  
@@ -185,7 +91,6 @@ desk_hash_a=`echo $result | sed -n 's/\[0 %avow 0 %noun \(.*\)\]/\1/p'`
 if [ -z "$desk_hash_a" ]
 then
   echo "Invalid empty desk hash (a)"
-  kill -TERM $vere_pid
   exit 1
 fi
 
@@ -212,7 +117,6 @@ desk_hash_b=`echo $result | sed -n 's/\[0 %avow 0 %noun \(.*\)\]/\1/p'`
 if [ -z "$desk_hash_b" ]
 then
   echo "Invalid empty desk hash (b)"
-  kill -TERM $vere_pid
   exit 1
 fi
 
@@ -220,7 +124,6 @@ fi
 if [ "$desk_hash_a" == "$desk_hash_b" ]
 then
   echo "Desk upgrade failed ❌"
-  kill -TERM $vere_pid
   exit 1
 fi
 
@@ -248,7 +151,6 @@ then
   echo "Unit tests passed ✅"
 else
   echo "Unit tests failed ❌"
-  kill -TERM $vere_pid
   exit 1
 fi
 
@@ -261,7 +163,7 @@ ${run_click} $pier "/lib/pill/hoon"<<EOF
 =/  =dome:clay  (~(gut by cone) [p.byk.bowl %base] *dome:clay)  
 ;<  ~      bind:m  (sleep ~s0)  
 ;<  ~  bind:m  (poke [our.bowl %hood] kiln-rein+!>([%base (~(put by ren.dome) %aqua &)]))  
-=+  pill-path=/(scot %p p.byk.bowl)/groups/(scot %da now.bowl)/${pill_name}/jam  
+=+  pill-path=/(scot %p p.byk.bowl)/groups/(scot %da now.bowl)/pill/jam  
 =+  .^(pil=@ %cx pill-path)  
 =/  pill  ;;(pill:pill (cue pil))  
 ;<  ~  bind:m  (poke [our.bowl %aqua] pill+!>(pill))  
@@ -298,7 +200,6 @@ result_code=`echo $result | sed 's/\[0 %avow 0 %noun \(.*\)\]/\1/'`
 if [[ $result_code != "0" ]]
 then
   echo "Failed to generate aqua snapshot ❌"
-  kill -TERM $vere_pid
   exit 1
 fi
 
@@ -338,10 +239,8 @@ then
   echo "Aqua tests passed ✅"
 else
   echo "Aqua tests failed ❌"
-  kill -TERM $vere_pid
   exit 1
 fi
 
-kill -TERM $vere_pid
 exit 0
 

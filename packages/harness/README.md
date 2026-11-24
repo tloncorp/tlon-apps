@@ -27,9 +27,13 @@ flowchart LR
 Conversations have separate tool permissions and can work concurrently while
 waiting on models and services. They share the ship's event loop.
 
-**Known bug:** tool permissions don't limit owner conversations or their subagents.
-Only conversations driven by other people or agents obey them. See
-[known bugs](ISSUES.md#known-bugs).
+Turns the owner drives directly, in their own DM with the bot, through ACP, a
+local poke or as a peer, get every tool whatever the conversation's permissions
+say, except JavaScript execution, which the conversation must opt into. The
+owner's ship working as a peer has no conversation settings, so it always has
+JavaScript execution. Permissions limit channels, scheduled work and
+other ships. A subagent gets at most what its parent turn could use, so a
+subagent of a direct owner turn is not limited by them either.
 
 ## Capabilities
 
@@ -44,7 +48,6 @@ Only conversations driven by other people or agents obey them. See
 Default tools have broad access, including HTTP, ship files, skill authoring,
 and Tlon. Review permissions before connecting other people or agents.
 JavaScript execution is opt-in and is not sandboxed by other tool permissions.
-Because of the known bug above, owner conversations can run it without opting in.
 Tlon features and document storage need Groups; ordinary conversations do not.
 Models run through configured providers, not on the ship itself.
 
@@ -76,9 +79,12 @@ Install it in Dojo:
 Set the owner, enable the Tlon hand and connect a model provider:
 
 ```sh
-just setup /path/to/pier ~owner
-just provider /path/to/pier chatgpt
+just click=scripts/click setup /path/to/pier ~owner
+just click=scripts/click provider /path/to/pier chatgpt
 ```
+
+Without `click=scripts/click`, `setup` and `provider` take a fake ship that
+`just fake-dev` runs in a container, as `~zod`.
 
 `chatgpt` signs in with a ChatGPT subscription. `openai`, `openrouter`, `anthropic`
 and `xai` ask for an API key. Then DM the ship from the owner in Tlon.
