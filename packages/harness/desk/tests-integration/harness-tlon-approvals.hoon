@@ -99,8 +99,10 @@
   ^-  (unit vase)
   ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
   ?:  ?=([%gu @ %groups @ %$ ~] path)  `!>(&)
-  ::  The bot is in .room-nest, and of the DMs only ~dev's is on the ship.
+  ::  The bot is in .room-nest and .off-nest, and of the DMs only ~dev's is
+  ::  on the ship.
   ?:  ?=([%gu @ %channels @ %v4 %chat %'~lux' %test ~] path)  `!>(&)
+  ?:  ?=([%gu @ %channels @ %v4 %chat %'~lux' %quiet ~] path)  `!>(&)
   ?:  ?=([%gu @ %chat @ %dm %'~dev' ~] path)  `!>(&)
   ?:  ?=([%gu @ %chat @ %dm @ ~] path)  `!>(|)
   ?:  (lien path |=(part=@ta =(%can-read part)))  `!>(|=([who=@p *] &))
