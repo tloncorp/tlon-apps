@@ -99,6 +99,7 @@ then
       native zod harness %tests-integration native-integration
     else
       result native-integration "FAILED (could not deploy; see $logs/heavy-commit.log)"
+      refusals "$logs/heavy-commit.log"
     fi
   fi
 fi
