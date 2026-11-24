@@ -177,6 +177,8 @@
   ?:  (lien path |=(a=@ta =(%run a)))  `!>(`(unit json)`~)
   ?:  (lien path |=(a=@ta =(%head a)))
     `!>(`[revision=@ud view=view:h next=(unit step:h)]`[0 *view:h ~])
+  ::  harness-tlon-steward covers the Steward lease.
+  ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(|)
   ?:  ?=([%gu *] path)  `!>(&)
   `!>(|)
 ++  adapter-start
