@@ -264,8 +264,8 @@ it needs them. A card older than that is no longer known.
   posts the group's card in the DM. That post carries a
   `tlon-agent-post-marker` naming the card and the group, which is what makes
   the card created. It then reports the task to schedule with `cron_add`,
-  whose prompt starts with the task's title in brackets and posts to the
-  workspace chat. A later call makes only the group changes still missing, so
+  without a run count so it repeats until cancelled, whose prompt starts
+  with the task's title in brackets and posts to the workspace chat. A later call makes only the group changes still missing, so
   one Tlon rejected is retried, and otherwise makes nothing. The answer and
   the marker are not retried that way: if the chat rejects the answer but the
   marker lands, the card is created without its answer; if the answer lands
