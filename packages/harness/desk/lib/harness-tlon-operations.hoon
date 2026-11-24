@@ -299,7 +299,7 @@
     =/  invited=(set @p)
       .^((set @p) %gx /(scot %p our.bowl)/chat/(scot %da now.bowl)/dm/invited/ships)
     ?>  (~(has in invited) who)
-    [%pass wire %agent [our.bowl %chat] %poke %chat-dm-rsvp !>([who =('accept_dm' action)])]
+    (rsvp:~(. io bowl) wire who =('accept_dm' action))
   ?:  |(=('add_channel_writers' action) =('remove_channel_writers' action))
     =/  flag  (flag:spec (required:spec args 'group' 256))
     =/  group  (~(got by groups) flag)

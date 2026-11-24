@@ -31,7 +31,7 @@
 ++  accept-invitation
   |=  who=@p
   ^-  card
-  [%pass /invite/dm/(scot %p who) %agent [our.bowl %chat] %poke %chat-dm-rsvp !>([who &])]
+  (rsvp /invite/dm/(scot %p who) who &)
 ::
 ::  +decline-invitation: %chat deletes a pending invitation it is told to
 ::  decline, but leaves an accepted DM it is told the same, so only a pending
@@ -40,7 +40,14 @@
 ++  decline-invitation
   |=  who=@p
   ^-  card
-  [%pass /invite/decline/(scot %p who) %agent [our.bowl %chat] %poke %chat-dm-rsvp !>([who |])]
+  (rsvp /invite/decline/(scot %p who) who |)
+::
+::  +rsvp: answer .who's DM invitation
+::
+++  rsvp
+  |=  [=wire who=@p ok=?]
+  ^-  card
+  [%pass wire %agent [our.bowl %chat] %poke %chat-dm-rsvp !>([who ok])]
 ::
 ++  publish
   |=  [wire=wire to=destination:t text=@t sent=@da blob=(unit @t)]
