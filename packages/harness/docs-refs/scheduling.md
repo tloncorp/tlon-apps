@@ -89,6 +89,112 @@ or cancelled jobs whose work is settled. An unfired cancellation's unused run
 budget does not prevent clearing. Run conversations, observations and delivery
 receipts remain; clearing disables the run binding and strips its tool grants.
 
+## Importing OpenClaw scheduled tasks
+
+When Harness replaces an OpenClaw bot on the same moon,
+`acp/import-openclaw-schedules.mjs` makes Harness schedules of the bot's
+OpenClaw scheduled tasks once. It reads the file that
+`openclaw cron list --json --all` prints in the bot's container, and never
+contacts OpenClaw. Like the
+[memory import](context-and-memory.md#importing-an-openclaw-memorymd), it needs
+the moon's URL and a Netscape cookie file holding the moon's `urbauth-` cookie.
+`--owner` names the bot's owner: every schedule is made as the owner, and the
+script imports nothing unless the Tlon hand is enabled with that owner.
+
+```sh
+cd packages/harness
+SHIP_URL=https://moon.example SHIP_COOKIE=/path/to/cookie.txt \
+  node acp/import-openclaw-schedules.mjs --from export.json --owner '~sampel-palnet' --dry-run
+```
+
+On a moon, in this order:
+
+1. Save the export while OpenClaw still runs.
+2. Stop OpenClaw, so that the two runtimes never both run a task.
+3. Start Harness with the owner set. Each task becomes a schedule of an
+   existing Tlon conversation, so the owner sends the bot a message in every
+   DM, channel and thread a task posts to. In a channel or thread the message
+   mentions the bot: by default the bot answers only mentions there, and a
+   message it does not answer starts no conversation.
+4. Run with `--dry-run`, which creates nothing, and read what it prints.
+5. Run again without it.
+
+Each task is mapped this way:
+
+- A cron task becomes a recurring prompt of 100 runs. Its timezone becomes the
+  zone's offset on the day of the import, such as `-05:00` for
+  America/New_York in winter; a zone at UTC+0 is sent as `UTC`. The offset is
+  fixed: a task imported in winter runs an hour off, in local time, while
+  daylight saving is in effect. A cron task with no `tz` is refused, because
+  it ran in the OpenClaw host's zone, which the export does not record.
+- A one-time (`at`) task becomes a one-time prompt at the same instant, in UTC.
+  One whose time has passed, or is more than ten years away, is refused.
+- A delivery `to` naming the owner's ship (`~ship`, `dm/~ship`, `dm:~ship`,
+  with or without `tlon:`) posts to the owner's DM; a nest such as
+  `chat/~host/name`, `heap/…` or `diary/…`, with or without `tlon:`, `group:`
+  or `room:`, posts to that channel. The task is refused when the ship has no
+  conversation there yet.
+- A task with a `threadId` posts to the existing conversation in that thread.
+  With none, it is refused, unless `--threads-to-parent` sends it to the DM
+  or channel instead.
+
+These are refused, with the reason:
+
+- a task that is not an agent turn (a system event, command, script or
+  heartbeat), one with a trigger script, which would run every time, and one
+  on an interval (`every`) or another schedule kind;
+- a task whose prompt OpenClaw treats as untrusted outside content: one in a
+  hook session (`session:hook:…`), one whose payload has an
+  `externalContentSource`, and one that sets `allowUnsafeExternalContent`.
+  Harness would run that text as the owner's own instruction;
+- an empty prompt or one over 4,096 bytes;
+- a tool list that held the task to fewer tools than its conversation may
+  give it, since a schedule runs with its conversation's tools. A task with
+  no `toolsAllow`, or with `["*"]`, is imported; so is one with OpenClaw's
+  default list (`toolsAllowIsDefault` and at least one tool), with a note
+  giving the list's size. Any other list, an empty one included whatever its
+  marker, is refused; `--widen-tools` imports these tasks with a warning on
+  each, giving the size of the list it had;
+- delivery off (`mode: none`), or no destination in the export, since every
+  schedule posts its result. `--none-to-owner-dm` posts these to the owner's
+  DM;
+- another ship's DM, a notebook, a webhook or another transport;
+- a task past the head's 64 schedule records, counting those already held.
+
+Disabled tasks are listed and not imported, and OpenClaw's own heartbeat,
+memory-dreaming and skill-review jobs are left out. A model, stagger, pacing,
+failure alert or failure destination, a session other than `isolated`, a
+wake mode other than `now`, `deleteAfterRun` and a sending account other than
+`default` are not carried; the script names each on the task's line. The
+model, fallback models, thinking level, timeout and light-context settings
+are dropped too: the conversation's own settings run the schedule. Only the
+model is named on the line. A scheduled run gets no transcript, whatever
+session the task used.
+
+A recurring schedule stops after its hundredth run. For each new cron task
+the script prints the date of that run, worked out from the expression and
+the offset; when the four-year search runs out first, it prints the last run
+it finds. For an expression outside the grammar above it prints that the date
+is unknown; the head decides whether to accept it. For a schedule Harness
+already holds, the date comes from the schedule's next run and the runs it
+has left. Either way, a schedule that ends within 30 days is marked, so the
+operator can tell the owner.
+
+The schedule id is derived from the OpenClaw task's id, so a rerun repeats the
+same creates. The head answers each with the schedule it holds, and the script
+compares that schedule's timing, prompt, conversation and kind with the task:
+the same is reported as already there, and a schedule edited in Harness since
+the import as existing but different, left as it is. A rerun that would
+create a task differently is refused by the head. That happens after the
+zone's offset changes, after the conversation gets a new binding, or with a
+different choice of options.
+
+The script prints one line per task, with its label, schedule, destination,
+outcome and notes, then totals. It prints no prompt. It exits non-zero when a
+create fails, a schedule differs from its task, or the ship is not set up for
+the owner, and zero otherwise, refusals included. A malformed export is
+reported by position only, without its text.
+
 ## Native and ACP API
 
 Owner-authenticated ACP clients use:
@@ -131,3 +237,10 @@ ship to exercise a non-Tlon hand, native/ACP parity, model-created schedules,
 literal delivery, recursive-call denial and source revocation. It uses a local
 deterministic model, leaves marked conversation/receipt evidence and cancels its
 fixture schedules without changing global defaults or Tlon policy.
+`acp/import-openclaw-schedules.test.mjs` covers the import's mapping,
+refusals, ids, offsets and hundredth-run dates offline.
+`tests-js/import-openclaw-schedules-conformance.mjs` opens a DM and a channel
+conversation with the owner on fake ships, then checks a dry run, an import
+read back from `harness/cron`, a rerun that creates nothing, a task aimed at a
+missing conversation, `--widen-tools` and `--none-to-owner-dm`, and a rerun
+after an imported schedule is edited.
