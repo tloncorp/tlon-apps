@@ -2745,7 +2745,8 @@
     ^-  (unit (unit place:memory))
     %-  places:memory
     (turn (session-bindings:hd [hands hand-index] sid) |=([@t =binding:hh] binding))
-  =/  owner-ship  owner:~(. peer-trust bowl)
+  ::  An adapter read that fails gives the narrow answer, not a failed event.
+  =/  owner-ship=(unit @p)  (fall (mole |.(owner:~(. peer-trust bowl))) ~)
   =/  owns
     |=(=source:memory-types (owner-source:memory lookup memory-local owner-ship our.bowl source))
   =/  owner  (preferred:memory knowledge owns owner-ship our.bowl)
@@ -2766,7 +2767,9 @@
   =/  at=(unit place:memory)  (fall bound ~)
   ?:  ?=([~ %dm *] at)
     ?.  .^(? %gu /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/$)  |
-    .^(? %gx /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/admin/[sid]/noun)
+    %+  fall
+      (mole |.(.^(? %gx /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/admin/[sid]/noun)))
+    |
   ?:  ?=(^ bound)  |
   (owner-history log.u.session)
 ::  +owner-history: every input was the owner's own on this ship: a local ACP

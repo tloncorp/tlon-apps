@@ -323,7 +323,8 @@
     ==
   ;:  weld
       (expect !>((levy attempts |=(a=(each state:m @t) =(a refused)))))
-      (expect !>(=(%& -:(save:mem nec db 'nec-note' 4 write(explicit &)))))
+      =/  own  (learned 'nec-dm' 'Replaced in the DM.')
+      (expect !>(=(%& -:(save:mem nec db 'nec-note' 4 own(explicit &)))))
       (expect !>(=(%& -:(save:mem owner db 'imported' 1 write(explicit &)))))
   ==
 ++  test-a-schedule-to-the-owners-dm-sees-that-dm-and-not-imports
@@ -549,6 +550,49 @@
       (expect-eq !>((silt ~['acp-1' 'acp-2' 'team-note'])) !>(before))
       (expect !>((lien owner.given |=(n=@t =('team-note' n)))))
       (expect-eq !>((silt ~['acp-1' 'acp-2'])) !>(after))
+  ==
+::  Another ship's DM sees a channel fact but cannot change or forget it:
+::  only the owner's private conversation moves a fact out of its place.
+::
+++  test-a-non-owner-dm-cannot-change-a-fact-learned-in-a-channel
+  =/  db  places-fixture
+  =/  from-dm  (learned 'nec-dm' 'The falcon team meets in secret.')
+  =/  refused  [%| 'This conversation cannot change a memory learned in another place.']
+  ;:  weld
+      (expect-eq !>(refused) !>((save:mem nec db 'team-note' 3 from-dm(explicit &))))
+      (expect-eq !>(refused) !>((forget:mem nec db 'team-note' 3 source.from-dm)))
+      (expect !>((seen:mem channel db 'team-note')))
+      =/  moved  (learned 'owner-dm' 'Moved.')
+      (expect !>(=(%& -:(save:mem owner db 'team-note' 3 moved(explicit &)))))
+  ==
+::  A conversation still changes what its own place learned, a channel
+::  thread included.
+::
+++  test-a-conversation-can-change-a-fact-learned-in-its-own-place
+  =/  db  places-fixture
+  =/  thread  `reach:mem`[| 'chan-thread' (lookup-of bindings) ~ nobody:mem]
+  =/  in-dm  (learned 'nec-dm' 'The falcon budget is settled.')
+  =/  in-thread  (learned 'chan-thread' 'The falcon team meets on Tuesday.')
+  ;:  weld
+      (expect !>(=(%& -:(save:mem nec db 'nec-note' 4 in-dm(explicit &)))))
+      (expect !>(=(%& -:(forget:mem nec db 'nec-note' 4 source.in-dm))))
+      (expect !>(=(%& -:(save:mem thread db 'team-note' 3 in-thread(explicit &)))))
+  ==
+::  A reach built at the start of an event is not trusted for the preference
+::  exception: a preference the owner made ordinary after it was built is
+::  not rendered through the exception with that same reach.
+::
+++  test-a-preference-changed-after-the-reach-was-built-is-not-rendered
+  =/  db  (saved *state:m 'dm-style' 0 (preference 'owner-dm' '~ten' 'Be brief.'))
+  =/  given  (owned channel db `~ten)
+  =.  turns.db  (my ~[['chan' [0v2 ~ '~bus' (picks:mem given db 'x' '~bus')]]])
+  =/  before  ~(key by (selected:mem given db 'chan' 4.096))
+  =/  plain  (learned 'owner-dm' 'Be brief.')
+  =.  db  (saved db 'dm-style' 1 plain(explicit &))
+  ;:  weld
+      (expect-eq !>((silt ~['dm-style'])) !>(before))
+      (expect-eq !>(~['dm-style']) !>(owner.given))
+      (expect-eq !>(~) !>(~(key by (selected:mem given db 'chan' 4.096))))
   ==
 --
 

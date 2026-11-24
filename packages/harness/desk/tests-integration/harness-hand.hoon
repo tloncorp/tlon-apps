@@ -1001,11 +1001,10 @@
   ;<  asked=(list card)  bind:m  (hear 'owner' '~nec' 'ask' 'What is the vault code?')
   (ex-equal !>((mentions asked 'vexillum')) !>(|))
 ::  An owner's preference saved in the channel reaches a subagent of the
-::  channel. When the subagent saves it as an ordinary fact, its new source
-::  is the subagent's own, and the next request in the same event does not
-::  render it through the preference priority.
+::  channel. The subagent's tool cannot move it into the subagent's own
+::  conversation, so the fact keeps its place and its text.
 ::
-++  test-a-preference-changed-in-this-event-is-not-given-by-priority
+++  test-a-subagent-of-a-channel-cannot-move-the-channels-preference
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
@@ -1027,8 +1026,11 @@
   ;<  after=state-0  bind:m  get-state
   ;<  ~  bind:m  (ex-equal !>((mentions sent 'room-style: Prefer replies in haiku form.')) !>(&))
   ;<  ~  bind:m
-    %+  ex-equal  !>(sid.source.value:(~(got by records.knowledge.after) 'room-style'))
-    !>('room-child')
+    %+  ex-equal  !>((tool-result log:(~(got by sessions.after) 'room-child')))
+    !>('error: This conversation cannot change a memory learned in another place.')
+  ;<  ~  bind:m
+    %+  ex-equal  !>((~(got by records.knowledge.after) 'room-style'))
+    !>((~(got by records.knowledge.saved) 'room-style'))
   (ex-equal !>((mentions saving 'room-style: Haiku banned.')) !>(|))
 ::  The channel facts a multi-term search ranks: five fillers' worth of
 ::  common terms, and two facts that tie when no private count is used.
@@ -1068,5 +1070,54 @@
   =/  first  (answer-of before)
   ;<  ~  bind:m  (ex-equal !>(?=(^ first)) !>(&))
   (ex-equal !>((answer-of after)) !>(first))
+::  ~bus's DM sees the channel's fact but cannot replace or forget it with
+::  /remember or /forget; the fact is unchanged and the channel still lists
+::  it.
+::
+++  test-a-non-owner-dm-cannot-save-over-or-forget-a-channel-fact
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  (seed owned 'standup' 'Standup is at nine.' 'room' '~nec' |)
+  =/  refusal  `'This conversation cannot change a memory learned in another place.'
+  ;<  ~  bind:m  (load saved lane-scry)
+  ;<  *  bind:m  (hear 'dm' '~bus' 'save' '/remember standup Standup is cancelled.')
+  ;<  saving=state-0  bind:m  get-state
+  ;<  *  bind:m  (hear 'dm' '~bus' 'forget' '/forget standup')
+  ;<  forgetting=state-0  bind:m  get-state
+  ;<  *  bind:m  (hear 'room' '~bus' 'read' '/memory standup')
+  ;<  after=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>((reply log:(~(got by sessions.saving) 'dm'))) !>(refusal))
+  ;<  ~  bind:m  (ex-equal !>((reply log:(~(got by sessions.forgetting) 'dm'))) !>(refusal))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((~(got by records.knowledge.after) 'standup'))
+    !>((~(got by records.knowledge.saved) 'standup'))
+  (ex-equal !>((reply log:(~(got by sessions.after) 'room'))) !>(`'Shared memories:\0astandup: Standup is at nine.\0a'))
+::  When the adapter's trust read fails, the reach is still built and it is
+::  narrow: no preference qualifies as the owner's, so the channel's
+::  admitted owner preference is not rendered, and the read still answers.
+::
+++  test-a-reach-built-while-the-adapter-read-fails-is-narrow
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  owned
+  =.  turns.knowledge.saved
+    (~(put by turns.knowledge.saved) 'room' [0v0 ~ '~bus' ~[':owner-style']])
+  ::  A trust answer of the wrong shape makes the read crash inside the head.
+  =/  failing
+    |=  =path
+    ^-  (unit vase)
+    ?:  ?=([%gx @ %harness-tlon @ %peer-trust %noun ~] path)  `!>(%malformed)
+    (lane-scry path)
+  =/  shown
+    |=  =cage
+    ^-  ?
+    ?=(^ (find "Prefer replies in haiku." (trip (en:json:html !<(json q.cage)))))
+  ;<  ~  bind:m  (load saved lane-scry)
+  ;<  working=cage  bind:m  (got-peek /x/snapshot/room)
+  ;<  ~  bind:m  (load saved failing)
+  ;<  failed=cage  bind:m  (got-peek /x/snapshot/room)
+  ;<  ~  bind:m  (ex-equal !>((shown working)) !>(&))
+  (ex-equal !>((shown failed)) !>(|))
 --
-

@@ -349,11 +349,13 @@ both their related facts and the text sent to the summary model, return only
 facts the conversation sees. Recall's preference slots are the one exception, above.
 A read of an unseen name answers as if it did not
 exist. A save or forget of an unseen name is refused with `That memory name is
-not available.`, whatever the fact's revision or state. Automatic capture
-never changes a fact learned in another place. An explicit save of a channel
-fact from elsewhere moves it to that place; when that takes it out of the
-channels, the reply says it is now private and that channels can no longer use
-the name. A save that repeats the fact's text changes nothing, where it was
+not available.`, whatever the fact's revision or state. A conversation
+changes and forgets only the facts its own place learned; a save or forget of
+a fact learned elsewhere is refused with `This conversation cannot change a
+memory learned in another place.`, and automatic capture is refused the same
+way. The owner's private conversation is the exception: its save of a channel
+fact moves the fact there, and the reply says it is now private and that
+channels can no longer use the name. A save that repeats the fact's text changes nothing, where it was
 learned included, so it stays in its channels. For a conversation that does not see everything, recall's index walk
 skips unseen rows, examines at most 512, and judges a term's commonness by the
 seen rows it found; past that bound results are best effort.

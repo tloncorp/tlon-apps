@@ -237,10 +237,17 @@
   =/  before  (~(get by records.db) name)
   ?:  &(?=(^ before) !(sees reach source.value.u.before))
     [%| unavailable]
-  ?:  ?&  !explicit.value  ?=(^ before)
+  ::  Only the owner's private conversation changes a fact learned in another
+  ::  place; any other conversation, and automatic capture, change only their
+  ::  own place's facts.
+  ?:  ?&  ?=(^ before)
           !(same reach sid.source.value sid.source.value.u.before)
+          |(!explicit.value !all.reach)
       ==
-    [%| 'Automatic capture cannot change a memory learned in another place.']
+    :-  %|
+    ?.  explicit.value
+      'Automatic capture cannot change a memory learned in another place.'
+    'This conversation cannot change a memory learned in another place.'
   ?.  =(base ?~(before 0 revision.u.before))
     [%| 'Memory changed; read its current revision before saving.']
   ?:  ?&  !explicit.value
