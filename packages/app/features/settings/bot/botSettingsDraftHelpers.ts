@@ -7,7 +7,6 @@ export type BotSettingsPendingFields = {
   dmAllowlist: boolean;
   defaultAuthorizedShips: boolean;
   groupInviteAllowlist: boolean;
-  autoAcceptDmInvites: boolean;
   autoDiscoverChannels: boolean;
   channelRules: boolean;
 };
@@ -23,7 +22,6 @@ export const getChangeLabels = (
   if (pending.dmAllowlist) labels.push('DM allowlist');
   if (pending.defaultAuthorizedShips) labels.push('Authorized ships');
   if (pending.groupInviteAllowlist) labels.push('Workspace invites');
-  if (pending.autoAcceptDmInvites) labels.push('DM invites');
   if (pending.autoDiscoverChannels) labels.push('Auto-discover');
   if (pending.channelRules) labels.push('Channel rules');
   return labels;

@@ -50,8 +50,7 @@ onFlowComplete:
 - evalScript: ${output.contactAdded = true}
 - tapOn: ${MAESTRO_CONTACT_SHIP}
 - assertVisible: '^Remove Contact$'
-- tapOn:
-    id: ContactEditButton
+- tapOn: '^Edit profile$'
 - tapOn:
     id: ProfileNicknameInput
 - eraseText: 100

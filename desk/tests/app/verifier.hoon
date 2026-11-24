@@ -148,7 +148,7 @@
 ++  get-state
   =/  m  (mare state:v)
   ;<  =vase  bind:m  get-save
-  =+  !<([[%negotiate *] [%1 =state:v]] vase)
+  =+  !<([[%negotiate *] [%2 =state:v]] vase)
   (pure:m state)
 ::
 ++  user-does
@@ -1262,6 +1262,40 @@
         [[%some-dude %my-nonce] query]
       [%rate-limit ~]
   ==
+::
+++  test-load-refills-bulk-allowance
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  (do-query-setup)
+  =/  query
+    :*  %whose-bulk
+        last-salt=0x0
+        last=*(set identifier:v)
+      ::
+        ^=  add
+        %-  ~(gas in *(set identifier:v))
+        (turn (gulf 1 batch:*allowance:v) |=(a=@ [%dummy (scot %ud a)]))
+      ::
+        del=*(set identifier:v)
+    ==
+  ::  a lookup that lost its cursor is charged in full and refused
+  ::
+  ;<  *  bind:m  (user-asks ~fed [%some-dude %my-nonce] query)
+  ;<  ~  bind:m
+    %^  expect-query-response  ~fed
+      [[%some-dude %my-nonce] query]
+    [%rate-limit ~]
+  ::  until the state-1 migration refills the allowance
+  ::
+  ;<  =state:v  bind:m  get-state
+  ;<  *  bind:m  (do-load agent `!>([%1 state]))
+  ;<  =bowl:gall  bind:m  get-bowl
+  %^  expect-query-response  ~fed
+    [[%some-dude %my-nonce] query]
+  :+  %whose-bulk
+    (shas %whose-salt eny.bowl)
+  %-  ~(gas by *(map identifier:v (unit @p)))
+  (turn ~(tap in add.query) (late ~))
 ::
 ++  test-query-bulk-max-size
   %-  eval-mare

@@ -26,6 +26,7 @@ export async function collectRuntimeDiagnostics(
   const tail = opts.tail ?? DEFAULT_LOG_TAIL;
   const probeTimeoutMs = opts.probeTimeoutMs ?? DEFAULT_PROBE_TIMEOUT_MS;
   const composeTimeoutMs = opts.composeTimeoutMs ?? DEFAULT_COMPOSE_TIMEOUT_MS;
+  const bot = ctx.services.bot;
   const sections = await Promise.all([
     section('compose services', () =>
       composeServiceSnapshot(compose, composeTimeoutMs)
@@ -33,17 +34,21 @@ export async function collectRuntimeDiagnostics(
     section('fake-model received calls', () =>
       fakeModelReceivedDump(ctx, probeTimeoutMs)
     ),
-    section(`${ctx.services.bot} logs`, () =>
-      compose.logs([ctx.services.bot], { tail, timeoutMs: composeTimeoutMs })
-    ),
-    section(`${ctx.services.bot} upload log lines`, async () =>
-      filterUploadLogLines(
-        await compose.logs([ctx.services.bot], {
-          timeoutMs: composeTimeoutMs,
-          allowFailure: false,
-        })
-      )
-    ),
+    ...(bot
+      ? [
+          section(`${bot} logs`, () =>
+            compose.logs([bot], { tail, timeoutMs: composeTimeoutMs })
+          ),
+          section(`${bot} upload log lines`, async () =>
+            filterUploadLogLines(
+              await compose.logs([bot], {
+                timeoutMs: composeTimeoutMs,
+                allowFailure: false,
+              })
+            )
+          ),
+        ]
+      : []),
     section(`${ctx.services.fakeModel} logs`, () =>
       compose.logs([ctx.services.fakeModel], {
         tail,
@@ -104,7 +109,7 @@ async function containerStatesSnapshot(
   run: DockerCommandRunner | undefined
 ): Promise<string> {
   const services = [
-    ctx.services.bot,
+    ...(ctx.services.bot ? [ctx.services.bot] : []),
     ctx.services.fakeModel,
     ctx.services.ships,
   ];

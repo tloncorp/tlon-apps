@@ -14,6 +14,8 @@ import { useOpenAISubscriptionAuth } from './useOpenAISubscriptionAuth';
 
 const mocks = vi.hoisted(() => ({
   openURL: vi.fn(),
+  openOAuthUrl: vi.fn(),
+  pollAuth: vi.fn(),
   setQueryData: vi.fn(),
   startAuth: vi.fn(),
   completeAuth: vi.fn(),
@@ -31,12 +33,17 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('@tloncorp/api', () => ({
   startTlawnLLMAuth: mocks.startAuth,
   completeTlawnLLMAuth: mocks.completeAuth,
-  getTlawnLLMAuthFlow: vi.fn(),
+  getTlawnLLMAuthFlow: mocks.pollAuth,
   getTlawnLLMAuthStatus: mocks.getAuthStatus,
 }));
 
 vi.mock('./botSettingsTelemetry', () => ({
   trackTlonbotSettingUpdated: mocks.trackSettingUpdated,
+}));
+
+vi.mock('../openOAuthUrl', () => ({ openOAuthUrl: mocks.openOAuthUrl }));
+vi.mock('@tloncorp/shared', () => ({
+  createDevLogger: () => ({ trackEvent: vi.fn(), trackError: vi.fn() }),
 }));
 
 vi.mock('react-native', () => ({
@@ -68,6 +75,8 @@ describe('useOpenAISubscriptionAuth', () => {
         verificationUrl: 'https://auth.openai.com/codex/device',
       },
     });
+    mocks.pollAuth.mockImplementation(() => mocks.startAuth());
+    mocks.openOAuthUrl.mockResolvedValue({ type: 'returned' });
   });
 
   it('shows the device code before opening the verification page explicitly', async () => {
@@ -100,13 +109,18 @@ describe('useOpenAISubscriptionAuth', () => {
       flow: { userCode: 'ABCD-EFGH' },
     });
     expect(mocks.openURL).not.toHaveBeenCalled();
+    expect(mocks.openOAuthUrl).not.toHaveBeenCalled();
 
     await act(async () => {
       await auth!.openVerificationUrl();
     });
-    expect(mocks.openURL).toHaveBeenCalledWith(
-      'https://auth.openai.com/codex/device'
+    expect(mocks.openOAuthUrl).toHaveBeenCalledWith(
+      'https://auth.openai.com/codex/device',
+      null
     );
+    expect(mocks.openURL).not.toHaveBeenCalled();
+    expect(mocks.pollAuth).toHaveBeenCalledWith('zod', 'flow-1');
+    expect(auth!.state.phase).toBe('active');
 
     act(() => renderer!.unmount());
   });
@@ -149,6 +163,14 @@ describe('useOpenAISubscriptionAuth', () => {
       phase: 'active',
       flow: { provider: 'xai', userCode: 'GROK-CODE' },
     });
+
+    await act(async () => {
+      await auth!.openVerificationUrl();
+    });
+    expect(mocks.openURL).toHaveBeenCalledWith(
+      'https://accounts.x.ai/authorize'
+    );
+    expect(mocks.openOAuthUrl).not.toHaveBeenCalled();
 
     act(() => renderer!.unmount());
   });
@@ -198,6 +220,53 @@ describe('useOpenAISubscriptionAuth', () => {
     });
 
     act(() => renderer!.unmount());
+  });
+
+  it('confirms ChatGPT only after checking the server when the browser returns', async () => {
+    let auth: ReturnType<typeof useOpenAISubscriptionAuth>;
+    let renderer: ReactTestRenderer;
+    const onComplete = vi.fn();
+    mocks.pollAuth.mockResolvedValue({
+      flow: {
+        id: 'flow-1',
+        provider: 'openai',
+        status: 'complete',
+        expiresAt: Date.now() + 60_000,
+      },
+    });
+    mocks.getAuthStatus.mockResolvedValue({
+      ts: Date.now(),
+      providers: [{ provider: 'openai', status: 'ok' }],
+      subscriptionModels: { openai: [{ id: 'gpt-test' }] },
+    });
+    function Harness() {
+      const currentAuth = useOpenAISubscriptionAuth({
+        ship: 'zod',
+        onComplete,
+      });
+      React.useEffect(() => {
+        auth = currentAuth;
+      }, [currentAuth]);
+      return null;
+    }
+    await act(async () => {
+      renderer = create(<Harness />);
+    });
+    await act(async () => {
+      await auth.start();
+    });
+    expect(onComplete).not.toHaveBeenCalled();
+    await act(async () => {
+      await auth.openVerificationUrl();
+    });
+    expect(auth!.state.phase).toBe('connected');
+    expect(onComplete).toHaveBeenCalledWith([{ id: 'gpt-test' }]);
+    expect(mocks.trackSettingUpdated).toHaveBeenCalledWith({
+      setting: 'subscription',
+      action: 'connected',
+      provider: 'openai',
+    });
+    act(() => renderer.unmount());
   });
 
   it('tracks the provider after a subscription is successfully connected', async () => {

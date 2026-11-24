@@ -328,7 +328,6 @@ export function useBotSettingsSectionModels(
               title: 'Permissions',
               pending:
                 pending.dmAllowlist ||
-                pending.autoAcceptDmInvites ||
                 pending.autoDiscoverChannels ||
                 pending.defaultAuthorizedShips ||
                 pending.groupInviteAllowlist ||

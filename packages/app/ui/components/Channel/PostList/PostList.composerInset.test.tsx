@@ -52,6 +52,10 @@ vi.mock('react-native', () => ({
     },
   },
 }));
+vi.mock('@react-navigation/native', async () => {
+  const React = await import('react');
+  return { NavigationContext: React.createContext(undefined) };
+});
 vi.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ bottom: 34 }),
 }));
@@ -82,6 +86,27 @@ vi.mock('../ConversationViewport', () => ({
   ConversationViewport: 'ConversationViewport',
 }));
 vi.mock('./PostListFlatList', () => ({ PostList: () => null }));
+vi.mock('./useScrollDiagnostics', () => {
+  const noop = () => {};
+  const timeline = { expect: noop, expectLanding: noop, note: noop };
+  return {
+    useLegendListScrollDiagnostics: ({
+      scrollHandler,
+    }: {
+      scrollHandler: unknown;
+    }) => ({
+      enabled: false,
+      listProps: {},
+      observe: noop,
+      onMomentumScrollBegin: noop,
+      onMomentumScrollEnd: noop,
+      onScroll: scrollHandler,
+      onScrollBeginDrag: noop,
+      onScrollEndDrag: noop,
+      timeline,
+    }),
+  };
+});
 vi.mock('./usePostArrivalAnimation', () => ({
   usePostArrivalAnimation: ({ renderItem }: { renderItem: unknown }) =>
     renderItem,

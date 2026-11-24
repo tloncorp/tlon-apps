@@ -56,6 +56,14 @@ export async function createGroup(page: Page) {
   });
   await page.getByText('Create workspace').click();
 
+  if (await isMobileViewport(page)) {
+    // The root stack opens the new workspace's only channel, not its list.
+    await expect(
+      page.getByTestId('ChannelHeaderTitle').getByText('Untitled workspace')
+    ).toBeVisible({ timeout: 10000 });
+    return;
+  }
+
   try {
     // Wait briefly to see if we're automatically navigated to the group
     await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({
@@ -926,7 +934,9 @@ export async function createChannel(
   });
   await page.getByText('New channel').first().click();
 
-  await expect(page.getByText('Create a new channel')).toBeVisible();
+  await expect(
+    page.getByText('Create a new channel', { exact: true })
+  ).toBeVisible();
 
   await fillFormField(page, 'ChannelTitleInput', title);
 
@@ -939,7 +949,9 @@ export async function createChannel(
   await page.getByText('Create channel').click();
 
   // Wait for the sheet to close
-  await expect(page.getByText('Create a new channel')).not.toBeVisible({
+  await expect(
+    page.getByText('Create a new channel', { exact: true })
+  ).not.toBeVisible({
     timeout: 5000,
   });
 
@@ -1196,7 +1208,7 @@ export async function setGroupPrivacy(
   // Ensure session is stable before changing privacy
   await waitForSessionStability(page);
 
-  await page.getByText('Privacy').click();
+  await page.getByTestId('GroupPrivacy').click();
 
   await expect(page.getByText('Workspace privacy')).toBeVisible();
 
@@ -2461,13 +2473,15 @@ export async function cleanupOwnProfile(page: Page) {
   await expect(page.getByText('Contacts')).toBeVisible({ timeout: 5000 });
 
   // Check if "You" is visible, if not we might already be on profile
-  const youButton = page.getByText('You');
+  const youButton = page.getByText('You', { exact: true });
   if (await youButton.isVisible({ timeout: 2000 }).catch(() => false)) {
     await youButton.click();
   }
 
   // Wait for Profile to be visible
-  await expect(page.getByText('Profile')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByTestId('UserProfileScreen')).toBeVisible({
+    timeout: 5000,
+  });
 
   // Click Edit button
   const editButton = page.getByTestId('ContactEditButton');
@@ -2597,7 +2611,7 @@ export async function removeContact(page: Page, shipId: string) {
     // Check if this is the "You" contact (skip removal)
     if (
       await contactElement
-        .getByText('You')
+        .getByText('You', { exact: true })
         .isVisible({ timeout: 2000 })
         .catch(() => false)
     ) {
@@ -2607,11 +2621,16 @@ export async function removeContact(page: Page, shipId: string) {
     await contactElement.click();
 
     // Wait for Profile to load
-    await expect(page.getByText('Profile')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId('UserProfileScreen')).toBeVisible({
+      timeout: 5000,
+    });
 
-    // Look for Remove Contact button - it should be on the profile view, not in edit mode
-    const removeButton = page.getByText('Remove Contact');
-    if (await removeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+    // Remove contact is in the profile's ⋯ menu
+    await page.getByTestId('ProfileMoreButton').click();
+    const removeButton = page.getByText('Remove contact', { exact: true });
+    if (!(await removeButton.isVisible({ timeout: 2000 }).catch(() => false))) {
+      await page.keyboard.press('Escape');
+    } else {
       await removeButton.click();
       await page.waitForTimeout(1000);
 
@@ -2683,10 +2702,13 @@ export async function clearContactNickname(
     await contactElement.click();
 
     // Wait for Profile to load
-    await expect(page.getByText('Profile')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId('UserProfileScreen')).toBeVisible({
+      timeout: 5000,
+    });
 
-    // Click Edit button
-    await page.getByTestId('ContactEditButton').click();
+    // Someone else's nickname is edited from the profile's ⋯ menu
+    await page.getByTestId('ProfileMoreButton').click();
+    await page.getByText('Edit profile', { exact: true }).click();
     await expect(page.getByText('Edit Profile')).toBeVisible({
       timeout: 5000,
     });

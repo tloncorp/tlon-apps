@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest';
 import type { RuntimeContext } from '../drivers/types.js';
 import {
   buildCommonScenarioEnv,
+  buildHermesLcmEnv,
   buildHermesSmokeEnv,
   buildOpenClawPackageTestEnv,
 } from './test-env.js';
@@ -39,6 +40,18 @@ describe('CLI test process env builders', () => {
     );
     expect(env.TLON_MAX_CONSECUTIVE_BOT_RESPONSES).toBe('3');
     expect(env.TLON_BOT_E2E_SCENARIO_PARTITION).toBe('baseline');
+  });
+
+  test('passes the context file to the Hermes LCM scenario', () => {
+    const env = buildHermesLcmEnv(
+      runtimeContext(),
+      '/tmp/runtime-context.json'
+    );
+
+    expect(env.TLON_BOT_E2E_RUNTIME_CONTEXT_FILE).toBe(
+      '/tmp/runtime-context.json'
+    );
+    expect(env.COMPOSE_PROJECT_NAME).toBe('tlon-bot-e2e-openclaw-unit');
   });
 });
 

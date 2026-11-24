@@ -376,6 +376,34 @@ export function parseBlobData(
 }
 
 /**
+ * Whether a post's blob field counts as an attachment. The app stamps a
+ * non-rendering `metadata` entry on every post, so a blob holding only
+ * `metadata` entries (any version) is treated as no blob. Anything not
+ * provably metadata-only, including unparseable blobs, still counts.
+ */
+export function hasAttachmentBlob(blob: string | null | undefined): boolean {
+  if (!blob) {
+    return false;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(blob);
+  } catch {
+    return true;
+  }
+  const metadataOnly =
+    Array.isArray(parsed) &&
+    parsed.length > 0 &&
+    parsed.every(
+      (entry) =>
+        typeof entry === 'object' &&
+        entry !== null &&
+        (entry as { type?: unknown }).type === 'metadata'
+    );
+  return !metadataOnly;
+}
+
+/**
  * Format blob data as text annotations for the agent.
  * Returns a string like:
  *   📎 [report.pdf] (application/pdf, 245KB) https://storage.example.com/report.pdf

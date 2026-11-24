@@ -22,9 +22,10 @@ test('should show group info, channel, and role changes to invited user', async 
   // setGroupPrivacy now navigates back to group settings automatically
 
   // Verify privacy setting on zod's side
-  await expect(
-    zodPage.getByText('Private workspace with 1 member')
-  ).toBeVisible();
+  await expect(zodPage.getByTestId('GroupPrivacy')).toContainText('Private');
+  await expect(zodPage.getByTestId('GroupMembersCard')).toContainText(
+    '1 member'
+  );
 
   // Open group settings again to make more changes
   await helpers.openGroupSettings(zodPage);
@@ -42,7 +43,7 @@ test('should show group info, channel, and role changes to invited user', async 
   // Create additional channels
   await zodPage.getByTestId('GroupChannels').getByText('Channels').click();
   await helpers.createChannel(zodPage, 'Test Channel');
-  await helpers.navigateBack(zodPage);
+  await helpers.openGroupSettings(zodPage);
 
   // Create a channel section
   await zodPage.getByTestId('GroupChannels').click();
@@ -75,9 +76,10 @@ test('should show group info, channel, and role changes to invited user', async 
 
   // Verify privacy setting is visible to ten
   await helpers.openGroupSettings(tenPage);
-  await expect(
-    tenPage.getByText('Private workspace with 2 members')
-  ).toBeVisible();
+  await expect(tenPage.getByTestId('GroupPrivacy')).toContainText('Private');
+  await expect(tenPage.getByTestId('GroupMembersCard')).toContainText(
+    '2 members'
+  );
 
   // Verify channels are visible to ten
   await expect(tenPage.getByTestId('ChannelListItem-General')).toBeVisible();
@@ -118,8 +120,9 @@ test('should show group info, channel, and role changes to invited user', async 
   // Make additional changes on zod's side while ten is in the group
   await zodPage.getByTestId('GroupChannels').click();
   await helpers.createChannel(zodPage, 'Real-time Channel');
-  await helpers.navigateBack(zodPage);
-  await helpers.navigateBack(zodPage);
+  await helpers.navigateToGroupByTestId(zodPage, {
+    expectedDisplayName: '~ten, ~zod',
+  });
 
   // Verify ten can see the new channel
   await tenPage.waitForTimeout(2000); // Allow time for sync

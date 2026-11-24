@@ -1,0 +1,171 @@
+name: Hermes Tlon Adapter CI
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "packages/hermes-tlon-adapter/**"
+      - "packages/tlon-bot-e2e/**"
+      - "packages/tlon-skill/**"
+      - "packages/api/**"
+      - "desk/**"
+      - "desk-deps.yaml"
+      - "justfile"
+      - "scripts/backend/fetch-deps.sh"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/hermes-ci.yml"
+
+jobs:
+  unit-test:
+    name: Unit Tests
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      # dev/test.sh runs the suite under `uv run --python 3.14` (the only
+      # Python hermes-agent v0.22.6 supports); uv fetches the interpreter.
+      # The uv version matches dev/Dockerfile.e2e's.
+      - name: Setup uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: "0.12.3"
+
+      - name: Run Hermes adapter unit tests
+        run: ./packages/hermes-tlon-adapter/dev/test.sh
+
+  shared-e2e:
+    name: Bot E2E (${{ matrix.shard }})
+    runs-on: blacksmith-8vcpu-ubuntu-2204
+    # One stack per shard: the baseline and cron scenario partitions and the
+    # package suite. Two shards repeat work with the opt-in LCM context engine
+    # (lcm-x at its pinned ref): lcm runs the package suite, then a second
+    # stack for the targeted compaction scenario; lcm-baseline runs the
+    # baseline partition, whose long-lived DM turns are where hermes-lcm lost
+    # its database connection. Each stack boots fresh, builds the
+    # hermes-agent image (from source, with uv on Python 3.14, inside Docker —
+    # the runner needs no Python), and re-applies the branch %groups desk. The
+    # ceiling sits above cold setup ~15 + the 45-min step cap + the 5-min
+    # failure capture + upload, so a step that runs to its cap hits a *step*
+    # timeout (a step failure), never this job timeout (a cancellation) — the
+    # capture steps below then still run with the orphaned stack alive.
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: baseline
+            id: b
+            script: test:e2e:hermes
+            partitions: baseline
+          - shard: cron
+            id: c
+            script: test:e2e:hermes
+            partitions: cron
+          - shard: package
+            id: p
+            script: test:e2e:hermes:package
+          - shard: lcm
+            id: l
+            script: test:e2e:hermes:package
+            lcm: "1"
+          - shard: lcm-baseline
+            id: lb
+            script: test:e2e:hermes
+            partitions: baseline
+            lcm: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup just
+        # branch-desk.ts assembles the %groups desk with `just build`.
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+        with:
+          just-version: 1.59.0
+
+      - name: Install rsync and yq
+        # The desk build copies with rsync, and fetch-deps.sh reads
+        # desk-deps.yaml with yq v4, which apt doesn't ship.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rsync
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL https://github.com/mikefarah/yq/releases/download/v4.54.1/yq_linux_amd64 -o "$RUNNER_TEMP/bin/yq"
+          chmod +x "$RUNNER_TEMP/bin/yq"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+
+      # No Bun step: unlike the openclaw driver, the hermes driver has no
+      # beforeComposeBuild cross-compile — dev/Dockerfile.e2e installs Bun and
+      # builds the tlon CLI inside the image.
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d # v3
+        with:
+          run_install: |
+            - recursive: true
+              args: [--frozen-lockfile]
+
+      - name: Typecheck shared E2E harness
+        if: matrix.shard == 'baseline'
+        run: pnpm --filter '@tloncorp/tlon-bot-e2e' tsc
+
+      - name: Run shared E2E unit tests
+        if: matrix.shard == 'baseline'
+        run: pnpm --filter '@tloncorp/tlon-bot-e2e' test:unit
+
+      - name: Cache fake ship archives
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .cache/tlon-bot-e2e/fake-ships
+          # Keyed on the compose file so a pier-generation bump rolls the
+          # cache: Actions caches are immutable, and a stale exact-key hit
+          # would leave every job re-downloading ~1GB of archives forever.
+          key:
+            tlon-bot-e2e-fake-ships-${{
+            hashFiles('packages/tlon-bot-e2e/docker/docker-compose.base.yml') }}
+
+      - name: Prepare fake ship cache
+        run: mkdir -p .cache/tlon-bot-e2e/fake-ships
+
+      # No secrets block: the hermes driver passes none of TLONBOT_TOKEN,
+      # BRAVE_API_KEY or TEST_STORAGE_* to its stack (BRAVE_API_KEY is on its
+      # forbidden-container-env list), and its package suite is the
+      # hermes-smoke scenario against the fake model.
+      - name: Run Hermes shared E2E
+        timeout-minutes: 45
+        env:
+          FAKE_SHIP_CACHE_DIR:
+            ${{ github.workspace }}/.cache/tlon-bot-e2e/fake-ships
+          # Compact: run.ts appends the stack key and truncates at 32 chars.
+          TLON_BOT_E2E_RUN_ID:
+            ${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.id }}
+          # Ignored by the package suite.
+          TLON_BOT_E2E_SCENARIO_PARTITIONS: ${{ matrix.partitions }}
+          # Empty (off) outside the lcm shard.
+          TLON_E2E_HERMES_LCM: ${{ matrix.lcm }}
+        run: |
+          pnpm --filter '@tloncorp/tlon-bot-e2e' ${{ matrix.script }}
+
+      - name: Capture leftover docker state
+        if: failure() || cancelled()
+        timeout-minutes: 5
+        run:
+          bash ./packages/tlon-bot-e2e/scripts/capture-docker-state.sh
+          packages/tlon-bot-e2e/diagnostics/docker-state
+
+      - name: Upload E2E diagnostics
+        if: failure() || cancelled()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          # run_attempt: v4 artifact names are immutable across attempts of a
+          # run — a rerun of a failed job must not collide with the previous
+          # attempt's upload, or the rerun's diagnostics are rejected.
+          name: tlon-bot-e2e-diagnostics-hermes-${{ matrix.shard }}-${{ github.run_attempt }}
+          path: packages/tlon-bot-e2e/diagnostics/
+          if-no-files-found: warn
+          retention-days: 7

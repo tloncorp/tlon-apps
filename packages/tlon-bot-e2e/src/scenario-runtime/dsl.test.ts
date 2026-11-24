@@ -107,6 +107,25 @@ describe('shared scenario DSL partitions', () => {
     );
   });
 
+  test('skips a scenario only for the driver that declares it cannot run it', () => {
+    const scenario = testScenario(
+      'feature-case',
+      { driverSkips: { openclaw: 'lacks the feature' } },
+      async () => {}
+    );
+
+    const [forOpenClaw] = scenariosForPartition(
+      [scenario],
+      'baseline',
+      'openclaw'
+    );
+    expect(scenarioTestName(forOpenClaw)).toBe(
+      'feature case (skipped: lacks the feature)'
+    );
+    const [forHermes] = scenariosForPartition([scenario], 'baseline', 'hermes');
+    expect(forHermes.skipReason).toBeUndefined();
+  });
+
   test('rejects unknown requested partitions', () => {
     expect(() =>
       selectScenarioPartitions([baseline], { requested: 'image_search' })

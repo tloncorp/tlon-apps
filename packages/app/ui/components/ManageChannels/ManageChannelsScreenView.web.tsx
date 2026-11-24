@@ -35,6 +35,7 @@ export function ManageChannelsScreenView({
   group,
   groupNavSectionsWithChannels,
   onGoBack,
+  goToChannel,
   goToChannelDetails,
   createNavSection,
   deleteNavSection,
@@ -83,6 +84,7 @@ export function ManageChannelsScreenView({
       updateGroupNavigation={updateGroupNavigation}
     >
       <ManageChannelsContent
+        goToChannel={goToChannel}
         goToChannelDetails={goToChannelDetails}
         localItems={localItems}
         setLocalItems={setLocalItems}
@@ -167,10 +169,12 @@ function SortableSectionHeader({
 
 function SortableChannelItem({
   item,
+  onPress,
   onEdit,
   isEditMode,
 }: {
   item: Extract<SortableListItem, { type: 'channel' }>;
+  onPress: () => void;
   onEdit: () => void;
   isEditMode: boolean;
 }) {
@@ -179,6 +183,7 @@ function SortableChannelItem({
       {(dragHandleProps) => (
         <ChannelItem
           channel={item.channel}
+          onPress={onPress}
           onEdit={onEdit}
           index={item.channelIndex}
           isEditMode={isEditMode}
@@ -198,6 +203,7 @@ function SortableChannelItem({
 }
 
 function ManageChannelsContent({
+  goToChannel,
   goToChannelDetails,
   localItems,
   setLocalItems,
@@ -206,6 +212,7 @@ function ManageChannelsContent({
   sensors,
   handleActiveItemDropped,
 }: {
+  goToChannel: (channelId: string) => void;
   goToChannelDetails: (channelId: string) => void;
   localItems: SortableListItem[];
   setLocalItems: (items: SortableListItem[]) => void;
@@ -326,6 +333,7 @@ function ManageChannelsContent({
                 <SortableChannelItem
                   key={item.id}
                   item={item}
+                  onPress={() => goToChannel(item.channel.id)}
                   onEdit={() => goToChannelDetails(item.channel.id)}
                   isEditMode={isEditMode}
                 />

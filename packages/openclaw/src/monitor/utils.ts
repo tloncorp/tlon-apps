@@ -304,7 +304,7 @@ export function isCitePlaceholderLine(line: string): boolean {
 
 /**
  * Strip the first bot-ship occurrence outside extractMessageText cite
- * placeholders. Cite nests are sender-controlled, so a placeholder must not
+ * placeholders and link cards. A ship in a cite nest or link URL must not
  * consume the mention that the sender put in the current message.
  *
  * A user-authored line that happens to match a placeholder is treated as a
@@ -327,6 +327,7 @@ export function stripBotMentionOutsidePlaceholders(
       if (
         stripped ||
         isCitePlaceholderLine(line) ||
+        /^\[link: .+\]$/.test(line) ||
         !line.includes(normalizedBotShip)
       ) {
         return line;
@@ -560,7 +561,7 @@ export function extractMessageText(
     return '';
   }
 
-  return content
+  const text = content
     .map((verse: any) => {
       // Handle inline content (text, ships, links, etc.)
       if (verse.inline && Array.isArray(verse.inline)) {
@@ -681,6 +682,20 @@ export function extractMessageText(
     })
     .join('\n')
     .trim();
+  if (text || opts.omitCites) {
+    return text;
+  }
+
+  // Gallery link cards can be the whole story. Keep their URLs out of the
+  // engagement text so link metadata cannot wake the bot.
+  return content
+    .flatMap((verse) => {
+      const url = verse?.block?.link?.url;
+      return typeof url === 'string' && url.trim()
+        ? [`[link: ${url.trim()}]`]
+        : [];
+    })
+    .join('\n');
 }
 
 export function prepareInboundText(

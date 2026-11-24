@@ -1,5 +1,6 @@
 import { NavigationContext } from '@react-navigation/native';
 import type { BucketsEntry } from '@tloncorp/api';
+import { ConfirmDialog } from '@tloncorp/ui';
 import React from 'react';
 import { act, create } from 'react-test-renderer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -10,6 +11,9 @@ import { BucketsLiveChannel } from './BucketsLiveChannel';
 import { BucketsLiveFile } from './BucketsLiveFile';
 
 const mocks = vi.hoisted(() => ({
+  canEdit: true,
+  showToast: vi.fn(),
+  deleteEntry: vi.fn().mockResolvedValue(undefined),
   entries: [] as unknown[],
   headerItem: null as { props: { onSearch: () => void } } | null,
   loading: false,
@@ -36,11 +40,14 @@ vi.mock('@react-navigation/native', async () => {
   };
 });
 vi.mock('@tloncorp/api', () => ({ isBotUserId: () => false }));
+vi.mock('@tloncorp/shared', () => ({
+  useChannel: () => ({ data: { id: 'buckets/~zod/test' } }),
+}));
 vi.mock('@tloncorp/shared/db', () => ({}));
 vi.mock('@tloncorp/ui', () => ({
   ConfirmDialog: () => null,
   Text: () => null,
-  useToast: () => vi.fn(),
+  useToast: () => mocks.showToast,
 }));
 vi.mock('expo-document-picker', () => ({}));
 vi.mock('expo-image-picker', () => ({
@@ -68,7 +75,7 @@ vi.mock('../../ui', () => {
     YStack: Container,
     canPreviewFromText: () => false,
     useCalm: () => ({ disableNicknames: false }),
-    useCanWrite: () => true,
+    useCanWrite: () => mocks.canEdit,
     useContactIndex: () => ({}),
     useCurrentUserId: () => '~zod',
     useHideChannelHeader: () => undefined,
@@ -87,6 +94,7 @@ vi.mock('./useLiveBucket', () => ({
   formatBucketTimestamp: () => 'Just now',
   formatFileSize: () => '1 KB',
   useLiveBucket: () => ({
+    deleteEntry: mocks.deleteEntry,
     entries: mocks.entries,
     error: null,
     loading: mocks.loading,
@@ -187,6 +195,8 @@ function pushed(name: string, params: object) {
 
 setupReactTestEnvironment();
 beforeEach(() => {
+  mocks.canEdit = true;
+  mocks.deleteEntry.mockReset().mockResolvedValue(undefined);
   mocks.entries = [photos, notes];
   mocks.headerItem = null;
   mocks.loading = false;
@@ -403,6 +413,84 @@ describe('BucketsLiveChannel outside a navigator', () => {
 });
 
 describe('Bucket file preview navigation', () => {
+  it('confirms deletion of the viewed file and closes only after success', async () => {
+    const close = vi.fn();
+    let renderer!: ReturnType<typeof create>;
+    act(() => {
+      renderer = create(
+        <BucketsLiveFile entryId={2} flag={flag} onClose={close} />
+      );
+    });
+    act(() => (mocks.viewer.mock.calls.at(-1)![0].onDelete as () => void)());
+    expect(mocks.deleteEntry).not.toHaveBeenCalled();
+    expect(renderer.root.findByType(ConfirmDialog).props.open).toBe(true);
+    await act(async () =>
+      renderer.root.findByType(ConfirmDialog).props.onConfirm()
+    );
+    expect(mocks.deleteEntry).toHaveBeenCalledWith(2, false);
+    expect(close).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the viewer open and reports a failed deletion', async () => {
+    mocks.deleteEntry.mockRejectedValueOnce(new Error('Permission denied'));
+    const close = vi.fn();
+    let renderer!: ReturnType<typeof create>;
+    act(() => {
+      renderer = create(
+        <BucketsLiveFile entryId={2} flag={flag} onClose={close} />
+      );
+    });
+    act(() => (mocks.viewer.mock.calls.at(-1)![0].onDelete as () => void)());
+    await act(async () =>
+      renderer.root.findByType(ConfirmDialog).props.onConfirm()
+    );
+    expect(close).not.toHaveBeenCalled();
+    expect(mocks.viewer.mock.calls.at(-1)![0].error).not.toBe(
+      'Permission denied'
+    );
+    expect(mocks.showToast).toHaveBeenCalledWith({
+      message: expect.stringContaining('Permission denied'),
+    });
+  });
+
+  it.each(['navigate', 'unmount'])(
+    'does not close a different screen after %s during deletion',
+    async (action) => {
+      let finish!: () => void;
+      mocks.deleteEntry.mockReturnValueOnce(
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        })
+      );
+      const close = vi.fn();
+      let renderer!: ReturnType<typeof create>;
+      act(() => {
+        renderer = create(
+          <BucketsLiveFile entryId={2} flag={flag} onClose={close} />
+        );
+      });
+      act(() => (mocks.viewer.mock.calls.at(-1)![0].onDelete as () => void)());
+      act(() => renderer.root.findByType(ConfirmDialog).props.onConfirm());
+      act(() => {
+        if (action === 'unmount') renderer.unmount();
+        else
+          renderer.update(
+            <BucketsLiveFile entryId={3} flag={flag} onClose={close} />
+          );
+      });
+      await act(async () => finish());
+      expect(close).not.toHaveBeenCalled();
+    }
+  );
+
+  it('does not offer deletion to a reader', () => {
+    mocks.canEdit = false;
+    act(() => {
+      create(<BucketsLiveFile entryId={2} flag={flag} onClose={vi.fn()} />);
+    });
+    expect(mocks.viewer.mock.calls.at(-1)![0].onDelete).toBeUndefined();
+  });
+
   function viewer() {
     return mocks.viewer.mock.calls.at(-1)![0] as {
       item: { id?: string; name: string; uri?: string };

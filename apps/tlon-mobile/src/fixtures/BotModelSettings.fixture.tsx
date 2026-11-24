@@ -185,7 +185,6 @@ function seedFixtureData({
       dmAllowlist: '',
       defaultAuthorizedShips: '',
       groupInviteAllowlist: '',
-      autoAcceptDmInvites: false,
       autoDiscoverChannels: false,
       channelRuleDrafts: {},
     },

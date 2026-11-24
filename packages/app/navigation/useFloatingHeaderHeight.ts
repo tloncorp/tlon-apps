@@ -14,7 +14,11 @@ import { supportsNativeScrollEdgeChrome } from './nativeHeaderOptions';
  * absolutely positioned tooltip — it is layout on that content instead.
  */
 export function useFloatingHeaderHeight(enabled = true) {
-  const headerHeight = useContext(HeaderHeightContext) ?? 0;
+  return floatingHeaderHeight(useContext(HeaderHeightContext) ?? 0, enabled);
+}
+
+/** `useFloatingHeaderHeight` for a header height the caller has settled. */
+export function floatingHeaderHeight(headerHeight: number, enabled = true) {
   const floating =
     enabled &&
     supportsNativeScrollEdgeChrome(

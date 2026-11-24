@@ -67,6 +67,33 @@ describe('fake model server', () => {
     expect(body.choices[0].finish_reason).toBe('stop');
   });
 
+  test('echoes a captured request value into a text step template', async () => {
+    const key = 'text-echo';
+    const step = {
+      kind: 'text' as const,
+      content: 'plain',
+      echo: { pattern: 'nonce="([0-9a-f]+)"', template: '<n="$1">' },
+    };
+    await fakeModel.script(key, [step, step]);
+
+    const echoed = await postChat(server.baseUrl, key, {
+      messages: [
+        { role: 'system', content: 'Reply inside <x nonce="ab12">.' },
+        { role: 'user', content: `[tlon-test:${key}] summarise` },
+      ],
+    });
+    const plain = await postChat(server.baseUrl, key);
+
+    expect(
+      ((await echoed.json()) as ChatCompletionResponse).choices[0].message
+        .content
+    ).toBe('<n="ab12">');
+    expect(
+      ((await plain.json()) as ChatCompletionResponse).choices[0].message
+        .content
+    ).toBe('plain');
+  });
+
   test('returns a scripted tool-call completion', async () => {
     const key = 'tool-completion';
     await fakeModel.script(key, [
@@ -338,6 +365,29 @@ describe('fake model server', () => {
         },
       },
     ]);
+  });
+
+  test('caps tool-result previews separately from other roles and flags cuts', async () => {
+    const key = 'preview-caps';
+    await fakeModel.script(key, [{ kind: 'text', content: 'ok' }]);
+    const mid = 'x'.repeat(1000);
+    const huge = 'y'.repeat(9000);
+    const response = await postChat(server.baseUrl, key, {
+      messages: [
+        { role: 'user', content: `[tlon-test:${key}] ${mid}` },
+        { role: 'tool', tool_call_id: 'call_a', content: mid },
+        { role: 'tool', tool_call_id: 'call_b', content: huge },
+      ],
+    });
+    expect(response.ok).toBe(true);
+
+    const [call] = await fakeModel.received(key);
+    const [user, toolFits, toolCut] = call.messages.map((m) => m.content);
+    expect(user?.text).toHaveLength(303);
+    expect(user?.truncated).toBe(true);
+    expect(toolFits).toEqual({ kind: 'text', text: mid });
+    expect(toolCut?.text).toHaveLength(8003);
+    expect(toolCut?.truncated).toBe(true);
   });
 });
 

@@ -9,7 +9,7 @@ env:
 - runFlow: subflows/create-group.yaml
 - tapOn: '^Edit channels$'
 - assertVisible: '^Channels$'
-- tapOn: '^New$'
+- tapOn: '^New( channel or section)?$'
 - tapOn: '^New channel$'
 - assertVisible: '^Create a new channel$'
 - tapOn:

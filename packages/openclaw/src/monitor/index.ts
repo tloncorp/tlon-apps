@@ -94,6 +94,7 @@ import {
   onboardingClientDateTimeNote,
   onboardingDmContextNote,
 } from '../onboarding-turn-context.js';
+import { ownerDmWorkspaceNote } from '../workspace-spinoff.js';
 import {
   type PendingNudge,
   clearPendingNudge,
@@ -113,11 +114,7 @@ import { defaultSleep } from '../sleep.js';
 import { OWNER_ONLY_TOOLS } from '../owner-only-tools.js';
 import { setSessionRole } from '../session-roles.js';
 import { noteInboundDispatching } from '../turn-identity.js';
-import {
-  DM_INVITE_PREVIEW,
-  type TlonSettingsStore,
-  createSettingsManager,
-} from '../settings.js';
+import { type TlonSettingsStore, createSettingsManager } from '../settings.js';
 import {
   channelInboundPost,
   chatInboundPost,
@@ -142,6 +139,7 @@ import {
   getStewardAutomationReconciler,
   isStewardAutomationProjectionEligible,
 } from '../steward-automation-reconciliation.js';
+import { createSubagentPresence } from '../subagent-presence.js';
 import {
   type WorkspaceInstructionsRuntime,
   createWorkspaceInstructionsRuntime,
@@ -190,7 +188,7 @@ import {
 } from '../urbit/blob.js';
 import { ssrfPolicyFromAllowPrivateNetwork } from '../urbit/context.js';
 import { describeError } from '../urbit/errors.js';
-import type { DmInvite, Foreigns } from '../urbit/foreigns.js';
+import type { Foreigns } from '../urbit/foreigns.js';
 import {
   budgetHoldPaths,
   readBudgetSignalDetails,
@@ -320,6 +318,7 @@ import {
   downloadMessageImages,
   formatInboundMediaBody,
   formatBlobAnnotations,
+  hasAttachmentBlob,
   parseBlobData,
 } from './media.js';
 import { createNudgeRunner, shouldStartNudgeRunner } from './nudge-runner.js';
@@ -472,11 +471,6 @@ interface ChannelFirehoseEvent {
   nest: string;
   response: ChannelResponse;
 }
-
-/**
- * Chat/DM firehose can be an array of DM invites or a WritResponse
- */
-type ChatFirehoseEvent = DmInvite[] | WritResponse;
 
 /** Refresh stale settings subscription state periodically as a fallback for silently-dead SSE subscriptions. */
 const SETTINGS_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
@@ -1004,6 +998,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   // orphaned. This outer finally catches all of those and runs cleanup
   // unconditionally.
   let stopBrowserContinuations: (() => void) | undefined;
+  let stopSubagentPresence: (() => void) | undefined;
   let workspaceInstructions: WorkspaceInstructionsRuntime | null = null;
   let groupContext: GroupContextRuntime | null = null;
   let roleMentionResolver: RoleMentionResolver | null = null;
@@ -1017,6 +1012,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         warn: (message) => runtime.error?.(message),
       })
     );
+    const subagentPresence = createSubagentPresence({
+      events: core.events,
+      presence: computingPresence,
+      showCommentary: account.showCommentary,
+      warn: (message) => runtime.error?.(message),
+    });
+    stopSubagentPresence = subagentPresence.stop;
     const contextLensConfig = account.contextLens;
     const contextLensEnabled = isContextLensEffectivelyEnabled(
       cfg,
@@ -1150,8 +1152,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     // Reactive state that can be updated via settings store
     let effectiveDmAllowlist: string[] = account.dmAllowlist;
     let effectiveShowModelSig: boolean = account.showModelSignature ?? false;
-    let effectiveAutoAcceptDmInvites: boolean =
-      account.autoAcceptDmInvites ?? false;
     let effectiveAutoAcceptGroupInvites: boolean =
       account.autoAcceptGroupInvites ?? false;
     let effectiveGroupInviteAllowlist: string[] = account.groupInviteAllowlist;
@@ -1626,12 +1626,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       }
       if (currentSettings.showModelSig !== undefined) {
         effectiveShowModelSig = currentSettings.showModelSig;
-      }
-      if (currentSettings.autoAcceptDmInvites !== undefined) {
-        effectiveAutoAcceptDmInvites = currentSettings.autoAcceptDmInvites;
-        runtime.log?.(
-          `[tlon] Using autoAcceptDmInvites from settings store: ${effectiveAutoAcceptDmInvites}`
-        );
       }
       if (currentSettings.autoAcceptGroupInvites !== undefined) {
         effectiveAutoAcceptGroupInvites =
@@ -3588,6 +3582,15 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           bodyWithAttachments += onboardingClientDateTimeNote(clientDateTime);
         }
       }
+      if (
+        !isGroup &&
+        !params.onboardingDmTarget &&
+        currentSettings.bootstrapComplete !== false &&
+        effectiveOwnerShip &&
+        isOwner(senderShip)
+      ) {
+        bodyWithAttachments += await ownerDmWorkspaceNote(params.blobField);
+      }
 
       const body = core.channel.reply.formatAgentEnvelope({
         channel: 'Tlon',
@@ -3865,6 +3868,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
       try {
         try {
+          if (presenceConversationId) {
+            subagentPresence.noteTurnStart(runId, presenceConversationId);
+          }
           contextLenses.setStatus(lens.lensId, 'dispatching');
           contextLenses.recordLifecycle(lens.lensId, {
             dispatchStartedAt: Date.now(),
@@ -4154,6 +4160,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               }),
           });
         } finally {
+          subagentPresence.noteTurnEnd(runId);
           compactionTimeoutObserver.stop();
           stopAgentEventObservation();
           // A tool call can revive a run that deliver already stopped; a turn
@@ -4786,15 +4793,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           return;
         }
 
-        // Any event about an existing post (an edit, a delete) supersedes a
-        // digest snippet taken from it; a new post's id matches none.
+        // A deleted post or reply; see ChannelResponse.
         const rPost = response?.post?.['r-post'];
         const reply = rPost?.reply;
-        const postId = reply ? reply.id : response?.post?.id;
-        if (postId) {
-          groupContextRuntime.forgetMessage({ nest, id: postId });
-        }
-        // A deleted post or reply; see ChannelResponse.
         const deleted = reply ? reply['r-reply']?.set : rPost?.set;
         if (deleted === null || deleted?.type === 'tombstone') {
           return;
@@ -4840,7 +4841,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           botShipName,
           botNickname ?? undefined
         );
-        const hasBlob = Boolean(content.blob);
+        const hasBlob = hasAttachmentBlob(content.blob);
         if (!rawText.trim() && !hasBlob) {
           return;
         }
@@ -4889,10 +4890,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         if (messageId) {
           groupContextRuntime.recordMessage({
             nest,
-            id: messageId,
-            parentId: threadRootId,
             sender: senderShip,
-            text: rawText,
             timestamp: content.sent,
           });
         }
@@ -5298,85 +5296,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     };
 
     // Firehose handler for all DM messages (/v4)
-    // Track which DM invites we've already processed to avoid duplicate accepts
-    const processedDmInvites = new Set<string>();
     const ignoredGroupDms = new Set<string>();
 
-    const handleChatFirehose = async (event: ChatFirehoseEvent) => {
+    const handleChatFirehose = async (event: WritResponse) => {
       let endActivityRead: ((handled?: boolean) => void) | undefined;
       let handled = true;
       try {
-        // Handle DM invite lists (arrays)
-        if (Array.isArray(event)) {
-          for (const invite of event) {
-            const ship = normalizeShip(invite.ship || '');
-            if (!ship || processedDmInvites.has(ship)) {
-              continue;
-            }
-
-            // Owner is always allowed
-            if (isOwner(ship)) {
-              try {
-                await api.poke({
-                  app: 'chat',
-                  mark: 'chat-dm-rsvp',
-                  json: { ship, ok: true },
-                });
-                processedDmInvites.add(ship);
-                runtime.log?.(
-                  `[tlon] Auto-accepted DM invite from owner ${ship}`
-                );
-              } catch (err) {
-                runtime.error?.(
-                  `[tlon] Failed to auto-accept DM from owner: ${String(err)}`
-                );
-              }
-              continue;
-            }
-
-            // Auto-accept if on allowlist and auto-accept is enabled
-            if (
-              effectiveAutoAcceptDmInvites &&
-              isDmAllowed(ship, effectiveDmAllowlist)
-            ) {
-              try {
-                await api.poke({
-                  app: 'chat',
-                  mark: 'chat-dm-rsvp',
-                  json: { ship, ok: true },
-                });
-                processedDmInvites.add(ship);
-                runtime.log?.(`[tlon] Auto-accepted DM invite from ${ship}`);
-              } catch (err) {
-                runtime.error?.(
-                  `[tlon] Failed to auto-accept DM from ${ship}: ${String(err)}`
-                );
-              }
-              continue;
-            }
-
-            // If owner is configured and ship is not on allowlist, queue approval
-            if (
-              effectiveOwnerShip &&
-              !isDmAllowed(ship, effectiveDmAllowlist)
-            ) {
-              const approval = createPendingApproval(
-                {
-                  type: 'dm',
-                  requestingShip: ship,
-                  messagePreview: DM_INVITE_PREVIEW,
-                },
-                pendingApprovals.map((a) => a.id)
-              );
-              const { outcome } = await queueApprovalRequest(approval);
-              // An overflowed invite stays unprocessed so a later event retries it.
-              if (outcome !== 'overflow') {
-                processedDmInvites.add(ship); // Mark as processed to avoid duplicate notifications
-              }
-            }
-          }
-          return;
-        }
         if (!('whom' in event) || !('response' in event)) {
           return;
         }
@@ -5633,7 +5558,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           );
         }
 
-        const hasBlob = Boolean(dmContent.blob);
+        const hasBlob = hasAttachmentBlob(dmContent.blob);
         if (!rawText.trim() && !hasBlob) {
           return;
         }
@@ -6003,7 +5928,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       await api.subscribe({
         app: 'chat',
         path: '/v4',
-        event: (data) => handleChatFirehose(data as ChatFirehoseEvent),
+        event: (data) => handleChatFirehose(data as WritResponse),
         err: (error) => {
           capturePluginError('chat_firehose', error);
           runtime.error?.(`[tlon] Chat firehose error: ${String(error)}`);
@@ -6289,7 +6214,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                     defaultAgentId: () => defaultCronAgentId(cron, config),
                     config,
                     runtime: core.agent,
-                    stateDir: () => core.state.resolveStateDir(),
                     publish: (phase, lens) =>
                       publishContextLensEvent(phase, lens),
                     logger: { warn: (message) => runtime.error?.(message) },
@@ -6471,14 +6395,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           effectiveShowModelSig = newSettings.showModelSig;
           runtime.log?.(
             `[tlon] Settings: showModelSig = ${effectiveShowModelSig}`
-          );
-        }
-
-        // Update auto-accept DM invites setting
-        if (newSettings.autoAcceptDmInvites !== undefined) {
-          effectiveAutoAcceptDmInvites = newSettings.autoAcceptDmInvites;
-          runtime.log?.(
-            `[tlon] Settings: autoAcceptDmInvites = ${effectiveAutoAcceptDmInvites}`
           );
         }
 
@@ -7072,7 +6988,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   );
                 } else {
                   await handleChatFirehose(
-                    item.event as unknown as ChatFirehoseEvent
+                    item.event as unknown as WritResponse
                   );
                 }
                 const left = (remaining.get(item.key) ?? 1) - 1;
@@ -7390,6 +7306,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     }
   } finally {
     stopBrowserContinuations?.();
+    stopSubagentPresence?.();
     // Outer finally — covers throws in the long bootstrap region
     // between slot publication (above) and the inner try (which begins
     // after the helper definitions). Anything that throws before the

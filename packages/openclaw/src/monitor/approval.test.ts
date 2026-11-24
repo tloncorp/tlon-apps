@@ -1938,15 +1938,3 @@ describe('createApprovalOverflowNotifier', () => {
     expect(send).toHaveBeenCalledTimes(1);
   });
 });
-
-// monitorTlonProvider is not unit-testable (see owner-tool-posts-wiring), so
-// the DM-invite caller is pinned at the source level.
-describe('DM invite overflow wiring', () => {
-  it('does not mark an overflowed DM invite as processed', () => {
-    const here = path.dirname(fileURLToPath(import.meta.url));
-    const source = fs.readFileSync(path.resolve(here, './index.ts'), 'utf8');
-    expect(source).toMatch(
-      /const \{ outcome \} = await queueApprovalRequest\(approval\);\s*(?:\/\/[^\n]*\n\s*)*if \(outcome !== 'overflow'\) \{\s*processedDmInvites\.add\(ship\);/
-    );
-  });
-});

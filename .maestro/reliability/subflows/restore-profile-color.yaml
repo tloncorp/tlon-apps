@@ -8,8 +8,7 @@ appId: ${MAESTRO_APP_ID}
 # colour applied. `contacts-screen.yaml` unwinds whatever came back.
 - runFlow: contacts-screen.yaml
 - tapOn: '^You$'
-- tapOn:
-    id: ContactEditButton
+- tapOn: '^Edit profile$'
 - scrollUntilVisible:
     element:
       text: '^Default avatar color$'

@@ -4,6 +4,7 @@ import { useCallback } from 'react';
 import { useHandleGoBack } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
+import { useRootNavigation } from '../../navigation/utils';
 import { ManageChannelsScreenView } from '../../ui';
 
 type Props = NativeStackScreenProps<
@@ -29,6 +30,17 @@ export function ManageChannelsScreen(props: Props) {
     fromChatDetails,
   });
 
+  const { navigateToChannel } = useRootNavigation();
+  const goToChannel = useCallback(
+    (channelId: string) => {
+      const channel = group?.channels?.find(({ id }) => id === channelId);
+      if (channel) {
+        navigateToChannel(channel);
+      }
+    },
+    [group, navigateToChannel]
+  );
+
   const goToChannelDetails = useCallback(
     (channelId: string) => {
       // Use push() instead of navigate() to ensure ChannelInfo is pushed onto the
@@ -48,6 +60,7 @@ export function ManageChannelsScreen(props: Props) {
     <ManageChannelsScreenView
       group={group}
       onGoBack={handleGoBack}
+      goToChannel={goToChannel}
       goToChannelDetails={goToChannelDetails}
       groupNavSectionsWithChannels={groupNavSectionsWithChannels}
       createNavSection={createNavSection}

@@ -23,6 +23,7 @@ import type {
   TableRowData,
 } from '../postContent';
 import { convertInlineContent } from '../postContentInlines';
+import { escapeCodeSpanPipes } from './codeSpanPipes';
 import { remarkGroupMentions } from './groupMentionPlugin';
 import { phrasingToInlines } from './mdastToStory';
 import {
@@ -466,13 +467,7 @@ function mdastTableToBlockData(node: MdastTable): TableBlockData {
 // `|`). GFM also allows tables to omit outer pipes — e.g. `A | B / ---|--- /
 // 1 | 2` — and in that form data rows legitimately don't start with `|`, so
 // merging them would corrupt the table.
-function normalizeTableCandidate(text: string): string {
-  const lines = text.split('\n');
-  const sepIdx = lines.findIndex((l) => SEPARATOR_LINE.test(l));
-  if (sepIdx === -1) return text;
-  const usesOuterPipes = lines[sepIdx].trimStart().startsWith('|');
-  if (!usesOuterPipes) return text;
-
+function mergeContinuationLines(lines: string[]): string[] {
   const out: string[] = [];
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -484,7 +479,23 @@ function normalizeTableCandidate(text: string): string {
       out.push(prev + ' ' + trimmed);
     }
   }
-  return out.join('\n');
+  return out;
+}
+
+// Body rows also get the pipes inside their code spans escaped (see
+// escapeCodeSpanPipes), after merging so a span split by a soft wrap is
+// whole. Header rows are left alone: their cell count has to match the
+// separator for the table to exist at all.
+function normalizeTableCandidate(text: string): string {
+  const lines = text.split('\n');
+  const sepIdx = lines.findIndex((l) => SEPARATOR_LINE.test(l));
+  if (sepIdx === -1) return text;
+  const usesOuterPipes = lines[sepIdx].trimStart().startsWith('|');
+  const rows = usesOuterPipes ? mergeContinuationLines(lines) : lines;
+  const bodyStart = rows.findIndex((l) => SEPARATOR_LINE.test(l)) + 1;
+  return rows
+    .map((row, i) => (i >= bodyStart ? escapeCodeSpanPipes(row) : row))
+    .join('\n');
 }
 
 function parseTableCandidate(text: string): MdastTable | null {

@@ -237,11 +237,24 @@ function FirstRunSubscriptionSignIn({
 }) {
   const insets = useSafeAreaInsets();
   const [startError, setStartError] = useState<string | null>(null);
+  const [connectedModels, setConnectedModels] = useState<
+    api.TlawnProviderModel[]
+  >([]);
   const auth = useOpenAISubscriptionAuth({
     ship,
     provider,
-    onComplete: (models) =>
-      onDone(initializeSubscriptionModels(provider, models, '').providerModels),
+    onComplete: (models) => {
+      const initialized = initializeSubscriptionModels(
+        provider,
+        models,
+        ''
+      ).providerModels;
+      if (provider === 'openai') {
+        setConnectedModels(initialized);
+      } else {
+        onDone(initialized);
+      }
+    },
   });
   const { start } = auth;
 
@@ -276,7 +289,8 @@ function FirstRunSubscriptionSignIn({
         state={auth.state}
         browserError={auth.browserError ?? startError}
         onStart={() => void handleStart()}
-        onOpenBrowser={() => void auth.openVerificationUrl()}
+        onOpenBrowser={auth.openVerificationUrl}
+        onContinue={() => onDone(connectedModels)}
         onSubmitToken={auth.completeToken}
         onRetry={() => void auth.restart()}
         onCancel={() => {

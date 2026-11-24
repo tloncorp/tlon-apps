@@ -9,6 +9,8 @@ import { View, XStack, YStack } from 'tamagui';
 import { SortableSection } from '../../../hooks/useSortableChannelNav';
 import { getChannelTypeLabel } from '../../utils';
 import { SimpleActionSheet } from '../ActionSheet';
+import { IconMenu } from '../IconMenu';
+import type { IconMenuItem } from '../IconMenu.types';
 import { ListItem } from '../ListItem';
 import { ScreenHeader } from '../ScreenHeader';
 import { CreateChannelSheet } from './CreateChannelSheet';
@@ -27,6 +29,7 @@ export type GroupNavSectionWithChannels = Omit<
 
 export interface ManageChannelsScreenViewProps {
   onGoBack: () => void;
+  goToChannel: (channelId: string) => void;
   goToChannelDetails: (channelId: string) => void;
   groupNavSectionsWithChannels: GroupNavSectionWithChannels[];
   group: db.Group | null;
@@ -46,12 +49,15 @@ export interface ManageChannelsScreenViewProps {
 
 export function ChannelItem({
   channel,
+  onPress,
   onEdit,
   index,
   isEditMode,
   dragHandle,
 }: {
   channel: Pick<db.Channel, 'id' | 'type' | 'title'>;
+  /** Opens the channel. Off while sorting, when rows are dragged. */
+  onPress: () => void;
   onEdit: () => void;
   index: number;
   isEditMode?: boolean;
@@ -69,21 +75,27 @@ export function ChannelItem({
       backgroundColor="$background"
       testID={`ChannelItem-${channel.title}-${index}`}
     >
-      <XStack alignItems="center" gap="$l">
-        <ListItem.ChannelIcon
-          // @ts-expect-error - we don't need the whole channel object
-          model={{ type: channel.type }}
-          useTypeIcon
-        />
-        <YStack gap="$2xs">
-          <Text fontSize="$l" paddingVertical="$s">
-            {channel?.title}
-          </Text>
-          <Text fontSize="$s" color="$secondaryText">
-            {getChannelTypeLabel(channel.type)}
-          </Text>
-        </YStack>
-      </XStack>
+      <Pressable
+        flex={1}
+        onPress={isEditMode ? undefined : onPress}
+        testID="OpenChannelButton"
+      >
+        <XStack alignItems="center" gap="$l">
+          <ListItem.ChannelIcon
+            // @ts-expect-error - we don't need the whole channel object
+            model={{ type: channel.type }}
+            useTypeIcon
+          />
+          <YStack gap="$2xs">
+            <Text fontSize="$l" paddingVertical="$s">
+              {channel?.title}
+            </Text>
+            <Text fontSize="$s" color="$secondaryText">
+              {getChannelTypeLabel(channel.type)}
+            </Text>
+          </YStack>
+        </XStack>
+      </Pressable>
 
       <XStack alignItems="center" gap="$l">
         {isEditMode && dragHandle && (
@@ -111,6 +123,7 @@ export function SectionHeader({
   isEditMode,
   dragHandle,
   onOpenMenu,
+  menuItems,
 }: {
   section: SortableSection;
   index: number;
@@ -118,7 +131,14 @@ export function SectionHeader({
   isEditMode?: boolean;
   dragHandle?: React.ReactNode;
   onOpenMenu?: () => void;
+  /** A native menu for the overflow button, in place of `onOpenMenu`. */
+  menuItems?: IconMenuItem[];
 }) {
+  const menuIcon = (
+    <View paddingVertical="$xs">
+      <Icon color="$secondaryText" type="Overflow" size="$m" />
+    </View>
+  );
   return (
     <XStack
       width="100%"
@@ -134,13 +154,19 @@ export function SectionHeader({
         {isDefault ? defaultSectionTitle : section.title}
       </Text>
       <XStack gap="$s" alignItems="center">
-        {!isDefault && !isEditMode && (
+        {!isDefault && !isEditMode && menuItems ? (
+          <IconMenu
+            items={menuItems}
+            accessibilityLabel={`Actions for ${section.title}`}
+            testID="SectionMenuButton"
+          >
+            {menuIcon}
+          </IconMenu>
+        ) : !isDefault && !isEditMode ? (
           <Pressable onPress={onOpenMenu} testID="SectionMenuButton">
-            <View paddingVertical="$xs">
-              <Icon color="$secondaryText" type="Overflow" size="$m" />
-            </View>
+            {menuIcon}
           </Pressable>
-        )}
+        ) : null}
         {isEditMode && dragHandle && (
           <View paddingVertical="$xs">{dragHandle}</View>
         )}

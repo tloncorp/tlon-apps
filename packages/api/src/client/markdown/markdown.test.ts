@@ -772,6 +772,76 @@ describe('markdownToStory', () => {
         },
       ]);
     });
+
+    it('keeps a pipe inside a code span within its cell', () => {
+      // GFM splits the cell on the unescaped pipe (GitHub does too); the
+      // author meant the code span to protect it.
+      const story = markdownToStory(
+        '| A | B |\n| --- | --- |\n| `x | y` | z |'
+      );
+
+      expect(convertContent(story, null)).toEqual([
+        {
+          type: 'table',
+          header: {
+            cells: [
+              { content: [{ type: 'text', text: 'A' }] },
+              { content: [{ type: 'text', text: 'B' }] },
+            ],
+          },
+          rows: [
+            {
+              cells: [
+                {
+                  content: [
+                    {
+                      type: 'style',
+                      style: 'code',
+                      children: [{ type: 'text', text: 'x | y' }],
+                    },
+                  ],
+                },
+                { content: [{ type: 'text', text: 'z' }] },
+              ],
+            },
+          ],
+          align: [null, null],
+        },
+      ]);
+    });
+
+    it('finds the rows whatever the line endings', () => {
+      // remark counts bare `\r` and `\r\n` as line endings too; the row
+      // lookup must agree with it or an ordinary table would throw.
+      for (const eol of ['\r', '\r\n']) {
+        const story = markdownToStory(
+          ['| A | B |', '| --- | --- |', '| `x | y` | z |'].join(eol)
+        );
+        const [table] = convertContent(story, null);
+        if (table.type !== 'table') throw new Error('unreachable');
+        expect(table.rows[0].cells).toHaveLength(2);
+        expect(table.rows[0].cells[0].content).toEqual([
+          {
+            type: 'style',
+            style: 'code',
+            children: [{ type: 'text', text: 'x | y' }],
+          },
+        ]);
+      }
+    });
+
+    it('leaves a pipe inside a code span outside a table alone', () => {
+      expect(markdownToStory('use `a | b` here')).toEqual([
+        { inline: ['use ', { 'inline-code': 'a | b' }, ' here'] },
+      ]);
+      expect(markdownToStory('```\n| A |\n| --- |\n| `x | y` |\n```')).toEqual([
+        {
+          block: {
+            code: { code: '| A |\n| --- |\n| `x | y` |', lang: 'text' },
+          },
+        },
+      ]);
+    });
   });
 
   describe('parse-side flattener boundaries', () => {

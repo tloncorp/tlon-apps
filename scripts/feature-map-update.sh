@@ -299,7 +299,7 @@ $1
   - [ ] Notifications
   - [x] Other: what Tlonbot tells people about the app. No app code changes.
 
-Merging restarts the internal bot fleet, because the guide is on \`bot-harness-deploy.yml\`'s path filter.
+Hosted internal bots pick up the guide on the next tlonbot **Deploy Internal Ring** run.
 
 ## Rollback plan
 

@@ -65,4 +65,23 @@ try {
   // ignore
 }
 
+/**
+ * Drops every cached result, as `queryClient.clear()` does, without detaching
+ * mounted hooks. On mobile, logout keeps the JS context, and hooks above the
+ * auth boundary (the root theme provider) stay mounted into the next session.
+ * A removed query's observer keeps pointing at it, so invalidations from the
+ * next account's writes would never reach that hook.
+ */
+export function resetQueryCache() {
+  const queryCache = queryClient.getQueryCache();
+  for (const query of queryCache.getAll()) {
+    if (query.getObserversCount() > 0) {
+      query.reset();
+    } else {
+      queryCache.remove(query);
+    }
+  }
+  queryClient.getMutationCache().clear();
+}
+
 export { queryClient, QueryClientProvider };

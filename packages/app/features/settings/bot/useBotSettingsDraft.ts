@@ -287,7 +287,6 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
         draft.pending.dmAllowlist ||
         draft.pending.defaultAuthorizedShips ||
         draft.pending.groupInviteAllowlist ||
-        draft.pending.autoAcceptDmInvites ||
         draft.pending.autoDiscoverChannels ||
         draft.pending.channelRules;
       const chatConfigStep = async () => {
@@ -390,7 +389,7 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
           server.groupChannels
         );
 
-        const config: Partial<typeof draftConfig> = {
+        const config: Partial<api.TlawnConfig> = {
           dmAllowlist: draft.pending.dmAllowlist
             ? draftConfig.dmAllowlist
             : server.dmAllowlist,
@@ -400,9 +399,9 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
           groupInviteAllowlist: draft.pending.groupInviteAllowlist
             ? draftConfig.groupInviteAllowlist
             : server.groupInviteAllowlist,
-          autoAcceptDmInvites: draft.pending.autoAcceptDmInvites
-            ? draftConfig.autoAcceptDmInvites
-            : server.autoAcceptDmInvites,
+          // No longer editable in the app; forward the server value so this
+          // replacement-style PUT doesn't reset it.
+          autoAcceptDmInvites: server.autoAcceptDmInvites,
           autoDiscoverChannels: draft.pending.autoDiscoverChannels
             ? draftConfig.autoDiscoverChannels
             : server.autoDiscoverChannels,
@@ -461,13 +460,6 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
             setting: 'group_invite_allowlist',
             action: 'updated',
             count: normalizeShipList(savedChat.groupInviteAllowlist).length,
-          });
-        }
-        if (draft.pending.autoAcceptDmInvites) {
-          trackTlonbotSettingUpdated({
-            setting: 'auto_accept_dm_invites',
-            action: 'updated',
-            enabled: savedChat.autoAcceptDmInvites,
           });
         }
         if (draft.pending.autoDiscoverChannels) {

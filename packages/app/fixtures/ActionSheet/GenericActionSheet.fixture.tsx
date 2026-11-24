@@ -1,5 +1,7 @@
-import { ListItem } from '../../ui';
+import { useState } from 'react';
+import { Button, ListItem, Text } from '../../ui';
 import { ActionGroup, ActionSheet } from '../../ui/components/ActionSheet';
+import { NotesActionMenu } from '../../ui/components/NotesChannel/NotesActions';
 import { FixtureWrapper } from '../FixtureWrapper';
 
 const ActionSheetFixture = () => {
@@ -86,6 +88,62 @@ const ActionSheetFixture = () => {
   );
 };
 
+const CompactActionMenuFixture = ({
+  compact = true,
+  title = 'File actions',
+}: {
+  compact?: boolean;
+  title?: string;
+}) => {
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState('No action selected');
+  const actions = [
+    {
+      title: 'Open in browser',
+      startIcon: 'ExternalLink' as const,
+      action: () => setSelected('Open selected'),
+    },
+    {
+      title: 'Delete file',
+      startIcon: 'Trash' as const,
+      accent: 'negative' as const,
+      action: () => setSelected('Delete selected'),
+    },
+  ];
+  return (
+    <FixtureWrapper fillWidth>
+      <Text>{selected}</Text>
+      <NotesActionMenu
+        groups={[{ accent: 'neutral', actions }]}
+        open={open}
+        onOpenChange={setOpen}
+        header={
+          compact
+            ? undefined
+            : {
+                title,
+                icon: 'Attachment',
+                subtitle: 'bill · 11/17/2026 · 15.1 MB',
+              }
+        }
+        onAction={(action) => {
+          setOpen(false);
+          action?.();
+        }}
+        trigger={<Button onPress={() => setOpen(true)} label="Show actions" />}
+      />
+    </FixtureWrapper>
+  );
+};
+
 export default {
   default: <ActionSheetFixture />,
+  'Compact actions': <CompactActionMenuFixture />,
+  'Actions with header': <CompactActionMenuFixture compact={false} />,
+  'Actions with long header': (
+    <CompactActionMenuFixture
+      compact={false}
+      title="Round two pitch check_ current onboarding flow walkthrough with notes from the design review, final cut v3.mp4"
+    />
+  ),
 };

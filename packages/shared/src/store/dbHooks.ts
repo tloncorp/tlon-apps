@@ -372,6 +372,10 @@ const useChannelUnreadRow = (channelId?: string | null) => {
   return data ?? null;
 };
 
+/** A channel's unread row as it is stored now, for comparing with a snapshot. */
+export const useChannelUnread = (channelId?: string | null) =>
+  useChannelUnreadRow(channelId);
+
 export const useChannelUnreadCount = (channelId?: string | null) =>
   useChannelUnreadRow(channelId)?.count ?? 0;
 
@@ -565,6 +569,17 @@ export const useGroups = (options: db.GetGroupsOptions) => {
   return useQuery({
     queryKey: ['groups', useKeyFromQueryDeps(db.getGroups, options)],
     queryFn: () => db.getGroups(options).then((r) => r ?? null),
+  });
+};
+
+export const useSharedGroups = ({ contactId }: { contactId?: string }) => {
+  return useQuery({
+    queryKey: [
+      ['sharedGroups', contactId],
+      useKeyFromQueryDeps(db.getSharedGroups, { contactId: contactId ?? '' }),
+    ],
+    queryFn: () => db.getSharedGroups({ contactId: contactId! }),
+    enabled: !!contactId,
   });
 };
 

@@ -10,11 +10,10 @@ env:
 - tapOn: '^Edit channels$'
 - assertVisible: '^Channels$'
 - assertNotVisible: ${output.reliability.channel}
-- tapOn: '^New$'
+- tapOn: '^New( channel or section)?$'
 - tapOn: '^New channel$'
 - assertVisible: '^Create a new channel$'
 - assertVisible: '^Collaborative markdown notebooks$'
-- assertVisible: '^Bulletin$'
 - tapOn: '^Collaborative markdown notebooks$'
 - tapOn:
     id: ChannelTitleInput
@@ -47,14 +46,12 @@ env:
 - extendedWaitUntil:
     visible: '^No notes or folders$'
     timeout: 15000
-- assertVisible:
-    id: NotesRootNewHeaderAction
+- assertVisible: '^New$'
 - assertNotVisible: '^Write something …\n?$'
 
 # Create a parent at the root, then exercise both nested-folder entry points.
-- tapOn:
-    id: NotesRootNewHeaderAction
-- assertVisible: '^New$'
+- tapOn: '^New$'
+- assertVisible: '^New note$'
 - tapOn:
     id: NotesNewFolderAction
 - assertVisible: '^Add folder$'
@@ -74,15 +71,17 @@ env:
       platform: Android
     commands:
       - hideKeyboard
-      - tapOn: '^Add folder$'
+      # The sheet's title reads the same as its button.
+      - tapOn:
+          text: '^Add folder$'
+          below: '^Name$'
 - extendedWaitUntil:
     visible:
       id: ${output.reliability.folderParentRowId}
     timeout: 15000
 
 # Create a valid root destination before entering the source subtree.
-- tapOn:
-    id: NotesRootNewHeaderAction
+- tapOn: '^New$'
 - tapOn:
     id: NotesNewFolderAction
 - assertVisible: '^Create in Root[.]$'
@@ -101,7 +100,9 @@ env:
       platform: Android
     commands:
       - hideKeyboard
-      - tapOn: '^Add folder$'
+      - tapOn:
+          text: '^Add folder$'
+          below: '^Name$'
 - extendedWaitUntil:
     visible:
       id: ${output.reliability.folderArchiveRowId}
@@ -130,7 +131,9 @@ env:
       platform: Android
     commands:
       - hideKeyboard
-      - tapOn: '^Add folder$'
+      - tapOn:
+          text: '^Add folder$'
+          below: '^Name$'
 - tapOn:
     id: ${output.reliability.folderParentRowId}
 - extendedWaitUntil:
@@ -159,7 +162,9 @@ env:
       platform: Android
     commands:
       - hideKeyboard
-      - tapOn: '^Add folder$'
+      - tapOn:
+          text: '^Add folder$'
+          below: '^Name$'
 - tapOn:
     id: ${output.reliability.folderChildRowId}
 - extendedWaitUntil:
@@ -171,8 +176,7 @@ env:
     id: ${output.reliability.folderChildRowId}
 
 # Creating while viewing the parent must state and preserve that same target.
-- tapOn:
-    id: NotesRootNewHeaderAction
+- tapOn: '^New$'
 - tapOn:
     id: NotesNewFolderAction
 - assertVisible: ${output.reliability.folderParentTargetPattern}
@@ -191,7 +195,9 @@ env:
       platform: Android
     commands:
       - hideKeyboard
-      - tapOn: '^Add folder$'
+      - tapOn:
+          text: '^Add folder$'
+          below: '^Name$'
 - extendedWaitUntil:
     visible:
       id: ${output.reliability.folderDeleteRowId}
@@ -454,8 +460,7 @@ env:
 - runFlow: subflows/open-fixture-group.yaml
 - tapOn: ${output.reliability.channel}
 - extendedWaitUntil:
-    visible:
-      id: NotesRootNewHeaderAction
+    visible: '^New$'
     timeout: 15000
 
 # Exercise both branches of the destructive confirmation.

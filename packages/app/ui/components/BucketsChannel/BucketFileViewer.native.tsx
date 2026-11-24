@@ -9,7 +9,7 @@ import { useWebView } from '../../../hooks/useWebview';
 import { ScreenHeader } from '../ScreenHeader';
 import { BucketFilePager } from './BucketFilePager';
 import { BucketPreviewControls } from './BucketPreviewControls';
-import { BucketPreviewOpenButton } from './BucketPreviewOpenButton';
+import { BucketPreviewActions } from './BucketPreviewActions';
 import { BucketPreviewContent } from './BucketPreviewContent';
 import { BucketPreviewImage } from './BucketPreviewImage';
 import { BucketAudioPreview } from './BucketAudioPreview';
@@ -36,6 +36,7 @@ export function BucketFileViewer({
   loading = false,
   navigation,
   onClose,
+  onDelete,
   onImageLoad,
   onPreviewError,
   onOpenExternally,
@@ -46,6 +47,7 @@ export function BucketFileViewer({
   loading?: boolean;
   navigation?: BucketFileNavigation;
   onClose: () => void;
+  onDelete?: () => void;
   onImageLoad?: () => void;
   onPreviewError?: () => void;
   onOpenExternally?: () => void;
@@ -85,8 +87,9 @@ export function BucketFileViewer({
         backAction={onClose}
         borderBottom
         rightControls={
-          <BucketPreviewOpenButton
-            onPress={item.uri ? onOpenExternally : undefined}
+          <BucketPreviewActions
+            onOpen={item.uri ? onOpenExternally : undefined}
+            onDelete={onDelete}
           />
         }
         showSubtitle

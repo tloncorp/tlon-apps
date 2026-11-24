@@ -29,6 +29,16 @@ export const isTlonEmployee = createStorageItem<boolean>({
   defaultValue: false,
 });
 
+/**
+ * Measured sizes of images whose posts carry none, as [src, width, height],
+ * oldest first, so they lay out at their real shape from the first frame
+ * after a relaunch.
+ */
+export const loadedImageSizes = createStorageItem<[string, number, number][]>({
+  key: 'loadedImageSizes',
+  defaultValue: [],
+});
+
 export const STORAGE_SETTINGS_QUERY_KEY = ['storageSettings'];
 
 export const dismissedPinnedPostBannerIds = createStorageItem<string[]>({
@@ -624,6 +634,12 @@ export const contactDiscoveryCursor = createStorageItem<{
   phoneNumbers: string[];
 } | null>({
   key: 'contactDiscoveryCursor',
+  defaultValue: null,
+  persistAfterLogout: false,
+});
+
+export const contactDiscoveryRateLimitedAt = createStorageItem<number | null>({
+  key: 'contactDiscoveryRateLimitedAt',
   defaultValue: null,
   persistAfterLogout: false,
 });

@@ -9,7 +9,7 @@ env:
 - runFlow: subflows/create-group.yaml
 - tapOn: '^Edit channels$'
 - assertVisible: '^Channels$'
-- tapOn: '^New$'
+- tapOn: '^New( channel or section)?$'
 - tapOn: '^New channel$'
 - assertVisible: '^Create a new channel$'
 - tapOn: '^Collaborative markdown notebooks$'
@@ -54,8 +54,7 @@ env:
       NOTE_BODY: ${output.reliability.noteRootNewerBody}
 
 # Create two root folders, then assert their visible alphabetical order.
-- tapOn:
-    id: NotesRootNewHeaderAction
+- tapOn: '^New$'
 - tapOn:
     id: NotesNewFolderAction
 - tapOn: '^Folder name$'
@@ -73,13 +72,15 @@ env:
       platform: Android
     commands:
       - hideKeyboard
-      - tapOn: '^Add folder$'
+      # The sheet's title reads the same as its button.
+      - tapOn:
+          text: '^Add folder$'
+          below: '^Name$'
 - extendedWaitUntil:
     visible:
       id: ${output.reliability.folderParentRowId}
     timeout: 15000
-- tapOn:
-    id: NotesRootNewHeaderAction
+- tapOn: '^New$'
 - tapOn:
     id: NotesNewFolderAction
 - tapOn: '^Folder name$'
@@ -97,7 +98,9 @@ env:
       platform: Android
     commands:
       - hideKeyboard
-      - tapOn: '^Add folder$'
+      - tapOn:
+          text: '^Add folder$'
+          below: '^Name$'
 - extendedWaitUntil:
     visible:
       id: ${output.reliability.folderArchiveRowId}
@@ -164,8 +167,7 @@ env:
     id: ${output.reliability.folderParentRowId}
 - assertVisible: ${output.reliability.noteRowTarget}
 - assertNotVisible: ${output.reliability.noteRootNewer}
-- tapOn:
-    id: NotesRootNewHeaderAction
+- tapOn: '^New$'
 - tapOn:
     id: NotesNewFolderAction
 - assertVisible: ${output.reliability.folderParentTargetPattern}
@@ -184,7 +186,9 @@ env:
       platform: Android
     commands:
       - hideKeyboard
-      - tapOn: '^Add folder$'
+      - tapOn:
+          text: '^Add folder$'
+          below: '^Name$'
 - extendedWaitUntil:
     visible:
       id: ${output.reliability.folderChildRowId}

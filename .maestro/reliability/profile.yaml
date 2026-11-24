@@ -15,13 +15,11 @@ onFlowComplete:
             commands:
               - runFlow:
                   when:
-                    notVisible:
-                      id: ContactEditButton
+                    notVisible: '^Edit profile$'
                   commands:
                     - runFlow: subflows/contacts-screen.yaml
                     - tapOn: '^You$'
-              - tapOn:
-                  id: ContactEditButton
+              - tapOn: '^Edit profile$'
         - tapOn:
             id: ProfileNicknameInput
             point: '95%,50%'
@@ -31,9 +29,10 @@ onFlowComplete:
               true: ${output.reliability.originalNickname !== ''}
             commands:
               - inputText: ${output.reliability.originalNickname}
-        - assertVisible:
+        # An empty field reports its placeholder on iOS and no text on Android.
+        - copyTextFrom:
             id: ProfileNicknameInput
-            text: ${output.reliability.originalNickname || MAESTRO_TEST_SHIP}
+        - assertTrue: ${(maestro.copiedText || MAESTRO_TEST_SHIP) === (output.reliability.originalNickname || MAESTRO_TEST_SHIP)}
         - tapOn: '^Save$'
         - tapOn: '^Back$'
         - assertNotVisible: ${MAESTRO_RUN_TAG + ' profile'}
@@ -43,8 +42,7 @@ onFlowComplete:
 - runFlow: subflows/begin.yaml
 - runFlow: subflows/contacts-screen.yaml
 - tapOn: '^You$'
-- tapOn:
-    id: ContactEditButton
+- tapOn: '^Edit profile$'
 - copyTextFrom:
     id: ProfileNicknameInput
 - evalScript: ${output.reliability.originalNickname = maestro.copiedText || ''}
@@ -77,8 +75,7 @@ onFlowComplete:
       leftOf: '^You$'
     timeout: 60000
 - tapOn: '^You$'
-- tapOn:
-    id: ContactEditButton
+- tapOn: '^Edit profile$'
 - assertVisible:
     id: ProfileNicknameInput
     text: ${MAESTRO_RUN_TAG + ' profile'}

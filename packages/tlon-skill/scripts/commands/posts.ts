@@ -227,6 +227,7 @@ export interface PostReactionInput {
   our: string;
   postAuthor: string;
   parentId?: string;
+  parentAuthorId?: string;
 }
 
 export interface PostReactionRemoveInput {
@@ -235,6 +236,7 @@ export interface PostReactionRemoveInput {
   our: string;
   postAuthor: string;
   parentId?: string;
+  parentAuthorId?: string;
 }
 
 export interface PostDeleteInput {
@@ -1249,27 +1251,39 @@ function parseArgs(args: string[]): ParsedPostsArgs {
 // The host stores a reaction under whatever id it is given, so a mistyped id
 // (one group dropped from a 13-group post id, say) prints success while the
 // post the user meant stays unreacted. Read the target first, as delete does.
+// A DM or group DM post is keyed by its author and id, so a reaction there
+// needs the authors the read found; given ours instead, it is acked and lands
+// on no post. A channel post is keyed by id alone.
 async function requireReactionTarget(
   parsed: { channelId: string; postId: string; parentId?: string },
   verb: 'added' | 'removed',
   deps: PostsDeps
-): Promise<void> {
+): Promise<{ postAuthor?: string; parentAuthorId?: string }> {
   const nest = parsed.channelId;
   const id = formatPostId(parsed.postId);
+  const dm = isDmTarget(nest);
   if (parsed.parentId) {
     const pid = formatPostId(parsed.parentId);
-    if (!(await fetchExistingReply(nest, pid, id, deps))) {
+    const found = await fetchExistingReply(nest, pid, id, deps);
+    if (!found) {
       throw commandError(
         `Could not read reply ${id} under ${pid} in ${nest}; no reaction was ${verb}. Read the thread (\`messages post ${nest} ${pid}\`) and use its ID line.`
       );
     }
-    return;
+    return dm
+      ? {
+          postAuthor: found.reply.authorId,
+          parentAuthorId: found.thread.authorId,
+        }
+      : {};
   }
-  if (!(await fetchExistingPost(nest, id, deps))) {
+  const existing = await fetchExistingPost(nest, id, deps);
+  if (!existing) {
     throw commandError(
       `Could not read ${id} in ${nest}; no reaction was ${verb}. The id may not be the post's: read the channel (\`messages channel ${nest}\`) and use its ID line.`
     );
   }
+  return dm ? { postAuthor: existing.authorId } : {};
 }
 
 async function reactToPost(
@@ -1281,14 +1295,17 @@ async function reactToPost(
   },
   deps: PostsDeps
 ): Promise<void> {
-  await requireReactionTarget(parsed, 'added', deps);
+  const authors = await requireReactionTarget(parsed, 'added', deps);
   const our = deps.getCurrentUserId();
   await deps.postsApi.addReaction({
     channelId: parsed.channelId,
     postId: formatPostId(parsed.postId),
     emoji: parsed.emoji,
     our,
-    postAuthor: our,
+    postAuthor: authors.postAuthor ?? our,
+    ...(authors.parentAuthorId
+      ? { parentAuthorId: authors.parentAuthorId }
+      : {}),
     ...(parsed.parentId ? { parentId: formatPostId(parsed.parentId) } : {}),
   });
 }
@@ -1297,13 +1314,16 @@ async function unreactToPost(
   parsed: { channelId: string; postId: string; parentId?: string },
   deps: PostsDeps
 ): Promise<void> {
-  await requireReactionTarget(parsed, 'removed', deps);
+  const authors = await requireReactionTarget(parsed, 'removed', deps);
   const our = deps.getCurrentUserId();
   await deps.postsApi.removeReaction({
     channelId: parsed.channelId,
     postId: formatPostId(parsed.postId),
     our,
-    postAuthor: our,
+    postAuthor: authors.postAuthor ?? our,
+    ...(authors.parentAuthorId
+      ? { parentAuthorId: authors.parentAuthorId }
+      : {}),
     ...(parsed.parentId ? { parentId: formatPostId(parsed.parentId) } : {}),
   });
 }

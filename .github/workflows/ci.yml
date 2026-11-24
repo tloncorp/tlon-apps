@@ -8,16 +8,18 @@ jobs:
   # work that the change set can't affect. `app` is an ignore-list: it's true
   # for ANY change except ones confined to the isolated bot/plugin packages
   # (openclaw/hermes/tlon-bot-e2e/tlon-skill — not consumed by the app, covered
-  # by their own workflows) or docs. New packages therefore default to running
-  # the app suite, so we never silently skip needed tests. `bots` mirrors that
-  # package list positively; it gates the bot-checks job that keeps the checks
-  # only test-build used to provide (see below) running on bot-only PRs.
+  # by their own workflows), Harness (tested by harness-ci) or docs. New
+  # packages therefore default to running the app suite, so we never silently
+  # skip needed tests. `bots` mirrors the bot package list positively; it gates
+  # the bot-checks job that keeps the checks only test-build used to provide
+  # (see below) running on bot-only PRs.
   changes:
     runs-on: blacksmith-2vcpu-ubuntu-2404
     outputs:
       app: ${{ steps.filter-app.outputs.app }}
       backend: ${{ steps.filter.outputs.backend }}
       bots: ${{ steps.filter.outputs.bots }}
+      hermes: ${{ steps.filter.outputs.hermes }}
     steps:
       # An ignore-list filter only works with predicate-quantifier `every`:
       # a file counts only if it matches every pattern — `**` AND each `!`
@@ -35,6 +37,7 @@ jobs:
               - '**'
               - '!packages/openclaw/**'
               - '!packages/hermes-tlon-adapter/**'
+              - '!packages/harness/**'
               - '!packages/tlon-bot-e2e/**'
               - '!packages/tlon-skill/**'
               - '!docs/**'
@@ -46,12 +49,16 @@ jobs:
           filters: |
             backend:
               - 'desk/**'
-              - 'backend/**'
+              - 'scripts/backend/**'
+              - 'justfile'
+              - 'desk-deps.yaml'
             bots:
               - 'packages/openclaw/**'
               - 'packages/hermes-tlon-adapter/**'
               - 'packages/tlon-bot-e2e/**'
               - 'packages/tlon-skill/**'
+            hermes:
+              - 'packages/hermes-tlon-adapter/**'
 
   # The app-wide suite. Skipped only when the filter positively reported
   # app == 'false' (bot-/docs-only PRs). Written `!= 'false'` rather than
@@ -116,7 +123,9 @@ jobs:
   # workflow can't be a required status check (a paths-filtered workflow
   # never reports on unrelated PRs, wedging a required context), so this job
   # is what puts that coverage behind the CI OK merge gate. Their heavyweight
-  # bot E2E suites stay in openclaw-ci only, non-blocking.
+  # bot E2E suites stay in openclaw-ci only, non-blocking. The Hermes
+  # adapter's Python tests are not here: test-build doesn't run them, so they
+  # live in hermes-checks below.
   bot-checks:
     needs: changes
     if:
@@ -173,6 +182,32 @@ jobs:
           pnpm --filter '@tloncorp/shared' test run
           src/domain/runtimeCommandContract.test.ts
 
+  # Hermes adapter Python tests, behind the CI OK gate. Its own job rather
+  # than a bot-checks step because bot-checks is skipped on mixed PRs (where
+  # test-build runs instead, and test-build doesn't run Python): gating only on
+  # `hermes` means the adapter's owner-only permission guard is tested on every
+  # PR that touches it. The same suite also runs in hermes-ci, which can't be
+  # a required check (it's paths-filtered).
+  hermes-checks:
+    needs: changes
+    if: needs.changes.outputs.hermes == 'true'
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    name: Hermes Adapter Checks
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      # dev/test.sh runs under `uv run --python 3.14`, the only Python
+      # hermes-agent v0.22.6 supports; uv fetches the interpreter. The uv
+      # version matches dev/Dockerfile.e2e's.
+      - name: Setup uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: "0.12.3"
+
+      - name: Run Hermes adapter unit tests
+        run: ./packages/hermes-tlon-adapter/dev/test.sh
+
   # Merge gate: the single required status check for this repo ("CI OK" in
   # branch protection). It aggregates the conditionally-skipped jobs above
   # into one context that always reports: a skipped need is fine (the filter
@@ -183,7 +218,7 @@ jobs:
   # When adding a new filter-gated job, append it to `needs` here.
   ci-ok:
     name: CI OK
-    needs: [changes, test-build, bot-checks]
+    needs: [changes, test-build, bot-checks, hermes-checks]
     if: ${{ always() }}
     runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
@@ -248,13 +283,24 @@ jobs:
         run: pnpm exec playwright install chromium
         working-directory: ./apps/tlon-web
 
-      - name: Install peru
-        # rube runs `peru sync` to vendor desk deps into desk-deps/ before
-        # assembling ship desks. (The parallel e2e job gets peru from the rube
-        # Docker image; this smoke test runs on the bare runner.)
-        run:
-          pipx install peru || pip install --user peru || pip3 install --user
-          --break-system-packages peru
+      - name: Setup just
+        # rube assembles ship desks with the repository justfile. (The parallel
+        # e2e job gets just and yq from the rube Docker image; this smoke test
+        # runs on the bare runner.)
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+        with:
+          just-version: 1.59.0
+
+      - name: Install rsync and yq
+        # The desk build copies with rsync, and fetch-deps.sh reads
+        # desk-deps.yaml with yq v4, which apt doesn't ship.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rsync
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL https://github.com/mikefarah/yq/releases/download/v4.54.1/yq_linux_amd64 -o "$RUNNER_TEMP/bin/yq"
+          chmod +x "$RUNNER_TEMP/bin/yq"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
       - name: Run Production Build Smoke Test
         id: smoke-test
@@ -284,19 +330,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - name: Install peru
-        # run-tests.sh assembles the groups desk via scripts/assemble-desk.sh,
-        # which runs `peru sync` to vendor desk deps (desk-deps/) — including
-        # peru-only deps like sur/mcp-proxy that aren't in the test pill.
+      - name: Setup just
+        # run-tests.sh assembles the groups desk with `just build`.
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+        with:
+          just-version: 1.59.0
+
+      - name: Install yq
+        # fetch-deps.sh reads desk-deps.yaml with yq v4, which apt
+        # doesn't ship.
         run: |
-          pipx install peru || pip install --user peru || pip3 install --user --break-system-packages peru
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL https://github.com/mikefarah/yq/releases/download/v4.54.1/yq_linux_amd64 -o "$RUNNER_TEMP/bin/yq"
+          chmod +x "$RUNNER_TEMP/bin/yq"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
       - name: Run Backend Tests for Groups
+        # The ship runs in a container, which has the tools click needs; the
+        # desk is assembled on the runner, which needs rsync. docker is the
+        # runtime the other jobs use on these runners.
+        env:
+          CONTAINER_RUNTIME: docker
         run: |
           sudo apt-get update
-          sudo apt-get install -y socat patch
-          ./backend/run-tests.sh
+          sudo apt-get install -y rsync
+          ./scripts/backend/run-tests.sh
   # Parallel E2E Tests using Docker containers
   e2e-parallel:
     needs: changes

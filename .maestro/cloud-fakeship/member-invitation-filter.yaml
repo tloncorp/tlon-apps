@@ -11,9 +11,8 @@ env:
     timeout: 30000
 - longPressOn: ${'MemberInvite-' + MAESTRO_RUN_TAG}
 - tapOn: '^Workspace info & settings$'
-- assertVisible: '^Workspace info & settings$'
 - tapOn:
-    id: GroupMembersInvitePeopleButton
+    id: GroupQuickAction-Invite
 - assertVisible:
     id: ScreenHeaderTitle
     text: '^Invite People$'
@@ -28,7 +27,6 @@ env:
 - assertVisible: '^Contacts matching ‘~ten’$'
 - tapOn:
     id: HeaderBackButton
-- assertVisible: '^Workspace info & settings$'
 - scrollUntilVisible:
     element:
       id: GroupLeaveAction-Delete workspace
@@ -42,7 +40,7 @@ env:
     commands:
       - tapOn:
           text: '^Delete workspace$'
-          rightOf: '^Cancel$'
+          above: '^Cancel$'
 - runFlow:
     when:
       platform: Android

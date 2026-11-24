@@ -29,6 +29,12 @@ env:
 - extendedWaitUntil:
     visible: '^Tlon$'
     timeout: 15000
+# The link preview pushes the fields below it under the Android keyboard.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
 - assertVisible:
     id: LinkTitleInput
     text: '^Tlon$'

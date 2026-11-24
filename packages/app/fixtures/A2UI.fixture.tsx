@@ -556,7 +556,7 @@ function makeHintedApprovalA2UI({
 }: {
   surfaceId: string;
   kicker: string;
-  icon: A2UI.KickerIcon;
+  icon: A2UI.TextIcon;
   title: string;
   subject: HintedSubject;
   note: string;
@@ -770,6 +770,107 @@ const hintedPendingA2UI: A2UI.BlobEntry = (() => {
   }
   return {
     ...makeControlA2UI('hinted-pending', components),
+    storyMode: 'fallback',
+  };
+})();
+
+// The workspace proposal card as openclaw's tlon_workspace_plan sends it,
+// with the content of the design's mockup.
+const workspaceProposalA2UI: A2UI.BlobEntry = (() => {
+  const items: {
+    id: string;
+    icon: A2UI.TextIcon;
+    title: string;
+    detail: string;
+  }[] = [
+    {
+      id: 'channel-0',
+      icon: 'ChannelTalk',
+      title: 'Build chat',
+      detail: 'Decisions and questions, starting with a brief',
+    },
+    {
+      id: 'channel-1',
+      icon: 'ChannelGalleries',
+      title: 'Parts gallery',
+      detail: 'Three sourced references to start from',
+    },
+    {
+      id: 'channel-2',
+      icon: 'ChannelNotebooks',
+      title: 'Notes',
+      detail: 'Your spec sheet, kept up to date',
+    },
+    {
+      id: 'task',
+      icon: 'Clock',
+      title: 'Sunday price check',
+      detail: 'A weekly task: I look up prices and post changes',
+    },
+  ];
+  return {
+    ...makeControlA2UI('workspace-plan-fixture', [
+      { id: 'root', component: 'Card', child: 'body' },
+      {
+        id: 'body',
+        component: 'Column',
+        children: [
+          'header',
+          'title',
+          'description',
+          ...items.flatMap((item) => [item.id, `${item.id}-detail`]),
+          'actions',
+        ],
+      },
+      {
+        id: 'header',
+        component: 'Row',
+        justify: 'spaceBetween',
+        children: ['kicker', 'privacy'],
+      },
+      {
+        id: 'kicker',
+        component: 'Text',
+        role: 'kicker',
+        icon: 'Lock',
+        text: 'New workspace',
+      },
+      { id: 'privacy', component: 'Text', role: 'status', text: 'Only you' },
+      { id: 'title', component: 'Text', variant: 'h3', text: 'Bike Parts' },
+      {
+        id: 'description',
+        component: 'Text',
+        text: 'Plan the gravel build: compare parts, keep sources, watch prices.',
+      },
+      ...items.flatMap((item): A2UI.Component[] => [
+        { id: item.id, component: 'Text', icon: item.icon, text: item.title },
+        {
+          id: `${item.id}-detail`,
+          component: 'Text',
+          variant: 'caption',
+          text: item.detail,
+        },
+      ]),
+      { id: 'actions', component: 'Row', children: ['edit', 'create'] },
+      {
+        id: 'edit',
+        component: 'Button',
+        child: 'edit-label',
+        variant: 'secondary',
+        resultLabel: 'You asked for changes.',
+        action: sendMessage('Edit the "Bike Parts" workspace'),
+      },
+      { id: 'edit-label', component: 'Text', text: 'Edit' },
+      {
+        id: 'create',
+        component: 'Button',
+        child: 'create-label',
+        variant: 'primary',
+        resultLabel: 'You asked to create Bike Parts.',
+        action: sendMessage('Create the "Bike Parts" workspace'),
+      },
+      { id: 'create-label', component: 'Text', text: 'Create' },
+    ]),
     storyMode: 'fallback',
   };
 })();
@@ -1354,6 +1455,20 @@ const hintedGroupPost = hintedPost(
 );
 const hintedPendingPost = hintedPost(hintedPendingA2UI, 'Pending requests (2)');
 
+const workspaceIntroPost = makePost(
+  exampleContacts.groupAdmin,
+  [
+    verse.inline(
+      "I can keep all of that in one place. Here's a private workspace to start from."
+    ),
+  ],
+  { channelId: dmChannelId, replyCount: 0 }
+);
+const workspaceProposalPost = hintedPost(
+  workspaceProposalA2UI,
+  'New workspace: Bike Parts'
+);
+
 const smallChoicePost = makePost(
   exampleContacts.mark,
   [verse.inline('Which part of AI agent tooling should I follow?')],
@@ -1463,6 +1578,7 @@ const examplePosts = [
   hintedChannelPost,
   hintedGroupPost,
   hintedPendingPost,
+  workspaceProposalPost,
   smallChoicePost,
   singleChoicePost,
   choicePost,
@@ -1502,7 +1618,14 @@ function A2UIDraftProvider({ children }: PropsWithChildren) {
   );
 }
 
-function A2UIFixture({ post }: { post: typeof weatherPost }) {
+function A2UIFixture({
+  post,
+  posts = [post!],
+}: {
+  post?: typeof weatherPost;
+  /** Consecutive messages, such as an intro and its card. */
+  posts?: (typeof weatherPost)[];
+}) {
   return (
     <A2UIFixtureFrame>
       <ChannelProvider value={{ channel: tlonLocalIntros }}>
@@ -1516,9 +1639,15 @@ function A2UIFixture({ post }: { post: typeof weatherPost }) {
               paddingVertical: '$2xl',
             }}
           >
-            <View maxWidth={520} width="100%">
-              <ChatMessage post={post} showAuthor={true} showReplies={true} />
-            </View>
+            {posts.map((item, index) => (
+              <View key={item.id} maxWidth={520} width="100%">
+                <ChatMessage
+                  post={item}
+                  showAuthor={index === 0}
+                  showReplies={true}
+                />
+              </View>
+            ))}
           </ScrollView>
         </A2UIDraftProvider>
       </ChannelProvider>
@@ -1566,6 +1695,9 @@ export default {
   ApprovalChannel: () => <A2UIFixture post={hintedChannelPost} />,
   ApprovalGroup: () => <A2UIFixture post={hintedGroupPost} />,
   PendingRequests: () => <A2UIFixture post={hintedPendingPost} />,
+  WorkspaceProposal: () => (
+    <A2UIFixture posts={[workspaceIntroPost, workspaceProposalPost]} />
+  ),
   SmallChoice: () => <A2UIFixture post={smallChoicePost} />,
   SingleChoice: () => <A2UIFixture post={singleChoicePost} />,
   Choice: () => <A2UIFixture post={choicePost} />,

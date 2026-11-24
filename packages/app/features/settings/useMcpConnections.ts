@@ -2,7 +2,7 @@ import * as api from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { triggerHaptic } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, Linking } from 'react-native';
+import { AppState, Linking, Platform } from 'react-native';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { mcpProviderQueryKeys } from '../../lib/mcpProviders';
@@ -220,17 +220,23 @@ export function useMcpConnections({
         handleOAuthCompletion(initialUrl);
       }
     });
-    const subscription = Linking.addEventListener('url', (event) => {
-      handleOAuthCompletion(event.url);
-    });
 
-    return () => {
-      subscription.remove();
-    };
+    if (Platform.OS !== 'android') {
+      return;
+    }
+    // Android can dismiss the Expo session while its browser task stays open.
+    // An active session owns its result; later callbacks still need a listener.
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      if (!startingProviderIdRef.current) {
+        handleOAuthCompletion(url);
+      }
+    });
+    return () => subscription.remove();
   }, [handleOAuthCompletion]);
 
   useEffect(() => {
-    if (!startingProviderId) {
+    // Native sessions own completion: foregrounding can precede their result.
+    if (Platform.OS !== 'web' || !startingProviderId) {
       return;
     }
 
@@ -271,6 +277,7 @@ export function useMcpConnections({
         return 'busy';
       }
 
+      handledCompletionUrls.current.clear();
       setStarting(providerId);
       trackMcpEvent(MCP_TELEMETRY_EVENTS.initiatedOAuth, { providerId });
       try {
@@ -285,9 +292,13 @@ export function useMcpConnections({
         );
         if (openResult.type === 'completed') {
           handleOAuthCompletion(openResult.url);
-        } else if (openResult.type === 'canceled') {
+        } else if (
+          openResult.type === 'canceled' ||
+          openResult.type === 'returned'
+        ) {
           setStarting(null);
-          emit({ type: 'canceled', providerId });
+          emit({ type: openResult.type, providerId });
+          refreshStatus();
         }
       } catch (err) {
         trackMcpError('Failed to start OAuth flow', {
@@ -305,6 +316,7 @@ export function useMcpConnections({
       disconnectingProviderId,
       emit,
       handleOAuthCompletion,
+      refreshStatus,
       setStarting,
       startingProviderId,
     ]

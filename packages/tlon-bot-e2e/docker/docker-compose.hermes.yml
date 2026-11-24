@@ -6,6 +6,10 @@ services:
       args:
         HERMES_AGENT_REPO: ${HERMES_AGENT_REPO:-https://github.com/NousResearch/hermes-agent.git}
         HERMES_AGENT_REF: ${HERMES_AGENT_REF:?HERMES_AGENT_REF is required}
+        HERMES_LCM_REPO: ${HERMES_LCM_REPO:-https://github.com/electricsheephq/lcm-x.git}
+        HERMES_LCM_REF: ${HERMES_LCM_REF:-}
+        # `-`, not `:-`: an explicitly empty subdir means the repo root.
+        HERMES_LCM_SUBDIR: ${HERMES_LCM_SUBDIR-plugin}
     environment:
       HERMES_HOME: /workspace/hermes-home
       HERMES_AGENT_DIR: /opt/hermes-agent
@@ -49,6 +53,18 @@ services:
       HERMES_GATEWAY_ARGS: ${HERMES_GATEWAY_ARGS:---replace -v}
       HERMES_E2E_ENABLE_CRONJOB: ${HERMES_E2E_ENABLE_CRONJOB:-0}
       HERMES_PLUGINS_DEBUG: ${HERMES_PLUGINS_DEBUG:-0}
+      HERMES_MODEL_CONTEXT_LENGTH: ${HERMES_MODEL_CONTEXT_LENGTH:-}
+      TLON_E2E_HERMES_LCM: ${TLON_E2E_HERMES_LCM:-0}
+      TLON_E2E_HERMES_LCM_PLUGIN: ${TLON_E2E_HERMES_LCM_PLUGIN:-hermes-lcm-x}
+      TLON_E2E_HERMES_LCM_ENGINE: ${TLON_E2E_HERMES_LCM_ENGINE:-lcm-x}
+      # LCM tuning knobs (empty = plugin default; the entrypoint unsets empties).
+      LCM_CONTEXT_THRESHOLD: ${LCM_CONTEXT_THRESHOLD:-}
+      LCM_FRESH_TAIL_COUNT: ${LCM_FRESH_TAIL_COUNT:-}
+      LCM_LEAF_CHUNK_TOKENS: ${LCM_LEAF_CHUNK_TOKENS:-}
+      LCM_MAX_ASSEMBLY_TOKENS: ${LCM_MAX_ASSEMBLY_TOKENS:-}
+      LCM_EMBEDDINGS_ENABLED: ${LCM_EMBEDDINGS_ENABLED:-false}
+      LCM_ENTITIES_ENABLED: ${LCM_ENTITIES_ENABLED:-}
+      LCM_DISABLED_TOOLS: ${LCM_DISABLED_TOOLS:-}
     volumes:
       - ${REPO_ROOT:?REPO_ROOT is required}:/workspace/tlon-apps
       - hermes-home:/workspace/hermes-home

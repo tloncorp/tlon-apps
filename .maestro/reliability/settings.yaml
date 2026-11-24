@@ -34,8 +34,11 @@ env:
           direction: DOWN
           timeout: 5000
       - copyTextFrom:
-          id: 'ThemeOption-.*'
-          checked: true
+          text: '.+'
+          index: 0
+          childOf:
+            id: 'ThemeOption-.*'
+            checked: true
 - runFlow:
     when:
       platform: iOS
@@ -102,7 +105,9 @@ env:
     file: subflows/assert-theme.yaml
     env:
       THEME_ID: ThemeOption-auto
-- tapOn: '^Back$'
+# A relaunch restores Appearance without the Settings list under it on Android,
+# where Back then leaves for Workspaces, so return through the tab.
+- runFlow: subflows/settings-tab.yaml
 - runFlow:
     file: subflows/settings-row.yaml
     env:
@@ -133,7 +138,7 @@ env:
     file: subflows/assert-theme.yaml
     env:
       THEME_ID: ${output.reliability.originalTheme}
-- tapOn: '^Back$'
+- runFlow: subflows/settings-tab.yaml
 - runFlow:
     file: subflows/settings-row.yaml
     env:

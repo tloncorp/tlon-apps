@@ -1,4 +1,3 @@
-import { rm } from 'node:fs/promises';
 import type {
   OpenClawConfig,
   OpenClawPluginApi,
@@ -42,10 +41,15 @@ const PROVIDER_FAILOVER_REASONS = new Set([
 ]);
 
 /**
- * Run an embedded agent turn, failing over to the next model the way a
- * scheduled run would. The SDK resolves the primary but leaves failover to
+ * Run a scratch embedded agent turn, failing over to the next model the way
+ * a scheduled run would. The SDK resolves the primary but leaves failover to
  * its caller. Only a structured provider failure before any tool has run is
  * retried, since replaying a turn that already acted could act twice.
+ *
+ * The run is detached: core keeps its transcript in memory and writes no
+ * session row, so nothing resumes it and each attempt starts from the prompt
+ * alone. OpenClaw 2026.9.4 rejects a plugin-supplied transcript path, and a
+ * detached run does not fire `agent_end`.
  *
  * `primary` is the model to start with (the config's own when unset), and
  * `fallbacks` the models after it (the agent's configured ones when unset).
@@ -58,7 +62,6 @@ export async function runEmbeddedAgentWithFallbacks(
   params: Parameters<RunEmbeddedAgent>[0] & {
     config: OpenClawConfig;
     agentId: string;
-    sessionFile: string;
   },
   options: { label: string; primary?: string; fallbacks?: string[] }
 ) {
@@ -75,6 +78,7 @@ export async function runEmbeddedAgentWithFallbacks(
     try {
       return await deps.runEmbeddedAgent({
         ...params,
+        sessionPersistence: 'detached',
         model,
         timeoutMs: Math.max(1, deadline - Date.now()),
         modelFallbacksOverride: fallbacks.slice(index),
@@ -101,9 +105,6 @@ export async function runEmbeddedAgentWithFallbacks(
       deps.logger.warn(
         `[tlon] ${options.label} trying fallback ${candidates[index + 1]} (${String(error.reason)})`
       );
-      // A scratch transcript and no tool has run: start the next model with
-      // just the prompt, without the failed attempt's text.
-      await rm(params.sessionFile, { force: true });
     }
   }
   throw new Error(`${options.label} exhausted model candidates`);

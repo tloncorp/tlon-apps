@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/db';
+import { ConfirmDialog, Pressable, Text } from '@tloncorp/ui';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -715,6 +716,47 @@ const previewFiles: BucketFileViewerItem[] = [
   },
 ];
 
+function DeletePreviewFixture() {
+  const [confirming, setConfirming] = useState(false);
+  const [closed, setClosed] = useState(false);
+  const { height } = useWindowDimensions();
+  const item = previewFiles[0];
+  return (
+    <FixtureWrapper fillWidth fillHeight>
+      <YStack width="100%" height={height}>
+        {closed ? (
+          <YStack flex={1} alignItems="center" justifyContent="center" gap="$l">
+            <Text>File preview closed</Text>
+            <Pressable onPress={() => setClosed(false)} padding="$l">
+              <Text color="$positiveActionText">Reset sample preview</Text>
+            </Pressable>
+          </YStack>
+        ) : (
+          <BucketFileViewer
+            item={item}
+            onClose={() => setClosed(true)}
+            onDelete={() => setConfirming(true)}
+            onOpenExternally={() => Linking.openURL(item.uri!)}
+          />
+        )}
+        <ConfirmDialog
+          open={confirming}
+          onOpenChange={setConfirming}
+          title={`Delete ${item.name}?`}
+          description="This file will be permanently deleted for everyone. This cannot be undone."
+          confirmText="Delete file"
+          cancelText="Cancel"
+          destructive
+          onConfirm={() => {
+            setConfirming(false);
+            setClosed(true);
+          }}
+        />
+      </YStack>
+    </FixtureWrapper>
+  );
+}
+
 function PreviewFilesFixture({
   initialIndex = 0,
   readDelay = 0,
@@ -822,6 +864,7 @@ function CachedPreviewFilesFixture() {
 }
 
 export default {
+  'Delete from preview': <DeletePreviewFixture />,
   'File previews': <PreviewFilesFixture />,
   'Cached file previews': <CachedPreviewFilesFixture />,
   'Header transitions': <PreviewFilesFixture readDelay={600} />,

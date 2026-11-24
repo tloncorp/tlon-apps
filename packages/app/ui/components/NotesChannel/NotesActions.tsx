@@ -1,6 +1,7 @@
 import { IconType, useIsWindowNarrow } from '@tloncorp/ui';
 import type { ReactNode } from 'react';
 import { Platform } from 'react-native';
+import { YStack } from 'tamagui';
 
 import type { ActionGroup } from '../ActionSheet';
 import { ActionSheet } from '../ActionSheet';
@@ -44,18 +45,27 @@ export function NotesActionMenu({
       modal
       snapPointsMode="fit"
       trigger={trigger}
+      compact={!header && !bottomContent}
     >
       {header && isWindowNarrow ? (
         <ActionSheet.Header leadingIcon>
           <ListItem.SystemIcon icon={header.icon} />
-          <ActionSheet.ActionContent>
-            <ListItem.Title>{header.title}</ListItem.Title>
+          {/* The full title, however long: the rows that open this menu
+              truncate it, so this is the one place to read all of it. */}
+          <YStack
+            flex={1}
+            minWidth={0}
+            minHeight="$4xl"
+            justifyContent="space-evenly"
+            gap="$xs"
+          >
+            <ListItem.Title numberOfLines={0}>{header.title}</ListItem.Title>
             {header.subtitle ? (
               <ListItem.Subtitle $gtSm={{ maxWidth: '100%' }}>
                 {header.subtitle}
               </ListItem.Subtitle>
             ) : null}
-          </ActionSheet.ActionContent>
+          </YStack>
         </ActionSheet.Header>
       ) : null}
       <ActionSheet.Content>

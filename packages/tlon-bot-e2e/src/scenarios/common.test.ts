@@ -80,6 +80,8 @@ describe(`common ${ctx.driverName} scenarios (${partition})`, () => {
       DEFAULT_SCENARIO_TIMEOUT_MS
     );
     if (scenario.skipReason) {
+      // The default reporter omits skipped tests from a passing file.
+      logProgress(`skip ${scenario.id}: ${scenario.skipReason}`);
       test.skip(scenarioTestName(scenario), () => {}, timeoutMs);
     } else {
       test(
