@@ -89,6 +89,13 @@
   ^-  ?
   =/  record  (~(get by records.db) name)
   &(?=(^ record) (sees reach source.value.u.record))
+::  +filter: the index walk's test; ~ takes the unfiltered path.
+::
+++  filter
+  |=  [=reach db=state:m]
+  ^-  (unit $-(@t ?))
+  ?:  all.reach  ~
+  `|=(name=@t (seen reach db name))
 ::  +owner-source: the owner's own tools (no conversation), the owner
 ::  speaking in a resolved Tlon conversation, or the bot's ship in an
 ::  unbound session whose whole history is the owner's own.
@@ -301,14 +308,13 @@
 ++  picks
   |=  [=reach db=state:m query=@t actor=@t]
   ^-  (list @t)
-  =/  scan  (candidates:idx index.db (clip:text query 2.048))
+  =/  scan  (candidates:idx index.db (clip:text query 2.048) (filter reach db))
   =/  ranked=(list [name=@t score=@ud revision=@ud])
     %+  murn  ~(tap in names.scan)
     |=  name=@t
     ^-  (unit [name=@t score=@ud revision=@ud])
     =/  record  (~(get by records.db) name)
     ?~  record  ~
-    ?.  (sees reach source.value.u.record)  ~
     =/  score  (score:idx u.record terms.scan)
     ?:  =(0 score)  ~
     `[name score revision.u.record]

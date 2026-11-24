@@ -36,7 +36,7 @@
     (add checksum (mug (pack:mem everything:mem db names 4.096)))
   ;<  ~  bind:thread  (sleep (div ~s1 1.000))
   ;<  end=@da  bind:thread  get-time
-  =/  scan  (candidates:idx index.db query)
+  =/  scan  (candidates:idx index.db query ~)
   %-  pure:thread
   !>  :*  count  repeats  (div (mul (sub end start) 1.000) ~s1)
           checksum  visited.scan  ~(wyt in names.scan)

@@ -83,7 +83,7 @@
     %+  roll  (gulf 0 127)
     |=  [at=@ud db=state:m]
     (saved db (cat 3 'record-' (scot %ud at)) 0 (value 'A common subject appears everywhere.'))
-  =/  scan  (candidates:idx index.db 'common subject everywhere')
+  =/  scan  (candidates:idx index.db 'common subject everywhere' ~)
   ;:  weld
       (expect !>((lte visited.scan max-visits:idx)))
       (expect !>((lte ~(wyt in names.scan) max-visits:idx)))
@@ -339,6 +339,33 @@
       (expect-eq !>((silt ~['team-note'])) !>((related-of (request-data:capture channel db wide))))
       %+  expect-eq  !>((silt ~['team-note' 'nec-note']))
       !>((related-of (request-data:capture nec db wide)))
+  ==
+::  .count private facts learned in the owner's DM, newer than one channel
+::  fact; every heading starts with falcon.
+::
+++  crowded
+  |=  count=@ud
+  ^-  state:m
+  =/  db  (saved *state:m 'team-falcon' 0 (learned 'chan' 'Falcon: the team meets on Monday.'))
+  %+  roll  (gulf 1 count)
+  |=  [n=@ud db=_db]
+  =/  name  (cat 3 'private-' (crip (a-co:co n)))
+  (saved db name 0 (learned 'owner-dm' (rap 3 'Falcon: private entry ' (crip (a-co:co n)) ~)))
+++  test-unseen-rows-do-not-crowd-a-seen-fact-out-of-recall
+  =/  db  (crowded 300)
+  ;:  weld
+      (expect-eq !>(~['team-falcon']) !>((choose:mem channel db 'falcon' '~nec')))
+      (expect-eq !>((silt ~['team-falcon'])) !>((search channel db 'falcon')))
+      (expect-eq !>((silt ~['team-falcon'])) !>((search channel db '')))
+  ==
+++  test-a-filtered-recall-walk-examines-at-most-512-rows
+  =/  db  (crowded 5.000)
+  =/  scan  (candidates:idx index.db 'falcon' (filter:mem channel db))
+  =/  sample  (search channel db '')
+  ;:  weld
+      (expect-eq !>(max-walk:idx) !>(visited.scan))
+      (expect-eq !>(~) !>(names.scan))
+      (expect-eq !>(~) !>(sample))
   ==
 ::  The owner is ~ten and the bot ~zod; ~doznec-sampel-palnet stands for a
 ::  sibling-moon owner, whose preferences are not looked up. 'local' is an unbound session with

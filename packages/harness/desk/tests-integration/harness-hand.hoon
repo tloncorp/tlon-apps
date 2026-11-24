@@ -990,4 +990,43 @@
     %+  ex-equal  !>(sid.source.value:(~(got by records.knowledge.after) 'room-style'))
     !>('room-child')
   (ex-equal !>((mentions saving 'room-style: Haiku banned.')) !>(|))
+::  The channel facts a multi-term search ranks: five fillers' worth of
+::  common terms, and two facts that tie when no private count is used.
+::  .private adds an owner fact that shares one of the terms.
+::
+++  searchable
+  |=  private=?
+  ^-  state-0
+  =/  fillers=(list [word=@t count=@ud])
+    ~[['golf' 11] ['alpha' 12] ['bravo' 12] ['charlie' 13] ['delta' 13] ['echo' 20]]
+  =/  saved
+    %+  roll  fillers
+    |=  [[word=@t count=@ud] saved=_owned]
+    %+  roll  (gulf 1 count)
+    |=  [n=@ud saved=_saved]
+    =/  tag  (crip (a-co:co n))
+    (seed saved (rap 3 word '-' tag ~) (rap 3 word ' filler ' tag ~) 'room' '~bus' |)
+  =.  saved  (seed saved 'pair-b' 'alpha bravo' 'room' '~bus' |)
+  =.  saved  (seed saved 'pair-a' 'golf echo' 'room' '~bus' |)
+  ?.  private  saved
+  (seed saved 'secret-echo' 'echo private' '' '~zod' |)
+::  A channel's search answers the same whether or not a private fact shares
+::  its terms: no count that includes unseen facts orders or scores it.
+::
+++  test-a-private-save-does-not-change-a-channels-search-order
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  query  '/memory alpha bravo charlie delta echo golf'
+  ;<  ~  bind:m  (load (searchable |) lane-scry)
+  ;<  *  bind:m  (hear 'room' '~bus' 'search' query)
+  ;<  before=state-0  bind:m  get-state
+  ;<  ~  bind:m  (load (searchable &) lane-scry)
+  ;<  *  bind:m  (hear 'room' '~bus' 'search' query)
+  ;<  after=state-0  bind:m  get-state
+  =/  answer-of  |=(saved=state-0 (reply log:(~(got by sessions.saved) 'room')))
+  =/  first  (answer-of before)
+  ;<  ~  bind:m  (ex-equal !>(?=(^ first)) !>(&))
+  (ex-equal !>((answer-of after)) !>(first))
 --
+

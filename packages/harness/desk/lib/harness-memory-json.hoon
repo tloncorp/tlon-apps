@@ -38,9 +38,10 @@
   ^-  (list @t)
   =/  all  (~(get by index.db) '')
   ?~  all  ~
+  =/  filter  (filter:memory reach db)
   =/  picked=(set @t)
-    %-  silt
-    (skim ~(tap in names:(take:idx rows.u.all [~ 64])) |=(name=@t (seen:memory reach db name)))
+    ?~  filter  names:(take:idx rows.u.all [~ 64])
+    names:(take-seen:idx rows.u.all u.filter [~ 64 max-walk:idx])
   =/  names
     %+  sort  ~(tap in picked)
     |=  [a=@t b=@t]
