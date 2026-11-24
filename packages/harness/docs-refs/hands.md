@@ -224,7 +224,15 @@ its bindings, and 128 globally. One stalled conversation cannot consume the
 whole waiting queue. Duplicate admissions are checked before capacity limits,
 so retrying an already admitted event still recovers its identity.
 
-The ledger has no limit on finished records; it allows 256 active bindings.
+The ledger has no limit on finished records or on bindings. A hand adds a
+binding for each conversation it serves, and the binding stays, enabled or not,
+until it is retired, so saved state grows with every conversation. Two costs
+that grow with the number of conversations are accepted. Resetting every
+conversation at once, as turning the Tlon hand off does, sends one fence per
+conversation, and each fence goes through every session, so the reset takes time
+that grows with the square of the number of conversations. Each message still
+goes through every session to update the session index and to synchronize the
+corpus.
 Text is limited to 65,536 bytes and source IDs to 512 bytes; metadata and
 recovery histories also have admission limits. A full waiting queue rejects
 work without deleting records or pruning session history. Records are kept
@@ -254,8 +262,8 @@ Rotate a binding epoch to release its records:
 Never relabel old source events with the new binding: deduplication is scoped
 to the binding epoch. Retired binding ids reject all further observations.
 Ship-allocated `hand--…` ids use a monotonic counter instead of an ever-growing
-tombstone set. Manually named ids remain available, but their combined active
-and retired identity capacity is 4,096; use `register` for continuous rotation.
+tombstone set. Manually named ids remain available, and each one retired stays
+in that set.
 
 The owner-side command performs the export-before-release sequence:
 

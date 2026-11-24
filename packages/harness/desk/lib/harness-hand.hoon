@@ -238,10 +238,6 @@
   ^-  (each [db=state:hh result=json] @t)
   ?>  ?=(%bind -.action)
   ?:  (generated id.action)  [%| 'The hand-- namespace is allocated by register']
-  ?:  ?&  !(~(has by bindings.db) id.action)
-          (gte (add ~(wyt in retired.db) ~(wyt by bindings.db)) 4.096)
-      ==
-    [%| 'Named binding identity capacity reached; use register']
   (bind-config db id.action config.action)
 ::
 ++  apply-remove
@@ -415,7 +411,6 @@
           (lien ~(val by observations.db) |=(observation=observation:hh =(binding.observation id)))
       ==
     [%| 'Retired binding ids cannot be reused']
-  ?:  (gte ~(wyt by bindings.db) 256)  [%| 'Binding limit reached']
   =.  bindings.db  (~(put by bindings.db) id config)
   [%& db (status-json db id)]
 ::
