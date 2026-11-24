@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import {
   INCLUDED_ROW_ID,
+  SUBSCRIPTIONS_ROW_ID,
   botOnIncludedModel,
   buildFirstRunModelSections,
+  buildModelChoiceRows,
   defaultModelRowId,
   findModelRow,
+  modelChoiceRowId,
 } from './firstRunModelOptions';
 
 const hostedConfig = {
@@ -47,8 +50,9 @@ describe('first-run model choices', () => {
     });
     const included = findModelRow(sections, INCLUDED_ROW_ID);
     expect(included?.name).toBe('GPT-7 Luna');
-    expect(included?.primaryLabel).toBe('Use GPT-7 Luna');
-    expect(included?.meta).toBe('Zero data retention on');
+    expect(included?.primaryLabel).toBe('Use built-in');
+    expect(included?.meta).toBe('Free · OpenAI GPT-7 Luna');
+    expect(included?.detail).toBe('Includes $5 of use every month');
     expect(
       sections
         .flatMap((section) => section.rows)
@@ -81,6 +85,16 @@ describe('first-run model choices', () => {
     expect(findModelRow(sections, INCLUDED_ROW_ID)?.name).toBe('GPT-5.6 Luna');
   });
 
+  it('names a model from an unlisted maker without one', () => {
+    const sections = buildFirstRunModelSections({
+      ...hostedConfig,
+      defaultModels: { primaryModel: 'moonshotai/kimi-k3', fallbackModels: [] },
+    });
+    expect(findModelRow(sections, INCLUDED_ROW_ID)?.meta).toBe(
+      'Free · kimi-k3'
+    );
+  });
+
   it('leaves out the included model when the account has none', () => {
     const sections = buildFirstRunModelSections({
       ...hostedConfig,
@@ -88,6 +102,45 @@ describe('first-run model choices', () => {
     });
     expect(findModelRow(sections, INCLUDED_ROW_ID)).toBeUndefined();
     expect(defaultModelRowId(sections)).toBe('subscription:openai');
+  });
+});
+
+describe('the model screen rows', () => {
+  it('shows one row for every subscription, carrying its plans', () => {
+    const rows = buildModelChoiceRows(buildFirstRunModelSections(hostedConfig));
+    expect(rows.map((row) => row.id)).toEqual([
+      INCLUDED_ROW_ID,
+      SUBSCRIPTIONS_ROW_ID,
+      'api-key',
+    ]);
+    expect(rows[0].name).toBe('Built-in');
+    expect(rows[0].meta).toBe('Free · OpenAI GPT-5.6 Luna');
+    expect(rows[0].detail).toBe('Includes $5 of use every month');
+    expect(rows.map((row) => row.drawing)).toEqual([
+      'included',
+      'subscription',
+      'apiKey',
+    ]);
+    const subscriptions = rows[1];
+    expect(subscriptions.name).toBe('Your subscription');
+    expect(subscriptions.meta).toBe(
+      'A ChatGPT, Claude or Grok plan you pay for'
+    );
+    expect(subscriptions.primaryLabel).toBe('Sign in to your subscription');
+    expect(subscriptions.plans?.map((plan) => plan.id)).toEqual([
+      'subscription:openai',
+      'subscription:anthropic',
+      'subscription:xai',
+    ]);
+    expect(rows[2].name).toBe('Your own API key');
+    expect(rows[2].primaryLabel).toBe('Add your API key');
+  });
+
+  it('selects the subscription row for any of its plans', () => {
+    expect(modelChoiceRowId('subscription:anthropic')).toBe(
+      SUBSCRIPTIONS_ROW_ID
+    );
+    expect(modelChoiceRowId(INCLUDED_ROW_ID)).toBe(INCLUDED_ROW_ID);
   });
 });
 
@@ -115,7 +168,7 @@ describe('the model the first run starts from', () => {
   });
 
   it('sees a model saved by an earlier, unfinished first run', () => {
-    // Someone saved their own key, closed the app on Make space, and came
+    // Someone saved their own key, closed the app on a later step, and came
     // back: continuing with the included model has to switch the bot.
     expect(
       botOnIncludedModel({

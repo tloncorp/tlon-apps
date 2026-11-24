@@ -230,6 +230,8 @@
       [%compact sid=session-id]
       [%cancel sid=session-id]
       [%fence sid=session-id]
+      ::  One speaker's revocation: their running turn and waiting inputs only.
+      [%fence-actor sid=session-id actor=@t]
       [%delete sid=session-id]
       [%retry sid=session-id]
       [%config sid=session-id =config js-timeout=@dr]

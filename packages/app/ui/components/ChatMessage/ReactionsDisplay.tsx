@@ -4,7 +4,13 @@ import { Icon, SizableEmoji, getNativeEmoji } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
-import { Tooltip, View, XStack, isWeb } from 'tamagui';
+import {
+  type GetThemeValueForKey,
+  Tooltip,
+  View,
+  XStack,
+  isWeb,
+} from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
@@ -17,6 +23,8 @@ import { EmojiPickerSheet } from '../Emoji';
 const TOOLTIP_USER_DISPLAY_COUNT = 3;
 const TOOLTIP_MAX_WIDTH_PX = 320;
 const TOOLTIP_NAME_FRAGMENT_MAX_WIDTH_PX = 280;
+// Tamagui's strict style values leave out CSS sizing keywords.
+const TOOLTIP_WIDTH = 'max-content' as GetThemeValueForKey<'width'>;
 
 function ReactionTooltipName({
   contactId,
@@ -47,6 +55,9 @@ function ReactionTooltipContent({ reaction }: { reaction: ReactionListItem }) {
       padding="$s"
       backgroundColor="$secondaryBackground"
       borderRadius="$s"
+      // The content isn't portaled: it is absolutely positioned inside the
+      // reaction chip, so without an explicit width it shrinks to the chip.
+      width={TOOLTIP_WIDTH}
       maxWidth={TOOLTIP_MAX_WIDTH_PX}
     >
       <XStack

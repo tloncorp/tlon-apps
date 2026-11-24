@@ -30,12 +30,12 @@ import {
 type VerifyOutcome = 'completed' | 'returned' | 'rechecked';
 
 /**
- * Screen 3's live data: the catalog, this account's grants, and where each
- * featured service's sign-in stands. A row says connected only after a status
- * check confirms the grant. What the rows can't show, such as a failed
- * disconnect in the full services list, gets the settings screen's toast.
- * The featured rows are there from the first render, from the built-in list
- * until the live catalog arrives.
+ * The services screen's live data: the catalog, this account's grants, and
+ * where each featured service's sign-in stands. A row says connected only after
+ * a status check confirms the grant. What the rows can't show, such as a failed
+ * disconnect in the full services list, gets the settings screen's toast. The
+ * featured rows are there from the first render, from the built-in list until
+ * the live catalog arrives.
  */
 export function useFirstRunServices() {
   const showToast = useToast();
@@ -179,7 +179,7 @@ export function useFirstRunServices() {
     );
   }, [featured]);
 
-  // Fetch the logos now, so they're ready by screen 3.
+  // Fetch the logos now, so they're ready by the services screen.
   const logoUrls = featured
     .flatMap((service) => (service.row.logoUrl ? [service.row.logoUrl] : []))
     .join(' ');

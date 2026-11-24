@@ -3,7 +3,7 @@
 /-  c=harness-cron, hh=harness-hand, h=harness, ac=acp, renew=harness-oauth,
     adapter=harness-adapter, t=harness-tlon, *harness-store
 /+  *test-agent, schedule=harness-schedule, defaults=harness-defaults, hl=harness,
-    tools=harness-tools, auth=harness-auth
+    tools=harness-tools, auth=harness-auth, hd=harness-hand
 /=  head  /app/harness
 |%
 ++  t0  ~2026.9.9
@@ -51,9 +51,28 @@
   ;<  ~  bind:m  prepare
   ;<  *  bind:m  (do-load head `!>(s))
   (pure:m ~)
+::  Reload, then fire the schedule wake the load set a tick later, as behn
+::  does once every agent on the desk has loaded.
+::
+++  reload
+  |=  s=state-0
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  ;<  =bowl  bind:m  get-bowl
+  ;<  loaded=(list card)  bind:m  (do-load head `!>(s))
+  ;<  ~  bind:m  (wait ~s1)
+  ;<  woken=(list card)  bind:m
+    (do-arvo /schedules/(scot %da +(now.bowl)) [%behn %wake ~])
+  (pure:m (weld loaded woken))
+::  Every read of the saved state also checks that the head's index equals
+::  the derivation of its ledger.
+::
 ++  get-state
   =/  m  (mare ,state-0)
   ^-  form:m
+  ;<  ledger=cage  bind:m  (got-peek /x/hand-state)
+  ;<  index=cage  bind:m  (got-peek /x/hand-index)
+  ;<  ~  bind:m  (ex-equal q.index !>((reindex:hd !<(state:hh q.ledger))))
   ;<  =vase  bind:m  get-save
   (pure:m !<(state-0 vase))
 ++  do-frame
@@ -98,15 +117,47 @@
   ;<  ~                bind:m  prepare
   ;<  out=(list card)  bind:m  (do-load head `!>(s))
   ;<  next=state-0     bind:m  get-state
-  ::  The saved wake is cancelled and exactly one fresh one is set.
+  ::  The saved wake is cancelled and exactly one fresh one is set, a tick
+  ::  after the load.
   =/  at  next.job
   ;<  ~  bind:m
     %+  ex-cards  (timers out)
     :~  (ex-arvo /schedules/(scot %da at) %b %rest at)
-        (ex-arvo /schedules/(scot %da at) %b %wait at)
+        (ex-arvo /schedules/(scot %da +(t0)) %b %wait +(t0))
     ==
   ;<  ~  bind:m  (ex-equal !>(schedules.next) !>(schedules.s))
-  (ex-equal !>(schedule-wake.next) !>(schedule-wake.s))
+  (ex-equal !>(schedule-wake.next) !>(`+(t0)))
+::  Gall reloads a desk's agents one by one, so the head can load while the
+::  Tlon hand still runs its previous code, which serves no per-speaker
+::  authority. Loading must not read it: any read of that path fails here.
+::
+++  test-reload-reads-no-hand-authority-before-the-hand-reloads
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  fixture
+  =.  bindings.hands.s
+    %-  my
+    :~  ['source-binding' ['tlon' 'room' 'source' ~['alice'] &]]
+        ['schedule-0v1' ['tlon' 'room' 'schedule-0v1' ~['alice'] &]]
+    ==
+  =/  j  job
+  =.  hand.j  'tlon'
+  =.  schedules.s  (my ~[[0v1 j]])
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now t0)))
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ^-  (unit vase)
+    ?:  ?=([%gu @ %harness-tlon @ %$ ~] path)  `!>(&)
+    ?:  ?=([%gx @ %harness-tlon @ %authority @ %noun ~] path)
+      `!>(`hand-authority:adapter`[& ~])
+    ?:  ?=([%gx @ %harness-tlon *] path)  ~
+    `!>(|)
+  ;<  out=(list card)  bind:m  (do-load head `!>(s))
+  ;<  next=state-0     bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>(schedules.next) !>(schedules.s))
+  (ex-equal !>(schedule-wake.next) !>(`+(t0)))
 ++  timers
   |=  cards=(list card)
   (skim cards |=(=card ?=([%pass [%schedules *] %arvo %b *] card)))
@@ -240,7 +291,7 @@
     %+  ~(put by sessions.next)
       'source'
     [~[[%config-replaced cfg(tools ~[%workspace])]] 1]
-  ;<  *                bind:m  (do-load head `!>(next))
+  ;<  *                bind:m  (reload next)
   ;<  revoked=state-0  bind:m  get-state
   ;<  ~  bind:m  (ex-equal !>(state:(~(got by schedules.next) 0v1)) !>(%active))
   ;<  ~  bind:m  (ex-equal !>(tools:(~(got by schedules.next) 0v1)) !>(~[%web]))
@@ -477,7 +528,9 @@
   ?:  ?=([%gu @ %harness-tlon @ %$ ~] path)  `!>(&)
   ?:  ?=([%gx @ %harness-tlon @ %peer-trust %noun ~] path)
     `!>(`peer-trust:t`[[& `~nec ~ %mentions ~ ~] |])
-  ?:  ?=([%gx @ %harness-tlon @ %authority @ %noun ~] path)
+  ?:  ?|  ?=([%gx @ %harness-tlon @ %authority @ %noun ~] path)
+          ?=([%gx @ %harness-tlon @ %authority @ @ %noun ~] path)
+      ==
     =/  found  (~(get by lanes) (snag 5 `(list @ta)`path))
     `!>(`hand-authority:adapter`?~(found [| ~] [& ceiling.u.found]))
   ?:  ?=([%gx @ %harness-tlon @ %admin @ %noun ~] path)
@@ -838,7 +891,7 @@
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now t0)))
   ;<  ~  bind:m  (set-scry-gate (tlon-scry lanes))
   ;<  ~  bind:m  (wait ~d1)
-  ;<  *  bind:m  (do-load head `!>(s))
+  ;<  *  bind:m  (reload s)
   ;<  next=state-0  bind:m  get-state
   =/  ran
     |=  run=@t
@@ -883,7 +936,7 @@
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now t0)))
   ;<  ~  bind:m  (set-scry-gate (tlon-scry (my ~[['source' (tlon-lane ~nec owner-dm ~)]])))
   ;<  ~  bind:m  (wait ~d1)
-  ;<  *  bind:m  (do-load head `!>(s))
+  ;<  *  bind:m  (reload s)
   ;<  next=state-0  bind:m  get-state
   =/  kept  |=(id=@uv [state reason]:(~(got by schedules.next) id))
   ;<  ~  bind:m  (ex-equal !>((kept 0v1)) !>([%active '']))
@@ -1031,6 +1084,96 @@
   ;<  ~  bind:m  (ex-equal !>(?=(^ last.ran)) !>(&))
   (ex-equal !>((feed out)) !>(~[schedules.next]))
 ::
+::  The hand grants authority to .speaker alone: a question about anyone
+::  else, or with no speaker, gets none.
+::
+++  speaker-scry
+  |=  speaker=@ta
+  |=  =path
+  ^-  (unit vase)
+  ?:  ?=([%gx @ %harness-tlon @ %authority @ @ %noun ~] path)
+    =/  asked  (snag 6 `(list @ta)`path)
+    `!>(`hand-authority:adapter`?:(=(speaker asked) [& ~] [| ~]))
+  ?:  ?=([%gx @ %harness-tlon @ %authority @ %noun ~] path)
+    `!>(`hand-authority:adapter`[| ~])
+  ((tlon-scry ~) path)
+++  speaker-setup
+  |=  [s=state-0 speaker=@ta]
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now t0)))
+  ;<  ~  bind:m  (set-scry-gate (speaker-scry speaker))
+  ;<  *  bind:m  (do-load head `!>(s))
+  (pure:m ~)
+++  test-turn-authority-is-asked-for-the-running-inputs-speaker
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  (tlon-fixture ~bus room 'tlon_read_history' '{}' ~)
+  =/  granted
+    |=  =cage
+    ?=(^ ;;((unit tool-authority:adapter) q.q.cage))
+  ;<  ~  bind:m  (speaker-setup s '~bus')
+  ;<  own=cage  bind:m  (got-peek /x/tool-call/source/4/control)
+  ;<  ~  bind:m  (speaker-setup s '~nec')
+  ;<  other=cage  bind:m  (got-peek /x/tool-call/source/4/control)
+  (ex-equal !>([(granted own) (granted other)]) !>([& |]))
+++  test-scheduled-run-authority-is-asked-for-the-jobs-actor
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ::  ~nec's input is running in the source conversation; ~bus made the job.
+  =/  job  (tlon-job ~bus room)
+  =/  s  (tlon-fixture ~nec room 'calculate' '{}' (my ~[[0v1 job]]))
+  =.  bindings.hands.s
+    %+  ~(put by bindings.hands.s)  'source-binding'
+    ['tlon' room 'source' ~['~nec' '~bus'] &]
+  =/  peek  /x/cron-authority/[run-sid.job]
+  ;<  ~  bind:m  (speaker-setup s '~bus')
+  ;<  own=cage  bind:m  (got-peek peek)
+  ;<  ~  bind:m  (speaker-setup s '~nec')
+  ;<  other=cage  bind:m  (got-peek peek)
+  (ex-equal !>([;;(? q.q.own) ;;(? q.q.other)]) !>([& |]))
+::  The hand grants only ~zod, our ship. A local ACP or poke prompt is the
+::  operator's; a timer, peer or idle hand input, even one naming ~zod, is not.
+::
+++  test-only-a-local-prompt-is-answered-as-the-operator
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  base  (tlon-fixture ~bus room 'tlon_read_history' '{}' ~)
+  =/  as-input
+    |=  [source=input-source:h actor=(unit @p)]
+    ^-  state-0
+    =/  log  log:(~(got by sessions.base) 'source')
+    =/  edited=(list event:h)
+      %+  turn  log
+      |=  =event:h
+      ?.  ?=(%input-received -.event)  event
+      event(source.input source, actor.input actor)
+    %=  base
+      sessions  (~(put by sessions.base) 'source' [edited 4])
+      active.hands  ~
+    ==
+  =/  granted
+    |=  s=state-0
+    =/  m  (mare ,?)
+    ^-  form:m
+    ;<  ~  bind:m  (speaker-setup s '~zod')
+    ;<  =cage  bind:m  (got-peek /x/tool-call/source/4/control)
+    (pure:m ?=(^ ;;((unit tool-authority:adapter) q.q.cage)))
+  ;<  poke=?  bind:m  (granted (as-input [%poke ~zod] `~zod))
+  ;<  acp=?  bind:m  (granted (as-input [%acp 'client'] `~zod))
+  ;<  timer=?  bind:m  (granted (as-input [%timer %check] ~))
+  ;<  peer=?  bind:m  (granted (as-input [%peer ~zod 0v1] `~zod))
+  ;<  idle-hand=?  bind:m
+    (granted (as-input [%hand 'source-binding' 'tlon' room 'e' '~zod'] `~zod))
+  ::  A running hand input is its actor's, whatever the log says.
+  =/  running  (as-input [%poke ~zod] `~zod)
+  ;<  hand=?  bind:m  (granted running(active.hands active.hands.base))
+  %+  ex-equal
+    !>([poke acp timer peer idle-hand hand])
+  !>([& & | | | |])
 ::  The owner's administrative DM turn holds all of these; a child is never
 ::  given them, so its saved config must not claim them either.
 ++  test-child-config-saves-only-tools-a-child-can-hold
