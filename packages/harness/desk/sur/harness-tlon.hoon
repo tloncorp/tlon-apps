@@ -67,12 +67,14 @@
       names=(unit [id=@uv =task-names])
   ==
 ::  The head's last schedule snapshot, so the Steward projection is rebuilt
-::  without reading the head, Steward-given names by schedule, and edits in
-::  flight by Steward request id.
+::  without reading the head, Steward-given names by schedule, edits in
+::  flight by Steward request id, and whether this hand has projected to
+::  Steward: until it has, it does not replace tasks it did not write.
 +$  automation
   $:  =schedules:cr
       names=(map @uv task-names)
       edits=(map @uv task-edit)
+      projected=$~(| ?)
   ==
 +$  state-5
   $:  %5

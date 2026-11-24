@@ -3,7 +3,7 @@
 ::  Steward and the head are answered by the fixture's scries and facts;
 ::  their pokes stay in the fixture.
 /-  t=harness-tlon, c=harness-cron, hh=harness-hand, sa=steward-automation,
-    steward-gateway
+    steward-gateway, ad=harness-adapter
 /+  *test-agent, schedule=harness-schedule
 /=  adapter  /app/harness-tlon
 |%
@@ -46,9 +46,17 @@
 ::
 ++  scries
   |=  [running=? lease=?]
+  (scries-left running lease `~)
+::  .left is Steward's task map, ~ for one that must not be read.
+::
+++  scries-left
+  |=  [running=? lease=? left=(unit (map @p tasks:v1:sa))]
   |=  =path
   ^-  (unit vase)
   ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(running)
+  ?:  ?=([%gx @ %steward @ %v1 %automation %tasks %steward-automation-tasks-1 ~] path)
+    ?~  left  ~
+    `!>(u.left)
   ?:  ?=([%gx @ %steward @ %v1 %gateway %status %noun ~] path)
     =/  status  ?:(lease [%up `(add now ~m15)] [%down ~])
     `!>(`[status:v1:steward-gateway (unit @da)]`status)
@@ -109,6 +117,13 @@
   ?>  ?=(%project -.action)
   `tasks.action
 ::
+++  leases
+  |=  cards=(list card)
+  ^-  (list card)
+  %+  skim  cards
+  |=  =card
+  ?=([%pass [%steward %lease ~] %agent [@ %steward] %poke *] card)
+::
 ++  answers
   |=  cards=(list card)
   ^-  (list response:v1:sa)
@@ -161,6 +176,152 @@
   =/  answered  (answers caz)
   ?>  ?=([[@ %error *] ~] answered)
   (ex-equal !>(type.body.i.answered) !>(type))
+::
+::  Steward's task map holding a task another runtime wrote for the bot.
+::
+++  left-behind
+  ^-  (map @p tasks:v1:sa)
+  (my ~[[~zod (my ~[['openclaw-1' %*(. *task:v1:sa name `'Old brief')]])]])
+::  A new schedule watch is the hand's usual first projection.
+::
+::  The owner's choice of a new owner, as Settings sends it.
+::
+++  set-owner
+  |=  owner=@p
+  =/  params=json
+    %-  pairs:enjs:format
+    :~  ['owner' %s (scot %p owner)]
+        ['expectedOwner' %s '~nec']
+        ['siblingMoonOwners' %b |]
+        ['expectedSiblingMoonOwners' %b |]
+    ==
+  %+  do-poke  %noun
+  !>(`request:ad`['fixture' [%n '1'] 'harness/tlon/owner/set' `params])
+::
+++  schedule-watch
+  (do-agent /steward/schedules [~zod %harness] [%watch-ack ~])
+::
+++  held-status
+  =/  m  (mare ,?)
+  ^-  form:m
+  ;<  =cage  bind:m  (got-peek /x/status)
+  =/  status  !<(json q.cage)
+  ?>  ?=(%o -.status)
+  =/  held  (~(got by p.status) 'automationHeld')
+  ?>  ?=(%b -.held)
+  (pure:m p.held)
+::
+++  test-a-steward-with-no-entry-or-an-empty-one-is-projected-at-once
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  none=(list (list identified-task:v1:sa))  ~[~]
+  ;<  *  bind:m  (boot `~nec & &)
+  ;<  ~  bind:m  (set-scry-gate (scries-left & & `~))
+  ;<  caz=(list card)  bind:m  schedule-watch
+  ;<  ~  bind:m  (ex-equal !>((projections caz)) !>(none))
+  ;<  *  bind:m  (boot `~nec & &)
+  ;<  ~  bind:m  (set-scry-gate (scries-left & & `(my ~[[~zod ~]])))
+  ;<  caz=(list card)  bind:m  schedule-watch
+  ;<  ~  bind:m  (ex-equal !>((projections caz)) !>(none))
+  ;<  held=?  bind:m  held-status
+  (ex-equal !>(held) !>(|))
+::  Another runtime's tasks stay in Steward for the operator's import, so
+::  Messenger keeps showing them, while the hand has no task of its own.
+::
+++  test-tasks-another-runtime-left-in-steward-are-not-projected-over-while-the-hand-has-none
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  others  (~(del by snapshot) 0v1)
+  ;<  *  bind:m  (boot `~nec & &)
+  ;<  ~  bind:m  (set-scry-gate (scries-left & & `left-behind))
+  ;<  caz=(list card)  bind:m  schedule-watch
+  ;<  ~  bind:m  (ex-equal !>((lent (projections caz))) !>(0))
+  ;<  caz=(list card)  bind:m  (schedules others)
+  ;<  ~  bind:m  (ex-equal !>((lent (projections caz))) !>(0))
+  ::  A Steward new to the hand, which takes the lease, is held too.
+  ;<  ~  bind:m  (set-scry-gate (scries-left & | `left-behind))
+  ;<  caz=(list card)  bind:m  (do-agent /head [~zod %harness] [%watch-ack ~])
+  ;<  ~  bind:m  (ex-equal !>((lent (projections caz))) !>(0))
+  ;<  held=?  bind:m  held-status
+  ;<  ~  bind:m  (ex-equal !>(held) !>(&))
+  ::  An edit of an old task finds no schedule of the hand's.
+  (refuses [%delete 'openclaw-1'] %not-found)
+::
+++  test-the-first-task-of-its-own-ends-the-hold-and-replaces-the-list
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (boot `~nec & &)
+  ;<  ~  bind:m  (set-scry-gate (scries-left & & `left-behind))
+  ;<  *  bind:m  schedule-watch
+  ;<  caz=(list card)  bind:m  (schedules snapshot)
+  =/  projected  (projections caz)
+  ?>  ?=([* ~] projected)
+  ;<  ~  bind:m
+    (ex-equal !>((turn i.projected |=(i=identified-task:v1:sa id.i))) !>(~['0v1']))
+  ;<  held=?  bind:m  held-status
+  (ex-equal !>(held) !>(|))
+::  The fixture fails a step that reads Steward's tasks once the hand has
+::  projected, so these projections are made without a read.
+::
+++  test-a-hand-that-has-projected-never-reads-stewards-tasks
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  none=(list (list identified-task:v1:sa))  ~[~]
+  ;<  *  bind:m  (boot `~nec & &)
+  ;<  *  bind:m  (schedules snapshot)
+  ;<  ~  bind:m  (set-scry-gate (scries-left & & ~))
+  ;<  caz=(list card)  bind:m  (schedules (~(del by snapshot) 0v1))
+  ;<  ~  bind:m  (ex-equal !>((projections caz)) !>(none))
+  ;<  caz=(list card)  bind:m  schedule-watch
+  ;<  ~  bind:m  (ex-equal !>((projections caz)) !>(none))
+  ::  A Steward without the lease is projected to again, as the head
+  ::  connects and on a reload.
+  ;<  ~  bind:m  (set-scry-gate (scries-left & | ~))
+  ;<  caz=(list card)  bind:m  (do-agent /head [~zod %harness] [%watch-ack ~])
+  ;<  ~  bind:m  (ex-equal !>((projections caz)) !>(none))
+  ;<  =vase  bind:m  get-save
+  ;<  caz=(list card)  bind:m  (do-load adapter `vase)
+  (ex-equal !>((projections caz)) !>(none))
+::
+++  test-a-reload-while-held-stays-held-and-projects-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (boot `~nec & &)
+  ;<  ~  bind:m  (set-scry-gate (scries-left & & `left-behind))
+  ;<  *  bind:m  (do-agent /head [~zod %harness] [%watch-ack ~])
+  ;<  *  bind:m  schedule-watch
+  ;<  =vase  bind:m  get-save
+  ::  Without the lease, loading would project if it were not held.
+  ;<  ~  bind:m  (set-scry-gate (scries-left & | `left-behind))
+  ;<  caz=(list card)  bind:m  (do-load adapter `vase)
+  ;<  ~  bind:m  (ex-equal !>((lent (leases caz))) !>(1))
+  ;<  ~  bind:m  (ex-equal !>((lent (projections caz))) !>(0))
+  ;<  held=?  bind:m  held-status
+  (ex-equal !>(held) !>(&))
+::  The read is of this ship's entry whoever owns the bot, so a new owner's
+::  hand still holds until it has a task of its own.
+::
+++  test-an-owner-change-while-held-still-holds-until-the-new-owner-has-a-task
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  web  (my ~[[0v3 (~(got by snapshot) 0v3)]])
+  ;<  *  bind:m  (boot `~nec & &)
+  ;<  ~  bind:m  (set-scry-gate (scries-left & & `left-behind))
+  ;<  *  bind:m  (schedules web)
+  ;<  caz=(list card)  bind:m  (set-owner ~bus)
+  ;<  ~  bind:m  (ex-equal !>((lent (projections caz))) !>(0))
+  ;<  caz=(list card)  bind:m  schedule-watch
+  ;<  ~  bind:m  (ex-equal !>((lent (projections caz))) !>(0))
+  ;<  caz=(list card)  bind:m  (schedules (~(put by web) 0v4 (job 0v4 'tlon' '~bus')))
+  =/  projected  (projections caz)
+  ?>  ?=([* ~] projected)
+  (ex-equal !>((turn i.projected |=(i=identified-task:v1:sa id.i))) !>(~['0v4']))
 ::
 ++  test-the-projection-holds-exactly-the-owners-tlon-schedules
   %-  eval-mare

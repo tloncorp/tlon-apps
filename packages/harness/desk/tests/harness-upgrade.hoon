@@ -99,6 +99,7 @@
                   `[0v7a `'Asia/Kolkata' ~ `'Standup' `'Daily standup']
               ==
           ==
+          &
       ==
       lens.p  owner-initialized.p  sibling-moon-owners.p  sibling-owner-after.p
       activity-through.p  catching-up.p  identities.p  routes.p  cuts.p

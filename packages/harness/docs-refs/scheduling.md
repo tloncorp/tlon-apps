@@ -152,7 +152,8 @@ a cancelled job cannot be resumed, a job cannot move to another conversation,
 an `every` schedule runs only as a cron expression, so its interval must divide
 an hour or a day or be a week, and there are no test runs. A recurring job
 created there has no run limit and runs until it is cancelled; an edit there
-keeps the limit a job already has.
+keeps the limit a job already has. Tasks another runtime left in Steward stay
+on the screen, not replaced, until the hand has a task of its own.
 
 Messenger names the owner's timezone as an IANA zone, such as
 `America/Chicago`. `desk/lib/harness-zones.hoon` maps every zone and link in the

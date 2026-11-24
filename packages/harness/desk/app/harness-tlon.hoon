@@ -366,11 +366,35 @@
   ^+  cor
   ?:  =(~ owner.policy)  cor
   ?.  steward-running  cor
+  ?:  held  cor
+  =.  projected.automation  &
   %-  emit
   :*  %pass  /steward/project  %agent  [our.bowl %steward]  %poke
       %steward-automation-action-1
       !>(`action:v1:sa`[%project projection])
   ==
+::
+::  +held: whether the first projection waits. Steward may hold tasks
+::  another runtime wrote for this bot, such as OpenClaw's; while this hand
+::  has no task of its own it leaves them, for the operator's import, rather
+::  than replace them with nothing. Its first own task ends the wait, and
+::  once it has projected it never reads Steward's tasks again. A Steward
+::  that cannot answer is not overwritten either. Callers check that
+::  Steward runs.
+::
+++  held
+  ^-  ?
+  ?:  projected.automation  |
+  ?.  =(~ projection)  |
+  =/  left
+    %-  mole
+    |.
+    ;;  (map @p tasks:v1:sa)
+    .^  *  %gx
+      /(scot %p our.bowl)/steward/(scot %da now.bowl)/v1/automation/tasks/steward-automation-tasks-1
+    ==
+  ?~  left  &
+  !=(~ (~(gut by u.left) our.bowl ~))
 ::
 ++  reproject
   |=  before=(list identified-task:v1:sa)
@@ -671,6 +695,7 @@
       ['publicationsConnected' %b publications-connected]
       ['deliveryMode' %s 'events']
       ['lens' lens-status]
+      ['automationHeld' %b &(?=(^ owner.policy) steward-running held)]
       ['maintenanceWake' ?~(wake ~ [%s (scot %da u.wake)])]
       ['leaseRenewal' =/(renew lease-renewal ?~(renew ~ [%s (scot %da u.renew)]))]
       ['error' %s error]

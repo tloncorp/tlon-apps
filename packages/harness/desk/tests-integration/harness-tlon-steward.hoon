@@ -1,6 +1,7 @@
 ::  Steward's owner and gateway lease do not depend on Lens sync. Steward is
 ::  answered by the fixture's scries; its pokes stay in the fixture.
-/-  t=harness-tlon, ad=harness-adapter, hh=harness-hand, steward, steward-gateway
+/-  t=harness-tlon, ad=harness-adapter, hh=harness-hand, steward, steward-gateway,
+    sa=steward-automation
 /+  *test-agent
 /=  adapter  /app/harness-tlon
 |%
@@ -44,6 +45,8 @@
   ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(running)
   ?:  ?=([%gx @ %steward @ %v1 %gateway %status %noun ~] path)
     `!>(`[status:v1:steward-gateway (unit @da)]`[?~(until %down %up) until])
+  ?:  ?=([%gx @ %steward @ %v1 %automation %tasks @ ~] path)
+    `!>(`(map @p tasks:v1:sa)`~)
   ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
   ?:  =(%$ (rear path))  `!>(&)
   ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)

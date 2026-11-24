@@ -826,8 +826,9 @@ renewing Steward's gateway lease. Schedule deadlines belong to the head's shared
 scheduler. An otherwise idle, connected Tlon hand has no maintenance wake but
 that renewal, which comes about every ten minutes while the hand has an owner
 and Steward runs. Status exposes `deliveryMode: "events"`, `headConnected`,
-`publicationsConnected`, and nullable `maintenanceWake` and `leaseRenewal`;
-`connected` continues to describe the Activity subscription.
+`publicationsConnected`, `automationHeld` (see Scheduled Tasks in Tlon
+Messenger), and nullable `maintenanceWake` and `leaseRenewal`; `connected`
+continues to describe the Activity subscription.
 
 Activity catch-up uses a durable native ingestion-time cursor. Each turn walks
 at most 16 selected events plus one lookahead in the current native ordered
@@ -989,6 +990,19 @@ schedules, other actors' and tool grants never reach Steward. Each maps as:
 | `delivery` | `announce` on `tlon` to the job's conversation: `~ship` for a DM, `kind/~host/name` for a channel |
 
 Agent, session, wake mode and timestamps are left absent.
+
+Before its first projection the hand reads this ship's entry in Steward's
+`/v1/automation/tasks`. An absent or empty entry is projected over at once, as
+on every new bot. An entry holding tasks the hand did not write, such as ones
+OpenClaw left, is not, while the owner has no Tlon schedule of the hand's own:
+Messenger keeps showing those tasks until the operator imports them into
+Harness, and the hand's status shows `automationHeld: true`. The hold ends with
+the first projection that has a task of the hand's own, made in conversation,
+from the screen or by the import, and that task set replaces Steward's list.
+While held, an edit of an old task answers `not-found`, since the hand has no
+such schedule. A new owner's hand holds the same way, since the entry is this
+ship's whoever owns it. Once the hand has projected it never reads Steward's
+tasks again.
 
 The hand also watches Steward's `/v1/automation/harness` and applies each
 dispatched edit through the head's cron API, one `%harness-cron` request at a

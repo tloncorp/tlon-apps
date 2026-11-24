@@ -30,6 +30,8 @@
     |=  =path
     ^-  (unit vase)
     ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
+    ::  harness-tlon-steward covers the Steward lease.
+    ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(|)
     ?:  =(%$ (rear path))  `!>(&)
     ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(invited)
     ?:  (lien path |=(part=@ta =(%hand-state part)))  `!>(*state:hh)
