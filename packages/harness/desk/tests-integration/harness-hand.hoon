@@ -663,12 +663,22 @@
     =/  action  !<(action:v1:ac data)
     ?>  ?=(%send -.action)
     `payload.action
-  =/  counts
-    %+  turn  sent
+  ;<  ~  bind:m  (ex-equal !>((lent sent)) !>(2))
+  =/  result
     |=  payload=@t
-    %.  (need (de:json:html payload))
-    (ot:dejs:format ~[result+(ot:dejs:format ~[['observationCount' ni:dejs:format]])])
-  ;<  ~  bind:m  (ex-equal !>(counts) !>(~[352 352]))
+    ^-  (map @t json)
+    =/  value  ((ot:dejs:format ~[result+same]) (need (de:json:html payload)))
+    ?>(?=(%o -.value) p.value)
+  =/  status  (result (snag 0 sent))
+  ::  An enable answers with the binding's fields; its rows are in %status.
+  =/  enabled  (result (snag 1 sent))
+  ;<  ~  bind:m
+    (ex-equal !>((ni:dejs:format (~(got by status) 'observationCount'))) !>(352))
+  ;<  ~  bind:m  (ex-equal !>((~(get by enabled) 'enabled')) !>(`[%b &]))
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>([(~(has by enabled) 'observations') (~(has by enabled) 'observationCount')])
+    !>([| |])
   ::  max-payload-bytes in %acp.
   (ex-equal !>((levy sent |=(payload=@t (lte (met 3 payload) 1.048.576)))) !>(&))
 --

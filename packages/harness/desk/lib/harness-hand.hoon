@@ -180,8 +180,11 @@
       %enable
     =/  config  (~(get by bindings.db) id.action)
     ?~  config  [%| 'Unknown binding']
-    =.  bindings.db  (~(put by bindings.db) id.action u.config(enabled enabled.action))
-    [%& db (status-json db id.action)]
+    =/  changed  u.config(enabled enabled.action)
+    =.  bindings.db  (~(put by bindings.db) id.action changed)
+    ::  Turning a hand off enables or disables every conversation at once;
+    ::  its rows are read through %status.
+    [%& db (pairs:enjs:format (binding-fields id.action changed))]
     %remove  (apply-remove db action now)
     %observe  (apply-observe db action now)
     %notify  (apply-notify db action now)

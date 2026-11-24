@@ -353,6 +353,21 @@
         !>(~[[(scot %uv (input-id:hd 'binding' 'queued')) 'queued']])
       !>((phase (input-id:hd 'binding' 'queued')))
   ==
+::  An enable answers with the binding's fields, as a repeated bind does;
+::  the rows and their count are read through %status.
+++  test-enable-answers-with-the-binding-and-status-keeps-the-rows
+  =/  enabled  (apply:hd admitted [%enable 'binding' %.n] ~2000.1.2)
+  =/  status  (apply:hd admitted [%status 'binding'] ~2000.1.2)
+  ?>  ?=(%& -.enabled)
+  ?>  ?=(%& -.status)
+  =/  config  (~(got by bindings.db.p.enabled) 'binding')
+  ;:  weld
+      %+  expect-eq
+        !>((pairs:enjs:format (binding-fields:hd 'binding' config)))
+      !>(result.p.enabled)
+      (expect !>(!enabled.config))
+      (expect-eq !>(1) !>(count:(status-rows result.p.status)))
+  ==
 ::  The bytes of a result as the head sends it to %acp.
 ++  payload-bytes
   |=  result=json

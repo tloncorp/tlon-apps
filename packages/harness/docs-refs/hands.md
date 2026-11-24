@@ -103,7 +103,7 @@ is not that evidence.
 |---|---|---|
 | `bind` | `id`, `config` as above | Binding fields; a new binding's result also has an empty `observations` array |
 | `register` | `config` | Binding status with a ship-allocated, never-reused id |
-| `enable` | `id`, `enabled` | Binding status |
+| `enable` | `id`, `enabled` | Binding fields; its observations are read through `status` |
 | `remove` | `id` | Empty object; only for bindings with no observations |
 | `observe` | `binding`, `event`, `actor`, `text` | `inputId`, `phase`, `sourceEvent` |
 | `status` | `binding` | Binding, `observationCount`, and the statuses of its newest 256 observations plus any queued or running ones |
