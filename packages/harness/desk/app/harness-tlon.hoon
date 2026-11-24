@@ -127,14 +127,17 @@
         %-  (slog 'harness-tlon: profile claim update failed' u.error)
         `this
       `this
-    ::  Steward's acks build no effects. Gall hands back the owner's ack before
-    ::  it delivers the lease poke behind it, so taking the lease here would
-    ::  poke without end. A refusal retries on the next adapter event.
+    ::  Steward's acks send Steward nothing. Gall hands back the owner's ack
+    ::  before it delivers the lease poke behind it, so taking the lease here
+    ::  would poke without end. A refusal retries on the next adapter event.
+    ::  The event that sends a lease schedules before Steward applies it, so
+    ::  the lease's ack arms the wake that renews it.
     ?:  =(/steward/lease wire)
       ?^  error=?:(?=(%poke-ack -.sign) p.sign ~)
         %-  (slog 'harness-tlon: steward lease refused' u.error)
         `this
-      `this
+      =^  cards  state  rearm:cor
+      [cards this]
     ::  A refused projection waits for the next schedule change or Steward
     ::  restart; a refused answer leaves the command for Steward's sweep.
     ?:  =(/steward/project wire)
@@ -216,6 +219,11 @@
 ++  abet
   =/  engine  schedule:sync-liveness
   [(flop cards.engine) state.engine]
+::  +abet without the liveness sync: only Behn cards, never a Steward poke.
+::
+++  rearm
+  =/  engine  schedule
+  [(flop cards.engine) state.engine]
 ::
 ++  sync-liveness
   ^+  cor
@@ -258,15 +266,18 @@
   =(`& (mole |.(.^(? %gu /(scot %p our.bowl)/steward/(scot %da now.bowl)/$))))
 ::
 ::  Steward has no action to clear its owner, so a cleared owner sends nothing.
+::  An owner change that also renews the lease names the owner once.
 ::
 ++  configure-steward
   ^+  cor
   ?~  owner.policy  cor
   ?.  steward-running  cor
-  %-  emit
-  :*  %pass  /steward/configure  %agent  [our.bowl %steward]  %poke  %steward-action-1
-      !>(`action:v1:steward`[%configure u.owner.policy])
-  ==
+  =/  configure=card
+    :*  %pass  /steward/configure  %agent  [our.bowl %steward]  %poke  %steward-action-1
+        !>(`action:v1:steward`[%configure u.owner.policy])
+    ==
+  ?:  (lien cards |=(=card =(card configure)))  cor
+  (emit configure)
 ::  Renew the Steward lease before it expires, while the hand is online.
 ::
 ++  lease-renewal
@@ -2002,12 +2013,7 @@
   =.  epoch  +(epoch)
   =.  error  ''
   =.  cor  (sync-presence hands)
-  ::  Enabling the hand boots it, which configures Steward.
-  =?  cor
-      ?&  !=(owner.before owner.updated-policy)
-          !&(!enabled.before enabled.updated-policy)
-      ==
-    configure-steward
+  =?  cor  !=(owner.before owner.updated-policy)  configure-steward
   ::  Steward's tasks are the owner's own, so a new owner gets a new set.
   =?  cor  !=(owner.before owner.updated-policy)
     ?~  owner.updated-policy  leave-automation
