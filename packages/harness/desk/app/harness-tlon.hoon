@@ -173,8 +173,9 @@
   ?~  owner.policy  state
   state(cuts (~(put by cuts) u.owner.policy now.bowl))
 ::
-::  Every event expires what is due, not only the wake: under steady traffic
-::  each event would move an overdue wake a second later.
+::  Every poke, timer and most agent responses expire what is due, not only
+::  the wake: under steady traffic each would move an overdue wake a second
+::  later.
 ::
 ++  abet  abet-load:expire-approvals
 ::  +abet-load: +abet without expiry, whose DM declines read %chat; the wake
@@ -286,8 +287,21 @@
 ++  accept-invitation
   |=  who=@p
   ^+  cor
+  =.  cor  (accepted who)
   =.  cor  (note 'dm-invite' who (scot %p who) '')
   (emit (accept-invitation:messenger who))
+::  +accepted: close .who's DM request, as the bot accepts its invitation
+::
+::    The request is moot, and its expiry, which sees the invitation still
+::    pending in this event, would decline it: %chat takes that as leaving
+::    the accepted DM and deletes its history.
+::
+++  accepted
+  |=  who=@p
+  ^+  cor
+  =/  id  (find:ask approvals who ~)
+  ?~  id  cor
+  cor(approvals (close:ask approvals u.id))
 ::  +decline-invitation: decline .who's DM invitation if it is still pending
 ::
 ::    %chat deletes it, so the ship's next message invites the bot again.
@@ -766,6 +780,8 @@
   ?~  effect.u.built  (finish-tool id (clip:ht body.u.built 24.000))
   =/  receipt  (~(got by tool-receipts) id)
   =.  tool-receipts  (~(put by tool-receipts) id receipt(body body.u.built))
+  =?  cor  =(`[%s 'accept_dm'] action)
+    (accepted (ship:tlon-spec (required:tlon-spec u.parsed 'ship' 128)))
   (emit u.effect.u.built)
 ::
 ++  tool-conversation
@@ -2536,7 +2552,10 @@
           (lte (posted-at:continuity event) cutoff)
       ==
     cor
-  =/  id  (scot %uv (sham event))
+  ::  The id keeps one attempt from being recorded twice. Every invitation
+  ::  from a ship is the same event, and one a limit declined is followed by
+  ::  a new one, a new attempt.
+  =/  id  (scot %uv (sham ?:(?=(%dm-invite -.event) [event now.bowl] event)))
   ::  The denial limit also bounds how fast the owner is sent cards.
   ?.  (allowed:denial now.bowl u.sender id notices)
     ::  An invitation the limit drops is declined as one a cap drops, when
@@ -2636,8 +2655,8 @@
 ::
 ::    %chat reports a pending invitation once and no later messages, so a DM
 ::    request's invitation is declined; left pending, it would keep the ship
-::    from reaching the bot by DM. Every event runs this, so it does nothing
-::    until the earliest expiry is due, and nothing while the hand is disabled.
+::    from reaching the bot by DM. +abet runs this, so it does nothing until
+::    the earliest expiry is due, and nothing while the hand is disabled.
 ::
 ++  expire-approvals
   ^+  cor

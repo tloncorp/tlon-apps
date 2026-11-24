@@ -100,11 +100,12 @@
   ^-  (unit vase)
   ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
   ?:  ?=([%gu @ %groups @ %$ ~] path)  `!>(&)
-  ::  The bot is in .room-nest and .off-nest, and of the DMs only ~dev's is
-  ::  on the ship.
+  ::  The bot is in .room-nest and .off-nest, and of the DMs only ~dev's and
+  ::  the comet's are on the ship.
   ?:  ?=([%gu @ %channels @ %v4 %chat %'~lux' %test ~] path)  `!>(&)
   ?:  ?=([%gu @ %channels @ %v4 %chat %'~lux' %quiet ~] path)  `!>(&)
   ?:  ?=([%gu @ %chat @ %dm %'~dev' ~] path)  `!>(&)
+  ?:  &(?=([%gu @ %chat @ %dm @ ~] path) =((scot %p comet) i.t.t.t.t.t.path))  `!>(&)
   ?:  ?=([%gu @ %chat @ %dm @ ~] path)  `!>(|)
   ?:  (lien path |=(part=@ta =(%can-read part)))  `!>(|=([who=@p *] &))
   ?:  (lien path |=(part=@ta =(%groups part)))  `!>((my ~[[[~lux %test] room-group]]))
@@ -239,6 +240,15 @@
   %+  murn  caz
   |=  c=card
   ?.  ?=([%pass [%invite %decline @ ~] %agent [@ %chat] %poke %chat-dm-rsvp *] c)  ~
+  `!<([@p ?] q.cage.task.q.c)
+::  Every answer to a DM invitation, by any wire.
+::
+++  rsvps
+  |=  caz=(list card)
+  ^-  (list [@p ?])
+  %+  murn  caz
+  |=  c=card
+  ?.  ?=([%pass * %agent [@ %chat] %poke %chat-dm-rsvp *] c)  ~
   `!<([@p ?] q.cage.task.q.c)
 ::  .saved with .count requests in place of its own, from planets with no
 ::  access, each in .room-nest, opened at .at.
@@ -924,4 +934,56 @@
     ==
   ;<  ~  bind:m  (ex-equal !>((open s)) !>((places ~[[~dev ~]])))
   (ex-equal !>((declined caz)) !>(`(list [@p ?])`~))
+::  The owner's accept_dm, then ~dev's DM access, each accept ~dev's
+::  invitation in an event whose expiry would otherwise decline it as still
+::  pending: %chat takes that decline as leaving the accepted DM and deletes
+::  its history.
+::
+++  test-accepting-an-invitation-whose-request-is-overdue-sends-no-decline
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  fixture
+  =.  approvals.saved  (open:ask approvals.saved 'd1' [~dev ~ start])
+  =/  due  (add start ~h48)
+  =/  call=tool-call:h  ['call-1' 'tlon' '{"action":"accept_dm","ship":"~dev"}']
+  ;<  ~  bind:m  (boot saved due *stream:v10:a)
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ?:  ?=([%gx @ %harness @ %tool-call *] path)
+      `!>(`(unit tool-authority:ad)``[call ~])
+    ((scries *stream:v10:a) path)
+  ;<  caz=(list card)  bind:m
+    (do-poke %harness-tool !>(`tool-request:ad`['sid' 0 call]))
+  ;<  tooled=vase  bind:m  get-save
+  ;<  ~  bind:m  (ex-equal !>((open !<(state-5:t tooled))) !>(`(set [@p place:t])`~))
+  ;<  ~  bind:m  (ex-equal !>((rsvps caz)) !>(`(list [@p ?])`~[[~dev &]]))
+  =.  dm-grants.policy.saved  (~(put in dm-grants.policy.saved) ~dev)
+  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now due, eny (shax 'approvals')))
+  ;<  ~  bind:m  head-connected
+  ;<  ~  bind:m  (set-scry-gate (scries *stream:v10:a))
+  ;<  loaded=(list card)  bind:m  (do-load adapter `!>(saved))
+  ;<  ~  bind:m  head-connected
+  ;<  woken=(list card)  bind:m  (do-arvo /poll [%behn %wake ~])
+  ;<  granted=vase  bind:m  get-save
+  ;<  ~  bind:m  (ex-equal !>((open !<(state-5:t granted))) !>(`(set [@p place:t])`~))
+  (ex-equal !>((weld (rsvps loaded) (rsvps woken))) !>(`(list [@p ?])`~[[~dev &] [~dev &]]))
+::  The cap declines ~dev's first invitation; ten minutes later, with a slot
+::  free, ~dev's next one is a new attempt.
+::
+++  test-after-a-limit-declined-an-invitation-a-new-one-after-five-minutes-with-a-slot-free-opens-a-request
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  crowded  (crowd fixture 100 ~2026.9.9..12.00.00)
+  ;<  [caz=(list card) s=state-5:t]  bind:m
+    (admit crowded start ~[[~2026.9.9..13.00.00 [%dm-invite [%ship ~dev]]]])
+  ;<  ~  bind:m  (ex-equal !>((declined caz)) !>(`(list [@p ?])`~[[~dev |]]))
+  =/  fewer  s(approvals (close:ask approvals.s 'c1'))
+  ;<  [caz=(list card) u=state-5:t]  bind:m
+    (admit fewer later ~[[~2026.9.10..00.05.00 [%dm-invite [%ship ~dev]]]])
+  ;<  ~  bind:m  (ex-equal !>((declined caz)) !>(`(list [@p ?])`~))
+  ;<  ~  bind:m  (ex-equal !>(?=(^ (find:ask approvals.u ~dev ~))) !>(&))
+  (ex-equal !>((lent (sent caz))) !>(1))
 --
