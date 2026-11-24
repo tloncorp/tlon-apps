@@ -109,6 +109,8 @@
     ^-  (unit vase)
     ?:  ?=([@ @ %channels *] path)  ?~(native ~ (channels u.native path))
     ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
+    ::  harness-tlon-steward covers the Steward lease.
+    ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(|)
     ?:  =(%$ (rear path))  `!>(&)
     ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)
     ?:  ?=([%gx @ %activity @ %v6 %all %noun ~] path)  `!>(stream)
@@ -311,6 +313,8 @@
   |=  =path
   ^-  (unit vase)
   ?:  ?=([@ @ %channels *] path)  ~
+  ::  harness-tlon-steward covers the Steward lease.
+  ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(|)
   ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
   ?:  (lien path |=(part=@ta =(%can-read part)))  `!>(|=([@p *] member))
   ?:  ?=([%gx @ %groups @ %v2 %groups %noun ~] path)  `!>((my ~[[[~nec %home] group]]))
