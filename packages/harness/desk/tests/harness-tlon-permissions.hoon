@@ -195,7 +195,7 @@
   =/  next  placed(channel-grants (~(put by channel-grants.placed) [%chat ~nec %other] (silt ~[~bus])))
   =/  prior  (my ~[[[~bus ~] ~2026.9.1]])
   =/  ship-cuts  (my ~[[~bus ~2026.9.1]])
-  =/  place-cuts  (place-cutoffs:c placed next owned prior [~ ~] ~2026.9.2)
+  =/  place-cuts  (place-cutoffs:c placed next owned prior ~2026.9.2)
   ;:  weld
       (expect-eq !>(`~2026.9.2) !>((~(get by place-cuts) [~bus `[%chat ~nec %other]])))
       (expect-eq !>(`~2026.9.1) !>((~(get by place-cuts) [~bus ~])))
@@ -206,7 +206,7 @@
   =/  placed  placed
   =/  next  placed(dm-grants (~(put in dm-grants.placed) ~zod))
   =/  prior  (my ~[[[~zod `[%chat ~nec %test]] ~2026.9.1]])
-  =/  place-cuts  (place-cutoffs:c placed next owned prior [~ ~] ~2026.9.2)
+  =/  place-cuts  (place-cutoffs:c placed next owned prior ~2026.9.2)
   ;:  weld
       (expect-eq !>(`~2026.9.2) !>((~(get by place-cuts) [~zod ~])))
       (expect-eq !>(`~2026.9.1) !>((~(get by place-cuts) [~zod `[%chat ~nec %test]])))
@@ -225,7 +225,7 @@
   =/  next  wide(channel-grants ~)
   ;:  weld
       (expect !>(!(place-changed:c wide next owned ~zod `[%chat ~nec %test])))
-      (expect-eq !>(~) !>((place-cutoffs:c wide next owned ~ [~ ~] ~2026.9.2)))
+      (expect-eq !>(~) !>((place-cutoffs:c wide next owned ~ ~2026.9.2)))
   ==
 ::  An open channel already answers every reader.
 ::
@@ -235,10 +235,10 @@
   =/  granted  open(channel-grants (my ~[[[%chat ~nec %test] (silt ~[~zod])]]))
   ;:  weld
       (expect !>(!(place-changed:c open granted owned ~zod `[%chat ~nec %test])))
-      (expect-eq !>(~) !>((place-cutoffs:c open granted owned ~ [~ ~] ~2026.9.2)))
+      (expect-eq !>(~) !>((place-cutoffs:c open granted owned ~ ~2026.9.2)))
       ::  The removal mirror.
       (expect !>(!(place-changed:c granted open owned ~zod `[%chat ~nec %test])))
-      (expect-eq !>(~) !>((place-cutoffs:c granted open owned ~ [~ ~] ~2026.9.2)))
+      (expect-eq !>(~) !>((place-cutoffs:c granted open owned ~ ~2026.9.2)))
   ==
 ::  ~bud owns the ship as a sibling moon, not as the explicit owner.
 ::
@@ -250,7 +250,7 @@
   =/  bare-granted  bare(dm-grants (silt ~[~bud]))
   ;:  weld
       (expect !>(!(place-changed:c bare bare-granted siblings ~bud ~)))
-      (expect-eq !>(~) !>((place-cutoffs:c bare bare-granted siblings ~ [~ ~] ~2026.9.2)))
+      (expect-eq !>(~) !>((place-cutoffs:c bare bare-granted siblings ~ ~2026.9.2)))
       (expect !>(!(place-changed:c bare-granted bare siblings ~bud ~)))
       ::  Without sibling ownership the same grant is a change.
       (expect !>((place-changed:c bare bare-granted owned ~bud ~)))
@@ -325,43 +325,15 @@
       %+  expect-eq  !>((chat-view:permissions initial(dm-grants ~, channel-grants ~)))
       !>((chat-view:permissions initial))
   ==
-::  ~bud moves from the allowed list to a DM grant in one save, which moves
-::  its ship-wide cutoff; its DM, answered as before, keeps the old one.
-::
-++  test-moving-a-ship-from-allowed-to-a-dm-grant-keeps-its-dm-cutoff
-  =/  policy  policy
-  =/  next  policy(allowed ~, dm-grants (silt ~[~bud]))
-  =/  old-cuts  (my ~[[~bud ~2026.9.1]])
-  =/  new-cuts  (cutoffs:c policy next ~ ~ old-cuts ~2026.9.2)
-  =/  place-cuts  (place-cutoffs:c policy next owned ~ [old-cuts new-cuts] ~2026.9.2)
-  ;:  weld
-      (expect-eq !>(`~2026.9.2) !>((~(get by new-cuts) ~bud)))
-      (expect-eq !>(~2026.9.1) !>((speaker-cut:c new-cuts place-cuts ~bud ~)))
-      (expect-eq !>(~2026.9.2) !>((speaker-cut:c new-cuts place-cuts ~bud `[%chat ~nec %test])))
-  ==
-++  test-adding-a-dm-granted-ship-to-allowed-keeps-its-dm-cutoff
-  =/  policy  policy
-  =/  granted  policy(allowed ~, dm-grants (silt ~[~bud]))
-  =/  next  granted(allowed (silt ~[~bud]))
-  =/  old-cuts  (my ~[[~bud ~2026.9.1]])
-  =/  prior  (my ~[[[~bud ~] ~2026.9.1]])
-  =/  new-cuts  (cutoffs:c granted next ~ ~ old-cuts ~2026.9.2)
-  =/  place-cuts  (place-cutoffs:c granted next owned prior [old-cuts new-cuts] ~2026.9.2)
-  ;:  weld
-      (expect-eq !>(`~2026.9.2) !>((~(get by new-cuts) ~bud)))
-      (expect-eq !>(~2026.9.1) !>((speaker-cut:c new-cuts place-cuts ~bud ~)))
-  ==
 ::  With no per-place grant a ship-wide change moves the ship's cutoff
 ::  everywhere, as before.
 ::
 ++  test-a-ship-wide-change-without-place-grants-moves-every-cutoff
   =/  policy  policy
   =/  next  policy(allowed ~)
-  =/  old-cuts  (my ~[[~bud ~2026.9.1]])
-  =/  new-cuts  (cutoffs:c policy next ~ ~ old-cuts ~2026.9.2)
-  =/  place-cuts  (place-cutoffs:c policy next owned ~ [old-cuts new-cuts] ~2026.9.2)
   ;:  weld
-      (expect-eq !>(~) !>(place-cuts))
-      (expect-eq !>(~2026.9.2) !>((speaker-cut:c new-cuts place-cuts ~bud ~)))
+      (expect-eq !>(~) !>((place-cutoffs:c policy next owned ~ ~2026.9.2)))
+      %+  expect-eq  !>((my ~[[~bud ~2026.9.2]]))
+      !>((cutoffs:c policy next ~ ~ (my ~[[~bud ~2026.9.1]]) ~2026.9.2))
   ==
 --
