@@ -70,6 +70,13 @@
   (expect-reload !>(populated-3:up) expected-3)
 ++  test-tlon-state-4-reload-keeps-every-field
   (expect-reload !>(populated-4:up) expected-4)
+::  Only the upgrade to shared sessions drops conversations, so a saved %3 or
+::  %4 state leaves every route running.
+++  test-tlon-state-3-and-4-upgrades-drop-no-conversation
+  ;:  weld
+      (expect-eq !>(`(list [@t @t])`~) !>((dropped:migrate !>(populated-3:up))))
+      (expect-eq !>(`(list [@t @t])`~) !>((dropped:migrate !>(populated-4:up))))
+  ==
 ::
 ++  expect-reload
   |=  [saved=vase expected=state-4:t]
