@@ -504,6 +504,25 @@
   ;<  ~  bind:m  (ex-equal !>((open s)) !>(`(set [@p place:t])`~))
   ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
   (ex-equal !>((kinds s 'approval-request')) !>(0))
+::  The host revoked ~dev's read permission before catch-up met its mention.
+::
+++  test-a-mention-from-a-ship-that-cannot-read-the-channel-opens-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  events  (stream ~[[~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]])
+  ;<  ~  bind:m  (boot fixture start events)
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ?:  (lien path |=(part=@ta =(%can-read part)))  `!>(|=([who=@p *] !=(~dev who)))
+    ((scries events) path)
+  ;<  caz=(list card)  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
+  ;<  =vase  bind:m  get-save
+  =/  s  !<(state-5:t vase)
+  ;<  ~  bind:m  (ex-equal !>((open s)) !>(`(set [@p place:t])`~))
+  ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
+  (ex-equal !>((kinds s 'approval-request')) !>(0))
 ::  ~wes's invitation was declined, so %chat no longer has the DM, though
 ::  Activity keeps the invitation; reading its messages would crash the event.
 ::

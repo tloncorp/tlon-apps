@@ -1424,14 +1424,14 @@
   ^-  (unit (list tool-grant:h))
   =/  owner  (actor-owner who)
   ::  Non-owner channel grants also require current native membership.
-  ?:  &(!owner ?=(%channel -.to))
-    =/  readable
-      %-  mole
-      |.
-      (can-read:~(. directory:permissions bowl) who nest.to)
-    ?.  =(`& readable)  ~
-    (destination-grants:p policy who to owner-tools owner)
+  ?:  &(!owner ?=(%channel -.to) !(native-read who nest.to))  ~
   (destination-grants:p policy who to owner-tools owner)
+::  +native-read: whether .who may read .nest by its group's permissions
+::
+++  native-read
+  |=  [who=@p =nest:dv]
+  ^-  ?
+  =(`& (mole |.((can-read:~(. directory:permissions bowl) who nest))))
 ::  Whether the conversation itself may still run, whoever speaks in it.
 ::
 ++  lane-live
@@ -2523,6 +2523,8 @@
   ?^  (find:ask approvals who place)  cor
   ::  A channel that answers nobody would not answer the ship once allowed.
   ?:  &(?=(^ place) =(%off response:(channel-rule:p policy u.place)))  cor
+  ::  Nor would a channel the ship cannot read.
+  ?:  &(?=(^ place) !(native-read who u.place))  cor
   ::  Activity outlives a declined invitation and a channel the bot left;
   ::  there is nothing to approve there, and the card's preview must not read
   ::  what is gone.

@@ -627,6 +627,8 @@ by every author.
   disabled. A bot opens a request like any other ship. Nor does one open for a
   DM `%chat` no longer has (a declined invitation) or a channel the bot is not
   in, though Activity still lists their messages: there is nothing to approve.
+  Nor does one open for a ship without native read permission in the channel,
+  which access could not answer there.
 - Every attempt is recorded in the activity feed as `permission-denied`, at
   most 8 a minute across ships and one per ship per five minutes. A request
   opens only with such an entry, so the same limit bounds the cards: an attempt
