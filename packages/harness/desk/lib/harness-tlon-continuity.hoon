@@ -95,8 +95,9 @@
   =/  to=destination:t  ?~(place [%dm actor ~] [%channel u.place ~])
   =/  was  (before.owners actor)
   =/  is  (after.owners actor)
-  ?!  .=  [was (destination-grants:p before actor to ~ was)]
-  [is (destination-grants:p after actor to ~ is)]
+  ::  Grant order alone is not a change.
+  ?!  .=  [was (bind (destination-grants:p before actor to ~ was) silt)]
+  [is (bind (destination-grants:p after actor to ~ is) silt)]
 ::  +place-keys: every actor and place a policy grants per place
 ::
 ++  place-keys
@@ -132,10 +133,15 @@
   ^-  (map @p @da)
   ::  Keep unchanged cutoffs. Removed actors without conversations need no
   ::  tombstone: granting them again establishes a fresh cutoff. This bounds
-  ::  the map by DM partners, pending speakers and the two policy snapshots.
+  ::  the map by DM partners, pending speakers and the two policy snapshots,
+  ::  per-place grants included.
+  =/  placed=(list @p)
+    %+  turn  ~(tap in (~(uni in (place-keys before)) (place-keys new)))
+    |=([who=@p *] who)
   =/  actors=(set @p)
     %-  silt
     ;:  weld
+        placed
         %+  murn  ~(tap by known)
         |=  [to=destination:t sid=@t]
         ?.(?=(%dm -.to) ~ `who.to)

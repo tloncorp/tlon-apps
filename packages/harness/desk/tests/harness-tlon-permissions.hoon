@@ -336,4 +336,12 @@
       %+  expect-eq  !>((my ~[[~bud ~2026.9.2]]))
       !>((cutoffs:c policy next ~ ~ (my ~[[~bud ~2026.9.1]]) ~2026.9.2))
   ==
+++  test-reordering-a-trusted-ships-tools-is-no-place-change
+  =/  policy  policy
+  =/  before  policy(trusted (my ~[[~zod ~[%web %skills]]]), dm-grants (silt ~[~zod]))
+  =/  after  before(trusted (my ~[[~zod ~[%skills %web]]]))
+  ;:  weld
+      (expect !>(!(place-changed:c before after owned ~zod ~)))
+      (expect !>(!(actor-changed:c before after ~zod)))
+  ==
 --

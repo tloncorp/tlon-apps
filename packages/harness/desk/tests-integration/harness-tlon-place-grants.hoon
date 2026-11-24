@@ -441,5 +441,81 @@
     ;<  ~  bind:m  (ex-equal !>(~(key by jobs.s)) !>(`(set @uv)`~))
     (ex-equal !>((~(got by cuts.s) ~bud)) !>(~2026.9.10))
   ;<  ~  bind:m  (check removed)
-  (check moved)
+  ;<  ~  bind:m  (check moved)
+  ::  ~bud already held its DM grant, with an older cutoff there. The save
+  ::  moves its ship-wide cutoff to now, and a DM is admitted only after the
+  ::  later of the two.
+  =/  granted  saved
+  =.  dm-grants.policy.granted  (~(put in dm-grants.policy.granted) ~bud)
+  =.  place-cuts.granted  (my ~[[[~bud ~] ~2026.9.8]])
+  =/  next  policy.granted
+  =.  allowed.next  ~
+  ;<  [* s=state-4:t]  bind:m  (configure granted next)
+  ;<  ~  bind:m  (ex-equal !>((~(got by place-cuts.s) [~bud ~])) !>(~2026.9.8))
+  ;<  [* w=state-4:t]  bind:m
+    %+  admit  s
+    :~  [~2026.9.9..12.00.00 (dm ~bud ~2026.9.9..12.00.00)]
+        [~2026.9.10..00.00.01 (dm ~bud ~2026.9.10..00.00.01)]
+    ==
+  =/  later  ~2026.9.10..00.00.01
+  %+  ex-equal
+    !>((turn ~(val by jobs.w) |=(=job:t event.input.job)))
+  !>(`(list @t)`~[(scot %uv (sham [bud-dm [[~bud later] later]]))])
+::  ~dev is allowed and holds the room. Taking it off the allowed list moves
+::  its ship-wide cutoff past its room cutoff; a later unrelated save keeps
+::  that cutoff, so a room mention from between the two stays unanswered.
+::
+++  test-a-ships-ship-wide-cutoff-survives-later-saves-while-it-holds-a-place-grant
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  fixture
+  =.  allowed.policy.saved  (silt ~[~bud ~dev])
+  =.  cuts.saved  (my ~[[~dev ~2026.9.7]])
+  =.  place-cuts.saved  (my ~[[[~dev `room-nest] ~2026.9.8]])
+  =/  first  policy.saved
+  =.  allowed.first  (silt ~[~bud])
+  ;<  [* s=state-4:t]  bind:m  (configure saved first)
+  =/  second  first
+  =.  allowed.second  (silt ~[~bud ~nus])
+  ;<  [* w=state-4:t]  bind:m  (configure s second)
+  ;<  ~  bind:m  (ex-equal !>((~(get by cuts.w) ~dev)) !>(`(unit @da)``~2026.9.10))
+  ;<  [* u=state-4:t]  bind:m
+    %+  admit  w
+    :~  [~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]
+        [~2026.9.10..00.00.01 (mention ~dev room-nest ~2026.9.10..00.00.01)]
+    ==
+  =/  later  ~2026.9.10..00.00.01
+  %+  ex-equal
+    !>((turn ~(val by jobs.u) |=(=job:t event.input.job)))
+  !>(`(list @t)`~[(scot %uv (sham [room [[~dev later] later]]))])
+::  ~nus is trusted and also holds its DM. Saving the same tools in another
+::  order changes nothing there.
+::
+++  test-reordering-a-trusted-ships-tools-beside-a-place-grant-changes-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  nus-dm  `destination:t`[%dm ~nus ~]
+  =/  saved  fixture
+  =.  saved
+    %=  saved
+      trusted.policy  (my ~[[~nus ~[%web %skills]]])
+      dm-grants.policy  (silt ~[~bus ~nus])
+      cuts  (my ~[[~nus ~2026.9.7]])
+      place-cuts  (my ~[[[~nus ~] ~2026.9.8]])
+      identities  (my ~[[nus-dm 'dm-nus']])
+      lanes  (my ~[['dm-nus' [nus-dm 1 ~[%web %skills]]]])
+      routes  (my ~[['dm-nus' ['binding-nus' %ready]]])
+      jobs  (my ~[[0v1 [[~nus 'e1' nus-dm 'hi'] 'dm-nus' %bind '']]])
+    ==
+  =/  next  policy.saved
+  =.  trusted.next  (my ~[[~nus ~[%skills %web]]])
+  ;<  [caz=(list card) s=state-4:t]  bind:m  (configure saved next)
+  =/  acts  (pokes caz %harness-action)
+  ;<  ~  bind:m  (ex-equal !>((lien acts |=(act=* ?=([?(%fence %fence-actor) *] act)))) !>(|))
+  ;<  ~  bind:m  (ex-equal !>(~(key by lanes.s)) !>((silt ~['dm-nus'])))
+  ;<  ~  bind:m  (ex-equal !>(~(key by jobs.s)) !>((silt ~[0v1])))
+  ;<  ~  bind:m  (ex-equal !>(cuts.s) !>(cuts.saved))
+  (ex-equal !>(place-cuts.s) !>(place-cuts.saved))
 --
