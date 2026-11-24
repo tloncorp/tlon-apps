@@ -50,6 +50,27 @@
   ?.  ?=(%| -.planned)  ~
   (expect-eq !>(type) !>(type.p.planned))
 ::
+::  An edit the hand refuses as invalid, with a message naming .field.
+::
+++  refused-naming
+  |=  [=edit:v1:sa field=@t]
+  ^-  tang
+  =/  planned  (plan edit ~)
+  ?.  ?=(%| -.planned)  ~[leaf+"expected {(trip field)} to be refused"]
+  %+  weld
+    (expect-eq !>(`action-error:v1:sa`%invalid) !>(type.p.planned))
+  (expect !>(?=(^ (find (trip field) (trip message.p.planned)))))
+::  A field the hand cannot honor refuses a create and an update alike.
+::
+++  refuses-field
+  |=  [field=@t change=$-(task:v1:sa task:v1:sa)]
+  ^-  tang
+  =/  base  (create [%cron `'0 9 * * *' ~ ~] `'Brief' ~)
+  ?>  ?=(%create -.base)
+  %+  weld
+    (refused-naming [%create (change task.base)] field)
+  (refused-naming [%update '0v1' (change *task:v1:sa)] field)
+::
 ++  create
   |=  [schedule=cron-schedule:v1:sa message=(unit @t) to=(unit @t)]
   ^-  edit:v1:sa
@@ -196,5 +217,39 @@
       (expect-eq !>(`'Line one') !>((title:automation '\0a  Line one  \0aLine two')))
       (expect-eq !>(64) !>((lent (tuba (trip (need (title:automation (rap 3 (reap 80 'é')))))))))
       (expect-eq !>(`(unit @t)`~) !>((title:automation '   ')))
+  ==
+::  Each field the hand cannot honor is refused, never dropped.
+::
+++  test-an-agent-id-is-refused
+  (refuses-field 'agentId' |=(t=task:v1:sa t(agent-id `'main')))
+++  test-a-session-target-is-refused
+  (refuses-field 'sessionTarget' |=(t=task:v1:sa t(session-target `'isolated')))
+++  test-a-wake-mode-is-refused
+  (refuses-field 'wakeMode' |=(t=task:v1:sa t(wake-mode `'now')))
+++  test-a-stagger-is-refused
+  (refuses-field 'staggerMs' |=(t=task:v1:sa t(schedule `[%cron `'0 9 * * *' ~ `~s30])))
+++  test-a-tool-allow-list-is-refused
+  (refuses-field 'toolsAllow' |=(t=task:v1:sa t(payload `[`'agentTurn' `'Brief' `~['web']])))
+++  test-webhook-delivery-is-refused
+  (refuses-field 'webhook' |=(t=task:v1:sa t(delivery `[`%webhook ~ `'https://x.example' ~ ~])))
+++  test-a-failure-destination-is-refused
+  %+  refuses-field  'failureDestination'
+  |=  t=task:v1:sa
+  t(delivery `[`%announce `'tlon' `'~nec' ~ `[`%announce `'tlon' `'~nec' ~]])
+++  test-a-delivery-account-is-refused
+  %+  refuses-field  'accountId'
+  |=(t=task:v1:sa t(delivery `[`%announce `'tlon' `'~nec' `'default' ~]))
+::  The host's timestamps are its own record, and no stagger is the hand's
+::  own behavior, so neither refuses an edit.
+::
+++  test-host-timestamps-and-a-zero-stagger-are-accepted
+  =/  base  (create [%cron `'0 9 * * *' ~ `~s0] `'Brief' ~)
+  ?>  ?=(%create -.base)
+  =/  stamped  task.base(created-at `~2026.1.1, updated-at `~2026.1.2)
+  =/  created  (plan [%create stamped] ~)
+  =/  updated  (plan [%update '0v1' stamped(schedule ~)] ~)
+  ;:  weld
+      (expect !>(?=(%& -.created)))
+      (expect !>(?=(%& -.updated)))
   ==
 --

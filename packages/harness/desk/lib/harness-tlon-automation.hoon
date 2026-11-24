@@ -103,6 +103,36 @@
     %diary  `[%channel [%diary u.host name] ~]
   ==
 ::
+::  +unsupported: the first field of a task the hand cannot honor, named
+::  as Messenger sends it. The hand applies every other field but two:
+::  createdAtMs and updatedAtMs are the host's record of the task, which an
+::  edit does not set, so they are ignored.
+::
+++  unsupported
+  |=  task=task:v1:sa
+  ^-  (unit @t)
+  ?^  agent-id.task
+    `'agentId is not supported; a job runs as the owner in its conversation'
+  ?^  session-target.task
+    `'sessionTarget is not supported; a job runs in its conversation\'s session'
+  ?^  wake-mode.task  `'wakeMode is not supported; a job runs at its time'
+  ?:  ?&  ?=([~ %cron *] schedule.task)
+          ?=(^ stagger.u.schedule.task)
+          !=(~s0 u.stagger.u.schedule.task)
+      ==
+    `'schedule.staggerMs is not supported; a job runs at its exact time'
+  ?:  &(?=(^ payload.task) ?=(^ tools-allow.u.payload.task))
+    `'payload.toolsAllow is not supported; a job has its conversation\'s tools'
+  ?~  delivery.task  ~
+  =/  d  u.delivery.task
+  ?:  =(`%webhook mode.d)
+    `'webhook delivery is not supported; deliver to a Tlon conversation'
+  ?^  failure-destination.d
+    `'delivery.failureDestination is not supported'
+  ?^  account-id.d
+    `'delivery.accountId is not supported; the bot delivers as itself'
+  ~
+::
 ::  +deliver: where a task's delivery sends its runs. The hand posts only
 ::  into Tlon conversations, the owner's DM unless the task names another.
 ::
@@ -112,8 +142,6 @@
   =/  dm=destination:t  [%dm owner ~]
   ?~  delivery  [%& dm]
   =/  d  u.delivery
-  ?:  =(`%webhook mode.d)  [%| 'webhook delivery is not supported; deliver to a Tlon conversation']
-  ?^  failure-destination.d  [%| 'a separate failure destination is not supported']
   ?:  =(`%none mode.d)  [%& dm]
   ?.  |(?=(~ channel.d) =(`'tlon' channel.d))  [%| 'only Tlon delivery is supported']
   ?~  to.d  [%| 'delivery.to is required']
@@ -208,12 +236,13 @@
   =/  invalid  |=(message=@t `(each task-edit:t refusal)`[%| %invalid message])
   ?:  ?=(%create -.edit)
     =/  task  task.edit
+    =/  refusal  (unsupported task)
+    ?^  refusal  (invalid u.refusal)
     ?~  schedule.task  (invalid 'schedule is required')
     ?~  payload.task  (invalid 'payload.message is required')
     ?~  message.u.payload.task  (invalid 'payload.message is required')
     ?.  |(?=(~ kind.u.payload.task) =(`'agentTurn' kind.u.payload.task))
       (invalid 'payload.kind must be agentTurn')
-    ?^  tools-allow.u.payload.task  (invalid 'a tool allow-list is not supported')
     =/  to  (deliver delivery.task owner)
     ?:  ?=(%| -.to)  (invalid p.to)
     =/  source  (binding p.to)
@@ -246,14 +275,15 @@
     =/  task  task.edit
     =/  reminder  =(%reminder kind.u.job)
     =/  kept  (~(gut by names) u.key *task-names:t)
+    =/  refusal  (unsupported task)
+    ?^  refusal  (invalid u.refusal)
     ?:  &(=(`& enabled.task) !=(%active state.u.job))
       (invalid 'a paused task cannot be resumed; create it again')
     ?:  ?&  ?=(^ payload.task)
-            ?|  ?=(^ tools-allow.u.payload.task)
-                ?&  ?=(^ kind.u.payload.task)
-                    !=(u.kind.u.payload.task ?:(reminder 'systemEvent' 'agentTurn'))
-        ==  ==  ==
-      (invalid 'the payload kind or tool allow-list cannot change')
+            ?=(^ kind.u.payload.task)
+            !=(u.kind.u.payload.task ?:(reminder 'systemEvent' 'agentTurn'))
+        ==
+      (invalid 'the payload kind cannot change')
     =/  moved=(unit @t)
       ?~  delivery.task  ~
       =/  to  (deliver delivery.task owner)

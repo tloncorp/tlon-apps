@@ -1009,10 +1009,15 @@ already made.
 
 These answer `invalid` with a message: an unknown zone, an `every` schedule, a
 create without a schedule or prompt, a payload kind other than the job's, a
-tool allow-list, webhook delivery, a failure destination, a target that is not
-the owner's DM or a channel where the bot has a conversation, moving a task to
-another conversation, re-enabling a disabled task, and `test`, since the head
-cannot run a job once without delivering it. An id that is not one of the
+target that is not the owner's DM or a channel where the bot has a
+conversation, moving a task to another conversation, re-enabling a disabled
+task, and `test`, since the head cannot run a job once without delivering it.
+So does any field the hand cannot honor, named in the message, rather than be
+dropped: `agentId`, `sessionTarget`, `wakeMode`, a `staggerMs` other than 0,
+`payload.toolsAllow`, `webhook` delivery, `delivery.failureDestination` and
+`delivery.accountId`. Every other field is applied, except `createdAtMs` and
+`updatedAtMs`, the host's record of the task, which an edit does not set and
+the hand ignores. An id that is not one of the
 owner's Tlon schedules answers `not-found`. A head refusal, such as editing a
 job whose run is still in flight, answers `harness-error` with the head's
 message.
