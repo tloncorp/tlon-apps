@@ -617,9 +617,18 @@ messaging the sender.
   Hermes bots write theirs, is a bot's message. On admission the hand reads
   that one message from local `%channels`, a bounded page and an exact-key
   lookup, and records it in the activity feed as `bot-message`. It is admitted
-  and answered like any other message. A message the hand can no longer read
-  there (the channel left, the message gone, or its thread's parent deleted)
-  is recorded as `message`.
+  and answered like any other message, until bots answer each other: when the
+  three newest admitted messages in a conversation (a channel's top level, or
+  one thread) are all bots' messages, the hand reads past each further bot's
+  message there. It makes no job, starts no model call and posts nothing; the
+  first message read past adds one `bot-limit` entry to the activity feed. An
+  admitted message from a person ends the run, and bots are answered again.
+  Messages the hand ignores for other reasons neither count nor end a run.
+  The run is read from the 128-entry activity feed, so it is remembered only
+  while the feed holds those three entries; once later entries of any kind
+  push them out, bots' messages are admitted again. A message the hand can no
+  longer read there (the channel left, the message gone, or its thread's
+  parent deleted) is recorded as `message`, and counts as a person's.
 - Group invitations are accepted only when sent by the owner. DM invitations
   from the owner, a trusted ship or an allowed ship are accepted. An invitation
   still pending when its sender gains access is accepted at that point, or when
@@ -753,8 +762,9 @@ These owner-authenticated extensions work from any initialized ACP client:
 
 Activity notifications contain `sequence`, `kind`, `actor`, `address`, and `event`.
 An admitted message's `kind` is `message`, or `bot-message` when its author has
-a bot profile. A message the hand ledger refused is `refusal-notice` or
-`refusal` (see [Retention and capacity](#retention-and-capacity)). The feed retains 128 diagnostic entries. Use session snapshots and the
+a bot profile. The first bot message read past at the end of a run of bots'
+messages is `bot-limit`, and later ones in that run add nothing. A message the
+hand ledger refused is `refusal-notice` or `refusal` (see [Retention and capacity](#retention-and-capacity)). The feed retains 128 diagnostic entries. Use session snapshots and the
 [hand ledger](hands.md) for conversation history and delivery records.
 
 The head forwards the authenticated `harness/tlon` namespace through

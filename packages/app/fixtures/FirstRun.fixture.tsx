@@ -20,6 +20,7 @@ import {
 } from '../ui/components/Wayfinding/FirstRun/ChooseModelScreen';
 import { ConnectServicesScreen } from '../ui/components/Wayfinding/FirstRun/ConnectServicesScreen';
 import { FirstRunApiKeyScreen } from '../ui/components/Wayfinding/FirstRun/FirstRunApiKeyScreen';
+import { FirstRunDataScreen } from '../ui/components/Wayfinding/FirstRun/FirstRunDataScreen';
 import { FirstRunIntroScreen } from '../ui/components/Wayfinding/FirstRun/FirstRunIntroScreen';
 import {
   type FirstRunModelsAdapter,
@@ -27,7 +28,7 @@ import {
   type FirstRunServicesAdapter,
 } from '../ui/components/Wayfinding/FirstRun/FirstRunSequence';
 import { FirstRunSetupScreen } from '../ui/components/Wayfinding/FirstRun/FirstRunSetupScreen';
-import { MakeSpaceScreen } from '../ui/components/Wayfinding/FirstRun/MakeSpaceScreen';
+import { StartWorkspaceScreen } from '../ui/components/Wayfinding/FirstRun/StartWorkspaceScreen';
 import {
   buildFirstRunModelSections,
   findModelRow,
@@ -117,31 +118,31 @@ function Frame({ children }: { children: ReactNode }) {
   );
 }
 
-function useSetupStatus(): FirstRunSetupStatus {
-  const [status] = useValue<FirstRunSetupStatus>('Setup', {
-    defaultValue: 'running',
-  });
-  return status;
-}
-
 function MeetFixture() {
   return (
     <Frame>
-      <FirstRunIntroScreen slide={1} status="running" onNext={noop} />
+      <FirstRunIntroScreen slide={1} onNext={noop} />
     </Frame>
   );
 }
 
 function PrivateFixture() {
-  const status = useSetupStatus();
   return (
     <Frame>
       <FirstRunIntroScreen
         slide={2}
-        status={status}
         onNext={noop}
         onBack={noop}
+        onDataKept={noop}
       />
+    </Frame>
+  );
+}
+
+function DataKeptFixture() {
+  return (
+    <Frame>
+      <FirstRunDataScreen onBack={noop} />
     </Frame>
   );
 }
@@ -157,13 +158,11 @@ function ConnectFixture({
   none?: boolean;
   sheet?: boolean;
 }) {
-  const status = useSetupStatus();
   const rows = rowsFor(connected ? ['google-calendar'] : []);
   const featured = selectFeaturedServices(CATALOG, rows);
   return (
     <Frame>
       <ConnectServicesScreen
-        status={status}
         unavailable={!!none}
         featured={featured}
         attempts={attempt ? { 'google-calendar': attempt } : {}}
@@ -209,15 +208,18 @@ function ModelFixture({
   sheetFor?: string;
   botReady?: boolean;
 }) {
-  const status = useSetupStatus();
   const sections = useMemo(() => buildFirstRunModelSections(HOSTED_CONFIG), []);
   const [selected, setSelected] = useState(sheetFor ?? 'included');
-  const sheetRow = sheetFor ? findModelRow(sections, sheetFor) : undefined;
+  const [sheetRow, setSheetRow] = useState(() =>
+    sheetFor ? findModelRow(sections, sheetFor) : undefined
+  );
   const [sheetOpen, setSheetOpen] = useState(!!sheetRow);
+  const plans = sections.find(
+    (section) => section.key === 'subscription'
+  )?.rows;
   return (
     <Frame>
       <ChooseModelScreen
-        status={status}
         sections={sections}
         selectedId={selected}
         onSelect={setSelected}
@@ -227,6 +229,8 @@ function ModelFixture({
       {sheetRow ? (
         <ModelSwitchSheet
           row={sheetRow}
+          plans={sheetRow.choice.kind === 'subscription' ? plans : undefined}
+          onPickPlan={setSheetRow}
           includedName={includedModelName(HOSTED_CONFIG)}
           botReady={botReady}
           open={sheetOpen}
@@ -248,7 +252,6 @@ function ApiKeyFixture() {
   return (
     <Frame>
       <FirstRunApiKeyScreen
-        status="running"
         provider={provider}
         apiKey={apiKey}
         checking={false}
@@ -262,13 +265,10 @@ function ApiKeyFixture() {
   );
 }
 
-function SpaceFixture() {
-  const [status] = useValue<FirstRunSetupStatus>('Setup', {
-    defaultValue: 'ready',
-  });
+function WorkspaceFixture() {
   return (
     <Frame>
-      <MakeSpaceScreen status={status} onStart={noop} onBack={noop} />
+      <StartWorkspaceScreen onInvite={noop} onSkip={noop} onBack={noop} />
     </Frame>
   );
 }
@@ -505,24 +505,25 @@ export default {
     <FlowFixture connectEnds="checking" checkFinds={false} />
   ),
   'Flow, model switch fails': <FlowFixture readyAfter={3} switchFails />,
-  '1 Meet your Tlonbot': <MeetFixture />,
-  '2 Private by design': <PrivateFixture />,
-  '3 Connect': <ConnectFixture />,
-  '3 Connect, access sheet': <ConnectFixture sheet />,
-  '3 Connect, connected': <ConnectFixture connected />,
-  '3 Connect, cancelled': <ConnectFixture attempt="cancelled" />,
-  '3 Connect, still checking': <ConnectFixture attempt="checking" />,
-  '3 Connect, nothing to connect': <ConnectFixture none />,
-  '3 All services': <AllServicesFixture />,
-  '4 Model': <ModelFixture />,
-  '4 Model, subscription sheet': (
+  '4 Meet your Tlonbot': <MeetFixture />,
+  '5 Yours to keep': <PrivateFixture />,
+  '5 How your data is kept': <DataKeptFixture />,
+  '6 Model': <ModelFixture />,
+  '6 Model, subscription sheet': (
     <ModelFixture sheetFor="subscription:openai" />
   ),
-  '4 Model, subscription sheet waiting': (
+  '6 Model, subscription sheet waiting': (
     <ModelFixture sheetFor="subscription:openai" botReady={false} />
   ),
-  '4 Model, API key sheet': <ModelFixture sheetFor="api-key" />,
-  '4 API key': <ApiKeyFixture />,
-  '5 Make space': <SpaceFixture />,
+  '6 Model, API key sheet': <ModelFixture sheetFor="api-key" />,
+  '6 API key': <ApiKeyFixture />,
+  '7 Connect': <ConnectFixture />,
+  '7 Connect, access sheet': <ConnectFixture sheet />,
+  '7 Connect, connected': <ConnectFixture connected />,
+  '7 Connect, cancelled': <ConnectFixture attempt="cancelled" />,
+  '7 Connect, still checking': <ConnectFixture attempt="checking" />,
+  '7 Connect, nothing to connect': <ConnectFixture none />,
+  '7 All services': <AllServicesFixture />,
+  '8 Start a workspace': <WorkspaceFixture />,
   'Setup waiting': <SetupFixture />,
 };
