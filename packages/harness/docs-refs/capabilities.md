@@ -111,8 +111,8 @@ and [companion workflows](companion.md).
   Revocation cannot retract an external write.
 - Tlon hooks can continue after a conversation or grant ends. Public content
   can be copied or cached elsewhere.
-- Recurring schedules use UTC, not local-time/DST rules. Schedules and
-  operational records have capacity limits.
+- Recurring schedules use UTC or a fixed offset, not IANA zones or DST rules.
+  Schedules and operational records have capacity limits.
 - Local acknowledgement is not remote delivery or a read receipt. There is no
   cross-system exactly-once guarantee.
 
