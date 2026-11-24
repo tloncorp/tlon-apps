@@ -291,7 +291,10 @@
   =/  grants=(map nest:c (set @p))
     (malt (turn rows |=([channel=@t ships=(set @p)] [(json-nest channel) ships])))
   ?>  =(~(wyt by grants) (lent rows))
-  (malt (skip ~(tap by grants) |=([* ships=(set @p)] =(~ ships))))
+  %-  ~(gas by *(map nest:c (set @p)))
+  %+  murn  ~(tap by grants)
+  |=  [nest=nest:c ships=(set @p)]
+  ?:(=(~ ships) ~ `[nest ships])
 ::
 ::  +json-policy: a saved policy; omitted per-place grants keep their prior value
 ::
