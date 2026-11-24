@@ -1024,14 +1024,18 @@ prompt, a payload kind other than the job's, a target that is not the owner's
 DM or a channel where the bot has a conversation, moving a task to another
 conversation, re-enabling a disabled task, and `test`, since the head cannot
 run a job once without delivering it. So does any field the hand cannot honor,
-named in the message, rather than be dropped: `agentId`, `sessionTarget`,
-`wakeMode`, a `staggerMs` other than 0, `payload.toolsAllow`, `webhook`
-delivery, `delivery.failureDestination` and `delivery.accountId`. Every other
-field is applied, except `createdAtMs` and `updatedAtMs`, the host's record of
-the task, which an edit does not set and the hand ignores. An id that is not
-one of the owner's Tlon schedules answers `not-found`. A head refusal, such as
-editing a job whose run is still in flight, answers `harness-error` with the
-head's message.
+named in the message, rather than be dropped. Three are accepted at the one
+value that says what a job here does, the values Messenger's own create sends:
+`agentId` `main` (OpenClaw's default agent), `sessionTarget` `isolated` (a
+fresh session for each run) and `wakeMode` `now` (a run at its time, not at the
+next heartbeat); any other value is refused, as are a `staggerMs` other than 0,
+`payload.toolsAllow`, `webhook` delivery, `delivery.failureDestination`,
+`delivery.accountId` and delivery to a notes channel. Every other field is
+applied, except `createdAtMs` and `updatedAtMs`, the host's record of the task,
+which an edit does not set and the hand ignores. An id that is not one of the
+owner's Tlon schedules answers `not-found`. A head refusal, such as editing a
+job whose run is still in flight, answers `harness-error` with the head's
+message.
 
 Steward admits an edit only from its configured owner, and the hand sets that
 owner whenever its own changes, so new edits come from the current owner. A

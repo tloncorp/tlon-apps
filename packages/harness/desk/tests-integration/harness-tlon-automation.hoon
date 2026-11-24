@@ -289,7 +289,7 @@
   ;<  *  bind:m  (schedules snapshot)
   ;<  ~  bind:m  (refuses (create [%cron `'0 9 * * *' `'Mars/Olympus' ~] `'Brief' ~) %invalid)
   ;<  ~  bind:m  (refuses (create [%every `~m45 ~] `'Brief' ~) %invalid)
-  ;<  ~  bind:m  (refuses [%update '0v1' %*(. *task:v1:sa agent-id `'main')] %invalid)
+  ;<  ~  bind:m  (refuses [%update '0v1' %*(. *task:v1:sa agent-id `'ops')] %invalid)
   ;<  ~  bind:m  (refuses (create [%cron `'0 9 * * *' ~ ~] `'Brief' `'chat/~bus/general') %invalid)
   (refuses (create [%cron `'0 9 * * *' ~ ~] ~ ~) %invalid)
 ::
@@ -301,9 +301,9 @@
   =/  m  (mare ,~)
   ^-  form:m
   =/  fields=(list task:v1:sa)
-    :~  %*(. *task:v1:sa agent-id `'main')
-        %*(. *task:v1:sa session-target `'isolated')
-        %*(. *task:v1:sa wake-mode `'now')
+    :~  %*(. *task:v1:sa agent-id `'ops')
+        %*(. *task:v1:sa session-target `'main')
+        %*(. *task:v1:sa wake-mode `'next-heartbeat')
         %*(. *task:v1:sa schedule `[%cron `'0 9 * * *' ~ `~s30])
         %*(. *task:v1:sa payload `[`'agentTurn' `'Brief' `~['web']])
         %*(. *task:v1:sa delivery `[`%webhook ~ `'https://x.example' ~ ~])
@@ -442,4 +442,137 @@
   ;<  ~  bind:m  (ex-equal !>((answers caz)) !>(`(list response:v1:sa)`~))
   ;<  caz=(list card)  bind:m  (head-result 0v9 [%& ~])
   (ex-equal !>((answers caz)) !>(`(list response:v1:sa)`~[[0v9 %deleted '0v1']]))
+::  Messenger's Scheduled Tasks screen, as the client builds its edits:
+::  buildTaskCreate, buildTaskUpdate and deliveryFor in
+::  packages/app/ui/components/automationTaskDraft.ts, sent unchanged by
+::  packages/api/src/client/stewardAutomationApi.ts. A change to what those
+::  send belongs here too.
+::
+++  client-create
+  |=  [expr=@t tz=(unit @t) to=(unit @t)]
+  ^-  task:v1:sa
+  :*  agent-id=~
+      name=`'Night summary'
+      description=~
+      enabled=`&
+      schedule=`[%cron `expr tz ~]
+      session-target=`'isolated'
+      wake-mode=`'now'
+      payload=`[`'agentTurn' `'Summarize the night' ~]
+      delivery=?~(to ~ `[`%announce `'tlon' to ~ ~])
+      created-at=~
+      updated-at=~
+  ==
+::  A create reaches the head as one job in .binding at .timezone, and
+::  answers created once the head has it.
+::
+++  creates
+  |=  [id=@uv =task:v1:sa binding=@t timezone=@t]
+  =/  m  (mare ,~)
+  ^-  form:m
+  ?>  ?=([~ %cron [~ @] *] schedule.task)
+  =/  args=json
+    %-  pairs:enjs:format
+    :~  ['schedule' %s u.expr.u.schedule.task]  ['timezone' %s timezone]
+        ['prompt' %s 'Summarize the night']  ['runs' %s '100']
+    ==
+  ;<  caz=(list card)  bind:m  (dispatch id [%create task])
+  ;<  ~  bind:m
+    %+  ex-equal  !>((requests caz))
+    !>(`(list action:c)`~[[%add id binding '~nec' %prompt args]])
+  ;<  caz=(list card)  bind:m  (head-result id [%& ~])
+  %+  ex-equal  !>((answers caz))
+  !>(`(list response:v1:sa)`~[[id %created (scot %uv id)]])
+::
+++  test-each-create-messenger-builds-is-created
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  room=destination:t  [%channel [%chat ~bus %general] ~]
+  =/  s  (saved `~nec)
+  =.  s
+    %=  s
+      identities  (~(put by identities.s) room 'room')
+      routes  (~(put by routes.s) 'room' ['room-binding' %ready])
+      lanes  (~(put by lanes.s) 'room' [room 0 ~])
+    ==
+  ;<  *  bind:m  (boot-from s & &)
+  ;<  *  bind:m  (schedules snapshot)
+  ;<  ~  bind:m
+    (creates 0v9 (client-create '30 7 * * 1,3' ~ `'~nec') 'owner-dm' 'UTC')
+  ;<  ~  bind:m
+    %:  creates
+      0va
+      (client-create '30 7 * * *' `'America/Chicago' `'~nec')
+      'owner-dm'
+      '-06:00'
+    ==
+  ;<  ~  bind:m
+    %:  creates
+      0vb
+      (client-create '0 18 * * 5' `'Asia/Kolkata' `'chat/~bus/general')
+      'room-binding'
+      '+05:30'
+    ==
+  (creates 0vc (client-create '0 8 * * *' ~ ~) 'owner-dm' 'UTC')
+::  Each patch buildTaskUpdate makes of a task the hand projected. The
+::  schedule patch copies the projected tz and staggerMs back, and the hand
+::  projects no stagger, so it goes back without one.
+::
+++  test-each-patch-messenger-builds-gets-its-answer
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  job  (~(got by snapshot) 0v1)
+  ;<  *  bind:m  (boot `~nec & &)
+  ;<  caz=(list card)  bind:m  (schedules snapshot)
+  =/  projected  (projections caz)
+  ?>  ?=([* ~] projected)
+  =/  current=task:v1:sa  task:(snag 0 i.projected)
+  ?>  ?=([~ %cron *] schedule.current)
+  ?>  ?=(^ payload.current)
+  ;<  ~  bind:m  (ex-equal !>(stagger.u.schedule.current) !>(`(unit @dr)`~))
+  ::  name only
+  ;<  caz=(list card)  bind:m
+    (dispatch 0v9 [%update '0v1' %*(. *task:v1:sa name `'Renamed')])
+  ;<  ~  bind:m  (ex-equal !>((requests caz)) !>(`(list action:c)`~))
+  ;<  ~  bind:m
+    (ex-equal !>((answers caz)) !>(`(list response:v1:sa)`~[[0v9 %updated '0v1']]))
+  ::  payload, with the task's own kind
+  =/  prompt  %*(. *task:v1:sa payload `[kind.u.payload.current `'New prompt' ~])
+  ;<  caz=(list card)  bind:m  (dispatch 0va [%update '0v1' prompt])
+  =/  args=json
+    %-  pairs:enjs:format
+    :~  ['schedule' %s '0 9 * * *']  ['timezone' %s 'UTC']
+        ['prompt' %s 'New prompt']  ['runs' %s '5']
+    ==
+  ;<  ~  bind:m
+    (ex-equal !>((requests caz)) !>(`(list action:c)`~[[%edit 0v1 (sham job) args]]))
+  ;<  caz=(list card)  bind:m  (head-result 0va [%& ~])
+  ;<  ~  bind:m
+    (ex-equal !>((answers caz)) !>(`(list response:v1:sa)`~[[0va %updated '0v1']]))
+  ::  schedule, with the projected tz and stagger copied back
+  =/  retimed
+    %*  .  *task:v1:sa
+      schedule  `[%cron `'30 7 * * 1,3' tz.u.schedule.current stagger.u.schedule.current]
+    ==
+  ;<  caz=(list card)  bind:m  (dispatch 0vb [%update '0v1' retimed])
+  =/  args=json
+    %-  pairs:enjs:format
+    :~  ['schedule' %s '30 7 * * 1,3']  ['timezone' %s 'UTC']
+        ['prompt' %s 'Morning brief']  ['runs' %s '5']
+    ==
+  ;<  ~  bind:m
+    (ex-equal !>((requests caz)) !>(`(list action:c)`~[[%edit 0v1 (sham job) args]]))
+  ;<  caz=(list card)  bind:m  (head-result 0vb [%& ~])
+  ;<  ~  bind:m
+    (ex-equal !>((answers caz)) !>(`(list response:v1:sa)`~[[0vb %updated '0v1']]))
+  ::  delivery to another conversation
+  =/  moved
+    %*(. *task:v1:sa delivery `[`%announce `'tlon' `'chat/~bus/general' ~ ~])
+  ;<  ~  bind:m  (refuses [%update '0v1' moved] %invalid)
+  ::  the pause switch
+  ;<  caz=(list card)  bind:m
+    (dispatch 0vc [%update '0v1' %*(. *task:v1:sa enabled `|)])
+  (ex-equal !>((requests caz)) !>(`(list action:c)`~[[%cancel 0v1]]))
 --

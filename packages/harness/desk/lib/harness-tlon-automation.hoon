@@ -126,14 +126,34 @@
 ::  createdAtMs and updatedAtMs are the host's record of the task, which an
 ::  edit does not set, so they are ignored.
 ::
+::    Three fields are accepted at the one value that says what a job here
+::    does, as Messenger's create sends them: agentId main, OpenClaw's
+::    default agent and the only one a bot has; sessionTarget isolated, a
+::    fresh session for each run, as a Harness schedule runs without its
+::    source's transcript; and wakeMode now, a run at its time rather than
+::    at the next heartbeat, which Harness does not have.
+::
 ++  unsupported
   |=  task=task:v1:sa
   ^-  (unit @t)
-  ?^  agent-id.task
-    `'agentId is not supported; a job runs as the owner in its conversation'
-  ?^  session-target.task
-    `'sessionTarget is not supported; a job runs in its conversation\'s session'
-  ?^  wake-mode.task  `'wakeMode is not supported; a job runs at its time'
+  ?:  &(?=(^ agent-id.task) !=('main' u.agent-id.task))
+    :-  ~
+    %+  rap  3
+    :~  'agentId '  u.agent-id.task
+        ' is not supported; a job runs as the bot\'s main agent'
+    ==
+  ?:  &(?=(^ session-target.task) !=('isolated' u.session-target.task))
+    :-  ~
+    %+  rap  3
+    :~  'sessionTarget '  u.session-target.task
+        ' is not supported; each run has a session of its own (isolated)'
+    ==
+  ?:  &(?=(^ wake-mode.task) !=('now' u.wake-mode.task))
+    :-  ~
+    %+  rap  3
+    :~  'wakeMode '  u.wake-mode.task
+        ' is not supported; a job runs at its time (now)'
+    ==
   ?:  ?&  ?=([~ %cron *] schedule.task)
           ?=(^ stagger.u.schedule.task)
           !=(~s0 u.stagger.u.schedule.task)
@@ -163,6 +183,9 @@
   ?:  =(`%none mode.d)  [%& dm]
   ?.  |(?=(~ channel.d) =(`'tlon' channel.d))  [%| 'only Tlon delivery is supported']
   ?~  to.d  [%| 'delivery.to is required']
+  ?:  =('notes/' (end [3 6] u.to.d))
+    :-  %|
+    'a task cannot post into a notes channel; pick a chat, gallery or notebook, or your DM'
   =/  found  (conversation u.to.d)
   ?~  found  [%| (cat 3 'delivery.to is not a ship or channel: ' u.to.d)]
   ?:  &(?=(%dm -.u.found) !=(owner who.u.found))

@@ -221,11 +221,12 @@
 ::  Each field the hand cannot honor is refused, never dropped.
 ::
 ++  test-an-agent-id-is-refused
-  (refuses-field 'agentId' |=(t=task:v1:sa t(agent-id `'main')))
+  (refuses-field 'agentId ops' |=(t=task:v1:sa t(agent-id `'ops')))
 ++  test-a-session-target-is-refused
-  (refuses-field 'sessionTarget' |=(t=task:v1:sa t(session-target `'isolated')))
+  (refuses-field 'sessionTarget main' |=(t=task:v1:sa t(session-target `'main')))
 ++  test-a-wake-mode-is-refused
-  (refuses-field 'wakeMode' |=(t=task:v1:sa t(wake-mode `'now')))
+  %+  refuses-field  'wakeMode next-heartbeat'
+  |=(t=task:v1:sa t(wake-mode `'next-heartbeat'))
 ++  test-a-stagger-is-refused
   (refuses-field 'staggerMs' |=(t=task:v1:sa t(schedule `[%cron `'0 9 * * *' ~ `~s30])))
 ++  test-a-tool-allow-list-is-refused
@@ -430,4 +431,22 @@
       %+  expect-eq  !>(`(unit cron-schedule:v1:sa)``[%every `~m1 `anchor])
       !>(schedule:task:(snag 0 tasks))
   ==
+::  The values that say what a job here does are accepted: the default
+::  agent, a session of its own, a run at its time.
+::
+++  test-the-default-agent-an-isolated-session-and-wake-now-are-accepted
+  =/  base  (create [%cron `'0 9 * * *' ~ ~] `'Brief' ~)
+  ?>  ?=(%create -.base)
+  =/  defaults
+    task.base(agent-id `'main', session-target `'isolated', wake-mode `'now')
+  =/  created  (plan [%create defaults] ~)
+  =/  updated  (plan [%update '0v1' defaults(schedule ~)] ~)
+  ;:  weld
+      (expect !>(?=(%& -.created)))
+      (expect !>(?=(%& -.updated)))
+  ==
+::
+++  test-a-notes-channel-is-refused-by-name
+  =/  edit  (create [%cron `'0 9 * * *' ~ ~] `'Brief' `'notes/~bus/plans')
+  (refused-naming edit 'notes channel')
 --
