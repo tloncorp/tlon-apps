@@ -317,14 +317,13 @@
     %-  set-scry-gate
     |=  =path
     ^-  (unit vase)
+    ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(|)
     ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
     ?:  (lien path |=(part=@ta =(%can-read part)))  `!>(|=([who=@p *] !=(~dev who)))
     ?:  (lien path |=(part=@ta =(%groups part)))  `!>((my ~[[[~lux %test] room-group]]))
     ?:  (lien path |=(part=@ta =(%cron-session part)))  `!>(~)
     ::  Local %channels lacks the channel, so no message is read for its author.
     ?:  ?=([%gu @ %channels @ %v4 *] path)  `!>(|)
-    ::  harness-tlon-steward covers the Steward lease.
-    ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(|)
     ?:  =(%$ (rear path))  `!>(&)
     ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)
     ?:  ?=([%gx @ %activity @ %v6 %all %noun ~] path)  `!>(stream)
