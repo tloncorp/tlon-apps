@@ -102,7 +102,7 @@
 ++  schedule
   ^-  schedule:cr
   :*  (bid 0)  speaker  'tlon'  0v0  %prompt  'UTC'  (addr 0)  (sid 0)  (sid 0)
-      'every hour'  *pattern:cr  'Prompt'  ~  (add now ~d1)  5  %active  ''  ~
+      'every hour'  *pattern:cr  'Prompt'  ~  (add now ~d1)  `5  %active  ''  ~
   ==
 ++  test-library-readers
   =/  db  ledger
