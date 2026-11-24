@@ -660,8 +660,9 @@ by every author.
   grants say. Granting either to it has no effect. A session bound to another
   hand gets the tools its adapter configures (see
   [hands](hands.md#binding-and-authority)).
-- Other ships and the bot's own messages do not enter inference. The bot
-  knows its own messages by the author's ship, whichever author form they carry.
+- A message from a ship without access never starts a turn, and neither does
+  one of the bot's own. The bot knows its own messages by the author's ship,
+  whichever author form they carry.
 - A channel post or reply whose author carries a bot profile, as OpenClaw and
   Hermes bots write theirs, is a bot's message. On admission the hand reads
   that one message from local `%channels`, a bounded page and an exact-key
