@@ -71,9 +71,12 @@
       search-requests=search-requests:h
       knowledge=state:memory-types
   ==
+::  Saved state and the hand index derived from it, which +on-save leaves out.
+::
++$  live-state  [state-0 hand-index=index:hh]
 --
 %-  agent:dbug
-=|  state-0
+=|  live-state
 =*  state  -
 ^-  agent:gall
 =<
@@ -90,7 +93,7 @@
         |=  result=(quip card _this)
         ^-  (quip card _this)
         =*  updated  +.result
-        =/  saved  !<(state-0 on-save:updated)
+        =/  saved=live-state  state.updated
         =/  before-writes  writes.workspace
         =/  before-workspace  workspace
         =/  before-notes  workspace-notes
@@ -169,7 +172,7 @@
         acp-watch-card:wire-codec
     ==
   ::
-  ++  on-save  !>(state)
+  ++  on-save  !>(-.state)
   ::
   ++  on-load
     |=  old-vase=vase
@@ -180,7 +183,8 @@
     =/  upkeep=(unit @da)
       ?.  (maintenance-needed:schedule-lib schedules.new ~ now.bowl |)  ~
       `+(now.bowl)
-    =.  state  new(corpus-wake ~, schedule-wake upkeep)
+    =.  -.state  new(corpus-wake ~, schedule-wake upkeep)
+    =.  hand-index  (reindex:hd hands)
     =.  wake.knowledge  ~
     =.  runners
       runners(wake ~, registry (~(run by registry.runners) |=(r=runner:runner-types r(stream ~))))
@@ -386,7 +390,7 @@
           [%x %workspace ~]
         ``noun+!>(workspace)
           [%x %cron ~]
-        ``json+!>((list-json:schedule-lib schedules hands ~))
+        ``json+!>((list-json:schedule-lib schedules [hands hand-index] ~))
           [%x %cron-session @ ~]
         ``noun+!>((for-session:schedule-lib schedules i.t.t.path))
           [%x %cron-authority @ ~]
@@ -396,10 +400,13 @@
         ``json+!>((status-json:hd hands i.t.t.path))
       ::
           [%x %hand-outbox @ ~]
-        ``json+!>((outbox-json:hd hands i.t.t.path))
+        ``json+!>((outbox-json:hd [hands hand-index] i.t.t.path))
       ::
           [%x %hand-state ~]
         ``noun+!>(hands)
+      ::
+          [%x %hand-index ~]
+        ``noun+!>(hand-index)
       ::
           [%x %work-card @ ~]
         ``noun+!>((work-card:hc (slav %uv i.t.t.path)))
@@ -989,9 +996,11 @@
   ^-  (quip card _state)
   =.  schedules  (~(put by schedules) id job(state mode, reason reason))
   =/  bound  (~(get by bindings.hands) run-sid.job)
-  =?  hands  ?=(^ bound)
-    =/  applied  (apply:hd hands [%enable run-sid.job |] now.bowl)
-    ?:(?=(%& -.applied) db.p.applied hands)
+  =/  disabled=(unit indexed:hh)
+    ?~  bound  ~
+    =/  applied  (apply-indexed:hd [hands hand-index] [%enable run-sid.job |] now.bowl)
+    ?:(?=(%& -.applied) `ledger.p.applied ~)
+  =?  state  ?=(^ disabled)  state(hands db.u.disabled, hand-index index.u.disabled)
   ?.  (~(has by sessions) run-sid.job)  `state
   =/  current  (play:hl log:(need-session run-sid.job))
   ?:  ?&  =(~ tools.config.current)
@@ -1009,7 +1018,7 @@
   |=  action=action:cr
   ^-  [result=(each json @t) cards=(list card) new=_state]
   ?:  ?=(%list -.action)
-    [[%& (list-json:schedule-lib schedules hands binding.action)] ~ state]
+    [[%& (list-json:schedule-lib schedules [hands hand-index] binding.action)] ~ state]
   ?:  ?=(%add -.action)
     (schedule-add action)
   =/  key=@uv
@@ -1037,7 +1046,7 @@
       %cancelled
       'Cancelled by the source conversation or owner'
     ==
-  [[%& (list-json:schedule-lib schedules hands ~)] cards state]
+  [[%& (list-json:schedule-lib schedules [hands hand-index] ~)] cards state]
 ::
 ++  schedule-add
   |=  action=action:cr
@@ -1049,7 +1058,7 @@
   ?^  prior
     ?.  =(fingerprint.u.prior (fingerprint:schedule-lib action))
       [[%| 'Schedule ID already belongs to a different request'] ~ state]
-    [[%& (one-json:schedule-lib id.action u.prior hands)] ~ state]
+    [[%& (one-json:schedule-lib id.action u.prior [hands hand-index])] ~ state]
   ?:  (gte ~(wyt by schedules) 64)
     [[%| 'Schedule capacity reached; clear settled jobs in Settings'] ~ state]
   =/  source  (~(get by bindings.hands) binding.action)
@@ -1097,14 +1106,16 @@
     ==
   =^  created  state  (handle-action [%new run-sid.job config js-timeout])
   =/  bound
-    %:  apply:hd
-      hands
+    %:  apply-indexed:hd
+      [hands hand-index]
       [%bind run-sid.job [hand.job destination.job run-sid.job ~[actor.job] &]]
       now.bowl
     ==
   ?>  ?=(%& -.bound)
-  =.  hands  db.p.bound
-  [[%& (one-json:schedule-lib id.action job hands)] created state]
+  =:  hands  db.ledger.p.bound
+      hand-index  index.ledger.p.bound
+    ==
+  [[%& (one-json:schedule-lib id.action job [hands hand-index])] created state]
 ::
 ++  schedule-edit
   |=  [action=action:cr job=schedule:cr]
@@ -1112,7 +1123,7 @@
   ?>  ?=(%edit -.action)
   ?.  =(revision.action (sham job))
     [[%| 'Schedule changed; list schedules again before editing'] ~ state]
-  ?:  (busy:schedule-lib (job-value:schedule-lib job) hands)
+  ?:  (busy:schedule-lib (job-value:schedule-lib job) [hands hand-index])
     [[%| 'Work or delivery is still pending; edit after it settles'] ~ state]
   ?.  (schedule-live job)
     [[%| 'Only an authorized active or completed schedule can be edited'] ~ state]
@@ -1122,14 +1133,14 @@
         state
     ==
   =.  schedules  (~(put by schedules) id.action p.parsed)
-  [[%& (one-json:schedule-lib id.action p.parsed hands)] ~ state]
+  [[%& (one-json:schedule-lib id.action p.parsed [hands hand-index])] ~ state]
 ::
 ++  schedule-retry
   |=  [action=action:cr job=schedule:cr]
   ^-  [result=(each json @t) cards=(list card) new=_state]
   ?>  ?=(%retry -.action)
   ?.  ?&  =(last.job `input.action)
-          (retryable:schedule-lib (job-value:schedule-lib job) hands)
+          (retryable:schedule-lib (job-value:schedule-lib job) [hands hand-index])
           (schedule-live job)
       ==
     :*  :*  %|
@@ -1150,26 +1161,29 @@
   =/  input  (input-id:hd run-sid.job event)
   =/  prior  (~(got by observations.hands) input.action)
   =/  admitted
-    %:  apply:hd
-      hands
+    %:  apply-indexed:hd
+      [hands hand-index]
       [%observe run-sid.job event actor.job text.prior]
       now.bowl
     ==
   ?:  ?=(%| -.admitted)  [[%| p.admitted] ~ state]
-  =.  hands  (start:hd db.p.admitted run-sid.job input)
+  =/  started  (start-indexed:hd ledger.p.admitted run-sid.job input)
+  =:  hands  db.started
+      hand-index  index.started
+    ==
   =.  schedules  (~(put by schedules) id.action job(last `input))
   =^  cards  state  (handle-action [%retry run-sid.job])
-  [[%& (list-json:schedule-lib schedules hands ~)] cards state]
+  [[%& (list-json:schedule-lib schedules [hands hand-index] ~)] cards state]
 ::
 ++  schedule-delete
   |=  [action=action:cr job=schedule:cr]
   ^-  [result=(each json @t) cards=(list card) new=_state]
   ?>  ?=(%delete -.action)
-  ?:  (busy:schedule-lib (job-value:schedule-lib job) hands)
+  ?:  (busy:schedule-lib (job-value:schedule-lib job) [hands hand-index])
     [[%| 'Work or delivery is still pending; cancel first and delete after it settles'] ~ state]
   =^  cards  state  (stop-schedule id.action job %cancelled 'Schedule deleted')
   =.  schedules  (~(del by schedules) id.action)
-  [[%& (list-json:schedule-lib schedules hands ~)] cards state]
+  [[%& (list-json:schedule-lib schedules [hands hand-index] ~)] cards state]
 ::
 ++  schedule-clear
   |=  [action=action:cr job=schedule:cr]
@@ -1177,7 +1191,7 @@
   ?>  ?=(%clear -.action)
   ::  Clearing also requires a settled lifecycle; deleting only requires
   ::  that no execution or delivery is in flight.
-  ?.  (clearable:schedule-lib (job-value:schedule-lib job) hands)
+  ?.  (clearable:schedule-lib (job-value:schedule-lib job) [hands hand-index])
     :*  :*  %|
             'Only completed or cancelled schedules with no pending or uncertain work can be cleared'
         ==
@@ -1185,7 +1199,7 @@
     ==
   =^  cards  state  (stop-schedule id.action job %cancelled 'Cleared in owner settings')
   =.  schedules  (~(del by schedules) id.action)
-  [[%& (list-json:schedule-lib schedules hands ~)] cards state]
+  [[%& (list-json:schedule-lib schedules [hands hand-index] ~)] cards state]
 ::
 ++  schedule-tool
   |=  request=tool-request:adapter
@@ -1219,7 +1233,7 @@
           ~  state
       ==
     ?:  =('cron_list' name.call.request)
-      [[%& (list-json:schedule-lib visible hands ~)] ~ state]
+      [[%& (list-json:schedule-lib visible [hands hand-index] ~)] ~ state]
     ?:  %+  lien  `(list @t)`~['cron_remove' 'cron_update' 'cron_delete' 'cron_retry']
         |=(name=@t =(name name.call.request))
       =/  id
@@ -1249,7 +1263,7 @@
       ::  Do not return the owner-wide mutation response to a scoped caller.
       =/  job  (~(get by schedules.new.handled) p.id)
       %*  .  handled
-        result  [%& ?~(job ~ (one-json:schedule-lib p.id u.job hands.new.handled))]
+        result  [%& ?~(job ~ (one-json:schedule-lib p.id u.job [hands hand-index]:new.handled))]
       ==
     %-  schedule-call
     :*  %add
@@ -1551,7 +1565,7 @@
         ==
         state
     ==
-  =/  saved=state-0  state
+  =/  saved=live-state  state
   =/  next  saved(workspace-notes workspace-notes.saved(pending ~))
   =.  workspace.next
     %:  record:workspace-lib
@@ -1578,7 +1592,7 @@
   ^-  (quip card _state)
   ?~  pending.workspace-notes  `state
   =/  pending  u.pending.workspace-notes
-  =/  saved=state-0  state
+  =/  saved=live-state  state
   =/  next
     saved(workspace-notes workspace-notes.saved(pending ?:(uncertain `pending(uncertain &) ~)))
   [~[(notes-reply reply.pending [%| message])] next]
@@ -1730,7 +1744,7 @@
     %+  notes-failed
       'Notes confirmed a result, but its current document could not be read. Do not repeat the operation.'
     &
-  =/  saved=state-0  state
+  =/  saved=live-state  state
   =/  next  saved(workspace db.p.resolved, workspace-notes native.p.resolved)
   =/  artifact  (~(got by artifacts.workspace.next) artifact.pending)
   =/  result
@@ -2621,7 +2635,7 @@
       ==
     $(pending t.pending, cards (weld cards stopped))
   ?.  &(?=(%active state.job) (lte next.job now.bowl))  $(pending t.pending)
-  ?:  (busy:schedule-lib (job-value:schedule-lib job) hands)  $(pending t.pending)
+  ?:  (busy:schedule-lib (job-value:schedule-lib job) [hands hand-index])  $(pending t.pending)
   =/  event  (event:calendar id next.job)
   =/  input  (input-id:hd run-sid.job event)
   ::  Coalesce downtime to one run and advance the budget in the same Gall
@@ -2649,7 +2663,7 @@
     ^-  (unit @da)
     ?.  =(%active state.job)  ~
     :-  ~
-    ?:  |((lte next.job now.bowl) (busy:schedule-lib (job-value:schedule-lib job) hands))
+    ?:  |((lte next.job now.bowl) (busy:schedule-lib (job-value:schedule-lib job) [hands hand-index]))
       (max next.job (add now.bowl ~s30))
     next.job
   =/  deadline=(unit @da)
@@ -2925,7 +2939,7 @@
         ==
       $(request request(action 'settings', args u.parsed))
     ?:  =('clear-credentials' action.request)
-      =.  state  (clear:hosted-cleanup state)
+      =.  -.state  (clear:hosted-cleanup -.state)
       [~[(reply (envelope:hosted-auth 200 (pairs:enjs:format ~[['cleared' %b &]])))] state]
     ?:  =('provision' action.request)  provision
     ?:  =('settings' action.request)
@@ -3272,7 +3286,7 @@
   |=  rpc=acp-request
   ^-  (quip card _state)
   =+  rpc
-  =^  sid  state  (ensure:onboarding state)
+  =^  sid  -.state  (ensure:onboarding -.state)
   =/  listed  (list-json:index sessions modified)
   ?>  ?=(%o -.listed)
   =/  result=json
@@ -3973,7 +3987,7 @@
     ==
   ?:  &(?=(^ config) !(~(has by sessions) sid.u.config))
     [[%| 'Create the session and configure its tool grants before binding it'] ~ state]
-  =/  applied  (apply:hd hands action now.bowl)
+  =/  applied  (apply-indexed:hd [hands hand-index] action now.bowl)
   ?:  ?=(%| -.applied)  [[%| p.applied] ~ state]
   ::  Validate and deduplicate before interrupting. A replayed /stop cannot
   ::  cancel newer work. Cancel against the old ledger, then admit the stop
@@ -3992,9 +4006,11 @@
     (stop-command sid.binding text.action ?:(owner ~ `actor.action))
   ::  Reapply to retain cancellation receipts and the other bindings' queues.
   ::  A speaker's stop can cancel only queued inputs and emit no cards.
-  =/  accepted  ?:(=(before hands) applied (apply:hd hands action now.bowl))
+  =/  accepted  ?:(=(before hands) applied (apply-indexed:hd [hands hand-index] action now.bowl))
   ?>  ?=(%& -.accepted)
-  =.  hands  db.p.accepted
+  =:  hands  db.ledger.p.accepted
+      hand-index  index.ledger.p.accepted
+    ==
   =/  sid=(unit session-id:h)
     ?+  -.action  ~
       %observe  `sid:(need (~(get by bindings.hands) binding.action))
@@ -4016,7 +4032,10 @@
   ?~  id  `state
   =/  observation  (need (~(get by observations.hands) u.id))
   =/  config  (need (~(get by bindings.hands) binding.observation))
-  =.  hands  (start:hd hands sid u.id)
+  =/  started  (start-indexed:hd [hands hand-index] sid u.id)
+  =:  hands  db.started
+      hand-index  index.started
+    ==
   =/  =event:h
     :-  %input-received
     :*  u.id
@@ -4176,7 +4195,10 @@
       message.failure
       %reply  body.u.result
     ==
-  =.  hands  (finish:hd hands sid -.u.result body)
+  =/  finished  (finish-indexed:hd [hands hand-index] sid -.u.result body)
+  =:  hands  db.finished
+      hand-index  index.finished
+    ==
   (hand-pump sid)
 ::
 ::  Native commands converge here, including commands decoded from ACP.
@@ -4339,7 +4361,10 @@
   |=  action=action:h
   ^-  (quip card _state)
   ?>  ?=(%cancel -.action)
-  =.  hands  (cancel-queued:hd hands sid.action ~)
+  =/  cancelled  (cancel-queued-indexed:hd [hands hand-index] sid.action ~)
+  =:  hands  db.cancelled
+      hand-index  index.cancelled
+    ==
   (cancel-turn sid.action)
 ::  One speaker's stop or revocation: their running turn, the subagents it
 ::  started, and their waiting inputs. Other speakers' work, timers and
@@ -4349,7 +4374,10 @@
   |=  [sid=session-id:h actor=@t]
   ^-  (quip card _state)
   ?.  (~(has by sessions) sid)  `state
-  =.  hands  (cancel-queued:hd hands sid `actor)
+  =/  cancelled  (cancel-queued-indexed:hd [hands hand-index] sid `actor)
+  =:  hands  db.cancelled
+      hand-index  index.cancelled
+    ==
   ?.  =(`actor (hand-speaker sid))  `state
   (cancel-turn sid)
 ::  Waiting inputs are the caller's to cancel first; settling pumps the next.
@@ -4417,7 +4445,10 @@
     (handle-action [%cancel sid])
   =^  fenced  state  (handle-action [%fence sid])
   =.  stopped  (weld stopped fenced)
-  =.  hands  (detach-session:hd hands sid now.bowl)
+  =/  detached  (detach-session-indexed:hd [hands hand-index] sid now.bowl)
+  =:  hands  db.detached
+      hand-index  index.detached
+    ==
   =^  scheduled  state
     =/  pending  ~(tap by schedules)
     =|  cards=(list card)
@@ -5712,7 +5743,10 @@
         ==
       `state
     (handle-action [%cancel sid])
-  =.  hands  (cancel-queued:hd hands sid ~)
+  =/  cancelled  (cancel-queued-indexed:hd [hands hand-index] sid ~)
+  =:  hands  db.cancelled
+      hand-index  index.cancelled
+    ==
   =^  cancelled-timers  state  (cancel-session-timers sid)
   =^  auxiliary  state  (withdraw-auxiliary sid)
   =.  cards  :(weld cards cancelled-timers auxiliary)

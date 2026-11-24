@@ -3,7 +3,7 @@
 /-  c=harness-cron, hh=harness-hand, h=harness, ac=acp, renew=harness-oauth,
     adapter=harness-adapter, t=harness-tlon, *harness-store
 /+  *test-agent, schedule=harness-schedule, defaults=harness-defaults, hl=harness,
-    tools=harness-tools, auth=harness-auth
+    tools=harness-tools, auth=harness-auth, hd=harness-hand
 /=  head  /app/harness
 |%
 ++  t0  ~2026.9.9
@@ -64,9 +64,15 @@
   ;<  woken=(list card)  bind:m
     (do-arvo /schedules/(scot %da +(now.bowl)) [%behn %wake ~])
   (pure:m (weld loaded woken))
+::  Every read of the saved state also checks that the head's index equals
+::  the derivation of its ledger.
+::
 ++  get-state
   =/  m  (mare ,state-0)
   ^-  form:m
+  ;<  ledger=cage  bind:m  (got-peek /x/hand-state)
+  ;<  index=cage  bind:m  (got-peek /x/hand-index)
+  ;<  ~  bind:m  (ex-equal q.index !>((reindex:hd !<(state:hh q.ledger))))
   ;<  =vase  bind:m  get-save
   (pure:m !<(state-0 vase))
 ++  do-frame

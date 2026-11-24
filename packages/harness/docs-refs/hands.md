@@ -101,12 +101,12 @@ is not that evidence.
 
 | Action | Parameters | Result |
 |---|---|---|
-| `bind` | `id`, `config` as above | Binding status |
+| `bind` | `id`, `config` as above | Binding fields; a new binding's result also has an empty `observations` array |
 | `register` | `config` | Binding status with a ship-allocated, never-reused id |
 | `enable` | `id`, `enabled` | Binding status |
 | `remove` | `id` | Empty object; only for bindings with no observations |
 | `observe` | `binding`, `event`, `actor`, `text` | `inputId`, `phase`, `sourceEvent` |
-| `status` | `binding` | Binding and observation statuses |
+| `status` | `binding` | Binding, `observationCount`, and the statuses of its newest 256 observations plus any queued or running ones |
 | `outbox` | `hand` | Undelivered publications for enabled bindings |
 | `publications` | `hand`, `after` (id or null), `limit` | Bounded `records` and `next` cursor |
 | `effect` | `hand`, `effect` | Publication, including terminal receipts |
@@ -146,8 +146,8 @@ write bound sessions: use the authenticated hand protocol and its actor checks.
 Use `status` for admission recovery and `outbox` for delivery work. Inspect
 native snapshots or `harness/session/snapshot` for progress and diagnostics.
 No client connection owns the run. `session/cancel` cancels both the active turn
-and queued observations for that session. Queued cancellations appear in status
-without creating a reply; active cancellations produce a cancellation publication.
+and queued observations for that session. Recent queued cancellations appear in
+status without creating a reply; active cancellations produce a cancellation publication.
 
 An observed `/stop` is one speaker's. It cancels the running turn, and the
 subagents it started, only when that turn is the speaker's own, and only the
@@ -224,12 +224,24 @@ its bindings, and 128 globally. One stalled conversation cannot consume the
 whole waiting queue. Duplicate admissions are checked before capacity limits,
 so retrying an already admitted event still recovers its identity.
 
-The ledger allows 256 observations per binding, 2,048 globally, and 256 active
-bindings. Text is limited to 65,536 bytes and source IDs to 512 bytes; metadata
-and recovery histories also have admission limits. Full capacity rejects work
-without deleting records or pruning session history.
+The ledger has no limit on finished records; it allows 256 active bindings.
+Text is limited to 65,536 bytes and source IDs to 512 bytes; metadata and
+recovery histories also have admission limits. A full waiting queue rejects
+work without deleting records or pruning session history. Records are kept
+until their binding is retired, about 2 KB for each answered message.
 
-Rotate a binding epoch before it fills:
+Paths that run on every message, head event, timer or delivery poll read two
+indexes of the ledger instead of walking it: the records not finished (a
+queued or running observation, or a publication that is not `delivered` or
+`abandoned`), and each hand's newest 64 observations. The indexes are not
+saved; every load of `%harness` rebuilds them in one pass over the ledger.
+Owner reads that list history (`status`, `records`, the inbox and work pages)
+still read every record, so they slow down as history grows. `status` lists
+the newest 256 observations, any queued or running work and the total count;
+older finished observations are in `records`. The `outbox` and `health`
+replies and the index of unfinished records grow with unresolved publications.
+
+Rotate a binding epoch to release its records:
 
 1. Stop consuming new source events and disable that binding.
 2. Settle or cancel its queued/running work. Reconcile every publication to
@@ -284,6 +296,8 @@ when a response is lost. A successful poke ack alone is not admission success.
 - `/x/hands/<binding>`: binding/observation JSON status.
 - `/x/hand-outbox/<hand>`: publication JSON outbox.
 - `/x/hand-state`: owner-only typed bookkeeping state.
+- `/x/hand-index`: owner-only typed `index:hh`, the open records and each
+  hand's newest observations.
 
 Eyre projects the JSON scries at `/~/scry/harness/hands/<binding>.json` and
 `/~/scry/harness/hand-outbox/<hand>.json`. Both transports call the same pure

@@ -995,9 +995,8 @@ Neither the test nor the adapter modifies the Groups desk's source code.
 `tests-js/tlon-delivery-conformance.mjs` additionally needs `SHIP_PIER` for
 real Gall suspension/revival. It checks offline completion, explicit retry,
 uncertainty, ordered outbox draining, distinct IDs, whole-desk revival and an idle
-hand with no timer. A DM run then fills the owner's DM binding and checks that
-refused DMs do not stop a channel mention in `TEST_NEST`, which it requires.
-`SURFACE=channel` selects channels. Supplying
+hand with no timer. It requires `TEST_NEST`, and `SURFACE=channel` selects
+channels. Supplying
 `CHANNEL_HOST_PIER` also temporarily suspends the channel host to test a lost
 confirmation and recovery from native publication evidence. Every suspended
 agent is revived in cleanup; fixture messages and receipts remain.

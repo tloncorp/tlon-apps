@@ -144,6 +144,13 @@
   ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.saved.got)) !>(jobs))
   (ex-equal !>(activity-through.saved.got) !>(message-at))
 ::
+::  +run answers only what a head from before the index serves, as a reload
+::  of the desk does while the adapter loads, so loading reads no index.
+::
+++  test-adapter-loads-and-admits-against-a-head-without-the-index
+  %-  eval-mare
+  %+  admitted  'message'
+  (run fixture (post-event ~nec) `[& & message-at ~[(post message-at ~nec)] ~])
 ++  test-bot-profile-post-is-a-bot-message
   %-  eval-mare
   %+  admitted  'bot-message'
@@ -265,7 +272,7 @@
 ++  room  `destination:t`[%channel nest ~]
 ++  thread  `destination:t`[%channel nest `parent-at]
 ++  sentence  'I can\'t answer messages here right now.'
-++  ledger-refusal  'Binding ledger capacity reached; export and rotate its binding'
+++  ledger-refusal  'This binding or session has reached its waiting-work limit'
 ++  allowed-fixture
   ^-  state-3:t
   =/  s  fixture
@@ -311,6 +318,7 @@
   ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)
   ?:  ?=([%gx @ %activity @ %v6 %all %noun ~] path)  `!>(stream)
   ?:  ?=([%gx @ %harness @ %hand-state %noun ~] path)  `!>(*state:hh)
+  ?:  ?=([%gx @ %harness @ %hand-index %noun ~] path)  `!>(*index:hh)
   ?:  ?=([%gx @ %harness @ %cron-session @ %noun ~] path)  `!>(~)
   ?:  ?=([%gx @ %harness @ %sessions %json ~] path)  `!>(`json`[%a ~])
   ?:  ?=([%gx @ %harness @ %defaults %json ~] path)  `!>(defaults)

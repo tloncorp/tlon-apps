@@ -2539,6 +2539,15 @@
   ^-  state:hh
   .^(state:hh %gx /(scot %p our.bowl)/harness/(scot %da now.bowl)/hand-state/noun)
 ::
+::  +hand-index: the head's index of its ledger
+::
+::    A head from before the index cannot answer, and a failed scry cannot
+::    be caught, so nothing reached from +on-load may read this.
+::
+++  hand-index
+  ^-  index:hh
+  .^(index:hh %gx /(scot %p our.bowl)/harness/(scot %da now.bowl)/hand-index/noun)
+::
 ++  show-presence
   |=  active=(map path (set @t))
   ^+  cor
@@ -2637,8 +2646,11 @@
   =/  hands  ledger
   =/  client-id  (rap 3 (scot %p our.bowl) '/' (scot %da sent.proof) ~)
   =/  native-id  (rap 3 (address:p to.proof) '/' (scot %da id.proof) ~)
-  %+  roll  ~(tap by outbox.hands)
-  |=  [[id=@uv publication=publication:hh] engine=_cor]
+  %+  roll  ~(tap in open:hand-index)
+  |=  [id=@uv engine=_cor]
+  =/  found  (~(get by outbox.hands) id)
+  ?~  found  engine
+  =/  publication  u.found
   ?.  ?&  =('tlon' hand.publication)
           =('harness-tlon' worker.publication)
           =(address.publication (address:p to.proof))
@@ -2659,7 +2671,8 @@
   ?.  head-live  schedule
   =.  cor  poll-tools
   =/  hands  ledger
-  =.  cor  (sync-lenses hands)
+  =/  indexed=indexed:hh  [hands hand-index]
+  =.  cor  (sync-lenses indexed)
   =.  state  (detach-routes:continuity state hands)
   =.  cor  (sync-presence hands)
   =.  cor  schedule
@@ -2676,7 +2689,7 @@
     ?=(?(%claimed %uncertain) status.u.publication)
   ::  Only runnable Tlon publications need ordering. Retained receipts and
   ::  other hands must not make every head invalidation more expensive.
-  =/  pending  (pending-publications:hd hands 'tlon')
+  =/  pending  (pending-publications:hd indexed 'tlon')
   %+  roll  pending
   |=  [[id=@uv publication=publication:hh] engine=_cor]
   ?.  &(=('tlon' hand.publication) =(%pending status.publication))  engine
@@ -2690,11 +2703,13 @@
   ::  The ledger, not this worker's cache, owns uncertainty. A recovered or
   ::  operator-owned claim also blocks later sends to the same destination.
   =/  unsettled
-    %+  lien  ~(val by outbox.hands)
-    |=  other=publication:hh
-    ?&  =('tlon' hand.other)
-        =(address.publication address.other)
-        ?=(?(%claimed %uncertain) status.other)
+    %+  lien  ~(tap in open.index.indexed)
+    |=  other-id=@uv
+    =/  other  (~(get by outbox.hands) other-id)
+    ?&  ?=(^ other)
+        =('tlon' hand.u.other)
+        =(address.publication address.u.other)
+        ?=(?(%claimed %uncertain) status.u.other)
     ==
   ?:  unsettled  engine
   =/  dispatching
@@ -2732,25 +2747,18 @@
   (emit [%pass /lens/events %agent [our.bowl %steward] %watch /v1/lens])
 ::
 ++  sync-lenses
-  |=  hands=state:hh
+  |=  indexed=indexed:hh
   ^+  cor
+  =*  hands  db.indexed
   ?.  &(enabled.lens =(owner.lens owner.policy))  cor
   ::  Retain a bounded retry cache, not a second history store. The head's
   ::  journal and the owner's accepted Steward records remain authoritative.
   =/  candidates
-    %+  sort
-      %+  skim  ~(tap by observations.hands)
-      |=  [id=input-id:h observation=observation:hh]
-      =/  binding  (~(get by bindings.hands) binding.observation)
-      ?&  ?=(^ binding)
-          =('tlon' hand.u.binding)
-          (gth at.observation after.lens)
-      ==
-    |=  $:  left=[id=input-id:h observation=observation:hh]
-            right=[id=input-id:h observation=observation:hh]
-        ==
-    (gth at.observation.left at.observation.right)
-  =.  candidates  (scag 64 candidates)
+    %+  skim
+      %+  turn  (~(gut by recent.index.indexed) 'tlon' ~)
+      |=(id=input-id:h [id (~(got by observations.hands) id)])
+    |=  [id=input-id:h observation=observation:hh]
+    (gth at.observation after.lens)
   =.  records.lens
     %-  my
     %+  murn  candidates
