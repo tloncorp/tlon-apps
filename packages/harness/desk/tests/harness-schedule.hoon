@@ -180,7 +180,7 @@
       (expect-eq !>(~2026.9.10..15.00.00) !>(next.second))
       (expect-eq !>(~2026.9.12..15.00.00) !>(next.late))
       %+  expect-eq  !>([%s '-06:00'])
-      !>((~(got by (pairs-of (one-json:schedule 0v1 out *state:hh))) 'timezone'))
+      !>((~(got by (pairs-of (one-json:schedule 0v1 out *indexed:hh))) 'timezone'))
   ==
 ++  test-offset-job-matches-local-calendar-across-the-date-line
   =/  action  action
