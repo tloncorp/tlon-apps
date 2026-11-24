@@ -83,7 +83,8 @@
 ::
 ++  schedules
   |=  jobs=(map @uv schedule:c)
-  (do-agent /steward/schedules [~zod %harness] [%fact %noun !>(jobs)])
+  %+  do-agent  /steward/schedules
+  [[~zod %harness] [%fact %harness-schedules-1 !>(`schedules:c`jobs)]]
 ::
 ++  dispatch
   |=  [id=@uv =edit:v1:sa]

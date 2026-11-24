@@ -162,7 +162,7 @@
     !<(state-1 old)
   [%2 *lens-sync +.saved]
 ::  Steward names, edits and the schedule snapshot start empty; the head's
-::  first /schedule-events fact fills the snapshot.
+::  first /v1/schedule-events fact fills the snapshot.
 ::
 ++  three-to-four
   |=  old=state-3

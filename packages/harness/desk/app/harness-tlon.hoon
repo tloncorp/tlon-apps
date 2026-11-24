@@ -333,7 +333,7 @@
   ^+  cor
   ?:  =(~ owner.policy)  cor
   ?.  steward-running  cor
-  =.  cor  (watch-once /steward/schedules %harness /schedule-events)
+  =.  cor  (watch-once /steward/schedules %harness /v1/schedule-events)
   (watch-once /steward/dispatch %steward /v1/automation/harness)
 ::
 ::  Booting and a new Steward can both ask in one event; Gall refuses a
@@ -395,9 +395,9 @@
     cor
   ::
       %fact
-    ?.  =(%noun p.cage.sign)  cor
+    ?.  =(%harness-schedules-1 p.cage.sign)  cor
     =/  before  projection
-    =.  schedules.automation  !<((map @uv schedule:cr) q.cage.sign)
+    =.  schedules.automation  !<(schedules:cr q.cage.sign)
     =.  names.automation
       %-  my
       %+  skim  ~(tap by names.automation)

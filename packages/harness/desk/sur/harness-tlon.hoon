@@ -62,7 +62,7 @@
 ::  without reading the head, Steward-given names by schedule, and edits in
 ::  flight by Steward request id.
 +$  automation
-  $:  schedules=(map @uv schedule:cr)
+  $:  =schedules:cr
       names=(map @uv task-names)
       edits=(map @uv task-edit)
   ==

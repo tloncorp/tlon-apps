@@ -967,7 +967,7 @@ Steward's automation module, and the hand plays the harness that module
 expects. It does so while it has an explicit owner and Steward runs on the
 ship; otherwise it neither projects nor takes edits.
 
-The hand watches the head's `/schedule-events` and pokes Steward
+The hand watches the head's `/v1/schedule-events` and pokes Steward
 `%steward-automation-action-1` `%project` with the complete task set: when a
 change alters the tasks, when its schedule watch is acknowledged, and when
 Steward holds no gateway lease for it, as a Steward that starts after the hand

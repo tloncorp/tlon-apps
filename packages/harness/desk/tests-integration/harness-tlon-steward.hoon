@@ -120,7 +120,7 @@
   =/  m  (mare ,(unit @da))
   ^-  form:m
   ;<  =vase  bind:m  get-save
-  (pure:m wake:!<(state-3:t vase))
+  (pure:m wake:!<(state-4:t vase))
 ::
 ++  errors
   =/  m  (mare ,[@t @t])
