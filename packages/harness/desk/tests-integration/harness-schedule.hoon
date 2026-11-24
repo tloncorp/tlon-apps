@@ -1013,32 +1013,33 @@
 ::
 ++  feed
   |=  cards=(list card)
-  ^-  (list (map @uv schedule:c))
+  ^-  (list schedules:c)
   %+  murn  cards
   |=  =card
-  ^-  (unit (map @uv schedule:c))
-  ?.  ?=([%give %fact [[%schedule-events ~] ~] %noun *] card)  ~
-  `!<((map @uv schedule:c) q.cage.p.card)
+  ^-  (unit schedules:c)
+  ?.  ?=([%give %fact [[%v1 %schedule-events ~] ~] %harness-schedules-1 *] card)
+    ~
+  `!<(schedules:c q.cage.p.card)
 ++  test-new-schedule-subscriber-alone-gets-the-full-set
   %-  eval-mare
   ;<  ~  bind:(mare ,~)  (ex-initial-set ~)
   (ex-initial-set (my ~[[0v1 job]]))
 ++  ex-initial-set
-  |=  jobs=(map @uv schedule:c)
+  |=  jobs=schedules:c
   =/  m  (mare ,~)
   ^-  form:m
   =/  s  fixture
   =.  schedules.s  jobs
   ;<  ~                bind:m  (setup s)
-  ;<  out=(list card)  bind:m  (do-watch /schedule-events)
-  ;<  *                bind:m  (do-leave /schedule-events)
-  (ex-cards out ~[(ex-fact ~ %noun !>(jobs))])
+  ;<  out=(list card)  bind:m  (do-watch /v1/schedule-events)
+  ;<  *                bind:m  (do-leave /v1/schedule-events)
+  (ex-cards out ~[(ex-fact ~ %harness-schedules-1 !>(jobs))])
 ++  test-foreign-ship-cannot-watch-schedules
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  (setup fixture)
-  (ex-fail ((do-as ~nec) (do-watch /schedule-events)))
+  (ex-fail ((do-as ~nec) (do-watch /v1/schedule-events)))
 ::  Reads change no schedule, so they must not wake subscribers.
 ::
 ++  test-each-schedule-change-gives-one-snapshot-and-reads-give-none
@@ -1063,9 +1064,9 @@
   ;<  ~  bind:m  (ex-equal !>(state:(~(got by schedules.created) 0v2)) !>(%active))
   ;<  ~  bind:m  (ex-equal !>(state:(~(got by schedules.cancelled) 0v2)) !>(%cancelled))
   ;<  ~  bind:m  (ex-equal !>((feed added)) !>(~[schedules.created]))
-  ;<  ~  bind:m  (ex-equal !>((feed listed)) !>(`(list (map @uv schedule:c))`~))
+  ;<  ~  bind:m  (ex-equal !>((feed listed)) !>(`(list schedules:c)`~))
   ;<  ~  bind:m  (ex-equal !>((feed stopped)) !>(~[schedules.cancelled]))
-  (ex-equal !>((feed cleared)) !>(`(list (map @uv schedule:c))`~[~]))
+  (ex-equal !>((feed cleared)) !>(`(list schedules:c)`~[~]))
 ++  test-an-admitted-run-gives-one-snapshot
   %-  eval-mare
   =/  m  (mare ,~)

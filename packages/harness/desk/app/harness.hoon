@@ -155,9 +155,13 @@
         =?  cards  changed
           (snoc cards [%give %fact ~[/hand-events] %noun !>(%changed)])
         ::  Every schedule write, including maintenance above, lands before
-        ::  this comparison. The 64-schedule cap keeps a full snapshot small.
+        ::  this comparison. The store holds at most 64 schedules, which
+        ::  bounds how many rows a full snapshot carries.
         =?  cards  !=(before-schedules schedules)
-          (snoc cards [%give %fact ~[/schedule-events] %noun !>(schedules)])
+          %+  snoc  cards
+          :*  %give  %fact  ~[/v1/schedule-events]
+              %harness-schedules-1  !>(`schedules:cr`schedules)
+          ==
         ::  Every writer of the default instructions, whatever its surface,
         ::  changes these layers.
         =?  cards  !=(before-prompts prompts)
@@ -377,7 +381,10 @@
     ::
       [%workspace @ ~]  `this
       [%hand-events ~]  [~[[%give %fact ~[path] %noun !>(%changed)]] this]
-      [%schedule-events ~]  [~[[%give %fact ~ %noun !>(schedules)]] this]
+    ::
+        [%v1 %schedule-events ~]
+      [~[[%give %fact ~ %harness-schedules-1 !>(`schedules:cr`schedules)]] this]
+    ::
       [%prompt-events ~]  [~[[%give %fact ~ %noun !>(prompts)]] this]
       [%session @ ~]  `this
       [%hands @ ~]  `this
