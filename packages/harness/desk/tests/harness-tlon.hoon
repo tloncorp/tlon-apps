@@ -6,7 +6,7 @@
 |%
 ++  clear-fixture
   =/  =job:cr  *job:cr
-  =.  job  job(run-sid 'run', remaining 0, state %complete, last `0v1)
+  =.  job  job(run-sid 'run', remaining `0, state %complete, last `0v1)
   =/  db=state:hh  *state:hh
   =.  observations.db  (my ~[[0v1 ['run' 'event' '~nec' 'task' ~2026.9.6 %completed]]])
   [job db]
@@ -16,7 +16,7 @@
 ++  test-active-nonzero-and-admitting-schedules-cannot-be-cleared
   =/  [job=job:cr db=state:hh]  clear-fixture
   %-  expect
-  !>  ?&  !(cron-clearable:p job(state %active) db |)  !(cron-clearable:p job(remaining 1) db |)
+  !>  ?&  !(cron-clearable:p job(state %active) db |)  !(cron-clearable:p job(remaining `1) db |)
           !(cron-clearable:p job db &)
       ==
 ++  test-clear-rejects-running-and-missing-execution-evidence
@@ -29,10 +29,10 @@
 ++  test-cancelled-unused-runs-do-not-leak-schedule-capacity
   =/  [job=job:cr db=state:hh]  clear-fixture
   ;:  weld
-      (expect !>((cron-clearable:p job(state %cancelled, remaining 3) db |)))
+      (expect !>((cron-clearable:p job(state %cancelled, remaining `3) db |)))
       %-  expect
-      !>((cron-clearable:p job(state %cancelled, remaining 3, last ~) db(observations ~) |))
-      (expect !>(!(cron-clearable:p job(state %paused, remaining 0) db |)))
+      !>((cron-clearable:p job(state %cancelled, remaining `3, last ~) db(observations ~) |))
+      (expect !>(!(cron-clearable:p job(state %paused, remaining `0) db |)))
       (expect !>(!(cron-clearable:p job(state %cancelled, last ~) db &)))
   ==
 ++  test-clear-rejects-older-unresolved-publications-too
