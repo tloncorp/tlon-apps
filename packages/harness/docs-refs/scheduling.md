@@ -23,9 +23,11 @@ authorized sources: the isolated agent does not receive the source transcript.
 Use this for one-time work and `cron_add` for recurring work.
 
 `cron_add` requires `schedule`, `timezone` and `prompt` (1–4,096 UTF-8 bytes).
-`runs` is optional: a decimal string for a positive count, with no upper limit,
-after which the job completes. Without `runs` the job repeats until it is
-cancelled. Five-field expressions support wildcards, steps, ranges and lists.
+`runs` is optional: a decimal string for a count from 1 to 1,000,000, after
+which the job completes. The ceiling only keeps the count exact in listings,
+which give it as a JSON number; it does not limit recurring work. Without
+`runs` the job repeats until it is cancelled. Five-field expressions support
+wildcards, steps, ranges and lists.
 Weekdays are Sunday=0 through Saturday=6; restricted day-of-month and weekday
 fields use OR semantics. The next occurrence must be within the bounded
 four-year search horizon. Invalid or impossible expressions are rejected.

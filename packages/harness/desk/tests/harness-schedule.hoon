@@ -379,6 +379,22 @@
       (expect-eq !>(`0) !>(remaining.done))
       (expect !>(?=(%| -.again)))
   ==
+::  The ceiling keeps a listed count an exact JSON number.
+++  test-the-count-ceiling-is-accepted-and-one-above-it-is-refused
+  =/  action  action
+  =/  ceiling  [%s (crip (a-co:co max-runs:schedule))]
+  =/  above  [%s (crip (a-co:co +(max-runs:schedule)))]
+  =/  created  (create:schedule action(args (with-runs ceiling)) source ~ ~2026.9.9)
+  =/  edited  (editable:schedule 0v1 job (with-runs ceiling) ~2026.9.9)
+  =/  too-many  (mule |.((create:schedule action(args (with-runs above)) source ~ ~2026.9.9)))
+  =/  edit-too-many  (mule |.((editable:schedule 0v1 job (with-runs above) ~2026.9.9)))
+  ;:  weld
+      (expect-eq !>(1.000.000) !>(max-runs:schedule))
+      (expect-eq !>(`1.000.000) !>(remaining.created))
+      (expect-eq !>(`1.000.000) !>(remaining.edited))
+      (expect !>(?=(%| -.too-many)))
+      (expect !>(?=(%| -.edit-too-many)))
+  ==
 ++  test-a-zero-or-non-number-count-is-refused
   =/  action  action
   =/  refused=(list json)

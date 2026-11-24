@@ -614,7 +614,7 @@
       :~  ['schedule' 'Five-field cron expression, evaluated in timezone']
           ['timezone' 'UTC, or a fixed offset +HH:MM or -HH:MM such as -06:00 or +05:30; never an IANA name, and no daylight saving']
           ['prompt' 'Instruction for each run, at most 4096 bytes']
-          ['runs' 'Optional number of runs, a positive decimal integer string with no upper limit. Leave it out only for work that repeats until cancelled']
+          ['runs' 'Optional number of runs, a decimal integer string from 1 to 1000000. Leave it out only for work that repeats until cancelled']
       ==
       %-  fun
       :*  'reminder_add'
@@ -658,7 +658,7 @@
       ~[['id' 'Schedule ID returned by cron_add or cron_list']]
       %-  fun
       :*  'cron_update'
-          'Edit an authorized schedule after its work settles. Read cron_list first. args replaces future timing and content: recurring {schedule,timezone,prompt,runs} (timezone is UTC or a fixed +HH:MM/-HH:MM offset) (runs is an optional positive integer string; leaving it out makes the schedule repeat until cancelled, so pass it again to keep a limit); one-shot {at,prompt}; reminder {at,destination,text}. at requires an explicit timezone offset. Keeps the destination, model configuration, tool grants and history; does not retry a failed run.'
+          'Edit an authorized schedule after its work settles. Read cron_list first. args replaces future timing and content: recurring {schedule,timezone,prompt,runs} (timezone is UTC or a fixed +HH:MM/-HH:MM offset) (runs is an optional integer string from 1 to 1000000; leaving it out makes the schedule repeat until cancelled, so pass it again to keep a limit); one-shot {at,prompt}; reminder {at,destination,text}. at requires an explicit timezone offset. Keeps the destination, model configuration, tool grants and history; does not retry a failed run.'
           :~  ['id' (argument 'string' 'Schedule ID')]
               ['revision' (argument 'string' 'Exact revision from cron_list')]
               :*  'args'
