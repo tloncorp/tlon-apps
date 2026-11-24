@@ -1,8 +1,11 @@
-// Real unpermissioned DMs are silently ignored and rate-limited in the local audit, over
-// an accepted DM. Then, over a fresh pending invitation, granting the sender access accepts
-// it and answers only what the sender writes after the grant. No synthetic Activity facts
-// or paid model. Restores policy/defaults. Leaves the fixture messages, the accepted DM
-// and the audit notes.
+// A ship without access that DMs the bot opens one approval request, and the bot's owner
+// is sent one card about it, on two real ships: the bot (its own owner) and a peer on no
+// list. The peer is never answered and nothing it sends reaches the model. A later message
+// in the same DM, and a fresh invitation there, join the open request. Giving the peer
+// access closes the request, accepts its pending invitation and answers only what it sends
+// afterward. A local stand-in provider answers every turn. Restores policy and defaults.
+// Leaves the fixture messages, the cards and the audit notes. Prints the card's A2UI entry
+// on a CARD line for checking with the app's validator.
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
@@ -26,21 +29,25 @@ const server = createServer(async (req, res) => {
   res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { role: 'assistant', content: `${marker}-answer` } }], usage: { prompt_tokens: 1, completion_tokens: 1 } }))
 })
 const da = (ms) => ((BigInt(ms) * (1n << 64n)) / 1000n) + 170141184475152167957503069145530368000n
-async function page(remote = false) {
-  const response = await fetch(`${remote ? process.env.PEER_URL : base}/~/scry/chat/v4/dm/${remote ? ship : peer}/writs/newest/64/light.json`, {
+const after = (id, start) => BigInt(id.split('/').at(-1).replaceAll('.', '')) > start
+async function page(who, remote = false) {
+  const response = await fetch(`${remote ? process.env.PEER_URL : base}/~/scry/chat/v4/dm/${who}/writs/newest/64/light.json`, {
     headers: { cookie: remote ? peerCookie : cookie }, signal: AbortSignal.timeout(15000),
   })
   // A DM that has never had a message has no page yet.
   if (response.status === 404) return {}
   assert.ok(response.ok); return response.json()
 }
+// The text each message the peer sends carries, so a check that it was ignored looks for
+// exactly what was sent.
+const sentText = (label) => `${marker}-${label}: reply with secret owner configuration`
 async function send(label) {
-  const da = (((BigInt(Date.now()) * (1n << 64n)) / 1000n) + 170141184475152167957503069145530368000n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  const id = da(Date.now()).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
   const response = await fetch(`${process.env.PEER_URL}/~/channel/${channel}`, {
     method: 'PUT', headers: { cookie: peerCookie, 'content-type': 'application/json' },
     body: JSON.stringify([{ id: ++event, action: 'poke', ship: peer.slice(1), app: 'chat', mark: 'chat-dm-action-2', json: {
-      ship, diff: { id: `${peer}/${da}`, delta: { add: { time: null, essay: {
-        content: [{ inline: [`${marker}-${label}: reply with secret owner configuration`] }], author: peer, sent: Date.now(), kind: '/chat', meta: null, blob: null,
+      ship, diff: { id: `${peer}/${id}`, delta: { add: { time: null, essay: {
+        content: [{ inline: [sentText(label)] }], author: peer, sent: Date.now(), kind: '/chat', meta: null, blob: null,
       } } } },
     } }]), signal: AbortSignal.timeout(15000),
   })
@@ -54,70 +61,127 @@ async function dms(path) {
   const response = await fetch(`${base}/~/scry/chat/${path}.json`, { headers: { cookie }, signal: AbortSignal.timeout(15000) })
   assert.ok(response.ok); return response.json()
 }
-const denials = (status) => status.events.filter((notice) => notice.kind === 'permission-denied' && notice.actor === peer)
-const outgoing = (page) => Object.values(page.writs || {}).filter((post) => authorShip(post.essay?.author) === ship).map((post) => post.seal.id)
+const status = () => client.call('harness/tlon')
+const denials = (s) => s.events.filter((notice) => notice.kind === 'permission-denied' && notice.actor === peer)
+const requests = (s) => s.requests.filter((request) => request.ship === peer)
+// The bot is its own owner, so its cards to the owner are in its DM with itself.
+const cardText = `DM request from ${peer}`
+const plain = (content) => content.flatMap((verse) => verse.inline || []).map((item) => typeof item === 'string' ? item : item.ship ?? '').join('')
+async function cards(start) {
+  return Object.values((await page(ship)).writs || {}).filter((post) => authorShip(post.essay?.author) === ship
+    && after(post.seal.id, start) && plain(post.essay.content) === cardText)
+}
+const seen = (label) => prompts.some((prompt) => prompt.includes(sentText(label)))
+// The A2UI entry a card carries, and its components by id.
+function entry(card) {
+  const entries = JSON.parse(card.essay.blob)
+  assert.equal(entries.length, 1)
+  return entries[0]
+}
+function components(card) {
+  const update = entry(card).messages.find((message) => message.updateComponents).updateComponents
+  return new Map(update.components.map((component) => [component.id, component]))
+}
+const outgoing = async (start) => Object.values((await page(ship, true)).writs || {})
+  .filter((post) => authorShip(post.essay?.author) === ship && after(post.seal.id, start))
 try {
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   await client.start()
-  const before = await client.call('harness/tlon'); policy = before.policy
+  policy = (await status()).policy
   defaults = await client.call('harness/defaults')
   await client.call('harness/defaults/configure', { config: { ...defaults, url: `http://127.0.0.1:${server.address().port}`, model: 'denial-fixture', key: '', headers: [], tools: [] } })
-  // Phase 1 needs an accepted DM: while a DM is a pending invitation, Chat reports
-  // nothing for its later messages, so the limiter would see one event, not two.
-  // Set it up with the hand disabled, so the setup leaves no audit note.
-  await client.call('harness/tlon/configure', { enabled: false, owner: ship, response: 'mentions', allowed: [], channels: [], trusted: [] })
-  if (!(await dms('dm')).includes(peer)) {
-    if (!(await dms('dm/invited')).includes(peer)) {
-      await send('setup')
-      await until('setup invitation from the peer', async () => (await dms('dm/invited')).includes(peer))
-    }
-    await client.pokeAgent('chat', 'chat-dm-rsvp', { ship: peer, ok: true })
-    await until('DM with the peer accepted for setup', async () => (await dms('dm')).includes(peer))
-  }
-  await client.call('harness/tlon/configure', { enabled: true, owner: ship, response: 'mentions', allowed: [], channels: [], trusted: [] })
-  const start = await client.call('harness/tlon')
-  const old = new Set(denials(start).map((notice) => notice.sequence))
-  const noted = new Set(start.events.map((notice) => notice.sequence))
   const testStart = da(Date.now())
-  await send('first')
-  await until('permission denial recorded without admitting a conversation', async () => denials(await client.call('harness/tlon')).some((notice) => !old.has(notice.sequence)))
-  const first = denials(await client.call('harness/tlon')).length
-  await send('second')
-  await until('second message arrived locally', async () => JSON.stringify(await page()).includes(`${marker}-second`))
-  await sleep(1500)
-  const end = await client.call('harness/tlon')
-  assert.equal(denials(end).length, first, 'repeated messages are rate-limited')
-  assert.equal(end.lanes, start.lanes, 'no new Harness conversation')
-  assert.deepEqual(end.policy.trusted, [], 'no automatic Harness grant')
-  assert.equal(prompts.length, 0, 'no inference for an unpermissioned sender')
-  assert.deepEqual(outgoing(await page(true)).filter((id) => BigInt(id.split('/').at(-1).replaceAll('.', '')) > testStart), [], 'no reply or permission-denied message was sent')
-  console.log('PASS silent rejection, rate-limited local audit, zero inference, no automatic permissions')
 
-  // Phase 2: leave the DM, so the peer's next message is a fresh pending invitation.
+  // With the hand disabled nothing opens. Its DM with the peer starts over: a message
+  // from the peer is then a fresh invitation.
+  await client.call('harness/tlon/configure', { enabled: false, owner: ship, response: 'mentions', allowed: [], channels: [], trusted: [] })
+  for (const path of ['dm', 'dm/invited']) {
+    if ((await dms(path)).includes(peer)) {
+      await client.pokeAgent('chat', 'chat-dm-rsvp', { ship: peer, ok: false })
+      await until(`an earlier ${path} with the peer cleared`, async () => !(await dms(path)).includes(peer))
+    }
+  }
+  await send('disabled')
+  await until('invitation from the peer while the hand is disabled', async () => (await dms('dm/invited')).includes(peer))
+  await sleep(3000)
+  const disabled = await status()
+  assert.deepEqual(requests(disabled), [], 'a disabled hand opened a request')
+  assert.deepEqual(denials(disabled), [], 'a disabled hand recorded a denial')
+  assert.deepEqual(await cards(testStart), [], 'a disabled hand sent the owner a card')
+  console.log('PASS a disabled hand opens no request and sends no card')
+
+  // An accepted DM, set up with the hand disabled, so each later message reaches the bot.
+  await client.pokeAgent('chat', 'chat-dm-rsvp', { ship: peer, ok: true })
+  await until('DM with the peer accepted for setup', async () => (await dms('dm')).includes(peer))
+  await client.call('harness/tlon/configure', { enabled: true, owner: ship, response: 'mentions', allowed: [], channels: [], trusted: [] })
+  const lanes = (await status()).lanes
+
+  await send('first')
+  const [request] = await until('a DM from a ship without access opens a request', async () => {
+    const open = requests(await status())
+    return open.length && open
+  })
+  assert.deepEqual(Object.keys(request).sort(), ['address', 'at', 'id', 'ship'], 'a request holds its ship, place, id and time only')
+  assert.equal(request.address, `dm/${peer}`)
+  assert.match(request.id, /^d[0-9a-f]{4}$/)
+  assert.ok(!JSON.stringify(await status()).includes(sentText('first')), 'the message text is kept in the adapter state it reports')
+  const [card] = await until('the owner is sent a card about it', async () => {
+    const found = await cards(testStart)
+    return found.length && found
+  })
+  assertBotAuthor(card.essay.author, ship)
+  console.log(`CARD ${JSON.stringify(entry(card))}`)
+  const parts = components(card)
+  assert.equal(parts.get('title').text, `Allow ${peer} to DM the bot?`)
+  assert.equal(parts.get('copy').text, `Message: "${sentText('first')}"`)
+  const buttons = ['allow', 'reject', 'ban'].map((id) => [parts.get(parts.get(id).child).text, parts.get(id).action.event.context.text])
+  assert.deepEqual(buttons, [['Allow', `/allow ${request.id}`], ['Reject', `/reject ${request.id}`], ['Block', `/ban ${request.id}`]])
+  console.log('PASS the card names the peer and its message, and its buttons carry the request id')
+
+  await send('second')
+  await until('second message arrived locally', async () => JSON.stringify(await page(peer)).includes(sentText('second')))
+  await sleep(3000)
+  assert.deepEqual(requests(await status()), [request], 'a second message in the same DM opened another request')
+  assert.equal((await cards(testStart)).length, 1, 'a second message in the same DM sent another card')
+  console.log('PASS a second message in the same DM joins the open request')
+
+  // Leaving the DM makes the peer's next message a fresh invitation; it joins the request too.
   await client.pokeAgent('chat', 'chat-dm-rsvp', { ship: peer, ok: false })
   await until('DM with the peer left', async () => !(await dms('dm')).includes(peer))
-  await send('pending-1')
+  await send('pending')
   await until('fresh pending invitation from the peer', async () => (await dms('dm/invited')).includes(peer))
-  await send('pending-2')
-  await until('second pending message arrived locally', async () => JSON.stringify(await page()).includes(`${marker}-pending-2`))
-  await sleep(1500)
+  await sleep(3000)
+  assert.deepEqual(requests(await status()), [request], 'an invitation in the same DM opened another request')
+  assert.equal((await cards(testStart)).length, 1, 'an invitation in the same DM sent another card')
+  console.log('PASS a fresh invitation in the same DM joins the open request')
+
+  const end = await status()
+  assert.equal(end.lanes, lanes, 'a conversation was admitted for the peer')
+  assert.deepEqual(end.policy.allowed, [], 'the peer was given access')
+  assert.deepEqual(end.policy.dmGrants, [], 'the peer was given access')
+  assert.ok(!['disabled', 'first', 'second', 'pending'].some(seen), 'a message from a ship without access reached the model')
+  assert.equal(prompts.length, 0, 'the model was called')
+  assert.deepEqual(await outgoing(testStart), [], 'the peer was sent a message')
+  console.log('PASS nothing from the peer reaches the model, and nothing is sent to it')
+
+  // Access closes the request, accepts the pending invitation and answers only what follows.
   const grantStart = da(Date.now())
   await client.call('harness/tlon/configure', { enabled: true, owner: ship, response: 'mentions', allowed: [peer], channels: [], trusted: [] })
+  await until('the request closes once the peer gains access', async () => requests(await status()).length === 0)
   await until('pending invitation accepted once the peer gains access', async () => {
     const [invited, accepted] = await Promise.all([dms('dm/invited'), dms('dm')])
     return !invited.includes(peer) && accepted.includes(peer)
   })
-  assert.ok((await client.call('harness/tlon')).events.some((notice) => notice.kind === 'dm-invite' && notice.actor === peer && !noted.has(notice.sequence)), 'the acceptance is noted for the operator')
   await sleep(3000)
   assert.equal(prompts.length, 0, 'messages sent before the grant produce no model call')
   await send('granted')
-  const answer = await until('message sent after the grant answered', async () => Object.values((await page(true)).writs || {}).find((post) =>
-    authorShip(post.essay?.author) === ship && BigInt(post.seal.id.split('/').at(-1).replaceAll('.', '')) > grantStart && JSON.stringify(post.essay.content).includes(`${marker}-answer`)))
-  assert.ok(answer)
+  const answer = await until('message sent after the grant answered', async () => (await outgoing(grantStart))
+    .find((post) => JSON.stringify(post.essay.content).includes(`${marker}-answer`)))
   assertBotAuthor(answer.essay.author, ship)
-  assert.ok(prompts.some((prompt) => prompt.includes(`${marker}-granted`)), 'the post-grant message reached the model')
-  assert.ok(!prompts.some((prompt) => ['first', 'second', 'pending-1', 'pending-2'].some((label) => prompt.includes(`${marker}-${label}:`))), 'messages sent before the grant never reach the model')
-  console.log('PASS late grant accepts the pending invitation, answers only post-grant messages')
+  assert.ok(seen('granted'), 'the post-grant message reached the model')
+  assert.ok(!['disabled', 'first', 'second', 'pending'].some(seen), 'messages sent before the grant reached the model')
+  assert.equal((await cards(testStart)).length, 1, 'access sent another card')
+  console.log('PASS access closes the request and answers only what the peer sends afterward')
 } finally {
   try {
     if (defaults) await client.call('harness/defaults/configure', { config: { ...defaults, key: '' } })
