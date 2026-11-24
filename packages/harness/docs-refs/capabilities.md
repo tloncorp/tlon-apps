@@ -39,7 +39,7 @@ screen and `harness/session/config` show the saved list, not the tools an owner
 turn gets; `/status` reports the tools the turn can use.
 
 Long conversations are summarized automatically without deleting history.
-Relevant shared facts enter context automatically, and agents can search
+Relevant facts the conversation may see enter context automatically, and agents can search
 retained source material.
 You can choose separate models for summarization.
 

@@ -34,18 +34,20 @@
   ?~  body.value.u.found  ~
   `(row name u.found)
 ++  sample
-  |=  db=state:m
+  |=  [=reach:memory db=state:m]
   ^-  (list @t)
   =/  all  (~(get by index.db) '')
   ?~  all  ~
-  =/  picked  (take:idx rows.u.all [~ 64])
+  =/  picked=(set @t)
+    %-  silt
+    (skim ~(tap in names:(take:idx rows.u.all [~ 64])) |=(name=@t (seen:memory reach db name)))
   =/  names
-    %+  sort  ~(tap in names.picked)
+    %+  sort  ~(tap in picked)
     |=  [a=@t b=@t]
     (gth revision:(~(got by records.db) a) revision:(~(got by records.db) b))
   (scag 6 names)
 ++  operate
-  |=  [db=state:m source=source:m args=json]
+  |=  [=reach:memory db=state:m source=source:m args=json]
   ^-  (each [db=state:m result=json] @t)
   ?.  (enabled:memory db sid.source)  [%| 'Shared memory is off for this conversation.']
   ?.  ?=(%o -.args)  [%| 'Memory arguments must be an object.']
@@ -54,14 +56,16 @@
   =/  found  (~(get by records.db) name)
   ?:  =('read' operation)
     ?~  found  [%| 'No memory has that name.']
+    ?.  (sees:memory reach source.value.u.found)  [%| 'No memory has that name.']
     [%& db (row name u.found)]
   ?:  =('search' operation)
     =/  query  (str:j args 'query')
     ?:  (gth (met 3 query) 512)  [%| 'Search is limited to 512 UTF-8 bytes.']
     =/  names
-      ?:  =('' query)  (sample db)
-      ?:  (~(has by records.db) query)  ~[query]
-      (choose:memory db query actor.source)
+      ?:  =('' query)  (sample reach db)
+      ?:  (seen:memory reach db query)  ~[query]
+      ::  The owner's preference priority is recall's alone.
+      (choose:memory reach(owner ~) db query actor.source)
     [%& db (read db names)]
   ?.  |(=('save' operation) =('forget' operation))
     [%| 'Use search, read, save or forget.']
@@ -71,16 +75,29 @@
     ?.  ?=(?(%s %n) -.u.revision)  0
     (fall (rush p.u.revision dem) 0)
   =/  result
-    ?:  =('forget' operation)  (forget:memory db name base source)
+    ?:  =('forget' operation)  (forget:memory reach db name base source)
     %:  save:memory
-      db  name  base
+      reach  db  name  base
       :*  `(str:j args 'text')  ~
           |(=(`[%b &] (get:j args 'general')) =('true' (str:j args 'general')))
           &  source
       ==
     ==
   ?:  ?=(%| -.result)  result
-  [%& p.result (row name (~(got by records.p.result) name))]
+  =/  after  (~(got by records.p.result) name)
+  =/  saved  (row name after)
+  ?.  &(=('save' operation) ?=(%o -.saved) (narrowed:memory reach found after))
+    [%& p.result saved]
+  [%& p.result [%o (~(put by p.saved) 'notice' [%s private])]]
+::  A save that took a channel's fact out of the channels says so: the
+::  channels can no longer use the name.
+::
+++  private
+  ^-  @t
+  %+  rap  3
+  :~  'Memory saved. It is now private, and channels can no longer use this name. '
+      'To share it again, save it in a channel under a new name.'
+  ==
 ++  describe
   |=  result=json
   ^-  @t
@@ -92,7 +109,7 @@
   |=  row=json
   (rap 3 (str:j row 'name') ': ' (str:j row 'text') '\0a' ~)
 ++  command
-  |=  [db=state:m source=source:m name=@t arg=@t]
+  |=  [=reach:memory db=state:m source=source:m name=@t arg=@t]
   ^-  [db=state:m body=@t edit=(unit [name=@t body=(unit @t)])]
   ?:  &(=('memory' name) |(=('on' arg) =('off' arg)))
     =.  buffered.dreaming.maintenance.db
@@ -130,7 +147,7 @@
         ['text' %s text.split]
         ['revision' (numb:enjs:format ?~(found 0 revision.u.found))]
     ==
-  =/  result  (operate db source args)
+  =/  result  (operate reach db source args)
   ?:  ?=(%| -.result)  [db p.result ~]
   ?:  =('memory' name)
     :*  db.p.result
@@ -139,7 +156,8 @@
     ==
   :*  db.p.result
       ?:  =('forget' name)  'Memory forgotten; source history is retained.'
-      'Memory saved and shared.'
+      ?:  =(private (str:j result.p.result 'notice'))  private
+      'Memory saved.'
       `[name.split ?:(=('forget' name) ~ `text.split)]
   ==
 --

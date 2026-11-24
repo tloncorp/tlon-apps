@@ -14,7 +14,7 @@
     `(list @t)`~['alpha' 'bravo' 'charlie' 'delta' 'echo' 'foxtrot' 'golf']
   =/  result
     %:  save:mem
-      db  name  0
+      everything:mem  db  name  0
       :*  `(rap 3 'Shared ' category ' requires testing ' name ~)
           ~  |  |  ['bench' 0v1 n ~2026.10.7 '~zod']
       ==
@@ -32,8 +32,8 @@
   =/  checksum
     %+  roll  (gulf 1 repeats)
     |=  [n=@ud checksum=@ud]
-    =/  names  (choose:mem db query (scot %ud n))
-    (add checksum (mug (pack:mem db names 4.096)))
+    =/  names  (choose:mem everything:mem db query (scot %ud n))
+    (add checksum (mug (pack:mem everything:mem db names 4.096)))
   ;<  ~  bind:thread  (sleep (div ~s1 1.000))
   ;<  end=@da  bind:thread  get-time
   =/  scan  (candidates:idx index.db query)

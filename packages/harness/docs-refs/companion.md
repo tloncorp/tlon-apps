@@ -1,8 +1,10 @@
 # Companion workflows
 
 A companion is an agent you can reach through the web app, Tlon, or another
-client. Each conversation has its own history; relevant durable facts are
-shared across conversations. Use `/memory off` to opt a conversation out.
+client. Each conversation has its own history; relevant durable facts learned in
+channels are shared across conversations, and those learned in a DM stay
+there and in the owner's DM. The owner's general preferences are the
+exception: recall gives them in every conversation. Use `/memory off` to opt a conversation out.
 
 ## Set up a companion
 

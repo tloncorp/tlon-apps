@@ -40,7 +40,7 @@ hands use the same command interpreter; adapters do not implement command logic.
 | `/model default` | Copy the current default provider/model settings into this conversation. |
 | `/context` | Inspect the encoded-request estimate, input/output budgets, retained context and compaction usage. |
 | `/compact` | Summarize older complete exchanges through the configured summary route; retain the recent turn and full transcript. |
-| `/memory [query]` | Inspect or search shared memories. |
+| `/memory [query]` | Inspect or search the memories this conversation sees. |
 | `/memory off` / `/memory on` | Disable or enable shared memory for this conversation and its descendants. |
 | `/remember <name> <text>` | Save or correct a shared fact. |
 | `/forget <name>` | Forget a shared fact; earlier messages and checkpoints are retained. |

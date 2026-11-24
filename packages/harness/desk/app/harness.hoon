@@ -184,6 +184,9 @@
       ?.  (maintenance-needed:schedule-lib schedules.new ~ now.bowl |)  ~
       `+(now.bowl)
     =.  -.state  new(corpus-wake ~, schedule-wake upkeep)
+    ::  Work sent to a summary model before this load may carry facts the
+    ::  current code would not give its conversation.
+    =.  barrier.knowledge  +(barrier.knowledge)
     =.  hand-index  (reindex:hd hands)
     =.  wake.knowledge  ~
     =.  runners
@@ -2713,8 +2716,72 @@
 ++  memory-view
   |=  [sid=session-id:h view=view:h]
   ^-  view:h
+  (memory-view-as (memory-reach sid) sid view)
+++  memory-view-as
+  |=  [=reach:memory sid=session-id:h view=view:h]
+  ^-  view:h
   =/  budget  (div (mul 4 (input-budget:context max-context.config.view)) 20)
-  view(memory (selected:memory knowledge sid budget))
+  view(memory (selected:memory reach knowledge sid budget))
+::  +memory-reach: what a conversation sees of memory, rebuilt at every read
+::  and write because grants and lanes change between a turn's events. A
+::  subagent takes its root parent's answer and place.
+::
+++  memory-reach
+  |=  sid=session-id:h
+  ^-  reach:memory
+  =/  bound=(set @t)  (silt (turn ~(val by bindings.hands) |=(=binding:hh sid.binding)))
+  =/  places  (places:memory ~(val by bindings.hands))
+  =/  owner-ship  owner:~(. peer-trust bowl)
+  =/  owns
+    |=(=source:memory-types (owner-source:memory places bound memory-local owner-ship our.bowl source))
+  =/  owner  (preferred:memory knowledge owns owner-ship our.bowl)
+  =/  left=@ud  8
+  |-  ^-  reach:memory
+  =/  session  (~(get by sessions) sid)
+  =/  narrow=reach:memory  [| sid places owner owns]
+  ?:  |(?=(~ session) =(0 left) (~(has by rehearsals) sid))  narrow
+  =/  parent  (delegation:hl log.u.session)
+  ?^  parent
+    ?:  rehearsal.u.parent  narrow
+    $(sid parent.u.parent, left (dec left))
+  :_  +.narrow
+  ::  Only an unambiguous Tlon DM asks the adapter; any other binding, or
+  ::  bindings that disagree, is never private. An unbound session is private
+  ::  only when every input in it is the owner's own.
+  =/  at=(unit place:memory)  (fall (~(get by places) sid) ~)
+  ?:  ?=([~ %dm *] at)
+    ?.  .^(? %gu /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/$)  |
+    .^(? %gx /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/admin/[sid]/noun)
+  ?:  (~(has in bound) sid)  |
+  (owner-history log.u.session)
+::  +owner-history: every input was the owner's own on this ship: a local ACP
+::  or poke prompt, or a timer, which only the ship sets. Hand, peer and
+::  webhook text is from outside; work input has no proof of its requester.
+::
+++  owner-history
+  |=  log=(list event:h)
+  ^-  ?
+  %+  levy  log
+  |=  =event:h
+  ?.  ?=(%input-received -.event)  &
+  =/  in=admitted-input:h  input.event
+  ?+  -.source.in  |
+    %acp    &(?=(~ (decode:admin client.source.in)) =(`our.bowl actor.in))
+    %poke   &(=(our.bowl ship.source.in) =(`our.bowl actor.in))
+    %timer  &
+  ==
+::  +memory-local: an unbound session whose whole history is the owner's own,
+::  with no subagent or rehearsal input.
+::
+++  memory-local
+  |=  sid=session-id:h
+  ^-  ?
+  =/  session  (~(get by sessions) sid)
+  ?~  session  |
+  ?&  !(~(has by rehearsals) sid)
+      ?=(~ (delegation:hl log.u.session))
+      (owner-history log.u.session)
+  ==
 ++  memory-work
   ^-  (quip card _state)
   ?:  !=(~ pending.knowledge)
@@ -2732,13 +2799,14 @@
   =?  config  !=(0 attempts.job)
     (fall (next:routing config provider-keys model-contexts) config)
   =.  config  (resolve:model-context config provider-keys model-contexts)
-  =/  plan  (plan:memory-capture knowledge id job config now.bowl)
+  =/  reach  (memory-reach sid.job)
+  =/  plan  (plan:memory-capture reach knowledge id job config now.bowl)
   =.  pending.knowledge  `plan
   ?^  (route:runner-lib url.config)
     (memory-finished | 'Memory capture requires a summary model with a stateless provider.' [0 0])
   =/  missing  (missing:auth provider-keys config)
   ?^  missing  (memory-finished & 'Memory capture provider is unavailable.' [0 0])
-  =/  request  (request:memory-capture knowledge plan)
+  =/  request  (request:memory-capture reach knowledge plan)
   ?:  (gth (estimate:hp request %memory ~) (input-budget:context max-context.config))
     (memory-finished | 'Memory evidence exceeds the summary model input budget.' [0 0])
   [~[(llm-card sid.job id %memory request (sham plan))] state]
@@ -2775,7 +2843,8 @@
   =/  result  p.u.parsed
   ?.  &(=(%stop stop.result) ?=([%assistant * ~] it.result))
     (memory-finished & 'Memory capture requires a complete text response.' u.result)
-  =/  accepted  (accept:memory-capture knowledge pending body.it.result)
+  =/  accepted
+    (accept:memory-capture (memory-reach sid.job.pending) knowledge pending body.it.result)
   ?.  enabled.dreaming.maintenance.knowledge  (memory-finished | 'Dreaming is off.' u.result)
   ?:  ?=(%| -.accepted)  (memory-finished & p.accepted u.result)
   =/  changes  (sub revision.p.accepted revision.knowledge)
@@ -4069,8 +4138,13 @@
     =/  view  (play:hl log.session)
     =/  =source:memory-types
       [sid id.input.event +(revision.view) at.input.event (actor:memory input.event)]
+    ::  The input is recorded after the command runs, but it already
+    ::  decides whose conversation this is.
+    =/  reach
+      =.  sessions  (~(put by sessions) sid session(log [event log.session]))
+      (memory-reach sid)
     =/  result
-      (command:memory-json knowledge source name.u.parsed-command arg.u.parsed-command)
+      (command:memory-json reach knowledge source name.u.parsed-command arg.u.parsed-command)
     =.  knowledge  db.result
     =/  edits=(list event:h)
       ?~  edit.result  ~
@@ -4120,7 +4194,9 @@
     ?:  (gth (met 3 u.reference) 8.192)  events
     [[%context-received id.input.event u.reference] events]
   =?  events  ?=(^ parsed-command)
-    =/  view  (memory-view sid (play:hl log.session))
+    =/  view
+      =.  sessions  (~(put by sessions) sid session(log [event log.session]))
+      (memory-view sid (play:hl log.session))
     ::  Authority follows the latest input, so resolve it with this one in the
     ::  log, which is recorded only after the command is evaluated.
     =/  [tools=(list tool-grant:h) owner=?]
@@ -4938,7 +5014,10 @@
   ^-  drive-result
   |^
     =|  cards=(list card)
-    =.  knowledge  (prepare:memory knowledge sid log.session)
+    =.  sessions  (~(put by sessions) sid session)
+    ::  One reach serves this event's admission and rendering.
+    =/  reach  (memory-reach sid)
+    =.  knowledge  (prepare:memory reach knowledge sid log.session)
     =?  cursors.knowledge  !(enabled:memory knowledge sid)
       (~(put by cursors.knowledge) sid log.session)
     =/  projection  (play:hl log.session)
@@ -4950,7 +5029,7 @@
     ^-  drive-result
     ::  Authority follows this admitted input, not the previous turn's actor.
     =.  sessions  (~(put by sessions) sid session)
-    =/  view  (memory-view sid projection)
+    =/  view  (memory-view-as reach sid projection)
     =.  tools.config.view  (execution-tools sid tools.config.view)
     =/  decision
       ?:  (~(has by peer-active) sid)  (step:peer-rpc view)
@@ -5123,7 +5202,7 @@
       =/  turn  (~(get by turns.knowledge.batch) sid)
       =/  =source:memory-types
         [sid ?~(turn 0v0 input.u.turn) revision.view now.bowl ?~(turn 'agent' actor.u.turn)]
-      =/  result  (operate:memory-json knowledge.batch source u.args)
+      =/  result  (operate:memory-json (memory-reach sid) knowledge.batch source u.args)
       ?:  ?=(%| -.result)  (complete (cat 3 'error: ' p.result))
       =.  knowledge.batch  db.p.result
       (complete (en:json:html result.p.result))
@@ -5148,6 +5227,8 @@
 ++  start-compaction
   |=  [sid=session-id:h =session:h input=(unit input-id:h) turn=?]
   ^-  [cards=(list card) session=session:h knowledge=state:memory-types]
+  ::  Reach follows the session as admitted, the input that asked included.
+  =.  sessions  (~(put by sessions) sid session)
   =/  view  (play:hl log.session)
   =/  visible  (skills-visible sid skills)
   ::  Without a chosen summary model, content stays with the conversation's
@@ -5191,7 +5272,9 @@
   =/  req  next-req.session
   =/  capture
     ?^  children.p.planned  ~
-    (compact:memory-capture knowledge sid req session sources.p.planned config now.bowl)
+    %:  compact:memory-capture
+      (memory-reach sid)  knowledge  sid  req  session  sources.p.planned  config  now.bowl
+    ==
   =.  next-req.session  +(req)
   =^  recorded  session
     (record-all sid session ~[[%lcm-planned req p.planned] [%llm-routed req config]])
@@ -5203,7 +5286,7 @@
         request
         %compaction
         visible
-        `(request-data:memory-capture knowledge u.capture)
+        `(request-data:memory-capture (memory-reach sid) knowledge u.capture)
       ==
     ?:  %+  gth
           (div (add 3 (met 3 (en:json:html payload))) 4)
@@ -5407,7 +5490,7 @@
     =/  capture  (~(get by compactions.maintenance.knowledge) sid)
     =/  evidence=(unit @t)
       ?.  &(?=(^ capture) =(%compaction kind) =(req id.u.capture))  ~
-      `(request-data:memory-capture knowledge u.capture)
+      `(request-data:memory-capture (memory-reach sid) knowledge u.capture)
     (payload-with-capture:hp view kind (skills-visible sid skills) evidence)
   =/  body=@t  (en:json:html payload)
   =/  runner  (route:runner-lib url.config.view)
@@ -5472,7 +5555,8 @@
       ?>  ?=(%assistant -.it.p.parsed)
       =/  output  (compact-output:memory-capture body.it.p.parsed)
       ?~  memories.output  knowledge
-      =/  result  (accept:memory-capture knowledge u.capture u.memories.output)
+      =/  result
+        (accept:memory-capture (memory-reach sid) knowledge u.capture u.memories.output)
       ?:  ?=(%| -.result)  knowledge
       p.result
     =?  compactions.maintenance.knowledge  =(%compaction kind)
@@ -5580,6 +5664,16 @@
             u.p.parsed
         ==
       =/  capture  (~(get by compactions.maintenance.knowledge) sid)
+      ::  A summary whose request carried related facts is fenced like its
+      ::  proposals, so one sent before a reload is not installed.
+      ?:  ?&  ?=(^ capture)  =(req id.u.capture)
+              ?=(^ bases.u.capture)
+              !=(barrier.u.capture barrier.knowledge)
+          ==
+        :*  %compaction-failed  req
+            'Memory access changed while this summary was in flight; the previous context was retained.'
+            u.p.parsed
+        ==
       =/  item  it.p.parsed
       =?  item  &(?=(^ capture) =(req id.u.capture) ?=([%assistant * ~] item))
         item(body summary:(compact-output:memory-capture body.item))

@@ -1,9 +1,9 @@
 ::  Hand admission through the full head, driven by test-agent; no card is
 ::  delivered and every scry answers %.n.
 /-  h=harness, hh=harness-hand, t=harness-tlon, adapter=harness-adapter, c=harness-cron,
-    ac=acp, *harness-store
+    ac=acp, renew=harness-oauth, *harness-store
 /+  *test-agent, policy=harness-defaults, hd=harness-hand, hl=harness,
-    command=harness-command, schedule=harness-schedule
+    command=harness-command, schedule=harness-schedule, mem=harness-memory
 /=  head  /app/harness
 |%
 ++  t0  ~2026.10.1
@@ -641,4 +641,353 @@
   ;<  ~  bind:m  (ex-equal !>(counts) !>(~[352 352]))
   ::  max-payload-bytes in %acp.
   (ex-equal !>((levy sent |=(payload=@t (lte (met 3 payload) 1.048.576)))) !>(&))
+::  The owner ~nec's DM beside the shared channel and ~bus's DM, all on the
+::  Tlon hand; the adapter answers that only the owner's DM is its lane. The
+::  owner stated a general preference in their DM.
+::
+++  owned
+  ^-  state-0
+  =/  saved  conversations
+  =/  preference
+    %:  save:mem
+      everything:mem  knowledge.saved  'owner-style'  0
+      [`'Prefer replies in haiku.' ~ & & ['owner' 0v1 1 t0 '~nec']]
+    ==
+  ?>  ?=(%& -.preference)
+  =.  knowledge.saved  p.preference
+  =.  sessions.saved  (~(put by sessions.saved) 'owner' [~[[%config-replaced defaults.saved]] 1])
+  =.  bindings.hands.saved
+    (~(put by bindings.hands.saved) 'owner' ['tlon' 'dm/~nec' 'owner' ~['~nec'] &])
+  saved
+++  lane-scry
+  |=  =path
+  ^-  (unit vase)
+  =/  parts=(list @ta)  path
+  ?:  ?=([%gx @ %harness-tlon @ %admin @ %noun ~] parts)
+    `!>(=('owner' i.t.t.t.t.t.parts))
+  (settings-scry path)
+++  hear
+  |=  [sid=@t who=@t event=@t text=@t]
+  (do-poke %harness-hand !>(`request:hh`[event [%observe sid event who text]]))
+++  model-requests
+  |=  cards=(list card)
+  ^-  (list [=wire body=@t])
+  %+  murn  cards
+  |=  c=card
+  ^-  (unit [=wire body=@t])
+  ?.  ?=([%pass [%llm *] %arvo %i %request *] c)  ~
+  =/  sent=http-card:renew  c
+  `[wire.sent q:(need body.request.sent)]
+++  answer
+  |=  [text=@t calls=(list [id=@t name=@t args=@t])]
+  ^-  sign-arvo
+  =/  message
+    %-  pairs:enjs:format
+    :~  ['role' %s 'assistant']
+        ['content' %s text]
+        :-  'tool_calls'
+        :-  %a
+        %+  turn  calls
+        |=  [id=@t name=@t args=@t]
+        %-  pairs:enjs:format
+        :~  ['id' %s id]  ['type' %s 'function']
+            ['function' (pairs:enjs:format ~[['name' %s name] ['arguments' %s args]])]
+        ==
+    ==
+  =/  choice
+    %-  pairs:enjs:format
+    ~[['message' message] ['finish_reason' %s ?~(calls 'stop' 'tool_calls')]]
+  =/  body  (en:json:html (pairs:enjs:format ~[['choices' %a ~[choice]]]))
+  [%iris %http-response %finished [200 ~] `['application/json' (as-octs:mimes:html body)]]
+++  mentions
+  |=  [cards=(list card) text=@t]
+  ^-  ?
+  =/  sent  (model-requests cards)
+  ?>  ?=(^ sent)
+  ?=(^ (find (trip text) (trip body.i.sent)))
+++  tool-result
+  |=  log=(list event:h)
+  ^-  @t
+  =/  done  (skim log |=(=event:h ?=(%tool-completed -.event)))
+  ?>  ?=(^ done)
+  ?>  ?=(%tool-completed -.i.done)
+  body.i.done
+::  The owner saves a fact in their DM. In the channel, neither a guest's
+::  message nor the owner's own recalls it, /memory does not list it and
+::  the model's read answers as if it did not exist; the DM recalls it. The
+::  guest's turn does carry the owner's preference, without its source.
+::
+++  test-a-fact-learned-in-the-owners-dm-is-not-seen-in-a-channel
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (load owned lane-scry)
+  ;<  *  bind:m  (hear 'owner' '~nec' 'save' '/remember falcon The falcon codeword is vexillum.')
+  ;<  saved=state-0  bind:m  get-state
+  ;<  guest=(list card)  bind:m  (hear 'room' '~bus' 'guest' 'What is the falcon codeword?')
+  =/  first  (snag 0 (model-requests guest))
+  ;<  tool=(list card)  bind:m
+    %+  do-arvo  wire.first
+    (answer '' ~[['read-1' 'memory' '{"operation":"read","name":"falcon"}']])
+  ;<  after-tool=state-0  bind:m  get-state
+  ;<  *  bind:m  (do-arvo wire:(snag 0 (model-requests tool)) (answer 'I do not know.' ~))
+  ;<  *  bind:m  (hear 'room' '~bus' 'search' '/memory falcon')
+  ;<  searched=state-0  bind:m  get-state
+  ;<  ~  bind:m  (load owned lane-scry)
+  ;<  *  bind:m  (hear 'owner' '~nec' 'save' '/remember falcon The falcon codeword is vexillum.')
+  ;<  own=(list card)  bind:m  (hear 'room' '~nec' 'own' 'Remind me of the falcon codeword.')
+  ;<  *  bind:m  (load owned lane-scry)
+  ;<  *  bind:m  (hear 'owner' '~nec' 'save' '/remember falcon The falcon codeword is vexillum.')
+  ;<  dm=(list card)  bind:m  (hear 'owner' '~nec' 'ask' 'What is the falcon codeword?')
+  ;<  ~  bind:m
+    %+  ex-equal  !>(sid.source.value:(~(got by records.knowledge.saved) 'falcon'))
+    !>('owner')
+  ;<  ~  bind:m  (ex-equal !>((mentions guest 'vexillum')) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((mentions guest 'Prefer replies in haiku.')) !>(&))
+  ;<  ~  bind:m  (ex-equal !>((mentions guest '[source: ~nec; owner#')) !>(|))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((tool-result log:(~(got by sessions.after-tool) 'room')))
+    !>('error: No memory has that name.')
+  ;<  ~  bind:m
+    %+  ex-equal  !>((reply log:(~(got by sessions.searched) 'room')))
+    !>(`'No matching shared memories.')
+  ;<  ~  bind:m  (ex-equal !>((mentions own 'vexillum')) !>(|))
+  (ex-equal !>((mentions dm 'vexillum')) !>(&))
+::  A fact the owner saves over ACP has no conversation, so only the
+::  owner's own conversations see it: a local session does, and a channel, a
+::  subagent the channel started, a fork of the channel and a peer session
+::  do not.
+::
+++  test-a-fact-saved-over-acp-is-seen-only-by-the-owners-conversations
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  owned
+  =/  idle=(list event:h)  ~[[%config-replaced defaults.saved]]
+  =/  child=(list event:h)
+    [[%input-received [0v1 [%subagent 'room' 'call'] ~ ~ t0 [%user 'Child work']]] idle]
+  =/  peer=(list event:h)
+    [[%input-received [0v2 [%peer ~bus *ask-id:h] `~bus ~ t0 [%user 'Peer work']]] idle]
+  =.  sessions.saved
+    %-  ~(gas by sessions.saved)
+    :~  ['local' [idle 1]]
+        ['child' [child 2]]
+        ['peer-session' [peer 2]]
+    ==
+  ;<  ~  bind:m  (load saved lane-scry)
+  =/  frame
+    '{"jsonrpc":"2.0","id":1,"method":"harness/memory/save","params":{"name":"falcon","text":"The falcon codeword is vexillum.","revision":"0"}}'
+  =/  =update:v1:ac  [%messages 'owner-ui' %agent ~[[1 t0 frame]]]
+  ;<  *  bind:m  (do-agent /acp/watch [~zod %acp] [%fact %acp-update-1 !>(update)])
+  ;<  acp=state-0  bind:m  get-state
+  ;<  guest=(list card)  bind:m  (hear 'room' '~bus' 'guest' 'What is the falcon codeword?')
+  ;<  *  bind:m  (do-arvo wire:(snag 0 (model-requests guest)) (answer 'I do not know.' ~))
+  ;<  *  bind:m  (do-poke %harness-action !>(`action:h`[%fork 'room' 'room-fork']))
+  =/  ask  |=(sid=@t (do-poke %harness-action !>(`action:h`[%send sid 'What is the falcon codeword?'])))
+  ;<  fork=(list card)  bind:m  (ask 'room-fork')
+  ;<  sub=(list card)  bind:m  (ask 'child')
+  ;<  remote=(list card)  bind:m  (ask 'peer-session')
+  ;<  local=(list card)  bind:m  (ask 'local')
+  ;<  ~  bind:m
+    (ex-equal !>(sid.source.value:(~(got by records.knowledge.acp) 'falcon')) !>(''))
+  ;<  ~  bind:m  (ex-equal !>((mentions guest 'vexillum')) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((mentions fork 'vexillum')) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((mentions sub 'vexillum')) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((mentions remote 'vexillum')) !>(|))
+  (ex-equal !>((mentions local 'vexillum')) !>(&))
+::  .saved with one fact from .sid by .actor; general when .general.
+::
+++  seed
+  |=  [saved=state-0 name=@t body=@t sid=@t actor=@t general=?]
+  ^-  state-0
+  =/  result
+    %:  save:mem
+      everything:mem  knowledge.saved  name  0
+      [`body ~ general & [sid 0v1 1 t0 actor]]
+    ==
+  ?>  ?=(%& -.result)
+  saved(knowledge p.result)
+::  The owner's fixture with a fact the owner saved over ACP, which only the
+::  owner's private conversations see.
+::
+++  secret
+  ^-  state-0
+  (seed owned 'acp-secret' 'The vault code is vexillum.' '' '~zod' |)
+++  idle
+  |=  saved=state-0
+  ^-  session:h
+  [~[[%config-replaced defaults.saved]] 1]
+++  test-conflicting-bindings-make-the-owners-dm-narrow
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  conflicted  secret
+  =.  bindings.hands.conflicted
+    (~(put by bindings.hands.conflicted) 'owner-side' ['fixture' 'side-room' 'owner' ~['alice'] &])
+  ;<  ~  bind:m  (load secret lane-scry)
+  ;<  plain=(list card)  bind:m  (hear 'owner' '~nec' 'ask' 'What is the vault code?')
+  ;<  ~  bind:m  (load conflicted lane-scry)
+  ;<  both=(list card)  bind:m  (hear 'owner' '~nec' 'ask' 'What is the vault code?')
+  ;<  ~  bind:m  (ex-equal !>((mentions plain 'vexillum')) !>(&))
+  (ex-equal !>((mentions both 'vexillum')) !>(|))
+::  A local session with two completed exchanges, bound to another hand that
+::  has sent nothing yet.
+::
+++  compactable
+  |=  bound=?
+  ^-  state-0
+  =/  saved  (seed owned 'provisioning-code' 'Provisioning requires privacy; the code is vexillum.' '' '~zod' |)
+  =/  cfg  defaults.saved
+  =/  log=(list event:h)
+    :~  [%config-replaced cfg]
+        :-  %input-received
+        :*  0v1  [%poke ~zod]  `~zod  ~  t0
+            [%user 'Provisioning requires privacy. Keep this constraint for future projects.']
+        ==
+        [%llm-requested 0 %turn]
+        [%llm-routed 0 cfg]
+        [%llm-completed 0 %stop [1 1] [%assistant 'Understood; I will respect that constraint.' ~]]
+        [%input-received [0v2 [%poke ~zod] `~zod ~ t0 [%user 'Now review the plan.']]]
+        [%llm-requested 1 %turn]
+        [%llm-routed 1 cfg]
+        [%llm-completed 1 %stop [1 1] [%assistant 'The plan is ready for review.' ~]]
+    ==
+  =.  sessions.saved  (~(put by sessions.saved) 'kept' [(flop log) 2])
+  ?.  bound  saved
+  =.  bindings.hands.saved
+    (~(put by bindings.hands.saved) 'kept' ['fixture' 'side-room' 'kept' ~['alice'] &])
+  saved
+::  A hand's first input decides the reach, even when it is /compact: the
+::  summary request is built from the session with that input in it.
+::
+++  test-compact-as-a-hands-first-input-uses-the-admitted-history
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (load (compactable |) lane-scry)
+  ;<  local=(list card)  bind:m
+    (do-poke %harness-action !>(`action:h`[%send 'kept' '/compact']))
+  ;<  ~  bind:m  (load (compactable &) lane-scry)
+  ;<  handed=(list card)  bind:m
+    (do-poke %harness-hand !>(`request:hh`['first' [%observe 'kept' 'first' 'alice' '/compact']]))
+  ;<  ~  bind:m  (ex-equal !>((mentions local 'vexillum')) !>(&))
+  (ex-equal !>((mentions handed 'vexillum')) !>(|))
+++  webhook
+  |=  text=@t
+  ^-  inbound-request:eyre
+  :*  |  |  [%ipv4 .127.0.0.1]
+      %'POST'  '/harness-api/webhook/hook'  ~
+      `(as-octs:mimes:html (en:json:html (pairs:enjs:format ~[['text' %s text]])))
+  ==
+::  Outside text delivered by a webhook is not the owner's conversation: it
+::  does not recall a private fact, and the model's read, save and forget of
+::  it answer as if it were not there or refuse.
+::
+++  test-a-webhook-session-cannot-recall-read-change-or-forget-a-private-fact
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  secret
+  =.  sessions.saved  (~(put by sessions.saved) 'hook' (idle saved))
+  ;<  ~  bind:m  (load saved lane-scry)
+  ;<  asked=(list card)  bind:m
+    (do-poke %handle-http-request !>([`@ta`%hook-1 (webhook 'What is the vault code?')]))
+  =/  first  (snag 0 (model-requests asked))
+  ;<  *  bind:m
+    %+  do-arvo  wire.first
+    %+  answer  ''
+    :~  ['read-1' 'memory' '{"operation":"read","name":"acp-secret"}']
+        ['save-1' 'memory' '{"operation":"save","name":"acp-secret","text":"Changed.","revision":"2"}']
+        ['forget-1' 'memory' '{"operation":"forget","name":"acp-secret","revision":"2"}']
+    ==
+  ;<  after=state-0  bind:m  get-state
+  =/  results
+    %+  murn  log:(~(got by sessions.after) 'hook')
+    |=  =event:h
+    ^-  (unit [@t @t])
+    ?.  ?=(%tool-completed -.event)  ~
+    `[call-id.event body.event]
+  ;<  ~  bind:m  (ex-equal !>((mentions asked 'vexillum')) !>(|))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((~(got by records.knowledge.after) 'acp-secret'))
+    !>((~(got by records.knowledge.saved) 'acp-secret'))
+  =/  expected=(map @t @t)
+    %-  malt
+    ^-  (list [@t @t])
+    :~  ['read-1' 'error: No memory has that name.']
+        ['save-1' 'error: That memory name is not available.']
+        ['forget-1' 'error: That memory name is not available.']
+    ==
+  (ex-equal !>(`(map @t @t)`(malt results)) !>(expected))
+::  A subagent's reach comes from the head's own walk to its root: one
+::  started from the owner's DM sees what the DM sees, one from a channel
+::  does not.
+::
+++  test-a-subagent-takes-its-roots-reach-through-the-heads-walk
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  secret
+  =/  child
+    |=  parent=@t
+    ^-  session:h
+    :_  2
+    :~  [%input-received [0v1 [%subagent parent 'call'] ~ ~ t0 [%user 'Child work']]]
+        [%config-replaced defaults.saved]
+    ==
+  =.  sessions.saved
+    (~(gas by sessions.saved) ~[['dm-child' (child 'owner')] ['room-child' (child 'room')]])
+  =.  turns.knowledge.saved
+    (~(gas by turns.knowledge.saved) ~[['owner' [0v0 ~ '~nec' ~]] ['room' [0v0 ~ '~bus' ~]]])
+  =/  ask  |=(sid=@t (do-poke %harness-action !>(`action:h`[%send sid 'What is the vault code?'])))
+  ;<  ~  bind:m  (load saved lane-scry)
+  ;<  dm=(list card)  bind:m  (ask 'dm-child')
+  ;<  room=(list card)  bind:m  (ask 'room-child')
+  ;<  ~  bind:m  (ex-equal !>((mentions dm 'vexillum')) !>(&))
+  (ex-equal !>((mentions room 'vexillum')) !>(|))
+::  Without the Tlon adapter there is no lane answer, so the owner's DM gets
+::  the narrow reach.
+::
+++  test-the-owners-dm-is-narrow-while-the-adapter-is-not-running
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  stopped
+    |=  =path
+    ^-  (unit vase)
+    ?:  ?=([%gu @ %harness-tlon @ %$ ~] path)  `!>(|)
+    (lane-scry path)
+  ;<  ~  bind:m  (load secret stopped)
+  ;<  asked=(list card)  bind:m  (hear 'owner' '~nec' 'ask' 'What is the vault code?')
+  (ex-equal !>((mentions asked 'vexillum')) !>(|))
+::  An owner's preference saved in the channel reaches a subagent of the
+::  channel. When the subagent saves it as an ordinary fact, its new source
+::  is the subagent's own, and the next request in the same event does not
+::  render it through the preference priority.
+::
+++  test-a-preference-changed-in-this-event-is-not-given-by-priority
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  (seed owned 'room-style' 'Prefer replies in haiku form.' 'room' '~nec' &)
+  =.  sessions.saved
+    %+  ~(put by sessions.saved)  'room-child'
+    :_  2
+    :~  [%input-received [0v1 [%subagent 'room' 'call'] ~ ~ t0 [%user 'Child work']]]
+        [%config-replaced defaults.saved]
+    ==
+  =.  turns.knowledge.saved  (~(put by turns.knowledge.saved) 'room' [0v0 ~ '~bus' ~])
+  ;<  ~  bind:m  (load saved lane-scry)
+  ;<  sent=(list card)  bind:m
+    (do-poke %harness-action !>(`action:h`[%send 'room-child' 'Write a short note.']))
+  ;<  saving=(list card)  bind:m
+    %+  do-arvo  wire:(snag 0 (model-requests sent))
+    %+  answer  ''
+    ~[['save-1' 'memory' '{"operation":"save","name":"room-style","text":"Haiku banned.","revision":"2"}']]
+  ;<  after=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>((mentions sent 'room-style: Prefer replies in haiku form.')) !>(&))
+  ;<  ~  bind:m
+    %+  ex-equal  !>(sid.source.value:(~(got by records.knowledge.after) 'room-style'))
+    !>('room-child')
+  (ex-equal !>((mentions saving 'room-style: Haiku banned.')) !>(|))
 --

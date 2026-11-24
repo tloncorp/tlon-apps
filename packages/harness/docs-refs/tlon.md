@@ -458,8 +458,10 @@ See [work commands](work-control.md).
 
 ### Shared memory
 
-Relevant durable facts are recalled automatically across channels and local
-subagents. Use `/remember preference Keep replies short.` to save a fact,
+Relevant durable facts are recalled automatically. A fact learned in a
+channel is seen everywhere; one learned in a DM, only in that DM and the
+owner's DM, except that the owner's general preferences are recalled
+everywhere. Use `/remember preference Keep replies short.` to save a fact,
 `/memory [query]` to inspect memories, and `/forget preference` to forget one.
 Use `/memory off` for a conversation that should neither recall nor capture
 shared facts. Model replies containing commands do not execute them.
@@ -471,17 +473,18 @@ not bypass sender or mention authorization. Plain-text ship spellings, other
 ships' mentions, formatted command text and multi-paragraph messages do not use
 this shortcut. DMs and replies to the bot's own channel posts do not need it.
 
-Memories retain their source actor and are shared across conversations. They
-survive compaction and reloads. Forgetting leaves historical copies. See
-[shared memory](context-and-memory.md#shared-memory).
+Memories retain their source actor. A save from the owner's DM onto a channel
+fact makes it private, and the reply says so. They survive compaction and
+reloads. Forgetting leaves historical copies. See
+[who sees a fact](context-and-memory.md#who-sees-a-fact).
 
 ### One companion, scoped conversations
 
 The ship is the companion's identity. Contacts supplies its name and avatar;
 each conversation keeps its own instructions and model.
 
-Preferences retain their source actor. Shared recall uses that attribution
-when selecting personal communication preferences.
+Preferences retain their source actor. Recall gives the owner's general
+preferences in every conversation, then the speaker's own.
 Skills are an owner-managed shared instruction library, not personal memory.
 Social conversations and their descendants cannot write, stage or publish into
 that library, regardless of saved tool grants. An operator can deliberately install

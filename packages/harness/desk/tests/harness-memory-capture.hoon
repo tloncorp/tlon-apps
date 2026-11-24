@@ -1,4 +1,4 @@
-/-  m=harness-memory, h=harness
+/-  m=harness-memory, h=harness, hh=harness-hand
 /+  *test, memory=harness-memory, capture=harness-memory-capture, policy=harness-defaults,
     hp=harness-provider, hl=harness
 |%
@@ -16,7 +16,7 @@
       [%config-replaced builtin-config:policy]
   ==
 ++  queued
-  =/  db  (prepare:memory *state:m 'first' log:session)
+  =/  db  (prepare:memory everything:memory *state:m 'first' log:session)
   =.  db  db(enabled.dreaming.maintenance &, due.dreaming.maintenance `~2026.10.7)
   =.  db  (enqueue:capture db 'first' session (play:hl log:session) ~2026.10.7)
   (dream:capture db ~2026.10.7)
@@ -24,7 +24,7 @@
   ^-  pending:m
   =/  ready  (ready:capture queued)
   ?>  ?=(^ ready.ready)
-  (plan:capture db.ready id.u.ready.ready job.u.ready.ready builtin-config:policy ~2026.10.7)
+  (plan:capture everything:memory db.ready id.u.ready.ready job.u.ready.ready builtin-config:policy ~2026.10.7)
 ++  answer
   '[{"name":"provisioning-privacy","revision":0,"text":"Provisioning requires zero data retention.","aliases":["privacy"],"general":false,"event":2,"quote":"zero data retention"}]'
 ++  test-completed-turn-is-queued-once-without-changing-the-transcript
@@ -37,30 +37,34 @@
       (expect-eq !>(log:session) !>((~(got by cursors.db) 'first')))
   ==
 ++  test-capture-accepts-only-quoted-supplied-evidence
-  =/  accepted  (accept:capture queued pending answer)
+  =/  accepted  (accept:capture everything:memory queued pending answer)
   ?>  ?=(%& -.accepted)
   =/  bad
-    %^  accept:capture
+    %:  accept:capture
+      everything:memory
       queued
       pending
-    '[{"name":"invented","text":"An invented fact.","event":2,"quote":"never said this","aliases":[]}]'
+      '[{"name":"invented","text":"An invented fact.","event":2,"quote":"never said this","aliases":[]}]'
+    ==
   =/  assistant
-    %^  accept:capture
+    %:  accept:capture
+      everything:memory
       queued
       pending
-    '[{"name":"invented","text":"An invented fact.","event":5,"quote":"Understood","aliases":[]}]'
+      '[{"name":"invented","text":"An invented fact.","event":5,"quote":"Understood","aliases":[]}]'
+    ==
   ;:  weld
       (expect !>((~(has by records.p.accepted) 'provisioning-privacy')))
       (expect !>(?=(%| -.bad)))
       (expect !>(?=(%| -.assistant)))
-      (expect-eq !>(~['provisioning-privacy']) !>((choose:memory p.accepted 'privacy' '~zod')))
+      (expect-eq !>(~['provisioning-privacy']) !>((choose:memory everything:memory p.accepted 'privacy' '~zod')))
   ==
 ++  test-revocation-and-forgetting-fence-late-capture
   =/  db  queued
   =/  disabled  db(disabled (silt ~['first']))
   =/  forgotten  db(barrier 1)
-  =/  revoked  (accept:capture disabled pending answer)
-  =/  fenced  (accept:capture forgotten pending answer)
+  =/  revoked  (accept:capture everything:memory disabled pending answer)
+  =/  fenced  (accept:capture everything:memory forgotten pending answer)
   ;:  weld
       (expect !>(?=(%| -.revoked)))
       (expect !>(?=(%| -.fenced)))
@@ -95,7 +99,7 @@
       !>((excerpt:capture job [%tool-completed '3' 'run_subagent' 'Assistant assertion']))
   ==
 ++  test-capture-payload-has-no-tools-or-injected-memory
-  =/  view  (request:capture queued pending)
+  =/  view  (request:capture everything:memory queued pending)
   =/  payload  (payload:hp view %memory ~)
   ?>  ?=(%o -.payload)
   ;:  weld
@@ -107,13 +111,13 @@
 ++  test-empty-capture-and-bounded-retry-settle-independently
   =/  db  queued
   =.  db  db(pending `pending)
-  =/  accepted  (accept:capture db pending '[]')
+  =/  accepted  (accept:capture everything:memory db pending '[]')
   ?>  ?=(%& -.accepted)
   =/  retried  (finish:capture db & 'failed' [3 1])
   =/  next  (ready:capture retried)
   ?>  ?=(^ ready.next)
   =/  plan
-    (plan:capture db.next id.u.ready.next job.u.ready.next builtin-config:policy ~2026.10.7)
+    (plan:capture everything:memory db.next id.u.ready.next job.u.ready.next builtin-config:policy ~2026.10.7)
   =/  finished  (finish:capture db.next(pending `plan) & 'failed again' [3 1])
   ;:  weld
       (expect-eq !>(1) !>(head.retried))
@@ -123,7 +127,7 @@
       (expect-eq !>([6 2]) !>(usage.finished))
   ==
 ++  test-disabled-turns-advance-the-cursor-without-retaining-capture-jobs
-  =/  db  (prepare:memory *state:m 'first' log:session)
+  =/  db  (prepare:memory everything:memory *state:m 'first' log:session)
   =.  db  db(disabled (silt ~['first']))
   =/  off  (enqueue:capture db 'first' session (play:hl log:session) ~2026.10.7)
   ;:  weld
@@ -134,18 +138,18 @@
 ++  test-compaction-uses-only-selected-original-events
   =/  db  queued
   =/  captured
-    (compact:capture db 'first' 9 session ~[2] builtin-config:policy ~2026.10.7)
+    (compact:capture everything:memory db 'first' 9 session ~[2] builtin-config:policy ~2026.10.7)
   ?>  ?=(^ captured)
   =/  evidence  evidence.job.u.captured
   ?>  ?=(^ evidence)
-  =/  accepted  (accept:capture db u.captured answer)
+  =/  accepted  (accept:capture everything:memory db u.captured answer)
   ;:  weld
       (expect-eq !>(1) !>((lent evidence)))
       (expect-eq !>('user') !>(role.i.evidence))
       (expect-eq !>(2) !>(event.source.i.evidence))
       (expect !>(?=(%& -.accepted)))
       %+  expect-eq  !>(~)
-      !>((compact:capture db 'first' 9 session ~[1 3 4] builtin-config:policy ~2026.10.7))
+      !>((compact:capture everything:memory db 'first' 9 session ~[1 3 4] builtin-config:policy ~2026.10.7))
   ==
 ++  test-compaction-does-not-revisit-evidence-before-a-memory-control-boundary
   =/  log=(list event:h)
@@ -159,7 +163,7 @@
         [%config-replaced builtin-config:policy]
     ==
   =/  captured
-    (compact:capture *state:m 'first' 9 [log 10] ~[1 2 3 4 5 6] builtin-config:policy ~2026.10.7)
+    (compact:capture everything:memory *state:m 'first' 9 [log 10] ~[1 2 3 4 5 6] builtin-config:policy ~2026.10.7)
   ?>  ?=(^ captured)
   =/  evidence  evidence.job.u.captured
   ?>  ?=(^ evidence)
@@ -189,5 +193,55 @@
       (expect-eq !>(['' ~]) !>((compact-output:capture '{"summary":"cut off')))
       (expect-eq !>(['' ~]) !>((compact-output:capture '{"memories":[]}')))
       (expect-eq !>(['' ~]) !>((compact-output:capture ' \0a')))
+  ==
+::  The owner's DM, a channel, ~nec's DM before and after a route reset
+::  (the old binding disabled) and a local conversation with no binding.
+::
+++  places
+  %-  places:memory
+  ^-  (list binding:hh)
+  :~  ['tlon' 'dm/~ten' 'owner-dm' ~['~ten'] &]
+      ['tlon' 'chat/~zod/general' 'chan' ~['~nec'] &]
+      ['tlon' 'dm/~nec' 'nec-old' ~['~nec'] |]
+      ['tlon' 'dm/~nec' 'nec-new' ~['~nec'] &]
+  ==
+::  One fact learned at .from, and capture in .to proposing a new text for
+::  it from a user event there.
+::
+++  propose
+  |=  [all=? from=@t to=@t]
+  ^-  (each state:m @t)
+  =/  =reach:memory  [all to places ~ nobody:memory]
+  =/  saved
+    %:  save:memory
+      everything:memory  *state:m  'standup'  0
+      [`'Standup is at nine.' ~ | | [from 0v1 2 ~2026.10.7 '~nec']]
+    ==
+  ?>  ?=(%& -.saved)
+  =/  =evidence:m  [[to 0v2 3 ~2026.10.8 '~nec'] 'user' 'Standup moved to ten today.']
+  =/  =job:m  *job:m
+  =.  job  job(sid to, evidence ~[evidence])
+  =/  =pending:m  [1 job builtin-config:policy 0 ~2026.10.9 (my ~[['standup' 1]])]
+  %:  accept:capture
+    reach  p.saved  pending
+    '[{"name":"standup","revision":1,"text":"Standup is at ten.","aliases":[],"event":3,"quote":"moved to ten"}]'
+  ==
+++  test-capture-in-the-owners-dm-cannot-change-a-channel-fact
+  =/  result  (propose & 'chan' 'owner-dm')
+  %+  expect-eq
+    !>([%| 'Automatic capture cannot change a memory learned in another place.'])
+  !>(result)
+++  test-capture-cannot-change-a-fact-learned-in-another-place
+  ;:  weld
+      (expect !>(=(%| -:(propose | 'chan' 'nec-new'))))
+      (expect !>(=(%| -:(propose & 'owner-dm' 'local'))))
+      (expect !>(=(%| -:(propose & 'local' 'other-local'))))
+  ==
+++  test-capture-updates-its-own-earlier-fact-from-the-same-place
+  ;:  weld
+      (expect !>(=(%& -:(propose & 'owner-dm' 'owner-dm'))))
+      (expect !>(=(%& -:(propose | 'chan' 'chan'))))
+      (expect !>(=(%& -:(propose | 'nec-old' 'nec-new'))))
+      (expect !>(=(%& -:(propose & 'local' 'local'))))
   ==
 --
