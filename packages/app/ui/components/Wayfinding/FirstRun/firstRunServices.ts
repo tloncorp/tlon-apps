@@ -61,9 +61,9 @@ export function catalogOffersFeatured(
 }
 
 /**
- * The services screen 3 features: the chosen ones the catalog offers, in
- * their chosen order, and only while the catalog still asks for exactly the
- * access their copy describes.
+ * The services to feature: the chosen ones the catalog offers, in their
+ * chosen order, and only while the catalog still asks for exactly the access
+ * their copy describes.
  */
 export function selectFeaturedServices(
   catalog: McpCatalogEntry[],
@@ -96,13 +96,15 @@ const FEATURED_LISTING: Record<
     displayName: 'Send Gmail',
     logoUrl: `${LOGO_BASE}/google-gmail.png`,
   },
+  github: { displayName: 'GitHub', logoUrl: `${LOGO_BASE}/github.png` },
   notion: { displayName: 'Notion', logoUrl: `${LOGO_BASE}/notion.png` },
 };
 
 /**
- * The featured services as the live catalog lists them, so screen 3 has its
- * rows the moment the first run opens. The live catalog replaces them as soon
- * as it arrives; a service it drops, or whose access changes, leaves then.
+ * The featured services as the live catalog lists them, so the services screen
+ * has its rows the moment the first run opens. The live catalog replaces them
+ * as soon as it arrives; a service it drops, or whose access changes, leaves
+ * then.
  */
 export const FIRST_RUN_FALLBACK_CATALOG: McpCatalogEntry[] =
   FIRST_RUN_FEATURED_SERVICES.flatMap(([id, access]) => {
@@ -162,9 +164,9 @@ export function attemptAfterRefusedStart(
 }
 
 /**
- * Whether a connection event also needs a toast. Screen 3's featured rows show
- * their own state, so the toast is for the full services list, and for any
- * service screen 3 doesn't feature.
+ * Whether a connection event also needs a toast. The services screen's featured
+ * rows show their own state, so the toast is for the full services list, and
+ * for any service the services screen doesn't feature.
  */
 export function shouldAnnounceConnectionEvent(
   event: McpConnectionEvent,
@@ -174,7 +176,7 @@ export function shouldAnnounceConnectionEvent(
   }: { allServicesOpen: boolean; featuredIds: string[] }
 ): boolean {
   if (allServicesOpen) return true;
-  // Screen 3 keeps its rows and keeps retrying the catalog by itself.
+  // The services screen keeps its rows and retries the catalog by itself.
   if (event.type === 'load-failed') return false;
   if (!event.providerId) return true;
   return !featuredIds.includes(event.providerId.toLowerCase());
