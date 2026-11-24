@@ -953,6 +953,84 @@
   ?.  ?=([%give %fact *] i.cards)  $(cards t.cards)
   ?.  ?=([[%crons @ ~] ~] paths.p.i.cards)  $(cards t.cards)
   `!<((each json @t) q.cage.p.i.cards)
+::  A Tlon conversation the bot is in that nobody has written in yet: its
+::  log holds only its configuration, and anyone there may speak.
+::
+++  fresh-fixture
+  |=  address=@t
+  ^-  state-0
+  =/  s  fixture
+  =.  sessions.s  (my ~[['source' [~[[%config-replaced builtin-config:defaults]] 1]]])
+  =.  bindings.hands.s  (my ~[['source-binding' ['tlon' address 'source' ~['*'] &]]])
+  s
+::  .speaker's first message in that conversation, already answered.
+::
+++  first-message
+  |=  [s=state-0 address=@t speaker=@p at=@da]
+  ^-  state-0
+  =/  who  (scot %p speaker)
+  =/  input=admitted-input:h
+    :*  0v8  [%hand 'source-binding' 'tlon' address 'human-request' who]  ~
+        `[%hand 'source-binding']  at  [%user 'Hello']
+    ==
+  =/  source  (~(got by sessions.s) 'source')
+  =.  sessions.s
+    (~(put by sessions.s) 'source' source(log [[%input-received input] log.source]))
+  =.  observations.hands.s
+    %+  ~(put by observations.hands.s)  0v8
+    ['source-binding' 'human-request' who 'Hello' at %completed]
+  s
+::  Fire the schedule wake the head has armed.
+::
+++  fire-wake
+  =/  m  (mare ,state-0)
+  ^-  form:m
+  ;<  armed=state-0  bind:m  get-state
+  =/  at  (need schedule-wake.armed)
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now at)))
+  ;<  *  bind:m  (do-arvo /schedules/(scot %da at) [%behn %wake ~])
+  get-state
+::  The owner schedules work from a conversation with no input yet. It
+::  runs on its own session, and a first message there leaves it active.
+::
+++  survives-first-message
+  |=  [address=@t speaker=@p]
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  args=json
+    %-  pairs:enjs:format
+    ~[['schedule' %s '0 * * * *'] ['timezone' %s 'UTC'] ['prompt' %s 'Hourly digest']]
+  =/  add=action:c  [%add 0v1 'source-binding' '~nec' %prompt args]
+  =/  lanes  (my ~[['source' (tlon-lane ~nec address ~)]])
+  ;<  ~  bind:m  (tlon-setup (fresh-fixture address) lanes)
+  ;<  added=(list card)  bind:m  (do-poke %harness-cron !>(`request:c`['fresh' add]))
+  ;<  ~  bind:m  (ex-equal !>(?=([~ %& *] (cron-result added))) !>(&))
+  ;<  created=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>(state:(~(got by schedules.created) 0v1)) !>(%active))
+  ::  Loading wakes a tick later for upkeep; the job's own wake follows.
+  ;<  woken=state-0  bind:m  fire-wake
+  =/  first  (~(got by schedules.woken) 0v1)
+  ;<  ran=state-0  bind:m
+    ?^  last.first  (pure:(mare ,state-0) woken)
+    fire-wake
+  =/  job  (~(got by schedules.ran) 0v1)
+  ;<  ~  bind:m  (ex-equal !>([state reason]:job) !>([%active '']))
+  ;<  ~  bind:m  (ex-equal !>(?=(^ last.job)) !>(&))
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>  %+  lien  ~(val by observations.hands.ran)
+          |=(o=observation:hh =('schedule-0v1' binding.o))
+    !>(&)
+  ;<  =bowl  bind:m  get-bowl
+  ;<  *  bind:m  (reload (first-message ran address speaker now.bowl))
+  ;<  spoken=state-0  bind:m  get-state
+  (ex-equal !>([state reason]:(~(got by schedules.spoken) 0v1)) !>([%active '']))
+++  test-a-schedule-from-a-tlon-channel-with-no-input-runs-and-survives-its-first-message
+  %-  eval-mare
+  (survives-first-message room ~bus)
+++  test-a-schedule-from-the-owners-dm-with-no-input-runs-and-survives-its-first-message
+  %-  eval-mare
+  (survives-first-message owner-dm ~nec)
 ::  A Tlon job whose actor is not the owner must not run, and shows as paused
 ::  rather than cancelled or removed.
 ::

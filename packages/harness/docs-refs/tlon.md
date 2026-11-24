@@ -489,8 +489,12 @@ Preferences retain their source actor. Shared recall uses that attribution
 when selecting personal communication preferences.
 Skills are an owner-managed shared instruction library, not personal memory.
 Social conversations and their descendants cannot write, stage or publish into
-that library, regardless of saved tool grants. An operator can deliberately install
-reusable instructions outside a social conversation.
+that library, regardless of saved tool grants. Every Tlon conversation is social
+from its creation, before anyone has written in it, so a schedule made there
+before its first message holds the same tools after it. Only an administrative
+turn escapes this: the owner's in the owner's DM, or the operator's own local
+prompt. An operator can deliberately install reusable instructions outside a
+social conversation.
 
 For a channel thread, ordinary message admission captures the native parent
 and up to eight recent replies as attributed public reference material. The

@@ -5854,8 +5854,12 @@
     %+  skim  granted
     |=  grant=tool-grant:h
     (lien tools.u.live |=(allowed=tool-grant:h =(allowed grant)))
-  =?  granted  &(!administrator ?=(^ session) (social-context:hl log.u.session))
-    (conversation-tools:ht granted)
+  ::  A Tlon conversation is shared from its creation, before anyone has
+  ::  written in it; only a proven administrator's turn escapes this.
+  =/  tlon  (session-tlon sid)
+  =?  granted
+    &(!administrator ?=(^ session) |(tlon (social-context:hl log.u.session)))
+  (conversation-tools:ht granted)
   =/  parent  ?~(session ~ (delegation:hl log.u.session))
   =?  granted  ?=(^ parent)
     ::  The child identity must match a still-outstanding parent request.
@@ -5880,7 +5884,6 @@
     ?&  !=(grant %subagents)
         (lien ceiling |=(allowed=tool-grant:h =(grant allowed)))
     ==
-  =/  tlon  (session-tlon sid)
   ::  Tlon authority requires a live hand binding.
   =.  granted  ?:(tlon (with-tlon:ht granted) (without-tlon:ht granted))
   =/  authority=hand-authority:adapter  (execution-authority sid tlon speaker)
