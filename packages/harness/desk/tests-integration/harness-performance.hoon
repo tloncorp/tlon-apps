@@ -158,8 +158,9 @@
       |=  [a=[@uv publication:hh] b=[@uv publication:hh]]
       (lth at:(~(got by observations.db) -.a) at:(~(got by observations.db) -.b))
     (skim sorted |=([id=@uv pub=publication:hh] &(=('one-hand' hand.pub) =(%pending status.pub))))
+  =/  indexed  [db (reindex:hd db)]
   =/  after
     ~>  %bout.[1 'perf-outbox-pending-frontier-2048']
-    (pending-publications:hd [db (reindex:hd db)] 'one-hand')
+    (pending-publications:hd indexed 'one-hand')
   (expect-eq !>(before) !>(after))
 --

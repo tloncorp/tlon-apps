@@ -1,7 +1,7 @@
 ::  Hand admission through the full head, driven by test-agent; no card is
 ::  delivered and every scry answers %.n.
 /-  h=harness, hh=harness-hand, t=harness-tlon, adapter=harness-adapter, c=harness-cron,
-    *harness-store
+    ac=acp, *harness-store
 /+  *test-agent, policy=harness-defaults, hd=harness-hand, hl=harness,
     command=harness-command, schedule=harness-schedule
 /=  head  /app/harness
@@ -591,4 +591,54 @@
       !>((turn (pending-publications:hd loaded 'fixture') |=([id=input-id:h *] id)))
     !>(`(list input-id:h)`~[done])
   (ex-equal !>((busy:schedule job loaded)) !>(&))
+::  352 completed observations of 'big' whose 512-byte source events are
+::  control characters, each escaped as \u00XX; listing them all takes more
+::  than an ACP payload.
+::
+++  escaped-history
+  ^-  state-0
+  =/  saved  fixture
+  =.  bindings.hands.saved
+    (~(put by bindings.hands.saved) 'big' ['fixture' 'big-room' 'other' ~['alice'] |])
+  =/  n=@ud  0
+  |-
+  ?:  =(352 n)  saved
+  =/  event  (end [3 512] (cat 3 (scot %ud n) (fil 3 512 0x1)))
+  =/  =observation:hh  ['big' event 'alice' 'Hello' (add t0 (mul n ~s1)) %completed]
+  %=  $
+    n  +(n)
+    observations.hands.saved
+      (~(put by observations.hands.saved) (input-id:hd 'big' event) observation)
+  ==
+::
+++  test-status-and-enable-replies-fit-an-acp-payload-at-any-history
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  =update:v1:ac
+    :*  %messages  'fixture'  %agent
+        :~  [1 t0 '{"jsonrpc":"2.0","id":1,"method":"harness/hand","params":{"status":{"binding":"big"}}}']
+            [2 t0 '{"jsonrpc":"2.0","id":2,"method":"harness/hand","params":{"enable":{"id":"big","enabled":true}}}']
+        ==
+    ==
+  ;<  ~  bind:m  (start-with escaped-history)
+  ;<  cards=(list card)  bind:m
+    (do-agent /acp/watch [~zod %acp] [%fact %acp-update-1 !>(update)])
+  =/  sent=(list @t)
+    %+  murn  cards
+    |=  =card
+    ^-  (unit @t)
+    ?.  ?=([%pass [%acp %send ~] %agent * %poke %acp-action-1 *] card)  ~
+    =/  [pass=* wire=* agent=* target=* poke=* mark=* data=vase]  card
+    =/  action  !<(action:v1:ac data)
+    ?>  ?=(%send -.action)
+    `payload.action
+  =/  counts
+    %+  turn  sent
+    |=  payload=@t
+    %.  (need (de:json:html payload))
+    (ot:dejs:format ~[result+(ot:dejs:format ~[['observationCount' ni:dejs:format]])])
+  ;<  ~  bind:m  (ex-equal !>(counts) !>(~[352 352]))
+  ::  max-payload-bytes in %acp.
+  (ex-equal !>((levy sent |=(payload=@t (lte (met 3 payload) 1.048.576)))) !>(&))
 --

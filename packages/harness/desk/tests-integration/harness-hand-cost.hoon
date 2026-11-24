@@ -273,4 +273,68 @@
     `;;((each json @t) q.q.cage.p.card)
   ?>  ?=([[%& %o *] ~] result)
   (ex-equal !>((~(has by p.p.i.result) 'observations')) !>(|))
+::  SIZE finished records on one disabled binding, as an export finds it.
+::
+++  one-binding
+  ^-  state:hh
+  =/  db=state:hh  *state:hh
+  =/  cfg  (config 0)
+  =.  bindings.db  (my ~[[(bid 0) cfg(enabled |)]])
+  =/  i=@ud  0
+  |-  ^-  state:hh
+  ?:  =(i size)  db
+  =/  r  (record i 0)
+  %=  $
+    i  +(i)
+    observations.db  (~(put by observations.db) id.r observation.r)
+    outbox.db  (~(put by outbox.db) id.r publication.r)
+    controls.db  (~(put by controls.db) id.r control.r)
+  ==
+::  The result a %harness-hand poke gave, from its /hands/<request> fact.
+::
+++  hand-reply
+  |=  [request=@t cards=(list card)]
+  ^-  (each json @t)
+  =/  found
+    %+  murn  cards
+    |=  =card
+    ^-  (unit (each json @t))
+    ?.  ?=([%give %fact * %noun *] card)  ~
+    ?.  =(~[/hands/[request]] paths.p.card)  ~
+    `;;((each json @t) q.q.cage.p.card)
+  ?>  ?=([* ~] found)
+  i.found
+++  test-head-export-requests
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  db  one-binding
+  =/  digest  (archive-digest:hd db (bid 0))
+  =/  ask
+    |=  =action:hh
+    (do-poke %harness-hand !>(`request:hh`[-.action action]))
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now now)))
+  ;<  ~  bind:m  (set-scry-gate |=(path `!>(|)))
+  ;<  *  bind:m  (do-load head `!>((head-state db)))
+  ;<  paged=(list card)  bind:m
+    (timed-step 'cost-head-records-page' (ask [%records (bid 0) ~ 1]))
+  ;<  archived=(list card)  bind:m
+    (timed-step 'cost-head-archive' (ask [%archive (bid 0)]))
+  ;<  retired=(list card)  bind:m
+    (timed-step 'cost-head-retire' (ask [%retire (bid 0) digest 'archive.jsonl']))
+  =/  page  (hand-reply 'records' paged)
+  =/  archive  (hand-reply 'archive' archived)
+  ?>  ?=(%& -.page)
+  ?>  ?=(%& -.archive)
+  =/  listed
+    %.  p.page
+    (ot:dejs:format ~[digest+so:dejs:format records+(ar:dejs:format same)])
+  =/  counted
+    %.  p.archive
+    (ot:dejs:format ~[digest+so:dejs:format records+ni:dejs:format])
+  ;<  ~  bind:m  (ex-equal !>([-.listed (lent +.listed)]) !>([(scot %uv digest) 1]))
+  ;<  ~  bind:m  (ex-equal !>(counted) !>([(scot %uv digest) size]))
+  ;<  ~  bind:m  (ex-equal !>(-:(hand-reply 'retire' retired)) !>(%&))
+  ;<  ledger=cage  bind:m  (got-peek /x/hand-state)
+  (ex-equal !>(~(wyt by observations:!<(state:hh q.ledger))) !>(0))
 --

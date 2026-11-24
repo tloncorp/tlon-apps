@@ -129,18 +129,36 @@
   ?>  ?=(%o -.value)
   [%o (~(put by p.value) 'acquired' [%b acquired])]
 ::
+::  +status-json: a binding's newest 256 observations and any active work
+::  older than them, so the reply does not grow with history
+::
 ++  status-json
   |=  [db=state:hh binding=@t]
   ^-  json
   =/  config  (~(get by bindings.db) binding)
   ?~  config  ~
-  =/  inputs=(list json)
+  =/  rows=(list [at=@da id=input-id:h])
     %+  murn  ~(tap by observations.db)
     |=  [id=input-id:h observation=observation:hh]
-    ^-  (unit json)
     ?.  =(binding binding.observation)  ~
-    `(admission-json id observation)
-  (pairs:enjs:format (snoc (binding-fields binding u.config) ['observations' %a inputs]))
+    `[at.observation id]
+  =/  shown  (newest 256 rows)
+  =/  listed  (silt shown)
+  =/  older=(list input-id:h)
+    %+  murn  rows
+    |=  [at=@da id=input-id:h]
+    ?:  (~(has in listed) id)  ~
+    =/  observation  (~(got by observations.db) id)
+    ?.  ?=(?(%queued %running) phase.observation)  ~
+    `id
+  =/  inputs=(list json)
+    %+  turn  (weld shown older)
+    |=(id=input-id:h (admission-json id (~(got by observations.db) id)))
+  %-  pairs:enjs:format
+  %+  weld  (binding-fields binding u.config)
+  :~  ['observationCount' (numb:enjs:format (lent rows))]
+      ['observations' %a inputs]
+  ==
 ::
 ++  binding-fields
   |=  [id=@t config=binding:hh]
@@ -727,8 +745,15 @@
 ++  window
   |=  rows=(list [at=@da id=input-id:h])
   ^-  (list input-id:h)
+  (newest 64 rows)
+::
+::  +newest: the newest .count rows, newest first, ties by id
+::
+++  newest
+  |=  [count=@ud rows=(list [at=@da id=input-id:h])]
+  ^-  (list input-id:h)
   %+  turn
-    %+  scag  64
+    %+  scag  count
     %+  sort  rows
     |=  [a=[at=@da id=input-id:h] b=[at=@da id=input-id:h]]
     ?:  =(at.a at.b)  (lth id.a id.b)
