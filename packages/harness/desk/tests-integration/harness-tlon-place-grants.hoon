@@ -118,6 +118,26 @@
     [%fact %channel-response-4 !>(`r-channels:v9:dv`[nest %leave ~])]
   ;<  =vase  bind:m  get-save
   (pure:m caz !<(state-4:t vase))
+::  The same, with the %harness head not running.
+::
+++  leave-headless
+  |=  [saved=state-4:t nest=nest:dv]
+  =/  m  (mare ,[(list card) state-4:t])
+  ^-  form:m
+  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now ~2026.9.10))
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ^-  (unit vase)
+    ?:  ?=([%gu @ %harness @ %$ ~] path)  `!>(|)
+    ?:  ?=([%gx @ %harness *] path)  ~
+    ((scries *stream:v10:a) path)
+  ;<  *  bind:m  (do-load adapter `!>(saved))
+  ;<  caz=(list card)  bind:m
+    %^  do-agent  /publications  [~zod %channels]
+    [%fact %channel-response-4 !>(`r-channels:v9:dv`[nest %leave ~])]
+  ;<  =vase  bind:m  get-save
+  (pure:m caz !<(state-4:t vase))
 ::
 ++  admitted
   |=  s=state-4:t
@@ -380,4 +400,63 @@
   ^-  form:m
   ;<  [* s=state-4:t]  bind:m  (leave fixture other-nest)
   (ex-equal !>(policy.s) !>(policy:fixture))
+++  test-grants-are-removed-on-leave-even-when-the-head-is-not-running
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [* s=state-4:t]  bind:m  (leave-headless fixture room-nest)
+  (ex-equal !>(channel-grants.policy.s) !>(`(map nest:dv (set @p))`~))
+::  ~bud is allowed and has a DM turn queued. One save moves it from the
+::  allowed list to a DM grant: its DM is answered as before, so the route,
+::  the queued work and the DM's cutoff stay, while its ship-wide cutoff,
+::  which its channels use, moves.
+::
+++  bud-dm  `destination:t`[%dm ~bud ~]
+++  with-bud-dm
+  |=  saved=state-4:t
+  ^-  state-4:t
+  %=  saved
+    cuts  (my ~[[~bud ~2026.9.8]])
+    identities  (my ~[[bud-dm 'dm-bud']])
+    lanes  (my ~[['dm-bud' [bud-dm 1 ~[%web]]]])
+    routes  (my ~[['dm-bud' ['binding-bud' %ready]]])
+    jobs  (my ~[[0v1 [[~bud 'e1' bud-dm 'hi'] 'dm-bud' %bind '']]])
+  ==
+++  test-moving-a-ship-from-allowed-to-a-dm-grant-keeps-its-dm
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  (with-bud-dm fixture)
+  =/  next  policy.saved
+  =.  allowed.next  ~
+  =.  dm-grants.next  (~(put in dm-grants.next) ~bud)
+  ;<  [caz=(list card) s=state-4:t]  bind:m  (configure saved next)
+  =/  acts  (pokes caz %harness-action)
+  ;<  ~  bind:m  (ex-equal !>((lien acts |=(act=* =(act [%fence 'dm-bud'])))) !>(|))
+  ;<  ~  bind:m  (ex-equal !>(~(key by lanes.s)) !>((silt ~['dm-bud'])))
+  ;<  ~  bind:m  (ex-equal !>(~(key by jobs.s)) !>((silt ~[0v1])))
+  ;<  ~  bind:m  (ex-equal !>((~(got by cuts.s) ~bud)) !>(~2026.9.10))
+  ;<  ~  bind:m  (ex-equal !>((~(get by place-cuts.s) [~bud ~])) !>(`(unit @da)``~2026.9.8))
+  ::  A DM sent before the save is still answered.
+  ;<  [* t=state-4:t]  bind:m
+    (admit s(jobs ~) ~[[~2026.9.9..12.00.00 (dm ~bud ~2026.9.9..12.00.00)]])
+  (ex-equal !>((admitted t)) !>((silt ~[[~bud bud-dm]])))
+::  The mirror: ~bud holds a DM grant and joins the allowed list.
+::
+++  test-adding-a-dm-granted-ship-to-allowed-keeps-its-dm
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  (with-bud-dm fixture)
+  =.  allowed.policy.saved  ~
+  =.  dm-grants.policy.saved  (~(put in dm-grants.policy.saved) ~bud)
+  =.  place-cuts.saved  (my ~[[[~bud ~] ~2026.9.8]])
+  =/  next  policy.saved
+  =.  allowed.next  (silt ~[~bud])
+  ;<  [caz=(list card) s=state-4:t]  bind:m  (configure saved next)
+  =/  acts  (pokes caz %harness-action)
+  ;<  ~  bind:m  (ex-equal !>((lien acts |=(act=* =(act [%fence 'dm-bud'])))) !>(|))
+  ;<  ~  bind:m  (ex-equal !>(~(key by lanes.s)) !>((silt ~['dm-bud'])))
+  ;<  ~  bind:m  (ex-equal !>(~(key by jobs.s)) !>((silt ~[0v1])))
+  (ex-equal !>((~(get by place-cuts.s) [~bud ~])) !>(`(unit @da)``~2026.9.8))
 --

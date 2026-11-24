@@ -155,16 +155,29 @@
   ?~  cutoff  cutoffs
   (~(put by cutoffs) actor u.cutoff)
 ::
+::  +speaker-cut: an actor's admission cutoff in one place
+::
+::    A place's own cutoff, where it has one, stands in for the ship's.
+::
+++  speaker-cut
+  |=  [cuts=(map @p @da) place-cuts=(map [@p place:t] @da) who=@p =place:t]
+  ^-  @da
+  =/  here  (~(get by place-cuts) [who place])
+  ?^  here  u.here
+  (fall (~(get by cuts) who) `@da`0)
 ::  +place-cutoffs: a per-place grant change moves only that place's cutoff
 ::
 ::    Keys outside both snapshots are dropped: granting that place again
 ::    establishes a fresh cutoff, and a ship-wide change moves its own.
+::    Where a ship-wide change moves a ship's cutoff but leaves its access in
+::    a granted place as it was, that place keeps its earlier cutoff.
 ::
 ++  place-cutoffs
   |=  $:  before=policy:t
           new=policy:t
           =owners
           prior=(map [@p place:t] @da)
+          cuts=[old=(map @p @da) new=(map @p @da)]
           now=@da
       ==
   ^-  (map [@p place:t] @da)
@@ -172,7 +185,10 @@
   |=  [[actor=@p =place:t] cutoffs=(map [@p place:t] @da)]
   =/  cutoff=(unit @da)
     ?:  (place-changed before new owners actor place)  `now
-    (~(get by prior) [actor place])
+    =/  kept  (~(get by prior) [actor place])
+    ?^  kept  kept
+    ?:  =((~(get by old.cuts) actor) (~(get by new.cuts) actor))  ~
+    `(speaker-cut old.cuts prior actor place)
   ?~  cutoff  cutoffs
   (~(put by cutoffs) [actor place] u.cutoff)
 ::

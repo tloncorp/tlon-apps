@@ -1403,13 +1403,10 @@
   |=  [actor=@p =place:t]
   ^-  (unit (list tool-grant:h))
   (place-grants:p policy actor place ~ (actor-owner actor))
-::  +speaker-cut: an actor's admission cutoff in one place
-::
 ++  speaker-cut
   |=  [who=@p =place:t]
   ^-  @da
-  %+  max  (fall (~(get by cuts) who) `@da`0)
-  (fall (~(get by place-cuts) [who place]) `@da`0)
+  (speaker-cut:continuity cuts place-cuts who place)
 ::
 ++  speaker-grants
   |=  [who=@p to=destination:t owner-tools=(list tool-grant:h)]
@@ -1645,18 +1642,21 @@
     :-  |=(who=@p (owner:~(. ownership bowl) owner.before sibling-moon-owners who))
     |=(who=@p (owner:~(. ownership bowl) owner.updated-policy siblings who))
   ::  A per-place change reaches that speaker in that place alone, and only
-  ::  when it changes what admission decides there.
-  =/  replaced=(set [@p place:t])
-    %-  silt
-    %+  skim
+  ::  when it changes what admission decides there. Where a granted place's
+  ::  answer stays the same, a ship-wide change leaves that place alone too.
+  =/  [replaced=(list [@p place:t]) kept=(list [@p place:t])]
+    %+  skid
       %~  tap  in
       (~(uni in (place-keys:continuity before)) (place-keys:continuity updated-policy))
     |=  [who=@p =place:t]
     (place-changed:continuity before updated-policy owners who place)
+  =/  replaced  (silt replaced)
+  =/  kept  (silt kept)
   =/  affected=(set @t)
     %-  silt
     %+  murn  ~(tap by lanes)
     |=  [sid=@t lane=lane:t]
+    ?:  &(?=(%dm -.to.lane) (~(has in kept) [who.to.lane ~]))  ~
     ?.  ?|  (affected:continuity before updated-policy lane)
             &(?=(%dm -.to.lane) (~(has in replaced) [who.to.lane ~]))
             ?&  sibling-change
@@ -1670,13 +1670,19 @@
   ::  dropping unrelated conversations' input.
   =/  speakers=(set @p)
     (silt (turn ~(val by jobs) |=(job=job:t actor.input.job)))
+  =/  old-cuts  cuts
   =.  cuts  (cutoffs:continuity before updated-policy identities speakers cuts now.bowl)
   =.  place-cuts
-    (place-cutoffs:continuity before updated-policy owners place-cuts now.bowl)
+    %:  place-cutoffs:continuity
+      before  updated-policy  owners  place-cuts  [old-cuts cuts]  now.bowl
+    ==
   =.  channel-cuts  (channel-cutoffs:continuity before updated-policy channel-cuts now.bowl)
   =?  channel-after  !=(response.before response.updated-policy)  now.bowl
   =?  after  !=(enabled.before enabled.updated-policy)  now.bowl
-  =/  hands  ledger
+  ::  The head's ledger only names bindings to disable and running work.
+  =/  hands
+    ?.  .^(? %gu /(scot %p our.bowl)/harness/(scot %da now.bowl)/$)  *state:hh
+    ledger
   ::  Withdraw affected routes immediately. Their bindings stay disabled;
   ::  later authorized input gets a fresh binding. Keep conversation identity,
   ::  source configuration and delivery evidence.
@@ -1689,10 +1695,11 @@
     =.  engine  (head:engine /cancel [%fence sid])
     engine(lanes (~(del by lanes.engine) sid), routes (~(del by routes.engine) sid))
   =.  jobs
-    %-  my
-    %+  skip  ~(tap by jobs)
-    |=  [id=@uv job=job:t]
-    (~(has in affected) sid.job)
+    %-  ~(gas by *(map @uv job:t))
+    %+  murn  ~(tap by jobs)
+    |=  [id=@uv =job:t]
+    ?:  (~(has in affected) sid.job)  ~
+    `[id job]
   ::  A channel outlives one speaker's change, but that speaker's running
   ::  and queued work there does not: it was admitted under the old grants.
   =/  changed=(set @p)
@@ -1724,8 +1731,9 @@
     |=  [[sid=@t lane=lane:t] engine=_cor]
     ?.  ?=(%channel -.to.lane)  engine
     =/  here=(set @p)
-      %-  ~(uni in changed)
       %-  silt
+      %+  weld
+        (skip ~(tap in changed) |=(who=@p (~(has in kept) [who `nest.to.lane])))
       %+  murn  ~(tap in replaced)
       |=  [who=@p =place:t]
       ?.(=(place `nest.to.lane) ~ `who)
@@ -1733,12 +1741,15 @@
     |=  [who=@p engine=_engine]
     (head:engine /cancel [%fence-actor sid (scot %p who)])
   =.  jobs
-    %-  my
-    %+  skip  ~(tap by jobs)
-    |=  [id=@uv job=job:t]
-    ?|  (~(has in changed) actor.input.job)
-        (~(has in replaced) [actor.input.job (place:p to.input.job)])
-    ==
+    %-  ~(gas by *(map @uv job:t))
+    %+  murn  ~(tap by jobs)
+    |=  [id=@uv =job:t]
+    =/  here  [actor.input.job (place:p to.input.job)]
+    ?:  ?|  &((~(has in changed) actor.input.job) !(~(has in kept) here))
+            (~(has in replaced) here)
+        ==
+      ~
+    `[id job]
   =.  cor
     %+  roll  ~(tap by uploads)
     |=  [[id=@uv pending=upload:t] engine=_cor]
