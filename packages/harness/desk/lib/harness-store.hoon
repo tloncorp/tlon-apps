@@ -133,6 +133,8 @@
   ^-  state-0
   =/  current  (mole |.(!<(state-0 saved)))
   ?^  current  (migrate-memory-prefixes u.current)
+  =/  saved-z0  (mole |.(!<(state-z0 saved)))
+  ?^  saved-z0  (migrate-memory-prefixes [%0 ~ +.u.saved-z0])
   (migrate-memory-prefixes (migrate-prompts (envelope-before-prompts saved)))
 ::  The single default instructions text becomes the AGENTS.md layer, which
 ::  the load then upgrades as it does the configuration, so it composes to the
@@ -141,7 +143,7 @@
   |=  old=state-p0
   ^-  state-0
   =/  system  system.defaults.old
-  [%0 ?:(=('' system) ~ (my ~[[%'AGENTS.md' system]])) +.old]
+  [%0 ~ ?:(=('' system) ~ (my ~[[%'AGENTS.md' system]])) +.old]
 ++  envelope-before-prompts
   |=  saved=vase
   ^-  state-p0

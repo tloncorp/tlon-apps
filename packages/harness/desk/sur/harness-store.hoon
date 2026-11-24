@@ -10,6 +10,7 @@
 |%
 +$  state-0
   $:  %0
+      owner-timezone=(unit @t)
       prompts=prompts:h
       knowledge=state:memory
       model-contexts=model-contexts:h
@@ -63,6 +64,9 @@
       search-requests=search-requests:h
       js-timeouts=(map session-id:h @dr)
   ==
+::  Persisted envelope accepted only by timezone migration.
++$  state-z0
+  $_  [%0 prompts=*prompts:h =>(*state-p0 +)]
 ::  Persisted envelope accepted only by prompt-layer migration.
 +$  state-p0
   $:  %0

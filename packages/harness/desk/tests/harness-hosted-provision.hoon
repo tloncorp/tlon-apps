@@ -93,4 +93,19 @@
       (expect !>((tool-granted:ht 'write_skill' tools)))
       (expect !>(!(tool-granted:ht 'harness_admin' tools)))
   ==
+++  test-provision-initializes-timezone-once-and-rejects-invalid
+  =/  valid  (need (de:json:html '{"providerKeys":{},"timezone":"America/Los_Angeles"}'))
+  =/  other  (need (de:json:html '{"providerKeys":{},"timezone":"Asia/Tokyo"}'))
+  =/  absent  (need (de:json:html '{"providerKeys":{}}'))
+  =/  bad  (need (de:json:html '{"providerKeys":{},"timezone":"PST"}'))
+  =/  first  (timezone:provision ~ valid)
+  =/  reprovision  (timezone:provision first other)
+  =/  missing  (timezone:provision first absent)
+  =/  rejected  (mule |.((timezone:provision ~ bad)))
+  ;:  weld
+      (expect-eq !>(`'America/Los_Angeles') !>(first))
+      (expect-eq !>(`'America/Los_Angeles') !>(reprovision))
+      (expect-eq !>(`'America/Los_Angeles') !>(missing))
+      (expect !>(?=(%| -.rejected)))
+  ==
 --

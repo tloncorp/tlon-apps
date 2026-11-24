@@ -22,6 +22,7 @@
 ++  populated
   ^-  state-0
   :*  %0
+      `'America/Los_Angeles'
       (my ~[[%'AGENTS.md' 'Agents layer.'] [%'SOUL.md' 'Soul layer.']])
       knowledge
       (my ~[['openrouter' [0v1.model (my ~[['fixture-model' 128.000]])]]])
@@ -205,9 +206,13 @@
 ::
 ::  Historical shapes, each a projection of the populated head state.
 ::
+++  project-z0
+  ^-  state-z0
+  =/  p  populated
+  [%0 +>.p]
 ++  project-p0
   ^-  state-p0
-  =/  p  populated
+  =/  p  project-z0
   [%0 +>.p]
 ::  Before runs became optional, every schedule held a bare count.
 ++  project-s0
@@ -277,10 +282,14 @@
   =.  summary-models.e
     [(bind compaction.summary-models.e upgrade-config) (bind lcm.summary-models.e upgrade-config)]
   e
+++  expected-z0
+  ^-  state-0
+  =/  e  expected-current
+  e(owner-timezone ~)
 ::  The single default instructions text becomes the AGENTS.md layer.
 ++  expected-p0
   ^-  state-0
-  =/  e  expected-current
+  =/  e  expected-z0
   e(prompts (my ~[[%'AGENTS.md' system.defaults.e]]))
 ::  The capture scheduler's bookkeeping starts empty.
 ++  expected-before-maintenance
@@ -328,6 +337,8 @@
       (expect-reload !>(populated) expected-current)
       (expect-eq !>(system.defaults.loaded) !>((compose-prompts:policy prompts.loaded)))
   ==
+++  test-state-z0-upgrade-keeps-every-field
+  (expect-reload !>(project-z0) expected-z0)
 ::  The layers and the inherited text are both saved; the load derives the
 ::  text from the layers, so a save in which they differ comes back agreeing.
 ++  test-a-reload-derives-the-inherited-text-from-the-layers

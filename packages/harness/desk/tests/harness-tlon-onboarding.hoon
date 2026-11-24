@@ -4,7 +4,11 @@
   =/  request
     '[{"type":"tlon-agent-intro-request","version":1,"groupId":"~nec/tlon","isFirstGroup":true,"clientTimezone":"America/Chicago","clientLocale":"en-US"}]'
   =/  result  (request:onboarding ~nec `request)
-  (expect !>(?=(^ result)))
+  =/  parsed  (parse:onboarding ~nec `request)
+  ;:  weld
+      (expect !>(?=(^ result)))
+      (expect-eq !>(`'America/Chicago') !>(?~(parsed ~ timezone.u.parsed)))
+  ==
 ++  test-no-request-is-not-an-introduction
   ;:  weld
       (expect-eq !>(`(unit @t)`~) !>((request:onboarding ~nec ~)))

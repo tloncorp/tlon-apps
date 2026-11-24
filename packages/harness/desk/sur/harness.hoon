@@ -251,6 +251,8 @@
       ::  replace one default-instructions layer; empty text clears it
       ::
       [%prompt-set name=prompt-name body=@t]
+      [%timezone-set zone=(unit @t)]
+      [%timezone-default zone=@t]
       [%mcp-config servers=(list [id=mcp-server-id server=mcp-server])]
       ::  internal: session spawning, sent by the agent to itself
       ::

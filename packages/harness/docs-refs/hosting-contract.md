@@ -30,23 +30,39 @@ Write configuration through its owning service and read back the result.
 After a timeout, inspect state before retrying. Host defaults are suggestions;
 replacing owner settings requires an explicit operation.
 
-`hosted-provision` accepts a complete `providerKeys` snapshot and optional
-`primary` and `fallbacks` model defaults. `primary` is a `{provider, model}`
-object; `fallbacks` is an ordered list of those objects. The primary selects
-an API-key provider endpoint. OpenRouter defaults enable zero-data-retention
-routing for the primary and fallback chain. Model defaults apply only before
-defaults are initialized. Successful owner model changes through `hosted-settings` also
-mark defaults initialized, so provisioning and restarts preserve that choice.
-Credential snapshots continue to update platform-owned slots independently.
+`hosted-provision` accepts a complete `providerKeys` snapshot, optional
+`primary` and `fallbacks` model defaults, and an optional IANA `timezone`
+default (for example `America/Los_Angeles` or `UTC`). `primary` is a
+`{provider, model}` object; `fallbacks` is an ordered list of those objects.
+The primary selects an API-key provider endpoint. OpenRouter defaults enable
+zero-data-retention routing for the primary and fallback chain. Model defaults
+apply only before defaults are initialized. Successful owner model changes
+through `hosted-settings` also mark defaults initialized, so provisioning and
+restarts preserve that choice. `timezone` initializes the owner timezone only
+while it is unset, so re-provisioning never overwrites an owner choice; invalid
+timezone names fail provisioning with status 400. Credential snapshots continue
+to update platform-owned slots independently.
 
-## Soul and shared skills
+## Soul, shared skills and owner timezone
 
-Authenticated Spider requests use `POST /spider/harness/json/hosted-soul/json.json`
-and `POST /spider/harness/json/hosted-skills/json.json` with the ship's existing
-Eyre session cookie and a JSON object body. Both return the hosted envelope
+Authenticated Spider requests use `POST /spider/harness/json/hosted-soul/json.json`,
+`POST /spider/harness/json/hosted-skills/json.json`, and
+`POST /spider/harness/json/hosted-timezone/json.json` with the ship's existing
+Eyre session cookie and a JSON object body. All return the hosted envelope
 `{"status":200,"body":...}`; inspect its status as well as the HTTP status.
-The hosted capabilities response advertises `soul: true` and `skills: true`.
-These are owner-authorized configuration operations, not public content APIs.
+The hosted capabilities response advertises `soul: true`, `skills: true`, and
+`timezone: true`. These are owner-authorized configuration operations, not
+public content APIs.
+
+`hosted-timezone` reads and updates the owner's IANA timezone. Send `{}` to
+read `{timezone, utcOffset, revision}` (`timezone` and `utcOffset` are `null`
+when unset); send `{timezone, revision}` with an IANA timezone name or `null`
+to set or clear it using the revision just read. Stale revisions return status
+409 and invalid timezone names or unknown fields return status 400. The owner
+timezone can also be read and set over ACP (`harness/timezone`,
+`harness/timezone/set`), through the owner-only `set_timezone` model tool, and
+is initialized automatically from the owner's `clientTimezone` in Messenger's
+onboarding request when unset.
 
 The default system instructions are seven named layers, the files Tlon's System
 Prompts screen edits: `AGENTS.md`, `SOUL.md`, `TOOLS.md`, `IDENTITY.md`,

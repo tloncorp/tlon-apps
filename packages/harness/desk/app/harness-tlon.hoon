@@ -3212,20 +3212,22 @@
 ++  admit-message
   |=  event=incoming-event:v8:a
   ^+  cor
-  =/  introduction=(unit @t)
+  =/  introduction=(unit [prompt=@t timezone=(unit @t)])
     ?.  ?=(?(%dm-post %post) -.event)  ~
     ?.  (actor-owner p.id.key.event)  ~
     =/  text=@t
       ?:  ?=(%dm-post -.event)  (story-to-text:story content.event)
       (text:input our.bowl content.event)
     ?.  =('Let\'s get set up.' text)  ~
-    =/  found  (mole |.((onboarding-request:messenger event)))
+    =/  found  (mole |.((onboarding-data:messenger event)))
     ?~(found ~ u.found)
   =/  addressed  event
   =?  addressed  &(?=(^ introduction) ?=(%post -.event))  event(mention &)
   =/  input  (normalize-owned:p our.bowl policy addressed actor-owner)
   ?~  input  cor
-  =?  text.u.input  ?=(^ introduction)  u.introduction
+  =?  text.u.input  ?=(^ introduction)  prompt.u.introduction
+  =?  cor  &(?=(^ introduction) ?=(^ timezone.u.introduction))
+    (head /owner-timezone [%timezone-default u.timezone.u.introduction])
   ::  A tap on a workspace card is the owner's own DM post carrying the app's
   ::  selection receipt. The model is told what was tapped; text alone is not
   ::  a tap. Only a message worded as one of their cards' buttons is read.

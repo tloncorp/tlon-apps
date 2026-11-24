@@ -120,4 +120,18 @@
       (expect !>((starts 'Produce a concise historical checkpoint' (system-text body))))
       (expect !>(!(find-sub:ht '~sampel-palnet' (en:json:html body))))
   ==
+++  test-owner-timezone-note-precedes-instructions-only-on-turns
+  =/  set-turn  (with-timezone:hp base %turn `'America/Los_Angeles')
+  =/  unset-turn  (with-timezone:hp base %turn ~)
+  =/  compact  (with-timezone:hp base %compaction `'America/Los_Angeles')
+  =/  full  (identify:hp set-turn %turn planet ~)
+  ;:  weld
+      %-  expect
+      !>((find-sub:ht 'The owner\'s timezone is America/Los_Angeles.' system.config.set-turn))
+      (expect-eq !>(base) !>(unset-turn))
+      (expect-eq !>(base) !>(compact))
+      (expect !>((starts 'Your Urbit ship is ~sampel-palnet.' system.config.full)))
+      (expect !>((find-sub:ht 'The owner\'s timezone is America/Los_Angeles.' system.config.full)))
+      (expect !>((find-sub:ht 'Configured instructions.' system.config.full)))
+  ==
 --

@@ -12,7 +12,7 @@
   ::  The fixture saves no schedule; compare in the frozen schedule type.
   =/  frozen  migrated(schedules *(map @uv schedule-s0))
   ;:  weld
-      (expect-eq !>(+.old) !>(+>+>+.frozen))
+      (expect-eq !>(+.old) !>(+.+.+.+.+>.frozen))
       (expect-eq !>(*state:r) !>(runners.migrated))
       (expect-eq !>(migrated) !>((envelope:storage !>(migrated))))
   ==

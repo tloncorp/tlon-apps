@@ -129,6 +129,20 @@
         (runtime config.view)
     ==
   view(system.config (cat 3 identity system.config.view))
+::  +with-timezone: state the owner's configured IANA timezone on inference turns
+::  so the model knows it immediately and reads local time from current_time.
+::
+++  with-timezone
+  |=  [=view:h kind=request-kind:h zone=(unit @t)]
+  ^-  view:h
+  ?.  =(%turn kind)  view
+  ?~  zone  view
+  =/  note=@t
+    %+  rap  3
+    :~  'The owner\'s timezone is '  u.zone
+        '. Use current_time for the current local date, time and UTC offset.\0a\0a'
+    ==
+  view(system.config (cat 3 note system.config.view))
 ::  +runtime: the model and retention routing this request uses, so a
 ::  question about either is answered from the request, not guessed.
 ::

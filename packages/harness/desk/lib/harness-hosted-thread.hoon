@@ -22,7 +22,7 @@
   =/  id  (scot %uv (sham [our now entropy action]))
   =/  direct-actions
     %-  silt
-    ~['settings' 'permissions' 'channels' 'chat-config' 'models' 'soul' 'skills']
+    ~['settings' 'permissions' 'channels' 'chat-config' 'models' 'soul' 'skills' 'timezone']
   =/  needs-request-id
     ?&  !(~(has in direct-actions) action)
         ?~((optional:j args 'requestId') & |)

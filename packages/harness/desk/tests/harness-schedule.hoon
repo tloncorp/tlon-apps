@@ -188,6 +188,7 @@
   =/  east  (create:schedule action(args (recurring '30 0 1 * *' '+05:30')) source ~ ~2026.9.9)
   =/  east-again  (advance:schedule east 0v1 next.east)
   ;:  weld
+      (expect-eq !>('-06:00') !>(timezone.west))
       (expect-eq !>(~2026.9.12..05.00.00) !>(next.west))
       (expect-eq !>(~2026.9.30..19.00.00) !>(next.east))
       (expect-eq !>(~2026.10.31..19.00.00) !>(next.east-again))
@@ -210,13 +211,14 @@
       (expect-eq !>('+00:00') !>(timezone.zero))
       (expect-eq !>(next.utc) !>(next.zero))
   ==
-++  test-recurring-timezone-accepts-only-utc-or-a-fixed-offset
+++  test-recurring-timezone-accepts-utc-fixed-offset-or-iana-zone
   =/  action  action
   =/  invalid=(list @t)
-    :~  'America/Chicago'  'Z'  'utc'  '+5'  '+05'  '+0500'  'UTC+5'  'UTC+05:00'
+    :~  'America/Not_A_City'  'PST'  'Z'  'utc'  '+5'  '+05'  '+0500'  'UTC+5'  'UTC+05:00'
         '-00:00'  '+15:00'  '-14:30'  '+05:60'  '05:00'  '+5:00'  ' +05:00'  ''
     ==
-  =/  accepted=(list @t)  ~['+14:00' '-12:00' '+05:45' '+00:00']
+  =/  accepted=(list @t)
+    ~['+14:00' '-12:00' '+05:45' '+00:00' 'America/Chicago' 'America/Los_Angeles']
   ;:  weld
       %-  expect
       !>  %+  levy  invalid
@@ -321,7 +323,8 @@
       (expect !>(!(retryable:schedule value(state %cancelled) (ix db))))
       (expect !>(!(retryable:schedule value(kind %reminder) (ix db))))
       (expect !>(!(retryable:schedule value (ix db(outbox ~)))))
-      (expect !>(!(retryable:schedule value (ix db(observations (my ~[[0v9 obs(phase %completed)]]))))))
+      %-  expect
+      !>(!(retryable:schedule value (ix db(observations (my ~[[0v9 obs(phase %completed)]])))))
       (expect !>(!(retryable:schedule value (ix db(outbox (my ~[[0v9 pub(kind %reply)]]))))))
       (expect !>(!(retryable:schedule value (ix db(outbox (my ~[[0v9 pub(status %pending)]]))))))
       (expect !>(!(retryable:schedule value (ix db(outbox (my ~[[0v9 pub(status %claimed)]]))))))
@@ -498,4 +501,21 @@
   =.  observations.db  (my ~[[(need last.j) obs]])
   =.  outbox.db  (my ~[[(need last.j) pub]])
   (expect !>((retryable:schedule (job-value:schedule j) (ix db))))
+++  test-iana-schedule-keeps-local-time-across-dst
+  =/  act  action
+  =/  out
+    %:  create:schedule
+      act(args (recurring '0 9 * * 1' 'America/Los_Angeles'))
+      source
+      ~
+      ~2026.3.1
+    ==
+  =/  second  (advance:schedule out 0v1 next.out)
+  ;:  weld
+      (expect-eq !>('America/Los_Angeles') !>(timezone.out))
+      ::  Monday 2026-03-02 09:00 PST = 17:00Z
+      (expect-eq !>(~2026.3.2..17.00.00) !>(next.out))
+      ::  Monday 2026-03-09 09:00 PDT = 16:00Z
+      (expect-eq !>(~2026.3.9..16.00.00) !>(next.second))
+  ==
 --

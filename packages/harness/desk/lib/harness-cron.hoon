@@ -1,5 +1,5 @@
 ::  Strict five-field cron on the UTC calendar or at one fixed offset. Pure
-::  calendar logic, no timers, inference or daylight-saving rules.
+::  calendar logic, no timers or inference.
 /-  c=harness-cron
 |%
 ::

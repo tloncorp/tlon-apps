@@ -22,27 +22,33 @@ It runs inference once at that exact time. Include the necessary brief and
 authorized sources: the isolated agent does not receive the source transcript.
 Use this for one-time work and `cron_add` for recurring work.
 
-`cron_add` requires `schedule`, `timezone` and `prompt` (1–8,192 UTF-8 bytes).
+`cron_add` requires `schedule`, `timezone`, and `prompt` (1–8,192 UTF-8 bytes).
 `runs` is optional: a decimal string for a count from 1 to 1,000,000, after
 which the job completes. The ceiling only keeps the count exact in listings,
 which give it as a JSON number; it does not limit recurring work. Without
-`runs` the job repeats until it is cancelled. Five-field expressions support
-wildcards, steps, ranges and lists.
-Weekdays are Sunday=0 through Saturday=6; restricted day-of-month and weekday
-fields use OR semantics. The next occurrence must be within the bounded
-four-year search horizon. Invalid or impossible expressions are rejected.
+`runs` the job repeats until it is cancelled. `timezone` accepts an IANA
+timezone name (such as `America/Los_Angeles`, evaluated with daylight-saving
+transitions), `UTC`, or a fixed offset `+HH:MM` / `-HH:MM` (which does not
+follow daylight saving). When `timezone` is omitted in the owner's private
+conversation (their DM, local ACP/poke, or a single-actor hand bound to the
+owner's ship) and the owner timezone is configured, Harness defaults it to the
+owner's IANA zone. Shared channels and other people's conversations never
+inherit or echo the owner's timezone, whoever speaks: supply `timezone`
+explicitly there (for example `UTC`). Five-field expressions support wildcards,
+steps, ranges and lists. Weekdays are Sunday=0 through Saturday=6; restricted
+day-of-month and weekday fields use OR semantics. The next occurrence must be
+within the bounded four-year search horizon. On daylight-saving transitions, a
+skipped spring-forward wall time runs at the transition instant and a repeated
+fall-back wall time runs once on its first occurrence. Fixed offsets written
+`+HH:MM` or `-HH:MM` support up to 14 hours; `+00:00` is accepted and runs as
+`UTC`; `-00:00`, `Z`, `+5`, and `UTC+05:00` are rejected. Invalid or impossible
+expressions and unknown timezones are rejected.
 
-`timezone` is `UTC` or a fixed offset written `+HH:MM` or `-HH:MM`, with the
-sign and two-digit hours and minutes, up to 14 hours: `-06:00`, `+05:30`.
-`+00:00` is accepted and runs exactly as `UTC`; `-00:00`, which RFC3339 reserves
-for an unknown offset, is rejected, as are `Z`, `+5`, `UTC+05:00` and IANA
-names such as `America/Chicago`. The expression is evaluated on the local
-calendar at that offset, so minute, hour, day, month and weekday all match
-local time: `0 9 * * *` at `-06:00` runs at 15:00 UTC, and `0 23 * * 5` at
-`-06:00` runs on Saturday at 05:00 UTC. Every later run, an edit and recovery
-after downtime use the same offset. An offset is fixed: it does not follow
-daylight saving, and IANA zones and DST rules are not supported. The job keeps
-the offset as written, and listings show it.
+The desk's IANA timezone table (`desk/lib/harness-timezone.hoon`) is compiled
+from IANA tzdata release `2026e`. A running bot keeps its desk's rules until a
+new desk ships; maintainers refresh the table by running
+`python3 packages/harness/scripts/gen-timezone-table.py` on a machine with
+current `tzdata` and shipping the updated desk.
 
 `reminder_add` takes literal `text` (1–4,096 UTF-8 bytes) and a future RFC3339
 `at` within 10 years, and optionally the conversation's own `destination`; a

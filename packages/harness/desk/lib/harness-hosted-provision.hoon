@@ -1,7 +1,7 @@
 ::  A complete platform key snapshot replaces only platform-owned slots.
 /-  h=harness
 /+  ht=harness-tools, j=harness-workspace-json, routing=harness-model-routing,
-    policy=harness-defaults
+    policy=harness-defaults, tz=harness-timezone
 |%
 ++  apply
   |=  $:  config=config:h  keys=(map @t @t)  servers=(map mcp-server-id:h mcp-server:h)  args=json
@@ -50,4 +50,14 @@
     `tool-grant:h`[%mcp id]
   =.  tools.config  ~(tap in (~(uni in (silt tools.config)) (silt grants)))
   [config keys]
+::  Initialize the owner timezone once; re-provisioning preserves owner choices.
+++  timezone
+  |=  [current=(unit @t) args=json]
+  ^-  (unit @t)
+  =/  supplied  (get:j args 'timezone')
+  ?~  supplied  current
+  ?>  ?=(%s -.u.supplied)
+  ?>  (valid:tz p.u.supplied)
+  ?^  current  current
+  `p.u.supplied
 --

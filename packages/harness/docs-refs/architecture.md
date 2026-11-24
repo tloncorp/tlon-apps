@@ -273,8 +273,9 @@ acknowledgement is distinct from remote delivery. Old invocation IDs cannot sett
 new calls with a reused provider call ID. Optional hand authority is rechecked at
 dispatch and receipt admission, including scheduled sessions' source grants.
 
-`harness-cron` supplies calendar logic in UTC or at a fixed offset;
-`harness-schedule` validates jobs.
+`harness-cron` and `harness-timezone` supply calendar logic in UTC, IANA
+timezones (with daylight-saving rules), and fixed offsets; `harness-schedule`
+validates jobs.
 The head stores schedules, owns the Behn wake, and admits due runs as idempotent
 hand observations. Scheduled agents receive no parent transcript and cannot
 create schedules or local subagents. Executors retain tool receipts; hands
