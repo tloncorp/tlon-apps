@@ -293,6 +293,31 @@
   ;<  ~  bind:m  (refuses (create [%cron `'0 9 * * *' ~ ~] `'Brief' `'chat/~bus/general') %invalid)
   (refuses (create [%cron `'0 9 * * *' ~ ~] ~ ~) %invalid)
 ::
+::  Each task field the hand cannot honor finalizes invalid and reaches
+::  no head request.
+::
+++  test-each-unsupported-field-finalizes-invalid
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  fields=(list task:v1:sa)
+    :~  %*(. *task:v1:sa agent-id `'main')
+        %*(. *task:v1:sa session-target `'isolated')
+        %*(. *task:v1:sa wake-mode `'now')
+        %*(. *task:v1:sa schedule `[%cron `'0 9 * * *' ~ `~s30])
+        %*(. *task:v1:sa payload `[`'agentTurn' `'Brief' `~['web']])
+        %*(. *task:v1:sa delivery `[`%webhook ~ `'https://x.example' ~ ~])
+        =/  away  [`%announce `'tlon' `'~nec' ~]
+        %*(. *task:v1:sa delivery `[`%announce `'tlon' `'~nec' ~ `away])
+        %*(. *task:v1:sa delivery `[`%announce `'tlon' `'~nec' `'default' ~])
+    ==
+  ;<  *  bind:m  (boot `~nec & &)
+  ;<  *  bind:m  (schedules snapshot)
+  |-
+  ?~  fields  (pure:m ~)
+  ;<  ~  bind:m  (refuses [%update '0v1' i.fields] %invalid)
+  $(fields t.fields)
+::
 ++  test-an-edit-of-an-unknown-task-finalizes-not-found
   %-  eval-mare
   =/  m  (mare ,~)
@@ -311,14 +336,21 @@
   =/  m  (mare ,~)
   ^-  form:m
   =/  edit  (create [%cron `'0 9 * * *' ~ ~] `'Brief me' ~)
+  =/  args=json
+    %-  pairs:enjs:format
+    :~  ['schedule' %s '0 9 * * *']  ['timezone' %s 'UTC']
+        ['prompt' %s 'Brief me']  ['runs' %s '100']
+    ==
+  =/  add=(list action:c)  ~[[%add 0v9 'owner-dm' '~nec' %prompt args]]
   ;<  *  bind:m  (boot `~nec & &)
   ;<  *  bind:m  (schedules snapshot)
-  ;<  first=(list card)  bind:m  (dispatch 0v9 edit)
+  ;<  caz=(list card)  bind:m  (dispatch 0v9 edit)
+  ;<  ~  bind:m  (ex-equal !>((requests caz)) !>(add))
   ;<  caz=(list card)  bind:m  (dispatch 0v9 edit)
   ;<  ~  bind:m  (ex-equal !>((requests caz)) !>(`(list action:c)`~))
   ;<  *  bind:m  (head-result 0v9 [%& ~])
   ;<  caz=(list card)  bind:m  (dispatch 0v9 edit)
-  (ex-equal !>((requests caz)) !>((requests first)))
+  (ex-equal !>((requests caz)) !>(add))
 ::
 ++  test-pausing-cancels-the-job
   %-  eval-mare
