@@ -698,11 +698,12 @@ hand handles no message from its own ship.
   from any other ship, with access or without, is dropped: it changes nothing,
   gets no reply, starts no turn and opens no request. This differs on purpose
   from the conversation-settings commands, which tell another speaker in a
-  channel that only the owner can change them. A ship's first DM to the bot
-  reaches the hand only as a DM invitation, which is handled as an invitation
-  whatever its first message says: from a ship without DM access it opens a
-  request as any first DM does, and from a ship with DM access the invitation
-  is accepted and that first message is not handled.
+  channel that only the owner can change them. The message with which a ship
+  opens a new DM with the bot reaches the hand only as a DM invitation, which
+  is handled as an invitation whatever that message says: from a ship without
+  DM access it is treated as any such invitation is, opening a request when
+  the limits allow, and from a ship with DM access the invitation is accepted
+  and that message is not handled.
 - The owner's command counts wherever the owner's other messages are
   admitted: in their DM with the bot, where the card is, and in a channel
   where the bot would admit the message (a mention or a reply in a thread of
