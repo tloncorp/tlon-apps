@@ -156,8 +156,8 @@
 ::
 ++  adapter-state
   |=  [n=@ud lensed=?]
-  ^-  state-3:t
-  =/  s=state-3:t  *state-3:t
+  ^-  state-4:t
+  =/  s=state-4:t  *state-4:t
   =/  ks  (gulf 0 (dec n))
   %=  s
     owner-initialized  1
@@ -519,7 +519,7 @@
     %+  timed-step  'cost-crowded-adapter-notification'
     (do-agent /head [~zod %harness] [%fact %noun !>(%changed)])
   ;<  =vase  bind:m  get-save
-  ;<  ~  bind:m  (ex-equal !>(~(wyt by routes:!<(state-3:t vase))) !>(many))
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by routes:!<(state-4:t vase))) !>(many))
   =/  off  policy:(adapter-state many |)
   ;<  cards=(list card)  bind:m
     %+  timed-step  'cost-crowded-adapter-hand-off'

@@ -20,7 +20,7 @@
   |=  [address=@t attempt=@ud rejected=?]
   =/  m  (mare ,[deliveries=(map @uv delivery:t) receipts=(list action:hh)])
   ^-  form:m
-  =/  saved=state-3:t  *state-3:t
+  =/  saved=state-4:t  *state-4:t
   =.  saved
     %=  saved  owner-initialized  1  enabled.policy  |  deliveries
         (my ~[[0v1 [7 %send %uncertain 'external']]])
@@ -48,7 +48,7 @@
     %^  do-agent  /publish/0v1/(scot %ud attempt)  gill
     [%poke-ack ?:(rejected `~ ~)]
   ;<  =vase  bind:m  get-save
-  (pure:m deliveries:!<(state-3:t vase) (receipts caz))
+  (pure:m deliveries:!<(state-4:t vase) (receipts caz))
 ::
 ++  test-channel-ack-waits-for-host-confirmation
   %-  eval-mare
@@ -107,7 +107,7 @@
   =/  m  (mare ,[sent=? receipts=(list action:hh)])
   ^-  form:m
   =/  to=destination:t  [%channel [%chat ~lux %test] ~]
-  =/  saved=state-3:t  *state-3:t
+  =/  saved=state-4:t  *state-4:t
   =.  saved
     %=  saved
       owner-initialized  1
@@ -220,7 +220,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   =/  to=destination:t  [%dm ~nec ~]
-  =/  saved=state-3:t  *state-3:t
+  =/  saved=state-4:t  *state-4:t
   =.  saved
     %=  saved  owner-initialized  1  policy  [& `~nec ~ %mentions ~ ~]
         lanes  (my ~[['conversation' [to 0 ~]]])
@@ -241,7 +241,7 @@
   ;<  caz=(list card)  bind:m
     (do-agent wire [~zod %harness] [%fact %noun !>(`(each json @t)`[%& [%o ~]])])
   ;<  =vase  bind:m  get-save
-  =/  s  !<(state-3:t vase)
+  =/  s  !<(state-4:t vase)
   ;<  ~  bind:m  (ex-equal !>(jobs.s) !>(`(map @uv job:t)`~))
   ;<  ~  bind:m
     %+  ex-equal

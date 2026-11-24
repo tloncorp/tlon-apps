@@ -32,8 +32,8 @@
 ++  seconds  |=([from=@ud to=@ud] (turn (gulf from to) |=(n=@ud (add t0 (mul n ~s1)))))
 ++  adapter-state
   |=  bindings=(list @t)
-  ^-  state-3:t
-  =/  s=state-3:t  *state-3:t
+  ^-  state-4:t
+  =/  s=state-4:t  *state-4:t
   %=  s
     owner-initialized  1
     policy  [& `~nec ~ %mentions ~ ~]
@@ -75,7 +75,7 @@
   ^-  form:m
   ;<  *  bind:m  (do-agent /head [~zod %harness] [%fact %noun !>(%changed)])
   ;<  =vase  bind:m  get-save
-  (pure:m ~(key by records.lens:!<(state-3:t vase)))
+  (pure:m ~(key by records.lens:!<(state-4:t vase)))
 ::  64 in 'old', one second apart, and the newest in 'new'.
 ::
 ++  two-bindings
