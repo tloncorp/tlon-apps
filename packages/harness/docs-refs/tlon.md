@@ -59,10 +59,15 @@ To show these records in the owner's native Tlon Context Lens:
    `just setup SHIP ~owner`, which also enables owner sync.
 2. On the owner ship, trust the bot: `:steward &steward-action-1 [%trust-bot ~bot]`.
    Replace `~bot` with the bot's ship name. Sponsorship alone does not grant trust.
-3. Owner sync also sets the bot's local Steward owner, so owner-requested run
-   retries reach Harness. While online, the hand holds Steward's gateway lease, so
-   Steward doesn't tell that owner the bot is offline. The lease lapses within 15
-   minutes of the hand stopping.
+3. The hand sets the bot's local Steward owner to its explicit owner whether or
+   not owner sync is on, so owner-requested run retries reach Harness. While
+   online, the hand also holds Steward's gateway lease, with or without owner
+   sync, so Steward doesn't tell that owner the bot is offline. The lease lapses
+   within 15 minutes of the hand stopping. A ship without Steward gets neither,
+   and a hand without an owner holds no lease, since Steward refuses one. A
+   hand with an owner watches Steward's gateway feed even while Steward is not
+   running; Gall holds that watch until Steward starts, so a Steward that
+   starts after the hand gets the owner and the lease when it starts.
 4. Enable Tlon replies and send a new message. Accepted records make the native
    Lens available; reply attachments point to the run using its Lens ID and bot
    ship, without embedding context. Owner-DM work controls share the same blob.
@@ -815,10 +820,12 @@ receipt responses are fenced by dispatch stage and attempt. Claimed or uncertain
 ledger records block their destination even if this adapter has no cached entry.
 
 Tlon maintenance timers are reserved for presence-lease renewal, tool
-acknowledgement timeouts, Activity subscription recovery and bounded catch-up.
-Schedule deadlines belong to the head's shared scheduler. An otherwise idle,
-connected Tlon hand has no maintenance wake. Status exposes `deliveryMode: "events"`,
-`headConnected`, `publicationsConnected`, and nullable `maintenanceWake`;
+acknowledgement timeouts, Activity subscription recovery, bounded catch-up and
+renewing Steward's gateway lease. Schedule deadlines belong to the head's shared
+scheduler. An otherwise idle, connected Tlon hand has no maintenance wake but
+that renewal, which comes about every ten minutes while the hand has an owner
+and Steward runs. Status exposes `deliveryMode: "events"`, `headConnected`,
+`publicationsConnected`, and nullable `maintenanceWake` and `leaseRenewal`;
 `connected` continues to describe the Activity subscription.
 
 Activity catch-up uses a durable native ingestion-time cursor. Each turn walks
