@@ -43,6 +43,7 @@
   ?:  =(%$ (rear path))  `!>(&)
   ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)
   ?:  (lien path |=(part=@ta =(%hand-state part)))  `!>(*state:hh)
+  ?:  (lien path |=(part=@ta =(%hand-index part)))  `!>(*index:hh)
   ?:  (lien path |=(part=@ta =(%activity part)))  `!>(~)
   ~
 ::  The owners of the core %configure pokes to Steward among the cards.
