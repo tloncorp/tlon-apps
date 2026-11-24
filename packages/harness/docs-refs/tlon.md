@@ -640,12 +640,13 @@ by every author.
   save that gives it, and when the bot leaves or loses the channel. If
   Messenger rejects the card, the request closes too, so none stays open that
   the owner was not told of; the ship's next attempt opens it again.
-- A request expires 48 hours after it opened, as on OpenClaw. The earliest
-  expiry is one of the deadlines of the hand's maintenance wake, recomputed
-  from saved state after a reload, so a request whose 48 hours passed while
-  the hand was not running expires within a second of it starting; a disabled
-  hand sets no wake and expires requests once it is enabled again. Expiry is
-  recorded in the activity feed as `approval-expired`. When a DM request
+- A request expires 48 hours after it opened, as on OpenClaw. The first event
+  the hand handles after that expires it; when no event comes, the
+  maintenance wake does, since the earliest expiry is one of its deadlines,
+  recomputed from saved state after a reload. A disabled hand expires nothing
+  and puts no expiry on its wake; once it is enabled again, its first event
+  or wake expires what is due. Expiry is recorded in the activity feed as
+  `approval-expired`. When a DM request
   expires, the bot also declines the ship's DM invitation if it is still
   pending: `%chat` reports a pending invitation once and none of its later
   messages, so an invitation left pending would keep the ship from reaching
@@ -658,11 +659,19 @@ by every author.
   same DM, at most once per ten minutes, `Pending approval queue is full
   (100). New requests are dropped until existing ones are approved, denied,
   or blocked.`, recorded in the activity feed as `approval-cap`. The ten
-  minutes are counted from that entry, so the limit holds for as long as the
-  feed keeps it.
+  minutes are counted from that entry, so a second notice can come sooner
+  once the feed has dropped it.
 - One ship has at most 5 requests open, across its DM and all channels. A
   ship at that limit opens no request in a further place, and neither the ship
   nor the owner is told, until one of its requests closes or expires.
+- When one of these limits, or the limit on `permission-denied` entries,
+  keeps a ship's DM invitation from opening a request it would otherwise
+  open, the bot declines the invitation, for the reason expiry does: left
+  pending, `%chat` would report none of the ship's later messages. The ship's
+  next message invites the bot again and has another chance. An invitation
+  that would open no request anyway, from a comet, a blocked ship, or while
+  the hand has no explicit owner or is disabled, stays pending, and is
+  accepted if the ship gains access later.
 - A comet opens no request and sends no card; its attempt is still recorded
   as `permission-denied`. The owner can give a comet access in settings, and a
   comet with access is answered like any other ship.
