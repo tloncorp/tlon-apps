@@ -89,7 +89,7 @@
 ++  clearable-walk
   |=  [job=job:c db=state:hh]
   ^-  ?
-  ?.  |(=(%cancelled state.job) &(=(%complete state.job) =(0 remaining.job)))  |
+  ?.  |(=(%cancelled state.job) (used-up:schedule job))  |
   ?:  (busy-walk job db)  |
   ?~  last.job  =(%cancelled state.job)
   =/  last  (~(get by observations.db) u.last.job)

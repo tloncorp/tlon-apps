@@ -324,6 +324,106 @@
   ;<  ~  bind:m  (ex-equal !>(schedules.final) !>(~))
   ;<  ~  bind:m  (ex-equal !>((~(has by sessions.final) 'schedule-0v1')) !>(&))
   (ex-equal !>(enabled:(~(got by bindings.hands.final) 'schedule-0v1')) !>(|))
+::  A recurring job's runs are optional. Without them the head keeps running
+::  it until it is cancelled; a count saved before runs became optional
+::  still ends the job as it did.
+::
+++  unlimited-job
+  ^-  schedule:c
+  =/  act=action:c
+    :*  %add  0v1  'source-binding'  'alice'  %prompt
+        %-  pairs:enjs:format
+        ~[['schedule' %s '* * * * *'] ['timezone' %s 'UTC'] ['prompt' %s 'Check status']]
+    ==
+  (create:schedule act ['fixture-chat' 'room' 'source' ~['alice'] &] ~ ~2026.9.9)
+::  Load one job a day late, fire its wake and return what the head saved.
+++  run-late
+  |=  j=schedule:c
+  =/  m  (mare ,state-0)
+  ^-  form:m
+  =/  s  fixture
+  =.  schedules.s  (my ~[[0v1 j]])
+  ;<  ~             bind:m  prepare
+  ;<  ~             bind:m  (wait ~d1)
+  ;<  *             bind:m  (reload s)
+  get-state
+++  ran-once
+  |=  next=state-0
+  ^-  ?
+  =/  runs
+    %+  skim  ~(val by observations.hands.next)
+    |=(o=observation:hh =('schedule-0v1' binding.o))
+  =(1 (lent runs))
+++  test-a-job-without-runs-stays-active-after-the-head-runs-it
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  next=state-0  bind:m  (run-late unlimited-job)
+  =/  j  (~(got by schedules.next) 0v1)
+  ;<  ~  bind:m  (ex-equal !>((ran-once next)) !>(&))
+  ;<  ~  bind:m  (ex-equal !>(state.j) !>(%active))
+  ;<  ~  bind:m  (ex-equal !>((runs-left:schedule (job-value:schedule j))) !>(`(unit @ud)`~))
+  (ex-equal !>((gth next.j (add t0 ~d1))) !>(&))
+++  test-a-saved-job-on-its-last-run-completes-as-before
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  `schedule:c`job
+  =.  remaining.saved  1
+  ;<  next=state-0  bind:m  (run-late saved)
+  =/  j  (~(got by schedules.next) 0v1)
+  ;<  ~  bind:m  (ex-equal !>((ran-once next)) !>(&))
+  ;<  ~  bind:m  (ex-equal !>(state.j) !>(%complete))
+  (ex-equal !>(remaining.j) !>(0))
+++  cron-remaining
+  =/  m  (mare ,json)
+  ^-  form:m
+  ;<  =cage  bind:m  (got-peek /x/cron)
+  =/  rows  !<(json q.cage)
+  ?>  ?=([%a [%o *] ~] rows)
+  (pure:m (~(got by p.i.p.rows) 'remaining'))
+++  test-edit-adds-and-removes-a-count-and-listing-shows-null
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  fixture
+  =/  j  unlimited-job
+  =.  schedules.s  (my ~[[0v1 j]])
+  =/  base=(list [@t json])
+    ~[['schedule' %s '0 9 * * *'] ['timezone' %s 'UTC'] ['prompt' %s 'Check status']]
+  =/  counted  (pairs:enjs:format (snoc base ['runs' %s '500']))
+  ;<  ~                  bind:m  (setup s)
+  ;<  open=json          bind:m  cron-remaining
+  ;<  *                  bind:m
+    (do-poke %harness-cron !>(`request:c`['add-count' [%edit 0v1 (sham j) counted]]))
+  ;<  limited=state-0    bind:m  get-state
+  =/  lj  (~(got by schedules.limited) 0v1)
+  ;<  shown=json         bind:m  cron-remaining
+  ;<  *                  bind:m
+    %-  do-poke
+    [%harness-cron !>(`request:c`['drop-count' [%edit 0v1 (sham lj) (pairs:enjs:format base)]])]
+  ;<  unlimited=state-0  bind:m  get-state
+  =/  uj  (~(got by schedules.unlimited) 0v1)
+  ;<  hidden=json        bind:m  cron-remaining
+  ;<  ~  bind:m  (ex-equal !>(open) !>(`json`~))
+  ;<  ~  bind:m  (ex-equal !>((runs-left:schedule (job-value:schedule lj))) !>(`(unit @ud)``500))
+  ;<  ~  bind:m  (ex-equal !>(shown) !>((numb:enjs:format 500)))
+  ;<  ~  bind:m  (ex-equal !>(state.uj) !>(%active))
+  ;<  ~  bind:m  (ex-equal !>((runs-left:schedule (job-value:schedule uj))) !>(`(unit @ud)`~))
+  (ex-equal !>(hidden) !>(`json`~))
+++  test-a-cancelled-job-without-runs-can-be-cleared
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  fixture
+  =.  schedules.s  (my ~[[0v1 unlimited-job]])
+  ;<  ~                  bind:m  (setup s)
+  ;<  *                  bind:m  (do-poke %harness-cron !>(`request:c`['cancel' [%cancel 0v1]]))
+  ;<  cancelled=state-0  bind:m  get-state
+  ;<  *                  bind:m  (do-poke %harness-cron !>(`request:c`['clear' [%clear 0v1]]))
+  ;<  cleared=state-0    bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>(state:(~(got by schedules.cancelled) 0v1)) !>(%cancelled))
+  (ex-equal !>(schedules.cleared) !>(~))
 ++  requests
   |=  cards=(list card)
   ^-  (list http-card:renew)

@@ -79,7 +79,7 @@
       pattern  *pattern:c
       prompt  text.fields
       next  at.time
-      remaining  1
+      remaining  (limit `1)
     ==
   ::  Model work either runs once at an exact time or follows a pattern at
   ::  UTC or a fixed offset.
@@ -97,20 +97,20 @@
       pattern  *pattern:c
       prompt  prompt.fields
       next  at.time
-      remaining  1
+      remaining  (limit `1)
     ==
-  =/  fields=[schedule=@t timezone=@t prompt=@t runs=@t]
+  =/  fields=[schedule=@t timezone=@t prompt=@t]
     %.  args
     %-  ot:dejs:format
     :~  schedule+so:dejs:format
         timezone+so:dejs:format
         prompt+so:dejs:format
-        runs+so:dejs:format
     ==
   =/  offset  (zone timezone.fields)
   ?>  &((gth (met 3 prompt.fields) 0) (lte (met 3 prompt.fields) 4.096))
-  =/  runs  (number:calendar runs.fields)
-  ?>  &((gth runs 0) (lte runs 100))
+  ::  runs is optional: a count limits the job, and without one it repeats
+  ::  until it is cancelled.
+  =/  runs  (bind (~(get by p.args) 'runs') count)
   =/  pattern  (parse:calendar schedule.fields)
   %*  .  job
     timezone  timezone.fields
@@ -118,8 +118,57 @@
     pattern  pattern
     prompt  prompt.fields
     next  (need (next-at-offset:calendar pattern offset now))
-    remaining  runs
+    remaining  (limit runs)
   ==
+::  Run limits. remaining counts the runs a job has left, and +advance
+::  completes a job the moment its count reaches 0, so an %active job never
+::  holds 0. That frees 0 on a job that is not %complete to mean no limit: a
+::  recurring job created without runs, which repeats until it is cancelled.
+::  On a %complete job 0 means no runs are left. Paused and cancelled jobs
+::  never run again, so their count is only shown; an exhausted job that was
+::  then paused or cancelled also holds 0 and shows as having no limit.
+::  Read and write remaining only through +limit, +spend, +runs-left,
+::  +used-up and +unlimited.
+::
+::  The stored count for an optional limit; ~ is no limit.
+++  limit
+  |=  runs=(unit @ud)
+  ^-  @ud
+  ?~  runs  0
+  ?>  (gth u.runs 0)
+  u.runs
+::  A runs argument: a decimal string for a positive count, with no upper
+::  bound.
+++  count
+  |=  value=json
+  ^-  @ud
+  =/  digits  (so:dejs:format value)
+  =/  runs  (need (rush digits dem))
+  ?>  (gth runs 0)
+  runs
+::  The count after one admitted run. No limit stays no limit.
+++  spend
+  |=  job=job:c
+  ^-  @ud
+  ?:  (unlimited job)  0
+  ?>  (gth remaining.job 0)
+  (dec remaining.job)
+::  Runs left, or ~ for a job with no limit.
+++  runs-left
+  |=  job=job:c
+  ^-  (unit @ud)
+  ?:  (unlimited job)  ~
+  `remaining.job
+::  A %complete job with no runs left: the settled end of its count.
+++  used-up
+  |=  job=job:c
+  ^-  ?
+  &(=(%complete state.job) =(`0 (runs-left job)))
+::
+++  unlimited
+  |=  job=job:c
+  ^-  ?
+  &(=(0 remaining.job) !=(%complete state.job))
 ::
 ++  zone
   |=  timezone=@t
@@ -212,7 +261,7 @@
   |=  [job=job:c ledger=indexed:hh]
   ^-  ?
   =*  db  db.ledger
-  ?.  |(=(%cancelled state.job) &(=(%complete state.job) =(0 remaining.job)))  |
+  ?.  |(=(%cancelled state.job) (used-up job))  |
   ?:  (busy job ledger)  |
   ?~  last.job  =(%cancelled state.job)
   =/  last  (~(get by observations.db) u.last.job)
@@ -222,13 +271,16 @@
 ++  advance
   |=  [job=schedule:c input=@uv now=@da]
   ^-  schedule:c
-  ?>  &(=(%active state.job) (gth remaining.job 0))
+  ?>  =(%active state.job)
+  =/  value  (job-value job)
+  =/  left  (spend value)
   =.  job
     %*  .  job
-      remaining  (dec remaining.job)
+      remaining  left
       last  `input
     ==
-  ?:  =(0 remaining.job)  job(state %complete)
+  ::  A limited job completes with its last run; one with no limit runs on.
+  ?:  &(=(0 left) !(unlimited value))  job(state %complete)
   =/  next  (next-at-offset:calendar pattern.job (zone timezone.job) now)
   ?~  next  job(state %complete)
   job(next (need next))
@@ -259,7 +311,7 @@
       ['destination' %s destination.job]
       ['prompt' %s prompt.job]
       ['next' %s (scot %da next.job)]
-      ['remaining' (numb:enjs:format remaining.job)]
+      ['remaining' (runs-json (job-value job))]
       ['state' %s state.job]
       ['reason' %s reason.job]
       ['lastInput' ?~(last.job ~ [%s (scot %uv u.last.job)])]
@@ -269,6 +321,14 @@
       ['clearable' %b (clearable (job-value job) ledger)]
       ['retryable' %b (retryable (job-value job) ledger)]
   ==
+::
+::  Runs left as JSON: a number, or null for a job with no limit.
+++  runs-json
+  |=  job=job:c
+  ^-  json
+  =/  left  (runs-left job)
+  ?~  left  ~
+  (numb:enjs:format u.left)
 ::
 ++  list-json
   |=  [jobs=(map @uv schedule:c) ledger=indexed:hh binding=(unit @t)]
