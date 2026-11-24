@@ -83,7 +83,7 @@ function deploy
         update_desk mcp /repo/packages/harness/mcp/desk-out &&
         just heavy=true push "~$ship"
     ) > "$logs/deploy-$ship.log" 2>&1 ||
-      { echo "Failed to deploy to ~$ship; see $logs/deploy-$ship.log"; exit 1; }
+      { echo "Failed to deploy to ~$ship; see $logs/deploy-$ship.log"; refusals "$logs/deploy-$ship.log"; exit 1; }
   done
   sleep 5
 }
@@ -95,6 +95,10 @@ function boot
   if [ "$?" -ne 0 ]
   then
     result "boot ~$1" "FAILED (see $logs/boot-$1.log)"
+    refusals "$logs/boot-$1.log"
+    # Stopped, the next run boots the ship afresh instead of reusing a ship
+    # that never started its agents.
+    $runtime stop "$net-$1" > /dev/null 2>&1
     return 1
   fi
 }

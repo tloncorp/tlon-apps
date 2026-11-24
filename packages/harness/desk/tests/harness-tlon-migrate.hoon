@@ -44,7 +44,7 @@
   =/  old  every-field
   =/  new  (load:migrate !>(old))
   ;:  weld
-      (expect-eq !>(%3) !>(-.new))
+      (expect-eq !>(%4) !>(-.new))
       (expect-eq !>(lens.old) !>(lens.new))
       (expect-eq !>(owner-initialized.old) !>(owner-initialized.new))
       (expect-eq !>(sibling-moon-owners.old) !>(sibling-moon-owners.new))
@@ -134,7 +134,7 @@
       (expect-eq !>(dm-sid) !>((identity:c dm-to)))
       (expect-eq !>(`[dm-to 4 ~[%web]]) !>((~(get by lanes.new) dm-sid)))
   ==
-++  test-state-three-loads-unchanged
+++  test-state-four-loads-unchanged
   =/  current  (load:migrate !>(mixed))
   ;:  weld
       (expect-eq !>(current) !>((load:migrate !>(current))))
@@ -163,4 +163,25 @@
       (expect-eq !>(`(map @t lane:t)`(my ~[['retained' [dm-to 2 ~]]])) !>(lanes.from-one))
       (expect-eq !>(~[['room' 'binding-room']]) !>((dropped:migrate !>(one))))
   ==
+::
+++  test-state-three-loads-with-no-pending-browser-handoff
+  =/  old=state-3:migrate  (three:migrate !>(every-field))
+  =/  current  (load:migrate !>(old))
+  ;:  weld
+      (expect !>(=(%4 -.current)))
+      (expect !>(=(~ browser-entries.current)))
+      (expect !>(=(+.old +>.current)))
+      (expect-eq !>(~) !>((dropped:migrate !>(old))))
+  ==
+::
+++  test-pending-browser-handoff-loads-unchanged
+  =/  current  *state-4:t
+  =.  policy.current  [& `~nec ~ %mentions ~ ~]
+  =.  tool-receipts.current
+    %-  my
+    ~[[0v1 `tool-receipt:t`[['dm' 1 ['call' 'browser_secure_entry' '{}']] %sending '' ~2026.11.1]]]
+  =.  browser-entries.current
+    %-  my
+    ~[[0v1 `browser-entry:t`[~2026.11.2 [%wait [%form 'http://127.0.0.1/credential-result/fixture']]]]]
+  (expect-eq !>(current) !>((load:migrate !>(current))))
 --
