@@ -228,4 +228,84 @@
     (expect-eq !>(2.048) !>(~(wyt by observations.db)))
     (admits db 'b8')
   ==
+::  The bindings a session holds, by the index.
+++  listed
+  |=  [ledger=indexed:hh sid=@t]
+  ^-  (set @t)
+  (~(get ju sessions.index.ledger) sid)
+::  Bindings are listed under their session when they are made and unlisted
+::  when they are deleted; disabling one, or detaching its session, keeps it.
+::
+++  test-sessions-index-follows-every-binding-write
+  =/  l  (bound ~[['a' 'tlon' 's1'] ['b' 'chat' 's1'] ['c' 'chat' 's3']])
+  =|  out=tang
+  =^  e  l  (go l [%register (config 'chat' 's2')] t0)
+  =.  out  (weld out e)
+  =.  out  (weld out (expect-eq !>((silt ~['hand--0'])) !>((listed l 's2'))))
+  =^  e  l  (go l [%enable 'b' |] t0)
+  =.  out  (weld out e)
+  =.  out  (weld out (expect-eq !>((silt ~['a' 'b'])) !>((listed l 's1'))))
+  =^  e  l  (go l [%remove 'c'] t0)
+  =.  out  (weld out e)
+  =.  out  (weld out (expect-eq !>(~) !>((listed l 's3'))))
+  ::  A refused bind changes nothing.
+  =/  refused  (apply-indexed:hd l [%bind 'a' (config 'chat' 's1')] t0)
+  =.  out  (weld out (expect !>(?=(%| -.refused))))
+  =^  e  l  (go l [%retire 'b' (archive-digest:hd db.l 'b') 'archive'] t0)
+  =.  out  (weld out e)
+  =.  out  (weld out (expect-eq !>((silt ~['a'])) !>((listed l 's1'))))
+  =^  e  l  (seen (detach-session-indexed:hd l 's1' t0))
+  =.  out  (weld out e)
+  =.  out  (weld out (expect-eq !>((silt ~['a'])) !>((listed l 's1'))))
+  =.  out  (weld out (expect !>(!enabled:(~(got by bindings.db.l) 'a'))))
+  out
+::  The questions the head asks of a session, answered by walking every
+::  binding, as the head did before the index.
+++  walk-bound
+  |=  [db=state:hh sid=@t]
+  (lien ~(val by bindings.db) |=(b=binding:hh =(sid sid.b)))
+++  walk-hand
+  |=  [db=state:hh sid=@t hand=@t]
+  (lien ~(val by bindings.db) |=(b=binding:hh &(=(sid sid.b) =(hand hand.b))))
+++  walk-enabled
+  |=  [db=state:hh sid=@t]
+  (lien ~(val by bindings.db) |=(b=binding:hh &(=(sid sid.b) enabled.b)))
+++  questioned
+  ^-  indexed:hh
+  =/  l  (bound ~[['tl' 'tlon' 's1'] ['ch' 'chat' 's1'] ['x' 'tlon' 's2'] ['y' 'chat' 's3']])
+  =/  off
+    |=  [ledger=indexed:hh id=@t]
+    =/  applied  (apply-indexed:hd ledger [%enable id |] t0)
+    ?>(?=(%& -.applied) ledger.p.applied)
+  (off (off l 'ch') 'x')
+++  test-session-questions-give-the-walks-answers
+  =/  l  questioned
+  =/  sids=(list @t)  ~['s1' 's2' 's3' 's4']
+  ;:  weld
+    %+  expect-eq
+      !>((turn sids |=(s=@t (walk-bound db.l s))))
+    !>((turn sids |=(s=@t (session-bound:hd l s))))
+    %+  expect-eq
+      !>((turn sids |=(s=@t (walk-hand db.l s 'tlon'))))
+    !>((turn sids |=(s=@t (session-hand:hd l s 'tlon'))))
+    %+  expect-eq
+      !>((turn sids |=(s=@t (walk-enabled db.l s))))
+    !>((turn sids |=(s=@t (session-enabled:hd l s))))
+    (expect-eq !>(~[& & & |]) !>((turn sids |=(s=@t (session-bound:hd l s)))))
+    (expect-eq !>(~[& | &]) !>((turn (scag 3 sids) |=(s=@t (session-enabled:hd l s)))))
+  ==
+::  Each question reads the index, not the map: a binding the map holds but
+::  the index leaves out is not seen.
+++  test-session-questions-follow-the-index
+  =/  l  questioned
+  =.  sessions.index.l  (~(del ju sessions.index.l) 's1' 'tl')
+  =.  sessions.index.l  (~(del ju sessions.index.l) 's3' 'y')
+  =/  detached  (detach-session-indexed:hd l 's1' t0)
+  ;:  weld
+    (expect !>((walk-hand db.l 's1' 'tlon')))
+    (expect !>(!(session-hand:hd l 's1' 'tlon')))
+    (expect !>(!(session-enabled:hd l 's1')))
+    (expect !>(!(session-bound:hd l 's3')))
+    (expect !>(enabled:(~(got by bindings.db.detached) 'tl')))
+  ==
 --

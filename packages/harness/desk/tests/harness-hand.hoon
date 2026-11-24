@@ -353,6 +353,21 @@
         !>(~[[(scot %uv (input-id:hd 'binding' 'queued')) 'queued']])
       !>((phase (input-id:hd 'binding' 'queued')))
   ==
+::  An enable answers with the binding's fields, as a repeated bind does;
+::  the rows and their count are read through %status.
+++  test-enable-answers-with-the-binding-and-status-keeps-the-rows
+  =/  enabled  (apply:hd admitted [%enable 'binding' %.n] ~2000.1.2)
+  =/  status  (apply:hd admitted [%status 'binding'] ~2000.1.2)
+  ?>  ?=(%& -.enabled)
+  ?>  ?=(%& -.status)
+  =/  config  (~(got by bindings.db.p.enabled) 'binding')
+  ;:  weld
+      %+  expect-eq
+        !>((pairs:enjs:format (binding-fields:hd 'binding' config)))
+      !>(result.p.enabled)
+      (expect !>(!enabled.config))
+      (expect-eq !>(1) !>(count:(status-rows result.p.status)))
+  ==
 ::  The bytes of a result as the head sends it to %acp.
 ++  payload-bytes
   |=  result=json
@@ -386,5 +401,71 @@
       (expect !>((gth (met 3 (en:json:html unbounded)) max-payload)))
       (expect !>((lte (payload-bytes result.p.status) max-payload)))
       (expect !>((lte (payload-bytes result.p.archive) max-payload)))
+  ==
+::  COUNT more bindings seeded-1 to seeded-COUNT, each on its own session;
+::  every third is disabled.
+++  seeded
+  |=  [db=state:hh count=@ud]
+  ^-  state:hh
+  %=  db  bindings
+    %-  ~(gas by bindings.db)
+    %+  turn  (gulf 1 count)
+    |=  k=@ud
+    ^-  [@t binding:hh]
+    =/  n  (scot %ud k)
+    :-  (cat 3 'seeded-' n)
+    ['chat' (cat 3 'room/' n) (cat 3 'session-' n) ~['alice'] !=(0 (mod k 3))]
+  ==
+++  fresh  `binding:hh`['chat' 'room/new' 'session-new' ~['alice'] %.y]
+::  How many bindings a bind left, or zero when it was refused.
+++  bound-count
+  |=  res=(each [db=state:hh result=json] @t)
+  ^-  @ud
+  ?:(?=(%| -.res) 0 ~(wyt by bindings.db.p.res))
+++  refusal
+  |=  res=(each [db=state:hh result=json] @t)
+  ^-  (unit @t)
+  ?:(?=(%| -.res) `p.res ~)
+++  test-a-new-binding-is-not-refused-for-how-many-bindings-exist
+  =/  db  (seeded *state:hh 256)
+  =/  named  (apply:hd db [%bind 'named' fresh] ~2000.1.1)
+  =/  generated  (apply:hd db [%register fresh] ~2000.1.1)
+  =/  kept
+    ?:  ?=(%| -.named)  |
+    =(bindings.db (~(del by bindings.db.p.named) 'named'))
+  ;:  weld
+      (expect-eq !>(257) !>((bound-count named)))
+      (expect-eq !>(257) !>((bound-count generated)))
+      (expect !>(kept))
+  ==
+::  Retiring a named binding keeps its id, so named ids only accumulate.
+++  test-a-named-binding-is-not-refused-for-how-many-ids-were-ever-named
+  =/  db  (seeded *state:hh 96)
+  =.  retired.db
+    (silt (turn (gulf 1 4.000) |=(k=@ud (cat 3 'retired-' (scot %ud k)))))
+  =/  named  (apply:hd db [%bind 'named' fresh] ~2000.1.1)
+  ;:  weld
+      (expect-eq !>(4.096) !>((add ~(wyt in retired.db) ~(wyt by bindings.db))))
+      (expect-eq !>(97) !>((bound-count named)))
+  ==
+++  test-every-other-bind-refusal-holds-past-256-bindings
+  =/  db  (seeded *state:hh 256)
+  =.  retired.db  (silt ~['gone'])
+  =/  kept=observation:hh  ['kept' 'event' 'alice' 'Kept' ~2000.1.1 %completed]
+  =.  observations.db  (my ~[[(input-id:hd 'kept' 'event') kept]])
+  =/  bind  |=([id=@t cfg=binding:hh] (refusal (apply:hd db [%bind id cfg] ~2000.1.1)))
+  =/  reused  `(unit @t)``'Retired binding ids cannot be reused'
+  ;:  weld
+      (expect-eq !>(reused) !>((bind 'gone' fresh)))
+      (expect-eq !>(reused) !>((bind 'kept' fresh)))
+      %+  expect-eq
+        !>(`(unit @t)``'Binding identities are immutable; use a new id')
+      !>((bind 'seeded-1' fresh))
+      %+  expect-eq
+        !>(`(unit @t)``'The hand-- namespace is allocated by register')
+      !>((bind 'hand--9' fresh))
+      %+  expect-eq
+        !>(`(unit @t)``'Binding metadata exceeds its limits')
+      !>((bind (fil 3 129 'x') fresh))
   ==
 --
