@@ -62,7 +62,7 @@ const configure = (grants) => client.call('harness/tlon/configure', {
 const groups = (remote = false) => scry('groups/v2/groups', remote)
 const joined = async (nest) => Object.hasOwn(await scry('channels/v4/channels'), nest)
 const dms = (path) => scry(`chat/${path}`)
-const seen = (label) => prompts.some((prompt) => prompt.includes(`${marker}-${label}`))
+const seen = (label) => prompts.some((prompt) => new RegExp(`${marker}-${label}(?![\\w-])`).test(prompt))
 // The peer mentions the bot in a channel.
 async function mention(nest, label) {
   await poke('channels', 'channel-action-1', { channel: { nest, action: { post: { add: {
@@ -83,11 +83,11 @@ async function dm(label) {
 const dmAnswered = async (label) => Object.values((await scry(`chat/v4/dm/${ship}/writs/newest/64/light`, true))?.writs || {})
   .some((post) => authorShip(post.essay?.author) === ship && JSON.stringify(post.essay.content).includes(`${marker}-answer`))
   && seen(label)
-// A message the bot ignores reaches it but never the model.
-async function ignored(label, arrived) {
+// The message .step names reaches the bot but never the model.
+async function ignored(step, label, arrived) {
   await until(`${label} arrived at the bot`, arrived)
   await sleep(4000)
-  assert.ok(!seen(label), `${label} reached the model`)
+  assert.ok(!seen(step), `${label} reached the model`)
   console.log(`PASS ${label} ignored`)
 }
 const posted = (nest, label) => async () => JSON.stringify(await scry(`channels/v5/${nest}/posts/newest/32/post`)).includes(`${marker}-${label}`)
@@ -137,9 +137,9 @@ try {
   await mention(roomA, 'channel-a')
   await until('a ship granted channel A is answered there', async () => await answered(roomA) && seen('channel-a'))
   await mention(roomB, 'channel-b')
-  await ignored('a mention in channel B from a ship granted channel A', posted(roomB, 'channel-b'))
+  await ignored('channel-b', 'a mention in channel B from a ship granted channel A', posted(roomB, 'channel-b'))
   await dm('dm-before')
-  await ignored('a DM from a ship granted channel A', async () => (await dms('dm/invited')).includes(peer))
+  await ignored('dm-before', 'a DM from a ship granted channel A', async () => (await dms('dm/invited')).includes(peer))
   assert.ok((await dms('dm/invited')).includes(peer), 'a channel grant accepted the DM invitation')
   assert.ok(!(await dms('dm')).includes(peer))
   console.log('PASS a ship granted one channel is answered there and ignored in another channel and in DMs')
@@ -151,7 +151,7 @@ try {
   await until('a ship granted its DM is answered there', () => dmAnswered('dm-granted'))
   assert.ok(!seen('dm-before'), 'a DM sent before the DM grant was answered')
   await mention(roomA, 'channel-a-dm-only')
-  await ignored('a mention in channel A from a ship granted only its DM', posted(roomA, 'channel-a-dm-only'))
+  await ignored('channel-a-dm-only', 'a mention in channel A from a ship granted only its DM', posted(roomA, 'channel-a-dm-only'))
   console.log('PASS a ship granted its DM is answered there and ignored in channels')
 
   // Leaving a channel removes its grants; joining again finds none.
@@ -164,7 +164,7 @@ try {
   await until('the bot joined channel B again', () => joined(roomB), 90000)
   assert.deepEqual((await grants()).channelGrants, [], 'joining again restored a grant')
   await mention(roomB, 'channel-b-rejoined')
-  await ignored('a mention in channel B after the bot left and joined it again', posted(roomB, 'channel-b-rejoined'))
+  await ignored('channel-b-rejoined', 'a mention in channel B after the bot left and joined it again', posted(roomB, 'channel-b-rejoined'))
   console.log('PASS leaving a channel removes its grants, and joining it again finds none')
 
   // A grant for a reader of an open channel changes nothing: its running turn is still answered.
