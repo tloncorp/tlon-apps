@@ -20,13 +20,13 @@
   ?>  ?=(%0 -.out)
   ;;([policy=policy:t siblings=?] product.out)
 ++  test-trust-read-does-not-render-adapter-status
-  =/  =policy:t  [| `~nec (my ~[[~bud ~[%web]]]) %mentions ~ ~]
+  =/  =policy:t  [| `~nec (my ~[[~bud ~[%web]]]) %mentions ~ ~ ~ ~]
   (expect-eq !>([policy &]) !>((read & policy &)))
 ++  test-absent-adapter-grants-no-authority
-  (expect-eq !>([[| ~ ~ %mentions ~ ~] |]) !>((read | [& `~nec ~ %mentions ~ ~] &)))
+  (expect-eq !>([[| ~ ~ %mentions ~ ~ ~ ~] |]) !>((read | [& `~nec ~ %mentions ~ ~ ~ ~] &)))
 ++  test-owner-and-sibling-revocations-are-read-live
   ;:  weld
-      (expect-eq !>([[| `~nec ~ %mentions ~ ~] &]) !>((read & [| `~nec ~ %mentions ~ ~] &)))
-      (expect-eq !>([[| ~ ~ %mentions ~ ~] |]) !>((read & [| ~ ~ %mentions ~ ~] |)))
+      (expect-eq !>([[| `~nec ~ %mentions ~ ~ ~ ~] &]) !>((read & [| `~nec ~ %mentions ~ ~ ~ ~] &)))
+      (expect-eq !>([[| ~ ~ %mentions ~ ~ ~ ~] |]) !>((read & [| ~ ~ %mentions ~ ~ ~ ~] |)))
   ==
 --

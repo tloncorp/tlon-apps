@@ -44,7 +44,7 @@
   =/  old  every-field
   =/  new  (load:migrate !>(old))
   ;:  weld
-      (expect-eq !>(%3) !>(-.new))
+      (expect-eq !>(%4) !>(-.new))
       (expect-eq !>(lens.old) !>(lens.new))
       (expect-eq !>(owner-initialized.old) !>(owner-initialized.new))
       (expect-eq !>(sibling-moon-owners.old) !>(sibling-moon-owners.new))
@@ -54,13 +54,17 @@
       (expect-eq !>((my ~[[dm-to dm-sid]])) !>(identities.new))
       (expect-eq !>(routes.old) !>(routes.new))
       (expect-eq !>(cuts.old) !>(cuts.new))
+      (expect-eq !>(~) !>(place-cuts.new))
       (expect-eq !>(channel-after.old) !>(channel-after.new))
       (expect-eq !>(channel-cuts.old) !>(channel-cuts.new))
       (expect-eq !>(uploads.old) !>(uploads.new))
       (expect-eq !>(last-sent.old) !>(last-sent.new))
       (expect-eq !>(tool-receipts.old) !>(tool-receipts.new))
       (expect-eq !>(computing.old) !>(computing.new))
-      (expect-eq !>(policy.old) !>(policy.new))
+      %+  expect-eq
+        !>(policy.old)
+      !>([enabled owner trusted response allowed channels]:policy.new)
+      (expect-eq !>([~ ~]) !>([dm-grants channel-grants]:policy.new))
       (expect-eq !>(epoch.old) !>(epoch.new))
       (expect-eq !>(after.old) !>(after.new))
       (expect-eq !>(`(map @t lane:t)`(my ~[[dm-sid [dm-to 4 ~[%web]]]])) !>(lanes.new))
@@ -134,7 +138,7 @@
       (expect-eq !>(dm-sid) !>((identity:c dm-to)))
       (expect-eq !>(`[dm-to 4 ~[%web]]) !>((~(get by lanes.new) dm-sid)))
   ==
-++  test-state-three-loads-unchanged
+++  test-current-state-loads-unchanged
   =/  current  (load:migrate !>(mixed))
   ;:  weld
       (expect-eq !>(current) !>((load:migrate !>(current))))
@@ -155,12 +159,30 @@
   =/  from-zero  (load:migrate !>(zero))
   =/  from-one  (load:migrate !>(one))
   ;:  weld
-      (expect-eq !>(`policy:t`[& `~nec (my ~[[~bud ~[%web]]]) %all ~ ~]) !>(policy.from-zero))
+      (expect-eq !>(`policy:t`[& `~nec (my ~[[~bud ~[%web]]]) %all ~ ~ ~ ~]) !>(policy.from-zero))
       (expect-eq !>([17 9]) !>([epoch.from-zero next-notice.from-zero]))
       (expect-eq !>((my ~[[dm-to 'retained']])) !>(identities.from-zero))
       (expect-eq !>(18) !>(epoch.from-one))
       (expect-eq !>((my ~[[dm-to 'retained']])) !>(identities.from-one))
       (expect-eq !>(`(map @t lane:t)`(my ~[['retained' [dm-to 2 ~]]])) !>(lanes.from-one))
       (expect-eq !>(~[['room' 'binding-room']]) !>((dropped:migrate !>(one))))
+  ==
+::  The ship-wide lists and channel rules survive the upgrade that adds
+::  per-place grants, and nobody holds one afterwards.
+::
+++  test-state-three-upgrade-keeps-ship-wide-access-and-adds-no-place-grants
+  =/  three  (two-to-three:migrate every-field)
+  =/  new  (load:migrate !>(three))
+  ;:  weld
+      (expect-eq !>(%4) !>(-.new))
+      (expect !>(&(?=(^ trusted.policy.three) ?=(^ allowed.policy.three))))
+      (expect !>(?=(^ channels.policy.three)))
+      (expect-eq !>(trusted.policy.three) !>(trusted.policy.new))
+      (expect-eq !>(allowed.policy.three) !>(allowed.policy.new))
+      (expect-eq !>(channels.policy.three) !>(channels.policy.new))
+      (expect-eq !>(~) !>(dm-grants.policy.new))
+      (expect-eq !>(~) !>(channel-grants.policy.new))
+      (expect-eq !>(~) !>(place-cuts.new))
+      (expect-eq !>(cuts.three) !>(cuts.new))
   ==
 --

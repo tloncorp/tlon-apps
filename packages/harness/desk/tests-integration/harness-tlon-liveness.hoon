@@ -32,9 +32,9 @@
   =/  m  (mare ,(list contact:ct))
   =/  n  (mare ,(list card))
   ^-  form:m
-  =/  saved=state-3:t  *state-3:t
+  =/  saved=state-4:t  *state-4:t
   =.  saved
-    %=  saved  owner-initialized  1  policy  [enabled `~zod ~ %mentions ~ ~]  watching  &
+    %=  saved  owner-initialized  1  policy  [enabled `~zod ~ %mentions ~ ~ ~ ~]  watching  &
       activity-through  ~2026.10.1
     ==
   ::  A stored profile already carries the current bot-info claim unless the

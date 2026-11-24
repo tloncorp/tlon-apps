@@ -1,0 +1,277 @@
+::  Per-place grants: a DM or one channel. Full adapter, synthetic scries
+::  only; no emitted cards are executed.
+::  -test /=harness=/tests-integration/harness-tlon-place-grants
+/-  t=harness-tlon, ad=harness-adapter, h=harness, g=groups-ver,
+    a=activity-ver, hh=harness-hand, dv=channels-ver
+/+  *test-agent, continuity=harness-tlon-continuity, policy-lib=harness-tlon-policy,
+    hj=harness-json
+/=  adapter  /app/harness-tlon
+|%
+++  room-nest  `nest:dv`[%chat ~lux %test]
+++  other-nest  `nest:dv`[%chat ~lux %other]
+++  room  `destination:t`[%channel room-nest ~]
+++  room-sid  (identity:continuity room)
+++  owner-defaults  `(list tool-grant:h)`~[%web %workspace %tlon %code]
+::  ~nec owns the ship. ~bus has a grant for its DM, ~dev one for the room
+::  and ~bud is allowed everywhere. Both channels need mentions.
+::
+++  fixture
+  ^-  state-4:t
+  =/  s=state-4:t  *state-4:t
+  =.  owner-initialized.s  1
+  =.  activity-through.s  ~2026.9.9
+  =.  policy.s
+    :*  &  `~nec  ~  %mentions  (silt ~[~bud])
+        (my ~[[room-nest [%mentions |]] [other-nest [%mentions |]]])
+        (silt ~[~bus])
+        (my ~[[room-nest (silt ~[~dev])]])
+    ==
+  s
+++  room-group
+  ^-  group:v9:g
+  =/  group  *group:v9:g
+  =.  seats.group
+    (my ~[[~bus `seat:v9:g`[~ ~2026.9.9]] [~dev `seat:v9:g`[~ ~2026.9.9]]])
+  group(channels (my ~[[room-nest *channel:v9:g] [other-nest *channel:v9:g]]))
+++  head-connected
+  %-  jab-bowl
+  |=  b=bowl
+  b(wex (~(put by wex.b) [/head ~zod %harness] [& /hand-events]))
+++  mention
+  |=  [who=@p nest=nest:dv at=@da]
+  ^-  incoming-event:v8:a
+  [%post [[who at] at] nest [~lux %test] ~[[%inline ~['hello']]] &]
+++  dm
+  |=  [who=@p at=@da]
+  ^-  incoming-event:v8:a
+  [%dm-post [[who at] at] [%ship who] ~[[%inline ~['hello']]] |]
+++  stream
+  |=  events=(list [at=@da event=incoming-event:v8:a])
+  ^-  stream:v10:a
+  %+  roll  events
+  |=  [[at=@da event=incoming-event:v8:a] =stream:v10:a]
+  (put:on-stream:v10:a stream at [event | |])
+++  scries
+  |=  events=stream:v10:a
+  |=  =path
+  ^-  (unit vase)
+  ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
+  ::  Every ship here may read both channels natively.
+  ?:  (lien path |=(part=@ta =(%can-read part)))  `!>(|=([who=@p *] &))
+  ?:  (lien path |=(part=@ta =(%groups part)))  `!>((my ~[[[~lux %test] room-group]]))
+  ?:  (lien path |=(part=@ta =(%cron-session part)))  `!>(~)
+  ?:  ?=([%gu @ %channels @ %v4 *] path)  `!>(|)
+  ?:  =(%$ (rear path))  `!>(&)
+  ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)
+  ?:  ?=([%gx @ %activity @ %v6 %all %noun ~] path)  `!>(events)
+  ?:  (lien path |=(part=@ta =(%hand-state part)))  `!>(*state:hh)
+  ?:  ?=([%gx @ %harness @ %sessions %json ~] path)  `!>(`json`[%a ~])
+  ?:  ?=([%gx @ %harness @ %defaults %json ~] path)
+    `!>((config-json:hj %*(. *config:h tools owner-defaults)))
+  ~
+::  Load .saved, then deliver .events through Activity catch-up.
+::
+++  admit
+  |=  [saved=state-4:t events=(list [@da incoming-event:v8:a])]
+  =/  m  (mare ,[(list card) state-4:t])
+  ^-  form:m
+  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now ~2026.9.10))
+  ;<  ~  bind:m  head-connected
+  ;<  ~  bind:m  (set-scry-gate (scries (stream events)))
+  ;<  *  bind:m  (do-load adapter `!>(saved))
+  ;<  ~  bind:m  head-connected
+  ;<  caz=(list card)  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
+  ;<  =vase  bind:m  get-save
+  (pure:m caz !<(state-4:t vase))
+::  Load .saved, then save .next through the policy endpoint.
+::
+++  configure
+  |=  [saved=state-4:t next=policy:t]
+  =/  m  (mare ,[(list card) state-4:t])
+  ^-  form:m
+  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now ~2026.9.10))
+  ;<  ~  bind:m  head-connected
+  ;<  ~  bind:m  (set-scry-gate (scries *stream:v10:a))
+  ;<  *  bind:m  (do-load adapter `!>(saved))
+  ;<  ~  bind:m  head-connected
+  =/  params  (policy-json:policy-lib next)
+  ;<  caz=(list card)  bind:m
+    %+  do-poke  %noun
+    !>(`request:ad`['fixture' [%n '1'] 'harness/tlon/configure' `params])
+  ;<  =vase  bind:m  get-save
+  (pure:m caz !<(state-4:t vase))
+::  Load .saved, then hear from %channels that the bot left .nest.
+::
+++  leave
+  |=  [saved=state-4:t nest=nest:dv]
+  =/  m  (mare ,[(list card) state-4:t])
+  ^-  form:m
+  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now ~2026.9.10))
+  ;<  ~  bind:m  head-connected
+  ;<  ~  bind:m  (set-scry-gate (scries *stream:v10:a))
+  ;<  *  bind:m  (do-load adapter `!>(saved))
+  ;<  ~  bind:m  head-connected
+  ;<  caz=(list card)  bind:m
+    %^  do-agent  /publications  [~zod %channels]
+    [%fact %channel-response-4 !>(`r-channels:v9:dv`[nest %leave ~])]
+  ;<  =vase  bind:m  get-save
+  (pure:m caz !<(state-4:t vase))
+::
+++  admitted
+  |=  s=state-4:t
+  ^-  (set [@p destination:t])
+  (silt (turn ~(val by jobs.s) |=(=job:t [actor to]:input.job)))
+++  pokes
+  |=  [caz=(list card) mark=@tas]
+  ^-  (list *)
+  %+  murn  caz
+  |=  c=card
+  ?.  ?=([%pass * %agent * %poke *] c)  ~
+  ?.  =(mark p.cage.task.q.c)  ~
+  `q.q.cage.task.q.c
+::
+++  test-a-ship-granted-one-channel-is-answered-there-and-ignored-elsewhere
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [* s=state-4:t]  bind:m
+    %+  admit  fixture
+    :~  [~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]
+        [~2026.9.9..12.00.01 (mention ~dev other-nest ~2026.9.9..12.00.01)]
+        [~2026.9.9..12.00.02 (dm ~dev ~2026.9.9..12.00.02)]
+    ==
+  (ex-equal !>((admitted s)) !>((silt ~[[~dev room]])))
+++  test-a-ship-granted-its-dm-is-answered-there-and-ignored-in-channels
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [* s=state-4:t]  bind:m
+    %+  admit  fixture
+    :~  [~2026.9.9..12.00.00 (dm ~bus ~2026.9.9..12.00.00)]
+        [~2026.9.9..12.00.01 (mention ~bus room-nest ~2026.9.9..12.00.01)]
+        [~2026.9.9..12.00.02 (mention ~bus other-nest ~2026.9.9..12.00.02)]
+    ==
+  (ex-equal !>((admitted s)) !>((silt ~[[~bus `destination:t`[%dm ~bus ~]]])))
+++  test-a-dm-grant-accepts-its-dm-invitation-and-a-channel-grant-does-not
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) *]  bind:m
+    %+  admit  fixture
+    :~  [~2026.9.9..12.00.00 [%dm-invite [%ship ~bus]]]
+        [~2026.9.9..12.00.01 [%dm-invite [%ship ~dev]]]
+    ==
+  %+  ex-equal
+    !>((pokes caz %chat-dm-rsvp))
+  !>(`(list *)`~[[~bus &]])
+++  test-a-place-grant-does-not-make-the-bot-accept-a-group-invite
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) *]  bind:m
+    %+  admit  fixture
+    :~  [~2026.9.9..12.00.00 [%group-invite [~bus %one] ~bus]]
+        [~2026.9.9..12.00.01 [%group-invite [~dev %two] ~dev]]
+        [~2026.9.9..12.00.02 [%group-invite [~bud %three] ~bud]]
+    ==
+  %+  ex-equal
+    !>((pokes caz %group-join))
+  !>(`(list *)`~[[[~bud %three] &]])
+::  ~bus was granted its DM at ~2026.9.9 and is granted the room at
+::  ~2026.9.10. Its earlier DM is still answered; its earlier room
+::  mention, from before the room grant, is not.
+::
+++  test-a-channel-grant-does-not-move-the-same-ships-dm-cutoff
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  fixture
+  =.  place-cuts.saved  (my ~[[[~bus ~] ~2026.9.9]])
+  =/  next  policy.saved
+  =.  channel-grants.next  (~(put by channel-grants.next) room-nest (silt ~[~dev ~bus]))
+  ;<  [* granted=state-4:t]  bind:m  (configure saved next)
+  ;<  ~  bind:m  (ex-equal !>(cuts.granted) !>(cuts.saved))
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>(place-cuts.granted)
+    !>((my ~[[[~bus ~] ~2026.9.9] [[~bus `room-nest] ~2026.9.10]]))
+  ;<  [* s=state-4:t]  bind:m
+    %+  admit  granted
+    :~  [~2026.9.9..12.00.00 (dm ~bus ~2026.9.9..12.00.00)]
+        [~2026.9.9..12.00.01 (mention ~bus room-nest ~2026.9.9..12.00.01)]
+    ==
+  (ex-equal !>((admitted s)) !>((silt ~[[~bus `destination:t`[%dm ~bus ~]]])))
+::  ~dev holds the room and is granted its DM; its earlier room mention is
+::  still answered.
+::
+++  test-a-dm-grant-does-not-move-the-same-ships-channel-cutoff
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  fixture
+  =.  place-cuts.saved  (my ~[[[~dev `room-nest] ~2026.9.9]])
+  =/  next  policy.saved
+  =.  dm-grants.next  (~(put in dm-grants.next) ~dev)
+  ;<  [* granted=state-4:t]  bind:m  (configure saved next)
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>(`(unit @da)`(~(get by place-cuts.granted) [~dev `room-nest]))
+    !>(`(unit @da)``~2026.9.9)
+  ;<  [* s=state-4:t]  bind:m
+    %+  admit  granted
+    :~  [~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]
+        [~2026.9.9..12.00.01 (dm ~dev ~2026.9.9..12.00.01)]
+    ==
+  (ex-equal !>((admitted s)) !>((silt ~[[~dev room]])))
+::  Removing ~dev's room grant cancels its work in the room, keeps the
+::  room's route and leaves ~bus's DM alone.
+::
+++  test-removing-a-channel-grant-cancels-that-ships-work-there-only
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  fixture
+  =/  bus-dm  `destination:t`[%dm ~bus ~]
+  =.  saved
+    %=  saved
+      identities  (my ~[[room room-sid] [bus-dm 'dm']])
+      lanes  (my ~[[room-sid [room 1 owner-defaults]] ['dm' [bus-dm 1 ~[%web]]]])
+      routes  (my ~[[room-sid ['binding-room' %ready]] ['dm' ['binding-dm' %ready]]])
+      jobs
+        %-  my
+        :~  [0v1 [[~dev 'e1' room 'hi'] room-sid %bind '']]
+            [0v2 [[~bus 'e2' bus-dm 'hi'] 'dm' %bind '']]
+        ==
+    ==
+  =/  next  policy.saved
+  =.  channel-grants.next  ~
+  ;<  [caz=(list card) s=state-4:t]  bind:m  (configure saved next)
+  =/  acts  (pokes caz %harness-action)
+  ;<  ~  bind:m  (ex-equal !>((lien acts |=(act=* =(act [%fence-actor room-sid '~dev'])))) !>(&))
+  ;<  ~  bind:m  (ex-equal !>((lien acts |=(act=* =(act [%fence 'dm'])))) !>(|))
+  ;<  ~  bind:m  (ex-equal !>(~(key by lanes.s)) !>((silt ~[room-sid 'dm'])))
+  (ex-equal !>(~(key by jobs.s)) !>((silt ~[0v2])))
+++  test-leaving-a-channel-removes-its-grants
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  fixture
+  =.  channel-grants.policy.saved
+    (~(put by channel-grants.policy.saved) other-nest (silt ~[~bus]))
+  ;<  [* s=state-4:t]  bind:m  (leave saved room-nest)
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>(channel-grants.policy.s)
+    !>((my ~[[other-nest (silt ~[~bus])]]))
+  ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.s) !>(dm-grants.policy.saved))
+  ::  Joining again finds no grant there: ~dev is ignored in the room.
+  ;<  [* again=state-4:t]  bind:m
+    (admit s ~[[~2026.9.10..12.00.00 (mention ~dev room-nest ~2026.9.10..12.00.00)]])
+  (ex-equal !>((admitted again)) !>(`(set [@p destination:t])`~))
+++  test-leaving-a-channel-without-grants-changes-no-policy
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [* s=state-4:t]  bind:m  (leave fixture other-nest)
+  (ex-equal !>(policy.s) !>(policy:fixture))
+--

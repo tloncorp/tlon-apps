@@ -4,6 +4,44 @@
 ::  Saved shapes are frozen here, so a change to the current lane cannot
 ::  silently change what an older state decodes as.
 +$  lane-2  [actor=@p to=destination epoch=@ud tools=(list tool-grant:h)]
++$  policy-3
+  $:  enabled=?
+      owner=(unit @p)
+      trusted=(map @p (list tool-grant:h))
+      response=$~(%mentions response)
+      allowed=(set @p)
+      channels=(map nest:c channel-rule)
+  ==
++$  state-3
+  $:  %3
+      lens=lens-sync
+      owner-initialized=@ud
+      sibling-moon-owners=$~(| ?)
+      sibling-owner-after=@da
+      activity-through=@da
+      catching-up=$~(| ?)
+      identities=(map destination @t)
+      routes=(map @t route)
+      cuts=(map @p @da)
+      channel-after=@da
+      channel-cuts=(map nest:c @da)
+      uploads=(map @uv upload)
+      last-sent=@da
+      tool-receipts=(map @uv tool-receipt)
+      computing=(map path presence-lease)
+      policy=policy-3
+      epoch=@ud
+      after=@da
+      lanes=(map @t lane)  ::  admitted authorization generations; head keeps history
+      jobs=(map @uv job)
+      deliveries=(map @uv delivery)
+      notices=(list notice)
+      next-notice=@ud
+      listeners=(set @t)
+      watching=?
+      wake=(unit @da)
+      error=@t
+  ==
 +$  state-2
   $:  %2
       lens=lens-sync
@@ -21,7 +59,7 @@
       last-sent=@da
       tool-receipts=(map @uv tool-receipt)
       computing=(map path presence-lease)
-      policy=policy
+      policy=policy-3
       epoch=@ud
       after=@da
       lanes=(map @t lane-2)
@@ -50,7 +88,7 @@
       last-sent=@da
       tool-receipts=(map @uv tool-receipt)
       computing=(map path presence-lease)
-      policy=policy
+      policy=policy-3
       epoch=@ud
       after=@da
       lanes=(map @t lane-2)
@@ -93,10 +131,11 @@
   ==
 ++  load
   |=  old=vase
-  ^-  state-3
+  ^-  state-4
   ?>  ?=(^ q.old)
-  ?:  =(%3 -.q.old)  !<(state-3 old)
-  (two-to-three (two old))
+  ?:  =(%4 -.q.old)  !<(state-4 old)
+  ?:  =(%3 -.q.old)  (three-to-four !<(state-3 old))
+  (three-to-four (two-to-three (two old)))
 ::  Ready routes of conversations +two-to-three drops. Their bindings may
 ::  still hold queued input, so the caller disables them and fences their
 ::  sessions.
@@ -105,7 +144,7 @@
   |=  old=vase
   ^-  (list [sid=@t binding=@t])
   ?>  ?=(^ q.old)
-  ?:  =(%3 -.q.old)  ~
+  ?:  |(=(%3 -.q.old) =(%4 -.q.old))  ~
   =/  saved  (two old)
   %+  murn  ~(tap by lanes.saved)
   |=  [sid=@t lane=lane-2]
@@ -154,6 +193,42 @@
     lanes  dms
     routes  (my (skim ~(tap by routes.old) |=([sid=@t *] (~(has by dms) sid))))
     jobs  (my (skim ~(tap by jobs.old) |=([* =job] (~(has by dms) sid.job))))
+  ==
+::  Per-place grants and their cutoffs start empty; the ship-wide lists and
+::  channel rules are kept as saved.
+::
+++  three-to-four
+  |=  old=state-3
+  ^-  state-4
+  :*  %4
+      lens.old
+      owner-initialized.old
+      sibling-moon-owners.old
+      sibling-owner-after.old
+      activity-through.old
+      catching-up.old
+      identities.old
+      routes.old
+      cuts.old
+      ~
+      channel-after.old
+      channel-cuts.old
+      uploads.old
+      last-sent.old
+      tool-receipts.old
+      computing.old
+      [enabled owner trusted response allowed channels ~ ~]:policy.old
+      epoch.old
+      after.old
+      lanes.old
+      jobs.old
+      deliveries.old
+      notices.old
+      next-notice.old
+      listeners.old
+      watching.old
+      wake.old
+      error.old
   ==
 ::
 ++  zero-to-one

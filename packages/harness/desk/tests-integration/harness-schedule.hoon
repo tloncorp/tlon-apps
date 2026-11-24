@@ -521,7 +521,7 @@
   ^-  (unit vase)
   ?:  ?=([%gu @ %harness-tlon @ %$ ~] path)  `!>(&)
   ?:  ?=([%gx @ %harness-tlon @ %peer-trust %noun ~] path)
-    `!>(`peer-trust:t`[[& `~nec ~ %mentions ~ ~] |])
+    `!>(`peer-trust:t`[[& `~nec ~ %mentions ~ ~ ~ ~] |])
   ?:  ?|  ?=([%gx @ %harness-tlon @ %authority @ %noun ~] path)
           ?=([%gx @ %harness-tlon @ %authority @ @ %noun ~] path)
       ==

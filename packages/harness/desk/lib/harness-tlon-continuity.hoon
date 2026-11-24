@@ -5,8 +5,8 @@
 |%
 ::
 ++  detach-routes
-  |=  [saved=state-3:t hands=state:hh]
-  ^-  state-3:t
+  |=  [saved=state-4:t hands=state:hh]
+  ^-  state-4:t
   ::  Disabled bindings cannot authorize new input. Keep send receipts, but
   ::  start a fresh conversation so late results cannot enter its new history.
   =/  detached
@@ -80,6 +80,36 @@
       !=((authority-for before actor) (authority-for after actor))
       (owner-only-revoked before after actor)
   ==
+::  +place-authority: an actor's authority in one place
+::
+::    A per-place grant gives what an allowed ship has, and nothing beside a
+::    ship-wide grant.
+::
+++  place-authority
+  |=  [policy=policy:t actor=@p =place:t]
+  ^-  authority
+  =/  ship-wide  (authority-for policy actor)
+  ?.  ?=(%denied -.ship-wide)  ship-wide
+  ?.  (placed:p policy actor place)  ship-wide
+  [%trusted (silt ~[%web])]
+::
+++  place-changed
+  |=  [before=policy:t after=policy:t actor=@p =place:t]
+  ^-  ?
+  !=((place-authority before actor place) (place-authority after actor place))
+::  +place-keys: every actor and place a policy grants per place
+::
+++  place-keys
+  |=  policy=policy:t
+  ^-  (set [@p place:t])
+  =/  dms=(list [@p place:t])
+    (turn ~(tap in dm-grants.policy) |=(who=@p [who ~]))
+  =/  channels=(list [@p place:t])
+    %-  zing
+    %+  turn  ~(tap by channel-grants.policy)
+    |=  [nest=nest:c ships=(set @p)]
+    (turn ~(tap in ships) |=(who=@p [who `nest]))
+  (silt (weld dms channels))
 ::  Adding %tlon or %code for another ship changes nothing it can do, but
 ::  removing one is a change, so the owner can stop work that holds it.
 ++  owner-only-revoked
@@ -125,6 +155,26 @@
   ?~  cutoff  cutoffs
   (~(put by cutoffs) actor u.cutoff)
 ::
+::  +place-cutoffs: a per-place grant change moves only that place's cutoff
+::
+::    Keys outside both snapshots are dropped: granting that place again
+::    establishes a fresh cutoff, and a ship-wide change moves its own.
+::
+++  place-cutoffs
+  |=  $:  before=policy:t
+          new=policy:t
+          prior=(map [@p place:t] @da)
+          now=@da
+      ==
+  ^-  (map [@p place:t] @da)
+  %+  roll  ~(tap in (~(uni in (place-keys before)) (place-keys new)))
+  |=  [[actor=@p =place:t] cutoffs=(map [@p place:t] @da)]
+  =/  cutoff=(unit @da)
+    ?:  (place-changed before new actor place)  `now
+    (~(get by prior) [actor place])
+  ?~  cutoff  cutoffs
+  (~(put by cutoffs) [actor place] u.cutoff)
+::
 ++  channel-cutoffs
   |=  [before=policy:t after=policy:t prior=(map nest:c @da) now=@da]
   ^-  (map nest:c @da)
@@ -148,7 +198,10 @@
   |=  [before=policy:t after=policy:t lane=lane:t]
   ^-  ?
   ?-  -.to.lane
-    %dm  (actor-changed before after who.to.lane)
+      %dm
+    ?|  (actor-changed before after who.to.lane)
+        (place-changed before after who.to.lane ~)
+    ==
   ::
       %channel
     ?|  !=(enabled.before enabled.after)

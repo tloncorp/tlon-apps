@@ -42,7 +42,7 @@
 ++  test-js-conversation-filter-never-adds-a-grant
   (expect !>(!(tool-granted:ht 'run_js' (conversation-tools:ht ~[%web %skills]))))
 ++  test-js-tlon-owner-grant-does-not-become-another-senders-grant
-  =/  cfg=policy:t  [& `~bud (my ~[[~nec ~[%web]]]) %mentions ~ ~]
+  =/  cfg=policy:t  [& `~bud (my ~[[~nec ~[%web]]]) %mentions ~ ~ ~ ~]
   =/  owner  (need (grants:tlon cfg ~bud ~[%code]))
   =/  other  (need (grants:tlon cfg ~nec ~[%code]))
   ;:  weld

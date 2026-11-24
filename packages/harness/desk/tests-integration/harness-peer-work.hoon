@@ -502,7 +502,7 @@
   |=  [saved=state-0 src=@p owner=@p]
   =/  m  (mare ,~)
   ^-  form:m
-  =/  =peer-trust:t  [[& `owner (my ~[[~bus guest-grants]]) %mentions ~ ~] |]
+  =/  =peer-trust:t  [[& `owner (my ~[[~bus guest-grants]]) %mentions ~ ~ ~ ~] |]
   ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src src, dap %harness, now t0))
   ;<  ~  bind:m
     %-  set-scry-gate

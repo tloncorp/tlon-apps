@@ -14,7 +14,7 @@
   |=  =path
   ^-  (unit vase)
   ?:  (lien path |=(part=@ta =(%peer-trust part)))
-    `!>(`peer-trust:t`[[& `~zod ~ %mentions ~ ~] |])
+    `!>(`peer-trust:t`[[& `~zod ~ %mentions ~ ~ ~ ~] |])
   ?:  (lien path |=(part=@ta =(%authority part)))
     `!>(`hand-authority:adapter`[allowed ~])
   ?:  (lien path |=(part=@ta =(%admin part)))  `!>(allowed)

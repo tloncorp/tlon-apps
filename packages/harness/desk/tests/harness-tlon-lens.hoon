@@ -39,15 +39,16 @@
   =.  deliveries.saved  (my ~[[0v1 `delivery:t`[2 %send %uncertain 'external']]])
   =/  current  (load:migration !>(saved))
   ;:  weld
-      (expect-eq !>(policy.saved) !>(policy.current))
+      %+  expect-eq  !>(policy.saved)
+      !>([enabled owner trusted response allowed channels]:policy.current)
       (expect-eq !>(deliveries.saved) !>(deliveries.current))
       (expect !>(!enabled.lens.current))
       (expect-eq !>(current) !>((load:migration !>(current))))
   ==
 ::
 ++  test-sync-recovery-has-a-bounded-maintenance-deadline
-  =/  state  *state-3:t
-  =.  policy.state  [& `~bud ~ %mentions ~ ~]
+  =/  state  *state-4:t
+  =.  policy.state  [& `~bud ~ %mentions ~ ~ ~ ~]
   =.  watching.state  &
   =.  lens.state  [& `~bud ~2026.10.1 ~ '']
   =.  records.lens.state

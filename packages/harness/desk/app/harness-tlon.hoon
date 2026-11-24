@@ -37,7 +37,7 @@
 +$  storage-source  $%([%credentials creds=credentials:s3] [%hosted token=@t config=json])
 --
 %-  agent:dbug
-=|  state-3:t
+=|  state-4:t
 =*  state  -
 ^-  agent:gall
 =<
@@ -48,7 +48,7 @@
   ++  on-init
     ::  Listen from installation; owner/trust policy still gates every sender.
     ::  Saved enable/disable choices are preserved by on-load.
-    =.  state  state(policy [& ~ ~ %mentions ~ ~], watching |, activity-through now.bowl)
+    =.  state  state(policy [& ~ ~ %mentions ~ ~ ~ ~], watching |, activity-through now.bowl)
     =.  state  initialize-owner:cor
     =^  cards  state  abet:boot:refresh-peers:cor
     [cards this]
@@ -269,7 +269,7 @@
   ::  Acceptance does not replay input from before the authority cutoff.
   =/  pending
     %-  mole
-    |.((granted-invitations:messenger |=(who=@p ?=(^ (actor-grants who ~)))))
+    |.((granted-invitations:messenger |=(who=@p ?=(^ (place-grants who ~)))))
   ?~  pending  cor(error 'Could not inspect pending DM requests.')
   %+  roll  u.pending
   |=  [who=@p engine=_cor]
@@ -500,7 +500,7 @@
               !=(u.expected-revision [%s (revision:permissions policy epoch)])
           ==
         (emit (fail '-32602' 'Permissions changed; reload Tlon settings before saving.'))
-      =/  parsed  (mule |.((json-policy:p (need params.inbound))))
+      =/  parsed  (mule |.((json-policy:p policy (need params.inbound))))
       ?:  ?=(%| -.parsed)
         (emit (fail '-32602' 'Invalid owner, trusted ships or tools'))
       =/  expected  (acp-param-json:wire-codec params.inbound 'expectedOwner')
@@ -1396,6 +1396,21 @@
   ^-  (unit (list tool-grant:h))
   (grants-owned:p policy actor owner-tools (actor-owner actor))
 ::
+::  +place-grants: ship-wide grants, or web access where a per-place grant
+::  applies
+::
+++  place-grants
+  |=  [actor=@p =place:t]
+  ^-  (unit (list tool-grant:h))
+  (place-grants:p policy actor place ~ (actor-owner actor))
+::  +speaker-cut: an actor's admission cutoff in one place
+::
+++  speaker-cut
+  |=  [who=@p =place:t]
+  ^-  @da
+  %+  max  (fall (~(get by cuts) who) `@da`0)
+  (fall (~(get by place-cuts) [who place]) `@da`0)
+::
 ++  speaker-grants
   |=  [who=@p to=destination:t owner-tools=(list tool-grant:h)]
   ^-  (unit (list tool-grant:h))
@@ -1590,7 +1605,7 @@
   ?~  speaker  |
   ::  The shared route outlives a sibling ownership change, so its cutoff
   ::  applies here as at admission.
-  =/  cutoff  (fall (~(get by cuts) u.speaker) `@da`0)
+  =/  cutoff  (speaker-cut u.speaker (place:p to.lane))
   =?  cutoff  (sibling:~(. ownership bowl) u.speaker)  (max cutoff sibling-owner-after)
   ?&  ?=(^ (speaker-grants u.speaker to.lane ~))
       (gth at.u.observation cutoff)
@@ -1643,6 +1658,7 @@
   =/  speakers=(set @p)
     (silt (turn ~(val by jobs) |=(job=job:t actor.input.job)))
   =.  cuts  (cutoffs:continuity before updated-policy identities speakers cuts now.bowl)
+  =.  place-cuts  (place-cutoffs:continuity before updated-policy place-cuts now.bowl)
   =.  channel-cuts  (channel-cutoffs:continuity before updated-policy channel-cuts now.bowl)
   =?  channel-after  !=(response.before response.updated-policy)  now.bowl
   =?  after  !=(enabled.before enabled.updated-policy)  now.bowl
@@ -1689,18 +1705,34 @@
     ?|  (actor-changed:continuity before updated-policy who)
         &(sibling-change (sibling:~(. ownership bowl) who))
     ==
+  ::  A per-place change reaches that speaker's work in that place alone.
+  =/  replaced=(set [@p place:t])
+    %-  silt
+    %+  skim
+      %~  tap  in
+      (~(uni in (place-keys:continuity before)) (place-keys:continuity updated-policy))
+    |=  [who=@p =place:t]
+    (place-changed:continuity before updated-policy who place)
   =.  cor
     %+  roll  ~(tap by lanes)
     |=  [[sid=@t lane=lane:t] engine=_cor]
     ?.  ?=(%channel -.to.lane)  engine
-    %+  roll  ~(tap in changed)
+    =/  here=(set @p)
+      %-  ~(uni in changed)
+      %-  silt
+      %+  murn  ~(tap in replaced)
+      |=  [who=@p =place:t]
+      ?.(=(place `nest.to.lane) ~ `who)
+    %+  roll  ~(tap in here)
     |=  [who=@p engine=_engine]
     (head:engine /cancel [%fence-actor sid (scot %p who)])
   =.  jobs
     %-  my
     %+  skip  ~(tap by jobs)
     |=  [id=@uv job=job:t]
-    (~(has in changed) actor.input.job)
+    ?|  (~(has in changed) actor.input.job)
+        (~(has in replaced) [actor.input.job (place:p to.input.job)])
+    ==
   =.  cor
     %+  roll  ~(tap by uploads)
     |=  [[id=@uv pending=upload:t] engine=_cor]
@@ -1810,12 +1842,25 @@
     %kick  watch-publications
       %fact
     ?.  =(%channel-response-4 p.cage.sign)  cor
-    =/  proofs
-      (channel:publication our.bowl !<(r-channels:v9:dv q.cage.sign))
+    =/  response  !<(r-channels:v9:dv q.cage.sign)
+    ?:  ?=(%leave -.r-channel.response)  (left nest.response)
+    =/  proofs  (channel:publication our.bowl response)
     %+  roll  proofs
     |=  [proof=publication-proof:t engine=_cor]
     (confirmed:engine proof)
   ==
+::
+::  +left: the bot left or lost a channel; its per-place grants there go
+::
+::    Groups leaves a deleted channel, and every channel of a group the bot
+::    leaves, is kicked from or sees deleted, through %channels, which
+::    reports each leave with this response.
+::
+++  left
+  |=  nest=nest:dv
+  ^+  cor
+  ?.  (~(has by channel-grants.policy) nest)  cor
+  (configure policy(channel-grants (~(del by channel-grants.policy) nest)) sibling-moon-owners)
 ::
 ++  agent-head
   |=  [=wire =sign:agent:gall]
@@ -2048,8 +2093,8 @@
   ?.  ?=(%poke-ack -.sign)  cor
   ?^  p.sign  cor(error 'Could not accept a DM invitation.')
   =/  who=@p  (slav %p i.t.t.wire)
-  ?~  (actor-grants who ~)  cor
-  %+  roll  (invitation-posts:messenger who (max after (fall (~(get by cuts) who) `@da`0)))
+  ?~  (place-grants who ~)  cor
+  %+  roll  (invitation-posts:messenger who (max after (speaker-cut who ~)))
   |=  [event=incoming-event:v8:a engine=_cor]
   (activity:engine event)
 ::
@@ -2255,7 +2300,12 @@
           (lte at.row sibling-owner-after.engine)
       ==
     $(rows t.rows, engine engine(activity-through at.row))
-  ?:  &(?=(^ actor) (lte at.row (fall (~(get by cuts.engine) u.actor) `@da`0)))
+  =/  place  (event-place:p u.event)
+  ?:  ?&  ?=(^ actor)
+          %+  lte  at.row
+          ?~  place  (fall (~(get by cuts.engine) u.actor) `@da`0)
+          (speaker-cut:engine u.actor u.place)
+      ==
     $(rows t.rows, engine engine(activity-through at.row))
   ?.  (activity-room:engine u.event)  engine(catching-up &)
   =.  engine  (activity:engine(activity-through at.row) u.event)
@@ -2318,7 +2368,7 @@
     (emit [%pass /invite %agent [our.bowl %groups] %poke %group-join !>([group.event &])])
   ?:  ?=(%dm-invite -.event)
     ?.  ?=(%ship -.whom.event)  cor
-    ?~  (actor-grants p.whom.event ~)  cor
+    ?~  (place-grants p.whom.event ~)  cor
     (accept-invitation p.whom.event)
   (admit-message event)
 ::
@@ -2357,7 +2407,7 @@
       (review:workspace-plan u.posts our.bowl actor.u.input id.u.tapped)
     (cat 3 text.u.input (note:workspace-plan id.u.tapped create.u.tapped card))
   ::  All applicable authority cutoffs precede admission and identity updates.
-  =/  cutoff  (max after (fall (~(get by cuts) actor.u.input) `@da`0))
+  =/  cutoff  (max after (speaker-cut actor.u.input (place:p to.u.input)))
   =?  cutoff  (sibling:~(. ownership bowl) actor.u.input)  (max cutoff sibling-owner-after)
   =?  cutoff  ?=(%channel -.to.u.input)  (max cutoff channel-after)
   =?  cutoff  ?=(%channel -.to.u.input)
@@ -2395,10 +2445,12 @@
   ?.  enabled.policy  cor
   =/  sender  (sender:denial our.bowl event)
   ?~  sender  cor
-  ?^  (actor-grants u.sender ~)  cor
+  ::  Every event with a sender has a place.
+  =/  place  (need (event-place:p event))
+  ?^  (place-grants u.sender place)  cor
   ?:  ?=(^ (normalize-owned:p our.bowl policy event actor-owner))  cor
   ::  Catch-up must not answer historical posts after a grant is revoked.
-  =/  cutoff  (max after (fall (~(get by cuts) u.sender) `@da`0))
+  =/  cutoff  (max after (speaker-cut u.sender place))
   ?.  ?=(%dm-invite -.event)
     ?:  (lte (posted-at:continuity event) cutoff)  cor
     (record-denial u.sender (scot %uv (sham event)))
