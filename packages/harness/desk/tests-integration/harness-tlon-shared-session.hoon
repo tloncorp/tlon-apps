@@ -63,6 +63,7 @@
   |=  [stream=stream:v10:a ledger=state:hh]
   |=  =path
   ^-  (unit vase)
+  ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(|)
   ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
   ?:  (lien path |=(part=@ta =(%can-read part)))  `!>(|=([who=@p *] !=(~dev who)))
   ?:  (lien path |=(part=@ta =(%groups part)))  `!>((my ~[[[~lux %test] room-group]]))

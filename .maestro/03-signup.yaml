@@ -80,18 +80,16 @@ onFlowComplete:
 - assertVisible: Next
 - tapOn: Next
 
-# set notification preferences
+# set notification preferences; Enable notifications brings up the system
+# prompt there, unless the app already has permission
 - assertVisible: Nothing
-- tapOn: Next
-
-# allow notifications screen
-- assertVisible: On the next screen, make sure you tap
+- tapOn: Enable notifications
 - tapOn:
-    text: Next
-    retryTapIfNoChange: true
+    text: Allow
+    optional: true
 
 # Measure only the time spent waiting for Hosting to ready the node. The
-# notification screens above and the bot interaction below are separate work.
+# notification screen above and the bot interaction below are separate work.
 - extendedWaitUntil:
     visible: We're setting you up
     timeout: 30000

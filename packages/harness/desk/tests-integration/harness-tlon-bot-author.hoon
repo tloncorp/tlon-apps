@@ -3,8 +3,9 @@
 ::  and a ledger refusal ends its admission without stopping catch-up.
 ::  -test /=harness=/tests-integration/harness-tlon-bot-author
 /-  t=harness-tlon, hh=harness-hand, a=activity-ver, dv=channels-ver, cv=chat-ver,
-    g=groups-ver
-/+  *test-agent, policy=harness-tlon-policy, continuity=harness-tlon-continuity
+    g=groups-ver, ad=harness-adapter
+/+  *test-agent, policy=harness-tlon-policy, continuity=harness-tlon-continuity,
+    hd=harness-hand
 /=  adapter  /app/harness-tlon
 |%
 +$  outcome  [cards=(list card) saved=state-4:t]
@@ -87,24 +88,30 @@
   :~  ['url' s+'']  ['model' s+'']  ['headers' a+~]  ['system' s+'']
       ['max-context' n+'1']  ['tools' a+~]
   ==
+::  Our bowl at .now, with the head and Activity watches acknowledged.
+++  watched
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now now))
+  %-  jab-bowl
+  |=  b=bowl
+  =.  wex.b  (~(put by wex.b) [/head ~zod %harness] [& /hand-events])
+  b(wex (~(put by wex.b) [/activity ~zod %activity] [& /v4]))
 ++  run
   |=  [saved=state-4:t event=incoming-event:v8:a native=(unit native)]
   =/  m  (mare ,outcome)
   ^-  form:m
   =/  =stream:v10:a
     (put:on-stream:v10:a ~ message-at [;;(incoming-event:v10:a event) | |])
-  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now now))
-  ;<  ~  bind:m
-    %-  jab-bowl
-    |=  b=bowl
-    =.  wex.b  (~(put by wex.b) [/head ~zod %harness] [& /hand-events])
-    b(wex (~(put by wex.b) [/activity ~zod %activity] [& /v4]))
+  ;<  ~  bind:m  watched
   ;<  ~  bind:m
     %-  set-scry-gate
     |=  =path
     ^-  (unit vase)
     ?:  ?=([@ @ %channels *] path)  ?~(native ~ (channels u.native path))
     ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
+    ::  harness-tlon-steward covers the Steward lease.
+    ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(|)
     ?:  =(%$ (rear path))  `!>(&)
     ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)
     ?:  ?=([%gx @ %activity @ %v6 %all %noun ~] path)  `!>(stream)
@@ -140,6 +147,13 @@
   ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.saved.got)) !>(jobs))
   (ex-equal !>(activity-through.saved.got) !>(message-at))
 ::
+::  +run answers only what a head from before the index serves, as a reload
+::  of the desk does while the adapter loads, so loading reads no index.
+::
+++  test-adapter-loads-and-admits-against-a-head-without-the-index
+  %-  eval-mare
+  %+  admitted  'message'
+  (run fixture (post-event ~nec) `[& & message-at ~[(post message-at ~nec)] ~])
 ++  test-bot-profile-post-is-a-bot-message
   %-  eval-mare
   %+  admitted  'bot-message'
@@ -261,7 +275,7 @@
 ++  room  `destination:t`[%channel nest ~]
 ++  thread  `destination:t`[%channel nest `parent-at]
 ++  sentence  'I can\'t answer messages here right now.'
-++  ledger-refusal  'Binding ledger capacity reached; export and rotate its binding'
+++  ledger-refusal  'This binding or session has reached its waiting-work limit'
 ++  allowed-fixture
   ^-  state-4:t
   =/  s  fixture
@@ -300,6 +314,8 @@
   |=  =path
   ^-  (unit vase)
   ?:  ?=([@ @ %channels *] path)  ~
+  ::  harness-tlon-steward covers the Steward lease.
+  ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(|)
   ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
   ?:  (lien path |=(part=@ta =(%can-read part)))  `!>(|=([@p *] member))
   ?:  ?=([%gx @ %groups @ %v2 %groups %noun ~] path)  `!>((my ~[[[~nec %home] group]]))
@@ -307,6 +323,7 @@
   ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)
   ?:  ?=([%gx @ %activity @ %v6 %all %noun ~] path)  `!>(stream)
   ?:  ?=([%gx @ %harness @ %hand-state %noun ~] path)  `!>(*state:hh)
+  ?:  ?=([%gx @ %harness @ %hand-index %noun ~] path)  `!>(*index:hh)
   ?:  ?=([%gx @ %harness @ %cron-session @ %noun ~] path)  `!>(~)
   ?:  ?=([%gx @ %harness @ %sessions %json ~] path)  `!>(`json`[%a ~])
   ?:  ?=([%gx @ %harness @ %defaults %json ~] path)  `!>(defaults)
@@ -322,12 +339,7 @@
     %+  turn  rows
     |=  [at=@da e=incoming-event:v8:a]
     [at [;;(incoming-event:v10:a e) | |]]
-  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now now))
-  ;<  ~  bind:m
-    %-  jab-bowl
-    |=  b=bowl
-    =.  wex.b  (~(put by wex.b) [/head ~zod %harness] [& /hand-events])
-    b(wex (~(put by wex.b) [/activity ~zod %activity] [& /v4]))
+  ;<  ~  bind:m  watched
   ;<  ~  bind:m  (set-scry-gate (gate stream &))
   ;<  loaded=(list card)  bind:m  (do-load adapter `!>(saved))
   ;<  head=(list card)  bind:m  (do-agent /head [~zod %harness] [%watch-ack ~])
@@ -512,4 +524,264 @@
   ;<  ~  bind:m  (ex-equal !>(activity-through.s) !>(~2026.10.1))
   ;<  ~  bind:m  (ex-equal !>(catching-up.s) !>(&))
   (ex-equal !>(~(wyt by jobs.s)) !>(8))
+::  A ledger past 256 bindings, enabled and disabled, beside the guest DM's
+::  binding. The head's replies come from this ledger, not a stand-in.
+::
+++  crowded
+  ^-  state:hh
+  =/  db  *state:hh
+  =.  bindings.db
+    %-  malt
+    %+  turn  (gulf 1 300)
+    |=  k=@ud
+    ^-  [@t binding:hh]
+    =/  id  (cat 3 'seeded-' (scot %ud k))
+    [id ['tlon' (cat 3 'dm/' id) id ~['*'] =(0 (mod k 2))]]
+  =/  sid  (identity:continuity guest-dm)
+  db(bindings (~(put by bindings.db) 'binding' ['tlon' 'dm/~bus' sid ~['~bus'] &]))
+++  gate-over
+  |=  [=stream:v10:a ledger=state:hh]
+  |=  =path
+  ^-  (unit vase)
+  ?:  ?=([%gx @ %harness @ %hand-state %noun ~] path)  `!>(ledger)
+  ?:  ?=([%gx @ %harness @ %hand-index %noun ~] path)  `!>((reindex:hd ledger))
+  ((gate stream &) path)
+++  setup-over
+  |=  [saved=state-4:t ledger=state:hh]
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  ;<  ~  bind:m  watched
+  ;<  ~  bind:m  (set-scry-gate (gate-over ~ ledger))
+  ;<  loaded=(list card)  bind:m  (do-load adapter `!>(saved))
+  ;<  head=(list card)  bind:m  (do-agent /head [~zod %harness] [%watch-ack ~])
+  (pure:m (weld loaded head))
+::  The head applies each request to .ledger.
+++  apply-all
+  |=  [ledger=state:hh acts=(list action:hh)]
+  ^-  state:hh
+  %+  roll  acts
+  |=  [act=action:hh db=_ledger]
+  =/  res  (apply:hd db act now)
+  ?>(?=(%& -.res) db.p.res)
+::  .who's DM at .at arrives through Activity. The adapter opens its route,
+::  the head accepts it, and .ledger answers the bind; the cards are the
+::  adapter's answer to that result.
+++  converse
+  |=  [ledger=state:hh who=@p at=@da]
+  =/  m  (mare ,[cards=(list card) ledger=state:hh])
+  ^-  form:m
+  =/  event=incoming-event:v8:a
+    [%dm-post [[who at] at] [%ship who] ~[[%inline ~['hello again']]] |]
+  =/  =stream:v10:a
+    (put:on-stream:v10:a ~ at [;;(incoming-event:v10:a event) | |])
+  =/  sid  (identity:continuity [%dm who ~])
+  ;<  ~  bind:m  (set-scry-gate (gate-over stream ledger))
+  ::  The head watch is renewed, as on a reload, and its ack catches up.
+  ;<  ~  bind:m
+    (jab-bowl |=(b=bowl b(wex (~(put by wex.b) [/head ~zod %harness] [| /hand-events]))))
+  ;<  *  bind:m  (do-agent /head [~zod %harness] [%watch-ack ~])
+  ;<  admitted=state-4:t  bind:m  saved
+  =/  lane  (~(got by lanes.admitted) sid)
+  ;<  opened=(list card)  bind:m
+    (do-agent /route/[sid]/(scot %ud epoch.lane)/create [~zod %harness] [%poke-ack ~])
+  =/  binds  (skim (hand-requests opened) |=(act=action:hh ?=(%bind -.act)))
+  ?>  ?=([* ~] binds)
+  =/  waiting  (skim ~(tap by jobs.admitted) |=([* =job:t] =(sid sid.job)))
+  ?>  ?=([* ~] waiting)
+  =/  =wire  /hand/bind/(scot %uv p.i.waiting)
+  =/  res  (apply:hd ledger i.binds now)
+  ;<  ~  bind:m
+    (jab-bowl |=(b=bowl b(wex (~(put by wex.b) [wire ~zod %harness] [& /hands/x]))))
+  ;<  caz=(list card)  bind:m
+    %^  do-agent  wire  [~zod %harness]
+    [%fact %noun !>(`(each json @t)`?:(?=(%& -.res) [%& result.p.res] [%| p.res]))]
+  (pure:m caz ?:(?=(%& -.res) db.p.res ledger))
+::  The bind led to one observation, on a binding other than .old, that the
+::  ledger admits, and to no refusal.
+++  admitted-anew
+  |=  [out=[cards=(list card) ledger=state:hh] old=@t]
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  s=state-4:t  bind:m  saved
+  ;<  ~  bind:m  (ex-equal !>((messenger-pokes cards.out)) !>(`(list [mark noun])`~))
+  ;<  ~  bind:m  (ex-equal !>(error.s) !>(''))
+  ;<  ~  bind:m
+    (ex-equal !>((scag 1 (turn notices.s |=(n=notice:t kind.n)))) !>(`(list @t)`~['message']))
+  =/  acts  (hand-requests cards.out)
+  ?>  ?=([* ~] acts)
+  ?>  ?=(%observe -.i.acts)
+  ;<  ~  bind:m  (ex-equal !>(=(old binding.i.acts)) !>(|))
+  (ex-equal !>(-:(apply:hd ledger.out i.acts now)) !>(%&))
+::  A permission change withdraws ~bus's DM route and the head disables its
+::  binding. ~bus's next message binds a new one, and the owner's first DM
+::  binds its own, both on a ledger past 256 bindings.
+::
+++  test-conversations-bind-and-are-admitted-past-256-bindings
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  start  (with-lane allowed-fixture guest guest-dm)
+  =/  sid  (identity:continuity guest-dm)
+  ;<  *  bind:m  (setup-over start crowded)
+  =/  next  policy.start
+  =.  allowed.next  ~
+  =.  trusted.next  (my ~[[guest ~[%web %workspace]]])
+  ;<  changed=(list card)  bind:m
+    %+  do-poke  %noun
+    !>(`request:ad`['fixture' [%n '1'] 'harness/tlon/configure' `(policy-json:policy next)])
+  ;<  withdrawn=state-4:t  bind:m  saved
+  ;<  ~  bind:m  (ex-equal !>((~(has by routes.withdrawn) sid)) !>(|))
+  =/  disable  (hand-requests changed)
+  ;<  ~  bind:m  (ex-equal !>(disable) !>(`(list action:hh)`~[[%enable 'binding' |]]))
+  =/  ledger  (apply-all crowded disable)
+  ;<  ~  bind:m  (wait ~s10)
+  ;<  again=[cards=(list card) ledger=state:hh]  bind:m
+    (converse ledger guest (add now ~s5))
+  ;<  ~  bind:m  (admitted-anew again 'binding')
+  ;<  ~  bind:m  (wait ~s10)
+  ;<  first=[cards=(list card) ledger=state:hh]  bind:m
+    (converse ledger.again ~nec (add now ~s15))
+  (admitted-anew first 'binding')
+::  Runs of bot messages. ~nec writes every message; its author form says
+::  whether a bot wrote it. Both conversations start ready, so each admitted
+::  message is bound at once.
+::
+++  bot-room
+  ^-  state-4:t
+  (with-lane (with-lane fixture ~nec room) ~nec thread)
+++  second
+  |=  n=@ud
+  ^-  @da
+  (add ~2026.10.1 (mul n ~s1))
+++  top-row
+  |=  n=@ud
+  ^-  [@da incoming-event:v8:a]
+  =/  at  (second n)
+  [at [%post [[~nec at] at] nest [~nec %home] ~[[%inline ~['hello']]] &]]
+++  thread-row
+  |=  n=@ud
+  ^-  [@da incoming-event:v8:a]
+  =/  at  (second n)
+  :-  at
+  :*  %reply  [[~nec at] at]  [[~nec parent-at] parent-at]
+      nest  [~nec %home]  ~[[%inline ~['hello']]]  &
+  ==
+++  bot-posts
+  |=  ns=(list @ud)
+  ^-  (list post-row)
+  (turn ns |=(n=@ud (post (second n) bot)))
+::  Catch up on .rows, while local %channels holds .posts and the replies
+::  under .parent-at.
+++  catch-up
+  |=  $:  saved=state-4:t
+          rows=(list [@da incoming-event:v8:a])
+          posts=(list post-row)
+          replies=(list reply-row)
+      ==
+  =/  m  (mare ,outcome)
+  ^-  form:m
+  =/  =stream:v10:a
+    %+  gas:on-stream:v10:a  ~
+    %+  turn  rows
+    |=  [at=@da e=incoming-event:v8:a]
+    [at [;;(incoming-event:v10:a e) | |]]
+  =/  post-pages  (weld base /posts/older)
+  =/  reply-pages  (weld base /posts/post/id/(scot %ud parent-at)/replies/older)
+  ;<  ~  bind:m  watched
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ^-  (unit vase)
+    ?:  =(path [%gu (scot %p ~zod) %channels (scot %da now) %$ ~])  `!>(&)
+    ?:  =(path [%gu base])  `!>(&)
+    ?.  ?=([%gx *] path)  ((gate stream &) path)
+    ?:  =(post-pages (scag (lent post-pages) t.path))
+      `!>(`paged-posts:v9:dv`[(gas:on-posts:v9:dv ~ posts) ~ ~ 0 0])
+    ?:  =(reply-pages (scag (lent reply-pages) t.path))
+      `!>(`replies:v9:dv`(gas:on-replies:v9:dv ~ replies))
+    ((gate stream &) path)
+  ;<  caz=(list card)  bind:m  (do-load adapter `!>(saved))
+  ;<  =vase  bind:m  get-save
+  (pure:m caz !<(state-4:t vase))
+++  hand-kinds
+  |=  out=outcome
+  ^-  (list @tas)
+  (turn (hand-requests cards.out) |=(act=action:hh -.act))
+::
+++  test-the-fourth-bot-message-in-a-row-in-a-channel-makes-no-job-or-hand-request
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  out=outcome  bind:m
+    (catch-up bot-room (turn (gulf 3 6) top-row) (bot-posts (gulf 3 6)) ~)
+  ;<  ~  bind:m
+    %+  ex-equal  !>((kinds out))
+    !>(`(list @t)`~['bot-limit' 'bot-message' 'bot-message' 'bot-message'])
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.saved.out)) !>(3))
+  ;<  ~  bind:m  (ex-equal !>((hand-kinds out)) !>(`(list @tas)`~[%bind %bind %bind]))
+  ;<  ~  bind:m  (ex-equal !>(lanes.saved.out) !>(lanes:bot-room))
+  ;<  ~  bind:m  (ex-equal !>(routes.saved.out) !>(routes:bot-room))
+  ;<  ~  bind:m  (ex-equal !>(identities.saved.out) !>(identities:bot-room))
+  (ex-equal !>(activity-through.saved.out) !>((second 6)))
+++  test-a-person-message-ends-a-bot-run
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  out=outcome  bind:m
+    %:  catch-up
+      bot-room
+      (turn (gulf 3 8) top-row)
+      (weld (bot-posts (gulf 3 6)) [(post (second 7) ~nec) (bot-posts ~[8])])
+      ~
+    ==
+  ;<  ~  bind:m
+    %+  ex-equal  !>((kinds out))
+    !>  ^-  (list @t)
+    ~['bot-message' 'message' 'bot-limit' 'bot-message' 'bot-message' 'bot-message']
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.saved.out)) !>(5))
+  (ex-equal !>(activity-through.saved.out) !>((second 8)))
+++  test-a-thread-bot-run-does-not-count-toward-the-channel-top-level
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  out=outcome  bind:m
+    %:  catch-up
+      bot-room
+      (weld (turn (gulf 3 5) thread-row) ~[(top-row 6) (thread-row 7)])
+      [(post parent-at ~nec) (bot-posts ~[6])]
+      (turn `(list @ud)`~[3 4 5 7] |=(n=@ud (reply (second n) bot)))
+    ==
+  ;<  ~  bind:m
+    %+  ex-equal  !>((kinds out))
+    !>  ^-  (list @t)
+    ~['bot-limit' 'bot-message' 'bot-message' 'bot-message' 'bot-message']
+  ;<  ~  bind:m
+    %+  ex-equal  !>((turn notices.saved.out |=(n=notice:t address.n)))
+    !>  ^-  (list @t)
+    =/  top  (address:policy room)
+    =/  under  (address:policy thread)
+    ~[under top under under under]
+  (ex-equal !>(~(wyt by jobs.saved.out)) !>(4))
+++  test-a-bot-message-whose-author-is-unreadable-is-admitted-after-a-bot-run
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ::  Local %channels lacks the fourth post.
+  ;<  out=outcome  bind:m
+    (catch-up bot-room (turn (gulf 3 6) top-row) (bot-posts (gulf 3 5)) ~)
+  ;<  ~  bind:m
+    %+  ex-equal  !>((kinds out))
+    !>(`(list @t)`~['message' 'bot-message' 'bot-message' 'bot-message'])
+  (ex-equal !>(~(wyt by jobs.saved.out)) !>(4))
+++  test-a-bot-run-adds-one-bot-limit-notice
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  out=outcome  bind:m
+    (catch-up bot-room (turn (gulf 3 7) top-row) (bot-posts (gulf 3 7)) ~)
+  ;<  ~  bind:m
+    %+  ex-equal  !>((kinds out))
+    !>(`(list @t)`~['bot-limit' 'bot-message' 'bot-message' 'bot-message'])
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.saved.out)) !>(3))
+  (ex-equal !>(activity-through.saved.out) !>((second 7)))
 --

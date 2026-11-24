@@ -41,6 +41,8 @@
     |=  =path
     ^-  (unit vase)
     ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
+    ::  harness-tlon-steward covers the Steward lease.
+    ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(|)
     ?:  =(%$ (rear path))  `!>(&)
     ::  Native Chat is installed and has no pending invitations.
     ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)

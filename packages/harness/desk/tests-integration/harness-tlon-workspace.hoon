@@ -80,6 +80,7 @@
       ?~  dm  ~
       `!>((got:on:writs:v7:cv writs.u.dm message-at))
     ?:  ?=([@ @ %channels *] path)  ~
+    ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(|)
     ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
     ?:  =(%$ (rear path))  `!>(&)
     ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)

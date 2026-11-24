@@ -132,12 +132,43 @@
         %-  (slog 'harness-tlon: profile claim update failed' u.error)
         `this
       `this
-    ::  A refused lease retries on the next adapter event, not its nack.
+    ::  Steward's acks send Steward nothing. Gall hands back the owner's ack
+    ::  before it delivers the lease poke behind it, so taking the lease here
+    ::  would poke without end. A refusal retries on the next adapter event.
+    ::  The event that sends a lease schedules before Steward applies it, so
+    ::  the lease's ack arms the wake that renews it.
     ?:  =(/steward/lease wire)
       ?^  error=?:(?=(%poke-ack -.sign) p.sign ~)
         %-  (slog 'harness-tlon: steward lease refused' u.error)
         `this
-      `this
+      =^  cards  state  rearm:cor
+      [cards this]
+    ?:  =(/steward/configure wire)
+      ?~  error=?:(?=(%poke-ack -.sign) p.sign ~)  `this
+      ::  Lens's Retry sync sends the owner again, so only Lens shows the refusal.
+      ?.  &(enabled.lens =(owner.lens owner.policy))
+        %-  (slog 'harness-tlon: steward owner refused' u.error)
+        `this
+      :-  ~
+      %=  this  lens
+        lens(error 'Steward is unavailable on this ship. Install or update Tlon, then retry sync.')
+      ==
+    ::  Only the watch's ack builds effects: it is how a Steward that starts
+    ::  late gets the owner and the lease. Steward gives a fact in answer to
+    ::  the lease poke, so a fact that took the lease would poke without end.
+    ?:  =(/steward/gateway wire)
+      ?+  -.sign  `this
+          %kick
+        :_  this
+        ?.(&(enabled.policy ?=(^ owner.policy)) ~ ~[steward-watch:cor])
+      ::
+          %watch-ack
+        ?^  p.sign
+          %-  (slog 'harness-tlon: steward gateway watch refused' u.p.sign)
+          `this
+        =^  cards  state  abet:cor
+        [cards this]
+      ==
     =^  cards  state  abet:(agent:cor wire sign)
     [cards this]
   ::
@@ -185,6 +216,11 @@
 ++  abet
   =/  engine  schedule:sync-liveness
   [(flop cards.engine) state.engine]
+::  +abet without the liveness sync: only Behn cards, never a Steward poke.
+::
+++  rearm
+  =/  engine  schedule
+  [(flop cards.engine) state.engine]
 ::
 ++  sync-liveness
   ^+  cor
@@ -193,22 +229,22 @@
   ::  Steward's gateway lease.
   =/  online  &(enabled.policy watching head-live)
   =?  cor  online  hold-steward-lease
+  =.  cor  watch-steward
   =/  effect  (mole |.((claims:messenger online)))
   ?~  effect  cor
   ?~  u.effect  cor
   (emit u.u.effect)
 ::
-::  Owner sync gives Steward an owner, and without a live gateway lease Steward
-::  tells that owner the bot is offline. The lease expires by itself when this
-::  hand stops renewing it. %gateway-stop would tell the owner it is restarting.
+::  Steward is told the owner whether or not Lens sync is on, and without a
+::  live gateway lease it tells that owner the bot is offline. It refuses a
+::  lease while it has no owner, so an ownerless hand asks for none. The lease
+::  expires by itself when this hand stops renewing it. %gateway-stop would
+::  tell the owner it is restarting.
 ::
 ++  steward-lease
   ^-  (unit @da)
-  ?.  enabled.lens  ~
-  =/  live
-    %-  mole
-    |.(.^(? %gu /(scot %p our.bowl)/steward/(scot %da now.bowl)/$))
-  ?.  =(`& live)  ~
+  ?~  owner.policy  ~
+  ?.  steward-running  ~
   =/  got
     %-  mole
     |.
@@ -219,17 +255,68 @@
   ?.  =(%up status)  `now.bowl
   ?~  until  `now.bowl
   until
+::  Gall queues a poke to an agent that is not running, so a ship without the
+::  Tlon desk would collect one per boot.
+::
+++  steward-running
+  ^-  ?
+  =(`& (mole |.(.^(? %gu /(scot %p our.bowl)/steward/(scot %da now.bowl)/$))))
+::
+::  Steward has no action to clear its owner, so a cleared owner sends nothing.
+::  An owner change that also renews the lease names the owner once.
+::
+++  configure-steward
+  ^+  cor
+  ?~  owner.policy  cor
+  ?.  steward-running  cor
+  =/  configure=card
+    :*  %pass  /steward/configure  %agent  [our.bowl %steward]  %poke  %steward-action-1
+        !>(`action:v1:steward`[%configure u.owner.policy])
+    ==
+  ?:  (lien cards |=(=card =(card configure)))  cor
+  (emit configure)
+::  Renew the Steward lease before it expires, while the hand is online.
+::
+++  lease-renewal
+  ^-  (unit @da)
+  =/  lease  ?:(&(enabled.policy watching head-live) steward-lease ~)
+  ?~  lease  ~
+  =/  at  (sub u.lease (min u.lease ~m5))
+  ?.  (gth at now.bowl)  ~
+  `at
 ::
 ++  hold-steward-lease
   ^+  cor
   =/  lease  steward-lease
   ?~  lease  cor
   ?:  (gth u.lease (add now.bowl ~m5))  cor
+  ::  The owner goes with the lease, so a Steward that starts after this hand
+  ::  still learns it.
+  =.  cor  configure-steward
   %-  emit
   :*  %pass  /steward/lease  %agent  [our.bowl %steward]  %poke
       %steward-gateway-action-1
       !>(`action:v1:steward-gateway`[%gateway-start 'harness-tlon' (add now.bowl ~m15)])
   ==
+::  Gall holds a watch on an agent that is not running and replays it when the
+::  agent starts, so the ack of this watch is the event that brings a Steward
+::  started after this hand the owner and the lease. Sent behind the pokes of
+::  the same event, its ack finds a running Steward's lease already held.
+::
+++  watch-steward
+  ^+  cor
+  =/  held  (~(has by wex.bowl) /steward/gateway our.bowl %steward)
+  ?.  &(enabled.policy ?=(^ owner.policy))
+    ?.  held  cor
+    (emit [%pass /steward/gateway %agent [our.bowl %steward] %leave ~])
+  ?:  held  cor
+  ::  Gall crashes on a second watch on one wire.
+  ?:  (lien cards |=(=card =(card steward-watch)))  cor
+  (emit steward-watch)
+::
+++  steward-watch
+  ^-  card
+  [%pass /steward/gateway %agent [our.bowl %steward] %watch /v1/gateway]
 ::
 ++  refresh-peers
   ^+  cor
@@ -309,13 +396,7 @@
   =/  deadline
     ?:  &(enabled.policy !head-live)  `(add now.bowl ~s5)
     (deadline:clock now.bowl state)
-  ::  Renew the Steward lease before it expires, while the hand is online.
-  =/  lease  ?:(&(enabled.policy watching head-live) steward-lease ~)
-  =/  renew=(unit @da)
-    ?~  lease  ~
-    =/  at  (sub u.lease (min u.lease ~m5))
-    ?.  (gth at now.bowl)  ~
-    `at
+  =/  renew  lease-renewal
   =?  deadline  ?&(?=(^ renew) |(?=(~ deadline) (lth u.renew (need deadline))))
     renew
   ?:  =(deadline wake)  cor
@@ -371,6 +452,7 @@
       ['deliveryMode' %s 'events']
       ['lens' lens-status]
       ['maintenanceWake' ?~(wake ~ [%s (scot %da u.wake)])]
+      ['leaseRenewal' =/(renew lease-renewal ?~(renew ~ [%s (scot %da u.renew)]))]
       ['error' %s error]
       ['pending' (numb:enjs:format ~(wyt by jobs))]
       ['delivering' (numb:enjs:format ~(wyt by deliveries))]
@@ -2015,6 +2097,7 @@
   =.  epoch  +(epoch)
   =.  error  ''
   =.  cor  (sync-presence hands)
+  =?  cor  !=(owner.before owner.updated-policy)  configure-steward
   ?:  =(enabled.before enabled.updated-policy)  schedule:accept-granted-invitations
   ?:  enabled.updated-policy  boot
   =?  cor  (~(has by wex.bowl) /activity our.bowl %activity)
@@ -2025,7 +2108,6 @@
   |=  [wire=wire sign=sign:agent:gall]
   ^+  cor
   ?+  wire  cor
-    [%lens %configure ~]  (agent-lens-configure wire sign)
     [%lens %events ~]  (agent-lens-events wire sign)
     [%lens %send @ @ @ ~]  (agent-lens-send wire sign)
     [%channel-join @ @ @ ~]  (agent-channel-join wire sign)
@@ -2047,16 +2129,6 @@
     [%hand @ @ ~]  (agent-hand wire sign)
     [%refusal @ ~]  (agent-refusal wire sign)
     [%publish @ @ ~]  (agent-publish wire sign)
-  ==
-::
-++  agent-lens-configure
-  |=  [=wire =sign:agent:gall]
-  ^+  cor
-  ?>  ?=([%lens %configure ~] wire)
-  ?.  ?=(%poke-ack -.sign)  cor
-  ?~  p.sign  cor
-  %=  cor  lens
-      lens(error 'Steward is unavailable on this ship. Install or update Tlon, then retry sync.')
   ==
 ::
 ++  agent-lens-events
@@ -2673,9 +2745,15 @@
   =/  id=@uv  (sham [generation u.input])
   ?:  (~(has by jobs) id)  cor
   ?:  (gte ~(wyt by jobs) 64)  cor(error 'Admission queue full; inspect Tlon pending work.')
-  ::  Read only what will be admitted. A diagnostic, kept out of the input
-  ::  whose hash is the job id.
+  ::  Read only what passes the checks above. Kept out of the input whose hash
+  ::  is the job id.
   =/  bot=(unit ?)  (bot-author:~(. history-read bowl) to.u.input (posted-at:continuity event))
+  =/  run
+    ?.  =(`& bot)  [capped=| reported=|]
+    (bot-run:denial (address:p to.u.input) notices)
+  ?:  &(=(`& bot) capped.run)
+    ?:  reported.run  cor
+    (note 'bot-limit' actor.u.input (address:p to.u.input) event.u.input)
   =/  =job:t  [u.input sid %create '']
   =.  jobs  (~(put by jobs) id job)
   =.  cor  (note ?:(=(`& bot) 'bot-message' 'message') actor.u.input (address:p to.u.input) event.u.input)
@@ -2833,6 +2911,15 @@
   ^-  state:hh
   .^(state:hh %gx /(scot %p our.bowl)/harness/(scot %da now.bowl)/hand-state/noun)
 ::
+::  +hand-index: the head's index of its ledger
+::
+::    A head from before the index cannot answer, and a failed scry cannot
+::    be caught, so nothing reached from +on-load may read this.
+::
+++  hand-index
+  ^-  index:hh
+  .^(index:hh %gx /(scot %p our.bowl)/harness/(scot %da now.bowl)/hand-index/noun)
+::
 ++  show-presence
   |=  active=(map path (set @t))
   ^+  cor
@@ -2931,8 +3018,11 @@
   =/  hands  ledger
   =/  client-id  (rap 3 (scot %p our.bowl) '/' (scot %da sent.proof) ~)
   =/  native-id  (rap 3 (address:p to.proof) '/' (scot %da id.proof) ~)
-  %+  roll  ~(tap by outbox.hands)
-  |=  [[id=@uv publication=publication:hh] engine=_cor]
+  %+  roll  ~(tap in open:hand-index)
+  |=  [id=@uv engine=_cor]
+  =/  found  (~(get by outbox.hands) id)
+  ?~  found  engine
+  =/  publication  u.found
   ?.  ?&  =('tlon' hand.publication)
           =('harness-tlon' worker.publication)
           =(address.publication (address:p to.proof))
@@ -2953,7 +3043,8 @@
   ?.  head-live  schedule
   =.  cor  poll-tools
   =/  hands  ledger
-  =.  cor  (sync-lenses hands)
+  =/  indexed=indexed:hh  [hands hand-index]
+  =.  cor  (sync-lenses indexed)
   =.  state  (detach-routes:continuity state hands)
   =.  cor  (sync-presence hands)
   =.  cor  schedule
@@ -2970,7 +3061,7 @@
     ?=(?(%claimed %uncertain) status.u.publication)
   ::  Only runnable Tlon publications need ordering. Retained receipts and
   ::  other hands must not make every head invalidation more expensive.
-  =/  pending  (pending-publications:hd hands 'tlon')
+  =/  pending  (pending-publications:hd indexed 'tlon')
   %+  roll  pending
   |=  [[id=@uv publication=publication:hh] engine=_cor]
   ?.  &(=('tlon' hand.publication) =(%pending status.publication))  engine
@@ -2984,11 +3075,13 @@
   ::  The ledger, not this worker's cache, owns uncertainty. A recovered or
   ::  operator-owned claim also blocks later sends to the same destination.
   =/  unsettled
-    %+  lien  ~(val by outbox.hands)
-    |=  other=publication:hh
-    ?&  =('tlon' hand.other)
-        =(address.publication address.other)
-        ?=(?(%claimed %uncertain) status.other)
+    %+  lien  ~(tap in open.index.indexed)
+    |=  other-id=@uv
+    =/  other  (~(get by outbox.hands) other-id)
+    ?&  ?=(^ other)
+        =('tlon' hand.u.other)
+        =(address.publication address.u.other)
+        ?=(?(%claimed %uncertain) status.u.other)
     ==
   ?:  unsettled  engine
   =/  dispatching
@@ -3016,35 +3109,24 @@
   ^+  cor
   ?.  &(enabled.lens =(owner.lens owner.policy))  cor
   ?:  =(~ owner.lens)  cor
-  =/  owner  (need owner.lens)
-  =.  cor
-    %-  emit
-    :*  %pass  /lens/configure  %agent  [our.bowl %steward]  %poke  %steward-action-1
-        !>(`action:v1:steward`[%configure owner])
-    ==
+  ::  A Lens retry sends the owner again, since a refusal shows as its error.
+  =.  cor  configure-steward
   ?:  (~(has by wex.bowl) /lens/events our.bowl %steward)  cor
   (emit [%pass /lens/events %agent [our.bowl %steward] %watch /v1/lens])
 ::
 ++  sync-lenses
-  |=  hands=state:hh
+  |=  indexed=indexed:hh
   ^+  cor
+  =*  hands  db.indexed
   ?.  &(enabled.lens =(owner.lens owner.policy))  cor
   ::  Retain a bounded retry cache, not a second history store. The head's
   ::  journal and the owner's accepted Steward records remain authoritative.
   =/  candidates
-    %+  sort
-      %+  skim  ~(tap by observations.hands)
-      |=  [id=input-id:h observation=observation:hh]
-      =/  binding  (~(get by bindings.hands) binding.observation)
-      ?&  ?=(^ binding)
-          =('tlon' hand.u.binding)
-          (gth at.observation after.lens)
-      ==
-    |=  $:  left=[id=input-id:h observation=observation:hh]
-            right=[id=input-id:h observation=observation:hh]
-        ==
-    (gth at.observation.left at.observation.right)
-  =.  candidates  (scag 64 candidates)
+    %+  skim
+      %+  turn  (~(gut by recent.index.indexed) 'tlon' ~)
+      |=(id=input-id:h [id (~(got by observations.hands) id)])
+    |=  [id=input-id:h observation=observation:hh]
+    (gth at.observation after.lens)
   =.  records.lens
     %-  my
     %+  murn  candidates

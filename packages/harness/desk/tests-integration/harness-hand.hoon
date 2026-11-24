@@ -1,8 +1,9 @@
 ::  Hand admission through the full head, driven by test-agent; no card is
 ::  delivered and every scry answers %.n.
-/-  h=harness, hh=harness-hand, t=harness-tlon, adapter=harness-adapter, *harness-store
+/-  h=harness, hh=harness-hand, t=harness-tlon, adapter=harness-adapter, c=harness-cron,
+    ac=acp, *harness-store
 /+  *test-agent, policy=harness-defaults, hd=harness-hand, hl=harness,
-    command=harness-command
+    command=harness-command, schedule=harness-schedule
 /=  head  /app/harness
 |%
 ++  t0  ~2026.10.1
@@ -88,11 +89,23 @@
   (pure:m ~)
 ++  setup  (start-with fixture)
 ::
+::  Every read of the saved state also checks the head's index.
+::
 ++  get-state
   =/  m  (mare ,state-0)
   ^-  form:m
+  ;<  ~  bind:m  ex-index
   ;<  =vase  bind:m  get-save
   (pure:m !<(state-0 vase))
+::
+::  The head's index equals the derivation of the ledger it holds.
+::
+++  ex-index
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ledger=cage  bind:m  (got-peek /x/hand-state)
+  ;<  index=cage  bind:m  (got-peek /x/hand-index)
+  (ex-equal q.index !>((reindex:hd !<(state:hh q.ledger))))
 ::
 ++  cancels
   |=  cards=(list card)
@@ -108,14 +121,18 @@
   =/  stop-id  (input-id:hd 'source' 'stop-event')
   =/  unrelated  (input-id:hd 'other' 'unrelated')
   ;<  ~      bind:m  setup
+  ;<  ~      bind:m  ex-index
   ;<  *      bind:m  (do-poke %harness-hand !>(stop))
+  ;<  ~      bind:m  ex-index
   ;<  saved=state-0  bind:m  get-state
   ;<  *      bind:m  (do-poke %harness-action !>(`action:h`[%send 'source' 'New work']))
+  ;<  ~      bind:m  ex-index
   ;<  before=state-0  bind:m  get-state
   ::  The new work is in flight, so a replayed stop has something to cancel.
   =/  current  (play:hl log:(~(got by sessions.before) 'source'))
   ;<  ~  bind:m  (ex-equal !>(?=(^ pending.current)) !>(&))
   ;<  replayed=(list card)  bind:m  (do-poke %harness-hand !>(stop))
+  ;<  ~  bind:m  ex-index
   ;<  after=state-0  bind:m  get-state
   ;<  ~  bind:m
     (ex-equal !>(phase:(~(got by observations.hands.saved) running)) !>(%cancelled))
@@ -409,7 +426,9 @@
   =/  expected=@t
     'I stopped before finishing this. You can ask me to try again in a new message.'
   ;<  ~  bind:m  (start-with halting)
+  ;<  ~  bind:m  ex-index
   ;<  *  bind:m  (do-poke %harness-action !>(`action:h`[%retry 'source']))
+  ;<  ~  bind:m  ex-index
   ;<  halted=state-0  bind:m  get-state
   =/  log  log:(~(got by sessions.halted) 'source')
   ;<  ~  bind:m  (ex-equal !>(?=([[%halted *] *] log)) !>(&))
@@ -423,6 +442,7 @@
   ;<  ~  bind:m  (ex-equal !>((~(has by active.hands.halted) 'source')) !>(|))
   =/  again=request:hh  ['next' [%observe 'source' 'next' 'alice' 'Try again.']]
   ;<  *  bind:m  (do-poke %harness-hand !>(again))
+  ;<  ~  bind:m  ex-index
   ;<  after=state-0  bind:m  get-state
   =/  current  (play:hl log:(~(got by sessions.after) 'source'))
   ;<  ~  bind:m  (ex-equal !>(?=(^ pending.current)) !>(&))
@@ -439,8 +459,10 @@
   ;<  ~  bind:m  (start-with halting)
   ;<  *  bind:m  (do-poke %harness-action !>(`action:h`[%retry 'source']))
   ;<  *  bind:m  (do-poke %harness-hand !>(claim))
+  ;<  ~  bind:m  ex-index
   ;<  claimed=state-0  bind:m  get-state
   ;<  *  bind:m  (do-poke %harness-action !>(`action:h`[%retry 'source']))
+  ;<  ~  bind:m  ex-index
   ;<  after=state-0  bind:m  get-state
   =/  halts
     %+  skim  log:(~(got by sessions.after) 'source')
@@ -448,4 +470,215 @@
   ;<  ~  bind:m  (ex-equal !>((lent halts)) !>(2))
   ;<  ~  bind:m  (ex-equal !>(status:(~(got by outbox.hands.after) running)) !>(%claimed))
   (ex-equal !>(hands.after) !>(hands.claimed))
+::  Each owner route that changes the ledger keeps the head's index equal to
+::  its derivation: hand pokes, cancel, fence and session delete.
+::
+++  test-head-index-follows-every-ledger-route
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  more=request:hh  ['more' [%observe 'source' 'more' 'alice' 'More']]
+  =/  again=request:hh  ['again' [%observe 'source' 'again' 'alice' 'Again']]
+  =/  later=request:hh  ['later' [%observe 'other' 'later' 'alice' 'Later']]
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  ex-index
+  ;<  *  bind:m  (do-poke %harness-hand !>(more))
+  ;<  ~  bind:m  ex-index
+  ;<  *  bind:m  (do-poke %harness-action !>(`action:h`[%cancel 'source']))
+  ;<  ~  bind:m  ex-index
+  ;<  cancelled=state-0  bind:m  get-state
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>(phase:(~(got by observations.hands.cancelled) (input-id:hd 'source' 'more')))
+    !>(%cancelled)
+  ;<  *  bind:m  (do-poke %harness-hand !>(again))
+  ;<  *  bind:m  (do-poke %harness-hand !>(later))
+  ;<  ~  bind:m  ex-index
+  ;<  *  bind:m  (do-poke %harness-action !>(`action:h`[%fence 'source']))
+  ;<  ~  bind:m  ex-index
+  ;<  *  bind:m  (do-poke %harness-action !>(`action:h`[%delete 'other']))
+  ;<  ~  bind:m  ex-index
+  ;<  deleted=state-0  bind:m  get-state
+  %+  ex-equal
+    !>(phase:(~(got by observations.hands.deleted) (input-id:hd 'other' 'later')))
+  !>(%cancelled)
+::  The head's binding writes keep the bindings of each session in its
+::  index: bind, register, enable and remove.
+::
+++  test-head-index-lists-each-sessions-bindings
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  config=binding:hh  ['fixture' 'third-room' 'other' ~['alice'] &]
+  =/  ask
+    |=  =action:hh
+    (do-poke %harness-hand !>(`request:hh`[-.action action]))
+  =/  listed
+    |=  sid=@t
+    =/  n  (mare ,(set @t))
+    ^-  form:n
+    ;<  index=cage  bind:n  (got-peek /x/hand-index)
+    (pure:n (~(get ju sessions:!<(index:hh q.index)) sid))
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  ex-index
+  ;<  *  bind:m  (ask [%bind 'third' config])
+  ;<  *  bind:m  (ask [%register config])
+  ;<  ~  bind:m  ex-index
+  ;<  other=(set @t)  bind:m  (listed 'other')
+  ;<  ~  bind:m  (ex-equal !>(other) !>((silt ~['other' 'third' 'hand--0'])))
+  ;<  *  bind:m  (ask [%enable 'third' |])
+  ;<  ~  bind:m  ex-index
+  ;<  *  bind:m  (ask [%remove 'hand--0'])
+  ;<  ~  bind:m  ex-index
+  ;<  other=(set @t)  bind:m  (listed 'other')
+  (ex-equal !>(other) !>((silt ~['other' 'third'])))
+::  The head's answer to one hand request.
+::
+++  hand-result
+  |=  [id=@t cards=(list card)]
+  ^-  (list (each json @t))
+  %+  murn  cards
+  |=  =card
+  ^-  (unit (each json @t))
+  ?.  ?=([%give %fact * %noun *] card)  ~
+  ?.  =(~[/hands/[id]] paths.p.card)  ~
+  `;;((each json @t) q.q.cage.p.card)
+::  BINDINGS bindings, each with its own session, the first FULL of them
+::  holding PER waiting inputs. No session exists, so none can start.
+::
+++  waiting
+  |=  [bindings=@ud full=@ud per=@ud]
+  ^-  state-0
+  =/  saved  *state-0
+  =/  b  0
+  |-
+  ?:  =(b bindings)  saved
+  =/  id  (cat 3 'b' (scot %ud b))
+  =.  bindings.hands.saved
+    (~(put by bindings.hands.saved) id ['fixture' id id ~['alice'] &])
+  =/  k  0
+  =.  saved
+    |-
+    ?:  |((gte b full) =(k per))  saved
+    =/  event  (scot %ud k)
+    =/  input  (input-id:hd id event)
+    =.  observations.hands.saved
+      (~(put by observations.hands.saved) input [id event 'alice' 'text' t0 %queued])
+    =.  queue.hands.saved  (snoc queue.hands.saved input)
+    $(k +(k))
+  $(b +(b))
+::  The waiting limits still refuse, with the text they always had.
+::
+++  test-the-ninth-waiting-input-on-a-binding-is-refused
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  ninth=request:hh  ['ninth' [%observe 'b0' 'ninth' 'alice' 'Ninth']]
+  ;<  ~  bind:m  (start-with (waiting 1 1 8))
+  ;<  cards=(list card)  bind:m  (do-poke %harness-hand !>(ninth))
+  %+  ex-equal
+    !>((hand-result 'ninth' cards))
+  !>(`(list (each json @t))`~[[%| 'This binding or session has reached its waiting-work limit']])
+::
+++  test-the-129th-waiting-input-on-the-ship-is-refused
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  next=request:hh  ['next' [%observe 'b16' 'next' 'alice' 'Next']]
+  ;<  ~  bind:m  (start-with (waiting 17 16 8))
+  ;<  saved=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>((lent queue.hands.saved)) !>(128))
+  ;<  cards=(list card)  bind:m  (do-poke %harness-hand !>(next))
+  %+  ex-equal
+    !>((hand-result 'next' cards))
+  !>(`(list (each json @t))`~[[%| 'Admission queue is full; retry the same source event later']])
+::  Loading a saved ledger rebuilds the index before anything reads it: a
+::  pending publication is runnable and a schedule whose run is unfinished
+::  is busy.
+::
+++  test-load-rebuilds-the-index
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  fixture
+  =/  done  (input-id:hd 'other' 'done')
+  =.  observations.hands.saved
+    (~(put by observations.hands.saved) done ['other' 'done' 'alice' 'Done' t0 %completed])
+  =.  outbox.hands.saved
+    %+  ~(put by outbox.hands.saved)  done
+    [done 'other' 'fixture' 'other-room' 'other' %reply 'Reply' %pending '' '' ~]
+  =/  job=job:c
+    :*  %prompt  'UTC'  'source-room'  'source'  'source'  'every hour'  *pattern:c
+        'Prompt'  ~  t0  1  %active  ''  `(input-id:hd 'source' 'running')
+    ==
+  ;<  ~  bind:m  (start-with saved)
+  ;<  ~  bind:m  ex-index
+  ;<  ledger=cage  bind:m  (got-peek /x/hand-state)
+  ;<  index=cage  bind:m  (got-peek /x/hand-index)
+  =/  loaded=indexed:hh  [!<(state:hh q.ledger) !<(index:hh q.index)]
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>((turn (pending-publications:hd loaded 'fixture') |=([id=input-id:h *] id)))
+    !>(`(list input-id:h)`~[done])
+  (ex-equal !>((busy:schedule job loaded)) !>(&))
+::  352 completed observations of 'big' whose 512-byte source events are
+::  control characters, each escaped as \u00XX; listing them all takes more
+::  than an ACP payload.
+::
+++  escaped-history
+  ^-  state-0
+  =/  saved  fixture
+  =.  bindings.hands.saved
+    (~(put by bindings.hands.saved) 'big' ['fixture' 'big-room' 'other' ~['alice'] |])
+  =/  n=@ud  0
+  |-
+  ?:  =(352 n)  saved
+  =/  event  (end [3 512] (cat 3 (scot %ud n) (fil 3 512 0x1)))
+  =/  =observation:hh  ['big' event 'alice' 'Hello' (add t0 (mul n ~s1)) %completed]
+  %=  $
+    n  +(n)
+    observations.hands.saved
+      (~(put by observations.hands.saved) (input-id:hd 'big' event) observation)
+  ==
+::
+++  test-status-and-enable-replies-fit-an-acp-payload-at-any-history
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  =update:v1:ac
+    :*  %messages  'fixture'  %agent
+        :~  [1 t0 '{"jsonrpc":"2.0","id":1,"method":"harness/hand","params":{"status":{"binding":"big"}}}']
+            [2 t0 '{"jsonrpc":"2.0","id":2,"method":"harness/hand","params":{"enable":{"id":"big","enabled":true}}}']
+        ==
+    ==
+  ;<  ~  bind:m  (start-with escaped-history)
+  ;<  cards=(list card)  bind:m
+    (do-agent /acp/watch [~zod %acp] [%fact %acp-update-1 !>(update)])
+  =/  sent=(list @t)
+    %+  murn  cards
+    |=  =card
+    ^-  (unit @t)
+    ?.  ?=([%pass [%acp %send ~] %agent * %poke %acp-action-1 *] card)  ~
+    =/  [pass=* wire=* agent=* target=* poke=* mark=* data=vase]  card
+    =/  action  !<(action:v1:ac data)
+    ?>  ?=(%send -.action)
+    `payload.action
+  ;<  ~  bind:m  (ex-equal !>((lent sent)) !>(2))
+  =/  result
+    |=  payload=@t
+    ^-  (map @t json)
+    =/  value  ((ot:dejs:format ~[result+same]) (need (de:json:html payload)))
+    ?>(?=(%o -.value) p.value)
+  =/  status  (result (snag 0 sent))
+  ::  An enable answers with the binding's fields; its rows are in %status.
+  =/  enabled  (result (snag 1 sent))
+  ;<  ~  bind:m
+    (ex-equal !>((ni:dejs:format (~(got by status) 'observationCount'))) !>(352))
+  ;<  ~  bind:m  (ex-equal !>((~(get by enabled) 'enabled')) !>(`[%b &]))
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>([(~(has by enabled) 'observations') (~(has by enabled) 'observationCount')])
+    !>([| |])
+  ::  max-payload-bytes in %acp.
+  (ex-equal !>((levy sent |=(payload=@t (lte (met 3 payload) 1.048.576)))) !>(&))
 --

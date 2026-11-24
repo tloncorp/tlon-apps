@@ -57,24 +57,32 @@
   =/  at  (year date)
   ?>  =(date (yore at))
   =/  zone  (part zone-at zone-size)
-  =/  offset=@dr
-    ?:  =('Z' zone)  ~s0
-    ?>  =(6 zone-size)
-    ?>  ?&  |(=('+' (part zone-at 1)) =('-' (part zone-at 1)))
-            =(':' (part (add zone-at 3) 1))
-            !=('-00:00' zone)
-        ==
-    =/  hours  (number (add zone-at 1) 2)
-    =/  minutes  (number (add zone-at 4) 2)
-    ?>  &((lte hours 14) (lth minutes 60))
-    ?>  |((lth hours 14) =(minutes 0))
-    (add (mul hours ~h1) (mul minutes ~m1))
+  =/  shift=[east=? delta=@dr]
+    ?:  =('Z' zone)  [& ~s0]
+    (offset zone)
   ::  Civil time east of UTC is ahead of the instant it names. Subtract a
   ::  positive offset; add a negative one, then include fractional seconds.
   =.  at
     %+  add  fraction
-    ?:  =('-' (part zone-at 1))  (add at offset)
-    (sub at offset)
+    ?.  east.shift  (add at delta.shift)
+    (sub at delta.shift)
   ?>  &((gth at now) (lte at (add now ~d3653)))
   [at ?:(=('Z' zone) 'UTC' (cat 3 'UTC' zone))]
+::
+++  offset
+  |=  zone=@t
+  ^-  [east=? delta=@dr]
+  ::  Exactly +HH:MM or -HH:MM, up to 14 hours. RFC3339 reserves -00:00 for
+  ::  an unknown local offset, so it never stands in for UTC.
+  =/  part  |=([at=@ud len=@ud] (cut 3 [at len] zone))
+  ?>  ?&  =(6 (met 3 zone))
+          |(=('+' (part 0 1)) =('-' (part 0 1)))
+          =(':' (part 3 1))
+          !=('-00:00' zone)
+      ==
+  =/  hours  (need (rush (part 1 2) dem))
+  =/  minutes  (need (rush (part 4 2) dem))
+  ?>  &((lte hours 14) (lth minutes 60))
+  ?>  |((lth hours 14) =(minutes 0))
+  [=('+' (part 0 1)) (add (mul hours ~h1) (mul minutes ~m1))]
 --
