@@ -1,7 +1,7 @@
 ::  An owner-only, disposable projection of retained work evidence. No log
 ::  replay, document reads, durable inbox state, scheduler or effect authority.
 /-  w=harness-workspace, hh=harness-hand, cr=harness-cron, hn=harness-notes
-/+  j=harness-workspace-json, snippets=harness-corpus-index, sl=harness-schedule
+/+  j=harness-workspace-json, snippets=harness-corpus-index
 |%
 +$  category  ?(%uncertain %blocked %approval %running %waiting %finished)
 +$  source-kind  ?(%task %proposal %input %schedule %notes)
@@ -113,7 +113,6 @@
   =/  schedules
     %+  turn  ~(tap by jobs)
     |=  [id=@uv job=schedule:cr]
-    ::  The raw count only detects change; it is never interpreted here.
     [id state.job next.job remaining.job last.job]
   =/  pending
     ?~  pending.native  ~
@@ -211,7 +210,7 @@
           ['destination' %s destination.job]
           ['schedule' %s expression.job]
           ['next' %s (scot %da next.job)]
-          ['remaining' (runs-json:sl (job-value:sl job))]
+          ['remaining' ?~(remaining.job ~ (numb:enjs:format u.remaining.job))]
           ['lastInput' ?~(last.job ~ [%s (scot %uv u.last.job)])]
       ==
         %notes

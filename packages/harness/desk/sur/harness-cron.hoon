@@ -21,10 +21,9 @@
       prompt=@t
       tools=(list tool-grant:h)
       next=@da
-      ::  Runs left. An %active job never holds 0, so 0 on a job that is
-      ::  not %complete means no limit: it repeats until cancelled. Read and
-      ::  write it only through the run-limit arms of lib/harness-schedule.
-      remaining=@ud
+      ::  Runs left; ~ for a recurring job with no limit, which repeats
+      ::  until it is cancelled.
+      remaining=(unit @ud)
       state=?(%active %paused %cancelled %complete)
       reason=@t
       last=(unit @uv)

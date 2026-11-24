@@ -4,7 +4,7 @@
 ::  each speaker's authority is decided per turn.
 /-  t=harness-tlon, h=harness, a=activity-ver,
     cr=harness-cron, hh=harness-hand, c=channels
-/+  ht=harness-tools, hj=harness-json, schedule=harness-schedule,
+/+  ht=harness-tools, hj=harness-json,
     story=harness-tlon-story, input=harness-tlon-input
 |%
 ::
@@ -12,7 +12,7 @@
   |=  [job=job:cr hands=state:hh admitting=?]
   ^-  ?
   ?:  admitting  |
-  ?.  |(=(%cancelled state.job) (used-up:schedule job))  |
+  ?.  |(=(%cancelled state.job) &(=(%complete state.job) =(`0 remaining.job)))  |
   ?:  %+  lien  ~(val by observations.hands)
       |=  observation=observation:hh
       ?&  =(run-sid.job binding.observation)

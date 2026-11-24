@@ -86,9 +86,7 @@ Results enter the hand's outbox. Check delivery separately from execution;
 uncertain sends are not retried automatically. See [hand receipts](hands.md#claims-and-receipts).
 
 Listings give `remaining` as the runs a job has left, or `null` for a job with
-no count. A job keeps that count when it is paused or cancelled; one that used
-its last run and was then paused or cancelled also lists `null`. An edit
-replaces the count: `args` without `runs` removes the limit.
+no limit. An edit replaces the count: `args` without `runs` removes the limit.
 
 The head retains up to 64 schedule records across all hands. Cancel stops future
 work but cannot retract dispatched effects. Clear is allowed only for completed

@@ -319,7 +319,7 @@
     %+  ex-equal
       !>(prompt:(~(got by schedules.next) 0v1))
     !>('Check deployment status')
-  ;<  ~  bind:m  (ex-equal !>(remaining:(~(got by schedules.next) 0v1)) !>(5))
+  ;<  ~  bind:m  (ex-equal !>(remaining:(~(got by schedules.next) 0v1)) !>(`5))
   ;<  ~  bind:m  (ex-equal !>(schedules.unchanged) !>(schedules.next))
   ;<  ~  bind:m  (ex-equal !>(schedules.final) !>(~))
   ;<  ~  bind:m  (ex-equal !>((~(has by sessions.final) 'schedule-0v1')) !>(&))
@@ -362,19 +362,19 @@
   =/  j  (~(got by schedules.next) 0v1)
   ;<  ~  bind:m  (ex-equal !>((ran-once next)) !>(&))
   ;<  ~  bind:m  (ex-equal !>(state.j) !>(%active))
-  ;<  ~  bind:m  (ex-equal !>((runs-left:schedule (job-value:schedule j))) !>(`(unit @ud)`~))
+  ;<  ~  bind:m  (ex-equal !>(remaining.j) !>(`(unit @ud)`~))
   (ex-equal !>((gth next.j (add t0 ~d1))) !>(&))
 ++  test-a-saved-job-on-its-last-run-completes-as-before
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   =/  saved  `schedule:c`job
-  =.  remaining.saved  1
+  =.  remaining.saved  `1
   ;<  next=state-0  bind:m  (run-late saved)
   =/  j  (~(got by schedules.next) 0v1)
   ;<  ~  bind:m  (ex-equal !>((ran-once next)) !>(&))
   ;<  ~  bind:m  (ex-equal !>(state.j) !>(%complete))
-  (ex-equal !>(remaining.j) !>(0))
+  (ex-equal !>(remaining.j) !>(`0))
 ++  cron-remaining
   =/  m  (mare ,json)
   ^-  form:m
@@ -406,10 +406,10 @@
   =/  uj  (~(got by schedules.unlimited) 0v1)
   ;<  hidden=json        bind:m  cron-remaining
   ;<  ~  bind:m  (ex-equal !>(open) !>(`json`~))
-  ;<  ~  bind:m  (ex-equal !>((runs-left:schedule (job-value:schedule lj))) !>(`(unit @ud)``500))
+  ;<  ~  bind:m  (ex-equal !>(remaining.lj) !>(`(unit @ud)``500))
   ;<  ~  bind:m  (ex-equal !>(shown) !>((numb:enjs:format 500)))
   ;<  ~  bind:m  (ex-equal !>(state.uj) !>(%active))
-  ;<  ~  bind:m  (ex-equal !>((runs-left:schedule (job-value:schedule uj))) !>(`(unit @ud)`~))
+  ;<  ~  bind:m  (ex-equal !>(remaining.uj) !>(`(unit @ud)`~))
   (ex-equal !>(hidden) !>(`json`~))
 ++  test-a-cancelled-job-without-runs-can-be-cleared
   %-  eval-mare
@@ -497,7 +497,7 @@
           |=  [key=@t value=@t]
           &(=('authorization' key) =('Bearer current-subscription-token' value))
     !>(&)
-  ;<  ~  bind:m  (ex-equal !>(remaining.j) !>(2))
+  ;<  ~  bind:m  (ex-equal !>(remaining.j) !>(`2))
   ;<  ~  bind:m  (ex-equal !>(next.j) !>(next:(~(got by schedules.s) 0v1)))
   ;<  ~  bind:m  (ex-equal !>((requests duplicate)) !>(~))
   ;<  ~  bind:m

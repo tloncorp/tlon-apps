@@ -66,7 +66,7 @@
   ^-  job:c
   =/  base=schedule:c
     :*  'b1'  'alice'  'tlon'  0v0  %prompt  'UTC'  'room-s1'  's1'  run-sid
-        'every hour'  *pattern:c  'Prompt'  ~  t0  0  state  ''  last
+        'every hour'  *pattern:c  'Prompt'  ~  t0  `0  state  ''  last
     ==
   (job-value:schedule base)
 ::  The walking versions, as they were before the index.
@@ -89,7 +89,7 @@
 ++  clearable-walk
   |=  [job=job:c db=state:hh]
   ^-  ?
-  ?.  |(=(%cancelled state.job) (used-up:schedule job))  |
+  ?.  |(=(%cancelled state.job) &(=(%complete state.job) =(`0 remaining.job)))  |
   ?:  (busy-walk job db)  |
   ?~  last.job  =(%cancelled state.job)
   =/  last  (~(get by observations.db) u.last.job)

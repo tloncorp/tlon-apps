@@ -84,7 +84,7 @@
       (expect-eq !>(%reminder) !>(kind.out))
       (expect-eq !>('UTC-05:00') !>(timezone.out))
       (expect-eq !>('/cancel is literal reminder text') !>(prompt.out))
-      (expect-eq !>(1) !>(remaining.out))
+      (expect-eq !>(`1) !>(remaining.out))
   ==
 ++  test-reminder-destination-defaults-to-source
   =/  action  action
@@ -127,10 +127,10 @@
   =/  once  (advance:schedule job 0v1 ~2026.9.10..12.00.30)
   =/  done  (advance:schedule once 0v2 ~2026.9.10..12.02.00)
   ;:  weld
-      (expect-eq !>(1) !>(remaining.once))
+      (expect-eq !>(`1) !>(remaining.once))
       (expect-eq !>(~2026.9.10..12.01.00) !>(next.once))
       (expect-eq !>(%complete) !>(state.done))
-      (expect-eq !>(0) !>(remaining.done))
+      (expect-eq !>(`0) !>(remaining.done))
   ==
 ++  test-one-time-work-uses-exact-time-and-completes-once
   =/  action  action
@@ -146,9 +146,9 @@
       (expect-eq !>(%prompt) !>(kind.once))
       (expect-eq !>(~2026.9.10..15.02.17) !>(next.once))
       (expect-eq !>('UTC-05:00') !>(timezone.once))
-      (expect-eq !>(1) !>(remaining.once))
+      (expect-eq !>(`1) !>(remaining.once))
       (expect-eq !>(%complete) !>(state.done))
-      (expect-eq !>(0) !>(remaining.done))
+      (expect-eq !>(`0) !>(remaining.done))
       (expect !>(?=(%| -.repeat)))
       (expect-eq !>(`%harness) !>((tool-hand:ht 'schedule_once')))
   ==
@@ -248,7 +248,7 @@
             ==
         ==
     ==
-  =/  done  (job-value:schedule job(state %complete, remaining 0, last `0v1))
+  =/  done  (job-value:schedule job(state %complete, remaining `0, last `0v1))
   ;:  weld
       (expect !>((busy:schedule done (ix db))))
       (expect !>(!(clearable:schedule done (ix db))))
@@ -299,7 +299,7 @@
       (expect-eq !>(last.j) !>(last.edited))
       (expect-eq !>(tools.j) !>(tools.edited))
       (expect-eq !>(fingerprint.j) !>(fingerprint.edited))
-      (expect-eq !>(5) !>(remaining.edited))
+      (expect-eq !>(`5) !>(remaining.edited))
       (expect-eq !>(~2026.9.9..09.00.00) !>(next.edited))
       (expect !>(?=(%| -.invalid)))
   ==
@@ -317,7 +317,7 @@
   =/  value  (job-value:schedule j)
   ;:  weld
       (expect !>((retryable:schedule value (ix db))))
-      (expect !>((retryable:schedule value(state %complete, remaining 0) (ix db))))
+      (expect !>((retryable:schedule value(state %complete, remaining `0) (ix db))))
       (expect !>(!(retryable:schedule value(state %cancelled) (ix db))))
       (expect !>(!(retryable:schedule value(kind %reminder) (ix db))))
       (expect !>(!(retryable:schedule value (ix db(outbox ~)))))
@@ -360,11 +360,10 @@
   =/  later  (run-times job 150)
   ;:  weld
       (expect-eq !>(%active) !>(state.job))
-      (expect-eq !>(`(unit @ud)`~) !>((runs-left:schedule (job-value:schedule job))))
+      (expect-eq !>(`(unit @ud)`~) !>(remaining.job))
       (expect-eq !>(%active) !>(state.later))
-      (expect-eq !>(`(unit @ud)`~) !>((runs-left:schedule (job-value:schedule later))))
+      (expect-eq !>(`(unit @ud)`~) !>(remaining.later))
       (expect !>((gth next.later next.job)))
-      (expect !>(!(used-up:schedule (job-value:schedule later))))
   ==
 ++  test-a-count-above-100-is-accepted-and-honored
   =/  action  action
@@ -373,12 +372,11 @@
   =/  done  (run-times almost 1)
   =/  again  (mule |.((advance:schedule done 0v9 ~2027.1.1)))
   ;:  weld
-      (expect-eq !>(`250) !>((runs-left:schedule (job-value:schedule job))))
+      (expect-eq !>(`250) !>(remaining.job))
       (expect-eq !>(%active) !>(state.almost))
-      (expect-eq !>(`1) !>((runs-left:schedule (job-value:schedule almost))))
+      (expect-eq !>(`1) !>(remaining.almost))
       (expect-eq !>(%complete) !>(state.done))
-      (expect-eq !>(`0) !>((runs-left:schedule (job-value:schedule done))))
-      (expect !>((used-up:schedule (job-value:schedule done))))
+      (expect-eq !>(`0) !>(remaining.done))
       (expect !>(?=(%| -.again)))
   ==
 ++  test-a-zero-or-non-number-count-is-refused
@@ -413,10 +411,9 @@
       (expect !>((clearable:schedule cancelled (ix db))))
       (expect !>(!(clearable:schedule paused (ix db))))
       (expect !>(!(clearable:schedule (job-value:schedule ran) (ix db))))
-      ::  Stopped with no limit is neither complete nor used up.
-      (expect !>(!(used-up:schedule cancelled)))
-      (expect !>(!(used-up:schedule paused)))
-      (expect-eq !>(`(unit @ud)`~) !>((runs-left:schedule cancelled)))
+      ::  Stopping keeps no limit; it is not a used-up count.
+      (expect-eq !>(`(unit @ud)`~) !>(remaining.cancelled))
+      (expect-eq !>(`(unit @ud)`~) !>(remaining.paused))
   ==
 ++  test-editing-adds-and-removes-a-count
   =/  job  unlimited-job
@@ -424,11 +421,11 @@
   =/  unlimited  (editable:schedule 0v1 limited without-runs ~2026.9.9)
   =/  ended  (editable:schedule 0v1 (run-times limited 5) without-runs ~2026.9.9)
   ;:  weld
-      (expect-eq !>(`5) !>((runs-left:schedule (job-value:schedule limited))))
+      (expect-eq !>(`5) !>(remaining.limited))
       (expect-eq !>(%active) !>(state.limited))
-      (expect-eq !>(`(unit @ud)`~) !>((runs-left:schedule (job-value:schedule unlimited))))
+      (expect-eq !>(`(unit @ud)`~) !>(remaining.unlimited))
       (expect-eq !>(%active) !>(state.unlimited))
-      (expect-eq !>(`(unit @ud)`~) !>((runs-left:schedule (job-value:schedule ended))))
+      (expect-eq !>(`(unit @ud)`~) !>(remaining.ended))
       (expect-eq !>(%active) !>(state.ended))
   ==
 ++  test-a-saved-limited-job-advances-exactly-as-before
@@ -438,15 +435,15 @@
   %+  turn  saved
   |=  count=@ud
   =/  saved  `schedule:c`job
-  =.  remaining.saved  count
+  =.  remaining.saved  `count
   =/  last  (run-times saved (dec count))
   =/  done  (run-times last 1)
   ;:  weld
-      (expect-eq !>(`count) !>((runs-left:schedule (job-value:schedule saved))))
+      (expect-eq !>(`count) !>(remaining.saved))
       (expect-eq !>(%active) !>(state.last))
-      (expect-eq !>(`1) !>((runs-left:schedule (job-value:schedule last))))
+      (expect-eq !>(`1) !>(remaining.last))
       (expect-eq !>(%complete) !>(state.done))
-      (expect-eq !>(0) !>(remaining.done))
+      (expect-eq !>(`0) !>(remaining.done))
       %+  expect-eq  !>((numb:enjs:format count))
       !>((~(got by (pairs-of (one-json:schedule 0v1 saved *indexed:hh))) 'remaining'))
   ==
@@ -461,6 +458,18 @@
       (expect-eq !>(`json`~) !>((remaining job(state %cancelled))))
       (expect-eq !>((numb:enjs:format 2)) !>((remaining ^job)))
       (expect-eq !>((numb:enjs:format 0)) !>((remaining (run-times ^job 2))))
+  ==
+::  A job that used its last run keeps 0 when it is then stopped, as an
+::  authority change or a cancel does to a completed job.
+++  test-a-used-up-job-later-paused-or-cancelled-still-lists-zero
+  =/  done  (run-times job 2)
+  =/  remaining
+    |=  job=schedule:c
+    (~(got by (pairs-of (one-json:schedule 0v1 job *indexed:hh))) 'remaining')
+  ;:  weld
+      (expect-eq !>(%complete) !>(state.done))
+      (expect-eq !>((numb:enjs:format 0)) !>((remaining done(state %paused))))
+      (expect-eq !>((numb:enjs:format 0)) !>((remaining done(state %cancelled))))
   ==
 ++  test-a-job-without-a-limit-can-retry-a-failed-run
   =/  j  (run-times unlimited-job 1)
