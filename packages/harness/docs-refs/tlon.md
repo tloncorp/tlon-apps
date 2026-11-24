@@ -1008,8 +1008,10 @@ The hand also watches Steward's `/v1/automation/harness` and applies each
 dispatched edit through the head's cron API, one `%harness-cron` request at a
 time, then answers with `%finalize`. Steward replays unanswered commands to a
 new subscriber; one already applying is not started again, and a create
-reaches the head under its request id, so a replayed create returns the job it
-already made.
+reaches the head under an id made from its request id, the low 128 bits, so a
+replayed create returns the job it already made. Steward mints a request id
+from 512 bits when the client names none, as Messenger's does not, and the
+job's run binding, `schedule-` and its id, must fit the head's 128-byte limit.
 
 - `create` needs a schedule and a prompt. A `cron` schedule's `tz` is `UTC`
   when absent, or an IANA name looked up in the

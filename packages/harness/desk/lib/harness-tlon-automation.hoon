@@ -356,6 +356,17 @@
   ?~  runs  ~
   ~[['runs' %s (crip (a-co:co u.runs))]]
 ::
+::  +job-id: the head schedule id a create makes from its Steward request
+::  id. Steward mints a request id from all 512 bits of entropy when the
+::  client names none, as Messenger's does not, and the head's binding for
+::  the job's runs, schedule- and the id, would pass its 128-byte limit. The
+::  low 128 bits keep it short, and a replayed create gets the same id.
+::
+++  job-id
+  |=  request=@uv
+  ^-  @uv
+  (end [0 128] request)
+::
 ::  +plan: a Steward edit as the head actions that apply it, or the answer
 ::  that refuses it. .binding names the head binding of the bot's
 ::  conversation at a destination, one it has or one it can open, or why
@@ -388,11 +399,12 @@
     ?:  ?=(%| -.source)  (invalid p.source)
     =/  timed  (timing u.schedule.task | u.message.u.payload.task ~ now ~)
     ?:  ?=(%| -.timed)  (invalid p.timed)
-    =/  add=action:cr  [%add request p.source (scot %p owner) %prompt args.p.timed]
+    =/  job=@uv  (job-id request)
+    =/  add=action:cr  [%add job p.source (scot %p owner) %prompt args.p.timed]
     :*  %&
-        ?:(=(`| enabled.task) ~[add [%cancel request]] ~[add])
-        [%created (scot %uv request)]
-        `[request zone.p.timed every.p.timed name.task description.task]
+        ?:(=(`| enabled.task) ~[add [%cancel job]] ~[add])
+        [%created (scot %uv job)]
+        `[job zone.p.timed every.p.timed name.task description.task]
         `p.to
         owner
     ==

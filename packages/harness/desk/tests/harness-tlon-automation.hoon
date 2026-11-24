@@ -476,4 +476,23 @@
 ++  test-a-notes-channel-is-refused-by-name
   =/  edit  (create [%cron `'0 9 * * *' ~ ~] `'Brief' `'notes/~bus/plans')
   (refused-naming edit 'notes channel')
+::  Steward mints a request id from 512 bits of entropy when Messenger names
+::  none. The job's id keeps its run binding, schedule- and the id, within
+::  the head's 128-byte binding limit, and the same request makes the same id.
+::
+++  test-a-create-from-a-minted-request-id-fits-the-heads-binding-limit
+  =/  request=@uv  (shax 'request')
+  =.  request  (cat 9 request request)
+  =/  edit  (create [%cron `'0 9 * * *' ~ ~] `'Brief' ~)
+  =/  planned  (plan:automation edit request now ~nec schedules ~ binding)
+  =/  again  (plan:automation edit request now ~nec schedules ~ binding)
+  ?>  ?=(%& -.planned)
+  ?>  ?=([[%add *] ~] steps.p.planned)
+  =/  id  id.i.steps.p.planned
+  ;:  weld
+      (expect !>((gth (met 3 (cat 3 'schedule-' (scot %uv request))) 128)))
+      (expect !>((lte (met 3 (cat 3 'schedule-' (scot %uv id))) 128)))
+      (expect-eq !>([%created (scot %uv id)]) !>(answer.p.planned))
+      (expect-eq !>(p.planned) !>(?>(?=(%& -.again) p.again)))
+  ==
 --
