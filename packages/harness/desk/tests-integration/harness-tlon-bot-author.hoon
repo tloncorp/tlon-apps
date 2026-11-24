@@ -87,18 +87,22 @@
   :~  ['url' s+'']  ['model' s+'']  ['headers' a+~]  ['system' s+'']
       ['max-context' n+'1']  ['tools' a+~]
   ==
+::  Our bowl at .now, with the head and Activity watches acknowledged.
+++  watched
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now now))
+  %-  jab-bowl
+  |=  b=bowl
+  =.  wex.b  (~(put by wex.b) [/head ~zod %harness] [& /hand-events])
+  b(wex (~(put by wex.b) [/activity ~zod %activity] [& /v4]))
 ++  run
   |=  [saved=state-3:t event=incoming-event:v8:a native=(unit native)]
   =/  m  (mare ,outcome)
   ^-  form:m
   =/  =stream:v10:a
     (put:on-stream:v10:a ~ message-at [;;(incoming-event:v10:a event) | |])
-  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now now))
-  ;<  ~  bind:m
-    %-  jab-bowl
-    |=  b=bowl
-    =.  wex.b  (~(put by wex.b) [/head ~zod %harness] [& /hand-events])
-    b(wex (~(put by wex.b) [/activity ~zod %activity] [& /v4]))
+  ;<  ~  bind:m  watched
   ;<  ~  bind:m
     %-  set-scry-gate
     |=  =path
@@ -322,12 +326,7 @@
     %+  turn  rows
     |=  [at=@da e=incoming-event:v8:a]
     [at [;;(incoming-event:v10:a e) | |]]
-  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now now))
-  ;<  ~  bind:m
-    %-  jab-bowl
-    |=  b=bowl
-    =.  wex.b  (~(put by wex.b) [/head ~zod %harness] [& /hand-events])
-    b(wex (~(put by wex.b) [/activity ~zod %activity] [& /v4]))
+  ;<  ~  bind:m  watched
   ;<  ~  bind:m  (set-scry-gate (gate stream &))
   ;<  loaded=(list card)  bind:m  (do-load adapter `!>(saved))
   ;<  head=(list card)  bind:m  (do-agent /head [~zod %harness] [%watch-ack ~])
@@ -512,4 +511,146 @@
   ;<  ~  bind:m  (ex-equal !>(activity-through.s) !>(~2026.10.1))
   ;<  ~  bind:m  (ex-equal !>(catching-up.s) !>(&))
   (ex-equal !>(~(wyt by jobs.s)) !>(8))
+::  Runs of bot messages. ~nec writes every message; its author form says
+::  whether a bot wrote it. Both conversations start ready, so each admitted
+::  message is bound at once.
+::
+++  bot-room
+  ^-  state-3:t
+  (with-lane (with-lane fixture ~nec room) ~nec thread)
+++  second
+  |=  n=@ud
+  ^-  @da
+  (add ~2026.10.1 (mul n ~s1))
+++  top-row
+  |=  n=@ud
+  ^-  [@da incoming-event:v8:a]
+  =/  at  (second n)
+  [at [%post [[~nec at] at] nest [~nec %home] ~[[%inline ~['hello']]] &]]
+++  thread-row
+  |=  n=@ud
+  ^-  [@da incoming-event:v8:a]
+  =/  at  (second n)
+  :-  at
+  :*  %reply  [[~nec at] at]  [[~nec parent-at] parent-at]
+      nest  [~nec %home]  ~[[%inline ~['hello']]]  &
+  ==
+++  bot-posts
+  |=  ns=(list @ud)
+  ^-  (list post-row)
+  (turn ns |=(n=@ud (post (second n) bot)))
+::  Catch up on .rows, while local %channels holds .posts and the replies
+::  under .parent-at.
+++  catch-up
+  |=  $:  saved=state-3:t
+          rows=(list [@da incoming-event:v8:a])
+          posts=(list post-row)
+          replies=(list reply-row)
+      ==
+  =/  m  (mare ,outcome)
+  ^-  form:m
+  =/  =stream:v10:a
+    %+  gas:on-stream:v10:a  ~
+    %+  turn  rows
+    |=  [at=@da e=incoming-event:v8:a]
+    [at [;;(incoming-event:v10:a e) | |]]
+  =/  post-pages  (weld base /posts/older)
+  =/  reply-pages  (weld base /posts/post/id/(scot %ud parent-at)/replies/older)
+  ;<  ~  bind:m  watched
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ^-  (unit vase)
+    ?:  =(path [%gu (scot %p ~zod) %channels (scot %da now) %$ ~])  `!>(&)
+    ?:  =(path [%gu base])  `!>(&)
+    ?.  ?=([%gx *] path)  ((gate stream &) path)
+    ?:  =(post-pages (scag (lent post-pages) t.path))
+      `!>(`paged-posts:v9:dv`[(gas:on-posts:v9:dv ~ posts) ~ ~ 0 0])
+    ?:  =(reply-pages (scag (lent reply-pages) t.path))
+      `!>(`replies:v9:dv`(gas:on-replies:v9:dv ~ replies))
+    ((gate stream &) path)
+  ;<  caz=(list card)  bind:m  (do-load adapter `!>(saved))
+  ;<  =vase  bind:m  get-save
+  (pure:m caz !<(state-3:t vase))
+++  hand-kinds
+  |=  out=outcome
+  ^-  (list @tas)
+  (turn (hand-requests cards.out) |=(act=action:hh -.act))
+::
+++  test-the-fourth-bot-message-in-a-row-in-a-channel-makes-no-job-or-hand-request
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  out=outcome  bind:m
+    (catch-up bot-room (turn (gulf 3 6) top-row) (bot-posts (gulf 3 6)) ~)
+  ;<  ~  bind:m
+    %+  ex-equal  !>((kinds out))
+    !>(`(list @t)`~['bot-limit' 'bot-message' 'bot-message' 'bot-message'])
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.saved.out)) !>(3))
+  ;<  ~  bind:m  (ex-equal !>((hand-kinds out)) !>(`(list @tas)`~[%bind %bind %bind]))
+  ;<  ~  bind:m  (ex-equal !>(lanes.saved.out) !>(lanes:bot-room))
+  ;<  ~  bind:m  (ex-equal !>(routes.saved.out) !>(routes:bot-room))
+  ;<  ~  bind:m  (ex-equal !>(identities.saved.out) !>(identities:bot-room))
+  (ex-equal !>(activity-through.saved.out) !>((second 6)))
+++  test-a-person-message-ends-a-bot-run
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  out=outcome  bind:m
+    %:  catch-up
+      bot-room
+      (turn (gulf 3 8) top-row)
+      (weld (bot-posts (gulf 3 6)) [(post (second 7) ~nec) (bot-posts ~[8])])
+      ~
+    ==
+  ;<  ~  bind:m
+    %+  ex-equal  !>((kinds out))
+    !>  ^-  (list @t)
+    ~['bot-message' 'message' 'bot-limit' 'bot-message' 'bot-message' 'bot-message']
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.saved.out)) !>(5))
+  (ex-equal !>(activity-through.saved.out) !>((second 8)))
+++  test-a-thread-bot-run-does-not-count-toward-the-channel-top-level
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  out=outcome  bind:m
+    %:  catch-up
+      bot-room
+      (weld (turn (gulf 3 5) thread-row) ~[(top-row 6) (thread-row 7)])
+      [(post parent-at ~nec) (bot-posts ~[6])]
+      (turn `(list @ud)`~[3 4 5 7] |=(n=@ud (reply (second n) bot)))
+    ==
+  ;<  ~  bind:m
+    %+  ex-equal  !>((kinds out))
+    !>  ^-  (list @t)
+    ~['bot-limit' 'bot-message' 'bot-message' 'bot-message' 'bot-message']
+  ;<  ~  bind:m
+    %+  ex-equal  !>((turn notices.saved.out |=(n=notice:t address.n)))
+    !>  ^-  (list @t)
+    =/  top  (address:policy room)
+    =/  under  (address:policy thread)
+    ~[under top under under under]
+  (ex-equal !>(~(wyt by jobs.saved.out)) !>(4))
+++  test-a-bot-message-whose-author-is-unreadable-is-admitted-after-a-bot-run
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ::  Local %channels lacks the fourth post.
+  ;<  out=outcome  bind:m
+    (catch-up bot-room (turn (gulf 3 6) top-row) (bot-posts (gulf 3 5)) ~)
+  ;<  ~  bind:m
+    %+  ex-equal  !>((kinds out))
+    !>(`(list @t)`~['message' 'bot-message' 'bot-message' 'bot-message'])
+  (ex-equal !>(~(wyt by jobs.saved.out)) !>(4))
+++  test-a-bot-run-adds-one-bot-limit-notice
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  out=outcome  bind:m
+    (catch-up bot-room (turn (gulf 3 7) top-row) (bot-posts (gulf 3 7)) ~)
+  ;<  ~  bind:m
+    %+  ex-equal  !>((kinds out))
+    !>(`(list @t)`~['bot-limit' 'bot-message' 'bot-message' 'bot-message'])
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.saved.out)) !>(3))
+  (ex-equal !>(activity-through.saved.out) !>((second 7)))
 --
