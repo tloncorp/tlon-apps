@@ -6,8 +6,8 @@
 |%
 ++  saved
   |=  [owner=(unit @p) lens=?]
-  ^-  state-3:t
-  =/  saved=state-3:t  *state-3:t
+  ^-  state-4:t
+  =/  saved=state-4:t  *state-4:t
   %=  saved  owner-initialized  1  policy  [& owner ~ %mentions ~ ~]  watching  &
     activity-through  ~2026.10.1
     lens  ?.(lens *lens-sync:t [& owner ~2026.10.1 ~ ''])
@@ -120,13 +120,13 @@
   =/  m  (mare ,(unit @da))
   ^-  form:m
   ;<  =vase  bind:m  get-save
-  (pure:m wake:!<(state-3:t vase))
+  (pure:m wake:!<(state-4:t vase))
 ::
 ++  errors
   =/  m  (mare ,[@t @t])
   ^-  form:m
   ;<  =vase  bind:m  get-save
-  =/  state  !<(state-3:t vase)
+  =/  state  !<(state-4:t vase)
   (pure:m [error.state error.lens.state])
 ::
 ++  test-steward-gets-the-owner-and-lease-without-lens-sync

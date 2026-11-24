@@ -30,26 +30,31 @@
 ::
 ::  Expected values, one per path: the input with the path's transformations.
 ::
+++  expected-4
+  ^-  state-4:t
+  populated-4:up
+::  No browser handoff is pending.
 ++  expected-3
-  ^-  state-3:t
-  populated-3:up
+  ^-  state-4:t
+  =/  e  expected-4
+  e(browser-entries ~)
 ::  The channel's per-speaker conversation is dropped; the DM is kept.
 ++  expected-2
-  ^-  state-3:t
+  ^-  state-4:t
   expected-3
 ::  Lens sync starts unconfigured.
 ++  expected-1
-  ^-  state-3:t
+  ^-  state-4:t
   =/  e  expected-2
   e(lens *lens-sync:t)
 ::  Channel cuts and the allowed and channel policies start empty. The
 ::  fixture's %all response survives conversion through mentions=|.
 ++  expected-0
-  ^-  state-3:t
+  ^-  state-4:t
   =/  e  expected-1
   e(channel-cuts ~, allowed.policy ~, channels.policy ~)
 ++  expected-0-mentions
-  ^-  state-3:t
+  ^-  state-4:t
   =/  e  expected-0
   e(response.policy %mentions)
 ::
@@ -61,11 +66,13 @@
   (expect-reload !>(project-1) expected-1)
 ++  test-tlon-state-2-upgrade-keeps-every-field
   (expect-reload !>(populated-2:up) expected-2)
-++  test-tlon-state-3-reload-keeps-every-field
+++  test-tlon-state-3-upgrade-keeps-every-field
   (expect-reload !>(populated-3:up) expected-3)
+++  test-tlon-state-4-reload-keeps-every-field
+  (expect-reload !>(populated-4:up) expected-4)
 ::
 ++  expect-reload
-  |=  [saved=vase expected=state-3:t]
+  |=  [saved=vase expected=state-4:t]
   ^-  tang
   =/  once  (load:migrate saved)
   %+  weld  (expect-same:up !>(expected) !>(once))
