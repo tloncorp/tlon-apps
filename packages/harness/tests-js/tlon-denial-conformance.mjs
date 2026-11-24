@@ -1,7 +1,9 @@
 // A ship without access that DMs the bot opens one approval request, and the bot's owner
 // is sent one card about it, on two real ships: the bot (its own owner) and a peer on no
-// list. The peer is never answered and nothing it sends reaches the model. A later message
-// in the same DM, and a fresh invitation there, join the open request. Giving the peer
+// list. The peer is never answered and nothing it sends starts a model turn. A later
+// message in the same DM, and a fresh invitation there, fall within the five-minute denial
+// limit and open nothing more; the Hoon tests check that a later attempt past the limit
+// joins the open request. Giving the peer
 // access closes the request, accepts its pending invitation and answers only what it sends
 // afterward. A local stand-in provider answers every turn. Restores policy and defaults.
 // Leaves the fixture messages, the cards and the audit notes. Prints the card's A2UI entry
@@ -138,22 +140,28 @@ try {
   assert.deepEqual(buttons, [['Allow', `/allow ${request.id}`], ['Reject', `/reject ${request.id}`], ['Block', `/ban ${request.id}`]])
   console.log('PASS the card names the peer and its message, and its buttons carry the request id')
 
+  assert.equal(denials(await status()).length, 1, 'the first message recorded one denial')
+  // Later messages arrive within the five-minute denial limit, which stops them before
+  // the open request is consulted; the Hoon tests check joining past the limit.
   await send('second')
   await until('second message arrived locally', async () => JSON.stringify(await page(peer)).includes(sentText('second')))
   await sleep(3000)
+  assert.equal(denials(await status()).length, 1, 'a second message within the limit recorded another denial')
   assert.deepEqual(requests(await status()), [request], 'a second message in the same DM opened another request')
   assert.equal((await cards(testStart)).length, 1, 'a second message in the same DM sent another card')
-  console.log('PASS a second message in the same DM joins the open request')
+  console.log('PASS a second message within the denial limit records no denial, opens no request and sends no card')
 
-  // Leaving the DM makes the peer's next message a fresh invitation; it joins the request too.
+  // Leaving the DM makes the peer's next message a fresh invitation.
   await client.pokeAgent('chat', 'chat-dm-rsvp', { ship: peer, ok: false })
   await until('DM with the peer left', async () => !(await dms('dm')).includes(peer))
   await send('pending')
   await until('fresh pending invitation from the peer', async () => (await dms('dm/invited')).includes(peer))
   await sleep(3000)
+  assert.equal(denials(await status()).length, 1, 'an invitation within the limit recorded another denial')
   assert.deepEqual(requests(await status()), [request], 'an invitation in the same DM opened another request')
   assert.equal((await cards(testStart)).length, 1, 'an invitation in the same DM sent another card')
-  console.log('PASS a fresh invitation in the same DM joins the open request')
+  console.log('PASS a fresh invitation within the denial limit records no denial, opens no request and sends no card')
+  const noted = new Set((await status()).events.map((notice) => notice.sequence))
 
   const end = await status()
   assert.equal(end.lanes, lanes, 'a conversation was admitted for the peer')
@@ -162,7 +170,7 @@ try {
   assert.ok(!['disabled', 'first', 'second', 'pending'].some(seen), 'a message from a ship without access reached the model')
   assert.equal(prompts.length, 0, 'the model was called')
   assert.deepEqual(await outgoing(testStart), [], 'the peer was sent a message')
-  console.log('PASS nothing from the peer reaches the model, and nothing is sent to it')
+  console.log('PASS nothing the peer sends starts a model turn, and nothing is sent to it')
 
   // Access closes the request, accepts the pending invitation and answers only what follows.
   const grantStart = da(Date.now())
@@ -172,6 +180,7 @@ try {
     const [invited, accepted] = await Promise.all([dms('dm/invited'), dms('dm')])
     return !invited.includes(peer) && accepted.includes(peer)
   })
+  assert.ok((await status()).events.some((notice) => notice.kind === 'dm-invite' && notice.actor === peer && !noted.has(notice.sequence)), 'the acceptance is noted for the operator')
   await sleep(3000)
   assert.equal(prompts.length, 0, 'messages sent before the grant produce no model call')
   await send('granted')

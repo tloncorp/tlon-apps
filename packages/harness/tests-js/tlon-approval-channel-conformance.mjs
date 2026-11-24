@@ -1,8 +1,9 @@
 // A ship without access that mentions the bot in a channel opens one approval request,
 // and the bot's owner is sent one card about it, on two real ships: the bot (its own
 // owner) and a peer on no list, which hosts a fresh group with one channel. A post that
-// does not mention the bot opens nothing, a thread reply joins the channel's request, and
-// leaving the channel closes it. Nothing the peer sends reaches the model. Runs apart from
+// does not mention the bot opens nothing, a thread reply within the denial limit opens no
+// second request or card (the Hoon tests check joining past the limit), and leaving the
+// channel closes it. Nothing the peer sends starts a model turn. Runs apart from
 // tlon-denial-conformance: the denial limit lets a ship open one request per five minutes.
 // Restores policy and defaults and deletes the group. Prints the card's A2UI entry on a
 // CARD line for checking with the app's validator.
@@ -159,14 +160,15 @@ try {
   await reply(parent, 'thread')
   await until('a thread reply mentioning the bot arrived', replied(parent, 'thread'))
   await sleep(3000)
+  assert.equal(denials(await status()).length, 1, 'a thread reply within the limit recorded another denial')
   assert.deepEqual(requests(await status()), [request], 'a thread reply opened another request')
   assert.equal((await cards(testStart)).length, 1, 'a thread reply sent another card')
-  console.log('PASS a thread reply joins its channel\'s request')
+  console.log('PASS a thread reply within the denial limit opens no request and sends no card')
 
   assert.ok(!['unmentioned', 'mention', 'thread'].some(seen), 'a message from a ship without access reached the model')
   assert.equal(prompts.length, 0, 'the model was called')
   assert.ok(!(await answered()), 'the peer was answered in the channel')
-  console.log('PASS nothing from the peer reaches the model, and nothing is posted in the channel')
+  console.log('PASS nothing the peer sends starts a model turn, and nothing is posted in the channel')
 
   await client.pokeAgent('channels', 'channel-action-2', { channel: { nest: room, action: { leave: null } } })
   await until('the bot left the channel', async () => !(await joined()))

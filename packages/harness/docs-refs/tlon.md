@@ -587,10 +587,14 @@ S3 endpoint, and restores the test ship's storage configuration.
 ## Authority and conversation scope
 
 A ship without access in a place is not answered there. Its message never
-reaches the model or a channel's shared conversation, nothing is said to it,
-and it gains no access. Instead, its attempt opens an approval request, and the
-bot sends its owner one card about it. Nothing is admitted until the owner
-gives the ship access.
+starts a turn and is never admitted as one, nothing is said to it, and it gains
+no access. Instead, its attempt opens an approval request, and the bot sends
+its owner one card about it. Nothing is admitted until the owner gives the ship
+access. Its messages can still reach the model as context, as they did before
+approval requests: when a ship with access addresses the bot in a channel
+thread, the turn carries the thread's parent and its newest replies, whoever
+wrote them, and the model's Tlon history tools, where granted, read messages
+by every author.
 
 - An attempt is a DM invitation, a DM post or reply, a channel post that
   mentions the bot, or a channel reply that mentions the bot or sits under the
@@ -606,10 +610,13 @@ gives the ship access.
 - When a request opens, the bot sends the owner, in the owner's DM with the
   bot, the approval card the OpenClaw plugin sends: who wrote and where, the
   first 100 characters of the message when the bot can read it, and Allow,
-  Reject and Block buttons, which send the texts `/allow <id>`, `/reject <id>`
-  and `/ban <id>`. The id is `d` for a DM or `c` for a channel and four hex
-  digits, unique among open requests. The card is sent once, not again for
-  later messages.
+  Reject and Block buttons. A tap sends the owner's DM post `/allow <id>`,
+  `/reject <id>` or `/ban <id>` as ordinary text. Nothing acts on these yet:
+  the bot answers each with its usual `Unknown command. Send /help for the
+  available commands.` The id is `d` for a DM or `c` for a channel and four
+  hex digits, or eight hex digits when ten tries at four collide with open
+  requests; it is unique among open requests. The card is sent once, not again
+  for later messages.
 - A request holds the ship, the place, its id and the time it opened, and
   nothing of the message: the preview is read when the card is built (for a DM
   invitation, from the invited DM on the ship) and kept only in the card.
@@ -617,12 +624,16 @@ gives the ship access.
   `address` and `at`.
 - No request opens for a ship this ship blocks on Tlon, read from `%chat` only
   when a request would open, or while the hand has no explicit owner or is
-  disabled. A bot opens a request like any other ship.
+  disabled. A bot opens a request like any other ship. Nor does one open for a
+  DM `%chat` no longer has (a declined invitation) or a channel the bot is not
+  in, though Activity still lists their messages: there is nothing to approve.
 - Every attempt is recorded in the activity feed as `permission-denied`, at
   most 8 a minute across ships and one per ship per five minutes. A request
   opens only with such an entry, so the same limit bounds the cards: an attempt
   over it records nothing and opens nothing, and a later attempt can. Catch-up
-  records nothing for a post from before the ship's cutoff.
+  records nothing for a post from before the cutoffs that stop it being
+  answered: the ship's own and, in a channel, the last change to the channel's
+  replies.
 - A request closes when its ship gains access in its place, by any settings
   save that gives it, and when the bot leaves or loses the channel. If
   Messenger rejects the card, the request closes too, so none stays open that
@@ -1037,17 +1048,21 @@ tool with automatic replies disabled; `tests-js/tlon-denial-conformance.mjs`
 checks approval requests from a DM on two real ships: a disabled hand opens
 none; a DM from a ship without access opens one request and sends the owner one
 card, whose buttons carry the request's id; a later message and a fresh
-invitation in the same DM join it; nothing the peer sends reaches the model or
-gets an answer; and giving the peer access closes the request, accepts its
-pending invitation and answers only what it sends afterward.
+invitation in the same DM, within the denial limit, record no second denial and
+open nothing more; nothing the peer sends starts a model turn or gets an
+answer; and giving the peer access closes the request, accepts its pending
+invitation, notes the acceptance and answers only what it sends afterward.
 `tests-js/tlon-approval-channel-conformance.mjs` checks the same in a fresh
 channel: a post that does not mention the bot opens nothing, a mention opens one
-request and one card, a thread reply joins it, and leaving the channel closes
-it. Both print each card's A2UI entry on a `CARD` line, to check with the app's
-validator. `desk/tests-integration/harness-tlon-approvals.hoon` covers these
-rules on the agent, with those a two-ship script cannot reach within the denial
-limit: the same ship in a second place, a blocked ship, a channel with replies
-off, the limit itself and a rejected card.
+request and one card, a thread reply within the limit opens nothing more, and
+leaving the channel closes it. Both print each card's A2UI entry on a `CARD`
+line, to check with the app's validator.
+`desk/tests-integration/harness-tlon-approvals.hoon` covers these rules on the
+agent, with those a two-ship script cannot reach within the denial limit: a
+later message joining the open request, the same ship in a second place, a
+blocked ship, a channel with replies off, a ship with access whose text is not
+admitted, a declined invitation, a channel the bot is not in, catch-up across a
+channel policy change, the limit itself and a rejected card.
 `tests-js/tlon-place-grants-conformance.mjs` checks per-place grants between
 two ships with a local stand-in provider: a peer granted one channel is answered
 there and ignored in another channel and in DMs, a DM grant accepts the pending
