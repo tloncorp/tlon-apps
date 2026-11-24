@@ -35,6 +35,9 @@
       fingerprint=@uvH
       job
   ==
+::  The full schedule set, as /v1/schedule-events gives it
+::
++$  schedules  (map @uv schedule)
 +$  action
   $%  [%add id=@uv binding=@t actor=@t kind=?(%prompt %reminder) args=json]
       [%list binding=(unit @t)]
