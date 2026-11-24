@@ -92,8 +92,8 @@ function swing(t: number, period: number) {
 }
 
 /**
- * The Tlon icon on the welcome screen: the tilted tile and flat mark of the
- * old icon image, with its shading drawn as four soft spots that drift
+ * The Sato icon on the welcome screen: the tilted tile and flat 里 mark of
+ * the old icon image, with its shading drawn as four soft spots that drift
  * slowly behind the mark, clipped by the tile. Each time the screen opens
  * they start from a random place. With Reduce Motion on, they stand still
  * there.
@@ -111,7 +111,7 @@ export function WelcomeIcon() {
       style={styles.icon}
       accessible
       accessibilityRole="image"
-      accessibilityLabel="Tlon"
+      accessibilityLabel="Sato"
     >
       <View style={styles.tileShadow}>
         <View style={styles.tile}>
@@ -159,38 +159,13 @@ export function WelcomeIcon() {
           <Svg
             width={MARK}
             height={MARK}
-            viewBox="167 326 68 68"
+            viewBox="3.05 3.05 17.9 17.9"
             style={styles.mark}
           >
             <Path
-              d="M169 328L233 328L233 352.32L210.92 352.32L210.92 362.88L191.08 362.88L191.08 352.32L169 352.32Z"
+              d="M20.5 19.727L3.5 19.727L3.5 18.282L11.167 18.282L11.167 16.106L4.778 16.106L4.778 14.718L11.167 14.718L11.167 12.866L5.574 12.866L5.574 4.273L18.083 4.273L18.083 12.866L12.583 12.866L12.583 14.718L19.167 14.718L19.167 16.106L12.583 16.106L12.583 18.282L20.5 18.282ZM16.648 7.801L16.648 5.653L12.583 5.653L12.583 7.801ZM11.167 5.653L7.074 5.653L7.074 7.801L11.148 7.801ZM16.648 11.477L16.648 9.181L12.583 9.181L12.583 11.477ZM11.167 11.477L11.167 9.181L7.074 9.181L7.074 11.477Z"
               fill={MARK_INK}
-              stroke={MARK_INK}
-              strokeWidth={0.3}
-              strokeLinejoin="round"
-            />
-            <Path
-              d="M169 353.92L189.48 353.92L189.48 364.48L212.52 364.48L212.52 353.92L233 353.92L233 392L169 392Z"
-              fill={MARK_INK}
-              stroke={MARK_INK}
-              strokeWidth={0.3}
-              strokeLinejoin="round"
-            />
-            <Rect
-              x={190.28}
-              y={376}
-              width={1.6}
-              height={17.5}
-              rx={0.8}
-              fill="#D9D9D9"
-            />
-            <Rect
-              x={210.12}
-              y={376}
-              width={1.6}
-              height={17.5}
-              rx={0.8}
-              fill="#D9D9D9"
+              fillRule="evenodd"
             />
           </Svg>
         </View>
