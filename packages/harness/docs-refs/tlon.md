@@ -636,8 +636,9 @@ messaging the sender.
   every grant for that channel is removed, so joining again finds none. The
   `trusted` list holds at most 64 ships; the allowed list and per-place grants
   have no size limit.
-- Group invitations are accepted only when sent by the owner. A per-place
-  grant gives no right to add the bot to a group. DM invitations from the
+- Group invitations are accepted when sent by the owner or by a ship on a
+  ship-wide list (trusted or allowed). A per-place grant gives no right to add
+  the bot to a group. DM invitations from the
   owner, a trusted ship, an allowed ship or a ship with a DM grant are
   accepted; a grant for a channel does not accept a DM invitation. An invitation
   still pending when its sender gains access is accepted at that point, or when
