@@ -502,6 +502,36 @@
   %+  ex-equal
     !>(phase:(~(got by observations.hands.deleted) (input-id:hd 'other' 'later')))
   !>(%cancelled)
+::  The head's binding writes keep the bindings of each session in its
+::  index: bind, register, enable and remove.
+::
+++  test-head-index-lists-each-sessions-bindings
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  config=binding:hh  ['fixture' 'third-room' 'other' ~['alice'] &]
+  =/  ask
+    |=  =action:hh
+    (do-poke %harness-hand !>(`request:hh`[-.action action]))
+  =/  listed
+    |=  sid=@t
+    =/  n  (mare ,(set @t))
+    ^-  form:n
+    ;<  index=cage  bind:n  (got-peek /x/hand-index)
+    (pure:n (~(get ju sessions:!<(index:hh q.index)) sid))
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  ex-index
+  ;<  *  bind:m  (ask [%bind 'third' config])
+  ;<  *  bind:m  (ask [%register config])
+  ;<  ~  bind:m  ex-index
+  ;<  other=(set @t)  bind:m  (listed 'other')
+  ;<  ~  bind:m  (ex-equal !>(other) !>((silt ~['other' 'third' 'hand--0'])))
+  ;<  *  bind:m  (ask [%enable 'third' |])
+  ;<  ~  bind:m  ex-index
+  ;<  *  bind:m  (ask [%remove 'hand--0'])
+  ;<  ~  bind:m  ex-index
+  ;<  other=(set @t)  bind:m  (listed 'other')
+  (ex-equal !>(other) !>((silt ~['other' 'third'])))
 ::  The head's answer to one hand request.
 ::
 ++  hand-result
@@ -633,12 +663,22 @@
     =/  action  !<(action:v1:ac data)
     ?>  ?=(%send -.action)
     `payload.action
-  =/  counts
-    %+  turn  sent
+  ;<  ~  bind:m  (ex-equal !>((lent sent)) !>(2))
+  =/  result
     |=  payload=@t
-    %.  (need (de:json:html payload))
-    (ot:dejs:format ~[result+(ot:dejs:format ~[['observationCount' ni:dejs:format]])])
-  ;<  ~  bind:m  (ex-equal !>(counts) !>(~[352 352]))
+    ^-  (map @t json)
+    =/  value  ((ot:dejs:format ~[result+same]) (need (de:json:html payload)))
+    ?>(?=(%o -.value) p.value)
+  =/  status  (result (snag 0 sent))
+  ::  An enable answers with the binding's fields; its rows are in %status.
+  =/  enabled  (result (snag 1 sent))
+  ;<  ~  bind:m
+    (ex-equal !>((ni:dejs:format (~(got by status) 'observationCount'))) !>(352))
+  ;<  ~  bind:m  (ex-equal !>((~(get by enabled) 'enabled')) !>(`[%b &]))
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>([(~(has by enabled) 'observations') (~(has by enabled) 'observationCount')])
+    !>([| |])
   ::  max-payload-bytes in %acp.
   (ex-equal !>((levy sent |=(payload=@t (lte (met 3 payload) 1.048.576)))) !>(&))
 --

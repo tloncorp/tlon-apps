@@ -103,7 +103,7 @@ is not that evidence.
 |---|---|---|
 | `bind` | `id`, `config` as above | Binding fields; a new binding's result also has an empty `observations` array |
 | `register` | `config` | Binding status with a ship-allocated, never-reused id |
-| `enable` | `id`, `enabled` | Binding status |
+| `enable` | `id`, `enabled` | Binding fields; its observations are read through `status` |
 | `remove` | `id` | Empty object; only for bindings with no observations |
 | `observe` | `binding`, `event`, `actor`, `text` | `inputId`, `phase`, `sourceEvent` |
 | `status` | `binding` | Binding, `observationCount`, and the statuses of its newest 256 observations plus any queued or running ones |
@@ -224,21 +224,31 @@ its bindings, and 128 globally. One stalled conversation cannot consume the
 whole waiting queue. Duplicate admissions are checked before capacity limits,
 so retrying an already admitted event still recovers its identity.
 
-The ledger has no limit on finished records; it allows 256 active bindings.
+The ledger has no limit on finished records or on bindings. A hand adds a
+binding for each conversation it serves, and the binding stays, enabled or not,
+until it is retired or, if it never had observations, removed, so saved state
+grows with every conversation. Two costs that grow with the number of
+conversations are accepted. Resetting every conversation at once, as turning the
+Tlon hand off does, sends one fence per conversation, and each fence goes
+through every session, so the reset takes time that grows with the square of the
+number of conversations. Each message still goes through every session to update
+the session index and to synchronize the corpus.
 Text is limited to 65,536 bytes and source IDs to 512 bytes; metadata and
 recovery histories also have admission limits. A full waiting queue rejects
 work without deleting records or pruning session history. Records are kept
 until their binding is retired, about 2 KB for each answered message.
 
-Paths that run on every message, head event, timer or delivery poll read two
-indexes of the ledger instead of walking it: the records not finished (a
-queued or running observation, or a publication that is not `delivered` or
-`abandoned`), and each hand's newest 64 observations. The indexes are not
-saved; every load of `%harness` rebuilds them in one pass over the ledger.
-Owner reads that list history (`status`, `records`, the inbox and work pages)
-still read every record, so they slow down as history grows. `status` lists
-the newest 256 observations, any queued or running work and the total count;
-older finished observations are in `records`. The `outbox` and `health`
+Paths that run on every message, head event, timer or delivery poll read three
+indexes of the ledger instead of walking it: the records not finished (a queued
+or running observation, or a publication that is not `delivered` or
+`abandoned`), each hand's newest 64 observations, and the bindings that name
+each session, enabled or not. The indexes are not saved; every load of
+`%harness` rebuilds them in time linear in the ledger's size. Owner reads that
+list history (`status`, `records`, the inbox and work pages) still read every
+record, so they slow down as history grows, and so does binding a new id, which
+checks every observation for its reuse and answers with its status. `status`
+lists the newest 256 observations, any queued or running work and the total
+count; older finished observations are in `records`. The `outbox` and `health`
 replies and the index of unfinished records grow with unresolved publications.
 
 Rotate a binding epoch to release its records:
@@ -254,8 +264,8 @@ Rotate a binding epoch to release its records:
 Never relabel old source events with the new binding: deduplication is scoped
 to the binding epoch. Retired binding ids reject all further observations.
 Ship-allocated `hand--…` ids use a monotonic counter instead of an ever-growing
-tombstone set. Manually named ids remain available, but their combined active
-and retired identity capacity is 4,096; use `register` for continuous rotation.
+tombstone set. Manually named ids remain available, and each one retired stays
+in that set.
 
 The owner-side command performs the export-before-release sequence:
 
@@ -296,8 +306,8 @@ when a response is lost. A successful poke ack alone is not admission success.
 - `/x/hands/<binding>`: binding/observation JSON status.
 - `/x/hand-outbox/<hand>`: publication JSON outbox.
 - `/x/hand-state`: owner-only typed bookkeeping state.
-- `/x/hand-index`: owner-only typed `index:hh`, the open records and each
-  hand's newest observations.
+- `/x/hand-index`: owner-only typed `index:hh`, the open records, each
+  hand's newest observations and each session's bindings.
 
 Eyre projects the JSON scries at `/~/scry/harness/hands/<binding>.json` and
 `/~/scry/harness/hand-outbox/<hand>.json`. Both transports call the same pure

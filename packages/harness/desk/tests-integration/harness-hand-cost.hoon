@@ -1,15 +1,22 @@
-::  Per-event ledger reads with 20,000 finished records. Timings are printed
-::  for comparison, not asserted.
+::  Per-event ledger reads with 20,000 finished records, over 20 bindings and
+::  over MANY. Timings are printed for comparison, not asserted.
 ::  -test /=harness=/tests-integration/harness-hand-cost
 /-  h=harness, hh=harness-hand, t=harness-tlon, cr=harness-cron, dv=channels-ver,
-    *harness-store
+    ad=harness-adapter, *harness-store
 /+  *test-agent, tst=test, policy=harness-defaults, hd=harness-hand,
-    sl=harness-schedule
+    sl=harness-schedule, tp=harness-tlon-policy, si=harness-session-index,
+    corpus-lib=harness-corpus
 /=  head  /app/harness
 /=  adapter  /app/harness-tlon
 |%
 ++  size  20.000
 ++  nb  20
+::  Bindings, adapter lanes and sessions of a bot addressed in that many
+::  conversations. The thresholds were set at 5,000; this size keeps the
+::  suite quick.
+++  many  1.000
+::  Conversations whose hand-off requests the head replays.
+++  sampled  100
 ++  t0  ~2026.10.1
 ++  now  (add t0 ~d30)
 ++  sent  (add t0 ~d20)
@@ -44,24 +51,28 @@
   ==
 ++  client-id  (rap 3 (scot %p ~zod) '/' (scot %da sent) ~)
 ++  claimed-id  id:(record size 1)
-::  SIZE finished records over NB bindings, plus one claimed publication
-::  (b1), two pending (b2, b3), one running input (b4), two queued (b5, b6),
-::  and in b7 an uncertain publication with a pending one behind it.
-++  ledger
+::  SIZE finished records over N bindings.
+++  filled
+  |=  n=@ud
   ^-  state:hh
   =/  db=state:hh  *state:hh
-  =.  bindings.db  (malt (turn (gulf 0 (dec nb)) |=(k=@ud [(bid k) (config k)])))
+  =.  bindings.db  (malt (turn (gulf 0 (dec n)) |=(k=@ud [(bid k) (config k)])))
   =/  i=@ud  0
-  =.  db
-    |-  ^-  state:hh
-    ?:  =(i size)  db
-    =/  r  (record i (mod i nb))
-    %=  $
-      i  +(i)
-      observations.db  (~(put by observations.db) id.r observation.r)
-      outbox.db  (~(put by outbox.db) id.r publication.r)
-      controls.db  (~(put by controls.db) id.r control.r)
-    ==
+  |-  ^-  state:hh
+  ?:  =(i size)  db
+  =/  r  (record i (mod i n))
+  %=  $
+    i  +(i)
+    observations.db  (~(put by observations.db) id.r observation.r)
+    outbox.db  (~(put by outbox.db) id.r publication.r)
+    controls.db  (~(put by controls.db) id.r control.r)
+  ==
+::  .filled over NB bindings, plus one claimed publication (b1), two pending
+::  (b2, b3), one running input (b4), two queued (b5, b6), and in b7 an
+::  uncertain publication with a pending one behind it.
+++  ledger
+  ^-  state:hh
+  =/  db=state:hh  (filled nb)
   =/  claimed  (record size 1)
   =.  publication.claimed
     publication.claimed(status %claimed, external client-id, receipts ~[[sent %claimed 'harness-tlon' '']])
@@ -144,10 +155,10 @@
   ==
 ::
 ++  adapter-state
-  |=  lensed=?
-  ^-  state-3:t
-  =/  s=state-3:t  *state-3:t
-  =/  ks  (gulf 0 (dec nb))
+  |=  [n=@ud lensed=?]
+  ^-  state-4:t
+  =/  s=state-4:t  *state-4:t
+  =/  ks  (gulf 0 (dec n))
   %=  s
     owner-initialized  1
     policy  [& `~nec ~ %mentions ~ ~]
@@ -166,15 +177,17 @@
   ?:  (lien path |=(a=@ta =(%run a)))  `!>(`(unit json)`~)
   ?:  (lien path |=(a=@ta =(%head a)))
     `!>(`[revision=@ud view=view:h next=(unit step:h)]`[0 *view:h ~])
+  ::  harness-tlon-steward covers the Steward lease.
+  ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(|)
   ?:  ?=([%gu *] path)  `!>(&)
   `!>(|)
 ++  adapter-start
-  |=  [ledger=indexed:hh lensed=?]
+  |=  [ledger=indexed:hh n=@ud lensed=?]
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now now)))
   ;<  ~  bind:m  (set-scry-gate (adapter-scry ledger))
-  ;<  *  bind:m  (do-load adapter `!>((adapter-state lensed)))
+  ;<  *  bind:m  (do-load adapter `!>((adapter-state n lensed)))
   ;<  ~  bind:m
     %-  jab-bowl
     |=  b=bowl
@@ -197,6 +210,15 @@
   ?.  ?=([%pass * %agent * %poke %harness-hand *] card)  ~
   =/  [pass=* wire=* agent=* who=* poke=* mark=* data=vase]  card
   `act:!<(request:hh data)
+++  head-pokes
+  |=  cards=(list card)
+  ^-  (list action:h)
+  %+  murn  cards
+  |=  =card
+  ^-  (unit action:h)
+  ?.  ?=([%pass * %agent * %poke %harness-action *] card)  ~
+  =/  [pass=* wire=* agent=* who=* poke=* mark=* data=vase]  card
+  `!<(action:h data)
 ++  proof
   ^-  r-channels:v9:dv
   =/  post=post:v9:dv  *post:v9:dv
@@ -208,14 +230,14 @@
   ^-  form:m
   =/  db  ledger
   =/  indexed=indexed:hh  [db (reindex:hd db)]
-  ;<  ~  bind:m  (adapter-start indexed |)
+  ;<  ~  bind:m  (adapter-start indexed nb |)
   ;<  reconciled=(list card)  bind:m
     %+  timed-step  'cost-adapter-reconcile'
     (do-agent /head [~zod %harness] [%fact %noun !>(%changed)])
   ;<  confirmed=(list card)  bind:m
     %+  timed-step  'cost-adapter-confirmed'
     (do-agent /publications [~zod %channels] [%fact %channel-response-4 !>(proof)])
-  ;<  ~  bind:m  (adapter-start indexed &)
+  ;<  ~  bind:m  (adapter-start indexed nb &)
   ;<  lensed=(list card)  bind:m
     %+  timed-step  'cost-adapter-reconcile-lens-on'
     (do-agent /head [~zod %harness] [%fact %noun !>(%changed)])
@@ -229,7 +251,7 @@
   !>(`(list action:hh)`~[[%receipt-at 'tlon' claimed-id 'harness-tlon' 1 %delivered native]])
 ::
 ++  head-state
-  |=  db=state:hh
+  |=  [n=@ud db=state:hh]
   ^-  state-0
   =/  saved  *state-0
   =.  saved
@@ -244,7 +266,7 @@
         [%input-admitted [%user 'Running']]
         [%config-replaced defaults.saved]
     ==
-  =.  sessions.saved  (malt (turn (gulf 0 (dec nb)) |=(k=@ud [(sid k) [events 1]])))
+  =.  sessions.saved  (malt (turn (gulf 0 (dec n)) |=(k=@ud [(sid k) [events 1]])))
   saved(hands db, schedules (my ~[[0v7 schedule]]), schedule-wake `(add now ~d1))
 ++  test-head-reload-and-events
   %-  eval-mare
@@ -253,7 +275,7 @@
   =/  db  ledger
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now now)))
   ;<  ~  bind:m  (set-scry-gate |=(path `!>(|)))
-  ;<  *  bind:m  (timed-step 'cost-head-reload' (do-load head `!>((head-state db))))
+  ;<  *  bind:m  (timed-step 'cost-head-reload' (do-load head `!>((head-state nb db))))
   ;<  *  bind:m
     %+  timed-step  'cost-head-observe-poke'
     %+  do-poke  %harness-hand
@@ -315,7 +337,7 @@
     (do-poke %harness-hand !>(`request:hh`[-.action action]))
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now now)))
   ;<  ~  bind:m  (set-scry-gate |=(path `!>(|)))
-  ;<  *  bind:m  (do-load head `!>((head-state db)))
+  ;<  *  bind:m  (do-load head `!>((head-state nb db)))
   ;<  paged=(list card)  bind:m
     (timed-step 'cost-head-records-page' (ask [%records (bid 0) ~ 1]))
   ;<  archived=(list card)  bind:m
@@ -337,4 +359,152 @@
   ;<  ~  bind:m  (ex-equal !>(-:(hand-reply 'retire' retired)) !>(%&))
   ;<  ledger=cage  bind:m  (got-peek /x/hand-state)
   (ex-equal !>(~(wyt by observations:!<(state:hh q.ledger))) !>(0))
+::  The Tlon hand is live and every conversation runs with no ceiling, so
+::  execution authority takes both of its binding walks.
+::
+++  live-scry
+  |=  =path
+  ^-  (unit vase)
+  ?:  ?=([%gu @ %harness-tlon @ %$ ~] path)  `!>(&)
+  ?:  ?=([%gx @ %harness-tlon @ %peer-trust %noun ~] path)
+    `!>(`peer-trust:t`[[& `~nec ~ %mentions ~ ~] |])
+  ?:  ?|  ?=([%gx @ %harness-tlon @ %authority @ %noun ~] path)
+          ?=([%gx @ %harness-tlon @ %authority @ @ %noun ~] path)
+      ==
+    `!>(`hand-authority:ad`[& ~])
+  ?:  ?=([%gx @ %harness-tlon @ %admin @ %noun ~] path)  `!>(|)
+  ?:  ?=([%gx @ %harness-tlon @ %context @ @ %noun ~] path)  `!>(`(unit @t)`~)
+  `!>(|)
+::  A live schedule from conversation K, not yet due, with its own run.
+++  live-schedule
+  |=  k=@ud
+  ^-  schedule:cr
+  =/  job=schedule:cr  schedule
+  job(binding (bid k), destination (addr k), sid (sid k), run-sid (cat 3 'run-' (sid k)))
+++  live-schedules  8
+::  N conversations over the ledger DB. Conversations 1 to 9 are idle, 1 to
+::  JOBS each have a live schedule, and conversation N has a session but no
+::  binding yet, as the adapter leaves a new one before binding it.
+++  crowded-head
+  |=  [db=state:hh n=@ud jobs=@ud]
+  ^-  state-0
+  =/  saved  (head-state n db)
+  =/  idle=(list event:h)  ~[[%config-replaced defaults.saved]]
+  =.  sessions.saved
+    %-  ~(gas by sessions.saved)
+    (turn (snoc (gulf 1 9) n) |=(k=@ud [(sid k) [idle 1]]))
+  =.  schedules.saved
+    ?:  =(0 jobs)  ~
+    (malt (turn (gulf 1 jobs) |=(k=@ud [`@uv`k (live-schedule k)])))
+  saved(schedule-wake ~)
+::  What the adapter asks of the head when the Tlon hand is turned off.
+++  hand-off-requests
+  |=  n=@ud
+  ^-  (list action:hh)
+  (turn (gulf 0 (dec n)) |=(k=@ud [%enable (bid k) |]))
+++  fence-requests
+  |=  n=@ud
+  ^-  (list action:h)
+  (turn (gulf 0 (dec n)) |=(k=@ud [%fence (sid k)]))
+::  The head's half of turning the hand off: conversation K's disable and
+::  fence, as the adapter sends them, each its own event.
+++  hand-off
+  |=  ks=(list @ud)
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  ?~  ks  (pure:m ~)
+  ;<  *  bind:m
+    (do-poke %harness-hand !>(`request:hh`['off' [%enable (bid i.ks) |]]))
+  ;<  *  bind:m  (do-poke %harness-action !>(`action:h`[%fence (sid i.ks)]))
+  (hand-off t.ks)
+++  llm-requests
+  |=  cards=(list card)
+  ^-  @ud
+  (lent (skim cards |=(=card ?=([%pass [%llm *] %arvo %i %request *] card))))
+++  saved-head
+  =/  m  (mare ,state-0)
+  ^-  form:m
+  ;<  =vase  bind:m  get-save
+  (pure:m !<(state-0 vase))
+::  The head's half of turning the hand off is one %enable poke for each
+::  conversation, each answered with its status.
+::
+::  The head's and the adapter's events over MANY conversations share one
+::  ledger, since building it is most of a test's time.
+++  test-crowded-events
+  =/  db  (filled many)
+  %+  weld  (eval-mare (crowded-head-events db many live-schedules sampled))
+  (eval-mare (crowded-adapter-events db))
+::  N conversations over DB and JOBS live schedules. The first OFF
+::  conversations are turned off, timed together. The projections a message
+::  updates because sessions changed are timed again alone, with the
+::  message's own inputs.
+++  crowded-head-events
+  |=  [db=state:hh n=@ud jobs=@ud off=@ud]
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  tag  |=(row=@t (rap 3 row '-' (scot %ud n) '-' (scot %ud jobs) ~))
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now now)))
+  ;<  ~  bind:m  (set-scry-gate live-scry)
+  ;<  *  bind:m  (do-load head `!>((crowded-head db n jobs)))
+  ;<  ~  bind:m  (wait ~s1)
+  ;<  *  bind:m
+    %+  timed-step  (tag 'cost-crowded-schedule-poll')
+    (do-arvo /schedules/(scot %da +(now)) [%behn %wake ~])
+  ;<  polled=state-0  bind:m  saved-head
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>((turn ~(val by schedules.polled) |=(job=schedule:cr state.job)))
+    !>((reap jobs %active))
+  ::  The first message pays any one-time upkeep.
+  ;<  *  bind:m
+    %+  do-poke  %harness-hand
+    !>(`request:hh`['warm' [%observe (bid 9) 'cost-warm' speaker 'Hello']])
+  ;<  before=state-0  bind:m  saved-head
+  ;<  message=(list card)  bind:m
+    %+  timed-step  (tag 'cost-crowded-head-message')
+    %+  do-poke  %harness-hand
+    !>(`request:hh`['message' [%observe (bid 8) 'cost-message' speaker 'Hello']])
+  ;<  ~  bind:m  (ex-equal !>((llm-requests message)) !>(1))
+  ;<  after=state-0  bind:m  saved-head
+  =/  modified
+    ~>  %bout.[1 (tag 'cost-crowded-message-session-index')]
+    (update:si sessions.before sessions.after modified.before now)
+  =/  synced
+    ~>  %bout.[1 (tag 'cost-crowded-message-corpus-sync')]
+    (sync:corpus-lib corpus.before sessions.after)
+  ;<  ~  bind:m  (ex-equal !>(~(key by modified)) !>(~(key by modified.after)))
+  ;<  bound=(list card)  bind:m
+    %+  timed-step  (tag 'cost-crowded-head-new-bind')
+    (do-poke %harness-hand !>(`request:hh`['bind' [%bind (bid n) (config n)]]))
+  ;<  ~  bind:m  (ex-equal !>(-:(hand-reply 'bind' bound)) !>(%&))
+  ;<  *  bind:m
+    %+  timed-step  (rap 3 (tag 'cost-crowded-head-hand-off') '-first-' (scot %ud off) ~)
+    (hand-off (gulf 0 (dec off)))
+  ;<  after=state-0  bind:m  saved-head
+  %+  ex-equal
+    !>((lent (skim ~(val by bindings.hands.after) |=(b=binding:hh enabled.b))))
+  !>(+((sub n off)))
+::  The adapter's half: a head notification walks every route, and turning
+::  the hand off withdraws every conversation in one event.
+::
+++  crowded-adapter-events
+  |=  db=state:hh
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (adapter-start [db (reindex:hd db)] many |)
+  ;<  *  bind:m
+    %+  timed-step  'cost-crowded-adapter-notification'
+    (do-agent /head [~zod %harness] [%fact %noun !>(%changed)])
+  ;<  =vase  bind:m  get-save
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by routes:!<(state-4:t vase))) !>(many))
+  =/  off  policy:(adapter-state many |)
+  ;<  cards=(list card)  bind:m
+    %+  timed-step  'cost-crowded-adapter-hand-off'
+    %+  do-poke  %noun
+    !>(`request:ad`['off' [%n '1'] 'harness/tlon/configure' `(policy-json:tp off(enabled |))])
+  =/  disables  (skim (hand-pokes cards) |=(a=action:hh ?=(%enable -.a)))
+  =/  fences  (skim (head-pokes cards) |=(a=action:h ?=(%fence -.a)))
+  ;<  ~  bind:m  (ex-equal !>((silt disables)) !>((silt (hand-off-requests many))))
+  (ex-equal !>((silt fences)) !>((silt (fence-requests many))))
 --

@@ -1,11 +1,10 @@
 import { z } from 'zod';
 
-import { getConstants } from '../types';
-import { isTrustedBrowserViewerHost } from './browserSession';
 import {
   browserOwnerRequest,
   browserOwnerSessionMoon,
   BrowserOwnerRequestError,
+  trustedBrowserOwnerEndpoint,
 } from './browserOwnerSession';
 import { getBrowserVaultOwnerAuthorization } from './urbit';
 
@@ -53,29 +52,13 @@ export async function browserVaultOwnerRequest(
   body: Record<string, unknown>,
   signal?: AbortSignal
 ): Promise<unknown> {
-  const url = new URL(endpoint);
+  const url = trustedBrowserOwnerEndpoint(endpoint);
   if (
-    url.protocol !== 'https:' ||
-    url.port ||
-    !isTrustedBrowserViewerHost(url.hostname) ||
-    url.username ||
-    url.password ||
-    url.search ||
-    url.hash ||
     !/^\/(?:viewer-authorize|credential-vault\/[A-Za-z0-9_-]{40,64})$/.test(
       url.pathname
     )
   )
     throw new Error('Saved logins require a trusted browser host.');
-  const isTestHost = (host: string) =>
-    host === 'test.tlon.systems' || host.endsWith('.test.tlon.systems');
-  if (
-    isTestHost(url.hostname) !==
-    isTestHost(new URL(getConstants().API_URL).hostname)
-  )
-    throw new Error(
-      'Saved logins require a trusted browser host in this environment.'
-    );
   const moon = browserOwnerSessionMoon(endpoint);
   if (moon) {
     try {

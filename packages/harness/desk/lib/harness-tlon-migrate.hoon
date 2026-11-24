@@ -4,6 +4,36 @@
 ::  Saved shapes are frozen here, so a change to the current lane cannot
 ::  silently change what an older state decodes as.
 +$  lane-2  [actor=@p to=destination epoch=@ud tools=(list tool-grant:h)]
++$  state-3
+  $:  %3
+      lens=lens-sync
+      owner-initialized=@ud
+      sibling-moon-owners=$~(| ?)
+      sibling-owner-after=@da
+      activity-through=@da
+      catching-up=$~(| ?)
+      identities=(map destination @t)
+      routes=(map @t route)
+      cuts=(map @p @da)
+      channel-after=@da
+      channel-cuts=(map nest:c @da)
+      uploads=(map @uv upload)
+      last-sent=@da
+      tool-receipts=(map @uv tool-receipt)
+      computing=(map path presence-lease)
+      policy=policy
+      epoch=@ud
+      after=@da
+      lanes=(map @t lane)  ::  admitted authorization generations; head keeps history
+      jobs=(map @uv job)
+      deliveries=(map @uv delivery)
+      notices=(list notice)
+      next-notice=@ud
+      listeners=(set @t)
+      watching=?
+      wake=(unit @da)
+      error=@t
+  ==
 +$  state-2
   $:  %2
       lens=lens-sync
@@ -93,10 +123,10 @@
   ==
 ++  load
   |=  old=vase
-  ^-  state-3
+  ^-  state-4
   ?>  ?=(^ q.old)
-  ?:  =(%3 -.q.old)  !<(state-3 old)
-  (two-to-three (two old))
+  ?:  =(%4 -.q.old)  !<(state-4 old)
+  (three-to-four (three old))
 ::  Ready routes of conversations +two-to-three drops. Their bindings may
 ::  still hold queued input, so the caller disables them and fences their
 ::  sessions.
@@ -105,7 +135,7 @@
   |=  old=vase
   ^-  (list [sid=@t binding=@t])
   ?>  ?=(^ q.old)
-  ?:  =(%3 -.q.old)  ~
+  ?:  |(=(%3 -.q.old) =(%4 -.q.old))  ~
   =/  saved  (two old)
   %+  murn  ~(tap by lanes.saved)
   |=  [sid=@t lane=lane-2]
@@ -113,6 +143,19 @@
   =/  route  (~(get by routes.saved) sid)
   ?.  &(?=(^ route) =(%ready phase.u.route))  ~
   `[sid binding.u.route]
+::
+++  three
+  |=  old=vase
+  ^-  state-3
+  ?>  ?=(^ q.old)
+  ?:  =(%3 -.q.old)  !<(state-3 old)
+  (two-to-three (two old))
+::  No browser handoff can be pending in a state saved before version 4.
+::
+++  three-to-four
+  |=  old=state-3
+  ^-  state-4
+  [%4 ~ +.old]
 ::
 ++  two
   |=  old=vase
