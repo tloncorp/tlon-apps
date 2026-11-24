@@ -1073,8 +1073,13 @@
   =/  s  fixture
   =/  job  job
   =.  schedules.s  (my ~[[0v1 job]])
-  ;<  ~              bind:m  (setup s)
-  ;<  ready=state-0  bind:m  get-state
+  ;<  ~               bind:m  (setup s)
+  ::  Loading wakes a tick later for upkeep; that wake sets the job's own.
+  ;<  loaded=state-0  bind:m  get-state
+  =/  tick  (need schedule-wake.loaded)
+  ;<  ~               bind:m  (jab-bowl |=(b=bowl b(now tick)))
+  ;<  *               bind:m  (do-arvo /schedules/(scot %da tick) [%behn %wake ~])
+  ;<  ready=state-0   bind:m  get-state
   =/  at  (need schedule-wake.ready)
   ;<  ~                bind:m  (jab-bowl |=(b=bowl b(now at)))
   ;<  out=(list card)  bind:m  (do-arvo /schedules/(scot %da at) [%behn %wake ~])
