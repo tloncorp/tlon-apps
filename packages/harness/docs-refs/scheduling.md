@@ -22,12 +22,24 @@ It runs inference once at that exact time. Include the necessary brief and
 authorized sources: the isolated agent does not receive the source transcript.
 Use this for one-time work and `cron_add` for recurring work.
 
-`cron_add` requires `schedule`, `timezone: "UTC"`, `prompt` (1–4,096 UTF-8 bytes),
-and `runs` (a decimal string, 1–100). Five-field expressions support wildcards,
+`cron_add` requires `schedule`, `timezone`, `prompt` (1–4,096 UTF-8 bytes), and
+`runs` (a decimal string, 1–100). Five-field expressions support wildcards,
 steps, ranges and lists. Weekdays are Sunday=0 through Saturday=6; restricted
 day-of-month and weekday fields use OR semantics. The next occurrence must be
 within the bounded four-year search horizon. Invalid or impossible expressions
-are rejected. Recurring local time, IANA zones and DST are not supported.
+are rejected.
+
+`timezone` is `UTC` or a fixed offset written `+HH:MM` or `-HH:MM`, with the
+sign and two-digit hours and minutes, up to 14 hours: `-06:00`, `+05:30`.
+`+00:00` is accepted and runs exactly as `UTC`; `-00:00`, which RFC3339 reserves
+for an unknown offset, is rejected, as are `Z`, `+5`, `UTC+05:00` and IANA
+names such as `America/Chicago`. The expression is evaluated on the local
+calendar at that offset, so minute, hour, day, month and weekday all match
+local time: `0 9 * * *` at `-06:00` runs at 15:00 UTC, and `0 23 * * 5` at
+`-06:00` runs on Saturday at 05:00 UTC. Every later run, an edit and recovery
+after downtime use the same offset. An offset is fixed: it does not follow
+daylight saving, and IANA zones and DST rules are not supported. The job keeps
+the offset as written, and listings show it.
 
 `reminder_add` takes literal `text` (1–4,096 UTF-8 bytes) and a future RFC3339
 `at` within 10 years, and optionally the conversation's own `destination`; a

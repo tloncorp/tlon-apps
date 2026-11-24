@@ -49,7 +49,8 @@ incoming group-DM messages do not start automatic replies.
 ## Schedule a report or reminder
 
 Ask for a one-time follow-up or a recurring report. Scheduled agents receive a
-brief and permitted tools, not the original transcript. Recurring schedules use UTC.
+brief and permitted tools, not the original transcript. Recurring schedules use UTC
+or a fixed UTC offset that does not follow daylight saving.
 
 Use a literal reminder when the desired output is already known. It needs an
 explicit time offset and destination, but no model or provider credits when due.

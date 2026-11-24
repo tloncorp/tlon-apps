@@ -1022,7 +1022,8 @@ mention with delivery to that conversation, transcript isolation,
 recursive-schedule denial, mid-flight source revocation, and that trusted and
 allowed ships are not offered scheduling and have forged calls refused. It restores defaults
 and policy and cancels fixture schedules; messages and their receipts remain.
-`desk/tests/harness-cron.hoon` covers the pure UTC calendar and strict parser.
+`desk/tests/harness-cron.hoon` covers the pure calendar, in UTC and at fixed
+offsets, and the strict parser.
 
 `tests-js/tlon-shared-channel-conformance.mjs` runs on three ships: `~zod` is the
 bot, the peer (`PEER_URL`, `PEER_COOKIE`) its owner and a guest (`GUEST_URL`,
