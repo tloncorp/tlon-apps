@@ -43,6 +43,11 @@
 ++  task
   |=  [job=schedule:cr names=task-names:t]
   ^-  task:v1:sa
+  ::  A reminder publishes its text without inference. Of OpenClaw's kinds
+  ::  that is closest to a system event, not an agent turn.
+  =/  kind=@t
+    ?:  =(%reminder kind.job)  'systemEvent'
+    'agentTurn'
   :*  agent-id=~
       name=?^(name.names name.names (title prompt.job))
       description=description.names
@@ -50,9 +55,7 @@
       schedule=`(when job names)
       session-target=~
       wake-mode=~
-      ::  A reminder publishes its text without inference. Of OpenClaw's
-      ::  kinds that is closest to a system event, not an agent turn.
-      payload=`[`?:(=(%reminder kind.job) 'systemEvent' 'agentTurn') `prompt.job ~]
+      payload=`[`kind `prompt.job ~]
       delivery=`[`%announce `'tlon' `(target destination.job) ~ ~]
       created-at=~
       updated-at=~
@@ -231,7 +234,8 @@
   |=  [interval=@dr anchor=@da]
   ^-  (each @t @t)
   ?:  (lth interval ~m1)
-    [%| 'schedule.everyMs under a minute is not supported; a job runs at most once a minute']
+    :-  %|
+    'schedule.everyMs under a minute is not supported; a job runs at most once a minute'
   ?.  =(0 (mod interval ~m1))
     [%| 'schedule.everyMs must be a whole number of minutes']
   =/  minutes  (div interval ~m1)
@@ -301,7 +305,10 @@
     ?:  (lth number 10)  "0{(a-co:co number)}"
     (a-co:co number)
   %-  crip
-  "{(a-co:co y.date)}-{(pad m.date)}-{(pad d.t.date)}T{(pad h.t.date)}:{(pad m.t.date)}:{(pad s.t.date)}Z"
+  ;:  weld
+      (a-co:co y.date)  "-"  (pad m.date)  "-"  (pad d.t.date)
+      "T"  (pad h.t.date)  ":"  (pad m.t.date)  ":"  (pad s.t.date)  "Z"
+  ==
 ::
 ::  +runs: a recurring job's budget for an edit. Messenger sends none, so a
 ::  new job takes the scheduler's most and an edited one keeps what is left.

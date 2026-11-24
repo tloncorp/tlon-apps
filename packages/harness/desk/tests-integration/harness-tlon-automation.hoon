@@ -371,5 +371,43 @@
   ;<  caz=(list card)  bind:m  (do-agent /steward/finalize [~zod %steward] [%poke-ack ~])
   ;<  ~  bind:m  (ex-equal !>(caz) !>(`(list card)`~))
   ;<  caz=(list card)  bind:m  (do-agent /steward/finalize [~zod %steward] refused)
+  ;<  ~  bind:m  (ex-equal !>(caz) !>(`(list card)`~))
+  ;<  caz=(list card)  bind:m  (do-agent /steward/lease [~zod %steward] refused)
+  ;<  ~  bind:m  (ex-equal !>(caz) !>(`(list card)`~))
+  ;<  caz=(list card)  bind:m  (do-agent /claims [~zod %contacts] refused)
   (ex-equal !>(caz) !>(`(list card)`~))
+::  A kicked head watch lost the edit's result. The edit answers an error
+::  and ends, so Steward's replay of it is applied rather than ignored.
+::
+++  test-a-kicked-head-result-fails-the-edit-and-the-replay-applies
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  edit  (create [%cron `'0 9 * * *' ~ ~] `'Brief me' ~)
+  ;<  *  bind:m  (boot `~nec & &)
+  ;<  *  bind:m  (schedules snapshot)
+  ;<  first=(list card)  bind:m  (dispatch 0v9 edit)
+  ;<  caz=(list card)  bind:m
+    (do-agent /steward/edit/(scot %uv 0v9) [~zod %harness] [%kick ~])
+  =/  lost=tang
+    ~[leaf+"the head dropped the result; the change may have applied, so check the task"]
+  ;<  ~  bind:m
+    (ex-equal !>((answers caz)) !>(`(list response:v1:sa)`~[[0v9 %error %harness-error lost]]))
+  ;<  caz=(list card)  bind:m  (dispatch 0v9 edit)
+  ;<  ~  bind:m  (ex-equal !>(=(~ (requests caz))) !>(|))
+  (ex-equal !>((requests caz)) !>((requests first)))
+::  A head fact under another mark is not a result.
+::
+++  test-a-head-fact-of-another-mark-is-ignored
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (boot `~nec & &)
+  ;<  *  bind:m  (schedules snapshot)
+  ;<  *  bind:m  (dispatch 0v9 [%delete '0v1'])
+  ;<  caz=(list card)  bind:m
+    (do-agent /steward/edit/(scot %uv 0v9) [~zod %harness] [%fact %json !>(~)])
+  ;<  ~  bind:m  (ex-equal !>((answers caz)) !>(`(list response:v1:sa)`~))
+  ;<  caz=(list card)  bind:m  (head-result 0v9 [%& ~])
+  (ex-equal !>((answers caz)) !>(`(list response:v1:sa)`~[[0v9 %deleted '0v1']]))
 --

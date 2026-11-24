@@ -121,35 +121,23 @@
   ++  on-agent
     |=  [=wire =sign:agent:gall]
     ?:  =(/telemetry wire)  `this
-    ::  A failed profile edit retries on the next adapter event, not its nack.
-    ?:  =(/claims wire)
-      ?^  error=?:(?=(%poke-ack -.sign) p.sign ~)
-        %-  (slog 'harness-tlon: profile claim update failed' u.error)
-        `this
-      `this
-    ::  Steward's acks send Steward nothing. Gall hands back the owner's ack
+    ::  These pokes' acks send nothing on, and a refusal is only logged. A
+    ::  failed profile edit retries on the next adapter event. Steward's acks
+    ::  must not send Steward anything: Gall hands back the owner's ack
     ::  before it delivers the lease poke behind it, so taking the lease here
-    ::  would poke without end. A refusal retries on the next adapter event.
-    ::  The event that sends a lease schedules before Steward applies it, so
-    ::  the lease's ack arms the wake that renews it.
-    ?:  =(/steward/lease wire)
+    ::  would poke without end. A refused lease retries on the next adapter
+    ::  event, a refused projection waits for the next schedule change or
+    ::  Steward restart, and a refused answer leaves the command for
+    ::  Steward's sweep. The event that sends a lease schedules before
+    ::  Steward applies it, so the lease's ack arms the wake that renews it,
+    ::  with Behn cards alone.
+    ?:  ?=(?([%claims ~] [%steward ?(%lease %project %finalize) ~]) wire)
       ?^  error=?:(?=(%poke-ack -.sign) p.sign ~)
-        %-  (slog 'harness-tlon: steward lease refused' u.error)
+        %-  (slog (poke-refused:cor wire) u.error)
         `this
+      ?.  =(/steward/lease wire)  `this
       =^  cards  state  rearm:cor
       [cards this]
-    ::  A refused projection waits for the next schedule change or Steward
-    ::  restart; a refused answer leaves the command for Steward's sweep.
-    ?:  =(/steward/project wire)
-      ?^  error=?:(?=(%poke-ack -.sign) p.sign ~)
-        %-  (slog 'harness-tlon: steward projection refused' u.error)
-        `this
-      `this
-    ?:  =(/steward/finalize wire)
-      ?^  error=?:(?=(%poke-ack -.sign) p.sign ~)
-        %-  (slog 'harness-tlon: steward edit answer refused' u.error)
-        `this
-      `this
     ?:  =(/steward/configure wire)
       ?~  error=?:(?=(%poke-ack -.sign) p.sign ~)  `this
       ::  Lens's Retry sync sends the owner again, so only Lens shows the refusal.
@@ -224,6 +212,17 @@
 ++  rearm
   =/  engine  schedule
   [(flop cards.engine) state.engine]
+::  What the log says when a poke whose ack sends nothing is refused.
+::
+++  poke-refused
+  |=  =wire
+  ^-  @t
+  ?+  wire  'harness-tlon: poke refused'
+    [%claims ~]              'harness-tlon: profile claim update failed'
+    [%steward %lease ~]      'harness-tlon: steward lease refused'
+    [%steward %project ~]    'harness-tlon: steward projection refused'
+    [%steward %finalize ~]   'harness-tlon: steward edit answer refused'
+  ==
 ::
 ++  sync-liveness
   ^+  cor
@@ -490,7 +489,7 @@
   =/  id  (slav %uv i.t.t.wire)
   =/  edit  (~(get by edits.automation) id)
   ?~  edit  cor
-  ?+  -.sign  cor
+  ?-  -.sign
       %poke-ack
     ?~  p.sign  cor
     (fail-edit id 'the head refused the change')
@@ -499,7 +498,17 @@
     ?~  p.sign  cor
     (fail-edit id 'the head refused to report the change')
   ::
+  ::  The head gives one result per request and holds the watch until the
+  ::  hand leaves it, so a kick lost the result. Steward's replay of the
+  ::  request would find it still applying and be ignored, so the edit
+  ::  ends here.
+  ::
+      %kick
+    %+  fail-edit  id
+    'the head dropped the result; the change may have applied, so check the task'
+  ::
       %fact
+    ?.  =(%noun p.cage.sign)  cor
     =/  result  !<((each json @t) q.cage.sign)
     ?:  ?=(%| -.result)  (fail-edit id p.result)
     (apply-edit id u.edit)
@@ -513,6 +522,11 @@
   =?  cor  (~(has by wex.bowl) wire our.bowl %harness)
     (emit [%pass wire %agent [our.bowl %harness] %leave ~])
   (finalize id [%error %harness-error ~[leaf+(trip message)]])
+::
+::  Unlike the other Steward pokes, an answer is sent whether or not Steward
+::  is running: it follows a dispatch, so Steward ran a moment ago, and Gall
+::  queues it for a Steward that stopped since. Dropping it would leave the
+::  command to be replayed and applied again.
 ::
 ++  finalize
   |=  [id=@uv body=response-body:v1:sa]
