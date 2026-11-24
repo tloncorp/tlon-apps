@@ -1007,13 +1007,14 @@ already made.
   anchor, as in OpenClaw, the interval counts from the creation, or for an
   update from the anchor the task had if its interval is unchanged, and
   otherwise from the update. The hand keeps the interval and anchor to show
-  them back. The job gets the scheduler's 100 runs. It delivers to the
-  owner's DM when its delivery names that DM, has `mode` `none` or is absent,
+  them back. A recurring job has no run limit and runs until it is
+  cancelled. It delivers to the owner's DM when its delivery names that DM, has `mode` `none` or is absent,
   and to a channel only where the bot already has a conversation. The job
   runs as the owner in that conversation, which in a channel is the one
   shared by everyone there. It answers `created` with the new job's id.
 - `update` patches: `enabled` false cancels the job; a new schedule or prompt
-  edits it in place, keeping its remaining runs; a name or description only
+  edits it in place, keeping its run limit if it has one, such as one the bot
+  gave it in conversation, and otherwise none; a name or description only
   updates what the hand shows. It answers `updated`.
 - `delete` removes the job. It answers `deleted`.
 
@@ -1043,10 +1044,9 @@ command Steward admitted before an owner change is still replayed, since the
 automation dispatch names no requester; it can only reach schedules the new
 owner holds, the new owner's DM and channels where the bot has a conversation.
 
-Known limits: pausing cancels, and a cancelled job cannot be resumed; recurring
-jobs created here run at most 100 times; an `every` must have a cron
-expression; test runs are not supported; a zone's offset is fixed when the task
-is created.
+Known limits: pausing cancels, and a cancelled job cannot be resumed; an
+`every` must have a cron expression; test runs are not supported; a zone's
+offset is fixed when the task is created.
 
 ## Testing
 

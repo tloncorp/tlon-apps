@@ -123,7 +123,7 @@
   =/  args=json
     %-  pairs:enjs:format
     :~  ['schedule' %s '0 9 * * *']  ['timezone' %s '+05:30']
-        ['prompt' %s 'Brief me']  ['runs' %s '100']
+        ['prompt' %s 'Brief me']
     ==
   ;:  weld
       (expect-eq !>(~[[%add 0v9 'owner-dm' '~nec' %prompt args]]) !>(steps.p.planned))
@@ -185,6 +185,33 @@
         ['prompt' %s 'New brief']  ['runs' %s '7']
     ==
   (expect-eq !>(~[[%edit 0v1 (sham old) args]]) !>(steps.p.planned))
+::  The screen has no run count, so an edit from it keeps a limit the bot
+::  gave a job in conversation and adds none to a job without one.
+::
+++  test-an-edit-keeps-a-jobs-run-limit-and-adds-none
+  =/  edit  [%update '0v1' %*(. *task:v1:sa schedule `[%cron `'0 7 * * *' ~ ~])]
+  =/  limited  (plan:automation edit 0v9 now ~nec schedules ~ binding)
+  =/  open  (~(jab by schedules) 0v1 |=(j=schedule:c j(remaining ~)))
+  =/  unlimited  (plan:automation edit 0v9 now ~nec open ~ binding)
+  ?>  ?=(%& -.limited)
+  ?>  ?=(%& -.unlimited)
+  =/  args
+    |=  runs=(list [@t json])
+    ^-  json
+    %-  pairs:enjs:format
+    %+  weld
+      :~  ['schedule' %s '0 7 * * *']  ['timezone' %s 'UTC']
+          ['prompt' %s '  Morning brief\0aRead the overnight channels.']
+      ==
+    runs
+  ;:  weld
+      %+  expect-eq
+        !>(~[[%edit 0v1 (sham (~(got by schedules) 0v1)) (args ~[['runs' %s '7']])]])
+      !>(steps.p.limited)
+      %+  expect-eq
+        !>(~[[%edit 0v1 (sham (~(got by open) 0v1)) (args ~)]])
+      !>(steps.p.unlimited)
+  ==
 ::
 ++  test-a-rename-needs-no-head-action
   =/  planned  (plan [%update '0v1' %*(. *task:v1:sa name `'Renamed')] ~)
@@ -314,7 +341,7 @@
   =/  args=json
     %-  pairs:enjs:format
     :~  ['schedule' %s '15 2,6,10,14,18,22 * * *']  ['timezone' %s 'UTC']
-        ['prompt' %s 'Check in']  ['runs' %s '100']
+        ['prompt' %s 'Check in']
     ==
   ;:  weld
       (expect-eq !>(~[[%add 0v9 'owner-dm' '~nec' %prompt args]]) !>(steps.p.planned))

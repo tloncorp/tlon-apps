@@ -199,7 +199,7 @@
   |=  $:  schedule=cron-schedule:v1:sa
           reminder=?
           message=@t
-          runs=@ud
+          runs=(unit @ud)
           now=@da
           prior=(unit cadence:t)
       ==
@@ -220,11 +220,12 @@
     ?:  ?=(%| -.expression)  [%| p.expression]
     :+  %&
       %-  pairs:enjs:format
-      :~  ['schedule' %s p.expression]
-          ['timezone' %s 'UTC']
-          [text-key %s message]
-          ['runs' %s (crip (a-co:co runs))]
-      ==
+      %+  weld
+        :~  ['schedule' %s p.expression]
+            ['timezone' %s 'UTC']
+            [text-key %s message]
+        ==
+      (count runs)
     [~ `[u.every.schedule anchor p.expression]]
   ::
       %at
@@ -240,11 +241,12 @@
     ?:  ?=(%| -.zone)  [%| p.zone]
     :+  %&
       %-  pairs:enjs:format
-      :~  ['schedule' %s u.expr.schedule]
-          ['timezone' %s offset.p.zone]
-          [text-key %s message]
-          ['runs' %s (crip (a-co:co runs))]
-      ==
+      %+  weld
+        :~  ['schedule' %s u.expr.schedule]
+            ['timezone' %s offset.p.zone]
+            [text-key %s message]
+        ==
+      (count runs)
     [name.p.zone ~]
   ==
 ::
@@ -336,13 +338,23 @@
       "T"  (pad h.t.date)  ":"  (pad m.t.date)  ":"  (pad s.t.date)  "Z"
   ==
 ::
-::  +runs: a recurring job's budget for an edit. Messenger sends none, so a
-::  new job takes the scheduler's most and an edited one keeps what is left.
+::  +runs: a recurring job's run limit for an edit. Messenger has no count,
+::  so a new job runs until it is cancelled and an edited one keeps the
+::  limit it has, such as one the bot gave it in conversation. A finished
+::  job has none left; the edit cancels it again, so it takes no limit.
 ::
 ++  runs
   |=  job=schedule:cr
-  ^-  @ud
-  ?:(=(0 remaining.job) 100 remaining.job)
+  ^-  (unit @ud)
+  ?:(=(`0 remaining.job) ~ remaining.job)
+::
+::  +count: a run limit as the head's runs argument, absent for none
+::
+++  count
+  |=  runs=(unit @ud)
+  ^-  (list [@t json])
+  ?~  runs  ~
+  ~[['runs' %s (crip (a-co:co u.runs))]]
 ::
 ::  +plan: a Steward edit as the head actions that apply it, or the answer
 ::  that refuses it. .binding names the head binding of the bot's
@@ -374,7 +386,7 @@
     ?~  source
       %-  invalid
       (cat 3 'the bot has no conversation at ' (target (address:p p.to)))
-    =/  timed  (timing u.schedule.task | u.message.u.payload.task 100 now ~)
+    =/  timed  (timing u.schedule.task | u.message.u.payload.task ~ now ~)
     ?:  ?=(%| -.timed)  (invalid p.timed)
     =/  add=action:cr  [%add request u.source (scot %p owner) %prompt args.p.timed]
     :*  %&
@@ -430,11 +442,12 @@
         %-  pairs:enjs:format
         ?:  (once u.job)
           ~[['at' %s expression.u.job] [text-key %s text]]
-        :~  ['schedule' %s expression.u.job]
-            ['timezone' %s timezone.u.job]
-            [text-key %s text]
-            ['runs' %s (crip (a-co:co (runs u.job)))]
-        ==
+        %+  weld
+          :~  ['schedule' %s expression.u.job]
+              ['timezone' %s timezone.u.job]
+              [text-key %s text]
+          ==
+        (count (runs u.job))
       [%& ~ args zone.kept every.kept]
     ?:  ?=(%| -.retimed)  (invalid p.retimed)
     =/  steps=(list action:cr)

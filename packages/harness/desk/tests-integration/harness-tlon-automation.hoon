@@ -197,7 +197,7 @@
   ^-  form:m
   ;<  *  bind:m  (boot `~nec & &)
   ;<  *  bind:m  (schedules snapshot)
-  =/  ran  (~(jab by snapshot) 0v1 |=(j=schedule:c j(remaining 4, next (add next.j ~d1))))
+  =/  ran  (~(jab by snapshot) 0v1 |=(j=schedule:c j(remaining `4, next (add next.j ~d1))))
   ;<  caz=(list card)  bind:m  (schedules ran)
   ;<  ~  bind:m  (ex-equal !>((lent (projections caz))) !>(0))
   =/  cancelled  (~(jab by ran) 0v1 |=(j=schedule:c j(state %cancelled)))
@@ -339,7 +339,7 @@
   =/  args=json
     %-  pairs:enjs:format
     :~  ['schedule' %s '0 9 * * *']  ['timezone' %s 'UTC']
-        ['prompt' %s 'Brief me']  ['runs' %s '100']
+        ['prompt' %s 'Brief me']
     ==
   =/  add=(list action:c)  ~[[%add 0v9 'owner-dm' '~nec' %prompt args]]
   ;<  *  bind:m  (boot `~nec & &)
@@ -474,7 +474,7 @@
   =/  args=json
     %-  pairs:enjs:format
     :~  ['schedule' %s u.expr.u.schedule.task]  ['timezone' %s timezone]
-        ['prompt' %s 'Summarize the night']  ['runs' %s '100']
+        ['prompt' %s 'Summarize the night']
     ==
   ;<  caz=(list card)  bind:m  (dispatch id [%create task])
   ;<  ~  bind:m

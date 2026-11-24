@@ -1186,7 +1186,7 @@
   ;<  out=(list card)  bind:m  (do-arvo /schedules/(scot %da at) [%behn %wake ~])
   ;<  next=state-0     bind:m  get-state
   =/  ran  (~(got by schedules.next) 0v1)
-  ;<  ~  bind:m  (ex-equal !>(remaining.ran) !>((dec remaining.job)))
+  ;<  ~  bind:m  (ex-equal !>(remaining.ran) !>((bind remaining.job dec)))
   ;<  ~  bind:m  (ex-equal !>(?=(^ last.ran)) !>(&))
   (ex-equal !>((feed out)) !>(~[schedules.next]))
 ::
