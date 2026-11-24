@@ -353,7 +353,8 @@ not available.`, whatever the fact's revision or state. Automatic capture
 never changes a fact learned in another place. An explicit save of a channel
 fact from elsewhere moves it to that place; when that takes it out of the
 channels, the reply says it is now private and that channels can no longer use
-the name. For a conversation that does not see everything, recall's index walk
+the name. A save that repeats the fact's text changes nothing, where it was
+learned included, so it stays in its channels. For a conversation that does not see everything, recall's index walk
 skips unseen rows, examines at most 512, and judges a term's commonness by the
 seen rows it found; past that bound results are best effort.
 
