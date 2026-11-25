@@ -75,7 +75,10 @@ const jobs = {
   event: job({ name: 'event', schedule: cron(40, 'UTC'), payload: { kind: 'systemEvent', message: undefined, text: 'Fixture event text.' }, delivery: null }),
   heartbeat: job({ name: 'heartbeat', schedule: { kind: 'every', everyMs: 1_800_000 }, payload: { kind: 'heartbeat' }, delivery: null, declarationKey: 'heartbeat:main' }),
 }
-const exported = { jobs: Object.values(jobs), snapshotRevision: 's1', total: 12, offset: 0, limit: 200, hasMore: false, nextOffset: null, deliveryPreviews: {} }
+// Imported separately, with --runs.
+jobs.limited = job({ name: 'limited', schedule: cron(45, 'UTC'), delivery: { to: owner } })
+const limitedExport = { jobs: [jobs.limited], snapshotRevision: 's2', total: 1, offset: 0, limit: 200, hasMore: false, nextOffset: null, deliveryPreviews: {} }
+const exported = { jobs: Object.values(jobs).filter((entry) => entry !== jobs.limited), snapshotRevision: 's1', total: 12, offset: 0, limit: 200, hasMore: false, nextOffset: null, deliveryPreviews: {} }
 const imported = ['dm', 'dmBare', 'channel', 'channelBare', 'once']
 const expected = (name) => ({ dm: `dm/${owner}`, dmBare: `dm/${owner}`, once: `dm/${owner}`, silent: `dm/${owner}` })[name] ?? nest
 
@@ -147,7 +150,7 @@ try {
     const timezone = schedule.kind === 'cron' ? offsetOf(schedule.tz, now) : 'UTC'
     assert.deepEqual(
       { schedule: made.schedule, timezone: made.timezone, destination: made.destination, remaining: made.remaining, actor: made.actor, binding: made.sourceBinding, prompt: made.prompt, state: made.state, kind: made.kind },
-      { schedule: schedule.kind === 'cron' ? schedule.expr : once, timezone, destination: expected(name), remaining: schedule.kind === 'cron' ? 100 : 1,
+      { schedule: schedule.kind === 'cron' ? schedule.expr : once, timezone, destination: expected(name), remaining: schedule.kind === 'cron' ? null : 1,
         actor: owner, binding: conversations[expected(name)], prompt: payload.message, state: 'active', kind: 'prompt' }, name)
     // The import's copy of the head's calendar dates the first run as the head does.
     const first = schedule.kind === 'cron' ? nextRun(parseCron(schedule.expr), timezone, now.getTime()) : Date.parse(once)
@@ -186,12 +189,12 @@ try {
     const made = after.get(idOf(jobs[name]))
     assert.equal(made.destination, expected(name), name)
     assert.equal(made.sourceBinding, conversations[expected(name)], name)
-    assert.equal(made.remaining, 100, name)
+    assert.equal(made.remaining, null, name)
   }
 
   console.log('--- after the owner edits an imported schedule')
   const original = after.get(idOf(jobs.dm))
-  const changed = await client.call('harness/cron/edit', { id: original.id, revision: original.revision, args: { schedule: `0 17 1 ${month} *`, timezone: original.timezone, prompt: original.prompt, runs: '100' } })
+  const changed = await client.call('harness/cron/edit', { id: original.id, revision: original.revision, args: { schedule: `0 17 1 ${month} *`, timezone: original.timezone, prompt: original.prompt } })
   assert.equal(changed.schedule, `0 17 1 ${month} *`)
   const edited = await schedules()
   const rerun = await importing()
@@ -201,6 +204,27 @@ try {
   assert.match(rerun.output, /^already there 4, exists but differs 1, refused 5, disabled 1, of 11 tasks\.$/m)
   assert.deepEqual(await schedules(), edited, 'the edited schedule is left as it is')
   assert.equal(edited.get(original.id).schedule, `0 17 1 ${month} *`)
+
+  console.log('--- with --runs 100, on tasks not imported before')
+  const limited = await importing({ exported: limitedExport, runs: 100 })
+  assert.equal(limited.code, 0)
+  assert.match(line(limited.output, 'limited'), /\| imported, next run .*ends after 100 runs, on /)
+  const counted = (await schedules()).get(idOf(jobs.limited))
+  assert.equal(counted.remaining, 100)
+  assert.deepEqual([counted.schedule, counted.timezone, counted.destination], [jobs.limited.schedule.expr, 'UTC', `dm/${owner}`])
+  const unlimited = await importing({ exported: limitedExport })
+  assert.equal(unlimited.code, 0, 'a task imported earlier with a count is not a failure')
+  assert.match(line(unlimited.output, 'limited'), /\| exists with a run limit \(imported earlier\); left as it is \| .*last of its 100 runs on /)
+  assert.equal((await schedules()).get(idOf(jobs.limited)).remaining, 100)
+
+  console.log('--- after the owner removes that count')
+  const capped = (await schedules()).get(idOf(jobs.limited))
+  const freed = await client.call('harness/cron/edit', { id: capped.id, revision: capped.revision, args: { schedule: capped.schedule, timezone: capped.timezone, prompt: capped.prompt } })
+  assert.equal(freed.remaining, null)
+  const recount = await importing({ exported: limitedExport, runs: 100 })
+  assert.equal(recount.code, 1, 'a count removed in Harness differs from the task')
+  assert.match(line(recount.output, 'limited'), /\| exists but differs \(edited since import\?\); left as it is/)
+  assert.equal((await schedules()).get(idOf(jobs.limited)).remaining, null, 'the edit is left as it is')
   console.log('import-openclaw-schedules conformance passed')
 } finally {
   for (const entry of Object.values(jobs)) {

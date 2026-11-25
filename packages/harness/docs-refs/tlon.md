@@ -535,6 +535,9 @@ The adapter publishes “Thinking...” or named tool activity (for example,
 Only unfinished calls in the latest tool batch contribute. Names are restricted
 to the native catalog; unknown calls get a generic label. No prompts, arguments,
 MCP server/tool identifiers, results, or reasoning content are included.
+The status carries `thinking: true` for as long as the context has work;
+tool activity is carried by `toolCalls` and the display text, because
+Messenger hides a status whose `thinking` is false.
 
 Activity is aggregated across actors and threads sharing a context. One thread
 finishing cannot clear another's indicator. Head events update tool/phase changes
