@@ -1,4 +1,4 @@
-export type BotAgentType = 'openclaw' | 'hermes';
+export type BotAgentType = 'openclaw' | 'hermes' | 'harness';
 
 export interface SlashCommandOption {
   command: `/${string}`;
@@ -121,7 +121,8 @@ function readClaimField(value: unknown): string | null {
 //   *_CORE_COMMANDS — host-provided commands the runtime neither registers nor
 //     dispatches. No CI binding is possible (neither host exposes its registry
 //     to us), so these are deliberate, audit-pinned constants: changing one
-//     means re-auditing the host first.
+//     means re-auditing the host first. Harness has no host, so it has no
+//     core half.
 //
 // The split is display-neutral. Presentation order comes from `priority`
 // (rankSlashCommands sorts by it and never by array position), so membership
@@ -395,11 +396,97 @@ const HERMES_CORE_COMMANDS: SlashCommandOption[] = [
   },
 ];
 
+// Subtitles follow Harness's own descriptions (++advertised in
+// packages/harness/desk/lib/harness-command.hoon).
+const HARNESS_RUNTIME_COMMANDS: SlashCommandOption[] = [
+  {
+    command: '/help',
+    title: 'Help',
+    subtitle: 'List conversation commands',
+    icon: 'Info',
+    keywords: ['commands'],
+    priority: 1,
+  },
+  {
+    command: '/status',
+    title: 'Status',
+    subtitle: 'Show model, tool grants and token usage',
+    icon: 'Info',
+    keywords: ['model', 'tools', 'tokens', 'usage'],
+    priority: 2,
+  },
+  {
+    command: '/model',
+    title: 'Model',
+    subtitle: "Show or change this conversation's model",
+    icon: 'Settings',
+    keywords: ['model', 'provider', 'switch', 'default'],
+    priority: 3,
+  },
+  {
+    command: '/context',
+    title: 'Context',
+    subtitle: 'Inspect context budgets and checkpoint usage',
+    icon: 'Info',
+    keywords: ['context', 'budget', 'tokens', 'checkpoint'],
+    priority: 4,
+  },
+  {
+    command: '/compact',
+    title: 'Compact conversation',
+    subtitle: 'Summarize older exchanges using the current provider',
+    icon: 'Command',
+    keywords: ['compress', 'summarize', 'context'],
+    priority: 5,
+  },
+  {
+    command: '/memory',
+    title: 'Shared memory',
+    subtitle: 'Inspect or control shared memory',
+    icon: 'Info',
+    keywords: ['memory', 'memories', 'search'],
+    priority: 6,
+  },
+  {
+    command: '/remember',
+    title: 'Remember',
+    subtitle: 'Save or replace a shared memory',
+    icon: 'Add',
+    keywords: ['memory', 'save', 'note'],
+    priority: 7,
+  },
+  {
+    command: '/forget',
+    title: 'Forget',
+    subtitle: 'Forget a memory without erasing source history',
+    icon: 'Close',
+    keywords: ['memory', 'delete', 'remove'],
+    priority: 8,
+  },
+  {
+    command: '/work',
+    title: 'Work',
+    subtitle: 'Read work or prepare a human-confirmed change',
+    icon: 'Checkmark',
+    keywords: ['action', 'confirm', 'reject', 'result'],
+    priority: 9,
+  },
+  {
+    command: '/stop',
+    title: 'Stop',
+    subtitle: 'Cancel current and queued work',
+    icon: 'Stop',
+    keywords: ['halt', 'cancel', 'interrupt'],
+    priority: 10,
+  },
+];
+
 // The CI-bound half of each list, keyed by harness. The drift contract reads
 // this; nothing else should need it.
 export const RUNTIME_COMMANDS: Record<BotAgentType, SlashCommandOption[]> = {
   openclaw: OPENCLAW_RUNTIME_COMMANDS,
   hermes: HERMES_RUNTIME_COMMANDS,
+  harness: HARNESS_RUNTIME_COMMANDS,
 };
 
 // Concatenation order is arbitrary — `priority` is what users see.
@@ -412,10 +499,14 @@ export const STATIC_MANIFESTS: Record<BotAgentType, SlashCommandManifest> = {
     agent: 'hermes',
     commands: [...HERMES_RUNTIME_COMMANDS, ...HERMES_CORE_COMMANDS],
   },
+  harness: {
+    agent: 'harness',
+    commands: HARNESS_RUNTIME_COMMANDS,
+  },
 };
 
 export function isBotAgentType(value: unknown): value is BotAgentType {
-  return value === 'openclaw' || value === 'hermes';
+  return value === 'openclaw' || value === 'hermes' || value === 'harness';
 }
 
 /**

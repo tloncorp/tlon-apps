@@ -57,6 +57,7 @@ jobs:
               - 'packages/hermes-tlon-adapter/**'
               - 'packages/tlon-bot-e2e/**'
               - 'packages/tlon-skill/**'
+              - 'packages/harness/fixtures/**'
             hermes:
               - 'packages/hermes-tlon-adapter/**'
 
