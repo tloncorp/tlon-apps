@@ -7,11 +7,11 @@
 |%
 ::  $order: an owner command: an answer to a request, typed or sent by a
 ::  card's button, a listing of the open requests or of the blocked ships,
-::  or an unblock
+::  an unblock, or taking back a ship's access where the command is typed
 ::
 ::    A button also sends its request's +button-token, so that a stale
-::    card's id, reused by a later request, acts on nothing. An unban holds
-::    its ship, or ~ when no ship can be read from the text.
+::    card's id, reused by a later request, acts on nothing. An unban or a
+::    revoke holds its ship, or ~ when no ship can be read from the text.
 ::
 +$  answer  [id=(unit @t) token=(unit @uv)]
 +$  order
@@ -21,6 +21,7 @@
       [%pending ~]
       [%banned ~]
       [%unban who=(unit @p)]
+      [%revoke who=(unit @p)]
   ==
 ::  +find: the id of the request open for a ship in a place
 ::
@@ -78,6 +79,7 @@
     %pending  ?.(=('' arg) ~ `[%pending ~])
     %banned  ?.(=('' arg) ~ `[%banned ~])
     %unban  `[%unban (read-ship arg)]
+    %revoke  `[%revoke (read-ship arg)]
   ==
 ::  +read-answer: the request an answer's .arg names
 ::
@@ -96,8 +98,8 @@
   ?~  gap  `arg
   ?~  token  `arg
   `(crip (scag u.gap chars))
-::  +read-ship: the ship an unban names, with or without its sig and in any
-::  case, as OpenClaw reads it
+::  +read-ship: the ship an unban or a revoke names, with or without its sig
+::  and in any case, as OpenClaw reads it
 ::
 ++  read-ship
   |=  arg=@t
@@ -128,10 +130,11 @@
   `i.begun
 ::  +confirmation: OpenClaw's reply to the owner once an order is carried out
 ::
-::    .where names the request's channel, or is ~ for a DM.
+::    .where names the request's channel, or is ~ for a DM. OpenClaw has no
+::    revoke; its reply is worded as an allow's.
 ::
 ++  confirmation
-  |=  [action=?(%allow %reject %ban) who=@p where=(unit @t)]
+  |=  [action=?(%allow %reject %ban %revoke) who=@p where=(unit @t)]
   ^-  @t
   =/  ship  (scot %p who)
   ?-  action
@@ -145,6 +148,14 @@
       %reject
     ?~  where  (rap 3 'Denied DM request from ' ship '.' ~)
     (rap 3 'Denied ' ship ' for ' u.where '.' ~)
+  ::
+      %revoke
+    ?~  where
+      (rap 3 'Revoked DM access for ' ship '. They will no longer be able to message the bot.' ~)
+    %+  rap  3
+    :~  'Revoked '  ship  ' for '  u.where
+        '. They will no longer be able to interact in this channel.'
+    ==
   ==
 ::  +choices: the reply to an order without an id while several requests
 ::  are open, oldest first
@@ -291,6 +302,24 @@
 ::  +unban-usage: OpenClaw's reply to /unban without a ship
 ::
 ++  unban-usage  'Usage: /unban ~ship-name'
+::  +revoke-usage: the reply to /revoke without a ship, as /unban's
+::
+++  revoke-usage  'Usage: /revoke ~ship-name'
+::  +unrevoked: the reply to /revoke of .who that takes nothing back, as
+::  .who has access everywhere from settings, or no grant in .where (~ for
+::  a DM)
+::
+++  unrevoked
+  |=  [who=@p where=(unit @t) why=?(%everywhere %ungranted)]
+  ^-  @t
+  =/  ship  (scot %p who)
+  ?-  why
+    %everywhere  (cat 3 ship ' has access everywhere from settings; change it there.')
+  ::
+      %ungranted
+    ?~  where  (cat 3 ship ' has no DM access to revoke.')
+    (rap 3 ship ' has no access to revoke in ' u.where '.' ~)
+  ==
 ::  +unbanned: OpenClaw's replies to /unban of .who: once %chat has the
 ::  unblock, when .who was not blocked, and when %chat refuses the unblock
 ::

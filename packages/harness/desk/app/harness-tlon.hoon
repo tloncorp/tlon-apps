@@ -3112,17 +3112,19 @@
     (note:engine 'approval-expired' who.approval (address:p (place-to:p [who place]:approval)) id)
   ?^  place.approval  engine
   (decline-invitation:engine who.approval)
-::  +approval-order: an approval command in a DM, and its author
+::  +approval-order: an approval command in a DM, or the owner's /revoke in
+::  a channel, and its author
 ::
-::    Only a DM: the network authenticates a DM's author, while a channel
-::    post's is whatever the channel's host reports, so in a channel the
-::    text is an ordinary message. Read whoever wrote it, so that one from a
-::    ship that is not the owner is dropped before it could open a request
-::    or start a turn.
+::    The network authenticates a DM's author, while a channel post's is
+::    whatever the channel's host reports, so in a channel the text is an
+::    ordinary message, except as +channel-revoke reads it. In a DM, read
+::    whoever wrote it, so that one from a ship that is not the owner is
+::    dropped before it could open a request or start a turn.
 ::
 ++  approval-order
   |=  event=incoming-event:v8:a
   ^-  (unit [who=@p =order:ask])
+  ?:  ?=(?(%post %reply) -.event)  (channel-revoke event)
   =/  said=(unit [who=@p content=story:v9:dv])
     ?+  -.event  ~
       %dm-post  ?.(?=(%ship -.whom.event) ~ `[p.id.key.event content.event])
@@ -3134,8 +3136,32 @@
   ?:  (quoted:story content.u.said)  ~
   =/  order  (read-order:ask (story-to-text:story content.u.said))
   ?~(order ~ `[who.u.said u.order])
-::  +carry-order: carry out the owner's approval command, answering in the
-::  DM it came from
+::  +channel-revoke: the owner's /revoke in a channel, addressed as the
+::  head's commands are there
+::
+::    The one approval command a channel takes: posted as the owner by the
+::    channel's host, it can only take a grant back in that channel, whose
+::    members the host controls already. Any other text, and anyone else's
+::    /revoke, is an ordinary message.
+::
+++  channel-revoke
+  |=  event=incoming-event:v8:a
+  ^-  (unit [who=@p =order:ask])
+  =/  said=(unit [who=@p content=story:v9:dv])
+    ?+  -.event  ~
+      %post  `[p.id.key.event content.event]
+      %reply  `[p.id.key.event content.event]
+    ==
+  ?~  said  ~
+  ?.  (actor-owner who.u.said)  ~
+  ?:  (quoted:story content.u.said)  ~
+  =/  heard  (normalize-owned:p our.bowl policy event actor-owner)
+  ?~  heard  ~
+  =/  order  (read-order:ask text.u.heard)
+  ?.  ?=([~ %revoke *] order)  ~
+  `[who.u.said u.order]
+::  +carry-order: carry out the owner's approval command, answering where
+::  it came from
 ::
 ::    Anyone else's is dropped unanswered.
 ::
@@ -3156,6 +3182,9 @@
   ?:  ?=(%unban -.order)
     ?~  who.order  (answer-order to unban-usage:ask)
     (unban u.who.order to)
+  ?:  ?=(%revoke -.order)
+    ?~  who.order  (answer-order to revoke-usage:ask)
+    (revoke u.who.order to)
   ::  Among several, a bare command could act on a request the owner did
   ::  not mean, so it lists them instead.
   ?:  &(?=(~ id.order) (gth ~(wyt by by-id.live) 1))
@@ -3352,6 +3381,29 @@
   =.  error  'Messenger rejected an unblock; inspect the ship log.'
   =.  cor  (note 'approval-unban-failed' who (scot %p who) '')
   (answer-order to (unbanned:ask who %failed))
+::  +revoke: take back .who's grant in the place of .to, as a settings save
+::  that removes it does
+::
+::    Not a ban: nothing is blocked, and the ship may ask again.
+::
+++  revoke
+  |=  [who=@p to=destination:t]
+  ^+  cor
+  =/  =place:t  (place:p to)
+  =/  where  (place-label place)
+  ?^  (actor-grants who ~)  (answer-order to (unrevoked:ask who where %everywhere))
+  ?.  (placed:p policy who place)  (answer-order to (unrevoked:ask who where %ungranted))
+  =/  revoked=policy:t
+    ?~  place  policy(dm-grants (~(del in dm-grants.policy) who))
+    =/  ships  (~(del in (~(got by channel-grants.policy) u.place)) who)
+    %=  policy
+      channel-grants
+        ?~  ships  (~(del by channel-grants.policy) u.place)
+        (~(put by channel-grants.policy) u.place ships)
+    ==
+  =.  cor  (configure revoked sibling-moon-owners)
+  =.  cor  (note 'approval-revoked' who (address:p (place-to:p who place)) '')
+  (answer-order to (confirmation:ask %revoke who where))
 ::
 ++  agent-approval-reply
   |=  [=wire =sign:agent:gall]
