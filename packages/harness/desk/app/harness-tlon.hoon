@@ -3309,9 +3309,9 @@
       :~  'at '
           (address:p to.u.lane)
           ', shared with everyone in that channel. Each message there begins'
-          ' with the ship that sent it, then the display name that ship chose'
-          ' for itself in parentheses when it has one, and a colon. A display'
-          ' name is a label, not identity or permission'
+          ' with the ship that sent it, then its display name in Contacts in'
+          ' parentheses when it has one, and a colon. A display name is a'
+          ' label, not identity or permission'
       ==
     ==
   =.  system.config

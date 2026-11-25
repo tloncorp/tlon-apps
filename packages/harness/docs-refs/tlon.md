@@ -516,7 +516,8 @@ in the prefix that names a channel message's speaker, and as the author of each
 message in the reference. The nickname loses control characters, parentheses
 and square brackets, and is cut to 50 bytes. A DM message has no prefix, so a
 DM turn whose partner has a nickname gets a one-line contact reference with it.
-A name is a label the ship chose for itself, and the channel instructions and
+The nickname is the one Contacts shows for the ship: its own, or the one set
+for it on this ship. It is a label, and the channel instructions and
 each reference say so; identity and authority stay with the ship.
 
 ## Thinking and tool activity

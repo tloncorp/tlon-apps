@@ -35,7 +35,7 @@
   (crip chars)
 ::  +label: a ship as a turn shows it, with its display name when it has one
 ::
-::    the name is whatever its ship chose, so the characters that could pass
+::    the name is not ours to trust, so the characters that could pass
 ::    for the label's own punctuation or start a line are dropped.
 ++  label
   |=  [who=@p name=(unit @t)]
