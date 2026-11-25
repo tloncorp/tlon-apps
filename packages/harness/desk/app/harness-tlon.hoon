@@ -3145,6 +3145,9 @@
   =/  id  i.t.t.wire
   =/  to  ;;(destination:t (cue (slav %uv i.t.t.t.wire)))
   ?~  p.sign  (banned who id to)
+  ::  A second tap's block, sent before the first was acknowledged, is
+  ::  refused because the first took: the ban stands.
+  ?:  (blocked:messenger who)  (banned who id to)
   %-  (slog 'harness-tlon: block rejected' u.p.sign)
   =.  cor  (emit (crash:observe bowl %approval-ban u.p.sign))
   =.  error  'Messenger rejected a block; inspect the ship log.'

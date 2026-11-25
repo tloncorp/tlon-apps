@@ -775,7 +775,12 @@ hand handles no message from its own ship.
   are; OpenClaw's ban likewise removes only DM access. If `%chat` refuses the
   block, nothing else changes, the request stays open and the owner is told
   `Could not block ~ship: block failed. Request stays pending, try again.` A
-  ship this ship already blocks is not blocked again.
+  ship this ship already blocks is not blocked again. When `%chat` refuses
+  the block but has the ship on its block list by then, as when the owner
+  taps Block twice and both blocks are sent before the first is
+  acknowledged, the ban is carried out as if the block had been accepted:
+  the same closing and the same reply, with nothing left to close the second
+  time.
 - Each command is recorded in the activity feed as `approval-allowed`,
   `approval-rejected` or `approval-banned`, with the request's id, and a
   refused block as `approval-ban-failed`. The maintenance wake moves to the
@@ -1253,7 +1258,7 @@ open; a command from a ship with DM access that is not the owner changes
 nothing and gets no reply; and no DM command text is in a model request. The two run
 apart, since the denial limit lets a ship ask once per five minutes.
 `desk/tests-integration/harness-tlon-approvals.hoon` covers each command on DM
-and channel requests, `/ban`'s block and its refusal, unknown, closed and
+and channel requests, `/ban`'s block, its refusal and a second refused tap, unknown, closed and
 expired ids, a button whose id was reused or extended, a command with no id
 among one or several requests, a command in a DM thread, a
 command from a trusted ship that is not the owner, and a command in a channel,

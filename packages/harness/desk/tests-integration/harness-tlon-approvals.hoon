@@ -1279,6 +1279,36 @@
   =/  w  !<(state-6:t vase)
   ;<  ~  bind:m  (ex-equal !>(~(key by by-id.approvals.w)) !>((silt ~['c0002'])))
   (ex-equal !>((declined out)) !>(`(list [@p ?])`~[[~dev |]]))
+::  Two taps on Block: both see ~dev unblocked and ask %chat to block it.
+::  The first block takes; the second is refused as already blocked, which
+::  is the ban the owner asked for, not a failure.
+::
+++  test-a-second-ban-refused-as-already-blocked-is-told-as-a-ban
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    %^  admit  asked  later
+    :~  [told (said ~nec '/ban c0001 ~dev' told)]
+        [(add told ~s1) (said ~nec '/ban c0001 ~dev' (add told ~s1))]
+    ==
+  =/  wires  (turn (blocks caz) head)
+  ?>  ?=([* * ~] wires)
+  ;<  first=(list card)  bind:m  (do-agent i.wires [~zod %chat] [%poke-ack ~])
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ?:  ?=([%gx @ %chat @ %blocked %ships ~] path)  `!>((silt ~[~bel ~dev]))
+    ((scries *stream:v10:a) path)
+  ;<  second=(list card)  bind:m
+    (do-agent i.t.wires [~zod %chat] [%poke-ack `~[leaf+"already blocked"]])
+  ;<  =vase  bind:m  get-save
+  =/  w  !<(state-6:t vase)
+  ;<  ~  bind:m  (ex-equal !>(~(key by by-id.approvals.w)) !>((silt ~['c0002'])))
+  ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-ban-failed')) !>(0))
+  =/  told-banned  'Blocked ~dev. They will no longer be able to contact the bot.'
+  ;<  ~  bind:m  (ex-equal !>((answered first)) !>(`(list [@t @t])`~[['dm/~nec' told-banned]]))
+  (ex-equal !>((answered second)) !>(`(list [@t @t])`~[['dm/~nec' told-banned]]))
 ::  A request must not look handled when the ship was never blocked.
 ::
 ++  test-a-refused-block-leaves-the-request-open-and-tells-the-owner
