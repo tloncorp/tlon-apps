@@ -3151,7 +3151,7 @@
 ++  activity-room
   |=  event=incoming-event:v8:a
   ^-  ?
-  =/  input  (normalize-owned:p our.bowl policy event actor-owner)
+  =/  input  (normalize-owned:p our.bowl policy (sole-audience event) actor-owner)
   ?~  input  &
   =/  sid  (fall (~(get by identities) to.u.input) (identity:continuity to.u.input))
   =/  pending
@@ -3209,6 +3209,20 @@
     (accept-invitation p.whom.event)
   (admit-message event)
 ::
+::  +sole-audience: a channel message counts as a mention when its speaker and
+::  our ship are the only members of its group, where nobody else can be meant.
+::
+++  sole-audience
+  |=  event=incoming-event:v8:a
+  ^+  event
+  ?+    -.event  event
+      %post
+    ?:  mention.event  event
+    event(mention (alone-with:~(. io:membership bowl) group.event p.id.key.event))
+      %reply
+    ?:  mention.event  event
+    event(mention (alone-with:~(. io:membership bowl) group.event p.id.key.event))
+  ==
 ++  admit-message
   |=  event=incoming-event:v8:a
   ^+  cor
@@ -3221,8 +3235,8 @@
     ?.  =('Let\'s get set up.' text)  ~
     =/  found  (mole |.((onboarding-request:messenger event)))
     ?~(found ~ u.found)
-  =/  addressed  event
-  =?  addressed  &(?=(^ introduction) ?=(%post -.event))  event(mention &)
+  =/  addressed  (sole-audience event)
+  =?  addressed  &(?=(^ introduction) ?=(%post -.addressed))  addressed(mention &)
   =/  input  (normalize-owned:p our.bowl policy addressed actor-owner)
   ?~  input  cor
   =?  text.u.input  ?=(^ introduction)  u.introduction

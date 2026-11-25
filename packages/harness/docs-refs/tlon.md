@@ -668,7 +668,9 @@ messaging the sender.
   channels that are not already joined. Role notifications do not grant chat
   participants any Harness permissions; disabled hands do not reconcile.
 - Channels require a mention by default. Replies to the bot's own posts count
-  as addressed; DMs do not require mentions. Turn the requirement off to answer
+  as addressed; DMs do not require mentions. Neither does a group whose only
+  members are the bot and the speaker: every message there is addressed, until
+  someone else joins. Turn the requirement off to answer
   every message from allowed actors in channels the ship has joined.
 - The exact destination determines the stable conversation: a DM, a channel
   and each thread in either have one conversation each. Every admitted speaker

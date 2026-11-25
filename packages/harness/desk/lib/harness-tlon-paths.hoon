@@ -40,6 +40,16 @@
   %+  weld  /(scot %p our)/chat/(scot %da now)/v4/club/(scot %uv club)/writs
   /writ/id/(scot %p -.id)/(scot %ud +.id)/chat-writ-4
 ::
+++  group-exists
+  |=  flag=[@p @tas]
+  ^-  path
+  /(scot %p our)/groups/(scot %da now)/groups/(scot %p -.flag)/[+.flag]
+::
+++  group
+  |=  flag=[@p @tas]
+  ^-  path
+  /(scot %p our)/groups/(scot %da now)/v2/groups/(scot %p -.flag)/[+.flag]/noun
+::
 ++  group-can-read
   |=  flag=[@p @tas]
   ^-  path
