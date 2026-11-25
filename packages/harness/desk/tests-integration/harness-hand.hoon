@@ -1120,4 +1120,132 @@
   ;<  failed=cage  bind:m  (got-peek /x/snapshot/room)
   ;<  ~  bind:m  (ex-equal !>((shown working)) !>(&))
   (ex-equal !>((shown failed)) !>(|))
+::  A turn for a channel message heard without a mention tells the model it
+::  may answer NO_REPLY. The line is added as each request is sent, never
+::  saved, so a conversation that existed before reaches it too.
+::
+++  quiet-line
+  %+  rap  3
+  :~  'The latest message in this channel does not mention you. If it is not '
+      'meant for you and needs nothing from you, reply with exactly NO_REPLY '
+      'and nothing else.'
+  ==
+::  The first model request among .cards carries the line.
+::
+++  told
+  |=  cards=(list card)
+  ^-  ?
+  (mentions cards quiet-line)
+::  .conversations with history in the room, so /compact has work to do.
+::
+++  talked
+  ^-  state-0
+  =/  saved  conversations
+  =/  cfg  defaults.saved
+  =/  log=(list event:h)
+    :~  [%config-replaced cfg]
+        :-  %input-received
+        :*  0v1  [%hand 'room' 'tlon' 'chat/~lux/test' '0v1' '~nec']  `~nec  `[%hand 'room']  t0
+            [%user '~nec: The release is on Friday.']
+        ==
+        [%llm-requested 0 %turn]
+        [%llm-routed 0 cfg]
+        [%llm-completed 0 %stop [1 1] [%assistant 'Noted.' ~]]
+    ==
+  saved(sessions (~(put by sessions.saved) 'room' [(flop log) 1]))
+++  test-an-unmentioned-channel-turn-of-an-existing-conversation-is-told-it-may-stay-quiet
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (load talked lane-scry)
+  ;<  heard=(list card)  bind:m  (hear 'room' '~nec' 'unaddressed/0v2' '~nec: see you all then')
+  ;<  after=state-0  bind:m  get-state
+  =/  kept  system.config:(play:hl log:(~(got by sessions.after) 'room'))
+  ;<  ~  bind:m  (ex-equal !>((told heard)) !>(&))
+  (ex-equal !>(?=(^ (find (trip quiet-line) (trip kept)))) !>(|))
+::  A mention, a DM and a Lens retry are always answered.
+::
+++  test-a-mention-a-dm-and-a-lens-retry-are-not-told-they-may-stay-quiet
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  quiet
+    |=  [sid=@t who=@t event=@t]
+    =/  n  (mare ,?)
+    ^-  form:n
+    ;<  ~  bind:n  (load talked lane-scry)
+    ;<  caz=(list card)  bind:n  (hear sid who event 'hello')
+    (pure:n (told caz))
+  ;<  mention=?  bind:m  (quiet 'room' '~nec' '0v2')
+  ;<  dm=?  bind:m  (quiet 'dm' '~bus' '0v2')
+  ;<  retry=?  bind:m  (quiet 'room' '~nec' 'lens-retry/0v2')
+  (ex-equal !>([mention dm retry]) !>([| | |]))
+::  ~bus's DM, bound to the room's conversation, waits behind an unmentioned
+::  turn there; its own turn is not told.
+::
+++  test-a-dm-queued-behind-an-unmentioned-turn-is-not-told-it-may-stay-quiet
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  talked
+  =.  bindings.hands.saved
+    (~(put by bindings.hands.saved) 'room-dm' ['tlon' 'dm/~bus' 'room' ~['~bus'] &])
+  ;<  ~  bind:m  (load saved lane-scry)
+  ;<  heard=(list card)  bind:m  (hear 'room' '~nec' 'unaddressed/0v2' '~nec: see you all then')
+  ;<  queued=(list card)  bind:m  (hear 'room-dm' '~bus' '0v3' 'hello')
+  ;<  next=(list card)  bind:m
+    (do-arvo wire:(snag 0 (model-requests heard)) (answer 'NO_REPLY' ~))
+  ;<  ~  bind:m  (ex-equal !>((told heard)) !>(&))
+  ;<  ~  bind:m  (ex-equal !>((model-requests queued)) !>(~))
+  (ex-equal !>((told next)) !>(|))
+::  A scheduled run in the room never stays quiet, even for an input that
+::  carries the prefix.
+::
+++  test-a-scheduled-run-is-not-told-it-may-stay-quiet
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  talked
+  =/  act=action:c
+    :*  %add  0v1  'room'  '~nec'  %prompt
+        %-  pairs:enjs:format
+        :~  ['schedule' %s '* * * * *']  ['timezone' %s 'UTC']  ['prompt' %s 'Check status']
+            ['runs' %s '2']
+        ==
+    ==
+  =/  job  (create:schedule act ['tlon' 'chat/~lux/test' 'room' ~['~nec'] &] ~ t0)
+  =.  schedules.saved  (my ~[[0v1 job]])
+  =.  sessions.saved
+    (~(put by sessions.saved) run-sid.job [~[[%config-replaced defaults.saved]] 1])
+  =.  bindings.hands.saved
+    %+  ~(put by bindings.hands.saved)  run-sid.job
+    ['tlon' 'chat/~lux/test' run-sid.job ~['~nec'] &]
+  ;<  ~  bind:m  (load saved lane-scry)
+  ;<  ran=(list card)  bind:m  (hear run-sid.job '~nec' 'unaddressed/0v2' 'Check status')
+  (ex-equal !>((told ran)) !>(|))
+::  A subagent the unmentioned turn starts and the room's compaction are not
+::  turns for that message.
+::
+++  test-a-subagent-and-a-compaction-of-an-unmentioned-turn-are-not-told
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (load talked lane-scry)
+  ;<  heard=(list card)  bind:m  (hear 'room' '~nec' 'unaddressed/0v2' '~nec: look this up')
+  ;<  called=(list card)  bind:m
+    %+  do-arvo  wire:(snag 0 (model-requests heard))
+    (answer '' ~[['sub-1' 'run_subagent' '{"prompt":"Look this up."}']])
+  ::  The head hands itself the spawn.
+  =/  spawn=vase
+    %+  snag  0
+    %+  murn  called
+    |=  c=card
+    ?.  ?=([%pass [%spawn *] %agent * %poke %harness-effect *] c)  ~
+    `q.cage.task.q.c
+  ;<  child=(list card)  bind:m  (do-poke %harness-effect spawn)
+  ;<  ~  bind:m  (ex-equal !>((told heard)) !>(&))
+  ;<  ~  bind:m  (ex-equal !>((told child)) !>(|))
+  ;<  ~  bind:m  (load talked lane-scry)
+  ;<  compacted=(list card)  bind:m  (hear 'room' '~nec' 'unaddressed/0v3' '/compact')
+  (ex-equal !>((told compacted)) !>(|))
 --

@@ -322,6 +322,24 @@
   ;<  ~  bind:m  (ordinary [& & message-at ~ ~])
   ;<  ~  bind:m  (ordinary [& & message-at ~[[message-at %| [message-at ~nec 1 now]]] ~])
   (ordinary [& & message-at ~[(setup-post ~bud)] ~])
+::  The owner's setup request is addressed to the bot, so its event id is
+::  not marked unaddressed; the owner's plain post in the same channel is.
+++  test-a-setup-request-is-not-marked-unaddressed-and-a-plain-owner-post-is
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  plain  (post-event ~nec)
+  ?>  ?=(%post -.plain)
+  =/  events
+    |=  out=outcome
+    ^-  (list ?)
+    (turn ~(val by jobs.saved.out) |=(=job:t (unaddressed:policy event.input.job)))
+  ;<  setup=outcome  bind:m
+    (run fixture setup-event `[& & message-at ~[(setup-post ~nec)] ~])
+  ;<  heard=outcome  bind:m
+    (run fixture plain(mention |) `[& & message-at ~[(post message-at ~nec)] ~])
+  ;<  ~  bind:m  (ex-equal !>((events setup)) !>(`(list ?)`~[|]))
+  (ex-equal !>((events heard)) !>(`(list ?)`~[&]))
 ++  test-a-mentioned-post-waits-when-its-conversation-is-full
   %-  eval-mare
   =/  m  (mare ,~)

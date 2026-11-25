@@ -1,8 +1,9 @@
 // ~zod is the bot, the peer (~lux) its owner and the host of TEST_NEST, and the
 // guest (~nec) an allowed ship. The owner is heard without a mention in a
 // channel it hosts while the channel has no rule of its own; a guest is not.
-// A local provider records each turn's input and can hold turns. Restores
-// defaults and policy; test messages remain.
+// A local provider records each turn's input and instructions, can hold turns
+// and answers NO_REPLY to the steps it is told to. Restores defaults and
+// policy; test messages remain.
 import assert from 'node:assert/strict'
 import { text as readText } from 'node:stream/consumers'
 import { createServer } from 'node:http'
@@ -21,7 +22,7 @@ owner.ship = name(owner.cookie); guest.ship = name(guest.cookie)
 const client = new Client(), ship = `~${client.ship}`, marker = `heard-${randomUUID().slice(0, 8)}`
 assert.equal(new Set([ship, owner.ship, guest.ship]).size, 3, 'The bot, owner and guest are three ships')
 assert.equal(nest.split('/')[1], owner.ship, 'The owner hosts TEST_NEST')
-const failures = [], inputs = [], held = []
+const failures = [], inputs = [], systems = [], held = [], silent = new Set()
 let event = 0, holding = () => false, defaults, policy
 
 // Each turn answers every step its new input names. A held turn waits until
@@ -35,10 +36,12 @@ const server = createServer(async (req, res) => {
     const input = body.messages.slice(last + 1).filter((m) => m.role === 'user').map((m) => words(m.content)).join('\n')
     const steps = stepsIn(input)
     inputs.push(input)
+    systems.push(words(body.messages.find((m) => m.role === 'system')?.content))
     if (steps.some((step) => holding(step))) await new Promise((resolve) => held.push(resolve))
     // The quoted /stop carries no step; its answer is named for it.
     if (input.includes(`${owner.ship}: /stop`)) steps.push('quoted')
-    const content = steps.length ? steps.map((step) => `${marker}-${step}-ok`).join(' ') : 'NO_STEP'
+    const content = steps.some((step) => silent.has(step)) ? 'NO_REPLY'
+      : steps.length ? steps.map((step) => `${marker}-${step}-ok`).join(' ') : 'NO_STEP'
     res.writeHead(200, { 'content-type': 'application/json' })
     res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { role: 'assistant', content } }], usage: { prompt_tokens: 20, completion_tokens: 10 } }))
   } catch (error) { failures.push(error); res.writeHead(500); res.end('fixture error') }
@@ -48,6 +51,8 @@ function release() {
   for (const resolve of held.splice(0)) resolve()
 }
 const requested = (step) => inputs.some((input) => stepsIn(input).includes(step))
+// The instructions of the model request for .step's turn.
+const instructions = (step) => systems[inputs.findIndex((input) => stepsIn(input).includes(step))]
 
 async function poke(who, app, mark, json) {
   const res = await fetch(`${who.url}/~/channel/${marker}-${who.ship.slice(1)}`, { method: 'PUT', headers: { cookie: who.cookie, 'content-type': 'application/json' },
@@ -75,6 +80,15 @@ const answered = async (step) => Object.values((await scry(owner, `channels/v5/$
   .some((p) => authorShip(p?.essay?.author) === ship && JSON.stringify(p.essay.content).includes(`${marker}-${step}-ok`))
 const dmAnswered = async (step) => Object.values((await scry(guest, `chat/v4/dm/${ship}/writs/newest/32/light`)).writs || {})
   .some((p) => authorShip(p?.essay?.author) === ship && JSON.stringify(p.essay.content).includes(`${marker}-${step}-ok`))
+// The bot's admitted input for .step, from the events of its conversations.
+async function admitted(step) {
+  for (const sid of (await client.call('harness/tlon')).sessions) {
+    const res = await fetch(`${base}/~/scry/harness/events/${sid}.json`, { headers: { cookie }, signal: AbortSignal.timeout(15000) })
+    if (!res.ok) continue
+    const found = (await res.json()).findLast((e) => e.type === 'input' && e.source?.kind === 'hand' && JSON.stringify(e.item).includes(`${marker}-${step}`))
+    if (found) return found
+  }
+}
 async function until(label, check, timeout = 60000) {
   const start = Date.now()
   while (Date.now() - start < timeout) {
@@ -169,6 +183,34 @@ try {
     assert.ok(steps.length > 0 && steps.every((step) => expected.has(step)), `unexpected bot post ${id} after the burst: ${text}`)
   }
   console.log('PASS the burst left no bot post but answers to accepted lines and the sentinel')
+
+  // The owner's unmentioned remark is answered NO_REPLY: its run completes,
+  // its publication is abandoned and nothing is posted, and the next message
+  // is answered. The same answer to a mention is posted. Only the
+  // unmentioned turn's request tells the model it may stay quiet.
+  const instruction = 'The latest message in this channel does not mention you. If it is not meant for you and needs nothing from you, reply with exactly NO_REPLY and nothing else.'
+  silent.add('quiet1'); silent.add('quiet2')
+  const quietBaseline = new Set((await botPosts()).map(([id]) => id))
+  await post(owner, [`${marker}-quiet1 a remark for someone else`])
+  let quiet
+  await until('quiet1 was admitted as heard without a mention', async () => (quiet = await admitted('quiet1')))
+  assert.ok(quiet.source.event.startsWith('unaddressed/'), `quiet1 event id: ${quiet.source.event}`)
+  await until('quiet1: its run completed', async () => (await client.call('harness/hand', { status: { binding: quiet.source.binding } }))
+    .observations.some((o) => o.inputId === quiet.id && o.phase === 'completed'))
+  await until('quiet1: its publication was abandoned', async () => (await client.call('harness/hand', { effect: { hand: 'tlon', effect: quiet.id } })).status === 'abandoned')
+  const abandoned = await client.call('harness/hand', { effect: { hand: 'tlon', effect: quiet.id } })
+  assert.equal(abandoned.text, 'NO_REPLY')
+  assert.equal(abandoned.resolutions.at(-1).reason, 'The bot chose not to reply.')
+  assert.deepEqual((await botPosts()).filter(([id]) => !quietBaseline.has(id)), [], 'a bot post appeared for quiet1')
+  console.log('PASS an unmentioned remark answered NO_REPLY is abandoned and nothing is posted')
+  await post(owner, [`${marker}-owner3 plain owner post`])
+  await until('the next message after a quiet turn is answered', () => answered('owner3'))
+  await post(owner, [{ ship }, ` ${marker}-quiet2`])
+  await until('NO_REPLY to a mention is posted', async () => (await botPosts())
+    .some(([id, text]) => !quietBaseline.has(id) && text.includes('NO_REPLY')))
+  assert.ok(instructions('quiet1').includes(instruction), 'the unmentioned turn is told it may stay quiet')
+  assert.ok(!instructions('quiet2').includes(instruction), 'the mentioned turn is not told it may stay quiet')
+  console.log('PASS only the unmentioned turn is told it may stay quiet')
 
   // The one-channel call sets this channel's own rule and nothing else; the
   // owner then needs a mention there, and the guest keeps its access.

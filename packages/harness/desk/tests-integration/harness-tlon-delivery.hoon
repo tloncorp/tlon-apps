@@ -1,6 +1,6 @@
 ::  Full adapter acknowledgement handling; emitted Messenger cards never run.
-/-  t=harness-tlon, hh=harness-hand, g=groups-ver
-/+  *test-agent
+/-  t=harness-tlon, hh=harness-hand, g=groups-ver, cr=harness-cron
+/+  *test-agent, tp=harness-tlon-policy, hd=harness-hand
 /=  adapter  /app/harness-tlon
 |%
 ::  Hand ledger receipts among the emitted cards, in order.
@@ -248,4 +248,330 @@
       !>((skim caz |=(=card ?=([%pass * %agent [* ?(%chat %channels)] %poke *] card))))
     !>(`(list card)`~)
   (ex-equal !>(notices.s) !>(`(list notice:t)`~))
+::  Silence. The owner (~nec) said something the bot (~zod) answers with
+::  .body; the bot holds the claim on that reply at attempt 1. Only a reply
+::  to a channel message heard without a mention, outside a schedule, whose
+::  text is empty or exactly NO_REPLY, is left unsent, by abandoning the
+::  claim. A later reply to the room, 0v2, waits behind it.
+::
+++  heard  'unaddressed/0v1'
+++  quiet-reason  'The bot chose not to reply.'
+++  thread  `destination:t`[%channel [%chat ~lux %test] `~2026.9.30]
+++  room  `destination:t`[%channel [%chat ~lux %test] ~]
++$  said  [to=destination:t event=@t kind=?(%reply %failure %cancelled) body=@t]
++$  claimed  [sent=? acts=(list action:hh) saved=state-5:t]
+++  quiet-now  ~2026.10.1..00.01.00
+++  run-of
+  |=  kind=?(%prompt %reminder)
+  ^-  schedule:cr
+  =/  s  *schedule:cr
+  s(binding 'binding', actor '~nec', hand 'tlon', kind kind, sid 'room', run-sid 'run')
+::  The pending reply, by a scheduled run when .scheduled, and the later one.
+::
+++  pending-ledger
+  |=  [=said scheduled=?]
+  ^-  state:hh
+  =/  [binding=@t sid=@t]  ?:(scheduled ['run' 'run'] ['binding' 'room'])
+  =/  address  (address:tp to.said)
+  =/  later  (address:tp room)
+  =/  db  *state:hh
+  %=  db
+      bindings
+    %-  my
+    :~  [binding ['tlon' address sid ~['*'] &]]
+        ['binding' ['tlon' later 'room' ~['*'] &]]
+    ==
+      observations
+    %-  my
+    :~  [0v1 [binding event.said '~nec' 'hello' ~2026.10.1 %completed]]
+        [0v2 ['binding' '0v2' '~nec' 'again' ~2026.10.1..00.00.30 %completed]]
+    ==
+      outbox
+    %-  my
+    :~  [0v1 [0v1 binding 'tlon' address sid kind.said body.said %pending '' '' ~]]
+        [0v2 [0v2 'binding' 'tlon' later 'room' %reply 'Later answer' %pending '' '' ~]]
+    ==
+  ==
+::  The head applies .act to .db, as it would answer the adapter.
+::
+++  applied
+  |=  [db=state:hh act=action:hh]
+  ^-  [db=state:hh result=(each json @t)]
+  =/  res  (apply:hd db act quiet-now)
+  ?:  ?=(%| -.res)  [db [%| p.res]]
+  [db.p.res [%& result.p.res]]
+++  quiet-gate
+  |=  [ledger=state:hh scheduled=(unit schedule:cr)]
+  |=  =path
+  ^-  (unit vase)
+  ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
+  ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(|)
+  ?:  ?=([%gu @ %activity @ %$ ~] path)  `!>(|)
+  ?:  ?=([%j @ %sein @ @ ~] path)  `!>(`@p`(end 5 (slav %p i.t.t.t.t.path)))
+  ?:  ?=([%gx @ %harness @ %hand-state %noun ~] path)  `!>(ledger)
+  ?:  ?=([%gx @ %harness @ %hand-index %noun ~] path)  `!>((reindex:hd ledger))
+  ?:  ?=([%gx @ %harness @ %cron-session @ %noun ~] path)
+    `!>(`(unit schedule:cr)`?:(=('run' (snag 5 `(list @ta)`path)) scheduled ~))
+  ?:  ?=([%gx @ %harness @ %cron-authority @ %noun ~] path)  `!>(&)
+  ?:  ?=([%gx @ %harness @ %work-card @ %noun ~] path)  `!>(`(unit @t)`~)
+  ?:  ?=([%gx @ %harness @ %sessions %json ~] path)  `!>(`json`[%a ~])
+  ?:  (lien path |=(part=@ta =(%can-read part)))  `!>(|=([reader=@p *] =(~nec reader)))
+  ?:  (lien path |=(part=@ta =(%groups part)))  `!>((my ~[[[~lux %test] (room-group ~nec)]]))
+  ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)
+  ?:  =(%$ (rear path))  `!>(&)
+  ~
+::  The head and channel publication watches are up.
+::
+++  connected
+  %-  jab-bowl
+  |=  b=bowl
+  =.  wex.b  (~(put by wex.b) [/publications ~zod %channels] [& /v3])
+  b(wex (~(put by wex.b) [/head ~zod %harness] [& /hand-events]))
+++  quiet-saved
+  |=  to=destination:t
+  ^-  state-5:t
+  =/  s  *state-5:t
+  %=  s
+    owner-initialized  1
+    policy  [& `~nec ~ %mentions ~ ~]
+    lanes  (my ~[['room' [to 1 ~]]])
+    routes  (my ~[['room' ['binding' %ready]]])
+    deliveries  (my ~[[0v1 [0 %claim %uncertain '']]])
+  ==
+++  hand-result
+  |=  [=wire result=(each json @t)]
+  (do-agent wire [~zod %harness] [%fact %noun !>(result)])
+++  head-fact  (do-agent /head [~zod %harness] [%fact %noun !>(~)])
+++  published
+  |=  caz=(list card)
+  ^-  ?
+  (lien caz |=(=card ?=([%pass [%publish *] %agent * %poke *] card)))
+++  saved
+  =/  m  (mare ,state-5:t)
+  ^-  form:m
+  ;<  =vase  bind:m  get-save
+  (pure:m !<(state-5:t vase))
+::  The head grants the claim on .said's reply and the adapter takes the
+::  result. Produces the ledger after the claim.
+::
+++  claim-said
+  |=  [=said scheduled=(unit schedule:cr)]
+  =/  m  (mare ,[db=state:hh out=claimed])
+  ^-  form:m
+  =/  [db=state:hh claim=(each json @t)]
+    (applied (pending-ledger said ?=(^ scheduled)) [%claim 'tlon' 0v1 'harness-tlon'])
+  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now quiet-now))
+  ;<  ~  bind:m  (set-scry-gate (quiet-gate db scheduled))
+  ;<  *  bind:m  (do-load adapter `!>((quiet-saved to.said)))
+  ;<  ~  bind:m  connected
+  ;<  ~  bind:m
+    %-  jab-bowl
+    |=(b=bowl b(wex (~(put by wex.b) [/hand/claim/0v1 ~zod %harness] [& /hands/tlon-claim-0v1])))
+  ;<  caz=(list card)  bind:m  (hand-result /hand/claim/0v1 claim)
+  ;<  s=state-5:t  bind:m  saved
+  (pure:m db [(published caz) (receipts caz) s])
+++  abandonment
+  `action:hh`[%resolve 'tlon' 0v1 1 %abandoned '' quiet-reason]
+::  The reply was left unsent: the claim is being abandoned at its attempt.
+::
+++  ex-silent
+  |=  out=claimed
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (ex-equal !>(sent.out) !>(|))
+  ;<  ~  bind:m  (ex-equal !>(acts.out) !>(`(list action:hh)`~[abandonment]))
+  %+  ex-equal  !>(deliveries.saved.out)
+  !>(`(map @uv delivery:t)`(my ~[[0v1 [1 %claim %uncertain 'no-reply']]]))
+++  ex-sent
+  |=  out=claimed
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (ex-equal !>(sent.out) !>(&))
+  (ex-equal !>(acts.out) !>(`(list action:hh)`~))
+::  A head fact claims the later reply, which is sent, and no entry for the
+::  settled one remains. .caz answered the step that settled it.
+::
+++  later-delivered
+  |=  [caz=(list card) db=state:hh]
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m
+    %+  ex-equal  !>((receipts caz))
+    !>(`(list action:hh)`~[[%claim 'tlon' 0v2 'harness-tlon']])
+  =/  [taken=state:hh claim=(each json @t)]  (applied db [%claim 'tlon' 0v2 'harness-tlon'])
+  ;<  ~  bind:m  (set-scry-gate (quiet-gate taken ~))
+  ;<  ~  bind:m  connected
+  ;<  sent=(list card)  bind:m  (hand-result /hand/claim/0v2 claim)
+  ;<  s=state-5:t  bind:m  saved
+  ;<  ~  bind:m  (ex-equal !>((published sent)) !>(&))
+  (ex-equal !>(~(key by deliveries.s)) !>((silt ~[0v2])))
+::
+++  test-an-unaddressed-channel-reply-of-no-reply-or-nothing-is-left-unsent
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  silent
+    |=  [to=destination:t body=@t]
+    =/  n  (mare ,~)
+    ^-  form:n
+    ;<  [* out=claimed]  bind:n  (claim-said [to heard %reply body] ~)
+    (ex-silent out)
+  ;<  ~  bind:m  (silent room 'NO_REPLY')
+  ;<  ~  bind:m  (silent room '  NO_REPLY\0a')
+  ;<  ~  bind:m  (silent room '')
+  ;<  ~  bind:m  (silent room ' \0a\09 ')
+  ;<  ~  bind:m  (silent thread 'NO_REPLY')
+  (silent thread '')
+++  test-an-unaddressed-reply-with-more-than-no-reply-is-published
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [* out=claimed]  bind:m  (claim-said [room heard %reply 'NO_REPLY and more'] ~)
+  (ex-sent out)
+::  A mention, a DM, a scheduled run, a reminder, a task reply and a Lens
+::  retry are always answered. The DM and the scheduled run carry the
+::  unaddressed prefix so that only their lane or schedule decides.
+::
+++  test-addressed-dm-and-scheduled-replies-are-published-whatever-their-text
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  sent
+    |=  [=said scheduled=(unit schedule:cr)]
+    =/  n  (mare ,~)
+    ^-  form:n
+    ;<  [* out=claimed]  bind:n  (claim-said said scheduled)
+    (ex-sent out)
+  =/  dm  `destination:t`[%dm ~nec ~]
+  =/  dm-thread  `destination:t`[%dm ~nec `[~nec ~2026.9.30]]
+  ;<  ~  bind:m  (sent [room '0v1' %reply 'NO_REPLY'] ~)
+  ;<  ~  bind:m  (sent [room '0v1' %reply ''] ~)
+  ;<  ~  bind:m  (sent [thread '0v1' %reply 'NO_REPLY'] ~)
+  ;<  ~  bind:m  (sent [dm heard %reply 'NO_REPLY'] ~)
+  ;<  ~  bind:m  (sent [dm heard %reply ''] ~)
+  ;<  ~  bind:m  (sent [dm-thread heard %reply 'NO_REPLY'] ~)
+  ;<  ~  bind:m  (sent [room heard %reply 'NO_REPLY'] `(run-of %prompt))
+  ;<  ~  bind:m  (sent [room 'cron/0v1/~2026.10.1' %reply ''] `(run-of %reminder))
+  ;<  ~  bind:m  (sent [room 'work-reply/0v1' %reply 'NO_REPLY'] ~)
+  (sent [room 'lens-retry/0v1' %reply 'NO_REPLY'] ~)
+++  test-failure-and-cancellation-notices-are-published
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [* failure=claimed]  bind:m  (claim-said [room heard %failure 'NO_REPLY'] ~)
+  ;<  ~  bind:m  (ex-sent failure)
+  ;<  [* cancelled=claimed]  bind:m  (claim-said [room heard %cancelled ''] ~)
+  (ex-sent cancelled)
+::  Every head fact reconciles; only recovery sends an abandonment again.
+::
+++  test-head-facts-before-the-abandonment-result-send-it-once
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [db=state:hh out=claimed]  bind:m  (claim-said [room heard %reply 'NO_REPLY'] ~)
+  ;<  ~  bind:m  (ex-silent out)
+  ;<  first=(list card)  bind:m  head-fact
+  ;<  second=(list card)  bind:m  head-fact
+  ;<  s=state-5:t  bind:m  saved
+  ;<  ~  bind:m  (ex-equal !>((receipts (weld first second))) !>(`(list action:hh)`~))
+  ;<  ~  bind:m  (ex-equal !>((published (weld first second))) !>(|))
+  ;<  ~  bind:m  (ex-equal !>(deliveries.s) !>(deliveries.saved.out))
+  =/  [abandoned=state:hh result=(each json @t)]  (applied db abandonment)
+  ;<  ~  bind:m  (set-scry-gate (quiet-gate abandoned ~))
+  ;<  caz=(list card)  bind:m  (hand-result /hand/resolve/0v1 result)
+  (later-delivered caz abandoned)
+++  test-a-lost-abandonment-result-is-settled-by-the-next-head-fact
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [db=state:hh *]  bind:m  (claim-said [room heard %reply 'NO_REPLY'] ~)
+  =/  abandoned  db:(applied db abandonment)
+  ;<  ~  bind:m  (set-scry-gate (quiet-gate abandoned ~))
+  ;<  caz=(list card)  bind:m  head-fact
+  ;<  ~  bind:m  (ex-equal !>((published caz)) !>(|))
+  (later-delivered caz abandoned)
+::  The adapter reloads, and the head's watch is acknowledged again.
+::
+++  reload
+  |=  [s=state-5:t db=state:hh]
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  ;<  ~  bind:m  (set-scry-gate (quiet-gate db ~))
+  ;<  loaded=(list card)  bind:m  (do-load adapter `!>(s))
+  ;<  *  bind:m  (do-agent /publications [~zod %channels] [%watch-ack ~])
+  ;<  acked=(list card)  bind:m  (do-agent /head [~zod %harness] [%watch-ack ~])
+  (pure:m (weld loaded acked))
+++  test-a-reload-before-the-abandonment-commits-sends-it-again
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [db=state:hh out=claimed]  bind:m  (claim-said [room heard %reply 'NO_REPLY'] ~)
+  ;<  caz=(list card)  bind:m  (reload saved.out db)
+  ;<  ~  bind:m  (ex-equal !>((receipts caz)) !>(`(list action:hh)`~[abandonment]))
+  ;<  ~  bind:m  (ex-equal !>((published caz)) !>(|))
+  =/  [abandoned=state:hh result=(each json @t)]  (applied db abandonment)
+  ;<  ~  bind:m  (set-scry-gate (quiet-gate abandoned ~))
+  ;<  done=(list card)  bind:m  (hand-result /hand/resolve/0v1 result)
+  (later-delivered done abandoned)
+++  test-a-reload-after-the-abandonment-commits-publishes-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [db=state:hh out=claimed]  bind:m  (claim-said [room heard %reply 'NO_REPLY'] ~)
+  =/  abandoned  db:(applied db abandonment)
+  ;<  caz=(list card)  bind:m  (reload saved.out abandoned)
+  ;<  ~  bind:m  (ex-equal !>((published caz)) !>(|))
+  (later-delivered caz abandoned)
+::  The ledger checks the attempt before whether the publication is
+::  terminal, so a repeated abandonment is refused as stale; the adapter
+::  reads the publication instead of the reason.
+::
+++  test-a-refused-abandonment-of-a-terminal-publication-sets-no-error
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [db=state:hh *]  bind:m  (claim-said [room heard %reply 'NO_REPLY'] ~)
+  =/  abandoned  db:(applied db abandonment)
+  =/  refused  result:(applied abandoned abandonment)
+  ;<  ~  bind:m  (ex-equal !>(?=(%| -.refused)) !>(&))
+  ;<  ~  bind:m  (set-scry-gate (quiet-gate abandoned ~))
+  ;<  caz=(list card)  bind:m  (hand-result /hand/resolve/0v1 refused)
+  ;<  s=state-5:t  bind:m  saved
+  ;<  ~  bind:m  (ex-equal !>(error.s) !>(''))
+  ;<  ~  bind:m  (ex-equal !>((published caz)) !>(|))
+  (later-delivered caz abandoned)
+::  A refusal changes nothing in the ledger, so no head fact would follow:
+::  the adapter sends the abandonment again at once and reports the error.
+::
+++  test-a-refused-abandonment-of-a-claimed-publication-is-retried
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [db=state:hh *]  bind:m  (claim-said [room heard %reply 'NO_REPLY'] ~)
+  =/  reason  'Wrong hand or stale recovery attempt'
+  ;<  caz=(list card)  bind:m  (hand-result /hand/resolve/0v1 [%| reason])
+  ;<  s=state-5:t  bind:m  saved
+  ;<  ~  bind:m  (ex-equal !>((receipts caz)) !>(`(list action:hh)`~[abandonment]))
+  ;<  ~  bind:m  (ex-equal !>((published caz)) !>(|))
+  ;<  ~  bind:m  (ex-equal !>(error.s) !>(reason))
+  =/  [abandoned=state:hh result=(each json @t)]  (applied db abandonment)
+  ;<  ~  bind:m  (set-scry-gate (quiet-gate abandoned ~))
+  ;<  done=(list card)  bind:m  (hand-result /hand/resolve/0v1 result)
+  ;<  ~  bind:m  (later-delivered done abandoned)
+  ;<  after=state-5:t  bind:m  saved
+  (ex-equal !>(error.after) !>(reason))
+++  test-a-late-claim-result-does-not-reopen-a-reply-being-abandoned
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [db=state:hh out=claimed]  bind:m  (claim-said [room heard %reply 'NO_REPLY'] ~)
+  =/  again  result:(applied db [%claim 'tlon' 0v1 'harness-tlon'])
+  ;<  ~  bind:m
+    %-  jab-bowl
+    |=(b=bowl b(wex (~(put by wex.b) [/hand/claim/0v1 ~zod %harness] [& /hands/tlon-claim-0v1])))
+  ;<  caz=(list card)  bind:m  (hand-result /hand/claim/0v1 again)
+  ;<  s=state-5:t  bind:m  saved
+  ;<  ~  bind:m  (ex-equal !>((receipts caz)) !>(`(list action:hh)`~))
+  ;<  ~  bind:m  (ex-equal !>((published caz)) !>(|))
+  (ex-equal !>(deliveries.s) !>(deliveries.saved.out))
 --

@@ -675,6 +675,16 @@ messaging the sender.
   rule. A post heard only this way never waits for room: when its
   conversation, the admission queue or the hand ledger is full, it is dropped
   and Activity reading moves on.
+- A channel message heard without a mention, by the owner rule or in a
+  channel whose rule is `all`, may be left unanswered. Its turn tells the
+  model so, and a reply that is empty or exactly `NO_REPLY`, ignoring
+  surrounding whitespace, is not posted: the hand claims it and abandons it
+  with the reason "The bot chose not to reply." A mention, a reply under the
+  bot's post, channel setup, a DM, a schedule, a reminder, a task reply and a
+  Lens retry are always answered, whatever the text. The owner sees nothing
+  in the channel; the run is finished, and Context Lens shows its delivery as
+  abandoned, and the owner inbox shows the model's answer as its body. The
+  message's event id starts with `unaddressed/`.
 - The exact destination determines the stable conversation: a DM, a channel
   and each thread in either have one conversation each. Every admitted speaker
   in a channel shares its conversation, and each message there reaches the
@@ -1261,6 +1271,8 @@ guest an allowed ship and `TEST_NEST` hosted by the owner. It checks that the ow
 is answered there without a mention and the guest is not, that a quoted `/stop`
 does not stop a running turn and reaches the model as the owner's words, that a
 burst of unmentioned owner lines does not delay a DM from the guest and lines that
-found no room are never answered, and that `harness/tlon/channel/configure` with a
+found no room are never answered, that an unmentioned remark answered `NO_REPLY` is
+abandoned with no post while the same answer to a mention is posted, and only the
+unmentioned turn is told it may stay quiet, and that `harness/tlon/channel/configure` with a
 `mentions` rule changes only that channel, after which the owner needs a mention
 and the guest is still answered. It restores defaults and policy; messages remain.

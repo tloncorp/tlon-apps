@@ -131,7 +131,7 @@
   ;<  ~  bind:m
     %+  ex-equal
       !>((get:w (body next) 'messages'))
-    !>((get:w (payload:hp (identify:hp view %turn ~zod ~) %turn ~) 'messages'))
+    !>((get:w (payload:hp (identify:hp view %turn ~zod ~ |) %turn ~) 'messages'))
   ;<  ~  bind:m  (ex-equal !>((lent p.display)) !>(3))
   ;<  ~  bind:m
     (ex-equal !>((lien items.view |=(it=item:h &(?=(%tool -.it) !=('' body.it))))) !>(&))

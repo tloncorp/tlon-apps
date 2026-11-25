@@ -429,6 +429,35 @@
   =/  found  (heard policy ~2026.9.6 evt)
   ?~  found  (expect !>(|))
   (expect !>(!owner-only.u.found))
+::  A channel message heard without a mention, by the owner rule or in a
+::  channel whose rule is %all, is marked in its event id; a mention, a reply
+::  under the bot's post and a DM keep theirs.
+::
+++  test-a-channel-message-heard-without-a-mention-is-marked-unaddressed
+  =/  policy  policy
+  =/  everyone  policy(channels (my ~[[[%chat ~nec %test] [%all |]]]))
+  =/  under-bot=incoming-event:v8:a
+    :*  %reply  [[~zod ~2026.9.4] ~2026.9.4]  [[~lux ~2026.9.3] ~2026.9.3]
+        [%chat ~nec %test]  [~nec %test]  ~[[%inline ~['hello']]]  |
+    ==
+  =/  event
+    |=  found=(unit [input=input:t owner-only=?])
+    ^-  @t
+    ?~(found '' event.input.u.found)
+  =/  owner  (event (heard policy ~2026.9.4 (said ~zod ~zod |)))
+  =/  mentioned  (event (heard policy ~2026.9.4 (said ~zod ~zod &)))
+  =/  all  (event (heard everyone ~2026.9.4 (said ~nec ~nec |)))
+  =/  all-mentioned  (event (heard everyone ~2026.9.4 (said ~nec ~nec &)))
+  =/  replied  (event (heard policy ~2026.9.4 under-bot))
+  =/  direct  (event (heard policy ~2026.9.4 (dm ~zod)))
+  %-  expect
+  !>  ?&  =((cat 3 'unaddressed/' mentioned) owner)
+          =((cat 3 'unaddressed/' all-mentioned) all)
+          (unaddressed:p owner)  (unaddressed:p all)
+          !(unaddressed:p mentioned)  !(unaddressed:p all-mentioned)
+          !=('' replied)  !(unaddressed:p replied)
+          !=('' direct)  !(unaddressed:p direct)
+      ==
 ::  A channel's session is the destination's, whoever speaks; its threads and
 ::  grant epochs still separate. It can never equal an earlier per-speaker id,
 ::  which named a speaker in the hash.

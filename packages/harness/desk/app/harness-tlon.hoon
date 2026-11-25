@@ -3001,6 +3001,7 @@
   ::  Disabling a binding that no longer exists is expected, not an error.
   ?:  =(%disable phase)  cor
   ?:  =(%open phase)  (resume id ?:(?=(%| -.result) `p.result ~))
+  ?:  =(%resolve phase)  (abandoned id result)
   ?:  ?=(%| -.result)  cor(error p.result)
   ?:  =(%bind phase)
     =/  job  (~(get by jobs) id)
@@ -3519,6 +3520,10 @@
     =/  attempt  attempt:(get-control:hd hands id)
     ?:  =(%claim stage.delivery)
       ?.  =(%claimed status.u.publication)  engine
+      ?:  &(=(no-reply external.delivery) =(attempt attempt.delivery))
+        (abandon:engine id attempt)
+      =?  deliveries.engine  =(no-reply external.delivery)
+        (~(put by deliveries.engine) id delivery(external ''))
       ::  The persisted adapter stage proves dispatch never happened. A
       ::  delayed original claim fact is fenced by +claimed's stage check.
       =/  result
@@ -3588,6 +3593,8 @@
     |=  [id=@uv delivery=delivery:t]
     =/  publication  (~(get by outbox.hands) id)
     ?~  publication  |
+    ::  Recovery, not each head fact, sends an abandonment again.
+    ?:  =(no-reply external.delivery)  =(%claimed status.u.publication)
     ?:  =(%pending status.u.publication)  =(%claim stage.delivery)
     ?=(?(%claimed %uncertain) status.u.publication)
   ::  Only runnable Tlon publications need ordering. Retained receipts and
@@ -3774,6 +3781,8 @@
   ^+  cor
   =/  delivery  (~(get by deliveries) id)
   ?.  &(?=(^ delivery) =(%claim stage.u.delivery))  cor
+  ::  A late claim result must not reopen a reply being abandoned.
+  ?:  =(no-reply external.u.delivery)  cor
   ?>  ?=(%o -.result)
   =/  acquired  (~(get by p.result) 'acquired')
   ?.  =(`[%b &] acquired)  cor(error 'Publication already claimed; reconcile it before retrying.')
@@ -3795,6 +3804,12 @@
       ==
     =.  deliveries  (~(put by deliveries) id [attempt %receipt %failed ''])
     (hand %receipt id [%receipt-at 'tlon' id 'harness-tlon' attempt %failed ''])
+  ::  Nothing has been sent, so a reply the bot chose not to give is
+  ::  abandoned at this attempt. The entry lets recovery find it until the
+  ::  ledger has it.
+  ?:  (silent hands publication u.lane)
+    =.  deliveries  (~(put by deliveries) id [attempt %claim %uncertain no-reply])
+    (abandon id attempt)
   =.  last-sent  (next-message-stamp:p now.bowl last-sent)
   =/  external=@t  (rap 3 (scot %p our.bowl) '/' (scot %da last-sent) ~)
   ::  Persist the attempt and external identity before emitting Messenger work.
@@ -3820,4 +3835,47 @@
     last-sent
     blob
   ==
+::  The external value of a claimed delivery being abandoned unsent. An
+::  ordinary claim's is empty.
+::
+++  no-reply  'no-reply'
+::  A reply the bot may leave unsent: to a channel message heard without a
+::  mention, outside a schedule, with no text or exactly NO_REPLY.
+::
+++  silent
+  |=  [hands=state:hh publication=publication:hh lane=lane:t]
+  ^-  ?
+  =/  observation  (~(get by observations.hands) input.publication)
+  ?&  =(%reply kind.publication)
+      ?=(%channel -.to.lane)
+      ?=(~ (scheduled sid.publication))
+      ?=(^ observation)
+      (unaddressed:p event.u.observation)
+      =/  body  (trim:command (trip body.publication))
+      |(=(~ body) =("NO_REPLY" body))
+  ==
+::
+++  abandon
+  |=  [id=@uv attempt=@ud]
+  ^+  cor
+  (hand %resolve id [%resolve 'tlon' id attempt %abandoned '' 'The bot chose not to reply.'])
+::  The ledger's answer to +abandon. A refused request changes nothing in
+::  the ledger, so no head fact follows to retry it.
+::
+++  abandoned
+  |=  [id=@uv result=(each json @t)]
+  ^+  cor
+  =/  delivery  (~(get by deliveries) id)
+  ?:  ?=(%& -.result)
+    ?~  delivery  reconcile
+    ?>  ?=(%o -.p.result)
+    ::  The resolution advanced the attempt.
+    =/  attempt  (ni:dejs:format (~(got by p.p.result) 'attempt'))
+    ?.  =(attempt +(attempt.u.delivery))  cor
+    reconcile(deliveries (~(del by deliveries) id))
+  =/  publication  (~(get by outbox:ledger) id)
+  ?:  |(?=(~ publication) (terminal:hd status.u.publication))
+    reconcile(deliveries (~(del by deliveries) id))
+  =.  cor  recover
+  cor(error p.result)
 --

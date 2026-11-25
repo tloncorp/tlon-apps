@@ -5524,10 +5524,22 @@
 ++  llm-card
   |=  [sid=session-id:h req=@ud kind=request-kind:h =view:h checkpoint=@uvH]
   ^-  card
+  ::  The Tlon hand may leave a channel message heard without a mention
+  ::  unanswered, except a scheduled run's.
+  =/  unaddressed=?
+    ?.  =(%turn kind)  |
+    =/  input  (work-origin sid)
+    ?~  input  |
+    ?.  ?=(%hand -.source.u.input)  |
+    ?&  =('tlon' hand.source.u.input)
+        ?=(~ (for-session:schedule-lib schedules sid))
+        =('unaddressed/' (end [3 12] event.source.u.input))
+    ==
   =.  view
     %:  identify:hp
       view  kind  our.bowl
       ?.(moon:~(. ownership bowl) ~ `(sein:title our.bowl now.bowl our.bowl))
+      unaddressed
     ==
   =/  payload=json
     =/  capture  (~(get by compactions.maintenance.knowledge) sid)

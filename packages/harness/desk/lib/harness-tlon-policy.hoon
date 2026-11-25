@@ -199,8 +199,17 @@
   =/  text
     ?:  plain.u.item  text.u.item
     (attribute:input actor.u.item to.u.item text.u.item)
+  ::  The adapter may leave a channel message heard without a mention
+  ::  unanswered; its event id is how the adapter and the head tell.
   =/  id=@t  (scot %uv (sham [to.u.item key.u.item]))
+  =?  id  &(?=(%channel -.to.u.item) !addressed.u.item)  (cat 3 'unaddressed/' id)
   `[[actor.u.item id to.u.item text] unaddressed]
+::  Whether an admitted event was a channel message heard without a mention.
+::
+++  unaddressed
+  |=  event=@t
+  ^-  ?
+  =('unaddressed/' (end [3 12] event))
 ::
 ++  policy-json
   |=  policy=policy:t
