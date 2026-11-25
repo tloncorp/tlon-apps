@@ -37,6 +37,7 @@ hands use the same command interpreter; adapters do not implement command logic.
 | `/status` | Show provider/model, the count of tool grants the turn can use, recorded token usage and a safe description of the last failure. |
 | `/model` | Show the conversation's provider and model. |
 | `/model <id>` | Change the model within the current provider. |
+| `/model <provider>/<id>` | Select a configured provider for this conversation. Use `openai/gpt-6.1-sol` for OpenAI directly or `openrouter/openai/gpt-6.1-sol` through OpenRouter. |
 | `/model default` | Copy the current default provider/model settings into this conversation. |
 | `/context` | Inspect the encoded-request estimate, input/output budgets, retained context and compaction usage. |
 | `/compact` | Summarize older complete exchanges through the configured summary route; retain the recent turn and full transcript. |
