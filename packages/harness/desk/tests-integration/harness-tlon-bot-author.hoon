@@ -979,6 +979,53 @@
   ;<  s=state-5:t  bind:m  saved
   ;<  ~  bind:m  (ex-equal !>((messenger-pokes again)) !>(`(list [mark noun])`~))
   (ended s guest-sid 'refusal')
+::  The room's first route is still being set up for job 0v1. A second post
+::  there by the owner, then a DM from the guest, are read over .mention.
+++  behind-setup
+  |=  mention=?
+  =/  m  (mare ,state-5:t)
+  ^-  form:m
+  =/  [t1=@da t2=@da]  [(second 5) (second 6)]
+  =/  owner=[@da incoming-event:v8:a]
+    [t1 [%post [[~nec t1] t1] nest [~nec %home] ~[[%inline ~['hello']]] mention]]
+  =/  rows  ~[owner (dm-row guest t2)]
+  ;<  *  bind:m
+    %+  load-with
+      (setting-up room %create ~[[0v1 ~nec]])
+    (head-gate (stream-of rows) & ~)
+  saved
+++  room-jobs
+  |=  s=state-5:t
+  ^-  (list @uv)
+  %+  murn  ~(tap by jobs.s)
+  |=([id=@uv =job:t] ?.(=(room-sid sid.job) ~ `id))
+::  A post heard only by the owner rule is dropped, not held, while its
+::  room's first route is pending, so the guest's DM behind it is admitted
+::  and the post is never answered later.
+++  test-an-owner-rule-post-behind-a-pending-route-is-dropped
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  s=state-5:t  bind:m  (behind-setup |)
+  ;<  ~  bind:m  (ex-equal !>(activity-through.s) !>((second 6)))
+  ;<  ~  bind:m  (ex-equal !>((room-jobs s)) !>(~[0v1]))
+  ;<  ~  bind:m
+    (ex-equal !>((lien ~(val by jobs.s) |=(j=job:t =(guest-sid sid.j)))) !>(&))
+  ;<  *  bind:m  (route-ack room-sid %create |)
+  ;<  *  bind:m  (do-arvo /poll [%behn %wake ~])
+  ;<  later=state-5:t  bind:m  saved
+  ;<  ~  bind:m  (ex-equal !>(activity-through.later) !>((second 6)))
+  (ex-equal !>((room-jobs later)) !>(~[0v1]))
+::  A mentioned post in the same place still waits for the route, holding
+::  the cursor.
+++  test-a-mentioned-post-behind-a-pending-route-is-held
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  s=state-5:t  bind:m  (behind-setup &)
+  ;<  ~  bind:m  (ex-equal !>(activity-through.s) !>(~2026.10.1))
+  ;<  ~  bind:m  (ex-equal !>(catching-up.s) !>(&))
+  (ex-equal !>((room-jobs s)) !>(~[0v1]))
 ++  test-a-failed-route-setup-tells-each-sender-waiting-in-a-channel
   %-  eval-mare
   =/  m  (mare ,~)

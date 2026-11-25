@@ -688,8 +688,9 @@ messaging the sender.
   app's bot settings screen writes a `mentions` rule for each channel it adds,
   and turns a removed channel `off`, so it cannot return a channel to having no
   rule. A post heard only this way never waits for room: when its
-  conversation, the admission queue or the hand ledger is full, it is dropped
-  and Activity reading moves on.
+  conversation, the admission queue or the hand ledger is full, or its
+  conversation's first route is still being set up, it is dropped and Activity
+  reading moves on.
 - The exact destination determines the stable conversation: a DM, a channel
   and each thread in either have one conversation each. Every admitted speaker
   in a channel shares its conversation, and each message there reaches the

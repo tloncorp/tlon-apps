@@ -3208,7 +3208,10 @@
   =/  route  (~(get by routes) sid)
   ::  Finish the first route before collecting more input for a new head;
   ::  otherwise creation recovery would enumerate jobs by hash, not arrival.
-  ?:  &((gth pending 0) !(route-ready sid))  %hold
+  ::  An owner-only post is dropped instead: holding it would stop Activity
+  ::  for every other conversation until the route is set up.
+  ?:  &((gth pending 0) !(route-ready sid))
+    ?:(owner-only.u.heard %drop %hold)
   =/  counts  (queued-counts:hd hands ?~(route '' binding.u.route) sid)
   ::  Cards emitted in this turn have not reached the head yet. Count local
   ::  admission jobs as reservations as well as the head's waiting work.
