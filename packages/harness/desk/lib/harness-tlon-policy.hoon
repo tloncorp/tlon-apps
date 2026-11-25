@@ -216,6 +216,13 @@
   |=  event=@t
   ^-  ?
   =('unaddressed/' (end [3 12] event))
+::  +message-event: an admitted event's id as +event-id names its message
+::
+++  message-event
+  |=  event=@t
+  ^-  @t
+  ?.  (unaddressed event)  event
+  (rsh [3 12] event)
 ::
 ++  policy-json
   |=  policy=policy:t

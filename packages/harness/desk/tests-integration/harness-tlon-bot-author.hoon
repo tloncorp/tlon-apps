@@ -1158,4 +1158,65 @@
   ;<  *  bind:m  (route-ack guest-sid %fence |)
   ;<  s=state-5:t  bind:m  saved
   (waiting s guest-sid 0v1 %error)
+::  An unmentioned owner post in the owner's room, as admission names it.
+++  heard
+  |=  at=@da
+  ^-  input:t
+  =/  event=incoming-event:v8:a
+    [%post [[~nec at] at] nest [~nec %home] ~[[%inline ~['hello']]] |]
+  =/  input  (need (normalize:policy ~zod now policy:fixture event))
+  ?>  (unaddressed:policy event.input)
+  input
+::  The room's reference while .waiting jobs are here, the head's ledger is
+::  .ledger and local %channels holds .posts at the top level.
+++  room-reference
+  |=  [waiting=(list input:t) ledger=state:hh posts=(list post-row)]
+  =/  m  (mare ,@t)
+  ^-  form:m
+  =/  s  (with-lane fixture ~nec room)
+  =.  jobs.s
+    (malt (turn waiting |=(=input:t [(sham input) [input room-sid %observe '']])))
+  =/  scries
+    |=  =path
+    ^-  (unit vase)
+    ?:  =(path [%gu (scot %p ~zod) %channels (scot %da now) %$ ~])  `!>(&)
+    ?:  =(path [%gu base])  `!>(&)
+    ?:  &(?=([%gx *] path) =(base (scag (lent base) t.path)))
+      `!>(`paged-posts:v9:dv`[(gas:on-posts:v9:dv ~ posts) ~ ~ 0 0])
+    ((gate-over ~ ledger) path)
+  ;<  *  bind:m  (load-with s scries)
+  ;<  =cage  bind:m  (got-peek /x/context/[room-sid]/binding)
+  (pure:m (need !<((unit @t) q.cage)))
+++  shows
+  |=  [reference=@t at=@da]
+  ^-  ?
+  ?=(^ (find (trip (scot %da at)) (trip reference)))
+::  A waiting message is left out of its own reference, though its event id
+::  carries the unaddressed prefix.
+++  test-an-unmentioned-owner-post-is-not-in-its-own-reference
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  [t0=@da t1=@da]  [(second 4) (second 5)]
+  ;<  reference=@t  bind:m
+    (room-reference ~[(heard t1)] *state:hh ~[(post t0 guest) (post t1 ~nec)])
+  (ex-equal !>([(shows reference t0) (shows reference t1)]) !>([& |]))
+::  Two such posts queued in the head behind a running turn, the one starting
+::  and the one after it, are left out of each other's reference.
+++  test-unmentioned-owner-posts-queued-in-the-head-are-not-in-each-others-reference
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  [t0=@da t1=@da t2=@da]  [(second 4) (second 5) (second 6)]
+  =/  observe
+    |=  [at=@da =phase:hh]
+    ^-  observation:hh
+    ['binding' event:(heard at) '~nec' 'hello' at phase]
+  =/  ledger  *state:hh
+  =.  observations.ledger  (my ~[[0v1 (observe t1 %running)] [0v2 (observe t2 %queued)]])
+  ;<  reference=@t  bind:m
+    (room-reference ~ ledger ~[(post t0 guest) (post t1 ~nec) (post t2 ~nec)])
+  %+  ex-equal
+    !>([(shows reference t0) (shows reference t1) (shows reference t2)])
+  !>([& | |])
 --

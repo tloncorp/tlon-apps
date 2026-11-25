@@ -22,7 +22,7 @@ owner.ship = name(owner.cookie); guest.ship = name(guest.cookie)
 const client = new Client(), ship = `~${client.ship}`, marker = `heard-${randomUUID().slice(0, 8)}`
 assert.equal(new Set([ship, owner.ship, guest.ship]).size, 3, 'The bot, owner and guest are three ships')
 assert.equal(nest.split('/')[1], owner.ship, 'The owner hosts TEST_NEST')
-const failures = [], inputs = [], systems = [], held = [], silent = new Set(), rejected = new Set()
+const failures = [], inputs = [], references = [], systems = [], held = [], silent = new Set(), rejected = new Set()
 let event = 0, holding = () => false, defaults, policy
 
 // Each turn answers every step its new input names. A held turn waits until
@@ -35,9 +35,11 @@ const server = createServer(async (req, res) => {
   try {
     const body = JSON.parse(await readText(req))
     const last = body.messages.findLastIndex((m) => m.role === 'assistant')
-    const input = body.messages.slice(last + 1).filter((m) => m.role === 'user').map((m) => words(m.content)).filter((text) => !reference.test(text)).join('\n')
+    const added = body.messages.slice(last + 1).filter((m) => m.role === 'user').map((m) => words(m.content))
+    const input = added.filter((text) => !reference.test(text)).join('\n')
     const steps = stepsIn(input)
     inputs.push(input)
+    references.push(added.filter((text) => reference.test(text)).join('\n'))
     systems.push(words(body.messages.find((m) => m.role === 'system')?.content))
     if (steps.some((step) => holding(step))) await new Promise((resolve) => held.push(resolve))
     // The quoted /stop carries no step; its answer is named for it.
@@ -137,6 +139,7 @@ try {
   await post(owner, [`${marker}-owner1 plain owner post`])
   await until('the owner is answered without a mention in a channel it hosts', () => answered('owner1'))
   assert.ok(inputs.some((input) => input.includes(`${owner.ship}: ${marker}-owner1`)), 'the owner\'s post reaches the model with its speaker')
+  assert.ok(inputs.every((input, i) => !stepsIn(input).includes('owner1') || !stepsIn(references[i]).includes('owner1')), 'the owner\'s post is not repeated in its own reference')
 
   // The app's setup request: the receipt rides in the post's blob, and the
   // model gets the setup prompt with its client context.
@@ -181,6 +184,15 @@ try {
   await unheard(`burst lines that found no room are never answered (${dropped.join(', ')})`, dropped)
   const accepted = burst.filter(requested)
   for (const step of accepted) await until(`${step} is answered`, () => answered(step))
+  // Accepted lines queued behind the held turn start in order, each leaving
+  // itself and every line still queued behind it out of its reference.
+  const turns = inputs.map((input, i) => ({ own: stepsIn(input), shown: stepsIn(references[i]) }))
+    .filter((turn) => turn.own.some((step) => accepted.includes(step)))
+  turns.forEach((turn, i) => {
+    const waiting = turns.slice(i).flatMap((later) => later.own)
+    assert.ok(!turn.shown.some((step) => waiting.includes(step)), `the turn for ${turn.own} repeats a waiting line in its reference: ${turn.shown}`)
+  })
+  console.log('PASS no burst line is repeated in its own reference or in one taken while it waited')
   // Every bot post since the burst answers accepted lines or the sentinel and
   // nothing else: no refusal notice or other reply to a dropped line.
   const expected = new Set([...accepted, 'settle2'])

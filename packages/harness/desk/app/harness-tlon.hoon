@@ -2409,18 +2409,21 @@
     %+  murn  ~(val by jobs)
     |=(=job:t ?.(=(sid sid.job) ~ `input.job))
   =/  hands  ledger
+  ::  Named as +event-id names a message, without the unaddressed prefix.
   =/  events
     %-  ~(gas in *(set @t))
-    %+  weld  (turn waiting |=(=input:t event.input))
-    %+  murn  ~(tap in open:hand-index)
-    |=  id=@uv
-    =/  seen  (~(get by observations.hands) id)
-    ?~  seen  ~
-    ?.  ?&  =(binding binding.u.seen)
-            ?=(?(%queued %running) phase.u.seen)
-        ==
-      ~
-    `event.u.seen
+    %+  turn
+      %+  weld  (turn waiting |=(=input:t event.input))
+      %+  murn  ~(tap in open:hand-index)
+      |=  id=@uv
+      =/  seen  (~(get by observations.hands) id)
+      ?~  seen  ~
+      ?.  ?&  =(binding binding.u.seen)
+              ?=(?(%queued %running) phase.u.seen)
+          ==
+        ~
+      `event.u.seen
+    message-event:p
   =/  render
     |=  [parent=(unit message:history-page) rows=(list row:history-page)]
     (render:public-context to parent rows events nickname:messenger)
