@@ -3153,11 +3153,24 @@
   |=  [who=@p =place:t floor=@da]
   ^+  cor
   ?.  (available:~(. conversation-tool bowl) (place-to:p who place))  cor
+  =/  event  (waiting who place floor)
+  ?~  event  cor
+  =/  heard  (normalize-owned:p our.bowl policy u.event actor-owner)
+  ?~  heard  cor
+  ::  A settings save drops the cutoff of a ship that lost its access and
+  ::  has no conversation left, so .floor need not stop a message an earlier
+  ::  allow answered. Whatever binding took it, it is not answered again.
+  ?:  (answered event.u.heard)  cor
+  (admit u.event `floor)
+::  +waiting: the newest message .who sent the bot in .place after .floor
+::  that counts as an attempt there, as it would toward a request
+::
+++  waiting
+  |=  [who=@p =place:t floor=@da]
+  ^-  (unit incoming-event:v8:a)
   ::  Activity reports no message of a pending invitation; read the DM.
-  ?~  place
-    =/  event  (newest-post:messenger who floor)
-    ?~(event cor (admit u.event `floor))
-  ?.  .^(? %gu /(scot %p our.bowl)/activity/(scot %da now.bowl)/$)  cor
+  ?~  place  (newest-post:messenger who floor)
+  ?.  .^(? %gu /(scot %p our.bowl)/activity/(scot %da now.bowl)/$)  ~
   ::  Activity holds each channel message as admission reads it, mention
   ::  included.
   =/  =stream:v10:a
@@ -3167,18 +3180,29 @@
     |=  row:activity-read
     =/  heard  (supported:activity-read event)
     ?~  heard  |
-    ?&  =(`who (actor:continuity u.heard))
+    ?&  =(`who (sender:denial our.bowl u.heard))
         =(``u.place (event-place:p u.heard))
         (gth (posted-at:continuity u.heard) floor)
         ?=(^ (normalize-owned:p our.bowl policy u.heard actor-owner))
     ==
-  ?~  found  cor
+  ?~  found  ~
   =/  event  (need (supported:activity-read event.u.found))
   =/  heard  (need (normalize-owned:p our.bowl policy event actor-owner))
   ::  Activity outlives a deleted message.
   =/  held  (written:~(. history-read bowl) to.heard (posted-at:continuity event))
-  ?.  &(?=(^ held) live.u.held)  cor
-  (admit event `floor)
+  ?.  &(?=(^ held) live.u.held)  ~
+  `event
+::  +answered: whether a job here holds the input from source .event, or
+::  the head has taken it, under any binding
+::
+++  answered
+  |=  event=@t
+  ^-  ?
+  ?|  (lien ~(val by jobs) |=(=job:t =(event event.input.job)))
+      ?.  .^(? %gu /(scot %p our.bowl)/harness/(scot %da now.bowl)/$)  |
+      %+  lien  ~(val by observations:ledger)
+      |=(=observation:hh =(event event.observation))
+  ==
 ::  +banned: close a blocked ship's requests and take back its DM grant
 ::
 ++  banned

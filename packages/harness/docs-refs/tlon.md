@@ -773,10 +773,17 @@ hand handles no message from its own ship.
   stores nothing of it; it reads it at the allow, from `%chat` for a DM,
   where Activity reports no message of a pending invitation, and for a
   channel from Activity, checked against `%channels`. It is the newest of
-  the ship's messages there that admission answers (in a channel, a mention
-  or a reply under the bot's post, or in a thread, which is answered in that
-  thread) and that came after the ship's cutoff there when the request
-  opened, so it is never one from before the request's attempts counted.
+  the ship's messages there that is an attempt (in a DM, a top-level post;
+  in a channel, a mention or a reply under the bot's post, or in a thread,
+  which is answered in that thread, but not a post that does not mention the
+  bot, even in a channel that answers every message) and that came after
+  the ship's cutoff there when the request opened, so it is never one from
+  before the request's attempts counted. A message the head has already
+  taken, under any conversation's binding, is not answered again, as when a
+  settings save has since dropped the cutoff of a ship that lost the access
+  it was answered under. DM thread replies are not read: in a DM, the
+  ship's newest top-level post is the one answered. The edited text of a channel
+  post is not read; the answer is to the text Activity reported.
   It is let past the cutoff the grant sets, which still stops every earlier
   message and a later catch-up of this one. If the ship wrote several times,
   only the newest is answered; if the newest was deleted, or the bot has

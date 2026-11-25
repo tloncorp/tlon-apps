@@ -1185,15 +1185,17 @@
   :+  at  %&
   [-.w(id [~dev at], time at) +.w(content ~[[%inline ~[text]]], author ~dev, sent at)]
 ::  As +scries, with ~dev's DM holding .page and local %channels holding
-::  ~dev's posts .held in .room-nest, each still there or deleted
+::  ~dev's posts .held in .room-nest and .all-nest, each still there or
+::  deleted
 ::
 ++  holding
   |=  [events=stream:v10:a page=paged-writs:v7:cv held=(list [at=@da live=?])]
   |=  =path
   ^-  (unit vase)
   ?:  ?=([%gx @ %chat @ %v4 %dm %'~dev' %writs %newest *] path)  `!>(page)
+  ?:  ?=([%gu @ %channels @ %v4 %chat %'~lux' %busy ~] path)  `!>(&)
   =/  parts=(list @ta)  path
-  ?.  ?=([%gx @ %channels @ %v4 %chat %'~lux' %test %posts %older @ %'1' %outline %channel-posts-4 ~] path)
+  ?.  ?=([%gx @ %channels @ %v4 %chat %'~lux' @ %posts %older @ %'1' %outline %channel-posts-4 ~] path)
     ((scries events) path)
   ::  The exclusive upper bound names the one post read.
   =/  top  (dec (slav %ud (snag 10 parts)))
@@ -1220,6 +1222,48 @@
   ;<  caz=(list card)  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
   ;<  =vase  bind:m  get-save
   (pure:m caz !<(state-6:t vase))
+::  As +admit-holding, with the head's ledger holding input from the source
+::  events .taken, under a binding of its own
+::
+++  admit-taken
+  |=  $:  saved=state-6:t  now=@da  events=(list [@da incoming-event:v8:a])
+          page=paged-writs:v7:cv  taken=(list @t)
+      ==
+  =/  m  (mare ,[(list card) state-6:t])
+  ^-  form:m
+  =/  events  (stream events)
+  =/  hands  *state:hh
+  =.  observations.hands
+    %-  malt
+    %+  turn  taken
+    |=  event=@t
+    [(sham event) ['tlon-binding-old' event '~dev' 'earlier' start %completed]]
+  ;<  ~  bind:m  (boot saved now events)
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ?:  (lien path |=(part=@ta =(%hand-state part)))  `!>(hands)
+    ((holding events page ~) path)
+  ;<  caz=(list card)  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
+  ;<  =vase  bind:m  get-save
+  (pure:m caz !<(state-6:t vase))
+::  The head sets up the route of the one job in .s and takes its input, to
+::  the running adapter, which then drops the job
+::
+++  observed
+  |=  s=state-6:t
+  =/  m  (mare ,state-6:t)
+  ^-  form:m
+  =/  jobs  ~(tap by jobs.s)
+  ?>  ?=([* ~] jobs)
+  =/  [id=@uv =job:t]  i.jobs
+  =/  epoch  (scot %ud epoch:(~(got by lanes.s) sid.job))
+  =/  done=sign:agent:gall  [%fact %noun !>(`(each json @t)`[%& ~])]
+  ;<  *  bind:m  (do-agent /route/[sid.job]/[epoch]/create [~zod %harness] [%poke-ack ~])
+  ;<  *  bind:m  (do-agent /hand/bind/(scot %uv id) [~zod %harness] done)
+  ;<  *  bind:m  (do-agent /hand/observe/(scot %uv id) [~zod %harness] done)
+  ;<  =vase  bind:m  get-save
+  (pure:m !<(state-6:t vase))
 ::  %chat's acknowledgement of the bot's acceptance of ~dev's invitation, to
 ::  the running adapter, which then catches up on the DM
 ::
@@ -1286,8 +1330,8 @@
   ;<  ~  bind:m  (ex-equal !>(jobs.s) !>(`(map @uv job:t)`~))
   (ex-equal !>((turned caz)) !>(|))
 ::  ~dev wrote once and waited. Allowed, it gets one turn, in its DM, on that
-::  message, and the catch-up once %chat has accepted the invitation answers
-::  it no second time.
+::  message. Once the head has taken it, the catch-up after %chat accepts
+::  the invitation answers it no second time.
 ::
 ++  test-allow-answers-a-waiting-dm-message-once
   %-  eval-mare
@@ -1301,9 +1345,49 @@
     %+  ex-equal  !>((admitted s))
     !>(`(list [@p destination:t @t])`~[[~dev [%dm ~dev ~] 'may I ask?']])
   ;<  ~  bind:m  (ex-equal !>((kinds s 'message')) !>(1))
+  ;<  done=state-6:t  bind:m  (observed s)
+  ;<  ~  bind:m  (ex-equal !>(jobs.done) !>(`(map @uv job:t)`~))
   ;<  w=state-6:t  bind:m  ack-acceptance
-  ;<  ~  bind:m  (ex-equal !>(jobs.w) !>(jobs.s))
+  ;<  ~  bind:m  (ex-equal !>(jobs.w) !>(`(map @uv job:t)`~))
   (ex-equal !>((kinds w 'message')) !>(1))
+::  The allow answered ~dev's DM message A; ~dev lost its access, and a
+::  settings save dropped its cutoff. A new request's allow does not answer
+::  A again, though nothing but the head's ledger remembers it.
+::
+++  test-allow-answers-no-dm-message-an-earlier-allow-answered
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  granted  policy:asked
+  =.  dm-grants.granted  (~(put in dm-grants.granted) ~dev)
+  =/  a  (need (normalize-owned:policy-lib ~zod granted (said ~dev 'A' one-at) |=(@p |)))
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    %:  admit-taken  asked  later  ~[[told (said ~nec '/allow d0001' told)]]
+        (dm-page ~[[one-at 'A' &]])  ~[event.a]
+    ==
+  ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.s) !>((silt ~[~bus ~dev])))
+  (ex-equal !>((admitted s)) !>(`(list [@p destination:t @t])`~))
+::  In a channel that answers every message, an unaddressed post is no
+::  attempt, so it is not what an allow answers.
+::
+++  test-allow-in-a-channel-answering-everything-answers-the-mention-not-a-later-comment
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  asked
+  =.  approvals.saved  (open:ask approvals.saved 'c0003' [~dev `all-nest start])
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    %:  admit-holding  saved  later
+        :~  [one-at (addressed ~dev all-nest 'the question' one-at)]
+            [two-at (unmentioned ~dev all-nest two-at)]
+            [told (said ~nec '/allow c0003' told)]
+        ==
+        (dm-page ~)  ~[[one-at &] [two-at &]]
+    ==
+  ;<  ~  bind:m  (ex-equal !>((channel-ships s all-nest)) !>((silt ~[~dev])))
+  %+  ex-equal  !>((admitted s))
+  !>  ^-  (list [@p destination:t @t])
+  ~[[~dev [%channel all-nest ~] (mention-text 'the question')]]
 ++  test-allow-answers-only-the-newest-of-three-waiting-dm-messages
   %-  eval-mare
   =/  m  (mare ,~)
@@ -1355,7 +1439,15 @@
     %+  ex-equal  !>((admitted s))
     !>  ^-  (list [@p destination:t @t])
     ~[[~dev [%channel room-nest ~] (mention-text 'may I ask?')]]
-  (ex-equal !>((kinds s 'message')) !>(1))
+  ;<  ~  bind:m  (ex-equal !>((kinds s 'message')) !>(1))
+  ;<  *  bind:m  (observed s)
+  ::  Activity kicks the adapter, which watches again and catches up.
+  ;<  *  bind:m  (do-agent /activity [~zod %activity] [%kick ~])
+  ;<  *  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
+  ;<  =vase  bind:m  get-save
+  =/  w  !<(state-6:t vase)
+  ;<  ~  bind:m  (ex-equal !>(jobs.w) !>(`(map @uv job:t)`~))
+  (ex-equal !>((kinds w 'message')) !>(1))
 ++  test-allow-answers-only-the-newest-of-three-waiting-channel-mentions
   %-  eval-mare
   =/  m  (mare ,~)
