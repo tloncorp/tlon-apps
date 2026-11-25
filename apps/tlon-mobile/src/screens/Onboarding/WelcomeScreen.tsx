@@ -149,9 +149,9 @@ export const WelcomeScreen = ({ navigation }: Props) => {
             />
             <Button
               preset="hero"
+              size="medium"
               fill="outline"
               width="100%"
-              height={56}
               borderRadius={12}
               borderWidth={1}
               borderColor="$border"

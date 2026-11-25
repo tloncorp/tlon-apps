@@ -142,6 +142,8 @@ export function FirstRunSheet({
           <YStack gap="$l" marginTop="$xs">
             <Button
               preset="hero"
+              size="medium"
+              borderRadius={12}
               label={primaryLabel}
               onPress={onPrimary}
               loading={primaryLoading}

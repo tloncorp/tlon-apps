@@ -10,7 +10,7 @@ type OnboardingButtonProps = Omit<
   label: string;
 };
 
-/** The big solid button: 56 pt tall with 12 pt corners, and flat. */
+/** The big solid button: the standard 56 pt button, full width, and flat. */
 export function OnboardingButton({
   secondary,
   label,
@@ -22,10 +22,10 @@ export function OnboardingButton({
     <Button
       {...props}
       preset="hero"
+      size="medium"
       shadow={shadow}
       label={label}
       width="100%"
-      height={56}
       borderRadius={12}
       // A disabled button keeps the hero preset's own light gray.
       {...(props.disabled
