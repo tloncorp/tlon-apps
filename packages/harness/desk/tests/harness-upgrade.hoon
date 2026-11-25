@@ -81,8 +81,16 @@
   ^-  state-6:t
   =/  p  populated-5
   :*  %6
-      :-  (my ~[['d1a2b' [~lus ~ ~2026.10.17]] ['c3c4d' [~lus `[%chat ~bus %general] ~2026.10.18]]])
-      (my ~[[[~lus ~] 'd1a2b'] [[~lus `[%chat ~bus %general]] 'c3c4d']])
+      :-  %-  my
+          :~  ['d1a2b' [~lus [%place ~] ~2026.10.17]]
+              ['c3c4d' [~lus [%place `[%chat ~bus %general]] ~2026.10.18]]
+              ['g5e6f' [~lus [%group ~bus %club] ~2026.10.19]]
+          ==
+      %-  my
+      :~  [[~lus %place ~] 'd1a2b']
+          [[~lus %place `[%chat ~bus %general]] 'c3c4d']
+          [[~lus %group ~bus %club] 'g5e6f']
+      ==
       +.p
   ==
 ::  The hand's last shape without approval requests.

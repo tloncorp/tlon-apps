@@ -1,5 +1,5 @@
 ::  Tlon-specific state belongs to a hand, never to the semantic head.
-/-  c=channels, a=activity-ver, h=harness, ad=harness-adapter
+/-  c=channels, g=groups, a=activity-ver, h=harness, ad=harness-adapter
 |%
 +$  response  ?(%off %mentions %all)
 +$  channel-rule  [response=response everyone=?]
@@ -16,14 +16,19 @@
 ::  $place: where a per-place grant applies; ~ is the ship's DM with the bot
 ::
 +$  place  (unit nest:c)
-::  $approval: an open request from a ship without access in a place
+::  $topic: what a request asks for: a ship's access in a place, or that the
+::  bot join a group the ship invited it to
+::
++$  topic  $%([%place =place] [%group =flag:g])
+::  $approval: an open request from a ship without access in a place, or
+::  from a ship without ship-wide access that invited the bot to a group
 ::
 ::    Nothing of the message that opened it is kept.
 ::
-+$  approval  [who=@p =place at=@da]
-::  $approvals: open requests by id, and the id open for a ship in a place
++$  approval  [who=@p =topic at=@da]
+::  $approvals: open requests by id, and the id open for a ship and topic
 ::
-+$  approvals  [by-id=(map @t approval) by-place=(map [@p place] @t)]
++$  approvals  [by-id=(map @t approval) by-topic=(map [@p topic] @t)]
 +$  peer-trust  [policy=policy siblings=?]
 +$  destination
   $%  [%dm who=@p parent=(unit message-id:a)]
