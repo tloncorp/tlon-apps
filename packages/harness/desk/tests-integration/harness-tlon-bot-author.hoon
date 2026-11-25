@@ -1,11 +1,12 @@
 ::  Full adapter, synthetic scries only; no emitted cards are executed.
 ::  Admission records whether a channel message's own author has a bot profile,
-::  and a ledger refusal ends its admission without stopping catch-up.
+::  and a ledger refusal or a failed route setup ends its admission without
+::  stopping catch-up.
 ::  -test /=harness=/tests-integration/harness-tlon-bot-author
 /-  t=harness-tlon, hh=harness-hand, a=activity-ver, dv=channels-ver, cv=chat-ver,
-    g=groups-ver, ad=harness-adapter
+    g=groups-ver, h=harness, ad=harness-adapter
 /+  *test-agent, policy=harness-tlon-policy, continuity=harness-tlon-continuity,
-    hd=harness-hand
+    codec=harness-acp, hd=harness-hand
 /=  adapter  /app/harness-tlon
 |%
 +$  outcome  [cards=(list card) saved=state-5:t]
@@ -332,27 +333,37 @@
 ::  loading renews the head watch, which the head then acknowledges.
 ++  setup
   |=  [saved=state-5:t rows=(list [@da incoming-event:v8:a])]
+  (load-with saved (gate (stream-of rows) &))
+++  stream-of
+  |=  rows=(list [@da incoming-event:v8:a])
+  ^-  stream:v10:a
+  %+  gas:on-stream:v10:a  ~
+  %+  turn  rows
+  |=  [at=@da e=incoming-event:v8:a]
+  [at [;;(incoming-event:v10:a e) | |]]
+::  .setup, answering scries with .scries.
+++  load-with
+  |=  [saved=state-5:t scries=$-(path (unit vase))]
   =/  m  (mare ,(list card))
   ^-  form:m
-  =/  =stream:v10:a
-    %+  gas:on-stream:v10:a  ~
-    %+  turn  rows
-    |=  [at=@da e=incoming-event:v8:a]
-    [at [;;(incoming-event:v10:a e) | |]]
   ;<  ~  bind:m  watched
-  ;<  ~  bind:m  (set-scry-gate (gate stream &))
+  ;<  ~  bind:m  (set-scry-gate scries)
   ;<  loaded=(list card)  bind:m  (do-load adapter `!>(saved))
   ;<  head=(list card)  bind:m  (do-agent /head [~zod %harness] [%watch-ack ~])
   (pure:m (weld loaded head))
 ::  The head's hand ledger refuses job .id at .phase.
 ++  refuse
   |=  [phase=?(%bind %observe) id=@uv]
+  (hand-result phase id [%| ledger-refusal])
+::  The head's hand ledger answers job .id at .phase with .result.
+++  hand-result
+  |=  [phase=?(%bind %observe) id=@uv result=(each json @t)]
   =/  m  (mare ,(list card))
   ^-  form:m
   =/  =wire  /hand/[phase]/(scot %uv id)
   ;<  ~  bind:m
     (jab-bowl |=(b=bowl b(wex (~(put by wex.b) [wire ~zod %harness] [& /hands/x]))))
-  (do-agent wire [~zod %harness] [%fact %noun !>(`(each json @t)`[%| ledger-refusal])])
+  (do-agent wire [~zod %harness] [%fact %noun !>(result)])
 ++  refuse-all
   |=  [phase=?(%bind %observe) ids=(list @uv)]
   =/  m  (mare ,~)
@@ -784,4 +795,230 @@
     !>(`(list @t)`~['bot-limit' 'bot-message' 'bot-message' 'bot-message'])
   ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.saved.out)) !>(3))
   (ex-equal !>(activity-through.saved.out) !>((second 7)))
+::  Route setup. The head runs and refuses a step of a conversation's
+::  setup, or is stopped while it waits.
+::
+++  guest-sid  (identity:continuity guest-dm)
+++  room-sid  (identity:continuity room)
+++  dm-row
+  |=  [who=@p at=@da]
+  ^-  [@da incoming-event:v8:a]
+  [at [%dm-post [[who at] at] [%ship who] ~[[%inline ~['hello']]] |]]
+::  .gate, with the head running when .up and holding sessions .sids.
+++  head-gate
+  |=  [=stream:v10:a up=? sids=(list @t)]
+  =/  rest  (gate stream &)
+  |=  =path
+  ^-  (unit vase)
+  ?:  ?=([%gu @ %harness @ %$ ~] path)  `!>(up)
+  ?:  ?=([%gx @ %harness @ %sessions %json ~] path)
+    `!>(`json`[%a (turn sids |=(sid=@t `json`[%s sid]))])
+  ?:  ?=([%gx @ %harness @ %head @ %noun ~] path)
+    `!>(`[revision=@ud view=view:h next=(unit step:h)]`[0 *view:h ~])
+  (rest path)
+::  A conversation at .to setting up its route at .phase, with .waiting jobs.
+++  setting-up
+  |=  [to=destination:t phase=?(%fence %create) waiting=(list [id=@uv actor=@p])]
+  ^-  state-5:t
+  =/  sid  (identity:continuity to)
+  =/  s  allowed-fixture
+  =.  s
+    %=  s
+      lanes  (~(put by lanes.s) sid [to 0 ~])
+      routes  (~(put by routes.s) sid ['binding' phase])
+      identities  (~(put by identities.s) to sid)
+    ==
+  %+  roll  waiting
+  |=  [[id=@uv actor=@p] s=_s]
+  s(jobs (~(put by jobs.s) id [[actor (scot %uv id) to 'hello'] sid %create '']))
+::  The head acknowledges conversation .sid's setup step .phase, or refuses it.
+++  route-ack
+  |=  [sid=@t phase=?(%fence %create %config) refused=?]
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  %^  do-agent  /route/[sid]/(scot %ud 0)/[phase]  [~zod %harness]
+  [%poke-ack ?.(refused ~ `~[leaf+"refused"])]
+::  Head actions among the emitted cards, as their wire and kind.
+++  head-requests
+  |=  caz=(list card)
+  ^-  (list [path @tas])
+  %+  murn  caz
+  |=  =card
+  ^-  (unit [path @tas])
+  ?.  ?=([%pass * %agent * %poke %harness-action *] card)  ~
+  =/  [pass=* wire=* agent=* who=* poke=* mark=* data=vase]  card
+  `[;;(path wire) -:!<(action:h data)]
+++  retry
+  |=  id=@uv
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  =/  params  (pairs:enjs:format ~[['id' s+(scot %uv id)]])
+  %+  do-poke  %noun
+  !>(`request:ad`['fixture' [%n '1'] 'harness/tlon/admission/retry' `params])
+++  settled
+  %:  acp-error-card:~(. codec ~zod)
+    'fixture'  [%n '1']  '-32602'
+    'Admission has already settled or been revoked; refresh its state'
+  ==
+::  Conversation .sid has no job, lane or route, and the newest entry is .kind.
+++  ended
+  |=  [s=state-5:t sid=@t kind=@t]
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m
+    (ex-equal !>((lien ~(val by jobs.s) |=(j=job:t =(sid sid.j)))) !>(|))
+  ;<  ~  bind:m
+    (ex-equal !>((scag 1 (turn notices.s |=(n=notice:t kind.n)))) !>(`(list @t)`~[kind]))
+  ;<  ~  bind:m  (ex-equal !>((~(has by lanes.s) sid)) !>(|))
+  (ex-equal !>((~(has by routes.s) sid)) !>(|))
+::  Job .id still waits for conversation .sid's setup, at .stage.
+++  waiting
+  |=  [s=state-5:t sid=@t id=@uv stage=@tas]
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (ex-equal !>(`(unit @tas)`(bind (~(get by jobs.s) id) |=(j=job:t stage.j))) !>(`stage))
+  ;<  ~  bind:m  (ex-equal !>((~(has by lanes.s) sid)) !>(&))
+  (ex-equal !>((~(has by routes.s) sid)) !>(&))
+::
+++  test-a-conversation-whose-route-setup-failed-does-not-stop-other-conversations
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  [t1=@da t2=@da t3=@da]  [(second 5) (second 6) (second 7)]
+  ;<  *  bind:m  (setup allowed-fixture ~[(dm-row guest t1) (dm-row guest t2) (dm-row ~nec t3)])
+  ;<  *  bind:m  (route-ack guest-sid %create &)
+  ;<  failed=state-5:t  bind:m  saved
+  ;<  ~  bind:m  (ended failed guest-sid 'refusal-notice')
+  ;<  ~  bind:m  (ex-equal !>(activity-through.failed) !>(t1))
+  ;<  *  bind:m  (do-arvo /poll [%behn %wake ~])
+  ;<  s=state-5:t  bind:m  saved
+  ;<  ~  bind:m  (ex-equal !>(activity-through.s) !>(t3))
+  (ex-equal !>((~(has by lanes.s) (identity:continuity owner-dm))) !>(&))
+++  test-a-failed-route-setup-tells-its-sender-once
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (setup allowed-fixture ~[(dm-row guest (second 5)) (dm-row guest (second 6))])
+  ;<  first=(list card)  bind:m  (route-ack guest-sid %create &)
+  ;<  told=state-5:t  bind:m  saved
+  ;<  ~  bind:m  (ex-equal !>((messenger-pokes first)) !>(~[(dm-notice guest last-sent.told)]))
+  ;<  *  bind:m  (do-arvo /poll [%behn %wake ~])
+  ;<  again=(list card)  bind:m  (route-ack guest-sid %create &)
+  ;<  s=state-5:t  bind:m  saved
+  ;<  ~  bind:m  (ex-equal !>((messenger-pokes again)) !>(`(list [mark noun])`~))
+  (ended s guest-sid 'refusal')
+++  test-a-failed-route-setup-tells-each-sender-waiting-in-a-channel
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m
+    %+  load-with
+      (setting-up room %create ~[[0v1 ~nec] [0v2 guest] [0v3 ~nec]])
+    (head-gate ~ & ~)
+  ;<  caz=(list card)  bind:m  (route-ack room-sid %create &)
+  ;<  s=state-5:t  bind:m  saved
+  ::  One entry per message, one notice per sender.
+  ;<  ~  bind:m  (ex-equal !>((lent (messenger-pokes caz))) !>(2))
+  =/  order  |=([a=[@t @p] b=[@t @p]] (aor a b))
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>((sort (turn notices.s |=(n=notice:t `[@t @p]`[kind.n actor.n])) order))
+    !>((sort `(list [@t @p])`~[['refusal-notice' ~nec] ['refusal' ~nec] ['refusal-notice' guest]] order))
+  ;<  ~  bind:m  (ex-equal !>(jobs.s) !>(`(map @uv job:t)`~))
+  ;<  ~  bind:m  (ex-equal !>((~(has by lanes.s) room-sid)) !>(|))
+  (ex-equal !>((~(has by routes.s) room-sid)) !>(|))
+++  test-the-next-message-after-a-failed-route-setup-is-bound-and-observed
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  rows  ~[(dm-row guest (second 5)) (dm-row guest (second 6)) (dm-row guest (second 7))]
+  ;<  *  bind:m  (setup allowed-fixture rows)
+  ;<  *  bind:m  (route-ack guest-sid %create &)
+  ;<  woke=(list card)  bind:m  (do-arvo /poll [%behn %wake ~])
+  ;<  ~  bind:m
+    %+  ex-equal  !>((head-requests woke))
+    !>(`(list [path @tas])`~[[/route/[guest-sid]/(scot %ud 0)/create %new]])
+  ;<  ready=(list card)  bind:m  (route-ack guest-sid %create |)
+  ;<  ~  bind:m
+    (ex-equal !>((turn (hand-requests ready) |=(act=action:hh `@tas`-.act))) !>(`(list @tas)`~[%bind]))
+  ;<  bound=state-5:t  bind:m  saved
+  =/  id  (snag 0 ~(tap in ~(key by jobs.bound)))
+  ;<  observed=(list card)  bind:m  (hand-result %bind id [%& ~])
+  ;<  ~  bind:m
+    (ex-equal !>((turn (hand-requests observed) |=(act=action:hh `@tas`-.act))) !>(`(list @tas)`~[%observe]))
+  ;<  *  bind:m  (do-arvo /poll [%behn %wake ~])
+  ;<  s=state-5:t  bind:m  saved
+  (ex-equal !>(activity-through.s) !>((second 7)))
+++  test-a-refused-fence-ends-the-setup-and-its-retry-has-settled
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m
+    (load-with (setting-up guest-dm %fence ~[[0v1 guest]]) (head-gate ~ & ~[guest-sid]))
+  ;<  *  bind:m  (route-ack guest-sid %fence &)
+  ;<  s=state-5:t  bind:m  saved
+  ;<  ~  bind:m  (ended s guest-sid 'refusal-notice')
+  ;<  caz=(list card)  bind:m  (retry 0v1)
+  (ex-equal !>((lien caz |=(c=card =(c settled)))) !>(&))
+++  test-a-refused-config-ends-the-setup
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m
+    (load-with (setting-up guest-dm %fence ~[[0v1 guest]]) (head-gate ~ & ~[guest-sid]))
+  ;<  fenced=(list card)  bind:m  (route-ack guest-sid %fence |)
+  ;<  ~  bind:m
+    %+  ex-equal  !>((head-requests fenced))
+    !>(`(list [path @tas])`~[[/route/[guest-sid]/(scot %ud 0)/config %config]])
+  ;<  *  bind:m  (route-ack guest-sid %config &)
+  ;<  s=state-5:t  bind:m  saved
+  (ended s guest-sid 'refusal-notice')
+++  test-a-refused-create-with-an-existing-session-restarts-the-setup
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (load-with (setting-up guest-dm %create ~[[0v1 guest]]) (head-gate ~ & ~))
+  ;<  ~  bind:m  (set-scry-gate (head-gate ~ & ~[guest-sid]))
+  ;<  caz=(list card)  bind:m  (route-ack guest-sid %create &)
+  ;<  s=state-5:t  bind:m  saved
+  ;<  ~  bind:m
+    %+  ex-equal  !>((head-requests caz))
+    !>(`(list [path @tas])`~[[/route/[guest-sid]/(scot %ud 0)/fence %fence]])
+  (waiting s guest-sid 0v1 %create)
+++  test-a-setup-on-a-stopped-head-waits-and-is-bound-after-reconnect
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (load-with (setting-up guest-dm %fence ~[[0v1 guest]]) (head-gate ~ | ~))
+  ;<  *  bind:m  (retry 0v1)
+  ;<  stopped=state-5:t  bind:m  saved
+  ;<  ~  bind:m  (waiting stopped guest-sid 0v1 %error)
+  ;<  ~  bind:m  (set-scry-gate (head-gate ~ & ~))
+  ;<  *  bind:m  (do-agent /head [~zod %harness] [%kick ~])
+  ;<  *  bind:m  (do-agent /head [~zod %harness] [%watch-ack ~])
+  ;<  caz=(list card)  bind:m  (route-ack guest-sid %create |)
+  =/  binds
+    %+  murn  (hand-requests caz)
+    |=(act=action:hh ?.(?=(%bind -.act) ~ `address.config.act))
+  (ex-equal !>(binds) !>(`(list @t)`~['dm/~bus']))
+++  test-a-session-gone-after-its-fence-ends-the-setup
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m
+    (load-with (setting-up guest-dm %fence ~[[0v1 guest]]) (head-gate ~ & ~[guest-sid]))
+  ;<  ~  bind:m  (set-scry-gate (head-gate ~ & ~))
+  ;<  *  bind:m  (route-ack guest-sid %fence |)
+  ;<  s=state-5:t  bind:m  saved
+  (ended s guest-sid 'refusal-notice')
+++  test-a-head-stopped-after-a-fence-leaves-the-setup-waiting
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m
+    (load-with (setting-up guest-dm %fence ~[[0v1 guest]]) (head-gate ~ & ~[guest-sid]))
+  ;<  ~  bind:m  (set-scry-gate (head-gate ~ | ~[guest-sid]))
+  ;<  *  bind:m  (route-ack guest-sid %fence |)
+  ;<  s=state-5:t  bind:m  saved
+  (waiting s guest-sid 0v1 %error)
 --

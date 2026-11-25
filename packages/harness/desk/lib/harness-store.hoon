@@ -191,7 +191,7 @@
           (skip (trip (scot %uv (sham [sid name.event]))) |=(c=@tD =('.' c)))
         =/  result
           %:  save:mem
-            db  (cat 3 'imported-' identity)  0
+            everything:mem  db  (cat 3 'imported-' identity)  0
             :*  body.event  (words:index name.event)  |  &
                 (migrate-memory-source sid at t.events)
             ==
