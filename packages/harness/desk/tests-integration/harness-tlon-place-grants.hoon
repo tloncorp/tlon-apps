@@ -516,6 +516,23 @@
   %+  ex-equal
     !>((turn ~(val by jobs.u) |=(=job:t event.input.job)))
   !>(`(list @t)`~[(scot %uv (sham [room [[~dev later] later]]))])
+::  Removing ~dev's room grant moves its room cutoff; the next unrelated save
+::  drops that key, since granting the room again sets a fresh cutoff.
+::
+++  test-a-removed-grants-place-cutoff-is-dropped-by-the-next-unrelated-save
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  removed  policy:fixture
+  =.  channel-grants.removed  ~
+  ;<  [* s=state-5:t]  bind:m  (configure fixture removed)
+  ;<  ~  bind:m
+    %+  ex-equal  !>((~(get by place-cuts.s) [~dev `room-nest]))
+    !>(`(unit @da)``~2026.9.10)
+  =/  unrelated  removed
+  =.  allowed.unrelated  (silt ~[~bud ~nus])
+  ;<  [* w=state-5:t]  bind:m  (configure-at ~2026.9.10..06.00.00 s unrelated)
+  (ex-equal !>((~(has by place-cuts.w) [~dev `room-nest])) !>(|))
 ::  ~nus is trusted and also holds its DM. Saving the same tools in another
 ::  order changes nothing there.
 ::
