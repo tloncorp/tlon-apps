@@ -3,7 +3,8 @@
 // given does nothing and gets no reply. The guest DMs the bot and the owner is sent a card. The owner's tap on the
 // card's Allow button gives the guest DM access, accepts its pending invitation and
 // answers the message it asked with, once, without its writing again; its next message
-// is answered too.
+// is answered too. The owner's /pending lists the open request's id; with the guest
+// blocked, /banned lists it, /unban unblocks it and /banned then does not.
 // No command text is in a model request. Runs apart from tlon-approval-commands-channel-conformance: the
 // denial limit lets a ship open one request per five minutes. Restores policy and
 // defaults. Leaves the fixture messages, the card and the replies.
@@ -18,8 +19,12 @@ const { bot, peer: owner, guest, until, status } = t
 const sentText = (label) => `${marker}-${label}`
 const requests = (s) => s.requests.filter((request) => request.ship === guest.ship)
 const answered = (posts) => posts.some((post) => t.words(post).includes(`${marker}-answer`))
+// A post's text by line: its paragraphs and line breaks, a ship as its name.
+const lines = (post) => (post?.essay?.content ?? []).map((verse) => (verse.inline || [])
+  .map((item) => typeof item === 'string' ? item : item.ship ?? ('break' in item ? '\n' : item['inline-code'] ?? '')).join('')).join('\n').split('\n')
 // The bot's join notice in the DM it accepts is its post too; only answers count.
 const answers = async (start) => (await t.dmFromBot(guest, start)).filter((post) => t.words(post).includes(`${marker}-answer`)).length
+let blocked = false
 try {
   await t.start()
   await t.client.call('harness/tlon/configure', { ...(await status()).policy, enabled: false })
@@ -40,6 +45,20 @@ try {
   const parts = new Map(entry.messages.find((message) => message.updateComponents).updateComponents.components.map((c) => [c.id, c]))
   const allow = parts.get('allow').action.event.context.text
   assert.match(allow, new RegExp(`^/allow ${request.id} 0v[0-9a-v.]+$`))
+
+  const listing = t.da(Date.now())
+  await t.dm(owner, bot, '/pending')
+  const [pending] = await until('the owner\'s /pending lists the open request with its id', async () => {
+    const found = (await t.dmFromBot(owner, listing)).filter((post) => t.words(post).includes(`#${request.id} - DM from ${guest.ship}`))
+    return found.length && found
+  })
+  assert.match(t.words(pending), /^Pending requests \(\d+\):/)
+  const pendingEntry = JSON.parse(pending.essay.blob)[0]
+  console.log(`CARD ${JSON.stringify(pendingEntry)}`)
+  const pendingButtons = pendingEntry.messages.find((message) => message.updateComponents).updateComponents.components
+    .filter((c) => c.component === 'Button').map((c) => c.action.event.context.text)
+  assert.ok(pendingButtons.includes(allow), 'the /pending card has no Allow button for the request')
+  console.log('PASS /pending lists the open request\'s id, with a card whose button is the request\'s own')
 
   // The app sends a tapped button's text with a selection receipt in the blob.
   const tapped = t.da(Date.now())
@@ -88,7 +107,36 @@ try {
   await t.dm(owner, bot, sentText('owner'))
   await until('the owner\'s next message is answered', async () => answered(await t.dmFromBot(owner, asked)))
   assert.ok(!t.seen(allow), 'the owner\'s command reached the model')
+  assert.ok(!t.seen('/pending'), 'the owner\'s /pending reached the model')
   console.log('PASS the owner\'s command starts no turn and is not in the owner\'s next turn')
+
+  // The guest has no request open, and the denial limit keeps it from opening
+  // another, so it is blocked natively, as /ban and the app's Block do.
+  await t.client.pokeAgent('chat', 'chat-block-ship', { ship: guest.ship })
+  blocked = true
+  await until('the bot blocks the guest', async () => (await t.scry(bot, 'chat/blocked')).includes(guest.ship))
+  const reply = async (text, expected) => {
+    const sent = t.da(Date.now())
+    await t.dm(owner, bot, text)
+    const [found] = await until(`the owner's ${text} is answered`, async () => {
+      const posts = (await t.dmFromBot(owner, sent)).filter((post) => expected(t.words(post)))
+      return posts.length && posts
+    })
+    return lines(found)
+  }
+  const blockedList = await reply('/banned', (words) => words.startsWith('Blocked users ('))
+  assert.ok(blockedList.some((line) => line.trim() === guest.ship), '/banned does not list the blocked guest')
+  console.log('PASS /banned lists the blocked guest')
+  await reply(`/unban ${guest.ship}`, (words) => words === `Unblocked ${guest.ship}.`)
+  assert.ok(!(await t.scry(bot, 'chat/blocked')).includes(guest.ship), '/unban left the guest blocked')
+  blocked = false
+  const after = await reply('/banned', (words) => words.startsWith('Blocked users (') || words === 'No users are currently blocked.')
+  assert.ok(!after.some((line) => line.trim() === guest.ship), '/banned still lists the unbanned guest')
+  console.log('PASS /unban unblocks the guest and /banned no longer lists it')
 } finally {
-  await t.stop()
+  try {
+    if (blocked) await t.client.pokeAgent('chat', 'chat-unblock-ship', { ship: guest.ship })
+  } finally {
+    await t.stop()
+  }
 }

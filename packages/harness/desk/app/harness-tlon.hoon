@@ -2218,6 +2218,7 @@
     [%approval-waiting @ ~]  (agent-approval-waiting wire sign)
     [%approval-full @ ~]  (agent-approval-full wire sign)
     [%approval-ban @ @ @ ~]  (agent-approval-ban wire sign)
+    [%approval-unban @ @ ~]  (agent-approval-unban wire sign)
     [%approval-reply @ ~]  (agent-approval-reply wire sign)
     [%publish @ @ ~]  (agent-publish wire sign)
   ==
@@ -3150,6 +3151,11 @@
   ::  catch-up reaches here before anything expires it. Expiring it here
   ::  instead could decline a DM after an accept this event already sent.
   =/  live  (live:ask approvals now.bowl)
+  ?:  ?=(%pending -.order)  (list-pending to live)
+  ?:  ?=(%banned -.order)  (answer-order to (blocked-text:ask blocked-ships:messenger))
+  ?:  ?=(%unban -.order)
+    ?~  who.order  (answer-order to unban-usage:ask)
+    (unban u.who.order to)
   ::  Among several, a bare command could act on a request the owner did
   ::  not mean, so it lists them instead.
   ?:  &(?=(~ id.order) (gth ~(wyt by by-id.live) 1))
@@ -3158,7 +3164,7 @@
   ?~  found  (answer-order to (unknown:ask id.order))
   =/  [id=@t =approval:t]  u.found
   =/  address  (address:p (place-to:p [who place]:approval))
-  ?-    action.order
+  ?-    -.order
       %allow
     ::  The cutoff the request's attempts were judged by, before the grant
     ::  moves it.
@@ -3293,11 +3299,59 @@
 ++  answer-order
   |=  [to=destination:t text=@t]
   ^+  cor
+  (answer-card to text ~)
+::  +answer-card: as +answer-order, with a card when .blob has one
+::
+++  answer-card
+  |=  [to=destination:t text=@t blob=(unit @t)]
+  ^+  cor
   ::  The owner's first post in the DM the card opened makes %chat add a
   ::  join message as [our now] in this same event; a reply with that id
   ::  would be dropped from the bot's own copy of the DM.
   =.  last-sent  (next-message-stamp:p +(now.bowl) last-sent)
-  (emit (publish:messenger /approval-reply/(scot %da last-sent) to text last-sent ~))
+  (emit (publish:messenger /approval-reply/(scot %da last-sent) to text last-sent blob))
+::  +list-pending: answer /pending with the open requests, oldest first,
+::  and a card for them when there are few enough
+::
+++  list-pending
+  |=  [to=destination:t live=approvals:t]
+  ^+  cor
+  =/  total  ~(wyt by by-id.live)
+  =/  shown
+    %+  turn  (scag listed:ask (oldest:ask live))
+    |=  [id=@t =approval:t]
+    [id approval (place-label place.approval)]
+  =/  text  (pending-text:ask shown total)
+  ?:  |(=(0 total) (gth total carded:ask))  (answer-order to text)
+  (answer-card to text `(pending-card:ask shown))
+::  +unban: take .who off Tlon's native block list, answering once %chat
+::  has the unblock
+::
+::    Unblocked, the ship may ask again; nothing is granted or reopened.
+::
+++  unban
+  |=  [who=@p to=destination:t]
+  ^+  cor
+  ?.  (blocked:messenger who)  (answer-order to (unbanned:ask who %free))
+  (emit (unblock:messenger /approval-unban/(scot %p who)/(scot %uv (jam to)) who))
+::
+++  agent-approval-unban
+  |=  [=wire =sign:agent:gall]
+  ^+  cor
+  ?>  ?=([%approval-unban @ @ ~] wire)
+  ?.  ?=(%poke-ack -.sign)  cor
+  =/  who=@p  (slav %p i.t.wire)
+  =/  to  ;;(destination:t (cue (slav %uv i.t.t.wire)))
+  ::  A second unban's unblock, sent before the first was acknowledged, is
+  ::  refused because the first took: the ship is unblocked.
+  ?:  |(?=(~ p.sign) !(blocked:messenger who))
+    =.  cor  (note 'approval-unbanned' who (scot %p who) '')
+    (answer-order to (unbanned:ask who %unblocked))
+  %-  (slog 'harness-tlon: unblock rejected' u.p.sign)
+  =.  cor  (emit (crash:observe bowl %approval-unban u.p.sign))
+  =.  error  'Messenger rejected an unblock; inspect the ship log.'
+  =.  cor  (note 'approval-unban-failed' who (scot %p who) '')
+  (answer-order to (unbanned:ask who %failed))
 ::
 ++  agent-approval-reply
   |=  [=wire =sign:agent:gall]

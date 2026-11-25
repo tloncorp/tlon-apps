@@ -120,6 +120,21 @@
       (expect-eq !>(~) !>((read-order:ask 'allow d1234')))
       (expect-eq !>(~) !>((read-order:ask '/Allow d1234')))
   ==
+::  The listings take nothing after them; an unban's ship is read with or
+::  without its sig, in any case, and ~ when the text is no ship.
+::
+++  test-the-listings-and-unban-are-read-with-their-ship
+  ;:  weld
+      (expect-eq !>(`[%pending ~]) !>((read-order:ask ' /pending ')))
+      (expect-eq !>(`[%banned ~]) !>((read-order:ask '/banned')))
+      (expect-eq !>(~) !>((read-order:ask '/pending d1234')))
+      (expect-eq !>(~) !>((read-order:ask '/banned ~dev')))
+      (expect-eq !>(`[%unban `~sampel-palnet]) !>((read-order:ask '/unban ~sampel-palnet')))
+      (expect-eq !>(`[%unban `~dev]) !>((read-order:ask '/unban  Dev ')))
+      (expect-eq !>(`[%unban ~]) !>((read-order:ask '/unban')))
+      (expect-eq !>(`[%unban ~]) !>((read-order:ask '/unban ~dev ~bus')))
+      (expect-eq !>(`[%unban ~]) !>((read-order:ask '/unban d1234')))
+  ==
 ::  Exact first, then the one id the text begins, case as typed; no id is
 ::  the only open request, and none of several. With a token, the exact id
 ::  of the request that token was made for only.

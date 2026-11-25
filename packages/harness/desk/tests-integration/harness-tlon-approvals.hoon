@@ -2043,4 +2043,306 @@
   =/  w  !<(state-6:t vase)
   ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(approvals.s))
   (ex-equal !>(=('' error.w)) !>(|))
+::
+::  The owner's listings and unban
+::
+::  The replies to owner commands with the card each carries, if any
+::
+++  carded
+  |=  caz=(list card)
+  ^-  (list (unit @t))
+  %+  murn  caz
+  |=  c=card
+  ?.  ?=([%pass [%approval-reply @ ~] %agent [@ %chat] %poke %chat-dm-action-2 *] c)  ~
+  =/  act  !<(action:dm:v7:cv q.cage.task.q.c)
+  ?>  ?=(%add -.q.q.act)
+  `blob.essay.q.q.act
+::  The native unblocks asked of %chat: their wires and ships
+::
+++  unblocks
+  |=  caz=(list card)
+  ^-  (list [wire @p])
+  %+  murn  caz
+  |=  c=card
+  ?.  ?=([%pass * %agent [@ %chat] %poke %chat-unblock-ship *] c)  ~
+  `[p.c !<(@p q.cage.task.q.c)]
+::  As +admit, with %chat blocking .blocked
+::
+++  admit-blocking
+  |=  [saved=state-6:t events=(list [@da incoming-event:v8:a]) blocked=(set @p)]
+  =/  m  (mare ,[(list card) state-6:t])
+  ^-  form:m
+  =/  events  (stream events)
+  ;<  ~  bind:m  (boot saved later events)
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ?:  ?=([%gx @ %chat @ %blocked %ships ~] path)  `!>(blocked)
+    ((scries events) path)
+  ;<  caz=(list card)  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
+  ;<  =vase  bind:m  get-save
+  (pure:m caz !<(state-6:t vase))
+::  %chat's acknowledgement, with .ack, of the unblock on .wire, while it
+::  blocks .blocked
+::
+++  ack-unblock
+  |=  [=wire ack=(unit tang) blocked=(set @p)]
+  =/  m  (mare ,[(list card) state-6:t])
+  ^-  form:m
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ?:  ?=([%gx @ %chat @ %blocked %ships ~] path)  `!>(blocked)
+    ((scries *stream:v10:a) path)
+  ;<  out=(list card)  bind:m  (do-agent wire [~zod %chat] [%poke-ack ack])
+  ;<  =vase  bind:m  get-save
+  (pure:m out !<(state-6:t vase))
+++  room-label  'Room in Lux group (chat/~lux/test)'
+++  pending-tail  '\0aUse /allow, /reject, or /ban with the ID.'
+::  The three open requests, oldest first, each with its id, and a card
+::  whose buttons are each request's own
+::
+++  test-pending-lists-the-open-requests-oldest-first-with-their-ids
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    (admit asked later ~[[told (said ~nec '/pending' told)]])
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals:asked))
+  ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy:asked))
+  ;<  ~  bind:m  (ex-equal !>((turned caz)) !>(|))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((answered caz))
+    !>  ^-  (list [@t @t])
+    :~  :-  'dm/~nec'
+        %+  rap  3
+        :~  'Pending requests (3):'
+            '\0a  #d0001 - DM from ~dev'
+            '\0a  #c0001 - Mention in '  room-label  ' by ~dev'
+            '\0a  #c0002 - Mention in '  room-label  ' by ~wes'
+            pending-tail
+        ==
+    ==
+  =/  cards  (carded caz)
+  ?>  ?=([[~ @] ~] cards)
+  =/  sends
+    |=  [action=@t id=@t]
+    (rap 3 action ' ' id ' ' (token asked id) ~)
+  %+  ex-equal  !>((buttons u.i.cards))
+  !>  ^-  (list [@t @t])
+  %-  zing
+  %+  turn  `(list @t)`~['d0001' 'c0001' 'c0002']
+  |=  id=@t
+  :~  ['Allow' (sends '/allow' id)]
+      ['Reject' (sends '/reject' id)]
+      ['Block' (sends '/ban' id)]
+  ==
+++  test-pending-says-so-when-none-are-open
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    (admit fixture later ~[[told (said ~nec '/pending' told)]])
+  ;<  ~  bind:m
+    %+  ex-equal  !>((answered caz))
+    !>(`(list [@t @t])`~[['dm/~nec' 'No pending approval requests.']])
+  (ex-equal !>((carded caz)) !>(`(list (unit @t))`~[~]))
+::  A reload catches up on /pending before anything expires the two overdue
+::  requests; only the third is listed.
+::
+++  test-pending-leaves-out-a-request-past-its-expiry
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  late  (add start (add ~h48 ~m1))
+  =/  events  (stream ~[[late (said ~nec '/pending' late)]])
+  ;<  ~  bind:m
+    (set-bowl %*(. *bowl our ~zod, src ~zod, now (add late ~s1), eny (shax 'approvals')))
+  ;<  ~  bind:m  head-connected
+  ;<  ~  bind:m
+    %-  jab-bowl
+    |=(b=bowl b(wex (~(put by wex.b) [/activity ~zod %activity] [& /v4])))
+  ;<  ~  bind:m  (set-scry-gate (scries events))
+  ;<  caz=(list card)  bind:m  (do-load adapter `!>(asked))
+  %+  ex-equal  !>((answered caz))
+  !>  ^-  (list [@t @t])
+  :~  :-  'dm/~nec'
+      (rap 3 'Pending requests (1):\0a  #c0002 - Mention in ' room-label ' by ~wes' pending-tail ~)
+  ==
+::  At most 25 named and the rest counted, and a card for at most four.
+::
+++  test-pending-counts-the-requests-past-its-limits
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    (admit (crowd fixture 30 start) later ~[[told (said ~nec '/pending' told)]])
+  =/  replies  (answered caz)
+  ?>  ?=([[@ @] ~] replies)
+  =/  text  (trip text.i.replies)
+  ;<  ~  bind:m  (ex-equal !>((scag 22 text)) !>("Pending requests (30):"))
+  ;<  ~  bind:m  (ex-equal !>((lent (fand "\0a  #" text))) !>(25))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((crip (slag (sub (lent text) 56) text)))
+    !>(`@t`(cat 3 '\0a  and 5 more.' pending-tail))
+  ;<  ~  bind:m  (ex-equal !>((carded caz)) !>(`(list (unit @t))`~[~]))
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    (admit (crowd fixture 5 start) later ~[[told (said ~nec '/pending' told)]])
+  ;<  ~  bind:m  (ex-equal !>((carded caz)) !>(`(list (unit @t))`~[~]))
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    (admit (crowd fixture 4 start) later ~[[told (said ~nec '/pending' told)]])
+  =/  cards  (carded caz)
+  ?>  ?=([[~ @] ~] cards)
+  (ex-equal !>((lent (buttons u.i.cards))) !>(12))
+++  test-banned-lists-the-blocked-ships
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    (admit-blocking fixture ~[[told (said ~nec '/banned' told)]] (silt ~[~bel ~dev]))
+  ;<  ~  bind:m  (ex-equal !>((turned caz)) !>(|))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((answered caz))
+    !>  ^-  (list [@t @t])
+    ~[['dm/~nec' 'Blocked users (2):\0a  ~bel\0a  ~dev\0aTo unban: /unban ~sampel-palnet']]
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    (admit-blocking fixture ~[[told (said ~nec '/banned' told)]] ~)
+  %+  ex-equal  !>((answered caz))
+  !>(`(list [@t @t])`~[['dm/~nec' 'No users are currently blocked.']])
+::  Nothing is granted and no request opens; ~bel may simply ask again.
+::
+++  test-unban-unblocks-the-ship-and-confirms-once-chat-has-the-unblock
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    (admit asked later ~[[told (said ~nec '/unban ~bel' told)]])
+  =/  asks  (unblocks caz)
+  ;<  ~  bind:m  (ex-equal !>((turn asks tail)) !>(`(list @p)`~[~bel]))
+  ;<  ~  bind:m  (ex-equal !>((answered caz)) !>(`(list [@t @t])`~))
+  ?>  ?=([* ~] asks)
+  ;<  [out=(list card) w=state-6:t]  bind:m  (ack-unblock -.i.asks ~ ~)
+  ;<  ~  bind:m  (ex-equal !>((answered out)) !>(`(list [@t @t])`~[['dm/~nec' 'Unblocked ~bel.']]))
+  ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-unbanned')) !>(1))
+  ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(approvals:asked))
+  ;<  ~  bind:m  (ex-equal !>(policy.w) !>(policy:asked))
+  ::  As OpenClaw reads it, the sig and the case are optional.
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    (admit asked later ~[[told (said ~nec '/unban BEL' told)]])
+  (ex-equal !>((turn (unblocks caz) tail)) !>(`(list @p)`~[~bel]))
+++  test-a-refused-unblock-is-reported
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    (admit asked later ~[[told (said ~nec '/unban ~bel' told)]])
+  =/  asks  (unblocks caz)
+  ?>  ?=([* ~] asks)
+  ;<  [out=(list card) w=state-6:t]  bind:m  (ack-unblock -.i.asks `~[leaf+"no"] (silt ~[~bel]))
+  ;<  ~  bind:m
+    (ex-equal !>((answered out)) !>(`(list [@t @t])`~[['dm/~nec' 'Failed to unblock ~bel.']]))
+  ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-unban-failed')) !>(1))
+  ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-unbanned')) !>(0))
+  (ex-equal !>(=('' error.w)) !>(|))
+::  Two unbans both see ~bel blocked; the second unblock is refused because
+::  the first took, which is the unban the owner asked for.
+::
+++  test-a-second-unban-refused-as-not-blocked-is-told-as-an-unban
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    %^  admit  asked  later
+    :~  [told (said ~nec '/unban ~bel' told)]
+        [(add told ~s1) (said ~nec '/unban ~bel' (add told ~s1))]
+    ==
+  =/  asks  (unblocks caz)
+  ?>  ?=([* * ~] asks)
+  ;<  [first=(list card) *]  bind:m  (ack-unblock -.i.asks ~ ~)
+  ;<  [second=(list card) w=state-6:t]  bind:m
+    (ack-unblock -.i.t.asks `~[leaf+"not blocked"] ~)
+  ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-unban-failed')) !>(0))
+  ;<  ~  bind:m  (ex-equal !>((answered first)) !>(`(list [@t @t])`~[['dm/~nec' 'Unblocked ~bel.']]))
+  (ex-equal !>((answered second)) !>(`(list [@t @t])`~[['dm/~nec' 'Unblocked ~bel.']]))
+::  %chat crashes on an unblock of a ship it does not block, so none is
+::  asked for.
+::
+++  test-unban-of-a-ship-not-blocked-asks-nothing-and-says-so
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    (admit asked later ~[[told (said ~nec '/unban ~dev' told)]])
+  ;<  ~  bind:m  (ex-equal !>((unblocks caz)) !>(`(list [wire @p])`~))
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals:asked))
+  %+  ex-equal  !>((answered caz))
+  !>(`(list [@t @t])`~[['dm/~nec' '~dev is not blocked.']])
+++  test-unban-without-a-ship-gets-the-usage-reply
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    %^  admit  asked  later
+    :~  [told (said ~nec '/unban' told)]
+        [(add told ~s1) (said ~nec '/unban sampel palnet' (add told ~s1))]
+    ==
+  ;<  ~  bind:m  (ex-equal !>((unblocks caz)) !>(`(list [wire @p])`~))
+  ;<  ~  bind:m  (ex-equal !>((turned caz)) !>(|))
+  %+  ex-equal  !>((answered caz))
+  !>  ^-  (list [@t @t])
+  :~  ['dm/~nec' 'Usage: /unban ~ship-name']
+      ['dm/~nec' 'Usage: /unban ~ship-name']
+  ==
+::  ~bus has DM access, ~ryd is trusted, ~wes has no access: each command is
+::  dropped as their /allow is, opening no request and starting no turn.
+::
+++  test-a-listing-or-unban-from-a-ship-that-is-not-the-owner-changes-nothing-and-gets-no-reply
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  asked
+  =.  trusted.policy.saved  (my ~[[~ryd ~[%web]]])
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    %^  admit  saved  later
+    :~  [told (said ~bus '/pending' told)]
+        [(add told ~s1) (said ~wes '/banned' (add told ~s1))]
+        [(add told ~s2) (said ~ryd '/unban ~bel' (add told ~s2))]
+        [(add told ~s3) (said ~wes '/pending' (add told ~s3))]
+    ==
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals:asked))
+  ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy.saved))
+  ;<  ~  bind:m  (ex-equal !>((answered caz)) !>(`(list [@t @t])`~))
+  ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
+  ;<  ~  bind:m  (ex-equal !>((unblocks caz)) !>(`(list [wire @p])`~))
+  ;<  ~  bind:m  (ex-equal !>((kinds s 'permission-denied')) !>(0))
+  ;<  ~  bind:m  (ex-equal !>(jobs.s) !>(`(map @uv job:t)`~))
+  (ex-equal !>((turned caz)) !>(|))
+::  In a channel the owner's /pending is an ordinary message, admitted as a
+::  turn; ~dev's /unban is an attempt that joins its open request.
+::
+++  test-the-owners-listing-in-a-channel-is-not-taken
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  events
+    %-  stream
+    :~  [told (addressed ~nec room-nest '/pending' told)]
+        [(add told ~s1) (addressed ~dev room-nest '/unban ~bel' (add told ~s1))]
+    ==
+  ;<  ~  bind:m  (boot asked later events)
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ?:  (lien path |=(part=@ta =(%older part)))  `!>(*paged-posts:v9:dv)
+    ((scries events) path)
+  ;<  caz=(list card)  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
+  ;<  =vase  bind:m  get-save
+  =/  s  !<(state-6:t vase)
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals:asked))
+  ;<  ~  bind:m  (ex-equal !>((answered caz)) !>(`(list [@t @t])`~))
+  ;<  ~  bind:m  (ex-equal !>((unblocks caz)) !>(`(list [wire @p])`~))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((turn ~(val by jobs.s) |=(=job:t actor.input.job)))
+    !>(`(list @p)`~[~nec])
+  (ex-equal !>((kinds s 'permission-denied')) !>(1))
 --
