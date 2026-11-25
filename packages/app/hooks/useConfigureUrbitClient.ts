@@ -30,6 +30,9 @@ const clientLogger = createDevLogger('configure client', true);
 
 const apiFetch: typeof fetch = (input, { ...init } = {}) => {
   const headers: any = { ...init.headers };
+  //NOTE  login POSTs use fetch() directly and so won't include this header,
+  //      but that's ok, it doesn't affect behavior there in practice.
+  headers['eyre-no-desk-redirect'] = '?1';
   // The urbit client is inconsistent about sending cookies, sometimes causing
   // the server to send back a new, anonymous, cookie, which is sent on all
   // subsequent requests and screws everything up. This ensures that explicit
