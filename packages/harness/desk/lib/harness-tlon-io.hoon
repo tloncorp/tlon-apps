@@ -287,6 +287,22 @@
   ^-  card
   [%pass wire %agent [our.bowl %contacts] %poke %contact-action-1 !>(`action:ct`[%self fields])]
 ::
+::  +nickname: the display name Contacts holds for a ship, if any
+::
+::    the existence checks come first: a scry for a ship Contacts does not
+::    know fails, and nothing catches a failed scry.
+++  nickname
+  |=  who=@p
+  ^-  (unit @t)
+  =/  base=path  /(scot %p our.bowl)/contacts/(scot %da now.bowl)
+  ?.  .^(? %gu (snoc base %$))  ~
+  =/  known=path  (weld base /v1/contact/(scot %p who))
+  ?.  .^(? %gu known)  ~
+  =/  con  .^(contact:ct %gx (snoc known %contact-1))
+  =/  nick  (~(get by con) %nickname)
+  ?.  ?=([~ %text *] nick)  ~
+  ?:  =('' p.u.nick)  ~
+  `p.u.nick
 ++  contacts
   ^-  json
   =/  =directory:ct

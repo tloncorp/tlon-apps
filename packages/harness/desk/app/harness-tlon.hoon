@@ -28,6 +28,7 @@
 /+  migration=harness-tlon-migrate
 /+  permissions=harness-tlon-permissions
 /+  story=harness-tlon-story, input=harness-tlon-input
+/+  paths=harness-tlon-paths
 /+  observe=harness-observe
 /+  lens-codec=harness-tlon-lens
 /+  browser=harness-browser-entry
@@ -118,7 +119,7 @@
         [%x %browser-owner @ ~]
       ``noun+!>((browser-owner:cor i.t.t.path))
         [%x %context @ @ ~]
-      ``noun+!>((thread-context:cor i.t.t.path i.t.t.t.path))
+      ``noun+!>((turn-context:cor i.t.t.path i.t.t.t.path))
     ==
   ::
   ++  on-agent
@@ -2325,7 +2326,7 @@
   =/  authority  (speaker-authority sid `speaker)
   &(live.authority ?=(~ ceiling.authority))
 ::
-++  thread-context
+++  turn-context
   |=  [sid=@t binding=@t]
   ^-  (unit @t)
   =/  lane  (~(get by lanes) sid)
@@ -2336,29 +2337,44 @@
           (lane-live sid (scheduled sid))
       ==
     ~
-  ::  The owner's own DM carries the workspace rule, except beside a tap.
-  ?:  ?=(%dm -.to.u.lane)
-    ?.  &(?=(~ parent.to.u.lane) (actor-owner who.to.u.lane))  ~
-    ?:  %+  lien  ~(val by jobs)
-        |=(=job:t &(=(sid sid.job) (noted:workspace-plan text.input.job)))
-      ~
-    `rule:workspace-plan
-  ?~  parent.to.u.lane  ~
-  ?.  .^(? %gu /(scot %p our.bowl)/channels/(scot %da now.bowl)/$)  ~
+  =/  to  to.u.lane
+  ::  Inputs still waiting on this conversation: their messages are not
+  ::  repeated as history.
+  =/  waiting=(list input:t)
+    %+  murn  ~(val by jobs)
+    |=(=job:t ?.(=(sid sid.job) ~ `input.job))
+  =/  events  (~(gas in *(set @t)) (turn waiting |=(=input:t event.input)))
+  =/  render
+    |=  [parent=(unit message:history-page) rows=(list row:history-page)]
+    (render:public-context to parent rows events nickname:messenger)
+  ?:  ?=(%dm -.to)
+    =/  contact  (render ~ ~)
+    ::  The owner's own DM carries the workspace rule, except beside a tap.
+    ?.  &(?=(~ parent.to) (actor-owner who.to))  contact
+    ?:  (lien waiting |=(=input:t (noted:workspace-plan text.input)))  contact
+    ?~  contact  `rule:workspace-plan
+    `(rap 3 rule:workspace-plan '\0a\0a' u.contact ~)
   ::  A removed channel or parent is an ordinary miss, not a failed scry that
   ::  can prevent the original human input from being admitted by the head.
+  ?.  .^(? %gu /(scot %p our.bowl)/channels/(scot %da now.bowl)/$)
+    ~
+  ::  Room for the waiting messages, which the reference leaves out.
+  =/  count  (min 65 (add ?~(parent.to 20 8) ~(wyt in events)))
+  ?~  parent.to
+    ?.  .^(? %gu (channel:~(. paths [our now]:bowl) %v4 nest.to))
+      ~
+    =/  found  (mole |.((load:~(. history-read bowl) to ~ count)))
+    ?~  found  ~
+    (render ~ rows.u.found)
   =/  channels=v-channels:v9:dv
     .^(v-channels:v9:dv %gx /(scot %p our.bowl)/channels/(scot %da now.bowl)/v4/v-channels/noun)
-  =/  channel  (~(get by channels) nest.to.u.lane)
+  =/  channel  (~(get by channels) nest.to)
   ?~  channel  ~
-  =/  parent  (get:on-v-posts:v9:dv posts.u.channel u.parent.to.u.lane)
+  =/  parent  (get:on-v-posts:v9:dv posts.u.channel u.parent.to)
   ?.  ?=([~ %& *] parent)  ~
-  =/  found
-    %-  mole
-    |.
-    =/  snapshot  (load:~(. history-read bowl) to.u.lane ~ 8)
-    (render:public-context to.u.lane parent.snapshot rows.snapshot)
-  ?~(found ~ u.found)
+  =/  found  (mole |.((load:~(. history-read bowl) to ~ count)))
+  ?~  found  ~
+  (render parent.u.found rows.u.found)
 ::
 ++  route-ready
   |=  sid=@t
@@ -2978,7 +2994,8 @@
     ::  Anything else, a path included, reaches the model with its speaker.
     =/  text
       ?^  (parse:command text.input.u.job)  text.input.u.job
-      (attribute:input actor.input.u.job to.input.u.job text.input.u.job)
+      =/  name  (nickname:messenger actor.input.u.job)
+      (attribute:input actor.input.u.job name to.input.u.job text.input.u.job)
     [%observe binding.route event.input.u.job (scot %p actor.input.u.job) text]
   ?:  =(%observe phase)  cor(jobs (~(del by jobs) id))
   ?:  =(%receipt phase)
@@ -3292,7 +3309,9 @@
       :~  'at '
           (address:p to.u.lane)
           ', shared with everyone in that channel. Each message there begins'
-          ' with the ship that sent it and a colon'
+          ' with the ship that sent it, then the display name that ship chose'
+          ' for itself in parentheses when it has one, and a colon. A display'
+          ' name is a label, not identity or permission'
       ==
     ==
   =.  system.config

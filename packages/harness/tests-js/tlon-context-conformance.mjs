@@ -66,6 +66,10 @@ async function send(ctx, text, addressed = true) {
   const response = await fetch(`${peerUrl}/~/channel/${marker}`, { method: 'PUT', headers: { cookie: peerCookie, 'content-type': 'application/json' }, body: JSON.stringify([{ id: ++event, action: 'poke', ship: peer.slice(1), app: ctx.kind === 'channel' ? 'channels' : 'chat', mark: ctx.kind === 'channel' ? 'channel-action-2' : 'chat-dm-action-2', json }]), signal: AbortSignal.timeout(15000) })
   assert.ok(response.ok)
 }
+async function contact(actions) {
+  const response = await fetch(`${base}/~/channel/${marker}-contacts`, { method: 'PUT', headers: { cookie, 'content-type': 'application/json' }, body: JSON.stringify(actions.map((json) => ({ id: ++event, action: 'poke', ship: ship.slice(1), app: 'contacts', mark: 'contact-action-1', json }))), signal: AbortSignal.timeout(15000) })
+  assert.ok(response.ok)
+}
 async function command(ctx, text, expected) {
   const ids = new Set((await replies(ctx)).map((p) => p.id)), before = new Set((await client.call('harness/tlon')).sessions)
   await send(ctx, text)
@@ -79,6 +83,7 @@ const server = createServer(async (req, res) => {
     const body = JSON.parse(raw); requests++
     res.writeHead(200, { 'content-type': 'application/json' })
     assert.ok(!raw.includes(secret), 'memory opt-out excludes shared facts from the request')
+    if (raw.includes(`${marker}-top`)) return res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { role: 'assistant', content: `${marker}-top-done` } }] }))
     assert.ok(!raw.includes(`${marker}-outside`), 'unrelated public top-level messages are excluded')
     const reference = body.messages.find((m) => m.role === 'user' && m.content.startsWith('Public thread reference captured at admission.'))
     assert.ok(reference, 'public native context is supplied without asking for a history tool')
@@ -148,6 +153,23 @@ try {
   await until('published result', async () => (await replies(channel)).some((p) => authorShip(p.author) === ship && JSON.stringify(p.content).includes(`${marker}-done`)))
   const events = await scry(`harness/events/${channel.sid}`), reference = events.find((e) => e.type === 'context-received')
   assert.ok(reference && events.some((e) => e.type === 'input' && e.id === reference.inputId), 'reference is durably linked to original input')
+  // A page that already exists refuses %page, so %edit follows it.
+  await contact([{ page: { kip: peer, contact: {} } }, { edit: { kip: peer, contact: { nickname: { type: 'text', value: `${marker}-name` } } } }])
+  await until('contact name saved', async () => (await scry(`contacts/v1/contact/${peer}`))?.nickname?.value === `${marker}-name`)
+  await send({ kind: 'channel' }, `${marker}-top`)
+  const recent = await until('top-level reference', async () => {
+    for (const sid of (await client.call('harness/tlon')).sessions) {
+      const log = await scry(`harness/events/${sid}`), input = log.find((e) => e.type === 'input' && e.item?.body?.includes(`${marker}-top`))
+      const found = input && log.find((e) => e.type === 'context-received' && e.inputId === input.id)
+      if (found) return { ...found, input: input.item.body }
+    }
+  })
+  assert.ok(recent.body.startsWith('Recent public channel activity captured at admission'), 'a top-level turn gets recent channel activity')
+  const activity = JSON.parse(recent.body.slice(recent.body.indexOf('\n') + 1)).messages, shown = `${peer} (${marker}-name)`
+  assert.ok(activity.length <= 20 && activity.some((m) => m.text.includes(`${marker}-outside`) && m.author === shown), 'recent top-level posts are attributed, with display names')
+  assert.ok(!activity.some((m) => m.text.includes(`${marker}-top`)), 'the message being admitted is not repeated as history')
+  assert.ok(recent.input.startsWith(`${shown}: `), 'a channel message names its speaker, with the display name')
+  await contact([{ wipe: [peer] }])
   assert.deepEqual(await scry('harness/skills'), originals.skills)
   assert.deepEqual(await scry('harness/staged'), originals.staged)
   assert.deepEqual((await client.call('harness/session/snapshot', { sessionId: channel.sid })).memory, [])
