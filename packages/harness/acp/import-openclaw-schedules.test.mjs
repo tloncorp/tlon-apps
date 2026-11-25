@@ -444,10 +444,22 @@ test('a rerun without --runs over a task imported earlier with a count says so, 
   }
   assert.equal(head.calls.filter(({ method }) => method === 'harness/cron/add').length, sent + 1, 'only the one-time task is sent again')
   assert.deepEqual(head.rows(), made)
-  head.edit(made[0].id, { prompt: 'Edited by the owner.' })
-  const edited = await importing(head.client, jobs)
-  assert.equal(edited.code, 1, 'an edited one is not the same task')
-  assert.match(edited.output, /failed: Schedule ID already belongs to a different request/)
+})
+
+test('a rerun without --runs over a task imported with a count and edited since sends nothing and differs, as its dry run says', async () => {
+  const head = ship()
+  await importing(head.client, [job()], { runs: 100 })
+  const [row] = head.rows()
+  head.edit(row.id, { prompt: 'Edited by the owner.' })
+  const edited = head.rows(), sent = head.calls.filter(({ method }) => method === 'harness/cron/add').length
+  for (const dryRun of [false, true]) {
+    const { code, output } = await importing(head.client, [job()], { dryRun })
+    assert.equal(code, 1, `dry run ${dryRun}`)
+    assert.match(output, /^- Weekday digest .*\| exists but differs \(edited since import\?\); left as it is \| .*last of its 100 runs on 2026-06-03 14:00 UTC$/m)
+    assert.match(output, /\bexists but differs 1, of 1 tasks\.$/m)
+  }
+  assert.equal(head.calls.filter(({ method }) => method === 'harness/cron/add').length, sent, 'no create is sent')
+  assert.deepEqual(head.rows(), edited, 'nothing is changed')
 })
 
 test('under --runs, a schedule edited to no count or to more runs differs, and one with runs used up is already there', async () => {

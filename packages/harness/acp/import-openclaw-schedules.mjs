@@ -410,12 +410,16 @@ export async function run({ client, exported, owner, now = new Date(), dryRun = 
     const prior = row.import && existing.get(row.import.id)
     if (!row.refuse && row.import && !prior && room <= 0) row.refuse = `would pass Harness's limit of ${capacity} schedules`
     const planned = row.import && !row.refuse
-    // A schedule an earlier import made with a count is the same task; a
-    // create without one would be refused as a different request.
-    const limited = planned && prior && !runs && row.import.args.schedule && prior.remaining !== null && matches(prior, row.import, owner)
+    // A create without a count over a schedule an earlier import made with
+    // one would be refused as a different request, so none is sent; the
+    // schedule is the same task unless it was edited since.
+    const limited = planned && prior && !runs && row.import.args.schedule && prior.remaining !== null
     if (row.disabled) [kind, detail] = ['disabled', ', not imported']
     else if (row.refuse) [kind, detail] = ['refused', `: ${row.refuse}`]
-    else if (limited) [kind, detail, stop] = ['exists with a run limit', ' (imported earlier); left as it is', stopOf(prior, now)]
+    else if (limited) {
+      const same = matches(prior, row.import, owner)
+      ;[kind, detail, stop] = [same ? 'exists with a run limit' : 'exists but differs', same ? ' (imported earlier); left as it is' : '', stopOf(prior, now)]
+    }
     else if (dryRun) {
       if (!prior) [kind, room] = ['would import', room - 1]
       else [kind, detail, stop] = [matches(prior, row.import, owner) ? 'already there' : 'exists but differs', '', stopOf(prior, now)]
