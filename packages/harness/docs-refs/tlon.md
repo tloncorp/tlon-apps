@@ -993,16 +993,26 @@ inspect jobs.
 
 Messenger's **Scheduled Tasks** screen lists and edits a bot's tasks through
 Steward's automation module, and the hand plays the harness that module
-expects. It does so while it has an explicit owner and Steward runs on the
-ship; otherwise it neither projects nor takes edits.
+expects. It does so while it has an explicit owner and Steward runs on the ship
+with that module; otherwise it neither projects nor takes edits.
+
+Steward gained the module in `%groups` v12.3.0. An older Steward refuses the
+hand's watch on `/v1/automation/harness` and serves none of the module's paths,
+and a read of one would crash the hand's event, so the hand reads and projects
+only once Steward has acknowledged that watch. After a refusal it sends Steward
+no projection, reads nothing of the module, and shows `automationHeld: false`;
+it watches again only when it loads, its owner changes, or it next takes a
+lease Steward does not hold, so a Steward updated in between is found then.
+Such a Steward still gets the owner and the gateway lease, which it serves.
 
 The hand watches the head's `/v1/schedule-events` and pokes Steward
-`%steward-automation-action-1` `%project` with the complete task set: when a
-change alters the tasks, when its schedule watch is acknowledged, and when
-Steward holds no gateway lease for it, as a Steward that starts after the hand
-does not. A run advancing a job's bookkeeping changes no task and sends
-nothing. The tasks are the owner's own schedules on the Tlon hand; other hands'
-schedules, other actors' and tool grants never reach Steward. Each maps as:
+`%steward-automation-action-1` `%project` with the complete task set: when
+Steward acknowledges the watch on its feed, when a change alters the tasks,
+when its schedule watch is acknowledged, and when Steward holds no gateway
+lease for it, as a Steward that starts after the hand does not. A run advancing
+a job's bookkeeping changes no task and sends nothing. The tasks are the
+owner's own schedules on the Tlon hand; other hands' schedules, other actors'
+and tool grants never reach Steward. Each maps as:
 
 | Task field | From |
 | --- | --- |
@@ -1016,26 +1026,32 @@ schedules, other actors' and tool grants never reach Steward. Each maps as:
 Agent, session, wake mode and timestamps are left absent.
 
 Before its first projection the hand reads this ship's entry in Steward's
-`/v1/automation/tasks`. An absent or empty entry is projected over at once, as
-on every new bot. An entry holding tasks the hand did not write, such as ones
-OpenClaw left, is not, while the owner has no Tlon schedule of the hand's own:
-Messenger keeps showing those tasks until the operator imports them into
-Harness, and the hand's status shows `automationHeld: true`. The hold ends with
-the first projection that has a task of the hand's own, made in conversation,
-from the screen or by the import, and that task set replaces Steward's list.
-While held, an edit of an old task answers `not-found`, since the hand has no
-such schedule. A new owner's hand holds the same way, since the entry is this
-ship's whoever owns it. Once the hand has projected it never reads Steward's
-tasks again.
+`/v1/automation/tasks`, in the event of Steward's acknowledgement of its watch
+and in no other, so never while loading; until then a projection with no task
+waits. An absent or empty entry is projected over at once, as on every new bot.
+An entry holding tasks the hand did not write, such as ones OpenClaw left, is
+not, while the owner has no Tlon schedule of the hand's own: Messenger keeps
+showing those tasks until the operator imports them into Harness, and the
+hand's status shows `automationHeld: true`. The hold ends with the first
+projection that has a task of the hand's own, made in conversation, from the
+screen or by the import, and that task set replaces Steward's list. A new
+owner's hand holds the same way, since the entry is this ship's whoever owns
+it. Once the hand has projected it never reads Steward's tasks again.
+
+While the list is held, Messenger shows the old tasks with nothing saying they
+are held. An edit or pause answers `not-found`, since the hand has no such
+schedule. A delete also answers `not-found`, which the app treats as deleted,
+so the row disappears and comes back on refresh.
 
 The hand also watches Steward's `/v1/automation/harness` and applies each
 dispatched edit through the head's cron API, one `%harness-cron` request at a
 time, then answers with `%finalize`. Steward replays unanswered commands to a
-new subscriber; one already applying is not started again, and a create
-reaches the head under an id made from its request id, the low 128 bits, so a
-replayed create returns the job it already made. Steward mints a request id
-from 512 bits when the client names none, as Messenger's does not, and the
-job's run binding, `schedule-` and its id, must fit the head's 128-byte limit.
+new subscriber; one already applying is not started again, and a create reaches
+the head under an id made from its request id, the low 128 bits, so a replayed
+create returns the job it already made. Messenger names a request id, and its
+ids fit in 128 bits; for a client that names none Steward mints one from 512
+bits, which the hand truncates because the job's run binding, `schedule-` and
+its id, must fit the head's 128-byte limit.
 
 - `create` needs a schedule and a prompt. A `cron` schedule's `tz` is `UTC`
   when absent, or an IANA name looked up in the
@@ -1064,7 +1080,7 @@ job's run binding, `schedule-` and its id, must fit the head's 128-byte limit.
   is created in that binding. The owner's DM can always be opened while the
   hand is on. A channel can be opened when the bot's replies there are not
   off and the bot can post in it: it hosts the channel, or it has joined the
-  channel's group, is not banned there, and is an admin there, or the channel
+  channel and the channel's group, is not banned there, and is an admin there, or the channel
   has no writer roles, or one of its roles is a writer, as the group's
   can-write scry answers. Otherwise the create answers `invalid`
   with the reason: `the bot cannot post in chat/~host/name; add it to the
@@ -1119,7 +1135,10 @@ after an owner message there has them.
 Known limits: pausing cancels, and a cancelled job cannot be resumed; an
 `every` must have a cron expression; test runs are not supported; a zone's
 offset is fixed when the task is created; a job created in the owner's DM
-before the owner has written there has the narrower tools above.
+before the owner has written there has the narrower tools above; while the
+list is held, Messenger shows the old tasks with nothing saying they are held,
+and a delete of one answers `not-found`, so its row disappears and comes back
+on refresh.
 
 ## Testing
 

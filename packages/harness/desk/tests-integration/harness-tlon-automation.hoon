@@ -6,7 +6,7 @@
     steward-gateway, ad=harness-adapter, h=harness, g=groups-ver,
     d=channels-ver
 /+  *test-agent, schedule=harness-schedule, continuity=harness-tlon-continuity,
-    hj=harness-json
+    hj=harness-json, migrate=harness-tlon-migrate
 /=  adapter  /app/harness-tlon
 |%
 ++  now  ~2026.11.23..12.00.00
@@ -23,7 +23,9 @@
     lanes  (my ~[['nec-dm' [[%dm ~nec ~] 0 ~]]])
   ==
 ::  Loads the hand online. .lease is whether Steward holds this hand's
-::  gateway lease; a Steward without it is new to the hand.
+::  gateway lease; a Steward without it is new to the hand. Steward, when
+::  running, acknowledges the watch on its automation feed, which makes the
+::  first projection, with Steward holding no tasks.
 ::
 ++  boot
   |=  [owner=(unit @p) running=? lease=?]
@@ -31,6 +33,23 @@
 ::
 ++  boot-from
   |=  [saved=state-5:t running=? lease=?]
+  (boot-left saved running lease `~)
+::
+::  Loads the hand as +boot does, with .left Steward's task map, and returns
+::  the cards of loading and of the watch's acknowledgement.
+::
+++  boot-left
+  |=  [saved=state-5:t running=? lease=? left=(unit (map @p tasks:v1:sa))]
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  ;<  loaded=(list card)  bind:m  (load-only saved running lease left)
+  ;<  =bowl  bind:m  get-bowl
+  ?.  (~(has by wex.bowl) [/steward/dispatch ~zod %steward])  (pure:m loaded)
+  ;<  acked=(list card)  bind:m  dispatch-ack
+  (pure:m (weld loaded acked))
+::
+++  load-only
+  |=  [saved=state-5:t running=? lease=? left=(unit (map @p tasks:v1:sa))]
   =/  m  (mare ,(list card))
   ^-  form:m
   ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now now))
@@ -43,13 +62,17 @@
           [[/activity ~zod %activity] [& /v4]]
       ==
     ==
-  ;<  ~  bind:m  (set-scry-gate (scries running lease))
+  ;<  ~  bind:m  (set-scry-gate (scries-left running lease left))
   (do-load adapter `!>(saved))
+::
+++  dispatch-ack
+  (do-agent /steward/dispatch [~zod %steward] [%watch-ack ~])
 ::
 ++  scries
   |=  [running=? lease=?]
   (scries-left running lease `~)
-::  .left is Steward's task map, ~ for one that must not be read.
+::  .left is Steward's task map, ~ for one whose read crashes, as it does on
+::  a Steward without the automation module.
 ::
 ++  scries-left
   |=  [running=? lease=? left=(unit (map @p tasks:v1:sa))]
@@ -57,7 +80,7 @@
   ^-  (unit vase)
   ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(running)
   ?:  ?=([%gx @ %steward @ %v1 %automation %tasks %steward-automation-tasks-1 ~] path)
-    ?~  left  ~
+    ?~  left  ~|(%steward-tasks-read !!)
     `!>(u.left)
   ?:  ?=([%gx @ %steward @ %v1 %gateway %status %noun ~] path)
     =/  status  ?:(lease [%up `(add now ~m15)] [%down ~])
@@ -131,6 +154,13 @@
   %+  skim  cards
   |=  =card
   ?=([%pass [%steward %lease ~] %agent [@ %steward] %poke *] card)
+::
+++  configures
+  |=  cards=(list card)
+  ^-  (list card)
+  %+  skim  cards
+  |=  =card
+  ?=([%pass [%steward %configure ~] %agent [@ %steward] %poke *] card)
 ::
 ++  answers
   |=  cards=(list card)
@@ -224,13 +254,9 @@
   =/  m  (mare ,~)
   ^-  form:m
   =/  none=(list (list identified-task:v1:sa))  ~[~]
-  ;<  *  bind:m  (boot `~nec & &)
-  ;<  ~  bind:m  (set-scry-gate (scries-left & & `~))
-  ;<  caz=(list card)  bind:m  schedule-watch
+  ;<  caz=(list card)  bind:m  (boot-left (saved `~nec) & & `~)
   ;<  ~  bind:m  (ex-equal !>((projections caz)) !>(none))
-  ;<  *  bind:m  (boot `~nec & &)
-  ;<  ~  bind:m  (set-scry-gate (scries-left & & `(my ~[[~zod ~]])))
-  ;<  caz=(list card)  bind:m  schedule-watch
+  ;<  caz=(list card)  bind:m  (boot-left (saved `~nec) & & `(my ~[[~zod ~]]))
   ;<  ~  bind:m  (ex-equal !>((projections caz)) !>(none))
   ;<  held=?  bind:m  held-status
   (ex-equal !>(held) !>(|))
@@ -242,8 +268,8 @@
   =/  m  (mare ,~)
   ^-  form:m
   =/  others  (~(del by snapshot) 0v1)
-  ;<  *  bind:m  (boot `~nec & &)
-  ;<  ~  bind:m  (set-scry-gate (scries-left & & `left-behind))
+  ;<  caz=(list card)  bind:m  (boot-left (saved `~nec) & & `left-behind)
+  ;<  ~  bind:m  (ex-equal !>((lent (projections caz))) !>(0))
   ;<  caz=(list card)  bind:m  schedule-watch
   ;<  ~  bind:m  (ex-equal !>((lent (projections caz))) !>(0))
   ;<  caz=(list card)  bind:m  (schedules others)
@@ -251,6 +277,7 @@
   ::  A Steward new to the hand, which takes the lease, is held too.
   ;<  ~  bind:m  (set-scry-gate (scries-left & | `left-behind))
   ;<  caz=(list card)  bind:m  (do-agent /head [~zod %harness] [%watch-ack ~])
+  ;<  ~  bind:m  (ex-equal !>((lent (leases caz))) !>(1))
   ;<  ~  bind:m  (ex-equal !>((lent (projections caz))) !>(0))
   ;<  held=?  bind:m  held-status
   ;<  ~  bind:m  (ex-equal !>(held) !>(&))
@@ -261,8 +288,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  *  bind:m  (boot `~nec & &)
-  ;<  ~  bind:m  (set-scry-gate (scries-left & & `left-behind))
+  ;<  *  bind:m  (boot-left (saved `~nec) & & `left-behind)
   ;<  *  bind:m  schedule-watch
   ;<  caz=(list card)  bind:m  (schedules snapshot)
   =/  projected  (projections caz)
@@ -271,7 +297,7 @@
     (ex-equal !>((turn i.projected |=(i=identified-task:v1:sa id.i))) !>(~['0v1']))
   ;<  held=?  bind:m  held-status
   (ex-equal !>(held) !>(|))
-::  The fixture fails a step that reads Steward's tasks once the hand has
+::  The fixture crashes a step that reads Steward's tasks once the hand has
 ::  projected, so these projections are made without a read.
 ::
 ++  test-a-hand-that-has-projected-never-reads-stewards-tasks
@@ -293,19 +319,25 @@
   ;<  ~  bind:m  (ex-equal !>((projections caz)) !>(none))
   ;<  =vase  bind:m  get-save
   ;<  caz=(list card)  bind:m  (do-load adapter `vase)
+  ;<  ~  bind:m  (ex-equal !>((projections caz)) !>(none))
+  ::  A kick and a new watch project again, still without a read.
+  ;<  caz=(list card)  bind:m  (do-agent /steward/dispatch [~zod %steward] [%kick ~])
+  ;<  ~  bind:m  (ex-equal !>((watches caz)) !>(`(list wire)`~[/steward/dispatch]))
+  ;<  caz=(list card)  bind:m  dispatch-ack
   (ex-equal !>((projections caz)) !>(none))
+::  The fixture crashes a step that reads Steward's tasks, so loading a held
+::  hand that Steward has never leased, the case that once read them, makes
+::  no read. The lease it sends shows the load reached the Steward path.
 ::
 ++  test-a-reload-while-held-stays-held-and-projects-nothing
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  *  bind:m  (boot `~nec & &)
-  ;<  ~  bind:m  (set-scry-gate (scries-left & & `left-behind))
+  ;<  *  bind:m  (boot-left (saved `~nec) & & `left-behind)
   ;<  *  bind:m  (do-agent /head [~zod %harness] [%watch-ack ~])
   ;<  *  bind:m  schedule-watch
   ;<  =vase  bind:m  get-save
-  ::  Without the lease, loading would project if it were not held.
-  ;<  ~  bind:m  (set-scry-gate (scries-left & | `left-behind))
+  ;<  ~  bind:m  (set-scry-gate (scries-left & | ~))
   ;<  caz=(list card)  bind:m  (do-load adapter `vase)
   ;<  ~  bind:m  (ex-equal !>((lent (leases caz))) !>(1))
   ;<  ~  bind:m  (ex-equal !>((lent (projections caz))) !>(0))
@@ -319,8 +351,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   =/  web  (my ~[[0v3 (~(got by snapshot) 0v3)]])
-  ;<  *  bind:m  (boot `~nec & &)
-  ;<  ~  bind:m  (set-scry-gate (scries-left & & `left-behind))
+  ;<  *  bind:m  (boot-left (saved `~nec) & & `left-behind)
   ;<  *  bind:m  (schedules web)
   ;<  caz=(list card)  bind:m  (set-owner ~bus)
   ;<  ~  bind:m  (ex-equal !>((lent (projections caz))) !>(0))
@@ -330,6 +361,92 @@
   =/  projected  (projections caz)
   ?>  ?=([* ~] projected)
   (ex-equal !>((turn i.projected |=(i=identified-task:v1:sa id.i))) !>(~['0v4']))
+::
+::  Loading an owned, online hand that Steward has not leased once read
+::  Steward's tasks. The fixture crashes a step that reads them; the owner,
+::  the lease and the watches show the load reached Steward.
+::
+++  test-loading-an-owned-online-hand-reads-no-steward-tasks
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  caz=(list card)  bind:m  (load-only (saved `~nec) & | ~)
+  ;<  ~  bind:m  (ex-equal !>((lent (configures caz))) !>(1))
+  ;<  ~  bind:m  (ex-equal !>((lent (leases caz))) !>(1))
+  ;<  ~  bind:m
+    (ex-equal !>((watches caz)) !>(`(list wire)`~[/steward/schedules /steward/dispatch]))
+  (ex-equal !>((projections caz)) !>(`(list (list identified-task:v1:sa))`~))
+::  Steward before the automation module refuses the watch on its feed and
+::  crashes a read of its tasks, as the fixture does. It still gets the
+::  owner and the lease; the hand sends it no projection, does not watch
+::  again until it loads, and does not say it holds Steward's tasks.
+::
+++  test-a-steward-without-the-automation-module-gets-the-owner-and-lease-and-nothing-else
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  refusal  [%watch-ack `~[leaf+"bad-watch-path"]]
+  ;<  caz=(list card)  bind:m  (load-only (saved `~nec) & | ~)
+  ;<  ~  bind:m  (ex-equal !>((lent (configures caz))) !>(1))
+  ;<  ~  bind:m  (ex-equal !>((lent (leases caz))) !>(1))
+  ;<  caz=(list card)  bind:m  (do-agent /steward/dispatch [~zod %steward] refusal)
+  ;<  ~  bind:m  (ex-equal !>(caz) !>(`(list card)`~))
+  ::  Steward has taken the lease.
+  ;<  ~  bind:m  (set-scry-gate (scries-left & & ~))
+  ;<  caz=(list card)  bind:m  schedule-watch
+  ;<  ~  bind:m  (ex-equal !>((watches caz)) !>(`(list wire)`~))
+  ;<  ~  bind:m  (ex-equal !>((projections caz)) !>(`(list (list identified-task:v1:sa))`~))
+  ;<  caz=(list card)  bind:m  (schedules snapshot)
+  ;<  ~  bind:m  (ex-equal !>((projections caz)) !>(`(list (list identified-task:v1:sa))`~))
+  ;<  caz=(list card)  bind:m  (do-agent /head [~zod %harness] [%watch-ack ~])
+  ;<  ~  bind:m  (ex-equal !>((watches caz)) !>(`(list wire)`~))
+  ;<  ~  bind:m  (ex-equal !>((projections caz)) !>(`(list (list identified-task:v1:sa))`~))
+  ;<  caz=(list card)  bind:m  (do-arvo /poll [%behn %wake ~])
+  ;<  ~  bind:m  (ex-equal !>((watches caz)) !>(`(list wire)`~))
+  ;<  ~  bind:m  (ex-equal !>((projections caz)) !>(`(list (list identified-task:v1:sa))`~))
+  ;<  held=?  bind:m  held-status
+  ;<  ~  bind:m  (ex-equal !>(held) !>(|))
+  ::  A reload asks once more, and its refusal again sends nothing.
+  ;<  =vase  bind:m  get-save
+  ;<  caz=(list card)  bind:m  (do-load adapter `vase)
+  ;<  ~  bind:m  (ex-equal !>((watches caz)) !>(`(list wire)`~[/steward/dispatch]))
+  ;<  ~  bind:m  (ex-equal !>((projections caz)) !>(`(list (list identified-task:v1:sa))`~))
+  ;<  caz=(list card)  bind:m  (do-agent /steward/dispatch [~zod %steward] refusal)
+  (ex-equal !>(caz) !>(`(list card)`~))
+::  The upgrade from a %4 save, which has no automation, on a ship whose
+::  Steward lacks the module.
+::
+++  test-the-upgrade-from-a-version-four-save-reads-no-steward-tasks
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  new  (saved `~nec)
+  =/  old  *state-4:migrate
+  =:  owner-initialized.old  owner-initialized.new
+      policy.old  policy.new
+      watching.old  &
+      activity-through.old  activity-through.new
+    ==
+  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now now))
+  ;<  ~  bind:m
+    %-  jab-bowl
+    |=  b=bowl
+    %=  b  wex
+      %-  ~(gas by wex.b)
+      :~  [[/head ~zod %harness] [& /hand-events]]
+          [[/activity ~zod %activity] [& /v4]]
+      ==
+    ==
+  ;<  ~  bind:m  (set-scry-gate (scries-left & | ~))
+  ;<  caz=(list card)  bind:m  (do-load adapter `!>(old))
+  ;<  ~  bind:m  (ex-equal !>((lent (configures caz))) !>(1))
+  ;<  ~  bind:m  (ex-equal !>((lent (leases caz))) !>(1))
+  ;<  ~  bind:m
+    (ex-equal !>((watches caz)) !>(`(list wire)`~[/steward/schedules /steward/dispatch]))
+  ;<  ~  bind:m  (ex-equal !>((projections caz)) !>(`(list (list identified-task:v1:sa))`~))
+  ;<  caz=(list card)  bind:m
+    (do-agent /steward/dispatch [~zod %steward] [%watch-ack `~[leaf+"bad-watch-path"]])
+  (ex-equal !>(caz) !>(`(list card)`~))
 ::
 ++  test-the-projection-holds-exactly-the-owners-tlon-schedules
   %-  eval-mare

@@ -154,6 +154,19 @@
       %=  this  lens
         lens(error 'Steward is unavailable on this ship. Install or update Tlon, then retry sync.')
       ==
+    ::  The ack of the watch on Steward's automation feed must not run +abet
+    ::  either: Gall hands it back before the lease poke sent behind the
+    ::  watch, so +abet would find no lease and watch again, and a Steward
+    ::  without the automation module refuses every watch. Gall acknowledges
+    ::  a watch once, so the first projection is sent once per watch, and its
+    ::  poke's ack sends nothing. After a refusal the hand watches again only
+    ::  when it loads or next takes a lease Steward does not hold.
+    ?:  &(=(/steward/dispatch wire) ?=(%watch-ack -.sign))
+      ?^  p.sign
+        %-  (slog 'harness-tlon: steward automation feed refused' u.p.sign)
+        `this
+      =^  cards  state  rearm:first-projection:cor
+      [cards this]
     ::  Only the watch's ack builds effects: it is how a Steward that starts
     ::  late gets the owner and the lease. Steward gives a fact in answer to
     ::  the lease poke, so a fact that took the lease would poke without end.
@@ -305,8 +318,9 @@
   ::  The owner goes with the lease, so a Steward that starts after this hand
   ::  still learns it.
   =.  cor  configure-steward
-  ::  A lease of now is none held: Steward is new to this hand, so it also
-  ::  gets the schedules and the hand starts taking its edits.
+  ::  A lease of now is none held: Steward is new to this hand, so the hand
+  ::  watches its automation feed, whose ack makes the first projection, and
+  ::  projects again if it already has. Neither reads Steward's tasks.
   =?  cor  =(u.lease now.bowl)  project:watch-automation
   %-  emit
   :*  %pass  /steward/lease  %agent  [our.bowl %steward]  %poke
@@ -369,33 +383,39 @@
   ?~  owner.policy  ~
   (project:automation-lib schedules.automation names.automation u.owner.policy)
 ::
+::  +automation-ready: whether Steward acknowledged the watch on its
+::  automation feed. Steward before %groups v12.3.0 has no automation
+::  module: it refuses that watch and serves none of the module's paths, and
+::  a read of one crashes the event whatever +mole is around it. So the hand
+::  projects only to a Steward that acknowledged the watch, and reads its
+::  tasks only in the acknowledgement's event, never while loading.
+::
+++  automation-ready
+  ^-  ?
+  =/  watch  (~(get by wex.bowl) /steward/dispatch our.bowl %steward)
+  ?~(watch | acked.u.watch)
+::
 ::  Steward replaces the whole task set with each projection, and ignores
-::  one equal to what it holds.
+::  one equal to what it holds. Until the hand has projected, an empty set
+::  waits for +first-projection, which knows whether Steward holds tasks it
+::  would replace.
 ::
 ++  project
   ^+  cor
-  ?:  =(~ owner.policy)  cor
-  ?.  steward-running  cor
-  ?:  held  cor
-  =.  projected.automation  &
-  %-  emit
-  :*  %pass  /steward/project  %agent  [our.bowl %steward]  %poke
-      %steward-automation-action-1
-      !>(`action:v1:sa`[%project projection])
-  ==
+  ?:  &(!projected.automation =(~ projection))  cor
+  send-projection
 ::
-::  +held: whether the first projection waits. Steward may hold tasks
-::  another runtime wrote for this bot, such as OpenClaw's; while this hand
-::  has no task of its own it leaves them, for the operator's import, rather
-::  than replace them with nothing. Its first own task ends the wait, and
-::  once it has projected it never reads Steward's tasks again. A Steward
-::  that cannot answer is not overwritten either. Callers check that
-::  Steward runs.
+::  +first-projection: the projection of an acknowledged watch on Steward's
+::  feed. Steward may hold tasks another runtime wrote for this bot, such as
+::  OpenClaw's; while this hand has no task of its own it leaves them, for
+::  the operator's import, rather than replace them with nothing. Its first
+::  own task ends the wait, and once it has projected it never reads
+::  Steward's tasks again. A Steward that cannot answer is not overwritten
+::  either.
 ::
-++  held
-  ^-  ?
-  ?:  projected.automation  |
-  ?.  =(~ projection)  |
+++  first-projection
+  ^+  cor
+  ?:  |(projected.automation !=(~ projection))  project
   =/  left
     %-  mole
     |.
@@ -403,8 +423,32 @@
     .^  *  %gx
       /(scot %p our.bowl)/steward/(scot %da now.bowl)/v1/automation/tasks/steward-automation-tasks-1
     ==
-  ?~  left  &
-  !=(~ (~(gut by u.left) our.bowl ~))
+  ?~  left  cor
+  ?^  (~(gut by u.left) our.bowl ~)  cor
+  send-projection
+::
+++  send-projection
+  ^+  cor
+  ?:  =(~ owner.policy)  cor
+  ?.  steward-running  cor
+  ?.  automation-ready  cor
+  =.  projected.automation  &
+  %-  emit
+  :*  %pass  /steward/project  %agent  [our.bowl %steward]  %poke
+      %steward-automation-action-1
+      !>(`action:v1:sa`[%project projection])
+  ==
+::
+::  +held: whether the hand leaves Steward's tasks as they are, as
+::  +first-projection decided
+::
+++  held
+  ^-  ?
+  ?&  ?=(^ owner.policy)
+      automation-ready
+      !projected.automation
+      =(~ projection)
+  ==
 ::
 ++  reproject
   |=  before=(list identified-task:v1:sa)
@@ -443,11 +487,6 @@
   ^+  cor
   ?+  -.sign  cor
     %kick  watch-automation
-  ::
-      %watch-ack
-    ?~  p.sign  cor
-    %-  (slog 'harness-tlon: steward edit feed refused' u.p.sign)
-    cor
   ::
       %fact
     ?.  =(%steward-automation-dispatch-1 p.cage.sign)  cor
@@ -851,7 +890,7 @@
       ['publicationsConnected' %b publications-connected]
       ['deliveryMode' %s 'events']
       ['lens' lens-status]
-      ['automationHeld' %b &(?=(^ owner.policy) steward-running held)]
+      ['automationHeld' %b held]
       ['maintenanceWake' ?~(wake ~ [%s (scot %da u.wake)])]
       ['leaseRenewal' =/(renew lease-renewal ?~(renew ~ [%s (scot %da u.renew)]))]
       ['error' %s error]
