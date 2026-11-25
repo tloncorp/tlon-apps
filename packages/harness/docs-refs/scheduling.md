@@ -22,12 +22,15 @@ It runs inference once at that exact time. Include the necessary brief and
 authorized sources: the isolated agent does not receive the source transcript.
 Use this for one-time work and `cron_add` for recurring work.
 
-`cron_add` requires `schedule`, `timezone`, `prompt` (1–4,096 UTF-8 bytes), and
-`runs` (a decimal string, 1–100). Five-field expressions support wildcards,
-steps, ranges and lists. Weekdays are Sunday=0 through Saturday=6; restricted
-day-of-month and weekday fields use OR semantics. The next occurrence must be
-within the bounded four-year search horizon. Invalid or impossible expressions
-are rejected.
+`cron_add` requires `schedule`, `timezone` and `prompt` (1–4,096 UTF-8 bytes).
+`runs` is optional: a decimal string for a count from 1 to 1,000,000, after
+which the job completes. The ceiling only keeps the count exact in listings,
+which give it as a JSON number; it does not limit recurring work. Without
+`runs` the job repeats until it is cancelled. Five-field expressions support
+wildcards, steps, ranges and lists.
+Weekdays are Sunday=0 through Saturday=6; restricted day-of-month and weekday
+fields use OR semantics. The next occurrence must be within the bounded
+four-year search horizon. Invalid or impossible expressions are rejected.
 
 `timezone` is `UTC` or a fixed offset written `+HH:MM` or `-HH:MM`, with the
 sign and two-digit hours and minutes, up to 14 hours: `-06:00`, `+05:30`.
@@ -71,7 +74,8 @@ authenticate actors and deliver results.
 One head-owned Behn wake follows the earliest outstanding schedule deadline.
 A reload checks no schedule itself: with a schedule active, it sets that wake
 a tick later, so the check runs after every agent on the desk has loaded and
-no schedule asks a hand still on its previous code for authority. Downtime coalesces to one run, never a missed-run backlog. The run budget advances
+no schedule asks a hand still on its previous code for authority. Downtime
+coalesces to one run, never a missed-run backlog. A limited job's count advances
 in the same Gall transaction as ledger admission. Pending execution or pending,
 claimed or uncertain publication blocks another run of that schedule.
 
@@ -82,6 +86,9 @@ their grants from Settings → Defaults when they are created.
 
 Results enter the hand's outbox. Check delivery separately from execution;
 uncertain sends are not retried automatically. See [hand receipts](hands.md#claims-and-receipts).
+
+Listings give `remaining` as the runs a job has left, or `null` for a job with
+no limit. An edit replaces the count: `args` without `runs` removes the limit.
 
 The head retains up to 64 schedule records across all hands. Cancel stops future
 work but cannot retract dispatched effects. Clear is allowed only for completed
@@ -243,11 +250,36 @@ path.
 The JavaScript `HandClient` wraps these as `schedule(binding, options)`,
 `schedules(binding)`, `cancelSchedule(id)`, and `clearSchedule(id)`.
 
+## Tlon Messenger's Scheduled Tasks
+
+The Tlon hand mirrors the owner's Tlon schedules into Steward for Messenger's
+Scheduled Tasks screen and applies the owner's edits there through the API
+above; [the Tlon hand](tlon.md#scheduled-tasks-in-tlon-messenger) describes the
+mapping and each refusal. An edit cannot do more than the API: pausing cancels,
+a cancelled job cannot be resumed, a job cannot move to another conversation,
+an `every` schedule runs only as a cron expression, so its interval must divide
+an hour or a day or be a week, and there are no test runs. A task can go to
+the owner's DM or any channel the bot can post in; the hand opens the
+conversation if nobody has written there yet. A recurring job
+created there has no run limit and runs until it is cancelled; an edit there
+keeps the limit a job already has. Tasks another runtime left in Steward stay
+on the screen, not replaced, until the hand has a task of its own.
+
+Messenger names the owner's timezone as an IANA zone, such as
+`America/Chicago`. `desk/lib/harness-zones.hoon` maps every zone and link in the
+tz database to the UTC offset it had on its generation date, 2026-11-23, and
+the job is created at that fixed offset. A zone that observes daylight saving
+therefore runs an hour off for part of the year, until the table is regenerated
+with `python3 scripts/generate-zones.py` from `packages/harness` and the task is
+created again. A zone the table does not know is refused.
+
 ## Verification
 
 `desk/tests/harness-cron.hoon` tests strict calendar parsing;
 `desk/tests/harness-schedule.hoon` tests shared validation, isolation, evidence
-gates and bounded advancement. The opt-in
+gates and advancement with and without a run count;
+`desk/tests/harness-zones.hoon` pins the zone table and checks every offset
+parses. The opt-in
 `desk/tests-integration/harness-schedule.hoon` exercises full-agent reload,
 single-timer replacement, durable schedule ownership and scheduling within a
 hand's ceiling. Run

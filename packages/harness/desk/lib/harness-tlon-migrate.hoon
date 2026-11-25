@@ -4,6 +4,48 @@
 ::  Saved shapes are frozen here, so a change to the current lane cannot
 ::  silently change what an older state decodes as.
 +$  lane-2  [actor=@p to=destination epoch=@ud tools=(list tool-grant:h)]
++$  lane-3  [to=destination epoch=@ud tools=(list tool-grant:h)]
+::  Version 4 added pending browser handoffs ahead of the version 3 fields.
+::  Its lanes are version 3's.
++$  browser-result-4  $%([%form url=@t] [%payment id=@t])
++$  browser-phase-4
+  $%  [%authorize ~]  [%prepare local=?]  [%payment ~]
+      [%post result=browser-result-4]  [%wait result=browser-result-4]
+      [%check result=browser-result-4]
+      [%revoke ~]
+  ==
++$  browser-entry-4  [next=@da phase=browser-phase-4]
++$  state-4
+  $:  %4
+      browser-entries=(map @uv browser-entry-4)
+      lens=lens-sync
+      owner-initialized=@ud
+      sibling-moon-owners=$~(| ?)
+      sibling-owner-after=@da
+      activity-through=@da
+      catching-up=$~(| ?)
+      identities=(map destination @t)
+      routes=(map @t route)
+      cuts=(map @p @da)
+      channel-after=@da
+      channel-cuts=(map nest:c @da)
+      uploads=(map @uv upload)
+      last-sent=@da
+      tool-receipts=(map @uv tool-receipt)
+      computing=(map path presence-lease)
+      policy=policy
+      epoch=@ud
+      after=@da
+      lanes=(map @t lane-3)
+      jobs=(map @uv job)
+      deliveries=(map @uv delivery)
+      notices=(list notice)
+      next-notice=@ud
+      listeners=(set @t)
+      watching=?
+      wake=(unit @da)
+      error=@t
+  ==
 +$  state-3
   $:  %3
       lens=lens-sync
@@ -24,7 +66,7 @@
       policy=policy
       epoch=@ud
       after=@da
-      lanes=(map @t lane)  ::  admitted authorization generations; head keeps history
+      lanes=(map @t lane-3)
       jobs=(map @uv job)
       deliveries=(map @uv delivery)
       notices=(list notice)
@@ -121,12 +163,16 @@
       wake=(unit @da)
       error=@t
   ==
+::  Each saved version steps forward one version at a time: a %3 through
+::  +three-to-four, then every %4 through +four-to-five.
+::
 ++  load
   |=  old=vase
-  ^-  state-4
+  ^-  state-5
   ?>  ?=(^ q.old)
-  ?:  =(%4 -.q.old)  !<(state-4 old)
-  (three-to-four (three old))
+  ?:  =(%5 -.q.old)  !<(state-5 old)
+  ?:  =(%4 -.q.old)  (four-to-five !<(state-4 old))
+  (four-to-five (three-to-four (three old)))
 ::  Ready routes of conversations +two-to-three drops. Their bindings may
 ::  still hold queued input, so the caller disables them and fences their
 ::  sessions.
@@ -135,7 +181,7 @@
   |=  old=vase
   ^-  (list [sid=@t binding=@t])
   ?>  ?=(^ q.old)
-  ?:  |(=(%3 -.q.old) =(%4 -.q.old))  ~
+  ?:  ?=(?(%3 %4 %5) -.q.old)  ~
   =/  saved  (two old)
   %+  murn  ~(tap by lanes.saved)
   |=  [sid=@t lane=lane-2]
@@ -166,6 +212,13 @@
     ?:  =(%0 -.q.old)  (zero-to-one !<(state-0 old))
     !<(state-1 old)
   [%2 *lens-sync +.saved]
+::  Steward names, edits and the schedule snapshot start empty; the head's
+::  first /v1/schedule-events fact fills the snapshot.
+::
+++  four-to-five
+  |=  old=state-4
+  ^-  state-5
+  [%5 *automation +.old]
 ::  A conversation is keyed by its destination alone. A DM's speaker is its
 ::  partner, so its identity already is; a channel's per-speaker
 ::  conversations are dropped and the channel starts one shared afresh.
@@ -178,7 +231,7 @@
 ++  two-to-three
   |=  old=state-2
   ^-  state-3
-  =/  dms=(map @t lane)
+  =/  dms=(map @t lane-3)
     %-  malt
     %+  murn  ~(tap by lanes.old)
     |=  [sid=@t old=lane-2]

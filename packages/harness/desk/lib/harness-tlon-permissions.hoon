@@ -1,5 +1,5 @@
 ::  One revision-checked conversation policy for native and hosted settings.
-/-  t=harness-tlon, g=groups-ver, c=channels
+/-  t=harness-tlon, g=groups-ver, c=channels, d=channels-ver
 /+  p=harness-tlon-policy, j=harness-workspace-json, paths=harness-tlon-paths
 |%
 ::
@@ -185,6 +185,19 @@
 ++  error
   |=  [status=@ud message=@t]
   (envelope status (pairs:enjs:format ~[['error' %s message]]))
+::  +writable: whether a ship may post in a channel whose writers are
+::  .writers, given groups' can-write answer for it: nothing for a ship
+::  without a seat or a banned one, else whether it is an admin and its
+::  roles. This is +can-write in channel-utils.
+::
+++  writable
+  |=  [writers=(set @tas) write=(unit [admin=? roles=(set @tas)])]
+  ^-  ?
+  ?~  write  |
+  ?|  admin.u.write
+      =(~ writers)
+      !=(~ (~(int in writers) roles.u.write))
+  ==
 ::
 ++  directory
   |_  bowl=bowl:gall
@@ -223,5 +236,36 @@
         (group-can-read:~(. paths [our now]:bowl) flag)
       ==
     (native who nest)
+  ::  +can-write: whether our ship may post in .nest. Writers come from our
+  ::  copy of the channel, which exists only once we have joined it, and
+  ::  groups answers for our seat, bans and roles from our copy of the group.
+  ::  A read of a channel we have not joined crashes the event, so it is
+  ::  asked for only once %channels says it has the channel. The reads
+  ::  assume %groups and %channels run: Steward, which asks, runs from
+  ::  their desk, and every release with Steward's automation module serves
+  ::  these paths.
+  ::
+  ++  can-write
+    |=  nest=nest:g
+    ^-  ?
+    ?:  =(our.bowl p.q.nest)  &
+    ?.  ?=(?(%chat %diary %heap) p.nest)  |
+    %+  lien  ~(tap by groups)
+    |=  [flag=flag:g group=group:v9:g]
+    ?.  (~(has by channels.group) nest)  |
+    ?~  seat=(~(get by seats.group) our.bowl)  |
+    ?:  =(0 joined.u.seat)  |
+    ?.  .^(? %gu (channel:~(. paths [our now]:bowl) %v0 nest))  |
+    =/  perm=(unit perm:v9:d)
+      %-  mole  |.
+      .^(perm:v9:d %gx (channel-permissions:~(. paths [our now]:bowl) nest))
+    ?~  perm  |
+    =/  write=(unit (unit [admin=? roles=(set @tas)]))
+      %-  mole  |.
+      .^  (unit [admin=? roles=(set @tas)])  %gx
+        (group-can-write:~(. paths [our now]:bowl) flag nest our.bowl)
+      ==
+    ?~  write  |
+    (writable writers.u.perm u.write)
   --
 --

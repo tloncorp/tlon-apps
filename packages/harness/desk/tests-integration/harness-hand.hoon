@@ -609,7 +609,7 @@
     [done 'other' 'fixture' 'other-room' 'other' %reply 'Reply' %pending '' '' ~]
   =/  job=job:c
     :*  %prompt  'UTC'  'source-room'  'source'  'source'  'every hour'  *pattern:c
-        'Prompt'  ~  t0  1  %active  ''  `(input-id:hd 'source' 'running')
+        'Prompt'  ~  t0  `1  %active  ''  `(input-id:hd 'source' 'running')
     ==
   ;<  ~  bind:m  (start-with saved)
   ;<  ~  bind:m  ex-index

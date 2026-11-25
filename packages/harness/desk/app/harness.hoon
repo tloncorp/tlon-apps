@@ -1096,7 +1096,7 @@
   =/  parsed  (mule |.((create:schedule-lib action u.source grants now.bowl)))
   ?.  ?=(%& -.parsed)
     :*  :*  %|
-            'Require an authorized actor and prompt 1..4096 bytes with either a future RFC3339 at timestamp (explicit offset or Z) or a five-field schedule with timezone UTC or a fixed +HH:MM/-HH:MM offset and runs 1..100. Literal reminders require at and text, and a destination only if it names this conversation.'
+            'Require an authorized actor and prompt 1..4096 bytes with either a future RFC3339 at timestamp (explicit offset or Z) or a five-field schedule with timezone UTC or a fixed +HH:MM/-HH:MM offset and, optionally, runs as a whole number from 1 to 1000000. Literal reminders require at and text, and a destination only if it names this conversation.'
         ==
         ~  state
     ==
@@ -5994,8 +5994,12 @@
     %+  skim  granted
     |=  grant=tool-grant:h
     (lien tools.u.live |=(allowed=tool-grant:h =(allowed grant)))
-  =?  granted  &(!administrator ?=(^ session) (social-context:hl log.u.session))
-    (conversation-tools:ht granted)
+  ::  A Tlon conversation is shared from its creation, before anyone has
+  ::  written in it; only a proven administrator's turn escapes this.
+  =/  tlon  (session-tlon sid)
+  =?  granted
+    &(!administrator ?=(^ session) |(tlon (social-context:hl log.u.session)))
+  (conversation-tools:ht granted)
   =/  parent  ?~(session ~ (delegation:hl log.u.session))
   =?  granted  ?=(^ parent)
     ::  The child identity must match a still-outstanding parent request.
@@ -6020,7 +6024,6 @@
     ?&  !=(grant %subagents)
         (lien ceiling |=(allowed=tool-grant:h =(grant allowed)))
     ==
-  =/  tlon  (session-tlon sid)
   ::  Tlon authority requires a live hand binding.
   =.  granted  ?:(tlon (with-tlon:ht granted) (without-tlon:ht granted))
   =/  authority=hand-authority:adapter  (execution-authority sid tlon speaker)

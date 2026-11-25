@@ -5,8 +5,8 @@
 /=  adapter  /app/harness-tlon
 |%
 ++  fixture
-  ^-  state-4:t
-  =/  s=state-4:t  *state-4:t
+  ^-  state-5:t
+  =/  s=state-5:t  *state-5:t
   s(owner-initialized 1, policy [& `~lux ~ %mentions ~ ~], activity-through ~2026.10.1)
 ::
 ++  head-connected
@@ -30,6 +30,8 @@
     |=  =path
     ^-  (unit vase)
     ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
+    ::  harness-tlon-steward covers the Steward lease.
+    ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(|)
     ?:  =(%$ (rear path))  `!>(&)
     ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(invited)
     ?:  (lien path |=(part=@ta =(%hand-state part)))  `!>(*state:hh)

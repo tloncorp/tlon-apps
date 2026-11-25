@@ -269,8 +269,8 @@ it needs them. A card older than that is no longer known.
   posts the group's card in the DM. That post carries a
   `tlon-agent-post-marker` naming the card and the group, which is what makes
   the card created. It then reports the task to schedule with `cron_add`,
-  whose prompt starts with the task's title in brackets and posts to the
-  workspace chat. A later call makes only the group changes still missing, so
+  without a run count so it repeats until cancelled, whose prompt starts
+  with the task's title in brackets and posts to the workspace chat. A later call makes only the group changes still missing, so
   one Tlon rejected is retried, and otherwise makes nothing. The answer and
   the marker are not retried that way: if the chat rejects the answer but the
   marker lands, the card is created without its answer; if the answer lands
@@ -492,8 +492,12 @@ Preferences retain their source actor. Recall gives the owner's general
 preferences in every conversation, then the speaker's own.
 Skills are an owner-managed shared instruction library, not personal memory.
 Social conversations and their descendants cannot write, stage or publish into
-that library, regardless of saved tool grants. An operator can deliberately install
-reusable instructions outside a social conversation.
+that library, regardless of saved tool grants. Every Tlon conversation is social
+from its creation, before anyone has written in it, so a schedule made there
+before its first message holds the same tools after it. Only an administrative
+turn escapes this: the owner's in the owner's DM, or the operator's own local
+prompt. An operator can deliberately install reusable instructions outside a
+social conversation.
 
 For a channel thread, ordinary message admission captures the native parent
 and up to eight recent replies as attributed public reference material. The
@@ -825,8 +829,9 @@ renewing Steward's gateway lease. Schedule deadlines belong to the head's shared
 scheduler. An otherwise idle, connected Tlon hand has no maintenance wake but
 that renewal, which comes about every ten minutes while the hand has an owner
 and Steward runs. Status exposes `deliveryMode: "events"`, `headConnected`,
-`publicationsConnected`, and nullable `maintenanceWake` and `leaseRenewal`;
-`connected` continues to describe the Activity subscription.
+`publicationsConnected`, `automationHeld` (see Scheduled Tasks in Tlon
+Messenger), and nullable `maintenanceWake` and `leaseRenewal`; `connected`
+continues to describe the Activity subscription.
 
 Activity catch-up uses a durable native ingestion-time cursor. Each turn walks
 at most 16 selected events plus one lookahead in the current native ordered
@@ -929,8 +934,8 @@ Kernel to revoke it, including when policy changes while the head is offline.
 Harness also revokes known forms when posting fails or a handoff times out,
 and cancels known wallet requests through `payment_cancel`. An in-progress fill
 or an unconfirmed revocation leaves the outcome uncertain. Pending handoffs
-are saved in adapter state version 4 so a desk reload can continue checking
-the outcome or revoke the form. Browser handoffs require a direct Kernel HTTP
+are saved in adapter state, from version 4 on, so a desk reload can continue
+checking the outcome or revoke the form. Browser handoffs require a direct Kernel HTTP
 endpoint; registration through the ship's MCP proxy is unsupported.
 For a trusted ship, adding a browser grant preserves its running conversation
 and admission cutoff. Removing the grant still stops its work. Peer access
@@ -984,6 +989,157 @@ include `tlon`. An owner DM has it; other conversations take their grants from
 **Settings → Defaults** when they are created. Open **Settings → Schedules** to
 inspect jobs.
 
+### Scheduled Tasks in Tlon Messenger
+
+Messenger's **Scheduled Tasks** screen lists and edits a bot's tasks through
+Steward's automation module, and the hand plays the harness that module
+expects. It does so while it has an explicit owner and Steward runs on the ship
+with that module; otherwise it neither projects nor takes edits.
+
+Steward gained the module in `%groups` v12.3.0. An older Steward refuses the
+hand's watch on `/v1/automation/harness` and serves none of the module's paths,
+and a read of one would crash the hand's event, so the hand reads and projects
+only once Steward has acknowledged that watch. After a refusal it sends Steward
+no projection, reads nothing of the module, and shows `automationHeld: false`;
+it watches again only when it loads, its owner changes, or it next takes a
+lease Steward does not hold, so a Steward updated in between is found then.
+Such a Steward still gets the owner and the gateway lease, which it serves.
+
+The hand watches the head's `/v1/schedule-events` and pokes Steward
+`%steward-automation-action-1` `%project` with the complete task set: when
+Steward acknowledges the watch on its feed, when a change alters the tasks,
+when its schedule watch is acknowledged, and when Steward holds no gateway
+lease for it, as a Steward that starts after the hand does not. A run advancing
+a job's bookkeeping changes no task and sends nothing. The tasks are the
+owner's own schedules on the Tlon hand; other hands' schedules, other actors'
+and tool grants never reach Steward. Each maps as:
+
+| Task field | From |
+| --- | --- |
+| id | the schedule's `@uv` id as text |
+| `name`, `description` | the ones a Steward edit gave it; otherwise the prompt's first line, up to 64 characters, and none |
+| `enabled` | true for an active job; false for a paused, cancelled or completed one, which stays listed so the owner can delete it |
+| `schedule` | `every` with the interval and anchor it was made from, while the job still runs the expression the hand made of them; otherwise `cron` with the expression and the IANA zone it was created with, or else the job's `UTC` or offset; `at` with the instant for a one-time job |
+| `payload` | `agentTurn` with the prompt; a literal reminder is a `systemEvent`, OpenClaw's kind for text that runs no agent turn |
+| `delivery` | `announce` on `tlon` to the job's conversation: `~ship` for a DM, `kind/~host/name` for a channel |
+
+Agent, session, wake mode and timestamps are left absent.
+
+Before its first projection the hand reads this ship's entry in Steward's
+`/v1/automation/tasks`, in the event of Steward's acknowledgement of its watch
+and in no other, so never while loading; until then a projection with no task
+waits. An absent or empty entry is projected over at once, as on every new bot.
+An entry holding tasks the hand did not write, such as ones OpenClaw left, is
+not, while the owner has no Tlon schedule of the hand's own: Messenger keeps
+showing those tasks until the operator imports them into Harness, and the
+hand's status shows `automationHeld: true`. The hold ends with the first
+projection that has a task of the hand's own, made in conversation, from the
+screen or by the import, and that task set replaces Steward's list. A new
+owner's hand holds the same way, since the entry is this ship's whoever owns
+it. Once the hand has projected it never reads Steward's tasks again.
+
+While the list is held, Messenger shows the old tasks with nothing saying they
+are held. An edit or pause answers `not-found`, since the hand has no such
+schedule. A delete also answers `not-found`, which the app treats as deleted,
+so the row disappears and comes back on refresh.
+
+The hand also watches Steward's `/v1/automation/harness` and applies each
+dispatched edit through the head's cron API, one `%harness-cron` request at a
+time, then answers with `%finalize`. Steward replays unanswered commands to a
+new subscriber; one already applying is not started again, and a create reaches
+the head under an id made from its request id, the low 128 bits, so a replayed
+create returns the job it already made. Messenger names a request id, and its
+ids fit in 128 bits; for a client that names none Steward mints one from 512
+bits, which the hand truncates because the job's run binding, `schedule-` and
+its id, must fit the head's 128-byte limit.
+
+- `create` needs a schedule and a prompt. A `cron` schedule's `tz` is `UTC`
+  when absent, or an IANA name looked up in the
+  [zone table](scheduling.md#tlon-messengers-scheduled-tasks), and the hand
+  keeps the name to show it back. An `every` schedule becomes the cron
+  expression on `UTC` that runs at the same instants, which exists for an
+  interval of whole minutes that divides an hour (15 minutes anchored at :05
+  is `5,20,35,50 * * * *`), of whole hours that divides a day (4 hours
+  anchored at 02:15 is `15 2,6,10,14,18,22 * * *`), or of a week
+  (`M H * * D` on the anchor's weekday). Cron runs on whole minutes, so the
+  anchor's seconds are dropped, and the anchor sets only the phase: a job
+  anchored later than now still runs at the next matching minute. Without an
+  anchor, as in OpenClaw, the interval counts from the creation, or for an
+  update from the anchor the task had if its interval is unchanged, and
+  otherwise from the update. The hand keeps the interval and anchor to show
+  them back. A recurring job has no run limit and runs until it is
+  cancelled. It delivers to the owner's DM when its delivery names that DM or
+  is absent, and otherwise to the channel it names. The
+  job runs as the owner in the bot's conversation there, which in a channel
+  is the one shared by everyone there. It answers `created` with the new
+  job's id.
+
+  A destination nobody has written in yet has no conversation, and the hand
+  opens one before it creates the job, as a first message would: it sets up
+  the head session with the conversation's tools and binds it, and the job
+  is created in that binding. The owner's DM can always be opened while the
+  hand is on. A channel can be opened when the bot's replies there are not
+  off and the bot can post in it: it hosts the channel, or it has joined the
+  channel and the channel's group, is not banned there, and is an admin there, or the channel
+  has no writer roles, or one of its roles is a writer, as the group's
+  can-write scry answers. Otherwise the create answers `invalid`
+  with the reason: `the bot cannot post in chat/~host/name; add it to the
+  channel with permission to write`, `the bot's replies are off in
+  chat/~host/name; turn them on in its Tlon settings`, or, with the hand off,
+  `the bot is turned off; turn it on in its Tlon settings`, and opens
+  nothing. Creates for one conversation that arrive while it is being opened
+  share the one opening. If the head refuses to set the conversation up or to
+  bind it, the create answers `harness-error`. So does a settings change that
+  withdraws the conversation before it is ready, or a change of owner before
+  the job is created, and the owner sends the change again. Nothing is posted
+  in the conversation until the job's first run.
+- `update` patches: `enabled` false cancels the job; a new schedule or prompt
+  edits it in place, keeping its run limit if it has one, such as one the bot
+  gave it in conversation, and otherwise none; a name or description only
+  updates what the hand shows. It answers `updated`.
+- `delete` removes the job. It answers `deleted`.
+
+These answer `invalid` with a message: an unknown zone, an `every` interval
+under a minute, with a seconds remainder or with no cron expression (such as 45
+or 90 minutes, 7 or 36 hours, or 10 days), a create without a schedule or
+prompt, a payload kind other than the job's, a target that is not the owner's
+DM or a channel the hand can open as above, moving a task to another
+conversation, re-enabling a disabled task, and `test`, since the head cannot
+run a job once without delivering it. So does any field the hand cannot honor,
+named in the message, rather than be dropped. Three are accepted at the one
+value that says what a job here does, the values Messenger's own create sends:
+`agentId` `main` (OpenClaw's default agent), `sessionTarget` `isolated` (a
+fresh session for each run) and `wakeMode` `now` (a run at its time, not at the
+next heartbeat); any other value is refused, as are a `staggerMs` other than 0,
+`payload.toolsAllow`, `webhook` delivery, `none` delivery (every run posts its
+result), `delivery.failureDestination`, `delivery.accountId` and delivery to a
+notes channel. Every other field is applied, except `createdAtMs` and
+`updatedAtMs`, the host's record of the task, which an edit does not set and
+the hand ignores. An id that is not one of the owner's Tlon schedules answers
+`not-found`. A head refusal, such as editing a job whose run is still in
+flight, answers `harness-error` with the head's message.
+
+Steward admits an edit only from its configured owner, and the hand sets that
+owner whenever its own changes, so new edits come from the current owner. A
+command Steward admitted before an owner change is still replayed, since the
+automation dispatch names no requester; it can only reach schedules the new
+owner holds, the new owner's DM and channels the hand can open. A create
+still waiting for its conversation when the owner changes is refused.
+
+A job created in the owner's DM before the owner has written there runs
+without `%skill-write` and `%author`, as one made in a channel does: a
+conversation counts as social until its owner's own message makes it
+administrative, and a job keeps the tools it was created with. One created
+after an owner message there has them.
+
+Known limits: pausing cancels, and a cancelled job cannot be resumed; an
+`every` must have a cron expression; test runs are not supported; a zone's
+offset is fixed when the task is created; a job created in the owner's DM
+before the owner has written there has the narrower tools above; while the
+list is held, Messenger shows the old tasks with nothing saying they are held,
+and a delete of one answers `not-found`, so its row disappears and comes back
+on refresh.
+
 ## Testing
 
 `tests-js/tlon-membership-conformance.mjs` uses two disposable ships to check
@@ -992,6 +1148,16 @@ restricted channels and disabled-hand behavior. Supply `SHIP_URL`, `SHIP_COOKIE`
 `PEER_URL` and `PEER_COOKIE`. It makes no model calls, restores Tlon policy and
 removes its fixture group. Pure membership tests live in
 `desk/tests/harness-tlon-membership.hoon`.
+
+`desk/tests/harness-tlon-automation.hoon` tests the Steward task mapping and
+each edit's head actions or refusal;
+`desk/tests-integration/harness-tlon-automation.hoon` runs the projection and
+edit loop through the hand, with Steward and the head answered by the fixture.
+`tests-js/tlon-automation-conformance.mjs` runs it end to end on two ships: the
+owner trusts the bot through Steward and creates tasks with Messenger's HTTP
+edit into a channel the bot has no conversation in; a one-time task posts
+there, and a recurring task there keeps running after the owner's first
+message in the channel.
 
 `tests-js/tlon-actions-conformance.mjs` exercises the broad
 tool with automatic replies disabled; `tests-js/tlon-denial-conformance.mjs`

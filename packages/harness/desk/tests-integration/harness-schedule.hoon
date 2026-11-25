@@ -319,11 +319,111 @@
     %+  ex-equal
       !>(prompt:(~(got by schedules.next) 0v1))
     !>('Check deployment status')
-  ;<  ~  bind:m  (ex-equal !>(remaining:(~(got by schedules.next) 0v1)) !>(5))
+  ;<  ~  bind:m  (ex-equal !>(remaining:(~(got by schedules.next) 0v1)) !>(`5))
   ;<  ~  bind:m  (ex-equal !>(schedules.unchanged) !>(schedules.next))
   ;<  ~  bind:m  (ex-equal !>(schedules.final) !>(~))
   ;<  ~  bind:m  (ex-equal !>((~(has by sessions.final) 'schedule-0v1')) !>(&))
   (ex-equal !>(enabled:(~(got by bindings.hands.final) 'schedule-0v1')) !>(|))
+::  A recurring job's runs are optional. Without them the head keeps running
+::  it until it is cancelled; a count saved before runs became optional
+::  still ends the job as it did.
+::
+++  unlimited-job
+  ^-  schedule:c
+  =/  act=action:c
+    :*  %add  0v1  'source-binding'  'alice'  %prompt
+        %-  pairs:enjs:format
+        ~[['schedule' %s '* * * * *'] ['timezone' %s 'UTC'] ['prompt' %s 'Check status']]
+    ==
+  (create:schedule act ['fixture-chat' 'room' 'source' ~['alice'] &] ~ ~2026.9.9)
+::  Load one job a day late, fire its wake and return what the head saved.
+++  run-late
+  |=  j=schedule:c
+  =/  m  (mare ,state-0)
+  ^-  form:m
+  =/  s  fixture
+  =.  schedules.s  (my ~[[0v1 j]])
+  ;<  ~             bind:m  prepare
+  ;<  ~             bind:m  (wait ~d1)
+  ;<  *             bind:m  (reload s)
+  get-state
+++  ran-once
+  |=  next=state-0
+  ^-  ?
+  =/  runs
+    %+  skim  ~(val by observations.hands.next)
+    |=(o=observation:hh =('schedule-0v1' binding.o))
+  =(1 (lent runs))
+++  test-a-job-without-runs-stays-active-after-the-head-runs-it
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  next=state-0  bind:m  (run-late unlimited-job)
+  =/  j  (~(got by schedules.next) 0v1)
+  ;<  ~  bind:m  (ex-equal !>((ran-once next)) !>(&))
+  ;<  ~  bind:m  (ex-equal !>(state.j) !>(%active))
+  ;<  ~  bind:m  (ex-equal !>(remaining.j) !>(`(unit @ud)`~))
+  (ex-equal !>((gth next.j (add t0 ~d1))) !>(&))
+++  test-a-saved-job-on-its-last-run-completes-as-before
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  `schedule:c`job
+  =.  remaining.saved  `1
+  ;<  next=state-0  bind:m  (run-late saved)
+  =/  j  (~(got by schedules.next) 0v1)
+  ;<  ~  bind:m  (ex-equal !>((ran-once next)) !>(&))
+  ;<  ~  bind:m  (ex-equal !>(state.j) !>(%complete))
+  (ex-equal !>(remaining.j) !>(`0))
+++  cron-remaining
+  =/  m  (mare ,json)
+  ^-  form:m
+  ;<  =cage  bind:m  (got-peek /x/cron)
+  =/  rows  !<(json q.cage)
+  ?>  ?=([%a [%o *] ~] rows)
+  (pure:m (~(got by p.i.p.rows) 'remaining'))
+++  test-edit-adds-and-removes-a-count-and-listing-shows-null
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  fixture
+  =/  j  unlimited-job
+  =.  schedules.s  (my ~[[0v1 j]])
+  =/  base=(list [@t json])
+    ~[['schedule' %s '0 9 * * *'] ['timezone' %s 'UTC'] ['prompt' %s 'Check status']]
+  =/  counted  (pairs:enjs:format (snoc base ['runs' %s '500']))
+  ;<  ~                  bind:m  (setup s)
+  ;<  open=json          bind:m  cron-remaining
+  ;<  *                  bind:m
+    (do-poke %harness-cron !>(`request:c`['add-count' [%edit 0v1 (sham j) counted]]))
+  ;<  limited=state-0    bind:m  get-state
+  =/  lj  (~(got by schedules.limited) 0v1)
+  ;<  shown=json         bind:m  cron-remaining
+  ;<  *                  bind:m
+    %-  do-poke
+    [%harness-cron !>(`request:c`['drop-count' [%edit 0v1 (sham lj) (pairs:enjs:format base)]])]
+  ;<  unlimited=state-0  bind:m  get-state
+  =/  uj  (~(got by schedules.unlimited) 0v1)
+  ;<  hidden=json        bind:m  cron-remaining
+  ;<  ~  bind:m  (ex-equal !>(open) !>(`json`~))
+  ;<  ~  bind:m  (ex-equal !>(remaining.lj) !>(`(unit @ud)``500))
+  ;<  ~  bind:m  (ex-equal !>(shown) !>((numb:enjs:format 500)))
+  ;<  ~  bind:m  (ex-equal !>(state.uj) !>(%active))
+  ;<  ~  bind:m  (ex-equal !>(remaining.uj) !>(`(unit @ud)`~))
+  (ex-equal !>(hidden) !>(`json`~))
+++  test-a-cancelled-job-without-runs-can-be-cleared
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  fixture
+  =.  schedules.s  (my ~[[0v1 unlimited-job]])
+  ;<  ~                  bind:m  (setup s)
+  ;<  *                  bind:m  (do-poke %harness-cron !>(`request:c`['cancel' [%cancel 0v1]]))
+  ;<  cancelled=state-0  bind:m  get-state
+  ;<  *                  bind:m  (do-poke %harness-cron !>(`request:c`['clear' [%clear 0v1]]))
+  ;<  cleared=state-0    bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>(state:(~(got by schedules.cancelled) 0v1)) !>(%cancelled))
+  (ex-equal !>(schedules.cleared) !>(~))
 ::  A schedule's run gets a binding of its own, and a ledger past 256
 ::  bindings, enabled and disabled, still binds each new one.
 ++  test-schedules-are-added-on-a-ledger-past-256-bindings
@@ -439,7 +539,7 @@
           |=  [key=@t value=@t]
           &(=('authorization' key) =('Bearer current-subscription-token' value))
     !>(&)
-  ;<  ~  bind:m  (ex-equal !>(remaining.j) !>(2))
+  ;<  ~  bind:m  (ex-equal !>(remaining.j) !>(`2))
   ;<  ~  bind:m  (ex-equal !>(next.j) !>(next:(~(got by schedules.s) 0v1)))
   ;<  ~  bind:m  (ex-equal !>((requests duplicate)) !>(~))
   ;<  ~  bind:m
@@ -895,6 +995,116 @@
   ?.  ?=([%give %fact *] i.cards)  $(cards t.cards)
   ?.  ?=([[%crons @ ~] ~] paths.p.i.cards)  $(cards t.cards)
   `!<((each json @t) q.cage.p.i.cards)
+::  A Tlon conversation the bot is in that nobody has written in yet: its
+::  log holds only its configuration, and anyone there may speak.
+::
+++  fresh-fixture
+  |=  address=@t
+  ^-  state-0
+  =/  s  fixture
+  =.  sessions.s  (my ~[['source' [~[[%config-replaced builtin-config:defaults]] 1]]])
+  =.  bindings.hands.s  (my ~[['source-binding' ['tlon' address 'source' ~['*'] &]]])
+  s
+::  .speaker's first message in that conversation, already answered.
+::
+++  first-message
+  |=  [s=state-0 address=@t speaker=@p at=@da]
+  ^-  state-0
+  =/  who  (scot %p speaker)
+  =/  input=admitted-input:h
+    :*  0v8  [%hand 'source-binding' 'tlon' address 'human-request' who]  ~
+        `[%hand 'source-binding']  at  [%user 'Hello']
+    ==
+  =/  source  (~(got by sessions.s) 'source')
+  =.  sessions.s
+    (~(put by sessions.s) 'source' source(log [[%input-received input] log.source]))
+  =.  observations.hands.s
+    %+  ~(put by observations.hands.s)  0v8
+    ['source-binding' 'human-request' who 'Hello' at %completed]
+  s
+::  Fire the schedule wake the head has armed.
+::
+++  fire-wake
+  =/  m  (mare ,state-0)
+  ^-  form:m
+  ;<  armed=state-0  bind:m  get-state
+  =/  at  (need schedule-wake.armed)
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now at)))
+  ;<  *  bind:m  (do-arvo /schedules/(scot %da at) [%behn %wake ~])
+  get-state
+::  The owner schedules work from a conversation with no input yet. It
+::  runs on its own session, and a first message there leaves it active.
+::
+++  survives-first-message
+  |=  [address=@t speaker=@p]
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  args=json
+    %-  pairs:enjs:format
+    ~[['schedule' %s '0 * * * *'] ['timezone' %s 'UTC'] ['prompt' %s 'Hourly digest']]
+  =/  add=action:c  [%add 0v1 'source-binding' '~nec' %prompt args]
+  =/  lanes  (my ~[['source' (tlon-lane ~nec address ~)]])
+  ;<  ~  bind:m  (tlon-setup (fresh-fixture address) lanes)
+  ;<  added=(list card)  bind:m  (do-poke %harness-cron !>(`request:c`['fresh' add]))
+  ;<  ~  bind:m  (ex-equal !>(?=([~ %& *] (cron-result added))) !>(&))
+  ;<  created=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>(state:(~(got by schedules.created) 0v1)) !>(%active))
+  ::  Loading wakes a tick later for upkeep; the job's own wake follows.
+  ;<  woken=state-0  bind:m  fire-wake
+  =/  first  (~(got by schedules.woken) 0v1)
+  ;<  ran=state-0  bind:m
+    ?^  last.first  (pure:(mare ,state-0) woken)
+    fire-wake
+  =/  job  (~(got by schedules.ran) 0v1)
+  ;<  ~  bind:m  (ex-equal !>([state reason]:job) !>([%active '']))
+  ;<  ~  bind:m  (ex-equal !>(?=(^ last.job)) !>(&))
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>  %+  lien  ~(val by observations.hands.ran)
+          |=(o=observation:hh =('schedule-0v1' binding.o))
+    !>(&)
+  ;<  =bowl  bind:m  get-bowl
+  ;<  *  bind:m  (reload (first-message ran address speaker now.bowl))
+  ;<  spoken=state-0  bind:m  get-state
+  (ex-equal !>([state reason]:(~(got by schedules.spoken) 0v1)) !>([%active '']))
+++  test-a-schedule-from-a-tlon-channel-with-no-input-runs-and-survives-its-first-message
+  %-  eval-mare
+  (survives-first-message room ~bus)
+++  test-a-schedule-from-the-owners-dm-with-no-input-runs-and-survives-its-first-message
+  %-  eval-mare
+  (survives-first-message owner-dm ~nec)
+::  A schedule made in the owner's DM before his first message there, as a
+::  Steward create into a DM the hand has just opened is, saves the tools of
+::  a conversation nobody administers yet: neither %skill-write nor %author.
+::  One made after his message saves both. The narrower set stays within
+::  his live grants once he writes, so his message does not pause the job
+::  (the test above), and it runs without those two tools.
+::
+++  test-a-schedule-made-before-the-owners-first-dm-message-saves-neither-skill-write-nor-author
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  args=json
+    %-  pairs:enjs:format
+    ~[['schedule' %s '0 * * * *'] ['timezone' %s 'UTC'] ['prompt' %s 'Hourly digest']]
+  =/  add=action:c  [%add 0v1 'source-binding' '~nec' %prompt args]
+  =/  lanes  (my ~[['source' (tlon-lane ~nec owner-dm ~)]])
+  =/  saved
+    |=  s=state-0
+    =/  m  (mare ,(list tool-grant:h))
+    ^-  form:m
+    ;<  ~  bind:m  (tlon-setup s lanes)
+    ;<  *  bind:m  (do-poke %harness-cron !>(`request:c`['fresh' add]))
+    ;<  made=state-0  bind:m  get-state
+    (pure:m tools:(~(got by schedules.made) 0v1))
+  ;<  narrow=(list tool-grant:h)  bind:m  (saved (fresh-fixture owner-dm))
+  ;<  wide=(list tool-grant:h)  bind:m
+    (saved (first-message (fresh-fixture owner-dm) owner-dm ~nec t0))
+  =/  has  |=([tools=(list tool-grant:h) tool=tool-grant:h] ?=(^ (find ~[tool] tools)))
+  ;<  ~  bind:m  (ex-equal !>([(has narrow %skill-write) (has narrow %author)]) !>([| |]))
+  ;<  ~  bind:m  (ex-equal !>([(has wide %skill-write) (has wide %author)]) !>([& &]))
+  %+  ex-equal  !>((skip narrow |=(tool=tool-grant:h (has wide tool))))
+  !>(`(list tool-grant:h)`~)
 ::  A Tlon job whose actor is not the owner must not run, and shows as paused
 ::  rather than cancelled or removed.
 ::
@@ -1128,7 +1338,7 @@
   ;<  out=(list card)  bind:m  (do-arvo /schedules/(scot %da at) [%behn %wake ~])
   ;<  next=state-0     bind:m  get-state
   =/  ran  (~(got by schedules.next) 0v1)
-  ;<  ~  bind:m  (ex-equal !>(remaining.ran) !>((dec remaining.job)))
+  ;<  ~  bind:m  (ex-equal !>(remaining.ran) !>((bind remaining.job dec)))
   ;<  ~  bind:m  (ex-equal !>(?=(^ last.ran)) !>(&))
   (ex-equal !>((feed out)) !>(~[schedules.next]))
 ::

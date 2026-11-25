@@ -1,13 +1,14 @@
 ::  Steward's owner and gateway lease do not depend on Lens sync. Steward is
 ::  answered by the fixture's scries; its pokes stay in the fixture.
-/-  t=harness-tlon, ad=harness-adapter, hh=harness-hand, steward, steward-gateway
+/-  t=harness-tlon, ad=harness-adapter, hh=harness-hand, steward, steward-gateway,
+    sa=steward-automation
 /+  *test-agent
 /=  adapter  /app/harness-tlon
 |%
 ++  saved
   |=  [owner=(unit @p) lens=?]
-  ^-  state-4:t
-  =/  saved=state-4:t  *state-4:t
+  ^-  state-5:t
+  =/  saved=state-5:t  *state-5:t
   %=  saved  owner-initialized  1  policy  [& owner ~ %mentions ~ ~]  watching  &
     activity-through  ~2026.10.1
     lens  ?.(lens *lens-sync:t [& owner ~2026.10.1 ~ ''])
@@ -44,6 +45,8 @@
   ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(running)
   ?:  ?=([%gx @ %steward @ %v1 %gateway %status %noun ~] path)
     `!>(`[status:v1:steward-gateway (unit @da)]`[?~(until %down %up) until])
+  ?:  ?=([%gx @ %steward @ %v1 %automation %tasks @ ~] path)
+    `!>(`(map @p tasks:v1:sa)`~)
   ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
   ?:  =(%$ (rear path))  `!>(&)
   ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)
@@ -120,13 +123,13 @@
   =/  m  (mare ,(unit @da))
   ^-  form:m
   ;<  =vase  bind:m  get-save
-  (pure:m wake:!<(state-4:t vase))
+  (pure:m wake:!<(state-5:t vase))
 ::
 ++  errors
   =/  m  (mare ,[@t @t])
   ^-  form:m
   ;<  =vase  bind:m  get-save
-  =/  state  !<(state-4:t vase)
+  =/  state  !<(state-5:t vase)
   (pure:m [error.state error.lens.state])
 ::
 ++  test-steward-gets-the-owner-and-lease-without-lens-sync

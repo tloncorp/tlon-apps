@@ -7,9 +7,9 @@
 ++  payment-id  '187d7950-bf80-4667-ad9d-5dd01f84a5da'
 ++  run
   |=  [phase=browser-phase:t live=? changed=? wallet=?]
-  =/  m  (mare ,[(list card) state-4:t])
+  =/  m  (mare ,[(list card) state-5:t])
   ^-  form:m
-  =/  saved  *state-4:t
+  =/  saved  *state-5:t
   =.  owner-initialized.saved  1
   =.  policy.saved  [& `~nec ~ %mentions ~ ~]
   =.  lanes.saved  (my ~[['source' [[%dm ~nec ~] 1 ~[%web]]]])
@@ -26,6 +26,8 @@
     ^-  (unit vase)
     ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
     ?:  ?=([%gu @ %harness @ %$ ~] path)  `!>(live)
+    ::  harness-tlon-steward covers the Steward lease.
+    ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(|)
     ?:  =(%$ (rear path))  `!>(&)
     ?:  (lien path |=(part=@ta =(%hand-state part)))  `!>(*state:hh)
     ?:  (lien path |=(part=@ta =(%tool-call part)))
@@ -46,13 +48,13 @@
     =/  params  (policy-json:policy policy.saved(owner `~zod))
     (do-poke %noun !>(`request:ad`['fixture' [%n '1'] 'harness/tlon/configure' `params]))
   ;<  =vase  bind:m  get-save
-  (pure:m caz !<(state-4:t vase))
+  (pure:m caz !<(state-5:t vase))
 ::
 ++  check
   |=  [phase=browser-phase:t live=? changed=? wallet=?]
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) saved=state-4:t]  bind:m  (run phase live changed wallet)
+  ;<  [caz=(list card) saved=state-5:t]  bind:m  (run phase live changed wallet)
   =/  requests
     (skim caz |=(c=card ?=([%pass * %arvo %i %request *] c)))
   ;<  ~  bind:m  (ex-equal !>((lent requests)) !>(1))
@@ -83,7 +85,7 @@
   |=  confirmed=?
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) saved=state-4:t]  bind:m  (run [%wait [%payment payment-id]] | & &)
+  ;<  [caz=(list card) saved=state-5:t]  bind:m  (run [%wait [%payment payment-id]] | & &)
   =/  entry  (~(got by browser-entries.saved) 0v1)
   =/  body
     ?:  confirmed
@@ -94,7 +96,7 @@
       /browser-entry/0v1/(scot %da next.entry)
     [%iris %http-response %finished [200 ~] `['application/json' (as-octs:mimes:html body)]]
   ;<  =vase  bind:m  get-save
-  =/  settled  !<(state-4:t vase)
+  =/  settled  !<(state-5:t vase)
   =/  receipt  (~(got by tool-receipts.settled) 0v1)
   ;<  ~  bind:m  (ex-equal !>(stage.receipt) !>(%done))
   ;<  ~  bind:m  (ex-equal !>(browser-entries.settled) !>(~))
@@ -111,7 +113,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) saved=state-4:t]  bind:m  (run [%wait [%form form-url]] | | |)
+  ;<  [caz=(list card) saved=state-5:t]  bind:m  (run [%wait [%form form-url]] | | |)
   ;<  ~  bind:m
     (ex-equal !>((lien caz |=(c=card ?=([%pass * %arvo %i %request *] c)))) !>(|))
   %+  ex-equal
