@@ -6,6 +6,7 @@ import {
   OnboardingButton,
   OnboardingInviteBlock,
   Pressable,
+  SatoWordmark,
   SizableText,
   TlonText,
   View,
@@ -64,7 +65,9 @@ export const WelcomeScreen = ({ navigation }: Props) => {
     <View flex={1} backgroundColor={'$secondaryBackground'} paddingTop={top}>
       <View flex={1} justifyContent="center" alignItems="center" gap={'$3.5xl'}>
         <WelcomeIcon />
-        <TlonText.Text size="$label/xl">Tlon Messenger</TlonText.Text>
+        <View accessible role="heading" aria-label="Sato">
+          <SatoWordmark width={128} height={57} />
+        </View>
       </View>
       <View
         paddingBottom={bottom + 16}
